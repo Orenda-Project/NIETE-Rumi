@@ -1,0 +1,646 @@
+{
+ "version": "child-test-items-sa-extra-v1",
+ "rule": "Official items only, transcribed verbatim (src per item). Urdu renderings of English-only items are pending native review. Never authored.",
+ "sources": {
+  "rwp2026": {
+   "title": "Rawalpindi/ICT May 2026 EGRA/EGMA instrument (SurveyCTO codebook v109), fields cited per item"
+  },
+  "rti_rwanda2011": {
+   "title": "RTI International for USAID (2011), Early Grade Reading and Mathematics in Rwanda: Final Report, Annex C (sample items)",
+   "pages": "printed p. C-4"
+  }
+ },
+ "conventions": {
+  "ur_words": {
+   "circle": "دائرہ",
+   "triangle": "تکون",
+   "square": "چوکور",
+   "star": "ستارہ",
+   "shirt": "قمیض",
+   "shoe": "جوتا",
+   "pants": "پتلون",
+   "hat": "ٹوپی"
+  },
+  "glyphs": {
+   "circle": "●",
+   "triangle": "▲",
+   "square": "■",
+   "star": "★",
+   "shirt": "👕",
+   "shoe": "👟",
+   "pants": "👖",
+   "hat": "🧢"
+  },
+  "translation": "prompt_ur and ur_words are pending native review (RWP held English wording only)",
+  "scripts": "RWP administration scripts are not recoverable; Jugnu lines adapt the Core EGMA wording of the nearest task (sa/scripts.js)"
+ },
+ "maths": {
+  "patterns": {
+   "subtask": "pattern_extension",
+   "timed_s": null,
+   "items": [
+    {
+     "id": "patterns_1a",
+     "level": 1,
+     "type": "next_term_mc",
+     "prompt_en": "What comes next?\nCircle, triangle, circle, triangle, ___\na) star b) triangle c) circle d) square",
+     "seq": [
+      "circle",
+      "triangle",
+      "circle",
+      "triangle"
+     ],
+     "answer": "circle",
+     "src": "rwp2026:patterns_1a",
+     "options": [
+      "star",
+      "triangle",
+      "circle",
+      "square"
+     ],
+     "say_en": "What comes next? circle, triangle, circle, triangle",
+     "say_ur": "آگے کیا آئے گا؟ دائرہ، تکون، دائرہ، تکون"
+    },
+    {
+     "id": "patterns_1b",
+     "level": 1,
+     "type": "next_term_mc",
+     "prompt_en": "What comes next?\n2, 2, 1, 1, 2, 2, __\na) 1 b) 2 c) 3 d) 0",
+     "seq": [
+      "2",
+      "2",
+      "1",
+      "1",
+      "2",
+      "2"
+     ],
+     "answer": "1",
+     "src": "rwp2026:patterns_1b",
+     "options": [
+      "1",
+      "2",
+      "3",
+      "0"
+     ],
+     "say_en": "What comes next? 2, 2, 1, 1, 2, 2",
+     "say_ur": "آگے کیا آئے گا؟ ۲، ۲، ۱، ۱، ۲، ۲"
+    },
+    {
+     "id": "patterns_2a",
+     "level": 2,
+     "type": "next_term_mc",
+     "prompt_en": "What comes next? \nsquare square circle square square circle ___\na) star b) circle c) triangle d) square",
+     "seq": [
+      "square",
+      "square",
+      "circle",
+      "square",
+      "square",
+      "circle"
+     ],
+     "answer": "square",
+     "src": "rwp2026:patterns_2a",
+     "options": [
+      "star",
+      "circle",
+      "triangle",
+      "square"
+     ],
+     "say_en": "What comes next? square, square, circle, square, square, circle",
+     "say_ur": "آگے کیا آئے گا؟ چوکور، چوکور، دائرہ، چوکور، چوکور، دائرہ"
+    },
+    {
+     "id": "patterns_2b",
+     "level": 2,
+     "type": "next_term_mc",
+     "prompt_en": "What comes next? \nShirt, shoe, pants, shirt, shoe, ___\na) shoe b) shirt c) pants d) hat",
+     "seq": [
+      "shirt",
+      "shoe",
+      "pants",
+      "shirt",
+      "shoe"
+     ],
+     "answer": "pants",
+     "src": "rwp2026:patterns_2b",
+     "options": [
+      "shoe",
+      "shirt",
+      "pants",
+      "hat"
+     ],
+     "say_en": "What comes next? shirt, shoe, pants, shirt, shoe",
+     "say_ur": "آگے کیا آئے گا؟ قمیض، جوتا، پتلون، قمیض، جوتا"
+    },
+    {
+     "id": "patterns_3a",
+     "level": 3,
+     "type": "repeat_count",
+     "prompt_en": "Look at the pattern below.\n🔺🔵🔺🔵🔺🔵🔺🔵\nHow many times does 🔺🔵 repeat in the pattern?",
+     "seq": [
+      "🔺",
+      "🔵",
+      "🔺",
+      "🔵",
+      "🔺",
+      "🔵",
+      "🔺",
+      "🔵"
+     ],
+     "answer": "4",
+     "src": "rwp2026:patterns_3a",
+     "say_en": "Look at the pattern below. How many times does triangle, circle repeat in the pattern?",
+     "say_ur": "نیچے دی گئی ترتیب کو دیکھیں۔ تکون، دائرہ اس ترتیب میں کتنی بار دہرایا گیا ہے؟"
+    },
+    {
+     "id": "patterns_3b",
+     "level": 3,
+     "type": "repeat_count",
+     "prompt_en": "Look at the pattern below.\n🔵◻️🔺🔵◻️🔺🔵◻️🔺\nHow many times does 🔵◻️🔺 repeat?",
+     "seq": [
+      "🔵",
+      "◻️",
+      "🔺",
+      "🔵",
+      "◻️",
+      "🔺",
+      "🔵",
+      "◻️",
+      "🔺"
+     ],
+     "answer": "3",
+     "src": "rwp2026:patterns_3b",
+     "say_en": "Look at the pattern below. How many times does circle, square, triangle repeat?",
+     "say_ur": "نیچے دی گئی ترتیب کو دیکھیں۔ دائرہ، چوکور، تکون کتنی بار دہرایا گیا ہے؟"
+    },
+    {
+     "id": "patterns_4a",
+     "level": 4,
+     "type": "missing_term",
+     "prompt_en": "What number is missing? \n40, 30, ___, 10, 0",
+     "seq": [
+      "40",
+      "30",
+      "___",
+      "10",
+      "0"
+     ],
+     "answer": "20",
+     "src": "rwp2026:patterns_4a",
+     "say_en": "What number is missing? 40, 30, blank, 10, 0",
+     "say_ur": "کون سا نمبر غائب ہے؟ ۴۰، ۳۰، خالی، ۱۰، ۰"
+    },
+    {
+     "id": "patterns_4b",
+     "level": 4,
+     "type": "next_term_open",
+     "prompt_en": "What comes next?\n6, 11, 16, 21, 26, 31, ___",
+     "seq": [
+      "6",
+      "11",
+      "16",
+      "21",
+      "26",
+      "31"
+     ],
+     "answer": "36",
+     "src": "rwp2026:patterns_4b",
+     "say_en": "What comes next? 6, 11, 16, 21, 26, 31",
+     "say_ur": "آگے کیا آئے گا؟ ۶، ۱۱، ۱۶، ۲۱، ۲۶، ۳۱"
+    }
+   ],
+   "gate": "levels 3-4 only if at least 1 of the 4 level 1-2 items is correct (RWP patt_continue)",
+   "practice_note": "none recorded in the RWP May instrument"
+  },
+  "number_repr": {
+   "subtask": "number_representation",
+   "timed_s": null,
+   "items": [
+    {
+     "id": "represent_1a",
+     "level": 1,
+     "prompt_en": "How many bananas are there?",
+     "answer": "6",
+     "picture": true,
+     "direction_en": "Show the student the image of 6 bananas",
+     "src": "rwp2026:represent_1a"
+    },
+    {
+     "id": "represent_1b",
+     "level": 1,
+     "prompt_en": "What box has more apples?",
+     "answer": "box of 12 apples",
+     "picture": true,
+     "direction_en": "Show the student the image of the two boxes",
+     "src": "rwp2026:represent_1b"
+    },
+    {
+     "id": "represent_2a",
+     "level": 2,
+     "prompt_en": "What number does the picture below show?",
+     "answer": "32",
+     "picture": true,
+     "direction_en": "Show the student the image of the 1 stick, image of 10 sticks, and the image of three bundles of ten and 2 single sticks",
+     "src": "rwp2026:represent_2a"
+    },
+    {
+     "id": "represent_2b",
+     "level": 2,
+     "prompt_en": "How many tens are in 25?",
+     "answer": "2",
+     "picture": false,
+     "direction_en": null,
+     "src": "rwp2026:represent_2b",
+     "say_en": "How many tens are in 25?",
+     "say_ur": "۲۵ میں کتنی دہائیاں ہیں؟"
+    },
+    {
+     "id": "represent_3a",
+     "level": 3,
+     "prompt_en": "A number has 2 hundreds, 5 tens and 4 ones. What is the number?",
+     "answer": "254",
+     "picture": false,
+     "direction_en": null,
+     "src": "rwp2026:represent_3a",
+     "say_en": "A number has 2 hundreds, 5 tens and 4 ones. What is the number?",
+     "say_ur": "ایک نمبر میں ۲ سینکڑے، ۵ دہائیاں اور ۴ اکائیاں ہیں۔ وہ نمبر کون سا ہے؟"
+    },
+    {
+     "id": "represent_3b",
+     "level": 3,
+     "prompt_en": "How many hundreds are in 425?",
+     "answer": "4",
+     "picture": false,
+     "direction_en": null,
+     "src": "rwp2026:represent_3b",
+     "say_en": "How many hundreds are in 425?",
+     "say_ur": "۴۲۵ میں کتنے سینکڑے ہیں؟"
+    },
+    {
+     "id": "represent_4a",
+     "level": 4,
+     "prompt_en": "What number is this? 1,000 + 300 + 80 + 3",
+     "answer": "1383",
+     "picture": false,
+     "direction_en": null,
+     "src": "rwp2026:represent_4a",
+     "say_en": "What number is this? 1,000 + 300 + 80 + 3",
+     "say_ur": "یہ کون سا نمبر ہے؟ ۱۰۰۰ جمع ۳۰۰ جمع ۸۰ جمع ۳"
+    },
+    {
+     "id": "represent_4b",
+     "level": 4,
+     "prompt_en": "How many thousands are in 5137?",
+     "answer": "5",
+     "picture": false,
+     "direction_en": null,
+     "src": "rwp2026:represent_4b",
+     "say_en": "How many thousands are in 5137?",
+     "say_ur": "۵۱۳۷ میں کتنے ہزار ہیں؟"
+    }
+   ],
+   "gate": "levels 3-4 only if at least 1 of the 4 level 1-2 items is correct (RWP represent_cont)",
+   "practice_note": "none recorded in the RWP May instrument"
+  },
+  "fluency_l34": {
+   "subtask": "fact_fluency_add_sub_mul_div",
+   "timed_s": 60,
+   "items": [
+    {
+     "id": "blfl4_01",
+     "op": "+",
+     "a": 6,
+     "b": 5,
+     "answer": 11,
+     "src": "rwp2026:blfl4_question_label_1"
+    },
+    {
+     "id": "blfl4_02",
+     "op": "+",
+     "a": 10,
+     "b": 3,
+     "answer": 13,
+     "src": "rwp2026:blfl4_question_label_2"
+    },
+    {
+     "id": "blfl4_03",
+     "op": "+",
+     "a": 7,
+     "b": 8,
+     "answer": 15,
+     "src": "rwp2026:blfl4_question_label_3"
+    },
+    {
+     "id": "blfl4_04",
+     "op": "+",
+     "a": 9,
+     "b": 4,
+     "answer": 13,
+     "src": "rwp2026:blfl4_question_label_4"
+    },
+    {
+     "id": "blfl4_05",
+     "op": "+",
+     "a": 9,
+     "b": 9,
+     "answer": 18,
+     "src": "rwp2026:blfl4_question_label_5"
+    },
+    {
+     "id": "blfl4_06",
+     "op": "−",
+     "a": 11,
+     "b": 5,
+     "answer": 6,
+     "src": "rwp2026:blfl4_question_label_6"
+    },
+    {
+     "id": "blfl4_07",
+     "op": "−",
+     "a": 13,
+     "b": 10,
+     "answer": 3,
+     "src": "rwp2026:blfl4_question_label_7"
+    },
+    {
+     "id": "blfl4_08",
+     "op": "−",
+     "a": 15,
+     "b": 7,
+     "answer": 8,
+     "src": "rwp2026:blfl4_question_label_8"
+    },
+    {
+     "id": "blfl4_09",
+     "op": "−",
+     "a": 13,
+     "b": 9,
+     "answer": 4,
+     "src": "rwp2026:blfl4_question_label_9"
+    },
+    {
+     "id": "blfl4_10",
+     "op": "−",
+     "a": 18,
+     "b": 9,
+     "answer": 9,
+     "src": "rwp2026:blfl4_question_label_10"
+    },
+    {
+     "id": "blfl4_11",
+     "op": "×",
+     "a": 3,
+     "b": 4,
+     "answer": 12,
+     "src": "rwp2026:blfl4_question_label_11"
+    },
+    {
+     "id": "blfl4_12",
+     "op": "×",
+     "a": 5,
+     "b": 7,
+     "answer": 35,
+     "src": "rwp2026:blfl4_question_label_12"
+    },
+    {
+     "id": "blfl4_13",
+     "op": "×",
+     "a": 6,
+     "b": 6,
+     "answer": 36,
+     "src": "rwp2026:blfl4_question_label_13"
+    },
+    {
+     "id": "blfl4_14",
+     "op": "×",
+     "a": 7,
+     "b": 8,
+     "answer": 56,
+     "src": "rwp2026:blfl4_question_label_14"
+    },
+    {
+     "id": "blfl4_15",
+     "op": "×",
+     "a": 9,
+     "b": 9,
+     "answer": 81,
+     "src": "rwp2026:blfl4_question_label_15"
+    },
+    {
+     "id": "blfl4_16",
+     "op": "÷",
+     "a": 12,
+     "b": 4,
+     "answer": 3,
+     "src": "rwp2026:blfl4_question_label_16"
+    },
+    {
+     "id": "blfl4_17",
+     "op": "÷",
+     "a": 35,
+     "b": 5,
+     "answer": 7,
+     "src": "rwp2026:blfl4_question_label_17"
+    },
+    {
+     "id": "blfl4_18",
+     "op": "÷",
+     "a": 36,
+     "b": 6,
+     "answer": 6,
+     "src": "rwp2026:blfl4_question_label_18"
+    },
+    {
+     "id": "blfl4_19",
+     "op": "÷",
+     "a": 56,
+     "b": 8,
+     "answer": 7,
+     "src": "rwp2026:blfl4_question_label_19"
+    },
+    {
+     "id": "blfl4_20",
+     "op": "÷",
+     "a": 81,
+     "b": 9,
+     "answer": 9,
+     "src": "rwp2026:blfl4_question_label_20"
+    }
+   ],
+   "gate": "only if at least 5 correct on the level 1-2 grid (RWP blfl1)",
+   "practice_note": "none recorded in the RWP May instrument"
+  },
+  "word_problems_l2": {
+   "subtask": "word_problems",
+   "timed_s": null,
+   "items": [
+    {
+     "id": "word_problems_2a",
+     "level": 2,
+     "prompt_en": "Ayesha has 15 apples. 3 of those apples are red. The rest are green. How many green apples does Ayesha have?",
+     "answer": 12,
+     "src": "rwp2026:word_problems_2a",
+     "prompt_ur": "عائشہ کے پاس ۱۵ سیب ہیں۔ ان میں سے ۳ سیب لال ہیں۔ باقی سبز ہیں۔ عائشہ کے پاس کتنے سبز سیب ہیں؟"
+    },
+    {
+     "id": "word_problems_2b",
+     "level": 2,
+     "prompt_en": "You have 8 sweets. Ali gives you 5 more. How many sweets do you have now?",
+     "answer": 13,
+     "src": "rwp2026:word_problems_2b",
+     "prompt_ur": "آپ کے پاس ۸ ٹافیاں ہیں۔ علی آپ کو ۵ اور دیتا ہے۔ اب آپ کے پاس کتنی ٹافیاں ہیں؟"
+    }
+   ],
+   "practice_note": "none recorded in the RWP May instrument"
+  },
+  "ordering": {
+   "subtask": "number_ordering",
+   "timed_s": null,
+   "items": [
+    {
+     "id": "identify_1b",
+     "level": 1,
+     "prompt_en": "What number comes next? 10, 12, 14, 16 __",
+     "src": "rwp2026:identify_1b",
+     "type": "next",
+     "seq": [
+      10,
+      12,
+      14,
+      16
+     ],
+     "answer": 18,
+     "say_en": "What number comes next? 10, 12, 14, 16",
+     "say_ur": "اس کے بعد کون سا نمبر آئے گا؟ ۱۰، ۱۲، ۱۴، ۱۶"
+    },
+    {
+     "id": "identify_2b",
+     "level": 2,
+     "prompt_en": "What number comes next? 30, 40, 50, __",
+     "src": "rwp2026:identify_2b",
+     "type": "next",
+     "seq": [
+      30,
+      40,
+      50
+     ],
+     "answer": 60,
+     "say_en": "What number comes next? 30, 40, 50",
+     "say_ur": "اس کے بعد کون سا نمبر آئے گا؟ ۳۰، ۴۰، ۵۰"
+    },
+    {
+     "id": "identify_3b",
+     "level": 3,
+     "prompt_en": "Order the following numbers from smallest to largest: 890, 908, 98",
+     "src": "rwp2026:identify_3b",
+     "type": "order",
+     "numbers": [
+      890,
+      908,
+      98
+     ],
+     "answer": [
+      98,
+      890,
+      908
+     ],
+     "say_en": "Order the following numbers from smallest to largest: 890, 908, 98",
+     "say_ur": "ان نمبروں کو سب سے چھوٹے سے سب سے بڑے کی ترتیب میں لگائیں: ۸۹۰، ۹۰۸، ۹۸"
+    },
+    {
+     "id": "identify_4b",
+     "level": 4,
+     "prompt_en": "Order the following numbers from smallest to largest: 2410, 2041, 421",
+     "src": "rwp2026:identify_4b",
+     "type": "order",
+     "numbers": [
+      2410,
+      2041,
+      421
+     ],
+     "answer": [
+      421,
+      2041,
+      2410
+     ],
+     "say_en": "Order the following numbers from smallest to largest: 2410, 2041, 421",
+     "say_ur": "ان نمبروں کو سب سے چھوٹے سے سب سے بڑے کی ترتیب میں لگائیں: ۲۴۱۰، ۲۰۴۱، ۴۲۱"
+    }
+   ],
+   "gate": "levels 3-4 only if at least 1 of the level 1-2 items is correct (RWP identify_cont)",
+   "practice_note": "none recorded in the RWP May instrument"
+  },
+  "number_id_upper": {
+   "subtask": "number_identification",
+   "timed_s": 60,
+   "grades": [
+    4,
+    5
+   ],
+   "items": [
+    {
+     "id": "rw_p6_01",
+     "numeral": "4 010",
+     "src": "rti_rwanda2011:C-4 P6 number ID"
+    },
+    {
+     "id": "rw_p6_02",
+     "numeral": "410",
+     "src": "rti_rwanda2011:C-4 P6 number ID"
+    },
+    {
+     "id": "rw_p6_03",
+     "numeral": "646",
+     "src": "rti_rwanda2011:C-4 P6 number ID"
+    },
+    {
+     "id": "rw_p6_04",
+     "numeral": "1 004",
+     "src": "rti_rwanda2011:C-4 P6 number ID"
+    },
+    {
+     "id": "rw_p6_05",
+     "numeral": "64",
+     "src": "rti_rwanda2011:C-4 P6 number ID"
+    },
+    {
+     "id": "rw_p6_06",
+     "numeral": "368",
+     "src": "rti_rwanda2011:C-4 P6 number ID"
+    },
+    {
+     "id": "rw_p6_07",
+     "numeral": "0.30",
+     "src": "rti_rwanda2011:C-4 P6 number ID"
+    },
+    {
+     "id": "rw_p6_08",
+     "numeral": "99 006",
+     "src": "rti_rwanda2011:C-4 P6 number ID"
+    },
+    {
+     "id": "rw_p6_09",
+     "numeral": "0.09",
+     "src": "rti_rwanda2011:C-4 P6 number ID"
+    },
+    {
+     "id": "rw_p6_10",
+     "numeral": "3 900",
+     "src": "rti_rwanda2011:C-4 P6 number ID"
+    },
+    {
+     "id": "rw_p6_11",
+     "numeral": "104",
+     "src": "rti_rwanda2011:C-4 P6 number ID"
+    },
+    {
+     "id": "rw_p6_12",
+     "numeral": "10 711",
+     "src": "rti_rwanda2011:C-4 P6 number ID"
+    }
+   ],
+   "caveat": "sample items printed in the report annex (12), uncalibrated for Pakistan",
+   "practice_note": "none printed in Annex C"
+  }
+ }
+}

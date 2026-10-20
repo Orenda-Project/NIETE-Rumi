@@ -14,6 +14,7 @@ const fs = require('fs');
 const DATA = path.join(__dirname, '../../shared/data/child-test');
 const { buildSaBank, splitSaBankWithRuntime } = require('../../shared/services/child-test/sa/build');
 const v3 = require('../../shared/data/child-test/item-bank.v3.json');
+const extra = require('../../shared/data/child-test/item-bank.sa-extra.v1.json');
 
 const read = (rel) => JSON.parse(fs.readFileSync(path.join(DATA, rel), 'utf8'));
 const bank = read('item-bank.sa.v1.json');
@@ -47,7 +48,7 @@ const scoredItems = (t) => [...((t.tap && t.tap.items) || []), ...((t.record && 
 
 describe('SA battery bank (CONTRACT §2)', () => {
   test('the committed files are exactly what the builder makes (no hand edits)', () => {
-    const files = JSON.parse(JSON.stringify(splitSaBankWithRuntime(buildSaBank({ v3 }))));
+    const files = JSON.parse(JSON.stringify(splitSaBankWithRuntime(buildSaBank({ v3, extra }))));
     for (const [rel, want] of Object.entries(files)) expect([rel, read(rel)]).toEqual([rel, want]);
     expect(fs.readdirSync(path.join(DATA, 'sa')).sort()).toEqual(Object.keys(files).filter((f) => f.startsWith('sa/')).map((f) => f.slice(3)).sort());
   });
@@ -60,10 +61,13 @@ describe('SA battery bank (CONTRACT §2)', () => {
       for (const t of f.order) expect(bank.tasks[`${id}/${t}`]).toBeDefined();
       if (f.surface === 'coach') {
         expect(Object.keys(f.blocks)).toEqual(['B1', 'B2', 'B3', 'B4', 'B5']);
-        expect(Object.values(f.blocks).flat().sort()).toEqual([...f.full].sort());
+        // Every core task is in exactly one block; an extra task (DESIGN §2b) is in the full form, and only patterns joins a block.
+        const inBlocks = Object.values(f.blocks).flat();
+        expect(new Set(inBlocks).size).toBe(inBlocks.length);
+        expect(f.full.filter((t) => !inBlocks.includes(t)).sort()).toEqual(f.extra.filter((t) => !/^ma\.patterns/.test(t)).sort());
       } else {
         expect(Object.keys(f.islands).sort()).toEqual(['english', 'maths', 'urdu']);
-        expect(Object.values(f.islands).flat().sort()).toEqual([...f.tower].sort());
+        expect(Object.values(f.islands).flat().sort()).toEqual([...f.tower, ...f.extra].sort());
       }
     }
   });
@@ -72,7 +76,8 @@ describe('SA battery bank (CONTRACT §2)', () => {
     for (const k of ['task', 'lang', 'kind', 'legacy_block', 'title', 'modes', 'tap', 'record', 'practice', 'script', 'source', 'deviation']) {
       expect(t).toHaveProperty(k);
     }
-    expect(t.legacy_block).toMatch(/^(ur|en|ma)\.(listening|letters|nonwords|words|story|number_id|discrimination|missing|add1|sub1|add2|sub2|word_problems)$/);
+    if (t.legacy_block === null) expect(t.source.items).toMatch(/^extra:maths\./);
+    else expect(t.legacy_block).toMatch(/^(ur|en|ma)\.(listening|letters|nonwords|words|story|number_id|discrimination|missing|add1|sub1|add2|sub2|word_problems)$/);
     for (const m of t.modes) expect(t[m]).toBeTruthy();
     if (!t.practice.length) expect(t.practice_note).toBeTruthy();
     for (const k of ['intro', 'begin', 'replay', 'time_up', 'early_stop', 'after', 'hand_back', 'practice_right', 'practice_wrong']) {
@@ -84,6 +89,7 @@ describe('SA battery bank (CONTRACT §2)', () => {
   test('every scored item cites its v3 path, and that path holds it', () => {
     for (const [, t] of tasks) {
       for (const it of scoredItems(t)) {
+        if (/^extra:/.test(it.src)) continue; // extra items resolve against item-bank.sa-extra.v1.json (sa-extra.test.js)
         const at = resolveSrc(it.src);
         expect([it.src, at === undefined]).toEqual([it.src, false]);
         if (t.tap && t.tap.items.includes(it)) {
