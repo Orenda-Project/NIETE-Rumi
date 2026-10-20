@@ -1750,6 +1750,12 @@ async function runLessonPlanHealth({ health } = {}) {
 function schedulePeriodicChecks({ worker: w = null } = {}) {
   scheduleChallengeVoiceSweep({ worker: w });
   scheduleCoachVoiceNoteSweep({ worker: w });
+  // The reminder push's due tick (WEB_QUIZ_PUSH_SEND_ENABLED) and its ungated expiry tick (workers/push-ticks.js).
+  try {
+    require('./push-ticks').schedulePushTicks();
+  } catch (error) {
+    logToFile('Error scheduling the push ticks (non-fatal)', { error: error && error.message }, 'error');
+  }
   try {
     scheduleLessonPlanHealth({ worker: w });
   } catch (error) {

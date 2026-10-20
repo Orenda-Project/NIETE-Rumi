@@ -38,6 +38,9 @@ const ONE_BUTTON_KEY = 'web_quiz_one_button';
 const ADV_KEY = 'web_quiz_adventure_look';
 // The designed wait (web-quiz-wait-ux.js) rides this one read: only the stored JSON boolean true is on.
 const WAIT_UX_KEY = 'web_quiz_wait_ux';
+// The child result screen's "remind me tomorrow" (bot/shared/services/push/web-quiz-push-field.js): rides this one read,
+// so a finish makes no read for it. Only the stored JSON boolean true is on.
+const PUSH_REMIND_KEY = 'web_quiz_push_remind';
 // The child home's step timings (web-quiz-server-timing.js): read in this same query, so the switch adds no settings read.
 const SERVER_TIMING_KEY = 'web_quiz_server_timing';
 // A tap while offline stays on the page (web-quiz-offline-guard.js) rides this one read: only the stored JSON boolean true is on.
@@ -224,6 +227,7 @@ const SWITCHES = Object.freeze([
   ['pack',         PACK_KEY,              'json'],
   ['pageLang',     PAGE_LANG_KEY,         'json'],
   ['plainPaint',   PLAIN_PAINT_KEY,       'json'],
+  ['pushRemind',   PUSH_REMIND_KEY,       'json'],
   ['readalong',    READALONG_KEY,         'loose'],
   ['rewatchDone',  REWATCH_DONE_KEY,      'json'],
   ['serverTiming', SERVER_TIMING_KEY,     'json'],

@@ -1908,6 +1908,8 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
     ...door,
     ...jugnu,
     ...fold,
+    // "Remind me tomorrow" under the next step (web_quiz_push_remind): {} with it off.
+    ...require('../push/web-quiz-push-field').pushField(),
   };
 }
 
