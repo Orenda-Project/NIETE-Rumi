@@ -259,3 +259,37 @@ describe("the Learning assessment's sink (sa/session/:id/*)", () => {
     expect(axiosPost).toHaveBeenLastCalledWith(`${BOT}sa/status`, { userId: COACH, sessionId: SID }, expect.anything());
   });
 });
+
+describe('another phone: the coach mints a link; the linked phone syncs without a sign-in', () => {
+  const SID = '55555555-5555-4555-8555-555555555555';
+  const BOT = 'https://bot.example/api/internal/child-test/';
+
+  test('minting is the coach-only sa gates, relayed with the session user', async () => {
+    tableRows.app_settings.push({ key: 'portal_child_test_sa', value: [COACH] });
+    await invoke(ROUTES, 'post', '/sa/session/:id/link', { params: { id: SID } });
+    expect(axiosPost).toHaveBeenLastCalledWith(`${BOT}sa/link-mint`, { userId: COACH, sessionId: SID }, expect.anything());
+    expect((await invoke(ROUTES, 'post', '/sa/session/:id/link', { params: { id: SID }, userId: null })).statusCode).toBe(401);
+  });
+
+  test("a linked call: the bot names the coach, the coach's switch is checked, then the op relays with the token only", async () => {
+    tableRows.app_settings.push({ key: 'portal_child_test_sa', value: [COACH] });
+    axiosPost
+      .mockResolvedValueOnce({ status: 200, data: { success: true, status: 'ok', coachUserId: COACH, sessionId: SID } })
+      .mockResolvedValueOnce({ status: 200, data: { success: true, status: 'ok', ackedTo: 3 } });
+    const body = { seqFrom: 0, seqTo: 3, events: [], results: [], userId: 'forged' };
+    const out = await invoke(ROUTES, 'post', '/sa/link/:token/session/:id/:op', { userId: null, params: { token: 'tok', id: SID, op: 'batch' }, body });
+    expect(out.statusCode).toBe(200);
+    expect(out.payload.ackedTo).toBe(3);
+    expect(axiosPost.mock.calls[0].slice(0, 2)).toEqual([`${BOT}sa/via-link`, { token: 'tok', op: 'whois', sessionId: SID }]);
+    expect(axiosPost.mock.calls[1].slice(0, 2)).toEqual([`${BOT}sa/via-link`, { token: 'tok', op: 'batch', sessionId: SID, seqFrom: 0, seqTo: 3, events: [], results: [] }]);
+  });
+
+  test("a bad token, an unknown op, or a coach whose switch is off is 404 and nothing is relayed", async () => {
+    axiosPost.mockResolvedValueOnce({ status: 404, data: { success: false, status: 'not_found' } });
+    expect((await invoke(ROUTES, 'post', '/sa/link/:token/session/:id/:op', { userId: null, params: { token: 'bad', id: SID, op: 'batch' } })).statusCode).toBe(404);
+    expect((await invoke(ROUTES, 'post', '/sa/link/:token/session/:id/:op', { userId: null, params: { token: 'tok', id: SID, op: 'outcome' } })).statusCode).toBe(404);
+    axiosPost.mockResolvedValueOnce({ status: 200, data: { success: true, status: 'ok', coachUserId: COACH, sessionId: SID } });
+    expect((await invoke(ROUTES, 'post', '/sa/link/:token/session/:id/:op', { userId: null, params: { token: 'tok', id: SID, op: 'batch' } })).statusCode).toBe(404);
+    expect(axiosPost).toHaveBeenCalledTimes(2);
+  });
+});

@@ -238,3 +238,35 @@ describe("the phone's own session id (offline between children)", () => {
     expect(await Svc.saStatus({ userId: COACH, sessionId: '99999999-0000-4000-8000-000000000000' }, deps)).toEqual({ status: 'not_found' });
   });
 });
+
+describe('another phone, by a link the coach shares (no coach sign-in on that phone)', () => {
+  const prev = process.env.WEB_QUIZ_TOKEN_SECRET;
+  beforeEach(() => { process.env.WEB_QUIZ_TOKEN_SECRET = 'test-secret'; });
+  afterAll(() => { if (prev === undefined) delete process.env.WEB_QUIZ_TOKEN_SECRET; else process.env.WEB_QUIZ_TOKEN_SECRET = prev; });
+
+  test("the coach mints a link for their own child's session; it names that session and coach, nothing else", async () => {
+    const deps = makeDeps();
+    const res = await Svc.saLink({ userId: COACH, sessionId: SESSION }, deps);
+    expect(res).toEqual({ status: 'ok', token: expect.any(String), expiresAt: expect.any(String) });
+    const body = JSON.parse(Buffer.from(res.token.split('.')[0], 'base64url').toString('utf8'));
+    expect(body).toEqual({ k: 'sa-link', s: SESSION, c: COACH, exp: expect.any(Number) });
+    // an hour at most: a photo of the coach's screen must not open a child's session for long
+    expect(body.exp - Date.now() / 1000).toBeLessThanOrEqual(3600);
+    expect(body.exp - Date.now() / 1000).toBeGreaterThan(3500);
+    expect(await Svc.saLink({ userId: OTHER, sessionId: SESSION }, deps)).toEqual({ status: 'not_found' });
+  });
+
+  test('the link reaches the sink as the coach, for that session only', async () => {
+    const deps = makeDeps();
+    const { token } = await Svc.saLink({ userId: COACH, sessionId: SESSION }, deps);
+    const st = await Svc.saViaLink({ token, op: 'status', sessionId: SESSION }, deps);
+    expect(st.session.id).toBe(SESSION);
+    const who = await Svc.saViaLink({ token, op: 'whois', sessionId: SESSION }, deps);
+    expect(who).toEqual({ status: 'ok', coachUserId: COACH, sessionId: SESSION });
+    expect(await Svc.saViaLink({ token, op: 'status', sessionId: PLAIN }, deps)).toEqual({ status: 'not_found' });
+    expect(await Svc.saViaLink({ token, op: 'outcome', sessionId: SESSION }, deps)).toEqual({ status: 'invalid', reason: 'bad_op' });
+    expect(await Svc.saViaLink({ token: `${token}x`, op: 'status', sessionId: SESSION }, deps)).toEqual({ status: 'not_found' });
+    const res = await Svc.saViaLink({ token, op: 'batch', sessionId: SESSION, seqFrom: 0, seqTo: 0, events: [], results: [] }, deps);
+    expect(res).toEqual({ status: 'ok', ackedTo: 0 });
+  });
+});
