@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, Check, ChevronRight, Download, FileText, FileX2, KeyRound, Loader2, Pencil, Plus, RotateCcw, ClipboardCheck } from 'lucide-react';
+import { AlertCircle, Download, FileText, FileX2, KeyRound, Loader2, Pencil, Plus, RotateCcw, ClipboardCheck } from 'lucide-react';
 import { browserEnv } from '@/lib/runtime';
+import LessonPlanViewer from '../../components/LessonPlanViewer';
+import { lessonPlanFileUrl, sourceKey, type LessonPlanSource } from '../../lib/lessonPlanOpen';
+import { useRecordingSession } from '../../lib/recordingSession';
 import { ShareActions } from '../ui/ShareActions';
 import { shareToWhatsApp, useShareAvailable } from '../share/api';
 import { findPaper } from './paperCache';
@@ -34,8 +37,9 @@ import { NOTICES } from '../notices/copy';
  *            My papers / Make another
  *   failed   the bot's reason (its error code, as a label), Try again (the same request again),
  *            Change choices (back to Check and make with her choices), Dismiss
- *   ready    Download, Answer key (when the paper has one), Edit (when editing is on), Make another,
- *            and the paper itself (its page)
+ *   ready    bd-7tgiyc (canvas "New paper · new flow", NReady): the paper itself in the portal's PDF viewer (the
+ *            lesson plan one), Edit (editing on) and Answer key above it (the key in the same viewer), Send on
+ *            WhatsApp + Download PDF docked. No Make another and no Word (operator, 2026-10-20).
  *
  * The job comes from today's tracking (usePaperJobs). If it is not there (another tab, or it was
  * delivered already), GET /assessment/status says where the request got to.
@@ -113,6 +117,9 @@ export function RequestPage() {
   const [viewRead] = useLoad(viewId ? () => portal.getAssessmentPaperView(viewId) : null, `paperview:${viewId ?? ''}`);
   const youAdd = dataOf(viewRead)?.paper?.youAdd ?? null;
   const canSend = useShareAvailable('paper');
+  const recording = !!useRecordingSession()?.active;
+  // Paper ready: the viewer shows the paper, or its answer key in its place.
+  const [showKey, setShowKey] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!fde || seen?.status !== 'writing') return undefined;
@@ -293,49 +300,54 @@ export function RequestPage() {
   } else if (seen?.status === 'ready' && seen.paperId) {
     title = C.readyTitle;
     const paperId = seen.paperId;
+    const source: LessonPlanSource = { lane: 'paper', paperId, artifact: showKey ? 'answer_key' : 'paper' };
+    const act = cn('flex min-h-[56px] items-center gap-2 rounded-2xl border px-4 text-[15px] font-semibold', FOCUS);
     body = (
-      <div className="flex flex-col items-center gap-4 pt-2">
-        <span className="flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#eaf6ef] text-[#2f7a52]">
-          <Check className="h-14 w-14" strokeWidth={2.4} aria-hidden="true" />
-        </span>
-        <div className="flex flex-wrap justify-center gap-2">
+      <div className="flex flex-col gap-2.5 pt-1">
+        <div className="flex flex-wrap gap-2">
           <Chip tone="done">{C.ready}</Chip>
           {spec && <Chip>{C.questionsCount(spec.questionCount)}</Chip>}
-          <Chip>{C.withKey}</Chip>
+          {spec?.totalMarks ? <Chip>{C.marksCount(spec.totalMarks)}</Chip> : null}
         </div>
-        {/* bd-fmf24g.16 — the card IS the row (no padding, overflow-hidden), so the row's lead column sits flush
-            with the card's start edge and the card's rounded corners clip it. */}
-        <Link to={paperPath(paperId)} className={cn('flex min-h-[76px] w-full items-stretch gap-3 overflow-hidden pe-3', CARD, FOCUS)}>
-          <span className="flex min-w-0 flex-1 items-center">
-            {spec
-              ? <HistoryRow subject={name} grade={spec.grade} title={job?.label ?? ''} extra={C.open} action="none" />
-              : <span className="ps-4 text-[16px] font-semibold">{C.open}</span>}
-          </span>
-          <ChevronRight className="h-6 w-6 shrink-0 self-center text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
-        </Link>
-        <div className={cn(GRID, 'w-full grid-cols-3 gap-2.5')}>
-          <button type="button" onClick={() => open('answer_key')} className={cn('flex min-h-[96px] flex-col items-center justify-center gap-2 p-2 text-[14px] font-semibold', CARD, FOCUS)}>
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f3f4f6] text-[#33374a]"><KeyRound className="h-5 w-5" aria-hidden="true" /></span>
-            {C.answerKey}
-          </button>
-          {switches?.editing ? (
-            <Link to={editPath(paperId)} className={cn('flex min-h-[96px] flex-col items-center justify-center gap-2 p-2 text-[14px] font-semibold', CARD, FOCUS)}>
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f3f4f6] text-[#33374a]"><Pencil className="h-5 w-5" aria-hidden="true" /></span>
+        <div className="flex flex-wrap gap-2">
+          {switches?.editing && (
+            <Link to={editPath(paperId)} className={cn(act, 'border-[#e5e7eb] bg-white text-[#33374a]')}>
+              <Pencil className="h-5 w-5" aria-hidden="true" />
               {C.edit}
             </Link>
-          ) : <span aria-hidden="true" />}
-          <button type="button" onClick={another} className={cn('flex min-h-[96px] flex-col items-center justify-center gap-2 p-2 text-[14px] font-semibold', CARD, FOCUS)}>
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f3f4f6] text-[#33374a]"><Plus className="h-5 w-5" aria-hidden="true" /></span>
-            {C.makeAnother}
+          )}
+          <button
+            type="button"
+            aria-pressed={showKey}
+            onClick={() => setShowKey((k) => !k)}
+            className={cn(act, showKey ? 'border-[#33374a] bg-[#33374a] text-white' : 'border-[#e5e7eb] bg-white text-[#33374a]')}
+          >
+            <KeyRound className="h-5 w-5" aria-hidden="true" />
+            {showKey ? C.backToPaper : C.answerKey}
           </button>
         </div>
+        <LessonPlanViewer
+          key={sourceKey(source)}
+          view={{ source, title: job?.label || C.thePaper }}
+          chrome="none"
+          recording={recording}
+          onClose={() => navigate(ASSESSMENT_V2_BASE)}
+          onNotReady={() => {
+            // A paper made before answer keys were kept has none: say so and show the paper again.
+            if (showKey) { toast({ title: C.noKey }); setShowKey(false); } else toast({ title: C.notAvailable });
+          }}
+        />
       </div>
     );
+    // The kit's ShareActions: Send on WhatsApp (locked until a template exists), and its Open as Download PDF (what is on
+    // screen, the paper or its key). While a lesson records, nothing that puts another app in front (bd-5rz1v.10).
     dock = (
-      <button type="button" onClick={() => open('paper')} className={cn(PRIMARY, FOCUS)}>
-        <Download className="h-5 w-5" aria-hidden="true" />
-        {C.download}
-      </button>
+      <ShareActions
+        available={canSend}
+        onSend={() => shareToWhatsApp('paper', paperId)}
+        open={recording ? undefined : { fileUrl: () => lessonPlanFileUrl(source) }}
+        copy={{ open: C.downloadPdf }}
+      />
     );
   } else if (seen?.status === 'missing') {
     title = C.notFoundTitle;
