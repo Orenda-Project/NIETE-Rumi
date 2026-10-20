@@ -49,4 +49,6 @@ export type SaSessionStatus = {
   tasksDone: string[];
   lastSeq: number;
   audio: string[];
+  /** spoken subtasks whose answers arrived but whose recording is still on the phone */
+  audioWaiting?: string[];
 };
