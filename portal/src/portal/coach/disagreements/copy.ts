@@ -114,8 +114,12 @@ const EN = {
       [`${n} FICO indicators, scored 1–4`, ...[4, 3, 2, 1].filter((k) => at[k]).map((k) => `${at[k]} at ${k}`), ...(none ? [`${none} no detail`] : [])].join(" · "),
     noDetail: "No detail for this indicator in the report",
   },
-  visit: "I have visited",
-  visited: "Visited",
+  markDone: "✓ Mark as done",
+  doneHint: "Tap when you have coached her. The card moves to Done.",
+  doneBadge: "✓ Done",
+  undo: "Move back to To do",
+  moved: (n: string) => `${n} moved to Done.`,
+  backMsg: (n: string) => `${n} is back in To do.`,
   saveFailed: "Could not save",
 };
 
@@ -211,8 +215,12 @@ const UR: Words<typeof EN> = {
       [`${n} FICO indicators، اسکور 1–4`, ...[4, 3, 2, 1].filter((k) => at[k]).map((k) => `${at[k]} پر ${k}`), ...(none ? [`${none} بغیر تفصیل`] : [])].join(" · "),
     noDetail: "رپورٹ میں اس indicator کی تفصیل نہیں",
   },
-  visit: "میں نے دورہ کر لیا",
-  visited: "دورہ ہو گیا",
+  markDone: "✓ مکمل کریں",
+  doneHint: "کوچنگ کے بعد ٹیپ کریں۔ کارڈ «مکمل» میں چلا جائے گا۔",
+  doneBadge: "✓ مکمل",
+  undo: "واپس «باقی» میں",
+  moved: (n: string) => `${n} «مکمل» میں چلی گئیں۔`,
+  backMsg: (n: string) => `${n} واپس «باقی» میں ہیں۔`,
   saveFailed: "محفوظ نہیں ہو سکا",
 };
 

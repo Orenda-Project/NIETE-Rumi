@@ -2276,20 +2276,24 @@ const coachV2 = [requirePortalAuth, requireLeaderRole, requireCoachV2];
 // Behind the coach app guards AND its own flag, so week 1 of the test sees nothing new.
 {
   const Disagreements = require('../services/coach-disagreements.service');
-  const VisitRequest = require('../services/coach-visit-request');
   const { noteStore } = require('../services/coach-note-store');
   const { createCoachDisagreementsRouter } = require('./coach-disagreements.routes');
   const loadReport = (...a) => require('./coaching-report.routes').loadReport(...a);
   router.use(createCoachDisagreementsRouter({
     guards: coachV2,
     isOn: (userId) => isFlagEnabledForUser(supabase, COACH_DISAGREEMENT_CARD_KEY, userId),
-    list: (coachId) => Disagreements.listFor(supabase, coachId),
+    // bd-tbprit.12: notes on cards Done over 24 h are deleted on her next list load (never blocks it).
+    list: (coachId) => {
+      Disagreements.purgeDoneNotes(supabase, coachId, (k) => noteStore().del(k)).catch(() => {});
+      return Disagreements.listFor(supabase, coachId);
+    },
     card: (coachId, id) => Disagreements.cardFor(supabase, coachId, id, { loadReport, presign: (key, s) => noteStore().presign(key, s) }),
     ownerOf: async (id) => {
       const { data } = await supabase.from('coach_visit_requests').select('coach_user_id').eq('id', id).maybeSingle();
       return (data && data.coach_user_id) || null;
     },
-    markVisited: (id) => VisitRequest.markVisited(supabase, id),
+    markVisited: (id, coachId) => Disagreements.markDone(supabase, coachId, id),
+    markUndone: (id, coachId) => Disagreements.markUndone(supabase, coachId, id),
     markOpened: (coachId, id) => Disagreements.markOpened(supabase, coachId, id),
     // bd-tbprit.2: the disputed step, cut by ffmpeg from a five-minute link the browser never sees.
     recordingFor: (coachId, id) => Disagreements.recordingFor(supabase, coachId, id, generatePresignedUrl),
