@@ -20,7 +20,7 @@ export const REMIND_COPY_UR = {
   body: 'کل کے منصوبے کی ایک یاد دہانی شام چھ بجے پائیں۔ اس فون پر کروم میں چلتی ہے۔',
   turnOn: 'آن کریں',
   turnOff: 'بند کریں',
-  test: 'ابھی ایک یاد دہانی بھیجیں',
+  test: 'ابھی ایک بھیجیں',
 };
 
 export const REMIND = bilingual(REMIND_COPY, REMIND_COPY_UR);
