@@ -1503,9 +1503,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function latT(t) { return typeof WQI !== 'undefined' ? WQI.latDir(t, LANG) : ''; }
   // The invited friend's landing shows the picture their link previewed as (already drawn and cached), so the
   // hand-off from the chat to the page is one picture, not two different things. Gone if it cannot load.
-  function chPic(chLine) {
+  // Under the fold it sits right under Play, so it is the door's drawing: "Your turn!" in place of the chat's link pill.
+  function chPic(chLine, door) {
     var id = chLine && B.art && B.art.invite;
-    return id ? '<img class="wq-chpic" src="' + esc('/q/' + encodeURIComponent(CODE) + '/art/invite.jpg?a=' + encodeURIComponent(id)) + '" alt="' + esc(chLine) + '">' : '';
+    return id ? '<img class="wq-chpic" src="' + esc('/q/' + encodeURIComponent(CODE) + '/art/invite.jpg?a=' + encodeURIComponent(id) + (door ? '&w=door' : '')) + '" alt="' + esc(chLine) + '">' : '';
   }
   // fold (web_quiz_challenge_fold): the picture sits right under the way in and carries a drawn "tap the link to play",
   // so a tap on it is a tap on Play (or the remembered child's button); with the class's children listed, it shows them
@@ -1543,7 +1544,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (B.preview && params.p) return teacherLanding();
     // web_quiz_challenge_fold (the answer's challenge_fold): the way in comes right after the challenge line, and the
     // invite picture follows it, so a small phone shows Play on the first screen
-    var pic = chPic(chLine), fold = Boolean(B.challenge_fold && pic);
+    var pic = chPic(chLine, Boolean(B.challenge_fold)), fold = Boolean(B.challenge_fold && pic);
     if (ID && !B.preview) { if (fold) ID.landing(chLine, pic, true); else ID.landing(chLine, pic); wireChPic(fold); return; }
     var h = bar() +
       (B.preview ? '<div class="wq-banner">' + esc(T.selfT) + '</div>' : '') +
