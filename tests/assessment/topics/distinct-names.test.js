@@ -42,4 +42,15 @@ describe('distinctNames', () => {
     const s = 'I can count.';
     expect(distinctNames([topic('Count', s), topic('Count', s)])).toEqual(['Count', 'Count (2)']);
   });
+
+  test('statements that share no lead words never give a name starting with punctuation; the SLO code tells them apart', () => {
+    const t = (code, statement) => ({ name: 'Add numbers', sloCodes: [code], sloDescriptions: [statement] });
+    const out = distinctNames([t('M-01-NS-03', 'I can add numbers.'), t('M-01-NS-04', 'I can subtract numbers.')]);
+    expect(out).toEqual(['Add numbers (NS-03)', 'Add numbers (NS-04)']);
+  });
+
+  test('no shared lead words and no SLO code -> numbered, never ":"', () => {
+    const t = (statement) => ({ name: 'Plants', sloCodes: [], sloDescriptions: [statement] });
+    expect(distinctNames([t('I can grow seeds.'), t('Leaves make food.')])).toEqual(['Plants', 'Plants (2)']);
+  });
 });
