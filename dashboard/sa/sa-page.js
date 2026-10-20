@@ -44,6 +44,8 @@
       back: /^\/(?!\/)[^\s\\]*$/.test(back) ? back : null,
       skin: q.get('skin') === 'game' ? 'game' : null,
       embed: q.get('embed') === '1',
+      // A linked phone's token (the coach's QR/link): the sink uses the token routes, no cookie.
+      token: /^[A-Za-z0-9._~-]{16,700}$/.test(q.get('t') || '') ? q.get('t') : null,
       first_name: name || null,
     };
   }
@@ -159,7 +161,8 @@
     }).then(function (full) {
       var battery = pick(full, p.block);
       var sink = p.mode === 'proctored'
-        ? (SAE.sinks && SAE.sinks.coach ? SAE.sinks.coach() : null)
+        ? (p.token ? (SAE.sinks && SAE.sinks.coachLinked ? SAE.sinks.coachLinked(p.token) : null)
+          : (SAE.sinks && SAE.sinks.coach ? SAE.sinks.coach() : null))
         : ((root.SAE.sinks && root.SAE.sinks.game) ? root.SAE.sinks.game({ session_id: p.session_id }) : null);
       var offline = SAE.offline ? SAE.offline.prepare({ battery_url: url, battery: full, lang: p.lang, base: '/' }) : Promise.resolve({ ready: false });
       return root.SAE.start({

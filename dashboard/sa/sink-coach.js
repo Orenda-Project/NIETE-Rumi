@@ -8,7 +8,7 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(root);
-  else { root.SAE = root.SAE || {}; root.SAE.sinks = root.SAE.sinks || {}; root.SAE.sinks.coach = factory(root).create; }
+  else { root.SAE = root.SAE || {}; root.SAE.sinks = root.SAE.sinks || {}; var m = factory(root); root.SAE.sinks.coach = m.create; root.SAE.sinks.coachLinked = m.linked; }
 }(typeof self !== 'undefined' ? self : this, function (root) {
   'use strict';
 
@@ -24,10 +24,12 @@
     o = o || {};
     var base = o.base || BASE;
     var f = o.fetch || function (u, init) { return root.fetch(u, init); };
+    // A linked phone (no coach sign-in) carries its token in the path and sends no cookie.
+    var cred = o.credentials || 'include';
 
     function post(sessionId, path, body) {
       return Promise.resolve(f(base + '/session/' + encodeURIComponent(sessionId) + path, {
-        method: 'POST', credentials: 'include', cache: 'no-store',
+        method: 'POST', credentials: cred, cache: 'no-store',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(body),
       })).then(function (res) {
@@ -51,11 +53,20 @@
         return post(a.session_id, '/register', { taskId: s.taskId, itemId: s.itemId, key: a.key, bytes: a.bytes, durationMs: a.duration_ms });
       },
       status: function (sessionId) {
-        return Promise.resolve(f(base + '/session/' + encodeURIComponent(sessionId) + '/status', { credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json' } }))
+        return Promise.resolve(f(base + '/session/' + encodeURIComponent(sessionId) + '/status', { credentials: cred, cache: 'no-store', headers: { Accept: 'application/json' } }))
           .then(function (res) { return res.ok ? res.json() : null; });
       },
     };
   }
 
-  return { create: create, splitRec: splitRec, BASE: BASE };
+  /** The sink for a phone opened by the coach's QR/link: the token routes, no cookie. */
+  function linked(token, o) {
+    var x = {};
+    for (var k in (o || {})) x[k] = o[k];
+    x.base = BASE + '/link/' + encodeURIComponent(token);
+    x.credentials = 'omit';
+    return create(x);
+  }
+
+  return { create: create, linked: linked, splitRec: splitRec, BASE: BASE };
 }));
