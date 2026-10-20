@@ -162,6 +162,11 @@ function levelOf(ctx) {
   return L === null ? { L, mode: 'unknown' } : { L, mode: 'known' };
 }
 
+/** ⛔11 (v1.3b): for a known, part-way level the list goes near-first, the order inside each group kept (stable). */
+function nearFirst(lv, list) {
+  return lv.mode === 'known' ? [...list.filter((c) => c.level_match === 'near'), ...list.filter((c) => c.level_match !== 'near')] : list;
+}
+
 function levelMatchOf(lv, level) {
   if (lv.mode !== 'known') return lv.mode;
   return Math.abs(level - lv.L) <= 1 ? 'near' : 'far';
@@ -294,9 +299,7 @@ function tagRoute(catalog, t, ctx, signal, lesson) {
     };
   }).sort((a, b) => b.score - a.score || String(a.seg_id).localeCompare(String(b.seg_id)));
   // ⛔11 (v1.3b): for a known, part-way level the SAME 12 go near-first, score order inside each group.
-  const top = ranked.slice(0, MAX_CANDIDATES);
-  const candidates = lv.mode === 'known' ? [...top.filter((c) => c.level_match === 'near'), ...top.filter((c) => c.level_match !== 'near')] : top;
-  return { candidates, noneReason: null, repeatModule };
+  return { candidates: nearFirst(lv, ranked.slice(0, MAX_CANDIDATES)), noneReason: null, repeatModule };
 }
 
 /**
@@ -333,7 +336,7 @@ function build(catalog, target, ctx, signal, lesson, step) {
     const query = textReason ? stepQuery(s) : '';
     const routeName = textReason === 'card_text' ? 'card_text' : 'step_text';
     const text = query ? textRoute(catalog, s, ctx, lesson, tag.candidates.map((c) => c.seg_id), routeName) : [];
-    const candidates = [...tag.candidates, ...text];
+    const candidates = nearFirst(lv, [...tag.candidates, ...text]); // v1.3c: after the concat, so the text route is near-first too
     const common = { repeatModule: tag.repeatModule, levelMatch, textReason, stepTextQuery: query || null };
     if (!candidates.length) {
       const why = textReason === 'card_text' ? 'no_target' : textReason === 'unscored' ? 'unscored_step'
