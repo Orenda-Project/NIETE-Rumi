@@ -373,6 +373,7 @@ class ReportGeneratorService {
       // Deliver to WhatsApp — image+caption path (hero renderer) or document
       // path (PDFKit/HTML renderers).
       let followUps = true;
+      let videoClipAfter = false; // bd-gzfdu9: the clip goes last, only after a report that arrived in an open window
       if (isHeroImage) {
         try {
           const heroSent = await this.sendHeroImageReport(
@@ -398,13 +399,7 @@ class ReportGeneratorService {
           await require('./report-link-send').sendReportLinkIfNew({
             coachingSessionId, userId: session.user_id, phone: from, language: outputLanguage, track,
           });
-          // bd-gzfdu9: the recommended clip, one message after the report that arrived. Nothing unless
-          // VIDEO_RECO_ENABLED and the session's row is 'shown'. A failure never touches the report.
-          if (heroSent !== false) {
-            await require('./video-reco/send').sendAfterReport({
-              coachingSessionId, phone: from, language: outputLanguage, track, imageStrip: Boolean(videoStrip),
-            }).catch(() => null);
-          }
+          videoClipAfter = heroSent !== false;
         }
       } else {
         await this.sendPDFReport(from, coachingSessionId, reportResult, session.users.name, session.created_at);
@@ -535,6 +530,14 @@ class ReportGeneratorService {
           error: cardError.message,
         });
         // Don't fail the session — card is optional.
+      }
+
+      // bd-gzfdu9: the recommended clip, the LAST follow-up (lead 18:48Z: the engine's wait overlaps the voice
+      // note, survey and commit prompt). Nothing unless VIDEO_RECO_ENABLED and the row is 'shown'; never throws.
+      if (videoClipAfter) {
+        await require('./video-reco/send').sendAfterReport({
+          coachingSessionId, phone: from, language: outputLanguage, track, imageStrip: Boolean(videoStrip),
+        }).catch(() => null);
       }
 
       // Mark session as completed
