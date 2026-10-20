@@ -12,11 +12,11 @@
  */
 'use strict';
 
-var VERSION = 'sa-1';
+var VERSION = 'sa-2';
 var CORE = 'sa-core-' + VERSION;
 var SESSION = 'sa-session-v1';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
-  'sa-engine.js', 'sa-offline.js', 'sa-play.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
+  'sa-engine.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
 
 /** Which way a request is answered: 'core' | 'static' | null (not ours). */

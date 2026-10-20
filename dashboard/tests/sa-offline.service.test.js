@@ -39,3 +39,13 @@ test('the session keeps its own language\'s clips, once each, under the base', (
   expect(ur).toContain(`/${letters.items[0].prompt_audio}`);
   expect(urls(MINI, 'ur', 'https://cdn.test/base')[0]).toMatch(/^https:\/\/cdn\.test\/base\/sa\/v1\/ur\//);
 });
+
+test('the worker keeps every local file play.html loads, and only files that exist', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const html = fs.readFileSync(path.join(__dirname, '../sa/play.html'), 'utf8');
+  const local = [...html.matchAll(/(?:src|href)="\.\/([^"?#]+)"/g)].map((m) => m[1]);
+  expect(local.length).toBeGreaterThan(3);
+  for (const f of local) expect(CORE_FILES).toContain(f);
+  for (const f of CORE_FILES) expect(fs.existsSync(path.join(__dirname, '../sa', f))).toBe(true);
+});

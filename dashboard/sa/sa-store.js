@@ -50,6 +50,10 @@
         for (var k in data[name]) if (sameSession(name, data[name][k], sessionId)) delete data[name][k];
         return Promise.resolve();
       },
+      delKeys: function (name, keys) {
+        keys.forEach(function (k) { delete data[name][JSON.stringify(k)]; });
+        return Promise.resolve();
+      },
     };
   }
 
@@ -101,6 +105,7 @@
           return req(os.index('by_session').getAllKeys(sessionId)).then(function (keys) { keys.forEach(function (k) { os.delete(k); }); });
         });
       },
+      delKeys: function (name, keys) { return tx(name, true, function (os) { keys.forEach(function (k) { os.delete(k); }); }); },
     };
   }
 
@@ -156,6 +161,12 @@
         });
       },
       /** A session the server has in full: its rows leave the phone. */
+      /** A recording's chunks off the phone (the surface said its audio is not kept). */
+      dropChunks: function (id, recId) {
+        return s.chunks(id, recId).then(function (c) {
+          return c.length ? be.delKeys('blobs', c.map(function (x) { return keyOf('blobs', x); })) : null;
+        });
+      },
       forget: function (id) {
         return Promise.all(['events', 'results', 'blobs', 'sessions'].map(function (n) { return be.del(n, id); }));
       },
