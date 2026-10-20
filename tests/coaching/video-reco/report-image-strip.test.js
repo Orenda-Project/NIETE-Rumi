@@ -21,7 +21,7 @@ const shown = (s) => String(s).replace(/[‎‏⁦-⁩]/g, '');
 const thumb = path.join(os.tmpdir(), `vr-strip-${process.pid}.jpg`);
 beforeAll(() => fs.writeFileSync(thumb, Buffer.from([0xff, 0xd8, 0xff, 0xd9])));
 afterAll(() => fs.rmSync(thumb, { force: true }));
-const STRIP = { thumbPath: thumb, title: 'Asking why-questions <b>', durationS: 134, levelLabel: 'Level 1' };
+const STRIP = { thumbPath: thumb, title: 'Asking why-questions <b>', durationS: 134 };
 
 describe('no strip → byte-identical', () => {
   test.each(['en', 'ur'])('hero %s', (l) => {
@@ -81,10 +81,10 @@ describe('stripFor: the engine raced for ≤ 20 s, the flag read at call time', 
     expect(await S.stripFor({ coachingSessionId: 's', language: 'en', deps: d })).toBeNull();
     expect(d.store.readForSession).not.toHaveBeenCalled();
   });
-  test('the engine\'s promise resolves shown → the strip (title in the teacher\'s language, length, level, thumbnail)', async () => {
+  test('the engine\'s promise resolves shown → the strip (title in the teacher\'s language, length, thumbnail; no level)', async () => {
     const out = await S.stripFor({ coachingSessionId: 's', language: 'ur', row: Promise.resolve(ROW), deps: deps() });
     expect(out).toMatchObject({ title: 'کیوں والے سوال', durationS: 134 });
-    expect(shown(out.levelLabel)).toBe('لیول ۱');
+    expect(out.levelLabel).toBeUndefined();
     expect(out.thumbPath).toMatch(/bot\/assets\/video-thumbs\/63\.jpg$/);
   });
   test.each([['shadow'], ['none'], ['error']])('status %s → null', async (status) => {

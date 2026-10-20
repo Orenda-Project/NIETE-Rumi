@@ -97,7 +97,6 @@ async function sendVideoRecommendation({ row, phone, language, track, imageStrip
       thumbPath: path.join(THUMBS, mod.thumb || `video-thumbs/${row.module_id}.jpg`),
       title: copy.localized(seg, 'title', l) || mod.title || '',
       durationS,
-      levelLabel: copy.levelLabel(mod.cpd_level, l),
       language: l,
     });
     const attempts = [

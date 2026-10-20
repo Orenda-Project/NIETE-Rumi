@@ -84,16 +84,9 @@ function messageBody({ minutes, reason, clipLanguage, language }) {
   return `${lead}\n${line}\n${meta}`;
 }
 
-/** "Level 2" / "لیول ۲"; a module with no CPD level (the Aspiring Teacher rung) is "Aspiring". */
-function levelLabel(cpd, language) {
-  const l = lang(language);
-  if (cpd == null || !Number.isFinite(Number(cpd))) return resolveUx('videoRecoLevelAspiring', { language: l });
-  return resolveUx('videoRecoLevel', { language: l, params: { cpd: num(Number(cpd), l) } });
-}
-
 /** A plain catalog line in the reader's language (player + card labels). */
 const word = (key, language, params) => resolveUx(key, { language: lang(language), params });
 
 module.exports = {
-  lang, dirOf, localized, num, minutesOf, urduDigits, clock, isolateLatin, buttonText, cardButton, messageBody, levelLabel, clipLanguageName, word, BODY_MAX,
+  lang, dirOf, localized, num, minutesOf, urduDigits, clock, isolateLatin, buttonText, cardButton, messageBody, clipLanguageName, word, BODY_MAX,
 };

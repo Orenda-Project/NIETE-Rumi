@@ -122,7 +122,6 @@ function createVideoRecoRouter(opts = {}) {
     return res.status(200).type('html').send(renderPlayer({
       language: l,
       title: copy.localized(seg, 'title', l) || mod.title || '',
-      levelLabel: mod.cpd_level !== undefined ? copy.levelLabel(mod.cpd_level, l) : null,
       reason: copy.localized(row, 'reason', l),
       src,
       poster: row.module_id != null ? `${VIDEO_PATH}/thumb/${encodeURIComponent(row.module_id)}.jpg` : null,
