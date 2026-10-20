@@ -85,6 +85,10 @@ function createSink(deps = {}) {
     kidFromHub: deps.kidFromHub || ((...a) => require('../quiz/web-quiz-hub').kidFromHub(...a)), // eslint-disable-line global-require
     r2: deps.r2 || null,
     now: deps.now || (() => new Date()),
+    // the Big flight's window: the study cycle (switch sa_game_tower_cycle ON) or the PKT month (OFF, a failed read)
+    towerCycle: deps.towerCycle || (async () => {
+      try { return (await require('./flag').cycleOn()) === true; } catch (_) { return false; } // eslint-disable-line global-require
+    }),
     // a game recording is kept only as the Challenge keeps one: web_quiz_challenge_keep_audio ON and a consent on file
     // (the mic notice or a grown-up's yes, web-quiz-trail-page consentFor); anything else, or a failed read: not kept
     keepAudio: deps.keepAudio || (async (body) => {
@@ -114,7 +118,8 @@ function createSink(deps = {}) {
     const id = idFor('sag', who.studentId, part, form, day, runNo);
     const l = lang === 'en' || lang === 'ur' ? lang : (who.lang === 'en' ? 'en' : 'ur');
     // exposure: the Big flight once per PKT month once finished; every run counts how often this part was met this month
-    const ex = await store().exposure({ studentId: who.studentId, form, part, day });
+    const byCycle = await d.towerCycle();
+    const ex = await store().exposure(byCycle ? { studentId: who.studentId, form, part, day, byCycle } : { studentId: who.studentId, form, part, day });
     if (part === 'tower' && !(ex && ex.ok)) return no(503, 'exposure_unknown'); // fails closed: never a 2nd flight unseen
     if (ex && ex.ok && part === 'tower' && ex.flightDone) return no(409, 'flight_done');
     const exposureN = ex && ex.ok ? ex.n + 1 : null;
