@@ -157,6 +157,24 @@ describe.each(Object.keys(KINDS))('%s page: app_settings reads', (kind) => {
   });
 });
 
+// web_quiz_audio_each_question (each question's clips saved as soon as they are done; a pending page asks every 5 s)
+// rides the same identity read: on or off, with one voice on or off, the page reads no more than its own count.
+describe.each(Object.keys(KINDS))('%s page, web_quiz_audio_each_question: no read of its own', (kind) => {
+  test.each([['on', true], ['off (false)', false], ['absent', undefined]])('each question %s, one voice off: the page\'s own reads, cold and warm', async (_, each) => {
+    const p = boot(kind, undefined, { extra: each === undefined ? [] : [{ key: 'web_quiz_audio_each_question', value: each }] });
+    const cold = await p.page();
+    const warm = await p.page();
+    expect({ cold: cold.settings, warm: warm.settings }).toEqual(OFF_READS[kind]);
+  });
+  test.each([['on', true], ['off (false)', false]])('each question %s, one voice on: no more reads than off', async (_, each) => {
+    const p = boot(kind, true, { extra: [{ key: 'web_quiz_audio_each_question', value: each }] });
+    const cold = await p.page();
+    const warm = await p.page();
+    expect(cold.settings).toBeLessThanOrEqual(OFF_READS[kind].cold);
+    expect(warm.settings).toBeLessThanOrEqual(OFF_READS[kind].warm);
+  });
+});
+
 // The switch rides the identity read (the host). Another caller in the process (the hub, a second page)
 // keeps the host warm while the switch's own reading is cold (forgotten) or never taken: the page must still read as
 // often as today, because its plan comes from the host's row, never from a read of the switch alone. The base is
