@@ -1075,6 +1075,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // web_quiz_voice_gap_phone (the answer's voice_gap_phone): with one voice on, a part with no recorded clip (or one that
   // cannot play here) is read by the phone's own voice, as before one voice, instead of left silent
   var GAP_PHONE = Boolean(B.voice_gap_phone);
+  // web_quiz_voice_gap_slow (the answer's voice_gap_slow, only beside GAP_PHONE): a clip that is there but will not play
+  // (its play() aborts, or it has not started at 8 s) is read by the phone's own voice too, instead of left silent
+  var GAP_SLOW = GAP_PHONE && Boolean(B.voice_gap_slow);
   var VOICE_SETS = (ONE_VOICE && B.voice_sets) || {};
   function voiceUrl(lang, file) {
     if (!ONE_VOICE) return '/wq/voice/' + lang + '/' + file + '.mp3?v=' + VOICE_V;
@@ -1125,6 +1128,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // button pulses ("tap to hear") and a tap plays the clips. Only a clip that cannot play here at all
   // (an error, a format this phone lacks) falls back to the phone's voice.
   var CLIP_SLOW_MS = 2000, CLIP_GIVEUP_MS = 8000;
+  // GAP_SLOW: a clip not started by 5 s is read by the phone voice (a good clip starts by ~4 s even when just recorded)
+  var CLIP_GAP_SLOW_MS = 5000;
   function speak(text, url, done, meta) {
     stopVoice();
     if (!SOUND) { if (done) done(); return; }
@@ -1137,7 +1142,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // A clip that errors, will not play here, or stalls for more than 2 s counts as missing:
       // that line falls back to the phone's own voice, and we log why.
       var switched = false;
-      var fallback = function (why) {
+      var fallback = function (why, err) {
         // A clip stopped by the next screen (a fast tap, slow data) rejects its play() and
         // fires its stalled timer: that is not a missing clip, and its old line stays quiet.
         if (switched || fin || gen !== voiceGen) return;
@@ -1145,8 +1150,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         try { if (player) player.pause(); } catch (e) {}
         player = null;
         ev('audio_fallback', { reason: why });
-        if (why === 'stalled') { end(); return; }
-        if (why === 'reject') { try { ROOT.classList.add('wq-tap'); } catch (e) {} end(); return; }
+        var aborted = why === 'reject' && err && err.name === 'AbortError';
+        if (why === 'stalled' && !GAP_SLOW) { end(); return; }
+        if (why === 'reject' && !(GAP_SLOW && aborted)) { try { ROOT.classList.add('wq-tap'); } catch (e) {} end(); return; }
         speakTts(text, end);
       };
       try {
@@ -1159,9 +1165,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         a.onended = function () { if (!switched) end(); };
         a.onerror = function () { fallback('error'); };
         setTimeout(function () { if (!started && !switched && !fin && gen === voiceGen) try { ROOT.classList.add('wq-novoice'); } catch (e) {} }, CLIP_SLOW_MS);
-        setTimeout(function () { if (!started) fallback('stalled'); }, CLIP_GIVEUP_MS);
+        setTimeout(function () { if (!started) fallback('stalled'); }, GAP_SLOW ? CLIP_GAP_SLOW_MS : CLIP_GIVEUP_MS);
         var pr = a.play();
-        if (pr && pr.catch) pr.catch(function (e) { fallback('reject'); });
+        if (pr && pr.catch) pr.catch(function (e) { fallback('reject', e); });
         return;
       } catch (e) { fallback('error'); return; }
     }
