@@ -333,6 +333,44 @@ async function readRunChildTest({ sessionId }) {
   return { ok: true, status: data.status === 'completed' ? 'completed' : 'in_progress', tasksDone: sum.tasksDone, lastSeq: sum.lastSeq };
 }
 
+/**
+ * The audio purge (scripts/child-test/purge-sa-game-audio.js): a recording that has left R2 is no longer named by its
+ * run. Runs table: the recording keeps its size and length, its key becomes null and purged_on the day. Child-test
+ * tables: the result row's audio_r2_key becomes null. The key carries the run's id, so the run is looked up by it.
+ * → { ok, cleared } | { ok:false, reason:'not_found' }. Never throws.
+ */
+async function forgetAudio({ sessionId, key, day }) {
+  try {
+    const { data: run, error } = await db().from(RUNS).select('id, meta').eq('id', sessionId).eq('exercise', 'battery').maybeSingle();
+    if (error) return fail('forgetAudio', error, { runId: sessionId });
+    if (run) {
+      const forget = (m) => {
+        let n = 0;
+        const gone = (rec) => { if (rec && rec.key === key) { rec.key = null; rec.purged_on = day; n += 1; } };
+        Object.values(m.audio || {}).forEach(gone);
+        Object.values(m.audio_items || {}).forEach((list) => (Array.isArray(list) ? list : []).forEach(gone));
+        return n;
+      };
+      if (!forget(JSON.parse(JSON.stringify(run.meta || {})))) return { ok: true, cleared: 0 };
+      let cleared = 0;
+      const out = await updateMeta(sessionId, (m) => { cleared = forget(m); return m; });
+      return out.ok ? { ok: true, cleared } : out;
+    }
+    const { data: rows, error: rErr } = await db().from(RESULTS).select('task_id').eq('session_id', sessionId).eq('audio_r2_key', key);
+    if (rErr) return fail('forgetAudio', rErr, { sessionId });
+    if (!rows || !rows.length) {
+      const { data: sess, error: sErr } = await db().from(SESSIONS).select('id').eq('id', sessionId).maybeSingle();
+      if (sErr) return fail('forgetAudio', sErr, { sessionId });
+      return sess ? { ok: true, cleared: 0 } : { ok: false, reason: 'not_found' };
+    }
+    const { error: uErr } = await db().from(RESULTS).update({ audio_r2_key: null, updated_at: new Date().toISOString() })
+      .eq('session_id', sessionId).eq('audio_r2_key', key);
+    return uErr ? fail('forgetAudio', uErr, { sessionId }) : { ok: true, cleared: rows.length };
+  } catch (err) {
+    return fail('forgetAudio', err, { sessionId });
+  }
+}
+
 // ── the interface ─────────────────────────────────────────────────────────────────────────────────────────────────
 async function createRun(a) {
   try {
@@ -365,6 +403,7 @@ module.exports = {
   saveBatch: byMode(saveBatchChildTest, saveBatchRuns),
   registerAudio: byMode(registerAudioChildTest, registerAudioRuns),
   readRun: byMode(readRunChildTest, readRunRuns),
+  forgetAudio,
   mode: () => lastMode,
   ctStore,
   CT_OWN,

@@ -489,3 +489,36 @@ describe('the store path', () => {
     expect(Store.mode()).toBe('runs');
   });
 });
+
+describe('forgetAudio (the audio purge): a run stops pointing at a recording that left R2', () => {
+  test('runs table: the task\'s recording and a spoken answer\'s are marked purged, the others kept', async () => {
+    const s = await newSession();
+    const story = `child-test/test/game/${s.session_id}/ur.story.webm`;
+    const q1 = `child-test/test/game/${s.session_id}/en.listening/q1.webm`;
+    const q2 = `child-test/test/game/${s.session_id}/en.listening/q2.webm`;
+    await post('/audio/register', { st: s.st, task_id: 'ur.story', key: story, bytes: 10, duration_ms: 1 });
+    for (const [itemId, key] of [['q1', q1], ['q2', q2]]) await post('/audio/register', { st: s.st, task_id: 'en.listening', item_id: itemId, key, bytes: 10, duration_ms: 1 });
+    const day = '2026-10-21';
+    expect(await Store.forgetAudio({ sessionId: s.session_id, key: story, day })).toEqual({ ok: true, cleared: 1 });
+    expect(await Store.forgetAudio({ sessionId: s.session_id, key: q1, day })).toEqual({ ok: true, cleared: 1 });
+    const meta = mockDb.tables.web_quiz_challenge_runs[0].meta;
+    expect(meta.audio['ur.story']).toEqual({ key: null, bytes: 10, duration_ms: 1, purged_on: day });
+    expect(meta.audio_items['en.listening']).toEqual([
+      { item_id: 'q1', key: null, bytes: 10, duration_ms: 1, purged_on: day },
+      { item_id: 'q2', key: q2, bytes: 10, duration_ms: 1 },
+    ]);
+    // a key no run names: nothing to clear (and no write)
+    expect(await Store.forgetAudio({ sessionId: s.session_id, key: story, day })).toEqual({ ok: true, cleared: 0 });
+  });
+
+  test('child-test tables: the result row\'s audio key is cleared; an unknown run is not_found', async () => {
+    mockResetDb({ childTest: true });
+    const s = await newSession();
+    const story = `child-test/test/game/${s.session_id}/ur.story.webm`;
+    await post('/audio/register', { st: s.st, task_id: 'ur.story', key: story, bytes: 10, duration_ms: 1 });
+    expect(mockDb.tables.child_test_sa_results[0].audio_r2_key).toBe(story);
+    expect(await Store.forgetAudio({ sessionId: s.session_id, key: story, day: '2026-10-21' })).toEqual({ ok: true, cleared: 1 });
+    expect(mockDb.tables.child_test_sa_results[0].audio_r2_key).toBe(null);
+    expect(await Store.forgetAudio({ sessionId: '00000000-0000-5000-8000-000000000000', key: story, day: '2026-10-21' })).toEqual({ ok: false, reason: 'not_found' });
+  });
+});
