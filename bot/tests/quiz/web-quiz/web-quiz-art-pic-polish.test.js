@@ -150,6 +150,51 @@ describe('the English challenge headline, switch on', () => {
   });
 });
 
+describe('the English challenge, switch on: the sub line and the square\'s stack', () => {
+  const TITLE = 'Rocket and Space Vocabulary';
+  const inv = (first, correct = 3, topic = TITLE) => ({ first, correct, total: 8, topic });
+  for (const size of ['sq', 'og']) for (const first of ['Iqra Testwala', LONG, LATIN]) {
+    test(`${size} "${first}": the headline names the child, the sub line is the quiz title on one line`, () => {
+      const h = art('invite', size, 'en', inv(first), ON);
+      const head = /<h1 class="head">(.*?)<\/h1>/.exec(h)[1];
+      const sub = /<p class="sub">(.*?)<\/p>/.exec(h)[1];
+      expect(head).toContain(`>${first}</bdi>`);
+      expect(sub).not.toContain(first);
+      expect(sub).toBe(`<bdi dir="ltr">${TITLE.replace(/ /g, NB)}</bdi>`);
+      // the stars still follow the sub line
+      expect(h).toMatch(/<\/p><div class="stars">/);
+    });
+  }
+  test('a title too long for one line even a size down keeps its spaces', () => {
+    const long = 'Rocket and Space Vocabulary: planets, moons, stars and the people who travel between them';
+    expect(/<p class="sub">(.*?)<\/p>/.exec(art('invite', 'og', 'en', inv('Iqra Testwala', 3, long), ON))[1]).toBe(`<bdi dir="ltr">${long}</bdi>`);
+  });
+  test('square: one centred stack, 24 px between the lines and the pill (no empty band above the pill)', () => {
+    const c = css(art('invite', 'sq', 'en', inv('Iqra Testwala'), ON));
+    expect(c).toContain('.main{gap:24px}.main{flex:0 0 auto}.art{gap:24px;justify-content:center}.cta{margin:0}');
+    expect(c).toContain('.side{flex:0 1 190px;min-height:96px}');
+    // the wide picture keeps its two columns
+    expect(css(art('invite', 'og', 'en', inv('Iqra Testwala'), ON))).not.toContain('.art{gap:24px;justify-content:center}');
+  });
+});
+
+describe('the Urdu class table, switch on: the child\'s row uses its neighbours\' digits', () => {
+  const ranks = (h) => Array.from(h.matchAll(/<span class="rk">(.*?)<\/span>/g), (m) => m[1].replace(/<[^>]+>/g, ''));
+  const scores = (h) => Array.from(h.matchAll(/<span class="sc">(.*?)<\/span>/g), (m) => m[1].replace(/<[^>]+>/g, ''));
+  const URD = /^[\u06F0-\u06F9/]+$/;
+  const LAT = /^[0-9/]+$/;
+  for (const size of ['sq', 'og']) for (const n of [3, 6, 10]) {
+    test(`${size} ${n} rows: Urdu digits on every row with the digits switch on, Western on every row with it off`, () => {
+      for (const [, at] of POS(n)) {
+        const on = art('class', size, 'ur', cls('ur', n, at, LONG), ON);
+        expect([...ranks(on), ...scores(on)].every((x) => URD.test(x))).toBe(true);
+        const off = art('class', size, 'ur', cls('ur', n, at, LONG), { ...ON, ud: false });
+        expect([...ranks(off), ...scores(off)].every((x) => LAT.test(x))).toBe(true);
+      }
+    });
+  }
+});
+
 describe('what the switch never changes', () => {
   test('the card and school pictures, both languages and sizes', () => {
     for (const size of ['sq', 'og']) for (const lang of ['en', 'ur']) {
