@@ -3,7 +3,7 @@
  * The coach sink (dashboard/sa/sink-coach.js): the engine's calls become the portal relay's routes, in its field
  * names, with the cookie; a spoken answer's recording carries its question; a refused call throws (the sync retries).
  */
-const { create } = require('../sa/sink-coach');
+const { create, linked } = require('../sa/sink-coach');
 
 function fakeFetch(answers) {
   const calls = [];
@@ -36,4 +36,10 @@ test('a signed-out coach or a switched-off route throws, so the sync keeps it fo
   const s = create({ fetch: f });
   await expect(s.putBatch({ session_id: 'x', seq_from: 1, seq_to: 1, events: [], results: [] })).rejects.toMatchObject({ status: 401 });
   await expect(s.presignAudio({ session_id: 'x', task_id: 't', mime: 'audio/webm', bytes: 1 })).rejects.toMatchObject({ status: 404 });
+});
+
+test('a linked phone: the token routes, no cookie, same paths underneath', async () => {
+  const { f, calls } = fakeFetch([{ status: 200, body: { ackedTo: 2 } }]);
+  await linked('tok_ABCDEFGHIJKLMNOP.x', { fetch: f }).putBatch({ session_id: 's1', seq_from: 1, seq_to: 2, events: [], results: [] });
+  expect(calls[0]).toMatchObject({ url: '/api/portal/leader/child-test/sa/link/tok_ABCDEFGHIJKLMNOP.x/session/s1/batch', cred: 'omit' });
 });
