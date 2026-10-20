@@ -141,6 +141,26 @@ describe('saBatch', () => {
     expect(deps.store.setSessionStatus).not.toHaveBeenCalled();
   });
 
+  test('the ruling events are kept on the session (seq, type, task, time, small data); taps are not', async () => {
+    const deps = makeDeps();
+    const events = [ev(0, 'tap'), ev(1, 'visibility_lost', { value: { ms: 900 } }), ev(2, 'mercy', { value: { silence_s: 12 } }), ev(3, 'early_stop_silence'),
+      ev(4, 'mic_unavailable'), ev(5, 'voice', { value: 'clips' }), ev(6, 'resumed', { value: undefined }), ev(7, 'back_blocked'), ev(8, 'handover_in'), ev(9, 'handover_out'),
+      ev(10, 'warmup_result', { value: { correct: 3 } }), ev(11, 'item_answer')];
+    const res = await Svc.saBatch({ userId: COACH, sessionId: SESSION, seqFrom: 0, seqTo: 11, events, results: [] }, deps);
+    expect(res).toEqual({ status: 'ok', ackedTo: 11 });
+    const kept = deps.saStore.markSynced.mock.calls[0][1].events;
+    expect(kept.map((e) => e.type)).toEqual(['visibility_lost', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'resumed', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result']);
+    expect(kept[0]).toEqual({ seq: 1, type: 'visibility_lost', task_id: 'ur.letters', at: '2026-10-02T09:00:00Z', data: { ms: 900 } });
+    expect(kept[4].data).toBe('clips');
+    expect(kept[5].data).toBeNull();
+  });
+
+  test('a kept event with oversized data keeps the event, not the data', async () => {
+    const deps = makeDeps();
+    await Svc.saBatch({ userId: COACH, sessionId: SESSION, seqFrom: 0, seqTo: 0, events: [ev(0, 'mercy', { value: { x: 'y'.repeat(600) } })], results: [] }, deps);
+    expect(deps.saStore.markSynced.mock.calls[0][1].events[0]).toEqual(expect.objectContaining({ type: 'mercy', data: null }));
+  });
+
   test('a malformed batch is refused whole, nothing stored', async () => {
     const deps = makeDeps();
     const bad = [
