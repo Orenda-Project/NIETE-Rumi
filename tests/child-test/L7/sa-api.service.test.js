@@ -214,3 +214,34 @@ describe('dayOutcome', () => {
     expect(deps.draw.markOutcome).not.toHaveBeenCalled();
   });
 });
+
+describe("dayOutcome with the phone's own session id and block", () => {
+  const CLIENT = '77777777-7777-4777-8777-777777777777';
+
+  test('present stores the client id and the block on the new session', async () => {
+    const saStore = { findByClient: jest.fn(async () => ({ ok: true, sessionId: null })), setClient: jest.fn(async () => ({ ok: true })) };
+    const deps = makeDeps({ saStore });
+    const res = await Svc.dayOutcome({ userId: COACH, schoolId: SCHOOL_B, drawId: DRAW, outcome: 'present', clientSessionId: CLIENT, block: 'B3' }, deps);
+    expect(res.sessionId).toBe('new-session');
+    expect(saStore.setClient).toHaveBeenCalledWith('new-session', { clientSessionId: CLIENT, block: 'B3' });
+  });
+
+  test('a re-sent present with the same client id returns that session, nothing marked twice', async () => {
+    const saStore = { findByClient: jest.fn(async () => ({ ok: true, sessionId: 'first' })), setClient: jest.fn() };
+    const deps = makeDeps({ saStore });
+    deps.store.getSession = jest.fn(async (id) => ({ ok: true, session: { id, coach_user_id: COACH } }));
+    expect(await Svc.dayOutcome({ userId: COACH, schoolId: SCHOOL_B, drawId: DRAW, outcome: 'present', clientSessionId: CLIENT }, deps))
+      .toEqual({ status: 'ok', sessionId: 'first', list: null });
+    expect(deps.draw.markOutcome).not.toHaveBeenCalled();
+  });
+
+  test('a bad client id or block is refused; a failed store write does not undo the present', async () => {
+    const saStore = { findByClient: jest.fn(async () => ({ ok: true, sessionId: null })), setClient: jest.fn(async () => ({ ok: false, error: 'no column' })) };
+    const deps = makeDeps({ saStore });
+    expect((await Svc.dayOutcome({ userId: COACH, schoolId: SCHOOL_B, drawId: DRAW, outcome: 'present', clientSessionId: 'x' }, deps)).reason).toBe('bad_client_id');
+    expect((await Svc.dayOutcome({ userId: COACH, schoolId: SCHOOL_B, drawId: DRAW, outcome: 'present', block: 'B9' }, deps)).reason).toBe('bad_block');
+    const res = await Svc.dayOutcome({ userId: COACH, schoolId: SCHOOL_B, drawId: DRAW, outcome: 'present', clientSessionId: CLIENT, block: 'full' }, deps);
+    expect(res.sessionId).toBe('new-session');
+    expect(deps.logError).toHaveBeenCalledWith('child_test.sa.client_not_kept', expect.anything());
+  });
+});
