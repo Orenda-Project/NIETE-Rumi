@@ -50,7 +50,7 @@ function subjectId(raw) {
 function suitsSubject(module, subject) {
   const subs = (module.subjects || []).map((x) => String(x).toLowerCase());
   if (!subs.length || subs.some((x) => UNIVERSAL.has(x))) return true;
-  if (!subject) return false; // unknown subject: a subject-specific module is out (H6)
+  if (!subject) return subs.length > 1; // unknown subject: only a single-subject module is out (H6, §3.3)
   const ok = new Set([subject]);
   if (subject === 'urdu' || subject === 'english') ok.add('literacy');
   return subs.map((x) => subjectId(x) || x).some((x) => ok.has(x));
@@ -63,6 +63,11 @@ function gradeOk(band, grade) {
   if (b === 'primary') return !g || (g.lo <= 5 && g.hi >= 1);
   if (!narrow) return true; // 'all' or anything unknown
   return !!g && g.lo <= narrow[1] && g.hi >= narrow[0];
+}
+
+/** §3.3: a chapter flagged recommendable counts even inside a not-recommendable module (m150/m152/m159/m162). */
+function recommendable(module, seg) {
+  return !!seg && (seg.recommendable === true || (module.recommendable !== false && seg.recommendable !== false));
 }
 
 function isContent(module, seg) {
@@ -131,13 +136,13 @@ function eligible(catalog, lesson) {
   const inapplicable = new Set(l.inapplicable || []);
   const out = [];
   for (const module of catalog.modules) {
-    if (!module || module.recommendable === false || module.media_ok === false) continue;
+    if (!module || module.media_ok === false) continue;
     if (((module.quality && module.quality.flags) || []).some((f) => BAD_MEDIA.has(f))) continue;
     if (!suitsSubject(module, subject)) continue;
     if (subject && module.not_for && tokens(module.not_for).some((tok) => subjectId(tok) === subject)) continue;
     if (!gradeOk(module.grade_band, l.grade)) continue;
     for (const seg of module.segments || []) {
-      if (!seg || seg.recommendable === false || isIntro(module, seg)) continue;
+      if (!recommendable(module, seg) || isIntro(module, seg)) continue;
       const fico = (seg.fico || []).map((f) => f && f.indicator).filter(Boolean);
       if (fico.length && fico.every((id) => SUBJECT_ONLY_ROWS.has(id) && inapplicable.has(id))) continue;
       out.push({ module, seg, lang: seg.language || module.language, level: Number(module.level_id) });
@@ -270,7 +275,7 @@ function tagRoute(catalog, t, ctx, signal, lesson) {
       + (x.isTarget && t.indicators.length ? 2.0 : 0) + 0.5 * x.strength
       + (x.lang === preferred ? 1.0 : 0)
       + (levelMatch === 'near' || (levelMatch === 'unknown' && x.level <= 2) ? 0.5 : 0)
-      + (ev || lead ? 0.001 : 0);
+      + (ev && (t.moves.length ? lead : true) ? 0.001 : 0); // §3.3: moves[0] is the target AND evidence_s inside
     return {
       seg_id: x.seg.seg_id,
       score: Math.round(score * 1e4) / 1e4,
@@ -330,4 +335,4 @@ function build(catalog, target, ctx, signal, lesson, step) {
   }
 }
 
-module.exports = { build, textRoute, stepQuery, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, LABEL_37 };
+module.exports = { build, textRoute, recommendable, stepQuery, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, LABEL_37 };

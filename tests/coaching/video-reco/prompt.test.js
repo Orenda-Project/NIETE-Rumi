@@ -13,8 +13,8 @@ const session = { diarization_data: { segments: segs }, transcript_text: '' };
 const target = { indicator: 'C1', source: 'step', row: { id: 'C1', name: 'Quality Questioning', score: 1, timestamp: '[03:10]' } };
 const cands = [{ seg_id: '10-s1', indicator: 'C1' }, { seg_id: '11-s1', indicator: 'C1' }];
 
-test('PROMPT_VERSION is vr-2', () => {
-  expect(P.PROMPT_VERSION).toBe('vr-2');
+test('PROMPT_VERSION is vr-3 (SPEC §3.5 [v1.3]: rule 2 gains the length hint)', () => {
+  expect(P.PROMPT_VERSION).toBe('vr-3');
 });
 
 test('excerpts: the 12 diarized segments around the target timestamp, [mm:ss] Label: text, ≤ 220 chars each', () => {

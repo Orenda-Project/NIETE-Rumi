@@ -62,9 +62,12 @@ function dice(a, b) {
   return na + nb ? (2 * both) / (na + nb) : 0;
 }
 
+// A leading excerpt-line prefix the model copied with the quote: "[04:17] Teacher:" (§3.5 [v1.3] b).
+const LINE_PREFIX = /^\s*\[?\d{1,2}:\d{2}(?::\d{2})?\]?\s*[^:\n]{0,40}:\s*/;
+
 /** The quote appears in one excerpt line, allowing for spacing, punctuation and case (Dice ≥ 0.8). */
 function quoteFound(quote, excerpts) {
-  const q = norm(String(quote || '').replace(/\[a student\]/gi, ' '));
+  const q = norm(String(quote || '').replace(LINE_PREFIX, '').replace(/\[a student\]/gi, ' '));
   const qw = q.split(' ').filter(Boolean);
   if (qw.length < 2 && [...q].length < 6) return false;
   for (const line of excerpts || []) {
@@ -86,8 +89,10 @@ function namesIn(text, name) {
   return norm(name).split(' ').some((w) => [...w].length >= 3 && words.has(w));
 }
 
+/** Arabic-script share of the letters, after removing quoted text and [a student] (§3.5 [v1.3] a: English terms are the prompt's rule 3). */
 function arabicShare(text) {
-  const letters = String(text || '').match(/\p{L}/gu) || [];
+  const rest = String(text || '').replace(/"[^"]*"|“[^”]*”|«[^»]*»/g, ' ').replace(/\[a student\]/gi, ' ');
+  const letters = rest.match(/\p{L}/gu) || [];
   if (!letters.length) return 0;
   return letters.filter((c) => ARABIC.test(c)).length / letters.length;
 }

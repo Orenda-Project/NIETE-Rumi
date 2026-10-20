@@ -82,8 +82,19 @@ function signalOf(t, analysis, nextStep, card) {
     .filter((x) => typeof x === 'string' && x.trim()).join('\n');
 }
 
+/**
+ * The card as the engine reads it. The observe path (hook A2) passes the stored prioritized_action record, whose
+ * indicator sits under `target` (uptake-loop buildRecord); a phase target has none and stays a card_text card.
+ */
+function cardOf(card) {
+  if (!card || typeof card !== 'object' || card.indicator) return card;
+  const t = card.target;
+  return t && t.indicator && t.kind !== 'phase' ? { ...card, indicator: t.indicator } : card;
+}
+
 async function compute(a, d, state) {
-  const { session, analysis, loop, card, coachingSessionId } = a;
+  const { session, analysis, loop, coachingSessionId } = a;
+  const card = cardOf(a.card);
   const { store, catalog } = d;
   // The observe path (hook A2) has no next step of its own: the coach-edited analysis decides it, as the hero did.
   const nextStep = a.nextStep === undefined ? require('../next-step').selectNextStep(analysis, null) : a.nextStep; // eslint-disable-line global-require
@@ -97,7 +108,9 @@ async function compute(a, d, state) {
   const language = clampLanguage(session.users && session.users.preferred_language);
   const [history, ladder] = await Promise.all([store.recentHistory(session.user_id), store.ladderProgress(session.user_id)]);
   const completed = new Set(ladder.completedModules || []);
-  const ladderComplete = catalog.modules.length > 0 && catalog.modules.every((m) => completed.has(Number(m.module_id)));
+  // The ladder a teacher can finish = the recommendable modules (review_3313 F6): a retired module never blocks "complete".
+  const ladderModules = catalog.modules.filter((m) => m && m.recommendable !== false);
+  const ladderComplete = ladderModules.length > 0 && ladderModules.every((m) => completed.has(Number(m.module_id)));
   let v10Group = null;
   try {
     const g = await (d.v10GroupFor || require('../ab-v10-arms').groupFor)(session.user_id); // eslint-disable-line global-require
@@ -195,7 +208,8 @@ async function compute(a, d, state) {
   if (res.truncated) return finish({ ...withLlm, status: 'none', none_reason: 'llm_truncated' });
   const v = select.validate(res.pick, list, ex, {
     stepIndicator: t.stepIndicator, indicators: t.indicators, source: t.source, catalog, textRoute: !!list.textReason,
-    teacherName: people.teacher, scorerQuote: scorerQuote || uptakeQuote,
+    // §3.5 [v1.3] d: a moment may match the scorer's `Quote:` part, never its evidence_summary.
+    teacherName: people.teacher, scorerQuote: (t.source === 'card_text' ? '' : prompt.redact(target.scorerQuoteOnly(t.row), people)) || uptakeQuote,
   });
   if (!v.ok) return finish({ ...withLlm, status: 'none', none_reason: v.none, confidence: v.confidence });
 
