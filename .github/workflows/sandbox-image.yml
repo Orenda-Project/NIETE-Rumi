@@ -106,7 +106,6 @@ jobs:
             --build-cmd '${{ matrix.build_cmd }}' \
             --start-cmd '${{ matrix.start_cmd }}' \
             --env RAILPACK_NODE_VERSION=22 \
-            --env NIXPACKS_INSTALL_CMD='npm install' \
             --plan-out "$RUNNER_TEMP/plan-${{ matrix.svc }}.json" \
             --info-out "$RUNNER_TEMP/info-${{ matrix.svc }}.json"
           cat "$RUNNER_TEMP/info-${{ matrix.svc }}.json"
@@ -119,6 +118,9 @@ jobs:
           file: ${{ runner.temp }}/plan-${{ matrix.svc }}.json
           build-args: |
             BUILDKIT_SYNTAX=ghcr.io/railwayapp/railpack-frontend:v${{ env.RAILPACK_VERSION }}
+          # railpack mounts every --env as a BuildKit secret; these are plain build knobs, not credentials.
+          secrets: |
+            RAILPACK_NODE_VERSION=22
           platforms: linux/amd64
           push: true
           provenance: false
