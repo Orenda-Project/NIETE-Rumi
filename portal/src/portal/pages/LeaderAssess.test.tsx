@@ -388,6 +388,7 @@ describe("LeaderAssess", () => {
       fireEvent.click(await screen.findByTestId("assess-school-s2"));
       const card = await screen.findByTestId("assess-preflight");
       expect(card).toHaveTextContent("airplane mode");
+      expect(card).toHaveTextContent("screen timeout to 10 minutes");
       expect(card).toHaveTextContent("Headphones in");
       expect(screen.queryByText("Ayan Testwala")).toBeNull();
       fireEvent.click(within(card).getByRole("button", { name: /Play a sound/ }));
