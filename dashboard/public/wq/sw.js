@@ -1,7 +1,7 @@
 /* Jugnu's reminder worker (served at /sw.js, scope /, while app_settings web_quiz_push_remind is on; else sw-off.js).
    It shows the one daily reminder, opens the quiz on a tap, stops on the Stop action and re-subscribes when the browser
    rotates the subscription. It has NO network request handler of any kind and keeps no cache: page loads never pass
-   through it (JV3 condition 1; a source test in dashboard/tests/push-remind-edge.service.test.js holds that). The
+   through it (a source test in dashboard/tests/push-remind-edge.service.test.js holds that). The
    payload is {t, b, url, tag, lang, test}; it never carries a child's name. */
 'use strict';
 
