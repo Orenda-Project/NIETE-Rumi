@@ -184,3 +184,33 @@ test('the mercy rule: the recorder\'s silence watch offers the star at 12 s and 
   expect(e.runner.results()[0]).toMatchObject({ stop_reason: 'early_stop_silence', mercy_offered: true, silence_s: 20 });
   expect(cancelled).toBe(1);
 });
+
+test('embedded: the coach page\'s hold (sa:coach_end) ends the running task as coach_end, flushes, then sa:done once', async () => {
+  const s = await shared();
+  const f = fakes(s);
+  const listeners = {};
+  const posted = [];
+  const order = [];
+  const win = { location: { origin: 'https://p.test' }, addEventListener: (t, fn) => { listeners[t] = fn; }, removeEventListener() {} };
+  win.parent = { postMessage: (m, o) => { posted.push([m, o]); order.push('posted'); } };
+  f.deps.win = win;
+  f.deps.sync = { create: () => ({ flush: async () => { order.push('flushed'); return { state: 'synced' }; }, poke() {}, status: () => ({}), stop() {} }) };
+  const b = { battery_id: 'ce', tasks: [{ id: 'letters', mode: 'tap', time_limit_s: 60, items: [{ id: 'i1', target: 'a', options: ['a', 'b'] }, { id: 'i2', target: 'a', options: ['a', 'b'] }] },
+    { id: 'words', mode: 'tap', items: [{ id: 'w1', target: 'a', options: ['a', 'b'] }] }] };
+  const e = await start({ mount: {}, battery: b, mode: 'proctored', lang: 'en', embed: true, session_id: 'sess-ce', sink: {}, audio_check: false, warmup: false }, f.deps);
+  e.runner.start(); e.runner.instructionDone(); e.runner.begin(); e.runner.answer('a');
+  listeners.message({ origin: 'https://p.test', data: { type: 'sa:coach_end', s: 'someone-else' } });
+  listeners.message({ origin: 'https://evil.test', data: { type: 'sa:coach_end', s: 'sess-ce' } });
+  await new Promise((r) => setTimeout(r, 0));
+  expect(posted).toEqual([]);
+  listeners.message({ origin: 'https://p.test', data: { type: 'sa:coach_end', s: 'sess-ce' } });
+  await new Promise((r) => setTimeout(r, 10));
+  expect(e.runner.results()[0]).toMatchObject({ task_id: 'letters', stop_reason: 'coach_end', attempted: 1 });
+  expect(posted).toEqual([[{ type: 'sa:done', s: 'sess-ce', reason: 'coach_end' }, 'https://p.test']]);
+  expect(order).toEqual(['flushed', 'posted']);
+  listeners.message({ origin: 'https://p.test', data: { type: 'sa:coach_end', s: 'sess-ce' } });
+  await new Promise((r) => setTimeout(r, 10));
+  expect(posted).toHaveLength(1);
+  const types = (await s.events('sess-ce')).map((x) => x.type);
+  expect(types).toEqual(expect.arrayContaining(['coach_unlock', 'coach_end_run', 'handover_out']));
+});
