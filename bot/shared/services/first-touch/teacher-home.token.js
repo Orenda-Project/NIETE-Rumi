@@ -7,7 +7,7 @@
  *   { k:'th', uid, lang, via, exp }
  *     uid   users.id of the teacher the page acts as (the page greets from the users row, never from the URL)
  *     lang  en | ur | bi (bi → the Urdu page with an "English" switch)
- *     via   go | role | menu | maker | report (which door the page was opened from)
+ *     via   go | role | menu | maker | report | portal (which door the page was opened from; portal = the teacher app's home card)
  *
  * The one-door landing may sign this exact shape itself; verifyTeacherHome accepts it.
  * verifyTeacherHome(t) → { ok: payload } | { stale: payload } (genuine but expired) | null (forged, garbled, another kind).
@@ -17,7 +17,7 @@ const WebQuizToken = require('../quiz/web-quiz-token');
 const KIND = 'th';
 const HOME_TTL_S = 24 * 60 * 60;
 const LANGS = Object.freeze(['en', 'ur', 'bi']);
-const VIAS = Object.freeze(['go', 'role', 'menu', 'maker', 'report']);
+const VIAS = Object.freeze(['go', 'role', 'menu', 'maker', 'report', 'portal']);
 
 function fieldsOf({ uid, lang, via } = {}) {
   if (typeof uid !== 'string' || !uid || uid.length > 64) return null;

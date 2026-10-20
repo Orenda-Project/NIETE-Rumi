@@ -134,6 +134,88 @@
   },
   {
     "m": "use",
+    "path": "/api/internal/sagame",
+    "handlers": [
+      {
+        "name": "router",
+        "stack": [
+          {
+            "name": "requireInternalKey"
+          },
+          {
+            "name": "router",
+            "stack": [
+              {
+                "name": "<anonymous>"
+              },
+              {
+                "name": "jsonParser"
+              },
+              {
+                "path": "/session",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/batch",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/audio/presign",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/audio/register",
+                "methods": [
+                  "post"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "path": "/status",
+                "methods": [
+                  "get"
+                ],
+                "handlers": [
+                  "<anonymous>"
+                ]
+              },
+              {
+                "name": "<anonymous>"
+              }
+            ]
+          },
+          {
+            "path": "/page/:token",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "m": "use",
     "path": "/api/internal/th",
     "handlers": [
       {
@@ -231,6 +313,29 @@
           },
           {
             "path": "/quiz/teacher/:token/stories",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "m": "use",
+    "path": "/api/internal/thportal",
+    "handlers": [
+      {
+        "name": "router",
+        "stack": [
+          {
+            "name": "requireInternalKey"
+          },
+          {
+            "path": "/portal-home",
             "methods": [
               "get"
             ],

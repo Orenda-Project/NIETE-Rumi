@@ -237,3 +237,66 @@ describe('GET /config — features.teacherV2', () => {
     expect(payload.features).toMatchObject({ teacherV2: false, coachV2: false });
   });
 });
+
+/*
+ * Teacher Home card — the Home card and the per-teacher order ride /config as features.teacherHomeCard and
+ * features.teacherHomeOrder, answered for the SESSION user. The order is an experiment on the card's cohort: it is
+ * true only when the card is on too. Both are a real false when absent, logged out, or in the error fallback.
+ */
+describe('GET /config — features.teacherHomeCard / teacherHomeOrder (teacher Home card)', () => {
+  beforeEach(() => {
+    jest.resetModules();
+    settings = {};
+    roles = {};
+    jest.doMock('../../dashboard/config/supabase', () => ({ from: (t) => makeChain(t), rpc: jest.fn() }));
+    jest.doMock('../../dashboard/services/portal-coaching.client', () => ({}));
+    jest.doMock('../../dashboard/services/r2.service', () => ({
+      generatePresignedUrl: jest.fn(), generatePresignedUrls: jest.fn(), isValidR2Url: jest.fn(),
+    }));
+    jest.doMock('bcryptjs', () => ({ hash: jest.fn(), compare: jest.fn(), genSalt: jest.fn() }), { virtual: true });
+    jest.doMock('express-rate-limit', () => jest.fn(() => (_q, _s, n) => n()), { virtual: true });
+    jest.doMock('@aws-sdk/client-s3', () => ({ S3Client: jest.fn(), GetObjectCommand: jest.fn() }), { virtual: true });
+  });
+  afterEach(() => jest.resetModules());
+
+  test('the keys are portal_teacher_home_card and portal_teacher_home_order', () => {
+    const flags = require('../../dashboard/lib/feature-flags');
+    expect(flags.PORTAL_TEACHER_HOME_CARD_KEY).toBe('portal_teacher_home_card');
+    expect(flags.PORTAL_TEACHER_HOME_ORDER_KEY).toBe('portal_teacher_home_order');
+  });
+
+  test('absent: both a real false', async () => {
+    const { payload } = await getConfig();
+    expect(payload.features).toHaveProperty('teacherHomeCard', false);
+    expect(payload.features).toHaveProperty('teacherHomeOrder', false);
+  });
+
+  test('a pilot list: on for the teacher it names, off for everyone else', async () => {
+    settings.portal_teacher_home_card = ['teacher-1'];
+    settings.portal_teacher_home_order = ['teacher-1'];
+    expect((await getConfig()).payload.features).toMatchObject({ teacherHomeCard: true, teacherHomeOrder: true });
+    expect((await getConfig({ userId: 'teacher-2' })).payload.features).toMatchObject({ teacherHomeCard: false, teacherHomeOrder: false });
+  });
+
+  test('the order alone is OFF: it needs the card on too', async () => {
+    settings.portal_teacher_home_order = true;
+    expect((await getConfig()).payload.features).toMatchObject({ teacherHomeCard: false, teacherHomeOrder: false });
+    settings.portal_teacher_home_card = true;
+    expect((await getConfig()).payload.features).toMatchObject({ teacherHomeCard: true, teacherHomeOrder: true });
+  });
+
+  test('the card on, the order off: card only', async () => {
+    settings.portal_teacher_home_card = true;
+    expect((await getConfig()).payload.features).toMatchObject({ teacherHomeCard: true, teacherHomeOrder: false });
+  });
+
+  test('logged out, and the error fallback: both false', async () => {
+    settings.portal_teacher_home_card = true;
+    settings.portal_teacher_home_order = true;
+    expect((await getConfig({ userId: null })).payload.features).toMatchObject({ teacherHomeCard: false, teacherHomeOrder: false });
+    const { statusCode, payload } = await getConfig({ sessionThrows: true });
+    expect(statusCode).toBe(200);
+    expect(payload.features).toHaveProperty('teacherHomeCard', false);
+    expect(payload.features).toHaveProperty('teacherHomeOrder', false);
+  });
+});
