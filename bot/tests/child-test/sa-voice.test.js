@@ -9,10 +9,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { voiceManifest } = require('../../shared/services/child-test/sa/voice-manifest');
-const { run, loadBatteries } = require('../../scripts/child-test/record-sa-voice');
+const { run, loadBank } = require('../../scripts/child-test/record-sa-voice');
 
-const batteries = loadBatteries();
-const manifest = voiceManifest(batteries);
+const bank = loadBank();
+const manifest = voiceManifest(bank);
 
 function audioKeys(x, out = new Set()) {
   if (typeof x === 'string') { if (/^sa\/v1\/(en|ur)\/[0-9a-f]{12}\.mp3$/.test(x)) out.add(x); }
@@ -22,10 +22,10 @@ function audioKeys(x, out = new Set()) {
 }
 
 describe('SA voice manifest', () => {
-  test('every clip key in every battery is in the manifest, once', () => {
+  test('every clip key in the bank is in the manifest, once', () => {
     const keys = manifest.map((r) => r.key);
     expect(new Set(keys).size).toBe(keys.length);
-    const want = [...audioKeys(batteries)].sort();
+    const want = [...audioKeys(bank)].sort();
     expect(keys.filter((k) => want.includes(k)).sort()).toEqual(want);
   });
 

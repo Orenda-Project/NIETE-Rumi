@@ -1,15 +1,15 @@
 'use strict';
 
 /**
- * Builds the self-administered (SA) battery bank (item-bank.sa.v1.json) from the official banks. Nothing here is
- * test content: every scored item, practice item and tap choice is read out of item-bank.v3.json (Set A: RWP May
- * 2026, EGRA Toolkit 2016/2009, Core EGMA, Sindh SELECT) (the v4 bank is read for its version only), and each
- * item carries the bank path it came from (`src`). This file only decides the SA shape: forms, response modes, the
- * stop rules in the engine's terms, tap choices and Jugnu's lines (sa/scripts.js).
+ * Builds the self-administered (SA) battery bank (CONTRACT §2) from the official banks. Nothing here is test content:
+ * every scored item, practice item and tap option is read out of item-bank.v3.json (Set A: RWP May 2026, EGRA Toolkit
+ * 2016/2009, Core EGMA, Sindh SELECT), and each item carries the path it came from (`src`). This file decides only the
+ * SA shape: forms, response modes (DESIGN §2), the stop rules in the engine's terms, tap options by a named rule, and
+ * Jugnu's lines (sa/scripts.js).
  *
- *   node bot/scripts/child-test/build-sa-bank.js        rewrites bot/shared/data/child-test/item-bank.sa.v1.json
+ *   node bot/scripts/child-test/build-sa-bank.js        rewrites item-bank.sa.v1.json and sa/<form>.json
  *
- * Pure and deterministic: the same banks give the same bytes (choices are ordered by a hash of the item id).
+ * Pure and deterministic: the same banks give the same bytes (options are ordered by a hash of the item id).
  */
 
 const crypto = require('crypto');
@@ -18,12 +18,10 @@ const { COMMON, BATTERY, TASKS: LINES, UR_LETTER_NAMES } = require('./scripts');
 
 const VERSION = 'child-test-items-sa-v1';
 const SET = 'A';
-const CHOICES_N = 4;
 
-// The forms. Coach: Grades 3 and 5, the term's set (draw/term-set.js). Game: the Challenge's grade bands
-// (web-quiz-challenge-draw.js gradeBand: 2-3 → G3 form, 4-5 → G5 form) plus grade 1, which reads the same EGRA forms
-// (the May RWP instrument was one form for Grades 1-5) and Core EGMA (written for Grades 1-3). The v4 grade-1 ten-frame
-// block is not used: it has no official source.
+// The forms (RULING #4). Coach: Grades 3 and 5 on the term's set (draw/term-set.js). Game: the Challenge's grade
+// bands (web-quiz-challenge-draw.js gradeBand: 2-3 → G3, 4-5 → G5) plus grade 1, which reads the same EGRA forms (the
+// May RWP instrument was one form for Grades 1-5) and Core EGMA (written for Grades 1-3).
 const FORMS = [
   { form: 'coach.G3.A', surface: 'coach', grades: [3], maths: '3' },
   { form: 'coach.G5.A', surface: 'coach', grades: [5], maths: '5' },
@@ -32,268 +30,278 @@ const FORMS = [
   { form: 'game.G45', surface: 'game', grades: [4, 5], maths: '5' },
 ];
 
-// Response mode per task kind and surface. Coach keeps EGRA's one-to-one measure (the child reads aloud, the audio is
-// scored later by the child-test scorer) and adds the tap side; the game is tap-scored on the phone. A lead RULING
-// changes this table only.
-const MODES = {
-  coach: { grid: 'both', passage: 'record', choice: 'both', listen_choice: 'both' },
-  game: { grid: 'tap', passage: 'both', choice: 'tap', listen_choice: 'tap' },
+// DESIGN §3 blocks (Design A): one block per child per visit.
+const BLOCKS = {
+  B1: ['ur.letters', 'ur.nonwords', 'ur.words', 'ur.story', 'ur.story_comp'],
+  B2: ['en.letters', 'en.nonwords', 'en.words', 'en.story', 'en.story_comp'],
+  B3: ['ur.listening', 'en.listening'],
+  B4: ['ma.number_id', 'ma.discrimination', 'ma.missing'],
+  B5: ['ma.add1', 'ma.sub1', 'ma.add2', 'ma.sub2', 'ma.word_problems'],
 };
+const BLOCK_NAMES = {
+  B1: { en: 'Urdu reading', ur: 'اردو پڑھنا' }, B2: { en: 'English reading', ur: 'انگریزی پڑھنا' },
+  B3: { en: 'Listening', ur: 'سن کر سمجھنا' }, B4: { en: 'Maths: numbers', ur: 'ریاضی: نمبر' }, B5: { en: 'Maths: sums', ur: 'ریاضی: سوال' },
+};
+
+// DESIGN §2: 5 tiles for letters, 4 for every other tap; replay at 5 s and move on at 10 s on a timed tap task.
+const OPTIONS_N = { letters: 5 };
+const TIMED_TAP = { item_timeout_s: 10, replay_at_s: 5 };
+const UNTIMED_TAP = { item_timeout_s: null, replay_at_s: null };
 
 const SUBTASK = {
   listening: 'listening_comprehension', letters: 'letter_name_identification', nonwords: 'nonword_reading',
   words: 'familiar_word_reading', story: 'oral_reading_fluency', story_comp: 'reading_comprehension',
-  number_id: 'number_identification', discrimination: 'quantity_discrimination',
-  missing: 'missing_number', add1: 'addition_level_1', sub1: 'subtraction_level_1', add2: 'addition_level_2',
-  sub2: 'subtraction_level_2', word_problems: 'word_problems',
+  number_id: 'number_identification', discrimination: 'quantity_discrimination', missing: 'missing_number',
+  add1: 'addition_level_1', sub1: 'subtraction_level_1', add2: 'addition_level_2', sub2: 'subtraction_level_2',
+  word_problems: 'word_problems',
 };
 
 const h = (s) => crypto.createHash('sha1').update(String(s)).digest('hex');
 const byHash = (seed) => (a, b) => (h(`${seed}|${a}`) < h(`${seed}|${b}`) ? -1 : 1);
-const fill = (line, x) => ({ en: line.en.replace(/\{x\}/g, x.en ?? x), ur: line.ur.replace(/\{x\}/g, x.ur ?? x) });
+const fill = (line, x) => ({ en: line.en.replace(/\{x\}/g, x.en ?? x), ur: line.ur.replace(/\{x\}/g, x.ur ?? x), from: line.from });
 const toUrDigits = (s) => String(s).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 const audioKey = (lang, text) => `sa/v1/${lang}/${h(`${lang}|${text}`).slice(0, 12)}.mp3`;
+const pad = (n, w) => String(n).padStart(w, '0');
 
-/** A spoken line, with the clip key each language's text will be voiced into. */
+/** A line Jugnu speaks in either language, with the clip key each language's text is voiced into. */
 function spoken({ en, ur, from }) {
   return { en, ur, ...(from ? { from } : {}), audio: { en: audioKey('en', en), ur: audioKey('ur', ur) } };
 }
-
-/**
- * Tap choices for one item: the answer and CHOICES_N-1 others from the same official pool (the task's own grid, as
- * Tangerine SA builds a listen-and-tap item from the subtask's item list), never the answer twice; ordered by a hash of
- * the item id so the answer's place varies but the bytes never do.
- */
-function poolChoices(id, answer, pool, n = CHOICES_N) {
-  const others = [...new Set(pool.map(String))].filter((x) => x !== String(answer)).sort(byHash(`${id}|pick`)).slice(0, n - 1);
-  return [String(answer), ...others].sort(byHash(`${id}|order`));
+/** Words in one language only (a story, a question, a word on the grid): { text, lang, audio }. */
+function said(lang, text) {
+  return { text, lang, audio: audioKey(lang, text) };
+}
+/** Words Jugnu says in either language (a number, a sum): { en, ur, audio{en,ur} }. */
+function sayBoth(en, ur) {
+  return { en, ur, audio: { en: audioKey('en', en), ur: audioKey('ur', ur) } };
 }
 
 /**
- * Numeric choices: the answer and its near neighbours, the grade-1 block's rule (v4 anchor_blocks.G1A.tiles_rule:
- * "the answer and two distractors from {k-1, k+1, k-2, k+2, …}"), widened by ±10 for two-digit work; never below 0.
+ * Tap options: the target and n-1 others from the same official list (DESIGN §2: "drawn from the same grid, no new
+ * letters"; words and made-up words prefer list-mates that share a letter with the target). Ordered by a hash of the
+ * item id, so the target's place varies but the bytes never do.
  */
-function numberChoices(id, answer, step = 1, n = CHOICES_N) {
+function listOptions(id, target, list, n, { shareLetter = false } = {}) {
+  const t = String(target);
+  const pool = [...new Set(list.map(String))].filter((x) => x !== t).sort(byHash(`${id}|pick`));
+  const letters = new Set([...t]);
+  const near = shareLetter ? pool.filter((x) => [...x].some((c) => letters.has(c))) : [];
+  const picked = [...near, ...pool.filter((x) => !near.includes(x))].slice(0, n - 1);
+  return [t, ...picked].sort(byHash(`${id}|order`));
+}
+
+/** Missing-number options (DESIGN §2): the answer and its neighbours one step of the sequence away, then ±1, never < 0. */
+function stepOptions(id, answer, step, n = 4) {
   const a = Number(answer);
-  const near = [a + step, a - step, a + 1, a - 1, a + 2, a - 2, a + 10, a - 10].filter((x) => x >= 0 && x !== a);
-  const others = [...new Set(near)].slice(0, n - 1);
-  return [a, ...others].sort(byHash(`${id}|order`));
+  const near = [a + step, a - step, a + 2 * step, a - 2 * step, a + 1, a - 1].filter((x) => x >= 0 && x !== a);
+  return [a, ...[...new Set(near)].slice(0, n - 1)].sort(byHash(`${id}|order`));
 }
 
-function stopOf(v3stop, timed, firstLineN) {
-  const stop = {};
-  if (v3stop.type === 'first_row') Object.assign(stop, { first_line_n: v3stop.n, first_line_min_correct: 1 });
-  if (v3stop.type === 'first_line') Object.assign(stop, { first_line_n: firstLineN, first_line_min_correct: 1 });
-  if (v3stop.type === 'consecutive_errors') stop.consecutive_errors = v3stop.n;
-  if (timed) stop.time_up = true;
-  return stop;
+function seqStep(seq) {
+  const known = seq.map((x, i) => [x, i]).filter(([x]) => x !== null);
+  const [[x0, i0], [x1, i1]] = known;
+  return Math.abs((x1 - x0) / (i1 - i0)) || 1;
 }
 
-function scriptOf(key, surfaceMode, extra = {}) {
+function stopOf(v3stop, firstLineN) {
+  if (v3stop.type === 'first_row') return { type: 'first_row', n: v3stop.n };
+  if (v3stop.type === 'first_line') return { type: 'first_line', n: firstLineN };
+  if (v3stop.type === 'consecutive_errors') return { type: 'consecutive_errors', n: v3stop.n };
+  return null;
+}
+
+/** Jugnu's lines for one task, under CONTRACT §2's names. */
+function scriptOf(key, mode, demo) {
   const t = LINES[key] || {};
-  const out = {};
-  for (const [k, line] of Object.entries(t)) if (['intro_record', 'intro_tap', 'example'].includes(k)) out[k] = spoken(line);
-  out.practice_intro = spoken(COMMON.practice_intro);
-  out.test_intro = spoken(COMMON.test_intro);
-  out.begin = spoken(COMMON.begin);
-  out.time_up = spoken(COMMON.time_up);
-  out.early_stop = spoken(COMMON.early_stop);
-  out.after = spoken(COMMON.after);
-  return Object.assign(out, extra);
+  const intro = mode === 'record' ? (t.intro_record || t.intro_tap) : (t.intro_tap || t.intro_record);
+  const out = { intro: spoken(intro) };
+  if (demo) out.demo = spoken(demo);
+  for (const k of ['practice_intro', 'practice_right', 'practice_wrong', 'test_intro', 'begin', 'replay', 'time_up', 'early_stop', 'after', 'hand_back']) {
+    out[k] = spoken(COMMON[k]);
+  }
+  return out;
 }
-
-function instructionOf(script, mode) {
-  const line = mode === 'record' ? script.intro_record : script.intro_tap || script.intro_record;
-  return { text: { en: line.en, ur: line.ur }, audio: line.audio };
-}
-
-function lineKey(lang, kind) {
-  if (kind === 'letters') return `${lang}.letters`;
-  return kind;
-}
+const sourceOf = (spec, scriptFrom, adaptation) => ({ items: spec.source && spec.source.items, script: (spec.source && spec.source.script) || scriptFrom, sa_adaptation: adaptation });
 
 // ---------------------------------------------------------------------------------------------- reading tasks
-function gridTask({ lang, kind, spec, surface }) {
-  const id = `${lang}.${kind}`;
+function gridTask({ lang, kind, spec }) {
+  const task = `${lang}.${kind}`;
   const base = `v3:sets.${SET}.reading.${lang}.${kind}`;
-  const mode = MODES[surface].grid;
-  const lines = LINES[lineKey(lang, kind)];
+  const lines = LINES[kind === 'letters' ? task : kind];
+  const n = OPTIONS_N[kind] || 4;
   const sayOf = (x) => (lang === 'ur' && kind === 'letters' ? UR_LETTER_NAMES[x] || x : x);
-  const pool = spec.items;
+  const opts = (id, x) => listOptions(id, x, spec.items, n, { shareLetter: kind !== 'letters' });
   const items = spec.items.map((x, i) => {
-    const iid = `${id}.${String(i + 1).padStart(3, '0')}`;
-    const say = sayOf(x);
-    return { id: iid, label: x, answer: x, say, prompt_audio: audioKey(lang, say), choices: poolChoices(iid, x, pool), src: `${base}.items[${i}]` };
+    const id = `${task}.${pad(i + 1, 3)}`;
+    return { id, target: x, options: opts(id, x), say: said(lang, sayOf(x)), src: `${base}.items[${i}]` };
   });
   const practice = (spec.practice || []).map((p, i) => {
-    const pid = `${id}.p${i + 1}`;
-    const say = sayOf(p.item);
-    const fb = { right: spoken(fill(lines.right, say)), wrong: spoken(fill(lines.wrong, say)) };
-    return { id: pid, role: p.role, label: p.item, answer: p.item, say, prompt_audio: audioKey(lang, say),
-      choices: poolChoices(pid, p.item, [p.item, ...pool]), feedback: fb, src: `${base}.practice[${i}]` };
+    const id = `${task}.p${i + 1}`;
+    const s = sayOf(p.item);
+    return { id, role: p.role, target: p.item, options: opts(id, p.item), say: said(lang, s),
+      feedback: { correct: spoken(fill(lines.right, s)), wrong: spoken(fill(lines.wrong, s)) }, src: `${base}.practice[${i}]` };
   });
   const example = practice.find((p) => p.role === 'example');
-  const script = scriptOf(lineKey(lang, kind), mode, example && lines.example ? { example: spoken(fill(lines.example, example.say)) } : {});
   return {
-    id, legacy_block: id, family: 'egra', subtask: SUBTASK[kind], lang, title: spec.title, kind: 'grid', mode,
-    timed_s: spec.timed_s, grid: { cols: spec.per_row, direction: spec.direction }, distractor_pool: [...new Set([...pool, ...practice.map((p) => p.label)])],
-    stop: stopOf(spec.stop, spec.timed_s), scoring: { unit: 'correct_per_minute', tap: 'choice === answer', record: 'scored later from audio (child-test scorer)' },
-    instruction: instructionOf(script, mode), script, practice, ...(practice.length ? {} : { practice_note: spec.practice_note }),
-    items, source: { ...spec.source, sa_choices: 'poolChoices: the answer + 3 others from the same grid' },
+    task, lang, kind: 'grid', legacy_block: task, family: 'egra', subtask: SUBTASK[kind], title: spec.title, modes: ['tap'],
+    tap: { options_n: n, distractor_rule: kind === 'letters' ? 'same_list' : 'same_list_shares_letter', input: 'options',
+      items, time_limit_s: spec.timed_s, ...TIMED_TAP, stop: stopOf(spec.stop) },
+    record: { grid: spec.items, per_row: spec.per_row, direction: spec.direction, time_limit_s: spec.timed_s, stop: stopOf(spec.stop) },
+    practice, ...(practice.length ? {} : { practice_note: spec.practice_note }),
+    script: scriptOf(kind === 'letters' ? task : kind, 'tap', example && lines.example ? fill(lines.example, example.say.text) : null),
+    source: sourceOf(spec, `${base}.script`, 'Tangerine SA hear-then-tap (sec_letter_sounds_01, sec_vocab_01); RULING #2'),
+    deviation: 'recognition, not production: Jugnu says the item and the child taps it (Tangerine SA\'s own choice); the 3-second rule becomes replay at 5 s, auto-advance marked wrong at 10 s',
   };
 }
 
-function storyTasks({ lang, spec, surface }) {
-  const id = `${lang}.story`;
+function storyTasks({ lang, spec }) {
+  const task = `${lang}.story`;
   const base = `v3:sets.${SET}.reading.${lang}.story`;
-  const mode = MODES[surface].passage;
   const lines = spec.story.lines || [];
   const lineOf = (i) => (lines.find((l) => i >= l.from && i <= l.to) || {}).n || null;
-  const items = spec.items.map((w, i) => ({ id: `${id}.${String(i + 1).padStart(3, '0')}`, label: w, answer: w, line: lineOf(i), src: `${base}.items[${i}]` }));
+  const words = spec.items.map((w, i) => ({ id: `${task}.${pad(i + 1, 3)}`, target: w, line: lineOf(i), src: `${base}.items[${i}]` }));
   const first = lines[0] ? lines[0].to - lines[0].from + 1 : spec.items.length;
-  const script = scriptOf('story', mode);
   const story = {
-    id, legacy_block: id, family: 'egra', subtask: SUBTASK.story, lang, title: spec.title, kind: 'passage', mode,
-    timed_s: spec.timed_s, passage: { text: spec.story.text, lines, direction: spec.direction },
-    stop: stopOf(spec.stop, spec.timed_s, first),
-    scoring: { unit: 'correct_words_per_minute', record: 'scored later from audio (child-test scorer)', tap: 'the child taps the last word read; words read = position (not scored for accuracy on the phone)' },
-    instruction: instructionOf(script, mode), script, practice: [], practice_note: spec.practice_note, items, source: spec.source,
+    task, lang, kind: 'passage', legacy_block: task, family: 'egra', subtask: SUBTASK.story, title: spec.title, modes: ['record'],
+    tap: null,
+    record: { passage: { text: spec.story.text, lines, direction: spec.direction, words }, time_limit_s: spec.timed_s,
+      stop: stopOf(spec.stop, first), last_word_tap: true },
+    practice: [], practice_note: spec.practice_note,
+    script: scriptOf('story', 'record', LINES.story.last_word),
+    source: sourceOf(spec, `${base}.script.intro`, 'RTI bracket: at time-up the child taps the last word read (RULING #2); Tangerine moving-window reading NOT adopted'),
+    deviation: 'the child taps the last word read instead of the assessor bracketing it',
   };
-  const comp = compTask({ lang, kind: 'story_comp', spec, surface, legacy: id, base, depends: { task: id, items_read_upto: true } });
+  const questions = spec.questions.map((q, i) => ({ id: q.id, prompt: said(lang, q.prompt), needs_line: q.needs_line || null,
+    accept: q.accept, reject: q.reject || [], rubric: q.rubric, src: `${base}.questions[${i}]` }));
+  const comp = {
+    task: `${lang}.story_comp`, lang, kind: 'questions', legacy_block: task, family: 'egra', subtask: SUBTASK.story_comp,
+    title: { en: 'Story questions', ur: 'کہانی کے سوال' }, modes: ['record'], tap: null,
+    record: { questions, answer_window_s: 10, replay_max: 1 },
+    depends_on: { task, upto_item: 'last_word_tap', needs_line: true },
+    practice: [], practice_note: 'EGRA reading comprehension has no practice item (TK 2016 p.197).',
+    script: scriptOf('story_comp', 'record'),
+    source: sourceOf(spec, `${base}.script.questions_intro`, 'asked only up to the line reached (scoring/reach.js); answers recorded, scored later'),
+    deviation: 'the spoken answer is recorded and scored later instead of marked by an assessor',
+  };
   return [story, comp];
 }
 
-function compTask({ lang, kind, spec, surface, legacy, base, depends }) {
-  const id = `${lang}.${kind}`;
-  const mode = MODES[surface][kind === 'listening' ? 'listen_choice' : 'choice'];
-  const script = scriptOf(kind, mode);
-  const passage = kind === 'listening' ? { text: spec.story.text, lang, read_times: spec.read_times, audio: audioKey(lang, spec.story.text), shown: false } : null;
-  const items = spec.questions.map((q, i) => {
-    const answer = q.accept[0];
-    const choices = [answer, ...(q.reject || []).slice(0, 2)].sort(byHash(`${q.id}|order`));
-    return { id: q.id, prompt: { text: q.prompt, lang, audio: audioKey(lang, q.prompt) }, answer, accept: q.accept, choices,
-      choice_audio: choices.map((c) => audioKey(lang, c)), needs_line: q.needs_line || null, rubric: q.rubric, src: `${base}.questions[${i}]` };
-  });
+function listeningTask({ lang, spec }) {
+  const task = `${lang}.listening`;
+  const base = `v3:sets.${SET}.reading.${lang}.listening`;
+  const questions = spec.questions.map((q, i) => ({ id: q.id, prompt: said(lang, q.prompt), accept: q.accept, reject: q.reject || [],
+    rubric: q.rubric, src: `${base}.questions[${i}]` }));
   return {
-    id, legacy_block: legacy, family: 'egra', subtask: SUBTASK[kind], lang, title: kind === 'listening' ? spec.title : { en: 'Reading questions', ur: 'کہانی کے سوال' },
-    kind: kind === 'listening' ? 'listen_choice' : 'choice', mode, timed_s: null, ...(passage ? { passage } : {}), ...(depends ? { depends_on: depends } : {}),
-    stop: { ...(kind === 'listening' ? {} : { only_read_lines: true }) },
-    scoring: { unit: 'correct_of_asked', tap: 'choice === answer', record: 'scored later against accept[] (child-test scorer)' },
-    instruction: instructionOf(script, mode), script, practice: [], practice_note: spec.practice_note || 'EGRA comprehension has no practice item (TK p.197-199).',
-    items, question_timeout_s: spec.question_timeout_s || null,
-    source: { ...spec.source, sa_choices: 'the key\'s first accepted answer + its first two listed wrong answers (item-bank v3 accept/reject)' },
+    task, lang, kind: 'listen_questions', legacy_block: task, family: 'egra', subtask: SUBTASK.listening, title: spec.title,
+    modes: ['record'], tap: null,
+    record: { passage: { ...said(lang, spec.story.text), read_times: spec.read_times, shown: false }, questions, answer_window_s: 10, replay_max: 1 },
+    practice: [], practice_note: spec.practice_note,
+    script: scriptOf('listening', 'record'),
+    source: sourceOf(spec, `${base}.script.intro`, 'Jugnu reads the story twice (v3/RWP read_times 2); each answer recorded'),
+    deviation: 'the spoken answer is recorded and scored later instead of marked by an assessor',
   };
 }
 
 // ---------------------------------------------------------------------------------------------- maths tasks
-function mathsTask({ kind, spec, grade, surface }) {
-  const id = `ma.${kind}`;
+const SAY_OP = { '+': { en: 'plus', ur: 'جمع' }, '-': { en: 'minus', ur: 'منفی' } };
+
+function mathsTask({ kind, spec, grade }) {
+  const task = `ma.${kind}`;
   const base = `v3:sets.${SET}.maths.${grade}.${kind}`;
-  const kindOf = kind === 'number_id' ? 'grid' : kind === 'word_problems' ? 'listen_choice' : 'choice';
-  const mode = MODES[surface][kindOf];
-  const lines = LINES[id] || {};
-  const label = (it) => {
-    if (kind === 'discrimination') return `${it.a}   ${it.b}`;
-    if (kind === 'missing') return it.seq.map((x) => (x === null ? '□' : x)).join('  ');
-    if (/^add/.test(kind)) return `${it.a} + ${it.b} =`;
-    if (/^sub/.test(kind)) return `${it.a} - ${it.b} =`;
-    return String(it);
+  const keypad = ['add1', 'sub1', 'add2', 'sub2', 'word_problems'].includes(kind);
+  const timed = !!spec.timed_s;
+  const lines = LINES[task] || {};
+  const op = /^add/.test(kind) ? '+' : /^sub/.test(kind) ? '-' : null;
+  const itemOf = (it, id, src) => {
+    if (kind === 'number_id') return { id, target: Number(it), options: listOptions(id, it, spec.items, 4).map(Number), say: sayBoth(String(it), toUrDigits(it)), src };
+    if (kind === 'discrimination') return { id, target: it.answer, options: [it.a, it.b], src };
+    if (kind === 'missing') return { id, target: it.answer, options: stepOptions(id, it.answer, seqStep(it.seq)), shown: it.seq, src };
+    if (op) return { id, target: it.answer, shown: `${it.a} ${op} ${it.b} =`, say: sayBoth(`${it.a} ${SAY_OP[op].en} ${it.b}`, `${toUrDigits(it.a)} ${SAY_OP[op].ur} ${toUrDigits(it.b)}`), src };
+    return { id, target: it.answer, prompt: sayBoth(it.prompt_en, it.prompt_ur), type: it.type || null, counters: 10, src };
   };
-  const stepOf = (it) => {
-    const s = it.seq.filter((x) => x !== null);
-    const d = it.seq.findIndex((x) => x === null);
-    return Math.abs(s[1] - s[0]) / (d === 1 || d === 2 ? (it.seq.indexOf(s[1]) - it.seq.indexOf(s[0])) : 1) || 1;
-  };
-  const choicesOf = (iid, it) => {
-    if (kind === 'number_id') return poolChoices(iid, it, spec.items);
-    if (kind === 'discrimination') return [it.a, it.b];
-    if (kind === 'missing') return numberChoices(iid, it.answer, stepOf(it));
-    return numberChoices(iid, it.answer);
-  };
-  const answerOf = (it) => (kind === 'number_id' ? it : it.answer);
-  const items = spec.items.map((it, i) => {
-    const iid = `${id}.G${grade}.${String(i + 1).padStart(2, '0')}`;
-    const out = { id: iid, label: kind === 'word_problems' ? null : label(it), answer: answerOf(it), choices: choicesOf(iid, it), src: `${base}.items[${i}]` };
-    if (kind === 'number_id') Object.assign(out, { say: { en: String(it), ur: toUrDigits(it) }, prompt_audio: { en: audioKey('en', String(it)), ur: audioKey('ur', toUrDigits(it)) } });
-    if (kind === 'word_problems') Object.assign(out, { prompt: { en: it.prompt_en, ur: it.prompt_ur, audio: { en: audioKey('en', it.prompt_en), ur: audioKey('ur', it.prompt_ur) } }, type: it.type });
-    return out;
-  });
+  const items = spec.items.map((it, i) => itemOf(it, `${task}.G${grade}.${pad(i + 1, 2)}`, `${base}.items[${i}]`));
   const practice = (spec.practice || []).map((it, i) => {
-    const pid = `${id}.G${grade}.p${i + 1}`;
+    const p = itemOf(it, `${task}.G${grade}.p${i + 1}`, `${base}.practice[${i}]`);
     const ans = it.answer;
-    const p = { id: pid, label: kind === 'word_problems' ? null : label(it), answer: ans, choices: choicesOf(pid, it), src: `${base}.practice[${i}]` };
-    if (kind === 'word_problems') Object.assign(p, { prompt: { en: it.prompt_en, ur: it.prompt_ur, audio: { en: audioKey('en', it.prompt_en), ur: audioKey('ur', it.prompt_ur) } } });
-    if (lines.right) p.feedback = { right: spoken(fill(lines.right, { en: String(ans), ur: toUrDigits(ans) })), wrong: spoken(fill(lines.wrong, { en: String(ans), ur: toUrDigits(ans) })) };
+    if (lines.right) p.feedback = { correct: spoken(fill(lines.right, { en: String(ans), ur: toUrDigits(ans) })), wrong: spoken(fill(lines.wrong, { en: String(ans), ur: toUrDigits(ans) })) };
     return p;
   });
-  const script = scriptOf(id, mode);
   return {
-    id, legacy_block: id, family: 'egma', subtask: SUBTASK[kind], lang: null, title: spec.title, kind: kindOf, mode,
-    timed_s: spec.timed_s, ...(kindOf === 'grid' ? { grid: { cols: 5, direction: 'ltr' }, distractor_pool: [...new Set(spec.items.map(String))] } : {}),
-    stop: stopOf(spec.stop, spec.timed_s),
-    scoring: { unit: spec.timed_s ? 'correct_per_minute' : 'correct_of_attempted', tap: 'choice === answer', record: 'scored later from audio (child-test scorer)' },
-    instruction: instructionOf(script, mode), script, practice, ...(practice.length ? {} : { practice_note: spec.practice_note }),
-    items, source: { ...spec.source, sa_choices: kind === 'number_id' ? 'the answer + 3 others from the same grid' : kind === 'discrimination' ? 'the item\'s own two numbers' : 'the answer + near neighbours (v4 G1A tiles_rule: k±1, k±2; ±step for patterns; ±10 for two-digit)' },
+    task, lang: null, kind: keypad ? 'keypad' : kind === 'number_id' ? 'grid' : 'choice', legacy_block: task, family: 'egma',
+    subtask: SUBTASK[kind], title: spec.title, modes: ['tap'],
+    tap: { options_n: keypad ? null : kind === 'discrimination' ? 2 : 4,
+      distractor_rule: keypad ? null : kind === 'number_id' ? 'same_list' : kind === 'discrimination' ? 'the_pair' : 'plus_minus_one_step',
+      input: keypad ? 'keypad' : 'options', items, time_limit_s: spec.timed_s, ...(timed ? TIMED_TAP : UNTIMED_TAP),
+      ...(kind === 'word_problems' ? { soft_cap_s: 60 } : {}), stop: stopOf(spec.stop) },
+    record: null,
+    practice, ...(practice.length ? {} : { practice_note: spec.practice_note }),
+    script: scriptOf(task, 'tap'),
+    source: sourceOf(spec, `${base}.script`, keypad ? 'Tangerine SA keypad (sec_l1_addition_01, sec_l1_word_problem_01); RULING #2' : 'Tangerine SA tap (sec_num_id1, sec_num_comp1, sec_miss_num_01); RULING #2'),
+    deviation: keypad ? 'typed on a keypad, not spoken' : kind === 'number_id' ? 'recognition instead of naming' : null,
   };
 }
 
-// ---------------------------------------------------------------------------------------------- batteries
-function battery({ form, surface, grades, maths }, lang, v3) {
+// ---------------------------------------------------------------------------------------------- forms
+function formTasks({ maths }, v3) {
   const set = v3.sets[SET];
   const tasks = [];
   for (const tid of TASKS_V3) {
     const [fam, kind] = tid.split('.');
     if (fam === 'ma') {
-      const spec = set.maths[maths][kind];
-      const t = mathsTask({ kind, spec, grade: maths, surface });
+      const t = mathsTask({ kind, spec: set.maths[maths][kind], grade: maths });
       if (['add2', 'sub2'].includes(kind) && set.maths[maths].skip_level2_if_level1_zero) t.depends_on = { task: `ma.${kind.slice(0, 3)}1`, skip_if_zero: true };
       tasks.push(t);
       continue;
     }
     const spec = set.reading[fam][kind];
-    if (kind === 'listening') tasks.push(compTask({ lang: fam, kind, spec, surface, legacy: tid, base: `v3:sets.${SET}.reading.${fam}.listening` }));
-    else if (kind === 'story') tasks.push(...storyTasks({ lang: fam, spec, surface }));
-    else tasks.push(gridTask({ lang: fam, kind, spec, surface }));
+    if (kind === 'listening') tasks.push(listeningTask({ lang: fam, spec }));
+    else if (kind === 'story') tasks.push(...storyTasks({ lang: fam, spec }));
+    else tasks.push(gridTask({ lang: fam, kind, spec }));
   }
-  const lines = Object.fromEntries(Object.entries(BATTERY).map(([k, l]) => [k, spoken(l)]));
-  return {
-    battery_id: `sa.${form}.${lang}`, version: '1', form, surface, grades, set: surface === 'coach' ? SET : null, lang,
-    maths_form: `G${maths}`, lines, tasks,
-  };
+  return tasks;
 }
 
-function buildSaBank({ v3, v4 }) {
-  const batteries = {};
-  for (const f of FORMS) for (const lang of ['ur', 'en']) {
-    const b = battery(f, lang, v3);
-    batteries[b.battery_id] = b;
+function buildSaBank({ v3 }) {
+  const forms = {};
+  const tasks = {};
+  for (const f of FORMS) {
+    const list = formTasks(f, v3);
+    const full = list.map((t) => t.task);
+    const form = { surface: f.surface, grades: f.grades, set: f.surface === 'coach' ? SET : null, maths_form: `G${f.maths}`, order: full };
+    if (f.surface === 'coach') Object.assign(form, { full, blocks: BLOCKS, block_names: BLOCK_NAMES });
+    else Object.assign(form, { islands: { maths: [...BLOCKS.B4, ...BLOCKS.B5], english: ['en.listening', ...BLOCKS.B2], urdu: ['ur.listening', ...BLOCKS.B1] }, tower: full });
+    forms[f.form] = form;
+    for (const t of list) tasks[`${f.form}/${t.task}`] = t;
   }
   return {
     version: VERSION,
-    built_from: { v3: v3.version, v4: v4.version, set: SET },
-    rule: 'Generated by shared/services/child-test/sa/build.js; never edit by hand. Every item and tap choice comes from item-bank.v3.json or item-bank.v4.json (src); Jugnu\'s lines adapt the official EGRA/EGMA wording for self-administration (sa/scripts.js, from).',
+    built_from: { v3: v3.version, set: SET },
+    rule: 'Generated by shared/services/child-test/sa/build.js; never edit by hand. Every item and option comes from item-bank.v3.json (src); Jugnu\'s lines adapt the official EGRA/EGMA wording for self-administration (sa/scripts.js, from).',
     // v3's sources, less any url that is not public (a local transcription is cited by its title alone).
     sources: Object.fromEntries(Object.entries(v3.sources).map(([k, v]) => [k, /^https?:/.test(v.url || '') ? v : { title: v.title, pages: v.pages }])),
     conventions: {
-      battery: 'one battery per form x instruction language (lang: the language Jugnu speaks); reading tasks keep their own language',
-      modes: 'tap: Jugnu says the item, the child taps it among the choices; record: the child reads aloud and the audio is scored later; both: record, then the tap side',
-      stop: 'first_line_n/first_line_min_correct = EGRA early stop (no correct item in the first row or line); consecutive_errors = Core EGMA; time_up = the 60-second clock',
-      feedback: 'right/wrong feedback on practice items only; scored items get none (EGRA)',
-      audio: 'audio keys are sa/v1/<lang>/<sha1(lang|text)[0,12]>.mp3 under the served SA audio base; a missing clip falls back to the browser\'s speech of the same text',
-      digits: 'maths items show Western digits; Urdu speech uses Urdu digits (v3 convention)',
+      tasks: 'keyed "<form>/<task>"; task = the v3 block id (legacy_block), plus <lang>.story_comp for the story questions',
+      modes: 'tap: Jugnu says the target, the child taps it (options) or types it (keypad), scored on the phone; record: audio kept, scored later by the child-test scorer',
+      stop: 'first_row n: no correct item in the first n → stop (EGRA); first_line n: no correct word in the first line (n words); consecutive_errors n (Core EGMA); time_limit_s: the clock',
+      feedback: 'correct/wrong feedback on practice items only; scored items get none (EGRA)',
+      audio: 'keys sa/v1/<lang>/<sha1(lang|text)[0,12]>.mp3 under SA_AUDIO_BASE; a missing clip falls back to the browser\'s speech of the same text',
+      digits: 'maths shows Western digits; Urdu speech uses Urdu digits (v3 convention)',
+      translation: 'Urdu renderings of English scripts are pending native review (v3 convention)',
     },
-    batteries,
+    lines: Object.fromEntries(Object.entries(BATTERY).map(([k, l]) => [k, spoken(l)])),
+    forms,
+    tasks,
   };
 }
 
-/** The bank as files: the index (every battery's id, form, surface, grades, lang and file) and one file per battery. */
+/** The bank as files: the whole bank, and one file per form (the same shape, that form's tasks only). */
 function splitSaBank(bank) {
-  const { batteries, ...rest } = bank;
-  const index = { ...rest, batteries: Object.values(batteries).map((b) => ({ battery_id: b.battery_id, form: b.form, surface: b.surface,
-    grades: b.grades, set: b.set, lang: b.lang, file: `sa/${b.battery_id}.json`, tasks: b.tasks.map((t) => t.id) })) };
-  const files = { 'item-bank.sa.v1.json': index };
-  for (const b of Object.values(batteries)) files[`sa/${b.battery_id}.json`] = b;
+  const files = { 'item-bank.sa.v1.json': bank };
+  for (const id of Object.keys(bank.forms)) {
+    const tasks = Object.fromEntries(Object.entries(bank.tasks).filter(([k]) => k.startsWith(`${id}/`)));
+    files[`sa/${id}.json`] = { ...bank, forms: { [id]: bank.forms[id] }, tasks };
+  }
   return files;
 }
 
-module.exports = { buildSaBank, splitSaBank, poolChoices, numberChoices, FORMS, MODES };
+module.exports = { buildSaBank, splitSaBank, listOptions, stepOptions, FORMS, BLOCKS };

@@ -39,9 +39,8 @@ function parseArgs(argv) {
   return args;
 }
 
-function loadBatteries(dataDir = DATA) {
-  const index = JSON.parse(fs.readFileSync(path.join(dataDir, 'item-bank.sa.v1.json'), 'utf8'));
-  return index.batteries.map((row) => JSON.parse(fs.readFileSync(path.join(dataDir, row.file), 'utf8')));
+function loadBank(dataDir = DATA) {
+  return JSON.parse(fs.readFileSync(path.join(dataDir, 'item-bank.sa.v1.json'), 'utf8'));
 }
 
 async function run(argv, { tts = null, level = null, out = console.log, outDir = path.join(REPO, 'dashboard'), dataDir = DATA, env = process.env } = {}) {
@@ -49,7 +48,7 @@ async function run(argv, { tts = null, level = null, out = console.log, outDir =
   if (!['en', 'ur'].includes(args.lang)) throw new Error('--lang en|ur is required');
   const { voiceManifest } = require('../../shared/services/child-test/sa/voice-manifest');
   const Voice = require('../../shared/services/quiz/web-quiz-voice');
-  const jobs = voiceManifest(loadBatteries(dataDir))
+  const jobs = voiceManifest(loadBank(dataDir))
     .filter((r) => r.lang === args.lang && (!args.only || r.role === args.only))
     .map((r) => ({ ...r, say: Voice.sayAs(r.text, args.lang, { voice: VOICE }) }));
   const chars = jobs.reduce((n, j) => n + j.say.length, 0);
@@ -82,4 +81,4 @@ if (require.main === module) {
   run(process.argv.slice(2)).catch((e) => { console.error(String((e && e.message) || e)); process.exit(1); });
 }
 
-module.exports = { run, parseArgs, loadBatteries };
+module.exports = { run, parseArgs, loadBank };
