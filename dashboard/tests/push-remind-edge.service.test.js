@@ -356,6 +356,30 @@ describe('wq-remind.js (fake DOM)', () => {
     expect(q.slot.innerHTML).not.toContain(T.remindTest);
   });
 
+  test('landing: the page title is the one question (no second title in the card); after Yes / Stop it says the state', async () => {
+    const p = page();
+    const h1 = { textContent: 'the question' };
+    const q0 = p.ctx.document.querySelector;
+    p.ctx.document.querySelector = (sel) => (sel === '.wqr h1' ? h1 : q0(sel));
+    p.ctx.WQREMIND.landing(p.slot, { code: 'AB12CD', lang: 'ur' });
+    await flush();
+    const T = p.ctx.WQREMIND.T.ur;
+    expect(p.slot.innerHTML).not.toMatch(/<h2/);
+    expect(p.slot.innerHTML).toContain(T.remindBody);
+    await p.tap('yes');
+    expect(h1.textContent).toBe('یاد دہانی آن ہے!');
+    expect(p.slot.innerHTML).toMatch(/font-size:18px/);
+    await p.tap('stop');
+    expect(h1.textContent).toBe('یاد دہانی بند ہے');
+  });
+
+  test('results screen (mount): the card keeps its own title, and no page title is touched', async () => {
+    const p = page();
+    p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang: 'ur', chips: 1 });
+    await flush();
+    expect(p.slot.innerHTML).toContain(p.ctx.WQREMIND.T.ur.remindTitle);
+  });
+
   test('Stop: unsubscribes at the bot (by page) and in the browser', async () => {
     const p = page();
     p.ctx.WQREMIND.landing(p.slot, { code: 'AB12CD', lang: 'en' });
