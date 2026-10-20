@@ -21,6 +21,9 @@ const WHATSAPP_TEXT_SHAPE = 'WHATSAPP TEXT: 2-4 short sentences, about 50 words 
  * Handles all LLM interactions (chat, intent detection, topic extraction)
  * Uses llm-client.js for provider-agnostic OpenAI/OpenRouter routing.
  */
+// bd-xw56ed — a whole message that is one "/word": a command she typed, never a chat turn.
+const isLoneCommand = (message) => /^\/\S+$/.test(String(message || '').trim());
+
 class OpenAIService {
   constructor() {
     this.openai = getClient();
@@ -126,32 +129,26 @@ Use at most 3 tags per reply — they colour the voice, they are never spoken.
     const capabilityResponses = {
       'ur': {
         lessonPlan: '"میں آپ کے لیے [topic] پر ایک تفصیلی پانچ مرحلہ سبق کا منصوبہ تیار کر رہی ہوں۔ براہ کرم تھوڑا انتظار کریں..."',
-        presentation: '"میں آپ کے لیے [topic] پر ایک تعلیمی پریزنٹیشن تیار کر رہی ہوں۔ براہ کرم تھوڑا انتظار کریں..."',
         coaching: '"میں آپ کی کلاس روم ریکارڈنگ سن کر فیڈ بیک دے سکتی ہوں۔ بس آڈیو یا ویڈیو بھیج دیں!"',
       },
       'bal-PK': {
         lessonPlan: '"من شما ءِ واستہ [topic] ءِ سرا ایک سبق ءِ منصوبہ جوڑ کنگ ءَ ہان۔ لطفاً انتظار کنیت..."',
-        presentation: '"من شما ءِ واستہ [topic] ءِ سرا ایک پریزنٹیشن تیار کنگ ءَ ہان۔ لطفاً انتظار کنیت..."',
         coaching: '"من شما ءِ کلاس روم ریکارڈنگ گوش کنگ ءَ ہان، فیڈبیک دءِ۔ آڈیو یا ویڈیو روان کنیت!"',
       },
       'sd-PK': {
         lessonPlan: '"مان توهان لاءِ [topic] تي هڪ تفصيلي سبق جو منصوبو ٺاهي رهي آهيان۔ مهرباني ڪري ٿوري دير انتظار ڪريو..."',
-        presentation: '"مان توهان لاءِ [topic] تي هڪ تعليمي پريزنٽيشن تيار ڪري رهي آهيان۔ مهرباني ڪري ٿوري دير انتظار ڪريو..."',
         coaching: '"مان توهان جي ڪلاس روم جي ريڪارڊنگ ٻڌي ڪري فيڊبيڪ ڏيان ٿي۔ آڊيو يا ويڊيو موڪليو!"',
       },
       'ps-PK': {
         lessonPlan: '"زه ستاسو لپاره د [topic] په اړه یو تفصیلي سبق پلان جوړوم۔ مهرباني وکړئ لږ انتظار وکړئ..."',
-        presentation: '"زه ستاسو لپاره د [topic] په اړه یوه تعلیمي پریزنټیشن چمتو کوم۔ مهرباني وکړئ لږ انتظار وکړئ..."',
         coaching: '"زه ستاسو د ټولګي ریکارډنګ اورم او فیډبیک درکوم۔ آډیو یا ویډیو راولیږئ!"',
       },
       'pa-PK': {
         lessonPlan: '"میں تہاڈے لئی [topic] تے اک تفصیلی سبق دا منصوبہ بنا رہی ہاں۔ مہربانی کرکے تھوڑا انتظار کرو..."',
-        presentation: '"میں تہاڈے لئی [topic] تے اک تعلیمی پریزنٹیشن تیار کر رہی ہاں۔ مہربانی کرکے تھوڑا انتظار کرو..."',
         coaching: '"میں تہاڈی کلاس روم ریکارڈنگ سن کے فیڈبیک دے سکدی ہاں۔ آڈیو یا ویڈیو بھیج دیو!"',
       },
       'ta-LK': {
         lessonPlan: '"நான் உங்களுக்காக [topic] பற்றிய விரிவான பாட திட்டத்தை உருவாக்குகிறேன். தயவுசெய்து சிறிது நேரம் காத்திருங்கள்..."',
-        presentation: '"நான் உங்களுக்காக [topic] பற்றிய கல்வி விளக்கக்காட்சியை தயாரிக்கிறேன். தயவுசெய்து சிறிது நேரம் காத்திருங்கள்..."',
         coaching: '"உங்கள் வகுப்பறை பதிவை கேட்டு பின்னூட்டம் தர முடியும். ஒலி அல்லது வீடியோ அனுப்புங்கள்!"',
       }
     };
@@ -164,20 +161,20 @@ Use at most 3 tags per reply — they colour the voice, they are never spoken.
     return `
 ## YOUR CAPABILITIES (NEVER deny these):
 1. CREATE lesson plans - Comprehensive 5-step lesson plans with activities. Just ask for topic + grade.
-2. CREATE presentations - Visual slides on any educational topic.
-3. ANALYZE classroom recordings - Upload audio/video of your class for personalized teaching feedback. It must be at least ${classroomMinimumMinutes()} minutes long; a shorter clip cannot be analysed, and you must NEVER state any other minimum length.
-4. GUIDE teacher training - Modules and exams. Type "/training" to continue.
+2. ANALYZE classroom recordings - Upload audio/video of your class for personalized teaching feedback. It must be at least ${classroomMinimumMinutes()} minutes long; a shorter clip cannot be analysed, and you must NEVER state any other minimum length.
+3. GUIDE teacher training - Modules and exams. Type "/training" to continue.
 ${emotionTagInstruction}
 RESPONSE TEMPLATES:
 - LESSON PLAN: ${enthusiastically}${responses.lessonPlan}
-- PRESENTATION: ${enthusiastically}${responses.presentation}
 - COACHING: ${warmly}${responses.coaching}
 
 CRITICAL: NEVER say "I can't do that" or "I'm unable to" for any of the capabilities above.
 
+NOT A CAPABILITY: you do not make presentations or slides. If asked, say so plainly and offer a lesson plan on the topic instead.
+
 ANTI-FALSE-PROMISE RULE (CRITICAL - applies to ALL languages):
-- ONLY say "I'm creating/preparing a lesson plan/presentation" if the user EXPLICITLY asked you to CREATE one
-- Explicit requests: "create a lesson plan", "make me a presentation", "بنا دو", "تیار کرو", "lesson plan چاہیے"
+- ONLY say "I'm creating/preparing a lesson plan" if the user EXPLICITLY asked you to CREATE one
+- Explicit requests: "create a lesson plan", "make me a lesson plan", "بنا دو", "تیار کرو", "lesson plan چاہیے"
 - If user asks "how to teach X", discusses teaching methods, or mentions a topic casually → provide helpful ADVICE and GUIDANCE
 - NEVER claim you are creating documents unless they specifically requested it
 - If unsure, ask: "Would you like me to create a lesson plan on this topic?"
@@ -218,7 +215,7 @@ ANTI-FALSE-PROMISE RULE (CRITICAL - applies to ALL languages):
    * gets THIS prompt, never the teacher one. Built from scratch rather than
    * derived from `_getFormatAwareSystemPromptBase`: that builder's job is the
    * teacher persona (it names itself "NIETE Teaching Assistant" and offers
-   * lesson plans, presentations, coaching feedback and training), and
+   * lesson plans, coaching feedback and training), and
    * falling through into it would re-enter that persona for a child.
    *
    * One document, one language (language-protocol, root rule 20/D1): the
@@ -336,9 +333,8 @@ ${firstName ? `\nThe teacher's name is ${firstName}. Use their name naturally wh
 ## YOUR CAPABILITIES (NEVER deny these):
 You CAN and SHOULD offer these features when relevant:
 1. CREATE lesson plans - Comprehensive 5-step lesson plans with activities. Just ask for topic + grade.
-2. CREATE presentations - Visual slides on any educational topic.
-3. ANALYZE classroom recordings - Upload audio/video of your class for personalized teaching feedback. It must be at least ${classroomMinimumMinutes()} minutes long; a shorter clip cannot be analysed, and you must NEVER state any other minimum length.
-4. GUIDE teacher training - Modules and exams. Type "/training" to continue.
+2. ANALYZE classroom recordings - Upload audio/video of your class for personalized teaching feedback. It must be at least ${classroomMinimumMinutes()} minutes long; a shorter clip cannot be analysed, and you must NEVER state any other minimum length.
+3. GUIDE teacher training - Modules and exams. Type "/training" to continue.
 
 IMPORTANT: Add emotion tags to express your tone. Use these tags naturally in your speech:
 - [warmly] for greetings and encouragement
@@ -350,13 +346,13 @@ IMPORTANT: Add emotion tags to express your tone. Use these tags naturally in yo
 
 LESSON PLAN REQUESTS: "[enthusiastically] I'm creating a detailed five-step lesson plan for you on [topic]. [warmly] Give me just a moment..."
 
-PRESENTATION REQUESTS: "[enthusiastically] I'm preparing an educational presentation for you on [topic]. [warmly] Just a moment please..."
-
 COACHING REQUESTS: If they mention improving teaching or classroom observation: "[warmly] I can analyze your classroom recording and give you personalized feedback! [encouragingly] Just send me an audio or video of your class."
 
 CRITICAL: NEVER say "I can't do that" or "I'm unable to" for any of the capabilities above.
 
-ANTI-FALSE-PROMISE RULE: Only say "I'm creating a lesson plan/presentation" if the user EXPLICITLY asked you to create one (e.g., "create a lesson plan", "make me a presentation"). If they just mention a topic or ask a question (e.g., "Mathematics for grade 2", "How do I teach fractions?"), provide helpful educational guidance - but NEVER claim you are creating documents unless they specifically requested it. False promises destroy trust.
+NOT A CAPABILITY: you do not make presentations or slides. If asked, say so plainly and offer a lesson plan on the topic instead.
+
+ANTI-FALSE-PROMISE RULE: Only say "I'm creating a lesson plan" if the user EXPLICITLY asked you to create one (e.g., "create a lesson plan", "make me a lesson plan"). If they just mention a topic or ask a question (e.g., "Mathematics for grade 2", "How do I teach fractions?"), provide helpful educational guidance - but NEVER claim you are creating documents unless they specifically requested it. False promises destroy trust.
 
 Keep responses conversational and concise. MAXIMUM 60 seconds of speech (150-180 words). Be supportive, pedagogically sound, and speak like a caring friend who happens to be an expert educator.
 ${voiceLanguageRules('en')}`;
@@ -372,17 +368,14 @@ ${firstName ? `\nاستاد کا نام ${firstName} ہے۔ مناسب مواق�
 
 ## آپ کی صلاحیتیں (ان کو کبھی نہ انکار کریں):
 1. سبق کے منصوبے بنائیں - پانچ مرحلہ سبق کے منصوبے۔ بس موضوع + گریڈ بتائیں۔
-2. پریزنٹیشنز بنائیں - کسی بھی تعلیمی موضوع پر سلائیڈز۔
-3. کلاس روم ریکارڈنگز کا تجزیہ کریں - آڈیو/ویڈیو بھیجیں، فیڈبیک حاصل کریں۔ ریکارڈنگ کم از کم ${classroomMinimumMinutes()} منٹ کی ہونی چاہیے؛ اس سے مختصر ریکارڈنگ کا تجزیہ نہیں ہو سکتا۔ کوئی اور دورانیہ کبھی نہ بتائیں۔
-4. ٹیچر ٹریننگ میں رہنمائی کریں - /training ٹائپ کریں۔
+2. کلاس روم ریکارڈنگز کا تجزیہ کریں - آڈیو/ویڈیو بھیجیں، فیڈبیک حاصل کریں۔ ریکارڈنگ کم از کم ${classroomMinimumMinutes()} منٹ کی ہونی چاہیے؛ اس سے مختصر ریکارڈنگ کا تجزیہ نہیں ہو سکتا۔ کوئی اور دورانیہ کبھی نہ بتائیں۔
+3. ٹیچر ٹریننگ میں رہنمائی کریں - /training ٹائپ کریں۔
 
 ## جوابات کے اصول:
 
 1. **سبق کا منصوبہ**: "میں آپ کے لیے [topic] پر ایک تفصیلی پانچ مرحلہ سبق کا منصوبہ تیار کر رہی ہوں۔ براہ کرم تھوڑا انتظار کریں..."
 
-2. **پریزنٹیشن**: "میں آپ کے لیے [topic] پر ایک تعلیمی پریزنٹیشن تیار کر رہی ہوں۔ براہ کرم تھوڑا انتظار کریں..."
-
-3. **کوچنگ**: اگر تدریس بہتر کرنا چاہیں: "میں آپ کی کلاس روم ریکارڈنگ سن کر فیڈ بیک دے سکتی ہوں۔ بس آڈیو یا ویڈیو بھیج دیں!"
+2. **کوچنگ**: اگر تدریس بہتر کرنا چاہیں: "میں آپ کی کلاس روم ریکارڈنگ سن کر فیڈ بیک دے سکتی ہوں۔ بس آڈیو یا ویڈیو بھیج دیں!"
 
 اہم: اوپر کی صلاحیتوں کے لیے کبھی نہ کہیں "میں یہ نہیں کر سکتی"۔
 
@@ -407,17 +400,17 @@ ${firstName ? `\nThe teacher's name is ${firstName}. Use their name naturally wh
 
 ## YOUR CAPABILITIES (NEVER deny these):
 1. CREATE lesson plans - 5-step plans with activities. Ask for topic + grade.
-2. CREATE presentations - Visual slides on any topic.
-3. ANALYZE classroom recordings - Send audio/video for personalized feedback. It must be at least ${classroomMinimumMinutes()} minutes long; a shorter clip cannot be analysed, and you must NEVER state any other minimum length.
-4. GUIDE teacher training - Type /training to continue.
+2. ANALYZE classroom recordings - Send audio/video for personalized feedback. It must be at least ${classroomMinimumMinutes()} minutes long; a shorter clip cannot be analysed, and you must NEVER state any other minimum length.
+3. GUIDE teacher training - Type /training to continue.
 
 LESSON PLAN: "I'm creating a detailed five-step lesson plan for you on [topic]. Please give me a moment..."
-PRESENTATION: "I'm preparing an educational presentation for you on [topic]. Just a moment please..."
 COACHING: "I can analyze your classroom recording and give you personalized feedback! Just send me an audio or video of your class."
 
 CRITICAL: NEVER say "I can't do that" or "I'm unable to" for any of the capabilities above.
 
-ANTI-FALSE-PROMISE RULE: Only say "I'm creating a lesson plan/presentation" if the user EXPLICITLY asked you to create one (e.g., "create a lesson plan", "make me a presentation"). If they just mention a topic or ask a question, provide helpful guidance - but NEVER claim you are creating documents unless they specifically requested it.
+NOT A CAPABILITY: you do not make presentations or slides. If asked, say so plainly and offer a lesson plan on the topic instead.
+
+ANTI-FALSE-PROMISE RULE: Only say "I'm creating a lesson plan" if the user EXPLICITLY asked you to create one (e.g., "create a lesson plan", "make me a lesson plan"). If they just mention a topic or ask a question, provide helpful guidance - but NEVER claim you are creating documents unless they specifically requested it.
 
 For general questions, provide concise advice. Be warm and supportive.
 
@@ -450,10 +443,7 @@ IMPORTANT: When a teacher asks you to create educational materials, follow these
 1. **Lesson Plan Requests**: If they ask for a "lesson plan" (سبق کا منصوبہ), "teaching plan", or "lesson" on any topic, respond with:
    "میں آپ کے لیے [topic] پر ایک تفصیلی پانچ مرحلہ سبق کا منصوبہ تیار کر رہی ہوں۔ براہ کرم تھوڑا انتظار کریں..."
 
-2. **Presentation Requests**: If they ask for a "presentation" (پریزنٹیشن), "slides" (سلائیڈز), or "PowerPoint" on any topic, respond with:
-   "میں آپ کے لیے [topic] پر ایک تعلیمی پریزنٹیشن تیار کر رہی ہوں۔ براہ کرم تھوڑا انتظار کریں..."
-
-3. **General Questions**: For other educational questions, provide concise, pedagogically sound advice in Urdu using female verb forms.
+2. **General Questions**: For other educational questions, provide concise, pedagogically sound advice in Urdu using female verb forms.
 
 ${WHATSAPP_TEXT_SHAPE}`;
     }
@@ -657,27 +647,56 @@ ${WHATSAPP_TEXT_SHAPE}`;
   }
 
   /**
-   * Detect user intent using LLM
+   * Detect user intent using LLM.
+   *
+   * bd-xw56ed — the choices are the user's LIVE menu (menu-match.service liveMenuChoices), not a
+   * fixed list: a feature can be chosen exactly when /menu would show it. The answer is one of
+   *   lesson_plan                      a NEW lesson plan (today's topic-aware path)
+   *   feature {rowId, label}           open that menu row
+   *   menu                             she asked for the menu itself
+   *   unsure                           asking for a feature, but not one we can tell (or not on
+   *                                    her menu); a lone "/word" is never chat
+   *   general {lp_reference}           a question or conversation — the AI chat, as before
+   * Presentation is no longer a choice (operator, 20 Oct 2026: not a menu entry).
+   *
    * @param {string} message - User's message
-   * @returns {Promise<Object>} Intent object {type: string, message: string}
+   * @param {string} [contextHint] - what was just delivered to her (lp-context deliveryHint)
+   * @param {Array<object>} [choices] - liveMenuChoices(user); without it only lesson plans and chat
+   * @returns {Promise<Object>} Intent object {type, message, lp_reference, rowId?, label?}
    */
-  async detectIntent(message, contextHint = '') {
+  async detectIntent(message, contextHint = '', choices = []) {
+    const features = (Array.isArray(choices) ? choices : []).filter((c) => c && c.label !== 'lesson_plan');
     try {
+      const commandsOf = (c) => (Array.isArray(c.commands) ? c.commands : []);
+      const featureLines = features.map((c) => `"${c.label}" — opens "${c.title.en}" (${c.title.ur}): ${c.description}.`
+        + (commandsOf(c).length ? ` Its command: ${commandsOf(c).join(' or ')}.` : '')).join('\n');
+      // Every example below is derived from her menu: the row's own command and its two titles (teachers type the
+      // menu's words back — "پرچہ بنائیں" is the Test Paper row's Urdu title).
+      const featureExamples = features.flatMap((c) => [
+        ...commandsOf(c).map((command) => `- "${command}" → ${c.label}`),
+        `- "${c.title.en}" → ${c.label}`,
+        `- "${c.title.ur}" → ${c.label}`,
+      ]).join('\n');
+      const labels = ['general', 'lesson_plan', ...features.map((c) => c.label), 'menu', 'unsure'];
       const completion = await this.openai.chat.completions.create({
         model: modelFor('chat.intent'),
         job: 'chat.intent',
         messages: [
           {
             role: 'system',
-            content: `You are an intent classifier. Analyze the user's message and determine if they are requesting:
+            content: `You are an intent classifier for a teaching assistant on WhatsApp. Read the teacher's message and decide which ONE of these she is asking for.
 
-1. "lesson_plan" - if they:
-   - Explicitly ask to CREATE, GENERATE, or MAKE a lesson plan document
-   - OR provide a topic with a grade level that sounds like a lesson request (e.g., "Math for grade 3", "Photosynthesis grade 5")
-   - OR mention a subject + grade in a way that suggests they want teaching materials
-2. "presentation" - ONLY if they explicitly ask to CREATE, GENERATE, or MAKE a presentation/slides
-3. "video" - if they ask for a video, educational video, or want to watch/see a video on a topic (for any grade or subject)
-4. "general" - for questions, advice, guidance, or any other conversation (including "how to teach X")
+"general" - a question, advice, guidance, or any other conversation (including "how to teach X"). This is the answer whenever she is not asking to open one of the features below.
+
+"lesson_plan" - she wants a NEW lesson plan made:
+   - Explicitly asks to CREATE, GENERATE, or MAKE a lesson plan document
+   - OR provides a topic with a grade level that sounds like a lesson request (e.g., "Math for grade 3", "Photosynthesis grade 5")
+   - OR mentions a subject + grade in a way that suggests they want teaching materials
+${featureLines ? `\n${featureLines}\n` : ''}
+"menu" - she asks for the menu itself, or for the list of everything you can do ("Menu", "مینو", "options").
+
+"unsure" - she is asking to OPEN or USE a feature, but you cannot tell which one, or it is not one of the above. This is
+rare: only a request to open something. Anything else that fits no label is general.
 
 IMPORTANT: Distinguish carefully:
 - "Create a lesson plan about X" → lesson_plan
@@ -685,10 +704,6 @@ IMPORTANT: Distinguish carefully:
 - "Mathematics for grade 2" → lesson_plan (topic + grade = likely wants a lesson plan)
 - "Addition and subtraction grade 3" → lesson_plan (topic + grade = likely wants a lesson plan)
 - "Photosynthesis for grade 5" → lesson_plan (topic + grade = likely wants a lesson plan)
-- "Show me a video about X" → video
-- "Do you have a video on fractions?" → video
-- "I want to watch a video about photosynthesis" → video
-- "Video dikhao on multiplication" → video
 - "How do I teach X?" → general (they want advice, not a document)
 - "Help me figure out how to teach X" → general (they want guidance)
 - "What's the best way to teach X?" → general (they want advice)
@@ -700,6 +715,17 @@ IMPORTANT: Distinguish carefully:
   "jo aap ne bheja", "walay sabaq", "اس سبق", "یہ والا") means she is talking about
   a lesson she ALREADY has → general, not lesson_plan.
 - lesson_plan is ONLY for wanting a NEW document made.
+- A feature label is ONLY for wanting to OPEN or USE that feature. A question ABOUT the topic is general
+  ("how do I assess reading fluency?" → general, "what makes a good quiz question?" → general).
+- Naming a feature is asking for it, even with no verb: a feature's title, its Urdu title or its command — alone,
+  misspelt, or with a class or subject — is that feature's label.
+- "lp" means lesson plan, in any spelling ("New lp", "/lp", "Lesson plain") → lesson_plan.
+- SHORT REPLIES ARE GENERAL. The chat sees the conversation and you do not: a bare number, yes / no / ok / thanks,
+  a greeting, an emoji, a link, or a pasted text is general — never a feature, menu or unsure. A class, grade,
+  subject or topic is not a short reply: the lesson_plan rules above still decide it. Only a request to OPEN
+  something is a feature, menu or unsure.
+- A message that is one word starting with "/" is a command she typed. Answer the label it names, even misspelt or in
+  Urdu (lesson_plan and menu included), otherwise unsure — never general.
 
 The message may be in English, Urdu, or Roman Urdu. Look for semantic meaning, not just keywords.
 
@@ -708,18 +734,17 @@ Examples:
 - "سبق کا منصوبہ چاہیے" (need a lesson plan) → lesson_plan
 - "Mathematics addition and subtraction for grade 2" → lesson_plan
 - "Fractions for class 4" → lesson_plan
-- "presentation banao" (make a presentation) → presentation
-- "پریزنٹیشن کی ضرورت ہے" (need a presentation) → presentation
-- "video dikhao" (show video) → video
-- "ویڈیو چاہیے" (need video) → video
-- "Show me a grade 3 maths video" → video
-- "Do you have videos on science?" → video
+- "New lp" → lesson_plan
+- "Menu" → menu
+${featureExamples ? `${featureExamples}\n` : ''}- "Ok" → general
+- "Yes" → general
+- "5" → general
 - "یہ کیسے کام کرتا ہے؟" (how does this work?) → general
 - "How do I teach photosynthesis?" → general
 - "Figure out how to teach X" → general
 - "What's a good way to explain X?" → general
 
-Return ONLY one word: lesson_plan, presentation, video, or general
+Return ONLY one word: ${labels.join(', ')}
 If (and ONLY if) the message refers back to a lesson plan the teacher ALREADY has or received, append " lp_ref" after the word (e.g. "general lp_ref").${contextHint || ''}`
           },
           {
@@ -743,42 +768,49 @@ If (and ONLY if) the message refers back to a lesson plan the teacher ALREADY ha
       // After a label it counts only right after it (the registry's marker: punctuation, brackets, quotes or
       // markdown between are fine), never inside an explanation.
       const lpRef = head ? head.marker : /\blp_ref\b/.test(raw);
-      const intent = head ? head.label : raw.replace(/\blp_ref\b/g, '').trim();
-
-      // Validate the response
-      if (intent === 'lesson_plan' || intent === 'lesson plan') {
-        return { type: 'lesson_plan', message, lp_reference: false };
-      } else if (intent === 'presentation') {
-        return { type: 'presentation', message, lp_reference: false };
-      } else if (intent === 'video') {
-        return { type: 'video', message, lp_reference: false };
-      } else {
-        return { type: 'general', message, lp_reference: lpRef };
-      }
+      const said = head ? head.label : raw.replace(/\blp_ref\b/g, '').trim();
+      return this._readIntent(said, message, features, lpRef);
     } catch (error) {
       logToFile('Error detecting intent with LLM', { error: error.message });
       // Fallback to keyword-based detection
-      return this._fallbackIntentDetection(message);
+      return this._fallbackIntentDetection(message, features);
     }
   }
 
   /**
-   * Fallback intent detection using keywords
+   * What the classifier's word means for THIS user. `menu` opens the menu; a feature label opens a
+   * row only when the row is on her menu; a feature she does not have, or `unsure`, is unsure; a
+   * lone "/word" is never chat. Anything else is general, as before.
+   * @private
+   */
+  _readIntent(said, message, features, lpRef = false) {
+    if (said === 'lesson_plan' || said === 'lesson plan') {
+      return { type: 'lesson_plan', message, lp_reference: false };
+    }
+    if (said === 'menu') return { type: 'menu', message, lp_reference: false };
+    const choice = features.find((c) => c.label === said);
+    if (choice) return { type: 'feature', rowId: choice.rowId, label: choice.label, message, lp_reference: false };
+    const { FEATURE_ROW_LABELS } = require('../config/role-features');
+    if (said === 'unsure' || FEATURE_ROW_LABELS.includes(said) || isLoneCommand(message)) {
+      return { type: 'unsure', message, lp_reference: false };
+    }
+    return { type: 'general', message, lp_reference: lpRef };
+  }
+
+  /**
+   * Fallback intent detection using keywords, when the classifier call fails. Reads the same live
+   * menu: a video word opens the Videos row only when she has it.
    * @param {string} message - User's message
+   * @param {Array<object>} [features] - her live menu choices, lesson plans excluded
    * @returns {Object} Intent object
    * @private
    */
-  _fallbackIntentDetection(message) {
+  _fallbackIntentDetection(message, features = []) {
     const lowerMessage = message.toLowerCase();
 
     const lessonPlanKeywords = [
       'lesson plan', 'teaching plan', 'lesson', 'سبق کا منصوبہ', 'سبق', 'منصوبہ',
       'درس', 'تدریسی منصوبہ', 'پڑھانے کا طریقہ', 'لیسن پلان'
-    ];
-
-    const presentationKeywords = [
-      'presentation', 'slides', 'powerpoint', 'ppt', 'پریزنٹیشن',
-      'سلائیڈز', 'پاور پوائنٹ', 'پاورپوائنٹ'
     ];
 
     const videoKeywords = [
@@ -792,18 +824,12 @@ If (and ONLY if) the message refers back to a lesson plan the teacher ALREADY ha
       }
     }
 
-    for (const keyword of presentationKeywords) {
-      if (lowerMessage.includes(keyword.toLowerCase())) {
-        return { type: 'presentation', message, lp_reference: false };
-      }
+    const videos = features.find((c) => c.rowId === 'menu_videos');
+    if (videos && videoKeywords.some((keyword) => lowerMessage.includes(keyword.toLowerCase()))) {
+      return { type: 'feature', rowId: videos.rowId, label: videos.label, message, lp_reference: false };
     }
 
-    for (const keyword of videoKeywords) {
-      if (lowerMessage.includes(keyword.toLowerCase())) {
-        return { type: 'video', message, lp_reference: false };
-      }
-    }
-
+    if (isLoneCommand(message)) return { type: 'unsure', message, lp_reference: false };
     return { type: 'general', message, lp_reference: false };
   }
 

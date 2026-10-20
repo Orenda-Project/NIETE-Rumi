@@ -406,9 +406,16 @@ const JSON_REPAIRED_BY_CALLER = Object.freeze({
  * back. The caller reads the label and the marker with leadingLabel(), so the two cannot disagree.
  */
 const LP_REF_MARKER = /^[\s,;:.()[\]*_"'`–—-]*lp_ref\b/; // punctuation, brackets, quotes or markdown between; no words
+// bd-xw56ed: chat.intent answers with a menu row's label (role-features FEATURE_ROW_LABELS — every row
+// any user can have, since the registry cannot know whose menu it is), `menu`, `unsure`, or `general`.
+const { FEATURE_ROW_LABELS } = require('./role-features');
 const LABEL_REPLY_JOBS = Object.freeze({
   'chat.intent': Object.freeze({ // openai.service.js detectIntent
-    labels: Object.freeze(['lesson_plan', 'lesson plan', 'presentation', 'video', 'general']),
+    labels: Object.freeze([
+      'lesson_plan', 'lesson plan',
+      ...FEATURE_ROW_LABELS.filter((label) => label !== 'lesson_plan'),
+      'menu', 'unsure', 'general',
+    ]),
     markers: Object.freeze({ general: LP_REF_MARKER }),
   }),
 });

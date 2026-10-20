@@ -17,6 +17,9 @@ const { planReflectiveTextRouting, ACTIONS: REFLECTIVE_ACTIONS } =
   require('../services/coaching/reflective-answer-routing');
 const ConversationState = require('../services/conversation-state.service');
 const MenuService = require('../services/menu.service');
+const { liveMenuChoices } = require('../services/menu-match.service');
+// bd-xw56ed — a teacher's keyed reference for a log line, never the raw id (tests/setup/log-raw-ids).
+const teacherRef = (id) => { try { return id ? require('../services/quiz/web-quiz-kid').tk(id) : null; } catch (_) { return null; } };
 // MediaLibraryService removed - Issue #28: AI Video Generation replaces Media Library
 const HelperAgentService = require('../services/helper-agent.service');
 const { handlePortalCommand } = require('./portal-command.handler');
@@ -2159,13 +2162,11 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // MENU SYSTEM INTEGRATION
   // ============================================================
 
-  // Check for /menu command
-  if (messageBody === '/menu' || messageBody.toLowerCase() === '/menu') {
-    logToFile('📋 Menu command detected');
-    typingController.stop();
-
+  // The /menu door. bd-xw56ed: also what a message gets when it asks for a feature and the
+  // classifier cannot tell which one — one door, so both open exactly the same menu.
+  const openMenu = async (reason) => {
     // bd-fmf24g.35 — a pilot teacher on the teacher app gets the app Home as a one-tap link instead of the menu.
-    if (user?.id && await redirectToApp('menu', 'menu_command')) return;
+    if (user?.id && await redirectToApp('menu', reason)) return;
 
     if (user && sessionId) {
       // no second store. The generic path above already stored this
@@ -2177,6 +2178,13 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
       const fallbackMsg = "Please complete registration first. Type /register to get started.";
       await WhatsAppService.sendMessage(from, fallbackMsg);
     }
+  };
+
+  // Check for /menu command
+  if (messageBody === '/menu' || messageBody.toLowerCase() === '/menu') {
+    logToFile('📋 Menu command detected');
+    typingController.stop();
+    await openMenu('menu_command');
     return; // Exit early
   }
 
@@ -2816,7 +2824,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
     }
   }
 
-  // Detect intent (lesson plan, presentation, or general)
+  // Detect intent: a new lesson plan, one of her live menu rows, unsure, or general (bd-xw56ed)
   // bd-wpupy: the classifier used to judge the message in a vacuum, so a deictic
   // "give me this in text form" 35s after a delivery was genuinely ambiguous to
   // it and never got lp_ref. Tell it what just landed and it resolves correctly.
@@ -2832,11 +2840,14 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // Meta bill cut FX4: the intent door below decides whether this turn is redirected (silent in the
   // quiet hour) or answered; a held quiet-hour "typing…" waits for it, however long the classifier takes.
   InboundTyping.doorDeciding('intent');
-  const intent = await OpenAIService.detectIntent(messageBody, intentHint);
-  logToFile('Intent detected', { intent: intent.type });
+  // bd-xw56ed — the choices are the rows /menu would draw for her, so the classifier can open a
+  // feature exactly when her menu offers it.
+  const menuChoices = user ? await liveMenuChoices(user) : [];
+  const intent = await OpenAIService.detectIntent(messageBody, intentHint, menuChoices);
+  logToFile('Intent detected', { intent: intent.type, ...(intent.rowId ? { rowId: intent.rowId } : {}) });
 
-  // Update session type based on intent
-  if (sessionId && intent.type !== 'general') {
+  // Update session type based on intent — only ever with the value it has always held.
+  if (sessionId && intent.type === 'lesson_plan') {
     try {
       await updateSessionType(sessionId, intent.type);
       logToFile('✅ Session type updated', { sessionType: intent.type });
@@ -2845,11 +2856,35 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
     }
   }
 
+  // bd-xw56ed — one of her menu rows: the door a tap on that row opens. That is the feature's
+  // in-app button when she is on the app, and the feature on WhatsApp otherwise.
+  if (intent.type === 'feature' && user?.id) {
+    typingController.stop();
+    logToFile('menu_match.row', { event: 'menu_match.row', tk: teacherRef(user.id), rowId: intent.rowId, door: 'intent' });
+    await MenuService.handleMenuButtonResponse(user, from, intent.rowId, responseLanguage, { door: 'intent' });
+    return;
+  }
+
+  // bd-xw56ed — she asked for the menu itself: open it, as /menu does.
+  if (intent.type === 'menu') {
+    typingController.stop();
+    logToFile('menu_match.menu', { event: 'menu_match.menu', tk: teacherRef(user?.id), door: 'intent' });
+    await openMenu('intent_menu');
+    return;
+  }
+
+  // bd-xw56ed — she asked for a feature, but not one we can tell: say so, then open the menu.
+  if (intent.type === 'unsure' || intent.type === 'feature') {
+    typingController.stop();
+    logToFile('menu_match.unsure', { event: 'menu_match.unsure', tk: teacherRef(user?.id), door: 'intent' });
+    await WhatsAppService.sendMessage(from, resolveUx('menuMatchUnsure', { language: responseLanguage }));
+    await openMenu('intent_unsure');
+    return;
+  }
+
   // bd-onxyu — open messages. Whatever the classifier makes of it, the matching
   // switch is asked; anything it does not name is general chat.
-  const intentFeature = {
-    lesson_plan: 'lesson_plan', presentation: 'presentation', video: 'video',
-  }[intent.type] || 'general_chat';
+  const intentFeature = intent.type === 'lesson_plan' ? 'lesson_plan' : 'general_chat';
   if (await redirectToApp(intentFeature, 'intent')) return;
 
   if (intent.type === 'lesson_plan') {
@@ -2858,13 +2893,6 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
       return; // curriculum pre-generated LP served instantly
     }
     await handleLessonPlanRequest(from, messageBody, user, sessionId, responseLanguage, typingController);
-  } else if (intent.type === 'presentation') {
-    await handlePresentationRequest(from, messageBody, user, sessionId, responseLanguage, typingController);
-  } else if (intent.type === 'video') {
-    // Route to AI video generation (same as /video command) - Issue #28
-    typingController.stop();
-    const topic = await VideoOrchestrator.extractTopicFromMessage(messageBody, responseLanguage);
-    await VideoOrchestrator.initiateVideoRequest(user, from, sessionId, responseLanguage, topic);
   } else {
     // intent rides along so the LP-context tier gate can reuse the classifier's
     // lp_reference output instead of paying for a second LLM call (bd-njn7u).
@@ -2966,39 +2994,6 @@ async function handleLessonPlanRequest(from, messageBody, user, sessionId, respo
   }
   logToFile('\ud83d\udcd6 Freeform LP request \u2192 replied not-in-catalog (bd-2540)', {
     from, userId: user?.id, topicHint: (messageBody || '').substring(0, 60),
-  });
-}
-
-/**
- * Handle presentation request
- * @param {string} from - Sender phone number
- * @param {string} messageBody - Message text
- * @param {Object|null} user - User object from database
- * @param {string|null} sessionId - Session ID
- * @param {string} responseLanguage - User's preferred language ('en', 'ur', 'ar', 'es')
- * @param {Object} typingController - Typing indicator controller
- * @returns {Promise<void>}
- */
-async function handlePresentationRequest(from, messageBody, user, sessionId, responseLanguage, typingController) {
-  // bd-2540: freeform presentation generation via Gamma is retired.
-  typingController.stop();
-  const notSupportedMessages = {
-    en: 'Presentation generation is currently unavailable. For lesson plans, send "menu" to see what\'s in the catalog.',
-    ur: '\u067E\u0631\u06CC\u0632\u0646\u0679\u06CC\u0634\u0646 \u0641\u06CC \u0627\u0644\u062D\u0627\u0644 \u062F\u0633\u062A\u06CC\u0627\u0628 \u0646\u06C1\u06CC\u06BA \u06C1\u06CC\u06BA\u06D4 \u0633\u0628\u0642 \u062F\u06CC\u06A9\u06BE\u0646\u06D2 \u06A9\u06D2 \u0644\u06CC\u06D2 "menu" \u0644\u06A9\u06BE\u06CC\u06BA\u06D4',
-    ar: '\u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0639\u0631\u0648\u0636 \u0627\u0644\u062A\u0642\u062F\u064A\u0645\u064A\u0629 \u063A\u064A\u0631 \u0645\u062A\u0627\u062D \u062D\u0627\u0644\u064A\u064B\u0627. \u0623\u0631\u0633\u0644 \"menu\" \u0644\u0644\u062E\u0637\u0637.',
-    es: 'La generaci\u00F3n de presentaciones no est\u00E1 disponible por ahora. Para planes de lecci\u00F3n, env\u00EDa "menu".',
-  };
-  const msg = notSupportedMessages[responseLanguage] || notSupportedMessages.en;
-  await WhatsAppService.sendMessage(from, msg);
-  if (user) {
-    try {
-      await storeConversation(user.id, 'assistant', msg, 'text', sessionId);
-    } catch (error) {
-      logToFile('\u26A0\uFE0F Failed to store not-supported reply', { error: error.message });
-    }
-  }
-  logToFile('\ud83d\udcca Freeform presentation request \u2192 replied not-supported (bd-2540)', {
-    from, userId: user?.id,
   });
 }
 
@@ -3177,7 +3172,7 @@ async function handleGeneralConversation(from, messageBody, user, sessionId, res
 }
 
 // handleVideoRequest() REMOVED - Issue #28: AI Video Generation replaces Media Library
-// Video requests now route to VideoOrchestrator.initiateVideoRequest() in intent handling
+// bd-xw56ed: an open message asking for videos now opens her live Videos row (menu-match), not generation
 
 // checkAndTriggerRegistration() REMOVED - Feature-based registration replaces turn-based
 // Registration now triggers after first feature completion via FeatureRegistrationService
