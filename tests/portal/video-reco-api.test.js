@@ -72,6 +72,9 @@ function mockVideoReco({ flags = true, linkToken = true, catalog = true } = {}) 
     segment: (id) => (id === '3-s2' ? {
       module: { module_id: 3, cpd_level: 1, title: 'Asking why-questions (full module)', duration_s: 600, language: 'ur' },
       segment: { seg_id: '3-s2', start_s: 95, end_s: 215, title_en: 'Asking why-questions', title_ur: 'کیوں والے سوال پوچھنا' },
+    } : id === '3-s4' ? {
+      module: { module_id: 3, title: 'Asking why-questions (full module)', duration_s: 600, language: 'ur' },
+      segment: { seg_id: '3-s4', start_s: 300, end_s: 360, title_en: 'The English demo', language: 'en' },
     } : null),
   }) : missing, { virtual: true });
 }
@@ -160,6 +163,13 @@ describe('flag on', () => {
       thumbUrl: '/v/thumb/3.jpg',
       href: `/v/tok-${RID}-portal?s=portal`,
     });
+  });
+
+  test('the chapter\'s own language wins over the module\'s (catalogue v1: chapters carry language)', async () => {
+    mockVideoReco();
+    tableRows.video_recommendations = [shownRow({ seg_id: '3-s4', start_s: 300, end_s: 360 })];
+    const { payload } = await getSession(UID, SID);
+    expect(payload.session.video_recommendation).toMatchObject({ title: 'The English demo', language: 'en', durationS: 60 });
   });
 
   test('another teacher\'s row for the session is never served', async () => {
