@@ -22,7 +22,7 @@ import type { TeacherFeature } from "../paths";
  * has rows), the chips, the tiles in the server's order, the slim card spanning both columns after tile 1, and each
  * tap logged before it goes.
  */
-const AYESHA = { firstName: "Ayesha Bibi", lastName: null, role: "teacher", phoneNumber: "923001234567", schoolName: "IMSG I-10/1" };
+const TEACHER = { firstName: "Amina Testwala", lastName: null, role: "teacher", phoneNumber: "test-teacher-1", schoolName: "IMSG I-10/1" };
 const FIXED = ["lessons", "coaching", "observations", "training", "assessment", "attendance", "classes", "analytics"];
 const QUIZ = "/quiz/teacher/tok123";
 
@@ -54,7 +54,7 @@ function serve({ home, notices = [], features = { teacherHomeCard: true } }: { h
 function Where() { return <p data-testid="where">{useLocation().pathname}</p>; }
 
 function renderHome() {
-  vi.mocked(useAuth).mockReturnValue({ user: AYESHA, loading: false } as unknown as ReturnType<typeof useAuth>);
+  vi.mocked(useAuth).mockReturnValue({ user: TEACHER, loading: false } as unknown as ReturnType<typeof useAuth>);
   return render(
     <MemoryRouter initialEntries={["/portal/teacher"]}>
       <Routes>
