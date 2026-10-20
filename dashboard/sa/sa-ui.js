@@ -280,11 +280,18 @@
         foot && foot.some(Boolean) ? h('div', { class: 'sae-foot' }, foot) : null,
       ]);
     }
-    function tiles(options, onPick, decorate, tl) {
+    /** A picture option (task.option_images[id] = a path under the site root) or null. */
+    function picOf(t, o) {
+      var p = t && t.option_images && t.option_images[o];
+      if (typeof p !== 'string' || !/^[A-Za-z0-9_./-]+$/.test(p) || p.indexOf('..') >= 0) return null;
+      return h('img', { class: 'sae-opt-img', src: '/' + p.replace(/^\/+/, ''), alt: '', draggable: 'false' });
+    }
+    function tiles(options, onPick, decorate, tl, t) {
       var n = options.length;
       var g = h('div', { class: 'sae-opts sa-tiles' + (n > 4 ? ' is-five' : ''), lang: tl, dir: tl === 'ur' ? 'rtl' : 'ltr' });
       options.forEach(function (o) {
-        var b = h('button', { class: 'sae-opt sa-tile', type: 'button', 'data-value': String(o), lang: tl }, [String(o)]);
+        var pic = picOf(t, o);
+        var b = h('button', { class: 'sae-opt sa-tile' + (pic ? ' is-pic' : ''), type: 'button', 'data-value': String(o), lang: tl }, [pic || String(o)]);
         b.addEventListener('click', function () { if (!busy) onPick(o, b); });
         if (decorate) decorate(o, b);
         g.appendChild(b);
@@ -420,7 +427,15 @@
         h('div', { class: 'sae-row' }, [jugnu('hello', true), replayBtn(function () { gen++; playIntro(t); })]),
         h('h1', { class: 'sae-h1', text: tx(t.title) }),
         h('p', { class: 'sae-say', text: tx(introOf(t)) }),
+        demoImage(t),
       ], [btn(C.next, function () { runner.instructionDone(); draw(); }, 'sae-primary')]);
+    }
+    /** The example card shown with the instruction (script.demo_image: a path under the site root, or {en, ur}). */
+    function demoImage(t) {
+      var d = t.script && t.script.demo_image;
+      if (d && typeof d === 'object') d = d[lang] || d.en || d.ur;
+      if (typeof d !== 'string' || !/^[A-Za-z0-9_./-]+$/.test(d) || d.indexOf('..') >= 0) return null;
+      return h('img', { class: 'sae-demo-img', src: '/' + d.replace(/^\/+/, ''), alt: '' });
     }
 
     function feedbackLine(fb) {
@@ -436,13 +451,15 @@
         answerArea = keypadArea(p, t, function (val) { practicePick(p, t, val); }, fb);
       } else if (t.mode === 'keyboard') {
         answerArea = keyboardArea(p, t, function (val) { practicePick(p, t, val); }, fb);
+      } else if (typeof p.target_index === 'number') {
+        answerArea = passageTap(t, function (i) { practicePick(p, t, i); });
       } else {
         answerArea = tiles(p.options, function (o) { practicePick(p, t, o); }, function (o, b) {
           if (!fb) return;
           b.disabled = true;
           if (String(o) === String(fb.value)) b.classList.add(fb.res.ok ? 'is-right' : 'is-tried');
           if (fb.res.shown != null && String(o) === String(fb.res.shown)) b.classList.add('is-right', 'is-shown');
-        }, taskLang(t));
+        }, taskLang(t), t);
       }
       return screen(v, 'sae-practice', [
         h('div', { class: 'sae-row' }, [
@@ -521,13 +538,38 @@
         h('p', { class: 'sae-task-tag', text: tx(t.title) }),
         h('div', { class: 'sae-row' }, [jugnu('idle', true), itemSpeaks(it) ? replayBtn(function () { sayItem(it, t); }) : null]),
         labelOf(it),
-        tiles(it.options, function (o, b) {
+        // A tap on the passage itself (print orientation): the words are the buttons, scored by place.
+        t.tap_on === 'passage' && typeof it.target_index === 'number'
+          ? passageTap(t, function (i, b) { busy = true; b.classList.add('is-pressed'); runner.answer(i); later(function () { busy = false; draw(); }, PRESS_MS); })
+          : null,
+        t.tap_on === 'passage' && typeof it.target_index !== 'number' ? passageTap(t, null) : null,
+        typeof it.target_index === 'number' ? null : tiles(it.options, function (o, b) {
           busy = true;
           b.classList.add('is-pressed');
           runner.answer(o);
           later(function () { busy = false; draw(); }, PRESS_MS);
-        }, null, taskLang(t)),
+        }, null, taskLang(t), t),
       ], [nextBtn(v)]);
+    }
+
+    /** The passage's words (task.passage.words) as buttons, or as plain text when onWord is null. */
+    function passageTap(t, onWord) {
+      var ps = t.passage || {};
+      var words = Array.isArray(ps.words) ? ps.words : [];
+      var dir = ps.direction || dirOf(t), tl = taskLang(t);
+      var rows = [], cur = null, curLine = null;
+      words.forEach(function (w, i) {
+        var ln = w.line != null ? w.line : 1;
+        if (ln !== curLine) { cur = h('span', { class: 'sae-pline' }); rows.push(cur); curLine = ln; }
+        var label = String(w.target != null ? w.target : w.label);
+        if (onWord) {
+          var b = h('button', { class: 'sae-word sa-word', type: 'button', 'data-i': String(i) }, [label]);
+          b.addEventListener('click', function () { if (!busy) onWord(i, b); });
+          cur.appendChild(b);
+        } else cur.appendChild(h('span', { class: 'sae-word sa-word', 'data-i': String(i) }, [label]));
+        cur.appendChild(document.createTextNode(' '));
+      });
+      return h('div', { class: 'sae-passage sa-passage' + (onWord ? ' is-pick' : ''), dir: dir, lang: tl }, rows);
     }
 
     function keypadArea(it, t, submit, fb) {
