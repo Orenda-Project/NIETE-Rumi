@@ -71,7 +71,7 @@ function templateLanguage(lang) {
   return lang === 'ur' ? 'ur' : 'en';
 }
 
-/** The button's {{1}}: a teacher-home token for this teacher, in her language. Null without a signing secret. */
+/** The button's {{1}}: a teacher-home token for this teacher, in their language. Null without a signing secret. */
 function reminderLink({ user } = {}) {
   if (!user || !user.id) return null;
   const lang = teacherLanguageFor({ preferredLanguage: user.preferred_language }) === 'ur' ? 'ur' : 'en';

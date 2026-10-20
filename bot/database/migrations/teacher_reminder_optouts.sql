@@ -3,7 +3,7 @@
 -- NON-DESTRUCTIVE. One new table; nothing existing is touched.
 -- Owner: notify-org. Steward: the NIETE bot team. Read and written by the bot's service role only (RLS on, no policy).
 --
---   teacher_reminder_optouts  one row per teacher per reminder kind she stopped. Written by
+--   teacher_reminder_optouts  one row per teacher per reminder kind the teacher stopped. Written by
 --                             bot/shared/services/nudges/reminder-stop.js (source 'stop_reply'); read by
 --                             window-closed-template.js before every send, dry run included: a row = never sent again.
 --
@@ -23,6 +23,6 @@ CREATE TABLE IF NOT EXISTS public.teacher_reminder_optouts (
 );
 COMMENT ON TABLE public.teacher_reminder_optouts IS 'Teachers who replied STOP to a reminder template; a row = that reminder kind is never sent to them again. Owner notify-org; steward the NIETE bot team. Service role only.';
 COMMENT ON COLUMN public.teacher_reminder_optouts.user_id IS 'PII: the teacher (users.id) who opted out';
-COMMENT ON COLUMN public.teacher_reminder_optouts.kind IS 'Which reminder she stopped: quiz_reminder_template (teacher_quiz_reminder_v1)';
+COMMENT ON COLUMN public.teacher_reminder_optouts.kind IS 'Which reminder the teacher stopped: quiz_reminder_template (teacher_quiz_reminder_v1)';
 COMMENT ON COLUMN public.teacher_reminder_optouts.source IS 'How the opt-out arrived: stop_reply (STOP or «روکیں» after the template)';
 ALTER TABLE public.teacher_reminder_optouts ENABLE ROW LEVEL SECURITY;   -- no policy: service role only

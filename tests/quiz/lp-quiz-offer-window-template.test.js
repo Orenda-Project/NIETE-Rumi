@@ -218,7 +218,7 @@ describe('sendWindowClosedTemplate({user}) — the button opens the quiz teacher
     expect(v).toEqual({ ok: expect.objectContaining({ uid: UID, lang: 'en', via: 'reminder' }) });
   });
 
-  it('ur for an Urdu teacher, and her token opens the Urdu page', async () => {
+  it('ur for an Urdu teacher, and their token opens the Urdu page', async () => {
     install(switchRow(NAME));
     await WindowTemplate.sendWindowClosedTemplate({ user: { ...USER, preferred_language: 'ur' } });
     const call = WhatsAppService.sendTemplate.mock.calls[0];

@@ -7,7 +7,7 @@
  *   - the switch (app_settings.lp_quiz_offer_window_template) names a template;
  *   - the teacher got the template in the last 7 days: a teacher_nudges row of kind lp_quiz_offer,
  *     skipped as window_closed_template, with context.sent = 1 or context.reason = 'dry_run'.
- * Then it records the opt-out (teacher_reminder_optouts) and replies one short line in her language.
+ * Then it records the opt-out (teacher_reminder_optouts) and replies one short line in their language.
  * Anything else → false, and the text goes wherever it went before.
  */
 
@@ -140,7 +140,7 @@ describe('handleReminderStop({user, text})', () => {
     expect(await ReminderStop.handleReminderStop({ user: USER, text: 'STOP', now: NOW })).toBe(false);
   });
 
-  it('after the opt-out, the template is never sent to her again', async () => {
+  it('after the opt-out, the template is never sent to them again', async () => {
     const tables = world();
     const db = install(tables);
     await ReminderStop.handleReminderStop({ user: USER, text: 'STOP', now: NOW });
