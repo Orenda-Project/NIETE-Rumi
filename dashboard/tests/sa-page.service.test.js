@@ -8,7 +8,7 @@ const { params, pick } = require('../sa/sa-page');
 test('the page reads its link strictly', () => {
   expect(params('?s=3f1c2d4e-aaaa-4bbb-8ccc-123456789abc&form=sa.coach.G3.A.ur&mode=proctored&block=B2&back=/portal/leader/sa', '#n=Ali%20Testwala')).toEqual({
     session_id: '3f1c2d4e-aaaa-4bbb-8ccc-123456789abc', form: 'sa.coach.G3.A.ur', mode: 'proctored', lang: 'ur', block: 'B2',
-    back: '/portal/leader/sa', skin: null, embed: false, token: null, first_name: 'Ali Testwala',
+    back: '/portal/leader/sa', skin: null, embed: false, drain: false, token: null, first_name: 'Ali Testwala',
   });
   const bad = params('?s=x&form=../../etc&mode=root&block=B99&back=//evil.example/x&n=Name', '');
   expect(bad).toMatchObject({ session_id: null, form: null, mode: 'proctored', block: null, back: null, first_name: null });
@@ -90,4 +90,51 @@ test('embedded in the coach page: no full-screen request, so the coach page\'s o
   lockDown(win, { runner: { log() {} } }, { embed: false });
   docL.pointerdown();
   expect(asked).toEqual(['fs']);
+});
+
+describe('drain: a finished child whose network came back after the hand-back still syncs', () => {
+  const storeMod = require('../sa/sa-store');
+  const syncMod = require('../sa/sa-sync');
+  const { drain } = require('../sa/sa-page');
+  const timers = { set: () => 0, clear() {} };
+
+  async function phone() {
+    const s = await storeMod.open({ idb: null });
+    for (const [id, mode] of [['child-1', 'proctored'], ['child-2', 'proctored'], ['child-3', 'proctored'], ['game-1', 'game']]) {
+      await s.putSession({ session_id: id, mode, battery_id: 'b' });
+      if (id !== 'child-3') for (let seq = 1; seq <= 3; seq++) await s.appendEvent({ session_id: id, seq, type: 'tap' });
+      if (id !== 'child-3') await s.putResult(id, { task_id: 't1', correct: 1 });
+    }
+    return s;
+  }
+
+  test('every pending proctored session is flushed through the coach sink, one after another; the rest is left', async () => {
+    const s = await phone();
+    const sent = [];
+    const sink = { putBatch: async (b) => { sent.push([b.session_id, b.seq_from, b.seq_to]); return { ok: true, acked_to: b.seq_to }; },
+      presignAudio: async () => ({ skip: true }), registerAudio: async () => ({}) };
+    const out = await drain({ store: s, sync: syncMod, sink: () => sink, exclude: 'child-2', online: () => true, timers });
+    expect(sent).toEqual([['child-1', 1, 3]]);
+    expect(out).toEqual([{ s: 'child-1', state: 'synced', pending_events: 0, pending_audio: 0 }]);
+    expect((await s.pending('child-2')).events).toHaveLength(3); // the one this page runs syncs itself
+    expect((await s.pending('game-1')).events).toHaveLength(3); // game runs need their run token: not drained here
+  });
+
+  test('offline: nothing is lost, the report says offline, and a later drain sends it', async () => {
+    const s = await phone();
+    let net = false;
+    const sent = [];
+    const sink = { putBatch: async (b) => { sent.push(b.session_id); return { ok: true, acked_to: b.seq_to }; }, presignAudio: async () => ({ skip: true }), registerAudio: async () => ({}) };
+    const first = await drain({ store: s, sync: syncMod, sink: () => sink, online: () => net, timers });
+    expect(first.map((x) => [x.s, x.state])).toEqual([['child-1', 'offline'], ['child-2', 'offline']]);
+    expect(sent).toEqual([]);
+    net = true;
+    await drain({ store: s, sync: syncMod, sink: () => sink, online: () => net, timers });
+    expect(sent).toEqual(['child-1', 'child-2']);
+  });
+
+  test('the drain page is asked for by drain=1 (no session needed)', () => {
+    expect(params('?drain=1&embed=1', '')).toMatchObject({ drain: true, embed: true, session_id: null });
+    expect(params('?s=abcdef12&form=sa.coach.G3.A.en', '').drain).toBe(false);
+  });
 });
