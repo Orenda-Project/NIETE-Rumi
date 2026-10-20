@@ -7,8 +7,9 @@ vi.mock('../../services/api', () => ({ default: { get: vi.fn(), post: vi.fn() } 
 
 import api from '../../services/api';
 import { FlnBand } from '../FlnBand';
-import { defaultGrade } from '../FlnBandBody';
+import { bandGrade, defaultGrade } from '../FlnBandBody';
 import { flnStrings } from '../strings';
+import type { FlnMe } from '../types';
 import { LEVELS, ME_TEACHER, numG2, rhEnG1, rhUrG1, stubFetch } from './listFixtures';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -24,14 +25,24 @@ const css = readFileSync(resolve(__dirname, '../fln.css'), 'utf8');
 const http = api as unknown as { get: ReturnType<typeof vi.fn> };
 const EN = flnStrings('en');
 const UR = flnStrings('ur');
+const ME_COACH: FlnMe = { lessons: true, share: true, role: 'coach', ui_lang: 'en' };
+// A principal with Share off: a leader by ROLE, so the band is theirs whatever the share switch says.
+const ME_PRINCIPAL: FlnMe = { lessons: true, share: false, role: 'principal', ui_lang: 'en' };
 
-function combos(grades: number[]) {
+type Klass = { grade: number | null; source?: 'class' | 'history' };
+
+/** Their classes as GET /me/grade-subjects answers them: a grade (null = early years) and where it came from. */
+function classes(rows: Klass[]) {
   http.get.mockImplementation(async (url: string) => {
     if (url === '/me/grade-subjects') {
-      return { data: { success: true, combos: grades.map((g) => ({ grade: g, gradeCode: `grade_${g}`, subject: 'English', subjectKey: 'english', source: 'class', featureKey: 'English', available: true })) } };
+      return { data: { success: true, combos: rows.map((r) => ({ grade: r.grade, gradeCode: r.grade == null ? 'ecce' : `grade_${r.grade}`, subject: 'English', subjectKey: 'english', source: r.source ?? 'class', featureKey: 'English', available: true })) } };
     }
     throw Object.assign(new Error('404'), { response: { status: 404 } });
   });
+}
+
+function combos(grades: number[]) {
+  classes(grades.map((grade) => ({ grade })));
 }
 
 function catalogueFor(url: URL) {
@@ -96,9 +107,10 @@ describe('FlnBand', () => {
     expect(f.mock.calls.some(([u]) => String(u).includes('grade=5'))).toBe(true);
   });
 
-  it('offers Grades 1–5 only; a teacher of Grade 7 alone lands on Grade 1 and no grade above 5 is ever asked (bd-elc1qz)', async () => {
+  it('offers Grades 1–5 only; a coach of Grade 7 alone lands on Grade 1 and no grade above 5 is ever asked (bd-elc1qz)', async () => {
+    // A TEACHER of Grade 7 alone sees no band at all since bd-4tsjcr (below); a leader still lands on Grade 1.
     combos([7]);
-    const f = stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    const f = stubFetch({ '/me': { status: 200, body: ME_COACH }, '/catalogue': catalogueFor });
     renderBand();
     const rows = await screen.findAllByRole('link');
     expect(rows.map((r) => r.getAttribute('href'))).toEqual([
@@ -209,5 +221,160 @@ describe('FlnBand', () => {
     expect(within(rows[0]).getByText(UR.subject['rh-en'])).toBeInTheDocument();
     expect(container.textContent).not.toContain('·');
     expect(container.querySelector('.fln-band')?.getAttribute('dir')).toBe('rtl');
+  });
+});
+
+/**
+ * bd-4tsjcr (operator, 20 Oct 2026). Asked whether a teacher whose classes are all Grades 6–12 should see the band
+ * at Grade 1 or not at all: "not at all". The band is hidden for a TEACHER only when their classes read SUCCEEDED,
+ * at least one class has a KNOWN grade, and every known grade is above 5. No classes, only unknown (early-years /
+ * null) grades, or a failed read → Grade 1, as before: we cannot tell what they teach, so nothing that might be
+ * theirs is hidden. Leaders (the school-leader family, by role) always see it.
+ */
+describe('FlnBand: who sees it (bd-4tsjcr)', () => {
+  /** Every pending answer landed: /fln/me, the lazy body, the classes read, any catalogue. */
+  async function settle() {
+    for (let i = 0; i < 10; i += 1) {
+      await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    }
+  }
+
+  /** The band's body mounted and asked for their classes, and everything it asked has answered. */
+  async function classesAsked() {
+    await waitFor(() => expect(http.get).toHaveBeenCalledWith('/me/grade-subjects', { params: { feature: 'lessons' } }));
+    await settle();
+  }
+
+  const catalogueAsks = (f: ReturnType<typeof stubFetch>) => f.mock.calls.filter(([u]) => String(u).includes('/catalogue'));
+
+  async function landsOn(grade: number) {
+    const rows = await screen.findAllByRole('link');
+    expect(rows.map((r) => r.getAttribute('href'))).toEqual(
+      ['rh-en', 'rh-ur', 'num'].map((s) => `/portal/fln/list/${s}?grade=${grade}`),
+    );
+    expect(screen.getByRole('radio', { checked: true }).textContent).toBe(EN.grade(grade));
+    expect(screen.getByText(EN.band.title)).toBeInTheDocument();
+  }
+
+  /** Nothing at all: no section, no heading, no chips, no skeleton — and no catalogue was asked for. */
+  function nothingShown(container: HTMLElement, f: ReturnType<typeof stubFetch>) {
+    expect(container.innerHTML).toBe('');
+    expect(container.querySelector('.fln-band')).toBeNull();
+    expect(screen.queryByText(EN.band.title)).toBeNull();
+    expect(screen.queryByRole('radiogroup')).toBeNull();
+    expect(container.querySelector('[data-fln-skeleton]')).toBeNull();
+    expect(catalogueAsks(f)).toHaveLength(0);
+  }
+
+  it('a teacher of Grade 9 alone → no band at all', async () => {
+    combos([9]);
+    const f = stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    const { container } = renderBand();
+    await classesAsked();
+    nothingShown(container, f);
+  });
+
+  it('a teacher of Grades 9 and 7 → no band at all', async () => {
+    combos([9, 7]);
+    const f = stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    const { container } = renderBand();
+    await classesAsked();
+    nothingShown(container, f);
+  });
+
+  it('a teacher of Grades 9, 7 and an early-years class (unknown grade) → still no band', async () => {
+    classes([{ grade: 9 }, { grade: null }, { grade: 7 }]);
+    const f = stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    const { container } = renderBand();
+    await classesAsked();
+    nothingShown(container, f);
+  });
+
+  it('a teacher of Grades 7 and 3 → the band, on Grade 3', async () => {
+    combos([7, 3]);
+    stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    renderBand();
+    await landsOn(3);
+  });
+
+  it('a Grade 8 class and a Grade 3 from lesson-plan history → the band, on Grade 3', async () => {
+    classes([{ grade: 8 }, { grade: 3, source: 'history' }]);
+    stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    renderBand();
+    await landsOn(3);
+  });
+
+  it('a teacher with no classes → the band, on Grade 1', async () => {
+    combos([]);
+    stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    renderBand();
+    await landsOn(1);
+  });
+
+  it('a teacher with only unknown grades (early years, null) → the band, on Grade 1', async () => {
+    classes([{ grade: null }, { grade: null }]);
+    stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    renderBand();
+    await landsOn(1);
+  });
+
+  it('the classes read is rejected (502) → the band, on Grade 1', async () => {
+    http.get.mockImplementation(async () => { throw Object.assign(new Error('502'), { response: { status: 502 } }); });
+    stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    renderBand();
+    await landsOn(1);
+  });
+
+  it('the classes read fails (an answer that is not a success) → the band, on Grade 1', async () => {
+    http.get.mockImplementation(async (url: string) => (url === '/me/grade-subjects' ? { data: { success: false } } : { data: {} }));
+    stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    renderBand();
+    await landsOn(1);
+  });
+
+  it('a teacher sees nothing while their classes are still being read (no heading that then disappears)', async () => {
+    http.get.mockImplementation(() => new Promise(() => {}));
+    const f = stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    const { container } = renderBand();
+    await classesAsked();
+    nothingShown(container, f);
+  });
+
+  it('a coach of Grade 9 alone → the band, on Grade 1', async () => {
+    combos([9]);
+    stubFetch({ '/me': { status: 200, body: ME_COACH }, '/catalogue': catalogueFor });
+    renderBand();
+    await landsOn(1);
+  });
+
+  it('a principal of Grades 9 and 7 (Share off) → the band, on Grade 1', async () => {
+    combos([9, 7]);
+    stubFetch({ '/me': { status: 200, body: ME_PRINCIPAL }, '/catalogue': catalogueFor });
+    renderBand();
+    await landsOn(1);
+  });
+
+  it('bandGrade: hidden only for a teacher whose classes read succeeded with every known grade above 5', () => {
+    // teacher
+    expect(bandGrade([9], false)).toBeNull();
+    expect(bandGrade([9, 7], false)).toBeNull();
+    expect(bandGrade([12, null, 6], false)).toBeNull();
+    expect(bandGrade([7, 3], false)).toBe(3);
+    expect(bandGrade([8, 5, 2], false)).toBe(2);
+    expect(bandGrade([], false)).toBe(1);
+    expect(bandGrade([null, undefined], false)).toBe(1);
+    expect(bandGrade([0, 13], false)).toBe(1); // not grades we know
+    expect(bandGrade(null, false)).toBe(1); // a failed read
+    // leader: unchanged
+    expect(bandGrade([9], true)).toBe(1);
+    expect(bandGrade([9, 4], true)).toBe(4);
+    expect(bandGrade(null, true)).toBe(1);
+  });
+
+  it('a coach still sees the band heading while their classes are read (unchanged)', async () => {
+    http.get.mockImplementation(() => new Promise(() => {}));
+    stubFetch({ '/me': { status: 200, body: ME_COACH }, '/catalogue': catalogueFor });
+    renderBand();
+    expect(await screen.findByText(EN.band.title)).toBeInTheDocument();
   });
 });

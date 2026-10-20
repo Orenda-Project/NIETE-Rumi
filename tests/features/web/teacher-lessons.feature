@@ -75,10 +75,12 @@ Feature: Teacher lesson plans
 
   # FLN08 (bd-elc1qz, 19 Oct 2026): FLN is for Grades 1–5 only — the team: "they should only be available up to
   # Grade 5". Covers portal/src/portal/fln/FlnBandBody.tsx, FlnRoutes.tsx and the catalogue route's 400 above grade 5.
+  # Since FLN09 (bd-4tsjcr) a teacher who teaches only Grades 6–12 sees no band, so the Grade 1 landing is shown
+  # here with a teacher who has no classes.
   @FLN08 @draft @config-gated
-  Scenario: The FLN band offers Grades 1–5 only, and a teacher of an older class lands on Grade 1
+  Scenario: The FLN band offers Grades 1–5 only, and a teacher with no classes lands on Grade 1
     Given portal_fln_lessons is true
-    And the demo teacher is signed in and teaches only Grade 7
+    And the demo teacher is signed in and has no classes
     When they open /portal/teacher/lessons/new
     Then the band's grade chips are Grade 1, 2, 3, 4 and 5, and no other grade
     And Grade 1 is selected and the band's line reads "Foundational reading and maths · Grades 1–5"
@@ -86,6 +88,29 @@ Feature: Teacher lesson plans
     When they open an old link /portal/fln/list/rh-en?grade=8
     Then the page settles on /portal/fln/list/rh-en?grade=1, the Grade 1 lesson list
     And GET /api/portal/fln/catalogue?grade=8&subject=rh-en answers 400
+
+  # FLN09 (bd-4tsjcr, 20 Oct 2026): asked whether a teacher whose classes are all Grades 6–12 should see the band at
+  # Grade 1 or not at all, the operator answered "not at all". Hidden only when the teacher's classes read succeeded,
+  # at least one class has a known grade and every known grade is above 5; no classes, only unknown grades or a
+  # failed read → Grade 1, as before. Leaders always see it, and plan links keep opening.
+  # Covers portal/src/portal/fln/FlnBand.tsx and FlnBandBody.tsx (bandGrade).
+  @FLN09 @draft @config-gated
+  Scenario: A teacher who teaches only Grades 6–12 sees no FLN band; a Grade 3 class or a coach still gets it
+    Given portal_fln_lessons is true
+    And the demo teacher is signed in and teaches only Grade 8
+    When they open /portal/teacher/lessons/new
+    Then no FLN band is shown: no heading, no grade chips, no rows and no gap under the grade and subject picker
+    And the rest of the page is the same as when portal_fln_lessons is off
+    And no GET /api/portal/fln/catalogue is made
+    When they open a plan link /portal/fln/p/<id of a Reading Hour English grade 1 plan> that a coach sent them
+    Then the plan opens
+    When the demo teacher teaches Grades 7 and 3
+    And they open /portal/teacher/lessons/new again
+    Then the FLN band is shown with Grade 3 selected
+    And every row links to /portal/fln/list/<subject>?grade=3
+    When a demo coach whose only class is Grade 8 is signed in
+    And they open /portal/teacher/lessons/new
+    Then the FLN band is shown with Grade 1 selected
 
   # FLN03 (PR-D, m-links): a shared plan link opened signed out → sign-in → back on the plan (next=, replace).
   # Covers portal/src/portal/fln/lib/safeNext.ts, fln/login/FlnLoginBanner.tsx, TeacherGate.tsx:29, PortalLogin.tsx.
