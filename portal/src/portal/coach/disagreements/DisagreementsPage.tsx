@@ -8,6 +8,7 @@ import { FOCUS } from "../../teacher/ui/styles";
 import { disagreements, type Row, type Tag } from "./api";
 import { DISAGREE } from "./copy";
 import { DisagreementsFrame, Gated } from "./frame";
+import { NextVisit } from "./nextVisit";
 
 /**
  * bd-tbprit.7 — her list as Rifat's prototype draws it: her navy head (N, the app's name, Coach · ICT Islamabad,
@@ -86,6 +87,7 @@ function Body() {
       <LoadState status={load.status} empty={false} onRetry={retry} />
       {data && (
         <>
+          <NextVisit todo={data.todo} />
           <div role="tablist" className="flex gap-1 rounded-[14px] border border-[#e1e4ea] bg-white p-1">
             <TabButton selected={tab === "todo"} onClick={() => setTab("todo")}>{C.todoTab(data.todo.length)}</TabButton>
             <TabButton selected={tab === "done"} onClick={() => setTab("done")}>{C.doneTab(data.done.length)}</TabButton>

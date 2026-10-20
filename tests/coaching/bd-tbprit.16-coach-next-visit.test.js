@@ -1,7 +1,7 @@
 'use strict';
 /**
  * bd-tbprit.16 — "Add to my next visit" (bd-tbprit.11) is stored on coach_plan.addedToVisitAt; the list says which
- * rows carry it, so the coach Home can show them under "For your next visit".
+ * rows carry it, so her disagreements list can show them under "For your next visit".
  */
 const { shapeList } = require('../../dashboard/services/coach-disagreements.service');
 

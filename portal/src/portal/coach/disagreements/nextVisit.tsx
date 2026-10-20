@@ -1,33 +1,21 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCopy } from "../../teacher/i18n";
 import { CHEVRON, FOCUS, LIST_CARD, ROW_DIVIDER, ROW_SUB, ROW_TITLE } from "../../teacher/ui/styles";
 import { SectionLabel } from "../ui";
-import { disagreements, type Row } from "./api";
-import { useDisagreementsOn } from "./frame";
+import type { Row } from "./api";
 import { DISAGREE } from "./copy";
 
 /**
- * bd-tbprit.16 — the coach Home's "For your next visit": the To-do requests she added with "Add to my next visit"
- * (bd-tbprit.11), each opening its card. Nothing unless the flag is on and at least one is marked; a failed list
- * shows nothing rather than an error on her Home.
+ * bd-tbprit.16 — "For your next visit" at the top of her disagreements list: the To-do requests she added with
+ * "Add to my next visit" (bd-tbprit.11), each opening its card. Nothing when none is marked. It sits on the list, not
+ * the coach Home, because coach app v2 sends Home to the Training Library (coach/training/appReady.ts).
  */
-export function NextVisit() {
+export function NextVisit({ todo }: { todo: Row[] }) {
   const C = useCopy(DISAGREE);
-  const on = useDisagreementsOn();
-  const [rows, setRows] = useState<Row[]>([]);
-  useEffect(() => {
-    if (on !== true) return;
-    let live = true;
-    disagreements.list()
-      .then((l) => { if (live) setRows(l.todo.filter((r) => r.nextVisit)); })
-      .catch(() => {});
-    return () => { live = false; };
-  }, [on]);
-
-  if (on !== true || rows.length === 0) return null;
+  const rows = todo.filter((r) => r.nextVisit);
+  if (rows.length === 0) return null;
   return (
     <section data-testid="next-visit" className="flex flex-col gap-2">
       <SectionLabel count={rows.length}>{C.nextVisit}</SectionLabel>

@@ -154,6 +154,28 @@ describe("DisagreementsPage, Rifat's list", () => {
     expect(screen.getByTestId("disagreements-todo")).toBeInTheDocument();
   });
 
+  it("bd-tbprit.16 — For your next visit sits above the tabs: only the To-do rows she added, each opening its card", async () => {
+    D.list.mockResolvedValue({
+      success: true,
+      todo: [row("a", { teacher: "Sadia Bibi", nextVisit: true }), row("b", { teacher: "Uzma Riaz", nextVisit: false })],
+      done: [row("c", { teacher: "Hina Tariq", done: true, nextVisit: true })],
+    });
+    renderAt();
+    const next = await screen.findByTestId("next-visit");
+    expect(next).toHaveTextContent("For your next visit");
+    const links = within(next).getAllByRole("link");
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveTextContent("Sadia Bibi");
+    expect(links[0]).toHaveAttribute("href", "/portal/coach/disagreements/a");
+    expect(next.compareDocumentPosition(screen.getByRole("tablist")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("bd-tbprit.16 — none added: no next-visit section", async () => {
+    renderAt();
+    await screen.findByTestId("disagreements-todo");
+    expect(screen.queryByTestId("next-visit")).toBeNull();
+  });
+
   it("bd-tbprit.12 — moved back: the line says so; no state, no line", async () => {
     const { unmount } = renderAt({ pathname: "/portal/coach/disagreements", state: { moved: { who: "Bushra Ali", done: false } } });
     expect(await screen.findByTestId("moved-msg")).toHaveTextContent("Bushra Ali is back in To do.");

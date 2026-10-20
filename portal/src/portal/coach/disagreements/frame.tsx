@@ -16,7 +16,7 @@ import { AppBar } from "./appBar";
  */
 
 /** null while /config is read, then true only for a real true. */
-export function useDisagreementsOn(): boolean | null {
+function useDisagreementsOn(): boolean | null {
   const [on, setOn] = useState<boolean | null>(null);
   useEffect(() => {
     let live = true;
