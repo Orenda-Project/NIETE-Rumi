@@ -1293,7 +1293,7 @@ async function processTeacherReport(sessionId, payload = {}) {
     // bd-gzfdu9: the recommended clip, one message to the TEACHER after their report (never on the coach's
     // preview). Nothing unless VIDEO_RECO_ENABLED and the session's row is 'shown'; a failure changes nothing.
     await require('../coaching/video-reco/send').sendAfterReport({
-      coachingSessionId: sessionId, phone: delivery.teacher_phone, language: teacherLang,
+      coachingSessionId: sessionId, phone: delivery.teacher_phone, language: teacherLang, row: videoReco,
     }).catch(() => null);
     if (!portal) {
       await WhatsAppService.sendMessage(

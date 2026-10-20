@@ -334,7 +334,8 @@ class ReportGeneratorService {
       // bd-gzfdu9: the recommended video clip (one row per session). STARTED here, awaited only by the sender after the
       // report has gone, so it adds no delay; a promise of the row|null that never rejects. Flag off → null, nothing runs.
       const videoReco = require('./video-reco/engine').recommendForReport({
-        session, analysis: enhancedAnalysis, nextStep, loop, card: precomputedCommitment, coachingSessionId, isRetry,
+        // staging/main carry no uptake loop (no `loop` binding here): the engine gets null, as it does with the loop off.
+        session, analysis: enhancedAnalysis, nextStep, loop: null, card: precomputedCommitment, coachingSessionId, isRetry,
       });
 
       // Generate report via the per-framework transformer + PDFReportService.
@@ -343,7 +344,7 @@ class ReportGeneratorService {
       // OECD/HOTS/TEACH/MEWAKA once they're wired). Delivery path branches
       // on the shape.
       // bd-gzfdu9 §4.9: the recommended clip on the report image — waits ≤ 20 s for the pick; null when off or slower.
-      const videoStrip = await require('./video-reco/strip').stripFor({ coachingSessionId, language: outputLanguage }).catch(() => null);
+      const videoStrip = await require('./video-reco/strip').stripFor({ coachingSessionId, language: outputLanguage, row: videoReco }).catch(() => null);
       const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, nextStep, videoStrip);
       const isHeroImage = !Buffer.isBuffer(reportResult) && reportResult && reportResult.png;
 
@@ -375,8 +376,9 @@ class ReportGeneratorService {
       let followUps = true;
       let videoClipAfter = false; // bd-gzfdu9: the clip goes last, only after a report that arrived in an open window
       if (isHeroImage) {
+        let heroSent; // bd-gzfdu9 (staging port): read after the try by the clip hook below
         try {
-          const heroSent = await this.sendHeroImageReport(
+          heroSent = await this.sendHeroImageReport(
             from,
             coachingSessionId,
             reportResult.slimPng || reportResult.png, // bd-v0toag.57: C/D get the slim image; R2 keeps the full one
@@ -536,7 +538,7 @@ class ReportGeneratorService {
       // note, survey and commit prompt). Nothing unless VIDEO_RECO_ENABLED and the row is 'shown'; never throws.
       if (videoClipAfter) {
         await require('./video-reco/send').sendAfterReport({
-          coachingSessionId, phone: from, language: outputLanguage, track, imageStrip: Boolean(videoStrip),
+          coachingSessionId, phone: from, language: outputLanguage, track, imageStrip: Boolean(videoStrip), row: videoReco,
         }).catch(() => null);
       }
 

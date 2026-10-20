@@ -121,14 +121,31 @@ describe('flag on (wiring)', () => {
     expect(a.coachingSessionId).toBe('sess-1');
     expect(a.session.user_id).toBe('user-1');
     expect(a.analysis.framework).toBe('fico');
-    expect(a.nextStep.target.indicator).toBe('B2');
-    expect(a.card).toMatchObject({ action: 'Ask two why questions', indicator: 'B2' });
+    // staging/main: the one next step is chosen only for v10 groups C and D; everyone else gets { target: null }
+    // and the engine targets the card (target.js 'card_text' / card indicator).
+    expect(a.nextStep).toEqual({ target: null });
+    expect(a.card).toMatchObject({ action: 'Ask two why questions' }); // no step → the card carries no indicator (card_text route)
     expect(a.isRetry).toBe(true);
     expect('loop' in a).toBe(true);
+    expect(a.loop).toBeNull(); // staging/main carry no uptake loop
+  });
+
+  test('v10 group C/D (report "new"): the engine gets the selected next step', async () => {
+    process.env.VIDEO_RECO_ENABLED = 'true';
+    const recommendForReport = jest.fn(() => Promise.resolve(null));
+    load({ recommendForReport });
+    require('../../../bot/shared/services/coaching/ab-v10-arms').groupFor.mockResolvedValue({ report: 'new' });
+    await RG.generateReport('sess-1', { from: '10000000000', attempt: 2 });
+    expect(recommendForReport).toHaveBeenCalledTimes(1);
+    expect(recommendForReport.mock.calls[0][0].nextStep.target.indicator).toBe('B2');
   });
 
   test('a recommendation that never finishes does not delay or block the report', async () => {
     process.env.VIDEO_RECO_ENABLED = 'true';
+    // bd-gzfdu9 (eng-surfaces, on integration): the strip waits ≤ 20 s by design (SPEC §4.9) and the sender ≤ 60 s;
+    // both are capped and tested in send.test.js / report-image-strip.test.js. Here hook A alone is under test.
+    jest.doMock('../../../bot/shared/services/coaching/video-reco/strip', () => ({ stripFor: async () => null }));
+    jest.doMock('../../../bot/shared/services/coaching/video-reco/send', () => ({ sendAfterReport: async () => ({ sent: false, via: null }) }));
     load({ recommendForReport: jest.fn(() => new Promise(() => {})) });
     await RG.generateReport('sess-1', { from: '10000000000' });
     expect(RG.generatePDFReport).toHaveBeenCalledTimes(1);
