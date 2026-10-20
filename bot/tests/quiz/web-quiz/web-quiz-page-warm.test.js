@@ -101,16 +101,20 @@ describe('off', () => {
 });
 
 describe('its own switch', () => {
-  test('never waited for: cold is off and starts one read; then on, kept by a touch that re-reads it; JSON true only', async () => {
+  test('never waited for and never a read of its own on the page: cold is off; the page\'s own settings read (identity) carries it; then on, kept by a touch that re-reads it; JSON true only', async () => {
     jest.resetModules();
     seed(true);
     const PageWarm = require('../../../shared/services/quiz/web-quiz-page-warm');
+    const IdRoster = require('../../../shared/services/quiz/web-quiz-identity-roster');
     reads = [];
     expect(PageWarm.onNow()).toBe(false);
     expect(PageWarm.onNow()).toBe(false);
     await settle();
+    expect(reads.filter((r) => r.t === 'app_settings')).toHaveLength(0);     // no read of its own
+    await IdRoster.identityMode();                                             // the page's own settings read
     expect(reads.filter((r) => r.t === 'app_settings')).toHaveLength(1);
     expect(PageWarm.onNow()).toBe(true);
+    await settle();
     reads = [];
     await PageWarm.tick();
     expect(reads.filter((r) => r.t === 'app_settings')).toHaveLength(1);
@@ -119,6 +123,22 @@ describe('its own switch', () => {
     await PageWarm.tick();
     expect(PageWarm.onNow()).toBe(false);
     PageWarm.stop();
+  });
+  test.each([['absent', undefined], ['the string true', 'true'], ['false', false]])('%s: a cold class page makes no read for this switch at all', async (_n, value) => {
+    jest.resetModules();
+    seed(value);
+    const WQ = require('../../../shared/services/quiz/web-quiz.service');
+    const asked = [];
+    const sb = require('../../../shared/config/supabase'), from0 = sb.from;
+    sb.from = (t) => { const b = from0(t); if (t === 'app_settings') { const inn = b.in && b.in.bind(b), eq = b.eq && b.eq.bind(b); if (inn) b.in = (k, v) => { asked.push(v); return inn(k, v); }; if (eq) b.eq = (k, v) => { asked.push([v]); return eq(k, v); }; } return b; };
+    try { await WQ.getQuiz('AB12CD'); } catch (_) { /* the door, whatever it is */ }
+    await settle();
+    sb.from = from0;
+    // the switch is only ever named in the page's identity read, beside one voice
+    const naming = asked.filter((k) => k.includes('web_quiz_page_warm'));
+    expect(naming.length).toBeLessThanOrEqual(1);
+    naming.forEach((k) => expect(k).toEqual(expect.arrayContaining(['web_quiz_identity', 'web_quiz_one_voice', 'web_quiz_page_warm'])));
+    require('../../../shared/services/quiz/web-quiz-page-warm').stop();
   });
 });
 

@@ -9,8 +9,8 @@
  * touch() beside its code read: every page switch's own getter starts together (a warm one answers from its cache, so
  * a warm page reads nothing more), and the fast page is decided after them.
  *
- * This module's own switch is never waited for (onNow: the cached value; a cold or stale cache starts one read in the
- * background and answers as it was). Once it reads on, a 20 s touch (unref'd) re-reads it, so it stays known between
+ * This module's own switch is never waited for and makes no read of its own on the page (onNow: the cached value; a
+ * cold or stale cache takes the page's own settings read's value of it, web-quiz-identity-roster.js). Once it reads on, a 20 s touch (unref'd) re-reads it, so it stays known between
  * children; it stops when the switch reads off.
  *
  * web_quiz_page_keep (JSON true, with this switch on; default off): the same one read also reads every key the page
@@ -79,9 +79,23 @@ function keep() {
   if (typeof timer.unref === 'function') timer.unref();
 }
 
-/** The switch, never waited for: the cached value; cold or stale, one read starts in the background. */
+/**
+ * The switch, never waited for and never a read of its own on the page: the cached value. Cold or stale, it takes the
+ * value the page's own settings read carries (web-quiz-identity-roster.js reads this key beside one voice) when that
+ * read is fresh, else answers as it was; once that read says on, the touch starts (its own background read, which
+ * also keeps the page switches when page_keep is on).
+ */
 function onNow(now = Date.now()) {
-  if (!cache || now - cache.at >= TTL_MS) flag().catch(() => {});
+  if (!cache || now - cache.at >= TTL_MS) {
+    let seen;
+    try { seen = require('./web-quiz-identity-roster').pageWarmPeek(now); } catch (_) { seen = undefined; }
+    if (seen !== undefined) {
+      const was = Boolean(cache && cache.on);
+      cache = { at: now, on: seen };
+      if (seen && !was) flag().catch(() => {});
+      if (!seen) { keepOn = false; Snap.clear(); stop(); }
+    }
+  }
   return Boolean(cache && cache.on && now - cache.at < 2 * TTL_MS);
 }
 
