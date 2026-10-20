@@ -21,10 +21,10 @@
       remindTest: 'Send one now',
       remindStop: 'Stop reminders',
       remindDenied: 'Reminders are off in this browser. You can turn them on in the browser settings.',
-      iabTitle: 'Reminders work in Chrome',
-      iabBody: "WhatsApp's browser cannot show reminders. Open this page in Chrome, then tap ‘Remind me’ again.",
+      iabBody: 'Reminders come only in Chrome.',
       iabChrome: 'Open in Chrome',
-      iabHint: 'Or tap ⋮ at the top and choose ‘Open in browser’.',
+      iabHow: 'How?',
+      iabHint: 'Or tap ⋮ at the top, then choose ‘Open in browser’.',
       iabCopy: 'Copy link',
       iosBody: 'On iPhone, open this page in Safari, tap Share, then ‘Add to Home Screen’. Reminders come from the Jugnu icon.',
       noPush: 'This browser cannot show reminders.',
@@ -40,10 +40,10 @@
       remindTest: 'ابھی ایک یاد دہانی بھیجیں',
       remindStop: 'یاد دہانی بند کریں',
       remindDenied: 'اس براؤزر میں یاد دہانی بند ہے۔ آپ براؤزر کی سیٹنگز سے اسے کھول سکتے ہیں۔',
-      iabTitle: 'یاد دہانی کروم میں چلتی ہے',
-      iabBody: 'واٹس ایپ کا براؤزر یاد دہانی نہیں دکھا سکتا۔ یہ صفحہ کروم میں کھولیں، پھر دوبارہ ’یاد دلائیں‘ دبائیں۔',
+      iabBody: 'یاد دہانی صرف کروم میں ملتی ہے۔',
       iabChrome: 'کروم میں کھولیں',
-      iabHint: 'یا اوپر ⋮ دبائیں اور ’براؤزر میں کھولیں‘ چنیں۔',
+      iabHow: 'کیسے؟',
+      iabHint: 'یا اوپر ⋮ دبائیں، پھر ’براؤزر میں کھولیں‘ چنیں۔',
       iabCopy: 'لنک کاپی کریں',
       iosBody: 'آئی فون پر یہ صفحہ سفاری میں کھولیں، بھیجنے کا نشان (⬆) دبائیں، پھر ’ہوم اسکرین پر شامل کریں‘۔ یاد دہانی جگنو کے آئیکن سے آئے گی۔',
       noPush: 'یہ براؤزر یاد دہانی نہیں دکھا سکتا۔',
@@ -197,9 +197,10 @@
       },
       denied: function () { draw(line(c.remindDenied)); },
       stopped: function () { draw(line(c.stopped) + (landing && code ? link('wq-go', 'play', '/q/' + code, c.play) : '')); },
-      iab: function () {
-        draw(title(c.iabTitle) + line(c.iabBody) + (code && host ? link('wq-soft', 'escape', intentHref(), c.iabChrome) : '')
-          + line(c.iabHint) + (code && host ? btn('wq-ghost', 'copy', c.iabCopy) : ''));
+      // WhatsApp's browser: one line and ONE door to Chrome; the ⋮ hint and Copy link only after "How?" (a child's screen)
+      iab: function (more) {
+        draw(line(c.iabBody) + (code && host ? link('wq-soft', 'escape', intentHref(), c.iabChrome) : '')
+          + (more ? line(c.iabHint) + (code && host ? btn('wq-ghost', 'copy', c.iabCopy) : '') : btn('wq-ghost', 'how', c.iabHow)));
       },
       ios: function () { draw(line(c.iosBody)); },
       nopush: function () { draw(line(c.noPush)); },
@@ -283,6 +284,7 @@
       else if (act === 'test') onTest();
       else if (act === 'copy') { if (e.preventDefault) e.preventDefault(); onCopy(); }
       else if (act === 'escape') ev('escape', { how: 'intent' });
+      else if (act === 'how') { ev('escape', { how: 'menu' }); show.iab(true); }
     };
 
     return {
