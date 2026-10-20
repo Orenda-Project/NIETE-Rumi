@@ -175,6 +175,8 @@
     // Jugnu's passages beside the games (the server lists each only when it would open): read along and listen in the
     // story room by id, read aloud on the games page
     var reads = all.filter(function (g) { return (g.kind === 'read' && g.stop && g.name) || ((g.kind === 'passage' || g.kind === 'listen') && g.id); });
+    // sa_game: the big flight's row (the server sends it only with the switch on; loaded state only)
+    var big = all.filter(function (g) { return g.kind === 'bigtest' && g.name && /^\/sa-game\/[^\s"'<>]+$/.test(g.href || ''); });
     var readRow = function (g, i) {
       if (g.kind === 'read') return row({ href: gameHref(B, ctx, g), title: g.name, kind: 'passage', item: g.stop, pos: i, say: g.say }, ctx);
       return row({ href: storyHref(B, ctx, g), title: g.kind === 'listen' ? t.listenW : t.readAlong, sub: g.title || '', kind: g.kind, item: g.id, pos: i, say: g.say }, ctx);
@@ -184,12 +186,13 @@
     var h = section(t.fromTeacher, open.map(quizRow).join('')) + numsH +
       section(t.numbers, nums.map(function (g, i) { return row({ href: g.stop ? gameHref(B, ctx, g) : chHref(B, ctx), title: g.stop ? gameName(g, t) : t.g1, kind: 'game', item: g.stop || 'numbers', pos: i, say: g.say }, ctx); }).join('')) +
       section(t.story, reads.map(readRow).join('')) +
+      (big.length ? section(big[0].name, big.map(function (g, i) { return row({ href: g.href, title: g.name, kind: 'game', item: 'bigtest', pos: i }, ctx); }).join('')) : '') +
       section(t.recT, recs.map(function (r, i) { return row({ title: (langOf(ctx) === 'ur' && r.title_ur) || r.title || t.vquiz, sub: r.subject ? t.subj(r.subject) : '', kind: 'rec', pos: i, item: r.vid, art: r.art, tap: 'vquiz' }, ctx); }).join('')) +
       section(t.lastQ, last.map(function (g, i) { return row({ href: qLang(B, ctx, quizHref(g.code, g.k, false)), title: topicOf(g, ctx) || t.lastQ, kind: 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); }).join('')) +
       section(t.again, done.map(quizRow).join(''));
     if (failed) return errNote(t) + h;
     if (wait) return open.length ? primaryFirst(h) : h;
-    if (!open.length && !reads.length && !nums.length && !done.length && !last.length && !recs.length) return emptyNote(t.gamesNone, 'stories', t.toStories, ls);
+    if (!open.length && !reads.length && !nums.length && !done.length && !last.length && !recs.length && !big.length) return emptyNote(t.gamesNone, 'stories', t.toStories, ls);
     return primaryFirst(h);
   }
 

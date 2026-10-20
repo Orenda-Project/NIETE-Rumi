@@ -152,6 +152,9 @@ const PACK_KEY = 'web_quiz_pack';
 const BUSY_PAGE_KEY = 'web_quiz_busy_page';
 // The busy page asks again by itself (2 s, 4 s, 8 s) only with this on too: the same read, JSON true only.
 const BUSY_RETRY_KEY = 'web_quiz_busy_retry';
+// The big flight in the games door (sa-game, web-quiz-hub-doors.js): this cache only (nowOf('battery')), never a read of
+// its own; its page and sink read flags().battery. Only the stored JSON boolean true is on.
+const SA_GAME_KEY = 'sa_game';
 const TTL_MS = 30 * 1000;
 let cache = null; // fromRows' answer: { at, <each SWITCHES field>, shareOpen }
 // The child's language row from the read that filled `cache` ({ at, value }), or null when that read did not carry it.
@@ -169,6 +172,7 @@ function isTrue(value) {
 // Rules: 'loose' = JSON true or the string 'true' (isTrue); 'json' = only the JSON boolean true (the string 'true', 1 or an
 // object are off); 'meter' = meterOf; 'read' = read in the same query for a field worked out below (shareOpen).
 const SWITCHES = Object.freeze([
+  ['battery',      SA_GAME_KEY,           'json'],
   ['adv',          ADV_KEY,               'json'],
   ['backNav',      BACK_NAV_KEY,          'loose'],
   ['busyPage',     BUSY_PAGE_KEY,         'json'],
