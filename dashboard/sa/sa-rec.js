@@ -10,7 +10,9 @@
  * second from the begin line on; no voice by after_s → cb({kind:'mercy'}) once, still none at total_s →
  * cb({kind:'early_stop_silence', silence_s}). The first voice ends the watch. A voice is the level above
  * 2 × the room's quietest tick, within [FLOOR, CEIL] and capped at half the probe's peak (the coach's or the game's mic
- * check): a child who reads from the first second on is never taken for the room.
+ * check): a child who reads from the first second on is never taken for the room. An AudioContext that is not
+ * running (Android starts one made outside a tap suspended) is no ear, never silence: the watch ends with
+ * cb({kind:'ear_unavailable'}). The context is resumed at the watch's start and on every tap (wake()).
  *
  * UMD: window.SAE.rec in the browser, module.exports under Node.
  */
@@ -84,6 +86,7 @@
     var ctx = null;
     var analyser = null;
     var watches = [];
+    var earState = null;
 
     function ear() {
       if (analyser) return analyser;
@@ -97,9 +100,19 @@
       return analyser;
     }
 
+    function running() { return !ctx || ctx.state === undefined || ctx.state === 'running'; }
+
+    /** Resume the ear's context; called on every tap (a tap is what lets a suspended context run). */
+    function wake() {
+      if (!ear()) return false;
+      if (!running() && ctx.resume) { try { Promise.resolve(ctx.resume()).catch(function () { /* stays suspended: no ear */ }); } catch (_) { /* no ear */ } }
+      return running();
+    }
+
     function onSilence(opts, cb) {
       var an = ear();
       if (!an) return function () {};
+      wake();
       var afterMs = (opts && opts.after_s || 12) * 1000;
       var totalMs = (opts && opts.total_s || 20) * 1000;
       var buf = new Uint8Array(an.fftSize || 2048);
@@ -110,6 +123,9 @@
       var h = null;
       function end() { if (h != null) { interval.clear(h); h = null; } watches = watches.filter(function (w) { return w !== end; }); }
       h = interval.set(function () {
+        // A context that is not running reads flat: that is no ear, never silence.
+        if (!running()) { earState = 'unavailable'; end(); cb({ kind: 'ear_unavailable' }); return; }
+        earState = 'running';
         var t = now();
         an.getByteTimeDomainData(buf);
         var r = rmsOf(buf);
@@ -131,7 +147,11 @@
       if (!type) return Promise.resolve(false);
       if (stream) return Promise.resolve(true);
       return Promise.resolve().then(function () { return gum({ audio: { echoCancellation: true, noiseSuppression: true } }); })
-        .then(function (s) { stream = s; return true; }, function () { return false; });
+        .then(function (s) {
+          stream = s;
+          if (o.taps !== false && root.addEventListener) root.addEventListener('pointerdown', wake, true);
+          return true;
+        }, function () { return false; });
     }
 
     function start(taskId) {
@@ -170,6 +190,7 @@
 
     function release() {
       endWatches();
+      if (root.removeEventListener) root.removeEventListener('pointerdown', wake, true);
       if (ctx && ctx.close) { try { ctx.close(); } catch (_) { /* already closed */ } }
       ctx = null;
       analyser = null;
@@ -177,7 +198,9 @@
       stream = null;
     }
 
-    var api = { supported: function () { return !!type; }, type: function () { return type; }, ready: ready, start: start, stop: stop, release: release, recording: function () { return !!cur; }, onSilence: onSilence };
+    var api = { supported: function () { return !!type; }, type: function () { return type; }, ready: ready, start: start, stop: stop, release: release, recording: function () { return !!cur; }, onSilence: onSilence, wake: wake,
+      /** 'running' | 'unavailable' (the last watch's ear), null before any watch. */
+      ear: function () { return earState; } };
     last = api;
     return api;
   }
