@@ -2,9 +2,11 @@
  * FDE stem check (bd-5jmnfj.22): one read of the whole question paper, every printed question
  * beside its own answer and marking, to catch a question that does not make sense on its own —
  * «Why can the student see the torch light but the torch is luminous while the mug is not?» reached
- * a staging Science paper. A flagged question is reworded so it asks what its answer answers; the
- * answer and the marking points are never touched. An accept line about a different question is
- * dropped. A flag with no usable rewording is recorded only and the paper still prints.
+ * a staging Science paper. A flagged question is reworded so it asks what its answer answers; when
+ * the answer line or a marking point is the wrong half, that is corrected instead or as well
+ * (bd-5jmnfj.24: «how many bags» keyed as «14 bags», 14 being the fruits in each bag). An accept
+ * line about a different question is dropped. Everything changed is recorded with what it was; a
+ * flag with no usable fix is recorded only and the paper still prints.
  *
  * Pure: no model client, no I/O. The engine passes the model call in (`ask`).
  */
@@ -17,6 +19,7 @@ const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
 // A rewording that carries its own (a) / ii. / 3) — the paper letters and numbers questions itself.
 const NUMBERED = /^\s*\(?(?:[a-z]|[ivx]{1,4}|\d{1,2})\s*[).]\s/i;
 const MAX_LEN = 400;
+const ROMAN = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x'];
 
 function itemsOf(examJson, slotId) {
   const out = [];
@@ -55,6 +58,10 @@ function entryOf(label, q) {
   const lines = [`${label} ${strip(q.question)}`];
   const add = (name, t) => { const s = strip(t); if (s) lines.push(`   ${name}: ${s}`); };
   if (typeof q.passage === 'string') add('passage', q.passage);
+  // Plain-text parts print as i), ii)… under the question (bd-5jmnfj.24: unseen, the angles list was
+  // flagged as missing and then printed twice).
+  const parts = (Array.isArray(q.questions) ? q.questions : []).filter((s) => typeof s === 'string');
+  if (parts.length) add('parts', parts.map((s, j) => `${ROMAN[j] || j + 1}) ${strip(s)}`).join(' | '));
   if (Array.isArray(q.options)) add('options', q.options.filter((o) => typeof o === 'string').join(' | '));
   if (Array.isArray(q.words)) add('words', q.words.filter((w) => typeof w === 'string').join(', '));
   if (typeof q.answer === 'string') add('answer', q.answer);
@@ -68,7 +75,7 @@ function buildStemCheckPrompt(examJson, P) {
   const targets = targetsOf(examJson, P);
   const body = [...targets].map(([label, q]) => entryOf(label, q)).join('\n\n');
   const prompt = `STEM CHECK: Grade 5 board question paper.
-Below is every printed question, each with the answer and marking the teacher holds. A label like Q2b.1 is an item; Q2b.1.c is its sub-question (c), which is read with the item's situation above it.
+Below is every printed question, each with the answer and marking the teacher holds. A label like Q2b.1 is an item; Q2b.1.c is its sub-question (c), which is read with the item's situation above it. "parts:" are printed under their question as i), ii)…, so a question that says "the following" has its list there.
 
 Flag a question ONLY when one of these is true:
 1. Its wording contradicts itself or is garbled, so a child cannot tell what is being asked (two questions run together, a "but" that joins things that do not clash, a half sentence).
@@ -80,10 +87,13 @@ Do NOT flag style, difficulty, level, length, spelling, or a question you would 
 For each flag give:
 - "label": the label exactly as printed;
 - "problem": one short sentence;
-- "question": the question reworded with the smallest change so it asks what its own answer answers; it must keep the same answer. No letter or number in front. Leave it out if the question is fine and only the accept line is wrong;
+- "question": the question reworded with the smallest change so it asks what its own answer answers; where the answer is right it must keep the same answer. No letter or number in front. Leave it out if the question is fine;
+- "answer": the answer line corrected, only if it is wrong for the question as it will print; leave it out otherwise;
+- "points": marking points to correct, each {"was": the point text copied exactly, "now": the corrected text}; leave it out if none;
 - "drop_accept": accept lines that belong to a different question, copied exactly; leave it out if none.
+Fix whichever part is wrong with the smallest change, so that the question, the answer and the points agree after the fix.
 
-Reply with JSON only: {"flags":[{"label":"…","problem":"…","question":"…","drop_accept":["…"]}]}. No flags: {"flags":[]}.
+Reply with JSON only: {"flags":[{"label":"…","problem":"…","question":"…","answer":"…","points":[{"was":"…","now":"…"}],"drop_accept":["…"]}]}. No flags: {"flags":[]}.
 
 === THE PAPER ===
 ${body}`;
@@ -100,6 +110,11 @@ function parseStemFlags(reply, targets) {
     seen.add(label);
     const flag = { label, problem: strip(f.problem) };
     if (typeof f.question === 'string') flag.question = f.question;
+    if (typeof f.answer === 'string') flag.answer = f.answer;
+    if (Array.isArray(f.points)) {
+      const pts = f.points.filter((p) => p && typeof p.was === 'string' && typeof p.now === 'string').map((p) => ({ was: p.was, now: p.now }));
+      if (pts.length) flag.points = pts;
+    }
     if (Array.isArray(f.drop_accept)) flag.drop_accept = f.drop_accept.filter((a) => typeof a === 'string');
     out.push(flag);
   }
@@ -110,6 +125,27 @@ function parseStemFlags(reply, targets) {
 function usable(fix, was) {
   const t = strip(fix);
   return Boolean(t) && t !== strip(was) && t.length <= MAX_LEN && !NUMBERED.test(t);
+}
+
+// The answer line and the named marking points, corrected in place; true if anything changed.
+function fixKey(q, f, refuses, entry) {
+  let changed = false;
+  if (typeof f.answer === 'string' && strip(f.answer) && strip(f.answer) !== strip(q.answer) && strip(f.answer).length <= MAX_LEN) {
+    if (refuses(f.answer)) entry.answer_refused = strip(f.answer);
+    else { entry.answer_was = q.answer; q.answer = strip(f.answer); changed = true; }
+  }
+  const points = q.scheme && Array.isArray(q.scheme.points) ? q.scheme.points : null;
+  for (const fix of (points && f.points) || []) {
+    const now = strip(fix.now);
+    const i = points.findIndex((p) => pointText(p) === strip(fix.was));
+    if (i < 0 || !now || now === strip(fix.was) || now.length > MAX_LEN || refuses(now)) continue;
+    const p = points[i];
+    if (p && typeof p === 'object') p[p.text != null ? 'text' : 'point'] = now;
+    else points[i] = now;
+    (entry.points_was = entry.points_was || []).push(strip(fix.was));
+    changed = true;
+  }
+  return changed;
 }
 
 function applyStemFixes(examJson, P, flags, { refuses = () => false } = {}) {
@@ -133,6 +169,8 @@ function applyStemFixes(examJson, P, flags, { refuses = () => false } = {}) {
     } else if (typeof f.question === 'string' && strip(f.question)) {
       entry.fix = strip(f.question);
     }
+    const keyed = fixKey(q, f, refuses, entry);
+    if (keyed && outcome === 'flagged_only') outcome = 'answer_fixed';
     const accept = q.scheme && Array.isArray(q.scheme.accept) ? q.scheme.accept : null;
     const dropped = accept && Array.isArray(f.drop_accept) ? accept.filter((a) => f.drop_accept.includes(a)) : [];
     if (dropped.length) {
