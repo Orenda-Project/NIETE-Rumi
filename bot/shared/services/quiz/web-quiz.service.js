@@ -700,6 +700,8 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   // One voice per quiz: the page shows a line with no clip instead of reading it in the phone's voice, and plays the
   // shared lines from the plan voice's set (named only when on).
   if (oneVoice) { out.one_voice = true; out.voice_sets = require('./web-quiz-voice').sharedSets(oneVoice); }
+  // web_quiz_voice_gap_phone (the same settings read): a line with no clip is read by the phone's own voice, not left silent
+  if (oneVoice && await IdRoster.voiceGapPhone()) out.voice_gap_phone = true;
   // The edge reads it (web-quiz.routes uiLangOf, for /class and /schools), and so does the page (wq.js B.class_doors:
   // the table's skeleton, list-state marks and chips).
   if (await classDoors) out.class_doors = true;

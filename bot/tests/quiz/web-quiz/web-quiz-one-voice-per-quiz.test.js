@@ -273,7 +273,7 @@ describe('the page never speaks a quiz line with the phone\'s voice when the qui
   function harness(oneVoice) {
     const spoken = []; const classes = []; const timers = [];
     const ctx = {
-      LANG: 'en', VLANG: 'en', SOUND: true, ONE_VOICE: oneVoice,
+      LANG: 'en', VLANG: 'en', SOUND: true, ONE_VOICE: oneVoice, GAP_PHONE: false, // web_quiz_voice_gap_phone off, as today
       ROOT: { classList: { add: (c) => classes.push(c), remove() {} } },
       speakable: (t) => /[A-Za-z0-9؀-ۿ]/.test(String(t || '')),
       ev: () => {}, document: { createElement: () => ({ canPlayType: () => 'probably' }) },
