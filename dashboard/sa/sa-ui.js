@@ -7,8 +7,15 @@
  *   onMute(b)|null (game only), muted, back (url for the end screen), handback:'coach'|'teacher', onHandback(),
  *   art_base (Jugnu's pictures, default '/wq/'), check_words (the audio check's words, with clips),
  *   child: { first_name } (proctored handover), onUnlock() (the coach's hold on the hand-back screen),
- *   onCoachMenu(open) (the coach's hold during the run)
- * }) → { render(), destroy(), setSync(status) }
+ *   onCoachMenu(open) (the coach's hold during the run),
+ *   micProbe() → Promise<{ok, rms, url}> (game mic check: a 2-s probe, url = a blob to play back),
+ *   micLevel(cb(level 0..1)) → stop() (a live input level, for the practice oral question)
+ * }) → { render(), destroy(), setSync(status), mercy(), refuse(kind) }
+ *
+ * Session gates (RULINGs #13, #17): mic_check (game, once per device), oral_practice (before the first oral task),
+ * keypad_warmup (before the first keypad task). The passage ends on one big spoken star tile; mercy() (the engine, after
+ * 12 s of no voice, RULING #10) says lines.mercy once and pulses the star. refuse('voice') covers the screen when the
+ * battery's voice is not ready.
  *
  * Proctored (coach) mode adds coach-facing screens around the child's: a handover screen before the intro ("Give the
  * phone to <name>"), a 3 s press-and-hold in the top-left corner during the run that opens a small coach menu (end this
@@ -79,6 +86,18 @@
       sound_on: 'Sound on',
       sound_off: 'Sound off',
       of: 'of',
+      mic_say: 'Say: one, two, three.',
+      mic_tap: 'Tap the microphone, then speak',
+      mic_speak: 'Speak now…',
+      mic_ask: 'Did you hear yourself?',
+      mic_yes: 'I heard myself',
+      mic_no: 'I didn’t',
+      oral_try: 'Say it out loud',
+      oral_heard: 'I heard you!',
+      kp_warm: 'Type any numbers you like. Tap “Done” when you are ready.',
+      done: 'Done',
+      mercy: 'If reading is hard, tap the star.',
+      voice_not_ready: 'The voice is not ready yet',
     },
     ur: {
       hello: 'السلام علیکم! میں جگنو ہوں۔',
@@ -126,6 +145,18 @@
       sound_on: 'آواز چالو',
       sound_off: 'آواز بند',
       of: 'میں سے',
+      mic_say: 'کہیں: ایک، دو، تین۔',
+      mic_tap: 'مائیک دبائیں، پھر بولیں',
+      mic_speak: 'اب بولیں…',
+      mic_ask: 'کیا آپ کو اپنی آواز سنائی دی؟',
+      mic_yes: 'ہاں، سنائی دی',
+      mic_no: 'نہیں سنائی دی',
+      oral_try: 'اونچی آواز میں بولیں',
+      oral_heard: 'مجھے سنائی دیا!',
+      kp_warm: 'جو نمبر چاہیں لکھیں۔ تیار ہوں تو "ہو گیا" دبائیں۔',
+      done: 'ہو گیا',
+      mercy: 'اگر پڑھنا مشکل ہو تو ستارے کو دبائیں۔',
+      voice_not_ready: 'آواز ابھی تیار نہیں',
     },
   };
 
@@ -147,7 +178,10 @@
   var HOLD_MS = 3000;
   var KEYPAD_MAX = 3;
   var WORD_MAX = 16;
-  var LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('');  // EGMA answers here are ≤ 3 digits; a cap stops "2222"
+  var LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('');
+  var KP_WARM_MS = 20000;   // RULING #17: 20 s of free typing
+  var HEARD_LEVEL = 0.15;   // the practice oral question: the meter crossed this once = heard
+  var PROBE_MS = 4000;      // the mic probe's own guard
 
   function h(tag, attrs, kids) {
     var el = document.createElement(tag);
@@ -198,6 +232,12 @@
     var handedOver = mode !== 'proctored';  // proctored: the coach hands the phone over first
     var coachMenu = false;
     var syncState = null;
+    var micSt = null;         // the game mic check: { stage: 'idle'|'rec'|'ask', probe }
+    var oralP = null;         // the practice oral question: { stage: 'listen'|'heard', max, stop, bar }
+    var kpw = null;           // the keypad warm-up: { keys, timer, done }
+    var mercied = {};         // task ids the mercy line was said for
+    var refused = null;       // refuse(kind): a full-screen stop
+    var starEl = null;
     var childName = opts.child && typeof opts.child.first_name === 'string' ? opts.child.first_name.trim().slice(0, 40) : '';
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
@@ -299,9 +339,11 @@
       return g;
     }
     /** The item's label, when it adds something (a sum, a sequence) and does not give the answer away. */
+    /** What the item shows on screen: label, or the content file's `shown` (the sum on a say_on:'replay' task). */
+    function shownOf(it) { return it == null ? null : (it.label != null ? it.label : (it.shown != null ? it.shown : null)); }
     function labelOf(it) {
-      if (!it || it.label == null || it.say) return null;
-      var lab = String(it.label).trim();
+      if (!it || shownOf(it) == null || (it.say && it.label == null)) return null;
+      var lab = String(shownOf(it)).trim();
       if (!lab) return null;
       if (Array.isArray(it.options)) {
         var a = lab.split(/\s+/).sort().join(' '), b = it.options.map(String).sort().join(' ');
@@ -574,7 +616,7 @@
 
     function keypadArea(it, t, submit, fb) {
       var kids = [];
-      var lab = it.label != null && String(it.label).trim() ? String(it.label) : null;
+      var lab = shownOf(it) != null && String(shownOf(it)).trim() ? String(shownOf(it)) : null;
       if (!lab) {
         // a word problem: ten counters the child may tap to count with (not scored)
         var dots = [];
@@ -593,8 +635,9 @@
       displayEl = h('output', { class: 'sae-typed sa-typed' + (fb ? (fb.res.ok || fb.res.shown != null ? ' is-right' : ' is-tried') : ''), dir: 'ltr', 'aria-live': 'polite' }, [shown || ' ']);
       // the typed number big above the keypad (a sum and its box on one line: "1 + 3 = [ ]"); nothing goes until ✓
       kids.push(lab ? h('div', { class: 'sae-sumrow', dir: 'ltr' }, [h('p', { class: 'sae-sum sa-label' }, [lab]), displayEl]) : displayEl);
-      var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'del', '0', 'ok'];
-      kids.push(h('div', { class: 'sae-keypad sa-keypad', dir: 'ltr' }, keys.map(function (k) {
+      // 1 2 3 ⌫ / 4 5 6 ✓ / 7 8 9 ✓ / 0 0 0 ✓: the ✓ is the biggest key (three rows tall)
+      var keys = ['1', '2', '3', 'del', '4', '5', '6', 'ok', '7', '8', '9', '0'];
+      kids.push(h('div', { class: 'sae-keypad sa-keypad is-tall-ok', dir: 'ltr' }, keys.map(function (k) {
         var b = h('button', {
           class: 'sae-key' + (k === 'ok' ? ' sae-key-ok' : k === 'del' ? ' sae-key-del' : ''), type: 'button',
           'aria-label': k === 'del' ? C.erase : k === 'ok' ? C.ok : k, 'data-key': k,
@@ -686,12 +729,19 @@
       return h('div', { class: 'sae-grid sa-grid', dir: dir, lang: tl, style: '--cols:' + per + ';--cols-n:' + narrow },
         (t.grid || []).map(function (x, i) { return h('span', { class: 'sae-cell', 'data-i': String(i) }, [String(x)]); }));
     }
+    /** The passage: one big star tile ends the reading (its word is spoken once when it shows; mercy() pulses it). */
     function sRunRecord(v) {
+      var label = tx(line('done')) || C.done;
+      starEl = h('button', { class: 'sae-star sa-star' + (mercied[v.task.id] ? ' is-mercy' : ''), type: 'button', 'aria-label': label }, [
+        h('span', { class: 'sae-star-ico', 'aria-hidden': 'true', text: '★' }),
+        h('span', { class: 'sae-star-word', text: label }),
+      ]);
+      starEl.addEventListener('click', function () { if (!busy) { runner.done(); draw(); } });
       return screen(v, 'sae-run sae-run-rec', [
         clock(v),
         h('p', { class: 'sae-chip sae-chip-rec', text: C.read_aloud }),
         passageEl(v.task, null),
-      ], [btn(C.im_done, function () { runner.done(); draw(); }, 'sae-primary')]);
+      ], [starEl]);
     }
     function sLastWord(v) {
       return screen(v, 'sae-lastword', [
@@ -715,8 +765,165 @@
       }, 'sae-primary')]);
     }
 
+    // ---------- session gates ----------
+    function tileBtn(label, onclick, cls) {
+      return h('button', { class: 'sae-opt sa-tile sae-choice ' + (cls || ''), type: 'button', onclick: function (e) { if (!busy) onclick(e); } }, [label]);
+    }
+    /** Game mic check (RULING #13): a 2-s probe played back, then "did you hear yourself?". */
+    function sMicCheck(v) {
+      var st = micSt || (micSt = { stage: 'idle' });
+      var head = tx(line('mic_check')) || C.mic_say;
+      if (st.stage === 'ask') {
+        return screen(v, 'sae-miccheck is-ask', [
+          jugnu('thinking', true),
+          h('h1', { class: 'sae-h1', text: tx(line('mic_check_ask')) || C.mic_ask }),
+          h('div', { class: 'sae-pics' }, [
+            tileBtn(C.mic_yes, function () { micDone(true); }, 'is-yes'),
+            tileBtn(C.mic_no, function () { micDone(false); }, 'is-no'),
+          ]),
+        ], null, true);
+      }
+      var rec = st.stage === 'rec';
+      var mic = h('button', { class: 'sae-mic sae-mic-btn sa-mic' + (rec ? ' is-on' : ''), type: 'button', 'aria-label': C.mic_tap, disabled: rec },
+        [h('span', { 'aria-hidden': 'true', text: '🎤' })]);
+      mic.addEventListener('click', function () { if (!rec && !busy) probe(); });
+      return screen(v, 'sae-miccheck', [
+        h('h1', { class: 'sae-h1', text: head }),
+        mic,
+        h('p', { class: 'sae-sub', text: rec ? C.mic_speak : C.mic_tap }),
+      ], null, true);
+    }
+    function probe() {
+      if (typeof opts.micProbe !== 'function') { micDone(false, 0); return; }
+      micSt = { stage: 'rec' };
+      draw();
+      var p;
+      try { p = Promise.resolve(opts.micProbe()); } catch (e) { p = Promise.reject(e); }
+      p.then(function (r) {
+        if (!alive || !micSt) return;
+        r = r || {};
+        micSt = { stage: 'ask', probe: { ok: !!r.ok, rms: typeof r.rms === 'number' ? r.rms : 0 } };
+        draw();
+        playBack(r.url).then(function () { if (alive && micSt && micSt.stage === 'ask') say(line('mic_check_ask') || { en: COPY.en.mic_ask, ur: COPY.ur.mic_ask }); });
+      }, function () { if (alive) micDone(false, 0); });
+    }
+    /** Play the probe back (a blob: URL from micProbe), resolving when it ends or fails. */
+    function playBack(url) {
+      return new Promise(function (ok) {
+        if (typeof url !== 'string' || !/^blob:/.test(url) || typeof Audio === 'undefined') { ok(); return; }
+        var a, done = false;
+        function fin() { if (!done) { done = true; ok(); } }
+        try {
+          a = new Audio(url);
+          a.onended = fin; a.onerror = fin;
+          var pr = a.play();
+          if (pr && pr.then) pr.then(null, fin);
+          setTimeout(fin, PROBE_MS);
+        } catch (e) { fin(); }
+      });
+    }
+    /** heard: the child's answer; the check passes only when the probe also measured a voice. */
+    function micDone(heard, rms) {
+      var pr = micSt && micSt.probe;
+      var level = typeof rms === 'number' ? rms : (pr ? pr.rms : 0);
+      micSt = null;
+      runner.micChecked(!!heard && !!(pr && pr.ok), level);
+      draw();
+    }
+
+    /** The practice spoken question (RULING #13): Jugnu asks, a live meter, "I heard you!". */
+    function sOralPractice(v) {
+      var st = oralP || (oralP = { stage: 'listen', max: 0 });
+      if (st.stage === 'heard') {
+        return screen(v, 'sae-oralp is-heard', [
+          jugnu('correct'),
+          h('h1', { class: 'sae-h1', text: tx(line('oral_heard')) || C.oral_heard }),
+        ], [btn(C.next, function () { oralP = null; runner.oralPracticeDone(true); draw(); }, 'sae-primary')]);
+      }
+      var bar = h('div', { class: 'sae-meter-fill' });
+      st.bar = bar;
+      return screen(v, 'sae-oralp', [
+        h('span', { class: 'sae-chip', text: C.practice }),
+        h('p', { class: 'sae-say', text: tx(line('oral_practice')) || C.oral_try }),
+        h('div', { class: 'sae-mic sa-mic' + (st.stop ? ' is-on' : ''), 'aria-hidden': 'true' }, [h('span', { text: '🎤' })]),
+        typeof opts.micLevel === 'function' ? h('div', { class: 'sae-meter sa-meter', 'aria-hidden': 'true' }, [bar]) : null,
+      ], [btn(C.answered, function () { oralHeard(st.max >= HEARD_LEVEL || typeof opts.micLevel !== 'function'); }, 'sae-primary')]);
+    }
+    function startMeter() {
+      if (!oralP || oralP.stop || typeof opts.micLevel !== 'function') return;
+      var st = oralP, heardAt = null;
+      try {
+        st.stop = opts.micLevel(function (level) {
+          if (!alive || oralP !== st) return;
+          var l = Math.max(0, Math.min(1, +level || 0));
+          if (l > st.max) st.max = l;
+          if (st.bar) st.bar.style.width = (l * 100).toFixed(1) + '%';
+          if (l >= HEARD_LEVEL && heardAt == null) { heardAt = Date.now(); later(function () { if (oralP === st && st.stage === 'listen') oralHeard(true); }, 1200); }
+        });
+      } catch (e) { st.stop = null; }
+      var mic = el.querySelector('.sae-oralp .sae-mic');
+      if (mic && st.stop) mic.classList.add('is-on');
+    }
+    function stopMeter() {
+      if (oralP && typeof oralP.stop === 'function') { try { oralP.stop(); } catch (e) { /* page */ } }
+      if (oralP) oralP.stop = null;
+    }
+    function oralHeard(heard) {
+      stopMeter();
+      if (!heard) { oralP = null; runner.oralPracticeDone(false); draw(); return; }
+      oralP.stage = 'heard';
+      draw();
+      say(line('oral_heard') || { en: COPY.en.oral_heard, ur: COPY.ur.oral_heard });
+    }
+
+    /** The keypad warm-up (RULING #17): 20 s of free typing, the digits echoed big, a Done tile. */
+    function sKeypadWarmup(v) {
+      if (!kpw) {
+        kpw = { keys: 0, done: false, shown: '' };
+        kpw.timer = later(function () { kpwDone(); }, KP_WARM_MS);
+      }
+      var out = h('output', { class: 'sae-typed sa-typed sae-kpw-typed', dir: 'ltr', 'aria-live': 'polite' }, [kpw.shown || '\u00a0']);
+      var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'del', '0'];
+      var pad = h('div', { class: 'sae-keypad sa-keypad is-warm', dir: 'ltr' }, keys.map(function (k) {
+        var b = h('button', { class: 'sae-key' + (k === 'del' ? ' sae-key-del' : ''), type: 'button', 'data-key': k, 'aria-label': k === 'del' ? C.erase : k }, [k === 'del' ? '⌫' : k]);
+        b.addEventListener('click', function () {
+          if (!kpw || kpw.done) return;
+          kpw.keys++;
+          kpw.shown = k === 'del' ? kpw.shown.slice(0, -1) : (kpw.shown + k).slice(-6);
+          out.textContent = kpw.shown || '\u00a0';
+        });
+        return b;
+      }));
+      return screen(v, 'sae-kpwarm', [
+        h('p', { class: 'sae-say', text: tx(line('keypad_warmup')) || C.kp_warm }),
+        out,
+        pad,
+      ], [btn(tx(line('done')) || C.done, function () { kpwDone(); }, 'sae-primary')], true);
+    }
+    function kpwDone() {
+      if (!kpw || kpw.done) return;
+      kpw.done = true;
+      clearTimeout(kpw.timer);
+      var n = kpw.keys;
+      kpw = null;
+      runner.keypadWarmupDone(n);
+      draw();
+    }
+
+    /** A full-screen stop the child cannot pass (refuse('voice'): the battery's voice is not ready). */
+    function sRefused(v) {
+      var msg = refused === 'voice' ? (tx(line('voice_not_ready')) || C.voice_not_ready) : C.voice_not_ready;
+      return h('div', { class: 'sae-screen sae-refused' }, [
+        h('div', { class: 'sae-body' }, [
+          jugnu('sleep'),
+          h('h1', { class: 'sae-h1', text: msg }),
+        ]),
+        mode === 'game' && safeBack(opts.back) ? h('div', { class: 'sae-foot' }, [btn(C.back, goBack, 'sae-primary')]) : null,
+      ]);
+    }
+
     function sTaskEnd(v) {
-      var skipped = v.result && /^skipped/.test(v.result.stop_reason || '');
+      var skipped = v.result && /^skipped|^mic_unavailable/.test(v.result.stop_reason || '');
       return screen(v, 'sae-tend', [
         jugnu(skipped ? 'idle' : 'celebrate'),
         skipped ? null : h('h1', { class: 'sae-h1 sae-xl', text: C.well_done }),
@@ -821,6 +1028,13 @@
           sayChain([[line('audio_check') || { en: COPY.en.audio_q, ur: COPY.ur.audio_q }], [{ en: check.target.en, ur: check.target.ur }, check.target.audio || null]]);
         }
       } else if (v.phase === 'warmup') say({ en: COPY.en.warm_title, ur: COPY.ur.warm_title });
+      else if (v.phase === 'mic_check') {
+        if (typeof opts.micProbe !== 'function') later(function () { if (runner.view().phase === 'mic_check') { micSt = null; runner.micChecked(false, 0); draw(); } }, 0);
+        else say(line('mic_check') || { en: COPY.en.mic_say, ur: COPY.ur.mic_say });
+      } else if (v.phase === 'oral_practice') {
+        var gp = gen;
+        say(line('oral_practice') || { en: COPY.en.oral_try, ur: COPY.ur.oral_try }).then(function () { if (alive && gp === gen) startMeter(); });
+      } else if (v.phase === 'keypad_warmup') say(line('keypad_warmup') || { en: COPY.en.kp_warm, ur: COPY.ur.kp_warm });
       else if (v.phase === 'instruction') playIntro(t);
       else if (v.phase === 'practice' && v.practice) {
         var first = t.practice.indexOf(v.practice) === 0;
@@ -838,11 +1052,16 @@
             var mic = el.querySelector('.sae-mic');
             if (mic) mic.classList.add('is-on');
           });
+        } else if (t.say_on === 'replay') {
+          // The sum is on the screen; Jugnu reads it only when the replay tile is tapped.
+          if (runner.promptDone) runner.promptDone();
         } else if (!t.time_limit_s) {
           // Untimed (word problems, comparison …): the wait for "next" starts once Jugnu has finished reading.
           var key2 = keyOf(v), g3 = gen;
           sayItem(v.item, t).then(function () { if (alive && g3 === gen && lastKey === key2 && runner.promptDone) runner.promptDone(); });
         } else sayItem(v.item, t);
+      } else if (v.phase === 'running' && t && t.mode === 'record') {
+        say(line('done') || { en: COPY.en.done, ur: COPY.ur.done });
       } else if (v.phase === 'last_word') {
         sayChain([v.time_left_ms === 0 && s.time_up ? [s.time_up] : null, s.intro_tap ? [s.intro_tap] : [{ en: COPY.en.last_word, ur: COPY.ur.last_word }]]);
       } else if (v.phase === 'task_end') {
@@ -888,7 +1107,12 @@
       if (listening && v.phase !== 'ready') listening = null;
       var showPhase = hold ? 'practice' : listening ? 'listen' : v.phase;
       if (!handedOver && v.phase === 'battery_intro') showPhase = 'handover';
-      var entered = key !== lastKey && !hold && !listening && showPhase !== 'handover';
+      if (refused) showPhase = 'refused';
+      if (v.phase !== 'oral_practice' && oralP) { stopMeter(); oralP = null; }
+      if (v.phase !== 'mic_check') micSt = null;
+      if (v.phase !== 'keypad_warmup' && kpw) { clearTimeout(kpw.timer); kpw = null; }
+      starEl = null;
+      var entered = key !== lastKey && !hold && !listening && showPhase !== 'handover' && showPhase !== 'refused';
       if (entered) { gen++; typed = ''; }
       recorderHooks(v);
       clockEls = null;
@@ -897,6 +1121,10 @@
       var s;
       switch (showPhase) {
         case 'handover': s = sHandover(v); break;
+        case 'refused': s = sRefused(v); break;
+        case 'mic_check': s = sMicCheck(v); break;
+        case 'oral_practice': s = sOralPractice(v); break;
+        case 'keypad_warmup': s = sKeypadWarmup(v); break;
         case 'battery_intro': s = sIntro(v); break;
         case 'audio_check': s = sCheck(v); break;
         case 'warmup': s = sWarmup(v); break;
@@ -914,14 +1142,14 @@
       }
       while (el.firstChild) el.removeChild(el.firstChild);
       el.appendChild(s);
-      if (mode === 'proctored' && showPhase !== 'handover') {
+      if (mode === 'proctored' && showPhase !== 'handover' && showPhase !== 'refused') {
         coachLayer(v).forEach(function (n) { el.appendChild(n); });
         if (coachMenu) el.appendChild(sCoachMenu(v));
       }
       el.setAttribute('data-phase', showPhase);
       el.setAttribute('data-task-mode', v.task ? v.task.mode : '');
       if (entered) { lastKey = key; enter(v); }
-      loop(v.phase === 'running' && !listening);
+      loop(v.phase === 'running' && !listening && !refused);
       try { if (opts.onState) opts.onState(v); } catch (e) { /* the page's hook never stops the test */ }
     }
 
@@ -931,7 +1159,7 @@
       var r = runner.tick();
       var v = runner.view();
       if (keyOf(v) !== lastKey) { draw(); return; }
-      if (r === 'replay' && v.item) sayItem(v.item, v.task);
+      if (r === 'replay' && v.item && v.task.say_on !== 'replay') sayItem(v.item, v.task);
       if (!!v.offer_next !== shownOffer) { draw(); return; }
       if (v.time_left_ms != null) paintClock(v.time_left_ms);
     }
@@ -956,6 +1184,24 @@
 
     return {
       render: function () { draw(); },
+      /** The mercy rule (RULING #10; the engine calls it after 12 s of no voice): Jugnu says lines.mercy once, the star pulses. */
+      mercy: function () {
+        var v = runner.view();
+        if (!alive || v.phase !== 'running' || !v.task || v.task.mode !== 'record' || mercied[v.task.id]) return;
+        mercied[v.task.id] = true;
+        var star = el.querySelector('.sae-star');
+        if (star) star.classList.add('is-mercy');
+        say(line('mercy') || { en: COPY.en.mercy, ur: COPY.ur.mercy });
+      },
+      /** A full-screen stop: refuse('voice') when the battery's voice is not ready (proctored: no buttons; game: back). */
+      refuse: function (kind) {
+        if (!alive) return;
+        refused = kind || 'voice';
+        gen++;
+        loop(false);
+        draw();
+        say(line('voice_not_ready') || { en: COPY.en.voice_not_ready, ur: COPY.ur.voice_not_ready });
+      },
       /** The sync status ({ state, pending_events }) as a small coach-facing dot (proctored only). */
       setSync: function (status) {
         syncState = status && typeof status === 'object' ? status : (status ? { state: String(status) } : null);
@@ -965,6 +1211,7 @@
         else draw();
       },
       destroy: function () {
+        stopMeter();
         alive = false;
         loop(false);
         timers.forEach(clearTimeout);
