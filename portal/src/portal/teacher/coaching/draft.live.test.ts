@@ -40,6 +40,12 @@ describe("the live record in the draft", () => {
     expect(peekDraft()?.live).toBeNull();
   });
 
+  it("is dropped, not a crash, when the draft has no audio yet", () => {
+    holdDraft({ audio: audio("rec-1"), plan: plan("L1"), photos: [], live: LIVE });
+    expect(() => holdDraft({ audio: null, plan: plan("L1"), photos: [] })).not.toThrow();
+    expect(peekDraft()?.live).toBeNull();
+  });
+
   it("an explicit null clears it", () => {
     holdDraft({ audio: audio("rec-1"), plan: plan("L1"), photos: [], live: LIVE });
     holdDraft({ audio: audio("rec-1"), plan: plan("L1"), photos: [], live: null });
