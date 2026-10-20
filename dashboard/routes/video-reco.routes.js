@@ -28,6 +28,17 @@ const SIGN_IN = '/portal/login';
 const THUMBS = path.join(__dirname, '..', '..', 'bot', 'assets', 'video-thumbs');
 const COOKIE_MAX_AGE_S = 365 * 24 * 60 * 60;
 
+/**
+ * An R2 path-style url re-addressed to R2_BUCKET_NAME, same key. The catalogue's urls name the prod bucket; sandbox
+ * serves copies at the same keys in its own bucket, and the presigner only finds keys in R2_BUCKET_NAME (qa-e2e FAIL
+ * 20261020T200126). Where the buckets already match (prod), or none is configured, the url is returned unchanged.
+ */
+function inServingBucket(url, bucket = process.env.R2_BUCKET_NAME) {
+  const m = /^(https:\/\/[^/]+\.r2\.cloudflarestorage\.com\/)([^/?]+)(\/.*)$/i.exec(String(url || ''));
+  if (!bucket || !m || m[2] === bucket) return url;
+  return `${m[1]}${bucket}${m[3]}`;
+}
+
 function log(props, event = 'video_reco.page.open') {
   try { telemetry.logEvent(event, props); } catch (_) { /* logging never decides the response */ }
 }
@@ -115,7 +126,7 @@ function createVideoRecoRouter(opts = {}) {
     const l = copy.lang(clip.language);
     let src = null;
     if (ua !== 'crawler' && mod.video_url) {
-      try { src = await presign(mod.video_url); } catch (_) { src = null; }
+      try { src = await presign(inServingBucket(mod.video_url)); } catch (_) { src = null; }
     }
     const reportToken = signReportLink({ sessionId: row.coaching_session_id, userId });
     log({ outcome: 'ok', recommendationId, userId, ua_class: ua, surface, language: l });
