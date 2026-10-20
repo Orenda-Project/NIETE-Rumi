@@ -12,7 +12,8 @@ const http = require('http');
 const express = require('express');
 
 const mockOn = jest.fn();
-jest.mock('../../shared/services/sa-game/flag', () => ({ on: (...a) => mockOn(...a) }));
+const mockCycle = jest.fn();
+jest.mock('../../shared/services/sa-game/flag', () => ({ on: (...a) => mockOn(...a), cycleOn: (...a) => mockCycle(...a) }));
 const mockKeep = jest.fn();
 jest.mock('../../shared/services/quiz/web-quiz-challenge', () => ({ keepAudioOn: (...a) => mockKeep(...a) }));
 const mockConsent = jest.fn();
@@ -134,6 +135,7 @@ beforeAll(async () => {
 afterAll(() => new Promise((r) => server.close(r)));
 beforeEach(() => {
   mockOn.mockReset().mockResolvedValue(true);
+  mockCycle.mockReset().mockResolvedValue(false);
   mockKeep.mockReset().mockResolvedValue(true);
   mockConsent.mockReset().mockResolvedValue('kept_ok');
   mockWho.mockReset().mockResolvedValue({ studentId: 'stu-1', grade: '3', lang: 'ur' });
@@ -257,6 +259,60 @@ describe('exposure (the coach instrument played at home)', () => {
   test('another child, or the same child last month: not counted', async () => {
     mockDb.tables.web_quiz_challenge_runs.push({ id: 'old-1', student_id: 'stu-1', exercise: 'battery', meta: { part: 'tower', form: 'game.G23', day: '2026-09-30', finished_at: '2026-09-30T10:00:00Z' } });
     mockDb.tables.web_quiz_challenge_runs.push({ id: 'oth-1', student_id: 'stu-2', exercise: 'battery', meta: { part: 'tower', form: 'game.G23', day: '2099-01-01', finished_at: 'x' } });
+    const r = await post('/session', { t: 'tok.sig', kid: KID, part: 'tower', form: 'game.G23' });
+    expect(r.status).toBe(200);
+  });
+});
+
+describe('the flight window as the study cycle (sa_game_tower_cycle, default OFF)', () => {
+  const { cycleFor } = require('../../shared/services/child-test/draw/cycle');
+  const today = () => new Date(Date.now() + 5 * 3600 * 1000).toISOString().slice(0, 10);
+  // a day in the same calendar quarter as today but another month, and a day in the quarter before
+  const sameQuarterOtherMonth = () => {
+    const [y, m] = today().split('-').map(Number);
+    const o = (m - 1) % 3 === 2 ? m - 1 : m + 1;
+    return `${y}-${String(o).padStart(2, '0')}-15`;
+  };
+  const lastQuarter = () => {
+    const [y, m] = today().split('-').map(Number);
+    const q0 = Math.floor((m - 1) / 3) * 3 + 1;
+    return q0 === 1 ? `${y - 1}-12-15` : `${y}-${String(q0 - 1).padStart(2, '0')}-15`;
+  };
+  const past = (day, extra = {}) => mockDb.tables.web_quiz_challenge_runs.push({ id: `old-${day}-${Math.random()}`, student_id: 'stu-1', exercise: 'battery', meta: { part: 'tower', form: 'game.G23', day, ...extra } });
+
+  test('the test days sit where they should: same quarter, other month; and the quarter before', () => {
+    expect(cycleFor(new Date(sameQuarterOtherMonth()))).toBe(cycleFor(new Date(today())));
+    expect(sameQuarterOtherMonth().slice(0, 7)).not.toBe(today().slice(0, 7));
+    expect(cycleFor(new Date(lastQuarter()))).not.toBe(cycleFor(new Date(today())));
+  });
+
+  test('off: a flight finished in another month of this quarter does not block (the PKT month window, as today)', async () => {
+    past(sameQuarterOtherMonth(), { finished_at: 'x' });
+    const r = await post('/session', { t: 'tok.sig', kid: KID, part: 'tower', form: 'game.G23' });
+    expect(r.status).toBe(200);
+    expect(mockDb.tables.web_quiz_challenge_runs.slice(-1)[0].meta.exposure_n).toBe(1);
+  });
+
+  test('on: a flight finished in another month of this quarter refuses a new one (409 flight_done)', async () => {
+    mockCycle.mockResolvedValue(true);
+    past(sameQuarterOtherMonth(), { finished_at: 'x' });
+    const r = await post('/session', { t: 'tok.sig', kid: KID, part: 'tower', form: 'game.G23' });
+    expect(r.status).toBe(409);
+    expect(await r.json()).toEqual({ error: 'flight_done' });
+  });
+
+  test('on: exposure_n counts this quarter\'s runs; a run from the quarter before is not counted and does not block', async () => {
+    mockCycle.mockResolvedValue(true);
+    past(sameQuarterOtherMonth());
+    past(lastQuarter(), { finished_at: 'x' });
+    const r = await post('/session', { t: 'tok.sig', kid: KID, part: 'tower', form: 'game.G23' });
+    expect(r.status).toBe(200);
+    expect(mockDb.tables.web_quiz_challenge_runs.slice(-1)[0].meta.exposure_n).toBe(2);
+  });
+
+  test('a failed read of the window switch is off (the month window)', async () => {
+    mockCycle.mockRejectedValue(new Error('down'));
+    past(sameQuarterOtherMonth(), { finished_at: 'x' });
     const r = await post('/session', { t: 'tok.sig', kid: KID, part: 'tower', form: 'game.G23' });
     expect(r.status).toBe(200);
   });
