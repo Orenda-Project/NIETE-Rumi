@@ -11,7 +11,7 @@ const { createSaGameRouter, renderGamePage } = require('../routes/sa-game.routes
 const TOKEN = 'eyJpZHMiOlsia2lkLTEiXX0.abcdefghijklmnopqrstuv';
 const CHIP = '0123456789abcdef';
 
-function start({ bot, on = () => true, botUrl = 'http://bot.test', apiKey = 'k' }) {
+function start({ bot, on = () => true, botUrl = 'http://bot.test', apiKey = 'k', holdMs = 0 }) {
   const calls = [];
   const fetchImpl = async (url, init) => {
     calls.push({ url, init });
@@ -19,7 +19,7 @@ function start({ bot, on = () => true, botUrl = 'http://bot.test', apiKey = 'k' 
     return { status: r.status, headers: { get: (h) => (h === 'content-type' ? 'application/json' : null) }, text: async () => JSON.stringify(r.body || {}) };
   };
   const app = express();
-  app.use(createSaGameRouter({ botUrl, apiKey, fetchImpl, on, logEvent: () => {} }));
+  app.use(createSaGameRouter({ botUrl, apiKey, fetchImpl, on, holdMs, logEvent: () => {} }));
   app.use((req, res) => res.status(404).send('portal'));
   const server = http.createServer(app);
   return new Promise((r) => server.listen(0, () => r({ server, calls, base: `http://127.0.0.1:${server.address().port}` })));
