@@ -331,6 +331,12 @@ class ReportGeneratorService {
         });
       }
 
+      // bd-gzfdu9: the recommended video clip (one row per session). STARTED here, awaited only by the sender after the
+      // report has gone, so it adds no delay; a promise of the row|null that never rejects. Flag off → null, nothing runs.
+      const videoReco = require('./video-reco/engine').recommendForReport({
+        session, analysis: enhancedAnalysis, nextStep, loop, card: precomputedCommitment, coachingSessionId, isRetry,
+      });
+
       // Generate report via the per-framework transformer + PDFReportService.
       // Return shape is EITHER a Buffer (PDFKit/HTML renderers) OR
       // `{ png, caption }` (hero renderer — currently FICO on NIETE, plus

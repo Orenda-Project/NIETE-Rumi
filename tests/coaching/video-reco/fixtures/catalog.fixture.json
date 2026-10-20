@@ -1,0 +1,766 @@
+{
+ "version": "catalog-fixture",
+ "built_at": "2026-10-20T00:00:00Z",
+ "framework": "fico-v4",
+ "indicator_aliases": {
+  "B1": "B1",
+  "B2": "B2",
+  "B3": "B3",
+  "B4": "B4",
+  "B5": "B5",
+  "B6": "B6",
+  "B7": null,
+  "C1": "C1",
+  "C2": "C2",
+  "C3": "C3",
+  "C4": "C4",
+  "D1": "D1",
+  "D2": "D2",
+  "D3": "D3",
+  "D4": "D4",
+  "D5": "D5",
+  "F1": "F1",
+  "F2": "F2",
+  "F3": "F3",
+  "F4": "F4",
+  "F5": "F5",
+  "F6": "F6",
+  "F7": "F7",
+  "F8": "F8",
+  "F9": "F9",
+  "F10": "F10",
+  "B10": "B7",
+  "C5": "C4",
+  "B8": null,
+  "C6": null
+ },
+ "modules": [
+  {
+   "module_id": 10,
+   "level_id": 2,
+   "cpd_level": 1,
+   "level_name": "Emerging Practitioner",
+   "course_title": "Course 10",
+   "title": "Module 10",
+   "video_url": "https://r2.example/training/10.mp4",
+   "duration_s": 600.0,
+   "language": "ur",
+   "format": "classroom_footage",
+   "subjects": [
+    "general"
+   ],
+   "grade_band": "all",
+   "teacher_line_en": "x",
+   "teacher_line_ur": "x",
+   "summary_en": "x",
+   "summary_ur": "x",
+   "moves": [],
+   "fico": [],
+   "symptoms": [],
+   "not_for": "",
+   "topic": [],
+   "quality": {
+    "audio": "good",
+    "clarity": "high",
+    "flags": []
+   },
+   "recommendable": true,
+   "thumb": "video-thumbs/10.jpg",
+   "segments": [
+    {
+     "seg_id": "10-s1",
+     "start_s": 30,
+     "end_s": 120,
+     "title_en": "Ask why and how",
+     "title_ur": "عنوان",
+     "summary_en": "The teacher turns yes/no questions into why and how questions.",
+     "moves": [
+      "open_questions"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 2
+      }
+     ],
+     "keywords": [
+      "why",
+      "how",
+      "open",
+      "question",
+      "yes",
+      "no"
+     ],
+     "symptoms": []
+    },
+    {
+     "seg_id": "10-s2",
+     "start_s": 120,
+     "end_s": 200,
+     "title_en": "Wait before taking answers",
+     "title_ur": "عنوان",
+     "summary_en": "The teacher pauses three seconds after a question.",
+     "moves": [
+      "wait_time"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 1
+      }
+     ],
+     "keywords": [
+      "wait",
+      "pause",
+      "silence"
+     ],
+     "symptoms": []
+    },
+    {
+     "seg_id": "10-s3",
+     "start_s": 0,
+     "end_s": 30,
+     "title_en": "Intro",
+     "title_ur": "عنوان",
+     "summary_en": "Welcome.",
+     "moves": [
+      "programme_intro"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 2
+      }
+     ],
+     "keywords": [
+      "welcome"
+     ],
+     "symptoms": [],
+     "recommendable": false
+    }
+   ]
+  },
+  {
+   "module_id": 11,
+   "level_id": 3,
+   "cpd_level": 2,
+   "level_name": "Skilled Practitioner",
+   "course_title": "Course 11",
+   "title": "Module 11",
+   "video_url": "https://r2.example/training/11.mp4",
+   "duration_s": 600.0,
+   "language": "ur",
+   "format": "classroom_footage",
+   "subjects": [
+    "general"
+   ],
+   "grade_band": "all",
+   "teacher_line_en": "x",
+   "teacher_line_ur": "x",
+   "summary_en": "x",
+   "summary_ur": "x",
+   "moves": [],
+   "fico": [],
+   "symptoms": [],
+   "not_for": "",
+   "topic": [],
+   "quality": {
+    "audio": "good",
+    "clarity": "high",
+    "flags": []
+   },
+   "recommendable": true,
+   "thumb": "video-thumbs/11.jpg",
+   "segments": [
+    {
+     "seg_id": "11-s1",
+     "start_s": 10,
+     "end_s": 100,
+     "title_en": "Questions at every level",
+     "title_ur": "عنوان",
+     "summary_en": "Plans questions across Bloom's levels.",
+     "moves": [
+      "blooms_levels"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 1
+      }
+     ],
+     "keywords": [
+      "bloom",
+      "levels",
+      "question"
+     ],
+     "symptoms": []
+    },
+    {
+     "seg_id": "11-s2",
+     "start_s": 100,
+     "end_s": 190,
+     "title_en": "Explain it a second way",
+     "title_ur": "عنوان",
+     "summary_en": "Re-explains with a picture.",
+     "moves": [
+      "re_explain_differently"
+     ],
+     "fico": [
+      {
+       "indicator": "C2",
+       "strength": 2
+      }
+     ],
+     "keywords": [
+      "explain",
+      "again",
+      "picture"
+     ],
+     "symptoms": []
+    }
+   ]
+  },
+  {
+   "module_id": 12,
+   "level_id": 2,
+   "cpd_level": 1,
+   "level_name": "Emerging Practitioner",
+   "course_title": "Course 12",
+   "title": "Module 12",
+   "video_url": "https://r2.example/training/12.mp4",
+   "duration_s": 600.0,
+   "language": "en",
+   "format": "classroom_footage",
+   "subjects": [
+    "general"
+   ],
+   "grade_band": "all",
+   "teacher_line_en": "x",
+   "teacher_line_ur": "x",
+   "summary_en": "x",
+   "summary_ur": "x",
+   "moves": [],
+   "fico": [],
+   "symptoms": [],
+   "not_for": "",
+   "topic": [],
+   "quality": {
+    "audio": "good",
+    "clarity": "high",
+    "flags": []
+   },
+   "recommendable": true,
+   "thumb": "video-thumbs/12.jpg",
+   "segments": [
+    {
+     "seg_id": "12-s1",
+     "start_s": 0,
+     "end_s": 90,
+     "title_en": "English open questions",
+     "title_ur": "عنوان",
+     "summary_en": "English-only clip.",
+     "moves": [
+      "open_questions"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 2
+      }
+     ],
+     "keywords": [
+      "why",
+      "question"
+     ],
+     "symptoms": []
+    }
+   ]
+  },
+  {
+   "module_id": 13,
+   "level_id": 4,
+   "cpd_level": 3,
+   "level_name": "Teacher Leader",
+   "course_title": "Course 13",
+   "title": "Module 13",
+   "video_url": "https://r2.example/training/13.mp4",
+   "duration_s": 600.0,
+   "language": "ur",
+   "format": "classroom_footage",
+   "subjects": [
+    "general"
+   ],
+   "grade_band": "all",
+   "teacher_line_en": "x",
+   "teacher_line_ur": "x",
+   "summary_en": "x",
+   "summary_ur": "x",
+   "moves": [],
+   "fico": [],
+   "symptoms": [],
+   "not_for": "",
+   "topic": [],
+   "quality": {
+    "audio": "good",
+    "clarity": "high",
+    "flags": []
+   },
+   "recommendable": true,
+   "thumb": "video-thumbs/13.jpg",
+   "segments": [
+    {
+     "seg_id": "13-s1",
+     "start_s": 0,
+     "end_s": 90,
+     "title_en": "Leader questioning",
+     "title_ur": "عنوان",
+     "summary_en": "Teacher-leader level.",
+     "moves": [
+      "open_questions"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 2
+      }
+     ],
+     "keywords": [
+      "why",
+      "question"
+     ],
+     "symptoms": []
+    }
+   ]
+  },
+  {
+   "module_id": 14,
+   "level_id": 2,
+   "cpd_level": 1,
+   "level_name": "Emerging Practitioner",
+   "course_title": "Course 14",
+   "title": "Module 14",
+   "video_url": "https://r2.example/training/14.mp4",
+   "duration_s": 600.0,
+   "language": "mixed",
+   "format": "classroom_footage",
+   "subjects": [
+    "general"
+   ],
+   "grade_band": "all",
+   "teacher_line_en": "x",
+   "teacher_line_ur": "x",
+   "summary_en": "x",
+   "summary_ur": "x",
+   "moves": [],
+   "fico": [],
+   "symptoms": [],
+   "not_for": "",
+   "topic": [],
+   "quality": {
+    "audio": "good",
+    "clarity": "high",
+    "flags": []
+   },
+   "recommendable": true,
+   "thumb": "video-thumbs/14.jpg",
+   "segments": [
+    {
+     "seg_id": "14-s1",
+     "start_s": 0,
+     "end_s": 90,
+     "title_en": "Specific feedback",
+     "title_ur": "عنوان",
+     "summary_en": "Names what is right.",
+     "moves": [
+      "specific_feedback"
+     ],
+     "fico": [
+      {
+       "indicator": "C3",
+       "strength": 2
+      }
+     ],
+     "keywords": [
+      "feedback",
+      "correct",
+      "next"
+     ],
+     "symptoms": []
+    },
+    {
+     "seg_id": "14-s2",
+     "start_s": 90,
+     "end_s": 170,
+     "title_en": "Exit ticket",
+     "title_ur": "عنوان",
+     "summary_en": "Students summarise.",
+     "moves": [
+      "closure_check"
+     ],
+     "fico": [
+      {
+       "indicator": "B7",
+       "strength": 1
+      }
+     ],
+     "keywords": [
+      "exit",
+      "summary"
+     ],
+     "symptoms": []
+    }
+   ]
+  },
+  {
+   "module_id": 15,
+   "level_id": 2,
+   "cpd_level": 1,
+   "level_name": "Emerging Practitioner",
+   "course_title": "Course 15",
+   "title": "Module 15",
+   "video_url": "https://r2.example/training/15.mp4",
+   "duration_s": 600.0,
+   "language": "ur",
+   "format": "classroom_footage",
+   "subjects": [
+    "maths"
+   ],
+   "grade_band": "all",
+   "teacher_line_en": "x",
+   "teacher_line_ur": "x",
+   "summary_en": "x",
+   "summary_ur": "x",
+   "moves": [
+    "subject_content"
+   ],
+   "fico": [],
+   "symptoms": [],
+   "not_for": "",
+   "topic": [
+    "fractions"
+   ],
+   "quality": {
+    "audio": "good",
+    "clarity": "high",
+    "flags": []
+   },
+   "recommendable": true,
+   "thumb": "video-thumbs/15.jpg",
+   "segments": [
+    {
+     "seg_id": "15-s1",
+     "start_s": 0,
+     "end_s": 120,
+     "title_en": "Fractions explained",
+     "title_ur": "عنوان",
+     "summary_en": "Explains fractions.",
+     "moves": [
+      "subject_content"
+     ],
+     "fico": [
+      {
+       "indicator": "F1",
+       "strength": 2
+      },
+      {
+       "indicator": "C1",
+       "strength": 1
+      }
+     ],
+     "keywords": [
+      "fractions",
+      "half",
+      "why"
+     ],
+     "symptoms": []
+    }
+   ]
+  },
+  {
+   "module_id": 16,
+   "level_id": 2,
+   "cpd_level": 1,
+   "level_name": "Emerging Practitioner",
+   "course_title": "Course 16",
+   "title": "Module 16",
+   "video_url": "https://r2.example/training/16.mp4",
+   "duration_s": 600.0,
+   "language": "ur",
+   "format": "classroom_footage",
+   "subjects": [
+    "general"
+   ],
+   "grade_band": "all",
+   "teacher_line_en": "x",
+   "teacher_line_ur": "x",
+   "summary_en": "x",
+   "summary_ur": "x",
+   "moves": [
+    "programme_intro"
+   ],
+   "fico": [],
+   "symptoms": [],
+   "not_for": "",
+   "topic": [],
+   "quality": {
+    "audio": "good",
+    "clarity": "high",
+    "flags": []
+   },
+   "recommendable": false,
+   "thumb": "video-thumbs/16.jpg",
+   "segments": [
+    {
+     "seg_id": "16-s1",
+     "start_s": 0,
+     "end_s": 60,
+     "title_en": "Course intro",
+     "title_ur": "عنوان",
+     "summary_en": "How to use the course.",
+     "moves": [
+      "programme_intro"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 2
+      }
+     ],
+     "keywords": [
+      "why",
+      "question"
+     ],
+     "symptoms": []
+    }
+   ],
+   "recommendable_reason": "intro"
+  },
+  {
+   "module_id": 17,
+   "level_id": 2,
+   "cpd_level": 1,
+   "level_name": "Emerging Practitioner",
+   "course_title": "Course 17",
+   "title": "Module 17",
+   "video_url": "https://r2.example/training/17.mp4",
+   "duration_s": 600.0,
+   "language": "ur",
+   "format": "classroom_footage",
+   "subjects": [
+    "general"
+   ],
+   "grade_band": "all",
+   "teacher_line_en": "x",
+   "teacher_line_ur": "x",
+   "summary_en": "x",
+   "summary_ur": "x",
+   "moves": [],
+   "fico": [],
+   "symptoms": [],
+   "not_for": "",
+   "topic": [],
+   "quality": {
+    "audio": "none",
+    "clarity": "low",
+    "flags": [
+     "broken_media"
+    ]
+   },
+   "recommendable": true,
+   "thumb": "video-thumbs/17.jpg",
+   "segments": [
+    {
+     "seg_id": "17-s1",
+     "start_s": 0,
+     "end_s": 60,
+     "title_en": "Broken clip",
+     "title_ur": "عنوان",
+     "summary_en": "Broken.",
+     "moves": [
+      "open_questions"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 2
+      }
+     ],
+     "keywords": [
+      "why",
+      "question"
+     ],
+     "symptoms": []
+    }
+   ]
+  },
+  {
+   "module_id": 18,
+   "level_id": 2,
+   "cpd_level": 1,
+   "level_name": "Emerging Practitioner",
+   "course_title": "Course 18",
+   "title": "Module 18",
+   "video_url": "https://r2.example/training/18.mp4",
+   "duration_s": 600.0,
+   "language": "ur",
+   "format": "classroom_footage",
+   "subjects": [
+    "general"
+   ],
+   "grade_band": "9-12",
+   "teacher_line_en": "x",
+   "teacher_line_ur": "x",
+   "summary_en": "x",
+   "summary_ur": "x",
+   "moves": [],
+   "fico": [],
+   "symptoms": [],
+   "not_for": "",
+   "topic": [],
+   "quality": {
+    "audio": "good",
+    "clarity": "high",
+    "flags": []
+   },
+   "recommendable": true,
+   "thumb": "video-thumbs/18.jpg",
+   "segments": [
+    {
+     "seg_id": "18-s1",
+     "start_s": 0,
+     "end_s": 60,
+     "title_en": "Senior questions",
+     "title_ur": "عنوان",
+     "summary_en": "For grades 9-12.",
+     "moves": [
+      "open_questions"
+     ],
+     "fico": [
+      {
+       "indicator": "C1",
+       "strength": 2
+      }
+     ],
+     "keywords": [
+      "why",
+      "question"
+     ],
+     "symptoms": []
+    }
+   ]
+  },
+  {
+   "module_id": 19,
+   "level_id": 2,
+   "cpd_level": 1,
+   "level_name": "Emerging Practitioner",
+   "course_title": "Course 19",
+   "title": "Module 19",
+   "video_url": "https://r2.example/training/19.mp4",
+   "duration_s": 600.0,
+   "language": "ur",
+   "format": "classroom_footage",
+   "subjects": [
+    "general"
+   ],
+   "grade_band": "all",
+   "teacher_line_en": "x",
+   "teacher_line_ur": "x",
+   "summary_en": "x",
+   "summary_ur": "x",
+   "moves": [],
+   "fico": [],
+   "symptoms": [],
+   "not_for": "",
+   "topic": [],
+   "quality": {
+    "audio": "good",
+    "clarity": "high",
+    "flags": []
+   },
+   "recommendable": true,
+   "thumb": "video-thumbs/19.jpg",
+   "segments": [
+    {
+     "seg_id": "19-s1",
+     "start_s": 0,
+     "end_s": 80,
+     "title_en": "Recall yesterday",
+     "title_ur": "عنوان",
+     "summary_en": "Links to yesterday's lesson.",
+     "moves": [
+      "activate_prior_knowledge"
+     ],
+     "fico": [
+      {
+       "indicator": "B4",
+       "strength": 2
+      }
+     ],
+     "keywords": [
+      "yesterday",
+      "remember",
+      "recall"
+     ],
+     "symptoms": []
+    }
+   ]
+  },
+  {
+   "module_id": 20,
+   "level_id": 2,
+   "cpd_level": 1,
+   "level_name": "Emerging Practitioner",
+   "course_title": "Course 20",
+   "title": "Module 20",
+   "video_url": "https://r2.example/training/20.mp4",
+   "duration_s": 600.0,
+   "language": "ur",
+   "format": "classroom_footage",
+   "subjects": [
+    "general"
+   ],
+   "grade_band": "all",
+   "teacher_line_en": "x",
+   "teacher_line_ur": "x",
+   "summary_en": "x",
+   "summary_ur": "x",
+   "moves": [],
+   "fico": [],
+   "symptoms": [],
+   "not_for": "",
+   "topic": [],
+   "quality": {
+    "audio": "good",
+    "clarity": "high",
+    "flags": []
+   },
+   "recommendable": true,
+   "thumb": "video-thumbs/20.jpg",
+   "segments": [
+    {
+     "seg_id": "20-s1",
+     "start_s": 0,
+     "end_s": 80,
+     "title_en": "Let them choose",
+     "title_ur": "عنوان",
+     "summary_en": "Students choose a method.",
+     "moves": [
+      "student_choice"
+     ],
+     "fico": [
+      {
+       "indicator": "C4",
+       "strength": 1
+      }
+     ],
+     "keywords": [
+      "choose",
+      "choice"
+     ],
+     "symptoms": []
+    }
+   ]
+  }
+ ]
+}
