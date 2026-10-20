@@ -204,7 +204,7 @@ describe('browser files (source)', () => {
     vm.runInNewContext(src, ctx);
     const T = ctx.WQREMIND.T;
     const keys = ['remindTitle', 'remindBody', 'remindYes', 'remindLater', 'remindDone', 'remindTest', 'remindStop', 'remindDenied',
-      'iabTitle', 'iabBody', 'iabChrome', 'iabHint', 'iabCopy', 'iosBody', 'noPush', 'play', 'stopped'];
+      'iabBody', 'iabChrome', 'iabHow', 'iabHint', 'iabCopy', 'iosBody', 'noPush', 'play', 'stopped'];
     for (const k of keys) {
       expect(typeof T.en[k]).toBe('string');
       expect(typeof T.ur[k]).toBe('string');
@@ -385,14 +385,24 @@ describe('wq-remind.js (fake DOM)', () => {
     expect(after.slot.innerHTML).toContain(after.ctx.WQREMIND.T.en.remindTitle);
   });
 
-  test("WhatsApp's Android browser: the escape card (intent to Chrome at /remind/<code>?from=iab, hint, copy link)", async () => {
+  test("WhatsApp's Android browser: one line + ONE Open-in-Chrome button; the ⋮ hint and Copy link only behind How? (design DQ110 RI-1/RI-2)", async () => {
     const p = page({ ua: UA_WA });
     p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang: 'ur', chips: 1 });
     await flush();
     const T = p.ctx.WQREMIND.T.ur;
-    expect(p.slot.innerHTML).toContain(T.iabTitle);
+    const h = p.slot.innerHTML;
+    expect(T.iabBody).toBe('یاد دہانی صرف کروم میں ملتی ہے۔'); // a native speaker's read
+    expect(T.iabChrome).toBe('کروم میں کھولیں');
+    expect(h).toContain(T.iabBody);
+    expect(h).not.toMatch(/<h2/); // no title: one line
+    expect((h.match(/class="wq-btn wq-soft/g) || []).length).toBe(1); // one button
+    expect(h).toMatch(/href="intent:\/\/wq\.example\/remind\/AB12CD\?from=iab[^"]*#Intent;scheme=https;package=com\.android\.chrome;S\.browser_fallback_url=https%3A%2F%2Fwq\.example%2Fremind%2FAB12CD%3Ffrom%3Diab[^"]*;end"/);
+    expect(h).not.toContain(T.iabHint);
+    expect(h).not.toContain('data-act="copy"');
+    expect(h).toContain('data-act="how"');
+    expect(h).not.toMatch(/یاد دلائیں|Remind me/); // RI-2: no quoted button name that does not exist here
+    await p.tap('how');
     expect(p.slot.innerHTML).toContain(T.iabHint);
-    expect(p.slot.innerHTML).toMatch(/href="intent:\/\/wq\.example\/remind\/AB12CD\?from=iab[^"]*#Intent;scheme=https;package=com\.android\.chrome;S\.browser_fallback_url=https%3A%2F%2Fwq\.example%2Fremind%2FAB12CD%3Ffrom%3Diab[^"]*;end"/);
     expect(p.slot.innerHTML).toContain('data-act="copy"');
     await p.tap('copy');
     expect(p.ctx.navigator.clipboard.writeText.mock.calls[0][0]).toMatch(/^https:\/\/wq\.example\/remind\/AB12CD\?from=iab/);
