@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Headphones, RefreshCw, WifiOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Headphones, RefreshCw, Smartphone, WifiOff } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import AssessEngineSlot from '../components/assess/AssessEngineSlot';
+import AssessOtherPhone from '../components/assess/AssessOtherPhone';
+import AssessPreflight from '../components/assess/AssessPreflight';
 import AssessVisitBar, { type SyncItem } from '../components/assess/AssessVisitBar';
 import { childTestSa } from '../services/api';
 import { useChildTestSa } from '../lib/useChildTestSa';
@@ -10,7 +12,7 @@ import { COPY, type Lang } from '../lib/assess/copy';
 import { pickBlock, type Block } from '../lib/assess/blocks';
 import { sendQueued } from '../lib/assess/outbox';
 import {
-  allVisitKeys, mintId, mmss, readVisit, visitKey, writeVisit, type QueuedOutcome, type VisitMemory,
+  allVisitKeys, mintId, mmss, readVisit, saveMic, visitKey, writeVisit, type MicCheck, type QueuedOutcome, type VisitMemory,
 } from '../lib/assess/visitStore';
 import type { SaChild, SaList, SaOutcome, SaSchool } from '../types/childTestSa';
 
@@ -28,6 +30,10 @@ import type { SaChild, SaList, SaOutcome, SaSchool } from '../types/childTestSa'
  * on the phone per visit (lib/assess/visitStore). An outcome that cannot reach the
  * server is queued there and sent, in order, on load, when the phone is back online
  * and every 30 s; meanwhile an absent child's place goes to the first alternate here.
+ *
+ * A pre-flight card (airplane mode, headphones, microphone) comes once per visit
+ * before the list. Once the server has a child's session, the test can be opened
+ * on another phone instead, by a QR link (components/assess/AssessOtherPhone).
  */
 
 const LANG_KEY = 'niete-assess-lang';
@@ -38,9 +44,11 @@ const FULL_MINUTES = 29;
 
 type Step =
   | { kind: 'schools' }
+  | { kind: 'preflight'; school: SaSchool }
   | { kind: 'list'; school: SaSchool }
   | { kind: 'handover'; school: SaSchool; child: SaChild; sessionId: string; block: Block }
   | { kind: 'engine'; school: SaSchool; child: SaChild; sessionId: string; block: Block }
+  | { kind: 'link'; school: SaSchool; child: SaChild; serverId: string; block: Block }
   | { kind: 'summary'; school: SaSchool };
 
 type Problem = 'no_class_list' | 'frame_exhausted' | 'not_found';
@@ -154,10 +162,31 @@ export default function LeaderAssess() {
     const key = visitKey(s.schoolId);
     vkeyRef.current = key;
     setVkey(key);
-    setMemory(readVisit(key));
+    const m = readVisit(key);
+    setMemory(m);
     setList(null);
-    setStep({ kind: 'list', school: s });
+    setStep({ kind: m.preflight ? 'list' : 'preflight', school: s });
   };
+
+  const micChecked = (mic: MicCheck) => {
+    saveMic(mic);
+    remember((m) => ({ ...m, preflight: { at: m.preflight?.at ?? Date.now(), mic } }));
+  };
+
+  const preflightDone = () => {
+    if (step.kind !== 'preflight') return;
+    remember((m) => ({ ...m, preflight: { at: Date.now(), mic: m.preflight?.mic ?? null } }));
+    setStep({ kind: 'list', school: step.school });
+  };
+
+  /** Record the server's id for the session minted here as `clientId`. */
+  const keepServerId = useCallback((key: string, clientId: string, serverId: string) => {
+    updateVisit(key, (m) => {
+      const hit = Object.entries(m.sessions).find(([, x]) => x.id === clientId);
+      if (!hit || hit[1].serverId === serverId) return m;
+      return { ...m, sessions: { ...m.sessions, [hit[0]]: { ...hit[1], serverId } } };
+    });
+  }, [updateVisit]);
 
   // queued outcomes, oldest first; a visit stops at the first one that cannot go yet
   const flushing = useRef(false);
@@ -177,13 +206,14 @@ export default function LeaderAssess() {
             refused: r.kind === 'refused' ? [...m.refused, { qid: q.qid, drawId: q.drawId, outcome: q.outcome, status: r.status, at: Date.now() }] : m.refused,
             list: r.kind === 'sent' && r.list ? r.list : m.list,
           }));
+          if (r.kind === 'sent' && r.sessionId && q.clientSessionId) keepServerId(key, q.clientSessionId, r.sessionId);
           if (r.kind === 'sent' && r.list && key === vkeyRef.current) { setList(r.list); setOffline(false); }
         }
       }
     } finally {
       flushing.current = false;
     }
-  }, [updateVisit]);
+  }, [updateVisit, keepServerId]);
 
   const sentIds = Object.values(memory?.sessions ?? {}).filter((x) => x.sent).map((x) => x.id);
   const pollKey = sentIds.filter((id) => remote[id] !== 'sent').join(',');
@@ -197,9 +227,10 @@ export default function LeaderAssess() {
         if (!live.current || !st?.session) continue;
         const state = st.session.status === 'completed' ? 'sent' : 'sending';
         setRemote((r) => (r[id] === state ? r : { ...r, [id]: state }));
+        if (st.session.id && vkeyRef.current) keepServerId(vkeyRef.current, id, st.session.id);
       } catch { /* not there yet, or offline */ }
     }
-  }, []);
+  }, [keepServerId]);
 
   const tick = useRef<() => void>(() => {});
   tick.current = () => {
@@ -225,6 +256,7 @@ export default function LeaderAssess() {
   }, [toast]);
 
   const sessionOf = (c: SaChild) => memory?.sessions[c.drawId];
+  const serverIdOf = (c: SaChild) => sessionOf(c)?.serverId || c.sessionId || null;
   const isDone = (c: SaChild) => {
     const id = sessionOf(c)?.id;
     return c.sessionStatus === 'completed' || Boolean(memory?.finished[c.drawId]) || (id !== undefined && remote[id] === 'sent');
@@ -254,24 +286,54 @@ export default function LeaderAssess() {
     setStep({ ...step, block });
   };
 
-  const start = async () => {
-    if (step.kind !== 'handover') return;
+  /** Send Present for the handover's child, once. False: the server turned it down. */
+  const sendPresent = async (): Promise<{ ok: boolean; serverId: string | null; queued: boolean }> => {
+    if (step.kind !== 'handover') return { ok: false, serverId: null, queued: false };
     const { school, child, sessionId, block } = step;
     if (!memory?.startedAt) remember((m) => ({ ...m, startedAt: m.startedAt ?? Date.now() }));
-    if (!sessionOf(child)?.sent) {
-      const args = { schoolId: school.schoolId, visitId: school.visitId, drawId: child.drawId, outcome: 'present' as const, clientSessionId: sessionId, block };
-      setBusy(true);
-      try {
-        const out = await childTestSa.markOutcome(args);
-        if (out?.list) keepList(out.list);
-      } catch (err) {
-        if (!errorOf(err).network) { setBusy(false); setLoadFailed(true); return; }
-        queue(args);
-      }
-      remember((m) => ({ ...m, sessions: { ...m.sessions, [child.drawId]: { id: sessionId, block, sent: true } } }));
-      setBusy(false);
+    const had = sessionOf(child);
+    if (had?.sent) return { ok: true, serverId: had.serverId || child.sessionId || null, queued: false };
+    const args = { schoolId: school.schoolId, visitId: school.visitId, drawId: child.drawId, outcome: 'present' as const, clientSessionId: sessionId, block };
+    let serverId: string | null = null;
+    let queued = false;
+    setBusy(true);
+    try {
+      const out = await childTestSa.markOutcome(args);
+      if (out?.list) keepList(out.list);
+      serverId = out?.sessionId || null;
+    } catch (err) {
+      if (!errorOf(err).network) { setBusy(false); setLoadFailed(true); return { ok: false, serverId: null, queued: false }; }
+      queue(args);
+      queued = true;
     }
-    setStep({ ...step, kind: 'engine' });
+    remember((m) => ({ ...m, sessions: { ...m.sessions, [child.drawId]: { id: sessionId, block, sent: true, ...(serverId ? { serverId } : {}) } } }));
+    setBusy(false);
+    return { ok: true, serverId, queued };
+  };
+
+  const start = async () => {
+    if (step.kind !== 'handover') return;
+    if ((await sendPresent()).ok) setStep({ ...step, kind: 'engine' });
+  };
+
+  /** From the handover: send Present if it has not gone, then show the link once the server has the session. */
+  const otherPhone = async () => {
+    if (step.kind !== 'handover') return;
+    const { ok, serverId, queued } = await sendPresent();
+    if (!ok) return;
+    let id = serverId;
+    if (!id && !queued) {
+      try { id = (await childTestSa.getStatus(step.sessionId))?.session?.id || null; } catch { id = null; }
+      if (id && vkeyRef.current) keepServerId(vkeyRef.current, step.sessionId, id);
+    }
+    if (id) setStep({ kind: 'link', school: step.school, child: step.child, serverId: id, block: step.block });
+  };
+
+  const linkDone = () => {
+    if (step.kind !== 'link') return;
+    const { child, serverId } = step;
+    remember((m) => ({ ...m, elsewhere: { ...m.elsewhere, [child.drawId]: serverId } }));
+    setStep({ kind: 'list', school: step.school });
   };
 
   const notPresent = async (c: SaChild, value: Exclude<SaOutcome, 'present'>) => {
@@ -305,8 +367,8 @@ export default function LeaderAssess() {
   };
 
   const back = () => {
-    if (step.kind === 'list') setStep({ kind: 'schools' });
-    else if (step.kind === 'handover' || step.kind === 'summary') setStep({ kind: 'list', school: step.school });
+    if (step.kind === 'list' || step.kind === 'preflight') setStep({ kind: 'schools' });
+    else if (step.kind === 'handover' || step.kind === 'summary' || step.kind === 'link') setStep({ kind: 'list', school: step.school });
   };
 
   const children = list?.children ?? [];
@@ -317,12 +379,16 @@ export default function LeaderAssess() {
     if (memory?.queue.some((q) => q.drawId === c.drawId)) return 'phone';
     return id && remote[id] === 'sending' ? 'sending' : 'phone';
   };
-  const sync: SyncItem[] = doneKids.map((c) => ({ drawId: c.drawId, name: firstNameOf(c, lang), state: syncOf(c) }));
+  const elsewhere = (c: SaChild) => !isDone(c) && Boolean(memory?.elsewhere[c.drawId]);
+  const sync: SyncItem[] = [
+    ...doneKids.map((c) => ({ drawId: c.drawId, name: firstNameOf(c, lang), state: syncOf(c) })),
+    ...children.filter(elsewhere).map((c) => ({ drawId: c.drawId, name: firstNameOf(c, lang), state: 'other' as const })),
+  ];
   const bar = (
     <AssessVisitBar copy={copy} done={doneKids.length} total={Math.max(LIST_SIZE, children.length)} startedAt={memory?.startedAt ?? null} sync={sync} />
   );
 
-  const canGoBack = step.kind === 'list' || step.kind === 'handover' || step.kind === 'summary';
+  const canGoBack = step.kind !== 'schools' && step.kind !== 'engine';
   const header = (
     <div className="flex items-center justify-between gap-2 mb-4">
       {canGoBack ? (
@@ -334,6 +400,21 @@ export default function LeaderAssess() {
       <button type="button" onClick={switchLang} className="min-h-[48px] rounded-full border border-slate-300 px-3 text-sm">{copy.lang}</button>
     </div>
   );
+
+  /** "Open on another phone": needs the server's session, so it waits for a queued Present to reach it. */
+  const otherPhoneButton = (c: SaChild, onClick: () => void, off: boolean) => {
+    const local = sessionOf(c);
+    const waiting = Boolean(local?.sent) && !serverIdOf(c);
+    return (
+      <div className="text-center">
+        <button type="button" data-testid={`assess-other-${c.drawId}`} disabled={off || waiting} onClick={onClick}
+          className="inline-flex min-h-[48px] items-center gap-2 px-3 text-sm font-medium text-sky-800 disabled:text-slate-400">
+          <Smartphone className="h-4 w-4" aria-hidden /> {copy.openOther}
+        </button>
+        {waiting && <p className="text-xs text-slate-500">{copy.needsInternet}</p>}
+      </div>
+    );
+  };
 
   let content: JSX.Element;
   if (enabled === null) content = <p className="text-slate-600">{copy.loading}</p>;
@@ -365,6 +446,13 @@ export default function LeaderAssess() {
             ))}
           </div>
         );
+  } else if (step.kind === 'preflight') {
+    content = <AssessPreflight copy={copy} onMic={micChecked} onReady={preflightDone} />;
+  } else if (step.kind === 'link') {
+    content = (
+      <AssessOtherPhone copy={copy} serverId={step.serverId} childNo={step.child.childNo} lang={lang}
+        grade={step.child.grade || list?.grade || 3} block={step.block} onDone={linkDone} />
+    );
   } else if (step.kind === 'list') {
     const message = problem === 'no_class_list' ? copy.noClassList : problem === 'frame_exhausted' ? copy.frameExhausted : problem === 'not_found' ? copy.notFound : null;
     content = message ? <p className="text-slate-700">{message}</p>
@@ -378,7 +466,11 @@ export default function LeaderAssess() {
               </p>
             )}
             <div>
-              <h2 className="text-lg font-semibold text-slate-900 break-words">{step.school.name}</h2>
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="min-w-0 text-lg font-semibold text-slate-900 break-words">{step.school.name}</h2>
+                <button type="button" data-testid="assess-check-again" onClick={() => setStep({ kind: 'preflight', school: step.school })}
+                  className="min-h-[48px] shrink-0 px-2 text-sm text-sky-800 underline">{copy.checkAgain}</button>
+              </div>
               <p className="text-slate-700">{copy.grade(list.grade)}</p>
               {list.gradeFallback && <p className="text-xs text-slate-500">{copy.gradeFallback}</p>}
               <p className="text-sm text-slate-600">{copy.listNote}</p>
@@ -400,7 +492,7 @@ export default function LeaderAssess() {
                         {local && <span data-testid={`assess-block-${c.drawId}`} className="mt-1 inline-block rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-800">{copy.blocks[local.block]}</span>}
                       </span>
                       {done && <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">{copy.done}</span>}
-                      {open && <span className="shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-xs text-sky-800">{copy.started}</span>}
+                      {open && <span className="shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-xs text-sky-800">{elsewhere(c) ? copy.onOtherPhone : copy.started}</span>}
                       {!done && !open && !waiting && marked && <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{marked}</span>}
                     </div>
                     {waiting && (
@@ -413,8 +505,14 @@ export default function LeaderAssess() {
                       </div>
                     )}
                     {open && (
-                      <button type="button" onClick={() => present(c)}
-                        className="mt-3 w-full min-h-[48px] rounded-xl border border-slate-300 bg-white">{copy.continue}</button>
+                      <div className="mt-3 space-y-1">
+                        <button type="button" onClick={() => present(c)}
+                          className="w-full min-h-[48px] rounded-xl border border-slate-300 bg-white">{copy.continue}</button>
+                        {otherPhoneButton(c, () => {
+                          const id = serverIdOf(c);
+                          if (id && local) setStep({ kind: 'link', school: step.school, child: c, serverId: id, block: local.block });
+                        }, !local)}
+                      </div>
                     )}
                   </li>
                 );
@@ -452,6 +550,7 @@ export default function LeaderAssess() {
         </label>
         <button type="button" disabled={busy} onClick={start}
           className="w-full min-h-[64px] rounded-2xl bg-emerald-600 text-2xl font-semibold text-white disabled:opacity-60">{copy.start}</button>
+        {otherPhoneButton(step.child, otherPhone, busy)}
       </div>
     );
   } else if (step.kind === 'engine') {
