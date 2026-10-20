@@ -8,7 +8,7 @@ const { params, pick } = require('../sa/sa-page');
 test('the page reads its link strictly', () => {
   expect(params('?s=3f1c2d4e-aaaa-4bbb-8ccc-123456789abc&form=sa.coach.G3.A.ur&mode=proctored&block=B2&back=/portal/leader/sa', '#n=Ali%20Testwala')).toEqual({
     session_id: '3f1c2d4e-aaaa-4bbb-8ccc-123456789abc', form: 'sa.coach.G3.A.ur', mode: 'proctored', lang: 'ur', block: 'B2',
-    back: '/portal/leader/sa', skin: null, embed: false, first_name: 'Ali Testwala',
+    back: '/portal/leader/sa', skin: null, embed: false, token: null, first_name: 'Ali Testwala',
   });
   const bad = params('?s=x&form=../../etc&mode=root&block=B99&back=//evil.example/x&n=Name', '');
   expect(bad).toMatchObject({ session_id: null, form: null, mode: 'proctored', block: null, back: null, first_name: null });
@@ -65,4 +65,10 @@ test('proctored lock-down: back is caught and logged, the screen kept awake, all
   expect(released).toBe(1);
   expect(listeners.popstate).toBeUndefined();
   expect(docL.visibilitychange).toBeUndefined();
+});
+
+test('a linked phone token is read only in its expected shape', () => {
+  expect(params('?s=abcdef12&form=sa.coach.G3.A.ur&t=abcdefghijklmnop.QRS-_', '').token).toBe('abcdefghijklmnop.QRS-_');
+  expect(params('?s=abcdef12&form=sa.coach.G3.A.ur&t=short', '').token).toBeNull();
+  expect(params('?s=abcdef12&form=sa.coach.G3.A.ur&t=abcdefghijklmnop%2F..', '').token).toBeNull();
 });
