@@ -109,7 +109,7 @@ describe('the catalog keys', () => {
       expect(cp(C.cardButton({ minutes: n, language: 'ur' }))).toBeLessThanOrEqual(20);
     }
   });
-  test('no level label exists any more (lead ruling 18:38Z: it read as "you are a beginner")', () => {
+  test('no level label exists any more (it read as "you are a beginner" to teachers who finished the ladder)', () => {
     expect(C.levelLabel).toBeUndefined();
     expect(UX_STRINGS.videoRecoLevel).toBeUndefined();
     expect(UX_STRINGS.videoRecoLevelAspiring).toBeUndefined();

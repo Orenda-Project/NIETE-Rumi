@@ -46,7 +46,7 @@ beforeAll(async () => {
   jest.doMock('../shared/services/whatsapp-status-pricing', () => ({
     pricedFields: () => ({}), logPricedStatuses: async () => {}, handleStatusWebhook: async (_sv, fn) => { handler = fn; },
   }));
-  jest.doMock('../shared/services/coaching/video-reco/flags', () => ({ videoRecoEnabled: () => flagOn }), { virtual: true });
+  jest.doMock('../shared/services/coaching/video-reco/flags', () => ({ videoRecoEnabled: () => flagOn }));
   const { app } = require('../whatsapp-bot');
   const server = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
   const payload = { object: 'whatsapp_business_account', entry: [{ id: '1', changes: [{ field: 'messages', value: {
