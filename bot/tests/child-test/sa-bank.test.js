@@ -12,7 +12,7 @@ const path = require('path');
 const fs = require('fs');
 
 const DATA = path.join(__dirname, '../../shared/data/child-test');
-const { buildSaBank, splitSaBank } = require('../../shared/services/child-test/sa/build');
+const { buildSaBank, splitSaBankWithRuntime } = require('../../shared/services/child-test/sa/build');
 const v3 = require('../../shared/data/child-test/item-bank.v3.json');
 
 const read = (rel) => JSON.parse(fs.readFileSync(path.join(DATA, rel), 'utf8'));
@@ -47,7 +47,7 @@ const scoredItems = (t) => [...((t.tap && t.tap.items) || []), ...((t.record && 
 
 describe('SA battery bank (CONTRACT §2)', () => {
   test('the committed files are exactly what the builder makes (no hand edits)', () => {
-    const files = JSON.parse(JSON.stringify(splitSaBank(buildSaBank({ v3 }))));
+    const files = JSON.parse(JSON.stringify(splitSaBankWithRuntime(buildSaBank({ v3 }))));
     for (const [rel, want] of Object.entries(files)) expect([rel, read(rel)]).toEqual([rel, want]);
     expect(fs.readdirSync(path.join(DATA, 'sa')).sort()).toEqual(Object.keys(files).filter((f) => f.startsWith('sa/')).map((f) => f.slice(3)).sort());
   });
