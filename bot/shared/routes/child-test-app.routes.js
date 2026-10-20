@@ -51,6 +51,10 @@ const ROUTES = {
   '/sa/presign': ['saPresign', ['userId', 'sessionId', 'taskId', 'itemId', 'mime', 'bytes'], 'sa-api.service'],
   '/sa/register': ['saRegister', ['userId', 'sessionId', 'taskId', 'itemId', 'key'], 'sa-api.service'],
   '/sa/status': ['saStatus', ['userId', 'sessionId'], 'sa-api.service'],
+  // another phone: the coach mints a link; the linked phone's sink calls carry the token, never a user
+  '/sa/link-mint': ['saLink', ['userId', 'sessionId'], 'sa-api.service'],
+  '/sa/via-link': ['saViaLink', ['token', 'op', 'sessionId', 'seqFrom', 'seqTo', 'events', 'results', 'lang', 'device',
+    'taskId', 'itemId', 'mime', 'bytes', 'key'], 'sa-api.service'],
 };
 
 function createChildTestAppRouter({ deps } = {}) {
