@@ -160,4 +160,4 @@ html[lang=ur] .wqfc-nt span, html[lang=ur] .wqfc-nt small { font-size: 15px; lin
 .wqs[data-screen=story-read]:has([data-art]) .wqs-near[hidden]{display:none!important}
 /* one sheet (web_quiz_read_sheet, wq-moment.js art one): the clipped band and its picture are the card, so no white card
    shows under or beside them */
-.wqs-stage:has(> [data-art][data-one=on]:not([hidden])){background:transparent;box-shadow:none}
+.wqs-stage:has(> [data-art][data-one=on]:not([hidden])){background:transparent;box-shadow:none;max-height:var(--wqs-cap,none)}
