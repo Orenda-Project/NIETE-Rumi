@@ -58,8 +58,7 @@ const PIXELS = 'what the picture SHOWS is pixels (names, places, animals, scores
 on('WQ007', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   await noShareSheet(page);
-  await L.finishAsNew(page, ctx, CODES.OPEN, 'Sharif');
-  await toCard(page);
+  await L.finishFast(page, ctx, CODES.OPEN, 'Sharif');
   expect((await inner(page, '#wq-share')) === 'Share to class group', 'no "Share to class group"');
   await page.click('#wq-share');
   await page.waitForSelector(M('M12-fallback'), { state: 'attached', timeout: WAIT });
@@ -101,8 +100,7 @@ on('WQ181', 'off', async (page, ctx) => {
 on('WQ060', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   await noShareSheet(page);
-  await L.finishAsNew(page, ctx, CODES.OPEN, 'Rania');
-  await toCard(page);
+  await L.finishFast(page, ctx, CODES.OPEN, 'Rania');
   await page.click('#wq-chal');
   await page.waitForSelector(M('M12-fallback'), { state: 'attached', timeout: WAIT });
   const url = await inner(page, M('M12-fallback') + ' .wq-url');
@@ -139,7 +137,7 @@ on('WQ059', 'off', async (page, ctx) => {
   }
   const F = await L.newPhone(page);
   try {
-    await L.finishAsNew(F.page, ctx, chal, 'Fawad'); await toCard(F.page);
+    await L.finishFast(F.page, ctx, chal, 'Fawad');
     const vs = await F.page.$eval('.wq-banner.wq-vs', (e) => e.innerText.replace(/\s+/g, ' ').trim()).catch(() => '');
     expect(/^You beat the challenge!/.test(vs) && /You 5\/5/.test(vs) && /Hamid2 4\/5/.test(vs), 'the winner\'s card says "' + vs + '"');
     outcomes.push({ name: 'Fawad', banner: vs });
@@ -414,8 +412,7 @@ on('WQ068', 'off', async (page, ctx) => {
 on('WQ139', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   await noShareSheet(page);
-  await L.finishAsNew(page, ctx, CODES.OPEN, 'Picca');
-  await toCard(page);
+  await L.finishFast(page, ctx, CODES.OPEN, 'Picca');
   await page.click('#wq-share');
   await page.waitForSelector(M('M12-fallback'), { state: 'attached', timeout: WAIT });
   const url = await inner(page, M('M12-fallback') + ' .wq-url');
@@ -436,8 +433,7 @@ on('WQ140', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   // a browser that can share files: capture what navigator.share receives
   await page.addInitScript(() => { window.__shared = []; navigator.canShare = () => true; navigator.share = async (d) => { window.__shared.push({ files: (d.files || []).map((f) => ({ name: f.name, type: f.type, size: f.size })), text: d.text, url: d.url }); }; });
-  await L.finishAsNew(page, ctx, CODES.OPEN, 'Filer');
-  await toCard(page);
+  await L.finishFast(page, ctx, CODES.OPEN, 'Filer');
   await sleep(3000);  // the square picture is fetched when the card opens
   await page.click('#wq-share');
   await sleep(800);

@@ -211,6 +211,44 @@ async function finishAsNew(page, ctx, code, name) {
   return { boot: b, result: got };
 }
 
+// A finished child WITHOUT clicking through the quiz: the real bot API starts the session, sends the answers and
+// finishes (server scoring, league, card, art all run), then the phone's page storage is written exactly as the page
+// writes it after a finish (wq.js sset: wq_s_<code>, wq_d, wq_kids). Opening the quiz then lands on that child's card.
+// Only the journey scenarios (WQ01-WQ05) play a whole quiz in the browser; everything that checks a screen AFTER the
+// quiz starts here (bd-cbzu86).
+async function finishFast(page, ctx, code, name, { wrongAt = -1, open = true } = {}) {
+  if (!/^https?:/.test(page.url()) || !page.url().startsWith(ctx.baseUrl)) await page.goto(ctx.baseUrl + '/wq/probe.html', { waitUntil: 'domcontentloaded' });
+  const dref = await stored(page, 'wq_d');
+  const call = async (method, p, body) => {
+    const r = method === 'GET' ? await page.request.get(ctx.baseUrl + '/api/wq/' + p) : await page.request.post(ctx.baseUrl + '/api/wq/' + p, { data: body });
+    let json = null; try { json = await r.json(); } catch (_) { /* not JSON */ }
+    expect(r.status() === 200, method + ' ' + p.split('?')[0] + ' -> ' + r.status() + ' ' + JSON.stringify(json).slice(0, 140));
+    return json;
+  };
+  const quiz = (await call('GET', 'quiz/' + code)).quiz;
+  const s = await call('POST', 'session', { code, new: { name, cls: String(quiz.grade || ''), force: true }, ...(dref ? { device_ref: dref } : {}) });
+  const slotFor = (x, i) => (i === wrongAt ? wrongSlot(x) : String(x.correct_slot));
+  await call('POST', 'answers', { st: s.st, a: quiz.questions.map((x, i) => ({ qid: x.qid, slot: slotFor(x, i), ms: 1200 })) });
+  const result = await call('POST', 'finish', { st: s.st });
+  const child = s.child || { first: name };
+  await page.evaluate(([c, st, ch, res, dev]) => {
+    localStorage.setItem('wq_s_' + c, JSON.stringify({ st, child: ch, answers: {}, queue: [], seq: 0, wrong: [], result: res, vt: 0, vdone: 0, counted: true, reason: null, fixed: 0 }));
+    if (dev) localStorage.setItem('wq_d', JSON.stringify(dev));
+    if (ch && ch.chip) {
+      let kids = []; try { kids = JSON.parse(localStorage.getItem('wq_kids')) || []; } catch (_) { kids = []; }
+      kids = kids.filter((k) => k.chip !== ch.chip && !(k.first === ch.first && k.animal === ch.animal));
+      kids.unshift({ chip: ch.chip, first: ch.first, animal: ch.animal });
+      localStorage.setItem('wq_kids', JSON.stringify(kids.slice(0, 6)));
+    }
+  }, [code, s.st, child, result, s.device_ref || dref || null]);
+  // open: false leaves the page where it is — for a scenario that watches what the NEXT open does (link home, Back)
+  if (open) {
+    await openQuiz(page, ctx, code);
+    await page.waitForSelector('.wq-scorecard', { state: 'visible', timeout: WAIT });
+  }
+  return { st: s.st, device: s.device_ref || dref || null, chip: child.chip || null, child, result, questions: quiz.questions };
+}
+
 // ── a second phone, page storage, page events ────────────────────────────────────────────────────────────────────
 async function newPhone(page) {
   const context = await page.context().browser().newContext({ viewport: { width: 412, height: 915 } });
@@ -244,6 +282,6 @@ function events(page) {
   };
 }
 
-module.exports = { local, tap, flatLog, answerRight, nextQ, unesc, og, setFlag, botLog, workerLog, portalLog, expect, watch, WAIT, CODES, TOPIC, text, inner, count, boot, onScreen, screen, sleep, healthy,
+module.exports = { finishFast, local, tap, flatLog, answerRight, nextQ, unesc, og, setFlag, botLog, workerLog, portalLog, expect, watch, WAIT, CODES, TOPIC, text, inner, count, boot, onScreen, screen, sleep, healthy,
   q, one, rows, codeRow, teacherOf, studentNamed, tokens, bot, setMode, openQuiz, startAsNew, current, wrongSlot,
   tapAndNext, play, toResults, finishAsNew, newPhone, stored, remember, chipFor, events, base };
