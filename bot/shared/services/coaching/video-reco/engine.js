@@ -184,7 +184,8 @@ async function compute(a, d, state) {
   const row = t.row || {};
   const up = (analysis && analysis.uptake) || {};
   const ex = prompt.excerpts(session, { timestamp: row.timestamp, uptakeMoment: up.moment }, people);
-  const scorerQuote = t.source === 'card_text' ? '' : prompt.redact(target.scorerQuote(t.row), people);
+  // vr-3: only the `Quote:` part of the scorer's evidence is shown or citable; without one the line is omitted.
+  const scorerQuote = t.source === 'card_text' ? '' : prompt.redact(target.scorerQuoteOnly(t.row), people);
   const uptakeQuote = t.source === 'card_text' && up.moment ? prompt.redact(up.moment, people) : '';
   if (!ex.length && !scorerQuote && !uptakeQuote) {
     return finish({ ...base, status: 'none', none_reason: 'no_moments', candidates: list.candidates });
@@ -208,8 +209,7 @@ async function compute(a, d, state) {
   if (res.truncated) return finish({ ...withLlm, status: 'none', none_reason: 'llm_truncated' });
   const v = select.validate(res.pick, list, ex, {
     stepIndicator: t.stepIndicator, indicators: t.indicators, source: t.source, catalog, textRoute: !!list.textReason,
-    // §3.5 [v1.3] d: a moment may match the scorer's `Quote:` part, never its evidence_summary.
-    teacherName: people.teacher, scorerQuote: (t.source === 'card_text' ? '' : prompt.redact(target.scorerQuoteOnly(t.row), people)) || uptakeQuote,
+    teacherName: people.teacher, scorerQuote: scorerQuote || uptakeQuote, // §3.5 [v1.3] d: the Quote: part, never evidence_summary
   });
   if (!v.ok) return finish({ ...withLlm, status: 'none', none_reason: v.none, confidence: v.confidence });
 

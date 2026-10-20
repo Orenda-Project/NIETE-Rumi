@@ -118,7 +118,7 @@ describe('engine: ladderComplete over recommendable modules (deviation 4) and th
     reason_en: 'At 00:30 the class could only answer yes or no. This clip shows a teacher asking why instead.',
     reason_ur: 'کلاس صرف ہاں یا نہیں میں جواب دے سکی؛ اس کلپ میں استاد کیوں کے سوال پوچھتے ہیں۔', confidence: 0.6,
   };
-  function run({ catalog = C.fromData(FIX), completed = [], nextStep, card }) {
+  function run({ catalog = C.fromData(FIX), completed = [], nextStep, card, rowOverride = null }) {
     const deps = {
       env: { VIDEO_RECO_ENABLED: 'true' }, catalog,
       store: {
@@ -134,9 +134,16 @@ describe('engine: ladderComplete over recommendable modules (deviation 4) and th
     const session = { id: 's1', user_id: 'u1', transcript_language: 'ur', users: { name: 'Saima Khan', preferred_language: 'ur' },
       diarization_data: { segments: [{ start_ms: 30000, label: 'Teacher', text: 'Ahmed, is this a triangle? Yes or no, quickly!' }] } };
     const analysis = { framework: 'fico', subject_resolution: { code: 'urdu', grade: '3', confidence: 'high' },
-      domains: { C: { indicators: [{ id: 'C1', name: 'Questioning', score: 1, applicable: true, evidence: 'Quote: "Is this a triangle"', timestamp: '[00:30]' }] } } };
-    return E.recommendForReport({ session, analysis, nextStep, card, coachingSessionId: 's1', deps });
+      domains: { C: { indicators: [rowOverride || { id: 'C1', name: 'Questioning', score: 1, applicable: true, evidence: 'Quote: "Is this a triangle"', timestamp: '[00:30]' }] } } };
+    return E.recommendForReport({ session, analysis, nextStep, card, coachingSessionId: 's1', deps }).then((row) => Object.assign(row || {}, { _prompt: (deps.completeJson.mock.calls[0] || [])[0] || '' }));
   }
+  test('vr-3: a row with no Quote: puts no evidence line in the prompt (never the evidence_summary sentence)', async () => {
+    const row = await run({ nextStep: { target: { indicator: 'C1' } }, card: { action: 'Ask why' },
+      rowOverride: { id: 'C1', name: 'Questioning', score: 1, applicable: true, evidence: 'Teacher gives frequent praise but lacks follow-up', evidence_summary: 'Praise without follow-up', timestamp: '[00:30]' } });
+    expect(row._prompt).toContain('TRANSCRIPT MOMENTS');
+    expect(row._prompt).not.toContain('Evidence the scorer quoted');
+    expect(row._prompt).not.toContain('Praise without follow-up');
+  });
   test('every recommendable module completed (a not-recommendable one not) → ladder_completed', async () => {
     const c = copy((d) => { mod(d, 16).recommendable = false; });
     const done = FIX.modules.map((m) => m.module_id).filter((id) => id !== 16);
@@ -157,4 +164,64 @@ test('V1.7.1 carries the click-by-device uniqueness (EVENTS_SCHEMA v1.1 §3a) an
   expect(up).toMatch(/WHERE event NOT IN \('error',\s*'click'\)/);
   expect(down).toMatch(/DROP INDEX IF EXISTS uq_video_reco_events_click_device/);
   expect(down).toMatch(/WHERE event <> 'error'/);
+});
+
+describe('⛔4 on the native-37 LABEL path (lead-review 19:37Z ruling 1)', () => {
+  const native = copy((d) => { seg(d, '22-s1').fico_main37 = ['F5']; mod(d, 22).subjects = ['general']; });
+  const F5n = tgt('F5', { native37: true, scheme: 'fico_main_37', storedIndicator: 'F5', aliasKind: 'native37' });
+  const step = { action: 'wait pause silence', tryTomorrow: '', thingToTry: '', name: '' };
+  test('F5 on a maths lesson: the tag route runs', () => {
+    const r = S.build(native, F5n, ctx(), 'x', L({ subject: 'maths' }), step);
+    expect(r.textReason).toBe('label');
+    expect(ids(r)[0]).toBe('22-s1');
+  });
+  test('F5 on an Urdu or unknown-subject lesson: no tag route, the step-text route alone, subject_blocked', () => {
+    for (const subject of ['urdu', null]) {
+      const r = S.build(native, F5n, ctx(), 'x', L({ subject }), step);
+      expect(r.textReason).toBe('subject_blocked');
+      expect(ids(r)).not.toContain('22-s1');
+      expect(new Set(r.candidates.map((c) => c.route))).toEqual(new Set(['step_text']));
+    }
+  });
+  test('F6 needs science, F7 a literacy subject', () => {
+    const t6 = { ...F5n, indicator: 'F6', indicators: ['F6'], storedIndicator: 'F6' };
+    const t7 = { ...F5n, indicator: 'F7', indicators: ['F7'], storedIndicator: 'F7' };
+    expect(S.build(native, t6, ctx(), 'x', L({ subject: 'maths' }), step).textReason).toBe('subject_blocked');
+    expect(S.build(native, t6, ctx(), 'x', L({ subject: 'science' }), step).textReason).toBe('label');
+    expect(S.build(native, t7, ctx(), 'x', L({ subject: 'english' }), step).textReason).toBe('label');
+    expect(S.build(native, t7, ctx(), 'x', L({ subject: 'maths' }), step).textReason).toBe('subject_blocked');
+  });
+});
+
+describe('vr-3 teacher copy (lead-review 19:37Z ruling 2)', () => {
+  test('the evidence line shows only the Quote: part, and is omitted without one', () => {
+    const cat = C.fromData(FIX);
+    const withQuote = P.build({ target: tgt('C1'), candidates: [], catalog: cat, excerpts: ['[00:30] Teacher: x'], scorerQuote: T.scorerQuoteOnly({ evidence: 'Closed. Quote: "Is this a triangle"' }) });
+    expect(withQuote).toContain('Evidence the scorer quoted: "Is this a triangle"');
+    const noQuote = P.build({ target: tgt('C1'), candidates: [], catalog: cat, excerpts: ['[00:30] Teacher: x'], scorerQuote: T.scorerQuoteOnly({ evidence: 'Teacher gives frequent praise but lacks', evidence_summary: 'Praise only' }) });
+    expect(noQuote).not.toContain('Evidence the scorer quoted');
+  });
+  test('rule 2 ends with the no-scorer and no-N/A sentences', () => {
+    const text = P.build({ target: tgt('C1'), candidates: [], catalog: C.fromData(FIX), excerpts: ['[00:30] Teacher: x'] });
+    expect(text).toContain('no judgement of the teacher. Never mention the scorer, the report or the analysis; describe the lesson moment itself. If no real moment fits, return seg_id null — never write N/A, unknown or [around unknown].');
+  });
+  const list = { candidates: [{ seg_id: '10-s1', indicator: 'C1' }] };
+  const EX = ['[00:30] Teacher: [a student], is this a triangle? Yes or no, quickly!'];
+  const opts = { stepIndicator: 'C1', indicators: ['C1'], source: 'step', catalog: C.fromData(FIX), teacherName: 'Saima Khan' };
+  const ok = {
+    seg_id: '10-s1', moment: { at: '00:30', quote: 'is this a triangle? Yes or no' },
+    reason_en: 'At 00:30 the class could only answer yes or no. This clip shows a teacher asking why instead.',
+    reason_ur: 'کلاس صرف ہاں یا نہیں میں جواب دے سکی؛ اس کلپ میں استاد کیوں کے سوال پوچھتے ہیں۔', confidence: 0.6,
+  };
+  test('moment.at must be mm:ss', () => {
+    expect(V.validate(ok, list, EX, opts).ok).toBe(true);
+    for (const at of ['[00:30]', 'unknown', 'N/A', '', '0:30:00']) expect(V.validate({ ...ok, moment: { ...ok.moment, at } }, list, EX, opts).none).toBe('validation');
+    expect(V.validate({ ...ok, moment: { ...ok.moment, at: '4:17' } }, list, EX, opts).ok).toBe(true);
+  });
+  test('reason text naming the scorer, N/A or not applicable → validation', () => {
+    for (const reason_en of ['The scorer noted only yes or no answers at 00:30. This clip shows why questions.', 'At N/A the class answered yes or no. This clip shows a teacher asking why.', 'The moment is not applicable here but the clip shows asking why questions.']) {
+      expect(V.validate({ ...ok, reason_en }, list, EX, opts).none).toBe('validation');
+    }
+    expect(V.validate({ ...ok, reason_ur: 'سکورر نے نوٹ کیا کہ کلاس صرف ہاں یا نہیں میں جواب دے سکی؛ اس کلپ میں سوال ہیں۔' }, list, EX, opts).none).toBe('validation');
+  });
 });
