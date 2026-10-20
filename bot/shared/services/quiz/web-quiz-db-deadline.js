@@ -128,4 +128,4 @@ async function read(label, build) {
   return b.res;
 }
 
-module.exports = { read, retryMs, FLAG_KEY, DEADLINE_MS, _reset: () => { flag = null; loading = null; } };
+module.exports = { read, settings, retryMs, FLAG_KEY, DEADLINE_MS, _reset: () => { flag = null; loading = null; } };
