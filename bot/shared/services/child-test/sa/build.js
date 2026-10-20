@@ -319,7 +319,7 @@ function extraTasks(f, extra) {
   out.push(extraMathsTask({ task: 'ma.patterns', spec: m.patterns, items: pat.filter((x) => x.it.level <= 2).map(patItem), input: 'options',
     options_n: 4, distractor_rule: 'printed_in_source', scriptKey: 'ma.patterns', extraBase: base('patterns'),
     adaptation: 'Tangerine SA tap 1 of 4 (sec_miss_num_01); the RWP card\'s four printed options', deviation: null,
-    stop: { type: 'consecutive_errors', n: 4 } })); // EGMA's untimed convention (lead-egra-2 181537)
+    stop: { type: 'consecutive_errors', n: 4 } })); // EGMA's untimed convention: 4 wrong in a row ends the task
   out.push(extraMathsTask({ task: 'ma.patterns_hi', spec: m.patterns, items: pat.filter((x) => x.it.level >= 3).map(patItem), input: 'keypad',
     options_n: null, distractor_rule: null, scriptKey: 'ma.patterns_hi', extraBase: base('patterns'),
     adaptation: 'Tangerine SA keypad (sec_l1_addition_01); RWP levels 3-4', deviation: 'typed on a keypad, not spoken',
@@ -471,7 +471,7 @@ function readingExtras(extra) {
   });
 
   // The official second passages and listening stories (TK2009; SELECT 2024). They run on the game's islands in place
-  // of the coach's Set A passage and story, so the coach measure is not practised at home (panel-egra ⛔7).
+  // of the coach's Set A passage and story, so the coach measure is not practised at home.
   // SELECT counts the reduplicated ٹَیں ٹَیں as one word (its markers sum to 60 only that way).
   const toks = (t) => t.replace(/ٹَیں ٹَیں/g, 'ٹَیں_ٹَیں').split(/\s+/).map((w) => w.replace(/^[“"‘(]+|[.,!?”"’:;۔،؟)]+$/gu, '').replace('_', ' ')).filter(Boolean);
   const en2 = r.en.story2;
@@ -573,7 +573,7 @@ function printOrientation(lang, story, extra) {
     const tapUr = (t) => t.replace('میں نہیں چاہتا/ چاہتی کہ ابھی آپ یہ پیراگراف پڑھیں۔', 'ابھی یہ پیراگراف نہ پڑھیں۔')
       .replace(/اس صفحے پر انگلی رکھ کر بتائیے/, 'اس صفحے پر دبا کر بتائیں').replace(/اپنی انگلی کی مدد سے بتائیے/, 'دبا کر بتائیں')
       .replace(/آپ اپنی انگلی کے اشارے سے مجھے بتائیے|اپنی انگلی کے اشارے سے مجھے بتائیے/, 'دبا کر بتائیں').replace('اب آپ مجھے بتائیے', 'اب تیر دبا کر بتائیں');
-    // Prompts 1-3 are reworded for a tap and for a child addressed without گے forms (native review, URDU_REVIEW.md);
+    // Prompts 1-3 are reworded for a tap and for a child addressed without گے forms (a native speaker's review);
     // 4-5 keep the PRP-KP wording with the tap substitution.
     const q = r.prompts.map((x) => tapUr(x.q).replace('کونسا', 'کون سا'));
     q[0] = 'ابھی یہ کہانی نہ پڑھیں۔ آپ کس لفظ سے پڑھنا شروع کریں؟ وہ لفظ دبائیں۔';
@@ -714,6 +714,10 @@ function splitSaBank(bank) {
 // What the engine runs (dashboard/sa/sa-core.js normalize/validate, served at /sa/batteries/sa.<form>.<lang>.json):
 // one form in one instruction language, tasks[] in the form's order, each with one response mode.
 const RESPONSE = { options: 'tap', keypad: 'keypad', keyboard: 'keyboard' };
+// The mercy rule on a recorded passage: no voice for 12 s → Jugnu offers the star once; 20 s → the task ends
+// early_stop_silence (the SA analogue of EGRA's line-1 stop). Data, so the engine's numbers are only a fallback.
+const MERCY_AFTER_S = 12;
+const SILENCE_STOP_S = 20;
 
 function runtimeStop(s) {
   if (!s) return {};
@@ -759,11 +763,11 @@ function runtimeTask(t, lang) {
     const tap = t.tap;
     return { ...base, response: RESPONSE[tap.input], time_limit_s: tap.time_limit_s || null, ...(tap.soft_cap_s ? {} : { item_timeout_s: tap.item_timeout_s }),
       replay_at_s: tap.replay_at_s, ...(tap.next_at_s ? { next_at_s: tap.next_at_s } : {}),
-      // The word-problem answer cap is its own field, never the move-on one (lead-egra-2 182025).
+      // The word-problem answer cap is its own field, never the move-on one.
       ...(tap.soft_cap_s ? { soft_cap_s: tap.soft_cap_s } : {}), stop: runtimeStop(tap.stop), ...(tap.say_on ? { say_on: tap.say_on } : {}),
       options_n: tap.options_n, distractor_rule: tap.distractor_rule, items: tap.items.map((it) => runtimeItem(it, lang)), practice,
       ...(tap.passage ? { passage: tap.passage, tap_on: 'passage' } : {}), ...(tap.option_images ? { option_images: tap.option_images } : {}),
-      ...(t.rubric ? { rubric: t.rubric } : {}),
+      ...(t.rubric ? { rubric: t.rubric } : {}), ...(t.scoring ? { scoring: t.scoring } : {}),
       ...(t.record && t.record.grid ? { grid: t.record.grid, per_row: t.record.per_row, direction: t.record.direction } : {}),
       ...(t.depends_on ? { depends_on: t.depends_on } : {}) };
   }
@@ -771,6 +775,7 @@ function runtimeTask(t, lang) {
   if (r.passage && r.passage.words) {
     const { words, ...passage } = r.passage;
     return { ...base, response: 'record', time_limit_s: r.time_limit_s, stop: runtimeStop(r.stop), last_word_tap: true, passage,
+      mercy_after_s: MERCY_AFTER_S, silence_stop_s: SILENCE_STOP_S,
       items: words, practice, depends_on: { task: `${t.lang}.words`, skip_if_stop: 'early_stop_first_line' } };
   }
   const items = r.questions.map((q) => runtimeItem(q, lang));
