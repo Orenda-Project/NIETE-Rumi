@@ -98,18 +98,44 @@ beforeEach(() => {
 afterAll(() => { process.env = SAVED; });
 
 const PUSH_ENV = { WQ_PUSH_VAPID_PUBLIC: 'k', WQ_PUSH_VAPID_PRIVATE: 'p', WQ_PUSH_VAPID_SUBJECT: 'mailto:test@example.org', WQ_PUSH_ENC_KEY: Buffer.alloc(32, 1).toString('base64'), WQ_PUSH_HASH_SALT: 's' };
+const HubFlags = require('../../shared/services/quiz/web-quiz-hub-flags');
+// The page's boot reads the hub switches (getQuiz); the finish then reads none for the reminder.
+async function boot() { HubFlags._resetCache(); await HubFlags.flags(); }
+const settingsReads = () => fake.calls.filter((c) => c.table === 'app_settings').length;
+async function finishCounted() {
+  const before = settingsReads();
+  const out = await WQ.finishSession({ st: st() });
+  return { out, reads: settingsReads() - before };
+}
 
 test('switch on (and env set): the finish JSON carries push_remind: true', async () => {
   Object.assign(process.env, PUSH_ENV);
   seed({ settings: [{ key: 'web_quiz_push_remind', value: true }] });
+  await boot();
   expect((await WQ.finishSession({ st: st() })).push_remind).toBe(true);
 });
 
 test('switch off, or on without the env: no push_remind key at all', async () => {
   Object.assign(process.env, PUSH_ENV);
   seed();
+  await boot();
   expect('push_remind' in (await WQ.finishSession({ st: st() }))).toBe(false);
   for (const k of Object.keys(PUSH_ENV)) delete process.env[k];
-  Bank._reset(); Push.__reset(); seed({ settings: [{ key: 'web_quiz_push_remind', value: true }] });
+  Bank._reset(); seed({ settings: [{ key: 'web_quiz_push_remind', value: true }] });
+  await boot();
   expect('push_remind' in (await WQ.finishSession({ st: st() }))).toBe(false);
+});
+
+test('the finish makes the same number of settings reads with the switch off and on (the field reads nothing)', async () => {
+  Object.assign(process.env, PUSH_ENV);
+  seed();
+  await boot();
+  const off = await finishCounted();
+  Bank._reset(); Flag._reset();
+  seed({ settings: [{ key: 'web_quiz_push_remind', value: true }] });
+  await boot();
+  const on = await finishCounted();
+  expect(on.out.push_remind).toBe(true);
+  expect('push_remind' in off.out).toBe(false);
+  expect(on.reads).toBe(off.reads);
 });
