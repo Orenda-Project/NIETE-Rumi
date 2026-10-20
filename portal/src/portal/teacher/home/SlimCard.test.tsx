@@ -40,7 +40,11 @@ describe("SlimCard", () => {
     expect(card.getAttribute("data-home-card")).toBe("lesson");
     expect(card.querySelector("[data-primary]")?.textContent).toBe("Quiz this");
     expect(screen.getByTestId("home-slim-line").textContent).toBe("Quiz: Parts of a Plant");
-    expect(screen.getByTestId("home-slim-line").className).toMatch(/\btruncate\b/);
+    // the topic is its own isolate and the one thing cut, at its own end, whatever the line's direction
+    const topic = screen.getByTestId("home-slim-topic");
+    expect(topic.tagName).toBe("BDI");
+    expect(topic.textContent).toBe("Parts of a Plant");
+    expect(topic.className).toMatch(/\btruncate\b/);
     const pill = screen.getByRole("button", { name: "Quiz this" });
     expect(pill.className).toMatch(/min-h-\[44px\]/);
     await userEvent.setup().click(pill);
@@ -87,6 +91,26 @@ describe("SlimCard", () => {
   it("the class rung has no counter (the bot's 72-hour rule)", () => {
     expect([load(CLASS), load(CLASS), load(CLASS), load(CLASS)]).toEqual([true, true, true, true]);
     expect(localStorage.getItem(coolDownKey(KEY))).toBeNull();
+  });
+
+  it("the line is never cut to an ellipsis: it may take two lines", () => {
+    render(<SlimCard card={CLASS} userKey={KEY} onGo={vi.fn()} />);
+    const line = screen.getByTestId("home-slim-line");
+    expect(line.className).not.toMatch(/\btruncate\b/);
+    expect(line.className).toMatch(/\bline-clamp-2\b/);
+  });
+
+  it("Urdu: the lesson line keeps the topic whole at its start; the Nastaliq lines are set tighter to fit the fold", async () => {
+    await lang("ur");
+    try {
+      render(<SlimCard card={{ ...LESSON, title: "All About Me: Key Words" }} userKey={KEY} onGo={vi.fn()} />);
+      const line = screen.getByTestId("home-slim-line");
+      expect(line.textContent).toBe("فوری جانچ: All About Me: Key Words");
+      expect(screen.getByTestId("home-slim-topic").getAttribute("dir")).toBe("auto");
+      expect(line.className).toMatch(/rtl:!leading-\[1\.5\]/);
+      // the design's R3.7: in Urdu the 8 px come from the gap above the card, never from the buttons
+      expect(screen.getByTestId("home-slim-card").className).toMatch(/rtl:-mt-2\b/);
+    } finally { await lang("en"); }
   });
 
   it("Urdu: dir=rtl on the line and both verbs, the number and the topic isolated, the chevron mirrored", async () => {
