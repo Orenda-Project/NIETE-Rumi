@@ -15,7 +15,7 @@
  *   saBattery     the child's part of the battery: one of the form's five blocks — the five children of a
  *                 visit get five different blocks, rotating with the day — or the whole form when the
  *                 coach asks for `full`; fixed on the session at the first fetch. With sa_block_by_history ON
- *                 (default OFF, block-history.js) the child's own blocks of this cycle are skipped too, and a
+ *                 (default OFF, block-history.js) the child's own earlier blocks at this school are skipped too, and a
  *                 present whose phone block the child already took gets the server's block (answered as `block`)
  *   saBatch       per-task results (one block row each) and the device's sync state; the subtask and
  *                 hand-over events become session timings; idempotent; the battery's end completes it
@@ -280,7 +280,7 @@ function formOf(bank, session) {
   return formId ? { formId, form: forms[formId] } : null;
 }
 
-/** The blocks this child already took this cycle (block-history.js); read only with the switch on. */
+/** The blocks this child already took at this school, any cycle (block-history.js); read only with the switch on. */
 async function historyOf(d, session, deps) {
   const f = formOf(deps.bank !== undefined ? deps.bank : loadBank(), session);
   if (!f) return new Set();
@@ -289,7 +289,7 @@ async function historyOf(d, session, deps) {
 
 /**
  * The first block, from today's place in the rotation, that no other child of this visit holds — and, given the
- * child's own `past` blocks of this cycle, that the child has not taken; with none left, the visit's rule alone.
+ * child's own `past` blocks at this school, that the child has not taken; with none left, the visit's rule alone.
  */
 async function pickBlock(d, session, past = new Set()) {
   const visit = session.visit_id || session.visit_key;

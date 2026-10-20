@@ -3,7 +3,7 @@
 /**
  * The coach battery's block for a child, with the child's own history (app_settings sa_block_by_history, default
  * OFF): ON, a child gets the first block — from today's place in the rotation — that no other child of the visit
- * holds and that the child has not already taken this cycle. OFF, today's rotation alone, as before.
+ * holds and that the child has not already taken at this school (any cycle). OFF, today's rotation alone, as before.
  */
 
 const sa = require('../../shared/services/child-test/app/sa-api.service');
@@ -30,10 +30,10 @@ function chain(data) {
 }
 
 /**
- * Asha Testwala (student st-1) took `past` blocks in an earlier session this cycle; Bilal Testwala (st-2), not on
+ * Asha Testwala (student st-1) took `past` blocks in an earlier session at this school; Bilal Testwala (st-2), not on
  * this visit, took `otherPast`; `mates` are blocks other children of this visit already hold.
  */
-function world({ past = [], otherPast = [], mates = [], on, heldBlock = null } = {}) {
+function world({ past = [], otherPast = [], mates = [], on, heldBlock = null, pastCycle = 'ICT-2026-Q4' } = {}) {
   const sessions = {
     [SID]: { id: SID, coach_user_id: COACH, draw_id: 'd-now', visit_key: 'day:x', grade: 3, form: 'A', item_bank_version: 'sa-battery', status: 'in_progress', device: {} },
     'sess-old': { id: 'sess-old', coach_user_id: COACH, draw_id: 'd-old', grade: 3, form: 'A', item_bank_version: 'sa-battery', device: { block: past[0] || null } },
@@ -42,7 +42,7 @@ function world({ past = [], otherPast = [], mates = [], on, heldBlock = null } =
   const bySession = { 'sess-old': past.map((b) => ({ block: TASK_OF[b] })), 'sess-other': otherPast.map((b) => ({ block: TASK_OF[b] })) };
   const draws = {
     'd-now': { id: 'd-now', cycle_id: 'ICT-2026-Q4', school_id: SCHOOL, student_id: 'st-1', status: 'tested' },
-    'd-old': { id: 'd-old', cycle_id: 'ICT-2026-Q4', school_id: SCHOOL, student_id: 'st-1', status: 'tested' },
+    'd-old': { id: 'd-old', cycle_id: pastCycle, school_id: SCHOOL, student_id: 'st-1', status: 'tested' },
     'd-other': { id: 'd-other', cycle_id: 'ICT-2026-Q4', school_id: SCHOOL, student_id: 'st-2', status: 'tested' },
   };
   const mateSessions = mates.map((b, i) => ({ id: `mate-${i}`, draw_id: `dm-${i}`, device: { block: b } }));
@@ -51,6 +51,7 @@ function world({ past = [], otherPast = [], mates = [], on, heldBlock = null } =
     getSession: async (id) => ({ ok: true, session: sessions[id] || null }),
     getDraw: async (id) => ({ ok: true, draw: draws[id] || null }),
     listSchoolDraws: async (school, cycle) => ({ ok: true, draws: Object.values(draws).filter((d) => d.school_id === school && d.cycle_id === cycle) }),
+    listTestedDraws: async (school) => ({ ok: true, draws: Object.values(draws).filter((d) => d.school_id === school && d.status === 'tested') }),
     getSessionByDraw: async (drawId) => ({ ok: true, session: Object.values(sessions).find((s) => s.draw_id === drawId) || null }),
     listBlocks: async (id) => ({ ok: true, blocks: bySession[id] || [] }),
     listSessionsForVisit: async () => ({ ok: true, sessions: [sessions[SID], ...mateSessions] }),
@@ -80,12 +81,18 @@ const present = (deps, block) => sa.dayOutcome({
 }, deps);
 
 describe('the battery the server picks', () => {
-  test('switch ON: a child who took today\'s first block this cycle gets the next one', async () => {
+  test('switch ON: a child who took today\'s first block earlier gets the next one', async () => {
     const { deps, calls } = world({ past: [at(0)], on: true });
     const out = await sa.saBattery({ userId: COACH, sessionId: SID }, deps);
     expect(out.status).toBe('ok');
     expect(out.battery.block).toBe(at(1));
     expect(calls.markSynced[0]).toEqual({ block: at(1) });
+  });
+
+  test('switch ON: a block the child took in an earlier cycle at this school is skipped too (a returning child)', async () => {
+    const { deps } = world({ past: [at(0)], pastCycle: 'ICT-2026-Q3', on: true });
+    const out = await sa.saBattery({ userId: COACH, sessionId: SID }, deps);
+    expect(out.battery.block).toBe(at(1));
   });
 
   test('switch ON: skips both the child\'s past blocks and the blocks other children of the visit hold', async () => {
@@ -109,6 +116,7 @@ describe('the battery the server picks', () => {
   test('switch OFF: today\'s rotation only, the history unread', async () => {
     const { deps } = world({ past: [at(0)], on: false });
     deps.store.listSchoolDraws = async () => { throw new Error('history read with the switch off'); };
+    deps.store.listTestedDraws = deps.store.listSchoolDraws;
     const out = await sa.saBattery({ userId: COACH, sessionId: SID }, deps);
     expect(out.battery.block).toBe(at(0));
   });
