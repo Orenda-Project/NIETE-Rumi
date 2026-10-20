@@ -86,8 +86,17 @@ async function settle() {
   }
 }
 
-/** The page as it stays: the picker drawn, the catalogue loaders answered, every FLN answer landed. */
-async function newLessonPage(): Promise<string> {
+const classReads = () => http.get.mock.calls.filter(([u]) => u === "/me/grade-subjects").length;
+
+/**
+ * The page as it stays: the picker drawn, the catalogue loaders answered, every FLN answer landed. `reads` is how many
+ * classes reads THIS render makes — 1 for the picker alone, 2 when the band's body mounted and read them too — and the
+ * page is captured only once exactly that many were asked and answered (red team S2: counting across renders, or
+ * capturing before the band's own read, let a band that never loaded pass).
+ */
+async function newLessonPage(reads: 1 | 2): Promise<string> {
+  const readsBefore = classReads();
+  const flnBefore = flnCalls.length;
   render(
     <MemoryRouter initialEntries={[NEW]}>
       <Routes>
@@ -97,22 +106,23 @@ async function newLessonPage(): Promise<string> {
     </MemoryRouter>,
   );
   await screen.findByRole("button", { name: /Select grade and subject/ });
-  await waitFor(() => expect(flnCalls.some((u) => u.endsWith("/fln/me"))).toBe(true));
+  await waitFor(() => expect(flnCalls.slice(flnBefore).some((u) => u.endsWith("/fln/me"))).toBe(true));
+  await waitFor(() => expect(classReads() - readsBefore).toBe(reads));
   await settle();
+  expect(classReads() - readsBefore).toBe(reads);
   return document.body.innerHTML;
 }
 
 describe("New lesson plan page: a teacher of Grades 6–12 only gets no FLN band (bd-4tsjcr)", () => {
   it("hidden: the page is byte-identical to the FLN-switch-off page — no band, no heading, no gap", async () => {
     me = null;
-    const off = await newLessonPage();
+    const off = await newLessonPage(1);
     cleanup();
     resetLessonPlans();
 
     me = ME_TEACHER;
-    const teacher = await newLessonPage();
-    // The band's body really mounted and decided (it read their classes), so this is the end state, not a load.
-    expect(http.get.mock.calls.filter(([u]) => u === "/me/grade-subjects").length).toBeGreaterThanOrEqual(2);
+    // 2 reads in THIS render: the picker's and the band's own, so the band's body really mounted and decided.
+    const teacher = await newLessonPage(2);
     expect(document.querySelector(".fln-band")).toBeNull();
     expect(screen.queryByText(EN.band.title)).toBeNull();
     expect(flnCalls.filter((u) => u.includes("/catalogue"))).toHaveLength(0);
@@ -121,7 +131,7 @@ describe("New lesson plan page: a teacher of Grades 6–12 only gets no FLN band
 
   it("a coach of Grade 8 on the same page still gets the band", async () => {
     me = ME_COACH;
-    await newLessonPage();
+    await newLessonPage(2);
     expect(await screen.findByText(EN.band.title)).toBeInTheDocument();
     const rows = await screen.findAllByRole("link", { name: new RegExp(EN.subject["rh-en"]) });
     expect(rows[0].getAttribute("href")).toBe("/portal/fln/list/rh-en?grade=1");

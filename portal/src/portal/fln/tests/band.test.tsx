@@ -7,7 +7,7 @@ vi.mock('../../services/api', () => ({ default: { get: vi.fn(), post: vi.fn() } 
 
 import api from '../../services/api';
 import { FlnBand } from '../FlnBand';
-import { bandGrade, defaultGrade } from '../FlnBandBody';
+import { bandGrade, bandGradeForPairs, defaultGrade } from '../FlnBandBody';
 import { flnStrings } from '../strings';
 import type { FlnMe } from '../types';
 import { LEVELS, ME_TEACHER, numG2, rhEnG1, rhUrG1, stubFetch } from './listFixtures';
@@ -229,7 +229,8 @@ describe('FlnBand', () => {
  * at Grade 1 or not at all: "not at all". The band is hidden for a TEACHER only when their classes read SUCCEEDED,
  * at least one class has a KNOWN grade, and every known grade is above 5. No classes, only unknown (early-years /
  * null) grades, or a failed read → Grade 1, as before: we cannot tell what they teach, so nothing that might be
- * theirs is hidden. Leaders (the school-leader family, by role) always see it.
+ * theirs is hidden. Lesson-plan history (sent only when they have no class pair) never hides it. Leaders (the
+ * school-leader family, by role) always see it.
  */
 describe('FlnBand: who sees it (bd-4tsjcr)', () => {
   /** Every pending answer landed: /fln/me, the lazy body, the classes read, any catalogue. */
@@ -297,8 +298,33 @@ describe('FlnBand: who sees it (bd-4tsjcr)', () => {
     await landsOn(3);
   });
 
-  it('a Grade 8 class and a Grade 3 from lesson-plan history → the band, on Grade 3', async () => {
-    classes([{ grade: 8 }, { grade: 3, source: 'history' }]);
+  // GET /me/grade-subjects answers from lesson-plan HISTORY only when the teacher has no class pair at all
+  // (dashboard grade-subjects.service: `if (fromClasses.length) return { combos: fromClasses }`), so a history row is
+  // never next to a class row. History says what they have opened, not what they teach: it never hides the band.
+  it('a Grade 8 class (source class) → still no band', async () => {
+    classes([{ grade: 8, source: 'class' }]);
+    const f = stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    const { container } = renderBand();
+    await classesAsked();
+    nothingShown(container, f);
+  });
+
+  it('no classes, lesson-plan history of Grade 7 only → the band, on Grade 1 (history never hides it)', async () => {
+    classes([{ grade: 7, source: 'history' }]);
+    stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    renderBand();
+    await landsOn(1);
+  });
+
+  it('no classes, lesson-plan history of Grades 9 and 7 → the band, on Grade 1', async () => {
+    classes([{ grade: 9, source: 'history' }, { grade: 7, source: 'history' }]);
+    stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    renderBand();
+    await landsOn(1);
+  });
+
+  it('no classes, lesson-plan history of Grades 3 and 8 → the band, on Grade 3', async () => {
+    classes([{ grade: 3, source: 'history' }, { grade: 8, source: 'history' }]);
     stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
     renderBand();
     await landsOn(3);
@@ -371,10 +397,98 @@ describe('FlnBand: who sees it (bd-4tsjcr)', () => {
     expect(bandGrade(null, true)).toBe(1);
   });
 
+  it('bandGradeForPairs: class pairs decide; history alone never hides; a failed read → Grade 1', () => {
+    const c = (grade: number | null) => ({ grade, source: 'class' as const });
+    const h = (grade: number | null) => ({ grade, source: 'history' as const });
+    expect(bandGradeForPairs([c(8)], false)).toBeNull();
+    expect(bandGradeForPairs([c(9), c(null), c(7)], false)).toBeNull();
+    expect(bandGradeForPairs([c(7), c(3)], false)).toBe(3);
+    expect(bandGradeForPairs([], false)).toBe(1);
+    expect(bandGradeForPairs([h(7)], false)).toBe(1);
+    expect(bandGradeForPairs([h(9), h(7)], false)).toBe(1);
+    expect(bandGradeForPairs([h(3), h(8)], false)).toBe(3);
+    expect(bandGradeForPairs([h(null)], false)).toBe(1);
+    expect(bandGradeForPairs(null, false)).toBe(1);
+    expect(defaultGrade([9, 7, 12])).toBe(1); // an all-6–12 history opens on Grade 1, never null
+    // leader: unchanged
+    expect(bandGradeForPairs([c(8)], true)).toBe(1);
+    expect(bandGradeForPairs([h(4), h(9)], true)).toBe(4);
+    expect(bandGradeForPairs(null, true)).toBe(1);
+  });
+
   it('a coach still sees the band heading while their classes are read (unchanged)', async () => {
     http.get.mockImplementation(() => new Promise(() => {}));
     stubFetch({ '/me': { status: 200, body: ME_COACH }, '/catalogue': catalogueFor });
     renderBand();
     expect(await screen.findByText(EN.band.title)).toBeInTheDocument();
+  });
+});
+
+/**
+ * bd-4tsjcr red team S1: nothing times the classes read out (not the axios client, not useLoad, not the server's
+ * pool), so a read that hangs would keep a teacher's band hidden for the whole visit. After 8 s the read counts as
+ * FAILED — Grade 1 — and that is latched: an answer arriving later is ignored, so a band once shown never goes.
+ */
+describe('FlnBand: a classes read that never answers (bd-4tsjcr S1)', () => {
+  const pair = (grade: number) => ({ grade, gradeCode: `grade_${grade}`, subject: 'English', subjectKey: 'english', source: 'class', featureKey: 'English', available: true });
+
+  /** The classes read hangs until the test lands it (or never). */
+  function hangingClasses() {
+    const pending: { land: (v: unknown) => void } = { land: () => {} };
+    http.get.mockImplementation((url: string) => (url === '/me/grade-subjects'
+      ? new Promise((r) => { pending.land = r; })
+      : Promise.reject(Object.assign(new Error('404'), { response: { status: 404 } }))));
+    return pending;
+  }
+
+  // `shouldAdvanceTime` (so the lazy body and waitFor still run) lets real time leak into the fake clock: under a
+  // loaded run a few hundred ms pass before the first advance, so the checks keep ≥4 s away from the deadline.
+  async function advance(ms: number) {
+    await act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+  }
+
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('after 8 s the band opens on Grade 1, and a late answer of Grade 9 does not take it away', async () => {
+    const read = hangingClasses();
+    stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { container } = renderBand();
+    await waitFor(() => expect(http.get).toHaveBeenCalledWith('/me/grade-subjects', { params: { feature: 'lessons' } }));
+    expect(container.innerHTML).toBe('');
+    await advance(4_000);
+    expect(container.innerHTML).toBe('');
+    await advance(4_100);
+    const rows = await screen.findAllByRole('link');
+    expect(rows.map((r) => r.getAttribute('href'))).toEqual(['rh-en', 'rh-ur', 'num'].map((s) => `/portal/fln/list/${s}?grade=1`));
+    expect(screen.getByRole('radio', { checked: true }).textContent).toBe(EN.grade(1));
+    await act(async () => { read.land({ data: { success: true, combos: [pair(9)] } }); });
+    await advance(100);
+    expect(screen.getByText(EN.band.title)).toBeInTheDocument();
+    expect(screen.getAllByRole('link').map((r) => r.getAttribute('href'))[0]).toBe('/portal/fln/list/rh-en?grade=1');
+  });
+
+  it('an answer inside the 8 s still decides: Grade 9 at 4 s → no band, and none after the deadline either', async () => {
+    const read = hangingClasses();
+    const f = stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { container } = renderBand();
+    await waitFor(() => expect(http.get).toHaveBeenCalledWith('/me/grade-subjects', { params: { feature: 'lessons' } }));
+    await advance(4_000);
+    await act(async () => { read.land({ data: { success: true, combos: [pair(9)] } }); });
+    await advance(8_000);
+    expect(container.innerHTML).toBe('');
+    expect(f.mock.calls.filter(([u]) => String(u).includes('/catalogue'))).toHaveLength(0);
+  });
+
+  it('leaving the page before the deadline leaves no timer behind', async () => {
+    hangingClasses();
+    stubFetch({ '/me': { status: 200, body: ME_TEACHER }, '/catalogue': catalogueFor });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { unmount } = renderBand();
+    await waitFor(() => expect(http.get).toHaveBeenCalledWith('/me/grade-subjects', { params: { feature: 'lessons' } }));
+    await advance(100);
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
