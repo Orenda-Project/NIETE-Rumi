@@ -130,9 +130,18 @@
     };
   }
 
+  /** The run token the game page kept for a session (localStorage sg.st.<id>), or null. */
+  function keptSt(id) {
+    try { return id && root.localStorage ? root.localStorage.getItem('sg.st.' + id) : null; } catch (_) { return null; }
+  }
+
+  // The play page asks with the session id only: the token the map kept for it; none kept → no sink (the run stays on
+  // the phone).
   function create(o) {
     o = o || {};
-    return sinkFor({ st: o.st, session_id: o.session_id }, o);
+    var st = o.st || keptSt(o.session_id);
+    if (!st) return null;
+    return sinkFor({ st: st, session_id: o.session_id }, o);
   }
 
   function forGame(boot, part, n, o) {
