@@ -1319,9 +1319,11 @@ async function identityV2(ctx, { quizP = null } = {}) {
   if (await isWatchCode(ctx)) return { invited: false, resolved: NONE_CLASS };
   try {
     const together = require('./web-quiz-hub-flags').linkTogetherNow();
+    const rowsTogether = require('./web-quiz-hub-flags').nowOf('classRows');
     const resolved = await Identity.resolveQuizClass({
       teacherUserId: ctx.teacherUserId, quizId: ctx.quizId, shareCodeId: ctx.moreVideosOf || ctx.shareCodeId,
       ...(together ? { together: true, ...(quizP ? { quizP } : {}) } : {}),
+      ...(rowsTogether ? { rowsTogether: true } : {}),
     });
     return { invited: false, resolved: resolved || NONE_CLASS };
   } catch (e) {
