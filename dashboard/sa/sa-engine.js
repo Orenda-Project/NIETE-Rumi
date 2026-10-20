@@ -106,6 +106,13 @@
         var rec = needsMic && recMod ? recMod.create({ store: store, session_id: sessionId }) : null;
         var micReady = rec ? rec.ready() : Promise.resolve(false);
         var cancelSilence = null;
+        // A recording still open when the phone goes back (the last spoken answer, a coach's early end) is closed
+        // first, so its final marker is on the phone before the last flush and it goes up with it.
+        function closeRecording() {
+          if (!rec || !rec.recording || !rec.recording()) return null;
+          if (cancelSilence) { try { cancelSilence(); } catch (_) { /* ended */ } cancelSilence = null; }
+          return Promise.resolve(rec.stop()).then(null, function () { return null; });
+        }
         function recStart(t, item) {
           if (!rec) return;
           micReady.then(function (ok) {
@@ -150,7 +157,7 @@
           // The hand-back screen's press-and-hold: the phone is the coach's again (or the game's map).
           onUnlock: function () {
             runner.log('handover_out');
-            writes.then(function () { return sync ? sync.flush() : null; }).then(function () {
+            writes.then(closeRecording).then(function () { return sync ? sync.flush() : null; }).then(function () {
               fire('unlock', null);
               done(deps.win || root, opts, sessionId, runner);
             });
@@ -173,7 +180,7 @@
           runner.coachEnd();
           runner.log('coach_end_run');
           runner.log('handover_out');
-          writes.then(function () { return sync ? sync.flush() : null; }).then(function () {
+          writes.then(closeRecording).then(function () { return sync ? sync.flush() : null; }).then(function () {
             fire('unlock', null);
             if (win.parent && win.parent !== win) win.parent.postMessage({ type: 'sa:done', s: sessionId, reason: 'coach_end' }, win.location.origin);
           });

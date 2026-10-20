@@ -161,3 +161,20 @@ describe('game-mode drain: the next island sends what an earlier island left, ea
     expect((await s.pending('coach-1')).events).toHaveLength(2); // a coach session is not the game's to send
   });
 });
+
+test('drain carries the recordings too: a closed recording left by an earlier child is uploaded and registered', async () => {
+  const storeMod = require('../sa/sa-store');
+  const syncMod = require('../sa/sa-sync');
+  const { drain } = require('../sa/sa-page');
+  const s = await storeMod.open({ idb: null });
+  await s.putSession({ session_id: 'child-a', mode: 'proctored' });
+  await s.putChunk('child-a', 'ur.story', 0, 'AUDIO', { mime: 'audio/webm' });
+  await s.putChunk('child-a', 'ur.story', 1, null, { final: true, duration_ms: 60000 });
+  const calls = [];
+  const sink = { putBatch: async () => ({ ok: true }), presignAudio: async (a) => { calls.push('presign ' + a.task_id); return { url: 'https://r2/x', key: 'k' }; },
+    registerAudio: async (a) => { calls.push('register ' + a.task_id); return {}; } };
+  const out = await drain({ store: s, sync: { create: (o) => syncMod.create(Object.assign({}, o, { put: async () => { calls.push('put'); }, join: (c) => c.map((x) => x.blob).join('') })) },
+    sink: () => sink, online: () => true, timers: { set: () => 0, clear() {} } });
+  expect(calls).toEqual(['presign ur.story', 'put', 'register ur.story']);
+  expect(out).toEqual([{ s: 'child-a', state: 'synced', pending_events: 0, pending_audio: 0 }]);
+});

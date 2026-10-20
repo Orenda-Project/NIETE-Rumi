@@ -214,3 +214,21 @@ test('embedded: the coach page\'s hold (sa:coach_end) ends the running task as c
   const types = (await s.events('sess-ce')).map((x) => x.type);
   expect(types).toEqual(expect.arrayContaining(['coach_unlock', 'coach_end_run', 'handover_out']));
 });
+
+test('the hand-back closes a recording still open before the last flush (the frame unmounts right after)', async () => {
+  const s = await shared();
+  const f = fakes(s);
+  const order = [];
+  let recording = true;
+  f.deps.rec = { create: () => ({ ready: async () => true, start: () => true, recording: () => recording,
+    stop: async () => { recording = false; order.push('rec closed'); return { parts: 1, duration_ms: 1000 }; }, release() {} }) };
+  f.deps.micState = () => 'ok';
+  f.deps.sync = { create: () => ({ flush: async () => { order.push('flushed'); return {}; }, poke() {}, status: () => ({}), stop() {} }) };
+  f.deps.win = { location: { origin: 'https://p.test', assign: () => order.push('navigated') } };
+  f.deps.win.parent = f.deps.win;
+  const b = { battery_id: 'hb', tasks: [{ id: 'story', mode: 'record', time_limit_s: 60, passage: { text: 'a' }, items: [{ id: 'w', target: 'a', line: 1 }] }] };
+  await start({ mount: {}, battery: b, mode: 'proctored', lang: 'en', back: '/list', sink: {}, audio_check: false, warmup: false }, f.deps);
+  f.ui().onUnlock();
+  await new Promise((r) => setTimeout(r, 20));
+  expect(order).toEqual(['rec closed', 'flushed', 'navigated']);
+});

@@ -101,11 +101,15 @@
             return store.markSynced(id, acked, sent);
           });
         }
-        return send.then(function () {
+        // The recordings go even when the event batch was refused, and one that fails does not hold back the next:
+        // a coach page that unmounts the child's frame must find as much as possible already sent.
+        var firstErr = null;
+        var keep = function (e) { if (!firstErr) firstErr = e; };
+        return send.then(null, keep).then(function () {
           return audio.reduce(function (chain, a) {
-            return chain.then(function () { return upload(a); });
+            return chain.then(function () { return upload(a); }).then(null, keep);
           }, Promise.resolve());
-        }).then(function () { return true; });
+        }).then(function () { if (firstErr) throw firstErr; return true; });
       });
     }
 
