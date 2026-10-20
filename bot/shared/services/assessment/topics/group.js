@@ -6,10 +6,12 @@
  * Topic = {topicId, grade, subject, chapterNumber, chapterTitle, name, heading|null,
  *          headingOrder|null, sortOrder, pages, sloCodes, sloDescriptions, days}
  * topicId = "<grade>-<subject>-<chapter>-<slug>"; a repeated slug gets -2, -3 in sort order.
+ * Names are unique within the chapter (distinct-names.js).
  */
 const { groupLanguage } = require('./group-language');
 const { groupMaths } = require('./group-maths');
 const { groupScience } = require('./group-science');
+const { distinctNames } = require('./distinct-names');
 
 const GROUPERS = {
   english: (rows) => groupLanguage('english', rows),
@@ -33,14 +35,16 @@ function groupChapter(subject, rows) {
   if (new Set(rows.map(chapterKey)).size > 1) throw new Error('groupChapter takes the rows of one chapter only');
   const { grade, chapter, chapterTitle } = rows[0];
   const seen = new Map();
-  return grouper(rows.filter(isTopicRow)).map((t, i) => {
+  const topics = grouper(rows.filter(isTopicRow));
+  const names = distinctNames(topics);
+  return topics.map((t, i) => {
     const base = `${grade}-${subject}-${chapter}-${t.slug}`;
     const count = (seen.get(base) || 0) + 1;
     seen.set(base, count);
     return {
       topicId: count === 1 ? base : `${base}-${count}`,
       grade, subject, chapterNumber: chapter, chapterTitle,
-      name: t.name, heading: t.heading, headingOrder: t.headingOrder, sortOrder: i + 1,
+      name: names[i], heading: t.heading, headingOrder: t.headingOrder, sortOrder: i + 1,
       pages: t.pages, sloCodes: t.sloCodes, sloDescriptions: t.sloDescriptions, days: t.days,
     };
   });

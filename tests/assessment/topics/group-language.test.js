@@ -15,8 +15,8 @@ describe('English G1 Ch1 (spec §4.1 example)', () => {
 
   test('five topics under four headings, day 6 folded into Introducing Myself', () => {
     expect(topics.map(brief)).toEqual([
-      { name: 'All About Me: Key Words', heading: 'Vocabulary & grammar', days: [1] },
-      { name: 'Meet Pinky: Reading a Self-Introduction', heading: 'Reading', days: [2] },
+      { name: 'Key Words', heading: 'Vocabulary & grammar', days: [1] },
+      { name: 'Reading a Self-Introduction', heading: 'Reading', days: [2] },
       { name: 'Introducing Myself', heading: 'Writing', days: [3, 6] },
       { name: 'Speaking Up & Showing Feelings', heading: 'Oral communication', days: [4] },
       { name: 'Rhyming Words & Days of the Week', heading: 'Vocabulary & grammar', days: [5] },
@@ -94,6 +94,35 @@ describe('Connect and Create folds only into an earlier topic of the same skill'
     const day6 = { ...ch1.find((r) => r.day === 6), section: 'Imagination Canvas' };
     const out = groupLanguage('english', [...ch1.filter((r) => r.day !== 6), day6]);
     expect(out).toHaveLength(6);
+  });
+});
+
+describe('a leading "<label>: " is dropped from the name when text remains', () => {
+  const [day1] = chapter(english, 1);
+  const name = (topic, subject = 'english') => groupLanguage(subject, [{ ...day1, topic }])[0].name;
+
+  test.each([
+    ['Diving Deeper: Story Snapshot + Question', 'Story Snapshot + Question'],
+    ['Imagination Canvas: Word Magic (Memory Lane)', 'Word Magic'],
+    ['Punctuation Patrol: sentence endings', 'Sentence endings'],
+    ['Reading: Jojo Doesn\'t Want to Go to School Today, Says Mum', 'Jojo Doesn\'t Want to Go to School Today'],
+  ])('"%s" -> "%s"', (topic, expected) => {
+    expect(name(topic)).toBe(expected);
+  });
+
+  test('a label with nothing after it, or a colon without a space, stays', () => {
+    expect(name('Diving Deeper:')).toBe('Diving Deeper');
+    expect(name('Time 3:30 practice')).toBe('Time 3:30 practice');
+  });
+
+  test('Urdu labels are dropped the same way', () => {
+    const [row] = urdu;
+    expect(groupLanguage('urdu', [{ ...row, topic: 'سرگرمی: لفظوں کا کھیل' }])[0].name).toBe('لفظوں کا کھیل');
+  });
+
+  test('the id still uses the full cell text', () => {
+    expect(groupLanguage('english', [{ ...day1, topic: 'Diving Deeper: Story' }])[0].slug)
+      .toBe('vocabulary_grammar-diving-deeper-story');
   });
 });
 
