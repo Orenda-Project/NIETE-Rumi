@@ -98,6 +98,16 @@ describe('the template, switch on', () => {
     expect(headPx(h) * 0.46 * Array.from(one).length).toBeLessThanOrEqual(936);
     expect(h).toContain(`<bdi dir="rtl">${one}</bdi>`);
   });
+  test('the challenge sub line names the quiz in «»: «<name> نے «<quiz>» میں ۴/۷ لیے», the quiz still its own run', () => {
+    for (const size of ['sq', 'og']) {
+      const h = art('invite', size, 'ur', inv(LONG), { ...LIVE, us: true });
+      expect(h).toContain(`<p class="sub"><bdi dir="rtl">${LONG}</bdi> نے «<bdi dir="rtl">تفہیم - مکالمے کو سمجھنا</bdi>» میں <span class="num">۴/۷</span> لیے</p>`);
+    }
+    // a Latin quiz name keeps its own LTR run inside the marks
+    expect(art('invite', 'sq', 'ur', { ...inv('Iqra'), topic: 'Plants' }, { ...LIVE, us: true })).toContain('نے «<bdi dir="ltr">Plants</bdi>» میں');
+    // off: today's line, no marks
+    expect(art('invite', 'sq', 'ur', inv(LONG), LIVE)).toContain(`نے <bdi dir="rtl">تفہیم - مکالمے کو سمجھنا</bdi> میں`);
+  });
   test('the friend\'s door keeps «آپ کی باری!» in the same pill', () => {
     const h = art('invite', 'sq', 'ur', inv('Iqra'), { ...LIVE, us: true }, true);
     expect(ctaText(h)).toBe('آپ کی باری!');
