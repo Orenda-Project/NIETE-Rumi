@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Your coaching report</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --fg:#272b36; --muted:#5b6475; --line:#e3e6ec; --accent:#47BA7D;
+    --s1:#ef8a12; --s2:#9b55e6; --s3:#3d5bd6; --s4:#2f9a46; --s5:#d63a6a;
+    --green:#2f8a55; --amber:#d99a1e; --red:#c2552f; --track:#eceef2; --try:#fff8e8; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14161c; --card:#1d2129; --fg:#eceef3; --muted:#a6adbb;
+    --line:#2c313b; --track:#2c313b; --try:#2a2617; } }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:20px 16px 32px; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width:560px; margin:0 auto; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; margin:0 0 14px; }
+  section.try { background:var(--try); border-color:var(--amber); }
+  h1 { font-size:22px; margin:0 0 2px; } h2 { font-size:17px; margin:0 0 8px; }
+  p { margin:0 0 8px; } ul { margin:0; padding-inline-start:20px; } li { margin:0 0 4px; }
+  .muted { color:var(--muted); font-size:14px; }
+  .big { font-size:40px; font-weight:700; line-height:1.1; margin:8px 0 0; }
+  .chip { display:inline-block; color:#fff; border-radius:999px; padding:2px 10px; font-size:13px; font-weight:600; margin:0 0 6px; }
+  .s1 { background:var(--s1); } .s2 { background:var(--s2); } .s3 { background:var(--s3); } .s4 { background:var(--s4); } .s5 { background:var(--s5); }
+  .why { color:var(--muted); font-size:15px; }
+  .row { display:flex; justify-content:space-between; gap:8px; font-weight:600; }
+  .track { background:var(--track); border-radius:6px; height:10px; margin:6px 0 8px; overflow:hidden; }
+  .bar { height:10px; border-radius:6px; } .bar.green { background:var(--green); } .bar.amber { background:var(--amber); } .bar.red { background:var(--red); }
+  .sec { padding:10px 0; border-top:1px solid var(--line); } .sec:first-of-type { border-top:0; }
+  .legend { display:flex; justify-content:space-between; gap:8px; font-size:14px; }
+  svg { width:100%; height:auto; display:block; margin:0 0 8px; }
+  img, audio { width:100%; border-radius:12px; display:block; }
+  a.btn, button.btn { display:inline-block; background:var(--accent); color:#fff; text-decoration:none; padding:10px 16px; border-radius:10px; font-weight:600; border:0; font:inherit; cursor:pointer; margin:4px 4px 0 0; }
+  .useful label { display:block; margin-bottom:8px; }
+  .useful .pick { display:flex; gap:8px; align-items:center; min-height:44px; padding:6px 8px; box-sizing:border-box; margin-bottom:8px; }
+  .useful textarea { width:100%; box-sizing:border-box; font:inherit; padding:8px; border-radius:8px; border:1px solid currentColor; background:transparent; color:inherit; margin-bottom:8px; }
+  a.more { display:block; text-align:center; font-weight:600; color:var(--s3); text-decoration:none; padding:12px; }
+  html[lang="ur"] body { font-family:"Noto Nastaliq Urdu","Noto Naskh Arabic",system-ui,sans-serif; line-height:2.1; }
+</style>
+</head>
+<body>
+<main>
+<header><section><h1>Sadia</h1><p class="muted">Maths · Adding &lt;tens&gt; · <bdi>19 Oct 2026</bdi></p><p class="big">62%</p></section></header>
+<section class="try"><h2>★ Try one thing tomorrow</h2><p>After each question, count silently to three.</p><p class="why">Working with a partner makes children put the idea in their own words, and that is how it sticks.</p><p class="muted">We’ll look for this in your next recording.</p><a class="btn" href="https://wa.me/923222482222?text=lesson%20plan">Open tomorrow’s lesson ›</a></section>
+<a class="more" href="/cr/T/detail">See detailed analysis of your lesson ›</a>
+<section><h2>Your full report</h2><img src="https://r2.example.com/reports/u/s_report.png" alt="Your full report"></section>
+<section><h2>Listen to your coach</h2><audio controls src="https://r2.example.com/voice/s.ogg"></audio></section>
+<section><h2>Quiz for your students</h2><p>Class 2, try this quiz: https://portal.example.pk/q/ABC123</p><a class="btn" href="https://wa.me/?text=Class%202%2C%20try%20this%20quiz%3A%20https%3A%2F%2Fportal.example.pk%2Fq%2FABC123">Send it to your class on WhatsApp</a></section>
+<section class="useful"><h2>What do you think of this report?</h2><form method="post" action="/cr/T/useful"><button class="btn" type="submit" name="useful" value="yes">Accurate</button> <button class="btn" type="submit" name="useful" value="no">Not accurate</button></form></section>
+</main>
+</body>
+</html>

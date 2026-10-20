@@ -422,7 +422,9 @@ class ReportGeneratorService {
       // `{ png, caption }` (hero renderer — currently FICO on NIETE, plus
       // OECD/HOTS/TEACH/MEWAKA once they're wired). Delivery path branches
       // on the shape.
-      const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, loop, nextStep);
+      // bd-gzfdu9 §4.9: the recommended clip on the report image — waits ≤ 20 s for the pick; null when off or slower.
+      const videoStrip = await require('./video-reco/strip').stripFor({ coachingSessionId, language: outputLanguage }).catch(() => null);
+      const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, loop, nextStep, videoStrip);
       const isHeroImage = !Buffer.isBuffer(reportResult) && reportResult && reportResult.png;
       // bd-v0toag.1.3 — voice-note seconds (from the session row, never decoded here) + report text length.
       const ReportEvents = require('./report-events');
@@ -501,6 +503,13 @@ class ReportGeneratorService {
           await require('./report-link-send').sendReportLinkIfNew({
             coachingSessionId, userId: session.user_id, phone: from, language: outputLanguage, track,
           });
+          // bd-gzfdu9: the recommended clip, one message after the report that arrived. Nothing unless
+          // VIDEO_RECO_ENABLED and the session's row is 'shown'. A failure never touches the report.
+          if (heroSent !== false) {
+            await require('./video-reco/send').sendAfterReport({
+              coachingSessionId, phone: from, language: outputLanguage, track, imageStrip: Boolean(videoStrip),
+            }).catch(() => null);
+          }
         }
         voiceStepAnnounced = heroSent !== false && fitted.some((l) => l.key === 'step5');
         if (heroSent !== false) ReportEvents.reportSent({ userId: session.user_id, sessionId: coachingSessionId, format: reportFormat });
@@ -965,7 +974,7 @@ class ReportGeneratorService {
    * @returns {Promise<Buffer>} PDF buffer
    * @private
    */
-  static async generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment = null, loop = null, nextStep = null) {
+  static async generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment = null, loop = null, nextStep = null, videoStrip = null) {
     logToFile('Generating PDF report', { coachingSessionId: session.id });
 
     // Resolve framework and dispatch to correct transformer
@@ -1047,6 +1056,7 @@ class ReportGeneratorService {
         // Feedback-uptake loop state ({ prior, status, state }) — the hero's
         // uptake block reads it; null when the loop is off.
         loop,
+        ...(videoStrip ? { videoStrip } : {}), // bd-gzfdu9 §4.9: the clip strip; absent → the hero opts as today
       },
     };
 
