@@ -109,6 +109,15 @@ function seed({ root = true, resetLeague = true } = {}) {
 }
 
 const SAVED = { ...process.env };
+// The league counts the PKT week from Monday 00:00, and the seeded finishes are hours old: on the real clock a
+// Monday-morning run (00:00-09:00 PKT) drops them. A fixed mid-week moment (Wed 10:00 PKT); only Date is faked,
+// so timers, ticks and microtasks stay real. Declared before the seeding beforeEach so the seed reads this clock.
+const NOW = Date.parse('2026-10-07T05:00:00Z');
+const NOT_DATE = ['hrtime', 'nextTick', 'performance', 'queueMicrotask', 'requestAnimationFrame', 'cancelAnimationFrame',
+  'requestIdleCallback', 'cancelIdleCallback', 'setImmediate', 'clearImmediate', 'setInterval', 'clearInterval',
+  'setTimeout', 'clearTimeout', 'Temporal'];
+beforeEach(() => { jest.useFakeTimers({ now: NOW, doNotFake: NOT_DATE }); });
+afterEach(() => { jest.useRealTimers(); });
 beforeEach(() => {
   process.env = { ...SAVED, INTERNAL_API_KEY: 'test-key' };
   delete process.env.WEB_QUIZ_TOKEN_SECRET;
