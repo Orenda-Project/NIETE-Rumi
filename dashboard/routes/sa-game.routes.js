@@ -27,6 +27,7 @@ const path = require('path');
 const express = require('express');
 const { createBotClient, bootJson } = require('./web-quiz.routes');
 const { createBrotliFlag } = require('./web-quiz-brotli-flag');
+const { steady } = require('./sa-switch');
 
 const KEY = 'sa_game';
 const DIR = path.join(__dirname, '..', 'sa-game');
@@ -108,7 +109,9 @@ function createSaGameRouter(opts = {}) {
   const botUrl = String(opts.botUrl != null ? opts.botUrl : (process.env.MAIN_BOT_URL || '')).replace(/\/$/, '');
   const apiKey = opts.apiKey != null ? opts.apiKey : (process.env.INTERNAL_API_KEY || '');
   const fetchImpl = opts.fetchImpl || ((...a) => fetch(...a));
-  const on = opts.on || createBrotliFlag({ key: KEY });
+  // The page's own files and the form's battery read the switch steadily (routes/sa-switch.js): a cold or failed read
+  // must never answer the portal's page for game.js (the map hung on it).
+  const on = steady(opts.on || createBrotliFlag({ key: KEY }), { ...(opts.holdMs != null ? { holdMs: opts.holdMs } : {}), ...(opts.now ? { now: opts.now } : {}) });
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl, ...(opts.logEvent ? { logEvent: opts.logEvent } : {}) });
   const router = express.Router();
   const phoneLang = (req) => (/^\s*en\b/i.test(String(req.get('accept-language') || '')) ? 'en' : 'ur');
@@ -135,6 +138,7 @@ function createSaGameRouter(opts = {}) {
     return res.status(200).type('html').send(renderGamePage({ token, kid, lang: b.lang, form: b.form, grade: b.grade }));
   });
 
+  router.use(['/sa-game/a', '/sa-game/b'], on.warm());
   router.get('/sa-game/a/:file', (req, res, next) => {
     const type = Object.prototype.hasOwnProperty.call(FILES, req.params.file) ? FILES[req.params.file] : null;
     if (!type || !on()) return next();
