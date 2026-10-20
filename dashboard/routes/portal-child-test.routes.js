@@ -20,6 +20,12 @@
  *   GET  /sa/schools                  the coach's schools, today's observe visit first
  *   GET  /sa/list?schoolId=&visitId=  today's children at that school (visitId optional)
  *   POST /sa/outcome                  { schoolId, visitId?, drawId, outcome, note? } → present opens a session
+ *   the engine's sink, for one session the coach opened here:
+ *   GET  /sa/session/:id/battery?lang= the battery for the child's grade, ur or en
+ *   POST /sa/session/:id/batch        { seqFrom, seqTo, events[], results[] } → { ackedTo }
+ *   POST /sa/session/:id/presign      { taskId, mime, bytes } → R2 PUT url for one task's recording
+ *   POST /sa/session/:id/register     { taskId, key } → the recording is kept
+ *   GET  /sa/session/:id/status       what the server holds, for the visit bar
  * Behind its own switch, `portal_child_test_sa` (same shape), instead of `portal_child_test`.
  *
  * GATES, in order: a portal session (401), the leader family (403), and the
@@ -101,5 +107,11 @@ router.post('/session/:id/check', ...gates, relay('check', (req) => ({
 router.get('/sa/schools', ...saGates, relay('sa/schools', () => ({})));
 router.get('/sa/list', ...saGates, relay('sa/list', (req) => pick(req.query, ['schoolId', 'visitId'])));
 router.post('/sa/outcome', ...saGates, relay('sa/outcome', (req) => pick(req.body, ['schoolId', 'visitId', 'drawId', 'outcome', 'note'])));
+const onSession = (fields) => (req) => ({ sessionId: req.params.id, ...pick(req.method === 'GET' ? req.query : req.body, fields) });
+router.get('/sa/session/:id/battery', ...saGates, relay('sa/battery', onSession(['lang'])));
+router.post('/sa/session/:id/batch', ...saGates, relay('sa/batch', onSession(['seqFrom', 'seqTo', 'events', 'results'])));
+router.post('/sa/session/:id/presign', ...saGates, relay('sa/presign', onSession(['taskId', 'mime', 'bytes'])));
+router.post('/sa/session/:id/register', ...saGates, relay('sa/register', onSession(['taskId', 'key'])));
+router.get('/sa/session/:id/status', ...saGates, relay('sa/status', onSession([])));
 
 module.exports = router;
