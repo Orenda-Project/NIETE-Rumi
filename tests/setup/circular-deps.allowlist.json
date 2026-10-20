@@ -44,12 +44,5 @@
       "bot/shared/services/student-ingress.js"
     ],
     "reason": "Both edges are lazy, inside functions: student-ingress.js bindingWords() requires the binder only for a JUGNU- code or a whole-message STOP, and web-quiz-bind.service.js stopForBoundNonChild() requires student-ingress.js only to ask quizInFlight() before a non-child's STOP. Neither module touches the other at load time."
-  },
-  {
-    "cycle": [
-      "bot/shared/services/quiz/student-quiz.service.js",
-      "bot/shared/services/quiz/web-quiz-child-lang.js"
-    ],
-    "reason": "Both edges are lazy, inside functions: student-quiz.service.js open() requires web-quiz-child-lang.js for the one language order (ladder) of the /quiz reply, and web-quiz-child-lang.js ladder()/childLang() require student-quiz.service.js for classLanguage/childLanguage/quizzesForStudents. Neither module touches the other at load time."
   }
 ]

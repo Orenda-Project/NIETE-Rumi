@@ -23,6 +23,7 @@ const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
+const { childLanguage, classLanguage, ladder } = require('./child-language-of');
 const StudentIdentity = require('./student-identity.service');
 const ChildFlowToken = require('./child-flow-token');
 
@@ -141,24 +142,6 @@ async function quizzesForStudents(known, { embed = false } = {}) {
   });
 }
 
-/**
- * The child's language: their newest quiz's, skipping library lesson codes (an Urdu lesson tapped from an
- * English class is an Urdu page, not an Urdu child). Only lesson codes played: the newest one. None: null.
- */
-function childLanguage(history) {
-  const e = (history || []).find((x) => !x.lessonCode) || (history || [])[0];
-  return e ? clampLanguage(e.language) : null;
-}
-
-/**
- * The language of the child's newest class quiz (library lesson codes skipped), else null. `classLanguage(h) ||
- * childLanguage(h)` is `childLanguage(h)`; with web_quiz_return_lang the link's language sits between the two.
- */
-function classLanguage(history) {
-  const e = (history || []).find((x) => !x.lessonCode);
-  return e ? clampLanguage(e.language) : null;
-}
-
 /** Open the child's /quiz: the Flow when configured, else two buttons for the latest quiz. */
 async function open(phone, { language = 'en' } = {}) {
   // family phone binding (web_quiz_phone_bind): the door's own set — bound ∪ chat children, folded, deduped.
@@ -172,8 +155,8 @@ async function open(phone, { language = 'en' } = {}) {
   // home is on, where that choice is made (switch off: null, nothing read beyond the cached switch row)
   const own = known.length && (await require('./web-quiz-hub-flags').flags()).hub
     ? await require('./child-language.repo').keptOf(known.map((s) => s.id)) : null;
-  // the one order (web-quiz-child-lang.js): chosen → the newest class quiz → joined → a library lesson → the family's
-  const lang = clampLanguage(require('./web-quiz-child-lang').ladder({ own, history: quizzes, lessons: !lessonsOnly }) || language);
+  // the one order (child-language-of.js): chosen → the newest class quiz → joined → a library lesson → the family's
+  const lang = clampLanguage(ladder({ own, history: quizzes, lessons: !lessonsOnly }) || language);
   // guest home (web_quiz_guest_home): no child on this phone → ONE guest reply; false → today's path below.
   if (!known.length && await require('./web-quiz-guest-home').offer(phone, lang)) return true;
   // The kid hub (app_settings web_quiz_hub): ONE link button to this phone's own children's hub;
