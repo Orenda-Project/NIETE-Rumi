@@ -203,4 +203,22 @@ describe('web_quiz_home_inline_every: the inline Home on every saved-phone open'
     expect(fixOf(every.body)).toBe(fixOf(today.body));
     expect(every.early.match(/<html[^>]*>/)[0]).toBe(today.early.match(/<html[^>]*>/)[0]);
   });
+
+  // The next stop drawn from the inline page is the hub answer's own, for the same open: no swap after paint.
+  for (const lang of ['en', 'ur']) {
+    test(`${lang}: the inline page's next === the hub answer's next, on a 1st open and on a cookie open`, async () => {
+      const next = { kind: 'quiz', offer: 'Off3rT3st1', href: '/q/AB12CD', title: 'Plants', source: 'ranked', pos: 0 };
+      const x = { lang, ...EVERY, next };
+      const bot = fakeBot({ pages: [jsonRes(200, HUB(x)), hold(x), jsonRes(200, HUB(x))] });
+      srv = await start(build(bot.fetchImpl));
+      const first = await get(srv, `/h/${TOKEN}`);
+      const again = await flushedOpen(srv, bot, { cookie: `wqhc=${V(first.body)}` });
+      const hub = await get(srv, `/api/wq/hub/${TOKEN}`);
+      const bootOf = (html) => JSON.parse(html.match(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+      expect(hub.status).toBe(200);
+      expect(JSON.parse(hub.body).next).toEqual(next);
+      expect(bootOf(first.body).next).toEqual(JSON.parse(hub.body).next);
+      expect(bootOf(again.body).next).toEqual(JSON.parse(hub.body).next);
+    });
+  }
 });
