@@ -81,6 +81,8 @@ describe('switch on: a clip that will not play is read by the phone, never left 
     h.audios[0].reject(h.err(name)); await h.flush();
     expect(phone(h)).toEqual([LINE]);
     expect(reasons(h)).toEqual(['reject']);
+    // the refusal's name rides the event (the server keeps `err`: [a-z0-9_])
+    expect(h.trace.find((t) => t[1] === 'audio_fallback')[2]).toEqual({ reason: 'reject', err: name.toLowerCase() });
     expect(classes(h)).not.toContain('wq-tap');
     h.until(99999);                                       // the 2 s wait that follows changes nothing
     expect(phone(h)).toEqual([LINE]);
@@ -91,6 +93,8 @@ describe('switch on: a clip that will not play is read by the phone, never left 
     h.audios[0].reject(h.err('NotAllowedError')); await h.flush();
     expect(phone(h)).toEqual([]);
     expect(classes(h)).toContain('wq-tap');
+    expect(reasons(h)).toEqual(['reject']);
+    expect(h.trace.find((t) => t[1] === 'audio_fallback')[2].err).toBe('notallowederror');
     expect(h.done.n).toBe(1);
   });
   test('a line stopped by the next screen stays quiet: no phone voice, no done()', async () => {

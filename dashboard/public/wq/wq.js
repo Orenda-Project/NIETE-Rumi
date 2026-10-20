@@ -1158,7 +1158,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         switched = true;
         try { if (player) player.pause(); } catch (e) {}
         player = null;
-        ev('audio_fallback', { reason: why });
+        // switch on: a refused start says why (the event's err), so an autoplay refusal is told from a broken clip
+        ev('audio_fallback', GAP_PHONE && err && err.name ? { reason: why, err: String(err.name).toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 40) } : { reason: why });
         var tap = why === 'reject' && !(GAP_PHONE && err && err.name !== 'NotAllowedError');
         if (why === 'stalled' && !GAP_PHONE) { end(); return; }
         if (tap) { try { ROOT.classList.add('wq-tap'); } catch (e) {} end(); return; }
