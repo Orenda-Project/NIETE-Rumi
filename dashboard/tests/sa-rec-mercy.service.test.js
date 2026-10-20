@@ -14,8 +14,10 @@ class FakeMR {
 }
 
 /** A fake AudioContext whose analyser hears `level(t)` (0..1) at the clock's time t (ms). */
-function fakeAudio(clock, level) {
+function fakeAudio(clock, level, ctl) {
   return class {
+    constructor() { if (ctl) { this.state = ctl.state; ctl.ctx = this; } }
+    resume() { if (ctl) { ctl.resumes = (ctl.resumes || 0) + 1; if (ctl.resumeTo) this.state = ctl.resumeTo; } return Promise.resolve(); }
     createMediaStreamSource() { return { connect() {} }; }
     createAnalyser() {
       return {
@@ -33,12 +35,12 @@ function fakeInterval() {
   return { fns, set: (f) => { fns.set(++n, f); return n; }, clear: (h) => { fns.delete(h); } };
 }
 
-async function rig(level, ls) {
+async function rig(level, ls, ctl) {
   const clock = { t: 0 };
   const iv = fakeInterval();
   const s = await storeMod.open({ idb: null });
   const r = rec.create({ store: s, session_id: 'x', MediaRecorder: FakeMR, getUserMedia: async () => ({ getTracks: () => [] }),
-    now: () => clock.t, AudioContext: fakeAudio(clock, level), interval: iv, localStorage: ls || null });
+    now: () => clock.t, AudioContext: fakeAudio(clock, level, ctl), interval: iv, localStorage: ls || null });
   await r.ready();
   r.start('ur.story');
   const fired = [];
@@ -78,6 +80,27 @@ test('a child who starts reading at once (voice from 0 s, never a quiet second) 
   run(25000);
   expect(fired).toEqual([]);
   expect(iv.fns.size).toBe(0);
+});
+
+test('a suspended AudioContext (Android, no gesture) is no ear, never silence: ear_unavailable, no mercy, no stop', async () => {
+  const ctl = { state: 'suspended' };
+  const { r, fired, run, iv } = await rig(() => 0, null, ctl);
+  expect(ctl.resumes).toBeGreaterThan(0);
+  run(25000);
+  expect(fired).toEqual([{ kind: 'ear_unavailable' }]);
+  expect(iv.fns.size).toBe(0);
+  expect(r.ear()).toBe('unavailable');
+});
+
+test('a context that resumes on the tap hears normally; wake() resumes it', async () => {
+  const ctl = { state: 'suspended', resumeTo: 'running' };
+  const { r, fired, run } = await rig(() => 0, null, ctl);
+  run(12000);
+  expect(fired).toEqual([{ kind: 'mercy', silence_s: 12 }]);
+  expect(r.ear()).toBe('running');
+  ctl.ctx.state = 'suspended';
+  r.wake();
+  expect(ctl.ctx.state).toBe('running');
 });
 
 test('stop() ends the watch; the module-level SAE.rec.onSilence uses the last recorder', async () => {
