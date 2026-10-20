@@ -16,6 +16,7 @@ const PAGES = {
   'quiz-go': `/quiz/go/${TOK}`,
   'quiz-join': `/quiz/join/${TOK}`,
   'quiz-teacher': `/quiz/teacher/${TOK}`,
+  'sa-game': `/sa-game/${TOK}?kid=0123456789abcdef`,
 };
 
 function botRes(status, body, type) {
