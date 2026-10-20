@@ -13,7 +13,9 @@ const mockWhatsApp = { sendMessage: jest.fn(async () => true), sendInteractiveBu
 jest.mock('../../bot/shared/config/supabase', () => mockSupabase);
 jest.mock('../../bot/shared/services/whatsapp.service', () => mockWhatsApp);
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
-// Behind the v10 test's master switch: off, a tap is left exactly as before.
+// Sandbox records every card tap whatever the v10 switch says (bd-wl9o9t port ruling): staging's
+// "off → not ours" gate would drop the answers sandbox has always kept. The mock stays so the
+// test proves the switch is never the reason a tap is lost.
 const mockSwitch = { v10Enabled: jest.fn(async () => true) };
 jest.mock('../../bot/shared/services/coaching/ab-v10-switch', () => mockSwitch);
 
@@ -74,12 +76,13 @@ describe('handleCardButton — the router entry', () => {
   });
 });
 
-describe('behind ab_v10_enabled', () => {
-  test('switch off: the tap is not ours — returns false, writes nothing, sends nothing', async () => {
+describe('not behind ab_v10_enabled on sandbox', () => {
+  test('switch off: the tap is still recorded and acked, as sandbox always did', async () => {
     mockSwitch.v10Enabled.mockResolvedValue(false);
-    expect(await svc.handleCardButton(`card_yes_${SESSION}`, PHONE, 'en')).toBe(false);
-    expect(updates).toHaveLength(0);
-    expect(mockWhatsApp.sendMessage).not.toHaveBeenCalled();
+    expect(await svc.handleCardButton(`card_yes_${SESSION}`, PHONE, 'en')).toBe(true);
+    expect(updates).toHaveLength(1);
+    expect(updates[0].prioritized_action.teacher_response).toBe('yes');
+    expect(mockWhatsApp.sendMessage).toHaveBeenCalledTimes(1);
   });
 });
 
