@@ -411,9 +411,10 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
     }
     // The quiz's clips in meta.web: the map of every entry so far, merged into the freshest meta so a
     // concurrent write to another key survives; stamped audio_v only when the whole quiz is done.
-    const writeAudio = async ({ final }) => {
+    const writeAudio = async ({ final, only = null }) => {
       const audio = {};
       for (const [qid, entry] of entries) {
+        if (only && !only.has(qid)) continue;   // each-question writes carry only whole questions
         const { hint, ...rest } = entry;
         const copy = { ...rest, opts: [...entry.opts], fbs: [...entry.fbs] };   // a snapshot: recording goes on
         if (entry.q || entry.why || hint || entry.opts.some(Boolean) || entry.fbs.some(Boolean)) audio[qid] = hint ? { ...copy, hint } : copy;
@@ -436,6 +437,12 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
     const firstQid = (questions || []).length > 1 ? questions[0].id : null;
     let firstLeft = firstQid ? tasks.filter((t) => t.q.id === firstQid).length : 0;
     let early = Promise.resolve();
+    // web_quiz_audio_each_question: every question is written the moment its own clips are all done (whole questions
+    // only, one write after another), so a child on question 2 or 3 during the recording hears it too.
+    const eachQ = firstQid ? await require('./web-quiz-audio-each-flag').on({ db: client }) : false;
+    const left = new Map();
+    if (eachQ) for (const t of tasks) left.set(t.q.id, (left.get(t.q.id) || 0) + 1);
+    const whole = new Set();
     let started = 0;
     const recordOne = async ({ q, part, text, key }) => {
       let have = await exists(key, bucket);
@@ -478,6 +485,17 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS, oneV
     };
     const record = async (task) => {
       await recordOne(task);
+      if (eachQ) {
+        const n = left.get(task.q.id) - 1;
+        left.set(task.q.id, n);
+        if (n === 0 && whole.size + 1 < left.size) {
+          whole.add(task.q.id);
+          early = early.then(() => writeAudio({ final: false, only: new Set(whole) })).catch((error) => logError('web_quiz.publish_audio.early_write_failed', {
+            event: 'web_quiz.publish_audio.early_write_failed', quizId, error: String(error.message || error).slice(0, 200),
+          }));
+        }
+        return;
+      }
       if (firstQid && task.q.id === firstQid && (firstLeft -= 1) === 0) {
         early = writeAudio({ final: false }).catch((error) => logError('web_quiz.publish_audio.early_write_failed', {
           event: 'web_quiz.publish_audio.early_write_failed', quizId, error: String(error.message || error).slice(0, 200),

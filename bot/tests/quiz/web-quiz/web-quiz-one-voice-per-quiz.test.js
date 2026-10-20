@@ -85,14 +85,15 @@ const JESSICA = { provider: 'elevenlabs', voice: 'cgSgspJ2msm6clMCkdW9', name: '
 const ALL_AI = { bank: [] };
 const GENERATED = (tag = TAG) => ({ [CHECKED.id]: gen(CHECKED.id, tag), [QID2]: gen(QID2, tag) });
 
-function seed(rows, { flag, meta = {} } = {}) {
+function seed(rows, { flag, meta = {}, each } = {}) {
   const fake = makeFake({
     quiz_share_codes: [{ id: SC, code: 'AB12CD', quiz_id: QUIZ, video_id: null, teacher_user_id: TEACHER, teacher_name: 'Example',
       topic: 'Months', language: null, active: true, expires_at: future, invited_by_student_id: null, parent_share_code_id: null,
       uses_count: 0, created_at: new Date().toISOString() }],
     quizzes: [{ id: QUIZ, topic: 'Months', grade: '1', subject: 'English', language: null, meta, quiz_source: 'video' }],
     quiz_questions: rows, quiz_sessions: [], students: [], quiz_answers: [],
-    app_settings: flag === undefined ? [] : [{ key: 'web_quiz_one_voice', value: flag }],
+    app_settings: [...(flag === undefined ? [] : [{ key: 'web_quiz_one_voice', value: flag }]),
+      ...(each === undefined ? [] : [{ key: 'web_quiz_audio_each_question', value: each }])],
   });
   Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
   return fake;
@@ -245,6 +246,23 @@ describe('a quiz recorded before the switch is recorded again (once)', () => {
       expect(spy).toHaveBeenCalledWith(QUIZ, expect.objectContaining({ oneVoice: expect.objectContaining({ sig: OneVoice.normalize(true).sig }) }));
       expect(out.quiz.audio_pending).toBe(true);
     } finally { spy.mockRestore(); }
+  });
+
+  // web_quiz_audio_each_question: the recording writes each question as it is done, so the page asks every 5 s
+  // (not 10 s) while it is pending; switched off the payload is today's (no late_ms).
+  test('with web_quiz_audio_each_question on, a pending page is told to ask every 5 s; off: no field', async () => {
+    const spy = jest.spyOn(Publish, 'requestQuizAudio').mockResolvedValue({ queued: true });
+    try {
+      require('../../../shared/services/quiz/web-quiz-audio-each-flag')._resetCache();
+      const on = await page(ROWS(), GENERATED(), { flag: true, meta: { web: recorded }, each: true });
+      expect(on.quiz.audio_pending).toBe(true);
+      expect(on.quiz.late_ms).toBe(5000);
+      WQ._resetQuizCache(); OneVoice.reset(); IdRoster._resetCache();
+      require('../../../shared/services/quiz/web-quiz-audio-each-flag')._resetCache();
+      const off = await page(ROWS(), GENERATED(), { flag: true, meta: { web: recorded } });
+      expect(off.quiz.audio_pending).toBe(true);
+      expect('late_ms' in off.quiz).toBe(false);
+    } finally { spy.mockRestore(); require('../../../shared/services/quiz/web-quiz-audio-each-flag')._resetCache(); }
   });
 
   test('asked just before the switch went on, it is asked again, under its own job id (the queue would drop a repeat)', async () => {
