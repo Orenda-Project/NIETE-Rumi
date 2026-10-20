@@ -8,10 +8,11 @@ import { useCopy } from "../../teacher/i18n";
 import { CHEVRON, FOCUS, LIST_CARD, ROW_TITLE } from "../../teacher/ui/styles";
 import { readDisagreementsOn } from "./api";
 import { DISAGREE } from "./copy";
+import { AppBar } from "./appBar";
 
 /**
  * bd-tbprit.3 — what the disagreement screens share: their own flag (coach_disagreement_card, fail-closed), the
- * coach gate and the kit's page frame, and the one entry row on Reports.
+ * coach gate and the kit's page frame under Rifat's app bar, and the one entry row on Reports.
  */
 
 /** null while /config is read, then true only for a real true. */
@@ -33,12 +34,13 @@ export function Gated({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-export function DisagreementsFrame({ title, crumb, backTo, testId, children }: {
-  title: ReactNode; crumb: ReactNode; backTo: string; testId: string; children: ReactNode;
+/** bd-tbprit.7 — Rifat's navy app bar (← back, the screen's name, EN | اردو) stays pinned while she scrolls. */
+export function DisagreementsFrame({ title, sub, mark, backTo, testId, children }: {
+  title: ReactNode; sub?: ReactNode; mark?: string; backTo?: string; testId: string; children: ReactNode;
 }) {
   return (
     <CoachGate>
-      <TeacherPage feature="reports" title={title} crumb={crumb} backTo={backTo} testId={testId}>
+      <TeacherPage feature="reports" hero={<AppBar title={title} sub={sub} mark={mark} backTo={backTo} />} stickyHero testId={testId}>
         {children}
       </TeacherPage>
     </CoachGate>

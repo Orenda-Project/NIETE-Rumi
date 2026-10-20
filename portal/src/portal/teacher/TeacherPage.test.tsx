@@ -105,3 +105,17 @@ describe("TeacherPage header: card tile (bd-fmf24g.23)", () => {
     expect(container.querySelector("header")?.outerHTML).not.toMatch(/\b(ml|mr|pl|pr|left|right)-\d|\b(left|right)-\[/);
   });
 });
+
+// bd-tbprit.7 — Rifat's disagreement screens keep their navy app bar (← back, EN/اردو) in view while scrolling.
+describe("TeacherPage stickyHero", () => {
+  it("pins the hero to the top when asked", () => {
+    page({ title: undefined, hero: <div>bar</div>, stickyHero: true });
+    expect(screen.getByTestId("page-hero").className).toMatch(/\bsticky\b/);
+    expect(screen.getByTestId("page-hero").className).toMatch(/\btop-0\b/);
+  });
+
+  it("a hero scrolls away by default (Home's band)", () => {
+    page({ title: undefined, hero: <div>bar</div> });
+    expect(screen.getByTestId("page-hero").className).not.toMatch(/\bsticky\b/);
+  });
+});

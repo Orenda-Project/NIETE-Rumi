@@ -91,7 +91,6 @@ function Body() {
   return (
     <DisagreementsFrame
       title={card ? card.teacher ?? C.dash : C.title}
-      crumb={card ? card.school ?? C.dash : C.crumb}
       backTo="/portal/coach/disagreements"
       testId="coach-disagreement"
     >

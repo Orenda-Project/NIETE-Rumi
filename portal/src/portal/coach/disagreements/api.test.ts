@@ -45,6 +45,6 @@ describe("disagreements api", () => {
   });
 
   it("every word has its Urdu", () => {
-    expect(untranslated(DISAGREE, ["dash", "arrow"])).toEqual([]);
+    expect(untranslated(DISAGREE, ["dash", "arrow", "schoolEmis", "appName"])).toEqual([]);
   });
 });
