@@ -769,6 +769,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       chalPlayed: function (w, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز کھیلا۔ اب آپ کی باری! کھیلنے کے لیے لنک دبائیں:'; }
     });
   }
+  // The child's name isolated in the English share words (app_settings web_quiz_share_name_bidi → the payload's
+  // `name_bidi`): the name and the quiz's name each in a first-strong isolate (U+2068 … U+2069), as the Urdu lines have
+  // them, so a name written in Urdu script never turns the English line right to left in WhatsApp. Off: today's T.
+  if (LANG === 'en' && B.name_bidi === true) {
+    var iso = function (x) { return '⁨' + x + '⁩'; };
+    T = Object.assign({}, T, {
+      shareLine: function (w, s, n, t) { return iso(w) + ' got ' + s + '/' + n + ' stars on ' + iso(t) + '. Can you beat it?'; },
+      sharePlayed: function (w, t) { return iso(w) + ' played ' + iso(t) + '. Your turn!'; },
+      chalLine: function (w, s, n, t) { return iso(w) + ' here! I got ' + s + '/' + n + ' stars on ' + iso(t) + '. Can you beat me? 🏆 Tap the link to play:'; },
+      chalPlayed: function (w, t) { return iso(w) + ' here! I played ' + iso(t) + '. Your turn! Tap the link to play:'; }
+    });
+  }
   // The polished Urdu copy (app_settings web_quiz_ur_polish → the edge's `wq-ur2` class on <html>): a child's words, shorter
   // lines, Urdu digits isolated left to right, one word for "done". Off, T is today's map, untouched.
   var UR2 = LANG === 'ur' && (function () { try { return document.documentElement.classList.contains('wq-ur2'); } catch (e) { return false; } })();
