@@ -33,7 +33,7 @@ test('skip: the blob is deleted, the result says not_kept, nothing is uploaded o
   };
   const puts = [];
   const t = fakeTimers();
-  const q = sync.create({ store: s, sink, session_id: 'x', online: () => true, timers: t, put: async (u) => { puts.push(u); }, join: (c) => c.map((x) => x.blob).join('') });
+  const q = sync.create({ store: s, sink, session_id: 'x', online: () => true, timers: t, put: async (u) => { puts.push(u); }, join: (c) => c.map((x) => x.blob).join(''), localStorage: null });
   const st = await q.flush();
   expect(st.state).toBe('synced');
   expect(puts).toEqual([]);
@@ -62,7 +62,7 @@ test('a sink error is not a skip: the audio stays on the phone and is retried', 
   };
   const puts = [];
   const t = fakeTimers();
-  const q = sync.create({ store: s, sink, session_id: 'x', online: () => true, timers: t, put: async (u) => { puts.push(u); }, join: (c) => c.map((x) => x.blob).join('') });
+  const q = sync.create({ store: s, sink, session_id: 'x', online: () => true, timers: t, put: async (u) => { puts.push(u); }, join: (c) => c.map((x) => x.blob).join(''), localStorage: null });
   const st = await q.flush();
   expect(st.state).toBe('error');
   expect((await s.chunks('x')).length).toBe(4);
@@ -71,4 +71,24 @@ test('a sink error is not a skip: the audio stays on the phone and is retried', 
   fail = false;
   await q.flush();
   expect(puts.length).toBe(2);
+});
+
+test('a reload between the skip and the result keeps the mark: the next page\'s sync still sends not_kept', async () => {
+  const s = await storeMod.open({ idb: null });
+  await s.putChunk('x', 'ur.listening/q1', 0, 'CD', { mime: 'audio/webm' });
+  await s.putChunk('x', 'ur.listening/q1', 1, null, { final: true, duration_ms: 2000 });
+  const m = {};
+  const ls = { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: (k) => { delete m[k]; } };
+  const sent = [];
+  const sink = {
+    putBatch: async (b) => { sent.push(b.results.map((r) => [r.task_id, r.audio || null])); return { ok: true, acked_to: b.seq_to }; },
+    presignAudio: async () => ({ skip: true, reason: 'audio_off' }),
+    registerAudio: async () => ({ ok: true }),
+  };
+  const opts = { store: s, sink, session_id: 'x', online: () => true, timers: fakeTimers(), put: async () => {}, join: () => 'x', localStorage: ls };
+  await sync.create(opts).flush();
+  // the page reloads: a new sync, the result is written only now
+  await s.putResult('x', { task_id: 'ur.listening', correct: 1 });
+  await sync.create(opts).flush();
+  expect(sent.pop()).toEqual([['ur.listening', 'not_kept']]);
 });
