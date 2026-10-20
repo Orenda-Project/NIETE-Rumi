@@ -76,6 +76,10 @@ function nativeAvailable(catalog, id) {
   return false;
 }
 
+// SPEC v1.3b (lead-review 20:16Z): 37-ids no chapter enacts as a classroom move — Use of Taleemabad Lesson Plan,
+// Integration of Taleemabad Technology. A catalogue hole, resolved before any route on every source.
+const NO_MOVE = new Set(['B7', 'C10']);
+
 function none(reason, extra = {}) {
   return {
     indicator: null, indicators: [], moves: [], stepIndicator: null, stepAtTop: false, source: null, cardText: null,
@@ -114,6 +118,10 @@ function pick(analysis, nextStep, card, catalog, lesson = {}) {
       return { ...none(null), source: 'card_text', cardText, scheme };
     }
     if (!raw) return none('no_target');
+    // On the 37 scheme only (v4-B7 is closure); an id outside the 26 is a 37-id whatever the analysis says.
+    if (NO_MOVE.has(raw) && (is37 || !V4_IDS.has(raw))) {
+      return none('hole:no_move', { storedIndicator: raw, scheme: 'fico_main_37', source, aliasKind: 'no_move' });
+    }
 
     const hit = rows.find((x) => String(x.r.id) === raw) || null;
     const top = (hit && hit.top) || (is37 ? 4 : 2);
@@ -146,4 +154,4 @@ function pick(analysis, nextStep, card, catalog, lesson = {}) {
   }
 }
 
-module.exports = { pick, scorerQuote, scorerQuoteOnly, PHASE_MOVES, V4_IDS, SUBJECT_ROWS };
+module.exports = { pick, scorerQuote, scorerQuoteOnly, PHASE_MOVES, V4_IDS, SUBJECT_ROWS, NO_MOVE };
