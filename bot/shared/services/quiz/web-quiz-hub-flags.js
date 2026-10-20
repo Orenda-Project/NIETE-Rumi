@@ -109,6 +109,10 @@ const CHALLENGE_LINE_KEEP_KEY = 'web_quiz_challenge_line_keep';
 // web_quiz_end_fit (JSON true only, from this cache only: nowOf('endFit')): the quiz page answer says `end_fit`, so the end
 // screen draws its stars in one row sized from their count and its score headline balanced (wq.js results)
 const END_FIT_KEY = 'web_quiz_end_fit';
+// web_quiz_share_name_bidi (JSON true only, from this cache only: nowOf('nameBidi')): the quiz page answer says `name_bidi`, so
+// the English share words isolate the child's name (wq.js), and an Urdu page names a challenger as the English page does
+// (web-quiz.service.js challengeOf)
+const NAME_BIDI_KEY = 'web_quiz_share_name_bidi';
 // A grown-up changes the child's grade for good (web-quiz-grade-change.js): the hub answer says `grownups.grade`, JSON true only.
 const GRADE_CHANGE_KEY = 'web_quiz_grade_change';
 // web_quiz_hub_waves2 (JSON true only, and only with fanout on): the hub's longest read chains start earlier (hub.js)
@@ -231,6 +235,7 @@ const SWITCHES = Object.freeze([
   ['readalong',    READALONG_KEY,         'loose'],
   ['rewatchDone',  REWATCH_DONE_KEY,      'json'],
   ['serverTiming', SERVER_TIMING_KEY,     'json'],
+  ['nameBidi',     NAME_BIDI_KEY,         'json'],
   [null,           SHARE_KEY,             'read'],
   ['videoClean',   VIDEO_CLEAN_KEY,       'json'],
   ['home',         HOME_KEY,              'json'],
