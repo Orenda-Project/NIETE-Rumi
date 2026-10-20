@@ -1537,18 +1537,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // A challenger who scored 0 is never a score to beat (the card shares a zero as "played"): the friend is just challenged.
     var chLine = ch ? (ch.correct > 0 ? T.challenged(ch.first, ch.correct, ch.total) : T.challengedBy(ch.first)) : '';
     if (B.preview && params.p) return teacherLanding();
-    if (ID && !B.preview) { ID.landing(chLine, chPic(chLine)); wireChPic(); return; }
+    // web_quiz_challenge_fold (the answer's challenge_fold): the way in comes right after the challenge line, and the
+    // invite picture follows it, so a small phone shows Play on the first screen
+    var pic = chPic(chLine), fold = Boolean(B.challenge_fold && pic);
+    if (ID && !B.preview) { if (fold) ID.landing(chLine, pic, true); else ID.landing(chLine, pic); wireChPic(); return; }
     var h = bar() +
       (B.preview ? '<div class="wq-banner">' + esc(T.selfT) + '</div>' : '') +
       jug('hello', last ? T.helloN(last.first) : T.hello, true, true) +
       '<div class="wq-card wq-stack"><h1' + latT(Q.topic) + '>' + esc(Q.topic) + '</h1>' +
       '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
-      chPic(chLine) +
+      (fold ? '' : pic) +
       (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
       (B.preview && params.p ? '<button class="wq-btn wq-go" id="wq-preview">' + esc(T.previewPlay) + '</button><button class="wq-btn wq-navy" id="wq-whoplayed">' + esc(TW.whoBtn) + '</button>' :
       last ? '<button class="wq-btn wq-go" id="wq-play-as">' + esc(T.playAs(last.first)) + '</button><button class="wq-btn wq-ghost" id="wq-notme">' + esc(T.notMe(last.first)) + '</button>'
         : '<button class="wq-btn wq-go" id="wq-play">' + esc(T.play) + '</button>') +
+      (fold ? pic : '') +
       (LIVE.ict_today_floor ? '<p class="wq-proof">🌟 ' + esc(T.proof(LIVE.ict_today_floor)) + '</p>' : '') +
       (LIVE.class_today >= 5 && !B.challenge ? '<p class="wq-small">' + esc(T.classToday(LIVE.class_today)) + '</p>' : '') +
       // Classmates with a right answer in the last 2 minutes (a count from the bot's memory); never on a friend's challenge.
