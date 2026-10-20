@@ -2,7 +2,10 @@
  * The child's page, /sa/play.html (switch sa_engine): the one screen both surfaces open.
  *
  *   ?s=<session id>&form=<sa.coach.G3.A.ur>&mode=proctored|game&lang=ur|en&block=B1..B5|full&back=<same-origin url>
- *   &skin=game   #n=<first name>
+ *   &skin=game &embed=1   #n=<first name>
+ *
+ * embed=1: the page sits in the coach page's same-origin iframe; at the hand-back it tells the parent
+ * (postMessage {type:'sa:done', s, reason}) instead of going to back.
  *
  * The first name rides in the fragment (never sent to a server), is read once for the handover screen and dropped
  * from the address bar. block picks battery.blocks[block] (the coach's five-block design); absent or "full" runs every
@@ -40,6 +43,7 @@
       // Only a same-origin path: never an open redirect.
       back: /^\/(?!\/)[^\s\\]*$/.test(back) ? back : null,
       skin: q.get('skin') === 'game' ? 'game' : null,
+      embed: q.get('embed') === '1',
       first_name: name || null,
     };
   }
@@ -73,6 +77,55 @@
     return e;
   }
 
+  /** A script, resolved when it ran or when it is missing (a skin not shipped yet never stops the test). */
+  function load(doc, src) {
+    return new Promise(function (ok) {
+      var s = doc.createElement('script');
+      s.src = src;
+      s.onload = function () { ok(true); };
+      s.onerror = function () { ok(false); };
+      doc.head.appendChild(s);
+    });
+  }
+
+  /**
+   * Proctored: no way out for the child but finishing. The browser's back is caught and logged (the page stays), the
+   * first tap asks for full screen (a browser needs a tap for it), and the screen is kept awake while the run lasts.
+   * The coach's own way out is the press-and-hold on the screens. Returns a release().
+   */
+  function lockDown(win, engine) {
+    var doc = win.document;
+    var nav = win.navigator;
+    var lock = null;
+    var hist = win.history;
+    var onPop = function () {
+      engine.runner.log('back_blocked');
+      if (hist && hist.pushState) hist.pushState({ sa: 1 }, '', win.location.href);
+    };
+    if (hist && hist.pushState) { hist.pushState({ sa: 1 }, '', win.location.href); win.addEventListener('popstate', onPop); }
+    var onFirst = function () {
+      doc.removeEventListener('pointerdown', onFirst, true);
+      var de = doc.documentElement;
+      var req = de.requestFullscreen || de.webkitRequestFullscreen;
+      if (req) { try { var r = req.call(de); if (r && r.catch) r.catch(function () {}); } catch (_) { /* not allowed here */ } }
+    };
+    doc.addEventListener('pointerdown', onFirst, true);
+    var wake = function () {
+      if (!nav || !nav.wakeLock || doc.visibilityState !== 'visible') return;
+      nav.wakeLock.request('screen').then(function (l) { lock = l; }, function () {});
+    };
+    var onVis = function () { if (doc.visibilityState === 'visible') wake(); else engine.runner.log('hidden'); };
+    doc.addEventListener('visibilitychange', onVis);
+    wake();
+    return function release() {
+      win.removeEventListener('popstate', onPop);
+      doc.removeEventListener('pointerdown', onFirst, true);
+      doc.removeEventListener('visibilitychange', onVis);
+      if (lock && lock.release) lock.release().catch(function () {});
+      if (doc.fullscreenElement && doc.exitFullscreen) doc.exitFullscreen().catch(function () {});
+    };
+  }
+
   function fail(mount, words) {
     mount.textContent = '';
     mount.appendChild(el('p', 'sa-fail', words));
@@ -89,25 +142,35 @@
     doc.documentElement.lang = p.lang;
     doc.documentElement.dir = p.lang === 'ur' ? 'rtl' : 'ltr';
     if (!p.session_id || !p.form) { fail(mount, p.lang === 'ur' ? 'یہ لنک درست نہیں۔' : 'This link is not right.'); return; }
+    // Game mode: the game lane's sink and skin, loaded (or found missing) before the engine starts, so the skin sees
+    // the first event and the sink exists for the first sync.
+    var extras = [];
     if (p.skin === 'game') {
       var css = el('link'); css.rel = 'stylesheet'; css.href = '/sa/skin-game.css'; doc.head.appendChild(css);
-      var js = el('script'); js.src = '/sa/skin-game.js'; js.defer = true; doc.head.appendChild(js);
+      extras.push('/sa/skin-game.js');
     }
+    if (p.mode === 'game') extras.push('/sa/sink-game.js');
     var url = '/sa/batteries/' + p.form + '.json';
-    root.fetch(url, { cache: 'no-cache' }).then(function (r) {
+    Promise.all(extras.map(function (src) { return load(doc, src); })).then(function () {
+      return root.fetch(url, { cache: 'no-cache' });
+    }).then(function (r) {
       if (!r.ok) throw new Error('battery ' + r.status);
       return r.json();
     }).then(function (full) {
       var battery = pick(full, p.block);
       var sink = p.mode === 'proctored'
         ? (SAE.sinks && SAE.sinks.coach ? SAE.sinks.coach() : null)
-        : (SAE.sinks && SAE.sinks.game ? SAE.sinks.game({ session_id: p.session_id }) : null);
+        : ((root.SAE.sinks && root.SAE.sinks.game) ? root.SAE.sinks.game({ session_id: p.session_id }) : null);
       var offline = SAE.offline ? SAE.offline.prepare({ battery_url: url, battery: full, lang: p.lang, base: '/' }) : Promise.resolve({ ready: false });
-      return SAE.start({
+      return root.SAE.start({
         mount: mount, battery: battery, mode: p.mode, lang: p.lang, sink: sink, session_id: p.session_id,
-        child: p.first_name ? { first_name: p.first_name } : null, back: p.back,
+        child: p.first_name ? { first_name: p.first_name } : null, back: p.back, embed: p.embed,
       }).then(function (engine) {
         root.__sae = engine;
+        if (p.mode === 'proctored') {
+          var release = lockDown(root, engine);
+          engine.on('unlock', release);
+        }
         offline.then(function (o) { engine.runner.log('offline_ready', { value: { ready: !!o.ready, clips: o.clips || 0, clips_missing: o.clips_missing || 0 } }); });
         root.addEventListener('offline', function () { engine.runner.log('offline'); });
         root.addEventListener('online', function () { engine.runner.log('online'); });
@@ -118,5 +181,5 @@
     });
   }
 
-  return { params: params, pick: pick, boot: boot };
+  return { params: params, pick: pick, lockDown: lockDown, boot: boot };
 }));
