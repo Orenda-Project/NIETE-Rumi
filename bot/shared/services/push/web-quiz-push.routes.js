@@ -29,7 +29,8 @@ function createRouter() {
     req.pushSwitches = s;
     return next();
   });
-  const send = (res, out) => (out && out.status ? res.status(out.status).json({ err: out.err }) : res.json(out));
+  // a refusal carries {status, err}; a result may carry the push service's own status as data ({ok, sent, status})
+  const send = (res, out) => (out && out.err ? res.status(out.status || 400).json({ err: out.err }) : res.json(out));
   const wrap = (fn) => async (req, res) => {
     try {
       return send(res, await fn(req));
