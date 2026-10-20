@@ -292,3 +292,99 @@ test('a tap on the passage is scored by the place tapped, not the word (a word c
   r2.start(); r2.instructionDone(); r2.begin();
   expect(r2.answer(2)).toBe(true);
 });
+
+describe('car 4a: the session gates and the run-time guards', () => {
+  const rec = { id: 'story', mode: 'record', time_limit_s: 60, passage: { text: 'a b' }, items: [{ id: 'w1', target: 'a', line: 1 }] };
+  const oral = { id: 'comp', mode: 'oral', items: [{ id: 'q1' }, { id: 'q2' }] };
+  const keys = { id: 'add1', mode: 'keypad', time_limit_s: 60, items: [{ id: 'k1', target: '4' }, { id: 'k2', target: '5' }] };
+  const tap = { id: 'letters', mode: 'tap', time_limit_s: 60, items: items(6) };
+  const bat = (...t) => ({ battery_id: 'g', tasks: t });
+  function through(r) { // instruction → practice → ready → running for whatever task is up
+    if (r.view().phase === 'instruction') r.instructionDone();
+    while (r.view().phase === 'practice') r.practiceAnswer(r.view().practice.target);
+    r.begin();
+  }
+
+  test('proctored: no mic_ok → a record or oral task is skipped as mic_unavailable, never recorded', () => {
+    const { r } = make(bat(tap, rec, oral), { mic: () => 'no' });
+    r.start(); through(r); for (let i = 0; i < 6; i++) r.answer('a');
+    r.next();
+    expect(r.results()[1]).toMatchObject({ task_id: 'story', stop_reason: STOP.MIC });
+    r.next();
+    expect(r.results()[2]).toMatchObject({ task_id: 'comp', stop_reason: STOP.MIC });
+  });
+
+  test('no mic: a question task hanging on the passage says mic_unavailable, not "no first line"', () => {
+    const dep = Object.assign({}, oral, { depends_on: { task: 'story', upto_item: 'last_word_tap' } });
+    const { r } = make(bat(rec, dep), { mic: () => 'no' });
+    r.start(); r.next();
+    expect(r.results().map((x) => [x.task_id, x.stop_reason])).toEqual([['story', STOP.MIC], ['comp', STOP.MIC]]);
+  });
+
+  test('game: the mic check comes once, before the first task that records; a pass is kept for the run', () => {
+    const { r, events } = make(bat(rec, oral), { mic: () => 'unknown', mic_check: true, oral_practice: false });
+    r.start();
+    expect(r.view().phase).toBe('mic_check');
+    r.micChecked(true, 0.031); // the phone could not store it (a private tab): the pass still holds for the run
+    expect(events.find((e) => e.type === 'mic_check').value).toEqual({ ok: true, rms: 0.031 });
+    expect(r.view()).toMatchObject({ phase: 'instruction', task: { id: 'story' } });
+    r.coachEnd(); r.next();
+    expect(r.view()).toMatchObject({ phase: 'instruction', task: { id: 'comp' } });
+  });
+
+  test('game: a failed mic check skips the recording tasks as mic_unavailable', () => {
+    const { r } = make(bat(rec), { mic: () => 'unknown', mic_check: true });
+    r.start(); r.micChecked(false, 0);
+    expect(r.results()[0]).toMatchObject({ stop_reason: STOP.MIC });
+  });
+
+  test('one practice oral question before the first oral task of the session, then never again', () => {
+    const { r, events } = make(bat(oral, Object.assign({}, oral, { id: 'comp2' })), { mic: () => 'ok', oral_practice: true });
+    r.start();
+    expect(r.view().phase).toBe('oral_practice');
+    r.oralPracticeDone(true);
+    expect(events.find((e) => e.type === 'oral_practice').value).toEqual({ heard: true });
+    expect(r.view().phase).toBe('instruction');
+    through(r); r.answer('spoken'); r.answer('spoken'); r.next();
+    expect(r.view()).toMatchObject({ phase: 'instruction', task: { id: 'comp2' } });
+  });
+
+  test('a keypad warm-up before the first keypad task of the run, once', () => {
+    const { r, events } = make(bat(keys, Object.assign({}, keys, { id: 'sub1' })), { keypad_warmup: true });
+    r.start();
+    expect(r.view().phase).toBe('keypad_warmup');
+    r.keypadWarmupDone(14);
+    expect(events.find((e) => e.type === 'keypad_warmup').value).toEqual({ keys: 14 });
+    through(r); r.answer('4'); r.answer('5'); r.next();
+    expect(r.view()).toMatchObject({ phase: 'instruction', task: { id: 'sub1' } });
+  });
+
+  test('visibility lost in a timed task: the task runs again from its start, resumed; elapsed_ms on results', () => {
+    const { r, now, events } = make(bat(tap, keys));
+    r.start(); through(r); r.answer('a'); now.go(3000);
+    r.visibilityLost();
+    expect(events.some((e) => e.type === 'visibility_lost')).toBe(true);
+    expect(r.view()).toMatchObject({ phase: 'instruction', task: { id: 'letters' } });
+    through(r); now.go(2000); for (let i = 0; i < 6; i++) r.answer('a');
+    expect(r.results()[0]).toMatchObject({ resumed: true, correct: 6, elapsed_ms: 2000, time_used_ms: 2000 });
+  });
+
+  test('visibility lost in an untimed task is only logged', () => {
+    const { r } = make(bat(oral), { mic: () => 'ok' });
+    r.start(); through(r); r.answer('spoken'); r.visibilityLost();
+    expect(r.view()).toMatchObject({ phase: 'running', item_index: 1 });
+  });
+
+  test('the mercy rule on the passage: the star is offered once, silence ends it as early_stop_silence', () => {
+    const { r, now } = make(bat(rec), { mic: () => 'ok' });
+    r.start(); through(r);
+    now.go(12000); r.mercyOffered();
+    now.go(8000); r.silence(20);
+    expect(r.results()[0]).toMatchObject({ stop_reason: STOP.SILENCE, mercy_offered: true, silence_s: 20, last_word_index: null });
+  });
+});
+
+test('an item\'s shown text is its label (the sum the child sees)', () => {
+  const b = normalize({ tasks: [{ id: 'ma.add1', mode: 'keypad', items: [{ id: 'k', answer: 4, shown: '1 + 3 =' }, { id: 'k2', answer: 5, label: '2 + 3 =', shown: 'x' }] }] });
+  expect(b.tasks[0].items.map((i) => i.label)).toEqual(['1 + 3 =', '2 + 3 =']);
+});
