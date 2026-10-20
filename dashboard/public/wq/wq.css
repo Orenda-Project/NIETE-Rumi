@@ -936,3 +936,5 @@ html.wq-ur2[lang=ur] .wq-opt.wq-long{flex-wrap:wrap}
 html.wq-ur2[lang=ur] .wq-opt.wq-long .wq-lab{flex:1 1 100%;font-size:18px}
 /* the adventure look's English question, over the polish's own .wq-qtext rule */
 html.wq-ur2[lang=ur].wq-adv .wq-qtext.wq-qlat{font-family:var(--f);font-weight:800;line-height:1.3;padding-inline-start:0;text-align:left}
+/* the end screen with web_quiz_end_short (beside end_fit): on a short phone the Urdu end screen's Jugnu (on a row of its own, 112px) is 96px and the bubble a little tighter, so the card's button stays on the first screen; English (Jugnu beside the bubble) already fits */
+@media (max-height:680px){html[lang=ur] .wq-screen .wq-jug.wq-big.wq-jshort .wq-jimg{width:96px;height:96px}html[lang=ur] .wq-screen .wq-jug.wq-big.wq-jshort>.wq-say{margin-bottom:6px;padding-top:8px;padding-bottom:6px}}
