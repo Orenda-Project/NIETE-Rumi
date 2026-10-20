@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { sameSubjectName } from '../../lib/classKey';
 import { BookOpen, Camera, CircleAlert, FileText, Library } from 'lucide-react';
 import { acceptFor } from '../../lib/coachingUpload';
 import type { LessonPlanUsed } from '../home/progressApi';
@@ -46,11 +47,11 @@ export function PlanSheet({ open, onClose, onPick, onLibrary, onFile, problem, w
   useEffect(() => {
     if (!open) return undefined;
     let live = true;
-    const same = (s: string | null | undefined) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
     getRecentPlans(classSubject != null ? 20 : 3).then((plans) => {
       if (!live) return;
       setRecent(classSubject != null
-        ? plans.filter((p) => p.grade === classGrade && same(p.subject) === same(classSubject)).slice(0, 3)
+        // bd-1p5nkt: names compared in any script; an Urdu class no longer matches every Urdu-named plan.
+        ? plans.filter((p) => p.grade === classGrade && sameSubjectName(p.subject, classSubject)).slice(0, 3)
         : plans);
     });
     return () => { live = false; };

@@ -28,6 +28,7 @@ import { NOTICES } from '../notices/copy';
 import { COACHING } from './copy';
 import { clearDraft, holdDraft, peekDraft, planKeyOf, readPrefill, type DraftClass, type DraftPlan } from './draft';
 import { DC_PICK } from './libraryPick';
+import { libraryKeyFor, sameSubjectName } from '../../lib/classKey';
 import { lessonsUrl, openUrl } from '../lessons/paths';
 import { micBlockedLine, micPermissionDenied } from './micBlocked';
 import { Action, Dock, FlowStep, PhotoGrid, PlanPicker, RecordingCard } from './parts';
@@ -118,14 +119,15 @@ export function NewObservationPage() {
     if (prefill.grade != null) {
       const g = prefill.grade;
       const book = (catalogue?.byGrade[g] ?? []).find((s) => (prefill.lpSubject != null && s.key === prefill.lpSubject)
-        || (prefill.subjectName != null && norm(s.name) === norm(prefill.subjectName)));
+        || (prefill.subjectName != null && sameSubjectName(s.name, prefill.subjectName)));
       const name = book?.name ?? prefill.subjectName;
       const hers = mine.find((c) => c.grade === g && (
         (prefill.subjectKey != null && norm(c.subjectKey) === norm(prefill.subjectKey))
         || (prefill.lpSubject != null && norm(c.featureKey) === norm(prefill.lpSubject))
-        || (name != null && norm(c.subject) === norm(name))));
-      if (hers) setCls({ grade: hers.grade, subject: hers.subject, subjectKey: hers.subjectKey ?? null });
-      else if (name) setCls({ grade: g, subject: name, subjectKey: null });
+        || (name != null && sameSubjectName(c.subject, name))));
+      // bd-1p5nkt: the class keeps its catalogue key, so the library opens its own subject.
+      if (hers) setCls({ grade: hers.grade, subject: hers.subject, subjectKey: hers.subjectKey ?? null, featureKey: hers.featureKey ?? null });
+      else if (name) setCls({ grade: g, subject: name, subjectKey: null, featureKey: book?.key ?? null });
     }
     if (prefill.pick) {
       const key = planKeyOf(prefill.pick);
@@ -235,7 +237,8 @@ export function NewObservationPage() {
   // From the library (bd-fgj73x.5): her class's chapters, to CHOOSE a plan (lessons/ pages with pick=dc; a tap attaches it
   // and comes back here). The class is named in the library's own subject key; one it does not know: Lesson Plans.
   const libraryHref = () => {
-    const key = cls ? catalogue?.byGrade[cls.grade]?.find((s) => norm(s.name) === norm(cls.subject))?.key : null;
+    // bd-1p5nkt (ICT DC rows 146, 147): by the class's catalogue key — never an Urdu name cleaned to nothing.
+    const key = cls ? libraryKeyFor(cls, catalogue?.byGrade[cls.grade]) : null;
     return cls && key
       ? lessonsUrl('chapters', { grade: cls.grade, subject: key, key: cls.subjectKey, pick: DC_PICK })
       : teacherPath('lessons');
@@ -320,7 +323,9 @@ export function NewObservationPage() {
             value={cls ? { grade: cls.grade, subject: cls.subject } : null}
             onChange={(v, pick) => {
               const key = pick.combo && typeof pick.combo.subjectKey === 'string' ? pick.combo.subjectKey : null;
-              setCls({ grade: v.grade, subject: v.subject, subjectKey: key });
+              // bd-1p5nkt: one of her classes carries its lesson-plan catalogue key; any other pick is found by its exact name.
+              const featureKey = pick.combo && typeof pick.combo.featureKey === 'string' ? pick.combo.featureKey : null;
+              setCls({ grade: v.grade, subject: v.subject, subjectKey: key, featureKey });
               setPlan((p) => (p && p.kind === 'library' && cls && (cls.grade !== v.grade || cls.subject !== v.subject) ? null : p));
             }}
             gradeColours
