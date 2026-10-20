@@ -40,7 +40,7 @@ describe('deviation 2 + validator (c): prompt rule 2 verbatim from SPEC §3.4, "
   test('rule 2 carries the "explains the move" clause and the length hint', () => {
     expect(text).toContain('then what the clip shows a teacher doing instead — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person\'s name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher.');
   });
-  test('PROMPT_VERSION is vr-4 (v1.3b)', () => expect(P.PROMPT_VERSION).toBe('vr-4'));
+  test('PROMPT_VERSION is vr-5 (v1.3c-3)', () => expect(P.PROMPT_VERSION).toBe('vr-5'));
 });
 
 describe('deviation 5 (D3b): the tie-break needs moves[0] = target AND evidence_s inside (indicator path: evidence_s only)', () => {
