@@ -9,7 +9,9 @@
  *    every field inside Meta's cap, measured in CODE POINTS, and the copy as agreed;
  *  - the sender (nudges/window-closed-template.js): its switch
  *    (`app_settings.lp_quiz_offer_window_template`, absent = off, fail closed), the
- *    template it builds, the en_US / ur language code, and the dry run that never calls Meta;
+ *    template it builds, the en / ur language code (as every NIETE draft), the button's teacher-home
+ *    link (signTeacherHome, via 'reminder'), the dry run that never calls Meta, and the STOP opt-out
+ *    (teacher_reminder_optouts) that blocks the send, dry run included;
  *  - the hook in the offer's send: only when the switch names a template does the
  *    window_closed branch change; switch absent, the skip is exactly today's.
  */
@@ -19,6 +21,8 @@ const path = require('path');
 const { makeSupabase } = require('./helpers/filtering-chain');
 const { makeStore } = require('./helpers/nudge-contract-mocks');
 const pktTime = require('../../bot/shared/services/nudges/pkt-time');
+const { fixturePhone } = require('../../bot/tests/quiz/web-quiz/fixture-phone');
+const HomeToken = require('../../bot/shared/services/first-touch/teacher-home.token');
 
 jest.mock('../../bot/shared/config/supabase', () => ({ from: jest.fn() }));
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({
@@ -55,10 +59,10 @@ const DIR = path.join(__dirname, '../../infrastructure/templates/drafts');
 const load = (f) => JSON.parse(fs.readFileSync(path.join(DIR, `${f}.json`), 'utf8'));
 const part = (t, type) => t.components.find((c) => c.type === type);
 
-describe('the drafts: teacher_quiz_reminder_v1 (en_US, ur)', () => {
+describe('the drafts: teacher_quiz_reminder_v1 (en, ur)', () => {
   const COPY = {
     en: {
-      code: 'en_US',
+      code: 'en',
       body: "Today's lesson quiz for your class is ready on your NIETE portal. Tap the button to open it.",
       footer: 'Reply STOP to stop reminders',
       button: 'Open quiz',
@@ -95,14 +99,16 @@ describe('the drafts: teacher_quiz_reminder_v1 (en_US, ur)', () => {
       expect(cp(footer.text)).toBeLessThanOrEqual(60);
     });
 
-    it('one URL button, at most 20 code points, on the portal /t/{{1}} link, with one example', () => {
+    it('one URL button, at most 20 code points, on the quiz teacher home /quiz/teacher/{{1}}, with one example', () => {
       const { buttons } = part(t, 'BUTTONS');
       expect(buttons).toHaveLength(1);
       expect(buttons[0].type).toBe('URL');
       expect(buttons[0].text).toBe(want.button);
       expect(cp(buttons[0].text)).toBeLessThanOrEqual(20);
-      expect(buttons[0].url).toBe('https://portal.niete.edu.pk/t/{{1}}');
+      expect(buttons[0].url).toBe('https://portal.niete.edu.pk/quiz/teacher/{{1}}');
       expect(buttons[0].example).toHaveLength(1);
+      expect(buttons[0].example[0].startsWith('https://portal.niete.edu.pk/quiz/teacher/')).toBe(true);
+      expect(buttons[0].example[0]).not.toMatch(/\{\{/);
     });
 
     it('the Urdu is in Arabic script and the English has none', () => {
@@ -126,32 +132,38 @@ function install(tables) {
   return db;
 }
 const switchRow = (value) => ({ app_settings: [{ key: SETTING, value }] });
-const USER = { id: 'u-1', phone_number: '920000000000', preferred_language: 'en' };
+const UID = 'a0000000-0000-4000-8000-0000000000b2';
+const USER = { id: UID, phone_number: fixturePhone(21), preferred_language: 'en' };
+const OPTOUTS = 'teacher_reminder_optouts';
 
 beforeEach(() => {
   jest.clearAllMocks();
   WindowTemplate._resetCache();
   WhatsAppService.sendTemplate.mockResolvedValue(true);
   delete process.env.LP_QUIZ_OFFER_TEMPLATE_DRY_RUN;
+  process.env.WEB_QUIZ_TOKEN_SECRET = 'unit-web-quiz-secret-not-a-secret';
 });
-afterAll(() => { delete process.env.LP_QUIZ_OFFER_TEMPLATE_DRY_RUN; });
+afterAll(() => { delete process.env.LP_QUIZ_OFFER_TEMPLATE_DRY_RUN; delete process.env.WEB_QUIZ_TOKEN_SECRET; });
+
+/** The token the button carries, checked as the teacher home will check it. */
+const tokenOf = (call) => call[3][0].parameters[0].text;
 
 describe('buildTemplate — the shape WhatsAppService.sendTemplate takes', () => {
   it('name, language and one URL-button parameter carrying the link token; no header, no body params', () => {
     expect(WindowTemplate.buildTemplate({ name: NAME, lang: 'en', link: 'tok.abc' })).toEqual({
       name: NAME,
-      language: 'en_US',
+      language: 'en',
       components: [
         { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: 'tok.abc' }] },
       ],
     });
   });
 
-  it('English is en_US (the code the en draft is approved under); Urdu is ur; anything else falls to en_US', () => {
-    expect(WindowTemplate.templateLanguage('en')).toBe('en_US');
+  it('English is en (the code every NIETE draft uses, never en_US); Urdu is ur; anything else falls to en', () => {
+    expect(WindowTemplate.templateLanguage('en')).toBe('en');
     expect(WindowTemplate.templateLanguage('ur')).toBe('ur');
-    expect(WindowTemplate.templateLanguage(undefined)).toBe('en_US');
-    expect(WindowTemplate.templateLanguage('sw')).toBe('en_US');
+    expect(WindowTemplate.templateLanguage(undefined)).toBe('en');
+    expect(WindowTemplate.templateLanguage('sw')).toBe('en');
   });
 });
 
@@ -187,52 +199,120 @@ describe('templateName — app_settings.lp_quiz_offer_window_template', () => {
   });
 });
 
-describe('sendWindowClosedTemplate({user, link})', () => {
+describe('sendWindowClosedTemplate({user}) — the button opens the quiz teacher home', () => {
   it('switch absent ⇒ nothing sent, reason off', async () => {
     install({});
-    const res = await WindowTemplate.sendWindowClosedTemplate({ user: USER, link: 'tok' });
+    const res = await WindowTemplate.sendWindowClosedTemplate({ user: USER });
     expect(res).toEqual({ sent: 0, reason: 'off' });
     expect(WhatsAppService.sendTemplate).not.toHaveBeenCalled();
   });
 
-  it('sends the named template with en_US for an English teacher', async () => {
+  it('sends the named template with en for an English teacher; the button token is a teacher-home token, via reminder', async () => {
     install(switchRow(NAME));
-    const res = await WindowTemplate.sendWindowClosedTemplate({ user: USER, link: 'tok' });
-    expect(res).toEqual({ sent: 1, template: NAME, lang: 'en_US' });
+    const res = await WindowTemplate.sendWindowClosedTemplate({ user: USER });
+    expect(res).toEqual({ sent: 1, template: NAME, lang: 'en' });
     expect(WhatsAppService.sendTemplate).toHaveBeenCalledTimes(1);
-    const [to, name, code, components] = WhatsAppService.sendTemplate.mock.calls[0];
-    expect([to, name, code]).toEqual([USER.phone_number, NAME, 'en_US']);
-    expect(components[0].parameters[0].text).toBe('tok');
+    const call = WhatsAppService.sendTemplate.mock.calls[0];
+    expect([call[0], call[1], call[2]]).toEqual([USER.phone_number, NAME, 'en']);
+    const v = HomeToken.verifyTeacherHome(tokenOf(call));
+    expect(v).toEqual({ ok: expect.objectContaining({ uid: UID, lang: 'en', via: 'reminder' }) });
   });
 
-  it('ur for an Urdu teacher', async () => {
+  it('ur for an Urdu teacher, and their token opens the Urdu page', async () => {
     install(switchRow(NAME));
-    await WindowTemplate.sendWindowClosedTemplate({ user: { ...USER, preferred_language: 'ur' }, link: 'tok' });
-    expect(WhatsAppService.sendTemplate.mock.calls[0][2]).toBe('ur');
+    await WindowTemplate.sendWindowClosedTemplate({ user: { ...USER, preferred_language: 'ur' } });
+    const call = WhatsAppService.sendTemplate.mock.calls[0];
+    expect(call[2]).toBe('ur');
+    expect(HomeToken.verifyTeacherHome(tokenOf(call)).ok).toMatchObject({ uid: UID, lang: 'ur', via: 'reminder' });
+  });
+
+  it('the link is the draft url with the token in {{1}}: /quiz/teacher/<token>', () => {
+    const t = WindowTemplate.reminderLink({ user: USER });
+    expect(HomeToken.teacherHomePath(t)).toBe(`/quiz/teacher/${t}`);
+    expect(HomeToken.verifyTeacherHome(t).ok).toMatchObject({ uid: UID, via: 'reminder' });
   });
 
   it('LP_QUIZ_OFFER_TEMPLATE_DRY_RUN=1 ⇒ logs what it would send and NEVER calls Meta', async () => {
     process.env.LP_QUIZ_OFFER_TEMPLATE_DRY_RUN = '1';
     install(switchRow(NAME));
-    const res = await WindowTemplate.sendWindowClosedTemplate({ user: USER, link: 'tok' });
-    expect(res).toEqual({ sent: 0, reason: 'dry_run', template: NAME, lang: 'en_US' });
+    const res = await WindowTemplate.sendWindowClosedTemplate({ user: USER });
+    expect(res).toEqual({ sent: 0, reason: 'dry_run', template: NAME, lang: 'en' });
     expect(WhatsAppService.sendTemplate).not.toHaveBeenCalled();
-    expect(logEvent).toHaveBeenCalledWith('lp_quiz_offer.template_dry_run', { template: NAME, lang: 'en_US' });
+    expect(logEvent).toHaveBeenCalledWith('lp_quiz_offer.template_dry_run', { template: NAME, lang: 'en' });
   });
 
   it('Meta refuses (no such template) ⇒ skip as template_missing, logged at error', async () => {
     WhatsAppService.sendTemplate.mockResolvedValue(false);
     install(switchRow(NAME));
-    const res = await WindowTemplate.sendWindowClosedTemplate({ user: USER, link: 'tok' });
-    expect(res).toEqual({ sent: 0, reason: 'template_missing', template: NAME, lang: 'en_US' });
+    const res = await WindowTemplate.sendWindowClosedTemplate({ user: USER });
+    expect(res).toEqual({ sent: 0, reason: 'template_missing', template: NAME, lang: 'en' });
     expect(logToFile.mock.calls.some((c) => c[2] === 'error')).toBe(true);
   });
 
-  it('no link token (no signing secret here) ⇒ nothing sent', async () => {
-    install(switchRow(NAME));
-    const res = await WindowTemplate.sendWindowClosedTemplate({ user: USER, link: null });
-    expect(res).toMatchObject({ sent: 0, reason: 'no_link' });
+  it('no signing secret ⇒ no link ⇒ nothing sent', async () => {
+    delete process.env.WEB_QUIZ_TOKEN_SECRET;
+    const keep = process.env.INTERNAL_API_KEY;
+    delete process.env.INTERNAL_API_KEY;
+    try {
+      install(switchRow(NAME));
+      const res = await WindowTemplate.sendWindowClosedTemplate({ user: USER });
+      expect(res).toMatchObject({ sent: 0, reason: 'no_link' });
+      expect(WhatsAppService.sendTemplate).not.toHaveBeenCalled();
+    } finally {
+      if (keep !== undefined) process.env.INTERNAL_API_KEY = keep;
+    }
+  });
+});
+
+describe('the STOP opt-out — teacher_reminder_optouts', () => {
+  const optedOut = (extra = {}) => ({
+    ...switchRow(NAME),
+    [OPTOUTS]: [{ id: 'o-1', user_id: UID, kind: 'quiz_reminder_template', source: 'stop_reply' }],
+    ...extra,
+  });
+
+  it('an opted-out teacher is never sent the template: {sent:0, reason:opted_out}', async () => {
+    install(optedOut());
+    const res = await WindowTemplate.sendWindowClosedTemplate({ user: USER });
+    expect(res).toEqual({ sent: 0, reason: 'opted_out' });
     expect(WhatsAppService.sendTemplate).not.toHaveBeenCalled();
+  });
+
+  it('the dry run honours it too: no dry-run line for an opted-out teacher', async () => {
+    process.env.LP_QUIZ_OFFER_TEMPLATE_DRY_RUN = '1';
+    install(optedOut());
+    const res = await WindowTemplate.sendWindowClosedTemplate({ user: USER });
+    expect(res).toEqual({ sent: 0, reason: 'opted_out' });
+    expect(logEvent).not.toHaveBeenCalledWith('lp_quiz_offer.template_dry_run', expect.anything());
+  });
+
+  it("another teacher's opt-out does not stop this one", async () => {
+    install({ ...switchRow(NAME), [OPTOUTS]: [{ id: 'o-2', user_id: 'someone-else', kind: 'quiz_reminder_template' }] });
+    const res = await WindowTemplate.sendWindowClosedTemplate({ user: USER });
+    expect(res.sent).toBe(1);
+  });
+
+  it('isOptedOut reads the row; a read failure counts as opted out (never message someone who may have said STOP)', async () => {
+    install(optedOut());
+    expect(await WindowTemplate.isOptedOut(UID)).toBe(true);
+    install({});
+    expect(await WindowTemplate.isOptedOut(UID)).toBe(false);
+    supabase.from.mockImplementation(() => { throw new Error('db down'); });
+    expect(await WindowTemplate.isOptedOut(UID)).toBe(true);
+  });
+
+  it('optOut inserts {user_id, kind, source}; a duplicate (23505) is success, not an error', async () => {
+    const db = install({});
+    expect(await WindowTemplate.optOut(UID)).toBe(true);
+    expect(db.writes).toEqual([expect.objectContaining({
+      table: OPTOUTS, op: 'insert',
+      row: expect.objectContaining({ user_id: UID, kind: 'quiz_reminder_template', source: 'stop_reply' }),
+    })]);
+    supabase.from.mockImplementation(() => ({ insert: async () => ({ error: { code: '23505', message: 'duplicate key' } }) }));
+    expect(await WindowTemplate.optOut(UID)).toBe(true);
+    supabase.from.mockImplementation(() => ({ insert: async () => ({ error: { code: '42P01', message: 'no table' } }) }));
+    expect(await WindowTemplate.optOut(UID)).toBe(false);
+    expect(await WindowTemplate.optOut(null)).toBe(false);
   });
 });
 
@@ -251,7 +331,7 @@ describe('the offer send: the window_closed branch', () => {
   });
   const closedTeacher = {
     id: T1, role: 'teacher', is_test_user: false, deleted_at: null, school_id: 's-1', region: 'X',
-    phone_number: '920000000000', preferred_language: 'en',
+    phone_number: fixturePhone(22), preferred_language: 'en',
     last_message_at: pktTime.atPkt('2026-09-20', 8, 0).toISOString(),
   };
   const world = (extra = {}) => ({ users: [closedTeacher], coaching_sessions: [], quizzes: [], teacher_nudges: [], ...extra });
@@ -289,16 +369,15 @@ describe('the offer send: the window_closed branch', () => {
     expect(WhatsAppService.sendTemplate).not.toHaveBeenCalled();
   });
 
-  it('switch names a template ⇒ the template is sent with a signed portal link, recorded as window_closed_template {sent}', async () => {
+  it('switch names a template ⇒ the hook passes just the teacher (the module mints the link), recorded as window_closed_template {sent}', async () => {
     install(world());
-    const tpl = stub(NAME, { sent: 1, template: NAME, lang: 'en_US' });
+    const tpl = stub(NAME, { sent: 1, template: NAME, lang: 'en' });
     const res = await Offer.send(row(), { now: SEND_AT, windowTemplate: tpl });
     expect(tpl.sendWindowClosedTemplate).toHaveBeenCalledTimes(1);
     const arg = tpl.sendWindowClosedTemplate.mock.calls[0][0];
     expect(arg.user.id).toBe(T1);
-    expect(typeof arg.link).toBe('string');
-    expect(arg.link.length).toBeGreaterThan(10);
-    expect(res).toEqual({ skipped: 'window_closed_template', context: { sent: 1, template: NAME, lang: 'en_US' } });
+    expect(Object.keys(arg)).toEqual(['user']);
+    expect(res).toEqual({ skipped: 'window_closed_template', context: { sent: 1, template: NAME, lang: 'en' } });
     expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
   });
 
@@ -323,7 +402,7 @@ describe('the offer send: the window_closed branch', () => {
     expect(mockStore.rows[0].context.sent).toBe(0);
     expect(mockStore.rows[0].context.reason).toBe('dry_run');
     expect(WhatsAppService.sendTemplate).not.toHaveBeenCalled();
-    expect(logEvent).toHaveBeenCalledWith('lp_quiz_offer.template_dry_run', { template: NAME, lang: 'en_US' });
+    expect(logEvent).toHaveBeenCalledWith('lp_quiz_offer.template_dry_run', { template: NAME, lang: 'en' });
   });
 
   it('window_closed_template is a reason the store accepts and the offer declares', () => {

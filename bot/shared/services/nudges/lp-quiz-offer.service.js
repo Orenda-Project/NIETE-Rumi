@@ -55,7 +55,6 @@ const QuizMenuFlags = require('../quiz/quiz-menu-flags');
 const FeatureIntro = require('../feature-intro.service');
 const { mergeWithinCap, FIELD_CAPS } = require('../../utils/merge-within-cap');
 const WindowClosedTemplate = require('./window-closed-template');
-const { signPortalLink } = require('../portal-link-token');
 
 /** The `teacher_nudges.kind` this module owns. */
 const KIND = 'lp_quiz_offer';
@@ -829,7 +828,7 @@ async function send(row, { now, windowTemplate = WindowClosedTemplate } = {}) {
     isSchoolDay: true, sectorAllowed: true, lessonCount, ...(await sendTimeFacts(row, user, at)),
   });
   if (reason === 'window_closed' && await windowTemplate.templateName()) {
-    const res = await windowTemplate.sendWindowClosedTemplate({ user, link: signPortalLink(user.id, 'lessons') });
+    const res = await windowTemplate.sendWindowClosedTemplate({ user });
     logEvent('lp_quiz.offer_skipped', { nudgeId: row.id, userId: row.user_id, reason: 'window_closed_template', at: 'send', ...res });
     return { skipped: 'window_closed_template', context: res };
   }

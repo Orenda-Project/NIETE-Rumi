@@ -17,9 +17,9 @@
         {
           "type": "URL",
           "text": "کوئز کھولیں",
-          "url": "https://portal.niete.edu.pk/t/{{1}}",
+          "url": "https://portal.niete.edu.pk/quiz/teacher/{{1}}",
           "example": [
-            "https://portal.niete.edu.pk/t/Zm9v.YWJj"
+            "https://portal.niete.edu.pk/quiz/teacher/Zm9v.YWJj"
           ]
         }
       ]
