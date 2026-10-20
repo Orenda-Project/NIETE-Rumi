@@ -319,6 +319,14 @@ async function withList(cls) {
   return { ...cls, listId: m.get(cls.id) || null, label: cls.label || labelOf(cls, []) };
 }
 
+// web_quiz_class_rows_together: the class's row and its list read together (withList(classById) in one wait), and its
+// children started (their own cache); the same answer
+async function classWithList(classId) {
+  try { require('./web-quiz-identity-roster').startClassRoster(classId); } catch (_) { /* the ask that needs them reads them */ }
+  const [cls, m] = await Promise.all([classById(classId), listIdsFor([classId])]);
+  return cls ? { ...cls, listId: m.get(cls.id) || null, label: cls.label || labelOf(cls, []) } : null;
+}
+
 /**
  * Which class is this quiz for — the DB-backed order:
  *   1. quiz_share_codes.class_id            (the hand-out's class; the column may not exist yet: fail open)
@@ -339,7 +347,9 @@ async function othersList(list, teacherUserId) {
 
 // together (web_quiz_link_together): the three steps' first reads start at once, each still used in its turn (a step
 // that answers ends it, as one by one); quizP: the quiz row (grade, list_id, meta) the caller is reading anyway.
-async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = null, grade = null, gradeSoft = false, together = false, quizP = null } = {}) {
+// rowsTogether (web_quiz_class_rows_together): a class's row and list read together, its children started early, and a
+// teacher's classes read with their lists.
+async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = null, grade = null, gradeSoft = false, together = false, quizP = null, rowsTogether = false } = {}) {
   let quizGrade = grade;
   let soft = Boolean(gradeSoft);
   const once = (fn) => { let p = null; return () => (p || (p = Promise.resolve().then(fn))); };
@@ -354,7 +364,7 @@ async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = nu
       if (error && isMissingColumn(error)) {
         if (!warnedNoColumn) { warnedNoColumn = true; logToFile('⚠️ web quiz identity: quiz_share_codes.class_id is not on this database yet — hand-outs resolve by quiz/teacher only', {}); }
       } else if (data && data.class_id) {
-        const cls = await withList(await classById(data.class_id));
+        const cls = rowsTogether ? await classWithList(data.class_id) : await withList(await classById(data.class_id));
         if (cls) return { state: 'known', class: cls, classes: [cls], bound: 'code' };
       }
     } catch (err) {
@@ -371,6 +381,7 @@ async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = nu
       if (q.list_id) {
         const { data: l } = await supabase.from('student_lists').select('id, class_id, class_name, section, user_id').eq('id', q.list_id).maybeSingle();
         if (l && l.class_id && !(await othersList(l, teacherUserId))) {
+          if (rowsTogether) { try { require('./web-quiz-identity-roster').startClassRoster(l.class_id); } catch (_) { /* read when asked */ } }
           const cls = await classById(l.class_id);
           if (cls) return { state: 'known', class: { ...cls, listId: l.id, label: labelOf(cls, []) }, classes: [{ ...cls, listId: l.id, label: labelOf(cls, []) }], bound: 'quiz' };
         }
@@ -383,8 +394,8 @@ async function resolveQuizClass({ teacherUserId, quizId = null, shareCodeId = nu
   const ids = [...new Set((ct || []).map((t) => t.class_id).filter(Boolean))];
   let classes = [];
   if (ids.length) {
-    const { data: rows } = await supabase.from('classes').select('id, grade_code, section, shift_code, is_active').in('id', ids).eq('is_active', true);
-    const lists = await listIdsFor(ids);
+    const rowsRead = () => supabase.from('classes').select('id, grade_code, section, shift_code, is_active').in('id', ids).eq('is_active', true);
+    const [{ data: rows }, lists] = rowsTogether ? await Promise.all([rowsRead(), listIdsFor(ids)]) : [await rowsRead(), await listIdsFor(ids)];
     // a merged class is deactivated by the merge (is_active=false), so the filter above already drops it
     classes = (rows || []).map((c) => ({ ...shape(c), listId: lists.get(c.id) || null }));
   } else {
