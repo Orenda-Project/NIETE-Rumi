@@ -1,18 +1,16 @@
-import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { cn } from "@/lib/utils";
 import { useCopy } from "../../teacher/i18n";
 import { LoadState } from "../../teacher/lessons/LoadState";
 import { dataOf, useLoad } from "../../newui/lessons/shared";
 import { AudioPlayer } from "../../newui/AudioPlayer";
-import { Chip } from "../../newui/Chip";
-import { FOCUS, PRIMARY_WIDE, ROW_SUB } from "../../teacher/ui/styles";
+import { ROW_SUB } from "../../teacher/ui/styles";
 import { disagreements, type Card } from "./api";
 import { DISAGREE } from "./copy";
 import { DisagreementsFrame, Gated } from "./frame";
 import { ClipProvider, FullReport, ReasonBlock } from "./cardParts";
 import { WhereToLook } from "./whereToLook";
 import { Banner, CardHead, ReasonPills } from "./cardTop";
+import { DoneBadge, DoneBar } from "./doneBar";
 
 /**
  * bd-tbprit.3 — one teacher's disagreement, evidence only (Amena, 19 Oct), in Rifat's order:
@@ -22,33 +20,12 @@ import { Banner, CardHead, ReasonPills } from "./cardTop";
  *      what the report told her (Strength / One thing to try)
  *   B  where to look (bd-tbprit.9) — one Listen for the problem part, the plan's moves, the other three sections
  *      her trend, then the full DC report
- *      "I have visited" — one-way (the tracker's visited_7d reads it); a done card has no button
+ *      the footer (bd-tbprit.12) — "✓ Mark as done", or on a done card the ✓ Done badge and "Move back to To do"
  *
  * No coaching suggestion, no message/call, no "Recording less": not before the 7 Dec read.
  */
 
 const H2 = "text-[17px] font-bold text-[#1d2025]";
-
-function Visit({ id, done }: { id: string; done: boolean }) {
-  const C = useCopy(DISAGREE);
-  const [isDone, setDone] = useState(done);
-  const [saving, setSaving] = useState(false);
-  const [failed, setFailed] = useState(false);
-  if (isDone) return <div data-testid="visit-state"><Chip tone="done">{C.visited}</Chip></div>;
-  const tap = async () => {
-    setSaving(true);
-    setFailed(false);
-    const ok = await disagreements.visited(id);
-    setSaving(false);
-    if (ok) setDone(true); else setFailed(true);
-  };
-  return (
-    <div className="flex flex-col gap-2">
-      {failed ? <p role="alert" className="text-[14px] text-[#c8331f]">{C.saveFailed}</p> : null}
-      <button type="button" onClick={tap} disabled={saving} className={cn(PRIMARY_WIDE, FOCUS)}>{C.visit}</button>
-    </div>
-  );
-}
 
 function Loaded({ card }: { card: Card }) {
   const C = useCopy(DISAGREE);
@@ -56,6 +33,7 @@ function Loaded({ card }: { card: Card }) {
   return (
     <ClipProvider id={card.id}>
       <CardHead card={card} />
+      <DoneBadge done={card.done} />
       <Banner card={card} />
       <div className="flex flex-col gap-3 rounded-[18px] border border-[#e1e4ea] bg-white p-4">
         <h2 className={H2}>{C.disagreesWith}</h2>
@@ -85,7 +63,7 @@ function Loaded({ card }: { card: Card }) {
 
       <FullReport card={card} />
 
-      <Visit id={card.id} done={card.done} />
+      <DoneBar id={card.id} done={card.done} teacher={card.teacher ?? C.dash} />
     </ClipProvider>
   );
 }

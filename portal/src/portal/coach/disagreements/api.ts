@@ -66,10 +66,19 @@ export const disagreements = {
   async card(id: string): Promise<Card> {
     return (await api.get(path(id))).data.card;
   },
-  /** One-way: true once the server has it. A failed save is false, never thrown. */
+  /** "✓ Mark as done" (bd-tbprit.12): true once the server has it. A failed save is false, never thrown. */
   async visited(id: string): Promise<boolean> {
     try {
       const { data } = await api.post(`${path(id)}/visited`);
+      return data?.success === true;
+    } catch {
+      return false;
+    }
+  },
+  /** "Move back to To do" (bd-tbprit.12): undoes Done. Same contract as visited. */
+  async undone(id: string): Promise<boolean> {
+    try {
+      const { data } = await api.post(`${path(id)}/undone`);
       return data?.success === true;
     } catch {
       return false;

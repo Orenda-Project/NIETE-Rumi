@@ -7,8 +7,8 @@
  *   GET  /coach/disagreements              { todo, done } for the logged-in coach
  *   GET  /coach/disagreements/:id          { card } — 404 unless it is hers; stamps it opened (bd-tbprit.7, the
  *                                          list's blue dot) — a failed stamp is logged, the card still served
- *   POST /coach/disagreements/:id/visited  "I have visited" — hers only, one-way (no undo route: the
- *                                          tracker's visited_7d counts it)
+ *   POST /coach/disagreements/:id/visited  "✓ Mark as done" — hers only (bd-tbprit.12)
+ *   POST /coach/disagreements/:id/undone   "Move back to To do" — hers only; undoes Done (bd-tbprit.12)
  *   GET  /coach/disagreements/:id/clip?at=[&to=] bd-tbprit.2 (to: bd-tbprit.9): the disputed step as mp3, hers only, inline and never
  *                                          cached; 503 when ffmpeg fails, which the card survives
  */
@@ -20,7 +20,7 @@ const failed = (res) => res.status(500).json({ success: false, error: 'Something
 const { parseAt } = require('../services/coach-disagreement-clip');
 
 function createCoachDisagreementsRouter(deps) {
-  const { guards = [], isOn, list, card, ownerOf, markVisited, markOpened = async () => {}, recordingFor, openClip } = deps;
+  const { guards = [], isOn, list, card, ownerOf, markVisited, markUndone, markOpened = async () => {}, recordingFor, openClip } = deps;
   const router = express.Router();
 
   const gate = async (req, res, next) => {
@@ -61,10 +61,21 @@ function createCoachDisagreementsRouter(deps) {
   router.post('/coach/disagreements/:id/visited', ...guards, gate, idOk, async (req, res) => {
     try {
       if ((await ownerOf(req.params.id)) !== req.coachId) return notFound(res);
-      if (!(await markVisited(req.params.id))) return failed(res);
+      if (!(await markVisited(req.params.id, req.coachId))) return failed(res);
       return res.json({ success: true, done: true });
     } catch (err) {
       console.error('[coach-disagreements] visited failed:', err.message);
+      return failed(res);
+    }
+  });
+
+  router.post('/coach/disagreements/:id/undone', ...guards, gate, idOk, async (req, res) => {
+    try {
+      if ((await ownerOf(req.params.id)) !== req.coachId) return notFound(res);
+      if (!(await markUndone(req.params.id, req.coachId))) return failed(res);
+      return res.json({ success: true, done: false });
+    } catch (err) {
+      console.error('[coach-disagreements] undone failed:', err.message);
       return failed(res);
     }
   });

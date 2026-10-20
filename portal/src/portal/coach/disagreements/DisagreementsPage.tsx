@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useCopy } from "../../teacher/i18n";
 import { LoadState } from "../../teacher/lessons/LoadState";
@@ -72,11 +72,17 @@ function Body() {
   const C = useCopy(DISAGREE);
   const [load, retry] = useLoad(() => disagreements.list(), "coach:disagreements");
   const [tab, setTab] = useState<"todo" | "done">("todo");
+  const moved = (useLocation().state as { moved?: { who: string; done: boolean } } | null)?.moved;
   const data = dataOf(load);
   const rows = data ? data[tab] : [];
   return (
     <DisagreementsFrame title={C.appName} sub={C.appRole} mark="N" testId="coach-disagreements">
       <h1 className="text-[17px] font-extrabold text-[#1d2025]">{C.listTitle}</h1>
+      {moved && tab === "todo" ? (
+        <p data-testid="moved-msg" role="status" className="rounded-[12px] bg-[#e7f6ec] px-3 py-2 text-[14px] font-semibold text-[#1d6b3a]">
+          {moved.done ? C.moved(moved.who) : C.backMsg(moved.who)}
+        </p>
+      ) : null}
       <LoadState status={load.status} empty={false} onRetry={retry} />
       {data && (
         <>
