@@ -17,7 +17,11 @@ export type DraftPlan =
   | { kind: 'file'; file: File; asPhoto: boolean };
 
 /** The class she picked on the one screen (sent as teacherClass); subjectKey when it is one of her own classes. */
-export type DraftClass = { grade: number; subject: string; subjectKey: string | null };
+export type DraftClass = {
+  grade: number; subject: string; subjectKey: string | null;
+  /** bd-1p5nkt — the lesson-plan catalogue's key for this class (the library opens it), when known. */
+  featureKey?: string | null;
+};
 
 /**
  * bd-v0toag.31.3 — `live`: the live moves record (ticks and taps) the recording page puts here at Stop, sent with Submit.
