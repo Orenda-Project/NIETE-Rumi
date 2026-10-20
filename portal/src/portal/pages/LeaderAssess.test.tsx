@@ -377,7 +377,7 @@ describe("LeaderAssess", () => {
       await screen.findByTestId("assess-child-d1");
       await act(async () => { window.dispatchEvent(new Event("online")); });
       await screen.findByTestId("assess-drain-frame");
-      act(() => { window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:drained", sessions: [{ s, ackedTo: 3, pending: 4 }] }, origin: window.location.origin })); });
+      act(() => { window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:drained", sessions: [{ s, pending_events: 0, pending_audio: 2, state: "audio" }] }, origin: window.location.origin })); });
       await waitFor(() => expect(screen.queryByTestId("assess-drain-frame")).toBeNull());
       expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("on phone");
     });
