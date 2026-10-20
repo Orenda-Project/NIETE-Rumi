@@ -1496,6 +1496,29 @@ router.post('/assessment/chapters', requireInternalKey, assessmentRoute('chapter
 }));
 
 /**
+ * POST /api/internal/assessment/topics
+ * Body { grade, subject, chapterNumber } → { success, topics: [{ topicId, name, heading, headingOrder, sortOrder }] }
+ *
+ * The topic picker's list (assessment_topics, V1.6.18). Names and headings only: SLO codes never reach a
+ * teacher's screen, and pages are resolved on the bot when the paper is made. A chapter not loaded → [].
+ */
+router.post('/assessment/topics', requireInternalKey, assessmentRoute('topics', async (_Browse, req, res) => {
+  const body = req.body || {};
+  const grade = num(body.grade);
+  const subject = String(body.subject || '').trim();
+  const chapterNumber = num(body.chapterNumber);
+  if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
+  if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
+  if (chapterNumber === null) return res.status(400).json({ success: false, error: 'chapterNumber is required' });
+
+  const { listChapterTopics } = require('../services/assessment/topics/topics.repo');
+  const topics = (await listChapterTopics(grade, subject, chapterNumber)).map((t) => ({
+    topicId: t.topicId, name: t.name, heading: t.heading, headingOrder: t.headingOrder, sortOrder: t.sortOrder,
+  }));
+  return res.json({ success: true, topics });
+}));
+
+/**
  * Her chapters as one tidy list: numbers only, each once, in book order.
  * `chapterNumbers` wins over the scalar `chapterNumber` older portal builds send.
  */
