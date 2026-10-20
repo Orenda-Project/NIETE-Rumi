@@ -2830,6 +2830,8 @@ app.post('/api/internal/send-password-reset', async (req, res) => {
 function startServer() {
   // web_quiz.config: the buckets, link host and token-secret source this bot runs with (names only).
   require('./shared/services/quiz/web-quiz-config-line').logWebQuizConfig();
+  // web_quiz_page_boot: the child page's switches warmed now, not on the first children after a deploy (never waited for).
+  require('./shared/services/quiz/web-quiz-page-warm').boot().catch(() => {});
   return app.listen(constants.PORT, () => {
   // Read version from VERSION file
   const path = require('path');
