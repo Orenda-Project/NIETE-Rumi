@@ -29,15 +29,16 @@ async function readForSession(coachingSessionId) {
 }
 
 /**
- * What this engine already put in front of the teacher (any status, incl. shadow): every chapter of the last
- * 365 days (never again), and the modules with ≥ 2 chapters in the last 180 days. Completed training modules are
+ * What this engine already put in front of the teacher — status 'shown' only (SPEC v1.3 §3.6, lead-review 19:11Z:
+ * shadow, none and error rows stay for the A/B and evals but never block a chapter the teacher never saw): every
+ * chapter of the last 365 days (never again), and the modules with ≥ 2 chapters in the last 180 days. Completed training modules are
  * NOT history (r-corpus: 70% of coached teachers finished the whole ladder; re-seeing one chapter is the point).
  */
 async function recentHistory(userId) {
   try {
     const since = new Date(Date.now() - 365 * DAY).toISOString();
     const { data, error } = await supabase.from(TABLE).select('seg_id, module_id, created_at')
-      .eq('user_id', userId).gte('created_at', since).not('seg_id', 'is', null).limit(MAX_ROWS);
+      .eq('user_id', userId).eq('status', 'shown').gte('created_at', since).not('seg_id', 'is', null).limit(MAX_ROWS);
     if (error) throw error;
     const recent = Date.now() - 180 * DAY;
     const segments = [];
