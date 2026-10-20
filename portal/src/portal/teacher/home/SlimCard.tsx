@@ -82,18 +82,32 @@ export function SlimCard({ card, userKey, onGo, className }: SlimCardProps) {
       data-home-card={card.kind}
       role="group"
       aria-label={isClass ? line : C.lesson.title(card.title)}
-      className={cn('col-span-2 flex min-h-[56px] items-center gap-3 rounded-[20px] border border-[#e5e7eb] bg-white py-1.5 pe-1.5 ps-2.5 shadow-[0_1px_3px_rgba(16,24,40,0.08)]', className)}
+      className={cn('col-span-2 flex min-h-[56px] items-center gap-3 rtl:-mt-2 rounded-[20px] border border-[#e5e7eb] bg-white py-1.5 pe-1.5 ps-2.5 shadow-[0_1px_3px_rgba(16,24,40,0.08)]', className)}
     >
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#fdf3d0]" aria-hidden="true">
         <FeatureArt feature="assessment" size={24} />
       </span>
       <div className="flex min-w-0 flex-1 flex-col items-start">
-        <p dir={dir} data-testid="home-slim-line" className="w-full truncate text-[15px] font-semibold leading-tight text-[#111827]">{line}</p>
+        {/* The class line may take two lines rather than lose its count; a lesson's topic is its own isolate, cut at its
+            own end (an RTL line would otherwise cut a Latin topic at its start). In Urdu the lines are set at 1.5, not
+            the Nastaliq default of 2, so the card stays inside the fold. */}
+        <p
+          dir={dir}
+          data-testid="home-slim-line"
+          className={cn('w-full text-[15px] font-semibold leading-tight text-[#111827] rtl:!leading-[1.5]', isClass ? 'line-clamp-2 break-words' : 'flex min-w-0 gap-1')}
+        >
+          {isClass ? line : (
+            <>
+              <span className="shrink-0">{C.lesson.label}</span>{' '}
+              <bdi dir="auto" data-testid="home-slim-topic" className="min-w-0 truncate">{card.title}</bdi>
+            </>
+          )}
+        </p>
         <button
           type="button"
           dir={dir}
           onClick={() => onGo(card.kind, secondary.href)}
-          className={cn('inline-flex items-center gap-0.5 text-[13px] font-medium text-[#4b5563] underline-offset-2 hover:underline', FOCUS)}
+          className={cn('inline-flex items-center gap-0.5 text-[13px] font-medium text-[#4b5563] underline-offset-2 hover:underline rtl:!leading-[1.5]', FOCUS)}
         >
           {secondary.label}
           <ChevronRight className="h-3.5 w-3.5 rtl:rotate-180" strokeWidth={2.4} aria-hidden="true" />

@@ -25,7 +25,9 @@ import { NieteLattice } from "../icons/NieteLattice";
  * the "!" stays right after the name instead of taking the RTL paragraph's side ("!Testwala"; language-protocol §9.6:
  * the atom keeps its punctuation inside its isolate). A Latin name is set in the English font with an English line
  * height (`!leading-[1.15]`, important because index.css gives every Urdu span line-height 2): mixed into the
- * Nastaliq h1 it used to stretch each line box, and the Urdu band stood ~30 px taller than it should.
+ * Nastaliq h1 it used to stretch each line box, and the Urdu band stood ~30 px taller than it should. In Urdu it is
+ * also set a size down (0.7em): at the h1's 32 px a Latin name is far wider than the Nastaliq around it and pushed the
+ * greeting onto a second line at 360 px (another ~50 px of band).
  */
 export interface HomeGreetingProps {
   title: string;
@@ -84,7 +86,7 @@ function greetingParts(title: string, name?: string | null): ReactNode {
   return (
     <>
       {title.slice(0, at)}
-      <bdi data-testid="home-greeting-name" {...(latin ? { "data-latin": "" } : {})} className="!leading-[1.15]">
+      <bdi data-testid="home-greeting-name" {...(latin ? { "data-latin": "" } : {})} className={latin ? "!leading-[1.15] rtl:text-[0.7em]" : "!leading-[1.15]"}>
         {title.slice(at, end)}
       </bdi>
       {title.slice(end) || null}

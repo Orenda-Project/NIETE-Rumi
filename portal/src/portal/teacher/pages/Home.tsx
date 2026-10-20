@@ -72,12 +72,16 @@ export default function Home() {
       <FeatureTile key={key} feature={art} label={label} to={teacherPath(key)} />
     ));
     if (slim) drawn.splice(2, 0, <SlimCard key="home-slim-card" card={slim} userKey={user?.phoneNumber} onGo={go} />);
+    // The chips sit under the card region (the design's R6): under the slim card when that is the card, so row 1 stays
+    // whole above the fold; else under the full card, or under the band when there is no card.
+    const chipsInGrid = !!slim && !!data && !!(data.scores.coach || data.scores.observation);
+    if (chipsInGrid) drawn.splice(3, 0, <div key="home-scores" className="col-span-2"><ScoresRow scores={data.scores} cardKind={null} onGo={go} /></div>);
 
     return (
       <TeacherPage testId="teacher-home" hero={greeting}>
         {user?.phoneNumber && <ReadyForYou userKey={user.phoneNumber} />}
         {full ? <NextCard card={full} quizHome={data?.quizHome ?? null} onGo={go} /> : null}
-        {data ? <ScoresRow scores={data.scores} cardKind={full?.kind ?? null} onGo={go} /> : null}
+        {data && !chipsInGrid ? <ScoresRow scores={data.scores} cardKind={full?.kind ?? null} onGo={go} /> : null}
         <FeatureMotionProvider>
         <nav aria-label={C.home.features} data-testid="feature-tiles" className="relative [display:grid] grid-cols-2 gap-3 first:-mt-10">
           {drawn}

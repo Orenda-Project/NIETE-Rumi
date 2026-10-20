@@ -113,6 +113,17 @@ describe("teacher v2 Home, card switch ON", () => {
     expect(screen.queryByTestId("home-next-card")).toBeNull();
   });
 
+  it("with the slim card, the chips sit under it (the card region), not above the tiles", async () => {
+    serve({ home: body({ card: LESSON_CARD, scores: { coach: null, observation: { marks: 29, max: 38, at: "", id: "o-1" } } }) });
+    renderHome();
+    const slim = await screen.findByTestId("home-slim-card");
+    const grid = screen.getByTestId("feature-tiles");
+    const chips = await screen.findByTestId("home-scores");
+    expect(Array.from(grid.children).indexOf(slim)).toBe(2);
+    expect(grid.contains(chips)).toBe(true);
+    expect(Array.from(grid.children).findIndex((c) => c.contains(chips))).toBe(3);
+  });
+
   it("tiles in the server's order when the order switch is on and it lands in time", async () => {
     const order = ["coaching", "lessons", "training", "observations", "assessment", "attendance", "classes", "analytics"];
     serve({ home: body({ order, orderOn: true }), features: { teacherHomeCard: true, teacherHomeOrder: true } });
