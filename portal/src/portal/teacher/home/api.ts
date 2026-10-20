@@ -129,11 +129,15 @@ export function getQuizHome(): Promise<string | null> {
   return quizHomeMemo as Promise<string | null>;
 }
 
-/** POST /me/home/tap { kind }: fire and forget. Never throws, never waits. */
-export function tapHome(kind: TapKind): void {
+/**
+ * POST /me/home/tap { kind }: never throws. Resolves (never rejects) once the post settles, so a tap that leaves the
+ * page can wait for it (useHomeGo, with a cap); every other caller ignores the promise.
+ */
+export function tapHome(kind: TapKind): Promise<void> {
   try {
-    void Promise.resolve().then(() => api.post('/me/home/tap', { kind })).catch(() => undefined);
+    return Promise.resolve().then(() => api.post('/me/home/tap', { kind })).then(() => undefined, () => undefined);
   } catch { /* the log never stands between her and the page */ }
+  return Promise.resolve();
 }
 
 /** Tests and sign-out: forget the session's quiz home. */
