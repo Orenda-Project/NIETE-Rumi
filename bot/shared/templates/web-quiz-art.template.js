@@ -151,6 +151,9 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud
   const N = ud ? numUr : num;
   // In Nastaliq the middle dot is the Urdu zero: «۱۵ · بچے» reads ۱۵۰. Beside Urdu digits the Urdu comma separates.
   const SEP = ud ? '<span class="dot">، </span>' : DOT;
+  // native read: «۶۴ فیصد» (a % beside Urdu digits lands on the wrong side), and no "+" against «پوائنٹس»
+  const PCT = (p) => (ud ? `${N(p)} فیصد` : N(`${p}%`));
+  const PLUS = (n) => N(ud ? n : `+${n}`);
   const pic = (name) => (pics && assets()[name] ? `<img class="jug" src="data:image/webp;base64,${assets()[name]}" alt="">` : '<div class="jug"></div>');
   if (kind === 'card') {
     return {
@@ -160,7 +163,7 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud
         + `<p class="big">${N(`${d.correct}/${d.total}`)}</p>${starsHtml(d.correct, d.total)}`
         + `<p class="sub">${own(d.topic)}</p>`
         // under the Urdu polish the school sits on its own line under the points: a Latin school name never breaks an Urdu sentence
-        + (d.school && d.added ? `<p class="pts">${ur2 ? `${N(`+${d.added}`)} ${esc(C.pts)}<span class="sch">${own(d.school)}</span>` : C.added(N(`+${d.added}`), own(d.school))}</p>` : (d.school ? `<p class="pts">${own(d.school)}</p>` : '')),
+        + (d.school && d.added ? `<p class="pts">${ur2 ? `${PLUS(d.added)} ${esc(C.pts)}<span class="sch">${own(d.school)}</span>` : C.added(PLUS(d.added), own(d.school))}</p>` : (d.school ? `<p class="pts">${own(d.school)}</p>` : '')),
       cta: d.school ? '' : C.playSame,
     };
   }
@@ -181,15 +184,15 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud
     return {
       pic: d.rows && d.rows.length ? '' : pic('celebrate'),
       // The wide picture has no room for a separate line: the average joins the top line there.
-      main: `<p class="kick">${d.cls ? `${own(d.cls)}${ur2 ? ' ' : SEP}` : ''}${own(d.topic)}${size !== 'sq' && d.rows && d.rows.length ? `${ur2 ? '<br>' : SEP}${C.avgLine(N(`${d.avgPct || 0}%`))}` : ''}</p>`
+      main: `<p class="kick">${d.cls ? `${own(d.cls)}${ur2 ? ' ' : SEP}` : ''}${own(d.topic)}${size !== 'sq' && d.rows && d.rows.length ? `${ur2 ? '<br>' : SEP}${C.avgLine(PCT(d.avgPct || 0))}` : ''}</p>`
         + `<h1 class="head">${d.of ? C.playedOf(N(d.played || 0), N(d.of)) : `${N(d.played || 0)} ${esc(C.played)}`}</h1>`
         + (d.rows && d.rows.length ? `<ol class="crow">${around(d.rows.map((r) => ({ ...r, you: r.me })), size === 'sq' ? 6 : 3).map((r) => `<li class="${r.me ? 'me' : ''}">`
           + `<span class="rk">${N(r.place)}</span>${animal(r.animal, pics)}`
           + `<span class="who">${r.me ? `${own(r.first)} <small>(${esc(C.me)})</small>` : ''}</span>`
           + `<span class="sc">${N(`${r.correct}/${r.total}`)}</span></li>`).join('')}</ol>` : '')
         + (d.rows && d.rows.length
-          ? (size === 'sq' ? `<p class="sub">${C.avgLine(N(`${d.avgPct || 0}%`))}</p>` : '')
-          : `<div class="tiles"><div class="tile"><small>${esc(C.avg)}</small>${N(`${d.avgPct || 0}%`)}</div><div class="tile"><small>${esc(C.top)}</small>${N(top)}</div></div>`),
+          ? (size === 'sq' ? `<p class="sub">${C.avgLine(PCT(d.avgPct || 0))}</p>` : '')
+          : `<div class="tiles"><div class="tile"><small>${esc(C.avg)}</small>${PCT(d.avgPct || 0)}</div><div class="tile"><small>${esc(C.top)}</small>${N(top)}</div></div>`),
       cta: C.notYet,
     };
   }
@@ -200,7 +203,7 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud
       + `<span class="sn">${own(r.name)}${r.sector ? `<small>${own(r.sector)}</small>` : ''}</span>`
       + `<span class="pt">${N(fmt(r.points))}<small>${esc(C.pts)}${ud ? '،&ensp;' : ' · '}${N(fmt(r.kids))} ${esc(C.kids)}</small></span></li>`;
   }).join('');
-  return { pic: '', main: `<p class="kick">${esc(C.school)}</p><ol class="board">${rows}</ol>`, cta: C.rule };
+  return { pic: '', main: `<p class="kick">${esc(ud ? C.school.replace(' · ', '، ') : C.school)}</p><ol class="board">${rows}</ol>`, cta: C.rule };
 }
 
 /**
