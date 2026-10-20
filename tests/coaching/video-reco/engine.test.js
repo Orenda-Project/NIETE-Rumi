@@ -266,3 +266,41 @@ test('a write that fails → null (nothing for the sender to send)', async () =>
   d.store.write.mockResolvedValue(null);
   expect(await E.recommendForReport({ ...args(), deps: d })).toBeNull();
 });
+
+describe('report_language null (lead-review 19:50Z, red-team ⛔3): languages {transcript, mixed}, copy in the transcript language', () => {
+  test('null preferred + Urdu transcript → the English chapter is not a candidate; language ur; match never preferred', async () => {
+    const d = deps();
+    const a = args();
+    a.session.users.preferred_language = null;
+    d.completeJson.mockResolvedValue({ result: GOOD, usage: {}, finishReason: 'stop' });
+    const row = await E.recommendForReport({ ...a, deps: d });
+    expect(row).toMatchObject({ status: 'shown', language: 'ur', language_match: 'transcript', seg_id: '10-s1' });
+    const ids = row.candidates.map((c) => c.seg_id);
+    expect(ids).not.toContain('12-s1');
+    expect(ids).not.toContain('21-s1');
+    expect(row.candidates.every((c) => c.language_match !== 'preferred')).toBe(true);
+  });
+
+  test('null preferred + English transcript → copy language en, the Urdu chapters are not candidates', async () => {
+    const d = deps();
+    const a = args();
+    a.session.users.preferred_language = null;
+    a.session.transcript_language = 'en';
+    d.completeJson.mockResolvedValue({ result: { ...GOOD, seg_id: '12-s1' }, usage: {}, finishReason: 'stop' });
+    const row = await E.recommendForReport({ ...a, deps: d });
+    expect(row.language).toBe('en');
+    expect(row.candidates.map((c) => c.seg_id).every((id) => id === '12-s1' || id.startsWith('14-') || id === '21-s1')).toBe(true);
+    expect(row.candidates.every((c) => c.language_match !== 'preferred')).toBe(true);
+  });
+
+  test('null preferred and no transcript language → ur copy, {ur, mixed} only', async () => {
+    const d = deps();
+    const a = args();
+    a.session.users.preferred_language = '';
+    a.session.transcript_language = null;
+    d.completeJson.mockResolvedValue({ result: GOOD, usage: {}, finishReason: 'stop' });
+    const row = await E.recommendForReport({ ...a, deps: d });
+    expect(row).toMatchObject({ language: 'ur', language_match: 'transcript' });
+    expect(row.candidates.map((c) => c.seg_id)).not.toContain('12-s1');
+  });
+});

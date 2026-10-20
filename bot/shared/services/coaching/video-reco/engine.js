@@ -105,7 +105,11 @@ async function compute(a, d, state) {
   const sr = (analysis && analysis.subject_resolution) || {};
   const subject = sr.code && (sr.confidence === 'high' || sr.confidence === 'medium') ? sr.code : null;
   const t = target.pick(analysis, nextStep, card, catalog, { subject });
-  const language = clampLanguage(session.users && session.users.preferred_language);
+  // A teacher with no stored language reads the copy in the lesson's language (⛔3, red-team 19:50Z): never a 'preferred'.
+  const pref = session.users && session.users.preferred_language;
+  const hasPref = typeof pref === 'string' && pref.trim() !== '';
+  const transcriptLanguage = session.transcript_language ? clampLanguage(session.transcript_language) : null;
+  const language = hasPref ? clampLanguage(pref) : (transcriptLanguage || 'ur');
   const [history, ladder] = await Promise.all([store.recentHistory(session.user_id), store.ladderProgress(session.user_id)]);
   const completed = new Set(ladder.completedModules || []);
   // The ladder a teacher can finish = the recommendable modules (review_3313 F6): a retired module never blocks "complete".
@@ -164,10 +168,10 @@ async function compute(a, d, state) {
     topic: (analysis && analysis.topic) || (session.lesson_plan_structured && session.lesson_plan_structured.topic) || null,
     inapplicable: inapplicableRows(analysis),
   };
-  const transcriptLanguage = session.transcript_language ? clampLanguage(session.transcript_language) : null;
   const ctx = {
     language,
-    languages: [language, transcriptLanguage, 'mixed'].filter(Boolean),
+    preferred: hasPref ? language : null,
+    languages: hasPref ? [language, transcriptLanguage, 'mixed'].filter(Boolean) : [language, 'mixed'],
     level: base.teacher_level,
     ladderComplete,
     history,
