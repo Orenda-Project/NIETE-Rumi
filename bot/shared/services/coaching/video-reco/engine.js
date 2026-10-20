@@ -122,6 +122,7 @@ async function compute(a, d, state) {
   });
   const res = await select.pick({ prompt: text, deps: d, timeoutMs: a.llmTimeoutMs });
   const withLlm = { ...base, candidates: list.candidates, model: res.model, usage: res.usage };
+  if (res.truncated) return finish({ ...withLlm, status: 'none', none_reason: 'llm_truncated' });
   const v = select.validate(res.pick, list, ex, {
     stepIndicator: t.stepIndicator, forcedDiffer: t.forcedDiffer, catalog, teacherName: session.users && session.users.name,
   });

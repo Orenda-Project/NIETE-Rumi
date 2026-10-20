@@ -17,8 +17,12 @@ async function pick({ prompt, deps = {}, timeoutMs = LLM_TIMEOUT_MS }) {
     timer = setTimeout(() => reject(new Error(`videoReco LLM timeout after ${timeoutMs} ms`)), timeoutMs);
   });
   try {
-    const res = await Promise.race([call(prompt, { job: JOB, maxTokens: 700, label: 'videoReco' }), timeout]);
-    return { pick: (res && res.result) || null, usage: (res && res.usage) || {}, model: modelFor(JOB) };
+    // 4000 = completeJson's own default: gpt-5-mini spends its budget on hidden reasoning before the answer, and at 700
+    // the first real call came back finish_reason=length with empty content (evals, 18:16Z).
+    const res = await Promise.race([call(prompt, { job: JOB, maxTokens: 4000, label: 'videoReco' }), timeout]);
+    const result = (res && res.result) || null;
+    const empty = !result || typeof result !== 'object' || !Object.keys(result).length;
+    return { pick: result, usage: (res && res.usage) || {}, model: modelFor(JOB), truncated: (res && res.finishReason === 'length') || empty };
   } finally {
     clearTimeout(timer);
   }

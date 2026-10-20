@@ -11,12 +11,21 @@ beforeEach(() => {
   S = require('../../../bot/shared/services/coaching/video-reco/select');
 });
 
-test('calls completeJson once with job coaching.videoReco, 700 tokens, label videoReco', async () => {
+test('calls completeJson once with job coaching.videoReco, 4000 tokens (gpt-5-mini reasons first), label videoReco', async () => {
   completeJson.mockResolvedValue({ result: { seg_id: '10-s1' }, usage: { prompt_tokens: 10 }, finishReason: 'stop' });
   const r = await S.pick({ prompt: 'Return JSON' });
   expect(completeJson).toHaveBeenCalledTimes(1);
-  expect(completeJson).toHaveBeenCalledWith('Return JSON', { job: 'coaching.videoReco', maxTokens: 700, label: 'videoReco' });
-  expect(r).toEqual({ pick: { seg_id: '10-s1' }, usage: { prompt_tokens: 10 }, model: expect.any(String) });
+  expect(completeJson).toHaveBeenCalledWith('Return JSON', { job: 'coaching.videoReco', maxTokens: 4000, label: 'videoReco' });
+  expect(r).toEqual({ pick: { seg_id: '10-s1' }, usage: { prompt_tokens: 10 }, model: expect.any(String), truncated: false });
+});
+
+test('finish_reason length or an empty result → truncated:true (the engine stores none:llm_truncated, never validation)', async () => {
+  completeJson.mockResolvedValueOnce({ result: {}, usage: {}, finishReason: 'length' });
+  expect((await S.pick({ prompt: 'JSON' })).truncated).toBe(true);
+  completeJson.mockResolvedValueOnce({ result: null, usage: {}, finishReason: 'stop' });
+  expect((await S.pick({ prompt: 'JSON' })).truncated).toBe(true);
+  completeJson.mockResolvedValueOnce({ result: {}, usage: {}, finishReason: 'stop' });
+  expect((await S.pick({ prompt: 'JSON' })).truncated).toBe(true);
 });
 
 test('the registry knows the job (env VIDEO_RECO_MODEL, default gpt-5-mini) and how its caller parses', () => {
