@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Rewrite the SA battery bank from the v3/v4 banks (shared/services/child-test/sa/build.js):
+ * Rewrite the SA battery bank from the v3 bank and the extra official items (item-bank.sa-extra.v1.json) (shared/services/child-test/sa/build.js):
  *   bot/shared/data/child-test/item-bank.sa.v1.json   the whole bank (CONTRACT §2: forms + tasks keyed "<form>/<task>")
  *   bot/shared/data/child-test/sa/<form>.json         the same shape, one form's tasks only
  *   bot/shared/data/child-test/sa/sa.<form>.<lang>.json  what the engine runs (/sa/batteries/), one form in one language
@@ -16,8 +16,9 @@ const { buildSaBank, splitSaBankWithRuntime } = require('../../shared/services/c
 
 const DATA = path.join(__dirname, '../../shared/data/child-test');
 const v3 = JSON.parse(fs.readFileSync(path.join(DATA, 'item-bank.v3.json'), 'utf8'));
+const extra = JSON.parse(fs.readFileSync(path.join(DATA, 'item-bank.sa-extra.v1.json'), 'utf8'));
 
-const files = splitSaBankWithRuntime(buildSaBank({ v3 }));
+const files = splitSaBankWithRuntime(buildSaBank({ v3, extra }));
 const check = process.argv.includes('--check');
 let stale = 0;
 // A form file no longer made is stale too.

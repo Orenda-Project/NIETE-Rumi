@@ -166,6 +166,30 @@ const TASKS = {
     intro_tap: L('Here are some more subtraction problems. Take your time, then tap the answer.', 'یہ تفریق کے کچھ اور سوال ہیں۔ آرام سے سوچیں، پھر جواب دبائیں۔',
       'v3:sets.A.maths.3.sub2.script.intro (tap adaptation)'),
   },
+  // The extra maths tasks (DESIGN §2b). RWP's own administration scripts were not recovered, so each line adapts the
+  // RWP item's printed question ("What comes next?") with the Core EGMA keypad/tap wording of the nearest task.
+  'ma.patterns': {
+    intro_tap: L('Look at the pattern. Tap what comes next.', 'اس ترتیب کو دیکھیں۔ آگے جو آئے، اسے دبائیں۔',
+      'rwp2026:patterns item text "What comes next?" (tap adaptation)'),
+  },
+  'ma.patterns_hi': {
+    intro_tap: L('Look at the pattern and listen to the question. Type the answer with the number buttons.',
+      'ترتیب کو دیکھیں اور سوال سنیں۔ جواب نمبر والے بٹن دبا کر لکھیں۔', 'rwp2026:patterns levels 3-4 item text (keypad adaptation)'),
+  },
+  'ma.number_repr': {
+    intro_tap: L('Listen to each question, then type the answer with the number buttons. To hear a question again, tap Jugnu.',
+      'ہر سوال سنیں، پھر جواب نمبر والے بٹن دبا کر لکھیں۔ سوال دوبارہ سننے کے لیے جگنو کو دبائیں۔',
+      'rwp2026:represent item text (keypad adaptation, Core EGMA word problems wording)'),
+  },
+  'ma.ordering': {
+    intro_tap: L('Listen to each question, then tap the answer.', 'ہر سوال سنیں، پھر جواب دبائیں۔',
+      'rwp2026:identify item text (tap adaptation)'),
+  },
+  'ma.fluency_l34': {
+    intro_tap: L('Here are some more sums: adding, taking away, times and sharing. Type the answer to each one. If you do not know an answer, tap Next.',
+      'یہ کچھ اور سوال ہیں: جمع، تفریق، ضرب اور تقسیم۔ ہر سوال کا جواب لکھیں۔ اگر جواب نہ آئے تو "اگلا" دبائیں۔',
+      'v3:sets.A.maths.3.add1.script.intro (keypad adaptation; RWP blfl4 grid)'),
+  },
   'ma.word_problems': {
     intro_record: L('Listen to each problem very carefully, then say the answer out loud. To hear a problem again, tap Jugnu.',
       'ہر سوال بہت دھیان سے سنیں، پھر جواب اونچی آواز میں بتائیں۔ سوال دوبارہ سننے کے لیے جگنو کو دبائیں۔',
