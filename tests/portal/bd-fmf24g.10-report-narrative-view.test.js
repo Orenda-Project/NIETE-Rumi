@@ -29,6 +29,7 @@ describe('narrativeView', () => {
       domainWhys: { teacher_subject_knowledge: 'Clear examples.' },
       language: 'ur',
       topic: 'Fractions', // bd-foyqpc
+      journeyNote: 'Up from last time', // bd-z3cadk
     });
   });
 

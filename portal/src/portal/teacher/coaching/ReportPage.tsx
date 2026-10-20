@@ -136,6 +136,9 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
         />
       ) : null}
 
+      {/* bd-z3cadk — ICT IAB row 23: the same recording sent again; the bot's own message, as on WhatsApp. */}
+      {ready && detail?.duplicate ? <DuplicateNote lead={C.duplicateRecordingLead} next={C.duplicateRecordingNext} /> : null}
+
       {ready && detail?.debriefAudioUrl ? (
         <>
           <SectionHeading>{C.voiceNote}</SectionHeading>
@@ -181,7 +184,11 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
       {ready && detail ? (
         <div className="mt-2">
           {isVisit ? null : <SectionHeading>{C.fullReport}</SectionHeading>}
-          <ReportBody data={toReportData(detail, { teacher: fullName(user), journey, words: C, days })} />
+          {/* bd-z3cadk — a report the bot wrote no narrative for (older ones, and their repeats) would show bare score
+              bars here; the WhatsApp report image is the full report, so it is shown instead. */}
+          {!isVisit && !detail.reportNarrative && reportImage
+            ? <img src={reportImage} alt={C.fullReport} className="block w-full rounded-[18px] border border-[#e5e7eb] bg-white" />
+            : <ReportBody data={toReportData(detail, { teacher: fullName(user), journey, words: C, days })} />}
         </div>
       ) : null}
     </TeacherPage>
@@ -194,4 +201,14 @@ function toTime(iso: string | null | undefined): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Karachi' });
+}
+
+/** bd-z3cadk — the bot's repeat-recording message (coaching-messages.js duplicateRecording), in her language. */
+export function DuplicateNote({ lead, next }: { lead: string; next: string }) {
+  return (
+    <section aria-live="polite" className={cn(CARD, 'flex flex-col gap-2 px-4 py-4')}>
+      <p className="m-0 text-[16px] font-semibold leading-[1.5]">{lead}</p>
+      <p className="m-0 text-[15px] leading-[1.5] text-[#4b5563]">{next}</p>
+    </section>
+  );
 }
