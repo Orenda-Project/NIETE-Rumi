@@ -527,11 +527,17 @@ class AnalysisProcessorService {
       // got this predicate in #1008; the ordinary coaching analysis write did
       // not, so a cancelled session was reopened at 'analysis_complete'.
       const { TERMINAL_IN_FILTER } = require('./session-terminal');
+      // bd-v0toag.31: this write replaces the whole blob, so keep the live moves record the upload stored
+      // (and any taps since) — re-read just before writing, as report-generator does for its own merge.
+      const { data: fresh } = await supabase
+        .from('coaching_sessions').select('analysis_data').eq('id', coachingSessionId).single();
+      const liveMoves = fresh && fresh.analysis_data && fresh.analysis_data.live_moves;
       const { data: analysisArmed } = await supabase
         .from('coaching_sessions')
         .update({
           analysis_data: {
             ...analysisResult.analysis,
+            ...(liveMoves ? { live_moves: liveMoves } : {}),
             ...(reflectiveCorpus ? { reflective_corpus: reflectiveCorpus } : {}),
             // bd-gr48y: persist the photo read so report transformers can flag
             // photo-aware indicators (hasPhotoAnalysis) and the report can show it.

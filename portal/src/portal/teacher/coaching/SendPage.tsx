@@ -9,6 +9,8 @@ import { useBack } from '../../lib/useBack';
 import { useRecordingClock, useRecordingSession, type RecordingSession } from '../../lib/recordingSession';
 import { LevelBars } from '../../newui/coaching/LevelBars';
 import { useSendFlow } from '../../newui/coaching/useSendFlow';
+import { useLiveMoves } from '../../newui/coaching/useLiveMoves';
+import { LiveMovesPanel } from '../../newui/coaching/LiveMovesList';
 import TeacherPage from '../TeacherPage';
 import { openUrl } from '../lessons/paths';
 import { teacherPath } from '../routes';
@@ -74,21 +76,26 @@ export function SendPage() {
       const d = peekDraft();
       return d ? { audio: d.audio, plan: d.plan, photos: d.photos } : null;
     },
+    liveMoves: () => peekDraft()?.live ?? null,
   });
   const { stage, audio } = flow;
+  // bd-v0toag.31.3 — group D: the moves for the lesson she chose, while she records (the server says who gets them).
+  const live = useLiveMoves({ session, plan: peekDraft()?.plan ?? null, recording: stage === 'recording' });
+  const toLiveRecord = live.toRecord;
   const elapsed = useRecordingClock(session);
   const level = useMicLevel(session.stream, stage === 'recording' && !session.paused);
   const cameFromApp = useRef(location.key !== 'default');
 
   // A recording in hand (just finished here, or a file taken at "Microphone blocked"): it goes into the draft and
   // she is back on the Digital Coaching page, where it is attached. A sent lesson's draft is cleared.
+  // Her live moves record goes with it, for Submit.
   useEffect(() => {
     if (stage === 'check' && audio) {
       const d = peekDraft();
-      holdDraft({ audio, plan: d?.plan ?? null, photos: d?.photos ?? [] });
+      holdDraft({ audio, plan: d?.plan ?? null, photos: d?.photos ?? [], live: toLiveRecord() });
       navigate(COACHING_NEW, { replace: true, state: KEEP });
     }
-  }, [stage, audio, navigate]);
+  }, [stage, audio, navigate, toLiveRecord]);
   useEffect(() => { if (stage === 'sent') clearDraft(); }, [stage]);
 
   // bd-qccbrv — "Microphone blocked" says what to do for what happened: Try again refused again, or a browser that
@@ -190,6 +197,7 @@ export function SendPage() {
               {chosenPlan?.kind === 'library' ? C.openPlan : C.lessonPlans}
             </Link>
             <span className="text-[13px] font-medium text-[#6b7280]">{C.keepAppOpen}</span>
+            {live.state ? <div className="w-full"><LiveMovesPanel live={live} /></div> : null}
           </section>
           {/* bd-fmf24g.41: the kit's ConfirmTray (its two buttons were squashed to 26px here by flex-1 in a column). */}
           <ConfirmTray

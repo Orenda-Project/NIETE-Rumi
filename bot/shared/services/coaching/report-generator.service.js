@@ -35,6 +35,8 @@ const { isUptakeLoopEnabled } = require('../../config/uptake-loop-flags');
 const { clampLanguage } = require('../../config/ux-strings');
 const { persistReportNarrative } = require('./report-v2/narrative-store');
 const { offerDefaultLanguage } = require('../../config/languages');
+const { createReportTracker } = require('./report-tracking');
+const { v10Enabled } = require('./ab-v10-switch');
 
 /**
  * The language the coaching STEP messages are sent in.
@@ -154,6 +156,8 @@ class ReportGeneratorService {
       }
 
       const from = payload.from || session.users.phone_number;
+      // v10 test (bd-v0toag.12): logs each part sent with its wamid; a no-op while the switch is off.
+      const track = createReportTracker({ coachingSessionId, userId: session.user_id });
       // Filter Boolean protects against a null last_name concatenating literally
       // as "First null" and against both names being null (renders as empty
       // string that hero-report.service.js maps to 'Teacher' fallback).
@@ -353,26 +357,35 @@ class ReportGeneratorService {
       }
 
       // bd-v0toag.1.5: ONE next step, chosen once — the horizon, the card and the stored focus all read it.
+      // While the v10 test is on it is part of the new report, so only groups C and D get it (Amena,
+      // 16 Oct); A, B and undrawn schools get today's report — target null, the card chooses its own
+      // area, the scorer's focus is left as written. With the test off, every teacher gets it.
       const { selectNextStep, focusPatch } = require('./next-step');
-      const nextStep = selectNextStep(enhancedAnalysis, loop);
+      let oneStep = true;
+      if (await v10Enabled().catch(() => false)) {
+        const v10 = await require('./ab-v10-arms').groupFor(session.user_id);
+        oneStep = !!(v10 && v10.report === 'new');
+      }
+      const nextStep = oneStep ? selectNextStep(enhancedAnalysis, loop) : { target: null };
       const stepId = nextStep.target && nextStep.target.indicator;
       if (nextStep.fallback) {
         logToFile('[next-step] fallback — no valid loop target or focus_area; the weakest scored row is the step', {
           coachingSessionId, reason: nextStep.reason, scorer_indicator: nextStep.scorerIndicator, indicator: stepId || null,
         });
       }
-      const stepFocus = focusPatch(enhancedAnalysis, nextStep.target);
+      const stepFocus = oneStep ? focusPatch(enhancedAnalysis, nextStep.target) : null;
       if (stepFocus) {
         Object.assign(enhancedAnalysis, stepFocus);
         await require('./next-step-store').persistNextStepFocus(coachingSessionId, stepFocus);
       }
       const logRuleCard = (card) => {
-        if (card && card._source === 'fallback') logToFile('[next-step] commitment card is the rule-based fallback', { coachingSessionId, indicator: stepId || null, card_indicator: card.indicator });
+        if (oneStep && card && card._source === 'fallback') logToFile('[next-step] commitment card is the rule-based fallback', { coachingSessionId, indicator: stepId || null, card_indicator: card.indicator });
       };
 
       let precomputedCommitment = null;
       try {
         const { generateCommitmentCard } = require('./coaching-card/commitment-card.service');
+        const { cardPriorAction } = require('./thing-to-try');
         const cardLanguage = heroLanguage;
         const { data: priorSessionsForCard } = await supabase
           .from('coaching_sessions')
@@ -388,7 +401,7 @@ class ReportGeneratorService {
           enhancedAnalysis,
           session.conversation_state,
           cardLanguage,
-          { teacherName: teacherFirstNameForCard, priorAction: priorActionForCard, target: nextStep.target, ...(loop ? { loop } : {}) }
+          { teacherName: teacherFirstNameForCard, priorAction: await cardPriorAction(session.user_id, priorActionForCard), target: nextStep.target, ...(loop ? { loop } : {}) }
         );
         logRuleCard(precomputedCommitment);
       } catch (e) {
@@ -458,17 +471,31 @@ class ReportGeneratorService {
         for (const line of overflow) {
           if (line.key !== 'step5') await WhatsAppService.sendMessage(from, line.text);
         }
-        const heroSent = await this.sendHeroImageReport(
-          from,
-          coachingSessionId,
-          reportResult.png,
-          caption,
-          session.users.name,
-          session.created_at,
-          { userId: session.user_id }
-        );
+        let heroSent;
+        try {
+          heroSent = await this.sendHeroImageReport(
+            from,
+            coachingSessionId,
+            reportResult.slimPng || reportResult.png, // bd-v0toag.57: C/D get the slim image; R2 keeps the full one
+            caption,
+            session.users.name,
+            session.created_at,
+            { ...track.opts('image'), userId: session.user_id }
+          );
+        } catch (error) {
+          await track.record('image', false, error);
+          throw error;
+        }
+        if (heroSent !== false) await track.record('image', true);
         // bd-v0toag.106 — window closed: the report went as the share template; the free-form follow-ups would be refused.
         followUps = require('./report-window-send').followUpsAllowed(heroSent);
+        // v10 coaching test (bd-v0toag.19): C and D get the link to their report page. Off or
+        // undrawn, or A and B: nothing is sent. Never throws.
+        if (followUps) {
+          await require('./report-link-send').sendReportLinkIfNew({
+            coachingSessionId, userId: session.user_id, phone: from, language: outputLanguage, track,
+          });
+        }
         voiceStepAnnounced = heroSent !== false && fitted.some((l) => l.key === 'step5');
         if (heroSent !== false) ReportEvents.reportSent({ userId: session.user_id, sessionId: coachingSessionId, format: reportFormat });
       } else {
@@ -481,7 +508,7 @@ class ReportGeneratorService {
 
       // Generate and send voice debrief (optional, won't fail entire process)
       if (!isRetry && followUps) {
-        await this.generateAndSendVoiceDebrief(session, from, coachingSessionId, enhancedAnalysis, { stepAnnounced: voiceStepAnnounced });
+        await this.generateAndSendVoiceDebrief(session, from, coachingSessionId, enhancedAnalysis, { stepAnnounced: voiceStepAnnounced, track });
       }
 
       // "Was this coaching report useful to you?" — RIGHT after the voice debrief, before
@@ -504,12 +531,13 @@ class ReportGeneratorService {
           const CoachingFeedbackService = require('./coaching-feedback.service');
           let surveySent = false;
           try {
-            surveySent = await CoachingFeedbackService.sendFeedbackPrompt({
-              coachingSessionId,
-              userId: session.user_id,
-              phone: from,
-              language: outputLanguage,
-            });
+            // v10 coaching test (bd-v0toag.49): while ab_v10_enabled is on, only groups A and B
+            // are asked here (C and D answer on the report page) — askIfInTest. Switch off:
+            // every teacher, as before.
+            const ask = { coachingSessionId, userId: session.user_id, phone: from, language: outputLanguage };
+            surveySent = (await v10Enabled().catch(() => false))
+              ? await CoachingFeedbackService.askIfInTest(ask)
+              : await CoachingFeedbackService.sendFeedbackPrompt(ask);
           } finally {
             if (surveySent === false) await releasePiece(coachingSessionId, 'survey');
           }
@@ -540,6 +568,7 @@ class ReportGeneratorService {
       let completionAnnounced = false;
       try {
         const { generateCommitmentCard } = require('./coaching-card/commitment-card.service');
+        const { cardPriorAction } = require('./thing-to-try');
         const { getCoachingCardCopy } = require('../../config/coaching-card.config');
         // card-image render + R2 upload are no longer needed here — the standalone
         // commitment-card image is no longer sent (the action lives inside the hero
@@ -574,10 +603,19 @@ class ReportGeneratorService {
             enhancedAnalysis,
             session.conversation_state,
             cardLanguage,
-            { teacherName: teacherFirstName, priorAction, target: nextStep.target, ...(loop ? { loop } : {}) }
+            { teacherName: teacherFirstName, priorAction: await cardPriorAction(session.user_id, priorAction), target: nextStep.target, ...(loop ? { loop } : {}) }
           );
           logRuleCard(actionData);
         }
+
+        // bd-v0toag.20: v10 test only (ab_v10_enabled), otherwise actionData comes back as it was.
+        const { withThingToTry } = require('./thing-to-try-pick');
+        actionData = await withThingToTry({
+          userId: session.user_id,
+          coachingSessionId,
+          lpFidelity: (enhancedAnalysis && enhancedAnalysis.lp_fidelity) || (session.analysis_data && session.analysis_data.lp_fidelity) || null,
+          actionData,
+        });
 
         if (actionData) {
           // The "one thing to try next class" action already renders INSIDE the
@@ -603,7 +641,8 @@ class ReportGeneratorService {
                 { id: `card_later_${coachingSessionId}`, title: cardCopy.commitButtons.later },
                 { id: `card_no_${coachingSessionId}`, title: cardCopy.commitButtons.no },
               ],
-            });
+            }, track.opts('buttons'));
+            await track.record('buttons', promptSent !== false);
             if (promptSent === false) await releasePiece(coachingSessionId, 'commit_prompt');
             completionAnnounced = Boolean(lead);
           } else {
@@ -915,6 +954,8 @@ class ReportGeneratorService {
    * @param {object} session - Session data
    * @param {string} teacherName - Teacher's full name
    * @param {object} enhancedAnalysis - Enhanced analysis data
+   * @param {object} [precomputedCommitment] - the commitment card already generated
+   * @param {object} [nextStep] - next-step.selectNextStep result (bd-v0toag.1.5); its target pins the horizon
    * @returns {Promise<Buffer>} PDF buffer
    * @private
    */
@@ -972,6 +1013,13 @@ class ReportGeneratorService {
       { language: session?.users?.preferred_language }, analysisForTransformer, session
     );
     const commitmentAction = (precomputedCommitment && precomputedCommitment.action) || '';
+    // bd-v0toag.57: C and D are sent a slim image (null for everyone else, and the report renders as today).
+    const slim = await require('./slim-report').slimReportFor({
+      userId: session.user_id,
+      sessionId: session.id,
+      lpFidelity: (enhancedAnalysis && enhancedAnalysis.lp_fidelity) || (session.analysis_data && session.analysis_data.lp_fidelity) || null,
+      commitmentAction,
+    });
 
     reportData._heroInput = {
       session,
@@ -979,6 +1027,7 @@ class ReportGeneratorService {
       opts: {
         teacherName,
         language,
+        slim, // bd-v0toag.57: C/D slim image; null renders as today
         // Passed in from the caller: the pre-computed commitment-card action
         // (single source of next-step truth). Empty string → hero omits the
         // tryNext callout gracefully (template guards on truthiness).
@@ -1625,7 +1674,7 @@ class ReportGeneratorService {
    * @returns {Promise<void>}
    * @private
    */
-  static async sendHeroImageReport(phoneNumber, coachingSessionId, pngBuffer, caption, teacherFirstName = 'Teacher', observationDate = null, { userId } = {}) {
+  static async sendHeroImageReport(phoneNumber, coachingSessionId, pngBuffer, caption, teacherFirstName = 'Teacher', observationDate = null, { userId, ...sendOpts } = {}) {
     // Meta bill cut NC5 (N1-13): once per session. Returns false (no throw) when
     // this run is a duplicate; a failed send gives the claim back below so the
     // retry can still deliver the report.
@@ -1658,7 +1707,7 @@ class ReportGeneratorService {
       });
 
       // sendImage handles the Meta media upload + the messages send.
-      const ok = await WhatsAppService.sendImage(phoneNumber, tempImagePath, caption);
+      const ok = await WhatsAppService.sendImage(phoneNumber, tempImagePath, caption, sendOpts);
       if (!ok) {
         // sendImage returns false on failure and swallows the error internally;
         // treat that as a hard failure here — report delivery IS critical.
@@ -1902,7 +1951,8 @@ class ReportGeneratorService {
       // between the two (586 sessions, 18 Sep 2026; p95 55s, max 242s), so
       // dropping it instead would leave the teacher waiting in silence. The audio
       // arriving after it needs no caption.
-      await WhatsAppService.sendAudioFromUrl(phoneNumber, voiceUrl);
+      const voiceSent = await WhatsAppService.sendAudioFromUrl(phoneNumber, voiceUrl, opts.track ? opts.track.opts('voice') : undefined);
+      if (opts.track) await opts.track.record('voice', voiceSent !== false);
 
       logToFile('✅ Voice debrief sent successfully', { coachingSessionId });
     } catch (voiceError) {

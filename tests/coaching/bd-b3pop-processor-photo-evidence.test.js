@@ -146,6 +146,14 @@ beforeEach(() => {
 afterAll(() => { for (const k of FLAGS) delete process.env[k]; });
 
 describe('bd-b3pop — processor: vision pass v2 → fidelity photo evidence', () => {
+  test('bd-v0toag.31: the analysis write keeps the live moves record already on the row', async () => {
+    const liveMoves = { lessonId: 'L1', liveId: 'live-1', moves: [], taps: [{ idx: 0, choice: 'did' }] };
+    global.__B3POP_SESSION = { ...session(), analysis_data: { live_moves: liveMoves } };
+    visionAnswers();
+    await run();
+    expect(lastAnalysisData().live_moves).toEqual(liveMoves);
+  });
+
   test('P1: v2 + LP_FIDELITY_PHOTO=on — classroom photos reach the grader, the screenshot reaches neither scorer', async () => {
     process.env.COACHING_PHOTO_VISION = 'v2';
     process.env.LP_FIDELITY_PHOTO = 'on';

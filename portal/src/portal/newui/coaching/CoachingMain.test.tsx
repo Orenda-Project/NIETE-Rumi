@@ -33,6 +33,7 @@ vi.mock("../../services/api", () => ({
     getDashboard: vi.fn(),
     getCoachingSessions: vi.fn(),
     getActiveCoachingSessions: vi.fn(),
+    liveEligible: vi.fn(),
   },
 }));
 vi.mock("../../lib/recordingSupport", async (orig) => ({
@@ -152,6 +153,13 @@ describe("which Coaching she gets", () => {
     expect(within(band).getByTestId("newui-heading-tile").querySelector("svg.lucide-mic")).not.toBeNull();
     expect(screen.getByTestId("layout")).toHaveAttribute("data-own-heading", "true");
     expect(screen.queryByTestId("send-a-lesson")).toBeNull();
+  });
+
+  it("asks whether live moves are on for her, so Record never waits on it (bd-v0toag.31 review I-1)", async () => {
+    api.liveEligible.mockResolvedValue({ on: false });
+    renderPage();
+    await heading();
+    await waitFor(() => expect(api.liveEligible).toHaveBeenCalledTimes(1));
   });
 
   it("the new UI without self-observation: today's list, unchanged", async () => {

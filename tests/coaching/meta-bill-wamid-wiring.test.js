@@ -135,6 +135,8 @@ describe('N2-C11 — the commit-card tap is acknowledged with a ✅ reaction', (
     // The webhook block above doMock'ed this module; a doMock outlives resetModules.
     jest.dontMock('../../bot/shared/services/coaching/coaching-card/card-response.service');
     sends.length = 0;
+    // Card taps sit behind the v10 test switch (bd-v0toag); on here.
+    jest.doMock('../../bot/shared/services/coaching/ab-v10-switch', () => ({ v10Enabled: async () => true }));
     jest.doMock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logWarn: jest.fn(), logError: jest.fn() }));
     jest.doMock('../../bot/shared/services/whatsapp.service', () => ({
       sendMessage: jest.fn(async (to, text) => { sends.push({ kind: 'text', text }); return true; }),

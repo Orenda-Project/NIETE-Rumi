@@ -344,7 +344,7 @@ describe('FX4-2 — the coaching-report survey acknowledges with 🙏, not a bil
   describe('the reaction is refused → the original text, in her language', () => {
     beforeEach(() => { refuseReactions = 100; });
     test.each([
-      ['en', 'Thanks — glad it was useful.'], ['ur', 'شکریہ — خوشی ہے کہ یہ کام آئی۔'],
+      ['en', 'Thank you.'], ['ur', 'شکریہ۔'], // v10 survey wording (bd-v0toag.79)
     ])('[%s] Yes → "%s"', async (l, expected) => {
       lang = l; seedDb({ status: 'completed' });
       await post(tap(`coaching_fb_yes_${SESSION}`));

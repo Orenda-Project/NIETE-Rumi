@@ -3,6 +3,8 @@ import { AlertTriangle, ChevronLeft, ExternalLink, Loader2, ZoomIn, ZoomOut } fr
 import { useToast } from '@/hooks/use-toast';
 import { loadPdfjs } from '../lib/pdfjs';
 import { RecordingContinuesChip } from './RecordingBar';
+import { useStepJump, useStepMark } from './stepMark';
+import { PAGE_STYLE, PdfPage, type PdfDocLike } from './LessonPlanPage';
 import {
   fetchLessonPlanPdf, LessonPlanNotReady, openLessonPlanOutside, sourceKey, type LessonPlanView,
 } from '../lib/lessonPlanOpen';
@@ -40,6 +42,9 @@ import {
  * and its toolbar's outside button, and its zoom buttons sit in 56px targets (the new UI's tap
  * rule). Everything else — loading, the fallback, recording — is the same viewer. The default
  * ("own") is the viewer exactly as it was.
+ *
+ * bd-v0toag.8 (v10 coaching test, PR3) — `highlight`: the step her thing to try belongs to is outlined on the
+ * plan, and each new `jump` (her tap on the strip) takes her to it (components/stepMark). No highlight: as before.
  */
 
 const COPY = {
@@ -51,7 +56,6 @@ const COPY = {
   couldNotOpen: 'Could not open this lesson plan',
   zoomIn: 'Zoom in',
   zoomOut: 'Zoom out',
-  page: (n: number) => `Page ${n}`,
 };
 
 export const VIEWER_STYLE = {
@@ -74,88 +78,12 @@ export const VIEWER_STYLE = {
   zoomFace: 'flex h-11 w-11 items-center justify-center rounded-lg border border-[#d6d9de] bg-white text-primary group-disabled:text-[#c4c8cf]',
   outsideButton: 'ms-auto flex h-11 items-center gap-1.5 rounded-lg border border-[#d6d9de] bg-white px-3 text-sm font-semibold text-primary',
   pages: 'flex flex-col items-start gap-3',
-  page: 'mx-auto shrink-0 bg-white shadow-sm',
+  page: PAGE_STYLE,
 };
 
 const ZOOMS = [1, 1.25, 1.5, 2, 3];
-/** ~16 MB of pixels per page canvas at most, however far she zooms. */
-const MAX_CANVAS_PIXELS = 4_000_000;
 /** A4 portrait, until the first page says otherwise. */
 const DEFAULT_RATIO = 297 / 210;
-
-type PdfPageLike = {
-  getViewport: (o: { scale: number }) => { width: number; height: number };
-  render: (o: { canvas: HTMLCanvasElement; viewport: { width: number; height: number } }) => { promise: Promise<unknown>; cancel: () => void };
-  cleanup?: () => void;
-};
-type PdfDocLike = { numPages: number; getPage: (n: number) => Promise<PdfPageLike>; destroy: () => Promise<void> | void };
-
-function isCancel(err: unknown): boolean {
-  return (err as { name?: string } | null)?.name === 'RenderingCancelledException';
-}
-
-const PdfPage = ({ doc, pageNumber, width, ratio, onRatio, onFailed }: {
-  doc: PdfDocLike;
-  pageNumber: number;
-  width: number;
-  ratio: number;
-  onRatio: (page: number, ratio: number) => void;
-  onFailed: (page: number) => void;
-}) => {
-  const box = useRef<HTMLDivElement>(null);
-  const canvas = useRef<HTMLCanvasElement>(null);
-  const [near, setNear] = useState(() => pageNumber <= 2 || typeof IntersectionObserver === 'undefined');
-
-  // Near the screen (within one and a half screens): draw. Far: let it go.
-  useEffect(() => {
-    const el = box.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
-    const io = new IntersectionObserver((entries) => {
-      for (const e of entries) setNear(e.isIntersecting);
-    }, { rootMargin: '150% 0px' });
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const c = canvas.current;
-    if (!c) return undefined;
-    if (!near || width <= 0) { c.width = 0; c.height = 0; return undefined; }
-    let cancelled = false;
-    let task: { promise: Promise<unknown>; cancel: () => void } | null = null;
-    let page: PdfPageLike | null = null;
-    (async () => {
-      page = await doc.getPage(pageNumber);
-      if (cancelled) return;
-      const base = page.getViewport({ scale: 1 });
-      onRatio(pageNumber, base.height / base.width);
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      let scale = (width / base.width) * dpr;
-      const pixels = base.width * scale * base.height * scale;
-      if (pixels > MAX_CANVAS_PIXELS) scale *= Math.sqrt(MAX_CANVAS_PIXELS / pixels);
-      const viewport = page.getViewport({ scale });
-      c.width = Math.floor(viewport.width);
-      c.height = Math.floor(viewport.height);
-      task = page.render({ canvas: c, viewport });
-      await task.promise;
-    })().catch((err) => {
-      if (!cancelled && !isCancel(err)) onFailed(pageNumber);
-    });
-    return () => {
-      cancelled = true;
-      try { task?.cancel(); } catch { /* finished */ }
-      try { page?.cleanup?.(); } catch { /* nothing cached */ }
-    };
-  }, [near, width, doc, pageNumber, onRatio, onFailed]);
-
-  return (
-    <div ref={box} data-testid="lp-page" className={VIEWER_STYLE.page} style={{ width, height: Math.round(width * ratio) }}>
-      {/* bd-fmf24g.56: dir="ltr". A canvas inherits the page's direction, and in Urdu (rtl) pdf.js then draws each
-          glyph offset by its own width: thin letters vanish and words break apart. A PDF page is always laid out ltr. */}
-      <canvas ref={canvas} dir="ltr" role="img" aria-label={COPY.page(pageNumber)} className="block h-full w-full" />
-    </div>
-  );
-};
 
 type Props = {
   view: LessonPlanView;
@@ -166,9 +94,11 @@ type Props = {
   onClose: () => void;
   /** Nothing to open yet (not published / still being written). */
   onNotReady: () => void;
+  /** v10 coaching test: the plan step (1–5) to outline, and her taps so far (a new one takes her there). */
+  highlight?: { step: number; jump: number };
 };
 
-const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own' }: Props) => {
+const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own', highlight }: Props) => {
   const { toast } = useToast();
   const { source, title } = view;
   const key = sourceKey(source);
@@ -179,6 +109,8 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own'
   const [ratios, setRatios] = useState<Record<number, number>>({});
   const [boxWidth, setBoxWidth] = useState(0);
   const scroller = useRef<HTMLDivElement>(null);
+  const mark = useStepMark(state === 'ready' ? doc : null, highlight?.step);
+  useStepJump(scroller, mark, highlight?.jump);
 
   // Read at the moment it fails, not when the viewer opened.
   const recordingRef = useRef(recording);
@@ -353,7 +285,7 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own'
             <div className={VIEWER_STYLE.pages} style={{ width: pageWidth }}>
               {Array.from({ length: doc.numPages }, (_, i) => i + 1).map((n) => (
                 <PdfPage key={n} doc={doc} pageNumber={n} width={pageWidth}
-                  ratio={ratios[n] ?? defaultRatio} onRatio={onRatio} onFailed={onFailed} />
+                  ratio={ratios[n] ?? defaultRatio} onRatio={onRatio} onFailed={onFailed} mark={mark} />
               ))}
             </div>
           )}

@@ -4646,7 +4646,7 @@ CREATE TABLE IF NOT EXISTS niete_lp_assets (
   rendered_at      TIMESTAMPTZ,            -- MANIFEST rendered_at
 
   asset_kind       TEXT        NOT NULL DEFAULT 'lesson'
-                   CHECK (asset_kind IN ('lesson', 'answer_key')),
+                   CHECK (asset_kind IN ('lesson', 'answer_key', 'card')),  -- card: V1.6.6
 
   is_current       BOOLEAN     NOT NULL DEFAULT TRUE,
   superseded_at    TIMESTAMPTZ,
@@ -6667,6 +6667,37 @@ COMMENT ON COLUMN child_test_draws.visit_key IS
   'Internal. The visit the row is listed at when that visit has no observe2 field form: cs:<coaching_session_id> (classic /observe) or day:<coach>:<school>:<YYYY-MM-DD PKT> (/egra with no visit). Never set together with last_listed_visit_id.';
 COMMENT ON COLUMN child_test_sessions.visit_key IS
   'Internal. The visit key (see child_test_draws.visit_key) when the visit has no observe2 field form. Never set together with visit_id.';
+
+
+-- ─── niete_coaching_ab_assignment (migration V1.6.5) — v10 coaching test group per school ──
+-- Mirrors infrastructure/supabase/migrations/V1.6.5__niete_coaching_ab_assignment.sql: written once at
+-- the draw; A = v9 + today's report, B = v10 card + today's, C = v9 + new, D = card + new. Transitional.
+CREATE TABLE IF NOT EXISTS niete_coaching_ab_assignment (
+  school_id  UUID PRIMARY KEY REFERENCES schools (id),
+  ab_group   TEXT NOT NULL CHECK (ab_group IN ('A', 'B', 'C', 'D')),
+  block      TEXT,
+  seed       TEXT NOT NULL,
+  drawn_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ─── coach_visit_requests (migration V1.6.7) — a C/D teacher asked her coach to observe ──
+-- Mirrors infrastructure/supabase/migrations/V1.6.7__coach_visit_requests.sql: one row per report;
+-- status pending -> sent | failed, or no_coach; visited once the coach marks it (V1.6.9). Transitional.
+CREATE TABLE IF NOT EXISTS coach_visit_requests (
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  coaching_session_id  UUID NOT NULL UNIQUE REFERENCES coaching_sessions (id),
+  teacher_user_id      UUID NOT NULL REFERENCES users (id),
+  coach_user_id        UUID REFERENCES users (id),
+  school_id            UUID REFERENCES schools (id),
+  ab_group             TEXT NOT NULL CHECK (ab_group IN ('C', 'D')),
+  status               TEXT NOT NULL CHECK (status IN ('pending', 'sent', 'failed', 'no_coach', 'visited')),
+  wa_message_id        TEXT,
+  reasons              TEXT[],
+  voice_note_key       TEXT,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE coach_visit_requests ENABLE ROW LEVEL SECURITY;
 
 -- ─── niete_lp_opens (migration V1.6.1) — lesson plans a teacher opened in the portal ──
 -- Mirrors infrastructure/supabase/migrations/V1.6.1__niete_lp_opens.sql. One row per portal open

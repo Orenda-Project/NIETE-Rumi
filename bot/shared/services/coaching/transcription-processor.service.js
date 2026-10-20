@@ -24,6 +24,7 @@ const { TEMP_DIR, LISTENING_ANIMATION_MEDIA_ID } = require('../../utils/constant
 const { getUserLanguage, setUserLanguage } = require('../../utils/language-cache');
 const { analyzeLanguage } = require('../../utils/language-detector');
 const { getCoachingMessage } = require('../../config/coaching-messages');
+const ThingToTry = require('./thing-to-try');
 const { clampLanguage } = require('../../config/ux-strings');
 const { offerDefaultLanguage } = require('../../config/languages');
 const { buildDiarizationFromTokens, detectSilences, assembleDiarizedTranscription } = require('./diarization-from-tokens');
@@ -538,27 +539,8 @@ class TranscriptionProcessorService {
       // 1,024 body cap is still sent on its own first.
       let priorReminder = null;
       let priorSessionId = null;
-      try {
-        const { data: priorSessions } = await supabase
-          .from('coaching_sessions')
-          .select('id, prioritized_action')
-          .eq('user_id', session.user_id)
-          .not('prioritized_action', 'is', null)
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        const priorAction = priorSessions?.[0]?.prioritized_action;
-        if (priorAction?.teacher_response === 'yes' && priorAction?.action) {
-          // Substitute {{action}} into the catalog template — keeps the
-          // string translatable 1:1 (translators see {{action}}, not ${}).
-          const reminderLang = await getUserLanguage(session.user_id) || 'en';
-          priorReminder = getCoachingMessage('priorActionReminder', reminderLang)
-            .replace('{{action}}', priorAction.action);
-          priorSessionId = priorSessions[0].id || null;
-        }
-      } catch (agencyError) {
-        logToFile('⚠️ Agency follow-up check failed (non-critical)', { error: agencyError.message });
-      }
+      const prior = await TranscriptionProcessorService.priorActionReminder(session);
+      if (prior) ({ text: priorReminder, sessionId: priorSessionId } = prior);
 
       // bd-lfzoz: a PORTAL upload collected its classroom photos and lesson plan
       // at upload, so there is nothing to ask her on WhatsApp — and she may not
@@ -656,6 +638,39 @@ class TranscriptionProcessorService {
    * @param {object} deps injectable for tests: { queueAnalysis, sendButtons,
    *   buildPhotoPrompt, getLanguage, updateConversationState, updateStatus, env }
    */
+  /**
+   * Phase 3: Agency follow-up — the reminder of her prior commitment, if she said yes to it:
+   * `{ text, sessionId }`, or null. v10 coaching test (bd-v0toag.8): null for C and D, whose
+   * next plan carries the thing to try. Never throws.
+   */
+  static async priorActionReminder(session) {
+    try {
+      const { data: priorSessions } = await supabase
+        .from('coaching_sessions')
+        .select('id, prioritized_action')
+        .eq('user_id', session.user_id)
+        .not('prioritized_action', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      const priorAction = priorSessions?.[0]?.prioritized_action;
+      // v10 coaching test (bd-v0toag.8): for C and D the thing to try on the next plan
+      // replaces this reminder; A, B and everyone outside the draw still get it.
+      if (priorAction?.teacher_response === 'yes' && priorAction?.action
+        && await ThingToTry.sendsPriorReminder(session.user_id)) {
+        // Substitute {{action}} into the catalog template — keeps the
+        // string translatable 1:1 (translators see {{action}}, not ${}).
+        const reminderLang = await getUserLanguage(session.user_id) || 'en';
+        const text = getCoachingMessage('priorActionReminder', reminderLang)
+          .replace('{{action}}', priorAction.action);
+        return { text, sessionId: priorSessions[0].id || null };
+      }
+    } catch (agencyError) {
+      logToFile('⚠️ Agency follow-up check failed (non-critical)', { error: agencyError.message });
+    }
+    return null;
+  }
+
   static async observePostTranscription(coachingSessionId, session, from, deps = {}) {
     const env = deps.env || process.env;
     const gatesOn = env.OBSERVE_CAPTURE_GATES_ENABLED === 'true';

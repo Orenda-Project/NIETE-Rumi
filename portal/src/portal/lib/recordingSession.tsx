@@ -55,6 +55,8 @@ export type RecordingSession = {
   resume: () => void;
   /** Stop and keep: the recording, or null when there was none. */
   finish: () => Promise<FinishedRecording | null>;
+  /** bd-v0toag.31: who hears each chunk as it is saved (the live screen), or null. Never affects the recording. */
+  setChunkListener: (fn: ((blob: Blob, seq: number, elapsedMs: number) => void) | null) => void;
   /** Logout, or — while recording — a question first. */
   askBeforeLogout: (logout: () => unknown) => void;
 };
@@ -117,6 +119,10 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
   const recorderRef = useRef<LessonRecorder | null>(null);
   const releaseScreen = useRef<(() => Promise<void>) | null>(null);
   const finishing = useRef<Promise<FinishedRecording | null> | null>(null);
+  const chunkListener = useRef<((blob: Blob, seq: number, elapsedMs: number) => void) | null>(null);
+  const setChunkListener = useCallback((fn: ((blob: Blob, seq: number, elapsedMs: number) => void) | null) => {
+    chunkListener.current = fn;
+  }, []);
   const [live, setLive] = useState<Live>(IDLE);
   // The pending Logout, and which look asks about it: the new UI's (portal_new_ui on for her)
   // or the old one. Decided when she taps, from the flag the layout last read for her.
@@ -142,7 +148,7 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
     } catch {
       return 'micBlocked';
     }
-    const rec = new LessonRecorder({ stream: media, type });
+    const rec = new LessonRecorder({ stream: media, type, onChunk: (b, seq, ms) => chunkListener.current?.(b, seq, ms) });
     try {
       await rec.start();
     } catch {
@@ -219,8 +225,8 @@ export const RecordingSessionProvider = ({ children }: { children: ReactNode }) 
   }, []);
 
   const value = useMemo<RecordingSession>(() => ({
-    ...live, elapsedMs, start, pause, resume, finish, askBeforeLogout,
-  }), [live, elapsedMs, start, pause, resume, finish, askBeforeLogout]);
+    ...live, elapsedMs, start, pause, resume, finish, askBeforeLogout, setChunkListener,
+  }), [live, elapsedMs, start, pause, resume, finish, askBeforeLogout, setChunkListener]);
 
   const finishThenLogout = async () => {
     const logout = logoutAsk?.logout;

@@ -126,6 +126,15 @@ export const language = {
   },
 };
 
+
+/** bd-v0toag.31: the live moves record sent with a recording (stored as analysis_data.live_moves). */
+export type LiveMovesTap = { idx: number; choice: 'did' | 'did_not'; at: string; live_state: 'ticked' | 'unticked' };
+export type LiveMovesRecord = {
+  lessonId: string; stamp: string | null; liveId: string;
+  moves: { idx: number; covers: string[]; tickedAtMs: number | null }[];
+  taps: LiveMovesTap[]; drops: number; bytesSent: number;
+};
+
 export const portal = {
   getDashboard: async (): Promise<{
     user: User;
@@ -216,6 +225,8 @@ export const portal = {
     lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' };
     /** bd-fmf24g.9: the class she picked in the teacher app (grade 1–12 and her subject). */
     teacherClass?: { grade: number; subject: string; subjectKey?: string };
+    /** bd-v0toag.31: what the live screen saw while she recorded; the bot validates it. */
+    liveMoves?: LiveMovesRecord;
   }): Promise<{ coachingSessionId: string }> => {
     const response = await api.post('/coaching-upload/start', args);
     return response.data;
@@ -228,6 +239,23 @@ export const portal = {
     const response = await api.get('/coaching-upload/recent-plans');
     return response.data;
   },
+
+  // ── bd-v0toag.31: live moves while she records (group D only; the bot decides) ──
+
+  liveEligible: async (): Promise<{ on: boolean }> => (await api.post('/coaching-live/eligible', {})).data,
+  liveCard: async (lessonId: string): Promise<{ on: boolean; card?: LiveCard }> => (
+    (await api.post('/coaching-live/card', { lessonId })).data
+  ),
+  liveKey: async (liveId: string): Promise<LiveKey> => (await api.post('/coaching-live/key', { liveId })).data,
+  liveDetect: async (body: {
+    liveId: string; lessonId: string; window: string; unticked: number[];
+  }): Promise<{ ticked: number[] }> => (await api.post('/coaching-live/detect', body)).data,
+  liveEnd: async (body: { liveId: string; drops: number; bytesSent: number }): Promise<{ ok: boolean }> => (
+    (await api.post('/coaching-live/end', body)).data
+  ),
+  liveTaps: async (body: { coachingSessionId: string; taps: LiveTap[] }): Promise<{ ok: boolean; reason?: string }> => (
+    (await api.post('/coaching-live/taps', body)).data
+  ),
 
   /**
    * The library, one step at a time. Grades 1-5 and 6-12 are two catalogues
@@ -590,6 +618,14 @@ export type ActiveCoachingSession = {
 };
 
 // ── bd-5rz1v: the lesson-plan library, for "Record your class" ─────────────
+// ── bd-v0toag.31: live moves ──
+export interface LiveMove { idx: number; covers: string[]; chip: string; do: string; say: string }
+export interface LiveCard { lessonId: string; stamp: string; sections: { sec: string; minutes: number; moves: LiveMove[] }[] }
+export type LiveKey =
+  | { ok: true; api_key: string; expires_at: string; ws: string; model: string }
+  | { ok: false; reason: 'off' | 'cap' | 'mint' };
+export interface LiveTap { idx: number; choice: 'did' | 'did_not'; at: string; live_state: 'ticked' | 'unticked' }
+
 export type RecentLessonPlan = {
   assetId: string;
   lessonId: string;

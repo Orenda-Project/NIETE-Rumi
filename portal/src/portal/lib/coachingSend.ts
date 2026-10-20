@@ -12,7 +12,7 @@
  * Failures are SendError with a kind the page can say something useful about.
  */
 
-import { portal } from "../services/api";
+import { portal, type LiveMovesRecord } from "../services/api";
 
 export type LibraryPick = { assetId: string } | { lessonId: string } | { segmentId: string; lang: "en" | "ur" };
 
@@ -43,6 +43,8 @@ type Args = {
   photos: File[];
   /** Digital Coaching from the teacher app: the class she picked. Absent elsewhere. */
   teacherClass?: TeacherClass | null;
+  /** bd-v0toag.31: what the live screen saw while she recorded. Absent when it was off. */
+  liveMoves?: LiveMovesRecord | null;
 };
 
 type Item = { blob: Blob; filename: string; kind: "audio" | "lesson_plan" | "photo" };
@@ -57,7 +59,7 @@ function body(err: unknown): Record<string, unknown> {
 }
 
 export async function sendLesson(
-  { audio, plan, photos, teacherClass }: Args,
+  { audio, plan, photos, teacherClass, liveMoves }: Args,
   api: Api = portal,
   onProgress?: (pct: number) => void,
 ): Promise<{ coachingSessionId: string }> {
@@ -97,6 +99,7 @@ export async function sendLesson(
   if (lessonPlanKey) start.lessonPlanKey = lessonPlanKey;
   if (plan && plan.kind === "library") start.lessonPlan = plan.pick;
   if (teacherClass) start.teacherClass = teacherClass;
+  if (liveMoves) start.liveMoves = liveMoves;
 
   try {
     return await api.startCoachingUpload(start);

@@ -1,0 +1,96 @@
+import { useEffect, useRef, useState, type RefObject } from 'react';
+import { Star } from 'lucide-react';
+import { locateStep, type StepBand as Band, type StepMark, type TextDocLike } from '../lib/planSteps';
+
+/**
+ * v10 coaching test (bd-v0toag.8, PR3) — the step her thing to try belongs to, on the plan the viewer draws
+ * (components/LessonPlanViewer): its heading outlined, and the tap on the strip that takes her there.
+ *
+ * The heading is read from the PDF's text (lib/planSteps) after the plan is open, in its own turn, so the
+ * first page is never held up. Not found is nothing: no outline, no move. The page moves only when she taps
+ * (each tap is a new `jump`), never by itself (IAB: no auto-advance), and without the glide when her phone
+ * asks for reduced motion. The outline is drawn over the canvas and never takes a tap.
+ */
+
+/** Room above the heading when she is taken to it, so its outline shows whole. */
+const ABOVE = 24;
+
+/** Where `step`'s heading is in the drawn plan, once found; null until then, and when there is none. */
+export function useStepMark(doc: TextDocLike | null, step: number | null | undefined): StepMark | null {
+  const [found, setFound] = useState<{ doc: TextDocLike; step: number; mark: StepMark | null } | null>(null);
+  useEffect(() => {
+    if (!doc || step == null) return undefined;
+    let live = true;
+    const t = setTimeout(() => {
+      void locateStep(doc, step).then((mark) => { if (live) setFound({ doc, step, mark }); });
+    }, 0);
+    return () => { live = false; clearTimeout(t); };
+  }, [doc, step]);
+  return found && found.doc === doc && found.step === step ? found.mark : null;
+}
+
+/** Scroll the window to the mark's heading inside `root` (its pages carry data-page). False when it is not there. */
+export function jumpToMark(root: HTMLElement | null, mark: StepMark): boolean {
+  const page = root?.querySelector<HTMLElement>(`[data-page="${mark.page}"]`);
+  if (!page) return false;
+  const box = page.getBoundingClientRect();
+  const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  window.scrollTo({ top: box.top + window.scrollY + mark.top * box.height - ABOVE, behavior: reduce ? 'auto' : 'smooth' });
+  return true;
+}
+
+/** Take her to the mark once per tap (a new `jump`); a tap before the heading is found moves when it is. */
+export function useStepJump(root: RefObject<HTMLElement | null>, mark: StepMark | null, jump: number | undefined) {
+  const done = useRef(0);
+  useEffect(() => {
+    if (!jump || !mark || done.current === jump) return;
+    if (jumpToMark(root.current, mark)) done.current = jump;
+  }, [root, mark, jump]);
+}
+
+/**
+ * The outline over the heading's band, loud (bd-v0toag.77, Amena 16 Oct: "the highlight doesnt stand out"): a thick
+ * solid amber frame with a glow, a highlighter fill (multiply, so the heading stays readable), a star badge on its
+ * corner, and three pulses when it appears; still under reduced motion.
+ */
+export function StepOutline({ mark }: { mark: Pick<StepMark, 'top' | 'height'> }) {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-x-[2%] rounded-lg border-[6px] border-[#f59e0b] bg-[#fde047]/50 mix-blend-multiply shadow-[0_0_0_4px_rgba(245,158,11,0.35),0_0_18px_rgba(245,158,11,0.6)] motion-safe:animate-[pulse_0.9s_ease-in-out_3]"
+      style={{ top: `calc(${mark.top * 100}% - 8px)`, height: `calc(${mark.height * 100}% + 16px)` }}
+    >
+      <span
+        data-testid="step-star"
+        className="absolute -start-4 -top-4 flex h-8 w-8 items-center justify-center rounded-full bg-[#f59e0b] shadow-md ring-2 ring-white"
+      >
+        <Star className="h-5 w-5 fill-white text-white" />
+      </span>
+    </div>
+  );
+}
+
+/**
+ * The whole step on one page it runs over (bd-v0toag.78, Amena 16 Oct: "star and highlight the exact step further in
+ * the LP"): a lighter amber frame and highlighter wash from its top to its bottom on this page, so the heading's
+ * outline stays the loudest thing. `star` puts a star on the pages after the heading's (that page has its own).
+ */
+export function StepBand({ band, star }: { band: Pick<Band, 'top' | 'bottom'>; star: boolean }) {
+  return (
+    <div
+      aria-hidden="true"
+      data-testid="step-band"
+      className="pointer-events-none absolute inset-x-[1%] rounded-lg border-[3px] border-[#f59e0b] bg-[#fde047]/25 mix-blend-multiply"
+      style={{ top: `calc(${band.top * 100}% - 8px)`, height: `calc(${+((band.bottom - band.top) * 100).toFixed(2)}% + 8px)` }}
+    >
+      {star ? (
+        <span
+          data-testid="band-star"
+          className="absolute -start-3 -top-3 flex h-7 w-7 items-center justify-center rounded-full bg-[#f59e0b] shadow-md ring-2 ring-white"
+        >
+          <Star className="h-4 w-4 fill-white text-white" />
+        </span>
+      ) : null}
+    </div>
+  );
+}
