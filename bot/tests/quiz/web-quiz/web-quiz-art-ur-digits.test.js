@@ -32,7 +32,7 @@ const WESTERN = /[0-9]/;
 const nums = (html) => Array.from(html.matchAll(/<span class="num">([^<]*)<\/span>/g), (m) => m[1]);
 
 const D = {
-  card: { first: 'Amal Testwala', animal: 'cat', correct: 4, total: 7, topic: 'کسور', cls: '', school: 'School Alpha', added: 18 },
+  card: { first: 'Amal Testwala', animal: 'cat', correct: 4, total: 7, topic: 'کسور', cls: 'جماعت ۳', school: 'School Alpha', added: 18 },
   invite: { first: 'Amal Testwala', correct: 4, total: 7, topic: 'کسور' },
   class: { topic: 'کسور', cls: 'جماعت ۳', played: 12, of: 30, avgPct: 64, top: { correct: 7, total: 7 },
     rows: [{ place: 1, animal: 'cat', correct: 7, total: 7 }, { place: 2, animal: 'dog', correct: 4, total: 7, me: true, first: 'Amal Testwala' }] },
@@ -62,6 +62,22 @@ describe('the template', () => {
     expect(h).not.toContain('<span class="num">4/7</span>');
     expect((h.match(/class="star on"/g) || []).length).toBe(4);
     expect((h.match(/class="star( on)?"/g) || []).length).toBe(7);
+  });
+  test('the school rule line (digits typed in the copy) says ۱۰ too; the switch off it is today\'s', () => {
+    const cta = (h) => (h.match(/<div class="cta">([^<]*)<\/div>/) || [])[1];
+    expect(cta(html('school', 'ur', { ud: true }))).toBe('کھیلنے کے ۱۰ پوائنٹس، اسکور کے ۱۰ تک');
+    expect(cta(html('school', 'ur', null))).toBe('کھیلنے کے 10 پوائنٹس، اسکور کے 10 تک');
+  });
+  test('no middle dot beside an Urdu digit (in Nastaliq it reads as ۰: «۱۵ ·» looks like ۱۵۰); the Urdu comma instead', () => {
+    const school = html('school', 'ur', { ud: true });
+    expect(school).toContain('پوائنٹس،&ensp;<span class="num">۱۵</span>');
+    expect(school).not.toMatch(/·\s*<span class="num">/);
+    for (const kind of ['card', 'class']) {
+      const h = html(kind, 'ur', { ud: true }).replace(/<style>[\s\S]*<\/style>/, '');
+      expect(h).not.toContain('·');
+    }
+    // the switch off: today's dots
+    expect(html('school', 'ur', null)).toContain('پوائنٹس · <span class="num">15</span>');
   });
   test('the school points keep their grouping: 1,234 → ۱,۲۳۴', () => {
     expect(html('school', 'ur', { ud: true })).toContain('۱,۲۳۴');
