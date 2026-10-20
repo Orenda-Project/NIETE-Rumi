@@ -11,5 +11,6 @@ const scenarios = [
   pagesScenario("CP03", "Coach app v2: Reports open, and Analytics counts her teachers", "coach", "coachV2", [{ path: "/portal/coach/reports", heading: /^Reports$/ }, { path: "/portal/coach/analytics", heading: /^Teachers\s+[1-9]/ }]),
   pagesScenario("CP04", "Coach app v2: Observe, More and My profile open", "coach", "coachV2", [{ path: "/portal/coach/observe", heading: /^Observe$/ }, { path: "/portal/coach/more", heading: /^More$/ }, { path: "/portal/coach/profile", heading: /^My profile$/ }]),
 ];
+scenarios.push(...require("../flows/coach-disagreement.cjs"));
 
 module.exports = { feature: "coach-portal", spec: 'tests/features/web/coach-portal.feature', scenarios };
