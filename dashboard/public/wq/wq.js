@@ -1549,6 +1549,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
   // A storybook the teacher sent (wq-story-link.js, loaded only then): the landing names a story.
   if (B.story && window.WQSTORYLINK) T = window.WQSTORYLINK.copy(T, LANG);
+  // web_quiz_challenge_line_keep (the answer's challenge_line_keep): each number in the challenge line and the challenge share text
+  // keeps the word after it (a no-break space), so a balanced wrap never ends a line on «۴» with «ستارے» on the next
+  if (B.challenge_line_keep === true) {
+    var keepNum = function (s) { return String(s).replace(/([0-9\u06F0-\u06F9]+(?:\/[0-9\u06F0-\u06F9]+)?\u2069?) (?=\S)/g, '$1\u00a0'); };
+    T = Object.assign({}, T);
+    ['challenged', 'chalLine', 'chalPlayed'].forEach(function (k) { var f = T[k]; if (f) T[k] = function () { return keepNum(f.apply(T, arguments)); }; });
+  }
 
   function landing() {
     var here = kids();
