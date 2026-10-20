@@ -127,3 +127,17 @@ test('a failed write is ok:false', async () => {
   expect(await Store.markSynced('s1', {})).toEqual({ ok: false, error: 'nope' });
   expect((await Store.summary('s1')).ok).toBe(false);
 });
+
+describe("the phone's own session id", () => {
+  test('setClient keeps the id and a first block; findByClient answers the session', async () => {
+    db.child_test_sessions[0].client_session_id = null;
+    expect(await Store.setClient('s1', { clientSessionId: 'c1', block: 'B3' })).toEqual({ ok: true });
+    await Store.setClient('s1', { block: 'B5' });
+    expect(db.child_test_sessions[0]).toEqual(expect.objectContaining({ client_session_id: 'c1', device: { block: 'B3' } }));
+    expect(await Store.findByClient('c1')).toEqual({ ok: true, sessionId: 's1' });
+    expect(await Store.findByClient('c2')).toEqual({ ok: true, sessionId: null });
+    expect(await Store.setClient('nope', {})).toEqual({ ok: false, reason: 'no_session' });
+    fail = { message: 'nope' };
+    expect(await Store.findByClient('c1')).toEqual({ ok: false, error: 'nope' });
+  });
+});

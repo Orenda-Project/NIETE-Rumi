@@ -19,7 +19,7 @@
  * The Learning assessment (the child takes the battery alone; the coach picks a school, not a visit):
  *   GET  /sa/schools                  the coach's schools, today's observe visit first
  *   GET  /sa/list?schoolId=&visitId=  today's children at that school (visitId optional)
- *   POST /sa/outcome                  { schoolId, visitId?, drawId, outcome, note? } → present opens a session
+ *   POST /sa/outcome                  { schoolId, visitId?, drawId, outcome, note?, clientSessionId?, block? } → present opens a session
  *   the engine's sink, for one session the coach opened here:
  *   GET  /sa/session/:id/battery?lang=&full= this child's block of the battery (or the whole form), ur or en
  *   POST /sa/session/:id/batch        { seqFrom, seqTo, events[], results[], lang?, device? } → { ackedTo }
@@ -106,7 +106,7 @@ router.post('/session/:id/check', ...gates, relay('check', (req) => ({
 
 router.get('/sa/schools', ...saGates, relay('sa/schools', () => ({})));
 router.get('/sa/list', ...saGates, relay('sa/list', (req) => pick(req.query, ['schoolId', 'visitId'])));
-router.post('/sa/outcome', ...saGates, relay('sa/outcome', (req) => pick(req.body, ['schoolId', 'visitId', 'drawId', 'outcome', 'note'])));
+router.post('/sa/outcome', ...saGates, relay('sa/outcome', (req) => pick(req.body, ['schoolId', 'visitId', 'drawId', 'outcome', 'note', 'clientSessionId', 'block'])));
 const onSession = (fields) => (req) => ({ sessionId: req.params.id, ...pick(req.method === 'GET' ? req.query : req.body, fields) });
 router.get('/sa/session/:id/battery', ...saGates, relay('sa/battery', onSession(['lang', 'full'])));
 router.post('/sa/session/:id/batch', ...saGates, relay('sa/batch', onSession(['seqFrom', 'seqTo', 'events', 'results', 'lang', 'device'])));

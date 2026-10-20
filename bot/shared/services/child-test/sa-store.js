@@ -76,6 +76,25 @@ async function markSynced(sessionId, { lastSeq, clientStartedAt, clientFinishedA
   return { ok: true, device: dev };
 }
 
+/** The session the phone named with its own id, if the outcome carrying that id has arrived. */
+async function findByClient(clientSessionId) {
+  const { data, error } = await supabase.from(SESSIONS).select('id').eq('client_session_id', clientSessionId).limit(1);
+  if (error) return fail('findByClient', error, {});
+  return { ok: true, sessionId: data && data[0] ? data[0].id : null };
+}
+
+/** The phone's own id for the session and the part of the battery it gives the child. */
+async function setClient(sessionId, { clientSessionId, block } = {}) {
+  const got = await getSession(sessionId);
+  if (!got.ok) return got;
+  if (!got.session) return { ok: false, reason: 'no_session' };
+  const patch = { device: { ...(got.session.device || {}), ...(block && !(got.session.device || {}).block ? { block } : {}) } };
+  if (clientSessionId) patch.client_session_id = clientSessionId;
+  const { error } = await supabase.from(SESSIONS).update(patch).eq('id', sessionId);
+  if (error) return fail('setClient', error, { sessionId });
+  return { ok: true };
+}
+
 const PHONE_MARKS = ['attempted', 'correct', 'incorrect', 'per_minute', 'time_used_ms', 'time_left_ms', 'stop_reason', 'last_item_index', 'options_n', 'resumed'];
 
 /** One subtask's result from the phone: [{task_id, scored_on, answers[], ...}] */
@@ -136,4 +155,4 @@ async function summary(sessionId) {
   };
 }
 
-module.exports = { PARKED, PHONE_SCORER, markSynced, putResults, setAudio, summary };
+module.exports = { PARKED, PHONE_SCORER, findByClient, setClient, markSynced, putResults, setAudio, summary };
