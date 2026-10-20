@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { RecordStart } from '../../components/coaching/CoachingHome';
-import { checkFile, MAX_PHOTOS, readAudioDuration } from '../../lib/coachingUpload';
+import { checkAudioFile, checkFile, MAX_PHOTOS, readAudioDuration } from '../../lib/coachingUpload';
 import { sendLesson, SendError, type LibraryPick, type TeacherClass } from '../../lib/coachingSend';
 import { takeHandedOffRecording } from '../../lib/lessonHandoff';
 import { lessonFilename } from '../../lib/recordFlow';
@@ -51,7 +51,7 @@ export type Plan =
   | { kind: 'library'; pick: LibraryPick; title: string; chips: string[] }
   | { kind: 'file'; file: File; asPhoto: boolean };
 
-export type FileProblem = 'not_audio' | 'too_large' | null;
+export type FileProblem = 'not_audio' | 'too_large' | 'video' | null;
 export type PlanProblem = 'not_a_plan' | null;
 export type PhotosProblem = 'not_a_photo' | 'too_many' | null;
 
@@ -115,11 +115,15 @@ export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TO
   const chooseAudio = async (file: File | undefined): Promise<boolean> => {
     setFileProblem(null);
     if (!file) return false;
-    const problem = checkFile(file, 'audio');
-    if (problem) { setFileProblem(problem === 'too_large' ? 'too_large' : 'not_audio'); return false; }
+    // bd-i0u6n2: a video is refused on its own line; a file the phone marks as audio is taken whatever its name.
+    const checked = await checkAudioFile(file);
+    if (checked.problem) {
+      setFileProblem(checked.problem === 'too_large' ? 'too_large' : checked.problem === 'video' ? 'video' : 'not_audio');
+      return false;
+    }
     const seconds = await readAudioDuration(file);
     setAudio({
-      blob: file, filename: file.name, durationMs: seconds != null ? seconds * 1000 : null,
+      blob: file, filename: checked.filename || file.name, durationMs: seconds != null ? seconds * 1000 : null,
       recordingId: null, source: 'file', size: file.size, startedAt: null,
     });
     setStage('check');
