@@ -1,6 +1,6 @@
 'use strict';
 /**
- * What a recommended clip is for (bd-gzfdu9, SPEC v1.2.1 §3.2 step 4). Pure.
+ * What a recommended clip is for (bd-gzfdu9, SPEC v1.3 §3.2 step 4). Pure.
  *
  * ONE place, in order: a plan-phase step → its teaching moves; else the report's next step (nextStep.target);
  * else the commitment card's indicator when it carries one; else, when the card is the LLM card with action
@@ -69,7 +69,7 @@ function nativeAvailable(catalog, id) {
 function none(reason, extra = {}) {
   return {
     indicator: null, indicators: [], moves: [], stepIndicator: null, stepAtTop: false, source: null, cardText: null,
-    aliasKind: null, native37: false, storedIndicator: null, scheme: null, phase: null, row: null, none: reason, ...extra,
+    aliasKind: null, native37: false, storedIndicator: null, scheme: null, phase: null, row: null, name: null, none: reason, ...extra,
   };
 }
 
@@ -113,17 +113,21 @@ function pick(analysis, nextStep, card, catalog, lesson = {}) {
     if (!is37) {
       return { ...none(null), ...common, indicator: raw, indicators: [raw], stepIndicator: raw };
     }
-    if (nativeAvailable(catalog, raw)) {
-      return { ...none(null), ...common, indicator: raw, indicators: [raw], stepIndicator: raw, native37: true, aliasKind: 'native37' };
-    }
     const alias = ((catalog && catalog.aliases) || {})[raw];
+    if (nativeAvailable(catalog, raw)) {
+      return { ...none(null), ...common, indicator: raw, indicators: [raw], stepIndicator: raw, native37: true, aliasKind: 'native37', name: (alias && alias.name) || null };
+    }
     const exact = alias && typeof alias === 'object' ? alias.exact : (typeof alias === 'string' ? alias : null);
-    if (exact) return { ...none(null), ...common, indicator: exact, indicators: [exact], stepIndicator: exact, aliasKind: 'exact' };
+    if (exact) return { ...none(null), ...common, indicator: exact, indicators: [exact], stepIndicator: exact, aliasKind: 'exact', name: alias.name || null };
     const subject = lesson && lesson.subject ? String(lesson.subject) : null;
     const approx = ((alias && Array.isArray(alias.approx)) ? alias.approx : [])
       .filter((id) => !SUBJECT_ROWS[id] || (subject && SUBJECT_ROWS[id].includes(subject)));
-    if (!approx.length) return none('unknown_indicator', { source, storedIndicator: raw, scheme, aliasKind: 'none', row: common.row });
-    return { ...none(null), ...common, indicator: approx[0], indicators: approx, stepIndicator: approx[0], aliasKind: 'approx' };
+    // Unknown: no native tag, no exact, no approx that suits the subject. The shortlist's step-text route takes it (v1.3 R3).
+    const blocked = alias && Array.isArray(alias.approx) && alias.approx.length > 0;
+    if (!approx.length) {
+      return none('unknown_indicator', { ...common, aliasKind: blocked ? 'subject_blocked' : 'none', name: (alias && alias.name) || null });
+    }
+    return { ...none(null), ...common, indicator: approx[0], indicators: approx, stepIndicator: approx[0], aliasKind: 'approx', name: (alias && alias.name) || null };
   } catch (e) {
     return none('no_target');
   }

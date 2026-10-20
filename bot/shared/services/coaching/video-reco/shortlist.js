@@ -1,20 +1,29 @@
 'use strict';
 /**
- * The candidate chapters for one recommendation (bd-gzfdu9, SPEC v1.2.1 §3.3). Pure and deterministic: no LLM,
+ * The candidate chapters for one recommendation (bd-gzfdu9, SPEC v1.3 §3.3). Pure and deterministic: no LLM,
  * no I/O, no embedding model (the bot has none and no external API is allowed). BM25 in plain JS over each
- * chapter's keywords + symptoms + summary + title + moves, against the lesson's own evidence text.
+ * chapter's keywords + symptoms + summary + title + moves.
+ *
+ * Two routes (design/RETRIEVAL_v1.3.md §3). The TAG route: chapters tagged with the step's indicator, ranked by
+ * BM25 against the lesson's evidence text, up to 12. The STEP-TEXT route: BM25 over every chapter against the
+ * card's own words (never the evidence), floor 2.0, up to 6 more, appended — ONLY when the indicator cannot name a
+ * move: a 37-scheme LABEL, a v4 hole, an unknown indicator, an empty tag pool, or no indicator at all (card_text,
+ * whose list is this route alone). On a move indicator the list stays step-indicator-only.
  *
  * The pedagogy rubric's ⛔ rows are code here: declared holes, recommendable / programme intro (⛔7), media
  * (⛔12), subject incl. content modules (⛔4), grade (⛔5), language (⛔3: preferred ∪ transcript ∪ mixed, the
- * chapter's own language first), level (⛔11: ±1, widened to 2 rungs only when nothing closer names the target,
- * every level for a teacher who finished the ladder), history (⛔6: a chapter never twice).
- * noneReason names the gate that emptied the list: hole | language | level | history | no_target.
+ * chapter's own language first), history (⛔6: a chapter never twice). Level (⛔11) is a preference, never a
+ * filter: +0.5 within one rung of a known level; unknown level keeps level 4 out while anything else exists.
+ * noneReason names the gate that emptied the list: hole | language | history | unknown_indicator | no_target.
  */
 
-const MAX_CANDIDATES = 6;
+const MAX_CANDIDATES = 12;
+const MAX_TEXT = 6;
 const K1 = 1.2;
 const B = 0.75;
-const CARD_TEXT_FLOOR = 2.0;
+const TEXT_FLOOR = 2.0;
+// 37-scheme indicators that name a subject or a resource, not a teaching move: the card's sentence is the step.
+const LABEL_37 = new Set(['F5', 'F6', 'F7', 'F8', 'B7', 'B8', 'C10']);
 const CONTENT_TARGETS = new Set(['F1', 'F2', 'F3']);
 const SUBJECT_ONLY_ROWS = new Set(['F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10']);
 const BAD_MEDIA = new Set(['broken_media', 'no_speech']);
@@ -115,18 +124,183 @@ function bm25(catalog, query) {
   return scores;
 }
 
+/** Every chapter that passes the module and chapter gates (subject, grade, media, recommendable, intro). */
+function eligible(catalog, lesson) {
+  const l = lesson || {};
+  const subject = subjectId(l.subject);
+  const inapplicable = new Set(l.inapplicable || []);
+  const out = [];
+  for (const module of catalog.modules) {
+    if (!module || module.recommendable === false || module.media_ok === false) continue;
+    if (((module.quality && module.quality.flags) || []).some((f) => BAD_MEDIA.has(f))) continue;
+    if (!suitsSubject(module, subject)) continue;
+    if (subject && module.not_for && tokens(module.not_for).some((tok) => subjectId(tok) === subject)) continue;
+    if (!gradeOk(module.grade_band, l.grade)) continue;
+    for (const seg of module.segments || []) {
+      if (!seg || seg.recommendable === false || isIntro(module, seg)) continue;
+      const fico = (seg.fico || []).map((f) => f && f.indicator).filter(Boolean);
+      if (fico.length && fico.every((id) => SUBJECT_ONLY_ROWS.has(id) && inapplicable.has(id))) continue;
+      out.push({ module, seg, lang: seg.language || module.language, level: Number(module.level_id) });
+    }
+  }
+  return out;
+}
+
+function levelOf(ctx) {
+  const c = ctx || {};
+  if (c.ladderComplete) return { L: null, mode: 'completed' };
+  const L = c.level === null || c.level === undefined || !Number.isFinite(Number(c.level)) ? null : Number(c.level);
+  return L === null ? { L, mode: 'unknown' } : { L, mode: 'known' };
+}
+
+function levelMatchOf(lv, level) {
+  if (lv.mode !== 'known') return lv.mode;
+  return Math.abs(level - lv.L) <= 1 ? 'near' : 'far';
+}
+
+function languagesOf(ctx) {
+  const c = ctx || {};
+  const preferred = c.language === 'en' ? 'en' : 'ur';
+  return { preferred, languages: new Set((c.languages && c.languages.length ? c.languages : [preferred, 'mixed']).filter(Boolean)) };
+}
+
+function languageMatch(lang, preferred) {
+  return lang === preferred ? 'preferred' : lang === 'mixed' ? 'mixed' : 'transcript';
+}
+
+/** The step-text query: the card's own words + the indicator's display name. Never the evidence (it dilutes). */
+function stepQuery(step) {
+  const s = step || {};
+  return [s.action, s.tryTomorrow, s.thingToTry, s.name].filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim()).join('\n');
+}
+
+/**
+ * The step-text route (R3): BM25 of the card's words over every chapter that passes subject, grade, language,
+ * history and media; floor 2.0; up to 6 not in `exclude`, BM25 order. Content modules never (they need F1–F3).
+ */
+function textRoute(catalog, step, ctx, lesson, exclude = [], route = 'step_text') {
+  try {
+    const query = stepQuery(step);
+    if (!catalog || !Array.isArray(catalog.modules) || !query) return [];
+    const { preferred, languages } = languagesOf(ctx);
+    const lv = levelOf(ctx);
+    const h = (ctx && ctx.history) || {};
+    const seenSegs = new Set((h.segments || []).map(String));
+    const seenMods = new Set((h.modules || []).map(Number));
+    const skip = new Set((exclude || []).map(String));
+    const lexical = bm25(catalog, query);
+    return eligible(catalog, lesson)
+      .filter((x) => !isContent(x.module, x.seg) && languages.has(x.lang))
+      .filter((x) => !seenSegs.has(String(x.seg.seg_id)) && !seenMods.has(Number(x.module.module_id)) && !skip.has(String(x.seg.seg_id)))
+      .map((x) => ({ x, score: lexical.get(x.seg.seg_id) || 0 }))
+      .filter((y) => y.score >= TEXT_FLOOR)
+      .sort((a, b) => b.score - a.score || String(a.x.seg.seg_id).localeCompare(String(b.x.seg.seg_id)))
+      .slice(0, MAX_TEXT)
+      .map(({ x, score }) => ({
+        seg_id: x.seg.seg_id,
+        score: Math.round(score * 1e4) / 1e4,
+        indicator: ((x.seg.fico || [])[0] || {}).indicator || null,
+        language_match: languageMatch(x.lang, preferred),
+        level_id: x.level,
+        level_match: levelMatchOf(lv, x.level),
+        route,
+      }));
+  } catch (e) {
+    return [];
+  }
+}
+
+/** Why the step-text route runs for this target (null: a move indicator — tag route only). Before the tag pool. */
+function textReasonOf(target, catalog) {
+  if (target.source === 'card_text') return 'card_text';
+  if (target.none === 'unknown_indicator') return target.aliasKind === 'subject_blocked' ? 'subject_blocked' : 'unknown';
+  if (target.scheme === 'fico_main_37' && LABEL_37.has(target.storedIndicator)) return 'label';
+  const holes = new Set(catalog.holes || []);
+  if (target.native37) {
+    const alias = (catalog.aliases || {})[target.storedIndicator || target.indicator];
+    if (alias && typeof alias === 'object' && alias.exact && holes.has(alias.exact)) return 'hole';
+    return null;
+  }
+  const ids = (target.indicators && target.indicators.length ? target.indicators : [target.indicator]).filter(Boolean);
+  return ids.length && ids.every((id) => holes.has(id)) ? 'hole' : null;
+}
+
+/** The tag route: {candidates, noneReason, repeatModule}. Level ranks, never filters (R1); up to 12 (R2). */
+function tagRoute(catalog, t, ctx, signal, lesson) {
+  const empty = (noneReason) => ({ candidates: [], noneReason, repeatModule: false });
+  if (t.source !== 'card_text' && !t.indicators.length && !t.moves.length) return empty('hole');
+  if (t.indicators.length && !t.native37) {
+    const holes = new Set(catalog.holes || []);
+    t.indicators = t.indicators.filter((id) => !holes.has(id));
+    if (!t.indicators.length) return empty('hole');
+    t.indicator = t.indicators[0];
+  }
+  const l = lesson || {};
+  const { preferred, languages } = languagesOf(ctx);
+  const base = [];
+  for (const x of eligible(catalog, l)) {
+    const m = matchFor(x.seg, t);
+    if (!m) continue;
+    if (isContent(x.module, x.seg) && !(CONTENT_TARGETS.has(m.indicator) && topicMatches(x.module, l))) continue;
+    base.push({ ...x, ...m });
+  }
+  if (!base.length) return empty('hole');
+
+  const byLang = base.filter((x) => languages.has(x.lang));
+  if (!byLang.length) return empty('language');
+
+  const lv = levelOf(ctx);
+  const byLevel = lv.mode === 'unknown' && byLang.some((x) => x.level < 4) ? byLang.filter((x) => x.level < 4) : byLang;
+
+  const h = (ctx && ctx.history) || {};
+  const seenSegs = new Set((h.segments || []).map(String));
+  const seenMods = new Set((h.modules || []).map(Number));
+  const fresh = byLevel.filter((x) => !seenSegs.has(String(x.seg.seg_id)));
+  let pool = fresh.filter((x) => !seenMods.has(Number(x.module.module_id)));
+  let repeatModule = false;
+  if (!pool.length && fresh.length && seenMods.size) { pool = fresh; repeatModule = true; }
+  if (!pool.length) return empty('history');
+
+  const lexical = bm25(catalog, signal || '');
+  const ranked = pool.map((x) => {
+    const ev = (x.seg.fico || []).some((f) => f && Number(f.evidence_s) >= Number(x.seg.start_s) && Number(f.evidence_s) <= Number(x.seg.end_s));
+    const lead = t.moves.includes((x.seg.moves || [])[0]);
+    const levelMatch = levelMatchOf(lv, x.level);
+    const score = (lexical.get(x.seg.seg_id) || 0)
+      + (x.isTarget && t.indicators.length ? 2.0 : 0) + 0.5 * x.strength
+      + (x.lang === preferred ? 1.0 : 0)
+      + (levelMatch === 'near' || (levelMatch === 'unknown' && x.level <= 2) ? 0.5 : 0)
+      + (ev || lead ? 0.001 : 0);
+    return {
+      seg_id: x.seg.seg_id,
+      score: Math.round(score * 1e4) / 1e4,
+      indicator: x.indicator,
+      language_match: languageMatch(x.lang, preferred),
+      level_id: x.level,
+      level_match: levelMatch,
+      route: 'tag',
+    };
+  }).sort((a, b) => b.score - a.score || String(a.seg_id).localeCompare(String(b.seg_id)));
+  return { candidates: ranked.slice(0, MAX_CANDIDATES), noneReason: null, repeatModule };
+}
+
 /**
  * @param {object} catalog  catalog.fromData(...) / catalog.load()
- * @param {object} target   target.pick(...)
+ * @param {object} target   target.pick(...) — incl. an unknown_indicator target, which goes to the step-text route
  * @param {{language:string, languages:string[], level:number|null, ladderComplete:boolean, history:{segments:string[], modules:number[]}}} ctx
- * @param {string} signal   the lesson's evidence text
+ * @param {string} signal   the lesson's evidence text (tag route ranking)
  * @param {{subject:string|null, grade:{lo:number,hi:number}|null, topic:string|null, inapplicable:string[]}} lesson
- * @returns {{candidates:Array<{seg_id, score, indicator, language_match, level_id}>, noneReason:string|null, repeatModule:boolean, levelMatch:string|null}}
+ * @param {{action:string, tryTomorrow:string, thingToTry:string, name:string}} [step]  the card's words (step-text route)
+ * @returns {{candidates:Array<{seg_id, score, indicator, language_match, level_id, level_match, route}>, noneReason:string|null,
+ *   repeatModule:boolean, levelMatch:'completed'|'unknown'|null, textReason:string|null, stepTextQuery:string|null, route:string|null}}
  */
-function build(catalog, target, ctx, signal, lesson) {
-  const empty = (noneReason, levelMatch = null) => ({ candidates: [], noneReason, repeatModule: false, levelMatch });
+function build(catalog, target, ctx, signal, lesson, step) {
+  const empty = (noneReason, extra = {}) => ({
+    candidates: [], noneReason, repeatModule: false, levelMatch: null, textReason: null, stepTextQuery: null, route: null, ...extra,
+  });
   try {
     if (!catalog || !Array.isArray(catalog.modules) || !target) return empty('hole');
+    if (target.none && target.none !== 'unknown_indicator') return empty(target.none);
     const t = {
       source: target.source || null,
       indicator: target.indicator || null,
@@ -134,89 +308,26 @@ function build(catalog, target, ctx, signal, lesson) {
       moves: target.moves || [],
       native37: !!target.native37,
     };
-    if (t.source !== 'card_text' && !t.indicators.length && !t.moves.length) return empty('hole');
-    if (t.indicators.length && !t.native37) {
-      const holes = new Set(catalog.holes || []);
-      t.indicators = t.indicators.filter((id) => !holes.has(id));
-      if (!t.indicators.length) return empty('hole');
-      t.indicator = t.indicators[0];
+    const lv = levelOf(ctx);
+    const levelMatch = lv.mode === 'known' ? null : lv.mode;
+    const early = textReasonOf(target, catalog);
+    const textOnly = early === 'card_text' || early === 'unknown' || early === 'subject_blocked';
+    const tag = textOnly ? { candidates: [], noneReason: null, repeatModule: false } : tagRoute(catalog, t, ctx, signal, lesson);
+    const textReason = early || (tag.candidates.length ? null : 'empty');
+    const s = step || (target.source === 'card_text' ? { action: target.cardText } : null);
+    const query = textReason ? stepQuery(s) : '';
+    const routeName = textReason === 'card_text' ? 'card_text' : 'step_text';
+    const text = query ? textRoute(catalog, s, ctx, lesson, tag.candidates.map((c) => c.seg_id), routeName) : [];
+    const candidates = [...tag.candidates, ...text];
+    const common = { repeatModule: tag.repeatModule, levelMatch, textReason, stepTextQuery: query || null };
+    if (!candidates.length) {
+      const why = textReason === 'card_text' ? 'no_target' : textOnly ? 'unknown_indicator' : (tag.noneReason || 'hole');
+      return empty(why, { ...common, route: textReason ? routeName : 'tag' });
     }
-    const c = ctx || {};
-    const l = lesson || {};
-    const subject = subjectId(l.subject);
-    const inapplicable = new Set(l.inapplicable || []);
-    const preferred = c.language === 'en' ? 'en' : 'ur';
-    const languages = new Set((c.languages && c.languages.length ? c.languages : [preferred, 'mixed']).filter(Boolean));
-
-    const base = [];
-    for (const module of catalog.modules) {
-      if (!module || module.recommendable === false || module.media_ok === false) continue;
-      if (((module.quality && module.quality.flags) || []).some((f) => BAD_MEDIA.has(f))) continue;
-      if (!suitsSubject(module, subject)) continue;
-      if (subject && module.not_for && tokens(module.not_for).some((tok) => subjectId(tok) === subject)) continue;
-      if (!gradeOk(module.grade_band, l.grade)) continue;
-      for (const seg of module.segments || []) {
-        if (!seg || seg.recommendable === false || isIntro(module, seg)) continue;
-        const fico = (seg.fico || []).map((f) => f && f.indicator).filter(Boolean);
-        if (fico.length && fico.every((id) => SUBJECT_ONLY_ROWS.has(id) && inapplicable.has(id))) continue;
-        const m = matchFor(seg, t);
-        if (!m) continue;
-        if (isContent(module, seg) && !(CONTENT_TARGETS.has(m.indicator) && topicMatches(module, l))) continue;
-        base.push({ module, seg, ...m, lang: seg.language || module.language, level: Number(module.level_id) });
-      }
-    }
-    if (!base.length) return empty('hole');
-
-    const byLang = base.filter((x) => languages.has(x.lang));
-    if (!byLang.length) return empty('language');
-
-    let byLevel;
-    let levelMatch;
-    const L = c.level === null || c.level === undefined || !Number.isFinite(Number(c.level)) ? null : Number(c.level);
-    if (c.ladderComplete) {
-      byLevel = byLang; levelMatch = 'completed';
-    } else if (L !== null) {
-      byLevel = byLang.filter((x) => Math.abs(x.level - L) <= 1); levelMatch = 'within';
-      if (!byLevel.length) { byLevel = byLang.filter((x) => Math.abs(x.level - L) <= 2); levelMatch = 'widened'; }
-      if (!byLevel.length) return empty('level', levelMatch);
-    } else {
-      byLevel = byLang.some((x) => x.level < 4) ? byLang.filter((x) => x.level < 4) : byLang; levelMatch = 'unknown';
-    }
-
-    const seenSegs = new Set(((c.history && c.history.segments) || []).map(String));
-    const seenMods = new Set(((c.history && c.history.modules) || []).map(Number));
-    const fresh = byLevel.filter((x) => !seenSegs.has(String(x.seg.seg_id)));
-    let pool = fresh.filter((x) => !seenMods.has(Number(x.module.module_id)));
-    let repeatModule = false;
-    if (!pool.length && fresh.length && seenMods.size) { pool = fresh; repeatModule = true; }
-    if (!pool.length) return empty('history', levelMatch);
-
-    const query = [t.source === 'card_text' ? target.cardText : '', signal].filter(Boolean).join('\n');
-    const lexical = bm25(catalog, query);
-    if (t.source === 'card_text' && Math.max(...pool.map((x) => lexical.get(x.seg.seg_id) || 0)) < CARD_TEXT_FLOOR) {
-      return empty('no_target', levelMatch);
-    }
-    const ranked = pool.map((x) => {
-      const ev = (x.seg.fico || []).some((f) => f && Number(f.evidence_s) >= Number(x.seg.start_s) && Number(f.evidence_s) <= Number(x.seg.end_s));
-      const lead = t.moves.includes((x.seg.moves || [])[0]);
-      const score = (lexical.get(x.seg.seg_id) || 0)
-        + (x.isTarget && t.indicators.length ? 2.0 : 0) + 0.5 * x.strength
-        + (x.lang === preferred ? 1.0 : 0)
-        + (levelMatch === 'unknown' && x.level <= 2 ? 0.5 : 0)
-        + (ev || lead ? 0.001 : 0);
-      return {
-        seg_id: x.seg.seg_id,
-        score: Math.round(score * 1e4) / 1e4,
-        indicator: x.indicator,
-        language_match: x.lang === preferred ? 'preferred' : x.lang === 'mixed' ? 'mixed' : 'transcript',
-        level_id: x.level,
-      };
-    }).sort((a, b) => b.score - a.score || String(a.seg_id).localeCompare(String(b.seg_id)));
-
-    return { candidates: ranked.slice(0, MAX_CANDIDATES), noneReason: null, repeatModule, levelMatch };
+    return { candidates, noneReason: null, ...common, route: tag.candidates.length ? 'tag' : routeName };
   } catch (e) {
     return empty('hole');
   }
 }
 
-module.exports = { build, tokens, subjectId, gradeOk, MAX_CANDIDATES };
+module.exports = { build, textRoute, stepQuery, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, LABEL_37 };

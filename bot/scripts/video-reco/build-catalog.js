@@ -46,7 +46,8 @@ function keywordIndex(keywords) {
 }
 
 /**
- * 37-id (prod scheme) → {exact: v4 id|null, approx: [v4 ids]} (target.js uses approx only under the subject rule).
+ * 37-id (prod scheme) → {exact: v4 id|null, approx: [v4 ids], name} (target.js uses approx only under the subject rule;
+ * name = the crosswalk's display name, part of the v1.3 step-text query).
  * The two schemes share ids with different meanings (37-B7 = use of the plan, v4-B7 = closure), so a crosswalk row
  * wins over identity; identity fills only the v4 ids the crosswalk does not name. A v4 analysis never reads this table.
  */
@@ -57,9 +58,10 @@ function aliasesFrom(crosswalk) {
     out[id] = {
       exact: (row && typeof row.exact === 'string' && row.exact) || null,
       approx: row && Array.isArray(row.approx) ? row.approx.filter((x) => V4_IDS.includes(x)) : [],
+      name: (row && typeof row.name === 'string' && row.name) || null,
     };
   }
-  for (const id of V4_IDS) if (!(id in out)) out[id] = { exact: id, approx: [] };
+  for (const id of V4_IDS) if (!(id in out)) out[id] = { exact: id, approx: [], name: null };
   return out;
 }
 

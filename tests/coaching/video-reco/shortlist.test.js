@@ -1,6 +1,6 @@
 'use strict';
 /**
- * bd-gzfdu9 — shortlist.build: the deterministic candidate chapters (SPEC v1.2.1 §3.3) with the pedagogy rubric's
+ * bd-gzfdu9 — shortlist.build: the deterministic candidate chapters (SPEC v1.3 §3.3; the v1.3 rules: retrieval-v13.test.js) with the pedagogy rubric's
  * ⛔ rows as code. No LLM, no I/O.
  */
 const S = require('../../../bot/shared/services/coaching/video-reco/shortlist');
@@ -21,7 +21,7 @@ const set = (r) => new Set(ids(r));
 test('C1 for an Urdu-reading, Urdu-taught level-2 teacher, grade-3 Urdu lesson: only what passes every gate', () => {
   const r = S.build(cat, tgt('C1'), ctx(), 'yes no why', L());
   expect(r.noneReason).toBeNull();
-  expect(set(r)).toEqual(new Set(['10-s1', '10-s2', '11-s1']));
+  expect(set(r)).toEqual(new Set(['10-s1', '10-s2', '11-s1', '13-s1'])); // 13-s1 is level 4: listed since v1.3 R1 (far)
   expect(r.candidates.every((c) => c.indicator === 'C1')).toBe(true);
 });
 
@@ -53,20 +53,17 @@ describe('⛔3 language (H1): preferred ∪ transcript ∪ mixed, chapter langua
   });
 });
 
-describe('⛔11 level (H2)', () => {
-  test('known level: ±1 (a level-2 teacher never sees the level-4 chapter while a closer one exists)', () => {
+describe('⛔11 level (H2) — a preference since SPEC v1.3 R1 (the flips: retrieval-v13.test.js)', () => {
+  test('known level: every rung listed, ±1 is near, further is far', () => {
     const r = S.build(cat, tgt('C1'), ctx({ level: 2 }), 'why', L());
-    expect(ids(r)).not.toContain('13-s1');
-    expect(r.levelMatch).toBe('within');
+    expect(ids(r)).toContain('13-s1');
+    expect(r.candidates.find((c) => c.seg_id === '13-s1').level_match).toBe('far');
+    expect(r.levelMatch).toBeNull();
   });
-  test('nothing within ±1 → widened to 2 rungs', () => {
+  test('two rungs away is listed as far (no widening step any more)', () => {
     const r = S.build(cat, tgt('B4'), ctx({ level: 4 }), 'recall', L());
     expect(ids(r)).toEqual(['19-s1']);
-    expect(r.levelMatch).toBe('widened');
-  });
-  test('never 3 rungs (level 1 ↔ 4) → none:level', () => {
-    const c = copy((d) => { mod(d, 19).level_id = 1; });
-    expect(S.build(c, tgt('B4'), ctx({ level: 4 }), 'recall', L()).noneReason).toBe('level');
+    expect(r.candidates[0].level_match).toBe('far');
   });
   test('unknown level: no filter, but level 4 only when nothing else exists', () => {
     const r = S.build(cat, tgt('C1'), ctx({ level: null }), 'why', L());
@@ -86,15 +83,15 @@ describe('⛔6 history (H16, reversed for the ladder)', () => {
     expect(ids(S.build(cat, tgt('C1'), ctx({ history: { segments: ['10-s1'], modules: [] } }), 'why', L()))).not.toContain('10-s1');
   });
   test('a module with ≥ 2 recommended chapters is out', () => {
-    expect(set(S.build(cat, tgt('C1'), ctx({ history: { segments: [], modules: [10] } }), 'why', L()))).toEqual(new Set(['11-s1']));
+    expect(set(S.build(cat, tgt('C1'), ctx({ history: { segments: [], modules: [10] } }), 'why', L()))).toEqual(new Set(['11-s1', '13-s1']));
   });
   test('emptied by module history → those modules once (repeat_module), never a repeated chapter', () => {
-    const r = S.build(cat, tgt('C1'), ctx({ history: { segments: ['10-s1'], modules: [10, 11] } }), 'why', L());
+    const r = S.build(cat, tgt('C1'), ctx({ history: { segments: ['10-s1'], modules: [10, 11, 13] } }), 'why', L());
     expect(r.repeatModule).toBe(true);
-    expect(set(r)).toEqual(new Set(['10-s2', '11-s1']));
+    expect(set(r)).toEqual(new Set(['10-s2', '11-s1', '13-s1']));
   });
   test('every chapter already seen → none:history', () => {
-    expect(S.build(cat, tgt('C1'), ctx({ history: { segments: ['10-s1', '10-s2', '11-s1'], modules: [] } }), 'why', L()).noneReason).toBe('history');
+    expect(S.build(cat, tgt('C1'), ctx({ history: { segments: ['10-s1', '10-s2', '11-s1', '13-s1'], modules: [] } }), 'why', L()).noneReason).toBe('history');
   });
 });
 

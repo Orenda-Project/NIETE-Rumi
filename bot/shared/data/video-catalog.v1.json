@@ -1,157 +1,192 @@
 {
- "version": "catalog-v1-20261020T1851-ed73b0ab",
- "built_at": "2026-10-20T18:51:28.703Z",
+ "version": "catalog-v1-20261020T1924-ed73b0ab",
+ "built_at": "2026-10-20T19:24:40.014Z",
  "framework": "fico-v4",
  "indicator_aliases": {
   "B1": {
    "exact": "B1",
-   "approx": []
+   "approx": [],
+   "name": "Instructional Clarity & Learning Objectives"
   },
   "B2": {
    "exact": "B2",
-   "approx": []
+   "approx": [],
+   "name": "Lesson Structure & Sequence"
   },
   "B3": {
    "exact": "B3",
-   "approx": []
+   "approx": [],
+   "name": "Activities & Tasks Alignment"
   },
   "B4": {
    "exact": "B4",
-   "approx": []
+   "approx": [],
+   "name": "Activation of Prior Knowledge"
   },
   "B5": {
    "exact": "B5",
-   "approx": []
+   "approx": [],
+   "name": "Meaningful & Real-World Connections"
   },
   "B6": {
    "exact": "B6",
-   "approx": []
+   "approx": [],
+   "name": "Differentiation / Catering to Learning Levels"
   },
   "B7": {
    "exact": null,
-   "approx": []
+   "approx": [],
+   "name": "Use of Taleemabad Lesson Plan"
   },
   "B8": {
    "exact": null,
-   "approx": []
+   "approx": [],
+   "name": "Use of Prescribed Resources"
   },
   "B9": {
    "exact": null,
-   "approx": []
+   "approx": [],
+   "name": "Time on Task / Time on Learning"
   },
   "B10": {
    "exact": "B7",
-   "approx": []
+   "approx": [],
+   "name": "Lesson Closure & Consolidation"
   },
   "C1": {
    "exact": "C1",
-   "approx": []
+   "approx": [],
+   "name": "Quality Questioning (Bloom's Aligned)"
   },
   "C2": {
    "exact": "C2",
-   "approx": []
+   "approx": [],
+   "name": "Responsive Re-explanation & Adaptive Teaching"
   },
   "C3": {
    "exact": "C3",
-   "approx": []
+   "approx": [],
+   "name": "Effective Feedback"
   },
   "C4": {
    "exact": null,
-   "approx": []
+   "approx": [],
+   "name": "Equitable Participation"
   },
   "C5": {
    "exact": "C4",
-   "approx": []
+   "approx": [],
+   "name": "Student Agency & Voice"
   },
   "C6": {
    "exact": null,
-   "approx": []
+   "approx": [],
+   "name": "Classroom Management & Routines"
   },
   "C7": {
    "exact": null,
-   "approx": []
+   "approx": [],
+   "name": "Positive & Supportive Learning Environment"
   },
   "C8": {
    "exact": null,
    "approx": [
     "F5"
-   ]
+   ],
+   "name": "Modeling, Scaffolding & Problem-Solving"
   },
   "C9": {
    "exact": null,
-   "approx": []
+   "approx": [],
+   "name": "Collaborative Learning"
   },
   "C10": {
    "exact": null,
-   "approx": []
+   "approx": [],
+   "name": "Integration of Taleemabad Technology"
   },
   "C11": {
    "exact": null,
-   "approx": []
+   "approx": [],
+   "name": "Self & Peer Assessment Facilitation"
   },
   "C12": {
    "exact": null,
-   "approx": []
+   "approx": [],
+   "name": "Classroom Resources & Space for Collaboration"
   },
   "D1": {
    "exact": null,
-   "approx": []
+   "approx": [],
+   "name": "Active Participation Rate"
   },
   "D2": {
    "exact": null,
    "approx": [
     "D2"
-   ]
+   ],
+   "name": "Cognitive Engagement Level (Bloom's)"
   },
   "D3": {
    "exact": null,
-   "approx": []
+   "approx": [],
+   "name": "Student-to-Student Interaction"
   },
   "D4": {
    "exact": null,
-   "approx": []
+   "approx": [],
+   "name": "Student Confidence & Risk-Taking"
   },
   "D5": {
    "exact": null,
-   "approx": []
+   "approx": [],
+   "name": "On-Task Behavior During Independent Work"
   },
   "D6": {
    "exact": null,
-   "approx": []
+   "approx": [],
+   "name": "Student Use of Learning Materials"
   },
   "D7": {
    "exact": null,
-   "approx": []
+   "approx": [],
+   "name": "Inclusivity of Engagement"
   },
   "F1": {
    "exact": "F1",
-   "approx": []
+   "approx": [],
+   "name": "Content Accuracy"
   },
   "F2": {
    "exact": "F2",
-   "approx": []
+   "approx": [],
+   "name": "Use of Academic Language"
   },
   "F3": {
    "exact": "F3",
-   "approx": []
+   "approx": [],
+   "name": "Anticipation of Student Misconceptions"
   },
   "F4": {
    "exact": null,
-   "approx": []
+   "approx": [],
+   "name": "Depth of Explanation"
   },
   "F5": {
    "exact": null,
    "approx": [
     "F4",
     "F5"
-   ]
+   ],
+   "name": "Subject-Specific Pedagogy: MATH"
   },
   "F6": {
    "exact": null,
    "approx": [
     "F6",
     "F7"
-   ]
+   ],
+   "name": "Subject-Specific Pedagogy: SCIENCE"
   },
   "F7": {
    "exact": null,
@@ -159,21 +194,25 @@
     "F8",
     "F9",
     "F10"
-   ]
+   ],
+   "name": "Subject-Specific Pedagogy: LITERACY / LANGUAGE"
   },
   "F8": {
    "exact": null,
    "approx": [
     "D4"
-   ]
+   ],
+   "name": "Cross-Curricular Connections"
   },
   "F9": {
    "exact": "F9",
-   "approx": []
+   "approx": [],
+   "name": null
   },
   "F10": {
    "exact": "F10",
-   "approx": []
+   "approx": [],
+   "name": null
   }
  },
  "holes": [
