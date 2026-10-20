@@ -87,13 +87,13 @@ describe('the 37-id scheme (prod analyses, the eval corpus)', () => {
     expect(T.pick(a37([row('C8', 1)]), { target: { indicator: 'C8' } }, null, noNative, { subject: 'maths' }).indicators).toEqual(['C2', 'F5']);
   });
 
-  test('37-B7 (use of the plan) is NOT v4-B7 (closure): no native, no exact, no approx → unknown_indicator', () => {
-    expect(T.pick(a37([row('B7', 1)]), { target: { indicator: 'B7' } }, null, cat).none).toBe('unknown_indicator');
+  test('37-B7 (use of the plan) is NOT v4-B7 (closure): SPEC v1.3b NO_MOVE → hole:no_move (was unknown_indicator)', () => {
+    expect(T.pick(a37([row('B7', 1)]), { target: { indicator: 'B7' } }, null, cat).none).toBe('hole:no_move');
   });
 
   test('the scheme is detected from the ids when the analysis does not say', () => {
     const a = analysis([row('B7', 1), row('C10', 1)]);
-    expect(T.pick(a, { target: { indicator: 'B7' } }, null, cat).none).toBe('unknown_indicator');
+    expect(T.pick(a, { target: { indicator: 'B7' } }, null, cat).none).toBe('hole:no_move'); // 37-B7, not v4 closure
   });
 
   test('top rung on the 37 scheme defaults to 4', () => {
