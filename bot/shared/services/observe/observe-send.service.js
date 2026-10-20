@@ -1290,6 +1290,11 @@ async function processTeacherReport(sessionId, payload = {}) {
       const { maybeCompleteObservation } = require('./observe-completion');
       await maybeCompleteObservation(sessionId);
     }
+    // bd-gzfdu9: the recommended clip, one message to the TEACHER after their report (never on the coach's
+    // preview). Nothing unless VIDEO_RECO_ENABLED and the session's row is 'shown'; a failure changes nothing.
+    await require('../coaching/video-reco/send').sendAfterReport({
+      coachingSessionId: sessionId, phone: delivery.teacher_phone, language: teacherLang,
+    }).catch(() => null);
     if (!portal) {
       await WhatsAppService.sendMessage(
         foPhone,

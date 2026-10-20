@@ -29,6 +29,7 @@ const { buildReportView } = require('../services/coaching-report-view');
 const { firstNameOf } = require('../../bot/shared/utils/person-name');
 const useful = require('../services/coaching-useful');
 const coachVisit = require('../services/coach-visit-request');
+const videoReco = require('../services/video-reco-events');
 // The portal's OWN sink (the bot's loggers need pino, which this service does not install).
 const telemetry = require('../services/telemetry.service');
 
@@ -76,6 +77,14 @@ async function loadReport(supabase, sessionId, userId) {
     const p = r && r.analysis_data && r.analysis_data.scores && r.analysis_data.scores.overall_percentage;
     return { created_at: r && r.created_at, pct: p == null || p === '' || !Number.isFinite(Number(p)) ? null : Number(p) };
   }).filter((r) => r.pct != null).reverse();
+  // bd-gzfdu9: the recommended clip's card — read only while VIDEO_RECO_ENABLED is on (a tier without the table
+  // never sees the query); any failure is "no card", never a failed report.
+  if (videoReco.enabled()) {
+    try {
+      const video = await videoReco.cardFor(supabase, sessionId, userId, language, videoReco.catalogOrNull());
+      if (video) return { session, language, quizMessage, firstName, trend, video };
+    } catch (_) { /* the report without the card */ }
+  }
   return { session, language, quizMessage, firstName, trend };
 }
 

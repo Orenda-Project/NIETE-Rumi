@@ -65,7 +65,7 @@ function buildSlimCardHtml(vm) {
   <div class="report">
     <div class="hd"><div><div class="nm">${T(h.name || '')}</div>${meta ? `<div class="mt">${T(meta)}</div>` : ''}</div>${h.pct != null ? `<div class="sc"><bdi>${esc(h.pct)}%</bdi></div>` : ''}</div>
     ${wells.length ? `<div class="panel"><div class="h3">${esc(w.well)}</div><ul class="well">${wells.map((x) => `<li><span class="tick">✓</span><span>${T(x)}</span></li>`).join('')}</ul></div>` : ''}
-    ${t.text ? `<div class="try"><div class="h3">${esc(w.tryh)}${chip ? w.inStep(chip) : ''}</div><p class="move">${T(t.text)}</p>${t.why ? `<p class="why">${T(t.why)}</p>` : ''}<p class="time">${esc(w.check)}</p></div>` : ''}
+    ${t.text ? `<div class="try"><div class="h3">${esc(w.tryh)}${chip ? w.inStep(chip) : ''}</div><p class="move">${T(t.text)}</p>${t.why ? `<p class="why">${T(t.why)}</p>` : ''}<p class="time">${esc(w.check)}</p></div>` : ''}${vm.videoStrip ? require('../video-reco/strip').stripHtml(vm.videoStrip, { language: vm.language, T, width: 480 }) : ''}
     <div class="full">${esc(w.full)}</div>
   </div>
   </body></html>`;
