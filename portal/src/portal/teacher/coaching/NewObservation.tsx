@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { Check, ChevronDown, Mic, Pause, Square, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { clockText } from '../../lib/clockText';
-import { acceptFor, checkFile, DC_MAX_PHOTOS, DC_MIN_SECONDS, readAudioDuration } from '../../lib/coachingUpload';
+import { acceptFor, checkAudioFile, checkFile, DC_MAX_PHOTOS, DC_MIN_SECONDS, readAudioDuration } from '../../lib/coachingUpload';
 import { SendError, sendLesson } from '../../lib/coachingSend';
 import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
 import { lessonFilename, useMicLevel } from '../../lib/recordFlow';
@@ -57,7 +57,7 @@ import { useDcReport } from './useDcReport';
  * Opened from a lesson plan (?grade&subject&plan) the class and the plan arrive filled in.
  */
 
-type AudioProblem = 'too_large' | 'not_audio' | null;
+type AudioProblem = 'too_large' | 'not_audio' | 'video' | null;
 type RecPhase = 'idle' | 'starting' | 'recording' | 'micBlocked';
 type Sending = { pct: number } | null;
 const UPLOADING = 'uploading';
@@ -172,12 +172,16 @@ export function NewObservationPage() {
   const pickAudio = async (file: File | undefined) => {
     setAudioProblem(null);
     if (!file) return;
-    const problem = checkFile(file, 'audio');
-    if (problem) { setAudioProblem(problem === 'too_large' ? 'too_large' : 'not_audio'); return; }
+    // bd-i0u6n2: a video is refused on its own line; a file the phone marks as audio is taken whatever its name.
+    const checked = await checkAudioFile(file);
+    if (checked.problem) {
+      setAudioProblem(checked.problem === 'too_large' ? 'too_large' : checked.problem === 'video' ? 'video' : 'not_audio');
+      return;
+    }
     const seconds = await readAudioDuration(file);
     setPhase('idle');
     setAudio({
-      blob: file, filename: file.name, durationMs: seconds != null ? seconds * 1000 : null,
+      blob: file, filename: checked.filename || file.name, durationMs: seconds != null ? seconds * 1000 : null,
       recordingId: null, source: 'file', size: file.size, startedAt: null,
     });
   };
@@ -293,7 +297,7 @@ export function NewObservationPage() {
         hidden
         type="file"
         data-testid="dc-audio-input"
-        accept={acceptFor('audio')}
+        accept={`${acceptFor('audio')},audio/*`}
         onChange={(e) => { void pickAudio(e.target.files?.[0]); e.target.value = ''; }}
       />
 
@@ -386,7 +390,7 @@ export function NewObservationPage() {
             <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{C.tooShort}</p>
           ) : null}
           {audioProblem ? (
-            <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{audioProblem === 'too_large' ? C.tooLarge : C.notAudio}</p>
+            <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{audioProblem === 'too_large' ? C.tooLarge : audioProblem === 'video' ? C.notVideo : C.notAudio}</p>
           ) : null}
 
           <FlowStep n={4} state={s4} chips={[C.upToPhotos(DC_MAX_PHOTOS), C.noFaces]}>{C.photos}</FlowStep>

@@ -154,7 +154,7 @@ export function SendPage() {
         hidden
         type="file"
         data-testid="dc-send-audio-input"
-        accept={acceptFor('audio')}
+        accept={`${acceptFor('audio')},audio/*`}
         onChange={(e) => { void flow.chooseAudio(e.target.files?.[0]); e.target.value = ''; }}
       />
 
@@ -166,7 +166,7 @@ export function SendPage() {
             {/* bd-idkgm2 — ICT feedback row 18: what to do, in her language. */}
             <p className="m-0 text-[15px] leading-[1.5] text-[#4b5563]">{micLine}</p>
           </Status>
-          {flow.fileProblem ? <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{flow.fileProblem === 'too_large' ? C.tooLarge : C.notAudio}</p> : null}
+          {flow.fileProblem ? <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{flow.fileProblem === 'too_large' ? C.tooLarge : flow.fileProblem === 'video' ? C.notVideo : C.notAudio}</p> : null}
           <Dock>
             <Action icon={RotateCcw} onClick={() => { void retryMic(); }}>{C.tryAgain}</Action>
             <Action tone="outline" icon={Upload} onClick={pickAudio}>{C.uploadRecording}</Action>

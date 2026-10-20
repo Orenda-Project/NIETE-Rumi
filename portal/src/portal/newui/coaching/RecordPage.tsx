@@ -148,7 +148,7 @@ export default function RecordPage() {
                 <Row key={step} title={step} icon={i > 0 ? Mic : Capacitor.isNativePlatform() ? Settings : Lock} />
               ))}
             </List>
-            {flow.fileProblem ? <Problem>{flow.fileProblem === 'too_large' ? COACHING_COPY.tooLarge : COACHING_COPY.notAudio}</Problem> : null}
+            {flow.fileProblem ? <Problem>{flow.fileProblem === 'too_large' ? COACHING_COPY.tooLarge : flow.fileProblem === 'video' ? COACHING_COPY.notVideo : COACHING_COPY.notAudio}</Problem> : null}
             <BottomActions>
               <BottomButton icon={RotateCcw} onClick={() => { void flow.startRecording(); }}>{COACHING_COPY.tryAgain}</BottomButton>
               <BottomButton tone="outline" icon={Upload} onClick={pickAudio}>{COACHING_COPY.upload}</BottomButton>
@@ -211,7 +211,7 @@ export default function RecordPage() {
             {audioUrl ? (
               <audio ref={player} src={audioUrl} preload="metadata" onEnded={() => setPlaying(false)} className="hidden" />
             ) : null}
-            {flow.fileProblem ? <Problem>{flow.fileProblem === 'too_large' ? COACHING_COPY.tooLarge : COACHING_COPY.notAudio}</Problem> : null}
+            {flow.fileProblem ? <Problem>{flow.fileProblem === 'too_large' ? COACHING_COPY.tooLarge : flow.fileProblem === 'video' ? COACHING_COPY.notVideo : COACHING_COPY.notAudio}</Problem> : null}
 
             <SectionLabel>{COACHING_COPY.optional}</SectionLabel>
             <List>

@@ -370,6 +370,8 @@ export const COACHING_COPY = {
   upload: 'Upload recording',
   cancel: 'Cancel',
   notAudio: 'Not a recording',
+  /** bd-i0u6n2 — a video in the recording slot (Digital Coaching is audio only). */
+  notVideo: 'Video, not audio',
   tooLarge: 'Too large',
 
   /* ── /portal/coaching/new: record ─────────────────────────────────────── */
