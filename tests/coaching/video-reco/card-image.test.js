@@ -18,14 +18,14 @@ beforeAll(() => fs.writeFileSync(thumb, Buffer.from([0xff, 0xd8, 0xff, 0xd9])));
 afterAll(() => fs.rmSync(thumb, { force: true }));
 beforeEach(() => mockHtmlToImage.mockReset().mockResolvedValue(Buffer.from('PNG')));
 
-const VM = { thumbPath: thumb, title: 'Asking why-questions <b>', durationS: 134, levelLabel: 'Level 1', language: 'en' };
+const VM = { thumbPath: thumb, title: 'Asking why-questions <b>', durationS: 134, language: 'en' };
 
-test('the html: a 480×270 card, the title escaped on one line, the m:ss pill, the level chip, the play circle', () => {
+test('the html: a 480×270 card, the title escaped on one line, the m:ss pill, the play circle, no level badge', () => {
   const html = card.buildVideoCardHtml(VM);
   expect(html).toMatch(/\.vcard\{[^}]*width:480px[^}]*height:270px/);
   expect(html).toContain('Asking why-questions &lt;b&gt;');
   expect(html).toContain('>2:14<');
-  expect(html).toContain('Level 1');
+  expect(html).not.toMatch(/Level|Aspiring|class="chip"/);
   expect(html).toContain('class="play"');
   expect(html).toMatch(/text-overflow:ellipsis/);
 });
@@ -45,7 +45,7 @@ test('no thumbnail file → a plain gradient card, still renders', () => {
 });
 
 test('Urdu: right to left, Nastaliq first, the title\'s English runs isolated, the clock stays left to right', () => {
-  const html = card.buildVideoCardHtml({ ...VM, title: 'سوال پوچھنا: open-ended questions', language: 'ur', levelLabel: 'لیول ۱' });
+  const html = card.buildVideoCardHtml({ ...VM, title: 'سوال پوچھنا: open-ended questions', language: 'ur' });
   expect(html).toMatch(/<html lang="ur" dir="rtl">/);
   expect(html).toContain("'NastaliqUrdu','Lexend'");
   expect(html).toContain('<span class="ltr">open-ended questions</span>');

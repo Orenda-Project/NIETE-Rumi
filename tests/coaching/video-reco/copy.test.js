@@ -85,7 +85,7 @@ describe('the body', () => {
 describe('the catalog keys', () => {
   const KEYS = ['videoRecoButton', 'videoRecoBodyLead', 'videoRecoBodyMeta', 'videoRecoCardTitle', 'videoRecoCardButton',
     'videoRecoPlayerClip', 'videoRecoPlayerWhy', 'videoRecoPlayerFromStart', 'videoRecoPlayerLookFor', 'videoRecoPlayerBack',
-    'videoRecoLevel', 'videoRecoLevelAspiring', 'videoRecoLangUr', 'videoRecoLangEn', 'videoRecoLangMixed',
+    'videoRecoLangUr', 'videoRecoLangEn', 'videoRecoLangMixed',
     'videoRecoStripTitle', 'videoRecoStripHint'];
   test('SPEC v1.2 wording: the coach line is now about the next lesson; the Urdu back arrow points right', () => {
     expect(UX_STRINGS.videoRecoPlayerLookFor.en).toBe('Try it in your next lesson and record it — your next report will show the change.');
@@ -109,10 +109,9 @@ describe('the catalog keys', () => {
       expect(cp(C.cardButton({ minutes: n, language: 'ur' }))).toBeLessThanOrEqual(20);
     }
   });
-  test('level chip: Level 2; level_id 1 (no CPD level) is Aspiring', () => {
-    expect(shown(C.levelLabel(2, 'en'))).toBe('Level 2');
-    expect(shown(C.levelLabel(2, 'ur'))).toBe('لیول ۲');
-    expect(shown(C.levelLabel(null, 'en'))).toBe('Aspiring');
-    expect(C.levelLabel(undefined, 'en')).toBe('Aspiring');
+  test('no level label exists any more (lead ruling 18:38Z: it read as "you are a beginner")', () => {
+    expect(C.levelLabel).toBeUndefined();
+    expect(UX_STRINGS.videoRecoLevel).toBeUndefined();
+    expect(UX_STRINGS.videoRecoLevelAspiring).toBeUndefined();
   });
 });

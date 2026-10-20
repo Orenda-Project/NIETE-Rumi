@@ -22,7 +22,7 @@ function load(htmlToImage) {
 const session = { id: SID, user_id: UID, created_at: '2026-10-19T00:00:00Z', transcript_text: 't' };
 const analysis = { framework: 'fico', grade: 3, subject: 'English', topic: 'Nouns', scores: { overall_percentage: 61, overall_marks: 30, max_marks: 49 }, domains: {}, strengths: ['Clear board work'] };
 const base = { teacherName: 'Sana', language: 'en', commitmentAction: 'Commitment action', slim: { tryNext: 'x', step: null, tag: null } };
-const STRIP = { thumbPath: '/nope.jpg', title: 'Asking why-questions', durationS: 134, levelLabel: 'Level 1' };
+const STRIP = { thumbPath: '/nope.jpg', title: 'Asking why-questions', durationS: 134 };
 
 test('with a strip: both the full and the slim image carry it', async () => {
   const htmlToImage = jest.fn(async () => Buffer.from('PNG'));

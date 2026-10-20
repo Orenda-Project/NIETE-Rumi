@@ -88,7 +88,7 @@ afterEach(() => { jest.restoreAllMocks(); });
 describe('the report image strip (SPEC §4.9)', () => {
   beforeEach(() => mockStripFor.mockReset().mockResolvedValue(null));
   test('a strip → handed to the hero render, and the clip message records image_strip', async () => {
-    const STRIP = { thumbPath: '/t.jpg', title: 'T', durationS: 120, levelLabel: 'Level 1' };
+    const STRIP = { thumbPath: '/t.jpg', title: 'T', durationS: 120 };
     mockStripFor.mockResolvedValue(STRIP);
     await RG.generateReport('sess-1', { from: '10000000000' });
     expect(mockStripFor).toHaveBeenCalledWith(expect.objectContaining({ coachingSessionId: 'sess-1' }));

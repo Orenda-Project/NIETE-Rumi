@@ -94,18 +94,16 @@ function trySection(t, c, bot) {
 // bd-gzfdu9: the card's own styles ride inside its section, so a report without a clip keeps today's stylesheet byte for byte.
 const VIDEO_CSS = '<style>.video .thumb{display:block;margin:0 0 10px}.video .thumb img{aspect-ratio:16/9;object-fit:cover;border-radius:12px}'
   + '.video .vt{font-size:17px;font-weight:600;margin:0 0 2px}.video .why{font-size:15px}'
-  + '.video .chip{background:var(--track);color:var(--muted)}'
   + 'a.btn.wide{display:block;width:100%;min-height:48px;text-align:center;line-height:28px;margin:8px 0 0}</style>';
 
-/** "Watch this next" (bd-gzfdu9, SPEC §4.5): v = { title, levelLabel, durationS, clipLanguage, reason, thumbUrl, href }. */
+/** "Watch this next" (bd-gzfdu9, SPEC §4.5): v = { title, durationS, clipLanguage, reason, thumbUrl, href }. No level badge (lead 18:38Z). */
 function videoSection(v, l) {
   if (!v || !v.href) return '';
   const n = vcopy.minutesOf(v.durationS);
   const word = (key, params) => esc(vcopy.word(key, l, params));
   const meta = vcopy.word('videoRecoBodyMeta', l, { n: vcopy.num(n, l), lang: vcopy.clipLanguageName(v.clipLanguage, l) });
   const thumb = v.thumbUrl ? `<a class="thumb" href="${esc(v.href)}"><img src="${esc(v.thumbUrl)}" alt=""></a>` : '';
-  const chip = v.levelLabel ? `<span class="chip">${esc(v.levelLabel)}</span>` : '';
-  return `<section class="video">${VIDEO_CSS}<h2>${word('videoRecoCardTitle')}</h2>${thumb}${chip}`
+  return `<section class="video">${VIDEO_CSS}<h2>${word('videoRecoCardTitle')}</h2>${thumb}`
     + `<p class="vt">${esc(v.title || '')}</p><p class="muted">${esc(meta)}</p>${v.reason ? `<p class="why">${esc(v.reason)}</p>` : ''}`
     + `<a class="btn wide" href="${esc(v.href)}">${esc(vcopy.cardButton({ minutes: n, language: l }))}</a></section>`;
 }

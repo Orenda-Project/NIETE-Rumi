@@ -103,7 +103,6 @@ async function cardFor(supabase, sessionId, userId, language, catalog) {
   const end = Number(rec.end_s ?? seg.end_s) || 0;
   return {
     title,
-    levelLabel: mod.cpd_level !== undefined ? copy.levelLabel(mod.cpd_level, language) : null,
     durationS: end > start ? end - start : Number(mod.duration_s) || 60,
     clipLanguage: mod.language || 'ur',
     reason: copy.localized(rec, 'reason', language),

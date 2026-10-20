@@ -13,7 +13,7 @@
  * inside the clip, summed from timeupdate steps of at most 1.5 s, so a seek is not watching), segment_end
  * (position reaches the clip end), ended, error. The server keeps the first of each.
  *
- * view = { language, title, levelLabel, clipLabel, reason, src|null, poster, startS, endS, eventsUrl, backHref|null }
+ * view = { language, title, clipLabel, reason, src|null, poster, startS, endS, eventsUrl, backHref|null }
  * Rendered by dashboard/routes/video-reco.routes.js.
  */
 const { esc } = require('./coaching-report-style');
@@ -79,7 +79,7 @@ function renderPlayer(view = {}) {
   // The range is one left-to-right isolate: inside an Urdu line "1:22 – 2:21" would otherwise read "2:21 – 1:22".
   const clip = w('videoRecoPlayerClip', { a: `\u2066${copy.clock(start)}`, b: `${copy.clock(end)}\u2069` });
   const src = view.src ? `${view.src}#t=${Math.floor(start)}` : '';
-  const chips = [view.levelLabel, clip].filter(Boolean).map((c) => `<span class="chip"><bdi>${esc(c)}</bdi></span>`).join('');
+  const chips = [clip].map((c) => `<span class="chip"><bdi>${esc(c)}</bdi></span>`).join('');
   const video = `<video id="v" playsinline controls preload="metadata"${view.poster ? ` poster="${esc(view.poster)}"` : ''}${src ? ` src="${esc(src)}"` : ''}></video>`;
   const why = view.reason ? `<section><h2>${esc(w('videoRecoPlayerWhy'))}</h2><p>${esc(view.reason)}</p></section>` : '';
   const back = view.backHref ? `<a class="back" href="${esc(view.backHref)}">${esc(w('videoRecoPlayerBack'))}</a>` : '';
