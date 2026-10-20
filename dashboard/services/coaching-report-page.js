@@ -14,6 +14,7 @@ const { pktDate } = require('./coaching-report-view');
 // The survey's words come from the bot's catalog, so the page asks exactly what A and B are asked on WhatsApp.
 const { resolveUx } = require('../../bot/shared/config/ux-strings');
 const { PING } = require('./coach-ping-page');
+const vcopy = require('../../bot/shared/services/coaching/video-reco/copy');
 
 const COPY = {
   en: {
@@ -90,6 +91,25 @@ function trySection(t, c, bot) {
   return `<section class="try"><h2>${esc(c.tryh)}</h2>${chip}<p>${esc(t.text)}</p>${why}<p class="muted">${esc(c.check)}</p>${plan}</section>`;
 }
 
+// bd-gzfdu9: the card's own styles ride inside its section, so a report without a clip keeps today's stylesheet byte for byte.
+const VIDEO_CSS = '<style>.video .thumb{display:block;margin:0 0 10px}.video .thumb img{aspect-ratio:16/9;object-fit:cover;border-radius:12px}'
+  + '.video .vt{font-size:17px;font-weight:600;margin:0 0 2px}.video .why{font-size:15px}'
+  + '.video .chip{background:var(--track);color:var(--muted)}'
+  + 'a.btn.wide{display:block;width:100%;min-height:48px;text-align:center;line-height:28px;margin:8px 0 0}</style>';
+
+/** "Watch this next" (bd-gzfdu9, SPEC §4.5): v = { title, levelLabel, durationS, clipLanguage, reason, thumbUrl, href }. */
+function videoSection(v, l) {
+  if (!v || !v.href) return '';
+  const n = vcopy.minutesOf(v.durationS);
+  const word = (key, params) => esc(vcopy.word(key, l, params));
+  const meta = vcopy.word('videoRecoBodyMeta', l, { n: vcopy.num(n, l), lang: vcopy.clipLanguageName(v.clipLanguage, l) });
+  const thumb = v.thumbUrl ? `<a class="thumb" href="${esc(v.href)}"><img src="${esc(v.thumbUrl)}" alt=""></a>` : '';
+  const chip = v.levelLabel ? `<span class="chip">${esc(v.levelLabel)}</span>` : '';
+  return `<section class="video">${VIDEO_CSS}<h2>${word('videoRecoCardTitle')}</h2>${thumb}${chip}`
+    + `<p class="vt">${esc(v.title || '')}</p><p class="muted">${esc(meta)}</p>${v.reason ? `<p class="why">${esc(v.reason)}</p>` : ''}`
+    + `<a class="btn wide" href="${esc(v.href)}">${esc(vcopy.cardButton({ minutes: n, language: l }))}</a></section>`;
+}
+
 /**
  * "What do you think of this report?" (bd-v0toag.49; reworded in bd-v0toag.38.9, made neutral in bd-v0toag.79). A POST form, so a link preview
  * never answers it. state: undefined = ask; 'yes' = thanks; 'no' = ask for the reason; 'done' = thanks for the
@@ -128,6 +148,7 @@ function renderReportPage(view, env = process.env, links = {}, usefulState, coac
   const wells = Array.isArray(v.wells) ? v.wells : [];
   if (wells.length) parts.push(`<section><h2>${esc(c.well)}</h2><ul>${wells.map((w) => `<li>${esc(w)}</li>`).join('')}</ul></section>`);
   parts.push(trySection(v.thing, c, botDigits(env)));
+  parts.push(videoSection(v.video, l));
   // bd-v0toag.31: moves she said she did that the recording check did not hear — a note, never a verdict.
   const dis = Array.isArray(v.disagreements) ? v.disagreements : [];
   if (dis.length) parts.push(`<section><ul>${dis.map((d) => `<li><b>${esc(d.text)}</b> ${esc(c.disagreeNote)}</li>`).join('')}</ul></section>`);

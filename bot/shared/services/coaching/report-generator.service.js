@@ -342,7 +342,9 @@ class ReportGeneratorService {
       // `{ png, caption }` (hero renderer — currently FICO on NIETE, plus
       // OECD/HOTS/TEACH/MEWAKA once they're wired). Delivery path branches
       // on the shape.
-      const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, nextStep);
+      // bd-gzfdu9 §4.9: the recommended clip on the report image — waits ≤ 20 s for the pick; null when off or slower.
+      const videoStrip = await require('./video-reco/strip').stripFor({ coachingSessionId, language: outputLanguage }).catch(() => null);
+      const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, nextStep, videoStrip);
       const isHeroImage = !Buffer.isBuffer(reportResult) && reportResult && reportResult.png;
 
       // Upload report to R2 for portal access.
@@ -396,6 +398,13 @@ class ReportGeneratorService {
           await require('./report-link-send').sendReportLinkIfNew({
             coachingSessionId, userId: session.user_id, phone: from, language: outputLanguage, track,
           });
+          // bd-gzfdu9: the recommended clip, one message after the report that arrived. Nothing unless
+          // VIDEO_RECO_ENABLED and the session's row is 'shown'. A failure never touches the report.
+          if (heroSent !== false) {
+            await require('./video-reco/send').sendAfterReport({
+              coachingSessionId, phone: from, language: outputLanguage, track, imageStrip: Boolean(videoStrip),
+            }).catch(() => null);
+          }
         }
       } else {
         await this.sendPDFReport(from, coachingSessionId, reportResult, session.users.name, session.created_at);
@@ -837,7 +846,7 @@ class ReportGeneratorService {
    * @returns {Promise<Buffer>} PDF buffer
    * @private
    */
-  static async generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment = null, nextStep = null) {
+  static async generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment = null, nextStep = null, videoStrip = null) {
     logToFile('Generating PDF report', { coachingSessionId: session.id });
 
     // Resolve framework and dispatch to correct transformer
@@ -911,6 +920,7 @@ class ReportGeneratorService {
         slim,
         // bd-v0toag.1.5: the report's ONE next step (the card got the same object) pins the horizon.
         target: (nextStep && nextStep.target) || null,
+        ...(videoStrip ? { videoStrip } : {}), // bd-gzfdu9 §4.9: the clip strip; absent → the hero opts as today
       },
     };
 
