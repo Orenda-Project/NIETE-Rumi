@@ -37,6 +37,8 @@ describe("assess copy", () => {
     expect(COPY.ur.handover("Ayan")).toContain("⁨Ayan⁩");
     expect(COPY.ur.childrenDone(2, 5)).toContain("⁦2/5⁩");
     expect(COPY.ur.aboutMinutes(29)).toContain("⁦29⁩");
+    expect(COPY.ur.childNo(4)).toContain("⁦4⁩");
+    expect(COPY.ur.micDenied).toContain("⁨Permissions → Microphone → Allow⁩");
   });
 
   it("block names", () => {
@@ -63,7 +65,7 @@ describe("assess copy", () => {
   it("buttons stay short (≤ 24 code points)", () => {
     for (const lang of ["ur", "en"] as const) {
       const c = COPY[lang];
-      for (const b of [c.present, c.absent, c.refused, c.start, c.holdEnd, c.wholeBattery, c.endVisit, c.finish, c.tryAgain, c.continue]) {
+      for (const b of [c.present, c.absent, c.refused, c.start, c.holdEnd, c.wholeBattery, c.endVisit, c.finish, c.tryAgain, c.continue, c.ready, c.playSound, c.micCheck, c.micHeard, c.openOther, c.copyLink, c.share, c.linkDone]) {
         expect([...b].length).toBeLessThanOrEqual(24);
       }
     }

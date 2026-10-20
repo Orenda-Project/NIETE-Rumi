@@ -6,7 +6,8 @@ import { isBlock, type Block } from './blocks';
  * `assess:<schoolId>:<PKT date>`: when the first child was marked present, the
  * last list the server gave (shown when offline), the children finished here,
  * the outcomes marked here, each child's phone-minted session id and block, and
- * the outcomes still waiting to reach the server. A convenience only — the server is the record,
+ * the outcomes still waiting to reach the server, the pre-flight check and the
+ * children sent to another phone. A convenience only — the server is the record,
  * and storage that throws or is empty changes nothing but the convenience.
  */
 
@@ -19,13 +20,26 @@ export type VisitMemory = {
   finished: Record<string, string>;
   /** drawId → what was marked, with the name the coach saw (for the summary). */
   outcomes: Record<string, { outcome: SaOutcome; name: string }>;
-  /** drawId → the session id minted on this phone, the child's block, and whether Present was sent or queued. */
-  sessions: Record<string, { id: string; block: Block; sent: boolean }>;
+  /** drawId → the session id minted on this phone, the child's block, whether Present was sent or queued, and the server's id once known. */
+  sessions: Record<string, { id: string; block: Block; sent: boolean; serverId?: string }>;
   /** Outcomes not yet accepted by the server, oldest first. */
   queue: QueuedOutcome[];
   /** Queued outcomes the server turned down (kept for the record). */
   refused: Array<{ qid: string; drawId: string; outcome: SaOutcome; status: number; at: number }>;
+  /** When the coach finished the pre-flight card, and the microphone check if one was run. */
+  preflight: { at: number; mic: MicCheck | null } | null;
+  /** drawId → the server session id, for children whose test was opened on another phone. */
+  elsewhere: Record<string, string>;
 };
+
+export type MicCheck = { mic_ok: boolean; mic_rms: number; at: number };
+
+/** The engine reads the last microphone check from here. */
+export const MIC_KEY = 'sa:mic_ok';
+
+export function saveMic(m: MicCheck): void {
+  try { window.localStorage.setItem(MIC_KEY, JSON.stringify(m)); } catch { /* per-device convenience only */ }
+}
 
 export type QueuedOutcome = {
   qid: string;
@@ -38,7 +52,7 @@ export type QueuedOutcome = {
   at: number;
 };
 
-const EMPTY: VisitMemory = { startedAt: null, list: null, finished: {}, outcomes: {}, sessions: {}, queue: [], refused: [] };
+const EMPTY: VisitMemory = { startedAt: null, list: null, finished: {}, outcomes: {}, sessions: {}, queue: [], refused: [], preflight: null, elsewhere: {} };
 const PREFIX = 'assess:';
 
 /** Today's date in Pakistan, YYYY-MM-DD. */
@@ -53,7 +67,7 @@ export function visitKey(schoolId: string, now = new Date()): string {
 export function readVisit(key: string): VisitMemory {
   try {
     const raw = window.localStorage.getItem(key);
-    if (!raw) return { ...EMPTY, sessions: {}, queue: [], refused: [] };
+    if (!raw) return { ...EMPTY, sessions: {}, queue: [], refused: [], elsewhere: {} };
     const v = JSON.parse(raw) as Partial<VisitMemory>;
     return {
       startedAt: typeof v.startedAt === 'number' ? v.startedAt : null,
@@ -65,9 +79,11 @@ export function readVisit(key: string): VisitMemory {
         : {},
       queue: Array.isArray(v.queue) ? v.queue.filter((q) => q && typeof q.qid === 'string') : [],
       refused: Array.isArray(v.refused) ? v.refused : [],
+      preflight: v.preflight && typeof v.preflight.at === 'number' ? { at: v.preflight.at, mic: v.preflight.mic ?? null } : null,
+      elsewhere: v.elsewhere && typeof v.elsewhere === 'object' ? v.elsewhere : {},
     };
   } catch {
-    return { ...EMPTY, sessions: {}, queue: [], refused: [] };
+    return { ...EMPTY, sessions: {}, queue: [], refused: [], elsewhere: {} };
   }
 }
 

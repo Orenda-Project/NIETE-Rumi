@@ -1312,6 +1312,10 @@ export const childTestSa = {
   /** sessionId: the server's id or the phone-minted clientSessionId. */
   getStatus: async (sessionId: string): Promise<SaSessionStatus> =>
     (await api.get(`${CTS}/session/${encodeURIComponent(sessionId)}/status`)).data,
+
+  /** A one-hour token for opening the server's session on another phone. */
+  mintLink: async (sessionId: string): Promise<{ token: string; expiresAt: string }> =>
+    (await api.post(`${CTS}/session/${encodeURIComponent(sessionId)}/link`)).data,
 };
 
 export default api;
