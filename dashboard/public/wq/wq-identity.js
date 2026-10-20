@@ -75,7 +75,8 @@ var WQID = function (P) {
     var here = P.kids();
     var Q = P.Q, CLS = P.CLS, LIVE = P.LIVE || {};
     var classPhone = here.length >= CLASS_PHONE;
-    var someone = '<button class="wq-btn wq-navy" id="wq-someone">' + esc(TW.someone) + '</button>';
+    // fold with the children listed: the way out is the secondary button (as the trail draws it), so the name leads
+    var someone = '<button class="wq-btn ' + (fold && here.length ? 'wq-soft' : 'wq-navy') + '" id="wq-someone">' + esc(TW.someone) + '</button>';
     var card = '<div class="wq-card wq-stack"><h1' + (P.lat ? P.lat(Q.topic) : '') + '>' + esc(Q.topic) + '</h1>' +
       '<p class="wq-sub">' + esc(T.from(P.doorTeacher ? P.doorTeacher() : CLS.teacher, P.doorLabel ? P.doorLabel() : CLS.label)) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(P.N)) + '</p></div>';
