@@ -21,6 +21,8 @@ export type Tag =
 export type Row = {
   id: string; teacher: string | null; school: string | null; emis: string | null; opened: boolean; reasons: ReasonCode[];
   status: string; done: boolean; createdAt: string; visitedAt: string | null; sessionDate: string | null; pct: number | null; hasNote: boolean; tags: Tag[];
+  /** bd-tbprit.16 — she added it to her next visit (coach_plan.addedToVisitAt). */
+  nextVisit?: boolean;
 };
 export type List = { success: boolean; todo: Row[]; done: Row[] };
 

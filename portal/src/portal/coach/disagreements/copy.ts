@@ -27,6 +27,7 @@ const EN = {
   done: "Done",
   noneWaiting: "No one is waiting",
   noneDone: "None visited yet",
+  nextVisit: "For your next visit",
 
   /* the list, as Rifat's prototype words it (bd-tbprit.7) */
   appName: "NIETE Teaching Assistant",
@@ -135,6 +136,7 @@ const UR: Words<typeof EN> = {
   done: "مکمل",
   noneWaiting: "کوئی انتظار میں نہیں",
   noneDone: "ابھی کوئی دورہ نہیں",
+  nextVisit: "آپ کے اگلے دورے کے لیے",
 
   appName: "NIETE Teaching Assistant",
   appRole: "کوچ · آئی سی ٹی اسلام آباد",

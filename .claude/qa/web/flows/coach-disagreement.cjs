@@ -60,6 +60,30 @@ const scenarios = [
       await ctx.sql('delete from coach_visit_requests where id = ' + q(id));
     }
   } },
+  // bd-tbprit.16 — "Add to my next visit" (coach_plan.addedToVisitAt) puts the request on the coach Home.
+  { id: 'CP06', title: 'Coach app v2: a disagreement added to her next visit shows on the coach Home and opens its card', run: async (page, ctx) => {
+    await ctx.sql("insert into app_settings (key, value) values ('coach_disagreement_card', 'true'::jsonb) on conflict (key) do update set value = excluded.value, updated_at = now()");
+    const id = await seed(ctx);
+    try {
+      await ctx.sql("update coach_visit_requests set coach_plan = jsonb_build_object('addedToVisitAt', now()) where id = " + q(id));
+      await asRole(page, ctx, 'coach', 'coachV2');
+      const w = watch(page);
+      w.errors.length = 0; w.fivexx.length = 0;
+      await page.goto(ctx.baseUrl + '/portal/coach', { waitUntil: 'domcontentloaded' });
+      const box = await text(page, 'next-visit');
+      expect(/For your next visit/.test(box), 'no "For your next visit" heading: ' + box.slice(0, 160));
+      const row = page.getByTestId('next-visit').locator('a[href="/portal/coach/disagreements/' + id + '"]');
+      await row.waitFor({ state: 'visible', timeout: 20000 }).catch(() => { throw new Error('her request is not under For your next visit'); });
+      await row.click();
+      await page.waitForURL('**/portal/coach/disagreements/' + id, { timeout: 15000 });
+      const score = await text(page, 'reason-score');
+      expect(!w.errors.length, 'uncaught page error — ' + w.errors[0]);
+      expect(!w.fivexx.length, 'API returned ' + [...new Set(w.fivexx)].join(', '));
+      return { request: id, home: box, card: score.slice(0, 60) };
+    } finally {
+      await ctx.sql('delete from coach_visit_requests where id = ' + q(id));
+    }
+  } },
 ];
 
 module.exports = scenarios;
