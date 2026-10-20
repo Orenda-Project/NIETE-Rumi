@@ -102,7 +102,8 @@ async function readExisting(client, subjects, pageSize) {
   if (!client) return [];
   const rows = [];
   for (let from = 0; ; from += pageSize) {
-    const { data, error } = await client.from(TABLE).select('*').in('subject', subjects).range(from, from + pageSize - 1);
+    const { data, error } = await client.from(TABLE).select('*').in('subject', subjects)
+      .order('topic_id').range(from, from + pageSize - 1); // stable pages: unordered range() can skip/repeat rows
     if (error) throw new Error(`read failed: ${error.message}`);
     rows.push(...data);
     if (data.length < pageSize) return rows.map(fromRow);

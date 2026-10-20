@@ -22,10 +22,16 @@ function fakeClient(rows = []) {
           return {
             in(col, vals) {
               return {
-                range(a, b) {
-                  calls.select.push({ table, cols, col, vals, a, b });
-                  const hit = rows.filter((r) => vals.includes(r[col]));
-                  return Promise.resolve({ data: hit.slice(a, b + 1), error: null });
+                // range() is only reachable through order(): paging an unordered select can skip or repeat rows.
+                order(orderBy) {
+                  return {
+                    range(a, b) {
+                      calls.select.push({ table, cols, col, vals, orderBy, a, b });
+                      const hit = rows.filter((r) => vals.includes(r[col]))
+                        .sort((x, y) => (x[orderBy] < y[orderBy] ? -1 : x[orderBy] > y[orderBy] ? 1 : 0));
+                      return Promise.resolve({ data: hit.slice(a, b + 1), error: null });
+                    },
+                  };
                 },
               };
             },
@@ -99,7 +105,7 @@ describe('--dry-run', () => {
     fs.rmSync(path.join(dir, 'Maths.csv'));
     const client = fakeClient(stored);
     const report = await run([dir, '--matrix-version', 'v1', '--dry-run'], opts({ client }));
-    expect(client.calls.select[0]).toMatchObject({ table: 'assessment_topics', col: 'subject', vals: ['english'] });
+    expect(client.calls.select[0]).toMatchObject({ table: 'assessment_topics', col: 'subject', vals: ['english'], orderBy: 'topic_id' });
     expect(report).toMatchObject({ upsert: 0, retire: 1 });
     expect(client.calls.upsert).toEqual([]);
   });
@@ -164,7 +170,7 @@ describe('load (no --dry-run)', () => {
   test('a DB error stops the load', async () => {
     const client = fakeClient();
     client.from = () => ({
-      select: () => ({ in: () => ({ range: () => Promise.resolve({ data: [], error: null }) }) }),
+      select: () => ({ in: () => ({ order: () => ({ range: () => Promise.resolve({ data: [], error: null }) }) }) }),
       upsert: () => Promise.resolve({ error: { message: 'boom' } }),
     });
     await expect(run([dir, '--matrix-version', 'v1'], opts({ client }))).rejects.toThrow(/upsert failed: boom/);
@@ -172,7 +178,7 @@ describe('load (no --dry-run)', () => {
 
   test('a read error stops the run', async () => {
     const client = fakeClient();
-    client.from = () => ({ select: () => ({ in: () => ({ range: () => Promise.resolve({ data: null, error: { message: 'nope' } }) }) }) });
+    client.from = () => ({ select: () => ({ in: () => ({ order: () => ({ range: () => Promise.resolve({ data: null, error: { message: 'nope' } }) }) }) }) });
     await expect(run([dir, '--matrix-version', 'v1', '--dry-run'], opts({ client }))).rejects.toThrow(/read failed: nope/);
   });
 });
