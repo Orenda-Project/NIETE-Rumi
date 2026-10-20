@@ -39,6 +39,9 @@ const dateLabel = (iso: string | null | undefined, days: LessonsCopy['days']): s
 /** The section's letter as the bot sends it (B/C/D/F for FICO); a longer key gives its first letter. */
 const codeOf = (key: string, name: string) => (key && key.length <= 2 ? key.toUpperCase() : (name || key || '?').charAt(0).toUpperCase());
 
+/** bd-z3cadk — the status pill's colour for "Last time we asked" (the image's own colours: done green, partial amber). */
+const UPTAKE_TONE: Record<string, 'done' | 'waiting' | 'info'> = { achieved: 'done', partial: 'waiting' };
+
 export function toReportData(s: SessionDetail, {
   teacher, journey, words: C = COACHING_V2_COPY, days = LESSONS_V2_COPY.days,
 }: { teacher: string; journey: JourneyPoint[]; words?: CoachingCopy; days?: LessonsCopy['days'] }): ReportData {
@@ -63,7 +66,8 @@ export function toReportData(s: SessionDetail, {
     // bd-foyqpc — the WhatsApp report's own order (hero-report heroTopic): the narrative's topic (her language), then
     // the analysis topic (always English).
     topic: n?.topic || s.topic || s.subject || '',
-    date: dateLabel(s.date, days),
+    // bd-z3cadk: a repeat shows the ORIGINAL report's date (it said "today").
+    date: dateLabel(s.reportDate || s.date, days),
     // bd-wxtin8 — ICT feedback (IAB Experience View, row 13): the framework's own order (B, C, D, F), as on her
     // WhatsApp report — not the breakdown's strongest-first order, which the older page relies on.
     sections: [...(b?.groups ?? [])].sort((x, y) => codeOf(x.key, x.name).localeCompare(codeOf(y.key, y.name))).map((g) => ({
@@ -78,11 +82,19 @@ export function toReportData(s: SessionDetail, {
     })),
     photos: (s.photoUrls ?? []).map((src) => ({ src, cap: '' })),
     journey: points.length > 1
-      ? { points: points.map((p) => p.pct), first: dateLabel(points[0].date, days), last: dateLabel(points[points.length - 1].date, days) }
+      ? {
+        points: points.map((p) => p.pct), first: dateLabel(points[0].date, days), last: dateLabel(points[points.length - 1].date, days),
+        // bd-z3cadk: the note under the graph on her WhatsApp report.
+        ...(n?.journeyNote ? { note: n.journeyNote } : {}),
+      }
       : null,
     // A Digital Coach lesson: the one thing to try (bd-v0toag.58: the stored v10 pick, the same text as her slim
     // image and the next plan's caption), else her commitment card. A coach's visit: what they agreed is in the
     // coach's note below.
+    // bd-z3cadk: the WhatsApp report's "Last time we asked" block — the earlier ask, the status in the image's words.
+    lastAsked: s.lastAsked && !s.observation
+      ? { text: s.lastAsked.text, status: s.lastAsked.statusLabel, tone: UPTAKE_TONE[s.lastAsked.status] ?? 'info', line: s.lastAsked.line }
+      : null,
     tryNext: !s.observation ? (s.prioritizedAction?.thing_to_try?.text?.trim() || s.prioritizedAction?.action || null) : null,
     debrief: s.observation && (s.observation.companionText || coach)
       ? { heading: C.fromCoach(coach || C.title), initials: coach ? initials(coach) : undefined, note: s.observation.companionText || undefined }
@@ -98,7 +110,7 @@ export function dcSteps(stage: CoachingStage, answered: boolean, C: CoachingCopy
       : stage === 'reflection' ? (answered ? 2 : 1)
         : 0;
   const defs: Array<[string, string | undefined]> = [
-    [C.analysing, undefined],
+    [C.stepAnalysis, undefined],
     [C.stepReflection, C.subReflection],
     [C.stepReport, C.subReport],
   ];

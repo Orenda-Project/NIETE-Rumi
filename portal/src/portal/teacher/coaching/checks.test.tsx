@@ -36,7 +36,11 @@ describe("coaching: copy", () => {
       // bd-qccbrv: and the other two lines of that card (same mockup).
       .filter((c) => !["photosHint", "voiceNote", "micBlockedHint", "micBrowserBlocked", "micStillBlockedWhatsApp", "micStillBlocked", "tooShort",
         // bd-aqotzx — ICT IAB row 16: the question, why it stopped, the 24-hour line and the two notes are sentences.
-        "classQuestion", "classWhy", "classDeadline", "classNoAnswerNote", "classRecordAgainNote"].includes(c.path))
+        "classQuestion", "classWhy", "classDeadline", "classNoAnswerNote", "classRecordAgainNote",
+        // bd-i0u6n2 — a video in the recording slot: what it is and what to send instead.
+        "notVideo",
+        // bd-z3cadk — the bot's repeat-recording message, word for word.
+        "duplicateRecordingLead", "duplicateRecordingNext"].includes(c.path))
       .filter((c) => copyProblem(c.text))
       .map((c) => `${c.path}: ${c.text}`);
     expect(bad).toEqual([]);

@@ -54,6 +54,8 @@ const DETAIL = {
   prioritizedAction: { action: "Ask the back rows first.", commitment: null },
   analysisData: { overall_score: { points: 30, max_points: 52, percentage: 58 } },
   observation: null,
+  // bd-z3cadk: a report the bot wrote its narrative for (every new one); one without shows the WhatsApp image instead.
+  reportNarrative: { headline: "A lesson the whole class joined", identity: "", moments: [], strength: null, horizon: null, domainWhys: {}, language: "en", journeyNote: null },
 };
 
 beforeEach(() => {
@@ -73,7 +75,7 @@ const open = () => render(
 
 describe("toReportData", () => {
   it("the report's own numbers and sections, her commitment action, the journey; no invented headline", () => {
-    const d = toReportData(DETAIL as never, { teacher: "Ayesha Bibi", journey: [{ date: "2026-09-10", pct: 50 }, { date: "2026-10-02", pct: 58 }] });
+    const d = toReportData({ ...DETAIL, reportNarrative: null } as never, { teacher: "Ayesha Bibi", journey: [{ date: "2026-09-10", pct: 50 }, { date: "2026-10-02", pct: 58 }] });
     expect(d).toMatchObject({
       headline: "", marks: 30, max: 52, teacher: "Ayesha Bibi", topic: "Provinces of Pakistan",
       sections: [
@@ -112,7 +114,7 @@ describe("toReportData", () => {
   });
 
   it("bd-fmf24g.10 — without a stored narrative those sections are left out: no headline, no moment, strength, horizon or why", () => {
-    const d = toReportData(DETAIL as never, { teacher: "Ayesha Bibi", journey: [] });
+    const d = toReportData({ ...DETAIL, reportNarrative: null } as never, { teacher: "Ayesha Bibi", journey: [] });
     expect(d.headline).toBe("");
     expect(d.moment).toBeNull();
     expect(d.strength).toBeNull();
@@ -565,5 +567,43 @@ describe("the question's voice note keeps its link while the page polls (bd-ymav
     await waitFor(() => expect(n).toBeGreaterThanOrEqual(3));
     expect(audio()).toBe(first);
     vi.useRealTimers();
+  });
+});
+
+// bd-z3cadk — ICT IAB row 23: the screen has the WhatsApp report's content; a repeat recording says so.
+describe("the report matches WhatsApp (bd-z3cadk)", () => {
+  const done = () => portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "completed", stage: "done", reflection: null, reportReady: true });
+
+  it("a report with no stored narrative shows the WhatsApp report image itself, not bare score bars", async () => {
+    done();
+    portal.getCoachingSession.mockResolvedValue({ session: { ...DETAIL, reportNarrative: null } });
+    open();
+    const img = await screen.findByRole("img", { name: C.fullReport });
+    expect(img.getAttribute("src")).toBe("https://r2/report.png");
+    expect(screen.queryByRole("region", { name: /scores/i })).toBeNull();
+  });
+
+  it("a repeat recording: the bot's own message above the report, and the original report's date", async () => {
+    done();
+    portal.getCoachingSession.mockResolvedValue({ session: { ...DETAIL, duplicate: true, date: "2026-10-20T07:56:43Z", reportDate: "2026-09-29T09:49:24Z" } });
+    open();
+    expect(await screen.findByText(C.duplicateRecordingLead)).toBeTruthy();
+    expect(screen.getByText(C.duplicateRecordingNext)).toBeTruthy();
+    expect(screen.getByText(/29 Sep/)).toBeTruthy();
+  });
+
+  it("the graph's note and \"Last time we asked\" are on screen, as on the image", () => {
+    const d = toReportData({
+      ...DETAIL,
+      reportNarrative: { ...DETAIL.reportNarrative, journeyNote: "Two lessons, and climbing." },
+      lastAsked: { text: "Ask two why questions.", status: "partial", statusLabel: "Getting there", line: "why questions 1" },
+    } as never, { teacher: "Ayesha Bibi", journey: [{ date: "2026-09-10", pct: 50 }, { date: "2026-10-02", pct: 58 }] });
+    expect(d.journey?.note).toBe("Two lessons, and climbing.");
+    expect(d.lastAsked).toEqual({ text: "Ask two why questions.", status: "Getting there", tone: "waiting", line: "why questions 1" });
+  });
+
+  it("Urdu: the bot's message in Urdu, the same words it sends on WhatsApp", () => {
+    expect(U.duplicateRecordingLead).toBe("📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو آپ نے پہلے بھیجی تھی، اس لیے اس کی پہلے سے تیار کردہ رپورٹ یہ رہی۔");
+    expect(U.duplicateRecordingNext).toBe("جب بھی نئی رائے چاہیے ہو، نئی ریکارڈنگ بھیج دیجیے۔");
   });
 });

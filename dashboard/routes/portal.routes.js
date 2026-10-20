@@ -107,6 +107,7 @@ const { resolveUserSchoolName } = require('../lib/user-school-name');
 const TeacherObservation = require('../lib/teacher-observation');
 const { getOverall } = require('../services/coaching-frameworks.service');
 const { narrativeView } = require('../services/report-narrative-view'); // bd-fmf24g.10
+const { reportExtras } = require('../services/report-extras'); // bd-z3cadk
 // Leader "patch" resolver (leader_teachers → Rumi users + activity) needs the
 // pg pool — the LATERAL-join SQL can't be expressed through supabase-js.
 const pool = require('../config/database');
@@ -7270,13 +7271,18 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
     //
     // A failure here is a 5xx, not an empty breakdown: drawing zeros is the
     // exact failure this change removes.
-    const breakdown = await CoachingBreakdown.breakdown(
-      session.analysis_data,
-      // bd-inzpzl — the language her report was WRITTEN in (the narrative follows her preference), so the
-      // breakdown matches the rest of the page; transcript_language is an ASR label ('hindi') and only a last resort.
-      (session.analysis_data && session.analysis_data.report_narrative && session.analysis_data.report_narrative._language)
-        || session.voice_debrief_language || session.transcript_language || 'en',
-    );
+    // bd-inzpzl — the language her report was WRITTEN in (the narrative follows her preference), so the
+    // breakdown matches the rest of the page; transcript_language is an ASR label ('hindi') and only a last resort.
+    const reportLanguage = (session.analysis_data && session.analysis_data.report_narrative && session.analysis_data.report_narrative._language)
+      || session.voice_debrief_language || session.transcript_language || 'en';
+    const breakdown = await CoachingBreakdown.breakdown(session.analysis_data, reportLanguage);
+
+    // bd-z3cadk — a repeat recording, the original report's date, and "Last time we asked" (ICT IAB row 23).
+    const extras = await reportExtras(session, reportLanguage === 'ur' ? 'ur' : 'en', async (id) => {
+      const { data } = await supabase.from('coaching_sessions').select('id, created_at, prioritized_action')
+        .eq('id', id).eq('user_id', userId).maybeSingle();
+      return data || null;
+    });
 
     // Extract narrative arrays from analysis_data
     const strengthsArray = session.analysis_data?.strengths?.map(s =>
@@ -7378,6 +7384,11 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
         // bd-fmf24g.10: the report's written part (headline, moments, strength, horizon, the per-section
         // "why" lines) as the bot stored it when it rendered her report; null on a session that has none.
         reportNarrative: narrativeView(session.analysis_data),
+        // bd-z3cadk — the same recording sent again (the bot reused the earlier report), the date of the report shown,
+        // and the image's "Last time we asked" block.
+        duplicate: extras.duplicate,
+        reportDate: extras.reportDate,
+        lastAsked: extras.lastAsked,
 
         // ── how she was scored ─────────────────────────────────────────────
         overallScore: overallMarks,
@@ -7643,7 +7654,7 @@ router.get('/coaching-session/:id/progress', requirePortalAuth, requireSelfObser
   try {
     const { data: row, error } = await supabase
       .from('coaching_sessions')
-      .select('id, user_id, status, failed_step, audio_url, audio_duration_seconds, has_lesson_plan, classroom_photos, conversation_state, created_at, '
+      .select('id, user_id, status, failed_step, duplicate_of_session_id, audio_url, audio_duration_seconds, has_lesson_plan, classroom_photos, conversation_state, created_at, '
         + 'observation_type, delivery_status:analysis_data->teacher_delivery->>status')
       .eq('id', req.params.id)
       .eq('user_id', req.session.portalUserId)
@@ -7686,6 +7697,8 @@ router.get('/coaching-session/:id/progress', requirePortalAuth, requireSelfObser
       photoCount: Array.isArray(row.classroom_photos) ? row.classroom_photos.length : 0,
       // bd-aqotzx — why a stopped session stopped ('not_a_class', 'not_a_class_no_answer', 'too_short', …).
       stopReason: stage === 'stopped' ? (row.failed_step || null) : null,
+      // bd-z3cadk — the same recording was sent before: the earlier report was reused (the bot says so on WhatsApp).
+      duplicate: !!row.duplicate_of_session_id,
       createdAt: row.created_at,
     });
   } catch (error) {

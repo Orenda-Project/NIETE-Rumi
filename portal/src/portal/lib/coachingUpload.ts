@@ -135,3 +135,139 @@ export function readAudioDuration(file: File): Promise<number | null> {
     audio.src = url;
   });
 }
+
+/* ── bd-i0u6n2 — the recording slot of Digital Coaching: audio only ─────────────────────────────────────────────
+ * The name ending alone decided "is this a recording?". Two gaps (operator, 20 Oct):
+ *   - a real recording whose name has no ending (some pickers, WhatsApp's in-app browser) was "Not a recording";
+ *   - a video with an audio ending (.mp4/.webm/.3gp) went through, and a lesson-length video failed as "too large".
+ * Now the type the phone gives a file counts too, and a video is refused with its own line. The pipeline sends the
+ * bytes to Soniox as they are (it reads the format from the content), so an audio file under another name is fine;
+ * it is uploaded under a name with an ending the server takes (KINDS.audio in portal-coaching.service.js). */
+
+/** The phone's audio types the pipeline has transcribed, and the ending each is uploaded under. */
+const AUDIO_TYPE_EXT: Record<string, string> = {
+  "audio/mpeg": ".mp3", "audio/mp3": ".mp3",
+  "audio/mp4": ".m4a", "audio/x-m4a": ".m4a", "audio/m4a": ".m4a",
+  "audio/aac": ".aac", "audio/x-aac": ".aac",
+  "audio/ogg": ".ogg", "audio/opus": ".opus",
+  "audio/wav": ".wav", "audio/x-wav": ".wav", "audio/wave": ".wav", "audio/vnd.wave": ".wav",
+  "audio/amr": ".amr", "audio/3gpp": ".3gp", "audio/webm": ".webm",
+};
+
+/** Endings that are video only; .mp4/.webm/.3gp can be either, so they are opened to see. */
+const VIDEO_ONLY_EXT = [".mov", ".mkv", ".avi", ".wmv", ".flv", ".m4v", ".mpeg", ".mpg", ".ts", ".3g2"];
+const EITHER_EXT = [".mp4", ".webm", ".3gp"];
+
+/** The name to upload an audio file under (one with an ending the server takes); null when it is not audio. */
+export function audioUploadName(file: File): string | null {
+  const ext = extensionOf(file.name);
+  if (UPLOAD_RULES.audio.extensions.includes(ext)) return file.name;
+  const type = (file.type || "").split(";")[0].trim().toLowerCase();
+  const mapped = AUDIO_TYPE_EXT[type];
+  if (!mapped) return null;
+  const stem = ext ? file.name.slice(0, -ext.length) : file.name;
+  return `${stem.trim() || "recording"}${mapped}`;
+}
+
+/**
+ * Does this file have a picture? The browser opens it as a video and reads its size: true (a picture), false (sound
+ * only), null (the browser cannot read it, or no answer within 6 seconds). Kept on an object so a test can stand in.
+ */
+export const mediaProbe = {
+  hasVideo(file: File): Promise<boolean | null> {
+    return new Promise((resolve) => {
+      let url = "";
+      try {
+        url = URL.createObjectURL(file);
+      } catch {
+        resolve(null);
+        return;
+      }
+      const video = document.createElement("video");
+      const done = (value: boolean | null) => {
+        window.clearTimeout(timer);
+        URL.revokeObjectURL(url);
+        resolve(value);
+      };
+      const timer = window.setTimeout(() => done(null), 6000);
+      video.preload = "metadata";
+      video.muted = true;
+      video.onloadedmetadata = () => done(video.videoWidth > 0 || video.videoHeight > 0);
+      video.onerror = () => done(null);
+      video.src = url;
+    });
+  },
+};
+
+export type AudioFileProblem = FileProblem | "video";
+
+/**
+ * The recording slot's check: a video → "video" (before the size, so a long video is not "too large"); not audio →
+ * "wrong_type"; over the cap → "too_large"; else the name to upload it under.
+ */
+export async function checkAudioFile(file: File): Promise<{ problem: AudioFileProblem; filename?: string }> {
+  const ext = extensionOf(file.name);
+  const type = (file.type || "").toLowerCase();
+  const name = audioUploadName(file);
+  // A file the phone marks as audio is not opened; an .mp4 Android marks video/mp4 (it does so for every .mp4) is.
+  const maybeVideo = !type.startsWith("audio/")
+    && (type.startsWith("video/") || VIDEO_ONLY_EXT.includes(ext) || EITHER_EXT.includes(ext));
+  if (maybeVideo) {
+    const picture = await mediaProbe.hasVideo(file);
+    // A picture is a video. One the browser cannot read is a video only when it is not an audio format by name.
+    if (picture === true || (picture === null && !name)) return { problem: "video" };
+  }
+  let upload = name;
+  if (!upload) {
+    // bd-qbbikm: the name and the type say nothing (an ending like .MP3EG has no type either) — read the first bytes.
+    const sniffed = await sniffAudioExt(file);
+    if (!sniffed) return { problem: "wrong_type" };
+    if (!maybeVideo && SNIFF_CONTAINERS.includes(sniffed) && (await mediaProbe.hasVideo(file)) === true) return { problem: "video" };
+    const stem = ext ? file.name.slice(0, -ext.length) : file.name;
+    upload = `${stem.trim() || "recording"}${sniffed}`;
+  }
+  if (file.size > UPLOAD_RULES.audio.maxBytes) return { problem: "too_large" };
+  return { problem: null, filename: upload };
+}
+
+/** Containers that can hold a picture: found by their bytes, they are opened to see before they are taken. */
+const SNIFF_CONTAINERS = [".mp4", ".webm", ".3gp"];
+
+/** The first `n` bytes of a file (empty when the browser cannot read it). */
+async function headOf(file: Blob, n: number): Promise<Uint8Array> {
+  try {
+    const part = file.slice(0, n);
+    if (typeof part.arrayBuffer === "function") return new Uint8Array(await part.arrayBuffer());
+    return await new Promise((resolve) => {
+      const r = new FileReader();
+      r.onload = () => resolve(new Uint8Array(r.result as ArrayBuffer));
+      r.onerror = () => resolve(new Uint8Array(0));
+      r.readAsArrayBuffer(part);
+    });
+  } catch {
+    return new Uint8Array(0);
+  }
+}
+
+/**
+ * bd-qbbikm — the audio format a file's first bytes say it is, as an ending the server takes, or null. Only the
+ * formats the pipeline has transcribed; anything else (a photo, a PDF, unknown bytes) is null.
+ */
+export async function sniffAudioExt(file: Blob): Promise<string | null> {
+  const b = await headOf(file, 16);
+  const at = (i: number, text: string) => text.split("").every((c, k) => b[i + k] === c.charCodeAt(0));
+  if (b.length < 4) return null;
+  if (at(0, "ID3")) return ".mp3";
+  if (at(0, "OggS")) return ".ogg";
+  if (at(0, "RIFF") && at(8, "WAVE")) return ".wav";
+  if (at(0, "#!AMR")) return ".amr";
+  if (b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return ".webm";
+  if (at(4, "ftyp")) {
+    if (at(8, "M4A")) return ".m4a";
+    if (at(8, "3gp") || at(8, "3g2")) return ".3gp";
+    return ".mp4";
+  }
+  // An MPEG frame with no tag: 11 sync bits. ADTS (AAC) has layer 00; MP3 does not.
+  if (b[0] === 0xff && (b[1] & 0xe0) === 0xe0) return (b[1] & 0x06) === 0 ? ".aac" : ".mp3";
+  return null;
+}
