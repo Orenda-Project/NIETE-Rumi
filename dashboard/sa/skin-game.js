@@ -5,8 +5,8 @@
  *   - registers SAE.sinks.game({session_id}) → the game sink (sink-game.js) with the run token the game page kept
  *     for that session (localStorage sg.st.<session id>); none kept → no sink (the run stays on the phone)
  *   - Jugnu's glow in the corner while a timed task runs, shrinking with the engine's own time_left_ms
- *   - the child pages' sound kit (WQJ): a soft chime when a task ends, the fanfare when the part ends, one mute that
- *     also mutes Jugnu's voice (engine.mute, game mode only)
+ *   - the child pages' sound kit (WQJ): a soft chime when a task ends, the fanfare when the part ends, and one mute for
+ *     that music and those sounds only: Jugnu's instructions and prompts are part of the measure and always play
  *   - never a right/wrong sound on a scored item (the engine's correct/incorrect events are ignored)
  *
  * It finds the engine at window.__sae (sa-page.js sets it once started) and attaches once. ES5, no build.
@@ -59,7 +59,7 @@
     glow.style.setProperty('--glow', String(Math.max(0, Math.min(1, v.time_left_ms / lim))));
   }
 
-  // the one sound switch: the kit's and Jugnu's voice together
+  // the one sound switch: the kit's music and sounds only (never Jugnu's words)
   var btn = D.createElement('button');
   btn.type = 'button';
   btn.className = 'sg-mute';
@@ -69,11 +69,9 @@
     D.body.appendChild(glow);
     D.body.appendChild(btn);
     drawMute();
-    if (J() && J().muted()) engine.mute(true);
     btn.addEventListener('click', function () {
       if (!J()) return;
       J().mute(!J().muted());
-      engine.mute(J().muted());
       drawMute();
     });
     engine.on('state', paint);

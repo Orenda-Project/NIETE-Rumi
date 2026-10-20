@@ -68,3 +68,16 @@ test('glow: on only while a timed task runs, scaled to the time left; sounds on 
   e.fire('battery_end', {});
   expect(sounds).toEqual(['sentence', 'finish']);
 });
+
+test('the mute is the sound kit only: Jugnu\'s words are never muted', () => {
+  const { W, body, timers } = setup();
+  let m = false;
+  W.WQJ = { muted: () => m, mute: (b) => { m = b; }, sentence() {}, finish() {} };
+  const e = engine();
+  W.__sae = e;
+  timers.find((t) => t.ms === 100).fn();
+  const btn = body.children.find((c) => c.className === 'sg-mute');
+  btn.listeners.click();
+  expect(m).toBe(true);
+  expect(e.muted).toEqual([]);
+});
