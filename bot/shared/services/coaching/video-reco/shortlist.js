@@ -167,14 +167,16 @@ function levelMatchOf(lv, level) {
   return Math.abs(level - lv.L) <= 1 ? 'near' : 'far';
 }
 
+/** ctx.preferred === null: the teacher stored no language, so nothing is 'preferred' (no bonus, never that match). */
 function languagesOf(ctx) {
   const c = ctx || {};
-  const preferred = c.language === 'en' ? 'en' : 'ur';
-  return { preferred, languages: new Set((c.languages && c.languages.length ? c.languages : [preferred, 'mixed']).filter(Boolean)) };
+  const fallback = c.language === 'en' ? 'en' : 'ur';
+  const preferred = c.preferred === null ? null : fallback;
+  return { preferred, languages: new Set((c.languages && c.languages.length ? c.languages : [fallback, 'mixed']).filter(Boolean)) };
 }
 
 function languageMatch(lang, preferred) {
-  return lang === preferred ? 'preferred' : lang === 'mixed' ? 'mixed' : 'transcript';
+  return preferred && lang === preferred ? 'preferred' : lang === 'mixed' ? 'mixed' : 'transcript';
 }
 
 /** The step-text query: the card's own words + the indicator's display name. Never the evidence (it dilutes). */
