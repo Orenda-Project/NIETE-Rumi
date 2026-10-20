@@ -69,6 +69,7 @@
   var UNTIMED_NEXT_S = 15;
 
   function str(x) { return typeof x === 'string' && x.length > 0; }
+  function num() { for (var i = 0; i < arguments.length; i++) if (typeof arguments[i] === 'number' && arguments[i] > 0) return arguments[i]; return null; }
   function has(o, k) { return o != null && Object.prototype.hasOwnProperty.call(o, k); }
 
   function stopOf(s) {
@@ -107,6 +108,9 @@
       direction: t.direction || (t.passage && t.passage.direction) || (t.grid && t.grid.direction) || 'ltr',
       instruction: t.instruction || null, script: t.script || {}, source: t.source || null, deviation: t.deviation || null,
       tap_on: t.tap_on || null, option_images: t.option_images || null,
+      // The mercy rule's timings on a passage (RULING #10): the battery's, else 12 s / 20 s.
+      mercy_after_s: num(t.mercy_after_s, t.record && t.record.mercy_after_s, 12),
+      silence_stop_s: num(t.silence_stop_s, t.record && t.record.silence_stop_s, 20),
     };
     if (mode === 'oral') {
       r.item_timeout_s = t.question_timeout_s || t.item_timeout_s || TIMED_ITEM_S;
