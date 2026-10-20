@@ -141,6 +141,34 @@ describe('parts printed as plain text (bd-5jmnfj.24)', () => {
   });
 });
 
+/**
+ * bd-5jmnfj.25: a staging Maths paper printed a table under «Find the average temperature» and under
+ * the bar-graph question, but the check never saw it, said «the table is not given» and reworded both
+ * so their numbers printed twice. The check now reads the table with its question.
+ */
+describe('a table printed under its question (bd-5jmnfj.25)', () => {
+  const books = () => ({
+    slot: 'science.C.Q3b',
+    question: 'The table shows the number of books read by five students. Draw a bar graph.',
+    answer: 'Bars of heights 15 and 25.',
+    table: { headers: ['Student', 'Number of books'], rows: [['Areeba', '15'], ['Bilal', 25]] },
+  });
+  const withBooks = () => { const e = paper(); e.unseen.subjective['Long Question'] = [books()]; return e; };
+
+  it('prints the table, header row first, so the check can see the data', () => {
+    const { prompt } = SC.buildStemCheckPrompt(withBooks(), P);
+    expect(prompt).toContain('table: Student | Number of books / Areeba | 15 / Bilal | 25');
+    expect(prompt).toMatch(/"table:".*printed under/);
+  });
+
+  it('a table with no rows, or no table, prints no table line', () => {
+    const e = withBooks();
+    e.unseen.subjective['Long Question'][0].table = { headers: ['Student'], rows: 'junk' };
+    expect(SC.buildStemCheckPrompt(e, P).prompt).toContain('table: Student\n');
+    expect(SC.buildStemCheckPrompt(paper(), P).prompt).not.toMatch(/^\s+table:/m);
+  });
+});
+
 describe('a fix may correct the answer and marking too (bd-5jmnfj.24)', () => {
   const ASK = 'A shopkeeper has 28 mangoes and 42 oranges. They make identical gift bags, one kind of fruit in each bag. How many bags can they make?';
   const bags = () => ({
