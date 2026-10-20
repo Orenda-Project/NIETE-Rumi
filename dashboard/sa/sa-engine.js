@@ -114,7 +114,7 @@
             // The mercy rule on the passage (RULING #10): no voice for 12 s → Jugnu offers the star once; 20 s → the
             // task ends as early_stop_silence. The recorder's watch starts now, with the recording running.
             if (t.mode === 'record' && !item && rec.onSilence) {
-              cancelSilence = rec.onSilence({ after_s: 12, total_s: 20 }, function (s) {
+              cancelSilence = rec.onSilence({ after_s: t.mercy_after_s || 12, total_s: t.silence_stop_s || 20 }, function (s) {
                 if (s.kind === 'mercy') {
                   runner.mercyOffered();
                   if (view && view.mercy) view.mercy();
