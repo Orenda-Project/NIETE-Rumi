@@ -548,6 +548,7 @@ const ENGLISH = {
       label_en: 'SECTION A: OBJECTIVE',
       marks_en: 'Total Marks: {t:25}',
       marks: 25,
+      levels: { Remember: 10, Understand: 7, Apply: 8 }, // FDE ToS by question, CAE 2026 pp.34-36 (bd-5jmnfj.26)
       answer_on: 'question_paper',
       note_en: null,
       slots: [
@@ -585,11 +586,13 @@ const ENGLISH = {
       label_en: 'SECTION B: COMPREHENSION',
       marks_en: 'Total Marks: {t:20}',
       marks: 20,
+      levels: { Remember: 8, Understand: 6, Apply: 6 }, // FDE ToS by question, CAE 2026 pp.34-36 (bd-5jmnfj.26)
       answer_on: 'answer_sheet',
       note_en: null,
       slots: [
         {
           slot: 'english.B.Q2', label_en: 'Q.2:', label_ur: 'سوال 2', // needs fluent-Urdu review
+          levels: { Remember: 8, Understand: 6, Apply: 6 }, // FDE splits this question across levels (bd-5jmnfj.26)
           instruction_en: 'Read the following passage and answer the questions given at the end.',
           marks_line_en: null,
           type: 'Comprehension Passage', category: 'subjective', shape: 'comprehension',
@@ -614,11 +617,13 @@ const ENGLISH = {
       label_en: 'SECTION C: SUBJECTIVE',
       marks_en: 'Total Marks: {t:55}',
       marks: 55,
+      levels: { Remember: 22, Understand: 17, Apply: 16 }, // FDE ToS by question, CAE 2026 pp.34-36 (bd-5jmnfj.26)
       answer_on: 'answer_sheet',
       note_en: null,
       slots: [
         {
           slot: 'english.C.Q3', label_en: 'Q.3:', label_ur: 'سوال 3', // needs fluent-Urdu review
+          levels: { Remember: 2, Understand: 2, Apply: 1 }, // FDE splits this question across levels (bd-5jmnfj.26)
           instruction_en: 'Punctuate the following passage.', marks_line_en: '({t:5})',
           type: 'Punctuation', category: 'subjective', shape: 'words',
           generate: 1, attempt: 1, marks_each: 5, parts: null,
@@ -630,6 +635,7 @@ const ENGLISH = {
         },
         {
           slot: 'english.C.Q4', label_en: 'Q.4:', label_ur: 'سوال 4', // needs fluent-Urdu review
+          levels: { Remember: 4, Understand: 3, Apply: 3 }, // FDE splits this question across levels (bd-5jmnfj.26)
           instruction_en: 'Use any five of the following words in meaningful sentences.', marks_line_en: '({t:10})',
           type: 'Word Sentences', category: 'subjective', shape: 'words',
           in_item_choice: { n: 5, g: 6 }, generate: 1, attempt: 1, marks_each: 10, parts: null,
@@ -642,6 +648,7 @@ const ENGLISH = {
         },
         {
           slot: 'english.C.Q5', label_en: 'Q.5', label_ur: 'سوال 5', // needs fluent-Urdu review
+          levels: { Remember: 2, Understand: 1, Apply: 1 }, // FDE splits this question across levels (bd-5jmnfj.26)
           instruction_en: 'Write down FOUR rhyming words from the poem “{q}”', marks_line_en: '({t:4})',
           type: 'Rhyming Words', category: 'subjective', shape: 'words',
           generate: 1, attempt: 1, marks_each: 4, parts: null,
@@ -653,6 +660,7 @@ const ENGLISH = {
         },
         {
           slot: 'english.C.Q6', label_en: 'Q.6:', label_ur: 'سوال 6', // needs fluent-Urdu review
+          levels: { Remember: 2, Understand: 2, Apply: 1 }, // FDE splits this question across levels (bd-5jmnfj.26)
           instruction_en: 'Develop a mind map about “{q}”.', marks_line_en: '({t:5})',
           type: 'Mind Map', category: 'subjective', shape: 'composition',
           generate: 1, attempt: 1, marks_each: 5, parts: null,
@@ -664,6 +672,7 @@ const ENGLISH = {
         },
         {
           slot: 'english.C.Q7', label_en: 'Q.7:', label_ur: 'سوال 7', // needs fluent-Urdu review
+          levels: { Remember: 4, Understand: 3, Apply: 3 }, // FDE splits this question across levels (bd-5jmnfj.26)
           instruction_en: 'Attempt {w:ONE} of the following.', marks_line_en: '({t:10})',
           type: 'Application Writing', category: 'subjective', shape: 'composition',
           generate: 2, attempt: 1, marks_each: 10, parts: null,
@@ -675,6 +684,7 @@ const ENGLISH = {
         },
         {
           slot: 'english.C.Q8', label_en: 'Q.8:', label_ur: 'سوال 8', // needs fluent-Urdu review
+          levels: { Remember: 4, Understand: 3, Apply: 3 }, // FDE splits this question across levels (bd-5jmnfj.26)
           instruction_en: 'Write a paragraph on any ONE of the following topics.', marks_line_en: '({t:10})',
           type: 'Paragraph Writing', category: 'subjective', shape: 'composition',
           in_item_choice: { n: 1, g: 3 }, generate: 1, attempt: 1, marks_each: 10, parts: null,
@@ -686,6 +696,7 @@ const ENGLISH = {
         },
         {
           slot: 'english.C.Q9', label_en: 'Q.9:', label_ur: 'سوال 9', // needs fluent-Urdu review
+          levels: { Remember: 2, Understand: 1, Apply: 2 }, // FDE splits this question across levels (bd-5jmnfj.26)
           instruction_en: 'Develop a story with a moral from the given outline. Also suggest a suitable title.', marks_line_en: '({t:5})',
           type: 'Story Writing', category: 'subjective', shape: 'composition',
           generate: 1, attempt: 1, marks_each: 5, parts: null,
@@ -697,6 +708,7 @@ const ENGLISH = {
         },
         {
           slot: 'english.C.Q10', label_en: 'Q.10:', label_ur: 'سوال 10', // needs fluent-Urdu review
+          levels: { Remember: 2, Understand: 2, Apply: 2 }, // FDE splits this question across levels (bd-5jmnfj.26)
           instruction_en: 'Describe the picture with the help of the given word bank. Also suggest a suitable title.', marks_line_en: '({t:6})',
           type: 'Picture Description', category: 'subjective', shape: 'frame',
           generate: 1, attempt: 1, marks_each: 6, parts: null,
