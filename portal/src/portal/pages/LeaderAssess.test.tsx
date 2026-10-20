@@ -226,6 +226,21 @@ describe("LeaderAssess", () => {
     expect(within(screen.getByTestId("assess-summary")).getByTestId("summary-done")).not.toHaveTextContent("Ayan");
   });
 
+  it("a child the coach ended reads Stopped, not Done: no Continue, not counted done, listed as started and not finished", async () => {
+    await openList();
+    const s = await startChild();
+    act(() => { window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:done", s, reason: "coach_end" }, origin: window.location.origin })); });
+    const row = await screen.findByTestId("assess-child-d1");
+    expect(row).toHaveTextContent("Stopped");
+    expect(row).not.toHaveTextContent("Done");
+    expect(within(row).queryByRole("button", { name: "Continue" })).toBeNull();
+    expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("0/5");
+    fireEvent.click(screen.getByRole("button", { name: "End visit" }));
+    const summary = await screen.findByTestId("assess-summary");
+    expect(within(summary).getByTestId("summary-unfinished")).toHaveTextContent("Ayan Testwala");
+    expect(within(summary).getByTestId("summary-done")).not.toHaveTextContent("Ayan");
+  });
+
   it("the coach can end early with the corner hold", async () => {
     await openList();
     await startChild();
@@ -239,7 +254,7 @@ describe("LeaderAssess", () => {
     fireEvent.pointerDown(hold);
     act(() => { vi.advanceTimersByTime(3100); });
     vi.useRealTimers();
-    expect(await screen.findByTestId("assess-child-d1")).toHaveTextContent("Done");
+    expect(await screen.findByTestId("assess-child-d1")).toHaveTextContent("Stopped");
   });
 
   it("offline Present still opens the frame; the queued outcome is sent on 'online', in order, once", async () => {
@@ -353,6 +368,35 @@ describe("LeaderAssess", () => {
       await act(async () => { window.dispatchEvent(new Event("online")); });
       expect(screen.queryByTestId("assess-drain-frame")).toBeNull();
       expect(s).toBeTruthy();
+    });
+
+    it("sa:drained with rows left for a child keeps that child's chip on 'on phone'", async () => {
+      await openList();
+      const s = await startChild();
+      saDone(s);
+      await screen.findByTestId("assess-child-d1");
+      await act(async () => { window.dispatchEvent(new Event("online")); });
+      await screen.findByTestId("assess-drain-frame");
+      act(() => { window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:drained", sessions: [{ s, ackedTo: 3, pending: 4 }] }, origin: window.location.origin })); });
+      await waitFor(() => expect(screen.queryByTestId("assess-drain-frame")).toBeNull());
+      expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("on phone");
+    });
+
+    it("End visit while anything waits: the drain frame runs again, the summary says how many and offers 'Send later'", async () => {
+      await openList();
+      const s = await startChild();
+      saDone(s);
+      await screen.findByTestId("assess-child-d1");
+      await act(async () => { window.dispatchEvent(new Event("online")); });
+      await screen.findByTestId("assess-drain-frame");
+      drained();
+      await waitFor(() => expect(screen.queryByTestId("assess-drain-frame")).toBeNull());
+      fireEvent.click(screen.getByRole("button", { name: "End visit" }));
+      const summary = await screen.findByTestId("assess-summary");
+      expect(screen.getByTestId("assess-drain-frame")).toBeInTheDocument();
+      expect(summary).toHaveTextContent("1 not sent yet");
+      fireEvent.click(within(summary).getByRole("button", { name: "Send later" }));
+      expect(await screen.findByTestId("assess-school-s2")).toBeInTheDocument();
     });
 
     it("once in 30 s at most", async () => {

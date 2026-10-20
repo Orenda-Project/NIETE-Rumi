@@ -8,18 +8,23 @@ const DRAIN_MAX_MS = 60_000;
  * (a child whose network came back after the hand-back, when that child's own engine page was gone).
  * Done on `sa:drained`, or after 60 s whatever happened.
  */
-export default function AssessDrain({ onDone }: { onDone: () => void }) {
+export type Drained = { s: string; pending: number }[];
+
+export default function AssessDrain({ onDone }: { onDone: (sessions: Drained) => void }) {
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
   useEffect(() => {
     let over = false;
-    const end = () => { if (!over) { over = true; doneRef.current(); } };
+    const end = (sessions: Drained = []) => { if (!over) { over = true; doneRef.current(sessions); } };
     const onMessage = (e: MessageEvent) => {
-      const d = e.data as { type?: unknown } | null;
-      if (e.origin === window.location.origin && d && d.type === 'sa:drained') end();
+      const d = e.data as { type?: unknown; sessions?: unknown } | null;
+      if (e.origin !== window.location.origin || !d || d.type !== 'sa:drained') return;
+      const list = Array.isArray(d.sessions) ? d.sessions : [];
+      end(list.filter((x): x is { s: string; pending: number } => Boolean(x) && typeof x.s === 'string' && typeof x.pending === 'number')
+        .map((x) => ({ s: x.s, pending: x.pending })));
     };
     window.addEventListener('message', onMessage);
-    const t = window.setTimeout(end, DRAIN_MAX_MS);
+    const t = window.setTimeout(() => end(), DRAIN_MAX_MS);
     return () => { over = true; window.removeEventListener('message', onMessage); window.clearTimeout(t); };
   }, []);
   return (
