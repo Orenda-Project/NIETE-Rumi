@@ -4926,7 +4926,10 @@ CREATE TABLE IF NOT EXISTS assessment_requests (
   -- (a banner that ran out untouched leaves it NULL), and when she opened it (or, for a failed one, tapped it).
   -- NULL = not yet; each written once.
   notice_seen_at    TIMESTAMPTZ,
-  notice_opened_at  TIMESTAMPTZ
+  notice_opened_at  TIMESTAMPTZ,
+  -- Migration V1.6.18: what the paper was built from — a whole 'chapter', a 'topic' selection, or a 'pattern'.
+  paper_kind        TEXT NOT NULL DEFAULT 'chapter'
+                      CHECK (paper_kind IN ('chapter', 'topic', 'pattern'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_assessment_requests_user_time
@@ -4978,6 +4981,10 @@ CREATE TABLE IF NOT EXISTS assessment_papers (
   -- the family and the version number is derived, never stored.
   edited_from           UUID REFERENCES assessment_papers(id),
 
+  -- V1.6.18. Mirrors assessment_requests.paper_kind.
+  paper_kind            TEXT NOT NULL DEFAULT 'chapter'
+                          CHECK (paper_kind IN ('chapter', 'topic', 'pattern')),
+
   CONSTRAINT assessment_papers_edited_from_not_self
     CHECK (edited_from IS NULL OR edited_from <> id)
 );
@@ -5013,6 +5020,36 @@ COMMENT ON COLUMN assessment_papers.edited_from IS
   'Internal. The version this one was edited from (NULL = generated, i.e. version 1). '
   'A version keeps its parent''s request_id and attempt. exam_json of a ready row is '
   'never rewritten; removed questions stay in it flagged "removed": true.';
+
+-- =============================================================================
+-- assessment_topics: the topics inside a chapter, for topic-wise papers (migration V1.6.18; RLS V1.6.19)
+-- Loaded from the curriculum matrix by the topic importer. Curriculum metadata only, no personal data.
+-- The bot reads it with the service role; RLS is on with no policies.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS assessment_topics (
+  topic_id          TEXT PRIMARY KEY,
+  grade             INTEGER,
+  subject           TEXT,
+  chapter_number    INTEGER,
+  chapter_title     TEXT,
+  name              TEXT,
+  heading           TEXT,
+  heading_order     INTEGER,
+  sort_order        INTEGER,
+  pages             INTEGER[],
+  slo_codes         TEXT[],
+  slo_descriptions  TEXT[],
+  days              INTEGER[],
+  is_current        BOOLEAN NOT NULL DEFAULT true,
+  matrix_version    TEXT,
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_assessment_topics_current
+  ON assessment_topics (grade, subject, chapter_number)
+  WHERE is_current;
+
+ALTER TABLE assessment_topics ENABLE ROW LEVEL SECURITY;
 
 -- Reload PostgREST's schema cache last, so the reconciled columns + functions
 -- above are immediately visible to the REST API (the earlier NOTIFY predates these DDLs).
