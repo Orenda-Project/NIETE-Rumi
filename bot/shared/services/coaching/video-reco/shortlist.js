@@ -16,6 +16,7 @@
  * filter: +0.5 within one rung of a known level; unknown level keeps level 4 out while anything else exists.
  * noneReason names the gate that emptied the list: hole | language | history | unknown_indicator | unscored_step | no_target.
  */
+const { redactNames } = require('./redact-names');
 
 const MAX_CANDIDATES = 12;
 const MAX_TEXT = 6;
@@ -199,6 +200,21 @@ function languageMatch(lang, preferred) {
   return preferred && lang === preferred ? 'preferred' : lang === 'mixed' ? 'mixed' : 'transcript';
 }
 
+// v1.3c-4 stub floor: en/ur function words, the same list evals measured with (evals/bin/stub_floor.js, 21:01Z).
+const FUNCTION_WORDS = new Set(('the a an and or of to in on for with at by from is are be as it this that these those your you they them their '
+  + 'he she we our his her its into than then so do does not no can will would should could may might one each every all any some '
+  + 'more most very just also only when what which who how why where after before while about up out over').split(' ')
+  .concat('کے کی کا کو میں سے پر اور یا ہے ہیں تھا تھی تھے کہ جو یہ وہ ان اس ایک بھی نہ نہیں کر کریں کرے کرنا ہو ہوں ہوتا تک لیے لئے ساتھ اپنے اپنی اپنا آپ'.split(' ')));
+const STUB_FLOOR = 6;
+
+/** The card's own content words (action + try-tomorrow + thing to try; never the indicator's name), names redacted, distinct. */
+function contentWords(step) {
+  const s = step || {};
+  const text = [s.action, s.tryTomorrow, s.thingToTry].filter((x) => typeof x === 'string').join('\n');
+  const clean = String(redactNames(text, { strict: true }) || '').replace(/\[[A-Z_]+\]/g, ' ');
+  return [...new Set(tokens(clean).filter((w) => !FUNCTION_WORDS.has(w)))];
+}
+
 /** The step-text query: the card's own words + the indicator's display name. Never the evidence (it dilutes). */
 function stepQuery(step) {
   const s = step || {};
@@ -350,11 +366,14 @@ function build(catalog, target, ctx, signal, lesson, step) {
     const s = step || (target.source === 'card_text' ? { action: target.cardText } : null);
     const query = textReason ? stepQuery(s) : '';
     const routeName = textReason === 'card_text' ? 'card_text' : 'step_text';
-    const text = query ? textRoute(catalog, s, ctx, lesson, tag.candidates.map((c) => c.seg_id), routeName) : [];
+    // v1.3c-4: no BM25 over a stub card on the step-text route (coaches type short labels); the tag list stands.
+    const stub = routeName === 'step_text' && !!query && contentWords(s).length < STUB_FLOOR;
+    const text = query && !stub ? textRoute(catalog, s, ctx, lesson, tag.candidates.map((c) => c.seg_id), routeName) : [];
     const candidates = nearFirst(lv, [...tag.candidates, ...text]); // v1.3c: after the concat, so the text route is near-first too
     const common = { repeatModule: tag.repeatModule, levelMatch, textReason, stepTextQuery: query || null };
     if (!candidates.length) {
-      const why = textReason === 'card_text' ? 'no_target' : textReason === 'unscored' ? 'unscored_step'
+      // A stub card is no_target, except when a filter emptied the tag pool: that gate stays the reason (the module contract).
+      const why = textReason === 'card_text' || (stub && textReason !== 'empty') ? 'no_target' : textReason === 'unscored' ? 'unscored_step'
         : textOnly ? 'unknown_indicator' : (tag.noneReason || 'hole');
       return empty(why, { ...common, route: textReason ? routeName : 'tag' });
     }
@@ -364,4 +383,4 @@ function build(catalog, target, ctx, signal, lesson, step) {
   }
 }
 
-module.exports = { build, textRoute, recommendable, fallbackSubjectOk, stepQuery, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, LABEL_37 };
+module.exports = { build, textRoute, recommendable, fallbackSubjectOk, stepQuery, contentWords, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, STUB_FLOOR, LABEL_37 };
