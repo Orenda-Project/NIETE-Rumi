@@ -21,6 +21,7 @@ const SCHOOL = '44444444-4444-4444-8444-444444444444';
 const SESSION = '55555555-5555-4555-8555-555555555555';
 const PLAIN = '66666666-6666-4666-8666-666666666666';
 const KEY = `child-test/sandbox/${SCHOOL}/${SESSION}/sa/ur.letters.webm`;
+const CLIENT = '77777777-7777-4777-8777-777777777777';
 const ITEM_KEY = `child-test/sandbox/${SCHOOL}/${SESSION}/sa/ur.story_comp__q2.webm`;
 
 const BANK = {
@@ -56,6 +57,7 @@ function makeDeps(over = {}) {
       ] })),
     },
     saStore: {
+      findByClient: jest.fn(async () => ({ ok: true, sessionId: null })),
       putResults: jest.fn(async () => ({ ok: true })),
       setAudio: jest.fn(async () => ({ ok: true })),
       markSynced: jest.fn(async (id, { block } = {}) => ({ ok: true, device: { block } })),
@@ -222,5 +224,17 @@ describe('saStatus', () => {
       block: null,
       lastSeq: 41, tasksDone: ['ur.letters'], audio: ['ur.letters'],
     });
+  });
+});
+
+describe("the phone's own session id (offline between children)", () => {
+  test('a sink call by the client id reaches the session it names', async () => {
+    const deps = makeDeps();
+    deps.store.getSession.mockImplementation(async (id) => ({ ok: true, session: id === SESSION ? { id: SESSION, coach_user_id: COACH, school_id: SCHOOL, grade: 3, form: 'A', status: 'in_progress', item_bank_version: 'sa-battery' } : null }));
+    deps.saStore.findByClient = jest.fn(async (id) => ({ ok: true, sessionId: id === CLIENT ? SESSION : null }));
+    const res = await Svc.saStatus({ userId: COACH, sessionId: CLIENT }, deps);
+    expect(res.session.id).toBe(SESSION);
+    expect(deps.saStore.summary).toHaveBeenCalledWith(SESSION);
+    expect(await Svc.saStatus({ userId: COACH, sessionId: '99999999-0000-4000-8000-000000000000' }, deps)).toEqual({ status: 'not_found' });
   });
 });

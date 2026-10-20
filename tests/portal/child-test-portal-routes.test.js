@@ -209,9 +209,9 @@ describe('the Learning assessment (sa/*): its own switch, the same relay', () =>
     expect(axiosPost).toHaveBeenLastCalledWith('https://bot.example/api/internal/child-test/sa/schools', { userId: COACH }, expect.anything());
     await invoke(ROUTES, 'get', '/sa/list', { query: { schoolId: 's1', visitId: 'v1', userId: 'forged', x: 1 } });
     expect(axiosPost).toHaveBeenLastCalledWith('https://bot.example/api/internal/child-test/sa/list', { userId: COACH, schoolId: 's1', visitId: 'v1' }, expect.anything());
-    await invoke(ROUTES, 'post', '/sa/outcome', { body: { schoolId: 's1', drawId: 'd1', outcome: 'absent', note: 'ill', userId: 'forged' } });
+    await invoke(ROUTES, 'post', '/sa/outcome', { body: { schoolId: 's1', drawId: 'd1', outcome: 'present', clientSessionId: 'c1', block: 'B2', userId: 'forged' } });
     expect(axiosPost).toHaveBeenLastCalledWith('https://bot.example/api/internal/child-test/sa/outcome',
-      { userId: COACH, schoolId: 's1', drawId: 'd1', outcome: 'absent', note: 'ill' }, expect.anything());
+      { userId: COACH, schoolId: 's1', drawId: 'd1', outcome: 'present', clientSessionId: 'c1', block: 'B2' }, expect.anything());
   });
 
   test('a teacher is 403 even with the switch on for everyone', async () => {
