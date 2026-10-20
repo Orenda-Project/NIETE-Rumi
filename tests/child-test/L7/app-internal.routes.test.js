@@ -119,7 +119,8 @@ test('every route is POST and named', () => {
   const r = createChildTestAppRouter({ deps: fakeDeps() });
   const paths = r.stack.filter((l) => l.route).map((l) => `${Object.keys(l.route.methods)[0]} ${l.route.path}`);
   expect(paths.sort()).toEqual([
-    'post /card', 'post /check', 'post /list', 'post /media', 'post /outcome', 'post /presign', 'post /session', 'post /visits',
+    'post /card', 'post /check', 'post /list', 'post /media', 'post /outcome', 'post /presign',
+    'post /sa/list', 'post /sa/outcome', 'post /sa/schools', 'post /session', 'post /visits',
   ]);
 });
 
@@ -127,4 +128,39 @@ test('internal-api.routes.js mounts the child-test router', () => {
   const fs = require('fs');
   const src = fs.readFileSync(require.resolve('../../../bot/shared/routes/internal-api.routes.js'), 'utf8');
   expect(src).toMatch(/router\.use\('\/child-test',\s*require\('\.\/child-test-app\.routes'\)\.router\)/);
+});
+
+describe('the Learning assessment (sa/*) routes', () => {
+  const SCHOOL = '44444444-4444-4444-8444-444444444444';
+  const linked = (rows) => ({
+    from: (table) => {
+      const chain = {
+        select: () => chain, eq: () => chain, gte: () => chain, order: () => chain, limit: () => chain, in: () => chain,
+        then: (resolve) => resolve({ data: table === 'leader_schools' ? rows : [], error: null }),
+      };
+      return chain;
+    },
+  });
+
+  test('sa/schools answers from the SA service', async () => {
+    const deps = fakeDeps({ supabase: linked([{ school_id: SCHOOL, school_name: 'Zeta School' }]) });
+    const out = await call(appWith(deps), 'POST', '/api/internal/child-test/sa/schools', { body: { userId: COACH } });
+    expect(out.status).toBe(200);
+    expect(out.body.schools).toEqual([expect.objectContaining({ schoolId: SCHOOL, visitToday: false })]);
+  });
+
+  test('sa/list forwards only its fields; a school that is not theirs is 404', async () => {
+    const todaysList = jest.fn();
+    const deps = fakeDeps({ supabase: linked([]), draw: { todaysList, resolveVisitSchool: async () => ({ ok: false }) } });
+    const out = await call(appWith(deps), 'POST', '/api/internal/child-test/sa/list', { body: { userId: COACH, schoolId: SCHOOL, drawId: 'x' } });
+    expect(out.status).toBe(404);
+    expect(out.body.success).toBe(false);
+    expect(todaysList).not.toHaveBeenCalled();
+  });
+
+  test('sa/outcome with a bad outcome is 400', async () => {
+    const out = await call(appWith(fakeDeps()), 'POST', '/api/internal/child-test/sa/outcome', { body: { userId: COACH, schoolId: SCHOOL, drawId: 'd', outcome: 'gone' } });
+    expect(out.status).toBe(400);
+    expect(out.body.reason).toBe('bad_outcome');
+  });
 });

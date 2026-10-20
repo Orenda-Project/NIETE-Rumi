@@ -82,6 +82,9 @@ const PORTAL_SELF_OBSERVATION_KEY = 'portal_self_observation';
 /** bd-s1oo0.7 — app_settings key for the child test in the coach app (true or a pilot list). */
 const PORTAL_CHILD_TEST_KEY = 'portal_child_test';
 
+/** The coach's Learning assessment (the child takes the battery alone on the coach's phone): true or a pilot list. */
+const PORTAL_CHILD_TEST_SA_KEY = 'portal_child_test_sa';
+
 /**
  * bd-5rz1v.6 — app_settings key for a COACH running an /observe observation from
  * the portal (record or send the lesson, check the draft, the talk with the
@@ -313,6 +316,7 @@ module.exports = {
   isPortalAssessmentEditingEnabled,
   PORTAL_SELF_OBSERVATION_KEY,
   PORTAL_CHILD_TEST_KEY,
+  PORTAL_CHILD_TEST_SA_KEY,
   PORTAL_COACH_OBSERVATION_KEY,
   PORTAL_NEW_UI_KEY,
   PORTAL_COACH_V2_KEY,

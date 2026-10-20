@@ -671,5 +671,5 @@ module.exports = {
   toCoachMarks,
   envSegment,
   startOfTodayPkt,
-  __internals: { startScoring, withDefaults, coachReason },
+  __internals: { startScoring, withDefaults, coachReason, guarded, rows, ownVisit, ownSession, gradeOf },
 };

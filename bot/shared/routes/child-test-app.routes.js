@@ -42,19 +42,23 @@ const ROUTES = {
   '/media': ['registerBlockMedia', ['userId', 'sessionId', 'block', 'audioKey', 'photoKey', 'timing', 'photoDeclined']],
   '/session': ['sessionStatus', ['userId', 'sessionId']],
   '/check': ['submitCheck', ['userId', 'sessionId', 'block', 'coachMarks']],
+  // the Learning assessment (self-administered battery): services/child-test/app/sa-api.service.js
+  '/sa/schools': ['listSchools', ['userId'], 'sa-api.service'],
+  '/sa/list': ['dayList', ['userId', 'schoolId', 'visitId'], 'sa-api.service'],
+  '/sa/outcome': ['dayOutcome', ['userId', 'schoolId', 'visitId', 'drawId', 'outcome', 'note'], 'sa-api.service'],
 };
 
 function createChildTestAppRouter({ deps } = {}) {
   const router = express.Router();
   router.use(requireInternalKey);
-  for (const [path, [fn, fields]] of Object.entries(ROUTES)) {
+  for (const [path, [fn, fields, service = 'app-api.service']] of Object.entries(ROUTES)) {
     router.post(path, async (req, res) => {
       const body = req.body || {};
       const args = {};
       for (const f of fields) if (body[f] !== undefined) args[f] = body[f];
       try {
         // eslint-disable-next-line global-require
-        const Svc = require('../services/child-test/app/app-api.service');
+        const Svc = require(`../services/child-test/app/${service}`);
         const result = (await Svc[fn](args, deps)) || { status: 'error' };
         const code = HTTP[result.status] || 500;
         if (code >= 500) logError('child_test.app.route_failed', { route: path, userId: args.userId, reason: result.reason });

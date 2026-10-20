@@ -193,3 +193,43 @@ describe('mount and config', () => {
     expect(off.payload.features.childTest).toBe(false);
   });
 });
+
+describe('the Learning assessment (sa/*): its own switch, the same relay', () => {
+  test('portal_child_test_sa missing → 404 on every sa route, even with the child test on', async () => {
+    for (const [m, p] of [['get', '/sa/schools'], ['get', '/sa/list'], ['post', '/sa/outcome']]) {
+      // eslint-disable-next-line no-await-in-loop
+      expect((await invoke(ROUTES, m, p)).statusCode).toBe(404);
+    }
+    expect(axiosPost).not.toHaveBeenCalled();
+  });
+
+  test('on for this coach → schools, list and outcome relay with the SESSION user and only their fields', async () => {
+    tableRows.app_settings.push({ key: 'portal_child_test_sa', value: [COACH] });
+    expect((await invoke(ROUTES, 'get', '/sa/schools', { body: { userId: 'forged' } })).statusCode).toBe(200);
+    expect(axiosPost).toHaveBeenLastCalledWith('https://bot.example/api/internal/child-test/sa/schools', { userId: COACH }, expect.anything());
+    await invoke(ROUTES, 'get', '/sa/list', { query: { schoolId: 's1', visitId: 'v1', userId: 'forged', x: 1 } });
+    expect(axiosPost).toHaveBeenLastCalledWith('https://bot.example/api/internal/child-test/sa/list', { userId: COACH, schoolId: 's1', visitId: 'v1' }, expect.anything());
+    await invoke(ROUTES, 'post', '/sa/outcome', { body: { schoolId: 's1', drawId: 'd1', outcome: 'absent', note: 'ill', userId: 'forged' } });
+    expect(axiosPost).toHaveBeenLastCalledWith('https://bot.example/api/internal/child-test/sa/outcome',
+      { userId: COACH, schoolId: 's1', drawId: 'd1', outcome: 'absent', note: 'ill' }, expect.anything());
+  });
+
+  test('a teacher is 403 even with the switch on for everyone', async () => {
+    tableRows.app_settings.push({ key: 'portal_child_test_sa', value: true });
+    expect((await invoke(ROUTES, 'get', '/sa/schools', { userId: 'teacher-1' })).statusCode).toBe(403);
+    expect(axiosPost).not.toHaveBeenCalled();
+  });
+
+  test('/config reports childTestSa for the session user, off when logged out', async () => {
+    tableRows.app_settings.push({ key: 'portal_child_test_sa', value: [COACH] });
+    jest.doMock('bcryptjs', () => ({ hash: jest.fn(), compare: jest.fn(), genSalt: jest.fn() }), { virtual: true });
+    jest.doMock('express-rate-limit', () => jest.fn(() => (_req, _res, next) => next()), { virtual: true });
+    jest.doMock('../../dashboard/services/r2.service', () => ({
+      generatePresignedUrl: jest.fn(), generatePresignedUrls: jest.fn(), isValidR2Url: jest.fn(),
+    }));
+    const on = await invoke('../../dashboard/routes/portal.routes', 'get', '/config');
+    expect(on.payload.features.childTestSa).toBe(true);
+    const off = await invoke('../../dashboard/routes/portal.routes', 'get', '/config', { userId: null });
+    expect(off.payload.features.childTestSa).toBe(false);
+  });
+});

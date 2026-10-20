@@ -76,6 +76,7 @@ const {
   isFlagEnabledForUser,
   PORTAL_SELF_OBSERVATION_KEY,
   PORTAL_CHILD_TEST_KEY,
+  PORTAL_CHILD_TEST_SA_KEY,
   PORTAL_COACH_OBSERVATION_KEY,
   PORTAL_NEW_UI_KEY,
   isPortalAssessmentEditingEnabled,
@@ -8723,6 +8724,7 @@ router.get('/config', async (req, res) => {
       teacherV2,
       coachDisagreements,
       childTest,
+      childTestSa,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -8741,6 +8743,8 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, COACH_DISAGREEMENT_CARD_KEY, userId),
       // bd-s1oo0.7: the child test in the coach app, per user, same rule.
       isFlagEnabledForUser(supabase, PORTAL_CHILD_TEST_KEY, userId),
+      // the coach's Learning assessment (the child takes the battery alone), per user.
+      isFlagEnabledForUser(supabase, PORTAL_CHILD_TEST_SA_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -8755,6 +8759,7 @@ router.get('/config', async (req, res) => {
         coachV2,
         teacherV2,
         coachDisagreements,
+        childTestSa,
       },
     });
   } catch (error) {
@@ -8773,6 +8778,7 @@ router.get('/config', async (req, res) => {
         coachV2: false,
         teacherV2: false,
         coachDisagreements: false,
+        childTestSa: false,
       },
     });
   }

@@ -16,6 +16,12 @@
  *   POST /session/:id/media           { block, audioKey?, photoKey?, timing?, photoDeclined? } → attached, scoring started
  *   POST /session/:id/check           { block, coachMarks } → stored next to the AI's marks
  *
+ * The Learning assessment (the child takes the battery alone; the coach picks a school, not a visit):
+ *   GET  /sa/schools                  the coach's schools, today's observe visit first
+ *   GET  /sa/list?schoolId=&visitId=  today's children at that school (visitId optional)
+ *   POST /sa/outcome                  { schoolId, visitId?, drawId, outcome, note? } → present opens a session
+ * Behind its own switch, `portal_child_test_sa` (same shape), instead of `portal_child_test`.
+ *
  * GATES, in order: a portal session (401), the leader family (403), and the
  * `portal_child_test` app_settings flag — true, or a pilot list of user ids
  * (404 when off, the same answer as a route that does not exist). The bot adds
@@ -25,7 +31,7 @@
 const express = require('express');
 const supabase = require('../config/supabase');
 const { makeRequireLeaderRole } = require('../lib/leader-role');
-const { isFlagEnabledForUser, PORTAL_CHILD_TEST_KEY } = require('../lib/feature-flags');
+const { isFlagEnabledForUser, PORTAL_CHILD_TEST_KEY, PORTAL_CHILD_TEST_SA_KEY } = require('../lib/feature-flags');
 const Client = require('../services/portal-child-test.client');
 
 const router = express.Router();
@@ -45,13 +51,16 @@ async function getUserById(userId) {
 
 const requireLeaderRole = makeRequireLeaderRole({ getUser: getUserById });
 
-async function requireChildTest(req, res, next) {
-  const on = await isFlagEnabledForUser(supabase, PORTAL_CHILD_TEST_KEY, req.session && req.session.portalUserId);
-  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
-  return next();
+function requireFlag(key) {
+  return async (req, res, next) => {
+    const on = await isFlagEnabledForUser(supabase, key, req.session && req.session.portalUserId);
+    if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+    return next();
+  };
 }
 
-const gates = [requirePortalAuth, requireLeaderRole, requireChildTest];
+const gates = [requirePortalAuth, requireLeaderRole, requireFlag(PORTAL_CHILD_TEST_KEY)];
+const saGates = [requirePortalAuth, requireLeaderRole, requireFlag(PORTAL_CHILD_TEST_SA_KEY)];
 
 function pick(src, fields) {
   const out = {};
@@ -88,5 +97,9 @@ router.post('/session/:id/media', ...gates, relay('media', (req) => ({
 router.post('/session/:id/check', ...gates, relay('check', (req) => ({
   sessionId: req.params.id, ...pick(req.body, ['block', 'coachMarks']),
 })));
+
+router.get('/sa/schools', ...saGates, relay('sa/schools', () => ({})));
+router.get('/sa/list', ...saGates, relay('sa/list', (req) => pick(req.query, ['schoolId', 'visitId'])));
+router.post('/sa/outcome', ...saGates, relay('sa/outcome', (req) => pick(req.body, ['schoolId', 'visitId', 'drawId', 'outcome', 'note'])));
 
 module.exports = router;
