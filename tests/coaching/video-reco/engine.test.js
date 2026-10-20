@@ -210,7 +210,8 @@ test('the whole engine is capped: a hung step resolves null at the cap, and a la
 });
 
 test('validation failure → none:validation, the shortlist kept', async () => {
-  const d = deps({ completeJson: jest.fn().mockResolvedValue({ result: { ...GOOD, moment: { at: '00:30', quote: 'an invented sentence nobody said' } }, usage: {}, finishReason: 'stop' }) });
+  // v1.3c: an off-list chapter (a bad quote on a listed one now takes the card-sentence fallback, v13c.test.js)
+  const d = deps({ completeJson: jest.fn().mockResolvedValue({ result: { ...GOOD, seg_id: '99-s9', moment: { at: '00:30', quote: 'an invented sentence nobody said' } }, usage: {}, finishReason: 'stop' }) });
   const row = await E.recommendForReport({ ...args(), deps: d });
   expect(row).toMatchObject({ status: 'none', none_reason: expect.stringMatching(/^validation:/), seg_id: null });
   expect(row.candidates.length).toBeGreaterThan(0);
@@ -327,11 +328,12 @@ describe('v1.3b: ONE bounded validation retry (lead-review 19:49Z ruling 4)', ()
 
   test('both answers fail → none with the second reason, attempts 2, first_none_reason the first', async () => {
     const d = deps();
-    d.completeJson.mockResolvedValueOnce({ result: BAD_CAND, usage: {}, finishReason: 'stop' })
-      .mockResolvedValueOnce({ result: BAD_QUOTE, usage: {}, finishReason: 'stop' });
+    // v1.3c: the second answer is off the list (a second bad quote on a listed chapter takes the card fallback)
+    d.completeJson.mockResolvedValueOnce({ result: BAD_QUOTE, usage: {}, finishReason: 'stop' })
+      .mockResolvedValueOnce({ result: BAD_CAND, usage: {}, finishReason: 'stop' });
     const row = await E.recommendForReport({ ...args(), deps: d });
     expect(d.completeJson).toHaveBeenCalledTimes(2);
-    expect(row).toMatchObject({ status: 'none', none_reason: 'validation:quote', attempts: 2, first_none_reason: 'validation:candidate' });
+    expect(row).toMatchObject({ status: 'none', none_reason: 'validation:candidate', attempts: 2, first_none_reason: 'validation:quote' });
   });
 
   test('never more than one retry', async () => {

@@ -60,6 +60,21 @@ function suitsSubject(module, subject) {
   return subs.map((x) => subjectId(x) || x).some((x) => ok.has(x));
 }
 
+function notFor(module, subject) {
+  return !!subject && !!module.not_for && tokens(module.not_for).some((tok) => subjectId(tok) === subject);
+}
+
+/**
+ * [v1.3c-2] The card-sentence fallback has no LLM judgement, so its own subject gate: a `general` module, or a known
+ * lesson subject the module suits and its not_for does not name. An unknown subject allows only `general`.
+ */
+function fallbackSubjectOk(module, rawSubject) {
+  if (!module) return false;
+  if ((module.subjects || []).some((x) => String(x).toLowerCase() === 'general')) return true;
+  const subject = subjectId(rawSubject);
+  return !!subject && suitsSubject(module, subject) && !notFor(module, subject);
+}
+
 function gradeOk(band, grade) {
   const b = String(band || 'all').toLowerCase();
   const narrow = NARROW_BANDS[b];
@@ -143,7 +158,7 @@ function eligible(catalog, lesson) {
     if (!module || module.media_ok === false) continue;
     if (((module.quality && module.quality.flags) || []).some((f) => BAD_MEDIA.has(f))) continue;
     if (!suitsSubject(module, subject)) continue;
-    if (subject && module.not_for && tokens(module.not_for).some((tok) => subjectId(tok) === subject)) continue;
+    if (notFor(module, subject)) continue;
     if (!gradeOk(module.grade_band, l.grade)) continue;
     for (const seg of module.segments || []) {
       if (!recommendable(module, seg) || isIntro(module, seg)) continue;
@@ -160,6 +175,11 @@ function levelOf(ctx) {
   if (c.ladderComplete) return { L: null, mode: 'completed' };
   const L = c.level === null || c.level === undefined || !Number.isFinite(Number(c.level)) ? null : Number(c.level);
   return L === null ? { L, mode: 'unknown' } : { L, mode: 'known' };
+}
+
+/** ⛔11 (v1.3b): for a known, part-way level the list goes near-first, the order inside each group kept (stable). */
+function nearFirst(lv, list) {
+  return lv.mode === 'known' ? [...list.filter((c) => c.level_match === 'near'), ...list.filter((c) => c.level_match !== 'near')] : list;
 }
 
 function levelMatchOf(lv, level) {
@@ -294,9 +314,7 @@ function tagRoute(catalog, t, ctx, signal, lesson) {
     };
   }).sort((a, b) => b.score - a.score || String(a.seg_id).localeCompare(String(b.seg_id)));
   // ⛔11 (v1.3b): for a known, part-way level the SAME 12 go near-first, score order inside each group.
-  const top = ranked.slice(0, MAX_CANDIDATES);
-  const candidates = lv.mode === 'known' ? [...top.filter((c) => c.level_match === 'near'), ...top.filter((c) => c.level_match !== 'near')] : top;
-  return { candidates, noneReason: null, repeatModule };
+  return { candidates: nearFirst(lv, ranked.slice(0, MAX_CANDIDATES)), noneReason: null, repeatModule };
 }
 
 /**
@@ -333,7 +351,7 @@ function build(catalog, target, ctx, signal, lesson, step) {
     const query = textReason ? stepQuery(s) : '';
     const routeName = textReason === 'card_text' ? 'card_text' : 'step_text';
     const text = query ? textRoute(catalog, s, ctx, lesson, tag.candidates.map((c) => c.seg_id), routeName) : [];
-    const candidates = [...tag.candidates, ...text];
+    const candidates = nearFirst(lv, [...tag.candidates, ...text]); // v1.3c: after the concat, so the text route is near-first too
     const common = { repeatModule: tag.repeatModule, levelMatch, textReason, stepTextQuery: query || null };
     if (!candidates.length) {
       const why = textReason === 'card_text' ? 'no_target' : textReason === 'unscored' ? 'unscored_step'
@@ -346,4 +364,4 @@ function build(catalog, target, ctx, signal, lesson, step) {
   }
 }
 
-module.exports = { build, textRoute, recommendable, stepQuery, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, LABEL_37 };
+module.exports = { build, textRoute, recommendable, fallbackSubjectOk, stepQuery, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, LABEL_37 };
