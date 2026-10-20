@@ -17,6 +17,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const { checkPages } = require('../../../bot/shared/services/assessment/topics/page-check');
+
 const SANDBOX_REF = 'olvritwoqujtjvwfulbh';
 const URL = process.env.ASSESSMENT_TOPICS_DB_URL || '';
 const PG_PATH = path.join(__dirname, '..', '..', '..', 'dashboard', 'node_modules', 'pg');
@@ -78,6 +80,23 @@ maybe('topic pages match the book (sandbox, read only)', () => {
     }
     expect(topics.length).toBeGreaterThan(0);
     expect(problems).toEqual([]);
+  });
+
+  test('no current topic sits wholly outside its chapter\'s book page range (spill is printed, not failed)', async () => {
+    const topics = (await client.query(
+      `SELECT topic_id, grade, subject, chapter_number, name, pages FROM assessment_topics WHERE is_current`)).rows
+      .map((r) => ({ topicId: r.topic_id, grade: r.grade, subject: r.subject, chapterNumber: r.chapter_number, name: r.name, pages: r.pages || [] }));
+    const ranges = (await client.query(
+      `SELECT grade, subject, chapter_number, page_start, page_end FROM textbook_toc WHERE curriculum = 'ict'`)).rows;
+    const { outside, spill, noRange } = checkPages(topics, ranges);
+    for (const f of spill) {
+      // eslint-disable-next-line no-console
+      console.log(`spill: ${f.topicId} G${f.grade} ${f.subject} ch${f.chapterNumber} pages [${f.pages}] book ${f.pageStart}-${f.pageEnd} stray [${f.stray}]`);
+    }
+    // eslint-disable-next-line no-console
+    console.log(`page check: ${outside.length} outside, ${spill.length} spill, no range: ${noRange.join(', ') || 'none'}`);
+    expect(topics.length).toBeGreaterThan(0);
+    expect(outside).toEqual([]);
   });
 });
 
