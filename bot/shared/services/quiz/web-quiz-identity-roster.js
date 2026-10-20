@@ -24,6 +24,8 @@ const supabase = require('../../config/supabase');
 const Snap = require('../settings/settings-snapshot'); // web_quiz_page_keep: the page switches in one read
 // A quiz line with no recorded clip, while one voice is on, read by the phone's own voice (default off, JSON true only)
 const GAP_PHONE_KEY = 'web_quiz_voice_gap_phone';
+// Beside it, a clip that is there but will not play is read by the phone's voice too (default off, JSON true only)
+const GAP_SLOW_KEY = 'web_quiz_voice_gap_slow';
 // The class page's warm switch (web-quiz-page-warm.js KEY), read here beside one voice
 const PAGE_WARM_KEY = 'web_quiz_page_warm';
 // Each question's clips saved as soon as they are done (web-quiz-audio-each-flag.js KEY), read here beside one voice
@@ -71,7 +73,8 @@ const flag = cachedSwitch({
     // The class page's warm switch (`web_quiz_page_warm`, web-quiz-page-warm.js, JSON true only) rides it too: the page
     // makes no read of its own for it (a cold page answers it off and the next page knows it from here).
     // So does `web_quiz_audio_each_question` (JSON true only): a pending page asks for its late clips every 5 s.
-    let { data, error } = await Snap.rows([FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice', GAP_PHONE_KEY, PAGE_WARM_KEY, AUDIO_EACH_KEY], () => supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice', GAP_PHONE_KEY, PAGE_WARM_KEY, AUDIO_EACH_KEY]));
+    // And `web_quiz_voice_gap_slow` (JSON true only): a clip that will not play is read by the phone's voice too.
+    let { data, error } = await Snap.rows([FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice', GAP_PHONE_KEY, PAGE_WARM_KEY, AUDIO_EACH_KEY, GAP_SLOW_KEY], () => supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice', GAP_PHONE_KEY, PAGE_WARM_KEY, AUDIO_EACH_KEY, GAP_SLOW_KEY]));
     const withOne = !error;
     if (!withOne) {
       logToFile('⚠️ web quiz identity: settings lookup with one voice failed — reading the page switches alone, one voice off', { error: error.message });
@@ -83,6 +86,7 @@ const flag = cachedSwitch({
     if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* a plain string */ } }
     return { at: now, mode: typeof v === 'string' && v.trim().toLowerCase() === 'v2' ? 'v2' : null, watchRoot: rootOf(by.get(WATCH_ROOT_KEY)),
       oneVoice: withOne ? oneVoiceOf(by.get('web_quiz_one_voice'), now) : null, voiceGapPhone: withOne && by.get(GAP_PHONE_KEY) === true,
+      voiceGapSlow: withOne && by.get(GAP_SLOW_KEY) === true,
       pageWarm: withOne && by.get(PAGE_WARM_KEY) === true, audioEach: withOne && by.get(AUDIO_EACH_KEY) === true };
   },
   log: (err) => logToFile('⚠️ web quiz identity: setting lookup failed — today\'s identity path', { error: err.message }),
@@ -105,6 +109,11 @@ async function oneVoicePlan(now = Date.now()) {
 /** True only when `web_quiz_voice_gap_phone` is the JSON true in this read (a failed read: false). */
 async function voiceGapPhone(now = Date.now()) {
   return (await pageSettings(now)).voiceGapPhone === true;
+}
+
+/** True only when `web_quiz_voice_gap_slow` is the JSON true in this read (a failed read: false). */
+async function voiceGapSlow(now = Date.now()) {
+  return (await pageSettings(now)).voiceGapSlow === true;
 }
 
 /** True only when `web_quiz_audio_each_question` is the JSON true in this read (a failed read: false). */
@@ -457,5 +466,6 @@ module.exports = {
 module.exports.oneVoicePlan = oneVoicePlan;
 module.exports.voiceGapPhone = voiceGapPhone;
 module.exports.GAP_PHONE_KEY = GAP_PHONE_KEY;
+module.exports.voiceGapSlow = voiceGapSlow;
 module.exports.pageWarmPeek = pageWarmPeek;
 module.exports.audioEachQuestion = audioEachQuestion;

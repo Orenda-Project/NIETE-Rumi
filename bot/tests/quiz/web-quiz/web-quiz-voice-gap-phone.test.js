@@ -78,14 +78,15 @@ const JESSICA = { provider: 'elevenlabs', voice: 'cgSgspJ2msm6clMCkdW9', name: '
 const ALL_AI = { bank: [] };
 const GENERATED = (tag = TAG) => ({ [CHECKED.id]: gen(CHECKED.id, tag), [QID2]: gen(QID2, tag) });
 
-function seed(rows, { flag, gap, meta = {} } = {}) {
+function seed(rows, { flag, gap, slow, meta = {} } = {}) {
   const fake = makeFake({
     quiz_share_codes: [{ id: SC, code: 'AB12CD', quiz_id: QUIZ, video_id: null, teacher_user_id: TEACHER, teacher_name: 'Example',
       topic: 'Months', language: null, active: true, expires_at: future, invited_by_student_id: null, parent_share_code_id: null,
       uses_count: 0, created_at: new Date().toISOString() }],
     quizzes: [{ id: QUIZ, topic: 'Months', grade: '1', subject: 'English', language: null, meta, quiz_source: 'video' }],
     quiz_questions: rows, quiz_sessions: [], students: [], quiz_answers: [],
-    app_settings: [...(flag === undefined ? [] : [{ key: 'web_quiz_one_voice', value: flag }]), ...(gap === undefined ? [] : [{ key: 'web_quiz_voice_gap_phone', value: gap }])],
+    app_settings: [...(flag === undefined ? [] : [{ key: 'web_quiz_one_voice', value: flag }]), ...(gap === undefined ? [] : [{ key: 'web_quiz_voice_gap_phone', value: gap }]),
+      ...(slow === undefined ? [] : [{ key: 'web_quiz_voice_gap_slow', value: slow }])],
   });
   Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
   return fake;
@@ -157,5 +158,36 @@ describe('web_quiz_voice_gap_phone: a line with no clip is read by the phone, sa
     const { out } = await pageCounted({ gap: true });
     expect('one_voice' in out).toBe(false);
     expect('voice_gap_phone' in out).toBe(false);
+  });
+});
+
+// web_quiz_voice_gap_slow (default off, JSON true only, only beside the gap switch): a clip that is there but will not
+// play (its play() aborts, or it has not started at 8 s) is read by the phone's voice too (wq.js GAP_SLOW). It rides the
+// same settings read; off, the answer is today's key for key.
+describe('web_quiz_voice_gap_slow: a clip that will not play is read by the phone, said to the page', () => {
+  const SLOW = 'web_quiz_voice_gap_slow';
+  test('on with the gap switch on: voice_gap_slow: true, in the same query as one voice, no extra read; otherwise the same answer', async () => {
+    const again = () => { WQ._resetQuizCache(); OneVoice.reset(); IdRoster._resetCache(); };
+    await pageCounted({ flag: true, gap: true }); again();
+    const off = await pageCounted({ flag: true, gap: true }); again();
+    const on = await pageCounted({ flag: true, gap: true, slow: true });
+    expect(off.out).not.toHaveProperty('voice_gap_slow');
+    expect(on.out.voice_gap_slow).toBe(true);
+    expect(on.n.keys.some((k) => k.includes('web_quiz_one_voice') && k.includes(SLOW))).toBe(true);
+    expect(on.n.reads).toBe(off.n.reads);
+    const strip = (o) => JSON.parse(JSON.stringify(o, (k, v) => (/token|expires|_at$|^t$|nonce|sig/i.test(k) ? undefined : v)));
+    const a = strip(on.out); delete a.voice_gap_slow;
+    expect(a).toEqual(strip(off.out));
+  });
+  test.each([[false], ['true'], [1], [null]])('off (%p): no voice_gap_slow field', async (slow) => {
+    const { out } = await pageCounted({ flag: true, gap: true, slow });
+    expect([slow, 'voice_gap_slow' in out]).toEqual([slow, false]);
+  });
+  test('the gap switch off (or one voice off): no field, whatever this switch says', async () => {
+    const a = await pageCounted({ flag: true, slow: true });
+    expect('voice_gap_slow' in a.out).toBe(false);
+    WQ._resetQuizCache(); OneVoice.reset(); IdRoster._resetCache();
+    const b = await pageCounted({ gap: true, slow: true });
+    expect('voice_gap_slow' in b.out).toBe(false);
   });
 });
