@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Headphones, RefreshCw, Smartphone, WifiOff } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
-import AssessEngineSlot from '../components/assess/AssessEngineSlot';
+import AssessEngineSlot, { type FinishReason } from '../components/assess/AssessEngineSlot';
 import AssessOtherPhone from '../components/assess/AssessOtherPhone';
 import AssessPreflight from '../components/assess/AssessPreflight';
 import AssessVisitBar, { type SyncItem } from '../components/assess/AssessVisitBar';
+import AssessActions, { useAboveTabBar } from '../components/assess/AssessActions';
 import { childTestSa } from '../services/api';
 import { useChildTestSa } from '../lib/useChildTestSa';
 import { COPY, type Lang } from '../lib/assess/copy';
@@ -39,8 +40,10 @@ import type { SaChild, SaList, SaOutcome, SaSchool } from '../types/childTestSa'
 const LANG_KEY = 'niete-assess-lang';
 const LIST_SIZE = 5;
 const TICK_MS = 30_000;
-const TOAST_MS = 4000;
+const TOAST_MS = 2500;
 const FULL_MINUTES = 29;
+/** Urdu: the app's Nastaliq stack and line height (index.css keys them on html[lang=ur]; this page sets its own lang), and nothing below text-sm. */
+const URDU_ROOT = '[font-family:var(--font-urdu)] [word-spacing:0.15em] [&_*]:leading-[2] [&_.text-xs]:text-sm';
 
 type Step =
   | { kind: 'schools' }
@@ -83,6 +86,7 @@ function todaysFirst(schools: SaSchool[]) {
 
 export default function LeaderAssess() {
   const enabled = useChildTestSa();
+  const above = useAboveTabBar();
   const [lang, setLang] = useState<Lang>(readLang);
   const copy = COPY[lang];
   const [step, setStep] = useState<Step>({ kind: 'schools' });
@@ -96,6 +100,7 @@ export default function LeaderAssess() {
   const [memory, setMemory] = useState<VisitMemory | null>(null);
   const [remote, setRemote] = useState<Record<string, 'sending' | 'sent'>>({});
   const [toast, setToast] = useState(false);
+  const [stopped, setStopped] = useState<string | null>(null);
   const vkeyRef = useRef<string | null>(null);
   vkeyRef.current = vkey;
   const memoryRef = useRef<VisitMemory | null>(null);
@@ -358,9 +363,16 @@ export default function LeaderAssess() {
     }
   };
 
-  const finished = () => {
+  const finished = (reason?: FinishReason) => {
     if (step.kind !== 'engine') return;
     const { child, sessionId } = step;
+    // An unreadable frame is no proof the battery ended: the row stays open, the same session id reopens it.
+    if (reason === 'offline') {
+      setStopped(firstNameOf(child, lang));
+      setStep({ kind: 'list', school: step.school });
+      return;
+    }
+    setStopped(null);
     remember((m) => ({ ...m, finished: { ...m.finished, [child.drawId]: sessionId } }));
     setStep({ kind: 'list', school: step.school });
     setToast(true);
@@ -460,13 +472,16 @@ export default function LeaderAssess() {
         : (
           <div className="space-y-4">
             {bar}
+            {stopped && (
+              <p data-testid="assess-stopped" role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{copy.stopped(stopped)}</p>
+            )}
             {offline && (
               <p className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                 <WifiOff className="h-4 w-4 shrink-0" aria-hidden /> {copy.offline}
               </p>
             )}
             <div>
-              <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center justify-between gap-2">
                 <h2 className="min-w-0 text-lg font-semibold text-slate-900 break-words">{step.school.name}</h2>
                 <button type="button" data-testid="assess-check-again" onClick={() => setStep({ kind: 'preflight', school: step.school })}
                   className="min-h-[48px] shrink-0 px-2 text-sm text-sky-800 underline">{copy.checkAgain}</button>
@@ -489,18 +504,22 @@ export default function LeaderAssess() {
                       <span className="flex-1 min-w-0">
                         <span className="block font-semibold text-slate-900 break-words">{nameOf(c, lang)}</span>
                         <span className="block text-sm text-slate-600 break-words">{placeOf(c, lang)}</span>
-                        {local && <span data-testid={`assess-block-${c.drawId}`} className="mt-1 inline-block rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-800">{copy.blocks[local.block]}</span>}
+                        {(local || done || open || (!waiting && marked)) && (
+                          <span className="mt-1 flex flex-wrap gap-1">
+                            {done && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">{copy.done}</span>}
+                            {open && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs text-sky-800">{elsewhere(c) ? copy.onOtherPhone : copy.started}</span>}
+                            {!done && !open && !waiting && marked && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{marked}</span>}
+                            {local && <span data-testid={`assess-block-${c.drawId}`} className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-800">{copy.blocks[local.block]}</span>}
+                          </span>
+                        )}
                       </span>
-                      {done && <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">{copy.done}</span>}
-                      {open && <span className="shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-xs text-sky-800">{elsewhere(c) ? copy.onOtherPhone : copy.started}</span>}
-                      {!done && !open && !waiting && marked && <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{marked}</span>}
                     </div>
                     {waiting && (
                       <div className="mt-3 space-y-2">
                         <button type="button" disabled={busy} onClick={() => present(c)} className="w-full min-h-[52px] rounded-xl bg-emerald-600 text-lg font-semibold text-white disabled:opacity-60">{copy.present}</button>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button type="button" disabled={busy} onClick={() => notPresent(c, 'absent')} className="min-h-[48px] rounded-xl border border-slate-300 bg-white disabled:opacity-60">{copy.absent}</button>
-                          <button type="button" disabled={busy} onClick={() => notPresent(c, 'refused')} className="min-h-[48px] rounded-xl border border-slate-300 bg-white disabled:opacity-60">{copy.refused}</button>
+                        <div className="flex gap-2">
+                          <button type="button" disabled={busy} onClick={() => notPresent(c, 'absent')} className="min-h-[48px] flex-1 rounded-xl border border-slate-300 bg-white disabled:opacity-60">{copy.absent}</button>
+                          <button type="button" disabled={busy} onClick={() => notPresent(c, 'refused')} className="min-h-[48px] flex-1 rounded-xl border border-slate-300 bg-white disabled:opacity-60">{copy.refused}</button>
                         </div>
                       </div>
                     )}
@@ -528,7 +547,7 @@ export default function LeaderAssess() {
                 </ul>
               </div>
             )}
-            <button type="button" onClick={() => setStep({ kind: 'summary', school: step.school })}
+            <button type="button" data-testid="assess-end-visit" onClick={() => setStep({ kind: 'summary', school: step.school })}
               className="w-full min-h-[48px] rounded-xl border border-slate-300 bg-white font-medium">{copy.endVisit}</button>
           </div>
         );
@@ -548,9 +567,11 @@ export default function LeaderAssess() {
           <span className="flex-1 font-medium text-slate-900">{copy.wholeBattery}</span>
           <span className="text-sm text-slate-600">{copy.aboutMinutes(FULL_MINUTES)}</span>
         </label>
-        <button type="button" disabled={busy} onClick={start}
-          className="w-full min-h-[64px] rounded-2xl bg-emerald-600 text-2xl font-semibold text-white disabled:opacity-60">{copy.start}</button>
-        {otherPhoneButton(step.child, otherPhone, busy)}
+        <AssessActions>
+          <button type="button" disabled={busy} onClick={start}
+            className="w-full min-h-[64px] rounded-2xl bg-emerald-600 text-2xl font-semibold text-white disabled:opacity-60">{copy.start}</button>
+          {otherPhoneButton(step.child, otherPhone, busy)}
+        </AssessActions>
       </div>
     );
   } else if (step.kind === 'engine') {
@@ -570,6 +591,7 @@ export default function LeaderAssess() {
           <div data-testid="summary-done"><dt className="text-sm text-slate-500">{copy.summaryDone}</dt><dd className="break-words">{names(doneKids.map((c) => nameOf(c, lang)))}</dd></div>
           <div data-testid="summary-absent"><dt className="text-sm text-slate-500">{copy.summaryAbsent}</dt><dd className="break-words">{names(outcomes.filter((o) => o.outcome === 'absent').map((o) => o.name))}</dd></div>
           <div data-testid="summary-refused"><dt className="text-sm text-slate-500">{copy.summaryRefused}</dt><dd className="break-words">{names(outcomes.filter((o) => o.outcome === 'refused').map((o) => o.name))}</dd></div>
+          <div data-testid="summary-other"><dt className="text-sm text-slate-500">{copy.onOtherPhone}</dt><dd className="break-words">{names(children.filter(elsewhere).map((c) => nameOf(c, lang)))}</dd></div>
         </dl>
         <p className="text-slate-800">{copy.totalTime(mmss(started === null ? 0 : Date.now() - started))}</p>
         <p className="text-slate-800">{copy.notSentYet(notSent)}</p>
@@ -582,11 +604,11 @@ export default function LeaderAssess() {
   const inTest = step.kind === 'engine';
   return (
     <PortalLayout bare={inTest}>
-      <div className="max-w-md mx-auto overflow-x-hidden" dir={lang === 'ur' ? 'rtl' : 'ltr'} lang={lang}>
+      <div data-testid="assess-root" className={`max-w-md mx-auto overflow-x-clip ${lang === 'ur' ? URDU_ROOT : ''}`} dir={lang === 'ur' ? 'rtl' : 'ltr'} lang={lang}>
         {!inTest && header}
         {content}
         {toast && step.kind === 'list' && (
-          <p role="status" className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-md rounded-xl bg-slate-900 px-4 py-3 text-center text-white shadow-lg">{copy.savedNext}</p>
+          <p role="status" className={`pointer-events-none fixed inset-x-4 ${above.toast} z-50 mx-auto max-w-md rounded-xl bg-slate-900 px-4 py-3 text-center text-white shadow-lg`}>{copy.savedNext}</p>
         )}
         {step.kind === 'schools' && enabled === true && (
           <Link to="/portal/leader" className="mt-6 block py-3 text-center text-sm text-slate-500">{copy.back}</Link>

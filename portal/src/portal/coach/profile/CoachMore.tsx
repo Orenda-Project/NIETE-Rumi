@@ -1,4 +1,4 @@
-import { CircleUserRound, LogOut } from "lucide-react";
+import { CircleUserRound, ClipboardCheck, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../../hooks/useAuth";
 import { useLogoutGuard } from "../../lib/recordingSession";
@@ -10,10 +10,12 @@ import { formatPhone, fullName, initials } from "../../teacher/format";
 import CoachGate from "../CoachGate";
 import { COACH_PROFILE } from "./copy";
 import { useCoachCounts } from "./useCoachCounts";
+import { useChildTestSa } from "../../lib/useChildTestSa";
 
 /**
  * bd-fmf24g.33 — the coach's More: who she is, then Language (English | اردو), My profile and Log out, as the teacher's.
  * Training is a Home tile, Certificates the Training hub's card, the child test a row on Home when her flag is on.
+ * With portal_child_test_sa on, the Learning assessment is a row here too: a coach on v2 has no Home to reach it from.
  * The school count under her name is the API's (`counts.schools`); nothing is shown when it cannot say.
  */
 export default function CoachMore() {
@@ -22,6 +24,7 @@ export default function CoachMore() {
   const { user, logout } = useAuth();
   const guardedLogout = useLogoutGuard(logout);
   const counts = useCoachCounts();
+  const assess = useChildTestSa() === true;
   const name = fullName(user);
   const phone = formatPhone(user?.phoneNumber);
 
@@ -44,6 +47,12 @@ export default function CoachMore() {
             )}
           </span>
         </section>
+
+        {assess && (
+          <Card label={P.assess}>
+            <RowLink id="assess" to="/portal/leader/assess" icon={ClipboardCheck} label={P.assess} />
+          </Card>
+        )}
 
         <Card label={C.more.account}>
           <LanguageRow />
