@@ -3691,7 +3691,7 @@ describe('Your turn, one sheet: the sky band and the picture are one piece, the 
       const x = shape(g, d);
       expect([d[1], Math.abs(x.pw - (x.band[1] - x.band[0])) <= 1, Math.abs(x.pic[0] - x.band[0]) <= 1]).toEqual([d[1], true, true]);
       expect(x.ph * 1).toBeGreaterThanOrEqual(96);
-      expect(L1[3] * g.f.s).toBeGreaterThanOrEqual(18);   // shrunk together while a line is 18 px or more (the hint state, design-qa)
+      expect(L1[3] * g.f.s).toBeGreaterThanOrEqual(25.5);   // shrunk together only while a drawn line keeps the reader's readable size (design-qa DQ80)
     }
   });
   test('without the switch: today\'s picture box, number for number', () => {
@@ -3713,59 +3713,70 @@ describe('Your turn, one sheet: the sky band and the picture are one piece, the 
   });
 });
 
-// ---- one sheet while Jugnu's hint shows (the stage shorter): «رانی کی مُرغی» p1. The band and the picture shrink
-// together (one width, one scale); the picture goes only when it truly cannot fit, and then the band ends tight under its
-// last line, never down through the clouds; nothing empty above «پورا صفحہ»; no hairline at the join.
-describe('Your turn, one sheet, the hint state: shrunk together, never cut through the clouds, no gap, no hairline', () => {
+// ---- one sheet, reading and Jugnu's hint, two books (design-qa DQ80): «رانی کی مُرغی» p1 (three lines on the sky over the
+// hen) and «آج کی تازہ خبر» p1 (two lines over a tall newspaper). The sheet keeps its reading size when the hint shows (the
+// hint is a bubble over its foot, out of the page's flow); a drawn line is never under the reader's readable size (the
+// picture goes first); nothing empty above «پورا صفحہ»; band and picture one width; no hairline at the join.
+describe('Your turn, one sheet: two books x three phones, reading and hint', () => {
   const MSRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.js'), 'utf8');
   const moment = () => { const win = {}; vm.runInContext(MSRC, vm.createContext({ window: win, document: {} })); return win.WQMoment; };
+  const withMoment = (e) => { vm.runInContext(MSRC, vm.createContext({ window: e.win, document: {} })); return e; };
   const clipOf = (c) => { const m = /^inset\(([\d.]+)px 0 ([\d.]+)px 0(?: round [^)]*)?\)$/.exec(c); return m ? [+m[1], +m[2]] : null; };
-  const im = { w: 720, h: 1019 }, L1 = [163, 79, 386, 84], L2 = [167, 189, 363, 89], L3 = [99, 300, 517, 93], ALL = [L1, L2, L3];
-  const Y1 = L3[1] + L3[3];
-  // the page's clouds (measured on the page: the white of the clouds overtakes the sky from row 400 down to the hill)
-  const CLOUDS = [400, 500];
-  // the stage while the hint shows (measured on the reader): 390 x 844, 360 x 740, 360 x 640
-  const HINT = [['ur 390x844', [358, 438]], ['ur 360x740', [328, 334]], ['ur 360x640', [328, 234]]];
-  const draw = (d) => {
+  const BOOKS = {
+    murghi: { im: { w: 720, h: 1019 }, lines: [[163, 79, 386, 84], [167, 189, 363, 89], [99, 300, 517, 93]] },
+    akhbar: { im: { w: 720, h: 1083 }, lines: [[109, 65, 494, 77], [271, 153, 167, 70]] },
+  };
+  // the reader's stage at Your turn (measured on the reader; the hint no longer takes room from it)
+  const PHONES = { '390x844': [358, 574], '360x740': [328, 470], '360x640': [328, 370] };
+  // the picture where it fits with every line at the reader's readable size (25.5 px drawn)
+  const PIC = { murghi: { '390x844': 'on', '360x740': 'on', '360x640': 'on' }, akhbar: { '390x844': 'on', '360x740': 'on', '360x640': 'off' } };
+  const CASES = [];
+  Object.keys(BOOKS).forEach((bk) => Object.keys(PHONES).forEach((ph) => CASES.push([bk, ph])));
+  const draw = (bk, d) => {
+    const { im, lines } = BOOKS[bk];
     const a = fakeEl('art'), i = fakeEl('i'), m = fakeEl('img'), st = fakeEl('stage');
     a.querySelector = () => i; i.querySelector = () => m; a.parentNode = st; st.style.setProperty = (k, v) => { st.style[k] = v; };
-    const f = moment().art(a, env().S._cam, im, ALL, ALL, d, true, 0, 1);
-    return { a, i, m, st, f };
+    const f = moment().art(a, env().S._cam, im, lines, lines, d, true, 0, 1);
+    return { a, i, m, st, f, im, lines };
   };
-  const shape = ({ a, i, m, f }, d) => {
-    const z = parseFloat(m.style.width) / im.w, top = parseFloat(a.style.top), ph = parseFloat(i.style.height);
-    const cy = -parseFloat(/translateY\(([-\d.]+)px\)/.exec(m.style.transform)[1]) / z;
-    const [c0, cb] = clipOf(f.clip), c1 = im.h - cb;
-    return { z, top, ph, cy, c0, c1, bandBottom: c1 * f.s + f.ty, band: [Math.max(0, f.tx), Math.min(d[0], f.tx + im.w * f.s)], pic: [(d[0] - parseFloat(i.style.width)) / 2, (d[0] + parseFloat(i.style.width)) / 2] };
-  };
-  test.each(HINT)('%s: the picture stays, the band and the picture one width and one scale, the page carrying on across the join', (tag, d) => {
-    const g = draw(d), x = shape(g, d);
-    expect(g.a.getAttribute('data-art')).toBe('on');
-    expect(Math.abs(x.pic[0] - x.band[0])).toBeLessThanOrEqual(1);
-    expect(Math.abs((x.pic[1] - x.pic[0]) - (x.band[1] - x.band[0]))).toBeLessThanOrEqual(1);
-    expect(Math.abs(x.z - g.f.s)).toBeLessThan(0.002);
-    // no crop line in the clouds: the picture's first row is the band's row at the join (one page, nothing sliced)
-    expect(Math.abs((x.top - g.f.ty) / g.f.s - x.cy)).toBeLessThan(1);
-    expect(x.top + x.ph).toBeLessThanOrEqual(d[1] + 0.5);                 // whole on the stage
-    expect(L1[3] * g.f.s).toBeGreaterThanOrEqual(18);                    // the lines still read
+  test.each(CASES)('%s %s: every drawn line 25.5 px or more (never under 18); the picture there where it fits; band and picture one width', (bk, ph) => {
+    const d = PHONES[ph], g = draw(bk, d);
+    const box = Math.min(...g.lines.map((l) => l[3])) * g.f.s;               // the drawn line box, at the scale the page is drawn
+    expect(box).toBeGreaterThanOrEqual(25.5);
+    expect(g.a.getAttribute('data-art')).toBe(PIC[bk][ph]);
+    if (PIC[bk][ph] === 'on') {
+      const pw = parseFloat(g.i.style.width), band = [Math.max(0, g.f.tx), Math.min(d[0], g.f.tx + g.im.w * g.f.s)];
+      expect(Math.abs(pw - (band[1] - band[0]))).toBeLessThanOrEqual(1);
+      expect(Math.abs((d[0] - pw) / 2 - band[0])).toBeLessThanOrEqual(1);
+    }
   });
-  test.each(HINT)('%s: no gap over 24 px above the hint row (the stage ends at the sheet), and no hairline at the join', (tag, d) => {
-    const g = draw(d), x = shape(g, d);
-    const cap = parseFloat(g.st.style['--wqs-cap']), stageBottom = cap >= 0 ? cap : d[1];   // the stage's cap (wq-moment.css), else its height
-    expect(stageBottom - (x.top + x.ph)).toBeLessThanOrEqual(24);
-    expect(x.bandBottom - x.top).toBeGreaterThanOrEqual(1);              // the band runs on under the picture's edge
+  test.each(CASES)('%s %s: no gap over 24 px above «پورا صفحہ» (the stage ends at the sheet), and no hairline at the join', (bk, ph) => {
+    const d = PHONES[ph], g = draw(bk, d);
+    const [, cb] = clipOf(g.f.clip), bandBottom = (g.im.h - cb) * g.f.s + g.f.ty;
+    const on = g.a.getAttribute('data-art') === 'on';
+    const sheetBottom = on ? parseFloat(g.a.style.top) + parseFloat(g.i.style.height) : bandBottom;
+    const cap = parseFloat(g.st.style['--wqs-cap']), stageBottom = cap >= 0 ? cap : d[1];
+    expect(stageBottom - sheetBottom).toBeLessThanOrEqual(24);
+    expect(sheetBottom).toBeLessThanOrEqual(stageBottom + 0.5);
+    if (on) expect(bandBottom - parseFloat(g.a.style.top)).toBeGreaterThanOrEqual(1);
   });
-  test('a stage with truly no room for the picture: it goes, and the band ends tight under its last line, never in the clouds', () => {
-    const g = draw([328, 150]), x = shape(g, [328, 150]);
-    expect(g.a.getAttribute('data-art')).toBe('off');
-    expect(x.c1).toBeGreaterThanOrEqual(Y1);                              // the last line whole
-    expect(x.c1).toBeLessThanOrEqual(CLOUDS[0]);                          // and not down through the clouds
-  });
-  test('a stage that grows back (the hint gone): the cap comes off once the sheet is height-limited, so the stage can grow', () => {
-    const g = draw([328, 234]);
-    expect(g.st.style['--wqs-cap']).toBe('none');
+  test.each(Object.keys(BOOKS))('%s, the reader: the hint is a bubble over the sheet\'s foot, so the sheet keeps its reading size when it shows', async (bk) => {
+    const e = withMoment(env({ replies: { book: { status: 200, body: book({ read_fb: 1, read_sheet: 1, lang: 'ur', dir: 'rtl' }) } } })); const root = await openReader(e, { lang: 'ur' });
+    toMic(e, root); e.calls.ask[0].onStream({});
+    const cam = root.querySelector('[data-cam]'), reading = [cam.style.transform, cam.style.clipPath, root.querySelector('[data-art]').style.height];
+    e.calls.lr[0].view = () => ({ heard: 0, total: 5 });
+    e.advance(6500);
+    const near = root.querySelector('[data-near]'), st = root.querySelector('[data-stage]');
+    expect(near.hidden).toBe(false);
+    expect((st.kids || []).includes(near)).toBe(true);                        // in the stage: out of the page's flow
+    expect([cam.style.transform, cam.style.clipPath, root.querySelector('[data-art]').style.height]).toEqual(reading);
     const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-moment.css'), 'utf8');
-    expect(css).toContain('.wqs-stage:has(> [data-art][data-one=on]:not([hidden])){background:transparent;box-shadow:none;max-height:var(--wqs-cap,none)}');
+    expect(css).toContain('.wqs .wqs-stage>.wqs-near{position:absolute;');
+    expect(css).toContain('.wqs .wqs-stage>.wqs-near[hidden]{display:none!important}');
+    // without the switch: the hint stays where it was, in the page's flow
+    const e2 = withMoment(env({ replies: { book: { status: 200, body: book({ read_fb: 1 }) } } })); const r2 = await openReader(e2);
+    toMic(e2, r2); e2.calls.ask[0].onStream({}); e2.calls.lr[0].view = () => ({ heard: 0, total: 5 }); e2.advance(6500);
+    expect((r2.querySelector('[data-stage]').kids || []).includes(r2.querySelector('[data-near]'))).toBe(false);
   });
 });
 
