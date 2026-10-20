@@ -387,3 +387,46 @@ describe('v1.3b: ONE bounded validation retry (lead-review 19:49Z ruling 4)', ()
     expect('first_none_reason' in row).toBe(false);
   });
 });
+
+describe('v1.3b: lead-review 19:56Z/19:58Z one-liners + r-ab EVENTS_SCHEMA §3b columns', () => {
+  test('F1: step_text_query is stored with the teacher name redacted', async () => {
+    const d = deps();
+    const a = args({ nextStep: { target: { indicator: 'C2' } }, card: { indicator: 'C2', action: 'Saima Khan, ask two why questions' } });
+    a.session.users.preferred_language = 'en';
+    a.session.transcript_language = 'en';
+    const row = await E.recommendForReport({ ...a, deps: d });
+    expect(row.step_text_query).toEqual(expect.any(String));
+    expect(row.step_text_query).toContain('ask two why questions');
+    expect(row.step_text_query).not.toMatch(/Saima/);
+  });
+
+  test('a transcript language outside {en, ur} is unknown, never en: Urdu reader, Hindi lesson → no English chapter', async () => {
+    const d = deps();
+    const a = args();
+    a.session.transcript_language = 'hindi';
+    const row = await E.recommendForReport({ ...a, deps: d });
+    expect(row.candidates.map((c) => c.seg_id)).not.toContain('12-s1');
+    expect(row.candidates.every((c) => ['preferred', 'mixed'].includes(c.language_match))).toBe(true);
+  });
+
+  test('no stored language + a Hindi lesson → ur copy, {ur, mixed}', async () => {
+    const d = deps();
+    const a = args();
+    a.session.users.preferred_language = null;
+    a.session.transcript_language = 'hindi';
+    const row = await E.recommendForReport({ ...a, deps: d });
+    expect(row.language).toBe('ur');
+    expect(row.candidates.map((c) => c.seg_id)).not.toContain('12-s1');
+  });
+
+  test('§3b: report_language_null, lesson_language, chapter_language on a pick', async () => {
+    const d = deps();
+    expect(await E.recommendForReport({ ...args(), deps: d }))
+      .toMatchObject({ report_language_null: false, lesson_language: 'ur', chapter_language: 'ur' });
+    const a = args();
+    a.session.users.preferred_language = null;
+    expect(await E.recommendForReport({ ...a, deps: deps() }))
+      .toMatchObject({ report_language_null: true, lesson_language: 'ur', chapter_language: 'ur' });
+  });
+
+});

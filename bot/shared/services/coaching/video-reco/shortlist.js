@@ -232,11 +232,7 @@ function textReasonOf(target, catalog, lesson) {
     return only && !only.includes(subject) ? 'subject_blocked' : 'label';
   }
   const holes = new Set(catalog.holes || []);
-  if (target.native37) {
-    const alias = (catalog.aliases || {})[target.storedIndicator || target.indicator];
-    if (alias && typeof alias === 'object' && alias.exact && holes.has(alias.exact)) return 'hole';
-    return null;
-  }
+  if (target.native37) return null; // SPEC §3.3: the hole check runs on the v4 id only, never on a native 37 match (F2)
   const ids = (target.indicators && target.indicators.length ? target.indicators : [target.indicator]).filter(Boolean);
   return ids.length && ids.every((id) => holes.has(id)) ? 'hole' : null;
 }
@@ -297,7 +293,10 @@ function tagRoute(catalog, t, ctx, signal, lesson) {
       route: 'tag',
     };
   }).sort((a, b) => b.score - a.score || String(a.seg_id).localeCompare(String(b.seg_id)));
-  return { candidates: ranked.slice(0, MAX_CANDIDATES), noneReason: null, repeatModule };
+  // ⛔11 (v1.3b): for a known, part-way level the SAME 12 go near-first, score order inside each group.
+  const top = ranked.slice(0, MAX_CANDIDATES);
+  const candidates = lv.mode === 'known' ? [...top.filter((c) => c.level_match === 'near'), ...top.filter((c) => c.level_match !== 'near')] : top;
+  return { candidates, noneReason: null, repeatModule };
 }
 
 /**
