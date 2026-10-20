@@ -85,6 +85,17 @@ function createSink(deps = {}) {
     kidFromHub: deps.kidFromHub || ((...a) => require('../quiz/web-quiz-hub').kidFromHub(...a)), // eslint-disable-line global-require
     r2: deps.r2 || null,
     now: deps.now || (() => new Date()),
+    // a game recording is kept only as the Challenge keeps one: web_quiz_challenge_keep_audio ON and a consent on file
+    // (the mic notice or a grown-up's yes, web-quiz-trail-page consentFor); anything else, or a failed read: not kept
+    keepAudio: deps.keepAudio || (async (body) => {
+      try {
+        if (!(await require('../quiz/web-quiz-challenge').keepAudioOn())) return false; // eslint-disable-line global-require
+        const c = await require('../quiz/web-quiz-trail-page').consentFor({ audio_consent: body && body.audio_consent }); // eslint-disable-line global-require
+        return c != null && c !== 'not_asked' && c !== 'kept_no';
+      } catch (_) {
+        return false;
+      }
+    }),
   };
   // required where used: loading the sink (the router does, at boot) connects to nothing
   const store = () => deps.store || require('./store-adapter'); // eslint-disable-line global-require
@@ -150,6 +161,8 @@ function createSink(deps = {}) {
     const bytes = Number(a.bytes);
     if (!Number.isInteger(bytes) || bytes <= 0) return no(400, 'bad_size');
     if (bytes > MAX_AUDIO) return no(413, 'too_large');
+    // not kept in game mode (RULING ⚠️10 c): the engine drops the blob and marks the result audio:'not_kept'
+    if (!(await d.keepAudio(a))) return ok({ skip: true, reason: 'audio_off' });
     const key = keyOf(p.sid, a.task_id, itemId, ext);
     const url = await r2().getPresignedUploadUrl(key, type, PRESIGN_TTL_S);
     if (!url) return no(503, 'unavailable');

@@ -13,6 +13,10 @@ const express = require('express');
 
 const mockOn = jest.fn();
 jest.mock('../../shared/services/sa-game/flag', () => ({ on: (...a) => mockOn(...a) }));
+const mockKeep = jest.fn();
+jest.mock('../../shared/services/quiz/web-quiz-challenge', () => ({ keepAudioOn: (...a) => mockKeep(...a) }));
+const mockConsent = jest.fn();
+jest.mock('../../shared/services/quiz/web-quiz-trail-page', () => ({ consentFor: (...a) => mockConsent(...a) }));
 const mockWho = jest.fn();
 jest.mock('../../shared/services/quiz/web-quiz-hub', () => ({ kidFromHub: (...a) => mockWho(...a) }));
 jest.mock('../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(), logInfo: jest.fn() }));
@@ -128,6 +132,8 @@ beforeAll(async () => {
 afterAll(() => new Promise((r) => server.close(r)));
 beforeEach(() => {
   mockOn.mockReset().mockResolvedValue(true);
+  mockKeep.mockReset().mockResolvedValue(true);
+  mockConsent.mockReset().mockResolvedValue('kept_ok');
   mockWho.mockReset().mockResolvedValue({ studentId: 'stu-1', grade: '3', lang: 'ur' });
   mockR2.getPresignedUploadUrl.mockReset().mockResolvedValue('https://r2.example/put?sig=1');
   mockR2.headObject.mockReset().mockResolvedValue({ exists: true, sizeBytes: 1000 });
@@ -304,6 +310,36 @@ describe('batch', () => {
     expect((await post('/batch', batchOf(s, { results: [{ task_id: 'sci.atoms' }] }))).status).toBe(400);
     expect((await post('/batch', batchOf(s, { results: [{ task_id: 'UR.letters' }] }))).status).toBe(400);
     expect((await post('/batch', batchOf(s, { events: [{ type: 'tap' }] }))).status).toBe(400);
+  });
+});
+
+describe('game audio kept only with keep-audio on and consent on file (RULING #17 ⚠️10)', () => {
+  const ask = async (extra = {}) => {
+    const s = await newSession();
+    return post('/audio/presign', { st: s.st, taskId: 'ur.story', mime: 'audio/webm', bytes: 1000, ...extra });
+  };
+  test('keep-audio off: skip, no upload URL minted', async () => {
+    mockKeep.mockResolvedValue(false);
+    const r = await ask();
+    expect(r.status).toBe(200);
+    expect(await r.json()).toEqual({ skip: true, reason: 'audio_off' });
+    expect(mockR2.getPresignedUploadUrl).not.toHaveBeenCalled();
+  });
+  test('keep-audio on but no consent on file (switch off, not asked, or kept_no): skip', async () => {
+    for (const c of [null, 'not_asked', 'kept_no']) {
+      mockConsent.mockResolvedValue(c);
+      expect(await (await ask()).json()).toEqual({ skip: true, reason: 'audio_off' });
+    }
+    expect(mockR2.getPresignedUploadUrl).not.toHaveBeenCalled();
+  });
+  test('keep-audio on and consent on file: the upload URL, the consent read from the request', async () => {
+    const r = await ask({ audio_consent: 'notice_shown' });
+    expect((await r.json()).url).toBe('https://r2.example/put?sig=1');
+    expect(mockConsent).toHaveBeenCalledWith({ audio_consent: 'notice_shown' });
+  });
+  test('a failed switch read: skip (fails closed)', async () => {
+    mockKeep.mockRejectedValue(new Error('down'));
+    expect(await (await ask()).json()).toEqual({ skip: true, reason: 'audio_off' });
   });
 });
 

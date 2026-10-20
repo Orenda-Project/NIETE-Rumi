@@ -85,9 +85,12 @@ const CT_OWN = {
   },
 };
 
+// the child test's own SA store when it speaks the calls this adapter makes; its merged shape (block rows, setAudio) does
+// not, so the copy above stands until the game path is built on it
 function ctStore() {
   try {
-    return require('../child-test/sa-store'); // eslint-disable-line global-require
+    const m = require('../child-test/sa-store'); // eslint-disable-line global-require
+    return m && typeof m.putEvents === 'function' && typeof m.putResults === 'function' && typeof m.setResultAudio === 'function' ? m : CT_OWN;
   } catch (_) {
     return CT_OWN;
   }
