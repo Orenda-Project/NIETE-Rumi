@@ -298,3 +298,30 @@ describe('v1.3b ⛔11 (lead-review 19:56Z ruling 1): near chapters first, the SA
     expect(ids(r)[0]).toBe('13-s1');
   });
 });
+
+describe('v1.3c ⛔11 text route (red-team 20:47Z, lead-final 20:48Z): the near-first partition runs after the concat', () => {
+  // 13-s1 is level 4 and the BM25 winner of the step text; 10-s2 is level 2 (near to a rung-2 teacher), a weaker match.
+  const loud = copy((d) => { seg(d, '13-s1').keywords = ['zebra', 'zebra', 'zebra', 'zebra']; seg(d, '10-s2').keywords = ['zebra', 'zebra']; });
+  test('a near chapter on a text list is listed before every far one', () => {
+    const r = S.build(loud, B7, ctx({ level: 2 }), 'x', L(), step('zebra'));
+    expect(r.route).toBe('step_text');
+    const m = r.candidates.map((c) => c.level_match);
+    expect(m).toContain('far');
+    expect(m).toContain('near');
+    expect(m.lastIndexOf('near')).toBeLessThan(m.indexOf('far'));
+    const near = r.candidates.filter((c) => c.level_match === 'near').map((c) => c.score);
+    expect(near).toEqual([...near].sort((a, b) => b - a)); // score order inside the group
+  });
+  test('a near text chapter appended to a tag list goes before a far tag chapter (label route, stable inside each group)', () => {
+    const c = copy((d) => { d.modules.find((m) => m.module_id === 22).level_id = 4; }); // the tag route's only chapter, now far
+    const r = S.build(c, F5, ctx({ level: 2 }), 'reasoning', L({ subject: 'maths' }), step('wait for silence, pause, then feedback'));
+    expect(r.textReason).toBe('label');
+    expect(r.candidates[0]).toMatchObject({ route: 'step_text', level_match: 'near' });
+    expect(ids(r)[ids(r).length - 1]).toBe('22-s1');
+    expect(r.candidates.filter((x) => x.level_match === 'near').every((x) => x.route === 'step_text')).toBe(true);
+  });
+  test('completed ladder / unknown level: text-route order is the BM25 order (unchanged)', () => {
+    const r = S.build(loud, B7, ctx({ level: 4, ladderComplete: true }), 'x', L(), step('zebra'));
+    expect(ids(r)[0]).toBe('13-s1');
+  });
+});
