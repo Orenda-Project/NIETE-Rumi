@@ -7,6 +7,9 @@
 -- chosen chapter does not carry the step indicator (raw count reported beside differs_from_step; NULL when there
 -- is no step indicator). step_text_query: the exact query the step-text route ran, for evals.
 -- The candidates JSONB gains a per-entry `route` (no DDL: it is JSON).
+-- video_reco_events (r-ab EVENTS_SCHEMA v1.1 §3a, PREREG §7.4c forward count): a click is first-only per DEVICE, so a
+-- forwarded link's second phone is a row; every other event stays first-only per (event, surface, ua_class). No writer
+-- changes: the /v route already sends `device` and swallows 23505.
 --
 -- WHY COLUMNS, NOT A TABLE. One value per recommendation row, read beside differs_from_step by evals and r-ab;
 -- the row is the unit, so the row holds it (root CLAUDE.md rule 15).
@@ -26,5 +29,14 @@ COMMENT ON COLUMN video_recommendations.tag_mismatch IS
   'bd-gzfdu9 v1.3: the chosen chapter does not carry the step indicator; NULL without a step indicator.';
 COMMENT ON COLUMN video_recommendations.step_text_query IS
   'bd-gzfdu9 v1.3: the query the step-text route ran (card action + try tomorrow + thing to try + indicator name).';
+
+-- The first-only key without clicks, then clicks first-only per device. Both IF [NOT] EXISTS: re-runnable.
+DROP INDEX IF EXISTS uq_video_reco_events_first;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_video_reco_events_first
+  ON video_reco_events (recommendation_id, event, COALESCE(surface, 'wa'), COALESCE(ua_class, '-'))
+  WHERE event NOT IN ('error', 'click');
+CREATE UNIQUE INDEX IF NOT EXISTS uq_video_reco_events_click_device
+  ON video_reco_events (recommendation_id, COALESCE(surface, 'wa'), COALESCE(ua_class, '-'), COALESCE(device, '-'))
+  WHERE event = 'click';
 
 NOTIFY pgrst, 'reload schema';

@@ -264,6 +264,6 @@ test('V1.7.1 is additive and idempotent; its rollback drops only its own columns
     expect(up).toMatch(new RegExp(`ADD COLUMN IF NOT EXISTS ${col}\\b`));
     expect(down).toMatch(new RegExp(`DROP COLUMN IF EXISTS ${col}\\b`));
   }
-  expect(up).not.toMatch(/DROP|CREATE TABLE|NOT NULL(?! DEFAULT)/);
+  expect(up).not.toMatch(/DROP (TABLE|COLUMN)|CREATE TABLE|NOT NULL(?! DEFAULT)/);
   expect(down).not.toMatch(/DROP TABLE/);
 });

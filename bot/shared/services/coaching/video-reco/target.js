@@ -50,18 +50,26 @@ function scored(r) {
   return r.applicable !== false && r.score !== null && r.score !== undefined && Number.isFinite(Number(r.score));
 }
 
-/** The scorer's own quote for a row: the `Quote:` part of evidence (fico-framework.js), else evidence_summary. */
-function scorerQuote(row) {
+/** The `Quote:` part of a row's evidence (fico-framework.js) — the only scorer text a moment may match (§3.5 [v1.3] d). */
+function scorerQuoteOnly(row) {
   if (!row) return '';
   const m = String(row.evidence || '').match(/Quote:\s*["“']?([\s\S]+?)["”']?\s*$/i);
-  if (m && m[1].trim()) return m[1].trim();
-  return String(row.evidence_summary || '').trim();
+  return m && m[1].trim() ? m[1].trim() : '';
+}
+
+/** The scorer's own quote for a row, as the prompt shows it: the `Quote:` part, else evidence_summary. */
+function scorerQuote(row) {
+  if (!row) return '';
+  return scorerQuoteOnly(row) || String(row.evidence_summary || '').trim();
 }
 
 function nativeAvailable(catalog, id) {
   for (const m of (catalog && catalog.modules) || []) {
-    if (!m || m.recommendable === false) continue;
-    for (const s of m.segments || []) if (s && s.recommendable !== false && (s.fico_main37 || []).includes(id)) return true;
+    if (!m) continue;
+    for (const s of m.segments || []) {
+      // §3.3 candidate rule (shortlist.recommendable), inlined to keep target.js free of the shortlist module.
+      if (s && (s.recommendable === true || (m.recommendable !== false && s.recommendable !== false)) && (s.fico_main37 || []).includes(id)) return true;
+    }
   }
   return false;
 }
@@ -133,4 +141,4 @@ function pick(analysis, nextStep, card, catalog, lesson = {}) {
   }
 }
 
-module.exports = { pick, scorerQuote, PHASE_MOVES, V4_IDS, SUBJECT_ROWS };
+module.exports = { pick, scorerQuote, scorerQuoteOnly, PHASE_MOVES, V4_IDS, SUBJECT_ROWS };
