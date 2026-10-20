@@ -103,11 +103,11 @@ describe('edge routes', () => {
     const ur = await r.text();
     expect(ur).toContain('<html lang="ur" dir="rtl">');
     expect(ur).toContain('کیا جگنو کل آپ کو یاد دلائے؟');
-    // the Urdu page carries Urdu only (design review DQ108 RL-2); the other language is one small link
+    // the Urdu page carries Urdu only; the other language is one small link
     expect(ur).not.toContain('Want Jugnu to remind you tomorrow?');
     expect(ur).toContain('>English</a>');
     expect(ur).toContain('"code":"AB12CD"');
-    // the test-send is QA only: the switch alone is not enough, ?qa=1 is needed too (DQ108 RL-5)
+    // the test-send is QA only: the switch alone is not enough, ?qa=1 is needed too
     expect(ur).toContain('"test":false');
     expect(await (await fetch(`${s.base}/remind/AB12CD?qa=1`)).text()).toContain('"test":true');
     // the child pages' look: wq-btn on the language link; the adventure sheet only when the bot says the page has it
@@ -385,7 +385,7 @@ describe('wq-remind.js (fake DOM)', () => {
     expect(after.slot.innerHTML).toContain(after.ctx.WQREMIND.T.en.remindTitle);
   });
 
-  test("WhatsApp's Android browser: one line + ONE Open-in-Chrome button; the ⋮ hint and Copy link only behind How? (design DQ110 RI-1/RI-2)", async () => {
+  test("WhatsApp's Android browser: one line + ONE Open-in-Chrome button; the ⋮ hint and Copy link only behind How?", async () => {
     const p = page({ ua: UA_WA });
     p.ctx.WQREMIND.mount(p.slot, { code: 'AB12CD', lang: 'ur', chips: 1 });
     await flush();
@@ -400,7 +400,7 @@ describe('wq-remind.js (fake DOM)', () => {
     expect(h).not.toContain(T.iabHint);
     expect(h).not.toContain('data-act="copy"');
     expect(h).toContain('data-act="how"');
-    expect(h).not.toMatch(/یاد دلائیں|Remind me/); // RI-2: no quoted button name that does not exist here
+    expect(h).not.toMatch(/یاد دلائیں|Remind me/); // no quoted button name that does not exist here
     await p.tap('how');
     expect(p.slot.innerHTML).toContain(T.iabHint);
     expect(p.slot.innerHTML).toContain('data-act="copy"');
