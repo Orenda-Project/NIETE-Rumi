@@ -1519,6 +1519,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         if (b && b.click) return b.click();
         var k = ROOT.querySelector('.wq-kid');
         if (k && k.scrollIntoView) k.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // then a short ring on the names, so the next tap is obvious; it comes off so a second tap rings again
+        var ks = (ROOT.querySelectorAll && ROOT.querySelectorAll('.wq-kid')) || [];
+        if (!ks.length && k) ks = [k];
+        Array.prototype.forEach.call(ks, function (x) { if (x.classList) x.classList.add('wq-kid-ring'); });
+        setTimeout(function () { Array.prototype.forEach.call(ks, function (x) { if (x.classList) x.classList.remove('wq-kid-ring'); }); }, 2000);
       });
     }
   }
