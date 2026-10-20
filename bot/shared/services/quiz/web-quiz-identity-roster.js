@@ -167,6 +167,17 @@ function cached(key, now) {
   return hit && now - hit.at < TTL_MS ? hit.kids : null;
 }
 
+// web_quiz_class_rows_together: a class's children read started early (startClassRoster), shared by the ask that follows
+const early = new Map();
+
+/** Start a class's children read now (web_quiz_class_rows_together); the next loadClassRoster for it shares the read. */
+function startClassRoster(classId, now = Date.now()) {
+  const key = `class:${classId}`;
+  if (!classId || cached(key, now) || early.has(key)) return;
+  const p = loadClassRoster(classId, now).finally(() => { if (early.get(key) === p) early.delete(key); });
+  early.set(key, p);
+}
+
 /**
  * The children of one class: its active enrolments whose student is active and
  * not merged, duplicates collapsed to one (the same child imported twice with
@@ -181,6 +192,7 @@ async function loadClassRoster(classId, now = Date.now(), { fresh = false } = {}
   const key = `class:${classId}`;
   const hit = fresh ? null : cached(key, now);
   if (hit) return hit;
+  if (!fresh && early.has(key)) return early.get(key);
   try {
     const [{ data: enr, error }, { data: lists, error: lErr }] = await Promise.all([
       supabase.from('class_enrollments').select('student_id, roll_number').eq('class_id', classId).eq('is_active', true),
@@ -436,11 +448,11 @@ async function nonAttempters({ shareCodeId } = {}) {
 
 module.exports = {
   FLAG_KEY,
-  identityMode, watchRoot, watchRootState, WATCH_ROOT_KEY, rootOf, loadClassRoster, loadLegacyList, rosterOf, findKid, classKeyV2, nonAttempters,
+  identityMode, watchRoot, watchRootState, WATCH_ROOT_KEY, rootOf, loadClassRoster, startClassRoster, loadLegacyList, rosterOf, findKid, classKeyV2, nonAttempters,
   canonicalStudentIds, canonicalStudentId, canonicalStudentIdsShared, noteClass, keepWarm, forgetChild, _keptClasses: () => [...kept.keys()],
   /** A class whose roster just changed (a teacher enrolled a child) is read fresh next time. */
   _forgetClass: (classId) => { rosters.delete(`class:${classId}`); },
-  _resetCache: () => { flag.reset(); rosters.clear(); shared.clear(); kept.clear(); },
+  _resetCache: () => { flag.reset(); rosters.clear(); shared.clear(); kept.clear(); early.clear(); },
 };
 module.exports.oneVoicePlan = oneVoicePlan;
 module.exports.voiceGapPhone = voiceGapPhone;
