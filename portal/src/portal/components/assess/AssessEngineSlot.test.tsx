@@ -83,13 +83,31 @@ describe("AssessEngineSlot", () => {
     expect(onFinished).toHaveBeenCalledWith("offline");
   });
 
-  it("the coach can end early with a 3 s hold", () => {
+  it("the coach's 3 s hold asks the engine to end the run (sa:coach_end), and ends on its sa:done", () => {
+    const { frame, onFinished } = setup({ lang: "en" });
+    const post = vi.fn();
+    Object.defineProperty(frame, "contentWindow", { configurable: true, get: () => ({ postMessage: post, location: { search: "" } }) });
+    const hold = screen.getByRole("button", { name: /End test/ });
+    vi.useFakeTimers();
+    fireEvent.pointerDown(hold);
+    act(() => { vi.advanceTimersByTime(3100); });
+    expect(post).toHaveBeenCalledWith({ type: "sa:coach_end", s: SID }, window.location.origin);
+    expect(onFinished).not.toHaveBeenCalled();
+    act(() => { window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:done", s: SID, reason: "coach_end" }, origin: window.location.origin })); });
+    expect(onFinished).toHaveBeenCalledWith("coach_end");
+    expect(onFinished).toHaveBeenCalledTimes(1);
+  });
+
+  it("an engine that does not answer the hold within 3 s is left anyway", () => {
     const { onFinished } = setup({ lang: "en" });
     const hold = screen.getByRole("button", { name: /End test/ });
     vi.useFakeTimers();
     fireEvent.pointerDown(hold);
     act(() => { vi.advanceTimersByTime(3100); });
+    expect(onFinished).not.toHaveBeenCalled();
+    act(() => { vi.advanceTimersByTime(3000); });
     expect(onFinished).toHaveBeenCalledWith("coach_end");
+    expect(onFinished).toHaveBeenCalledTimes(1);
   });
 
   it("full screen belongs to the page, not the frame, so the coach's hold stays on top of the engine", () => {

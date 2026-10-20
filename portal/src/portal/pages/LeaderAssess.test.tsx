@@ -253,6 +253,8 @@ describe("LeaderAssess", () => {
     expect(screen.getByTestId("assess-engine-frame")).toBeInTheDocument();
     fireEvent.pointerDown(hold);
     act(() => { vi.advanceTimersByTime(3100); });
+    // the engine is asked to end the run; with no answer the page leaves it after 3 s
+    act(() => { vi.advanceTimersByTime(3000); });
     vi.useRealTimers();
     expect(await screen.findByTestId("assess-child-d1")).toHaveTextContent("Stopped");
   });
