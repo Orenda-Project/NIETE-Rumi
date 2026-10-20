@@ -576,7 +576,9 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   if (hit) {
     ({ audio, video } = cached);
   } else if (helpers) {
-    try { audio = (await helpers.presignAudio(audioMeta, { expiresIn: MEDIA_TTL_S })) || {}; } catch { audio = {}; }
+    // web_quiz_clip_stable_sign (rides the identity read above: no read of its own): one link per clip for the hour
+    const stable = await IdRoster.clipStableSign();
+    try { audio = (await helpers.presignAudio(audioMeta, stable ? { expiresIn: MEDIA_TTL_S, stable } : { expiresIn: MEDIA_TTL_S })) || {}; } catch { audio = {}; }
     const videoId = ctx.parent.video_id || (quizRow && quizRow.video_id) || null;
     if (videoId) {
       try { video = (await helpers.presignVideo({ video_id: videoId }, { db: supabase, expiresIn: MEDIA_TTL_S })) || null; } catch { video = null; }
@@ -712,7 +714,11 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   // shared lines from the plan voice's set (named only when on).
   if (oneVoice) { out.one_voice = true; out.voice_sets = require('./web-quiz-voice').sharedSets(oneVoice); }
   // web_quiz_voice_gap_phone (the same settings read): a line with no clip is read by the phone's own voice, not left silent
-  if (oneVoice && await IdRoster.voiceGapPhone()) out.voice_gap_phone = true;
+  if (oneVoice && await IdRoster.voiceGapPhone()) {
+    out.voice_gap_phone = true;
+    // web_quiz_voice_gap_slow (the same read): a clip that is there but will not play is read by the phone's voice too
+    if (await IdRoster.voiceGapSlow()) out.voice_gap_slow = true;
+  }
   // The edge reads it (web-quiz.routes uiLangOf, for /class and /schools), and so does the page (wq.js B.class_doors:
   // the table's skeleton, list-state marks and chips).
   if (await classDoors) out.class_doors = true;
@@ -1313,9 +1319,11 @@ async function identityV2(ctx, { quizP = null } = {}) {
   if (await isWatchCode(ctx)) return { invited: false, resolved: NONE_CLASS };
   try {
     const together = require('./web-quiz-hub-flags').linkTogetherNow();
+    const rowsTogether = require('./web-quiz-hub-flags').nowOf('classRows');
     const resolved = await Identity.resolveQuizClass({
       teacherUserId: ctx.teacherUserId, quizId: ctx.quizId, shareCodeId: ctx.moreVideosOf || ctx.shareCodeId,
       ...(together ? { together: true, ...(quizP ? { quizP } : {}) } : {}),
+      ...(rowsTogether ? { rowsTogether: true } : {}),
     });
     return { invited: false, resolved: resolved || NONE_CLASS };
   } catch (e) {
