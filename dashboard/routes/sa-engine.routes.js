@@ -35,7 +35,10 @@ function createSaEngineRouter({ on = createBrotliFlag({ key: KEY }) } = {}) {
     res.setHeader('Cache-Control', 'no-cache');
     return res.sendFile(req.params.name, { root: BATTERIES, dotfiles: 'deny' }, (err) => { if (err) next(); });
   });
-  router.use('/sa', (req, res, next) => (on() ? files(req, res, next) : next()));
+  // On: a file the folder does not have (a clip not made yet, a typo) is a 404 here. Falling through would let the
+  // portal answer its own page with 200, which the offline copy would keep as the "clip".
+  const missing = (req, res) => res.status(404).type('text/plain').set('Cache-Control', 'no-store').send('not found');
+  router.use('/sa', (req, res, next) => (on() ? files(req, res, () => missing(req, res)) : next()));
   return router;
 }
 

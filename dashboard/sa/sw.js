@@ -12,12 +12,25 @@
  */
 'use strict';
 
-var VERSION = 'sa-2';
+// sa-3: the install of sa-2 may have kept the portal's page for an engine file the folder did not have yet.
+var VERSION = 'sa-3';
 var CORE = 'sa-core-' + VERSION;
-var SESSION = 'sa-session-v1';
+// v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
+var SESSION = 'sa-session-v2';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
+
+/** A response worth keeping: 2xx, and the type the URL is (a clip is audio, a battery JSON, an engine file not HTML). */
+function cacheable(url, res) {
+  if (!res || !res.ok) return false;
+  var type = String((res.headers && res.headers.get && res.headers.get('content-type')) || '').toLowerCase();
+  var p = new URL(url).pathname;
+  if (/\.(mp3|m4a|ogg)$/.test(p)) return type.indexOf('audio/') === 0;
+  if (/\.json$/.test(p)) return type.indexOf('json') >= 0;
+  if (/\.html$/.test(p)) return type.indexOf('text/html') === 0;
+  return type.indexOf('text/html') < 0;
+}
 
 /** Which way a request is answered: 'core' | 'static' | null (not ours). */
 function strategyFor(url, method, origin) {
@@ -33,7 +46,7 @@ function strategyFor(url, method, origin) {
 }
 
 if (typeof module === 'object' && module.exports) {
-  module.exports = { strategyFor: strategyFor, CORE_FILES: CORE_FILES, CORE: CORE, SESSION: SESSION };
+  module.exports = { strategyFor: strategyFor, cacheable: cacheable, CORE_FILES: CORE_FILES, CORE: CORE, SESSION: SESSION };
 } else {
   self.addEventListener('install', function (e) {
     e.waitUntil(caches.open(CORE).then(function (c) {
@@ -44,7 +57,7 @@ if (typeof module === 'object' && module.exports) {
 
   self.addEventListener('activate', function (e) {
     e.waitUntil(caches.keys().then(function (keys) {
-      return Promise.all(keys.filter(function (k) { return k.indexOf('sa-core-') === 0 && k !== CORE; }).map(function (k) { return caches.delete(k); }));
+      return Promise.all(keys.filter(function (k) { return (k.indexOf('sa-core-') === 0 && k !== CORE) || (k.indexOf('sa-session-') === 0 && k !== SESSION); }).map(function (k) { return caches.delete(k); }));
     }).then(function () { return self.clients.claim(); }));
   });
 
@@ -60,7 +73,7 @@ if (typeof module === 'object' && module.exports) {
     if (how === 'static') {
       e.respondWith(caches.match(e.request, { ignoreSearch: true }).then(function (hit) {
         return hit || fetch(e.request).then(function (res) {
-          if (res.ok) { var copy = res.clone(); caches.open(SESSION).then(function (c) { c.put(e.request, copy); }); }
+          if (cacheable(e.request.url, res)) { var copy = res.clone(); caches.open(SESSION).then(function (c) { c.put(e.request, copy); }); }
           return res;
         });
       }).catch(function () { return fromCache(e.request); }));
@@ -70,7 +83,7 @@ if (typeof module === 'object' && module.exports) {
       var done = false;
       var timer = setTimeout(function () { if (!done) { done = true; resolve(fromCache(e.request)); } }, NETWORK_WAIT_MS);
       fetch(e.request).then(function (res) {
-        if (res.ok) {
+        if (cacheable(e.request.url, res)) {
           var copy = res.clone();
           var key = new URL(e.request.url); key.search = '';
           caches.open(CORE).then(function (c) { c.put(key.toString(), copy); });
@@ -91,7 +104,7 @@ if (typeof module === 'object' && module.exports) {
       return Promise.all(urls.map(function (u) {
         return caches.match(u, { ignoreSearch: true }).then(function (hit) {
           if (hit) return null;
-          return fetch(u).then(function (res) { if (!res.ok) throw new Error(String(res.status)); return c.put(u, res); })
+          return fetch(u).then(function (res) { if (!cacheable(new URL(u, self.location.href).href, res)) throw new Error(String(res.status)); return c.put(u, res); })
             .then(function () { return null; }, function () { return u; });
         });
       }));
