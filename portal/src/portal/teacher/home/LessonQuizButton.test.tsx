@@ -40,6 +40,13 @@ describe("LessonQuizButton", () => {
     expect(assign).toHaveBeenCalledWith("/quiz/teacher/tok");
   });
 
+  it("on a Digital Coach report: the same button, logged as coach_quiz", async () => {
+    render(<MemoryRouter><LessonQuizButton from="coach" /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: HOME_CARD_COPY.lp.quizThis }));
+    expect(tapHome).toHaveBeenCalledWith("coach_quiz");
+    expect(assign).toHaveBeenCalledWith("/quiz/teacher/tok");
+  });
+
   it("switch on but no quiz home (the bot off, a coach): nothing drawn", async () => {
     h.quizHome = null;
     draw();

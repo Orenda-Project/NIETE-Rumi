@@ -23,6 +23,7 @@ import { COACHING_HOME, COACHING_NEW } from './paths';
 import { dcSteps, toReportData } from './report';
 import { ClassCheck, Reflection, stoppedLine } from './reportLive';
 import { useDcReport } from './useDcReport';
+import { LessonQuizButton } from '../home/LessonQuizButton';
 
 /**
  * bd-fmf24g.4 — the shared report page (v28 canvas CoachingLesson; the coach-visit report uses the same
@@ -35,6 +36,7 @@ import { useDcReport } from './useDcReport';
  *   reflection    the one question, answered here by text or by voice (bd-eygg2f, ICT feedback row 5: a mic
  *                 where Send is while the box is empty; tap, speak, Stop, listen, Send — the bot transcribes it);
  *                 answered, it folds into "Your answer"
+ *   quiz          "Quiz this lesson" once a Digital Coach report is ready (the Home card's switch; home/LessonQuizButton)
  *   report        ReportBody — the report's own scores, photos, journey, next step, the coach's note
  *
  * Polled as today's lesson page polls (5 s for two minutes, then 15 s) until ready or stopped.
@@ -156,6 +158,10 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
       ) : null}
 
       <Reflection r={r} />
+
+      {ready && !isVisit ? (
+        <LessonQuizButton from="coach" className={cn(CARD, 'flex min-h-[56px] w-full items-center gap-2 px-4 text-[15px] font-semibold text-[#33374a]')} />
+      ) : null}
 
       {ready && isVisit && answered.length ? (
         <>
