@@ -30,6 +30,21 @@
     });
   }
 
+  /**
+   * The phone goes back to the coach (or the game's map): embedded in the coach page's iframe, tell the parent
+   * ({type:'sa:done', s, reason}: 'complete', or 'coach_end' when the coach ended any task); else go to back.
+   */
+  function done(win, opts, sessionId, runner) {
+    var ended = runner.results().some(function (r) { return r.stop_reason === 'coach_end'; });
+    var msg = { type: 'sa:done', s: sessionId, reason: ended ? 'coach_end' : 'complete' };
+    if (opts.embed && win.parent && win.parent !== win) {
+      win.parent.postMessage(msg, win.location.origin);
+      return 'posted';
+    }
+    if (opts.back && win.location) { win.location.assign(opts.back); return 'navigated'; }
+    return null;
+  }
+
   var HOOK = { item_correct: 'correct', item_incorrect: 'incorrect', task_start: 'task_start', task_end: 'task_end', battery_end: 'battery_end' };
 
   /** start(opts) → Promise<engine>. deps (tests): { core, store, ui, voice, sync, rec, now }. */
@@ -109,7 +124,7 @@
             runner.log('handover_out');
             writes.then(function () { return sync ? sync.flush() : null; }).then(function () {
               fire('unlock', null);
-              if (opts.back && root.location) root.location.assign(opts.back);
+              done(root, opts, sessionId, runner);
             });
           },
           onHandover: function () { runner.log('handover_in'); },
@@ -142,5 +157,5 @@
     });
   }
 
-  return { start: start };
+  return { start: start, done: done };
 }));
