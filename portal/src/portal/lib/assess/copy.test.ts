@@ -36,6 +36,13 @@ describe("assess copy", () => {
     expect(COPY.ur.teacher("Saima Testwala")).toBe("ٹیچر: ⁨Saima Testwala⁩");
     expect(COPY.ur.handover("Ayan")).toContain("⁨Ayan⁩");
     expect(COPY.ur.childrenDone(2, 5)).toContain("⁦2/5⁩");
+    expect(COPY.ur.aboutMinutes(29)).toContain("⁦29⁩");
+  });
+
+  it("block names", () => {
+    expect(COPY.en.blocks).toEqual({ B1: "Urdu reading", B2: "English reading", B3: "Listening", B4: "Maths: numbers", B5: "Maths: sums", full: "Whole battery" });
+    expect(COPY.ur.blocks.B1).toBe("اردو پڑھنا");
+    expect(COPY.ur.blocks.full).toBe("مکمل جائزہ");
   });
 
   it("no roll number anywhere", () => {
@@ -56,7 +63,7 @@ describe("assess copy", () => {
   it("buttons stay short (≤ 24 code points)", () => {
     for (const lang of ["ur", "en"] as const) {
       const c = COPY[lang];
-      for (const b of [c.present, c.absent, c.refused, c.start, c.holdFinished, c.backToList, c.endVisit, c.finish, c.tryAgain, c.continue]) {
+      for (const b of [c.present, c.absent, c.refused, c.start, c.holdEnd, c.wholeBattery, c.endVisit, c.finish, c.tryAgain, c.continue]) {
         expect([...b].length).toBeLessThanOrEqual(24);
       }
     }
