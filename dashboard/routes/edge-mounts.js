@@ -9,6 +9,7 @@
  */
 module.exports = Object.freeze([
   ['first-touch', 'first-touch.routes', 'createFirstTouchRouter'], // the maker page: /m/:token, /f/:token, /api/ft/* (quiz_maker_page)
+  ['push-remind', 'push-remind.routes', 'createPushRemindRouter'], // the child's reminder: /sw.js, /remind/:code, /api/wqpush/* (web_quiz_push_remind, decided by the bot)
   ['quiz-go', 'quiz-go.routes', 'createQuizGoRouter'],         // the one door: /quiz/go/:token, /api/go/* (quiz_one_door, decided by the bot)
   ['quiz-join', 'quiz-join.routes', 'createQuizJoinRouter'],   // a child joins on their own: /quiz/join/:token (quiz_student_join, decided by the bot)
   ['quiz-teacher', 'quiz-teacher.routes', 'createQuizTeacherRouter'], // the teacher home: /quiz/teacher/:token(/send|/stories), /api/th/* (quiz_teacher_home)
