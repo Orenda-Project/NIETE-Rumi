@@ -215,7 +215,7 @@ describe('GET /me/home — on', () => {
 
 describe('POST /me/home/tap', () => {
   it('a known kind is 204 and logs home_card.tap; the guards hold', async () => {
-    for (const kind of ['class', 'coach_report', 'lesson', 'observation', 'first_plan', 'chip_coach', 'chip_obs']) {
+    for (const kind of ['class', 'coach_report', 'lesson', 'observation', 'first_plan', 'chip_coach', 'chip_obs', 'lp_quiz']) {
       logEvent.mockClear();
       // eslint-disable-next-line no-await-in-loop
       const out = await tap({ body: { kind } });
