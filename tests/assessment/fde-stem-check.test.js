@@ -113,3 +113,102 @@ describe('applying the fixes', () => {
     expect(record.map((r) => r.outcome)).toEqual(['refused', 'flagged_only', 'flagged_only']);
   });
 });
+
+/**
+ * bd-5jmnfj.24: on a staging Maths paper the check (1) flagged «Draw and identify any two of the
+ * following angles» as having no list — the list was there, as plain-text parts it never saw — and
+ * reworded it so the list printed twice; (2) rightly flagged the gift-bags question («how many bags»,
+ * answer H.C.F. 14 = fruits per bag) but could only reword the question, so the key still read
+ * «so they can make 14 bags». The check now sees the parts, and a fix may correct the answer line and
+ * a marking point as well, each recorded with what it was.
+ */
+describe('parts printed as plain text (bd-5jmnfj.24)', () => {
+  const angles = () => ({
+    slot: 'science.C.Q3b',
+    question: 'Draw and identify any two of the following angles.',
+    answer: 'Obtuse: more than 90°.',
+    questions: ['Obtuse angle', 'Supplementary angle', 'Straight angle'],
+  });
+  const withAngles = () => { const e = paper(); e.unseen.subjective['Long Question'] = [angles()]; return e; };
+
+  it('prints the parts under their question so the check can see the list', () => {
+    const { prompt, targets } = SC.buildStemCheckPrompt(withAngles(), P);
+    expect(prompt).toContain('parts: i) Obtuse angle | ii) Supplementary angle | iii) Straight angle');
+    expect(prompt).toMatch(/parts:.*printed under/);
+    // a plain-text part is not itself a target: there is nothing to reword in place
+    expect([...targets.keys()]).toContain('Q3b.1');
+    expect([...targets.keys()].filter((k) => k.startsWith('Q3b.1.'))).toEqual([]);
+  });
+});
+
+describe('a fix may correct the answer and marking too (bd-5jmnfj.24)', () => {
+  const ASK = 'A shopkeeper has 28 mangoes and 42 oranges. They make identical gift bags, one kind of fruit in each bag. How many bags can they make?';
+  const bags = () => ({
+    slot: 'science.C.Q3b',
+    question: ASK,
+    answer: 'H.C.F. of 28 and 42 = 14, so they can make 14 bags',
+    scheme: { points: [{ kind: 'M', text: 'A correct method for the H.C.F.', marks: 1 }, { kind: 'A', text: 'Correct answer 14 bags', marks: 1 }] },
+  });
+  const withBags = () => { const e = paper(); e.unseen.subjective['Long Question'] = [bags()]; return e; };
+  const at = (exam) => exam.unseen.subjective['Long Question'][0];
+
+  it('the prompt asks for question, answer and points to agree after the fix', () => {
+    const { prompt } = SC.buildStemCheckPrompt(withBags(), P);
+    expect(prompt).toMatch(/"answer"/);
+    expect(prompt).toMatch(/"points":\[\{"was"/);
+    expect(prompt).toMatch(/agree/);
+  });
+
+  it('reads an answer and point fixes off the reply', () => {
+    const { targets } = SC.buildStemCheckPrompt(withBags(), P);
+    const [f] = SC.parseStemFlags({ flags: [{ label: 'Q3b.1', problem: 'bags vs fruits', answer: 'x', points: [{ was: 'a', now: 'b' }, { was: 1 }, 'junk'] }] }, targets);
+    expect(f).toEqual({ label: 'Q3b.1', problem: 'bags vs fruits', answer: 'x', points: [{ was: 'a', now: 'b' }] });
+  });
+
+  it('corrects the answer line and the named point, keeps the question, records what each was', () => {
+    const before = withBags();
+    const { examJson, record } = SC.applyStemFixes(before, P, [{
+      label: 'Q3b.1', problem: 'bags vs fruits',
+      answer: 'H.C.F. of 28 and 42 = 14 fruits in each bag, so 2 + 3 = 5 bags',
+      points: [{ was: 'Correct answer 14 bags', now: 'Correct answer 5 bags' }, { was: 'not on the paper', now: 'x' }],
+    }]);
+    const q = at(examJson);
+    expect(q.question).toBe(ASK);
+    expect(q.answer).toBe('H.C.F. of 28 and 42 = 14 fruits in each bag, so 2 + 3 = 5 bags');
+    expect(q.scheme.points.map((p) => p.text)).toEqual(['A correct method for the H.C.F.', 'Correct answer 5 bags']);
+    expect(q.scheme.points[1]).toMatchObject({ kind: 'A', marks: 1 });
+    expect(record).toEqual([{
+      label: 'Q3b.1', problem: 'bags vs fruits', outcome: 'answer_fixed',
+      answer_was: 'H.C.F. of 28 and 42 = 14, so they can make 14 bags',
+      points_was: ['Correct answer 14 bags'],
+    }]);
+    expect(at(before).answer).toMatch(/14 bags$/);
+  });
+
+  it('a reworded question and its corrected key go together, recorded as reworded', () => {
+    const { examJson, record } = SC.applyStemFixes(withBags(), P, [{
+      label: 'Q3b.1', problem: 'bags vs fruits', question: 'How many fruits go in each bag?',
+      answer: 'H.C.F. of 28 and 42 = 14 fruits in each bag', points: [{ was: 'Correct answer 14 bags', now: 'Correct answer 14 fruits' }],
+    }]);
+    expect(at(examJson).question).toBe('How many fruits go in each bag?');
+    expect(at(examJson).scheme.points[1].text).toBe('Correct answer 14 fruits');
+    expect(record[0]).toMatchObject({ outcome: 'reworded', was: ASK, answer_was: bags().answer, points_was: ['Correct answer 14 bags'] });
+  });
+
+  it('a string point is replaced in place; a refused or empty answer is not applied', () => {
+    const e = withBags();
+    at(e).scheme.points = ['Correct answer 14 bags'];
+    const refuses = (t) => /forbidden/.test(t);
+    const { examJson, record } = SC.applyStemFixes(e, P, [{
+      label: 'Q3b.1', problem: 'p', answer: 'a forbidden answer', points: [{ was: 'Correct answer 14 bags', now: 'Correct answer 5 bags' }],
+    }], { refuses });
+    expect(at(examJson).answer).toBe(bags().answer);
+    expect(at(examJson).scheme.points).toEqual(['Correct answer 5 bags']);
+    expect(record[0]).toMatchObject({ outcome: 'answer_fixed', answer_refused: 'a forbidden answer', points_was: ['Correct answer 14 bags'] });
+    expect(record[0].answer_was).toBeUndefined();
+
+    const blank = SC.applyStemFixes(withBags(), P, [{ label: 'Q3b.1', problem: 'p', answer: '  ' }]);
+    expect(at(blank.examJson).answer).toBe(bags().answer);
+    expect(blank.record[0].outcome).toBe('flagged_only');
+  });
+});
