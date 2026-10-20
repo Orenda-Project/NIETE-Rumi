@@ -82,7 +82,7 @@ describe('SA reading extras (DESIGN §2b)', () => {
     const t = tasksOf('en.letter_sounds')[0];
     expect(t.tap.items.map((i) => i.target)).toEqual(extra.reading.en.letter_sounds.items.map((x) => x.letter));
     expect(t.tap.items.every((i) => i.options.length === 5 && i.say_kind === 'sound' && i.say.lang === 'en')).toBe(true);
-    expect([t.tap.time_limit_s, t.tap.stop]).toEqual([60, { type: 'first_row', n: 10 }]);
+    expect([t.tap.time_limit_s, t.tap.stop]).toEqual([60, { type: 'first_row', n: 10, max_correct: 2 }]);
     expect(t.practice.map((p) => p.target)).toEqual(['M', 'S']);
   });
 
@@ -102,13 +102,13 @@ describe('SA reading extras (DESIGN §2b)', () => {
     }
   });
 
-  test('placement: initial sounds open B3; extras on their islands; the tower stays the core battery', () => {
+  test('placement: extras in the full form, not the blocks (RULING #16); extras on their islands; the tower stays the core battery', () => {
     const c = bank.forms['coach.G5.A'];
-    expect(c.blocks.B3).toEqual(['ur.vocabulary', 'ur.initial_sound', 'en.initial_sound', 'ur.listening', 'en.listening']);
+    expect(c.blocks.B3).toEqual(['ur.listening', 'en.listening']);
     expect(c.full.indexOf('en.letter_sounds')).toBe(c.full.indexOf('en.letters') + 1);
     const g = bank.forms['game.G1'];
     expect(g.islands.english).toEqual(['en.listening2', 'en.initial_sound', 'en.segmentation', 'en.letters', 'en.letter_sounds', 'en.nonwords', 'en.words',
-      'en.print_orientation', 'en.story2', 'en.story2_comp', 'en.dictation']);
+      'en.print_orientation', 'en.story2', 'en.story2_comp', 'en.spelling']);
     expect(g.islands.urdu).toEqual(['ur.listening2', 'ur.vocabulary', 'ur.initial_sound', 'ur.letters', 'ur.nonwords', 'ur.words', 'ur.print_orientation', 'ur.story2', 'ur.story2_comp']);
     expect(g.tower).toHaveLength(20); // the 18 v3 blocks + the two story-question tasks
   });

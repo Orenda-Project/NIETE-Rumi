@@ -32,7 +32,7 @@
    "star": "ستارہ",
    "shirt": "قمیض",
    "shoe": "جوتا",
-   "pants": "پتلون",
+   "pants": "پینٹ",
    "hat": "ٹوپی"
   },
   "glyphs": {
@@ -144,7 +144,7 @@
       "hat"
      ],
      "say_en": "What comes next? shirt, shoe, pants, shirt, shoe",
-     "say_ur": "آگے کیا آئے گا؟ قمیض، جوتا، پتلون، قمیض، جوتا"
+     "say_ur": "آگے کیا آئے گا؟ قمیض، جوتا، پینٹ، قمیض، جوتا"
     },
     {
      "id": "patterns_3a",
@@ -164,7 +164,7 @@
      "answer": "4",
      "src": "rwp2026:patterns_3a",
      "say_en": "Look at the pattern below. How many times does triangle, circle repeat in the pattern?",
-     "say_ur": "نیچے دی گئی ترتیب کو دیکھیں۔ تکون، دائرہ اس ترتیب میں کتنی بار دہرایا گیا ہے؟"
+     "say_ur": "نیچے دی گئی ترتیب کو دیکھیں۔ اس میں تکون اور دائرہ، یہ دونوں ایک ساتھ کتنی بار آئے ہیں؟"
     },
     {
      "id": "patterns_3b",
@@ -185,7 +185,7 @@
      "answer": "3",
      "src": "rwp2026:patterns_3b",
      "say_en": "Look at the pattern below. How many times does circle, square, triangle repeat?",
-     "say_ur": "نیچے دی گئی ترتیب کو دیکھیں۔ دائرہ، چوکور، تکون کتنی بار دہرایا گیا ہے؟"
+     "say_ur": "نیچے دی گئی ترتیب کو دیکھیں۔ اس میں دائرہ، چوکور اور تکون، یہ تینوں ایک ساتھ کتنی بار آئے ہیں؟"
     },
     {
      "id": "patterns_4a",
@@ -502,7 +502,7 @@
      "prompt_en": "You have 8 sweets. Ali gives you 5 more. How many sweets do you have now?",
      "answer": 13,
      "src": "rwp2026:word_problems_2b",
-     "prompt_ur": "آپ کے پاس ۸ ٹافیاں ہیں۔ علی آپ کو ۵ اور دیتا ہے۔ اب آپ کے پاس کتنی ٹافیاں ہیں؟"
+     "prompt_ur": "آپ کے پاس ۸ ٹافیاں ہیں۔ علی آپ کو ۵ ٹافیاں اور دیتا ہے۔ اب آپ کے پاس کتنی ٹافیاں ہیں؟"
     }
    ],
    "practice_note": "none recorded in the RWP May instrument"
@@ -525,7 +525,7 @@
      ],
      "answer": 18,
      "say_en": "What number comes next? 10, 12, 14, 16",
-     "say_ur": "اس کے بعد کون سا نمبر آئے گا؟ ۱۰، ۱۲، ۱۴، ۱۶"
+     "say_ur": "آگے کون سا نمبر آئے گا؟ ۱۰، ۱۲، ۱۴، ۱۶"
     },
     {
      "id": "identify_2b",
@@ -540,7 +540,7 @@
      ],
      "answer": 60,
      "say_en": "What number comes next? 30, 40, 50",
-     "say_ur": "اس کے بعد کون سا نمبر آئے گا؟ ۳۰، ۴۰، ۵۰"
+     "say_ur": "آگے کون سا نمبر آئے گا؟ ۳۰، ۴۰، ۵۰"
     },
     {
      "id": "identify_3b",
@@ -559,7 +559,7 @@
       908
      ],
      "say_en": "Order the following numbers from smallest to largest: 890, 908, 98",
-     "say_ur": "ان نمبروں کو سب سے چھوٹے سے سب سے بڑے کی ترتیب میں لگائیں: ۸۹۰، ۹۰۸، ۹۸"
+     "say_ur": "ان نمبروں کو چھوٹے سے بڑے کی ترتیب میں لگائیں: ۸۹۰، ۹۰۸، ۹۸"
     },
     {
      "id": "identify_4b",
@@ -578,7 +578,7 @@
       2410
      ],
      "say_en": "Order the following numbers from smallest to largest: 2410, 2041, 421",
-     "say_ur": "ان نمبروں کو سب سے چھوٹے سے سب سے بڑے کی ترتیب میں لگائیں: ۲۴۱۰، ۲۰۴۱، ۴۲۱"
+     "say_ur": "ان نمبروں کو چھوٹے سے بڑے کی ترتیب میں لگائیں: ۲۴۱۰، ۲۰۴۱، ۴۲۱"
     }
    ],
    "gate": "levels 3-4 only if at least 1 of the level 1-2 items is correct (RWP identify_cont)",
