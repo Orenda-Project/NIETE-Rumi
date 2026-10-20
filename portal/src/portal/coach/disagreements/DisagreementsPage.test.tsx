@@ -27,7 +27,7 @@ const row = (id: string, extra: Record<string, unknown> = {}) => ({
   createdAt: "2026-10-14T05:00:00Z", visitedAt: null, sessionDate: "2026-10-13T05:00:00Z", pct: 61, hasNote: false, tags: [], ...extra,
 });
 
-function renderAt(path = "/portal/coach/disagreements") {
+function renderAt(path: string | { pathname: string; state: unknown } = "/portal/coach/disagreements") {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
@@ -146,5 +146,20 @@ describe("DisagreementsPage, Rifat's list", () => {
     renderAt();
     await screen.findByTestId("disagreements-todo");
     expect(document.body.textContent).not.toMatch(/HITL/);
+  });
+
+  it("bd-tbprit.12 — back from a card: on To do, '<name> moved to Done.' or '<name> is back in To do.'", async () => {
+    renderAt({ pathname: "/portal/coach/disagreements", state: { moved: { who: "Bushra Ali", done: true } } });
+    expect(await screen.findByTestId("moved-msg")).toHaveTextContent("Bushra Ali moved to Done.");
+    expect(screen.getByTestId("disagreements-todo")).toBeInTheDocument();
+  });
+
+  it("bd-tbprit.12 — moved back: the line says so; no state, no line", async () => {
+    const { unmount } = renderAt({ pathname: "/portal/coach/disagreements", state: { moved: { who: "Bushra Ali", done: false } } });
+    expect(await screen.findByTestId("moved-msg")).toHaveTextContent("Bushra Ali is back in To do.");
+    unmount();
+    renderAt();
+    await screen.findByTestId("disagreements-todo");
+    expect(screen.queryByTestId("moved-msg")).toBeNull();
   });
 });

@@ -9,7 +9,7 @@ vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Ha
 vi.mock("../../teacher/useLanguageSwitch", () => ({ useLanguageSwitch: () => ({ target: "ur", status: "idle", toggle: vi.fn() }) }));
 vi.mock("./api", async (orig) => ({
   ...(await orig<typeof import("./api")>()),
-  disagreements: { list: vi.fn(), card: vi.fn(), visited: vi.fn(), clipUrl: (id: string, at: number) => `/api/portal/coach/disagreements/${id}/clip?at=${at}` },
+  disagreements: { list: vi.fn(), card: vi.fn(), visited: vi.fn(), undone: vi.fn(), clipUrl: (id: string, at: number) => `/api/portal/coach/disagreements/${id}/clip?at=${at}` },
   readDisagreementsOn: vi.fn(),
 }));
 import { disagreements, readDisagreementsOn } from "./api";
@@ -18,7 +18,7 @@ import DisagreementCard from "./DisagreementCard";
 /**
  * bd-tbprit.3 — one teacher's disagreement, evidence only (Amena, 19 Oct), in Rifat's order: what she disagrees
  * with and the grader's own evidence for each reason, her voice note, what the report told her; where to look
- * (every indicator with the AI's score); her trend; the full DC report; and "I have visited", one-way.
+ * (every indicator with the AI's score); her trend; the full DC report; and (bd-tbprit.12) Mark as done, which can be undone.
  */
 const D = vi.mocked(disagreements);
 const ID = "7e0c1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b";
@@ -153,27 +153,15 @@ describe("DisagreementCard", () => {
     expect(report).toHaveTextContent("Student Engagement");
   });
 
-  it("I have visited: one tap posts it, then it reads Visited and cannot be undone here", async () => {
-    renderCard();
-    fireEvent.click(await screen.findByRole("button", { name: "I have visited" }));
-    await waitFor(() => expect(D.visited).toHaveBeenCalledWith(ID));
-    expect(await screen.findByText("Visited")).toBeInTheDocument();
+  it("bd-tbprit.12 — the card ends with Rifat's Mark as done; a done card carries ✓ Done and Move back to To do", async () => {
+    const { unmount } = renderCard();
+    expect(await screen.findByRole("button", { name: "✓ Mark as done" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "I have visited" })).toBeNull();
-  });
-
-  it("a save that fails says so and leaves the button", async () => {
-    D.visited.mockResolvedValue(false);
-    renderCard();
-    fireEvent.click(await screen.findByRole("button", { name: "I have visited" }));
-    expect(await screen.findByText("Could not save")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "I have visited" })).toBeInTheDocument();
-  });
-
-  it("a done card has no button", async () => {
+    unmount();
     D.card.mockResolvedValue(card({ done: true, status: "visited", noteUrl: null }));
     renderCard();
-    expect(await screen.findByText("Visited")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "I have visited" })).toBeNull();
+    expect(await screen.findByRole("button", { name: "Move back to To do" })).toBeInTheDocument();
+    expect(screen.getByTestId("done-badge")).toHaveTextContent("✓ Done");
   });
 
   it("flag off: to the coach home, the card is never read", async () => {
@@ -187,6 +175,6 @@ describe("DisagreementCard", () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     renderCard();
     expect(await screen.findByTestId("reason-score")).toHaveTextContent("میرا اسکور درست نہیں لگتا");
-    expect(screen.getByRole("button", { name: "میں نے دورہ کر لیا" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "✓ مکمل کریں" })).toBeInTheDocument();
   });
 });

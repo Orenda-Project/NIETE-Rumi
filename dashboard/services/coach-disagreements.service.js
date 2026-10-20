@@ -12,7 +12,11 @@
  *   cardFor  one request, for its own coach only (null otherwise): the report view, the grader's evidence for
  *            each reason, every indicator with its AI score, and the plan steps when the plan was checked.
  *
- * "I have visited" stays coach-visit-request.markVisited — one-way, as the tracker's visited_7d needs.
+ * bd-tbprit.12 — Rifat's "✓ Mark as done" can be undone ("Move back to To do"):
+ *   markDone       her open row reads visited, stamped now (the tracker's visited_7d); her voice note is kept
+ *   markUndone     her visited row goes back to sent (the ping went out) or failed, so visited_7d reads false again
+ *   purgeDoneNotes the voice note is deleted once the card has stood Done 24 h (was: at Done, which an undo would lose)
+ * coach-visit-request.markVisited (delete at Done) still serves the WhatsApp coach-card page.
  */
 const { fullNameOf } = require('../../bot/shared/utils/person-name');
 const { cleanReasons } = require('./coach-ping-reasons');
@@ -189,4 +193,41 @@ async function recordingFor(supabase, coachId, requestId, presign) {
   return (await presign(session.audio_url, 300)) || null;
 }
 
-module.exports = { shapeList, recordingRate, listFor, cardFor, markOpened, recordingFor };
+/** bd-tbprit.12 — "✓ Mark as done": her open row only; a second tap leaves the done time where it was. */
+async function markDone(supabase, coachId, requestId, now = new Date()) {
+  if (!coachId || !requestId) return false;
+  const { error } = await supabase.from('coach_visit_requests').update({ status: 'visited', updated_at: now.toISOString() })
+    .eq('id', requestId).eq('coach_user_id', coachId).in('status', OPEN);
+  return !error;
+}
+
+/** bd-tbprit.12 — "Move back to To do": her visited row goes back to sent, or failed when the ping never went out. */
+async function markUndone(supabase, coachId, requestId, now = new Date()) {
+  if (!coachId || !requestId) return false;
+  const { data: row, error } = await supabase.from('coach_visit_requests').select('id, coach_user_id, status, wa_message_id')
+    .eq('id', requestId).maybeSingle();
+  if (error) return false;
+  if (!row || row.coach_user_id !== coachId || row.status !== 'visited') return true;
+  const { error: e2 } = await supabase.from('coach_visit_requests')
+    .update({ status: row.wa_message_id ? 'sent' : 'failed', updated_at: now.toISOString() })
+    .eq('id', requestId).eq('coach_user_id', coachId).eq('status', 'visited');
+  return !e2;
+}
+
+/** bd-tbprit.12 — her voice notes on cards Done for over 24 h: deleted, then the key cleared. A failed delete keeps it. */
+async function purgeDoneNotes(supabase, coachId, del, now = new Date()) {
+  if (!coachId) return;
+  try {
+    const { data } = await supabase.from('coach_visit_requests').select('id, voice_note_key')
+      .eq('coach_user_id', coachId).eq('status', 'visited').not('voice_note_key', 'is', null)
+      .lt('updated_at', new Date(now.getTime() - DAY_MS).toISOString());
+    for (const r of data || []) {
+      try {
+        await del(r.voice_note_key);
+        await supabase.from('coach_visit_requests').update({ voice_note_key: null }).eq('id', r.id).eq('status', 'visited');
+      } catch (err) { console.error('[coach-disagreements] note purge failed:', err.message); }
+    }
+  } catch (err) { console.error('[coach-disagreements] note purge failed:', err.message); }
+}
+
+module.exports = { shapeList, recordingRate, listFor, cardFor, markOpened, recordingFor, markDone, markUndone, purgeDoneNotes };
