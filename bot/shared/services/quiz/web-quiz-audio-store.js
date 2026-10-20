@@ -83,9 +83,12 @@ async function readSetting(db, key) {
 
 /**
  * May this quiz be recorded now?
+ * countOne (web_quiz_audio_cap_one): the count is quizzes stamped today in either slot (meta.web or, with one voice,
+ * meta.web_one), and a quiz already stamped today in the slot it records into (`slotDay`) is counted already: it
+ * finishes. Off: only meta.web is counted, as before.
  * @returns {Promise<{ok: true, day: string} | {ok: false, reason: 'disabled'|'capped', cap?: number, recordedToday?: number}>}
  */
-async function recordingAllowed({ db, quizId, logEvent, logError, now = Date.now() }) {
+async function recordingAllowed({ db, quizId, logEvent, logError, now = Date.now(), countOne = false, slotDay = null }) {
   const day = pkDay(now);
   let enabled = true;
   let cap = DEFAULT_DAILY_CAP;
@@ -104,9 +107,13 @@ async function recordingAllowed({ db, quizId, logEvent, logError, now = Date.now
     return { ok: true, day };
   }
   if (!enabled) return { ok: false, reason: 'disabled' };
+  if (countOne && slotDay === day) return { ok: true, day };
   let recordedToday = 0;
   try {
-    const { count, error } = await db.from('quizzes').select('id', { count: 'exact', head: true }).eq('meta->web->>audio_day', day);
+    const counted = db.from('quizzes').select('id', { count: 'exact', head: true });
+    const { count, error } = await (countOne
+      ? counted.or(`meta->web->>audio_day.eq.${day},meta->web_one->>audio_day.eq.${day}`)
+      : counted.eq('meta->web->>audio_day', day));
     if (error) throw new Error(error.message || 'count failed');
     recordedToday = Number(count) || 0;
   } catch (error) {
