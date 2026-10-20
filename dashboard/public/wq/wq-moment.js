@@ -284,6 +284,9 @@
     var Y0 = 1e9, Y1 = -1e9, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, nt = 1e9, pb = 0, mh = 1e9, r = function (v) { return Math.round(v * 10) / 10; }, kf, k0, s, tx, p, dn, cy, ch, ty, g, z, i, m, c0, c1, zf, R, s0, t0, lo, hi, k, wl, ps;
     all.forEach(function (b) { Y0 = Math.min(Y0, b[1]); Y1 = Math.max(Y1, b[1] + b[3]); });
     bs.forEach(function (b) { x0 = Math.min(x0, b[0]); x1 = Math.max(x1, b[0] + b[2]); y0 = Math.min(y0, b[1]); y1 = Math.max(y1, b[1] + b[3]); mh = Math.min(mh, b[3]); });
+    // one: a stage held at the sheet (its cap, below) is framed in the room the sheet was drawn in, so the cap holds still
+    ps = one && a.parentNode;
+    if (ps && ps.wqsRoom && ps.wqsRoom[0] === d[0] && ps.wqsRoom[2] === Math.round(d[1])) d = [d[0], ps.wqsRoom[1]];
     dn = im.h - Y1 >= Y0; ch = dn ? im.h - Y1 : Y0;
     if (ch < im.h * .2) return null;
     kf = cam(bs, d[0], d[1], im.w, im.h, rtl, 3, 1); k0 = rs ? cam(null, d[0], d[1], im.w, im.h) : kf;
@@ -311,10 +314,10 @@
       // the picture at the band's width
       z = Math.min(im.w * s, d[0]) / im.w; wl = 1;
       if (z * ch > g[1] - g[0]) {
-        // a stage too short for it (Jugnu's hint showing): the largest size, at or under the band's, at which the band
-        // and the picture fit together (one width, one scale, centred) while a line is still 18 px or more; else the
-        // picture goes
-        s0 = s; t0 = tx; lo = 18 / mh; hi = Math.min(s, zf); wl = 0;
+        // a stage too short for it: the largest size, at or under the band's, at which the band and the picture fit
+        // together (one width, one scale, centred) while a drawn line is still the reader's readable size (25.5 px);
+        // below that the picture goes first and the words keep their size
+        s0 = s; t0 = tx; lo = 25.5 / mh; hi = Math.min(s, zf); wl = 0;
         s = lo; frame();
         if (lo <= hi && ch * s <= g[1] - g[0]) {
           for (k = 0; k < 14; k++) { s = (lo + hi) / 2; frame(); if (ch * s <= g[1] - g[0]) lo = s; else hi = s; }
@@ -332,13 +335,19 @@
     if (m) { i.style.width = m.style.width = r(im.w * z) + 'px'; i.style.height = r(ch * z) + 'px'; i.style.borderRadius = dn ? '0 0 12px 12px' : '12px 12px 0 0'; m.style.transform = 'translateY(' + r(-cy * z) + 'px)'; }
     if (!one) return { s: s, tx: tx, ty: ty, clip: 'inset(' + r(c0) + 'px 0 ' + r(im.h - c1) + 'px 0)' };
     // one: the stage ends at a sheet that stops short of it (the page as wide as it goes), so nothing empty shows above
-    // the row under it; a sheet shrunk to fit takes the stage as it is, so the stage grows back when the hint goes
-    ps = a.parentNode && a.parentNode.style;
-    if (ps && ps.setProperty) ps.setProperty('--wqs-cap', wl && dn && z * ch >= 96 && g[1] < d[1] - .5 ? Math.ceil(g[1]) + 'px' : 'none');
+    // the row under it; a sheet shrunk to fit takes the stage as it is
     if (z * ch >= 96) {
       // the band runs on 2 px under the picture's edge (the same page there), so no hairline shows at the join
       if (dn) c1 = Math.min(im.h, c1 + 2 / s); else c0 = Math.max(0, c0 - 2 / s);
     } else if (dn) c1 = Math.min(c1, y1 + 2 / s); else c0 = Math.max(c0, y0 - 2 / s);   // no picture: tight to the lines, never into the art
+    // ... and with the picture left out the stage ends at the band too (the sheet is never resized for the hint, which
+    // sits over its foot, wq-moment.css, so the cap holds still)
+    k = Math.ceil(z * ch >= 96 ? g[1] : c1 * s + ty);
+    if (ps && ps.style && ps.style.setProperty) {
+      i = dn && (wl || z * ch < 96) && k < d[1] - .5;
+      ps.style.setProperty('--wqs-cap', i ? k + 'px' : 'none'); ps.style.setProperty('--wqs-min', i ? Math.min(200, k) + 'px' : '200px');
+      ps.wqsRoom = i ? [d[0], d[1], k] : null;
+    }
     // one: the band's own outer corners round like the picture's (all four when the picture is left out)
     R = r(12 / s) + 'px';
     return { s: s, tx: tx, ty: ty, one: true, clip: 'inset(' + r(c0) + 'px 0 ' + r(im.h - c1) + 'px 0 round ' + (z * ch < 96 ? R : dn ? R + ' ' + R + ' 0 0' : '0 0 ' + R + ' ' + R) + ')' };
@@ -355,7 +364,19 @@
     if (k === 'hear') return R.pl && hear(R.pl, R.P[m.i], x.rd.s, { sents: x.sents, set: R.C.set, clear: R.C.clear, live: R.live });
     if (k === 'withJ') return say(k, R.L);
     if (k === 'line') return '<p class="wqs-near" data-near hidden></p>';
-    if (k === 'tick') return near(R.root.querySelector('[data-near]'), x.g, x.v, x.ms, R.L);
+    if (k === 'tick') {
+      // one sheet (read_sheet): with its picture, the hint is a bubble over the picture's foot, out of the page's flow, so
+      // the sheet keeps its reading size when it shows (wq-moment.css); without one (the stage held at the band) it is a
+      // line under the sheet, never over the words being read
+      y = R.root.querySelector('[data-near]');
+      var st = R.b && R.b.read_sheet && R.root.querySelector('[data-stage]'), pa = R.root.querySelector('[data-art]'), mb;
+      if (y && st) {
+        pa = pa && !pa.hidden && pa.getAttribute('data-art') === 'on';
+        if (pa && y.parentNode !== st && st.appendChild) st.appendChild(y);
+        else if (!pa && y.parentNode === st && (mb = R.root.querySelector('[data-tap="main"]')) && mb.parentNode) mb.parentNode.insertBefore(y, mb);
+      }
+      return near(y, x.g, x.v, x.ms, R.L);
+    }
     if (k === 'with') { R.rfw = 1; if (R.lr) R.lr.stop('done_tap'); return; }
     if (R.rfw) { R.rfw = 0; if (m.label() === 'listen') m.primary(); }
   }
