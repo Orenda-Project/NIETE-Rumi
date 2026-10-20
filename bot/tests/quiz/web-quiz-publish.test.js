@@ -23,6 +23,8 @@ delete process.env.E2E_CASSETTE;
 const OGG = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'tests', 'fixtures', 'tts', 'libopus-sine-1s.ogg'));
 
 jest.mock('axios');
+// the network edge: a request with no client reads its switches here (none set: off)
+jest.mock('../../shared/config/supabase', () => ({}));
 jest.mock('../../shared/utils/logger', () => ({
   logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(), logInfo: jest.fn(),
 }));
