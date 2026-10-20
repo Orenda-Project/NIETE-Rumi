@@ -1051,6 +1051,20 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # Unit: tests/observe/bd-5rz1v.6.9-portal-observation-no-step-messages.test.js,
     # tests/coaching/bd-s7c31y-portal-report-no-step-messages.test.js.
 
+  @e2e @wip @draft @no-mock-driver @P1 @COA84
+  Scenario: A report section the analysis could not complete says "not assessed", never 0
+    Given the NIETE bot chat is open on a teacher
+    And the analysis of my recording comes back without one of its four sections, even after one retry
+    When my coaching report arrives
+    Then that section shows "not assessed" with a line saying it could not be analysed this time
+    And that section is not counted in my total
+    And no section shows 0 marks only because the analysis left it out
+    # ADDED 2026-10-20 (ICT DC tab row 151). A reply that ended normally carried only Section B and was
+    # scored 10/148 (0/48, 0/28, 0/32); 17 sessions since 1 Aug. analyzePedagogy retries once, then marks
+    # a still-missing section assessed:false / analysis_incomplete (reason: reportSectionNotAnalysed).
+    # Not drivable live: a model cannot be made to drop a section on demand.
+    # Unit: tests/coaching/incomplete-fico-analysis.test.js.
+
   @e2e @wip @draft @P1 @COA59
   Scenario: Picking my lesson plan from the list asks me to confirm before it is used
     Given the NIETE bot chat is open
