@@ -1,4 +1,5 @@
 import type { LibraryPick } from '../../lib/coachingSend';
+import type { LiveMovesRecord } from '../../services/api';
 import type { Audio } from '../../newui/coaching/useSendFlow';
 
 /**
@@ -18,12 +19,20 @@ export type DraftPlan =
 /** The class she picked on the one screen (sent as teacherClass); subjectKey when it is one of her own classes. */
 export type DraftClass = { grade: number; subject: string; subjectKey: string | null };
 
-export type Draft = { audio: Audio | null; plan: DraftPlan | null; photos: File[]; cls?: DraftClass | null };
+/**
+ * bd-v0toag.31.3 — `live`: the live moves record (ticks and taps) the recording page puts here at Stop, sent with Submit.
+ * Left out, the held one is kept while it still belongs to the same recording and the same lesson.
+ */
+export type Draft = { audio: Audio | null; plan: DraftPlan | null; photos: File[]; cls?: DraftClass | null; live?: LiveMovesRecord | null };
 
 let held: Draft | null = null;
 
+const belongs = (live: LiveMovesRecord, d: Draft): boolean =>
+  d.audio?.recordingId === live.liveId && d.plan?.kind === 'library' && 'lessonId' in d.plan.pick && d.plan.pick.lessonId === live.lessonId;
+
 export function holdDraft(draft: Draft): void {
-  held = draft;
+  const live = draft.live !== undefined ? draft.live : held?.live ?? null;
+  held = { ...draft, live: live && belongs(live, draft) ? live : null };
 }
 
 export function peekDraft(): Draft | null {
