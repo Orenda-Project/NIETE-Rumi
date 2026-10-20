@@ -66,6 +66,32 @@ const TASKS = {
     right: L('Yes! The name of this letter is {x}.', 'شاباش! اس حرف کا نام {x} ہے۔', 'v3:sets.A.reading.en.letters.script.practice_1_correct'),
     wrong: L('The name of this letter is {x}.', 'اس حرف کا نام {x} ہے۔', 'v3:sets.A.reading.en.letters.script.practice_1_wrong'),
   },
+  // DESIGN §2b reading extras. English: TK2009 / TK2016 Annex H child instructions; Urdu: SELECT 2024 (initial sound).
+  'en.letter_sounds': {
+    intro_tap: L('Here are some English letters. Jugnu will say the SOUND of a letter, not its name. Tap the letter that makes that sound. Go as quickly and carefully as you can.',
+      'یہ کچھ انگریزی حروف ہیں۔ جگنو ایک حرف کی آواز بولے گا، نام نہیں۔ جو حرف یہ آواز دیتا ہے، اسے دبائیں۔ جتنا جلدی اور دھیان سے ہو سکے، کریں۔',
+      'egra_tk2016:Annex H p.187 letter sound "tell me the sounds of as many letters as you can" (tap adaptation)'),
+    example: L('For example, the sound of this letter is {x}.', 'مثال کے طور پر، اس حرف کی آواز {x} ہے۔', 'egra_tk2016:Annex H p.187 (example T)'),
+    right: L('Yes! The sound of this letter is {x}.', 'شاباش! اس حرف کی آواز {x} ہے۔', 'egra_tk2016:Annex H p.187 (practice, correct)'),
+    wrong: L('The sound of this letter is {x}.', 'اس حرف کی آواز {x} ہے۔', 'egra_tk2016:Annex H p.187 (practice, incorrect)'),
+  },
+  'en.initial_sound': {
+    intro_tap: L('This is a listening game. Jugnu will say a word two times. Listen to the word, then tap the letter for the very first sound in that word.',
+      'یہ سننے کا کھیل ہے۔ جگنو ایک لفظ دو بار بولے گا۔ لفظ غور سے سنیں، پھر اس لفظ کی سب سے پہلی آواز والا حرف دبائیں۔',
+      'egra_tk2009:p34 initial sound "tell me the very first sound in that word" (tap adaptation)'),
+    // {x} = the word, {y} = its first sound as Jugnu says it.
+    example: L('For example, in the word "{x}", the first sound is {y}.', 'مثال کے طور پر، لفظ "{x}" کی پہلی آواز {y} ہے۔', 'egra_tk2009:p34 (example "pot")'),
+    right: L('Very good, the first sound in "{x}" is {y}.', 'شاباش! لفظ "{x}" کی پہلی آواز {y} ہے۔', 'egra_tk2009:p34 (practice, correct)'),
+    wrong: L('Listen again: "{x}". The first sound in "{x}" is {y}.', 'دوبارہ سنیں: "{x}"۔ لفظ "{x}" کی پہلی آواز {y} ہے۔', 'egra_tk2009:p34 (practice, incorrect)'),
+  },
+  'ur.initial_sound': {
+    intro_tap: L('This is a listening game. Jugnu will say some words. Tap the letter for the beginning sound of each word. Jugnu will say each word two times.',
+      'یہ سننے کی مشق ہے۔ جگنو آپ کو کچھ لفظ بتائے گا۔ ہر لفظ کی ابتدائی آواز والا حرف دبائیں۔ جگنو ہر لفظ دو بار دہرائے گا۔',
+      'select2024:p120 initial sound script (tap adaptation)'),
+    example: L('For example, the beginning sound of the word "{x}" is {y}.', 'جیسے: لفظ "{x}" کی ابتدائی آواز {y} ہے۔', 'select2024:p120 (example "جہاز")'),
+    right: L('Well done! The beginning sound of the word "{x}" is {y}.', 'شاباش! لفظ "{x}" کی ابتدائی آواز {y} ہے۔', 'select2024:p120 (practice, correct)'),
+    wrong: L('The beginning sound of the word "{x}" is {y}.', 'لفظ "{x}" کی ابتدائی آواز {y} ہے۔', 'select2024:p120 (practice, incorrect)'),
+  },
   nonwords: {
     intro_record: L('Here are some made-up words. They are not real words. Read as many as you can, out loud. Do not spell them, read each whole word. Start at the first word and go along each row. If you do not know a word, go on to the next one.',
       'یہ کچھ بنائے ہوئے الفاظ ہیں، یہ اصلی الفاظ نہیں ہیں۔ جتنے ہو سکیں، اونچی آواز میں پڑھیں۔ ہجے نہ کریں، پورا لفظ پڑھیں۔ پہلے لفظ سے شروع کریں اور ہر سطر میں آگے بڑھیں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔',
@@ -212,4 +238,11 @@ const UR_LETTER_NAMES = {
   'ھ': 'دو چشمی ہے', 'ء': 'ہمزہ', 'ئ': 'ہمزہ', 'ی': 'چھوٹی یے', 'ے': 'بڑی یے',
 };
 
-module.exports = { COMMON, BATTERY, TASKS, UR_LETTER_NAMES };
+// What Jugnu says for an English letter SOUND (letter-sound task). TK2009 p.28 accepts /b/ or /buh/ and either vowel
+// sound; these spellings are for the voice only and are checked by ear (a human recording is preferred).
+const EN_LETTER_SOUNDS = {
+  a: 'ah', b: 'buh', c: 'kuh', d: 'duh', e: 'eh', f: 'fff', g: 'guh', h: 'hhh', i: 'ih', j: 'juh', k: 'kuh', l: 'lll', m: 'mmm',
+  n: 'nnn', o: 'aw', p: 'puh', q: 'kwuh', r: 'rrr', s: 'sss', t: 'tuh', u: 'uh', v: 'vvv', w: 'wuh', x: 'ks', y: 'yuh', z: 'zzz',
+};
+
+module.exports = { COMMON, BATTERY, TASKS, UR_LETTER_NAMES, EN_LETTER_SOUNDS };

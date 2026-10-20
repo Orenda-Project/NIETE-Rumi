@@ -8,6 +8,20 @@
   "rti_rwanda2011": {
    "title": "RTI International for USAID (2011), Early Grade Reading and Mathematics in Rwanda: Final Report, Annex C (sample items)",
    "pages": "printed p. C-4"
+  },
+  "egra_tk2009": {
+   "title": "Early Grade Reading Assessment Toolkit (RTI International for the World Bank, March 2009)",
+   "url": "https://s3.us-west-2.amazonaws.com/ierc-v2-publicfiles/public/public/resources/EGRA_Toolkit_Mar09.pdf"
+  },
+  "egra_tk2016": {
+   "title": "EGRA Toolkit, Second Edition (RTI International for USAID, 2016), Annex H",
+   "url": "https://ierc-publicfiles.s3.amazonaws.com/public/resources/EGRA%20Toolkit%20V2%202016.pdf"
+  },
+  "select2024": {
+   "title": "Early Grade Reading Assessment, Sindh Baseline 2024 (USAID SELECT), Grade 2 Urdu instrument annex"
+  },
+  "prpkp2020": {
+   "title": "Pakistan Reading Project, Khyber Pakhtunkhwa, Endline 2020 (USAID), EGRA Urdu Form 1"
   }
  },
  "conventions": {
@@ -641,6 +655,1103 @@
    ],
    "caveat": "sample items printed in the report annex (12), uncalibrated for Pakistan",
    "practice_note": "none printed in Annex C"
+  }
+ },
+ "reading": {
+  "en": {
+   "letter_sounds": {
+    "subtask": "letter_sound_identification",
+    "timed_s": 60,
+    "per_row": 10,
+    "items": [
+     {
+      "letter": "L",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "i",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "h",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "R",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "S",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "y",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "E",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "O",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "n",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "T",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "i",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "e",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "T",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "D",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "A",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "t",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "a",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "d",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "e",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "w",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "h",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "O",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "e",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "m",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "U",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "r",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "L",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "G",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "R",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "u",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "g",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "R",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "B",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "E",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "i",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "f",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "m",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "t",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "s",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "r",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "S",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "T",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "C",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "N",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "p",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "A",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "F",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "c",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "a",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "E",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "y",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "s",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "Q",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "A",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "M",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "C",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "O",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "t",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "n",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "P",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "e",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "A",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "e",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "s",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "O",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "F",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "h",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "u",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "A",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "t",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "R",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "q",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "H",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "b",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "S",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "i",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "g",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "m",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "i",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "L",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "L",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "i",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "N",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "O",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "e",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "o",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "E",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "r",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "p",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "X",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "N",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "A",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "c",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "D",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "d",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "I",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "O",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "j",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "e",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     },
+     {
+      "letter": "n",
+      "src": "egra_tk2009:p31 (printed p.24)"
+     }
+    ],
+    "practice": [
+     {
+      "item": "T",
+      "role": "example",
+      "sound": "/t/",
+      "src": "egra_tk2016:p211 (printed p.187)"
+     },
+     {
+      "item": "M",
+      "role": "practice",
+      "sound": "/m/",
+      "src": "egra_tk2016:p211 (printed p.187)"
+     },
+     {
+      "item": "S",
+      "role": "practice",
+      "sound": "/s/",
+      "src": "egra_tk2016:p212 (printed p.188)"
+     }
+    ],
+    "stop": {
+     "type": "first_row",
+     "n": 10,
+     "src": "egra_tk2016:p212 (printed p.188)"
+    },
+    "answer_rule": "For consonants that can represent more than one sound (i.e., c, g), either answer is acceptable. For vowels, either the short or long sound is accepted (/i/ as in pin or as in pine). Students may have difficulty in eliminating the vowel sound frequently associated with consonants; in these cases either /b/ or /buh/ is accepted as a correct response. During training, enumerators and supervisors should carefully review possible pronunciations of each letter. (For a complete listing of characters and symbols in phonetic alphabets, please see http://www.antimoon.com/misc/phonchart2008.pdf.)",
+    "answer_rule_src": "egra_tk2009:p35 (printed p.28)"
+   },
+   "initial_sound": {
+    "subtask": "initial_sound_identification",
+    "timed_s": null,
+    "items": [
+     {
+      "word": "map",
+      "sound": "/mmmm/",
+      "src": "egra_tk2009:p34 (printed p.27)"
+     },
+     {
+      "word": "say",
+      "sound": "/ssssss/",
+      "src": "egra_tk2009:p34 (printed p.27)"
+     },
+     {
+      "word": "up",
+      "sound": "/uh/",
+      "src": "egra_tk2009:p34 (printed p.27)"
+     },
+     {
+      "word": "go",
+      "sound": "/g’/",
+      "src": "egra_tk2009:p34 (printed p.27)"
+     },
+     {
+      "word": "now",
+      "sound": "/nnnn/",
+      "src": "egra_tk2009:p34 (printed p.27)"
+     },
+     {
+      "word": "can",
+      "sound": "/k’/",
+      "src": "egra_tk2009:p35 (printed p.28)"
+     },
+     {
+      "word": "fish",
+      "sound": "/ffffff/",
+      "src": "egra_tk2009:p35 (printed p.28)"
+     },
+     {
+      "word": "pot",
+      "sound": "/p’/",
+      "src": "egra_tk2009:p35 (printed p.28)"
+     },
+     {
+      "word": "run",
+      "sound": "/rrrrrr/",
+      "src": "egra_tk2009:p35 (printed p.28)"
+     },
+     {
+      "word": "look",
+      "sound": "/llllll/",
+      "src": "egra_tk2009:p35 (printed p.28)"
+     }
+    ],
+    "example": {
+     "word": "pot",
+     "sound": "/p/",
+     "src": "egra_tk2009:p34; egra_tk2016:p214"
+    },
+    "practice": [
+     {
+      "word": "mouse",
+      "sound": "/mmmmm/",
+      "src": "egra_tk2009:p34 (printed p.27)"
+     },
+     {
+      "word": "day",
+      "sound": "/ d /",
+      "src": "egra_tk2009:p34 (printed p.27)"
+     }
+    ],
+    "stop": {
+     "type": "first_n_zero",
+     "n": 5,
+     "src": "egra_tk2009:p34; egra_tk2016:p214-215"
+    }
+   },
+   "segmentation": {
+    "subtask": "phoneme_segmentation",
+    "timed_s": null,
+    "items": [
+     {
+      "word": "too",
+      "phonemes": [
+       "/t/",
+       "/oo/"
+      ],
+      "src": "egra_tk2009:p33 (printed p.26)"
+     },
+     {
+      "word": "say",
+      "phonemes": [
+       "/s/",
+       "/a/"
+      ],
+      "src": "egra_tk2009:p33 (printed p.26)"
+     },
+     {
+      "word": "up",
+      "phonemes": [
+       "/u/",
+       "/p/"
+      ],
+      "src": "egra_tk2009:p33 (printed p.26)"
+     },
+     {
+      "word": "buy",
+      "phonemes": [
+       "/b/",
+       "/i/"
+      ],
+      "src": "egra_tk2009:p33 (printed p.26)"
+     },
+     {
+      "word": "me",
+      "phonemes": [
+       "/m/",
+       "/ee/"
+      ],
+      "src": "egra_tk2009:p33 (printed p.26)"
+     },
+     {
+      "word": "set",
+      "phonemes": [
+       "/s/",
+       "/e/",
+       "/t/"
+      ],
+      "src": "egra_tk2009:p33 (printed p.26)"
+     },
+     {
+      "word": "mop",
+      "phonemes": [
+       "/m/",
+       "/o/",
+       "/p/"
+      ],
+      "src": "egra_tk2009:p33 (printed p.26)"
+     },
+     {
+      "word": "jam",
+      "phonemes": [
+       "/j/",
+       "/a/",
+       "/m/"
+      ],
+      "src": "egra_tk2009:p33 (printed p.26)"
+     },
+     {
+      "word": "fish",
+      "phonemes": [
+       "/f/",
+       "/i/",
+       "/sh/"
+      ],
+      "src": "egra_tk2009:p33 (printed p.26)"
+     },
+     {
+      "word": "cool",
+      "phonemes": [
+       "/k/",
+       "/oo/",
+       "/l/"
+      ],
+      "src": "egra_tk2009:p33 (printed p.26)"
+     }
+    ],
+    "example": {
+     "word": "pot",
+     "phonemes": [
+      "/p/",
+      "/o/",
+      "/t/"
+     ],
+     "src": "egra_tk2009:p33; egra_tk2016:p215"
+    },
+    "practice": [
+     {
+      "word": "fan",
+      "phonemes": [
+       "/f/",
+       "/a/",
+       "/n/"
+      ],
+      "src": "egra_tk2009:p33 (printed p.26)"
+     },
+     {
+      "word": "miss",
+      "phonemes": [
+       "/m/",
+       "/i/",
+       "/ss/"
+      ],
+      "src": "egra_tk2009:p33 (printed p.26)"
+     }
+    ],
+    "stop": {
+     "type": "first_n_zero",
+     "n": 5,
+     "src": "egra_tk2009:p33; egra_tk2016:p216 (printed p.192)"
+    },
+    "scoring": "The examiner records the number of correct phonemes as a proportion of total phonemes attempted. This is not a timed segment of the assessment. (tk2009:p32, printed p.25)"
+   },
+   "dictation": {
+    "subtask": "dictation",
+    "timed_s": null,
+    "sentence": "Go to the shop and buy some rice and sugar.",
+    "grouping": [
+     "Go to the shop",
+     "and buy some rice",
+     "and sugar"
+    ],
+    "src": "egra_tk2009:p42 (printed p.35)",
+    "rubric": [
+     {
+      "criterion": "Wrote “shop” correctly.",
+      "correct_2": null,
+      "partial_1": "(sh, ho, op, sho, sop)",
+      "incorrect_0": null
+     },
+     {
+      "criterion": "Wrote “buy” correctly.",
+      "correct_2": null,
+      "partial_1": "(bu, uy)",
+      "incorrect_0": null
+     },
+     {
+      "criterion": "Wrote “rice” correctly.",
+      "correct_2": null,
+      "partial_1": "( ri, ic, ce, ric, ice)",
+      "incorrect_0": null
+     },
+     {
+      "criterion": "Wrote “sugar” correctly.",
+      "correct_2": null,
+      "partial_1": "(sug, uga, gar, suga, ugar )",
+      "incorrect_0": null
+     },
+     {
+      "criterion": "Used  spacing between words (size of spacing does not matter).",
+      "correct_2": "9 spaces (between all words)",
+      "partial_1": "5-8 spaces in the sentence.",
+      "incorrect_0": "0-4 spaces."
+     },
+     {
+      "criterion": "Used appropriate direction of text (left to right).",
+      "correct_2": null,
+      "partial_1": "DO NOT MARK HERE",
+      "incorrect_0": null
+     },
+     {
+      "criterion": "Used capital letter for the word “Go”",
+      "correct_2": null,
+      "partial_1": "DO NOT MARK HERE",
+      "incorrect_0": null
+     },
+     {
+      "criterion": "Used full stop (.) at end of sentence.",
+      "correct_2": null,
+      "partial_1": "DO NOT MARK HERE",
+      "incorrect_0": null
+     }
+    ],
+    "rubric_src": "egra_tk2009:p42 (printed p.35)"
+   },
+   "listening2": {
+    "subtask": "listening_comprehension",
+    "timed_s": null,
+    "story": "The gray duckling fell in the mud. “Help me,” she cried. A green frog came to help, but he fell in too. “What now?” asked the frog.  “I see something that leads to land!” the duckling replied. They both climbed on the log. “We are saved!” they shouted.",
+    "src": "egra_tk2009:p41 (printed p.34)",
+    "read_times": 1,
+    "questions": [
+     {
+      "q": "What is a duckling?",
+      "accept": [
+       "duck",
+       "little duck"
+      ],
+      "src": "egra_tk2009:p41"
+     },
+     {
+      "q": "Who fell in the mud last?",
+      "accept": [
+       "frog"
+      ],
+      "src": "egra_tk2009:p41"
+     },
+     {
+      "q": "What did the duckling see that was important?",
+      "accept": [
+       "log"
+      ],
+      "src": "egra_tk2009:p41"
+     },
+     {
+      "q": "How did the frog and the duck get out of the mud?",
+      "accept": [
+       "climbed on log"
+      ],
+      "src": "egra_tk2009:p41"
+     },
+     {
+      "q": "Why do you think the frog and the duck are friends?",
+      "accept": [
+       "tried to help",
+       "helped each other"
+      ],
+      "src": "egra_tk2009:p41"
+     }
+    ]
+   },
+   "story2": {
+    "subtask": "oral_reading_fluency",
+    "timed_s": 60,
+    "lines": [
+     "My name is Pat.  I live on a farm with my mother, father and brother Sam.",
+     "My family is happy. One day Sam planted seeds with father.  A snake bit him!",
+     "Mother knew what to do.  She put wet cloths and leaves on his leg.",
+     "The next day, Sam was back in the field with father.  We were happy again."
+    ],
+    "word_count": 60,
+    "src": "egra_tk2009:p40",
+    "questions": [
+     {
+      "q": "How many people are in Pat’s family?",
+      "accept": [
+       "four",
+       "mother, father, Sam, Pat"
+      ],
+      "any_reasonable": false,
+      "needs_line": 1,
+      "src": "egra_tk2009:p40"
+     },
+     {
+      "q": "Sam’s family was happy, then something happened. What was it?",
+      "accept": [
+       "a snake bit Sam"
+      ],
+      "any_reasonable": false,
+      "needs_line": 2,
+      "src": "egra_tk2009:p40"
+     },
+     {
+      "q": "Where did the snake bite Sam?",
+      "accept": [
+       "leg"
+      ],
+      "any_reasonable": false,
+      "needs_line": 3,
+      "src": "egra_tk2009:p40"
+     },
+     {
+      "q": "How did Sam get well?",
+      "accept": [
+       "his mother helped him",
+       "put wet cloths and leaves on his leg"
+      ],
+      "any_reasonable": false,
+      "needs_line": 3,
+      "src": "egra_tk2009:p40"
+     },
+     {
+      "q": "Was made the family happy again?",
+      "accept": [
+       "Sam was healed"
+      ],
+      "any_reasonable": false,
+      "needs_line": 4,
+      "src": "egra_tk2009:p40"
+     },
+     {
+      "q": "What do you think happened to the snake?",
+      "accept": [
+       "ran off",
+       "Pat or father killed it"
+      ],
+      "any_reasonable": true,
+      "needs_line": 4,
+      "src": "egra_tk2009:p40"
+     }
+    ]
+   },
+   "print_orientation": {
+    "subtask": "orientation_to_print",
+    "prompts": [
+     "I don’t want you to read this now.",
+     "On this page, where would you begin to read? Show me with your finger.",
+     "Now show me in which direction you would read next.",
+     "When you get to the end of the line, where would you read next?"
+    ],
+    "src": "egra_tk2016:p211 (printed p.187)"
+   }
+  },
+  "ur": {
+   "initial_sound": {
+    "subtask": "initial_sound_identification",
+    "timed_s": null,
+    "items": [
+     {
+      "word": "سَلام",
+      "sound": "/س/",
+      "letter": "س",
+      "src": "select2024:p120 (printed p.100)"
+     },
+     {
+      "word": "بَرَس",
+      "sound": "/ب/",
+      "letter": "ب",
+      "src": "select2024:p120 (printed p.100)"
+     },
+     {
+      "word": "گھڑی",
+      "sound": "/گھ/",
+      "letter": "گھ",
+      "src": "select2024:p120 (printed p.100)"
+     },
+     {
+      "word": "جَماعت",
+      "sound": "/ج/",
+      "letter": "ج",
+      "src": "select2024:p120 (printed p.100)"
+     },
+     {
+      "word": "مَداری",
+      "sound": "/م/",
+      "letter": "م",
+      "src": "select2024:p120 (printed p.100)"
+     },
+     {
+      "word": "شَجَر",
+      "sound": "/ش/",
+      "letter": "ش",
+      "src": "select2024:p120 (printed p.100)"
+     },
+     {
+      "word": "رَضا",
+      "sound": "/ر/",
+      "letter": "ر",
+      "src": "select2024:p120 (printed p.100)"
+     },
+     {
+      "word": "خبر",
+      "sound": "/خ/",
+      "letter": "خ",
+      "src": "select2024:p121 (printed p.101)"
+     },
+     {
+      "word": "عَدالت",
+      "sound": "/ع/",
+      "letter": "ع",
+      "src": "select2024:p121 (printed p.101)"
+     },
+     {
+      "word": "ٹماٹر",
+      "sound": "/ٹ/",
+      "letter": "ٹ",
+      "src": "select2024:p121 (printed p.101)"
+     }
+    ],
+    "practice": [
+     {
+      "word": "جہاز",
+      "role": "example",
+      "sound": "/ج/",
+      "letter": "ج",
+      "src": "select2024:p120 (printed p.100)"
+     },
+     {
+      "word": "انار",
+      "role": "practice",
+      "sound": "/ا/",
+      "letter": "ا",
+      "src": "select2024:p120 (printed p.100)"
+     },
+     {
+      "word": "مدد",
+      "role": "practice",
+      "sound": "/م/",
+      "letter": "م",
+      "src": "select2024:p120 (printed p.100)"
+     }
+    ],
+    "stop": {
+     "type": "first_n_zero",
+     "n": 5,
+     "src": "select2024:p120"
+    },
+    "script_ur": "(طالب علم/ طالبہ سے کہیے)\n- یہ سننے کی مشق ہے۔ میں آپ کو کچھ لفظ بتاؤں گا/ گی۔ آپ کو یہ بتانا ہے کہ ان لفظوں کی ابتدائی/ شروع کی آواز کیا ہے۔ جیسے: لفظ \"جہاز\" کی ابتدائی/ شروع کی آواز /ج/ ہے۔ میں ہر لفظ دوبارہ دہراؤں گا/ گی۔ آپ اسے غور سے سنیں گے اور بتائیں گے کہ ان الفاظ کی ابتدائی آواز کیا ہے؟\n- اب آپ بتائیں لفظ \"انار\" کی ابتدائی آواز کیا ہے؟\n- (اگر طالب علم/ طالبہ صحیح جواب دے تو کہیے۔) \"شاباش\"، لفظ \"انار\" کی ابتدائی آواز /ا/ ہے۔\n- (اگر طالب علم/ طالبہ درست جواب نہ دے تو کہیے) لفظ \"انار\" کی ابتدائی آواز /ا/ ہے\n- اب ایک اور کوشش کریں لفظ \"مدد\" کی ابتدائی آواز کیا ہے؟\n- (اگر طالب علم/ طالبہ صحیح جواب دے تو کہیے) \"شاباش\"، لفظ \"مدد\" کی ابتدائی آواز /م/ ہے۔۔\n- (اگر طالب علم/ طالبہ صحیح جواب نہ دے تو کہیے) لفظ \"مدد\" کی ابتدائی آواز /م/ ہے\n- اب میں آپ کے لیے ہر لفظ دوبارہ دہراؤں گا/ گی؛ آپ اسے غور سے سنیں اور بتائیں کہ اُس لفظ کی ابتدائی آواز کیا ہے؟\n- کیا آپ تیار ہیں؟\n- (مشق شروع کیجیے:)\nاس لفظ کی ابتدائی آواز کیا ہے؟ \"----\"، \"----\" (ہر لفظ دوبار پڑھیے)"
+   },
+   "story2": {
+    "subtask": "oral_reading_fluency",
+    "timed_s": 60,
+    "text": "مٹھو میاں پنجرے میں ادھر اُدھر پُھدک رہے تھے۔ ٹَیں ٹَیں کیے جا رہے تھے۔ اصل میں انھیں بھُوک لگی تھی۔ مٹھو میاں کے شور سے بانو کی آنکھ کھل گئی۔ وہ باہر آئی اور مٹھو میاں کو دانہ پانی دیا۔ مٹھو میاں نے جی بھر کر دانہ کھایا اور گنگنانے لگے۔\nبانو بچی پیاری ہے۔\nسب کی راج دلاری ہے۔",
+    "segments": [
+     {
+      "seg": "مٹھو میاں پنجرے میں ادھر اُدھر پُھدک رہے تھے۔",
+      "cum_marker": 9
+     },
+     {
+      "seg": "ٹَیں ٹَیں کیے جا رہے تھے۔ اصل میں انھیں بھوک لگی تھی۔",
+      "cum_marker": 20
+     },
+     {
+      "seg": "مٹھو میاں کے شور سے بانو کی آنکھ کھل گئی۔",
+      "cum_marker": 30
+     },
+     {
+      "seg": "وہ باہر آئی اور مٹھو میاں کو دانہ پانی دیا۔",
+      "cum_marker": 40
+     },
+     {
+      "seg": "مٹھو میاں نے جی بھر کر دانہ کھایا اور گنگنانے لگے۔ بانو بچی پیاری ہے سب کی راج دلاری ہے",
+      "cum_marker": 60
+     }
+    ],
+    "word_count": 60,
+    "word_count_note": "60 = instrument's own count (cumulative row markers 9, 20, 30, 40, 60 printed on assessor copy), which is consistent only if the reduplicated 'ٹَیں ٹَیں' is counted as ONE word. Plain whitespace token count of the text = 61.",
+    "src": "select2024:p124",
+    "questions": [
+     {
+      "q": "مٹھو میاں کہاں پُھدک رہے تھے؟",
+      "accept": [
+       "پنجرے میں"
+      ],
+      "after_marker": 9,
+      "src": "select2024:p124 (printed p.104)"
+     },
+     {
+      "q": "وہ ٹَیں ٹَیں کیوں کر رہے تھے؟",
+      "accept": [
+       "انھیں بھوک لگی تھی"
+      ],
+      "after_marker": 20,
+      "src": "select2024:p124 (printed p.104)"
+     },
+     {
+      "q": "شور سے کس کی آنکھ کھلی؟",
+      "accept": [
+       "بانو کی"
+      ],
+      "after_marker": 30,
+      "src": "select2024:p124 (printed p.104)"
+     },
+     {
+      "q": "بانو نے مٹھو میاں کا خیال کیوں رکھا؟",
+      "accept": [
+       "کیوں کہ بانو نے مٹھو کو پالا ہے",
+       "کیوں کہ وہ مٹھو سے محبت کرتی ہے"
+      ],
+      "after_marker": 40,
+      "src": "select2024:p124 (printed p.104)"
+     },
+     {
+      "q": "جانور/ پرندوں کا خیال کیسے رکھا جا سکتا ہے؟",
+      "accept": [
+       "ان کے کھانے پینے کا خیال رکھ کر، وقت پر دانہ پانی دے کر، انھیں محبت یا پیار سے رکھ کر"
+      ],
+      "after_marker": 60,
+      "src": "select2024:p124 (printed p.104)"
+     }
+    ]
+   },
+   "listening2": {
+    "subtask": "listening_comprehension",
+    "timed_s": null,
+    "story": "کسی جنگل میں ہاتھی اور ایک بندر رہتے تھے۔ ایک دن بندر دوسرے جنگل چلا گیا۔ ہاتھی رونے لگا۔ پاس بیٹھا خرگوش بولا: \"میں تمہارا دوست بنوں گا\" ہاتھی خوش ہو گیا۔",
+    "src": "select2024:p125 (printed p.105)",
+    "read_times": 1,
+    "questions": [
+     {
+      "q": "جنگل میں کون رہتے تھے؟",
+      "accept": [
+       "ہاتھی، اور بندر",
+       "ہاتھی، بندر اور خرگوش"
+      ],
+      "src": "select2024:p125 (printed p.105)"
+     },
+     {
+      "q": "بندر کے چلے جانے کے بعد ہاتھی کا دوست کون بنا؟",
+      "accept": [
+       "خرگوش"
+      ],
+      "src": "select2024:p126 (printed p.106)"
+     },
+     {
+      "q": "آپ کے خیال میں خرگوش نے ہاتھی سے دوستی کیوں کی؟",
+      "accept": [
+       "خرگوش نے ہاتھی کو اکیلا دیکھ کر دوستی کی",
+       "خرگوش کو دوست بنانا پسند ہے",
+       "خرگوش ہاتھی کو خوش دیکھنا چاہتا تھا"
+      ],
+      "src": "select2024:p126 (printed p.106)"
+     }
+    ]
+   },
+   "print_orientation": {
+    "subtask": "orientation_to_print",
+    "prompts": [
+     {
+      "q": "میں نہیں چاہتا/ چاہتی کہ ابھی آپ یہ پیراگراف پڑھیں۔ اس صفحے پر انگلی رکھ کر بتائیے کہ آپ کہاں سے پڑھنا شروع کریں گے؟",
+      "expected": "(بچہ پہلی سطر (لائن) میں سیدھے ہاتھ پر دیئے ہوئے لفظ پر انگلی رکھتا ہے \"سلمیٰ\")"
+     },
+     {
+      "q": "اب آپ مجھے بتائیے کہ کس طرف سے پڑھنا شروع کریں گے؟",
+      "expected": "(بچہ دائیں سے بائیں انگلی کو حرکت دیتا ہے)"
+     },
+     {
+      "q": "جب آپ پہلی سطر (لائن) کے آخر میں آئیں گے تو اپنی انگلی کی مدد سے بتائیے کہ آپ کدھر سے پڑھیں گے؟",
+      "expected": "(بچہ دوسری سطر (لائن) میں دائیں جانب سے پہلے لفظ پر انگلی رکھتا ہے \"کے\")"
+     },
+     {
+      "q": "آپ اپنی انگلی کے اشارے سے مجھے بتائیے کہ پہلے جملے کا آخری لفظ کون سا ہے؟",
+      "expected": "(بچہ پہلے جملے کے آخری لفظ پر انگلی رکھتا ہے \"ہے\")"
+     },
+     {
+      "q": "اپنی انگلی کے اشارے سے مجھے بتائیے کہ اس کہانی کا آخری لفظ کونسا ہے؟",
+      "expected": "(بچہ کہانی کے آخری لفظ پر انگلی رکھتا ہے \"ہے\")"
+     }
+    ],
+    "src": "prpkp2020:p81 (form page 2)"
+   },
+   "letters_practice": [
+    {
+     "item": "ث",
+     "role": "example (modelled)",
+     "name": "ثے",
+     "src": "prpkp2020:p82 (form page 3)"
+    },
+    {
+     "item": "ج",
+     "role": "practice",
+     "name": "جیم",
+     "src": "prpkp2020:p82 (form page 3)"
+    },
+    {
+     "item": "ب",
+     "role": "practice",
+     "name": "بے",
+     "src": "prpkp2020:p82 (form page 3)"
+    }
+   ],
+   "words_practice": [
+    {
+     "item": "کرسی",
+     "role": "example (modelled)",
+     "src": "prpkp2020:p87 (form page 8)"
+    },
+    {
+     "item": "جب",
+     "role": "practice",
+     "src": "prpkp2020:p87 (form page 8)"
+    },
+    {
+     "item": "رہے",
+     "role": "practice",
+     "src": "prpkp2020:p87 (form page 8)"
+    }
+   ]
   }
  }
 }

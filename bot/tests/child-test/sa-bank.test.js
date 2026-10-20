@@ -61,10 +61,10 @@ describe('SA battery bank (CONTRACT §2)', () => {
       for (const t of f.order) expect(bank.tasks[`${id}/${t}`]).toBeDefined();
       if (f.surface === 'coach') {
         expect(Object.keys(f.blocks)).toEqual(['B1', 'B2', 'B3', 'B4', 'B5']);
-        // Every core task is in exactly one block; an extra task (DESIGN §2b) is in the full form, and only patterns joins a block.
+        // Every core task is in exactly one block; an extra task (DESIGN §2b) is in the full form, and only patterns (B4) and initial sound (B3) join a block.
         const inBlocks = Object.values(f.blocks).flat();
         expect(new Set(inBlocks).size).toBe(inBlocks.length);
-        expect(f.full.filter((t) => !inBlocks.includes(t)).sort()).toEqual(f.extra.filter((t) => !/^ma\.patterns/.test(t)).sort());
+        expect(f.full.filter((t) => !inBlocks.includes(t)).sort()).toEqual(f.extra.filter((t) => !/^ma\.patterns|initial_sound$/.test(t)).sort());
       } else {
         expect(Object.keys(f.islands).sort()).toEqual(['english', 'maths', 'urdu']);
         expect(Object.values(f.islands).flat().sort()).toEqual([...f.tower, ...f.extra].sort());
@@ -76,7 +76,7 @@ describe('SA battery bank (CONTRACT §2)', () => {
     for (const k of ['task', 'lang', 'kind', 'legacy_block', 'title', 'modes', 'tap', 'record', 'practice', 'script', 'source', 'deviation']) {
       expect(t).toHaveProperty(k);
     }
-    if (t.legacy_block === null) expect(t.source.items).toMatch(/^extra:maths\./);
+    if (t.legacy_block === null) expect(t.source.items).toMatch(/^extra:(maths|reading)\./);
     else expect(t.legacy_block).toMatch(/^(ur|en|ma)\.(listening|letters|nonwords|words|story|number_id|discrimination|missing|add1|sub1|add2|sub2|word_problems)$/);
     for (const m of t.modes) expect(t[m]).toBeTruthy();
     if (!t.practice.length) expect(t.practice_note).toBeTruthy();
@@ -110,7 +110,7 @@ describe('SA battery bank (CONTRACT §2)', () => {
         expect(new Set(it.options.map(String)).size).toBe(it.options.length);
         if (list && !String(it.id).includes('.p')) for (const o of it.options) expect(list).toContain(String(o));
       }
-      expect(t.tap.options_n).toBe(t.task.endsWith('letters') ? 5 : t.task === 'ma.discrimination' ? 2 : 4);
+      expect(t.tap.options_n).toBe(/letter(s|_sounds)$/.test(t.task) ? 5 : t.task === 'ma.discrimination' ? 2 : 4);
     }
   });
 

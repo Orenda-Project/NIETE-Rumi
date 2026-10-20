@@ -26,15 +26,15 @@ describe('SA extra subtasks (DESIGN §2b)', () => {
   test('every form carries the extras; Grades 4-5 forms also carry upper-grade number ID', () => {
     for (const [id, f] of Object.entries(bank.forms)) {
       const want = f.grades.some((g) => g >= 4) ? [...EXTRA, 'ma.number_id_upper'] : EXTRA;
-      expect([id, f.extra]).toEqual([id, want]);
+      expect([id, f.extra.filter((t) => t.startsWith('ma.'))]).toEqual([id, want]);
     }
   });
 
-  test('coach: extras in the full form, patterns in B4, the other blocks unchanged; game: extras on the maths island, tower = the 18', () => {
+  test('coach: extras in the full form, patterns in B4, B3 per sa-reading; game: extras on the maths island, tower = the core battery', () => {
     const c = bank.forms['coach.G3.A'];
     expect(c.full.slice(-EXTRA.length)).toEqual(EXTRA);
     expect(c.blocks.B4).toEqual(['ma.number_id', 'ma.discrimination', 'ma.missing', 'ma.patterns', 'ma.patterns_hi']);
-    expect(c.blocks.B3).toEqual(['ur.listening', 'en.listening']);
+    expect(c.blocks.B3).toEqual(['ur.initial_sound', 'en.initial_sound', 'ur.listening', 'en.listening']);
     const g = bank.forms['game.G45'];
     expect(g.islands.maths.slice(-7)).toEqual([...EXTRA, 'ma.number_id_upper']);
     expect(g.tower).toHaveLength(20);

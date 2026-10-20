@@ -14,7 +14,7 @@
 
 const crypto = require('crypto');
 const { TASKS_V3 } = require('../tasks');
-const { COMMON, BATTERY, TASKS: LINES, UR_LETTER_NAMES } = require('./scripts');
+const { COMMON, BATTERY, TASKS: LINES, UR_LETTER_NAMES, EN_LETTER_SOUNDS } = require('./scripts');
 
 const VERSION = 'child-test-items-sa-v1';
 const SET = 'A';
@@ -76,17 +76,32 @@ function sayBoth(en, ur) {
   return { en, ur, audio: { en: audioKey('en', en), ur: audioKey('ur', ur) } };
 }
 
+const MARKS = /[\u064B-\u065F\u0670]/gu; // Urdu diacritics: not counted in a word's length
+const shapeLen = (x) => [...String(x).replace(MARKS, '')].length;
+
 /**
  * Tap options: the target and n-1 others from the same official list (DESIGN §2: "drawn from the same grid, no new
- * letters"; words and made-up words prefer list-mates that share a letter with the target). Ordered by a hash of the
- * item id, so the target's place varies but the bytes never do.
+ * letters"). `key` says when two list entries answer the same prompt (S and s have one name; c and k one sound): no
+ * option shares the target's key, or another option's, so exactly one tile is right. Words and made-up words prefer
+ * list-mates of the same length and first letter (so length gives nothing away), then any that share a letter.
+ * Ordered by a hash of the item id, so the target's place varies but the bytes never do.
  */
-function listOptions(id, target, list, n, { shareLetter = false } = {}) {
+function listOptions(id, target, list, n, { shareLetter = false, sameShape = false, key = (x) => x } = {}) {
   const t = String(target);
-  const pool = [...new Set(list.map(String))].filter((x) => x !== t).sort(byHash(`${id}|pick`));
+  const first = [...t.replace(MARKS, '')][0];
   const letters = new Set([...t]);
-  const near = shareLetter ? pool.filter((x) => [...x].some((c) => letters.has(c))) : [];
-  const picked = [...near, ...pool.filter((x) => !near.includes(x))].slice(0, n - 1);
+  const score = (x) => (sameShape ? (shapeLen(x) === shapeLen(t) ? 2 : 0) + ([...x.replace(MARKS, '')][0] === first ? 1 : 0) : 0)
+    + (shareLetter && [...x].some((c) => letters.has(c)) ? 0.5 : 0);
+  const pool = [...new Set(list.map(String))].filter((x) => x !== t).sort(byHash(`${id}|pick`));
+  const ranked = pool.map((x, i) => [x, i]).sort((a, b) => score(b[0]) - score(a[0]) || a[1] - b[1]).map(([x]) => x);
+  const keys = new Set([key(t)]);
+  const picked = [];
+  for (const x of ranked) {
+    if (picked.length === n - 1) break;
+    if (keys.has(key(x))) continue;
+    keys.add(key(x));
+    picked.push(x);
+  }
   return [t, ...picked].sort(byHash(`${id}|order`));
 }
 
@@ -124,22 +139,26 @@ function scriptOf(key, mode, demo) {
 const sourceOf = (spec, scriptFrom, adaptation) => ({ items: spec.source && spec.source.items, script: (spec.source && spec.source.script) || scriptFrom, sa_adaptation: adaptation });
 
 // ---------------------------------------------------------------------------------------------- reading tasks
-function gridTask({ lang, kind, spec }) {
+function gridTask({ lang, kind, spec, extraPractice }) {
   const task = `${lang}.${kind}`;
   const base = `v3:sets.${SET}.reading.${lang}.${kind}`;
   const lines = LINES[kind === 'letters' ? task : kind];
   const n = OPTIONS_N[kind] || 4;
   const sayOf = (x) => (lang === 'ur' && kind === 'letters' ? UR_LETTER_NAMES[x] || x : x);
-  const opts = (id, x) => listOptions(id, x, spec.items, n, { shareLetter: kind !== 'letters' });
+  // Letters: one name per tile (S and s, or two Urdu letters with one name, never both on screen).
+  const key = kind === 'letters' ? (x) => String(sayOf(x)).toLowerCase() : (x) => x;
+  const opts = (id, x) => listOptions(id, x, spec.items, n, { shareLetter: kind !== 'letters', sameShape: kind !== 'letters', key });
   const items = spec.items.map((x, i) => {
     const id = `${task}.${pad(i + 1, 3)}`;
     return { id, target: x, options: opts(id, x), say: said(lang, sayOf(x)), src: `${base}.items[${i}]` };
   });
-  const practice = (spec.practice || []).map((p, i) => {
+  // v3 holds no practice for some grids; an official form's own practice items fill them (extraPractice, with src).
+  const own = (spec.practice || []).length ? spec.practice.map((p, i) => ({ ...p, src: `${base}.practice[${i}]` })) : (extraPractice || []);
+  const practice = own.map((p, i) => {
     const id = `${task}.p${i + 1}`;
     const s = sayOf(p.item);
     return { id, role: p.role, target: p.item, options: opts(id, p.item), say: said(lang, s),
-      feedback: { correct: spoken(fill(lines.right, s)), wrong: spoken(fill(lines.wrong, s)) }, src: `${base}.practice[${i}]` };
+      feedback: { correct: spoken(fill(lines.right, s)), wrong: spoken(fill(lines.wrong, s)) }, src: p.src };
   });
   const example = practice.find((p) => p.role === 'example');
   return {
@@ -148,6 +167,7 @@ function gridTask({ lang, kind, spec }) {
       items, time_limit_s: spec.timed_s, ...TIMED_TAP, stop: stopOf(spec.stop) },
     record: { grid: spec.items, per_row: spec.per_row, direction: spec.direction, time_limit_s: spec.timed_s, stop: stopOf(spec.stop) },
     practice, ...(practice.length ? {} : { practice_note: spec.practice_note }),
+    ...(!(spec.practice || []).length && practice.length ? { practice_note: 'practice items from the official form named in each src (v3 holds none)' } : {}),
     script: scriptOf(kind === 'letters' ? task : kind, 'tap', example && lines.example ? fill(lines.example, example.say.text) : null),
     source: sourceOf(spec, `${base}.script`, 'Tangerine SA hear-then-tap (sec_letter_sounds_01, sec_vocab_01); RULING #2'),
     deviation: 'recognition, not production: Jugnu says the item and the child taps it (Tangerine SA\'s own choice); the 3-second rule becomes replay at 5 s, auto-advance marked wrong at 10 s',
@@ -350,9 +370,101 @@ function extraTasks(f, extra) {
   return out;
 }
 
+// ---------------------------------------------------------------------------------------------- reading extras
+// Same-sound groups: a tile from the target's group would be a second right answer to a sound prompt.
+const EN_SOUND_KEY = (x) => ({ c: 'k', q: 'k' }[String(x).toLowerCase()] || String(x).toLowerCase());
+const UR_SOUND_GROUPS = [['ذ', 'ز', 'ض', 'ظ'], ['ث', 'س', 'ص'], ['ت', 'ط'], ['ح', 'ہ', 'ھ'], ['ع', 'ا', 'آ', 'ء'], ['ک', 'ق']];
+const UR_SOUND_KEY = (x) => (UR_SOUND_GROUPS.find((g) => g.includes(x)) || [x])[0];
+const fill2 = (line, x, y) => ({ en: line.en.replace(/\{x\}/g, x).replace(/\{y\}/g, y.en ?? y), ur: line.ur.replace(/\{x\}/g, x).replace(/\{y\}/g, y.ur ?? y), from: line.from });
+
+function readingTask({ task, lang, kind, subtask, title, items, practice, timed_s, stop, options_n, distractor_rule, scriptLines, demo, extraBase, adaptation, deviation, record }) {
+  return {
+    task, lang, kind, legacy_block: null, family: 'egra', subtask, title, modes: ['tap'],
+    tap: { options_n, distractor_rule, input: 'options', items, time_limit_s: timed_s, ...(timed_s ? TIMED_TAP : UNTIMED_TAP), stop },
+    record: record || null, practice, ...(practice.length ? {} : { practice_note: 'none printed in the source' }),
+    script: scriptOf(scriptLines, 'tap', demo),
+    source: { items: extraBase, script: LINES[scriptLines].intro_tap.from, sa_adaptation: adaptation }, deviation,
+  };
+}
+
+function readingExtras(extra) {
+  const r = extra.reading;
+  if (!r) return [];
+  const out = [];
+  const snd = (l) => EN_LETTER_SOUNDS[String(l).toLowerCase()] || l;
+
+  // English letter sounds: the TK2009 letter grid; Jugnu says a sound, the child taps 1 of 5 from the grid.
+  const ls = r.en.letter_sounds;
+  const grid = ls.items.map((x) => x.letter);
+  const lsOpts = (id, x) => listOptions(id, x, grid, 5, { key: EN_SOUND_KEY });
+  const L = LINES['en.letter_sounds'];
+  out.push(readingTask({ task: 'en.letter_sounds', lang: 'en', kind: 'grid', subtask: ls.subtask, title: { en: 'Letter sounds', ur: 'حروف کی آوازیں' },
+    items: ls.items.map((x, i) => {
+      const id = `en.letter_sounds.${pad(i + 1, 3)}`;
+      return { id, target: x.letter, options: lsOpts(id, x.letter), say: said('en', snd(x.letter)), say_kind: 'sound', src: `extra:reading.en.letter_sounds.items[${i}]` };
+    }),
+    practice: ls.practice.filter((p) => p.role !== 'example').map((p, i) => {
+      const id = `en.letter_sounds.p${i + 1}`;
+      return { id, role: p.role, target: p.item, options: listOptions(id, p.item, [...grid, p.item], 5, { key: EN_SOUND_KEY }), say: said('en', snd(p.item)), say_kind: 'sound',
+        feedback: { correct: spoken(fill(L.right, snd(p.item))), wrong: spoken(fill(L.wrong, snd(p.item))) }, src: `extra:reading.en.letter_sounds.practice[${ls.practice.indexOf(p)}]` };
+    }),
+    timed_s: ls.timed_s, stop: { type: 'first_row', n: ls.stop.n }, options_n: 5, distractor_rule: 'same_list_one_sound',
+    scriptLines: 'en.letter_sounds', demo: fill(L.example, snd(ls.practice.find((p) => p.role === 'example').item)), extraBase: 'extra:reading.en.letter_sounds',
+    record: { grid, per_row: ls.per_row, direction: 'ltr', time_limit_s: ls.timed_s, stop: { type: 'first_row', n: ls.stop.n } },
+    adaptation: 'Tangerine SA hear-then-tap (sec_letter_sounds_01); TK2009 letter grid (p.28: the same page as letter names)',
+    deviation: 'recognition, not production: Jugnu says the sound and the child taps the letter; Jugnu\'s isolated sounds are synthetic until a human recording replaces them' }));
+
+  // Initial sound: Jugnu says the word twice; the child taps the letter of its first sound (1 of 4, from the list's
+  // own first letters, never a same-sound letter).
+  const initial = (lang) => {
+    const t = r[lang].initial_sound;
+    const task = `${lang}.initial_sound`;
+    const Ln = LINES[task];
+    const letterOf = (w) => (lang === 'en' ? w.word[0] : w.letter);
+    const soundSay = (l) => (lang === 'en' ? snd(l) : l);
+    const pool = t.items.map(letterOf);
+    const key = lang === 'en' ? EN_SOUND_KEY : UR_SOUND_KEY;
+    const twice = (w) => said(lang, lang === 'en' ? `${w}. ${w}.` : `${w}۔ ${w}۔`);
+    const prac = lang === 'en' ? t.practice.map((p) => ({ ...p, role: 'practice' })) : t.practice.filter((p) => p.role !== 'example');
+    const ex = lang === 'en' ? t.example : t.practice.find((p) => p.role === 'example');
+    return readingTask({ task, lang, kind: 'choice', subtask: t.subtask, title: { en: 'First sounds', ur: 'پہلی آواز' },
+      items: t.items.map((w, i) => {
+        const id = `${task}.${pad(i + 1, 2)}`;
+        return { id, target: letterOf(w), options: listOptions(id, letterOf(w), pool, 4, { key }), say: twice(w.word), word: w.word, src: `extra:reading.${lang}.initial_sound.items[${i}]` };
+      }),
+      practice: prac.map((p, i) => {
+        const id = `${task}.p${i + 1}`;
+        const l = letterOf(p);
+        return { id, role: 'practice', target: l, options: listOptions(id, l, [...pool, l], 4, { key }), say: twice(p.word), word: p.word,
+          feedback: { correct: spoken(fill2(Ln.right, p.word, soundSay(l))), wrong: spoken(fill2(Ln.wrong, p.word, soundSay(l))) },
+          src: `extra:reading.${lang}.initial_sound.practice[${t.practice.indexOf(p)}]` };
+      }),
+      timed_s: null, stop: { type: 'first_row', n: t.stop.n }, options_n: 4, distractor_rule: 'first_letters_of_the_list_one_sound',
+      scriptLines: task, demo: fill2(Ln.example, ex.word, soundSay(letterOf(ex))), extraBase: `extra:reading.${lang}.initial_sound`,
+      adaptation: lang === 'en' ? 'TK2009 p.34 initial sound; Tangerine SA hear-then-tap' : 'SELECT 2024 p.100 initial sound; Tangerine SA hear-then-tap',
+      deviation: 'the child taps the letter of the first sound instead of saying the sound (a letter tile, so letter knowledge is part of the answer)' });
+  };
+  out.push(initial('ur'), initial('en'));
+  return out;
+}
+
+// Where a task sits in its section's run order (EGRA toolkit order within each language; the 18 v3 tasks keep v3's).
+const RUN_ORDER = [
+  'ur.listening', 'ur.initial_sound', 'ur.letters', 'ur.nonwords', 'ur.words', 'ur.story', 'ur.story_comp',
+  'en.listening', 'en.initial_sound', 'en.letters', 'en.letter_sounds', 'en.nonwords', 'en.words', 'en.story', 'en.story_comp',
+];
+const runRank = (id) => {
+  const i = RUN_ORDER.indexOf(id);
+  const sec = ['ur', 'en', 'ma'].indexOf(id.split('.')[0]);
+  return [sec, i < 0 ? 999 : i];
+};
+
 // ---------------------------------------------------------------------------------------------- forms
-function formTasks({ maths }, v3) {
+function formTasks({ maths }, v3, extra) {
   const set = v3.sets[SET];
+  const ur = extra && extra.reading && extra.reading.ur;
+  const prp = (k) => (ur && ur[k] ? ur[k].map((p, i) => ({ item: p.item, role: /^example/.test(p.role) ? 'example' : 'practice', src: `extra:reading.ur.${k}[${i}]` })) : null);
+  const extraPractice = { 'ur.letters': prp('letters_practice'), 'ur.words': prp('words_practice') };
   const tasks = [];
   for (const tid of TASKS_V3) {
     const [fam, kind] = tid.split('.');
@@ -365,7 +477,7 @@ function formTasks({ maths }, v3) {
     const spec = set.reading[fam][kind];
     if (kind === 'listening') tasks.push(listeningTask({ lang: fam, spec }));
     else if (kind === 'story') tasks.push(...storyTasks({ lang: fam, spec }));
-    else tasks.push(gridTask({ lang: fam, kind, spec }));
+    else tasks.push(gridTask({ lang: fam, kind, spec, extraPractice: extraPractice[tid] }));
   }
   return tasks;
 }
@@ -374,18 +486,26 @@ function buildSaBank({ v3, extra }) {
   const forms = {};
   const tasks = {};
   for (const f of FORMS) {
-    const core18 = formTasks(f, v3);
-    const extras = extra ? extraTasks(f, extra) : [];
-    const list = [...core18, ...extras];
+    const core18 = formTasks(f, v3, extra);
+    const extras = extra ? [...readingExtras(extra), ...extraTasks(f, extra)] : [];
+    // Each extra sits in its language's section (stable: the core order and the maths extras' order are kept).
+    const list = [...core18, ...extras].map((t, i) => ({ t, i })).sort((a, b) => {
+      const [sa, ra] = runRank(a.t.task);
+      const [sb, rb] = runRank(b.t.task);
+      return sa - sb || (ra !== 999 && rb !== 999 ? ra - rb : a.i - b.i);
+    }).map(({ t }) => t);
     const order = list.map((t) => t.task);
-    const extraIds = extras.map((t) => t.task);
+    const extraIds = list.filter((t) => extras.includes(t)).map((t) => t.task);
     const form = { surface: f.surface, grades: f.grades, set: f.surface === 'coach' ? SET : null, maths_form: `G${f.maths}`, order, extra: extraIds };
     if (f.surface === 'coach') {
-      const blocks = { ...BLOCKS, B4: [...BLOCKS.B4, ...extraIds.filter((id) => /^ma\.patterns/.test(id))] };
+      // DESIGN §2b: initial sound joins B3 (oral), patterns joins B4; every other extra is in the full form only.
+      const blocks = { ...BLOCKS, B3: [...extraIds.filter((id) => /initial_sound$/.test(id)), ...BLOCKS.B3],
+        B4: [...BLOCKS.B4, ...extraIds.filter((id) => /^ma\.patterns/.test(id))] };
       Object.assign(form, { full: order, blocks, block_names: BLOCK_NAMES });
     } else {
-      const maths = [...BLOCKS.B4, ...BLOCKS.B5, ...extraIds.filter((id) => id.startsWith('ma.'))];
-      Object.assign(form, { islands: { maths, english: ['en.listening', ...BLOCKS.B2], urdu: ['ur.listening', ...BLOCKS.B1] }, tower: core18.map((t) => t.task) });
+      // Each island: that subject's tasks in run order, extras included; the tower stays the 18 (RULING #5).
+      const of = (p) => order.filter((id) => id.startsWith(p));
+      Object.assign(form, { islands: { maths: of('ma.'), english: of('en.'), urdu: of('ur.') }, tower: core18.map((t) => t.task) });
     }
     forms[f.form] = form;
     for (const t of list) tasks[`${f.form}/${t.task}`] = t;
