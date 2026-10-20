@@ -5,6 +5,8 @@
  * The teacher-facing reason comes from the model; this code only checks it.
  */
 const { modelFor, JOBS } = require('../../../config/model-registry');
+const { resolveUx, clampLanguage } = require('../../../config/ux-strings');
+const { redactNames } = require('./redact-names');
 
 const JOB = 'coaching.videoReco';
 const LLM_TIMEOUT_MS = 45000; // lead-converge 18:48Z: measured 22–33 s at the default effort; the report itself never waits on it
@@ -166,4 +168,40 @@ function validate(p, shortlist, excerpts, opts) {
   }
 }
 
-module.exports = { pick, validate, quoteFound, reasoningEffort, JOB, LLM_TIMEOUT_MS };
+/** ⛔9 (SPEC v1.3c §3.5 a): what is stored and sent passes the non-strict redactor; a text with no name is unchanged. */
+function postRedact(text, teacherName) {
+  if (typeof text !== 'string' || !text) return text;
+  return redactNames(text, { teacher: teacherName || null, strict: false, placeholders: { child: '[a student]' } });
+}
+
+// The validation rules that leave the pick on a shortlisted, code-gated chapter. Not candidate/shape (no such chapter),
+// not step (a code gate: the chapter is not for the step), not error.
+const FALLBACK_RULES = new Set(['quote', 'moment_at', 'placeholder', 'scorer', 'id', 'name', 'length', 'urdu', 'roman']);
+const FALLBACK_MAX = 300; // code points of the composed reason in the teacher's language
+const LEADING_ADDRESS = /^(\s*\[TEACHER\]\s*)+[،,:]?\s*/; // prod card actions open with the teacher's name
+const UNSHOWABLE = /\[(TEACHER|COACH|SCHOOL|URL|EMAIL|NUMBER)\]/;
+
+/**
+ * The card-sentence fallback (SPEC v1.3c §3.5 b): when the retry also failed on a validation rule but the model's
+ * seg_id is one of the shortlist's candidates, the clip keeps a quote-free reason built from the report's own
+ * "Try this tomorrow" sentence. No LLM call. → {reason_en, reason_ur} | null (the none stands).
+ * @param {object} a {none, segId, shortlist, sentence, startS, endS, language, teacherName}
+ */
+function cardFallback({ none, segId, shortlist, sentence, startS, endS, language, teacherName } = {}) {
+  try {
+    const m = /^validation:(.+)$/.exec(String(none || ''));
+    if (!m || !FALLBACK_RULES.has(m[1])) return null;
+    if (!((shortlist && shortlist.candidates) || []).some((c) => c.seg_id === String(segId))) return null;
+    const s = String(postRedact(String(sentence || ''), teacherName) || '').replace(LEADING_ADDRESS, '').trim();
+    if (!s || UNSHOWABLE.test(s)) return null;
+    const n = Math.round(Number(endS) - Number(startS));
+    if (!Number.isFinite(n) || n <= 0) return null;
+    const out = {};
+    for (const l of ['en', 'ur']) out[`reason_${l}`] = resolveUx('videoRecoCardFallbackReason', { language: l, params: { sentence: s, n } });
+    return [...out[`reason_${clampLanguage(language)}`]].length <= FALLBACK_MAX ? out : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+module.exports = { pick, validate, quoteFound, reasoningEffort, cardFallback, postRedact, JOB, LLM_TIMEOUT_MS };

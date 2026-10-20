@@ -7,7 +7,7 @@
  * flag is off, the analysis is not FICO, or anything failed. Order: flag → stored row (retries never
  * recompute) → arm → target (target.js) → teacher context (languages, ladder level, history, grade) →
  * shortlist (BM25 + the ⛔ filters) → transcript moments, names redacted → ONE completeJson pick →
- * validation → one row. Control-arm rows, and every row in VIDEO_RECO_MODE=shadow, are 'shadow'.
+ * validation (one retry; v1.3c the card-sentence fallback) → names redacted again → one row. Control-arm rows, and every row in VIDEO_RECO_MODE=shadow, are 'shadow'.
  */
 const { logToFile } = require('../../../utils/logger');
 const { getCurrentCorrelationId } = require('../../../utils/structured-logger');
@@ -251,10 +251,23 @@ async function compute(a, d, state) {
     ...base, candidates: list.candidates, model: res.model, usage: res.usage, attempts, first_none_reason: firstNone,
     report_language_null: !hasPref, lesson_language: hasPref ? transcriptLanguage : language,
   };
-  if (!v.ok) return finish({ ...withLlm, status: 'none', none_reason: v.none, ...(v.confidence === undefined ? {} : { confidence: v.confidence }) });
+  // v1.3c (b): the retry failed too, on a validation rule, but the pick is a shortlisted chapter → the card's own sentence.
+  let fallback = null;
+  if (!v.ok && attempts === 2 && res.pick && res.pick.seg_id) {
+    const seg = catalog.segment(String(res.pick.seg_id));
+    fallback = seg && select.cardFallback({
+      none: v.none, segId: res.pick.seg_id, shortlist: list, sentence: (card && card.action) || step.try || fa.try_this_tomorrow || '',
+      startS: seg.segment.start_s, endS: seg.segment.end_s, language, teacherName: people.teacher,
+    });
+  }
+  if (!v.ok && !fallback) return finish({ ...withLlm, status: 'none', none_reason: v.none, ...(v.confidence === undefined ? {} : { confidence: v.confidence }) });
 
   const p = res.pick;
-  const hit = catalog.segment(p.seg_id);
+  const hit = catalog.segment(String(p.seg_id));
+  const said = fallback || { reason_en: String(p.reason_en).trim(), reason_ur: String(p.reason_ur).trim() };
+  const c = Number(p.confidence);
+  // v1.3c (a) ⛔9: the reasons and the quote are stored (and so sent) after the non-strict name redactor.
+  const clean = (x) => select.postRedact(x, people.teacher);
   const cand = list.candidates.find((x) => x.seg_id === hit.segment.seg_id) || {};
   const chosen = t.source === 'card_text' || t.source === 'phase' ? (((hit.segment.fico || [])[0] || {}).indicator || null) : null;
   const mismatch = tagMismatch(t, hit.segment);
@@ -276,12 +289,12 @@ async function compute(a, d, state) {
     end_s: hit.segment.end_s,
     language_match: cand.language_match || null,
     chapter_language: hit.segment.language || hit.module.language || null,
-    reason_en: String(p.reason_en).trim(),
-    reason_ur: String(p.reason_ur).trim(),
-    moment_at: p.moment && p.moment.at ? String(p.moment.at) : null,
-    moment_quote: p.moment && p.moment.quote ? String(p.moment.quote) : null,
-    moment_source: v.momentSource,
-    confidence: v.confidence,
+    reason_en: clean(said.reason_en),
+    reason_ur: clean(said.reason_ur),
+    moment_at: !fallback && p.moment && p.moment.at ? String(p.moment.at) : null,
+    moment_quote: !fallback && p.moment && p.moment.quote ? clean(String(p.moment.quote)) : null,
+    moment_source: fallback ? 'card' : v.momentSource, // 'card' = the v1.3c fallback: no moment, the card's sentence
+    confidence: fallback ? (Number.isFinite(c) ? Math.min(1, Math.max(0, c)) : 0) : v.confidence,
     none_reason: null,
   });
 }
