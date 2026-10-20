@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import i18n from 'i18next';
-import { ArrowLeft, Globe } from 'lucide-react';
+import { ArrowLeft, Globe, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import nieteLogo from '@/assets/niete-logo.png';
 import { DELETE_ACCOUNT_PATH, PRIVACY_POLICY_PATH } from '../lib/legalLinks';
@@ -29,12 +29,17 @@ export interface AuthFrameProps {
   subtitle?: string;
   /** Shows the round back button in the band. */
   onBack?: () => void;
+  /**
+   * bd-xxi78f.5 — a flat label above the title naming WHICH door this is (the Admin sign-in's shield + "Admin"), so a
+   * page in the same frame reads as a different one. Information, never a control: no border, no shadow, no tap.
+   */
+  badge?: { label: string; icon: LucideIcon };
   children: ReactNode;
 }
 
 const MAX_COL = 'mx-auto w-full max-w-[460px] md:max-w-[480px]';
 
-export function AuthFrame({ title, subtitle, onBack, children }: AuthFrameProps) {
+export function AuthFrame({ title, subtitle, onBack, badge, children }: AuthFrameProps) {
   const c = useCopy(AUTH);
   const lang = useLang();
   const switchTo = lang === 'ur' ? 'en' : 'ur';
@@ -72,7 +77,17 @@ export function AuthFrame({ title, subtitle, onBack, children }: AuthFrameProps)
               </span>
             </button>
           </div>
-          <h1 className="mt-[30px] break-words text-[34px] font-light leading-[1.15] tracking-[-0.015em] md:text-[38px] rtl:mt-2.5 rtl:font-normal rtl:leading-[1.6]">{title}</h1>
+          {badge ? (
+            // A small letter-spaced tag (like the NIETE wordmark), well under a control's size, so it never reads as one.
+            <p data-testid="auth-badge" className="mt-[22px] inline-flex items-center gap-1.5 rounded-full bg-nu-frame-translucent px-2.5 py-1 text-[13px] font-bold uppercase leading-none tracking-[0.12em] rtl:mt-3 rtl:py-1.5 rtl:text-[15px] rtl:normal-case rtl:tracking-normal">
+              <badge.icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>{badge.label}</span>
+            </p>
+          ) : null}
+          <h1 className={cn(
+            'break-words text-[34px] font-light leading-[1.15] tracking-[-0.015em] md:text-[38px] rtl:font-normal rtl:leading-[1.6]',
+            badge ? 'mt-2.5 rtl:mt-1' : 'mt-[30px] rtl:mt-2.5',
+          )}>{title}</h1>
           {subtitle ? (
             <p className="mt-2 break-words text-[17px] font-medium leading-snug text-nu-frame-chip rtl:mt-3 rtl:leading-[1.9]">{subtitle}</p>
           ) : null}
