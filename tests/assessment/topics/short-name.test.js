@@ -29,7 +29,7 @@ describe('shortName', () => {
   test('trailing joiners and punctuation left by the cut are dropped', () => {
     expect(shortName("Reading 'Helping Hands at Dani's Hut!' + Sensory Comprehension")).toBe("Reading 'Helping Hands at Dani's Hut!'");
     expect(shortName('Before, After & Between: Skill Sharpener & Copy work extra')).toBe('Before, After & Between: Skill Sharpener');
-    expect(shortName('Ordering numbers; comparing groups, making sets — more words')).toBe('Ordering numbers; comparing groups');
+    expect(shortName('Ordering numbers; comparing groups, making sets — more words')).toBe('Ordering numbers');
   });
 
   test('a cut inside a parenthesis drops the dangling "(" part', () => {
@@ -84,6 +84,35 @@ describe('shortName', () => {
   test('empty or missing text gives an empty name', () => {
     expect(shortName('')).toBe('');
     expect(shortName(undefined)).toBe('');
+  });
+});
+
+describe('shortName: a cut never ends on a dangling word', () => {
+  test('a cut falls back to the last clause separator at code point 15 or later', () => {
+    expect(shortName('Echo the Sounds, Sameen Says & Guess the Mess (Speaking & Listening)')).toBe('Echo the Sounds, Sameen Says');
+    expect(shortName('Echo/Bingo, Ball of Questions & Chain of Whispers (Speaking)')).toBe('Echo/Bingo, Ball of Questions');
+    expect(shortName('Sentence Detective, Capitalise the Adventure & Questions Station')).toBe('Sentence Detective');
+    expect(shortName("Pinky's Play (Role-Play), Reading with Attention & Discuss and Share")).toBe("Pinky's Play (Role-Play)");
+    expect(shortName('Weave a Poem Together + Present and Share')).toBe('Weave a Poem Together');
+  });
+
+  test('a separator before code point 15 is ignored; the trailing connector is stripped instead', () => {
+    expect(shortName('Hangman + segmenting unfamiliar words to spell')).toBe('Hangman + segmenting unfamiliar words');
+    expect(shortName('Echo the Sounds, Sameen Says Hello Today More')).toBe('Echo the Sounds');
+    expect(shortName('Echo the Sound, Sameen Says Hello Today More!')).toBe('Echo the Sound, Sameen Says Hello Today');
+  });
+
+  test('Urdu connector words are stripped from a cut', () => {
+    expect(shortName('حروف تہجی کی پہچان اور آوازوں کو ملا کے الفاظ کی تشکیل کرنا')).toBe('حروف تہجی کی پہچان اور آوازوں کو ملا');
+  });
+
+  test('a name within 40 code points is never changed, even ending in a connector', () => {
+    expect(shortName('ABC Order & the Articles a/an/the')).toBe('ABC Order & the Articles a/an/the');
+    expect(shortName('Reading for the')).toBe('Reading for the');
+  });
+
+  test('stripping is case-insensitive and stops before the name would be empty', () => {
+    expect(shortName('The of and or a an to in on for with at by from into the of')).toBe('The');
   });
 });
 
