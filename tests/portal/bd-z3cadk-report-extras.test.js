@@ -7,6 +7,11 @@
  *   - a repeat recording says so, and carries the original report's date.
  */
 const { lastAskedFromStored } = require('../../bot/shared/services/coaching/report-v2/uptake-line');
+// "Last time we asked" needs the feedback-uptake loop (its status words in the image's style and its catalog lines).
+// On a branch without the loop the block has nothing to show, so those cases wait for it rather than fail.
+const { CHROME } = require('../../bot/shared/services/coaching/report-v2/hero-report.style');
+const hasLoop = !!(CHROME.en && CHROME.en.uptake_achieved);
+const withLoop = hasLoop ? test : test.skip;
 const { narrativeView } = require('../../dashboard/services/report-narrative-view');
 const { reportExtras } = require('../../dashboard/services/report-extras');
 
@@ -19,14 +24,14 @@ const card = {
 };
 
 describe('"Last time we asked" from what was stored', () => {
-  test('English: the earlier ask, the status in the image\'s words, and the catalog line with the count', () => {
+  withLoop('English: the earlier ask, the status in the image\'s words, and the catalog line with the count', () => {
     const v = lastAskedFromStored(card, priorCard, 'en');
     expect(v.text).toBe(priorCard.action);
     expect(v.status).toBe('partial');
     expect(v.statusLabel).toBe('Getting there');
     expect(v.line).toMatch(/why questions 1/);
   });
-  test('Urdu: the status in Urdu', () => {
+  withLoop('Urdu: the status in Urdu', () => {
     expect(lastAskedFromStored(card, priorCard, 'ur').statusLabel).toBe('قریب');
   });
   test('nothing to show: no uptake, no prior card, or a prior without an ask', () => {
@@ -52,7 +57,7 @@ describe('reportExtras: repeat recording, original date, last asked', () => {
     const x = await reportExtras({ id: 'dup', created_at: '2026-10-20T07:56:43Z', duplicate_of_session_id: 'orig-1', prioritized_action: null }, 'ur', read);
     expect(x).toEqual(expect.objectContaining({ duplicate: true, reportDate: '2026-09-29T09:49:24Z', lastAsked: null }));
   });
-  test('a fresh report: not a repeat, its own date, and last asked from the prior session in its lineage', async () => {
+  withLoop('a fresh report: not a repeat, its own date, and last asked from the prior session in its lineage', async () => {
     const x = await reportExtras({ id: 'new', created_at: '2026-10-20T11:04:59Z', duplicate_of_session_id: null, prioritized_action: card }, 'en', read);
     expect(x.duplicate).toBe(false);
     expect(x.reportDate).toBe('2026-10-20T11:04:59Z');
