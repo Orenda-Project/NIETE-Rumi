@@ -4,10 +4,12 @@ import { MemoryRouter } from "react-router-dom";
 
 // The coach's Learning assessment page (/portal/leader/assess): flag gate, the
 // school picker, the server's list (no roll number), absent → the promoted
-// alternate, present → handover → the engine slot → give back → done, the
-// visit bar, the summary, and the saved list when offline. The network is mocked.
+// alternate, present → handover (block, whole battery) → the engine frame →
+// sa:done → back to the list, the visit bar and its sync states, the summary,
+// the saved list and the outcome queue when offline. The network is mocked.
 
 vi.mock("../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
+vi.mock("../lib/keepAwake", () => ({ keepScreenOn: vi.fn().mockResolvedValue(async () => {}) }));
 vi.mock("../services/api", () => ({
   portal: { getConfig: vi.fn() },
   childTestSa: { getSchools: vi.fn(), getList: vi.fn(), markOutcome: vi.fn(), getStatus: vi.fn() },
@@ -15,6 +17,7 @@ vi.mock("../services/api", () => ({
 
 import { portal, childTestSa } from "../services/api";
 import LeaderAssess from "./LeaderAssess";
+import { pickBlock } from "../lib/assess/blocks";
 
 const api = childTestSa as any;
 const FIRST = ["Ayan", "Bilal", "Dua", "Esha", "Fiza", "Faraz", "Hira", "Iqra"];
@@ -49,7 +52,29 @@ beforeEach(() => {
   (portal.getConfig as any).mockResolvedValue({ features: { childTestSa: true } });
   api.getSchools.mockResolvedValue({ schools: SCHOOLS });
   api.getList.mockResolvedValue({ list: LIST });
+  api.markOutcome.mockResolvedValue({});
+  api.getStatus.mockResolvedValue({ session: { id: "x", status: "started", grade: 3, form: "f" }, block: "B1", lastSeq: 0, tasksDone: [], audio: [] });
 });
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const NET = () => Object.assign(new Error("Network Error"), { request: {} });
+const BLOCK_EN: Record<string, string> = { B1: "Urdu reading", B2: "English reading", B3: "Listening", B4: "Maths: numbers", B5: "Maths: sums" };
+
+function saDone(s: string) {
+  act(() => { window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:done", s, reason: "complete" }, origin: window.location.origin })); });
+}
+
+async function startChild(drawId = "d1") {
+  fireEvent.click(within(screen.getByTestId(`assess-child-${drawId}`)).getByRole("button", { name: "Present" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Start" }));
+  const frame = (await screen.findByTestId("assess-engine-frame")) as HTMLIFrameElement;
+  return new URL(frame.getAttribute("src") as string, "http://x").searchParams.get("s") as string;
+}
+
+function stored() {
+  const k = Object.keys(window.localStorage).find((x) => x.startsWith("assess:s2:")) as string;
+  return JSON.parse(window.localStorage.getItem(k) as string);
+}
 afterEach(() => { vi.useRealTimers(); });
 
 describe("LeaderAssess", () => {
@@ -104,34 +129,152 @@ describe("LeaderAssess", () => {
     expect(api.markOutcome).toHaveBeenCalledWith({ schoolId: "s2", visitId: "v2", drawId: "d1", outcome: "absent" });
   });
 
-  it("present → handover → engine slot → hold 3 s → give back → the child is done", async () => {
-    api.markOutcome.mockResolvedValueOnce({ sessionId: "sess1" });
-    await openList();
-    fireEvent.click(within(screen.getByTestId("assess-child-d1")).getByRole("button", { name: "Present" }));
-    expect(await screen.findByText("Put the headphones on Ayan. Hand over the phone.")).toBeInTheDocument();
+  it("present → handover (block shown) → Start sends the phone's id and block → the engine frame (Urdu form, name only after #n=)", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    let savedFirst = false;
+    api.markOutcome.mockImplementation(async (args: any) => {
+      savedFirst = JSON.stringify(window.localStorage).includes(args.clientSessionId);
+      return { sessionId: "server-1" };
+    });
+    renderPage();
+    fireEvent.click(await screen.findByTestId("assess-school-s2"));
+    await screen.findByText("ایان ٹیسٹ والا");
+    fireEvent.click(within(screen.getByTestId("assess-child-d1")).getByRole("button", { name: "حاضر" }));
+    const block = pickBlock([]);
+    expect(await screen.findByTestId("assess-handover")).toBeInTheDocument();
+    expect(screen.getByTestId("assess-handover-block")).toHaveTextContent(/./);
     expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("0/5");
-    fireEvent.click(screen.getByRole("button", { name: "Start" }));
-    const slot = await screen.findByTestId("assess-engine-slot");
-    expect(slot).toHaveTextContent("The test opens here");
-    const hold = within(slot).getByRole("button", { name: /Child finished/ });
+    fireEvent.click(screen.getByRole("button", { name: "شروع" }));
+    const frame = (await screen.findByTestId("assess-engine-frame")) as HTMLIFrameElement;
+    const call = api.markOutcome.mock.calls[0][0];
+    expect(call).toMatchObject({ schoolId: "s2", visitId: "v2", drawId: "d1", outcome: "present", block });
+    expect(call.clientSessionId).toMatch(UUID);
+    expect(savedFirst).toBe(true);
+    const src = frame.getAttribute("src") as string;
+    const [path, frag] = src.split("#");
+    const q = new URL(path, "http://x").searchParams;
+    expect(q.get("s")).toBe(call.clientSessionId);
+    expect(q.get("form")).toBe("sa.coach.G3.A.ur");
+    expect(q.get("block")).toBe(block);
+    expect(q.get("embed")).toBe("1");
+    expect(path).not.toMatch(/ایان|Ayan/);
+    expect(frag).toBe(`n=${encodeURIComponent("ایان")}`);
+  });
 
+  it("each child's block is shown on the row; the next child gets a different block; whole battery gives 'full'", async () => {
+    await openList();
+    const s1 = await startChild("d1");
+    saDone(s1);
+    await screen.findByTestId("assess-child-d2");
+    const first = pickBlock([]);
+    expect(screen.getByTestId("assess-child-d1")).toHaveTextContent(BLOCK_EN[first]);
+    fireEvent.click(within(screen.getByTestId("assess-child-d2")).getByRole("button", { name: "Present" }));
+    expect(await screen.findByTestId("assess-handover-block")).toHaveTextContent(BLOCK_EN[pickBlock([first])]);
+    const toggle = screen.getByRole("checkbox", { name: /Whole battery/ });
+    expect(toggle).not.toBeChecked();
+    expect(screen.getByTestId("assess-handover")).toHaveTextContent("about 29 minutes");
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+    const frame = await screen.findByTestId("assess-engine-frame");
+    expect(new URL(frame.getAttribute("src") as string, "http://x").searchParams.get("block")).toBe("full");
+    expect(api.markOutcome.mock.calls[1][0]).toMatchObject({ drawId: "d2", block: "full" });
+  });
+
+  it("sa:done goes straight back to the list: the child is done, with a toast", async () => {
+    await openList();
+    const s = await startChild();
+    saDone("someone-else");
+    expect(screen.getByTestId("assess-engine-frame")).toBeInTheDocument();
+    saDone(s);
+    const row = await screen.findByTestId("assess-child-d1");
+    expect(row).toHaveTextContent("Done");
+    expect(within(row).queryByRole("button", { name: "Present" })).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent("Saved. Next child.");
+    expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("1/5");
+    expect(stored().finished.d1).toBe(s);
+  });
+
+  it("the coach can end early with the corner hold", async () => {
+    await openList();
+    await startChild();
+    const hold = screen.getByRole("button", { name: /End test/ });
     vi.useFakeTimers();
     fireEvent.pointerDown(hold);
     act(() => { vi.advanceTimersByTime(1000); });
     fireEvent.pointerUp(hold);
     act(() => { vi.advanceTimersByTime(3000); });
-    expect(screen.queryByText("Give the phone back to the coach")).toBeNull();
+    expect(screen.getByTestId("assess-engine-frame")).toBeInTheDocument();
     fireEvent.pointerDown(hold);
     act(() => { vi.advanceTimersByTime(3100); });
     vi.useRealTimers();
+    expect(await screen.findByTestId("assess-child-d1")).toHaveTextContent("Done");
+  });
 
-    expect(await screen.findByText("Give the phone back to the coach")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Back to the list" }));
-    const row = await screen.findByTestId("assess-child-d1");
-    await waitFor(() => expect(row).toHaveTextContent("Done"));
-    expect(within(row).queryByRole("button", { name: "Present" })).toBeNull();
-    expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("1/5");
-    expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("saved on phone");
+  it("offline Present still opens the frame; the queued outcome is sent on 'online', in order, once", async () => {
+    api.markOutcome.mockRejectedValueOnce(NET());
+    await openList();
+    const s = await startChild();
+    expect(stored().queue).toHaveLength(1);
+    expect(stored().queue[0]).toMatchObject({ drawId: "d1", outcome: "present", clientSessionId: s });
+    saDone(s);
+    await screen.findByTestId("assess-child-d1");
+    expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("on phone");
+    api.markOutcome.mockResolvedValue({});
+    await act(async () => { window.dispatchEvent(new Event("online")); });
+    await waitFor(() => expect(stored().queue).toHaveLength(0));
+    expect(api.markOutcome).toHaveBeenCalledTimes(2);
+    expect(api.markOutcome.mock.calls[1][0]).toMatchObject({ drawId: "d1", outcome: "present", clientSessionId: s });
+  });
+
+  it("a queued outcome the server turns down (4xx) is dropped and logged; 409 stays queued", async () => {
+    api.markOutcome.mockRejectedValueOnce(NET()).mockRejectedValueOnce(NET());
+    await openList();
+    fireEvent.click(within(screen.getByTestId("assess-child-d1")).getByRole("button", { name: "Absent" }));
+    await waitFor(() => expect(screen.queryByTestId("assess-child-d1")).toBeNull());
+    fireEvent.click(within(screen.getByTestId("assess-child-d2")).getByRole("button", { name: "Refused" }));
+    await waitFor(() => expect(stored().queue).toHaveLength(2));
+    api.markOutcome.mockRejectedValueOnce({ response: { status: 409, data: {} } });
+    await act(async () => { window.dispatchEvent(new Event("online")); });
+    await waitFor(() => expect(api.markOutcome).toHaveBeenCalledTimes(3));
+    expect(stored().queue).toHaveLength(2);
+    api.markOutcome.mockRejectedValueOnce({ response: { status: 400, data: { reason: "invalid" } } }).mockResolvedValueOnce({});
+    await act(async () => { window.dispatchEvent(new Event("online")); });
+    await waitFor(() => expect(stored().queue).toHaveLength(0));
+    expect(stored().refused).toEqual([expect.objectContaining({ drawId: "d1", outcome: "absent", status: 400 })]);
+    expect(api.markOutcome.mock.calls[4][0]).toMatchObject({ drawId: "d2", outcome: "refused" });
+  });
+
+  it("queued outcomes are sent when the page loads", async () => {
+    window.localStorage.setItem("assess:s9:2026-01-01", JSON.stringify({ queue: [{ qid: "q1", schoolId: "s9", visitId: null, drawId: "d9", outcome: "absent", at: 1 }] }));
+    renderPage();
+    await waitFor(() => expect(api.markOutcome).toHaveBeenCalledWith({ schoolId: "s9", visitId: null, drawId: "d9", outcome: "absent" }));
+    await waitFor(() => expect(JSON.parse(window.localStorage.getItem("assess:s9:2026-01-01") as string).queue).toHaveLength(0));
+  });
+
+  it("absent offline moves the first alternate up on the phone", async () => {
+    api.markOutcome.mockRejectedValueOnce(NET());
+    await openList();
+    fireEvent.click(within(screen.getByTestId("assess-child-d1")).getByRole("button", { name: "Absent" }));
+    const promoted = await screen.findByTestId("assess-child-d6");
+    expect(within(promoted).getByRole("button", { name: "Present" })).toBeInTheDocument();
+    expect(screen.queryByTestId("assess-child-d1")).toBeNull();
+    expect(screen.getByTestId("assess-alternates")).not.toHaveTextContent("Faraz");
+    expect(stored().queue[0]).toMatchObject({ drawId: "d1", outcome: "absent" });
+  });
+
+  it("status polling: on phone → sending → sent", async () => {
+    await openList();
+    const s = await startChild();
+    api.getStatus.mockResolvedValue({ session: { id: "server-1", status: "started", grade: 3, form: "sa.coach.G3.A.en" }, block: "B1", lastSeq: 3, tasksDone: [], audio: [] });
+    saDone(s);
+    await screen.findByTestId("assess-child-d1");
+    await waitFor(() => expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("sending"));
+    expect(api.getStatus).toHaveBeenCalledWith(s);
+    api.getStatus.mockResolvedValue({ session: { id: "server-1", status: "completed", grade: 3, form: "sa.coach.G3.A.en" }, block: "B1", lastSeq: 9, tasksDone: ["t1"], audio: [] });
+    // the 30 s poll also runs when the phone comes back online
+    await act(async () => { window.dispatchEvent(new Event("online")); });
+    await waitFor(() => expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("sent"));
+    expect(screen.getByTestId("assess-visit-bar")).not.toHaveTextContent("sending");
   });
 
   it("a session the server has completed shows Done and counts as sent", async () => {

@@ -4,7 +4,7 @@ import { ANALYTICS_LOGIN } from '../lib/homeRoute';
 import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData, SchoolAnalyticsResponse,
   AttendanceResponse } from '../types/portal';
 import type { ChildTestVisit, ChildTestList, ChildTestCard, ChildTestSession, ChildTestBlockName } from '../types/childTest';
-import type { SaList, SaOutcome, SaSchool, SaSessionStatus } from '../types/childTestSa';
+import type { SaBlock, SaList, SaOutcome, SaSchool, SaSessionStatus } from '../types/childTestSa';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
 import type { CoachingAnalyticsResponse, SchoolsAnalyticsResponse } from '../types/portal';
@@ -1303,12 +1303,13 @@ export const childTestSa = {
   getList: async (schoolId: string, visitId?: string | null): Promise<{ list: SaList }> =>
     (await api.get(`${CTS}/list`, { params: visitId ? { schoolId, visitId } : { schoolId } })).data,
 
-  markOutcome: async (args: { schoolId: string; visitId?: string | null; drawId: string; outcome: SaOutcome; note?: string }):
+  markOutcome: async (args: { schoolId: string; visitId?: string | null; drawId: string; outcome: SaOutcome; note?: string; clientSessionId?: string; block?: SaBlock }):
     Promise<{ sessionId?: string; list?: SaList | null }> => {
     const { visitId, ...rest } = args;
     return (await api.post(`${CTS}/outcome`, visitId ? { ...rest, visitId } : rest)).data;
   },
 
+  /** sessionId: the server's id or the phone-minted clientSessionId. */
   getStatus: async (sessionId: string): Promise<SaSessionStatus> =>
     (await api.get(`${CTS}/session/${encodeURIComponent(sessionId)}/status`)).data,
 };

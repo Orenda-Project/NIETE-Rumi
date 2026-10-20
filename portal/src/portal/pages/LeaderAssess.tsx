@@ -1,38 +1,46 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Headphones, RefreshCw, Smartphone, WifiOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Headphones, RefreshCw, WifiOff } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import AssessEngineSlot from '../components/assess/AssessEngineSlot';
 import AssessVisitBar, { type SyncItem } from '../components/assess/AssessVisitBar';
 import { childTestSa } from '../services/api';
 import { useChildTestSa } from '../lib/useChildTestSa';
 import { COPY, type Lang } from '../lib/assess/copy';
-import { mmss, readVisit, visitKey, writeVisit, type VisitMemory } from '../lib/assess/visitStore';
+import { pickBlock, type Block } from '../lib/assess/blocks';
+import { sendQueued } from '../lib/assess/outbox';
+import {
+  allVisitKeys, mintId, mmss, readVisit, visitKey, writeVisit, type QueuedOutcome, type VisitMemory,
+} from '../lib/assess/visitStore';
 import type { SaChild, SaList, SaOutcome, SaSchool } from '../types/childTestSa';
 
 /**
  * The coach's Learning assessment (/portal/leader/assess), behind portal_child_test_sa.
  *
  * The coach picks the school (today's visit first), then works down Rumi's list of
- * five: Present / Absent / Refused. Present opens a session; the coach hands the
- * phone and headphones to the child, the test runs in the engine slot, and the coach
- * ends it with a press-and-hold and takes the phone back. Absent or refused: the
- * server returns the list with the next alternate moved up. A child is named by
- * room and class teacher, never by roll number.
+ * five: Present / Absent / Refused. Present gives the child a session id minted on
+ * the phone and a block (lib/assess/blocks); Start sends it and opens the engine in
+ * a full-screen frame. When the engine hands the phone back, the page returns to the
+ * list. Absent or refused: the server returns the list with the next alternate moved
+ * up. A child is named by room and class teacher, never by roll number.
  *
- * The last list, the start time and what was finished here are kept on the phone per
- * visit (lib/assess/visitStore), so a dropped connection still shows the list.
+ * The last list, the start time, the minted ids and what was finished here are kept
+ * on the phone per visit (lib/assess/visitStore). An outcome that cannot reach the
+ * server is queued there and sent, in order, on load, when the phone is back online
+ * and every 30 s; meanwhile an absent child's place goes to the first alternate here.
  */
 
 const LANG_KEY = 'niete-assess-lang';
 const LIST_SIZE = 5;
+const TICK_MS = 30_000;
+const TOAST_MS = 4000;
+const FULL_MINUTES = 29;
 
 type Step =
   | { kind: 'schools' }
   | { kind: 'list'; school: SaSchool }
-  | { kind: 'handover'; school: SaSchool; child: SaChild; sessionId: string }
-  | { kind: 'engine'; school: SaSchool; child: SaChild; sessionId: string }
-  | { kind: 'giveback'; school: SaSchool; child: SaChild; sessionId: string }
+  | { kind: 'handover'; school: SaSchool; child: SaChild; sessionId: string; block: Block }
+  | { kind: 'engine'; school: SaSchool; child: SaChild; sessionId: string; block: Block }
   | { kind: 'summary'; school: SaSchool };
 
 type Problem = 'no_class_list' | 'frame_exhausted' | 'not_found';
@@ -78,6 +86,12 @@ export default function LeaderAssess() {
   const [busy, setBusy] = useState(false);
   const [vkey, setVkey] = useState<string | null>(null);
   const [memory, setMemory] = useState<VisitMemory | null>(null);
+  const [remote, setRemote] = useState<Record<string, 'sending' | 'sent'>>({});
+  const [toast, setToast] = useState(false);
+  const vkeyRef = useRef<string | null>(null);
+  vkeyRef.current = vkey;
+  const memoryRef = useRef<VisitMemory | null>(null);
+  memoryRef.current = memory;
 
   const switchLang = () => {
     const next: Lang = lang === 'ur' ? 'en' : 'ur';
@@ -85,14 +99,19 @@ export default function LeaderAssess() {
     try { window.localStorage.setItem(LANG_KEY, next); } catch { /* per-device convenience only */ }
   };
 
-  const remember = useCallback((change: (m: VisitMemory) => VisitMemory) => {
-    if (!vkey) return;
+  /** Change what the phone keeps for a visit: through state for the open one, else in storage. */
+  const updateVisit = useCallback((key: string, change: (m: VisitMemory) => VisitMemory) => {
+    if (key !== vkeyRef.current) { writeVisit(key, change(readVisit(key))); return; }
     setMemory((m) => {
-      const next = change(m ?? readVisit(vkey));
-      writeVisit(vkey, next);
+      const next = change(m ?? readVisit(key));
+      writeVisit(key, next);
       return next;
     });
-  }, [vkey]);
+  }, []);
+
+  const remember = useCallback((change: (m: VisitMemory) => VisitMemory) => {
+    if (vkeyRef.current) updateVisit(vkeyRef.current, change);
+  }, [updateVisit]);
 
   const keepList = useCallback((l: SaList) => {
     setList(l);
@@ -118,16 +137,14 @@ export default function LeaderAssess() {
     try {
       const out = await childTestSa.getList(s.schoolId, s.visitId);
       setList(out.list);
-      const m = readVisit(key);
-      writeVisit(key, { ...m, list: out.list });
-      setMemory({ ...m, list: out.list });
+      updateVisit(key, (m) => ({ ...m, list: out.list }));
     } catch (err) {
       const { reason, network } = errorOf(err);
       if (reason === 'no_class_list' || reason === 'frame_exhausted' || reason === 'not_found') { setProblem(reason); return; }
       const saved = readVisit(key).list;
       if (network && saved) { setList(saved); setOffline(true); } else setLoadFailed(true);
     }
-  }, []);
+  }, [updateVisit]);
 
   useEffect(() => {
     if (step.kind === 'list') void loadList(step.school, visitKey(step.school.schoolId));
@@ -135,29 +152,145 @@ export default function LeaderAssess() {
 
   const pickSchool = (s: SaSchool) => {
     const key = visitKey(s.schoolId);
+    vkeyRef.current = key;
     setVkey(key);
     setMemory(readVisit(key));
     setList(null);
     setStep({ kind: 'list', school: s });
   };
 
-  const isDone = (c: SaChild) => c.sessionStatus === 'completed' || Boolean(memory?.finished[c.drawId]);
+  // queued outcomes, oldest first; a visit stops at the first one that cannot go yet
+  const flushing = useRef(false);
+  const flush = useCallback(async () => {
+    if (flushing.current) return;
+    flushing.current = true;
+    try {
+      const keys = Array.from(new Set([...allVisitKeys(), ...(vkeyRef.current ? [vkeyRef.current] : [])]));
+      for (const key of keys) {
+        const queue = key === vkeyRef.current && memoryRef.current ? memoryRef.current.queue : readVisit(key).queue;
+        for (const q of queue) {
+          const r = await sendQueued(q);
+          if (r.kind === 'retry') break;
+          updateVisit(key, (m) => ({
+            ...m,
+            queue: m.queue.filter((x) => x.qid !== q.qid),
+            refused: r.kind === 'refused' ? [...m.refused, { qid: q.qid, drawId: q.drawId, outcome: q.outcome, status: r.status, at: Date.now() }] : m.refused,
+            list: r.kind === 'sent' && r.list ? r.list : m.list,
+          }));
+          if (r.kind === 'sent' && r.list && key === vkeyRef.current) { setList(r.list); setOffline(false); }
+        }
+      }
+    } finally {
+      flushing.current = false;
+    }
+  }, [updateVisit]);
 
-  const outcome = async (c: SaChild, value: SaOutcome) => {
+  const sentIds = Object.values(memory?.sessions ?? {}).filter((x) => x.sent).map((x) => x.id);
+  const pollKey = sentIds.filter((id) => remote[id] !== 'sent').join(',');
+  const live = useRef(true);
+  useEffect(() => () => { live.current = false; }, []);
+  const poll = useCallback(async (ids: string[]) => {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    for (const id of ids) {
+      try {
+        const st = await childTestSa.getStatus(id);
+        if (!live.current || !st?.session) continue;
+        const state = st.session.status === 'completed' ? 'sent' : 'sending';
+        setRemote((r) => (r[id] === state ? r : { ...r, [id]: state }));
+      } catch { /* not there yet, or offline */ }
+    }
+  }, []);
+
+  const tick = useRef<() => void>(() => {});
+  tick.current = () => {
+    void flush();
+    if (pollKey) void poll(pollKey.split(','));
+  };
+  useEffect(() => {
+    if (enabled !== true) return undefined;
+    tick.current();
+    const run = () => tick.current();
+    window.addEventListener('online', run);
+    const t = window.setInterval(run, TICK_MS);
+    return () => { window.removeEventListener('online', run); window.clearInterval(t); };
+  }, [enabled]);
+  useEffect(() => {
+    if (enabled === true && pollKey) void poll(pollKey.split(','));
+  }, [enabled, pollKey, poll]);
+
+  useEffect(() => {
+    if (!toast) return undefined;
+    const t = window.setTimeout(() => setToast(false), TOAST_MS);
+    return () => window.clearTimeout(t);
+  }, [toast]);
+
+  const sessionOf = (c: SaChild) => memory?.sessions[c.drawId];
+  const isDone = (c: SaChild) => {
+    const id = sessionOf(c)?.id;
+    return c.sessionStatus === 'completed' || Boolean(memory?.finished[c.drawId]) || (id !== undefined && remote[id] === 'sent');
+  };
+
+  /** Blocks other children of this visit already have (absent or refused ones excluded). */
+  const usedBlocks = (drawId: string) => Object.entries(memory?.sessions ?? {})
+    .filter(([d]) => d !== drawId && !memory?.outcomes[d])
+    .map(([, x]) => x.block);
+
+  const queue = (item: Omit<QueuedOutcome, 'qid' | 'at'>) => {
+    remember((m) => ({ ...m, queue: [...m.queue, { ...item, qid: mintId(), at: Date.now() }] }));
+  };
+
+  const present = (c: SaChild) => {
+    if (step.kind !== 'list') return;
+    const sess = sessionOf(c) ?? { id: mintId(), block: pickBlock(usedBlocks(c.drawId)), sent: Boolean(c.sessionId) };
+    remember((m) => ({ ...m, sessions: { ...m.sessions, [c.drawId]: sess } }));
+    setStep({ kind: 'handover', school: step.school, child: c, sessionId: sess.id, block: sess.block });
+  };
+
+  const wholeBattery = (on: boolean) => {
+    if (step.kind !== 'handover') return;
+    const block = on ? 'full' : pickBlock(usedBlocks(step.child.drawId));
+    const drawId = step.child.drawId;
+    remember((m) => ({ ...m, sessions: { ...m.sessions, [drawId]: { id: step.sessionId, block, sent: Boolean(m.sessions[drawId]?.sent) } } }));
+    setStep({ ...step, block });
+  };
+
+  const start = async () => {
+    if (step.kind !== 'handover') return;
+    const { school, child, sessionId, block } = step;
+    if (!memory?.startedAt) remember((m) => ({ ...m, startedAt: m.startedAt ?? Date.now() }));
+    if (!sessionOf(child)?.sent) {
+      const args = { schoolId: school.schoolId, visitId: school.visitId, drawId: child.drawId, outcome: 'present' as const, clientSessionId: sessionId, block };
+      setBusy(true);
+      try {
+        const out = await childTestSa.markOutcome(args);
+        if (out?.list) keepList(out.list);
+      } catch (err) {
+        if (!errorOf(err).network) { setBusy(false); setLoadFailed(true); return; }
+        queue(args);
+      }
+      remember((m) => ({ ...m, sessions: { ...m.sessions, [child.drawId]: { id: sessionId, block, sent: true } } }));
+      setBusy(false);
+    }
+    setStep({ ...step, kind: 'engine' });
+  };
+
+  const notPresent = async (c: SaChild, value: Exclude<SaOutcome, 'present'>) => {
     if (step.kind !== 'list') return;
     const s = step.school;
     setBusy(true);
-    if (value === 'present' && !memory?.startedAt) remember((m) => ({ ...m, startedAt: m.startedAt ?? Date.now() }));
     try {
       const out = await childTestSa.markOutcome({ schoolId: s.schoolId, visitId: s.visitId, drawId: c.drawId, outcome: value });
-      if (out.list) keepList(out.list);
-      if (value === 'present') {
-        if (out.sessionId) setStep({ kind: 'handover', school: s, child: c, sessionId: out.sessionId });
-      } else {
-        remember((m) => ({ ...m, outcomes: { ...m.outcomes, [c.drawId]: { outcome: value, name: nameOf(c, lang) } } }));
+      if (out?.list) keepList(out.list);
+      remember((m) => ({ ...m, outcomes: { ...m.outcomes, [c.drawId]: { outcome: value, name: nameOf(c, lang) } } }));
+    } catch (err) {
+      if (!errorOf(err).network) { setLoadFailed(true); return; }
+      queue({ schoolId: s.schoolId, visitId: s.visitId, drawId: c.drawId, outcome: value });
+      remember((m) => ({ ...m, outcomes: { ...m.outcomes, [c.drawId]: { outcome: value, name: nameOf(c, lang) } } }));
+      if (list) {
+        const [next, ...rest] = list.alternates;
+        keepList({ ...list, children: [...list.children.filter((x) => x.drawId !== c.drawId), ...(next ? [next] : [])], alternates: rest });
       }
-    } catch {
-      setLoadFailed(true);
+      setOffline(true);
     } finally {
       setBusy(false);
     }
@@ -167,7 +300,8 @@ export default function LeaderAssess() {
     if (step.kind !== 'engine') return;
     const { child, sessionId } = step;
     remember((m) => ({ ...m, finished: { ...m.finished, [child.drawId]: sessionId } }));
-    setStep({ kind: 'giveback', school: step.school, child, sessionId });
+    setStep({ kind: 'list', school: step.school });
+    setToast(true);
   };
 
   const back = () => {
@@ -177,7 +311,13 @@ export default function LeaderAssess() {
 
   const children = list?.children ?? [];
   const doneKids = children.filter(isDone);
-  const sync: SyncItem[] = doneKids.map((c) => ({ drawId: c.drawId, name: firstNameOf(c, lang), state: c.sessionStatus === 'completed' ? 'sent' : 'phone' }));
+  const syncOf = (c: SaChild): SyncItem['state'] => {
+    const id = sessionOf(c)?.id;
+    if (c.sessionStatus === 'completed' || (id && remote[id] === 'sent')) return 'sent';
+    if (memory?.queue.some((q) => q.drawId === c.drawId)) return 'phone';
+    return id && remote[id] === 'sending' ? 'sending' : 'phone';
+  };
+  const sync: SyncItem[] = doneKids.map((c) => ({ drawId: c.drawId, name: firstNameOf(c, lang), state: syncOf(c) }));
   const bar = (
     <AssessVisitBar copy={copy} done={doneKids.length} total={Math.max(LIST_SIZE, children.length)} startedAt={memory?.startedAt ?? null} sync={sync} />
   );
@@ -246,8 +386,9 @@ export default function LeaderAssess() {
             <ol className="space-y-3">
               {children.map((c, i) => {
                 const done = isDone(c);
-                const open = !done && c.sessionId;
-                const waiting = !done && !c.sessionId && (c.status === 'listed' || c.status === 'pending');
+                const local = sessionOf(c);
+                const open = !done && (c.sessionId || local?.sent) ? true : false;
+                const waiting = !done && !open && (c.status === 'listed' || c.status === 'pending');
                 const marked = c.status === 'absent' || c.status === 'absent_final' ? copy.summaryAbsent : c.status === 'refused' ? copy.summaryRefused : null;
                 return (
                   <li key={c.drawId} data-testid={`assess-child-${c.drawId}`} className="rounded-2xl border border-slate-200 bg-white p-3">
@@ -256,6 +397,7 @@ export default function LeaderAssess() {
                       <span className="flex-1 min-w-0">
                         <span className="block font-semibold text-slate-900 break-words">{nameOf(c, lang)}</span>
                         <span className="block text-sm text-slate-600 break-words">{placeOf(c, lang)}</span>
+                        {local && <span data-testid={`assess-block-${c.drawId}`} className="mt-1 inline-block rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-800">{copy.blocks[local.block]}</span>}
                       </span>
                       {done && <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">{copy.done}</span>}
                       {open && <span className="shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-xs text-sky-800">{copy.started}</span>}
@@ -263,15 +405,15 @@ export default function LeaderAssess() {
                     </div>
                     {waiting && (
                       <div className="mt-3 space-y-2">
-                        <button type="button" disabled={busy} onClick={() => outcome(c, 'present')} className="w-full min-h-[52px] rounded-xl bg-emerald-600 text-lg font-semibold text-white disabled:opacity-60">{copy.present}</button>
+                        <button type="button" disabled={busy} onClick={() => present(c)} className="w-full min-h-[52px] rounded-xl bg-emerald-600 text-lg font-semibold text-white disabled:opacity-60">{copy.present}</button>
                         <div className="grid grid-cols-2 gap-2">
-                          <button type="button" disabled={busy} onClick={() => outcome(c, 'absent')} className="min-h-[48px] rounded-xl border border-slate-300 bg-white disabled:opacity-60">{copy.absent}</button>
-                          <button type="button" disabled={busy} onClick={() => outcome(c, 'refused')} className="min-h-[48px] rounded-xl border border-slate-300 bg-white disabled:opacity-60">{copy.refused}</button>
+                          <button type="button" disabled={busy} onClick={() => notPresent(c, 'absent')} className="min-h-[48px] rounded-xl border border-slate-300 bg-white disabled:opacity-60">{copy.absent}</button>
+                          <button type="button" disabled={busy} onClick={() => notPresent(c, 'refused')} className="min-h-[48px] rounded-xl border border-slate-300 bg-white disabled:opacity-60">{copy.refused}</button>
                         </div>
                       </div>
                     )}
-                    {open && c.sessionId && (
-                      <button type="button" onClick={() => setStep({ kind: 'handover', school: step.school, child: c, sessionId: c.sessionId as string })}
+                    {open && (
+                      <button type="button" onClick={() => present(c)}
                         className="mt-3 w-full min-h-[48px] rounded-xl border border-slate-300 bg-white">{copy.continue}</button>
                     )}
                   </li>
@@ -293,35 +435,35 @@ export default function LeaderAssess() {
           </div>
         );
   } else if (step.kind === 'handover') {
+    const locked = Boolean(sessionOf(step.child)?.sent);
     content = (
-      <div className="space-y-6">
+      <div data-testid="assess-handover" className="space-y-5">
         {bar}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center">
           <Headphones className="mx-auto h-12 w-12 text-slate-500" aria-hidden />
           <p className="mt-4 text-2xl font-bold leading-relaxed text-slate-900">{copy.handover(firstNameOf(step.child, lang))}</p>
+          <p data-testid="assess-handover-block" className="mt-3 inline-block rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-800">{copy.blocks[step.block]}</p>
         </div>
-        <button type="button" onClick={() => setStep({ ...step, kind: 'engine' })}
-          className="w-full min-h-[64px] rounded-2xl bg-emerald-600 text-2xl font-semibold text-white">{copy.start}</button>
+        <label className="flex min-h-[48px] items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2">
+          <input type="checkbox" className="h-6 w-6 shrink-0" checked={step.block === 'full'} disabled={locked || busy}
+            onChange={(e) => wholeBattery(e.target.checked)} />
+          <span className="flex-1 font-medium text-slate-900">{copy.wholeBattery}</span>
+          <span className="text-sm text-slate-600">{copy.aboutMinutes(FULL_MINUTES)}</span>
+        </label>
+        <button type="button" disabled={busy} onClick={start}
+          className="w-full min-h-[64px] rounded-2xl bg-emerald-600 text-2xl font-semibold text-white disabled:opacity-60">{copy.start}</button>
       </div>
     );
   } else if (step.kind === 'engine') {
-    content = <AssessEngineSlot sessionId={step.sessionId} firstName={firstNameOf(step.child, lang)} lang={lang} onFinished={finished} />;
-  } else if (step.kind === 'giveback') {
     content = (
-      <div className="space-y-6">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center">
-          <Smartphone className="mx-auto h-12 w-12 text-slate-500" aria-hidden />
-          <p className="mt-4 text-2xl font-bold leading-relaxed text-slate-900">{copy.giveBack}</p>
-        </div>
-        <button type="button" onClick={() => setStep({ kind: 'list', school: step.school })}
-          className="w-full min-h-[56px] rounded-2xl bg-emerald-600 text-xl font-semibold text-white">{copy.backToList}</button>
-      </div>
+      <AssessEngineSlot sessionId={step.sessionId} firstName={firstNameOf(step.child, lang)} lang={lang}
+        grade={step.child.grade || list?.grade || 3} block={step.block} onFinished={finished} />
     );
   } else {
     const outcomes = Object.values(memory?.outcomes ?? {});
     const names = (xs: string[]) => (xs.length ? xs.join(' · ') : copy.none);
     const started = memory?.startedAt ?? null;
-    const notSent = doneKids.filter((c) => c.sessionStatus !== 'completed').length;
+    const notSent = doneKids.filter((c) => syncOf(c) !== 'sent').length;
     content = (
       <div data-testid="assess-summary" className="space-y-4">
         <h2 className="text-lg font-semibold text-slate-900">{copy.summaryTitle} · {step.school.name}</h2>
@@ -338,12 +480,15 @@ export default function LeaderAssess() {
     );
   }
 
-  const inTest = step.kind === 'engine' || step.kind === 'giveback';
+  const inTest = step.kind === 'engine';
   return (
     <PortalLayout bare={inTest}>
       <div className="max-w-md mx-auto overflow-x-hidden" dir={lang === 'ur' ? 'rtl' : 'ltr'} lang={lang}>
         {!inTest && header}
         {content}
+        {toast && step.kind === 'list' && (
+          <p role="status" className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-md rounded-xl bg-slate-900 px-4 py-3 text-center text-white shadow-lg">{copy.savedNext}</p>
+        )}
         {step.kind === 'schools' && enabled === true && (
           <Link to="/portal/leader" className="mt-6 block py-3 text-center text-sm text-slate-500">{copy.back}</Link>
         )}

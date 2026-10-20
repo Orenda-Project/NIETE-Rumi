@@ -11,6 +11,8 @@ export type SaSchool = {
 
 export type SaOutcome = "present" | "absent" | "refused";
 
+export type SaBlock = "B1" | "B2" | "B3" | "B4" | "B5" | "full";
+
 /** One drawn child. Never a roll number or student id (operator: "Name · Grade 3 - A · Teacher: …"). */
 export type SaChild = {
   drawId: string;
@@ -43,6 +45,7 @@ export type SaList = {
 
 export type SaSessionStatus = {
   session: { id: string; status: string; grade: number; form: string };
+  block?: SaBlock;
   tasksDone: string[];
   lastSeq: number;
   audio: string[];
