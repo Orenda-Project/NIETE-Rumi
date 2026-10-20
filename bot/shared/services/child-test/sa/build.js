@@ -14,7 +14,7 @@
 
 const crypto = require('crypto');
 const { TASKS_V3 } = require('../tasks');
-const { COMMON, BATTERY, TASKS: LINES, UR_LETTER_NAMES, EN_LETTER_SOUNDS } = require('./scripts');
+const { COMMON, BATTERY, GAME_LINES, TASKS: LINES, UR_LETTER_NAMES, EN_LETTER_SOUNDS } = require('./scripts');
 
 const VERSION = 'child-test-items-sa-v1';
 const SET = 'A';
@@ -174,27 +174,25 @@ function gridTask({ lang, kind, spec, extraPractice }) {
   };
 }
 
-function storyTasks({ lang, spec }) {
-  const task = `${lang}.story`;
-  const base = `v3:sets.${SET}.reading.${lang}.story`;
+function storyTasks({ lang, spec, task = `${lang}.story`, base = `v3:sets.${SET}.reading.${lang}.story`, legacy = task, adaptation = null }) {
   const lines = spec.story.lines || [];
   const lineOf = (i) => (lines.find((l) => i >= l.from && i <= l.to) || {}).n || null;
   const words = spec.items.map((w, i) => ({ id: `${task}.${pad(i + 1, 3)}`, target: w, line: lineOf(i), src: `${base}.items[${i}]` }));
   const first = lines[0] ? lines[0].to - lines[0].from + 1 : spec.items.length;
   const story = {
-    task, lang, kind: 'passage', legacy_block: task, family: 'egra', subtask: SUBTASK.story, title: spec.title, modes: ['record'],
+    task, lang, kind: 'passage', legacy_block: legacy, family: 'egra', subtask: SUBTASK.story, title: spec.title, modes: ['record'],
     tap: null,
     record: { passage: { text: spec.story.text, lines, direction: spec.direction, words }, time_limit_s: spec.timed_s,
       stop: stopOf(spec.stop, first), last_word_tap: true },
     practice: [], practice_note: spec.practice_note,
     script: scriptOf('story', 'record', LINES.story.last_word),
-    source: sourceOf(spec, `${base}.script.intro`, 'RTI bracket: at time-up the child taps the last word read (RULING #2); Tangerine moving-window reading NOT adopted'),
+    source: sourceOf(spec, `${base}.script.intro`, adaptation || 'RTI bracket: at time-up the child taps the last word read (RULING #2); Tangerine moving-window reading NOT adopted'),
     deviation: 'the child taps the last word read instead of the assessor bracketing it',
   };
   const questions = spec.questions.map((q, i) => ({ id: q.id, prompt: said(lang, q.prompt), needs_line: q.needs_line || null,
     accept: q.accept, reject: q.reject || [], rubric: q.rubric, src: `${base}.questions[${i}]` }));
   const comp = {
-    task: `${lang}.story_comp`, lang, kind: 'questions', legacy_block: task, family: 'egra', subtask: SUBTASK.story_comp,
+    task: `${task}_comp`, lang, kind: 'questions', legacy_block: legacy, family: 'egra', subtask: SUBTASK.story_comp,
     title: { en: 'Story questions', ur: 'کہانی کے سوال' }, modes: ['record'], tap: null,
     record: { questions, answer_window_s: 10, replay_max: 1 },
     depends_on: { task, upto_item: 'last_word_tap', needs_line: true },
@@ -206,18 +204,16 @@ function storyTasks({ lang, spec }) {
   return [story, comp];
 }
 
-function listeningTask({ lang, spec }) {
-  const task = `${lang}.listening`;
-  const base = `v3:sets.${SET}.reading.${lang}.listening`;
+function listeningTask({ lang, spec, task = `${lang}.listening`, base = `v3:sets.${SET}.reading.${lang}.listening`, legacy = task, adaptation = null }) {
   const questions = spec.questions.map((q, i) => ({ id: q.id, prompt: said(lang, q.prompt), accept: q.accept, reject: q.reject || [],
     rubric: q.rubric, src: `${base}.questions[${i}]` }));
   return {
-    task, lang, kind: 'listen_questions', legacy_block: task, family: 'egra', subtask: SUBTASK.listening, title: spec.title,
+    task, lang, kind: 'listen_questions', legacy_block: legacy, family: 'egra', subtask: SUBTASK.listening, title: spec.title,
     modes: ['record'], tap: null,
     record: { passage: { ...said(lang, spec.story.text), read_times: spec.read_times, shown: false }, questions, answer_window_s: 10, replay_max: 1 },
     practice: [], practice_note: spec.practice_note,
     script: scriptOf('listening', 'record'),
-    source: sourceOf(spec, `${base}.script.intro`, 'Jugnu reads the story twice (v3/RWP read_times 2); each answer recorded'),
+    source: sourceOf(spec, `${base}.script.intro`, adaptation || 'Jugnu reads the story twice (v3/RWP read_times 2); each answer recorded'),
     deviation: 'the spoken answer is recorded and scored later instead of marked by an assessor',
   };
 }
@@ -445,13 +441,62 @@ function readingExtras(extra) {
       deviation: 'the child taps the letter of the first sound instead of saying the sound (a letter tile, so letter knowledge is part of the answer)' });
   };
   out.push(initial('ur'), initial('en'));
+
+  // English phoneme segmentation (TK2009): Jugnu says the word twice, the child says its sounds; each answer is recorded
+  // and scored later (no phone scoring, so the toolkit's first-5 stop is applied by the scorer).
+  const seg = r.en.segmentation;
+  const phon = (ps) => ps.map((x) => { const k = x.replace(/\//g, ''); return k.length === 1 ? snd(k) : k; }).join(', ');
+  const segLines = LINES['en.segmentation'];
+  out.push({
+    task: 'en.segmentation', lang: 'en', kind: 'questions', legacy_block: null, family: 'egra', subtask: seg.subtask,
+    title: { en: 'Sounds in a word', ur: 'لفظ کی آوازیں' }, modes: ['record'], tap: null,
+    record: { questions: seg.items.map((w, i) => ({ id: `en.segmentation.${pad(i + 1, 2)}`, prompt: said('en', `What are the sounds in "${w.word}"? "${w.word}".`),
+      word: w.word, accept: [w.phonemes.join(' ')], phonemes: w.phonemes, src: `extra:reading.en.segmentation.items[${i}]` })),
+    answer_window_s: 10, replay_max: 1, stop_later: { type: 'first_n_zero', n: seg.stop.n } },
+    practice: [], practice_note: 'TK2009 practice words fan and miss are modelled by Jugnu before the task (a spoken answer cannot be checked on the phone)',
+    script: { ...scriptOf('en.segmentation', 'tap', fill2(segLines.example, seg.example.word, phon(seg.example.phonemes))),
+      practice_models: seg.practice.map((p) => spoken(fill2(segLines.example, p.word, phon(p.phonemes)))) },
+    source: { items: 'extra:reading.en.segmentation', script: segLines.intro_tap.from, sa_adaptation: 'each spoken answer recorded and scored later (CONTRACT §5 per-item audio)' },
+    deviation: 'the answer is recorded and scored later instead of marked by an assessor; the first-5 stop is applied when scored',
+  });
+
+  // The official second passages and listening stories (TK2009; SELECT 2024). They run on the game's islands in place
+  // of the coach's Set A passage and story, so the coach measure is not practised at home (panel-egra ⛔7).
+  // SELECT counts the reduplicated ٹَیں ٹَیں as one word (its markers sum to 60 only that way).
+  const toks = (t) => t.replace(/ٹَیں ٹَیں/g, 'ٹَیں_ٹَیں').split(/\s+/).map((w) => w.replace(/^[“"‘(]+|[.,!?”"’:;۔،؟)]+$/gu, '').replace('_', ' ')).filter(Boolean);
+  const en2 = r.en.story2;
+  const enWords = en2.lines.map(toks);
+  const enLines = [];
+  enWords.reduce((at, ws, i) => { enLines.push({ n: i + 1, from: at, to: at + ws.length - 1 }); return at + ws.length; }, 0);
+  const ur2 = r.ur.story2;
+  const urSegs = ur2.segments.map((x) => toks(x.seg));
+  const urLines = [];
+  urSegs.reduce((at, ws, i) => { urLines.push({ n: i + 1, from: at, to: at + ws.length - 1 }); return at + ws.length; }, 0);
+  const segOfMarker = (m) => ur2.segments.findIndex((x) => x.cum_marker >= m) + 1;
+  const story2 = (lang, spec, lines, words, questions) => storyTasks({ lang, task: `${lang}.story2`, legacy: `${lang}.story`, base: `extra:reading.${lang}.story2`,
+    adaptation: 'as the Set A story: the child reads aloud for 60 s, then taps the last word read; questions only up to the line reached',
+    spec: { title: { en: 'Story reading 2', ur: 'کہانی پڑھنا ۲' }, timed_s: 60, direction: lang === 'ur' ? 'rtl' : 'ltr', stop: { type: 'first_line' },
+      practice_note: 'EGRA oral reading has no practice item', source: { items: `extra:reading.${lang}.story2` },
+      items: words, story: { text: lang === 'en' ? en2.lines.join('\n') : ur2.text, lines }, questions } });
+  out.push(...story2('en', en2, enLines, enWords.flat(), en2.questions.map((q, i) => ({ id: `en.story2.q${i + 1}`, prompt: q.q, accept: q.accept, needs_line: q.needs_line,
+    rubric: q.any_reasonable ? 'any reasonable answer is accepted (TK2009)' : null }))));
+  out.push(...story2('ur', ur2, urLines, urSegs.flat(), ur2.questions.map((q, i) => ({ id: `ur.story2.q${i + 1}`, prompt: q.q, accept: q.accept, needs_line: segOfMarker(q.after_marker) }))));
+  for (const lang of ['en', 'ur']) {
+    const l = r[lang].listening2;
+    out.push(listeningTask({ lang, task: `${lang}.listening2`, legacy: `${lang}.listening`, base: `extra:reading.${lang}.listening2`,
+      adaptation: `Jugnu reads the story once (${lang === 'en' ? 'TK2009' : 'SELECT 2024'}: one reading); each answer recorded`,
+      spec: { title: { en: 'Listening 2', ur: 'سن کر سمجھنا ۲' }, story: { text: l.story }, read_times: l.read_times, practice_note: 'EGRA listening comprehension has no practice item',
+        source: { items: `extra:reading.${lang}.listening2` }, questions: l.questions.map((q, i) => ({ id: `${lang}.listening2.q${i + 1}`, prompt: q.q, accept: q.accept })) } }));
+  }
+  for (const t of out) if (/(story2|listening2)/.test(t.task)) t.parallel_of = t.task.replace('2', '');
   return out;
 }
 
 // Where a task sits in its section's run order (EGRA toolkit order within each language; the 18 v3 tasks keep v3's).
 const RUN_ORDER = [
-  'ur.listening', 'ur.initial_sound', 'ur.letters', 'ur.nonwords', 'ur.words', 'ur.story', 'ur.story_comp',
-  'en.listening', 'en.initial_sound', 'en.letters', 'en.letter_sounds', 'en.nonwords', 'en.words', 'en.story', 'en.story_comp',
+  'ur.listening', 'ur.listening2', 'ur.initial_sound', 'ur.letters', 'ur.nonwords', 'ur.words', 'ur.story', 'ur.story_comp', 'ur.story2', 'ur.story2_comp',
+  'en.listening', 'en.listening2', 'en.initial_sound', 'en.segmentation', 'en.letters', 'en.letter_sounds', 'en.nonwords', 'en.words', 'en.story',
+  'en.story_comp', 'en.story2', 'en.story2_comp',
 ];
 const runRank = (id) => {
   const i = RUN_ORDER.indexOf(id);
@@ -487,7 +532,8 @@ function buildSaBank({ v3, extra }) {
   const tasks = {};
   for (const f of FORMS) {
     const core18 = formTasks(f, v3, extra);
-    const extras = extra ? [...readingExtras(extra), ...extraTasks(f, extra)] : [];
+    // The second passages and stories (parallel_of) are the game's; the coach keeps Set A only.
+    const extras = extra ? [...readingExtras(extra), ...extraTasks(f, extra)].filter((t) => f.surface === 'game' || !t.parallel_of) : [];
     // Each extra sits in its language's section (stable: the core order and the maths extras' order are kept).
     const list = [...core18, ...extras].map((t, i) => ({ t, i })).sort((a, b) => {
       const [sa, ra] = runRank(a.t.task);
@@ -504,8 +550,14 @@ function buildSaBank({ v3, extra }) {
       Object.assign(form, { full: order, blocks, block_names: BLOCK_NAMES });
     } else {
       // Each island: that subject's tasks in run order, extras included; the tower stays the 18 (RULING #5).
-      const of = (p) => order.filter((id) => id.startsWith(p));
+      const swapped = new Set(list.filter((t) => t.parallel_of).map((t) => t.parallel_of).flatMap((id) => [id, `${id}_comp`]));
+      const of = (p) => order.filter((id) => id.startsWith(p) && !swapped.has(id));
       Object.assign(form, { islands: { maths: of('ma.'), english: of('en.'), urdu: of('ur.') }, tower: core18.map((t) => t.task) });
+    }
+    if (f.surface === 'game') {
+      // DESIGN §5: no test words on a game screen, and at home there is no teacher to hand the phone back to.
+      form.lines = { welcome: 'welcome_game', end: 'end_game' };
+      for (const t of list) t.script.hand_back = spoken(GAME_LINES.hand_back);
     }
     forms[f.form] = form;
     for (const t of list) tasks[`${f.form}/${t.task}`] = t;
@@ -611,7 +663,8 @@ function runtimeBattery(bank, formId, lang) {
   return {
     battery_id: `sa.${formId}.${lang}`, version: bank.version, form: formId, lang, ...shape,
     rule: bank.rule, conventions: bank.conventions,
-    lines: Object.fromEntries(Object.entries(bank.lines).map(([k, l]) => [k, inLang(l, lang)])),
+    lines: Object.fromEntries(Object.entries(bank.lines).filter(([k]) => !/_game$/.test(k))
+      .map(([k, l]) => [k, inLang(form.lines && form.lines[k] ? bank.lines[form.lines[k]] : l, lang)])),
     tasks: order.map((id) => runtimeTask(bank.tasks[`${formId}/${id}`], lang)),
   };
 }

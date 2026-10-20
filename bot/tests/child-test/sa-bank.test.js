@@ -67,7 +67,9 @@ describe('SA battery bank (CONTRACT §2)', () => {
         expect(f.full.filter((t) => !inBlocks.includes(t)).sort()).toEqual(f.extra.filter((t) => !/^ma\.patterns|initial_sound$/.test(t)).sort());
       } else {
         expect(Object.keys(f.islands).sort()).toEqual(['english', 'maths', 'urdu']);
-        expect(Object.values(f.islands).flat().sort()).toEqual([...f.tower, ...f.extra].sort());
+        // The islands run every task of the form, the second passage and story in place of Set A's (sa-reading-2).
+        const swapped = f.extra.filter((t) => /(story|listening)2(_comp)?$/.test(t)).map((t) => t.replace('2', ''));
+        expect(Object.values(f.islands).flat().sort()).toEqual([...f.tower.filter((t) => !swapped.includes(t)), ...f.extra].sort());
       }
     }
   });
