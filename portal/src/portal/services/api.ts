@@ -4,6 +4,7 @@ import { ANALYTICS_LOGIN } from '../lib/homeRoute';
 import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData, SchoolAnalyticsResponse,
   AttendanceResponse } from '../types/portal';
 import type { ChildTestVisit, ChildTestList, ChildTestCard, ChildTestSession, ChildTestBlockName } from '../types/childTest';
+import type { SaList, SaOutcome, SaSchool, SaSessionStatus } from '../types/childTestSa';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
 import type { CoachingAnalyticsResponse, SchoolsAnalyticsResponse } from '../types/portal';
@@ -449,6 +450,7 @@ export const portal = {
             "The assessment generator is being prepared for you. We'll notify you when it's live.",
           selfObservation: false,
           childTest: false,
+          childTestSa: false,
           coachObservation: false,
           newUi: false,
           assessmentEditing: false,
@@ -648,6 +650,8 @@ export type PortalConfig = {
     selfObservation?: boolean;
     /** bd-s1oo0.7 — the child test in the coach app is on for THIS user (fail-closed). */
     childTest?: boolean;
+    /** The coach's Learning assessment (child test on the SA engine) is on for THIS user (fail-closed). */
+    childTestSa?: boolean;
     /** bd-5rz1v.6 — a coach can run an /observe observation from the portal (fail-closed). */
     coachObservation?: boolean;
     /** bd-5rz1v.12 — the new UI (Direction B) is on for THIS user (fail-closed). */
@@ -1286,6 +1290,27 @@ export const childTest = {
   submitCheck: async (sessionId: string, args: { block: ChildTestBlockName; coachMarks: Record<string, unknown> }):
     Promise<{ edits: number; allChecked: boolean }> =>
     (await api.post(`${CT}/session/${encodeURIComponent(sessionId)}/check`, args)).data,
+};
+
+// ── The coach's Learning assessment (child test on the SA engine) ──────────
+// Relays to the bot like childTest; the server draws the children and names the visit.
+
+const CTS = '/leader/child-test/sa';
+
+export const childTestSa = {
+  getSchools: async (): Promise<{ schools: SaSchool[] }> => (await api.get(`${CTS}/schools`)).data,
+
+  getList: async (schoolId: string, visitId?: string | null): Promise<{ list: SaList }> =>
+    (await api.get(`${CTS}/list`, { params: visitId ? { schoolId, visitId } : { schoolId } })).data,
+
+  markOutcome: async (args: { schoolId: string; visitId?: string | null; drawId: string; outcome: SaOutcome; note?: string }):
+    Promise<{ sessionId?: string; list?: SaList | null }> => {
+    const { visitId, ...rest } = args;
+    return (await api.post(`${CTS}/outcome`, visitId ? { ...rest, visitId } : rest)).data;
+  },
+
+  getStatus: async (sessionId: string): Promise<SaSessionStatus> =>
+    (await api.get(`${CTS}/session/${encodeURIComponent(sessionId)}/status`)).data,
 };
 
 export default api;
