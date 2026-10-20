@@ -238,6 +238,7 @@
     var mercied = {};         // task ids the mercy line was said for
     var refused = null;       // refuse(kind): a full-screen stop
     var starEl = null;
+    var starSpeech = null;
     var childName = opts.child && typeof opts.child.first_name === 'string' ? opts.child.first_name.trim().slice(0, 40) : '';
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
@@ -1061,7 +1062,9 @@
           sayItem(v.item, t).then(function () { if (alive && g3 === gen && lastKey === key2 && runner.promptDone) runner.promptDone(); });
         } else sayItem(v.item, t);
       } else if (v.phase === 'running' && t && t.mode === 'record') {
-        say(line('done') || { en: COPY.en.done, ur: COPY.ur.done });
+        // The star line first; the recorder opens after it (recorderHooks), so Jugnu is neither in the child's
+        // recording nor in the silence watch's first second.
+        starSpeech = say(line('done') || { en: COPY.en.done, ur: COPY.ur.done });
       } else if (v.phase === 'last_word') {
         sayChain([v.time_left_ms === 0 && s.time_up ? [s.time_up] : null, s.intro_tap ? [s.intro_tap] : [{ en: COPY.en.last_word, ur: COPY.ur.last_word }]]);
       } else if (v.phase === 'task_end') {
@@ -1085,8 +1088,13 @@
     function recorderHooks(v) {
       var isRec = v.phase === 'running' && v.task && v.task.mode === 'record';
       if (isRec && recording !== v.task) {
-        recording = v.task;
-        try { if (opts.onRecordStart) opts.onRecordStart(v.task); } catch (e) { /* recorder */ }
+        var task = v.task;
+        recording = task;
+        // After this render's speech is queued: wait for the star line, then open the recorder (if still reading).
+        Promise.resolve().then(function () { return starSpeech; }).then(function () {
+          starSpeech = null;
+          if (alive && recording === task) { try { if (opts.onRecordStart) opts.onRecordStart(task); } catch (e) { /* recorder */ } }
+        });
       } else if (!isRec && recording) {
         var t = recording;
         recording = null;

@@ -5,7 +5,7 @@
  */
 const mic = require('../sa/sa-mic');
 
-function mem(init) { const m = Object.assign({}, init); return { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, m }; }
+function mem(init) { const m = Object.assign({}, init); return { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: (k) => { delete m[k]; }, m }; }
 
 test('reads both writers; anything else is unknown', () => {
   expect(mic.state(mem({}))).toBe('unknown');
@@ -26,4 +26,13 @@ test('the game check is remembered with its level', () => {
 test('the RMS of 8-bit samples (128 = silence)', () => {
   expect(mic.rmsOf(new Uint8Array([128, 128, 128]))).toBe(0);
   expect(mic.rmsOf(new Uint8Array([192, 64]))).toBeCloseTo(0.5, 5);
+});
+
+test('a failed game check is not kept (asked again next run); a pass stays', () => {
+  const s = mem({});
+  mic.remember(false, 0, s);
+  expect(mic.state(s)).toBe('unknown');
+  mic.remember(true, 0.05, s);
+  mic.remember(false, 0, s);
+  expect(mic.state(s)).toBe('ok');
 });

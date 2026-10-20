@@ -405,3 +405,10 @@ test('the recorder could not listen (a sleeping audio engine): the passage runs 
   now.go(60000); r.tick(); r.lastWord(0);
   expect(r.results()[0]).toMatchObject({ stop_reason: STOP.TIME_UP, mercy_ear: 'unavailable', mercy_offered: false });
 });
+
+test('elapsed_ms is the clock as it ran: a late time-up shows, time_used_ms stays capped', () => {
+  const { r, now } = make();
+  r.start(); r.instructionDone(); while (r.view().phase === 'practice') r.practiceAnswer(r.view().practice.target);
+  r.begin(); now.go(63500); r.tick();
+  expect(r.results()[0]).toMatchObject({ stop_reason: STOP.TIME_UP, time_used_ms: 60000, elapsed_ms: 63500 });
+});
