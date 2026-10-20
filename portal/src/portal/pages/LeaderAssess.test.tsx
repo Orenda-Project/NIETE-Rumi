@@ -214,6 +214,9 @@ describe("LeaderAssess", () => {
     const row = await screen.findByTestId("assess-child-d1");
     expect(row).not.toHaveTextContent("Done");
     expect(screen.getByTestId("assess-stopped")).toHaveTextContent("stopped before the end");
+    // the note names the button the row really shows
+    expect(within(row).getByRole("button", { name: "Continue" })).toBeInTheDocument();
+    expect(screen.getByTestId("assess-stopped")).toHaveTextContent("Tap Continue");
     expect(stored().finished.d1).toBeUndefined();
     expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("0/5");
   });
