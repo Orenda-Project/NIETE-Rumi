@@ -396,3 +396,12 @@ test('an item\'s shown text is its label (the sum the child sees)', () => {
   const b = normalize({ tasks: [{ id: 'ma.add1', mode: 'keypad', items: [{ id: 'k', answer: 4, shown: '1 + 3 =' }, { id: 'k2', answer: 5, label: '2 + 3 =', shown: 'x' }] }] });
   expect(b.tasks[0].items.map((i) => i.label)).toEqual(['1 + 3 =', '2 + 3 =']);
 });
+
+test('the recorder could not listen (a sleeping audio engine): the passage runs its clock, the result says so', () => {
+  const b = { battery_id: 'e', tasks: [{ id: 'story', mode: 'record', time_limit_s: 60, passage: { text: 'a' }, items: [{ id: 'w', target: 'a', line: 1 }] }] };
+  const { r, now } = make(b, { mic: () => 'ok' });
+  r.start(); r.instructionDone(); r.begin();
+  r.earUnavailable();
+  now.go(60000); r.tick(); r.lastWord(0);
+  expect(r.results()[0]).toMatchObject({ stop_reason: STOP.TIME_UP, mercy_ear: 'unavailable', mercy_offered: false });
+});
