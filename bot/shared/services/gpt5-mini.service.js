@@ -768,11 +768,11 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
    * completed) because this method was never ported to NIETE.
    *
    * @param {string} prompt   must contain the word "JSON" (json_object mode)
-   * @param {object} options  { maxTokens = 4000, label = 'completeJson' }
+   * @param {object} options  { maxTokens = 4000, label = 'completeJson', job, reasoningEffort } — reasoningEffort is sent only when set (bd-gzfdu9)
    * @returns {Promise<{result: object, usage: object, finishReason: string|null}>}
    */
   static async completeJson(prompt, options = {}) {
-    const { maxTokens = 4000, label = 'completeJson' } = options;
+    const { maxTokens = 4000, label = 'completeJson', reasoningEffort } = options;
     try {
       const response = await this.openai.chat.completions.create({
         // The job a caller names decides the model as well as the label: the coach's debrief guide
@@ -785,6 +785,8 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
         max_completion_tokens: maxTokens,
         response_format: { type: 'json_object' },
         // No temperature: GPT-5 mini only supports the default (1)
+        // bd-gzfdu9: only a caller that names an effort sends one; every other request is unchanged.
+        ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
       });
       const choice = response.choices && response.choices[0];
       if (choice && choice.finish_reason === 'length') {
