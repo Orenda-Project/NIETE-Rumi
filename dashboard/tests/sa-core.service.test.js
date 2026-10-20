@@ -412,3 +412,18 @@ test('elapsed_ms is the clock as it ran: a late time-up shows, time_used_ms stay
   r.begin(); now.go(63500); r.tick();
   expect(r.results()[0]).toMatchObject({ stop_reason: STOP.TIME_UP, time_used_ms: 60000, elapsed_ms: 63500 });
 });
+
+test('recorded: a reading or spoken task says whether its recorder ever opened (the coach page waits only for those that did)', () => {
+  const rec = { id: 'story', mode: 'record', time_limit_s: 60, passage: { text: 'a' }, items: [{ id: 'w', target: 'a', line: 1 }] };
+  const oral = { id: 'comp', mode: 'oral', items: [{ id: 'q1' }] };
+  const tap = { id: 'letters', mode: 'tap', items: items(1) };
+  const { r } = make({ battery_id: 'rf', tasks: [rec, oral, tap] }, { mic: () => 'ok' });
+  r.start(); r.instructionDone(); r.coachEnd(); // ended before the recorder opened
+  expect(r.results()[0]).toMatchObject({ task_id: 'story', stop_reason: STOP.COACH_END, recorded: false });
+  r.next(); r.instructionDone(); r.begin();
+  r.log('record_start', { task_id: 'comp', item_id: 'q1' }); // the engine logs this when the recorder opens
+  r.answer('spoken');
+  expect(r.results()[1]).toMatchObject({ task_id: 'comp', recorded: true });
+  r.next(); r.instructionDone(); r.begin(); r.answer('a');
+  expect(r.results()[2]).not.toHaveProperty('recorded'); // a tap task records nothing and says nothing
+});
