@@ -71,7 +71,10 @@ function journey(trend) {
   return { points, first: points[0], best: Math.max(...points), now: points[points.length - 1] };
 }
 
-/** input = { session, firstName, language, trend: [{created_at, pct}] oldest first, quizMessage, card? (bd-v0toag.31) } */
+/**
+ * input = { session, firstName, language, trend: [{created_at, pct}] oldest first, quizMessage, card? (bd-v0toag.31),
+ *           video? (bd-gzfdu9: the recommended clip's card, shaped by video-reco-events.cardFor; absent → no key) }
+ */
 function buildReportView(input = {}) {
   const l = input.language === 'ur' ? 'ur' : 'en';
   const s = input.session || {};
@@ -87,6 +90,7 @@ function buildReportView(input = {}) {
     voice: https(s.voice_debrief_url),
     report: https(s.report_pdf_url),
     disagreements: disagreementsFor(a.live_moves, a.lp_fidelity, input.card),
+    ...(input.video ? { video: input.video } : {}),
   };
 }
 

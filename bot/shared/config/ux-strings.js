@@ -161,6 +161,53 @@ const UX_STRINGS = {
     ur: 'میری رپورٹ کھولیں',
   },
 
+  // ─── bd-gzfdu9 (VIDREC): the recommended training clip ───────────────────
+  // One WhatsApp message after the report (video-reco/send.js), a card on /cr and the /v player.
+  // {n} is whole minutes, passed in Urdu-Indic digits for ur (video-reco/copy.js). Buttons ≤ 20 CODE POINTS.
+  videoRecoButton: {
+    en: '▶ Watch {n} min',
+    ur: '▶\u200F {n} منٹ دیکھیں', // the RLM keeps ▶ at the right end of the Urdu label (SPEC v1.2 §4.2)
+  },
+  videoRecoBodyLead: {
+    en: '🎬 A {n}-minute clip for your one thing to try.',
+    ur: '🎬 آپ کی آزمانے والی ایک بات کے لیے {n} منٹ کا کلپ۔',
+  },
+  videoRecoBodyMeta: {
+    en: '⏱ {n} min · {lang}',
+    ur: '⏱ {n} منٹ · {lang}',
+  },
+  videoRecoLangUr: { en: 'Urdu', ur: 'اردو' },
+  videoRecoLangEn: { en: 'English', ur: 'انگریزی' },
+  videoRecoLangMixed: { en: 'Urdu + English', ur: 'اردو + انگریزی' },
+  videoRecoCardTitle: {
+    en: '🎬 Watch this next',
+    ur: '🎬 اگلا یہ دیکھیں',
+  },
+  videoRecoCardButton: {
+    en: 'Watch ({n} min)',
+    ur: 'دیکھیں ({n} منٹ)',
+  },
+  videoRecoPlayerClip: {
+    en: 'This clip: {a} – {b}',
+    ur: 'یہ کلپ: {a} – {b}',
+  },
+  videoRecoPlayerWhy: { en: 'Why this clip', ur: 'یہ کلپ کیوں' },
+  videoRecoPlayerFromStart: { en: 'Watch from the start', ur: 'شروع سے دیکھیں' },
+  videoRecoPlayerLookFor: {
+    en: 'Try it in your next lesson and record it — your next report will show the change.',
+    ur: 'اگلے سبق میں آزمائیں اور ریکارڈ کریں — اگلی رپورٹ میں فرق نظر آئے گا۔',
+  },
+  videoRecoPlayerBack: { en: '← Back to my report', ur: 'میری رپورٹ پر واپس →' },
+  // The strip on the report image (SPEC v1.2 §4.9): the image cannot be tapped, so it points at the message below.
+  videoRecoStripTitle: {
+    en: '▶ Watch next: {title}',
+    ur: '▶\u200F اگلا دیکھیں: {title}',
+  },
+  videoRecoStripHint: {
+    en: '{n} min · tap ▶ Watch in the next message',
+    ur: '{n} منٹ · اگلے پیغام میں ▶\u200F دیکھیں دبائیں',
+  },
+
   // ─── commitment-card buttons ──────────────────────────────────────────────
   // The one-line acknowledgement after a tap on "Will you commit to trying this
   // in your next class?". Gender-neutral by construction: the Urdu is Rumi's
