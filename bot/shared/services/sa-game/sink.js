@@ -102,7 +102,11 @@ function createSink(deps = {}) {
     const day = pktDay(d.now());
     const id = idFor('sag', who.studentId, part, form, day, runNo);
     const l = lang === 'en' || lang === 'ur' ? lang : (who.lang === 'en' ? 'en' : 'ur');
-    const out = await store().createRun({ id, drawId: idFor('sag-draw', id), studentId: who.studentId, grade: who.grade, lang: l, part, form, n: runNo, day });
+    // exposure: the Big flight once per PKT month once finished; every run counts how often this part was met this month
+    const ex = await store().exposure({ studentId: who.studentId, form, part, day });
+    if (ex && ex.ok && part === 'tower' && ex.flightDone) return no(409, 'flight_done');
+    const exposureN = ex && ex.ok ? ex.n + 1 : null;
+    const out = await store().createRun({ id, drawId: idFor('sag-draw', id), studentId: who.studentId, grade: who.grade, lang: l, part, form, n: runNo, day, exposureN });
     if (!out || !out.ok) return no(503, 'unavailable');
     const st = T.sign({ k: 'sag', sid: id, m: out.mode === 'child_test' ? 'c' : 'r', exp: Math.floor(d.now().getTime() / 1000) + ST_TTL_S });
     if (!st) return no(503, 'unavailable');
