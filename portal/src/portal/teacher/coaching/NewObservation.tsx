@@ -34,6 +34,7 @@ import { Action, Dock, FlowStep, PhotoGrid, PlanPicker, RecordingCard } from './
 import { COACHING_HOME, COACHING_NEW, lessonPath } from './paths';
 import { dcSteps } from './report';
 import { ClassCheck, Reflection, stoppedLine } from './reportLive';
+import { DuplicateNote } from './ReportPage';
 import { useDcReport } from './useDcReport';
 
 /**
@@ -467,6 +468,8 @@ export function NewObservationPage() {
           {/* While it uploads she keeps the app open (the card says so); the leave note comes once it has arrived. */}
           {!sending && progress?.stage !== 'stopped' && progress?.stage !== 'confirm_class' ? (
             <>
+              {/* bd-z3cadk — ICT IAB row 23: the same recording sent again; the bot's own message, as on WhatsApp. */}
+              {progress?.duplicate && report.ready ? <DuplicateNote lead={C.duplicateRecordingLead} next={C.duplicateRecordingNext} /> : null}
               <Reflection r={report} />
               {report.ready && sessionId ? <Action to={lessonPath(sessionId)} icon={Check}>{C.openLesson}</Action> : <LeaveNote text={leave} />}
             </>

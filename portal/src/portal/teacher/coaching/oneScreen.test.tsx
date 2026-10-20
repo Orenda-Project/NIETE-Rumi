@@ -362,6 +362,18 @@ describe("recordings must be at least 15 minutes (operator, 16 Oct: a few second
   });
 });
 
+describe("the same recording sent again (bd-z3cadk, ICT IAB row 23)", () => {
+  it("the second screen shows the bot's own message once the earlier report is ready", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: "sess-1", status: "completed", stage: "done", reflection: null, reportReady: true, duplicate: true } as never);
+    portal.getCoachingSession.mockResolvedValue({ session: { id: "sess-1", date: "2026-10-20T07:56:43Z", breakdown: null } } as never);
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
+    fireEvent.click(await screen.findByRole("button", { name: C.submit }));
+    expect(await screen.findByText(C.duplicateRecordingLead)).toBeTruthy();
+  });
+});
+
 describe("the recording slot is audio only (bd-i0u6n2)", () => {
   it("a video is refused on its own line, not as Not a recording", async () => {
     vi.spyOn(mediaProbe, "hasVideo").mockResolvedValue(true);
