@@ -6,7 +6,8 @@
  * page a challenger's name in Urdu script is kept (the list's own spelling), and any other is the first name the child
  * played under, as the English page shows it. The same name reaches the friend's door, the result line and the
  * challenge picture (they share one source). Off (absent or anything but JSON true), and on an English page: today's.
- * The switch also rides the page's payload as `name_bidi: true`, only when on.
+ * The switch is read from the hub's switch cache only (nowOf('nameBidi'), no read of its own), and it rides the page's
+ * answer as `name_bidi: true`, only when on.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/services/queue/sqs-queue.service', () => ({ queueJob: jest.fn().mockResolvedValue({ MessageId: 'm1' }) }));
@@ -122,7 +123,9 @@ const ON = [{ key: 'web_quiz_share_name_bidi', value: true }];
 async function both({ lang = 'ur', row = {}, settings = [] } = {}) {
   LANG = lang; ROW = row; SETTINGS = settings;
   seed();
-  require('../../../shared/services/quiz/web-quiz-card-switch')._reset();
+  const Hub = require('../../../shared/services/quiz/web-quiz-hub-flags');
+  Hub._resetCache();
+  await Hub.flags(); // a warm process: the hub's switch cache holds this seed's switches
   addChallengeCode();
   const door = (await WQ.getQuiz('CH12AB')).challenge;
   const out = await friendPlays('Omar Testwala', ['B', 'B', 'A', 'A']);
@@ -163,28 +166,42 @@ describe('off: today\'s answers', () => {
     });
 });
 
-describe('the switches\' one read', () => {
-  const Card = () => require('../../../shared/services/quiz/web-quiz-card-switch');
-  async function read(settings) {
-    LANG = 'en'; ROW = {}; SETTINGS = settings;
+describe('the hub\'s switch cache only', () => {
+  const Hub = () => require('../../../shared/services/quiz/web-quiz-hub-flags');
+  test('on: nowOf(\'nameBidi\') once the hub\'s read has the key; the page answer says name_bidi', async () => {
+    const on = await both({ settings: ON });
+    expect(Hub().nowOf('nameBidi')).toBe(true);
+    expect((await WQ.getQuiz('CH12AB')).name_bidi).toBe(true);
+    expect(on.vs.first).toBe('Beena');
+  });
+  test('a cold cache: off, and no read of its own (the name is today\'s until the hub\'s read lands)', async () => {
+    LANG = 'ur'; ROW = { student_name_urdu: 'Testwala' }; SETTINGS = ON;
     seed();
-    Card()._reset();
-    await Card().on();
-    return { stack: Card().urStackCached(), bidi: Card().nameBidiCached(), field: await Card().field() };
-  }
-  test('on: both read in the one read; the page payload says name_bidi only then', async () => {
-    const r = await read([{ key: 'web_quiz_share_ur_stack', value: true }, { key: 'web_quiz_share_name_bidi', value: true }]);
-    expect(r).toEqual({ stack: true, bidi: true, field: { name_bidi: true } });
-    expect(Card().UR_STACK_KEY).toBe('web_quiz_share_ur_stack');
-    expect(Card().NAME_BIDI_KEY).toBe('web_quiz_share_name_bidi');
+    Hub()._resetCache();
+    addChallengeCode();
+    expect(Hub().nowOf('nameBidi')).toBe(false);
+    expect((await WQ.challengeOf({ shareCodeId: SC, invitedByStudentId: KID_A, lang: 'ur' })).first).toBe('Testwala');
   });
-  test('with the card on, the payload is today\'s plus name_bidi', async () => {
-    const r = await read([{ key: 'web_quiz_card_v3', value: true }, { key: 'web_quiz_share_name_bidi', value: true }]);
-    expect(r.field).toEqual({ card_v3: true, name_bidi: true });
+  test.each([['absent', []], ['false', false], ['"true"', 'true'], ['1', 1]])('off (%s): false, and the page answer has no name_bidi', async (_n, v) => {
+    await both({ settings: Array.isArray(v) ? v : [{ key: 'web_quiz_share_name_bidi', value: v }] });
+    expect(Hub().nowOf('nameBidi')).toBe(false);
+    expect(await WQ.getQuiz('CH12AB')).not.toHaveProperty('name_bidi');
   });
-  test.each([['absent', []], ['false', false], ['"true"', 'true'], ['1', 1]])('off (%s): false, and the payload is today\'s', async (_n, v) => {
-    const settings = Array.isArray(v) ? v : [{ key: 'web_quiz_share_ur_stack', value: v }, { key: 'web_quiz_share_name_bidi', value: v }];
-    const r = await read(settings);
-    expect(r).toEqual({ stack: false, bidi: false, field: {} });
+  test('the picture switch is in the card switches\' one read (the read the picture already makes)', async () => {
+    LANG = 'en'; ROW = {}; SETTINGS = [{ key: 'web_quiz_share_ur_stack', value: true }];
+    seed();
+    const Card = require('../../../shared/services/quiz/web-quiz-card-switch');
+    Card._reset();
+    await Card.on();
+    expect(Card.urStackCached()).toBe(true);
+    expect(Card.UR_STACK_KEY).toBe('web_quiz_share_ur_stack');
+    expect(await Card.field()).toEqual({});
+    for (const v of [false, 'true', 1]) {
+      SETTINGS = [{ key: 'web_quiz_share_ur_stack', value: v }];
+      seed();
+      Card._reset();
+      await Card.on();
+      expect(Card.urStackCached()).toBe(false);
+    }
   });
 });
