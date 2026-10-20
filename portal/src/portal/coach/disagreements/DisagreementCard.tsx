@@ -1,66 +1,52 @@
-import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { cn } from "@/lib/utils";
 import { useCopy } from "../../teacher/i18n";
 import { LoadState } from "../../teacher/lessons/LoadState";
 import { dataOf, useLoad } from "../../newui/lessons/shared";
 import { AudioPlayer } from "../../newui/AudioPlayer";
-import { Chip } from "../../newui/Chip";
-import { FOCUS, PRIMARY_WIDE, ROW_SUB } from "../../teacher/ui/styles";
+import { ROW_SUB } from "../../teacher/ui/styles";
 import { disagreements, type Card } from "./api";
 import { DISAGREE } from "./copy";
 import { DisagreementsFrame, Gated } from "./frame";
-import { ClipProvider, FullReport, ReasonBlock, WhereToLook } from "./cardParts";
+import { ClipProvider, FullReport, ReasonBlock } from "./cardParts";
+import { WhereToLook } from "./whereToLook";
+import { Banner, CardHead, ReasonPills } from "./cardTop";
+import { DoneBadge, DoneBar } from "./doneBar";
+import { PatternSection } from "./patternSection";
+import { CoachingBox } from "./CoachingBox";
 
 /**
  * bd-tbprit.3 — one teacher's disagreement, evidence only (Amena, 19 Oct), in Rifat's order:
  *
- *   A  what she disagrees with — each reason with the grader's own evidence; her voice note; what the report told her
- *   B  where to look — the four sections, closed, every indicator with its AI score and a Listen per timed item
- *      her trend, then the full DC report
- *      "I have visited" — one-way (the tracker's visited_7d reads it); a done card has no button
- *
- * No coaching suggestion, no message/call, no "Recording less": not before the 7 Dec read.
+ *      the top (bd-tbprit.8, Rifat's prototype) — the dark head, the pink banner
+ *   A  what she disagrees with — her reasons as pills, her voice note, each reason with the grader's own evidence,
+ *      what the report told her (Strength / One thing to try)
+ *   B  where to look (bd-tbprit.9) — one Listen for the problem part, the plan's moves, the other three sections
+ *      3. is this a pattern? (bd-tbprit.10) — her last lessons as Rifat's line and four facts, then the full DC report
+ *      💡 coaching suggestion (bd-tbprit.11) — listen, what did you find, the suggested way, what to do
+ *      the footer (bd-tbprit.12) — "✓ Mark as done", or on a done card the ✓ Done badge and "Move back to To do"
  */
 
 const H2 = "text-[17px] font-bold text-[#1d2025]";
 
-function Visit({ id, done }: { id: string; done: boolean }) {
-  const C = useCopy(DISAGREE);
-  const [isDone, setDone] = useState(done);
-  const [saving, setSaving] = useState(false);
-  const [failed, setFailed] = useState(false);
-  if (isDone) return <div data-testid="visit-state"><Chip tone="done">{C.visited}</Chip></div>;
-  const tap = async () => {
-    setSaving(true);
-    setFailed(false);
-    const ok = await disagreements.visited(id);
-    setSaving(false);
-    if (ok) setDone(true); else setFailed(true);
-  };
-  return (
-    <div className="flex flex-col gap-2">
-      {failed ? <p role="alert" className="text-[14px] text-[#c8331f]">{C.saveFailed}</p> : null}
-      <button type="button" onClick={tap} disabled={saving} className={cn(PRIMARY_WIDE, FOCUS)}>{C.visit}</button>
-    </div>
-  );
-}
-
 function Loaded({ card }: { card: Card }) {
   const C = useCopy(DISAGREE);
-  const { wells, thing, journey } = card.view;
+  const { wells, thing } = card.view;
   return (
     <ClipProvider id={card.id}>
-      <div className="flex flex-col gap-3">
+      <CardHead card={card} />
+      <DoneBadge done={card.done} />
+      <Banner card={card} />
+      <div className="flex flex-col gap-3 rounded-[18px] border border-[#e1e4ea] bg-white p-4">
         <h2 className={H2}>{C.disagreesWith}</h2>
-        {card.evidence.map((e) => <ReasonBlock key={e.code} e={e} />)}
+        <ReasonPills reasons={card.reasons} />
         {card.noteUrl ? (
           <div className="flex flex-col gap-1.5">
             <p className={ROW_SUB}>{C.herNote}</p>
             <AudioPlayer src={card.noteUrl} label={C.herNote} testId="disagreement-note" />
           </div>
         ) : null}
-        <div className="flex flex-col gap-1.5 rounded-2xl border border-[#e5e7eb] bg-white p-4">
+        {card.evidence.map((e) => <ReasonBlock key={e.code} e={e} view={card.view} />)}
+        <div className="flex flex-col gap-1.5 border-t border-[#e1e4ea] pt-3">
           <p className={ROW_SUB}>{C.reportSaid}</p>
           <p className="text-[14px] font-semibold">{C.didWell}</p>
           {wells.length ? <ul className="list-disc ps-5">{wells.map((w) => <li key={w} dir="auto">{w}</li>)}</ul> : <p>{C.dash}</p>}
@@ -71,14 +57,13 @@ function Loaded({ card }: { card: Card }) {
 
       <WhereToLook card={card} />
 
-      <div data-testid="trend" className="flex flex-col gap-1">
-        <h2 className={H2}>{C.trend}</h2>
-        <p className="text-[16px]">{journey?.points.length ? journey.points.join(C.arrow) : C.dash}</p>
-      </div>
+      {card.pattern ? <PatternSection p={card.pattern} /> : null}
 
       <FullReport card={card} />
 
-      <Visit id={card.id} done={card.done} />
+      <CoachingBox card={card} />
+
+      <DoneBar id={card.id} done={card.done} teacher={card.teacher ?? C.dash} />
     </ClipProvider>
   );
 }
@@ -91,7 +76,8 @@ function Body() {
   return (
     <DisagreementsFrame
       title={card ? card.teacher ?? C.dash : C.title}
-      crumb={card ? card.school ?? C.dash : C.crumb}
+      sub={C.cardSub}
+      mark="N"
       backTo="/portal/coach/disagreements"
       testId="coach-disagreement"
     >

@@ -2,8 +2,8 @@
 /**
  * bd-tbprit.1 — the coach's disagreements in the portal (v10 coaching test, C/D only).
  *
- *   shapeList  To do (not visited) and Done (visited). To do: most tags first, then longest waiting. Two tags
- *              only during the test: waiting48h and second (her second disagreement or later). Done: newest visit.
+ *   shapeList  To do (not visited) and Done (visited). To do: most tags first, then longest waiting. Done: newest
+ *              visit. The tags are Rifat's prototype's (bd-tbprit.7-coach-list-prototype.test.js).
  *   listFor    only HER requests (coach_user_id), never no_coach rows, with names and the report's score.
  *   cardFor    one request, only for its own coach: the report view, the evidence per reason, every indicator.
  */
@@ -39,20 +39,20 @@ describe('shapeList', () => {
     expect(r).toMatchObject({ teacher: null, school: null, pct: null, sessionDate: null });
   });
 
-  it('waiting48h only on To do older than 48 hours', () => {
+  it('waiting only on To do older than 48 hours', () => {
     const out = shapeList([ROW('a', { created_at: H(49) }), ROW('b', { created_at: H(47), teacher_user_id: 't2' }), ROW('c', { status: 'visited', created_at: H(90), teacher_user_id: 'x' })], LOOK, NOW);
-    expect(out.todo.find((r) => r.id === 'a').tags).toEqual(['waiting48h']);
+    expect(out.todo.find((r) => r.id === 'a').tags).toEqual([{ kind: 'waiting', days: 2 }]);
     expect(out.todo.find((r) => r.id === 'b').tags).toEqual([]);
     expect(out.done[0].tags).toEqual([]);
   });
 
-  it('second: a teacher\'s later disagreements carry it, her first does not (Done ones count)', () => {
+  it('repeat: a teacher\'s later disagreements carry it, her first does not (Done ones count)', () => {
     const out = shapeList([
       ROW('first', { status: 'visited', created_at: H(100) }),
       ROW('later', { created_at: H(3) }),
       ROW('other', { teacher_user_id: 't2', created_at: H(2) }),
     ], LOOK, NOW);
-    expect(out.todo.find((r) => r.id === 'later').tags).toEqual(['second']);
+    expect(out.todo.find((r) => r.id === 'later').tags).toEqual([{ kind: 'repeat', nth: 2 }]);
     expect(out.todo.find((r) => r.id === 'other').tags).toEqual([]);
     expect(out.done[0].tags).toEqual([]);
   });
@@ -82,6 +82,8 @@ function fakeSupabase(tables) {
       select() { return chain; },
       eq(k, v) { q.filters.push(['eq', k, v]); return chain; },
       in(k, v) { q.filters.push(['in', k, v]); return chain; },
+      gte() { return chain; },
+      lte() { return chain; },
       order() { return chain; },
       limit() { return chain; },
       maybeSingle() { return Promise.resolve({ data: rowsOf()[0] || null, error: null }); },

@@ -6,9 +6,10 @@ import i18n from "i18next";
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 vi.mock("../CoachGate", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Hataf", role: "coach", phoneNumber: "923001234567" }, loading: false }) }));
+vi.mock("../../teacher/useLanguageSwitch", () => ({ useLanguageSwitch: () => ({ target: "ur", status: "idle", toggle: vi.fn() }) }));
 vi.mock("./api", async (orig) => ({
   ...(await orig<typeof import("./api")>()),
-  disagreements: { list: vi.fn(), card: vi.fn(), visited: vi.fn(), clipUrl: (id: string, at: number) => `/api/portal/coach/disagreements/${id}/clip?at=${at}` },
+  disagreements: { list: vi.fn(), card: vi.fn(), visited: vi.fn(), undone: vi.fn(), savePlan: vi.fn(), suggestion: vi.fn().mockResolvedValue(null), clipUrl: (id: string, at: number) => `/api/portal/coach/disagreements/${id}/clip?at=${at}` },
   readDisagreementsOn: vi.fn(),
 }));
 import { disagreements, readDisagreementsOn } from "./api";
@@ -17,7 +18,7 @@ import DisagreementCard from "./DisagreementCard";
 /**
  * bd-tbprit.3 — one teacher's disagreement, evidence only (Amena, 19 Oct), in Rifat's order: what she disagrees
  * with and the grader's own evidence for each reason, her voice note, what the report told her; where to look
- * (every indicator with the AI's score); her trend; the full DC report; and "I have visited", one-way.
+ * (every indicator with the AI's score); her trend; the full DC report; and (bd-tbprit.12) Mark as done, which can be undone.
  */
 const D = vi.mocked(disagreements);
 const ID = "7e0c1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b";
@@ -47,6 +48,11 @@ function card(extra: Record<string, unknown> = {}) {
       { key: "student_engagement", score: 18, max: 28, counted: true, items: [item("D1", "Active Participation Rate", 1, 190), item("D2", "Wait time", 3, 60)] },
     ],
     moves: null,
+    pattern: {
+      points: [{ pct: 52, date: "2026-09-29T05:00:00Z" }, { pct: 58, date: "2026-10-06T05:00:00Z" }, { pct: 61, date: "2026-10-13T05:00:00Z" }],
+      avg: 57, best: { pct: 61, date: "2026-10-13T05:00:00Z" }, now: 61, count: 3, perWeek: 1, level: "steady", ictAvg: 1.52,
+      firstDate: "2026-09-29T05:00:00Z", lastDate: "2026-10-13T05:00:00Z", missed: null, earlier: 0,
+    },
     ...extra,
   };
 }
@@ -68,17 +74,41 @@ beforeEach(async () => {
   vi.mocked(readDisagreementsOn).mockResolvedValue(true);
   D.card.mockResolvedValue(card());
   D.visited.mockResolvedValue(true);
+  D.suggestion.mockResolvedValue(null);
 });
 afterEach(async () => { await act(async () => { await i18n.changeLanguage("en"); }); });
 
 describe("DisagreementCard", () => {
-  it("each reason with the grader's evidence: the indicator, the AI's score out of 4, its quote", async () => {
+  it("bd-tbprit.11: the coaching suggestion sits after the full report, before Mark as done", async () => {
+    renderCard();
+    const box = await screen.findByTestId("coaching-box");
+    expect(box).toHaveTextContent("💡 Coaching suggestion");
+    const order = [...document.querySelectorAll("[data-testid]")].map((e) => e.getAttribute("data-testid"));
+    expect(order.indexOf("coaching-box")).toBeGreaterThan(order.indexOf("pattern"));
+    expect(order.indexOf("coaching-box")).toBeLessThan(order.indexOf("done-bar"));
+  });
+
+  it("Rifat's top: N, her name, Disagrees with report · review, back to the list; the head, the banner, her reasons", async () => {
+    renderCard();
+    await screen.findByTestId("card-head");
+    const bar = screen.getByTestId("disagreements-appbar");
+    expect(within(bar).getByTestId("appbar-mark")).toHaveTextContent("N");
+    expect(bar).toHaveTextContent("Bushra Ali");
+    expect(bar).toHaveTextContent("Disagrees with report · review");
+    expect(within(bar).getByTestId("appbar-back")).toHaveAttribute("href", "/portal/coach/disagreements");
+    expect(screen.getByTestId("card-pct")).toHaveTextContent("61%");
+    expect(screen.getByTestId("card-banner")).toHaveTextContent("3 reasons + voice note");
+    expect(screen.getAllByTestId("reason-pill")).toHaveLength(3);
+  });
+
+  it("bd-tbprit.14 — a score she questions is Rifat's one line: %, marks, the lowest section, Details in B; no indicator list", async () => {
     renderCard();
     const score = await screen.findByTestId("reason-score");
-    expect(score).toHaveTextContent("Score doesn't seem right");
-    expect(score).toHaveTextContent("Active Participation Rate");
-    expect(score).toHaveTextContent("AI score 1/4");
-    expect(score).toHaveTextContent("Quote for Active Participation Rate");
+    expect(score).toHaveTextContent("My score doesn't seem right");
+    expect(score).toHaveTextContent("Score she questions");
+    expect(score).toHaveTextContent("61% 86 / 140 · lowest: Student Engagement (64%). Details in B.");
+    expect(score).not.toHaveTextContent("Active Participation Rate");
+    expect(within(score).queryByRole("button", { name: /Listen/ })).toBeNull();
   });
 
   it("no plan checked is said, never guessed; the low indicators stand in", async () => {
@@ -95,9 +125,10 @@ describe("DisagreementCard", () => {
 
   it("Listen plays the disputed step from the server, in the kit player — no download link anywhere", async () => {
     renderCard();
-    const score = await screen.findByTestId("reason-score");
+    const where = await screen.findByTestId("where-to-look");
     expect(document.querySelector('audio[src*="/clip"]')).toBeNull();
-    fireEvent.click(within(score).getByRole("button", { name: /Listen/ }));
+    fireEvent.click(within(where).getByRole("button", { name: /Student Engagement/ }));
+    fireEvent.click(within(where).getAllByRole("button", { name: /Listen 3:10/ })[0]);
     const audio = document.querySelector('audio[src*="/clip"]') as HTMLAudioElement;
     expect(audio.getAttribute("src")).toBe(`/api/portal/coach/disagreements/${ID}/clip?at=190`);
     expect(document.querySelector("a[download]")).toBeNull();
@@ -111,19 +142,30 @@ describe("DisagreementCard", () => {
     expect(document.querySelector('audio[src="https://r2/note.ogg?sig"]')).not.toBeNull();
   });
 
-  it("where to look: closed sections; opened, every indicator with the AI's score", async () => {
+  it("where to look: closed sections; opened, every indicator with the AI's score; no plan says not checked", async () => {
     renderCard();
     const where = await screen.findByTestId("where-to-look");
     expect(within(where).queryByText("Wait time")).toBeNull();
     fireEvent.click(within(where).getByRole("button", { name: /Student Engagement/ }));
     expect(within(where).getByText("Wait time")).toBeInTheDocument();
     expect(within(where).getByText("AI score 3/4")).toBeInTheDocument();
-    expect(within(where).getByRole("button", { name: /Lesson Plan Fidelity/ })).toHaveTextContent("Plan not checked");
+    expect(within(where).getByRole("button", { name: /Lesson Plan Fidelity/ })).toHaveTextContent("not checked");
   });
 
-  it("her trend and the full DC report", async () => {
+  it("where to look: the short tag's recording, the DC's evidence part to play", async () => {
+    D.card.mockResolvedValue(card({ durationSec: 720 }));
     renderCard();
-    expect(await screen.findByTestId("trend")).toHaveTextContent("52 → 58 → 61");
+    const where = await screen.findByTestId("where-to-look");
+    expect(where).toHaveTextContent("Recording · 12:00");
+    expect(within(where).getByRole("button", { name: "▶ Listen · 2:55 – 3:55" })).toBeInTheDocument();
+  });
+
+  it("bd-tbprit.10 — Rifat's \"Is this a pattern?\" in place of the bare trend, then the full DC report", async () => {
+    renderCard();
+    const pattern = await screen.findByTestId("pattern");
+    expect(pattern).toHaveTextContent("3. Is this a pattern?");
+    expect(pattern).toHaveTextContent("57% · 61%");
+    expect(screen.queryByTestId("trend")).toBeNull();
     const report = screen.getByTestId("full-report");
     fireEvent.click(within(report).getByRole("button", { name: /Full DC report/ }));
     expect(report).toHaveTextContent("AI score 61%");
@@ -131,27 +173,22 @@ describe("DisagreementCard", () => {
     expect(report).toHaveTextContent("Student Engagement");
   });
 
-  it("I have visited: one tap posts it, then it reads Visited and cannot be undone here", async () => {
+  it("bd-tbprit.10 — a server without the pattern shows no section, never a made-up one", async () => {
+    D.card.mockResolvedValue(card({ pattern: null }));
     renderCard();
-    fireEvent.click(await screen.findByRole("button", { name: "I have visited" }));
-    await waitFor(() => expect(D.visited).toHaveBeenCalledWith(ID));
-    expect(await screen.findByText("Visited")).toBeInTheDocument();
+    await screen.findByTestId("full-report");
+    expect(screen.queryByTestId("pattern")).toBeNull();
+  });
+
+  it("bd-tbprit.12 — the card ends with Rifat's Mark as done; a done card carries ✓ Done and Move back to To do", async () => {
+    const { unmount } = renderCard();
+    expect(await screen.findByRole("button", { name: "✓ Mark as done" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "I have visited" })).toBeNull();
-  });
-
-  it("a save that fails says so and leaves the button", async () => {
-    D.visited.mockResolvedValue(false);
-    renderCard();
-    fireEvent.click(await screen.findByRole("button", { name: "I have visited" }));
-    expect(await screen.findByText("Could not save")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "I have visited" })).toBeInTheDocument();
-  });
-
-  it("a done card has no button", async () => {
+    unmount();
     D.card.mockResolvedValue(card({ done: true, status: "visited", noteUrl: null }));
     renderCard();
-    expect(await screen.findByText("Visited")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "I have visited" })).toBeNull();
+    expect(await screen.findByRole("button", { name: "Move back to To do" })).toBeInTheDocument();
+    expect(screen.getByTestId("done-badge")).toHaveTextContent("✓ Done");
   });
 
   it("flag off: to the coach home, the card is never read", async () => {
@@ -165,6 +202,6 @@ describe("DisagreementCard", () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     renderCard();
     expect(await screen.findByTestId("reason-score")).toHaveTextContent("میرا اسکور درست نہیں لگتا");
-    expect(screen.getByRole("button", { name: "میں نے دورہ کر لیا" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "✓ مکمل کریں" })).toBeInTheDocument();
   });
 });

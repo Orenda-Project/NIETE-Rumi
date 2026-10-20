@@ -10,11 +10,19 @@ import { readConfigShared } from "../../lib/useNewUi";
  */
 
 export type ReasonCode = "score" | "missed" | "wont_work" | "unclear";
-export type Tag = "waiting48h" | "second";
+/** bd-tbprit.7 — the prototype's three tags, numbers included; the server decides which apply. */
+export type Tag =
+  | { kind: "recordingLess"; before: number; now: number }
+  | { kind: "waiting"; days: number }
+  | { kind: "repeat"; nth: number }
+  /** bd-tbprit.9 — recorded, under 15 minutes. */
+  | { kind: "short"; minutes: number };
 
 export type Row = {
-  id: string; teacher: string | null; school: string | null; reasons: ReasonCode[]; status: string; done: boolean;
-  createdAt: string; visitedAt: string | null; sessionDate: string | null; pct: number | null; hasNote: boolean; tags: Tag[];
+  id: string; teacher: string | null; school: string | null; emis: string | null; opened: boolean; reasons: ReasonCode[];
+  status: string; done: boolean; createdAt: string; visitedAt: string | null; sessionDate: string | null; pct: number | null; hasNote: boolean; tags: Tag[];
+  /** bd-tbprit.16 — she added it to her next visit (coach_plan.addedToVisitAt). */
+  nextVisit?: boolean;
 };
 export type List = { success: boolean; todo: Row[]; done: Row[] };
 
@@ -44,9 +52,31 @@ export type View = {
   report: unknown;
 };
 export type Card = {
-  id: string; teacher: string | null; school: string | null; language: string; status: string; done: boolean;
+  id: string; teacher: string | null; school: string | null; emis: string | null; group: string | null; nth: number; language: string; status: string; done: boolean;
   reasons: ReasonCode[]; createdAt: string; noteUrl: string | null; view: View; evidence: Evidence[];
   indicators: Indicator[]; moves: Move[] | null;
+  /** bd-tbprit.9 — how long the recording is; null when the session does not say. */
+  durationSec: number | null;
+  /** bd-tbprit.10 — Rifat's "Is this a pattern?" (dashboard/services/coach-disagreement-pattern.js). */
+  pattern: Pattern | null;
+  /** bd-tbprit.11 — what the coach chose in the coaching box; null before her first answer. */
+  plan?: Plan | null;
+  /** bd-tbprit.11 — her WhatsApp number as wa.me digits; null when none is on file. */
+  phone?: string | null;
+};
+export type Mode = "msg" | "call" | "visit";
+export type Plan = { found: number | null; mode: Mode | null; flagged: boolean; addedToVisit: boolean; sent: boolean };
+export type PlanPatch = Partial<{ found: number; mode: Mode; flagged: boolean; addedToVisit: boolean; sent: true }>;
+/** The AI-tailored version of the template (dashboard/services/coach-disagreement-plan.js). */
+export type Suggestion = { msg: string; qs: string[]; stuck: string[]; agree: string; check: string; visit: string[] };
+/** Her last lessons up to this one, oldest first. A null is "the server does not have it", never zero. */
+export type Pattern = {
+  points: { pct: number; date: string }[]; avg: number | null; best: { pct: number; date: string } | null; now: number | null;
+  count: number; perWeek: number | null; level: "active" | "steady" | "atRisk" | null; ictAvg: number;
+  firstDate: string | null; lastDate: string | null;
+  /** The step most missed in this lesson, counted over her last 5 plan-checked lessons; null = plan not checked. */
+  missed: { step: string | null; n: number; of: number } | null;
+  earlier: number;
 };
 
 const path = (id: string) => `/coach/disagreements/${encodeURIComponent(id)}`;
@@ -58,7 +88,7 @@ export const disagreements = {
   async card(id: string): Promise<Card> {
     return (await api.get(path(id))).data.card;
   },
-  /** One-way: true once the server has it. A failed save is false, never thrown. */
+  /** "✓ Mark as done" (bd-tbprit.12): true once the server has it. A failed save is false, never thrown. */
   async visited(id: string): Promise<boolean> {
     try {
       const { data } = await api.post(`${path(id)}/visited`);
@@ -67,9 +97,40 @@ export const disagreements = {
       return false;
     }
   },
-  /** The disputed moment, cut on the server; `at` is the grader's second (the server adds the lead-in). */
-  clipUrl(id: string, at: number): string {
-    return `${api.defaults.baseURL ?? ""}${path(id)}/clip?at=${Math.max(0, Math.floor(at))}`;
+  /** "Move back to To do" (bd-tbprit.12): undoes Done. Same contract as visited. */
+  async undone(id: string): Promise<boolean> {
+    try {
+      const { data } = await api.post(`${path(id)}/undone`);
+      return data?.success === true;
+    } catch {
+      return false;
+    }
+  },
+  /** bd-tbprit.11 — saves the coach's choices; the saved plan back, or null when the save failed (never thrown). */
+  async savePlan(id: string, patch: PlanPatch): Promise<Plan | null> {
+    try {
+      const { data } = await api.post(`${path(id)}/plan`, patch);
+      return data?.plan ?? null;
+    } catch {
+      return null;
+    }
+  },
+  /** bd-tbprit.11 — the AI-tailored suggestion for her answer; null keeps the template. */
+  async suggestion(id: string, found: number): Promise<Suggestion | null> {
+    try {
+      const { data } = await api.post(`${path(id)}/suggestion`, { found });
+      return data?.suggestion ?? null;
+    } catch {
+      return null;
+    }
+  },
+  /**
+   * The disputed moment, cut on the server. Without `to`, `at` is the grader's second (the server adds the
+   * lead-in); with it (bd-tbprit.9), exactly the part from `at` to `to`.
+   */
+  clipUrl(id: string, at: number, to?: number): string {
+    const end = to == null ? "" : `&to=${Math.floor(to)}`;
+    return `${api.defaults.baseURL ?? ""}${path(id)}/clip?at=${Math.max(0, Math.floor(at))}${end}`;
   },
 };
 

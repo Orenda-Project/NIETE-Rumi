@@ -7751,4 +7751,19 @@ END $$;
 ALTER TABLE student_videos ADD COLUMN IF NOT EXISTS title_ur text;
 ALTER TABLE student_videos ADD COLUMN IF NOT EXISTS chapter_ur text;
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- coach_visit_requests.opened_at (mirror of V1.6.16): when the coach first opened the card, NULL = not yet
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE coach_visit_requests ADD COLUMN IF NOT EXISTS opened_at timestamptz;
+
+
+NOTIFY pgrst, 'reload schema';
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- coach_visit_requests.coach_plan (mirror of V1.6.17): the coach's step-4 choices, NULL = untouched
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE coach_visit_requests ADD COLUMN IF NOT EXISTS coach_plan jsonb;
+COMMENT ON COLUMN coach_visit_requests.coach_plan IS
+  'bd-tbprit.11: the coach''s step-4 choices {found, mode, flagged, flaggedAt, addedToVisitAt, sentAt, ai{0..3}}. Sensitivity: internal. No names or message text. NULL = untouched.';
+
 NOTIFY pgrst, 'reload schema';

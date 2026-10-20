@@ -6,6 +6,7 @@ import { useCopy } from "./i18n";
 import { FeatureArt, type AnyFeature } from "./icons";
 import { useLatinAttrs } from "@/lib/textDir";
 import { BackLink } from "../lib/useBack";
+import { cn } from "@/lib/utils";
 
 /**
  * bd-fmf24g.1 — the teacher v2 page frame (canvas v28), for every teacher v2 page.
@@ -25,12 +26,14 @@ import { BackLink } from "../lib/useBack";
  * The flag gate is App.tsx's (every registered route is wrapped in TeacherGate).
  */
 export default function TeacherPage({
-  title, hero, crumb, backTo, onBack, feature, chips, action, dock, bare = false, testId, children,
+  title, hero, crumb, backTo, onBack, feature, chips, action, dock, bare = false, stickyHero = false, testId, children,
 }: {
   /** Not needed when `hero` draws the heading. */
   title?: ReactNode;
   /** bd-fmf24g.22 — a top-level page's own heading block (Home's NIETE band) instead of the plain title + chips. Full-bleed on a phone. */
   hero?: ReactNode;
+  /** Keep the hero in view while the page scrolls (an app bar, not Home's band). */
+  stickyHero?: boolean;
   /** The page's feature: its illustration sits beside the title. */
   feature?: AnyFeature;
   crumb?: ReactNode;
@@ -75,7 +78,7 @@ export default function TeacherPage({
             {action}
           </header>
         ) : hero ? (
-          <div data-testid="page-hero" className="-mx-4 -mt-4 min-[576px]:mx-0 min-[576px]:mt-0 min-[576px]:overflow-hidden min-[576px]:rounded-[28px]">{hero}</div>
+          <div data-testid="page-hero" className={cn("-mx-4 -mt-4 min-[576px]:mx-0 min-[576px]:mt-0 min-[576px]:overflow-hidden min-[576px]:rounded-[28px]", stickyHero && "sticky top-0 z-20")}>{hero}</div>
         ) : (
           <header className="flex flex-col gap-3 px-1 pb-1.5 pt-6">
             <div className="flex items-center gap-3">

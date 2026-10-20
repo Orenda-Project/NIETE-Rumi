@@ -107,6 +107,41 @@ F['portal-smoke'] = ('Portal-wide smoke — every main page, every role', 'the w
     [(p, ANY, None, None) for p in ['/portal/login', '/portal/reset-password', '/portal/privacy', '/portal/delete-account']]),
 ])
 
+# Hand-written flows a page row cannot express, joined onto a generated feature: the driver requires the module, the
+# spec carries its Gherkin. Modules live in flows/, not features/, because web-runner loads every features/<name>.cjs.
+EXTRA = {
+  'coach-portal': ('../flows/coach-disagreement.cjs', [
+    "  @CP05",
+    "  Scenario: Coach app v2: a teacher's disagreement opens as the card, and The teacher was right flags the report",
+    "    Given the teacher app v2 is off and the coach app v2 is on",
+    "    And the coach disagreement card is on",
+    "    And demo teacher 03000000911 disagrees with her latest DC report because of her score",
+    "    And demo coach 03000000901 is signed in",
+    "    When she opens /portal/coach/disagreements",
+    "    Then the teacher's request is on the To do list",
+    "    When she opens it",
+    "    Then the score reason is one line ending \"Details in B.\"",
+    "    And the card shows \"Is this a pattern?\" and the coaching suggestion",
+    "    When she taps \"The teacher was right\"",
+    "    Then it says the report was sent to the DC team for review",
+    "    And the request is flagged for the DC team",
+    "    And no page error or 5xx happened",
+    "",
+    "  @CP06",
+    "  Scenario: Coach app v2: a disagreement added to her next visit shows at the top of her disagreements list and opens its card",
+    "    Given the teacher app v2 is off and the coach app v2 is on",
+    "    And the coach disagreement card is on",
+    "    And demo teacher 03000000911 disagrees with her latest DC report because of her score",
+    "    And the coach added it to her next visit",
+    "    And demo coach 03000000901 is signed in",
+    "    When she opens /portal/coach/disagreements",
+    "    Then For your next visit lists the teacher's request",
+    "    When she opens it",
+    "    Then the teacher's card opens",
+    "    And no page error or 5xx happened",
+    ""]),
+}
+
 ROLE_TXT = {'teacher': 'demo teacher 03000000911', 'coach': 'demo coach 03000000901', 'principal': 'demo principal 03000000902'}
 MODE_TXT = {'classic': 'the teacher app v2 and the coach app v2 are off', 'teacherV2': 'the teacher app v2 is on and the coach app v2 is off',
             'coachV2': 'the teacher app v2 is off and the coach app v2 is on'}
@@ -122,7 +157,9 @@ for name, (title, where, scen) in F.items():
         ps = ", ".join("{ path: %s, heading: /%s/%s }" % (json.dumps(p), h.replace('/', '\\/'), (", settle: %s" % json.dumps(st)) if st else '')
                        for p, h, st, _ in pages)
         lines.append("  pagesScenario(%s, %s, %s, %s, [%s])," % (json.dumps(sid), json.dumps(stitle), json.dumps(role), json.dumps(mode), ps))
-    lines += ["];", "", "module.exports = { feature: %s, spec: 'tests/features/web/%s.feature', scenarios };" % (json.dumps(name), name), ""]
+    lines.append("];")
+    if name in EXTRA: lines.append("scenarios.push(...require(%s));" % json.dumps(EXTRA[name][0]))
+    lines += ["", "module.exports = { feature: %s, spec: 'tests/features/web/%s.feature', scenarios };" % (json.dumps(name), name), ""]
     open(os.path.join(root, '.claude/qa/web/features', name + '.cjs'), 'w').write("\n".join(lines))
     # spec
     g = ["Feature: %s" % title,
@@ -139,5 +176,6 @@ for name, (title, where, scen) in F.items():
             g.append("    When she opens %s" % p)
             g.append("    Then %s" % (then or ("it opens healthy" + (" (settles on %s)" % st if st else ""))))
         g.append("")
+    if name in EXTRA: g += EXTRA[name][1]
     open(os.path.join(root, 'tests/features/web', name + '.feature'), 'w').write("\n".join(g))
-    print("wrote", name, len(scen), "scenarios")
+    print("wrote", name, len(scen) + (1 if name in EXTRA else 0), "scenarios")

@@ -17,7 +17,7 @@ let servers = [];
 afterEach(async () => { await Promise.all(servers.map((s) => new Promise((r) => s.close(r)))); servers = []; });
 
 async function app(over = {}) {
-  const calls = { visited: [], list: [] };
+  const calls = { visited: [], list: [], opened: [] };
   const a = express();
   a.use((req, _res, next) => { req.session = { portalUserId: over.me === undefined ? 'me' : over.me }; next(); });
   a.use(createCoachDisagreementsRouter({
@@ -27,6 +27,7 @@ async function app(over = {}) {
     card: async (uid, id) => (uid === 'me' && id === ID ? { id: ID, done: false } : null),
     ownerOf: async (id) => (id === ID ? 'me' : id === OTHER ? 'someone' : null),
     markVisited: async (id) => { calls.visited.push(id); return over.markOk !== false; },
+    markOpened: async (uid, id) => { calls.opened.push([uid, id]); if (over.openFails) throw new Error('db down'); },
     ...over.opts,
   }));
   const srv = await new Promise((r) => { const s = a.listen(0, () => r(s)); });
@@ -59,7 +60,7 @@ describe('coach disagreements API', () => {
     expect((await req(srv, 'GET', '/coach/disagreements')).status).toBe(404);
     expect((await req(srv, 'GET', `/coach/disagreements/${ID}`)).status).toBe(404);
     expect((await req(srv, 'POST', `/coach/disagreements/${ID}/visited`)).status).toBe(404);
-    expect(calls).toEqual({ visited: [], list: [] });
+    expect(calls).toEqual({ visited: [], list: [], opened: [] });
   });
 
   it('a flag read that throws is off', async () => {
@@ -104,5 +105,18 @@ describe('coach disagreements API', () => {
     const r = await req(srv, 'GET', '/coach/disagreements');
     expect(r.status).toBe(500);
     expect(JSON.stringify(r.body)).not.toContain('secret');
+  });
+
+  // bd-tbprit.7 — Rifat's blue dot: opening her card stamps it opened; a failed stamp never costs her the card.
+  it('opening her card stamps it opened; someone else\'s is never stamped', async () => {
+    const { srv, calls } = await app();
+    expect((await req(srv, 'GET', `/coach/disagreements/${ID}`)).status).toBe(200);
+    expect((await req(srv, 'GET', `/coach/disagreements/${OTHER}`)).status).toBe(404);
+    expect(calls.opened).toEqual([['me', ID]]);
+  });
+
+  it('a failed opened stamp still serves the card', async () => {
+    const { srv } = await app({ openFails: true });
+    expect(await req(srv, 'GET', `/coach/disagreements/${ID}`)).toMatchObject({ status: 200, body: { success: true } });
   });
 });
