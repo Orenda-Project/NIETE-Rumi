@@ -567,8 +567,8 @@ describe('challenge fold with the children listed: the names before the quiz car
   test.each([['en'], ['ur']])('on (%s): line, names, then the card, then the picture', (lang) => {
     const p = door({ lang, kids }, true);
     const h = p.last().h;
-    expect(at(h, 'class="wq-banner"')).toBeGreaterThan(-1);
-    expect(at(h, 'id="wq-kid-0"')).toBeGreaterThan(at(h, 'class="wq-banner"'));
+    expect(at(h, 'class="wq-banner')).toBeGreaterThan(-1);
+    expect(at(h, 'id="wq-kid-0"')).toBeGreaterThan(at(h, 'class="wq-banner'));
     expect(at(h, 'class="wq-card wq-stack"')).toBeGreaterThan(at(h, 'id="wq-kid-1"'));
     expect(at(h, 'class="wq-chpic"')).toBeGreaterThan(at(h, 'class="wq-card wq-stack"'));
     expect(p.has('wq-kid-0')).toBe(true);
@@ -581,14 +581,14 @@ describe('challenge fold with the children listed: the names before the quiz car
   });
   test('on, no children listed (Play): the card stays above the line, as the fold already is', () => {
     const h = door({}, true).last().h;
-    expect(at(h, 'class="wq-card wq-stack"')).toBeLessThan(at(h, 'class="wq-banner"'));
+    expect(at(h, 'class="wq-card wq-stack"')).toBeLessThan(at(h, 'class="wq-banner'));
     expect(at(h, 'class="wq-chpic"')).toBeGreaterThan(at(h, 'id="wq-play"'));
   });
   test('off: today\'s page, byte for byte', () => {
     const a = door({ kids }).last().h;
     const b = door({ kids }, false).last().h;
     expect(b).toBe(a);
-    expect(at(a, 'class="wq-chpic"')).toBeLessThan(at(a, 'class="wq-banner"'));
+    expect(at(a, 'class="wq-chpic"')).toBeLessThan(at(a, 'class="wq-banner'));
     expect(at(a, 'class="wq-card wq-stack"')).toBeLessThan(at(a, 'id="wq-kid-0"'));
   });
 });
