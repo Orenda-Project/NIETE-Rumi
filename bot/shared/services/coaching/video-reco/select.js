@@ -179,7 +179,12 @@ function postRedact(text, teacherName) {
 // not step (a code gate: the chapter is not for the step), not error.
 const FALLBACK_RULES = new Set(['quote', 'moment_at', 'placeholder', 'scorer', 'id', 'name', 'length', 'urdu', 'roman']);
 const FALLBACK_MAX = 300; // code points of the composed reason in the teacher's language
-const LEADING_ADDRESS = /^(\s*\[TEACHER\]\s*)+[،,:]?\s*/; // prod card actions open with the teacher's name
+// prod card actions open with the teacher's name; a child placeholder is stripped only as an address (with its comma),
+// never as the sentence's subject ("[a student] reads …" keeps the none).
+const LEADING_ADDRESS = /^(\s*\[TEACHER\]\s*)+[،,:]?\s*|^\s*\[(a student|CHILD)\]\s*[،,:]\s*/;
+// [v1.3c-5] the card's vocative, stripped BEFORE redaction: an Urdu-script name the redactor cannot map to a Latin
+// users.name would otherwise be masked as the child placeholder and open the sentence.
+const LEADING_VOCATIVE = /^\s*\S{2,30}\s*[،,:]\s*/;
 const UNSHOWABLE = /\[(TEACHER|COACH|SCHOOL|URL|EMAIL|NUMBER)\]/;
 
 /**
@@ -194,8 +199,9 @@ function cardFallback({ none, segId, shortlist, sentence, startS, endS, language
     if (!m || !FALLBACK_RULES.has(m[1])) return null;
     if (!((shortlist && shortlist.candidates) || []).some((c) => c.seg_id === String(segId))) return null;
     if (!fallbackSubjectOk(module, subject)) return null; // [v1.3c-2] ⛔4: no literacy clip on a science lesson
-    const s = String(postRedact(String(sentence || ''), teacherName) || '').replace(LEADING_ADDRESS, '').trim();
-    if (!s || UNSHOWABLE.test(s)) return null;
+    const bare = String(sentence || '').replace(LEADING_VOCATIVE, '');
+    const s = String(postRedact(bare, teacherName) || '').replace(LEADING_ADDRESS, '').trim();
+    if (!s || s.startsWith('[') || UNSHOWABLE.test(s)) return null; // [v1.3c-5] a placeholder never opens it
     const n = Math.round(Number(endS) - Number(startS));
     if (!Number.isFinite(n) || n <= 0) return null;
     const out = {};
