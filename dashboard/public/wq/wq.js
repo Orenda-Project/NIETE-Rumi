@@ -1565,7 +1565,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<p class="wq-sub">' + esc(T.from(doorTeacher(), doorLabel())) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
       (fold ? '' : pic) +
-      (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
+      // fold: the line wraps balanced (wq-chline), so an Urdu line never leaves its last word alone
+      (chLine ? '<div class="wq-banner' + (fold ? ' wq-chline' : '') + '">' + esc(chLine) + '</div>' : '') +
       (B.preview && params.p ? '<button class="wq-btn wq-go" id="wq-preview">' + esc(T.previewPlay) + '</button><button class="wq-btn wq-navy" id="wq-whoplayed">' + esc(TW.whoBtn) + '</button>' :
       last ? '<button class="wq-btn wq-go" id="wq-play-as">' + esc(T.playAs(last.first)) + '</button><button class="wq-btn wq-ghost" id="wq-notme">' + esc(T.notMe(last.first)) + '</button>'
         : '<button class="wq-btn wq-go" id="wq-play">' + esc(T.play) + '</button>') +

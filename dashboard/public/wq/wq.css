@@ -139,6 +139,8 @@ html[lang=ur] .wq-key-go{font-family:var(--fu);line-height:1.6}
 .wq-who-np{padding:6px 0}
 .wq-linkbtn{background:none;border:0;padding:6px 4px;min-height:32px;font:inherit;font-size:14px;font-weight:700;color:var(--brand-d,#23794D);text-decoration:underline;cursor:pointer}
 .wq-banner{background:var(--notyet-bg);color:var(--notyet);border-radius:14px;padding:10px 12px;font-weight:800;font-size:14px}
+/* the challenge line on the fold door (web_quiz_challenge_fold): wrapped balanced, never one word left alone */
+.wq-chline{text-wrap:balance}
 .wq-dots{display:flex;gap:6px;flex:1}
 .wq-dot{flex:1;height:12px;border-radius:999px;background:var(--star-off)}
 .wq-dot.wq-done{background:var(--green)}
