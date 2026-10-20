@@ -78,9 +78,13 @@ describe('an incomplete FICO analysis is retried once and never scored 0 for mis
       expect(analysis.domains[k].assessed).toBe(false);
       expect(analysis.domains[k].not_assessed_reason).toBe('analysis_incomplete');
     }
-    // Only Section B's one row counts: 1 of SCALE_MAX, not 1 of the whole rubric.
+    // Only Section B counts: its own score of its own max, not of the whole rubric. (How B's max is
+    // derived differs by branch — applicable rows on sandbox, the declared size on staging — so the
+    // test reads it rather than hard-coding it.)
+    const sectionB = analysis.domains.lesson_plan_fidelity;
     expect(analysis.scores.overall_marks).toBe(1);
-    expect(analysis.scores.overall_max_marks).toBe(SCALE_MAX);
+    expect(analysis.scores.overall_max_marks).toBe(sectionB.domain_max);
+    expect(analysis.scores.overall_max_marks).toBeLessThanOrEqual(DECLARED.lesson_plan_fidelity.indicatorCount * SCALE_MAX);
 
     // After the measured-fidelity merge too (applyLpFidelity recomputes the total).
     // The missing sections stay out: the total is Section B's alone, whatever B's own max is.
