@@ -134,6 +134,116 @@
   },
   {
     "m": "use",
+    "path": "/api/internal/wqpush",
+    "handlers": [
+      {
+        "name": "router",
+        "stack": [
+          {
+            "name": "requireInternalKey"
+          },
+          {
+            "name": "jsonParser"
+          },
+          {
+            "name": "<anonymous>"
+          },
+          {
+            "path": "/state",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/key",
+            "methods": [
+              "get"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/subscribe",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/unsubscribe",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/opened",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/test",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/e",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/portal/subscribe",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/portal/unsubscribe",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          },
+          {
+            "path": "/portal/test",
+            "methods": [
+              "post"
+            ],
+            "handlers": [
+              "<anonymous>"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "m": "use",
     "path": "/api/internal/sagame",
     "handlers": [
       {
