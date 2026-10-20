@@ -664,6 +664,10 @@ export type PortalConfig = {
     coachDisagreements?: boolean;
     /** bd-fmf24g.1 — the teacher app v2 is on for THIS user (fail-closed; shown to teachers only). */
     teacherV2?: boolean;
+    /** The teacher Home card, its score chips and tap log (portal_teacher_home_card; fail-closed). */
+    teacherHomeCard?: boolean;
+    /** The per-teacher Home tile order (portal_teacher_home_order; read only with the card's switch). */
+    teacherHomeOrder?: boolean;
   };
 };
 
