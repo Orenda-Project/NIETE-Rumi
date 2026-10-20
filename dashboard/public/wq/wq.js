@@ -1484,9 +1484,23 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   // The end screen's score: the headline and its stars. web_quiz_end_fit (the answer's end_fit): the stars stay one row,
   // each min(48 px, its share of the card) (wq-fitstars), and the headline wraps balanced (wq-endh). Off: today's.
+  // web_quiz_end_short (the answer's end_short, only beside end_fit): Jugnu on the end screen carries wq-jshort (smaller on
+  // a screen at most 680 px tall, wq.css), and the Urdu headline holds «آپ نے ۷ میں سے» and «۳ درست کیے» whole, so its one
+  // break falls after «سے».
+  var END_SHORT = Boolean(B.end_fit && B.end_short);
   function endScore(n, total) {
     if (!B.end_fit) return '<h1>' + esc(T.got(n, total)) + '</h1>' + stars(n, total);
-    return '<h1 class="wq-endh">' + esc(T.got(n, total)) + '</h1>' + stars(n, total).replace('class="wq-stars"', 'class="wq-stars wq-fitstars"');
+    return '<h1 class="wq-endh">' + esc(endHead(T.got(n, total))) + '</h1>' + stars(n, total).replace('class="wq-stars"', 'class="wq-stars wq-fitstars"');
+  }
+  function endHead(s) {
+    var at = s.indexOf(' میں سے ');
+    if (!END_SHORT || LANG !== 'ur' || at < 0) return s;
+    var a = s.slice(0, at + 7), b = s.slice(at + 8);
+    return a.replace(/ /g, '\u00A0') + ' ' + b.replace(/ /g, '\u00A0');
+  }
+  function endJug(pose, line, loop) {
+    var h = jug(pose, line, true, loop);
+    return END_SHORT ? h.replace('<div class="wq-jug wq-big">', '<div class="wq-jug wq-big wq-jshort">') : h;
   }
   function toast(msg) {
     var t = document.createElement('div');
@@ -2464,7 +2478,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       var sc = res.score || {};
       var total = sc.total || N;
       var done = vline('done');
-      var h = bar() + jug('celebrate', done.text, true, true) +
+      var h = bar() + endJug('celebrate', done.text, true) +
         '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.done) + '</p>' +
         endScore(sc.correct, total) +
         (fixed ? '<p class="wq-sub">' + esc(T.fixedLine(fixed)) + '</p>' : '') +
@@ -2514,7 +2528,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (!S.pending) { S.pending = 1; S.pendingAt = Date.now(); ev('offline_finish', { i: answeredCount() }); }
     S.fixed = fixed; save();
     var sc = localScore();
-    var h = bar() + jug('celebrate', T.offDone, true) +
+    var h = bar() + endJug('celebrate', T.offDone) +
       '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.done) + '</p>' +
       endScore(sc.correct, sc.total) + '</div>' +
       '<div class="wq-banner">' + esc(T.offWait) + '</div>' +
