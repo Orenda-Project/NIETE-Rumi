@@ -68,6 +68,10 @@ const INLINE = HomeInline.create({ source: (file, v) => {
 const JUICE_DEMO_FILE = path.join(__dirname, '..', 'views', 'juice-demo.html');
 const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
 const CODE_RX = /^[A-Za-z0-9]{4,12}$/;
+// A code as a child may paste it (web_quiz_code_trim): spaces, a full stop or a language word around it ("AB12CD ",
+// "AB12CD ur"). Anything else is no code.
+const PASTED_RX = /^[\s.,]*([A-Za-z0-9]{4,12})(?:[\s.,]+(en|english|ur|urdu))?[\s.,!?]*$/i;
+const pastedCode = (code) => { const m = code.length <= 40 ? PASTED_RX.exec(code) : null; return m ? { code: m[1].toUpperCase(), ur: /^ur/i.test(m[2] || '') } : null; };
 // A lesson's id (student_videos.id), for its thumbnail.
 const VID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 // A page session id (wq-tel.js): 8-16 lower-case letters and digits.
@@ -1514,7 +1518,18 @@ function createWebQuizRouter(opts = {}) {
     pageHeaders(res);
     const origin = originOf(req);
     const code = String(req.params.code || '');
-    if (!CODE_RX.test(code)) return res.status(404).type('html').send(closedHtml(req, { lang: 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+    if (!CODE_RX.test(code)) {
+      // web_quiz_code_trim (read only here): a pasted code with a space or a language word goes to its clean link,
+      // `?lang=ur` for an Urdu word when the link names no language. Off, or still no code: the closed page as today.
+      const fix = pastedCode(code);
+      if (fix && (await Promise.resolve().then(codeTrimOn).catch(() => false)) === true) {
+        const at = req.originalUrl.indexOf('?');
+        let qs = at >= 0 ? req.originalUrl.slice(at + 1) : '';
+        if (fix.ur && !/(^|&)lang=/.test(qs)) qs = qs ? `${qs}&lang=ur` : 'lang=ur';
+        return res.redirect(302, `${req.baseUrl}/q/${fix.code}${view === 'class' ? '/class' : view === 'schools' ? '/schools' : ''}${qs ? `?${qs}` : ''}`);
+      }
+      return res.status(404).type('html').send(closedHtml(req, { lang: 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+    }
     if (!botUrl || !apiKey) return res.status(503).type('html').send(closedHtml(req, { lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     const upper = code.toUpperCase();
     const p = typeof req.query.p === 'string' ? `?p=${encodeURIComponent(req.query.p.slice(0, 400))}` : '';
@@ -1819,6 +1834,8 @@ function createWebQuizRouter(opts = {}) {
   // web_quiz_card_ready: the bot stores each card's picture and page at mint, so a cold edge (a new deploy, another
   // replica) answers a preview from storage, never waiting on a draw. Off: storage is never asked.
   const StoryAssets = require('./web-quiz-story-assets');
+  // web_quiz_code_trim: read (30 s cache) only for a /q/ code that fails the code check
+  const codeTrimOn = opts.codeTrimOn || StoryAssets.flagReader({ now, key: 'web_quiz_code_trim' });
   const cardReadyOn = opts.cardReadyOn || StoryAssets.flagReader({ now, key: 'web_quiz_card_ready' });
   const cardObject = opts.cardObject || StoryAssets.r2Object;
   const cardStoreKey = (token, ext) => `wq-card/${opts.storyEnv || require('../../bot/shared/services/quiz/story-store').deployEnv()}/${crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32)}.${ext}`;

@@ -16,6 +16,7 @@
  * so that read can fill this cache from its own rows, parsed by this module's rule, instead of a read of its own.
  */
 const supabase = require('../../config/supabase');
+const Snap = require('../settings/settings-snapshot'); // web_quiz_page_keep: the page switches in one read
 const { logToFile } = require('../../utils/logger');
 
 const KEY = 'web_quiz_one_face';
@@ -40,7 +41,7 @@ function refresh(now = Date.now()) {
     readingAt = now;
     reading = (async () => {
       try {
-        const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', KEY).maybeSingle();
+        const { data, error } = await Snap.row(KEY, () => supabase.from('app_settings').select('key, value').eq('key', KEY).maybeSingle());
         if (error) throw new Error(error.message || 'app_settings read failed');
         fromRow(data, Date.now());
       } catch (err) {

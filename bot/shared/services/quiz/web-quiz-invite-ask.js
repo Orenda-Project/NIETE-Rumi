@@ -7,6 +7,7 @@
  * Read at most every 30 s.
  */
 const supabase = require('../../config/supabase');
+const Snap = require('../settings/settings-snapshot'); // web_quiz_page_keep: the page switches in one read
 const { logToFile } = require('../../utils/logger');
 
 const FLAG_KEY = 'web_quiz_invite_ask';
@@ -28,7 +29,7 @@ function modeOf(value) {
 async function mode(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.mode;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', FLAG_KEY).maybeSingle();
+    const { data, error } = await Snap.row(FLAG_KEY, () => supabase.from('app_settings').select('key, value').eq('key', FLAG_KEY).maybeSingle());
     if (error) throw new Error(error.message || 'app_settings read failed');
     cache = { at: now, mode: modeOf(data && data.value) };
   } catch (e) {

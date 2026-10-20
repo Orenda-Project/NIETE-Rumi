@@ -16,6 +16,7 @@
  * string "true", an absent row, any other value and a failed read are OFF.
  */
 const supabase = require('../../config/supabase');
+const Snap = require('../settings/settings-snapshot'); // web_quiz_page_keep: the page switches in one read
 const { logToFile } = require('../../utils/logger');
 
 const KEY = 'quiz_teacher_home';
@@ -41,7 +42,7 @@ async function on(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache.on;
   try {
     // one read, two rows: the home's switch and the timing rider, each picked by its key
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY, TIMING_KEY]);
+    const { data, error } = await Snap.rows([KEY, TIMING_KEY], () => supabase.from('app_settings').select('key, value').in('key', [KEY, TIMING_KEY]));
     if (error) throw new Error(error.message || 'app_settings read failed');
     const row = (k) => (Array.isArray(data) ? data.find((r) => r && r.key === k) : null) || null;
     const host = row(KEY);
