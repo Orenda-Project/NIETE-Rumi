@@ -25,7 +25,7 @@ describe('checkThing names the moves it judged', () => {
       row('m3', 'guided', 'Partners read.', 'not_adjudicable'),
       row('m4', 'guided', 'In pairs, solve Q2.', 'not_done'),
     ]);
-    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'partly', matched: 2, moveIds: ['m1', 'm4'] });
+    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'partly', matched: 2, moveIds: ['m1', 'm4'], matchedBy: 'tag' });
   });
 
   test('none when no move has that practice', () => {
@@ -33,6 +33,6 @@ describe('checkThing names the moves it judged', () => {
   });
 
   test('none when the recording was not graded', () => {
-    expect(P.checkThing(PRIOR, null)).toEqual({ outcome: 'not_graded', matched: 0, moveIds: [] });
+    expect(P.checkThing(PRIOR, null)).toEqual({ outcome: 'not_graded', matched: 0, moveIds: [], matchedBy: null });
   });
 });
