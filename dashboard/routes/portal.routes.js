@@ -3144,6 +3144,25 @@ router.get('/assessment/chapters', requirePortalAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/portal/assessment/topics?grade=1&subject=maths&chapter=3
+ * → { success, topics: [{ topicId, name, heading, headingOrder, sortOrder }] }; [] when the chapter has none loaded.
+ */
+router.get('/assessment/topics', requirePortalAuth, async (req, res) => {
+  try {
+    const grade = parseInt(req.query.grade, 10);
+    const subject = String(req.query.subject || '').trim();
+    const chapterNumber = parseInt(req.query.chapter, 10);
+    if (!Number.isFinite(grade) || !subject || !Number.isFinite(chapterNumber)) {
+      return res.status(400).json({ success: false, error: 'grade + subject + chapter required' });
+    }
+    const topics = await Assessment.listTopics(grade, subject, chapterNumber);
+    res.json({ success: true, topics });
+  } catch (error) {
+    assessmentFailure(res, error, 'Could not load topics');
+  }
+});
+
+/**
  * POST /api/portal/assessment/generate
  * Body { grade, subject, chapterNumber|pageRanges, questionCount, ... }
  * → 202 { success, requestId }
