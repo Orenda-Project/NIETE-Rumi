@@ -1,0 +1,152 @@
+# Builds linux/amd64 images of the sandbox bot + portal services and pushes them to
+#   ghcr.io/orenda-project/niete-rumi-<svc>:<sha>   (and :sandbox-latest)
+# so a Railway service can be switched to "Docker image" source while Railway's
+# GitHub builds are paused.
+#
+# Triggers: ONLY workflow_dispatch and pushes to ops/sandbox-image*. Never staging/main/sandbox.
+#   - workflow_dispatch only shows up once this file exists on the DEFAULT branch (main).
+#     Until then, use the push trigger: push this file to a branch named ops/sandbox-image
+#     (push-triggered workflows run from the file on the pushed branch, no default-branch need).
+#   - Build a specific ref: push the ops branch at that commit (e.g. reset it to origin/sandbox
+#     tip + this one file), or dispatch with input `ref`.
+#
+# Two build modes (input `mode`, push default = railpack):
+#   railpack   — exact same builder Railway uses (railpack prepare + BuildKit frontend).
+#                Uses railpack.json (apt pkgs) + the Railway service's build/start commands.
+#   dockerfile — hand-written Dockerfiles at ops/docker/Dockerfile.<svc> on the branch.
+name: Sandbox image
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref/SHA to build (default: origin sandbox tip)'
+        required: false
+        default: 'sandbox'
+      services:
+        description: 'Space-separated: bot portal'
+        required: false
+        default: 'bot portal'
+      mode:
+        description: 'railpack | dockerfile'
+        required: false
+        default: 'railpack'
+  push:
+    branches: ['ops/sandbox-image', 'ops/sandbox-image-*']
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: sandbox-image-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/orenda-project/niete-rumi
+  RAILPACK_VERSION: '0.40.0'   # pinned; https://github.com/railwayapp/railpack/releases
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Values mirror the Railway sandbox serviceInstance settings.
+          - svc: bot
+            build_cmd: 'npm install && npm install --prefix bot'
+            start_cmd: 'node bot/whatsapp-bot.js'
+          - svc: portal
+            build_cmd: 'npm run build:portal'
+            start_cmd: 'node dashboard/entrypoint.js'
+          # sqs-worker / sqs-worker-video reuse the bot image with start
+          # command override `node bot/workers/sqs-worker.js` (same build cmd modulo `cd bot`).
+    steps:
+      - name: Skip services not requested
+        id: want
+        run: |
+          S="${{ github.event.inputs.services || 'bot portal' }}"
+          case " $S " in *" ${{ matrix.svc }} "*) echo "go=1" >> "$GITHUB_OUTPUT";; *) echo "go=0" >> "$GITHUB_OUTPUT";; esac
+
+      - uses: actions/checkout@v4
+        if: steps.want.outputs.go == '1'
+        with:
+          ref: ${{ github.event.inputs.ref || github.sha }}
+
+      - name: Resolve SHA
+        if: steps.want.outputs.go == '1'
+        id: sha
+        run: echo "sha=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.want.outputs.go == '1'
+
+      - uses: docker/login-action@v3
+        if: steps.want.outputs.go == '1'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ---- mode: railpack (default) -------------------------------------------------
+      - name: Install railpack
+        if: steps.want.outputs.go == '1' && (github.event.inputs.mode || 'railpack') == 'railpack'
+        run: |
+          curl -sSL https://railpack.com/install.sh | RAILPACK_VERSION="${RAILPACK_VERSION}" sh
+          railpack --version
+
+      - name: railpack prepare (plan)
+        if: steps.want.outputs.go == '1' && (github.event.inputs.mode || 'railpack') == 'railpack'
+        run: |
+          # Same knobs Railway sets: service build/start cmds + RAILPACK_NODE_VERSION=22.
+          railpack prepare . \
+            --build-cmd '${{ matrix.build_cmd }}' \
+            --start-cmd '${{ matrix.start_cmd }}' \
+            --env RAILPACK_NODE_VERSION=22 \
+            --env NIXPACKS_INSTALL_CMD='npm install' \
+            --plan-out "$RUNNER_TEMP/plan-${{ matrix.svc }}.json" \
+            --info-out "$RUNNER_TEMP/info-${{ matrix.svc }}.json"
+          cat "$RUNNER_TEMP/info-${{ matrix.svc }}.json"
+
+      - name: Build + push (railpack frontend)
+        if: steps.want.outputs.go == '1' && (github.event.inputs.mode || 'railpack') == 'railpack'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ runner.temp }}/plan-${{ matrix.svc }}.json
+          build-args: |
+            BUILDKIT_SYNTAX=ghcr.io/railwayapp/railpack-frontend:v${{ env.RAILPACK_VERSION }}
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.svc }}:${{ steps.sha.outputs.sha }}
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.svc }}:sandbox-latest
+          cache-from: type=gha,scope=${{ matrix.svc }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.svc }}
+
+      # ---- mode: dockerfile --------------------------------------------------------
+      - name: Build + push (Dockerfile)
+        if: steps.want.outputs.go == '1' && github.event.inputs.mode == 'dockerfile'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ops/docker/Dockerfile.${{ matrix.svc }}
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.svc }}:${{ steps.sha.outputs.sha }}
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.svc }}:sandbox-latest
+          cache-from: type=gha,scope=df-${{ matrix.svc }}
+          cache-to: type=gha,mode=max,scope=df-${{ matrix.svc }}
+
+      - name: Summary
+        if: steps.want.outputs.go == '1'
+        run: |
+          echo "### ${{ matrix.svc }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`${IMAGE_PREFIX}-${{ matrix.svc }}:${{ steps.sha.outputs.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Note: new GHCR packages are PRIVATE by default — make public (package settings) or give Railway a PAT (read:packages)." >> "$GITHUB_STEP_SUMMARY"
