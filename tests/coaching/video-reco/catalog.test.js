@@ -11,7 +11,7 @@ test('the committed data file loads, carries a version, aliases and ≥ 1 module
   expect(cat.version).toMatch(/^catalog-v\d/);
   expect(C.version()).toBe(cat.version);
   expect(cat.modules.length).toBeGreaterThanOrEqual(1);
-  expect(cat.aliases.C1).toEqual({ exact: 'C1', approx: [] });
+  expect(cat.aliases.C1).toEqual({ exact: 'C1', approx: [], name: "Quality Questioning (Bloom's Aligned)" });
   expect(Array.isArray(cat.holes)).toBe(true);
 });
 

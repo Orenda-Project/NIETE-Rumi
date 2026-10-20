@@ -45,17 +45,17 @@ test('build keeps the engine fields, drops transcripts/provenance, attaches keyw
 
 test('aliases {exact, approx}: identity for the v4 ids the crosswalk does not name; both lists for 37-ids', () => {
   const { indicator_aliases: a } = B.build({ modules: source(), keywords: {}, crosswalk, sourceSha: 'x' });
-  expect(a.C1).toEqual({ exact: 'C1', approx: [] });
-  expect(a.F10).toEqual({ exact: 'F10', approx: [] });
-  expect(a.B10).toEqual({ exact: 'B7', approx: [] });
-  expect(a.C6).toEqual({ exact: null, approx: [] });
-  expect(a.C8).toEqual({ exact: null, approx: ['F5'] });
+  expect(a.C1).toEqual({ exact: 'C1', approx: [], name: null });
+  expect(a.F10).toEqual({ exact: 'F10', approx: [], name: null });
+  expect(a.B10).toEqual({ exact: 'B7', approx: [], name: null });
+  expect(a.C6).toEqual({ exact: null, approx: [], name: null });
+  expect(a.C8).toEqual({ exact: null, approx: ['F5'], name: null });
   expect(Object.keys(a).filter((k) => a[k].exact === k)).toHaveLength(26);
 });
 
 test('a crosswalk row wins over identity where the schemes share an id (37-B7 is not v4-B7)', () => {
   const cw = { map: { ...crosswalk.map, B7: { exact: null, approx: [] } } };
-  expect(B.build({ modules: source(), keywords: {}, crosswalk: cw, sourceSha: 'x' }).indicator_aliases.B7).toEqual({ exact: null, approx: [] });
+  expect(B.build({ modules: source(), keywords: {}, crosswalk: cw, sourceSha: 'x' }).indicator_aliases.B7).toEqual({ exact: null, approx: [], name: null });
 });
 
 test('no crosswalk yet → identity aliases only', () => {

@@ -93,11 +93,11 @@ function arabicShare(text) {
 }
 
 /**
- * @param {object} opts {stepIndicator, indicators, source, catalog, teacherName, scorerQuote}
+ * @param {object} opts {stepIndicator, indicators, source, catalog, teacherName, scorerQuote, textRoute}
  * @returns {{ok:boolean, none:null|'llm_none'|'validation', confidence:number, momentSource:'transcript'|'scorer'|null}}
  */
 function validate(p, shortlist, excerpts, opts) {
-  const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '' } = opts || {};
+  const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false } = opts || {};
   const bad = (none = 'validation') => ({ ok: false, none, confidence: 0, momentSource: null });
   try {
     if (!p || typeof p !== 'object') return bad();
@@ -116,7 +116,8 @@ function validate(p, shortlist, excerpts, opts) {
     if (en < 20 || en > 400) return bad();
     if (arabicShare(p.reason_ur) < 0.6) return bad();
     // Indicator path: every candidate is for the step; a pick outside the step's chapters is refused (SPEC v1.2 §3.5).
-    if ((source === 'step' || source === 'card') && stepIndicator) {
+    // When the step-text route ran (label / hole / unknown / empty target, v1.3 R4) any listed candidate is valid.
+    if ((source === 'step' || source === 'card') && stepIndicator && !textRoute) {
       const hit = catalog && catalog.segment(cand.seg_id);
       const ids = hit ? [...(hit.segment.fico || []).map((f) => f.indicator), ...(hit.segment.fico_main37 || [])] : [];
       const step = indicators && indicators.length ? indicators : [stepIndicator];

@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The training-video recommendation for one coaching report (bd-gzfdu9, SPEC v1.2.1 §3.2).
+ * The training-video recommendation for one coaching report (bd-gzfdu9, SPEC v1.3 §3.2).
  *
  * recommendForReport NEVER throws and never blocks the report: the report hook starts it and does not
  * await it (the sender awaits it after the report has gone). It returns the stored row, or null when the
@@ -41,6 +41,35 @@ function inapplicableRows(analysis) {
     for (const r of (d && d.indicators) || []) if (r && r.applicable === false) out.push(String(r.id));
   }
   return out;
+}
+
+// textReason values under which the target is still a teaching MOVE (null: tag route only; empty: its pool emptied).
+const MOVE_REASONS = new Set([null, 'empty']);
+
+/**
+ * The chosen chapter does not carry the step indicator (R4). null when there is no step indicator (card_text, phase).
+ * A 37-id is compared with fico_main37 only and a v4 id with fico only: the schemes share ids with other meanings
+ * (37-B7 = use of the plan, v4-B7 = closure).
+ */
+function tagMismatch(t, segment) {
+  if (t.source === 'card_text' || t.source === 'phase' || !(t.storedIndicator || t.indicator)) return null;
+  const is37 = t.scheme === 'fico_main_37';
+  const v4 = is37 && t.native37 ? [] : (t.indicators || []).filter(Boolean);
+  const v4Ids = (segment.fico || []).map((f) => f && f.indicator);
+  const hit37 = is37 && (segment.fico_main37 || []).includes(t.storedIndicator);
+  return !(hit37 || v4.some((id) => v4Ids.includes(id)));
+}
+
+/** The step-text route's words (v1.3 R3): the card's action, the scorer's try-tomorrow, the thing to try, the indicator's name. */
+function stepTextOf(t, analysis, card) {
+  const fa = (analysis && analysis.focus_area) || {};
+  const thing = card && card.thing_to_try;
+  return {
+    action: (card && card.action) || '',
+    tryTomorrow: typeof fa.try_this_tomorrow === 'string' ? fa.try_this_tomorrow : '',
+    thingToTry: typeof thing === 'string' ? thing : (thing && typeof thing.text === 'string' ? thing.text : ''),
+    name: t.source === 'card_text' ? '' : (t.name || (t.row && t.row.name) || ''),
+  };
 }
 
 function signalOf(t, analysis, nextStep, card) {
@@ -101,6 +130,9 @@ async function compute(a, d, state) {
     experiment: videoRecoAbEnabled(d.env) ? AB_SALT : null,
     v10_group: v10Group,
     differs_from_step: false,
+    tag_mismatch: null,
+    route: null,
+    step_text_query: null,
     repeat_module: false,
     image_strip: false,
   };
@@ -110,7 +142,8 @@ async function compute(a, d, state) {
   };
   state.base = base;
 
-  if (t.none) return finish({ ...base, status: 'none', none_reason: t.none });
+  // An unknown indicator is no longer a none here: the shortlist's step-text route takes it (SPEC v1.3 R3).
+  if (t.none && t.none !== 'unknown_indicator') return finish({ ...base, status: 'none', none_reason: t.none });
 
   const lesson = {
     subject,
@@ -126,9 +159,12 @@ async function compute(a, d, state) {
     ladderComplete,
     history,
   };
-  const list = shortlist.build(catalog, t, ctx, signalOf(t, analysis, nextStep, card), lesson);
+  const list = shortlist.build(catalog, t, ctx, signalOf(t, analysis, nextStep, card), lesson, stepTextOf(t, analysis, card));
   base.repeat_module = list.repeatModule;
   base.level_match = list.levelMatch || null;
+  base.route = list.route || null;
+  base.step_text_query = list.stepTextQuery || null;
+  if (list.route === 'step_text') base.alias_kind = list.textReason;
   if (!list.candidates.length) return finish({ ...base, status: 'none', none_reason: list.noneReason || 'hole' });
 
   const people = { teacher: session.users && session.users.name };
@@ -143,7 +179,7 @@ async function compute(a, d, state) {
   const step = (nextStep && nextStep.target) || {};
   const fa = (analysis && analysis.focus_area) || {};
   const text = prompt.build({
-    target: t,
+    target: t.none ? { ...t, indicator: t.storedIndicator } : t, // unknown 37-id: the prompt names the id the report scored
     rationale: step.rationale || fa.rationale || '',
     tryText: (card && card.action) || step.try || fa.try_this_tomorrow || '',
     subject,
@@ -158,7 +194,7 @@ async function compute(a, d, state) {
   const withLlm = { ...base, candidates: list.candidates, model: res.model, usage: res.usage };
   if (res.truncated) return finish({ ...withLlm, status: 'none', none_reason: 'llm_truncated' });
   const v = select.validate(res.pick, list, ex, {
-    stepIndicator: t.stepIndicator, indicators: t.indicators, source: t.source, catalog,
+    stepIndicator: t.stepIndicator, indicators: t.indicators, source: t.source, catalog, textRoute: !!list.textReason,
     teacherName: people.teacher, scorerQuote: scorerQuote || uptakeQuote,
   });
   if (!v.ok) return finish({ ...withLlm, status: 'none', none_reason: v.none, confidence: v.confidence });
@@ -167,9 +203,18 @@ async function compute(a, d, state) {
   const hit = catalog.segment(p.seg_id);
   const cand = list.candidates.find((x) => x.seg_id === hit.segment.seg_id) || {};
   const chosen = t.source === 'card_text' || t.source === 'phase' ? (((hit.segment.fico || [])[0] || {}).indicator || null) : null;
+  const mismatch = tagMismatch(t, hit.segment);
+  const route = cand.route || list.route || null;
   return finish({
     ...withLlm,
     ...(t.source === 'card_text' ? { indicator: chosen, catalog_indicator: chosen } : {}),
+    route,
+    alias_kind: route === 'step_text' ? list.textReason : base.alias_kind,
+    level_match: cand.level_match || base.level_match,
+    tag_mismatch: mismatch,
+    // R4: "a second ask" — on a move indicator it is the raw mismatch; on a label / hole / unknown / card target
+    // the step IS the card's sentence and the chapter was retrieved by it, so it is false (tag_mismatch says the rest).
+    differs_from_step: MOVE_REASONS.has(list.textReason) ? mismatch === true : false,
     status: videoRecoMode(d.env) === 'shadow' || arm !== 'video' ? 'shadow' : 'shown',
     module_id: hit.module.module_id,
     seg_id: hit.segment.seg_id,
