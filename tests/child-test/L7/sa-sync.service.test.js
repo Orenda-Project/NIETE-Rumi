@@ -250,6 +250,9 @@ describe('another phone, by a link the coach shares (no coach sign-in on that ph
     expect(res).toEqual({ status: 'ok', token: expect.any(String), expiresAt: expect.any(String) });
     const body = JSON.parse(Buffer.from(res.token.split('.')[0], 'base64url').toString('utf8'));
     expect(body).toEqual({ k: 'sa-link', s: SESSION, c: COACH, exp: expect.any(Number) });
+    // an hour at most: a photo of the coach's screen must not open a child's session for long
+    expect(body.exp - Date.now() / 1000).toBeLessThanOrEqual(3600);
+    expect(body.exp - Date.now() / 1000).toBeGreaterThan(3500);
     expect(await Svc.saLink({ userId: OTHER, sessionId: SESSION }, deps)).toEqual({ status: 'not_found' });
   });
 

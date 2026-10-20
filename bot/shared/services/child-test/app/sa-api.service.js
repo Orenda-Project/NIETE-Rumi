@@ -23,7 +23,7 @@
  *   saStatus      what the server holds, for the coach's visit bar
  *
  * Another phone (a teacher's, with no coach sign-in) can run one child's battery:
- *   saLink        the coach mints a signed link for one of their children's sessions (12 h)
+ *   saLink        the coach mints a signed link for one of their children's sessions (1 h)
  *   saViaLink     the sink calls from that phone, made as the coach for that session only
  *
  * IDENTITY. The school must be one of the coach's (leader_schools) or the school of their own
@@ -409,7 +409,7 @@ const saStatus = onSession('sa_status', async ({ sessionId }, d, session, sa) =>
 // ─── another phone ─────────────────────────────────────────────────────────
 
 const LINK_KIND = 'sa-link';
-const LINK_TTL_S = 12 * 60 * 60;
+const LINK_TTL_S = 60 * 60;
 const tokens = () => require('../../quiz/web-quiz-token'); // eslint-disable-line global-require
 
 const saLink = onSession('sa_link', async (a, d, session) => {
