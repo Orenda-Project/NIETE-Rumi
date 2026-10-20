@@ -118,6 +118,8 @@
                 if (s.kind === 'mercy') {
                   runner.mercyOffered();
                   if (view && view.mercy) view.mercy();
+                } else if (s.kind === 'ear_unavailable') {
+                  runner.earUnavailable();
                 } else if (s.kind === 'early_stop_silence') {
                   runner.silence(s.silence_s);
                   recStop(t, null);

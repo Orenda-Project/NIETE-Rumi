@@ -288,6 +288,7 @@
       };
       if (t.mode === 'record') {
         r.mercy_offered = !!st.mercy;
+        r.mercy_ear = st.ear || 'running';
         r.silence_s = st.silence_s == null ? null : st.silence_s;
         r.last_word_index = st.last_item_index;
         var w = st.last_item_index != null ? t.items[st.last_item_index] : null;
@@ -399,6 +400,12 @@
         if (st.phase !== 'running' || task().mode !== 'record' || st.mercy) return;
         st.mercy = true;
         ev('mercy_offered', { task_id: st.task_id });
+      },
+      /** The recorder could not listen (the phone's audio engine asleep): no mercy, no silence stop; the result says so. */
+      earUnavailable: function () {
+        if (st.phase !== 'running' || task().mode !== 'record') return;
+        st.ear = 'unavailable';
+        ev('ear_unavailable', { task_id: st.task_id });
       },
       /** No voice for the whole window (20 s): the passage ends as early_stop_silence, no last word asked. */
       silence: function (seconds) {
