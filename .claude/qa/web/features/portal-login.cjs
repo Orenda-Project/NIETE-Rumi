@@ -104,6 +104,8 @@ const scenarios = [
     const landed = await landsOn(page, '/portal/teacher');
     return { replyType: item.type, link: url.replace(/\/go\/.*/, '/go/<token>'), tries, landed };
   } },
+  // @obsolete (bd-xxi78f): the code sign-in is gone; no run, so the lane reports it blocked.
+  { id: 'PL12', title: 'A code on WhatsApp signs her in: number, Send code, the code, her dashboard — no password' },
   { id: 'PL14', title: "The analytics accounts' own sign-in asks for an account name and a password only, and a refused name stays on it", run: async (page, ctx) => {
     await page.goto(ctx.baseUrl + '/portal/analytics/login', { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('#accountName', { state: 'visible', timeout: 20000 })

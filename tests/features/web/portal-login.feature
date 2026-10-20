@@ -95,6 +95,20 @@ Feature: Portal sign-in
     When she opens that link in the browser
     Then she settles on /portal/teacher, signed in, without typing a password
 
+  @PL12 @obsolete
+  Scenario: A code on WhatsApp signs her in: number, Send code, the code, her dashboard — no password
+    Given the teacher app v2 and the coach app v2 are off
+    When she enters demo teacher 03000000911
+    And she taps Send code
+    Then the code step opens, saying it was sent on WhatsApp
+    When she enters the code
+    And she taps Log in
+    Then she is on /portal/dashboard
+    # OBSOLETE 2026-10-20 (bd-xxi78f): the operator took the WhatsApp-code sign-in off the login page; the page is the
+    # number and the password, and a code on WhatsApp is only Forgot password's (PL07). The server routes
+    # /request-code and /verify-code stay one release (bd-pm4blf). Proposed for deletion — not deleted. The web-lane
+    # driver reports it as blocked.
+
   @PL13
   Scenario: One-tap sign-in from a Send to teacher message lands on the FLN plan, whatever the teacher-app switch says
     # PR-E (m-links): a /go token whose feature is fln:<id> (bot/shared/services/fln-go-target.js) is signable
