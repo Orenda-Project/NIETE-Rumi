@@ -1,8 +1,9 @@
 /**
  * A self-administered battery on the child-test rows (V1.6.18): the session carries how it was run and the
  * device's sync state; each subtask is one child_test_blocks row (block = the task id) holding the phone's
- * evidence in `responses`, the phone's marks in `ai_marks` when the phone could score it (tap / keypad), and
- * the recordings in `audio_r2_key` / `audio_r2_keys`.
+ * evidence in `responses`, the phone's marks in `ai_marks` when the phone could score it (tap / keypad), how the
+ * child answered in `response_mode`, and the recordings in `audio_r2_key` / `audio_r2_keys`. A tap or keypad
+ * score is the SA scale, never written under the recorded test's names (clpm, cwpm, …).
  *
  * Idempotent: a row whose marks are written is never touched again (the write-once trigger would refuse it
  * anyway), so a batch the phone re-sends after a lost answer changes nothing. A recording on a row nobody
@@ -17,7 +18,8 @@ const { logError } = require('../../utils/logger');
 const SESSIONS = 'child_test_sessions';
 const BLOCKS = 'child_test_blocks';
 const PARKED = 'final:sa_score_later';
-const PHONE_SCORER = 'sa-tap-v1';
+const PHONE_SCORER = 'tap-v1';
+const MODES = ['tap', 'keypad', 'keyboard', 'record', 'oral'];
 const DEVICE_FIELDS = ['ua', 'bundle_v', 'offline', 'skew_ms', 'mic_ok', 'mic_rms'];
 
 function fail(where, error, extra) {
@@ -50,7 +52,12 @@ async function rowFor(sessionId, block) {
 }
 
 async function updateRow(id, patch, where) {
-  const { error } = await supabase.from(BLOCKS).update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id);
+  let { error } = await supabase.from(BLOCKS).update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error && 'response_mode' in patch && /response_mode/.test(error.message || '')) {
+    // before V1.6.21: the mode stays in responses[0], which the migration backfills from
+    const { response_mode: _, ...rest } = patch; // eslint-disable-line no-unused-vars
+    ({ error } = await supabase.from(BLOCKS).update({ ...rest, updated_at: new Date().toISOString() }).eq('id', id));
+  }
   return error ? fail(where, error, { blockId: id }) : { ok: true };
 }
 
@@ -95,7 +102,29 @@ async function setClient(sessionId, { clientSessionId, block } = {}) {
   return { ok: true };
 }
 
-const PHONE_MARKS = ['attempted', 'correct', 'incorrect', 'per_minute', 'time_used_ms', 'time_left_ms', 'stop_reason', 'last_item_index', 'options_n', 'resumed'];
+const round2 = (n) => Math.round(n * 100) / 100;
+const num = (n) => (Number.isFinite(n) ? n : null);
+
+/** The phone's marks on the SA scale: tap (with the chance correction) or keypad; null for anything else. */
+function phoneMarks(r) {
+  if (r.mode === 'tap') {
+    const n = num(r.options_n);
+    const right = Number(r.correct) || 0;
+    const wrong = Number(r.incorrect) || 0;
+    return {
+      tap_correct: num(r.correct),
+      tap_attempted: num(r.attempted),
+      options_n: n,
+      chance_corrected: n > 1 ? round2(Math.max(0, right - wrong / (n - 1))) : null,
+      items_per_min: num(r.per_minute),
+      stop_reason: r.stop_reason || null,
+    };
+  }
+  if (r.mode === 'keypad' || r.mode === 'keyboard') {
+    return { keypad_correct: num(r.correct), keypad_attempted: num(r.attempted), items_per_min: num(r.per_minute), stop_reason: r.stop_reason || null };
+  }
+  return null;
+}
 
 /** One subtask's result from the phone: [{task_id, scored_on, answers[], ...}] */
 async function putResults(sessionId, results, lang) {
@@ -106,10 +135,9 @@ async function putResults(sessionId, results, lang) {
     if (got.row.ai_marks) continue;
     const { answers, ...summary } = r;
     const responses = [{ kind: 'result', ...summary }, ...(Array.isArray(answers) ? answers : []).map((a) => ({ kind: 'answer', ...a }))];
-    const patch = { responses, lang: lang || null };
-    if (r.scored_on === 'phone') {
-      const marks = { scorer: PHONE_SCORER };
-      for (const k of PHONE_MARKS) if (r[k] !== undefined) marks[k] = r[k];
+    const patch = { responses, lang: lang || null, ...(MODES.includes(r.mode) ? { response_mode: r.mode } : {}) };
+    const marks = r.scored_on === 'phone' ? phoneMarks(r) : null;
+    if (marks) {
       Object.assign(patch, { ai_marks: marks, ai_status: 'scored', ai_model_versions: { scorer: PHONE_SCORER }, ai_scored_at: new Date().toISOString() });
     }
     // eslint-disable-next-line no-await-in-loop
@@ -155,4 +183,4 @@ async function summary(sessionId) {
   };
 }
 
-module.exports = { PARKED, PHONE_SCORER, findByClient, setClient, markSynced, putResults, setAudio, summary };
+module.exports = { PARKED, PHONE_SCORER, phoneMarks, findByClient, setClient, markSynced, putResults, setAudio, summary };

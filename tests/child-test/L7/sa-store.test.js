@@ -11,6 +11,7 @@
 let db;
 let fail;
 let calls;
+let noModeColumn;
 
 function table(name) {
   const filters = [];
@@ -29,6 +30,9 @@ function table(name) {
     update: (patch) => ({
       eq: (col, v) => {
         calls.push({ name, op: 'update', patch, where: [col, v] });
+        if (noModeColumn && 'response_mode' in patch) {
+          return Promise.resolve({ error: { code: 'PGRST204', message: "Could not find the 'response_mode' column of 'child_test_blocks' in the schema cache" } });
+        }
         if (!fail) db[name].filter((r) => r[col] === v).forEach((r) => Object.assign(r, patch));
         return Promise.resolve({ error: fail });
       },
@@ -41,6 +45,7 @@ let Store;
 beforeEach(() => {
   jest.resetModules();
   fail = null;
+  noModeColumn = false;
   calls = [];
   db = {
     child_test_sessions: [{ id: 's1', admin_mode: null, device: null, client_started_at: null, client_finished_at: null }],
@@ -54,22 +59,38 @@ beforeEach(() => {
 const blockOf = (b) => db.child_test_blocks.find((r) => r.block === b);
 
 describe('putResults', () => {
-  test('a phone-scored subtask: its evidence and its marks, once', async () => {
-    const r = { task_id: 'ur.letters', scored_on: 'phone', correct: 12, attempted: 20, per_minute: 12, stop_reason: 'time_up', answers: [{ i: 0, ok: true }] };
+  // RULING #9: a tap or keypad score is its own scale; never a v3 rate name on these rows
+  test('a tap subtask: its evidence, the SA tap marks only, once', async () => {
+    const r = { task_id: 'ur.letters', mode: 'tap', scored_on: 'phone', correct: 12, incorrect: 6, attempted: 18, options_n: 4, per_minute: 12, time_used_ms: 60000, stop_reason: 'time_up', clpm: 99, answers: [{ i: 0, ok: true }] };
     expect(await Store.putResults('s1', [r], 'ur')).toEqual({ ok: true });
     const row = blockOf('ur.letters');
     expect(row.responses).toEqual([
-      { kind: 'result', task_id: 'ur.letters', scored_on: 'phone', correct: 12, attempted: 20, per_minute: 12, stop_reason: 'time_up' },
+      { kind: 'result', task_id: 'ur.letters', mode: 'tap', scored_on: 'phone', correct: 12, incorrect: 6, attempted: 18, options_n: 4, per_minute: 12, time_used_ms: 60000, stop_reason: 'time_up', clpm: 99 },
       { kind: 'answer', i: 0, ok: true },
     ]);
     expect(row).toEqual(expect.objectContaining({
-      lang: 'ur', ai_status: 'scored', ai_model_versions: { scorer: 'sa-tap-v1' },
-      ai_marks: { scorer: 'sa-tap-v1', attempted: 20, correct: 12, per_minute: 12, stop_reason: 'time_up' },
+      lang: 'ur', response_mode: 'tap', ai_status: 'scored', ai_model_versions: { scorer: 'tap-v1' },
+      ai_marks: { tap_correct: 12, tap_attempted: 18, options_n: 4, chance_corrected: 10, items_per_min: 12, stop_reason: 'time_up' },
     }));
     const before = calls.length;
     await Store.putResults('s1', [{ ...r, correct: 99 }], 'ur');
     expect(calls.slice(before).filter((c) => c.op === 'update')).toEqual([]);
-    expect(blockOf('ur.letters').ai_marks.correct).toBe(12);
+    expect(blockOf('ur.letters').ai_marks.tap_correct).toBe(12);
+  });
+
+  test('a keypad subtask: keypad marks; chance correction never below zero', async () => {
+    await Store.putResults('s1', [{ task_id: 'ma.add1', mode: 'keypad', scored_on: 'phone', correct: 5, attempted: 7, per_minute: 5, stop_reason: 'time_up' }], 'ur');
+    expect(blockOf('ma.add1').ai_marks).toEqual({ keypad_correct: 5, keypad_attempted: 7, items_per_min: 5, stop_reason: 'time_up' });
+    expect(blockOf('ma.add1').response_mode).toBe('keypad');
+    await Store.putResults('s1', [{ task_id: 'en.letters', mode: 'tap', scored_on: 'phone', correct: 1, incorrect: 9, attempted: 10, options_n: 5, per_minute: null, stop_reason: 'first_line' }], 'en');
+    expect(blockOf('en.letters').ai_marks).toEqual({ tap_correct: 1, tap_attempted: 10, options_n: 5, chance_corrected: 0, items_per_min: null, stop_reason: 'first_line' });
+  });
+
+  test('before V1.6.21 the row is still written, its mode kept in responses[0]', async () => {
+    noModeColumn = true;
+    expect(await Store.putResults('s1', [{ task_id: 'ur.story', mode: 'record', scored_on: 'later', answers: [] }], 'ur')).toEqual({ ok: true });
+    expect(blockOf('ur.story').responses[0].mode).toBe('record');
+    expect(blockOf('ur.story').response_mode).toBeUndefined();
   });
 
   test('a subtask scored later keeps its evidence and no marks', async () => {
@@ -94,7 +115,7 @@ describe('setAudio', () => {
   });
 
   test('a marked row is frozen', async () => {
-    await Store.putResults('s1', [{ task_id: 'ur.letters', scored_on: 'phone', correct: 1 }], 'ur');
+    await Store.putResults('s1', [{ task_id: 'ur.letters', mode: 'tap', scored_on: 'phone', correct: 1 }], 'ur');
     expect(await Store.setAudio('s1', 'ur.letters', null, 'k')).toEqual({ ok: false, reason: 'frozen' });
   });
 });
@@ -110,7 +131,7 @@ describe('markSynced and summary', () => {
 
   test('summary: seq, block, the subtasks with evidence and with recordings', async () => {
     await Store.markSynced('s1', { lastSeq: 7, block: 'B1' });
-    await Store.putResults('s1', [{ task_id: 'ur.letters', scored_on: 'phone', correct: 1 }], 'ur');
+    await Store.putResults('s1', [{ task_id: 'ur.letters', mode: 'tap', scored_on: 'phone', correct: 1 }], 'ur');
     await Store.setAudio('s1', 'ur.story', null, 'k');
     expect(await Store.summary('s1')).toEqual({ ok: true, lastSeq: 7, block: 'B1', tasksDone: ['ur.letters'], audio: ['ur.story'] });
   });
@@ -122,7 +143,7 @@ describe('markSynced and summary', () => {
 
 test('a failed write is ok:false', async () => {
   fail = { message: 'nope' };
-  expect(await Store.putResults('s1', [{ task_id: 'x.y', scored_on: 'phone' }])).toEqual({ ok: false, error: 'nope' });
+  expect(await Store.putResults('s1', [{ task_id: 'x.y', mode: 'tap', scored_on: 'phone' }])).toEqual({ ok: false, error: 'nope' });
   expect(await Store.setAudio('s1', 'x.y', null, 'k')).toEqual({ ok: false, error: 'nope' });
   expect(await Store.markSynced('s1', {})).toEqual({ ok: false, error: 'nope' });
   expect((await Store.summary('s1')).ok).toBe(false);
