@@ -159,9 +159,9 @@ describe('the states a teacher can be in are distinguishable', () => {
   });
 });
 
-describe('the six endpoints exist on the bot', () => {
+describe('the seven endpoints exist on the bot', () => {
   test.each([
-    'options', 'chapters', 'create', 'status', 'download', 'papers',
+    'options', 'chapters', 'topics', 'create', 'status', 'download', 'papers',
   ])('/api/internal/assessment/%s', (name) => {
     expect(read(INTERNAL)).toMatch(new RegExp(`'/assessment/${name}'`));
   });
@@ -170,9 +170,9 @@ describe('the six endpoints exist on the bot', () => {
     const src = read(INTERNAL);
     const block = src.slice(src.indexOf('assessment generator'));
     const routes = block.match(/router\.post\('\/assessment\/[a-z]+'/g) || [];
-    expect(routes.length).toBe(6);
+    expect(routes.length).toBe(7);
     // Every one of them names the guard on the same line.
     const guarded = block.match(/router\.post\('\/assessment\/[a-z]+', requireInternalKey/g) || [];
-    expect(guarded.length).toBe(6);
+    expect(guarded.length).toBe(7);
   });
 });
