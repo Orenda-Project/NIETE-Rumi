@@ -1,4 +1,4 @@
--- ROLLBACK V1.6.18 — child_test: back to the coach-recorded test only.
+-- ROLLBACK V1.6.20 — child_test: back to the coach-recorded test only.
 --
 -- Refuses while any self-administered evidence exists (a 'web' or 'self' session, an sa: visit key, a block
 -- outside the 21 v3 ids, or any responses / per-item clips): narrowing would fail on those rows, and they
@@ -11,7 +11,7 @@ BEGIN
      OR EXISTS (SELECT 1 FROM child_test_draws WHERE visit_key LIKE 'sa:%')
      OR EXISTS (SELECT 1 FROM child_test_blocks WHERE responses IS NOT NULL OR audio_r2_keys IS NOT NULL
        OR block NOT IN ('urdu', 'english', 'maths', 'ur.listening', 'ur.letters', 'ur.nonwords', 'ur.words', 'ur.story', 'en.listening', 'en.letters', 'en.nonwords', 'en.words', 'en.story', 'ma.number_id', 'ma.discrimination', 'ma.missing', 'ma.add1', 'ma.sub1', 'ma.add2', 'ma.sub2', 'ma.word_problems')) THEN
-    RAISE EXCEPTION 'ROLLBACK_V1.6.18: self-administered rows exist; export them first' USING ERRCODE = 'check_violation';
+    RAISE EXCEPTION 'ROLLBACK_V1.6.20: self-administered rows exist; export them first' USING ERRCODE = 'check_violation';
   END IF;
 END
 $$;

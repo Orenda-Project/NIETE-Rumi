@@ -1,4 +1,4 @@
--- V1.6.18 — child_test: a self-administered battery (the child alone with the phone) on the same rows.
+-- V1.6.20 — child_test: a self-administered battery (the child alone with the phone) on the same rows.
 -- Versioned migration. Applied per environment, in order, from infrastructure/supabase/migrations.
 --
 -- WHY. In the coach's Learning assessment, and in the game's battery, the child takes the EGRA/EGMA
@@ -16,7 +16,7 @@
 -- DATA. None changed: every existing row satisfies every widened CHECK; new columns are NULL.
 -- LOAD. CHECK validation scans of three small tables. SECURITY. Unchanged: RLS on, no policies.
 -- IDEMPOTENT. ADD COLUMN IF NOT EXISTS; each CHECK dropped by name and re-added.
--- Rollback: ROLLBACK_V1.6.18__child_test_self_admin.sql
+-- Rollback: ROLLBACK_V1.6.20__child_test_self_admin.sql
 -- One RPC call from the migration runner = one transaction; no BEGIN/COMMIT.
 
 -- sessions
