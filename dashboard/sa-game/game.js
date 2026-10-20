@@ -37,6 +37,7 @@
       notReady: 'This is still getting ready. Come back soon.', mute: 'Sound off', unmute: 'Sound on',
       saved: 'Saved on this phone',
       flown: 'You took the Big flight this month! The islands are open any time.',
+      later: 'Not just now. Try the Big flight again in a moment.',
     },
     ur: {
       map: 'تینوں جزیرے پار کریں، پھر بڑی اڑان بھریں!',
@@ -52,6 +53,7 @@
       notReady: 'یہ ابھی تیار ہو رہا ہے۔ تھوڑی دیر بعد دوبارہ آئیں۔', mute: 'آواز بند', unmute: 'آواز چالو',
       saved: 'اس فون پر محفوظ',
       flown: 'اس مہینے کی بڑی اڑان ہو گئی! جزیرے جب چاہیں دوبارہ کھیلیں۔',
+      later: 'ابھی نہیں۔ تھوڑی دیر بعد بڑی اڑان دوبارہ آزمائیں۔',
     },
   }[L];
   var ISLANDS = ['maths', 'english', 'urdu'];
@@ -187,13 +189,19 @@
   }
   function localId(k) { return ['g', boot.form.replace(/\W/g, ''), k, Date.now().toString(36), Math.random().toString(36).slice(2, 8)].join('-'); }
   // the run's session from the game sink (it keeps the answers on the server); offline or off: a session on the phone only;
-  // the Big flight already flown this month (409): none (the page says so)
+  // the Big flight already flown this month (409): none (the page says so); the month's runs unreadable for the flight
+  // (503 exposure_unknown): false (the page says try again; the flight never runs unseen)
   function session(k) {
     return fetch('/api/sa-game/s/session', {
       method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-wq-device': device() },
       body: JSON.stringify({ t: boot.token, kid: boot.kid, part: k, form: boot.form, lang: L, n: (prog.runs[k] || 0) }),
-    }).then(function (r) { return r.status === 409 ? { flown: true } : r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (o) {
+    }).then(function (r) {
+      if (r.status === 409) return { flown: true };
+      if (r.status === 503 && k === 'tower') return r.json().then(function (b) { return b && b.error === 'exposure_unknown' ? { later: true } : null; }, function () { return null; });
+      return r.ok ? r.json() : null;
+    }).catch(function () { return null; }).then(function (o) {
       if (o && o.flown) return null;
+      if (o && o.later) return false;
       if (o && o.session_id && o.st) { try { W.localStorage.setItem('sg.st.' + o.session_id, o.st); } catch (_) { /* no sink then */ } return o.session_id; }
       return localId(k);
     });
@@ -205,7 +213,7 @@
     show(top(T[k], null) + '<div class="sg-grow"></div><img src="/wq/jugnu/hello.webp" alt="" width="96" class="sg-bob" style="margin:0 auto"><div class="sg-grow"></div>');
     session(k).then(function (sid) {
       if (!sid) {
-        show(top(T[k], 'map') + '<div class="sg-grow"></div><img src="/wq/jugnu/celebrate.webp" alt="" width="110" style="margin:0 auto"><p class="sg-note">' + esc(T.flown) + '</p><div class="sg-grow"></div><button class="sg-btn" data-tap="map">' + esc(T.toMap) + '</button>');
+        show(top(T[k], 'map') + '<div class="sg-grow"></div><img src="/wq/jugnu/' + (sid === false ? 'sleep' : 'celebrate') + '.webp" alt="" width="110" style="margin:0 auto"><p class="sg-note">' + esc(sid === false ? T.later : T.flown) + '</p><div class="sg-grow"></div><button class="sg-btn" data-tap="map">' + esc(T.toMap) + '</button>');
         return;
       }
       var q = 's=' + encodeURIComponent(sid) + '&form=' + encodeURIComponent('sa.' + boot.form + '.' + L) + '&mode=game&lang=' + L + '&block=' + k + '&skin=game&back=' + encodeURIComponent(backUrl(k, sid));
