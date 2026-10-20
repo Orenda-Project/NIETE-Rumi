@@ -113,7 +113,8 @@
         var s = splitRec(a.task_id, a.item_id);
         return ready(a.session_id).then(function (r) {
           return call('POST', '/audio/presign', { st: r.st, taskId: s.taskId, itemId: s.itemId, mime: a.mime, bytes: a.bytes })
-            .then(function (out) { return { url: out.url, key: out.key }; });
+            // audio not kept in game mode (the server's skip): the sync drops the blob, never retries
+            .then(function (out) { return out && out.skip === true ? { skip: true, reason: out.reason || null } : { url: out.url, key: out.key }; });
         });
       },
       registerAudio: function (a) {
