@@ -9,7 +9,8 @@
  *
  * The inline script reports what the teacher did, batched, through navigator.sendBeacon (fetch keepalive when
  * there is none) every 10 s and when the page is hidden: open (the script ran: a person, not a link preview),
- * play (first), segment_start (first time the playing position is inside the clip), t30 / p50 / p90 (PLAYED time
+ * play (the first media `playing`, never the play() call: media that never loads plays nothing — qa-e2e 20:16Z),
+ * segment_start (first time the playing position is inside the clip), t30 / p50 / p90 (PLAYED time
  * inside the clip, summed from timeupdate steps of at most 1.5 s, so a seek is not watching), segment_end
  * (position reaches the clip end), ended, error. The server keeps the first of each.
  *
@@ -53,7 +54,7 @@ try{fetch(C.url,{method:'POST',body:b,keepalive:true,headers:{'Content-Type':'te
 add('open',null);
 if(v){
 v.addEventListener('loadedmetadata',function(){if(!seeked){seeked=true;try{if(v.currentTime<C.start-1)v.currentTime=C.start;}catch(_){}}});
-v.addEventListener('play',function(){add('play',v.currentTime);});
+v.addEventListener('playing',function(){add('play',v.currentTime);});
 v.addEventListener('seeking',function(){last=null;});
 v.addEventListener('timeupdate',function(){var t=v.currentTime,inside=t>=C.start&&t<=C.end;
 if(!v.paused&&inside)add('segment_start',t);
