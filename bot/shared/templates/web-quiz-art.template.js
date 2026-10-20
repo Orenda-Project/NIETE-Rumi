@@ -46,6 +46,8 @@ const COPY = {
     dared: (n) => `${n} challenged you!`,
     scored: (n, s, t) => `${n} scored ${s} on ${t}`,
     tapPlay: 'Tap the link to play',
+    // the friend's door, where the picture sits under the real Play button (the friend is already on the link)
+    yourTurn: 'Your turn!',
     played: 'played',
     playedOf: (n, of) => `${n} of ${of} played`,
     me: 'me',
@@ -68,6 +70,7 @@ const COPY = {
     dared: (n) => `${n} نے آپ کو چیلنج کیا ہے!`,
     scored: (n, s, t) => `${n} نے ${t} میں ${s} لیے`,
     tapPlay: 'لنک پر ٹیپ کریں اور کھیلیں',
+    yourTurn: 'آپ کی باری!',
     played: 'بچوں نے کھیلا',
     playedOf: (n, of) => `${of} میں سے ${n} بچوں نے کھیلا`,
     me: 'میں',
@@ -141,7 +144,7 @@ function around(rows, n) {
   return rows.slice(from, from + n);
 }
 
-function body(kind, d, C, pics, size, ur2 = false, og2 = false) {
+function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false) {
   const pic = (name) => (pics && assets()[name] ? `<img class="jug" src="data:image/webp;base64,${assets()[name]}" alt="">` : '<div class="jug"></div>');
   if (kind === 'card') {
     return {
@@ -164,7 +167,7 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false) {
       main: `${og2 ? '' : `<p class="kick">${esc(C.chal)}</p>`}`
         + `<h1 class="head">${zero ? C.dared(own(d.first)) : C.beat(own(d.first), num(score))}</h1>`
         + (zero ? `<p class="sub">${own(d.topic)}</p>` : `<p class="sub">${C.scored(own(d.first), num(score), own(d.topic))}</p>${starsHtml(d.correct, d.total)}`),
-      cta: C.tapPlay,
+      cta: door ? C.yourTurn : C.tapPlay,
     };
   }
   if (kind === 'class') {
@@ -199,7 +202,7 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false) {
  * @param {{fonts?:boolean, pictures?:boolean}} [opt] - off only for the layout snapshot
  * @returns {string} HTML; the picture is the `.art` element, exactly SIZES[size]
  */
-function renderArt({ kind, size, brand, lang, d, ui }, opt = {}) {
+function renderArt({ kind, size, brand, lang, d, ui, door }, opt = {}) {
   const k = KINDS.includes(kind) ? kind : 'card';
   const sz = SIZES[size] ? size : 'og';
   const [W, H] = SIZES[sz];
@@ -219,7 +222,7 @@ function renderArt({ kind, size, brand, lang, d, ui }, opt = {}) {
   const B = WebQuizBrand.publicBrand(Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, brand) ? brand : WebQuizBrand.DEFAULT_BRAND);
   const t = B.tokens;
   const a = opt.fonts === false ? {} : assets();
-  const parts = body(k, d || {}, C, opt.pictures !== false, sz, UR2, OG2);
+  const parts = body(k, d || {}, C, opt.pictures !== false, sz, UR2, OG2, door === true);
   const sq = sz === 'sq';
   const col = sq || k === 'school' || (k === 'class' && Boolean(d && d.rows && d.rows.length));   // stacked: the square, and the board in either size
   const deco = B.deco ? `url("data:image/svg+xml;utf8,${encodeURIComponent(B.deco)}")` : 'none';
