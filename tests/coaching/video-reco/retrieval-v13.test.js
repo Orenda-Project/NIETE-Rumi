@@ -23,7 +23,9 @@ const B7 = { indicator: null, indicators: [], moves: [], native37: false, source
 const CARD = { indicator: null, indicators: [], moves: [], source: 'card_text', cardText: 'unused by the text route' };
 const ctx = (extra = {}) => ({ language: 'ur', languages: ['ur', 'mixed'], level: 2, ladderComplete: false, history: { segments: [], modules: [] }, ...extra });
 const L = (extra = {}) => ({ subject: 'urdu', grade: { lo: 3, hi: 3 }, topic: null, inapplicable: [], ...extra });
-const step = (action) => ({ action, tryTomorrow: '', thingToTry: '', name: '' });
+// v1.3c-4 stub floor: six words no fixture chapter carries, so a card clears the 6-word floor and BM25 is unchanged.
+const PAD = ' zephyr quokka marimba origami lantern walrus';
+const step = (action) => ({ action: action + PAD, tryTomorrow: '', thingToTry: '', name: '' });
 const ids = (r) => r.candidates.map((c) => c.seg_id);
 const routes = (r) => r.candidates.map((c) => c.route);
 
@@ -205,7 +207,7 @@ describe('R4 the row (engine)', () => {
   test('unknown 37-id (C11, no alias, not native): reaches the model via the text route; route step_text, alias_kind unknown, tag_mismatch true, differs false', async () => {
     const { row, completeJson } = await run({
       analysis: a37('C11', 'Student Talk Time'), nextStep: { target: { indicator: 'C11' } },
-      card: { action: 'Close with an exit summary of what we learned' }, pick: '14-s2',
+      card: { action: 'Close with an exit summary of what we learned' + PAD }, pick: '14-s2',
     });
     expect(completeJson).toHaveBeenCalledTimes(1);
     expect(completeJson.mock.calls[0][0]).toContain('Indicator: C11 — Student Talk Time');
@@ -217,7 +219,7 @@ describe('R4 the row (engine)', () => {
   test('v1.3b: the same card on 37-B7 (use of the plan) → none hole:no_move, no LLM call', async () => {
     const { row, completeJson } = await run({
       analysis: a37('B7', 'Use of Taleemabad Lesson Plan'), nextStep: { target: { indicator: 'B7' } },
-      card: { action: 'Close with an exit summary of what we learned' }, pick: '14-s2',
+      card: { action: 'Close with an exit summary of what we learned' + PAD }, pick: '14-s2',
     });
     expect(completeJson).not.toHaveBeenCalled();
     expect(row).toMatchObject({ status: 'none', none_reason: 'hole:no_move', alias_kind: 'no_move', route: null });
@@ -225,7 +227,7 @@ describe('R4 the row (engine)', () => {
   test('LABEL (37-F5, maths): a step_text pick passes validation; differs false, tag_mismatch reported', async () => {
     const { row } = await run({
       analysis: a37('F5', 'Subject-Specific Pedagogy: MATH'), nextStep: { target: { indicator: 'F5' } },
-      card: { action: 'Wait for silence and pause before you ask' }, pick: '10-s2', subject: 'maths',
+      card: { action: 'Wait for silence and pause before you ask' + PAD }, pick: '10-s2', subject: 'maths',
     });
     expect(row).toMatchObject({ status: 'shown', seg_id: '10-s2', route: 'step_text', alias_kind: 'label', tag_mismatch: true, differs_from_step: false });
     expect(row.candidates[0]).toMatchObject({ seg_id: '22-s1', route: 'tag' });
@@ -239,7 +241,7 @@ describe('R4 the row (engine)', () => {
   });
   test('card_text: route card_text, no step indicator so tag_mismatch is null', async () => {
     const { row } = await run({
-      analysis: { domains: { C: { indicators: [] } } }, nextStep: { target: null }, card: { action: 'Give feedback: correct, then next' }, pick: '14-s1',
+      analysis: { domains: { C: { indicators: [] } } }, nextStep: { target: null }, card: { action: 'Give feedback: correct, then next' + PAD }, pick: '14-s1',
     });
     expect(row).toMatchObject({ status: 'shown', target_source: 'card_text', route: 'card_text', tag_mismatch: null, differs_from_step: false });
   });
