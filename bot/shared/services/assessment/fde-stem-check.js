@@ -62,6 +62,12 @@ function entryOf(label, q) {
   // flagged as missing and then printed twice).
   const parts = (Array.isArray(q.questions) ? q.questions : []).filter((s) => typeof s === 'string');
   if (parts.length) add('parts', parts.map((s, j) => `${ROMAN[j] || j + 1}) ${strip(s)}`).join(' | '));
+  // A table prints under its question (bd-5jmnfj.25: unseen, a printed table was flagged as missing
+  // and its numbers were written into the question as well).
+  if (q.table && typeof q.table === 'object') {
+    const rows = [q.table.headers, ...(Array.isArray(q.table.rows) ? q.table.rows : [])].filter(Array.isArray);
+    add('table', rows.map((r) => r.map(strip).join(' | ')).join(' / '));
+  }
   if (Array.isArray(q.options)) add('options', q.options.filter((o) => typeof o === 'string').join(' | '));
   if (Array.isArray(q.words)) add('words', q.words.filter((w) => typeof w === 'string').join(', '));
   if (typeof q.answer === 'string') add('answer', q.answer);
@@ -75,7 +81,7 @@ function buildStemCheckPrompt(examJson, P) {
   const targets = targetsOf(examJson, P);
   const body = [...targets].map(([label, q]) => entryOf(label, q)).join('\n\n');
   const prompt = `STEM CHECK: Grade 5 board question paper.
-Below is every printed question, each with the answer and marking the teacher holds. A label like Q2b.1 is an item; Q2b.1.c is its sub-question (c), which is read with the item's situation above it. "parts:" are printed under their question as i), ii)…, so a question that says "the following" has its list there.
+Below is every printed question, each with the answer and marking the teacher holds. A label like Q2b.1 is an item; Q2b.1.c is its sub-question (c), which is read with the item's situation above it. "parts:" are printed under their question as i), ii)…, so a question that says "the following" has its list there. "table:" is printed under its question (rows split by /), so a question that says "the table shows" has its data there.
 
 Flag a question ONLY when one of these is true:
 1. Its wording contradicts itself or is garbled, so a child cannot tell what is being asked (two questions run together, a "but" that joins things that do not clash, a half sentence).
