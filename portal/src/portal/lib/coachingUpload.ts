@@ -217,7 +217,57 @@ export async function checkAudioFile(file: File): Promise<{ problem: AudioFilePr
     // A picture is a video. One the browser cannot read is a video only when it is not an audio format by name.
     if (picture === true || (picture === null && !name)) return { problem: "video" };
   }
-  if (!name) return { problem: "wrong_type" };
+  let upload = name;
+  if (!upload) {
+    // bd-qbbikm: the name and the type say nothing (an ending like .MP3EG has no type either) — read the first bytes.
+    const sniffed = await sniffAudioExt(file);
+    if (!sniffed) return { problem: "wrong_type" };
+    if (!maybeVideo && SNIFF_CONTAINERS.includes(sniffed) && (await mediaProbe.hasVideo(file)) === true) return { problem: "video" };
+    const stem = ext ? file.name.slice(0, -ext.length) : file.name;
+    upload = `${stem.trim() || "recording"}${sniffed}`;
+  }
   if (file.size > UPLOAD_RULES.audio.maxBytes) return { problem: "too_large" };
-  return { problem: null, filename: name };
+  return { problem: null, filename: upload };
+}
+
+/** Containers that can hold a picture: found by their bytes, they are opened to see before they are taken. */
+const SNIFF_CONTAINERS = [".mp4", ".webm", ".3gp"];
+
+/** The first `n` bytes of a file (empty when the browser cannot read it). */
+async function headOf(file: Blob, n: number): Promise<Uint8Array> {
+  try {
+    const part = file.slice(0, n);
+    if (typeof part.arrayBuffer === "function") return new Uint8Array(await part.arrayBuffer());
+    return await new Promise((resolve) => {
+      const r = new FileReader();
+      r.onload = () => resolve(new Uint8Array(r.result as ArrayBuffer));
+      r.onerror = () => resolve(new Uint8Array(0));
+      r.readAsArrayBuffer(part);
+    });
+  } catch {
+    return new Uint8Array(0);
+  }
+}
+
+/**
+ * bd-qbbikm — the audio format a file's first bytes say it is, as an ending the server takes, or null. Only the
+ * formats the pipeline has transcribed; anything else (a photo, a PDF, unknown bytes) is null.
+ */
+export async function sniffAudioExt(file: Blob): Promise<string | null> {
+  const b = await headOf(file, 16);
+  const at = (i: number, text: string) => text.split("").every((c, k) => b[i + k] === c.charCodeAt(0));
+  if (b.length < 4) return null;
+  if (at(0, "ID3")) return ".mp3";
+  if (at(0, "OggS")) return ".ogg";
+  if (at(0, "RIFF") && at(8, "WAVE")) return ".wav";
+  if (at(0, "#!AMR")) return ".amr";
+  if (b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return ".webm";
+  if (at(4, "ftyp")) {
+    if (at(8, "M4A")) return ".m4a";
+    if (at(8, "3gp") || at(8, "3g2")) return ".3gp";
+    return ".mp4";
+  }
+  // An MPEG frame with no tag: 11 sync bits. ADTS (AAC) has layer 00; MP3 does not.
+  if (b[0] === 0xff && (b[1] & 0xe0) === 0xe0) return (b[1] & 0x06) === 0 ? ".aac" : ".mp3";
+  return null;
 }
