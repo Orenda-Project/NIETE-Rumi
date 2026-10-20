@@ -94,6 +94,9 @@ const CLASS_PIC_EARLY_KEY = 'web_quiz_class_pic_early';
 // web_quiz_class_rows_together (JSON true only, from this cache only: nowOf('classRows')): a class link's class
 // (web-quiz-identity.js resolveQuizClass) reads its row and its list together, and its children start once its id is known
 const CLASS_ROWS_KEY = 'web_quiz_class_rows_together';
+// web_quiz_challenge_early (JSON true only, from this cache only: nowOf('challengeEarly')): a friend's challenge code reads its
+// parent class code in its own row's read, and the challenger's score starts once the code is known (web-quiz.service.js)
+const CHALLENGE_EARLY_KEY = 'web_quiz_challenge_early';
 // A grown-up changes the child's grade for good (web-quiz-grade-change.js): the hub answer says `grownups.grade`, JSON true only.
 const GRADE_CHANGE_KEY = 'web_quiz_grade_change';
 // web_quiz_hub_waves2 (JSON true only, and only with fanout on): the hub's longest read chains start earlier (hub.js)
@@ -166,6 +169,7 @@ const SWITCHES = Object.freeze([
   ['busyRetry',    BUSY_RETRY_KEY,        'json'],
   [null,           CARD_KEY,              'read'],
   ['challenge',    CHALLENGE_KEY,         'loose'],
+  ['challengeEarly', CHALLENGE_EARLY_KEY, 'json'],
   ['rungs',        RUNGS_KEY,             'loose'],
   ['challengeV2',  CHALLENGE_V2_KEY,      'loose'],
   ['childHome',    CHILD_HOME_KEY,        'loose'],
@@ -594,6 +598,7 @@ module.exports = {
   kidTogetherNow,
   LINK_TOGETHER_KEY,
   CLASS_ROWS_KEY,
+  CHALLENGE_EARLY_KEY,
   linkTogetherNow,
   _resetCache: () => { cache = null; reading = null; langSeen = null; },
 };
