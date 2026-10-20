@@ -71,6 +71,15 @@ test('on, not this phone: the note (403), a bot failure: the error note (502), n
   expect((await fetch(`${s.base}/sa-game/${TOKEN}?kid=${CHIP}`)).status).toBe(502);
 });
 
+test('a grade outside 1–5 or unknown (the bot\'s 403 not_eligible): the not-eligible note in the child\'s language', async () => {
+  s = await start({ bot: () => ({ status: 403, body: { error: 'not_eligible', lang: 'ur' } }) });
+  const r = await fetch(`${s.base}/sa-game/${TOKEN}?kid=${CHIP}`);
+  expect(r.status).toBe(403);
+  const html = await r.text();
+  expect(html).toContain('<html lang="ur" dir="rtl">');
+  expect(html).toContain('بڑی اڑان جماعت ۱ سے ۵ کے لیے ہے۔');
+});
+
 test('files: the allow-list only, and only while the switch is on', async () => {
   let on = true;
   s = await start({ bot: () => ({ status: 404 }), on: () => on });

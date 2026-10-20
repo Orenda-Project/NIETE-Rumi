@@ -241,6 +241,17 @@ describe('exposure (panel: the coach instrument played at home)', () => {
     expect(island.status).toBe(200);
   });
 
+  test('the flight fails closed when the month\'s runs cannot be read (503 exposure_unknown); an island still opens', async () => {
+    const orig = Store.exposure;
+    Store.exposure = async () => ({ ok: false });
+    try {
+      const t = await post('/session', { t: 'tok.sig', kid: KID, part: 'tower', form: 'game.G23' });
+      expect(t.status).toBe(503);
+      expect(await t.json()).toEqual({ error: 'exposure_unknown' });
+      expect((await post('/session', { t: 'tok.sig', kid: KID, part: 'maths', form: 'game.G23' })).status).toBe(200);
+    } finally { Store.exposure = orig; }
+  });
+
   test('another child, or the same child last month: not counted', async () => {
     mockDb.tables.web_quiz_challenge_runs.push({ id: 'old-1', student_id: 'stu-1', exercise: 'battery', meta: { part: 'tower', form: 'game.G23', day: '2026-09-30', finished_at: '2026-09-30T10:00:00Z' } });
     mockDb.tables.web_quiz_challenge_runs.push({ id: 'oth-1', student_id: 'stu-2', exercise: 'battery', meta: { part: 'tower', form: 'game.G23', day: '2099-01-01', finished_at: 'x' } });
