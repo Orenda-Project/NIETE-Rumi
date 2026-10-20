@@ -21,17 +21,15 @@ export const AUTH_EN = {
   loggingIn: 'Logging in',
   phone: 'Phone number',
   phoneHint: '03XX XXXXXXX',
-  // bd-gmuk5s — an analytics-only account's NAME in the same field: the link that opens a normal keyboard for it, the
-  // field's label while it holds a name, and the link back to the phone keypad. The two links are one pair ("Use …"),
-  // and neither says "Sign in": the page's verb is "Log in" (its button).
-  byName: 'Use a name instead',
+  // The analytics accounts' NAME, on their own sign-in page (auth/AnalyticsLogin).
   accountName: 'Account name',
-  byPhone: 'Use phone number',
   password: 'Password',
-  // bd-x7aprz.3 — a code on WhatsApp is the sign-in; a password is the second choice. One pair of links ("Use …").
-  usePassword: 'Use password instead',
-  useCode: 'Use a code instead',
+  // bd-xxi78f — the login is a phone and a password; Forgot password is the one way through WhatsApp (a code, then a
+  // new password). A phone with no password reaches the same page, titled "Set password". Name accounts sign in on
+  // their own page, opened by "Admin login" (the operator's words).
   forgot: 'Forgot password',
+  setPw: 'Set password',
+  adminLogin: 'Admin login',
   privacy: 'Privacy policy',
   deleteAccount: 'Delete account',
   language: 'Language',
@@ -58,10 +56,9 @@ export const AUTH_EN = {
   enterName: 'Enter name',
   checkNum: 'Check the number',
   // bd-x7aprz.3 — never "No account found" / "No password yet": a number that is not registered gets the way to
-  // register (the bot's form), and an account with no password gets the code.
+  // register (the bot's form), and an account with no password is sent to set one (bd-xxi78f).
   notRegistered: 'Not registered yet',
   registerOnWa: 'Register on WhatsApp',
-  byCode: 'Log in by code',
   getNewLink: 'Get a new link',
   wrongCode: 'Wrong code',
   sixDigits: '6 digits needed',
@@ -75,9 +72,6 @@ export const AUTH_EN = {
   couldntCreate: "Couldn't set up",
   linkExpired: 'Link expired',
   alreadySetUp: 'Already set up',
-  // A short-lived notice for people a server change signed out (auth/SignedOutBanner, which ends it by date). A
-  // sentence on purpose: the operator approved these exact words.
-  signedOut: 'Signed out? Log in with a code on WhatsApp — no password needed.',
   // The analytics accounts' own sign-in page (/portal/analytics/login): its title is the name of the page it opens
   // (analytics/copy.ts frame.page), and one line under it says how to sign in. The verb is the page's "Log in".
   analyticsTitle: 'Schools analytics',
@@ -92,13 +86,12 @@ export const AUTH_UR: Words<typeof AUTH_EN> = {
   loggingIn: 'لاگ اِن جاری',
   phone: 'فون نمبر',
   phoneHint: '03XX XXXXXXX',
-  byName: 'نام استعمال کریں',
   accountName: 'اکاؤنٹ کا نام',
-  byPhone: 'فون نمبر استعمال کریں',
   password: 'پاس ورڈ',
-  usePassword: 'پاس ورڈ استعمال کریں',
-  useCode: 'کوڈ استعمال کریں',
   forgot: 'پاس ورڈ بھول گئے',
+  // «بنائیں» as in «اکاؤنٹ بنائیں» (create) below; «ایڈمن» is a loanword with no ontology entry yet (bd-xxi78f).
+  setPw: 'پاس ورڈ بنائیں',
+  adminLogin: 'ایڈمن لاگ اِن',
   privacy: 'پرائیویسی پالیسی',
   deleteAccount: 'اکاؤنٹ حذف کریں',
   language: 'زبان',
@@ -125,7 +118,6 @@ export const AUTH_UR: Words<typeof AUTH_EN> = {
   checkNum: 'نمبر چیک کریں',
   notRegistered: 'ابھی رجسٹر نہیں',
   registerOnWa: 'واٹس ایپ پر رجسٹر کریں',
-  byCode: 'کوڈ سے لاگ اِن',
   getNewLink: 'نیا لنک لیں',
   wrongCode: 'غلط کوڈ',
   sixDigits: '6 ہندسے درکار ہیں',
@@ -139,8 +131,6 @@ export const AUTH_UR: Words<typeof AUTH_EN> = {
   couldntCreate: 'سیٹ اپ نہیں ہوا',
   linkExpired: 'لنک ختم ہو گیا',
   alreadySetUp: 'پہلے سے سیٹ اپ',
-  // The verb agrees with «لاگ ان», never with the reader: no gendered second-person form.
-  signedOut: 'لاگ ان ختم ہو گیا؟ واٹس ایپ پر کوڈ سے لاگ ان کریں، پاس ورڈ کی ضرورت نہیں۔',
   // «تجزیہ» is the ontology's Urdu for Analytics; the line under it reuses «اکاؤنٹ کا نام» and the button's «لاگ اِن».
   analyticsTitle: 'اسکولوں کا تجزیہ',
   analyticsSub: 'اپنے اکاؤنٹ کے نام سے لاگ اِن کریں',
@@ -157,7 +147,6 @@ export const COPY_ENTRY: CopyEntry = {
   same: ['brand', 'logoAlt', 'phoneHint'],
   // The ontology's own words for "it reached her WhatsApp" (واٹس ایپ پر بھیجا گیا is 5 words in Urdu), used word for word.
   // "Register on WhatsApp" is the same phrase shape in Urdu (واٹس ایپ پر رجسٹر کریں, 5 words): bd-x7aprz.3.
-  // The signed-out notice is the one approved sentence on these pages, and it ends by date (auth/SignedOutBanner).
   // The analytics sign-in's subtitle is the one line the operator asked for under its title (6 words; 7 in Urdu).
-  longOk: ['sentOnWhatsapp', 'registerOnWa', 'signedOut', 'analyticsSub'],
+  longOk: ['sentOnWhatsapp', 'registerOnWa', 'analyticsSub'],
 };

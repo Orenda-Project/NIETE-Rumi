@@ -43,22 +43,17 @@ import PortalSetup from "./PortalSetup";
 const renderAt = (ui: React.ReactElement) =>
   render(<MemoryRouter>{ui}</MemoryRouter>);
 
-// bd-x7aprz.3: the login opens on the WhatsApp code; its password field is behind "Use password instead".
-const toPassword = () => userEvent.setup().click(screen.getByRole("button", { name: /use password instead/i }));
-
 describe("PortalLogin — password visibility toggle (bd-2668)", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("masks the password by default", async () => {
     renderAt(<PortalLogin />);
-    await toPassword();
     expect(screen.getByLabelText(/^password$/i)).toHaveAttribute("type", "password");
   });
 
   it("reveals the password when the toggle is pressed, and re-masks on a second press", async () => {
     const user = userEvent.setup();
     renderAt(<PortalLogin />);
-    await toPassword();
     const input = screen.getByLabelText(/^password$/i);
     const toggle = screen.getByRole("button", { name: /show password/i });
 
@@ -74,7 +69,6 @@ describe("PortalLogin — password visibility toggle (bd-2668)", () => {
   it("keeps whatever was typed when visibility flips", async () => {
     const user = userEvent.setup();
     renderAt(<PortalLogin />);
-    await toPassword();
     const input = screen.getByLabelText(/^password$/i) as HTMLInputElement;
 
     await user.type(input, "secret123");
@@ -86,7 +80,6 @@ describe("PortalLogin — password visibility toggle (bd-2668)", () => {
     // A bare <button> inside a <form> defaults to type=submit, which would
     // fire a login attempt every time someone peeked at their password.
     renderAt(<PortalLogin />);
-    await toPassword();
     expect(screen.getByRole("button", { name: /show password/i })).toHaveAttribute("type", "button");
   });
 });

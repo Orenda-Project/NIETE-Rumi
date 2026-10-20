@@ -4,24 +4,20 @@
  * 0 means no response at all (offline, the request never left). Anything unexpected is the generic "Couldn't …".
  *
  * Statuses read from dashboard/routes/portal.routes.js: /login answers 400 bad number, 401 wrong password, 403
- * PASSWORD_NOT_SET, 404 REGISTER_ON_WHATSAPP, 429 rate limit, 500 other; /request-code and /request-reset 400/404/429
- * (CODE_ALREADY_SENT)/502/500; /verify-code and /verify-reset-code 400.
+ * PASSWORD_NOT_SET, 404 REGISTER_ON_WHATSAPP, 429 rate limit, 500 other; /request-reset 400/404/429
+ * (CODE_ALREADY_SENT)/502/500; /verify-reset-code 400.
  */
 import type { AuthKey } from './copy';
 
 export type AuthError = { field: 'phone' | 'name' | 'password' | 'confirm' | 'code' | 'form'; key: AuthKey };
 
-/**
- * `byName`: she signed in with an account NAME (bd-s6qbts.5). The server answers every way that can be wrong with the
- * wrong-password 401 so it never says whether a name exists; "Wrong password" would point someone who mistyped the
- * NAME at the wrong field, so a name's 401 is the plain "Couldn't log in". Everything else maps as for a phone.
- */
-export function loginFailure(status?: number, byName = false): AuthError {
-  if (byName && status === 401) return { field: 'form', key: 'couldntLogin' };
+/** The phone sign-in (pages/PortalLogin). An account NAME signs in on its own page: accountLoginFailure below. */
+export function loginFailure(status?: number): AuthError {
   switch (status) {
     case 401: return { field: 'password', key: 'wrongPw' };
-    // bd-x7aprz.3: no password on her account → the WhatsApp code; not registered → Register on WhatsApp.
-    case 403: return { field: 'form', key: 'byCode' };
+    // bd-xxi78f: no password on her account → set one (the page takes her to Forgot password); not registered →
+    // Register on WhatsApp.
+    case 403: return { field: 'form', key: 'setPw' };
     case 404: return { field: 'form', key: 'notRegistered' };
     case 400: return { field: 'phone', key: 'checkNum' };
     case 429: return { field: 'form', key: 'tooMany' };
@@ -33,7 +29,7 @@ export function loginFailure(status?: number, byName = false): AuthError {
 /**
  * The analytics accounts' own sign-in page (/portal/analytics/login), which takes an account NAME only. Every way a
  * name can be refused is one plain "Couldn't log in": the server answers a wrong name and a wrong password with the
- * same 401 on purpose, and the phone answers (400 a bad number, 403 log in by code, 404 register on WhatsApp — which
+ * same 401 on purpose, and the phone answers (400 a bad number, 403 set a password, 404 register on WhatsApp — which
  * only digits typed into the name could draw) belong to the teacher sign-in. Too many tries and no connection keep
  * their own words, as on the teacher sign-in.
  */
@@ -42,7 +38,7 @@ export function accountLoginFailure(status?: number): AuthError {
   return { field: 'form', key: 'couldntLogin' };
 }
 
-/** Sending a WhatsApp code (sign-in or Forgot password). */
+/** Sending the Forgot password code on WhatsApp. */
 export function resetFailure(status?: number): AuthError {
   switch (status) {
     case 404: return { field: 'form', key: 'notRegistered' };

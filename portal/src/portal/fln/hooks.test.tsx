@@ -21,12 +21,11 @@ vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock('../services/api', () => ({
   portal: { getConfig: vi.fn() },
-  auth: { requestCode: vi.fn(), verifyCode: vi.fn() },
   leader: { getOverview: vi.fn() },
 }));
 
 import { useAuth } from '../hooks/useAuth';
-import { auth, leader, portal } from '../services/api';
+import { leader, portal } from '../services/api';
 import TeacherGate from '../teacher/TeacherGate';
 import { resetTeacherV2Memory } from '../teacher/useTeacherV2';
 import PortalLogin from '../pages/PortalLogin';
@@ -86,22 +85,9 @@ describe('PortalLogin — next= after sign-in', () => {
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/portal/leader', { replace: true }));
   });
 
-  it(':124 the code sign-in goes to next=', async () => {
-    vi.mocked(auth.requestCode).mockResolvedValue({} as never);
-    vi.mocked(auth.verifyCode).mockResolvedValue({ user: { role: 'teacher' } } as never);
-    const { container } = renderLogin({ user: null, loading: false }, '?next=/portal/fln/p/11156');
-    fireEvent.change(container.querySelector('#phoneNumber') as HTMLInputElement, { target: { value: '923001234567' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
-    await waitFor(() => expect(container.querySelector('#code')).not.toBeNull());
-    fireEvent.change(container.querySelector('#code') as HTMLInputElement, { target: { value: '123456' } });
-    fireEvent.submit((container.querySelector('#code') as HTMLInputElement).form as HTMLFormElement);
-    await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/portal/fln/p/11156', { replace: true })); // m-app 161033: Back must not return to login
-  });
-
   it(':175 the password sign-in goes to next=', async () => {
     const login = vi.fn(async () => ({ success: true, user: { role: 'coach' } }));
     const { container } = renderLogin({ user: null, loading: false, login }, '?next=/portal/fln/send');
-    fireEvent.click(screen.getByRole('button', { name: 'Use password instead' }));
     fireEvent.change(container.querySelector('#phoneNumber') as HTMLInputElement, { target: { value: '923001234567' } });
     fireEvent.change(container.querySelector('#password') as HTMLInputElement, { target: { value: 'pw123456' } });
     fireEvent.submit((container.querySelector('#password') as HTMLInputElement).form as HTMLFormElement);
@@ -111,7 +97,6 @@ describe('PortalLogin — next= after sign-in', () => {
   it(':175 with no next= the password sign-in goes home exactly as before', async () => {
     const login = vi.fn(async () => ({ success: true, user: { role: 'coach' } }));
     const { container } = renderLogin({ user: null, loading: false, login }, '');
-    fireEvent.click(screen.getByRole('button', { name: 'Use password instead' }));
     fireEvent.change(container.querySelector('#phoneNumber') as HTMLInputElement, { target: { value: '923001234567' } });
     fireEvent.change(container.querySelector('#password') as HTMLInputElement, { target: { value: 'pw123456' } });
     fireEvent.submit((container.querySelector('#password') as HTMLInputElement).form as HTMLFormElement);

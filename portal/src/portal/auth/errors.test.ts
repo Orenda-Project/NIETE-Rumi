@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { loginFailure, resetFailure, verifyFailure } from "./errors";
+import { accountLoginFailure, loginFailure, resetFailure, verifyFailure } from "./errors";
 
 /** bd-fmf24g.64 — the server's sentences become short in-app labels, by HTTP status (decision 3). No API change. */
 describe("login failures, by status", () => {
   it.each([
     [401, { field: "password", key: "wrongPw" }],
-    // bd-x7aprz.3: no password → the code; not registered → Register on WhatsApp. Never "No password yet" /
-    // "No account found".
-    [403, { field: "form", key: "byCode" }],
+    // bd-xxi78f: no password → set one (the login takes her to Forgot password); not registered → Register on
+    // WhatsApp. Never "No password yet" / "No account found".
+    [403, { field: "form", key: "setPw" }],
     [404, { field: "form", key: "notRegistered" }],
     [400, { field: "phone", key: "checkNum" }],
     [429, { field: "form", key: "tooMany" }],
@@ -21,22 +21,17 @@ describe("login failures, by status", () => {
 });
 
 /**
- * bd-s6qbts.5 — signing in with an account NAME. The server answers every way a name sign-in can be wrong with the
- * wrong-password 401 (so it never says whether the name exists). "Wrong password" under the password would point an
- * official who mistyped the NAME at the wrong field, so a name's 401 is the plain "Couldn't log in". Every other
- * status, and every phone, maps as before.
+ * bd-s6qbts.5 — an account NAME signs in on its own page (auth/AnalyticsLogin; bd-xxi78f took it off the phone login).
+ * The server answers every way a name sign-in can be wrong with one 401 (so it never says whether the name exists), so
+ * the page says the plain "Couldn't log in", never "Wrong password" under the password.
  */
 describe("login failures for an account name", () => {
-  it("a 401 is 'Couldn't log in' under the button, not 'Wrong password'", () => {
-    expect(loginFailure(401, true)).toEqual({ field: "form", key: "couldntLogin" });
+  it.each([401, 400, 403, 404, 500])("%s is 'Couldn't log in' under the button", (status) => {
+    expect(accountLoginFailure(status)).toEqual({ field: "form", key: "couldntLogin" });
   });
 
-  it.each([429, 0, 500])("%s maps as it does for a phone", (status) => {
-    expect(loginFailure(status, true)).toEqual(loginFailure(status));
-  });
-
-  it("a phone's 401 is still 'Wrong password'", () => {
-    expect(loginFailure(401, false)).toEqual({ field: "password", key: "wrongPw" });
+  it.each([429, 0])("%s maps as it does for a phone", (status) => {
+    expect(accountLoginFailure(status)).toEqual(loginFailure(status));
   });
 });
 

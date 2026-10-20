@@ -22,6 +22,8 @@ const PortalPasswordReset = () => {
   // password?". Editable — a pre-fill is a default, not a lock — and empty
   // when this page is opened directly.
   const [phoneNumber, setPhoneNumber] = useState(location.state?.phoneNumber ?? '');
+  // bd-xxi78f: the login sends an account with no password here to set one; the same page, its own title.
+  const setPw = location.state?.setPw === true;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
   // bd-x7aprz.3: a number that is not registered gets the way to register, never "No account found".
@@ -55,7 +57,7 @@ const PortalPasswordReset = () => {
   };
 
   return (
-    <AuthFrame title={c.forgot} onBack={() => navigate('/portal/login')}>
+    <AuthFrame title={setPw ? c.setPw : c.forgot} onBack={() => navigate('/portal/login')}>
       <form onSubmit={handleSubmit} noValidate>
         <AuthField
           id="phoneNumber"

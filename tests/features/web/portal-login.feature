@@ -2,9 +2,9 @@ Feature: Portal sign-in
   # The teacher + coach portal's login page (portal/src/portal/pages/PortalLogin.tsx), driven in a real browser
   # by the web lane: `npm run e2e:web -- portal-login` (scripts/qa/e2e-web.sh, bd-hnhlgn.5).
   # Runs on the local stack with the demo school network (bot/scripts/e2e/portal-demo-seed.js, password Demo2026).
-  # Server statuses → messages: portal/src/portal/auth/errors.ts (401 wrongPw, 400 checkNum; bd-x7aprz.3: 403 → back to
-  # the WhatsApp code "Log in by code", 404 → "Register on WhatsApp" — never "No password yet" / "No account found").
-  # bd-x7aprz.3: the page opens on the WhatsApp code; "she enters … and the password …" taps "Use password instead" first.
+  # Server statuses → messages: portal/src/portal/auth/errors.ts (401 wrongPw, 400 checkNum; bd-xxi78f: 403 → Forgot
+  # password titled "Set password", her number carried; 404 → "Register on WhatsApp" — never "No password yet" /
+  # "No account found"). bd-xxi78f: the page is the number and the password; the WhatsApp-code sign-in is gone.
 
   Background:
     Given the portal is open at /portal/login
@@ -49,16 +49,15 @@ Feature: Portal sign-in
     And no /login request was sent
 
   @PL06
-  Scenario: An account with no password yet is sent to the WhatsApp code, not shown an error page
-    # bd-vdstfr / NIETE #2048: this answered 500 before the fix; now 403 PASSWORD_NOT_SET (bd-x7aprz.3: → the code).
+  Scenario: An account with no password yet is sent to set one, not shown an error page
+    # bd-vdstfr / NIETE #2048: this answered 500 before the fix; now 403 PASSWORD_NOT_SET (bd-xxi78f: → set a password).
     Given demo teacher 03000000919 is activated but has no password saved
     When she enters 03000000919 and any password
     And she taps Log in
-    Then the page says "Log in by code" and offers Send code
+    Then she is on /portal/reset-password, titled "Set password", with 03000000919 filled in
 
   @PL07
   Scenario: Forgot password opens the reset page with her number carried over
-    Given she taps Use password instead
     When she enters demo teacher 03000000911
     And she taps Forgot password
     Then she is on /portal/reset-password
@@ -96,10 +95,8 @@ Feature: Portal sign-in
     When she opens that link in the browser
     Then she settles on /portal/teacher, signed in, without typing a password
 
-  @PL12
+  @PL12 @obsolete
   Scenario: A code on WhatsApp signs her in: number, Send code, the code, her dashboard — no password
-    # bd-x7aprz.3: POST /api/portal/request-code → the bot's portal_password_reset_niete template (mock WhatsApp);
-    # POST /api/portal/verify-code opens the session. The scenario sets a known code on the run's own database.
     Given the teacher app v2 and the coach app v2 are off
     When she enters demo teacher 03000000911
     And she taps Send code
@@ -107,6 +104,10 @@ Feature: Portal sign-in
     When she enters the code
     And she taps Log in
     Then she is on /portal/dashboard
+    # OBSOLETE 2026-10-20 (bd-xxi78f): the operator took the WhatsApp-code sign-in off the login page; the page is the
+    # number and the password, and a code on WhatsApp is only Forgot password's (PL07). The server routes
+    # /request-code and /verify-code stay one release (bd-pm4blf). Proposed for deletion — not deleted. The web-lane
+    # driver reports it as blocked.
 
   @PL13
   Scenario: One-tap sign-in from a Send to teacher message lands on the FLN plan, whatever the teacher-app switch says
@@ -132,3 +133,10 @@ Feature: Portal sign-in
     And she taps Log in
     Then the page says "Couldn't log in"
     And she is still on /portal/analytics/login
+
+  @PL15
+  Scenario: Admin login opens the account-name sign-in
+    # bd-xxi78f: name accounts (analytics) no longer type a name into the phone field; the login has one button to
+    # their own page (portal/src/portal/auth/AnalyticsLogin.tsx).
+    When she taps Admin login
+    Then she is on /portal/analytics/login, asked for an account name and a password

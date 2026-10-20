@@ -19,7 +19,7 @@ const h = vi.hoisted(() => ({
   navigate: vi.fn(),
   toast: vi.fn(),
   auth: { user: null as unknown, loading: false, login: vi.fn(), checkAuth: vi.fn() },
-  api: { requestCode: vi.fn(), langGet: vi.fn(), langSet: vi.fn() },
+  api: { langGet: vi.fn(), langSet: vi.fn() },
 }));
 
 vi.mock("react-router-dom", async (orig) => ({
@@ -29,7 +29,8 @@ vi.mock("react-router-dom", async (orig) => ({
 vi.mock("../hooks/useAuth", () => ({ useAuth: () => h.auth }));
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: h.toast }) }));
 vi.mock("../services/api", () => ({
-  auth: { requestCode: h.api.requestCode },
+  // bd-xxi78f: the client has no code sign-in any more; the page calls nothing on `auth` (it signs in through useAuth).
+  auth: {},
   language: { get: h.api.langGet, set: h.api.langSet },
 }));
 
@@ -127,7 +128,6 @@ describe("signing in", () => {
     await fill(user, "FDE_Admin", "madeup123");
     await waitFor(() => expect(h.auth.login).toHaveBeenCalledWith("FDE_Admin", "madeup123"));
     expect(h.auth.login).toHaveBeenCalledTimes(1);
-    expect(h.api.requestCode).not.toHaveBeenCalled();
   });
 
   it("an analytics-only account lands on the schools analytics page", async () => {
