@@ -137,6 +137,28 @@ async function pickClass() {
   fireEvent.click(await within(tray).findByRole("button", { name: /Grade 4 · General Science/ }));
 }
 
+describe("the library opens her class's own subject (bd-1p5nkt, ICT DC rows 146, 147)", () => {
+  it("an Urdu teacher's Maths class («ریاضی», catalogue key math) opens Math — not the first Urdu-named subject (Islamiat)", async () => {
+    answers["/me/grade-subjects"] = () => ({ success: true, combos: [
+      { grade: 4, gradeCode: "grade_4", subject: "ریاضی", subjectKey: "maths", featureKey: "math", available: true, source: "class" },
+    ] });
+    answers["/curriculum/subjects"] = () => ({ subjects: [
+      { subject_key: "islamiat", subject: "اسلامیات", lesson_count: 30 },
+      { subject_key: "math", subject: "Math", lesson_count: 80 },
+    ] });
+    at(COACHING_NEW);
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.gradeAndSubject) }));
+    const tray = screen.getByRole("dialog", { name: C.gradeAndSubject });
+    fireEvent.click(await within(tray).findByRole("radio", { name: /^Grade 4/ }));
+    fireEvent.click(await within(tray).findByRole("button", { name: /ریاضی/ }));
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.selectPlan) }));
+    const sheet = await screen.findByRole("dialog");
+    fireEvent.click(within(sheet).getByRole("button", { name: new RegExp(C.picker.fromLibrary) }));
+    await waitFor(() => expect(screen.getByTestId("where").textContent).toMatch(/subject=math(&|$)/));
+    expect(screen.getByTestId("where").textContent).not.toMatch(/islamiat/);
+  });
+});
+
 describe("main page", () => {
   it("Start DC observation goes to the one screen; nothing to record on the main page", async () => {
     expect(COACHING_NEW).toBe(`${COACHING_HOME}/new`);
