@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { portal, type AssessmentChapter, type AssessmentPaperList, type AssessmentPattern, type AssessmentQuestionType } from '../../services/api';
+import { portal, type AssessmentChapter, type AssessmentTopic, type AssessmentPaperList, type AssessmentPattern, type AssessmentQuestionType } from '../../services/api';
 import { readConfigShared } from '../../lib/useNewUi';
 
 /**
@@ -86,6 +86,12 @@ export function subjectName(cat: Catalogue | undefined, grade: number | null, ke
 export async function loadChapters(grade: number, subject: string): Promise<AssessmentChapter[]> {
   const res = await portal.getAssessmentChapters(grade, subject);
   return res.chapters || [];
+}
+
+/** One chapter's topics, in book order (GET /assessment/topics). [] when the chapter has none loaded. */
+export async function loadTopics(grade: number, subject: string, chapter: number): Promise<AssessmentTopic[]> {
+  const res = await portal.getAssessmentTopics(grade, subject, chapter);
+  return res.topics || [];
 }
 
 export async function loadTypes(grade: number, subject: string): Promise<AssessmentQuestionType[]> {
