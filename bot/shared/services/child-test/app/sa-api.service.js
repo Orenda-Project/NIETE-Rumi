@@ -230,6 +230,9 @@ const BLOCK_IDS = ['B1', 'B2', 'B3', 'B4', 'B5'];
 const FULL = 'full';
 // the session timings an event leaves: when each subtask and each hand-over happened (device clock)
 const TIMED = ['session_start', 'audio_check', 'task_start', 'task_end', 'handover_in', 'handover_out', 'coach_unlock', 'reload_resume', 'battery_end'];
+// the events the session keeps as they are (device.events): what the timings cannot say
+const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result'];
+const MAX_EVENT_DATA = 300; // characters of JSON
 
 function loadBank() {
   try {
@@ -318,6 +321,16 @@ function cleanEvent(e) {
   return { seq: e.seq, type: e.type, at: typeof e.at === 'string' ? e.at : null, task_id: typeof e.task_id === 'string' ? e.task_id : null };
 }
 
+function keptEvent(e) {
+  let data = e.value !== undefined ? e.value : (e.data !== undefined ? e.data : null);
+  try {
+    if (data !== null && JSON.stringify(data).length > MAX_EVENT_DATA) data = null;
+  } catch (_) {
+    data = null;
+  }
+  return { seq: e.seq, type: e.type, task_id: typeof e.task_id === 'string' ? e.task_id : null, at: typeof e.at === 'string' ? e.at : null, data };
+}
+
 const whenOf = (e, d) => {
   const t = e.at ? Date.parse(e.at) : NaN;
   return Number.isFinite(t) ? new Date(t) : d.now();
@@ -342,7 +355,9 @@ const saBatch = onSession('sa_batch', async ({ sessionId, seqTo, events, results
   }
   const start = clean.find((e) => e.type === 'session_start');
   const end = clean.find((e) => e.type === 'battery_end');
+  const kept = events.filter((e) => KEPT.includes(e.type)).map(keptEvent);
   const synced = await sa.store.markSynced(sessionId, {
+    ...(kept.length ? { events: kept } : {}),
     lastSeq: seqTo,
     device: device && typeof device === 'object' ? device : null,
     clientStartedAt: start ? whenOf(start, d).toISOString() : null,
