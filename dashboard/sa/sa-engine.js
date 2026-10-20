@@ -96,18 +96,31 @@
           });
         }
         var view = ui.mount(opts.mount, {
-          runner: runner, lang: lang, mode: mode, speak: voice.speak,
+          runner: runner, battery: battery, lang: lang, mode: mode, speak: voice.speak,
           onState: function (v) { fire('state', v); },
           onFeedback: function (f) { fire('practice_feedback', f); },
           onRecordStart: function (t, item) { recStart(t, item); fire('record_start', t); },
           onRecordStop: function (t, item) { recStop(t, item); fire('record_stop', t); },
           onMute: mode === 'game' ? function (b) { voice.setMuted(!!b); } : null,
+          child: opts.child || null,
+          back: opts.back || null,
+          // The hand-back screen's press-and-hold: the phone is the coach's again (or the game's map).
+          onUnlock: function () {
+            runner.log('handover_out');
+            writes.then(function () { return sync ? sync.flush() : null; }).then(function () {
+              fire('unlock', null);
+              if (opts.back && root.location) root.location.assign(opts.back);
+            });
+          },
+          onHandover: function () { runner.log('handover_in'); },
         });
+        if (sync && view && view.setSync) hooks.sync = [function (st) { view.setSync(st); }];
         if (prev === null) write(function () { return store.putSession({ session_id: sessionId, battery_id: battery.battery_id || null, mode: mode, lang: lang, snapshot: null, ended: false, created_at: new Date().toISOString() }); });
 
         return {
           session_id: sessionId,
           resumed: !!resume,
+          view: view,
           runner: runner,
           store: store,
           on: function (name, fn) { (hooks[name] = hooks[name] || []).push(fn); return this; },

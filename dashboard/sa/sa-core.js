@@ -10,6 +10,8 @@
  *   tap      Jugnu says the target, the child taps it among the tiles (letters, made-up words, words, number ID,
  *            comparison, missing number); scored on the phone
  *   keypad   the child types the number (sums L1/L2, word problems); scored on the phone
+ *   keyboard the child types the word on an a–z strip (spelling/dictation); right/wrong on the phone (case and
+ *            spaces aside), the typed text kept for partial credit later
  *   record   the child reads the passage aloud (recorded), then taps the last word read; scored later
  *   oral     Jugnu asks each question, the child answers aloud (recorded per question); scored later
  *
@@ -43,13 +45,13 @@
     CONSECUTIVE: 'consecutive_errors', COACH_END: 'coach_end',
     SKIPPED_L2: 'skipped_level2', SKIPPED_NO_LINE: 'skipped_no_first_line',
   });
-  var MODES = ['tap', 'keypad', 'record', 'oral'];
+  var MODES = ['tap', 'keypad', 'keyboard', 'record', 'oral'];
   // The lead's ruling (design §2): the response mode per EGRA/EGMA subtask. A task's own `response` wins.
   var MODE_BY_SUBTASK = {
     letter_name_identification: 'tap', letter_sound_identification: 'tap', nonword_reading: 'tap',
     familiar_word_reading: 'tap', number_identification: 'tap', quantity_discrimination: 'tap', missing_number: 'tap',
     addition_level_1: 'keypad', subtraction_level_1: 'keypad', addition_level_2: 'keypad', subtraction_level_2: 'keypad',
-    word_problems: 'keypad', oral_reading_fluency: 'record', listening_comprehension: 'oral', reading_comprehension: 'oral',
+    word_problems: 'keypad', spelling: 'keyboard', dictation: 'keyboard', oral_reading_fluency: 'record', listening_comprehension: 'oral', reading_comprehension: 'oral',
   };
   // SA time rules (design §2): timed items replay at 5 s and move on at 10 s; untimed items offer "next" at 15 s.
   var TIMED_REPLAY_S = 5;
@@ -95,7 +97,7 @@
     };
     if (mode === 'oral') {
       r.item_timeout_s = t.question_timeout_s || t.item_timeout_s || TIMED_ITEM_S;
-    } else if (mode === 'tap' || mode === 'keypad') {
+    } else if (mode === 'tap' || mode === 'keypad' || mode === 'keyboard') {
       if (has(t, 'item_timeout_s')) r.item_timeout_s = t.item_timeout_s;
       else r.item_timeout_s = timed ? TIMED_ITEM_S : (t.subtask === 'word_problems' ? 60 : null);
       r.replay_at_s = has(t, 'replay_at_s') ? t.replay_at_s : (timed ? TIMED_REPLAY_S : null);
@@ -131,8 +133,8 @@
             throw new Error(at + '.items[' + j + ']: needs id, options (2+) and a target among them');
           }
         });
-      } else if (t.mode === 'keypad') {
-        if (!t.items.length) throw new Error(at + ': keypad task with no items');
+      } else if (t.mode === 'keypad' || t.mode === 'keyboard') {
+        if (!t.items.length) throw new Error(at + ': ' + t.mode + ' task with no items');
         t.items.forEach(function (it, j) {
           if (!it || !str(it.id) || it.target == null || it.target === '') throw new Error(at + '.items[' + j + ']: needs id and an answer');
         });
@@ -145,13 +147,14 @@
       }
       t.practice.forEach(function (p, j) {
         if (t.mode === 'tap' && (!Array.isArray(p.options) || p.options.indexOf(p.target) < 0)) throw new Error(at + '.practice[' + j + ']: target not among options');
-        if (t.mode === 'keypad' && p.target == null) throw new Error(at + '.practice[' + j + ']: no answer');
+        if ((t.mode === 'keypad' || t.mode === 'keyboard') && p.target == null) throw new Error(at + '.practice[' + j + ']: no answer');
       });
     });
     return true;
   }
 
   function same(a, b) { return a === b || (a != null && b != null && String(a).trim() === String(b).trim()); }
+  function sameWord(a, b) { return a != null && b != null && String(a).trim().toLowerCase() === String(b).trim().toLowerCase(); }
 
   /**
    * createRunner({ battery, now, onEvent, session_id, resume, audio_check, warmup }) → runner.
@@ -223,7 +226,7 @@
       var used = st.started == null ? 0 : Math.round(now() - st.started);
       var lim = limitMs(t);
       if (lim != null && used > lim) used = lim;
-      var phone = t.mode === 'tap' || t.mode === 'keypad';
+      var phone = t.mode === 'tap' || t.mode === 'keypad' || t.mode === 'keyboard';
       var r = {
         task_id: t.id, legacy_block: t.legacy_block, mode: t.mode, attempted: st.attempted,
         correct: phone ? st.correct : null, incorrect: phone ? st.incorrect : null,
@@ -267,7 +270,7 @@
 
     function score(it, value) {
       var t = task();
-      var ok = t.mode === 'oral' ? null : (value === 'timeout' || value === 'skipped' ? false : same(value, it.target));
+      var ok = t.mode === 'oral' ? null : (value === 'timeout' || value === 'skipped' ? false : (t.mode === 'keyboard' ? sameWord(value, it.target) : same(value, it.target)));
       tally(t, ok);
       st.answers.push({ item_id: it.id, value: value, ok: ok });
       ev(ok === null ? 'answer' : (ok ? 'item_correct' : 'item_incorrect'), { task_id: t.id, item_id: it.id, value: value });
@@ -328,7 +331,7 @@
       practiceAnswer: function (value) {
         if (st.phase !== 'practice') return null;
         var p = task().practice[st.practice_i];
-        var ok = same(value, p.target);
+        var ok = task().mode === 'keyboard' ? sameWord(value, p.target) : same(value, p.target);
         st.practice_tries++;
         var retry = !ok && st.practice_tries < 2;
         ev('practice_answer', { task_id: st.task_id, item_id: p.id, value: { value: value, ok: ok, try: st.practice_tries } });
@@ -349,8 +352,13 @@
         var t = task();
         if (st.phase !== 'running' || t.mode === 'record') return undefined;
         var it = st.items[st.item_i];
-        ev(t.mode === 'keypad' ? 'keypad_submit' : 'tap', { task_id: st.task_id, item_id: it.id, value: value });
+        ev(t.mode === 'keypad' || t.mode === 'keyboard' ? t.mode + '_submit' : 'tap', { task_id: st.task_id, item_id: it.id, value: value });
         return score(it, value);
+      },
+      /** Jugnu finished asking (a spoken question, a word problem): the item's answer time starts now. */
+      promptDone: function () {
+        if (st.phase !== 'running' || task().mode === 'record') return;
+        st.item_started = now();
       },
       /** "Next" on an untimed item the child cannot answer (offered after next_at_s): no response = wrong. */
       skip: function () {

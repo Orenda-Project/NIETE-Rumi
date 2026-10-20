@@ -5,7 +5,8 @@
  * The files live in dashboard/sa/ (not public/), so nothing is reachable while the switch is off: every /sa request
  * then calls next() and the portal answers exactly as it does today. ON only when the stored value is the JSON
  * boolean true (the web_quiz_brotli rule and 30 s cache, routes/web-quiz-brotli-flag.js). Served no-cache: the
- * engine's service worker keeps the offline copy, the HTTP cache never holds a stale engine.
+ * engine's service worker keeps the offline copy, the HTTP cache never holds a stale engine. The battery files are
+ * served by name from bot/shared/data/child-test/sa/ at /sa/batteries/ (nothing else in that folder's parents).
  */
 const path = require('path');
 const express = require('express');
@@ -13,6 +14,9 @@ const { createBrotliFlag } = require('./web-quiz-brotli-flag');
 
 const KEY = 'sa_engine';
 const DIR = path.join(__dirname, '..', 'sa');
+// The content lane's battery files (sa.<form>.<lang>.json), served by name at /sa/batteries/<name>.
+const BATTERIES = path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa');
+const BATTERY_RX = /^sa\.(coach|game)\.[A-Za-z0-9]+(\.[A-Za-z0-9]+)?\.(en|ur)\.json$/;
 
 /** createSaEngineRouter({ on }) → router. on() is the switch (default: app_settings sa_engine). */
 function createSaEngineRouter({ on = createBrotliFlag({ key: KEY }) } = {}) {
@@ -25,6 +29,11 @@ function createSaEngineRouter({ on = createBrotliFlag({ key: KEY }) } = {}) {
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Service-Worker-Allowed', '/sa/');
     },
+  });
+  router.get('/sa/batteries/:name', (req, res, next) => {
+    if (!on() || !BATTERY_RX.test(req.params.name)) return next();
+    res.setHeader('Cache-Control', 'no-cache');
+    return res.sendFile(req.params.name, { root: BATTERIES, dotfiles: 'deny' }, (err) => { if (err) next(); });
   });
   router.use('/sa', (req, res, next) => (on() ? files(req, res, next) : next()));
   return router;
