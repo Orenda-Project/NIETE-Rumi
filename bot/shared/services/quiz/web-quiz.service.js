@@ -712,7 +712,11 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   // shared lines from the plan voice's set (named only when on).
   if (oneVoice) { out.one_voice = true; out.voice_sets = require('./web-quiz-voice').sharedSets(oneVoice); }
   // web_quiz_voice_gap_phone (the same settings read): a line with no clip is read by the phone's own voice, not left silent
-  if (oneVoice && await IdRoster.voiceGapPhone()) out.voice_gap_phone = true;
+  if (oneVoice && await IdRoster.voiceGapPhone()) {
+    out.voice_gap_phone = true;
+    // web_quiz_voice_gap_slow (the same read): a clip that is there but will not play is read by the phone's voice too
+    if (await IdRoster.voiceGapSlow()) out.voice_gap_slow = true;
+  }
   // The edge reads it (web-quiz.routes uiLangOf, for /class and /schools), and so does the page (wq.js B.class_doors:
   // the table's skeleton, list-state marks and chips).
   if (await classDoors) out.class_doors = true;
