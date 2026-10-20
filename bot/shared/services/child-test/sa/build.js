@@ -241,6 +241,115 @@ function mathsTask({ kind, spec, grade }) {
   };
 }
 
+// ---------------------------------------------------------------------------------------------- extra subtasks
+// DESIGN §2b: subtasks beyond the 18 v3 tasks, from item-bank.sa-extra.v1.json (official items only, each with src).
+// They join the game islands and the coach full form; patterns also joins block B4.
+// The source writes − × ÷ (sometimes - * /); the screen shows the school signs.
+const OP_SAY = { '+': { en: 'plus', ur: 'جمع' }, '−': { en: 'minus', ur: 'منفی' }, '×': { en: 'times', ur: 'ضرب' }, '÷': { en: 'divided by', ur: 'تقسیم' } };
+const TITLES = {
+  'ma.patterns': { en: 'Patterns', ur: 'ترتیب' }, 'ma.patterns_hi': { en: 'Patterns 2', ur: 'ترتیب ۲' },
+  'ma.number_repr': { en: 'Tens and hundreds', ur: 'دہائیاں اور سینکڑے' }, 'ma.ordering': { en: 'Number order', ur: 'نمبروں کی ترتیب' },
+  'ma.fluency_l34': { en: 'Quick sums 2', ur: 'جلدی والے سوال ۲' }, 'ma.word_problems_l2': { en: 'Story sums 2', ur: 'کہانی والے سوال ۲' },
+  'ma.number_id_upper': { en: 'Big numbers', ur: 'بڑے نمبر' },
+};
+const OP_NORM = { '-': '−', '*': '×', '/': '÷' };
+
+function permutations(xs) {
+  if (xs.length <= 1) return [xs];
+  return xs.flatMap((x, i) => permutations([...xs.slice(0, i), ...xs.slice(i + 1)]).map((p) => [x, ...p]));
+}
+
+function extraMathsTask({ task, spec, items, input, options_n, distractor_rule, scriptKey, adaptation, deviation, extraBase, depends_on }) {
+  const timed = !!spec.timed_s;
+  return {
+    task, lang: null, kind: input === 'keypad' ? 'keypad' : 'choice', legacy_block: null, family: 'egma', subtask: spec.subtask,
+    title: TITLES[task], modes: ['tap'],
+    tap: { options_n, distractor_rule, input, items, time_limit_s: spec.timed_s, ...(timed ? TIMED_TAP : UNTIMED_TAP), stop: null },
+    record: null, practice: [], practice_note: spec.practice_note,
+    script: scriptOf(scriptKey, 'tap'),
+    source: { items: extraBase, script: LINES[scriptKey].intro_tap.from, sa_adaptation: adaptation },
+    deviation, ...(depends_on ? { depends_on } : {}),
+  };
+}
+
+function extraTasks(f, extra) {
+  const m = extra.maths;
+  const base = (k) => `extra:maths.${k}`;
+  const ur = extra.conventions.ur_words;
+  const glyph = extra.conventions.glyphs;
+  const out = [];
+  const say = (it) => sayBoth(it.say_en, it.say_ur);
+  const src = (k, i) => `${base(k)}.items[${i}]`;
+
+  // Patterns: levels 1-2 tap 1 of the item's own 4 printed options; levels 3-4 typed, only after a correct level 1-2 item.
+  const pat = m.patterns.items.map((it, i) => ({ it, i }));
+  const patItem = ({ it, i }) => {
+    const id = `ma.patterns.${it.id.replace('patterns_', '')}`;
+    if (it.options) {
+      return { id, target: it.answer, options: it.options, labels: { en: it.options, ur: it.options.map((o) => ur[o] || toUrDigits(o)) },
+        glyphs: it.options.map((o) => glyph[o] || null), shown: it.seq.map((s) => glyph[s] || s), say: say(it), level: it.level, src: src('patterns', i) };
+    }
+    return { id, target: it.answer, shown: it.seq.map((s) => glyph[s] || s), say: say(it), level: it.level, src: src('patterns', i) };
+  };
+  out.push(extraMathsTask({ task: 'ma.patterns', spec: m.patterns, items: pat.filter((x) => x.it.level <= 2).map(patItem), input: 'options',
+    options_n: 4, distractor_rule: 'printed_in_source', scriptKey: 'ma.patterns', extraBase: base('patterns'),
+    adaptation: 'Tangerine SA tap 1 of 4 (sec_miss_num_01); the RWP card\'s four printed options', deviation: null }));
+  out.push(extraMathsTask({ task: 'ma.patterns_hi', spec: m.patterns, items: pat.filter((x) => x.it.level >= 3).map(patItem), input: 'keypad',
+    options_n: null, distractor_rule: null, scriptKey: 'ma.patterns_hi', extraBase: base('patterns'),
+    adaptation: 'Tangerine SA keypad (sec_l1_addition_01); RWP levels 3-4', deviation: 'typed on a keypad, not spoken',
+    depends_on: { task: 'ma.patterns', skip_if_zero: true } }));
+
+  // Number representation: the items that need no picture (levels 1-2 picture cards were not recovered).
+  const rep = m.number_repr.items.map((it, i) => ({ it, i })).filter((x) => !x.it.picture);
+  out.push(extraMathsTask({ task: 'ma.number_repr', spec: m.number_repr, input: 'keypad', options_n: null, distractor_rule: null,
+    items: rep.map(({ it, i }) => ({ id: `ma.number_repr.${it.id.replace('represent_', '')}`, target: it.answer, say: say(it), level: it.level, src: src('number_repr', i) })),
+    scriptKey: 'ma.number_repr', extraBase: base('number_repr'), adaptation: 'Tangerine SA keypad; RWP number representation',
+    deviation: `typed on a keypad; picture items ${m.number_repr.items.filter((x) => x.picture).map((x) => x.id).join(', ')} held out until their pictures exist, so no level gate` }));
+
+  // Ordering and next number: tap 1 of 4 (next: the ±1-step rule; order: orderings of the same three numbers).
+  out.push(extraMathsTask({ task: 'ma.ordering', spec: m.ordering, input: 'options', options_n: 4, distractor_rule: 'plus_minus_one_step | orderings_of_the_set',
+    items: m.ordering.items.map((it, i) => {
+      const id = `ma.ordering.${it.id.replace('identify_', '')}`;
+      if (it.type === 'next') return { id, target: it.answer, options: stepOptions(id, it.answer, seqStep(it.seq)), shown: [...it.seq, null], say: say(it), level: it.level, src: src('ordering', i) };
+      const t = it.answer.join(', ');
+      const others = permutations(it.numbers).map((p) => p.join(', ')).filter((p) => p !== t).sort(byHash(`${id}|pick`)).slice(0, 3);
+      return { id, target: t, options: [t, ...others].sort(byHash(`${id}|order`)), shown: it.numbers, say: say(it), level: it.level, src: src('ordering', i) };
+    }),
+    scriptKey: 'ma.ordering', extraBase: base('ordering'), adaptation: 'Tangerine SA tap 1 of 4; RWP number ordering',
+    deviation: 'the child taps 1 of 4 orderings instead of saying the order; no level gate (the larger-of items are the comparison task)' }));
+
+  // Fact fluency levels 3-4 (+, −, ×, ÷), RWP's second 60-second grid.
+  out.push(extraMathsTask({ task: 'ma.fluency_l34', spec: m.fluency_l34, input: 'keypad', options_n: null, distractor_rule: null,
+    items: m.fluency_l34.items.map((it, i) => {
+      const op = OP_NORM[it.op] || it.op;
+      return { id: `ma.fluency_l34.${pad(i + 1, 2)}`, target: it.answer, shown: `${it.a} ${op} ${it.b} =`,
+        say: sayBoth(`${it.a} ${OP_SAY[op].en} ${it.b}`, `${toUrDigits(it.a)} ${OP_SAY[op].ur} ${toUrDigits(it.b)}`), src: src('fluency_l34', i) };
+    }),
+    scriptKey: 'ma.fluency_l34', extraBase: base('fluency_l34'), adaptation: 'Tangerine SA keypad; RWP fact grid levels 3-4 (60 s)',
+    deviation: 'typed on a keypad; RWP gave this grid only after 5+ correct on its level 1-2 grid, here after any correct addition level 1 item',
+    depends_on: { task: 'ma.add1', skip_if_zero: true } }));
+
+  // Word problems level 2 (the two RWP items not in v3).
+  out.push(extraMathsTask({ task: 'ma.word_problems_l2', spec: m.word_problems_l2, input: 'keypad', options_n: null, distractor_rule: null,
+    items: m.word_problems_l2.items.map((it, i) => ({ id: `ma.word_problems_l2.${it.id.replace('word_problems_', '')}`, target: it.answer,
+      prompt: sayBoth(it.prompt_en, it.prompt_ur), counters: 10, src: src('word_problems_l2', i) })),
+    scriptKey: 'ma.word_problems', extraBase: base('word_problems_l2'), adaptation: 'Tangerine SA keypad (sec_l1_word_problem_01); RWP word problems 2a/2b',
+    deviation: 'typed on a keypad, not spoken' }));
+
+  // Upper-grade number identification (RTI Rwanda P6 sample items), Grades 4-5 forms only.
+  if (f.grades.some((g) => (m.number_id_upper.grades || []).includes(g))) {
+    const list = m.number_id_upper.items.map((x) => x.numeral);
+    out.push(extraMathsTask({ task: 'ma.number_id_upper', spec: m.number_id_upper, input: 'options', options_n: 4, distractor_rule: 'same_list',
+      items: m.number_id_upper.items.map((it, i) => {
+        const id = `ma.number_id_upper.${pad(i + 1, 2)}`;
+        return { id, target: it.numeral, options: listOptions(id, it.numeral, list, 4), say: sayBoth(it.numeral, toUrDigits(it.numeral)), src: src('number_id_upper', i) };
+      }),
+      scriptKey: 'ma.number_id', extraBase: base('number_id_upper'), adaptation: 'Tangerine SA tap (sec_num_id1); RTI Rwanda P6 sample items',
+      deviation: `recognition instead of naming; ${m.number_id_upper.caveat}` }));
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------------------------- forms
 function formTasks({ maths }, v3) {
   const set = v3.sets[SET];
@@ -261,24 +370,32 @@ function formTasks({ maths }, v3) {
   return tasks;
 }
 
-function buildSaBank({ v3 }) {
+function buildSaBank({ v3, extra }) {
   const forms = {};
   const tasks = {};
   for (const f of FORMS) {
-    const list = formTasks(f, v3);
-    const full = list.map((t) => t.task);
-    const form = { surface: f.surface, grades: f.grades, set: f.surface === 'coach' ? SET : null, maths_form: `G${f.maths}`, order: full };
-    if (f.surface === 'coach') Object.assign(form, { full, blocks: BLOCKS, block_names: BLOCK_NAMES });
-    else Object.assign(form, { islands: { maths: [...BLOCKS.B4, ...BLOCKS.B5], english: ['en.listening', ...BLOCKS.B2], urdu: ['ur.listening', ...BLOCKS.B1] }, tower: full });
+    const core18 = formTasks(f, v3);
+    const extras = extra ? extraTasks(f, extra) : [];
+    const list = [...core18, ...extras];
+    const order = list.map((t) => t.task);
+    const extraIds = extras.map((t) => t.task);
+    const form = { surface: f.surface, grades: f.grades, set: f.surface === 'coach' ? SET : null, maths_form: `G${f.maths}`, order, extra: extraIds };
+    if (f.surface === 'coach') {
+      const blocks = { ...BLOCKS, B4: [...BLOCKS.B4, ...extraIds.filter((id) => /^ma\.patterns/.test(id))] };
+      Object.assign(form, { full: order, blocks, block_names: BLOCK_NAMES });
+    } else {
+      const maths = [...BLOCKS.B4, ...BLOCKS.B5, ...extraIds.filter((id) => id.startsWith('ma.'))];
+      Object.assign(form, { islands: { maths, english: ['en.listening', ...BLOCKS.B2], urdu: ['ur.listening', ...BLOCKS.B1] }, tower: core18.map((t) => t.task) });
+    }
     forms[f.form] = form;
     for (const t of list) tasks[`${f.form}/${t.task}`] = t;
   }
   return {
     version: VERSION,
-    built_from: { v3: v3.version, set: SET },
+    built_from: { v3: v3.version, set: SET, ...(extra ? { extra: extra.version } : {}) },
     rule: 'Generated by shared/services/child-test/sa/build.js; never edit by hand. Every item and option comes from item-bank.v3.json (src); Jugnu\'s lines adapt the official EGRA/EGMA wording for self-administration (sa/scripts.js, from).',
     // v3's sources, less any url that is not public (a local transcription is cited by its title alone).
-    sources: Object.fromEntries(Object.entries(v3.sources).map(([k, v]) => [k, /^https?:/.test(v.url || '') ? v : { title: v.title, pages: v.pages }])),
+    sources: { ...Object.fromEntries(Object.entries(v3.sources).map(([k, v]) => [k, /^https?:/.test(v.url || '') ? v : { title: v.title, pages: v.pages }])), ...(extra ? extra.sources : {}) },
     conventions: {
       tasks: 'keyed "<form>/<task>"; task = the v3 block id (legacy_block), plus <lang>.story_comp for the story questions',
       modes: 'tap: Jugnu says the target, the child taps it (options) or types it (keypad), scored on the phone; record: audio kept, scored later by the child-test scorer',
@@ -325,6 +442,13 @@ function inLang(x, lang) {
 
 function runtimeItem(it, lang) {
   const o = { ...it };
+  if (it.labels) {
+    // Options shown as words in the battery's language (the key stays the source's word in `option_keys`).
+    o.option_keys = it.options;
+    o.options = it.labels[lang];
+    o.target = it.labels[lang][it.options.indexOf(it.target)];
+    delete o.labels;
+  }
   if (it.say) {
     const s = inLang(it.say, lang);
     o.say = s.text;
