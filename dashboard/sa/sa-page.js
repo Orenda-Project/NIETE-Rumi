@@ -92,10 +92,14 @@
 
   /**
    * Proctored: no way out for the child but finishing. The browser's back is caught and logged (the page stays), the
-   * first tap asks for full screen (a browser needs a tap for it), and the screen is kept awake while the run lasts.
+   * first tap asks for full screen (a browser needs a tap for it; not when embedded in the coach page), and the screen
+   * is kept awake while the run lasts.
    * The coach's own way out is the press-and-hold on the screens. Returns a release().
    */
-  function lockDown(win, engine) {
+  function lockDown(win, engine, o) {
+    // Embedded in the coach page's frame: that page owns the screen. A full-screen frame would sit above the coach
+    // page's own end-test hold and hide it, so the frame never asks for full screen.
+    var fullscreen = !(o && o.embed);
     var doc = win.document;
     var nav = win.navigator;
     var lock = null;
@@ -111,7 +115,7 @@
       var req = de.requestFullscreen || de.webkitRequestFullscreen;
       if (req) { try { var r = req.call(de); if (r && r.catch) r.catch(function () {}); } catch (_) { /* not allowed here */ } }
     };
-    doc.addEventListener('pointerdown', onFirst, true);
+    if (fullscreen) doc.addEventListener('pointerdown', onFirst, true);
     var wake = function () {
       if (!nav || !nav.wakeLock || doc.visibilityState !== 'visible') return;
       nav.wakeLock.request('screen').then(function (l) { lock = l; }, function () {});
@@ -175,7 +179,7 @@
       }).then(function (engine) {
         root.__sae = engine;
         if (p.mode === 'proctored') {
-          var release = lockDown(root, engine);
+          var release = lockDown(root, engine, { embed: p.embed });
           engine.on('unlock', release);
         }
         offline.then(function (o) {

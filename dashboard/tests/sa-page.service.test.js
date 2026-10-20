@@ -72,3 +72,22 @@ test('a linked phone token is read only in its expected shape', () => {
   expect(params('?s=abcdef12&form=sa.coach.G3.A.ur&t=short', '').token).toBeNull();
   expect(params('?s=abcdef12&form=sa.coach.G3.A.ur&t=abcdefghijklmnop%2F..', '').token).toBeNull();
 });
+
+test('embedded in the coach page: no full-screen request, so the coach page\'s own end-test hold stays on top', () => {
+  const { lockDown } = require('../sa/sa-page');
+  const asked = [];
+  const docL = {};
+  const doc = {
+    visibilityState: 'visible',
+    documentElement: { requestFullscreen: () => { asked.push('fs'); return Promise.resolve(); } },
+    addEventListener: (t, f) => { docL[t] = f; }, removeEventListener: (t) => { delete docL[t]; },
+  };
+  const win = { document: doc, location: { href: '/sa/play.html' }, history: { pushState() {} }, navigator: {},
+    addEventListener() {}, removeEventListener() {} };
+  lockDown(win, { runner: { log() {} } }, { embed: true });
+  if (docL.pointerdown) docL.pointerdown();
+  expect(asked).toEqual([]);
+  lockDown(win, { runner: { log() {} } }, { embed: false });
+  docL.pointerdown();
+  expect(asked).toEqual(['fs']);
+});
