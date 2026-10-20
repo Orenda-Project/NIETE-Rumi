@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * lead-egra-2's RULINGs #13, #16 and #17 in the SA bank: Design A's blocks hold the 18 v3 tasks only; tap first-row
+ * The design RULINGs #10, #13, #16 and #17 in the SA bank: Design A's blocks hold the 18 v3 tasks only; tap first-row
  * stops at chance; missing number typed at Grade 5; sums spoken only on replay; the spelling task; the engine's new
  * lines (oral practice, mic check, mercy, voice not ready, keypad warm-up) in both languages.
  */
@@ -52,7 +52,7 @@ describe('SA bank: RULINGs #13, #16, #17', () => {
     expect(task(b, 'ma.word_problems').say_on).toBeUndefined();
   });
 
-  test('lead 181537: patterns stop after 4 consecutive errors; the SA time rules are data on every phone-scored task', () => {
+  test('patterns stop after 4 consecutive errors (EGMA\'s untimed rule); the SA time rules are data on every phone-scored task', () => {
     for (const f of ['sa.coach.G3.A.ur.json', 'sa.coach.G5.A.en.json', 'sa.game.G1.ur.json', 'sa.game.G45.en.json']) {
       const b = runtime(f);
       for (const id of ['ma.patterns', 'ma.patterns_hi']) expect([f, id, task(b, id).stop]).toEqual([f, id, { consecutive_errors: 4 }]);
@@ -61,7 +61,7 @@ describe('SA bank: RULINGs #13, #16, #17', () => {
           expect([f, t.id, t.replay_at_s, t.item_timeout_s]).toEqual([f, t.id, 5, 10]);
         } else {
           expect([f, t.id, t.next_at_s]).toEqual([f, t.id, 15]);
-          // Word problems: a 60 s answer cap, its own field (lead-egra-2 182025 note 3), never the move-on field.
+          // Word problems: a 60 s answer cap, its own field, never the move-on field.
           const wp = /^ma\.word_problems/.test(t.id);
           expect([f, t.id, t.soft_cap_s, t.item_timeout_s]).toEqual([f, t.id, wp ? 60 : undefined, wp ? undefined : null]);
         }
@@ -69,7 +69,7 @@ describe('SA bank: RULINGs #13, #16, #17', () => {
     }
   });
 
-  test('lead-egra-2 182025 notes: the picture cards carry their source; word tiles name the rule they are built by', () => {
+  test('the picture cards carry their source; word tiles name the rule they are built by', () => {
     const src = fs.readFileSync(path.join(__dirname, '../../../dashboard/sa/img/vocab/SOURCE.txt'), 'utf8');
     expect(src).toMatch(/SELECT/);
     expect(src).toMatch(/p\.113/);
@@ -97,11 +97,37 @@ describe('SA bank: RULINGs #13, #16, #17', () => {
     expect(runtime('sa.coach.G3.A.ur.json').lines.oral_heard.text).toBe('مجھے سنائی دیا!');
   });
 
-  test('native review (URDU_REVIEW.md): "not quite" is not "not now"; ٹیچر not استاد; orientation prompts without گے aimed at the child', () => {
+  test('native review: "not quite" is not "not now"; ٹیچر not استاد; orientation prompts without گے aimed at the child', () => {
     // Jugnu's lines only: an official story may say استاد and stays verbatim.
     const all = JSON.stringify([bank.lines, Object.values(bank.tasks).map((t) => t.script)]);
     expect(all.includes('ابھی نہیں۔ دوبارہ سنیں')).toBe(false);
     expect(all.includes('استاد')).toBe(false);
     for (const it of bank.tasks['coach.G3.A/ur.print_orientation'].tap.items.slice(0, 3)) expect(/گے[؟۔]?/.test(it.say.text)).toBe(false);
+  });
+
+  test('RULING #10: every passage carries the mercy timings as data (12 s → the star offered, 20 s → early_stop_silence)', () => {
+    const files = fs.readdirSync(path.join(DATA, 'sa')).filter((f) => /^sa\..+\.(en|ur)\.json$/.test(f));
+    expect(files.length).toBe(10);
+    for (const f of files) {
+      for (const t of runtime(f).tasks.filter((x) => /\.story2?$/.test(x.id))) {
+        expect([f, t.id, t.mercy_after_s, t.silence_stop_s]).toEqual([f, t.id, 12, 20]);
+      }
+    }
+  });
+
+  test('E15: the spelling task keeps its scoring rule in the runtime battery (letter-level partial credit, scored later)', () => {
+    for (const f of ['sa.game.G23.en.json', 'sa.coach.G3.A.en.json']) {
+      const t = task(runtime(f), 'en.spelling');
+      if (t) expect(t.scoring).toMatch(/letters in the right place/);
+    }
+  });
+
+  test('public repo: the builder and these tests name no internal lane, board post or review file', () => {
+    for (const rel of ['../../shared/services/child-test/sa/build.js', 'sa-rulings.test.js']) {
+      const src = fs.readFileSync(path.join(__dirname, rel), 'utf8');
+      // Built from pieces so this file does not match its own pattern.
+      const internal = new RegExp(['\\b(lead|panel|fix|qa)-egra(-\\d)?\\b', '\\bm-sa-(content|engine)\\b', 'URDU' + '_REVIEW', '\\b1[78]\\d{4}\\b', '\\u26d4'].join('|'));
+      expect(src).not.toMatch(internal);
+    }
   });
 });
