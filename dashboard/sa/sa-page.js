@@ -2,7 +2,10 @@
  * The child's page, /sa/play.html (switch sa_engine): the one screen both surfaces open.
  *
  *   ?s=<session id>&form=<sa.coach.G3.A.ur>&mode=proctored|game&lang=ur|en&block=B1..B5|full&back=<same-origin url>
- *   &skin=game   #n=<first name>
+ *   &skin=game &embed=1   #n=<first name>
+ *
+ * embed=1: the page sits in the coach page's same-origin iframe; at the hand-back it tells the parent
+ * (postMessage {type:'sa:done', s, reason}) instead of going to back.
  *
  * The first name rides in the fragment (never sent to a server), is read once for the handover screen and dropped
  * from the address bar. block picks battery.blocks[block] (the coach's five-block design); absent or "full" runs every
@@ -40,6 +43,7 @@
       // Only a same-origin path: never an open redirect.
       back: /^\/(?!\/)[^\s\\]*$/.test(back) ? back : null,
       skin: q.get('skin') === 'game' ? 'game' : null,
+      embed: q.get('embed') === '1',
       first_name: name || null,
     };
   }
@@ -84,6 +88,44 @@
     });
   }
 
+  /**
+   * Proctored: no way out for the child but finishing. The browser's back is caught and logged (the page stays), the
+   * first tap asks for full screen (a browser needs a tap for it), and the screen is kept awake while the run lasts.
+   * The coach's own way out is the press-and-hold on the screens. Returns a release().
+   */
+  function lockDown(win, engine) {
+    var doc = win.document;
+    var nav = win.navigator;
+    var lock = null;
+    var hist = win.history;
+    var onPop = function () {
+      engine.runner.log('back_blocked');
+      if (hist && hist.pushState) hist.pushState({ sa: 1 }, '', win.location.href);
+    };
+    if (hist && hist.pushState) { hist.pushState({ sa: 1 }, '', win.location.href); win.addEventListener('popstate', onPop); }
+    var onFirst = function () {
+      doc.removeEventListener('pointerdown', onFirst, true);
+      var de = doc.documentElement;
+      var req = de.requestFullscreen || de.webkitRequestFullscreen;
+      if (req) { try { var r = req.call(de); if (r && r.catch) r.catch(function () {}); } catch (_) { /* not allowed here */ } }
+    };
+    doc.addEventListener('pointerdown', onFirst, true);
+    var wake = function () {
+      if (!nav || !nav.wakeLock || doc.visibilityState !== 'visible') return;
+      nav.wakeLock.request('screen').then(function (l) { lock = l; }, function () {});
+    };
+    var onVis = function () { if (doc.visibilityState === 'visible') wake(); else engine.runner.log('hidden'); };
+    doc.addEventListener('visibilitychange', onVis);
+    wake();
+    return function release() {
+      win.removeEventListener('popstate', onPop);
+      doc.removeEventListener('pointerdown', onFirst, true);
+      doc.removeEventListener('visibilitychange', onVis);
+      if (lock && lock.release) lock.release().catch(function () {});
+      if (doc.fullscreenElement && doc.exitFullscreen) doc.exitFullscreen().catch(function () {});
+    };
+  }
+
   function fail(mount, words) {
     mount.textContent = '';
     mount.appendChild(el('p', 'sa-fail', words));
@@ -122,9 +164,13 @@
       var offline = SAE.offline ? SAE.offline.prepare({ battery_url: url, battery: full, lang: p.lang, base: '/' }) : Promise.resolve({ ready: false });
       return root.SAE.start({
         mount: mount, battery: battery, mode: p.mode, lang: p.lang, sink: sink, session_id: p.session_id,
-        child: p.first_name ? { first_name: p.first_name } : null, back: p.back,
+        child: p.first_name ? { first_name: p.first_name } : null, back: p.back, embed: p.embed,
       }).then(function (engine) {
         root.__sae = engine;
+        if (p.mode === 'proctored') {
+          var release = lockDown(root, engine);
+          engine.on('unlock', release);
+        }
         offline.then(function (o) { engine.runner.log('offline_ready', { value: { ready: !!o.ready, clips: o.clips || 0, clips_missing: o.clips_missing || 0 } }); });
         root.addEventListener('offline', function () { engine.runner.log('offline'); });
         root.addEventListener('online', function () { engine.runner.log('online'); });
@@ -135,5 +181,5 @@
     });
   }
 
-  return { params: params, pick: pick, boot: boot };
+  return { params: params, pick: pick, lockDown: lockDown, boot: boot };
 }));

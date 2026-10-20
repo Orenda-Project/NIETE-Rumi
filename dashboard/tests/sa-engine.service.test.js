@@ -129,3 +129,16 @@ test('a battery with a passage asks for the microphone once and records it as on
   const types = (await s.events('sess-rec')).map((x) => x.type);
   expect(types).toEqual(expect.arrayContaining(['record_start', 'record_stop']));
 });
+
+test('the hand-back: embedded → tells the coach page (sa:done); not embedded → goes to back', () => {
+  const { done } = require('../sa/sa-engine');
+  const posted = [];
+  const runner = { results: () => [{ task_id: 'a', stop_reason: 'complete' }, { task_id: 'b', stop_reason: 'coach_end' }] };
+  const win = { location: { origin: 'https://portal.test', assign: (u) => posted.push(['go', u]) } };
+  win.parent = { postMessage: (m, o) => posted.push(['msg', m, o]) };
+  expect(done(win, { embed: true, back: '/x' }, 's1', runner)).toBe('posted');
+  expect(posted[0]).toEqual(['msg', { type: 'sa:done', s: 's1', reason: 'coach_end' }, 'https://portal.test']);
+  const top = { location: win.location }; top.parent = top;
+  expect(done(top, { embed: true, back: '/list' }, 's1', { results: () => [] })).toBe('navigated');
+  expect(posted[1]).toEqual(['go', '/list']);
+});
