@@ -1,0 +1,76 @@
+'use strict';
+
+/**
+ * Jugnu's SA lines: the manifest names every clip a battery points at, once, and the recorder voices only what is
+ * missing, logs one spend line per call and stops at its cap.
+ */
+
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { voiceManifest } = require('../../shared/services/child-test/sa/voice-manifest');
+const { run, loadBank } = require('../../scripts/child-test/record-sa-voice');
+
+const bank = loadBank();
+const manifest = voiceManifest(bank);
+
+function audioKeys(x, out = new Set()) {
+  if (typeof x === 'string') { if (/^sa\/v1\/(en|ur)\/[0-9a-f]{12}\.mp3$/.test(x)) out.add(x); }
+  else if (Array.isArray(x)) x.forEach((v) => audioKeys(v, out));
+  else if (x && typeof x === 'object') Object.values(x).forEach((v) => audioKeys(v, out));
+  return out;
+}
+
+describe('SA voice manifest', () => {
+  test('every clip key in the bank is in the manifest, once', () => {
+    const keys = manifest.map((r) => r.key);
+    expect(new Set(keys).size).toBe(keys.length);
+    const want = [...audioKeys(bank)].sort();
+    expect(keys.filter((k) => want.includes(k)).sort()).toEqual(want);
+  });
+
+  test('a clip is in the language of its folder and has words', () => {
+    for (const r of manifest) {
+      expect(r.key.startsWith(`sa/v1/${r.lang}/`)).toBe(true);
+      expect(r.text.trim()).not.toBe('');
+    }
+  });
+
+  test('letter names, made-up words and words are marked for a listen by ear', () => {
+    const ear = manifest.filter((r) => r.ear_check).map((r) => r.text);
+    expect(ear).toEqual(expect.arrayContaining(['بے', 'fut']));
+  });
+});
+
+describe('record-sa-voice', () => {
+  const env = { SONIOX_API_KEY: 'test' };
+  const tts = { synthesize: jest.fn(async () => ({ audio: Buffer.alloc(800, 1), durationSec: 2 })) };
+  const level = jest.fn(async (a) => a);
+
+  beforeEach(() => { tts.synthesize.mockClear(); level.mockClear(); });
+
+  test('a dry run calls nothing', async () => {
+    const r = await run(['--lang', 'ur'], { tts, level, out: () => {}, env });
+    expect(r.recorded).toBe(0);
+    expect(r.lines).toBe(manifest.filter((m) => m.lang === 'ur').length);
+    expect(tts.synthesize).not.toHaveBeenCalled();
+  });
+
+  test('voices missing clips in Reyna, keeps clips on disk, logs each call and stops at the cap', async () => {
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sa-voice-'));
+    const spend = path.join(outDir, 'spend.jsonl');
+    const first = manifest.find((m) => m.lang === 'en' && m.role === 'battery');
+    fs.mkdirSync(path.dirname(path.join(outDir, first.key)), { recursive: true });
+    fs.writeFileSync(path.join(outDir, first.key), Buffer.alloc(900, 1));
+    const usdPerCall = 2 * 0.722 / 3600;
+    const r = await run(['--lang', 'en', '--only', 'battery', '--apply', '--max-usd', String(usdPerCall * 3), '--spend-log', spend,
+      '--spend-extra', '{"lane":"m-sa-content"}'], { tts, level, out: () => {}, env, outDir });
+    expect(r.recorded).toBe(3);
+    expect(r.stopped).toBe('max_usd');
+    expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'soniox', voice: 'Reyna', language: 'en' });
+    expect(tts.synthesize.mock.calls.map((c) => c[0].text)).not.toContain(first.text);
+    const lines = fs.readFileSync(spend, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    expect(lines).toHaveLength(3);
+    expect(lines[0]).toMatchObject({ lane: 'm-sa-content', provider: 'soniox', units: 2 });
+  });
+});
