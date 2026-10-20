@@ -55,3 +55,15 @@ export function todayLabel(now: Date = new Date(), lang: "en" | "ur" = "en"): st
   const month = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", month: "numeric" }).format(now));
   return `${WEEKDAYS_UR[WEEKDAYS_EN.indexOf(short)]} ${get("day")} ${MONTHS_UR[month - 1]}`;
 }
+
+/**
+ * A day in Pakistan, short: "18 Oct" (English), "18 اکتوبر" (Urdu; Western digits, as todayLabel). For a row's date
+ * on the Home card. An unreadable date is "" (nothing drawn, never "Invalid Date").
+ */
+export function dayLabel(iso: string | null | undefined, lang: "en" | "ur" = "en"): string {
+  const d = iso ? new Date(iso) : null;
+  if (!d || Number.isNaN(d.getTime())) return "";
+  const fmt = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", ...o }).format(d);
+  if (lang !== "ur") return `${fmt({ day: "numeric" })} ${fmt({ month: "short" })}`;
+  return `${fmt({ day: "numeric" })} ${MONTHS_UR[Number(fmt({ month: "numeric" })) - 1]}`;
+}

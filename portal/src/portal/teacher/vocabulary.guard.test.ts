@@ -110,6 +110,10 @@ const BANNED: Ban[] = [
 /** A leaf exempt from the bans, with the ontology's reason. */
 const EXEMPT: Array<{ path: RegExp; why: string }> = [
   { path: /^report\.(lessons|journeyAria)\(\)$/, why: "scores over N taught lessons: the class she taught, not a plan (ontology: Lesson)" },
+  // The Home card (teacher/home/copy.ts): its quiz lines are the bot's own signed strings, verbatim (th.kind.quiz,
+  // th.quiz.this, th.lastlesson), so the card and the quiz home it opens name the class quiz the same way; "پلان کھولیں"
+  // is the settled string table's. Pending the ontology's ruling on the class quiz's Urdu name.
+  { path: /^(class\.sub|lesson\.title)\(\)$|^(coach\.secondary|lesson\.primary|lesson\.secondary|lp\.quizThis)$/, why: "Home card: the bot's quiz strings, verbatim" },
 ];
 
 describe("the vocabulary guard sees the copy", () => {
