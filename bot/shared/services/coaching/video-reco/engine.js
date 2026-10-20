@@ -1,17 +1,18 @@
 'use strict';
 /**
- * The training-video recommendation for one coaching report (bd-gzfdu9, SPEC §3.2).
+ * The training-video recommendation for one coaching report (bd-gzfdu9, SPEC v1.2.1 §3.2).
  *
  * recommendForReport NEVER throws and never blocks the report: the report hook starts it and does not
  * await it (the sender awaits it after the report has gone). It returns the stored row, or null when the
  * flag is off, the analysis is not FICO, or anything failed. Order: flag → stored row (retries never
- * recompute) → arm → target (target.js) → teacher context (language, ladder level, history) → shortlist
- * (BM25 + the ⛔ filters) → ONE completeJson pick → validation → one row. Control-arm rows are 'shadow'.
+ * recompute) → arm → target (target.js) → teacher context (languages, ladder level, history, grade) →
+ * shortlist (BM25 + the ⛔ filters) → transcript moments, names redacted → ONE completeJson pick →
+ * validation → one row. Control-arm rows, and every row in VIDEO_RECO_MODE=shadow, are 'shadow'.
  */
 const { logToFile } = require('../../../utils/logger');
 const { getCurrentCorrelationId } = require('../../../utils/structured-logger');
 const { clampLanguage } = require('../../../config/ux-strings');
-const { videoRecoEnabled, videoRecoAbEnabled } = require('./flags');
+const { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode } = require('./flags');
 const { assignArm, AB_SALT } = require('./arm');
 const target = require('./target');
 const shortlist = require('./shortlist');
@@ -19,24 +20,27 @@ const prompt = require('./prompt');
 const select = require('./select');
 
 const ENGINE_TIMEOUT_MS = 30000;
+const BAND_GRADES = Object.freeze({ PRIMARY: [1, 5], MIDDLE: [6, 8], HIGH: [9, 12] });
 
 class Timeout extends Error {
   constructor(ms) { super(`video recommendation took longer than ${ms} ms`); this.name = 'Timeout'; }
 }
 
-function gradeOf(analysis) {
+/** The lesson's grade: subject_resolution.grade, else the teacher's training_bands (H7), else unknown. */
+async function gradeOf(analysis, userId, store) {
   const g = analysis && analysis.subject_resolution && analysis.subject_resolution.grade;
   const n = parseInt(String(g === null || g === undefined ? '' : g).replace(/[^0-9]/g, ''), 10);
-  return Number.isFinite(n) ? n : null;
+  if (Number.isFinite(n)) return { lo: n, hi: n };
+  const spans = (await store.trainingBands(userId)).map((b) => BAND_GRADES[String(b).toUpperCase()]).filter(Boolean);
+  return spans.length ? { lo: Math.min(...spans.map((x) => x[0])), hi: Math.max(...spans.map((x) => x[1])) } : null;
 }
 
-function lessonOf(analysis, session) {
-  const sr = (analysis && analysis.subject_resolution) || {};
-  return {
-    subject: sr.code && sr.confidence !== 'none' ? sr.code : null,
-    grade: gradeOf(analysis),
-    topic: (analysis && analysis.topic) || (session && session.lesson_plan_structured && session.lesson_plan_structured.topic) || null,
-  };
+function inapplicableRows(analysis) {
+  const out = [];
+  for (const d of Object.values((analysis && analysis.domains) || {})) {
+    for (const r of (d && d.indicators) || []) if (r && r.applicable === false) out.push(String(r.id));
+  }
+  return out;
 }
 
 function signalOf(t, analysis, nextStep, card) {
@@ -45,22 +49,26 @@ function signalOf(t, analysis, nextStep, card) {
   const step = (nextStep && nextStep.target) || {};
   const row = t.row || {};
   return [row.evidence, row.evidence_summary, step.rationale, step.try, fa.rationale, fa.try_this_tomorrow,
-    card && card.action, up.evidence, up.moment].filter((x) => typeof x === 'string' && x.trim()).join('\n');
+    card && card.action, ...((card && card.highlights) || []), up.evidence, up.moment]
+    .filter((x) => typeof x === 'string' && x.trim()).join('\n');
 }
 
 async function compute(a, d, state) {
   const { session, analysis, loop, card, coachingSessionId } = a;
+  const { store, catalog } = d;
   // The observe path (hook A2) has no next step of its own: the coach-edited analysis decides it, as the hero did.
   const nextStep = a.nextStep === undefined ? require('../next-step').selectNextStep(analysis, null) : a.nextStep; // eslint-disable-line global-require
-  const { store, catalog } = d;
   const existing = await store.readForSession(coachingSessionId);
   if (existing) return existing;
 
   const arm = assignArm(session.user_id, d.env);
-  const t = target.pick(analysis, nextStep, card, catalog.aliases);
+  const sr = (analysis && analysis.subject_resolution) || {};
+  const subject = sr.code && (sr.confidence === 'high' || sr.confidence === 'medium') ? sr.code : null;
+  const t = target.pick(analysis, nextStep, card, catalog, { subject });
   const language = clampLanguage(session.users && session.users.preferred_language);
-  const [recent, ladder] = await Promise.all([store.recentModules(session.user_id, 180), store.ladderProgress(session.user_id)]);
-  const level = ladder.level === null || ladder.level === undefined ? 2 : ladder.level;
+  const [history, ladder] = await Promise.all([store.recentHistory(session.user_id), store.ladderProgress(session.user_id)]);
+  const completed = new Set(ladder.completedModules || []);
+  const ladderComplete = catalog.modules.length > 0 && catalog.modules.every((m) => completed.has(Number(m.module_id)));
   let v10Group = null;
   try {
     const g = await (d.v10GroupFor || require('../ab-v10-arms').groupFor)(session.user_id); // eslint-disable-line global-require
@@ -79,17 +87,22 @@ async function compute(a, d, state) {
     catalog_indicator: t.indicator || null,
     indicator_scheme: t.scheme || null,
     step_indicator: t.stepIndicator || null,
+    step_at_top: !!t.stepAtTop,
+    alias_kind: t.aliasKind || null,
     target_source: t.source || null,
     loop_angle: (loop && loop.state && loop.state.angle) || null,
     observation_type: a.observationType || (session.observer_user_id ? 'leader_observation' : 'self'),
     language,
-    teacher_level: level,
+    teacher_level: ladder.level === undefined ? null : ladder.level,
+    teacher_level_source: ladder.level === null || ladder.level === undefined ? 'none' : 'ladder',
+    ladder_completed: ladderComplete,
     catalog_version: catalog.version,
     prompt_version: prompt.PROMPT_VERSION,
     experiment: videoRecoAbEnabled(d.env) ? AB_SALT : null,
     v10_group: v10Group,
     differs_from_step: false,
     repeat_module: false,
+    image_strip: false,
   };
   const finish = async (row) => {
     if (state.abandoned) return null;
@@ -99,49 +112,75 @@ async function compute(a, d, state) {
 
   if (t.none) return finish({ ...base, status: 'none', none_reason: t.none });
 
-  const lesson = lessonOf(analysis, session);
-  const ctx = { language, level, history: [...new Set([...recent, ...(ladder.completed || [])])] };
+  const lesson = {
+    subject,
+    grade: await gradeOf(analysis, session.user_id, store),
+    topic: (analysis && analysis.topic) || (session.lesson_plan_structured && session.lesson_plan_structured.topic) || null,
+    inapplicable: inapplicableRows(analysis),
+  };
+  const transcriptLanguage = session.transcript_language ? clampLanguage(session.transcript_language) : null;
+  const ctx = {
+    language,
+    languages: [language, transcriptLanguage, 'mixed'].filter(Boolean),
+    level: base.teacher_level,
+    ladderComplete,
+    history,
+  };
   const list = shortlist.build(catalog, t, ctx, signalOf(t, analysis, nextStep, card), lesson);
   base.repeat_module = list.repeatModule;
+  base.level_match = list.levelMatch || null;
   if (!list.candidates.length) return finish({ ...base, status: 'none', none_reason: list.noneReason || 'hole' });
 
+  const people = { teacher: session.users && session.users.name };
   const row = t.row || {};
   const up = (analysis && analysis.uptake) || {};
-  const ex = prompt.excerpts(session, { timestamp: row.timestamp, uptakeMoment: up.moment });
+  const ex = prompt.excerpts(session, { timestamp: row.timestamp, uptakeMoment: up.moment }, people);
+  const scorerQuote = t.source === 'card_text' ? '' : prompt.redact(target.scorerQuote(t.row), people);
+  const uptakeQuote = t.source === 'card_text' && up.moment ? prompt.redact(up.moment, people) : '';
+  if (!ex.length && !scorerQuote && !uptakeQuote) {
+    return finish({ ...base, status: 'none', none_reason: 'no_moments', candidates: list.candidates });
+  }
   const step = (nextStep && nextStep.target) || {};
   const fa = (analysis && analysis.focus_area) || {};
   const text = prompt.build({
     target: t,
     rationale: step.rationale || fa.rationale || '',
     tryText: (card && card.action) || step.try || fa.try_this_tomorrow || '',
-    subject: lesson.subject,
+    subject,
     excerpts: ex,
     candidates: list.candidates,
     catalog,
-    topRung: t.scheme === 'fico_main_37' ? 3 : 2,
+    scorerQuote,
+    uptakeQuote,
+    topRung: t.topRung || (t.scheme === 'fico_main_37' ? 4 : 2),
   });
   const res = await select.pick({ prompt: text, deps: d, timeoutMs: a.llmTimeoutMs });
   const withLlm = { ...base, candidates: list.candidates, model: res.model, usage: res.usage };
   if (res.truncated) return finish({ ...withLlm, status: 'none', none_reason: 'llm_truncated' });
   const v = select.validate(res.pick, list, ex, {
-    stepIndicator: t.stepIndicator, forcedDiffer: t.forcedDiffer, catalog, teacherName: session.users && session.users.name,
+    stepIndicator: t.stepIndicator, indicators: t.indicators, source: t.source, catalog,
+    teacherName: people.teacher, scorerQuote: scorerQuote || uptakeQuote,
   });
   if (!v.ok) return finish({ ...withLlm, status: 'none', none_reason: v.none, confidence: v.confidence });
 
-  const hit = catalog.segment(res.pick.seg_id);
   const p = res.pick;
+  const hit = catalog.segment(p.seg_id);
+  const cand = list.candidates.find((x) => x.seg_id === hit.segment.seg_id) || {};
+  const chosen = t.source === 'card_text' || t.source === 'phase' ? (((hit.segment.fico || [])[0] || {}).indicator || null) : null;
   return finish({
     ...withLlm,
-    status: arm === 'video' ? 'shown' : 'shadow',
+    ...(t.source === 'card_text' ? { indicator: chosen, catalog_indicator: chosen } : {}),
+    status: videoRecoMode(d.env) === 'shadow' || arm !== 'video' ? 'shadow' : 'shown',
     module_id: hit.module.module_id,
     seg_id: hit.segment.seg_id,
     start_s: hit.segment.start_s,
     end_s: hit.segment.end_s,
-    differs_from_step: v.differs || t.forcedDiffer,
+    language_match: cand.language_match || null,
     reason_en: String(p.reason_en).trim(),
     reason_ur: String(p.reason_ur).trim(),
     moment_at: p.moment && p.moment.at ? String(p.moment.at) : null,
     moment_quote: p.moment && p.moment.quote ? String(p.moment.quote) : null,
+    moment_source: v.momentSource,
     confidence: v.confidence,
     none_reason: null,
   });

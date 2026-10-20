@@ -19,4 +19,9 @@ function videoRecoAbEnabled(env = process.env) {
   return on(env.VIDEO_RECO_AB_ENABLED);
 }
 
-module.exports = { videoRecoEnabled, videoRecoAbEnabled };
+/** 'shadow' = every row is stored as status 'shadow' and nothing reaches a teacher (r-ab's prod shadow week). */
+function videoRecoMode(env = process.env) {
+  return String(env.VIDEO_RECO_MODE || '').trim().toLowerCase() === 'shadow' ? 'shadow' : 'normal';
+}
+
+module.exports = { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode };

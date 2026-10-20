@@ -35,17 +35,24 @@ CREATE TABLE IF NOT EXISTS video_recommendations (
   step_indicator      TEXT,
   differs_from_step   BOOLEAN NOT NULL DEFAULT false,
   repeat_module       BOOLEAN NOT NULL DEFAULT false,
-  target_source       TEXT,      -- step | card | scorer | phase
+  step_at_top         BOOLEAN NOT NULL DEFAULT false, -- the step was already at the top rung: the clip shows it done well
+  target_source       TEXT,      -- step | card | card_text | phase
+  alias_kind          TEXT,      -- native37 | exact | approx | none | NULL (a v4 analysis needs no crosswalk)
   loop_angle          TEXT,      -- tell | cue | show | shrink | hand_over | NULL
   observation_type    TEXT,      -- self | leader_observation
-  language            TEXT,
+  language            TEXT,      -- the copy language (users.preferred_language)
+  language_match      TEXT,      -- preferred | transcript | mixed: how the chapter's spoken language was allowed
   teacher_level       INTEGER,
+  teacher_level_source TEXT,     -- ladder | none
+  level_match         TEXT,      -- within | widened | unknown | completed
+  ladder_completed    BOOLEAN,   -- every catalogue module completed: every level open
   reason_en           TEXT,
   reason_ur           TEXT,
   moment_at           TEXT,
   moment_quote        TEXT,
+  moment_source       TEXT,      -- transcript | scorer
   confidence          NUMERIC,
-  none_reason         TEXT,      -- hole | language | level | history | no_target | phase | top_rung | unknown_indicator | scheme_observe2 | llm_none | validation | error:<class>
+  none_reason         TEXT,      -- hole | language | level | history | no_target | phase | unknown_indicator | scheme_observe2 | no_moments | llm_none | llm_truncated | validation | error:<class>
   candidates          JSONB,     -- the shortlist as sent to the model: [{seg_id, score, indicator}]
   model               TEXT,
   catalog_version     TEXT,
@@ -57,6 +64,7 @@ CREATE TABLE IF NOT EXISTS video_recommendations (
   sent_via            TEXT,      -- cta_header | cta | text | NULL (written by the sender after the send)
   wamid               TEXT,
   sent_at             TIMESTAMPTZ,
+  image_strip         BOOLEAN NOT NULL DEFAULT false, -- the report image carried the clip strip
   created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (coaching_session_id)
 );

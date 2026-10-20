@@ -25,6 +25,15 @@ test.each([
   expect(F.videoRecoAbEnabled(env)).toBe(want);
 });
 
+test.each([
+  [{}, 'normal'],
+  [{ VIDEO_RECO_MODE: 'shadow' }, 'shadow'],
+  [{ VIDEO_RECO_MODE: ' SHADOW ' }, 'shadow'],
+  [{ VIDEO_RECO_MODE: 'live' }, 'normal'],
+])('videoRecoMode(%p) → %p (r-ab shadow week: every row shadow, nothing sent)', (env, want) => {
+  expect(F.videoRecoMode(env)).toBe(want);
+});
+
 test('reads process.env at call time, not at import', () => {
   const before = process.env.VIDEO_RECO_ENABLED;
   delete process.env.VIDEO_RECO_ENABLED;

@@ -5,7 +5,7 @@
  * thumbnails in bot/assets/video-thumbs/, from the VIDREC team's contracts/catalog.json (m-catalog).
  *
  *   node bot/scripts/video-reco/build-catalog.js <catalog.json | cards dir> <keywords.json> <thumbs dir>
- *        [--crosswalk indicator_crosswalk.json] [--modules modules.json] [--out file] [--thumbs-out dir]
+ *        [--crosswalk indicator_crosswalk.json] [--meta catalog.meta.json] [--modules modules.json] [--out file] [--thumbs-out dir]
  *
  * A cards dir (one <module_id>.json per module, DB fields absent) is merged with --modules (the DB rows).
  * Only the fields the engine reads are kept: no transcripts, no provenance. Thumbnails over 25 KB are
@@ -21,8 +21,10 @@ const THUMB_MAX_BYTES = 25 * 1024;
 
 const MODULE_FIELDS = ['module_id', 'level_id', 'cpd_level', 'level_name', 'course_title', 'title', 'video_url', 'duration_s',
   'language', 'format', 'subjects', 'grade_band', 'teacher_line_en', 'teacher_line_ur', 'summary_en', 'summary_ur', 'moves',
-  'fico', 'symptoms', 'not_for', 'topic', 'quality', 'recommendable', 'recommendable_reason'];
-const SEGMENT_FIELDS = ['seg_id', 'start_s', 'end_s', 'title_en', 'title_ur', 'summary_en', 'moves', 'fico', 'recommendable', 'phase'];
+  'fico', 'symptoms', 'not_for', 'topic', 'quality', 'recommendable', 'recommendable_reason', 'media_ok'];
+// fico_main37: the prod scheme's ids per chapter (native match before the crosswalk); language: a chapter's own spoken
+// language (module 60 splices Urdu and English). continues_to is dropped (SPEC v1.2.1: one chapter = one playable unit).
+const SEGMENT_FIELDS = ['seg_id', 'start_s', 'end_s', 'title_en', 'title_ur', 'summary_en', 'moves', 'fico', 'fico_main37', 'language', 'recommendable', 'phase'];
 
 function pick(obj, fields) {
   const out = {};
@@ -44,19 +46,24 @@ function keywordIndex(keywords) {
 }
 
 /**
- * 37-id (prod scheme) → v4 id or null. Only `exact` maps: approx is a soft signal. The two schemes share ids
- * with different meanings (37-B7 = use of the plan, v4-B7 = closure), so a crosswalk row wins over identity;
- * identity fills only the v4 ids the crosswalk does not name. A v4 analysis never reads this table (target.js).
+ * 37-id (prod scheme) → {exact: v4 id|null, approx: [v4 ids]} (target.js uses approx only under the subject rule).
+ * The two schemes share ids with different meanings (37-B7 = use of the plan, v4-B7 = closure), so a crosswalk row
+ * wins over identity; identity fills only the v4 ids the crosswalk does not name. A v4 analysis never reads this table.
  */
 function aliasesFrom(crosswalk) {
   const out = {};
   const map = crosswalk && crosswalk.map && typeof crosswalk.map === 'object' ? crosswalk.map : {};
-  for (const [id, row] of Object.entries(map)) out[id] = (row && typeof row.exact === 'string' && row.exact) || null;
-  for (const id of V4_IDS) if (!(id in out)) out[id] = id;
+  for (const [id, row] of Object.entries(map)) {
+    out[id] = {
+      exact: (row && typeof row.exact === 'string' && row.exact) || null,
+      approx: row && Array.isArray(row.approx) ? row.approx.filter((x) => V4_IDS.includes(x)) : [],
+    };
+  }
+  for (const id of V4_IDS) if (!(id in out)) out[id] = { exact: id, approx: [] };
   return out;
 }
 
-function build({ modules, keywords, crosswalk, sourceSha, now = new Date() }) {
+function build({ modules, keywords, crosswalk, meta = null, sourceSha, now = new Date() }) {
   const kw = keywordIndex(keywords);
   const stamp = now.toISOString().replace(/[-:]/g, '').slice(0, 13);
   const out = (modules || []).map((src) => {
@@ -74,6 +81,8 @@ function build({ modules, keywords, crosswalk, sourceSha, now = new Date() }) {
     built_at: now.toISOString(),
     framework: 'fico-v4',
     indicator_aliases: aliasesFrom(crosswalk),
+    // The HAND list of v4 ids with no usable chapter (catalog.meta.json `holes`, m-catalog + ped-panel), not `no_strength2`.
+    holes: meta && Array.isArray(meta.holes) ? meta.holes.filter((x) => V4_IDS.includes(x)) : [],
     modules: out,
   };
 }
@@ -94,6 +103,7 @@ function validate(data, { thumbsDir } = {}) {
       const a = Number(s.start_s);
       const b = Number(s.end_s);
       if (!(a >= 0 && b > a && (!dur || b <= dur + 0.5))) errs.push(`segment ${s.seg_id} [${s.start_s}, ${s.end_s}] is outside the video (0, ${dur})`);
+      if (m.recommendable !== false && s.recommendable !== false && !(s.keywords || []).length) errs.push(`segment ${s.seg_id} is recommendable but has no keywords`);
       ficoRows.push(...(s.fico || []));
     }
     for (const f of ficoRows) {
@@ -136,7 +146,7 @@ async function main(argv) {
   const pos = argv.filter((a, i) => !a.startsWith('--') && !(argv[i - 1] || '').startsWith('--'));
   const opt = (k) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : null; };
   const [input, keywordsFile, thumbsIn] = pos;
-  if (!input) throw new Error('usage: build-catalog.js <catalog.json|cards dir> <keywords.json> <thumbs dir> [--crosswalk f] [--modules f]');
+  if (!input) throw new Error('usage: build-catalog.js <catalog.json|cards dir> <keywords.json> <thumbs dir> [--crosswalk f] [--meta catalog.meta.json] [--modules f]');
   const root = path.join(__dirname, '../../..');
   const out = opt('out') || path.join(root, 'bot/shared/data/video-catalog.v1.json');
   const thumbsOut = opt('thumbs-out') || path.join(root, 'bot/assets/video-thumbs');
@@ -146,7 +156,9 @@ async function main(argv) {
   const crosswalk = cw && fs.existsSync(cw) ? JSON.parse(fs.readFileSync(cw, 'utf8')) : null;
   const srcBytes = fs.statSync(input).isDirectory() ? JSON.stringify(modules) : fs.readFileSync(input);
   const sourceSha = crypto.createHash('sha256').update(srcBytes).digest('hex');
-  const data = build({ modules, keywords, crosswalk, sourceSha });
+  const mf = opt('meta');
+  const meta = mf && fs.existsSync(mf) ? JSON.parse(fs.readFileSync(mf, 'utf8')) : null;
+  const data = build({ modules, keywords, crosswalk, meta, sourceSha });
 
   fs.mkdirSync(thumbsOut, { recursive: true });
   for (const m of data.modules) {
@@ -157,7 +169,7 @@ async function main(argv) {
   if (errs.length) throw new Error(`catalogue invalid:\n  ${errs.join('\n  ')}`);
   fs.writeFileSync(out, `${JSON.stringify(data, null, 1)}\n`);
   const segs = data.modules.reduce((n, m) => n + m.segments.length, 0);
-  console.log(`wrote ${out}: ${data.version}, ${data.modules.length} modules, ${segs} segments, crosswalk=${crosswalk ? 'yes' : 'identity'}`);
+  console.log(`wrote ${out}: ${data.version}, ${data.modules.length} modules, ${segs} segments, holes=${data.holes.join(',') || '-'}, crosswalk=${crosswalk ? 'yes' : 'identity'}`);
 }
 
 if (require.main === module) {
