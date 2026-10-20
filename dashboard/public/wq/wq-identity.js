@@ -76,11 +76,15 @@ var WQID = function (P) {
     var Q = P.Q, CLS = P.CLS, LIVE = P.LIVE || {};
     var classPhone = here.length >= CLASS_PHONE;
     var someone = '<button class="wq-btn wq-navy" id="wq-someone">' + esc(TW.someone) + '</button>';
+    var card = '<div class="wq-card wq-stack"><h1' + (P.lat ? P.lat(Q.topic) : '') + '>' + esc(Q.topic) + '</h1>' +
+      '<p class="wq-sub">' + esc(T.from(P.doorTeacher ? P.doorTeacher() : CLS.teacher, P.doorLabel ? P.doorLabel() : CLS.label)) + '</p>' +
+      '<p class="wq-small">' + esc(T.meta(P.N)) + '</p></div>';
+    // fold with the children listed: Jugnu says "Tap your name", so the names follow the challenge line at once and
+    // the quiz card comes after them (a short phone shows the first name on the first screen)
+    var late = Boolean(fold && here.length);
     var h = P.bar() +
       P.jug('hello', here.length ? T.whoSay : T.hello, true, true) +
-      '<div class="wq-card wq-stack"><h1' + (P.lat ? P.lat(Q.topic) : '') + '>' + esc(Q.topic) + '</h1>' +
-      '<p class="wq-sub">' + esc(T.from(P.doorTeacher ? P.doorTeacher() : CLS.teacher, P.doorLabel ? P.doorLabel() : CLS.label)) + '</p>' +
-      '<p class="wq-small">' + esc(T.meta(P.N)) + '</p></div>' +
+      (late ? '' : card) +
       (fold ? '' : pic || '') + (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
       (here.length
         ? '<h2>' + esc(T.whoT) + '</h2>' + (classPhone ? someone : '') +
@@ -88,6 +92,7 @@ var WQID = function (P) {
             return '<button class="wq-kid wq-kid-big" id="wq-kid-' + i + '">' + P.ani(k.animal) + nm(k.first) + '</button>';
           }).join('') + '</div>' + (classPhone ? '' : someone)
         : '<button class="wq-btn wq-go" id="wq-play">' + esc(T.play) + '</button>') +
+      (late ? card : '') +
       (fold ? pic || '' : '') +
       (LIVE.ict_today_floor ? '<p class="wq-proof">🌟 ' + esc(T.proof(LIVE.ict_today_floor)) + '</p>' : '') +
       (LIVE.class_today >= 5 && !chLine ? '<p class="wq-small">' + esc(T.classToday(LIVE.class_today)) + '</p>' : '') +
