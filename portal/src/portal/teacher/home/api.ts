@@ -50,7 +50,7 @@ export type HomeData = {
 };
 
 /** What a tap names in the log: the card's rung or a chip. Nothing with a name, a phone or free text. */
-export type TapKind = HomeCardKind | 'chip_coach' | 'chip_obs';
+export type TapKind = HomeCardKind | 'chip_coach' | 'chip_obs' | 'lp_quiz';
 
 const KINDS: readonly HomeCardKind[] = ['class', 'coach_report', 'lesson', 'observation', 'first_plan'];
 const TILE_KEYS: readonly HomeTileKey[] = [
