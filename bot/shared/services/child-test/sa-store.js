@@ -177,12 +177,19 @@ async function setAudio(sessionId, taskId, itemId, key, { scoreLater = false } =
 
 const hasAudio = (r) => Boolean(r.audio_r2_key || (Array.isArray(r.audio_r2_keys) && r.audio_r2_keys.length));
 
-/** A spoken subtask whose answers have arrived but whose recording is still on the phone. */
+/**
+ * A spoken subtask whose answers have arrived but whose recording is still on the phone. Never one that cannot
+ * have a recording: skipped by the engine (skipped_*), no microphone, audio not kept, a recorder that never
+ * opened (recorded: false), or a spoken task with nothing attempted.
+ */
 function audioWaiting(r) {
   if (!['record', 'oral'].includes(r.response_mode) || hasAudio(r)) return false;
   const result = (Array.isArray(r.responses) && r.responses.find((x) => x && x.kind === 'result')) || null;
   if (!result) return false;
-  return result.stop_reason !== 'mic_unavailable' && result.audio !== 'not_kept';
+  const reason = typeof result.stop_reason === 'string' ? result.stop_reason : '';
+  if (reason.startsWith('skipped_') || reason === 'mic_unavailable' || result.audio === 'not_kept') return false;
+  if (result.recorded === false) return false; // the engine says the recorder never opened (e.g. ended before the begin line)
+  return !(r.response_mode === 'oral' && result.attempted === 0);
 }
 
 async function summary(sessionId) {
