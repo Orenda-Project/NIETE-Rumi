@@ -45,7 +45,7 @@ Feature: Teacher assessment
     When the units kept are 1, 2, 3, 4, 6, 7 and 8
     Then the Syllabus row reads "Units 1–4, 6–8 · customised" (Urdu: «یونٹ 1–4، 6–8 · حسبِ ضرورت»)
     When the teacher opens Paper style, picks "My own paper" and taps Next
-    Then today's Questions step opens at "Step 3 of 6" with the FDE units ticked
+    Then today's Questions step opens at "Step 3 of 4" with the FDE units ticked
 
   @TA05 @fde
   Scenario: FDE Make: the request and the wait
@@ -104,6 +104,46 @@ Feature: Teacher assessment
     Then there is no Marks box; the question and its answer can still be changed
     And when the server answers PATTERN_FIXED_MARKS the line says "Board-pattern papers fix each question's marks." in the page's language
     And a plain paper's question still shows its Marks box
+
+  # A plain New paper is four steps (Class, Chapters or pages, Questions, Check and make). Questions is one screen: the
+  # seen count, only the unseen types she chose with a count each, Add a type for the rest, and an optional total marks;
+  # the paper is what they add up to. Test ids: count-seen, type-count-<type>, add-type, types-tray, total-marks,
+  # questions-total, step-next, button-reason.
+
+  @TA13
+  Scenario: A plain paper is chosen on one Questions screen and checked in four steps
+    Given a Grade 4 Science teacher is signed in to the teacher app v2
+    And she has picked Chapter 1 on a plain New paper
+    When Questions opens for the first time
+    Then it says "Step 3 of 4" and "Please select the number of questions"
+    And Seen questions shows 5 and Unseen questions shows only MCQs 4, True/False 3 and Fill in the Blanks 3
+    And the line above Next reads "15 questions · 5 seen · 10 unseen"
+    When she taps Add a type, ticks Brief Answers and taps Done
+    Then Brief Answers appears under Unseen questions at 1 and the line reads "16 questions"
+    When she types 2 in the True/False box, then taps its minus once and its bin
+    Then True/False is no longer on the page
+    When she taps Next
+    Then Check and make shows one Questions row "13 questions" with "5 seen · 8 unseen" and its types, a Total marks row and an Answer lines switch, and no File row
+    When she turns Answer lines off and taps Make my paper
+    Then the request carries questionCount 13, contentSource "both", seenCount 5, the three types with their counts and answerLines false
+
+  @TA14
+  Scenario: Questions holds Next, and says why, until the paper can be made
+    Given Questions is open for a Grade 4 Science paper with 5 seen and MCQs 4
+    When she empties the Seen box and removes MCQs
+    Then Next is off with "Add at least 1 question"
+    When the seen and unseen boxes add up to more than 50
+    Then Next is off with "Questions: 1 to 50" and the boxes that count are red
+    When the paper has 12 questions and she types 5 in Total marks
+    Then Next is off with "At least 12 marks for 12 questions"
+    When she types 24 in Total marks
+    Then Next goes on to Check and make, and the line above it ends "24 marks"
+
+  @TA15
+  Scenario: The old Question types and Marks and lines links land on Questions
+    Given a plain New paper is under way for a Grade 4 Science class
+    When she opens /portal/teacher/assessment/new/types, or /portal/teacher/assessment/new/extras
+    Then she is on Questions, with her choices kept
 
   # The soft paper limit (dashboard flag assessment_rate_limit_enabled) counts plain papers too. Run on sandbox by the QA
   # agent with a teacher's ten requests of the last hour seeded and the flag on for the run only.
