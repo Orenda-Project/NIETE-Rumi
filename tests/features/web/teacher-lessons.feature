@@ -91,9 +91,10 @@ Feature: Teacher lesson plans
 
   # FLN09 (bd-4tsjcr, 20 Oct 2026): asked whether a teacher whose classes are all Grades 6–12 should see the band at
   # Grade 1 or not at all, the operator answered "not at all". Hidden only when the teacher's classes read succeeded,
-  # at least one class has a known grade and every known grade is above 5; no classes, only unknown grades or a
-  # failed read → Grade 1, as before. Leaders always see it, and plan links keep opening.
-  # Covers portal/src/portal/fln/FlnBand.tsx and FlnBandBody.tsx (bandGrade).
+  # at least one CLASS has a known grade and every known class grade is above 5; no classes, only unknown grades or
+  # a failed read (or one with no answer within 8 s) → Grade 1, as before. Lesson-plan history (what the read gives
+  # when they have no class) never hides it. Leaders always see it, and plan links keep opening.
+  # Covers portal/src/portal/fln/FlnBand.tsx and FlnBandBody.tsx (bandGrade, bandGradeForPairs, the 8 s deadline).
   @FLN09 @draft @config-gated
   Scenario: A teacher who teaches only Grades 6–12 sees no FLN band; a Grade 3 class or a coach still gets it
     Given portal_fln_lessons is true
@@ -108,6 +109,9 @@ Feature: Teacher lesson plans
     And they open /portal/teacher/lessons/new again
     Then the FLN band is shown with Grade 3 selected
     And every row links to /portal/fln/list/<subject>?grade=3
+    When the demo teacher has no classes and their only lesson-plan history is Grade 7
+    And they open /portal/teacher/lessons/new again
+    Then the FLN band is shown with Grade 1 selected
     When a demo coach whose only class is Grade 8 is signed in
     And they open /portal/teacher/lessons/new
     Then the FLN band is shown with Grade 1 selected
