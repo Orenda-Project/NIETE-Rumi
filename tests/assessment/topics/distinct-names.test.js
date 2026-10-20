@@ -26,7 +26,7 @@ describe('distinctNames', () => {
       topic(name, 'I can use unitary method to calculate the value of many objects when value of some is given (including related real-world problems).'),
     ]);
     expect(out).toEqual([
-      'Use unitary method: many objects of the',
+      'Use unitary method: many objects',
       'Use unitary method: one object when',
       'Use unitary method: many objects when',
     ]);
