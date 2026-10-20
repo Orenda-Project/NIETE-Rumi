@@ -30,7 +30,7 @@ afterEach(() => { vi.useRealTimers(); });
 describe("AssessEngineSlot", () => {
   it("a full-screen same-origin frame on the play page, the name only after #n=", () => {
     const { frame } = setup();
-    expect(frame.getAttribute("allow")).toBe("microphone; fullscreen; screen-wake-lock; autoplay");
+    expect(frame.getAttribute("allow")).toBe("microphone; screen-wake-lock; autoplay");
     expect(frame.getAttribute("title")).toBeTruthy();
     const src = frame.getAttribute("src") as string;
     const [path, frag] = src.split("#");
@@ -90,6 +90,33 @@ describe("AssessEngineSlot", () => {
     fireEvent.pointerDown(hold);
     act(() => { vi.advanceTimersByTime(3100); });
     expect(onFinished).toHaveBeenCalledWith("coach_end");
+  });
+
+  it("full screen belongs to the page, not the frame, so the coach's hold stays on top of the engine", () => {
+    const req = vi.fn().mockResolvedValue(undefined);
+    const exit = vi.fn().mockResolvedValue(undefined);
+    const proto = HTMLElement.prototype as any;
+    const had = proto.requestFullscreen;
+    proto.requestFullscreen = req;
+    Object.defineProperty(document, "exitFullscreen", { configurable: true, value: exit });
+    let fs: Element | null = null;
+    Object.defineProperty(document, "fullscreenElement", { configurable: true, get: () => fs });
+    try {
+      const { frame, unmount } = setup({ lang: "en" });
+      // a frame allowed full screen goes to the top layer, above the hold
+      expect(frame.getAttribute("allow") || "").not.toMatch(/fullscreen/);
+      const slot = screen.getByTestId("assess-engine-slot");
+      expect(req).toHaveBeenCalledTimes(1);
+      expect(req.mock.contexts[0]).toBe(slot);
+      expect(slot).toContainElement(screen.getByRole("button", { name: /End test/ }));
+      fs = slot;
+      unmount();
+      expect(exit).toHaveBeenCalledTimes(1);
+    } finally {
+      proto.requestFullscreen = had;
+      delete (document as any).exitFullscreen;
+      delete (document as any).fullscreenElement;
+    }
   });
 
   it("keeps the screen on while mounted and lets go on unmount", async () => {

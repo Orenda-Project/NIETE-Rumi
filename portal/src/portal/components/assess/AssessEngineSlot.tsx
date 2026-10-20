@@ -85,6 +85,7 @@ export function HoldButton({ label, hint, onDone, compact = false }: { label: st
 export default function AssessEngineSlot({ sessionId, firstName, lang, grade, block, onFinished }: Props) {
   const copy = COPY[lang];
   const frame = useRef<HTMLIFrameElement>(null);
+  const slot = useRef<HTMLDivElement>(null);
   const loadedOnce = useRef(false);
   const ended = useRef(false);
   const doneRef = useRef(onFinished);
@@ -117,6 +118,21 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
     return () => { live = false; void release?.().catch(() => {}); };
   }, []);
 
+  // Full screen is the page's: a frame allowed full screen goes to the top layer, over the coach's hold.
+  // Start's tap is still the active gesture when this mounts.
+  useEffect(() => {
+    const el = slot.current;
+    try {
+      const r = el?.requestFullscreen?.();
+      if (r && typeof r.catch === 'function') r.catch(() => {});
+    } catch { /* not allowed here; the engine still runs */ }
+    return () => {
+      if (el && document.fullscreenElement === el) {
+        try { void document.exitFullscreen?.().catch(() => {}); } catch { /* already out */ }
+      }
+    };
+  }, []);
+
   const onLoad = () => {
     let search: string;
     try {
@@ -131,13 +147,13 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
   };
 
   return (
-    <div data-testid="assess-engine-slot" data-session={sessionId}>
+    <div ref={slot} data-testid="assess-engine-slot" data-session={sessionId}>
       <iframe
         ref={frame}
         data-testid="assess-engine-frame"
         title={copy.engineTitle}
         src={src}
-        allow="microphone; fullscreen; screen-wake-lock; autoplay"
+        allow="microphone; screen-wake-lock; autoplay"
         onLoad={onLoad}
         className="fixed inset-0 h-full w-full border-0 bg-white"
         style={{ zIndex: 1000 }}
