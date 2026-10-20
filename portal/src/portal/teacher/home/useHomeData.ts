@@ -15,9 +15,12 @@ import { fetchHome, tapHome, type HomeData, type HomeTileKey, type TapKind } fro
  * the chips are drawn whenever it answers (they sit between rows, so nothing above row 1 jumps for the slim card).
  * The fetched tile ORDER is applied only when it lands within REORDER_BUDGET_MS of the first paint AND before her
  * first tap, key or scroll; otherwise this load keeps the order it painted, and the fetched order (remembered in
- * memory for this user) is the starting order of the next Home load.
+ * memory and in localStorage for this user, so a cold open from a WhatsApp link has it too) is the starting order of
+ * the next Home load. Home mounts before /config answers, so the starting order is taken when the switches arrive.
  */
 export const REORDER_BUDGET_MS = 300;
+/** The longest a quiz-home tap waits for its log before the page load. */
+export const TAP_WAIT_MS = 400;
 
 export type HomeSwitches = { card: boolean; order: boolean };
 const OFF: HomeSwitches = { card: false, order: false };
@@ -41,8 +44,28 @@ export function useHomeSwitches(): HomeSwitches {
   return sw;
 }
 
-/** The last order the server gave this user (memory only), so a late answer still counts on the next load. */
+/** The last order the server gave this user, so a late answer still counts on the next load (and the next page). */
 let remembered: { userKey: string; order: HomeTileKey[] } | null = null;
+
+const TILE_KEYS: readonly HomeTileKey[] = ['lessons', 'coaching', 'observations', 'training', 'assessment', 'attendance', 'classes', 'analytics'];
+const orderKey = (userKey: string) => `teacher-home-order:v1:${userKey}`;
+
+/** Memory first, then this device's store; a junk or blocked store is no order. */
+function recall(userKey: string): HomeTileKey[] | null {
+  if (remembered?.userKey === userKey) return remembered.order;
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(orderKey(userKey)) || 'null');
+    if (Array.isArray(parsed) && parsed.length === TILE_KEYS.length && parsed.every((k) => TILE_KEYS.includes(k))) {
+      return parsed as HomeTileKey[];
+    }
+  } catch { /* no store: no order */ }
+  return null;
+}
+
+function remember(userKey: string, order: HomeTileKey[]): void {
+  remembered = { userKey, order };
+  try { localStorage.setItem(orderKey(userKey), JSON.stringify(order)); } catch { /* memory still has it */ }
+}
 
 export type HomeState = {
   data: HomeData | null;
@@ -57,8 +80,7 @@ export type HomeState = {
  */
 export function useHomeData(on: boolean, orderOn: boolean, userKey?: string | null): HomeState {
   const [data, setData] = useState<HomeData | null>(null);
-  const [order, setOrder] = useState<HomeTileKey[] | null>(() =>
-    (orderOn && userKey && remembered?.userKey === userKey ? remembered.order : null));
+  const [order, setOrder] = useState<HomeTileKey[] | null>(() => (orderOn && userKey ? recall(userKey) : null));
   const painted = useRef(Date.now());
   const touched = useRef(false);
 
@@ -71,6 +93,11 @@ export function useHomeData(on: boolean, orderOn: boolean, userKey?: string | nu
     return () => events.forEach((e) => window.removeEventListener(e, stop, { capture: true }));
   }, [on]);
 
+  // The switches arrive after the first render: start from the remembered order then (nothing has been tapped yet).
+  useEffect(() => {
+    if (on && orderOn && userKey && !touched.current) setOrder((o) => o ?? recall(userKey));
+  }, [on, orderOn, userKey]);
+
   useEffect(() => {
     if (!on) return undefined;
     let live = true;
@@ -78,7 +105,7 @@ export function useHomeData(on: boolean, orderOn: boolean, userKey?: string | nu
       if (!live || !d) return;
       setData(d);
       if (!orderOn || !d.orderOn) return;
-      if (userKey) remembered = { userKey, order: d.order };
+      if (userKey) remember(userKey, d.order);
       const inTime = Date.now() - painted.current <= REORDER_BUDGET_MS && !touched.current;
       if (inTime) setOrder(d.order);
     });
@@ -99,10 +126,12 @@ const isQuizHome = (href: string) => href.startsWith('/quiz/');
 export function useHomeGo(): (kind: TapKind, href: string) => void {
   const navigate = useNavigate();
   return useCallback((kind: TapKind, href: string) => {
-    tapHome(kind);
+    const logged = tapHome(kind);
     if (isQuizHome(href)) {
+      // A page load cancels the log's request in flight, so leave once it is sent, or after TAP_WAIT_MS at most.
       const origin = isNativeApp() ? getPortalOrigin() : null;
-      window.location.assign(origin ? `${origin}${href}` : href);
+      const leave = () => window.location.assign(origin ? `${origin}${href}` : href);
+      void Promise.race([logged, new Promise<void>((r) => { setTimeout(r, TAP_WAIT_MS); })]).then(leave, leave);
       return;
     }
     navigate(href);
@@ -110,4 +139,10 @@ export function useHomeGo(): (kind: TapKind, href: string) => void {
 }
 
 /** Tests only: forget the remembered order. */
-export function resetHomeOrderMemory(): void { remembered = null; }
+export function resetHomeOrderMemory(opts: { keepStored?: boolean } = {}): void {
+  remembered = null;
+  if (opts.keepStored) return;
+  try {
+    Object.keys(localStorage).filter((k) => k.startsWith('teacher-home-order:v1:')).forEach((k) => localStorage.removeItem(k));
+  } catch { /* no store */ }
+}

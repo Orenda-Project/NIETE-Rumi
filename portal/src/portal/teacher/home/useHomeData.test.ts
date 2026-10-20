@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
-vi.mock("./api", async (orig) => ({ ...(await orig<typeof import("./api")>()), fetchHome: vi.fn() }));
+vi.mock("./api", async (orig) => ({ ...(await orig<typeof import("./api")>()), fetchHome: vi.fn(), tapHome: vi.fn() }));
 vi.mock("../../lib/useNewUi", () => ({ readConfigShared: vi.fn() }));
-import { fetchHome, type HomeData } from "./api";
+import { createElement, type ReactNode } from "react";
+import { MemoryRouter } from "react-router-dom";
+import { fetchHome, tapHome, type HomeData } from "./api";
 import { readConfigShared } from "../../lib/useNewUi";
-import { REORDER_BUDGET_MS, resetHomeOrderMemory, useHomeData, useHomeSwitches } from "./useHomeData";
+import { REORDER_BUDGET_MS, TAP_WAIT_MS, resetHomeOrderMemory, useHomeData, useHomeGo, useHomeSwitches } from "./useHomeData";
 
 /**
  * The Home card's loading rule: one request; the tiles keep the order they painted unless the fetched order lands
@@ -66,6 +68,46 @@ describe("useHomeData", () => {
     expect(result.current.order).toBeNull();
   });
 
+  it("switches that arrive after the first render still start from the remembered order", async () => {
+    const d = deferred();
+    vi.mocked(fetchHome).mockReturnValue(d.p);
+    const first = renderHook(() => useHomeData(true, true, "k"));
+    now += REORDER_BUDGET_MS + 1;
+    await act(async () => { d.resolve(DATA); await d.p; });
+    first.unmount();
+    vi.mocked(fetchHome).mockReturnValue(new Promise(() => {}));
+    // Home mounts with both switches off (useHomeSwitches starts OFF) and gets them when /config answers.
+    const next = renderHook(({ on, orderOn }) => useHomeData(on, orderOn, "k"), { initialProps: { on: false, orderOn: false } });
+    expect(next.result.current.order).toBeNull();
+    next.rerender({ on: true, orderOn: true });
+    expect(next.result.current.order).toEqual(ORDER);
+  });
+
+  it("a late order outlives the page: the next cold open (memory gone) starts from it", async () => {
+    const d = deferred();
+    vi.mocked(fetchHome).mockReturnValue(d.p);
+    const first = renderHook(() => useHomeData(true, true, "k"));
+    now += REORDER_BUDGET_MS + 1;
+    await act(async () => { d.resolve(DATA); await d.p; });
+    first.unmount();
+    resetHomeOrderMemory({ keepStored: true });
+    vi.mocked(fetchHome).mockReturnValue(new Promise(() => {}));
+    const next = renderHook(() => useHomeData(true, true, "k"));
+    expect(next.result.current.order).toEqual(ORDER);
+    const other = renderHook(() => useHomeData(true, true, "someone-else"));
+    expect(other.result.current.order).toBeNull();
+  });
+
+  it("a blocked or junk store is no order, never a throw", () => {
+    localStorage.setItem("teacher-home-order:v1:k", "{not json");
+    vi.mocked(fetchHome).mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => useHomeData(true, true, "k"));
+    expect(result.current.order).toBeNull();
+    localStorage.setItem("teacher-home-order:v1:k", JSON.stringify(["lessons", "nope"]));
+    const again = renderHook(() => useHomeData(true, true, "k"));
+    expect(again.result.current.order).toBeNull();
+  });
+
   it("the order switch off: never an order, the card data still comes", async () => {
     vi.mocked(fetchHome).mockResolvedValue(DATA);
     const { result } = renderHook(() => useHomeData(true, false, "k"));
@@ -92,5 +134,42 @@ describe("useHomeSwitches", () => {
     const { result } = renderHook(() => useHomeSwitches());
     await act(async () => { await Promise.resolve(); });
     expect(result.current).toEqual({ card: false, order: false });
+  });
+});
+
+describe("useHomeGo", () => {
+  const wrapper = ({ children }: { children: ReactNode }) => createElement(MemoryRouter, null, children);
+  let assign: ReturnType<typeof vi.fn>;
+  const realLocation = window.location;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    assign = vi.fn();
+    Object.defineProperty(window, "location", { configurable: true, value: { ...realLocation, assign } });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    Object.defineProperty(window, "location", { configurable: true, value: realLocation });
+  });
+
+  it("a quiz-home tap leaves only after the tap log is sent (the page load would cancel it)", async () => {
+    let sent!: () => void;
+    vi.mocked(tapHome).mockReturnValue(new Promise<void>((r) => { sent = r; }));
+    const { result } = renderHook(() => useHomeGo(), { wrapper });
+    act(() => result.current("class", "/quiz/teacher/abc"));
+    expect(tapHome).toHaveBeenCalledWith("class");
+    await act(async () => { await Promise.resolve(); });
+    expect(assign).not.toHaveBeenCalled();
+    await act(async () => { sent(); await Promise.resolve(); await Promise.resolve(); });
+    expect(assign).toHaveBeenCalledWith("/quiz/teacher/abc");
+  });
+
+  it("a slow log never holds her: she leaves after TAP_WAIT_MS", async () => {
+    vi.useFakeTimers();
+    vi.mocked(tapHome).mockReturnValue(new Promise<void>(() => {}));
+    const { result } = renderHook(() => useHomeGo(), { wrapper });
+    act(() => result.current("lesson", "/quiz/teacher/abc"));
+    expect(assign).not.toHaveBeenCalled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(TAP_WAIT_MS); });
+    expect(assign).toHaveBeenCalledWith("/quiz/teacher/abc");
   });
 });

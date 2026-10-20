@@ -106,6 +106,13 @@
         var rec = needsMic && recMod ? recMod.create({ store: store, session_id: sessionId }) : null;
         var micReady = rec ? rec.ready() : Promise.resolve(false);
         var cancelSilence = null;
+        // A recording still open when the phone goes back (the last spoken answer, a coach's early end) is closed
+        // first, so its final marker is on the phone before the last flush and it goes up with it.
+        function closeRecording() {
+          if (!rec || !rec.recording || !rec.recording()) return null;
+          if (cancelSilence) { try { cancelSilence(); } catch (_) { /* ended */ } cancelSilence = null; }
+          return Promise.resolve(rec.stop()).then(null, function () { return null; });
+        }
         function recStart(t, item) {
           if (!rec) return;
           micReady.then(function (ok) {
@@ -150,7 +157,7 @@
           // The hand-back screen's press-and-hold: the phone is the coach's again (or the game's map).
           onUnlock: function () {
             runner.log('handover_out');
-            writes.then(function () { return sync ? sync.flush() : null; }).then(function () {
+            writes.then(closeRecording).then(function () { return sync ? sync.flush() : null; }).then(function () {
               fire('unlock', null);
               done(deps.win || root, opts, sessionId, runner);
             });
@@ -160,6 +167,25 @@
           micLevel: micMod ? function (cb) { return micMod.level(cb); } : null,
         });
         if (sync && view && view.setSync) hooks.sync = [function (st) { view.setSync(st); }];
+        // Embedded in the coach page: its own corner hold asks the engine to end the run ({type:'sa:coach_end', s}).
+        // The running task ends as coach_end (so a coach-ended minute is never read as a whole block), the last
+        // writes and the sync go, then sa:done {reason:'coach_end'}, once. Only this session, only the page's origin.
+        var win = deps.win || root;
+        var coachEnded = false;
+        var onMsg = function (e) {
+          var d = e && e.data;
+          if (coachEnded || !opts.embed || !d || d.type !== 'sa:coach_end' || d.s !== sessionId) return;
+          if (!win.location || e.origin !== win.location.origin) return;
+          coachEnded = true;
+          runner.coachEnd();
+          runner.log('coach_end_run');
+          runner.log('handover_out');
+          writes.then(closeRecording).then(function () { return sync ? sync.flush() : null; }).then(function () {
+            fire('unlock', null);
+            if (win.parent && win.parent !== win) win.parent.postMessage({ type: 'sa:done', s: sessionId, reason: 'coach_end' }, win.location.origin);
+          });
+        };
+        if (opts.embed && win.addEventListener) win.addEventListener('message', onMsg);
         // Another app, the screen off, a call: logged, and a timed task in progress runs again (RULING #12).
         var doc = root.document;
         var onVis = function () { if (doc.visibilityState === 'hidden') { runner.visibilityLost(); if (view && view.render) view.render(); } };
@@ -185,6 +211,7 @@
             if (sync && sync.stop) sync.stop();
             if (rec) { rec.stop(); rec.release(); }
             if (doc && doc.removeEventListener) doc.removeEventListener('visibilitychange', onVis);
+            if (win.removeEventListener) win.removeEventListener('message', onMsg);
             hooks = {};
           },
         };

@@ -184,3 +184,51 @@ test('the mercy rule: the recorder\'s silence watch offers the star at 12 s and 
   expect(e.runner.results()[0]).toMatchObject({ stop_reason: 'early_stop_silence', mercy_offered: true, silence_s: 20 });
   expect(cancelled).toBe(1);
 });
+
+test('embedded: the coach page\'s hold (sa:coach_end) ends the running task as coach_end, flushes, then sa:done once', async () => {
+  const s = await shared();
+  const f = fakes(s);
+  const listeners = {};
+  const posted = [];
+  const order = [];
+  const win = { location: { origin: 'https://p.test' }, addEventListener: (t, fn) => { listeners[t] = fn; }, removeEventListener() {} };
+  win.parent = { postMessage: (m, o) => { posted.push([m, o]); order.push('posted'); } };
+  f.deps.win = win;
+  f.deps.sync = { create: () => ({ flush: async () => { order.push('flushed'); return { state: 'synced' }; }, poke() {}, status: () => ({}), stop() {} }) };
+  const b = { battery_id: 'ce', tasks: [{ id: 'letters', mode: 'tap', time_limit_s: 60, items: [{ id: 'i1', target: 'a', options: ['a', 'b'] }, { id: 'i2', target: 'a', options: ['a', 'b'] }] },
+    { id: 'words', mode: 'tap', items: [{ id: 'w1', target: 'a', options: ['a', 'b'] }] }] };
+  const e = await start({ mount: {}, battery: b, mode: 'proctored', lang: 'en', embed: true, session_id: 'sess-ce', sink: {}, audio_check: false, warmup: false }, f.deps);
+  e.runner.start(); e.runner.instructionDone(); e.runner.begin(); e.runner.answer('a');
+  listeners.message({ origin: 'https://p.test', data: { type: 'sa:coach_end', s: 'someone-else' } });
+  listeners.message({ origin: 'https://evil.test', data: { type: 'sa:coach_end', s: 'sess-ce' } });
+  await new Promise((r) => setTimeout(r, 0));
+  expect(posted).toEqual([]);
+  listeners.message({ origin: 'https://p.test', data: { type: 'sa:coach_end', s: 'sess-ce' } });
+  await new Promise((r) => setTimeout(r, 10));
+  expect(e.runner.results()[0]).toMatchObject({ task_id: 'letters', stop_reason: 'coach_end', attempted: 1 });
+  expect(posted).toEqual([[{ type: 'sa:done', s: 'sess-ce', reason: 'coach_end' }, 'https://p.test']]);
+  expect(order).toEqual(['flushed', 'posted']);
+  listeners.message({ origin: 'https://p.test', data: { type: 'sa:coach_end', s: 'sess-ce' } });
+  await new Promise((r) => setTimeout(r, 10));
+  expect(posted).toHaveLength(1);
+  const types = (await s.events('sess-ce')).map((x) => x.type);
+  expect(types).toEqual(expect.arrayContaining(['coach_unlock', 'coach_end_run', 'handover_out']));
+});
+
+test('the hand-back closes a recording still open before the last flush (the frame unmounts right after)', async () => {
+  const s = await shared();
+  const f = fakes(s);
+  const order = [];
+  let recording = true;
+  f.deps.rec = { create: () => ({ ready: async () => true, start: () => true, recording: () => recording,
+    stop: async () => { recording = false; order.push('rec closed'); return { parts: 1, duration_ms: 1000 }; }, release() {} }) };
+  f.deps.micState = () => 'ok';
+  f.deps.sync = { create: () => ({ flush: async () => { order.push('flushed'); return {}; }, poke() {}, status: () => ({}), stop() {} }) };
+  f.deps.win = { location: { origin: 'https://p.test', assign: () => order.push('navigated') } };
+  f.deps.win.parent = f.deps.win;
+  const b = { battery_id: 'hb', tasks: [{ id: 'story', mode: 'record', time_limit_s: 60, passage: { text: 'a' }, items: [{ id: 'w', target: 'a', line: 1 }] }] };
+  await start({ mount: {}, battery: b, mode: 'proctored', lang: 'en', back: '/list', sink: {}, audio_check: false, warmup: false }, f.deps);
+  f.ui().onUnlock();
+  await new Promise((r) => setTimeout(r, 20));
+  expect(order).toEqual(['rec closed', 'flushed', 'navigated']);
+});

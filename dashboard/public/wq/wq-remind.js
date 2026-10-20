@@ -21,15 +21,17 @@
       remindTest: 'Send one now',
       remindStop: 'Stop reminders',
       remindDenied: 'Reminders are off in this browser. You can turn them on in the browser settings.',
-      iabTitle: 'Reminders work in Chrome',
-      iabBody: "WhatsApp's browser cannot show reminders. Open this page in Chrome, then tap ‘Remind me’ again.",
+      iabBody: 'Reminders come only in Chrome.',
       iabChrome: 'Open in Chrome',
-      iabHint: 'Or tap ⋮ at the top and choose ‘Open in browser’.',
+      iabHow: 'How?',
+      iabHint: 'Or tap ⋮ at the top, then choose ‘Open in browser’.',
       iabCopy: 'Copy link',
       iosBody: 'On iPhone, open this page in Safari, tap Share, then ‘Add to Home Screen’. Reminders come from the Jugnu icon.',
       noPush: 'This browser cannot show reminders.',
       play: 'Play the quiz',
       stopped: 'Reminders are off.',
+      onTitle: 'Reminders are on!',
+      offTitle: 'Reminders are off',
     },
     ur: {
       remindTitle: 'کیا جگنو کل آپ کو یاد دلائے؟',
@@ -40,15 +42,17 @@
       remindTest: 'ابھی ایک یاد دہانی بھیجیں',
       remindStop: 'یاد دہانی بند کریں',
       remindDenied: 'اس براؤزر میں یاد دہانی بند ہے۔ آپ براؤزر کی سیٹنگز سے اسے کھول سکتے ہیں۔',
-      iabTitle: 'یاد دہانی کروم میں چلتی ہے',
-      iabBody: 'واٹس ایپ کا براؤزر یاد دہانی نہیں دکھا سکتا۔ یہ صفحہ کروم میں کھولیں، پھر دوبارہ ’یاد دلائیں‘ دبائیں۔',
+      iabBody: 'یاد دہانی صرف کروم میں ملتی ہے۔',
       iabChrome: 'کروم میں کھولیں',
-      iabHint: 'یا اوپر ⋮ دبائیں اور ’براؤزر میں کھولیں‘ چنیں۔',
+      iabHow: 'کیسے؟',
+      iabHint: 'یا اوپر ⋮ دبائیں، پھر ’براؤزر میں کھولیں‘ چنیں۔',
       iabCopy: 'لنک کاپی کریں',
       iosBody: 'آئی فون پر یہ صفحہ سفاری میں کھولیں، بھیجنے کا نشان (⬆) دبائیں، پھر ’ہوم اسکرین پر شامل کریں‘۔ یاد دہانی جگنو کے آئیکن سے آئے گی۔',
       noPush: 'یہ براؤزر یاد دہانی نہیں دکھا سکتا۔',
       play: 'کوئز کھیلیں',
       stopped: 'یاد دہانی بند ہے۔',
+      onTitle: 'یاد دہانی آن ہے!',
+      offTitle: 'یاد دہانی بند ہے',
     },
   };
   var IAB_RX = /\bWA4A\/|WhatsApp|FBAN|FBAV|Instagram|; wv\)/;
@@ -175,20 +179,28 @@
     }
     // a ghost's underline sits under the word only (not across the full-width box)
     function lbl(cls, label) { return cls.indexOf('wq-ghost') >= 0 ? '<span style="text-decoration:underline;text-underline-offset:4px">' + esc(label) + '</span>' : esc(label); }
-    function btn(cls, act, label) { return '<button type="button" class="wq-btn ' + cls + '" data-act="' + act + '"' + (cls.indexOf('wq-ghost') >= 0 ? ' style="text-decoration:none"' : '') + '>' + lbl(cls, label) + '</button>'; }
+    function btn(cls, act, label) { return '<button type="button" class="wq-btn ' + cls + '" data-act="' + act + '"' + (cls.indexOf('wq-ghost') >= 0 ? ' style="text-decoration:none;border-bottom:0"' : '') + '>' + lbl(cls, label) + '</button>'; }
     function link(cls, act, href, label) { return '<a class="wq-btn ' + cls + '" data-act="' + act + '" href="' + esc(href) + '">' + esc(label) + '</a>'; }
     function draw(inner) {
       if (!inner) { slot.innerHTML = ''; return; }
       slot.innerHTML = '<section class="wq-card wq-remind" lang="' + lang + '" dir="' + (lang === 'ur' ? 'rtl' : 'ltr') + '"'
         + ' style="margin:16px 0 0;padding:16px;display:grid;gap:10px">' + inner + '</section>';
     }
-    var lh = lang === 'ur' ? ';line-height:2' : '';
+    // Nastaliq room; on the landing the status lines read at 18 px with a little more air
+    var lh = lang === 'ur' ? (landing ? ';line-height:2.2' : ';line-height:2') : '';
+    var fs = landing ? ';font-size:18px' : '';
     function title(t) { return '<h2 style="margin:0;font-size:18px' + lh + '">' + esc(t) + '</h2>'; }
-    function line(t) { return '<p class="wq-sub" style="margin:0' + lh + '">' + esc(t) + '</p>'; }
+    function line(t) { return '<p class="wq-sub" style="margin:0' + fs + lh + '">' + esc(t) + '</p>'; }
+    // the landing's page title (its h1) is the one question; after Yes / Stop it says the state instead
+    function pageTitle(t) {
+      if (!landing) return;
+      try { var h = window.document.querySelector('.wqr h1'); if (h) h.textContent = t; } catch (_) { /* no title to change */ }
+    }
 
     var show = {
-      ask: function () { draw(title(c.remindTitle) + line(c.remindBody) + btn('wq-soft', 'yes', c.remindYes) + btn('wq-ghost', 'later', c.remindLater)); },
+      ask: function () { draw((landing ? '' : title(c.remindTitle)) + line(c.remindBody) + btn('wq-soft', 'yes', c.remindYes) + btn('wq-ghost', 'later', c.remindLater)); },
       done: function () {
+        pageTitle(c.onTitle);
         // the landing's one next step is Play (the primary); Stop is the small ghost; the test-send only for QA (?qa=1)
         draw(line(c.remindDone)
           + (landing && code ? link('wq-go', 'play', '/q/' + code, c.play) : '')
@@ -196,10 +208,12 @@
           + btn('wq-ghost', 'stop', c.remindStop));
       },
       denied: function () { draw(line(c.remindDenied)); },
-      stopped: function () { draw(line(c.stopped) + (landing && code ? link('wq-go', 'play', '/q/' + code, c.play) : '')); },
-      iab: function () {
-        draw(title(c.iabTitle) + line(c.iabBody) + (code && host ? link('wq-soft', 'escape', intentHref(), c.iabChrome) : '')
-          + line(c.iabHint) + (code && host ? btn('wq-ghost', 'copy', c.iabCopy) : ''));
+      // on the landing the title already says it; the results card (no page title) keeps the line
+      stopped: function () { pageTitle(c.offTitle); draw((landing ? '' : line(c.stopped)) + (landing && code ? link('wq-go', 'play', '/q/' + code, c.play) : '')); },
+      // WhatsApp's browser: one line and ONE door to Chrome; the ⋮ hint and Copy link only after "How?" (a child's screen)
+      iab: function (more) {
+        draw(line(c.iabBody) + (code && host ? link('wq-soft', 'escape', intentHref(), c.iabChrome) : '')
+          + (more ? line(c.iabHint) + (code && host ? btn('wq-ghost', 'copy', c.iabCopy) : '') : btn('wq-ghost', 'how', c.iabHow)));
       },
       ios: function () { draw(line(c.iosBody)); },
       nopush: function () { draw(line(c.noPush)); },
@@ -283,6 +297,7 @@
       else if (act === 'test') onTest();
       else if (act === 'copy') { if (e.preventDefault) e.preventDefault(); onCopy(); }
       else if (act === 'escape') ev('escape', { how: 'intent' });
+      else if (act === 'how') { ev('escape', { how: 'menu' }); show.iab(true); }
     };
 
     return {

@@ -154,6 +154,19 @@ describe('markSynced and summary', () => {
     expect(kept[199].seq).toBe(206);
   });
 
+  test('audioWaiting: a task the engine skipped, or a spoken task with nothing attempted, never records, so it is never waiting', async () => {
+    await Store.putResults('s1', [
+      { task_id: 'ur.story', mode: 'record', stop_reason: 'skipped_no_first_line' },
+      { task_id: 'ur.story_comp', mode: 'oral', stop_reason: 'skipped_no_first_line', attempted: 0 },
+      { task_id: 'en.listening', mode: 'oral', stop_reason: 'complete', attempted: 0 },
+      { task_id: 'ur.listening', mode: 'oral', stop_reason: 'complete', attempted: 2 },
+      { task_id: 'en.story', mode: 'record', stop_reason: 'early_stop_silence' },
+      { task_id: 'en.story_comp', mode: 'oral', stop_reason: 'coach_end', attempted: 0 },
+      { task_id: 'ur.story2', mode: 'record', stop_reason: 'coach_end', recorded: false },
+    ], 'ur');
+    expect((await Store.summary('s1')).audioWaiting).toEqual(['ur.listening', 'en.story']);
+  });
+
   test('audioWaiting: a recorded or spoken subtask whose answers arrived but no recording yet; not one with no microphone or audio not kept', async () => {
     await Store.putResults('s1', [
       { task_id: 'ur.story', mode: 'record', correct: 0 },

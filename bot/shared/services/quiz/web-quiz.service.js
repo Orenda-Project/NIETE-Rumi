@@ -688,6 +688,10 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   if (require('./web-quiz-hub-flags').nowOf('endFit')) out.end_fit = true;
   // web_quiz_share_name_bidi (the hub's switch cache, no read): the English share words isolate the child's name (wq.js)
   if (require('./web-quiz-hub-flags').nowOf('nameBidi')) out.name_bidi = true;
+  // web_quiz_end_short (the hub's switch cache, no read; only beside end_fit): the end screen fits a short phone (wq.js)
+  if (out.end_fit && require('./web-quiz-hub-flags').nowOf('endShort')) out.end_short = true;
+  // web_quiz_end_once (the hub's switch cache, no read): Jugnu's end-screen line never repeats the card's heading (wq.js)
+  if (require('./web-quiz-hub-flags').nowOf('endOnce')) out.end_once = true;
   // web_quiz_challenge_line_keep (the hub's switch cache, no read): a number in the challenge words keeps its word (wq.js)
   if (require('./web-quiz-hub-flags').nowOf('challengeLineKeep')) out.challenge_line_keep = true;
   // The Home button and the step-back (web-quiz-hub-flags pageNav): absent when both switches are off.
