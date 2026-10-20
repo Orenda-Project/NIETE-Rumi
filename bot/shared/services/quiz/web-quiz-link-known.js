@@ -31,6 +31,7 @@
  * preview. Telemetry: counts and reasons only (`web_quiz.link_known`), never an id or a name.
  */
 const supabase = require('../../config/supabase');
+const Snap = require('../settings/settings-snapshot'); // web_quiz_page_keep: the page switches in one read
 const Db = require('./web-quiz-db-deadline');   // a deadline + one retry on reads (web_quiz_db_deadline)
 const dbRead = (...args) => Db.read(...args);
 const { logToFile } = require('../../utils/logger');
@@ -54,7 +55,7 @@ const cache = cachedSwitch({
   ttlMs: TTL_MS,
   off: false,
   read: async () => {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [KEY]);
+    const { data, error } = await Snap.rows([KEY], () => supabase.from('app_settings').select('key, value').in('key', [KEY]));
     if (error) throw new Error(error.message || 'app_settings read failed');
     const row = (data || []).find((r) => r.key === KEY);
     return Boolean(row) && isTrue(row.value);
