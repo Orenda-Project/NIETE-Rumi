@@ -159,6 +159,12 @@ describe('the Learning assessment (sa/*) routes', () => {
     expect(todaysList).not.toHaveBeenCalled();
   });
 
+  test('sa/outcome forwards the client id and the block', async () => {
+    const out = await call(appWith(fakeDeps()), 'POST', '/api/internal/child-test/sa/outcome', { body: { userId: COACH, schoolId: SCHOOL, drawId: 'd', outcome: 'present', clientSessionId: 'x' } });
+    expect(out.status).toBe(400);
+    expect(out.body.reason).toBe('bad_client_id');
+  });
+
   test('sa/outcome with a bad outcome is 400', async () => {
     const out = await call(appWith(fakeDeps()), 'POST', '/api/internal/child-test/sa/outcome', { body: { userId: COACH, schoolId: SCHOOL, drawId: 'd', outcome: 'gone' } });
     expect(out.status).toBe(400);

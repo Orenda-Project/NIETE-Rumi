@@ -164,11 +164,28 @@ const dayList = guarded('sa_day_list', async ({ userId, schoolId, visitId }, d) 
   return { status: 'ok', list: shapeList(list, visit, await sessionsOf(d, visit)) };
 });
 
-const dayOutcome = guarded('sa_day_outcome', async ({ userId, schoolId, visitId, drawId, outcome, note }, d) => {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const saStoreOf = (deps) => (deps && deps.saStore) || require('../sa-store'); // eslint-disable-line global-require
+
+/**
+ * present / absent / refused. The phone may name the child's session itself (clientSessionId, a uuid it
+ * minted while offline) and say which part of the battery the child takes (block); a present re-sent with
+ * the same client id answers the session it already made.
+ */
+const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ userId, schoolId, visitId, drawId, outcome, note, clientSessionId, block }, d) => {
   if (!OUTCOMES.includes(outcome)) return { status: 'invalid', reason: 'bad_outcome' };
   if (!drawId) return { status: 'invalid', reason: 'no_draw' };
+  if (clientSessionId != null && !UUID_RE.test(String(clientSessionId))) return { status: 'invalid', reason: 'bad_client_id' };
+  if (block != null && !BLOCK_IDS.includes(block) && block !== FULL) return { status: 'invalid', reason: 'bad_block' };
   const visit = await visitFor(d, userId, { schoolId, visitId });
   if (!visit) return { status: 'not_found' };
+  const sa = clientSessionId && outcome === 'present' ? saStoreOf(deps) : null;
+  if (sa) {
+    const known = await sa.findByClient(clientSessionId);
+    if (known && known.ok && known.sessionId && (await ownSession(d, userId, known.sessionId))) {
+      return { status: 'ok', sessionId: known.sessionId, list: null };
+    }
+  }
 
   const res = await d.draw.markOutcome({ drawId, outcome, note, ...visitArgs(visit) });
   if (!res || !res.ok) {
@@ -189,8 +206,13 @@ const dayOutcome = guarded('sa_day_outcome', async ({ userId, schoolId, visitId,
   });
   if (!created || !created.ok || !created.session) throw new Error((created && created.error) || 'createSession failed');
   await d.store.recordTiming(created.session.id, 'sa.started', d.now());
+  if (clientSessionId || block) {
+    // The child is present either way; a phone that cannot be matched later re-sends the outcome.
+    const kept = await saStoreOf(deps).setClient(created.session.id, { clientSessionId: clientSessionId || null, block: block || null });
+    if (!kept || !kept.ok) d.logError('child_test.sa.client_not_kept', { sessionId: created.session.id, error: kept && kept.error });
+  }
   return { status: 'ok', sessionId: created.session.id, list };
-});
+})(args, deps);
 
 // ─── the engine's sink ─────────────────────────────────────────────────────
 
@@ -217,15 +239,21 @@ function loadBank() {
 /** A sink handler: guarded like the rest, on this coach's own self-administered session. */
 function onSession(name, fn) {
   return (args = {}, deps = {}) => guarded(name, async (a, d) => {
-    const session = await ownSession(d, a.userId, a.sessionId);
+    const store = saStoreOf(deps);
+    let session = await ownSession(d, a.userId, a.sessionId);
+    if (!session && UUID_RE.test(String(a.sessionId || ''))) {
+      // the phone's own id for the child (minted offline); the server's once the outcome has synced
+      const known = await store.findByClient(a.sessionId);
+      if (known && known.ok && known.sessionId) session = await ownSession(d, a.userId, known.sessionId);
+    }
     if (!session || session.item_bank_version !== SA_MARK) return { status: 'not_found' };
     const sa = {
-      store: deps.saStore || require('../sa-store'), // eslint-disable-line global-require
+      store,
       bank: deps.bank !== undefined ? deps.bank : loadBank(),
       scoreLater: deps.scoreLater !== undefined ? deps.scoreLater : process.env.CHILD_TEST_SA_SCORE_LATER === 'true',
       env: deps.env || envSegment(),
     };
-    return fn(a, d, session, sa);
+    return fn({ ...a, sessionId: session.id }, d, session, sa);
   })(args, deps);
 }
 
