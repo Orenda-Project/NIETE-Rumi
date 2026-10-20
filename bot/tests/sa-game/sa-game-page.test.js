@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The Big Test's bot route (/api/internal/sagame/page/:token, sa-game/routes.js + page.js; switch sa_game, default OFF).
+ * The big flight's bot route (/api/internal/sagame/page/:token, sa-game/routes.js + page.js; switch sa_game, default OFF).
  * Off: 404 {off:true} before the child is looked up. On: the hub's own child check (kidFromHub); no child → 401; a
  * child → their language and the game form for their grade. The internal key is required. Invented ids only.
  */

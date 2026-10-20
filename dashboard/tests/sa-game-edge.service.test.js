@@ -1,5 +1,5 @@
 /**
- * The Big Test's edge (routes/sa-game.routes.js; switch sa_game, decided by the BOT for the page and by the edge's own
+ * The big flight's edge (routes/sa-game.routes.js; switch sa_game, decided by the BOT for the page and by the edge's own
  * 30 s read for the files). Off — the bot's 404, no bot, a junk token or chip, the switch read off — every route calls
  * next() and the portal answers as today. On: the page shell with the boot (token, chip, language, form, the battery
  * URL, the engine's files), its own files from an allow-list, the battery for a well-formed form only. Invented values.
@@ -65,7 +65,7 @@ test('on, not this phone: the note (403), a bot failure: the error note (502), n
   s = await start({ bot: () => ({ status: 401, body: { error: 'not_child' } }) });
   const r = await fetch(`${s.base}/sa-game/${TOKEN}?kid=${CHIP}&lang=en`);
   expect(r.status).toBe(403);
-  expect(await r.text()).toContain('Open the Big Test from your games');
+  expect(await r.text()).toContain('Open the big flight from your games');
   s.server.close();
   s = await start({ bot: () => ({ status: 200, body: { ok: true, lang: 'en', form: '../../etc' } }) });
   expect((await fetch(`${s.base}/sa-game/${TOKEN}?kid=${CHIP}`)).status).toBe(502);

@@ -1,6 +1,7 @@
 'use strict';
 /**
- * The Big Test at the edge: the reading and number battery as a game in the child's games door (switch sa_game,
+ * The big flight at the edge: the reading and number battery as a game in the child's games door (switch
+ * sa_game,
  * decided by the BOT; OFF by default).
  *
  *   GET /sa-game/:token?kid&lang   the game page. The bot checks the hub token, the chip and this phone (the games door's
@@ -10,8 +11,12 @@
  *                                  phone → a one-line note, never a 500.
  *   GET /sa-game/a/:file           the page's own files (dashboard/sa-game/: game.js, game.css), an allow-list, served
  *                                  only while app_settings sa_game is a JSON true (the edge's 30 s read); else next().
- *   GET /sa-game/b/:form/:lang     the battery file for a form (bot/shared/data/child-test/sa/sa.<form>.<lang>.json,
- *                                  the item set's own build), same switch; a form of the wrong shape → next().
+ *   POST /api/sa-game/s/:op, POST /api/sa-game/s/audio/:op, GET /api/sa-game/s/status   the game's sink, forwarded
+ *                                  path for path to the bot (/api/internal/sagame/s/*), which checks the switch, the
+ *                                  run's token and the child; the bot's answer is passed back as it came (JSON).
+ *   GET /sa-game/b/:form/:lang     the form's battery file as the engine reads it (bot/shared/data/child-test/sa/
+ *                                  sa.<form>.<lang>.json, else <form>.json: the item set's own build), same switch; a
+ *                                  form of the wrong shape or no file → next().
  *
  * The engine itself (/sa/*, switch sa_engine) is loaded from its own router. The page carries no name, no phone and no
  * id: the hub token and chip it was opened with are the only things it holds.
@@ -36,8 +41,8 @@ const ENGINE = ['sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync
 const UR_FONT = '/wq/fonts/wq-nastaliq-5.woff2';
 
 const COPY = {
-  en: { title: "Jugnu's Big Test", boot: 'Getting the islands ready…', other: 'Open the Big Test from your games, on the phone you play on.', error: "That didn't work. Try again in a moment." },
-  ur: { title: 'جگنو کا بڑا امتحان', boot: 'جزیرے تیار ہو رہے ہیں…', other: 'بڑا امتحان اپنے کھیلوں میں سے کھولیں، اُسی فون پر جس پر آپ کھیلتے ہیں۔', error: 'یہ نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔' },
+  en: { title: "Jugnu's big flight", boot: 'Getting the islands ready…', other: 'Open the big flight from your games, on the phone you play on.', error: "That didn't work. Try again in a moment." },
+  ur: { title: 'جگنو کی بڑی اڑان', boot: 'جزیرے تیار ہو رہے ہیں…', other: 'بڑی اڑان اپنے کھیلوں میں سے کھولیں، اُسی فون پر جس پر آپ کھیلتے ہیں۔', error: 'یہ نہیں ہو سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔' },
 };
 
 function esc(s) {
@@ -131,14 +136,38 @@ function createSaGameRouter(opts = {}) {
     const type = Object.prototype.hasOwnProperty.call(FILES, req.params.file) ? FILES[req.params.file] : null;
     if (!type || !on()) return next();
     res.set({ 'Content-Type': type, 'Cache-Control': req.query.v ? 'public, max-age=31536000, immutable' : 'no-cache' });
-    return res.sendFile(path.join(DIR, req.params.file), (err) => { if (err && !res.headersSent) next(); });
+    return res.sendFile(path.join(DIR, req.params.file), { dotfiles: 'allow' }, (err) => { if (err && !res.headersSent) next(); });
   });
+
+  const SINK_OPS = /^(session|batch|audio\/presign|audio\/register|status)$/;
+  const sink = async (req, res, next) => {
+    const op = req.params.op ? (req.params.audio ? `audio/${req.params.op}` : req.params.op) : 'status';
+    if (!SINK_OPS.test(op) || !botUrl || !apiKey) return next();
+    const qs = req.method === 'GET' && typeof req.query.st === 'string' ? `?st=${encodeURIComponent(req.query.st)}` : '';
+    let out;
+    try {
+      out = await callBot(req.method, `/api/internal/sagame/s/${op}${qs}`, req, req.method === 'GET' ? null : req.body, { route: `/api/internal/sagame/s/${op}` });
+    } catch (_) {
+      return res.status(503).json({ error: 'unavailable' });
+    }
+    if (out.status === 404 && out.body && out.body.off) return next();
+    res.set('Cache-Control', 'no-store');
+    return res.status(out.status).json(out.body || {});
+  };
+  const json = express.json({ limit: '512kb' });
+  router.post('/api/sa-game/s/:op', json, sink);
+  router.post('/api/sa-game/s/:audio(audio)/:op', json, sink);
+  router.get('/api/sa-game/s/status', sink);
 
   router.get('/sa-game/b/:form/:lang', (req, res, next) => {
     const { form, lang } = req.params;
     if (!FORM_RX.test(form) || (lang !== 'en' && lang !== 'ur') || !on()) return next();
     res.set({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache' });
-    return res.sendFile(path.join(BANK_DIR, `sa.${form}.${lang}.json`), (err) => { if (err && !res.headersSent) next(); });
+    // today's per-language file, else the item set's per-form file (both languages in one) as its next build names it
+    const dir = opts.bankDir || BANK_DIR;
+    const file = [`sa.${form}.${lang}.json`, `${form}.json`].map((f) => path.join(dir, f)).find((f) => fs.existsSync(f));
+    if (!file) return next();
+    return res.sendFile(file, { dotfiles: 'allow' }, (err) => { if (err && !res.headersSent) next(); });
   });
 
   return router;

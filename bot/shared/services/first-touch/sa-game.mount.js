@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Mounts the Big Test's router (sa-game/routes.js, switch sa_game) at /api/internal/sagame. A module that throws at
+ * Mounts the big flight's router (sa-game/routes.js, switch sa_game) at /api/internal/sagame. A module that throws at
  * load costs exactly this mount: the bot starts, every other route is today's, and the failure is logged once.
  * → true when mounted.
  */

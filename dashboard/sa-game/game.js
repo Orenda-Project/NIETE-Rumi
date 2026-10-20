@@ -1,13 +1,14 @@
 /*
- * The Big Test (switch sa_game): the reading and number battery as a game, on the battery engine (/sa/*, sa_engine).
+ * The big flight (switch sa_game): the reading and number battery as a game, on the battery engine (/sa/*, sa_engine).
  *
- * A sea map: Numbers, English and Urdu islands, then the Big Tower. An island is that subject's subtasks from the form's
- * battery, in the battery's order, run by the engine in game mode; the tower is the whole battery end to end. The
+ * A sea map: Numbers, English and Urdu islands, then the Big flight tower. An island is the form's `islands.<subject>`
+ * list and the tower its `tower` list (else by task id), from the form's battery file, run by the engine in game mode. The
  * engine owns every item, instruction, practice item, clock and stop rule; this page only frames it: the map, the
  * stones, Jugnu's glow as the clock while a timed task runs, a sound on each task finished, a result card per subject
  * with effort stars (finished every stone, did the practice, kept going to the end) — never a score, never a hint.
  *
- * Boot (#boot): { token, kid, lang, form, grade, bank, engine: [urls], juice: {js, css} }. Progress lives on the phone
+ * Boot (#boot): { token, kid, lang, form, grade, bank (the form's battery file), engine: [urls], juice: {js, css} }. No test words
+ * on any screen (the tower is a flight, never an exam). Progress lives on the phone
  * (localStorage sg.<kid>.<form>, a convenience only: the engine's own store keeps every answer). ES5, no build.
  */
 (function (W) {
@@ -20,38 +21,38 @@
 
   var T = {
     en: {
-      map: 'Cross the three islands, then climb the Big Tower!',
-      ma: 'Numbers Island', en: 'English Island', ur: 'Urdu Island', tower: 'The Big Tower',
-      go: "Let's go", start: 'Start', back: 'Back', toMap: 'Back to the map', next: 'Next island', climb: 'Climb the tower',
-      locked: 'Cross all three islands to open the tower.',
-      stones: function (n) { return n + ' stones on this island. Practice first, then play.'; },
-      towerSay: function (n) { return 'The Big Tower: all ' + n + ' stones, one after another.'; },
+      map: 'Cross the three islands, then take the Big flight!',
+      maths: 'Numbers Island', english: 'English Island', urdu: 'Urdu Island', tower: 'Big flight',
+      go: "Let's go", start: 'Start', back: 'Back', toMap: 'Back to the map', next: 'Next island', climb: 'Take the Big flight',
+      locked: 'Cross all three islands first, then the Big flight opens.',
+      stones: function (n) { return n + ' stones on this island. Try a few first, then play.'; },
+      towerSay: function (n) { return 'The Big flight: all ' + n + ' stones, one after another.'; },
       timed: 'On a ⏱ stone, Jugnu\'s light lasts one minute. Do as many as you can.',
-      crossed: function (s) { return s + ': crossed!'; }, towerDone: 'The Big Tower is yours!',
+      crossed: function (s) { return s + ': crossed!'; }, towerDone: 'Big flight: done!',
       finished: 'Finished', notYet: 'Not yet',
       star1: 'You finished every stone', star2: 'You did the practice', star3: 'You kept going to the end',
       notReady: 'This is still getting ready. Come back soon.', mute: 'Sound off', unmute: 'Sound on',
       saved: 'Saved on this phone',
     },
     ur: {
-      map: 'تینوں جزیرے پار کریں، پھر بڑے مینار پر چڑھیں!',
-      ma: 'گنتی کا جزیرہ', en: 'انگریزی کا جزیرہ', ur: 'اردو کا جزیرہ', tower: 'بڑا مینار',
-      go: 'چلیں', start: 'شروع کریں', back: 'واپس', toMap: 'نقشے پر واپس', next: 'اگلا جزیرہ', climb: 'مینار پر چڑھیں',
-      locked: 'مینار کھولنے کے لیے پہلے تینوں جزیرے پار کریں۔',
+      map: 'تینوں جزیرے پار کریں، پھر بڑی اڑان بھریں!',
+      maths: 'گنتی کا جزیرہ', english: 'انگریزی کا جزیرہ', urdu: 'اردو کا جزیرہ', tower: 'بڑی اڑان',
+      go: 'چلیں', start: 'شروع کریں', back: 'واپس', toMap: 'نقشے پر واپس', next: 'اگلا جزیرہ', climb: 'بڑی اڑان بھریں',
+      locked: 'بڑی اڑان کے لیے پہلے تینوں جزیرے پار کریں۔',
       stones: function (n) { return 'اس جزیرے پر ' + ud(n) + ' پتھر ہیں۔ پہلے مشق، پھر کھیل۔'; },
-      towerSay: function (n) { return 'بڑا مینار: سارے ' + ud(n) + ' پتھر، ایک کے بعد ایک۔'; },
+      towerSay: function (n) { return 'بڑی اڑان: سارے ' + ud(n) + ' پتھر، ایک کے بعد ایک۔'; },
       timed: '⏱ والے پتھر پر جگنو کی روشنی ایک منٹ چلتی ہے۔ جتنا ہو سکے، کریں۔',
-      crossed: function (s) { return s + ' پار!'; }, towerDone: 'بڑا مینار سر ہو گیا!',
+      crossed: function (s) { return s + ' پار!'; }, towerDone: 'بڑی اڑان پوری!',
       finished: 'پورا کیا', notYet: 'ابھی نہیں',
       star1: 'آپ نے ہر پتھر پورا کیا', star2: 'آپ نے مشق کی', star3: 'آپ نے آخر تک کوشش جاری رکھی',
       notReady: 'یہ ابھی تیار ہو رہا ہے۔ تھوڑی دیر بعد دوبارہ آئیں۔', mute: 'آواز بند', unmute: 'آواز چالو',
       saved: 'اس فون پر محفوظ',
     },
   }[L];
-  var ISLANDS = ['ma', 'en', 'ur'];
-  var ICON = { ma: '1 2 3', en: 'A b c', ur: 'ا ب پ' };
+  var ISLANDS = ['maths', 'english', 'urdu'];
+  var ICON = { maths: '1 2 3', english: 'A b c', urdu: 'ا ب پ' };
   // where each island sits on the 360-wide map (percent of the map box), and Jugnu beside it
-  var AT = { ma: [8, 66], en: [52, 46], ur: [10, 30], tower: [50, 0] };
+  var AT = { maths: [8, 66], english: [52, 46], urdu: [10, 30], tower: [50, 0] };
 
   function ud(n) { return String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.charAt(+d); }); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -81,16 +82,40 @@
     css('/sa/sa.css');
     var eng = Promise.all((boot.engine || []).map(script));
     var bank = fetch(boot.bank, { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
-    ready = Promise.all([eng, bank]).then(function (a) { battery = a[1] && Array.isArray(a[1].tasks) ? a[1] : null; return battery; });
+    ready = Promise.all([eng, bank]).then(function (a) { battery = asBattery(a[1]); return battery; });
     return ready;
   }
 
-  function subjectOf(t) { var id = String(t.id || ''); return id.indexOf('ma.') === 0 ? 'ma' : id.indexOf('en.') === 0 ? 'en' : id.indexOf('ur.') === 0 ? 'ur' : null; }
-  function tasksOf(where) { return battery ? battery.tasks.filter(function (t) { return where === 'tower' || subjectOf(t) === where; }) : []; }
+  // The file in either of the item set's shapes: a battery ({battery_id, tasks: [...]}) as it is, or a bank
+  // ({forms: {<form>: {order, islands, tower}}, tasks: {"<form>/<task>": …}}) read into one for this form.
+  function asBattery(f) {
+    if (f && Array.isArray(f.tasks)) return f.tasks.length ? f : null;
+    var form = f && f.forms && f.forms[boot.form];
+    if (!form || !f.tasks) return null;
+    var tasks = (form.order || []).map(function (id) { var t = f.tasks[boot.form + '/' + id]; if (!t) return null; var o = {}; for (var k in t) if (Object.prototype.hasOwnProperty.call(t, k)) o[k] = t[k]; o.id = t.id || id; return o; }).filter(Boolean);
+    return tasks.length ? { battery_id: boot.form + '.' + L, version: f.version, form: boot.form, lang: L, lines: f.lines, islands: form.islands, tower: form.tower, tasks: tasks } : null;
+  }
+
+  // the form's battery (the engine's own file): an island is its `islands.<subject>` list when the file names one, else
+  // the subject's tasks by id (ma. / en. / ur.); the flight is the `tower` list, else every task in the file's order
+  var PREFIX = { maths: 'ma.', english: 'en.', urdu: 'ur.' };
+  function idsOf(where) {
+    var all = battery.tasks.map(function (t) { return t.id; });
+    if (where === 'tower') return Array.isArray(battery.tower) ? battery.tower : all;
+    if (battery.islands && Array.isArray(battery.islands[where])) return battery.islands[where];
+    return all.filter(function (id) { return String(id).indexOf(PREFIX[where]) === 0; });
+  }
+  function byId(id) { for (var i = 0; i < battery.tasks.length; i++) if (battery.tasks[i].id === id) return battery.tasks[i]; return null; }
+  function timedOf(t) { return Boolean(t.timed_s || (t.tap && t.tap.time_limit_s) || (t.record && t.record.time_limit_s)); }
+  function tasksOf(where) {
+    if (!battery) return [];
+    return idsOf(where).map(byId).filter(Boolean).map(function (t) { return { id: t.id, title: t.title, timed: timedOf(t) }; });
+  }
+  // the engine runs a battery: this part's is the file with its tasks narrowed to the part's, in the part's order
   function partOf(where) {
     var b = {}; for (var k in battery) if (Object.prototype.hasOwnProperty.call(battery, k)) b[k] = battery[k];
     b.battery_id = battery.battery_id + '.' + where;
-    b.tasks = tasksOf(where);
+    b.tasks = idsOf(where).map(byId).filter(Boolean);
     return b;
   }
 
@@ -113,7 +138,7 @@
     var isl = ISLANDS.map(function (k) {
       var p = AT[k];
       return '<button class="sg-isl' + (prog.done[k] ? ' is-done' : '') + (k === nx ? ' is-next' : '') + '" style="left:' + p[0] + '%;top:' + p[1] + '%" data-tap="island" data-k="' + k + '">' +
-        '<i' + (k === 'ur' ? ' dir="rtl" style="font-family:var(--fu)"' : ' dir="ltr"') + '>' + esc(ICON[k]) + '</i><span>' + esc(T[k]) + '</span></button>';
+        '<i' + (k === 'urdu' ? ' dir="rtl" style="font-family:var(--fu)"' : ' dir="ltr"') + '>' + esc(ICON[k]) + '</i><span>' + esc(T[k]) + '</span></button>';
     }).join('');
     var open = allIslands();
     var tw = '<button class="sg-tower' + (open ? ' is-open' : '') + '" data-tap="island" data-k="tower"><div class="sg-tw">' + (prog.done.tower ? '⭐' : open ? '✨' : '🔒') + '</div><span>' + esc(T.tower) + '</span></button>';
@@ -129,7 +154,7 @@
   function stonesHtml(tasks, now, done) {
     return '<div class="sg-stones">' + tasks.map(function (t, i) {
       var cls = done && done[t.id] ? ' is-done' : i === now ? ' is-now' : '';
-      return '<div class="sg-stone' + cls + '">' + (t.timed_s ? '<b>⏱</b>' : '') + esc(title(t)) + '</div>';
+      return '<div class="sg-stone' + cls + '">' + (t.timed ? '<b>⏱</b>' : '') + esc(title(t)) + '</div>';
     }).join('') + '</div>';
   }
   function intro(k) {
@@ -146,7 +171,7 @@
       var tasks = tasksOf(k);
       show(top(T[k], 'map') + '<div style="display:flex;gap:8px;align-items:flex-end;padding:0 16px"><img src="/wq/jugnu/idle.webp" alt="" width="80" class="sg-bob"><div class="sg-say" style="flex:1;margin:0">' +
         esc(k === 'tower' ? T.towerSay(tasks.length) : T.stones(tasks.length)) + '</div></div>' + stonesHtml(tasks, 0, null) +
-        (tasks.some(function (t) { return t.timed_s; }) ? '<p class="sg-note">' + esc(T.timed) + '</p>' : '') +
+        (tasks.some(function (t) { return t.timed; }) ? '<p class="sg-note">' + esc(T.timed) + '</p>' : '') +
         '<div class="sg-grow"></div><button class="sg-btn" data-tap="run" data-k="' + k + '">' + esc(T.start) + '</button>');
     });
   }
@@ -156,7 +181,9 @@
   var glow = null;
   function setGlow(v) {
     if (!glow) return;
-    var lim = v && v.phase === 'running' && v.task && v.task.timed_s ? v.task.timed_s * 1000 : 0;
+    var t = v && v.phase === 'running' ? v.task : null;
+    var s = t ? (t.timed_s || t.time_limit_s || (t.tap && t.tap.time_limit_s) || (t.record && t.record.time_limit_s)) : 0;
+    var lim = v && v.time_limit_ms ? v.time_limit_ms : s ? s * 1000 : 0;
     if (!lim || v.time_left_ms == null) { glow.className = 'sg-glow'; return; }
     glow.className = 'sg-glow is-on';
     glow.style.setProperty('--glow', String(Math.max(0, Math.min(1, v.time_left_ms / lim))));

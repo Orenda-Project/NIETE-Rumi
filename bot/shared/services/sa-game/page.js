@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Who the Big Test is for (switch sa_game, default OFF): the child a hub token and chip name on this phone, the same
+ * Who the big flight is for (switch sa_game, default OFF): the child a hub token and chip name on this phone, the same
  * check the games door makes (web-quiz-hub kidFromHub: a forwarded link opens nothing).
  *
  *   info({ token, kid, device, lang })  → { status: 404 } off | { status: 401 } no child | { status: 200, body }
