@@ -993,6 +993,8 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
   # ONE chapter of one training video from this lesson's transcript + analysis; the surfaces show it.
   # Units: tests/coaching/video-reco/{send,report-generator.video-reco-send,report-image-strip,card-image}.test.js,
   # tests/portal/{video-reco-routes,coaching-report-page.video}.test.js.
+  # The /cr card and the /v player are dashboard routes (portal service): sign-in is never involved, the
+  # token in the link is the credential (video-reco/link-token.js, 120 days, ids only).
   @e2e @wip @draft @config-gated @P1 @COA90
   Scenario: With the clip on, the report is followed by ONE "watch this" message with a video card
     Given VIDEO_RECO_ENABLED is on for the NIETE sandbox bot
