@@ -54,6 +54,8 @@ const LessonClaim = require('../quiz/lp-lesson-claim');
 const QuizMenuFlags = require('../quiz/quiz-menu-flags');
 const FeatureIntro = require('../feature-intro.service');
 const { mergeWithinCap, FIELD_CAPS } = require('../../utils/merge-within-cap');
+const WindowClosedTemplate = require('./window-closed-template');
+const { signPortalLink } = require('../portal-link-token');
 
 /** The `teacher_nudges.kind` this module owns. */
 const KIND = 'lp_quiz_offer';
@@ -97,6 +99,9 @@ const SKIP_REASONS_USED = [
   'offered_today',
   'sent_today',
   'window_closed',
+  // At send time only: the window was closed and app_settings.lp_quiz_offer_window_template
+  // named a template, so the template went (or was dry-run) instead (window-closed-template.js).
+  'window_closed_template',
   // At send time only: a cohort built late (the worker was down at 15:00, or the
   // switch went on in the evening) is due the moment it exists.
   'quiet_hours',
@@ -802,7 +807,7 @@ async function sendTimeFacts(row, user, at) {
  * @throws when the teacher is gone or WhatsApp refuses — the sweeper marks the
  *   row failed, which is a defect to look at, never a quiet success.
  */
-async function send(row, { now } = {}) {
+async function send(row, { now, windowTemplate = WindowClosedTemplate } = {}) {
   const at = now ? new Date(now) : new Date();
   const skip = (reason) => {
     logEvent('lp_quiz.offer_skipped', { nudgeId: row.id, userId: row.user_id, reason, at: 'send' });
@@ -823,6 +828,11 @@ async function send(row, { now } = {}) {
   const reason = preChecks({
     isSchoolDay: true, sectorAllowed: true, lessonCount, ...(await sendTimeFacts(row, user, at)),
   });
+  if (reason === 'window_closed' && await windowTemplate.templateName()) {
+    const res = await windowTemplate.sendWindowClosedTemplate({ user, link: signPortalLink(user.id, 'lessons') });
+    logEvent('lp_quiz.offer_skipped', { nudgeId: row.id, userId: row.user_id, reason: 'window_closed_template', at: 'send', ...res });
+    return { skipped: 'window_closed_template', context: res };
+  }
   if (reason) return skip(reason);
 
   const language = teacherLanguageFor({ preferredLanguage: user.preferred_language });

@@ -81,6 +81,9 @@ const SKIP_REASONS = Object.freeze([
   'in_progress_coaching',
   // The Meta template is not approved (or was paused); never sent as free text (bd-v0toag.32).
   'template_not_approved',
+  // The LP quiz offer's window was closed, so the window template went instead (or was
+  // dry-run); context.sent says whether Meta took it (nudges/window-closed-template.js).
+  'window_closed_template',
 ]);
 
 /** What a teacher can have answered. `class:<key>` is the list-row pick. */

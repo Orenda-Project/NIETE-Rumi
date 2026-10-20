@@ -26,3 +26,17 @@ These four files are the WhatsApp **utility** templates for the teacher app's "r
 4. Count first: expected sends = portal papers and 6-12 plans per day × the share neither seen nor opened within ~30 s; each is billed
    by Meta per message (check the current utility rate, and whether a send inside an open 24 h window is free).
 5. To stop: set `portal_ready_whatsapp_enabled` to `false`. An item already claimed is never messaged twice, even after a re-enable.
+
+## `teacher_quiz_reminder_v1` (en_US, ur) — the afternoon quiz offer when the 24-hour window is closed
+
+A teacher who has not written to the bot in a day cannot get the 15:00 quiz offer's reply buttons, so today that
+teacher is skipped (`window_closed`). This UTILITY template is the one message that can still reach them: no header, a
+fixed body with no variables ("Today's lesson quiz for your class is ready on your NIETE portal. Tap the button to open
+it."), the footer "Reply STOP to stop reminders", and one URL button ("Open quiz" / «کوئز کھولیں») on
+`https://portal.niete.edu.pk/t/{{1}}`, where `{{1}}` is a signed portal link token (area `lessons`). The English is
+drafted under `en_US`, the code `bot/shared/services/nudges/window-closed-template.js` sends it with; Urdu under `ur`.
+Measured in code points: body 92 (en) / 86 (ur) of 1024, footer 28 / 36 of 60, button 9 / 11 of 20 — held by
+`tests/quiz/lp-quiz-offer-window-template.test.js`. It is used only when `app_settings.lp_quiz_offer_window_template`
+names it (absent = off, the skip exactly as before); `LP_QUIZ_OFFER_TEMPLATE_DRY_RUN=1` on the worker logs what would be
+sent instead of calling Meta. At most one billed message per teacher per day (one offer row per teacher per day).
+**Not submitted to any WABA**: submitting it, and switching it on, needs the operator's explicit go.
