@@ -3,7 +3,7 @@
 /**
  * Builds the self-administered (SA) battery bank (item-bank.sa.v1.json) from the official banks. Nothing here is
  * test content: every scored item, practice item and tap choice is read out of item-bank.v3.json (Set A: RWP May
- * 2026, EGRA Toolkit 2016/2009, Core EGMA, Sindh SELECT) or item-bank.v4.json (the grade-1 ten-frame block), and each
+ * 2026, EGRA Toolkit 2016/2009, Core EGMA, Sindh SELECT) (the v4 bank is read for its version only), and each
  * item carries the bank path it came from (`src`). This file only decides the SA shape: forms, response modes, the
  * stop rules in the engine's terms, tap choices and Jugnu's lines (sa/scripts.js).
  *
@@ -22,11 +22,12 @@ const CHOICES_N = 4;
 
 // The forms. Coach: Grades 3 and 5, the term's set (draw/term-set.js). Game: the Challenge's grade bands
 // (web-quiz-challenge-draw.js gradeBand: 2-3 → G3 form, 4-5 → G5 form) plus grade 1, which reads the same EGRA forms
-// (one reading form for every grade, as RWP) and Core EGMA (written for Grades 1-3), led by the v4 ten-frame block.
+// (the May RWP instrument was one form for Grades 1-5) and Core EGMA (written for Grades 1-3). The v4 grade-1 ten-frame
+// block is not used: it has no official source.
 const FORMS = [
   { form: 'coach.G3.A', surface: 'coach', grades: [3], maths: '3' },
   { form: 'coach.G5.A', surface: 'coach', grades: [5], maths: '5' },
-  { form: 'game.G1', surface: 'game', grades: [1], maths: '3', g1: true },
+  { form: 'game.G1', surface: 'game', grades: [1], maths: '3' },
   { form: 'game.G23', surface: 'game', grades: [2, 3], maths: '3' },
   { form: 'game.G45', surface: 'game', grades: [4, 5], maths: '5' },
 ];
@@ -42,7 +43,7 @@ const MODES = {
 const SUBTASK = {
   listening: 'listening_comprehension', letters: 'letter_name_identification', nonwords: 'nonword_reading',
   words: 'familiar_word_reading', story: 'oral_reading_fluency', story_comp: 'reading_comprehension',
-  number_id: 'number_identification', number_id_g1: 'number_identification', discrimination: 'quantity_discrimination',
+  number_id: 'number_identification', discrimination: 'quantity_discrimination',
   missing: 'missing_number', add1: 'addition_level_1', sub1: 'subtraction_level_1', add2: 'addition_level_2',
   sub2: 'subtraction_level_2', word_problems: 'word_problems',
 };
@@ -236,31 +237,13 @@ function mathsTask({ kind, spec, grade, surface }) {
   };
 }
 
-function g1NumberIdTask(v4) {
-  const block = v4.anchor_blocks.G1A;
-  const lines = LINES['ma.number_id_g1'];
-  const items = block.items.map((it, i) => ({ id: it.item_id, label: null, dots: { n: it.params.n, layout: it.params.layout }, answer: it.params.n, choices: it.params.tiles, src: `v4:anchor_blocks.G1A.items[${i}].params.n` }));
-  const practiceSrc = v4.practice_items['numid.practice'].items.slice(0, 2);
-  const practice = practiceSrc.map((it, i) => ({ id: it.item_id, dots: { n: it.params.n, layout: it.params.layout }, answer: it.params.n, choices: it.params.tiles,
-    feedback: { right: spoken(fill(lines.right, { en: String(it.params.n), ur: toUrDigits(it.params.n) })), wrong: spoken(fill(lines.wrong, { en: String(it.params.n), ur: toUrDigits(it.params.n) })) },
-    src: `v4:practice_items.numid.practice.items[${i}]` }));
-  const script = scriptOf('ma.number_id_g1', 'tap');
-  return {
-    id: 'ma.number_id_g1', legacy_block: null, family: 'egma', subtask: SUBTASK.number_id_g1, lang: null, title: { en: 'How many?', ur: 'کتنے ہیں؟' },
-    kind: 'choice', mode: 'tap', timed_s: null, stop: {}, scoring: { unit: 'correct_of_attempted', tap: 'choice === answer' },
-    instruction: instructionOf(script, 'tap'), script, practice, items,
-    source: { items: 'v4:anchor_blocks.G1A', serve: block.serve, sa_choices: 'the block\'s own tiles (tiles_rule)' },
-  };
-}
-
 // ---------------------------------------------------------------------------------------------- batteries
-function battery({ form, surface, grades, maths, g1 }, lang, v3, v4) {
+function battery({ form, surface, grades, maths }, lang, v3) {
   const set = v3.sets[SET];
   const tasks = [];
   for (const tid of TASKS_V3) {
     const [fam, kind] = tid.split('.');
     if (fam === 'ma') {
-      if (kind === 'number_id' && g1) tasks.push(g1NumberIdTask(v4));
       const spec = set.maths[maths][kind];
       const t = mathsTask({ kind, spec, grade: maths, surface });
       if (['add2', 'sub2'].includes(kind) && set.maths[maths].skip_level2_if_level1_zero) t.depends_on = { task: `ma.${kind.slice(0, 3)}1`, skip_if_zero: true };
@@ -282,7 +265,7 @@ function battery({ form, surface, grades, maths, g1 }, lang, v3, v4) {
 function buildSaBank({ v3, v4 }) {
   const batteries = {};
   for (const f of FORMS) for (const lang of ['ur', 'en']) {
-    const b = battery(f, lang, v3, v4);
+    const b = battery(f, lang, v3);
     batteries[b.battery_id] = b;
   }
   return {

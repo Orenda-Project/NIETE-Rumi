@@ -116,12 +116,6 @@ const TASKS = {
       'v3:sets.A.maths.3.number_id.script.intro (tap adaptation)'),
     item: L('{x}', '{x}', 'the number'),
   },
-  'ma.number_id_g1': {
-    intro_record: L('How many dots? Tap the number.', 'کتنے نقطے ہیں؟ نمبر دبائیں۔', 'v4:anchor_blocks.G1A.serve'),
-    intro_tap: L('How many dots? Tap the number.', 'کتنے نقطے ہیں؟ نمبر دبائیں۔', 'v4:anchor_blocks.G1A.serve'),
-    right: L('Yes! There are {x}.', 'شاباش! یہ {x} ہیں۔', 'v4:numid.practice'),
-    wrong: L('There are {x}.', 'یہ {x} ہیں۔', 'v4:numid.practice'),
-  },
   'ma.discrimination': {
     intro_record: L('Look at the two numbers. Which number is bigger? Say it out loud.', 'ان دو نمبروں کو دیکھیں۔ کون سا نمبر بڑا ہے؟ اونچی آواز میں بتائیں۔',
       'v3:sets.A.maths.3.discrimination.script.item'),
