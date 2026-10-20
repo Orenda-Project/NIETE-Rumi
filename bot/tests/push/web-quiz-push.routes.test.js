@@ -68,7 +68,7 @@ test('without the internal key: 401', async () => {
 
 test('on: state, key, subscribe (device from x-wq-device), test off, unsubscribe, e', async () => {
   settings({ web_quiz_push_remind: true });
-  expect(await (await call('GET', '/state')).json()).toEqual({ remind: true, test: false });
+  expect(await (await call('GET', '/state')).json()).toEqual({ remind: true, test: false, portal: false });
   expect(await (await call('GET', '/key')).json()).toEqual({ key: 'BPubKey' });
   const s = await call('POST', '/subscribe', { sub: SUB, code: 'ABC123', lang: 'en', chips: 1 }, { 'x-wq-device': 'AAAAAAAAAAAAAAAAAAAAAA', 'user-agent': 'Mozilla/5.0 (Linux; Android 14) Chrome/130' });
   expect([s.status, await s.json()]).toEqual([200, { ok: 1 }]);
@@ -91,6 +91,14 @@ test('on: state, key, subscribe (device from x-wq-device), test off, unsubscribe
   expect(fake.db.web_quiz_push_subscriptions[0].revoked_by).toBe('page');
   expect((await call('POST', '/e', { step: 'shown' })).status).toBe(200);
   expect((await call('POST', '/e', { step: 'nope' })).status).toBe(400);
+});
+
+test('state says portal:true only while portal_push_remind is on too; /portal/* 404 without it', async () => {
+  settings({ web_quiz_push_remind: true, portal_push_remind: true, web_quiz_push_test: true });
+  expect(await (await call('GET', '/state')).json()).toEqual({ remind: true, test: true, portal: true });
+  settings({ web_quiz_push_remind: true, web_quiz_push_test: true });
+  expect(await (await call('GET', '/state')).json()).toEqual({ remind: true, test: true, portal: false });
+  expect((await call('POST', '/portal/subscribe', { sub: SUB, lang: 'en' })).status).toBe(404);
 });
 
 test('the finish field rides the hub switches\' cache: {} cold, off, or without env; {push_remind:true} on', async () => {
