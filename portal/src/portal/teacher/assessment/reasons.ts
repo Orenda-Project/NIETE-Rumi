@@ -10,12 +10,11 @@ export function whyText(w: Why, C: AssessmentV2Copy): string {
     case 'class': return C.why.class;
     case 'chapters': return C.why.chapters;
     case 'ranges': return C.why.ranges;
+    case 'none': return C.why.none;
     case 'count': return C.why.count(w.max);
-    case 'seen': return C.why.seen(w.count);
-    case 'typesNone': return C.why.typesNone;
-    case 'typesUnder': return C.join(C.why.totalOf(w.total, w.target), C.why.under(w.target - w.total));
-    case 'typesOver': return C.join(C.why.totalOf(w.total, w.target), C.why.over(w.total - w.target));
+    case 'typesMax': return C.why.typesMax(w.max);
     case 'marks': return C.why.marks(w.max);
+    case 'marksLow': return C.why.marksLow(w.total);
     case 'earlier': return C.why.earlier(C.steps[w.step]);
     case 'generating': return C.why.generating;
     case 'scopeOrFde': return C.why.scopeOrFde;
