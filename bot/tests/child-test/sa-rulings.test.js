@@ -52,6 +52,22 @@ describe('SA bank: RULINGs #13, #16, #17', () => {
     expect(task(b, 'ma.word_problems').say_on).toBeUndefined();
   });
 
+  test('lead 181537: patterns stop after 4 consecutive errors; the SA time rules are data on every phone-scored task', () => {
+    for (const f of ['sa.coach.G3.A.ur.json', 'sa.coach.G5.A.en.json', 'sa.game.G1.ur.json', 'sa.game.G45.en.json']) {
+      const b = runtime(f);
+      for (const id of ['ma.patterns', 'ma.patterns_hi']) expect([f, id, task(b, id).stop]).toEqual([f, id, { consecutive_errors: 4 }]);
+      for (const t of b.tasks.filter((x) => ['tap', 'keypad', 'keyboard'].includes(x.response))) {
+        if (t.time_limit_s) {
+          expect([f, t.id, t.replay_at_s, t.item_timeout_s]).toEqual([f, t.id, 5, 10]);
+        } else {
+          expect([f, t.id, t.next_at_s]).toEqual([f, t.id, 15]);
+          const cap = /^ma\.word_problems/.test(t.id) ? 60 : null;
+          expect([f, t.id, t.item_timeout_s]).toEqual([f, t.id, cap]);
+        }
+      }
+    }
+  });
+
   test('E15: the spelling task is en.spelling (keyboard), letter-level partial credit, the TK2009 rubric kept', () => {
     const t = bank.tasks['game.G23/en.spelling'];
     expect(t.subtask).toBe('spelling');
