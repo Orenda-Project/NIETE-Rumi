@@ -27,7 +27,7 @@ function thumbData(p) {
   }
 }
 
-/** vm = { thumbPath, title, durationS, language } → HTML for htmlToImage (selector '.vcard'). No level badge (lead ruling 18:38Z). */
+/** vm = { thumbPath, title, durationS, language } → HTML for htmlToImage (selector '.vcard'). No level badge: to a teacher who finished the ladder it read as "you are a beginner". */
 function buildVideoCardHtml(vm = {}) {
   const ur = copy.dirOf(vm.language) === 'rtl';
   const T = (s) => (ur ? wrapLatinRuns(esc(s), { token: "[A-Za-z0-9'’.\\-]", requireLetter: true }) : esc(s));
