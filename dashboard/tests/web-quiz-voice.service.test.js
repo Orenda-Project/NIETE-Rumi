@@ -280,3 +280,17 @@ test('gap slow on: a slow clip that starts at 4 s plays as recorded, never talke
   expect(utts).toEqual([]);
   expect(h.clips[0].paused).toBe(false);
 });
+
+test('gap slow on: a refused play() names its error in the fallback event (which rejects a phone gives); off, the event is today\'s', async () => {
+  const run = async (slow) => {
+    const h = harness();
+    h.ctx.ONE_VOICE = true; h.ctx.GAP_PHONE = true; h.ctx.GAP_SLOW = slow;
+    h.ctx.speechSynthesis = { speak: () => {}, cancel: () => {}, getVoices: () => [] };
+    h.ctx.speak('Read me', 'https://media.example/q.ogg', null);
+    h.clips[0].rejectPlay(Object.assign(new Error('no gesture'), { name: 'NotAllowedError' }));
+    await flush();
+    return h.events.filter((e) => e.name === 'audio_fallback').map((e) => e.data);
+  };
+  expect(await run(true)).toEqual([{ reason: 'reject', err: 'notallowederror' }]);
+  expect(await run(false)).toEqual([{ reason: 'reject' }]);
+});
