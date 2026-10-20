@@ -33,28 +33,38 @@ function itemsOf(examJson, slotId) {
   return out;
 }
 
+// A slot prints an item's `topics` only when its prompt rule names the field — the renderer's own
+// rule (English Q8).
+const printsTopics = (slot) => {
+  const rule = typeof slot.prompt_rule === 'string' ? slot.prompt_rule : '';
+  return rule.includes('`topics`') && !rule.includes('no `topics`');
+};
+
 // label → the object whose `question` prints, in paper order: Q2b.1 is the second slot's first
-// item, Q2b.1.c its third sub-question.
+// item, Q2b.1.c its third sub-question. `withTopics` holds the items whose topics print.
 function targetsOf(examJson, P) {
   const targets = new Map();
+  const withTopics = new Set();
   for (const section of P.sections || []) {
     for (const slot of section.slots || []) {
       const head = String(slot.slot).split('.').pop();
       itemsOf(examJson, slot.slot).forEach((q, i) => {
         const label = `${head}.${i + 1}`;
         targets.set(label, q);
+        if (printsTopics(slot)) withTopics.add(q);
         (Array.isArray(q.questions) ? q.questions : []).forEach((s, j) => {
           if (s && typeof s === 'object') targets.set(`${label}.${LETTERS[j] || j + 1}`, s);
         });
       });
     }
   }
+  targets.withTopics = withTopics;
   return targets;
 }
 
 const pointText = (p) => strip(p && typeof p === 'object' ? p.text || p.point || '' : p);
 
-function entryOf(label, q) {
+function entryOf(label, q, topics) {
   const lines = [`${label} ${strip(q.question)}`];
   const add = (name, t) => { const s = strip(t); if (s) lines.push(`   ${name}: ${s}`); };
   if (typeof q.passage === 'string') add('passage', q.passage);
@@ -68,6 +78,9 @@ function entryOf(label, q) {
     const rows = [q.table.headers, ...(Array.isArray(q.table.rows) ? q.table.rows : [])].filter(Array.isArray);
     add('table', rows.map((r) => r.map(strip).join(' | ')).join(' / '));
   }
+  // Topics print under their question as (a) (b) (c) (bd-5jmnfj.28: English Q8 was reworded to list
+  // them, and printed them twice).
+  if (topics && Array.isArray(q.topics)) add('topics', q.topics.filter((t) => typeof t === 'string').map((t, j) => `(${LETTERS[j]}) ${strip(t)}`).join(' | '));
   if (Array.isArray(q.options)) add('options', q.options.filter((o) => typeof o === 'string').join(' | '));
   if (Array.isArray(q.words)) add('words', q.words.filter((w) => typeof w === 'string').join(', '));
   if (typeof q.answer === 'string') add('answer', q.answer);
@@ -79,9 +92,9 @@ function entryOf(label, q) {
 
 function buildStemCheckPrompt(examJson, P) {
   const targets = targetsOf(examJson, P);
-  const body = [...targets].map(([label, q]) => entryOf(label, q)).join('\n\n');
+  const body = [...targets].map(([label, q]) => entryOf(label, q, targets.withTopics.has(q))).join('\n\n');
   const prompt = `STEM CHECK: Grade 5 board question paper.
-Below is every printed question, each with the answer and marking the teacher holds. A label like Q2b.1 is an item; Q2b.1.c is its sub-question (c), which is read with the item's situation above it. "parts:" are printed under their question as i), ii)…, so a question that says "the following" has its list there. "table:" is printed under its question (rows split by /), so a question that says "the table shows" has its data there.
+Below is every printed question, each with the answer and marking the teacher holds. A label like Q2b.1 is an item; Q2b.1.c is its sub-question (c), which is read with the item's situation above it. "parts:" are printed under their question as i), ii)…, so a question that says "the following" has its list there. "table:" is printed under its question (rows split by /), so a question that says "the table shows" has its data there. "topics:" are printed under their question as (a), (b), (c) for the child to choose from, so a question that says "any one topic" has its topics there.
 
 Flag a question ONLY when one of these is true:
 1. Its wording contradicts itself or is garbled, so a child cannot tell what is being asked (two questions run together, a "but" that joins things that do not clash, a half sentence).
