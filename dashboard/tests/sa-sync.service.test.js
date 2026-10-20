@@ -80,3 +80,22 @@ test('a partial acknowledgement keeps the rest pending', async () => {
   await q.flush();
   expect((await s.pending('x')).events.map((e) => e.seq)).toEqual([3]);
 });
+
+test('a refused event batch does not hold back the recordings; one failed upload does not hold back the next', async () => {
+  const s = await storeMod.open({ idb: null });
+  await s.appendEvent({ session_id: 'y', seq: 1, type: 'tap' });
+  await s.putChunk('y', 'a.story', 0, 'AA', { mime: 'audio/webm' });
+  await s.putChunk('y', 'a.story', 1, null, { final: true, duration_ms: 1000 });
+  await s.putChunk('y', 'b.comp/q1', 0, 'BB', { mime: 'audio/webm' });
+  await s.putChunk('y', 'b.comp/q1', 1, null, { final: true, duration_ms: 1000 });
+  const put = [];
+  const sink = {
+    putBatch: async () => ({ ok: false }),
+    presignAudio: async (a) => (a.task_id === 'a.story' ? null : { url: 'u/' + a.task_id, key: 'k/' + a.task_id }),
+    registerAudio: async (a) => { put.push(['register', a.task_id]); return {}; },
+  };
+  const q = sync.create({ store: s, sink, session_id: 'y', online: () => true, timers: fakeTimers(), put: async (u) => { put.push(['put', u]); }, join: (c) => c.map((x) => x.blob).join('') });
+  expect((await q.flush()).state).toBe('error');
+  expect(put).toEqual([['put', 'u/b.comp/q1'], ['register', 'b.comp/q1']]);
+  expect((await s.pending('y')).events).toHaveLength(1); // the batch is still pending, retried later
+});
