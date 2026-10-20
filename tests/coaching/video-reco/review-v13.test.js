@@ -3,6 +3,8 @@
  * bd-gzfdu9 — the #3313 review deviations (lead-review 19:13Z, review_3313.md) and the validator rulings
  * (lead-review 19:14Z, SPEC §3.5 [v1.3, evals 19:13Z]) folded into the v1.3 PR. One test per item.
  */
+// v1.3c-4 stub floor: six words no fixture chapter carries, so a card clears the 6-word floor and BM25 is unchanged.
+const PAD = ' zephyr quokka marimba origami lantern walrus';
 const fs = require('fs');
 const path = require('path');
 const S = require('../../../bot/shared/services/coaching/video-reco/shortlist');
@@ -169,7 +171,7 @@ test('V1.7.1 carries the click-by-device uniqueness (EVENTS_SCHEMA v1.1 §3a) an
 describe('⛔4 on the native-37 LABEL path (lead-review 19:37Z ruling 1)', () => {
   const native = copy((d) => { seg(d, '22-s1').fico_main37 = ['F5']; mod(d, 22).subjects = ['general']; });
   const F5n = tgt('F5', { native37: true, scheme: 'fico_main_37', storedIndicator: 'F5', aliasKind: 'native37' });
-  const step = { action: 'wait pause silence', tryTomorrow: '', thingToTry: '', name: '' };
+  const step = { action: 'wait pause silence' + PAD, tryTomorrow: '', thingToTry: '', name: '' };
   test('F5 on a maths lesson: the tag route runs', () => {
     const r = S.build(native, F5n, ctx(), 'x', L({ subject: 'maths' }), step);
     expect(r.textReason).toBe('label');
@@ -271,11 +273,11 @@ describe('vr-3 last copy rules (lead-review 19:40Z) and red-team session 2 (lead
     const cat = copy((d) => { seg(d, '22-s1').fico_main37 = ['F5']; });
     const t = T.pick(a37({ id: 'F5', score: null, applicable: false, evidence: 'Not applicable — lesson subject is URDU' }), { target: { indicator: 'F5' } }, null, cat);
     expect(t).toMatchObject({ none: 'unscored_step', aliasKind: 'unscored', storedIndicator: 'F5' });
-    const r = S.build(cat, t, ctx(), 'x', L({ subject: 'maths' }), { action: 'wait pause silence' });
+    const r = S.build(cat, t, ctx(), 'x', L({ subject: 'maths' }), { action: 'wait pause silence' + PAD });
     expect(r.textReason).toBe('unscored');
     expect(ids(r)).not.toContain('22-s1');
     expect(new Set(r.candidates.map((c) => c.route))).toEqual(new Set(['step_text']));
-    expect(S.build(cat, t, ctx(), 'x', L({ subject: 'maths' }), { action: 'zzz' }).noneReason).toBe('unscored_step');
+    expect(S.build(cat, t, ctx(), 'x', L({ subject: 'maths' }), { action: 'zzz' + PAD }).noneReason).toBe('unscored_step');
   });
   test('topRung divides domain_max by the SCORED rows only', () => {
     const rows = [{ id: 'F1', score: 2, applicable: true }, { id: 'F2', score: 4, applicable: true }, { id: 'F5', score: null, applicable: false }, { id: 'F6', score: null, applicable: false }];
@@ -308,7 +310,7 @@ describe('engine: unscored step reaches the text route; card action and rational
   }
   test('unscored 37-F5 with a card sentence → step_text list, alias_kind unscored', async () => {
     const { row } = await run({ indicator_scheme: 'fico_main_37', domains: { F: { domain_max: 4, indicators: [{ id: 'F5', score: null, applicable: false }, { id: 'F1', score: 1, applicable: true }] } } },
-      { target: { indicator: 'F5' } }, { action: 'wait for silence and pause' });
+      { target: { indicator: 'F5' } }, { action: 'wait for silence and pause' + PAD });
     expect(row).toMatchObject({ route: 'step_text', alias_kind: 'unscored', none_reason: 'llm_none' });
   });
   test('the teacher\'s name in the card action and a child\'s in the rationale never reach the model', async () => {
