@@ -113,14 +113,59 @@ describe('the template, switch on', () => {
     expect(ctaText(h)).toBe('آپ کی باری!');
     expect(pillOf(h)).not.toBeNull();
   });
-  test('English pictures, and the class and school pictures, are unchanged by the switch', () => {
+  test('English pictures, a class picture with no rows, and the school picture are unchanged by the switch', () => {
     for (const size of ['sq', 'og']) {
       for (const kind of ['invite', 'card']) {
         const d = kind === 'invite' ? inv(LONG, 'en') : card(LONG, 'en');
         expect(art(kind, size, 'en', d, { ...LIVE, us: true })).toBe(art(kind, size, 'en', d, LIVE));
       }
+      // a class picture with no rows (the tiles) is unchanged; the school picture too
       const cls = { topic: 'کسور', cls: '', played: 5, of: 9, avgPct: 64, rows: [] };
       expect(art('class', size, 'ur', cls, { ...LIVE, us: true })).toBe(art('class', size, 'ur', cls, LIVE));
+      const sch = { rows: [{ rank: 1, name: 'School Alpha', sector: '', points: 10, kids: 2, move: 0, you: true }] };
+      expect(art('school', size, 'ur', sch, { ...LIVE, us: true })).toBe(art('school', size, 'ur', sch, LIVE));
+    }
+  });
+});
+
+describe('the class table picture, switch on (Urdu)', () => {
+  const ANI = ['cat', 'turtle', 'parrot', 'owl', 'dog', 'fish', 'lion', 'bee', 'horse', 'rabbit'];
+  const rows = (n, at) => Array.from({ length: n }, (_, i) => ({ place: i + 1, animal: ANI[i % 10], correct: 7 - Math.floor(i / 2), total: 7, ...(i === at ? { me: true, first: 'Iqra' } : {}) }));
+  const cls = (n, at) => ({ topic: 'ضمیر کی دُہرائی', cls: '', played: 18, avgPct: 43, top: { correct: 7, total: 7 }, rows: rows(n, at) });
+  const lis = (h) => Array.from(h.matchAll(/<li class="([^"]*)"/g), (m) => m[1]);
+  test.each([['sq'], ['og']])('%s: one stack, 24 px gaps, the pill after the rows (it sat on the child\'s row)', (size) => {
+    const c = css(art('class', size, 'ur', cls(6, 5), { ...LIVE, us: true }));
+    expect(c).toMatch(/\.main\{[^}]*gap:24px/);
+    expect(c).toContain('.main{flex:0 0 auto}.art{gap:24px;justify-content:center}');
+    expect(c).toContain('.cta{margin:0}');
+  });
+  test('square: at most 5 rows; the child\'s own row always shows, after a «…» row when rows were left out', () => {
+    const cap = 5;
+    for (const n of [3, 6, 10]) for (const at of [0, Math.floor(n / 2), n - 1]) {
+      const h = art('class', 'sq', 'ur', cls(n, at), { ...LIVE, us: true });
+      const l = lis(h);
+      expect(l.filter((x) => x !== 'gap').length).toBe(Math.min(n, cap));
+      expect(l).toContain('me');
+      if (at >= cap) {
+        expect(l.slice(-2)).toEqual(['gap', 'me']);
+        expect(h).toContain('<li class="gap" aria-hidden="true">…</li>');
+      } else expect(l).not.toContain('gap');
+    }
+  });
+  test('wide: 3 rows, the child\'s own row always shows', () => {
+    for (const n of [3, 6, 10]) for (const at of [0, Math.floor(n / 2), n - 1]) {
+      const l = lis(art('class', 'og', 'ur', cls(n, at), { ...LIVE, us: true }));
+      expect(l.filter((x) => x !== 'gap').length).toBe(3);
+      expect(l).toContain('me');
+    }
+  });
+  test('the square keeps the class average line', () => {
+    expect(art('class', 'sq', 'ur', cls(10, 9), { ...LIVE, us: true })).toContain('<p class="sub">کلاس کی اوسط <span class="num">۴۳</span> فیصد</p>');
+  });
+  test('English class pictures are unchanged by the switch (they do not overlap)', () => {
+    for (const size of ['sq', 'og']) {
+      const d = { ...cls(10, 9), topic: 'Parts of a plant' };
+      expect(art('class', size, 'en', d, { ...LIVE, us: true })).toBe(art('class', size, 'en', d, LIVE));
     }
   });
 });

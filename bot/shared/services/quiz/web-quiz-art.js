@@ -282,8 +282,8 @@ async function artImageNow(id, { size = 'og', fresh = false, door = false } = {}
   const nf = p.kind === 'c' && require('./web-quiz-card-switch').nameFitCached();
   const u2 = ud ? { ...(u || {}), ud: true } : u;
   const u3 = nf ? { ...(u2 || {}), nf: true } : u2;
-  // the Urdu card and challenge pictures as one stack (web_quiz_share_ur_stack, the same read); English never changes
-  const us = f.lang === 'ur' && (p.kind === 'c' || p.kind === 'i') && require('./web-quiz-card-switch').urStackCached();
+  // the Urdu card, challenge and class table pictures as one stack (web_quiz_share_ur_stack, the same read); English never changes
+  const us = f.lang === 'ur' && (p.kind === 'c' || p.kind === 'i' || p.kind === 'l') && require('./web-quiz-card-switch').urStackCached();
   const input = artInput(KIND_OF[p.kind], sz, brand, f, us ? { ...(u3 || {}), us: true } : u3, door);
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
   if (mem.has(key)) {
