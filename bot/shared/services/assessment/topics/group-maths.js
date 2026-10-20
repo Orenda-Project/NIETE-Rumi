@@ -3,7 +3,7 @@
  * Maths: one topic per SLO code, word problems as one topic per chapter (spec §4.2). Pure.
  * groupBySlo is shared with Science chapters that carry no "Topic N" labels.
  *
- * Name precedence for an SLO topic: a "Topic N: X —" section label on a day where the code
+ * Name precedence for an SLO topic: a "Topic N" section label (any LABELS form) on a day where the code
  * comes first; else the code's own "I can…" statement (description i pairs with code i when a
  * row has as many descriptions as codes); else the first day's topic cell.
  *
@@ -21,7 +21,22 @@ const { shortName, slugify } = require('./short-name');
 const { collect } = require('./collect');
 
 const WORD_PROBLEM = 'word_problem';
-const SECTION_LABEL = /\bTopic\s+\d+\s*:\s*(.+?)\s[—–-]\s/i;
+/** Every "Topic N" label form in the Maths matrix; group 1 is the book topic name. */
+const LABELS = [
+  /\bTopic\s+\d+\s*:\s*(.+?)\s(?:[—–-]|\/)\s/i, // G1/G2 "Topic 1: X — …", G4 "Topic 1: X / …"
+  /\bTopic\s+\d+\s*\((.+?)\)\s*[—–-]\s/i, // G1 "Topic 4 (ordinal position) — …"
+  /\bTopic\s+\d+\s+([^\s:(—–-].*?)\s[—–-]\s/i, // G3 "Topic 1 Numbers up to 9999 - …"
+];
+const NAMELESS = /\bTopic\s+\d+\s+[—–]\s/i; // G2 "Topic 1 — Leap and Learn"
+
+function labelOf(section) {
+  for (const re of LABELS) {
+    const m = section.match(re);
+    if (m) return m[1];
+  }
+  return null;
+}
+const isLabelled = (section) => labelOf(section) !== null || NAMELESS.test(section);
 const I_CAN = /^I (can|know) /i;
 
 const firstLetterUp = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -38,7 +53,7 @@ function statementFor(row, i) {
 }
 
 function sloBuckets(rows) {
-  const labelled = rows.some((r) => SECTION_LABEL.test(r.section));
+  const labelled = rows.some((r) => isLabelled(r.section));
   const leads = new Set(rows.flatMap((r) => (labelled ? r.sloCodes.slice(0, 1) : r.sloCodes)));
   const buckets = new Map();
   for (const row of rows) {
@@ -48,8 +63,8 @@ function sloBuckets(rows) {
       const b = buckets.get(lead);
       if (!b.codes.includes(code)) b.codes.push(code);
       if (!b.rows.includes(row)) b.rows.push(row);
-      const label = i === 0 && row.section.match(SECTION_LABEL);
-      if (label && !b.label) b.label = label[1];
+      const label = i === 0 && labelOf(row.section);
+      if (label && !b.label) b.label = firstLetterUp(label);
       const statement = statementFor(row, i);
       if (statement) b.statements.push(statement);
     });
@@ -96,8 +111,7 @@ function wordProblemCodes(rows) {
   const codes = new Set();
   for (const r of rows) {
     if (r.skillType === WORD_PROBLEM && r.sloCodes.length === 1) codes.add(r.sloCodes[0]);
-    const label = r.section.match(SECTION_LABEL);
-    if (label && /word problem/i.test(label[1]) && r.sloCodes.length) codes.add(r.sloCodes[0]);
+    if (/word problem/i.test(labelOf(r.section)) && r.sloCodes.length) codes.add(r.sloCodes[0]);
   }
   return codes;
 }
