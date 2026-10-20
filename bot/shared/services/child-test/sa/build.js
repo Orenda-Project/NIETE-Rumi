@@ -304,4 +304,81 @@ function splitSaBank(bank) {
   return files;
 }
 
-module.exports = { buildSaBank, splitSaBank, listOptions, stepOptions, FORMS, BLOCKS };
+// ---------------------------------------------------------------------------------------------- runtime batteries
+// What the engine runs (dashboard/sa/sa-core.js normalize/validate, served at /sa/batteries/sa.<form>.<lang>.json):
+// one form in one instruction language, tasks[] in the form's order, each with one response mode.
+const RESPONSE = { options: 'tap', keypad: 'keypad' };
+
+function runtimeStop(s) {
+  if (!s) return {};
+  if (s.type === 'first_row' || s.type === 'first_line') return { first_line_n: s.n, first_line_min_correct: 1 };
+  if (s.type === 'consecutive_errors') return { consecutive_errors: s.n };
+  return {};
+}
+
+/** A spoken thing in the battery's language: { text, audio } (sayBoth/spoken carry both languages). */
+function inLang(x, lang) {
+  if (!x) return null;
+  if (x.text != null) return { text: x.text, audio: x.audio };
+  return { text: x[lang], audio: x.audio && x.audio[lang] };
+}
+
+function runtimeItem(it, lang) {
+  const o = { ...it };
+  if (it.say) {
+    const s = inLang(it.say, lang);
+    o.say = s.text;
+    o.prompt_audio = s.audio;
+  }
+  if (it.prompt) o.prompt = inLang(it.prompt, lang);
+  if (it.feedback) o.feedback = { correct: inLang(it.feedback.correct, lang), wrong: inLang(it.feedback.wrong, lang) };
+  return o;
+}
+
+function runtimeTask(t, lang) {
+  const base = { id: t.task, legacy_block: t.legacy_block, family: t.family, subtask: t.subtask, lang: t.lang, title: t.title, kind: t.kind,
+    script: Object.fromEntries(Object.entries(t.script).map(([k, l]) => [k, inLang(l, lang)])),
+    instruction: inLang(t.script.intro, lang), source: t.source, deviation: t.deviation, ...(t.practice_note ? { practice_note: t.practice_note } : {}) };
+  const practice = (t.practice || []).map((p) => runtimeItem(p, lang));
+  if (t.tap) {
+    const tap = t.tap;
+    return { ...base, response: RESPONSE[tap.input], time_limit_s: tap.time_limit_s || null, item_timeout_s: tap.item_timeout_s,
+      replay_at_s: tap.replay_at_s, ...(tap.soft_cap_s ? { item_timeout_s: tap.soft_cap_s } : {}), stop: runtimeStop(tap.stop),
+      options_n: tap.options_n, distractor_rule: tap.distractor_rule, items: tap.items.map((it) => runtimeItem(it, lang)), practice,
+      ...(t.record && t.record.grid ? { grid: t.record.grid, per_row: t.record.per_row, direction: t.record.direction } : {}),
+      ...(t.depends_on ? { depends_on: t.depends_on } : {}) };
+  }
+  const r = t.record;
+  if (r.passage && r.passage.words) {
+    const { words, ...passage } = r.passage;
+    return { ...base, response: 'record', time_limit_s: r.time_limit_s, stop: runtimeStop(r.stop), last_word_tap: true, passage,
+      items: words, practice, depends_on: { task: `${t.lang}.words`, skip_if_stop: 'early_stop_first_line' } };
+  }
+  const items = r.questions.map((q) => runtimeItem(q, lang));
+  return { ...base, response: 'oral', question_timeout_s: r.answer_window_s, replay_max: r.replay_max,
+    ...(r.passage ? { passage: r.passage } : {}), items, practice,
+    ...(t.depends_on ? { depends_on: { task: t.depends_on.task, upto_item: t.depends_on.upto_item } } : {}) };
+}
+
+/** One form in one instruction language, as the engine runs it. */
+function runtimeBattery(bank, formId, lang) {
+  const form = bank.forms[formId];
+  const { order, ...shape } = form;
+  return {
+    battery_id: `sa.${formId}.${lang}`, version: bank.version, form: formId, lang, ...shape,
+    rule: bank.rule, conventions: bank.conventions,
+    lines: Object.fromEntries(Object.entries(bank.lines).map(([k, l]) => [k, inLang(l, lang)])),
+    tasks: order.map((id) => runtimeTask(bank.tasks[`${formId}/${id}`], lang)),
+  };
+}
+
+/** The bank as files: the whole bank, one file per form (the same shape), and per form × language the runtime battery. */
+function splitSaBankWithRuntime(bank) {
+  const files = splitSaBank(bank);
+  for (const id of Object.keys(bank.forms)) {
+    for (const lang of ['ur', 'en']) files[`sa/sa.${id}.${lang}.json`] = runtimeBattery(bank, id, lang);
+  }
+  return files;
+}
+
+module.exports = { buildSaBank, splitSaBank, splitSaBankWithRuntime, runtimeBattery, listOptions, stepOptions, FORMS, BLOCKS };
