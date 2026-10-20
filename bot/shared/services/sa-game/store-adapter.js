@@ -27,6 +27,7 @@
 // required where used: loading this module (the router does, at boot) connects to nothing
 const db = () => require('../../config/supabase'); // eslint-disable-line global-require
 const { logError, logToFile } = require('../../utils/logger');
+const { cycleFor } = require('../child-test/draw/cycle');
 
 const RUNS = 'web_quiz_challenge_runs';
 const SESSIONS = 'child_test_sessions';
@@ -246,13 +247,22 @@ async function readRunRuns({ sessionId }) {
  * How often this child met this part this PKT month (the coach's instrument, played at home): the runs of the part
  * and form whose day is in `day`'s month, and whether a Big flight was finished then. Game runs live in the runs table
  * (a child-test game run carries the same meta). A failed read answers { ok:false } and the caller decides.
+ * byCycle: the window is the study cycle the coach draw uses (draw/cycle.js cycleFor) instead of the month.
  */
-async function exposure({ studentId, form, part, day }) {
+const cycleOfDay = (day) => {
+  const t = new Date(`${String(day || '').slice(0, 10)}T00:00:00Z`);
+  return Number.isNaN(t.getTime()) ? null : cycleFor(t);
+};
+
+async function exposure({ studentId, form, part, day, byCycle = false }) {
   try {
     const month = String(day || '').slice(0, 7);
     const { data, error } = await db().from(RUNS).select('id, meta').eq('student_id', studentId).eq('exercise', 'battery');
     if (error) return fail('exposure', error, {});
-    const mine = (data || []).map((r) => r.meta || {}).filter((m) => String(m.day || '').slice(0, 7) === month);
+    const cycle = byCycle ? cycleOfDay(day) : null;
+    if (byCycle && !cycle) return fail('exposure', new Error('bad day'), {});
+    const inWindow = byCycle ? (m) => cycleOfDay(m.day) === cycle : (m) => String(m.day || '').slice(0, 7) === month;
+    const mine = (data || []).map((r) => r.meta || {}).filter(inWindow);
     return {
       ok: true,
       n: mine.filter((m) => m.part === part && m.form === form).length,

@@ -36,6 +36,19 @@ describe('sa_game switch', () => {
     mockRows.mockRejectedValue(new Error('down'));
     expect(await Flag.on()).toBe(false);
   });
+  test('cycleOn(): sa_game_tower_cycle, its own 30 s read, JSON true only; no row or a failed read is off', async () => {
+    mockRows.mockResolvedValue({ data: [{ key: 'sa_game_tower_cycle', value: true }], error: null });
+    expect(await Flag.cycleOn()).toBe(true);
+    Flag._resetCache();
+    mockRows.mockResolvedValue({ data: [{ key: 'sa_game', value: true }], error: null });
+    expect(await Flag.cycleOn()).toBe(false);
+    Flag._resetCache();
+    mockRows.mockResolvedValue({ data: [{ key: 'sa_game_tower_cycle', value: 'true' }], error: null });
+    expect(await Flag.cycleOn()).toBe(false);
+    Flag._resetCache();
+    mockRows.mockRejectedValue(new Error('down'));
+    expect(await Flag.cycleOn()).toBe(false);
+  });
   test('now() is the warm cache only', () => {
     mockNowOf.mockReturnValue(true);
     expect(Flag.now()).toBe(true);
