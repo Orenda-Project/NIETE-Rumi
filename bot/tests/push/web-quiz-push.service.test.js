@@ -168,7 +168,7 @@ describe('payloadFor', () => {
     expect(p).toEqual({ t: 'جگنو', b: 'آج کا کوئز تیار ہے۔ کھیلنے کے لیے دبائیں۔', url: '/q/ABC123?from=push', tag: 'jugnu-remind', lang: 'ur', test: false });
   });
   test('test payload in English; teacher payload opens the portal home', () => {
-    expect(Push.payloadFor({ kind: 'quiz_reminder', lang: 'en', quiz_code: 'ABC123' }, { test: true })).toMatchObject({ t: 'Jugnu', b: 'Test: reminders are on.', test: true });
+    expect(Push.payloadFor({ kind: 'quiz_reminder', lang: 'en', quiz_code: 'ABC123' }, { test: true })).toMatchObject({ t: 'Jugnu', b: 'Reminders are on.', test: true });
     expect(Push.payloadFor({ kind: 'evening_plan', lang: 'en' })).toMatchObject({ t: 'NIETE', b: 'Your plan for tomorrow is ready.', url: '/' });
   });
   test('a malformed code never reaches the url', () => {
@@ -248,6 +248,6 @@ describe('sendTest', () => {
     fake.db.app_settings.push({ key: 'web_quiz_push_test', value: true });
     Push.__reset();
     expect(await Push.sendTest({ endpoint: ENDPOINT }, { webpush: wp })).toEqual({ ok: 1, sent: 1, status: 201 });
-    expect(JSON.parse(wp.sendNotification.mock.calls[0][1])).toMatchObject({ b: 'Test: reminders are on.', test: true });
+    expect(JSON.parse(wp.sendNotification.mock.calls[0][1])).toMatchObject({ b: 'Reminders are on.', test: true });
   });
 });
