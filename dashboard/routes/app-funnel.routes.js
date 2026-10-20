@@ -178,8 +178,52 @@ function createAppFunnelRouter({ limiter } = {}) {
     (err, _req, res, _next) => res.status(err && err.status === 413 ? 413 : 400).end(),
   );
 
+  /**
+   * bd-1d6g8o — ICT IAB row 19: a Digital Coach Submit that failed. The page said "No internet" and nothing recorded
+   * which file failed or why (every request the server saw was a 200: the failure was in the phone, uploading straight
+   * to storage). The page now says the step, the file (kind, its place, size, type) and the reason; this logs it as
+   * dc_upload.failed with the teacher from the SESSION. Only known values pass; no names, no file names.
+   */
+  router.post(
+    '/funnel/dc-upload-failed',
+    requireSession,
+    express.text({ type: 'text/*', limit: '2kb' }),
+    (req, res) => {
+      let body = req.body;
+      if (typeof body === 'string') { try { body = JSON.parse(body); } catch (_) { body = null; } }
+      if (!body || typeof body !== 'object' || Array.isArray(body)) return res.status(400).end();
+      const now = Date.now();
+      if (!limits.take(appSessionId(req.session, req), 1, now)) return res.status(429).end();
+      const pick = (v, allowed) => (allowed.includes(v) ? v : 'unknown');
+      const status = Number(body.status);
+      const type = typeof body.type === 'string' && /^[a-z]+\/[a-z0-9.+-]{1,60}$/i.test(body.type) ? body.type.toLowerCase() : 'unknown';
+      const { journeyId, ...base } = who(req, now);
+      emit('dc_upload.failed', {
+        ...base,
+        journeyId,
+        feature: 'ai_coaching',
+        browser: browserClass(req, body.b),
+        stage: pick(body.stage, DC_UPLOAD_STAGES),
+        kind: pick(body.kind, DC_UPLOAD_KINDS),
+        item: clampInt(body.item, 20),
+        items: clampInt(body.items, 20),
+        status: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
+        reason: pick(body.reason, DC_UPLOAD_REASONS),
+        sizeBytes: clampInt(body.sizeBytes, 2 * 1024 * 1024 * 1024),
+        type,
+        elapsedMs: clampInt(body.elapsedMs, 60 * 60 * 1000),
+      });
+      return res.status(204).end();
+    },
+    (err, _req, res, _next) => res.status(err && err.status === 413 ? 413 : 400).end(),
+  );
+
   return router;
 }
+
+const DC_UPLOAD_STAGES = ['presign', 'upload', 'start'];
+const DC_UPLOAD_KINDS = ['audio', 'lesson_plan', 'photo'];
+const DC_UPLOAD_REASONS = ['http', 'network', 'abort', 'unknown'];
 
 // ─── the key actions ────────────────────────────────────────────────────────────────────────────────────────
 //

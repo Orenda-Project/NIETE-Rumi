@@ -202,6 +202,8 @@ export const portal = {
       ? resolve()
       : reject(new Error(`upload failed (${xhr.status})`)));
     xhr.onerror = () => reject(new Error('upload failed (network)'));
+    // bd-1d6g8o: told apart in the failure report (an upload the phone cut off is not the network).
+    xhr.onabort = () => reject(new Error('upload failed (abort)'));
     xhr.send(file);
   }),
 
