@@ -29,8 +29,10 @@ const PROD = [{"key": "quiz_author_gates_v2", "value": true}, {"key": "quiz_join
 let reads = [];
 let doneMax = 0;
 let db = null;
-function seed(warm) {
-  db = F.db({ codeClass: F.CLS_A });
+// kind: 'class' (the code names its class), 'loose' (no class on the code), 'ur' (an Urdu class code and quiz)
+function seed(warm, kind = 'class') {
+  db = F.db({ codeClass: kind === 'loose' ? null : F.CLS_A });
+  if (kind === 'ur') { db.quiz_share_codes[0].language = 'ur'; db.quizzes[0].language = 'ur'; }
   db.app_settings = [...PROD.filter((r) => r.key !== 'web_quiz_fixture_rule'), { key: 'quiz_teacher_home', value: true }, { key: 'web_quiz_link_together', value: true }];
   if (warm !== undefined) db.app_settings.push({ key: 'web_quiz_page_warm', value: warm });
   const fake = makeFake(db);
@@ -55,9 +57,9 @@ const mask = (s) => s.replace(/"(st|resume_st)":"[^"]+"/g, '"$1":"*"');
 
 // A process whose page switch caches are all cold but this module's own switch (kept fresh by its touch): the class
 // code's page, measured; then the same page again, warm.
-async function cold(warm) {
+async function cold(warm, kind) {
   jest.resetModules();
-  seed(warm);
+  seed(warm, kind);
   let PageWarm = null;
   try { PageWarm = require('../../../shared/services/quiz/web-quiz-page-warm'); } catch (_) { PageWarm = null; }
   if (PageWarm) { await PageWarm.flag(); PageWarm.stop(); }
@@ -117,5 +119,85 @@ describe('its own switch', () => {
     await PageWarm.tick();
     expect(PageWarm.onNow()).toBe(false);
     PageWarm.stop();
+  });
+});
+
+// The class link page with page_warm on must draw the very door the warm path draws: never "closed", never an error,
+// across a class code, a loose code and an Urdu code, on a cold process and after a quiet spell.
+describe('page_warm on: every kind of code draws its real door, byte for byte the warm answer', () => {
+  test.each([['a class code', 'class'], ['a loose code', 'loose'], ['an Urdu code', 'ur']])('%s, on a cold process (every switch cache empty)', async (_n, kind) => {
+    const off = await cold(undefined, kind);
+    const on = await cold(true, kind);
+    expect(on.first.ans).not.toMatch(/^ERR/);
+    expect(JSON.parse(on.first.ans).quiz.code).toBe('AB12CD');
+    expect(JSON.parse(on.first.ans).quiz.lang).toBe(kind === 'ur' ? 'ur' : 'en');
+    expect(on.first.ans).toEqual(off.again.ans);
+    expect(on.again.ans).toEqual(off.again.ans);
+  });
+
+  test.each([['a class code', 'class'], ['a loose code', 'loose'], ['an Urdu code', 'ur']])('%s, after more than 70 s of quiet (every 30 s switch cache stale; page_warm kept by its own touch)', async (_n, kind) => {
+    const off = await cold(undefined, kind);
+    jest.resetModules();
+    seed(true, kind);
+    const PageWarm = require('../../../shared/services/quiz/web-quiz-page-warm');
+    await PageWarm.flag();
+    PageWarm.stop();
+    const WQ = require('../../../shared/services/quiz/web-quiz.service');
+    const ans = async () => { try { return mask(JSON.stringify(await WQ.getQuiz('AB12CD'))); } catch (e) { return `ERR ${e.status} ${JSON.stringify(e.body || e.message)}`; } };
+    expect(await ans()).toEqual(off.again.ans);
+    await settle();
+    const realNow = Date.now.bind(Date);
+    let skew = 0;
+    const spy = jest.spyOn(Date, 'now').mockImplementation(() => realNow() + skew);
+    try {
+      for (const step of [20, 40, 60, 75]) { skew = step * 1000; await PageWarm.tick(); } // the 20 s touch, through the quiet
+      PageWarm.stop();
+      expect(PageWarm.onNow()).toBe(true);
+      const after = await ans();
+      expect(after).not.toMatch(/^ERR/);
+      expect(after).toEqual(off.again.ans);
+    } finally { spy.mockRestore(); }
+  });
+});
+
+describe('page_warm on: a page switch read that fails never decides the page', () => {
+  // A failing switch read is that switch's own business (each fails closed): with page_warm on the page is the one
+  // page_warm off draws with the same failing read, and always the real door.
+  const FAULTS = [
+    ['rejects', () => Promise.reject(new Error('settings read failed'))],
+    ['throws at once', () => { throw new Error('settings read failed'); }],
+    ['answers undefined', () => Promise.resolve(undefined)],
+  ];
+  const faulty = (fault) => {
+    jest.doMock('../../../shared/services/first-touch/teacher-home.flags', () => ({ on: fault }));
+    jest.doMock('../../../shared/services/quiz/web-quiz-link-known', () => ({ ...jest.requireActual('../../../shared/services/quiz/web-quiz-link-known'), isOn: fault }));
+  };
+  afterEach(() => {
+    jest.dontMock('../../../shared/services/first-touch/teacher-home.flags');
+    jest.dontMock('../../../shared/services/quiz/web-quiz-link-known');
+  });
+  test.each(FAULTS)('a getter that %s: the door, equal to page_warm off with the same read failing', async (_n, fault) => {
+    const run = async (warm) => {
+      jest.resetModules();
+      seed(warm, 'class');
+      faulty(fault);
+      const PageWarm = require('../../../shared/services/quiz/web-quiz-page-warm');
+      await PageWarm.flag();
+      PageWarm.stop();
+      if (warm) await expect(PageWarm.touch()).resolves.toBeUndefined();
+      const WQ = require('../../../shared/services/quiz/web-quiz.service');
+      const ans = async () => { try { return mask(JSON.stringify(await WQ.getQuiz('AB12CD'))); } catch (e) { return `ERR ${e.status} ${JSON.stringify(e.body || e.message)}`; } };
+      const first = await ans();
+      await settle();
+      const again = await ans();
+      await settle();
+      return { first, again };
+    };
+    const off = await run(undefined);
+    const on = await run(true);
+    expect(on.first).not.toMatch(/^ERR/);
+    expect(JSON.parse(on.first).quiz.code).toBe('AB12CD');
+    expect(on.first).toEqual(off.again);
+    expect(on.again).toEqual(off.again);
   });
 });
