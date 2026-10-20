@@ -22,6 +22,10 @@
  *                 with CHILD_TEST_SA_SCORE_LATER=true, otherwise parked so nothing is scored or paid for
  *   saStatus      what the server holds, for the coach's visit bar
  *
+ * Another phone (a teacher's, with no coach sign-in) can run one child's battery:
+ *   saLink        the coach mints a signed link for one of their children's sessions (1 h)
+ *   saViaLink     the sink calls from that phone, made as the coach for that session only
+ *
  * IDENTITY. The school must be one of the coach's (leader_schools) or the school of their own
  * observe visit; anything else is `not_found`, before the draw runs.
  * PRIVACY. What reaches the page is name · class · teacher: never a roll number or a student id,
@@ -402,4 +406,31 @@ const saStatus = onSession('sa_status', async ({ sessionId }, d, session, sa) =>
   };
 });
 
-module.exports = { SA_MARK, listSchools, dayList, dayOutcome, saBattery, saBatch, saPresign, saRegister, saStatus };
+// ─── another phone ─────────────────────────────────────────────────────────
+
+const LINK_KIND = 'sa-link';
+const LINK_TTL_S = 60 * 60;
+const tokens = () => require('../../quiz/web-quiz-token'); // eslint-disable-line global-require
+
+const saLink = onSession('sa_link', async (a, d, session) => {
+  const exp = Math.floor(Date.now() / 1000) + LINK_TTL_S;
+  // the web quiz's signer: one secret, one HMAC rule; the kind keeps it from opening anything else
+  const token = tokens().sign({ k: LINK_KIND, s: session.id, c: session.coach_user_id, exp });
+  if (!token) return { status: 'error', reason: 'no_secret' };
+  return { status: 'ok', token, expiresAt: new Date(exp * 1000).toISOString() };
+});
+
+const LINK_OPS = { batch: saBatch, presign: saPresign, register: saRegister, status: saStatus };
+
+/** A sink call from the linked phone: the token names the session and its coach; nothing else is taken from the caller. */
+async function saViaLink(args = {}, deps = {}) {
+  const p = tokens().verify(args.token, LINK_KIND);
+  if (!p || !p.s || !p.c || (args.sessionId && args.sessionId !== p.s)) return { status: 'not_found' };
+  if (args.op === 'whois') return { status: 'ok', coachUserId: p.c, sessionId: p.s };
+  const fn = LINK_OPS[args.op];
+  if (!fn) return { status: 'invalid', reason: 'bad_op' };
+  const { token, op, userId, ...rest } = args; // eslint-disable-line no-unused-vars
+  return fn({ ...rest, userId: p.c, sessionId: p.s }, deps);
+}
+
+module.exports = { SA_MARK, listSchools, dayList, dayOutcome, saBattery, saBatch, saPresign, saRegister, saStatus, saLink, saViaLink };

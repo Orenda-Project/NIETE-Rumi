@@ -101,10 +101,10 @@ describe('setAudio', () => {
 
 describe('markSynced and summary', () => {
   test('first device start kept, the highest seq, the block once fixed, coach_present', async () => {
-    await Store.markSynced('s1', { lastSeq: 5, clientStartedAt: 'T1', device: { ua: 'x', name: 'never stored' }, block: 'B2' });
+    await Store.markSynced('s1', { lastSeq: 5, clientStartedAt: 'T1', device: { ua: 'x', mic_ok: true, mic_rms: 0.12, name: 'never stored' }, block: 'B2' });
     await Store.markSynced('s1', { lastSeq: 3, clientStartedAt: 'T2', clientFinishedAt: 'T9', block: 'B4' });
     expect(db.child_test_sessions[0]).toEqual(expect.objectContaining({
-      admin_mode: 'coach_present', client_started_at: 'T1', client_finished_at: 'T9', device: { ua: 'x', last_seq: 5, block: 'B2' },
+      admin_mode: 'coach_present', client_started_at: 'T1', client_finished_at: 'T9', device: { ua: 'x', mic_ok: true, mic_rms: 0.12, last_seq: 5, block: 'B2' },
     }));
   });
 
