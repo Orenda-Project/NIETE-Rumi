@@ -60,6 +60,7 @@ const r2 = require('../../storage/r2');
 const Voice = require('./web-quiz-voice');
 const OneVoice = require('./web-quiz-one-voice-flag');
 const Store = require('./web-quiz-audio-store');
+const Claim = require('./web-quiz-audio-claim');
 const { logEvent } = require('../../utils/structured-logger');
 const { logError } = require('../../utils/logger');
 const { resolveUx } = require('../../config/ux-strings');
@@ -632,7 +633,18 @@ async function runQuizAudioJob(payload, { db, publish = module.exports.publishQu
   const oneVoice = OneVoice.forQuiz(await OneVoice.plan({ db: client }), quizId, data && data.language);
   const web = webOf(data && data.meta, { oneVoice });
   if (isCurrent(web, { oneVoice })) return { skipped: 'current' };
-  const out = (await publish(quizId, oneVoice ? { db: client, oneVoice } : { db: client })) || {};
+  // web_quiz_audio_claim: one recording per quiz (and plan) at a time; a job queued from elsewhere meanwhile skips
+  const claimed = await Claim.on({ db: client });
+  if (claimed && !(await Claim.claim(quizId, oneVoice))) {
+    logEvent('web_quiz.publish_audio.claimed', { quizId });
+    return { skipped: 'claimed' };
+  }
+  let out;
+  try {
+    out = (await publish(quizId, oneVoice ? { db: client, oneVoice } : { db: client })) || {};
+  } finally {
+    if (claimed) await Claim.release(quizId, oneVoice);
+  }
   if (out.ok && !out.failed) return out;
   // Switched off or over today's cap: a retry would only be refused again (the next page open asks anew).
   if (out.reason === 'disabled' || out.reason === 'capped' || out.reason === 'no_voice') return out;
