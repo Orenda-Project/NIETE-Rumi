@@ -14,10 +14,9 @@ import { tapProblems } from "../newui/checks/rules";
  * toast anywhere. The handlers and API calls are the old ones (the existing login/session/legal/visibility tests
  * still pin those).
  *
- * bd-x7aprz.3: the login now opens on the WhatsApp CODE (number → Send code); the password sign-in below is reached
- * with "Use password instead". 403 / 404 no longer say "No password yet" / "No account found" (they send her to the
- * code / to Register on WhatsApp), and the set-password page is gone (an old set-up link signs her in or offers a new
- * link). Those behaviours are pinned in ./code-sign-in.test.tsx.
+ * bd-xxi78f: the login is the number and the password (the WhatsApp-code sign-in of bd-x7aprz.3 is gone). 403 / 404
+ * never say "No password yet" / "No account found": they send her to set a password / to Register on WhatsApp
+ * (./password-sign-in.test.tsx). An old set-up link signs her in or offers a new link (./setup-link.test.tsx).
  */
 
 const h = vi.hoisted(() => ({
@@ -32,8 +31,6 @@ const h = vi.hoisted(() => ({
     validateToken: vi.fn(),
     setup: vi.fn(),
     setupSignIn: vi.fn(),
-    requestCode: vi.fn(),
-    verifyCode: vi.fn(),
     langGet: vi.fn(),
     langSet: vi.fn(),
   },
@@ -55,8 +52,6 @@ vi.mock("../services/api", () => ({
     validateToken: h.api.validateToken,
     setup: h.api.setup,
     setupSignIn: h.api.setupSignIn,
-    requestCode: h.api.requestCode,
-    verifyCode: h.api.verifyCode,
   },
   language: { get: h.api.langGet, set: h.api.langSet },
 }));
@@ -138,8 +133,9 @@ describe("Urdu: right-to-left, the number left-to-right", () => {
     const phone = screen.getByLabelText("فون نمبر");
     expect(phone).toHaveAttribute("dir", "ltr");
     expect(phone).toHaveAttribute("inputmode", "tel");
-    expect(screen.getByRole("button", { name: "کوڈ بھیجیں" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "پاس ورڈ استعمال کریں" })).toBeInTheDocument();
+    expect(screen.getByLabelText("پاس ورڈ")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "لاگ اِن" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "ایڈمن لاگ اِن" })).toBeInTheDocument();
   });
 
   it("English is left-to-right", () => {
@@ -169,9 +165,7 @@ describe("every tap target is at least 56px", () => {
 });
 
 describe("login: errors sit under the field, map from the status, and stay until she types", () => {
-  // bd-x7aprz.3: the password sign-in is the second choice — "Use password instead" first.
   const fill = async (user: ReturnType<typeof userEvent.setup>, phone = "0300 0000000", pw = "madeup123") => {
-    await user.click(screen.getByRole("button", { name: "Use password instead" }));
     await user.type(screen.getByLabelText("Phone number"), phone);
     if (pw) await user.type(screen.getByLabelText("Password"), pw);
     await user.click(screen.getByRole("button", { name: "Log in" }));
@@ -179,7 +173,7 @@ describe("login: errors sit under the field, map from the status, and stay until
 
   it.each([
     [401, "Wrong password", "Password"],
-    // 403 and 404 are no longer a field's message: code-sign-in.test.tsx (back to the code / Register on WhatsApp).
+    // 403 and 404 are not a field's message: password-sign-in.test.tsx (set a password / Register on WhatsApp).
     [400, "Check the number", "Phone number"],
   ])("status %i: '%s' under the %s field", async (status, label, field) => {
     h.login.mockResolvedValue({ success: false, status, error: "server sentence" });
@@ -221,15 +215,13 @@ describe("login: errors sit under the field, map from the status, and stay until
     expect(h.toast).not.toHaveBeenCalled();
   });
 
-  // (bd-x7aprz.3) "a no-password account makes Forgot password the emphasised choice" is gone: a no-password account
-  // now goes to the WhatsApp code — code-sign-in.test.tsx, "no password on her account".
+  // A no-password account is taken to Forgot password to set one — password-sign-in.test.tsx, "no password".
 
   it("the message is in her language", async () => {
     await setLang("ur");
     h.login.mockResolvedValue({ success: false, status: 401, error: "x" });
     const user = userEvent.setup();
     at(<PortalLogin />);
-    await user.click(screen.getByRole("button", { name: "پاس ورڈ استعمال کریں" }));
     await user.type(screen.getByLabelText("فون نمبر"), "0300 0000000");
     await user.type(screen.getByLabelText("پاس ورڈ"), "madeup123");
     await user.click(screen.getByRole("button", { name: "لاگ اِن" }));
@@ -285,7 +277,6 @@ describe("login: errors sit under the field, map from the status, and stay until
   it("Forgot password carries the number she typed", async () => {
     const user = userEvent.setup();
     at(<PortalLogin />);
-    await user.click(screen.getByRole("button", { name: "Use password instead" }));
     await user.type(screen.getByLabelText("Phone number"), "0300 0000000");
     await user.click(screen.getByRole("button", { name: "Forgot password" }));
     expect(h.navigate).toHaveBeenCalledWith("/portal/reset-password", { state: { phoneNumber: "0300 0000000" } });
@@ -297,46 +288,8 @@ describe("login: errors sit under the field, map from the status, and stay until
     expect(screen.queryByText(/e\.g\./i)).toBeNull();
   });
 
-  // bd-s6qbts.5 — an analytics-only account signs in with an account NAME in the same field.
-  it("an account name goes to the server as typed: no 'Check the number', no phone rewrite", async () => {
-    h.login.mockResolvedValue({ success: true, user: { role: "unregistered", analyticsOnly: true } });
-    const user = userEvent.setup();
-    at(<PortalLogin />);
-    await fill(user, "FDE-Islamabad");
-    await waitFor(() => expect(h.login).toHaveBeenCalledWith("FDE-Islamabad", "madeup123"));
-    expect(screen.queryByText("Check the number")).toBeNull();
-    await waitFor(() => expect(h.navigate).toHaveBeenCalledWith("/portal/analytics/schools"));
-  });
-
-  it("a name the server refuses says 'Couldn't log in', not 'Wrong password'", async () => {
-    h.login.mockResolvedValue({ success: false, status: 401, error: "Incorrect password. Please try again." });
-    const user = userEvent.setup();
-    at(<PortalLogin />);
-    await fill(user, "fde-islamabad");
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Couldn't log in");
-    expect(alert).not.toHaveTextContent("Wrong password");
-  });
-
-  it("a short phone is still caught here, a name or no name", async () => {
-    const user = userEvent.setup();
-    at(<PortalLogin />);
-    await fill(user, "0300 123");
-    expect(h.login).not.toHaveBeenCalled();
-    expect(await screen.findByRole("alert")).toHaveTextContent("Check the number");
-  });
-
-  it("Forgot password is not offered for an account name (it has no WhatsApp), and comes back for a phone", async () => {
-    const user = userEvent.setup();
-    at(<PortalLogin />);
-    await user.click(screen.getByRole("button", { name: "Use password instead" }));
-    const field = screen.getByLabelText("Phone number");
-    await user.type(field, "fde-islamabad");
-    expect(screen.queryByRole("button", { name: "Forgot password" })).toBeNull();
-    await user.clear(field);
-    await user.type(field, "0300 0000000");
-    expect(screen.getByRole("button", { name: "Forgot password" })).toBeInTheDocument();
-  });
+  // bd-xxi78f: an account NAME no longer goes in this field; it signs in on its own page (Admin login,
+  // password-sign-in.test.tsx; analytics-login.test.tsx).
 
   it("a setup link that died shows its reason on the login page, and keeps showing it", () => {
     at(<PortalLogin />, { notice: "linkExpired" });
@@ -501,7 +454,6 @@ describe("the page frame inside a card reads as one list", () => {
   it("the Forgot password link is a real button, not information", async () => {
     const user = userEvent.setup();
     at(<PortalLogin />);
-    await user.click(screen.getByRole("button", { name: "Use password instead" }));
     const forgot = screen.getByRole("button", { name: "Forgot password" });
     expect(within(forgot).queryByRole("img")).toBeNull();
   });

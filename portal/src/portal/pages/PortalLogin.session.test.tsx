@@ -64,7 +64,7 @@ describe("PortalLogin — an existing session skips the form (bd-2569)", () => {
     renderLogin({ user: { firstName: "Ayesha", role: "teacher" }, loading: false });
     await waitFor(() => expect(navigateSpy).toHaveBeenCalled());
     expect(screen.queryByText("Log in")).toBeNull();
-    expect(screen.queryByText("Send code")).toBeNull(); // bd-x7aprz.3: the default form's button
+    expect(screen.queryByLabelText("Password")).toBeNull();
   });
 
   it("shows nothing while the session is still resolving", async () => {
@@ -72,15 +72,15 @@ describe("PortalLogin — an existing session skips the form (bd-2569)", () => {
     // PortalRoot renders null in this window; do the same here.
     renderLogin({ user: null, loading: true });
     expect(screen.queryByText("Log in")).toBeNull();
-    expect(screen.queryByText("Send code")).toBeNull(); // bd-x7aprz.3: the default form's button
+    expect(screen.queryByLabelText("Password")).toBeNull();
     expect(navigateSpy).not.toHaveBeenCalled();
   });
 
   it("shows the login form when there is genuinely no session", async () => {
     // The ordinary case must be untouched — this is still the login page.
     renderLogin({ user: null, loading: false });
-    // bd-x7aprz.3: the form opens on the WhatsApp code (Send code).
-    await waitFor(() => expect(screen.getByText("Send code")).toBeInTheDocument());
+    // bd-xxi78f: the form is the number and the password.
+    await waitFor(() => expect(screen.getByLabelText("Password")).toBeInTheDocument());
     expect(navigateSpy).not.toHaveBeenCalled();
   });
 });

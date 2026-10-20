@@ -58,19 +58,18 @@ const scenarios = [
     expect(sent === 0, sent + ' /login request(s) went out for a malformed number');
     return { message: msg, loginRequests: sent };
   } },
-  { id: 'PL06', title: 'An account with no password yet is sent to the WhatsApp code, not shown an error page', run: async (page, ctx) => {
+  { id: 'PL06', title: 'An account with no password yet is sent to set one, not shown an error page', run: async (page, ctx) => {
     await ctx.sql("update users set portal_activated = true, portal_password_hash = null where phone_number = '92" + NO_PW_TEACHER.slice(1) + "'");
     await open(page, ctx); await signIn(page, NO_PW_TEACHER, 'anything');
-    const alert = page.getByRole('alert');
-    await alert.waitFor({ state: 'visible', timeout: 15000 });
-    const msg = (await alert.innerText()).trim();
-    expect(msg === 'Log in by code', 'message was "' + msg + '"');
-    expect(await page.getByRole('button', { name: /^send code$/i }).count() === 1, 'no Send code button');
-    return { message: msg };
+    const landed = await landsOn(page, '/portal/reset-password');
+    const title = (await page.getByRole('heading', { level: 1 }).innerText()).trim();
+    expect(title === 'Set password', 'the page is titled "' + title + '"');
+    const carried = await page.inputValue('#phoneNumber');
+    expect(carried === NO_PW_TEACHER, 'the number field holds "' + carried + '"');
+    return { landed, title, carried };
   } },
   { id: 'PL07', title: 'Forgot password opens the reset page with her number carried over', run: async (page, ctx) => {
     await open(page, ctx);
-    await page.getByRole('button', { name: /use password instead/i }).click();
     await page.fill('#phoneNumber', TEACHER);
     await page.getByRole('button', { name: /forgot password/i }).click();
     return { landed: await landsOn(page, '/portal/reset-password') };
@@ -105,21 +104,6 @@ const scenarios = [
     const landed = await landsOn(page, '/portal/teacher');
     return { replyType: item.type, link: url.replace(/\/go\/.*/, '/go/<token>'), tries, landed };
   } },
-  { id: 'PL12', title: 'A code on WhatsApp signs her in: number, Send code, the code, her dashboard — no password', run: async (page, ctx) => {
-    await setFlags(ctx, CLASSIC); await open(page, ctx);
-    const phone = '92' + TEACHER.slice(1);
-    // No code left over from an earlier scenario (a code sent under a minute ago is answered CODE_ALREADY_SENT).
-    await ctx.sql("update users set password_reset_code = null, password_reset_expires_at = null where phone_number = '" + phone + "'");
-    await page.fill('#phoneNumber', TEACHER);
-    await page.getByRole('button', { name: /^send code$/i }).click();
-    await page.locator('#code').waitFor({ state: 'attached', timeout: 20000 })
-      .catch(() => { throw new Error('the code step never opened (the code was not sent)'); });
-    // The code went to the mock WhatsApp; set a known one on THIS run's database so the scenario can type it.
-    await ctx.sql("update users set password_reset_code = '424242' where phone_number = '" + phone + "'");
-    await page.fill('#code', '424242');
-    await page.click('button[type="submit"]');
-    return { landed: await landsOn(page, '/portal/dashboard') };
-  } },
   { id: 'PL14', title: "The analytics accounts' own sign-in asks for an account name and a password only, and a refused name stays on it", run: async (page, ctx) => {
     await page.goto(ctx.baseUrl + '/portal/analytics/login', { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('#accountName', { state: 'visible', timeout: 20000 })
@@ -141,6 +125,15 @@ const scenarios = [
     const path = new URL(page.url()).pathname;
     expect(path === '/portal/analytics/login', 'left the analytics sign-in for ' + path);
     return { message: msg, path };
+  } },
+  { id: 'PL15', title: 'Admin login opens the account-name sign-in', run: async (page, ctx) => {
+    await open(page, ctx);
+    await page.getByRole('button', { name: /^admin login$/i }).click();
+    const landed = await landsOn(page, '/portal/analytics/login');
+    await page.waitForSelector('#accountName', { state: 'visible', timeout: 20000 })
+      .catch(() => { throw new Error('no account name field after Admin login'); });
+    expect(await page.locator('#password').count() === 1, 'no password field');
+    return { landed };
   } },
 ];
 
