@@ -55,7 +55,7 @@
   var ISLANDS = ['maths', 'english', 'urdu'];
   var ICON = { maths: '1 2 3', english: 'A b c', urdu: 'ا ب پ' };
   // where each island sits on the 360-wide map (percent of the map box), and Jugnu beside it
-  var AT = { maths: [8, 66], english: [52, 46], urdu: [10, 30], tower: [50, 0] };
+  var AT = { maths: [3, 68], english: [52, 48], urdu: [4, 32], tower: [50, 0] };
 
   function ud(n) { return String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.charAt(+d); }); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -145,7 +145,7 @@
     var open = allIslands();
     var tw = '<button class="sg-tower' + (open ? ' is-open' : '') + '" data-tap="island" data-k="tower"><div class="sg-tw">' + (prog.done.tower ? '⭐' : open ? '✨' : '🔒') + '</div><span>' + esc(T.tower) + '</span></button>';
     var jp = AT[nx] || AT.tower;
-    var jug = '<img class="sg-jug sg-bob" src="/wq/jugnu/hello.webp" alt="" style="left:calc(' + jp[0] + '% + ' + (nx === 'tower' ? 70 : 104) + 'px);top:calc(' + jp[1] + '% + 30px)">';
+    var jug = '<img class="sg-jug sg-bob" src="/wq/jugnu/hello.webp" alt="" style="left:calc(' + jp[0] + '% + ' + (nx === 'tower' ? 70 : 132) + 'px);top:calc(' + jp[1] + '% + 30px)">';
     var path = '<svg class="sg-path" viewBox="0 0 360 440" preserveAspectRatio="none"><path d="M70 330 C 60 300, 210 260, 230 230 S 70 170, 90 150 S 180 120, 180 90" stroke="#fff" stroke-width="5" stroke-dasharray="2 12" stroke-linecap="round" fill="none" opacity=".9"/></svg>';
     show(top('', null) + '<div class="sg-say">' + esc(T.map) + '</div><div class="sg-map">' + path + tw + isl + jug + '</div>' +
       '<button class="sg-btn" data-tap="island" data-k="' + nx + '">' + esc(nx === 'tower' ? T.climb : T[nx]) + '</button>', 'sg-sea');
