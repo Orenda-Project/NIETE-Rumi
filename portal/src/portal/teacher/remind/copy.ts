@@ -1,7 +1,7 @@
 /**
  * The teacher Home's "Evening reminder" card (notices/RemindCard.tsx; switch portal_push_remind, OFF by default):
  * one web-push reminder at 6 pm with tomorrow's plan, on a plain browser only. Both languages from day one
- * (language-protocol: NIETE is flat en/ur), gender-neutral. The words are the design's own (notify-org SPEC §4);
+ * (language-protocol: NIETE is flat en/ur), gender-neutral. The words are the design's own;
  * the Urdu awaits the same human review as the rest.
  */
 import { bilingual, type Bilingual } from '../i18n';
