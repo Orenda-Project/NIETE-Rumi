@@ -12,6 +12,11 @@ const { bucketForKey } = require('./web-quiz-audio-store');
 const { logWarn } = require('../../utils/logger');
 
 const DEFAULT_EXPIRES = 6 * 60 * 60; // 6 h, the life of the quiz payload
+// web_quiz_clip_stable_sign: a clip signed as at the top of the hour, for an hour more than asked (never less to live),
+// with a Cache-Control the browser keeps (a clip key names its bytes): one link per clip all hour, so a page that asks
+// again (late clips) or opens again plays the copy it already has
+const STABLE_WINDOW_MS = 60 * 60 * 1000;
+const STABLE_CACHE = 'private, max-age=21600, immutable';
 
 async function sign(key, expiresIn) {
   if (!key) return null;
@@ -25,10 +30,16 @@ async function sign(key, expiresIn) {
 
 // A read-aloud clip, signed for the bucket it was recorded in (the quiz says which; legacy keys
 // live in the default bucket), by key — so a quiz recorded into another bucket still plays.
-async function signClip(key, meta, expiresIn) {
+async function signClip(key, meta, expiresIn, stable) {
   if (!key) return null;
   try {
-    const url = await r2.presignKey(key, expiresIn, { bucket: bucketForKey(key, meta) });
+    const opts = { bucket: bucketForKey(key, meta) };
+    if (stable) {
+      opts.signingDate = new Date(Math.floor(Date.now() / STABLE_WINDOW_MS) * STABLE_WINDOW_MS);
+      opts.cacheControl = STABLE_CACHE;
+      expiresIn += STABLE_WINDOW_MS / 1000;
+    }
+    const url = await r2.presignKey(key, expiresIn, opts);
     return url && url.includes('X-Amz-Signature') ? url : null;
   } catch (_) {
     return null;
@@ -39,18 +50,18 @@ async function signClip(key, meta, expiresIn) {
  * @param {object} meta  quizzes.meta
  * @returns {Promise<Object<string, {q: string|null, opts: Array<string|null>, why: string|null, fbs?: Array<string|null>, hint?: string|null}>>}
  */
-async function presignAudio(meta, { expiresIn = DEFAULT_EXPIRES } = {}) {
+async function presignAudio(meta, { expiresIn = DEFAULT_EXPIRES, stable = false } = {}) {
   const audio = meta && meta.web && meta.web.audio;
   if (!audio || typeof audio !== 'object') return {};
   const out = {};
   await Promise.all(Object.entries(audio).map(async ([qid, entry]) => {
     if (!entry || typeof entry !== 'object') return;
     const [q, why, opts, fbs, hint] = await Promise.all([
-      signClip(entry.q, meta, expiresIn),
-      signClip(entry.why, meta, expiresIn),
-      Promise.all((Array.isArray(entry.opts) ? entry.opts : []).map((k) => signClip(k, meta, expiresIn))),
-      Promise.all((Array.isArray(entry.fbs) ? entry.fbs : []).map((k) => signClip(k, meta, expiresIn))),
-      signClip(entry.hint, meta, expiresIn),
+      signClip(entry.q, meta, expiresIn, stable),
+      signClip(entry.why, meta, expiresIn, stable),
+      Promise.all((Array.isArray(entry.opts) ? entry.opts : []).map((k) => signClip(k, meta, expiresIn, stable))),
+      Promise.all((Array.isArray(entry.fbs) ? entry.fbs : []).map((k) => signClip(k, meta, expiresIn, stable))),
+      signClip(entry.hint, meta, expiresIn, stable),
     ]);
     const one = fbs.some(Boolean) ? { q, opts, why, fbs } : { q, opts, why };
     out[qid] = hint ? { ...one, hint } : one;
