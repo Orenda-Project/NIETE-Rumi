@@ -1482,6 +1482,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     for (var i = 0; i < total; i++) h += STAR.replace('{on}', i < n ? ' wq-on' : '');
     return '<div class="wq-stars" role="img" aria-label="' + n + '/' + total + '">' + h + '</div>';
   }
+  // The end screen's score: the headline and its stars. web_quiz_end_fit (the answer's end_fit): the stars stay one row,
+  // each min(48 px, its share of the card) (wq-fitstars), and the headline wraps balanced (wq-endh). Off: today's.
+  function endScore(n, total) {
+    if (!B.end_fit) return '<h1>' + esc(T.got(n, total)) + '</h1>' + stars(n, total);
+    return '<h1 class="wq-endh">' + esc(T.got(n, total)) + '</h1>' + stars(n, total).replace('class="wq-stars"', 'class="wq-stars wq-fitstars"');
+  }
   function toast(msg) {
     var t = document.createElement('div');
     t.className = 'wq-toast'; t.textContent = msg; t.setAttribute('role', 'status');
@@ -2453,7 +2459,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       var done = vline('done');
       var h = bar() + jug('celebrate', done.text, true, true) +
         '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.done) + '</p>' +
-        '<h1>' + esc(T.got(sc.correct, total)) + '</h1>' + stars(sc.correct, total) +
+        endScore(sc.correct, total) +
         (fixed ? '<p class="wq-sub">' + esc(T.fixedLine(fixed)) + '</p>' : '') +
         '<p class="wq-small">' + esc(T.scoreNote) + '</p></div>' +
         (res.counted === false ? pracBanner(res, total) : '') +
@@ -2500,7 +2506,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var sc = localScore();
     var h = bar() + jug('celebrate', T.offDone, true) +
       '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.done) + '</p>' +
-      '<h1>' + esc(T.got(sc.correct, sc.total)) + '</h1>' + stars(sc.correct, sc.total) + '</div>' +
+      endScore(sc.correct, sc.total) + '</div>' +
       '<div class="wq-banner">' + esc(T.offWait) + '</div>' +
       '<button class="wq-btn wq-go" id="wq-sync">' + esc(T.tryNow) + '</button>';
     render(h, 'M9-pending');
