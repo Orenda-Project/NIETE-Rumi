@@ -8015,4 +8015,9 @@ GRANT EXECUTE ON FUNCTION public.web_quiz_merge_student(uuid, uuid, text) TO ser
 COMMENT ON FUNCTION public.web_quiz_merge_student(uuid, uuid, text) IS
   'web quiz: merge a page-made child into another child — every FK moved in one transaction, ids logged to record_history, tombstone last; service_role only';
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- coach_visit_requests.opened_at (mirror of V1.6.16): when the coach first opened the card, NULL = not yet
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE coach_visit_requests ADD COLUMN IF NOT EXISTS opened_at timestamptz;
+
 NOTIFY pgrst, 'reload schema';
