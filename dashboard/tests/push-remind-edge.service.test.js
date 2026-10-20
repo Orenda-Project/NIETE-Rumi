@@ -86,6 +86,13 @@ describe('edge routes', () => {
     expect(await onR.text()).toBe(read('sw.js'));
   });
 
+  test('/remind/:code wears the adventure look when the bot says the quiz page has it', async () => {
+    s = await start({ bot: () => ({ status: 200, body: { remind: true, test: false, adv: true } }) });
+    const h = await (await fetch(`${s.base}/remind/AB12CD`)).text();
+    expect(h).toContain('<html lang="ur" dir="rtl" class="wq-adv">');
+    expect(h).toMatch(/\/wq\/wq-adventure\.css\?v=[0-9a-f]{10}/);
+  });
+
   test('/remind/:code on: the shell (Urdu by default, English by ?lang or the phone), the boot, no name', async () => {
     s = await start({ bot: () => ({ status: 200, body: { remind: true, test: true } }) });
     const r = await fetch(`${s.base}/remind/AB12CD`);
@@ -96,15 +103,23 @@ describe('edge routes', () => {
     const ur = await r.text();
     expect(ur).toContain('<html lang="ur" dir="rtl">');
     expect(ur).toContain('کیا جگنو کل آپ کو یاد دلائے؟');
-    expect(ur).toContain('Want Jugnu to remind you tomorrow?');
+    // the Urdu page carries Urdu only (design review DQ108 RL-2); the other language is one small link
+    expect(ur).not.toContain('Want Jugnu to remind you tomorrow?');
+    expect(ur).toContain('>English</a>');
     expect(ur).toContain('"code":"AB12CD"');
-    expect(ur).toContain('"test":true');
+    // the test-send is QA only: the switch alone is not enough, ?qa=1 is needed too (DQ108 RL-5)
+    expect(ur).toContain('"test":false');
+    expect(await (await fetch(`${s.base}/remind/AB12CD?qa=1`)).text()).toContain('"test":true');
+    // the child pages' look: wq-btn on the language link; the adventure sheet only when the bot says the page has it
+    expect(ur).toContain('class="wq-btn wq-ghost wqr-l"');
+    expect(ur).not.toContain('wq-adventure.css');
     expect(ur).toMatch(/\/wq\/wq-remind\.js\?v=[0-9a-f]{10}/);
     expect(ur).toMatch(/\/wq\/wq\.css\?v=[0-9a-f]{10}/);
     expect(s.calls[0].init.headers['x-api-key']).toBe('k');
     const en = await (await fetch(`${s.base}/remind/AB12CD?lang=en`)).text();
     expect(en).toContain('<html lang="en" dir="ltr">');
     expect(en).toContain('"lang":"en"');
+    expect(en).not.toContain('کیا جگنو کل آپ کو یاد دلائے؟');
     const phone = await (await fetch(`${s.base}/remind/AB12CD`, { headers: { 'accept-language': 'en-GB,en;q=0.9' } })).text();
     expect(phone).toContain('<html lang="en" dir="ltr">');
     const html = renderRemindPage({ code: 'AB12CD', lang: 'ur', test: false });

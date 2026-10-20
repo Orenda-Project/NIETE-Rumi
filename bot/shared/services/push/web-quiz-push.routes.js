@@ -41,7 +41,9 @@ function createRouter() {
   };
   const body = (req) => (req.body && typeof req.body === 'object' ? req.body : {});
 
-  router.get('/state', (req, res) => res.json({ remind: true, test: req.pushSwitches.test }));
+  // adv: the child pages' look (web_quiz_adventure_look) from the hub switches' cache, so the landing matches the quiz page
+  const advNow = () => { try { return require('../quiz/web-quiz-hub-flags').advNow() === true; } catch (_) { return false; } };
+  router.get('/state', (req, res) => res.json({ remind: true, test: req.pushSwitches.test, ...(advNow() ? { adv: true } : {}) }));
   router.get('/key', (req, res) => res.json({ key: Push.vapidPublic() }));
   router.post('/subscribe', wrap((req) => {
     const b = body(req);
