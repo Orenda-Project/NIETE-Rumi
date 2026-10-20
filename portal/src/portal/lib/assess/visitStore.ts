@@ -41,6 +41,11 @@ export function saveMic(m: MicCheck): void {
   try { window.localStorage.setItem(MIC_KEY, JSON.stringify(m)); } catch { /* per-device convenience only */ }
 }
 
+/** A check from an earlier visit must not ride into this one's batches. */
+export function clearMic(): void {
+  try { window.localStorage.removeItem(MIC_KEY); } catch { /* per-device convenience only */ }
+}
+
 export type QueuedOutcome = {
   qid: string;
   schoolId: string;

@@ -4,6 +4,7 @@ import { childTestSa } from '../../services/api';
 import type { AssessCopy, Lang } from '../../lib/assess/copy';
 import type { Block } from '../../lib/assess/blocks';
 import { qrMatrix, qrSvgPath } from '../../lib/assess/qr';
+import AssessActions from './AssessActions';
 
 /**
  * Opening a child's test on another phone: a one-hour token from the server, and
@@ -83,12 +84,12 @@ export default function AssessOtherPhone({ copy, serverId, childNo, grade, lang,
           <p className="font-medium text-slate-900">{copy.scanHint}</p>
           <input data-testid="assess-link-url" readOnly value={url} dir="ltr" aria-label={copy.copyLink}
             onFocus={(e) => e.currentTarget.select()} className="w-full min-h-[48px] rounded-xl border border-slate-300 bg-slate-50 px-3 text-xs text-slate-700" />
-          <div className={`grid gap-2 ${canShare ? 'grid-cols-2' : 'grid-cols-1'}`}>
-            <button type="button" onClick={copyLink} className="flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white">
+          <div className="flex gap-2">
+            <button type="button" onClick={copyLink} className="flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white">
               <Copy className="h-4 w-4" aria-hidden /> {copied ? copy.copied : copy.copyLink}
             </button>
             {canShare && (
-              <button type="button" onClick={share} className="flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white">
+              <button type="button" onClick={share} className="flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white">
                 <Share2 className="h-4 w-4" aria-hidden /> {copy.share}
               </button>
             )}
@@ -96,8 +97,10 @@ export default function AssessOtherPhone({ copy, serverId, childNo, grade, lang,
           <p className="text-sm text-slate-600">{copy.linkHour}</p>
         </>
       )}
-      <button type="button" disabled={!url} onClick={onDone}
-        className="w-full min-h-[56px] rounded-2xl bg-emerald-600 text-xl font-semibold text-white disabled:opacity-60">{copy.linkDone}</button>
+      <AssessActions>
+        <button type="button" disabled={!url} onClick={onDone}
+          className="w-full min-h-[56px] rounded-2xl bg-emerald-600 text-xl font-semibold text-white disabled:opacity-60">{copy.linkDone}</button>
+      </AssessActions>
     </div>
   );
 }
