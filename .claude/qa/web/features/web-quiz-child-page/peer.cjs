@@ -158,16 +158,14 @@ on('WQ087', 'off', async (page, ctx) => {
   await ctx.sql("insert into quiz_share_codes select (json_populate_record(c, json_build_object('id', gen_random_uuid(), 'code', 'NTH087', 'created_at', now())::json)).* from quiz_share_codes c where c.code = 'IT34CD' on conflict do nothing");
   const done0 = Number(await L.one(ctx, "select count(*) from quiz_sessions where share_code_id = (select id from quiz_share_codes where code = 'NTH087') and status = 'completed'"));
   expect(done0 === 0, 'NTH087 already has ' + done0 + ' finishes');
-  const first = await L.finishAsNew(page, ctx, 'NTH087', 'Nth1');
-  await page.click('#wq-card'); await page.waitForSelector('.wq-scorecard', { state: 'visible', timeout: WAIT });
+  const first = await L.finishFast(page, ctx, 'NTH087', 'Nth1');
   // a count of today's class finishers, never a place; under 5 the page shows the one-finisher line instead
   // (wq.js T.nth: "2 children" would tell a child exactly one classmate finished)
   const l1 = await page.$eval('.wq-nth', (e) => e.innerText.trim()).catch(() => '');
   expect(l1 === 'You finished this quiz today!', 'the first finisher sees "' + l1 + '"');
   for (const n of ['Nth2', 'Nth3', 'Nth4']) await other(page, ctx, 'NTH087', n, { rightAt: [0, 1, 2, 3, 4, 5, 6], finish: true });
   await page.evaluate(() => localStorage.clear());
-  await L.finishAsNew(page, ctx, 'NTH087', 'Nth5');
-  await page.click('#wq-card'); await page.waitForSelector('.wq-scorecard', { state: 'visible', timeout: WAIT });
+  await L.finishFast(page, ctx, 'NTH087', 'Nth5');
   const l3 = await page.$eval('.wq-nth', (e) => e.innerText.replace(/\s+/g, ' ').trim()).catch(() => '');
   expect(l3 === '5 children in your class finished this quiz today.', 'the fifth finisher sees "' + l3 + '"');
   expect(!/\b(1st|2nd|3rd|\d+th|first)\b/i.test(l1 + ' ' + l3), 'a place is named');

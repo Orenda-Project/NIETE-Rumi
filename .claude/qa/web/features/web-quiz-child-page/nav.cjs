@@ -55,8 +55,7 @@ on('WQ206', 'off', async (page, ctx) => {
 on('WQ207', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   await L.setFlag(ctx, page, 'web_quiz_home_button', 'true', (b) => b.nav && b.nav.home);
-  await L.finishAsNew(page, ctx, CODES.OPEN, 'Homer3');
-  await toCard(page);
+  await L.finishFast(page, ctx, CODES.OPEN, 'Homer3');
   await page.click('#wq-hubdoor');
   await page.waitForURL(/\/h\//, { timeout: WAIT });
   await page.waitForSelector(M('H2'), { state: 'attached', timeout: WAIT });
@@ -128,9 +127,7 @@ on('WQ210', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   await L.setFlag(ctx, page, 'web_quiz_invite_ask', '"on"', (b) => b.invite_ask === 'on');
   await noShareSheet(page);
-  const b = await startAsNew(page, ctx, CODES.OPEN, 'Zara');
-  await play(page, b.quiz.questions, 5, 2); await page.waitForSelector('#wq-fix', { state: 'visible', timeout: WAIT }); await page.click('#wq-later');
-  await page.waitForSelector(M('M9') + ' h1', { state: 'visible', timeout: WAIT }); await toCard(page);
+  await L.finishFast(page, ctx, CODES.OPEN, 'Zara', { wrongAt: 2 });   // 4 of 5: the card the ask sits on
   const head = await inner(page, '.wq-ask h2');
   expect(head === '🏆 Who can beat your 4/5?', 'the panel asks "' + head + '"');
   const tiles = await page.$$eval('.wq-ask .wq-kid', (els) => els.map((e) => e.innerText.trim()));
@@ -171,7 +168,7 @@ on('WQ212', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   await L.setFlag(ctx, page, 'web_quiz_invite_ask', '"split"', (b) => b.invite_ask === 'split');
   const ev = L.events(page);
-  await L.finishAsNew(page, ctx, CODES.OPEN, 'Splitter'); await toCard(page);
+  await L.finishFast(page, ctx, CODES.OPEN, 'Splitter');
   const arm1 = (await page.$('.wq-ask')) ? 'panel' : (await page.$('#wq-chal')) ? 'button' : 'neither';
   await ev.flush();                                             // card_view is sent once per finished session: catch it before the reload
   const views = ev.of('card_view');
@@ -186,7 +183,7 @@ on('WQ212', 'off', async (page, ctx) => {
 // ── the hub door ──────────────────────────────────────────────────────────────────────────────────────────────────
 on('WQ177', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
-  await L.finishAsNew(page, ctx, CODES.OPEN, 'Doory'); await toCard(page);
+  await L.finishFast(page, ctx, CODES.OPEN, 'Doory');
   expect((await inner(page, '#wq-hubdoor')) === 'My quizzes, videos and challenges', 'no hub door on the card');
   await page.click('#wq-hubdoor');
   await page.waitForURL(/\/h\//, { timeout: WAIT });
@@ -205,7 +202,7 @@ on('WQ177', 'off', async (page, ctx) => {
   // a friend who played from a challenge link sees no door
   const chal = (await L.stored(page, 'wq_s_AB12CD')).result.challenge_code;
   await page.evaluate(() => localStorage.clear());
-  await L.finishAsNew(page, ctx, chal, 'Guesty'); await toCard(page);
+  await L.finishFast(page, ctx, chal, 'Guesty');
   expect(!(await page.$('#wq-hubdoor')), 'the friend\'s card has a hub door');
   return { hub: hubUrl.replace(/\/h\/[^?]+/, '/h/<token>'), otherPhone: 'locked', friend: 'no door' };
 });
@@ -213,7 +210,7 @@ on('WQ177', 'off', async (page, ctx) => {
 on('WQ179', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   await page.setViewportSize({ width: 360, height: 740 });
-  await L.finishAsNew(page, ctx, CODES.OPEN, 'Doorb'); await toCard(page);
+  await L.finishFast(page, ctx, CODES.OPEN, 'Doorb');
   const idx = await order(page, ['#wq-share', '#wq-hubdoor']);
   expect(idx[0] >= 0 && idx[1] > idx[0], 'the door is not right under Share: ' + idx.join(','));
   const door = await rect(page, '#wq-hubdoor'); const share = await rect(page, '#wq-share');
@@ -238,7 +235,7 @@ on('WQ179', 'off', async (page, ctx) => {
 on('WQ182', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   await page.setViewportSize({ width: 360, height: 740 });
-  await L.finishAsNew(page, ctx, CODES.OPEN, 'Doorc'); await toCard(page);
+  await L.finishFast(page, ctx, CODES.OPEN, 'Doorc');
   const idx = await order(page, ['.wq-scorecard', 'p.wq-small.wq-center', '#wq-share', '#wq-hubdoor', '.wq-nth, .wq-banner']);
   expect(idx[0] < idx[1] && idx[1] < idx[2] && idx[2] < idx[3], 'first-screen order is ' + idx.join(','));
   expect(idx[4] === -1 || idx[4] > idx[3], 'a note comes before the door');
@@ -248,7 +245,7 @@ on('WQ182', 'off', async (page, ctx) => {
   // with the door switched off the card is unchanged
   await L.setFlag(ctx, page, 'web_quiz_hub_door', 'false');
   await page.evaluate(() => localStorage.clear());
-  await L.finishAsNew(page, ctx, CODES.OPEN, 'Doord'); await toCard(page);
+  await L.finishFast(page, ctx, CODES.OPEN, 'Doord');
   expect(!(await page.$('#wq-hubdoor')), 'the door shows with the switch off');
   await L.setFlag(ctx, page, 'web_quiz_hub_door', 'true');
   return { order: 'card, notice, share, door, notes', note: 'the Urdu card and a video quiz card are not driven here' };
@@ -259,7 +256,7 @@ on('WQ226', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   await L.setFlag(ctx, page, 'web_quiz_challenge_card', 'true'); await L.setFlag(ctx, page, 'web_quiz_events_v2', 'true');
   const ev = L.events(page);
-  await L.finishAsNew(page, ctx, CODES.OPEN, 'Jug1'); await toCard(page);
+  await L.finishFast(page, ctx, CODES.OPEN, 'Jug1');
   // the card's own script (wq-card.js) is fetched the first time the card is drawn, which then redraws: wait for it
   await page.waitForSelector('.wq-jc', { state: 'visible', timeout: WAIT }).catch(() => {});
   const card = await inner(page, '.wq-jc').catch(() => '');
@@ -275,7 +272,7 @@ on('WQ226', 'off', async (page, ctx) => {
   expect(shown.length === 1 && shown[0].surface === 'scorecard', 'door_shown {door: card} sent ' + shown.length + ' times: ' + JSON.stringify(shown));
   // grade 1 and a friend's run see no card
   await page.evaluate(() => localStorage.clear());
-  await L.finishAsNew(page, ctx, CODES.G1, 'Jug2'); await toCard(page);
+  await L.finishFast(page, ctx, CODES.G1, 'Jug2');
   expect(!(await page.$('.wq-jc')), 'a grade-1 child got the Jugnu card');
   const chal = (await L.stored(page, 'wq_s_GR1ABC')) && (await L.stored(page, 'wq_s_GR1ABC')).result.challenge_code;
   await L.setFlag(ctx, page, 'web_quiz_challenge_card', 'false'); await L.setFlag(ctx, page, 'web_quiz_events_v2', null);
@@ -286,7 +283,7 @@ on('WQ226', 'off', async (page, ctx) => {
 on('WQ227', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   await L.setFlag(ctx, page, 'web_quiz_challenge_card', 'true');
-  await L.finishAsNew(page, ctx, CODES.OPEN, 'Zaraj'); await toCard(page);
+  await L.finishFast(page, ctx, CODES.OPEN, 'Zaraj');
   const calls = []; page.on('request', (r) => { if (/\/api\/wq\/hubdoor$/.test(r.url())) calls.push(JSON.parse(r.postData() || '{}')); });
   await page.click('#wq-jc-go');
   await page.waitForSelector(M('M10-jc'), { state: 'attached', timeout: WAIT });
@@ -311,9 +308,8 @@ on('WQ227', 'off', async (page, ctx) => {
 on('WQ228', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   await L.setFlag(ctx, page, 'web_quiz_challenge_card', 'false');
-  let finishBody = null; page.on('response', async (r) => { if (/\/api\/wq\/finish$/.test(r.url())) { try { finishBody = await r.json(); } catch (_) { /* */ } } });
   const scripts = new Set(); page.on('request', (r) => { if (r.resourceType() === 'script') scripts.add(new URL(r.url()).pathname); });
-  await L.finishAsNew(page, ctx, CODES.OPEN, 'Nocard'); await toCard(page);
+  const finishBody = (await L.finishFast(page, ctx, CODES.OPEN, 'Nocard')).result;   // the finish answer itself
   expect(finishBody && !('jugnu_card' in finishBody), 'finish sent jugnu_card: ' + JSON.stringify(finishBody && finishBody.jugnu_card));
   expect(!(await page.$('.wq-jc')), 'the Jugnu card is drawn');
   expect(![...scripts].some((s) => /wq-card/.test(s)), 'the card script loaded: ' + [...scripts].join(', '));
@@ -324,7 +320,7 @@ on('WQ228', 'off', async (page, ctx) => {
 on('WQ229', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   await L.setFlag(ctx, page, 'web_quiz_link_home', 'true', (b) => b.link_home === true);
-  await L.finishAsNew(page, ctx, CODES.OPEN, 'Linky');
+  await L.finishFast(page, ctx, CODES.OPEN, 'Linky', { open: false });
   const calls = []; page.on('request', (r) => { if (/\/api\/wq\/linkhome$/.test(r.url())) calls.push(1); });
   await page.goto(ctx.baseUrl + '/q/' + CODES.OPEN, { waitUntil: 'domcontentloaded' });
   await page.waitForURL(/\/h\/.*from=link/, { timeout: WAIT });
@@ -344,7 +340,7 @@ on('WQ230', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   await L.setFlag(ctx, page, 'web_quiz_link_home', null, (b) => !b.link_home);
   const calls = []; page.on('request', (r) => { if (/\/api\/wq\/linkhome$/.test(r.url())) calls.push(1); });
-  await L.finishAsNew(page, ctx, CODES.OPEN, 'Linkz');
+  await L.finishFast(page, ctx, CODES.OPEN, 'Linkz', { open: false });
   await openQuiz(page, ctx, CODES.OPEN);
   await page.waitForSelector('.wq-scorecard', { state: 'visible', timeout: WAIT });
   expect(calls.length === 0 && /\/q\//.test(page.url()), 'with the switch off the page asked or moved');

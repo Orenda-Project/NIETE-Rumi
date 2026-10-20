@@ -38,19 +38,13 @@ const PLATFORM_KNOWLEDGE = `
 - Delivered as PDF
 - Commands: "Create lesson plan for [topic]" or natural language request
 
-### 3. Presentation Generator
-- Create educational presentations
-- Powered by Gamma AI
-- Delivered as PDF
-- Commands: "Create presentation about [topic]" or natural language request
-
-### 4. AI Video Generation
+### 3. AI Video Generation
 - Create educational explainer videos on any topic
 - Multiple visual styles: infographic, whiteboard, cartoon, realistic
 - 9 languages supported
 - Commands: /video or "create a video about [topic]"
 
-### 5. General Conversation
+### 4. General Conversation
 - Ask teaching questions
 - Get educational advice
 - Bilingual support (Urdu/English)
@@ -517,11 +511,6 @@ Response format:
           examples: ["Create a lesson plan on fractions for grade 5", "I need a science lesson on photosynthesis for grade 8"]
         },
 
-        presentations: {
-          instructions: "Explain that users should describe what presentation they need. Give 2 examples. Mention that you'll generate visual slides as PDF.",
-          examples: ["Create a presentation on climate change", "I need slides about the water cycle for kids"]
-        },
-
         coaching: {
           instructions: "Provide 4 clear steps: 1) Record classroom audio with phone, 2) Upload audio here, 3) Reflect with you about the class, 4) Get detailed coaching report. Make it actionable and encouraging.",
           examples: []
@@ -614,7 +603,7 @@ Keep it concise and friendly.`;
     } catch (error) {
       logToFile('Error generating default capability message', { error: error.message });
       // Fallback
-      return "I can help you with lesson plans, presentations, classroom coaching, and more! Type /menu to see all options.";
+      return "I can help you with lesson plans, classroom coaching, and more! Type /menu to see all options.";
     }
   }
 }

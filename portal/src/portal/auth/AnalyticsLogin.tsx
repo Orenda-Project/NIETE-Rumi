@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, UserRound } from 'lucide-react';
+import { Lock, ShieldCheck, UserRound } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { homeFor } from '../lib/homeRoute';
+import { useBack } from '../lib/useBack';
 import { BottomButton } from '../newui';
 import { LoginSkeleton } from '../components/Skeleton';
 import { useCopy } from '../teacher/i18n';
@@ -12,6 +13,10 @@ import { AUTH } from './copy';
 import { accountLoginFailure, type AuthError } from './errors';
 
 /**
+ * bd-xxi78f.5 — titled "NIETE Admin" with an "Admin" badge above the title (option A: the same band and lattice), and
+ * a Back arrow: to the screen she came from (the login's "Admin login"), or to the login when nothing of the app is
+ * behind this page (the old ICT dashboard's redirect, a fresh tab) — lib/useBack.
+ *
  * The analytics accounts' own sign-in page (/portal/analytics/login): an account NAME, a password, one Log in. The
  * teacher sign-in's look (this folder's frame, fields and words) without anything a teacher's sign-in carries: no
  * phone, no WhatsApp code, no Forgot password (a name has no WhatsApp), no name/phone switch, no register prompt and
@@ -28,6 +33,7 @@ const AnalyticsLogin = () => {
   const c = useCopy(AUTH);
   // `sessionLoading` is "is there already a session?"; `loading` below is "is this form mid-submit".
   const { login, user, loading: sessionLoading } = useAuth();
+  const back = useBack('/portal/login');
 
   // Already signed in: never the form. The same rule as the teacher sign-in, through lib/homeRoute.
   useEffect(() => {
@@ -72,7 +78,7 @@ const AnalyticsLogin = () => {
   const under = (field: AuthError['field']) => (error && error.field === field ? c[error.key] : null);
 
   return (
-    <AuthFrame title={c.analyticsTitle} subtitle={c.analyticsSub}>
+    <AuthFrame title={c.adminTitle} subtitle={c.analyticsSub} badge={{ label: c.adminBadge, icon: ShieldCheck }} onBack={back}>
       <form onSubmit={handleSubmit} noValidate>
         <AuthField
           id="accountName"

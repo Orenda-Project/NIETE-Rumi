@@ -56,8 +56,9 @@ var WQID = function (P) {
   }
 
   /* S0 */
-  // pic: the invited friend's picture (wq.js chPic), shown above the challenge line.
-  function landing(chLine, pic) {
+  // pic: the invited friend's picture (wq.js chPic), shown above the challenge line; fold (web_quiz_challenge_fold):
+  // below the way in instead, so a small phone shows it on the first screen.
+  function landing(chLine, pic, fold) {
     // A link from the child's hub or the library carries the child (?k=<chip>): play as them, exactly like a card
     // tapped, and never ask "Who is playing?" meanwhile (the question would be gone, unanswered, when the session
     // starts). Used once; a chip the server does not know is forgotten by startSession, which asks who() next; a
@@ -80,13 +81,14 @@ var WQID = function (P) {
       '<div class="wq-card wq-stack"><h1' + (P.lat ? P.lat(Q.topic) : '') + '>' + esc(Q.topic) + '</h1>' +
       '<p class="wq-sub">' + esc(T.from(P.doorTeacher ? P.doorTeacher() : CLS.teacher, P.doorLabel ? P.doorLabel() : CLS.label)) + '</p>' +
       '<p class="wq-small">' + esc(T.meta(P.N)) + '</p></div>' +
-      (pic || '') + (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
+      (fold ? '' : pic || '') + (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
       (here.length
         ? '<h2>' + esc(T.whoT) + '</h2>' + (classPhone ? someone : '') +
           '<div class="wq-kids-big' + (classPhone ? ' wq-kids-small' : '') + '">' + here.map(function (k, i) {
             return '<button class="wq-kid wq-kid-big" id="wq-kid-' + i + '">' + P.ani(k.animal) + nm(k.first) + '</button>';
           }).join('') + '</div>' + (classPhone ? '' : someone)
         : '<button class="wq-btn wq-go" id="wq-play">' + esc(T.play) + '</button>') +
+      (fold ? pic || '' : '') +
       (LIVE.ict_today_floor ? '<p class="wq-proof">🌟 ' + esc(T.proof(LIVE.ict_today_floor)) + '</p>' : '') +
       (LIVE.class_today >= 5 && !chLine ? '<p class="wq-small">' + esc(T.classToday(LIVE.class_today)) + '</p>' : '') +
       // Classmates with a right answer in the last 2 minutes (the bot's peer-pulse memory): a count, from 5 up; never a friend's.

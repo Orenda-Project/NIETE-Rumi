@@ -220,14 +220,18 @@ describe('switch on → that door sends the Play Store notice and nothing else',
 });
 
 describe('open messages — the classifier\'s answer picks the switch', () => {
+  afterEach(() => { delete process.env.STUDENT_VIDEOS_FLOW_ID; });
+
+  // bd-xw56ed: the classifier picks from the live menu. Presentation is no longer an answer; a video request
+  // opens the Videos row, whose door asks app_redirect_video exactly as a tap on the row does.
   test.each([
-    ['lesson_plan', 'lesson_plan', 'make me a lesson plan on fractions for grade 4'],
-    ['presentation', 'presentation', 'make slides on the water cycle'],
-    ['video', 'video', 'make an animated video about magnets'],
-    ['general', 'general_chat', 'how do I manage a noisy class?'],
-  ])('intent %s → app_redirect_%s', async (intentType, feature, text) => {
+    ['lesson_plan', 'lesson_plan', 'make me a lesson plan on fractions for grade 4', {}],
+    ['feature', 'video', 'make an animated video about magnets', { rowId: 'menu_videos', label: 'videos' }],
+    ['general', 'general_chat', 'how do I manage a noisy class?', {}],
+  ])('intent %s → app_redirect_%s', async (intentType, feature, text, extra) => {
     load([`app_redirect_${feature}`]);
-    mockDetectIntent.mockResolvedValueOnce({ type: intentType, message: text });
+    process.env.STUDENT_VIDEOS_FLOW_ID = 'flow-videos';
+    mockDetectIntent.mockResolvedValueOnce({ type: intentType, message: text, ...extra });
     await say(text);
     expect(notices()).toHaveLength(1);
     expect(anyOtherSend()).toBe(0);
@@ -386,7 +390,7 @@ describe('doors that cannot be driven here are wired at the source', () => {
   test('voice: a classroom recording asks ai_coaching; the intent asks its switch, else general_chat', () => {
     const s = src('shared/handlers/voice-message.handler.js');
     expect(s).toMatch(/redirectIfFlagged\('ai_coaching'/);
-    expect(s).toMatch(/\[intent\.type\]\s*\|\|\s*'general_chat'/);
+    expect(s).toMatch(/intent\.type === 'lesson_plan' \? 'lesson_plan' : 'general_chat'/);
     expect(s).toMatch(/redirectIfFlagged\(voiceFeature/);
   });
 

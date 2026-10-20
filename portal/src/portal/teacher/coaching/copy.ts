@@ -42,7 +42,6 @@ export const COACHING_V2_COPY = {
   /** The empty lesson plan row: a noun, as every prompt (niete-portal: never "Select ..."). */
   selectPlan: 'Lesson plan',
   viewPlan: 'View lesson plan',
-  planPhoto: 'Plan photo',
   planFallback: 'Lesson plan',
   change: 'Change',
   photos: 'Photos',
@@ -72,6 +71,9 @@ export const COACHING_V2_COPY = {
   recordTitle: 'Record lesson',
   starting: 'Starting',
   recording: 'Recording',
+  /* bd-dpen4t — ICT IAB rows 22/26: step headings with their own words (the live indicator and the chip keep theirs). */
+  stepRecording: 'Class recording',
+  stepAnalysis: 'Lesson analysis',
   paused: 'Paused',
   pause: 'Pause',
   resume: 'Resume',
@@ -124,7 +126,8 @@ export const COACHING_V2_COPY = {
   done: 'Done',
   reportReady: 'Report ready',
   stepReflection: 'Reflection question',
-  stepReport: 'Report ready',
+  /* bd-dpen4t — ICT IAB row 25. */
+  stepReport: 'Feedback',
   /* bd-eygg2f — ICT feedback (IAB Experience View, row 5): she answers by writing or by speaking. */
   subReflection: 'Write or speak',
   recordAnswer: 'Record answer',
@@ -201,7 +204,6 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   optional: 'اختیاری',
   selectPlan: 'لیسن پلان',
   viewPlan: 'لیسن پلان دیکھیں',
-  planPhoto: 'پلان کی تصویر',
   planFallback: 'لیسن پلان',
   change: 'تبدیل کریں',
   photos: 'تصاویر',
@@ -228,6 +230,8 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   recordTitle: 'سبق ریکارڈ کریں',
   starting: 'شروع ہو رہا ہے',
   recording: 'ریکارڈنگ جاری',
+  stepRecording: 'کلاس کی ریکارڈنگ',
+  stepAnalysis: 'سبق کا تجزیہ',
   paused: 'رکی ہوئی',
   pause: 'روکیں',
   resume: 'جاری رکھیں',
@@ -273,8 +277,9 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   progress: 'پیش رفت',
   done: 'مکمل',
   reportReady: 'رپورٹ تیار',
-  stepReflection: 'غور کا سوال',
-  stepReport: 'رپورٹ تیار',
+  /* bd-dpen4t — ICT IAB row 27: the English word in an Urdu line, as ICT wrote it. */
+  stepReflection: 'Reflection کا سوال',
+  stepReport: 'فیڈ بیک',
   subReflection: 'لکھ کر یا بول کر جواب دیں',
   recordAnswer: 'جواب ریکارڈ کریں',
   removeRecording: 'ریکارڈنگ ہٹائیں',
@@ -356,5 +361,7 @@ export const COPY_ENTRY: CopyEntry = {
     // bd-aqotzx: the question, why it stopped, the 24-hour line and the two not-carried-forward notes are sentences on purpose.
     'classQuestion', 'classWhy', 'classDeadline', 'classNoAnswerNote', 'classRecordAgainNote',
     // bd-i0u6n2: why a video cannot go in the recording slot, and what to send instead.
-    'notVideo'],
+    'notVideo',
+    // bd-rt8wky/bd-hsgah5: the photo count is five words in Urdu («10 میں سے 4 تصاویر»).
+    'photoCount'],
 };

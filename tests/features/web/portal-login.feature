@@ -140,3 +140,15 @@ Feature: Portal sign-in
     # their own page (portal/src/portal/auth/AnalyticsLogin.tsx).
     When she taps Admin login
     Then she is on /portal/analytics/login, asked for an account name and a password
+    And the page is titled "NIETE Admin" with an "Admin" badge above the title
+
+  @PL16
+  Scenario: Back on the Admin sign-in returns to the regular login
+    # bd-xxi78f.5: the band's Back arrow (lib/useBack): one step back when she came from the login, the login itself
+    # when nothing of the app is behind the page (the old ICT dashboard's redirect).
+    When she taps Admin login
+    And she taps Back
+    Then she is on /portal/login, asked for a phone number and a password
+    When she opens /portal/analytics/login directly
+    And she taps Back
+    Then she is on /portal/login

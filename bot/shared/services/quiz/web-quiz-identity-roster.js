@@ -24,10 +24,13 @@ const supabase = require('../../config/supabase');
 const Snap = require('../settings/settings-snapshot'); // web_quiz_page_keep: the page switches in one read
 // A quiz line with no recorded clip, while one voice is on, read by the phone's own voice (default off, JSON true only)
 const GAP_PHONE_KEY = 'web_quiz_voice_gap_phone';
+// Beside it, a clip that is there but will not play is read by the phone's voice too (default off, JSON true only)
+const GAP_SLOW_KEY = 'web_quiz_voice_gap_slow';
 // The class page's warm switch (web-quiz-page-warm.js KEY), read here beside one voice
 const PAGE_WARM_KEY = 'web_quiz_page_warm';
 // Each question's clips saved as soon as they are done (web-quiz-audio-each-flag.js KEY), read here beside one voice
 const AUDIO_EACH_KEY = 'web_quiz_audio_each_question';
+const CLIP_STABLE_KEY = 'web_quiz_clip_stable_sign';
 const { logToFile } = require('../../utils/logger');
 const Identity = require('./web-quiz-identity');
 const T = require('./web-quiz-token');
@@ -71,7 +74,9 @@ const flag = cachedSwitch({
     // The class page's warm switch (`web_quiz_page_warm`, web-quiz-page-warm.js, JSON true only) rides it too: the page
     // makes no read of its own for it (a cold page answers it off and the next page knows it from here).
     // So does `web_quiz_audio_each_question` (JSON true only): a pending page asks for its late clips every 5 s.
-    let { data, error } = await Snap.rows([FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice', GAP_PHONE_KEY, PAGE_WARM_KEY, AUDIO_EACH_KEY], () => supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice', GAP_PHONE_KEY, PAGE_WARM_KEY, AUDIO_EACH_KEY]));
+    // And `web_quiz_voice_gap_slow` (JSON true only): a clip that will not play is read by the phone's voice too.
+    // And `web_quiz_clip_stable_sign` (JSON true only): a clip's link stays the same for the hour (web-quiz-media.js).
+    let { data, error } = await Snap.rows([FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice', GAP_PHONE_KEY, PAGE_WARM_KEY, AUDIO_EACH_KEY, GAP_SLOW_KEY, CLIP_STABLE_KEY], () => supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY, WATCH_ROOT_KEY, 'web_quiz_one_voice', GAP_PHONE_KEY, PAGE_WARM_KEY, AUDIO_EACH_KEY, GAP_SLOW_KEY, CLIP_STABLE_KEY]));
     const withOne = !error;
     if (!withOne) {
       logToFile('⚠️ web quiz identity: settings lookup with one voice failed — reading the page switches alone, one voice off', { error: error.message });
@@ -83,7 +88,9 @@ const flag = cachedSwitch({
     if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* a plain string */ } }
     return { at: now, mode: typeof v === 'string' && v.trim().toLowerCase() === 'v2' ? 'v2' : null, watchRoot: rootOf(by.get(WATCH_ROOT_KEY)),
       oneVoice: withOne ? oneVoiceOf(by.get('web_quiz_one_voice'), now) : null, voiceGapPhone: withOne && by.get(GAP_PHONE_KEY) === true,
-      pageWarm: withOne && by.get(PAGE_WARM_KEY) === true, audioEach: withOne && by.get(AUDIO_EACH_KEY) === true };
+      voiceGapSlow: withOne && by.get(GAP_SLOW_KEY) === true,
+      pageWarm: withOne && by.get(PAGE_WARM_KEY) === true, audioEach: withOne && by.get(AUDIO_EACH_KEY) === true,
+      clipStable: withOne && by.get(CLIP_STABLE_KEY) === true };
   },
   log: (err) => logToFile('⚠️ web quiz identity: setting lookup failed — today\'s identity path', { error: err.message }),
 });
@@ -107,9 +114,19 @@ async function voiceGapPhone(now = Date.now()) {
   return (await pageSettings(now)).voiceGapPhone === true;
 }
 
+/** True only when `web_quiz_voice_gap_slow` is the JSON true in this read (a failed read: false). */
+async function voiceGapSlow(now = Date.now()) {
+  return (await pageSettings(now)).voiceGapSlow === true;
+}
+
 /** True only when `web_quiz_audio_each_question` is the JSON true in this read (a failed read: false). */
 async function audioEachQuestion(now = Date.now()) {
   return (await pageSettings(now)).audioEach === true;
+}
+
+/** True only when `web_quiz_clip_stable_sign` is the JSON true in this read (a failed read: false). */
+async function clipStableSign(now = Date.now()) {
+  return (await pageSettings(now)).clipStable === true;
 }
 
 /** The class page's warm switch as this read last saw it, never reading: true / false while that read is fresh, else undefined. */
@@ -167,6 +184,17 @@ function cached(key, now) {
   return hit && now - hit.at < TTL_MS ? hit.kids : null;
 }
 
+// web_quiz_class_rows_together: a class's children read started early (startClassRoster), shared by the ask that follows
+const early = new Map();
+
+/** Start a class's children read now (web_quiz_class_rows_together); the next loadClassRoster for it shares the read. */
+function startClassRoster(classId, now = Date.now()) {
+  const key = `class:${classId}`;
+  if (!classId || cached(key, now) || early.has(key)) return;
+  const p = loadClassRoster(classId, now).finally(() => { if (early.get(key) === p) early.delete(key); });
+  early.set(key, p);
+}
+
 /**
  * The children of one class: its active enrolments whose student is active and
  * not merged, duplicates collapsed to one (the same child imported twice with
@@ -181,6 +209,7 @@ async function loadClassRoster(classId, now = Date.now(), { fresh = false } = {}
   const key = `class:${classId}`;
   const hit = fresh ? null : cached(key, now);
   if (hit) return hit;
+  if (!fresh && early.has(key)) return early.get(key);
   try {
     const [{ data: enr, error }, { data: lists, error: lErr }] = await Promise.all([
       supabase.from('class_enrollments').select('student_id, roll_number').eq('class_id', classId).eq('is_active', true),
@@ -436,14 +465,17 @@ async function nonAttempters({ shareCodeId } = {}) {
 
 module.exports = {
   FLAG_KEY,
-  identityMode, watchRoot, watchRootState, WATCH_ROOT_KEY, rootOf, loadClassRoster, loadLegacyList, rosterOf, findKid, classKeyV2, nonAttempters,
+  identityMode, watchRoot, watchRootState, WATCH_ROOT_KEY, rootOf, loadClassRoster, startClassRoster, loadLegacyList, rosterOf, findKid, classKeyV2, nonAttempters,
   canonicalStudentIds, canonicalStudentId, canonicalStudentIdsShared, noteClass, keepWarm, forgetChild, _keptClasses: () => [...kept.keys()],
   /** A class whose roster just changed (a teacher enrolled a child) is read fresh next time. */
   _forgetClass: (classId) => { rosters.delete(`class:${classId}`); },
-  _resetCache: () => { flag.reset(); rosters.clear(); shared.clear(); kept.clear(); },
+  _resetCache: () => { flag.reset(); rosters.clear(); shared.clear(); kept.clear(); early.clear(); },
 };
 module.exports.oneVoicePlan = oneVoicePlan;
 module.exports.voiceGapPhone = voiceGapPhone;
 module.exports.GAP_PHONE_KEY = GAP_PHONE_KEY;
+module.exports.voiceGapSlow = voiceGapSlow;
 module.exports.pageWarmPeek = pageWarmPeek;
 module.exports.audioEachQuestion = audioEachQuestion;
+module.exports.clipStableSign = clipStableSign;
+module.exports.CLIP_STABLE_KEY = CLIP_STABLE_KEY;

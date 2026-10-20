@@ -66,12 +66,50 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
         ...Object.values(V(r.btns.includes('See what I do'), { header: head(r.txt), botWaitMs: r.waitedMs })), t() - s);
   }
 
-  if (want('M06')) {
-    // M06 — bare "menu" must NOT open the list
-    s = t(); r = await api.sendWait('menu');
-    rec('M06', 'A bare "menu" does not open the interactive menu',
-        ...Object.values(V(!r.btns.includes('See what I do'),
-        { reply: (r.txt || '').slice(0, 110), openedList: r.btns.includes('See what I do') })), t() - s);
+  // M06 retired 2026-10-20 (bd-xw56ed): a bare "menu" now opens the menu — driven as M25 below.
+
+  // ── bd-xw56ed · a message no door catches is read against the live menu (M23–M27) ──
+  // "Opens the Test Paper" = the in-app button (a cta_url /go/ link) or, with the app switch off on this lane,
+  // the assessment generator's Flow card (token "<uid>:assessment-gen:<ts>"). "Opens the menu" = the
+  // "See what I do" list or the in-app Home button. M24–M27 reach the classifier (an LLM turn): they need
+  // a cassette recorded for its prompt, like M08/M09/M12.
+  const sentSince = async (text) => { if (api.freshReset) await api.freshReset(); const rr = await api.sendWait(text); return { rr, items: api.fresh ? await api.fresh() : [] }; };
+  const isIabLink = (x) => !!(x.cta && /\/go\//.test(String(x.cta)));
+  const opensTestPaper = (items) => items.some((x) => isIabLink(x) || (x.flow && /:assessment-gen:/.test(String(x.flow.token || ''))));
+  const opensMenu = (items) => items.some((x) => (x.btns || []).includes('See what I do') || isIabLink(x));
+  const saidUnsure = (items) => items.some((x) => /not sure which feature you meant|یہ واضح نہیں ہوا/.test(String(x.txt || '')));
+  const brief = (items) => items.map((x) => ({ txt: String(x.txt || '').slice(0, 80), btns: x.btns, cta: !!x.cta, flow: x.flow ? String(x.flow.token || '').split(':')[1] : null }));
+
+  if (want('M23')) {
+    s = t(); const { rr, items } = await sentSince('/assesments');
+    rec('M23', 'A slip of a command opens that command',
+        ...Object.values(V(rr.ok && opensTestPaper(items), { items: brief(items), botWaitMs: rr.waitedMs })), t() - s);
+  }
+
+  if (want('M24')) {
+    s = t(); const { rr, items } = await sentSince('Exam generator');
+    rec('M24', 'Naming a menu entry in words opens it',
+        ...Object.values(V(rr.ok && opensTestPaper(items), { items: brief(items), botWaitMs: rr.waitedMs })), t() - s);
+  }
+
+  if (want('M25')) {
+    s = t(); const { rr, items } = await sentSince('menu');
+    rec('M25', 'A bare "menu" (no slash) opens the menu',
+        ...Object.values(V(rr.ok && opensMenu(items) && !saidUnsure(items), { items: brief(items), botWaitMs: rr.waitedMs })), t() - s);
+  }
+
+  if (want('M26')) {
+    s = t(); const { rr, items } = await sentSince('/xyzzy');
+    rec('M26', 'An unknown one-word command gets "not sure" and the menu, never the AI chat',
+        ...Object.values(V(rr.ok && saidUnsure(items) && opensMenu(items), { items: brief(items), botWaitMs: rr.waitedMs })), t() - s);
+  }
+
+  if (want('M27')) {
+    api.resetConversation();
+    s = t(); const { rr, items } = await sentSince('make a presentation about photosynthesis');
+    const promised = items.some((x) => /prepar\w* (an |a )?(educational )?presentation|پریزنٹیشن تیار/i.test(String(x.txt || '')));
+    rec('M27', 'A presentation request is not promised',
+        ...Object.values(V(rr.ok && !promised, { items: brief(items), botWaitMs: rr.waitedMs })), t() - s);
   }
 
   if (want('M07', 'M08', 'M09', 'M12')) {

@@ -102,14 +102,22 @@ const SC_COLS = 'id, code, quiz_id, video_id, teacher_user_id, teacher_name, top
 async function resolveCode(rawCode) {
   const code = String(rawCode || '').trim().toUpperCase();
   if (!CODE_RX.test(code)) fail(404, 'not_found');
-  const { data: sc, error } = await dbRead('resolveCode:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select(SC_COLS).eq('code', code).maybeSingle());
+  // web_quiz_challenge_early (the hub's switch cache, never a read of its own): the parent code rides this read, along
+  // the parent_share_code_id foreign key, so a challenge code makes one read, not two. Off: today's two.
+  const withParent = require('./web-quiz-hub-flags').nowOf('challengeEarly');
+  const { data: got, error } = await dbRead('resolveCode:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select(withParent ? `${SC_COLS}, parent:parent_share_code_id(${SC_COLS})` : SC_COLS).eq('code', code).maybeSingle());
   if (error) fail(502, 'db_unavailable');
-  if (!sc) fail(404, 'not_found');
+  if (!got) fail(404, 'not_found');
+  let sc = got;
+  let carried; // the parent row the read carried (null: none), undefined when it did not ask
+  if (withParent) { const { parent: p, ...own } = got; sc = own; carried = p === undefined ? undefined : p; }
   const lang = clampLanguage(sc.language);
   // The same test beginFromCode applies to the code that was used.
   if (!sc.active || (sc.expires_at && new Date(sc.expires_at) < new Date())) fail(410, 'expired', { lang });
   let parent = sc;
-  if (sc.parent_share_code_id && sc.invited_by_student_id) {
+  if (sc.parent_share_code_id && sc.invited_by_student_id && carried !== undefined) {
+    if (carried) parent = carried;
+  } else if (sc.parent_share_code_id && sc.invited_by_student_id) {
     const { data: p } = await dbRead('resolveCode:quiz_share_codes:2', (db) => db.from('quiz_share_codes').select(SC_COLS).eq('id', sc.parent_share_code_id).maybeSingle());
     if (p) parent = p;
   }
@@ -504,6 +512,9 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   // and the league in the link's language only when the answer says so.
   const classDoors = require('./web-quiz-class-doors-flag').on().catch(() => false);
   const ctx = await resolveCode(code);
+  // web_quiz_challenge_early: a friend's challenge starts the challenger's score now, beside the page's own reads, and it
+  // is awaited where today's code reads it (a failure surfaces there, as today)
+  const challengeP = ctx.invitedByStudentId && require('./web-quiz-hub-flags').nowOf('challengeEarly') ? Fast.early(challengeOf(ctx)) : null;
   if (warm) { await warm; fast = Fast.on(); }
   mark('resolve', { shareCodeId: ctx.shareCodeId });
   // A grown-up's chosen language for the child the link's chip names (web-quiz-quiz-lang.js, web_quiz_return_lang):
@@ -576,7 +587,9 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   if (hit) {
     ({ audio, video } = cached);
   } else if (helpers) {
-    try { audio = (await helpers.presignAudio(audioMeta, { expiresIn: MEDIA_TTL_S })) || {}; } catch { audio = {}; }
+    // web_quiz_clip_stable_sign (rides the identity read above: no read of its own): one link per clip for the hour
+    const stable = await IdRoster.clipStableSign();
+    try { audio = (await helpers.presignAudio(audioMeta, stable ? { expiresIn: MEDIA_TTL_S, stable } : { expiresIn: MEDIA_TTL_S })) || {}; } catch { audio = {}; }
     const videoId = ctx.parent.video_id || (quizRow && quizRow.video_id) || null;
     if (videoId) {
       try { video = (await helpers.presignVideo({ video_id: videoId }, { db: supabase, expiresIn: MEDIA_TTL_S })) || null; } catch { video = null; }
@@ -668,7 +681,9 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   };
   mark('live');
   // A friend's challenge: the page keeps the friend away from the challenger's class (its table, its group).
-  if (ctx.invitedByStudentId) { out.invited = true; out.challenge = await challengeOf(ctx); }
+  if (ctx.invitedByStudentId) { out.invited = true; out.challenge = await (challengeP || challengeOf(ctx)); }
+  // web_quiz_challenge_fold (the hub's switch cache, no read): a door with a challenger puts its way in first (wq.js landing)
+  if (out.challenge && require('./web-quiz-hub-flags').nowOf('challengeFold')) out.challenge_fold = true;
   // The Home button and the step-back (web-quiz-hub-flags pageNav): absent when both switches are off.
   const nav = await got('nav', () => require('./web-quiz-hub-flags').pageNav());
   if (nav) out.nav = nav;
@@ -712,7 +727,11 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   // shared lines from the plan voice's set (named only when on).
   if (oneVoice) { out.one_voice = true; out.voice_sets = require('./web-quiz-voice').sharedSets(oneVoice); }
   // web_quiz_voice_gap_phone (the same settings read): a line with no clip is read by the phone's own voice, not left silent
-  if (oneVoice && await IdRoster.voiceGapPhone()) out.voice_gap_phone = true;
+  if (oneVoice && await IdRoster.voiceGapPhone()) {
+    out.voice_gap_phone = true;
+    // web_quiz_voice_gap_slow (the same read): a clip that is there but will not play is read by the phone's voice too
+    if (await IdRoster.voiceGapSlow()) out.voice_gap_slow = true;
+  }
   // The edge reads it (web-quiz.routes uiLangOf, for /class and /schools), and so does the page (wq.js B.class_doors:
   // the table's skeleton, list-state marks and chips).
   if (await classDoors) out.class_doors = true;
@@ -1319,9 +1338,11 @@ async function identityV2(ctx, { quizP = null } = {}) {
   if (await isWatchCode(ctx)) return { invited: false, resolved: NONE_CLASS };
   try {
     const together = require('./web-quiz-hub-flags').linkTogetherNow();
+    const rowsTogether = require('./web-quiz-hub-flags').nowOf('classRows');
     const resolved = await Identity.resolveQuizClass({
       teacherUserId: ctx.teacherUserId, quizId: ctx.quizId, shareCodeId: ctx.moreVideosOf || ctx.shareCodeId,
       ...(together ? { together: true, ...(quizP ? { quizP } : {}) } : {}),
+      ...(rowsTogether ? { rowsTogether: true } : {}),
     });
     return { invited: false, resolved: resolved || NONE_CLASS };
   } catch (e) {

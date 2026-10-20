@@ -138,7 +138,24 @@ const scenarios = [
     await page.waitForSelector('#accountName', { state: 'visible', timeout: 20000 })
       .catch(() => { throw new Error('no account name field after Admin login'); });
     expect(await page.locator('#password').count() === 1, 'no password field');
-    return { landed };
+    const title = (await page.getByRole('heading', { level: 1 }).innerText()).trim();
+    expect(title === 'NIETE Admin', 'the page is titled "' + title + '"');
+    const badge = (await page.getByTestId('auth-badge').innerText()).trim();
+    expect(/^admin$/i.test(badge), 'the badge reads "' + badge + '"');
+    return { landed, title, badge };
+  } },
+  { id: 'PL16', title: 'Back on the Admin sign-in returns to the regular login', run: async (page, ctx) => {
+    await open(page, ctx);
+    await page.getByRole('button', { name: /^admin login$/i }).click();
+    await landsOn(page, '/portal/analytics/login');
+    await page.getByRole('button', { name: /^back$/i }).click();
+    const fromLogin = await landsOn(page, '/portal/login');
+    expect(await page.locator('#phoneNumber').count() === 1 && await page.locator('#password').count() === 1, 'the login is not the phone + password form');
+    await page.goto(ctx.baseUrl + '/portal/analytics/login', { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('#accountName', { state: 'visible', timeout: 20000 });
+    await page.getByRole('button', { name: /^back$/i }).click();
+    const direct = await landsOn(page, '/portal/login');
+    return { fromLogin, direct };
   } },
 ];
 
