@@ -7,7 +7,7 @@
  */
 const { redactNames } = require('./redact-names');
 
-const PROMPT_VERSION = 'vr-4';
+const PROMPT_VERSION = 'vr-5';
 const EXCERPT_LINES = 12;
 const EXCERPT_MAX_CHARS = 220;
 
@@ -80,8 +80,10 @@ function candidateLine(c, catalog) {
  * @param {string} [a.scorerQuote] the target row's own quote (redacted)
  * @param {string} [a.uptakeQuote] the card_text path's evidence line (redacted)
  * @param {number} [a.topRung]     the scheme's top score (2 on FICO v4, 4 on the 37-id scheme)
+ * @param {string} [a.reportLanguage] 'en' | 'ur': the language the teacher reads the reason in
+ * @param {string} [a.lessonLanguage] 'en' | 'ur' | null: the transcript's language
  */
-function build({ target, rationale, tryText, subject, excerpts: ex, candidates, catalog, scorerQuote, uptakeQuote, topRung = 2 }) {
+function build({ target, rationale, tryText, subject, excerpts: ex, candidates, catalog, scorerQuote, uptakeQuote, topRung = 2, reportLanguage, lessonLanguage }) {
   const t = target || {};
   const row = t.row || {};
   let indicatorLine;
@@ -116,13 +118,27 @@ ${(candidates || []).map((c) => candidateLine(c, catalog)).join('\n')}
 
 RULES
 1. Choose the clip that SHOWS the exact move in "Try this tomorrow". Every candidate is for that step: you choose among them and ground the moment; you never change the step.
-2. The reason must cite ONE real moment: the [mm:ss] and a short quote copied from the report's moment or the TRANSCRIPT MOMENTS (never invented, never paraphrased), then what the clip shows a teacher doing instead — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person's name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher. Never write a clip id, number or code; never mention the scorer, the report or the analysis; describe the lesson moment itself. Choose a moment with the teacher's or a child's own words; if the only candidate line is mostly [a student] placeholders, pick another line. If no real moment fits, return seg_id null — never write N/A, unknown or [around unknown].
+2. The reason must cite ONE real moment: the [mm:ss] and a short quote copied from the report's moment or the TRANSCRIPT MOMENTS (never invented, never paraphrased), then what the clip shows a teacher doing instead — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person's name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher. Never write a clip id, number or code; never mention the scorer, the report or the analysis; describe the lesson moment itself. Choose a moment with the teacher's or a child's own words; if the only candidate line is mostly [a student] placeholders, pick another line. If no real moment fits, return seg_id null — never write N/A, unknown or [around unknown].${crossLanguageRule(reportLanguage, lessonLanguage)}
 3. Gender-neutral: say "the teacher" / "they"; in Urdu use verbal nouns or impersonal forms, never gendered second-person verbs. Keep pedagogical terms in English letters inside Urdu (e.g. open-ended questions, wait time). No Roman Urdu (Urdu in Latin letters); Urdu is written in Nastaliq script; only pedagogical terms stay in English letters (one or two words).
 4. If no candidate would help this teacher with this step, return "seg_id": null and say why in "none_reason". That is a good answer, not a failure.
 5. Never pick a clip whose "needs" clearly do not match this lesson, or one meant for a different subject than this lesson (${subject || 'unknown'}).
 
 Return exactly this JSON:
 {"seg_id": "<one of the candidate ids, or null>", "moment": {"at": "mm:ss", "quote": "<copied from the transcript moments>"}, "reason_en": "<two sentences>", "reason_ur": "<the same, in natural Urdu (Nastaliq script)>", "confidence": <0.0-1.0>, "none_reason": "<only when seg_id is null>"}`;
+}
+
+const LANGUAGE_NAMES = Object.freeze({ en: 'English', ur: 'Urdu' });
+
+/**
+ * vr-5 (SPEC §3.4 [v1.3c-3]): when the teacher reads the reason in a different language from the lesson's, the
+ * reason paraphrases the moment and quotes at most 6 words; moment.quote stays verbatim. '' when the two are the
+ * same or either is unknown, so those prompts stay byte-identical to vr-4.
+ */
+function crossLanguageRule(reportLanguage, lessonLanguage) {
+  const report = LANGUAGE_NAMES[reportLanguage];
+  const lesson = LANGUAGE_NAMES[lessonLanguage];
+  if (!report || !lesson || report === lesson) return '';
+  return ` This lesson is in ${lesson} and the teacher reads the reason in ${report}: in reason_${reportLanguage}, paraphrase the moment in ${report} and quote at most 6 words of the lesson word for word; "moment"."quote" stays the line copied word for word from the TRANSCRIPT MOMENTS or the report's moment.`;
 }
 
 // One sentence per validate() <why> (select.js), for the single retry's appendix (v1.3b). Never names a scorer.

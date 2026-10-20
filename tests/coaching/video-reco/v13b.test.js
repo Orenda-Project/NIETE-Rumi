@@ -13,7 +13,7 @@ const target = { indicator: 'C1', source: 'step', row: { id: 'C1', name: 'Qualit
 const cands = [{ seg_id: '10-s1', indicator: 'C1' }, { seg_id: '11-s1', indicator: 'C1' }];
 
 describe('prompt vr-4: "scorer" leaves the prompt, except the rule that forbids mentioning one', () => {
-  test('PROMPT_VERSION is vr-4', () => expect(P.PROMPT_VERSION).toBe('vr-4'));
+  test('PROMPT_VERSION is vr-5 (vr-4 wording, plus v1.3c-3)', () => expect(P.PROMPT_VERSION).toBe('vr-5'));
 
   test('the scorer quote line reads "The report\'s own moment"; rule 2 copies "from the report\'s moment or the TRANSCRIPT MOMENTS"', () => {
     const p = P.build({ target, rationale: 'r', tryText: 't', excerpts: ['[03:00] Teacher: hello'], candidates: cands, catalog: cat, scorerQuote: 'Is this red? Yes or no' });

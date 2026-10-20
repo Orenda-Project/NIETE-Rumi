@@ -223,6 +223,8 @@ async function compute(a, d, state) {
     scorerQuote,
     uptakeQuote,
     topRung: t.topRung || (t.scheme === 'fico_main_37' ? 4 : 2),
+    reportLanguage: language, // vr-5: a report language ≠ the lesson's → paraphrase the moment, quote ≤ 6 words
+    lessonLanguage: transcriptLanguage,
   });
   const vopts = {
     stepIndicator: t.stepIndicator, indicators: t.indicators, source: t.source, catalog, textRoute: !!list.textReason,
