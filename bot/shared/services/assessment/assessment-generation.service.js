@@ -914,7 +914,9 @@ const RULE = {
   situationParts: 'Write each situation\'s three sub-questions as objects { question, answer, marks: 2.5, scheme } where scheme.points sum to 2.5; do not prefix a sub-question with a letter.',
   picksVerbatim: 'For each pick kind ask for the count needed plus two extra, copied exactly as the words appear in the passage (same spelling, same form).',
   gender: 'A child or a person in a stem is \'a child\', \'a student\', \'they\', or a named character. Never she/he, his/her for an unnamed person.',
-  people: 'A person in a word problem or story who is not named is \'they\' (a carpenter … they); a named child keeps a name and needs no pronoun.',
+  people: 'A person in a word problem or story who is not named is \'they\' (a carpenter … they).',
+  // bd-5jmnfj.23: staging printed "Hamza … Their whole trip" and "A boy … They take it home".
+  namedChild: 'A named child, or a person the stem calls a boy, girl, man or woman, is never \'they\' or \'their\': repeat the name, or use he/his for a boy or man and she/her for a girl or woman (Hamza … his trip). \'They\' is only for a person the stem gives no name and no sex.',
   genderUrdu: 'کسی نامعلوم شخص کے لیے صنفی فعل استعمال نہ کریں؛ \'آپ … کریں\' یا نام والا کردار استعمال کریں۔', // needs fluent-Urdu review
   oneKey: 'An anagram, homophone or spelling MCQ has exactly one option that satisfies the stem.',
   urduSpelling: 'A spelling (املا) MCQ quotes a meaning or a picture-word in its stem, never the word whose spelling is tested.',
@@ -1351,7 +1353,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if (key === 'urdu' && list.some((s) => s.slot === 'urdu.C.Q6')) rules.push(RULE.urduQ6Points);
   if (key === 'urdu' && list.some((s) => s.slot === 'urdu.B.Q2')) rules.push(RULE.urduRelationNouns);
   rules.push(RULE.scaffold, RULE.noTags, RULE.noUnderline, RULE.gender, RULE.people);
-  if (medium === 'ur') rules.push(RULE.genderUrdu);
+  rules.push(medium === 'ur' ? RULE.genderUrdu : RULE.namedChild);
   rules.push(RULE.noRepeats);
   if (key === 'social_studies' && list.some((s) => /\.Q[57]$/.test(s.slot))) rules.push(RULE.sstNoReask);
   if (key === 'social_studies') {
