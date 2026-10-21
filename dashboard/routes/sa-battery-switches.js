@@ -13,6 +13,7 @@
  *   sa_one_at_a_time        W3: a read-aloud grid shows one cell at a time (and spoken maths one sum at a time);
  *   sa_passage_punct        W3: the passage is drawn from its own text, with its punctuation and the page's spacing;
  *   sa_rdf_manual           W3: block rdf_manual runs coach-led (the coach gives the instructions).
+ *   sa_voice_gate_v2        the refusal screen ("the voice is not ready") offers Try again, which prepares again.
  *                           ON, each adds battery.ui.<one_at_a_time|passage_punct|rdf_manual> = true for the engine;
  *                           all three OFF, the battery has no ui key, byte for byte as before.
  *
@@ -20,9 +21,9 @@
  */
 const SWITCHES = {
   practiceAllMaths: 'sa_practice_all_maths', passageRotation: 'sa_passage_rotation',
-  oneAtATime: 'sa_one_at_a_time', passagePunct: 'sa_passage_punct', rdfManual: 'sa_rdf_manual',
+  oneAtATime: 'sa_one_at_a_time', passagePunct: 'sa_passage_punct', rdfManual: 'sa_rdf_manual', voiceGateV2: 'sa_voice_gate_v2',
 };
-const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManual: 'rdf_manual' };
+const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManual: 'rdf_manual', voiceGateV2: 'voice_gate_v2' };
 
 function applySwitches(battery, on = {}) {
   if (!battery || !Array.isArray(battery.tasks)) return battery;
