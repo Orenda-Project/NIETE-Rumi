@@ -92,6 +92,10 @@ describe('create with topicIds', () => {
     expect(created.scope).toEqual({
       kind: 'topics',
       topicIds: [TOPICS[0].topicId, TOPICS[2].topicId],
+      topics: [
+        { topicId: TOPICS[0].topicId, name: TOPICS[0].name },
+        { topicId: TOPICS[2].topicId, name: TOPICS[2].name },
+      ],
       slos: [
         { code: 'E-1', description: 'Skill 1', topicId: TOPICS[0].topicId, topicName: 'Topic 1' },
         { code: 'E-3', description: 'Skill 3', topicId: TOPICS[2].topicId, topicName: 'Topic 3' },
