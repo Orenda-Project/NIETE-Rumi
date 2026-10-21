@@ -460,6 +460,8 @@ const saRegister = onSession('sa_register', async ({ sessionId, taskId, itemId, 
     if (kept && kept.reason === 'frozen') return { status: 'invalid', reason: 'already_scored' };
     throw new Error((kept && kept.error) || 'setAudio failed');
   }
+  // CHILD_TEST_SA_SCORER=on: the SA scorer takes this session's parked recordings now (a no-op when off)
+  if (!scoreLater) (sa.deps.saScorer || require('../sa/score')).kick(sessionId); // eslint-disable-line global-require
   return { status: 'ok', scoring: scoreLater ? 'queued' : 'later' };
 });
 
