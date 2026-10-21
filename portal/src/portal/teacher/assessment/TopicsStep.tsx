@@ -18,24 +18,25 @@ import { chooseTopics, chooseWhole, clearTopics, groupForScreen, setTicked, tick
  * Task 8 — the Topics step, after Chapters when exactly one chapter is picked and it has topics. Two choices first:
  * Whole chapter (goes straight on to Questions, today's paper) or Select topics (the list, nothing ticked; English and
  * Urdu under their skill headings with Tick all per heading, Maths and Science one flat list). Any other pick, or a
- * chapter with no topics loaded, steps aside to Questions with the step forgotten.
+ * chapter with no topics loaded (or a read that failed), steps aside to Questions with the step forgotten.
  */
 export function TopicsStep() {
   const C = useCopy(ASSESSMENT);
   const [p, set] = usePicks();
   const navigate = useNavigate();
   const applies = p.grade !== null && !!p.subject && topicsApply(p);
-  const [topics, retry] = useLoad(
+  const [topics] = useLoad(
     applies ? () => loadTopics(p.grade as number, p.subject as string, p.chapters[0]) : null,
     `topics:${p.grade}:${p.subject}:${p.chapters[0]}`,
   );
-  const [types, retryTypes] = useLoad(
+  const [types] = useLoad(
     applies ? () => loadTypes(p.grade as number, p.subject as string) : null,
     `types:${p.grade}:${p.subject}`,
   );
   const all = useMemo(() => dataOf(topics) ?? [], [topics]);
   const offered = useMemo(() => dataOf(types) ?? [], [types]);
-  const none = topics.status === 'ok' && all.length === 0;
+  // No topics, or either read failed: the step steps aside and the paper is the plain chapter paper (today's).
+  const none = (topics.status === 'ok' && all.length === 0) || topics.status === 'error' || types.status === 'error';
   const skip = p.grade === null || !p.subject ? false : !applies || none;
   useEffect(() => {
     if (skip && (p.topicScope != null || p.topicIds != null)) set(clearTopics);
@@ -45,7 +46,6 @@ export function TopicsStep() {
   if (skip) return <Navigate to={newPaperPath('questions')} replace />;
 
   const ready = topics.status === 'ok' && types.status === 'ok';
-  const failed = topics.status === 'error' || types.status === 'error';
   const ticked = new Set(tickedOf(p, all));
   const tick = (ids: string[]) => set((cur) => setTicked(cur, ids, all, offered));
   const flip = (id: string) => tick(ticked.has(id) ? [...ticked].filter((x) => x !== id) : [...ticked, id]);
@@ -57,13 +57,13 @@ export function TopicsStep() {
   const choose = () => { if (p.topicScope !== 'topics') set(chooseTopics); };
   const { grouped, groups } = groupForScreen(all);
   const urdu = /urdu/i.test(p.subject);
-  const why = !ready ? (failed ? C.loadFailed : C.why.wait) : p.topicScope == null ? C.why.topicScope : stepReason('topics', p, 50, C);
+  const why = !ready ? C.why.wait : p.topicScope == null ? C.why.topicScope : stepReason('topics', p, 50, C);
 
   return (
     <StepFrame step="topics" steps={TOPIC_STEPS} backTo={newPaperPath('cover')} next={{ label: C.next, why, to: newPaperPath('questions') }}>
       <Label>{C.topicsAsk}</Label>
       {!ready ? (
-        <LoadState status={failed ? 'error' : 'loading'} onRetry={() => { retry(); retryTypes(); }} />
+        <LoadState status="loading" onRetry={() => {}} />
       ) : (
         <>
           <div role="radiogroup" aria-label={C.topicsAsk} className="flex flex-col gap-2.5">
