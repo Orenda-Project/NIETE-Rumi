@@ -138,10 +138,31 @@ function clipNote(text) {
 }
 
 function coachNotes(form) {
+  if (!form) return [];
   return NOTE_BOXES
     .map(([key, read]) => [key, String(read(form) || '').trim()])
     .filter(([, text]) => text)
     .map(([key, text]) => ({ key, text: clipNote(text) }));
+}
+
+/**
+ * The coach's notes as the brief shows them: the title, then each note under its label, word for word.
+ * The brief is not the only place they are needed: most debriefs begin before the check is submitted, so
+ * before any brief exists (pilot sheet R23, 16 Oct; 30 of 47 on prod since 16 Oct). The "Record sealed"
+ * message and the check's "Work on first" screen show them too, from here, so all three show the same.
+ *
+ * @param {object} form  observation_field_forms row
+ * @param {{lang?: string, except?: string[], plain?: boolean}} opts
+ *   except  boxes left out ("why" is typed on the check itself, so the check and the seal leave it out)
+ *   plain   no title and no WhatsApp bold, a blank line between notes: for a Flow screen (English)
+ * @returns {string[]} lines; [] when nothing was typed
+ */
+function notesSection(form, { lang = 'en', except = [], plain = false } = {}) {
+  const F = FRAME[clampLanguage(lang)] || FRAME.en;
+  const notes = coachNotes(form).filter((n) => !except.includes(n.key));
+  if (!notes.length) return [];
+  if (plain) return notes.flatMap((n, i) => [...(i ? [''] : []), F.note_label[n.key], n.text]);
+  return [F.notes_title, ...notes.flatMap((n) => [`*${F.note_label[n.key]}*`, n.text])];
 }
 
 // The plan as the coach confirmed it in the check, else as the recording graded it.
@@ -265,14 +286,11 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
   const a = form.answers || {};
   const also = Array.isArray(review.also_final) ? pickAlso(review.also_final, priority) : pickAlso([a.also_1, a.also_2], priority);
   if (also.length) lines.push('', ...also.map((id) => F.also(FOCUS[id], alsoSeen(form, id, F))));
-  const notes = coachNotes(form);
-  if (notes.length) {
-    lines.push('', F.notes_title);
-    for (const n of notes) lines.push(`*${F.note_label[n.key]}*`, n.text);
-  }
+  const notes = notesSection(form, { lang });
+  if (notes.length) lines.push('', ...notes);
 
   lines.push('', F.saved);
   return lines.join('\n');
 }
 
-module.exports = { buildBrief, TYPE_CODE };
+module.exports = { buildBrief, notesSection, TYPE_CODE };
