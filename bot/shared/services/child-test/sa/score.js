@@ -34,7 +34,8 @@
  *                                     had no new clip for <s> seconds (else: 2 min after the session's end). A question
  *                                     tapped through before Jugnu finished reading it has no clip and never will, so
  *                                     the last task of a battery waited past the coach's look at Results. A clip that
- *                                     comes after the marks reopens the row (sa-store setAudio), so nothing is lost.
+ *                                     comes after the marks joins the row's keys (sa-store setAudio; the marks are
+ *                                     written once), so the independent scorers still hear it.
  *   CHILD_TEST_SA_SPEECH_GATE=on      every clip goes to STT (Soniox) first. No word heard, or the model's own
  *                                     found:false, and the clip is "no response": each of its items is not reached /
  *                                     no answer, conf 0, no_speech: true, never correct (a tone scored 4/4 before).
