@@ -14,18 +14,8 @@ const modes = {}, runs = {};
 const on = (id, mode, fn) => { modes[id] = mode; runs[id] = fn; };
 
 // Walk the quiz to the question whose stem contains `stem` (answering the earlier ones right), and return its payload.
-async function reach(page, ctx, code, stem, name) {
-  const b = await startAsNew(page, ctx, code, name || ('Item' + Math.floor(Math.random() * 1e6)));
-  const qs = b.quiz.questions;
-  const target = qs.find((x) => x.text.includes(stem));
-  expect(target, 'the quiz serves no question with "' + stem + '" (served: ' + qs.map((x) => x.text.slice(0, 30)).join(' | ') + ')');
-  for (;;) {
-    await page.waitForSelector(M('M6') + ' .wq-item', { state: 'visible', timeout: WAIT });
-    const qq = await current(page, qs);
-    if (qq === target) return { q: qq, qs, boot: b };
-    await L.answerRight(page, qq); await L.nextQ(page);
-  }
-}
+// Land on the question with this stem: earlier answers go through the API, the page resumes on it (lib.reachFast).
+const reach = (page, ctx, code, stem, name) => L.reachFast(page, ctx, code, stem, name);
 const noOverflow = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 
 on('WQ013', 'off', async (page, ctx) => {
