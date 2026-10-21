@@ -236,6 +236,27 @@ describe("dayOutcome with the phone's own session id and block", () => {
     expect(saStore.setClient).toHaveBeenCalledWith('new-session', { clientSessionId: CLIENT, block: 'B3' });
   });
 
+  test("a block a visit-mate already holds is replaced by the server's pick and named in the answer (a phone that lost its memory)", async () => {
+    const saStore = { findByClient: jest.fn(async () => ({ ok: true, sessionId: null })), setClient: jest.fn(async () => ({ ok: true })) };
+    const deps = makeDeps({ saStore });
+    deps.store.listSessionsForVisit.mockResolvedValue({ ok: true, sessions: [{ id: 'mate', draw_id: ALT, status: 'completed', device: { block: 'B3' } }] });
+    const res = await Svc.dayOutcome({ userId: COACH, schoolId: SCHOOL_B, drawId: DRAW, outcome: 'present', clientSessionId: CLIENT, block: 'B3' }, deps);
+    expect(res.block).toMatch(/^B[1245]$/);
+    expect(saStore.setClient).toHaveBeenCalledWith('new-session', { clientSessionId: CLIENT, block: res.block });
+  });
+
+  test("a free block is kept, and the whole battery is never moved", async () => {
+    const saStore = { findByClient: jest.fn(async () => ({ ok: true, sessionId: null })), setClient: jest.fn(async () => ({ ok: true })) };
+    const deps = makeDeps({ saStore });
+    deps.store.listSessionsForVisit.mockResolvedValue({ ok: true, sessions: [{ id: 'mate', draw_id: ALT, status: 'completed', device: { block: 'B2' } }] });
+    const res = await Svc.dayOutcome({ userId: COACH, schoolId: SCHOOL_B, drawId: DRAW, outcome: 'present', clientSessionId: CLIENT, block: 'B3' }, deps);
+    expect(res.block).toBeUndefined();
+    expect(saStore.setClient).toHaveBeenCalledWith('new-session', { clientSessionId: CLIENT, block: 'B3' });
+    deps.store.listSessionsForVisit.mockResolvedValue({ ok: true, sessions: [{ id: 'mate', draw_id: ALT, status: 'completed', device: { block: 'full' } }] });
+    const whole = await Svc.dayOutcome({ userId: COACH, schoolId: SCHOOL_B, drawId: DRAW, outcome: 'present', clientSessionId: CLIENT, block: 'full' }, deps);
+    expect(whole.block).toBeUndefined();
+  });
+
   test('a re-sent present with the same client id returns that session, nothing marked twice', async () => {
     const saStore = { findByClient: jest.fn(async () => ({ ok: true, sessionId: 'first' })), setClient: jest.fn() };
     const deps = makeDeps({ saStore });
