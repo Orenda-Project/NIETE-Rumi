@@ -311,6 +311,20 @@
     var punct = !!opts.passage_punct;
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
+    /**
+     * RULING W3-18 (sa_voice_gate_v2, opts.opening): Jugnu's opening words wait for their clips' prefetch, at most
+     * OPENING_CAP_MS from the first of them, so a busy tunnel's first refusal is not what the child hears; on the cap
+     * the voice's own retry and fallback take over. A screen left while waiting says nothing.
+     */
+    var OPENING_CAP_MS = 3000;
+    var opening = opts.opening && typeof opts.opening.then === 'function' ? opts.opening : null;
+    var openingGate = null;
+    function afterOpening(fn) {
+      if (!opening) return fn();
+      if (!openingGate) openingGate = Promise.race([opening.then(null, function () {}), new Promise(function (ok) { later(ok, OPENING_CAP_MS); })]);
+      var k = keyOf(runner.view());
+      return openingGate.then(function () { if (alive && keyOf(runner.view()) === k) return fn(); });
+    }
     /** RDF manual: the coach gives every instruction and reads every item; Jugnu says only the line the caller marks. */
     function say(textObj, audioObj, inManual) {
       if (!textObj && !audioObj) return Promise.resolve();
@@ -1290,7 +1304,7 @@
     function enter(v) {
       var t = v.task;
       var s = (t && t.script) || {};
-      if (v.phase === 'battery_intro') say(line('welcome'));
+      if (v.phase === 'battery_intro') afterOpening(function () { return say(line('welcome')); });
       else if (v.phase === 'audio_check') {
         if (checkBad) say(line('audio_fail') || { en: COPY.en.audio_bad_sub, ur: COPY.ur.audio_bad_sub }, null, true);
         else {
@@ -1298,7 +1312,9 @@
           // The sound check is a device check, voiced in a coach-led run too (the coach line needs the speaker).
           // A picture tapped during the question has answered this check: its word is not said after it.
           var asked = check;
-          say(line('audio_check') || { en: COPY.en.audio_q, ur: COPY.ur.audio_q }, null, true).then(function () { if (check === asked && !checkBad) return playCheck(); });
+          afterOpening(function () {
+            return say(line('audio_check') || { en: COPY.en.audio_q, ur: COPY.ur.audio_q }, null, true).then(function () { if (check === asked && !checkBad) return playCheck(); });
+          });
         }
       } else if (v.phase === 'warmup') say(copyLine('warm_title'));
       else if (v.phase === 'mic_check') {
