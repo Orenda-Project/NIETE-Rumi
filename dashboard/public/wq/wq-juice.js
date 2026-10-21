@@ -164,10 +164,11 @@
     return anim(el, [{ transform: 'translate(0,0) scale(1)' }, { transform: 'translate(' + (b.left - a.left) + 'px,' + (b.top - a.top) + 'px) scale(.4)', opacity: 0.2 }], 500);
   }
   var COLS = ['#58cc02', '#ffc800', '#1cb0f6', '#ff86d0', '#ce82ff'];
-  function confetti(n, ms) {
+  // back: under the screen (.wqj-back)
+  function confetti(n, ms, back) {
     if (!D || !D.body || !D.createElement || calm() || hidden()) return null;
     var box = D.createElement('div');
-    box.className = 'wqj-cf';
+    box.className = back ? 'wqj-cf wqj-back' : 'wqj-cf';
     box.setAttribute('aria-hidden', 'true');
     for (var i = 0; i < n; i++) {
       var p = D.createElement('i');
@@ -254,7 +255,7 @@
         after(700 + 900 + 150, function () { var i = anims.indexOf(group); if (i >= 0) anims.splice(i, 1); });
       }
     }
-    confetti(24, 1600);
+    if (!o.nc) confetti(24, 1600, o.back === true);
     run = 0;
   }
   function badge(el) {

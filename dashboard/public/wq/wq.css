@@ -207,6 +207,10 @@ html[lang=ur] .wq-jhelp{font-weight:600;line-height:1.9}
 .wq-fitstars{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,48px);justify-content:center;gap:6px}
 .wq-fitstars .wq-star{width:100%;height:auto;aspect-ratio:1}
 .wq-endh{text-wrap:balance}
+/* web_quiz_end_copy_fix: an Urdu end headline's numbers in a digit face (Naskh, ۴ ۶ ۷ in their Urdu forms), never
+   Nastaliq, where a lone ۱ reads as alif; each one isolated (<bdi class="wq-dg">) */
+@font-face{font-family:"WQ Digits";src:url(fonts/wq-urdigits-1.woff2) format("woff2");font-weight:400 800;font-display:swap;unicode-range:U+06F0-06F9}
+html[lang=ur] .wq-dg{font-family:"WQ Digits",var(--f);word-spacing:normal}
 .wq-star path{fill:var(--star-off)}
 .wq-star.wq-on path{fill:var(--star);stroke:var(--star-d);stroke-width:1}
 /* a league / my-scores row: the score, then its stars small enough for 10 on a 360 px row */
@@ -739,6 +743,8 @@ html.wq-adv[lang=ur] .wq-fb [dir=ltr]{font-family:var(--f);line-height:1.4;text-
 html.wq-adv[lang=ur] .wq-opt .wq-lab[dir=ltr]{font-family:var(--f);line-height:1.35}
 /* the adventure look on an Urdu quiz door: an English quiz title (wq.js latDir) in the Latin face, left to right */
 html.wq-adv[lang=ur] .wq-card h1[dir=ltr]{font-family:var(--f);font-weight:800;line-height:1.25;text-align:left}
+/* web_quiz_share_bidi: the Urdu door's English title on the right, like the line under it (DOOR-1) */
+html.wq-adv[lang=ur] .wq-card h1.wq-ttlr[dir=ltr]{text-align:right}
 /* the adventure look (html.wq-adv), kept outside the ONE button block (all under wq-1b) and above the Urdu polish block below */
 /* every Jugnu bubble and line under the look wraps in balanced lines, so no line holds one lone word (EN + UR);
    balance needs a block box, so a shelf book's author line becomes one (it already sat on its own line) */
@@ -768,8 +774,9 @@ html.wq-adv .wqra-btn[data-ic=pause]::before{-webkit-mask:url("data:image/svg+xm
 html.wq-adv .wqra-btn[data-ic=replay]::before{-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z'/%3E%3C/svg%3E") center/contain no-repeat}
 /* the storybook reader's Listen again (wq-stories.js puts <i class="wqs-re"> under the look): the drawn replay sign */
 html.wq-adv .wqs-re{display:inline-block;flex:none;width:20px;height:20px;margin-inline-end:6px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z'/%3E%3C/svg%3E") center/contain no-repeat}
-/* the end screen with web_quiz_end_short (beside end_fit): on a short phone the Urdu end screen's Jugnu (on a row of its own, 112px) is 96px and the bubble a little tighter, so the card's button stays on the first screen; English (Jugnu beside the bubble) already fits */
-@media (max-height:680px){html[lang=ur] .wq-screen .wq-jug.wq-big.wq-jshort .wq-jimg{width:96px;height:96px}html[lang=ur] .wq-screen .wq-jug.wq-big.wq-jshort>.wq-say{margin-bottom:6px;padding-top:8px;padding-bottom:6px}}
+/* the end screen with web_quiz_end_short (beside end_fit): on a short phone the Urdu end screen's Jugnu (on a row of its own, 112px) is 96px and the bubble a little tighter, so the card's button stays on the first screen; English (Jugnu beside the bubble) already fits. On an Urdu replay the card shows the practice note in its first-try line's place there, and the note's own box is hidden */
+html[lang=ur] .wq-screen .wq-small.wq-pin{display:none}
+@media (max-height:680px){html[lang=ur] .wq-screen .wq-jug.wq-big.wq-jshort .wq-jimg{width:96px;height:96px}html[lang=ur] .wq-screen .wq-jug.wq-big.wq-jshort>.wq-say{margin-bottom:6px;padding-top:8px;padding-bottom:6px}html[lang=ur] .wq-screen .wq-small.wq-snote{display:none}html[lang=ur] .wq-screen .wq-small.wq-pin{display:block}html[lang=ur] .wq-screen .wq-banner.wq-pban{display:none}}
 /* ===== ur2 ===== the Urdu polish (app_settings web_quiz_ur_polish → <html lang="ur" class="wq-ur2">). Every rule below is scoped to
    html.wq-ur2[lang=ur]: switch off = the cascade above, untouched; English pages never match. ===== */
 @font-face{font-family:"WQ Nastaliq 2";src:url(fonts/wq-nastaliq-6.woff2) format("woff2");font-weight:400;font-display:swap;unicode-range:U+0020,U+00A0,U+00AB,U+00BB,U+060C,U+061B,U+061F,U+0621-063A,U+0640-0656,U+0658,U+0660-066D,U+0670,U+0679,U+067E,U+0686,U+0688,U+0691,U+0698,U+06A9,U+06AF,U+06BA,U+06BE,U+06C0-06C3,U+06CC,U+06D2-06D4,U+06F0-06F9,U+200C-200F,U+25CC,U+0021}

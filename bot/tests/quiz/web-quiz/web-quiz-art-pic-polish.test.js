@@ -205,7 +205,10 @@ describe('the English challenge, switch on: a name too long for the column is cu
   for (const size of ['og', 'sq']) for (const door of [false, true]) {
     test(`${size}${door ? ' door' : ''}: "${ONE}" is cut with an ellipsis, "'s 3/8?" kept whole beside it inside the column`, () => {
       const h = art('invite', size, 'en', inv(ONE), ON, door);
-      expect(h).toContain(`Can you beat <span class="keep"><bdi class="nm" dir="ltr">${ONE}</bdi>'s${NB}<span class="num">3/8</span>?</span>`);
+      // (the square writes the name already cut: see the test below)
+      const shown = (/<bdi class="nm" dir="ltr">([^<]*)<\/bdi>/.exec(h) || [])[1];
+      expect(size === 'og' ? shown === ONE : shown.endsWith('…') && ONE.startsWith(shown.slice(0, -1))).toBe(true);
+      expect(h).toContain(`Can you beat <span class="keep"><bdi class="nm" dir="ltr">${shown}</bdi>'s${NB}<span class="num">3/8</span>?</span>`);
       expect(css(h)).toContain('.head .keep{white-space:nowrap}');
       const head = px(css(h), /\.head\{font-size:(\d+)px;text-wrap:balance\}/);
       // the name's box and the score after it (about 4.2 em: "'s 3/8?") fit the text column
@@ -219,18 +222,36 @@ describe('the English challenge, switch on: a name too long for the column is cu
     expect(nmMax(h)).toBeLessThanOrEqual(COL.og);
     expect(art('invite', 'sq', 'en', inv(ONE, 0), ON)).toContain(`<bdi dir="ltr">${ONE}</bdi> challenged${NB}you!`);
   });
+  // The square left about a letter's width of space between the cut name and "'s" ("Muhammadabdulr…  's 3/8?"): the HTML
+  // has no space there (the name's box and "'s" touch); the space was inside the box, where the browser's «…» stopped at
+  // a whole letter short of the box's edge. On the square the name is now written already cut ("Muhammadabdulr…", from
+  // the font's own letter widths), so its box is as wide as its words and "'s" follows them.
+  test('square: the cut name is written already cut, its box ends where its words end, "\'s" right after it', () => {
+    const h = art('invite', 'sq', 'en', inv(ONE), ON);
+    const m = /Can you beat <span class="keep"><bdi class="nm" dir="ltr">([^<]*)<\/bdi>'s\u00a0<span class="num">3\/8<\/span>\?<\/span>/.exec(h);
+    expect(m).not.toBeNull();
+    const cutName = m[1];
+    expect(cutName.endsWith('…')).toBe(true);
+    expect(ONE.startsWith(cutName.slice(0, -1))).toBe(true);
+    expect(cutName.length).toBeGreaterThan(8);
+    // the box keeps its limit as a guard
+    expect(nmMax(h)).toBeGreaterThan(0);
+  });
+  test('wide: the cut name keeps the browser\'s «…» in its box (the wide picture is unchanged)', () => {
+    expect(art('invite', 'og', 'en', inv(ONE), ON)).toContain(`<bdi class="nm" dir="ltr">${ONE}</bdi>'s${NB}`);
+  });
   test('short and multi-word names, and every other picture, are drawn exactly as before (hashes recorded on the base)', () => {
     let n = 0;
     for (const c of cases()) {
-      if (c.kind === 'invite' && c.lang === 'en' && c.d.first === ONE) continue;
+      if (c.kind === 'invite' && c.lang === 'en' && c.size === 'sq' && c.d.first === ONE && Number(c.d.correct) > 0) continue;
       const html = sha(renderArt({ kind: c.kind, size: c.size, brand: 'niete', lang: c.lang, d: c.d, ui: { ...(c.ui || {}), pp: true }, door: c.door }, { fonts: false, pictures: false }));
       expect([c.key, html]).toEqual([c.key, GOLDEN_ON[c.key]]);
       n += 1;
     }
     expect(n).toBeGreaterThan(800);
   });
-  test('the polished pictures get new cache keys (the polish\'s version is 2)', () => {
-    expect(Input.ART_PP_V).toBe(2);
+  test('the polished pictures get new cache keys (the polish\'s version is 3)', () => {
+    expect(Input.ART_PP_V).toBe(3);
   });
 });
 

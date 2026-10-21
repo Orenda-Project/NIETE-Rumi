@@ -163,6 +163,8 @@ function facts(token) {
   if (f.s === 4 && f.a === 1) out.a = true;
   // minted with web_quiz_card_ready on: its picture and page are drawn and stored at mint (prepare)
   if (f.s === 4 && f.r === 1) out.ready = true;
+  // minted with web_quiz_share_bidi on: its Urdu counts keep their words (web-quiz-card-data.js words)
+  if (f.s === 4 && f.b === 1) out.bidi = true;
   return out;
 }
 
@@ -284,7 +286,7 @@ async function mint(body = {}, { device = null } = {}) {
   const joined = v4 && w.sid && Switch.joinedCached();
   const Data = data ? require('./web-quiz-card-data') : null;
   const x = Data ? Data.clean(await Data.resultOf({ kind, item, w, ct: body.ct })) : null;
-  const token = seal({ v: 1, k: kind, d: deed, l: lang, n: w.first, ...(kind === 'quiz' && w.code ? { c: w.code } : {}), ...(v4 ? { s: 4, ...(item ? { i: item } : {}), ...(joined ? { j: 1 } : {}), ...(x ? { x } : {}), ...(Switch.cardACached() ? { a: 1 } : {}), ...(Switch.readyCached() ? { r: 1 } : {}) } : {}), t: Math.floor(Date.now() / 1000) });
+  const token = seal({ v: 1, k: kind, d: deed, l: lang, n: w.first, ...(kind === 'quiz' && w.code ? { c: w.code } : {}), ...(v4 ? { s: 4, ...(item ? { i: item } : {}), ...(joined ? { j: 1 } : {}), ...(x ? { x } : {}), ...(Switch.cardACached() ? { a: 1 } : {}), ...(Switch.readyCached() ? { r: 1 } : {}), ...(Switch.shareBidiCached() ? { b: 1 } : {}) } : {}), t: Math.floor(Date.now() / 1000) });
   if (!token) fail(503, 'web_quiz_off');
   if (joined) {
     try {
@@ -293,12 +295,16 @@ async function mint(body = {}, { device = null } = {}) {
       logToFile('⚠️ web quiz card: the card was not kept for "a friend joined" (the share still works)', { error: err.message });
     }
   }
-  const long = longPath({ kind, code: kind === 'quiz' ? w.code : null, lang }, token, v4 && Switch.linkLangCached());
+  const long = longPath({ kind, code: kind === 'quiz' ? w.code : null, lang }, token, v4 && Switch.linkLangCached(), v4 && Switch.linkLangEnCached());
   // short links on (web_quiz_share_short, the same read): /s/<the card's short id>, else the long link
   const url = v4 && Switch.shortCached() ? (await shortUrl(token)) || long : long;
   const out = { token, url, img: `/wq/card/${token}.png`, ret: returnLine(lang) };
   if (v4) { out.v4 = true; out.item = item ? item.t : null; out.plain = info.plain === true; }
   if (v4 && Switch.linkLangCached()) out.link_lang = true;
+  // one star (web_quiz_share_copy_one): the sheet sets an English title on an Urdu sheet in its RTL line (SC-1)
+  if (v4 && Switch.copyOneCached()) out.one = true;
+  // the Urdu share words right to left (web_quiz_share_bidi): the sheet's title line RTL, the card's counts with their words
+  if (v4 && Switch.shareBidiCached()) out.bidi = true;
   if (x) out.data = x;
   // ready (web_quiz_card_ready): the picture and the page are drawn and stored now, while the child is still on the
   // finish screen, so the link's preview never waits for a draw (never awaited; a failure leaves today's way)
@@ -307,10 +313,11 @@ async function mint(body = {}, { device = null } = {}) {
 }
 
 // The card's long path: a class quiz's card is its class link with the card, else /k/<token>. With the link's language
-// (web_quiz_share_link_lang) an Urdu card's class link says so (&lang=ur), so the friend's door opens in Urdu.
-function longPath(f, token, linkLang) {
+// (web_quiz_share_link_lang) an Urdu card's class link says so (&lang=ur), so the friend's door opens in Urdu. With
+// web_quiz_share_link_lang_en an English card's says so too (&lang=en), so an Urdu lesson's preview of it is English.
+function longPath(f, token, linkLang, linkLangEn = false) {
   if (!(f.kind === 'quiz' && f.code)) return `/k/${token}`;
-  return `/q/${f.code}?k=${token}${linkLang && f.lang === 'ur' ? '&lang=ur' : ''}`;
+  return `/q/${f.code}?k=${token}${linkLang && f.lang === 'ur' ? '&lang=ur' : linkLangEn && f.lang === 'en' ? '&lang=en' : ''}`;
 }
 
 // ─── short links (web_quiz_share_short) ─────────────────────────────────────
@@ -336,8 +343,8 @@ async function byShort(id) {
   try { token = await require('../cache/railway-redis.service').get(shortKey(id)); } catch (_) { token = null; }
   const f = typeof token === 'string' ? facts(token) : null;
   if (!f) fail(404, 'not_found');
-  const linkLang = f.kind === 'quiz' && f.code && f.lang === 'ur' && (await shareOn()) && Switch.linkLangCached();
-  return { token, url: longPath(f, token, linkLang) };
+  const quiz = f.kind === 'quiz' && f.code && (await shareOn());
+  return { token, url: longPath(f, token, quiz && Switch.linkLangCached(), quiz && Switch.linkLangEnCached()) };
 }
 
 // ─── the picture ────────────────────────────────────────────────────────────
@@ -611,7 +618,7 @@ async function landing(token) {
     if (f.a) out.a = true;
     if (f.data) {
       out.result = f.data;
-      out.result_text = require('./web-quiz-card-data').words(f.data, f.kind, f.lang);
+      out.result_text = require('./web-quiz-card-data').words(f.data, f.kind, f.lang, f.bidi === true);
     }
   }
   return out;
