@@ -65,6 +65,14 @@ test('Urdu: «اگلی بار» for a skipped stone and for a stone with no micr
   expect(rows(html)).toEqual([['جمع', 'اگلی بار'], ['مزید جمع', '✓ پورا کیا'], ['سوال', 'اگلی بار']]);
 });
 
+test('a stone whose picture would not load (assets_unavailable) reads "Next time" too', async () => {
+  const html = await card('en', [
+    { task_id: 'ma.add1', stop_reason: 'complete' },
+    { task_id: 'ma.add2', stop_reason: 'assets_unavailable' },
+  ]);
+  expect(rows(html)).toEqual([['Adding', '✓ Finished'], ['Adding more', 'Next time'], ['Word problems', 'Not yet']]);
+});
+
 test('the effort stars are unchanged by a skip: every stone ended still earns the first star', async () => {
   const html = await card('en', [
     { task_id: 'ma.add1', stop_reason: 'complete' },
