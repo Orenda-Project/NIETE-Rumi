@@ -11,6 +11,8 @@ const OTHER = 'Other';
 function topicsFromScope(scope) {
   if (!scope || scope.kind !== 'topics') return undefined;
   const byId = new Map();
+  // Ticked topics come first so one with no SLO of its own still has its line.
+  for (const t of scope.topics || []) byId.set(t.topicId, { topicId: t.topicId, name: t.name, sloCodes: [] });
   for (const s of scope.slos || []) {
     if (!byId.has(s.topicId)) byId.set(s.topicId, { topicId: s.topicId, name: s.topicName, sloCodes: [] });
     const t = byId.get(s.topicId);

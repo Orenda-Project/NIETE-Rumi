@@ -1689,7 +1689,13 @@ async function resolveTopicScope(body, { grade, subject, picked }) {
   return {
     partial: true,
     pageRanges: resolved.pageRanges,
-    scope: { kind: 'topics', topicIds: resolved.topics.map((t) => t.topicId), slos: resolved.slos },
+    scope: {
+      kind: 'topics',
+      topicIds: resolved.topics.map((t) => t.topicId),
+      // Ticked topics by name, so a topic whose skills another ticked topic already lists still shows on the key.
+      topics: resolved.topics.map((t) => ({ topicId: t.topicId, name: t.name })),
+      slos: resolved.slos,
+    },
   };
 }
 

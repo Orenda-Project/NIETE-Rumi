@@ -636,7 +636,7 @@ async function buildPaper(job, user = {}) {
       pageReference: source.pageReference,
       chapterTitle: source.chapterTitle || null,
       answerLines,
-      ...(topics ? { paperKind: 'topic' } : {}),
+      ...(topics && topics.length ? { paperKind: 'topic' } : {}),
     });
 
     const renderer = rendererFor(outputFormat);
@@ -687,7 +687,7 @@ async function buildPaper(job, user = {}) {
       chapterTitle: source.chapterTitle || null,
       pageReference: source.pageReference,
       versioned,
-      ...(topics ? { topics } : {}),
+      ...(topics && topics.length ? { topics } : {}),
     };
   } catch (err) {
     const code = err.code || 'UNKNOWN';
