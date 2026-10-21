@@ -25,7 +25,7 @@ const path = require('path');
 const { parseMatrixTab } = require('../shared/services/assessment/topics/matrix-rows');
 const { groupAll } = require('../shared/services/assessment/topics/group');
 const { reconcile, toRow, fromRow } = require('../shared/services/assessment/topics/reconcile');
-const { checkPages } = require('../shared/services/assessment/topics/page-check');
+const { checkPages, REPEATED_PRINTED_PAGES } = require('../shared/services/assessment/topics/page-check');
 
 const TABLE = 'assessment_topics';
 const CHUNK = 250;
@@ -135,7 +135,7 @@ async function pageCheck(db, subjects, topics, { dryRun, allowPageErrors, pageSi
     log('page check skipped: no DB client to read textbook_toc');
     return { outside: 0, spill: 0, noRange: 0 };
   }
-  const found = checkPages(topics, await readToc(db, subjects, pageSize));
+  const found = checkPages(topics, await readToc(db, subjects, pageSize), REPEATED_PRINTED_PAGES);
   found.outside.forEach((f) => log(findingLine('outside', f)));
   found.spill.forEach((f) => log(findingLine('spill', f)));
   if (found.noRange.length) log(`  no range: ${found.noRange.join(', ')}`);
