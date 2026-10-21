@@ -1295,7 +1295,9 @@
         else {
           if (!check) newCheck();
           // The sound check is a device check, voiced in a coach-led run too (the coach line needs the speaker).
-          say(line('audio_check') || { en: COPY.en.audio_q, ur: COPY.ur.audio_q }, null, true).then(function () { return say({ en: check.target.en, ur: check.target.ur }, check.target.audio || null, true); });
+          // A picture tapped during the question has answered this check: its word is not said after it.
+          var asked = check;
+          say(line('audio_check') || { en: COPY.en.audio_q, ur: COPY.ur.audio_q }, null, true).then(function () { if (check === asked && !checkBad) return playCheck(); });
         }
       } else if (v.phase === 'warmup') say(copyLine('warm_title'));
       else if (v.phase === 'mic_check') {
