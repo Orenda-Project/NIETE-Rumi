@@ -850,6 +850,47 @@ describe("LeaderAssess", () => {
       expect(row).not.toHaveTextContent("Stopped");
     });
 
+    it("sa_voice_gate_v2: a child the engine refused (voice not ready) is not Stopped: the hold leaves the row open with Continue and a note", async () => {
+      api.getSwitches.mockResolvedValue({ ...SWITCHES_OFF, voiceGateV2: true });
+      await openList();
+      const s = await startChild("d1");
+      await waitFor(() => expect(api.getSwitches).toHaveBeenCalled());
+      act(() => { window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:refused", s, reason: "voice" }, origin: window.location.origin })); });
+      const hold = screen.getByRole("button", { name: /End test/ });
+      vi.useFakeTimers();
+      fireEvent.pointerDown(hold);
+      act(() => { vi.advanceTimersByTime(3100); });
+      vi.useRealTimers();
+      const row = await screen.findByTestId("assess-child-d1");
+      expect(row).not.toHaveTextContent("Stopped");
+      expect(row).not.toHaveTextContent("Done");
+      expect(within(row).getByRole("button", { name: "Continue" })).toBeInTheDocument();
+      expect(screen.getByTestId("assess-voice-not-ready")).toHaveTextContent("voice was not ready for Ayan");
+      expect(screen.getByTestId("assess-voice-not-ready")).toHaveTextContent("Tap Continue");
+      expect(stored().stopped?.d1).toBeUndefined();
+      // Continue re-opens the same child's card
+      fireEvent.click(within(row).getByRole("button", { name: "Continue" }));
+      expect(await screen.findByTestId("assess-handover")).toBeInTheDocument();
+    });
+
+    it("sa_voice_gate_v2 in Urdu: the note", async () => {
+      window.localStorage.setItem("niete-assess-lang", "ur");
+      api.getSwitches.mockResolvedValue({ ...SWITCHES_OFF, voiceGateV2: true });
+      renderPage();
+      await chooseSchool();
+      fireEvent.click(within(await screen.findByTestId("assess-child-d1")).getByRole("button", { name: "حاضر" }));
+      fireEvent.click(await screen.findByRole("button", { name: "شروع" }));
+      const frame = (await screen.findByTestId("assess-engine-frame")) as HTMLIFrameElement;
+      const s = new URL(frame.getAttribute("src") as string, "http://x").searchParams.get("s") as string;
+      await waitFor(() => expect(api.getSwitches).toHaveBeenCalled());
+      act(() => { window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:refused", s, reason: "voice" }, origin: window.location.origin })); });
+      vi.useFakeTimers();
+      fireEvent.pointerDown(screen.getByRole("button", { name: /جائزہ ختم/ }));
+      act(() => { vi.advanceTimersByTime(3100); });
+      vi.useRealTimers();
+      expect(await screen.findByTestId("assess-voice-not-ready")).toHaveTextContent("آواز تیار نہیں تھی");
+    });
+
     it("sa_mic_required: Ready waits for the microphone; going on without it badges the child No mic", async () => {
       api.getSwitches.mockResolvedValue({ ...SWITCHES_OFF, micRequired: true });
       Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: () => Promise.reject(new Error("NotAllowedError")) } });
