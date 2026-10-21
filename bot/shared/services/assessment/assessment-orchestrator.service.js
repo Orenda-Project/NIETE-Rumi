@@ -617,6 +617,10 @@ async function buildPaper(job, user = {}) {
     // rewritten, so the frozen copy is redundant. Until the flag is on, the old
     // in-place edit path still needs it to keep the model's paper recoverable.
     const versioned = await isAssessmentVersionsEnabled();
+    // A topic paper carries its ticked topics in its own tree, so an edit can
+    // rebuild the key's summary (scope is not stored on the request).
+    const topics = TopicKey.topicsFromScope(scope);
+    if (topics && topics.length) generated.examJson._topics = topics;
     await _patchPaper(paperId, {
       exam_json: generated.examJson,
       ...(versioned ? {} : { original_exam_json: generated.examJson }),
@@ -628,7 +632,6 @@ async function buildPaper(job, user = {}) {
 
     // The paper never carries the answers; the key is a second document built
     // after it.
-    const topics = TopicKey.topicsFromScope(scope);
     const html = Renderer.renderPaper({
       examJson: generated.examJson,
       grade, subject,

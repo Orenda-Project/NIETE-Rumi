@@ -30,7 +30,6 @@ const { resolveUx } = require('../../config/ux-strings');
 // One definition, shared with the Flow endpoint and the portal's browse
 // service. Was copied verbatim into three files.
 const { SUBJECT_LABEL } = require('./assessment-vocabulary');
-const TopicKey = require('./topic-key.renderer');
 
 const TEACHER_MESSAGE = {
   EMPTY_SELECTION: 'Keep at least one question and I will make the paper again.',
@@ -46,14 +45,14 @@ const TEACHER_MESSAGE = {
  * its "by topic" key summary. Any other request gets nothing, so a chapter or
  * board-pattern paper is rendered exactly as before.
  *
- * `scope` is not a column of assessment_requests today (it travels in the queue
- * payload only), so it is NOT selected: asking PostgREST for a missing column
- * fails every edit. When a row carries it, the topics are rebuilt from it.
+ * The ticked topics live in the paper's own tree (`exam_json._topics`, written when
+ * it was made): `scope` is not a column of assessment_requests, so it is never
+ * selected. Selection keeps `_topics` through every edit.
  */
-function _topicRender(req) {
+function _topicRender(req, examJson) {
   if (!req || req.paper_kind !== 'topic') return {};
-  const topics = TopicKey.topicsFromScope(req.scope);
-  return { paperKind: 'topic', ...(topics && topics.length ? { topics } : {}) };
+  const topics = examJson && examJson._topics;
+  return { paperKind: 'topic', ...(Array.isArray(topics) && topics.length ? { topics } : {}) };
 }
 
 const FALLBACK_MESSAGE = 'Sorry — something went wrong making your paper. Please try again.';
@@ -283,7 +282,7 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone, budge
       pageReference: pageRanges,
       chapterTitle: null,
       answerLines,
-      ..._topicRender(req),
+      ..._topicRender(req, paper.exam_json),
     });
 
     let buffer;
@@ -345,7 +344,7 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone, budge
       try {
         const keyBuffer = schemeBuffer || await renderer.render(Renderer.renderAnswerKey({
           examJson, grade, subject, schoolName, pageReference: pageRanges, chapterTitle: null,
-          ..._topicRender(req),
+          ..._topicRender(req, paper.exam_json),
         }));
         const keyName = fileName({
           grade, subject, format: renderer.ext, suffix: pattern ? '_FDE_Edited_MarkingScheme' : '_Edited_AnswerKey',
@@ -619,7 +618,7 @@ async function buildVersion({ parentId, userId, tree, schoolName: knownSchool })
     const schoolName = knownSchool !== undefined ? knownSchool : (await _teacher(userId, null)).schoolName;
     const common = {
       examJson: active, grade, subject, schoolName, pageReference: pageRanges, chapterTitle,
-      ...(pattern ? {} : _topicRender(req)),
+      ...(pattern ? {} : _topicRender(req, tree)),
     };
 
     const v = `${pattern ? '_FDE' : ''}${version ? `_v${version}` : '_Edited'}`;
@@ -773,7 +772,7 @@ async function resendVersion({ paperId, userId, phone: knownPhone, user = null, 
       const keyHtml = Renderer.renderAnswerKey({
         examJson: pattern ? p.exam_json : Selection.activeTree(p.exam_json),
         grade, subject, schoolName, pageReference: pageRanges, chapterTitle,
-        ...(pattern ? { paperFileName: name } : _topicRender(req)),
+        ...(pattern ? { paperFileName: name } : _topicRender(req, p.exam_json)),
       });
       const keyBuffer = pattern
         ? await renderer.render(keyHtml, { pdfOptions: FdeRenderer.pdfOptions(p.exam_json, 'scheme') })
