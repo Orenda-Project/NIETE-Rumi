@@ -96,10 +96,11 @@
     return out.tasks.length ? out : battery;
   }
 
-  /** FNV-1a of a string: the same session always gets the same number. */
+  /** FNV-1a of a string: the same session always gets the same number. Math.imul keeps the product's low bits
+   *  (a plain * rounds them away above 2^53, and hash % 2 then lands on 0 almost every time). */
   function hash(s) {
     var x = 0x811c9dc5;
-    for (var i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = (x * 0x01000193) >>> 0; }
+    for (var i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; }
     return x;
   }
 
