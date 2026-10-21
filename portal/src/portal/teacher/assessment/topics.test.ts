@@ -200,3 +200,44 @@ describe('the choices', () => {
     expect(fromSpec(toSpec(ONE()) as Parameters<typeof fromSpec>[0], 'English')).toMatchObject({ topicScope: null, topicIds: null });
   });
 });
+
+/**
+ * Task 10 — Maths and Science on. The Topics step holds no subject list: it applies to any one chapter and shows what the
+ * server returns (bot GET /assessment/topics), so the subject gate is the data (Science topics exist for G4-5 only).
+ */
+describe('Maths and Science topics (spec §4.2, §4.3)', () => {
+  // G1 Maths Ch3 "Sum and Difference Detectives", as the API serves it (spec §4.2 table), shuffled to prove book order.
+  const CH3 = [
+    ['m5', 'Subtraction facts + fact families', 5], ['m1', 'How many more?', 1], ['m7', 'Word problems', 7],
+    ['m3', 'Adding 2-digit numbers', 3], ['m2', 'Addition facts to 20', 2], ['m6', 'Subtracting 2-digit numbers', 6],
+    ['m4', 'How many less?', 4],
+  ].map(([id, name, order]) => t(id as string, name as string, null, null, order as number));
+
+  it('Maths G1 Ch3: the seven topics, one flat list in book order, no headings', () => {
+    const g = groupForScreen(CH3);
+    expect(g.grouped).toBe(false);
+    expect(g.groups).toHaveLength(1);
+    expect(g.groups[0].heading).toBeNull();
+    expect(g.groups[0].topics.map((x) => x.name)).toEqual([
+      'How many more?', 'Addition facts to 20', 'Adding 2-digit numbers', 'How many less?',
+      'Subtraction facts + fact families', 'Subtracting 2-digit numbers', 'Word problems',
+    ]);
+  });
+
+  it('Topics applies to a Maths chapter and a Science chapter as it does to English', () => {
+    expect(topicsApply(ONE({ subject: 'maths', subjectName: 'Maths' }))).toBe(true);
+    expect(topicsApply(ONE({ grade: 4, subject: 'science', subjectName: 'Science', chapters: [2] }))).toBe(true);
+  });
+
+  it('Science G4: the book topics are one flat list, in book order', () => {
+    const g = groupForScreen([t('s2', 'Parts of a flower', null, null, 2), t('s1', 'Seeds and germination', null, null, 1)]);
+    expect(g.grouped).toBe(false);
+    expect(g.groups[0].topics.map((x) => x.name)).toEqual(['Seeds and germination', 'Parts of a flower']);
+  });
+
+  it('a Maths subset is a topic paper: 10 marks and the Maths types, 2 of each objective and 1 short', () => {
+    expect(topicDefaults('maths', [CH3[1]], MATHS_TYPES)).toMatchObject({
+      marks: 10, typeCounts: { MCQs: 2, 'Fill in the Blanks': 2, 'Short Questions': 1 },
+    });
+  });
+});
