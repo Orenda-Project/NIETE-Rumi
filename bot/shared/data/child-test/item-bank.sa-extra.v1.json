@@ -54,7 +54,7 @@
  },
  "maths": {
   "practice": {
-   "rule": "Practice for the maths tasks whose official source prints none: a fielded item of the same format from an official instrument that is in no scored set of any SA form; else another task's official practice item of the same format (reuse); else a disabled copy of item 1 shown with the instruction, answer not shown (Tangerine demo pattern). Never authored.",
+   "rule": "Practice for the maths tasks whose official source prints none: a fielded item of the same format from an official instrument that is in no scored set of any SA form; else another task's official practice item of the same format (reuse); else one example authored in the task's exact format (src authored:practice, practice true, never scored). The disabled copy of item 1 (Tangerine demo pattern) also stays before the scored items where listed.",
    "items": {
     "ma.number_id": [
      {
@@ -108,11 +108,23 @@
       "numeral": "66",
       "src": "tangerine_gh_sa:numbers number identification scored list (66)"
      }
+    ],
+    "ma.number_repr": [
+     {
+      "say_en": "How many tens are in 30?",
+      "say_ur": "۳۰ میں کتنی دہائیاں ہیں؟",
+      "answer": "3",
+      "practice": true,
+      "src": "authored:practice",
+      "note": "No official source prints a place-value practice item; one example in the exact format of rwp2026:represent_2b, a round number, never scored (lead RULING #36 amended, COS 21 Oct)."
+     }
     ]
    },
    "reuse": {
     "ma.word_problems_l2": "ma.word_problems",
-    "ma.ordering": "ma.missing"
+    "ma.ordering": "ma.missing",
+    "ma.patterns": { "from": "ma.missing", "pick": 1, "why": "core_egma:Task 3 practice P2 (5, 10, 15, __): a what-comes-next row" },
+    "ma.patterns_hi": { "from": "ma.missing", "pick": 0, "why": "core_egma:Task 3 practice P1 (1, 2, __, 4): a missing term, typed" }
    },
    "disabled_copy": [
     "ma.patterns",

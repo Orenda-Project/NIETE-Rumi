@@ -384,6 +384,8 @@ function extraTasks(f, extra) {
   const rep = m.number_repr.items.map((it, i) => ({ it, i })).filter((x) => !x.it.picture);
   out.push(extraMathsTask({ task: 'ma.number_repr', spec: m.number_repr, input: 'keypad', options_n: null, distractor_rule: null,
     items: rep.map(({ it, i }) => ({ id: `ma.number_repr.${it.id.replace('represent_', '')}`, target: it.answer, say: say(it), level: it.level, src: src('number_repr', i) })),
+    // A11: no source prints a place-value practice item, so one authored example (src authored:practice), never scored.
+    practiceV2: borrowed('ma.number_repr').map((b, i) => ({ id: `ma.number_repr.p${i + 1}`, target: b.answer, say: say(b), practice: true, src: b.src, feedback: mathsFeedback({}, b.answer) })),
     scriptKey: 'ma.number_repr', extraBase: base('number_repr'), adaptation: 'Tangerine SA keypad; RWP number representation', demoCopy: demoCopy('ma.number_repr'),
     deviation: `typed on a keypad; picture items ${m.number_repr.items.filter((x) => x.picture).map((x) => x.id).join(', ')} held out until their pictures exist, so no level gate` }));
 
@@ -730,21 +732,24 @@ function passageVariants(core18, extra) {
 // ---------------------------------------------------------------------------------------------- A11 reuse, A14 RDF
 /**
  * A11: a maths task with no unused fielded item practises on another task's official practice item of the same format
- * (extra maths.practice.reuse): practice is unscored everywhere. A tap task gets the item's options by the same rule.
+ * (extra maths.practice.reuse, "<from>" or {from, pick}: one item of it): practice is unscored everywhere. A tap task
+ * gets the item's options by the same rule; a keypad task gets none.
  */
 function reusePractice(list, extra) {
   const reuse = (extra && extra.maths && extra.maths.practice && extra.maths.practice.reuse) || {};
-  for (const [to, from] of Object.entries(reuse)) {
+  for (const [to, rule] of Object.entries(reuse)) {
+    const from = typeof rule === 'string' ? rule : rule.from;
     const t = list.find((x) => x.task === to);
     const s = list.find((x) => x.task === from);
     if (!t || !s || !s.practice.length) continue;
-    t.practice_v2 = s.practice.map((p, i) => {
+    const picked = typeof rule === 'object' && rule.pick != null ? [s.practice[rule.pick]] : s.practice;
+    t.practice_v2 = picked.map((p, i) => {
       const id = `${to}.p${i + 1}`;
       const q = { ...p, id, src: `${p.src} (reused from ${from})` };
       if (t.tap.input === 'options' && Array.isArray(p.shown)) {
         q.shown = p.shown;
         q.options = stepOptions(id, p.target, seqStep(p.shown));
-      }
+      } else if (t.tap.input === 'keypad') delete q.options;
       return q;
     });
   }

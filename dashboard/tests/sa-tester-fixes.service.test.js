@@ -210,6 +210,24 @@ describe('sa_passage_rotation', () => {
     expect(seen.size).toBeGreaterThan(1);
     expect(b.tasks[0].variants).toHaveLength(3);
   });
+  test('the hash spreads real session ids: over 1,000 fixed uuids each English text gets >= 40 %, each Urdu text >= 25 %, in lockstep', () => {
+    const crypto = require('crypto');
+    const real = require('../../bot/shared/data/child-test/sa/sa.coach.G3.A.en.json');
+    const uuid = (i) => crypto.createHash('sha1').update(`seed-${i}`).digest('hex').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12}).*$/, '$1-$2-$3-$4-$5');
+    const n = { en: {}, ur: {} };
+    for (let i = 0; i < 1000; i++) {
+      const r = rotate(real, uuid(i));
+      for (const lang of ['en', 'ur']) {
+        const ids = [`${lang}.story`, `${lang}.story_comp`, `${lang}.listening`].map((id) => r.tasks.find((t) => t.id === id).variant.id);
+        expect(new Set(ids).size).toBe(1);
+        n[lang][ids[0]] = (n[lang][ids[0]] || 0) + 1;
+      }
+    }
+    expect(Object.keys(n.en).sort()).toEqual(['rwp2026', 'tk2009']);
+    expect(Object.keys(n.ur).sort()).toEqual(['prpkp2020', 'rwp2026', 'select2024']);
+    for (const c of Object.values(n.en)) expect(c).toBeGreaterThanOrEqual(400);
+    for (const c of Object.values(n.ur)) expect(c).toBeGreaterThanOrEqual(250);
+  });
   test('a battery with no variants (switch OFF) is returned as it is', () => {
     const plain = { tasks: [{ id: 'ur.story', items: ['a'] }] };
     expect(rotate(plain, 's')).toBe(plain);

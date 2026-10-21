@@ -109,15 +109,33 @@ describe('A08: English and Urdu never mix', () => {
 
 describe('A11: practice before every maths task', () => {
   const content = (it) => JSON.stringify([it.target, it.label != null ? it.label : it.shown != null ? it.shown : null, typeof it.say === 'string' ? it.say : null, it.prompt ? it.prompt.text : null]);
-  test('with the switch on (practice_v2 where given), every ma.* task has practice or a disabled demo copy of item 1', () => {
+  test('with the switch on (practice_v2 where given), every ma.* task has an interactive practice item with feedback', () => {
     const bad = [];
     for (const f of RUNTIMES) {
       for (const t of runtime(f).tasks.filter((x) => x.id.startsWith('ma.'))) {
-        const practice = t.practice_v2 || t.practice;
-        if (!practice.length && !(t.script && t.script.demo_item)) bad.push(`${f} ${t.id}`);
+        const practice = (t.practice_v2 || t.practice).filter((p) => !p.disabled && p.target != null && p.feedback && p.feedback.correct && p.feedback.wrong);
+        if (!practice.length) bad.push(`${f} ${t.id}`);
       }
     }
     expect(bad).toEqual([]);
+  });
+
+  test('patterns practise on Core EGMA\'s printed missing-number practice; number representation on one authored example', () => {
+    for (const f of RUNTIMES.filter((x) => /^sa\.coach\./.test(x))) {
+      const b = runtime(f);
+      const ur = /\.ur\.json$/.test(f);
+      const [pat] = task(b, 'ma.patterns').practice_v2;
+      expect([pat.shown, pat.target, [...pat.options].sort((x, y) => x - y)]).toEqual([[5, 10, 15, null], 20, [15, 20, 25, 30]]);
+      expect(pat.src).toMatch(/practice\[1\]/);
+      expect(pat.feedback.wrong.text).toBe(ur ? 'یہاں ۲۰ آئے گا۔' : 'The number 20 goes here.');
+      const [hi] = task(b, 'ma.patterns_hi').practice_v2;
+      expect([hi.shown, hi.target, hi.options]).toEqual([[1, 2, null, 4], 3, undefined]);
+      expect(hi.src).toMatch(/practice\[0\]/);
+      const [rep] = task(b, 'ma.number_repr').practice_v2;
+      expect([rep.target, rep.practice, rep.src, rep.options]).toEqual(['3', true, 'authored:practice', undefined]);
+      expect(rep.say).toBe(ur ? '۳۰ میں کتنی دہائیاں ہیں؟' : 'How many tens are in 30?');
+      expect(rep.feedback.correct.text).toBe(ur ? 'بالکل ٹھیک، ۳۔' : 'That is right, 3.');
+    }
   });
 
   test('no practice item repeats a scored item of the same form, and every practice item has a src', () => {
