@@ -120,6 +120,11 @@ describe('the assessment generator has one door', () => {
       expect(link.verifyAppLink(opts.url.split('/go/')[1])).toEqual(expect.objectContaining({ u: USER.id, f: 'assessment_topics' }));
     });
 
+    test.each(['en', 'ur'])('the button fits WhatsApp\'s 20 code points, and the body still names the paper, in %s', (language) => {
+      expect([...resolveUx('assessmentTopicsButton', { language })].length).toBeLessThanOrEqual(20);
+      expect(resolveUx('assessmentTopicsBody', { language })).toContain(language === 'en' ? "topics you've taught" : 'موضوعات');
+    });
+
     test('not offered to a teacher the teacher app does not cover (the link would land on the old dashboard)', async () => {
       live(true, false);
       expect(await load().openAssessmentFlow({ from: FROM, userId: USER.id, language: 'en' })).toBe(true);
