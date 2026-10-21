@@ -157,6 +157,54 @@ maybe('sa-ui: the tester\'s screen findings', () => {
     });
   });
 
+  describe('A13: a picture sequence reads in the page\'s direction; numbers always left to right', () => {
+    const rowOf = (el) => el.querySelector('.sae-seq');
+    const withBlank = (t) => { t.items.forEach((it) => { if (Array.isArray(it.shown) && it.shown[it.shown.length - 1] !== null) it.shown.push(null); }); return t; };
+
+    test('Urdu page: the picture row is right-to-left and its blank is the last tile; a numeral pattern stays left-to-right', async () => {
+      const t = withBlank(taskOf('sa.coach.G5.A.ur.json', 'ma.patterns'));
+      const { runner, el, view } = mount({ battery_id: 'b', tasks: [t] }, { runner: {}, ui: { lang: 'ur' } });
+      toRunning(runner);
+      view.render(); await flush();
+      expect(runner.view().item.id).toBe('ma.patterns.1a');
+      expect(rowOf(el).getAttribute('dir')).toBe('rtl');
+      expect(rowOf(el).lastElementChild.classList.contains('sae-gap')).toBe(true);
+      runner.answer(runner.view().item.target); view.render(); await flush();
+      expect(runner.view().item.id).toBe('ma.patterns.1b');
+      expect(rowOf(el).getAttribute('dir')).toBe('ltr');
+    });
+
+    test('a gap printed as "___" in the source (pattern 4a: 40 30 ___ 10 0) is the same blank tile, and the row stays left-to-right on the Urdu page', async () => {
+      const t = taskOf('sa.coach.G5.A.ur.json', 'ma.patterns_hi');
+      const at = t.items.findIndex((it) => it.id === 'ma.patterns.4a');
+      expect(t.items[at].shown).toContain('___');
+      const { runner, el, view } = mount({ battery_id: 'b', tasks: [t] }, { runner: {}, ui: { lang: 'ur' } });
+      toRunning(runner);
+      for (let i = 0; i < at; i++) runner.answer(String(runner.view().item.target));
+      view.render(); await flush();
+      expect(seqText(el)).toEqual(['40', '30', '__', '10', '0']);
+      expect(el.querySelectorAll('.sae-seq .sae-gap')).toHaveLength(1);
+      expect(rowOf(el).getAttribute('dir')).toBe('ltr');
+    });
+
+    test('English page: the picture row is left-to-right', async () => {
+      const t = withBlank(taskOf('sa.coach.G5.A.en.json', 'ma.patterns'));
+      const { runner, el, view } = mount({ battery_id: 'b', tasks: [t] }, { runner: {}, ui: { lang: 'en' } });
+      toRunning(runner); view.render(); await flush();
+      expect(rowOf(el).getAttribute('dir')).toBe('ltr');
+    });
+
+    test.each(['en', 'ur'])('page %s: a missing-number row is left-to-right (tap and keypad)', async (lang) => {
+      for (const f of [`sa.coach.G3.A.${lang}.json`, `sa.coach.G5.A.${lang}.json`]) {
+        const t = taskOf(f, 'ma.missing');
+        const { runner, el, view } = mount({ battery_id: 'b', tasks: [t] }, { runner: {}, ui: { lang } });
+        toRunning(runner); view.render(); await flush();
+        expect(rowOf(el).getAttribute('dir')).toBe('ltr');
+        view.destroy();
+      }
+    });
+  });
+
   describe('A07: the closing line of a part', () => {
     const after = { text: 'Good effort! Let us go on to the next part.' };
     const rec = (id) => ({ id, mode: 'record', time_limit_s: 60, passage: { text: 'a b' }, items: [{ id: id + '.w', target: 'a', line: 1 }], script: { after } });

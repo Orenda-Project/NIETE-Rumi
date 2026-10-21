@@ -362,21 +362,27 @@
     /** The item's label, when it adds something (a sum, a sequence) and does not give the answer away. */
     /** What the item shows on screen: label, or the content file's `shown` (the sum on a say_on:'replay' task). */
     function shownOf(it) { return it == null ? null : (it.label != null ? it.label : (it.shown != null ? it.shown : null)); }
-    function labelOf(it) {
+    function labelOf(it, t) {
       if (!it || shownOf(it) == null || (it.say && it.label == null)) return null;
       var seq = Array.isArray(shownOf(it)) ? shownOf(it) : null;
-      var lab = seq ? seq.filter(function (x) { return x != null; }).join(' ') : String(shownOf(it)).trim();
+      var lab = seq ? seq.filter(function (x) { return !isGap(x); }).join(' ') : String(shownOf(it)).trim();
       if (!lab) return null;
       if (Array.isArray(it.options)) {
         var a = lab.split(/\s+/).sort().join(' '), b = it.options.map(String).sort().join(' ');
         if (a === b) return null;
       }
-      return seq ? seqRow(seq) : h('p', { class: 'sae-label sa-label', dir: 'ltr' }, [lab]);
+      return seq ? seqRow(seq, t) : h('p', { class: 'sae-label sa-label', dir: 'ltr' }, [lab]);
     }
-    /** A sequence as tiles, one per number; the missing one is a bordered blank reading "__", wherever it falls. */
-    function seqRow(seq) {
-      return h('div', { class: 'sae-label sa-label sae-seq', dir: 'ltr' }, seq.map(function (x) {
-        return x == null ? h('span', { class: 'sae-seq-tile sae-gap', text: '__' }) : h('span', { class: 'sae-seq-tile', text: String(x) });
+    /**
+     * A sequence as tiles, one per number; the missing one is a bordered blank reading "__", wherever it falls.
+     * Numbers read left to right on both pages; a row of pictures reads in the task's language (Urdu: right to left).
+     */
+    function isGap(x) { return x == null || /^_+$/.test(String(x).trim()); } // the source's own "___" is the same blank
+    function seqRow(seq, t) {
+      var numeric = seq.every(function (x) { return isGap(x) || /^[\d\u06F0-\u06F9.,\s-]+$/.test(String(x)); });
+      var size = seq.length > 7 ? ' is-xlong' : seq.length > 5 ? ' is-long' : '';
+      return h('div', { class: 'sae-label sa-label sae-seq' + size, dir: !numeric && taskLang(t) === 'ur' ? 'rtl' : 'ltr' }, seq.map(function (x) {
+        return isGap(x) ? h('span', { class: 'sae-seq-tile sae-gap', text: '__' }) : h('span', { class: 'sae-seq-tile', text: String(x) });
       }));
     }
     function keypadMax(t) {
@@ -543,7 +549,7 @@
           h('span', { class: 'sae-chip', text: C.practice }),
           itemSpeaks(p) ? replayBtn(function () { gen++; sayItem(p, t); }) : null,
         ]),
-        t.mode === 'keypad' || t.mode === 'keyboard' ? null : labelOf(p),
+        t.mode === 'keypad' || t.mode === 'keyboard' ? null : labelOf(p, t),
         answerArea,
         feedbackLine(fb),
       ], t.mode === 'keypad' || t.mode === 'keyboard' ? null : [jugnu(fb ? (fb.res.ok ? 'correct' : 'notyet') : 'idle', true)]);
@@ -614,7 +620,7 @@
         clock(v),
         h('p', { class: 'sae-task-tag', text: tx(t.title) }),
         h('div', { class: 'sae-row' }, [jugnu('idle', true), itemSpeaks(it) ? replayBtn(function () { sayItem(it, t); }) : null]),
-        labelOf(it),
+        labelOf(it, t),
         // A tap on the passage itself (print orientation): the words are the buttons, scored by place.
         t.tap_on === 'passage' && typeof it.target_index === 'number'
           ? passageTap(t, function (i, b) { busy = true; b.classList.add('is-pressed'); runner.answer(i); later(function () { busy = false; draw(); }, PRESS_MS); })
@@ -671,7 +677,7 @@
       var shown = fb ? String(fb.res.shown != null ? fb.res.shown : fb.value) : typed;
       displayEl = h('output', { class: 'sae-typed sa-typed' + (fb ? (fb.res.ok || fb.res.shown != null ? ' is-right' : ' is-tried') : ''), dir: 'ltr', 'aria-live': 'polite' }, [shown || ' ']);
       // the typed number big above the keypad (a sum and its box on one line: "1 + 3 = [ ]"); nothing goes until ✓
-      if (seq) kids.push(seqRow(seq));
+      if (seq) kids.push(seqRow(seq, t));
       kids.push(lab ? h('div', { class: 'sae-sumrow', dir: 'ltr' }, [h('p', { class: 'sae-sum sa-label' }, [lab]), displayEl]) : displayEl);
       // 1 2 3 ⌫ / 4 5 6 ✓ / 7 8 9 ✓ / 0 0 0 ✓: the ✓ is the biggest key (three rows tall)
       var keys = ['1', '2', '3', 'del', '4', '5', '6', 'ok', '7', '8', '9', '0'];
