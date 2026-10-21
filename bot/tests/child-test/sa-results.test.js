@@ -81,7 +81,7 @@ describe('saResults', () => {
     const out = await sa.saResults({ userId: COACH, sessionId: SID }, world());
     expect(out.tasks[0]).toEqual({
       taskId: 'ur.letters', mode: 'tap', attempted: 24, correct: 18, optionsN: 4, chanceCorrected: 16,
-      itemsPerMin: 24, stopReason: 'time_up', recording: 'none', score: null,
+      itemsPerMin: 24, stopReason: 'time_up', recording: 'none', score: null, title: null,
     });
   });
 
@@ -89,7 +89,7 @@ describe('saResults', () => {
     const out = await sa.saResults({ userId: COACH, sessionId: SID }, world());
     expect(out.tasks[1]).toEqual({
       taskId: 'ma.add1', mode: 'keypad', attempted: 9, correct: 7, optionsN: null, chanceCorrected: null,
-      itemsPerMin: 9, stopReason: 'complete', recording: 'none', score: null,
+      itemsPerMin: 9, stopReason: 'complete', recording: 'none', score: null, title: null,
     });
   });
 
@@ -160,5 +160,22 @@ describe('saResults', () => {
   test('the bot route maps /sa/results to saResults with only the user and the session', () => {
     const src = require('fs').readFileSync(require.resolve('../../shared/routes/child-test-app.routes'), 'utf8');
     expect(src).toMatch(/'\/sa\/results': \['saResults', \['userId', 'sessionId', 'asAdmin'\], 'sa-api\.service'\]/);
+  });
+});
+
+describe('saResults: task names from the battery', () => {
+  const bank = {
+    forms: { 'coach.G3.A': {} },
+    tasks: { 'coach.G3.A/ma.add1': { title: { en: 'Addition, quick', ur: 'جمع، فوری' } } },
+  };
+  test("each task carries the battery's own title in both languages; an unknown task has none", async () => {
+    const out = await sa.saResults({ userId: COACH, sessionId: SID }, { ...world(), bank });
+    const add = out.tasks.find((t) => t.taskId === 'ma.add1');
+    expect(add.title).toEqual({ en: 'Addition, quick', ur: 'جمع، فوری' });
+    expect(out.tasks.find((t) => t.taskId === 'ur.oral_reading').title).toBeNull();
+  });
+  test('the admin path names tasks the same way', async () => {
+    const out = await sa.saResults({ userId: 'admin-1', sessionId: SID, asAdmin: true }, { ...world(), bank });
+    expect(out.tasks.find((t) => t.taskId === 'ma.add1').title).toEqual({ en: 'Addition, quick', ur: 'جمع، فوری' });
   });
 });

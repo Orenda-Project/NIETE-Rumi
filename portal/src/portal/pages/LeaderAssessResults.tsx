@@ -99,7 +99,12 @@ export default function LeaderAssessResults() {
     const stop = t.stopReason ? (r.stops as Record<string, string>)[t.stopReason] || t.stopReason : null;
     return (
       <li key={t.taskId} data-testid={`result-task-${t.taskId}`} className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h2 className="mb-1 font-semibold text-slate-900"><bdi>{t.taskId}</bdi></h2>
+        {t.title?.[lang] ? (
+          <>
+            <h2 className="font-semibold text-slate-900">{t.title[lang]}</h2>
+            <p data-testid="result-task-id" dir="ltr" className="mb-1 text-start text-xs text-slate-500"><bdi>{t.taskId}</bdi></p>
+          </>
+        ) : <h2 className="mb-1 font-semibold text-slate-900"><bdi>{t.taskId}</bdi></h2>}
         <dl className="divide-y divide-slate-100">
           <Row label={r.mode} value={mode} />
           {!spoken && <Row label={r.attempted} value={n(t.attempted)} />}
