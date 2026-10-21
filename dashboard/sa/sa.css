@@ -116,6 +116,12 @@ button{font:inherit;color:inherit}
 .sae-seq{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;font-size:30px;letter-spacing:0}
 .sae-seq-tile{display:inline-grid;place-items:center;min-width:48px;min-height:56px;padding:0 6px;border-radius:14px;background:var(--sae-card)}
 .sae-gap{border:3px dashed var(--sae-ink-2);color:var(--sae-ink-2)}
+.sae-seq[dir=rtl]{direction:rtl}
+/* longer rows (6–9 tiles) stay on one line at 360px */
+.sae-seq.is-long{gap:4px;font-size:26px}
+.sae-seq.is-long .sae-seq-tile{min-width:40px;min-height:50px;padding:0 4px}
+.sae-seq.is-xlong{gap:2px;font-size:20px}
+.sae-seq.is-xlong .sae-seq-tile{min-width:28px;min-height:42px;padding:0 1px;border-radius:10px}
 .sae-task-tag{margin:0;font-size:18px;font-weight:700;color:var(--sae-ink-2)}
 .sae-danger{color:#8A1C1C;border-color:#E9B7B7}
 
