@@ -184,3 +184,46 @@ maybe('sa-ui: chains, the right line and the demo copy', () => {
     expect(demo.querySelector('.is-right')).toBeNull();
   });
 });
+
+describe('sa_passage_rotation', () => {
+  const { rotate } = require('../sa/sa-page');
+  const b = {
+    battery_id: 'x', tasks: [
+      { id: 'ur.story', passage: { text: 'A' }, items: ['a'], stop: { first_line_n: 5 }, variants: [{ id: 'v0', passage: { text: 'A' }, items: ['a'], stop: { first_line_n: 5 } }, { id: 'v1', src: 's1', fielded: true, passage: { text: 'B' }, items: ['b'], stop: { first_line_n: 9 } }, { id: 'v2', passage: { text: 'C' }, items: ['c'] }] },
+      { id: 'ur.story_comp', items: ['qa'], variants: [{ id: 'v0', items: ['qa'] }, { id: 'v1', items: ['qb'] }, { id: 'v2', items: ['qc'] }] },
+      { id: 'ma.add1', items: [1] },
+    ],
+  };
+  test('one index per child for every rotating task: a passage and its questions stay together; the same child, the same texts', () => {
+    const seen = new Set();
+    for (const s of ['sess-aaaaaa', 'sess-bbbbbb', 'sess-cccccc', 'sess-dddddd', 'sess-eeeeee', 'sess-ffffff']) {
+      const r = rotate(b, s);
+      const story = r.tasks[0];
+      const comp = r.tasks[1];
+      expect(comp.items[0]).toBe(`q${story.items[0]}`);
+      expect(story.variants).toBeUndefined();
+      expect(story.variant.id).toBe(`v${'abc'.indexOf(story.items[0])}`);
+      expect(rotate(b, s).tasks[0].items).toEqual(story.items);
+      expect(r.tasks[2]).toBe(b.tasks[2]);
+      seen.add(story.items[0]);
+    }
+    expect(seen.size).toBeGreaterThan(1);
+    expect(b.tasks[0].variants).toHaveLength(3);
+  });
+  test('a battery with no variants (switch OFF) is returned as it is', () => {
+    const plain = { tasks: [{ id: 'ur.story', items: ['a'] }] };
+    expect(rotate(plain, 's')).toBe(plain);
+  });
+  test('the route drops variants while the switch is OFF and keeps them ON', async () => {
+    const serveR = async (rot) => {
+      const app = express();
+      app.use(createSaEngineRouter({ on: () => true, practiceAllMaths: () => false, passageRotation: () => rot }));
+      const srv = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
+      try { return await (await fetch(`http://127.0.0.1:${srv.address().port}/sa/batteries/sa.coach.G3.A.ur.json`)).json(); } finally { srv.close(); }
+    };
+    const off = await serveR(false);
+    expect(off.tasks.filter((t) => t.variants)).toEqual([]);
+    const on = await serveR(true);
+    expect(byId(on, 'ur.story').variants.map((v) => v.id)).toEqual(['rwp2026', 'select2024', 'prpkp2020']);
+  });
+});
