@@ -1667,6 +1667,33 @@ function rememberQueued(key, id) {
 }
 
 /**
+ * The topic scope of a plain create. { partial: false } when `topicIds` is absent, empty or covers the
+ * chapter's whole topic set (the request is today's chapter request); { error } for a refusal; otherwise
+ * { partial: true, pageRanges, scope: {kind:'topics', topicIds, slos} }. Exactly one chapter is needed,
+ * and an id that is not that chapter's (unknown, or another chapter's) is refused.
+ */
+async function resolveTopicScope(body, { grade, subject, picked }) {
+  const ids = Array.isArray(body.topicIds) ? body.topicIds.map((t) => String(t)).filter(Boolean) : [];
+  if (!ids.length) return { partial: false };
+  if (picked.length !== 1) return { error: 'Topics belong to one chapter. Pick one chapter.' };
+  const { listChapterTopics } = require('../services/assessment/topics/topics.repo');
+  const { resolveTopics, TopicNotFound } = require('../services/assessment/topics/resolve');
+  const all = await listChapterTopics(grade, subject, picked[0]);
+  let resolved;
+  try { resolved = resolveTopics(all, ids); } catch (err) {
+    if (err instanceof TopicNotFound) return { error: 'One of those topics is not in this chapter.' };
+    throw err;
+  }
+  if (resolved.isAll) return { partial: false };
+  if (!resolved.pageRanges) return { error: 'We do not have the pages for those topics yet.' };
+  return {
+    partial: true,
+    pageRanges: resolved.pageRanges,
+    scope: { kind: 'topics', topicIds: resolved.topics.map((t) => t.topicId), slos: resolved.slos },
+  };
+}
+
+/**
  * POST /api/internal/assessment/create
  * Body { userId, grade, subject, chapterNumbers|chapterNumber|pageRanges, ... } → 202 { success, requestId }
  *
@@ -1764,6 +1791,12 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     return res.status(400).json({ success: false, error: 'chapterNumbers or pageRanges is required' });
   }
 
+  // A paper on some of one chapter's topics. None, or every one ticked, is the whole chapter: that
+  // request goes on below exactly as it always has.
+  const topicScope = await resolveTopicScope(body, { grade, subject, picked });
+  if (topicScope.error) return res.status(400).json({ success: false, error: topicScope.error });
+  const byTopics = topicScope.partial;
+
   // The cap is enforced HERE as well as offered by /options. A form that reads
   // the cap is a convenience; a server that enforces it is the actual rule, and
   // the request row's own CHECK allows up to 60.
@@ -1833,7 +1866,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   // She picked a chapter, not pages — but the row should still say which pages
   // it covers, so a request is readable later without re-reading a contents
   // page that a re-import can change underneath it.
-  let pages = pageRanges;
+  let pages = byTopics ? topicScope.pageRanges : pageRanges;
   if (!pages && picked.length) {
     const chapters = await Browse.listChapters(grade, subject);
     if (picked.some((n) => !chapters.some((c) => c.chapter_number === n))) {
@@ -1853,7 +1886,8 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     grade,
     subject,
     textbookId: book.id,
-    chapterNumber,
+    // A topic paper names no chapter: its pages are the resolved ranges (spec §6), loaded range by range.
+    chapterNumber: byTopics ? null : chapterNumber,
     chapterNumbers: picked.length ? picked : null,
     pageRanges: pages,
     contentSource,
@@ -1865,6 +1899,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     includeAnswerKey: true,
     answerLines: body.answerLines !== false,
     outputFormat: body.outputFormat || 'pdf',
+    ...(byTopics ? { paperKind: 'topic', scope: topicScope.scope } : {}),
   });
 
   return res.status(202).json({ success: true, requestId });
