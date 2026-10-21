@@ -246,6 +246,22 @@ maybe('sa-ui: Wave 3 screens', () => {
     expect(off.el.querySelector('.sae-passage').textContent).not.toMatch(lang === 'ur' ? /[۔،؟]/ : /[.,?]/);
   });
 
+  test.each([['sa.coach.G3.A.ur.json', 'ur.story', 'ur', '۔', 6, 6], ['sa.coach.G3.A.en.json', 'en.story', 'en', '.', 7, 7]])('passage_punct: %s %s (rwp2026) is one sentence per line, as on the booklet page', async (f, id, lang, stop, n, lines) => {
+    const t = form(f).tasks.find((x) => x.id === id);
+    const v = t.variants.find((x) => x.id === 'rwp2026');
+    const task = { ...t, passage: v.passage, items: v.items };
+    delete task.variants; delete task.depends_on;
+    const { runner, el, view } = mount({ battery_id: 'b', tasks: [task] }, {}, { passage_punct: true, lang });
+    runner.start(); runner.instructionDone();
+    while (runner.view().phase === 'practice') runner.practiceAnswer(runner.view().practice.target);
+    runner.begin(); view.render(); await flush();
+    const rows = [...el.querySelectorAll('.sae-passage .sae-pline')].map((r) => r.textContent.trim());
+    expect(rows).toHaveLength(lines);
+    rows.forEach((r) => expect(r.endsWith(stop)).toBe(true));
+    expect(rows.join(' ').split(stop).length - 1).toBe(n);
+    if (lang === 'en') expect(rows.join(' ').split(',').length - 1).toBe(1);
+  });
+
   test('mental maths: the sum is shown big while the answer is spoken', async () => {
     const t = { id: 'ma.fluency', subtask: 'mental_math_fluency', time_limit_s: 60, items: [{ id: 'f1', shown: '3 + 4', target: '7' }] };
     const { runner, el, view } = mount({ battery_id: 'b', tasks: [t] }, { one_at_a_time: true }, {});

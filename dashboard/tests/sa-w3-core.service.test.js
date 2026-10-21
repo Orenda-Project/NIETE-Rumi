@@ -160,3 +160,43 @@ describe('new subtasks', () => {
     expect(r.view().item.id).toBe('f2');
   });
 });
+
+describe('comprehension gates per question (W3 forms: gate.min_words)', () => {
+  const words = Array.from({ length: 60 }, (_, i) => ({ id: 'w' + (i + 1), target: 'w' + (i + 1), line: 1 }));
+  const q = (id, min) => ({ id, prompt: id, gate: { read_past: null, min_words: min } });
+  function battery(questions) {
+    return { battery_id: 'b', tasks: [
+      { id: 'ur.story_w3', subtask: 'oral_reading_fluency', response: 'record', time_limit_s: 60, passage: { text: 'x' }, items: words },
+      { id: 'ur.story_comp_w3', subtask: 'reading_comprehension', depends_on: { task: 'ur.story_w3', upto_item: 'last_word_tap' }, items: questions },
+    ] };
+  }
+  function readTo(lastIndex, questions) {
+    const c = clock();
+    const r = core.createRunner({ battery: battery(questions), now: c.now, mic: () => 'ok' });
+    r.start(); r.instructionDone(); r.begin(); r.done(); r.lastWord(lastIndex); r.next();
+    return r;
+  }
+  const qs = [q('q1', 1), q('q2', 23), q('q3', 30), q('q4', 55), q('q5', 44), q('q6', 55)];
+
+  test('a child who read 30 words is asked the questions whose min_words ≤ 30, in order', () => {
+    const r = readTo(29, qs);
+    r.instructionDone(); r.begin();
+    const asked = [];
+    while (r.view().phase === 'running') { asked.push(r.view().item.id); r.answer('spoken'); }
+    expect(asked).toEqual(['q1', 'q2', 'q3']);
+    expect(r.view().result.asked).toEqual(['q1', 'q2', 'q3']);
+  });
+
+  test('every word read: all six', () => {
+    const r = readTo(59, qs);
+    r.instructionDone(); r.begin();
+    expect(r.view().items_n).toBe(6);
+  });
+
+  test('no word tapped: the questions are skipped (skipped_no_first_line)', () => {
+    const c = clock();
+    const r = core.createRunner({ battery: battery(qs), now: c.now, mic: () => 'ok' });
+    r.start(); r.instructionDone(); r.begin(); r.done(); r.lastWord(-1); r.next();
+    expect(r.view().result.stop_reason).toBe('skipped_no_first_line');
+  });
+});

@@ -266,7 +266,13 @@
       if (d.items_read_upto || d.upto_item) {
         var line = dep.last_word_line;
         if (line == null) return { skip: STOP.SKIPPED_NO_LINE };
-        var keep = t.items.filter(function (q) { return q.needs_line == null || q.needs_line <= line; });
+        // W3 forms: a question asked only once the child read min_words words (the coach card's "only if the child
+        // read past …"); older forms by the line reached.
+        var read = dep.last_word_index != null ? dep.last_word_index + 1 : 0;
+        var keep = t.items.filter(function (q) {
+          if (q.gate && typeof q.gate.min_words === 'number') return read >= q.gate.min_words;
+          return q.needs_line == null || q.needs_line <= line;
+        });
         return keep.length ? { items: keep } : { skip: STOP.SKIPPED_NO_LINE };
       }
       return { items: t.items };
