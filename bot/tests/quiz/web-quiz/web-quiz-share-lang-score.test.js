@@ -136,6 +136,17 @@ describe('the card after a practice replay (web_quiz_share_first_score)', () => 
     seed({ on: ['web_quiz_share_first_score'] });
     expect((await mint({ st: st(FIRST) })).body.data).toEqual({ r: 4, o: 6, s: 1 });
   });
+  test('one copy of the kept score: the card\'s result and the share pictures read the same helper', async () => {
+    seed({ on: ['web_quiz_share_first_score'] });
+    const Data = require('../../../shared/services/quiz/web-quiz-card-data');
+    const kept = await Data.keptScore({ id: REPLAY, student_id: 'st-1', share_code_id: 'sc-1', correct_answers: 0, total_questions_answered: 6 });
+    expect(kept).toMatchObject({ id: FIRST, correct_answers: 4, total_questions_answered: 6 });
+    expect(require('fs').readFileSync(require.resolve('../../../shared/services/quiz/web-quiz-art'), 'utf8')).not.toMatch(/async function keptScore/);
+    // the picture of the replay's own card id says the kept 4/6 too
+    htmlToImage.mockClear();
+    await Art.artImage(Art.artId('c', REPLAY), { size: 'og' });
+    expect(htmlToImage.mock.calls[0][0]).toMatch(/4\/6/);
+  });
   test('off: the replay\'s own score, as today', async () => {
     seed();
     const { body } = await mint({ st: st(REPLAY) });
