@@ -255,7 +255,7 @@
         after(700 + 900 + 150, function () { var i = anims.indexOf(group); if (i >= 0) anims.splice(i, 1); });
       }
     }
-    confetti(24, 1600, o.back === true);
+    if (!o.nc) confetti(24, 1600, o.back === true);
     run = 0;
   }
   function badge(el) {
