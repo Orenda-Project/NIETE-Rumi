@@ -26,6 +26,7 @@ const Store = require('../services/observe/observe2/field-form.store');
 const { addUp } = require('../services/observe/observe2/rules');
 const { CODES, PRIORITY, ALSO_NONE, pickAlso } = require('../services/observe/observe2/fico17');
 const { SLOTS, FIDELITY_SLOTS, HEARD_SCREENS, ADDED_SCREENS, CHECK_VERSION } = require('../services/observe/observe2/evidence-check.flow');
+const { notesSection } = require('../services/observe/observe2/brief');
 const { logToFile } = require('../utils/logger');
 
 const HEARD_IDS = HEARD_SCREENS.map((h) => h.id);
@@ -112,6 +113,15 @@ const levelText = (lv) => (lv == null ? '' : String(lv));
 
 const newCheck = (screenData) => Boolean(screenData && screenData.cv === CHECK_VERSION);
 
+// The coach's notes from the visit, read-only above the picks (pilot sheet R23): the conversation with the
+// teacher usually runs while this check is open (24 of 47 debriefs on prod since 16 Oct), before the brief
+// that also carries them. The brief's own section, without "Why you changed", which is typed on this
+// screen. A check opened on a Flow published before the block was declared ignores the two keys.
+function notesData(form) {
+  const body = notesSection(form, { except: ['why'], plain: true }).join('\n');
+  return { notes_v: Boolean(body), notes_body: body };
+}
+
 // The PRIORITY screen, pre-filled with the sealed picks. Today's published check lists only the 17, so
 // a pick it does not have (the plan's steps) is left for the coach to choose rather than sent as a value
 // its Dropdown cannot show.
@@ -122,7 +132,7 @@ function renderPriority(form, screenData) {
   const also = pickAlso([a.also_1, a.also_2], first);
   return {
     screen: 'PRIORITY',
-    data: { priority_level: first, also_level_1: also[0] || ALSO_NONE, also_level_2: also[1] || ALSO_NONE },
+    data: { priority_level: first, also_level_1: also[0] || ALSO_NONE, also_level_2: also[1] || ALSO_NONE, ...notesData(form) },
   };
 }
 
