@@ -56,8 +56,9 @@ describe("assess copy", () => {
   });
 
   it("block names", () => {
-    expect(COPY.en.blocks).toEqual({ B1: "Urdu reading", B2: "English reading", B3: "Listening", B4: "Maths: numbers", B5: "Maths: sums", full: "Whole battery" });
+    expect(COPY.en.blocks).toEqual({ B1: "Urdu reading", B2: "English reading", B3: "Listening", B4: "Maths: numbers", B5: "Maths: sums", full: "Whole battery", rdf: "RDF" });
     expect(COPY.ur.blocks.B1).toBe("اردو پڑھنا");
+    expect(COPY.ur.blocks.rdf).toBe("آر ڈی ایف");
     expect(COPY.ur.blocks.full).toBe("مکمل جائزہ");
   });
 
