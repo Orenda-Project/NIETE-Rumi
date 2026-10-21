@@ -90,7 +90,8 @@ const num = (n, ur) => (ur ? String(n).replace(/[0-9]/g, (d) => UR_DIGITS[d]) : 
 // an Urdu line's closing "!": the Nastaliq "!" stands a gap apart, so it is pulled to its word and kept on its line
 const tight = (html, ur) => (ur ? html.replace(/\s*!/g, '\u2060<span class="ex">!</span>') : html);
 // «صحیح» after a word or digit: its tall start leaves a hole that reads as a double space (native read, 18 Oct)
-const sah = (html, ur) => (ur ? html.replace(/ صحیح/g, ' <span class="sah">صحیح</span>') : html);
+// (a number kept with its word, web_quiz_share_bidi: the no-break space before it, kept)
+const sah = (html, ur) => (ur ? html.replace(/([ \u00a0])صحیح/g, '$1<span class="sah">صحیح</span>') : html);
 
 let _assets = null;
 function b64(rel) {
@@ -121,7 +122,7 @@ function renderCardA(f, opt = {}) {
   const c = COL[land];
   const Data = require('./web-quiz-card-data');
   const x = Data.clean(f.data);
-  const lines = x ? Data.words(x, f.kind, l) : {};
+  const lines = x ? Data.words(x, f.kind, l, f.bidi === true) : {};
   const COPY = require('./web-quiz-card-image').COPY;
   const deedKey = SAME_AS[f.deed] || f.deed;
   // a long first name is clamped (12 letters at most, then …) so the deed keeps its line and the CTA stays on the card

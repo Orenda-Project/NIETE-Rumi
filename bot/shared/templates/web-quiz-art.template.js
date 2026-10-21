@@ -31,6 +31,7 @@ const path = require('path');
 const WebQuizBrand = require('../config/web-quiz-brand');
 const { NASTALIQ, scriptOf } = require('./niete-brand');
 const { clampLanguage, UX_STRINGS, FLOOR } = require('../config/ux-strings');
+const { keepNum } = require('../utils/num-keep');
 
 const SIZES = Object.freeze({ og: [1200, 630], sq: [1080, 1080] });
 const KINDS = ['card', 'invite', 'class', 'school'];
@@ -171,6 +172,15 @@ const CLASS_ROWS_SQ = Math.floor((1080 - 112 - 70 - 67 - 130 - 104 - 62 - 5 * 24
 
 // The one forms (app_settings web_quiz_share_copy_one, carried as `ui.one`): data in the catalog (ux-strings.js `_one`
 // keys), the drawn numbers put where it says {n} / {of}. Used only when the count is 1.
+// A school's sector as the league shows it (SECT-1, web_quiz_share_bidi): its display name from the catalog
+// (wqArtSector_<key>: "ICT" / «آئی سی ٹی»), else a short lower-case code in capitals ("ict" -> "ICT", as the page's
+// sectorName), else as stored. Never the raw key.
+function sectorName(s, L) {
+  if (s == null || s === '') return s;
+  const row = UX_STRINGS[`wqArtSector_${String(s).trim().toLowerCase()}`];
+  if (row) return row[L] ?? row[FLOOR];
+  return /^[a-z]{2,4}$/.test(String(s)) ? String(s).toUpperCase() : s;
+}
 function oneForms(L) {
   const s = (k) => (UX_STRINGS[k][L] ?? UX_STRINGS[k][FLOOR]);
   return { played: s('wqArtPlayed_one'), playedOf: (n, of) => s('wqArtPlayedOf_one').replace('{n}', () => n).replace('{of}', () => of), kids: s('wqArtKids_one') };
@@ -188,7 +198,9 @@ const FIT_NAME_JS = `window.__beforeCapture=function(){var g=typeof Intl!=='unde
 // pp: the polish (web_quiz_share_pic_polish), null when off: { cap } the class table's rows, { title, nb } the challenge's
 // sub line as the quiz title alone (nb: its spaces held, so it stays on one line).
 // one: the one forms (oneForms), null when off.
-function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud = false, us = false, pp = null, one = null) {
+function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud = false, us = false, pp = null, one = null, nb = false) {
+  // nb (web_quiz_share_bidi, an Urdu picture): each count keeps its word (U+00A0)
+  const kn = nb ? keepNum : (s) => s;
   const N = ud ? numUr : num;
   // In Nastaliq the middle dot is the Urdu zero: «۱۵ · بچے» reads ۱۵۰. Beside Urdu digits the Urdu comma separates.
   const SEP = ud ? '<span class="dot">، </span>' : DOT;
@@ -230,9 +242,9 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud
       pic: d.rows && d.rows.length ? '' : pic('celebrate'),
       // The wide picture has no room for a separate line: the average joins the top line there.
       main: `<p class="kick">${d.cls ? `${own(d.cls)}${ur2 ? ' ' : SEP}` : ''}${own(d.topic)}${size !== 'sq' && d.rows && d.rows.length ? `${ur2 ? '<br>' : SEP}${C.avgLine(PCT(d.avgPct || 0))}` : ''}</p>`
-        + `<h1 class="head">${one && Number(d.played) === 1
+        + `<h1 class="head">${kn(one && Number(d.played) === 1
           ? (d.of ? one.playedOf(N(1), N(d.of)) : `${N(1)} ${esc(one.played)}`)
-          : (d.of ? C.playedOf(N(d.played || 0), N(d.of)) : `${N(d.played || 0)} ${esc(C.played)}`)}</h1>`
+          : (d.of ? C.playedOf(N(d.played || 0), N(d.of)) : `${N(d.played || 0)} ${esc(C.played)}`))}</h1>`
         + (d.rows && d.rows.length ? `<ol class="crow">${(pp ? topWithMe(d.rows, pp.cap) : us ? topWithMe(d.rows, size === 'sq' ? CLASS_ROWS_SQ : 3) : around(d.rows.map((r) => ({ ...r, you: r.me })), size === 'sq' ? 6 : 3)).map((r) => (r.gap ? '<li class="gap" aria-hidden="true">…</li>' : `<li class="${r.me ? 'me' : ''}">`
           + `<span class="rk">${N(r.place)}</span>${animal(r.animal, pics)}`
           // under the polish the name is its own box that shortens, and the label a box that never does
@@ -249,7 +261,7 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud
     const mv = r.move > 0 ? '<span class="mv up"></span>' : (r.move < 0 ? '<span class="mv down"></span>' : '<span class="mv"></span>');
     return `<li class="row${r.you ? ' you' : ''}"><span class="rk">${N(r.rank)}</span>${mv}`
       + `<span class="sn">${own(r.name)}${r.sector ? `<small>${own(r.sector)}</small>` : ''}</span>`
-      + `<span class="pt">${N(fmt(r.points))}<small>${esc(C.pts)}${ud ? '،&ensp;' : ' · '}${N(fmt(r.kids))} ${esc(one && Number(r.kids) === 1 ? one.kids : C.kids)}</small></span></li>`;
+      + `<span class="pt">${N(fmt(r.points))}<small>${esc(C.pts)}${ud ? '،&ensp;' : ' · '}${kn(`${N(fmt(r.kids))} ${esc(one && Number(r.kids) === 1 ? one.kids : C.kids)}`)}</small></span></li>`;
   }).join('');
   return { pic: '', main: `<p class="kick">${esc(ud ? C.school.replace(' · ', '، ') : C.school)}</p><ol class="board">${rows}</ol>`, cta: C.rule };
 }
@@ -459,7 +471,12 @@ function renderArt({ kind, size, brand, lang, d, ui, door }, opt = {}) {
   const ONE = Boolean(ui && ui.one === true);
   const FIT = ONE && RTL && PP && k === 'class';
   const ppOf = !PP ? null : k === 'class' ? { cap: (RTL ? PP_ROWS_RTL : PP_ROWS)[sq ? 'sq' : 'og'] } : (ppSub && ppSub.title ? ppSub : null);
-  const parts = body(k, d || {}, C, opt.pictures !== false, sz, UR2, OG2, door === true, UD, US || Boolean(PP && k === 'class'), ppOf, ONE ? oneForms(L) : null);
+  // each Urdu count keeps its word (app_settings web_quiz_share_bidi, carried as `ui.nb`); English never changes
+  const NBK = RTL && Boolean(ui && ui.nb === true);
+  // ...and the school picture's sectors by their display names, in both languages (SECT-1)
+  const SEC = k === 'school' && Boolean(ui && ui.nb === true) && Boolean(d && Array.isArray(d.rows));
+  const dd = SEC ? { ...d, rows: d.rows.map((r) => ({ ...r, sector: sectorName(r.sector, L) })) } : (d || {});
+  const parts = body(k, dd, C, opt.pictures !== false, sz, UR2, OG2, door === true, UD, US || Boolean(PP && k === 'class'), ppOf, ONE ? oneForms(L) : null, NBK);
   const col = sq || k === 'school' || (k === 'class' && Boolean(d && d.rows && d.rows.length));   // stacked: the square, and the board in either size
   const deco = B.deco ? `url("data:image/svg+xml;utf8,${encodeURIComponent(B.deco)}")` : 'none';
   // A wide mark (Rumi) sits bare on the dark ground: drawn in white and the accent, never navy on navy.
@@ -495,7 +512,9 @@ body{width:${W}px;height:${H}px;overflow:hidden;font-family:${body1};color:#fff}
 .big{font-size:${Math.round((sq ? 100 : 104) * S)}px;line-height:1;font-weight:800}
 .sub{font-size:${Math.round((UR2 ? (OG2 ? (k === 'invite' ? 32 : (topicLen > 22 ? 36 : 44)) : 44) : 32) * S)}px;line-height:${RTL ? (OG2 ? 1.9 : lh) : 1.3};opacity:.92;max-width:100%}
 .num{font-family:${UD ? "'Lexend','NastaliqUrdu'" : "'Lexend'"},sans-serif;unicode-bidi:isolate;direction:ltr;font-weight:800}
-bdi[dir="ltr"]{font-family:'Lexend','NastaliqUrdu',sans-serif}
+${UD && NBK && k === 'school' ? `/* DG-1: the school board's ranks and points in the Urdu digit face (۴ ۶ ۷ in their Urdu forms), never a Latin one */
+.board .num{font-family:'NastaliqUrdu','Lexend',sans-serif}
+` : ''}bdi[dir="ltr"]{font-family:'Lexend','NastaliqUrdu',sans-serif}
 bdi[dir="rtl"]{font-family:'NastaliqUrdu','Lexend',sans-serif}
 .stars{display:flex;gap:${sq ? 10 : 8}px;flex-wrap:wrap;direction:${RTL ? 'rtl' : 'ltr'}}
 .star{width:${Math.round(44 * S)}px;height:${Math.round(44 * S)}px;fill:none;stroke:rgba(255,255,255,.55);stroke-width:1.6;stroke-linejoin:round}

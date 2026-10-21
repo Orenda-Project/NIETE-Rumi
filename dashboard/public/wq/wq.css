@@ -739,6 +739,8 @@ html.wq-adv[lang=ur] .wq-fb [dir=ltr]{font-family:var(--f);line-height:1.4;text-
 html.wq-adv[lang=ur] .wq-opt .wq-lab[dir=ltr]{font-family:var(--f);line-height:1.35}
 /* the adventure look on an Urdu quiz door: an English quiz title (wq.js latDir) in the Latin face, left to right */
 html.wq-adv[lang=ur] .wq-card h1[dir=ltr]{font-family:var(--f);font-weight:800;line-height:1.25;text-align:left}
+/* web_quiz_share_bidi: the Urdu door's English title on the right, like the line under it (DOOR-1) */
+html.wq-adv[lang=ur] .wq-card h1.wq-ttlr[dir=ltr]{text-align:right}
 /* the adventure look (html.wq-adv), kept outside the ONE button block (all under wq-1b) and above the Urdu polish block below */
 /* every Jugnu bubble and line under the look wraps in balanced lines, so no line holds one lone word (EN + UR);
    balance needs a block box, so a shelf book's author line becomes one (it already sat on its own line) */

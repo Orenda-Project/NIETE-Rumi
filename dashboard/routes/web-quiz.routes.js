@@ -381,7 +381,8 @@ function ogTextOf(payload, view, brand) {
   // A story has no league table: its class view (/q/<code>/class) previews as the story below.
   if (view === 'class' && !(payload && payload.story)) {
     return {
-      title: ur ? `${topic} · ${label} کی لیگ ٹیبل` : `${topic} · ${label} league table`,
+      // web_quiz_share_bidi (the bot's share_bidi): the title isolated, so an English one never turns the Urdu line LTR
+      title: ur ? `${payload && payload.share_bidi === true ? `\u2068${topic}\u2069` : topic} · ${label} کی لیگ ٹیبل` : `${topic} · ${label} league table`,
       desc: ur ? 'ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے۔' : 'Not played yet? Same link, still open.',
     };
   }

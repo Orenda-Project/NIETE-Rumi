@@ -166,11 +166,12 @@
     }
     return null;
   }
-  // The title keeps its own script and direction inside the line (U+2068…U+2069 first-strong isolate).
-  function titleLine(lang, title) {
+  // The title keeps its own script and direction inside the line (U+2068…U+2069 first-strong isolate). bidi (the mint's
+  // `bidi`, web_quiz_share_bidi): an Urdu title line starts with a right-to-left mark, so a chat app draws it RTL.
+  function titleLine(lang, title, bidi) {
     var t = String(title == null ? '' : title).replace(/\s+/g, ' ').trim().slice(0, 80);
     if (!t) return '';
-    return L(lang) === 'ur' ? '«⁨' + t + '⁩»' : '“⁨' + t + '⁩”';
+    return L(lang) === 'ur' ? (bidi === true ? '\u200F' : '') + '«⁨' + t + '⁩»' : '“⁨' + t + '⁩”';
   }
   // o: {lang, deed, title?, url?, ret?: {text, href}}. The link stands alone on its line, so an Urdu message never
   // wraps it backwards; the return line is always last (the child's way back tomorrow).
@@ -179,7 +180,7 @@
     var ret = o.ret || {};
     // a stop played again earns no sticker, so its words carry no star
     var lines = [(/_practice$/.test(o.deed) ? '' : '⭐ ') + deedText(l, o.deed)];
-    var tl = titleLine(l, o.title);
+    var tl = titleLine(l, o.title, o.bidi);
     if (tl) lines.push(tl);
     if (o.url) lines.push(String(o.url));
     // the one share: the card's link is the last line (WhatsApp makes it tappable, the card is its preview); its landing
@@ -257,7 +258,7 @@
     '.wqfc-sh-pic{display:block;width:100%;height:auto;aspect-ratio:1200/630;border-radius:16px;background:#FDE68A;object-fit:cover}' +
     '.wqfc-sh-in .wq-btn{display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;min-height:56px;box-sizing:border-box}' +
     '.wqfc-sh-msg{background:#fff;border-radius:16px;padding:12px 14px;box-shadow:0 2px 0 rgba(15,23,42,.08);display:grid;gap:6px}' +
-    '.wqfc-sh-msg p{margin:0;font-size:16px;line-height:1.4;color:#1F2937}[lang="ur"] .wqfc-sh-msg p[dir="auto"]{font-size:18px;line-height:1.9}.wqfc-sh-msg p.wqfc-sh-ttl[dir="ltr"]{line-height:1.3}[lang="ur"] .wqfc-sh-msg p.wqfc-sh-ttl[dir="rtl"]{font-size:18px;line-height:1.9}.wqfc-sh-msg p.wqfc-sh-ttl.wqfc-sh-lat{font-size:16px;line-height:1.3}' +
+    '.wqfc-sh-msg p{margin:0;font-size:16px;line-height:1.4;color:#1F2937}[lang="ur"] .wqfc-sh-msg p[dir="auto"],[lang="ur"] .wqfc-sh-msg p.wqfc-sh-rtl{font-size:18px;line-height:1.9}.wqfc-sh-msg p.wqfc-sh-ttl[dir="ltr"]{line-height:1.3}[lang="ur"] .wqfc-sh-msg p.wqfc-sh-ttl[dir="rtl"]{font-size:18px;line-height:1.9}.wqfc-sh-msg p.wqfc-sh-ttl.wqfc-sh-lat{font-size:16px;line-height:1.3}' +
     '.wqfc-sh-ok{text-align:center;font-weight:700;margin:0;min-height:1.5em}[lang="ur"] .wqfc-sh-in .wq-btn{font-size:20px;line-height:2}' +
     '@media (prefers-reduced-motion:no-preference){.wqfc-sh-in{animation:wqfc-up .25s ease-out both}@keyframes wqfc-up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}}';
   function css() {
@@ -350,7 +351,8 @@
       st.v4 = j.v4 === true;
       if (j.link_lang === true) st.iso = true;
       if (j.one === true) st.one = true;
-      st.text = shareText({ lang: o.lang, deed: o.deed, title: o.title, url: st.url, ret: j.ret, v4: st.v4 });
+      if (j.bidi === true) st.bidi = true;
+      st.text = shareText({ lang: o.lang, deed: o.deed, title: o.title, url: st.url, ret: j.ret, v4: st.v4, bidi: st.bidi });
       st.ready = true;
       try {
         var a = document.getElementById('wqfc-share');
@@ -473,21 +475,25 @@
   // iso (the mint's link_lang): one line each, the quoted title (titleLine) its own line in its own direction inside
   // <bdi>, so an English title in an Urdu sheet keeps its marks at its own two ends however it wraps.
   var TITLE_RX = /^([«“])\u2068([\s\S]*)\u2069([»”])$/;
+  // bidi (web_quiz_share_bidi, an Urdu sheet): the title line as the words send it, «⁨title⁩» after its mark, in an RTL line
+  var TITLE_RLM_RX = /^\u200F[«“]\u2068([\s\S]*)\u2069[»”]$/;
   var RTL_RX = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
   // rtl (the mint's `one`, web_quiz_share_copy_one, on an Urdu sheet): an English title's line is the sheet's own RTL line,
   // the title alone LTR inside its <bdi>, so it sits right under the Urdu line (SC-1), at a Latin size.
-  function msgLine(s, rtl) {
+  function msgLine(s, rtl, bidi) {
+    var b = bidi === true ? TITLE_RLM_RX.exec(s) : null;
+    if (b) return '<p class="wqfc-sh-ttl' + (RTL_RX.test(b[1]) ? '' : ' wqfc-sh-lat') + '" dir="rtl">' + esc(s) + '</p>';
     var m = TITLE_RX.exec(s);
     if (!m) return '<p dir="auto">' + esc(s) + '</p>';
     if (rtl === true && !RTL_RX.test(m[2])) return '<p class="wqfc-sh-ttl wqfc-sh-lat" dir="rtl">' + m[1] + '<bdi dir="ltr">' + esc(m[2]) + '</bdi>' + m[3] + '</p>';
     return '<p class="wqfc-sh-ttl" dir="' + (RTL_RX.test(m[2]) ? 'rtl' : 'ltr') + '">' + m[1] + '<bdi>' + esc(m[2]) + '</bdi>' + m[3] + '</p>';
   }
-  function msgHtml(text, url, iso, rtl) {
+  function msgHtml(text, url, iso, rtl, bidi) {
     var t = String(text == null ? '' : text);
     if (url && t.slice(-url.length) === url) t = t.slice(0, -url.length).replace(/\s+$/, '');
     if (!t) return '';
-    if (iso === true) return '<div class="wqfc-sh-msg">' + t.split('\n').filter(function (s) { return s.trim(); }).map(function (s) { return msgLine(s, rtl); }).join('') + '</div>';
-    return '<div class="wqfc-sh-msg"><p dir="auto">' + esc(t) + '</p></div>';
+    if (iso === true) return '<div class="wqfc-sh-msg">' + t.split('\n').filter(function (s) { return s.trim(); }).map(function (s) { return msgLine(s, rtl, bidi); }).join('') + '</div>';
+    return '<div class="wqfc-sh-msg"><p ' + (bidi === true ? 'class="wqfc-sh-rtl" dir="rtl"' : 'dir="auto"') + '>' + esc(t) + '</p></div>';
   }
   function sheetHtml(o) {
     var l = L(o.lang), w = SH[l];
@@ -495,7 +501,7 @@
     var save = img ? pic(o.save) || img : '';
     return '<div class="wqfc-sheet" id="wqfc-sheet" role="dialog" aria-modal="true" data-screen="share_sheet" lang="' + l + '" dir="' + (l === 'ur' ? 'rtl' : 'ltr') + '"><div class="wqfc-sh-in">' +
       (img ? '<img class="wqfc-sh-pic" src="' + esc(img) + '" alt="" width="1200" height="630">' : '') +
-      msgHtml(o.text, o.url, o.iso, o.one === true && l === 'ur') +
+      msgHtml(o.text, o.url, o.iso, o.one === true && l === 'ur', o.bidi === true && l === 'ur') +
       '<a class="wq-btn wq-go" id="wqfc-sh-wa" data-primary data-tap="card_share" target="_blank" rel="noopener" href="' + esc(waHref(o.text || '')) + '">' + esc(w.wa) + '</a>' +
       (o.file ? '<button class="wq-btn wq-soft" id="wqfc-sh-file" type="button" data-tap="card_file">' + esc(w.file) + '</button>' : '') +
       (save ? '<a class="wq-btn wq-soft" id="wqfc-sh-save" data-tap="card_save" href="' + esc(save) + '" download="jugnu-card.png">' + esc(w.save) + '</a>' : '') +
@@ -511,7 +517,7 @@
       }
       var old = document.getElementById('wqfc-sheet');
       if (old && old.parentNode) old.parentNode.removeChild(old);
-      document.body.insertAdjacentHTML('beforeend', sheetHtml({ lang: o.lang, img: st.img, save: st.save, text: st.text, url: st.url, iso: st.iso, one: st.one, file: !!st.file || (Boolean(pic(st.img)) && canFiles()) }));
+      document.body.insertAdjacentHTML('beforeend', sheetHtml({ lang: o.lang, img: st.img, save: st.save, text: st.text, url: st.url, iso: st.iso, one: st.one, bidi: st.bidi, file: !!st.file || (Boolean(pic(st.img)) && canFiles()) }));
       ev('card_share', shareEv(o, 'sheet'));
       var sh = document.getElementById('wqfc-sheet');
       var close = function () { try { if (sh && sh.parentNode) sh.parentNode.removeChild(sh); } catch (x) { /* gone */ } };
@@ -739,7 +745,7 @@
   function shareArt(o) {
     var url = typeof o.url === 'string' && /^https?:\/\/[^\s"<>]+$/.test(o.url) ? o.url : null;
     var text = String(o.text == null ? '' : o.text) + (url ? '\n' + url : '');
-    openSheet({ kind: o.src === 'schools' ? 'schools' : 'table', lang: o.lang, ev: o.ev }, { img: o.img, save: o.save, text: text, url: url, file: o.file || null });
+    openSheet({ kind: o.src === 'schools' ? 'schools' : 'table', lang: o.lang, ev: o.ev }, { img: o.img, save: o.save, text: text, url: url, file: o.file || null, bidi: o.bidi === true });
   }
 
   window.WQFC = { og: og, mount: mount, shareArt: shareArt, primeQuiz: primeQuiz, shareQuiz: shareQuiz, quizShareTap: quizShareTap, quizDeedHtml: quizDeedHtml, shareText: shareText,

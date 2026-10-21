@@ -202,8 +202,9 @@ const LINES = {
 };
 const READS = new Set(['read', 'story', 'book']);
 
-/** The landing's lines for a kept result, in the card's language (Urdu digits in Urdu); {} for none. */
-function words(x, kind, lang) {
+/** The landing's lines for a kept result, in the card's language (Urdu digits in Urdu); {} for none. nb (the card's
+ * web_quiz_share_bidi, sealed at mint): in Urdu each number keeps the word after it (U+00A0). */
+function words(x, kind, lang, nb) {
   const c = clean(x);
   if (!c) return {};
   const l = lang === 'ur' ? 'ur' : 'en';
@@ -217,6 +218,10 @@ function words(x, kind, lang) {
   else if (c.w) out.dare = L.dareWords(num(c.w, l));
   else if (READS.has(kind)) out.dare = L.dareStory;
   else if (c.s != null) out.dare = L.dareStars;
+  if (nb === true && l === 'ur') {
+    const { keepNum } = require('../../utils/num-keep');
+    for (const k of ['score', 'words', 'stars_text', 'dare']) if (typeof out[k] === 'string') out[k] = keepNum(out[k]);
+  }
   return out;
 }
 
