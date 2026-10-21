@@ -580,6 +580,9 @@ export default function LeaderAssess() {
                 );
               })}
             </ol>
+            {list.alternates.length === 0 && (
+              <p data-testid="assess-no-alternates" className="text-sm text-slate-600">{copy.noAlternates}</p>
+            )}
             {list.alternates.length > 0 && (
               <div data-testid="assess-alternates" className="space-y-1 text-sm text-slate-600">
                 <p className="font-medium">{copy.alternates}</p>

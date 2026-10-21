@@ -128,6 +128,26 @@ describe("LeaderAssess", () => {
     expect(within(alt).queryAllByRole("button")).toHaveLength(0);
   });
 
+  it("no alternate left: one line under the list says the class has no more children to draw this cycle (EN and UR)", async () => {
+    api.getList.mockResolvedValue({ list: { ...LIST, alternates: [] } });
+    await openList();
+    expect(screen.queryByTestId("assess-alternates")).toBeNull();
+    expect(screen.getByTestId("assess-no-alternates")).toHaveTextContent("No more children to draw in this class this cycle.");
+  });
+
+  it("no alternate left, in Urdu", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    api.getList.mockResolvedValue({ list: { ...LIST, alternates: [] } });
+    renderPage();
+    await chooseSchool();
+    expect(await screen.findByTestId("assess-no-alternates")).toHaveTextContent("اس جماعت میں اس مدت کے لیے مزید بچے نہیں۔");
+  });
+
+  it("alternates left: no such line", async () => {
+    await openList();
+    expect(screen.queryByTestId("assess-no-alternates")).toBeNull();
+  });
+
   it("absent sends the outcome and renders the server's list with the alternate moved up", async () => {
     const updated = { ...LIST, children: [child(2), child(3), child(4), child(5), child(6)], alternates: [child(7)] };
     api.markOutcome.mockResolvedValueOnce({ list: updated });
