@@ -120,22 +120,57 @@ describe('A11: practice before every maths task', () => {
     expect(bad).toEqual([]);
   });
 
-  test('patterns practise on Core EGMA\'s printed missing-number practice; number representation on one authored example', () => {
+  test('the panel\'s practice for patterns, patterns 2 and tens and hundreds: the scored items\' own formats, then Core EGMA P1', () => {
     for (const f of RUNTIMES.filter((x) => /^sa\.coach\./.test(x))) {
       const b = runtime(f);
       const ur = /\.ur\.json$/.test(f);
-      const [pat] = task(b, 'ma.patterns').practice_v2;
-      expect([pat.shown, pat.target, [...pat.options].sort((x, y) => x - y)]).toEqual([[5, 10, 15, null], 20, [15, 20, 25, 30]]);
-      expect(pat.src).toMatch(/practice\[1\]/);
-      expect(pat.feedback.wrong.text).toBe(ur ? 'یہاں ۲۰ آئے گا۔' : 'The number 20 goes here.');
-      const [hi] = task(b, 'ma.patterns_hi').practice_v2;
-      expect([hi.shown, hi.target, hi.options]).toEqual([[1, 2, null, 4], 3, undefined]);
-      expect(hi.src).toMatch(/practice\[0\]/);
+      // Patterns: one authored AB picture row in item 1a's format, picture options.
+      const pat = task(b, 'ma.patterns').practice_v2;
+      expect(pat).toHaveLength(1);
+      expect([pat[0].id, pat[0].shown, pat[0].glyphs, pat[0].option_keys, pat[0].practice, pat[0].src])
+        .toEqual(['ma.patterns.p1', ['★', '■', '★', '■', null], ['★', '▲', '●', '■'], ['star', 'triangle', 'circle', 'square'], true, 'authored:practice']);
+      expect(pat[0].target).toBe(ur ? 'ستارہ' : 'star');
+      expect(pat[0].say).toBe(ur ? 'آگے کیا آئے گا؟ ستارہ، چوکور، ستارہ، چوکور: ستارہ، تکون، دائرہ یا چوکور؟'
+        : 'What comes next? star, square, star, square: star, triangle, circle, or square?');
+      expect([pat[0].feedback.correct.text, pat[0].feedback.wrong.text]).toEqual(ur
+        ? ['بالکل ٹھیک، ستارہ۔', 'اگلا ستارہ ہے۔ ستارہ، چوکور، ستارہ، چوکور، ستارہ۔']
+        : ['That is right, star.', 'Star comes next. Star, square, star, square, star.']);
+      // Patterns 2: the authored "how many times" row in 3a's format, then Core EGMA's printed P1 for the number rows.
+      const hi = task(b, 'ma.patterns_hi').practice_v2;
+      expect(hi.map((p) => [p.id, p.shown, String(p.target), p.options])).toEqual([
+        ['ma.patterns_hi.p1', ['⭐', '🟢', '⭐', '🟢', '⭐', '🟢'], '3', undefined],
+        ['ma.patterns_hi.p2', [1, 2, null, 4], '3', undefined]]);
+      expect([hi[0].src, hi[0].practice]).toEqual(['authored:practice', true]);
+      expect(hi[1].src).toMatch(/missing\.practice\[0\]/);
+      expect(hi[0].say).toBe(ur ? 'نیچے دی گئی ترتیب کو دیکھیں۔ اس میں ستارہ اور دائرہ، یہ دونوں ایک ساتھ کتنی بار آئے ہیں؟'
+        : 'Look at the pattern below. How many times does star, circle repeat in the pattern?');
+      expect(hi[0].feedback.wrong.text).toBe(ur ? 'ستارہ دائرہ: ایک۔ ستارہ دائرہ: دو۔ ستارہ دائرہ: تین۔ جواب ۳ ہے۔'
+        : 'Star, circle: one. Star, circle: two. Star, circle: three. The answer is 3.');
+      // Tens and hundreds: one authored example, the teaching wrong line.
       const [rep] = task(b, 'ma.number_repr').practice_v2;
       expect([rep.target, rep.practice, rep.src, rep.options]).toEqual(['3', true, 'authored:practice', undefined]);
       expect(rep.say).toBe(ur ? '۳۰ میں کتنی دہائیاں ہیں؟' : 'How many tens are in 30?');
-      expect(rep.feedback.correct.text).toBe(ur ? 'بالکل ٹھیک، ۳۔' : 'That is right, 3.');
+      expect([rep.feedback.correct.text, rep.feedback.wrong.text]).toEqual(ur
+        ? ['بالکل ٹھیک، ۳۔', '۳۰ میں ۳ دہائیاں ہیں۔ جواب ۳ ہے۔'] : ['That is right, 3.', '30 is 3 tens. The answer is 3.']);
+      // The item-1 demo stays after the practice.
+      for (const id of ['ma.patterns', 'ma.patterns_hi', 'ma.number_repr']) expect(task(b, id).script.demo_item.disabled).toBe(true);
     }
+  });
+
+  // Patterns 2's second practice is Core EGMA P1 by the panel's choice, the same screen as missing number's P1.
+  test('no new practice screen (patterns, the authored items) is another maths task\'s practice screen in the same form', () => {
+    const bad = [];
+    for (const f of RUNTIMES) {
+      const seen = new Map();
+      for (const t of runtime(f).tasks.filter((x) => x.id.startsWith('ma.'))) {
+        for (const p of t.practice_v2 || t.practice) {
+          const k = JSON.stringify([p.shown, p.target, p.options ? [...p.options].sort() : null, typeof p.say === 'string' ? p.say : null]);
+          if (seen.has(k) && seen.get(k) !== t.id && (t.id === 'ma.patterns' || p.src === 'authored:practice')) bad.push(`${f} ${t.id} ${p.id} = ${seen.get(k)}`);
+          if (!seen.has(k)) seen.set(k, t.id);
+        }
+      }
+    }
+    expect(bad).toEqual([]);
   });
 
   test('no practice item repeats a scored item of the same form, and every practice item has a src', () => {
@@ -295,6 +330,21 @@ describe('A02: passages from tested sources, rotating per child', () => {
     expect(q.every((x) => x.prompt && x.prompt.audio && x.accept.length)).toBe(true);
     const l = task(b, 'ur.listening').variants[2];
     expect([l.passage.read_times, l.items.length]).toEqual([1, 3]);
+  });
+
+  test('PRP-KP C1: the story shows each sentence with its printed-style end marks; the 60 words are the grid\'s, unchanged', () => {
+    const v = task(runtime('sa.coach.G3.A.ur.json'), 'ur.story').variants[2];
+    expect(v.passage.text.split('\n')).toEqual([
+      'سلیم کو سکول جاتے ہوئے ایک کالا بٹوا ملا۔',
+      'وہ اسے اٹھا لایا اور ہیڈ ماسٹر صاحب کو دے کر کہا کہ یہ مجھے سکول کے قریب سے ملا ہے۔',
+      'انھوں نے کہا: بیٹا، یہ بٹوا شاید طارق صاحب کا ہو۔',
+      'وہ اسے بڑی دیر سے تلاش کر رہے ہیں۔',
+      'سلیم کی ایمانداری پر اسمبلی میں حوصلہ افزائی کی گئی۔']);
+    const grid = read('item-bank.sa-extra.v1.json').reading.ur.story3.lines;
+    const words = (t) => t.split(/\s+/).map((w) => w.replace(/[:۔،]+$/u, ''));
+    expect(v.passage.text.split('\n').map(words)).toEqual(grid.map(words));
+    expect(v.items.map((x) => x.target)).toEqual(grid.flatMap(words));
+    expect(v.items).toHaveLength(60);
   });
 
   test('no generated passage enters the battery', () => {
