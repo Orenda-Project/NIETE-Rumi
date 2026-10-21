@@ -11,8 +11,9 @@ jest.mock('../../../bot/shared/services/assessment/book-content.service', () => 
 }));
 jest.mock('../../../bot/shared/services/assessment/assessment-generation.service', () => ({ generateExam: mockGenerateExam }));
 const mockRenderPaper = jest.fn(() => '<html/>');
+const mockRenderKey = jest.fn(() => '<html/>');
 jest.mock('../../../bot/shared/services/assessment/assessment-paper.renderer', () => ({
-  renderPaper: mockRenderPaper, renderAnswerKey: () => '<html/>', totalMarks: () => 1, collectQuestions: () => [],
+  renderPaper: mockRenderPaper, renderAnswerKey: mockRenderKey, totalMarks: () => 1, collectQuestions: () => [],
 }));
 jest.mock('../../../bot/shared/utils/html-to-pdf', () => ({ htmlToPdf: jest.fn(async () => Buffer.from('%PDF')) }));
 jest.mock('../../../bot/shared/storage/r2', () => ({
@@ -27,7 +28,7 @@ function mockBuilder() {
   const b = {
     insert: () => b, update: () => b, select: () => b, eq: () => b,
     single: () => Promise.resolve({ data: { id: 'paper-1' }, error: null }),
-    maybeSingle: () => Promise.resolve({ data: null, error: null }),
+    maybeSingle: () => Promise.resolve({ data: global.__user || null, error: null }),
     then: (res, rej) => Promise.resolve({ data: null, error: null }).then(res, rej),
   };
   return b;
@@ -47,6 +48,7 @@ const JOB = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  global.__user = null;
   mockLoadPageRangeContent.mockResolvedValue({ content: 'text', pageReference: '58-59' });
   mockLoadChapterContent.mockResolvedValue({ content: 'text', pageReference: '4-14', chapterTitle: 'T', pageCount: 11 });
   mockGenerateExam.mockResolvedValue({
@@ -68,4 +70,36 @@ test('a chapter job passes no paperKind and returns no topics', async () => {
   const built = await Orchestrator.buildPaper({ ...JOB, chapterNumber: 4 });
   expect(mockRenderPaper.mock.calls[0][0]).not.toHaveProperty('paperKind');
   expect(built).not.toHaveProperty('topics');
+});
+
+describe('the key gets the topics', () => {
+  const SCOPE = { kind: 'topics', topicIds: ['t1', 't2'], slos: SLOS, topics: [{ topicId: 't1', name: 'Rhyming words' }, { topicId: 't2', name: 'Sentences' }] };
+  const TOPICS = [
+    { topicId: 't1', name: 'Rhyming words', sloCodes: ['E-1'] },
+    { topicId: 't2', name: 'Sentences', sloCodes: ['E-2'] },
+  ];
+
+  test('portal delivery (none): renderAnswerKey receives the topics', async () => {
+    await Orchestrator.process({ ...JOB, deliver: 'none', scope: SCOPE });
+    expect(mockRenderKey).toHaveBeenCalledTimes(1);
+    expect(mockRenderKey.mock.calls[0][0].topics).toEqual(TOPICS);
+  });
+
+  test('WhatsApp delivery: renderAnswerKey receives the topics', async () => {
+    require('../../../bot/shared/services/whatsapp.service').sendDocumentByLink.mockResolvedValue(true);
+    global.__user = { phone_number: '923001234567', preferred_language: 'en', school_name: 'S' };
+    await Orchestrator.process({ ...JOB, scope: SCOPE });
+    expect(mockRenderKey).toHaveBeenCalledTimes(1);
+    expect(mockRenderKey.mock.calls[0][0].topics).toEqual(TOPICS);
+  });
+
+  test('a chapter job: the key gets no topics', async () => {
+    await Orchestrator.process({ ...JOB, chapterNumber: 4, deliver: 'none' });
+    expect(mockRenderKey.mock.calls[0][0]).not.toHaveProperty('topics');
+  });
+
+  test('a topic scope with no topics is not a topic paper', async () => {
+    await Orchestrator.buildPaper({ ...JOB, scope: { kind: 'topics', topicIds: [], slos: [] } });
+    expect(mockRenderPaper.mock.calls[0][0]).not.toHaveProperty('paperKind');
+  });
 });

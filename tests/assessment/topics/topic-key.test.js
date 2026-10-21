@@ -61,6 +61,21 @@ describe('topicsFromScope', () => {
       { topicId: 't2', name: 'Sentences', sloCodes: ['E-2'] },
     ]);
   });
+  test('scope.topics fixes the list: a topic whose codes all belong to an earlier one still shows', () => {
+    const scope = {
+      kind: 'topics', topicIds: ['t1', 't2'],
+      topics: [{ topicId: 't1', name: 'A' }, { topicId: 't2', name: 'B' }],
+      slos: [{ code: 'E-1', topicId: 't1', topicName: 'A' }],
+    };
+    const topics = topicsFromScope(scope);
+    expect(topics).toEqual([
+      { topicId: 't1', name: 'A', sloCodes: ['E-1'] },
+      { topicId: 't2', name: 'B', sloCodes: [] },
+    ]);
+    const html = renderTopicSummary({ questions: questions.slice(0, 3), topics });
+    expect(html).toContain('A: Q1-3, 3 marks');
+    expect(html).toContain('B: no questions, 0 marks');
+  });
   test('no topic scope gives undefined', () => {
     expect(topicsFromScope(null)).toBeUndefined();
   });
