@@ -138,20 +138,49 @@ const passageTokens = (text) => text.replace(/ٹَیں ٹَیں/g, 'ٹَیں\u00
 
 const SENTENCE_END = /[.!?۔؟]["”’)]*$/u;
 /**
- * One line per sentence on a passage's record (words already carry their printed tokens): words, lines, print_lines
- * and a first-line stop are rewritten in place. Returns old line → new line, a line mapping to the sentence that holds
- * its last word (the reach an old line asked for, e.g. SELECT's word markers).
+ * One line per sentence on a passage's record (words carry their printed tokens, or texts gives them): words, lines,
+ * print_lines and a first-line stop are rewritten in place. Returns old line → new line, a line mapping to the sentence
+ * that holds its last word (the reach an old line asked for, e.g. SELECT's word markers).
  */
-function sentenceLines(rec) {
+function sentenceLines(rec, texts) {
   const p = rec.passage;
+  const text = texts || p.words.map((w) => w.text);
   const oldLast = new Map((p.lines || []).map((l) => [l.n, l.to]));
   let n = 1;
-  p.words.forEach((w, i) => { w.line = n; if (SENTENCE_END.test(w.text) && i < p.words.length - 1) n += 1; });
+  p.words.forEach((w, i) => { w.line = n; if (SENTENCE_END.test(text[i]) && i < p.words.length - 1) n += 1; });
   p.lines = [];
   p.words.forEach((w, i) => { const l = p.lines[w.line - 1]; if (l) l.to = i; else p.lines.push({ n: w.line, from: i, to: i }); });
-  p.print_lines = p.lines.map((l) => p.words.slice(l.from, l.to + 1).map((w) => w.text).join(' '));
+  p.print_lines = p.lines.map((l) => text.slice(l.from, l.to + 1).join(' '));
   if (rec.stop && rec.stop.type === 'first_line') rec.stop = { ...rec.stop, n: p.lines[0].to + 1 };
   return (old) => (oldLast.has(old) ? p.words[oldLast.get(old)].line : old);
+}
+
+/**
+ * RULING W3-12 on the Wave 2 coach passage (<lang>.story, every rotation variant) and its questions: one line per
+ * sentence of the variant's own printed text, so the Whole battery and the W3 forms draw a passage the same way.
+ * A variant 0 shares its record with the task, so each record is relined once.
+ */
+function relineStory(core, lang) {
+  const story = core.find((t) => t.task === `${lang}.story`);
+  const comp = core.find((t) => t.task === `${lang}.story_comp`);
+  if (!story) return;
+  const to = new Map();
+  for (const [id, v] of [[null, story], ...(story.variants || []).map((x) => [x.id, x.task])]) {
+    const rec = v.record;
+    if (!to.has(rec)) {
+      const tokens = passageTokens(rec.passage.text);
+      if (tokens.length !== rec.passage.words.length) throw new Error(`${v.task}: ${tokens.length} tokens of passage.text, ${rec.passage.words.length} scored words`);
+      to.set(rec, sentenceLines(rec, tokens));
+    }
+    to.set(id, to.get(rec));
+  }
+  if (!comp) return;
+  const done = new Set();
+  for (const [id, c] of [[null, comp], ...(comp.variants || []).map((x) => [x.id, x.task])]) {
+    if (done.has(c.record.questions) || !to.has(id)) continue;
+    done.add(c.record.questions);
+    c.record.questions.forEach((q) => { if (q.needs_line != null) q.needs_line = to.get(id)(q.needs_line); });
+  }
 }
 
 function w3Tasks(f, { v3, extra, w3 }, core, H) {
@@ -383,4 +412,4 @@ function runtimeW3Task(t, lang, H) {
   };
 }
 
-module.exports = { W3_TASKS, VARIANTS, LINES_W3, w3Tasks, runtimeW3Task, passageTokens };
+module.exports = { W3_TASKS, VARIANTS, LINES_W3, w3Tasks, runtimeW3Task, passageTokens, relineStory };
