@@ -214,14 +214,21 @@
           micLevel: micMod ? function (cb) { return micMod.level(cb); } : null,
         });
         if (sync && view && view.setSync) hooks.sync = [function (st) { view.setSync(st); }];
-        // Embedded in the coach page, the last task's end is told at once ({type:'sa:battery_end', s}: the page offers
-        // "Next child" and counts the child complete), then the recording is closed and the sync flushed (RULING #34a).
+        // Embedded in the coach page (RULINGs #34a, #48): the last task's end is told at once ({type:'sa:battery_ending',
+        // s}: the page drops its corner hold and shows "Next child" as sending), the recording is closed, the events and
+        // results go up ahead of the audio, and {type:'sa:battery_end', s} follows once the server has them (the page
+        // enables "Next child", the child is complete). A failed send (offline) still ends it: the rows stay queued.
         var ended = null;
         function batteryEnd() {
           var w = deps.win || root;
           if (ended || !opts.embed || !w.parent || w.parent === w || !w.location) return;
-          w.parent.postMessage({ type: 'sa:battery_end', s: sessionId }, w.location.origin);
-          ended = writes.then(closeRecording).then(function () { return sync ? sync.flush() : null; }).then(null, function () { return null; });
+          var post = function (type) { w.parent.postMessage({ type: type, s: sessionId }, w.location.origin); };
+          post('sa:battery_ending');
+          var send = function () { return sync ? (sync.flushEvents ? sync.flushEvents() : sync.flush()) : null; };
+          ended = writes.then(closeRecording).then(send).then(null, function () { return null; }).then(function () {
+            post('sa:battery_end');
+            if (sync) sync.poke();
+          });
         }
         // Embedded in the coach page: its own corner hold asks the engine to end the run ({type:'sa:coach_end', s}).
         // The running task ends as coach_end (so a coach-ended minute is never read as a whole block), the last

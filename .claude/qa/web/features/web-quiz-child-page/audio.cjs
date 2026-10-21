@@ -72,8 +72,9 @@ on('WQ024', 'off', async (page, ctx) => {
   await page.click('.wq-opt[data-slot="' + L.wrongSlot(qq) + '"]');
   await page.waitForSelector('#wq-fb .wq-no', { state: 'visible', timeout: WAIT });
   const line = await page.$eval('#wq-fb .wq-fb', (e) => e.childNodes[0].textContent.trim());
-  // the shared library's "not yet" set: eight lines, every one ending "The answer is", then the right answer by name
-  expect(new RegExp('The answer is "' + right + '"\\.$').test(line), 'the not-yet line reads "' + line + '"');
+  // the shared library's "not yet" set: eight lines, each ending "The answer is" or "The right answer is", then the
+  // right answer by name (wq.js VOICE.en.notyet)
+  expect(new RegExp('The (right )?answer is "' + right + '"\\.$').test(line), 'the not-yet line reads "' + line + '"');
   const fbText = await inner(page, '#wq-fb');
   expect(!/Well done|Great|Brilliant|Correct|Yes!/.test(fbText), 'praise is shown after a wrong answer: ' + fbText);
   expect(await page.$('#wq-fb .wq-why'), 'no reason after the wrong answer');
@@ -151,11 +152,11 @@ on('WQ053', 'off', async (page, ctx) => {
   expect(/The (right )?answer is "/i.test(leads[1]), 'the wrong answer\'s lead is "' + leads[1] + '"');   // one of eight recorded not-yet lines
   // a picture answer: "Not yet. Look, this one is right." with no empty quotes
   await page.evaluate(() => localStorage.clear());
-  const b2 = await startAsNew(page, ctx, CODES.G3, 'Pic53');            // the picture-only item lives in the grade-3 quiz
+  const b2 = await L.reachPlan(page, ctx, CODES.G3, 'Pic53');            // the picture-only item lives in the grade-3 quiz
   // the options are only pictures (no names): the page's "notyetpic" line; a NAMED picture ("Cat") is quoted like any option
   const pic = b2.quiz.questions.find((x) => x.text === 'Which picture shows a circle?');
   expect(pic && pic.options.every((o) => !o.text && !o.name), 'the picture-only item has named options: ' + JSON.stringify(pic && pic.options.map((o) => o.text)));
-  for (;;) { const cur = await L.current(page, b2.quiz.questions); if (cur === pic) break; await L.answerRight(page, cur); await L.nextQ(page); await page.waitForSelector(M('M6') + ' .wq-item', { state: 'visible', timeout: WAIT }); }
+  const b2_at = await L.reachGo(page, ctx, b2, pic); void b2_at;
   await page.click('.wq-opt[data-slot="' + L.wrongSlot(pic) + '"]');
   await page.waitForSelector('#wq-fb .wq-fb', { state: 'visible', timeout: WAIT });
   const picLine = await page.$eval('#wq-fb .wq-fb', (e) => e.childNodes[0].textContent.trim());
@@ -170,10 +171,10 @@ on('WQ055', 'off', async (page, ctx) => {
   const fb = { wrong: { 1: 'B) Good try! You mixed up a mammal and a fish. The correct answer is A) No, because a whale breathes air. Keep going!' } };
   await ctx.sql('update quiz_questions set option_feedback = ' + q(JSON.stringify(fb)) + '::jsonb where id = ' + q(qid));
   try {
-    const b = await startAsNew(page, ctx, 'IT34CD', 'Mix55');
+    const b = await L.reachPlan(page, ctx, 'IT34CD', 'Mix55');
     const target = b.quiz.questions.find((x) => x.qid === qid);
     expect(target, 'the whale question is not served');
-    for (;;) { const cur = await L.current(page, b.quiz.questions); if (cur === target) break; await L.answerRight(page, cur); await L.nextQ(page); await page.waitForSelector(M('M6') + ' .wq-item', { state: 'visible', timeout: WAIT }); }
+    const b_at = await L.reachGo(page, ctx, b, target); void b_at;
     await page.click('.wq-opt[data-slot="B"]');
     await page.waitForSelector('#wq-fb .wq-fb', { state: 'visible', timeout: WAIT });
     const shown = await inner(page, '#wq-fb .wq-fb');
@@ -187,9 +188,9 @@ on('WQ055', 'off', async (page, ctx) => {
 
 on('WQ056', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
-  const b = await startAsNew(page, ctx, 'IT34CD', 'Tf56');
+  const b = await L.reachPlan(page, ctx, 'IT34CD', 'Tf56');
   const tf = b.quiz.questions.find((x) => x.text === 'Ice is a solid.');
-  for (;;) { const cur = await L.current(page, b.quiz.questions); if (cur === tf) break; await L.answerRight(page, cur); await L.nextQ(page); await page.waitForSelector(M('M6') + ' .wq-item', { state: 'visible', timeout: WAIT }); }
+  const b_at = await L.reachGo(page, ctx, b, tf); void b_at;
   await page.click('.wq-opt.wq-tfn');
   await page.waitForSelector('#wq-fb .wq-fb', { state: 'visible', timeout: WAIT });
   const line = await page.$eval('#wq-fb .wq-fb', (e) => e.childNodes[0].textContent.trim());
@@ -227,9 +228,8 @@ async function withHint(ctx, hint) {
 }
 const dropHint = (ctx, qid) => ctx.sql("update quiz_questions set media = media #- '{web,hint}' where id = " + q(qid));
 async function reachTf(page, ctx, name) {
-  const b = await startAsNew(page, ctx, 'IT34CD', name);
-  const tf = b.quiz.questions.find((x) => x.text === 'Ice is a solid.');
-  for (;;) { const cur = await L.current(page, b.quiz.questions); if (cur === tf) return { b, tf }; await L.answerRight(page, cur); await L.nextQ(page); await page.waitForSelector(M('M6') + ' .wq-item', { state: 'visible', timeout: WAIT }); }
+  const r = await L.reachFast(page, ctx, 'IT34CD', (x) => x.text === 'Ice is a solid.', name);
+  return { b: r.boot, tf: r.q };
 }
 
 on('WQ061', 'off', async (page, ctx) => {
@@ -357,10 +357,10 @@ on('WQ192', 'off', async (page, ctx) => {
   await L.setMode(ctx, page, 'off');
   const { quizId, qids } = await fakeClips(ctx, 'IT34CD', (id, i) => (i === 4 ? { q: 'quiz-audio/t/' + id + '/q.ogg', opts: ['quiz-audio/t/' + id + '/a.ogg', 'quiz-audio/t/' + id + '/b.ogg', 'quiz-audio/t/' + id + '/c.ogg', null], why: null, stim: 'quiz-audio/t/' + id + '/s.ogg' } : { q: null, opts: [null, null, null, null], why: null }));
   try {
-    const b = await startAsNew(page, ctx, 'IT34CD', 'Tiles92');
+    const b = await L.reachPlan(page, ctx, 'IT34CD', 'Tiles92');
     const listen = b.quiz.questions.find((x) => x.qid === qids[4]);
     expect(listen && listen.audio && listen.audio.opts.filter(Boolean).length === 3, 'the listen item carries no option clips');
-    for (;;) { const cur = await L.current(page, b.quiz.questions); if (cur === listen) break; await L.answerRight(page, cur); await L.nextQ(page); await page.waitForSelector(M('M6') + ' .wq-item', { state: 'visible', timeout: WAIT }); }
+    const b_at = await L.reachGo(page, ctx, b, listen); void b_at;
     const tiles = await page.$$eval('.wq-stile', (els) => els.map((e) => ({ hear: Boolean(e.querySelector('.wq-shear')), answer: e.querySelector('.wq-sthis') && e.querySelector('.wq-sthis').innerText.trim(), h: e.getBoundingClientRect().height })));
     expect(tiles.length === 3 && tiles.every((t) => t.hear && t.answer === 'This one'), 'tiles: ' + JSON.stringify(tiles));
     await page.click('.wq-stile .wq-shear'); await sleep(800);
@@ -378,14 +378,14 @@ on('WQ194', 'off', async (page, ctx) => {
   const qid = await L.one(ctx, "select id from quiz_questions where question_text = 'Is a whale a fish?'");
   await ctx.sql("update quiz_questions set media = coalesce(media, '{}'::jsonb) || '{\"stimulus_audio\": \"http://127.0.0.1:9/whale.mp3\"}'::jsonb where id = " + q(qid));
   try {
-    const b = await startAsNew(page, ctx, 'IT12AB', 'Stim94');
+    const b = await L.reachPlan(page, ctx, 'IT12AB', 'Stim94');
     const snd = b.quiz.questions.find((x) => x.text === 'Which animal do you hear?');
-    for (;;) { const cur = await L.current(page, b.quiz.questions); if (cur === snd) break; await L.answerRight(page, cur); await L.nextQ(page); await page.waitForSelector(M('M6') + ' .wq-item', { state: 'visible', timeout: WAIT }); }
+    const b_at = await L.reachGo(page, ctx, b, snd); void b_at;
     expect(await page.$('#wq-stim'), 'the listen item has no "Play the sound"');
     await page.evaluate(() => localStorage.clear());
-    const b2 = await startAsNew(page, ctx, 'IT34CD', 'Stim94b');
+    const b2 = await L.reachPlan(page, ctx, 'IT34CD', 'Stim94b');
     const whale = b2.quiz.questions.find((x) => x.qid === qid);
-    for (;;) { const cur = await L.current(page, b2.quiz.questions); if (cur === whale) break; await L.answerRight(page, cur); await L.nextQ(page); await page.waitForSelector(M('M6') + ' .wq-item', { state: 'visible', timeout: WAIT }); }
+    const b2_at = await L.reachGo(page, ctx, b2, whale); void b2_at;
     expect(!(await page.$('#wq-stim')), 'an ordinary question plays a clip before the answer');
     return { listen: 'Play the sound', ordinary: 'no clip' };
   } finally { await ctx.sql("update quiz_questions set media = media - 'stimulus_audio' where id = " + q(qid)); }
