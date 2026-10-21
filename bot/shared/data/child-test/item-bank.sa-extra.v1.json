@@ -1565,7 +1565,7 @@
     "lines": [
      "سلیم کو سکول جاتے ہوئے ایک کالا بٹوا ملا",
      "وہ اسے اٹھا لایا اور ہیڈ ماسٹر صاحب کو دے کر کہا کہ یہ مجھے سکول کے قریب سے ملا ہے",
-     "انہوں نے کہا بیٹا یہ بٹوا شاید طارق صاحب کا ہو",
+     "انھوں نے کہا بیٹا یہ بٹوا شاید طارق صاحب کا ہو",
      "وہ اسے بڑی دیر سے تلاش کر رہے ہیں",
      "سلیم کی ایمانداری پر اسمبلی میں حوصلہ افزائی کی گئی"
     ],
@@ -1577,7 +1577,7 @@
      "n_children": 1981,
      "grade": 2
     },
-    "text_note": "transcribed from the assessor grid (no punctuation printed there); pending a native read (cell 31 انہوں/انھوں)",
+    "text_note": "transcribed from the assessor grid (no punctuation printed there); cell 31 as the grid prints it (انھوں)",
     "questions": [
      {
       "q": "سلیم کو راستے سے کیا ملا؟",
