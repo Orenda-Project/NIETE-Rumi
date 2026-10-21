@@ -139,13 +139,13 @@ describe('the SA scorer', () => {
 
   test("the passage is scored against the variant the phone showed (its questions' asked ids), not a fixed passage", async () => {
     const story = row('ur.story');
-    const comp = row('ur.story_comp', { response_mode: 'oral', audio_r2_key: null, responses: [{ kind: 'result', mode: 'oral', asked: ['ur.story3.q1'], session_id: 'x' }] });
+    const comp = row('ur.story_comp', { response_mode: 'oral', audio_r2_key: null, responses: [{ kind: 'result', mode: 'oral', asked: ['ur.story2.q1'], session_id: 'x' }] });
     const db = fakeDb({ child_test_blocks: [story, comp], child_test_sessions: [session()] });
     const m = model();
     await score.sweepOnce({ now: NOW, deps: { supabase: db, ...m } });
-    expect(story.ai_marks.detail.variant.id).toBe('prpkp2020');
+    expect(story.ai_marks.detail.variant.id).toBe('select2024');
     const bank = require('../../shared/data/child-test/item-bank.sa.v1.json'); // eslint-disable-line global-require
-    const v3 = bank.tasks['coach.G3.A/ur.story'].variants[2].task.record.passage.words[0].target;
+    const v3 = bank.tasks['coach.G3.A/ur.story'].variants[1].task.record.passage.words[0].target;
     const v1 = bank.tasks['coach.G3.A/ur.story'].variants[0].task.record.passage.words.slice(0, 3).map((w) => w.target).join(' ');
     expect(m.prompts.find((p) => p.job === 'child_test.sa_story').prompt).toContain(v3);
     expect(m.prompts.find((p) => p.job === 'child_test.sa_story').prompt).not.toContain(v1);

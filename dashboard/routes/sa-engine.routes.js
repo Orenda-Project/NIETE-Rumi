@@ -8,7 +8,7 @@
  * engine's service worker keeps the offline copy, the HTTP cache never holds a stale engine. The battery files are
  * served by name from bot/shared/data/child-test/sa/ at /sa/batteries/ (nothing else in that folder's parents), with the
  * content switches applied (routes/sa-battery-switches.js: sa_practice_all_maths, sa_passage_rotation, and Wave 3's
- * sa_one_at_a_time, sa_passage_punct, sa_rdf_manual).
+ * sa_one_at_a_time, sa_passage_punct, sa_rdf_manual, sa_rdf_w3_forms).
  *
  * The sandbox-only "Jump to…" (RULING #43): only when SA_DEV_TOOLS=sandbox AND RAILWAY_ENVIRONMENT_NAME=sandbox are
  * both set does play.html / run.html load ./sa-dev.js (window.SA_DEV_TOOLS = true), ahead of the engine's scripts.
@@ -54,7 +54,7 @@ function safe(read) {
 function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), practiceAllMaths: practiceReader = createBrotliFlag({ key: SWITCHES.practiceAllMaths }),
   passageRotation: rotationReader = createBrotliFlag({ key: SWITCHES.passageRotation }), voiceV2: voiceReader = createBrotliFlag({ key: VOICE_V2_KEY }),
   oneAtATime: cellReader = createBrotliFlag({ key: SWITCHES.oneAtATime }), passagePunct: punctReader = createBrotliFlag({ key: SWITCHES.passagePunct }),
-  rdfManual: manualReader = createBrotliFlag({ key: SWITCHES.rdfManual }),
+  rdfManual: manualReader = createBrotliFlag({ key: SWITCHES.rdfManual }), rdfW3Forms: rdfW3Reader = createBrotliFlag({ key: SWITCHES.rdfW3Forms }),
   holdMs, now, env } = {}) {
   const router = express.Router();
   // The switch as routes/sa-switch.js reads it: the first request waits for the first read, and a failed read after an
@@ -68,7 +68,9 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   const oneAtATime = steady(safe(cellReader), hold);
   const passagePunct = steady(safe(punctReader), hold);
   const rdfManual = steady(safe(manualReader), hold);
-  router.use('/sa', on.warm(), practiceAllMaths.warm(), passageRotation.warm(), voiceV2.warm(), oneAtATime.warm(), passagePunct.warm(), rdfManual.warm());
+  const rdfW3Forms = steady(safe(rdfW3Reader), hold);
+  router.use('/sa', on.warm(), practiceAllMaths.warm(), passageRotation.warm(), voiceV2.warm(), oneAtATime.warm(), passagePunct.warm(), rdfManual.warm(),
+    rdfW3Forms.warm());
   const files = express.static(DIR, {
     index: false,
     dotfiles: 'ignore',
@@ -106,6 +108,7 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
       const out = applySwitches(battery, {
         practiceAllMaths: practiceAllMaths() === true, passageRotation: passageRotation() === true,
         oneAtATime: oneAtATime() === true, passagePunct: passagePunct() === true, rdfManual: rdfManual() === true,
+        rdfW3Forms: rdfW3Forms() === true,
       });
       let v2 = false;
       try { v2 = voiceV2() === true; } catch (_) { v2 = false; }

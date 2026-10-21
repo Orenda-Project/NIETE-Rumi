@@ -37,8 +37,11 @@ function voiceManifest(bank) {
       if (k === 'demo_item' || k === 'demo_image') continue;
       any(line, 'instruction', /_chain$/.test(k) ? ear : false);
     }
-    for (const it of [...((t.tap && t.tap.items) || []), ...(t.practice || []), ...(t.practice_v2 || []), ...(sc.demo_item ? [sc.demo_item] : [])]) {
+    // A W3 one-at-a-time task holds its items on the task (items[]); a practice item's model is a chain.
+    const w3Ear = t.w3 ? /letter_|words4/.test(t.task || '') : false;
+    for (const it of [...((t.tap && t.tap.items) || []), ...(t.w3 && !t.tap ? t.items || [] : []), ...(t.practice || []), ...(t.practice_v2 || []), ...(sc.demo_item ? [sc.demo_item] : [])]) {
       if (it.say) (it.say.lang ? one(it.say, 'item', ear) : both(it.say, 'item'));
+      if (it.model) any(it.model, 'feedback', w3Ear);
       if (it.prompt) both(it.prompt, 'problem');
       if (it.feedback) for (const [k, line] of Object.entries(it.feedback)) any(line, 'feedback', /_chain$/.test(k) ? ear : false);
     }
