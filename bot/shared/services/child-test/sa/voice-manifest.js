@@ -28,6 +28,8 @@ function voiceManifest(bank) {
     else both(x, role);
   };
   for (const line of Object.values(bank.lines || {})) both(line, 'battery');
+  // The audio check's single words: heard by ear like any single word.
+  for (const w of bank.check_words || []) for (const lang of ['en', 'ur']) add(lang, w[lang], w.audio[lang], 'check', true);
   // A rotating passage's other texts (RULING #39) are voiced like the task's own.
   const all = Object.values(bank.tasks || {}).flatMap((t) => [t, ...(t.variants || []).map((v) => v.task)]);
   for (const t of all) {
