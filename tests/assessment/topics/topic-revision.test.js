@@ -31,23 +31,22 @@ const Revision = require('../../../bot/shared/services/assessment/assessment-rev
 const Renderer = require('../../../bot/shared/services/assessment/assessment-paper.renderer');
 
 const U = 'u1';
-const SCOPE = {
-  kind: 'topics',
-  topicIds: ['t1', 't2'],
-  topics: [{ topicId: 't1', name: 'Counting' }, { topicId: 't2', name: 'Adding' }],
-  slos: [{ topicId: 't1', topicName: 'Counting', code: 'S1' }, { topicId: 't2', topicName: 'Adding', code: 'S2' }],
-};
 const REQ = {
   id: 'r1', user_id: U, grade_code: 'grade_3', subject_code: 'maths', chapter_number: 2,
   page_ranges: null, output_format: 'pdf', has_answer_lines: false, textbook_id: 't1',
 };
-const TOPIC_REQ = { ...REQ, paper_kind: 'topic', scope: SCOPE };
+const TOPICS = [
+  { topicId: 't1', name: 'Counting', sloCodes: ['S1'] },
+  { topicId: 't2', name: 'Adding', sloCodes: ['S2'] },
+];
+const TOPIC_REQ = { ...REQ, paper_kind: 'topic' };
 const TREE = {
   seen: { objective: { MCQs: [
     { question: 'Q one', options: ['A) 1', 'B) 2'], answer: 'A) 1', marks: 1 },
     { question: 'Q two', options: ['A) 3', 'B) 4'], answer: 'B) 4', marks: 2 },
   ] } },
 };
+const TOPIC_TREE = { ...TREE, _topics: TOPICS };
 const paper = (over = {}) => ({
   id: 'v1', request_id: 'r1', attempt: 1, status: 'ready', edited_from: null, exam_json: TREE,
   created_at: '2026-09-30T09:00:00.000Z', file_r2_key: `exams/${U}/v1/Grade3_Maths.pdf`,
@@ -75,15 +74,11 @@ beforeEach(() => {
 });
 afterEach(() => jest.restoreAllMocks());
 
-const TOPICS = [
-  { topicId: 't1', name: 'Counting', sloCodes: ['S1'] },
-  { topicId: 't2', name: 'Adding', sloCodes: ['S2'] },
-];
 const firstArg = (spy) => spy.mock.calls[0][0];
 
 describe('topic paper edited in place (rerender)', () => {
   test('key carries the scope topics and the paper is a topic paper', async () => {
-    seed(TOPIC_REQ);
+    seed(TOPIC_REQ, { exam_json: TOPIC_TREE });
     const res = await Revision.rerender({ paperId: 'v1', userId: U, selectedIds: ['seen.objective.MCQs.0'] });
     expect(res.status).toBe('ready');
     expect(firstArg(paperSpy).paperKind).toBe('topic');
@@ -100,9 +95,9 @@ describe('topic paper edited in place (rerender)', () => {
   });
 });
 
-describe('a topic row as production returns it today (no scope column)', () => {
+describe('a topic row whose tree carries no _topics (made before this)', () => {
   test('keeps the topic header and sends no topics, rather than failing', async () => {
-    seed({ ...TOPIC_REQ, scope: undefined });
+    seed(TOPIC_REQ);
     const res = await Revision.rerender({ paperId: 'v1', userId: U, selectedIds: ['seen.objective.MCQs.0'] });
     expect(res.status).toBe('ready');
     expect(firstArg(paperSpy).paperKind).toBe('topic');
@@ -113,13 +108,14 @@ describe('a topic row as production returns it today (no scope column)', () => {
     const src = require('fs').readFileSync(require.resolve(
       '../../../bot/shared/services/assessment/assessment-revision.service'), 'utf8');
     expect(src).not.toMatch(/has_answer_lines[^']*\bscope\b/);
+    expect(src).not.toMatch(/req\.scope/);
   });
 });
 
 describe('topic paper edited as a new version (createVersion)', () => {
   test('paper is a topic paper and the key carries the topics', async () => {
-    seed(TOPIC_REQ);
-    const out = await Revision.createVersion({ parentId: 'v1', userId: U, tree: TREE, user: { id: U, preferred_language: 'en' } });
+    seed(TOPIC_REQ, { exam_json: TOPIC_TREE });
+    const out = await Revision.createVersion({ parentId: 'v1', userId: U, tree: TOPIC_TREE, user: { id: U, preferred_language: 'en' } });
     expect(out.status).toBe('ready');
     expect(firstArg(paperSpy).paperKind).toBe('topic');
     expect(firstArg(keySpy).topics).toEqual(TOPICS);
@@ -137,7 +133,7 @@ describe('topic paper edited as a new version (createVersion)', () => {
 
 describe('lazy key for a version stored without one (resendVersion)', () => {
   test('a topic paper gets its topics', async () => {
-    seed(TOPIC_REQ, { answer_key_r2_key: null });
+    seed(TOPIC_REQ, { exam_json: TOPIC_TREE, answer_key_r2_key: null });
     await Revision.resendVersion({ paperId: 'v1', userId: U, user: { id: U, preferred_language: 'en' } });
     expect(keySpy).toHaveBeenCalledTimes(1);
     expect(firstArg(keySpy).topics).toEqual(TOPICS);
@@ -149,5 +145,54 @@ describe('lazy key for a version stored without one (resendVersion)', () => {
     expect(keySpy).toHaveBeenCalledTimes(1);
     expect(firstArg(keySpy)).not.toHaveProperty('topics');
     expect(firstArg(keySpy)).not.toHaveProperty('paperKind');
+  });
+});
+
+describe('_topics rides in the tree through every edit', () => {
+  const Selection = require('../../../bot/shared/services/assessment/assessment-selection');
+  const user = { id: U, preferred_language: 'en' };
+
+  test('applySelection, activeTree, setRemoved and replaceAt keep it', () => {
+    expect(Selection.applySelection(TOPIC_TREE, ['seen.objective.MCQs.0'])._topics).toEqual(TOPICS);
+    expect(Selection.activeTree(TOPIC_TREE)._topics).toEqual(TOPICS);
+    expect(Selection.setRemoved(TOPIC_TREE, 'seen.objective.MCQs.0', true)._topics).toEqual(TOPICS);
+  });
+
+  test('it is not a question: collectQuestions and the printed paper ignore it', () => {
+    expect(Renderer.collectQuestions(TOPIC_TREE)).toHaveLength(2);
+    const html = Renderer.renderPaper({ examJson: TOPIC_TREE, grade: 3, subject: 'maths', paperKind: 'topic' });
+    expect(html).not.toContain('Counting');
+    expect(html).not.toContain('_topics');
+  });
+
+  test('a second edit (version of a version) still has the topics', async () => {
+    seed(TOPIC_REQ, { exam_json: TOPIC_TREE });
+    const first = await Revision.createVersion({
+      parentId: 'v1', userId: U, user,
+      tree: Selection.setRemoved(TOPIC_TREE, 'seen.objective.MCQs.0', true),
+    });
+    expect(first.status).toBe('ready');
+    const child = mockDb.tables.assessment_papers.find((p) => p.id === first.paperId);
+    expect(child.exam_json._topics).toEqual(TOPICS);
+    keySpy.mockClear();
+    paperSpy.mockClear();
+    const second = await Revision.createVersion({
+      parentId: first.paperId, userId: U, user, tree: child.exam_json,
+    });
+    expect(second.status).toBe('ready');
+    expect(firstArg(paperSpy).paperKind).toBe('topic');
+    expect(firstArg(keySpy).topics).toEqual(TOPICS);
+  });
+
+  test('in-place: edit one question then re-render still has the topics', async () => {
+    seed(TOPIC_REQ, { exam_json: TOPIC_TREE });
+    const saved = await Revision.saveEdit({
+      paperId: 'v1', userId: U, questionId: 'seen.objective.MCQs.0',
+      edit: { question: 'Q one, reworded' },
+    });
+    expect(saved.status).not.toBe('rejected');
+    expect(mockDb.tables.assessment_papers[0].exam_json._topics).toEqual(TOPICS);
+    await Revision.rerender({ paperId: 'v1', userId: U, selectedIds: ['seen.objective.MCQs.0'] });
+    expect(firstArg(keySpy).topics).toEqual(TOPICS);
   });
 });

@@ -103,3 +103,20 @@ describe('the key gets the topics', () => {
     expect(mockRenderPaper.mock.calls[0][0]).not.toHaveProperty('paperKind');
   });
 });
+
+describe('the ticked topics are stored in the paper so an edit can find them', () => {
+  test('a topic job saves examJson._topics (same list the key gets)', async () => {
+    const built = await Orchestrator.buildPaper({ ...JOB, scope: { kind: 'topics', topicIds: ['t1', 't2'], slos: SLOS } });
+    expect(built.examJson._topics).toEqual(built.topics);
+  });
+
+  test('a chapter job gains no _topics key', async () => {
+    const built = await Orchestrator.buildPaper({ ...JOB, chapterNumber: 4 });
+    expect(built.examJson).not.toHaveProperty('_topics');
+  });
+
+  test('an empty topic scope gains no _topics key', async () => {
+    const built = await Orchestrator.buildPaper({ ...JOB, scope: { kind: 'topics', topicIds: [], slos: [] } });
+    expect(built.examJson).not.toHaveProperty('_topics');
+  });
+});
