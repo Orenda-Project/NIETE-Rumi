@@ -245,5 +245,10 @@ button{font:inherit;color:inherit}
 .sae-onecell[lang=ur]{font-weight:400;line-height:1.9;font-size:clamp(52px,19vw,124px)}
 .sae-onecell.is-short[lang=ur]{font-size:clamp(92px,38vw,204px)}
 .sae-coach-text{background:var(--sae-card);border:3px solid var(--sae-line);border-radius:var(--sae-r);padding:12px 14px}
+/* RDF manual: the items the coach reads out (the brief's list, and the line on the child's screen). */
+.sae-coach-items{margin:4px 0 0;padding-inline-start:24px;text-align:start;display:flex;flex-direction:column;gap:6px;font-size:18px;line-height:1.6}
+.sae-coach-says{width:100%;max-width:520px;background:var(--sae-card);border:3px dashed var(--sae-line);border-radius:var(--sae-r);padding:8px 12px;text-align:start}
+.sae-coach-says summary{cursor:pointer;font-weight:700}
+.sae-coach-line{margin:4px 0 0;line-height:1.7}
 .sae-passage.is-printed{word-spacing:.35em;line-height:2.1}
 .sae-passage.is-printed[lang=ur]{word-spacing:.45em;line-height:2.7}
