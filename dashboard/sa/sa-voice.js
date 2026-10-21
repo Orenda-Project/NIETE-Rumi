@@ -4,9 +4,11 @@
  * SAE.voice.create({ lang, base, muted, onSpeak }) → { speak(textObj, audioObj) → Promise, stop(), setMuted(b) }
  * onSpeak({ speaking: true|false, text }) fires when Jugnu starts and stops talking (the game skin moves the mouth).
  *   1. a recorded clip: base + audioObj[lang], played in an <audio> element, when given. A clip that errors, is
- *      refused or has not started in load_ms is tried once more (the offline copy usually has it); if that fails too
- *      the line is silent: onSilent({ text, lang }) fires (the screen shows the words) and it resolves after a short
- *      pause. A line that has a clip is never said by the phone's own voice (its accent drifts from Jugnu's);
+ *      refused (a busy tunnel's 429) or has not started in load_ms is tried once more after retry_ms (1.5 s: the
+ *      offline copy usually has it by then); if that fails too, the phone's own voice says the line when the phone
+ *      has one of VOICES for its language (never a guess while the list is not loaded), else onSilent({ text, lang })
+ *      fires (the screen shows the words and the replay) and it resolves after a short pause. A line is never left
+ *      silent for longer than the retry;
  *   2. a line with no clip (a form with no clips: SAE.prepare's 'tts'): the phone's own speech (speechSynthesis),
  *      only in a voice in VOICES (South Asian, UK or US English; Urdu), never another en-* (en-SG, en-HK …);
  *   3. else a short pause, so the screen still moves on.
@@ -68,6 +70,7 @@
     var muted = !!o.muted;
     var pauseMs = o.pause_ms != null ? o.pause_ms : 400;
     var loadMs = o.load_ms != null ? o.load_ms : 5000;
+    var retryMs = o.retry_ms != null ? o.retry_ms : 1500;
     var onSpeak = typeof o.onSpeak === 'function' ? o.onSpeak : null;
     var onSilent = typeof o.onSilent === 'function' ? o.onSilent : null;
     var cur = null; // { done(), audio?, tts? }
@@ -137,7 +140,15 @@
           } catch (e) { pause(); }
         }
 
-        // The clip failed twice: the words stay on the screen, Jugnu is silent (never the phone's voice).
+        // The clip failed twice: the phone's own voice when it has an allowed one for the language, else the words.
+        function lost() {
+          if (finished || cur !== me) return;
+          var s = null;
+          try { s = synth(); } catch (e) { s = null; }
+          var has = false;
+          try { has = !!(text && s && Utter() && voiceFor(s, tl).voice); } catch (e) { has = false; }
+          if (has) tts(); else silent();
+        }
         function silent() {
           if (finished || cur !== me) return;
           if (onSilent && text) { try { onSilent({ text: text, lang: tl }); } catch (e) { /* ignore */ } }
@@ -162,7 +173,8 @@
               if (t0) clearTimeout(t0);
               try { a.onended = a.onerror = a.onplaying = null; a.pause(); } catch (e) { /* ignore */ }
               me.audio = null;
-              if (tries < 2) { try { play(); } catch (e) { silent(); } } else silent();
+              if (tries < 2) later(function () { if (finished || cur !== me) return; try { play(); } catch (e) { lost(); } }, retryMs);
+              else lost();
             };
             a.onplaying = function () { playing = true; start(); };
             a.onended = function () { me.done(); };
