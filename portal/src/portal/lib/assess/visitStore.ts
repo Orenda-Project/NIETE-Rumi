@@ -22,8 +22,11 @@ export type VisitMemory = {
   stopped?: Record<string, string>;
   /** drawId → what was marked, with the name the coach saw (for the summary). */
   outcomes: Record<string, { outcome: SaOutcome; name: string }>;
-  /** drawId → the session id minted on this phone, the child's block, whether Present was sent or queued, and the server's id once known. */
-  sessions: Record<string, { id: string; block: Block; sent: boolean; serverId?: string }>;
+  /**
+   * drawId → the session id minted on this phone, the child's block, whether Present was sent or queued, the server's
+   * id once known, and noMic when the coach chose to go on without a microphone (sa_mic_required).
+   */
+  sessions: Record<string, { id: string; block: Block; sent: boolean; serverId?: string; noMic?: boolean }>;
   /** Outcomes not yet accepted by the server, oldest first. */
   queue: QueuedOutcome[];
   /** Queued outcomes the server turned down (kept for the record). */

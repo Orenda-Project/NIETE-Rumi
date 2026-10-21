@@ -10,6 +10,10 @@ import { keepScreenOn } from '../../lib/keepAwake';
  * URL, or when the frame cannot be read after it has loaded (an offline error
  * page). A small corner hold (3 s) lets the coach end early. The first name goes
  * only in the URL fragment, which never reaches a server.
+ *
+ * With hand-back v2 (sa_handback_v2), the engine's sa:battery_end turns the hold
+ * into a full-width "Next child (coach)": every task is done, so completing it
+ * finishes the child as complete, and nothing after the end can read as coach_end.
  */
 
 const HOLD_MS = 3000;
@@ -24,6 +28,7 @@ type Props = {
   grade: number;
   block: Block;
   onFinished: (reason: FinishReason) => void;
+  handbackV2?: boolean;
 };
 
 export function playUrl(s: string, grade: number, lang: Lang, block: Block, firstName: string): string {
@@ -83,7 +88,7 @@ export function HoldButton({ label, hint, onDone, compact = false }: { label: st
   );
 }
 
-export default function AssessEngineSlot({ sessionId, firstName, lang, grade, block, onFinished }: Props) {
+export default function AssessEngineSlot({ sessionId, firstName, lang, grade, block, onFinished, handbackV2 = false }: Props) {
   const copy = COPY[lang];
   const frame = useRef<HTMLIFrameElement>(null);
   const slot = useRef<HTMLDivElement>(null);
@@ -92,6 +97,8 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
   const doneRef = useRef(onFinished);
   doneRef.current = onFinished;
   const [src] = useState(() => playUrl(sessionId, grade, lang, block, firstName));
+  const [batteryEnded, setBatteryEnded] = useState(false);
+  const batteryEndedRef = useRef(false);
 
   const finish = (reason: FinishReason) => {
     if (ended.current) return;
@@ -103,24 +110,32 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
   // an engine that does not answer within 3 s is left anyway.
   const coachEnding = useRef<number | null>(null);
   const coachEnd = () => {
+    if (batteryEndedRef.current) { finish('complete'); return; }
     if (ended.current || coachEnding.current !== null) return;
     try {
       frame.current?.contentWindow?.postMessage({ type: 'sa:coach_end', s: sessionId }, window.location.origin);
     } catch { /* no engine to ask */ }
-    coachEnding.current = window.setTimeout(() => finish('coach_end'), COACH_END_WAIT_MS);
+    coachEnding.current = window.setTimeout(() => finish(batteryEndedRef.current ? 'complete' : 'coach_end'), COACH_END_WAIT_MS);
   };
   useEffect(() => () => { if (coachEnding.current !== null) window.clearTimeout(coachEnding.current); }, []);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       const d = e.data as { type?: unknown; s?: unknown; reason?: unknown } | null;
-      if (e.origin !== window.location.origin || !d || d.type !== 'sa:done' || d.s !== sessionId) return;
+      if (e.origin !== window.location.origin || !d || d.s !== sessionId) return;
+      if (d.type === 'sa:battery_end' && handbackV2) {
+        batteryEndedRef.current = true;
+        setBatteryEnded(true);
+        return;
+      }
+      if (d.type !== 'sa:done') return;
+      if (batteryEndedRef.current) { finish('complete'); return; }
       if (coachEnding.current !== null) { finish('coach_end'); return; }
       finish(d.reason === 'complete' || d.reason === 'coach_end' ? d.reason : 'done');
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [sessionId]);
+  }, [sessionId, handbackV2]);
 
   useEffect(() => {
     let release: (() => Promise<void>) | null = null;
@@ -172,9 +187,15 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
         className="fixed inset-0 h-full w-full border-0 bg-white"
         style={{ zIndex: 1000 }}
       />
-      <div className="fixed bottom-2 end-2" style={{ zIndex: 1001 }}>
-        <HoldButton compact label={copy.holdEnd} hint={copy.holdHint} onDone={coachEnd} />
-      </div>
+      {batteryEnded ? (
+        <div data-testid="assess-hold-next" className="fixed inset-x-4 bottom-4 mx-auto max-w-md" style={{ zIndex: 1001 }}>
+          <HoldButton label={copy.holdNext} hint={copy.holdNextHint} onDone={coachEnd} />
+        </div>
+      ) : (
+        <div className="fixed bottom-2 end-2" style={{ zIndex: 1001 }}>
+          <HoldButton compact label={copy.holdEnd} hint={copy.holdHint} onDone={coachEnd} />
+        </div>
+      )}
     </div>
   );
 }

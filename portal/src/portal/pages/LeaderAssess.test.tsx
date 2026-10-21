@@ -14,7 +14,7 @@ vi.mock("../components/PortalLayout", () => ({ default: ({ children }: any) => <
 vi.mock("../lib/keepAwake", () => ({ keepScreenOn: vi.fn().mockResolvedValue(async () => {}) }));
 vi.mock("../services/api", () => ({
   portal: { getConfig: vi.fn() },
-  childTestSa: { getSchools: vi.fn(), getList: vi.fn(), markOutcome: vi.fn(), getStatus: vi.fn(), mintLink: vi.fn() },
+  childTestSa: { getSchools: vi.fn(), getList: vi.fn(), markOutcome: vi.fn(), getStatus: vi.fn(), mintLink: vi.fn(), getSwitches: vi.fn() },
 }));
 
 import { portal, childTestSa } from "../services/api";
@@ -64,7 +64,10 @@ beforeEach(() => {
   api.markOutcome.mockResolvedValue({});
   api.getStatus.mockResolvedValue({ session: { id: "x", status: "started", grade: 3, form: "f" }, block: "B1", lastSeq: 0, tasksDone: [], audio: [] });
   api.mintLink.mockResolvedValue({ token: "tok-123", expiresAt: "2026-10-20T10:00:00Z" });
+  api.getSwitches.mockResolvedValue(SWITCHES_OFF);
 });
+
+const SWITCHES_OFF = { handbackV2: false, micRequired: false, coachPicksBlock: false, rdfForm: false, resultsView: false };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const NET = () => Object.assign(new Error("Network Error"), { request: {} });
@@ -829,5 +832,51 @@ describe("LeaderAssess", () => {
         expect(line).toHaveTextContent(name);
       },
     );
+  });
+
+  describe("the tester's round (switches)", () => {
+    it("sa_handback_v2: after the battery's end the hold reads Next child, and the child is Done, not Stopped", async () => {
+      api.getSwitches.mockResolvedValue({ ...SWITCHES_OFF, handbackV2: true });
+      await openList();
+      const s = await startChild("d1");
+      act(() => { window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:battery_end", s }, origin: window.location.origin })); });
+      const hold = await screen.findByRole("button", { name: /Next child \(coach\)/ });
+      vi.useFakeTimers();
+      fireEvent.pointerDown(hold);
+      act(() => { vi.advanceTimersByTime(3100); });
+      vi.useRealTimers();
+      const row = await screen.findByTestId("assess-child-d1");
+      expect(row).toHaveTextContent("Done");
+      expect(row).not.toHaveTextContent("Stopped");
+    });
+
+    it("sa_mic_required: Ready waits for the microphone; going on without it badges the child No mic", async () => {
+      api.getSwitches.mockResolvedValue({ ...SWITCHES_OFF, micRequired: true });
+      Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: () => Promise.reject(new Error("NotAllowedError")) } });
+      try {
+        renderPage();
+        fireEvent.click(await screen.findByTestId("assess-school-s2"));
+        const ready = await screen.findByTestId("assess-preflight-ready");
+        await waitFor(() => expect(ready).toBeDisabled());
+        fireEvent.click(screen.getByRole("button", { name: /Check the microphone/ }));
+        fireEvent.click(await screen.findByTestId("assess-mic-skip"));
+        fireEvent.click(ready);
+        await screen.findByText("Ayan Testwala");
+        const s = await startChild("d1");
+        saDone(s);
+        expect(await screen.findByTestId("assess-child-d1")).toHaveTextContent("No mic");
+        expect(screen.getByTestId("assess-child-d2")).not.toHaveTextContent("No mic");
+      } finally {
+        delete (navigator as any).mediaDevices;
+      }
+    });
+
+    it("switches unreadable: today's page", async () => {
+      api.getSwitches.mockRejectedValue(NET());
+      await openList();
+      const s = await startChild("d1");
+      act(() => { window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:battery_end", s }, origin: window.location.origin })); });
+      expect(screen.getByRole("button", { name: /End test/ })).toBeInTheDocument();
+    });
   });
 });
