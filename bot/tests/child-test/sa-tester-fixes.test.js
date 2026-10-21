@@ -297,3 +297,17 @@ describe('A02: passages from tested sources, rotating per child', () => {
     for (const f of RUNTIMES.filter((x) => x.startsWith('sa.game.'))) expect(runtime(f).tasks.filter((t) => t.variants)).toEqual([]);
   });
 });
+
+describe('RULING #31d: every line Jugnu says has a clip (the engine\'s own lines in the bank)', () => {
+  const { COPY } = require('../../../dashboard/sa/sa-ui.js');
+  const NAMES = ['right', 'try_again', 'shown', 'mic_skip_say', 'warm_title', 'last_word', 'all_done', 'back_wait', 'mic_skip_task', 'give_coach'];
+  test.each(['en', 'ur'])('every battery in %s carries the 10 lines, text exactly the engine\'s, each with its clip', (lang) => {
+    for (const f of RUNTIMES.filter((x) => x.endsWith(`.${lang}.json`))) {
+      const b = runtime(f);
+      for (const k of NAMES) {
+        expect([f, k, b.lines[k] && b.lines[k].text]).toEqual([f, k, COPY[lang][k]]);
+        expect(b.lines[k].audio).toMatch(new RegExp(`^sa/v1/${lang}/[0-9a-f]{12}\\.mp3$`));
+      }
+    }
+  });
+});
