@@ -171,6 +171,29 @@ describe("LeaderAssess", () => {
     expect(frag).toBe(`n=${encodeURIComponent("ایان")}`);
   });
 
+  it("the server's block for the child, when the answer names one, is the block the engine runs and the row shows", async () => {
+    const mine = pickBlock([]);
+    const theirs = mine === "B1" ? "B2" : "B1";
+    api.markOutcome.mockResolvedValue({ sessionId: "server-1", block: theirs });
+    await openList();
+    const s1 = await startChild("d1");
+    const frame = screen.getByTestId("assess-engine-frame") as HTMLIFrameElement;
+    expect(new URL(frame.getAttribute("src") as string, "http://x").searchParams.get("block")).toBe(theirs);
+    expect(api.markOutcome.mock.calls[0][0].block).toBe(mine);
+    saDone(s1);
+    await screen.findByTestId("assess-child-d2");
+    expect(screen.getByTestId("assess-child-d1")).toHaveTextContent(BLOCK_EN[theirs]);
+  });
+
+  it("an answer with no block, or not a block, leaves the phone's block", async () => {
+    const mine = pickBlock([]);
+    api.markOutcome.mockResolvedValue({ sessionId: "server-1", block: "B9" });
+    await openList();
+    await startChild("d1");
+    const frame = screen.getByTestId("assess-engine-frame") as HTMLIFrameElement;
+    expect(new URL(frame.getAttribute("src") as string, "http://x").searchParams.get("block")).toBe(mine);
+  });
+
   it("each child's block is shown on the row; the next child gets a different block; whole battery gives 'full'", async () => {
     await openList();
     const s1 = await startChild("d1");

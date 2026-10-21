@@ -14,7 +14,9 @@
  * Then the engine's sink, for one SA_MARK session of this coach's (rows: sa-store.js):
  *   saBattery     the child's part of the battery: one of the form's five blocks — the five children of a
  *                 visit get five different blocks, rotating with the day — or the whole form when the
- *                 coach asks for `full`; fixed on the session at the first fetch
+ *                 coach asks for `full`; fixed on the session at the first fetch. With sa_block_by_history ON
+ *                 (default OFF, block-history.js) the child's own earlier blocks at this school are skipped too, and a
+ *                 present whose phone block the child already took gets the server's block (answered as `block`)
  *   saBatch       per-task results (one block row each) and the device's sync state; the subtask and
  *                 hand-over events become session timings; idempotent; the battery's end completes it
  *   saPresign     a direct-to-R2 PUT for one task's recording (or one spoken answer of it)
@@ -35,6 +37,7 @@
 
 const { visitKeyFor } = require('../draw/visit-key');
 const { BLOCK_NAMES } = require('../tasks');
+const blockHistory = require('./block-history');
 const { MEDIA, envSegment, __internals: { guarded, rows, ownVisit, ownSession, gradeOf } } = require('./app-api.service');
 
 const OUTCOMES = ['present', 'absent', 'refused'];
@@ -210,12 +213,17 @@ const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ 
   });
   if (!created || !created.ok || !created.session) throw new Error((created && created.error) || 'createSession failed');
   await d.store.recordTiming(created.session.id, 'sa.started', d.now());
+  const byHistory = block != null && (await blockHistory.enabled(deps));
+  if (byHistory && BLOCK_IDS.includes(block)) {
+    const past = await historyOf(d, created.session, deps);
+    if (past.has(block)) block = await pickBlock(d, created.session, past);
+  }
   if (clientSessionId || block) {
     // The child is present either way; a phone that cannot be matched later re-sends the outcome.
     const kept = await saStoreOf(deps).setClient(created.session.id, { clientSessionId: clientSessionId || null, block: block || null });
     if (!kept || !kept.ok) d.logError('child_test.sa.client_not_kept', { sessionId: created.session.id, error: kept && kept.error });
   }
-  return { status: 'ok', sessionId: created.session.id, list };
+  return { status: 'ok', sessionId: created.session.id, list, ...(byHistory ? { block } : {}) };
 })(args, deps);
 
 // ─── the engine's sink ─────────────────────────────────────────────────────
@@ -259,18 +267,40 @@ function onSession(name, fn) {
       bank: deps.bank !== undefined ? deps.bank : loadBank(),
       scoreLater: deps.scoreLater !== undefined ? deps.scoreLater : process.env.CHILD_TEST_SA_SCORE_LATER === 'true',
       env: deps.env || envSegment(),
+      deps,
     };
     return fn({ ...a, sessionId: session.id }, d, session, sa);
   })(args, deps);
 }
 
-/** The first block, from today's place in the rotation, that no other child of this visit holds. */
-async function pickBlock(d, session) {
+/** The form of a session's battery: the session's own form, else Form A. */
+function formOf(bank, session) {
+  const forms = (bank && bank.forms) || {};
+  const formId = [`coach.G${session.grade}.${session.form}`, `coach.G${session.grade}.A`].find((f) => forms[f]);
+  return formId ? { formId, form: forms[formId] } : null;
+}
+
+/** The blocks this child already took at this school, any cycle (block-history.js); read only with the switch on. */
+async function historyOf(d, session, deps) {
+  const f = formOf(deps.bank !== undefined ? deps.bank : loadBank(), session);
+  if (!f) return new Set();
+  return blockHistory.taken(d.store, { drawId: session.draw_id, sessionId: session.id, mark: SA_MARK, blocks: f.form.blocks });
+}
+
+/**
+ * The first block, from today's place in the rotation, that no other child of this visit holds — and, given the
+ * child's own `past` blocks at this school, that the child has not taken; with none left, the visit's rule alone.
+ */
+async function pickBlock(d, session, past = new Set()) {
   const visit = session.visit_id || session.visit_key;
   const got = visit ? await d.store.listSessionsForVisit(visit) : null;
   const taken = new Set(((got && got.ok && got.sessions) || [])
     .filter((s) => s.id !== session.id && s.device && s.device.block).map((s) => s.device.block));
   const day = Math.floor((d.now().getTime() + PKT_OFFSET_MS) / DAY_MS);
+  for (let k = 0; past.size && k < BLOCK_IDS.length; k += 1) {
+    const b = BLOCK_IDS[(day + k) % BLOCK_IDS.length];
+    if (!taken.has(b) && !past.has(b)) return b;
+  }
   for (let k = 0; k < BLOCK_IDS.length; k += 1) {
     const b = BLOCK_IDS[(day + k) % BLOCK_IDS.length];
     if (!taken.has(b)) return b;
@@ -289,7 +319,9 @@ const saBattery = onSession('sa_battery', async ({ sessionId, lang, full }, d, s
   if (!held || !held.ok) throw new Error((held && held.error) || 'summary failed');
   let block = held.block;
   if (!block) {
-    block = full === true || full === 'true' ? FULL : await pickBlock(d, session);
+    const whole = full === true || full === 'true';
+    const past = !whole && (await blockHistory.enabled(sa.deps)) ? await historyOf(d, session, sa.deps) : undefined;
+    block = whole ? FULL : await pickBlock(d, session, past);
     const saved = await sa.store.markSynced(sessionId, { block });
     if (!saved || !saved.ok) throw new Error((saved && saved.error) || 'markSynced failed');
     block = saved.device.block;
