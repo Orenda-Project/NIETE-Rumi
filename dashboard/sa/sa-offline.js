@@ -56,6 +56,15 @@
   /** The clip URLs of the engine's own lines (battery.lines) for this language. */
   function lineUrls(battery, lang, base) { return urls({ lines: battery && battery.lines }, lang, base); }
 
+  /** The opening's clips (RULING W3-18): the welcome, the sound check and its help line, and the check words. */
+  var OPENING = ['welcome', 'audio_check', 'audio_fail'];
+  function openingUrls(battery, lang, base) {
+    var l = (battery && battery.lines) || {};
+    var pick = {};
+    OPENING.forEach(function (k) { if (l[k]) pick[k] = l[k]; });
+    return urls({ lines: pick, check_words: battery && battery.check_words }, lang, base);
+  }
+
   var IMG_RX = /^[A-Za-z0-9_./-]+$/;
 
   /** Every picture in the battery for this language, as URLs from the site root (the way sa-ui.js shows them). */
@@ -88,11 +97,11 @@
     var nav = root.navigator;
     if (!nav || !nav.serviceWorker) return Promise.resolve({ ready: false, why: 'no_service_worker' });
     var clips = urls(o.battery, o.lang, o.base);
-    // The engine's own lines (the welcome, the sound check and its help line, the coach and hand-back lines) play
-    // first, from the first second: they are asked for in their own list, and the task clips after them (still six
-    // at a time on a busy tunnel).
-    var first = lineUrls(o.battery, o.lang, o.base);
-    var rest = clips.filter(function (u) { return first.indexOf(u) < 0; });
+    // The opening (the welcome, the sound check and its help line, the check words) plays from the first second: it is
+    // its own first list, then the engine's other lines, then the task clips (still six at a time on a busy tunnel).
+    var open = openingUrls(o.battery, o.lang, o.base).filter(function (u) { return clips.indexOf(u) >= 0; });
+    var first = lineUrls(o.battery, o.lang, o.base).filter(function (u) { return open.indexOf(u) < 0; });
+    var rest = clips.filter(function (u) { return open.indexOf(u) < 0 && first.indexOf(u) < 0; });
     var pics = images(o.battery, o.lang);
     return nav.serviceWorker.register('/sa/sw.js', { scope: '/sa/' })
       .then(function () { return nav.serviceWorker.ready; })
@@ -100,13 +109,15 @@
         var sw = reg.active || nav.serviceWorker.controller;
         if (!sw) return { ready: false, why: 'no_active_worker' };
         var list = [o.battery_url].filter(Boolean);
-        var said = first.length ? ask(sw, { type: 'prepare', urls: first }) : Promise.resolve({ ok: true, missing: [] });
-        // The opening lines are on the phone (or given up on): the page may speak them now (o.onLines, RULING W3-18).
-        if (typeof o.onLines === 'function') said.then(function () { o.onLines(); }, function () { o.onLines(); });
+        var none = { ok: true, missing: [] };
+        var opened = open.length ? ask(sw, { type: 'prepare', urls: open }) : Promise.resolve(none);
+        // The opening is on the phone (or given up on): the page may speak it now (o.onLines, RULING W3-18).
+        if (typeof o.onLines === 'function') opened.then(function () { o.onLines(); }, function () { o.onLines(); });
+        var said = opened.then(function () { return first.length ? ask(sw, { type: 'prepare', urls: first }) : none; });
         var then = said.then(function () { return ask(sw, { type: 'prepare', urls: rest }); });
-        return Promise.all([said, ask(sw, { type: 'prepare', urls: list }), then, ask(sw, { type: 'prepare', urls: pics })]).then(function (r) {
+        return Promise.all([said, ask(sw, { type: 'prepare', urls: list }), then, ask(sw, { type: 'prepare', urls: pics }), opened]).then(function (r) {
           var core = r[1] || { ok: false, missing: list };
-          var audio = { missing: (r[0] || { missing: first }).missing.concat((r[2] || { missing: rest }).missing) };
+          var audio = { missing: (r[4] || { missing: open }).missing.concat((r[0] || { missing: first }).missing, (r[2] || { missing: rest }).missing) };
           var img = r[3] || { ok: false, missing: pics };
           var ready = !!core.ok && img.missing.length === 0;
           return { ready: ready, battery: !!core.ok, clips: clips.length - audio.missing.length, clips_missing: audio.missing.length,
@@ -161,5 +172,5 @@
     });
   }
 
-  return { urls: urls, lineUrls: lineUrls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice };
+  return { urls: urls, lineUrls: lineUrls, openingUrls: openingUrls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice };
 }));
