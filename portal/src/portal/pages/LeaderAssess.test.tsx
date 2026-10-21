@@ -128,6 +128,16 @@ describe("LeaderAssess", () => {
     expect(within(alt).queryAllByRole("button")).toHaveLength(0);
   });
 
+  it("an alternate reads like a row: the name on one line, class and teacher on their own line", async () => {
+    await openList();
+    const alt = screen.getByTestId("assess-alternates");
+    const name = within(alt).getByText("Faraz Testwala");
+    expect(name.tagName).toBe("SPAN");
+    const place = name.parentElement!.querySelector('[data-testid="assess-alternate-place"]');
+    expect(place).not.toBeNull();
+    expect(place!.textContent).toMatch(/^Grade 3 - [AB] · Teacher: /);
+  });
+
   it("no alternate left: one line under the list says the class has no more children to draw this cycle (EN and UR)", async () => {
     api.getList.mockResolvedValue({ list: { ...LIST, alternates: [] } });
     await openList();
