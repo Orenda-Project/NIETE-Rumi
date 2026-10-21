@@ -27,6 +27,7 @@
  *   POST /sa/session/:id/register     { taskId, itemId?, key } → the recording is kept
  *   GET  /sa/session/:id/status       what the server holds, for the visit bar
  *   POST /sa/session/:id/link         a signed link so another phone can run this child's battery
+ *   GET  /sa/switches                 the page's own switches for this coach (read here, no bot call)
  *   another phone, with NO portal session — the token names the session and its coach:
  *   POST /sa/link/:token/session/:id/(batch|presign|register), GET …/status
  *        the bot names the token's coach first; that coach's portal_child_test_sa decides (404 when off)
@@ -107,6 +108,22 @@ router.post('/session/:id/media', ...gates, relay('media', (req) => ({
 router.post('/session/:id/check', ...gates, relay('check', (req) => ({
   sessionId: req.params.id, ...pick(req.body, ['block', 'coachMarks']),
 })));
+
+// The page's switches, each an app_settings row of the usual shape (true, or a pilot list of users.id); off when absent.
+const SA_SWITCHES = {
+  handbackV2: 'sa_handback_v2',
+  micRequired: 'sa_mic_required',
+  coachPicksBlock: 'sa_coach_picks_block',
+  rdfForm: 'sa_rdf_form',
+  resultsView: 'sa_results_view',
+};
+
+router.get('/sa/switches', ...saGates, async (req, res) => {
+  const userId = req.session.portalUserId;
+  const names = Object.keys(SA_SWITCHES);
+  const on = await Promise.all(names.map((n) => isFlagEnabledForUser(supabase, SA_SWITCHES[n], userId)));
+  return res.json({ success: true, switches: Object.fromEntries(names.map((n, i) => [n, on[i]])) });
+});
 
 router.get('/sa/schools', ...saGates, relay('sa/schools', () => ({})));
 router.get('/sa/list', ...saGates, relay('sa/list', (req) => pick(req.query, ['schoolId', 'visitId'])));
