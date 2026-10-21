@@ -3257,6 +3257,10 @@ const UX_STRINGS = {
   shareObservation: { en: 'Observation', ur: 'مشاہدہ' },
   shareGrade: { en: 'Grade {grade}', ur: 'جماعت {grade}' },
   shareClassFallback: { en: 'Your', ur: 'آپ' },
+  // A quiz link's head guessed before the bot answers, with nothing kept (web_quiz_head_guess_honest): the quiz's
+  // generic words, with no kind and no question count; {mascot} = the brand's mascot name in the page's language.
+  quizHeadGuessTitle: { en: 'Quiz', ur: 'کوئز' },
+  quizHeadGuessDesc: { en: '{mascot} reads it with you', ur: '{mascot} کے ساتھ پڑھیں' },
 };
 
 /**
