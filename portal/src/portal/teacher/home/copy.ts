@@ -37,8 +37,6 @@ export const HOME_CARD_COPY = {
   },
   lesson: {
     title: (topic: string) => `Quiz from your last lesson: ${topic}`,
-    /** The slim card's lead-in; the topic follows as its own isolate (cut at its own end when long). */
-    label: 'Quiz:',
     sub: (grade: number | string, subject: string) => `Lesson plan · Grade ${grade} · ${subject}`,
     primary: 'Quiz this',
     secondary: 'Open the plan',
@@ -80,7 +78,6 @@ export const HOME_CARD_COPY_UR = {
   },
   lesson: {
     title: (topic: string) => `آپ کے پچھلے سبق کی فوری جانچ: ${data(topic)}`,
-    label: 'فوری جانچ:',
     sub: (grade: number | string, subject: string) => `لیسن پلان، جماعت ${num(grade)}، ${data(subject)}`,
     primary: 'فوری جانچ بنائیں',
     secondary: 'لیسن پلان کھولیں',
