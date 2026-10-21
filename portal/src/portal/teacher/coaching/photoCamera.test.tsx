@@ -34,6 +34,14 @@ describe("Take photo and From gallery (bd-rt8wky)", () => {
     expect(gallery.getAttribute("capture")).toBeNull();
   });
 
+  // In the Android app, Capacitor's BridgeWebChromeClient opens the camera only when the accept list
+  // contains exactly "image/*"; an extension list sends Take photo to the gallery. A browser does not care.
+  it("Take photo asks for image/*, or the Android app opens the gallery instead of the camera", () => {
+    render(<Harness />);
+    const cam = screen.getByTestId("dc-photos-input-camera") as HTMLInputElement;
+    expect(cam.accept.split(",")).toContain("image/*");
+  });
+
   it("each photo taken joins the grid, the tiles stay for the next, and the count follows", () => {
     render(<Harness />);
     const cam = screen.getByTestId("dc-photos-input-camera");

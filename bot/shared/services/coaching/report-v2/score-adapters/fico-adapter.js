@@ -61,7 +61,10 @@ function buildFicoGroups(a, language) {
         pct: null,
         notAssessed: true,
         notAssessedWords: notAssessedWords(language),
-        why: notAssessedWhy(d.not_assessed_reason, language),
+        // A section the analysis could not complete has its own reason; the lesson-plan wording would be wrong.
+        why: d.not_assessed_reason === 'analysis_incomplete'
+          ? require('../../../../config/ux-strings').resolveUx('reportSectionNotAnalysed', { language })
+          : notAssessedWhy(d.not_assessed_reason, language),
       };
     }
     const score = d.domain_score ?? d.area_score ?? 0;
