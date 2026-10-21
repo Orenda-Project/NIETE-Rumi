@@ -28,9 +28,9 @@ const read = (rel) => fs.readFileSync(path.join(BOT, rel), 'utf8');
 /** file -> the job names its call sites must carry, and how many create() sites it has. */
 const EXPECTED = {
   'shared/services/gpt5-mini.service.js': {
-    sites: 10,
+    sites: 11,
     jobs: [
-      'coaching.pedagogy',          // analyzePedagogy: scoring call + the photo-less retry (2 sites)
+      'coaching.pedagogy',          // analyzePedagogy: scoring call + the photo-less retry + the incomplete-analysis retry (3 sites)
       'coaching.completeJson',      // generic JSON helper: debrief notes, observe2 moments, remark narrative; the
                                     // debrief guide and feedback card name coaching.observeDebrief (bd-gr4fy.15)
       'coaching.fidelityFallback',  // _generateFidelityAssessment
