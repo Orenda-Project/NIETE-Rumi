@@ -139,13 +139,13 @@ describe('the SA scorer', () => {
 
   test("the passage is scored against the variant the phone showed (its questions' asked ids), not a fixed passage", async () => {
     const story = row('ur.story');
-    const comp = row('ur.story_comp', { response_mode: 'oral', audio_r2_key: null, responses: [{ kind: 'result', mode: 'oral', asked: ['ur.story3.q1'], session_id: 'x' }] });
+    const comp = row('ur.story_comp', { response_mode: 'oral', audio_r2_key: null, responses: [{ kind: 'result', mode: 'oral', asked: ['ur.story2.q1'], session_id: 'x' }] });
     const db = fakeDb({ child_test_blocks: [story, comp], child_test_sessions: [session()] });
     const m = model();
     await score.sweepOnce({ now: NOW, deps: { supabase: db, ...m } });
-    expect(story.ai_marks.detail.variant.id).toBe('prpkp2020');
+    expect(story.ai_marks.detail.variant.id).toBe('select2024');
     const bank = require('../../shared/data/child-test/item-bank.sa.v1.json'); // eslint-disable-line global-require
-    const v3 = bank.tasks['coach.G3.A/ur.story'].variants[2].task.record.passage.words[0].target;
+    const v3 = bank.tasks['coach.G3.A/ur.story'].variants[1].task.record.passage.words[0].target;
     const v1 = bank.tasks['coach.G3.A/ur.story'].variants[0].task.record.passage.words.slice(0, 3).map((w) => w.target).join(' ');
     expect(m.prompts.find((p) => p.job === 'child_test.sa_story').prompt).toContain(v3);
     expect(m.prompts.find((p) => p.job === 'child_test.sa_story').prompt).not.toContain(v1);
@@ -234,6 +234,17 @@ describe('the W3 forms (RDF auto / RDF manual): tasks the bank does not carry, s
     expect(m.prompts[0].prompt).toMatch(/ONE AT A TIME/);
     expect(m.prompts[0].prompt).toContain('1: ب (/ب/)');
     expect(r.ai_marks).toMatchObject({ correct: 2, attempted: 3, seconds_used: 20 });
+  });
+
+  test('a W3 task the bank also carries (w3: true, no v3 card) is still scored from the battery the phone ran', async () => {
+    const bank = { version: 'x', forms: { 'coach.G3.A': { order: [] } },
+      tasks: { 'coach.G3.A/ur.letter_sounds5': { task: 'ur.letter_sounds5', w3: true, kind: 'grid', lang: 'ur', items: W3.tasks[0].items } } };
+    const r = row('ur.letter_sounds5', { responses: [{ kind: 'result', mode: 'record', session_id: PHONE_SID, time_used_ms: 20000, cells: [{ i: 0 }, { i: 1 }, { i: 2 }] }] });
+    const db = fakeDb({ child_test_blocks: [r], child_test_sessions: [session()] });
+    const m = model();
+    await score.sweepOnce({ now: NOW, deps: { supabase: db, ...m, bank, phoneBattery: load } });
+    expect(r.ai_status).toBe('scored');
+    expect(m.prompts[0].prompt).toContain('1: ب (/ب/)');
   });
 
   test('mental addition: each sum and its answer go to the model; untimed, so correct of 2', async () => {

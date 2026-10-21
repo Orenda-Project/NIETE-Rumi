@@ -3027,6 +3027,14 @@
         "also_level_2": {
           "type": "string",
           "__example__": "none"
+        },
+        "notes_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "notes_body": {
+          "type": "string",
+          "__example__": "Part 1\n8 min: board wiped before the children copied it\n\nPart 2\nThree at the back had no task"
         }
       },
       "layout": {
@@ -3041,6 +3049,16 @@
               "also_final_2": "${data.also_level_2}"
             },
             "children": [
+              {
+                "type": "TextSubheading",
+                "text": "Your notes, as you wrote them",
+                "visible": "${data.notes_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.notes_body}",
+                "visible": "${data.notes_v}"
+              },
               {
                 "type": "TextCaption",
                 "text": "Your picks before you saw the recording's moments. Keep them or change them."

@@ -18,9 +18,9 @@
  *       Every level, pre-selected with what the coach's sealed answers and confirmed moments add up
  *       to (rules.js). Rumi's own level is never shown. The coach changes any they disagree with.
  *   PRIORITY
- *       The picks the coach made before sealing (the first, and up to two more), kept or changed, with
- *       one box for why. The lists are the seal screen's: the 17, the plan's steps and the coaching focus
- *       areas (fico17 FOCUS_ORDER).
+ *       The coach's own notes from the visit, read-only (R23), then the picks the coach made before
+ *       sealing (the first, and up to two more), kept or changed, with one box for why. The lists are the
+ *       seal screen's: the 17, the plan's steps and the coaching focus areas (fico17 FOCUS_ORDER).
  *   DONE
  *
  * Every footer is a data_exchange that posts every field on its screen, so the server holds each
@@ -162,6 +162,10 @@ function priorityScreen() {
   const focus = FOCUS_ORDER.map((c) => ({ id: c, title: FOCUS[c], ...(FOCUS_DESCRIPTION[c] ? { description: FOCUS_DESCRIPTION[c] } : {}) }));
   const also = [{ id: ALSO_NONE, title: 'Nothing else' }, ...focus];
   const kids = [
+    // The coach's own notes from the visit, read-only (R23): the talk with the teacher often runs while
+    // this check is open. Hidden when nothing was typed.
+    { type: 'TextSubheading', text: 'Your notes, as you wrote them', visible: '${data.notes_v}' },
+    { type: 'TextBody', text: '${data.notes_body}', visible: '${data.notes_v}' },
     { type: 'TextCaption', text: "Your picks before you saw the recording's moments. Keep them or change them." },
     { type: 'Dropdown', name: 'priority_final', label: 'Work on first', required: true, 'data-source': focus },
     { type: 'TextCaption', text: 'If the teacher needs more, up to two. Optional.' },
@@ -173,6 +177,8 @@ function priorityScreen() {
     priority_level: { type: 'string', __example__: 'C8' },
     also_level_1: { type: 'string', __example__: 'plan' },
     also_level_2: { type: 'string', __example__: 'none' },
+    notes_v: { type: 'boolean', __example__: true },
+    notes_body: { type: 'string', __example__: 'Part 1\n8 min: board wiped before the children copied it\n\nPart 2\nThree at the back had no task' },
   }, {
     priority_final: '${data.priority_level}', also_final_1: '${data.also_level_1}', also_final_2: '${data.also_level_2}',
   }, { cv: CHECK_VERSION });

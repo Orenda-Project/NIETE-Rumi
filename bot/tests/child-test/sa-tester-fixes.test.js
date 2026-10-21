@@ -112,7 +112,8 @@ describe('A11: practice before every maths task', () => {
   test('with the switch on (practice_v2 where given), every ma.* task has an interactive practice item with feedback', () => {
     const bad = [];
     for (const f of RUNTIMES) {
-      for (const t of runtime(f).tasks.filter((x) => x.id.startsWith('ma.'))) {
+      // W3's spoken maths tasks practise with a model answer instead (sa-rdf-w3.test.js)
+      for (const t of runtime(f).tasks.filter((x) => x.id.startsWith('ma.') && !x.w3)) {
         const practice = (t.practice_v2 || t.practice).filter((p) => !p.disabled && p.target != null && p.feedback && p.feedback.correct && p.feedback.wrong);
         if (!practice.length) bad.push(`${f} ${t.id}`);
       }
@@ -304,9 +305,11 @@ describe('A13: pattern options as pictures', () => {
 
 describe('A02: passages from tested sources, rotating per child', () => {
   const ids = (t) => t.variants.map((v) => v.id);
-  test.each(['sa.coach.G3.A.ur.json', 'sa.coach.G5.A.en.json'])('%s: Urdu rotates RWP, SELECT, PRP-KP; English RWP + the TK2009 sample (named unfielded)', (f) => {
+  // W3: PRP-KP's story left the oral-reading rotation (its report prints no punctuation); its listening story stays.
+  test.each(['sa.coach.G3.A.ur.json', 'sa.coach.G5.A.en.json'])('%s: Urdu reads RWP, SELECT and listens to RWP, SELECT, PRP-KP; English RWP + the TK2009 sample (named unfielded)', (f) => {
     const b = runtime(f);
-    for (const id of ['ur.story', 'ur.story_comp', 'ur.listening']) expect([id, ids(task(b, id))]).toEqual([id, ['rwp2026', 'select2024', 'prpkp2020']]);
+    for (const id of ['ur.story', 'ur.story_comp']) expect([id, ids(task(b, id))]).toEqual([id, ['rwp2026', 'select2024']]);
+    expect(ids(task(b, 'ur.listening'))).toEqual(['rwp2026', 'select2024', 'prpkp2020']);
     for (const id of ['en.story', 'en.story_comp', 'en.listening']) expect([id, ids(task(b, id))]).toEqual([id, ['rwp2026', 'tk2009']]);
     for (const t of b.tasks.filter((x) => x.variants)) {
       for (const v of t.variants) {
@@ -319,34 +322,14 @@ describe('A02: passages from tested sources, rotating per child', () => {
     expect(task(b, 'en.story').variants[1].fielded).toBe(false);
   });
 
-  test('PRP-KP: the assessor grid\'s five sentences are the lines (first line = 9 words), each question asks up to its sentence', () => {
+  test('PRP-KP: its story is out of the reading rotation (unpunctuated in the report), kept on file; its listening story still rotates', () => {
     const b = runtime('sa.coach.G3.A.ur.json');
-    const v = task(b, 'ur.story').variants[2];
-    expect(v.items).toHaveLength(60);
-    expect(v.passage.lines.map((l) => l.to - l.from + 1)).toEqual([9, 21, 11, 9, 10]);
-    // Word 31 as the fielded assessor grid prints it (PDF p.92).
-    expect(v.items[30].target).toBe('انھوں');
-    expect(v.stop).toEqual({ first_line_n: 9, first_line_min_correct: 1 });
-    const q = task(b, 'ur.story_comp').variants[2].items;
-    expect(q.map((x) => x.needs_line)).toEqual([1, 2, 3, 4, 5]);
-    expect(q.every((x) => x.prompt && x.prompt.audio && x.accept.length)).toBe(true);
+    for (const id of ['ur.story', 'ur.story_comp']) expect(ids(task(b, id))).not.toContain('prpkp2020');
+    const s3 = read('item-bank.sa-extra.v1.json').reading.ur.story3;
+    expect([s3.editorial_punct, s3.lines.flatMap((t) => t.split(/\s+/)).length]).toEqual([true, 60]);
     const l = task(b, 'ur.listening').variants[2];
-    expect([l.passage.read_times, l.items.length]).toEqual([1, 3]);
-  });
-
-  test('PRP-KP C1: the story shows each sentence with its printed-style end marks; the 60 words are the grid\'s, unchanged', () => {
-    const v = task(runtime('sa.coach.G3.A.ur.json'), 'ur.story').variants[2];
-    expect(v.passage.text.split('\n')).toEqual([
-      'سلیم کو سکول جاتے ہوئے ایک کالا بٹوا ملا۔',
-      'وہ اسے اٹھا لایا اور ہیڈ ماسٹر صاحب کو دے کر کہا کہ یہ مجھے سکول کے قریب سے ملا ہے۔',
-      'انھوں نے کہا: بیٹا، یہ بٹوا شاید طارق صاحب کا ہو۔',
-      'وہ اسے بڑی دیر سے تلاش کر رہے ہیں۔',
-      'سلیم کی ایمانداری پر اسمبلی میں حوصلہ افزائی کی گئی۔']);
-    const grid = read('item-bank.sa-extra.v1.json').reading.ur.story3.lines;
-    const words = (t) => t.split(/\s+/).map((w) => w.replace(/[:۔،]+$/u, ''));
-    expect(v.passage.text.split('\n').map(words)).toEqual(grid.map(words));
-    expect(v.items.map((x) => x.target)).toEqual(grid.flatMap(words));
-    expect(v.items).toHaveLength(60);
+    expect([l.id, l.passage.read_times, l.items.length]).toEqual(['prpkp2020', 1, 3]);
+    expect(l.passage.text).toContain('آئیندہ');
   });
 
   test('no generated passage enters the battery', () => {

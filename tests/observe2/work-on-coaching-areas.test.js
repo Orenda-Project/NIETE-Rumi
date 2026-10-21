@@ -167,13 +167,20 @@ describe('the check\'s PRIORITY screen, on each published check', () => {
     expect(CHECK_VERSION).toBe('3');
     const id = await sealedWith({ priority: 'manage', also_1: 'wait', also_2: 'close' });
     const out = await Check.handleObserve2CheckDataExchange(checkToken(id), 'ADDED_TWO', { screen: 'ADDED_TWO', cv: CHECK_VERSION });
-    expect(out).toEqual({ screen: 'PRIORITY', data: { priority_level: 'manage', also_level_1: 'wait', also_level_2: 'close' } });
+    // The coach's notes ride on every versioned check's PRIORITY screen (R23, notes-before-debrief.test.js); none typed here.
+    expect(out).toEqual({
+      screen: 'PRIORITY',
+      data: { priority_level: 'manage', also_level_1: 'wait', also_level_2: 'close', notes_v: false, notes_body: '' },
+    });
   });
 
   test('the round-6 check (version 2) is pre-filled only with what its lists have', async () => {
     const id = await sealedWith({ priority: 'manage', also_1: 'plan', also_2: 'wait' });
     const out = await Check.handleObserve2CheckDataExchange(checkToken(id), 'ADDED_TWO', { screen: 'ADDED_TWO', cv: '2' });
-    expect(out).toEqual({ screen: 'PRIORITY', data: { priority_level: '', also_level_1: 'plan', also_level_2: 'none' } });
+    expect(out).toEqual({
+      screen: 'PRIORITY',
+      data: { priority_level: '', also_level_1: 'plan', also_level_2: 'none', notes_v: false, notes_body: '' },
+    });
   });
 
   test('the first check (no version) is pre-filled only with one of the 17', async () => {
