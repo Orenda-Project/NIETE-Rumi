@@ -9,7 +9,8 @@
  *   child: { first_name } (proctored handover), onUnlock() (the coach's hold on the hand-back screen),
  *   onCoachMenu(open) (the coach's hold during the run),
  *   micProbe() → Promise<{ok, rms, url}> (game mic check: a 2-s probe, url = a blob to play back),
- *   micLevel(cb(level 0..1)) → stop() (a live input level, for the practice oral question)
+ *   micLevel(cb(level 0..1)) → stop() (a live input level, for the practice oral question),
+ *   manual (RDF manual: the coach gives the instructions), passage_punct (the passage drawn from its own text)
  * }) → { render(), destroy(), setSync(status), mercy(), refuse(kind), backWait() }
  *
  * Session gates (RULINGs #13, #17): mic_check (game, once per device), oral_practice (before the first oral task),
@@ -28,6 +29,16 @@
  *
  * Response modes (sa-core): tap (tiles), keypad (typed number), keyboard (a word typed on an a–z strip), record (passage aloud, then the last word read),
  * oral (Jugnu asks, the child answers aloud). Phases include warmup (bubbles) and last_word.
+ *
+ * Wave 3 (each OFF unless the page passes it):
+ *   one cell at a time  a read-aloud grid in the runner's one_at_a_time shows one big cell and Next; when the runner
+ *                       moves a cell on by itself Jugnu says lines.please_go_on. Mental maths shows its sum big.
+ *   manual              before each task Jugnu says only lines.coach_will_instruct; a coach screen shows the words to
+ *                       read out (task.coach_text, else the instruction) and "Give the phone to the child"; no
+ *                       instruction, practice intro, test intro or "tap the last word" line is spoken. Item stimuli are.
+ *   passage_punct       the passage's words are the whitespace tokens of passage.text (its «۔ ، ؟» and ". , ?"),
+ *                       one per item, a multi-word item spanning its tokens; scoring and the last word are unchanged.
+ *                       A text that does not line up with the items falls back to the items' words.
  *
  * UMD: window.SAE.ui in the browser, module.exports under Node.
  */
@@ -103,6 +114,10 @@
       done: 'Done',
       mercy: 'If reading is hard, tap the star.',
       voice_not_ready: 'The voice is not ready yet',
+      please_go_on: 'Please go on.',
+      coach_will_instruct: 'Your coach will now give the instructions.',
+      coach_read: 'Read this to the child:',
+      coach_then: 'Then give the phone to the child.',
     },
     ur: {
       hello: 'السلام علیکم! میں جگنو ہوں۔',
@@ -167,6 +182,10 @@
       done: 'ہو گیا',
       mercy: 'اگر پڑھنا مشکل ہو تو ستارے کو دبائیں۔',
       voice_not_ready: 'آواز ابھی تیار نہیں',
+      please_go_on: 'آگے چلیں۔',
+      coach_will_instruct: 'اب آپ کے کوچ ہدایات دیں گے۔',
+      coach_read: 'یہ بچے کو پڑھ کر سنائیں:',
+      coach_then: 'پھر فون بچے کو دے دیں۔',
     },
   };
 
@@ -212,6 +231,32 @@
     });
     return el;
   }
+  /**
+   * The passage's words as printed (sa_passage_punct): the whitespace tokens of passage.text, one per item (an item of
+   * n words takes n tokens), each checked against its item with punctuation and vowel marks aside. null when they do not line up.
+   */
+  var PUNCT_RX = /[\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E\u00AB\u00BB\u060C\u061B\u061F\u06D4\u2018-\u201F\u2026]/g;
+  // Compared with the vowel marks aside too: a scored word may drop the text's zer/zabar/pesh (بھوک for بھُوک).
+  var MARKS_RX = /[\u064B-\u065F\u0670\u06EA-\u06ED\u200C\u200D]/g;
+  function bare(x) { return String(x).replace(PUNCT_RX, '').replace(MARKS_RX, '').replace(/\s+/g, ' ').trim(); }
+  function passageWords(t) {
+    var text = t && t.passage && (typeof t.passage === 'string' ? t.passage : t.passage.text);
+    var items = (t && t.items) || [];
+    if (typeof text !== 'string' || !items.length) return null;
+    var tokens = text.split(/\s+/).filter(Boolean);
+    var out = [], k = 0;
+    for (var i = 0; i < items.length; i++) {
+      var w = items[i] && (items[i].label != null ? items[i].label : items[i].target);
+      if (w == null) return null;
+      var n = String(w).trim().split(/\s+/).length;
+      var shown = tokens.slice(k, k + n).join(' ');
+      if (k + n > tokens.length || bare(shown) !== bare(w)) return null;
+      out.push(shown);
+      k += n;
+    }
+    return k === tokens.length ? out : null;
+  }
+
   function delay(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   function capped(p, ms) { return Promise.race([Promise.resolve(p).catch(function () {}), delay(ms)]); }
 
@@ -253,6 +298,8 @@
     var starEl = null;
     var starSpeech = null;
     var childName = opts.child && typeof opts.child.first_name === 'string' ? opts.child.first_name.trim().slice(0, 40) : '';
+    var manual = !!opts.manual;
+    var punct = !!opts.passage_punct;
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     function say(textObj, audioObj) {
@@ -532,8 +579,25 @@
     }
 
     function playIntro(t) { runner.instructionPlayed(); return say(introOf(t)); }
+    /** RDF manual: the coach's screen in front of each task (the words to read out), then the phone goes to the child. */
+    function sCoachBrief(v) {
+      var t = v.task;
+      return h('div', { class: 'sae-screen sae-coach-brief is-coach', 'data-task': t.id }, [
+        h('div', { class: 'sae-body' }, [
+          h('p', { class: 'sae-chip', text: C.coach }),
+          h('h1', { class: 'sae-h1', text: tx(t.title) }),
+          h('p', { class: 'sae-sub', text: C.coach_read }),
+          h('p', { class: 'sae-say sae-coach-text', text: tx(t.coach_text) || tx(introOf(t)) }),
+          demoImage(t),
+          demoItem(t),
+          h('p', { class: 'sae-sub', text: C.coach_then }),
+        ]),
+        h('div', { class: 'sae-foot' }, [btn(C.handover_anon, function () { runner.instructionDone(); draw(); }, 'sae-primary')]),
+      ]);
+    }
     function sInstruction(v) {
       var t = v.task;
+      if (manual) return sCoachBrief(v);
       return screen(v, 'sae-instr', [
         h('div', { class: 'sae-row' }, [jugnu('hello', true), replayBtn(function () { gen++; playIntro(t); })]),
         h('h1', { class: 'sae-h1', text: tx(t.title) }),
@@ -797,17 +861,19 @@
     function passageEl(t, onWord) {
       var dir = dirOf(t), tl = taskLang(t);
       var words = wordsOf(t);
+      var printed = punct && words.length === (t.items || []).length ? passageWords(t) : null;
       if (words.length) {
         var rows = [], cur = null, curLine = null;
         words.forEach(function (w, i) {
           var ln = w.line != null ? w.line : 1;
           if (ln !== curLine) { cur = h('span', { class: 'sae-pline' }); rows.push(cur); curLine = ln; }
+          var said = printed ? printed[i] : String(wordText(w));
           cur.appendChild(onWord
-            ? h('button', { class: 'sae-word sa-word', type: 'button', 'data-i': String(i), onclick: function () { if (!busy) onWord(i); } }, [String(wordText(w))])
-            : h('span', { class: 'sae-word sa-word', 'data-i': String(i) }, [String(wordText(w))]));
+            ? h('button', { class: 'sae-word sa-word', type: 'button', 'data-i': String(i), onclick: function () { if (!busy) onWord(i); } }, [said])
+            : h('span', { class: 'sae-word sa-word', 'data-i': String(i) }, [said]));
           cur.appendChild(document.createTextNode(' '));
         });
-        return h('div', { class: 'sae-passage sa-passage' + (onWord ? ' is-pick' : ''), dir: dir, lang: tl }, rows);
+        return h('div', { class: 'sae-passage sa-passage' + (onWord ? ' is-pick' : '') + (printed ? ' is-printed' : ''), dir: dir, lang: tl }, rows);
       }
       if (t.passage && (t.passage.text || typeof t.passage === 'string')) {
         return h('p', { class: 'sae-passage sa-passage', dir: dir, lang: tl, text: t.passage.text || t.passage });
@@ -818,7 +884,16 @@
         (t.grid || []).map(function (x, i) { return h('span', { class: 'sae-cell', 'data-i': String(i) }, [String(x)]); }));
     }
     /** The passage: one big star tile ends the reading (its word is spoken once when it shows; mercy() pulses it). */
+    function sRunCell(v) {
+      var t = v.task;
+      return screen(v, 'sae-run sae-run-rec sae-run-cell', [
+        clock(v),
+        h('p', { class: 'sae-chip sae-chip-rec', text: C.read_aloud }),
+        h('div', { class: 'sae-onecell sa-onecell' + (Array.from(v.cell).length <= 2 ? ' is-short' : ''), dir: dirOf(t), lang: taskLang(t), 'data-i': String(v.cell_index) }, [v.cell]),
+      ], [btn(C.next, function () { runner.nextCell('tap'); draw(); }, 'sae-primary sa-next')]);
+    }
     function sRunRecord(v) {
+      if (v.cell != null) return sRunCell(v);
       var label = tx(line('done')) || C.done;
       starEl = h('button', { class: 'sae-star sa-star' + (mercied[v.task.id] ? ' is-mercy' : ''), type: 'button', 'aria-label': label }, [
         h('span', { class: 'sae-star-ico', 'aria-hidden': 'true', text: '★' }),
@@ -844,6 +919,7 @@
       return screen(v, 'sae-run sae-run-oral', [
         h('p', { class: 'sae-task-tag', text: tx(t.title) }),
         h('div', { class: 'sae-row' }, [jugnu('idle', true), replayBtn(function () { sayItem(it, t); })]),
+        /^mental_/.test(t.subtask || '') && shownOf(it) != null ? labelOf(it, t) : null,
         h('div', { class: 'sae-mic sa-mic' + (on ? ' is-on' : ''), 'aria-hidden': 'true' }, [h('span', { text: '🎤' })]),
         h('p', { class: 'sae-sub', text: C.say_answer }),
       ], [btn(C.answered, function () {
@@ -1115,6 +1191,7 @@
       var k = v.phase + '|' + v.task_index;
       if (v.phase === 'practice' && v.practice) k += '|' + v.practice.id;
       if (v.phase === 'running' && v.item) k += '|' + v.item.id + '|' + v.item_index;
+      if (v.phase === 'running' && v.cell != null) k += '|c' + v.cell_index;
       return k;
     }
 
@@ -1137,12 +1214,15 @@
         var gp = gen;
         say(line('oral_practice') || { en: COPY.en.oral_try, ur: COPY.ur.oral_try }).then(function () { if (alive && gp === gen) startMeter(); });
       } else if (v.phase === 'keypad_warmup') say(line('keypad_warmup') || { en: COPY.en.kp_warm, ur: COPY.ur.kp_warm });
-      else if (v.phase === 'instruction') playIntro(t);
+      else if (v.phase === 'instruction' && manual) {
+        runner.log('coach_brief', { task_id: t.id });
+        say(copyLine('coach_will_instruct'));
+      } else if (v.phase === 'instruction') playIntro(t);
       else if (v.phase === 'practice' && v.practice) {
         var first = t.practice.indexOf(v.practice) === 0;
         var k0 = keyOf(v);
-        sayChain([first && s.practice_intro ? [s.practice_intro] : null]).then(function () { if (alive && lastKey === k0 && !hold) sayItem(v.practice, t); });
-      } else if (v.phase === 'ready') sayChain([s.test_intro ? [s.test_intro] : null, s.begin ? [s.begin] : null]);
+        sayChain([first && s.practice_intro && !manual ? [s.practice_intro] : null]).then(function () { if (alive && lastKey === k0 && !hold) sayItem(v.practice, t); });
+      } else if (v.phase === 'ready') sayChain(manual ? [] : [s.test_intro ? [s.test_intro] : null, s.begin ? [s.begin] : null]);
       else if (v.phase === 'running' && v.item) {
         if (t.mode === 'oral') {
           var key = keyOf(v), g2 = gen;
@@ -1162,12 +1242,14 @@
           var key2 = keyOf(v), g3 = gen;
           sayItem(v.item, t).then(function () { if (alive && g3 === gen && lastKey === key2 && runner.promptDone) runner.promptDone(); });
         } else sayItem(v.item, t);
+      } else if (v.phase === 'running' && t && t.mode === 'record' && v.cell != null) {
+        // One cell at a time: no star line; the recorder opens at once and runs across the cells.
       } else if (v.phase === 'running' && t && t.mode === 'record') {
         // The star line first; the recorder opens after it (recorderHooks), so Jugnu is neither in the child's
         // recording nor in the silence watch's first second.
         starSpeech = say(line('done') || { en: COPY.en.done, ur: COPY.ur.done });
       } else if (v.phase === 'last_word') {
-        sayChain([v.time_left_ms === 0 && s.time_up ? [s.time_up] : null, s.intro_tap ? [s.intro_tap] : [copyLine('last_word')]]);
+        sayChain([v.time_left_ms === 0 && s.time_up ? [s.time_up] : null, manual ? null : (s.intro_tap ? [s.intro_tap] : [copyLine('last_word')])]);
       } else if (v.phase === 'task_end') {
         var r = v.result || {};
         var skipped = /^skipped|^assets_unavailable/.test(r.stop_reason || '');
@@ -1268,6 +1350,7 @@
       if (!alive || busy || listening) return;
       var r = runner.tick();
       var v = runner.view();
+      if (r === 'go_on') say(copyLine('please_go_on'));
       if (keyOf(v) !== lastKey) { draw(); return; }
       if (r === 'replay' && v.item && v.task.say_on !== 'replay') sayItem(v.item, v.task);
       if (!!v.offer_next !== shownOffer) { draw(); return; }
@@ -1354,5 +1437,5 @@
     if (u) assign(u);
   }
 
-  return { mount: mount, handback: handBack, COPY: COPY };
+  return { mount: mount, handback: handBack, COPY: COPY, passageWords: passageWords };
 }));
