@@ -128,6 +128,35 @@ maybe('sa-ui: the tester\'s screen findings', () => {
     });
   });
 
+  describe('A13: a picture pattern offers picture options', () => {
+    test.each(['en', 'ur'])('page %s: 1a, 2a, 2b show 4 picture tiles captioned in the page language; 1b numerals only; a tap answers the word', async (lang) => {
+      const t = taskOf(`sa.coach.G5.A.${lang}.json`, 'ma.patterns');
+      const { runner, el, view, calls } = mount({ battery_id: 'b', tasks: [t] }, { runner: {}, ui: { lang } });
+      toRunning(runner);
+      const seen = {};
+      for (let i = 0; i < t.items.length && runner.view().phase === 'running'; i++) {
+        const it = runner.view().item;
+        view.render(); await flush();
+        const opts = [...el.querySelectorAll('.sae-opts .sae-opt')];
+        seen[it.id] = opts.map((b) => {
+          const g = b.querySelector('.sae-glyph');
+          return g ? `${g.textContent}|${b.querySelector('.sae-cap').textContent}` : b.textContent;
+        });
+        if (it.glyphs && it.glyphs.some(Boolean)) {
+          opts[it.options.indexOf(it.target)].click();
+          expect(calls.filter((e) => e.type === 'tap').pop().value).toBe(it.target);
+        } else runner.answer(it.target);
+        await new Promise((r) => setTimeout(r, 220)); // the tap's press-and-release
+      }
+      const it1a = t.items.find((x) => x.id === 'ma.patterns.1a');
+      expect(seen['ma.patterns.1a']).toEqual(it1a.glyphs.map((g, i) => `${g}|${it1a.options[i]}`));
+      expect(seen['ma.patterns.2a'].every((x) => /^[★●▲■]\|/.test(x))).toBe(true);
+      expect(seen['ma.patterns.2b']).toHaveLength(4);
+      expect(seen['ma.patterns.2b'].every((x) => x.includes('|'))).toBe(true);
+      expect(seen['ma.patterns.1b'].some((x) => x.includes('|'))).toBe(false);
+    });
+  });
+
   describe('A07: the closing line of a part', () => {
     const after = { text: 'Good effort! Let us go on to the next part.' };
     const rec = (id) => ({ id, mode: 'record', time_limit_s: 60, passage: { text: 'a b' }, items: [{ id: id + '.w', target: 'a', line: 1 }], script: { after } });

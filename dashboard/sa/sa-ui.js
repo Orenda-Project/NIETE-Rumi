@@ -344,12 +344,15 @@
       });
       return img;
     }
-    function tiles(options, onPick, decorate, tl, t) {
+    /** glyphs: the item's picture per option (a picture pattern): drawn large, the option's word as its caption. */
+    function tiles(options, onPick, decorate, tl, t, glyphs) {
       var n = options.length;
       var g = h('div', { class: 'sae-opts sa-tiles' + (n > 4 ? ' is-five' : ''), lang: tl, dir: tl === 'ur' ? 'rtl' : 'ltr' });
-      options.forEach(function (o) {
+      options.forEach(function (o, i) {
         var pic = picOf(t, o);
-        var b = h('button', { class: 'sae-opt sa-tile' + (pic ? ' is-pic' : ''), type: 'button', 'data-value': String(o), lang: tl }, [pic || String(o)]);
+        var gl = !pic && Array.isArray(glyphs) && typeof glyphs[i] === 'string' && glyphs[i] ? glyphs[i] : null;
+        var face = pic || (gl ? [h('span', { class: 'sae-glyph', 'aria-hidden': 'true', text: gl }), h('span', { class: 'sae-cap', text: String(o) })] : String(o));
+        var b = h('button', { class: 'sae-opt sa-tile' + (pic ? ' is-pic' : gl ? ' is-glyph' : ''), type: 'button', 'data-value': String(o), lang: tl, 'aria-label': gl ? String(o) : null }, [].concat(face));
         b.addEventListener('click', function () { if (!busy && !b.disabled) onPick(o, b); });
         if (decorate) decorate(o, b);
         g.appendChild(b);
@@ -533,7 +536,7 @@
           b.disabled = true;
           if (String(o) === String(fb.value)) b.classList.add(fb.res.ok ? 'is-right' : 'is-tried');
           if (fb.res.shown != null && String(o) === String(fb.res.shown)) b.classList.add('is-right', 'is-shown');
-        }, taskLang(t), t);
+        }, taskLang(t), t, p.glyphs);
       }
       return screen(v, 'sae-practice', [
         h('div', { class: 'sae-row' }, [
@@ -622,7 +625,7 @@
           b.classList.add('is-pressed');
           runner.answer(o);
           later(function () { busy = false; draw(); }, PRESS_MS);
-        }, null, taskLang(t), t),
+        }, null, taskLang(t), t, it.glyphs),
       ], [nextBtn(v)]);
     }
 
