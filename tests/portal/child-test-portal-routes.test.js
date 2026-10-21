@@ -44,12 +44,12 @@ function findRoute(router, method, path) {
   throw new Error(`no ${method.toUpperCase()} ${path}`);
 }
 
-async function invoke(modPath, method, path, { userId = COACH, params = {}, body = {}, query = {} } = {}) {
+async function invoke(modPath, method, path, { userId = COACH, params = {}, body = {}, query = {}, headers = {} } = {}) {
   const routes = require(modPath);
   const stack = findRoute(routes, method, path);
   const req = {
     session: userId ? { portalUserId: userId, id: 'sess-1' } : null,
-    params, body, query, method: method.toUpperCase(), path, ip: '127.0.0.1', headers: {}, get: () => undefined,
+    params, body, query, method: method.toUpperCase(), path, ip: '127.0.0.1', headers, get: (h) => headers[String(h).toLowerCase()],
   };
   let statusCode = 200;
   let payload = null;
@@ -282,6 +282,19 @@ describe('another phone: the coach mints a link; the linked phone syncs without 
     expect(out.payload.ackedTo).toBe(3);
     expect(axiosPost.mock.calls[0].slice(0, 2)).toEqual([`${BOT}sa/via-link`, { token: 'tok', op: 'whois', sessionId: SID }]);
     expect(axiosPost.mock.calls[1].slice(0, 2)).toEqual([`${BOT}sa/via-link`, { token: 'tok', op: 'batch', sessionId: SID, seqFrom: 0, seqTo: 3, events: [], results: [] }]);
+  });
+
+  test("a linked call carries the phone's own id (X-SA-Phone) to the bot on the check and on the op", async () => {
+    tableRows.app_settings.push({ key: 'portal_child_test_sa', value: [COACH] });
+    axiosPost
+      .mockResolvedValueOnce({ status: 200, data: { success: true, status: 'ok', coachUserId: COACH, sessionId: SID } })
+      .mockResolvedValueOnce({ status: 200, data: { success: true, status: 'ok', ackedTo: 0 } });
+    const phone = 'a1b2c3d4e5f60718293a4b5c';
+    const body = { seqFrom: 0, seqTo: 0, events: [], results: [], phone: 'forged-in-body' };
+    const out = await invoke(ROUTES, 'post', '/sa/link/:token/session/:id/:op', { userId: null, params: { token: 'tok', id: SID, op: 'batch' }, body, headers: { 'x-sa-phone': phone } });
+    expect(out.statusCode).toBe(200);
+    expect(axiosPost.mock.calls[0][1]).toEqual({ token: 'tok', op: 'whois', sessionId: SID, phone });
+    expect(axiosPost.mock.calls[1][1]).toEqual({ token: 'tok', op: 'batch', sessionId: SID, phone, seqFrom: 0, seqTo: 0, events: [], results: [] });
   });
 
   test("a bad token, an unknown op, or a coach whose switch is off is 404 and nothing is relayed", async () => {
