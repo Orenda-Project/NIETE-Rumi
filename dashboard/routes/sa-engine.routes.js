@@ -6,7 +6,8 @@
  * then calls next() and the portal answers exactly as it does today. ON only when the stored value is the JSON
  * boolean true (the web_quiz_brotli rule and 30 s cache, routes/web-quiz-brotli-flag.js). Served no-cache: the
  * engine's service worker keeps the offline copy, the HTTP cache never holds a stale engine. The battery files are
- * served by name from bot/shared/data/child-test/sa/ at /sa/batteries/ (nothing else in that folder's parents).
+ * served by name from bot/shared/data/child-test/sa/ at /sa/batteries/ (nothing else in that folder's parents), with the
+ * content switches applied (routes/sa-battery-switches.js: sa_practice_all_maths).
  *
  * The sandbox-only "Jump to…" (RULING #43): only when SA_DEV_TOOLS=sandbox AND RAILWAY_ENVIRONMENT_NAME=sandbox are
  * both set does play.html / run.html load ./sa-dev.js (window.SA_DEV_TOOLS = true), ahead of the engine's scripts.
@@ -17,6 +18,7 @@ const path = require('path');
 const express = require('express');
 const { createBrotliFlag } = require('./web-quiz-brotli-flag');
 const { steady } = require('./sa-switch');
+const { SWITCHES, applySwitches } = require('./sa-battery-switches');
 
 const KEY = 'sa_engine';
 const DIR = path.join(__dirname, '..', 'sa');
@@ -31,8 +33,11 @@ function devToolsOn(env = process.env) {
   return Boolean(env) && env.SA_DEV_TOOLS === 'sandbox' && env.RAILWAY_ENVIRONMENT_NAME === 'sandbox';
 }
 
-/** createSaEngineRouter({ on }) → router. on() is the switch (default: app_settings sa_engine). */
-function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), holdMs, now, env } = {}) {
+/**
+ * createSaEngineRouter({ on, practiceAllMaths, env }) → router. on() is the switch (default: app_settings sa_engine);
+ * practiceAllMaths() the A11 content switch (default: app_settings sa_practice_all_maths).
+ */
+function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), practiceAllMaths = createBrotliFlag({ key: SWITCHES.practiceAllMaths }), holdMs, now, env } = {}) {
   const router = express.Router();
   // The switch as routes/sa-switch.js reads it: the first request waits for the first read, and a failed read after an
   // ON never flaps a request to the portal's page.
@@ -67,8 +72,13 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), hol
   });
   router.get('/sa/batteries/:name', (req, res, next) => {
     if (!on() || !BATTERY_RX.test(req.params.name)) return next();
-    res.setHeader('Cache-Control', 'no-cache');
-    return res.sendFile(req.params.name, { root: BATTERIES, dotfiles: 'deny' }, (err) => { if (err) next(); });
+    return fs.readFile(path.join(BATTERIES, req.params.name), 'utf8', (err, text) => {
+      if (err) return next();
+      let battery;
+      try { battery = JSON.parse(text); } catch (_) { return next(); }
+      res.setHeader('Cache-Control', 'no-cache');
+      return res.json(applySwitches(battery, { practiceAllMaths: practiceAllMaths() === true }));
+    });
   });
   // On: a file the folder does not have (a clip not made yet, a typo) is a 404 here. Falling through would let the
   // portal answer its own page with 200, which the offline copy would keep as the "clip".
