@@ -21,7 +21,7 @@ html[lang=ur] .sg-btn{font-family:var(--fu);font-size:19px;line-height:1.9}
 /* the map */
 .sg-map{position:relative;flex:1;min-height:420px}
 .sg-path{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-.sg-isl{position:absolute;width:144px;height:104px;border:0;padding:0;background:radial-gradient(ellipse at 50% 38%,var(--sand) 0 46%,var(--sand-d) 47% 60%,transparent 61%);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--navy);-webkit-tap-highlight-color:transparent;font:inherit}
+.sg-isl{position:absolute;width:144px;height:104px;border:0;padding:0;border-radius:50%;background:radial-gradient(ellipse closest-side at 50% 46%,var(--sand) 0 70%,var(--sand-d) 71% 86%,var(--sea3) 87%);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--navy);-webkit-tap-highlight-color:transparent;font:inherit}
 .sg-isl i{font:900 19px var(--f);font-style:normal;color:var(--s2);line-height:1.2;margin-bottom:2px}
 .sg-isl span{font-size:13px;line-height:1.5;font-weight:800;max-width:120px;text-align:center}
 html[lang=ur] .sg-isl span{font-size:14px;line-height:1.7}
