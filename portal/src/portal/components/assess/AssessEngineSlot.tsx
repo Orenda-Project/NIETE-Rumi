@@ -20,7 +20,7 @@ import { keepScreenOn } from '../../lib/keepAwake';
 
 const HOLD_MS = 3000;
 
-export type FinishReason = 'done' | 'complete' | 'coach_end' | 'handback' | 'offline';
+export type FinishReason = 'done' | 'complete' | 'coach_end' | 'handback' | 'offline' | 'not_started';
 const COACH_END_WAIT_MS = 3000;
 const SENDING_MAX_MS = 20_000;
 
@@ -32,6 +32,8 @@ type Props = {
   block: Block;
   onFinished: (reason: FinishReason) => void;
   handbackV2?: boolean;
+  /** sa_voice_gate_v2: after the engine's sa:refused, the hold ends the child as not_started, never coach_end. */
+  voiceGateV2?: boolean;
 };
 
 export function playUrl(s: string, grade: number, lang: Lang, block: Block, firstName: string): string {
@@ -92,7 +94,7 @@ export function HoldButton({ label, hint, onDone, compact = false, disabled = fa
   );
 }
 
-export default function AssessEngineSlot({ sessionId, firstName, lang, grade, block, onFinished, handbackV2 = false }: Props) {
+export default function AssessEngineSlot({ sessionId, firstName, lang, grade, block, onFinished, handbackV2 = false, voiceGateV2 = false }: Props) {
   const copy = COPY[lang];
   const frame = useRef<HTMLIFrameElement>(null);
   const slot = useRef<HTMLDivElement>(null);
@@ -114,8 +116,11 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
   // The hold asks the engine to end the run, so the running task's result says coach_end and is flushed;
   // an engine that does not answer within 3 s is left anyway.
   const coachEnding = useRef<number | null>(null);
+  // the engine refused to start (its voice was not ready): the child never began, so nothing is asked of the engine
+  const refusedRef = useRef(false);
   const coachEnd = () => {
     if (batteryEndedRef.current) { finish('complete'); return; }
+    if (refusedRef.current) { finish('not_started'); return; }
     if (ended.current || coachEnding.current !== null) return;
     try {
       frame.current?.contentWindow?.postMessage({ type: 'sa:coach_end', s: sessionId }, window.location.origin);
@@ -134,6 +139,10 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
         else setBatteryEnded((p) => (p === 'running' ? 'ending' : p));
         return;
       }
+      if ((d.type === 'sa:refused' || d.type === 'sa:unrefused') && voiceGateV2) {
+        refusedRef.current = d.type === 'sa:refused';
+        return;
+      }
       if (d.type !== 'sa:done') return;
       if (batteryEndedRef.current) { finish('complete'); return; }
       if (coachEnding.current !== null) { finish('coach_end'); return; }
@@ -141,7 +150,7 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [sessionId, handbackV2]);
+  }, [sessionId, handbackV2, voiceGateV2]);
 
   // a battery_end that never comes (offline, a lost message) does not keep the coach waiting
   useEffect(() => {

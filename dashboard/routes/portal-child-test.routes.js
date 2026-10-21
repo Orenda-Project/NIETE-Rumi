@@ -122,6 +122,7 @@ const SA_SWITCHES = {
   resultsView: SA_RESULTS_VIEW_KEY,
   // Wave 3: the card's RDF entry becomes RDF auto + RDF manual (the content lane's forms switch)
   rdfW3Forms: 'sa_rdf_w3_forms',
+  voiceGateV2: 'sa_voice_gate_v2',
 };
 
 router.get('/sa/switches', ...saGates, async (req, res) => {
