@@ -66,12 +66,13 @@ async function brandKey() {
   try { return await WebQuizBrand.resolveBrandKey({ db: supabase, orgName, botName }); } catch { return WebQuizBrand.DEFAULT_BRAND; }
 }
 
-async function topicOf(sc) {
+// want: the share's own language (web_quiz_share_pic_lang), in place of the class code's; null: the code's, as today
+async function topicOf(sc, want = null) {
   const { data: q } = await supabase.from('quizzes').select('topic, meta').eq('id', sc.quiz_id).maybeSingle();
-  return pageTopic({ lang: clampLanguage(sc.language), meta: q && q.meta, fallback: sc.topic || (q && q.topic) });
+  return pageTopic({ lang: want || clampLanguage(sc.language), meta: q && q.meta, fallback: sc.topic || (q && q.topic) });
 }
 
-async function cardFacts(sessionId) {
+async function cardFacts(sessionId, want = null) {
   if (!UUID_RX.test(sessionId) && !/^[A-Za-z0-9-]{1,40}$/.test(sessionId)) notFound();
   const WebQuiz = require('./web-quiz.service');
   const { data: s } = await supabase.from('quiz_sessions')
@@ -80,7 +81,7 @@ async function cardFacts(sessionId) {
   if (!s || s.status !== 'completed' || !s.share_code_id || s.user_id) notFound();
   const { data: sc } = await supabase.from('quiz_share_codes').select('id, code, quiz_id, topic, language').eq('id', s.share_code_id).maybeSingle();
   if (!sc) notFound();
-  const lang = clampLanguage(sc.language);
+  const lang = want || clampLanguage(sc.language);
   // An invited friend is not in the challenger's class: their card names neither that class nor its school.
   const friend = Boolean(s.invited_by_student_id);
   // Independent lookups, together: the finish draws this card straight away, and one after another they took ~3.5 s.
@@ -89,7 +90,7 @@ async function cardFacts(sessionId) {
     WebQuiz.shownNames(lang, [s.student_id]),
     friend ? null : require('./video-quiz-report.service').loadClassRows(sc.id).catch(() => null),
     friend ? {} : schoolLine(sc.code, s),
-    topicOf(sc),
+    topicOf(sc, want),
   ]);
   return {
     lang,
@@ -101,15 +102,8 @@ async function cardFacts(sessionId) {
   };
 }
 
-/** The kept score: this child's FIRST finish on the class code, the one the league counts. */
-async function keptScore(s) {
-  if (!s.student_id) return s;
-  const { data: done } = await supabase.from('quiz_sessions')
-    .select('id, correct_answers, total_questions_answered, completed_at')
-    .eq('share_code_id', s.share_code_id).eq('student_id', s.student_id).eq('status', 'completed')
-    .order('completed_at', { ascending: true }).limit(1);
-  return (done && done[0]) || s;
-}
+// The kept score (the child's first finish on the class code): one copy, shared with the card's result.
+const { keptScore } = require('./web-quiz-card-data');
 
 /** A session token for this child, minted here only to ask the page's own boards "where do I stand". */
 function stFor(s) {
@@ -125,20 +119,21 @@ async function schoolLine(code, s) {
   } catch { return {}; }
 }
 
-async function inviteFacts(code) {
+async function inviteFacts(code, want = null) {
   if (!CODE_RX.test(code)) notFound();
   const WebQuiz = require('./web-quiz.service');
   const ctx = await WebQuiz.resolveCode(code).catch(() => notFound());
   if (!ctx.invitedByStudentId) notFound();
-  const ch = await WebQuiz.challengeOf(ctx);
+  // the challenger's name as the picture's language shows it
+  const ch = await WebQuiz.challengeOf(want ? { ...ctx, lang: want } : ctx);
   if (!ch) notFound();
-  return { lang: ctx.lang, d: { first: ch.first, correct: ch.correct, total: ch.total, topic: await topicOf(ctx.parent) } };
+  return { lang: want || ctx.lang, d: { first: ch.first, correct: ch.correct, total: ch.total, topic: await topicOf(ctx.parent, want) } };
 }
 
 const CLASS_ROWS = 5;
 
 /** The class, by its code (nobody named) or by the sharer's session (their own row named). */
-async function classFacts(ref) {
+async function classFacts(ref, want = null) {
   const WebQuiz = require('./web-quiz.service');
   let code = ref;
   let me = null;
@@ -157,15 +152,15 @@ async function classFacts(ref) {
   // Classmates appear as place + animal + score only: the picture outlives the link and gets forwarded.
   const rows = (b.rows || []).slice(0, CLASS_ROWS).map((r) => ({ place: r.place, animal: r.animal, correct: r.correct, total: r.total }));
   if (me && b.you) {
-    const nameOf = await WebQuiz.shownNames(ctx.lang, [me.student_id]);
+    const nameOf = await WebQuiz.shownNames(want || ctx.lang, [me.student_id]);
     const mine = { place: b.you.place, animal: T.animalFor(me.student_id || me.id), correct: b.you.correct, total: b.you.total, me: true, first: nameOf(me.student_id, me.student_name) };
     const at = rows.findIndex((r) => r.place === mine.place && r.animal === mine.animal && r.correct === mine.correct);
     if (at >= 0) rows[at] = mine; else rows.push(mine);
   }
   const top = (b.rows || [])[0];
   return {
-    lang: ctx.lang,
-    d: { topic: await topicOf(ctx.parent), cls: (cls && cls.className) || '', played: b.finishers_n || 0, avgPct: b.class_avg_pct || 0, top: top ? { correct: top.correct, total: top.total } : null, rows },
+    lang: want || ctx.lang,
+    d: { topic: await topicOf(ctx.parent, want), cls: (cls && cls.className) || '', played: b.finishers_n || 0, avgPct: b.class_avg_pct || 0, top: top ? { correct: top.correct, total: top.total } : null, rows },
   };
 }
 
@@ -173,7 +168,7 @@ async function classFacts(ref) {
  * The school board around this class's school: the league's own crop (my school and up to 3 either side),
  * so the picture and the page agree. A school with no points yet sits under the leaders as its own row.
  */
-async function schoolFacts(code) {
+async function schoolFacts(code, want = null) {
   if (!CODE_RX.test(code)) notFound();
   const ctx = await require('./web-quiz.service').resolveCode(code).catch(() => notFound());
   const near = Schools.neighbours(await Schools.board(code), 3);
@@ -181,14 +176,14 @@ async function schoolFacts(code) {
   const rows = (near.rows || []).map((r) => row(r, Boolean(r.mine)));
   if (near.mine && !rows.some((r) => r.you)) rows.push(row(near.mine, true));
   if (!rows.length) notFound();
-  return { lang: ctx.lang, d: { rows } };
+  return { lang: want || ctx.lang, d: { rows } };
 }
 
-async function facts(kind, ref) {
-  if (kind === 'c') return cardFacts(ref);
-  if (kind === 'i') return inviteFacts(ref);
-  if (kind === 'l') return classFacts(ref);
-  if (kind === 's') return schoolFacts(ref);
+async function facts(kind, ref, want = null) {
+  if (kind === 'c') return cardFacts(ref, want);
+  if (kind === 'i') return inviteFacts(ref, want);
+  if (kind === 'l') return classFacts(ref, want);
+  if (kind === 's') return schoolFacts(ref, want);
   return notFound();
 }
 
@@ -245,32 +240,43 @@ const inflight = new Map();
 // fresh: the caller knows this picture was never drawn (a card at the finish of its session), so R2 is not asked.
 // code: the /q/<CODE> the picture was asked under; only the class link's picture (kind t) reads it.
 // door: the invite for the friend's door (web_quiz_challenge_fold asks for it); any other picture ignores it.
-function artImage(id, { size = 'og', fresh = false, code = null, door = false } = {}) {
+// lang: the share's language (en|ur, the page's own); drawn in it only with web_quiz_share_pic_lang on, and kept apart
+// per language, so an English share never gets the Urdu picture drawn for the same id. Off or absent: the code's, as today.
+function artImage(id, { size = 'og', fresh = false, code = null, door = false, lang = null } = {}) {
   // The class link's picture (web-quiz-class-pic.js): its own facts, switches and PNG; never this module's kinds.
   if (typeof id === 'string' && id.startsWith('t.')) return require('./web-quiz-class-pic').image(id, { code, drawTurn, ArtError });
   const dr = door === true && typeof id === 'string' && id.startsWith('i.');
-  const k = `${id}|${SIZES[size] ? size : 'og'}${dr ? '|door' : ''}`;
+  const l = lang === 'en' || lang === 'ur' ? lang : null;
+  const k = `${id}|${SIZES[size] ? size : 'og'}${dr ? '|door' : ''}${l ? `|${l}` : ''}`;
   if (inflight.has(k)) return inflight.get(k);
-  const p = artImageNow(id, { size, fresh, door: dr }).finally(() => inflight.delete(k));
+  const p = artImageNow(id, { size, fresh, door: dr, lang: l }).finally(() => inflight.delete(k));
   inflight.set(k, p);
   return p;
 }
 
 const { artInput } = require('./web-quiz-art-input');
 
-async function artImageNow(id, { size = 'og', fresh = false, door = false } = {}) {
+async function wantLang(lang) {
+  if (!lang) return null;
+  const Switch = require('./web-quiz-card-switch');
+  await Switch.on().catch(() => false);
+  return Switch.picLangCached() ? lang : null;
+}
+
+async function artImageNow(id, { size = 'og', fresh = false, door = false, lang = null } = {}) {
   const t0 = Date.now();
   const p = parseArtId(id);
   if (!p) notFound();
   const sz = SIZES[size] ? size : 'og';
-  const at = `${id}|${sz}${door ? '|door' : ''}`;
+  const want = await wantLang(lang);
+  const at = `${id}|${sz}${door ? '|door' : ''}${want ? `|${want}` : ''}`;
   const seen = byId.get(at);
   if (seen && seen.until > Date.now() && mem.has(seen.key)) {
     served({ kind: KIND_OF[p.kind], size: sz }, t0, 'mem');
     return { bytes: mem.get(seen.key), contentType: 'image/jpeg', key: seen.key };
   }
   const [f, brand, ui, ink] = await Promise.all([
-    facts(p.kind, p.ref), brandKey(), require('./web-quiz-ur-polish').ui().catch(() => null),
+    facts(p.kind, p.ref, want), brandKey(), require('./web-quiz-ur-polish').ui().catch(() => null),
     require('./web-quiz-card-switch').shareOn().catch(() => false),
   ]);
   const steps = { facts_ms: Date.now() - t0, r2_ms: 0, draw_ms: 0 };

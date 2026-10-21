@@ -122,12 +122,26 @@ async function fromVideo(sid, videoId) {
   return { ...q, s, ...(s === 3 ? { b: 'video_star' } : {}) };
 }
 
+/**
+ * The kept score: this child's FIRST finish on the class code, the one the league, the class table and the challenge
+ * count. The one copy: the share pictures (web-quiz-art.js) and the card's result (web_quiz_share_first_score) both
+ * read it, so a practice replay's own score is never on either. No child or code: the session as it is.
+ */
+async function keptScore(s) {
+  if (!s || !s.student_id || !s.share_code_id) return s;
+  const { data: done } = await supabase.from('quiz_sessions')
+    .select('id, correct_answers, total_questions_answered, completed_at')
+    .eq('share_code_id', s.share_code_id).eq('student_id', s.student_id).eq('status', 'completed')
+    .order('completed_at', { ascending: true }).limit(1);
+  return (done && done[0]) || s;
+}
+
 /** The finish's result from the server's rows, or null. w: who() (sid, session row, run). Never throws. */
 async function resultOf({ kind, item, w, ct }) {
   try {
     if (!w) return null;
     if (kind === 'quiz') {
-      const row = w.session;
+      const row = require('./web-quiz-card-switch').firstScoreCached() ? await keptScore(w.session) : w.session;
       const q = row ? score(row.correct_answers, row.total_questions_answered) : null;
       if (!q) return null;
       const s = starsOf(q.r, q.o);
@@ -206,4 +220,4 @@ function words(x, kind, lang) {
   return out;
 }
 
-module.exports = { resultOf, clean, words, starsOf, BADGES, RECENT_MS, LINES };
+module.exports = { resultOf, keptScore, clean, words, starsOf, BADGES, RECENT_MS, LINES };
