@@ -3,11 +3,76 @@
 // Every page is checked by lib.visit: it settles where expected (not bounced to login), no uncaught page error,
 // no 5xx from the API, no error screen, and its own heading/content.
 'use strict';
-const { pagesScenario } = require('../lib.cjs');
+const { pagesScenario, asRole, expect } = require('../lib.cjs');
+
+// TA18 (Task 8, bd-6clakk) — the Topics step. The local stack's demo data has no books or topics, so the four assessment
+// reads are answered by page.route with one Grade 1 English chapter, and /assessment/generate is caught, never sent.
+const PICKS_KEY = 'teacher-v2-assessment-new:v1';
+const NEW = '/portal/teacher/assessment/new/';
+const TOPICS = [
+  { topicId: 'e1', name: 'Meet Pinky', heading: 'Reading', headingOrder: 2, sortOrder: 1 },
+  { topicId: 'e2', name: 'Key Words', heading: 'Vocabulary & grammar', headingOrder: 3, sortOrder: 2 },
+  { topicId: 'e3', name: 'Rhyming Words', heading: 'Vocabulary & grammar', headingOrder: 3, sortOrder: 3 },
+  { topicId: 'e4', name: 'Introducing Myself', heading: 'Writing', headingOrder: 5, sortOrder: 4 },
+];
+const TYPES = [['MCQs', 'objective'], ['Fill in the Blanks', 'objective'], ['Rewrite Sentences', 'objective'],
+  ['Match the Column', 'objective'], ['Comprehension Passage', 'subjective'], ['Simple Writing', 'subjective']]
+  .map(([id, category]) => ({ id, category }));
+const json = (route, body) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+
+async function grammarTopicsPaper(page, ctx) {
+  await asRole(page, ctx, 'teacher', 'teacherV2');
+  const sent = [];
+  await page.route('**/api/portal/assessment/options**', (r) => json(r, { success: true, grades: [1], maxQuestions: 50,
+    defaultQuestions: 15, ...(new URL(r.request().url()).searchParams.get('subject') ? { types: TYPES } : { subjects: [] }) }));
+  await page.route('**/api/portal/assessment/chapters**', (r) => json(r, { success: true, chapters: [
+    { chapter_number: 1, chapter_title: 'All About Me', page_start: 1, page_end: 20, page_count: 20 },
+    { chapter_number: 2, chapter_title: 'My Family', page_start: 21, page_end: 40, page_count: 20 }] }));
+  await page.route('**/api/portal/assessment/topics**', (r) => json(r, { success: true, topics: TOPICS }));
+  await page.route('**/api/portal/assessment/generate', (r) => { sent.push(r.request().postDataJSON()); return json(r, { success: true, requestId: 'e2e-ta18' }); });
+  await page.route('**/api/portal/assessment/status/**', (r) => json(r, { success: true, status: 'processing' }));
+  await page.addInitScript(([k, v]) => sessionStorage.setItem(k, v), [PICKS_KEY,
+    JSON.stringify({ grade: 1, subject: 'english', subjectName: 'English', coverBy: 'chapters', chapters: [1] })]);
+  const text = () => page.evaluate(() => document.body.innerText);
+
+  await page.goto(ctx.baseUrl + NEW + 'cover', { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('step-next').click();
+  await page.waitForURL('**' + NEW + 'topics');
+  expect(/Step 3 of 5/.test(await text()), 'Topics should read Step 3 of 5');
+  expect(await page.getByRole('radio').count() === 2, 'Topics should offer two choices');
+  expect(await page.getByRole('checkbox').count() === 0, 'no list before Select topics');
+
+  await page.getByRole('radio', { name: /Select topics/ }).click();
+  for (const h of ['Reading', 'Vocabulary & grammar', 'Writing']) await page.getByRole('region', { name: h }).waitFor();
+  const listed = await text();
+  expect(!/\b[A-Z]{1,3}-?\d+(\.\d+)*\b/.test(listed.replace(/Step \d of \d/, '')), 'no SLO code on the Topics screen');
+  expect(/Tick at least one topic/.test(listed), 'Next should wait with "Tick at least one topic"');
+
+  await page.getByRole('region', { name: 'Vocabulary & grammar' }).getByRole('button', { name: 'Tick all' }).click();
+  await page.getByTestId('step-next').click();
+  await page.waitForURL('**' + NEW + 'questions');
+  const q = await text();
+  expect(/Step 4 of 5/.test(q), 'Questions should read Step 4 of 5');
+  expect(/10 marks/.test(q), 'a topic paper starts at 10 marks');
+  expect(/MCQs/.test(q) && /Rewrite Sentences/.test(q), 'grammar question types are suggested');
+
+  await page.getByTestId('step-next').click();
+  await page.waitForURL('**' + NEW + 'check');
+  expect(/2 selected/.test(await text()), 'Check and make should show the Topics row "2 selected"');
+  await page.getByTestId('step-next').click();
+  const deadline = Date.now() + 15000;
+  while (!sent.length && Date.now() < deadline) await page.waitForTimeout(250);
+  expect(sent.length === 1, 'Make my paper should send one request');
+  const body = sent[0];
+  expect(JSON.stringify(body.topicIds) === '["e2","e3"]', 'topicIds should be the two grammar topics, got ' + JSON.stringify(body.topicIds));
+  expect(body.contentSource === 'unseen' && body.seenCount == null, 'a topic paper has no seen questions');
+  return { topicIds: body.topicIds, questionTypes: body.questionTypes };
+}
 
 const scenarios = [
   pagesScenario("TA01", "Teacher app v2: Assessment opens", "teacher", "teacherV2", [{ path: "/portal/teacher/assessment", heading: /^Assessment$/ }]),
   pagesScenario("TA02", "Classic portal: Assessment opens", "teacher", "classic", [{ path: "/portal/assessment", heading: /^Assessment$/ }]),
+  { id: 'TA18', title: 'Teacher makes a grammar-only paper on topics taught', run: grammarTopicsPaper },
 ];
 
 module.exports = { feature: "teacher-assessment", spec: 'tests/features/web/teacher-assessment.feature', scenarios };
