@@ -30,6 +30,8 @@ const path = require('path');
 const { clampLanguage } = require('../../config/ux-strings');
 const { SUBJECT_LABEL } = require('./assessment-vocabulary');
 const Patterns = require('./patterns');
+const { pictureBlock, PICTURE_CSS } = require('./fde-picture-block');
+const { oralSheet, ORAL_CSS } = require('./fde-oral-sheet');
 
 // ── fonts ──────────────────────────────────────────────────────────────────
 
@@ -544,10 +546,12 @@ function situationBlock(q, slot, i, ctx) {
 /** The body of one item (its number and stem are added by the caller where they apply). */
 function itemBody(q, slot, i, ctx, inlineQ) {
   const shape = slot.shape;
-  if (shape === 'mcq') return optionsBlock(q, slot, ctx);
-  if (shape === 'frame') return frameBlock(q, slot, ctx);
-  if (shape === 'comprehension') return comprehensionBlock(q, slot, ctx);
-  const parts = [];
+  // A Grade 1-2 picture (bd-5jmnfj.4.3) prints above the body, whatever its shape.
+  const pic = pictureBlock(q);
+  if (shape === 'mcq') return pic + optionsBlock(q, slot, ctx);
+  if (shape === 'frame') return pic + frameBlock(q, slot, ctx);
+  if (shape === 'comprehension') return pic + comprehensionBlock(q, slot, ctx);
+  const parts = pic ? [pic] : [];
   if (Array.isArray(q.options) && q.options.length) parts.push(optionsBlock(q, slot, ctx));
   if (q.table) parts.push(tableBlock(q.table, ctx));
   if (q.passage && shape !== 'comprehension') parts.push(`<div class="${shape === 'words' || shape === 'fixed' ? 'verse' : 'passage'}">${textOf(q.passage, ctx)}</div>`);
@@ -731,7 +735,8 @@ function css(medium, kind) {
      that starts a page paints the tops of its letters at the foot of the page before. */
   .sec-head, .slot-head, .part-head, .q, .alt, .or-lead, .s-head, table.rows td { padding-top: .45em; }` : ''}
   .topics { display: flex; gap: 10mm; flex-wrap: wrap; }
-  ${kind === 'scheme' ? schemeCss(medium) : ''}`;
+  ${PICTURE_CSS}
+  ${kind === 'scheme' ? schemeCss(medium) + ORAL_CSS : ''}`;
 }
 
 function schemeCss(medium) {
@@ -1205,6 +1210,8 @@ ${suppliesBox(L, ctx)}`;
 
   const notes = notesBlock(L, all, ctx);
   const record = recordPage(L, live, ctx);
+  // The Grade 1-2 oral teacher sheet (bd-5jmnfj.4.4); '' for a paper with no oral part.
+  const oral = oralSheet(L.oral, { medium: lang, text: (s) => textOf(s, ctx) });
   return `<!DOCTYPE html>
 <html lang="${lang}"${ur ? ' dir="rtl"' : ''}>
 <head><meta charset="utf-8"><title>${esc(H[`scheme_title_${lang}`])}</title>
@@ -1213,6 +1220,7 @@ ${suppliesBox(L, ctx)}`;
 ${top}
 ${sections}
 ${notes}
+${oral}
 ${record}
 </body></html>`;
 }
