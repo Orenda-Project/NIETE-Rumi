@@ -51,6 +51,18 @@ const BATTERY = {
   voice_not_ready: L('Voice not ready', 'آواز ابھی تیار نہیں', 'RULING #14'),
   keypad_warmup: L('Type any numbers you like. Tap Done when you are ready.', 'جو نمبر چاہیں لکھیں۔ تیار ہوں تو "ہو گیا" دبائیں۔', 'RULING #17 P4 (Tangerine SA free-typing warm-up)'),
   done: L('Done', 'ہو گیا', 'RULING #10 (c) the star tile'),
+  // RULING #31d: the engine's own lines (dashboard/sa/sa-ui.js COPY, the same words) as battery lines, so each is a
+  // clip and never the phone's speech. A change to a COPY text must change its line here too (a test compares them).
+  right: L('That’s right!', 'بالکل ٹھیک!', 'engine COPY.right (practice, correct)'),
+  try_again: L('Try again.', 'ایک بار پھر کوشش کریں۔', 'engine COPY.try_again (practice, one retry)'),
+  shown: L('This is the right one.', 'یہ والا ٹھیک ہے۔', 'engine COPY.shown (practice, the answer shown)'),
+  mic_skip_say: L('If the microphone is not working, tap Skip.', 'اگر مائیک کام نہیں کر رہا تو چھوڑ دیں دبائیں۔', 'engine COPY.mic_skip_say (mic check)'),
+  warm_title: L('Pop the bubbles!', 'بلبلے پھوڑیں!', 'engine COPY.warm_title (brain break)'),
+  last_word: L('Tap the last word you read', 'آخری پڑھا ہوا لفظ دبائیں', 'engine COPY.last_word (passage)'),
+  all_done: L('All done!', 'سب ہو گیا!', 'engine COPY.all_done (battery end)'),
+  back_wait: L('Your island is saved on this phone. It will go when the internet is back.', 'آپ کا جزیرہ اس فون پر محفوظ ہے۔ انٹرنیٹ آتے ہی چلا جائے گا۔', 'engine COPY.back_wait (game, offline)'),
+  mic_skip_task: L('No microphone, so we skip this part', 'مائیک نہیں ہے، اس لیے یہ حصہ چھوڑ رہے ہیں', 'engine COPY.mic_skip_task (RULING #38b)'),
+  give_coach: L('Give the phone back to the coach.', 'اب فون کوچ کو واپس دے دیں۔', 'engine COPY.give_coach (coach hand-back)'),
 };
 const GAME_LINES = {
   hand_back: L('Well done! Let us go back to the map.', 'شاباش! اب واپس نقشے پر چلتے ہیں۔', 'adapted:game hand-back'),
