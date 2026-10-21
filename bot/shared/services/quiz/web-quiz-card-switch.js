@@ -1,7 +1,7 @@
 'use strict';
 /**
  * THE FINISH CARD'S SWITCHES AND ITEM REFS (app_settings web_quiz_card_v3, web_quiz_share_v4, web_quiz_share_joined,
- * web_quiz_ur_share_copy; all default OFF).
+ * web_quiz_ur_share_copy, web_quiz_share_ur_stack, web_quiz_share_pic_polish; all default OFF).
  *
  * Kept apart from web-quiz-card-image.js (which re-exports all of it) so the bot's join and home paths can ask "is the
  * one share on?" and "which item is this ref?" without loading the picture's renderer and its quiz requires.
@@ -35,6 +35,13 @@ const LINK_LANG_KEY = 'web_quiz_share_link_lang';
 const UR_SHARE_KEY = 'web_quiz_ur_share_copy';
 // Urdu share pictures draw their numbers in Urdu digits (web-quiz-art-input.js `ui.ud`): the same read and cache, share on or off.
 const UR_DIGITS_KEY = 'web_quiz_share_ur_digits';
+// The card picture's name fits its line (web-quiz-art-input.js `ui.nf`): the same read and cache.
+const NAME_FIT_KEY = 'web_quiz_share_name_fit';
+// The Urdu card and challenge pictures laid out as one stack, with the English pill's size (web-quiz-art-input.js `ui.us`):
+// the same read and cache.
+const UR_STACK_KEY = 'web_quiz_share_ur_stack';
+// The challenge and class table pictures' polish (web-quiz-art-input.js `ui.pp`): the same read and cache.
+const PIC_POLISH_KEY = 'web_quiz_share_pic_polish';
 const TTL_MS = 30 * 1000;
 // Both reads failed (the settings store down): the card stays off, and that answer is kept 10 s, so an outage costs at
 // most two reads per 10 s per worker and the card comes back within 10 s of the store.
@@ -52,10 +59,10 @@ function isTrue(value) {
 async function on(now = Date.now()) {
   if (cache && now - cache.at < (cache.down ? DOWN_TTL_MS : TTL_MS)) return cache.on;
   try {
-    const { data, error } = await Snap.rows([KEY, SHARE_KEY, JOINED_KEY, DATA_KEY, SHORT_KEY, CARD_A_KEY, READY_KEY, FAST_KEY, UR_SHARE_KEY, LINK_LANG_KEY, UR_DIGITS_KEY], () => supabase.from('app_settings').select('key, value').in('key', [KEY, SHARE_KEY, JOINED_KEY, DATA_KEY, SHORT_KEY, CARD_A_KEY, READY_KEY, FAST_KEY, UR_SHARE_KEY, LINK_LANG_KEY, UR_DIGITS_KEY]));
+    const { data, error } = await Snap.rows([KEY, SHARE_KEY, JOINED_KEY, DATA_KEY, SHORT_KEY, CARD_A_KEY, READY_KEY, FAST_KEY, UR_SHARE_KEY, LINK_LANG_KEY, UR_DIGITS_KEY, NAME_FIT_KEY, UR_STACK_KEY, PIC_POLISH_KEY], () => supabase.from('app_settings').select('key, value').in('key', [KEY, SHARE_KEY, JOINED_KEY, DATA_KEY, SHORT_KEY, CARD_A_KEY, READY_KEY, FAST_KEY, UR_SHARE_KEY, LINK_LANG_KEY, UR_DIGITS_KEY, NAME_FIT_KEY, UR_STACK_KEY, PIC_POLISH_KEY]));
     if (error) throw new Error(error.message || 'app_settings read failed');
     const val = (k) => ((data || []).find((r) => r && r.key === k) || {}).value;
-    cache = { at: now, on: isTrue(val(KEY)), share: isTrue(val(SHARE_KEY)), joined: isTrue(val(JOINED_KEY)), data: isTrue(val(DATA_KEY)), short: isTrue(val(SHORT_KEY)), cardA: isTrue(val(CARD_A_KEY)), ready: isTrue(val(READY_KEY)), fast: isTrue(val(FAST_KEY)), urShare: isTrue(val(UR_SHARE_KEY)), linkLang: isTrue(val(LINK_LANG_KEY)), urDigits: isTrue(val(UR_DIGITS_KEY)) };
+    cache = { at: now, on: isTrue(val(KEY)), share: isTrue(val(SHARE_KEY)), joined: isTrue(val(JOINED_KEY)), data: isTrue(val(DATA_KEY)), short: isTrue(val(SHORT_KEY)), cardA: isTrue(val(CARD_A_KEY)), ready: isTrue(val(READY_KEY)), fast: isTrue(val(FAST_KEY)), urShare: isTrue(val(UR_SHARE_KEY)), linkLang: isTrue(val(LINK_LANG_KEY)), urDigits: isTrue(val(UR_DIGITS_KEY)), nameFit: isTrue(val(NAME_FIT_KEY)), urStack: isTrue(val(UR_STACK_KEY)), picPolish: isTrue(val(PIC_POLISH_KEY)) };
     return cache.on;
   } catch (err) {
     // the read that names the share failed: the card reads its own key as before, and only the share is off
@@ -108,6 +115,18 @@ function linkLangCached() {
 function urDigitsCached() {
   return Boolean(cache && cache.urDigits === true);
 }
+/** The name-fit switch as the last read left it (a caller that has just read on()); false with no read yet. */
+function nameFitCached() {
+  return Boolean(cache && cache.nameFit === true);
+}
+/** The Urdu-stack switch as the last read left it (a caller that has just read on()); false with no read yet. */
+function urStackCached() {
+  return Boolean(cache && cache.urStack === true);
+}
+/** The picture-polish switch as the last read left it (a caller that has just read on()); false with no read yet. */
+function picPolishCached() {
+  return Boolean(cache && cache.picPolish === true);
+}
 function joinedCached() {
   return Boolean(cache && cache.joined === true);
 }
@@ -152,4 +171,4 @@ async function byRef(r) {
 
 function _reset() { cache = null; }
 
-module.exports = { KEY, SHARE_KEY, JOINED_KEY, DATA_KEY, SHORT_KEY, CARD_A_KEY, READY_KEY, FAST_KEY, UR_SHARE_KEY, LINK_LANG_KEY, UR_DIGITS_KEY, UUID_RX, REF_RX, on, shareOn, joinedOn, joinedCached, dataCached, shortCached, cardACached, readyCached, fastCached, linkLangCached, urDigitsCached, field, ref, byRef, _reset };
+module.exports = { KEY, SHARE_KEY, JOINED_KEY, DATA_KEY, SHORT_KEY, CARD_A_KEY, READY_KEY, FAST_KEY, UR_SHARE_KEY, LINK_LANG_KEY, UR_DIGITS_KEY, NAME_FIT_KEY, UR_STACK_KEY, PIC_POLISH_KEY, UUID_RX, REF_RX, on, shareOn, joinedOn, joinedCached, dataCached, shortCached, cardACached, readyCached, fastCached, linkLangCached, urDigitsCached, nameFitCached, urStackCached, picPolishCached, field, ref, byRef, _reset };

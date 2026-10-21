@@ -86,7 +86,7 @@ var WQID = function (P) {
     var h = P.bar() +
       P.jug('hello', here.length ? T.whoSay : T.hello, true, true) +
       (late ? '' : card) +
-      (fold ? '' : pic || '') + (chLine ? '<div class="wq-banner' + (fold ? ' wq-chline' : '') + '">' + esc(chLine) + '</div>' : '') +
+      (fold ? '' : pic || '') + (chLine ? '<div class="wq-banner' + (fold ? ' wq-chline' : '') + '">' + (P.chLineHtml ? P.chLineHtml(chLine) : esc(chLine)) + '</div>' : '') +
       (here.length
         ? '<h2>' + esc(T.whoT) + '</h2>' + (classPhone ? someone : '') +
           '<div class="wq-kids-big' + (classPhone ? ' wq-kids-small' : '') + '">' + here.map(function (k, i) {
