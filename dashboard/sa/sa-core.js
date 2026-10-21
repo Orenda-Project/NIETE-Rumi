@@ -33,6 +33,8 @@
  *                            never a silent recording (proctored: the coach's pre-flight sets it; game: the engine's
  *                            own mic check, once per device)
  *   early_stop_silence       the passage: no voice for 20 s (the mercy rule; the star was offered at 12 s)
+ *   assets_unavailable       a picture the item needs would not load (offline, not on the phone): the item cannot be
+ *                            answered, so the task ends there and blank tiles never become scores
  *
  * Session gates, once each: the mic check (game) before the first task that records, one practice oral question before
  * the first oral task, a keypad warm-up before the first keypad task. The page losing sight of the screen during a
@@ -53,7 +55,7 @@
     COMPLETE: 'complete', TIME_UP: 'time_up', FIRST_LINE: 'early_stop_first_line',
     CONSECUTIVE: 'consecutive_errors', COACH_END: 'coach_end',
     SKIPPED_L2: 'skipped_level2', SKIPPED_NO_LINE: 'skipped_no_first_line',
-    MIC: 'mic_unavailable', SILENCE: 'early_stop_silence',
+    MIC: 'mic_unavailable', SILENCE: 'early_stop_silence', ASSETS: 'assets_unavailable',
   });
   var MODES = ['tap', 'keypad', 'keyboard', 'record', 'oral'];
   // The lead's ruling (design §2): the response mode per EGRA/EGMA subtask. A task's own `response` wins.
@@ -509,6 +511,14 @@
         if (st.started == null) st.started = now();
         ev('coach_unlock', { task_id: st.task_id });
         finish(STOP.COACH_END);
+      },
+      /** A picture of this task would not load (the page's <img> error): image_unavailable, the task ends as
+       *  assets_unavailable. A late error from another task's picture is ignored. */
+      imageUnavailable: function (taskId, itemId) {
+        if (taskId !== st.task_id || ['running', 'instruction', 'practice', 'ready'].indexOf(st.phase) < 0) return;
+        if (st.started == null) st.started = now();
+        ev('image_unavailable', { task_id: st.task_id, item_id: itemId == null ? null : itemId });
+        finish(STOP.ASSETS);
       },
       /** After the task-end screen: the next task. */
       next: function () {
