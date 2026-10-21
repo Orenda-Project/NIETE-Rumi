@@ -284,6 +284,8 @@ export default function LeaderAssess() {
   }, [toast]);
 
   const sessionOf = (c: SaChild) => memory?.sessions[c.drawId];
+  // an absent or refused row the server keeps on the list is not one of the children to test
+  const isMarkedOut = (c: SaChild) => c.status === 'absent' || c.status === 'absent_final' || c.status === 'refused';
   const serverIdOf = (c: SaChild) => sessionOf(c)?.serverId || c.sessionId || null;
   // a child the coach ended early is not done; the summary lists them as started and not finished
   const isStopped = (c: SaChild) => Boolean(memory?.stopped?.[c.drawId]);
@@ -293,10 +295,19 @@ export default function LeaderAssess() {
     return c.sessionStatus === 'completed' || Boolean(memory?.finished[c.drawId]) || (id !== undefined && remote[id] === 'sent');
   };
 
-  /** Blocks other children of this visit already have (absent or refused ones excluded). */
-  const usedBlocks = (drawId: string) => Object.entries(memory?.sessions ?? {})
-    .filter(([d]) => d !== drawId && !memory?.outcomes[d])
-    .map(([, x]) => x.block);
+  /**
+   * Blocks other children of this visit already have (absent or refused ones excluded): this phone's own, then
+   * the server's for children this phone has no record of (a reload or another browser mid-visit).
+   */
+  const usedBlocks = (drawId: string) => {
+    const mine = Object.entries(memory?.sessions ?? {})
+      .filter(([d]) => d !== drawId && !memory?.outcomes[d])
+      .map(([, x]) => x.block as string);
+    const theirs = [...(list?.children ?? []), ...(list?.alternates ?? [])]
+      .filter((c) => c.drawId !== drawId && c.sessionBlock && !memory?.sessions[c.drawId] && !memory?.outcomes[c.drawId] && !isMarkedOut(c))
+      .map((c) => c.sessionBlock as string);
+    return [...mine, ...theirs];
+  };
 
   const queue = (item: Omit<QueuedOutcome, 'qid' | 'at'>) => {
     remember((m) => ({ ...m, queue: [...m.queue, { ...item, qid: mintId(), at: Date.now() }] }));
@@ -420,6 +431,10 @@ export default function LeaderAssess() {
 
   const children = list?.children ?? [];
   const doneKids = children.filter(isDone);
+  // the visit's clock: this phone's first Start, or the visit's first session on the server when that is earlier
+  const startedAt = [memory?.startedAt, ...children.map((c) => (c.sessionStartedAt ? Date.parse(c.sessionStartedAt) : NaN))]
+    .filter((x): x is number => typeof x === 'number' && Number.isFinite(x))
+    .reduce<number | null>((a, x) => (a === null || x < a ? x : a), null);
   const syncOf = (c: SaChild): SyncItem['state'] => {
     const id = sessionOf(c)?.id;
     if (id && remote[id] === 'audio') return 'audio';
@@ -428,8 +443,6 @@ export default function LeaderAssess() {
     if (id && (pendingBy[id] ?? 0) > 0) return 'phone';
     return id && remote[id] === 'sending' ? 'sending' : 'phone';
   };
-  // an absent or refused row the server keeps on the list is not one of the children to test
-  const isMarkedOut = (c: SaChild) => c.status === 'absent' || c.status === 'absent_final' || c.status === 'refused';
   const elsewhere = (c: SaChild) => !isDone(c) && Boolean(memory?.elsewhere[c.drawId]);
   const leftKids = [...doneKids, ...children.filter(isStopped)];
   drainNeeded.current = leftKids.some((c) => Boolean(sessionOf(c)) && syncOf(c) !== 'sent');
@@ -438,7 +451,7 @@ export default function LeaderAssess() {
     ...children.filter(elsewhere).map((c) => ({ drawId: c.drawId, name: firstNameOf(c, lang), state: 'other' as const })),
   ];
   const bar = (
-    <AssessVisitBar copy={copy} done={doneKids.length} total={Math.max(LIST_SIZE, children.filter((c) => !isMarkedOut(c)).length)} startedAt={memory?.startedAt ?? null} sync={sync} />
+    <AssessVisitBar copy={copy} done={doneKids.length} total={Math.max(LIST_SIZE, children.filter((c) => !isMarkedOut(c)).length)} startedAt={startedAt} sync={sync} />
   );
 
   const canGoBack = step.kind !== 'schools' && step.kind !== 'engine';
@@ -629,9 +642,14 @@ export default function LeaderAssess() {
         grade={step.child.grade || list?.grade || 3} block={step.block} onFinished={finished} />
     );
   } else {
-    const outcomes = Object.values(memory?.outcomes ?? {});
+    // this phone's outcomes, plus the server's for children this phone has no record of (a reload mid-visit)
+    const outcomes = [
+      ...Object.values(memory?.outcomes ?? {}),
+      ...children.filter((c) => isMarkedOut(c) && !memory?.outcomes[c.drawId])
+        .map((c) => ({ outcome: c.status === 'refused' ? 'refused' : 'absent', name: nameOf(c, lang) })),
+    ];
     const names = (xs: string[]) => (xs.length ? xs.join(' · ') : copy.none);
-    const started = memory?.startedAt ?? null;
+    const started = startedAt;
     const notSent = leftKids.filter((c) => syncOf(c) !== 'sent').length;
     content = (
       <div data-testid="assess-summary" className="space-y-4">

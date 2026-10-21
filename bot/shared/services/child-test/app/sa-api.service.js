@@ -136,6 +136,9 @@ function shapeChild(c, byDraw) {
     namesake,
     ...(namesake ? { fatherName: c.fatherName || null, fatherNameUr: c.fatherNameUrdu || null } : {}),
     ...(s ? { sessionId: s.id, sessionStatus: s.status } : {}),
+    // a phone that reloads mid-visit rebuilds the block rotation and the visit clock from these
+    ...(s && s.device && s.device.block ? { sessionBlock: s.device.block } : {}),
+    ...(s && s.started_at ? { sessionStartedAt: s.started_at } : {}),
   };
 }
 
@@ -216,16 +219,23 @@ const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ 
   if (!created || !created.ok || !created.session) throw new Error((created && created.error) || 'createSession failed');
   await d.store.recordTiming(created.session.id, 'sa.started', d.now());
   const byHistory = block != null && (await blockHistory.enabled(deps));
+  let past;
   if (byHistory && BLOCK_IDS.includes(block)) {
-    const past = await historyOf(d, created.session, deps);
+    past = await historyOf(d, created.session, deps);
     if (past.has(block)) block = await pickBlock(d, created.session, past);
+  }
+  // the server owns the visit's rotation: a phone that lost its memory may ask for a block a visit-mate holds
+  let moved = false;
+  if (BLOCK_IDS.includes(block) && (await takenBlocks(d, created.session)).has(block)) {
+    block = await pickBlock(d, created.session, past);
+    moved = true;
   }
   if (clientSessionId || block) {
     // The child is present either way; a phone that cannot be matched later re-sends the outcome.
     const kept = await saStoreOf(deps).setClient(created.session.id, { clientSessionId: clientSessionId || null, block: block || null });
     if (!kept || !kept.ok) d.logError('child_test.sa.client_not_kept', { sessionId: created.session.id, error: kept && kept.error });
   }
-  return { status: 'ok', sessionId: created.session.id, list, ...(byHistory ? { block } : {}) };
+  return { status: 'ok', sessionId: created.session.id, list, ...(byHistory || moved ? { block } : {}) };
 })(args, deps);
 
 // ─── the engine's sink ─────────────────────────────────────────────────────
@@ -289,15 +299,20 @@ async function historyOf(d, session, deps) {
   return blockHistory.taken(d.store, { drawId: session.draw_id, sessionId: session.id, mark: SA_MARK, blocks: f.form.blocks });
 }
 
+/** The blocks the other sessions of this session's visit hold. */
+async function takenBlocks(d, session) {
+  const visit = session.visit_id || session.visit_key;
+  const got = visit ? await d.store.listSessionsForVisit(visit) : null;
+  return new Set(((got && got.ok && got.sessions) || [])
+    .filter((s) => s.id !== session.id && s.device && s.device.block).map((s) => s.device.block));
+}
+
 /**
  * The first block, from today's place in the rotation, that no other child of this visit holds — and, given the
  * child's own `past` blocks at this school, that the child has not taken; with none left, the visit's rule alone.
  */
 async function pickBlock(d, session, past = new Set()) {
-  const visit = session.visit_id || session.visit_key;
-  const got = visit ? await d.store.listSessionsForVisit(visit) : null;
-  const taken = new Set(((got && got.ok && got.sessions) || [])
-    .filter((s) => s.id !== session.id && s.device && s.device.block).map((s) => s.device.block));
+  const taken = await takenBlocks(d, session);
   const day = Math.floor((d.now().getTime() + PKT_OFFSET_MS) / DAY_MS);
   for (let k = 0; past.size && k < BLOCK_IDS.length; k += 1) {
     const b = BLOCK_IDS[(day + k) % BLOCK_IDS.length];

@@ -148,6 +148,16 @@ describe('dayList', () => {
     expect(JSON.stringify(res.list)).not.toMatch(/studentId|rollNumber|roll_number/);
   });
 
+  test("a child's session carries its block and start time, so a reloaded phone keeps the visit's rotation and clock", async () => {
+    const deps = makeDeps();
+    deps.store.listSessionsForVisit.mockResolvedValueOnce({ ok: true, sessions: [{ id: 'done-session', draw_id: DRAW, status: 'completed', started_at: '2026-10-21T00:29:11.000Z', device: { block: 'B3', mic_ok: true } }] });
+    const res = await Svc.dayList({ userId: COACH, schoolId: SCHOOL_B }, deps);
+    const [c] = res.list.children;
+    expect(c.sessionBlock).toBe('B3');
+    expect(c.sessionStartedAt).toBe('2026-10-21T00:29:11.000Z');
+    expect(JSON.stringify(c)).not.toMatch(/mic_ok/);
+  });
+
   test("a school that is not this coach's is refused before the draw runs", async () => {
     const deps = makeDeps();
     expect(await Svc.dayList({ userId: COACH, schoolId: SCHOOL_X }, deps)).toEqual({ status: 'not_found' });
@@ -224,6 +234,27 @@ describe("dayOutcome with the phone's own session id and block", () => {
     const res = await Svc.dayOutcome({ userId: COACH, schoolId: SCHOOL_B, drawId: DRAW, outcome: 'present', clientSessionId: CLIENT, block: 'B3' }, deps);
     expect(res.sessionId).toBe('new-session');
     expect(saStore.setClient).toHaveBeenCalledWith('new-session', { clientSessionId: CLIENT, block: 'B3' });
+  });
+
+  test("a block a visit-mate already holds is replaced by the server's pick and named in the answer (a phone that lost its memory)", async () => {
+    const saStore = { findByClient: jest.fn(async () => ({ ok: true, sessionId: null })), setClient: jest.fn(async () => ({ ok: true })) };
+    const deps = makeDeps({ saStore });
+    deps.store.listSessionsForVisit.mockResolvedValue({ ok: true, sessions: [{ id: 'mate', draw_id: ALT, status: 'completed', device: { block: 'B3' } }] });
+    const res = await Svc.dayOutcome({ userId: COACH, schoolId: SCHOOL_B, drawId: DRAW, outcome: 'present', clientSessionId: CLIENT, block: 'B3' }, deps);
+    expect(res.block).toMatch(/^B[1245]$/);
+    expect(saStore.setClient).toHaveBeenCalledWith('new-session', { clientSessionId: CLIENT, block: res.block });
+  });
+
+  test("a free block is kept, and the whole battery is never moved", async () => {
+    const saStore = { findByClient: jest.fn(async () => ({ ok: true, sessionId: null })), setClient: jest.fn(async () => ({ ok: true })) };
+    const deps = makeDeps({ saStore });
+    deps.store.listSessionsForVisit.mockResolvedValue({ ok: true, sessions: [{ id: 'mate', draw_id: ALT, status: 'completed', device: { block: 'B2' } }] });
+    const res = await Svc.dayOutcome({ userId: COACH, schoolId: SCHOOL_B, drawId: DRAW, outcome: 'present', clientSessionId: CLIENT, block: 'B3' }, deps);
+    expect(res.block).toBeUndefined();
+    expect(saStore.setClient).toHaveBeenCalledWith('new-session', { clientSessionId: CLIENT, block: 'B3' });
+    deps.store.listSessionsForVisit.mockResolvedValue({ ok: true, sessions: [{ id: 'mate', draw_id: ALT, status: 'completed', device: { block: 'full' } }] });
+    const whole = await Svc.dayOutcome({ userId: COACH, schoolId: SCHOOL_B, drawId: DRAW, outcome: 'present', clientSessionId: CLIENT, block: 'full' }, deps);
+    expect(whole.block).toBeUndefined();
   });
 
   test('a re-sent present with the same client id returns that session, nothing marked twice', async () => {

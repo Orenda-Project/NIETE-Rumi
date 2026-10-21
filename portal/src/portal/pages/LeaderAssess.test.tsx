@@ -255,6 +255,20 @@ describe("LeaderAssess", () => {
     expect(api.markOutcome.mock.calls[1][0]).toMatchObject({ drawId: "d2", block: "full" });
   });
 
+  it("a phone that reloads mid-visit takes the next block from the server's record of the visit, not from zero", async () => {
+    const b1 = pickBlock([]);
+    const b2 = pickBlock([b1]);
+    const kids = [
+      child(1, { status: "tested", sessionId: "srv-1", sessionStatus: "completed", sessionBlock: b1 }),
+      child(2, { status: "tested", sessionId: "srv-2", sessionStatus: "completed", sessionBlock: b2 }),
+      child(3), child(4), child(5),
+    ];
+    api.getList.mockResolvedValue({ list: { ...LIST, children: kids } });
+    await openList();
+    fireEvent.click(within(screen.getByTestId("assess-child-d3")).getByRole("button", { name: "Present" }));
+    expect(await screen.findByTestId("assess-handover-block")).toHaveTextContent(BLOCK_EN[pickBlock([b1, b2])]);
+  });
+
   it("sa:done goes straight back to the list: the child is done, with a toast", async () => {
     await openList();
     const s = await startChild();
@@ -486,6 +500,21 @@ describe("LeaderAssess", () => {
     expect(screen.getByTestId("assess-child-d1")).toHaveTextContent("Done");
     expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("1/5");
     expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("sent");
+  });
+
+  it("after a reload the summary still names the server's absent and refused children, and the clock starts at the visit's first session", async () => {
+    const kids = [
+      child(1, { status: "tested", sessionId: "srv-1", sessionStatus: "completed", sessionStartedAt: new Date(Date.now() - 10 * 60 * 1000 - 5000).toISOString() }),
+      child(2), child(3), child(4, { status: "refused" }), child(5, { status: "absent" }),
+    ];
+    api.getList.mockResolvedValue({ list: { ...LIST, children: kids } });
+    await openList();
+    fireEvent.click(screen.getByRole("button", { name: "End visit" }));
+    const summary = await screen.findByTestId("assess-summary");
+    expect(within(summary).getByTestId("summary-absent")).toHaveTextContent("Fiza Testwala");
+    expect(within(summary).getByTestId("summary-refused")).toHaveTextContent("Esha Testwala");
+    expect(within(summary).getByTestId("summary-done")).toHaveTextContent("Ayan Testwala");
+    expect(summary).toHaveTextContent(/Total time 10:0\d/);
   });
 
   it("End visit shows the summary: done, absent, refused, time", async () => {
