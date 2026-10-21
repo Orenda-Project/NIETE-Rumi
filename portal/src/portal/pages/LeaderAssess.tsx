@@ -11,7 +11,7 @@ import AssessActions, { useAboveTabBar } from '../components/assess/AssessAction
 import { childTestSa } from '../services/api';
 import { useChildTestSa } from '../lib/useChildTestSa';
 import { COPY, urDigits, type Lang } from '../lib/assess/copy';
-import { BLOCKS, isBlock, pickBlock, type Block } from '../lib/assess/blocks';
+import { BLOCKS, isBlock, isRdf, pickBlock, type Block } from '../lib/assess/blocks';
 import { useSaSwitches } from '../lib/assess/switches';
 import { resultsPath } from '../lib/assess/results';
 import { sendQueued } from '../lib/assess/outbox';
@@ -643,10 +643,12 @@ export default function LeaderAssess() {
     const others = usedBlocks(step.child.drawId);
     const held = new Set(others.filter((b) => (BLOCKS as readonly string[]).includes(b)));
     const suggested = pickBlock(others);
-    const rdfOthers = others.filter((b) => b === 'rdf').length;
+    const rdfOthers = others.filter((b) => isRdf(b)).length;
     // RDF is mostly recorded: it never starts without a microphone that passed this visit's check
     const micOk = memory?.preflight?.mic?.mic_ok === true;
-    const choices: Block[] = [...BLOCKS, 'full', ...(switches.rdfForm ? ['rdf' as const] : [])];
+    // sa_rdf_w3_forms: RDF auto (Jugnu instructs) and RDF manual (the coach instructs) in place of the one RDF
+    const rdfBlocks: Block[] = switches.rdfW3Forms ? ['rdf_auto', 'rdf_manual'] : switches.rdfForm ? ['rdf'] : [];
+    const choices: Block[] = [...BLOCKS, 'full', ...rdfBlocks];
     content = (
       <div data-testid="assess-handover" className="space-y-5">
         {bar}
@@ -660,7 +662,7 @@ export default function LeaderAssess() {
             <legend className="mb-2 font-semibold text-slate-900">{copy.whichPart}</legend>
             {choices.map((b) => {
               const isHeld = held.has(b) && b !== step.block;
-              const noRdf = b === 'rdf' && !micOk;
+              const noRdf = isRdf(b) && !micOk;
               return (
                 <label key={b} className={`flex min-h-[48px] items-center gap-3 rounded-xl border px-4 py-2 ${step.block === b ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200 bg-white'}`}>
                   <input type="radio" name="assess-block" className="h-6 w-6 shrink-0" value={b} checked={step.block === b}
@@ -668,7 +670,7 @@ export default function LeaderAssess() {
                   <span className="min-w-0 flex-1">
                     <span className="block font-medium text-slate-900">{copy.blocks[b]}</span>
                     {b === 'full' && <span className="block text-sm text-slate-600">{copy.aboutMinutes(FULL_MINUTES)}</span>}
-                    {b === 'rdf' && <span className="block text-sm text-slate-600">{copy.aboutPerChild(RDF_MINUTES)}</span>}
+                    {isRdf(b) && <span className="block text-sm text-slate-600">{copy.aboutPerChild(RDF_MINUTES)}</span>}
                     {isHeld && <span className="block text-xs text-slate-500">{copy.heldByOther}</span>}
                   </span>
                   {b === suggested && <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{copy.suggested}</span>}
@@ -684,18 +686,18 @@ export default function LeaderAssess() {
               <span className="flex-1 font-medium text-slate-900">{copy.wholeBattery}</span>
               <span className="text-sm text-slate-600">{copy.aboutMinutes(FULL_MINUTES)}</span>
             </label>
-            {switches.rdfForm && (
-              <label className="flex min-h-[48px] items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2">
-                <input type="checkbox" className="h-6 w-6 shrink-0" checked={step.block === 'rdf'} disabled={locked || busy || !micOk}
-                  onChange={(e) => chooseBlock(e.target.checked ? 'rdf' : null)} />
-                <span className="flex-1 font-medium text-slate-900">{copy.blocks.rdf}</span>
+            {rdfBlocks.map((rb) => (
+              <label key={rb} className="flex min-h-[48px] items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2">
+                <input type="checkbox" className="h-6 w-6 shrink-0" checked={step.block === rb} disabled={locked || busy || !micOk}
+                  onChange={(e) => chooseBlock(e.target.checked ? rb : null)} />
+                <span className="flex-1 font-medium text-slate-900">{copy.blocks[rb]}</span>
                 <span className="text-sm text-slate-600">{copy.aboutPerChild(RDF_MINUTES)}</span>
               </label>
-            )}
+            ))}
           </>
         )}
-        {switches.rdfForm && !micOk && !locked && <p data-testid="assess-rdf-mic" className="text-sm text-slate-600">{copy.rdfNeedsMic}</p>}
-        {step.block === 'rdf' && rdfOthers > 0 && (
+        {rdfBlocks.length > 0 && !micOk && !locked && <p data-testid="assess-rdf-mic" className="text-sm text-slate-600">{copy.rdfNeedsMic}</p>}
+        {isRdf(step.block) && rdfOthers > 0 && (
           <p data-testid="assess-rdf-five" role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{copy.rdfFive}</p>
         )}
         {moved && moved === step.block && (
