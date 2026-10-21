@@ -263,23 +263,47 @@ maybe('sa-ui: the tester\'s screen findings', () => {
       expect(said.filter((s) => s === after.text)).toHaveLength(1);
     });
 
-    test('with the real voice: a clip that errors at 1 s gives one utterance of the line, not two', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    // RULING W3-14 (it replaces #31c's silence after a double failure): a clip that errors twice is said ONCE by an
+    // allowed phone voice, never twice; a voice not on the list → nothing said (the words and the replay stay).
+    function realVoice(voices, fails) {
       const voice = require('../sa/sa-voice');
       const heard = [];
-      function Audio(src) { const a = this; a.src = src; a.pause = () => {}; a.play = () => { setTimeout(() => a.onerror && a.onerror(), 1000); return new Promise(() => {}); }; }
-      const synth = { getVoices: () => [{ lang: 'en-IN' }, { lang: 'en-US' }], cancel: () => {}, speak: (u) => { heard.push(u.text); setTimeout(() => u.onend && u.onend(), 2500); } };
+      let n = 0;
+      function Audio(src) {
+        const a = this; a.src = src; a.pause = () => {};
+        const bad = n++ < fails;
+        a.play = () => { setTimeout(() => { if (bad) { if (a.onerror) a.onerror(); } else { if (a.onplaying) a.onplaying(); setTimeout(() => a.onended && a.onended(), 1000); } }, 1000); return new Promise(() => {}); };
+      }
+      const synth = { getVoices: () => voices, cancel: () => {}, speak: (u) => { heard.push(u.text); setTimeout(() => u.onend && u.onend(), 2500); } };
       function U(text) { this.text = text; }
-      const v = voice.create({ lang: 'en', Audio, speechSynthesis: synth, SpeechSynthesisUtterance: U });
+      return { heard, v: voice.create({ lang: 'en', Audio, speechSynthesis: synth, SpeechSynthesisUtterance: U }) };
+    }
+    async function finishWith(speak) {
       const a2 = Object.assign({ audio: 'sa/v1/en/after.mp3' }, after);
       const t1 = Object.assign({}, tap, { script: { after: a2 } });
-      const { runner, view } = mount({ battery_id: 'b', tasks: [t1, Object.assign({}, t1, { id: 'tap2' })] }, { runner: {}, ui: { speak: v.speak } });
+      const { runner, view } = mount({ battery_id: 'b', tasks: [t1, Object.assign({}, t1, { id: 'tap2' })] }, { runner: {}, ui: { speak } });
       toRunning(runner); runner.answer('a');
       view.render();
       await jest.advanceTimersByTimeAsync(9000);
-      // A line that has a clip is never said by the phone's voice (RULING #31c): the clip is retried, then silent.
-      expect(heard).toEqual([]);
+      return runner;
+    }
+
+    test('with the real voice: a clip that errors twice gives exactly one utterance, from an allowed voice', async () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      const { heard, v } = realVoice([{ lang: 'en-IN' }, { lang: 'en-US' }], 2);
+      const runner = await finishWith(v.speak);
+      expect(heard).toEqual([after.text]);
       expect(runner.view().task.id).toBe('tap2');
+    });
+
+    test('with the real voice: no allowed voice → nothing said; errors once then plays → nothing said', async () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      const a = realVoice([{ lang: 'en-SG' }], 2);
+      expect((await finishWith(a.v.speak)).view().task.id).toBe('tap2');
+      expect(a.heard).toEqual([]);
+      const b = realVoice([{ lang: 'en-IN' }], 1);
+      expect((await finishWith(b.v.speak)).view().task.id).toBe('tap2');
+      expect(b.heard).toEqual([]);
     });
   });
 });
