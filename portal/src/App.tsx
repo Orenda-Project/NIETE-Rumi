@@ -66,6 +66,7 @@ const LeaderTeacherDetail = page(() => import("./portal/pages/LeaderTeacherDetai
 const LeaderObservations = page(() => import("./portal/pages/LeaderObservations"));
 const LeaderChildTest = page(() => import("./portal/pages/LeaderChildTest"));
 const LeaderAssess = page(() => import("./portal/pages/LeaderAssess"));
+const LeaderAssessResults = page(() => import("./portal/pages/LeaderAssessResults"));
 const LeaderObserveRecord = page(() => import("./portal/pages/LeaderObserveRecord"));
 const LeaderObservation = page(() => import("./portal/pages/LeaderObservation"));
 const LeaderObserveDraft = page(() => import("./portal/pages/LeaderObserveDraft"));
@@ -266,6 +267,8 @@ const App = () => {
             <Route path="/portal/leader/child-test" element={<LeaderChildTest />} />
             {/* The coach's Learning assessment; the page and the API both check portal_child_test_sa. */}
             <Route path="/portal/leader/assess" element={<LeaderAssess />} />
+            {/* One session's results (read only); the API checks sa_results_view. */}
+            <Route path="/portal/leader/assess/results/:sessionId" element={<LeaderAssessResults />} />
             {/* bd-5rz1v.6 — a coach's /observe observation from the portal (dark behind portal_coach_observation). */}
             <Route path="/portal/leader/observe/new" element={<LeaderObserveRecord />} />
             <Route path="/portal/leader/observe/:id" element={<LeaderObservation />} />

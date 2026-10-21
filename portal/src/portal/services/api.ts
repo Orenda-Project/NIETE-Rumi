@@ -4,7 +4,7 @@ import { ANALYTICS_LOGIN } from '../lib/homeRoute';
 import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData, SchoolAnalyticsResponse,
   AttendanceResponse } from '../types/portal';
 import type { ChildTestVisit, ChildTestList, ChildTestCard, ChildTestSession, ChildTestBlockName } from '../types/childTest';
-import type { SaBlock, SaList, SaOutcome, SaSchool, SaSessionStatus, SaSwitches } from '../types/childTestSa';
+import type { SaBlock, SaList, SaOutcome, SaResults, SaSchool, SaSessionStatus, SaSwitches } from '../types/childTestSa';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
 import type { CoachingAnalyticsResponse, SchoolsAnalyticsResponse } from '../types/portal';
@@ -1315,6 +1315,10 @@ export const childTestSa = {
   /** sessionId: the server's id or the phone-minted clientSessionId. */
   getStatus: async (sessionId: string): Promise<SaSessionStatus> =>
     (await api.get(`${CTS}/session/${encodeURIComponent(sessionId)}/status`)).data,
+
+  /** One session's results, read only (switch sa_results_view: 404 when off or not this coach's session). */
+  getResults: async (sessionId: string): Promise<SaResults> =>
+    (await api.get(`${CTS}/session/${encodeURIComponent(sessionId)}/results`)).data,
 
   /** A one-hour token for opening the server's session on another phone. */
   mintLink: async (sessionId: string): Promise<{ token: string; expiresAt: string }> =>

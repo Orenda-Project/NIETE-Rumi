@@ -77,6 +77,15 @@ describe("assess copy", () => {
     for (const w of ["چاہتا", "چاہتی", " سکا", " سکی", "کرتا ", "کرتی ", "وہ ", "اس نے"]) expect(ur).not.toContain(w);
   });
 
+  it("results page: the scoring panel states the code's formulas, isolates and Urdu digits in Urdu", () => {
+    expect(COPY.en.results.how3).toContain("correct − wrong ÷ (options − 1), never below 0");
+    expect(COPY.en.results.how4).toContain("correct × 60 ÷ seconds used");
+    expect(COPY.ur.results.how3).toContain("⁦۱⁩");
+    expect(COPY.ur.results.how4).toContain("⁦۶۰⁩");
+    expect(COPY.ur.results.how5).toContain("⁨clpm, cwpm⁩");
+    expect(COPY.en.results.scoredLater).toBe("Recording kept, scored later");
+  });
+
   it("buttons stay short (≤ 24 code points)", () => {
     for (const lang of ["ur", "en"] as const) {
       const c = COPY[lang];

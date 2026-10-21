@@ -86,6 +86,20 @@ const PORTAL_CHILD_TEST_KEY = 'portal_child_test';
 const PORTAL_CHILD_TEST_SA_KEY = 'portal_child_test_sa';
 
 /**
+ * The coach's per-session Results page for the Learning assessment (per task: how the child answered, the SA scale,
+ * the recording's state; read only, no names). Same shape and rule as the keys above: true = everyone, a list of
+ * users.id = a pilot, absent = off. Off, GET …/sa/session/:id/results is 404 and the page says "not available".
+ */
+const SA_RESULTS_VIEW_KEY = 'sa_results_view';
+
+/**
+ * Who reads ANY coach's session on that Results page (the admin view). Same shape and rule as the keys above: true =
+ * everyone, a list of users.id = those users, absent = nobody. Checked for the portal SESSION user only; the bot then
+ * skips its own-session check for that one read.
+ */
+const SA_RESULTS_ADMINS_KEY = 'sa_results_admins';
+
+/**
  * bd-5rz1v.6 — app_settings key for a COACH running an /observe observation from
  * the portal (record or send the lesson, check the draft, the talk with the
  * teacher, send her the report). Same shape and rule as the key above.
@@ -317,6 +331,8 @@ module.exports = {
   PORTAL_SELF_OBSERVATION_KEY,
   PORTAL_CHILD_TEST_KEY,
   PORTAL_CHILD_TEST_SA_KEY,
+  SA_RESULTS_VIEW_KEY,
+  SA_RESULTS_ADMINS_KEY,
   PORTAL_COACH_OBSERVATION_KEY,
   PORTAL_NEW_UI_KEY,
   PORTAL_COACH_V2_KEY,

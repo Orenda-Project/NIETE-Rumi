@@ -13,6 +13,7 @@ import { useChildTestSa } from '../lib/useChildTestSa';
 import { COPY, urDigits, type Lang } from '../lib/assess/copy';
 import { BLOCKS, isBlock, pickBlock, type Block } from '../lib/assess/blocks';
 import { useSaSwitches } from '../lib/assess/switches';
+import { resultsPath } from '../lib/assess/results';
 import { sendQueued } from '../lib/assess/outbox';
 import {
   allVisitKeys, mintId, mmss, readVisit, saveMic, visitKey, writeVisit, type MicCheck, type QueuedOutcome, type VisitMemory,
@@ -588,6 +589,12 @@ export default function LeaderAssess() {
                         )}
                       </span>
                     </div>
+                    {done && switches.resultsView && serverIdOf(c) && (
+                      <Link to={resultsPath(serverIdOf(c) as string)} data-testid={`assess-results-${c.drawId}`}
+                        className="mt-2 inline-flex min-h-[48px] items-center gap-1 px-1 text-sm font-medium text-sky-800 underline">
+                        {copy.results.title} <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
+                      </Link>
+                    )}
                     {waiting && (
                       <div className="mt-3 space-y-2">
                         <button type="button" disabled={busy} onClick={() => present(c)} className="w-full min-h-[52px] rounded-xl bg-emerald-600 text-lg font-semibold text-white disabled:opacity-60">{copy.present}</button>
@@ -720,7 +727,17 @@ export default function LeaderAssess() {
       <div data-testid="assess-summary" className="space-y-4">
         <h2 className="text-lg font-semibold text-slate-900">{copy.summaryTitle} · {step.school.name}</h2>
         <dl className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
-          <div data-testid="summary-done"><dt className="text-sm text-slate-500">{copy.summaryDone}</dt><dd className="break-words">{names(doneKids.map((c) => nameOf(c, lang)))}</dd></div>
+          <div data-testid="summary-done"><dt className="text-sm text-slate-500">{copy.summaryDone}</dt><dd className="break-words">{switches.resultsView && doneKids.length
+            ? doneKids.map((c, i) => {
+              const id = serverIdOf(c);
+              return (
+                <span key={c.drawId}>
+                  {i > 0 && ' · '}
+                  {id ? <Link to={resultsPath(id)} className="text-sky-800 underline">{nameOf(c, lang)}</Link> : nameOf(c, lang)}
+                </span>
+              );
+            })
+            : names(doneKids.map((c) => nameOf(c, lang)))}</dd></div>
           <div data-testid="summary-absent"><dt className="text-sm text-slate-500">{copy.summaryAbsent}</dt><dd className="break-words">{names(outcomes.filter((o) => o.outcome === 'absent').map((o) => o.name))}</dd></div>
           <div data-testid="summary-refused"><dt className="text-sm text-slate-500">{copy.summaryRefused}</dt><dd className="break-words">{names(outcomes.filter((o) => o.outcome === 'refused').map((o) => o.name))}</dd></div>
           <div data-testid="summary-unfinished"><dt className="text-sm text-slate-500">{copy.summaryUnfinished}</dt><dd className="break-words">{names(children.filter((c) => Boolean(c.sessionId || sessionOf(c)) && !isDone(c) && !elsewhere(c)).map((c) => nameOf(c, lang)))}</dd></div>

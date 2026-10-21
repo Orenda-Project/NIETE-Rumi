@@ -1008,4 +1008,32 @@ describe("LeaderAssess", () => {
       expect(within(card).getByRole("radio", { name: /آر ڈی ایف/ })).toBeInTheDocument();
     });
   });
+
+  describe("results links (sa_results_view)", () => {
+    const doneKids = () => [
+      child(1, { status: "tested", sessionId: "srv-1", sessionStatus: "completed", sessionBlock: "B1" }),
+      child(2), child(3), child(4), child(5),
+    ];
+
+    it("a Done row and the visit summary link to the child's results by session id, never by name", async () => {
+      api.getSwitches.mockResolvedValue({ ...SWITCHES_OFF, resultsView: true });
+      api.getList.mockResolvedValue({ list: { ...LIST, children: doneKids() } });
+      await openList();
+      const link = within(await screen.findByTestId("assess-child-d1")).getByRole("link", { name: /Results/ });
+      expect(link.getAttribute("href")).toBe("/portal/leader/assess/results/srv-1");
+      expect(link.getAttribute("href")).not.toMatch(/Ayan/);
+      expect(within(screen.getByTestId("assess-child-d2")).queryByRole("link", { name: /Results/ })).toBeNull();
+      fireEvent.click(screen.getByTestId("assess-end-visit"));
+      const summary = await screen.findByTestId("assess-summary");
+      expect(within(summary).getByRole("link", { name: /Ayan Testwala/ }).getAttribute("href")).toBe("/portal/leader/assess/results/srv-1");
+    });
+
+    it("off: no results links", async () => {
+      api.getList.mockResolvedValue({ list: { ...LIST, children: doneKids() } });
+      await openList();
+      expect(within(await screen.findByTestId("assess-child-d1")).queryByRole("link", { name: /Results/ })).toBeNull();
+      fireEvent.click(screen.getByTestId("assess-end-visit"));
+      expect(within(await screen.findByTestId("assess-summary")).queryByRole("link")).toBeNull();
+    });
+  });
 });
