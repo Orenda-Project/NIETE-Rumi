@@ -198,7 +198,10 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud
     return {
       pic: pic('hello'),
       main: `${og2 ? '' : `<p class="kick">${esc(C.chal)}</p>`}`
-        + `<h1 class="head">${zero ? C.dared(own(d.first)) : C.beat(own(d.first), N(score))}</h1>`
+        // the polish's cut (pp.cut): the name in its own box that shortens, held with the score after it, which never is
+        + `<h1 class="head">${pp && pp.cut
+          ? (zero ? C.dared(own(d.first, 'nm')) : `${C.beat(`<span class="keep">${own(d.first, 'nm')}`, N(score))}</span>`)
+          : (zero ? C.dared(own(d.first)) : C.beat(own(d.first), N(score)))}</h1>`
         + (pp && pp.title ? `<p class="sub">${own(pp.nb ? String(d.topic == null ? '' : d.topic).replace(/ /g, '\u00a0') : d.topic)}</p>${zero ? '' : starsHtml(d.correct, d.total)}`
           : (zero ? `<p class="sub">${own(d.topic)}</p>` : `<p class="sub">${C.scored(own(d.first), N(score), own(d.topic))}</p>${starsHtml(d.correct, d.total)}`)),
       cta: door ? C.yourTurn : C.tapPlay,
@@ -287,6 +290,29 @@ const PP_ROWS = { sq: 5, og: 3 };
 const PP_ROWS_RTL = { sq: 4, og: 2 };
 
 /**
+ * The polish's English challenge headline: its size (one step down, never under 0.7, when it would need more than 2 lines,
+ * counted at 85% of 2 lines for where the words fall) and its cut. The name is held to its score ("…'s 3/8?"), so the
+ * name's last word and the score are one run that cannot wrap; a word of the name can't either. When the widest such run
+ * (Lexend bold measured ~6% wider than emWidth; 8% kept) is wider than the text column (702 wide: the column left of
+ * Jugnu; 936 square: 72 px each side), the name is its own box cut with «…», the score after it ("'s 3/8?", given 1.2x
+ * its estimate) whole: the headline never runs under Jugnu or off the column, and the score is never cut.
+ */
+function enHead(d, C, sq, S, W) {
+  const width = sq ? W - 144 : 702;
+  const base = Math.round(58 * S);
+  const name = String(d.first || '');
+  const zero = !(Number(d.correct) > 0);
+  const line = zero ? C.dared(name) : C.beat(name, `${d.correct}/${d.total}`);
+  let head = base;
+  if (emWidth(line) * head > 2 * width * 0.85) head = Math.max(Math.round(base * 0.7), Math.floor((2 * width * 0.85) / emWidth(line)));
+  const tail = zero ? '' : `'s ${d.correct}/${d.total}?`;
+  const words = name.split(/\s+/).filter(Boolean);
+  const run = Math.max(0, ...words.map((w, i) => emWidth(i === words.length - 1 ? `${w}${tail}` : w))) * 1.08;
+  const cut = run * head > width ? { max: width - Math.ceil(emWidth(tail) * 1.2 * head) } : null;
+  return { head, cut };
+}
+
+/**
  * The polish's CSS (web_quiz_share_pic_polish), last so it wins. The class table: its rows wider with larger text, the
  * child's name a box that shortens (an ellipsis) beside a "(me)" label that never does, and the English picture the same
  * one centred stack with 24 px between as the Urdu one (no empty band above the pill). The English challenge headline:
@@ -307,13 +333,9 @@ ${sq ? `.crow{width:${Math.round(W * 0.6)}px;gap:12px}` : ''}.crow li{font-size:
 .crow .who small{flex:0 0 auto;font-size:.75em}.crow .sc{flex:0 0 auto}`;
   }
   if (k === 'invite' && !RTL) {
-    const width = sq ? W - 144 : 702;
-    const base = Math.round(58 * S);
-    const name = String(d.first || '');
-    const line = !(Number(d.correct) > 0) ? C.dared(name) : C.beat(name, `${d.correct}/${d.total}`);
-    let head = base;
-    if (emWidth(line) * head > 2 * width * 0.85) head = Math.max(Math.round(base * 0.7), Math.floor((2 * width * 0.85) / emWidth(line)));
-    out += `.head{font-size:${head}px;text-wrap:balance}`;
+    out += `.head{font-size:${enHead(d, C, sq, S, W).head}px;text-wrap:balance}`;
+    const cut = sub && sub.cut;
+    if (cut) out += `.head .keep{white-space:nowrap}.head .nm{display:inline-block;max-width:${cut.max}px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}`;
   }
   // the English square: one centred stack with 24 px between, as the Urdu one (Jugnu gives up height first)
   if (k === 'invite' && !RTL && sq) out += '.main{gap:24px}.main{flex:0 0 auto}.art{gap:24px;justify-content:center}.cta{margin:0}.side{flex:0 1 190px;min-height:96px}.jug{width:auto;height:100%;aspect-ratio:1/1}';
@@ -383,7 +405,8 @@ function renderArt({ kind, size, brand, lang, d, ui, door }, opt = {}) {
     const subPx = Math.round((UR2 ? (OG2 ? 32 : 44) : 32) * (sq ? 1.08 : 1));
     const em = emWidth((d && d.topic) || '');
     const fit = Math.floor((sq ? W - 144 : 702) / Math.max(1, em));
-    ppSub = { title: zero || (name !== '' && said.includes(name)), nb: fit >= Math.round(subPx * 0.75), px: fit < subPx && fit >= Math.round(subPx * 0.75) ? fit : 0 };
+    ppSub = { title: zero || (name !== '' && said.includes(name)), nb: fit >= Math.round(subPx * 0.75), px: fit < subPx && fit >= Math.round(subPx * 0.75) ? fit : 0,
+      ...(RTL ? {} : { cut: enHead(d, C, sq, sq ? 1.08 : 1, W).cut }) };
   }
   const ppOf = !PP ? null : k === 'class' ? { cap: (RTL ? PP_ROWS_RTL : PP_ROWS)[sq ? 'sq' : 'og'] } : (ppSub && ppSub.title ? ppSub : null);
   const parts = body(k, d || {}, C, opt.pictures !== false, sz, UR2, OG2, door === true, UD, US || Boolean(PP && k === 'class'), ppOf);
