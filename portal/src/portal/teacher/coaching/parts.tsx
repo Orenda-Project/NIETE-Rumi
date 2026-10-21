@@ -172,7 +172,9 @@ export function PhotoGrid({ photos, onChange, testId, max = MAX_PHOTOS, camera =
           type="file"
           capture="environment"
           data-testid={`${testId}-camera`}
-          accept={`${acceptFor('photo')},image/jpeg,image/png`}
+          // accept must carry image/*: the Android app (Capacitor) opens the camera only then, and any
+          // other list gets the gallery. add() still checks the type on arrival.
+          accept="image/*"
           onChange={(e) => { add(e.target.files); e.target.value = ''; }}
         />
       ) : null}
