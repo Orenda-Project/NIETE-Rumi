@@ -70,7 +70,11 @@ button{font:inherit;color:inherit}
 /* answer options */
 .sae-opts{display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));gap:12px;width:100%}
 .sae-opt{min-height:96px;border-radius:var(--sae-r);border:3px solid var(--sae-line);background:var(--sae-card);color:var(--sae-ink);font-size:44px;font-weight:800;line-height:1.2;display:grid;place-items:center;cursor:pointer;box-shadow:0 5px 0 var(--sae-line);font-family:var(--sae-f)}
-.sae-opt[lang=ur]{font-family:var(--sae-fu);font-weight:400;font-size:46px;line-height:1.6}
+/* Nastaliq ink reaches ~2em above the line's middle (ک with ھ) and ~1.5em below it (the tail of م), and «دوست» is ~3.5em
+   wide at the face's size-adjust: the tile's line and padding hold it all, the size fits two tiles across a phone */
+.sae-opt[lang=ur]{font-family:var(--sae-fu);font-weight:400;font-size:clamp(28px,8.8vw,40px);line-height:2.6;padding:.8em 4px .35em}
+/* one letter: its ink sits about evenly round the line's middle, so a tighter line keeps five letter tiles on one screen */
+.sae-opt.is-short[lang=ur]{font-size:clamp(26px,8vw,36px);line-height:2.9;padding:4px}
 .sae-opts.is-many .sae-opt{min-height:72px;font-size:32px}
 .sae-opt:active,.sae-opt.is-pressed{transform:translateY(3px);box-shadow:0 2px 0 var(--sae-line);background:var(--sae-accent-l);border-color:var(--sae-accent)}
 .sae-opt:disabled{cursor:default}
