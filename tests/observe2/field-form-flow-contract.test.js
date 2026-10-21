@@ -170,7 +170,8 @@ describe('the form agrees with the rules module', () => {
       const footer = components(screens[id]).find((c) => c.type === 'Footer');
       expect(footer['on-click-action'].payload.fv).toBe(FORM_VERSION);
     }
-    expect(Number(FORM_VERSION)).toBeGreaterThanOrEqual(5);
+    // 6: Part 2's "While they worked, the teacher" gained the two checking moves (pilot sheet R4's comment).
+    expect(Number(FORM_VERSION)).toBeGreaterThanOrEqual(6);
   });
   // R14 (FICO pilot sheet): one required "Work on first", up to two optional more, and the lesson
   // plan's own steps (Section B) as a choice in all three.
