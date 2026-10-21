@@ -2,11 +2,12 @@
  * Which part of the battery a child takes, chosen on the phone. Each Pakistan day
  * starts on the next block (B1..B5), and the children of one visit take different
  * blocks, so a visit of five covers the whole battery. The coach can give one
- * child the whole battery instead ('full').
+ * child the whole battery instead ('full'), or the shorter RDF set ('rdf', with
+ * sa_rdf_form).
  */
 
 export const BLOCKS = ['B1', 'B2', 'B3', 'B4', 'B5'] as const;
-export type Block = (typeof BLOCKS)[number] | 'full';
+export type Block = (typeof BLOCKS)[number] | 'full' | 'rdf';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
@@ -34,5 +35,5 @@ export function pickBlock(used: readonly string[], opts: { now?: number; full?: 
 }
 
 export function isBlock(v: unknown): v is Block {
-  return v === 'full' || (BLOCKS as readonly unknown[]).includes(v);
+  return v === 'full' || v === 'rdf' || (BLOCKS as readonly unknown[]).includes(v);
 }

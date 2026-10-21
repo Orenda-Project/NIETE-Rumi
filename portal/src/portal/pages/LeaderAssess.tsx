@@ -11,7 +11,7 @@ import AssessActions, { useAboveTabBar } from '../components/assess/AssessAction
 import { childTestSa } from '../services/api';
 import { useChildTestSa } from '../lib/useChildTestSa';
 import { COPY, urDigits, type Lang } from '../lib/assess/copy';
-import { isBlock, pickBlock, type Block } from '../lib/assess/blocks';
+import { BLOCKS, isBlock, pickBlock, type Block } from '../lib/assess/blocks';
 import { useSaSwitches } from '../lib/assess/switches';
 import { sendQueued } from '../lib/assess/outbox';
 import {
@@ -45,6 +45,8 @@ const TICK_MS = 30_000;
 const DRAIN_EVERY_MS = 30_000;
 const TOAST_MS = 2500;
 const FULL_MINUTES = 29;
+/** RDF per child (panel review of the RDF list: about 19 min, about 22 at a first sitting). */
+const RDF_MINUTES = 20;
 /** Urdu: the app's Nastaliq stack and line height (index.css keys them on html[lang=ur]; this page sets its own lang), and nothing below text-sm. */
 const URDU_ROOT = '[font-family:var(--font-urdu)] [word-spacing:0.15em] [&_*]:leading-[2] [&_.text-xs]:text-sm';
 
@@ -105,6 +107,8 @@ export default function LeaderAssess() {
   const [remote, setRemote] = useState<Record<string, 'sending' | 'audio' | 'sent'>>({});
   const [toast, setToast] = useState(false);
   const [stopped, setStopped] = useState<string | null>(null);
+  /** The block the server gave instead of the coach's choice (a visit-mate holds it), shown before the second Start. */
+  const [moved, setMoved] = useState<Block | null>(null);
   const vkeyRef = useRef<string | null>(null);
   vkeyRef.current = vkey;
   const memoryRef = useRef<VisitMemory | null>(null);
@@ -321,12 +325,14 @@ export default function LeaderAssess() {
     const noMic = switches.micRequired && memory?.preflight?.mic?.mic_ok === false;
     const sess = sessionOf(c) ?? { id: mintId(), block: pickBlock(usedBlocks(c.drawId)), sent: Boolean(c.sessionId), ...(noMic ? { noMic: true } : {}) };
     remember((m) => ({ ...m, sessions: { ...m.sessions, [c.drawId]: sess } }));
+    setMoved(null);
     setStep({ kind: 'handover', school: step.school, child: c, sessionId: sess.id, block: sess.block });
   };
 
-  const wholeBattery = (on: boolean) => {
+  /** The coach's choice on the hand-over card; null = back to the rotation's block. */
+  const chooseBlock = (choice: Block | null) => {
     if (step.kind !== 'handover') return;
-    const block = on ? 'full' : pickBlock(usedBlocks(step.child.drawId));
+    const block = choice ?? pickBlock(usedBlocks(step.child.drawId));
     const drawId = step.child.drawId;
     remember((m) => ({ ...m, sessions: { ...m.sessions, [drawId]: { ...m.sessions[drawId], id: step.sessionId, block, sent: Boolean(m.sessions[drawId]?.sent) } } }));
     setStep({ ...step, block });
@@ -363,7 +369,14 @@ export default function LeaderAssess() {
   const start = async () => {
     if (step.kind !== 'handover') return;
     const sent = await sendPresent();
-    if (sent.ok) setStep({ ...step, kind: 'engine', block: sent.block });
+    if (!sent.ok) return;
+    // the coach chose; a block the server swapped is shown on the card before the child starts
+    if (switches.coachPicksBlock && sent.block !== step.block) {
+      setMoved(sent.block);
+      setStep({ ...step, block: sent.block });
+      return;
+    }
+    setStep({ ...step, kind: 'engine', block: sent.block });
   };
 
   /** From the handover: send Present if it has not gone, then show the link once the server has the session. */
@@ -620,6 +633,13 @@ export default function LeaderAssess() {
         );
   } else if (step.kind === 'handover') {
     const locked = Boolean(sessionOf(step.child)?.sent);
+    const others = usedBlocks(step.child.drawId);
+    const held = new Set(others.filter((b) => (BLOCKS as readonly string[]).includes(b)));
+    const suggested = pickBlock(others);
+    const rdfOthers = others.filter((b) => b === 'rdf').length;
+    // RDF is mostly recorded: it never starts without a microphone that passed this visit's check
+    const micOk = memory?.preflight?.mic?.mic_ok === true;
+    const choices: Block[] = [...BLOCKS, 'full', ...(switches.rdfForm ? ['rdf' as const] : [])];
     content = (
       <div data-testid="assess-handover" className="space-y-5">
         {bar}
@@ -628,12 +648,52 @@ export default function LeaderAssess() {
           <p className="mt-4 text-2xl font-bold leading-relaxed text-slate-900">{copy.handover(firstNameOf(step.child, lang))}</p>
           <p data-testid="assess-handover-block" className="mt-3 inline-block rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-800">{copy.blocks[step.block]}</p>
         </div>
-        <label className="flex min-h-[48px] items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2">
-          <input type="checkbox" className="h-6 w-6 shrink-0" checked={step.block === 'full'} disabled={locked || busy}
-            onChange={(e) => wholeBattery(e.target.checked)} />
-          <span className="flex-1 font-medium text-slate-900">{copy.wholeBattery}</span>
-          <span className="text-sm text-slate-600">{copy.aboutMinutes(FULL_MINUTES)}</span>
-        </label>
+        {switches.coachPicksBlock ? (
+          <fieldset data-testid="assess-block-choice" className="space-y-2">
+            <legend className="mb-2 font-semibold text-slate-900">{copy.whichPart}</legend>
+            {choices.map((b) => {
+              const isHeld = held.has(b) && b !== step.block;
+              const noRdf = b === 'rdf' && !micOk;
+              return (
+                <label key={b} className={`flex min-h-[48px] items-center gap-3 rounded-xl border px-4 py-2 ${step.block === b ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200 bg-white'}`}>
+                  <input type="radio" name="assess-block" className="h-6 w-6 shrink-0" value={b} checked={step.block === b}
+                    disabled={locked || busy || isHeld || noRdf} onChange={() => chooseBlock(b)} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-medium text-slate-900">{copy.blocks[b]}</span>
+                    {b === 'full' && <span className="block text-sm text-slate-600">{copy.aboutMinutes(FULL_MINUTES)}</span>}
+                    {b === 'rdf' && <span className="block text-sm text-slate-600">{copy.aboutPerChild(RDF_MINUTES)}</span>}
+                    {isHeld && <span className="block text-xs text-slate-500">{copy.heldByOther}</span>}
+                  </span>
+                  {b === suggested && <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{copy.suggested}</span>}
+                </label>
+              );
+            })}
+          </fieldset>
+        ) : (
+          <>
+            <label className="flex min-h-[48px] items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2">
+              <input type="checkbox" className="h-6 w-6 shrink-0" checked={step.block === 'full'} disabled={locked || busy}
+                onChange={(e) => chooseBlock(e.target.checked ? 'full' : null)} />
+              <span className="flex-1 font-medium text-slate-900">{copy.wholeBattery}</span>
+              <span className="text-sm text-slate-600">{copy.aboutMinutes(FULL_MINUTES)}</span>
+            </label>
+            {switches.rdfForm && (
+              <label className="flex min-h-[48px] items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2">
+                <input type="checkbox" className="h-6 w-6 shrink-0" checked={step.block === 'rdf'} disabled={locked || busy || !micOk}
+                  onChange={(e) => chooseBlock(e.target.checked ? 'rdf' : null)} />
+                <span className="flex-1 font-medium text-slate-900">{copy.blocks.rdf}</span>
+                <span className="text-sm text-slate-600">{copy.aboutPerChild(RDF_MINUTES)}</span>
+              </label>
+            )}
+          </>
+        )}
+        {switches.rdfForm && !micOk && !locked && <p data-testid="assess-rdf-mic" className="text-sm text-slate-600">{copy.rdfNeedsMic}</p>}
+        {step.block === 'rdf' && rdfOthers > 0 && (
+          <p data-testid="assess-rdf-five" role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{copy.rdfFive}</p>
+        )}
+        {moved && moved === step.block && (
+          <p data-testid="assess-block-moved" role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{copy.blockMoved(copy.blocks[moved])}</p>
+        )}
         <AssessActions>
           <button type="button" disabled={busy} onClick={start}
             className="w-full min-h-[64px] rounded-2xl bg-emerald-600 text-2xl font-semibold text-white disabled:opacity-60">{copy.start}</button>

@@ -879,4 +879,133 @@ describe("LeaderAssess", () => {
       expect(screen.getByRole("button", { name: /End test/ })).toBeInTheDocument();
     });
   });
+
+  describe("the coach picks the part (sa_coach_picks_block) and RDF (sa_rdf_form)", () => {
+    const picks = (extra: any = {}) => api.getSwitches.mockResolvedValue({ ...SWITCHES_OFF, coachPicksBlock: true, ...extra });
+    const present = async (drawId: string) => {
+      fireEvent.click(within(await screen.findByTestId(`assess-child-${drawId}`)).getByRole("button", { name: "Present" }));
+      return screen.findByTestId("assess-handover");
+    };
+    /** Pick the school with a microphone that works (RDF needs one). */
+    async function openListWithMic() {
+      Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: () => Promise.resolve({ getTracks: () => [{ stop: vi.fn() }] }) } });
+      renderPage();
+      fireEvent.click(await screen.findByTestId("assess-school-s2"));
+      fireEvent.click(await screen.findByRole("button", { name: /Check the microphone/ }));
+      fireEvent.click(await screen.findByRole("button", { name: "I heard it" }, { timeout: 4000 }));
+      fireEvent.click(screen.getByTestId("assess-preflight-ready"));
+      await screen.findByText("Ayan Testwala");
+    }
+    afterEach(() => { delete (navigator as any).mediaDevices; });
+
+    it("the card lists the five parts by name and Whole battery; the rotation's part is chosen and marked suggested; no RDF without its switch", async () => {
+      picks();
+      await openList();
+      const card = await present("d1");
+      const suggested = pickBlock([]);
+      for (const b of ["B1", "B2", "B3", "B4", "B5"]) expect(within(card).getByRole("radio", { name: new RegExp(BLOCK_EN[b]) })).toBeInTheDocument();
+      expect(within(card).getByRole("radio", { name: /Whole battery/ })).toBeInTheDocument();
+      expect(within(card).queryByRole("radio", { name: /RDF/ })).toBeNull();
+      expect(within(card).queryByRole("checkbox")).toBeNull();
+      const chosen = within(card).getByRole("radio", { name: new RegExp(BLOCK_EN[suggested]) });
+      expect(chosen).toBeChecked();
+      expect(chosen.closest("label")).toHaveTextContent("suggested");
+    });
+
+    it("the coach's choice is the block sent and run", async () => {
+      picks();
+      await openList();
+      const card = await present("d1");
+      const other = ["B1", "B2", "B3", "B4", "B5"].find((b) => b !== pickBlock([])) as string;
+      fireEvent.click(within(card).getByRole("radio", { name: new RegExp(BLOCK_EN[other]) }));
+      fireEvent.click(screen.getByRole("button", { name: "Start" }));
+      const frame = await screen.findByTestId("assess-engine-frame");
+      expect(new URL(frame.getAttribute("src") as string, "http://x").searchParams.get("block")).toBe(other);
+      expect(api.markOutcome.mock.calls[0][0]).toMatchObject({ drawId: "d1", outcome: "present", block: other });
+    });
+
+    it("a part another child of the visit holds cannot be chosen", async () => {
+      picks();
+      await openList();
+      const s = await startChild("d1");
+      saDone(s);
+      const held = pickBlock([]);
+      const card = await present("d2");
+      const radio = within(card).getByRole("radio", { name: new RegExp(BLOCK_EN[held]) });
+      expect(radio).toBeDisabled();
+      expect(radio.closest("label")).toHaveTextContent("Another child has this part");
+    });
+
+    it("the server gives a different part (a visit-mate on another phone holds it): the card shows it before Start, and the second Start runs it", async () => {
+      picks();
+      const mine = pickBlock([]);
+      const theirs = pickBlock([mine]);
+      api.markOutcome.mockResolvedValue({ sessionId: "srv-1", block: theirs });
+      await openList();
+      await present("d1");
+      fireEvent.click(screen.getByRole("button", { name: "Start" }));
+      const note = await screen.findByTestId("assess-block-moved");
+      expect(note).toHaveTextContent(BLOCK_EN[theirs]);
+      expect(screen.queryByTestId("assess-engine-frame")).toBeNull();
+      expect(screen.getByRole("radio", { name: new RegExp(BLOCK_EN[theirs]) })).toBeChecked();
+      fireEvent.click(screen.getByRole("button", { name: "Start" }));
+      const frame = await screen.findByTestId("assess-engine-frame");
+      expect(new URL(frame.getAttribute("src") as string, "http://x").searchParams.get("block")).toBe(theirs);
+      expect(api.markOutcome).toHaveBeenCalledTimes(1);
+    });
+
+    it("RDF: about 20 minutes per child, needs a working microphone", async () => {
+      picks({ rdfForm: true });
+      await openList();
+      const card = await present("d1");
+      const rdf = within(card).getByRole("radio", { name: /RDF/ });
+      expect(rdf.closest("label")).toHaveTextContent("about 20 minutes per child");
+      expect(rdf).toBeDisabled();
+      expect(card).toHaveTextContent("RDF needs a working microphone");
+    });
+
+    it("RDF with a working microphone is sent and run as 'rdf'; a second RDF in the visit warns about the time on one phone", async () => {
+      picks({ rdfForm: true });
+      await openListWithMic();
+      let card = await present("d1");
+      expect(card).not.toHaveTextContent("1 hour 40 minutes");
+      fireEvent.click(within(card).getByRole("radio", { name: /RDF/ }));
+      expect(card).not.toHaveTextContent("1 hour 40 minutes");
+      fireEvent.click(screen.getByRole("button", { name: "Start" }));
+      const frame = await screen.findByTestId("assess-engine-frame");
+      const s = new URL(frame.getAttribute("src") as string, "http://x").searchParams;
+      expect(s.get("block")).toBe("rdf");
+      expect(api.markOutcome.mock.calls[0][0]).toMatchObject({ block: "rdf" });
+      saDone(s.get("s") as string);
+      expect(await screen.findByTestId("assess-child-d1")).toHaveTextContent("RDF");
+      card = await present("d2");
+      fireEvent.click(within(card).getByRole("radio", { name: /RDF/ }));
+      expect(card).toHaveTextContent("RDF for five children is about 1 hour 40 minutes on one phone");
+    });
+
+    it("RDF without the coach's picker: a second box next to Whole battery", async () => {
+      api.getSwitches.mockResolvedValue({ ...SWITCHES_OFF, rdfForm: true });
+      await openListWithMic();
+      const card = await present("d1");
+      expect(within(card).queryByRole("radio")).toBeNull();
+      fireEvent.click(within(card).getByRole("checkbox", { name: /RDF/ }));
+      expect(within(card).getByRole("checkbox", { name: /Whole battery/ })).not.toBeChecked();
+      fireEvent.click(screen.getByRole("button", { name: "Start" }));
+      const frame = await screen.findByTestId("assess-engine-frame");
+      expect(new URL(frame.getAttribute("src") as string, "http://x").searchParams.get("block")).toBe("rdf");
+    });
+
+    it("Urdu: the suggested mark and RDF's time", async () => {
+      picks({ rdfForm: true });
+      window.localStorage.setItem("niete-assess-lang", "ur");
+      renderPage();
+      fireEvent.click(await screen.findByTestId("assess-school-s2"));
+      fireEvent.click(await screen.findByTestId("assess-preflight-ready"));
+      fireEvent.click(within(await screen.findByTestId("assess-child-d1")).getByRole("button", { name: "حاضر" }));
+      const card = await screen.findByTestId("assess-handover");
+      expect(card).toHaveTextContent("تجویز");
+      expect(card).toHaveTextContent("فی بچہ تقریباً ⁦۲۰⁩ منٹ");
+      expect(within(card).getByRole("radio", { name: /آر ڈی ایف/ })).toBeInTheDocument();
+    });
+  });
 });
