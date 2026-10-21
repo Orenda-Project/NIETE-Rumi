@@ -1369,6 +1369,18 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the bot's "Record sealed" message has the recording steps and no notes section
 
   @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The check's "Work on first" screen shows my notes, read-only, above the picks
+    Given I typed notes in Part 1 and Part 2 of the live form and sealed the record
+    And the "Check the moments" form is open
+    When I tap through to "Work on first"
+    Then above the picks it shows "Your notes, as you wrote them" with each note under "Part 1" and "Part 2"
+    And with no notes typed, the screen shows no notes block
+    # Pilot sheet R23: 24 of 47 debriefs on prod since 16 Oct ran while the check was open.
+    # observe2-check-endpoint.js renderPriority (notesData, on the check that posts cv=2);
+    # evidence-check.flow.js PRIORITY declares notes_v and notes_body. A check opened on the Flow published
+    # before this ignores the two keys and keeps its own screen.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
   Scenario: The teacher's report names the thing I picked to work on first
     Given I picked "Real group work" to work on first and kept it at the check
     And my debrief brief said "Work on first: Real group work"
