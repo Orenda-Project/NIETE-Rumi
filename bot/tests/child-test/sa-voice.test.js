@@ -75,13 +75,13 @@ describe('record-sa-voice', () => {
     fs.writeFileSync(path.join(outDir, first.key), Buffer.alloc(900, 1));
     const usdPerCall = 2 * 0.722 / 3600;
     const r = await run(['--lang', 'en', '--only', 'battery', '--apply', '--max-usd', String(usdPerCall * 3), '--spend-log', spend,
-      '--spend-extra', '{"lane":"m-sa-content"}'], { tts, level, out: () => {}, env, outDir });
+      '--spend-extra', '{"lane":"voice-run"}'], { tts, level, out: () => {}, env, outDir });
     expect(r.recorded).toBe(3);
     expect(r.stopped).toBe('max_usd');
     expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'soniox', voice: 'Reyna', language: 'en' });
     expect(tts.synthesize.mock.calls.map((c) => c[0].text)).not.toContain(first.text);
     const lines = fs.readFileSync(spend, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
     expect(lines).toHaveLength(3);
-    expect(lines[0]).toMatchObject({ lane: 'm-sa-content', provider: 'soniox', units: 2 });
+    expect(lines[0]).toMatchObject({ lane: 'voice-run', provider: 'soniox', units: 2 });
   });
 });
