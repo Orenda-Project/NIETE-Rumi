@@ -40,6 +40,17 @@ describe('SA voice manifest', () => {
     const ear = manifest.filter((r) => r.ear_check).map((r) => r.text);
     expect(ear).toEqual(expect.arrayContaining(['بے', 'fut']));
   });
+
+  test('every clip in the manifest is on disk under dashboard/, as an mp3 with sound', () => {
+    const dash = path.join(__dirname, '..', '..', '..', 'dashboard');
+    const missing = manifest.filter((r) => {
+      const f = path.join(dash, r.key);
+      if (!fs.existsSync(f) || fs.statSync(f).size <= 500) return true;
+      const head = fs.readFileSync(f).subarray(0, 3);
+      return !(head.toString('latin1') === 'ID3' || (head[0] === 0xff && (head[1] & 0xe0) === 0xe0));
+    }).map((r) => r.key);
+    expect(missing).toEqual([]);
+  });
 });
 
 describe('record-sa-voice', () => {
