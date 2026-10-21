@@ -13,13 +13,16 @@ import { keepScreenOn } from '../../lib/keepAwake';
  *
  * With hand-back v2 (sa_handback_v2), the engine's sa:battery_end turns the hold
  * into a full-width "Next child (coach)": every task is done, so completing it
- * finishes the child as complete, and nothing after the end can read as coach_end.
+ * finishes the child as complete, and nothing after the end can read as coach_end. When the engine first says
+ * sa:battery_ending (its last answers are still going to the server), the hold shows disabled as "Sending…" until
+ * sa:battery_end, or for 20 s at most (offline: the rows stay queued on the phone and go later).
  */
 
 const HOLD_MS = 3000;
 
 export type FinishReason = 'done' | 'complete' | 'coach_end' | 'handback' | 'offline';
 const COACH_END_WAIT_MS = 3000;
+const SENDING_MAX_MS = 20_000;
 
 type Props = {
   sessionId: string;
@@ -44,7 +47,7 @@ export function playUrl(s: string, grade: number, lang: Lang, block: Block, firs
   return `/sa/play.html?${q.toString()}#n=${encodeURIComponent(firstName)}`;
 }
 
-export function HoldButton({ label, hint, onDone, compact = false }: { label: string; hint: string; onDone: () => void; compact?: boolean }) {
+export function HoldButton({ label, hint, onDone, compact = false, disabled = false }: { label: string; hint: string; onDone: () => void; compact?: boolean; disabled?: boolean }) {
   const [progress, setProgress] = useState(0);
   const timer = useRef<number | null>(null);
   const doneRef = useRef(onDone);
@@ -56,7 +59,7 @@ export function HoldButton({ label, hint, onDone, compact = false }: { label: st
   };
   const cancel = () => { stop(); setProgress(0); };
   const begin = () => {
-    if (timer.current !== null) return;
+    if (disabled || timer.current !== null) return;
     const at = Date.now();
     timer.current = window.setInterval(() => {
       const p = Math.min(1, (Date.now() - at) / HOLD_MS);
@@ -69,6 +72,7 @@ export function HoldButton({ label, hint, onDone, compact = false }: { label: st
   return (
     <button
       type="button"
+      disabled={disabled}
       aria-label={`${label} — ${hint}`}
       onPointerDown={begin}
       onPointerUp={cancel}
@@ -79,7 +83,7 @@ export function HoldButton({ label, hint, onDone, compact = false }: { label: st
       onContextMenu={(e) => e.preventDefault()}
       className={compact
         ? 'relative min-h-[48px] min-w-[48px] overflow-hidden rounded-xl border border-slate-300 bg-white/90 px-3 py-1 select-none touch-none'
-        : 'relative w-full min-h-[56px] overflow-hidden rounded-2xl border border-slate-300 bg-white px-4 py-3 select-none touch-none'}
+        : 'relative w-full min-h-[56px] overflow-hidden rounded-2xl border border-slate-300 bg-white px-4 py-3 select-none touch-none disabled:opacity-60'}
     >
       <span aria-hidden className="absolute inset-y-0 start-0 bg-emerald-100" style={{ width: `${Math.round(progress * 100)}%` }} data-testid="hold-progress" />
       <span className={`relative block font-semibold text-slate-900 ${compact ? 'text-xs' : 'text-lg'}`}>{label}</span>
@@ -97,7 +101,8 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
   const doneRef = useRef(onFinished);
   doneRef.current = onFinished;
   const [src] = useState(() => playUrl(sessionId, grade, lang, block, firstName));
-  const [batteryEnded, setBatteryEnded] = useState(false);
+  /** running → ending (sa:battery_ending: the last answers are being sent) → ended (sa:battery_end). */
+  const [batteryEnded, setBatteryEnded] = useState<'running' | 'ending' | 'ended'>('running');
   const batteryEndedRef = useRef(false);
 
   const finish = (reason: FinishReason) => {
@@ -123,9 +128,10 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
     const onMessage = (e: MessageEvent) => {
       const d = e.data as { type?: unknown; s?: unknown; reason?: unknown } | null;
       if (e.origin !== window.location.origin || !d || d.s !== sessionId) return;
-      if (d.type === 'sa:battery_end' && handbackV2) {
+      if ((d.type === 'sa:battery_end' || d.type === 'sa:battery_ending') && handbackV2) {
         batteryEndedRef.current = true;
-        setBatteryEnded(true);
+        if (d.type === 'sa:battery_end') setBatteryEnded('ended');
+        else setBatteryEnded((p) => (p === 'running' ? 'ending' : p));
         return;
       }
       if (d.type !== 'sa:done') return;
@@ -136,6 +142,13 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
   }, [sessionId, handbackV2]);
+
+  // a battery_end that never comes (offline, a lost message) does not keep the coach waiting
+  useEffect(() => {
+    if (batteryEnded !== 'ending') return undefined;
+    const t = window.setTimeout(() => setBatteryEnded('ended'), SENDING_MAX_MS);
+    return () => window.clearTimeout(t);
+  }, [batteryEnded]);
 
   useEffect(() => {
     let release: (() => Promise<void>) | null = null;
@@ -187,9 +200,10 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
         className="fixed inset-0 h-full w-full border-0 bg-white"
         style={{ zIndex: 1000 }}
       />
-      {batteryEnded ? (
+      {batteryEnded !== 'running' ? (
         <div data-testid="assess-hold-next" className="fixed inset-x-4 bottom-4 mx-auto max-w-md" style={{ zIndex: 1001 }}>
-          <HoldButton label={copy.holdNext} hint={copy.holdNextHint} onDone={coachEnd} />
+          <HoldButton label={copy.holdNext} hint={batteryEnded === 'ending' ? copy.holdSending : copy.holdNextHint}
+            disabled={batteryEnded === 'ending'} onDone={coachEnd} />
         </div>
       ) : (
         <div className="fixed bottom-2 end-2" style={{ zIndex: 1001 }}>

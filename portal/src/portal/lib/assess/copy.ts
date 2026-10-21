@@ -50,6 +50,7 @@ const en = {
   holdHint: "Press and hold for 3 seconds",
   holdNext: "Next child (coach)",
   holdNextHint: "Press and hold",
+  holdSending: "Sending…",
   blocks: {
     B1: "Urdu reading",
     B2: "English reading",
@@ -200,6 +201,7 @@ const ur: Copy = {
   holdHint: "⁦۳⁩ سیکنڈ دبا کر رکھیں",
   holdNext: "اگلا بچہ (کوچ)",
   holdNextHint: "دبا کر رکھیں",
+  holdSending: "بھیج رہے ہیں…",
   blocks: {
     B1: "اردو پڑھنا",
     B2: "انگریزی پڑھنا",
