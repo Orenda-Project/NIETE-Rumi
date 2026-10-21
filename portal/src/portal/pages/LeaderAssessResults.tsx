@@ -81,6 +81,11 @@ export default function LeaderAssessResults() {
   };
 
   const n = (v: number | null) => (v === null || v === undefined ? copy.none : numIn(lang, v));
+  // a scorer's key reads as its catalog word; a key the catalog does not know yet shows "Score" alone, never the key
+  const scoreLabel = (k: string) => {
+    const word = (r.scoreKeys as Record<string, string>)[k];
+    return word ? `${r.score} · ${word}` : r.score;
+  };
 
   const header = (
     <div className="flex items-center justify-between gap-2 mb-4">
@@ -117,7 +122,7 @@ export default function LeaderAssessResults() {
           {!spoken && t.itemsPerMin !== null && <Row label={r.itemsPerMin} value={n(t.itemsPerMin)} />}
           {spoken && scored && <Row label={r.recording} value={r.scored} />}
           {spoken && scored && Object.entries(t.score as Record<string, number>).map(([k, v]) => (
-            <Row key={k} label={`${r.score} · ${k}`} value={n(v)} />
+            <Row key={k} label={scoreLabel(k)} value={n(v)} />
           ))}
           {/* no score yet is "kept, scored later" — never a 0 or an empty score (no scorer, or scoring off) */}
           {spoken && !scored && t.recording !== 'none' && <Row label={r.recording} value={r.scoredLater} />}
