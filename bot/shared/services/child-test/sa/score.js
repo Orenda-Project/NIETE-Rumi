@@ -88,6 +88,13 @@ function specFor(bank, session, row) {
   return { spec: v.task || base, variant: { id: v.id, src: v.src || null } };
 }
 
+function isW3(bank, session, row) {
+  const forms = (bank && bank.forms) || {};
+  const formId = [`coach.G${session.grade}.${session.form}`, `coach.G${session.grade}.A`].find((f) => forms[f]);
+  const t = formId && bank.tasks[`${formId}/${row.block}`];
+  return !!(t && t.w3);
+}
+
 const PHONE_FILES = new Map();
 /** The battery the phone was served (data/child-test/sa/sa.coach.G<g>.<form>.<lang>.json), null when absent. */
 function phoneBattery(grade, form, lang) {
@@ -370,7 +377,9 @@ function LETTERS_SCHEMA() {
 async function scoreRow(row, session, deps = {}) {
   const d = { ...defaultDeps(), ...deps };
   const res = resultOf(row);
-  const found = specFor(d.bank, session, row) || phoneSpecFor(session, row, d.phoneBattery);
+  // A W3 task (w3: true in the bank) is scored from the battery the phone ran: its items carry show + answer.
+  const byBank = specFor(d.bank, session, row);
+  const found = (byBank && !isW3(d.bank, session, row) ? byBank : null) || phoneSpecFor(session, row, d.phoneBattery) || byBank;
   if (!found) return { ok: false, reason: 'task_not_in_bank', retry: false };
   const { spec: task, variant } = found;
   const rec = task.record || {};
