@@ -234,13 +234,20 @@ describe('the columns it asks the database for must exist (bd-60024)', () => {
   const migration = fs.readFileSync(path.join(__dirname, '../..',
     'infrastructure/supabase/migrations/V1.2.6__assessment_generator.sql'), 'utf8');
 
+  const topicsMigration = fs.readFileSync(path.join(__dirname, '../..',
+    'infrastructure/supabase/migrations/V1.6.18__assessment_topics.sql'), 'utf8');
+
   function columnsOf(table) {
     const m = migration.match(
       new RegExp(`CREATE TABLE IF NOT EXISTS ${table}\\s*\\(([\\s\\S]*?)\\n\\);`));
     if (!m) throw new Error(`no CREATE TABLE for ${table}`);
-    return new Set(m[1].split('\n')
+    const cols = new Set(m[1].split('\n')
       .map((l) => (l.trim().match(/^([a-z_][a-z0-9_]*)\s+[A-Z]/) || [])[1])
       .filter(Boolean));
+    // Columns added later (V1.6.18: paper_kind).
+    for (const [, c] of topicsMigration.matchAll(
+      new RegExp(`ALTER TABLE ${table}\\s+ADD COLUMN IF NOT EXISTS ([a-z_]+)`, 'g'))) cols.add(c);
+    return cols;
   }
 
   test('every column the revision service selects from assessment_requests is real', () => {
