@@ -34,6 +34,7 @@ const ALLOWED = {
     'شیئر کریں': 1, // the quiz finish no-class Share; «دوستوں کو بھیجیں» with web_quiz_ur_share_copy
     ' کی لیگ ٹیبل۔ ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے:': 1, // tableLine; the reader is named with web_quiz_ur_share_copy
     ' ستارے لیے۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک پر ٹیپ کریں:': 1, // chalLine; «دبائیں» with ur_share or ur_polish
+    ' ستارہ لیا۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک پر ٹیپ کریں:': 1, // chalLine_one (one star, web_quiz_share_copy_one); the same
     '\\u2069 کوئز کھیلا۔ اب آپ کی باری! کھیلنے کے لیے لنک پر ٹیپ کریں:': 1, // chalPlayed; the same
     'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔': 1,
     'یا اپنے نام پر ٹیپ کریں': 1,
