@@ -332,7 +332,16 @@
     function picOf(t, o) {
       var p = t && t.option_images && t.option_images[o];
       if (typeof p !== 'string' || !/^[A-Za-z0-9_./-]+$/.test(p) || p.indexOf('..') >= 0) return null;
-      return h('img', { class: 'sae-opt-img', src: '/' + p.replace(/^\/+/, ''), alt: '', draggable: 'false' });
+      var img = h('img', { class: 'sae-opt-img', src: '/' + p.replace(/^\/+/, ''), alt: '', draggable: 'false' });
+      // A picture that will not load leaves a blank tile: the item cannot be answered (assets_unavailable), never scored.
+      img.addEventListener('error', function () {
+        if (img.parentNode) img.parentNode.disabled = true;
+        if (!alive || typeof runner.imageUnavailable !== 'function') return;
+        var v = runner.view();
+        runner.imageUnavailable(t.id, v.item ? v.item.id : (v.practice ? v.practice.id : null));
+        draw();
+      });
+      return img;
     }
     function tiles(options, onPick, decorate, tl, t) {
       var n = options.length;
@@ -340,7 +349,7 @@
       options.forEach(function (o) {
         var pic = picOf(t, o);
         var b = h('button', { class: 'sae-opt sa-tile' + (pic ? ' is-pic' : ''), type: 'button', 'data-value': String(o), lang: tl }, [pic || String(o)]);
-        b.addEventListener('click', function () { if (!busy) onPick(o, b); });
+        b.addEventListener('click', function () { if (!busy && !b.disabled) onPick(o, b); });
         if (decorate) decorate(o, b);
         g.appendChild(b);
       });
@@ -939,7 +948,7 @@
     }
 
     function sTaskEnd(v) {
-      var skipped = v.result && /^skipped|^mic_unavailable/.test(v.result.stop_reason || '');
+      var skipped = v.result && /^skipped|^mic_unavailable|^assets_unavailable/.test(v.result.stop_reason || '');
       return screen(v, 'sae-tend', [
         jugnu(skipped ? 'idle' : 'celebrate'),
         skipped ? null : h('h1', { class: 'sae-h1 sae-xl', text: C.well_done }),
@@ -1086,7 +1095,7 @@
         sayChain([v.time_left_ms === 0 && s.time_up ? [s.time_up] : null, s.intro_tap ? [s.intro_tap] : [{ en: COPY.en.last_word, ur: COPY.ur.last_word }]]);
       } else if (v.phase === 'task_end') {
         var r = v.result || {};
-        var skipped = /^skipped/.test(r.stop_reason || '');
+        var skipped = /^skipped|^assets_unavailable/.test(r.stop_reason || '');
         var said = skipped ? null : ((r.stop_reason === 'time_up' ? s.time_up : r.stop_reason === 'early_stop_first_line' ? s.early_stop : null) || s.after);
         var sp = said ? say(said) : Promise.resolve();
         var at = v.task_index;
