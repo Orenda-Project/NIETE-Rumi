@@ -588,7 +588,10 @@ export default function LeaderAssess() {
                 <p className="font-medium">{copy.alternates}</p>
                 <ul className="space-y-1">
                   {list.alternates.map((a) => (
-                    <li key={a.drawId} className="break-words">{nameOf(a, lang)}{placeOf(a, lang) ? ` · ${placeOf(a, lang)}` : ''}</li>
+                    <li key={a.drawId} className="break-words">
+                      <span className="block">{nameOf(a, lang)}</span>
+                      {placeOf(a, lang) && <span data-testid="assess-alternate-place" className="block text-xs">{placeOf(a, lang)}</span>}
+                    </li>
                   ))}
                 </ul>
               </div>
