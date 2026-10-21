@@ -153,6 +153,18 @@ describe("LeaderAssess", () => {
     expect(await screen.findByTestId("assess-no-alternates")).toHaveTextContent("اس جماعت میں اس مدت کے لیے مزید بچے نہیں۔");
   });
 
+  it("in Urdu, the grade line, the class on each row and the bar use Urdu digits; the section letter stays", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    api.getList.mockResolvedValue({ list: { ...LIST, grade: 5, children: LIST.children.map((c) => ({ ...c, grade: 5, classLabelUr: "جماعت 5 - B" })) } });
+    renderPage();
+    await chooseSchool();
+    expect(await screen.findByText("جماعت ۵")).toBeInTheDocument();
+    expect(screen.getByTestId("assess-child-d1")).toHaveTextContent("جماعت ۵ - B");
+    expect(screen.getByTestId("assess-child-d1")).not.toHaveTextContent("5");
+    expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("۰/۵");
+    expect(screen.getByTestId("assess-visit-bar")).not.toHaveTextContent(/[0-9]/);
+  });
+
   it("alternates left: no such line", async () => {
     await openList();
     expect(screen.queryByTestId("assess-no-alternates")).toBeNull();
@@ -183,7 +195,7 @@ describe("LeaderAssess", () => {
     const block = pickBlock([]);
     expect(await screen.findByTestId("assess-handover")).toBeInTheDocument();
     expect(screen.getByTestId("assess-handover-block")).toHaveTextContent(/./);
-    expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("0/5");
+    expect(screen.getByTestId("assess-visit-bar")).toHaveTextContent("۰/۵");
     fireEvent.click(screen.getByRole("button", { name: "شروع" }));
     const frame = (await screen.findByTestId("assess-engine-frame")) as HTMLIFrameElement;
     const call = api.markOutcome.mock.calls[0][0];

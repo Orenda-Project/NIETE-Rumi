@@ -4,11 +4,17 @@
  * Short, one action per screen, for a coach who has not been trained on it.
  * Gender-neutral in both languages (the coach, the child; they/them). In Urdu,
  * a Latin name is isolated with U+2068..2069 and a number pair or a time with
- * U+2066..2069, so it keeps its order inside right-to-left text. Both
- * languages must carry every key (copy.test.ts).
+ * U+2066..2069, so it keeps its order inside right-to-left text. Numbers in
+ * Urdu are Urdu digits (۰–۹, the language protocol). Both languages must carry
+ * every key (copy.test.ts).
  */
 
 export type Lang = "ur" | "en";
+
+/** "02:13" → "۰۲:۱۳"; only ASCII digits change. */
+export function urDigits(s: string | number): string {
+  return String(s).replace(/[0-9]/g, (d) => String.fromCharCode(0x06f0 + Number(d)));
+}
 
 const en = {
   title: "Learning assessment",
@@ -111,7 +117,7 @@ const ur: Copy = {
   chooseSchool: "کون سا اسکول؟",
   noSchools: "آپ کی فہرست میں ابھی کوئی اسکول نہیں۔",
   todaysVisit: "آج کا دورہ",
-  grade: (n: number) => `جماعت ${n}`,
+  grade: (n: number) => `جماعت ${urDigits(n)}`,
   gradeFallback: "آج کے لیے یہ جماعت رومی نے چنی ہے۔",
   listNote: "ان بچوں کا جائزہ اوپر سے نیچے کی ترتیب میں لیں۔",
   teacher: (name: string) => `ٹیچر: ⁨${name}⁩`,
@@ -131,7 +137,7 @@ const ur: Copy = {
   start: "شروع",
   engineTitle: "بچے کا جائزہ",
   holdEnd: "جائزہ ختم (کوچ)",
-  holdHint: "⁦3⁩ سیکنڈ دبا کر رکھیں",
+  holdHint: "⁦۳⁩ سیکنڈ دبا کر رکھیں",
   blocks: {
     B1: "اردو پڑھنا",
     B2: "انگریزی پڑھنا",
@@ -141,11 +147,11 @@ const ur: Copy = {
     full: "مکمل جائزہ",
   },
   wholeBattery: "مکمل جائزہ",
-  aboutMinutes: (n: number) => `تقریباً ⁦${n}⁩ منٹ`,
+  aboutMinutes: (n: number) => `تقریباً ⁦${urDigits(n)}⁩ منٹ`,
   savedNext: "محفوظ ہو گیا۔ اب اگلا بچہ۔",
   stopped: (name: string) => `⁨${name}⁩ کا ٹیسٹ مکمل ہونے سے پہلے رک گیا۔ دوبارہ کھولنے کے لیے «جاری رکھیں» دبائیں۔`,
-  childrenDone: (n: number, total: number) => `مکمل بچے ⁦${n}/${total}⁩`,
-  timeUsed: (used: string, limit: string) => `وقت ⁦${used} / ${limit}⁩`,
+  childrenDone: (n: number, total: number) => `مکمل بچے ⁦${urDigits(n)}/${urDigits(total)}⁩`,
+  timeUsed: (used: string, limit: string) => `وقت ⁦${urDigits(used)} / ${urDigits(limit)}⁩`,
   onPhone: "فون میں",
   sending: "بھیجا جا رہا ہے",
   sent: "بھیج دیا",
@@ -157,14 +163,14 @@ const ur: Copy = {
   summaryRefused: "انکار",
   summaryUnfinished: "شروع ہوا، مکمل نہیں ہوا",
   none: "کوئی نہیں",
-  totalTime: (t: string) => `کل وقت ⁦${t}⁩`,
-  notSentYet: (n: number) => `بھیجنا باقی: ${n}`,
+  totalTime: (t: string) => `کل وقت ⁦${urDigits(t)}⁩`,
+  notSentYet: (n: number) => `بھیجنا باقی: ${urDigits(n)}`,
   finish: "ختم",
   sendLater: "بعد میں بھیجیں",
   stoppedBadge: "روک دیا",
   preflightTitle: "شروع کرنے سے پہلے",
   airplane: "ایئرپلین موڈ یا ڈو ناٹ ڈسٹرب آن کریں — جائزہ انٹرنیٹ کے بغیر چلتا ہے۔",
-  screenTimeout: "اسکرین ٹائم آؤٹ ⁦10⁩ منٹ کر دیں (⁦Settings → Display⁩)۔",
+  screenTimeout: "اسکرین ٹائم آؤٹ ⁦۱۰⁩ منٹ کر دیں (⁦Settings → Display⁩)۔",
   headphonesIn: "ہیڈفون لگائیں",
   playSound: "آواز چلائیں",
   micCheck: "مائیک چیک کریں",
@@ -177,7 +183,7 @@ const ur: Copy = {
   checkAgain: "دوبارہ چیک کریں",
   openOther: "دوسرے فون پر کھولیں",
   needsInternet: "ایک بار انٹرنیٹ چاہیے",
-  childNo: (n: number) => `بچہ نمبر ⁦${n}⁩`,
+  childNo: (n: number) => `بچہ نمبر ⁦${urDigits(n)}⁩`,
   scanHint: "دوسرے فون کے کیمرے سے اسکین کریں",
   copyLink: "لنک کاپی کریں",
   copied: "کاپی ہو گیا",

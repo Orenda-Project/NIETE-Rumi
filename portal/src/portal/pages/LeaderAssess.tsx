@@ -10,7 +10,7 @@ import AssessVisitBar, { type SyncItem } from '../components/assess/AssessVisitB
 import AssessActions, { useAboveTabBar } from '../components/assess/AssessActions';
 import { childTestSa } from '../services/api';
 import { useChildTestSa } from '../lib/useChildTestSa';
-import { COPY, type Lang } from '../lib/assess/copy';
+import { COPY, urDigits, type Lang } from '../lib/assess/copy';
 import { isBlock, pickBlock, type Block } from '../lib/assess/blocks';
 import { sendQueued } from '../lib/assess/outbox';
 import {
@@ -72,7 +72,7 @@ function firstNameOf(c: SaChild, lang: Lang) {
 
 /** "Grade 3 - A · Teacher: …" */
 function placeOf(c: SaChild, lang: Lang) {
-  const room = (lang === 'ur' ? (c.classLabelUr || c.classLabel) : c.classLabel) || '';
+  const room = (lang === 'ur' && c.classLabelUr ? urDigits(c.classLabelUr) : c.classLabel) || '';
   const teacher = c.teacherName ? COPY[lang].teacher(c.teacherName) : '';
   return [room, teacher].filter(Boolean).join(' · ');
 }

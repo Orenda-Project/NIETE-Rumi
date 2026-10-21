@@ -35,10 +35,24 @@ describe("assess copy", () => {
   it("Latin names and number pairs are isolated inside Urdu text", () => {
     expect(COPY.ur.teacher("Saima Testwala")).toBe("ٹیچر: ⁨Saima Testwala⁩");
     expect(COPY.ur.handover("Ayan")).toContain("⁨Ayan⁩");
-    expect(COPY.ur.childrenDone(2, 5)).toContain("⁦2/5⁩");
-    expect(COPY.ur.aboutMinutes(29)).toContain("⁦29⁩");
-    expect(COPY.ur.childNo(4)).toContain("⁦4⁩");
+    expect(COPY.ur.childrenDone(2, 5)).toContain("⁦۲/۵⁩");
+    expect(COPY.ur.aboutMinutes(29)).toContain("⁦۲۹⁩");
+    expect(COPY.ur.childNo(4)).toContain("⁦۴⁩");
     expect(COPY.ur.micDenied).toContain("⁨Permissions → Microphone → Allow⁩");
+  });
+
+  it("numbers in Urdu copy are Urdu digits (the bar, the list, the summary); English keeps ASCII", () => {
+    expect(COPY.ur.grade(5)).toBe("جماعت ۵");
+    expect(COPY.ur.childrenDone(0, 5)).toBe("مکمل بچے ⁦۰/۵⁩");
+    expect(COPY.ur.timeUsed("02:13", "45:00")).toBe("وقت ⁦۰۲:۱۳ / ۴۵:۰۰⁩");
+    expect(COPY.ur.totalTime("02:13")).toBe("کل وقت ⁦۰۲:۱۳⁩");
+    expect(COPY.ur.notSentYet(3)).toBe("بھیجنا باقی: ۳");
+    expect(COPY.ur.holdHint).toContain("۳");
+    expect(COPY.ur.screenTimeout).toContain("۱۰");
+    const ur = strings(COPY.ur).join("\n").replace(/⁨[^⁩]*⁩/g, "").replace(/X/g, "");
+    expect(ur).not.toMatch(/[0-9٠-٩]/);
+    expect(COPY.en.grade(5)).toBe("Grade 5");
+    expect(COPY.en.totalTime("02:13")).toBe("Total time 02:13");
   });
 
   it("block names", () => {
