@@ -102,15 +102,8 @@ async function cardFacts(sessionId, want = null) {
   };
 }
 
-/** The kept score: this child's FIRST finish on the class code, the one the league counts. */
-async function keptScore(s) {
-  if (!s.student_id) return s;
-  const { data: done } = await supabase.from('quiz_sessions')
-    .select('id, correct_answers, total_questions_answered, completed_at')
-    .eq('share_code_id', s.share_code_id).eq('student_id', s.student_id).eq('status', 'completed')
-    .order('completed_at', { ascending: true }).limit(1);
-  return (done && done[0]) || s;
-}
+// The kept score (the child's first finish on the class code): one copy, shared with the card's result.
+const { keptScore } = require('./web-quiz-card-data');
 
 /** A session token for this child, minted here only to ask the page's own boards "where do I stand". */
 function stFor(s) {
