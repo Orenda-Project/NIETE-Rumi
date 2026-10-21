@@ -2492,6 +2492,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // A round that does not count (the finish card on, card_v3): a teacher's own run (preview) says it is not saved;
   // "Play again" on this phone (?again=1) or the finish naming this device shows the card's practice line (the kept
   // first score); "another phone" only when it was another phone.
+  // web_quiz_end_short on an Urdu replay (a practice note under the card): the card's own first-try line says what the
+  // note says. On a phone at most 680 px tall (wq.css), the card shows the note in that line's place (wq-pin, without
+  // «یہ باری مشق ہے», «گنا جائے گا» kept together) and the note's own box (wq-pban) is hidden, so the card's button stays
+  // on the first screen. Taller phones show today's card and note. No new words.
+  function pracShort(res) { return END_SHORT && LANG === 'ur' && res.counted === false; }
+  function pracPin(banner) {
+    var m = /^<div class="wq-banner">([\s\S]*)<\/div>$/.exec(banner);
+    if (!m) return '';
+    return '<p class="wq-small wq-pin">' + m[1].replace(/یہ باری مشق ہے[۔؛] ?/, '').replace(/گنا جائے گا/g, 'گنا\u00a0جائے\u00a0گا') + '</p>';
+  }
   function pracBanner(res, total) {
     if (res.card_v3 && res.reason === 'preview') return '<div class="wq-banner">' + esc(TW.preview) + '</div>';
     if (!res.card_v3 || (!AGAIN && res.reason !== 'already_finished')) return '<div class="wq-banner">' + esc(T.prac) + '</div>';
@@ -2511,8 +2521,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.done) + '</p>' +
         endScore(sc.correct, total) +
         (fixed ? '<p class="wq-sub">' + esc(T.fixedLine(fixed)) + '</p>' : '') +
-        '<p class="wq-small">' + esc(T.scoreNote) + '</p></div>' +
-        (res.counted === false ? pracBanner(res, total) : '') +
+        (pracShort(res) ? '<p class="wq-small wq-snote">' + esc(T.scoreNote) + '</p>' + pracPin(pracBanner(res, total)) + '</div>' +
+          pracBanner(res, total).replace('<div class="wq-banner">', '<div class="wq-banner wq-pban">')
+          : '<p class="wq-small">' + esc(T.scoreNote) + '</p></div>' + (res.counted === false ? pracBanner(res, total) : '')) +
         '<button class="wq-btn wq-go" id="wq-card"' + (window.WQJ ? ' data-primary' : '') + '>' + esc(T.seeCard) + '</button>' + // the kit (web_quiz_juice): one primary
         // The home on (finish's card_fold): the card is the one way on from here; the videos live on the home. The class
         // table stays with web_quiz_class_doors (finish's class_doors).
