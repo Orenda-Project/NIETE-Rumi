@@ -4,6 +4,8 @@
 .wqj-snd[aria-pressed=false]{opacity:.55}
 .wqj-strip{position:fixed;left:0;right:0;top:64px;z-index:40;pointer-events:none;margin:0;text-align:center;font-weight:800;color:#15803D;font-size:18px}
 .wqj-cf{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:50}
+/* WQJ.finish({back}): under the screen (.wq-screen is z-index 1), so it falls behind the card, never over its headline */
+.wqj-cf.wqj-back{z-index:0}
 .wqj-cf i{position:absolute;top:-12px;width:8px;height:12px;border-radius:2px;animation:wqj-fall 1600ms ease-in forwards}
 @keyframes wqj-fall{0%{transform:translateY(0) rotate(0)}81%{opacity:1}100%{transform:translateY(40vh) rotate(540deg);opacity:0}}
 .wq-juice .wq-opt.wq-picked{border-color:#E65100!important;background:#fff!important;text-decoration:underline;text-decoration-color:#E65100;text-underline-offset:4px}

@@ -567,6 +567,20 @@ describe('motion', () => {
     expect(k.vib).toContainEqual([30, 50, 30, 50, 60]);
   });
 
+  test('the finish with back (web_quiz_share_page_lang): the same 24 confetti, marked to fall behind the card', () => {
+    const k = kit(); k.tapDoc();
+    const card = k.fakeEl('div');
+    card.stars = [];
+    k.J.finish({ el: card, back: true });
+    const cf = k.body.children.find((c) => c.className === 'wqj-cf wqj-back');
+    expect(cf.children.length).toBe(24);
+    const k2 = kit(); k2.tapDoc();
+    const card2 = k2.fakeEl('div');
+    card2.stars = [];
+    k2.J.finish({ el: card2 });
+    expect(k2.body.children.filter((c) => c.className === 'wqj-cf').length).toBe(1);
+  });
+
   test('reduced motion: every move becomes a 150 ms fade, no confetti, the sound stays', () => {
     const k = kit({ reduced: true }); k.tapDoc();
     const el = k.fakeEl('b'); const card = k.fakeEl('div');
