@@ -246,3 +246,52 @@ describe('A13: pattern options as pictures', () => {
       .toBe('What comes next? circle, triangle, circle, triangle: star, triangle, circle, or square?');
   });
 });
+
+describe('A02: passages from tested sources, rotating per child', () => {
+  const ids = (t) => t.variants.map((v) => v.id);
+  test.each(['sa.coach.G3.A.ur.json', 'sa.coach.G5.A.en.json'])('%s: Urdu rotates RWP, SELECT, PRP-KP; English RWP + the TK2009 sample (named unfielded)', (f) => {
+    const b = runtime(f);
+    for (const id of ['ur.story', 'ur.story_comp', 'ur.listening']) expect([id, ids(task(b, id))]).toEqual([id, ['rwp2026', 'select2024', 'prpkp2020']]);
+    for (const id of ['en.story', 'en.story_comp', 'en.listening']) expect([id, ids(task(b, id))]).toEqual([id, ['rwp2026', 'tk2009']]);
+    for (const t of b.tasks.filter((x) => x.variants)) {
+      for (const v of t.variants) {
+        expect([t.id, v.id, !!v.src, typeof v.fielded]).toEqual([t.id, v.id, true, 'boolean']);
+        expect(v.items.length).toBeGreaterThan(0);
+      }
+      // Variant 0 is the form's own text: OFF and ON agree for the child who gets index 0.
+      expect(t.variants[0].items).toEqual(t.items);
+    }
+    expect(task(b, 'en.story').variants[1].fielded).toBe(false);
+  });
+
+  test('PRP-KP: the assessor grid\'s five sentences are the lines (first line = 9 words), each question asks up to its sentence', () => {
+    const b = runtime('sa.coach.G3.A.ur.json');
+    const v = task(b, 'ur.story').variants[2];
+    expect(v.items).toHaveLength(60);
+    expect(v.passage.lines.map((l) => l.to - l.from + 1)).toEqual([9, 21, 11, 9, 10]);
+    expect(v.stop).toEqual({ first_line_n: 9, first_line_min_correct: 1 });
+    const q = task(b, 'ur.story_comp').variants[2].items;
+    expect(q.map((x) => x.needs_line)).toEqual([1, 2, 3, 4, 5]);
+    expect(q.every((x) => x.prompt && x.prompt.audio && x.accept.length)).toBe(true);
+    const l = task(b, 'ur.listening').variants[2];
+    expect([l.passage.read_times, l.items.length]).toEqual([1, 3]);
+  });
+
+  test('no generated passage enters the battery', () => {
+    const gen = fs.readdirSync(path.join(DATA, 'passages')).filter((f) => f.endsWith('.json')).map((f) => read(`passages/${f}`)).filter((p) => p.licence === 'generated');
+    expect(gen.length).toBeGreaterThan(30);
+    const texts = new Set(gen.map((p) => String(p.text || '').slice(0, 40)).filter(Boolean));
+    for (const f of RUNTIMES) {
+      for (const t of runtime(f).tasks) {
+        for (const v of [t, ...(t.variants || [])]) {
+          const s = v.passage && (v.passage.text || v.passage);
+          if (typeof s === 'string') expect([f, t.id, texts.has(s.slice(0, 40))]).toEqual([f, t.id, false]);
+        }
+      }
+    }
+  });
+
+  test('the game forms keep their islands\' passages (no rotation there)', () => {
+    for (const f of RUNTIMES.filter((x) => x.startsWith('sa.game.'))) expect(runtime(f).tasks.filter((t) => t.variants)).toEqual([]);
+  });
+});

@@ -96,6 +96,37 @@
     return out.tasks.length ? out : battery;
   }
 
+  /** FNV-1a of a string: the same session always gets the same number. */
+  function hash(s) {
+    var x = 0x811c9dc5;
+    for (var i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = (x * 0x01000193) >>> 0; }
+    return x;
+  }
+
+  /**
+   * RULING #39 (A02): a task with variants[] (the passage, its questions, the listening story) runs variant
+   * hash(seed) mod n, the same index for every task with the same n, so a passage and its questions stay together.
+   * The battery carries variants only while sa_passage_rotation is ON (the server drops them otherwise).
+   */
+  function rotate(battery, seed) {
+    if (!battery || !Array.isArray(battery.tasks) || !battery.tasks.some(function (t) { return Array.isArray(t.variants) && t.variants.length; })) return battery;
+    var h = hash(String(seed || ''));
+    var out = {};
+    for (var k in battery) if (Object.prototype.hasOwnProperty.call(battery, k)) out[k] = battery[k];
+    out.tasks = battery.tasks.map(function (t) {
+      if (!Array.isArray(t.variants) || !t.variants.length) return t;
+      var v = t.variants[h % t.variants.length];
+      var c = {};
+      for (var j in t) if (Object.prototype.hasOwnProperty.call(t, j) && j !== 'variants') c[j] = t[j];
+      if (v.passage) c.passage = v.passage;
+      c.items = v.items;
+      if (v.stop) c.stop = v.stop;
+      c.variant = { id: v.id, src: v.src, fielded: v.fielded };
+      return c;
+    });
+    return out;
+  }
+
   function el(tag, cls, text) {
     var e = root.document.createElement(tag);
     if (cls) e.className = cls;
@@ -232,7 +263,7 @@
       if (!r.ok) throw new Error('battery ' + r.status);
       return r.json();
     }).then(function (full) {
-      var battery = pick(full, p.block);
+      var battery = rotate(pick(full, p.block), p.session_id);
       var sink = p.mode === 'proctored'
         ? (p.token ? (SAE.sinks && SAE.sinks.coachLinked ? SAE.sinks.coachLinked(p.token) : null)
           : (SAE.sinks && SAE.sinks.coach ? SAE.sinks.coach() : null))
@@ -286,5 +317,5 @@
     });
   }
 
-  return { params: params, pick: pick, lockDown: lockDown, drain: drain, boot: boot };
+  return { params: params, pick: pick, rotate: rotate, lockDown: lockDown, drain: drain, boot: boot };
 }));

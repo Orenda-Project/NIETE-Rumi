@@ -7,7 +7,7 @@
  * boolean true (the web_quiz_brotli rule and 30 s cache, routes/web-quiz-brotli-flag.js). Served no-cache: the
  * engine's service worker keeps the offline copy, the HTTP cache never holds a stale engine. The battery files are
  * served by name from bot/shared/data/child-test/sa/ at /sa/batteries/ (nothing else in that folder's parents), with the
- * content switches applied (routes/sa-battery-switches.js: sa_practice_all_maths).
+ * content switches applied (routes/sa-battery-switches.js: sa_practice_all_maths, sa_passage_rotation).
  *
  * The sandbox-only "Jump to…" (RULING #43): only when SA_DEV_TOOLS=sandbox AND RAILWAY_ENVIRONMENT_NAME=sandbox are
  * both set does play.html / run.html load ./sa-dev.js (window.SA_DEV_TOOLS = true), ahead of the engine's scripts.
@@ -35,9 +35,10 @@ function devToolsOn(env = process.env) {
 
 /**
  * createSaEngineRouter({ on, practiceAllMaths, env }) → router. on() is the switch (default: app_settings sa_engine);
- * practiceAllMaths() the A11 content switch (default: app_settings sa_practice_all_maths).
+ * practiceAllMaths() and passageRotation() the content switches (app_settings sa_practice_all_maths, sa_passage_rotation).
  */
-function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), practiceAllMaths = createBrotliFlag({ key: SWITCHES.practiceAllMaths }), holdMs, now, env } = {}) {
+function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), practiceAllMaths = createBrotliFlag({ key: SWITCHES.practiceAllMaths }),
+  passageRotation = createBrotliFlag({ key: SWITCHES.passageRotation }), holdMs, now, env } = {}) {
   const router = express.Router();
   // The switch as routes/sa-switch.js reads it: the first request waits for the first read, and a failed read after an
   // ON never flaps a request to the portal's page.
@@ -77,7 +78,7 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
       let battery;
       try { battery = JSON.parse(text); } catch (_) { return next(); }
       res.setHeader('Cache-Control', 'no-cache');
-      return res.json(applySwitches(battery, { practiceAllMaths: practiceAllMaths() === true }));
+      return res.json(applySwitches(battery, { practiceAllMaths: practiceAllMaths() === true, passageRotation: passageRotation() === true }));
     });
   });
   // On: a file the folder does not have (a clip not made yet, a typo) is a 404 here. Falling through would let the

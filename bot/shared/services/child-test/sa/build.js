@@ -455,6 +455,9 @@ function readingTask({ task, lang, kind, subtask, title, items, practice, timed_
   };
 }
 
+// SELECT counts the reduplicated ٹَیں ٹَیں as one word (its markers sum to 60 only that way).
+const toks = (t) => t.replace(/ٹَیں ٹَیں/g, 'ٹَیں_ٹَیں').split(/\s+/).map((w) => w.replace(/^[“"‘(]+|[.,!?”"’:;۔،؟)]+$/gu, '').replace('_', ' ')).filter(Boolean);
+
 function readingExtras(extra) {
   const r = extra.reading;
   if (!r) return [];
@@ -538,8 +541,6 @@ function readingExtras(extra) {
 
   // The official second passages and listening stories (TK2009; SELECT 2024). They run on the game's islands in place
   // of the coach's Set A passage and story, so the coach measure is not practised at home.
-  // SELECT counts the reduplicated ٹَیں ٹَیں as one word (its markers sum to 60 only that way).
-  const toks = (t) => t.replace(/ٹَیں ٹَیں/g, 'ٹَیں_ٹَیں').split(/\s+/).map((w) => w.replace(/^[“"‘(]+|[.,!?”"’:;۔،؟)]+$/gu, '').replace('_', ' ')).filter(Boolean);
   const en2 = r.en.story2;
   const enWords = en2.lines.map(toks);
   const enLines = [];
@@ -680,6 +681,52 @@ const runRank = (id) => {
   return [sec, i < 0 ? 999 : i];
 };
 
+// ---------------------------------------------------------------------------------------------- A02 passage rotation
+/**
+ * RULING #39 (A02, switch sa_passage_rotation): on the coach forms the passage, its questions and the listening story
+ * rotate per child over the fielded, sourced texts. variants[0] is the form's own (RWP May 2026, Set A); then SELECT
+ * 2024 and PRP-KP 2020 for Urdu, the EGRA Toolkit 2009 sample for English (fielded: false, the sourcing gap named in
+ * PASSAGE_SOURCES). Each variant is a whole task of the same shape; the page picks one index per child for all three.
+ */
+function passageVariants(core18, extra) {
+  const r = extra && extra.reading;
+  if (!r) return {};
+  const ex = readingExtras(extra);
+  const own = (id) => core18.find((t) => t.task === id);
+  const of = (id) => ex.find((t) => t.task === id);
+  const lineSpans = (lines) => {
+    const out = [];
+    lines.reduce((at, ws, i) => { out.push({ n: i + 1, from: at, to: at + ws.length - 1 }); return at + ws.length; }, 0);
+    return out;
+  };
+  const p3 = r.ur.story3;
+  const p3w = p3 ? p3.lines.map(toks) : [];
+  const prp = p3 ? storyTasks({ lang: 'ur', task: 'ur.story3', legacy: 'ur.story', base: 'extra:reading.ur.story3',
+    adaptation: 'as the Set A story: read aloud for 60 s, then the last word read is tapped; questions only up to the line reached',
+    spec: { title: own('ur.story').title, timed_s: 60, direction: 'rtl', stop: { type: 'first_line' }, practice_note: 'EGRA oral reading has no practice item',
+      source: { items: 'extra:reading.ur.story3' }, items: p3w.flat(), story: { text: p3.lines.join('\n'), lines: lineSpans(p3w) },
+      questions: p3.questions.map((q, i) => ({ id: `ur.story3.q${i + 1}`, prompt: q.q, accept: q.accept, needs_line: q.needs_line })) } }) : [];
+  const l3 = r.ur.listening3;
+  const prpL = l3 ? listeningTask({ lang: 'ur', task: 'ur.listening3', legacy: 'ur.listening', base: 'extra:reading.ur.listening3',
+    adaptation: 'Jugnu reads the story once (PRP-KP: one reading); each answer recorded',
+    spec: { title: own('ur.listening').title, story: { text: l3.story }, read_times: l3.read_times, practice_note: 'EGRA listening comprehension has no practice item',
+      source: { items: 'extra:reading.ur.listening3' }, questions: l3.questions.map((q, i) => ({ id: `ur.listening3.q${i + 1}`, prompt: q.q, accept: q.accept })) } }) : null;
+  const V = (id, src, fielded, task) => (task ? { id, src, fielded, task } : null);
+  const RWP = 'rwp2026:May 2026 instrument (Set A)';
+  const SEL = 'select2024:Sindh SELECT EGRA Urdu';
+  const PRP = 'prpkp2020:EGRA Urdu Form 1';
+  const TK = 'egra_tk2009:sample assessment design';
+  const list = (...xs) => xs.filter(Boolean);
+  return {
+    'ur.story': list(V('rwp2026', RWP, true, own('ur.story')), V('select2024', SEL, true, of('ur.story2')), V('prpkp2020', PRP, true, prp[0])),
+    'ur.story_comp': list(V('rwp2026', RWP, true, own('ur.story_comp')), V('select2024', SEL, true, of('ur.story2_comp')), V('prpkp2020', PRP, true, prp[1])),
+    'ur.listening': list(V('rwp2026', RWP, true, own('ur.listening')), V('select2024', SEL, true, of('ur.listening2')), V('prpkp2020', PRP, true, prpL)),
+    'en.story': list(V('rwp2026', RWP, true, own('en.story')), V('tk2009', TK, false, of('en.story2'))),
+    'en.story_comp': list(V('rwp2026', RWP, true, own('en.story_comp')), V('tk2009', TK, false, of('en.story2_comp'))),
+    'en.listening': list(V('rwp2026', RWP, true, own('en.listening')), V('tk2009', TK, false, of('en.listening2'))),
+  };
+}
+
 // ---------------------------------------------------------------------------------------------- A11 reuse, A14 RDF
 /**
  * A11: a maths task with no unused fielded item practises on another task's official practice item of the same format
@@ -794,6 +841,14 @@ function buildSaBank({ v3, extra }) {
     const order = list.map((t) => t.task);
     const extraIds = list.filter((t) => extras.includes(t)).map((t) => t.task);
     const rdfOnly = f.surface === 'coach' && extra ? rdfTasks(v3, extra) : [];
+    if (f.surface === 'coach') {
+      const pv = passageVariants(core18, extra);
+      for (const t of list) {
+        const vs = pv[t.task];
+        // A copy of each variant's task, so the task that is variant 0 does not hold itself.
+        if (vs && vs.length > 1) t.variants = vs.map((v) => ({ id: v.id, src: v.src, fielded: v.fielded, task: { ...v.task, variants: undefined } }));
+      }
+    }
     const form = { surface: f.surface, grades: f.grades, set: f.surface === 'coach' ? SET : null, maths_form: `G${f.maths}`, order, extra: extraIds };
     if (f.surface === 'coach') {
       // DESIGN §2b: initial sound joins B3 (oral), patterns joins B4; every other extra is in the full form only.
@@ -914,12 +969,19 @@ function runtimeScript(t, lang) {
   return out;
 }
 
+/** A rotation variant in the page's language: what replaces the task's passage, items and stop for one child. */
+function runtimeVariant(v, lang) {
+  const r = runtimeTask(v.task, lang);
+  return { id: v.id, src: v.src, fielded: v.fielded, ...(r.passage ? { passage: r.passage } : {}), items: r.items, ...(r.stop ? { stop: r.stop } : {}) };
+}
+
 function runtimeTask(t, lang) {
+  const variants = t.variants ? { variants: t.variants.map((v) => runtimeVariant(v, lang)) } : {};
   const base = { id: t.task, legacy_block: t.legacy_block, family: t.family, subtask: t.subtask, lang: t.lang, title: t.title, kind: t.kind,
     script: runtimeScript(t, lang),
     instruction: inLang(t.script.intro, lang), source: t.source, deviation: t.deviation, ...(t.practice_note ? { practice_note: t.practice_note } : {}),
     // A11 (switch sa_practice_all_maths): the practice the engine runs when the switch is on.
-    ...(t.practice_v2 ? { practice_v2: t.practice_v2.map((p) => runtimeItem(p, lang, t.lang)) } : {}) };
+    ...(t.practice_v2 ? { practice_v2: t.practice_v2.map((p) => runtimeItem(p, lang, t.lang)) } : {}), ...variants };
   const practice = (t.practice || []).map((p) => runtimeItem(p, lang, t.lang));
   if (t.tap) {
     const tap = t.tap;

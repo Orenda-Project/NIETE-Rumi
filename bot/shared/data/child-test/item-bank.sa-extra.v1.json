@@ -1559,6 +1559,111 @@
    }
   },
   "ur": {
+   "story3": {
+    "subtask": "oral_reading_fluency",
+    "timed_s": 60,
+    "lines": [
+     "سلیم کو سکول جاتے ہوئے ایک کالا بٹوا ملا",
+     "وہ اسے اٹھا لایا اور ہیڈ ماسٹر صاحب کو دے کر کہا کہ یہ مجھے سکول کے قریب سے ملا ہے",
+     "انہوں نے کہا بیٹا یہ بٹوا شاید طارق صاحب کا ہو",
+     "وہ اسے بڑی دیر سے تلاش کر رہے ہیں",
+     "سلیم کی ایمانداری پر اسمبلی میں حوصلہ افزائی کی گئی"
+    ],
+    "word_count": 60,
+    "word_count_note": "the assessor grid numbers cells 1-60; its rows are the five sentences (first line = cells 1-9, the printed first-line stop)",
+    "src": "prpkp2020:EGRA Urdu Form 1 subtask 7 (form pp.12-13)",
+    "fielded": {
+     "when": "2020-11",
+     "n_children": 1981,
+     "grade": 2
+    },
+    "text_note": "transcribed from the assessor grid (no punctuation printed there); pending a native read (cell 31 انہوں/انھوں)",
+    "questions": [
+     {
+      "q": "سلیم کو راستے سے کیا ملا؟",
+      "accept": [
+       "بٹوا",
+       "کالا بٹوا"
+      ],
+      "needs_line": 1,
+      "src": "prpkp2020:EGRA Urdu Form 1 subtask 7, question 1"
+     },
+     {
+      "q": "سلیم ہیڈ ماسٹر صاحب کے پاس کیوں گیا؟",
+      "accept": [
+       "بٹوا دینے کے لیے"
+      ],
+      "needs_line": 2,
+      "src": "prpkp2020:EGRA Urdu Form 1 subtask 7, question 2"
+     },
+     {
+      "q": "ہیڈ ماسٹر صاحب نے کس رائے کا اظہار کیا؟",
+      "accept": [
+       "شاید طارق صاحب کا ہو"
+      ],
+      "needs_line": 3,
+      "src": "prpkp2020:EGRA Urdu Form 1 subtask 7, question 3"
+     },
+     {
+      "q": "طارق صاحب کیا تلاش کر رہے تھے؟",
+      "accept": [
+       "بٹوا"
+      ],
+      "needs_line": 4,
+      "src": "prpkp2020:EGRA Urdu Form 1 subtask 7, question 4"
+     },
+     {
+      "q": "سلیم کی تعریف اسمبلی میں کیوں کی گئی؟",
+      "accept": [
+       "ایمانداری کی وجہ سے",
+       "دوسرے بچوں کو ایمانداری سکھانے کے لیے",
+       "بٹوا دینے کی وجہ سے"
+      ],
+      "needs_line": 5,
+      "src": "prpkp2020:EGRA Urdu Form 1 subtask 7, question 5"
+     }
+    ]
+   },
+   "listening3": {
+    "subtask": "listening_comprehension",
+    "timed_s": null,
+    "story": "ایک شکاری پیاسا تھا۔ اُسے جنگل میں ایک جھونپڑی نظر آئی۔ آواز دی تو بابا نے اندر بلالیا۔ اُن کا چہرہ بہت نورانی تھا۔ انھوں نے شکاری کو پانی دے کر کہا بیٹا آئندہ شکار نہ کرنا یہ جاندار ہماری ضرورت ہیں۔",
+    "read_times": 1,
+    "src": "prpkp2020:EGRA Urdu Form 1 subtask 8 (form p.14)",
+    "fielded": {
+     "when": "2020-11",
+     "n_children": 1981,
+     "grade": 2
+    },
+    "questions": [
+     {
+      "q": "شکاری جھونپڑی کی طرف کیوں گیا؟",
+      "accept": [
+       "وہ پیاسا تھا",
+       "پانی کی تلاش میں"
+      ],
+      "src": "prpkp2020:EGRA Urdu Form 1 subtask 8, question 1"
+     },
+     {
+      "q": "بابا کا چہرہ کیسا دکھائی دے رہا تھا؟",
+      "accept": [
+       "نورانی",
+       "روشن",
+       "بہت نورانی"
+      ],
+      "src": "prpkp2020:EGRA Urdu Form 1 subtask 8, question 2"
+     },
+     {
+      "q": "بابا نے شکاری کو کس بات سے منع کیا؟",
+      "accept": [
+       "شکار کرنے سے",
+       "جانداروں کا شکار کرنے سے",
+       "جانداروں کو مارنے سے"
+      ],
+      "src": "prpkp2020:EGRA Urdu Form 1 subtask 8, question 3"
+     }
+    ]
+   },
    "initial_sound": {
     "subtask": "initial_sound_identification",
     "timed_s": null,

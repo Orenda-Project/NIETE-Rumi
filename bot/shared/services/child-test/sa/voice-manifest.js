@@ -28,7 +28,9 @@ function voiceManifest(bank) {
     else both(x, role);
   };
   for (const line of Object.values(bank.lines || {})) both(line, 'battery');
-  for (const t of Object.values(bank.tasks || {})) {
+  // A rotating passage's other texts (RULING #39) are voiced like the task's own.
+  const all = Object.values(bank.tasks || {}).flatMap((t) => [t, ...(t.variants || []).map((v) => v.task)]);
+  for (const t of all) {
     const ear = EAR[(t.task || '').split('.')[1]];
     const sc = t.script || {};
     for (const [k, line] of Object.entries(sc)) {
