@@ -24,7 +24,7 @@
  *   PHOTO_TAKE   the photo picker (camera, or the gallery on a phone)
  *   PHOTO_FILES  the file picker, images only
  *   AFTER        before leaving the room        (anything to report, what to work on first and up to
- *                two more, the seal)
+ *                two more: the 17, the plan's steps, or a coaching focus area; the seal)
  *   SEALED       the record is locked
  *   CONTINUE     a reopened form: where the record stands, then on to the right screen
  *
@@ -39,11 +39,11 @@
  * Regenerate the committed copy after any change:  node bot/scripts/generate-observe2-flow-json.js
  */
 
-const { FOCUS, FOCUS_ORDER, ALSO_NONE, PLAIN } = require('./fico17');
+const { FOCUS, FOCUS_DESCRIPTION, FOCUS_ORDER, ALSO_NONE, PLAIN } = require('./fico17');
 
 const FLOW_VERSION = '7.3';
 // This form's own version, sent by the footers whose answer depends on it: 4 brought the photo step
-// (the plan screens' next screen), 5 the parts by the lesson's steps (the parts' questions and checks).
+// (the plan screens' next screen), 5 the parts by the lesson's steps (the parts' questions and checks),
 // A form opened before a version was published sends an older one, or none, and the endpoint keeps it
 // on its own routes and checks.
 const FORM_VERSION = '5';
@@ -325,8 +325,10 @@ function screen(id, title, children, footerLabel, extraData) {
   };
 }
 
-// "Work on first": the 17 in the order of the four moments, then the lesson plan's own steps (R14).
-const FOCUS_LIST = FOCUS_ORDER.map((c) => opt(c, FOCUS[c]));
+// "Work on first": the 17 in the order of the four moments with the coaching focus areas beside the ones they
+// belong with, then the lesson's structure: the plan's own steps (R14), the warm-up, the closure (R20, R21).
+// A line under the choices coaches could not recognise by the title alone.
+const FOCUS_LIST = FOCUS_ORDER.map((c) => opt(c, FOCUS[c], FOCUS_DESCRIPTION[c]));
 const ALSO_LIST = [opt(ALSO_NONE, 'Nothing else'), ...FOCUS_LIST];
 
 function buildFieldFormFlow() {
