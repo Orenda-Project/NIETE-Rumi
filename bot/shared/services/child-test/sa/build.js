@@ -216,7 +216,7 @@ function storyTasks({ lang, spec, task = `${lang}.story`, base = `v3:sets.${SET}
     deviation: 'the child taps the last word read instead of the assessor bracketing it',
   };
   const questions = spec.questions.map((q, i) => ({ id: q.id, prompt: said(lang, q.prompt), needs_line: q.needs_line || null,
-    accept: q.accept, reject: q.reject || [], rubric: q.rubric, src: `${base}.questions[${i}]` }));
+    accept: q.accept, reject: q.reject || [], rubric: q.rubric, ...(q.accept_rule ? { accept_rule: q.accept_rule } : {}), src: `${base}.questions[${i}]` }));
   const comp = {
     task: `${task}_comp`, lang, kind: 'questions', legacy_block: legacy, family: 'egra', subtask: SUBTASK.story_comp,
     title: { en: 'Story questions', ur: 'کہانی کے سوال' }, modes: ['record'], tap: null,
@@ -568,7 +568,7 @@ function readingExtras(extra) {
       practice_note: 'EGRA oral reading has no practice item', source: { items: `extra:reading.${lang}.story2` },
       items: words, story: { text: lang === 'en' ? en2.lines.join('\n') : ur2.text, lines }, questions } });
   out.push(...story2('en', en2, enLines, enWords.flat(), en2.questions.map((q, i) => ({ id: `en.story2.q${i + 1}`, prompt: q.q, accept: q.accept, needs_line: q.needs_line,
-    rubric: q.any_reasonable ? 'any reasonable answer is accepted (TK2009)' : null }))));
+    rubric: q.any_reasonable ? 'any reasonable answer is accepted (TK2009)' : null, accept_rule: q.accept_rule }))));
   out.push(...story2('ur', ur2, urLines, urSegs.flat(), ur2.questions.map((q, i) => ({ id: `ur.story2.q${i + 1}`, prompt: q.q, accept: q.accept, needs_line: segOfMarker(q.after_marker) }))));
   for (const lang of ['en', 'ur']) {
     const l = r[lang].listening2;
@@ -699,6 +699,8 @@ const runRank = (id) => {
  * rotate per child over the fielded, sourced texts. variants[0] is the form's own (RWP May 2026, Set A); then SELECT
  * 2024 and PRP-KP 2020 for Urdu, the EGRA Toolkit 2009 sample for English (fielded: false, the sourcing gap named in
  * PASSAGE_SOURCES). Each variant is a whole task of the same shape; the page picks one index per child for all three.
+ * PRP-KP's story is out of the oral-reading rotation: its report prints the passage as an unpunctuated word grid, so
+ * its punctuation would be ours (W3, operator items 4/6: official punctuation only); its listening story stays.
  */
 function passageVariants(core18, extra) {
   const r = extra && extra.reading;
@@ -730,8 +732,8 @@ function passageVariants(core18, extra) {
   const TK = 'egra_tk2009:sample assessment design';
   const list = (...xs) => xs.filter(Boolean);
   return {
-    'ur.story': list(V('rwp2026', RWP, true, own('ur.story')), V('select2024', SEL, true, of('ur.story2')), V('prpkp2020', PRP, true, prp[0])),
-    'ur.story_comp': list(V('rwp2026', RWP, true, own('ur.story_comp')), V('select2024', SEL, true, of('ur.story2_comp')), V('prpkp2020', PRP, true, prp[1])),
+    'ur.story': list(V('rwp2026', RWP, true, own('ur.story')), V('select2024', SEL, true, of('ur.story2')), !p3.editorial_punct && V('prpkp2020', PRP, true, prp[0])),
+    'ur.story_comp': list(V('rwp2026', RWP, true, own('ur.story_comp')), V('select2024', SEL, true, of('ur.story2_comp')), !p3.editorial_punct && V('prpkp2020', PRP, true, prp[1])),
     'ur.listening': list(V('rwp2026', RWP, true, own('ur.listening')), V('select2024', SEL, true, of('ur.listening2')), V('prpkp2020', PRP, true, prpL)),
     'en.story': list(V('rwp2026', RWP, true, own('en.story')), V('tk2009', TK, false, of('en.story2'))),
     'en.story_comp': list(V('rwp2026', RWP, true, own('en.story_comp')), V('tk2009', TK, false, of('en.story2_comp'))),

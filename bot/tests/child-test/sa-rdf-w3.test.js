@@ -117,11 +117,16 @@ describe('RDF auto / RDF manual forms (Wave 3)', () => {
     const b = runtime('coach.G3.A', 'ur');
     const t = b.tasks.find((x) => x.id === 'ur.letter_sounds5');
     expect(t.items.map((it) => it.show)).toEqual(['ب', 'م', 'ک', 'س', 'ر']);
+    expect(t.practice.map((it) => it.show)).toEqual(['ل', 'ن']);
+    expect(b.tasks.find((x) => x.id === 'ur.letter_names5').items.map((it) => it.show)).toEqual(['د', 'ج', 'پ', 'ت', 'ا']);
     for (const it of [...t.items, ...t.practice]) expect([it.show, none.has(it.show)]).toEqual([it.show, false]);
     // the names and the sounds are separate sets (the Toolkit gives them separate grids)
     const names = new Set(b.tasks.find((x) => x.id === 'ur.letter_names5').items.map((it) => it.show));
     for (const it of t.items) expect(names.has(it.show)).toBe(false);
     const en = runtime('coach.G3.A', 'en').tasks;
+    // F5: the practice letters T M S are in neither scored set
+    expect(en.find((x) => x.id === 'en.letter_names5').items.map((it) => it.show)).toEqual(['i', 'y', 'E', 'O', 'A']);
+    expect(en.find((x) => x.id === 'en.letter_sounds5').items.map((it) => it.show)).toEqual(['L', 'h', 'R', 'n', 'D']);
     const enNames = new Set(en.find((x) => x.id === 'en.letter_names5').items.map((it) => it.show.toLowerCase()));
     for (const it of en.find((x) => x.id === 'en.letter_sounds5').items) expect(enNames.has(it.show.toLowerCase())).toBe(false);
   });
@@ -132,13 +137,15 @@ describe('RDF auto / RDF manual forms (Wave 3)', () => {
       expect(t.passage.text).toBe(v3.sets.A.reading[lang].story.story.text);
       expect(/[.,?!۔،؟]/u.test(t.passage.text)).toBe(true);
       expect(t.passage.print_lines.join(' ')).toBe(t.passage.text);
-      for (const v of [t, ...t.variants]) {
+      for (const v of [t, ...(t.variants || [])]) {
         const text = v.passage.text;
         // the words, with their punctuation, rebuild the text; the scored targets are unchanged
         expect(v.items.map((w) => w.text).join(' ')).toBe(text.replace(/\s+/g, ' ').trim());
         const bare = (x) => x.replace(/[.,!?“”"‘’:;۔،؟()]/gu, '').replace(/[\u064B-\u065F\u0670]/gu, '');
         for (const w of v.items) expect([w.id, bare(w.text)]).toEqual([w.id, bare(w.target)]);
       }
+      // W3 rotates only passages with official punctuation (ITEMS_W3): UR RWP + SELECT, EN RWP alone
+      expect((t.variants || []).map((v) => v.id)).toEqual(lang === 'ur' ? ['rwp2026', 'select2024'] : []);
       expect(t.depends_on.task).toBe(`${lang}.words4`);
       expect(runtime('coach.G3.A', lang).tasks.find((x) => x.id === `${lang}.story_comp_w3`).depends_on.task).toBe(`${lang}.story_w3`);
     }
@@ -187,6 +194,29 @@ describe('RDF auto / RDF manual forms (Wave 3)', () => {
       }
     }
     expect(n).toBeGreaterThan(100);
+  });
+
+  test('the questions: the Set A card\'s accept lists (never narrower), its rule, and a gate per question', () => {
+    const gates = { ur: [1, 23, 30, 55, 44, 55], en: [1, 12, 20, 48, 55, 60] };
+    for (const lang of ['ur', 'en']) {
+      const b = runtime('coach.G3.A', lang);
+      const own = v3.sets.A.reading[lang].story.questions;
+      const q = b.tasks.find((x) => x.id === `${lang}.story_comp_w3`).items;
+      expect(q.map((x) => x.gate.min_words)).toEqual(gates[lang]);
+      q.forEach((x, i) => {
+        expect(x.accept_rule).toBe('same meaning, either language');
+        for (const a of own[i].accept) expect(x.accept).toContain(a);
+      });
+    }
+  });
+
+  test('the counts and maths values are ITEMS_W3\'s (Core EGMA Task 1 cells 2 and 4 of each row; Task 2 items 2 and 6)', () => {
+    const b = runtime('coach.G5.A', 'en');
+    const ids = (id) => b.tasks.find((x) => x.id === id).items;
+    expect(ids('ma.number_id8').map((it) => it.show)).toEqual(['9', '12', '45', '23', '33', '87', '245', '731']);
+    expect(ids('ma.discrimination2').map((it) => it.options)).toEqual([[11, 24], [94, 78]]);
+    expect(ids('ma.missing4').map((it) => it.shown)).toEqual([[5, 6, 7, null], [20, null, 40, 50], [null, 300, 400, 500], [348, 349, null, 351]]);
+    expect([...ids('ma.add2i'), ...ids('ma.sub2i'), ...ids('ma.mul2i')].map((it) => it.show)).toEqual(['13 + 6', '18 + 7', '19 − 6', '25 − 7', '3 × 4', '8 × 9']);
   });
 
   test('every W3 task practises first (a spoken task: Jugnu models the answer), except the story and its questions', () => {

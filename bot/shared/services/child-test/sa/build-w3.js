@@ -66,7 +66,7 @@ const INTRO = {
 // What the coach reads out in RDF manual: the official administration wording (v3 carries each instrument's script),
 // adapted only where a phone changes it: a page becomes items that come one at a time, and the Urdu speaks to the child
 // without the speaker's or the child's gendered forms (گا/گی, گے/گی): passive or imperative instead. Then the hand-over.
-const GIVE = L('Then give the phone to the child.', 'پھر فون بچے کو دے دیں۔', 'lead W3: the coach screen\'s last line');
+const GIVE = L('Then give the phone to the child.', 'پھر فون بچے کو دے دیں۔', 'W3 RDF manual: the coach screen\'s last line');
 const LANG_NAME = { ur: { en: 'URDU', ur: 'اردو' }, en: { en: 'ENGLISH', ur: 'انگریزی' } };
 const COACH = {
   letter_names: (n) => L(`Here are some letters of the ${n.en} alphabet. They will come one at a time. Please tell me the NAME of each letter. Not its sound, but its name. If you come to a letter you do not know, go on to the next letter.`,
@@ -79,7 +79,7 @@ const COACH = {
     `یہ کچھ ${n.ur} الفاظ ہیں۔ یہ ایک ایک کر کے آئیں گے۔ ہر لفظ پڑھیں۔ ہجے نہ کریں، پورا لفظ پڑھیں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔`,
     'v3:sets.A.reading.{lang}.words.script (egra_tk2016 Annex H p.195), one at a time'),
   story: () => L('Here is a short story. I want you to read it aloud, quickly but carefully. When you finish, I will ask you some questions about what you have read. When I say "Begin," read the story as best as you can. If you come to a word you do not know, go on to the next word. Put your finger on the first word.',
-    'یہ ایک مختصر کہانی ہے۔ اسے بلند آواز سے، جلدی مگر دھیان سے پڑھیں۔ کہانی پڑھنے کے بعد آپ سے چند سوال پوچھے جائیں گے۔ جب "شروع کریں" کہا جائے تو جتنا اچھا ہو سکے کہانی پڑھیں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔ پہلے لفظ پر انگلی رکھیں۔',
+    'یہ ایک مختصر کہانی ہے۔ اسے بلند آواز سے، جلدی مگر دھیان سے پڑھیں۔ کہانی پڑھنے کے بعد آپ سے چند سوال پوچھے جائیں گے۔ جب «شروع کریں» کہا جائے تو جتنا اچھا ہو سکے کہانی پڑھیں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔ پہلے لفظ پر انگلی رکھیں۔',
     'v3:sets.A.reading.{lang}.story.script.intro (rwp2026 coach card; egra_tk2016 Annex H p.197)'),
   story_comp: () => L('Now I am going to ask you a few questions about the story you just read. Try to answer the questions as well as you can. You can provide your answers in whichever language you prefer.',
     'اب آپ سے اس کہانی کے بارے میں چند سوال پوچھے جائیں گے جو آپ نے ابھی پڑھی۔ جتنا اچھا ہو سکے جواب دیں۔ آپ جس زبان میں چاہیں جواب دیں۔',
@@ -140,9 +140,24 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
   const { spoken, said, sayBoth, toUrDigits, mathsTask } = H;
   const grade = f.maths;
   const out = [];
-  const coachText = (kind, lang) => {
+  // A panel-signed text from ITEMS_W3 (w3.coach_text) replaces ours in its own language; its Urdu speaker form
+  // («دکھاؤں گا/گی») is said without a gendered verb.
+  const signed = (id, l) => {
+    const c = (w3.coach_text || {})[id];
+    if (!c || !c[l]) return null;
+    const t = c[l].replace('میں آپ کو ایک ایک کر کے کچھ حروف دکھاؤں گا/گی۔', 'آپ کو ایک ایک کر کے کچھ حروف دکھائے جائیں گے۔');
+    if (/(گا\/گی|گے\/گی)/u.test(t)) throw new Error(`${id}: a gendered form left in the coach text`);
+    return { text: t.replace(/\s*(Then give the phone to the child\.|پھر فون بچے کو دے دیں۔)\s*$/u, ''),
+      src: `${c.src}${l === 'ur' && c.authored_translation ? ' (authored translation, panel-signed; speaker form made neutral)' : ''}` };
+  };
+  const coachText = (kind, lang, id) => {
     const c = COACH[kind](LANG_NAME[lang] || {});
-    return { en: `${c.en} ${GIVE.en}`, ur: `${c.ur} ${GIVE.ur}`, src: c.from.replace('{lang}', lang || '') };
+    const out = { en: `${c.en} ${GIVE.en}`, ur: `${c.ur} ${GIVE.ur}`, src: c.from.replace('{lang}', lang || '') };
+    for (const l of ['en', 'ur']) {
+      const s2 = id && signed(id, l);
+      if (s2) Object.assign(out, { [l]: `${s2.text} ${GIVE[l]}`, [`src_${l}`]: s2.src });
+    }
+    return out;
   };
   const childScript = (intro, lang) => {
     const s = { intro: spoken({ ...intro, from: intro.from.replace('{lang}', lang || '') }) };
@@ -169,20 +184,22 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
         time_limit_s: 60, advance_after_s: ADVANCE.reading, stop: null,
         stop_note: 'EGRA\'s first-row stop (no item right in the first row) is applied when scored: with 5 items, all 5 wrong',
         script: childScript(INTRO[kind], lang),
-        coach_text: coachText(kind, lang),
+        coach_text: coachText(kind, lang, id),
         source: { items: sel.from, script: COACH[kind](LANG_NAME[lang]).from.replace('{lang}', lang), sa_adaptation: 'one item at a time, spoken and recorded, scored later; the task clock runs across items (W3 operator item 1)' },
         deviation: extra2.deviation || 'one item at a time instead of a page of 100 (the operator\'s ask); the child (RDF auto) or coach (RDF manual) moves on',
       };
     };
     const ln = spec.letter_names;
-    const namePractice = (ln.practice_from ? at(banks, ln.practice_from) : []).map((p, i) => ({ item: p.item, role: /^example/.test(p.role) ? 'example' : 'practice',
-      src: p.src || `${ln.practice_from}[${i}]` }));
+    const roleOf = (r) => (/^example/.test(r) ? 'example' : 'practice');
+    const namePractice = ln.practice_from
+      ? at(banks, ln.practice_from).map((p, i) => ({ item: p.item, role: roleOf(p.role), src: p.src || `${ln.practice_from}[${i}]` }))
+      : (ln.practice || []).map((x) => { const p = at(banks, x.from)[x.index]; return { item: p.item, role: roleOf(p.role), src: p.src || `${x.from}[${x.index}]` }; });
     out.push(oneAtATime('letter_names', `${lang}.letter_names5`, ln, (x) => (lang === 'ur' ? UR_LETTER_NAMES[x] || x : x), namePractice,
       { subtask: 'letter_name_identification' }));
     const ls = spec.letter_sounds;
     const soundOf = (x) => (lang === 'ur' ? `/${x}/` : EN_LETTER_SOUNDS[String(x).toLowerCase()] || x);
     const soundPractice = lang === 'ur'
-      ? ls.practice.map((p) => ({ item: at(banks, ls.from).items[p.pick], role: 'practice', src: p.src }))
+      ? ls.practice.map((p) => ({ item: at(banks, ls.from).items[p.pick], role: p.role || 'practice', src: p.src }))
       : at(banks, ls.practice_from).map((p, i) => ({ item: p.item, role: p.role, src: p.src || `${ls.practice_from}[${i}]` }));
     const sounds = oneAtATime('letter_sounds', `${lang}.letter_sounds5`, ls, soundOf, soundPractice,
       { subtask: 'letter_sound_identification', ...(ls.deviation ? { deviation: `one item at a time; ${ls.deviation}` } : {}) },
@@ -202,6 +219,12 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
       coach_text: coachText('story', lang) });
     Object.assign(comp, { task: `${lang}.story_comp_w3`, w3: true, legacy_block: null, depends_on: { ...comp.depends_on, task: sid },
       coach_text: coachText('story_comp', lang) });
+    // The W3 forms rotate only the passages with official punctuation (ITEMS_W3: UR RWP + SELECT; EN RWP alone).
+    for (const t of [story, comp]) {
+      if (!t.variants) continue;
+      t.variants = t.variants.filter((v) => spec.story.variants.includes(v.id));
+      if (t.variants.length < 2) delete t.variants;
+    }
     // The form's own words and questions take the W3 task's ids (a variant keeps its own text's ids).
     const own = new RegExp(`^${lang}\\.story\\.`);
     const rename = (x) => { x.id = x.id.replace(own, `${sid}.`); };
@@ -212,6 +235,14 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
       const tokens = passageTokens(p.text);
       if (tokens.length !== p.words.length) throw new Error(`${v.task}: ${tokens.length} tokens of passage.text, ${p.words.length} scored words`);
       p.words.forEach((w, i) => { w.text = tokens[i]; });
+    }
+    // The Set A coach card's accept lists (added to the bank's, never narrower), its rule, and its per-question gate.
+    const card = Object.fromEntries((spec.story.questions || []).map((q) => [q.id, q]));
+    const own0 = (comp.variants || []).filter((v) => v.id === 'rwp2026').map((v) => v.task.record.questions);
+    for (const q of [...comp.record.questions, ...own0.flat()]) {
+      const c = card[q.id];
+      if (!c) throw new Error(`${q.id}: no Set A card entry`);
+      Object.assign(q, { accept: [...new Set([...q.accept, ...c.accept])], accept_rule: c.accept_rule, gate: c.gate, card_src: c.src });
     }
     out.push(story, comp);
   }
@@ -252,14 +283,16 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
   const tapTask = (kind, id, sel) => {
     const base = set[kind];
     const items = sel.pick.map((p) => base.items[p]);
-    const t = mathsTask({ kind, spec: { ...base, items, practice: at(banks, sel.practice_from) }, grade, borrowed: null });
+    const prac = at(banks, sel.practice_from);
+    const t = mathsTask({ kind, spec: { ...base, items, practice: sel.practice_pick ? sel.practice_pick.map((k) => prac[k]) : prac }, grade, borrowed: null });
     const from = sel.from;
     t.task = id;
     t.w3 = true;
     t.legacy_block = null;
     t.title = TITLE[id.split('.')[1]];
     t.tap.items.forEach((it, i) => { it.id = `${id}.${pad(i + 1)}`; it.src = `${from}.items[${sel.pick[i]}]`; });
-    t.practice.forEach((it, i) => { it.id = `${id}.p${i + 1}`; it.src = `${sel.practice_from}[${i}]`; });
+    t.practice.forEach((it, i) => { it.id = `${id}.p${i + 1}`; it.src = `${sel.practice_from}[${sel.practice_pick ? sel.practice_pick[i] : i}]`; });
+    if (sel.practice_note) t.practice_note = sel.practice_note;
     t.tap.stop = null;
     t.stop_note = 'Core EGMA\'s 4-errors-in-a-row stop cannot fire on 2-4 items';
     // Core EGMA prints these two tasks' instruction as the item line (Tasks 2, 3), verbatim
@@ -295,7 +328,7 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
 /** A W3 task in the page's language (the engine's contract, RULING W3-2 §8). */
 function runtimeW3Task(t, lang, H) {
   const { inLang, chainIn, runtimeTask, runtimeScript } = H;
-  const coach = { text: t.coach_text[lang], src: t.coach_text.src };
+  const coach = { text: t.coach_text[lang], src: t.coach_text[`src_${lang}`] || t.coach_text.src };
   if (t.kind === 'passage' || t.kind === 'questions' || (t.tap && t.kind !== 'oral' && t.kind !== 'grid')) {
     const r = runtimeTask({ ...t, variants: t.variants }, lang);
     const o = { ...r, w3: true, coach_text: coach };
