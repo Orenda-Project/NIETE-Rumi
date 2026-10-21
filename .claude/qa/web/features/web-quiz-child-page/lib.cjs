@@ -249,6 +249,61 @@ async function finishFast(page, ctx, code, name, { wrongAt = -1, open = true } =
   return { st: s.st, device: s.device_ref || dref || null, chip: child.chip || null, child, result, questions: quiz.questions };
 }
 
+// Land on ONE question without clicking through the ones before it: the bot API starts the session and records the
+// earlier answers (right ones), the page storage is written as the page writes it mid-quiz, and the quiz reopens on
+// "Continue" -> the first unanswered question, which is the target (questions are served in sort_order). `pick` is a
+// stem substring or a predicate over the payload question (bd-kcifne).
+async function reachPlan(page, ctx, code, name) {
+  if (!/^https?:/.test(page.url()) || !page.url().startsWith(ctx.baseUrl)) await page.goto(ctx.baseUrl + '/wq/probe.html', { waitUntil: 'domcontentloaded' });
+  const r = await page.request.get(ctx.baseUrl + '/api/wq/quiz/' + code);
+  expect(r.status() === 200, 'GET quiz/' + code + ' -> ' + r.status());
+  const quiz = (await r.json()).quiz;
+  return { quiz, code, name: name || ('Item' + Math.floor(Math.random() * 1e6)) };
+}
+async function reachGo(page, ctx, plan, target) {
+  const qs = plan.quiz.questions;
+  const at = qs.findIndex((x) => x === target || (target && x.qid === target.qid));
+  expect(at >= 0, 'the target question is not served by ' + plan.code);
+  // the target is the first question: nothing to skip, so start as a new child the normal way (it lands on it)
+  if (at === 0) {
+    const b0 = await startAsNew(page, ctx, plan.code, plan.name);
+    const q0 = await current(page, b0.quiz.questions);
+    expect(q0.qid === qs[0].qid, 'the first question is "' + q0.text.slice(0, 40) + '"');
+    return { q: q0, qs: b0.quiz.questions, boot: b0, st: null };
+  }
+  const dref = await stored(page, 'wq_d');
+  const call = async (p, body) => {
+    const r = await page.request.post(ctx.baseUrl + '/api/wq/' + p, { data: body });
+    let json = null; try { json = await r.json(); } catch (_) { /* not JSON */ }
+    expect(r.status() === 200, 'POST ' + p + ' -> ' + r.status() + ' ' + JSON.stringify(json).slice(0, 140));
+    return json;
+  };
+  const s = await call('session', { code: plan.code, new: { name: plan.name, cls: String(plan.quiz.grade || ''), force: true }, ...(dref ? { device_ref: dref } : {}) });
+  const before = qs.slice(0, at);
+  if (before.length) await call('answers', { st: s.st, a: before.map((x) => ({ qid: x.qid, slot: String(x.correct_slot), ms: 1200 })) });
+  const answers = Object.fromEntries(before.map((x) => [x.qid, { slot: String(x.correct_slot), ok: true }]));
+  await page.evaluate(([c, st, ch, ans, n, dev]) => {
+    localStorage.setItem('wq_s_' + c, JSON.stringify({ st, child: ch, answers: ans, queue: [], seq: n, wrong: [], result: null, vt: 0, vdone: 1, counted: true, reason: null, fixed: 0 }));
+    if (dev) localStorage.setItem('wq_d', JSON.stringify(dev));
+  }, [plan.code, s.st, s.child || { first: plan.name }, answers, before.length, s.device_ref || dref || null]);
+  await openQuiz(page, ctx, plan.code);
+  await page.waitForSelector('#wq-cont, ' + onScreen('M6') + ' .wq-item', { state: 'visible', timeout: WAIT });
+  if (await page.$('#wq-cont')) await tap(page, '#wq-cont');
+  await page.waitForSelector(onScreen('M6') + ' .wq-item', { state: 'visible', timeout: WAIT });
+  const b = await boot(page);
+  const q = await current(page, b.quiz.questions);
+  expect(q.qid === qs[at].qid, 'the page opened on "' + q.text.slice(0, 40) + '", not the target "' + qs[at].text.slice(0, 40) + '"');
+  return { q, qs: b.quiz.questions, boot: b, st: s.st };
+}
+// One call: plan the quiz, pick the target by stem substring or predicate, land on it.
+async function reachFast(page, ctx, code, pick, name) {
+  const plan = await reachPlan(page, ctx, code, name);
+  const match = typeof pick === 'function' ? pick : (x) => x.text.includes(pick);
+  const target = plan.quiz.questions.find(match);
+  expect(target, 'the quiz serves no question matching ' + pick + ' (served: ' + plan.quiz.questions.map((x) => x.text.slice(0, 30)).join(' | ') + ')');
+  return reachGo(page, ctx, plan, target);
+}
+
 // ── a second phone, page storage, page events ────────────────────────────────────────────────────────────────────
 async function newPhone(page) {
   const context = await page.context().browser().newContext({ viewport: { width: 412, height: 915 } });
@@ -282,6 +337,6 @@ function events(page) {
   };
 }
 
-module.exports = { finishFast, local, tap, flatLog, answerRight, nextQ, unesc, og, setFlag, botLog, workerLog, portalLog, expect, watch, WAIT, CODES, TOPIC, text, inner, count, boot, onScreen, screen, sleep, healthy,
+module.exports = { reachPlan, reachGo, reachFast, finishFast, local, tap, flatLog, answerRight, nextQ, unesc, og, setFlag, botLog, workerLog, portalLog, expect, watch, WAIT, CODES, TOPIC, text, inner, count, boot, onScreen, screen, sleep, healthy,
   q, one, rows, codeRow, teacherOf, studentNamed, tokens, bot, setMode, openQuiz, startAsNew, current, wrongSlot,
   tapAndNext, play, toResults, finishAsNew, newPhone, stored, remember, chipFor, events, base };
