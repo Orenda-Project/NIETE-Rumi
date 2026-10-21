@@ -277,6 +277,8 @@
     function taskLang(t) { return (t && t.lang) || lang; }
     function dirOf(t) { return (t && t.direction && t.direction !== 'ltr') ? t.direction : (taskLang(t) === 'ur' ? 'rtl' : 'ltr'); }
     function line(name) { return lines[name] || null; }
+    /** One of the engine's own lines: the battery's (it carries the clip) when it has it, else the built-in words. */
+    function copyLine(name) { return line(name) || { en: COPY.en[name], ur: COPY.ur[name] }; }
     function introOf(t) {
       var s = t.script || {};
       var o = (t.mode === 'record' || t.mode === 'oral') ? s.intro_record : s.intro_tap;
@@ -595,9 +597,9 @@
       if (!res) return;
       busy = true;
       var f = res.feedback || {};
-      var said = res.ok ? (f.correct || f.right || { en: COPY.en.right, ur: COPY.ur.right })
-        : res.retry ? { en: COPY.en.try_again, ur: COPY.ur.try_again }
-          : (f.wrong || { en: COPY.en.shown, ur: COPY.ur.shown });
+      var said = res.ok ? (f.correct || f.right || copyLine('right'))
+        : res.retry ? copyLine('try_again')
+          : (f.wrong || copyLine('shown'));
       // A line naming an item of the other language is a chain of clips (RULING #31a): said one after another.
       var chain = Array.isArray(said) ? said : [said];
       hold = { item: p, value: value, res: res, text: chain.map(tx).join(' ') };
@@ -871,7 +873,7 @@
       var skipMs = typeof opts.micSkipMs === 'number' ? opts.micSkipMs : 15000;
       if (!st.shownAt) {
         st.shownAt = Date.now();
-        later(function () { if (micSt === st && st.stage === 'idle') { draw(); say({ en: COPY.en.mic_skip_say, ur: COPY.ur.mic_skip_say }); } }, skipMs + 10);
+        later(function () { if (micSt === st && st.stage === 'idle') { draw(); say(copyLine('mic_skip_say')); } }, skipMs + 10);
       }
       var canSkip = !rec && Date.now() - st.shownAt >= skipMs;
       var mic = h('button', { class: 'sae-mic sae-mic-btn sa-mic' + (rec ? ' is-on' : ''), type: 'button', 'aria-label': C.mic_tap, disabled: rec },
@@ -1123,7 +1125,7 @@
           if (!check) newCheck();
           sayChain([[line('audio_check') || { en: COPY.en.audio_q, ur: COPY.ur.audio_q }], [{ en: check.target.en, ur: check.target.ur }, check.target.audio || null]]);
         }
-      } else if (v.phase === 'warmup') say({ en: COPY.en.warm_title, ur: COPY.ur.warm_title });
+      } else if (v.phase === 'warmup') say(copyLine('warm_title'));
       else if (v.phase === 'mic_check') {
         if (typeof opts.micProbe !== 'function') later(function () { if (runner.view().phase === 'mic_check') { micSt = null; runner.micChecked(false, 0); draw(); } }, 0);
         else say(line('mic_check') || { en: COPY.en.mic_say, ur: COPY.ur.mic_say });
@@ -1161,7 +1163,7 @@
         // recording nor in the silence watch's first second.
         starSpeech = say(line('done') || { en: COPY.en.done, ur: COPY.ur.done });
       } else if (v.phase === 'last_word') {
-        sayChain([v.time_left_ms === 0 && s.time_up ? [s.time_up] : null, s.intro_tap ? [s.intro_tap] : [{ en: COPY.en.last_word, ur: COPY.ur.last_word }]]);
+        sayChain([v.time_left_ms === 0 && s.time_up ? [s.time_up] : null, s.intro_tap ? [s.intro_tap] : [copyLine('last_word')]]);
       } else if (v.phase === 'task_end') {
         var r = v.result || {};
         var skipped = /^skipped|^assets_unavailable/.test(r.stop_reason || '');
@@ -1175,8 +1177,8 @@
           if (now.phase === 'task_end' && now.task_index === at) { runner.next(); draw(); }
         });
       } else if (v.phase === 'battery_end') {
-        if (mode === 'proctored') say(handback === 'teacher' && line('end') ? line('end') : { en: COPY.en.give_coach, ur: COPY.ur.give_coach });
-        else say({ en: COPY.en.all_done, ur: COPY.ur.all_done });
+        if (mode === 'proctored') say(handback === 'teacher' && line('end') ? line('end') : copyLine('give_coach'));
+        else say(copyLine('all_done'));
       }
     }
 
@@ -1311,7 +1313,7 @@
         if (!alive || backWaiting) return;
         backWaiting = true;
         draw();
-        say({ en: COPY.en.back_wait, ur: COPY.ur.back_wait });
+        say(copyLine('back_wait'));
       },
       /** The sync status ({ state, pending_events }) as a small coach-facing dot (proctored only). */
       setSync: function (status) {
