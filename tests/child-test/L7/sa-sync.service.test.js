@@ -289,4 +289,51 @@ describe('another phone, by a link the coach shares (no coach sign-in on that ph
     const res = await Svc.saViaLink({ token, op: 'batch', sessionId: SESSION, seqFrom: 0, seqTo: 0, events: [], results: [] }, deps);
     expect(res).toEqual({ status: 'ok', ackedTo: 0 });
   });
+
+  // a claim store like the Redis service's: SET NX with a TTL, GET
+  const claimStore = () => {
+    const m = new Map();
+    return {
+      m,
+      setNX: jest.fn(async (k, v, ttl) => { if (m.has(k)) return false; m.set(k, { v, ttl }); return true; }),
+      get: jest.fn(async (k) => (m.has(k) ? m.get(k).v : null)),
+    };
+  };
+  const PHONE_A = 'a1b2c3d4e5f60718293a4b5c';
+  const PHONE_B = 'ffeeddccbbaa998877665544';
+
+  test('one phone per link (switch on): the first phone to use it keeps it; another phone, or none, is refused', async () => {
+    const claims = claimStore();
+    const deps = makeDeps({ linkOnePhone: true, linkClaims: claims });
+    const { token } = await Svc.saLink({ userId: COACH, sessionId: SESSION }, deps);
+    expect(await Svc.saViaLink({ token, op: 'whois', sessionId: SESSION, phone: PHONE_A }, deps)).toEqual({ status: 'ok', coachUserId: COACH, sessionId: SESSION });
+    expect((await Svc.saViaLink({ token, op: 'status', sessionId: SESSION, phone: PHONE_A }, deps)).session.id).toBe(SESSION);
+    expect(await Svc.saViaLink({ token, op: 'whois', sessionId: SESSION, phone: PHONE_B }, deps)).toEqual({ status: 'not_found' });
+    expect(await Svc.saViaLink({ token, op: 'status', sessionId: SESSION }, deps)).toEqual({ status: 'not_found' });
+    expect(await Svc.saViaLink({ token, op: 'status', sessionId: SESSION, phone: 'not a phone id!' }, deps)).toEqual({ status: 'not_found' });
+    // the claim names no token, lives no longer than the link, and holds the phone's id only
+    const [[key, value, ttl]] = claims.setNX.mock.calls;
+    expect(key).toMatch(/^ct:sa-link:[0-9a-f]{32}$/);
+    expect(key).not.toContain(token.slice(0, 20));
+    expect(value).toEqual({ p: PHONE_A });
+    expect(ttl).toBeGreaterThan(3500);
+    expect(ttl).toBeLessThanOrEqual(3600);
+  });
+
+  test('one phone per link: a claim store that fails lets the link work as before (the hour still bounds it)', async () => {
+    const claims = { setNX: jest.fn(async () => { throw new Error('down'); }), get: jest.fn(async () => null) };
+    const deps = makeDeps({ linkOnePhone: true, linkClaims: claims });
+    const { token } = await Svc.saLink({ userId: COACH, sessionId: SESSION }, deps);
+    expect((await Svc.saViaLink({ token, op: 'status', sessionId: SESSION, phone: PHONE_A }, deps)).session.id).toBe(SESSION);
+    expect((await Svc.saViaLink({ token, op: 'status', sessionId: SESSION, phone: PHONE_B }, deps)).session.id).toBe(SESSION);
+  });
+
+  test('switch off (the default): no claim is made and any phone, or none, works as before', async () => {
+    const claims = claimStore();
+    const deps = makeDeps({ linkClaims: claims });
+    const { token } = await Svc.saLink({ userId: COACH, sessionId: SESSION }, deps);
+    expect((await Svc.saViaLink({ token, op: 'status', sessionId: SESSION, phone: PHONE_A }, deps)).session.id).toBe(SESSION);
+    expect((await Svc.saViaLink({ token, op: 'status', sessionId: SESSION, phone: PHONE_B }, deps)).session.id).toBe(SESSION);
+    expect(claims.setNX).not.toHaveBeenCalled();
+  });
 });

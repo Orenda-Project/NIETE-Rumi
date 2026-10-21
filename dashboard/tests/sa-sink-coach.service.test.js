@@ -8,7 +8,7 @@ const { create, linked } = require('../sa/sink-coach');
 function fakeFetch(answers) {
   const calls = [];
   const f = async (url, init) => {
-    calls.push({ url, method: init.method || 'GET', cred: init.credentials, body: init.body ? JSON.parse(init.body) : null });
+    calls.push({ url, method: init.method || 'GET', cred: init.credentials, headers: init.headers || {}, body: init.body ? JSON.parse(init.body) : null });
     const a = answers.shift() || { status: 200, body: {} };
     return { ok: a.status < 300, status: a.status, json: async () => a.body };
   };
@@ -42,6 +42,27 @@ test('a linked phone: the token routes, no cookie, same paths underneath', async
   const { f, calls } = fakeFetch([{ status: 200, body: { ackedTo: 2 } }]);
   await linked('tok_ABCDEFGHIJKLMNOP.x', { fetch: f }).putBatch({ session_id: 's1', seq_from: 1, seq_to: 2, events: [], results: [] });
   expect(calls[0]).toMatchObject({ url: '/api/portal/leader/child-test/sa/link/tok_ABCDEFGHIJKLMNOP.x/session/s1/batch', cred: 'omit' });
+});
+
+test('a linked phone names itself by its own random id (X-SA-Phone), the same on every call; the coach\'s phone does not', async () => {
+  const store = {};
+  const ls = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } };
+  const { f, calls } = fakeFetch([]);
+  await linked('tok_A.x', { fetch: f, localStorage: ls }).putBatch({ session_id: 's1', seq_from: 1, seq_to: 1, events: [], results: [] });
+  await linked('tok_A.x', { fetch: f, localStorage: ls }).status('s1');
+  await create({ fetch: f, localStorage: ls }).status('s1');
+  const id = calls[0].headers['X-SA-Phone'];
+  expect(id).toMatch(/^[0-9a-f]{24}$/);
+  expect(calls[1].headers['X-SA-Phone']).toBe(id);
+  expect(store['sa:phone']).toBe(id);
+  expect(calls[2].headers['X-SA-Phone']).toBeUndefined();
+  // blocked storage: still an id for this page's life, so the calls of one run agree
+  const { f: f2, calls: c2 } = fakeFetch([]);
+  const s2 = linked('tok_A.x', { fetch: f2, localStorage: null });
+  await s2.status('s1');
+  await s2.status('s1');
+  expect(c2[0].headers['X-SA-Phone']).toMatch(/^[0-9a-f]{24}$/);
+  expect(c2[1].headers['X-SA-Phone']).toBe(c2[0].headers['X-SA-Phone']);
 });
 
 test('every batch carries the phone\'s device fields (mic check, storage, voice); a presign skip comes through', async () => {
