@@ -857,7 +857,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   Scenario: With work of their own, Part 2 asks what the teacher did and what children did when stuck
     Given the live form is open on Part 2
     When I choose "Every child had a task"
-    Then it asks "While they worked, the teacher" with "Went round the room", "Looked at their work", "Helped those who were stuck", "Gave more to early finishers" and "Stayed at the front"
+    Then it asks "While they worked, the teacher" with "Went round the room", "Looked at their work", "Asked children one by one", "Helped those who were stuck", "Re-explained a common mistake", "Gave more to early finishers" and "Stayed at the front"
     And it asks "When the work got hard" with "No one tried", "Tried only when sure", "2+ tried while unsure", "Tried unasked, kept going" and "Nobody got stuck"
     When I leave both unanswered and tap "Part 2 done"
     Then the form stays on Part 2 and asks for both
@@ -865,6 +865,23 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then neither is asked, and "Part 2 done" saves the part
     # rules.js: "When the work got hard" is D4's level (the titles are PLAIN.D4); "Helped those who were
     # stuck" makes C2 at least 2. Both are named on the check's "because" lines and in the record.
+    # "Asked children one by one" and "Re-explained a common mistake" since form version 6 (pilot sheet R4's
+    # comment, round 7).
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The teacher's checking moves during independent practice reach the levels they evidence
+    Given the live form is open on Part 2
+    When I choose "Every child had a task"
+    And I tick "Asked children one by one" and "Re-explained a common mistake" under "While they worked, the teacher"
+    And I finish Part 2, seal the form and send the recording
+    And I open the "Check the moments" form and tap through to the levels
+    Then "When an answer was wrong" is pre-set to "Marked wrong, little reason" at the least
+    And its line names both moves: asked children one by one whether they understood or needed help, and re-explained a common mistake to the whole class
+    And "Who got to answer" keeps the level from Part 1, and its line names asking children one by one
+    # Pilot sheet R4's comment (round 7): the check for understanding and re-teaching a misconception during
+    # independent practice. rules.js: re-explaining is a response to wrong answers (C2 level 2: "… or
+    # re-explains"), so C2 is at least 2 and never more from it alone; asking each child is named on C2 and
+    # C3 and sets no level. F1 and D5 are untouched; the 17 descriptors and the section sums are unchanged.
 
   @e2e @flow @config-gated @destructive @wip @draft @P1
   Scenario: Part 1 asks what materials were used, and they are named, not scored
@@ -1081,6 +1098,48 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe2-check-endpoint.js renderPriority (the check posts cv=2 from ADDED_TWO); a check opened on
     # the Flow published before this keeps its own screen. analysis.js focus_area for "plan" is Section B;
     # target-resolver.js resolves it for the report's one target.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: "Work on first" offers the coaching focus areas coaches asked for, and says what each choice means
+    Given the live form is open on "Before you seal"
+    When I open "Work on first"
+    Then it lists "Wait time after a question" after "Children asking questions"
+    And it lists "Classroom management" and "Classroom rules" after "Smooth switches of activity"
+    And it ends with "Following the plan's steps", "An engaging warm-up" and "Effective lesson closure"
+    And "Following the plan's steps" says it is the whole 5-step lesson plan, lesson plan fidelity and classroom structure
+    And "Real group work" says it is assigning and managing group work
+    And "Also work on" and "And also" list the same choices after "Nothing else"
+    # FICO pilot sheet R20 and R21 (two coaches, 16 Oct). The five are coaching focus areas, not scored
+    # indicators (fico17.js COACHING_FOCUS): no level, no section sum. Each title fits 30 code points.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: A coaching focus area carries through the check, the brief and the teacher's report
+    Given I sealed with "Classroom management" first and "Wait time after a question" under "Also work on"
+    And the "Check the moments" form is open
+    When I tap through to "Work on first"
+    Then "Work on first" shows "Classroom management" and "Also work on" shows "Wait time after a question"
+    When I tap "Submit"
+    Then the brief says "Work on first: Classroom management"
+    And it says what I saw: how the class switched activity, and whether only some children had a task
+    And it gives the next step: one signal for attention and one routine for switching tasks, used every time
+    And it says "Also work on: Wait time after a question" with the teacher's questions and the children's answers I saw
+    And the teacher's report names "Classroom management" as the next horizon
+    And no level or section score changed because of the pick
+    # The brief is in my language (en or ur); the next steps are written for both. In Urdu the English phrases
+    # sit as isolates. The record's focus_area is {indicator: "manage", domain: "high_leverage_practices"},
+    # and target-resolver.js resolves it to the pick, never to the weakest row.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P2
+  Scenario: A check opened on the older Flow keeps a sealed coaching focus area it cannot show
+    Given I sealed with "An engaging warm-up" first and "Classroom rules" under "Also work on"
+    And the "Check the moments" message was sent before the check Flow was republished
+    When I tap through to "Work on first"
+    Then "Work on first" is empty and "Also work on" shows "Nothing else"
+    When I choose "Smooth switches of activity" and tap "Submit"
+    Then the brief says "Work on first: Smooth switches of activity"
+    And it says "Also work on" for "An engaging warm-up" and "Classroom rules"
+    # observe2-check-endpoint.js: each published check (no cv, cv 2, cv 3) is pre-filled only with what its
+    # lists have; a sealed pick its lists could not show is kept, first, as "Also work on".
 
   @e2e @audio @config-gated @destructive @wip @draft @P1
   Scenario: The recording joins the sealed record and its moments come back to check
