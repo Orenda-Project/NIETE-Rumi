@@ -499,6 +499,47 @@ def test_portal_smoke_fan_out_is_never_stale():
     shutil.rmtree(r)
 
 
+# ── a none-needed declaration also answers the E2E column (bd-481a2c, operator 2026-10-21) ─────────────────────────
+def test_none_needed_feature_without_a_run_is_not_needed_not_missing():
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "fix(menu): copy\n\nSpec-Sync: menu=none-needed (log line only)",
+                  **{"bot/shared/services/menu.service.js": "// c\n"})
+    res = ci.analyse(r, base, head)
+    assert res["per_feature"]["menu"]["e2e_proof"] == "not-needed", res["per_feature"]["menu"]
+    assert res["verdict"]["e2e_proof"] != "missing", res["verdict"]
+    assert ci.exit_code(res, freshness="block", proof="block") == 0
+    md = ci.render_markdown(res)
+    assert "not needed" in md and "⬜ missing" not in md, md
+    assert "E2E proof: missing" not in md, md
+    assert "e2e: missing" not in ci.render_text(res), ci.render_text(res)
+    shutil.rmtree(r)
+
+
+def test_none_needed_feature_with_a_run_still_shows_the_run():
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    commit(r, "fix(menu): copy\n\nSpec-Sync: menu=none-needed (log line only)",
+           **{"bot/shared/services/menu.service.js": "// c\n"})
+    row = {"run_id": "x", "surface": "whatsapp", "feature": "menu", "status": "HEALTHY",
+           "summary": {"total": 12, "passed": 12, "failed": 0, "blocked": 0}}
+    head = commit(r, "qa: menu run", **{".claude/qa/ledgers/runs.jsonl": json.dumps(row) + "\n"})
+    res = ci.analyse(r, base, head)
+    assert res["per_feature"]["menu"]["e2e_proof"] == "HEALTHY", res["per_feature"]["menu"]
+    assert res["verdict"]["e2e_proof"] == "recorded", res["verdict"]
+    shutil.rmtree(r)
+
+
+def test_web_none_needed_feature_without_a_run_is_not_needed_not_missing():
+    r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "refactor(portal): rename a variable", **{"portal/src/portal/pages/PortalLogin.tsx": "// c\n"})
+    res = ci.analyse(r, base, head, pr_body="Spec-Sync: portal-login=none-needed (pure rename, nothing a user sees)")
+    assert res["web_per_feature"]["portal-login"]["e2e_proof"] == "not-needed", res["web_per_feature"]
+    assert res["verdict"]["web_e2e_proof"] != "missing", res["verdict"]
+    assert ci.exit_code(res, freshness="block", proof="block") == 0
+    md = ci.render_markdown(res)
+    assert "Web E2E proof: missing" not in md and "⬜ missing" not in md, md
+    shutil.rmtree(r)
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
