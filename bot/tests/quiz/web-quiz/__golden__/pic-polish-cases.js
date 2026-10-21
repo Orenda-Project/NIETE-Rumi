@@ -1,7 +1,8 @@
 'use strict';
 /**
  * The cases the share-picture polish switch's "off" hashes cover (web-quiz-art-pic-polish.test.js), shared by the test and
- * by the one-off recorder that wrote web-quiz-art-pic-polish-off.json on the base. Every kind, size, language, a short,
+ * by the one-off recorder that wrote web-quiz-art-pic-polish-off.json (and the switch-on hashes,
+ * web-quiz-art-pic-polish-on.json) on the base. Every kind, size, language, a short,
  * a long Urdu and a long Latin name, the switch sets the share runs with, the friend's door, and the class table with
  * 3, 6 and 10 rows with the child first, in the middle and last.
  */
@@ -9,7 +10,9 @@ const crypto = require('crypto');
 
 const LONG = 'محمدعبدالرحمان';
 const LATIN = 'Muhammad Abdurrahman Testwala';
-const NAMES = ['Iqra Testwala', LONG, LATIN];
+// one long Latin word: the wide challenge's headline ran under Jugnu with it
+const ONE = 'Muhammadabdulrahman';
+const NAMES = ['Iqra Testwala', LONG, LATIN, ONE];
 const LIVE = { ur2: true, ink: true, ud: true, nf: true };
 const UIS = { none: undefined, live: LIVE, ink: { ink: true }, stack: { ...LIVE, us: true } };
 const ANI = ['cat', 'turtle', 'parrot', 'owl', 'dog', 'fish', 'lion', 'bee', 'horse', 'rabbit'];
@@ -37,4 +40,4 @@ function cases() {
   }
   return out;
 }
-module.exports = { cases, sha, LIVE, LONG, LATIN };
+module.exports = { cases, sha, LIVE, LONG, LATIN, ONE };
