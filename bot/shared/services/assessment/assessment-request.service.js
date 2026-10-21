@@ -82,6 +82,8 @@ async function createAndQueue(spec) {
     // question_types, the pages, the count), and no column is added for it.
     pattern = null,
     scope = null,
+    // 'topic' for a paper on some of one chapter's topics; the column default ('chapter') holds otherwise.
+    paperKind = null,
   } = spec;
 
   // Every paper gets an answer key, and she is no longer asked (bd-bfnsk). A
@@ -114,6 +116,7 @@ async function createAndQueue(spec) {
       has_answer_key: includeAnswerKey,
       has_answer_lines: answerLines !== false,
       output_format: outputFormat,
+      ...(paperKind ? { paper_kind: paperKind } : {}),
     })
     .select('id')
     .single();
@@ -147,6 +150,7 @@ async function createAndQueue(spec) {
     // Spread in only when set: an ordinary paper's payload must not gain even
     // an undefined key, so it stays byte-for-byte the job it was before.
     ...(pattern ? { pattern, scope } : {}),
+    ...(!pattern && paperKind === 'topic' ? { scope } : {}),
   });
 
   logToFile('[assessment] queued', {

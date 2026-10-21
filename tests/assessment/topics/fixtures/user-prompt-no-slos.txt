@@ -1,0 +1,24 @@
+**Grade:** 3
+**Subject:** english
+**Page Reference:** Pages 58-63
+
+**Book Text Content:**
+```
+PAGE TEXT
+```
+
+**GENERATE THE FOLLOWING:**
+• Unseen Objective questions — 4 MCQs, 2 Fill in the Blanks
+• In total the paper must have exactly 6 questions — no more
+• The whole paper must be worth 10 marks in total — allocate the marks across the questions so they add up to 10 and NEVER exceed it
+
+**IMPORTANT NOTES:**
+• For SEEN questions: Extract questions exactly as they appear in the textbook
+• For UNSEEN questions: Create new questions based on concepts from the textbook
+• The paper carries no pictures. Do NOT include any question that needs a picture, illustration or diagram to answer (e.g. "write the name of each object under its picture", "look at the picture and…", "colour the…"). Rewrite it so it can be answered from text alone, or leave it out
+• Include proper marks allocation for each question
+• Maintain grade-appropriate language and difficulty
+• Return output in the JSON format specified in the system prompt
+• Where a question type specifies an exact count (e.g. "5 MCQs"), generate EXACTLY that many questions for that type — no more, no less
+
+---

@@ -560,7 +560,7 @@ async function buildPaper(job, user = {}) {
   const {
     userId, requestId, grade, subject, chapterNumber, pageRanges,
     questionTypes = [], contentSource = 'unseen', questionCount, totalMarks = null, seenCount = null,
-    outputFormat = 'pdf', answerLines = true, pattern = null,
+    outputFormat = 'pdf', answerLines = true, pattern = null, scope = null,
   } = job;
 
   // Open the record before doing any work, so a job that dies mid-flight leaves
@@ -605,6 +605,8 @@ async function buildPaper(job, user = {}) {
       // Always: answers are generated for every paper, so a key can always be
       // made — now, after a revision, or from the portal later (bd-bfnsk).
       contentSource, questionCount, totalMarks, questionTypes, includeAnswerKey: true, seenCount,
+      // A topic paper tests the ticked topics' skills; any other job passes no key at all.
+      ...(scope && scope.kind === 'topics' ? { slos: scope.slos } : {}),
     });
 
     // With versioned editing the generated row IS version 1 and is never
