@@ -233,8 +233,9 @@ button{font:inherit;color:inherit}
 .sae-kpwarm .sae-body{gap:8px;justify-content:flex-start}
 .sae-kpwarm .sae-say{font-size:18px}
 .sae-kpwarm .sae-kpw-typed{min-height:60px;font-size:42px}
-/* The sandbox-only "Jump to…" (RULING #43): a tester's tool, plainly not part of the child's screen. */
-.sae-devjump-row{display:flex;flex:0 0 auto;width:100%}
+/* The sandbox-only "Jump to…" (RULING #43): a tester's tool, plainly not part of the child's screen; its row starts
+   below the coach's corner hold (the portal's top-start End test, ~56 px). */
+.sae-devjump-row{display:flex;flex:0 0 auto;width:100%;margin-top:56px}
 .sae-devjump{max-width:100%;font-size:13px;padding:4px 6px;border:1px dashed #b45309;border-radius:8px;background:#fff7ed;color:#7c2d12}
 /* A11: the disabled demo copy of item 1 under the instruction (Tangerine's demo pattern). */
 .sae-demo{width:100%;display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.75;pointer-events:none}
@@ -250,5 +251,6 @@ button{font:inherit;color:inherit}
 .sae-coach-says{width:100%;max-width:520px;background:var(--sae-card);border:3px dashed var(--sae-line);border-radius:var(--sae-r);padding:8px 12px;text-align:start}
 .sae-coach-says summary{cursor:pointer;font-weight:700}
 .sae-coach-line{margin:4px 0 0;line-height:1.7}
-.sae-passage.is-printed{word-spacing:.35em;line-height:2.1}
-.sae-passage.is-printed[lang=ur]{word-spacing:.45em;line-height:2.7}
+.sae-passage.is-printed{word-spacing:.35em;line-height:1.6}
+.sae-passage.is-printed[lang=ur]{word-spacing:.35em;line-height:2.0}
+@media (max-width:360px){.sae-passage.is-printed{font-size:23px}.sae-passage.is-printed[lang=ur]{font-size:25px}}
