@@ -46,7 +46,7 @@ type Load = { kind: 'loading' } | { kind: 'off' } | { kind: 'failed' } | { kind:
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1">
-      <dt className="min-w-0 text-sm text-slate-600">{label}</dt>
+      <dt className="shrink-0 text-sm text-slate-600">{label}</dt>
       <dd className="min-w-0 text-end font-medium text-slate-900 [overflow-wrap:anywhere]">{value}</dd>
     </div>
   );
@@ -97,6 +97,8 @@ export default function LeaderAssessResults() {
     const spoken = t.mode === 'record' || t.mode === 'oral';
     const scored = t.recording === 'scored' && !!t.score && Object.values(t.score).some((v) => typeof v === 'number');
     const stop = t.stopReason ? (r.stops as Record<string, string>)[t.stopReason] || t.stopReason : null;
+    // a task the child never did (sandbox Jump, level 2 skipped, no microphone) has no counts: say how it ended only
+    const skipped = !!t.stopReason && (t.stopReason.startsWith('skipped_') || t.stopReason === 'mic_unavailable') && !t.attempted;
     return (
       <li key={t.taskId} data-testid={`result-task-${t.taskId}`} className="rounded-2xl border border-slate-200 bg-white p-4">
         {t.title?.[lang] ? (
@@ -107,6 +109,7 @@ export default function LeaderAssessResults() {
         ) : <h2 className="mb-1 font-semibold text-slate-900"><bdi>{t.taskId}</bdi></h2>}
         <dl className="divide-y divide-slate-100">
           <Row label={r.mode} value={mode} />
+          {skipped ? null : <>
           {!spoken && <Row label={r.attempted} value={n(t.attempted)} />}
           {!spoken && <Row label={r.correct} value={n(t.correct)} />}
           {t.mode === 'tap' && <Row label={r.optionsN} value={n(t.optionsN)} />}
@@ -118,6 +121,7 @@ export default function LeaderAssessResults() {
           ))}
           {/* no score yet is "kept, scored later" — never a 0 or an empty score (no scorer, or scoring off) */}
           {spoken && !scored && t.recording !== 'none' && <Row label={r.recording} value={r.scoredLater} />}
+          </>}
           {stop && <Row label={r.stopReason} value={stop} />}
         </dl>
       </li>
