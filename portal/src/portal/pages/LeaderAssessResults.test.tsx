@@ -196,6 +196,39 @@ describe("LeaderAssessResults", () => {
     expect(within(dev).getByText("چھوڑ دیا گیا (سینڈ باکس جمپ)")).toBeTruthy();
   });
 
+  it("Urdu: a scored task's numbers are labelled in Urdu, never the scorer's keys (0 raw keys on the page)", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    const title = { ur: "کہانی", en: "Story" };
+    api.getResults.mockResolvedValue({ ...RESULTS, tasks: [
+      { taskId: "ur.passage", title, mode: "record", attempted: null, correct: null, optionsN: null, chanceCorrected: null, itemsPerMin: null, stopReason: "complete", recording: "scored", score: { correct: 30, attempted: 34, per_minute: 31.6, seconds_used: 57 } },
+      { taskId: "ur.story_comp", title, mode: "oral", attempted: null, correct: null, optionsN: null, chanceCorrected: null, itemsPerMin: null, stopReason: "complete", recording: "scored", score: { correct: 2, of: 3, new_number: 1 } },
+    ] });
+    renderAt();
+    await screen.findByTestId("result-task-ur.passage");
+    const root = screen.getByTestId("results-root").cloneNode(true) as HTMLElement;
+    // the task code under each title and the "English" switch are the only Latin text an Urdu page may carry
+    root.querySelectorAll('[data-testid="result-task-id"]').forEach((el) => el.remove());
+    root.querySelectorAll("button").forEach((el) => { if (el.textContent === "English") el.remove(); });
+    expect(root.textContent).not.toMatch(/[a-z_]/);
+    const passage = screen.getByTestId("result-task-ur.passage");
+    for (const label of ["نمبر · درست", "نمبر · کوشش", "نمبر · فی منٹ درست", "نمبر · لگے ہوئے سیکنڈ"]) {
+      expect(within(passage).getByText(label)).toBeTruthy();
+    }
+    expect(within(screen.getByTestId("result-task-ur.story_comp")).getByText("نمبر · کل سوال")).toBeTruthy();
+  });
+
+  it("English: the scorer's keys read as words; an unknown key shows the score label alone", async () => {
+    api.getResults.mockResolvedValue({ ...RESULTS, tasks: [
+      { taskId: "en.passage", mode: "record", attempted: null, correct: null, optionsN: null, chanceCorrected: null, itemsPerMin: null, stopReason: "complete", recording: "scored", score: { per_minute: 31.6, seconds_used: 57, new_number: 1 } },
+    ] });
+    renderAt();
+    const card = await screen.findByTestId("result-task-en.passage");
+    expect(within(card).getByText("Score · Correct per minute")).toBeTruthy();
+    expect(within(card).getByText("Score · Seconds used")).toBeTruthy();
+    expect(within(card).getByText("Score")).toBeTruthy();
+    expect(card.textContent).not.toMatch(/per_minute|seconds_used|new_number/);
+  });
+
   it("a row's label never wraps beside a long value: the label keeps its width", async () => {
     renderAt();
     const tap = await screen.findByTestId("result-task-ur.letters");
