@@ -215,7 +215,8 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
             disabled={batteryEnded === 'ending'} onDone={coachEnd} />
         </div>
       ) : (
-        <div className="fixed bottom-2 end-2" style={{ zIndex: 1001 }}>
+        // top-start: the engine's full-width bottom buttons and its top-end dev Jump and sync dot stay clear
+        <div data-testid="assess-hold-end" className="fixed top-2 start-2" style={{ zIndex: 1001 }}>
           <HoldButton compact label={copy.holdEnd} hint={copy.holdHint} onDone={coachEnd} />
         </div>
       )}
