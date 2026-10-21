@@ -43,15 +43,24 @@ function createByteLru(maxBytes = LRU_BYTES) {
   };
 }
 
-/** app_settings web_quiz_stories (or `key`), read through the portal's own client, remembered for 30 s; any failure = off. */
-function flagReader({ now = Date.now, key = FLAG_KEY } = {}) {
+// A switch that is on only when its value is JSON true (never the string "true", never 1); any failure = off.
+async function jsonTrueFlag(supabase, key) {
+  const { data, error } = await supabase.from('app_settings').select('value').eq('key', key).maybeSingle();
+  return !error && Boolean(data) && data.value === true;
+}
+
+/**
+ * app_settings web_quiz_stories (or `key`), read through the portal's own client, remembered for 30 s; any failure = off.
+ * jsonTrue: on only for JSON true.
+ */
+function flagReader({ now = Date.now, key = FLAG_KEY, jsonTrue = false } = {}) {
   let at = -Infinity;
   let val = false;
   return async () => {
     if (now() - at < FLAG_TTL_MS) return val;
     try {
       const supabase = require('../config/supabase');
-      val = supabase ? await require('../lib/feature-flags').isFlagEnabled(supabase, key) : false;
+      val = !supabase ? false : jsonTrue ? await jsonTrueFlag(supabase, key) : await require('../lib/feature-flags').isFlagEnabled(supabase, key);
     } catch (_) { val = false; }
     at = now();
     return val;
