@@ -61,6 +61,52 @@ describe('sa-offline: the opening lines report when they are on the phone', () =
       global.self = keep;
     }
   });
+
+  // qa-w3 19:27Z: the worker fetches one list in hash order, so the welcome went out after other lines. The opening
+  // group (the welcome, the sound check and its help line, the check words) is its own first list, and onLines waits
+  // only for it.
+  test('prepare: the opening group is asked alone and first; onLines fires before the other lines are answered', async () => {
+    const asks = [];
+    const order = [];
+    const sw = {
+      postMessage(msg, [port]) {
+        asks.push(msg.urls.slice().sort());
+        const opening = msg.urls.some((u) => /welcome-clip/.test(u));
+        setTimeout(() => { order.push(opening ? 'done:opening' : `done:${msg.urls.length}`); port.postMessage({ ok: true, missing: [] }); }, opening ? 5 : 60);
+      },
+    };
+    function Channel() {
+      const a = {}, b = {};
+      a.postMessage = (data) => b.onmessage && b.onmessage({ data });
+      b.postMessage = (data) => a.onmessage && a.onmessage({ data });
+      this.port1 = a; this.port2 = b;
+    }
+    const keep = global.self;
+    global.self = { navigator: { serviceWorker: { register: async () => ({}), ready: Promise.resolve({ active: sw }) } }, MessageChannel: Channel };
+    let fresh;
+    jest.isolateModules(() => { fresh = require('../sa/sa-offline'); });
+    try {
+      const battery = {
+        battery_id: 'b',
+        lines: {
+          welcome: { en: 'Hi', audio: 'sa/v1/en/welcome-clip.mp3' }, audio_check: { en: 'Hear?', audio: 'sa/v1/en/check-clip.mp3' },
+          audio_fail: { en: 'Help', audio: 'sa/v1/en/help-clip.mp3' }, end: { en: 'Bye', audio: 'sa/v1/en/end-clip.mp3' },
+          please_go_on: { en: 'Go on', audio: 'sa/v1/en/00189f-clip.mp3' },
+        },
+        check_words: [{ pic: 'x', en: 'cat', ur: 'بلی', audio: { en: 'sa/v1/en/cat-clip.mp3', ur: 'sa/v1/ur/cat-clip.mp3' } }],
+        tasks: [{ id: 't', mode: 'tap', instruction: { text: 'x', audio: 'sa/v1/en/task-clip.mp3' }, items: [] }],
+      };
+      const r = await fresh.prepare({ battery_url: '/sa/batteries/x.json', battery, lang: 'en', base: '/', onLines: () => order.push('onLines') });
+      expect(asks[0]).toEqual(['/sa/v1/en/cat-clip.mp3', '/sa/v1/en/check-clip.mp3', '/sa/v1/en/help-clip.mp3', '/sa/v1/en/welcome-clip.mp3']);
+      expect(asks.flat()).toEqual(expect.arrayContaining(['/sa/v1/en/end-clip.mp3', '/sa/v1/en/00189f-clip.mp3', '/sa/v1/en/task-clip.mp3']));
+      expect(order[0]).toBe('done:opening');
+      expect(order[1]).toBe('onLines');
+      expect(r.clips_missing).toBe(0);
+      expect(r.clips).toBe(fresh.urls(battery, 'en', '/').length);
+    } finally {
+      global.self = keep;
+    }
+  });
 });
 
 maybe('sa-ui: the opening words wait for their prefetch', () => {

@@ -1,9 +1,9 @@
 'use strict';
 /**
  * A busy tunnel refuses clips (429) on the visit path; no instruction may play silent.
- *   (A) the opening and transition lines (battery.lines: the welcome, the sound check and its help line, the coach and
- *       hand-back lines …) are asked for first, in their own list, so they are on the phone before the child reaches
- *       them, in every mode and every part
+ *   (A) the opening (the welcome, the sound check and its help line, the check words) is asked for first, alone, then
+ *       the other engine lines (battery.lines: the coach and hand-back lines …) in their own list, so they are on the
+ *       phone before the child reaches them, in every mode and every part (RULING W3-18)
  *   (B) a clip that fails at play time is tried once more after 1.5 s; failing again, the phone's own voice says the
  *       line when it has one for the language, else the words stay on screen with the replay (onSilent), never a
  *       silent gap of more than 2 s
@@ -39,10 +39,13 @@ function worker(fail = []) {
   };
   return { asked, nav: { serviceWorker: { register: async () => ({}), ready: Promise.resolve({ active: sw }), controller: sw } } };
 }
-const lineKeys = (b, lang) => Object.keys(b.lines || {}).map((k) => b.lines[k].audio).map((a) => (typeof a === 'string' ? a : a && a[lang])).filter(Boolean).map((a) => `/${a}`);
+const clipOf = (a, lang) => (typeof a === 'string' ? a : a && a[lang]);
+const lineKeys = (b, lang) => Object.keys(b.lines || {}).map((k) => clipOf(b.lines[k].audio, lang)).filter(Boolean).map((a) => `/${a}`);
+const openingKeys = (b, lang) => ['welcome', 'audio_check', 'audio_fail'].map((k) => b.lines && b.lines[k] && clipOf(b.lines[k].audio, lang))
+  .concat((b.check_words || []).map((w) => clipOf(w.audio, lang))).filter(Boolean).map((a) => `/${a}`);
 
 describe('(A) the opening and transition lines are prepared first', () => {
-  test.each(FORMS)('%s: every part, auto and manual: the first list asked for is every lines.* clip', async (name) => {
+  test.each(FORMS)('%s: every part, auto and manual: the first list is the opening group, the second every other lines.* clip', async (name) => {
     const full = JSON.parse(fs.readFileSync(path.join(DIR, name), 'utf8'));
     const lang = name.endsWith('.ur.json') ? 'ur' : 'en';
     const blocks = ['full', 'rdf', 'rdf_auto', 'rdf_manual'].filter((k) => k === 'full' || Array.isArray(full[k])).concat(Object.keys(full.blocks || {}));
@@ -56,8 +59,12 @@ describe('(A) the opening and transition lines are prepared first', () => {
       const off = loadOffline(nav);
       const SAE = { prepare: (b, o) => off.prepareSession(b, Object.assign({ offline: off.prepare, speech: null, storage: null, localStorage: null }, o)) };
       const r = await page.prepareOf(SAE, battery, lang, `/sa/batteries/${name}`);
-      // the lines' own list, before the battery file's and the task clips'
-      expect(asked[0].slice().sort()).toEqual(want.slice().sort());
+      // the opening's own list first, then the other lines' list, before the battery file's and the task clips'
+      const all0 = off.urls(battery, lang, '/');
+      const opening = [...new Set(openingKeys(battery, lang))].filter((u) => all0.includes(u));
+      expect(opening.length).toBeGreaterThanOrEqual(3);
+      expect(asked[0].slice().sort()).toEqual(opening.slice().sort());
+      expect(asked.slice(1).find((l) => l.some((u) => want.includes(u))).slice().sort()).toEqual(want.filter((u) => !opening.includes(u)).sort());
       // every clip of the part still asked for once, and counted
       const all = [].concat(...asked).filter((u) => u.endsWith('.mp3'));
       expect(new Set(all).size).toBe(all.length);
