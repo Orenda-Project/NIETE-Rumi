@@ -242,7 +242,8 @@ button{font:inherit;color:inherit}
 /* Wave 3: one cell at a time (sa_one_at_a_time), the coach's screen (RDF manual), the passage as printed (sa_passage_punct) */
 .sae-onecell{display:grid;place-items:center;width:100%;min-height:40vh;padding:12px;font-size:clamp(40px,15vw,96px);font-weight:700;overflow-wrap:anywhere;text-align:center;background:var(--sae-card);border:3px solid var(--sae-line);border-radius:var(--sae-r)}
 .sae-onecell.is-short{font-size:clamp(72px,30vw,160px)}
-.sae-onecell[lang=ur]{font-weight:400;line-height:1.9}
+.sae-onecell[lang=ur]{font-weight:400;line-height:1.9;font-size:clamp(52px,19vw,124px)}
+.sae-onecell.is-short[lang=ur]{font-size:clamp(92px,38vw,204px)}
 .sae-coach-text{background:var(--sae-card);border:3px solid var(--sae-line);border-radius:var(--sae-r);padding:12px 14px}
 .sae-passage.is-printed{word-spacing:.35em;line-height:2.1}
 .sae-passage.is-printed[lang=ur]{word-spacing:.45em;line-height:2.7}

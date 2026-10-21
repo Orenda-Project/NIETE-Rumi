@@ -301,3 +301,15 @@ maybe('sa-ui: Wave 3 screens', () => {
     expect(el.querySelector('.sae-run-oral .sae-label').textContent).toContain('3 + 4');
   });
 });
+
+describe('one cell: an Urdu letter or word is drawn as large as an English one (Nastaliq sits smaller at one size)', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'sa', 'sa.css'), 'utf8');
+  const maxPx = (sel) => {
+    const m = css.match(new RegExp(sel.replace(/[.[\]=]/g, (c) => `\\${c}`) + '\\{[^}]*font-size:clamp\\([^,]+,[^,]+,(\\d+)px\\)'));
+    return m ? Number(m[1]) : null;
+  };
+  test('the Urdu cell (word and short) is at least 1.25× the Latin one', () => {
+    expect(maxPx('.sae-onecell[lang=ur]')).toBeGreaterThanOrEqual(maxPx('.sae-onecell') * 1.25);
+    expect(maxPx('.sae-onecell.is-short[lang=ur]')).toBeGreaterThanOrEqual(maxPx('.sae-onecell.is-short') * 1.25);
+  });
+});
