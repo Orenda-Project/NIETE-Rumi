@@ -102,12 +102,22 @@ describe('create with topicIds', () => {
   test('topicIds with two chapters: 400, nothing queued', async () => {
     const r = await invoke('/assessment/create', { ...BASE, chapterNumbers: [4, 5], topicIds: [TOPICS[0].topicId] });
     expect(r.statusCode).toBe(400);
+    expect(r.payload.error).toBe('Topics belong to one chapter. Pick one chapter.');
     expect(created).toBeNull();
   });
 
   test('an unknown id: 400, nothing queued', async () => {
     const r = await invoke('/assessment/create', { ...BASE, topicIds: [TOPICS[0].topicId, 'nope'] });
     expect(r.statusCode).toBe(400);
+    expect(r.payload.error).toBe('One of those topics is not in this chapter.');
+    expect(created).toBeNull();
+  });
+
+  test('a subset with no pages: 400, nothing queued', async () => {
+    listChapterTopics.mockResolvedValue([{ ...TOPICS[0], pages: [] }, TOPICS[1]]);
+    const r = await invoke('/assessment/create', { ...BASE, topicIds: [TOPICS[0].topicId] });
+    expect(r.statusCode).toBe(400);
+    expect(r.payload.error).toBe('We do not have the pages for those topics yet.');
     expect(created).toBeNull();
   });
 
