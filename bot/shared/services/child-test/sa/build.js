@@ -349,6 +349,13 @@ function extraTasks(f, extra) {
   const demoCopy = (task) => (P.disabled_copy || []).includes(task);
   const borrowed = (task) => P.items[task] || [];
   const psrc = (task, i, b) => `extra:maths.practice.items.${task}[${i}] (${b.src})`;
+  // An authored practice item (src authored:practice) carries its own feedback lines where the bank's would not fit.
+  const practiceFeedback = (b) => {
+    const d = mathsFeedback({}, b.answer);
+    return { correct: b.right_en ? spoken({ en: b.right_en, ur: b.right_ur, from: b.src }) : d.correct,
+      wrong: b.wrong_en ? spoken({ en: b.wrong_en, ur: b.wrong_ur, from: b.src }) : d.wrong };
+  };
+  const authoredPractice = (task, item) => borrowed(task).map((b, i) => ({ ...item(b, i), id: `${task}.p${i + 1}`, practice: true, src: b.src, feedback: practiceFeedback(b) }));
 
   // Patterns: levels 1-2 tap 1 of the item's own 4 printed options; levels 3-4 typed, only after a correct level 1-2 item.
   const pat = m.patterns.items.map((it, i) => ({ it, i }));
@@ -373,10 +380,12 @@ function extraTasks(f, extra) {
   };
   out.push(extraMathsTask({ task: 'ma.patterns', spec: m.patterns, items: pat.filter((x) => x.it.level <= 2).map(patItem), input: 'options',
     options_n: 4, distractor_rule: 'printed_in_source', scriptKey: 'ma.patterns', extraBase: base('patterns'), demoCopy: demoCopy('ma.patterns'),
+    practiceV2: authoredPractice('ma.patterns', (b, i) => patItem({ it: b, i })),
     adaptation: 'Tangerine SA tap 1 of 4 (sec_miss_num_01); the RWP card\'s four printed options', deviation: null,
     stop: { type: 'consecutive_errors', n: 4 } })); // EGMA's untimed convention: 4 wrong in a row ends the task
   out.push(extraMathsTask({ task: 'ma.patterns_hi', spec: m.patterns, items: pat.filter((x) => x.it.level >= 3).map(patItem), input: 'keypad',
     options_n: null, distractor_rule: null, scriptKey: 'ma.patterns_hi', extraBase: base('patterns'), demoCopy: demoCopy('ma.patterns_hi'),
+    practiceV2: authoredPractice('ma.patterns_hi', (b, i) => patItem({ it: b, i })),
     adaptation: 'Tangerine SA keypad (sec_l1_addition_01); RWP levels 3-4', deviation: 'typed on a keypad, not spoken',
     depends_on: { task: 'ma.patterns', skip_if_zero: true }, stop: { type: 'consecutive_errors', n: 4 } }));
 
@@ -384,6 +393,8 @@ function extraTasks(f, extra) {
   const rep = m.number_repr.items.map((it, i) => ({ it, i })).filter((x) => !x.it.picture);
   out.push(extraMathsTask({ task: 'ma.number_repr', spec: m.number_repr, input: 'keypad', options_n: null, distractor_rule: null,
     items: rep.map(({ it, i }) => ({ id: `ma.number_repr.${it.id.replace('represent_', '')}`, target: it.answer, say: say(it), level: it.level, src: src('number_repr', i) })),
+    // A11: no source prints a place-value practice item, so one authored example (src authored:practice), never scored.
+    practiceV2: authoredPractice('ma.number_repr', (b) => ({ target: b.answer, say: say(b) })),
     scriptKey: 'ma.number_repr', extraBase: base('number_repr'), adaptation: 'Tangerine SA keypad; RWP number representation', demoCopy: demoCopy('ma.number_repr'),
     deviation: `typed on a keypad; picture items ${m.number_repr.items.filter((x) => x.picture).map((x) => x.id).join(', ')} held out until their pictures exist, so no level gate` }));
 
@@ -704,7 +715,7 @@ function passageVariants(core18, extra) {
   const prp = p3 ? storyTasks({ lang: 'ur', task: 'ur.story3', legacy: 'ur.story', base: 'extra:reading.ur.story3',
     adaptation: 'as the Set A story: read aloud for 60 s, then the last word read is tapped; questions only up to the line reached',
     spec: { title: own('ur.story').title, timed_s: 60, direction: 'rtl', stop: { type: 'first_line' }, practice_note: 'EGRA oral reading has no practice item',
-      source: { items: 'extra:reading.ur.story3' }, items: p3w.flat(), story: { text: p3.lines.join('\n'), lines: lineSpans(p3w) },
+      source: { items: 'extra:reading.ur.story3' }, items: p3w.flat(), story: { text: (p3.lines_shown || p3.lines).join('\n'), lines: lineSpans(p3w) },
       questions: p3.questions.map((q, i) => ({ id: `ur.story3.q${i + 1}`, prompt: q.q, accept: q.accept, needs_line: q.needs_line })) } }) : [];
   const l3 = r.ur.listening3;
   const prpL = l3 ? listeningTask({ lang: 'ur', task: 'ur.listening3', legacy: 'ur.listening', base: 'extra:reading.ur.listening3',
@@ -730,23 +741,29 @@ function passageVariants(core18, extra) {
 // ---------------------------------------------------------------------------------------------- A11 reuse, A14 RDF
 /**
  * A11: a maths task with no unused fielded item practises on another task's official practice item of the same format
- * (extra maths.practice.reuse): practice is unscored everywhere. A tap task gets the item's options by the same rule.
+ * (extra maths.practice.reuse, "<from>" or {from, pick, after, src, say_en/ur}: one item of it, after the task's own practice, said in the task's frame): practice is unscored everywhere. A tap task
+ * gets the item's options by the same rule; a keypad task gets none.
  */
 function reusePractice(list, extra) {
   const reuse = (extra && extra.maths && extra.maths.practice && extra.maths.practice.reuse) || {};
-  for (const [to, from] of Object.entries(reuse)) {
+  for (const [to, rule] of Object.entries(reuse)) {
+    const from = typeof rule === 'string' ? rule : rule.from;
     const t = list.find((x) => x.task === to);
     const s = list.find((x) => x.task === from);
     if (!t || !s || !s.practice.length) continue;
-    t.practice_v2 = s.practice.map((p, i) => {
+    const picked = typeof rule === 'object' && rule.pick != null ? [s.practice[rule.pick]] : s.practice;
+    const before = rule.after && t.practice_v2 ? t.practice_v2 : [];
+    t.practice_v2 = [...before, ...picked.map((p, j) => {
+      const i = before.length + j;
       const id = `${to}.p${i + 1}`;
-      const q = { ...p, id, src: `${p.src} (reused from ${from})` };
+      const q = { ...p, id, src: `${rule.src ? `${rule.src} = ` : ''}${p.src} (reused from ${from})`, ...(rule.say_en ? { say: sayBoth(rule.say_en, rule.say_ur) } : {}),
+        ...(typeof rule === 'object' ? { practice: true } : {}) };
       if (t.tap.input === 'options' && Array.isArray(p.shown)) {
         q.shown = p.shown;
         q.options = stepOptions(id, p.target, seqStep(p.shown));
-      }
+      } else if (t.tap.input === 'keypad') delete q.options;
       return q;
-    });
+    })];
   }
 }
 
