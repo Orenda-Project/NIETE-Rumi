@@ -24,8 +24,8 @@ button{font:inherit;color:inherit}
 .sae-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
 .sae-foot{display:flex;flex-direction:column;align-items:center;gap:10px;padding-top:6px}
 .sae-top{display:flex;align-items:center;justify-content:space-between;min-height:44px}
-.sae-dots{display:flex;gap:8px;align-items:center}
-.sae-dot{width:12px;height:12px;border-radius:50%;background:var(--sae-line)}
+.sae-dots{display:flex;gap:8px;align-items:center;min-width:0;flex:1 1 auto;overflow:hidden}
+.sae-dot{flex:0 0 auto;width:12px;height:12px;border-radius:50%;background:var(--sae-line)}
 .sae-dot.is-done{background:var(--sae-ink)}
 .sae-dot.is-now{background:var(--sae-accent);box-shadow:0 0 0 4px var(--sae-accent-l)}
 .sae-row{display:flex;align-items:center;justify-content:center;gap:16px;width:100%}
@@ -234,7 +234,8 @@ button{font:inherit;color:inherit}
 .sae-kpwarm .sae-say{font-size:18px}
 .sae-kpwarm .sae-kpw-typed{min-height:60px;font-size:42px}
 /* The sandbox-only "Jump to…" (RULING #43): a tester's tool, plainly not part of the child's screen. */
-.sae-devjump{max-width:55%;font-size:13px;padding:4px 6px;border:1px dashed #b45309;border-radius:8px;background:#fff7ed;color:#7c2d12}
+.sae-devjump-row{display:flex;flex:0 0 auto;width:100%}
+.sae-devjump{max-width:100%;font-size:13px;padding:4px 6px;border:1px dashed #b45309;border-radius:8px;background:#fff7ed;color:#7c2d12}
 /* A11: the disabled demo copy of item 1 under the instruction (Tangerine's demo pattern). */
 .sae-demo{width:100%;display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.75;pointer-events:none}
 .sae-demo-blank{min-width:120px;min-height:64px;border:3px dashed var(--sae-line);border-radius:var(--sae-r);display:grid;place-items:center;font-size:32px}

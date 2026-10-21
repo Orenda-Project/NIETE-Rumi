@@ -327,9 +327,12 @@
           onclick: function () { muted = !muted; try { opts.onMute(muted); } catch (e) { /* skin */ } draw(); },
         }, [h('span', { 'aria-hidden': 'true', text: muted ? '🔇' : '🔊' })]));
       }
-      var dj = devJumpEl(v);
-      if (dj) kids.push(dj);
       return h('div', { class: 'sae-top' }, kids);
+    }
+    /** The jump list's own full-width row above the dots: a Whole battery's 33 dots can never push it off-screen. */
+    function devJumpRow(v) {
+      var dj = devJumpEl(v);
+      return dj ? h('div', { class: 'sae-devjump-row' }, [dj]) : null;
     }
     /** Sandbox only (RULING #43): the session's tasks; choosing one starts it at its instruction. Coach mode only. */
     function devJumpEl(v) {
@@ -348,6 +351,7 @@
     }
     function screen(v, cls, kids, foot, noTop) {
       return h('div', { class: 'sae-screen ' + (cls || '') }, [
+        noTop ? null : devJumpRow(v),
         noTop ? null : topBar(v),
         h('div', { class: 'sae-body' }, kids),
         foot && foot.some(Boolean) ? h('div', { class: 'sae-foot' }, foot) : null,

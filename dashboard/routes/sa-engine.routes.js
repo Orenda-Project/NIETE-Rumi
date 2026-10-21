@@ -38,18 +38,31 @@ function devToolsOn(env = process.env) {
   return Boolean(env) && env.SA_DEV_TOOLS === 'sandbox' && env.RAILWAY_ENVIRONMENT_NAME === 'sandbox';
 }
 
+/** A reader that throws (a failed read) answers OFF, so warming it never fails a request. */
+function safe(read) {
+  const out = () => { try { return read(); } catch (_) { return false; } };
+  if (typeof read.ready === 'function') out.ready = () => read.ready();
+  return out;
+}
+
 /**
  * createSaEngineRouter({ on, practiceAllMaths, env }) → router. on() is the switch (default: app_settings sa_engine);
  * practiceAllMaths() and passageRotation() the content switches (app_settings sa_practice_all_maths, sa_passage_rotation);
  * voiceV2() the voice set's (app_settings sa_voice_v2).
  */
-function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), practiceAllMaths = createBrotliFlag({ key: SWITCHES.practiceAllMaths }),
-  passageRotation = createBrotliFlag({ key: SWITCHES.passageRotation }), voiceV2 = createBrotliFlag({ key: VOICE_V2_KEY }), holdMs, now, env } = {}) {
+function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), practiceAllMaths: practiceReader = createBrotliFlag({ key: SWITCHES.practiceAllMaths }),
+  passageRotation: rotationReader = createBrotliFlag({ key: SWITCHES.passageRotation }), voiceV2: voiceReader = createBrotliFlag({ key: VOICE_V2_KEY }),
+  holdMs, now, env } = {}) {
   const router = express.Router();
   // The switch as routes/sa-switch.js reads it: the first request waits for the first read, and a failed read after an
-  // ON never flaps a request to the portal's page.
-  const on = steady(reader, { ...(holdMs != null ? { holdMs } : {}), ...(now ? { now } : {}) });
-  router.use('/sa', on.warm());
+  // ON never flaps a request to the portal's page. The content and voice switches are read the same way, so the first
+  // battery after a restart carries their stored values (the engine keeps that battery offline for the session).
+  const hold = { ...(holdMs != null ? { holdMs } : {}), ...(now ? { now } : {}) };
+  const on = steady(reader, hold);
+  const practiceAllMaths = steady(safe(practiceReader), hold);
+  const passageRotation = steady(safe(rotationReader), hold);
+  const voiceV2 = steady(safe(voiceReader), hold);
+  router.use('/sa', on.warm(), practiceAllMaths.warm(), passageRotation.warm(), voiceV2.warm());
   const files = express.static(DIR, {
     index: false,
     dotfiles: 'ignore',
