@@ -136,6 +136,9 @@ function shapeChild(c, byDraw) {
     namesake,
     ...(namesake ? { fatherName: c.fatherName || null, fatherNameUr: c.fatherNameUrdu || null } : {}),
     ...(s ? { sessionId: s.id, sessionStatus: s.status } : {}),
+    // a phone that reloads mid-visit rebuilds the block rotation and the visit clock from these
+    ...(s && s.device && s.device.block ? { sessionBlock: s.device.block } : {}),
+    ...(s && s.started_at ? { sessionStartedAt: s.started_at } : {}),
   };
 }
 

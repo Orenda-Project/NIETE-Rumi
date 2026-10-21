@@ -148,6 +148,16 @@ describe('dayList', () => {
     expect(JSON.stringify(res.list)).not.toMatch(/studentId|rollNumber|roll_number/);
   });
 
+  test("a child's session carries its block and start time, so a reloaded phone keeps the visit's rotation and clock", async () => {
+    const deps = makeDeps();
+    deps.store.listSessionsForVisit.mockResolvedValueOnce({ ok: true, sessions: [{ id: 'done-session', draw_id: DRAW, status: 'completed', started_at: '2026-10-21T00:29:11.000Z', device: { block: 'B3', mic_ok: true } }] });
+    const res = await Svc.dayList({ userId: COACH, schoolId: SCHOOL_B }, deps);
+    const [c] = res.list.children;
+    expect(c.sessionBlock).toBe('B3');
+    expect(c.sessionStartedAt).toBe('2026-10-21T00:29:11.000Z');
+    expect(JSON.stringify(c)).not.toMatch(/mic_ok/);
+  });
+
   test("a school that is not this coach's is refused before the draw runs", async () => {
     const deps = makeDeps();
     expect(await Svc.dayList({ userId: COACH, schoolId: SCHOOL_X }, deps)).toEqual({ status: 'not_found' });
