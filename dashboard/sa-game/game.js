@@ -241,7 +241,7 @@
     }).then(function (v) {
       (v[0] || []).forEach(function (r) {
         seen.ended[r.task_id] = true; if (r.resumed) seen.resumed = true;
-        if (/^skipped|^mic_unavailable/.test(r.stop_reason || '')) seen.skipped[r.task_id] = true;
+        if (/^skipped|^mic_unavailable|^assets_unavailable/.test(r.stop_reason || '')) seen.skipped[r.task_id] = true;
       });
       (v[1] || []).forEach(function (e) { if (e && (e.type === 'practice_answer' || e.type === 'practice_feedback')) seen.practice = true; });
       return Object.keys(seen.ended).length > 0;
