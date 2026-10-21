@@ -834,6 +834,29 @@ function formTasks({ maths }, v3, extra) {
   return tasks;
 }
 
+/**
+ * RULING #31a addendum: where a line has its chain (`<k>_chain`), the other-language page says the chain, so the whole
+ * line keeps only the task's own language: no clip says an item of the other language inside a sentence.
+ */
+function dropCrossWholeLines(task) {
+  if (!task.lang) return;
+  const other = task.lang === 'en' ? 'ur' : 'en';
+  const strip = (l) => {
+    if (!l || typeof l !== 'object' || !(other in l)) return;
+    delete l[other];
+    if (l.audio) delete l.audio[other];
+  };
+  const walk = (o) => {
+    if (!o || typeof o !== 'object') return;
+    if (Array.isArray(o)) { o.forEach(walk); return; }
+    for (const k of Object.keys(o)) {
+      if (o[`${k}_chain`]) (Array.isArray(o[k]) ? o[k] : [o[k]]).forEach(strip);
+      walk(o[k]);
+    }
+  };
+  walk(task);
+}
+
 function buildSaBank({ v3, extra }) {
   const forms = {};
   const tasks = {};
@@ -855,6 +878,7 @@ function buildSaBank({ v3, extra }) {
       return sa - sb || (ra !== 999 && rb !== 999 ? ra - rb : a.i - b.i);
     }).map(({ t }) => t);
     reusePractice(list, extra);
+    list.forEach(dropCrossWholeLines);
     const order = list.map((t) => t.task);
     const extraIds = list.filter((t) => extras.includes(t)).map((t) => t.task);
     const rdfOnly = f.surface === 'coach' && extra ? rdfTasks(v3, extra) : [];
