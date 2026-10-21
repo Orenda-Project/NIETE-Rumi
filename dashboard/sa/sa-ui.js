@@ -11,7 +11,7 @@
  *   micProbe() → Promise<{ok, rms, url}> (game mic check: a 2-s probe, url = a blob to play back),
  *   micLevel(cb(level 0..1)) → stop() (a live input level, for the practice oral question),
  *   manual (RDF manual: the coach gives the instructions), passage_punct (the passage drawn from its own text)
- * }) → { render(), destroy(), setSync(status), mercy(), refuse(kind), backWait() }
+ * }) → { render(), destroy(), setSync(status), mercy(), refuse(kind[, { retry }]), unrefuse(), backWait() }
  *
  * Session gates (RULINGs #13, #17): mic_check (game, once per device), oral_practice (before the first oral task),
  * keypad_warmup (before the first keypad task). The passage ends on one big spoken star tile; mercy() (the engine, after
@@ -294,6 +294,8 @@
     var kpw = null;           // the keypad warm-up: { keys, timer, done }
     var mercied = {};         // task ids the mercy line was said for
     var refused = null;       // refuse(kind): a full-screen stop
+    var refusedRetry = null;  // refuse(kind, { retry }) (sa_voice_gate_v2): Try again, () → Promise<boolean>
+    var retrying = false;
     var backWaiting = false;  // backWait(): game, the map not reachable yet; the end screen says the island waits here
     var starEl = null;
     var starSpeech = null;
@@ -1115,12 +1117,24 @@
     /** A full-screen stop the child cannot pass (refuse('voice'): the battery's voice is not ready). */
     function sRefused(v) {
       var msg = refused === 'voice' ? (tx(line('voice_not_ready')) || C.voice_not_ready) : C.voice_not_ready;
+      var again = refusedRetry ? btn(C.retry, function () {
+        if (retrying) return;
+        retrying = true;
+        draw();
+        Promise.resolve().then(refusedRetry).then(null, function () { return false; }).then(function (ok) {
+          retrying = false;
+          if (!alive || !refused) return;
+          draw();
+          if (!ok) say(line('voice_not_ready') || { en: COPY.en.voice_not_ready, ur: COPY.ur.voice_not_ready });
+        });
+      }, 'sae-primary sa-retry' + (retrying ? ' is-busy' : '')) : null;
+      if (again && retrying) again.disabled = true;
       return h('div', { class: 'sae-screen sae-refused' }, [
         h('div', { class: 'sae-body' }, [
           jugnu('sleep'),
           h('h1', { class: 'sae-h1', text: msg }),
         ]),
-        mode === 'game' && safeBack(opts.back) ? h('div', { class: 'sae-foot' }, [btn(C.back, goBack, 'sae-primary')]) : null,
+        again || (mode === 'game' && safeBack(opts.back)) ? h('div', { class: 'sae-foot' }, [again, mode === 'game' && safeBack(opts.back) ? btn(C.back, goBack, again ? 'sae-secondary' : 'sae-primary') : null]) : null,
       ]);
     }
 
@@ -1423,13 +1437,22 @@
         say(line('mercy') || { en: COPY.en.mercy, ur: COPY.ur.mercy });
       },
       /** A full-screen stop: refuse('voice') when the battery's voice is not ready (proctored: no buttons; game: back). */
-      refuse: function (kind) {
+      refuse: function (kind, o) {
         if (!alive) return;
         refused = kind || 'voice';
+        refusedRetry = o && typeof o.retry === 'function' ? o.retry : null;
         gen++;
         loop(false);
         draw();
         say(line('voice_not_ready') || { en: COPY.en.voice_not_ready, ur: COPY.ur.voice_not_ready });
+      },
+      /** The refusal lifted (Try again found a voice): the screen it covered, from its start. */
+      unrefuse: function () {
+        if (!alive || !refused) return;
+        refused = null;
+        refusedRetry = null;
+        lastKey = null;
+        draw();
       },
       /** Game: the map cannot be reached yet (the engine waits for the network): the end screen says so, spoken once. */
       backWait: function () {
