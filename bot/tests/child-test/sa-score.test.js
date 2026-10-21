@@ -60,7 +60,7 @@ function model() {
     model: () => 'google/gemini-test',
     chatJSON: async ({ prompt, job }) => {
       prompts.push({ job, prompt });
-      if (job === 'child_test.sa_letters') return { json: { found: true, items: [{ i: 1, heard: 'x', v: 'c', conf: 0.9 }, { i: 2, heard: 'y', v: 'w', conf: 0.7 }, { i: 3, heard: 'z', v: 'c', conf: 0.8 }] }, cost: 0.001, seconds: 1 };
+      if (job === 'child_test.sa_letters' || job === 'child_test.sa_oral_maths') return { json: { found: true, items: [{ i: 1, heard: 'x', v: 'c', conf: 0.9 }, { i: 2, heard: 'y', v: 'w', conf: 0.7 }, { i: 3, heard: 'z', v: 'c', conf: 0.8 }] }, cost: 0.001, seconds: 1 };
       if (job === 'child_test.sa_questions') return { json: { questions: [{ id: 'q', answer: 'a', verdict: 'correct', confidence: 0.9 }] }, cost: 0.001, seconds: 1 };
       return { json: { words: [{ i: 1, v: 'correct' }, { i: 2, v: 'correct' }, { i: 3, v: 'wrong' }] }, cost: 0.001, seconds: 1 };
     },
@@ -107,6 +107,17 @@ describe('the SA scorer', () => {
     const out = await score.sweepOnce({ now: NOW, deps: { supabase: db, ...model() } });
     expect(out.scored).toBe(0);
     expect(db.writes).toEqual([]);
+  });
+
+  test("one child's spoken tasks are scored side by side, not one after another", async () => {
+    const blocks = ['ur.letter_sounds_rec', 'ur.words_rec', 'en.letter_sounds_rec', 'en.words_rec'].map((b) => row(b));
+    const db = fakeDb({ child_test_blocks: blocks, child_test_sessions: [session()] });
+    let inFlight = 0; let most = 0;
+    const m = model();
+    const slow = { ...m, chatJSON: async (a) => { inFlight += 1; most = Math.max(most, inFlight); await new Promise((r) => setTimeout(r, 20)); inFlight -= 1; return m.chatJSON(a); } };
+    const out = await score.sweepOnce({ now: NOW, deps: { supabase: db, ...slow } });
+    expect(out.scored).toBe(4);
+    expect(most).toBe(4);
   });
 
   test('a claim another process won is skipped (compare-and-set on ai_reason)', async () => {
@@ -185,5 +196,78 @@ describe('saRegister nudges the scorer', () => {
     const out = await sa.saRegister({ userId: COACH, sessionId: SID, taskId: 'ur.words_rec', key }, deps);
     expect(out).toEqual({ status: 'ok', scoring: 'later' });
     expect(kick).toHaveBeenCalledWith(SID);
+  });
+});
+
+describe('the W3 forms (RDF auto / RDF manual): tasks the bank does not carry, scored from the battery the phone ran', () => {
+  const before = { ...process.env };
+  beforeEach(() => { process.env.CHILD_TEST_SA_SCORER = 'on'; process.env.CHILD_TEST_R2_ENV = 'sandbox'; });
+  afterEach(() => { process.env = { ...before }; });
+
+  // the W3 shape (sa/build-w3.js): items one at a time, `answer` = what a correct child says
+  const W3 = {
+    tasks: [
+      { id: 'ur.letter_sounds5', kind: 'grid', subtask: 'letter_sound_identification', lang: 'ur', response: 'record', present: 'one_at_a_time', time_limit_s: 60, stop: {},
+        grid: ['ب', 'م', 'ک', 'س', 'ر'], items: ['ب', 'م', 'ک', 'س', 'ر'].map((L, k) => ({ id: `ur.letter_sounds5.0${k + 1}`, show: L, target: L, answer: `/${L}/` })) },
+      { id: 'ma.add2i', kind: 'oral', subtask: 'mental_addition', lang: null, response: 'record', present: 'one_at_a_time', time_limit_s: null, stop: {},
+        items: [{ id: 'ma.add2i.01', show: '13 + 6', target: 19, answer: 19 }, { id: 'ma.add2i.02', show: '18 + 7', target: 25, answer: 25 }] },
+      { id: 'ma.fluency1m', kind: 'oral', subtask: 'mental_math_fluency', lang: null, response: 'record', present: 'one_at_a_time', time_limit_s: 60, stop: {},
+        items: Array.from({ length: 20 }, (_, k) => ({ id: `ma.fluency1m.${k + 1}`, show: `${k} + 1`, target: k + 1, answer: k + 1 })) },
+      { id: 'ur.story_w3', kind: 'passage', subtask: 'oral_reading_fluency', lang: 'ur', response: 'record', stop: { first_line_n: 3, first_line_min_correct: 1 },
+        passage: { text: 'الف۔', lines: [] }, items: [{ id: 'a1', target: 'الف' }],
+        variants: [
+          { id: 'rwp2026', passage: { text: 'آج بلال گیا۔' }, items: [{ id: 'a1', target: 'آج' }, { id: 'a2', target: 'بلال' }, { id: 'a3', target: 'گیا' }] },
+          { id: 'select2024', passage: { text: 'مٹھو میاں پنجرے۔' }, items: [{ id: 'b1', target: 'مٹھو' }, { id: 'b2', target: 'میاں' }, { id: 'b3', target: 'پنجرے' }] },
+        ] },
+      { id: 'ur.story_comp_w3', kind: 'questions', lang: 'ur', response: 'oral', depends_on: { task: 'ur.story_w3' }, items: [],
+        variants: [{ id: 'rwp2026', items: [{ id: 'ur.story_w3.q1' }] }, { id: 'select2024', items: [{ id: 'ur.story2.q1' }] }] },
+    ],
+  };
+  const load = (g, form, lang) => (lang === 'ur' && form === 'A' ? W3 : null);
+
+  test('a W3 letter-sound task: the expected sound goes to the model, attempted is the cell the child reached', async () => {
+    const r = row('ur.letter_sounds5', { responses: [{ kind: 'result', mode: 'record', session_id: PHONE_SID, time_used_ms: 20000, cells: [{ i: 0 }, { i: 1 }, { i: 2 }] }] });
+    const db = fakeDb({ child_test_blocks: [r], child_test_sessions: [session()] });
+    const m = model();
+    await score.sweepOnce({ now: NOW, deps: { supabase: db, ...m, phoneBattery: load } });
+    expect(r.ai_status).toBe('scored');
+    expect(m.prompts[0].prompt).toMatch(/ONE AT A TIME/);
+    expect(m.prompts[0].prompt).toContain('1: ب (/ب/)');
+    expect(r.ai_marks).toMatchObject({ correct: 2, attempted: 3, seconds_used: 20 });
+  });
+
+  test('mental addition: each sum and its answer go to the model; untimed, so correct of 2', async () => {
+    const r = row('ma.add2i', { lang: 'ur' });
+    const db = fakeDb({ child_test_blocks: [r], child_test_sessions: [session()] });
+    const m = model();
+    await score.sweepOnce({ now: NOW, deps: { supabase: db, ...m, phoneBattery: load } });
+    expect(m.prompts[0].job).toBe('child_test.sa_oral_maths');
+    expect(m.prompts[0].prompt).toContain('shown "13 + 6" → correct answer 19');
+    expect(r.ai_marks).toMatchObject({ task: 'ma.add2i', correct: 1, of: 2 });
+    expect(r.ai_marks.detail.items.map((i) => [i.id, i.verdict, i.answer])).toEqual([['ma.add2i.01', 'correct', 19], ['ma.add2i.02', 'wrong', 25]]);
+  });
+
+  test('one-minute fluency: timed, so correct per minute on the time used', async () => {
+    const r = row('ma.fluency1m', { lang: 'ur', responses: [{ kind: 'result', mode: 'record', session_id: PHONE_SID, time_used_ms: 60000 }] });
+    const db = fakeDb({ child_test_blocks: [r], child_test_sessions: [session()] });
+    await score.sweepOnce({ now: NOW, deps: { supabase: db, ...model(), phoneBattery: load } });
+    expect(r.ai_marks).toMatchObject({ correct: 2, attempted: 3, per_minute: 2, seconds_used: 60 });
+  });
+
+  test("the W3 passage: the variant whose questions were asked, its words, and its first-line stop", () => {
+    const got = score.phoneSpecFor({ ...session(), asked: ['ur.story2.q1'] }, row('ur.story_w3'), load);
+    expect(got.variant.id).toBe('select2024');
+    expect(got.spec.record.passage.words.map((w) => w.target)).toEqual(['مٹھو', 'میاں', 'پنجرے']);
+    expect(got.spec.record.stop).toEqual({ type: 'first_line', n: 3 });
+  });
+
+  test('a task neither the bank nor the battery carries is a final failure, never a guess', async () => {
+    const got = await score.scoreRow(row('ur.nothing_here'), session(), { ...model(), phoneBattery: load });
+    expect(got).toMatchObject({ ok: false, reason: 'task_not_in_bank', retry: false });
+  });
+
+  test('the Wave 2 forms still score from the bank (the bank wins over the battery)', () => {
+    const bank = require('../../shared/data/child-test/item-bank.sa.v1.json'); // eslint-disable-line global-require
+    expect(score.specFor(bank, session(), row('ur.letter_sounds_rec'))).not.toBeNull();
   });
 });

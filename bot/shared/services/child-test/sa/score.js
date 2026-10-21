@@ -40,7 +40,7 @@ const MAX_ATTEMPTS = 3;
 const STALE_CLAIM_MS = 5 * 60 * 1000;
 const WAIT_FOR_CLIPS_MS = 2 * 60 * 1000;   // a questions task whose session ended this long ago is scored with what came
 const INTERVAL_MS = 20 * 1000;
-const PER_TICK = 4;
+const PER_TICK = 8;   // rows claimed per tick, scored side by side: one child's spoken tasks in about a minute
 const SECONDS = 60;
 const TASK_RE = /^[a-z]{2}\.[a-z0-9_]{1,40}$/;
 
@@ -88,18 +88,71 @@ function specFor(bank, session, row) {
   return { spec: v.task || base, variant: { id: v.id, src: v.src || null } };
 }
 
+const PHONE_FILES = new Map();
+/** The battery the phone was served (data/child-test/sa/sa.coach.G<g>.<form>.<lang>.json), null when absent. */
+function phoneBattery(grade, form, lang) {
+  const name = `sa.coach.G${grade}.${form}.${lang}.json`;
+  if (!PHONE_FILES.has(name)) {
+    let b = null;
+    try { b = require(`../../../data/child-test/sa/${name}`); } catch (_) { /* no such form */ } // eslint-disable-line global-require
+    PHONE_FILES.set(name, b);
+  }
+  return PHONE_FILES.get(name);
+}
+
+/**
+ * A task as the phone ran it (the W3 forms: letters / words / numbers / sums one at a time, the passage with its own
+ * punctuation), in the bank's shape so the scorers below read one shape. The variant is the phone's rotation: the one
+ * whose questions were asked in this session, else hash(the phone's session id) mod n (sa-page.js rotate).
+ */
+function phoneSpecFor(session, row, load = phoneBattery) {
+  const lang = /^(ur|en)\./.test(row.block) ? row.block.slice(0, 2) : (row.lang === 'en' ? 'en' : 'ur');
+  const b = load(session.grade, session.form, lang) || load(session.grade, 'A', lang);
+  const tasks = (b && Array.isArray(b.tasks)) ? b.tasks : [];
+  let t = tasks.find((x) => x && x.id === row.block);
+  if (!t) return null;
+  let variant = null;
+  if (Array.isArray(t.variants) && t.variants.length) {
+    const res = resultOf(row) || {};
+    const asked = Array.isArray(res.asked) && res.asked.length ? res.asked : (Array.isArray(session.asked) ? session.asked : []);
+    const comp = t.kind === 'passage' ? tasks.find((x) => x && x.depends_on && x.depends_on.task === t.id && Array.isArray(x.variants)) : t;
+    let at = comp && comp.variants.length === t.variants.length
+      ? comp.variants.findIndex((v) => (v.items || []).some((q) => asked.includes(q.id))) : -1;
+    if (at < 0 && typeof res.session_id === 'string') at = hash(res.session_id) % t.variants.length;
+    const v = t.variants[Math.max(0, at)];
+    t = { ...t, items: v.items || t.items, passage: v.passage || t.passage, stop: v.stop || t.stop };
+    variant = { id: v.id, src: v.src || null };
+  }
+  const items = Array.isArray(t.items) ? t.items : [];
+  const one = t.present === 'one_at_a_time';
+  const stop = t.stop || {};
+  const record = {
+    // each item's own show next to its own answer (never zipped against a separately ordered grid)
+    grid: items.length && items.every((x) => x.show != null) ? items.map((x) => String(x.show)) : (t.grid || []),
+    answers: items.map((x) => (x.answer == null ? null : String(x.answer))),
+    per_row: one ? items.length : Number(t.per_row) || 10,
+    stop: stop.type ? stop : (stop.first_line_n ? { type: t.kind === 'passage' ? 'first_line' : 'first_row', n: stop.first_line_n } : {}),
+    passage: t.passage ? { ...t.passage, words: items } : undefined,
+    questions: t.kind === 'questions' || t.kind === 'listen_questions' ? items : undefined,
+    items,
+    time_limit_s: t.time_limit_s || null,
+  };
+  return { spec: { task: t.id, kind: t.kind, subtask: t.subtask, lang: t.lang || row.lang || lang, present: t.present || null, record }, variant };
+}
+
 const UR_NAMES = () => require('../scoring/tasks/prompts').UR_NAMES || {}; // eslint-disable-line global-require
 
-function lettersPrompt({ grade, lang, items, perRow, sound }) {
+function lettersPrompt({ grade, lang, items, perRow, sound, answers = [], one = false }) {
   const ur = lang === 'ur';
   const names = ur ? UR_NAMES() : {};
-  const card = items.map((L, i) => `${i + 1}: ${L}${ur && names[L] ? ` (${names[L]})` : ''}`).join(' ');
+  const said = (L, i) => answers[i] || (ur && names[L]) || '';
+  const card = items.map((L, i) => `${i + 1}: ${L}${said(L, i) ? ` (${said(L, i)})` : ''}`).join(' ');
   const rule = sound
     ? `the child says each letter's SOUND${ur ? ' (e.g. "بَ" for ب)' : ' (e.g. /b/ for b)'}; a letter NAME said instead of its sound is WRONG`
     : `the child says each letter's NAME${ur ? ' (e.g. الف، بے، جیم; "یے" alone is acceptable for ی and ے, "ہمزہ" for ء)' : ' (upper or lower case is the same letter)'}; a clear letter SOUND for that letter also counts`;
-  return `A child in a Pakistani government school (grade ${grade}) is doing the timed ${ur ? 'Urdu' : 'English'} LETTER ${sound ? 'SOUND' : 'NAME'} task of an EGRA reading test ALONE on a phone, wearing headphones. The phone showed a card of ${items.length} letters, ${perRow} per row, read ${ur ? 'right to left' : 'left to right'} row by row, and recorded the child for up to 60 seconds. There is no adult in the clip; the phone's own voice may be faintly heard.
+  return `A child in a Pakistani government school (grade ${grade}) is doing the timed ${ur ? 'Urdu' : 'English'} LETTER ${sound ? 'SOUND' : 'NAME'} task of an EGRA reading test ALONE on a phone, wearing headphones. ${one ? `The phone showed ${items.length} letters ONE AT A TIME, in this order, each for a few seconds,` : `The phone showed a card of ${items.length} letters, ${perRow} per row, read ${ur ? 'right to left' : 'left to right'} row by row,`} and recorded the child for up to 60 seconds. There is no adult in the clip; the phone's own voice may be faintly heard.
 Marking rules: ${rule}. A self-correction counts as correct. A letter said wrongly, or passed over while the child keeps going, is WRONG. Every position after the last letter the child reached is SKIPPED.
-The printed card in reading order (position: letter${ur ? ' (its name)' : ''}):
+${answers.length ? 'The printed letters in order (position: letter (what a correct child says)):' : `The printed card in reading order (position: letter${ur ? ' (its name)' : ''}):`}
 ${card}
 For EVERY position 1-${items.length} return v = "c" (correct), "w" (wrong) or "s" (skipped / not reached), heard = what the child said for that letter ("" if skipped), and conf = your confidence 0-1 in that verdict. found = whether the clip contains the child saying letters from this card at all.
 Return ONLY JSON: {"found": true, "last_attempted": <int>, "letters_correct": <int>, "items": [{"i": 1, "heard": "...", "v": "c|w|s", "conf": 0.9}, ...]}`;
@@ -144,6 +197,7 @@ function defaultDeps() {
       } finally { media.cleanup(file); }
     },
     bank: loadBank(),
+    phoneBattery,
   };
   /* eslint-enable global-require */
 }
@@ -193,14 +247,60 @@ async function scoreGrid(task, rec, row, res, deps, calls, grade) {
   const LV = { c: 'correct', w: 'wrong', s: 'not_reached', n: 'not_reached' };
   let rows;
   if (letters) {
-    const json = await call(deps, calls, { prompt: lettersPrompt({ grade, lang: task.lang, items, perRow, sound: /sound/.test(task.subtask || task.task) }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_letters' });
+    const json = await call(deps, calls, { prompt: lettersPrompt({ grade, lang: task.lang, items, perRow, sound: /sound/.test(task.subtask || task.task), answers: rec.answers || [], one: task.present === 'one_at_a_time' }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_letters' });
     const by = new Map((json.items || []).map((it, j) => [Number(it.i) || j + 1, it]));
     rows = timedRows(items, (k) => { const it = by.get(k + 1) || {}; return { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf) }; });
   } else {
     rows = await storyRows(items, task.lang, clip, deps, calls, 'child_test.sa_words');
   }
   const stopped = (rec.stop || {}).type === 'first_row' && firstRowStopped(rows, Number(rec.stop.n) || perRow);
-  return { numbers: timedNumbers(rows, res, { stopped }), rows, stopped, durationSec: clip.durationSec };
+  return { numbers: timedNumbers(rows, res, { stopped, attemptedTo: reachedOf(task, res, items.length) }), rows, stopped, durationSec: clip.durationSec };
+}
+
+/** One item at a time: the phone knows the last cell the child reached (cells[] / last_item_index). */
+function reachedOf(task, res, n) {
+  if (task.present !== 'one_at_a_time' || !res) return null;
+  if (Array.isArray(res.cells) && res.cells.length) return Math.min(n, res.cells.length);
+  return Number.isInteger(res.last_item_index) ? Math.min(n, res.last_item_index + 1) : null;
+}
+
+function oralPrompt({ lang, task, items, one }) {
+  const what = /fluency/.test(task.subtask || '') ? 'quick sums, as many as it can in one minute'
+    : /number_id/.test(task.subtask || '') ? 'the NAME of each number shown (e.g. "forty-five" / «پینتالیس» for 45)'
+      : 'the answer to each sum shown, worked out in its head';
+  const list = items.map((x, i) => `${i + 1}: shown "${x.show}" → correct answer ${x.answer}`).join('\n');
+  return `A child in a Pakistani government school (grade 3-5), alone with a phone and wearing headphones, is doing an EGMA maths task: it says aloud ${what}. ${one ? 'The phone showed the items ONE AT A TIME, in this order.' : 'The phone showed the items in this order.'} The child may answer in Urdu, English or a mix (e.g. «انیس», "nineteen", "unees"); judge the NUMBER said. The phone's own voice may be faintly heard; ignore it.
+Marking rules: "c" if the child's final answer for that item is the correct number (a self-correction counts), "w" if it says a different number or "I don't know", "s" if it never reached the item or said nothing for it.
+ITEMS (position: what was shown → the correct answer):
+${list}
+For EVERY position 1-${items.length} return v = "c", "w" or "s", heard = the number the child said ("" if none), conf = your confidence 0-1.
+Return ONLY JSON: {"found": true, "last_attempted": <int>, "letters_correct": <int>, "items": [{"i": 1, "heard": "...", "v": "c|w|s", "conf": 0.9}, ...]}`;
+}
+
+/** Spoken maths (W3: number identification, mental + − ×, one-minute fluency): one clip for the task, or one per item. */
+async function scoreOral(task, rec, row, res, deps, calls) {
+  const items = rec.items || [];
+  const LV = { c: 'correct', w: 'wrong', s: 'not_reached', n: 'not_reached' };
+  const one = task.present === 'one_at_a_time';
+  const got = new Map();
+  const keys = keysOf(row);
+  const parts = keys.length ? items.map((x, k) => ({ list: [x], at: [k], key: (keys.find((y) => y.i === x.id) || {}).key })).filter((p) => p.key)
+    : (row.audio_r2_key ? [{ list: items, at: items.map((_, k) => k), key: row.audio_r2_key }] : []);
+  let durationSec = null;
+  for (const p of parts) {
+    const clip = await deps.clipOf(p.key);
+    durationSec = (durationSec || 0) + (clip.durationSec || 0);
+    const json = await call(deps, calls, { prompt: oralPrompt({ lang: task.lang, task, items: p.list, one }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_oral_maths' });
+    const by = new Map((json.items || []).map((it, j) => [Number(it.i) || j + 1, it]));
+    p.at.forEach((k, j) => got.set(k, by.get(j + 1) || {}));
+  }
+  const rows = timedRows(items.map((x) => String(x.show)), (k) => { const it = got.get(k) || {}; return { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf) }; });
+  rows.forEach((r, k) => { r.id = items[k].id; r.answer = items[k].answer; });
+  const timed = Number(rec.time_limit_s) > 0;
+  const attemptedTo = reachedOf(task, res, items.length);
+  const numbers = timed ? timedNumbers(rows, res, { stopped: false, attemptedTo })
+    : { correct: rows.filter((r) => r.verdict === 'correct').length, of: rows.length };
+  return { numbers, rows, stopped: false, durationSec };
 }
 
 async function storyRows(tokens, lang, clip, deps, calls, job) {
@@ -270,7 +370,7 @@ function LETTERS_SCHEMA() {
 async function scoreRow(row, session, deps = {}) {
   const d = { ...defaultDeps(), ...deps };
   const res = resultOf(row);
-  const found = specFor(d.bank, session, row);
+  const found = specFor(d.bank, session, row) || phoneSpecFor(session, row, d.phoneBattery);
   if (!found) return { ok: false, reason: 'task_not_in_bank', retry: false };
   const { spec: task, variant } = found;
   const rec = task.record || {};
@@ -280,6 +380,7 @@ async function scoreRow(row, session, deps = {}) {
     let out;
     if (task.kind === 'grid') out = await scoreGrid(task, rec, row, res, d, calls, Number(session.grade) || 3);
     else if (task.kind === 'passage') out = await scorePassage(task, rec, row, res, d, calls);
+    else if (task.kind === 'oral' && !Array.isArray(rec.questions)) out = await scoreOral(task, rec, row, res, d, calls);
     else if (Array.isArray(rec.questions)) out = await scoreQuestions(task, rec, row, res, d, calls);
     else return { ok: false, reason: 'no_scorer_for_kind', retry: false };
     const confidence = mean(out.rows.map((r) => r.conf));
@@ -384,9 +485,9 @@ async function sweepOnce({ sessionId = null, now = new Date(), deps = {} } = {})
     const rows = await candidates({ sessionId, now, supabase });
     out.found = rows.length;
     const sessions = new Map();
-    let started = 0;
+    const claimed = [];
     for (const row of rows) {
-      if (started >= PER_TICK) break;
+      if (claimed.length >= PER_TICK) break;
       if (!sessions.has(row.session_id)) {
         const { data } = await supabase.from('child_test_sessions').select('id, grade, form, item_bank_version, status, finished_at, client_finished_at').eq('id', row.session_id).limit(1);
         const s = (data || [])[0] || null;
@@ -398,12 +499,14 @@ async function sweepOnce({ sessionId = null, now = new Date(), deps = {} } = {})
       if (!ready(row, session, now.getTime())) { out.waiting += 1; continue; }
       const had = { ...row }; // the reason before the claim: the retry count lives in it
       if (!(await claim(had, supabase))) continue;
-      started += 1;
+      claimed.push({ had, session });
+    }
+    await Promise.all(claimed.map(async ({ had, session }) => {
       const got = await scoreRow(had, session, deps);
       await finish(had, got, supabase);
       if (got.ok) out.scored += 1; else out.failed += 1;
-      logToFile('child_test.sa_scored', { block: row.block, ok: got.ok, reason: got.ok ? null : got.reason, cost_usd: got.ok ? got.marks.meta.cost_usd : null });
-    }
+      logToFile('child_test.sa_scored', { block: had.block, ok: got.ok, reason: got.ok ? null : got.reason, cost_usd: got.ok ? got.marks.meta.cost_usd : null });
+    }));
     return out;
   } catch (e) {
     logError('child_test.sa_score.sweep_failed', { error: e.message });
@@ -431,6 +534,6 @@ function start() {
 function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
-  isOn, scoreRow, sweepOnce, kick, start, stop, specFor, ready, hash,
+  isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
   __internals: { PARKED, SCORING, RETRY, FAILED, candidates, claim, finish, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt },
 };
