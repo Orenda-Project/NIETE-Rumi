@@ -152,14 +152,18 @@ describe('VS-1 a replay compares with the child\'s own first try', () => {
     expect(p.html()).toContain('آپ کی پہلی کوشش');
     expect(p.html()).not.toContain('ٹیسٹ والا');
   });
-  test('on, a replay that beats the first try says "New best!" once; a tie says it is a tie', () => {
+  test('on, a replay that beats the first try says "New best!" once; a tie says it equals the first try', () => {
     let p = page({ lang: 'en', store: finished({ correct: 5, total: 7, practice: true, kept: { correct: 4, total: 7 } }, { vs: { ...VS, outcome: 'win' } }), bootExtra: { share_page_lang: true } });
     p.wq.card();
     expect(p.html()).toMatch(/<div class="wq-banner wq-vs"><b>New best!<\/b><br>You <bdi dir="ltr">5\/7<\/bdi> · Your first try <bdi dir="ltr">4\/7<\/bdi>/);
     expect(p.html()).not.toContain('You beat the challenge!');
     p = page({ lang: 'en', store: finished({ correct: 4, total: 7, practice: true, kept: { correct: 4, total: 7 } }, { vs: { ...VS, outcome: 'tie' } }), bootExtra: { share_page_lang: true } });
     p.wq.card();
-    expect(p.html()).toContain('<b>It&#39;s a tie!</b><br>You <bdi dir="ltr">4/7</bdi> · Your first try');
+    expect(p.html()).toContain('<b>Same as your first try!</b><br>You <bdi dir="ltr">4/7</bdi> · Your first try');
+    p = page({ lang: 'ur', store: finished({ correct: 4, total: 7, practice: true, kept: { correct: 4, total: 7 } }, { vs: { ...VS, outcome: 'tie' } }), bootExtra: { share_page_lang: true } });
+    p.wq.card();
+    expect(p.html()).toContain('<b>پہلی کوشش کے برابر!</b>');
+    expect(p.html()).not.toContain('مقابلہ برابر رہا');
   });
   test('on, a first play of the challenge still names the challenger', () => {
     const p = page({ lang: 'en', store: finished({}, { vs: { first: 'Beena', correct: 3, total: 7, outcome: 'win' } }), bootExtra: { share_page_lang: true } });

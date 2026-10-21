@@ -671,7 +671,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       moreNone: 'No more videos for your class yet.', vchip: 'Video quiz', nextT: 'Next in this chapter', moreWait: 'Opening the video…', mins: function (n) { return n + ' min'; }, doneTag: 'Done', playAgain: 'Play again',
       selfT: 'This is your own test run. It will not show in your class report.',
       challenged: function (n, s, t) { return n + ' got ' + s + '/' + t + ' stars. Can you beat it?'; }, challengedBy: function (n) { return n + ' challenged you. Can you beat their score?'; },
-      vs: { win: 'You beat the challenge!', tie: "It's a tie!", lose: 'So close! Play again?' }, vsYou: 'You', vsFirst: 'Your first try', frOut: { win: 'beat you!', tie: 'tie', lose: 'you won' },
+      vs: { win: 'You beat the challenge!', tie: "It's a tie!", lose: 'So close! Play again?' }, vsYou: 'You', vsFirst: 'Your first try', vsSelfTie: 'Same as your first try!', frOut: { win: 'beat you!', tie: 'tie', lose: 'you won' },
       offWait: 'Your results will reach your teacher when you are back online.', offDone: 'All done! Your answers are saved on this phone.', tryNow: 'Send now',
       offline: 'No internet right now. Your answers are saved on this phone.', tooFew: 'Answer a few more questions first.', oops: 'Something went wrong. Please try again.',
       friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child',
@@ -749,7 +749,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       selfT: 'یہ آپ کا اپنا ٹیسٹ رن ہے۔ یہ کلاس رپورٹ میں شامل نہیں ہوگا۔',
       challenged: function (n, s, t) { return n + ' نے ' + urDigits(t) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ اب آپ کی باری!'; },
       challenged_one: function (n, s, t) { return n + ' نے ' + urDigits(t) + ' میں سے ' + urDigits(s) + ' ستارہ لیا۔ اب آپ کی باری!'; }, challengedBy: function (n) { return n + ' نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!'; },
-      vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑی سی کمی رہ گئی! دوبارہ کھیلیں؟' }, vsYou: 'آپ', vsFirst: 'آپ کی پہلی کوشش', frOut: { win: 'آپ سے آگے!', tie: 'برابر', lose: 'آپ کی جیت' },
+      vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑی سی کمی رہ گئی! دوبارہ کھیلیں؟' }, vsYou: 'آپ', vsFirst: 'آپ کی پہلی کوشش', vsSelfTie: 'پہلی کوشش کے برابر!', frOut: { win: 'آپ سے آگے!', tie: 'برابر', lose: 'آپ کی جیت' },
       offWait: 'انٹرنیٹ واپس آتے ہی آپ کا نتیجہ ٹیچر تک پہنچ جائے گا۔', offDone: 'سب ہو گیا! آپ کے جواب اس فون پر محفوظ ہیں۔', tryNow: 'ابھی بھیجیں',
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
       friends: 'دوست جنہوں نے مکمل کیا', home: 'پہلا صفحہ', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں',
@@ -2996,10 +2996,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (!vs || !T.vs[vs.outcome]) return '';
     function sc(a, b) { return '<bdi dir="ltr">' + esc(scoreN(a)) + '/' + esc(scoreN(b)) + '</bdi>'; }
     // web_quiz_share_page_lang on a replay (a practice round with its kept first try): the challenge was the first try's,
-    // so this round is set against that first try ("Your first try 4/7"), never against a name; beating it is a new best
+    // so this round is set against that first try ("Your first try 4/7"), never against a name; beating it is a new best,
+    // matching it is "Same as your first try!"
     var o = replayVs(vs, c, total);
     if (o) {
-      return '<div class="wq-banner wq-vs"><b>' + esc(o === 'win' ? TW.newBest : T.vs[o]) + '</b><br>' + esc(T.vsYou) + ' ' + sc(c.correct, total) +
+      return '<div class="wq-banner wq-vs"><b>' + esc(o === 'win' ? TW.newBest : o === 'tie' ? T.vsSelfTie : T.vs[o]) + '</b><br>' + esc(T.vsYou) + ' ' + sc(c.correct, total) +
         sep() + esc(T.vsFirst) + ' ' + sc(c.kept.correct, c.kept.total) + '</div>';
     }
     return '<div class="wq-banner wq-vs"><b>' + esc(T.vs[vs.outcome]) + '</b><br>' + esc(T.vsYou) + ' ' + sc(c.correct, total) +
