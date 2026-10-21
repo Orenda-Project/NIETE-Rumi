@@ -14,8 +14,9 @@ const core = require('../../../dashboard/sa/sa-core.js');
 const { buildSaBank, runtimeBattery, FORMS } = require('../../shared/services/child-test/sa/build');
 const v3 = require('../../shared/data/child-test/item-bank.v3.json');
 const extra = require('../../shared/data/child-test/item-bank.sa-extra.v1.json');
+const w3 = require('../../shared/data/child-test/item-bank.sa-w3.v1.json');
 
-const bank = buildSaBank({ v3, extra });
+const bank = buildSaBank({ v3, extra, w3 });
 const files = FORMS.flatMap(({ form }) => ['ur', 'en'].map((lang) => [`sa.${form}.${lang}.json`, form, lang]));
 const read = (f) => JSON.parse(fs.readFileSync(path.join(DATA, 'sa', f), 'utf8'));
 

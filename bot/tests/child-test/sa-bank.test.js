@@ -15,10 +15,12 @@ const DATA = path.join(__dirname, '../../shared/data/child-test');
 const { buildSaBank, splitSaBankWithRuntime } = require('../../shared/services/child-test/sa/build');
 const v3 = require('../../shared/data/child-test/item-bank.v3.json');
 const extra = require('../../shared/data/child-test/item-bank.sa-extra.v1.json');
+const w3 = require('../../shared/data/child-test/item-bank.sa-w3.v1.json');
 
 const read = (rel) => JSON.parse(fs.readFileSync(path.join(DATA, rel), 'utf8'));
 const bank = read('item-bank.sa.v1.json');
-const tasks = Object.entries(bank.tasks);
+// The W3 forms' tasks have their own shape and guards (sa-rdf-w3.test.js).
+const tasks = Object.entries(bank.tasks).filter(([, t]) => !t.w3);
 
 const ARABIC_LOOKALIKES = /[يكهى]/u;
 const GENDERED_TO_CHILD = /(گا\/گی|گے\/گی|تا\/تی|تے\/تی|سکتے ہیں|سکتی ہیں)/u;
@@ -48,7 +50,7 @@ const scoredItems = (t) => [...((t.tap && t.tap.items) || []), ...((t.record && 
 
 describe('SA battery bank (CONTRACT §2)', () => {
   test('the committed files are exactly what the builder makes (no hand edits)', () => {
-    const files = JSON.parse(JSON.stringify(splitSaBankWithRuntime(buildSaBank({ v3, extra }))));
+    const files = JSON.parse(JSON.stringify(splitSaBankWithRuntime(buildSaBank({ v3, extra, w3 }))));
     for (const [rel, want] of Object.entries(files)) expect([rel, read(rel)]).toEqual([rel, want]);
     expect(fs.readdirSync(path.join(DATA, 'sa')).sort()).toEqual(Object.keys(files).filter((f) => f.startsWith('sa/')).map((f) => f.slice(3)).sort());
   });

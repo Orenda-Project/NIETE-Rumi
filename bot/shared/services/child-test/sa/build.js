@@ -15,6 +15,7 @@
 const crypto = require('crypto');
 const { TASKS_V3 } = require('../tasks');
 const { COMMON, BATTERY, GAME_LINES, TASKS: LINES, CHAINS, MATHS_PRACTICE, UR_LETTER_NAMES, EN_LETTER_SOUNDS } = require('./scripts');
+const W3 = require('./build-w3');
 
 const VERSION = 'child-test-items-sa-v1';
 const SET = 'A';
@@ -215,7 +216,7 @@ function storyTasks({ lang, spec, task = `${lang}.story`, base = `v3:sets.${SET}
     deviation: 'the child taps the last word read instead of the assessor bracketing it',
   };
   const questions = spec.questions.map((q, i) => ({ id: q.id, prompt: said(lang, q.prompt), needs_line: q.needs_line || null,
-    accept: q.accept, reject: q.reject || [], rubric: q.rubric, src: `${base}.questions[${i}]` }));
+    accept: q.accept, reject: q.reject || [], rubric: q.rubric, ...(q.accept_rule ? { accept_rule: q.accept_rule } : {}), src: `${base}.questions[${i}]` }));
   const comp = {
     task: `${task}_comp`, lang, kind: 'questions', legacy_block: legacy, family: 'egra', subtask: SUBTASK.story_comp,
     title: { en: 'Story questions', ur: 'کہانی کے سوال' }, modes: ['record'], tap: null,
@@ -567,7 +568,7 @@ function readingExtras(extra) {
       practice_note: 'EGRA oral reading has no practice item', source: { items: `extra:reading.${lang}.story2` },
       items: words, story: { text: lang === 'en' ? en2.lines.join('\n') : ur2.text, lines }, questions } });
   out.push(...story2('en', en2, enLines, enWords.flat(), en2.questions.map((q, i) => ({ id: `en.story2.q${i + 1}`, prompt: q.q, accept: q.accept, needs_line: q.needs_line,
-    rubric: q.any_reasonable ? 'any reasonable answer is accepted (TK2009)' : null }))));
+    rubric: q.any_reasonable ? 'any reasonable answer is accepted (TK2009)' : null, accept_rule: q.accept_rule }))));
   out.push(...story2('ur', ur2, urLines, urSegs.flat(), ur2.questions.map((q, i) => ({ id: `ur.story2.q${i + 1}`, prompt: q.q, accept: q.accept, needs_line: segOfMarker(q.after_marker) }))));
   for (const lang of ['en', 'ur']) {
     const l = r[lang].listening2;
@@ -698,6 +699,8 @@ const runRank = (id) => {
  * rotate per child over the fielded, sourced texts. variants[0] is the form's own (RWP May 2026, Set A); then SELECT
  * 2024 and PRP-KP 2020 for Urdu, the EGRA Toolkit 2009 sample for English (fielded: false, the sourcing gap named in
  * PASSAGE_SOURCES). Each variant is a whole task of the same shape; the page picks one index per child for all three.
+ * PRP-KP's story is out of the oral-reading rotation: its report prints the passage as an unpunctuated word grid, so
+ * its punctuation would be ours (W3, operator items 4/6: official punctuation only); its listening story stays.
  */
 function passageVariants(core18, extra) {
   const r = extra && extra.reading;
@@ -729,8 +732,8 @@ function passageVariants(core18, extra) {
   const TK = 'egra_tk2009:sample assessment design';
   const list = (...xs) => xs.filter(Boolean);
   return {
-    'ur.story': list(V('rwp2026', RWP, true, own('ur.story')), V('select2024', SEL, true, of('ur.story2')), V('prpkp2020', PRP, true, prp[0])),
-    'ur.story_comp': list(V('rwp2026', RWP, true, own('ur.story_comp')), V('select2024', SEL, true, of('ur.story2_comp')), V('prpkp2020', PRP, true, prp[1])),
+    'ur.story': list(V('rwp2026', RWP, true, own('ur.story')), V('select2024', SEL, true, of('ur.story2')), !p3.editorial_punct && V('prpkp2020', PRP, true, prp[0])),
+    'ur.story_comp': list(V('rwp2026', RWP, true, own('ur.story_comp')), V('select2024', SEL, true, of('ur.story2_comp')), !p3.editorial_punct && V('prpkp2020', PRP, true, prp[1])),
     'ur.listening': list(V('rwp2026', RWP, true, own('ur.listening')), V('select2024', SEL, true, of('ur.listening2')), V('prpkp2020', PRP, true, prpL)),
     'en.story': list(V('rwp2026', RWP, true, own('en.story')), V('tk2009', TK, false, of('en.story2'))),
     'en.story_comp': list(V('rwp2026', RWP, true, own('en.story_comp')), V('tk2009', TK, false, of('en.story2_comp'))),
@@ -857,7 +860,7 @@ function dropCrossWholeLines(task) {
   walk(task);
 }
 
-function buildSaBank({ v3, extra }) {
+function buildSaBank({ v3, extra, w3 }) {
   const forms = {};
   const tasks = {};
   for (const f of FORMS) {
@@ -890,12 +893,18 @@ function buildSaBank({ v3, extra }) {
         if (vs && vs.length > 1) t.variants = vs.map((v) => ({ id: v.id, src: v.src, fielded: v.fielded, task: { ...v.task, variants: undefined } }));
       }
     }
+    // W3 (switch sa_rdf_w3_forms): the RDF auto / RDF manual forms' own tasks, after the rotation's variants exist.
+    const w3Only = W3.w3Tasks(f, { v3, extra, w3 }, list, W3_HELPERS);
     const form = { surface: f.surface, grades: f.grades, set: f.surface === 'coach' ? SET : null, maths_form: `G${f.maths}`, order, extra: extraIds };
     if (f.surface === 'coach') {
       // DESIGN §2b: initial sound joins B3 (oral), patterns joins B4; every other extra is in the full form only.
       // RULING #16: Design A's blocks hold the 18 v3 tasks only; every extra is in the full form (the coach's toggle).
       const blocks = BLOCKS;
       Object.assign(form, { full: order, blocks, block_names: BLOCK_NAMES, ...(rdfOnly.length ? { rdf: RDF, rdf_items: RDF_ITEMS, rdf_name: RDF_NAME } : {}) });
+      if (w3Only.length) {
+        const ids = w3Only.map((t) => t.task);
+        Object.assign(form, { rdf_auto: ids, rdf_manual: ids, rdf_variants: W3.VARIANTS, rdf_w3_absent: w3.absent });
+      }
     } else {
       // Each island: that subject's tasks in run order, extras included; the tower stays the 18 (RULING #5).
       const swapped = new Set(list.filter((t) => t.parallel_of).map((t) => t.parallel_of).flatMap((id) => [id, `${id}_comp`]));
@@ -908,14 +917,15 @@ function buildSaBank({ v3, extra }) {
       for (const t of list) t.script.hand_back = spoken(GAME_LINES.hand_back);
     }
     forms[f.form] = form;
-    for (const t of [...list, ...rdfOnly]) tasks[`${f.form}/${t.task}`] = t;
+    for (const t of [...list, ...rdfOnly, ...w3Only]) tasks[`${f.form}/${t.task}`] = t;
   }
   return {
     version: VERSION,
-    built_from: { v3: v3.version, set: SET, ...(extra ? { extra: extra.version } : {}) },
+    built_from: { v3: v3.version, set: SET, ...(extra ? { extra: extra.version } : {}), ...(w3 ? { w3: w3.version } : {}) },
     rule: 'Generated by shared/services/child-test/sa/build.js; never edit by hand. Every item and option comes from item-bank.v3.json (src); Jugnu\'s lines adapt the official EGRA/EGMA wording for self-administration (sa/scripts.js, from).',
     // v3's sources, less any url that is not public (a local transcription is cited by its title alone).
-    sources: { ...Object.fromEntries(Object.entries(v3.sources).map(([k, v]) => [k, /^https?:/.test(v.url || '') ? v : { title: v.title, pages: v.pages }])), ...(extra ? extra.sources : {}) },
+    sources: { ...Object.fromEntries(Object.entries(v3.sources).map(([k, v]) => [k, /^https?:/.test(v.url || '') ? v : { title: v.title, pages: v.pages }])), ...(extra ? extra.sources : {}),
+      ...(w3 ? Object.fromEntries(Object.entries(w3.sources).filter(([k]) => !v3.sources[k] && !(extra && extra.sources[k]))) : {}) },
     conventions: {
       tasks: 'keyed "<form>/<task>"; task = the v3 block id (legacy_block), plus <lang>.story_comp for the story questions',
       modes: 'tap: Jugnu says the target, the child taps it (options) or types it (keypad), scored on the phone; record: audio kept, scored later by the child-test scorer',
@@ -925,7 +935,7 @@ function buildSaBank({ v3, extra }) {
       digits: 'maths shows Western digits; Urdu speech uses Urdu digits (v3 convention)',
       translation: 'Urdu renderings of English scripts are pending native review (v3 convention)',
     },
-    lines: Object.fromEntries(Object.entries(BATTERY).map(([k, l]) => [k, spoken(l)])),
+    lines: Object.fromEntries(Object.entries({ ...BATTERY, ...(w3 ? W3.LINES_W3 : {}) }).map(([k, l]) => [k, spoken(l)])),
     forms,
     tasks,
   };
@@ -1058,15 +1068,23 @@ function runtimeTask(t, lang) {
 function runtimeBattery(bank, formId, lang) {
   const form = bank.forms[formId];
   const { order, ...shape } = form;
+  const w3Lines = form.rdf_auto ? [] : Object.keys(W3.LINES_W3);
+  const short = [...(form.rdf || []), ...(form.rdf_auto || [])];
   return {
     battery_id: `sa.${formId}.${lang}`, version: bank.version, form: formId, lang, ...shape,
     rule: bank.rule, conventions: bank.conventions,
-    lines: Object.fromEntries(Object.entries(bank.lines).filter(([k]) => !/_game$/.test(k))
+    lines: Object.fromEntries(Object.entries(bank.lines).filter(([k]) => !/_game$/.test(k) && !w3Lines.includes(k))
       .map(([k, l]) => [k, inLang(form.lines && form.lines[k] ? bank.lines[form.lines[k]] : l, lang)])),
-    // The full order, then the tasks only a short form runs (RDF), so the page can pick either list.
-    tasks: [...order, ...(form.rdf || []).filter((id) => !order.includes(id))].map((id) => runtimeTask(bank.tasks[`${formId}/${id}`], lang)),
+    // The full order, then the tasks only a short form runs (RDF; RDF auto / manual), so the page can pick either list.
+    tasks: [...new Set([...order, ...short])].map((id) => {
+      const t = bank.tasks[`${formId}/${id}`];
+      return t.w3 ? W3.runtimeW3Task(t, lang, W3_HELPERS) : runtimeTask(t, lang);
+    }),
   };
 }
+
+// What build-w3.js borrows from this file (passed in, so neither file requires the other's internals).
+const W3_HELPERS = { spoken, said, sayBoth, toUrDigits, mathsTask, inLang, chainIn, runtimeTask, runtimeScript };
 
 /** The bank as files: the whole bank, one file per form (the same shape), and per form × language the runtime battery. */
 function splitSaBankWithRuntime(bank) {
