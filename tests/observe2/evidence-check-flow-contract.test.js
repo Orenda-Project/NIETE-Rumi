@@ -14,7 +14,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { buildEvidenceCheckFlow, SLOTS, HEARD_SCREENS, ADDED_SCREENS, CHECK_VERSION } = require('../../bot/shared/services/observe/observe2/evidence-check.flow');
-const { CODES, MOMENTS, PLAIN, FOCUS, PLAN_FOCUS } = require('../../bot/shared/services/observe/observe2/fico17');
+const { CODES, MOMENTS, PLAIN, FOCUS, FOCUS_ORDER, FOCUS_DESCRIPTION, PLAN_FOCUS } = require('../../bot/shared/services/observe/observe2/fico17');
 
 const FLOW_PATH = path.join(__dirname, '../../docs/flows/observe2-evidence-check.json');
 const flow = buildEvidenceCheckFlow();
@@ -112,14 +112,21 @@ describe('levels: pre-filled from the rule, every option in plain words', () => 
       expect(radio['data-source'].map((o) => o.id)).toEqual(['1', '2', '3', '4', 'NA', 'IE']);
     }
   });
-  test('the priority keeps the pre-seal picks and lists the 17 and the plan\'s steps in plain words', () => {
+  // R20/R21: the five coaching focus areas too, so the check (version 3) can keep what was sealed.
+  test('the priority keeps the pre-seal picks and lists the 17, the plan\'s steps and the coaching focus areas in plain words', () => {
+    expect(CHECK_VERSION).toBe('3');
     const form = screens.PRIORITY.layout.children.find((c) => c.type === 'Form');
     expect(form['init-values']).toEqual({
       priority_final: '${data.priority_level}', also_final_1: '${data.also_level_1}', also_final_2: '${data.also_level_2}',
     });
     const dd = components(screens.PRIORITY).find((c) => c.name === 'priority_final');
-    expect(dd['data-source'].map((o) => o.id).sort()).toEqual([...CODES, PLAN_FOCUS].sort());
-    for (const o of dd['data-source']) expect(o.title).toBe(FOCUS[o.id]);
+    expect(dd['data-source'].map((o) => o.id)).toEqual(FOCUS_ORDER);
+    expect(dd['data-source'].map((o) => o.id).sort()).toEqual([...CODES, PLAN_FOCUS, 'wait', 'manage', 'rules', 'warmup', 'close'].sort());
+    for (const o of dd['data-source']) {
+      expect(o.title).toBe(FOCUS[o.id]);
+      if (FOCUS_DESCRIPTION[o.id]) expect(o.description).toBe(FOCUS_DESCRIPTION[o.id]);
+      else expect(o.description).toBeUndefined();
+    }
     for (const name of ['also_final_1', 'also_final_2']) {
       const also = components(screens.PRIORITY).find((c) => c.name === name);
       expect(also.required).toBe(false);

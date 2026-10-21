@@ -80,6 +80,24 @@ const STRINGS = {
       'The parts follow the lesson: Part 1 is up to and including guided practice, Part 2 is independent practice and the wrap-up.',
       'At the end, tap *Seal and send*.',
     ].join('\n'),
+    // The brief's lines for a coaching focus area picked as "Work on first" or "Also work on" (pilot sheet
+    // R20, R21; focus-areas.js says what was seen). Each next step is a noun phrase, so no verb carries a
+    // gender, and none names the teacher's sex.
+    focus_next: {
+      wait: 'A silent count to five after each question, before anyone answers',
+      manage: 'One signal for attention and one routine for switching tasks, used every time',
+      rules: 'Three or four class rules, made with the children, on the wall and named when used',
+      warmup: "A two-minute opening question or game that links what children know to today's lesson",
+      close: 'The last five minutes for children to say or write what they learned, and for the teacher to check it',
+    },
+    focus_see_notes: 'see your notes below',
+    focus_no_switch: 'the class did not switch activity',
+    // What happened to one of the plan's steps, as the check left it.
+    focus_verdict: { done: 'done', partial: 'partly done', not_done: 'not done', not_adjudicable: "couldn't tell" },
+    focus_step: (text, verdict) => `${text} (${verdict})`,
+    focus_sep: '; ',
+    // A phrase that may be in another language (a plan step, the indicator phrases) as it sits in a line.
+    focus_atom: (text) => text,
   },
   ur: {
     deny_no_user: 'آپ کا اکاؤنٹ نہیں ملا۔ پہلے *register* لکھ کر بھیجیں، پھر دوبارہ \u2066/observe2\u2069 لکھیں۔',
@@ -139,6 +157,22 @@ const STRINGS = {
       'فارم کے حصے سبق کے مراحل کے مطابق ہیں: حصہ ۱ رہنمائی کے ساتھ مشق تک، حصہ ۲ انفرادی مشق اور اختتام۔',
       'آخر میں *Seal and send* دبائیں۔',
     ].join('\n'),
+    focus_next: {
+      wait: 'ہر سوال کے بعد، کسی کے جواب دینے سے پہلے، دل میں پانچ تک گنتی',
+      manage: 'توجہ کے لیے ایک اشارہ اور کام بدلنے کا ایک طریقہ، جو ہر بار استعمال ہو',
+      rules: 'کلاس کے تین چار اصول، بچوں کے ساتھ مل کر بنے، دیوار پر لگے اور استعمال کے وقت ان کا نام لیا جائے',
+      warmup: 'دو منٹ کا ایک سوال یا کھیل، جو بچوں کی پہلے سے معلوم بات کو آج کے سبق سے جوڑے',
+      close: 'آخری پانچ منٹ، جن میں بچے بتائیں یا لکھیں کہ کیا سیکھا، اور استاد اسے جانچے',
+    },
+    focus_see_notes: 'نیچے اپنے نوٹس دیکھیں',
+    focus_no_switch: 'کلاس نے سرگرمی نہیں بدلی',
+    focus_verdict: { done: 'مکمل', partial: 'جزوی', not_done: 'نہیں ہوا', not_adjudicable: 'واضح نہیں' },
+    // The Urdu word first, then the step in its own words.
+    focus_step: (text, verdict) => `${verdict}: ${text}`,
+    focus_sep: '؛ ',
+    // English phrases and plan steps of either language sit in an Urdu line as a first-strong isolate
+    // (FSI … PDI), so their direction never leaks into the sentence around them.
+    focus_atom: (text) => `\u2068${text}\u2069`,
   },
 };
 
