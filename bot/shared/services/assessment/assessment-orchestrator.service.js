@@ -31,6 +31,7 @@ const { logToFile } = require('../../utils/logger');
 const BookContent = require('./book-content.service');
 const Generation = require('./assessment-generation.service');
 const Renderer = require('./assessment-paper.renderer');
+const TopicKey = require('./topic-key.renderer');
 const FdeRenderer = require('./assessment-paper-fde.renderer');
 // The renderer is chosen by the requested format, in one place, so the bytes
 // and the filename can never disagree. Requiring htmlToPdf directly here is
@@ -187,11 +188,14 @@ async function _storeAnswerKey({
   // count read off the bytes by the caller. All optional — today's callers
   // pass none of them and get exactly the key they always got.
   suffix = '_AnswerKey', renderOpts = null, paperFileName = null, onBuffer = null,
+  // A topic paper's key is grouped by topic; absent for every other paper.
+  topics = null,
 }) {
   try {
     const keyHtml = Renderer.renderAnswerKey({
       examJson, grade, subject, schoolName: schoolName || null, pageReference, chapterTitle,
       ...(paperFileName ? { paperFileName } : {}),
+      ...(topics ? { topics } : {}),
     });
     const keyBuffer = renderOpts ? await renderer.render(keyHtml, renderOpts) : await renderer.render(keyHtml);
     if (onBuffer) onBuffer(keyBuffer);
@@ -624,6 +628,7 @@ async function buildPaper(job, user = {}) {
 
     // The paper never carries the answers; the key is a second document built
     // after it.
+    const topics = TopicKey.topicsFromScope(scope);
     const html = Renderer.renderPaper({
       examJson: generated.examJson,
       grade, subject,
@@ -631,6 +636,7 @@ async function buildPaper(job, user = {}) {
       pageReference: source.pageReference,
       chapterTitle: source.chapterTitle || null,
       answerLines,
+      ...(topics ? { paperKind: 'topic' } : {}),
     });
 
     const renderer = rendererFor(outputFormat);
@@ -681,6 +687,7 @@ async function buildPaper(job, user = {}) {
       chapterTitle: source.chapterTitle || null,
       pageReference: source.pageReference,
       versioned,
+      ...(topics ? { topics } : {}),
     };
   } catch (err) {
     const code = err.code || 'UNKNOWN';
@@ -767,6 +774,7 @@ async function process(job) {
         paperId: built.paperId, requestId, userId, examJson: built.examJson, grade, subject,
         schoolName: user?.school_name, pageReference: built.pageReference,
         chapterTitle: built.chapterTitle, renderer: built.renderer,
+        ...(built.topics ? { topics: built.topics } : {}),
       });
     }
     logToFile('[assessment] built without delivery', {
@@ -845,6 +853,7 @@ async function process(job) {
     const stored = built.answerKey !== undefined ? built.answerKey : await _storeAnswerKey({
       paperId, requestId, userId, examJson, grade, subject,
       schoolName: user.school_name, pageReference, chapterTitle, renderer,
+      ...(built.topics ? { topics: built.topics } : {}),
     });
     if (stored) {
       try {
