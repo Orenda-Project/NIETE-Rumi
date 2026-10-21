@@ -53,8 +53,9 @@
 
   /**
    * The tasks of one block, in the block's own order: a coach block (blocks.B1..B5), the RDF short form (rdf, with its
-   * per-task item caps rdf_items), a game island (islands.maths …) or the game's tower (tower = the coach order); the
-   * whole battery (its `full` order when it names one) for "full", no block or an unknown one.
+   * per-task item rules rdf_items: a number caps the items, {drop: [ids]} leaves those out; a task it lists without
+   * its dependency runs on its own), a game island (islands.maths …) or the game's tower (tower = the coach order);
+   * the whole battery (its `full` order when it names one) for "full", no block or an unknown one.
    */
   function pick(battery, block) {
     var want = null;
@@ -73,12 +74,22 @@
     // The list's own order (the tower runs in the coach order, which is not the islands' order).
     var byId = {};
     battery.tasks.forEach(function (t) { byId[t.id] = t; });
+    var keepItems = function (items, rule) {
+      if (!Array.isArray(items)) return items;
+      if (rule > 0) return items.slice(0, rule);
+      return items.filter(function (it) { return !it || rule.drop.indexOf(it.id) < 0; });
+    };
     out.tasks = want.map(function (id) { return byId[id]; }).filter(Boolean).map(function (t) {
-      var n = caps && caps[t.id];
-      if (!(n > 0) || !Array.isArray(t.items) || t.items.length <= n) return t;
+      var rule = caps && caps[t.id];
+      var orphan = caps && t.depends_on && t.depends_on.task && want.indexOf(t.depends_on.task) < 0;
+      if (!(rule > 0 || (rule && Array.isArray(rule.drop))) && !orphan) return t;
       var c = {};
       for (var k in t) if (Object.prototype.hasOwnProperty.call(t, k)) c[k] = t[k];
-      c.items = t.items.slice(0, n);
+      if (orphan) delete c.depends_on;
+      if (rule > 0 || (rule && Array.isArray(rule.drop))) {
+        c.items = keepItems(t.items, rule);
+        if (Array.isArray(t.variants)) c.variants = t.variants.map(function (v) { var w = {}; for (var j in v) if (Object.prototype.hasOwnProperty.call(v, j)) w[j] = v[j]; w.items = keepItems(v.items, rule); return w; });
+      }
       return c;
     });
     out.battery_id = battery.battery_id + (block && block !== 'full' ? '#' + block : '');

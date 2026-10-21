@@ -169,12 +169,17 @@ describe('A11: practice before every maths task', () => {
 });
 
 describe('A14: the RDF short form', () => {
-  const RDF = ['ur.letter_sounds_rec', 'ur.words', 'ur.story', 'ur.story_comp', 'en.letter_sounds_rec', 'en.words', 'en.story', 'en.story_comp',
+  const RDF = ['ur.letter_sounds_rec', 'ur.words_rec', 'ur.story', 'ur.story_comp', 'en.letter_sounds_rec', 'en.words_rec', 'en.story', 'en.story_comp',
     'ma.number_id', 'ma.missing', 'ma.add1', 'ma.sub1', 'ma.word_problems'];
   test.each(['sa.coach.G3.A.ur.json', 'sa.coach.G3.A.en.json', 'sa.coach.G5.A.ur.json', 'sa.coach.G5.A.en.json'])('%s carries rdf[] = the ruled list, each task present', (f) => {
     const b = runtime(f);
     expect(b.rdf).toEqual(RDF);
-    expect(b.rdf_items).toEqual({ 'ma.word_problems': 3 });
+    expect(b.rdf_items).toEqual({ 'ma.word_problems': 3, 'ur.story_comp': { drop: ['ur.story.q4'] }, 'en.story_comp': { drop: ['en.story.q4'] } });
+    // C2: the Set A questions RDF asks are lit1-3 + inf1-2, in order (RWP rdcomp_lit4 dropped).
+    for (const l of ['ur', 'en']) {
+      const kept = task(b, `${l}.story_comp`).items.filter((q) => !b.rdf_items[`${l}.story_comp`].drop.includes(q.id));
+      expect(kept.map((q) => q.src.replace(/^.*questions/, ''))).toEqual(['[0]', '[1]', '[2]', '[4]', '[5]']);
+    }
     expect(b.rdf_name).toEqual({ en: 'RDF', ur: 'آر ڈی ایف' });
     for (const id of RDF) expect([id, !!task(b, id)]).toEqual([id, true]);
     // The record-only tasks are RDF's: the full battery does not run them.
@@ -191,6 +196,17 @@ describe('A14: the RDF short form', () => {
     const en = task(b, 'en.letter_sounds_rec');
     expect(en.grid).toEqual(task(b, 'en.letter_sounds').grid);
     expect(read('item-bank.sa.v1.json').tasks['coach.G3.A/en.letter_sounds_rec'].source.items).toBe('extra:reading.en.letter_sounds');
+  });
+
+  test('C1: familiar words in RDF are read aloud on the official word grids (60 s, per minute), not tapped', () => {
+    const b = runtime('sa.coach.G5.A.ur.json');
+    for (const l of ['ur', 'en']) {
+      const w = task(b, `${l}.words_rec`);
+      expect([w.response, w.time_limit_s, w.subtask, w.items]).toEqual(['record', 60, 'familiar_word_reading', []]);
+      expect(w.grid).toEqual(task(b, `${l}.words`).grid);
+      expect(w.deviation).toMatch(/^none \(EGRA read-aloud\)/);
+      expect(b.full.includes(`${l}.words_rec`)).toBe(false);
+    }
   });
 
   test('the game forms have no RDF', () => {

@@ -704,34 +704,45 @@ function reusePractice(list, extra) {
 }
 
 // RULING #42 (A14): the RDF short form, exactly the tester's list. Checks = the battery's own audio check and mic
-// pre-flight; letter sounds are recorded on the official grids (60 s); word problems run their first 3 items.
-const RDF = ['ur.letter_sounds_rec', 'ur.words', 'ur.story', 'ur.story_comp', 'en.letter_sounds_rec', 'en.words', 'en.story', 'en.story_comp',
+// pre-flight; letter sounds and familiar words are read aloud on the official grids (60 s, recorded, scored per
+// minute later as EGRA does; panel C1); word problems run their first 3 items; the Set A story questions drop lit4
+// (panel C2: lit1-3 + both inference items), the reach rule on top. rdf_items: a number caps the items, {drop}
+// names the items left out.
+const RDF = ['ur.letter_sounds_rec', 'ur.words_rec', 'ur.story', 'ur.story_comp', 'en.letter_sounds_rec', 'en.words_rec', 'en.story', 'en.story_comp',
   'ma.number_id', 'ma.missing', 'ma.add1', 'ma.sub1', 'ma.word_problems'];
-const RDF_ITEMS = { 'ma.word_problems': 3 };
+const RDF_ITEMS = { 'ma.word_problems': 3, 'ur.story_comp': { drop: ['ur.story.q4'] }, 'en.story_comp': { drop: ['en.story.q4'] } };
 const RDF_NAME = { en: 'RDF', ur: 'آر ڈی ایف' };
 
-/** A letter grid the child reads aloud as sounds, recorded and scored later (RDF). */
-function letterSoundsRec({ lang, grid, per_row, direction, base, stop }) {
-  const task = `${lang}.letter_sounds_rec`;
+/** An official grid the child reads aloud, recorded and scored later (RDF): 60 s, EGRA's own administration. */
+function recordGrid({ task, lang, subtask, title, scriptKey, grid, per_row, direction, base, stop, adaptation, deviation }) {
   return {
-    task, lang, kind: 'grid', legacy_block: null, family: 'egra', subtask: 'letter_sound_identification',
-    title: { en: lang === 'ur' ? 'Urdu letter sounds' : 'Letter sounds', ur: lang === 'ur' ? 'اردو حروف کی آوازیں' : 'حروف کی آوازیں' }, modes: ['record'], tap: null,
+    task, lang, kind: 'grid', legacy_block: null, family: 'egra', subtask, title, modes: ['record'], tap: null,
     record: { grid, per_row, direction, time_limit_s: 60, stop },
     practice: [], practice_note: 'a spoken answer cannot be checked on the phone; the oral practice screen (RULING #13) comes before the first spoken answer',
-    script: scriptOf(task, 'record'),
-    source: { items: base, script: LINES[task].intro_record.from, sa_adaptation: 'EGRA letter sounds as administered (read aloud, 60 s), recorded and scored later' },
-    deviation: lang === 'ur'
-      ? 'the official Urdu letter-name grid read as sounds (no Urdu letter-sound grid is printed in a source we hold); the first-row stop is applied when scored'
-      : 'the first-row stop is applied when scored',
+    script: scriptOf(scriptKey, 'record'),
+    source: { items: base, script: LINES[scriptKey].intro_record.from, sa_adaptation: adaptation }, deviation,
   };
 }
 
 function rdfTasks(v3, extra) {
-  const ul = v3.sets[SET].reading.ur.letters;
+  const rd = v3.sets[SET].reading;
+  const ul = rd.ur.letters;
   const ls = extra.reading.en.letter_sounds;
+  const sounds = { en: 'Letter sounds', ur: 'حروف کی آوازیں' };
+  const read = 'EGRA as administered: read aloud for 60 s, recorded and scored later';
+  const words = (lang) => recordGrid({ task: `${lang}.words_rec`, lang, subtask: 'familiar_word_reading', title: rd[lang].words.title, scriptKey: 'words',
+    grid: rd[lang].words.items, per_row: rd[lang].words.per_row, direction: rd[lang].words.direction || (lang === 'ur' ? 'rtl' : 'ltr'),
+    base: `v3:sets.${SET}.reading.${lang}.words`, stop: stopOf(rd[lang].words.stop), adaptation: `${read} (per minute, comparable to EGRA)`,
+    deviation: 'none (EGRA read-aloud); the first-row stop is applied when scored' });
   return [
-    letterSoundsRec({ lang: 'ur', grid: ul.items, per_row: ul.per_row, direction: ul.direction, base: `v3:sets.${SET}.reading.ur.letters`, stop: stopOf(ul.stop) }),
-    letterSoundsRec({ lang: 'en', grid: ls.items.map((x) => x.letter), per_row: ls.per_row, direction: 'ltr', base: 'extra:reading.en.letter_sounds', stop: { type: 'first_row', n: ls.stop.n } }),
+    recordGrid({ task: 'ur.letter_sounds_rec', lang: 'ur', subtask: 'letter_sound_identification', title: { en: 'Urdu letter sounds', ur: 'اردو حروف کی آوازیں' },
+      scriptKey: 'ur.letter_sounds_rec', grid: ul.items, per_row: ul.per_row, direction: ul.direction, base: `v3:sets.${SET}.reading.ur.letters`, stop: stopOf(ul.stop),
+      adaptation: read, deviation: 'the official Urdu letter-name grid read as sounds (no Urdu letter-sound grid is printed in a source we hold); the first-row stop is applied when scored' }),
+    words('ur'),
+    recordGrid({ task: 'en.letter_sounds_rec', lang: 'en', subtask: 'letter_sound_identification', title: sounds, scriptKey: 'en.letter_sounds_rec',
+      grid: ls.items.map((x) => x.letter), per_row: ls.per_row, direction: 'ltr', base: 'extra:reading.en.letter_sounds', stop: { type: 'first_row', n: ls.stop.n },
+      adaptation: read, deviation: 'the first-row stop is applied when scored' }),
+    words('en'),
   ];
 }
 

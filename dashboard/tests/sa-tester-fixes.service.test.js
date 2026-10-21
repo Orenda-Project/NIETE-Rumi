@@ -73,6 +73,22 @@ describe('the RDF short form on the page', () => {
     expect(pick(b, 'full').battery_id).toBe('x');
     expect(pick(b, 'full').tasks[1].items).toHaveLength(6);
   });
+  test('rdf_items {drop} leaves those items out (variants too), and a task whose dependency RDF does not run runs on its own', () => {
+    const d = {
+      battery_id: 'y', full: ['w', 's', 'c'], rdf: ['wr', 's', 'c'], rdf_items: { c: { drop: ['q4'] } },
+      tasks: [{ id: 'w' }, { id: 's', depends_on: { task: 'w', skip_if_stop: 'early_stop_first_line' } },
+        { id: 'c', depends_on: { task: 's', upto_item: 'last_word_tap' }, items: [{ id: 'q1' }, { id: 'q4' }, { id: 'q5' }], variants: [{ id: 'v0', items: [{ id: 'q1' }, { id: 'q4' }] }] },
+        { id: 'wr', items: [] }],
+    };
+    const r = pick(d, 'rdf');
+    expect(r.tasks.map((t) => t.id)).toEqual(['wr', 's', 'c']);
+    expect(r.tasks[1].depends_on).toBeUndefined();
+    expect(r.tasks[2].depends_on).toEqual({ task: 's', upto_item: 'last_word_tap' });
+    expect(r.tasks[2].items.map((q) => q.id)).toEqual(['q1', 'q5']);
+    expect(r.tasks[2].variants[0].items.map((q) => q.id)).toEqual(['q1']);
+    expect(d.tasks[1].depends_on).toBeDefined();
+    expect(pick(d, 'full').tasks[1].depends_on).toBeDefined();
+  });
   test('a battery whose tasks are its full order is returned as it is', () => {
     const g = { battery_id: 'g', full: ['a'], tasks: [{ id: 'a' }] };
     expect(pick(g, 'full')).toBe(g);
