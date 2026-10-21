@@ -165,3 +165,21 @@ describe('the mint names the one forms\' switch', () => {
     expect(body).not.toHaveProperty('one');
   });
 });
+
+// The Urdu share words right to left (app_settings web_quiz_share_bidi, default OFF): the mint names it (`bidi`), so
+// the sheet draws the Urdu title line RTL, and seals it into the card (`b: 1`), so the card's lines keep each number
+// with its word whenever it is drawn. Off: today's answer and token.
+describe('the mint names the share-bidi switch', () => {
+  test('on: `bidi: true` beside the card, and the card\'s facts say so', async () => {
+    seed({ more: [{ key: 'web_quiz_share_bidi', value: true }] });
+    const { body } = await mint({ kind: 'quiz', deed: 'quiz_done', st: st(), lang: 'ur' });
+    expect(body.bidi).toBe(true);
+    expect(Card.facts(body.token).bidi).toBe(true);
+  });
+  test.each([['absent', []], ['false', [{ key: 'web_quiz_share_bidi', value: false }]], ['the string "true"', [{ key: 'web_quiz_share_bidi', value: 'true' }]]])('off (%s): no `bidi`', async (_, more) => {
+    seed({ more });
+    const { body } = await mint({ kind: 'quiz', deed: 'quiz_done', st: st(), lang: 'ur' });
+    expect(body).not.toHaveProperty('bidi');
+    expect(Card.facts(body.token)).not.toHaveProperty('bidi');
+  });
+});

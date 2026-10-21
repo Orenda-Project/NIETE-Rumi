@@ -298,7 +298,11 @@ async function artImageNow(id, { size = 'og', fresh = false, door = false, lang 
   const u5 = pp ? { ...(u4 || {}), pp: true } : u4;
   // one child, one kid on the class table and the school pictures (web_quiz_share_copy_one, the same read)
   const one = (p.kind === 'l' || p.kind === 's') && require('./web-quiz-card-switch').copyOneCached();
-  const input = artInput(KIND_OF[p.kind], sz, brand, f, one ? { ...(u5 || {}), one: true } : u5, door);
+  const u6 = one ? { ...(u5 || {}), one: true } : u5;
+  // each Urdu count keeps its word on the class table and the school pictures, and the school picture names its sectors
+  // by their display names in either language (web_quiz_share_bidi, the same read)
+  const nb = ((f.lang === 'ur' && p.kind === 'l') || p.kind === 's') && require('./web-quiz-card-switch').shareBidiCached();
+  const input = artInput(KIND_OF[p.kind], sz, brand, f, nb ? { ...(u6 || {}), nb: true } : u6, door);
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
   if (mem.has(key)) {
     byId.set(at, { key, until: Date.now() + BY_ID_MS[p.kind] });
