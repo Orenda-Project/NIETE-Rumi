@@ -527,11 +527,17 @@ const byWhen = (a, b) => String(a.created_at || '').localeCompare(String(b.creat
  * Read only. The header (grade, form, block, status, times, language) and one entry per task, in the order the child
  * took them. Never the child's name, roll number, student id or draw, and never a recording's key.
  */
-async function resultsOf(sessionId, d, session) {
+async function resultsOf(sessionId, d, session, bank) {
   const got = await d.store.listBlocks(sessionId);
   if (!got || !got.ok) throw new Error((got && got.error) || 'listBlocks failed');
   const blocks = (got.blocks || []).filter((r) => TASK_RE.test(String(r.block || ''))).sort(byWhen);
   const lang = (blocks.find((r) => LANGS.includes(r.lang)) || {}).lang || null;
+  // each task's own name from the battery ({ en, ur }), so the page never heads a card with a code
+  const f = formOf(bank, session);
+  const titleOf = (taskId) => {
+    const t = f && bank.tasks && bank.tasks[`${f.formId}/${taskId}`];
+    return t && t.title && typeof t.title === 'object' ? { en: t.title.en || null, ur: t.title.ur || null } : null;
+  };
   return {
     status: 'ok',
     session: {
@@ -544,11 +550,11 @@ async function resultsOf(sessionId, d, session) {
       endedAt: session.finished_at || session.client_finished_at || null,
       lang,
     },
-    tasks: blocks.map(shapeTask),
+    tasks: blocks.map((r) => ({ ...shapeTask(r), title: titleOf(r.block) })),
   };
 }
 
-const ownResults = onSession('sa_results', ({ sessionId }, d, session) => resultsOf(sessionId, d, session));
+const ownResults = onSession('sa_results', ({ sessionId }, d, session, sa) => resultsOf(sessionId, d, session, sa.bank));
 
 /**
  * An admin (sa_results_admins, checked by the portal for ITS session user and sent as asAdmin: true — never taken
@@ -564,7 +570,7 @@ function saResults(args = {}, deps = {}) {
     const session = got.session;
     if (!session || session.item_bank_version !== SA_MARK) return { status: 'not_found' };
     d.log('child_test.sa.results_admin', { userId, sessionId });
-    return resultsOf(session.id, d, session);
+    return resultsOf(session.id, d, session, deps.bank !== undefined ? deps.bank : loadBank());
   })(rest, deps);
 }
 
