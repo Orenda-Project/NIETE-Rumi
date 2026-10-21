@@ -107,6 +107,10 @@ button{font:inherit;color:inherit}
 .sae-opts.is-five .sae-opt:last-child{grid-column:1 / -1}
 .sae-label,.sae-sum{margin:0;font-size:40px;font-weight:800;line-height:1.3;letter-spacing:.04em;unicode-bidi:isolate;direction:ltr;font-family:var(--sae-f)}
 .sae-sum{font-size:48px}
+/* a number sequence: one tile per number, the blank a bordered tile reading __ (also when it is last) */
+.sae-seq{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;font-size:34px;letter-spacing:0}
+.sae-seq-tile{display:inline-grid;place-items:center;min-width:56px;min-height:60px;padding:0 8px;border-radius:14px;background:var(--sae-card)}
+.sae-gap{border:3px dashed var(--sae-ink-2);color:var(--sae-ink-2)}
 .sae-task-tag{margin:0;font-size:18px;font-weight:700;color:var(--sae-ink-2)}
 .sae-danger{color:#8A1C1C;border-color:#E9B7B7}
 
