@@ -197,6 +197,7 @@ async function htmlToPdf(html, options = {}) {
  * @param {number} [options.deviceScaleFactor=2] - Retina scale (2 = crisp on phones).
  * @param {string} [options.selector='.card'] - Element to crop to. Falsy → full page.
  * @param {number} [options.timeout=30000] - Max ms to wait for setContent.
+ * @param {boolean} [options.beforeCapture=false] - Run the page's `window.__beforeCapture()` once fonts are loaded.
  * @returns {Promise<Buffer>} PNG image as a Buffer.
  */
 async function htmlToImage(html, options = {}) {
@@ -205,6 +206,7 @@ async function htmlToImage(html, options = {}) {
     deviceScaleFactor = 2,
     selector = '.card',
     timeout = 30000,
+    beforeCapture = false,
   } = options;
 
   const browser = await getBrowser();
@@ -223,6 +225,8 @@ async function htmlToImage(html, options = {}) {
     // substitutes a system Urdu font). Explicitly loading each FontFace and
     // awaiting it closes the race on every runtime.
     await ensureFontsLoaded(page);
+    // asked for (a share picture that fits its words to the loaded fonts): the page's own __beforeCapture
+    if (beforeCapture === true) await runBeforeCapture(page);
 
     const el = selector ? await page.$(selector) : null;
     const target = el || page;

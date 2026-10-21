@@ -2704,6 +2704,15 @@ const UX_STRINGS = {
   // whole sentence here rather than a word swapped into one template.
   vqStarsEarned: { en: 'You’ve earned {stars} stars!', ur: 'آپ کو {stars} ستارے ملے!' },
   vqStarsEarnedOne: { en: 'You’ve earned {stars} star!', ur: 'آپ کو {stars} ستارہ ملا!' },
+  // The share pictures' one forms (web_quiz_share_copy_one; web-quiz-art.template.js). Urdu inflects the noun and the
+  // verb for one child («۱ بچے نے کھیلا», never «۱ بچوں نے کھیلا») and the noun for one kid («۱ بچہ»); English changes
+  // only a bare count ("1 kid"). Picked where the line is drawn when the count is 1; 0 and 2 or more keep the picture's
+  // own words. {n} and {of} are drawn numbers (the picture's own digits), never a name.
+  wqArtPlayed_one: { en: 'played', ur: 'بچے نے کھیلا' },
+  wqArtPlayedOf_one: { en: '{n} of {of} played', ur: '{of} میں سے {n} بچے نے کھیلا' },
+  wqArtKids_one: { en: 'kid', ur: 'بچہ' },
+  // A school's sector on the school picture (web_quiz_share_bidi, SECT-1): its display name, never the stored key ("ict").
+  wqArtSector_ict: { en: 'ICT', ur: 'آئی سی ٹی' },
   vqTierMastered: { en: 'Brilliant work!', ur: 'زبردست!' },
   vqTierDeveloping: {
     en: 'Nicely done — a little more practice and you’ll have it.',
@@ -3257,6 +3266,10 @@ const UX_STRINGS = {
   shareObservation: { en: 'Observation', ur: 'مشاہدہ' },
   shareGrade: { en: 'Grade {grade}', ur: 'جماعت {grade}' },
   shareClassFallback: { en: 'Your', ur: 'آپ' },
+  // A quiz link's head guessed before the bot answers, with nothing kept (web_quiz_head_guess_honest): the quiz's
+  // generic words, with no kind and no question count; {mascot} = the brand's mascot name in the page's language.
+  quizHeadGuessTitle: { en: 'Quiz', ur: 'کوئز' },
+  quizHeadGuessDesc: { en: '{mascot} reads it with you', ur: '{mascot} کے ساتھ پڑھیں' },
 };
 
 /**

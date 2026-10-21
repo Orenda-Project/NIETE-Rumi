@@ -34,10 +34,10 @@ const KEY = { 'x-api-key': 'share-key', 'content-type': 'application/json' };
 const SID = '0f8e2c1a-1b2c-4d5e-8f90-a1b2c3d4e5f6';
 const idOf = (token) => crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 8);
 
-function seed({ short = true, shortValue, linkLang } = {}) {
+function seed({ short = true, shortValue, linkLang, more = [] } = {}) {
   const fake = makeFake({
     app_settings: [{ key: 'web_quiz_card_v3', value: true }, { key: 'web_quiz_share_v4', value: true }, ...(short ? [{ key: 'web_quiz_share_short', value: shortValue === undefined ? true : shortValue }] : []),
-      ...(linkLang === undefined ? [] : [{ key: 'web_quiz_share_link_lang', value: linkLang }])],
+      ...(linkLang === undefined ? [] : [{ key: 'web_quiz_share_link_lang', value: linkLang }]), ...more],
     quiz_share_codes: [{ id: 'sc-1', code: 'CLS001', quiz_id: 'qz-1', topic: 'Plants', language: 'en', active: true }],
     students: [{ id: 'st-1', student_name: 'Amal Testwala' }, { id: 'st-2', student_name: 'Noor Testwala' }],
     quiz_sessions: [{ id: SID, quiz_id: 'qz-1', student_id: 'st-1', student_name: 'Amal Testwala', share_code_id: 'sc-1', status: 'completed' }],
@@ -148,5 +148,38 @@ describe('the link carries the card\'s language', () => {
     seed({ short: false, linkLang: true });
     const { body } = await mint({ kind: 'quiz', deed: 'quiz_done', st: st(), lang: 'ur' });
     expect(body.url).toBe(`/q/CLS001?k=${body.token}&lang=ur`);
+  });
+});
+
+// One star (app_settings web_quiz_share_copy_one, default OFF): the mint names it (`one`), so the sheet sets an English
+// title on an Urdu sheet in its RTL line (SC-1). Off: today's answer.
+describe('the mint names the one forms\' switch', () => {
+  test('on: `one: true` beside the card', async () => {
+    seed({ more: [{ key: 'web_quiz_share_copy_one', value: true }] });
+    const { body } = await mint({ kind: 'quiz', deed: 'quiz_done', st: st(), lang: 'ur' });
+    expect(body.one).toBe(true);
+  });
+  test.each([['absent', []], ['false', [{ key: 'web_quiz_share_copy_one', value: false }]], ['the string "true"', [{ key: 'web_quiz_share_copy_one', value: 'true' }]]])('off (%s): no `one`', async (_, more) => {
+    seed({ more });
+    const { body } = await mint({ kind: 'quiz', deed: 'quiz_done', st: st(), lang: 'ur' });
+    expect(body).not.toHaveProperty('one');
+  });
+});
+
+// The Urdu share words right to left (app_settings web_quiz_share_bidi, default OFF): the mint names it (`bidi`), so
+// the sheet draws the Urdu title line RTL, and seals it into the card (`b: 1`), so the card's lines keep each number
+// with its word whenever it is drawn. Off: today's answer and token.
+describe('the mint names the share-bidi switch', () => {
+  test('on: `bidi: true` beside the card, and the card\'s facts say so', async () => {
+    seed({ more: [{ key: 'web_quiz_share_bidi', value: true }] });
+    const { body } = await mint({ kind: 'quiz', deed: 'quiz_done', st: st(), lang: 'ur' });
+    expect(body.bidi).toBe(true);
+    expect(Card.facts(body.token).bidi).toBe(true);
+  });
+  test.each([['absent', []], ['false', [{ key: 'web_quiz_share_bidi', value: false }]], ['the string "true"', [{ key: 'web_quiz_share_bidi', value: 'true' }]]])('off (%s): no `bidi`', async (_, more) => {
+    seed({ more });
+    const { body } = await mint({ kind: 'quiz', deed: 'quiz_done', st: st(), lang: 'ur' });
+    expect(body).not.toHaveProperty('bidi');
+    expect(Card.facts(body.token)).not.toHaveProperty('bidi');
   });
 });

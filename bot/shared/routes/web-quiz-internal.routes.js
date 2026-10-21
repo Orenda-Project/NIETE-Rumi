@@ -292,7 +292,8 @@ router.get('/art/:id', async (req, res) => {
     // c: the /q/<CODE> the edge was asked under (the class link's picture is drawn only for its own code)
     const code = typeof req.query.c === 'string' ? req.query.c.slice(0, 12) : null;
     // w=door: the invite drawn for the friend's door ("Your turn!" in place of the link pill)
-    const out = await WebQuizArt.artImage(req.params.id, { size: req.query.f === 'sq' ? 'sq' : 'og', code, door: req.query.w === 'door' });
+    // l: the share's language (en|ur); drawn in it only with web_quiz_share_pic_lang on, else the code's as today
+    const out = await WebQuizArt.artImage(req.params.id, { size: req.query.f === 'sq' ? 'sq' : 'og', code, door: req.query.w === 'door', lang: req.query.l === 'en' || req.query.l === 'ur' ? req.query.l : null });
     res.set('Content-Type', out.contentType);
     // a picture whose link carries its own version (the class link's ?v=) never changes under that link
     res.set('Cache-Control', out.immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=600');

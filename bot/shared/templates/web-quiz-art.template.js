@@ -30,7 +30,8 @@ const fs = require('fs');
 const path = require('path');
 const WebQuizBrand = require('../config/web-quiz-brand');
 const { NASTALIQ, scriptOf } = require('./niete-brand');
-const { clampLanguage } = require('../config/ux-strings');
+const { clampLanguage, UX_STRINGS, FLOOR } = require('../config/ux-strings');
+const { keepNum } = require('../utils/num-keep');
 
 const SIZES = Object.freeze({ og: [1200, 630], sq: [1080, 1080] });
 const KINDS = ['card', 'invite', 'class', 'school'];
@@ -107,6 +108,8 @@ function assets() {
       lexendBold: readBase64('fonts/Lexend-Bold.ttf'),
       nastaliq: readBase64('fonts/NotoNastaliqUrdu-Regular.ttf'),
       nastaliqBold: readBase64('fonts/NotoNastaliqUrdu-Bold.ttf'),
+      // Urdu digits only (U+06F0-06F9, ۴ ۶ ۷ in their Urdu forms), a Naskh face: `ui.dg` (web_quiz_end_copy_fix)
+      urDigits: readBase64('fonts/NotoNaskhArabic-UrduDigits-Bold.ttf'),
       celebrate: readBase64('assets/wq-art/celebrate.webp'),
       hello: readBase64('assets/wq-art/hello.webp'),
       animals: Object.fromEntries(ANIMAL_KEYS.map((k) => [k, readBase64(`assets/wq-art/animals/${k}.svg`)])),
@@ -169,9 +172,37 @@ function topWithMe(rows, cap) {
 // with its gap (47), in rows of 62 px with 10 px between: 5. The wide picture keeps its 3.
 const CLASS_ROWS_SQ = Math.floor((1080 - 112 - 70 - 67 - 130 - 104 - 62 - 5 * 24 - 47 + 10) / (62 + 10));
 
+// The one forms (app_settings web_quiz_share_copy_one, carried as `ui.one`): data in the catalog (ux-strings.js `_one`
+// keys), the drawn numbers put where it says {n} / {of}. Used only when the count is 1.
+// A school's sector as the league shows it (SECT-1, web_quiz_share_bidi): its display name from the catalog
+// (wqArtSector_<key>: "ICT" / «آئی سی ٹی»), else a short lower-case code in capitals ("ict" -> "ICT", as the page's
+// sectorName), else as stored. Never the raw key.
+function sectorName(s, L) {
+  if (s == null || s === '') return s;
+  const row = UX_STRINGS[`wqArtSector_${String(s).trim().toLowerCase()}`];
+  if (row) return row[L] ?? row[FLOOR];
+  return /^[a-z]{2,4}$/.test(String(s)) ? String(s).toUpperCase() : s;
+}
+function oneForms(L) {
+  const s = (k) => (UX_STRINGS[k][L] ?? UX_STRINGS[k][FLOOR]);
+  return { played: s('wqArtPlayed_one'), playedOf: (n, of) => s('wqArtPlayedOf_one').replace('{n}', () => n).replace('{of}', () => of), kids: s('wqArtKids_one') };
+}
+// EL-1 (the one forms' switch, the Urdu class table): a name too long for its box is cut to the longest run of its own
+// letters that fits with «…», so the box ends where the name does and «(میں)» sits right after it. The browser's own cut
+// (text-overflow) keeps the whole box and leaves up to a Nastaliq letter of it empty before «(میں)». Run once the fonts
+// are in (htmlToImage's beforeCapture); a letter is a grapheme, so a mark never leaves its letter.
+const FIT_NAME_JS = `window.__beforeCapture=function(){var g=typeof Intl!=='undefined'&&Intl.Segmenter?new Intl.Segmenter('ur',{granularity:'grapheme'}):null;`
+  + `document.querySelectorAll('.crow .who .nm').forEach(function(el){var box=el.clientWidth;if(el.scrollWidth<=box)return;`
+  + `var t=el.textContent,p=g?Array.from(g.segment(t),function(x){return x.segment;}):Array.from(t),lo=0,hi=p.length;`
+  + `var cut=function(n){return p.slice(0,n).join('').replace(/\s+$/,'')+'\u2026';};el.style.textOverflow='clip';`
+  + `while(lo<hi){var m=(lo+hi+1)>>1;el.textContent=cut(m);if(el.scrollWidth<=box)lo=m;else hi=m-1;}el.textContent=cut(lo);});};`;
+
 // pp: the polish (web_quiz_share_pic_polish), null when off: { cap } the class table's rows, { title, nb } the challenge's
 // sub line as the quiz title alone (nb: its spaces held, so it stays on one line).
-function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud = false, us = false, pp = null) {
+// one: the one forms (oneForms), null when off.
+function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud = false, us = false, pp = null, one = null, nb = false) {
+  // nb (web_quiz_share_bidi, an Urdu picture): each count keeps its word (U+00A0)
+  const kn = nb ? keepNum : (s) => s;
   const N = ud ? numUr : num;
   // In Nastaliq the middle dot is the Urdu zero: «۱۵ · بچے» reads ۱۵۰. Beside Urdu digits the Urdu comma separates.
   const SEP = ud ? '<span class="dot">، </span>' : DOT;
@@ -200,7 +231,7 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud
       main: `${og2 ? '' : `<p class="kick">${esc(C.chal)}</p>`}`
         // the polish's cut (pp.cut): the name in its own box that shortens, held with the score after it, which never is
         + `<h1 class="head">${pp && pp.cut
-          ? (zero ? C.dared(own(d.first, 'nm')) : `${C.beat(`<span class="keep">${own(d.first, 'nm')}`, N(score))}</span>`)
+          ? (zero ? C.dared(own(pp.cut.text || d.first, 'nm')) : `${C.beat(`<span class="keep">${own(pp.cut.text || d.first, 'nm')}`, N(score))}</span>`)
           : (zero ? C.dared(own(d.first)) : C.beat(own(d.first), N(score)))}</h1>`
         + (pp && pp.title ? `<p class="sub">${own(pp.nb ? String(d.topic == null ? '' : d.topic).replace(/ /g, '\u00a0') : d.topic)}</p>${zero ? '' : starsHtml(d.correct, d.total)}`
           : (zero ? `<p class="sub">${own(d.topic)}</p>` : `<p class="sub">${C.scored(own(d.first), N(score), own(d.topic))}</p>${starsHtml(d.correct, d.total)}`)),
@@ -213,7 +244,9 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud
       pic: d.rows && d.rows.length ? '' : pic('celebrate'),
       // The wide picture has no room for a separate line: the average joins the top line there.
       main: `<p class="kick">${d.cls ? `${own(d.cls)}${ur2 ? ' ' : SEP}` : ''}${own(d.topic)}${size !== 'sq' && d.rows && d.rows.length ? `${ur2 ? '<br>' : SEP}${C.avgLine(PCT(d.avgPct || 0))}` : ''}</p>`
-        + `<h1 class="head">${d.of ? C.playedOf(N(d.played || 0), N(d.of)) : `${N(d.played || 0)} ${esc(C.played)}`}</h1>`
+        + `<h1 class="head">${kn(one && Number(d.played) === 1
+          ? (d.of ? one.playedOf(N(1), N(d.of)) : `${N(1)} ${esc(one.played)}`)
+          : (d.of ? C.playedOf(N(d.played || 0), N(d.of)) : `${N(d.played || 0)} ${esc(C.played)}`))}</h1>`
         + (d.rows && d.rows.length ? `<ol class="crow">${(pp ? topWithMe(d.rows, pp.cap) : us ? topWithMe(d.rows, size === 'sq' ? CLASS_ROWS_SQ : 3) : around(d.rows.map((r) => ({ ...r, you: r.me })), size === 'sq' ? 6 : 3)).map((r) => (r.gap ? '<li class="gap" aria-hidden="true">…</li>' : `<li class="${r.me ? 'me' : ''}">`
           + `<span class="rk">${N(r.place)}</span>${animal(r.animal, pics)}`
           // under the polish the name is its own box that shortens, and the label a box that never does
@@ -230,7 +263,7 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud
     const mv = r.move > 0 ? '<span class="mv up"></span>' : (r.move < 0 ? '<span class="mv down"></span>' : '<span class="mv"></span>');
     return `<li class="row${r.you ? ' you' : ''}"><span class="rk">${N(r.rank)}</span>${mv}`
       + `<span class="sn">${own(r.name)}${r.sector ? `<small>${own(r.sector)}</small>` : ''}</span>`
-      + `<span class="pt">${N(fmt(r.points))}<small>${esc(C.pts)}${ud ? '،&ensp;' : ' · '}${N(fmt(r.kids))} ${esc(C.kids)}</small></span></li>`;
+      + `<span class="pt">${N(fmt(r.points))}<small>${esc(C.pts)}${ud ? '،&ensp;' : ' · '}${kn(`${N(fmt(r.kids))} ${esc(one && Number(r.kids) === 1 ? one.kids : C.kids)}`)}</small></span></li>`;
   }).join('');
   return { pic: '', main: `<p class="kick">${esc(ud ? C.school.replace(' · ', '، ') : C.school)}</p><ol class="board">${rows}</ol>`, cta: C.rule };
 }
@@ -297,6 +330,27 @@ const PP_ROWS_RTL = { sq: 4, og: 2 };
  * Jugnu; 936 square: 72 px each side), the name is its own box cut with «…», the score after it ("'s 3/8?", given 1.2x
  * its estimate) whole: the headline never runs under Jugnu or off the column, and the score is never cut.
  */
+// Lexend Bold's advance widths (em) for the printable ASCII letters, read from the embedded font (fonts/Lexend-Bold.ttf),
+// and its «…»: to write a Latin name already cut to its box. A letter outside the table counts as the widest one.
+const LEXEND_BOLD = { ' ': 0.32, '!': 0.309, '"': 0.477, '#': 0.734, $: 0.634, '%': 0.968, '&': 0.776, "'": 0.252, '(': 0.39, ')': 0.39, '*': 0.44, '+': 0.597, ',': 0.287, '-': 0.448, '.': 0.257, '/': 0.595,
+  0: 0.675, 1: 0.561, 2: 0.548, 3: 0.591, 4: 0.662, 5: 0.596, 6: 0.579, 7: 0.553, 8: 0.599, 9: 0.577, ':': 0.257, ';': 0.291, '<': 0.525, '=': 0.623, '>': 0.526, '?': 0.536, '@': 0.965,
+  A: 0.694, B: 0.701, C: 0.694, D: 0.772, E: 0.645, F: 0.618, G: 0.782, H: 0.779, I: 0.555, J: 0.665, K: 0.739, L: 0.609, M: 0.878, N: 0.807, O: 0.812, P: 0.662, Q: 0.812, R: 0.702, S: 0.634,
+  T: 0.655, U: 0.765, V: 0.712, W: 0.993, X: 0.705, Y: 0.689, Z: 0.683, '[': 0.42, '\\': 0.584, ']': 0.42, '^': 0.592, _: 0.687, '`': 0.5,
+  a: 0.659, b: 0.658, c: 0.545, d: 0.654, e: 0.586, f: 0.393, g: 0.669, h: 0.635, i: 0.319, j: 0.316, k: 0.626, l: 0.304, m: 0.962, n: 0.635, o: 0.641, p: 0.659, q: 0.658, r: 0.455, s: 0.495,
+  t: 0.398, u: 0.642, v: 0.605, w: 0.834, x: 0.606, y: 0.62, z: 0.55, '{': 0.427, '|': 0.318, '}': 0.427, '~': 0.558 };
+const LEXEND_BOLD_ELLIPSIS = 0.736;
+/** A Latin name cut to fit `em` (its letters and a «…», 2% to spare), or null when it fits whole or is not all in the table. */
+function cutToFit(name, em) {
+  const ch = Array.from(String(name || ''));
+  if (!ch.length || ch.some((c) => !(c in LEXEND_BOLD))) return null;
+  const w = (c) => LEXEND_BOLD[c] * 1.02;
+  if (ch.reduce((n, c) => n + w(c), 0) <= em) return null;
+  let used = LEXEND_BOLD_ELLIPSIS * 1.02;
+  let i = 0;
+  while (i < ch.length && used + w(ch[i]) <= em) { used += w(ch[i]); i += 1; }
+  return `${ch.slice(0, i).join('').replace(/\s+$/, '')}…`;
+}
+
 function enHead(d, C, sq, S, W) {
   const width = sq ? W - 144 : 702;
   const base = Math.round(58 * S);
@@ -309,6 +363,12 @@ function enHead(d, C, sq, S, W) {
   const words = name.split(/\s+/).filter(Boolean);
   const run = Math.max(0, ...words.map((w, i) => emWidth(i === words.length - 1 ? `${w}${tail}` : w))) * 1.08;
   const cut = run * head > width ? { max: width - Math.ceil(emWidth(tail) * 1.2 * head) } : null;
+  // the square writes the name already cut, so its box ends where its letters end and "'s" follows them (the browser's «…»
+  // stops at a whole letter, leaving up to a letter's width of space before "'s"); the box keeps its limit as a guard
+  if (cut && sq) {
+    const text = cutToFit(name, cut.max / head);
+    if (text) cut.text = text;
+  }
   return { head, cut };
 }
 
@@ -408,8 +468,20 @@ function renderArt({ kind, size, brand, lang, d, ui, door }, opt = {}) {
     ppSub = { title: zero || (name !== '' && said.includes(name)), nb: fit >= Math.round(subPx * 0.75), px: fit < subPx && fit >= Math.round(subPx * 0.75) ? fit : 0,
       ...(RTL ? {} : { cut: enHead(d, C, sq, sq ? 1.08 : 1, W).cut }) };
   }
+  // One child, one kid (app_settings web_quiz_share_copy_one, carried as `ui.one`): the class table's count and the school
+  // picture's kids; and on the Urdu class table with the polish's name box, the name fitted to it (FIT_NAME_JS). Off, today's.
+  const ONE = Boolean(ui && ui.one === true);
+  const FIT = ONE && RTL && PP && k === 'class';
   const ppOf = !PP ? null : k === 'class' ? { cap: (RTL ? PP_ROWS_RTL : PP_ROWS)[sq ? 'sq' : 'og'] } : (ppSub && ppSub.title ? ppSub : null);
-  const parts = body(k, d || {}, C, opt.pictures !== false, sz, UR2, OG2, door === true, UD, US || Boolean(PP && k === 'class'), ppOf);
+  // each Urdu count keeps its word (app_settings web_quiz_share_bidi, carried as `ui.nb`); English never changes
+  const NBK = RTL && Boolean(ui && ui.nb === true);
+  // ...and the school picture's sectors by their display names, in both languages (SECT-1)
+  const SEC = k === 'school' && Boolean(ui && ui.nb === true) && Boolean(d && Array.isArray(d.rows));
+  const dd = SEC ? { ...d, rows: d.rows.map((r) => ({ ...r, sector: sectorName(r.sector, L) })) } : (d || {});
+  const parts = body(k, dd, C, opt.pictures !== false, sz, UR2, OG2, door === true, UD, US || Boolean(PP && k === 'class'), ppOf, ONE ? oneForms(L) : null, NBK);
+  // the Urdu class table picture's numbers in the digit face (app_settings web_quiz_end_copy_fix, carried as `ui.dg`): in
+  // Nastaliq a lone ۱ reads as alif («۱ بچے نے کھیلا», a row's place). Off, today's faces.
+  const DG = RTL && UD && k === 'class' && Boolean(ui && ui.dg === true);
   const col = sq || k === 'school' || (k === 'class' && Boolean(d && d.rows && d.rows.length));   // stacked: the square, and the board in either size
   const deco = B.deco ? `url("data:image/svg+xml;utf8,${encodeURIComponent(B.deco)}")` : 'none';
   // A wide mark (Rumi) sits bare on the dark ground: drawn in white and the accent, never navy on navy.
@@ -419,7 +491,8 @@ function renderArt({ kind, size, brand, lang, d, ui, door }, opt = {}) {
   const fonts = opt.fonts === false ? '' : `@font-face{font-family:'Lexend';font-weight:400;src:url(data:font/ttf;base64,${a.lexend})}
 @font-face{font-family:'Lexend';font-weight:800;src:url(data:font/ttf;base64,${a.lexendBold})}
 @font-face{font-family:'NastaliqUrdu';font-weight:400;src:url(data:font/ttf;base64,${a.nastaliq})}
-@font-face{font-family:'NastaliqUrdu';font-weight:700;src:url(data:font/ttf;base64,${a.nastaliqBold})}`;
+@font-face{font-family:'NastaliqUrdu';font-weight:700;src:url(data:font/ttf;base64,${a.nastaliqBold})}${DG ? `
+@font-face{font-family:'UrDigits';font-weight:400 800;src:url(data:font/ttf;base64,${a.urDigits});unicode-range:U+06F0-06F9}` : ''}`;
   const S = sq ? 1.08 : 1;   // the square is read at a smaller on-screen size: type a step up
   // the polish's Urdu class table stands on the one stack too, with the stack switch or without it
   const usCss = US || (PP && RTL && k === 'class') ? stackCss(k, d || {}, C, sq, S, W, col) : '';
@@ -445,7 +518,10 @@ body{width:${W}px;height:${H}px;overflow:hidden;font-family:${body1};color:#fff}
 .big{font-size:${Math.round((sq ? 100 : 104) * S)}px;line-height:1;font-weight:800}
 .sub{font-size:${Math.round((UR2 ? (OG2 ? (k === 'invite' ? 32 : (topicLen > 22 ? 36 : 44)) : 44) : 32) * S)}px;line-height:${RTL ? (OG2 ? 1.9 : lh) : 1.3};opacity:.92;max-width:100%}
 .num{font-family:${UD ? "'Lexend','NastaliqUrdu'" : "'Lexend'"},sans-serif;unicode-bidi:isolate;direction:ltr;font-weight:800}
-bdi[dir="ltr"]{font-family:'Lexend','NastaliqUrdu',sans-serif}
+${DG ? `.art .head .num,.art .crow .num{font-family:'UrDigits','Lexend','NastaliqUrdu',sans-serif}
+` : ''}${UD && NBK && k === 'school' ? `/* DG-1: the school board's ranks and points in the Urdu digit face (۴ ۶ ۷ in their Urdu forms), never a Latin one */
+.board .num{font-family:'NastaliqUrdu','Lexend',sans-serif}
+` : ''}bdi[dir="ltr"]{font-family:'Lexend','NastaliqUrdu',sans-serif}
 bdi[dir="rtl"]{font-family:'NastaliqUrdu','Lexend',sans-serif}
 .stars{display:flex;gap:${sq ? 10 : 8}px;flex-wrap:wrap;direction:${RTL ? 'rtl' : 'ltr'}}
 .star{width:${Math.round(44 * S)}px;height:${Math.round(44 * S)}px;fill:none;stroke:rgba(255,255,255,.55);stroke-width:1.6;stroke-linejoin:round}
@@ -491,7 +567,7 @@ ${NF ? `${sq ? '.main{width:100%;max-width:100%}.name{width:100%}' : ''}.name bd
   const inner = col
     ? `${top}${side}<div class="main">${parts.main}</div>${cta}`
     : `${top}<div class="main">${parts.main}${cta}</div>${side}`;
-  return `<!DOCTYPE html><html lang="${L}" dir="${RTL ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><style>${css}</style></head>`
+  return `<!DOCTYPE html><html lang="${L}" dir="${RTL ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><style>${css}</style>${FIT ? `<script>${FIT_NAME_JS}</script>` : ''}</head>`
     + `<body><div class="art ${k} ${sz}" style="width:${W}px;height:${H}px">${inner}</div></body></html>`;
 }
 

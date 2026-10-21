@@ -32,6 +32,7 @@ const express = require('express');
 // loads where the dashboard's dependencies are not installed (the root CI run).
 // Dependency-free: the brand table both services read (the bot names the key, the edge dresses the page).
 const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
+const { resolveUx, clampLanguage } = require('../../bot/shared/config/ux-strings');
 // The one list of Server-Timing items a child answer may carry (shared with the bot's writers; requires nothing).
 const TimingNames = require('../../bot/shared/services/quiz/web-quiz-server-timing-names');
 const { createCanonicalRedirect } = require('./web-quiz-canonical');
@@ -379,7 +380,8 @@ function ogTextOf(payload, view, brand) {
   // A story has no league table: its class view (/q/<code>/class) previews as the story below.
   if (view === 'class' && !(payload && payload.story)) {
     return {
-      title: ur ? `${topic} · ${label} کی لیگ ٹیبل` : `${topic} · ${label} league table`,
+      // web_quiz_share_bidi (the bot's share_bidi): the title isolated, so an English one never turns the Urdu line LTR
+      title: ur ? `${payload && payload.share_bidi === true ? `\u2068${topic}\u2069` : topic} · ${label} کی لیگ ٹیبل` : `${topic} · ${label} league table`,
       desc: ur ? 'ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے۔' : 'Not played yet? Same link, still open.',
     };
   }
@@ -511,7 +513,9 @@ function identityV2(payload) {
  * the live class picture), else the brand's.
  * WhatsApp caches a preview per URL, so ?v rides into the picture URL too.
  */
-function ogImageFor({ payload, code, view, origin, a, v, k }) {
+// l 'en'|'ur' (web_quiz_share_page_lang, a friend's challenge link that names its language): the invite picture is
+// asked in that language (&l=, the edge's per-language picture). Absent: today's picture address.
+function ogImageFor({ payload, code, view, origin, a, v, k, l = null }) {
   // A class quiz shared from the finish card (?k=<card token>, web_quiz_card_v3): the card's own picture.
   if (view === 'quiz' && cardToken(k)) return `${origin}/wq/card/${k}.png`;
   const art = (payload && payload.art) || {};
@@ -527,8 +531,9 @@ function ogImageFor({ payload, code, view, origin, a, v, k }) {
   // The teacher's reminder link (?v=<played>) keeps its live class picture ahead of the class link picture. A story's
   // reminder keeps the story's own picture: the live class picture is a quiz scoreboard (played, average, top score).
   const live = ver && view === 'quiz' && !story ? pic('class', artId(art.class, 'class')) : null;
+  const inv = pic('invite', artId(art.invite, 'invite'));
   return pic('card', artId(a, 'card'))
-    || pic('invite', artId(art.invite, 'invite'))
+    || (inv && l ? `${inv}&l=${l}` : inv)
     || live
     || teach
     || (view === 'class' && !story ? pic('class', artId(art.class, 'class')) : null)
@@ -570,8 +575,14 @@ function uiLangOf(body, view, lang) {
 const plainLang = (l) => (l === 'ur' || l === 'en' ? l : '');
 const plainDir = (lang) => (lang === 'ur' ? 'rtl' : lang === 'en' ? 'ltr' : 'auto');
 const plainText = (brand) => ({ title: brand.og.site, desc: brand.og.site });
+// An honest guess (web_quiz_head_guess_honest) with nothing kept: the quiz's generic words, with no kind ("Class quiz"
+// is wrong on a friend's challenge) and no question count it does not know; every word is in the real head too.
+const guessText = (brand, lang) => ({
+  title: resolveUx('quizHeadGuessTitle', { language: lang }),
+  desc: resolveUx('quizHeadGuessDesc', { language: lang, params: { mascot: brand.mascot[lang] } }),
+});
 
-function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k, plain = null }) {
+function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k, plain = null, generic = false }) {
   const q = (payload && payload.quiz) || {};
   // ui_lang: the class table / league in the link's language (uiLangOf, web_quiz_class_doors); else the quiz's.
   const ul = payload && payload.ui_lang;
@@ -580,7 +591,7 @@ function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k, plai
   const brand = brandOf(payload && payload.brand);
   // an English quiz served as an Urdu page with its video lesson's Urdu name (topic_ur): the head's words in Urdu too
   const urHead = !plain && lang === 'ur' && q.lang !== 'ur' && q.topic_ur;
-  const og = plain ? plainText(brand) : ogText(urHead ? { ...payload, quiz: { ...q, lang: 'ur' } } : payload, view, brand);
+  const og = plain ? plainText(brand) : generic ? guessText(brand, lang) : ogText(urHead ? { ...payload, quiz: { ...q, lang: 'ur' } } : payload, view, brand);
   const boot = { ...payload, code, view, brand };
   payload = withLook(payload);
   const image = ogImageFor({ payload, code, view, origin, a, v, k });
@@ -611,9 +622,11 @@ ${p.tail}`;
 // the last brand; the page's scripts are preloaded so they download while the bot works. When the bot's page is
 // another language/look than the guess, one inline line sets it before any script runs.
 // web_quiz_plain_paint on (`plain`), and no facts for the code: the guess says no words (plainParts below).
-function renderQuizFlushTop({ facts, code, origin, assetV, url, brandKey, ui, a, v, k, plain = false, linkLang = null }) {
-  const payload = facts ? { ...facts, ui } : { quiz: { lang: 'en' }, cls: {}, art: {}, brand: brandKey, ui };
-  const p = quizPageParts({ payload, code, view: 'quiz', origin, assetV, url, a, v, k, plain: !facts && plain ? { lang: plainLang(linkLang) } : null });
+// honest (web_quiz_head_guess_honest) and no facts, not wordless: the generic words (guessText), in the link's language.
+function renderQuizFlushTop({ facts, code, origin, assetV, url, brandKey, ui, a, v, k, plain = false, linkLang = null, honest = false }) {
+  const generic = !facts && !plain && honest;
+  const payload = facts ? { ...facts, ui } : { quiz: { lang: generic ? clampLanguage(linkLang) : 'en' }, cls: {}, art: {}, brand: brandKey, ui };
+  const p = quizPageParts({ payload, code, view: 'quiz', origin, assetV, url, a, v, k, plain: !facts && plain ? { lang: plainLang(linkLang) } : null, generic });
   const preload = ['wq-tel.js', 'wq-lib.js', 'wq.js'].map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`).join('\n');
   return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };
 }
@@ -790,13 +803,17 @@ function flushWire(req, res, top) {
  * remembered, and an empty body. A crawler reads only the head; no quiz payload travels in it.
  */
 // linkLang 'ur' (web_quiz_share_link_lang on, an Urdu card's link to an English lesson): the preview speaks Urdu, like
-// the card picture above it and the door it opens; the picture is the same.
-function renderPreviewPage({ facts, code, view, origin, assetV, url, a, v, k, linkLang = null }) {
+// the card picture above it and the door it opens; the picture is the same. linkLang 'en' (web_quiz_share_link_lang_en
+// on, an English card's link to an Urdu lesson): the preview speaks English, like its English card picture.
+// chalLang (web_quiz_share_page_lang on, a friend's challenge link with ?lang=): the same, and its invite picture is drawn in
+// that language too.
+function renderPreviewPage({ facts, code, view, origin, assetV, url, a, v, k, linkLang = null, chalLang = false }) {
   const urLink = linkLang === 'ur' && facts.quiz.lang !== 'ur';
-  const lang = facts.quiz.lang === 'ur' || urLink ? 'ur' : 'en';
+  const enLink = linkLang === 'en' && facts.quiz.lang === 'ur';
+  const lang = (facts.quiz.lang === 'ur' || urLink) && !enLink ? 'ur' : 'en';
   const brand = brandOf(facts.brand);
-  const og = ogText(urLink ? { ...facts, quiz: { ...facts.quiz, lang: 'ur' } } : facts, view, brand);
-  const image = ogImageFor({ payload: facts, code, view, origin, a, v, k });
+  const og = ogText(urLink || enLink ? { ...facts, quiz: { ...facts.quiz, lang } } : facts, view, brand);
+  const image = ogImageFor({ payload: facts, code, view, origin, a, v, k, l: chalLang && (urLink || enLink) ? lang : null });
   return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: og.title, desc: og.desc, origin, url, assetV, brand, image, ...cardType(image) })}
 </head>
 <body></body>
@@ -1561,10 +1578,17 @@ function createWebQuizRouter(opts = {}) {
         if (f.status === 200 && f.body && f.body.quiz) { known = f.body; learnOg(upper, known); }
       } catch (_) { /* the full path below */ }
     }
-    // web_quiz_share_link_lang: an Urdu card's link previews in Urdu (asked only for such a link; a cached read)
-    const linkLang = preview && view === 'quiz' && req.query.lang === 'ur' && (await linkLangOn()) === true ? 'ur' : null;
+    // web_quiz_share_link_lang: an Urdu card's link previews in Urdu (asked only for such a link; a cached read);
+    // web_quiz_share_link_lang_en: an English card's link (&lang=en) previews in English, an Urdu lesson's too
+    // web_quiz_share_page_lang: a friend's challenge link (?lang=, the page's language) previews in it, picture included
+    const chalLangOf = async (f) => Boolean(preview && view === 'quiz' && f && f.invited && (req.query.lang === 'en' || req.query.lang === 'ur'))
+      && (await pageLangOn()) === true;
+    const chalLang = await chalLangOf(known);
+    const linkLang = chalLang ? req.query.lang
+      : preview && view === 'quiz' && req.query.lang === 'ur' && (await linkLangOn()) === true ? 'ur'
+      : preview && view === 'quiz' && req.query.lang === 'en' && (await linkLangEnOn()) === true ? 'en' : null;
     if (known && !(view === 'class' && known.invited)) {
-      return res.status(200).type('html').send(renderPreviewPage({ facts: known, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k, linkLang }));
+      return res.status(200).type('html').send(renderPreviewPage({ facts: known, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k, linkLang, chalLang }));
     }
     // Fast first page: the head and the Jugnu frame now, the quiz when the bot answers (never on a teacher's preview
     // link, never on a link-preview fetch: a crawler gets the preview page below, never the quiz).
@@ -1574,8 +1598,12 @@ function createWebQuizRouter(opts = {}) {
     // on the list, a plain fetch) waits for the bot's answer and gets the real head. Off: today's guess.
     const full = fastPage && (await Promise.resolve().then(headFullOn).catch(() => false)) === true;
     const guessed = fastPage && (!full || Preview.fetcherOf(req) === 'browser') ? { facts: ogKnown.get(upper) || (full ? headKnown.get(upper) : null) } : null;
+    // web_quiz_head_guess_honest (read only behind head_full on, for a browser's streamed page): a guess with nothing
+    // kept says no fact it does not know: no question count, no kind ("Class quiz" on a friend's challenge), in the
+    // link's language (?lang=). Kept facts: today's head.
+    const honest = Boolean(guessed && full) && (await Promise.resolve().then(headGuessHonestOn).catch(() => false)) === true;
     const flush = guessed
-      ? renderQuizFlushTop({ facts: guessed.facts, code: upper, origin, assetV: version(), url, brandKey: lastBrand, ui: lastUi, a: req.query.a, v: req.query.v, k: req.query.k, plain: lastPlain, linkLang: req.query.lang })
+      ? renderQuizFlushTop({ facts: guessed.facts, code: upper, origin, assetV: version(), url, brandKey: lastBrand, ui: lastUi, a: req.query.a, v: req.query.v, k: req.query.k, plain: lastPlain, linkLang: req.query.lang, honest })
       : null;
     if (flush && lastPlain) firstHead('q', guessed.facts ? 'hit' : plainLang(req.query.lang) ? 'lang' : 'miss');
     const wire = flush ? flushWire(req, res, flush.html) : null;
@@ -1617,7 +1645,9 @@ function createWebQuizRouter(opts = {}) {
       // `st` here = step timings, not the session token (no page script reads the boot's `st`: a source-scan row pins it)
       if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: uiLangOf(out.steps ? { ...out.body, st: out.steps } : out.body, view, storedLangOf(req, out.body, view) || req.query.lang), code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       if (preview) {
-        return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k, linkLang }));
+        const facts = Preview.ogFacts(out.body);
+        const chal = await chalLangOf(facts);
+        return res.status(200).type('html').send(renderPreviewPage({ facts, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k, linkLang: chal ? req.query.lang : linkLang, chalLang: chal }));
       }
       const render = () => renderQuizPage({ payload: uiLangOf(out.body, view, storedLangOf(req, out.body, view) || req.query.lang), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k });
       if (!out.steps) return res.status(200).type('html').send(render());
@@ -1818,6 +1848,8 @@ function createWebQuizRouter(opts = {}) {
     const sq = !teach && req.query.f === 'sq';
     // w=door: the invite drawn for the friend's door ("Your turn!" in place of the link pill); any other kind ignores it
     const door = kind === 'invite' && req.query.w === 'door';
+    // l=en|ur: the share's language (the page asks so only with web_quiz_share_pic_lang on); kept apart per language
+    const pl = !teach && (req.query.l === 'en' || req.query.l === 'ur') ? req.query.l : '';
     // One event per picture handed out: which kind, kept here or asked of the bot, how long, and who fetched it
     // (WhatsApp Android/iOS, a browser…). A phone's preview fetch left no trace when the edge already held the picture.
     const t0 = Date.now();
@@ -1826,12 +1858,13 @@ function createWebQuizRouter(opts = {}) {
     });
     const send = (pic) => res.status(200).set({ 'Cache-Control': `public, max-age=${ART_MAX_AGE[kind]}${teach ? ', immutable' : ''}`, 'X-Robots-Tag': 'noindex' }).type(pic.contentType).send(pic.bytes);
     // Kept at the edge: the card opening fetched it, so the sender's preview fetch never waits for a draw.
-    const keyArt = `${kind}|${id}|${sq ? 'sq' : 'og'}${teach ? `|${String(req.params.code).toUpperCase()}|${tv}` : ''}${door ? '|door' : ''}`;
+    const keyArt = `${kind}|${id}|${sq ? 'sq' : 'og'}${teach ? `|${String(req.params.code).toUpperCase()}|${tv}` : ''}${door ? '|door' : ''}${pl ? `|${pl}` : ''}`;
     const kept = artKept.get(keyArt);
     if (kept) { seen('edge'); return send(kept); }
     try {
       // the class link's picture is drawn only under its own code: the bot is told which one was asked
-      const q = teach ? `?c=${String(req.params.code).toUpperCase()}` : (sq ? `?f=sq${door ? '&w=door' : ''}` : (door ? '?w=door' : ''));
+      const q0 = teach ? `?c=${String(req.params.code).toUpperCase()}` : (sq ? `?f=sq${door ? '&w=door' : ''}` : (door ? '?w=door' : ''));
+      const q = pl ? `${q0}${q0 ? '&' : '?'}l=${pl}` : q0;
       const out = await callBot('GET', `/api/internal/wq/art/${id}${q}`, req);
       if (out.bytes) {
         artKept.set(keyArt, { bytes: out.bytes, contentType: out.contentType }, ART_KEEP_MS[kind]);
@@ -1863,18 +1896,23 @@ function createWebQuizRouter(opts = {}) {
   const cardStoreKey = (token, ext) => `wq-card/${opts.storyEnv || require('../../bot/shared/services/quiz/story-store').deployEnv()}/${crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32)}.${ext}`;
   // A card switch's read never makes a visitor wait: it is read when the edge starts and again every 30 s in the
   // background (so a flip, on or off, reaches every copy within 30 s), and a re-read slower than a moment answers from
-  // the last value while it finishes.
-  const quickFlag = (reader) => {
+  // the last value while it finishes. lazy: neither read nor re-read until the first ask (a switch read only behind another).
+  const quickFlag = (reader, { lazy = false } = {}) => {
     let last = null;
     let busy = false;
+    let started = false;
     const read = () => Promise.resolve().then(reader).then((v) => { last = v === true; return last; }, () => false);
     const refresh = () => { if (busy) return; busy = true; read().finally(() => { busy = false; }); };
-    if (botUrl && apiKey) {
-      refresh();
+    const startRefresh = () => {
+      if (started || !(botUrl && apiKey)) return;
+      started = true;
+      if (!lazy) refresh();
       const t = setInterval(refresh, opts.cardFlagRefreshMs || CARD_FLAG_REFRESH_MS);
       if (t.unref) t.unref();
-    }
+    };
+    if (!lazy) startRefresh();
     return () => {
+      startRefresh();
       const fresh = read();
       if (last === null) return fresh;
       return Promise.race([fresh, new Promise((r) => { const t = setTimeout(() => r(last), CARD_FLAG_WAIT_MS); if (t.unref) t.unref(); })]);
@@ -1886,8 +1924,16 @@ function createWebQuizRouter(opts = {}) {
   const cardFastOn = quickFlag(opts.cardFastOn || StoryAssets.flagReader({ now, key: 'web_quiz_card_fast' }));
   // web_quiz_share_link_lang: an Urdu card's link (`?lang=ur`) previews in Urdu (renderPreviewPage). Off: today's preview.
   const linkLangOn = quickFlag(opts.linkLangOn || StoryAssets.flagReader({ now, key: 'web_quiz_share_link_lang' }));
+  // web_quiz_share_link_lang_en: an English card's link (`?lang=en`) previews in English. Off: today's preview.
+  const linkLangEnOn = quickFlag(opts.linkLangEnOn || StoryAssets.flagReader({ now, key: 'web_quiz_share_link_lang_en', jsonTrue: true }), { lazy: true });
+  // web_quiz_share_page_lang: a friend's challenge link (`?lang=`) previews in that language, its invite picture too
+  // (renderPreviewPage chalLang). Asked only for such a link. Off: today's preview.
+  const pageLangOn = quickFlag(opts.pageLangOn || StoryAssets.flagReader({ now, key: 'web_quiz_share_page_lang', jsonTrue: true }), { lazy: true });
   // web_quiz_head_full: see page() (the fast first page's guessed head). Off: today's guess.
   const headFullOn = quickFlag(opts.headFullOn || StoryAssets.flagReader({ now, key: 'web_quiz_head_full' }));
+  // web_quiz_head_guess_honest (JSON true only): see page(). Read only behind web_quiz_head_full on, never before its
+  // first ask. Off: today's guess.
+  const headGuessHonestOn = quickFlag(opts.headGuessHonestOn || StoryAssets.flagReader({ now, key: 'web_quiz_head_guess_honest', jsonTrue: true }), { lazy: true });
   const cardCache = opts.cardCache || require('../lib/edge-redis');
   const cardCacheKey = (token) => `wq:card:${opts.storyEnv || require('../../bot/shared/services/quiz/story-store').deployEnv()}:${crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32)}`;
   const cachedFacts = async (token) => {
@@ -2025,7 +2071,7 @@ function createWebQuizRouter(opts = {}) {
       try {
         const out = await callBot('GET', `/api/internal/wq/card/s/${id}`, req, null, { route: '/api/internal/wq/card/s/:id' });
         const b = out && out.body;
-        if (out.status === 200 && b && cardToken(b.token) && typeof b.url === 'string' && (b.url === `/k/${b.token}` || /^\/q\/[A-Z0-9]{4,12}\?k=[A-Za-z0-9_-]+(&lang=ur)?$/.test(b.url))) {
+        if (out.status === 200 && b && cardToken(b.token) && typeof b.url === 'string' && (b.url === `/k/${b.token}` || /^\/q\/[A-Z0-9]{4,12}\?k=[A-Za-z0-9_-]+(&lang=(ur|en))?$/.test(b.url))) {
           hit = { token: b.token, url: b.url };
           shortIds.set(id, hit, CARD_KEEP_MS);
         } else return door(out.status === 404 && b ? b.ret : null);

@@ -651,7 +651,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       allSchools: 'All', mySector: 'My sector', playFor: function (s) { return 'Play and add points for ' + s; }, playMine: 'Play and add points for your school',
       noSchools: 'No school has played yet this week. Yours can be first!', shareSchools: 'Share the school league', inviteSchool: 'Invite my school to play',
       schoolsLine: function (s, p) { return p ? s + ' is #' + p + ' of all schools this week. Play and help us climb:' : 'No one from ' + s + ' has played yet this week. Be the first:'; },
-      histT: 'Your scores', todayT: PLACE ? 'Today in ' + PLACE.en : 'Today', rest: 'Time to rest. See you tomorrow!', todayMore: 'Great work today! Want to watch another video?', back: 'Back', sounds: 'Sounds',
+      histT: 'Your scores', todayT: PLACE ? 'Today in ' + PLACE.en : 'Today', rest: 'Time to rest. See you tomorrow!', todayMore: 'Great work today! Want to watch another video?', todayGames: 'Great work today! Want to play another game?', back: 'Back', sounds: 'Sounds',
       cont: function (i, n) { return 'Go on: question ' + i + ' of ' + n; }, contSay: function (n) { return 'Welcome back, ' + n + '! Your answers are saved.'; }, restart: 'Start again', months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
       fbT: 'Send it on WhatsApp', fbSub: 'Tap the WhatsApp button, then pick the chat.', fbWa: 'Send on WhatsApp', fbCopy: 'Copy the message', copied: 'Message copied', saveArt: 'Save the picture',
       backAgain: 'Your answers are saved. Press back again to leave.',
@@ -667,11 +667,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       whoHome: 'Someone at home', whoCousin: 'A cousin', whoStreet: 'A friend in my street',
       chalLine: function (w, s, n, t) { return w + ' here! I got ' + s + '/' + n + ' stars on ' + t + '. Can you beat me? 🏆 Tap the link to play:'; },
       chalPlayed: function (w, t) { return w + ' here! I played ' + t + '. Your turn! Tap the link to play:'; },
-      moreBtn: 'Watch another video', moreT: 'More videos for you', moreSay: 'Pick a video. Its quiz comes right after.',
+      moreBtn: 'Watch another video', gamesBtn: 'More games', moreT: 'More videos for you', moreSay: 'Pick a video. Its quiz comes right after.',
       moreNone: 'No more videos for your class yet.', vchip: 'Video quiz', nextT: 'Next in this chapter', moreWait: 'Opening the video…', mins: function (n) { return n + ' min'; }, doneTag: 'Done', playAgain: 'Play again',
       selfT: 'This is your own test run. It will not show in your class report.',
       challenged: function (n, s, t) { return n + ' got ' + s + '/' + t + ' stars. Can you beat it?'; }, challengedBy: function (n) { return n + ' challenged you. Can you beat their score?'; },
-      vs: { win: 'You beat the challenge!', tie: "It's a tie!", lose: 'So close! Play again?' }, vsYou: 'You', frOut: { win: 'beat you!', tie: 'tie', lose: 'you won' },
+      vs: { win: 'You beat the challenge!', tie: "It's a tie!", lose: 'So close! Play again?' }, vsYou: 'You', vsFirst: 'Your first try', vsSelfTie: 'Same as your first try!', frOut: { win: 'beat you!', tie: 'tie', lose: 'you won' },
       offWait: 'Your results will reach your teacher when you are back online.', offDone: 'All done! Your answers are saved on this phone.', tryNow: 'Send now',
       offline: 'No internet right now. Your answers are saved on this phone.', tooFew: 'Answer a few more questions first.', oops: 'Something went wrong. Please try again.',
       friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child',
@@ -711,7 +711,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       hubDoor: 'میرے کوئز، ویڈیوز اور چیلنج',
       foldPick: 'کہانی چنیں', sharePlain: 'شیئر کریں',
       shareLine: function (w, s, n, t) { return w + ' نے ' + t + ' میں ' + n + ' میں سے ' + s + ' ستارے لیے۔ کیا اس سے زیادہ ستارے ملیں گے؟'; },
+      // the one forms (a score of 1, web_quiz_share_copy_one): «۱ ستارہ لیا», never «۱ ستارے لیے»; picked by oneLine()
+      shareLine_one: function (w, s, n, t) { return w + ' نے ' + t + ' میں ' + n + ' میں سے ' + s + ' ستارہ لیا۔ کیا اس سے زیادہ ستارے ملیں گے؟'; },
       tableLine: function (t, c) { return t + ': ' + c + ' کی لیگ ٹیبل۔ ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے:'; },
+      // web_quiz_share_bidi (the answer's share_bidi): Urdu first, from a right-to-left mark, the class and the title isolated
+      tableLine_bidi: function (t, c) { return '\u200F\u2068' + c + '\u2069 کی لیگ ٹیبل: \u2068' + t + '\u2069۔ ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے:'; },
       leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, leagueW: 'لیگ ٹیبل', myClassT: function (c) { return 'کلاس ' + c; }, onlyClass: function (c) { return 'صرف کلاس ' + c; },
       movedUp: function (n) { return 'آپ اب ' + urDigits(n) + (n === 1 ? ' درجہ' : ' درجے') + ' اوپر ہیں!'; }, movedNow: function (p) { return 'کچھ اور دوستوں نے بھی کھیلا۔ اب آپ ' + urDigits(p) + ' نمبر پر ہیں۔'; }, samePlace: 'آپ پچھلی بار والی جگہ پر ہیں۔', you: 'آپ', moreN: function (n) { return 'کلاس میں ' + urDigits(n) + ' اور'; },
       finN: function (n) { return urDigits(n) + ' نے مکمل کیا'; }, yourScore: 'آپ کا اسکور', avg: 'کلاس کی اوسط', firstOnly: 'صرف پہلے نام۔ برابر اسکور والوں کا نمبر ایک ہے۔',
@@ -720,13 +724,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       pts: function (n) { return urDigits(fmtN(n)) + ' پوائنٹس'; }, kidsN: function (n) { return urDigits(fmtN(n)) + (n === 1 ? ' بچے نے کھیلا' : ' بچوں نے کھیلا'); },
       yourSchool: 'آپ کا اسکول', moveNew: 'نیا', schoolPlace: function (s, p) { return s + ' اس ہفتے نمبر ' + urDigits(p) + ' پر'; },
       sinceY: function (m) { return 'کل سے ' + urDigits(Math.abs(m)) + (m > 0 ? ' درجے اوپر' : ' درجے نیچے'); },
+      // web_quiz_end_copy_fix: a move of one place in its one form (never «۱ درجے»)
+      sinceY_one: function (m) { return 'کل سے ایک درجہ ' + (m > 0 ? 'اوپر' : 'نیچے'); },
       added: function (n, s) { return s + ' کے لیے ' + urDigits(n) + '+ پوائنٹس!'; },
       ghost: function (s) { return 'اس ہفتے ' + s + ' سے ابھی کسی نے نہیں کھیلا۔ سب سے پہلے کھیلیں!'; },
       zeroN: function (n) { return urDigits(fmtN(n)) + ' اسکول ابھی شروع نہیں ہوئے'; },
       allSchools: 'سب', mySector: 'میرا سیکٹر', playFor: function (s) { return 'کھیلیں اور ' + s + ' کے پوائنٹس بڑھائیں'; }, playMine: 'کھیلیں اور اپنے اسکول کے پوائنٹس بڑھائیں',
       noSchools: 'اس ہفتے ابھی کسی اسکول نے نہیں کھیلا۔ آپ کا اسکول پہلا ہو سکتا ہے!', shareSchools: 'اسکول لیگ بھیجیں', inviteSchool: 'اسکول کو کھیلنے کی دعوت دیں',
       schoolsLine: function (s, p) { return p ? s + ' اس ہفتے سب اسکولوں میں نمبر ' + p + ' پر ہے۔ کھیلیں اور اسے اوپر لے جائیں:' : 'اس ہفتے ' + s + ' سے ابھی کسی نے نہیں کھیلا۔ سب سے پہلے کھیلیں:'; },
-      histT: 'آپ کے اسکور', todayT: PLACE ? 'آج ' + PLACE.ur + ' میں' : 'آج', rest: 'اب آرام کا وقت۔ کل پھر ملاقات ہوگی!', todayMore: 'آج بہت اچھا کام کیا! ایک اور ویڈیو دیکھیں؟', back: 'واپس', sounds: 'آوازیں',
+      histT: 'آپ کے اسکور', todayT: PLACE ? 'آج ' + PLACE.ur + ' میں' : 'آج', rest: 'اب آرام کا وقت۔ کل پھر ملاقات ہوگی!', todayMore: 'آج بہت اچھا کام کیا! ایک اور ویڈیو دیکھیں؟', todayGames: 'آج بہت اچھا کام کیا! ایک اور کھیل کھیلیں؟', back: 'واپس', sounds: 'آوازیں',
       cont: function (i, n) { return 'جاری رکھیں: سوال ' + urDigits(i) + ' از ' + urDigits(n); }, contSay: function (n) { return n + '، خوش آمدید! آپ کے جواب محفوظ ہیں۔'; }, restart: 'نئے سرے سے شروع کریں', months: ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'],
       fbT: 'واٹس ایپ پر بھیجیں', fbSub: 'واٹس ایپ والا بٹن دبائیں، پھر چیٹ چنیں۔', fbWa: 'واٹس ایپ پر بھیجیں', fbCopy: 'پیغام کاپی کریں', copied: 'پیغام کاپی ہو گیا', saveArt: 'تصویر محفوظ کریں',
       backAgain: 'آپ کے جواب محفوظ ہیں۔ باہر جانے کے لیے دوبارہ بیک دبائیں۔',
@@ -740,12 +746,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       whoHome: 'گھر میں کوئی', whoCousin: 'کزن', whoStreet: 'محلے کا دوست',
       // Urdu prose: Urdu digits; the first name (either script) and the topic sit in first-strong isolates.
       chalLine: function (w, s, n, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز میں ' + urDigits(n) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک پر ٹیپ کریں:'; },
+      chalLine_one: function (w, s, n, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز میں ' + urDigits(n) + ' میں سے ' + urDigits(s) + ' ستارہ لیا۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک پر ٹیپ کریں:'; },
       chalPlayed: function (w, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز کھیلا۔ اب آپ کی باری! کھیلنے کے لیے لنک پر ٹیپ کریں:'; },
-      moreBtn: 'ایک اور ویڈیو دیکھیں', moreT: 'آپ کے لیے مزید ویڈیوز', moreSay: 'ایک ویڈیو چنیں۔ اس کے بعد اس کا کوئز آئے گا۔',
+      moreBtn: 'ایک اور ویڈیو دیکھیں', gamesBtn: 'مزید کھیل', moreT: 'آپ کے لیے مزید ویڈیوز', moreSay: 'ایک ویڈیو چنیں۔ اس کے بعد اس کا کوئز آئے گا۔',
       moreNone: 'ابھی آپ کی کلاس کے لیے اور ویڈیوز نہیں ہیں۔', vchip: 'ویڈیو کوئز', nextT: 'اسی باب کی اگلی ویڈیو', moreWait: 'ویڈیو کھل رہی ہے…', mins: function (n) { return urDigits(n) + ' منٹ'; }, doneTag: 'مکمل', playAgain: 'دوبارہ کھیلیں',
       selfT: 'یہ آپ کا اپنا ٹیسٹ رن ہے۔ یہ کلاس رپورٹ میں شامل نہیں ہوگا۔',
-      challenged: function (n, s, t) { return n + ' نے ' + urDigits(t) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ اب آپ کی باری!'; }, challengedBy: function (n) { return n + ' نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!'; },
-      vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑی سی کمی رہ گئی! دوبارہ کھیلیں؟' }, vsYou: 'آپ', frOut: { win: 'آپ سے آگے!', tie: 'برابر', lose: 'آپ کی جیت' },
+      challenged: function (n, s, t) { return n + ' نے ' + urDigits(t) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ اب آپ کی باری!'; },
+      challenged_one: function (n, s, t) { return n + ' نے ' + urDigits(t) + ' میں سے ' + urDigits(s) + ' ستارہ لیا۔ اب آپ کی باری!'; }, challengedBy: function (n) { return n + ' نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!'; },
+      vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑی سی کمی رہ گئی! دوبارہ کھیلیں؟' }, vsYou: 'آپ', vsFirst: 'آپ کی پہلی کوشش', vsSelfTie: 'پہلی کوشش کے برابر!', frOut: { win: 'آپ سے آگے!', tie: 'برابر', lose: 'آپ کی جیت' },
       offWait: 'انٹرنیٹ واپس آتے ہی آپ کا نتیجہ ٹیچر تک پہنچ جائے گا۔', offDone: 'سب ہو گیا! آپ کے جواب اس فون پر محفوظ ہیں۔', tryNow: 'ابھی بھیجیں',
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
       friends: 'دوست جنہوں نے مکمل کیا', home: 'پہلا صفحہ', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں',
@@ -763,9 +771,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     T = Object.assign({}, T, {
       sharePlain: 'دوستوں کو بھیجیں',
       shareLine: function (w, s, n, t) { return '\u2068' + w + '\u2069 نے \u2068' + t + '\u2069 میں ' + urDigits(n) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ اب آپ کھیلیں اور اس سے زیادہ ستارے لیں!'; },
+      shareLine_one: function (w, s, n, t) { return '\u2068' + w + '\u2069 نے \u2068' + t + '\u2069 میں ' + urDigits(n) + ' میں سے ' + urDigits(s) + ' ستارہ لیا۔ اب آپ کھیلیں اور اس سے زیادہ ستارے لیں!'; },
       tableLine: function (t, c) { return t + ': ' + c + ' کی لیگ ٹیبل۔ آپ نے ابھی تک نہیں کھیلا؟ یہی لنک ابھی بھی کھلا ہے، آئیں کھیلیں:'; },
+      tableLine_bidi: function (t, c) { return '\u200F\u2068' + c + '\u2069 کی لیگ ٹیبل: \u2068' + t + '\u2069۔ آپ نے ابھی تک نہیں کھیلا؟ یہی لنک ابھی بھی کھلا ہے، آئیں کھیلیں:'; },
       whoStreet: 'محلے میں کوئی دوست',
       chalLine: function (w, s, n, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز میں ' + urDigits(n) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک دبائیں:'; },
+      chalLine_one: function (w, s, n, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز میں ' + urDigits(n) + ' میں سے ' + urDigits(s) + ' ستارہ لیا۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک دبائیں:'; },
       chalPlayed: function (w, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز کھیلا۔ اب آپ کی باری! کھیلنے کے لیے لنک دبائیں:'; }
     });
   }
@@ -801,7 +812,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       prac: 'یہ نام پہلے کھیل چکا ہے۔ یہ باری مشق ہے۔ پہلا اسکور ہی گنا جائے گا۔',
       cardPriv: 'کارڈ پر صرف آپ کا نام ہے۔', hubDoor: 'میرے کوئز اور ویڈیوز',
       firstOnly: 'صرف پہلے نام۔ برابر اسکور والوں کا نمبر ایک ہے۔', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ آپ پہلے بنیں!',
-      rest: 'اب آرام کریں۔ کل پھر ملیں گے!', todayMore: 'شاباش! ایک اور ویڈیو دیکھیں؟',
+      rest: 'اب آرام کریں۔ کل پھر ملیں گے!', todayMore: 'شاباش! ایک اور ویڈیو دیکھیں؟', todayGames: 'شاباش! ایک اور کھیل کھیلیں؟',
       contSay: function (n) { return n + '، واپس آ گئے! جواب محفوظ ہیں۔'; },
       cont: function (i, n) { return 'جاری رکھیں: ⁦' + urDigits(n) + '⁩ میں سے سوال ⁦' + urDigits(i) + '⁩'; },
       fbSub: 'واٹس ایپ دبائیں، پھر گروپ چنیں۔',
@@ -823,6 +834,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       zeroN: function (n) { return urCount(n) + ' اسکول ابھی شروع نہیں ہوئے'; },
       // the WhatsApp share prose: Western digits, isolated, the approved sentence shape kept
       chalLine: function (w, s, n, t) { return 'میں ⁨' + w + '⁩ ہوں! میں نے ⁨' + t + '⁩ کوئز میں ⁦' + n + '⁩ میں سے ⁦' + s + '⁩ ستارے لیے۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک دبائیں:'; },
+      chalLine_one: function (w, s, n, t) { return 'میں ⁨' + w + '⁩ ہوں! میں نے ⁨' + t + '⁩ کوئز میں ⁦' + n + '⁩ میں سے ⁦' + s + '⁩ ستارہ لیا۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک دبائیں:'; },
       chalPlayed: function (w, t) { return 'میں ⁨' + w + '⁩ ہوں! میں نے ⁨' + t + '⁩ کوئز کھیلا۔ اب آپ کی باری! کھیلنے کے لیے لنک دبائیں:'; }
     });
   }
@@ -1109,12 +1121,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     return set && set.path && set.v ? '/wq/voice/one/' + set.path + '/' + file + '.mp3?v=' + set.v : null;
   }
   // skip (optional): a word the picked line must not contain; each line keeps its own index, so its recorded clip
-  function vline(set, skip) {
-    var lang = VOICE[VLANG] ? VLANG : 'en';
+  // pin (optional): the language to pick in, in place of the questions' (web_quiz_share_page_lang's end line)
+  function vline(set, skip, pin) {
+    var lang = pin && VOICE[pin] ? pin : VOICE[VLANG] ? VLANG : 'en';
     var lines = VOICE[lang][set] || [];
     var ok = [];
     for (var k = 0; k < lines.length; k++) if (!skip || lines[k].toLowerCase().indexOf(skip) < 0) ok.push(k);
-    if (!ok.length) return skip ? vline(set) : { text: '', url: null };
+    if (!ok.length) return skip ? vline(set, null, pin) : { text: '', url: null };
     var j = Math.floor(Math.random() * ok.length);
     if (ok.length > 1 && ok[j] === lastPick[set]) j = (j + 1) % ok.length;
     var i = ok[j];
@@ -1124,6 +1137,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // web_quiz_end_once (the answer's end_once): Jugnu's done line skips the card heading's last word when both are one
   // language («مکمل» / "complete"), so the child does not read the heading twice
   function doneLine() {
+    // web_quiz_share_page_lang (the answer's share_page_lang): the end line is the end screen's own copy, so it speaks the
+    // page's language (an English page of an Urdu lesson: English), never repeating the heading under end_once
+    if (B.share_page_lang === true && VOICE[LANG] && LANG !== VLANG) {
+      var hw = B.end_once ? String(T.done).toLowerCase().split(/\s+/) : null;
+      return vline('done', hw ? hw[hw.length - 1] : null, LANG);
+    }
     if (!B.end_once || (VOICE[VLANG] ? VLANG : 'en') !== LANG) return vline('done');
     var w = String(T.done).toLowerCase().split(/\s+/);
     return vline('done', w[w.length - 1]);
@@ -1511,9 +1530,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // a screen at most 680 px tall, wq.css), and the Urdu headline holds «آپ نے ۷ میں سے» and «۳ درست کیے» whole, so its one
   // break falls after «سے».
   var END_SHORT = Boolean(B.end_fit && B.end_short);
+  // web_quiz_end_copy_fix (the answer's end_copy): a replay drops "Your score is your first try." (its practice line says
+  // it), "Watch another video" only after a video, and on an Urdu end headline each number in the digit face, isolated
+  var END_COPY = B.end_copy === true;
+  function endDigits(h) { return END_COPY && LANG === 'ur' ? h.replace(/[\u06F0-\u06F9]+/g, '<bdi class="wq-dg">$&</bdi>') : h; }
   function endScore(n, total) {
-    if (!B.end_fit) return '<h1>' + esc(T.got(n, total)) + '</h1>' + stars(n, total);
-    return '<h1 class="wq-endh">' + esc(endHead(T.got(n, total))) + '</h1>' + stars(n, total).replace('class="wq-stars"', 'class="wq-stars wq-fitstars"');
+    if (!B.end_fit) return '<h1>' + endDigits(esc(T.got(n, total))) + '</h1>' + stars(n, total);
+    return '<h1 class="wq-endh">' + endDigits(esc(endHead(T.got(n, total)))) + '</h1>' + stars(n, total).replace('class="wq-stars"', 'class="wq-stars wq-fitstars"');
   }
   function endHead(s) {
     var at = s.indexOf(' میں سے ');
@@ -1555,13 +1578,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // ...and the teacher the same way: "Teacher <name>" (an English quiz's) reads «<name> ٹیچر», as an Urdu quiz's does
   function doorTeacher() { var t = CLS.teacher; return t && typeof UR2 !== 'undefined' && UR2 ? String(t).replace(/^Teacher\s+(.+)$/, '$1 ٹیچر') : t; }
   // the quiz title's dir on the door: an English title on an Urdu page with the look is left to right (WQI.latDir)
-  function latT(t) { return typeof WQI !== 'undefined' ? WQI.latDir(t, LANG) : ''; }
+  // (web_quiz_share_bidi: on the Urdu door it keeps its LTR words but sits on the right, like the line under it)
+  function latT(t) { var d = typeof WQI !== 'undefined' ? WQI.latDir(t, LANG) : ''; return d && SHARE_BIDI ? d + ' class="wq-ttlr"' : d; }
   // The invited friend's landing shows the picture their link previewed as (already drawn and cached), so the
   // hand-off from the chat to the page is one picture, not two different things. Gone if it cannot load.
   // Under the fold it sits right under Play, so it is the door's drawing: "Your turn!" in place of the chat's link pill.
   function chPic(chLine, door) {
     var id = chLine && B.art && B.art.invite;
-    return id ? '<img class="wq-chpic" src="' + esc('/q/' + encodeURIComponent(CODE) + '/art/invite.jpg?a=' + encodeURIComponent(id) + (door ? '&w=door' : '')) + '" alt="' + esc(chLine) + '">' : '';
+    return id ? '<img class="wq-chpic" src="' + esc('/q/' + encodeURIComponent(CODE) + '/art/invite.jpg?a=' + encodeURIComponent(id) + (door ? '&w=door' : '') + (B.pic_lang === true ? '&l=' + LANG : '')) + '" alt="' + esc(chLine) + '">' : '';
   }
   // fold (web_quiz_challenge_fold): the picture sits right under the way in and carries a drawn "tap the link to play",
   // so a tap on it is a tap on Play (or the remembered child's button); with the class's children listed, it shows them
@@ -1588,11 +1612,27 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   if (B.story && window.WQSTORYLINK) T = window.WQSTORYLINK.copy(T, LANG);
   // web_quiz_challenge_line_keep (the answer's challenge_line_keep): each number in the challenge line and the challenge share text
   // keeps the word after it (a no-break space), so a balanced wrap never ends a line on «۴» with «ستارے» on the next
+  function keepNum(s) { return String(s).replace(/([0-9\u06F0-\u06F9]+(?:\/[0-9\u06F0-\u06F9]+)?\u2069?) (?=\S)/g, '$1\u00a0'); }
   if (B.challenge_line_keep === true) {
-    var keepNum = function (s) { return String(s).replace(/([0-9\u06F0-\u06F9]+(?:\/[0-9\u06F0-\u06F9]+)?\u2069?) (?=\S)/g, '$1\u00a0'); };
     T = Object.assign({}, T);
-    ['challenged', 'chalLine', 'chalPlayed'].forEach(function (k) { var f = T[k]; if (f) T[k] = function () { return keepNum(f.apply(T, arguments)); }; });
+    ['challenged', 'chalLine', 'chalPlayed', 'challenged_one', 'chalLine_one'].forEach(function (k) { var f = T[k]; if (f) T[k] = function () { return keepNum(f.apply(T, arguments)); }; });
   }
+  // web_quiz_share_bidi (the answer's share_bidi), Urdu: in the star lines too (the card's share, the challenge, the
+  // friend's line), each number keeps the word after it, so «۱» never ends a line without «ستارہ»
+  var SHARE_BIDI = LANG === 'ur' && B.share_bidi === true;
+  // (and a short title, 24 letters at most, keeps its spaces, so «Proper Fraction» never splits across the RTL lines)
+  function holdT(t) { t = String(t == null ? '' : t); return t.length <= 24 ? t.replace(/ /g, '\u00a0') : t; }
+  if (SHARE_BIDI) {
+    T = Object.assign({}, T);
+    ['shareLine', 'shareLine_one', 'chalLine', 'chalLine_one', 'challenged', 'challenged_one'].forEach(function (k) { var f = T[k]; if (f) T[k] = function () { return keepNum(f.apply(T, arguments)); }; });
+    // UD-1: the school league's share line says the place in the page's digits («نمبر ۲», as the board shows it), and
+    // (as the table's line) starts right to left with the school's name isolated, so a Latin name never turns it LTR
+    var sl = T.schoolsLine;
+    if (sl) T.schoolsLine = function (s, p) { return '\u200F' + keepNum(sl.call(T, '\u2068' + s + '\u2069', p == null ? p : urDigits(p))); };
+  }
+  // web_quiz_share_copy_one (the answer's copy_one): a line that says how many stars, for a score of 1, is its `_one` form
+  // where the table has one («۱ ستارہ لیا», never «۱ ستارے لیے»); 0, 2 or more, or off: the line itself.
+  function oneLine(k, s) { return B.copy_one === true && Number(s) === 1 && T[k + '_one'] ? T[k + '_one'] : T[k]; }
   // web_quiz_challenge_line_sent (the answer's challenge_line_sent): the friend's challenge line is drawn one span per sentence
   // (wq-sent, an inline block in wq.css), so a line that does not fit breaks at a full stop, never inside a sentence that fits.
   // The text (the picture's alt, the share words) stays plain.
@@ -1608,7 +1648,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var ch = B.challenge;
     // The challenger comes from the server (the challenge code), never from a name in the URL.
     // A challenger who scored 0 is never a score to beat (the card shares a zero as "played"): the friend is just challenged.
-    var chLine = ch ? (ch.correct > 0 ? T.challenged(ch.first, ch.correct, ch.total) : T.challengedBy(ch.first)) : '';
+    var chLine = ch ? (ch.correct > 0 ? oneLine('challenged', ch.correct)(ch.first, ch.correct, ch.total) : T.challengedBy(ch.first)) : '';
     if (B.preview && params.p) return teacherLanding();
     // web_quiz_challenge_fold (the answer's challenge_fold): the way in comes right after the challenge line, and the
     // invite picture follows it, so a small phone shows Play on the first screen
@@ -1674,6 +1714,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       fixT: function (n) { return 'Roll number for ' + n + '?'; }, fixSay: 'Type the roll number from your class list.',
       isKid: function (n) { return 'Is this ' + n + '?'; }, yes: 'Yes', fixed: 'Fixed.',
       practice: function (c, t) { return 'Practice round · your first score ' + c + '/' + t + ' is the one that counts'; },
+      // web_quiz_end_copy_fix: under the replay's own compare box, which already gives both scores
+      practiceKept: 'Practice round · your first try counts',
       preview: "This is your preview. It isn't saved for your class.",
       newBest: 'New best!', wasBest: 'was',
       tFor: 'For you, the teacher', tLead: 'Your class plays this from the link you forwarded. See who has played, or try it yourself.',
@@ -1707,6 +1749,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       isKid: function (n) { return 'کیا یہ ' + n + ' ہے؟'; }, yes: 'جی ہاں', fixed: 'درست ہو گیا۔',
       // sep(): «،» with the Urdu polish, else today's «·» (guarded: this table runs in the identity tests' slice)
       practice: function (c, t) { return 'مشق کا راؤنڈ' + (typeof sep === 'function' ? sep() : ' · ') + 'پہلی بار کا اسکور ' + c + '/' + t + ' شمار ہوتا ہے'; },
+      practiceKept: function () { return 'مشق کا راؤنڈ' + (typeof sep === 'function' ? sep() : ' · ') + 'صرف پہلی بار کا اسکور گنا جاتا ہے'; },
       preview: 'یہ صرف آپ کے دیکھنے کے لیے تھا۔ آپ کے جوابات کلاس کے ریکارڈ میں محفوظ نہیں کیے گئے۔',
       newBest: 'نیا ریکارڈ!', wasBest: 'پہلے',
       tFor: 'استاد کے لیے', tLead: 'آپ کی کلاس یہ کوئز آپ کے بھیجے ہوئے لنک سے کھیلتی ہے۔ دیکھیں کس نے کھیلا، یا خود آزمائیں۔',
@@ -1726,6 +1769,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       knIs: function (n) { return 'کیا آپ ' + n + ' ہیں؟'; }, knYes: 'جی ہاں، میں ہی ہوں', knElse: 'نہیں، میں کوئی اور ہوں'
     }
   })[LANG === 'ur' ? 'ur' : 'en'];
+  // web_quiz_share_bidi (SC-2), Urdu: the practice note ends its sentence with «۔», like the line above it (guarded: this
+  // table runs in the identity tests' slice)
+  if (typeof SHARE_BIDI !== 'undefined' && SHARE_BIDI && TW.practice) TW = Object.assign({}, TW, { practice: (function (f) { return function (c, t) { return f(c, t) + '۔'; }; })(TW.practice) });
   // The roll pad and its lists: 0-9, Urdu included. The roll number is matched to the teacher's
   // register, which prints it 0-9.
   function digitsFor(n) { return String(n); }
@@ -2492,6 +2538,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // A round that does not count (the finish card on, card_v3): a teacher's own run (preview) says it is not saved;
   // "Play again" on this phone (?again=1) or the finish naming this device shows the card's practice line (the kept
   // first score); "another phone" only when it was another phone.
+  // web_quiz_end_short on an Urdu replay (a practice note under the card): the card's own first-try line says what the
+  // note says. On a phone at most 680 px tall (wq.css), the card shows the note in that line's place (wq-pin, without
+  // «یہ باری مشق ہے», «گنا جائے گا» kept together) and the note's own box (wq-pban) is hidden, so the card's button stays
+  // on the first screen. Taller phones show today's card and note. No new words.
+  function pracShort(res) { return END_SHORT && LANG === 'ur' && res.counted === false; }
+  function pracPin(banner) {
+    var m = /^<div class="wq-banner">([\s\S]*)<\/div>$/.exec(banner);
+    if (!m) return '';
+    return '<p class="wq-small wq-pin">' + m[1].replace(/یہ باری مشق ہے[۔؛] ?/, '').replace(/گنا جائے گا/g, 'گنا\u00a0جائے\u00a0گا') + '</p>';
+  }
   function pracBanner(res, total) {
     if (res.card_v3 && res.reason === 'preview') return '<div class="wq-banner">' + esc(TW.preview) + '</div>';
     if (!res.card_v3 || (!AGAIN && res.reason !== 'already_finished')) return '<div class="wq-banner">' + esc(T.prac) + '</div>';
@@ -2511,8 +2567,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.done) + '</p>' +
         endScore(sc.correct, total) +
         (fixed ? '<p class="wq-sub">' + esc(T.fixedLine(fixed)) + '</p>' : '') +
-        '<p class="wq-small">' + esc(T.scoreNote) + '</p></div>' +
-        (res.counted === false ? pracBanner(res, total) : '') +
+        (pracShort(res) ? ((typeof END_COPY !== 'undefined' && END_COPY) ? '' : '<p class="wq-small wq-snote">' + esc(T.scoreNote) + '</p>') + pracPin(pracBanner(res, total)) + '</div>' +
+          pracBanner(res, total).replace('<div class="wq-banner">', '<div class="wq-banner wq-pban">')
+          : ((typeof END_COPY !== 'undefined' && END_COPY) && res.counted === false ? '' : '<p class="wq-small">' + esc(T.scoreNote) + '</p>') + '</div>' + (res.counted === false ? pracBanner(res, total) : '')) +
         '<button class="wq-btn wq-go" id="wq-card"' + (window.WQJ ? ' data-primary' : '') + '>' + esc(T.seeCard) + '</button>' + // the kit (web_quiz_juice): one primary
         // The home on (finish's card_fold): the card is the one way on from here; the videos live on the home. The class
         // table stays with web_quiz_class_doors (finish's class_doors).
@@ -2520,7 +2577,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       render(h, 'M9');
       if (!foldOn(res)) libPrefetch();   // the folded card opens no video list
       wireBar();
-      if (window.WQJ) WQJ.finish({ el: ROOT.querySelector('.wq-card'), kind: 'quiz' }); else sfx('done');
+      // web_quiz_share_page_lang: the confetti falls behind the card (wq-juice back), never over its headline
+      var jo = B.share_page_lang === true ? { el: ROOT.querySelector('.wq-card'), kind: 'quiz', back: true } : { el: ROOT.querySelector('.wq-card'), kind: 'quiz' };
+      // web_quiz_end_copy_fix (CF-2): confetti only with at least one star earned (nc: the kit's finish without confetti)
+      if ((typeof END_COPY !== 'undefined' && END_COPY) && !(sc.correct > 0)) jo.nc = true;
+      if (window.WQJ) WQJ.finish(jo); else sfx('done');
       speak(done.text, done.url, null);
       on('#wq-card', card);
       on('#wq-class', board);
@@ -2586,9 +2647,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // file, the square picture goes with the message: fetched when the screen opens, because a share must
   // start inside the tap (a wait would lose it).
   var ART = {};
+  // pic_lang (web_quiz_share_pic_lang): the picture in this page's language, the one its share words are in (&l=)
   function artUrl(id, f) {
     var a = ART[id];
-    return '/q/' + encodeURIComponent(CODE) + '/art/' + (a ? a.kind : 'card') + '.jpg?a=' + encodeURIComponent(id) + (f ? '&f=' + f : '');
+    return '/q/' + encodeURIComponent(CODE) + '/art/' + (a ? a.kind : 'card') + '.jpg?a=' + encodeURIComponent(id) + (f ? '&f=' + f : '') + (B.pic_lang === true ? '&l=' + LANG : '');
   }
   function warmArt(kind, id) {
     if (!id || ART[id]) return;
@@ -2648,7 +2710,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var pic = art && ART[art];
     var h = bar() + '<h2>' + nowrap(esc(T.fbT)) + '</h2><p class="wq-sub">' + nowrap(esc(T.fbSub)) + '</p>' +
       (pic ? '<img class="wq-artprev" src="' + esc(artUrl(art)) + '" alt="">' : '') +
-      '<div class="wq-card"><p>' + esc(text != null ? text : full) + '</p>' + (url ? '<p class="wq-url" dir="ltr">' + esc(url) + '</p>' : '') + '</div>' +
+      '<div class="wq-card"><p' + (SHARE_BIDI ? ' dir="rtl"' : '') + '>' + esc(text != null ? text : full) + '</p>' + (url ? '<p class="wq-url" dir="ltr">' + esc(url) + '</p>' : '') + '</div>' +
       '<a class="wq-btn wq-go" id="wq-wa"' + (blank ? ' target="_blank" rel="noopener"' : '') + ' href="https://wa.me/?text=' + encodeURIComponent(full) + '">' + nowrap(esc(T.fbWa)) + '</a>' +
       '<button class="wq-btn wq-soft" id="wq-copy">' + esc(T.fbCopy) + '</button>' +
       (pic ? '<a class="wq-btn wq-soft" id="wq-save" href="' + esc(artUrl(art, 'sq')) + '" download="' + esc(pic.kind + '-' + CODE) + '.jpg">' + esc(T.saveArt) + '</a>' : '') +
@@ -2680,7 +2742,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function shareScreen(text, url, what, art) {
     if (!oneShare() || !window.WQFC || typeof window.WQFC.shareArt !== 'function') { share(text, url, what, art); return; }
     var a = art && ART[art];
-    window.WQFC.shareArt({ lang: LANG, src: what, img: art ? artUrl(art) : '', save: art ? artUrl(art, 'sq') : '', file: (a && a.file) || null, text: text, url: url, ev: ev });
+    var o = { lang: LANG, src: what, img: art ? artUrl(art) : '', save: art ? artUrl(art, 'sq') : '', file: (a && a.file) || null, text: text, url: url, ev: ev };
+    // web_quiz_share_bidi: the sheet's Urdu words in an RTL box
+    if (SHARE_BIDI) o.bidi = true;
+    // web_quiz_end_copy_fix: the words 16 px in from both sides of their box (SH-1)
+    if ((typeof END_COPY !== 'undefined' && END_COPY)) o.pad = true;
+    window.WQFC.shareArt(o);
   }
 
   /* ---------------- M10 scorecard ---------------- */
@@ -2725,9 +2792,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // done_today: this child's counted finish today, the class too small for a count (the server sends none under 5)
     var place = c.nth || c.done_today ? '<p class="wq-proof wq-nth"><span>' + nthHtml(c.nth || 1) + '</span></p>' : '';
     // The practice note is framing, not a control: on a door card it goes under the door with the place note.
-    var practice = (kept ? '<div class="wq-banner">' + esc(TW.practice(scoreN(kept.correct), scoreN(shareT))) + '</div>' : '');
+    var practice = (kept ? '<div class="wq-banner">' + esc((typeof END_COPY !== 'undefined' && END_COPY) && replayVs(res.vs, c, total) ? pracKept() : TW.practice(scoreN(kept.correct), scoreN(shareT))) + '</div>' : '');
     var notes = (firstTwo ? '' : practice) +
-      vsStrip(res.vs, c, total) + newBest(c, total) +
+      vsStrip(res.vs, c, total) + (replayVs(res.vs, c, total) === 'win' ? '' : newBest(c, total)) +
       (firstTwo ? '' : place) +
       (nx ? '<button class="wq-vitem wq-nextv" id="wq-next-v">' +
         (nx.poster ? '<img class="wq-vtile" src="' + esc(nx.poster) + '" alt="" loading="lazy">' : '<span class="wq-vtile wq-vt1" aria-hidden="true">' + ic(IC.play, '▶') + '</span>') +
@@ -2761,7 +2828,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     }
     if (res.vs && T.vs[res.vs.outcome]) ev('challenge_result', { reason: res.vs.outcome });
     // The challenge code names the challenger on the server: no child's name rides in the link.
-    var chalUrl = link('/q/' + (res.challenge_code || CODE));
+    // web_quiz_share_page_lang: the link carries this page's language, so the friend's preview and page speak it
+    var chalUrl = B.share_page_lang === true ? withLang(link('/q/' + (res.challenge_code || CODE))) : link('/q/' + (res.challenge_code || CODE));
     // The class group gets the CLASS link: a classmate who joined through a friend's challenge code would
     // count as that child's friend and drop out of the teacher's class report.
     // The card link names its picture (?a=): the group's preview IS the card. Still the CLASS code.
@@ -2773,7 +2841,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     warmLink(chalUrl);
     // A zero is shared as "played", never as a score for the group to beat.
     // A practice round shares the kept first-try score (shareC/shareT), the one the league shows.
-    var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
+    var line = shareC ? oneLine('shareLine', shareC)(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
     if (fc && res.share_v4 !== true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
     // the one share (finish's share_v4): the tap opens the one sheet, the card's picture and its link; with no card,
     // this page's own share (the picture and the class link) is the one that runs
@@ -2784,7 +2852,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (panel) {
       ASK_WHO.forEach(function (w) {
         on('#wq-who-' + w[0], function () {
-          var chalText = askLow(shareC, shareT) ? T.chalPlayed(c.first, Q.topic) : T.chalLine(c.first, shareC, shareT, Q.topic);
+          var chalText = askLow(shareC, shareT) ? T.chalPlayed(c.first, Q.topic) : oneLine('chalLine', shareC)(c.first, shareC, shareT, Q.topic);
           share(chalText, chalUrl, 'challenge', art.invite, w[0]);
         });
       });
@@ -2863,14 +2931,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var classUrl = link('/q/' + CODE + (art.card ? '?a=' + encodeURIComponent(art.card) : ''));
     warmArt('card', art.card);
     warmLink(classUrl);
-    var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
+    var line = shareC ? oneLine('shareLine', shareC)(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
     if (fc && res.share_v4 !== true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl), function (full) { fallback(full, 'card', full, null, null, true); }));
     // the one share (finish's share_v4): the tap opens the one sheet, the card's picture and its link; with no card,
     // this page's own share (the picture and the class link) is the one that runs
     if (fc && res.share_v4 === true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl, true), function (t, u, late) { if (late) fallback(line + ' ' + classUrl, 'card', line, classUrl, art.card, true); else share(line, classUrl, 'card', art.card); }));
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
     if (res.share_v4 === true) {
-      var chalUrl = link('/q/' + (res.challenge_code || CODE));
+      var chalUrl = B.share_page_lang === true ? withLang(link('/q/' + (res.challenge_code || CODE))) : link('/q/' + (res.challenge_code || CODE));
       warmArt('invite', art.invite);
       warmLink(chalUrl);
       on('#wq-chal', function () { share(line, chalUrl, 'challenge', art.invite); });
@@ -2961,8 +3029,24 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function vsStrip(vs, c, total) {
     if (!vs || !T.vs[vs.outcome]) return '';
     function sc(a, b) { return '<bdi dir="ltr">' + esc(scoreN(a)) + '/' + esc(scoreN(b)) + '</bdi>'; }
+    // web_quiz_share_page_lang on a replay (a practice round with its kept first try): the challenge was the first try's,
+    // so this round is set against that first try ("Your first try 4/7"), never against a name; beating it is a new best,
+    // matching it is "Same as your first try!"
+    var o = replayVs(vs, c, total);
+    if (o) {
+      return '<div class="wq-banner wq-vs"><b>' + esc(o === 'win' ? TW.newBest : o === 'tie' ? T.vsSelfTie : T.vs[o]) + '</b><br>' + esc(T.vsYou) + ' ' + sc(c.correct, total) +
+        sep() + esc(T.vsFirst) + ' ' + sc(c.kept.correct, c.kept.total) + '</div>';
+    }
     return '<div class="wq-banner wq-vs"><b>' + esc(T.vs[vs.outcome]) + '</b><br>' + esc(T.vsYou) + ' ' + sc(c.correct, total) +
       sep() + esc(vs.first) + ' ' + sc(vs.correct, vs.total) + '</div>';
+  }
+
+  // The outcome of a replay against the child's own kept first try (scores compared as shares, as the server's
+  // challengeOutcome), or null: the switch off, no strip, or not a replay.
+  function replayVs(vs, c, total) {
+    if (B.share_page_lang !== true || !vs || !T.vs[vs.outcome] || !c.practice || !c.kept || !(c.kept.total > 0) || !(total > 0)) return null;
+    var a = (c.correct || 0) * c.kept.total, b = (c.kept.correct || 0) * total;
+    return a > b ? 'win' : a === b ? 'tie' : 'lose';
   }
 
   /* ---------------- M15 watch another video -> its quiz ---------------- */
@@ -2972,7 +3056,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // the link: the new page starts at once with the session token of the quiz just played.
   var SUBJECT_TILE = { Science: '🔬', Maths: '➗', English: '🔤', Urdu: 'ا', 'Islamic Studies': '🕌', 'General Knowledge': '🌍', Geography: '🗺️', History: '📜' };
   var HANDOVER_MS = 10 * 60 * 1000;
-  function moreBtn() { return Q.grade ? '<button class="wq-btn wq-soft wq-more" id="wq-more">' + ic(IC.play, '▶') + ' ' + esc(T.moreBtn) + '</button>' : ''; }
+  // web_quiz_end_copy_fix: a quiz that came with no video (a teacher's quiz from the Games) offers the Games again
+  function moreGames() { return typeof END_COPY !== 'undefined' && END_COPY && !(B.video && B.video.url); }
+  function moreBtn() {
+    if (moreGames()) return homeOk() ? '<button class="wq-btn wq-soft wq-more" id="wq-more" data-to="games">' + ic(IC.trophy, '🏆') + ' ' + esc(T.gamesBtn) + '</button>' : '';
+    return Q.grade ? '<button class="wq-btn wq-soft wq-more" id="wq-more">' + ic(IC.play, '▶') + ' ' + esc(T.moreBtn) + '</button>' : '';
+  }
+  // (with web_quiz_share_bidi the Urdu line ends its sentence with «۔», as TW.practice does)
+  function pracKept() { return typeof TW.practiceKept === 'function' ? TW.practiceKept() + (typeof SHARE_BIDI !== 'undefined' && SHARE_BIDI ? '۔' : '') : TW.practiceKept; }
   function vItem(v, i) {
     // Each atom isolated, so "3.2 MB" keeps its Latin order inside an Urdu line.
     var meta = [v.secs ? esc(T.mins(Math.max(1, Math.round(v.secs / 60)))) : '', v.mb ? '<bdi dir="ltr">' + esc(v.mb + ' MB') + '</bdi>' : ''].filter(Boolean).join(sep());
@@ -2984,6 +3075,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   // M4b library: subjects -> chapters (wq-lib.js) when the bot has it on; else today's list below.
   function moreVideos() {
+    if (moreGames()) { homeGo('more', '#games'); return; }
     if (typeof WQL !== 'undefined' && !WQL.off()) {
       WQL.open({ code: CODE, st: S.st, lang: LANG, iab: IAB, on: on, ev: ev, onPick: pickVideo, onBack: afterResult, fallback: moreList,
         paint: function (h, m) { render(bar() + h, m); wireBar(); } });
@@ -3245,7 +3337,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // The shared /class link previews the CLASS picture (nobody named), not the child's own: drawn now too, so the
     // sender's WhatsApp finds it ready instead of waiting for a draw.
     warmPreviewArt('class', B.art && B.art.class);
-    on('#wq-share-t', function () { var u = link('/q/' + CODE + '/class' + (b.finishers_n ? '?v=' + b.finishers_n : '')); shareScreen(T.tableLine(Q.topic, CLASS_LABEL), b.class_doors && UI_SWAP ? withLang(u) : u, 'table', tArt); });
+    on('#wq-share-t', function () { var u = link('/q/' + CODE + '/class' + (b.finishers_n ? '?v=' + b.finishers_n : '')); shareScreen(SHARE_BIDI ? T.tableLine_bidi(holdT(Q.topic), CLASS_LABEL) : T.tableLine(Q.topic, CLASS_LABEL), b.class_doors && UI_SWAP ? withLang(u) : u, 'table', tArt); });
     on('#wq-schools', function () { schools(board); });
     on('#wq-next', history);
     on('#wq-call', function () { drawBoard(b, mixed, false); });
@@ -3316,12 +3408,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var top = !mine ? '' : mine.ghost
       ? '<div class="wq-card wq-mycard wq-zero" id="wq-mine"><p>' + T.ghost(nm) + '</p></div>'
       : '<div class="wq-card wq-mycard" id="wq-mycard"><p><b>' + T.schoolPlace(nm, esc(mine.place)) + '</b></p>' +
-        (typeof mine.move === 'number' && mine.move ? '<p class="wq-move ' + (mine.move > 0 ? 'wq-up' : 'wq-down') + '">' + esc(T.sinceY(mine.move)) + '</p>' : '') +
+        (typeof mine.move === 'number' && mine.move ? '<p class="wq-move ' + (mine.move > 0 ? 'wq-up' : 'wq-down') + '">' + esc(b.end_copy === true && Math.abs(mine.move) === 1 && T.sinceY_one ? T.sinceY_one(mine.move) : T.sinceY(mine.move)) + '</p>' : '') +
         '<p class="wq-sub">' + esc(T.pts(mine.points || 0)) + sep() + esc(T.kidsN(mine.kids || 0)) + '</p>' +
         (b.added ? '<p class="wq-added">' + T.added(esc(b.added), nm) + '</p>' : '') + '</div>';
     var chips = mine && mine.sector && (b.rows || []).length
       ? '<div class="wq-chips wq-schips' + (cd ? ' wq-tall' : '') + '"><button class="wq-chip' + (SCH.sector ? '' : ' wq-on') + '" id="wq-all">' + esc(T.allSchools) + '</button>' +
-        '<button class="wq-chip' + (SCH.sector ? ' wq-on' : '') + '" id="wq-sector">' + esc(T.mySector) + sep() + '<bdi>' + esc(sectorName(mine.sector, cd)) + '</bdi></button></div>' : '';
+        '<button class="wq-chip' + (SCH.sector ? ' wq-on' : '') + '" id="wq-sector">' + esc(T.mySector) + sep() + '<bdi>' + esc(mine.sector_name && mine.sector_name[LANG] ? mine.sector_name[LANG] : sectorName(mine.sector, cd)) + '</bdi></button></div>' : '';
     var zn = b.zero_names || [];
     var zero = b.zero_n && !SCH.sector
       ? '<details class="wq-zero-list' + (cd ? ' wq-tall' : '') + '"><summary>' + esc(T.zeroN(b.zero_n)) + '</summary>' +
@@ -3382,9 +3474,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // "Time to rest" only when nothing is left to play today: with an unplayed lesson in the class's
   // list the screen offers it instead. The list is asked for once the screen is up; no grade, no list.
   function today() {
-    todayView(!!Q.grade);
+    // (web_quiz_end_copy_fix, a quiz with no video: the Games are always there, when the home is)
+    var g = moreGames();
+    todayView(g ? homeOk() : !!Q.grade);
     ev('today_view', {});
-    if (!Q.grade) return;
+    if (g || !Q.grade) return;
     api('GET', 'videos/' + encodeURIComponent(CODE) + (S.st ? '?st=' + encodeURIComponent(S.st) : '')).then(function (r) {
       var vids = (r.ok && r.body && r.body.videos) || [];
       var left = vids.some(function (v) { return !v.done; });
@@ -3392,7 +3486,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     }, function () {});
   }
   function todayView(more) {
-    var h = bar() + (more ? jug('hello', T.todayMore, true) : jug('sleep', T.rest, true)) +
+    var h = bar() + (more ? jug('hello', moreGames() && T.todayGames ? T.todayGames : T.todayMore, true) : jug('sleep', T.rest, true)) +
       '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.todayT) + '</p>' +
       '<div class="wq-big">' + esc(scoreN(fmtN(LIVE.ict_today_floor || 0))) + '</div>' +
       '<p class="wq-sub">' + esc(T.todaySub) + '</p></div>' +
