@@ -64,3 +64,39 @@ export type SaSessionStatus = {
   /** spoken subtasks whose answers arrived but whose recording is still on the phone */
   audioWaiting?: string[];
 };
+
+/** How the child answered a task (child_test_blocks.response_mode). */
+export type SaResponseMode = "tap" | "keypad" | "keyboard" | "record" | "oral";
+
+/**
+ * One task of a session's results: the SA scale for tap / keypad (never EGRA's clpm / cwpm), and for a spoken
+ * task whether the recording is kept and scored later or already scored (`score`: that scorer's numbers).
+ */
+export type SaTaskResult = {
+  taskId: string;
+  mode: SaResponseMode | null;
+  attempted: number | null;
+  correct: number | null;
+  optionsN: number | null;
+  chanceCorrected: number | null;
+  itemsPerMin: number | null;
+  stopReason: string | null;
+  recording: "none" | "scored_later" | "scored";
+  score: Record<string, number> | null;
+};
+
+/** GET …/sa/session/:id/results (switch sa_results_view; 404 when off or not this coach's session). No names. */
+export type SaResults = {
+  session: {
+    id: string;
+    grade: number;
+    form: string;
+    /** B1–B5, full, rdf — or a block this page does not know yet */
+    block: SaBlock | "rdf" | (string & {}) | null;
+    status: string;
+    startedAt: string | null;
+    endedAt: string | null;
+    lang: "ur" | "en" | null;
+  };
+  tasks: SaTaskResult[];
+};

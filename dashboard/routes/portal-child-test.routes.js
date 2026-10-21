@@ -28,6 +28,8 @@
  *   GET  /sa/session/:id/status       what the server holds, for the visit bar
  *   POST /sa/session/:id/link         a signed link so another phone can run this child's battery
  *   GET  /sa/switches                 the page's own switches for this coach (read here, no bot call)
+ *   GET  /sa/session/:id/results      the session's results page, read only (also behind `sa_results_view`;
+ *                                     a session user on `sa_results_admins` reads any coach's session)
  *   another phone, with NO portal session — the token names the session and its coach:
  *   POST /sa/link/:token/session/:id/(batch|presign|register), GET …/status
  *        the bot names the token's coach first; that coach's portal_child_test_sa decides (404 when off)
@@ -42,7 +44,9 @@
 const express = require('express');
 const supabase = require('../config/supabase');
 const { makeRequireLeaderRole } = require('../lib/leader-role');
-const { isFlagEnabledForUser, PORTAL_CHILD_TEST_KEY, PORTAL_CHILD_TEST_SA_KEY } = require('../lib/feature-flags');
+const {
+  isFlagEnabledForUser, PORTAL_CHILD_TEST_KEY, PORTAL_CHILD_TEST_SA_KEY, SA_RESULTS_VIEW_KEY, SA_RESULTS_ADMINS_KEY,
+} = require('../lib/feature-flags');
 const Client = require('../services/portal-child-test.client');
 
 const router = express.Router();
@@ -82,8 +86,8 @@ function pick(src, fields) {
 /** Relay to the bot. A throw (unconfigured / unreachable / 5xx) is a 502. */
 function relay(path, build) {
   return async (req, res) => {
-    const body = { userId: req.session.portalUserId, ...build(req) };
     try {
+      const body = { userId: req.session.portalUserId, ...(await build(req)) };
       const { httpStatus, body: answer } = await Client.call(path, body);
       if (httpStatus >= 500) throw new Error(`bot answered ${httpStatus}`);
       return res.status(httpStatus).json(answer);
@@ -115,7 +119,7 @@ const SA_SWITCHES = {
   micRequired: 'sa_mic_required',
   coachPicksBlock: 'sa_coach_picks_block',
   rdfForm: 'sa_rdf_form',
-  resultsView: 'sa_results_view',
+  resultsView: SA_RESULTS_VIEW_KEY,
 };
 
 router.get('/sa/switches', ...saGates, async (req, res) => {
@@ -135,6 +139,12 @@ router.post('/sa/session/:id/presign', ...saGates, relay('sa/presign', onSession
 router.post('/sa/session/:id/register', ...saGates, relay('sa/register', onSession(['taskId', 'itemId', 'key'])));
 router.get('/sa/session/:id/status', ...saGates, relay('sa/status', onSession([])));
 router.post('/sa/session/:id/link', ...saGates, relay('sa/link-mint', onSession([])));
+// Read only, behind its own switch too. The coach's own session (the bot checks); a SESSION user on
+// sa_results_admins reads any coach's — asAdmin is set here from that check, never from the request.
+router.get('/sa/session/:id/results', ...saGates, requireFlag(SA_RESULTS_VIEW_KEY), relay('sa/results', async (req) => (
+  (await isFlagEnabledForUser(supabase, SA_RESULTS_ADMINS_KEY, req.session.portalUserId))
+    ? { sessionId: req.params.id, asAdmin: true }
+    : { sessionId: req.params.id })));
 
 const LINK_FIELDS = {
   batch: ['seqFrom', 'seqTo', 'events', 'results', 'lang', 'device'],

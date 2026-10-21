@@ -23,6 +23,8 @@
  *   saRegister    the recording arrived: on the task's row, scored later — by the existing scorer only
  *                 with CHILD_TEST_SA_SCORE_LATER=true, otherwise parked so nothing is scored or paid for
  *   saStatus      what the server holds, for the coach's visit bar
+ *   saResults     the session's results page: per task the SA scale, or the recording's state (read only);
+ *                 an admin (asAdmin, set by the portal from sa_results_admins) reads any coach's SA session
  *
  * Another phone (a teacher's, with no coach sign-in) can run one child's battery:
  *   saLink        the coach mints a signed link for one of their children's sessions (1 h)
@@ -475,6 +477,97 @@ const saStatus = onSession('sa_status', async ({ sessionId }, d, session, sa) =>
   };
 });
 
+// ─── the coach's results page ──────────────────────────────────────────────
+
+const numOrNull = (n) => (typeof n === 'number' && Number.isFinite(n) ? n : null);
+const hasRecording = (r) => Boolean(r.audio_r2_key || (Array.isArray(r.audio_r2_keys) && r.audio_r2_keys.length));
+const resultOf = (r) => (Array.isArray(r.responses) && r.responses.find((x) => x && x.kind === 'result')) || {};
+
+/** A scored recording's marks: the numbers only (never a transcript, a name or a key). */
+function numbersOf(marks) {
+  const out = {};
+  for (const [k, v] of Object.entries(marks || {})) if (numOrNull(v) !== null) out[k] = v;
+  return out;
+}
+
+/** One task's row as the coach reads it: the SA scale for tap / keypad, the recording's state for a spoken task. */
+function shapeTask(r) {
+  const m = r.ai_marks || null;
+  const res = resultOf(r);
+  const mode = r.response_mode || (typeof res.mode === 'string' ? res.mode : null);
+  const spoken = mode === 'record' || mode === 'oral';
+  const keypad = mode === 'keypad' || mode === 'keyboard';
+  const tap = mode === 'tap';
+  const pick = (markKey, resultKey) => numOrNull(m && m[markKey]) ?? numOrNull(res[resultKey]);
+  // A spoken task without a score is "kept, scored later" — never a 0: no scorer for that task yet, or
+  // CHILD_TEST_SA_SCORE_LATER off. Only a task that cannot have a recording (skipped, no microphone) is 'none'.
+  const stop = (m && typeof m.stop_reason === 'string' && m.stop_reason) || (typeof res.stop_reason === 'string' ? res.stop_reason : '');
+  const noRecording = !hasRecording(r) && (stop.startsWith('skipped_') || stop === 'mic_unavailable' || res.audio === 'not_kept');
+  const scored = spoken && m && r.ai_status === 'scored' && Object.keys(numbersOf(m)).length > 0;
+  let recording = 'none';
+  if (scored) recording = 'scored';
+  else if (spoken && !noRecording) recording = 'scored_later';
+  return {
+    taskId: r.block,
+    mode,
+    attempted: tap ? pick('tap_attempted', 'attempted') : keypad ? pick('keypad_attempted', 'attempted') : numOrNull(res.attempted),
+    correct: tap ? pick('tap_correct', 'correct') : keypad ? pick('keypad_correct', 'correct') : (spoken ? null : numOrNull(res.correct)),
+    optionsN: tap ? pick('options_n', 'options_n') : null,
+    chanceCorrected: tap ? numOrNull(m && m.chance_corrected) : null,
+    itemsPerMin: spoken ? null : pick('items_per_min', 'per_minute'),
+    stopReason: stop || null,
+    recording,
+    score: recording === 'scored' ? numbersOf(m) : null,
+  };
+}
+
+const byWhen = (a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')) || String(a.block).localeCompare(String(b.block));
+
+/**
+ * Read only. The header (grade, form, block, status, times, language) and one entry per task, in the order the child
+ * took them. Never the child's name, roll number, student id or draw, and never a recording's key.
+ */
+async function resultsOf(sessionId, d, session) {
+  const got = await d.store.listBlocks(sessionId);
+  if (!got || !got.ok) throw new Error((got && got.error) || 'listBlocks failed');
+  const blocks = (got.blocks || []).filter((r) => TASK_RE.test(String(r.block || ''))).sort(byWhen);
+  const lang = (blocks.find((r) => LANGS.includes(r.lang)) || {}).lang || null;
+  return {
+    status: 'ok',
+    session: {
+      id: session.id,
+      grade: session.grade,
+      form: session.form,
+      block: (session.device && session.device.block) || null,
+      status: session.status,
+      startedAt: session.started_at || null,
+      endedAt: session.finished_at || session.client_finished_at || null,
+      lang,
+    },
+    tasks: blocks.map(shapeTask),
+  };
+}
+
+const ownResults = onSession('sa_results', ({ sessionId }, d, session) => resultsOf(sessionId, d, session));
+
+/**
+ * An admin (sa_results_admins, checked by the portal for ITS session user and sent as asAdmin: true — never taken
+ * from the browser) reads any coach's self-administered session; everyone else, their own (onSession).
+ */
+function saResults(args = {}, deps = {}) {
+  const { asAdmin, ...rest } = args;
+  if (asAdmin !== true) return ownResults(rest, deps);
+  return guarded('sa_results_admin', async ({ userId, sessionId }, d) => {
+    if (!UUID_RE.test(String(sessionId || ''))) return { status: 'not_found' };
+    const got = await d.store.getSession(sessionId);
+    if (!got || !got.ok) throw new Error((got && got.error) || 'getSession failed');
+    const session = got.session;
+    if (!session || session.item_bank_version !== SA_MARK) return { status: 'not_found' };
+    d.log('child_test.sa.results_admin', { userId, sessionId });
+    return resultsOf(session.id, d, session);
+  })(rest, deps);
+}
+
 // ─── another phone ─────────────────────────────────────────────────────────
 
 const LINK_KIND = 'sa-link';
@@ -524,4 +617,4 @@ async function saViaLink(args = {}, deps = {}) {
   return fn({ ...rest, userId: p.c, sessionId: p.s }, deps);
 }
 
-module.exports = { SA_MARK, listSchools, dayList, dayOutcome, saBattery, saBatch, saPresign, saRegister, saStatus, saLink, saViaLink };
+module.exports = { SA_MARK, listSchools, dayList, dayOutcome, saBattery, saBatch, saPresign, saRegister, saStatus, saResults, saLink, saViaLink };

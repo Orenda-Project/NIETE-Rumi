@@ -284,6 +284,60 @@ describe("the Learning assessment's sink (sa/session/:id/*)", () => {
   });
 });
 
+describe("a session's results page (sa/session/:id/results): its own switch, sa_results_view", () => {
+  const SID = '55555555-5555-4555-8555-555555555555';
+  const BOT = 'https://bot.example/api/internal/child-test/';
+
+  test('sa_results_view off (row missing) → 404 and nothing relayed, even with the Learning assessment on', async () => {
+    tableRows.app_settings.push({ key: 'portal_child_test_sa', value: true });
+    const out = await invoke(ROUTES, 'get', '/sa/session/:id/results', { params: { id: SID } });
+    expect(out.statusCode).toBe(404);
+    expect(axiosPost).not.toHaveBeenCalled();
+  });
+
+  test('on, with the Learning assessment off → 404', async () => {
+    tableRows.app_settings.push({ key: 'sa_results_view', value: true });
+    expect((await invoke(ROUTES, 'get', '/sa/session/:id/results', { params: { id: SID } })).statusCode).toBe(404);
+    expect(axiosPost).not.toHaveBeenCalled();
+  });
+
+  test('on for this coach → relays the session id from the path with the SESSION user only', async () => {
+    tableRows.app_settings.push({ key: 'portal_child_test_sa', value: true }, { key: 'sa_results_view', value: [COACH] });
+    axiosPost.mockResolvedValueOnce({ status: 200, data: { success: true, status: 'ok', session: { id: SID }, tasks: [] } });
+    const out = await invoke(ROUTES, 'get', '/sa/session/:id/results', { params: { id: SID }, query: { userId: 'forged', sessionId: 'forged' } });
+    expect(out.statusCode).toBe(200);
+    expect(out.payload.tasks).toEqual([]);
+    expect(axiosPost).toHaveBeenLastCalledWith(`${BOT}sa/results`, { userId: COACH, sessionId: SID }, expect.anything());
+  });
+
+  test("another coach's session: the bot's 404 is relayed", async () => {
+    tableRows.app_settings.push({ key: 'portal_child_test_sa', value: true }, { key: 'sa_results_view', value: true });
+    axiosPost.mockResolvedValueOnce({ status: 404, data: { success: false, status: 'not_found' } });
+    expect((await invoke(ROUTES, 'get', '/sa/session/:id/results', { params: { id: SID } })).statusCode).toBe(404);
+  });
+
+  test('a request that says asAdmin is ignored: only the SESSION user on sa_results_admins makes it so', async () => {
+    tableRows.app_settings.push({ key: 'portal_child_test_sa', value: true }, { key: 'sa_results_view', value: true });
+    await invoke(ROUTES, 'get', '/sa/session/:id/results', { params: { id: SID }, query: { asAdmin: 'true' }, body: { asAdmin: true } });
+    expect(axiosPost).toHaveBeenLastCalledWith(`${BOT}sa/results`, { userId: COACH, sessionId: SID }, expect.anything());
+    tableRows.app_settings.push({ key: 'sa_results_admins', value: ['someone-else'] });
+    await invoke(ROUTES, 'get', '/sa/session/:id/results', { params: { id: SID } });
+    expect(axiosPost).toHaveBeenLastCalledWith(`${BOT}sa/results`, { userId: COACH, sessionId: SID }, expect.anything());
+  });
+
+  test('the session user on sa_results_admins → asAdmin: true is relayed', async () => {
+    tableRows.app_settings.push({ key: 'portal_child_test_sa', value: true }, { key: 'sa_results_view', value: true },
+      { key: 'sa_results_admins', value: [COACH] });
+    await invoke(ROUTES, 'get', '/sa/session/:id/results', { params: { id: SID } });
+    expect(axiosPost).toHaveBeenLastCalledWith(`${BOT}sa/results`, { userId: COACH, sessionId: SID, asAdmin: true }, expect.anything());
+  });
+
+  test('the switch key is exported from the shared flags', () => {
+    expect(require('../../dashboard/lib/feature-flags').SA_RESULTS_VIEW_KEY).toBe('sa_results_view');
+    expect(require('../../dashboard/lib/feature-flags').SA_RESULTS_ADMINS_KEY).toBe('sa_results_admins');
+  });
+});
+
 describe('another phone: the coach mints a link; the linked phone syncs without a sign-in', () => {
   const SID = '55555555-5555-4555-8555-555555555555';
   const BOT = 'https://bot.example/api/internal/child-test/';
