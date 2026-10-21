@@ -40,7 +40,7 @@ const MAX_ATTEMPTS = 3;
 const STALE_CLAIM_MS = 5 * 60 * 1000;
 const WAIT_FOR_CLIPS_MS = 2 * 60 * 1000;   // a questions task whose session ended this long ago is scored with what came
 const INTERVAL_MS = 20 * 1000;
-const PER_TICK = 4;
+const PER_TICK = 8;   // rows claimed per tick, scored side by side: one child's spoken tasks in about a minute
 const SECONDS = 60;
 const TASK_RE = /^[a-z]{2}\.[a-z0-9_]{1,40}$/;
 
@@ -485,9 +485,9 @@ async function sweepOnce({ sessionId = null, now = new Date(), deps = {} } = {})
     const rows = await candidates({ sessionId, now, supabase });
     out.found = rows.length;
     const sessions = new Map();
-    let started = 0;
+    const claimed = [];
     for (const row of rows) {
-      if (started >= PER_TICK) break;
+      if (claimed.length >= PER_TICK) break;
       if (!sessions.has(row.session_id)) {
         const { data } = await supabase.from('child_test_sessions').select('id, grade, form, item_bank_version, status, finished_at, client_finished_at').eq('id', row.session_id).limit(1);
         const s = (data || [])[0] || null;
@@ -499,12 +499,14 @@ async function sweepOnce({ sessionId = null, now = new Date(), deps = {} } = {})
       if (!ready(row, session, now.getTime())) { out.waiting += 1; continue; }
       const had = { ...row }; // the reason before the claim: the retry count lives in it
       if (!(await claim(had, supabase))) continue;
-      started += 1;
+      claimed.push({ had, session });
+    }
+    await Promise.all(claimed.map(async ({ had, session }) => {
       const got = await scoreRow(had, session, deps);
       await finish(had, got, supabase);
       if (got.ok) out.scored += 1; else out.failed += 1;
-      logToFile('child_test.sa_scored', { block: row.block, ok: got.ok, reason: got.ok ? null : got.reason, cost_usd: got.ok ? got.marks.meta.cost_usd : null });
-    }
+      logToFile('child_test.sa_scored', { block: had.block, ok: got.ok, reason: got.ok ? null : got.reason, cost_usd: got.ok ? got.marks.meta.cost_usd : null });
+    }));
     return out;
   } catch (e) {
     logError('child_test.sa_score.sweep_failed', { error: e.message });

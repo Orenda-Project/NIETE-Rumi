@@ -109,6 +109,17 @@ describe('the SA scorer', () => {
     expect(db.writes).toEqual([]);
   });
 
+  test("one child's spoken tasks are scored side by side, not one after another", async () => {
+    const blocks = ['ur.letter_sounds_rec', 'ur.words_rec', 'en.letter_sounds_rec', 'en.words_rec'].map((b) => row(b));
+    const db = fakeDb({ child_test_blocks: blocks, child_test_sessions: [session()] });
+    let inFlight = 0; let most = 0;
+    const m = model();
+    const slow = { ...m, chatJSON: async (a) => { inFlight += 1; most = Math.max(most, inFlight); await new Promise((r) => setTimeout(r, 20)); inFlight -= 1; return m.chatJSON(a); } };
+    const out = await score.sweepOnce({ now: NOW, deps: { supabase: db, ...slow } });
+    expect(out.scored).toBe(4);
+    expect(most).toBe(4);
+  });
+
   test('a claim another process won is skipped (compare-and-set on ai_reason)', async () => {
     const r = row('ur.letter_sounds_rec');
     const db = fakeDb({ child_test_blocks: [r], child_test_sessions: [session()] });
