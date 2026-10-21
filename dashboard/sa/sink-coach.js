@@ -49,11 +49,13 @@
     var f = o.fetch || function (u, init) { return root.fetch(u, init); };
     // A linked phone (no coach sign-in) carries its token in the path and sends no cookie.
     var cred = o.credentials || 'include';
+    var extra = o.headers || {};
+    function hdr(h) { for (var k in extra) h[k] = extra[k]; return h; }
 
     function post(sessionId, path, body) {
       return Promise.resolve(f(base + '/session/' + encodeURIComponent(sessionId) + path, {
         method: 'POST', credentials: cred, cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: hdr({ 'Content-Type': 'application/json', Accept: 'application/json' }),
         body: JSON.stringify(body),
       })).then(function (res) {
         if (!res.ok) { var e = new Error('coach sink ' + path + ' ' + res.status); e.status = res.status; throw e; }
@@ -76,18 +78,37 @@
         return post(a.session_id, '/register', { taskId: s.taskId, itemId: s.itemId, key: a.key, bytes: a.bytes, durationMs: a.duration_ms });
       },
       status: function (sessionId) {
-        return Promise.resolve(f(base + '/session/' + encodeURIComponent(sessionId) + '/status', { credentials: cred, cache: 'no-store', headers: { Accept: 'application/json' } }))
+        return Promise.resolve(f(base + '/session/' + encodeURIComponent(sessionId) + '/status', { credentials: cred, cache: 'no-store', headers: hdr({ Accept: 'application/json' }) }))
           .then(function (res) { return res.ok ? res.json() : null; });
       },
     };
   }
 
-  /** The sink for a phone opened by the coach's QR/link: the token routes, no cookie. */
+  var pagePhone = null;
+  /** This phone's own random id (sa:phone), minted once; blocked storage: one id for the page's life. Not a fingerprint. */
+  function phoneId(ls) {
+    var id = null;
+    try { id = ls ? ls.getItem('sa:phone') : null; } catch (_) { id = null; }
+    if (id && /^[0-9a-f]{24}$/.test(id)) return id;
+    if (!pagePhone) {
+      var b = new Uint8Array(12);
+      var c = root.crypto || (typeof globalThis !== 'undefined' && globalThis.crypto);
+      if (c && c.getRandomValues) c.getRandomValues(b);
+      else for (var i = 0; i < b.length; i += 1) b[i] = Math.floor(Math.random() * 256);
+      pagePhone = Array.prototype.map.call(b, function (x) { return (x < 16 ? '0' : '') + x.toString(16); }).join('');
+    }
+    try { if (ls) ls.setItem('sa:phone', pagePhone); } catch (_) { /* blocked storage: the page's id */ }
+    return pagePhone;
+  }
+
+  /** The sink for a phone opened by the coach's QR/link: the token routes, no cookie, the phone's own id. */
   function linked(token, o) {
     var x = {};
     for (var k in (o || {})) x[k] = o[k];
     x.base = BASE + '/link/' + encodeURIComponent(token);
     x.credentials = 'omit';
+    var ls = 'localStorage' in x ? x.localStorage : (function () { try { return root.localStorage; } catch (_) { return null; } }());
+    x.headers = { 'X-SA-Phone': phoneId(ls) };
     return create(x);
   }
 

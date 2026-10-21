@@ -26,7 +26,8 @@
  *
  * Another phone (a teacher's, with no coach sign-in) can run one child's battery:
  *   saLink        the coach mints a signed link for one of their children's sessions (1 h)
- *   saViaLink     the sink calls from that phone, made as the coach for that session only
+ *   saViaLink     the sink calls from that phone, made as the coach for that session only (one phone per link
+ *                 with CHILD_TEST_SA_LINK_ONE_PHONE=true)
  *
  * IDENTITY. The school must be one of the coach's (leader_schools) or the school of their own
  * observe visit; anything else is `not_found`, before the draw runs.
@@ -35,6 +36,7 @@
  * NEVER THROWS — the same status vocabulary as app-api.service.js.
  */
 
+const crypto = require('crypto');
 const { visitKeyFor } = require('../draw/visit-key');
 const { BLOCK_NAMES } = require('../tasks');
 const blockHistory = require('./block-history');
@@ -470,14 +472,36 @@ const saLink = onSession('sa_link', async (a, d, session) => {
 
 const LINK_OPS = { batch: saBatch, presign: saPresign, register: saRegister, status: saStatus };
 
+// One phone per link (CHILD_TEST_SA_LINK_ONE_PHONE=true; off by default): the first phone to use a link keeps it for
+// the link's hour. The phone's id is its own random one (sink-coach.js), never a device fingerprint. The claim is a
+// Redis key named by a hash of the token; a claim store that is down lets the link work as before.
+const PHONE_RE = /^[A-Za-z0-9_-]{16,64}$/;
+const linkClaims = () => require('../../cache/railway-redis.service'); // eslint-disable-line global-require
+
+async function linkHeldByOther(token, p, phone, deps) {
+  if (!PHONE_RE.test(String(phone || ''))) return true;
+  const store = deps.linkClaims || linkClaims();
+  const key = `ct:sa-link:${crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32)}`;
+  try {
+    const ttl = Math.max(1, Math.ceil(p.exp - Date.now() / 1000));
+    if (await store.setNX(key, { p: phone }, ttl)) return false;
+    const held = await store.get(key);
+    return !!(held && held.p) && held.p !== phone;
+  } catch (_) {
+    return false;
+  }
+}
+
 /** A sink call from the linked phone: the token names the session and its coach; nothing else is taken from the caller. */
 async function saViaLink(args = {}, deps = {}) {
   const p = tokens().verify(args.token, LINK_KIND);
   if (!p || !p.s || !p.c || (args.sessionId && args.sessionId !== p.s)) return { status: 'not_found' };
+  const onePhone = deps.linkOnePhone !== undefined ? deps.linkOnePhone : process.env.CHILD_TEST_SA_LINK_ONE_PHONE === 'true';
+  if (onePhone && (await linkHeldByOther(args.token, p, args.phone, deps))) return { status: 'not_found' };
   if (args.op === 'whois') return { status: 'ok', coachUserId: p.c, sessionId: p.s };
   const fn = LINK_OPS[args.op];
   if (!fn) return { status: 'invalid', reason: 'bad_op' };
-  const { token, op, userId, ...rest } = args; // eslint-disable-line no-unused-vars
+  const { token, op, userId, phone, ...rest } = args; // eslint-disable-line no-unused-vars
   return fn({ ...rest, userId: p.c, sessionId: p.s }, deps);
 }
 
