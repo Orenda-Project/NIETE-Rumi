@@ -119,7 +119,7 @@ const SA_SWITCHES = {
   micRequired: 'sa_mic_required',
   coachPicksBlock: 'sa_coach_picks_block',
   rdfForm: 'sa_rdf_form',
-  resultsView: 'sa_results_view',
+  resultsView: SA_RESULTS_VIEW_KEY,
 };
 
 router.get('/sa/switches', ...saGates, async (req, res) => {
