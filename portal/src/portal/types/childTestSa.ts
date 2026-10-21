@@ -31,6 +31,9 @@ export type SaChild = {
   namesake: boolean;
   sessionId?: string;
   sessionStatus?: string;
+  /** the block the server holds for the child's session, and when it started */
+  sessionBlock?: SaBlock;
+  sessionStartedAt?: string;
 };
 
 export type SaList = {
