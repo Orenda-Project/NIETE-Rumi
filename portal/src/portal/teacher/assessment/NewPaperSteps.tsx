@@ -256,7 +256,7 @@ export function CoverStep() {
   }
 
   return (
-    <StepFrame step="cover" backTo={backTo('class')} next={{ label: C.next, why: stepReason('cover', p, 50, C, { offerFde: !!pattern }), to: newPaperPath(topicsApply(p) ? 'topics' : 'questions') }}>
+    <StepFrame step="cover" steps={topicsApply(p) ? TOPIC_STEPS : STEPS} backTo={backTo('class')} next={{ label: C.next, why: stepReason('cover', p, 50, C, { offerFde: !!pattern }), to: newPaperPath(topicsApply(p) ? 'topics' : 'questions') }}>
       {pattern && <SideDoor picked={false} onFlip={flip} C={C} />}
       <Tabs
         label={C.steps.cover}

@@ -29,7 +29,7 @@ vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 import { ASSESSMENT_V2_COPY as C } from './copy';
 import { forgetCatalogue } from './api';
 import { clearPicksForTest, setPicks } from './store';
-import { newPicks, type Picks } from './model';
+import { newPicks, toSpec, type Picks } from './model';
 import routes from './routes';
 import { newPaperPath } from './paths';
 
@@ -92,6 +92,7 @@ describe('when the step shows', () => {
     go('cover');
     await onStep('cover');
     await waitFor(() => expect(next().getAttribute('href')).toBe(newPaperPath('topics')));
+    expect(screen.getByRole('progressbar', { name: C.step(2, 5) })).toBeTruthy();
     fireEvent.click(next());
     await onStep('topics');
     expect(screen.getByRole('progressbar', { name: C.step(3, 5) })).toBeTruthy();
@@ -111,6 +112,27 @@ describe('when the step shows', () => {
     go('topics');
     await onStep('questions');
     expect(now()).toMatchObject({ topicScope: null, topicIds: null });
+  });
+
+  it('topics cannot be loaded: the step steps aside to Questions, and the paper is the plain chapter paper', async () => {
+    portal.getAssessmentTopics.mockRejectedValue(new Error('500'));
+    start({ topicScope: 'topics', topicIds: [], typesSeeded: true, typeCounts: { MCQs: 2 } });
+    go('topics');
+    await onStep('questions');
+    await waitFor(() => expect(now()).toMatchObject({ topicScope: null, topicIds: null }));
+    expect(toSpec(now())).not.toHaveProperty('topicIds');
+  });
+
+  it('question types cannot be loaded: the same, straight on to Questions', async () => {
+    portal.getAssessmentOptions.mockImplementation(async (grade?: number, subject?: string) => {
+      if (grade && subject) throw new Error('500');
+      return { success: true, grades: [1], maxQuestions: 50, defaultQuestions: 15, subjects: [] };
+    });
+    start({});
+    go('topics');
+    await onStep('questions');
+    expect(now()).toMatchObject({ topicScope: null, topicIds: null });
+    expect(toSpec(now())).not.toHaveProperty('topicIds');
   });
 
   it('pages, not chapters: an old link to Topics lands on Questions', async () => {
