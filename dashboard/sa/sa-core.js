@@ -35,6 +35,8 @@
  *   early_stop_silence       the passage: no voice for 20 s (the mercy rule; the star was offered at 12 s)
  *   assets_unavailable       a picture the item needs would not load (offline, not on the phone): the item cannot be
  *                            answered, so the task ends there and blank tiles never become scores
+ *   skipped_dev              passed over with the sandbox-only "Jump to…" (opts.dev_tools; RULING #43): no score, no
+ *                            counts, scored_on 'none'
  *
  * Session gates, once each: the mic check (game) before the first task that records, one practice oral question before
  * the first oral task, a keypad warm-up before the first keypad task. The page losing sight of the screen during a
@@ -55,7 +57,7 @@
     COMPLETE: 'complete', TIME_UP: 'time_up', FIRST_LINE: 'early_stop_first_line',
     CONSECUTIVE: 'consecutive_errors', COACH_END: 'coach_end',
     SKIPPED_L2: 'skipped_level2', SKIPPED_NO_LINE: 'skipped_no_first_line',
-    MIC: 'mic_unavailable', SILENCE: 'early_stop_silence', ASSETS: 'assets_unavailable',
+    MIC: 'mic_unavailable', SILENCE: 'early_stop_silence', ASSETS: 'assets_unavailable', DEV: 'skipped_dev',
   });
   var MODES = ['tap', 'keypad', 'keyboard', 'record', 'oral'];
   // The lead's ruling (design §2): the response mode per EGRA/EGMA subtask. A task's own `response` wins.
@@ -314,6 +316,18 @@
       st = { phase: 'task_end', task_id: t.id, result: r };
     }
 
+    /** A task passed over with the sandbox's "Jump to…": a result with nothing to score. */
+    function skipDev(t) {
+      var r = {
+        task_id: t.id, legacy_block: t.legacy_block, mode: t.mode, attempted: 0, correct: null, incorrect: null,
+        last_item_index: null, time_used_ms: 0, time_left_ms: null, stop_reason: STOP.DEV, scored_on: 'none',
+        resumed: false, per_minute: null, options_n: null, taps_per_s: null, elapsed_ms: 0, answers: [],
+      };
+      results = results.filter(function (x) { return x.task_id !== t.id; }).concat([r]);
+      ev('stop', { task_id: t.id, value: STOP.DEV });
+      ev('task_end', { task_id: t.id, value: r });
+    }
+
     function stopRule(t) {
       var s = t.stop;
       if (s.first_line_n && st.attempted === s.first_line_n && st.first_line_correct < s.first_line_min_correct) return STOP.FIRST_LINE;
@@ -532,6 +546,7 @@
       view: function () {
         var t = task();
         var v = { phase: st.phase, task_index: taskIndex, tasks: battery.tasks.length, task: st.phase === 'battery_end' ? null : t };
+        if (opts.dev_tools) v.dev_tasks = battery.tasks.map(function (x, i) { return { index: i, id: x.id, title: x.title || null }; });
         if (st.phase === 'practice') v.practice = t.practice[st.practice_i];
         if (st.phase === 'running' || st.phase === 'last_word') {
           var lim = limitMs(t);
@@ -559,6 +574,28 @@
         };
       },
     };
+    if (opts.dev_tools) {
+      /**
+       * Sandbox only (the page passes dev_tools when the server injected SA_DEV_TOOLS): start task i at its
+       * instruction. The task under way and every task passed over that has no result end as skipped_dev; finished
+       * tasks keep their scores; the chosen task's old result goes (it runs again). → false for a bad index.
+       */
+      api.jumpTo = function (i) {
+        if (typeof i !== 'number' || i % 1 !== 0 || i < 0 || i >= battery.tasks.length) return false;
+        var from = taskIndex;
+        var under = st.phase !== 'task_end' && st.phase !== 'battery_end' && st.task_id ? task() : null;
+        ev('dev_jump', { value: { from: from, to: i } });
+        if (under && under.id !== battery.tasks[i].id) skipDev(under);
+        for (var k = 0; k < i; k++) {
+          var t = battery.tasks[k];
+          if (k >= from && !resultOf(t.id)) skipDev(t);
+        }
+        results = results.filter(function (x) { return x.task_id !== battery.tasks[i].id; });
+        taskIndex = i;
+        enterTask(false);
+        return true;
+      };
+    }
     return api;
   }
 
