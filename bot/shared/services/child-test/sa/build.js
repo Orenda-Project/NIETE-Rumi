@@ -892,6 +892,7 @@ function buildSaBank({ v3, extra, w3 }) {
         // A copy of each variant's task, so the task that is variant 0 does not hold itself.
         if (vs && vs.length > 1) t.variants = vs.map((v) => ({ id: v.id, src: v.src, fielded: v.fielded, task: { ...v.task, variants: undefined } }));
       }
+      for (const lang of ['ur', 'en']) W3.relineStory(list, lang);
     }
     // W3 (switch sa_rdf_w3_forms): the RDF auto / RDF manual forms' own tasks, after the rotation's variants exist.
     const w3Only = W3.w3Tasks(f, { v3, extra, w3 }, list, W3_HELPERS);
