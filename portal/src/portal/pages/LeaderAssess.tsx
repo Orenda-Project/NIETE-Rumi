@@ -108,6 +108,7 @@ export default function LeaderAssess() {
   const [remote, setRemote] = useState<Record<string, 'sending' | 'audio' | 'sent'>>({});
   const [toast, setToast] = useState(false);
   const [stopped, setStopped] = useState<string | null>(null);
+  const [voiceNote, setVoiceNote] = useState<string | null>(null);
   /** The block the server gave instead of the coach's choice (a visit-mate holds it), shown before the second Start. */
   const [moved, setMoved] = useState<Block | null>(null);
   const vkeyRef = useRef<string | null>(null);
@@ -427,11 +428,19 @@ export default function LeaderAssess() {
     const { child, sessionId } = step;
     // An unreadable frame is no proof the battery ended: the row stays open, the same session id reopens it.
     if (reason === 'offline') {
+      setVoiceNote(null);
       setStopped(firstNameOf(child, lang));
       setStep({ kind: 'list', school: step.school });
       return;
     }
     setStopped(null);
+    setVoiceNote(null);
+    // refused before it began (voice not ready): not Stopped, the row stays open and Continue tries again
+    if (reason === 'not_started') {
+      setVoiceNote(firstNameOf(child, lang));
+      setStep({ kind: 'list', school: step.school });
+      return;
+    }
     if (reason === 'coach_end') {
       remember((m) => ({ ...m, stopped: { ...(m.stopped ?? {}), [child.drawId]: sessionId } }));
       setStep({ kind: 'list', school: step.school });
@@ -546,6 +555,9 @@ export default function LeaderAssess() {
             {bar}
             {stopped && (
               <p data-testid="assess-stopped" role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{copy.stopped(stopped)}</p>
+            )}
+            {voiceNote && (
+              <p data-testid="assess-voice-not-ready" role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{copy.voiceNotReady(voiceNote)}</p>
             )}
             {offline && (
               <p className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
@@ -713,7 +725,7 @@ export default function LeaderAssess() {
   } else if (step.kind === 'engine') {
     content = (
       <AssessEngineSlot sessionId={step.sessionId} firstName={firstNameOf(step.child, lang)} lang={lang}
-        grade={step.child.grade || list?.grade || 3} block={step.block} onFinished={finished} handbackV2={switches.handbackV2} />
+        grade={step.child.grade || list?.grade || 3} block={step.block} onFinished={finished} handbackV2={switches.handbackV2} voiceGateV2={switches.voiceGateV2} />
     );
   } else {
     // this phone's outcomes, plus the server's for children this phone has no record of (a reload mid-visit)

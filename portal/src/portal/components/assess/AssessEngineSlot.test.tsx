@@ -223,6 +223,56 @@ describe("AssessEngineSlot", () => {
     });
   });
 
+  describe("voice gate v2 (sa_voice_gate_v2): a refused child is not burnt", () => {
+    const msg = (type: string, s = SID) => act(() => {
+      window.dispatchEvent(new MessageEvent("message", { data: { type, s, reason: "voice" }, origin: window.location.origin }));
+    });
+    const holdEnd = () => {
+      const hold = screen.getByRole("button", { name: /End test/ });
+      vi.useFakeTimers();
+      fireEvent.pointerDown(hold);
+      act(() => { vi.advanceTimersByTime(3100); });
+    };
+
+    it("after sa:refused the hold finishes not_started at once, never coach_end, and asks the engine nothing", () => {
+      const { frame, onFinished } = setup({ lang: "en", voiceGateV2: true });
+      const post = vi.fn();
+      Object.defineProperty(frame, "contentWindow", { configurable: true, get: () => ({ postMessage: post, location: { search: "" } }) });
+      msg("sa:refused");
+      holdEnd();
+      expect(onFinished).toHaveBeenCalledWith("not_started");
+      act(() => { vi.advanceTimersByTime(6000); });
+      expect(onFinished).toHaveBeenCalledTimes(1);
+      expect(post).not.toHaveBeenCalledWith(expect.objectContaining({ type: "sa:coach_end" }), expect.anything());
+    });
+
+    it("after sa:unrefused (Try again worked) the hold is today's coach_end again", () => {
+      const { onFinished } = setup({ lang: "en", voiceGateV2: true });
+      msg("sa:refused");
+      msg("sa:unrefused");
+      holdEnd();
+      act(() => { vi.advanceTimersByTime(3000); });
+      expect(onFinished).toHaveBeenCalledWith("coach_end");
+    });
+
+    it("another session's refusal changes nothing", () => {
+      const { onFinished } = setup({ lang: "en", voiceGateV2: true });
+      msg("sa:refused", "other");
+      holdEnd();
+      act(() => { vi.advanceTimersByTime(3000); });
+      expect(onFinished).toHaveBeenCalledWith("coach_end");
+    });
+
+    it("switch off: a refusal changes nothing (today's coach_end)", () => {
+      const { onFinished } = setup({ lang: "en" });
+      msg("sa:refused");
+      holdEnd();
+      act(() => { vi.advanceTimersByTime(3000); });
+      expect(onFinished).toHaveBeenCalledWith("coach_end");
+      expect(onFinished).not.toHaveBeenCalledWith("not_started");
+    });
+  });
+
   it("full screen belongs to the page, not the frame, so the coach's hold stays on top of the engine", () => {
     const req = vi.fn().mockResolvedValue(undefined);
     const exit = vi.fn().mockResolvedValue(undefined);
