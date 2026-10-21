@@ -86,7 +86,7 @@ describe('the SA scorer', () => {
     const m = model();
     const out = await score.sweepOnce({ now: NOW, deps: { supabase: db, ...m } });
     expect(out).toMatchObject({ found: 1, scored: 1, failed: 0 });
-    expect(db.writes.map((w) => w.ai_reason)).toEqual(['final:sa_scoring', null]); // the claim, then the marks
+    expect(db.writes.map((w) => w.ai_reason)).toEqual([expect.stringMatching(/^final:sa_scoring:[a-z0-9]+$/), null]); // the claim, then the marks
     expect(r.ai_status).toBe('scored');
     expect(r.ai_marks).toMatchObject({ version: 'sa-marks-v1', task: 'ur.letter_sounds_rec', correct: 2, attempted: 3, per_minute: 4, seconds_used: 30 });
     expect(r.ai_marks.detail.items.slice(0, 3).map((i) => [i.verdict, i.conf])).toEqual([['correct', 0.9], ['wrong', 0.7], ['correct', 0.8]]);

@@ -12,8 +12,10 @@
  *   start() / stop()              the sweep, every 20 s, only with the switch on
  *
  * Claims never use `pending`/`scoring`: every state this file writes stays under `final:` (sa_score_later →
- * sa_scoring → sa_retry:<n> → the marks, or sa_score_failed:<reason>), so the older recovery sweep, which skips a
- * final failure (recovery.js verdict), never takes an SA row — not on this host, not on another build sharing the DB.
+ * sa_scoring:<process> → sa_retry:<n> → the marks, or sa_score_failed:<reason>), so the older recovery sweep, which
+ * skips a final failure (recovery.js verdict), never takes an SA row — not on this host, not on another build sharing
+ * the DB. A claim names its process, so the compare-and-set changes the value and only the owner writes the marks. A
+ * restart mid-score leaves a claim behind: it is taken again after 2 min, and at once by the new process's first sweep.
  *
  * What is marked, with the printed text the child saw (the bank's task, its passage variant from the phone's own
  * rotation — sa-page.js rotate, seeded with the result's session_id):
@@ -47,7 +49,7 @@ const FAILED = 'final:sa_score_failed:';
 const VERSION = 'sa-marks-v1';
 const SA_MARK = 'sa-battery';
 const MAX_ATTEMPTS = 3;
-const STALE_CLAIM_MS = 5 * 60 * 1000;
+const STALE_CLAIM_MS = 2 * 60 * 1000;
 const WAIT_FOR_CLIPS_MS = 2 * 60 * 1000;   // a questions task whose session ended this long ago is scored with what came
 const INTERVAL_MS = 20 * 1000;
 const PER_TICK = 8;   // rows claimed per tick, scored side by side: one child's spoken tasks in about a minute
@@ -55,6 +57,10 @@ const SECONDS = 60;
 const TASK_RE = /^[a-z]{2}\.[a-z0-9_]{1,40}$/;
 
 const isOn = () => process.env.CHILD_TEST_SA_SCORER === 'on';
+// this process's claim token; `swept` turns true after its first full sweep
+const bootId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+let MINE = `${SCORING}:${bootId()}`;
+let swept = false;
 const gateOn = () => process.env.CHILD_TEST_SA_SPEECH_GATE === 'on';
 const clipWaitMs = () => { const s = Number(process.env.CHILD_TEST_SA_CLIP_WAIT_S); return s > 0 ? s * 1000 : null; };
 const sinceHours = () => Number(process.env.CHILD_TEST_SA_SCORER_SINCE_H) || 48;
@@ -499,7 +505,7 @@ function db() { return require('../../../config/supabase'); } // eslint-disable-
 
 const COLS = 'id, session_id, block, response_mode, responses, audio_r2_key, audio_r2_keys, ai_status, ai_reason, ai_marks, updated_at';
 
-async function candidates({ sessionId = null, now = new Date(), supabase = db() } = {}) {
+async function candidates({ sessionId = null, now = new Date(), supabase = db(), afterBoot = false } = {}) {
   let q = supabase.from('child_test_blocks').select(COLS).is('ai_marks', null).eq('ai_status', 'failed').like('ai_reason', 'final:sa_%')
     .gte('updated_at', new Date(now.getTime() - sinceHours() * 3600 * 1000).toISOString())
     .order('updated_at', { ascending: true }).limit(50);
@@ -511,7 +517,8 @@ async function candidates({ sessionId = null, now = new Date(), supabase = db() 
     if (!TASK_RE.test(String(r.block || '')) || !hasAudio(r)) return false;
     if (envOf(r.audio_r2_key || (keysOf(r)[0] || {}).key) !== ownEnv()) return false;
     if (r.ai_reason === PARKED || r.ai_reason.startsWith(RETRY)) return true;
-    return r.ai_reason === SCORING && nowMs - Date.parse(r.updated_at || 0) > STALE_CLAIM_MS;
+    if (!r.ai_reason.startsWith(SCORING) || r.ai_reason === MINE) return false;
+    return afterBoot || nowMs - Date.parse(r.updated_at || 0) > STALE_CLAIM_MS;
   });
 }
 
@@ -523,7 +530,7 @@ async function askedOf(sessionId, supabase) {
 
 /** Compare-and-set on ai_reason: one process scores one row. */
 async function claim(row, supabase = db()) {
-  const { data, error } = await supabase.from('child_test_blocks').update({ ai_reason: SCORING })
+  const { data, error } = await supabase.from('child_test_blocks').update({ ai_reason: MINE, updated_at: new Date().toISOString() })
     .eq('id', row.id).eq('ai_status', 'failed').eq('ai_reason', row.ai_reason).is('ai_marks', null).select('id');
   if (error) { logError('child_test.sa_score.claim_failed', { block: row.block, error: error.message }); return false; }
   return Array.isArray(data) && data.length === 1;
@@ -536,7 +543,7 @@ async function finish(row, got, supabase = db()) {
     const n = attemptOf(row.ai_reason) + 1;
     patch = { ai_reason: got.retry && n < MAX_ATTEMPTS ? `${RETRY}${n}` : `${FAILED}${got.reason}` };
   }
-  const { error } = await supabase.from('child_test_blocks').update(patch).eq('id', row.id).eq('ai_reason', SCORING).is('ai_marks', null);
+  const { error } = await supabase.from('child_test_blocks').update(patch).eq('id', row.id).eq('ai_reason', MINE).is('ai_marks', null);
   if (error) logError('child_test.sa_score.write_failed', { block: row.block, error: error.message });
   return !error;
 }
@@ -550,7 +557,7 @@ async function sweepOnce({ sessionId = null, now = new Date(), deps = {} } = {})
   const out = { found: 0, scored: 0, failed: 0, waiting: 0 };
   try {
     const supabase = deps.supabase || db();
-    const rows = await candidates({ sessionId, now, supabase });
+    const rows = await candidates({ sessionId, now, supabase, afterBoot: !swept });
     out.found = rows.length;
     const sessions = new Map();
     const claimed = [];
@@ -580,7 +587,7 @@ async function sweepOnce({ sessionId = null, now = new Date(), deps = {} } = {})
     logError('child_test.sa_score.sweep_failed', { error: e.message });
     return out;
   } finally {
-    if (!sessionId) running = false;
+    if (!sessionId) { running = false; swept = true; }
   }
 }
 
@@ -603,5 +610,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { PARKED, SCORING, RETRY, FAILED, candidates, claim, finish, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt },
+  __internals: { PARKED, SCORING, RETRY, FAILED, resetBoot: () => { MINE = `${SCORING}:${bootId()}`; swept = false; }, candidates, claim, finish, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt },
 };
