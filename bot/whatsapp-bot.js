@@ -654,6 +654,10 @@ app.post('/webhook', async (req, res) => {
       type: messageType
     });
 
+    // A username user's message can arrive with no phone (business-scoped id only): no account can be matched,
+    // and nothing below can reply to an undefined number. Stopped here with a true log line (phoneless-inbound.js).
+    if (await require('./shared/services/phoneless-inbound').handlePhonelessInbound({ from, fromUserId: validation.fromUserId, messageType }, { WhatsAppService })) return;
+
     // bd-oak77.13 — Meta Conversational Components. With `enable_welcome_message`
     // set on the number, a teacher OPENING a brand-new chat posts a message of
     // `type: "request_welcome"` with no body, before she has typed anything.
@@ -701,7 +705,7 @@ app.post('/webhook', async (req, res) => {
       require('./shared/utils/structured-logger').setCorrelationUser?.(user.id);
     } catch (error) {
       // `error`, not `info` — an outage, not a routine miss. Downstream handlers must not read the null as "no account".
-      logError('❌ User lookup failed — database unreachable', { phoneNumber: from, error: error.message });
+      logError(`❌ User lookup failed — ${require('./shared/services/phoneless-inbound').describeLookupFailure(error)}`, { phoneNumber: from, error: error.message, code: error.code || null });
     }
 
     // WHO IS HOLDING THIS HANDSET — decided once, here, for every message type

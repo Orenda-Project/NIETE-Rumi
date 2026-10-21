@@ -136,10 +136,15 @@ function validateWebhookMessage(req) {
     return null;
   }
 
+  // A user who has adopted a WhatsApp username can arrive with NO phone: Meta omits `from` (and the contact's
+  // `wa_id`) until this number and the user have exchanged a message in the last 30 days, and sets only the
+  // business-scoped user id. `fromUserId` carries it so the caller can tell "no phone" from "unknown phone".
+  const contact = value?.contacts?.[0];
   return {
     entry,
     message: messages[0],
-    from: messages[0].from,
+    from: messages[0].from || contact?.wa_id,
+    fromUserId: messages[0].from_user_id || contact?.user_id || null,
     messageBody: messages[0].text?.body,
     messageType: messages[0].type,
     messageTimestamp: parseInt(messages[0].timestamp),
