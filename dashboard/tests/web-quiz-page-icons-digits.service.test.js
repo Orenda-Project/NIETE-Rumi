@@ -318,7 +318,7 @@ describe('the remaining marks: inline SVG with the sound kit on the page, today\
   test('the shipped page source: every remaining mark goes through ic(svg, emoji), outside the WhatsApp share lines', () => {
     const code = H.SRC.replace(/\/\*[\s\S]*?\*\//g, '').split('\n')
       .map((l) => l.replace(/^\s*\/\/.*$/, '').replace(/ \/\/ .*$/, ''))
-      .filter((l) => !/chalLine:/.test(l)) // a WhatsApp message: it goes to chat, not to this screen
+      .filter((l) => !/chalLine(_one)?:/.test(l)) // a WhatsApp message (and its one-star form): it goes to chat, not to this screen
       .filter((l) => !/^\s*how: \[\[/.test(l)) // the "how" copy keeps today's emoji: the list draws each through ic()
       .filter((l) => !/id="wq-snd"|this\.textContent = SOUND|class="wq-home" id="wq-home"/.test(l)) // the top bar: today's, the kit skins it
       .join('\n');

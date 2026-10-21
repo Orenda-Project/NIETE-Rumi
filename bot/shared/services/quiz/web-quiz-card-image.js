@@ -299,6 +299,8 @@ async function mint(body = {}, { device = null } = {}) {
   const out = { token, url, img: `/wq/card/${token}.png`, ret: returnLine(lang) };
   if (v4) { out.v4 = true; out.item = item ? item.t : null; out.plain = info.plain === true; }
   if (v4 && Switch.linkLangCached()) out.link_lang = true;
+  // one star (web_quiz_share_copy_one): the sheet sets an English title on an Urdu sheet in its RTL line (SC-1)
+  if (v4 && Switch.copyOneCached()) out.one = true;
   if (x) out.data = x;
   // ready (web_quiz_card_ready): the picture and the page are drawn and stored now, while the child is still on the
   // finish screen, so the link's preview never waits for a draw (never awaited; a failure leaves today's way)
