@@ -27,6 +27,17 @@ const COMMON = {
   hand_back: L('Well done! Please give the phone back to your teacher.', 'شاباش! اب فون واپس اپنے ٹیچر کو دے دیں۔', 'adapted:handback'),
 };
 
+// The audio check's words (everyday pictures, not test content): the same pool as the engine's own (sa-ui.js
+// CHECK_WORDS), here so the battery carries a clip for each word in the one voice.
+const CHECK_WORDS = [
+  { pic: '🐱', en: 'cat', ur: 'بلی' },
+  { pic: '☀️', en: 'sun', ur: 'سورج' },
+  { pic: '🐟', en: 'fish', ur: 'مچھلی' },
+  { pic: '⚽', en: 'ball', ur: 'گیند' },
+  { pic: '🥭', en: 'mango', ur: 'آم' },
+  { pic: '🏠', en: 'house', ur: 'گھر' },
+];
+
 // Battery-level lines (welcome, the audio check, the end).
 const BATTERY = {
   welcome: L('Hello! This is not a test for marks. Jugnu will play some reading and number games with you. Listen carefully and do your best.',
@@ -370,4 +381,4 @@ const EN_LETTER_SOUNDS = {
   n: 'nnn', o: 'aw', p: 'puh', q: 'kwuh', r: 'rrr', s: 'sss', t: 'tuh', u: 'uh', v: 'vvv', w: 'wuh', x: 'ks', y: 'yuh', z: 'zzz',
 };
 
-module.exports = { COMMON, BATTERY, GAME_LINES, TASKS, CHAINS, MATHS_PRACTICE, UR_LETTER_NAMES, EN_LETTER_SOUNDS };
+module.exports = { COMMON, BATTERY, CHECK_WORDS, GAME_LINES, TASKS, CHAINS, MATHS_PRACTICE, UR_LETTER_NAMES, EN_LETTER_SOUNDS };
