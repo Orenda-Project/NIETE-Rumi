@@ -6,6 +6,38 @@
 const supabase = require('../config/supabase');
 
 /**
+ * Insert the row for a phone the lookup did not find. A unique-key clash (23505) means another request for the same
+ * phone (a user's first two messages, a retried webhook) made the row in between: read it and return it, rather
+ * than failing the turn as if the database were down.
+ * @param {string} phoneNumber
+ * @returns {Promise<object>} User record
+ */
+async function createUser(phoneNumber) {
+  const { data: newUser, error: createError } = await supabase
+    .from('users')
+    .insert({
+      phone_number: phoneNumber,
+      registration_completed: false,
+      created_at: new Date().toISOString(),
+      last_message_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (createError && createError.code === '23505') {
+    const { data: existing } = await supabase.from('users').select('*').eq('phone_number', phoneNumber).single();
+    if (existing) return existing;
+  }
+  if (createError) {
+    console.error('Error creating user:', createError);
+    throw createError;
+  }
+
+  console.log(`✅ New user created: ${phoneNumber}`);
+  return newUser;
+}
+
+/**
  * Get or create user by phone number
  * @param {string} phoneNumber - User's WhatsApp phone number
  * @returns {Promise<object>} User record
@@ -41,46 +73,12 @@ async function getOrCreateUser(phoneNumber) {
     }
 
     // User doesn't exist, create new one
-    const { data: newUser, error: createError } = await supabase
-      .from('users')
-      .insert({
-        phone_number: phoneNumber,
-        registration_completed: false,
-        created_at: new Date().toISOString(),
-        last_message_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (createError) {
-      console.error('Error creating user:', createError);
-      throw createError;
-    }
-
-    console.log(`✅ New user created: ${phoneNumber}`);
-    return newUser;
+    return await createUser(phoneNumber);
   } catch (error) {
     // If error is "not found", user doesn't exist
     if (error.code === 'PGRST116') {
       // Create new user
-      const { data: newUser, error: createError } = await supabase
-        .from('users')
-        .insert({
-          phone_number: phoneNumber,
-          registration_completed: false,
-          created_at: new Date().toISOString(),
-          last_message_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (createError) {
-        console.error('Error creating user:', createError);
-        throw createError;
-      }
-
-      console.log(`✅ New user created: ${phoneNumber}`);
-      return newUser;
+      return createUser(phoneNumber);
     }
 
     console.error('Error in getOrCreateUser:', error);

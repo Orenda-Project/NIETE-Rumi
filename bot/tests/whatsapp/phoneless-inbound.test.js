@@ -53,20 +53,25 @@ describe('validateWebhookMessage: the sender of a username user', () => {
 });
 
 describe('getOrCreateUser', () => {
-  function supabaseWith(rows) {
+  // `lateRows`: rows another request wrote between this lookup and this insert (the first-message race): invisible to
+  // the first read, a unique-key clash on insert, found by any read after it.
+  function supabaseWith(rows, lateRows = []) {
     const inserts = [];
+    let reads = 0;
     const from = jest.fn(() => {
       let match;
       const q = {
         select: () => q,
-        eq: (col, val) => { match = rows.find((r) => r[col] === val); return q; },
+        eq: (col, val) => { reads += 1; match = [...rows, ...(reads > 1 ? lateRows : [])].find((r) => r[col] === val); return q; },
         single: async () => (match ? { data: match, error: null } : { data: null, error: { code: 'PGRST116', message: 'no rows' } }),
         update: () => ({ eq: async () => ({ error: null }) }),
         insert: (row) => {
           inserts.push(row);
           return { select: () => ({ single: async () => (row.phone_number == null
             ? { data: null, error: { code: '23502', message: 'null value in column "phone_number" of relation "users" violates not-null constraint' } }
-            : { data: { id: 'u-new', ...row }, error: null }) }) };
+            : lateRows.some((r) => r.phone_number === row.phone_number)
+              ? { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "users_phone_number_key"' } }
+              : { data: { id: 'u-new', ...row }, error: null }) }) };
         },
       };
       return q;
@@ -74,9 +79,9 @@ describe('getOrCreateUser', () => {
     return { from, inserts };
   }
 
-  function load(rows) {
+  function load(rows, lateRows) {
     jest.resetModules();
-    const db = supabaseWith(rows);
+    const db = supabaseWith(rows, lateRows);
     jest.doMock('../../shared/config/supabase', () => db);
     return { ...require('../../shared/database/bot-helpers'), db };
   }
@@ -92,6 +97,13 @@ describe('getOrCreateUser', () => {
     const user = await getOrCreateUser(KE_PHONE);
     expect(user.id).toBe('u-ke');
     expect(db.inserts).toHaveLength(0);
+  });
+
+  test('a duplicate phone on create (another request made the row first) re-reads and returns that row', async () => {
+    const { getOrCreateUser, db } = load([], [{ id: 'u-raced', phone_number: KE_PHONE, role: 'coach' }]);
+    const user = await getOrCreateUser(KE_PHONE);
+    expect(user.id).toBe('u-raced');
+    expect(db.inserts).toHaveLength(1);
   });
 
   test('control: a Pakistani phone with no row is created as before', async () => {
