@@ -1561,7 +1561,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // Under the fold it sits right under Play, so it is the door's drawing: "Your turn!" in place of the chat's link pill.
   function chPic(chLine, door) {
     var id = chLine && B.art && B.art.invite;
-    return id ? '<img class="wq-chpic" src="' + esc('/q/' + encodeURIComponent(CODE) + '/art/invite.jpg?a=' + encodeURIComponent(id) + (door ? '&w=door' : '')) + '" alt="' + esc(chLine) + '">' : '';
+    return id ? '<img class="wq-chpic" src="' + esc('/q/' + encodeURIComponent(CODE) + '/art/invite.jpg?a=' + encodeURIComponent(id) + (door ? '&w=door' : '') + (B.pic_lang === true ? '&l=' + LANG : '')) + '" alt="' + esc(chLine) + '">' : '';
   }
   // fold (web_quiz_challenge_fold): the picture sits right under the way in and carries a drawn "tap the link to play",
   // so a tap on it is a tap on Play (or the remembered child's button); with the class's children listed, it shows them
@@ -2589,9 +2589,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // file, the square picture goes with the message: fetched when the screen opens, because a share must
   // start inside the tap (a wait would lose it).
   var ART = {};
+  // pic_lang (web_quiz_share_pic_lang): the picture in this page's language, the one its share words are in (&l=)
   function artUrl(id, f) {
     var a = ART[id];
-    return '/q/' + encodeURIComponent(CODE) + '/art/' + (a ? a.kind : 'card') + '.jpg?a=' + encodeURIComponent(id) + (f ? '&f=' + f : '');
+    return '/q/' + encodeURIComponent(CODE) + '/art/' + (a ? a.kind : 'card') + '.jpg?a=' + encodeURIComponent(id) + (f ? '&f=' + f : '') + (B.pic_lang === true ? '&l=' + LANG : '');
   }
   function warmArt(kind, id) {
     if (!id || ART[id]) return;

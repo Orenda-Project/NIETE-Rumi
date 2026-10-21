@@ -798,12 +798,14 @@ function flushWire(req, res, top) {
  * remembered, and an empty body. A crawler reads only the head; no quiz payload travels in it.
  */
 // linkLang 'ur' (web_quiz_share_link_lang on, an Urdu card's link to an English lesson): the preview speaks Urdu, like
-// the card picture above it and the door it opens; the picture is the same.
+// the card picture above it and the door it opens; the picture is the same. linkLang 'en' (web_quiz_share_link_lang_en
+// on, an English card's link to an Urdu lesson): the preview speaks English, like its English card picture.
 function renderPreviewPage({ facts, code, view, origin, assetV, url, a, v, k, linkLang = null }) {
   const urLink = linkLang === 'ur' && facts.quiz.lang !== 'ur';
-  const lang = facts.quiz.lang === 'ur' || urLink ? 'ur' : 'en';
+  const enLink = linkLang === 'en' && facts.quiz.lang === 'ur';
+  const lang = (facts.quiz.lang === 'ur' || urLink) && !enLink ? 'ur' : 'en';
   const brand = brandOf(facts.brand);
-  const og = ogText(urLink ? { ...facts, quiz: { ...facts.quiz, lang: 'ur' } } : facts, view, brand);
+  const og = ogText(urLink || enLink ? { ...facts, quiz: { ...facts.quiz, lang } } : facts, view, brand);
   const image = ogImageFor({ payload: facts, code, view, origin, a, v, k });
   return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: og.title, desc: og.desc, origin, url, assetV, brand, image, ...cardType(image) })}
 </head>
@@ -1569,8 +1571,10 @@ function createWebQuizRouter(opts = {}) {
         if (f.status === 200 && f.body && f.body.quiz) { known = f.body; learnOg(upper, known); }
       } catch (_) { /* the full path below */ }
     }
-    // web_quiz_share_link_lang: an Urdu card's link previews in Urdu (asked only for such a link; a cached read)
-    const linkLang = preview && view === 'quiz' && req.query.lang === 'ur' && (await linkLangOn()) === true ? 'ur' : null;
+    // web_quiz_share_link_lang: an Urdu card's link previews in Urdu (asked only for such a link; a cached read);
+    // web_quiz_share_link_lang_en: an English card's link (&lang=en) previews in English, an Urdu lesson's too
+    const linkLang = preview && view === 'quiz' && req.query.lang === 'ur' && (await linkLangOn()) === true ? 'ur'
+      : preview && view === 'quiz' && req.query.lang === 'en' && (await linkLangEnOn()) === true ? 'en' : null;
     if (known && !(view === 'class' && known.invited)) {
       return res.status(200).type('html').send(renderPreviewPage({ facts: known, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k, linkLang }));
     }
@@ -1830,6 +1834,8 @@ function createWebQuizRouter(opts = {}) {
     const sq = !teach && req.query.f === 'sq';
     // w=door: the invite drawn for the friend's door ("Your turn!" in place of the link pill); any other kind ignores it
     const door = kind === 'invite' && req.query.w === 'door';
+    // l=en|ur: the share's language (the page asks so only with web_quiz_share_pic_lang on); kept apart per language
+    const pl = !teach && (req.query.l === 'en' || req.query.l === 'ur') ? req.query.l : '';
     // One event per picture handed out: which kind, kept here or asked of the bot, how long, and who fetched it
     // (WhatsApp Android/iOS, a browser…). A phone's preview fetch left no trace when the edge already held the picture.
     const t0 = Date.now();
@@ -1838,12 +1844,13 @@ function createWebQuizRouter(opts = {}) {
     });
     const send = (pic) => res.status(200).set({ 'Cache-Control': `public, max-age=${ART_MAX_AGE[kind]}${teach ? ', immutable' : ''}`, 'X-Robots-Tag': 'noindex' }).type(pic.contentType).send(pic.bytes);
     // Kept at the edge: the card opening fetched it, so the sender's preview fetch never waits for a draw.
-    const keyArt = `${kind}|${id}|${sq ? 'sq' : 'og'}${teach ? `|${String(req.params.code).toUpperCase()}|${tv}` : ''}${door ? '|door' : ''}`;
+    const keyArt = `${kind}|${id}|${sq ? 'sq' : 'og'}${teach ? `|${String(req.params.code).toUpperCase()}|${tv}` : ''}${door ? '|door' : ''}${pl ? `|${pl}` : ''}`;
     const kept = artKept.get(keyArt);
     if (kept) { seen('edge'); return send(kept); }
     try {
       // the class link's picture is drawn only under its own code: the bot is told which one was asked
-      const q = teach ? `?c=${String(req.params.code).toUpperCase()}` : (sq ? `?f=sq${door ? '&w=door' : ''}` : (door ? '?w=door' : ''));
+      const q0 = teach ? `?c=${String(req.params.code).toUpperCase()}` : (sq ? `?f=sq${door ? '&w=door' : ''}` : (door ? '?w=door' : ''));
+      const q = pl ? `${q0}${q0 ? '&' : '?'}l=${pl}` : q0;
       const out = await callBot('GET', `/api/internal/wq/art/${id}${q}`, req);
       if (out.bytes) {
         artKept.set(keyArt, { bytes: out.bytes, contentType: out.contentType }, ART_KEEP_MS[kind]);
@@ -1903,6 +1910,8 @@ function createWebQuizRouter(opts = {}) {
   const cardFastOn = quickFlag(opts.cardFastOn || StoryAssets.flagReader({ now, key: 'web_quiz_card_fast' }));
   // web_quiz_share_link_lang: an Urdu card's link (`?lang=ur`) previews in Urdu (renderPreviewPage). Off: today's preview.
   const linkLangOn = quickFlag(opts.linkLangOn || StoryAssets.flagReader({ now, key: 'web_quiz_share_link_lang' }));
+  // web_quiz_share_link_lang_en: an English card's link (`?lang=en`) previews in English. Off: today's preview.
+  const linkLangEnOn = quickFlag(opts.linkLangEnOn || StoryAssets.flagReader({ now, key: 'web_quiz_share_link_lang_en', jsonTrue: true }), { lazy: true });
   // web_quiz_head_full: see page() (the fast first page's guessed head). Off: today's guess.
   const headFullOn = quickFlag(opts.headFullOn || StoryAssets.flagReader({ now, key: 'web_quiz_head_full' }));
   // web_quiz_head_guess_honest (JSON true only): see page(). Read only behind web_quiz_head_full on, never before its
@@ -2045,7 +2054,7 @@ function createWebQuizRouter(opts = {}) {
       try {
         const out = await callBot('GET', `/api/internal/wq/card/s/${id}`, req, null, { route: '/api/internal/wq/card/s/:id' });
         const b = out && out.body;
-        if (out.status === 200 && b && cardToken(b.token) && typeof b.url === 'string' && (b.url === `/k/${b.token}` || /^\/q\/[A-Z0-9]{4,12}\?k=[A-Za-z0-9_-]+(&lang=ur)?$/.test(b.url))) {
+        if (out.status === 200 && b && cardToken(b.token) && typeof b.url === 'string' && (b.url === `/k/${b.token}` || /^\/q\/[A-Z0-9]{4,12}\?k=[A-Za-z0-9_-]+(&lang=(ur|en))?$/.test(b.url))) {
           hit = { token: b.token, url: b.url };
           shortIds.set(id, hit, CARD_KEEP_MS);
         } else return door(out.status === 404 && b ? b.ret : null);
