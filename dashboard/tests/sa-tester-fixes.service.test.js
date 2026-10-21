@@ -185,6 +185,22 @@ maybe('sa-ui: chains, the right line and the demo copy', () => {
   });
 });
 
+describe('A11: patterns 2 practice on the real battery', () => {
+  test('typing 3 on the keypad marks both practice rows right (the number target and the task\'s string answers agree)', () => {
+    const { createRunner } = require('../sa/sa-core');
+    const { applySwitches } = require('../routes/sa-battery-switches');
+    for (const f of ['sa.coach.G5.A.ur.json', 'sa.coach.G3.A.en.json']) {
+      const real = applySwitches(require(`../../bot/shared/data/child-test/sa/${f}`), { practiceAllMaths: true });
+      const t = real.tasks.find((x) => x.id === 'ma.patterns_hi');
+      const r = createRunner({ battery: { battery_id: 'x', tasks: [{ ...t, depends_on: undefined }] }, now: () => 1, wall: () => 'T', session_id: 's', onEvent: () => {} });
+      r.start(); r.instructionPlayed(); r.instructionDone();
+      const seen = [];
+      while (r.view().phase === 'practice') { seen.push(r.view().practice.id); expect(r.practiceAnswer('3')).toMatchObject({ ok: true }); }
+      expect(seen).toEqual(['ma.patterns_hi.p1', 'ma.patterns_hi.p2']);
+    }
+  });
+});
+
 describe('sa_passage_rotation', () => {
   const { rotate } = require('../sa/sa-page');
   const b = {

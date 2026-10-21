@@ -141,7 +141,9 @@ describe('A11: practice before every maths task', () => {
         ['ma.patterns_hi.p1', ['⭐', '🟢', '⭐', '🟢', '⭐', '🟢'], '3', undefined],
         ['ma.patterns_hi.p2', [1, 2, null, 4], '3', undefined]]);
       expect([hi[0].src, hi[0].practice]).toEqual(['authored:practice', true]);
-      expect(hi[1].src).toMatch(/missing\.practice\[0\]/);
+      expect(hi[1].src).toMatch(/^core_egma:p\.4 P1 .*missing\.practice\[0\]/);
+      // Panel P2-a: the number row is spoken in 4a's frame and is marked practice.
+      expect([hi[1].practice, hi[1].say]).toEqual([true, ur ? 'کون سا نمبر غائب ہے؟ ۱، ۲، خالی، ۴' : 'What number is missing? 1, 2, blank, 4']);
       expect(hi[0].say).toBe(ur ? 'نیچے دی گئی ترتیب کو دیکھیں۔ اس میں ستارہ اور دائرہ، یہ دونوں ایک ساتھ کتنی بار آئے ہیں؟'
         : 'Look at the pattern below. How many times does star, circle repeat in the pattern?');
       expect(hi[0].feedback.wrong.text).toBe(ur ? 'ستارہ دائرہ: ایک۔ ستارہ دائرہ: دو۔ ستارہ دائرہ: تین۔ جواب ۳ ہے۔'

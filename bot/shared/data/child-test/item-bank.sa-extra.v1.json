@@ -158,7 +158,9 @@
    "reuse": {
     "ma.word_problems_l2": "ma.word_problems",
     "ma.ordering": "ma.missing",
-    "ma.patterns_hi": { "from": "ma.missing", "pick": 0, "after": true, "why": "core_egma:Task 3 practice P1 (1, 2, __, 4): a missing term, typed, after the authored repeat-count item" }
+    "ma.patterns_hi": { "from": "ma.missing", "pick": 0, "after": true, "src": "core_egma:p.4 P1",
+      "say_en": "What number is missing? 1, 2, blank, 4", "say_ur": "کون سا نمبر غائب ہے؟ ۱، ۲، خالی، ۴",
+      "why": "core_egma:Task 3 practice P1 (1, 2, __, 4): a missing term, typed, after the authored repeat-count item; spoken in rwp2026:patterns_4a's frame (panel P2-a)" }
    },
    "disabled_copy": [
     "ma.patterns",

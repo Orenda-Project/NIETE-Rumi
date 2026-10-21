@@ -741,7 +741,7 @@ function passageVariants(core18, extra) {
 // ---------------------------------------------------------------------------------------------- A11 reuse, A14 RDF
 /**
  * A11: a maths task with no unused fielded item practises on another task's official practice item of the same format
- * (extra maths.practice.reuse, "<from>" or {from, pick, after}: one item of it, after the task's own practice): practice is unscored everywhere. A tap task
+ * (extra maths.practice.reuse, "<from>" or {from, pick, after, src, say_en/ur}: one item of it, after the task's own practice, said in the task's frame): practice is unscored everywhere. A tap task
  * gets the item's options by the same rule; a keypad task gets none.
  */
 function reusePractice(list, extra) {
@@ -756,7 +756,8 @@ function reusePractice(list, extra) {
     t.practice_v2 = [...before, ...picked.map((p, j) => {
       const i = before.length + j;
       const id = `${to}.p${i + 1}`;
-      const q = { ...p, id, src: `${p.src} (reused from ${from})` };
+      const q = { ...p, id, src: `${rule.src ? `${rule.src} = ` : ''}${p.src} (reused from ${from})`, ...(rule.say_en ? { say: sayBoth(rule.say_en, rule.say_ur) } : {}),
+        ...(typeof rule === 'object' ? { practice: true } : {}) };
       if (t.tap.input === 'options' && Array.isArray(p.shown)) {
         q.shown = p.shown;
         q.options = stepOptions(id, p.target, seqStep(p.shown));
