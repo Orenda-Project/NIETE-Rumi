@@ -10,6 +10,7 @@
  *
  * Now the notes also come:
  *   - in the chat with the "Record sealed" message, in the coach's language (the seal always comes first);
+ *   - on the check's "Work on first" screen, read-only, as screen data.
  * They are the brief's own notes section (one function), without "Why you changed", which belongs to the
  * check itself.
  *
@@ -34,9 +35,12 @@ jest.mock('../../bot/shared/services/observe/observe-debrief.service', () => ({
 const WhatsAppService = require('../../bot/shared/services/whatsapp.service');
 const Store = require('../../bot/shared/services/observe/observe2/field-form.store');
 const Form = require('../../bot/shared/routes/observe2-form-endpoint');
+const Check = require('../../bot/shared/routes/observe2-check-endpoint');
+const { buildEvidenceCheckFlow, CHECK_VERSION } = require('../../bot/shared/services/observe/observe2/evidence-check.flow');
 const { observe2Strings } = require('../../bot/shared/services/observe/observe2/strings');
 
 const formToken = (id) => `coach-1:observe2-form:${id}`;
+const checkToken = (id) => `coach-1:observe2-check:${id}`;
 const row = (id) => mockFake.__tables.observation_field_forms.find((r) => r.id === id);
 const flush = async () => { for (let i = 0; i < 20; i += 1) await new Promise((r) => setImmediate(r)); };
 const cp = (s) => [...String(s)].length;
@@ -154,5 +158,56 @@ describe('the "Record sealed" message carries the notes', () => {
     const form = { answers: { p1_notes: 'n'.repeat(300) } };
     await Form.__sendSealed(WhatsAppService, '923000000001', sealedText, form, 'en');
     expect(sealedTexts()).toEqual([sealedText, `📝 Your notes, as you wrote them:\n*Part 1*\n${'n'.repeat(300)}`]);
+  });
+});
+
+describe('the check\'s "Work on first" screen shows the notes', () => {
+  async function checkable(answers) {
+    const id = await newForm({
+      answers: { lp: 'none', priority: 'C7', ...answers }, sealed_at: '2026-10-21T06:50:46.000Z', part1_done_at: 'x', part2_done_at: 'x',
+      coaching_session_id: 'sess-1', rumi_moments: { moments: [], counts: {} }, moments_ready_at: 'x',
+      evidence_review: { why: 'an earlier answer on this screen' },
+    });
+    return id;
+  }
+
+  test('the screen data carries the notes, each under its label, without "Why you changed"', async () => {
+    const id = await checkable({ p1_notes: PART_1.p1_notes, p2_notes: PART_2.p2_notes, note: SEAL.note });
+    const out = await Check.handleObserve2CheckDataExchange(checkToken(id), 'ADDED_TWO', { screen: 'ADDED_TWO', cv: CHECK_VERSION });
+    expect(out.screen).toBe('PRIORITY');
+    expect(out.data.priority_level).toBe('C7');
+    expect(out.data.notes_v).toBe(true);
+    expect(out.data.notes_body).toBe([
+      'Part 1', PART_1.p1_notes, '', 'Part 2', PART_2.p2_notes, '', 'Not in the recording', SEAL.note,
+    ].join('\n'));
+    expect(out.data.notes_body).not.toContain('an earlier answer');
+  });
+
+  test('nothing typed: the block is hidden, and its text is an empty string (Meta refuses null)', async () => {
+    const id = await checkable({});
+    const out = await Check.handleObserve2CheckDataExchange(checkToken(id), 'ADDED_TWO', { screen: 'ADDED_TWO', cv: CHECK_VERSION });
+    expect(out.data).toMatchObject({ notes_v: false, notes_body: '' });
+  });
+
+  test('a check opened before "Also work on" (no cv) keeps its own screen\'s data, unchanged', async () => {
+    const id = await checkable({ p1_notes: PART_1.p1_notes });
+    const out = await Check.handleObserve2CheckDataExchange(checkToken(id), 'ADDED_TWO', { screen: 'ADDED_TWO' });
+    expect(out).toEqual({ screen: 'PRIORITY', data: { priority_level: 'C7' } });
+  });
+
+  test('the Flow declares the two keys and shows the notes read-only above the picks', () => {
+    const priority = buildEvidenceCheckFlow().screens.find((s) => s.id === 'PRIORITY');
+    expect(priority.data.notes_v).toMatchObject({ type: 'boolean' });
+    expect(priority.data.notes_body).toMatchObject({ type: 'string' });
+    const kids = priority.layout.children[0].children;
+    const body = kids.findIndex((c) => c.type === 'TextBody' && c.text === '${data.notes_body}');
+    const pick = kids.findIndex((c) => c.name === 'priority_final');
+    expect(body).toBeGreaterThanOrEqual(0);
+    expect(body).toBeLessThan(pick);
+    expect(kids[body].visible).toBe('${data.notes_v}');
+    expect(kids.filter((c) => c.visible === '${data.notes_v}').map((c) => c.type)).toEqual(['TextSubheading', 'TextBody']);
+    // Read-only: nothing on the screen posts the notes back.
+    const footer = kids.find((c) => c.type === 'Footer');
+    expect(Object.keys(footer['on-click-action'].payload)).not.toContain('notes_body');
   });
 });

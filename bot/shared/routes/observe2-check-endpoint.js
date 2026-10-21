@@ -27,6 +27,7 @@ const Store = require('../services/observe/observe2/field-form.store');
 const { addUp } = require('../services/observe/observe2/rules');
 const { CODES, PLAN_FOCUS, FOCUS, FOCUS_ORDER, ALSO_NONE, pickAlso } = require('../services/observe/observe2/fico17');
 const { SLOTS, FIDELITY_SLOTS, HEARD_SCREENS, ADDED_SCREENS } = require('../services/observe/observe2/evidence-check.flow');
+const { notesSection } = require('../services/observe/observe2/brief');
 const { logToFile } = require('../utils/logger');
 
 const HEARD_IDS = HEARD_SCREENS.map((h) => h.id);
@@ -127,6 +128,16 @@ const listedOn = (version) => LISTED.find(([since]) => version >= since)[1];
 // The sealed picks a check's lists could not show the coach.
 const unshown = (a, shown) => [a.priority, a.also_1, a.also_2].map((v) => String(v || '')).filter((v) => FOCUS[v] && !shown.has(v));
 
+// The coach's notes from the visit, read-only above the picks (pilot sheet R23): the conversation with the
+// teacher usually runs while this check is open (24 of 47 debriefs on prod since 16 Oct), before the brief
+// that also carries them. The brief's own section, without "Why you changed", which is typed on this
+// screen. Sent to every check that posts a `cv` (2 and 3); a check opened on a Flow published before the
+// block was declared ignores the two keys.
+function notesData(form) {
+  const body = notesSection(form, { except: ['why'], plain: true }).join('\n');
+  return { notes_v: Boolean(body), notes_body: body };
+}
+
 // The PRIORITY screen, pre-filled with the sealed picks its own lists have. A pick an older check cannot
 // show is left for the coach to choose there, and kept at Submit (below).
 function renderPriority(form, screenData) {
@@ -139,7 +150,7 @@ function renderPriority(form, screenData) {
   const also = pickAlso([a.also_1, a.also_2], first).filter((id) => shown.has(id));
   return {
     screen: 'PRIORITY',
-    data: { priority_level: firstShown, also_level_1: also[0] || ALSO_NONE, also_level_2: also[1] || ALSO_NONE },
+    data: { priority_level: firstShown, also_level_1: also[0] || ALSO_NONE, also_level_2: also[1] || ALSO_NONE, ...notesData(form) },
   };
 }
 
