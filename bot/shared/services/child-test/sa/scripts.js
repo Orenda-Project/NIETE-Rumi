@@ -271,6 +271,76 @@ const TASKS = {
   },
 };
 
+// The record-mode letter sounds of the RDF form (A14): the official letter grids read aloud as sounds. The sound
+// instruction is TK2016's ("the sounds … not their names"); the Urdu wording is PRP-KP's letter-page line with name and
+// sound swapped, the toolkit's own swap (no Urdu letter-sound script is printed in a source we hold).
+TASKS['ur.letter_sounds_rec'] = {
+  intro_record: L('Here is a page of Urdu letters. Say the SOUND of each letter out loud, not its name. Start at the first letter and go along each row. If you do not know a letter, go on to the next one. Read as quickly and carefully as you can.',
+    'یہ اردو حروفِ تہجی کا صفحہ ہے۔ ہر حرف کی آواز بول کر بتائیں۔ حرف کا نام نہیں، صرف اس کی آواز۔ پہلے حرف سے شروع کریں اور ہر سطر میں آگے بڑھیں۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔ جتنا جلدی اور دھیان سے ہو سکے، پڑھیں۔',
+    'egra_tk2016:Annex H p.187 letter sound + prpkp2020:p82 letter page (names → sounds)'),
+};
+TASKS['en.letter_sounds_rec'] = {
+  intro_record: L('Here is a page of English letters. Say the SOUND of each letter out loud, not its name. Start at the first letter and go along each row. If you do not know a letter, go on to the next one. Read as quickly and carefully as you can.',
+    'یہ انگریزی حروفِ تہجی کا صفحہ ہے۔ ہر حرف کی آواز بول کر بتائیں۔ حرف کا نام نہیں، صرف اس کی آواز۔ پہلے حرف سے شروع کریں اور ہر سطر میں آگے بڑھیں۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔ جتنا جلدی اور دھیان سے ہو سکے، پڑھیں۔',
+    'egra_tk2016:Annex H p.187 letter sound "tell me the sounds of as many letters as you can"'),
+};
+
+// Practice feedback for the maths tasks whose source prints no practice line: the Core EGMA word-problem practice
+// wording, which names only the answer (number ID: "this number is").
+const MATHS_PRACTICE = {
+  right: L('That is right, {x}.', 'بالکل ٹھیک، {x}۔', 'v3:sets.A.maths.3.word_problems.script.practice_correct'),
+  wrong: L('The answer is {x}.', 'جواب {x} ہے۔', 'v3:sets.A.maths.3.word_problems.script.practice_wrong'),
+  wrong_number: L('This number is {x}.', 'یہ نمبر {x} ہے۔', 'v3:sets.A.maths.3.word_problems.script.practice_wrong (number ID)'),
+};
+
+// RULING #31a (A08): a line that names an item of the OTHER language than the page is said as a chain: the carrier in
+// the page's language (the same sentence without the item), then the item in its own language's clip. 'x' and 'y' are
+// the item slots of the line ({x}, {y}); every other segment is a carrier. Same-language pages keep the whole line.
+const CHAINS = {
+  'ur.letters': {
+    right: [L('Yes! This letter is:', 'شاباش! یہ حرف ہے:'), 'x'],
+    wrong: [L('This letter is:', 'یہ حرف ہے:'), 'x'],
+  },
+  'en.letters': {
+    example: [L('For example, the name of this letter is:', 'مثال کے طور پر، اس حرف کا نام ہے:'), 'x'],
+    right: [L('Yes! The name of this letter is:', 'شاباش! اس حرف کا نام ہے:'), 'x'],
+    wrong: [L('The name of this letter is:', 'اس حرف کا نام ہے:'), 'x'],
+  },
+  'en.letter_sounds': {
+    example: [L('For example, the sound of this letter is:', 'مثال کے طور پر، اس حرف کی آواز ہے:'), 'x'],
+    right: [L('Yes! The sound of this letter is:', 'شاباش! اس حرف کی آواز ہے:'), 'x'],
+    wrong: [L('The sound of this letter is:', 'اس حرف کی آواز ہے:'), 'x'],
+  },
+  'en.initial_sound': {
+    example: [L('For example, the word is:', 'مثال کے طور پر، لفظ ہے:'), 'x', L('Its first sound is:', 'اس کی پہلی آواز ہے:'), 'y'],
+    right: [L('Very good! The word is:', 'شاباش! لفظ ہے:'), 'x', L('Its first sound is:', 'اس کی پہلی آواز ہے:'), 'y'],
+    wrong: [L('Listen again. The word is:', 'دوبارہ سنیں۔ لفظ ہے:'), 'x', L('Its first sound is:', 'اس کی پہلی آواز ہے:'), 'y'],
+  },
+  'ur.initial_sound': {
+    example: [L('For example, the word is:', 'جیسے، لفظ ہے:'), 'x', L('Its beginning sound is:', 'اس کی ابتدائی آواز ہے:'), 'y'],
+    right: [L('Well done! The word is:', 'شاباش! لفظ ہے:'), 'x', L('Its beginning sound is:', 'اس کی ابتدائی آواز ہے:'), 'y'],
+    wrong: [L('The word is:', 'لفظ ہے:'), 'x', L('Its beginning sound is:', 'اس کی ابتدائی آواز ہے:'), 'y'],
+  },
+  'en.segmentation': {
+    example: [L('For example, the word is:', 'مثال کے طور پر، لفظ ہے:'), 'x', L('Its sounds are:', 'اس کی آوازیں یہ ہیں:'), 'y'],
+  },
+  'ur.vocabulary': {
+    example: [L('For example, in this picture:', 'جیسے، اس تصویر میں:'), 'x'],
+    right: [L('Well done!', 'شاباش!'), 'x'],
+    wrong: [L('Look again:', 'دوبارہ دیکھیں:'), 'x'],
+  },
+  nonwords: {
+    example: [L('For example, this made-up word is:', 'مثال کے طور پر، یہ بنایا ہوا لفظ ہے:'), 'x'],
+    right: [L('Yes! This made-up word is:', 'شاباش! یہ بنایا ہوا لفظ ہے:'), 'x'],
+    wrong: [L('This made-up word is:', 'یہ بنایا ہوا لفظ ہے:'), 'x'],
+  },
+  words: {
+    example: [L('For example, this word is:', 'مثال کے طور پر، یہ لفظ ہے:'), 'x'],
+    right: [L('Yes! This word is:', 'شاباش! یہ لفظ ہے:'), 'x'],
+    wrong: [L('This word is:', 'یہ لفظ ہے:'), 'x'],
+  },
+};
+
 // The names Jugnu says for Urdu letters in the letter task (the standard Urdu alphabet names, as the RWP enumerators
 // accepted them: R7 may_instrument letterid_fl_urd).
 const UR_LETTER_NAMES = {
@@ -288,4 +358,4 @@ const EN_LETTER_SOUNDS = {
   n: 'nnn', o: 'aw', p: 'puh', q: 'kwuh', r: 'rrr', s: 'sss', t: 'tuh', u: 'uh', v: 'vvv', w: 'wuh', x: 'ks', y: 'yuh', z: 'zzz',
 };
 
-module.exports = { COMMON, BATTERY, GAME_LINES, TASKS, UR_LETTER_NAMES, EN_LETTER_SOUNDS };
+module.exports = { COMMON, BATTERY, GAME_LINES, TASKS, CHAINS, MATHS_PRACTICE, UR_LETTER_NAMES, EN_LETTER_SOUNDS };

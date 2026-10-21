@@ -78,7 +78,7 @@ describe('SA battery bank (CONTRACT §2)', () => {
     for (const k of ['task', 'lang', 'kind', 'legacy_block', 'title', 'modes', 'tap', 'record', 'practice', 'script', 'source', 'deviation']) {
       expect(t).toHaveProperty(k);
     }
-    if (t.legacy_block === null) expect(t.source.items).toMatch(/^extra:(maths|reading)\./);
+    if (t.legacy_block === null) expect(t.source.items).toMatch(/^(extra:(maths|reading)|v3:sets\.A\.reading)\./);
     else expect(t.legacy_block).toMatch(/^(ur|en|ma)\.(listening|letters|nonwords|words|story|number_id|discrimination|missing|add1|sub1|add2|sub2|word_problems)$/);
     for (const m of t.modes) expect(t[m]).toBeTruthy();
     if (!t.practice.length) expect(t.practice_note).toBeTruthy();

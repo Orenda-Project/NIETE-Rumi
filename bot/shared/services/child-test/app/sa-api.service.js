@@ -40,6 +40,7 @@ const crypto = require('crypto');
 const { visitKeyFor } = require('../draw/visit-key');
 const { BLOCK_NAMES } = require('../tasks');
 const blockHistory = require('./block-history');
+const rdfSwitch = require('./rdf-switch');
 const { MEDIA, envSegment, __internals: { guarded, rows, ownVisit, ownSession, gradeOf } } = require('./app-api.service');
 
 const OUTCOMES = ['present', 'absent', 'refused'];
@@ -188,7 +189,7 @@ const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ 
   if (!OUTCOMES.includes(outcome)) return { status: 'invalid', reason: 'bad_outcome' };
   if (!drawId) return { status: 'invalid', reason: 'no_draw' };
   if (clientSessionId != null && !UUID_RE.test(String(clientSessionId))) return { status: 'invalid', reason: 'bad_client_id' };
-  if (block != null && !BLOCK_IDS.includes(block) && block !== FULL) return { status: 'invalid', reason: 'bad_block' };
+  if (block != null && !BLOCK_IDS.includes(block) && block !== FULL && !(block === RDF && (await rdfSwitch.enabled(deps)))) return { status: 'invalid', reason: 'bad_block' };
   const visit = await visitFor(d, userId, { schoolId, visitId });
   if (!visit) return { status: 'not_found' };
   const sa = clientSessionId && outcome === 'present' ? saStoreOf(deps) : null;
@@ -248,6 +249,8 @@ const MAX_RESULTS = 40;
 const PRESIGN_TTL_SECONDS = 15 * 60;
 const BLOCK_IDS = ['B1', 'B2', 'B3', 'B4', 'B5'];
 const FULL = 'full';
+// The RDF short form (switch sa_rdf_form): the form's rdf[] list, chosen on the hand-over card.
+const RDF = 'rdf';
 // the session timings an event leaves: when each subtask and each hand-over happened (device clock)
 const TIMED = ['session_start', 'audio_check', 'task_start', 'task_end', 'handover_in', 'handover_out', 'coach_unlock', 'reload_resume', 'battery_end'];
 // the events the session keeps as they are (device.events): what the timings cannot say
@@ -343,7 +346,8 @@ const saBattery = onSession('sa_battery', async ({ sessionId, lang, full }, d, s
     if (!saved || !saved.ok) throw new Error((saved && saved.error) || 'markSynced failed');
     block = saved.device.block;
   }
-  const order = block === FULL ? form.full : (form.blocks || {})[block];
+  if (block === RDF && !Array.isArray(form.rdf)) return { status: 'not_ready', reason: 'rdf_unavailable', error: 'rdf_unavailable' };
+  const order = block === FULL ? form.full : block === RDF ? form.rdf : (form.blocks || {})[block];
   if (!Array.isArray(order) || !order.length) return { status: 'not_ready', reason: 'no_battery' };
   const tasks = {};
   for (const t of order) if (bank.tasks[`${formId}/${t}`]) tasks[`${formId}/${t}`] = bank.tasks[`${formId}/${t}`];
@@ -353,7 +357,7 @@ const saBattery = onSession('sa_battery', async ({ sessionId, lang, full }, d, s
       version: bank.version,
       formId,
       block,
-      blockName: block === FULL ? { en: 'Full battery', ur: 'مکمل جائزہ' } : (form.block_names || {})[block] || null,
+      blockName: block === FULL ? { en: 'Full battery', ur: 'مکمل جائزہ' } : block === RDF ? form.rdf_name || { en: 'RDF', ur: 'آر ڈی ایف' } : (form.block_names || {})[block] || null,
       lang: LANGS.includes(lang) ? lang : 'ur',
       lines: bank.lines,
       conventions: bank.conventions,

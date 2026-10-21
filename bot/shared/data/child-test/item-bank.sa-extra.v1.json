@@ -2,6 +2,10 @@
  "version": "child-test-items-sa-extra-v1",
  "rule": "Official items only, transcribed verbatim (src per item). Urdu renderings of English-only items are pending native review. Never authored.",
  "sources": {
+  "tangerine_gh_sa": {
+   "title": "Tangerine SA-EGRMA Ghana, numbers form (open source), section ids cited per item",
+   "url": "https://github.com/Tangerine-Community/ghana-sa-egrma"
+  },
   "rwp2026": {
    "title": "Rawalpindi/ICT May 2026 EGRA/EGMA instrument (SurveyCTO codebook v109), fields cited per item"
   },
@@ -49,6 +53,73 @@
   "scripts": "RWP administration scripts are not recoverable; Jugnu lines adapt the Core EGMA wording of the nearest task (sa/scripts.js)"
  },
  "maths": {
+  "practice": {
+   "rule": "Practice for the maths tasks whose official source prints none: a fielded item of the same format from an official instrument that is in no scored set of any SA form; else another task's official practice item of the same format (reuse); else a disabled copy of item 1 shown with the instruction, answer not shown (Tangerine demo pattern). Never authored.",
+   "items": {
+    "ma.number_id": [
+     {
+      "numeral": "1",
+      "src": "tangerine_gh_sa:numbers sec_num_id00 (num_id_prac_01, prompt \"one\")"
+     }
+    ],
+    "ma.add1": [
+     {
+      "a": 1,
+      "b": 4,
+      "answer": 5,
+      "src": "rwp2026:blfluency.blfl1[0] (1+4 = 5)"
+     }
+    ],
+    "ma.sub1": [
+     {
+      "a": 5,
+      "b": 1,
+      "answer": 4,
+      "src": "rwp2026:blfluency.blfl1[5] (5-1 = 4)"
+     }
+    ],
+    "ma.add2": [
+     {
+      "a": 13,
+      "b": 4,
+      "answer": 17,
+      "src": "rwp2026:bleffcomp.computation_2b (13+4 = 17)"
+     }
+    ],
+    "ma.sub2": [
+     {
+      "a": 18,
+      "b": 1,
+      "answer": 17,
+      "src": "rwp2026:bleffcomp.computation_1b (18-1 = 17)"
+     }
+    ],
+    "ma.fluency_l34": [
+     {
+      "a": 2,
+      "op": "+",
+      "b": 2,
+      "answer": 4,
+      "src": "rwp2026:blfluency.blfl1[1] (2+2 = 4)"
+     }
+    ],
+    "ma.number_id_upper": [
+     {
+      "numeral": "66",
+      "src": "tangerine_gh_sa:numbers number identification scored list (66)"
+     }
+    ]
+   },
+   "reuse": {
+    "ma.word_problems_l2": "ma.word_problems",
+    "ma.ordering": "ma.missing"
+   },
+   "disabled_copy": [
+    "ma.patterns",
+    "ma.patterns_hi",
+    "ma.number_repr"
+   ]
+  },
   "patterns": {
    "subtask": "pattern_extension",
    "timed_s": null,

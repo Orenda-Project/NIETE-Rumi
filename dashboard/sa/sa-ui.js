@@ -533,7 +533,21 @@
         h('h1', { class: 'sae-h1', text: tx(t.title) }),
         h('p', { class: 'sae-say', text: tx(introOf(t)) }),
         demoImage(t),
+        demoItem(t),
       ], [btn(C.next, function () { runner.instructionDone(); draw(); }, 'sae-primary')]);
+    }
+    /**
+     * Tangerine's demo pattern (A11, script.demo_item): a disabled copy of the first item shown with the instruction,
+     * its answer not shown. Nothing on it can be tapped; the first item is then asked and scored as usual.
+     */
+    function demoItem(t) {
+      var d = t.script && t.script.demo_item;
+      if (!d || typeof d !== 'object') return null;
+      var label = labelOf(d) || (typeof d.say === 'string' ? h('p', { class: 'sae-label sa-label', text: d.say }) : null);
+      var answer = Array.isArray(d.options) && d.options.length
+        ? tiles(d.options, function () {}, function (o, b) { b.disabled = true; }, taskLang(t), t, d.glyphs)
+        : h('div', { class: 'sae-demo-blank', 'aria-hidden': 'true', text: '__' });
+      return h('div', { class: 'sae-demo', 'aria-disabled': 'true' }, [h('span', { class: 'sae-chip', text: C.practice }), label, answer]);
     }
     /** The example card shown with the instruction (script.demo_image: a path under the site root, or {en, ur}). */
     function demoImage(t) {
@@ -581,13 +595,15 @@
       if (!res) return;
       busy = true;
       var f = res.feedback || {};
-      var said = res.ok ? (f.right || { en: COPY.en.right, ur: COPY.ur.right })
+      var said = res.ok ? (f.correct || f.right || { en: COPY.en.right, ur: COPY.ur.right })
         : res.retry ? { en: COPY.en.try_again, ur: COPY.ur.try_again }
           : (f.wrong || { en: COPY.en.shown, ur: COPY.ur.shown });
-      hold = { item: p, value: value, res: res, text: tx(said) };
+      // A line naming an item of the other language is a chain of clips (RULING #31a): said one after another.
+      var chain = Array.isArray(said) ? said : [said];
+      hold = { item: p, value: value, res: res, text: chain.map(tx).join(' ') };
       try { if (opts.onFeedback) opts.onFeedback({ kind: 'practice', ok: !!res.ok }); } catch (e) { /* skin */ }
       draw();
-      Promise.all([delay(FEEDBACK_MS), capped(say(said), 7000)]).then(function () {
+      Promise.all([delay(FEEDBACK_MS), capped(sayChain(chain.map(function (x) { return [x]; })), 7000)]).then(function () {
         if (!alive) return;
         hold = null;
         busy = false;
