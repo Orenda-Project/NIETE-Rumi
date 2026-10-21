@@ -4,7 +4,7 @@
  *   RDF manual, the session opening: the welcome and the bubbles lines are silent; the sound check stays voiced (its
  *     prompt, its word and its replay: the coach line needs a working speaker); the coach's first screen says to put
  *     the headphones on the child. The keypad warm-up, oral practice and hand-back lines are silent too.
- *   The printed passage box: line-height ≈ 1.6 (EN) / ≈ 2.0 (UR), word gap ≈ .35em, the font one step down at ≤ 360 px;
+ *   The printed passage box: line-height ≈ 1.6 (EN) / ≈ 2.45 (UR, RULING W3-19), word gap ≈ .35em, the font one step down at ≤ 360 px;
  *     one row per sentence when the words carry line = sentence.
  *   The sandbox Jump select sits below the coach's corner hold (top-start, about 56 px tall).
  * DOM tests: NODE_PATH=../portal/node_modules (jsdom).
@@ -133,9 +133,9 @@ describe('sa.css: the printed passage box and the Jump row', () => {
   };
   const num = (decl, prop) => { const m = decl.match(new RegExp('(^|;)' + prop + ':([\\d.]+)')); return m ? Number(m[2]) : null; };
 
-  test('line-height ≈ 1.6 (EN) and ≈ 2.0 (UR); word gap ≈ .35em', () => {
+  test('line-height ≈ 1.6 (EN) and ≈ 2.45 (UR, RULING W3-19); word gap ≈ .35em', () => {
     expect(num(rule('.sae-passage.is-printed'), 'line-height')).toBeCloseTo(1.6, 1);
-    expect(num(rule('.sae-passage.is-printed[lang=ur]'), 'line-height')).toBeCloseTo(2.0, 1);
+    expect(num(rule('.sae-passage.is-printed[lang=ur]'), 'line-height')).toBeCloseTo(2.45, 2);
     expect(num(rule('.sae-passage.is-printed'), 'word-spacing')).toBeCloseTo(0.35, 2);
     expect(num(rule('.sae-passage.is-printed[lang=ur]'), 'word-spacing') || 0.35).toBeCloseTo(0.35, 2);
   });

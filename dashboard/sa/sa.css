@@ -257,5 +257,6 @@ button{font:inherit;color:inherit}
 .sae-coach-says summary{cursor:pointer;font-weight:700}
 .sae-coach-line{margin:4px 0 0;line-height:1.7}
 .sae-passage.is-printed{word-spacing:.35em;line-height:1.6}
-.sae-passage.is-printed[lang=ur]{word-spacing:.35em;line-height:2.0}
+/* RULING W3-19: the official Urdu page's pitch (≈ 150 px on a ≈ 60 px glyph), so Nastaliq lines never collide */
+.sae-passage.is-printed[lang=ur]{word-spacing:.35em;line-height:2.45}
 @media (max-width:360px){.sae-passage.is-printed{font-size:23px}.sae-passage.is-printed[lang=ur]{font-size:25px}}
