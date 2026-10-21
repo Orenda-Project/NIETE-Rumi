@@ -38,7 +38,9 @@ async function grammarTopicsPaper(page, ctx) {
   await page.goto(ctx.baseUrl + NEW + 'cover', { waitUntil: 'domcontentloaded' });
   await page.getByTestId('step-next').click();
   await page.waitForURL('**' + NEW + 'topics');
-  expect(/Step 3 of 5/.test(await text()), 'Topics should read Step 3 of 5');
+  // the step number is the progress bar's aria-label, which innerText never reads
+  const stepIs = (label) => page.getByRole('progressbar', { name: label }).waitFor({ timeout: 10000 }).then(() => true, () => false);
+  expect(await stepIs('Step 3 of 5'), 'Topics should read Step 3 of 5');
   expect(await page.getByRole('radio').count() === 2, 'Topics should offer two choices');
   expect(await page.getByRole('checkbox').count() === 0, 'no list before Select topics');
 
@@ -51,14 +53,15 @@ async function grammarTopicsPaper(page, ctx) {
   await page.getByRole('region', { name: 'Vocabulary & grammar' }).getByRole('button', { name: 'Tick all' }).click();
   await page.getByTestId('step-next').click();
   await page.waitForURL('**' + NEW + 'questions');
+  expect(await stepIs('Step 4 of 5'), 'Questions should read Step 4 of 5');
   const q = await text();
-  expect(/Step 4 of 5/.test(q), 'Questions should read Step 4 of 5');
   expect(/10 marks/.test(q), 'a topic paper starts at 10 marks');
   expect(/MCQs/.test(q) && /Rewrite Sentences/.test(q), 'grammar question types are suggested');
 
   await page.getByTestId('step-next').click();
   await page.waitForURL('**' + NEW + 'check');
-  expect(/2 selected/.test(await text()), 'Check and make should show the Topics row "2 selected"');
+  const shown = await page.getByText('2 selected').waitFor({ timeout: 10000 }).then(() => true, () => false);
+  expect(shown, 'Check and make should show the Topics row "2 selected"');
   await page.getByTestId('step-next').click();
   const deadline = Date.now() + 15000;
   while (!sent.length && Date.now() < deadline) await page.waitForTimeout(250);
