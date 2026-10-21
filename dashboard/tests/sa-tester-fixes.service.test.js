@@ -185,6 +185,22 @@ maybe('sa-ui: chains, the right line and the demo copy', () => {
   });
 });
 
+describe('A11: patterns 2 practice on the real battery', () => {
+  test('typing 3 on the keypad marks both practice rows right (the number target and the task\'s string answers agree)', () => {
+    const { createRunner } = require('../sa/sa-core');
+    const { applySwitches } = require('../routes/sa-battery-switches');
+    for (const f of ['sa.coach.G5.A.ur.json', 'sa.coach.G3.A.en.json']) {
+      const real = applySwitches(require(`../../bot/shared/data/child-test/sa/${f}`), { practiceAllMaths: true });
+      const t = real.tasks.find((x) => x.id === 'ma.patterns_hi');
+      const r = createRunner({ battery: { battery_id: 'x', tasks: [{ ...t, depends_on: undefined }] }, now: () => 1, wall: () => 'T', session_id: 's', onEvent: () => {} });
+      r.start(); r.instructionPlayed(); r.instructionDone();
+      const seen = [];
+      while (r.view().phase === 'practice') { seen.push(r.view().practice.id); expect(r.practiceAnswer('3')).toMatchObject({ ok: true }); }
+      expect(seen).toEqual(['ma.patterns_hi.p1', 'ma.patterns_hi.p2']);
+    }
+  });
+});
+
 describe('sa_passage_rotation', () => {
   const { rotate } = require('../sa/sa-page');
   const b = {
@@ -209,6 +225,24 @@ describe('sa_passage_rotation', () => {
     }
     expect(seen.size).toBeGreaterThan(1);
     expect(b.tasks[0].variants).toHaveLength(3);
+  });
+  test('the hash spreads real session ids: over 1,000 fixed uuids each English text gets >= 40 %, each Urdu text >= 25 %, in lockstep', () => {
+    const crypto = require('crypto');
+    const real = require('../../bot/shared/data/child-test/sa/sa.coach.G3.A.en.json');
+    const uuid = (i) => crypto.createHash('sha1').update(`seed-${i}`).digest('hex').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12}).*$/, '$1-$2-$3-$4-$5');
+    const n = { en: {}, ur: {} };
+    for (let i = 0; i < 1000; i++) {
+      const r = rotate(real, uuid(i));
+      for (const lang of ['en', 'ur']) {
+        const ids = [`${lang}.story`, `${lang}.story_comp`, `${lang}.listening`].map((id) => r.tasks.find((t) => t.id === id).variant.id);
+        expect(new Set(ids).size).toBe(1);
+        n[lang][ids[0]] = (n[lang][ids[0]] || 0) + 1;
+      }
+    }
+    expect(Object.keys(n.en).sort()).toEqual(['rwp2026', 'tk2009']);
+    expect(Object.keys(n.ur).sort()).toEqual(['prpkp2020', 'rwp2026', 'select2024']);
+    for (const c of Object.values(n.en)) expect(c).toBeGreaterThanOrEqual(400);
+    for (const c of Object.values(n.ur)) expect(c).toBeGreaterThanOrEqual(250);
   });
   test('a battery with no variants (switch OFF) is returned as it is', () => {
     const plain = { tasks: [{ id: 'ur.story', items: ['a'] }] };
