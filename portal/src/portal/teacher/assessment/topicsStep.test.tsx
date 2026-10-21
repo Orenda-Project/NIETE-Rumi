@@ -57,9 +57,9 @@ function now(): Picks {
   return seen as unknown as Picks;
 }
 
-function go(step: string) {
+function go(step: string, query = '') {
   return render(
-    <MemoryRouter initialEntries={[newPaperPath(step as Parameters<typeof newPaperPath>[0])]}>
+    <MemoryRouter initialEntries={[newPaperPath(step as Parameters<typeof newPaperPath>[0]) + query]}>
       <Routes>{routes.map((r) => <Route key={r.path} path={r.path} element={r.element} />)}</Routes>
     </MemoryRouter>,
   );
@@ -244,5 +244,32 @@ describe('around it', () => {
     go('cover');
     fireEvent.click(await screen.findByRole('checkbox', { name: /My Family/ }));
     await waitFor(() => expect(now()).toMatchObject({ chapters: [1, 2], topicScope: null, topicIds: null, marks: null }));
+  });
+});
+
+describe('the WhatsApp door (?by=topics)', () => {
+  it('Class remembers the door the link came through', async () => {
+    go('class', '?by=topics');
+    await waitFor(() => expect(now()).toMatchObject({ byTopics: true }));
+  });
+
+  it('Class without the door leaves it off', async () => {
+    go('class');
+    await onStep('class');
+    expect(now().byTopics).toBeFalsy();
+  });
+
+  it('Topics opens on Select topics, nothing ticked, when she came through the door', async () => {
+    start({ byTopics: true });
+    go('topics');
+    expect(await screen.findAllByRole('checkbox')).toHaveLength(4);
+    expect(now()).toMatchObject({ topicScope: 'topics', topicIds: [] });
+  });
+
+  it('Topics without the door still asks Whole chapter or Select topics', async () => {
+    start({});
+    go('topics');
+    await screen.findByRole('radio', { name: new RegExp(C.chooseTopics) });
+    expect(now().topicScope).toBeNull();
   });
 });

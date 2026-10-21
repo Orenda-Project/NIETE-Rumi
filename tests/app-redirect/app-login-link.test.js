@@ -80,7 +80,7 @@ test('garbage in, null out', () => {
   for (const g of [undefined, null, '', 'nope', 'a.b', 'x'.repeat(5000), 42, {}]) expect(verifyAppLink(g)).toBeNull();
 });
 
-test('only the seven app features have a landing; anything else cannot be signed', () => {
+test('only the app features have a landing; anything else cannot be signed', () => {
   const { signAppLink, LANDINGS } = load();
   expect(LANDINGS).toEqual({
     menu: '/portal/teacher',
@@ -91,6 +91,7 @@ test('only the seven app features have a landing; anything else cannot be signed
     attendance: '/portal/teacher/attendance',
     classes: '/portal/teacher/classes',
     ai_coaching_recording: '/portal/teacher/coaching/new?recording=whatsapp', // bd-c5reix, a kept recording's landing
+    assessment_topics: '/portal/teacher/assessment/new/class?by=topics', // bd-6clakk Task 9
   });
   expect(signAppLink(USER, 'quiz')).toBeNull();
   expect(signAppLink(USER, 'observe')).toBeNull();
@@ -160,4 +161,12 @@ test('no secret on this deployment: nothing is signed and nothing verifies', () 
   const { signAppLink, verifyAppLink } = load();
   expect(signAppLink(USER, 'menu')).toBeNull();
   expect(verifyAppLink('abc')).toBeNull();
+});
+
+test('bd-6clakk Task 9 — the topics link verifies, and the chapter-test link is unchanged', () => {
+  const { signAppLink, verifyAppLink, LANDINGS } = load();
+  expect(verifyAppLink(signAppLink(USER, 'assessment_topics'))).toEqual(expect.objectContaining({ u: USER, f: 'assessment_topics' }));
+  expect(verifyAppLink(signAppLink(USER, 'assessment_generator'))).toEqual(expect.objectContaining({ f: 'assessment_generator' }));
+  expect(LANDINGS.assessment_generator).toBe('/portal/teacher/assessment');
+  expect(LANDINGS.assessment_topics).toBe('/portal/teacher/assessment/new/class?by=topics');
 });

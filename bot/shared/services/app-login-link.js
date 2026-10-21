@@ -34,7 +34,7 @@ const IV_LEN = 12;
 const TAG_LEN = 16;
 const MAX_LEN = 1024;
 
-/** feature → the teacher-app (v2) page it lands on. The seven requests that have a v2 page; nothing else is linkable. */
+/** feature → the teacher-app (v2) page it lands on. The requests that have a v2 page; nothing else is linkable. */
 const LANDINGS = Object.freeze({
   menu: '/portal/teacher',
   lesson_plan: '/portal/teacher/lessons',
@@ -45,6 +45,8 @@ const LANDINGS = Object.freeze({
   classes: '/portal/teacher/classes',
   // bd-c5reix — not a command: a classroom recording sent on WhatsApp, kept; the one screen opens with it attached.
   ai_coaching_recording: '/portal/teacher/coaching/new?recording=whatsapp',
+  // bd-6clakk Task 9 — not a command: the second offer under the assessment door, "a paper on topics I've taught".
+  assessment_topics: '/portal/teacher/assessment/new/class?by=topics',
 });
 /** Where a teacher who is no longer on the teacher app lands instead (today's portal home). */
 const LEGACY_LANDING = '/portal/dashboard';
