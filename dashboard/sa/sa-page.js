@@ -1,7 +1,7 @@
 /**
  * The child's page, /sa/play.html (switch sa_engine): the one screen both surfaces open.
  *
- *   ?s=<session id>&form=<sa.coach.G3.A.ur>&mode=proctored|game&lang=ur|en&block=B1..B5|full&back=<same-origin url>
+ *   ?s=<session id>&form=<sa.coach.G3.A.ur>&mode=proctored|game&lang=ur|en&block=B1..B5|full|rdf&back=<same-origin url>
  *   &skin=game &embed=1   #n=<first name>
  *
  * embed=1: the page sits in the coach page's same-origin iframe; at the hand-back it tells the parent
@@ -39,7 +39,7 @@
       form: FORM_RX.test(form) ? form : null,
       mode: q.get('mode') === 'game' ? 'game' : 'proctored',
       lang: q.get('lang') === 'en' ? 'en' : (q.get('lang') === 'ur' ? 'ur' : (/\.en$/.test(form) ? 'en' : 'ur')),
-      block: /^(B[1-9]|full|maths|english|urdu|tower)$/.test(q.get('block') || '') ? q.get('block') : null,
+      block: /^(B[1-9]|full|rdf|maths|english|urdu|tower)$/.test(q.get('block') || '') ? q.get('block') : null,
       // Only a same-origin path: never an open redirect.
       back: /^\/(?!\/)[^\s\\]*$/.test(back) ? back : null,
       skin: q.get('skin') === 'game' ? 'game' : null,
@@ -52,24 +52,47 @@
   }
 
   /**
-   * The tasks of one block, in the block's own order: a coach block (blocks.B1..B5), a game island (islands.maths …) or
-   * the game's tower (tower = the coach order); the whole battery for "full", no block or an unknown one.
+   * The tasks of one block, in the block's own order: a coach block (blocks.B1..B5), the RDF short form (rdf, with its
+   * per-task item rules rdf_items: a number caps the items, {drop: [ids]} leaves those out; a task it lists without
+   * its dependency runs on its own), a game island (islands.maths …) or the game's tower (tower = the coach order);
+   * the whole battery (its `full` order when it names one) for "full", no block or an unknown one.
    */
   function pick(battery, block) {
     var want = null;
+    var caps = null;
     if (block && block !== 'full') {
       if (block === 'tower' && Array.isArray(battery.tower)) want = battery.tower;
+      else if (block === 'rdf' && Array.isArray(battery.rdf)) { want = battery.rdf; caps = battery.rdf_items || null; }
       else if (battery.blocks && Array.isArray(battery.blocks[block])) want = battery.blocks[block];
       else if (battery.islands && Array.isArray(battery.islands[block])) want = battery.islands[block];
     }
+    // The tasks only a short form runs (RDF's recorded letter sounds) are not part of the whole battery.
+    if (!want && Array.isArray(battery.full) && battery.full.length < battery.tasks.length) want = battery.full;
     if (!want) return battery;
     var out = {};
     for (var k in battery) if (Object.prototype.hasOwnProperty.call(battery, k)) out[k] = battery[k];
     // The list's own order (the tower runs in the coach order, which is not the islands' order).
     var byId = {};
     battery.tasks.forEach(function (t) { byId[t.id] = t; });
-    out.tasks = want.map(function (id) { return byId[id]; }).filter(Boolean);
-    out.battery_id = battery.battery_id + '#' + block;
+    var keepItems = function (items, rule) {
+      if (!Array.isArray(items)) return items;
+      if (rule > 0) return items.slice(0, rule);
+      return items.filter(function (it) { return !it || rule.drop.indexOf(it.id) < 0; });
+    };
+    out.tasks = want.map(function (id) { return byId[id]; }).filter(Boolean).map(function (t) {
+      var rule = caps && caps[t.id];
+      var orphan = caps && t.depends_on && t.depends_on.task && want.indexOf(t.depends_on.task) < 0;
+      if (!(rule > 0 || (rule && Array.isArray(rule.drop))) && !orphan) return t;
+      var c = {};
+      for (var k in t) if (Object.prototype.hasOwnProperty.call(t, k)) c[k] = t[k];
+      if (orphan) delete c.depends_on;
+      if (rule > 0 || (rule && Array.isArray(rule.drop))) {
+        c.items = keepItems(t.items, rule);
+        if (Array.isArray(t.variants)) c.variants = t.variants.map(function (v) { var w = {}; for (var j in v) if (Object.prototype.hasOwnProperty.call(v, j)) w[j] = v[j]; w.items = keepItems(v.items, rule); return w; });
+      }
+      return c;
+    });
+    out.battery_id = battery.battery_id + (block && block !== 'full' ? '#' + block : '');
     return out.tasks.length ? out : battery;
   }
 

@@ -21,14 +21,24 @@ function voiceManifest(bank) {
   const both = (x, role) => { if (x && x.audio) for (const lang of ['en', 'ur']) add(lang, x[lang], x.audio[lang], role); };
   // { text, lang, audio } — words in one language.
   const one = (x, role, ear) => { if (x && x.audio) add(x.lang, x.text, x.audio, role, ear); };
+  // Either shape, or a chain of them (RULING #31a: carriers, then the item in its own language).
+  const any = (x, role, ear) => {
+    if (Array.isArray(x)) x.forEach((y) => any(y, role, ear));
+    else if (x && x.lang) one(x, role, ear);
+    else both(x, role);
+  };
   for (const line of Object.values(bank.lines || {})) both(line, 'battery');
   for (const t of Object.values(bank.tasks || {})) {
-    for (const line of Object.values(t.script || {}).flat()) both(line, 'instruction');
     const ear = EAR[(t.task || '').split('.')[1]];
-    for (const it of [...((t.tap && t.tap.items) || []), ...(t.practice || [])]) {
+    const sc = t.script || {};
+    for (const [k, line] of Object.entries(sc)) {
+      if (k === 'demo_item' || k === 'demo_image') continue;
+      any(line, 'instruction', /_chain$/.test(k) ? ear : false);
+    }
+    for (const it of [...((t.tap && t.tap.items) || []), ...(t.practice || []), ...(t.practice_v2 || []), ...(sc.demo_item ? [sc.demo_item] : [])]) {
       if (it.say) (it.say.lang ? one(it.say, 'item', ear) : both(it.say, 'item'));
       if (it.prompt) both(it.prompt, 'problem');
-      if (it.feedback) for (const line of Object.values(it.feedback)) both(line, 'feedback');
+      if (it.feedback) for (const [k, line] of Object.entries(it.feedback)) any(line, 'feedback', /_chain$/.test(k) ? ear : false);
     }
     for (const q of (t.record && t.record.questions) || []) one(q.prompt, 'question');
     if (t.record && t.record.passage && t.record.passage.audio) one(t.record.passage, 'passage');
