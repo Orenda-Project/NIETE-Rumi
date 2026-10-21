@@ -3065,6 +3065,8 @@ router.get('/lesson-plans/recent', requirePortalAuth, async (req, res) => {
 // and it is a school-leader gate that 403s teachers. Reading the wrong one is
 // silent: it passes undefined, and the bot answers "userId is required".
 const Assessment = require('../services/assessment.service');
+// bd-ivsjk8.1 — every paper she takes is recorded (assessment_downloads), fire-and-forget.
+const AssessmentDownloads = require('../services/assessment-downloads.service');
 const AssessmentRateLimit = require('../lib/assessment-rate-limit');
 
 /**
@@ -3221,9 +3223,13 @@ router.get('/assessment/paper/:paper_id/download', requirePortalAuth, async (req
     if (!paperId) {
       return res.status(400).json({ success: false, error: 'paper_id required' });
     }
-    const hit = await Assessment.download(paperId, req.session.portalUserId, artifact);
+    const userId = req.session.portalUserId;
+    const hit = await Assessment.download(paperId, userId, artifact);
     if (!hit) return res.status(200).json({ success: true, available: false });
     res.json({ success: true, available: true, ...hit });
+    AssessmentDownloads.logDownload(dbQuery, {
+      userId, paperId, artifact, via: 'link',
+    });
   } catch (error) {
     assessmentFailure(res, error, 'Could not open this paper');
   }
@@ -3244,9 +3250,10 @@ router.get('/assessment/paper/:paper_id/file', requirePortalAuth, async (req, re
   if (!paperId) {
     return res.status(400).json({ success: false, error: 'paper_id required' });
   }
+  const userId = req.session.portalUserId;
   let hit;
   try {
-    hit = await Assessment.download(paperId, req.session.portalUserId, artifact);
+    hit = await Assessment.download(paperId, userId, artifact);
   } catch (error) {
     console.error('❌ Portal assessment/paper/file lookup failed', { error: error?.message });
     return res.status(502).json({ success: false, error: 'Could not open this paper' });
@@ -3255,6 +3262,12 @@ router.get('/assessment/paper/:paper_id/file', requirePortalAuth, async (req, re
     return res.status(404).json({ success: true, available: false });
   }
   await relayLessonPlanPdf(hit.url, res);
+  // Recorded only once the PDF has gone out whole, after the response, so it can never delay it.
+  if (res.statusCode === 200 && res.writableFinished) {
+    AssessmentDownloads.logDownload(dbQuery, {
+      userId, paperId, artifact, via: 'viewer',
+    });
+  }
   return undefined;
 });
 
