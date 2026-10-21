@@ -47,7 +47,7 @@ import * as paths from "./paths";
 import { COACHING_ALL, COACHING_HOME } from "./paths";
 import { clearDraft } from "./draft";
 import { SendError } from "../../lib/coachingSend";
-import { DC_MIN_SECONDS, readAudioDuration } from "../../lib/coachingUpload";
+import { DC_MIN_SECONDS, mediaProbe, readAudioDuration } from "../../lib/coachingUpload";
 import { COACHING_V2_COPY as C } from "./copy";
 
 const COACHING_NEW = (paths as Record<string, unknown>).COACHING_NEW as string;
@@ -137,6 +137,28 @@ async function pickClass() {
   fireEvent.click(await within(tray).findByRole("button", { name: /Grade 4 · General Science/ }));
 }
 
+describe("the library opens her class's own subject (bd-1p5nkt, ICT DC rows 146, 147)", () => {
+  it("an Urdu teacher's Maths class («ریاضی», catalogue key math) opens Math — not the first Urdu-named subject (Islamiat)", async () => {
+    answers["/me/grade-subjects"] = () => ({ success: true, combos: [
+      { grade: 4, gradeCode: "grade_4", subject: "ریاضی", subjectKey: "maths", featureKey: "math", available: true, source: "class" },
+    ] });
+    answers["/curriculum/subjects"] = () => ({ subjects: [
+      { subject_key: "islamiat", subject: "اسلامیات", lesson_count: 30 },
+      { subject_key: "math", subject: "Math", lesson_count: 80 },
+    ] });
+    at(COACHING_NEW);
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.gradeAndSubject) }));
+    const tray = screen.getByRole("dialog", { name: C.gradeAndSubject });
+    fireEvent.click(await within(tray).findByRole("radio", { name: /^Grade 4/ }));
+    fireEvent.click(await within(tray).findByRole("button", { name: /ریاضی/ }));
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.selectPlan) }));
+    const sheet = await screen.findByRole("dialog");
+    fireEvent.click(within(sheet).getByRole("button", { name: new RegExp(C.picker.fromLibrary) }));
+    await waitFor(() => expect(screen.getByTestId("where").textContent).toMatch(/subject=math(&|$)/));
+    expect(screen.getByTestId("where").textContent).not.toMatch(/islamiat/);
+  });
+});
+
 describe("main page", () => {
   it("Start DC observation goes to the one screen; nothing to record on the main page", async () => {
     expect(COACHING_NEW).toBe(`${COACHING_HOME}/new`);
@@ -207,7 +229,7 @@ describe("the one screen", () => {
     expect((sendLesson.mock.calls[0][0] as { teacherClass: unknown }).teacherClass)
       .toEqual(expect.objectContaining({ grade: 4, subject: "General Science" }));
     const progress = await screen.findByRole("region", { name: C.progress });
-    expect(within(progress).getByText(C.analysing)).toBeTruthy();
+    expect(within(progress).getByText(C.stepAnalysis)).toBeTruthy();
     // no "Back to Digital Coaching" (operator, 16 Oct): the header's Back is the way out
     expect(screen.queryByRole("link", { name: /Back to Digital Coaching/ })).toBeNull();
     expect(screen.getByRole("note")).toBeTruthy();
@@ -259,7 +281,7 @@ describe("Lesson plan before the recording (operator, 16 Oct)", () => {
     at(COACHING_NEW);
     await pickClass();
     const plan = await screen.findByRole("heading", { name: new RegExp(C.lessonPlan) });
-    const rec = screen.getByRole("heading", { name: new RegExp(C.recording) });
+    const rec = screen.getByRole("heading", { name: new RegExp(C.stepRecording) });
     expect(!!(plan.compareDocumentPosition(rec) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
     // her recent plans are in the Lesson plan tray, not on the screen (operator, 16 Oct); one tap there, no recording yet
     await expect(screen.findByRole("button", { name: "How plants make food" }, { timeout: 600 })).rejects.toThrow();
@@ -334,7 +356,7 @@ describe("recordings must be at least 15 minutes (operator, 16 Oct: a few second
   it("Recording says the minimum before she records or uploads", async () => {
     at(COACHING_NEW);
     await pickClass();
-    const step = await screen.findByRole("heading", { name: new RegExp(C.recording) });
+    const step = await screen.findByRole("heading", { name: new RegExp(C.stepRecording) });
     expect(step.textContent).toContain(C.atLeastMinutes);
     expect(C.atLeastMinutes).toMatch(/15/);
     expect(DC_MIN_SECONDS).toBe(900);
@@ -359,6 +381,40 @@ describe("recordings must be at least 15 minutes (operator, 16 Oct: a few second
     fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
     expect(await screen.findByRole("button", { name: C.submit })).toBeTruthy();
     expect(screen.queryByText(C.tooShort)).toBeNull();
+  });
+});
+
+describe("the same recording sent again (bd-z3cadk, ICT IAB row 23)", () => {
+  it("the second screen shows the bot's own message once the earlier report is ready", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: "sess-1", status: "completed", stage: "done", reflection: null, reportReady: true, duplicate: true } as never);
+    portal.getCoachingSession.mockResolvedValue({ session: { id: "sess-1", date: "2026-10-20T07:56:43Z", breakdown: null } } as never);
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
+    fireEvent.click(await screen.findByRole("button", { name: C.submit }));
+    expect(await screen.findByText(C.duplicateRecordingLead)).toBeTruthy();
+  });
+});
+
+describe("the recording slot is audio only (bd-i0u6n2)", () => {
+  it("a video is refused on its own line, not as Not a recording", async () => {
+    vi.spyOn(mediaProbe, "hasVideo").mockResolvedValue(true);
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [new File(["v"], "IMG_0042.MOV", { type: "video/quicktime" })] } });
+    expect(await screen.findByText(C.notVideo)).toBeTruthy();
+    expect(screen.queryByText(C.notAudio)).toBeNull();
+    expect(screen.queryByRole("button", { name: C.submit })?.hasAttribute("disabled") ?? true).toBe(true);
+  });
+
+  it("a recording whose name has no ending, marked audio by the phone, is taken and sent under a name the server takes", async () => {
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [new File(["a"], "1000043567", { type: "audio/mpeg" })] } });
+    fireEvent.click(await screen.findByRole("button", { name: C.submit }));
+    await waitFor(() => expect(sendLesson).toHaveBeenCalled());
+    expect((sendLesson.mock.calls[0][0] as { audio: { filename: string } }).audio.filename).toBe("1000043567.mp3");
+    expect(screen.queryByText(C.notAudio)).toBeNull();
   });
 });
 

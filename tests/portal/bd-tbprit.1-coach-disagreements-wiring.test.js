@@ -80,6 +80,7 @@ describe('coach_disagreement_card wiring', () => {
     walk(routes.stack);
     expect(paths).toEqual(expect.arrayContaining([
       'get /coach/disagreements', 'get /coach/disagreements/:id', 'post /coach/disagreements/:id/visited',
+      'post /coach/disagreements/:id/undone', // bd-tbprit.12
       'get /coach/disagreements/:id/clip',
     ]));
   });

@@ -109,3 +109,53 @@ describe("sendLesson", () => {
     await expect(sendLesson({ audio, plan: null, photos: [] }, a as never)).rejects.toMatchObject({ kind: "network" });
   });
 });
+
+// bd-1d6g8o — ICT IAB row 19: Submit said "No internet" on strong Wi-Fi, and nothing recorded which file failed or why
+// (the server answered every request it saw with 200). A failure is now reported — the step, the file, its size and
+// type, the HTTP status or the browser's reason — and the page still gets SendError("network") as before.
+describe("a failed send is reported (bd-1d6g8o)", () => {
+  const photo = (n: number) => new File(["p".repeat(n)], `p${n}.jpg`, { type: "image/jpeg" });
+
+  it("the 5th file's upload fails in the browser: reported as upload / photo / item 5 of 5 / network", async () => {
+    let put = 0;
+    a.uploadToR2.mockImplementation(async () => { put += 1; if (put === 5) throw new Error("upload failed (network)"); });
+    const report = vi.fn();
+    const planPhoto = new File(["img"], "plan.jpg", { type: "image/jpeg" });
+    await expect(sendLesson({ audio, plan: { kind: "file", file: planPhoto }, photos: [photo(4), photo(5), photo(6)] }, a as never, undefined, report))
+      .rejects.toEqual(new SendError("network"));
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(report.mock.calls[0][0]).toEqual(expect.objectContaining({
+      stage: "upload", kind: "photo", item: 5, items: 5, status: null, reason: "network", sizeBytes: 6, type: "image/jpeg",
+    }));
+    expect(a.startCoachingUpload).not.toHaveBeenCalled();
+  });
+
+  it("storage answers 403 to the upload: reason http, status 403", async () => {
+    a.uploadToR2.mockRejectedValueOnce(new Error("upload failed (403)"));
+    const report = vi.fn();
+    await expect(sendLesson({ audio, plan: null, photos: [] }, a as never, undefined, report)).rejects.toEqual(new SendError("network"));
+    expect(report.mock.calls[0][0]).toEqual(expect.objectContaining({ stage: "upload", kind: "audio", item: 1, status: 403, reason: "http" }));
+  });
+
+  it("the server refuses the upload slot (500): stage presign", async () => {
+    a.presignCoachingUpload.mockRejectedValueOnce(Object.assign(new Error("x"), { response: { status: 500 } }));
+    const report = vi.fn();
+    await expect(sendLesson({ audio, plan: null, photos: [] }, a as never, undefined, report)).rejects.toEqual(new SendError("network"));
+    expect(report.mock.calls[0][0]).toEqual(expect.objectContaining({ stage: "presign", kind: "audio", status: 500, reason: "http" }));
+  });
+
+  it("starting the analysis fails with no answer: stage start / network", async () => {
+    a.startCoachingUpload.mockRejectedValueOnce(new Error("Network Error"));
+    const report = vi.fn();
+    await expect(sendLesson({ audio, plan: null, photos: [] }, a as never, undefined, report)).rejects.toEqual(new SendError("network"));
+    expect(report.mock.calls[0][0]).toEqual(expect.objectContaining({ stage: "start", status: null, reason: "network" }));
+  });
+
+  it("a send that succeeds reports nothing; a reporter that throws never changes the outcome", async () => {
+    const report = vi.fn(() => { throw new Error("boom"); });
+    await expect(sendLesson({ audio, plan: null, photos: [] }, a as never, undefined, report)).resolves.toEqual({ coachingSessionId: "cs-9" });
+    expect(report).not.toHaveBeenCalled();
+    a.uploadToR2.mockRejectedValueOnce(new Error("upload failed (network)"));
+    await expect(sendLesson({ audio, plan: null, photos: [] }, a as never, undefined, report)).rejects.toEqual(new SendError("network"));
+  });
+});

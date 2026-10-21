@@ -420,6 +420,21 @@ def test_web_specs_without_a_driver_are_not_enrolled_not_errors():
     assert not _codes(probs, "error"), [p for p in probs if p["level"] == "error"][:3]
     assert any(p["code"] == "I-NOTENROLLED" and "web-quiz" in p["path"] for p in probs), "web-quiz should be reported not enrolled"
 
+def test_web_driver_scenarios_required_from_flows_count_as_code():
+    # a hand-written flow joined onto a generated driver (gen_page_features.py EXTRA) is real code for its id
+    d = tempfile.mkdtemp()
+    os.makedirs(os.path.join(d, "features")); os.makedirs(os.path.join(d, "flows"))
+    open(os.path.join(d, "features", "demo.cjs"), "w").write(
+        "const scenarios = [\n  pagesScenario('DM01', 't', 'coach', 'coachV2', []),\n];\n"
+        "scenarios.push(...require(\"../flows/demo-flow.cjs\"));\nmodule.exports = { scenarios };\n")
+    open(os.path.join(d, "flows", "demo-flow.cjs"), "w").write("module.exports = [{ id: 'DM02', title: 'u', run: async () => {} }];\n")
+    spec = os.path.join(d, "demo.feature")
+    open(spec, "w").write("Feature: demo\n\n  @DM01\n  Scenario: t\n    When she opens /a\n    Then it opens\n\n"
+                          "  @DM02\n  Scenario: u\n    When she opens /b\n    Then it opens\n")
+    probs = vs.validate_web_file(spec, os.path.join(d, "features"))
+    assert not _codes(probs, "error"), probs
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

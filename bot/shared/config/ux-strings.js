@@ -1087,6 +1087,13 @@ const UX_STRINGS = {
     ur: 'یہ آپشن پہچانا نہیں گیا۔ فہرست دوبارہ دیکھنے کے لیے \u2066/menu\u2069 ٹائپ کریں۔',
   },
 
+  // bd-xw56ed — she asked for a feature, but the classifier could not tell which one. The menu
+  // (the app's Home, or the WhatsApp list) follows this line as its own message.
+  menuMatchUnsure: {
+    en: "I'm not sure which feature you meant, so here is the full menu. Pick the one you need.",
+    ur: 'یہ واضح نہیں ہوا کہ آپ کو کون سی سہولت چاہیے، اس لیے پوری فہرست حاضر ہے۔ جو چاہیے وہ چن لیں۔',
+  },
+
   menuError: {
     en: 'Something went wrong there. Type /menu to try again.',
     ur: 'کچھ مسئلہ ہو گیا۔ دوبارہ کوشش کے لیے \u2066/menu\u2069 ٹائپ کریں۔',

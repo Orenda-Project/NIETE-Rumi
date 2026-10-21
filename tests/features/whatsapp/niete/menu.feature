@@ -103,8 +103,10 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
 
   # ═════════════════════════════════ NEGATIVE ══════════════════════════════════
 
-  @e2e @menu @negative @P3 @M06
+  @obsolete @menu @negative @P3 @M06
   Scenario: A bare "menu" (no slash) does not open the interactive menu
+    # OBSOLETE 2026-10-20 (bd-xw56ed): a message no door catches is now read against the live menu, and a bare
+    # "menu" opens the menu (@M25). Kept (not deleted) for the audit trail.
     Given the NIETE bot chat is open
     When I send "menu"
     Then the bot does NOT show the "See what I do" list (it replies conversationally)
@@ -339,3 +341,47 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     And I tap the "Lesson Plans" row
     Then I get one message with a "Send a plan" button that opens Send a lesson plan, signed in
     And no lesson-plan menu opens
+
+  # ═══════ ADDED 2026-10-20 (bd-xw56ed) · a message no door catches is read against the live menu (@wip) ═══════
+  # canonicalizeSlashCommand corrects a slip of a known command by edit distance (one edit for a word of up to five
+  # letters, two for longer; a tie is no match). Anything still unmatched reaches detectIntent, whose choices are this
+  # teacher's live menu rows (featureMenuRows + menuGates): a row → that row's own door (the in-app button when she
+  # is on the app), "menu" → the menu, unsure → "not sure" + the menu, a question → the AI chat as before.
+  # Presentations are no longer routed (operator, 2026-10-20). Unit: tests/menu-match/*,
+  # tests/handlers/slash-command-similarity.test.js. Eval on a week of production messages: the investigation's v1.
+
+  @e2e @menu @edge @wip @draft @P1 @M23
+  Scenario: A slip of a command opens that command
+    Given the NIETE bot chat is open
+    When I send "/assesments"
+    Then the bot opens the Test Paper (the "Open app" button, or the assessment form when the app is off)
+    And the bot does NOT reply conversationally
+
+  @e2e @menu @content-driven @wip @draft @P1 @M24
+  Scenario: Naming a menu entry in words opens it
+    Given the NIETE bot chat is open
+    When I send "Exam generator"
+    Then the bot opens the Test Paper (the "Open app" button, or the assessment form when the app is off)
+    And the bot does NOT reply conversationally
+
+  @e2e @menu @wip @draft @P2 @M25
+  Scenario: A bare "menu" (no slash) opens the menu
+    Given the NIETE bot chat is open
+    When I send "menu"
+    Then the bot opens the menu (the "Open app" Home button, or the "See what I do" list)
+    And the bot reply does not say it is unsure
+    # Replaces @M06.
+
+  @e2e @menu @negative @wip @draft @P2 @M26
+  Scenario: An unknown one-word command gets "not sure" and the menu, never the AI chat
+    Given the NIETE bot chat is open
+    When I send "/xyzzy"
+    Then the bot reply contains "not sure which feature you meant"
+    And the bot then opens the menu (the "Open app" Home button, or the "See what I do" list)
+
+  @e2e @ask @content-driven @wip @draft @P2 @M27
+  Scenario: A presentation request is not promised
+    Given the NIETE bot chat is open
+    When I send "make a presentation about photosynthesis"
+    Then no presentation is started
+    And the bot reply does not say it is preparing a presentation

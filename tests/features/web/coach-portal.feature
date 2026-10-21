@@ -41,3 +41,32 @@ Feature: Coach app
     Then More opens
     When she opens /portal/coach/profile
     Then My profile opens
+
+  @CP05
+  Scenario: Coach app v2: a teacher's disagreement opens as the card, and The teacher was right flags the report
+    Given the teacher app v2 is off and the coach app v2 is on
+    And the coach disagreement card is on
+    And demo teacher 03000000911 disagrees with her latest DC report because of her score
+    And demo coach 03000000901 is signed in
+    When she opens /portal/coach/disagreements
+    Then the teacher's request is on the To do list
+    When she opens it
+    Then the score reason is one line ending "Details in B."
+    And the card shows "Is this a pattern?" and the coaching suggestion
+    When she taps "The teacher was right"
+    Then it says the report was sent to the DC team for review
+    And the request is flagged for the DC team
+    And no page error or 5xx happened
+
+  @CP06
+  Scenario: Coach app v2: a disagreement added to her next visit shows at the top of her disagreements list and opens its card
+    Given the teacher app v2 is off and the coach app v2 is on
+    And the coach disagreement card is on
+    And demo teacher 03000000911 disagrees with her latest DC report because of her score
+    And the coach added it to her next visit
+    And demo coach 03000000901 is signed in
+    When she opens /portal/coach/disagreements
+    Then For your next visit lists the teacher's request
+    When she opens it
+    Then the teacher's card opens
+    And no page error or 5xx happened

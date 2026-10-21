@@ -1,22 +1,23 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { FileText, Headphones, Search } from "lucide-react";
+import { FileText, Headphones } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCopy } from "../../teacher/i18n";
 import { AudioPlayer } from "../../newui/AudioPlayer";
 import { Fold } from "../../newui/Panel";
 import { FOCUS, OUTLINE_WIDE, ROW_SUB } from "../../teacher/ui/styles";
-import { disagreements, type Card, type Evidence, type Indicator, type Item, type Move } from "./api";
+import { disagreements, type Card, type Evidence, type Item, type Move, type View } from "./api";
 import { DISAGREE } from "./copy";
+import { markOf, type Mark } from "./sections";
 
 /**
  * bd-tbprit.3 — the pieces of one teacher's card: a grader item (indicator, AI score out of 4, its quote, Listen),
- * a reason with its evidence, Where to look (the four sections, closed) and the full DC report.
+ * a reason with its evidence and the full DC report. Where to look is whereToLook.tsx (bd-tbprit.9).
  *
  * Listen opens the kit player on the server-cut clip under that item; one item open at a time.
  */
 
 const INDICATOR_MAX = 4;
-const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+export const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 type Clip = { id: string; open: string | null; setOpen: (k: string | null) => void };
 const ClipContext = createContext<Clip>({ id: "", open: null, setOpen: () => {} });
@@ -26,22 +27,23 @@ export function ClipProvider({ id, children }: { id: string; children: ReactNode
   return <ClipContext.Provider value={{ id, open, setOpen }}>{children}</ClipContext.Provider>;
 }
 
-function Listen({ k, at }: { k: string; at: number | null }) {
+/** A server-cut clip: from `at` (to `to`, when given), one open at a time; `label` replaces "Listen m:ss". */
+export function Listen({ k, at, to, label }: { k: string; at: number | null; to?: number; label?: string }) {
   const C = useCopy(DISAGREE);
   const clip = useContext(ClipContext);
   if (at == null) return null;
   if (clip.open === k) {
-    return <AudioPlayer src={disagreements.clipUrl(clip.id, at)} label={C.clipLabel} bare testId="disagreement-clip" />;
+    return <AudioPlayer src={disagreements.clipUrl(clip.id, at, to)} label={C.clipLabel} bare testId="disagreement-clip" />;
   }
   return (
     <button type="button" onClick={() => clip.setOpen(k)} className={cn(OUTLINE_WIDE, FOCUS)}>
-      <Headphones className="h-5 w-5" aria-hidden="true" />
-      {C.listen} {clock(at)}
+      {label ? null : <Headphones className="h-5 w-5" aria-hidden="true" />}
+      {label ?? `${C.listen} ${clock(at)}`}
     </button>
   );
 }
 
-const QUOTE = "text-[14px] leading-[1.5] text-[#374151] rtl:leading-[2]";
+export const QUOTE = "text-[14px] leading-[1.5] text-[#374151] rtl:leading-[2]";
 
 export function ItemRow({ item, k }: { item: Item; k: string }) {
   const C = useCopy(DISAGREE);
@@ -55,25 +57,51 @@ export function ItemRow({ item, k }: { item: Item; k: string }) {
   );
 }
 
+/** Rifat: Yes / Partial / No, never the grader's raw verdict (bd-tbprit.9). */
+const MARK_WORD: Record<Mark, (W: typeof DISAGREE.en.where) => string> = {
+  yes: (W) => `✓ ${W.yes}`, partial: (W) => `½ ${W.partial}`, no: (W) => `✗ ${W.no}`, unknown: (W) => W.notRecorded,
+};
+
 function MoveRow({ move, k }: { move: Move; k: string }) {
+  const C = useCopy(DISAGREE);
   return (
     <li className="flex flex-col gap-1.5 border-t border-[#f0f1f3] pt-2.5 first:border-t-0 first:pt-0">
       <span className="text-[15px] font-semibold text-[#1d2025]" dir="auto">{move.text}</span>
-      {move.verdict ? <span className={ROW_SUB}>{move.verdict}</span> : null}
+      {move.verdict ? <span className={ROW_SUB}>{MARK_WORD[markOf(move.verdict)](C.where)}</span> : null}
       {move.evidence ? <q dir="auto" className={QUOTE}>{move.evidence}</q> : null}
       <Listen k={k} at={move.at} />
     </li>
   );
 }
 
-const Items = ({ items, prefix }: { items: Item[]; prefix: string }) =>
+export const Items = ({ items, prefix }: { items: Item[]; prefix: string }) =>
   items.length ? <ul className="flex flex-col gap-2.5">{items.map((i) => <ItemRow key={i.id} item={i} k={`${prefix}:${i.id}`} />)}</ul> : null;
 
-export function ReasonBlock({ e }: { e: Evidence }) {
+/** bd-tbprit.14 — Rifat (20 Oct): the score reason is one line; every indicator is already in B and the full report. */
+function ScoreLine({ view }: { view?: View }) {
+  const C = useCopy(DISAGREE);
+  const h = view?.header;
+  const checked = (view?.sections ?? []).filter((s) => !s.notAssessed && s.pct != null);
+  const lowest = checked.length ? checked.reduce((a, b) => ((b.pct as number) < (a.pct as number) ? b : a)) : null;
+  const noPlan = view?.sections.some((s) => s.key === "lesson_plan_fidelity" && s.notAssessed);
+  const tail = noPlan ? C.scoreNoPlan : lowest ? C.scoreLowest(lowest.name, lowest.pct as number) : C.scoreDetails;
+  return (
+    <>
+      <p className={ROW_SUB}>{C.scoreSub}</p>
+      <p dir="auto" className="text-[15px] text-[#1d2025]">
+        {h?.pct == null ? C.dash : <b>{h.pct}%</b>}
+        {h?.marks != null && h.max != null ? ` ${h.marks} / ${h.max}` : ""}
+        {tail}
+      </p>
+    </>
+  );
+}
+
+export function ReasonBlock({ e, view }: { e: Evidence; view?: View }) {
   const C = useCopy(DISAGREE);
   let body: ReactNode;
   if (e.code === "score") {
-    body = <Items items={e.items} prefix="score" />;
+    body = <ScoreLine view={view} />;
   } else if (e.code === "missed") {
     body = (
       <>
@@ -96,32 +124,6 @@ export function ReasonBlock({ e }: { e: Evidence }) {
       <h3 className="text-[16px] font-bold text-[#1d2025]">{C.reason[e.code]}</h3>
       {body}
     </section>
-  );
-}
-
-function indicatorTitle(ind: Indicator, C: typeof DISAGREE.en): string {
-  const name = (C.sectionName as Record<string, string>)[ind.key] ?? ind.key;
-  if (!ind.counted) return `${name} · ${ind.key === "lesson_plan_fidelity" ? C.planNotChecked : C.dash}`;
-  return ind.score == null || ind.max == null ? `${name} · ${C.dash}` : `${name} · ${C.aiOf(ind.score, ind.max)}`;
-}
-
-export function WhereToLook({ card }: { card: Card }) {
-  const C = useCopy(DISAGREE);
-  return (
-    <div data-testid="where-to-look" className="flex flex-col gap-2.5">
-      <h2 className="text-[17px] font-bold text-[#1d2025]">{C.whereToLook}</h2>
-      {card.indicators.map((ind) => (
-        <Fold key={ind.key} icon={Search} title={indicatorTitle(ind, C)}>
-          {ind.key === "lesson_plan_fidelity" && card.moves?.length ? (
-            <>
-              <p className={ROW_SUB}>{C.planSteps}</p>
-              <ul className="mb-3 flex flex-col gap-2.5">{card.moves.map((m) => <MoveRow key={m.id} move={m} k={`plan:${m.id}`} />)}</ul>
-            </>
-          ) : null}
-          {ind.items.length ? <Items items={ind.items} prefix={`where:${ind.key}`} /> : <p className={ROW_SUB}>{C.dash}</p>}
-        </Fold>
-      ))}
-    </div>
   );
 }
 

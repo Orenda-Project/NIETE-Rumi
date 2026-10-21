@@ -490,3 +490,15 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     Then the reply is in English
     # Telemetry: a reply in a language other than the decided one logs "🈯 language_drift: chat reply" at warn,
     # with persona=student, messageScript, decidedLanguage, languageSource and quizLanguage.
+
+  # ═══════ ADDED 2026-10-20 (bd-xw56ed) · the "not sure" line of the live-menu match (@wip) ═══════
+  # A message that asks for a feature the classifier cannot tell gets ux-strings menuMatchUnsure, then the menu.
+  # Unit: tests/menu-match/voice-routing.test.js (Urdu), tests/menu-match/fallthrough-routing.test.js (English).
+
+  @e2e @language @wip @draft @P2
+  Scenario: The "not sure" line before the menu is in my language
+    Given the NIETE bot chat is open
+    And my language is Urdu
+    When I send "/xyzzy"
+    Then the bot reply is in Urdu
+    And the bot then opens the menu (the "Open app" Home button, or the "See what I do" list)

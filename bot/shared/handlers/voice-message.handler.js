@@ -42,6 +42,8 @@ const { isLp612Enabled, isLp612RouteAll } = require('../config/lp612-flags'); //
 // Language cache for ASR routing based on user preference
 const { getUserLanguage, setUserLanguage } = require('../utils/language-cache');
 const { redirectIfFlagged } = require('../services/app-redirect.service');
+// bd-xw56ed — a teacher's keyed reference for a log line, never the raw id (tests/setup/log-raw-ids).
+const teacherRef = (id) => { try { return id ? require('../services/quiz/web-quiz-kid').tk(id) : null; } catch (_) { return null; } };
 
 /**
  * Speak `text` to the teacher as a voice note. If no voice can be made, or the
@@ -1271,13 +1273,39 @@ async function handleVoiceMessage(message, from, user = null) {
 
     // Step 5: Detect intent from transcription
     logToFile('Step 5: Detecting intent from transcription...');
-    const intent = await OpenAIService.detectIntent(transcription);
-    logToFile('Intent detected', { intent: intent.type });
+    // bd-xw56ed — the same live-menu choices as the text path.
+    const { liveMenuChoices } = require('../services/menu-match.service');
+    const menuChoices = user ? await liveMenuChoices(user) : [];
+    const intent = await OpenAIService.detectIntent(transcription, '', menuChoices);
+    logToFile('Intent detected', { intent: intent.type, ...(intent.rowId ? { rowId: intent.rowId } : {}) });
+
+    // bd-xw56ed — a voice note that asks for one of her menu rows opens it, exactly as typed words
+    // do: the in-app button when she is on the app, the feature on WhatsApp otherwise.
+    if (intent.type === 'feature' && user?.id) {
+      typingController.stop();
+      logToFile('menu_match.row', { event: 'menu_match.row', tk: teacherRef(user.id), rowId: intent.rowId, door: 'voice_intent' });
+      await MenuService.handleMenuButtonResponse(user, from, intent.rowId, detectedLanguage, { door: 'voice_intent' });
+      return;
+    }
+
+    // bd-xw56ed — the menu itself, or a feature we cannot tell (said so first): open the menu.
+    if ((intent.type === 'menu' || intent.type === 'unsure') && user?.id) {
+      typingController.stop();
+      const unsure = intent.type === 'unsure';
+      logToFile(unsure ? 'menu_match.unsure' : 'menu_match.menu', {
+        event: unsure ? 'menu_match.unsure' : 'menu_match.menu', tk: teacherRef(user.id), door: 'voice_intent',
+      });
+      if (unsure) await WhatsAppService.sendMessage(from, resolveUx('menuMatchUnsure', { language: detectedLanguage }));
+      if (!(await redirectIfFlagged('menu', {
+        userId: user.id, from, language: detectedLanguage, reason: unsure ? 'voice_intent_unsure' : 'voice_intent_menu',
+      }))) {
+        await MenuService.sendMenu(from, user.id, sessionId, detectedLanguage, user);
+      }
+      return;
+    }
 
     // bd-onxyu — a voice note is an open message: same switches as the text path.
-    const voiceFeature = {
-      lesson_plan: 'lesson_plan', presentation: 'presentation', video: 'video',
-    }[intent.type] || 'general_chat';
+    const voiceFeature = intent.type === 'lesson_plan' ? 'lesson_plan' : 'general_chat';
     if (user?.id && await redirectIfFlagged(voiceFeature, {
       userId: user.id, from, language: detectedLanguage, reason: 'voice_intent',
     })) {
@@ -1285,12 +1313,10 @@ async function handleVoiceMessage(message, from, user = null) {
       return;
     }
 
-    // Update session type for voice messages
-    if (sessionId && intent.type !== 'general') {
+    // Update session type for voice messages — only ever with the value it has always held.
+    if (sessionId && intent.type === 'lesson_plan') {
       try {
-        const sessionType = intent.type === 'lesson_plan' || intent.type === 'presentation'
-          ? intent.type
-          : 'audio_coaching';
+        const sessionType = 'lesson_plan';
         await updateSessionType(sessionId, sessionType);
         logToFile('✅ Session type updated for voice', { sessionType });
       } catch (error) {
@@ -1354,8 +1380,8 @@ async function handleVoiceMessage(message, from, user = null) {
 
     logToFile('✅ Voice reply sent', { format: replyFormat });
 
-    // Step 8.5: Send loading sticker if intent is presentation or lesson plan
-    if (intent.type === 'lesson_plan' || intent.type === 'presentation') {
+    // Step 8.5: Send loading sticker if intent is a lesson plan
+    if (intent.type === 'lesson_plan') {
       logToFile('Step 8.5: Sending loading sticker...');
       try {
         if (LOADING_STICKER_MEDIA_ID) {
@@ -1404,11 +1430,9 @@ async function handleVoiceMessage(message, from, user = null) {
       }
     }
 
-    // Step 9: If lesson plan or presentation request, generate materials
+    // Step 9: If lesson plan request, generate it
     if (intent.type === 'lesson_plan') {
       await handleVoiceLessonPlanRequest(from, transcription, user, sessionId, detectedLanguage);
-    } else if (intent.type === 'presentation') {
-      await handleVoicePresentationRequest(from, transcription, user, sessionId, detectedLanguage);
     }
 
     logToFile('✅ Voice message processing completed!');
@@ -1504,66 +1528,6 @@ async function handleVoiceLessonPlanRequest(from, transcription, user, sessionId
     await WhatsAppService.sendMessage(
       from,
       'معذرت، سبق کا منصوبہ بناتے وقت خرابی آ گئی۔ براہ کرم دوبارہ کوشش کریں۔'
-    );
-  }
-}
-
-/**
- * Handle presentation request from voice message
- * @param {string} from - Sender phone number
- * @param {string} transcription - Transcribed text
- * @param {Object|null} user - User object from database
- * @param {string|null} sessionId - Session ID
- * @param {string} detectedLanguage - Detected language ('en' or 'ur')
- * @returns {Promise<void>}
- */
-async function handleVoicePresentationRequest(from, transcription, user, sessionId, detectedLanguage) {
-  logToFile('Queueing presentation from voice request...');
-  try {
-    // Extract topic
-    const topic = await OpenAIService.extractTopic(transcription);
-    logToFile('Topic extracted', { topic });
-
-    // Detect explicitly requested language from transcription (defaults to 'en')
-    const contentLanguage = detectRequestedLanguage(transcription);
-    logToFile('Content language detected for voice presentation', { contentLanguage });
-
-    // Queue presentation for async processing (survives server restarts)
-    if (user) {
-      const requestId = await LessonPlanQueueService.createAndQueue({
-        userId: user.id,
-        phoneNumber: from,
-        topic,
-        fullMessage: transcription,
-        language: contentLanguage,
-        contentType: 'presentation'
-      });
-
-      logToFile('✅ Voice presentation queued for async processing', {
-        requestId,
-        userId: user.id,
-        topic
-      });
-
-      // Store acknowledgment in conversations
-      try {
-        const ackMessage = 'میں آپ کے لیے ایک تعلیمی پریزنٹیشن تیار کر رہی ہوں۔ براہ کرم تھوڑا انتظار کریں...';
-        await storeConversation(user.id, 'assistant', ackMessage, 'text', sessionId);
-      } catch (error) {
-        logToFile('⚠️ Failed to store acknowledgment', { error: error.message });
-      }
-    } else {
-      logToFile('⚠️ Cannot queue voice presentation - no user account', { from });
-      await WhatsAppService.sendMessage(from, 'معذرت، پریزنٹیشن بناتے وقت خرابی آ گئی۔ براہ کرم دوبارہ کوشش کریں۔');
-    }
-  } catch (error) {
-    logToFile('❌ Error queueing presentation from voice request', {
-      error: error.message,
-      stack: error.stack
-    });
-    await WhatsAppService.sendMessage(
-      from,
-      'معذرت، پریزنٹیشن بناتے وقت خرابی آ گئی۔ براہ کرم دوبارہ کوشش کریں۔'
     );
   }
 }

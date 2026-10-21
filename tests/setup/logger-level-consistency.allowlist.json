@@ -120,12 +120,6 @@
     "occurrence": 0
   },
   {
-    "file": "bot/shared/handlers/text-message.handler.js",
-    "line": 2884,
-    "snippet": "logToFile('❌ Error processing presentation request', {",
-    "occurrence": 0
-  },
-  {
     "file": "bot/shared/handlers/voice-message.handler.js",
     "line": 419,
     "snippet": "logToFile('❌ CRITICAL: Failed to generate combined report after comprehension completion', {",
@@ -141,12 +135,6 @@
     "file": "bot/shared/handlers/voice-message.handler.js",
     "line": 1459,
     "snippet": "logToFile('❌ Error queueing lesson plan from voice request', {",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/handlers/voice-message.handler.js",
-    "line": 1519,
-    "snippet": "logToFile('❌ Error queueing presentation from voice request', {",
     "occurrence": 0
   },
   {

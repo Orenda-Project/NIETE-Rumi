@@ -84,6 +84,8 @@ const DETAIL = {
   prioritizedAction: { action: "Ask the back rows first.", commitment: null },
   analysisData: { overall_score: { points: 30, max_points: 52, percentage: 58 } },
   observation: null,
+  // bd-z3cadk: a report the bot wrote its narrative for; one without shows the WhatsApp image instead.
+  reportNarrative: { headline: "", identity: "", moments: [], strength: null, horizon: null, domainWhys: {}, language: "ur", journeyNote: null },
 };
 
 const HISTORY = {
@@ -145,7 +147,7 @@ describe("Digital Coaching in Urdu — the hub", () => {
     at(COACHING_NEW, <NewObservationPage />);
     expect(await screen.findByRole("button", { name: new RegExp(U.gradeAndSubject) }, { timeout: 5000 })).toBeTruthy();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(U.startObservation);
-    expect(screen.getByRole("heading", { name: new RegExp(U.recording) })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: new RegExp(U.stepRecording) })).toBeTruthy();
     expect(englishLeft(["Grade and subject", "Recording", "Lesson plan", "Photos", "Start DC observation"])).toEqual([]);
   });
 
@@ -254,7 +256,7 @@ describe("Digital Coaching in Urdu — the lesson's report page", () => {
       reflection: { questionNumber: 1, question: "Which children answered?" } });
     openReport();
     const steps = await screen.findByRole("region", { name: U.progress });
-    for (const w of [U.analysing, U.stepReport, U.yourTurn, U.subReflection]) {
+    for (const w of [U.stepAnalysis, U.stepReport, U.yourTurn, U.subReflection]) {
       expect(within(steps).getAllByText(w).length).toBeGreaterThan(0);
     }
     expect(screen.getAllByText(U.stepReflection).length).toBeGreaterThan(0);
@@ -323,7 +325,7 @@ describe("Digital Coaching in Urdu — the helpers take the words given", () => 
 
   it("dcSteps: the three steps (one Analysing) and their Now / Your turn in Urdu", () => {
     const steps = dcSteps("reflection", false, UR);
-    expect(steps.map((s) => s.label)).toEqual([U.analysing, U.stepReflection, U.stepReport]);
+    expect(steps.map((s) => s.label)).toEqual([U.stepAnalysis, U.stepReflection, U.stepReport]);
     expect(steps[1]).toMatchObject({ sub: U.subReflection, nowText: U.yourTurn, state: "current" });
   });
 
