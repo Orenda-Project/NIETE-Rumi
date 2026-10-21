@@ -1,0 +1,122 @@
+{
+  "version": "child-test-items-sa-w3-v1",
+  "rule": "The RDF auto / RDF manual forms (switch sa_rdf_w3_forms). Nothing here is new test content: every scored and practice item is picked by its place in an official bank (item-bank.v3.json Set A = the Rawalpindi May 2026 instrument + Core EGMA; item-bank.sa-extra.v1.json) or, for the two Rawalpindi maths lists v3 does not carry, copied with its instrument field id. Each pick names its src.",
+  "sources": {
+    "rwp2026": { "title": "Rawalpindi/ICT May 2026 EGRA/EGMA instrument (SurveyCTO codebook v109/v110), fields cited per item" },
+    "core_egma": { "title": "Core EGMA instrument (RTI International, March 2013; re-issued March 2014)", "url": "https://shared.rti.org/content/core-egma-instrument" },
+    "egra_tk2016": { "title": "Early Grade Reading Assessment (EGRA) Toolkit, 2nd edition (RTI International / USAID, 2016)", "url": "https://ierc-publicfiles.s3.amazonaws.com/public/resources/EGRA%20Toolkit%20V2%202016.pdf" },
+    "egra_tk2009": { "title": "Early Grade Reading Assessment Toolkit (RTI International, 2009), sample assessment" },
+    "prpkp2020": { "title": "Pakistan Reading Project, Khyber Pakhtunkhwa, Endline 2020 (USAID), EGRA Urdu Form 1" },
+    "prpkp2020_report": { "title": "PRP 2020 Early Grade Reading Endline Assessment, Khyber Pakhtunkhwa (NORC, 2021), USAID DEC PA00Z7MW, Table 1", "url": "https://docs.aiddata.org/ad4/pdfs/usaid-archive/txt/PA00Z7MW.txt" },
+    "select2024": { "title": "Sindh SELECT EGRA Baseline Assessment Report (2024), Urdu", "url": "https://rsusindh.gov.pk/contents/SELECT/EGRA_Baseline_Assessment_Report_Sindh.pdf" },
+    "tangerine_gh_sa": { "title": "Tangerine SA-EGRMA (Ghana) form definitions" },
+    "egra_sbs": { "title": "The official Set A test pages (EGRA step-by-step page, booklet images)", "url": "https://hyasin270.github.io/egra-step-by-step/" }
+  },
+  "order": [
+    "ur.letter_names5", "ur.letter_sounds5", "ur.words4", "ur.story_w3", "ur.story_comp_w3",
+    "en.letter_names5", "en.letter_sounds5", "en.words4", "en.story_w3", "en.story_comp_w3",
+    "ma.number_id8", "ma.discrimination2", "ma.missing4", "ma.add2i", "ma.sub2i", "ma.mul2i", "ma.fluency1m"
+  ],
+  "absent": {
+    "blending": {
+      "en": "No blending task: the EGRA Toolkit 2016 has none (core subtasks pp.39-40; phonemic-awareness options Exhibit 9 p.41; Annex H pp.187-198), nor the Rawalpindi May 2026 instrument (17 subtasks).",
+      "ur": "No blending task: the national Urdu EGRA has none (PRP 2020, PA00Z7MW Table 1), Sindh SELECT 2024 says it was not included (p.47), and the Rawalpindi May 2026 instrument has none.",
+      "src": "egra_tk2016:pp.39-41, Annex H; prpkp2020_report:Table 1; select2024:p.47; rwp2026:administration_order"
+    }
+  },
+  "reading": {
+    "ur": {
+      "letter_names": {
+        "from": "v3:sets.A.reading.ur.letters", "pick": [1, 6, 7, 10, 13],
+        "practice_from": "extra:reading.ur.letters_practice",
+        "note": "five letters of the Rawalpindi grid, none of them in the letter-sound set (the Toolkit gives names and sounds separate grids, Annex H pp.211/213)"
+      },
+      "letter_sounds": {
+        "from": "v3:sets.A.reading.ur.letters", "pick": [8, 2, 3, 4, 0],
+        "practice": [{ "pick": 19, "src": "v3:sets.A.reading.ur.letters.items[19]", "why": "no Urdu letter-sound practice item is printed in a source we hold: a grid letter outside the scored five, used for its sound" }],
+        "no_sound_of_own": ["ء", "ع", "ں", "ے", "ھ", "ا", "آ", "و", "ی", "ث", "ص", "ذ", "ض", "ظ", "ط", "ح"],
+        "no_sound_rule": "Letter-sound items use only letters with a consonant sound of their own: not ء ع ں ے ھ or the vowel letters ا آ و ی, and only the common member of a class that shares one sound (س not ث ص; ز not ذ ض ظ; ت not ط; ہ not ح).",
+        "deviation": "the national Urdu EGRA and the Rawalpindi instrument test letter NAMES (PRP 2020 Table 1; rwp2026:letterid_urd); no published Urdu letter-sound grid or rule exists, so these are the Rawalpindi grid's own letters used for their sound (ب م ک س ر, row 1), matching Sindh SELECT's initial-sound keys (pp.100-101)",
+        "src": "prpkp2020_report:Table 1; select2024:pp.100-101; egra_tk2016:p.45"
+      },
+      "words": { "from": "v3:sets.A.reading.ur.words", "pick": [0, 1, 2, 3], "practice_from": "extra:reading.ur.words_practice" },
+      "story": {
+        "from": "v3:sets.A.reading.ur.story",
+        "print_lines": [
+          "آج بلال اپنے والد کے ساتھ دریائے جہلم کے", "کنارے گیا۔",
+          "وہاں ٹھنڈی ہوا چل رہی تھی اور پانی آہستہ بہہ رہا", "تھا۔",
+          "بلال نے کشتی کو حرکت کرتے دیکھا۔",
+          "اس کے والد نے اسے بتایا کہ دریا ہمارے ملک", "کے لیے اہم ہیں۔",
+          "واپسی پر بلال نے خوبصورت پتھر جمع کیے اور", "مسکراتا رہا۔",
+          "وہ بہت خوش بھی تھا۔"
+        ],
+        "print_src": "egra_sbs:ur-p04 (Urdu booklet page 4, Set A): each sentence starts a new line"
+      }
+    },
+    "en": {
+      "letter_names": {
+        "from": "v3:sets.A.reading.en.letters", "pick": [0, 1, 2, 3, 5],
+        "practice_from": "v3:sets.A.reading.en.letters.practice",
+        "note": "five letters of the Rawalpindi grid's first row, not the practice letters T M S and none in the letter-sound set"
+      },
+      "letter_sounds": {
+        "from": "extra:reading.en.letter_sounds", "pick": [8, 13, 27, 32, 35],
+        "practice_from": "extra:reading.en.letter_sounds.practice",
+        "note": "five letters of the Toolkit grid with one clear sound, none in the letter-name set"
+      },
+      "words": { "from": "v3:sets.A.reading.en.words", "pick": [0, 1, 2, 3], "practice_from": "v3:sets.A.reading.en.words.practice" },
+      "story": {
+        "from": "v3:sets.A.reading.en.story",
+        "print_lines": [
+          "Imran woke up early for school.", "Today his class was planting trees.", "He took a small plant in a bag.",
+          "The teacher asked Imran to show the", "class how to plant it.", "Imran dug a hole, put the plant in the",
+          "soil and put water in it slowly.", "The teacher was happy with his work.", "His friends clapped for him."
+        ],
+        "print_src": "egra_sbs:en-p04 (English booklet page 4, Set A): each sentence starts a new line"
+      }
+    }
+  },
+  "maths": {
+    "number_id": { "from": "v3:sets.A.maths.{g}.number_id", "pick": [1, 4, 5, 9, 11, 13, 15, 18], "practice_from": "extra:maths.practice.items.ma.number_id",
+      "note": "two numerals from each printed row of Core EGMA Task 1 (p.2), easy to hard" },
+    "discrimination": { "from": "v3:sets.A.maths.3.discrimination", "pick": [3, 6], "practice_from": "v3:sets.A.maths.3.discrimination.practice" },
+    "missing": { "from": "v3:sets.A.maths.3.missing", "pick": [0, 2, 3, 5], "practice_from": "v3:sets.A.maths.3.missing.practice" },
+    "add": { "from": "v3:sets.A.maths.3.add2", "pick": [0, 1], "practice_from": "extra:maths.practice.items.ma.add2" },
+    "sub": { "from": "v3:sets.A.maths.3.sub2", "pick": [0, 1], "practice_from": "extra:maths.practice.items.ma.sub2" },
+    "mul": {
+      "items": [
+        { "a": 3, "b": 4, "answer": 12, "src": "rwp2026:blfluency.blfl4[10] (3*4 = 12)" },
+        { "a": 8, "b": 9, "answer": 72, "src": "rwp2026:bleffcomp.computation_3a (8 x 9 = 72)" }
+      ],
+      "practice": [{ "a": 5, "b": 7, "answer": 35, "src": "rwp2026:blfluency.blfl4[11] (5*7 = 35)" }],
+      "practice_note": "Core EGMA has no multiplication task, so the items are the Rawalpindi instrument's; the practice item is another Rawalpindi multiplication item, never scored here"
+    },
+    "fluency": {
+      "timed_s": 60,
+      "items": [
+        { "a": 1, "op": "+", "b": 4, "answer": 5, "src": "rwp2026:blfluency.blfl1[0]" },
+        { "a": 2, "op": "+", "b": 2, "answer": 4, "src": "rwp2026:blfluency.blfl1[1]" },
+        { "a": 3, "op": "+", "b": 3, "answer": 6, "src": "rwp2026:blfluency.blfl1[2]" },
+        { "a": 6, "op": "+", "b": 4, "answer": 10, "src": "rwp2026:blfluency.blfl1[3]" },
+        { "a": 5, "op": "+", "b": 5, "answer": 10, "src": "rwp2026:blfluency.blfl1[4]" },
+        { "a": 5, "op": "-", "b": 1, "answer": 4, "src": "rwp2026:blfluency.blfl1[5]" },
+        { "a": 4, "op": "-", "b": 2, "answer": 2, "src": "rwp2026:blfluency.blfl1[6]" },
+        { "a": 6, "op": "-", "b": 3, "answer": 3, "src": "rwp2026:blfluency.blfl1[7]" },
+        { "a": 10, "op": "-", "b": 6, "answer": 4, "src": "rwp2026:blfluency.blfl1[8]" },
+        { "a": 10, "op": "-", "b": 5, "answer": 5, "src": "rwp2026:blfluency.blfl1[9]" },
+        { "a": 4, "op": "+", "b": 2, "answer": 6, "src": "rwp2026:blfluency.blfl1[10]" },
+        { "a": 5, "op": "+", "b": 3, "answer": 8, "src": "rwp2026:blfluency.blfl1[11]" },
+        { "a": 5, "op": "+", "b": 4, "answer": 9, "src": "rwp2026:blfluency.blfl1[12]" },
+        { "a": 2, "op": "+", "b": 5, "answer": 7, "src": "rwp2026:blfluency.blfl1[13]" },
+        { "a": 2, "op": "+", "b": 7, "answer": 9, "src": "rwp2026:blfluency.blfl1[14]" },
+        { "a": 6, "op": "-", "b": 2, "answer": 4, "src": "rwp2026:blfluency.blfl1[15]" },
+        { "a": 8, "op": "-", "b": 5, "answer": 3, "src": "rwp2026:blfluency.blfl1[16]" },
+        { "a": 9, "op": "-", "b": 4, "answer": 5, "src": "rwp2026:blfluency.blfl1[17]" },
+        { "a": 7, "op": "-", "b": 2, "answer": 5, "src": "rwp2026:blfluency.blfl1[18]" },
+        { "a": 9, "op": "-", "b": 7, "answer": 2, "src": "rwp2026:blfluency.blfl1[19]" }
+      ],
+      "practice": [{ "a": 1, "op": "+", "b": 3, "answer": 4, "src": "v3:sets.A.maths.3.add1.items[0] (core_egma:p.6 Task 4A item 1)" }],
+      "practice_note": "the Rawalpindi fluency list prints no practice item: the practice is the first Core EGMA Task 4A sum (the same format), never scored here"
+    }
+  }
+}

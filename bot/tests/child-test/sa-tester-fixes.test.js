@@ -112,7 +112,8 @@ describe('A11: practice before every maths task', () => {
   test('with the switch on (practice_v2 where given), every ma.* task has an interactive practice item with feedback', () => {
     const bad = [];
     for (const f of RUNTIMES) {
-      for (const t of runtime(f).tasks.filter((x) => x.id.startsWith('ma.'))) {
+      // W3's spoken maths tasks practise with a model answer instead (sa-rdf-w3.test.js)
+      for (const t of runtime(f).tasks.filter((x) => x.id.startsWith('ma.') && !x.w3)) {
         const practice = (t.practice_v2 || t.practice).filter((p) => !p.disabled && p.target != null && p.feedback && p.feedback.correct && p.feedback.wrong);
         if (!practice.length) bad.push(`${f} ${t.id}`);
       }
