@@ -273,6 +273,16 @@ describe("AssessEngineSlot", () => {
     });
   });
 
+  it("the coach's corner hold sits at the top-start corner, clear of the engine's full-width bottom buttons", () => {
+    setup({ lang: "en" });
+    const corner = screen.getByTestId("assess-hold-end");
+    expect(corner).toContainElement(screen.getByRole("button", { name: /End test/ }));
+    expect(corner.className).toContain("top-2");
+    expect(corner.className).toContain("start-2");
+    expect(corner.className).not.toMatch(/bottom-/);
+    expect(screen.getByRole("button", { name: /End test/ }).className).toContain("min-h-[48px]");
+  });
+
   it("full screen belongs to the page, not the frame, so the coach's hold stays on top of the engine", () => {
     const req = vi.fn().mockResolvedValue(undefined);
     const exit = vi.fn().mockResolvedValue(undefined);
