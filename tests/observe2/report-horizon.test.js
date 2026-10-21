@@ -178,6 +178,23 @@ describe("the teacher's report names the coach's pick as the area to grow", () =
     expect(horizonIn(mockHtml[0])).toBe("Following the plan's steps");
   });
 
+  // FICO pilot sheet R20/R21 (two coaches, 16 Oct): five coaching focus areas with no C/D/F row.
+  test.each([
+    ['wait', 'Wait time after a question'],
+    ['manage', 'Classroom management'],
+    ['rules', 'Classroom rules'],
+    ['warmup', 'An engaging warm-up'],
+    ['close', 'Effective lesson closure'],
+  ])('the coaching focus "%s" is the area to grow, in its own words', async (id, title) => {
+    await preview(observe2Form({ answers: { lp: 'none', priority: id }, evidence_review: { priority_final: id } }));
+    expect(promptOf()).toContain(`(${id})`);
+    expect(promptOf()).toContain(title);
+    expect(promptOf()).not.toContain('LOWEST-SCORING');
+    expect(promptOf()).not.toMatch(/inside "(undefined|null)"/);
+    expect(horizonIn(mockHtml[0])).toBe(title);
+    expect(storedNarrative().horizon_title).toBe(title);
+  });
+
   test('a pick changed at the check wins over the one sealed', async () => {
     await preview(observe2Form({ answers: { lp: 'none', priority: 'C3' }, evidence_review: { priority_final: 'D1' } }));
     expect(promptOf()).toContain('(D1)');

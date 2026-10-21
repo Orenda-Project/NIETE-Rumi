@@ -14,8 +14,10 @@
  *          is warm-up to guided practice, Part 2 the children working on their own and the wrap-up,
  *          which no longer asks C3, C7, D3 or C8; those come from Part 1 alone. Part 2's own answers
  *          add what the coach saw at the desks to two HEARD rows: C2 (the teacher helping the stuck)
- *          and D4 (what children did when the work got hard). A form on the older Flow keeps the
- *          older answers, and they add up as before.
+ *          and D4 (what children did when the work got hard). Since form version 6 (pilot sheet R4's
+ *          comment) Part 2 also asks whether the teacher asked children one by one if they understood
+ *          (named on C2 and C3, no level) and re-explained a common mistake to the class (C2 at least 2).
+ *          A form on the older Flow keeps the older answers, and they add up as before.
  * - HEARD  (C1, C2, C4, C6, D1, D4, D5): from the moments Rumi found in the recording that the coach
  *          confirmed, plus Rumi's summary counts (e.g. closed questions) that decide no level alone.
  *          Since form version 5, what the coach ticked under "What children's work showed" (R16) counts
@@ -52,9 +54,20 @@ const PARTS = ['p1', 'p2'];
 // Part 2 since form version 5: the children working on their own.
 const TASK = { all: 'every child had a task of their own', some: 'only some children had a task of their own', none: 'no work on their own' };
 const TEACHER_SAID = {
-  round: 'went round the room', checked: 'looked at their work', helped: 'helped those who were stuck',
+  round: 'went round the room', checked: 'looked at their work',
+  cfu: 'asked children one by one whether they understood or needed help',
+  helped: 'helped those who were stuck', reteach: 're-explained a common mistake to the whole class',
   more: 'gave more to early finishers', front: 'stayed at the front',
 };
+// The ticks that are a response to wrong answers or visible confusion, so C2 is at least 2. C2 level 1 reads
+// "does not respond to wrong answers or visible confusion, or responds only by repeating the same explanation
+// in the same words"; level 2 "marks the answer right or wrong, or re-explains". Re-explaining a mistake many
+// children made is one occasion, and level 3 needs the reasoning on two, so neither raises C2 past 2 alone.
+const RESPONDED = ['helped', 'reteach'];
+// Asking each child whether they understood (form version 6, pilot sheet R4's comment): a teacher-to-student
+// question turn (C3's evidence unit) that reaches children beyond the volunteers, and the way confusion is
+// found (C2). It is named on both lines; it sets no level, as neither descriptor counts it.
+const ASKED_EACH = 'cfu';
 // "When the work got hard": the four D4 levels, word for word (the form's titles are PLAIN.D4), and
 // "Nobody got stuck", which shows no level.
 const STUCK = { waited: 1, sure: 2, unsure: 3, kept: 4, easy: null };
@@ -188,12 +201,14 @@ function desk(a) {
   const ticks = (a.p2_teacher || []).filter((k) => TEACHER_SAID[k]);
   if (ticks.length) {
     // C2 level 1 reads "does not respond to wrong answers or visible confusion": a teacher who helped
-    // the children who were stuck did respond, so C2 is at least 2. Every tick is named.
+    // the children who were stuck, or re-explained a mistake to the class, did respond, so C2 is at least 2.
+    // Every tick is named.
     out.C2 = {
-      level: ticks.includes('helped') ? 2 : null,
+      level: ticks.some((k) => RESPONDED.includes(k)) ? 2 : null,
       note: `while they worked alone, the teacher ${ticks.map((k) => TEACHER_SAID[k]).join('; ')}`,
     };
   }
+  if (ticks.includes(ASKED_EACH)) out.C3 = { level: null, note: `while they worked alone, the teacher ${TEACHER_SAID[ASKED_EACH]}` };
   return out;
 }
 
@@ -337,11 +352,14 @@ function addUp({ form, confirmed, heardCounts } = {}) {
       ? { level: 'IE', because: 'the recording failed, so nothing could be heard', source: 'heard' }
       : heard[code];
   }
-  for (const [code, s] of Object.entries(desk(a))) out[code] = withSeen(out[code], s);
+  // What was seen at the desks: on a HEARD row now, on a SEEN row (C3) once that row is set below.
+  const atDesks = desk(a);
+  for (const [code, s] of Object.entries(atDesks)) if (!SEEN_CODES.includes(code)) out[code] = withSeen(out[code], s);
   for (const code of PICK_CODES) out[code] = { level: null, because: "no counting rule yet: pick from the recording's moments", source: 'pick' };
   for (const [code, note] of Object.entries(thinking(a))) out[code] = { ...out[code], because: `${out[code].because}; you saw ${note}` };
   const seen = seenLevels(a);
   for (const code of SEEN_CODES) out[code] = seen[code] || { level: null, because: 'not answered in the form', source: 'seen' };
+  for (const [code, s] of Object.entries(atDesks)) if (SEEN_CODES.includes(code)) out[code] = withSeen(out[code], s);
   if (a.incident === 'ridicule') out.C6 = { level: 1, because: 'you reported ridicule or humiliation, which forces 1', source: 'seen' };
   if (a.incident === 'error') out.F1 = { level: 1, because: 'you reported a wrong fact left standing, which forces 1', source: 'seen' };
   for (const code of CODES) if (!out[code]) out[code] = { level: null, because: 'not answered', source: 'pick' };

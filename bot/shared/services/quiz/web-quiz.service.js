@@ -692,6 +692,8 @@ async function getQuizTimed(code, { p, k } = {}, mark = () => {}) {
   if (out.end_fit && require('./web-quiz-hub-flags').nowOf('endShort')) out.end_short = true;
   // web_quiz_end_once (the hub's switch cache, no read): Jugnu's end-screen line never repeats the card's heading (wq.js)
   if (require('./web-quiz-hub-flags').nowOf('endOnce')) out.end_once = true;
+  // web_quiz_share_page_lang (the hub's switch cache, no read): the share follow-ups speak the page's language (wq.js)
+  if (require('./web-quiz-hub-flags').nowOf('sharePageLang')) out.share_page_lang = true;
   // web_quiz_challenge_line_keep (the hub's switch cache, no read): a number in the challenge words keeps its word (wq.js)
   if (require('./web-quiz-hub-flags').nowOf('challengeLineKeep')) out.challenge_line_keep = true;
   // web_quiz_challenge_line_sent (the hub's switch cache, no read): the challenge line breaks only between its sentences (wq.js)
