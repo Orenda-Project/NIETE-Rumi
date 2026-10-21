@@ -33,28 +33,6 @@ module.exports = {
       keywords: ['lesson plan', 'plan', 'teaching plan', 'لیسن پلان', 'منصوبة', 'خطة درس']
     },
     {
-      id: 'presentations',
-      name: {
-        en: 'Presentation Creation',
-        ur: 'پریزنٹیشنز',
-        ar: 'العروض التقديمية',
-        es: 'Presentaciones'
-      },
-      description: {
-        en: 'Visual presentations on any educational topic',
-        ur: 'کسی بھی تعلیمی موضوع پر بصری پریزنٹیشنز',
-        ar: 'عروض تقديمية مرئية حول أي موضوع تعليمي',
-        es: 'Presentaciones visuales sobre cualquier tema educativo'
-      },
-      howToUse: {
-        en: 'Request a presentation on your desired topic',
-        ur: 'اپنے مطلوبہ موضوع پر پریزنٹیشن کی درخواست کریں',
-        ar: 'اطلب عرضاً تقديمياً حول الموضوع المطلوب',
-        es: 'Solicita una presentación sobre el tema deseado'
-      },
-      keywords: ['presentation', 'slides', 'powerpoint', 'پریزنٹیشن', 'سلائیڈز', 'عرض تقديمي']
-    },
-    {
       id: 'coaching',
       name: {
         en: 'Classroom Coaching',
