@@ -207,6 +207,10 @@ html[lang=ur] .wq-jhelp{font-weight:600;line-height:1.9}
 .wq-fitstars{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,48px);justify-content:center;gap:6px}
 .wq-fitstars .wq-star{width:100%;height:auto;aspect-ratio:1}
 .wq-endh{text-wrap:balance}
+/* web_quiz_end_copy_fix: an Urdu end headline's numbers in a digit face (Naskh, ۴ ۶ ۷ in their Urdu forms), never
+   Nastaliq, where a lone ۱ reads as alif; each one isolated (<bdi class="wq-dg">) */
+@font-face{font-family:"WQ Digits";src:url(fonts/wq-urdigits-1.woff2) format("woff2");font-weight:400 800;font-display:swap;unicode-range:U+06F0-06F9}
+html[lang=ur] .wq-dg{font-family:"WQ Digits",var(--f);word-spacing:normal}
 .wq-star path{fill:var(--star-off)}
 .wq-star.wq-on path{fill:var(--star);stroke:var(--star-d);stroke-width:1}
 /* a league / my-scores row: the score, then its stars small enough for 10 on a 360 px row */
