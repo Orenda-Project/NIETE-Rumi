@@ -238,6 +238,7 @@
     }
     function itemTimeoutS(t) {
       if (oneAtATime && t.subtask === 'mental_math_fluency' && t.item_timeout_s === TIMED_ITEM_S) return manual ? null : FLUENCY_ITEM_S;
+      if (manual && t.mode === 'oral') return null; // coach-led: the coach reads the question; the coach moves on
       return t.item_timeout_s;
     }
     /** The cell on show ends: its time is kept; how = tap | auto | the stop reason. */

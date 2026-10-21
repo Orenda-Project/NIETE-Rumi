@@ -35,7 +35,9 @@
  *                       moves a cell on by itself Jugnu says lines.please_go_on. Mental maths shows its sum big.
  *   manual              before each task Jugnu says only lines.coach_will_instruct; a coach screen shows the words to
  *                       read out (task.coach_text, else the instruction) and "Give the phone to the child"; no
- *                       instruction, practice intro, test intro or "tap the last word" line is spoken. Item stimuli are.
+ *                       other clip plays (no item, practice model, feedback or end line; the sound check stays). Every
+ *                       item auto speaks is listed on the coach screen and shown again with its item, for the coach to
+ *                       read out; a hidden passage is shown to the coach to read; no replay buttons.
  *   passage_punct       the passage's words are the whitespace tokens of passage.text (its «۔ ، ؟» and ". , ?"),
  *                       one per item, a multi-word item spanning its tokens; scoring and the last word are unchanged.
  *                       A text that does not line up with the items falls back to the items' words.
@@ -118,6 +120,7 @@
       coach_will_instruct: 'Your coach will now give the instructions.',
       coach_read: 'Read this to the child:',
       coach_then: 'Then give the phone to the child.',
+      coach_items: 'Read each one out when it shows:',
     },
     ur: {
       hello: 'السلام علیکم! میں جگنو ہوں۔',
@@ -186,6 +189,7 @@
       coach_will_instruct: 'اب آپ کے کوچ ہدایات دیں گے۔',
       coach_read: 'یہ بچے کو پڑھ کر سنائیں:',
       coach_then: 'پھر فون بچے کو دے دیں۔',
+      coach_items: 'ہر ایک سامنے آنے پر پڑھ کر سنائیں:',
     },
   };
 
@@ -304,8 +308,10 @@
     var punct = !!opts.passage_punct;
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
-    function say(textObj, audioObj) {
+    /** RDF manual: the coach gives every instruction and reads every item; Jugnu says only the line the caller marks. */
+    function say(textObj, audioObj, inManual) {
       if (!textObj && !audioObj) return Promise.resolve();
+      if (manual && !inManual) return Promise.resolve();
       try { return Promise.resolve(speakFn(textObj || null, audioObj || null)).catch(function () {}); }
       catch (e) { return Promise.resolve(); }
     }
@@ -345,6 +351,15 @@
       return Promise.resolve();
     }
     function itemSpeaks(it) { return !!(it && (it.say || it.prompt || it.prompt_audio)); }
+    /** The words Jugnu says for an item, for the coach to read out (RDF manual). */
+    function itemWords(it) { return !it ? '' : typeof it.say === 'string' ? it.say : tx(it.say || it.prompt); }
+    /** RDF manual: an item the auto run speaks, shown for the coach to read out (open, or folded where it is the answer). */
+    function coachSays(it, folded) {
+      if (!manual || !itemWords(it)) return null;
+      var said = h('p', { class: 'sae-say sae-coach-line', text: itemWords(it) });
+      if (folded) return h('details', { class: 'sae-coach-says is-coach' }, [h('summary', { text: C.coach }), said]);
+      return h('div', { class: 'sae-coach-says is-coach' }, [h('p', { class: 'sae-chip', text: C.coach_read }), said]);
+    }
 
     el.classList.add('sae');
     el.setAttribute('lang', lang);
@@ -364,6 +379,7 @@
       return h('button', { class: 'sae-btn ' + (cls || ''), type: 'button', onclick: function (e) { if (!busy) onclick(e); } }, [label]);
     }
     function replayBtn(onclick) {
+      if (manual) return null; // coach-led: the coach says it again
       return h('button', { class: 'sae-replay sa-replay', type: 'button', 'aria-label': C.replay, title: C.replay, onclick: onclick }, [h('span', { 'aria-hidden': 'true', text: '🔁' })]);
     }
     function topBar(v) {
@@ -592,9 +608,19 @@
           h('p', { class: 'sae-say sae-coach-text', text: tx(t.coach_text) || tx(introOf(t)) }),
           demoImage(t),
           demoItem(t),
+          coachItems(t),
           h('p', { class: 'sae-sub', text: C.coach_then }),
         ]),
         h('div', { class: 'sae-foot' }, [btn(C.handover_anon, function () { runner.instructionDone(); draw(); }, 'sae-primary')]),
+      ]);
+    }
+    /** Every item the auto run speaks, in order, for the coach to read out one by one. */
+    function coachItems(t) {
+      var said = (t.items || []).filter(function (it) { return itemWords(it); });
+      if (!said.length) return null;
+      return h('div', { class: 'sae-coach-list' }, [
+        h('p', { class: 'sae-sub', text: C.coach_items }),
+        h('ol', { class: 'sae-coach-items', dir: dirOf(t), lang: taskLang(t) }, said.map(function (it) { return h('li', { text: itemWords(it) }); })),
       ]);
     }
     function sInstruction(v) {
@@ -658,6 +684,7 @@
           h('span', { class: 'sae-chip', text: C.practice }),
           itemSpeaks(p) ? replayBtn(function () { gen++; sayItem(p, t); }) : null,
         ]),
+        coachSays(p, t.mode !== 'oral'),
         t.mode === 'keypad' || t.mode === 'keyboard' ? null : labelOf(p, t),
         answerArea,
         feedbackLine(fb),
@@ -702,6 +729,7 @@
       listening = t;
       gen++;
       draw();
+      if (manual) return; // coach-led: the coach reads it from the screen, then taps Next (sListen)
       var n = Math.max(1, t.passage.read_times || 1);
       var said = { text: t.passage.text, lang: t.passage.lang || taskLang(t) };
       var p = Promise.resolve();
@@ -718,6 +746,13 @@
       });
     }
     function sListen(v) {
+      var t = listening;
+      if (manual && t) {
+        return screen(v, 'sae-listen is-coach', [
+          h('p', { class: 'sae-chip', text: C.coach_read }),
+          h('p', { class: 'sae-say sae-coach-line', dir: dirOf(t), lang: taskLang(t), text: t.passage.text }),
+        ], [btn(C.next, function () { heard[t.id] = true; listening = null; runner.begin(); draw(); }, 'sae-primary')]);
+      }
       return screen(v, 'sae-listen', [
         jugnu('hello'),
         h('div', { class: 'sae-ear', 'aria-hidden': 'true', text: '👂' }),
@@ -731,6 +766,7 @@
         clock(v),
         h('p', { class: 'sae-task-tag', text: tx(t.title) }),
         h('div', { class: 'sae-row' }, [jugnu('idle', true), itemSpeaks(it) ? replayBtn(function () { sayItem(it, t); }) : null]),
+        coachSays(it, true),
         labelOf(it, t),
         // A tap on the passage itself (print orientation): the words are the buttons, scored by place.
         t.tap_on === 'passage' && typeof it.target_index === 'number'
@@ -838,6 +874,7 @@
       return screen(v, 'sae-run sae-run-keyboard', [
         clock(v),
         itemSpeaks(it) ? h('div', { class: 'sae-row' }, [replayBtn(function () { sayItem(it, t); })]) : null,
+        coachSays(it, true),
         keyboardArea(it, t, function (val) {
           busy = true;
           runner.answer(val);
@@ -850,6 +887,7 @@
       return screen(v, 'sae-run sae-run-keypad', [
         clock(v),
         itemSpeaks(it) ? h('div', { class: 'sae-row' }, [replayBtn(function () { sayItem(it, t); })]) : null,
+        coachSays(it, true),
         keypadArea(it, t, function (val) {
           busy = true;
           runner.answer(val);
@@ -900,6 +938,7 @@
         clock(v),
         h('div', { class: 'sae-row' }, [h('p', { class: 'sae-chip sae-chip-rec', text: C.read_aloud }), itemSpeaks(it) ? replayBtn(function () { sayItem(it, t); }) : null]),
         oneCell(v.cell, t, v.cell_index),
+        coachSays(it),
       ], [btn(C.next, function () { runner.nextCell('tap'); draw(); }, 'sae-primary sa-next')]);
     }
     /** A spoken practice item (W3 one-at-a-time tasks): the item big; an example is modelled by Jugnu, a practice item
@@ -913,6 +952,7 @@
           itemSpeaks(p) || (p.model && !manual) ? replayBtn(function () { gen++; if (itemSpeaks(p)) sayItem(p, t); else sayChain(modelOf(p)); }) : null,
         ]),
         oneCell(p.show != null ? p.show : p.target, t, null),
+        coachSays(p),
       ], [btn(C.next, function () {
         busy = true;
         var k = keyOf(runner.view());
@@ -951,6 +991,7 @@
       return screen(v, 'sae-run sae-run-oral', [
         h('p', { class: 'sae-task-tag', text: tx(t.title) }),
         h('div', { class: 'sae-row' }, [jugnu('idle', true), replayBtn(function () { sayItem(it, t); })]),
+        coachSays(it),
         /^mental_/.test(t.subtask || '') && shownOf(it) != null ? labelOf(it, t) : null,
         h('div', { class: 'sae-mic sa-mic' + (on ? ' is-on' : ''), 'aria-hidden': 'true' }, [h('span', { text: '🎤' })]),
         h('p', { class: 'sae-sub', text: C.say_answer }),
@@ -1248,7 +1289,8 @@
         if (checkBad) say(line('audio_fail') || { en: COPY.en.audio_bad_sub, ur: COPY.ur.audio_bad_sub });
         else {
           if (!check) newCheck();
-          sayChain([[line('audio_check') || { en: COPY.en.audio_q, ur: COPY.ur.audio_q }], [{ en: check.target.en, ur: check.target.ur }, check.target.audio || null]]);
+          // The sound check is a device check, voiced in a coach-led run too (the coach line needs the speaker).
+          say(line('audio_check') || { en: COPY.en.audio_q, ur: COPY.ur.audio_q }, null, true).then(function () { return say({ en: check.target.en, ur: check.target.ur }, check.target.audio || null, true); });
         }
       } else if (v.phase === 'warmup') say(copyLine('warm_title'));
       else if (v.phase === 'mic_check') {
@@ -1260,7 +1302,7 @@
       } else if (v.phase === 'keypad_warmup') say(line('keypad_warmup') || { en: COPY.en.kp_warm, ur: COPY.ur.kp_warm });
       else if (v.phase === 'instruction' && manual) {
         runner.log('coach_brief', { task_id: t.id });
-        say(copyLine('coach_will_instruct'));
+        say(copyLine('coach_will_instruct'), null, true);
       } else if (v.phase === 'instruction') playIntro(t);
       else if (v.phase === 'practice' && v.practice) {
         var first = t.practice.indexOf(v.practice) === 0;
