@@ -11,7 +11,7 @@ import { ASSESSMENT, type AssessmentV2Copy } from './copy';
 import { useCopy } from '../i18n';
 import { catalogueOnce, loadChapters, loadTypes, patternFor, patternOffer, subjectName } from './api';
 import {
-  FDE_STEPS, MAX_TOTAL_MARKS, MAX_TYPES, STEPS, checkPages, chosenTypes, defaultTypeCounts, isFde, questionTotal, toSpec,
+  FDE_STEPS, MAX_TOTAL_MARKS, MAX_TYPES, STEPS, TOPIC_STEPS, checkPages, chosenTypes, defaultTypeCounts, isFde, questionTotal, toSpec,
   unseenTotal, type Picks,
 } from './model';
 import { FdeCheck } from './FdeCheck';
@@ -19,6 +19,7 @@ import { makeErrorText } from './failure';
 import { pagesMessage, stepReason } from './reasons';
 import { ASSESSMENT_V2_BASE, newPaperPath, requestPath } from './paths';
 import { usePicks } from './store';
+import { clearTopics, topicsApply } from './topics';
 import { useJobs } from './useJobs';
 import {
   CheckRow, Chip, Choice, CountRow, Label, ListCard, LoadState, PRIMARY, StepFrame, SwitchRow, Tabs,
@@ -51,7 +52,7 @@ const changeClass = (p: Picks, grade: number, subject: string | null, name: stri
   const same = p.grade === grade && p.subject === subject;
   // A new class has other chapters and other types: what she picked for the old one goes.
   if (same) return { subjectName: name };
-  const out: Partial<Picks> = { grade, subject, subjectName: name, chapters: [], ranges: [], typeCounts: {}, typesSeeded: false };
+  const out: Partial<Picks> = { ...clearTopics(p), grade, subject, subjectName: name, chapters: [], ranges: [], typeCounts: {}, typesSeeded: false };
   // …and a board pattern picked for the old class (the side door) goes too; the FDE door's intent is decided by the pick.
   return p.style || p.coverBy === 'fde' ? { ...out, coverBy: 'chapters', style: null, pattern: null } : out;
 };
@@ -223,6 +224,7 @@ export function CoverStep() {
   }
 
   const toggle = (n: number) => set((cur) => ({
+    ...clearTopics(cur),
     chapters: cur.chapters.includes(n) ? cur.chapters.filter((x) => x !== n) : [...cur.chapters, n],
   }));
   const check = checkPages(from, to, lastPage);
@@ -254,12 +256,12 @@ export function CoverStep() {
   }
 
   return (
-    <StepFrame step="cover" backTo={backTo('class')} next={{ label: C.next, why: stepReason('cover', p, 50, C, { offerFde: !!pattern }), to: newPaperPath('questions') }}>
+    <StepFrame step="cover" backTo={backTo('class')} next={{ label: C.next, why: stepReason('cover', p, 50, C, { offerFde: !!pattern }), to: newPaperPath(topicsApply(p) ? 'topics' : 'questions') }}>
       {pattern && <SideDoor picked={false} onFlip={flip} C={C} />}
       <Tabs
         label={C.steps.cover}
         value={p.coverBy}
-        onChange={(k) => set({ coverBy: k })}
+        onChange={(k) => set((cur) => ({ ...clearTopics(cur), coverBy: k }))}
         options={[{ key: 'chapters', label: C.chapters }, { key: 'pages', label: C.pages }]}
       />
       {p.coverBy === 'chapters' && (
@@ -438,7 +440,7 @@ export function QuestionsStep() {
   );
 
   return (
-    <StepFrame step="questions" backTo={backTo('cover')} hint={totalLine} next={{ label: C.next, why: stepReason('questions', p, max, C), to: newPaperPath('check') }}>
+    <StepFrame step="questions" steps={p.topicScope ? TOPIC_STEPS : STEPS} backTo={backTo(p.topicScope ? 'topics' : 'cover')} hint={totalLine} next={{ label: C.next, why: stepReason('questions', p, max, C), to: newPaperPath('check') }}>
       <h2 className="mx-1 mt-3 text-[20px] font-bold leading-snug">{C.askCount}</h2>
 
       <p className={GROUP}>{C.seenQuestions}</p>
@@ -573,6 +575,7 @@ function PlainCheck() {
   const rows: Array<{ k: string; v: ReactNode; sub?: ReactNode; to?: string }> = [
     { k: C.steps.class, v: C.gradeSubject(p.grade as number, p.subjectName ?? p.subject ?? ''), to: newPaperPath('class') },
     { k: p.coverBy === 'chapters' ? C.chapters : C.pages, v: cover.map((c) => <span key={c} className="block">{c}</span>), to: newPaperPath('cover') },
+    ...(p.topicScope ? [{ k: C.steps.topics, v: p.topicIds?.length ? C.picked(p.topicIds.length) : C.wholeChapter, to: newPaperPath('topics') }] : []),
     { k: C.steps.questions, v: C.questionsCount(questionTotal(p)), sub: questionsSub, to: newPaperPath('questions') },
     { k: C.totalMarks, v: p.marks === null ? C.noLimit : C.marksCount(p.marks), to: newPaperPath('questions') },
   ];
@@ -589,7 +592,7 @@ function PlainCheck() {
   };
 
   return (
-    <StepFrame step="check" backTo={backTo('questions')} next={{ label: busy ? C.making : C.makePaper, why: stepReason('check', p, 50, C), onPress: make, busy }}>
+    <StepFrame step="check" steps={p.topicScope ? TOPIC_STEPS : STEPS} backTo={backTo('questions')} next={{ label: busy ? C.making : C.makePaper, why: stepReason('check', p, 50, C), onPress: make, busy }}>
       {/* Above the rows, as on the board-pattern Check: under them it sits below the fold, behind the dock. */}
       {error && <p role="alert" className="rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">{error}</p>}
       <ListCard label={C.steps.check}>
