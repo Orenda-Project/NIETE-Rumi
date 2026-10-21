@@ -212,7 +212,9 @@ async function drawNow(input) {
   const sharp = getSharp();
   const { htmlToImage } = require('../../utils/html-to-pdf');
   const [w, h] = SIZES[input.size];
-  const png = await htmlToImage(renderArt(input), { width: w, height: h, deviceScaleFactor: 1, selector: '.art' });
+  // a picture that fits its words to the drawn fonts (web_quiz_share_copy_one's Urdu class table) asks for its hook to run
+  const fit = Boolean(input.ui && input.ui.one === true);
+  const png = await htmlToImage(renderArt(input), { width: w, height: h, deviceScaleFactor: 1, selector: '.art', ...(fit ? { beforeCapture: true } : {}) });
   // q72: the phone downloads the picture after the preview's text is already showing; 27-29% fewer bytes than q82
   // on the real card and invite, no visible loss at 1200x630.
   return sharp(png).resize(w, h, { fit: 'cover' }).jpeg({ quality: 72, mozjpeg: true }).toBuffer();
@@ -293,7 +295,10 @@ async function artImageNow(id, { size = 'og', fresh = false, door = false, lang 
   const u4 = us ? { ...(u3 || {}), us: true } : u3;
   // the challenge and class table pictures' polish, both languages (web_quiz_share_pic_polish, the same read)
   const pp = (p.kind === 'i' || p.kind === 'l') && require('./web-quiz-card-switch').picPolishCached();
-  const input = artInput(KIND_OF[p.kind], sz, brand, f, pp ? { ...(u4 || {}), pp: true } : u4, door);
+  const u5 = pp ? { ...(u4 || {}), pp: true } : u4;
+  // one child, one kid on the class table and the school pictures (web_quiz_share_copy_one, the same read)
+  const one = (p.kind === 'l' || p.kind === 's') && require('./web-quiz-card-switch').copyOneCached();
+  const input = artInput(KIND_OF[p.kind], sz, brand, f, one ? { ...(u5 || {}), one: true } : u5, door);
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
   if (mem.has(key)) {
     byId.set(at, { key, until: Date.now() + BY_ID_MS[p.kind] });

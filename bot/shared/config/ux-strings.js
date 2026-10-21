@@ -3078,6 +3078,13 @@ const UX_STRINGS = {
   // whole sentence here rather than a word swapped into one template.
   vqStarsEarned: { en: 'You’ve earned {stars} stars!', ur: 'آپ کو {stars} ستارے ملے!' },
   vqStarsEarnedOne: { en: 'You’ve earned {stars} star!', ur: 'آپ کو {stars} ستارہ ملا!' },
+  // The share pictures' one forms (web_quiz_share_copy_one; web-quiz-art.template.js). Urdu inflects the noun and the
+  // verb for one child («۱ بچے نے کھیلا», never «۱ بچوں نے کھیلا») and the noun for one kid («۱ بچہ»); English changes
+  // only a bare count ("1 kid"). Picked where the line is drawn when the count is 1; 0 and 2 or more keep the picture's
+  // own words. {n} and {of} are drawn numbers (the picture's own digits), never a name.
+  wqArtPlayed_one: { en: 'played', ur: 'بچے نے کھیلا' },
+  wqArtPlayedOf_one: { en: '{n} of {of} played', ur: '{of} میں سے {n} بچے نے کھیلا' },
+  wqArtKids_one: { en: 'kid', ur: 'بچہ' },
   vqTierMastered: { en: 'Brilliant work!', ur: 'زبردست!' },
   vqTierDeveloping: {
     en: 'Nicely done — a little more practice and you’ll have it.',
