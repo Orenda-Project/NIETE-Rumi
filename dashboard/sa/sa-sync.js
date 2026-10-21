@@ -15,6 +15,7 @@
  * whose result is not written yet is kept in localStorage (sa:notkept:<session>) until that result is acknowledged,
  * so a reload in between does not lose the mark.
  *
+ * flushEvents() sends the events and results alone, at once, even while recordings upload (the battery's end).
  * status() → { state: 'synced'|'pending'|'offline'|'error', pending_events, pending_audio, last_ok_at }
  * UMD: window.SAE.sync in the browser, module.exports under Node.
  */
@@ -77,30 +78,33 @@
       });
     }
 
+    /** The next batch of events (up to BATCH) and every pending result; resolves when acknowledged. */
+    function sendBatch(p) {
+      var ev = p.events.slice(0, BATCH);
+      if (!ev.length && !p.results.length) return Promise.resolve();
+      var seqTo = ev.length ? ev[ev.length - 1].seq : 0;
+      var clean = function (x) { var y = {}; for (var k in x) if (k !== 'synced') y[k] = x[k]; return y; };
+      var stamp = function (r) { var y = clean(r); if (notKept[y.task_id] && !y.audio) { y.audio = 'not_kept'; y.audio_reason = notKept[y.task_id]; } return y; };
+      return Promise.resolve(sink.putBatch({
+        session_id: id, seq_from: ev.length ? ev[0].seq : null, seq_to: ev.length ? seqTo : null,
+        events: ev.map(clean), results: p.results.map(stamp),
+      })).then(function (r) {
+        if (!r || r.ok === false) throw new Error('batch refused');
+        var acked = typeof r.acked_to === 'number' ? Math.min(r.acked_to, seqTo) : seqTo;
+        var sent = p.results.map(function (x) { return x.task_id; });
+        var had = sent.filter(function (t) { return notKept[t]; });
+        if (had.length) { had.forEach(function (t) { delete notKept[t]; }); keepNotKept(); }
+        return store.markSynced(id, acked, sent);
+      });
+    }
+
     function once() {
       return store.pending(id).then(function (p) {
         var audio = audioTasks(p.chunks);
         emit({ pending_events: p.events.length + p.results.length, pending_audio: audio.length });
         if (!p.events.length && !p.results.length && !audio.length) { emit({ state: 'synced' }); return false; }
         if (!online()) { emit({ state: 'offline' }); return false; }
-        var ev = p.events.slice(0, BATCH);
-        var send = Promise.resolve();
-        if (ev.length || p.results.length) {
-          var seqTo = ev.length ? ev[ev.length - 1].seq : 0;
-          var clean = function (x) { var y = {}; for (var k in x) if (k !== 'synced') y[k] = x[k]; return y; };
-          var stamp = function (r) { var y = clean(r); if (notKept[y.task_id] && !y.audio) { y.audio = 'not_kept'; y.audio_reason = notKept[y.task_id]; } return y; };
-          send = Promise.resolve(sink.putBatch({
-            session_id: id, seq_from: ev.length ? ev[0].seq : null, seq_to: ev.length ? seqTo : null,
-            events: ev.map(clean), results: p.results.map(stamp),
-          })).then(function (r) {
-            if (!r || r.ok === false) throw new Error('batch refused');
-            var acked = typeof r.acked_to === 'number' ? Math.min(r.acked_to, seqTo) : seqTo;
-            var sent = p.results.map(function (x) { return x.task_id; });
-            var had = sent.filter(function (t) { return notKept[t]; });
-            if (had.length) { had.forEach(function (t) { delete notKept[t]; }); keepNotKept(); }
-            return store.markSynced(id, acked, sent);
-          });
-        }
+        var send = sendBatch(p);
         // The recordings go even when the event batch was refused, and one that fails does not hold back the next:
         // a coach page that unmounts the child's frame must find as much as possible already sent.
         var firstErr = null;
@@ -173,11 +177,29 @@
       return running;
     }
 
+    /**
+     * The events and results only, now, alongside any round already uploading recordings (the battery's end must not
+     * wait behind the audio, RULING #48). Resolves once the server has acknowledged all of them; rejects offline or on
+     * a refused batch, and the rows stay queued for the next flush. The server's upsert makes a batch sent twice harmless.
+     */
+    function flushEvents() {
+      var rounds = 0;
+      return (function loop() {
+        return store.pending(id).then(function (p) {
+          if (!p.events.length && !p.results.length) return null;
+          if (!online()) throw new Error('offline');
+          if (++rounds > 50) throw new Error('too many batches');
+          return sendBatch(p).then(loop);
+        });
+      }());
+    }
+
     var onOnline = function () { wait = MIN_WAIT; flush(); };
     if (root.addEventListener && !o.timers) root.addEventListener('online', onOnline);
 
     return {
       flush: flush,
+      flushEvents: flushEvents,
       /** A new event is on the phone: try soon. */
       poke: function () { if (!running && !timer) schedule(0); else again = true; },
       status: status,
