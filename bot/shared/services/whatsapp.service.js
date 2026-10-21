@@ -252,6 +252,38 @@ class WhatsAppService {
   }
 
   /**
+   * Send a text message to a business-scoped user id (BSUID, "KE.…"), for a user whose webhook carried no phone.
+   * Meta takes the id in `recipient`, never in `to`. Not paced (the pacer is keyed by phone); one reply per inbound.
+   * @param {string} userId - the sender's business-scoped user id
+   * @param {string} message - Message text
+   * @returns {Promise<boolean>}
+   */
+  static async sendTextToUserId(userId, message) {
+    try {
+      const response = await fetch(`${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/messages`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient: userId,
+          type: 'text',
+          text: { body: this._removeEmotionTags(message) },
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        logToFile('❌ Error sending WhatsApp message to a user id', { responseData: data });
+        return false;
+      }
+      logToFile('✅ WhatsApp message sent to a user id', { messageId: data?.messages?.[0]?.id });
+      return true;
+    } catch (error) {
+      logToFile('❌ Exception sending WhatsApp message to a user id', { error: error.message });
+      return false;
+    }
+  }
+
+  /**
    * Hand a send failure to a caller that asked for it, and never let that
    * callback change what the send did. Callers that do not pass `onError` are
    * byte-for-byte unaffected: the boolean return contract is untouched.

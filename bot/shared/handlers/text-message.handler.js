@@ -538,7 +538,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
       // Level `error`, not `info`: this is an outage, and 3,593 degraded
       // operations in 20 days were invisible because nothing here logged.
       userLookupFailed = true;
-      logError('❌ User lookup failed — database unreachable, account state unknown', {
+      logError(`❌ User lookup failed — ${require('../services/phoneless-inbound').describeLookupFailure(error)}`, {
         phoneNumber: from, error: error.message, code: error.code || null,
       });
     }

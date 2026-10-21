@@ -11,6 +11,11 @@ const supabase = require('../config/supabase');
  * @returns {Promise<object>} User record
  */
 async function getOrCreateUser(phoneNumber) {
+  // No phone (a username user's webhook carries only the business-scoped id): there is nothing to look up, and a
+  // row with a null phone is refused by Postgres (23502). Say so, instead of trying and failing as an "outage".
+  if (!phoneNumber) {
+    throw Object.assign(new Error('no phone number to look the user up by'), { code: 'NO_PHONE' });
+  }
   try {
     // Try to find existing user
     const { data: existingUser, error: fetchError } = await supabase
