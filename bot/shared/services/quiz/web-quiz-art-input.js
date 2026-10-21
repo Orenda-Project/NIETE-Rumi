@@ -25,7 +25,8 @@ const ART_US_V = 1;
 
 // The challenge and class table pictures' polish (app_settings web_quiz_share_pic_polish, as `ui.pp`): its own version.
 // 2: a long one-word name on the English challenge is cut before its score (it ran under Jugnu).
-const ART_PP_V = 2;
+// 3: on the square that name is written already cut (no space between its «…» and "'s").
+const ART_PP_V = 3;
 
 // door: the invite drawn for the friend's door ("Your turn!" in place of the link pill); only then is it in the input,
 // so every other picture's key is today's.
