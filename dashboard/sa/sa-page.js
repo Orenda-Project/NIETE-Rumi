@@ -105,10 +105,10 @@
    * The phone's readiness for the part this child takes (RULING #51): the chosen block's battery (its tasks, the
    * passage variant drawn, the engine's lines), so a clip of another part that failed never refuses this child.
    */
-  function prepareOf(SAE, battery, lang, url) {
-    var o = { lang: lang, battery_url: url, base: '/' };
+  function prepareOf(SAE, battery, lang, url, onLines) {
+    var o = { lang: lang, battery_url: url, base: '/', onLines: onLines };
     var p = SAE.prepare ? SAE.prepare(battery, o)
-      : (SAE.offline ? SAE.offline.prepare({ battery_url: url, battery: battery, lang: lang, base: '/' }) : Promise.resolve({ ready: false }));
+      : (SAE.offline ? SAE.offline.prepare({ battery_url: url, battery: battery, lang: lang, base: '/', onLines: onLines }) : Promise.resolve({ ready: false }));
     return p.then(null, function () { return { ready: false }; });
   }
 
@@ -326,11 +326,15 @@
         : ((root.SAE.sinks && root.SAE.sinks.game) ? root.SAE.sinks.game({ session_id: p.session_id }) : null);
       // The device's readiness (RULING #14, #11, #51): the part's battery and clips on the phone, a voice for the
       // language, storage kept. SAE.prepare (car 4b) answers voice 'clips' | 'tts' | 'none'.
-      var offline = prepareOf(SAE, battery, p.lang, url);
+      // RULING W3-18 (sa_voice_gate_v2): the opening lines' prefetch, which the engine waits for (capped) before
+      // Jugnu's first words; the whole preparation ending counts too.
+      var linesDone = null;
+      var opening = battery.ui && battery.ui.voice_gate_v2 === true ? new Promise(function (ok) { linesDone = ok; }) : null;
+      var offline = prepareOf(SAE, battery, p.lang, url, linesDone);
       return root.SAE.start({
         mount: mount, battery: battery, mode: p.mode, lang: p.lang, sink: sink, session_id: p.session_id,
         child: p.first_name ? { first_name: p.first_name } : null, back: p.back, embed: p.embed,
-        manual: manualOf(full, p.block),
+        manual: manualOf(full, p.block), opening: opening ? Promise.race([opening, offline]) : null,
       }).then(function (engine) {
         root.__sae = engine;
         if (p.mode === 'proctored') {
