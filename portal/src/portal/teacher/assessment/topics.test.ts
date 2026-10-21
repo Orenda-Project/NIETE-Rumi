@@ -241,3 +241,21 @@ describe('Maths and Science topics (spec §4.2, §4.3)', () => {
     });
   });
 });
+
+describe('Task 9 — the door flag never leaks into a new paper', () => {
+  it('newPicks leaves byTopics unset', () => {
+    expect(newPicks(15).byTopics).toBeUndefined();
+  });
+});
+
+describe('Task 9 — resetPicks drops the door flag', () => {
+  it('a reset after a door visit starts clean', async () => {
+    const { resetPicks, setPicks, clearPicksForTest } = await import('./store');
+    clearPicksForTest();
+    setPicks({ byTopics: true });
+    resetPicks(15);
+    let seen: unknown;
+    setPicks((p) => { seen = p.byTopics; return {}; });
+    expect(seen).toBeUndefined();
+  });
+});
