@@ -306,7 +306,10 @@ async function artImageNow(id, { size = 'og', fresh = false, door = false, lang 
   // the Urdu class table picture's numbers in the digit face, never Nastaliq's (a lone ۱ reads as alif there;
   // web_quiz_end_copy_fix, the same read)
   const dg = f.lang === 'ur' && p.kind === 'l' && require('./web-quiz-card-switch').endCopyCached();
-  const input = artInput(KIND_OF[p.kind], sz, brand, f, dg ? { ...(u7 || {}), dg: true } : u7, door);
+  const u8 = dg ? { ...(u7 || {}), dg: true } : u7;
+  // one child on the Urdu class table picture in words, «ایک بچے نے کھیلا» (web_quiz_end_polish, the same read)
+  const ep = f.lang === 'ur' && p.kind === 'l' && require('./web-quiz-card-switch').endPolishCached();
+  const input = artInput(KIND_OF[p.kind], sz, brand, f, ep ? { ...(u8 || {}), ep: true } : u8, door);
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
   if (mem.has(key)) {
     byId.set(at, { key, until: Date.now() + BY_ID_MS[p.kind] });

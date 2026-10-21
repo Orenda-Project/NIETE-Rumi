@@ -143,6 +143,10 @@ html[lang=ur] .wq-key-go{font-family:var(--fu);line-height:1.6}
 .wq-chline{text-wrap:balance}
 /* web_quiz_challenge_line_sent: each sentence of the challenge line is one inline block, so the line breaks between sentences */
 .wq-banner .wq-sent{display:inline-block;max-width:100%}
+/* web_quiz_end_polish: the practice line as its compare box's heading (CB-1); a Latin school name on the Urdu league at a Latin line height (LH-1) */
+.wq-banner .wq-cbh{display:block;font-size:13px;font-weight:700;margin-bottom:4px}
+html[lang=ur] .wq-sname .wq-slat{display:inline-block;max-width:100%;line-height:1.3;text-align:right}
+@media (max-height:680px){.wq-scorecard.wq-sccb .wq-in{gap:4px}.wq-scorecard.wq-sccb .wq-in>img{display:none}}
 .wq-dots{display:flex;gap:6px;flex:1}
 .wq-dot{flex:1;height:12px;border-radius:999px;background:var(--star-off)}
 .wq-dot.wq-done{background:var(--green)}

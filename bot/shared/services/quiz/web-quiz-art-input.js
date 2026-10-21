@@ -39,6 +39,10 @@ const ART_NB_V = 1;
 // The Urdu class table picture's numbers in the digit face (app_settings web_quiz_end_copy_fix, as `ui.dg`). Its own version.
 const ART_DG_V = 1;
 
+// One child on the Urdu class table picture in words, «ایک بچے نے کھیلا» (app_settings web_quiz_end_polish, as `ui.ep`):
+// a lone ۱ reads as alif. Its own version.
+const ART_EP_V = 1;
+
 // door: the invite drawn for the friend's door ("Your turn!" in place of the link pill); only then is it in the input,
 // so every other picture's key is today's.
 function artInput(kind, size, brand, f, ui, door = false) {
@@ -52,8 +56,9 @@ function artInput(kind, size, brand, f, ui, door = false) {
     ...(ui && ui.one === true ? { one: true, ov: ART_ONE_V } : {}),
     ...(ui && ui.nb === true ? { nb: true, nbv: ART_NB_V } : {}),
     ...(ui && ui.dg === true ? { dg: true, dgv: ART_DG_V } : {}),
+    ...(ui && ui.ep === true ? { ep: true, epv: ART_EP_V } : {}),
   };
   return { kind, size, brand, lang: f.lang, d: f.d, ...(Object.keys(u).length ? { ui: u } : {}), ...(door && kind === 'invite' ? { door: true } : {}) };
 }
 
-module.exports = { artInput, ART_UR2_V, ART_INK_V, ART_UD_V, ART_NF_V, ART_US_V, ART_PP_V, ART_ONE_V, ART_NB_V, ART_DG_V };
+module.exports = { artInput, ART_UR2_V, ART_INK_V, ART_UD_V, ART_NF_V, ART_US_V, ART_PP_V, ART_ONE_V, ART_NB_V, ART_DG_V, ART_EP_V };
