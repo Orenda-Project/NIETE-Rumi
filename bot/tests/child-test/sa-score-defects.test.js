@@ -33,7 +33,14 @@ function fakeDb(tables) {
       then(ok, bad) {
         try {
           const hit = tables[name].filter((r) => f.every((fn) => fn(r)));
-          if (patch) { hit.forEach((r) => { Object.assign(r, patch); writes.push({ id: r.id, ...patch }); }); return Promise.resolve({ data: hit.map((r) => ({ id: r.id })), error: null }).then(ok, bad); }
+          if (patch) {
+            // the DB's child_test_blocks_keep_marks trigger: once marks exist, they and their state never change
+            const KEPT = ['ai_marks', 'ai_status', 'ai_model_versions', 'ai_scored_at', 'transcript', 'audio_r2_key', 'photo_r2_key'];
+            const frozen = hit.find((r) => r.ai_marks != null && KEPT.some((c) => c in patch && JSON.stringify(patch[c]) !== JSON.stringify(r[c] ?? null)));
+            if (frozen) return Promise.resolve({ data: null, error: { message: `child_test_blocks ${frozen.id}: the AI marks are written once` } }).then(ok, bad);
+            hit.forEach((r) => { Object.assign(r, patch); writes.push({ id: r.id, ...patch }); });
+            return Promise.resolve({ data: hit.map((r) => ({ id: r.id })), error: null }).then(ok, bad);
+          }
           const copy = hit.map((r) => JSON.parse(JSON.stringify(r)));
           return Promise.resolve({ data: lim ? copy.slice(0, lim) : copy, error: null }).then(ok, bad);
         } catch (e) { return Promise.reject(e).then(ok, bad); }
@@ -114,19 +121,42 @@ describe('DEFECT 1: the last questions task is scored while the coach is still t
   });
 });
 
-describe('DEFECT 1: a clip that comes after the marks reopens the task (sa-store setAudio)', () => {
+describe('DEFECT 1: a clip that comes after the scorer\'s marks is kept with the row; the marks stand (sa-store setAudio)', () => {
   const before = { ...process.env };
   afterEach(() => { process.env = { ...before }; delete global.__saDb; });
   const scored = (over = {}) => enComp({ ai_status: 'scored', ai_reason: null, ai_marks: { version: 'sa-marks-v1', correct: 1, of: 3 }, ...over });
 
-  test('with the switch, a late q2 clip clears the SA scorer marks and parks the row, keeping q1', async () => {
+  test('with the switch, a late q2 clip is added to the row (the agents hear it); marks and state untouched; the phone gets ok', async () => {
     process.env.CHILD_TEST_SA_CLIP_WAIT_S = '30';
     const r = scored();
     global.__saDb = fakeDb({ child_test_blocks: [r] });
     const out = await store.setAudio(SID, 'en.story_comp_w3', 'en.story_w3.q2', KEY('en.story_comp_w3', 'en.story_w3.q2'));
-    expect(out).toEqual({ ok: true });
-    expect(r).toMatchObject({ ai_marks: null, ai_status: 'failed', ai_reason: 'final:sa_score_later' });
+    expect(out).toEqual({ ok: true, late: true });
+    expect(r).toMatchObject({ ai_marks: { version: 'sa-marks-v1', correct: 1 }, ai_status: 'scored', ai_reason: null });
     expect(r.audio_r2_keys.map((k) => k.i)).toEqual(['en.story_w3.q1', 'en.story_w3.q2']);
+  });
+
+  test('saRegister answers ok for that late clip, never an error the phone would retry', async () => {
+    process.env.CHILD_TEST_SA_CLIP_WAIT_S = '30';
+    const sa = require('../../shared/services/child-test/app/sa-api.service'); // eslint-disable-line global-require
+    const r = scored();
+    global.__saDb = fakeDb({ child_test_blocks: [r] });
+    const COACH = 'aaaaaaaa-0000-4000-8000-000000000001';
+    let key = null;
+    const deps = {
+      enabled: async () => true,
+      supabase: { from: () => { throw new Error('no direct reads'); } },
+      store: { getSession: async () => ({ ok: true, session: { ...session(), coach_user_id: COACH, school_id: 'sch-1' } }) },
+      saStore: { findByClient: async () => ({ ok: true, sessionId: null }), setAudio: store.setAudio },
+      r2: { getPresignedUploadUrl: async (k) => { key = k; return 'https://r2.example/put'; }, headObject: async () => ({ exists: true }) },
+      env: 'sandbox', scoreLater: false, saScorer: { kick: () => {} },
+      now: () => at('2026-10-21T17:36:00Z'), log: () => {}, logError: () => {},
+    };
+    const pre = await sa.saPresign({ userId: COACH, sessionId: SID, taskId: 'en.story_comp_w3', itemId: 'en.story_w3.q2', mime: 'audio/webm', bytes: 1000 }, deps);
+    expect(pre.status).toBe('ok');
+    const out = await sa.saRegister({ userId: COACH, sessionId: SID, taskId: 'en.story_comp_w3', itemId: 'en.story_w3.q2', key }, deps);
+    expect(out.status).toBe('ok');
+    expect(r.ai_marks).toMatchObject({ version: 'sa-marks-v1' });
   });
 
   test('phone marks stay frozen; a clip it already has stays frozen; switch off stays frozen', async () => {
