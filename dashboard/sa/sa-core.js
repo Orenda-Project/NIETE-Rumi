@@ -45,6 +45,13 @@
  * A task stopped by a reload or a killed tab: a timed one is run again from its start, flagged resumed (EGRA); an
  * untimed one resumes at the item reached. Finished tasks are never asked again.
  *
+ * One at a time (opts.one_at_a_time, switch sa_one_at_a_time): a read-aloud grid (letter names, letter sounds,
+ * familiar words: response record + grid) shows one cell; nextCell() (a tap) shows the next, and a cell left alone
+ * moves on after cell_auto_s (3 s, EGRA's "please go on"; tick() answers 'go_on'). One recording for the task as before;
+ * the task's clock runs across the cells, each cell's time is kept (result.cells, cell_next events) and last_item_index
+ * is the cell reached. Fluency (mental_math_fluency) moves on after 5 s with no answer. Every answer carries its ms.
+ * Coach-led (opts.manual, RDF manual): nothing moves on by itself; session_start says admin_mode 'manual'.
+ *
  * UMD: window.SAE.core in the browser, module.exports under Node.
  */
 (function (root, factory) {
@@ -66,11 +73,15 @@
     familiar_word_reading: 'tap', number_identification: 'tap', quantity_discrimination: 'tap', missing_number: 'tap',
     addition_level_1: 'keypad', subtraction_level_1: 'keypad', addition_level_2: 'keypad', subtraction_level_2: 'keypad',
     word_problems: 'keypad', spelling: 'keyboard', dictation: 'keyboard', oral_reading_fluency: 'record', listening_comprehension: 'oral', reading_comprehension: 'oral',
+    mental_math_fluency: 'oral', mental_addition: 'oral', mental_subtraction: 'oral', mental_multiplication: 'oral',
   };
   // SA time rules (design §2): timed items replay at 5 s and move on at 10 s; untimed items offer "next" at 15 s.
   var TIMED_REPLAY_S = 5;
   var TIMED_ITEM_S = 10;
   var UNTIMED_NEXT_S = 15;
+  // One at a time (Toolkit 2016 Annex H: "if the child hesitates for 3 seconds … please go on"; Core EGMA: 5 s).
+  var CELL_AUTO_S = 3;
+  var FLUENCY_ITEM_S = 5;
 
   function str(x) { return typeof x === 'string' && x.length > 0; }
   function num() { for (var i = 0; i < arguments.length; i++) if (typeof arguments[i] === 'number' && arguments[i] > 0) return arguments[i]; return null; }
@@ -111,7 +122,8 @@
       passage: t.passage || null, grid: t.grid || null, per_row: t.per_row || (t.grid && t.grid.cols) || 10,
       direction: t.direction || (t.passage && t.passage.direction) || (t.grid && t.grid.direction) || 'ltr',
       instruction: t.instruction || null, script: t.script || {}, source: t.source || null, deviation: t.deviation || null,
-      tap_on: t.tap_on || null, option_images: t.option_images || null,
+      coach_text: t.coach_text || null,
+      tap_on: t.tap_on || null, option_images: t.option_images || null, cell_auto_s: num(t.cell_auto_s),
       // The mercy rule's timings on a passage (RULING #10): the battery's, else 12 s / 20 s.
       mercy_after_s: num(t.mercy_after_s, t.record && t.record.mercy_after_s, 12),
       silence_stop_s: num(t.silence_stop_s, t.record && t.record.silence_stop_s, 20),
@@ -204,6 +216,33 @@
     var gates = resume && resume.gates ? JSON.parse(JSON.stringify(resume.gates)) : {};
     var mic = opts.mic || function () { return 'ok'; };
     var st = { phase: 'battery_intro' };
+    var oneAtATime = !!opts.one_at_a_time;
+    var manual = !!opts.manual;
+
+    /** A read-aloud grid shown one cell at a time (never a passage). */
+    function cellTask(t) { return oneAtATime && t && t.mode === 'record' && Array.isArray(t.grid) && t.grid.length > 0 && !t.passage; }
+    function itemTimeoutS(t) {
+      if (oneAtATime && t.subtask === 'mental_math_fluency' && t.item_timeout_s === TIMED_ITEM_S) return manual ? null : FLUENCY_ITEM_S;
+      return t.item_timeout_s;
+    }
+    /** The cell on show ends: its time is kept; how = tap | auto | the stop reason. */
+    function closeCell(how) {
+      var c = st.cell;
+      if (!c) return;
+      var e = { i: c.i, at_ms: Math.round(c.at - st.started), ms: Math.round(now() - c.at), how: how };
+      st.cells.push(e);
+      st.last_item_index = c.i;
+      st.cell = null;
+      ev('cell_next', { task_id: st.task_id, value: e });
+    }
+    function nextCell(how) {
+      var t = task();
+      if (st.phase !== 'running' || !st.cell) return;
+      var i = st.cell.i;
+      closeCell(how);
+      if (i + 1 >= t.grid.length) { finish(STOP.COMPLETE); return; }
+      st.cell = { i: i + 1, at: now() };
+    }
 
     function ev(type, extra) {
       var e = { session_id: opts.session_id || null, seq: ++seq, t_ms: Math.round(now() - t0), at: wall(), type: type };
@@ -227,7 +266,13 @@
       if (d.items_read_upto || d.upto_item) {
         var line = dep.last_word_line;
         if (line == null) return { skip: STOP.SKIPPED_NO_LINE };
-        var keep = t.items.filter(function (q) { return q.needs_line == null || q.needs_line <= line; });
+        // W3 forms: a question asked only once the child read min_words words (the coach card's "only if the child
+        // read past …"); older forms by the line reached.
+        var read = dep.last_word_index != null ? dep.last_word_index + 1 : 0;
+        var keep = t.items.filter(function (q) {
+          if (q.gate && typeof q.gate.min_words === 'number') return read >= q.gate.min_words;
+          return q.needs_line == null || q.needs_line <= line;
+        });
         return keep.length ? { items: keep } : { skip: STOP.SKIPPED_NO_LINE };
       }
       return { items: t.items };
@@ -277,6 +322,7 @@
 
     function finish(reason) {
       var t = task();
+      if (st.cell) closeCell(reason);
       var used = st.started == null ? 0 : Math.round(now() - st.started);
       // The clock as it really ran (a throttled tab, a late time-up): never capped, unlike time_used_ms.
       var elapsed = used;
@@ -302,6 +348,7 @@
         var w = st.last_item_index != null ? t.items[st.last_item_index] : null;
         r.last_word_line = w && w.line != null ? w.line : (st.last_item_index != null ? 1 : null);
       }
+      if (st.cells) r.cells = st.cells.slice();
       if (t.mode === 'oral') r.asked = st.items.map(function (q) { return q.id; });
       // Whether the recorder ever opened for this task (a skip, no mic, or the coach's early end before it: false), so
       // the server waits for audio only where a recording exists.
@@ -346,7 +393,9 @@
       var t = task();
       var ok = t.mode === 'oral' ? null : (value === 'timeout' || value === 'skipped' ? false : hit(it, value, t.mode));
       tally(t, ok);
-      st.answers.push({ item_id: it.id, value: value, ok: ok });
+      var a = { item_id: it.id, value: value, ok: ok };
+      if (oneAtATime && st.item_started != null) a.ms = Math.round(now() - st.item_started);
+      st.answers.push(a);
       ev(ok === null ? 'answer' : (ok ? 'item_correct' : 'item_incorrect'), { task_id: t.id, item_id: it.id, value: value });
       st.item_i++;
       st.item_started = now();
@@ -361,7 +410,9 @@
       /** The battery intro → the audio check, the warm-up (the page runs them) or the first task. */
       start: function () {
         if (st.phase !== 'battery_intro') return;
-        ev(resume ? 'reload_resume' : 'session_start', { value: { battery_id: battery.battery_id || null, tasks: battery.tasks.length } });
+        var sv = { battery_id: battery.battery_id || null, tasks: battery.tasks.length };
+        if (manual) sv.admin_mode = 'manual';
+        ev(resume ? 'reload_resume' : 'session_start', { value: sv });
         if (resume && taskIndex < battery.tasks.length) {
           var t = battery.tasks[taskIndex];
           var part = resume.current && resume.current.task_id === t.id ? resume.current : null;
@@ -465,6 +516,7 @@
         st.phase = 'running';
         st.started = now();
         st.item_started = st.started;
+        if (cellTask(task())) { st.cells = []; st.cell = { i: 0, at: st.started }; }
         ev('task_start', { task_id: st.task_id, value: { time_limit_s: task().time_limit_s || null, mode: task().mode, items: st.items.length } });
       },
       /** An answer to the current item: a tile, the typed number (keypad) or 'spoken' (oral). true/false/null. */
@@ -486,6 +538,8 @@
         if (st.phase !== 'running' || t.mode === 'record') return undefined;
         return score(st.items[st.item_i], t.mode === 'oral' ? 'skipped' : 'skipped');
       },
+      /** One at a time: the cell on show is passed (how: 'tap', or 'auto' when the page moves it on). */
+      nextCell: function (how) { nextCell(how === 'auto' ? 'auto' : 'tap'); },
       /** The passage: "I'm done" (or time up) → the child taps the last word read. */
       done: function () {
         if (st.phase !== 'running' || task().mode !== 'record') return;
@@ -509,9 +563,16 @@
           finish(STOP.TIME_UP);
           return null;
         }
+        if (st.cell) {
+          var auto = t.cell_auto_s || CELL_AUTO_S;
+          if (manual || now() - st.cell.at < auto * 1000) return null;
+          nextCell('auto');
+          return st.phase === 'running' ? 'go_on' : null;
+        }
         if (t.mode === 'record') return null;
         var waited = now() - st.item_started;
-        if (t.item_timeout_s && waited >= t.item_timeout_s * 1000) { score(st.items[st.item_i], t.mode === 'oral' ? 'spoken' : 'timeout'); return null; }
+        var tmo = itemTimeoutS(t);
+        if (tmo && waited >= tmo * 1000) { score(st.items[st.item_i], t.mode === 'oral' ? 'spoken' : 'timeout'); return null; }
         if (t.replay_at_s && !st.replayed && waited >= t.replay_at_s * 1000) {
           st.replayed = true;
           ev('replay', { task_id: t.id, item_id: st.items[st.item_i].id, value: 'auto' });
@@ -554,6 +615,7 @@
           v.item = t.mode === 'record' ? null : st.items[st.item_i];
           v.item_index = st.item_i;
           v.items_n = st.items.length;
+          if (st.cell) { v.cell = String(t.grid[st.cell.i]); v.cell_index = st.cell.i; v.cells_n = t.grid.length; }
           if (t.mode !== 'record' && st.item_started != null) {
             var waited = now() - st.item_started;
             v.item_wait_ms = waited;
