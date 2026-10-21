@@ -101,6 +101,56 @@
     return out.tasks.length ? out : battery;
   }
 
+  /**
+   * The phone's readiness for the part this child takes (RULING #51): the chosen block's battery (its tasks, the
+   * passage variant drawn, the engine's lines), so a clip of another part that failed never refuses this child.
+   */
+  function prepareOf(SAE, battery, lang, url) {
+    var o = { lang: lang, battery_url: url, base: '/' };
+    var p = SAE.prepare ? SAE.prepare(battery, o)
+      : (SAE.offline ? SAE.offline.prepare({ battery_url: url, battery: battery, lang: lang, base: '/' }) : Promise.resolve({ ready: false }));
+    return p.then(null, function () { return { ready: false }; });
+  }
+
+  function tell(ctx, msg) {
+    var w = ctx.win;
+    if (!ctx.embed || !w || !w.parent || w.parent === w || !w.location) return;
+    try { w.parent.postMessage(msg, w.location.origin); } catch (_) { /* the coach page is gone */ }
+  }
+
+  /**
+   * After the preparation: device_ready is logged; no clip and no phone voice → the screen refuses the start and the
+   * coach page is told {type:'sa:refused', s, reason:'voice'}. With sa_voice_gate_v2 (battery.ui.voice_gate_v2) the
+   * refusal offers Try again: ctx.again() prepares once more; a voice → the test starts, {type:'sa:unrefused', s}.
+   */
+  function voiceGate(engine, offline, ctx) {
+    function readyOf(o) {
+      return {
+        ready: !!o.ready, voice: o.voice || null, persisted: o.persisted == null ? null : !!o.persisted,
+        clips_total: o.clips_total != null ? o.clips_total : null, clips_cached: o.clips_cached != null ? o.clips_cached : (o.clips || 0),
+      };
+    }
+    return offline.then(function (o) {
+      engine.runner.log('device_ready', { value: readyOf(o) });
+      // No clip and no phone voice for this language: Jugnu would be silent, so the test does not start.
+      if (o.voice !== 'none' || !engine.view || !engine.view.refuse) return;
+      engine.runner.log('voice_not_ready');
+      var gate2 = !!(ctx.battery && ctx.battery.ui && ctx.battery.ui.voice_gate_v2 === true) && typeof ctx.again === 'function';
+      var retry = gate2 ? function () {
+        return Promise.resolve().then(ctx.again).then(null, function () { return { voice: 'none' }; }).then(function (r) {
+          r = r || { voice: 'none' };
+          engine.runner.log('voice_retry', { value: { voice: r.voice || null, clips_cached: r.clips_cached != null ? r.clips_cached : null } });
+          if (r.voice === 'none') return false;
+          if (engine.view.unrefuse) engine.view.unrefuse();
+          tell(ctx, { type: 'sa:unrefused', s: engine.session_id });
+          return true;
+        });
+      } : null;
+      if (retry) engine.view.refuse('voice', { retry: retry }); else engine.view.refuse('voice');
+      tell(ctx, { type: 'sa:refused', s: engine.session_id, reason: 'voice' });
+    });
+  }
+
   /** FNV-1a of a string: the same session always gets the same number. Math.imul keeps the product's low bits
    *  (a plain * rounds them away above 2^53, and hash % 2 then lands on 0 almost every time). */
   function hash(s) {
@@ -274,11 +324,9 @@
         ? (p.token ? (SAE.sinks && SAE.sinks.coachLinked ? SAE.sinks.coachLinked(p.token) : null)
           : (SAE.sinks && SAE.sinks.coach ? SAE.sinks.coach() : null))
         : ((root.SAE.sinks && root.SAE.sinks.game) ? root.SAE.sinks.game({ session_id: p.session_id }) : null);
-      // The device's readiness (RULING #14, #11): the battery and clips on the phone, a voice for the language, storage
-      // kept. SAE.prepare (car 4b) answers voice 'clips' | 'tts' | 'none'; the older offline.prepare when it is absent.
-      var offline = SAE.prepare ? SAE.prepare(full, { lang: p.lang, battery_url: url, base: '/' })
-        : (SAE.offline ? SAE.offline.prepare({ battery_url: url, battery: full, lang: p.lang, base: '/' }) : Promise.resolve({ ready: false }));
-      offline = offline.then(null, function () { return { ready: false }; });
+      // The device's readiness (RULING #14, #11, #51): the part's battery and clips on the phone, a voice for the
+      // language, storage kept. SAE.prepare (car 4b) answers voice 'clips' | 'tts' | 'none'.
+      var offline = prepareOf(SAE, battery, p.lang, url);
       return root.SAE.start({
         mount: mount, battery: battery, mode: p.mode, lang: p.lang, sink: sink, session_id: p.session_id,
         child: p.first_name ? { first_name: p.first_name } : null, back: p.back, embed: p.embed,
@@ -304,17 +352,7 @@
               .then(function (d) { if (d.length) engine.runner.log('drained', { value: d }); }, function () {});
           }, 3000);
         }
-        offline.then(function (o) {
-          engine.runner.log('device_ready', { value: {
-            ready: !!o.ready, voice: o.voice || null, persisted: o.persisted == null ? null : !!o.persisted,
-            clips_total: o.clips_total != null ? o.clips_total : null, clips_cached: o.clips_cached != null ? o.clips_cached : (o.clips || 0),
-          } });
-          // No clip and no phone voice for this language: Jugnu would be silent, so the test does not start.
-          if (o.voice === 'none' && engine.view && engine.view.refuse) {
-            engine.runner.log('voice_not_ready');
-            engine.view.refuse('voice');
-          }
-        });
+        voiceGate(engine, offline, { win: root, embed: p.embed, battery: battery, again: function () { return prepareOf(SAE, battery, p.lang, url); } });
         root.addEventListener('offline', function () { engine.runner.log('offline'); });
         root.addEventListener('online', function () { engine.runner.log('online'); });
         return engine;
@@ -324,5 +362,5 @@
     });
   }
 
-  return { params: params, pick: pick, manualOf: manualOf, rotate: rotate, lockDown: lockDown, drain: drain, boot: boot };
+  return { params: params, pick: pick, manualOf: manualOf, rotate: rotate, prepareOf: prepareOf, voiceGate: voiceGate, lockDown: lockDown, drain: drain, boot: boot };
 }));
