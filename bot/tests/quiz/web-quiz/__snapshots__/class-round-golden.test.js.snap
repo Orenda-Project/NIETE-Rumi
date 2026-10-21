@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`round off (none): a Challenge run is byte-identical exercise payload, the challenge token claims, and the stored row: bigger exercise payload 1`] = `
 {

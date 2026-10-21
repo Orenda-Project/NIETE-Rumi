@@ -3095,6 +3095,8 @@ const UX_STRINGS = {
   wqArtPlayed_one: { en: 'played', ur: 'بچے نے کھیلا' },
   wqArtPlayedOf_one: { en: '{n} of {of} played', ur: '{of} میں سے {n} بچے نے کھیلا' },
   wqArtKids_one: { en: 'kid', ur: 'بچہ' },
+  // A school's sector on the school picture (web_quiz_share_bidi, SECT-1): its display name, never the stored key ("ict").
+  wqArtSector_ict: { en: 'ICT', ur: 'آئی سی ٹی' },
   vqTierMastered: { en: 'Brilliant work!', ur: 'زبردست!' },
   vqTierDeveloping: {
     en: 'Nicely done — a little more practice and you’ll have it.',

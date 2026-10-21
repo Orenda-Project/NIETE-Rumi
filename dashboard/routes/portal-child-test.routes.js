@@ -120,6 +120,8 @@ const SA_SWITCHES = {
   coachPicksBlock: 'sa_coach_picks_block',
   rdfForm: 'sa_rdf_form',
   resultsView: SA_RESULTS_VIEW_KEY,
+  // Wave 3: the card's RDF entry becomes RDF auto + RDF manual (the content lane's forms switch)
+  rdfW3Forms: 'sa_rdf_w3_forms',
 };
 
 router.get('/sa/switches', ...saGates, async (req, res) => {
