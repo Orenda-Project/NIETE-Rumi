@@ -21,9 +21,12 @@ const EN = ASSESSMENT.en;
  */
 
 export type Source = 'seen' | 'unseen' | 'both';
-export type Step = 'class' | 'cover' | 'questions' | 'check';
+export type Step = 'class' | 'cover' | 'topics' | 'questions' | 'check';
 
 export const STEPS: readonly Step[] = ['class', 'cover', 'questions', 'check'];
+
+/** One chapter with topics: Topics comes after Chapters (topics.ts `topicsApply`). Today's four steps otherwise. */
+export const TOPIC_STEPS: readonly Step[] = ['class', 'cover', 'topics', 'questions', 'check'];
 
 /** The Flow's MAX_TYPE_SLOTS (question-types.js): the most unseen types one paper takes. */
 export const MAX_TYPES = 8;
@@ -74,6 +77,12 @@ export type Picks = {
   style?: 'fde' | 'own' | null;
   /** The board pattern the request carries (only with style 'fde'). */
   pattern?: string | null;
+  /** The Topics step: 'chapter' = the whole chapter, 'topics' = the ones she ticks, null = not asked (skipped). */
+  topicScope?: 'chapter' | 'topics' | null;
+  /** The ticked topic ids in book order; null = every topic (the whole chapter), [] = none ticked yet. */
+  topicIds?: string[] | null;
+  /** She came through the WhatsApp link for a paper on topics (?by=topics): Topics opens on Select topics. */
+  byTopics?: boolean;
 };
 
 export function newPicks(defaultCount: number): Picks {
@@ -83,6 +92,7 @@ export function newPicks(defaultCount: number): Picks {
     seen: Math.min(5, Math.max(0, defaultCount - 1)), typeCounts: {}, typesSeeded: false,
     marks: null, answerLines: true,
     patternIntent: null, style: null, pattern: null,
+    topicScope: null, topicIds: null,
   };
 }
 
@@ -155,7 +165,8 @@ export type Why =
   | { code: 'marksLow'; total: number }
   | { code: 'earlier'; step: Step }
   | { code: 'generating' }
-  | { code: 'scopeOrFde' };
+  | { code: 'scopeOrFde' }
+  | { code: 'topics' };
 
 /**
  * Why she may not go on from this step, or null when she may. `max` is GET /assessment/options' maxQuestions.
@@ -181,6 +192,8 @@ export function stepWhy(step: Step, p: Picks, max: number, opts: { busy?: boolea
     case 'cover':
       if (p.coverBy === 'chapters') return p.chapters.length > 0 ? null : { code: opts.offerFde ? 'scopeOrFde' : 'chapters' };
       return p.ranges.length > 0 ? null : { code: 'ranges' };
+    case 'topics':
+      return p.topicScope === 'topics' && Array.isArray(p.topicIds) && p.topicIds.length === 0 ? { code: 'topics' } : null;
     case 'questions': {
       const total = questionTotal(p);
       if (total === 0) return { code: 'none' };
@@ -193,7 +206,7 @@ export function stepWhy(step: Step, p: Picks, max: number, opts: { busy?: boolea
       return null;
     }
     case 'check': {
-      const first = STEPS.slice(0, -1).find((s) => stepWhy(s, p, max) !== null);
+      const first = TOPIC_STEPS.slice(0, -1).find((s) => stepWhy(s, p, max) !== null);
       return first ? { code: 'earlier', step: first } : null;
     }
     default:
@@ -240,6 +253,8 @@ export type V2Spec = {
   totalMarks: number | null;
   answerLines: boolean;
   outputFormat: 'pdf';
+  /** A topic paper: the ticked topics of its one chapter. Absent = the whole chapter (today's request). */
+  topicIds?: string[];
 };
 
 /** The board pattern's request: the pattern, and the FDE syllabus (`scope`) or the chosen chapters / pages; the pattern fixes
@@ -292,6 +307,7 @@ export function toSpec(p: Picks): V2Spec | FdeSpec {
     answerLines: p.answerLines,
     // Word stays off: its flag (assessment_docx_enabled) is false in production.
     outputFormat: 'pdf',
+    ...(byChapters && p.chapters.length === 1 && p.topicScope === 'topics' && p.topicIds?.length ? { topicIds: [...p.topicIds] } : {}),
   };
 }
 
@@ -310,6 +326,7 @@ export type AnySpec = {
   answerLines?: boolean;
   pattern?: string | null;
   scope?: 'fde' | null;
+  topicIds?: string[] | null;
 };
 
 /** A board-pattern request (it carries `pattern`), whatever shape the job stored it in. */
@@ -354,6 +371,7 @@ export function fromSpec(spec: AnySpec, subjectName: string | null): Picks {
     typesSeeded: typed || source === 'seen',
     marks: spec.totalMarks ?? null,
     answerLines: spec.answerLines !== false,
+    ...(spec.topicIds?.length ? { topicScope: 'topics' as const, topicIds: [...spec.topicIds] } : {}),
     ...(pattern ? {
       style: 'fde' as const, pattern, patternIntent: pattern,
       ...(spec.scope === 'fde' ? { coverBy: 'fde' as const } : {}),

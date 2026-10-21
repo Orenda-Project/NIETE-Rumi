@@ -18,6 +18,7 @@ export function whyText(w: Why, C: AssessmentV2Copy): string {
     case 'earlier': return C.why.earlier(C.steps[w.step]);
     case 'generating': return C.why.generating;
     case 'scopeOrFde': return C.why.scopeOrFde;
+    case 'topics': return C.why.topics;
   }
 }
 

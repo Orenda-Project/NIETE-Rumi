@@ -170,6 +170,26 @@ Feature: Teacher assessment
     When she taps Answer key
     Then the app says "No answer key" and the viewer shows the paper
 
+  # Topics (Task 8, bd-6clakk): after Chapters, when exactly one chapter is picked and it has topics, a Topics step asks
+  # Whole chapter or Select topics. English and Urdu topics sit under their skill headings, in teacher words, never SLO
+  # codes. A strict subset of the topics is sent as topicIds and starts at 10 marks; every topic ticked is the whole
+  # chapter, sent as today. Write-only here: the driver mocks /assessment/topics and catches /assessment/generate.
+
+  @TA18
+  Scenario: Teacher makes a grammar-only paper on topics taught
+    Given a Grade 1 English teacher is signed in to the teacher app v2
+    And she has picked Chapter 1 on a plain New paper, and the chapter has Reading, Vocabulary & grammar and Writing topics
+    When she taps Next on Chapters
+    Then Topics opens at "Step 3 of 5" with Whole chapter and Select topics, and no list yet
+    When she taps Select topics
+    Then the topics show under the headings Reading, Vocabulary & grammar and Writing, nothing ticked, and no SLO code
+    And Next is off with "Tick at least one topic"
+    When she taps Tick all under Vocabulary & grammar and taps Next
+    Then Questions opens at "Step 4 of 5" with 10 marks, no seen questions, and grammar question types
+    When she taps Next and Make my paper
+    Then Check and make shows a Topics row "2 selected"
+    And the request carries topicIds for the two grammar topics only, and no seen questions
+
   # The soft paper limit (dashboard flag assessment_rate_limit_enabled) counts plain papers too. Run on sandbox by the QA
   # agent with a teacher's ten requests of the last hour seeded and the flag on for the run only.
   @sandbox

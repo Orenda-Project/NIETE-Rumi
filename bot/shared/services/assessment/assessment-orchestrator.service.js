@@ -31,6 +31,7 @@ const { logToFile } = require('../../utils/logger');
 const BookContent = require('./book-content.service');
 const Generation = require('./assessment-generation.service');
 const Renderer = require('./assessment-paper.renderer');
+const TopicKey = require('./topic-key.renderer');
 const FdeRenderer = require('./assessment-paper-fde.renderer');
 // The renderer is chosen by the requested format, in one place, so the bytes
 // and the filename can never disagree. Requiring htmlToPdf directly here is
@@ -187,11 +188,14 @@ async function _storeAnswerKey({
   // count read off the bytes by the caller. All optional — today's callers
   // pass none of them and get exactly the key they always got.
   suffix = '_AnswerKey', renderOpts = null, paperFileName = null, onBuffer = null,
+  // A topic paper's key is grouped by topic; absent for every other paper.
+  topics = null,
 }) {
   try {
     const keyHtml = Renderer.renderAnswerKey({
       examJson, grade, subject, schoolName: schoolName || null, pageReference, chapterTitle,
       ...(paperFileName ? { paperFileName } : {}),
+      ...(topics ? { topics } : {}),
     });
     const keyBuffer = renderOpts ? await renderer.render(keyHtml, renderOpts) : await renderer.render(keyHtml);
     if (onBuffer) onBuffer(keyBuffer);
@@ -560,7 +564,7 @@ async function buildPaper(job, user = {}) {
   const {
     userId, requestId, grade, subject, chapterNumber, pageRanges,
     questionTypes = [], contentSource = 'unseen', questionCount, totalMarks = null, seenCount = null,
-    outputFormat = 'pdf', answerLines = true, pattern = null,
+    outputFormat = 'pdf', answerLines = true, pattern = null, scope = null,
   } = job;
 
   // Open the record before doing any work, so a job that dies mid-flight leaves
@@ -605,12 +609,18 @@ async function buildPaper(job, user = {}) {
       // Always: answers are generated for every paper, so a key can always be
       // made — now, after a revision, or from the portal later (bd-bfnsk).
       contentSource, questionCount, totalMarks, questionTypes, includeAnswerKey: true, seenCount,
+      // A topic paper tests the ticked topics' skills; any other job passes no key at all.
+      ...(scope && scope.kind === 'topics' ? { slos: scope.slos } : {}),
     });
 
     // With versioned editing the generated row IS version 1 and is never
     // rewritten, so the frozen copy is redundant. Until the flag is on, the old
     // in-place edit path still needs it to keep the model's paper recoverable.
     const versioned = await isAssessmentVersionsEnabled();
+    // A topic paper carries its ticked topics in its own tree, so an edit can
+    // rebuild the key's summary (scope is not stored on the request).
+    const topics = TopicKey.topicsFromScope(scope);
+    if (topics && topics.length) generated.examJson._topics = topics;
     await _patchPaper(paperId, {
       exam_json: generated.examJson,
       ...(versioned ? {} : { original_exam_json: generated.examJson }),
@@ -629,6 +639,7 @@ async function buildPaper(job, user = {}) {
       pageReference: source.pageReference,
       chapterTitle: source.chapterTitle || null,
       answerLines,
+      ...(topics && topics.length ? { paperKind: 'topic' } : {}),
     });
 
     const renderer = rendererFor(outputFormat);
@@ -679,6 +690,7 @@ async function buildPaper(job, user = {}) {
       chapterTitle: source.chapterTitle || null,
       pageReference: source.pageReference,
       versioned,
+      ...(topics && topics.length ? { topics } : {}),
     };
   } catch (err) {
     const code = err.code || 'UNKNOWN';
@@ -765,6 +777,7 @@ async function process(job) {
         paperId: built.paperId, requestId, userId, examJson: built.examJson, grade, subject,
         schoolName: user?.school_name, pageReference: built.pageReference,
         chapterTitle: built.chapterTitle, renderer: built.renderer,
+        ...(built.topics ? { topics: built.topics } : {}),
       });
     }
     logToFile('[assessment] built without delivery', {
@@ -843,6 +856,7 @@ async function process(job) {
     const stored = built.answerKey !== undefined ? built.answerKey : await _storeAnswerKey({
       paperId, requestId, userId, examJson, grade, subject,
       schoolName: user.school_name, pageReference, chapterTitle, renderer,
+      ...(built.topics ? { topics: built.topics } : {}),
     });
     if (stored) {
       try {
