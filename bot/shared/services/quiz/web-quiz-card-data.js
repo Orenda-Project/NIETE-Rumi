@@ -122,12 +122,22 @@ async function fromVideo(sid, videoId) {
   return { ...q, s, ...(s === 3 ? { b: 'video_star' } : {}) };
 }
 
+// The counted score (web_quiz_share_first_score): this child's FIRST finish on the class code, the one the class table
+// and the challenge show; a practice replay's own score is never the card's. No child or code: the session as it is.
+async function firstOf(row) {
+  if (!row || !row.student_id || !row.share_code_id) return row;
+  const { data } = await supabase.from('quiz_sessions').select('id, correct_answers, total_questions_answered, completed_at')
+    .eq('share_code_id', row.share_code_id).eq('student_id', row.student_id).eq('status', 'completed')
+    .order('completed_at', { ascending: true }).limit(1);
+  return (data && data[0]) || row;
+}
+
 /** The finish's result from the server's rows, or null. w: who() (sid, session row, run). Never throws. */
 async function resultOf({ kind, item, w, ct }) {
   try {
     if (!w) return null;
     if (kind === 'quiz') {
-      const row = w.session;
+      const row = require('./web-quiz-card-switch').firstScoreCached() ? await firstOf(w.session) : w.session;
       const q = row ? score(row.correct_answers, row.total_questions_answered) : null;
       if (!q) return null;
       const s = starsOf(q.r, q.o);
