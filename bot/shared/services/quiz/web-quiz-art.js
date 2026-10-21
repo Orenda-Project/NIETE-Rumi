@@ -284,7 +284,10 @@ async function artImageNow(id, { size = 'og', fresh = false, door = false } = {}
   const u3 = nf ? { ...(u2 || {}), nf: true } : u2;
   // the Urdu card, challenge and class table pictures as one stack (web_quiz_share_ur_stack, the same read); English never changes
   const us = f.lang === 'ur' && (p.kind === 'c' || p.kind === 'i' || p.kind === 'l') && require('./web-quiz-card-switch').urStackCached();
-  const input = artInput(KIND_OF[p.kind], sz, brand, f, us ? { ...(u3 || {}), us: true } : u3, door);
+  const u4 = us ? { ...(u3 || {}), us: true } : u3;
+  // the challenge and class table pictures' polish, both languages (web_quiz_share_pic_polish, the same read)
+  const pp = (p.kind === 'i' || p.kind === 'l') && require('./web-quiz-card-switch').picPolishCached();
+  const input = artInput(KIND_OF[p.kind], sz, brand, f, pp ? { ...(u4 || {}), pp: true } : u4, door);
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
   if (mem.has(key)) {
     byId.set(at, { key, until: Date.now() + BY_ID_MS[p.kind] });
