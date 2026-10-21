@@ -163,6 +163,8 @@ function facts(token) {
   if (f.s === 4 && f.a === 1) out.a = true;
   // minted with web_quiz_card_ready on: its picture and page are drawn and stored at mint (prepare)
   if (f.s === 4 && f.r === 1) out.ready = true;
+  // minted with web_quiz_share_bidi on: its Urdu counts keep their words (web-quiz-card-data.js words)
+  if (f.s === 4 && f.b === 1) out.bidi = true;
   return out;
 }
 
@@ -284,7 +286,7 @@ async function mint(body = {}, { device = null } = {}) {
   const joined = v4 && w.sid && Switch.joinedCached();
   const Data = data ? require('./web-quiz-card-data') : null;
   const x = Data ? Data.clean(await Data.resultOf({ kind, item, w, ct: body.ct })) : null;
-  const token = seal({ v: 1, k: kind, d: deed, l: lang, n: w.first, ...(kind === 'quiz' && w.code ? { c: w.code } : {}), ...(v4 ? { s: 4, ...(item ? { i: item } : {}), ...(joined ? { j: 1 } : {}), ...(x ? { x } : {}), ...(Switch.cardACached() ? { a: 1 } : {}), ...(Switch.readyCached() ? { r: 1 } : {}) } : {}), t: Math.floor(Date.now() / 1000) });
+  const token = seal({ v: 1, k: kind, d: deed, l: lang, n: w.first, ...(kind === 'quiz' && w.code ? { c: w.code } : {}), ...(v4 ? { s: 4, ...(item ? { i: item } : {}), ...(joined ? { j: 1 } : {}), ...(x ? { x } : {}), ...(Switch.cardACached() ? { a: 1 } : {}), ...(Switch.readyCached() ? { r: 1 } : {}), ...(Switch.shareBidiCached() ? { b: 1 } : {}) } : {}), t: Math.floor(Date.now() / 1000) });
   if (!token) fail(503, 'web_quiz_off');
   if (joined) {
     try {
@@ -301,6 +303,8 @@ async function mint(body = {}, { device = null } = {}) {
   if (v4 && Switch.linkLangCached()) out.link_lang = true;
   // one star (web_quiz_share_copy_one): the sheet sets an English title on an Urdu sheet in its RTL line (SC-1)
   if (v4 && Switch.copyOneCached()) out.one = true;
+  // the Urdu share words right to left (web_quiz_share_bidi): the sheet's title line RTL, the card's counts with their words
+  if (v4 && Switch.shareBidiCached()) out.bidi = true;
   if (x) out.data = x;
   // ready (web_quiz_card_ready): the picture and the page are drawn and stored now, while the child is still on the
   // finish screen, so the link's preview never waits for a draw (never awaited; a failure leaves today's way)
@@ -614,7 +618,7 @@ async function landing(token) {
     if (f.a) out.a = true;
     if (f.data) {
       out.result = f.data;
-      out.result_text = require('./web-quiz-card-data').words(f.data, f.kind, f.lang);
+      out.result_text = require('./web-quiz-card-data').words(f.data, f.kind, f.lang, f.bidi === true);
     }
   }
   return out;
