@@ -157,6 +157,64 @@ describe("AssessEngineSlot", () => {
       expect(screen.getByRole("button", { name: /End test/ })).toBeInTheDocument();
     });
 
+    const batteryEnding = (s = SID) => act(() => {
+      window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:battery_ending", s }, origin: window.location.origin }));
+    });
+
+    it("sa:battery_ending: the corner hold goes, Next child shows disabled as Sending… until sa:battery_end", () => {
+      const { frame, onFinished } = setup({ lang: "en", handbackV2: true });
+      const post = vi.fn();
+      Object.defineProperty(frame, "contentWindow", { configurable: true, get: () => ({ postMessage: post, location: { search: "" } }) });
+      batteryEnding();
+      expect(screen.queryByRole("button", { name: /End test/ })).toBeNull();
+      const hold = screen.getByRole("button", { name: /Next child \(coach\)/ });
+      expect(hold).toBeDisabled();
+      expect(hold).toHaveTextContent("Sending…");
+      vi.useFakeTimers();
+      fireEvent.pointerDown(hold);
+      act(() => { vi.advanceTimersByTime(3100); });
+      expect(onFinished).not.toHaveBeenCalled();
+      expect(post).not.toHaveBeenCalled();
+      batteryEnd();
+      const ready = screen.getByRole("button", { name: /Next child \(coach\)/ });
+      expect(ready).not.toBeDisabled();
+      expect(ready).toHaveTextContent("Press and hold");
+      fireEvent.pointerDown(ready);
+      act(() => { vi.advanceTimersByTime(3100); });
+      expect(onFinished).toHaveBeenCalledWith("complete");
+    });
+
+    it("Sending… in Urdu", () => {
+      setup({ lang: "ur", handbackV2: true });
+      batteryEnding();
+      expect(screen.getByRole("button", { name: /اگلا بچہ \(کوچ\)/ })).toHaveTextContent("بھیج رہے ہیں…");
+    });
+
+    it("no sa:battery_end within 20 s of the ending (offline, a lost message): the hold enables anyway, as complete", () => {
+      vi.useFakeTimers();
+      const { onFinished } = setup({ lang: "en", handbackV2: true });
+      batteryEnding();
+      act(() => { vi.advanceTimersByTime(20_100); });
+      const hold = screen.getByRole("button", { name: /Next child \(coach\)/ });
+      expect(hold).not.toBeDisabled();
+      fireEvent.pointerDown(hold);
+      act(() => { vi.advanceTimersByTime(3100); });
+      expect(onFinished).toHaveBeenCalledWith("complete");
+    });
+
+    it("an engine sa:done coach_end after the ending still counts the child complete", () => {
+      const { onFinished } = setup({ lang: "en", handbackV2: true });
+      batteryEnding();
+      act(() => { window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:done", s: SID, reason: "coach_end" }, origin: window.location.origin })); });
+      expect(onFinished).toHaveBeenCalledWith("complete");
+    });
+
+    it("switch off: battery_ending changes nothing", () => {
+      setup({ lang: "en" });
+      batteryEnding();
+      expect(screen.getByRole("button", { name: /End test/ })).toBeInTheDocument();
+    });
+
     it("switch off: battery_end changes nothing (today's hold)", () => {
       setup({ lang: "en" });
       batteryEnd();
