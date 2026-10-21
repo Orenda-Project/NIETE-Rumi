@@ -2942,6 +2942,12 @@ if (require.main === module) {
   } catch (err) {
     logToFile('child_test.score_sweep_start_failed', { error: err.message }, 'error');
   }
+  // The self-administered battery's recordings: scored here only with CHILD_TEST_SA_SCORER=on (off by default).
+  try {
+    require('./shared/services/child-test/sa/score').start();
+  } catch (err) {
+    logToFile('child_test.sa_score_sweep_start_failed', { error: err.message }, 'error');
+  }
 }
 
 module.exports = { app, startServer };
