@@ -22,6 +22,13 @@ function audioKeys(x, out = new Set()) {
 }
 
 describe('SA voice manifest', () => {
+  // RULING #31a addendum: a line naming an other-language item lives only as its chain, so no clip mixes the two.
+  test('no English row holds an Arabic-script code point, and no Urdu row a Latin letter', () => {
+    const ARABIC = /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/u;
+    const LATIN = /[A-Za-z]/;
+    expect(manifest.filter((r) => r.lang === 'en' && ARABIC.test(r.text)).map((r) => `${r.key} ${r.text}`)).toEqual([]);
+    expect(manifest.filter((r) => r.lang === 'ur' && LATIN.test(r.text)).map((r) => `${r.key} ${r.text}`)).toEqual([]);
+  });
   test('every clip key in the bank is in the manifest, once', () => {
     const keys = manifest.map((r) => r.key);
     expect(new Set(keys).size).toBe(keys.length);
