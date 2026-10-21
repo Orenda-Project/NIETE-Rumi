@@ -12,6 +12,7 @@ import { childTestSa } from '../services/api';
 import { useChildTestSa } from '../lib/useChildTestSa';
 import { COPY, urDigits, type Lang } from '../lib/assess/copy';
 import { isBlock, pickBlock, type Block } from '../lib/assess/blocks';
+import { useSaSwitches } from '../lib/assess/switches';
 import { sendQueued } from '../lib/assess/outbox';
 import {
   allVisitKeys, mintId, mmss, readVisit, saveMic, visitKey, writeVisit, type MicCheck, type QueuedOutcome, type VisitMemory,
@@ -88,6 +89,7 @@ function todaysFirst(schools: SaSchool[]) {
 
 export default function LeaderAssess() {
   const enabled = useChildTestSa();
+  const switches = useSaSwitches(enabled);
   const above = useAboveTabBar();
   const [lang, setLang] = useState<Lang>(readLang);
   const copy = COPY[lang];
@@ -315,7 +317,9 @@ export default function LeaderAssess() {
 
   const present = (c: SaChild) => {
     if (step.kind !== 'list') return;
-    const sess = sessionOf(c) ?? { id: mintId(), block: pickBlock(usedBlocks(c.drawId)), sent: Boolean(c.sessionId) };
+    // with sa_mic_required, a coach who went on without a microphone sees it on the child's row
+    const noMic = switches.micRequired && memory?.preflight?.mic?.mic_ok === false;
+    const sess = sessionOf(c) ?? { id: mintId(), block: pickBlock(usedBlocks(c.drawId)), sent: Boolean(c.sessionId), ...(noMic ? { noMic: true } : {}) };
     remember((m) => ({ ...m, sessions: { ...m.sessions, [c.drawId]: sess } }));
     setStep({ kind: 'handover', school: step.school, child: c, sessionId: sess.id, block: sess.block });
   };
@@ -324,7 +328,7 @@ export default function LeaderAssess() {
     if (step.kind !== 'handover') return;
     const block = on ? 'full' : pickBlock(usedBlocks(step.child.drawId));
     const drawId = step.child.drawId;
-    remember((m) => ({ ...m, sessions: { ...m.sessions, [drawId]: { id: step.sessionId, block, sent: Boolean(m.sessions[drawId]?.sent) } } }));
+    remember((m) => ({ ...m, sessions: { ...m.sessions, [drawId]: { ...m.sessions[drawId], id: step.sessionId, block, sent: Boolean(m.sessions[drawId]?.sent) } } }));
     setStep({ ...step, block });
   };
 
@@ -351,7 +355,7 @@ export default function LeaderAssess() {
       queue(args);
       queued = true;
     }
-    remember((m) => ({ ...m, sessions: { ...m.sessions, [child.drawId]: { id: sessionId, block, sent: true, ...(serverId ? { serverId } : {}) } } }));
+    remember((m) => ({ ...m, sessions: { ...m.sessions, [child.drawId]: { ...m.sessions[child.drawId], id: sessionId, block, sent: true, ...(serverId ? { serverId } : {}) } } }));
     setBusy(false);
     return { ok: true, serverId, queued, block };
   };
@@ -513,7 +517,7 @@ export default function LeaderAssess() {
           </div>
         );
   } else if (step.kind === 'preflight') {
-    content = <AssessPreflight copy={copy} onMic={micChecked} onReady={preflightDone} />;
+    content = <AssessPreflight copy={copy} onMic={micChecked} onReady={preflightDone} micRequired={switches.micRequired} />;
   } else if (step.kind === 'link') {
     content = (
       <AssessOtherPhone copy={copy} serverId={step.serverId} childNo={step.child.childNo} lang={lang}
@@ -565,6 +569,7 @@ export default function LeaderAssess() {
                             {halted && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">{copy.stoppedBadge}</span>}
                             {open && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs text-sky-800">{elsewhere(c) ? copy.onOtherPhone : copy.started}</span>}
                             {!done && !open && !waiting && marked && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{marked}</span>}
+                            {local?.noMic && <span data-testid={`assess-nomic-${c.drawId}`} className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">{copy.noMic}</span>}
                             {local && <span data-testid={`assess-block-${c.drawId}`} className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-800">{copy.blocks[local.block]}</span>}
                           </span>
                         )}
@@ -639,7 +644,7 @@ export default function LeaderAssess() {
   } else if (step.kind === 'engine') {
     content = (
       <AssessEngineSlot sessionId={step.sessionId} firstName={firstNameOf(step.child, lang)} lang={lang}
-        grade={step.child.grade || list?.grade || 3} block={step.block} onFinished={finished} />
+        grade={step.child.grade || list?.grade || 3} block={step.block} onFinished={finished} handbackV2={switches.handbackV2} />
     );
   } else {
     // this phone's outcomes, plus the server's for children this phone has no record of (a reload mid-visit)

@@ -11,6 +11,10 @@ import AssessActions from './AssessActions';
  * back, then the coach says whether they heard it). A blocked or missing
  * microphone is explained and the coach can still go on. Every track is stopped
  * when the check ends.
+ *
+ * With sa_mic_required (micRequired), Ready waits until the microphone works or
+ * the coach picks the explicit second choice, going on without recording (the
+ * engine then skips listening, the stories and their questions).
  */
 
 export const RECORD_MS = 2000;
@@ -50,10 +54,12 @@ export function rmsOf(buf: Uint8Array): number {
   return Math.min(1, Math.sqrt(sum / buf.length));
 }
 
-type Props = { copy: AssessCopy; onMic: (m: MicCheck) => void; onReady: () => void };
+type Props = { copy: AssessCopy; onMic: (m: MicCheck) => void; onReady: () => void; micRequired?: boolean };
 
-export default function AssessPreflight({ copy, onMic, onReady }: Props) {
+export default function AssessPreflight({ copy, onMic, onReady, micRequired = false }: Props) {
   const [mic, setMic] = useState<MicState>('idle');
+  const [tried, setTried] = useState(false);
+  const [withoutMic, setWithoutMic] = useState(false);
   const [level, setLevel] = useState(0);
   const peak = useRef(0);
   const cleanup = useRef<() => void>(() => {});
@@ -68,6 +74,8 @@ export default function AssessPreflight({ copy, onMic, onReady }: Props) {
   };
 
   const check = async () => {
+    setTried(true);
+    setWithoutMic(false);
     cleanup.current();
     peak.current = 0;
     setLevel(0);
@@ -144,6 +152,8 @@ export default function AssessPreflight({ copy, onMic, onReady }: Props) {
   };
 
   const heard = () => { cleanup.current(); setMic('ok'); finish(true); };
+  const goWithout = () => { cleanup.current(); setWithoutMic(true); finish(false); };
+  const blocked = micRequired && mic !== 'ok' && !withoutMic;
 
   return (
     <div data-testid="assess-preflight" className="space-y-4">
@@ -184,11 +194,15 @@ export default function AssessPreflight({ copy, onMic, onReady }: Props) {
           </div>
         )}
         {mic === 'ok' && <p data-testid="assess-mic-ok" className="flex items-center gap-2 font-medium text-emerald-800"><Mic className="h-4 w-4" aria-hidden /> {copy.micOk}</p>}
-        {mic === 'denied' && <p data-testid="assess-mic-denied" role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{copy.micDenied}</p>}
+        {mic === 'denied' && <p data-testid="assess-mic-denied" role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{micRequired ? copy.micDeniedFix : copy.micDenied}</p>}
+        {micRequired && tried && mic !== 'ok' && mic !== 'recording' && (
+          <button type="button" data-testid="assess-mic-skip" aria-pressed={withoutMic} onClick={goWithout}
+            className={`w-full min-h-[48px] rounded-xl border px-3 py-2 text-sm ${withoutMic ? 'border-amber-400 bg-amber-50 font-medium text-amber-900' : 'border-slate-300 bg-white text-slate-800'}`}>{copy.micSkip}</button>
+        )}
       </div>
       <AssessActions>
-        <button type="button" data-testid="assess-preflight-ready" onClick={() => { cleanup.current(); if (!probed.current) finish(false); onReady(); }}
-          className="w-full min-h-[56px] rounded-2xl bg-emerald-600 text-xl font-semibold text-white">{copy.ready}</button>
+        <button type="button" data-testid="assess-preflight-ready" disabled={blocked} onClick={() => { if (blocked) return; cleanup.current(); if (!probed.current) finish(false); onReady(); }}
+          className="w-full min-h-[56px] rounded-2xl bg-emerald-600 text-xl font-semibold text-white disabled:opacity-50">{copy.ready}</button>
       </AssessActions>
     </div>
   );
