@@ -200,7 +200,7 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud
       main: `${og2 ? '' : `<p class="kick">${esc(C.chal)}</p>`}`
         // the polish's cut (pp.cut): the name in its own box that shortens, held with the score after it, which never is
         + `<h1 class="head">${pp && pp.cut
-          ? (zero ? C.dared(own(d.first, 'nm')) : `${C.beat(`<span class="keep">${own(d.first, 'nm')}`, N(score))}</span>`)
+          ? (zero ? C.dared(own(pp.cut.text || d.first, 'nm')) : `${C.beat(`<span class="keep">${own(pp.cut.text || d.first, 'nm')}`, N(score))}</span>`)
           : (zero ? C.dared(own(d.first)) : C.beat(own(d.first), N(score)))}</h1>`
         + (pp && pp.title ? `<p class="sub">${own(pp.nb ? String(d.topic == null ? '' : d.topic).replace(/ /g, '\u00a0') : d.topic)}</p>${zero ? '' : starsHtml(d.correct, d.total)}`
           : (zero ? `<p class="sub">${own(d.topic)}</p>` : `<p class="sub">${C.scored(own(d.first), N(score), own(d.topic))}</p>${starsHtml(d.correct, d.total)}`)),
@@ -297,6 +297,27 @@ const PP_ROWS_RTL = { sq: 4, og: 2 };
  * Jugnu; 936 square: 72 px each side), the name is its own box cut with «…», the score after it ("'s 3/8?", given 1.2x
  * its estimate) whole: the headline never runs under Jugnu or off the column, and the score is never cut.
  */
+// Lexend Bold's advance widths (em) for the printable ASCII letters, read from the embedded font (fonts/Lexend-Bold.ttf),
+// and its «…»: to write a Latin name already cut to its box. A letter outside the table counts as the widest one.
+const LEXEND_BOLD = { ' ': 0.32, '!': 0.309, '"': 0.477, '#': 0.734, $: 0.634, '%': 0.968, '&': 0.776, "'": 0.252, '(': 0.39, ')': 0.39, '*': 0.44, '+': 0.597, ',': 0.287, '-': 0.448, '.': 0.257, '/': 0.595,
+  0: 0.675, 1: 0.561, 2: 0.548, 3: 0.591, 4: 0.662, 5: 0.596, 6: 0.579, 7: 0.553, 8: 0.599, 9: 0.577, ':': 0.257, ';': 0.291, '<': 0.525, '=': 0.623, '>': 0.526, '?': 0.536, '@': 0.965,
+  A: 0.694, B: 0.701, C: 0.694, D: 0.772, E: 0.645, F: 0.618, G: 0.782, H: 0.779, I: 0.555, J: 0.665, K: 0.739, L: 0.609, M: 0.878, N: 0.807, O: 0.812, P: 0.662, Q: 0.812, R: 0.702, S: 0.634,
+  T: 0.655, U: 0.765, V: 0.712, W: 0.993, X: 0.705, Y: 0.689, Z: 0.683, '[': 0.42, '\\': 0.584, ']': 0.42, '^': 0.592, _: 0.687, '`': 0.5,
+  a: 0.659, b: 0.658, c: 0.545, d: 0.654, e: 0.586, f: 0.393, g: 0.669, h: 0.635, i: 0.319, j: 0.316, k: 0.626, l: 0.304, m: 0.962, n: 0.635, o: 0.641, p: 0.659, q: 0.658, r: 0.455, s: 0.495,
+  t: 0.398, u: 0.642, v: 0.605, w: 0.834, x: 0.606, y: 0.62, z: 0.55, '{': 0.427, '|': 0.318, '}': 0.427, '~': 0.558 };
+const LEXEND_BOLD_ELLIPSIS = 0.736;
+/** A Latin name cut to fit `em` (its letters and a «…», 2% to spare), or null when it fits whole or is not all in the table. */
+function cutToFit(name, em) {
+  const ch = Array.from(String(name || ''));
+  if (!ch.length || ch.some((c) => !(c in LEXEND_BOLD))) return null;
+  const w = (c) => LEXEND_BOLD[c] * 1.02;
+  if (ch.reduce((n, c) => n + w(c), 0) <= em) return null;
+  let used = LEXEND_BOLD_ELLIPSIS * 1.02;
+  let i = 0;
+  while (i < ch.length && used + w(ch[i]) <= em) { used += w(ch[i]); i += 1; }
+  return `${ch.slice(0, i).join('').replace(/\s+$/, '')}…`;
+}
+
 function enHead(d, C, sq, S, W) {
   const width = sq ? W - 144 : 702;
   const base = Math.round(58 * S);
@@ -309,6 +330,12 @@ function enHead(d, C, sq, S, W) {
   const words = name.split(/\s+/).filter(Boolean);
   const run = Math.max(0, ...words.map((w, i) => emWidth(i === words.length - 1 ? `${w}${tail}` : w))) * 1.08;
   const cut = run * head > width ? { max: width - Math.ceil(emWidth(tail) * 1.2 * head) } : null;
+  // the square writes the name already cut, so its box ends where its letters end and "'s" follows them (the browser's «…»
+  // stops at a whole letter, leaving up to a letter's width of space before "'s"); the box keeps its limit as a guard
+  if (cut && sq) {
+    const text = cutToFit(name, cut.max / head);
+    if (text) cut.text = text;
+  }
   return { head, cut };
 }
 
