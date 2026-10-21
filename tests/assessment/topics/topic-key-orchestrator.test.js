@@ -1,0 +1,71 @@
+/**
+ * Task 7 — the plain branch hands a topic job's ticked topics to the key and its paperKind to the student copy;
+ * a chapter job passes neither.
+ */
+const mockLoadChapterContent = jest.fn();
+const mockLoadPageRangeContent = jest.fn();
+const mockGenerateExam = jest.fn();
+
+jest.mock('../../../bot/shared/services/assessment/book-content.service', () => ({
+  loadChapterContent: mockLoadChapterContent, loadPageRangeContent: mockLoadPageRangeContent,
+}));
+jest.mock('../../../bot/shared/services/assessment/assessment-generation.service', () => ({ generateExam: mockGenerateExam }));
+const mockRenderPaper = jest.fn(() => '<html/>');
+jest.mock('../../../bot/shared/services/assessment/assessment-paper.renderer', () => ({
+  renderPaper: mockRenderPaper, renderAnswerKey: () => '<html/>', totalMarks: () => 1, collectQuestions: () => [],
+}));
+jest.mock('../../../bot/shared/utils/html-to-pdf', () => ({ htmlToPdf: jest.fn(async () => Buffer.from('%PDF')) }));
+jest.mock('../../../bot/shared/storage/r2', () => ({
+  uploadExamBuffer: jest.fn(async () => 'exams/x.pdf'), buildR2PublicUrl: () => 'https://r2/x.pdf',
+  getPresignedUrl: jest.fn(async () => 'https://r2/x.pdf?s'),
+}));
+jest.mock('../../../bot/shared/services/whatsapp.service', () => ({
+  sendMessage: jest.fn(), sendDocumentByLink: jest.fn(), sendFlow: jest.fn(),
+}));
+jest.mock('../../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
+function mockBuilder() {
+  const b = {
+    insert: () => b, update: () => b, select: () => b, eq: () => b,
+    single: () => Promise.resolve({ data: { id: 'paper-1' }, error: null }),
+    maybeSingle: () => Promise.resolve({ data: null, error: null }),
+    then: (res, rej) => Promise.resolve({ data: null, error: null }).then(res, rej),
+  };
+  return b;
+}
+jest.mock('../../../bot/shared/config/supabase', () => ({ from: jest.fn(() => mockBuilder()) }));
+
+const Orchestrator = require('../../../bot/shared/services/assessment/assessment-orchestrator.service');
+
+const SLOS = [
+  { code: 'E-2', description: 'd', topicId: 't2', topicName: 'Sentences' },
+  { code: 'E-1', description: 'd', topicId: 't1', topicName: 'Rhyming words' },
+];
+const JOB = {
+  userId: 'user-1', requestId: 'req-1', grade: 3, subject: 'english', chapterNumber: null, pageRanges: '58-59',
+  questionTypes: [{ id: 'MCQs', count: 4, category: 'objective' }], contentSource: 'unseen', outputFormat: 'pdf',
+};
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockLoadPageRangeContent.mockResolvedValue({ content: 'text', pageReference: '58-59' });
+  mockLoadChapterContent.mockResolvedValue({ content: 'text', pageReference: '4-14', chapterTitle: 'T', pageCount: 11 });
+  mockGenerateExam.mockResolvedValue({
+    examJson: { unseen: { objective: { MCQs: [{ question: 'q', marks: 1 }] } } }, questionCount: 4,
+    tokenData: { inputTokens: 1, outputTokens: 1, model: 'm' },
+  });
+});
+
+test('a topic job renders a topic student copy and returns the ticked topics in order', async () => {
+  const built = await Orchestrator.buildPaper({ ...JOB, scope: { kind: 'topics', topicIds: ['t1', 't2'], slos: SLOS } });
+  expect(mockRenderPaper.mock.calls[0][0].paperKind).toBe('topic');
+  expect(built.topics).toEqual([
+    { topicId: 't1', name: 'Rhyming words', sloCodes: ['E-1'] },
+    { topicId: 't2', name: 'Sentences', sloCodes: ['E-2'] },
+  ]);
+});
+
+test('a chapter job passes no paperKind and returns no topics', async () => {
+  const built = await Orchestrator.buildPaper({ ...JOB, chapterNumber: 4 });
+  expect(mockRenderPaper.mock.calls[0][0]).not.toHaveProperty('paperKind');
+  expect(built).not.toHaveProperty('topics');
+});
