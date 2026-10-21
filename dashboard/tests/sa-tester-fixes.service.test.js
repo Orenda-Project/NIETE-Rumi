@@ -226,23 +226,28 @@ describe('sa_passage_rotation', () => {
     expect(seen.size).toBeGreaterThan(1);
     expect(b.tasks[0].variants).toHaveLength(3);
   });
-  test('the hash spreads real session ids: over 1,000 fixed uuids each English text gets >= 40 %, each Urdu text >= 25 %, in lockstep', () => {
+  // W3: PRP-KP's story left the Urdu reading rotation, so the passage and its questions rotate over 2 texts and the
+  // listening story over 3; the passage and its questions stay in lockstep (the same variant count, the same index).
+  test('the hash spreads real session ids: over 1,000 fixed uuids each text gets >= 25 %, the passage and its questions in lockstep', () => {
     const crypto = require('crypto');
     const real = require('../../bot/shared/data/child-test/sa/sa.coach.G3.A.en.json');
     const uuid = (i) => crypto.createHash('sha1').update(`seed-${i}`).digest('hex').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12}).*$/, '$1-$2-$3-$4-$5');
-    const n = { en: {}, ur: {} };
+    const n = { en: {}, ur: {}, 'ur.listening': {} };
     for (let i = 0; i < 1000; i++) {
       const r = rotate(real, uuid(i));
+      const v = (id) => r.tasks.find((t) => t.id === id).variant.id;
       for (const lang of ['en', 'ur']) {
-        const ids = [`${lang}.story`, `${lang}.story_comp`, `${lang}.listening`].map((id) => r.tasks.find((t) => t.id === id).variant.id);
+        const ids = [`${lang}.story`, `${lang}.story_comp`, ...(lang === 'en' ? ['en.listening'] : [])].map(v);
         expect(new Set(ids).size).toBe(1);
         n[lang][ids[0]] = (n[lang][ids[0]] || 0) + 1;
       }
+      n['ur.listening'][v('ur.listening')] = (n['ur.listening'][v('ur.listening')] || 0) + 1;
     }
     expect(Object.keys(n.en).sort()).toEqual(['rwp2026', 'tk2009']);
-    expect(Object.keys(n.ur).sort()).toEqual(['prpkp2020', 'rwp2026', 'select2024']);
-    for (const c of Object.values(n.en)) expect(c).toBeGreaterThanOrEqual(400);
-    for (const c of Object.values(n.ur)) expect(c).toBeGreaterThanOrEqual(250);
+    expect(Object.keys(n.ur).sort()).toEqual(['rwp2026', 'select2024']);
+    expect(Object.keys(n['ur.listening']).sort()).toEqual(['prpkp2020', 'rwp2026', 'select2024']);
+    for (const c of [...Object.values(n.en), ...Object.values(n.ur)]) expect(c).toBeGreaterThanOrEqual(400);
+    for (const c of Object.values(n['ur.listening'])) expect(c).toBeGreaterThanOrEqual(250);
   });
   test('a battery with no variants (switch OFF) is returned as it is', () => {
     const plain = { tasks: [{ id: 'ur.story', items: ['a'] }] };
@@ -258,6 +263,6 @@ describe('sa_passage_rotation', () => {
     const off = await serveR(false);
     expect(off.tasks.filter((t) => t.variants)).toEqual([]);
     const on = await serveR(true);
-    expect(byId(on, 'ur.story').variants.map((v) => v.id)).toEqual(['rwp2026', 'select2024', 'prpkp2020']);
+    expect(byId(on, 'ur.story').variants.map((v) => v.id)).toEqual(['rwp2026', 'select2024']);
   });
 });

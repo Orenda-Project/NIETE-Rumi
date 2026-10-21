@@ -125,8 +125,18 @@
      {
       "id": "patterns_p1",
       "type": "next_term_mc",
-      "seq": ["star", "square", "star", "square"],
-      "options": ["star", "triangle", "circle", "square"],
+      "seq": [
+       "star",
+       "square",
+       "star",
+       "square"
+      ],
+      "options": [
+       "star",
+       "triangle",
+       "circle",
+       "square"
+      ],
       "answer": "star",
       "say_en": "What comes next? star, square, star, square",
       "say_ur": "آگے کیا آئے گا؟ ستارہ، چوکور، ستارہ، چوکور",
@@ -143,7 +153,14 @@
      {
       "id": "patterns_hi_p1",
       "type": "repeat_count",
-      "seq": ["⭐", "🟢", "⭐", "🟢", "⭐", "🟢"],
+      "seq": [
+       "⭐",
+       "🟢",
+       "⭐",
+       "🟢",
+       "⭐",
+       "🟢"
+      ],
       "answer": "3",
       "say_en": "Look at the pattern below. How many times does star, circle repeat in the pattern?",
       "say_ur": "نیچے دی گئی ترتیب کو دیکھیں۔ اس میں ستارہ اور دائرہ، یہ دونوں ایک ساتھ کتنی بار آئے ہیں؟",
@@ -158,9 +175,15 @@
    "reuse": {
     "ma.word_problems_l2": "ma.word_problems",
     "ma.ordering": "ma.missing",
-    "ma.patterns_hi": { "from": "ma.missing", "pick": 0, "after": true, "src": "core_egma:p.4 P1",
-      "say_en": "What number is missing? 1, 2, blank, 4", "say_ur": "کون سا نمبر غائب ہے؟ ۱، ۲، خالی، ۴",
-      "why": "core_egma:Task 3 practice P1 (1, 2, __, 4): a missing term, typed, after the authored repeat-count item; spoken in rwp2026:patterns_4a's frame (panel P2-a)" }
+    "ma.patterns_hi": {
+     "from": "ma.missing",
+     "pick": 0,
+     "after": true,
+     "src": "core_egma:p.4 P1",
+     "say_en": "What number is missing? 1, 2, blank, 4",
+     "say_ur": "کون سا نمبر غائب ہے؟ ۱، ۲، خالی، ۴",
+     "why": "core_egma:Task 3 practice P1 (1, 2, __, 4): a missing term, typed, after the authored repeat-count item; spoken in rwp2026:patterns_4a's frame (panel P2-a)"
+    }
    },
    "disabled_copy": [
     "ma.patterns",
@@ -1591,7 +1614,8 @@
       ],
       "any_reasonable": true,
       "needs_line": 4,
-      "src": "egra_tk2009:p40"
+      "src": "egra_tk2009:p40",
+      "accept_rule": "or any reasonable answer (printed, TK2009 p.40)"
      }
     ]
    },
@@ -1678,12 +1702,14 @@
       "needs_line": 5,
       "src": "prpkp2020:EGRA Urdu Form 1 subtask 7, question 5"
      }
-    ]
+    ],
+    "editorial_punct": true,
+    "editorial_note": "the PRP-KP 2020 report prints this passage only as a 60-word enumerator grid with no punctuation, so the punctuation here is editorial; out of the rotation until a sourced page is found"
    },
    "listening3": {
     "subtask": "listening_comprehension",
     "timed_s": null,
-    "story": "ایک شکاری پیاسا تھا۔ اُسے جنگل میں ایک جھونپڑی نظر آئی۔ آواز دی تو بابا نے اندر بلالیا۔ اُن کا چہرہ بہت نورانی تھا۔ انھوں نے شکاری کو پانی دے کر کہا بیٹا آئندہ شکار نہ کرنا یہ جاندار ہماری ضرورت ہیں۔",
+    "story": "ایک شکاری پیاسا تھا۔ اُسے جنگل میں ایک جھونپڑی نظر آئی۔ آواز دی تو بابا نے اندر بلالیا۔ اُن کا چہرہ بہت نورانی تھا۔ انھوں نے شکاری کو پانی دے کر کہا بیٹا آئیندہ شکار نہ کرنا یہ جاندار ہماری ضرورت ہیں۔",
     "read_times": 1,
     "src": "prpkp2020:EGRA Urdu Form 1 subtask 8 (form p.14)",
     "fielded": {
@@ -1718,7 +1744,8 @@
       ],
       "src": "prpkp2020:EGRA Urdu Form 1 subtask 8, question 3"
      }
-    ]
+    ],
+    "text_note": "spelling as printed (PRP-KP 2020 p.93): آئیندہ"
    },
    "initial_sound": {
     "subtask": "initial_sound_identification",
@@ -1879,19 +1906,20 @@
       "src": "select2024:p124 (printed p.104)"
      },
      {
-      "q": "جانور/ پرندوں کا خیال کیسے رکھا جا سکتا ہے؟",
+      "q": "جانور /پرندوں کا خیال کیسے رکھا جا سکتا ہے؟",
       "accept": [
        "ان کے کھانے پینے کا خیال رکھ کر، وقت پر دانہ پانی دے کر، انھیں محبت یا پیار سے رکھ کر"
       ],
       "after_marker": 60,
-      "src": "select2024:p124 (printed p.104)"
+      "src": "select2024:p124 (printed p.104)",
+      "prompt_note": "as printed (SELECT 2024 p.104): the question names animals or birds, either reading is the same item"
      }
     ]
    },
    "listening2": {
     "subtask": "listening_comprehension",
     "timed_s": null,
-    "story": "کسی جنگل میں ہاتھی اور ایک بندر رہتے تھے۔ ایک دن بندر دوسرے جنگل چلا گیا۔ ہاتھی رونے لگا۔ پاس بیٹھا خرگوش بولا: \"میں تمہارا دوست بنوں گا\" ہاتھی خوش ہو گیا۔",
+    "story": "کسی جنگل میں ہاتھی اور ایک بندر رہتے تھے۔ ایک دن بندر دوسرے جنگل چلا گیا۔ ہاتھی رونے لگا۔ پاس بیٹھا خرگوش بولا:\"میں تمھارا دوست بنوں گا\" ہاتھی خوش ہو گیا۔",
     "src": "select2024:p125 (printed p.105)",
     "read_times": 1,
     "questions": [
@@ -1919,7 +1947,8 @@
       ],
       "src": "select2024:p126 (printed p.106)"
      }
-    ]
+    ],
+    "text_note": "spelling and spacing as printed (SELECT 2024 p.105): تمھارا, بولا:\"میں"
    },
    "print_orientation": {
     "subtask": "orientation_to_print",
