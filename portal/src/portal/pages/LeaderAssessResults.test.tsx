@@ -164,4 +164,41 @@ describe("LeaderAssessResults", () => {
     renderAt();
     expect(within(await screen.findByTestId("result-task-ma.add1")).getByRole("heading")).toHaveTextContent("جمع، فوری");
   });
+
+  it("a skipped task (sandbox Jump, level 2, no mic) names how it ended and shows no counts, never 0 or None", async () => {
+    api.getResults.mockResolvedValue({ ...RESULTS, tasks: [
+      { taskId: "ma.number_id", mode: "tap", attempted: 0, correct: null, optionsN: null, chanceCorrected: null, itemsPerMin: null, stopReason: "skipped_dev", recording: "none", score: null },
+      { taskId: "ma.sub2", mode: "keypad", attempted: null, correct: null, optionsN: null, chanceCorrected: null, itemsPerMin: null, stopReason: "skipped_level2", recording: "none", score: null },
+      { taskId: "ur.story", mode: "record", attempted: null, correct: null, optionsN: null, chanceCorrected: null, itemsPerMin: null, stopReason: "mic_unavailable", recording: "none", score: null },
+    ] });
+    renderAt();
+    const dev = await screen.findByTestId("result-task-ma.number_id");
+    expect(within(dev).getByText("Skipped (sandbox Jump)")).toBeTruthy();
+    expect(dev.textContent).not.toContain("skipped_dev");
+    for (const id of ["ma.number_id", "ma.sub2", "ur.story"]) {
+      const card = screen.getByTestId(`result-task-${id}`);
+      expect(within(card).queryByText("Attempted")).toBeNull();
+      expect(within(card).queryByText("Options per tile")).toBeNull();
+      expect(within(card).queryByText("None")).toBeNull();
+      expect(within(card).queryByText("Recording kept, scored later")).toBeNull();
+    }
+    expect(within(screen.getByTestId("result-task-ma.sub2")).getByText("Skipped")).toBeTruthy();
+    expect(within(screen.getByTestId("result-task-ur.story")).getByText("No microphone")).toBeTruthy();
+  });
+
+  it("Urdu: the sandbox Jump skip reads in Urdu", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    api.getResults.mockResolvedValue({ ...RESULTS, tasks: [
+      { taskId: "ma.number_id", mode: "tap", attempted: 0, correct: null, optionsN: null, chanceCorrected: null, itemsPerMin: null, stopReason: "skipped_dev", recording: "none", score: null },
+    ] });
+    renderAt();
+    const dev = await screen.findByTestId("result-task-ma.number_id");
+    expect(within(dev).getByText("چھوڑ دیا گیا (سینڈ باکس جمپ)")).toBeTruthy();
+  });
+
+  it("a row's label never wraps beside a long value: the label keeps its width", async () => {
+    renderAt();
+    const tap = await screen.findByTestId("result-task-ur.letters");
+    expect(within(tap).getByText("How it ended").className).toContain("shrink-0");
+  });
 });
