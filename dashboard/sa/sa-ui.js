@@ -178,11 +178,12 @@
 
   var FEEDBACK_MS = 1200;
   var TASK_END_MS = 1500;
+  var TASK_END_CAP_MS = 8000; // the part's closing line is awaited to its end, never longer than this
   var PRESS_MS = 180;
   var WARM_N = 10;
   var WARM_CAP_MS = 25000;
   var HOLD_MS = 3000;
-  var KEYPAD_MAX = 3;
+  var KEYPAD_MIN = 3;        // digits the keypad takes; more when the task has a longer answer (1,000 + 300 + 80 + 3)
   var WORD_MAX = 16;
   var LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('');
   var KP_WARM_MS = 20000;   // RULING #17: 20 s of free typing
@@ -343,12 +344,15 @@
       });
       return img;
     }
-    function tiles(options, onPick, decorate, tl, t) {
+    /** glyphs: the item's picture per option (a picture pattern): drawn large, the option's word as its caption. */
+    function tiles(options, onPick, decorate, tl, t, glyphs) {
       var n = options.length;
       var g = h('div', { class: 'sae-opts sa-tiles' + (n > 4 ? ' is-five' : ''), lang: tl, dir: tl === 'ur' ? 'rtl' : 'ltr' });
-      options.forEach(function (o) {
+      options.forEach(function (o, i) {
         var pic = picOf(t, o);
-        var b = h('button', { class: 'sae-opt sa-tile' + (pic ? ' is-pic' : ''), type: 'button', 'data-value': String(o), lang: tl }, [pic || String(o)]);
+        var gl = !pic && Array.isArray(glyphs) && typeof glyphs[i] === 'string' && glyphs[i] ? glyphs[i] : null;
+        var face = pic || (gl ? [h('span', { class: 'sae-glyph', 'aria-hidden': 'true', text: gl }), h('span', { class: 'sae-cap', text: String(o) })] : String(o));
+        var b = h('button', { class: 'sae-opt sa-tile' + (pic ? ' is-pic' : gl ? ' is-glyph' : ''), type: 'button', 'data-value': String(o), lang: tl, 'aria-label': gl ? String(o) : null }, [].concat(face));
         b.addEventListener('click', function () { if (!busy && !b.disabled) onPick(o, b); });
         if (decorate) decorate(o, b);
         g.appendChild(b);
@@ -360,13 +364,27 @@
     function shownOf(it) { return it == null ? null : (it.label != null ? it.label : (it.shown != null ? it.shown : null)); }
     function labelOf(it) {
       if (!it || shownOf(it) == null || (it.say && it.label == null)) return null;
-      var lab = String(shownOf(it)).trim();
+      var seq = Array.isArray(shownOf(it)) ? shownOf(it) : null;
+      var lab = seq ? seq.filter(function (x) { return x != null; }).join(' ') : String(shownOf(it)).trim();
       if (!lab) return null;
       if (Array.isArray(it.options)) {
         var a = lab.split(/\s+/).sort().join(' '), b = it.options.map(String).sort().join(' ');
         if (a === b) return null;
       }
-      return h('p', { class: 'sae-label sa-label', dir: 'ltr' }, [lab]);
+      return seq ? seqRow(seq) : h('p', { class: 'sae-label sa-label', dir: 'ltr' }, [lab]);
+    }
+    /** A sequence as tiles, one per number; the missing one is a bordered blank reading "__", wherever it falls. */
+    function seqRow(seq) {
+      return h('div', { class: 'sae-label sa-label sae-seq', dir: 'ltr' }, seq.map(function (x) {
+        return x == null ? h('span', { class: 'sae-seq-tile sae-gap', text: '__' }) : h('span', { class: 'sae-seq-tile', text: String(x) });
+      }));
+    }
+    function keypadMax(t) {
+      var n = KEYPAD_MIN;
+      ((t && t.items) || []).concat((t && t.practice) || []).forEach(function (it) {
+        if (it && it.target != null) n = Math.max(n, String(it.target).length);
+      });
+      return n;
     }
     function clock(v) {
       if (v.time_left_ms == null || !v.task || !v.task.time_limit_s) { clockEls = null; return null; }
@@ -518,7 +536,7 @@
           b.disabled = true;
           if (String(o) === String(fb.value)) b.classList.add(fb.res.ok ? 'is-right' : 'is-tried');
           if (fb.res.shown != null && String(o) === String(fb.res.shown)) b.classList.add('is-right', 'is-shown');
-        }, taskLang(t), t);
+        }, taskLang(t), t, p.glyphs);
       }
       return screen(v, 'sae-practice', [
         h('div', { class: 'sae-row' }, [
@@ -607,7 +625,7 @@
           b.classList.add('is-pressed');
           runner.answer(o);
           later(function () { busy = false; draw(); }, PRESS_MS);
-        }, null, taskLang(t), t),
+        }, null, taskLang(t), t, it.glyphs),
       ], [nextBtn(v)]);
     }
 
@@ -633,8 +651,10 @@
 
     function keypadArea(it, t, submit, fb) {
       var kids = [];
-      var lab = shownOf(it) != null && String(shownOf(it)).trim() ? String(shownOf(it)) : null;
-      if (!lab) {
+      var seq = Array.isArray(shownOf(it)) ? shownOf(it) : null;
+      var lab = !seq && shownOf(it) != null && String(shownOf(it)).trim() ? String(shownOf(it)) : null;
+      var max = keypadMax(t);
+      if (!lab && !seq) {
         // a word problem: ten counters the child may tap to count with (not scored)
         var dots = [];
         for (var i = 0; i < 10; i++) {
@@ -651,6 +671,7 @@
       var shown = fb ? String(fb.res.shown != null ? fb.res.shown : fb.value) : typed;
       displayEl = h('output', { class: 'sae-typed sa-typed' + (fb ? (fb.res.ok || fb.res.shown != null ? ' is-right' : ' is-tried') : ''), dir: 'ltr', 'aria-live': 'polite' }, [shown || ' ']);
       // the typed number big above the keypad (a sum and its box on one line: "1 + 3 = [ ]"); nothing goes until ✓
+      if (seq) kids.push(seqRow(seq));
       kids.push(lab ? h('div', { class: 'sae-sumrow', dir: 'ltr' }, [h('p', { class: 'sae-sum sa-label' }, [lab]), displayEl]) : displayEl);
       // 1 2 3 ⌫ / 4 5 6 ✓ / 7 8 9 ✓ / 0 0 0 ✓: the ✓ is the biggest key (three rows tall)
       var keys = ['1', '2', '3', 'del', '4', '5', '6', 'ok', '7', '8', '9', '0'];
@@ -664,7 +685,7 @@
           if (busy) return;
           if (k === 'del') typed = typed.slice(0, -1);
           else if (k === 'ok') { if (!typed) return; var val = typed; typed = ''; submit(val); return; }
-          else if (typed.length < KEYPAD_MAX) typed = (typed === '0' ? '' : typed) + k;
+          else if (typed.length < max) typed = (typed === '0' ? '' : typed) + k;
           if (displayEl) displayEl.textContent = typed || ' ';
         });
         return b;
@@ -1095,11 +1116,11 @@
         sayChain([v.time_left_ms === 0 && s.time_up ? [s.time_up] : null, s.intro_tap ? [s.intro_tap] : [{ en: COPY.en.last_word, ur: COPY.ur.last_word }]]);
       } else if (v.phase === 'task_end') {
         var r = v.result || {};
-        var skipped = /^skipped|^assets_unavailable/.test(r.stop_reason || '');
+        var skipped = /^skipped|^mic_unavailable|^assets_unavailable/.test(r.stop_reason || '');
         var said = skipped ? null : ((r.stop_reason === 'time_up' ? s.time_up : r.stop_reason === 'early_stop_first_line' ? s.early_stop : null) || s.after);
         var sp = said ? say(said) : Promise.resolve();
         var at = v.task_index;
-        Promise.all([delay(skipped ? 400 : TASK_END_MS), capped(sp, 6000)]).then(function () {
+        Promise.all([delay(skipped ? 400 : TASK_END_MS), capped(sp, TASK_END_CAP_MS)]).then(function () {
           if (!alive) return;
           var now = runner.view();
           if (now.phase === 'task_end' && now.task_index === at) { runner.next(); draw(); }
