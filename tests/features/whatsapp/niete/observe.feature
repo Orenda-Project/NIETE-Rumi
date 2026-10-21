@@ -857,7 +857,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   Scenario: With work of their own, Part 2 asks what the teacher did and what children did when stuck
     Given the live form is open on Part 2
     When I choose "Every child had a task"
-    Then it asks "While they worked, the teacher" with "Went round the room", "Looked at their work", "Helped those who were stuck", "Gave more to early finishers" and "Stayed at the front"
+    Then it asks "While they worked, the teacher" with "Went round the room", "Looked at their work", "Asked children one by one", "Helped those who were stuck", "Re-explained a common mistake", "Gave more to early finishers" and "Stayed at the front"
     And it asks "When the work got hard" with "No one tried", "Tried only when sure", "2+ tried while unsure", "Tried unasked, kept going" and "Nobody got stuck"
     When I leave both unanswered and tap "Part 2 done"
     Then the form stays on Part 2 and asks for both
@@ -865,6 +865,23 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then neither is asked, and "Part 2 done" saves the part
     # rules.js: "When the work got hard" is D4's level (the titles are PLAIN.D4); "Helped those who were
     # stuck" makes C2 at least 2. Both are named on the check's "because" lines and in the record.
+    # "Asked children one by one" and "Re-explained a common mistake" since form version 6 (pilot sheet R4's
+    # comment, round 7).
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The teacher's checking moves during independent practice reach the levels they evidence
+    Given the live form is open on Part 2
+    When I choose "Every child had a task"
+    And I tick "Asked children one by one" and "Re-explained a common mistake" under "While they worked, the teacher"
+    And I finish Part 2, seal the form and send the recording
+    And I open the "Check the moments" form and tap through to the levels
+    Then "When an answer was wrong" is pre-set to "Marked wrong, little reason" at the least
+    And its line names both moves: asked children one by one whether they understood or needed help, and re-explained a common mistake to the whole class
+    And "Who got to answer" keeps the level from Part 1, and its line names asking children one by one
+    # Pilot sheet R4's comment (round 7): the check for understanding and re-teaching a misconception during
+    # independent practice. rules.js: re-explaining is a response to wrong answers (C2 level 2: "… or
+    # re-explains"), so C2 is at least 2 and never more from it alone; asking each child is named on C2 and
+    # C3 and sets no level. F1 and D5 are untouched; the 17 descriptors and the section sums are unchanged.
 
   @e2e @flow @config-gated @destructive @wip @draft @P1
   Scenario: Part 1 asks what materials were used, and they are named, not scored
