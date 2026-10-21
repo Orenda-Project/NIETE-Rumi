@@ -16,6 +16,17 @@ const ART_INK_V = 1;
 // get new keys and are drawn afresh; with the switch off the key is today's.
 const ART_UD_V = 1;
 
+// The card's name fits its picture (app_settings web_quiz_share_name_fit, as `ui.nf`): its own version.
+const ART_NF_V = 1;
+
+// The Urdu card and challenge pictures as one stack, with the English pill's size (app_settings web_quiz_share_ur_stack,
+// as `ui.us`): its own version.
+const ART_US_V = 1;
+
+// The challenge and class table pictures' polish (app_settings web_quiz_share_pic_polish, as `ui.pp`): its own version.
+// 2: a long one-word name on the English challenge is cut before its score (it ran under Jugnu).
+const ART_PP_V = 2;
+
 // door: the invite drawn for the friend's door ("Your turn!" in place of the link pill); only then is it in the input,
 // so every other picture's key is today's.
 function artInput(kind, size, brand, f, ui, door = false) {
@@ -23,8 +34,11 @@ function artInput(kind, size, brand, f, ui, door = false) {
     ...(ui && ui.ur2 === true ? { ur2: true, v: ART_UR2_V } : {}),
     ...(ui && ui.ink === true ? { ink: true, iv: ART_INK_V } : {}),
     ...(ui && ui.ud === true ? { ud: true, dv: ART_UD_V } : {}),
+    ...(ui && ui.nf === true ? { nf: true, nv: ART_NF_V } : {}),
+    ...(ui && ui.us === true ? { us: true, sv: ART_US_V } : {}),
+    ...(ui && ui.pp === true ? { pp: true, pv: ART_PP_V } : {}),
   };
   return { kind, size, brand, lang: f.lang, d: f.d, ...(Object.keys(u).length ? { ui: u } : {}), ...(door && kind === 'invite' ? { door: true } : {}) };
 }
 
-module.exports = { artInput, ART_UR2_V, ART_INK_V, ART_UD_V };
+module.exports = { artInput, ART_UR2_V, ART_INK_V, ART_UD_V, ART_NF_V, ART_US_V, ART_PP_V };

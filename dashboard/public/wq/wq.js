@@ -769,6 +769,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       chalPlayed: function (w, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز کھیلا۔ اب آپ کی باری! کھیلنے کے لیے لنک دبائیں:'; }
     });
   }
+  // The child's name isolated in the English share words (app_settings web_quiz_share_name_bidi → the payload's
+  // `name_bidi`): the name and the quiz's name each in a first-strong isolate (U+2068 … U+2069), as the Urdu lines have
+  // them, so a name written in Urdu script never turns the English line right to left in WhatsApp. Off: today's T.
+  if (LANG === 'en' && B.name_bidi === true) {
+    var iso = function (x) { return '⁨' + x + '⁩'; };
+    T = Object.assign({}, T, {
+      shareLine: function (w, s, n, t) { return iso(w) + ' got ' + s + '/' + n + ' stars on ' + iso(t) + '. Can you beat it?'; },
+      sharePlayed: function (w, t) { return iso(w) + ' played ' + iso(t) + '. Your turn!'; },
+      chalLine: function (w, s, n, t) { return iso(w) + ' here! I got ' + s + '/' + n + ' stars on ' + iso(t) + '. Can you beat me? 🏆 Tap the link to play:'; },
+      chalPlayed: function (w, t) { return iso(w) + ' here! I played ' + iso(t) + '. Your turn! Tap the link to play:'; }
+    });
+  }
   // The polished Urdu copy (app_settings web_quiz_ur_polish → the edge's `wq-ur2` class on <html>): a child's words, shorter
   // lines, Urdu digits isolated left to right, one word for "done". Off, T is today's map, untouched.
   var UR2 = LANG === 'ur' && (function () { try { return document.documentElement.classList.contains('wq-ur2'); } catch (e) { return false; } })();
@@ -1096,14 +1108,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var set = VOICE_SETS[lang];
     return set && set.path && set.v ? '/wq/voice/one/' + set.path + '/' + file + '.mp3?v=' + set.v : null;
   }
-  function vline(set) {
+  // skip (optional): a word the picked line must not contain; each line keeps its own index, so its recorded clip
+  function vline(set, skip) {
     var lang = VOICE[VLANG] ? VLANG : 'en';
     var lines = VOICE[lang][set] || [];
-    if (!lines.length) return { text: '', url: null };
-    var i = Math.floor(Math.random() * lines.length);
-    if (lines.length > 1 && i === lastPick[set]) i = (i + 1) % lines.length;
+    var ok = [];
+    for (var k = 0; k < lines.length; k++) if (!skip || lines[k].toLowerCase().indexOf(skip) < 0) ok.push(k);
+    if (!ok.length) return skip ? vline(set) : { text: '', url: null };
+    var j = Math.floor(Math.random() * ok.length);
+    if (ok.length > 1 && ok[j] === lastPick[set]) j = (j + 1) % ok.length;
+    var i = ok[j];
     lastPick[set] = i;
     return { text: lines[i], url: voiceUrl(lang, set + '-' + i) };
+  }
+  // web_quiz_end_once (the answer's end_once): Jugnu's done line skips the card heading's last word when both are one
+  // language («مکمل» / "complete"), so the child does not read the heading twice
+  function doneLine() {
+    if (!B.end_once || (VOICE[VLANG] ? VLANG : 'en') !== LANG) return vline('done');
+    var w = String(T.done).toLowerCase().split(/\s+/);
+    return vline('done', w[w.length - 1]);
   }
 
   /* ---------------- sound (off by default) + read-aloud ---------------- */
@@ -1484,9 +1507,23 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   // The end screen's score: the headline and its stars. web_quiz_end_fit (the answer's end_fit): the stars stay one row,
   // each min(48 px, its share of the card) (wq-fitstars), and the headline wraps balanced (wq-endh). Off: today's.
+  // web_quiz_end_short (the answer's end_short, only beside end_fit): Jugnu on the end screen carries wq-jshort (smaller on
+  // a screen at most 680 px tall, wq.css), and the Urdu headline holds «آپ نے ۷ میں سے» and «۳ درست کیے» whole, so its one
+  // break falls after «سے».
+  var END_SHORT = Boolean(B.end_fit && B.end_short);
   function endScore(n, total) {
     if (!B.end_fit) return '<h1>' + esc(T.got(n, total)) + '</h1>' + stars(n, total);
-    return '<h1 class="wq-endh">' + esc(T.got(n, total)) + '</h1>' + stars(n, total).replace('class="wq-stars"', 'class="wq-stars wq-fitstars"');
+    return '<h1 class="wq-endh">' + esc(endHead(T.got(n, total))) + '</h1>' + stars(n, total).replace('class="wq-stars"', 'class="wq-stars wq-fitstars"');
+  }
+  function endHead(s) {
+    var at = s.indexOf(' میں سے ');
+    if (!END_SHORT || LANG !== 'ur' || at < 0) return s;
+    var a = s.slice(0, at + 7), b = s.slice(at + 8);
+    return a.replace(/ /g, '\u00A0') + ' ' + b.replace(/ /g, '\u00A0');
+  }
+  function endJug(pose, line, loop) {
+    var h = jug(pose, line, true, loop);
+    return END_SHORT ? h.replace('<div class="wq-jug wq-big">', '<div class="wq-jug wq-big wq-jshort">') : h;
   }
   function toast(msg) {
     var t = document.createElement('div');
@@ -1556,6 +1593,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     T = Object.assign({}, T);
     ['challenged', 'chalLine', 'chalPlayed'].forEach(function (k) { var f = T[k]; if (f) T[k] = function () { return keepNum(f.apply(T, arguments)); }; });
   }
+  // web_quiz_challenge_line_sent (the answer's challenge_line_sent): the friend's challenge line is drawn one span per sentence
+  // (wq-sent, an inline block in wq.css), so a line that does not fit breaks at a full stop, never inside a sentence that fits.
+  // The text (the picture's alt, the share words) stays plain.
+  var chLineHtml = B.challenge_line_sent === true ? function (s) {
+    return '<span class="wq-sent">' + esc(s).replace(/([.!?\u06D4\u061F]) (?=\S)/g, '$1</span> <span class="wq-sent">') + '</span>';
+  } : null;
 
   function landing() {
     var here = kids();
@@ -1579,7 +1622,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<p class="wq-small">' + esc(T.meta(N)) + '</p></div>' +
       (fold ? '' : pic) +
       // fold: the line wraps balanced (wq-chline), so an Urdu line never leaves its last word alone
-      (chLine ? '<div class="wq-banner' + (fold ? ' wq-chline' : '') + '">' + esc(chLine) + '</div>' : '') +
+      (chLine ? '<div class="wq-banner' + (fold ? ' wq-chline' : '') + '">' + (chLineHtml ? chLineHtml(chLine) : esc(chLine)) + '</div>' : '') +
       (B.preview && params.p ? '<button class="wq-btn wq-go" id="wq-preview">' + esc(T.previewPlay) + '</button><button class="wq-btn wq-navy" id="wq-whoplayed">' + esc(TW.whoBtn) + '</button>' :
       last ? '<button class="wq-btn wq-go" id="wq-play-as">' + esc(T.playAs(last.first)) + '</button><button class="wq-btn wq-ghost" id="wq-notme">' + esc(T.notMe(last.first)) + '</button>'
         : '<button class="wq-btn wq-go" id="wq-play">' + esc(T.play) + '</button>') +
@@ -1713,7 +1756,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     T: T, TW: TW, CLS: CLS, Q: Q, N: N, LIVE: LIVE, params: params, esc: esc, ani: ani, bar: bar, jug: jug, render: render, wireBar: wireBar,
     on: on, $: $, kids: kids, ev: ev, startSession: startSession, rollPad: rollPad, landing: landing,
     pick: function () { return CLS_PICK; }, setPick: function (v) { CLS_PICK = v; }, doc: typeof document !== 'undefined' ? document : null,
-    lat: latT, doorLabel: doorLabel, doorTeacher: doorTeacher
+    lat: latT, doorLabel: doorLabel, doorTeacher: doorTeacher, chLineHtml: chLineHtml
   }) : null;
   function who() {
     if (ID) return ID.who();
@@ -2463,8 +2506,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       S.fixed = fixed; save();
       var sc = res.score || {};
       var total = sc.total || N;
-      var done = vline('done');
-      var h = bar() + jug('celebrate', done.text, true, true) +
+      var done = doneLine();
+      var h = bar() + endJug('celebrate', done.text, true) +
         '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.done) + '</p>' +
         endScore(sc.correct, total) +
         (fixed ? '<p class="wq-sub">' + esc(T.fixedLine(fixed)) + '</p>' : '') +
@@ -2511,7 +2554,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (!S.pending) { S.pending = 1; S.pendingAt = Date.now(); ev('offline_finish', { i: answeredCount() }); }
     S.fixed = fixed; save();
     var sc = localScore();
-    var h = bar() + jug('celebrate', T.offDone, true) +
+    var h = bar() + endJug('celebrate', T.offDone) +
       '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.done) + '</p>' +
       endScore(sc.correct, sc.total) + '</div>' +
       '<div class="wq-banner">' + esc(T.offWait) + '</div>' +

@@ -429,3 +429,31 @@ describe('the invite picture for the door', () => {
     } finally { await new Promise((r) => server.close(r)); }
   });
 });
+
+describe('web_quiz_share_ur_stack: the class table picture as one stack (Urdu only)', () => {
+  const drawn = async (lang, settings) => {
+    fake.db.quiz_share_codes.forEach((c) => { c.language = lang; });
+    fake.db.quizzes[0].language = lang;
+    fake.db.app_settings = settings;
+    require('../../../shared/services/quiz/web-quiz-card-switch')._reset();
+    Art._resetCache();
+    htmlToImage.mockClear();
+    const out = await Art.artImage(Art.artId('l', SID), { size: 'sq' });
+    return { key: out.key, html: htmlToImage.mock.calls[0][0] };
+  };
+  const ON = [{ key: 'web_quiz_share_ur_stack', value: true }];
+  test('on: an Urdu class picture is drawn as the stack under a new key', async () => {
+    const off = await drawn('ur', []);
+    const on = await drawn('ur', ON);
+    expect(off.html).not.toContain('.crow li.gap{');
+    expect(on.html).toContain('.crow li.gap{');
+    expect(on.html).toMatch(/<li class="me">/);
+    expect(on.key).not.toBe(off.key);
+  });
+  test('on: an English class picture keeps its key and its HTML', async () => {
+    const off = await drawn('en', []);
+    const on = await drawn('en', ON);
+    expect(on.key).toBe(off.key);
+    expect(on.html).toBe(off.html);
+  });
+});
