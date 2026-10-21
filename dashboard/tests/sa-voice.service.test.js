@@ -1,7 +1,7 @@
 /**
  * sa-voice: Jugnu's voice for the self-administered runner.
- * speak() plays the clip (tried twice, then silent: never the phone's speech for a line that has a clip), uses the
- * phone's speech only for a line with no clip, and resolves even with neither.
+ * speak() plays the clip (tried twice; then the phone's own voice in an allowed voice, else silent with the words on
+ * screen: RULING W3-14), uses the phone's speech for a line with no clip, and resolves even with neither.
  */
 const path = require('path');
 
@@ -150,34 +150,35 @@ describe('sa-voice speak()', () => {
     expect(log).toEqual([['audio', '/b/u.mp3']]);
   });
 
-  // RULING #31 c, d / #33 (the tester's A07, A09): a line that has a clip is never said by the phone's own voice.
-  test('a clip that fails is retried once, then the line resolves silently: no browser speech', async () => {
+  // RULING #31 c, d / #33 (the tester's A07, A09) as RULING W3-14 has it: a clip that fails twice is said by the
+  // phone's voice only in an allowed voice (sa-clip-429 covers that); with none, the words stay on screen.
+  test('a clip that fails is retried once, then, with no allowed phone voice, the line resolves silently', async () => {
     const log = [], silent = [];
     global.Audio = makeAudio('error', log);
-    const sp = makeSpeech(log, [{ lang: 'en-US' }]);
+    const sp = makeSpeech(log, [{ lang: 'en-SG' }]);
     global.speechSynthesis = sp.synth;
     global.SpeechSynthesisUtterance = sp.Utter;
-    const v = load().create({ lang: 'en', base: '/a/', pause_ms: 10, onSilent: (e) => silent.push(e) });
+    const v = load().create({ lang: 'en', base: '/a/', pause_ms: 10, retry_ms: 10, onSilent: (e) => silent.push(e) });
     await v.speak({ en: 'Good effort, let us go on.' }, { en: 'sa/v1/en/after.mp3' });
     expect(log.filter((x) => x[0] === 'audio')).toEqual([['audio', '/a/sa/v1/en/after.mp3'], ['audio', '/a/sa/v1/en/after.mp3']]);
     expect(log.some((x) => x[0] === 'tts')).toBe(false);
     expect(silent).toEqual([{ text: 'Good effort, let us go on.', lang: 'en' }]);
   });
 
-  test('a clip refused by autoplay or never loading is not handed to browser speech', async () => {
+  test('a clip refused by autoplay or never loading is tried twice, then never said in a voice outside the list', async () => {
     const log = [];
     global.Audio = makeAudio('reject', log);
-    const sp = makeSpeech(log, [{ lang: 'en-IN' }]);
+    const sp = makeSpeech(log, [{ lang: 'en-HK' }]);
     global.speechSynthesis = sp.synth;
     global.SpeechSynthesisUtterance = sp.Utter;
-    const v = load().create({ lang: 'en', pause_ms: 10 });
+    const v = load().create({ lang: 'en', pause_ms: 10, retry_ms: 10 });
     await v.speak({ en: 'Hello' }, { en: 'x.mp3' });
     expect(log.filter((x) => x[0] === 'audio').length).toBe(2);
     expect(log.some((x) => x[0] === 'tts')).toBe(false);
 
     const log2 = [];
     global.Audio = class { constructor(src) { log2.push(['audio', src]); } play() { return new Promise(() => {}); } pause() {} };
-    const v2 = load().create({ lang: 'en', pause_ms: 10, load_ms: 20 });
+    const v2 = load().create({ lang: 'en', pause_ms: 10, load_ms: 20, retry_ms: 10 });
     await v2.speak({ en: 'Hello' }, { en: 'slow.mp3' });
     expect(log2.length).toBe(2);
     expect(log.some((x) => x[0] === 'tts')).toBe(false);
