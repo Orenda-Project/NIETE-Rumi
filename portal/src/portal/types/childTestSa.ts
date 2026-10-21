@@ -74,6 +74,8 @@ export type SaResponseMode = "tap" | "keypad" | "keyboard" | "record" | "oral";
  */
 export type SaTaskResult = {
   taskId: string;
+  /** the battery's own name for the task; absent for a task the battery no longer has */
+  title?: { en: string | null; ur: string | null } | null;
   mode: SaResponseMode | null;
   attempted: number | null;
   correct: number | null;

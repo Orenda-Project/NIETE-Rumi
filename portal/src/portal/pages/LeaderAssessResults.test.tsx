@@ -149,4 +149,19 @@ describe("LeaderAssessResults", () => {
     await screen.findByTestId("result-task-ur.letters");
     expect(container.textContent).not.toContain("Testwala");
   });
+
+  it("each task is headed by its name in the page's language, the code small underneath; no name, the code alone", async () => {
+    const titled = { ...RESULTS, tasks: [{ ...RESULTS.tasks[1], title: { en: "Addition, quick", ur: "جمع، فوری" } }, RESULTS.tasks[0]] };
+    api.getResults.mockResolvedValue(titled);
+    const { unmount } = renderAt();
+    const add = await screen.findByTestId("result-task-ma.add1");
+    expect(within(add).getByRole("heading")).toHaveTextContent("Addition, quick");
+    expect(within(add).getByRole("heading")).not.toHaveTextContent("ma.add1");
+    expect(within(add).getByTestId("result-task-id")).toHaveTextContent("ma.add1");
+    expect(within(screen.getByTestId("result-task-ur.letters")).getByRole("heading")).toHaveTextContent("ur.letters");
+    unmount();
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    renderAt();
+    expect(within(await screen.findByTestId("result-task-ma.add1")).getByRole("heading")).toHaveTextContent("جمع، فوری");
+  });
 });
