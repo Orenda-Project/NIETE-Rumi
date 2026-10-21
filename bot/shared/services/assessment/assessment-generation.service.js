@@ -749,6 +749,7 @@ const { mathsCheck } = require('./maths-check');
 const { checkBlueprint, missesSplit, levelDistance, levelNote } = require('./blueprint-check');
 const Reader = require('./fde-reader');
 const StemCheck = require('./fde-stem-check');
+const { writeEarlyPaper } = require('./fde-early-writer');
 
 // Required on first use: the loader opens a database client, and the prompt
 // helpers above are loaded by tests and tools that have no database.
@@ -2435,6 +2436,8 @@ async function generatePatternExam({ splitRetry = false, ...args }) {
   const first = await _writePatternPaper(args);
   const bp = first.examJson._layout.blueprint;
   if (!splitRetry || !missesSplit(bp)) return first;
+  // Grades 1-2: the level note steers Grade 5's prompts only, so an early paper is written once.
+  if ((Patterns.get(args.pattern) || {}).profile === 'early') return first;
   const { pattern, subject, requestId = null } = args;
   logToFile('[assessment] paper re-asked for its level split', { requestId, pattern, subject: Patterns.normalise(subject), levels: bp.levels });
   let second;
@@ -2457,6 +2460,32 @@ async function generatePatternExam({ splitRetry = false, ...args }) {
   };
 }
 
+/** The helpers a Grade 1-2 paper is written with (fde-early-writer): this file's own, passed in. */
+function _earlyDeps(subject) {
+  return {
+    family: URDU_MEDIUM.has(canonical(subject) || 'eng') ? 'urdu' : 'eng',
+    loadPatternContent: _loadPatternContent,
+    ensureCurrent: typeof ensureCurrent === 'function' ? ensureCurrent : null,
+    patternModel,
+    resolveModelForJob,
+    buildSystemPrompt,
+    sectionText: _sectionText,
+    buildPatternUserPrompt,
+    sectionMessages: _sectionMessages,
+    warmSharedPrefixes: _warmSharedPrefixes,
+    writeSection: _writeSection,
+    mergeSections: _mergeSections,
+    stripImageKeys,
+    normaliseAnswers,
+    emptyQuestionParts: _emptyQuestionParts,
+    topUp: _topUp,
+    sumUsage: _sumUsage,
+    countQuestions,
+    fail,
+    logToFile,
+  };
+}
+
 async function _writePatternPaper({ grade, subject, pattern, scope = null, pageRanges = null, chapterNumber = null, onSection = null, requestId = null, readerPass = false, stemCheck = false, levelNote: splitNote = null }) {
   const startedAt = Date.now();
   const def = Patterns.get(pattern);
@@ -2465,6 +2494,8 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   if (!P || !Patterns.isEligible(pattern, grade, subject)) {
     throw fail('PATTERN_INELIGIBLE', 'That board pattern is not available for this grade and subject.', { pattern, grade, subject });
   }
+  // Grades 1-2 (bd-5jmnfj.4): whole-book papers with pictures and an oral part, written on their own path.
+  if (def.profile === 'early') return writeEarlyPaper({ grade, subject, pattern, P, onSection, requestId }, _earlyDeps(subject));
 
   const loaded = await _loadPatternContent({ grade, subject, P, scope, pageRanges, chapterNumber });
   const layoutScope = scope || (chapterNumber != null && !pageRanges

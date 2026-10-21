@@ -1,0 +1,163 @@
+/**
+ * The Grade 1-2 paper writer (bd-5jmnfj.4.1), with the model and the service's
+ * private helpers faked and the real layout, marking scheme and blueprint check:
+ * every subject lays out whole with its real subject key, pictures and oral part;
+ * a section short of pictures and an oral task with nothing written are each
+ * asked once more; a second miss fails the paper with what was written.
+ */
+
+const Patterns = require('../../bot/shared/services/assessment/patterns');
+const { writeEarlyPaper, ORAL_SYSTEM } = require('../../bot/shared/services/assessment/fde-early-writer');
+const { NO_PICTURES } = require('../../bot/shared/services/assessment/fde-early-prompt');
+
+const SAMPLE = { count: { kind: 'count', name: 'apple', n: 3 }, dots: { kind: 'dots', n: 4 }, shapes: { kind: 'shapes', shapes: [{ shape: 'circle' }] },
+  object: { kind: 'object', name: 'cat' }, scene: { kind: 'scene', describe: 'children in a park' }, clock: { kind: 'clock', hour: 3, minute: 0 } };
+
+function itemsFor(slot, { noPicture = false } = {}) {
+  return Array.from({ length: slot.generate }, (_, i) => ({
+    slot: slot.slot, question: `Question ${i + 1} for ${slot.slot}`, marks: slot.marks_each, blooms: 'Remember',
+    ...(slot.shape === 'mcq' ? { options: ['a) one', 'b) two', 'c) three'], answer: 'a) one' } : { answer: String(i + 1) }),
+    scheme: { points: [{ kind: 'A', text: 'correct', marks: slot.marks_each }] },
+    ...(slot.picture && !noPicture ? { picture: { ...SAMPLE[slot.picture[0]] } } : {}),
+  }));
+}
+
+function treeFor(section, opts = {}) {
+  const tree = { unseen: { objective: {}, subjective: {} } };
+  section.slots.forEach((slot) => {
+    const list = itemsFor(slot, { noPicture: (opts.noPicture || []).includes(slot.slot) });
+    (tree.unseen[slot.category][slot.type] = tree.unseen[slot.category][slot.type] || []).push(...list);
+  });
+  return tree;
+}
+
+function oralTree(oral, drop = []) {
+  return { oral: oral.tasks.filter((t) => !drop.includes(t.id)).map((t) => ({
+    id: t.id, script: 'A short story read aloud.', items: Array.from({ length: t.n }, (_, i) => ({ ask: `ask ${i + 1}`, answer: 'yes' })),
+  })) };
+}
+
+function deps(P, { replies = {}, oralReplies = [], pictures = null } = {}) {
+  const calls = { sections: [], oral: [], prompts: [] };
+  const sectionN = {};
+  const d = {
+    family: 'eng',
+    loadPatternContent: jest.fn(async () => ({ content: 'BOOK', pageReference: '1-50' })),
+    ensureCurrent: jest.fn(async () => {}),
+    patternModel: () => ({ model: 'test/model', job: 'assessment.generate' }),
+    resolveModelForJob: () => ({ model: 'test/model' }),
+    buildSystemPrompt: () => 'SYSTEM',
+    sectionText: (section, loaded) => ({ content: loaded.content, pageReference: loaded.pageReference }),
+    buildPatternUserPrompt: ({ section }) => { calls.prompts.push(section.id); return `PROMPT ${section.id}\n${NO_PICTURES}`; },
+    sectionMessages: ({ system, user }) => [{ role: 'system', content: system }, { role: 'user', content: user }],
+    warmSharedPrefixes: async () => [],
+    writeSection: jest.fn(async ({ messages, section }) => {
+      const usages = [{ prompt_tokens: 10, completion_tokens: 5, total_tokens: 15, cost: 0.01 }];
+      if (section.id === 'oral') {
+        calls.oral.push(messages);
+        const r = oralReplies[calls.oral.length - 1];
+        return { tree: r || oralTree(P.oral), usages };
+      }
+      calls.sections.push({ id: section.id, user: messages[1].content });
+      sectionN[section.id] = (sectionN[section.id] || 0) + 1;
+      const opts = (replies[section.id] || [])[sectionN[section.id] - 1] || {};
+      return { tree: treeFor(section, opts), usages };
+    }),
+    mergeSections: (trees) => {
+      const out = { unseen: { objective: {}, subjective: {} } };
+      trees.forEach((t) => Object.entries(t.unseen).forEach(([cat, types]) => Object.entries(types).forEach(([type, list]) => {
+        out.unseen[cat][type] = (out.unseen[cat][type] || []).concat(JSON.parse(JSON.stringify(list)));
+      })));
+      return out;
+    },
+    stripImageKeys: () => {},
+    normaliseAnswers: () => {},
+    emptyQuestionParts: () => [],
+    topUp: (first, second) => second,
+    sumUsage: (us) => ({ prompt_tokens: us.reduce((n, u) => n + u.prompt_tokens, 0), completion_tokens: 0, total_tokens: 0, cost: us.reduce((n, u) => n + u.cost, 0) }),
+    countQuestions: () => 1,
+    fail: (code, message, extra) => Object.assign(new Error(message), { code }, extra),
+    logToFile: jest.fn(),
+    resolvePictures: pictures || jest.fn(async (examJson) => {
+      Object.values(examJson.unseen).forEach((t) => Object.values(t).forEach((l) => l.forEach((q) => { if (q.picture) q.picture.src = 'data:x'; })));
+      return examJson;
+    }),
+  };
+  return { d, calls };
+}
+
+const run = (grade, key, opts) => {
+  const P = Patterns.get(`fde_g${grade}_2026`).subjects[key];
+  const { d, calls } = deps(P, opts);
+  return { P, d, calls, go: () => writeEarlyPaper({ grade, subject: key, pattern: `fde_g${grade}_2026`, P }, d) };
+};
+
+const items = (examJson) => Object.values(examJson.unseen).flatMap((t) => Object.values(t)).flat();
+
+test.each([[1, 'maths'], [1, 'english'], [1, 'urdu'], [1, 'general_knowledge'], [2, 'maths'], [2, 'english'], [2, 'urdu'], [2, 'general_knowledge']])(
+  'Grade %i %s lays out whole, with its real subject, its pictures and its oral part', async (grade, key) => {
+    const { P, d, calls, go } = run(grade, key);
+    const out = await go();
+    expect(out.examJson._layout.subject).toBe(key);
+    expect(out.examJson._layout.total_marks).toBe(P.total_marks);
+    expect(calls.sections.every((c) => !c.user.includes(NO_PICTURES))).toBe(true);
+    const pics = items(out.examJson).filter((q) => q.picture);
+    expect(pics.every((q) => q.picture.src)).toBe(true);
+    if (P.sections.some((s) => s.slots.some((sl) => sl.picture))) expect(pics.length).toBeGreaterThan(0);
+    if (P.oral) expect(out.examJson._layout.oral.content.map((c) => c.id)).toEqual(P.oral.tasks.map((t) => t.id));
+    else expect(out.examJson._layout.oral).toBeUndefined();
+    expect(out.examJson._layout.blueprint).toBeDefined();
+    expect(out).toEqual(expect.objectContaining({ chapterTitle: null, pageReference: '1-50', questionCount: 1 }));
+    expect(d.writeSection).toHaveBeenCalledTimes(P.sections.length + (P.oral ? 1 : 0));
+  });
+
+test('the oral part is asked with its own system prompt, beside the sections', async () => {
+  const { calls, go } = run(1, 'english');
+  await go();
+  expect(calls.oral[0][0].content).toBe(ORAL_SYSTEM);
+});
+
+test('a section short of a picture is asked once more and the second reply fills it', async () => {
+  const { calls, go } = run(1, 'maths', { replies: { A: [{ noPicture: ['g1.maths.A.Q3'] }] } });
+  const out = await go();
+  expect(calls.sections.filter((c) => c.id === 'A')).toHaveLength(2);
+  expect(calls.sections.filter((c) => c.id === 'B')).toHaveLength(1);
+  expect(items(out.examJson).filter((q) => q.slot === 'g1.maths.A.Q3').every((q) => q.picture && q.picture.src)).toBe(true);
+});
+
+test('a section still short of a picture fails the paper with what was written', async () => {
+  const miss = { noPicture: ['g1.maths.B.Q7'] };
+  const { go } = run(1, 'maths', { replies: { B: [miss, miss] } });
+  const err = await go().catch((e) => e);
+  expect(err.code).toBe('PATTERN_SHORT_SLOT');
+  expect(err.shortfall).toEqual([{ slot: 'g1.maths.B.Q7', reason: 'picture' }]);
+  expect(err.examJson).toBeDefined();
+  expect(err.model).toBe('test/model');
+});
+
+test('an oral task with nothing written is asked once more; the first reply\'s tasks are kept', async () => {
+  const P = Patterns.get('fde_g1_2026').subjects.english;
+  const { calls, go } = run(1, 'english', { oralReplies: [oralTree(P.oral, ['speaking']), oralTree(P.oral)] });
+  const out = await go();
+  expect(calls.oral).toHaveLength(2);
+  expect(calls.oral[1][1].content).toContain('speaking');
+  expect(out.examJson._layout.oral.content.map((c) => c.id)).toEqual(['listening', 'speaking', 'read_aloud']);
+});
+
+test('an oral task still empty after its re-ask fails the paper ORAL_SHORT', async () => {
+  const P = Patterns.get('fde_g1_2026').subjects.english;
+  const half = oralTree(P.oral, ['read_aloud']);
+  const { go } = run(1, 'english', { oralReplies: [half, half] });
+  const err = await go().catch((e) => e);
+  expect(err.code).toBe('ORAL_SHORT');
+  expect(err.missing).toEqual(['read_aloud']);
+});
+
+test('a picture that cannot be drawn fails the paper, keeping what was written', async () => {
+  const boom = jest.fn(async () => { throw Object.assign(new Error('A picture on the paper could not be drawn.'), { code: 'PICTURE_FAILED' }); });
+  const { go } = run(1, 'maths', { pictures: boom });
+  const err = await go().catch((e) => e);
+  expect(err.code).toBe('PICTURE_FAILED');
+  expect(err.examJson._layout.subject).toBe('maths');
+  expect(err.model).toBe('test/model');
+});

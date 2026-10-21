@@ -286,7 +286,10 @@ export const ASSESSMENT_V2_COPY = {
   /* the FDE board pattern (copy deck §A). The pattern's own lines (holds, sections, scope, files, You add) are DATA
      from /assessment/options, never typed here. */
   fdeDoor: 'FDE pattern papers',
-  fdeDoorChips: 'Grade 5 · Feb 2027 · Marking scheme',
+  // The door's chips follow the grades the pattern serves; the exam date is Grade 5's alone.
+  fdeDoorChips: (grades: number[]) => (grades.length === 1 && grades[0] === 5
+    ? 'Grade 5 · Feb 2027 · Marking scheme'
+    : `${grades.length === 1 ? 'Grade' : 'Grades'} ${grades.join(', ')} · Marking scheme`),
   lastMade: (subject: string, days: number) => `Last: ${subject} · ${days === 0 ? 'today' : days === 1 ? '1 day ago' : `${days} days ago`}`,
   islamiatHeld: 'FDE pattern for Islamiat: after review',
   styleFde: 'FDE board pattern',
@@ -593,7 +596,9 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   failureFallback: 'کچھ مسئلہ ہو گیا',
   // The FDE board pattern: MACHINE-DRAFTED (copy deck §A), needs fluent-Urdu review. "FDE" stays Latin (the kit isolates it).
   fdeDoor: 'FDE pattern کے پرچے',
-  fdeDoorChips: 'جماعت 5 · فروری 2027 · مارکنگ اسکیم',
+  fdeDoorChips: (grades: number[]) => (grades.length === 1 && grades[0] === 5
+    ? 'جماعت 5 · فروری 2027 · مارکنگ اسکیم'
+    : `جماعت ${grades.join('، ')} · مارکنگ اسکیم`),
   lastMade: (subject: string, days: number) => `آخری: ${subject} · ${days === 0 ? 'آج' : `${days} دن پہلے`}`,
   islamiatHeld: 'اسلامیات کا FDE pattern: جائزے کے بعد',
   styleFde: 'FDE بورڈ pattern',

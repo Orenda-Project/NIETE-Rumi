@@ -76,15 +76,17 @@ export function AssessmentHub() {
 
   // The FDE door: only while /assessment/options advertises the board pattern (its flag on the bot). It remembers the
   // last board-pattern paper in the teacher's list, so the repeat journey is one tap to Check.
-  const fdeGrade = catalogue?.patternGrades?.[0] ?? null;
-  const lastFde = fdeGrade !== null ? papers.find((x) => x.pattern) : undefined;
+  const fdeGrades = catalogue?.patternGrades ?? [];
+  // One grade is preset; with several the teacher picks the grade on Class.
+  const fdeGrade = fdeGrades.length === 1 ? fdeGrades[0] : null;
+  const lastFde = fdeGrades.length ? papers.find((x) => x.pattern) : undefined;
   // The door asks for "a board pattern"; which one comes with the subject (/assessment/options' patterns), on the pick.
   const fdePicks = (pattern: string | null) => ({ grade: fdeGrade, patternIntent: pattern ?? 'fde', coverBy: 'fde' as const, style: 'fde' as const, pattern });
   const lastDays = (() => {
     const day = pkDay(lastFde?.ready_at);
     return day ? Math.max(0, Math.round((Date.parse(pkToday()) - Date.parse(day)) / 86_400_000)) : null;
   })();
-  const door = fdeGrade !== null && (
+  const door = fdeGrades.length > 0 && (
     <div className={cn('overflow-hidden', CARD)}>
       <Link
         to={newPaperPath('class')}
@@ -100,7 +102,7 @@ export function AssessmentHub() {
         </span>
         <span className="flex min-w-0 flex-1 flex-col items-start gap-2">
           <b className="text-[20px] font-semibold leading-tight">{C.fdeDoor}</b>
-          <span className="flex flex-wrap gap-1.5">{C.fdeDoorChips.split(' · ').map((c) => <Chip key={c}>{c}</Chip>)}</span>
+          <span className="flex flex-wrap gap-1.5">{C.fdeDoorChips(fdeGrades).split(' · ').map((c) => <Chip key={c}>{c}</Chip>)}</span>
           {lastFde && lastDays !== null && <span className="text-[14px] text-[#4b5563]">{C.lastMade(lastFde.subject, lastDays)}</span>}
         </span>
         <ChevronRight className="h-6 w-6 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
