@@ -81,6 +81,8 @@ export type Picks = {
   topicScope?: 'chapter' | 'topics' | null;
   /** The ticked topic ids in book order; null = every topic (the whole chapter), [] = none ticked yet. */
   topicIds?: string[] | null;
+  /** She came through the WhatsApp link for a paper on topics (?by=topics): Topics opens on Select topics. */
+  byTopics?: boolean;
 };
 
 export function newPicks(defaultCount: number): Picks {
