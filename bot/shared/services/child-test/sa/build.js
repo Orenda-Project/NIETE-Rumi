@@ -14,7 +14,7 @@
 
 const crypto = require('crypto');
 const { TASKS_V3 } = require('../tasks');
-const { COMMON, BATTERY, GAME_LINES, TASKS: LINES, UR_LETTER_NAMES, EN_LETTER_SOUNDS } = require('./scripts');
+const { COMMON, BATTERY, GAME_LINES, TASKS: LINES, CHAINS, MATHS_PRACTICE, UR_LETTER_NAMES, EN_LETTER_SOUNDS } = require('./scripts');
 
 const VERSION = 'child-test-items-sa-v1';
 const SET = 'A';
@@ -77,6 +77,22 @@ function said(lang, text) {
 function sayBoth(en, ur) {
   return { en, ur, audio: { en: audioKey('en', en), ur: audioKey('ur', ur) } };
 }
+/**
+ * RULING #31a: a line naming an item, as the chain of clips the other-language page says: each carrier (CHAINS, both
+ * languages) then the item in its own language's clip ('x', 'y'). Kept next to the whole line; runtimeItem picks.
+ */
+function chainOf(segs, itemLang, x, y) {
+  if (!segs) return null;
+  return segs.map((s) => (s === 'x' ? said(itemLang, x) : s === 'y' ? said(itemLang, y) : spoken(s)));
+}
+/** Practice feedback: the whole lines, plus their chains when the task's lines have them. */
+function feedbackOf(key, lines, itemLang, x, y) {
+  const c = CHAINS[key] || {};
+  const two = y !== undefined;
+  const whole = (l) => spoken(two ? fill2(l, x, y) : fill(l, x));
+  return { correct: whole(lines.right), wrong: whole(lines.wrong),
+    ...(c.right ? { correct_chain: chainOf(c.right, itemLang, x, y) } : {}), ...(c.wrong ? { wrong_chain: chainOf(c.wrong, itemLang, x, y) } : {}) };
+}
 
 const MARKS = /[\u064B-\u065F\u0670]/gu; // Urdu diacritics: not counted in a word's length
 const shapeLen = (x) => [...String(x).replace(MARKS, '')].length;
@@ -133,11 +149,12 @@ function stopOf(v3stop, firstLineN) {
 }
 
 /** Jugnu's lines for one task, under CONTRACT §2's names. */
-function scriptOf(key, mode, demo) {
+function scriptOf(key, mode, demo, demoChain) {
   const t = LINES[key] || {};
   const intro = mode === 'record' ? (t.intro_record || t.intro_tap) : (t.intro_tap || t.intro_record);
   const out = { intro: spoken(intro) };
   if (demo) out.demo = spoken(demo);
+  if (demo && demoChain) out.demo_chain = demoChain;
   for (const k of ['practice_intro', 'practice_right', 'practice_wrong', 'test_intro', 'begin', 'replay', 'time_up', 'early_stop', 'after', 'hand_back']) {
     out[k] = spoken(COMMON[k]);
   }
@@ -165,7 +182,7 @@ function gridTask({ lang, kind, spec, extraPractice }) {
     const id = `${task}.p${i + 1}`;
     const s = sayOf(p.item);
     return { id, role: p.role, target: p.item, options: opts(id, p.item), say: said(lang, s),
-      feedback: { correct: spoken(fill(lines.right, s)), wrong: spoken(fill(lines.wrong, s)) }, src: p.src };
+      feedback: feedbackOf(kind === 'letters' ? task : kind, lines, lang, s), src: p.src };
   });
   const example = practice.find((p) => p.role === 'example');
   return {
@@ -175,7 +192,8 @@ function gridTask({ lang, kind, spec, extraPractice }) {
     record: { grid: spec.items, per_row: spec.per_row, direction: spec.direction, time_limit_s: spec.timed_s, stop: stopOf(spec.stop) },
     practice, ...(practice.length ? {} : { practice_note: spec.practice_note }),
     ...(!(spec.practice || []).length && practice.length ? { practice_note: 'practice items from the official form named in each src (v3 holds none)' } : {}),
-    script: scriptOf(kind === 'letters' ? task : kind, 'tap', example && lines.example ? fill(lines.example, example.say.text) : null),
+    script: scriptOf(kind === 'letters' ? task : kind, 'tap', example && lines.example ? fill(lines.example, example.say.text) : null,
+      example && chainOf((CHAINS[kind === 'letters' ? task : kind] || {}).example, lang, example.say.text)),
     source: sourceOf(spec, `${base}.script`, 'Tangerine SA hear-then-tap (sec_letter_sounds_01, sec_vocab_01); RULING #2'),
     deviation: `recognition, not production: Jugnu says the item and the child taps it (Tangerine SA's own choice); the 3-second rule becomes replay at 5 s, auto-advance marked wrong at 10 s; ${CHANCE_NOTE}`,
   };
@@ -228,7 +246,14 @@ function listeningTask({ lang, spec, task = `${lang}.listening`, base = `v3:sets
 // ---------------------------------------------------------------------------------------------- maths tasks
 const SAY_OP = { '+': { en: 'plus', ur: 'جمع' }, '-': { en: 'minus', ur: 'منفی' } };
 
-function mathsTask({ kind, spec, grade }) {
+/** Practice feedback on a maths item: the task's own lines, else the Core EGMA word-problem practice wording. */
+function mathsFeedback(lines, ans, numberId) {
+  const n = { en: String(ans), ur: toUrDigits(ans) };
+  return { correct: spoken(fill(lines.right || MATHS_PRACTICE.right, n)),
+    wrong: spoken(fill(lines.wrong || (numberId ? MATHS_PRACTICE.wrong_number : MATHS_PRACTICE.wrong), n)) };
+}
+
+function mathsTask({ kind, spec, grade, borrowed }) {
   const task = `ma.${kind}`;
   const base = `v3:sets.${SET}.maths.${grade}.${kind}`;
   // RULING #17 M3: missing number is typed at Grade 5 (tap 1 of 4 at Grades 1-3).
@@ -250,6 +275,14 @@ function mathsTask({ kind, spec, grade }) {
     if (lines.right) p.feedback = { correct: spoken(fill(lines.right, { en: String(ans), ur: toUrDigits(ans) })), wrong: spoken(fill(lines.wrong, { en: String(ans), ur: toUrDigits(ans) })) };
     return p;
   });
+  // A11 (switch sa_practice_all_maths): where the source prints no practice, an official item of the same format that is
+  // in no scored set (item-bank.sa-extra.v1.json maths.practice, src per item).
+  const practiceV2 = !practice.length && borrowed && borrowed.length ? borrowed.map((b, i) => {
+    const p = itemOf(kind === 'number_id' ? b.numeral : b, `${task}.G${grade}.p${i + 1}`, `extra:maths.practice.items.${task}[${i}] (${b.src})`);
+    if (kind === 'number_id') p.options = listOptions(p.id, b.numeral, [...spec.items, b.numeral], 4).map(Number);
+    p.feedback = mathsFeedback(lines, p.target, kind === 'number_id');
+    return p;
+  }) : null;
   return {
     task, lang: null, kind: keypad ? 'keypad' : kind === 'number_id' ? 'grid' : 'choice', legacy_block: task, family: 'egma',
     subtask: SUBTASK[kind], title: spec.title, modes: ['tap'],
@@ -258,7 +291,7 @@ function mathsTask({ kind, spec, grade }) {
       input: keypad ? 'keypad' : 'options', items, time_limit_s: spec.timed_s, ...(timed ? TIMED_TAP : UNTIMED_TAP),
       ...(kind === 'word_problems' ? { soft_cap_s: 60 } : {}), ...(op ? { say_on: 'replay' } : {}), stop: stopOf(spec.stop) },
     record: null,
-    practice, ...(practice.length ? {} : { practice_note: spec.practice_note }),
+    practice, ...(practice.length ? {} : { practice_note: spec.practice_note }), ...(practiceV2 ? { practice_v2: practiceV2 } : {}),
     script: scriptOf(task, 'tap'),
     source: sourceOf(spec, `${base}.script`, keypad ? 'Tangerine SA keypad (sec_l1_addition_01, sec_l1_word_problem_01); RULING #2' : 'Tangerine SA tap (sec_num_id1, sec_num_comp1, sec_miss_num_01); RULING #2'),
     deviation: keypad ? `typed on a keypad, not spoken${op ? '; the sum is shown and spoken only on the replay tile (RULING #17)' : ''}` : kind === 'number_id' ? 'recognition instead of naming' : null,
@@ -283,15 +316,22 @@ function permutations(xs) {
   return xs.flatMap((x, i) => permutations([...xs.slice(0, i), ...xs.slice(i + 1)]).map((p) => [x, ...p]));
 }
 
-function extraMathsTask({ task, spec, items, input, options_n, distractor_rule, scriptKey, adaptation, deviation, extraBase, depends_on, sayOnReplay, stop = null, softCap = null }) {
+function extraMathsTask({ task, spec, items, input, options_n, distractor_rule, scriptKey, adaptation, deviation, extraBase, depends_on, sayOnReplay, stop = null, softCap = null, practiceV2 = null, demoCopy = false }) {
   const timed = !!spec.timed_s;
+  const script = scriptOf(scriptKey, 'tap');
+  // A11 (switch sa_practice_all_maths): no unused fielded item exists, so Tangerine's demo pattern: a disabled copy of
+  // item 1 shown with the instruction, its answer not shown; item 1 then scores as normal.
+  if (demoCopy && items.length) {
+    const { target: _t, ...first } = items[0];
+    script.demo_item = { ...first, id: `${items[0].id}.demo`, disabled: true };
+  }
   return {
     task, lang: null, kind: input === 'keypad' ? 'keypad' : 'choice', legacy_block: null, family: 'egma', subtask: spec.subtask,
     title: TITLES[task], modes: ['tap'],
     tap: { options_n, distractor_rule, input, items, time_limit_s: spec.timed_s, ...(timed ? TIMED_TAP : UNTIMED_TAP), stop,
       ...(softCap ? { soft_cap_s: softCap } : {}), ...(sayOnReplay ? { say_on: 'replay' } : {}) },
-    record: null, practice: [], practice_note: spec.practice_note,
-    script: scriptOf(scriptKey, 'tap'),
+    record: null, practice: [], practice_note: spec.practice_note, ...(practiceV2 && practiceV2.length ? { practice_v2: practiceV2 } : {}),
+    script,
     source: { items: extraBase, script: LINES[scriptKey].intro_tap.from, sa_adaptation: adaptation },
     deviation, ...(depends_on ? { depends_on } : {}),
   };
@@ -305,23 +345,38 @@ function extraTasks(f, extra) {
   const out = [];
   const say = (it) => sayBoth(it.say_en, it.say_ur);
   const src = (k, i) => `${base(k)}.items[${i}]`;
+  const P = m.practice || { items: {}, disabled_copy: [] };
+  const demoCopy = (task) => (P.disabled_copy || []).includes(task);
+  const borrowed = (task) => P.items[task] || [];
+  const psrc = (task, i, b) => `extra:maths.practice.items.${task}[${i}] (${b.src})`;
 
   // Patterns: levels 1-2 tap 1 of the item's own 4 printed options; levels 3-4 typed, only after a correct level 1-2 item.
   const pat = m.patterns.items.map((it, i) => ({ it, i }));
+  // RULING #44 addendum 2: the row as RWP printed it — a "what comes next" row ends with its blank, and a printed ___
+  // is the same gap (null), so the gap tile marks where the child answers on either page's reading direction.
+  const BLANK_LAST = ['next_term_mc', 'next_term_open'];
+  const shownOf = (it) => [...it.seq.map((s) => (s === '___' ? null : glyph[s] || s)), ...(BLANK_LAST.includes(it.type) ? [null] : [])];
   const patItem = ({ it, i }) => {
     const id = `ma.patterns.${it.id.replace('patterns_', '')}`;
     if (it.options) {
-      return { id, target: it.answer, options: it.options, labels: { en: it.options, ur: it.options.map((o) => ur[o] || toUrDigits(o)) },
-        glyphs: it.options.map((o) => glyph[o] || null), shown: it.seq.map((s) => glyph[s] || s), say: say(it), level: it.level, src: src('patterns', i) };
+      // Numerals stay Western digits on both pages (the maths convention), as the row shows them.
+      const labels = { en: it.options, ur: it.options.map((o) => ur[o] || o) };
+      const glyphs = it.options.map((o) => glyph[o] || null);
+      // RULING #44 (A13): picture options; Jugnu says the four, as the RWP enumerator read the card's a)-d).
+      const pictured = glyphs.every(Boolean);
+      const listEn = `${labels.en.slice(0, -1).join(', ')}, or ${labels.en[labels.en.length - 1]}?`;
+      const listUr = `${labels.ur.slice(0, -1).join('، ')} یا ${labels.ur[labels.ur.length - 1]}؟`;
+      return { id, target: it.answer, options: it.options, labels, glyphs, shown: shownOf(it),
+        say: pictured ? sayBoth(`${it.say_en}: ${listEn}`, `${it.say_ur}: ${listUr}`) : say(it), level: it.level, src: src('patterns', i) };
     }
-    return { id, target: it.answer, shown: it.seq.map((s) => glyph[s] || s), say: say(it), level: it.level, src: src('patterns', i) };
+    return { id, target: it.answer, shown: shownOf(it), say: say(it), level: it.level, src: src('patterns', i) };
   };
   out.push(extraMathsTask({ task: 'ma.patterns', spec: m.patterns, items: pat.filter((x) => x.it.level <= 2).map(patItem), input: 'options',
-    options_n: 4, distractor_rule: 'printed_in_source', scriptKey: 'ma.patterns', extraBase: base('patterns'),
+    options_n: 4, distractor_rule: 'printed_in_source', scriptKey: 'ma.patterns', extraBase: base('patterns'), demoCopy: demoCopy('ma.patterns'),
     adaptation: 'Tangerine SA tap 1 of 4 (sec_miss_num_01); the RWP card\'s four printed options', deviation: null,
     stop: { type: 'consecutive_errors', n: 4 } })); // EGMA's untimed convention: 4 wrong in a row ends the task
   out.push(extraMathsTask({ task: 'ma.patterns_hi', spec: m.patterns, items: pat.filter((x) => x.it.level >= 3).map(patItem), input: 'keypad',
-    options_n: null, distractor_rule: null, scriptKey: 'ma.patterns_hi', extraBase: base('patterns'),
+    options_n: null, distractor_rule: null, scriptKey: 'ma.patterns_hi', extraBase: base('patterns'), demoCopy: demoCopy('ma.patterns_hi'),
     adaptation: 'Tangerine SA keypad (sec_l1_addition_01); RWP levels 3-4', deviation: 'typed on a keypad, not spoken',
     depends_on: { task: 'ma.patterns', skip_if_zero: true }, stop: { type: 'consecutive_errors', n: 4 } }));
 
@@ -329,7 +384,7 @@ function extraTasks(f, extra) {
   const rep = m.number_repr.items.map((it, i) => ({ it, i })).filter((x) => !x.it.picture);
   out.push(extraMathsTask({ task: 'ma.number_repr', spec: m.number_repr, input: 'keypad', options_n: null, distractor_rule: null,
     items: rep.map(({ it, i }) => ({ id: `ma.number_repr.${it.id.replace('represent_', '')}`, target: it.answer, say: say(it), level: it.level, src: src('number_repr', i) })),
-    scriptKey: 'ma.number_repr', extraBase: base('number_repr'), adaptation: 'Tangerine SA keypad; RWP number representation',
+    scriptKey: 'ma.number_repr', extraBase: base('number_repr'), adaptation: 'Tangerine SA keypad; RWP number representation', demoCopy: demoCopy('ma.number_repr'),
     deviation: `typed on a keypad; picture items ${m.number_repr.items.filter((x) => x.picture).map((x) => x.id).join(', ')} held out until their pictures exist, so no level gate` }));
 
   // Ordering and next number: tap 1 of 4 (next: the ±1-step rule; order: orderings of the same three numbers).
@@ -345,12 +400,14 @@ function extraTasks(f, extra) {
     deviation: 'the child taps 1 of 4 orderings instead of saying the order; no level gate (the larger-of items are the comparison task)' }));
 
   // Fact fluency levels 3-4 (+, −, ×, ÷), RWP's second 60-second grid.
+  const factItem = (it, id, s) => {
+    const op = OP_NORM[it.op] || it.op;
+    return { id, target: it.answer, shown: `${it.a} ${op} ${it.b} =`,
+      say: sayBoth(`${it.a} ${OP_SAY[op].en} ${it.b}`, `${toUrDigits(it.a)} ${OP_SAY[op].ur} ${toUrDigits(it.b)}`), src: s };
+  };
   out.push(extraMathsTask({ task: 'ma.fluency_l34', spec: m.fluency_l34, input: 'keypad', options_n: null, distractor_rule: null,
-    items: m.fluency_l34.items.map((it, i) => {
-      const op = OP_NORM[it.op] || it.op;
-      return { id: `ma.fluency_l34.${pad(i + 1, 2)}`, target: it.answer, shown: `${it.a} ${op} ${it.b} =`,
-        say: sayBoth(`${it.a} ${OP_SAY[op].en} ${it.b}`, `${toUrDigits(it.a)} ${OP_SAY[op].ur} ${toUrDigits(it.b)}`), src: src('fluency_l34', i) };
-    }),
+    items: m.fluency_l34.items.map((it, i) => factItem(it, `ma.fluency_l34.${pad(i + 1, 2)}`, src('fluency_l34', i))),
+    practiceV2: borrowed('ma.fluency_l34').map((b, i) => ({ ...factItem(b, `ma.fluency_l34.p${i + 1}`, psrc('ma.fluency_l34', i, b)), feedback: mathsFeedback({}, b.answer) })),
     scriptKey: 'ma.fluency_l34', extraBase: base('fluency_l34'), adaptation: 'Tangerine SA keypad; RWP fact grid levels 3-4 (60 s)', sayOnReplay: true,
     deviation: 'typed on a keypad; RWP gave this grid only after 5+ correct on its level 1-2 grid, here after any correct addition level 1 item',
     depends_on: { task: 'ma.add1', skip_if_zero: true } }));
@@ -370,6 +427,11 @@ function extraTasks(f, extra) {
         const id = `ma.number_id_upper.${pad(i + 1, 2)}`;
         return { id, target: it.numeral, options: listOptions(id, it.numeral, list, 4), say: sayBoth(it.numeral, toUrDigits(it.numeral)), src: src('number_id_upper', i) };
       }),
+      practiceV2: borrowed('ma.number_id_upper').map((b, i) => {
+        const id = `ma.number_id_upper.p${i + 1}`;
+        return { id, target: b.numeral, options: listOptions(id, b.numeral, [...list, b.numeral], 4), say: sayBoth(b.numeral, toUrDigits(b.numeral)),
+          feedback: mathsFeedback({}, b.numeral, true), src: psrc('ma.number_id_upper', i, b) };
+      }),
       scriptKey: 'ma.number_id', extraBase: base('number_id_upper'), adaptation: 'Tangerine SA tap (sec_num_id1); RTI Rwanda P6 sample items',
       deviation: `recognition instead of naming; ${m.number_id_upper.caveat}` }));
   }
@@ -383,12 +445,12 @@ const UR_SOUND_GROUPS = [['ذ', 'ز', 'ض', 'ظ'], ['ث', 'س', 'ص'], ['ت', '�
 const UR_SOUND_KEY = (x) => (UR_SOUND_GROUPS.find((g) => g.includes(x)) || [x])[0];
 const fill2 = (line, x, y) => ({ en: line.en.replace(/\{x\}/g, x).replace(/\{y\}/g, y.en ?? y), ur: line.ur.replace(/\{x\}/g, x).replace(/\{y\}/g, y.ur ?? y), from: line.from });
 
-function readingTask({ task, lang, kind, subtask, title, items, practice, timed_s, stop, options_n, distractor_rule, scriptLines, demo, extraBase, adaptation, deviation, record }) {
+function readingTask({ task, lang, kind, subtask, title, items, practice, timed_s, stop, options_n, distractor_rule, scriptLines, demo, demoChain, extraBase, adaptation, deviation, record }) {
   return {
     task, lang, kind, legacy_block: null, family: 'egra', subtask, title, modes: ['tap'],
     tap: { options_n, distractor_rule, input: 'options', items, time_limit_s: timed_s, ...(timed_s ? TIMED_TAP : UNTIMED_TAP), stop },
     record: record || null, practice, ...(practice.length ? {} : { practice_note: 'none printed in the source' }),
-    script: scriptOf(scriptLines, 'tap', demo),
+    script: scriptOf(scriptLines, 'tap', demo, demoChain),
     source: { items: extraBase, script: LINES[scriptLines].intro_tap.from, sa_adaptation: adaptation }, deviation,
   };
 }
@@ -412,10 +474,11 @@ function readingExtras(extra) {
     practice: ls.practice.filter((p) => p.role !== 'example').map((p, i) => {
       const id = `en.letter_sounds.p${i + 1}`;
       return { id, role: p.role, target: p.item, options: listOptions(id, p.item, [...grid, p.item], 5, { key: EN_SOUND_KEY }), say: said('en', snd(p.item)), say_kind: 'sound',
-        feedback: { correct: spoken(fill(L.right, snd(p.item))), wrong: spoken(fill(L.wrong, snd(p.item))) }, src: `extra:reading.en.letter_sounds.practice[${ls.practice.indexOf(p)}]` };
+        feedback: feedbackOf('en.letter_sounds', L, 'en', snd(p.item)), src: `extra:reading.en.letter_sounds.practice[${ls.practice.indexOf(p)}]` };
     }),
     timed_s: ls.timed_s, stop: chanceStop({ type: 'first_row', n: ls.stop.n }, 'letter_sounds'), options_n: 5, distractor_rule: 'same_list_one_sound',
-    scriptLines: 'en.letter_sounds', demo: fill(L.example, snd(ls.practice.find((p) => p.role === 'example').item)), extraBase: 'extra:reading.en.letter_sounds',
+    scriptLines: 'en.letter_sounds', demo: fill(L.example, snd(ls.practice.find((p) => p.role === 'example').item)),
+    demoChain: chainOf(CHAINS['en.letter_sounds'].example, 'en', snd(ls.practice.find((p) => p.role === 'example').item)), extraBase: 'extra:reading.en.letter_sounds',
     record: { grid, per_row: ls.per_row, direction: 'ltr', time_limit_s: ls.timed_s, stop: { type: 'first_row', n: ls.stop.n } },
     adaptation: 'Tangerine SA hear-then-tap (sec_letter_sounds_01); TK2009 letter grid (p.28: the same page as letter names)',
     deviation: `recognition, not production: Jugnu says the sound and the child taps the letter; Jugnu's isolated sounds are synthetic until a human recording replaces them; ${CHANCE_NOTE}` }));
@@ -442,11 +505,12 @@ function readingExtras(extra) {
         const id = `${task}.p${i + 1}`;
         const l = letterOf(p);
         return { id, role: 'practice', target: l, options: listOptions(id, l, [...pool, l], 4, { key }), say: twice(p.word), word: p.word,
-          feedback: { correct: spoken(fill2(Ln.right, p.word, soundSay(l))), wrong: spoken(fill2(Ln.wrong, p.word, soundSay(l))) },
+          feedback: feedbackOf(task, Ln, lang, p.word, soundSay(l)),
           src: `extra:reading.${lang}.initial_sound.practice[${t.practice.indexOf(p)}]` };
       }),
       timed_s: null, stop: { type: 'first_row', n: t.stop.n }, options_n: 4, distractor_rule: 'first_letters_of_the_list_one_sound',
-      scriptLines: task, demo: fill2(Ln.example, ex.word, soundSay(letterOf(ex))), extraBase: `extra:reading.${lang}.initial_sound`,
+      scriptLines: task, demo: fill2(Ln.example, ex.word, soundSay(letterOf(ex))), demoChain: chainOf(CHAINS[task].example, lang, ex.word, soundSay(letterOf(ex))),
+      extraBase: `extra:reading.${lang}.initial_sound`,
       adaptation: lang === 'en' ? 'TK2009 p.34 initial sound; Tangerine SA hear-then-tap' : 'SELECT 2024 p.100 initial sound; Tangerine SA hear-then-tap',
       deviation: 'the child taps the letter of the first sound instead of saying the sound (a letter tile, so letter knowledge is part of the answer)' });
   };
@@ -464,8 +528,10 @@ function readingExtras(extra) {
       word: w.word, accept: [w.phonemes.join(' ')], phonemes: w.phonemes, src: `extra:reading.en.segmentation.items[${i}]` })),
     answer_window_s: 10, replay_max: 1, stop_later: { type: 'first_n_zero', n: seg.stop.n } },
     practice: [], practice_note: 'TK2009 practice words fan and miss are modelled by Jugnu before the task (a spoken answer cannot be checked on the phone)',
-    script: { ...scriptOf('en.segmentation', 'tap', fill2(segLines.example, seg.example.word, phon(seg.example.phonemes))),
-      practice_models: seg.practice.map((p) => spoken(fill2(segLines.example, p.word, phon(p.phonemes)))) },
+    script: { ...scriptOf('en.segmentation', 'tap', fill2(segLines.example, seg.example.word, phon(seg.example.phonemes)),
+      chainOf(CHAINS['en.segmentation'].example, 'en', seg.example.word, phon(seg.example.phonemes))),
+    practice_models: seg.practice.map((p) => spoken(fill2(segLines.example, p.word, phon(p.phonemes)))),
+    practice_models_chain: seg.practice.map((p) => chainOf(CHAINS['en.segmentation'].example, 'en', p.word, phon(p.phonemes))) },
     source: { items: 'extra:reading.en.segmentation', script: segLines.intro_tap.from, sa_adaptation: 'each spoken answer recorded and scored later (CONTRACT §5 per-item audio)' },
     deviation: 'the answer is recorded and scored later instead of marked by an assessor; the first-5 stop is applied when scored',
   });
@@ -537,9 +603,9 @@ function readingExtras(extra) {
     practice: voc.practice.filter((p) => p.role !== 'example').map((p) => {
       const id = `${vk(p)}.p`;
       return { id, role: 'practice', target: vk(p), options: listOptions(id, vk(p), [...voc.practice.map(vk), ...itemKeys], 4), say: said('ur', p.say),
-        feedback: { correct: spoken(fill(VL.right, p.say)), wrong: spoken(fill(VL.wrong, p.say)) }, src: `extra:reading.ur.vocabulary.practice[${voc.practice.indexOf(p)}]` };
+        feedback: feedbackOf('ur.vocabulary', VL, 'ur', p.say), src: `extra:reading.ur.vocabulary.practice[${voc.practice.indexOf(p)}]` };
     }),
-    script: { ...scriptOf('ur.vocabulary', 'tap', fill(VL.example, vex.say)), demo_image: images[vk(vex)] },
+    script: { ...scriptOf('ur.vocabulary', 'tap', fill(VL.example, vex.say), chainOf(CHAINS['ur.vocabulary'].example, 'ur', vex.say)), demo_image: images[vk(vex)] },
     source: { items: 'extra:reading.ur.vocabulary', script: VL.intro_tap.from, sa_adaptation: 'Tangerine SA hear-then-tap; the SELECT picture cards (p.113) as tiles' },
     deviation: 'receptive (hear, tap the picture) instead of expressive (say what is happening)',
   });
@@ -614,6 +680,72 @@ const runRank = (id) => {
   return [sec, i < 0 ? 999 : i];
 };
 
+// ---------------------------------------------------------------------------------------------- A11 reuse, A14 RDF
+/**
+ * A11: a maths task with no unused fielded item practises on another task's official practice item of the same format
+ * (extra maths.practice.reuse): practice is unscored everywhere. A tap task gets the item's options by the same rule.
+ */
+function reusePractice(list, extra) {
+  const reuse = (extra && extra.maths && extra.maths.practice && extra.maths.practice.reuse) || {};
+  for (const [to, from] of Object.entries(reuse)) {
+    const t = list.find((x) => x.task === to);
+    const s = list.find((x) => x.task === from);
+    if (!t || !s || !s.practice.length) continue;
+    t.practice_v2 = s.practice.map((p, i) => {
+      const id = `${to}.p${i + 1}`;
+      const q = { ...p, id, src: `${p.src} (reused from ${from})` };
+      if (t.tap.input === 'options' && Array.isArray(p.shown)) {
+        q.shown = p.shown;
+        q.options = stepOptions(id, p.target, seqStep(p.shown));
+      }
+      return q;
+    });
+  }
+}
+
+// RULING #42 (A14): the RDF short form, exactly the tester's list. Checks = the battery's own audio check and mic
+// pre-flight; letter sounds and familiar words are read aloud on the official grids (60 s, recorded, scored per
+// minute later as EGRA does; panel C1); word problems run their first 3 items; the Set A story questions drop lit4
+// (panel C2: lit1-3 + both inference items), the reach rule on top. rdf_items: a number caps the items, {drop}
+// names the items left out.
+const RDF = ['ur.letter_sounds_rec', 'ur.words_rec', 'ur.story', 'ur.story_comp', 'en.letter_sounds_rec', 'en.words_rec', 'en.story', 'en.story_comp',
+  'ma.number_id', 'ma.missing', 'ma.add1', 'ma.sub1', 'ma.word_problems'];
+const RDF_ITEMS = { 'ma.word_problems': 3, 'ur.story_comp': { drop: ['ur.story.q4'] }, 'en.story_comp': { drop: ['en.story.q4'] } };
+const RDF_NAME = { en: 'RDF', ur: 'آر ڈی ایف' };
+
+/** An official grid the child reads aloud, recorded and scored later (RDF): 60 s, EGRA's own administration. */
+function recordGrid({ task, lang, subtask, title, scriptKey, grid, per_row, direction, base, stop, adaptation, deviation }) {
+  return {
+    task, lang, kind: 'grid', legacy_block: null, family: 'egra', subtask, title, modes: ['record'], tap: null,
+    record: { grid, per_row, direction, time_limit_s: 60, stop },
+    practice: [], practice_note: 'a spoken answer cannot be checked on the phone; the oral practice screen (RULING #13) comes before the first spoken answer',
+    script: scriptOf(scriptKey, 'record'),
+    source: { items: base, script: LINES[scriptKey].intro_record.from, sa_adaptation: adaptation }, deviation,
+  };
+}
+
+function rdfTasks(v3, extra) {
+  const rd = v3.sets[SET].reading;
+  const ul = rd.ur.letters;
+  const ls = extra.reading.en.letter_sounds;
+  const sounds = { en: 'Letter sounds', ur: 'حروف کی آوازیں' };
+  const read = 'EGRA as administered: read aloud for 60 s, recorded and scored later';
+  const words = (lang) => recordGrid({ task: `${lang}.words_rec`, lang, subtask: 'familiar_word_reading', title: rd[lang].words.title, scriptKey: 'words',
+    grid: rd[lang].words.items, per_row: rd[lang].words.per_row, direction: rd[lang].words.direction || (lang === 'ur' ? 'rtl' : 'ltr'),
+    base: `v3:sets.${SET}.reading.${lang}.words`, stop: stopOf(rd[lang].words.stop), adaptation: `${read} (per minute, comparable to EGRA)`,
+    deviation: 'none (EGRA read-aloud); the first-row stop is applied when scored' });
+  return [
+    recordGrid({ task: 'ur.letter_sounds_rec', lang: 'ur', subtask: 'letter_sound_identification', title: { en: 'Urdu letter sounds', ur: 'اردو حروف کی آوازیں' },
+      scriptKey: 'ur.letter_sounds_rec', grid: ul.items, per_row: ul.per_row, direction: ul.direction, base: `v3:sets.${SET}.reading.ur.letters`, stop: stopOf(ul.stop),
+      adaptation: read, deviation: 'the official Urdu letter-name grid read as sounds (no Urdu letter-sound grid is printed in a source we hold); the first-row stop is applied when scored' }),
+    words('ur'),
+    recordGrid({ task: 'en.letter_sounds_rec', lang: 'en', subtask: 'letter_sound_identification', title: sounds, scriptKey: 'en.letter_sounds_rec',
+      grid: ls.items.map((x) => x.letter), per_row: ls.per_row, direction: 'ltr', base: 'extra:reading.en.letter_sounds', stop: { type: 'first_row', n: ls.stop.n },
+      adaptation: read, deviation: 'the first-row stop is applied when scored' }),
+    words('en'),
+  ];
+}
+
 // ---------------------------------------------------------------------------------------------- forms
 function formTasks({ maths }, v3, extra) {
   const set = v3.sets[SET];
@@ -624,7 +756,8 @@ function formTasks({ maths }, v3, extra) {
   for (const tid of TASKS_V3) {
     const [fam, kind] = tid.split('.');
     if (fam === 'ma') {
-      const t = mathsTask({ kind, spec: set.maths[maths][kind], grade: maths });
+      const borrowed = extra && extra.maths && extra.maths.practice ? extra.maths.practice.items[`ma.${kind}`] : null;
+      const t = mathsTask({ kind, spec: set.maths[maths][kind], grade: maths, borrowed });
       if (['add2', 'sub2'].includes(kind) && set.maths[maths].skip_level2_if_level1_zero) t.depends_on = { task: `ma.${kind.slice(0, 3)}1`, skip_if_zero: true };
       tasks.push(t);
       continue;
@@ -657,14 +790,16 @@ function buildSaBank({ v3, extra }) {
       const [sb, rb] = runRank(b.t.task);
       return sa - sb || (ra !== 999 && rb !== 999 ? ra - rb : a.i - b.i);
     }).map(({ t }) => t);
+    reusePractice(list, extra);
     const order = list.map((t) => t.task);
     const extraIds = list.filter((t) => extras.includes(t)).map((t) => t.task);
+    const rdfOnly = f.surface === 'coach' && extra ? rdfTasks(v3, extra) : [];
     const form = { surface: f.surface, grades: f.grades, set: f.surface === 'coach' ? SET : null, maths_form: `G${f.maths}`, order, extra: extraIds };
     if (f.surface === 'coach') {
       // DESIGN §2b: initial sound joins B3 (oral), patterns joins B4; every other extra is in the full form only.
       // RULING #16: Design A's blocks hold the 18 v3 tasks only; every extra is in the full form (the coach's toggle).
       const blocks = BLOCKS;
-      Object.assign(form, { full: order, blocks, block_names: BLOCK_NAMES });
+      Object.assign(form, { full: order, blocks, block_names: BLOCK_NAMES, ...(rdfOnly.length ? { rdf: RDF, rdf_items: RDF_ITEMS, rdf_name: RDF_NAME } : {}) });
     } else {
       // Each island: that subject's tasks in run order, extras included; the tower stays the 18 (RULING #5).
       const swapped = new Set(list.filter((t) => t.parallel_of).map((t) => t.parallel_of).flatMap((id) => [id, `${id}_comp`]));
@@ -677,7 +812,7 @@ function buildSaBank({ v3, extra }) {
       for (const t of list) t.script.hand_back = spoken(GAME_LINES.hand_back);
     }
     forms[f.form] = form;
-    for (const t of list) tasks[`${f.form}/${t.task}`] = t;
+    for (const t of [...list, ...rdfOnly]) tasks[`${f.form}/${t.task}`] = t;
   }
   return {
     version: VERSION,
@@ -735,8 +870,15 @@ function inLang(x, lang) {
   return { text: x[lang], audio: x.audio && x.audio[lang] };
 }
 
-function runtimeItem(it, lang) {
+/** A chain in the page's language: [{ text, audio, lang }], the items keeping their own language's clip. */
+function chainIn(segs, lang) {
+  return segs.map((x) => (x.text != null ? { text: x.text, audio: x.audio, lang: x.lang } : { text: x[lang], audio: x.audio && x.audio[lang], lang }));
+}
+
+/** One item in the page's language; `tl` is the task's language (a practice line naming its item chains across). */
+function runtimeItem(it, lang, tl) {
   const o = { ...it };
+  const cross = !!tl && tl !== lang;
   if (it.labels) {
     // Options shown as words in the battery's language (the key stays the source's word in `option_keys`).
     o.option_keys = it.options;
@@ -750,15 +892,35 @@ function runtimeItem(it, lang) {
     o.prompt_audio = s.audio;
   }
   if (it.prompt) o.prompt = inLang(it.prompt, lang);
-  if (it.feedback) o.feedback = { correct: inLang(it.feedback.correct, lang), wrong: inLang(it.feedback.wrong, lang) };
+  if (it.feedback) {
+    const f = it.feedback;
+    o.feedback = { correct: cross && f.correct_chain ? chainIn(f.correct_chain, lang) : inLang(f.correct, lang),
+      wrong: cross && f.wrong_chain ? chainIn(f.wrong_chain, lang) : inLang(f.wrong, lang) };
+  }
   return o;
+}
+
+/** A task's lines in the page's language: a line naming an other-language item is its chain (RULING #31a). */
+function runtimeScript(t, lang) {
+  const sc = t.script;
+  const cross = !!t.lang && t.lang !== lang;
+  const out = {};
+  for (const [k, l] of Object.entries(sc)) {
+    if (/_chain$/.test(k)) continue;
+    if (k === 'demo_item') out[k] = runtimeItem(l, lang, t.lang);
+    else if (k === 'practice_models') out[k] = l.map((m, i) => (cross && sc.practice_models_chain ? chainIn(sc.practice_models_chain[i], lang) : inLang(m, lang)));
+    else out[k] = cross && sc[`${k}_chain`] ? chainIn(sc[`${k}_chain`], lang) : inLang(l, lang);
+  }
+  return out;
 }
 
 function runtimeTask(t, lang) {
   const base = { id: t.task, legacy_block: t.legacy_block, family: t.family, subtask: t.subtask, lang: t.lang, title: t.title, kind: t.kind,
-    script: Object.fromEntries(Object.entries(t.script).map(([k, l]) => [k, inLang(l, lang)])),
-    instruction: inLang(t.script.intro, lang), source: t.source, deviation: t.deviation, ...(t.practice_note ? { practice_note: t.practice_note } : {}) };
-  const practice = (t.practice || []).map((p) => runtimeItem(p, lang));
+    script: runtimeScript(t, lang),
+    instruction: inLang(t.script.intro, lang), source: t.source, deviation: t.deviation, ...(t.practice_note ? { practice_note: t.practice_note } : {}),
+    // A11 (switch sa_practice_all_maths): the practice the engine runs when the switch is on.
+    ...(t.practice_v2 ? { practice_v2: t.practice_v2.map((p) => runtimeItem(p, lang, t.lang)) } : {}) };
+  const practice = (t.practice || []).map((p) => runtimeItem(p, lang, t.lang));
   if (t.tap) {
     const tap = t.tap;
     return { ...base, response: RESPONSE[tap.input], time_limit_s: tap.time_limit_s || null, ...(tap.soft_cap_s ? {} : { item_timeout_s: tap.item_timeout_s }),
@@ -772,13 +934,18 @@ function runtimeTask(t, lang) {
       ...(t.depends_on ? { depends_on: t.depends_on } : {}) };
   }
   const r = t.record;
+  if (r.grid) {
+    // A letter grid read aloud (RDF letter sounds): the recording is scored later.
+    return { ...base, response: 'record', time_limit_s: r.time_limit_s, stop: runtimeStop(r.stop), grid: r.grid, per_row: r.per_row, direction: r.direction,
+      mercy_after_s: MERCY_AFTER_S, silence_stop_s: SILENCE_STOP_S, items: [], practice };
+  }
   if (r.passage && r.passage.words) {
     const { words, ...passage } = r.passage;
     return { ...base, response: 'record', time_limit_s: r.time_limit_s, stop: runtimeStop(r.stop), last_word_tap: true, passage,
       mercy_after_s: MERCY_AFTER_S, silence_stop_s: SILENCE_STOP_S,
       items: words, practice, depends_on: { task: `${t.lang}.words`, skip_if_stop: 'early_stop_first_line' } };
   }
-  const items = r.questions.map((q) => runtimeItem(q, lang));
+  const items = r.questions.map((q) => runtimeItem(q, lang, t.lang));
   return { ...base, response: 'oral', question_timeout_s: r.answer_window_s, replay_max: r.replay_max,
     ...(r.passage ? { passage: r.passage } : {}), items, practice,
     ...(t.depends_on ? { depends_on: { task: t.depends_on.task, upto_item: t.depends_on.upto_item } } : {}) };
@@ -793,7 +960,8 @@ function runtimeBattery(bank, formId, lang) {
     rule: bank.rule, conventions: bank.conventions,
     lines: Object.fromEntries(Object.entries(bank.lines).filter(([k]) => !/_game$/.test(k))
       .map(([k, l]) => [k, inLang(form.lines && form.lines[k] ? bank.lines[form.lines[k]] : l, lang)])),
-    tasks: order.map((id) => runtimeTask(bank.tasks[`${formId}/${id}`], lang)),
+    // The full order, then the tasks only a short form runs (RDF), so the page can pick either list.
+    tasks: [...order, ...(form.rdf || []).filter((id) => !order.includes(id))].map((id) => runtimeTask(bank.tasks[`${formId}/${id}`], lang)),
   };
 }
 
