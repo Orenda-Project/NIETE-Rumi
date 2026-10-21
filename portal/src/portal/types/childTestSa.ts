@@ -11,7 +11,7 @@ export type SaSchool = {
 
 export type SaOutcome = "present" | "absent" | "refused";
 
-export type SaBlock = "B1" | "B2" | "B3" | "B4" | "B5" | "full";
+export type SaBlock = "B1" | "B2" | "B3" | "B4" | "B5" | "full" | "rdf";
 
 /** The page's switches for this coach (GET …/sa/switches); each is off unless its row names them. */
 export type SaSwitches = {
