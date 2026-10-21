@@ -104,7 +104,7 @@ describe('hub', () => {
     at(B, B, <AssessmentHub />);
     const door = await screen.findByTestId('fde-door');
     expect(door.textContent).toContain(C.fdeDoor);
-    for (const chip of C.fdeDoorChips.split(' · ')) expect(door.textContent).toContain(chip);
+    for (const chip of C.fdeDoorChips([5]).split(' · ')) expect(door.textContent).toContain(chip);
     fireEvent.click(door);
     await waitFor(() => expect(where().path).toBe(newPaperPath('class')));
     expect(where()).toMatchObject({ grade: 5, style: 'fde', coverBy: 'fde' });

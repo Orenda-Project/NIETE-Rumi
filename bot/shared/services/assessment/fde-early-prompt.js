@@ -1,0 +1,121 @@
+'use strict';
+/**
+ * The prompts of a Grade 1-2 FDE practice paper (bd-5jmnfj.4.1), and the checks
+ * on what comes back.
+ *
+ * The section prompt is Grade 5's builder, run on the pattern with its key masked
+ * (`early_<key>`), so none of Grade 5's per-subject rules (Urdu grammar lists,
+ * Maths Section C's syllabus) reach a Grade 1 paper. Its "no pictures" rule is
+ * swapped for the picture rule: a picture slot asks for one picture per item.
+ *
+ * The oral prompt asks for each oral task's script and questions, which the
+ * marking scheme prints on the teacher sheet (fde-oral-sheet).
+ *
+ * Pure: the builder is passed in, so this never requires the service.
+ */
+
+const NO_PICTURES = 'The paper carries no pictures. A slot marked frame prints an empty frame: write the instruction and the labels/word bank only; never \'look at the picture\'.';
+
+const PICTURE_RULE = 'Pictures: a slot whose rule names a picture gives EVERY item one "picture" object, in one of the shapes that slot lists. '
+  + 'Write object names and scene descriptions in plain English, even on an Urdu paper. A picture never carries words, letters or numbers to read. '
+  + 'A slot that names no picture carries none, and no item says "look at the picture" unless it has one.';
+
+/** What each picture kind must carry for the pipeline to draw it. */
+const PICTURE_FIELDS = {
+  count: (p) => Boolean(p.name) && Number.isInteger(p.n) && p.n >= 1,
+  dots: (p) => Number.isInteger(p.n) && p.n >= 1,
+  shapes: (p) => Array.isArray(p.shapes) && p.shapes.length > 0 && p.shapes.every((s) => s && s.shape),
+  object: (p) => Boolean(p.name),
+  scene: (p) => Boolean(p.describe),
+  clock: (p) => Number.isInteger(p.hour),
+};
+
+/** The pattern with its key masked, so the builder and the layout skip Grade 5's subject rules. */
+function maskP(P) {
+  return { ...P, key: `early_${P.key}` };
+}
+
+/** One section's prompt: the builder's, with the picture rule in place of "no pictures". */
+function sectionPrompt(build, args) {
+  const prompt = build({ ...args, P: maskP(args.P) });
+  if (!prompt.includes(NO_PICTURES)) throw new Error('the section prompt no longer carries the no-pictures rule to replace');
+  return prompt.replace(NO_PICTURES, PICTURE_RULE);
+}
+
+/** A task needs a script when it is read to the child (a story, a poem) or read by the child (a passage). */
+function needsScript(task) {
+  return task.kind === 'listening' || !task.n;
+}
+
+function taskLine(task, lang) {
+  const want = [needsScript(task) ? 'a "script"' : null, task.n ? `${task.n} "items"` : null].filter(Boolean).join(' and ');
+  return `- id "${task.id}" (${task.marks} marks): ${task.ask} Write ${want}.`
+    + (task[`instruction_${lang}`] ? ` The teacher will: ${task[`instruction_${lang}`]}` : '');
+}
+
+/** The oral part's prompt: one entry per task, in the paper's medium. */
+function oralPrompt({ oral, grade, P, pageContent }) {
+  const lang = P.medium === 'ur' ? 'ur' : 'en';
+  const language = lang === 'ur' ? 'Urdu' : 'English';
+  return [
+    `Write the oral part of a Grade ${grade} ${P.name_en} practice paper, taken by the teacher one child at a time.`,
+    `Write everything in ${language}, at a Grade ${grade} child's level, from the book below: its words, themes and stories.`,
+    '',
+    '**Book Text Content:**',
+    '```',
+    pageContent,
+    '```',
+    '',
+    'Tasks:',
+    ...oral.tasks.map((t) => taskLine(t, lang)),
+    '',
+    'A "script" is what is read aloud: a story or poem the teacher reads, or a passage the child reads. '
+      + 'Each item is {"ask", "answer"}: a question with its answer, or, for a reading task, one word or line the child reads as "ask" with no answer.',
+    'Return JSON only: {"oral":[{"id":"<task id>","script":"<text or empty>","items":[{"ask":"…","answer":"…"}]}]}, one entry per task.',
+  ].join('\n');
+}
+
+/** The reply read against the tasks: `content` for the sheet, `missing` the task ids it did not fill. */
+function oralContent(tree, oral) {
+  const list = Array.isArray(tree && tree.oral) ? tree.oral : [];
+  const content = [];
+  const missing = [];
+  for (const task of oral.tasks) {
+    const got = list.find((x) => x && x.id === task.id);
+    const items = got && Array.isArray(got.items) ? got.items.filter((it) => it && String(it.ask || '').trim()) : [];
+    const script = got && typeof got.script === 'string' ? got.script.trim() : '';
+    const whole = (!needsScript(task) || script) && items.length >= (task.n || 0);
+    if (!got || !whole) { missing.push(task.id); continue; }
+    content.push({ id: task.id, ...(script ? { script } : {}), items: task.n ? items.slice(0, task.n) : items });
+  }
+  return { content, missing };
+}
+
+function eachItem(examJson, fn) {
+  for (const branch of ['seen', 'unseen']) {
+    for (const types of Object.values((examJson && examJson[branch]) || {})) {
+      for (const list of Object.values(types || {})) {
+        if (Array.isArray(list)) list.forEach((q) => { if (q) fn(q); });
+      }
+    }
+  }
+}
+
+/** Items in a picture slot with no drawable picture of an allowed kind, as `{slot, reason:'picture'}`. */
+function pictureShortfall(examJson, P) {
+  const kinds = new Map();
+  P.sections.forEach((s) => s.slots.forEach((sl) => { if (sl.picture) kinds.set(sl.slot, sl.picture); }));
+  const short = new Map();
+  eachItem(examJson, (q) => {
+    const allowed = kinds.get(q.slot);
+    if (!allowed) return;
+    const p = q.picture;
+    const ok = p && allowed.includes(p.kind) && PICTURE_FIELDS[p.kind] && PICTURE_FIELDS[p.kind](p);
+    if (!ok) short.set(q.slot, { slot: q.slot, reason: 'picture' });
+  });
+  return [...short.values()];
+}
+
+module.exports = {
+  NO_PICTURES, PICTURE_RULE, maskP, sectionPrompt, oralPrompt, oralContent, pictureShortfall,
+};

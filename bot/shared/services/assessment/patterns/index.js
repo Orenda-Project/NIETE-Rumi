@@ -8,6 +8,8 @@
  */
 
 const FDE_G5_2027 = require('./fde-g5-2027');
+const FDE_G1_2026 = require('./fde-g1-2026');
+const FDE_G2_2026 = require('./fde-g2-2026');
 
 // The same subject aliases as question-types.js's normalise (not exported there).
 const SUBJECT_ALIAS = {
@@ -20,7 +22,11 @@ function normalise(subject) {
   return SUBJECT_ALIAS[k] || k;
 }
 
-const REGISTRY = Object.freeze({ [FDE_G5_2027.id]: FDE_G5_2027 });
+const REGISTRY = Object.freeze({
+  [FDE_G5_2027.id]: FDE_G5_2027,
+  [FDE_G1_2026.id]: FDE_G1_2026,
+  [FDE_G2_2026.id]: FDE_G2_2026,
+});
 
 function list() {
   return Object.keys(REGISTRY);
