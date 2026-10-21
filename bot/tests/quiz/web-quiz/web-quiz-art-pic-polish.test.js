@@ -24,8 +24,9 @@ const r2 = require('../../../shared/storage/r2');
 const { htmlToImage } = require('../../../shared/utils/html-to-pdf');
 const { renderArt } = require('../../../shared/templates/web-quiz-art.template');
 const Input = require('../../../shared/services/quiz/web-quiz-art-input');
-const { cases, sha, LIVE, LONG, LATIN } = require('./__golden__/pic-polish-cases');
+const { cases, sha, LIVE, LONG, LATIN, ONE } = require('./__golden__/pic-polish-cases');
 const GOLDEN = require('./__golden__/web-quiz-art-pic-polish-off.json');
+const GOLDEN_ON = require('./__golden__/web-quiz-art-pic-polish-on.json');
 
 const NB = ' ';
 const ON = { ...LIVE, us: true, pp: true };
@@ -193,6 +194,44 @@ describe('the Urdu class table, switch on: the child\'s row uses its neighbours\
       }
     });
   }
+});
+
+// One long Latin word as the name ("Muhammadabdulrahman"): the name and its score are held together, and on the wide
+// picture that run could not wrap, so it ran under Jugnu and hid the score; on the square it came ~26 px from the edges.
+describe('the English challenge, switch on: a name too long for the column is cut before the score', () => {
+  const COL = { og: 702, sq: 936 };
+  const inv = (first, correct = 3) => ({ first, correct, total: 8, topic: 'Rocket and Space Vocabulary' });
+  const nmMax = (h) => px(css(h), /\.head \.nm\{display:inline-block;max-width:(\d+)px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap/);
+  for (const size of ['og', 'sq']) for (const door of [false, true]) {
+    test(`${size}${door ? ' door' : ''}: "${ONE}" is cut with an ellipsis, "'s 3/8?" kept whole beside it inside the column`, () => {
+      const h = art('invite', size, 'en', inv(ONE), ON, door);
+      expect(h).toContain(`Can you beat <span class="keep"><bdi class="nm" dir="ltr">${ONE}</bdi>'s${NB}<span class="num">3/8</span>?</span>`);
+      expect(css(h)).toContain('.head .keep{white-space:nowrap}');
+      const head = px(css(h), /\.head\{font-size:(\d+)px;text-wrap:balance\}/);
+      // the name's box and the score after it (about 4.2 em: "'s 3/8?") fit the text column
+      expect(nmMax(h) + Math.ceil(4.2 * head)).toBeLessThanOrEqual(COL[size]);
+      expect(nmMax(h)).toBeGreaterThan(COL[size] * 0.4);
+    });
+  }
+  test('zero score, wide: "<name> challenged you!" with the name cut to the column; the square has room for it whole', () => {
+    const h = art('invite', 'og', 'en', inv(ONE, 0), ON);
+    expect(h).toContain(`<bdi class="nm" dir="ltr">${ONE}</bdi> challenged${NB}you!`);
+    expect(nmMax(h)).toBeLessThanOrEqual(COL.og);
+    expect(art('invite', 'sq', 'en', inv(ONE, 0), ON)).toContain(`<bdi dir="ltr">${ONE}</bdi> challenged${NB}you!`);
+  });
+  test('short and multi-word names, and every other picture, are drawn exactly as before (hashes recorded on the base)', () => {
+    let n = 0;
+    for (const c of cases()) {
+      if (c.kind === 'invite' && c.lang === 'en' && c.d.first === ONE) continue;
+      const html = sha(renderArt({ kind: c.kind, size: c.size, brand: 'niete', lang: c.lang, d: c.d, ui: { ...(c.ui || {}), pp: true }, door: c.door }, { fonts: false, pictures: false }));
+      expect([c.key, html]).toEqual([c.key, GOLDEN_ON[c.key]]);
+      n += 1;
+    }
+    expect(n).toBeGreaterThan(800);
+  });
+  test('the polished pictures get new cache keys (the polish\'s version is 2)', () => {
+    expect(Input.ART_PP_V).toBe(2);
+  });
 });
 
 describe('what the switch never changes', () => {
