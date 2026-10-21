@@ -32,6 +32,7 @@ const express = require('express');
 // loads where the dashboard's dependencies are not installed (the root CI run).
 // Dependency-free: the brand table both services read (the bot names the key, the edge dresses the page).
 const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
+const { resolveUx, clampLanguage } = require('../../bot/shared/config/ux-strings');
 // The one list of Server-Timing items a child answer may carry (shared with the bot's writers; requires nothing).
 const TimingNames = require('../../bot/shared/services/quiz/web-quiz-server-timing-names');
 const { createCanonicalRedirect } = require('./web-quiz-canonical');
@@ -573,9 +574,10 @@ const plainDir = (lang) => (lang === 'ur' ? 'rtl' : lang === 'en' ? 'ltr' : 'aut
 const plainText = (brand) => ({ title: brand.og.site, desc: brand.og.site });
 // An honest guess (web_quiz_head_guess_honest) with nothing kept: the quiz's generic words, with no kind ("Class quiz"
 // is wrong on a friend's challenge) and no question count it does not know; every word is in the real head too.
-const guessText = (brand, lang) => (lang === 'ur'
-  ? { title: 'کوئز', desc: `${brand.mascot.ur} کے ساتھ پڑھیں` }
-  : { title: 'Quiz', desc: `${brand.mascot.en} reads it with you` });
+const guessText = (brand, lang) => ({
+  title: resolveUx('quizHeadGuessTitle', { language: lang }),
+  desc: resolveUx('quizHeadGuessDesc', { language: lang, params: { mascot: brand.mascot[lang] } }),
+});
 
 function quizPageParts({ payload, code, view, origin, assetV, url, a, v, k, plain = null, generic = false }) {
   const q = (payload && payload.quiz) || {};
@@ -620,7 +622,7 @@ ${p.tail}`;
 // honest (web_quiz_head_guess_honest) and no facts, not wordless: the generic words (guessText), in the link's language.
 function renderQuizFlushTop({ facts, code, origin, assetV, url, brandKey, ui, a, v, k, plain = false, linkLang = null, honest = false }) {
   const generic = !facts && !plain && honest;
-  const payload = facts ? { ...facts, ui } : { quiz: { lang: generic && linkLang === 'ur' ? 'ur' : 'en' }, cls: {}, art: {}, brand: brandKey, ui };
+  const payload = facts ? { ...facts, ui } : { quiz: { lang: generic ? clampLanguage(linkLang) : 'en' }, cls: {}, art: {}, brand: brandKey, ui };
   const p = quizPageParts({ payload, code, view: 'quiz', origin, assetV, url, a, v, k, plain: !facts && plain ? { lang: plainLang(linkLang) } : null, generic });
   const preload = ['wq-tel.js', 'wq-lib.js', 'wq.js'].map((f) => `<link rel="preload" href="/wq/${f}?v=${assetV}" as="script">`).join('\n');
   return { guess: p, html: `${p.head}\n${preload}\n</head>\n<body>\n${p.frame}\n` };

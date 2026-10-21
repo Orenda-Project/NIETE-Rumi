@@ -4599,6 +4599,10 @@ const UX_STRINGS = {
     en: 'after the report',
     ur: 'رپورٹ کے بعد',
   },
+  // A quiz link's head guessed before the bot answers, with nothing kept (web_quiz_head_guess_honest): the quiz's
+  // generic words, with no kind and no question count; {mascot} = the brand's mascot name in the page's language.
+  quizHeadGuessTitle: { en: 'Quiz', ur: 'کوئز' },
+  quizHeadGuessDesc: { en: '{mascot} reads it with you', ur: '{mascot} کے ساتھ پڑھیں' },
 };
 
 /**
