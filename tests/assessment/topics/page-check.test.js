@@ -86,3 +86,25 @@ test('a range with page_start 0 is a real range', () => {
   const res = check({ pages: [0] }, { page_start: 0, page_end: 2 });
   expect(res).toEqual({ outside: [], spill: [], noRange: [] });
 });
+
+// G5 Urdu repeats printed pages 130-137 (page truth, pdf 141-150). The matrix carries printed numbers; textbook_toc
+// carries the DB's sequential keys. The repeat list stops the real printed pages being flagged.
+const { REPEATED_PRINTED_PAGES } = require('../../../bot/shared/services/assessment/topics/page-check');
+const g5ur = (chapterNumber, pages, page_start, page_end) => checkPages(
+  [topic({ chapterNumber, pages })], [range({ chapter_number: chapterNumber, page_start, page_end })], REPEATED_PRINTED_PAGES);
+
+test('G5 urdu ch14-16 printed pages from the page truth are not flagged against the DB ranges', () => {
+  for (const res of [g5ur(14, [130], 138, 140), g5ur(14, [138, 139], 138, 140), g5ur(15, [131], 141, 143),
+    g5ur(15, [132, 133], 141, 143), g5ur(16, [134, 135, 136, 137], 144, 146)]) {
+    expect(res).toEqual({ outside: [], spill: [], noRange: [] });
+  }
+});
+
+test('a page in neither the range nor the repeat list is still flagged', () => {
+  expect(g5ur(15, [129], 141, 143).outside).toHaveLength(1);
+  expect(g5ur(14, [130, 131], 138, 140).spill[0].stray).toEqual([131]);
+});
+
+test('without the repeat list the old behaviour holds', () => {
+  expect(check({ pages: [130] }, {}).outside).toHaveLength(1);
+});
