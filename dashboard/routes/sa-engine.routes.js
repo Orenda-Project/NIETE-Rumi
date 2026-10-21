@@ -12,6 +12,10 @@
  * The sandbox-only "Jump to…" (RULING #43): only when SA_DEV_TOOLS=sandbox AND RAILWAY_ENVIRONMENT_NAME=sandbox are
  * both set does play.html / run.html load ./sa-dev.js (window.SA_DEV_TOOLS = true), ahead of the engine's scripts.
  * Otherwise the pages are the folder's own bytes and sa-dev.js is a 404, so staging and production cannot draw it.
+ *
+ * Switch sa_voice_v2 (app_settings, OFF by default): ON, a battery is served with its clip keys under sa/v2/ instead of
+ * sa/v1/ (the second voice set: one South Asian voice per language), so the phone fetches and keeps the new clips under
+ * new addresses. OFF, or a failed read, the battery is served exactly as before.
  */
 const fs = require('fs');
 const path = require('path');
@@ -21,6 +25,7 @@ const { steady } = require('./sa-switch');
 const { SWITCHES, applySwitches } = require('./sa-battery-switches');
 
 const KEY = 'sa_engine';
+const VOICE_V2_KEY = 'sa_voice_v2';
 const DIR = path.join(__dirname, '..', 'sa');
 // The content lane's battery files (sa.<form>.<lang>.json), served by name at /sa/batteries/<name>.
 const BATTERIES = path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa');
@@ -35,10 +40,11 @@ function devToolsOn(env = process.env) {
 
 /**
  * createSaEngineRouter({ on, practiceAllMaths, env }) → router. on() is the switch (default: app_settings sa_engine);
- * practiceAllMaths() and passageRotation() the content switches (app_settings sa_practice_all_maths, sa_passage_rotation).
+ * practiceAllMaths() and passageRotation() the content switches (app_settings sa_practice_all_maths, sa_passage_rotation);
+ * voiceV2() the voice set's (app_settings sa_voice_v2).
  */
 function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), practiceAllMaths = createBrotliFlag({ key: SWITCHES.practiceAllMaths }),
-  passageRotation = createBrotliFlag({ key: SWITCHES.passageRotation }), holdMs, now, env } = {}) {
+  passageRotation = createBrotliFlag({ key: SWITCHES.passageRotation }), voiceV2 = createBrotliFlag({ key: VOICE_V2_KEY }), holdMs, now, env } = {}) {
   const router = express.Router();
   // The switch as routes/sa-switch.js reads it: the first request waits for the first read, and a failed read after an
   // ON never flaps a request to the portal's page.
@@ -78,7 +84,11 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
       let battery;
       try { battery = JSON.parse(text); } catch (_) { return next(); }
       res.setHeader('Cache-Control', 'no-cache');
-      return res.json(applySwitches(battery, { practiceAllMaths: practiceAllMaths() === true, passageRotation: passageRotation() === true }));
+      const out = applySwitches(battery, { practiceAllMaths: practiceAllMaths() === true, passageRotation: passageRotation() === true });
+      let v2 = false;
+      try { v2 = voiceV2() === true; } catch (_) { v2 = false; }
+      if (!v2) return res.json(out);
+      return res.type('json').send(JSON.stringify(out).replace(/"sa\/v1\/(en|ur)\//g, '"sa/v2/$1/'));
     });
   });
   // On: a file the folder does not have (a clip not made yet, a typo) is a 404 here. Falling through would let the
@@ -88,4 +98,4 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   return router;
 }
 
-module.exports = { KEY, createSaEngineRouter, devToolsOn };
+module.exports = { KEY, VOICE_V2_KEY, createSaEngineRouter, devToolsOn };
