@@ -4,9 +4,12 @@
  * network now.
  *
  *   SAE.offline.urls(battery, lang, base) → the clip URLs the session can play
- *   SAE.offline.prepare({ battery_url, battery, lang, base }) → Promise<{ ready, battery, clips, clips_missing, why? }>
- *     ready = the engine files and the battery are on the phone; a clip not on the phone is spoken by the phone's own
- *     voice instead (clips_missing counts them), so it never blocks "ready".
+ *   SAE.offline.images(battery, lang) → the picture URLs the session shows (option_images, script.demo_image)
+ *   SAE.offline.prepare({ battery_url, battery, lang, base }) → Promise<{ ready, battery, clips, clips_missing, images,
+ *     images_missing, why? }>
+ *     ready = the engine files, the battery and its pictures are on the phone (a picture task offline has nothing to
+ *     tap without them); a clip not on the phone is spoken by the phone's own voice instead (clips_missing counts
+ *     them), so it never blocks "ready".
  *   SAE.prepare(battery, { lang, battery_url, base }) → Promise<{ clips_total, clips_cached, voice, persisted, ready,
  *     battery, why? }> — the voice-readiness gate (RULING #14): voice 'clips' when every clip of the session is on the
  *     phone, else 'tts' when the phone has a voice in the session's language, else 'none' (the surface refuses the
@@ -49,6 +52,25 @@
     return Object.keys(out).sort();
   }
 
+  var IMG_RX = /^[A-Za-z0-9_./-]+$/;
+
+  /** Every picture in the battery for this language, as URLs from the site root (the way sa-ui.js shows them). */
+  function images(battery, lang) {
+    var out = {};
+    function add(p) {
+      if (typeof p !== 'string' || !IMG_RX.test(p) || p.indexOf('..') >= 0) return;
+      out['/' + p.replace(/^\/+/, '')] = true;
+    }
+    ((battery && battery.tasks) || []).forEach(function (t) {
+      var o = t && t.option_images;
+      if (o && typeof o === 'object') Object.keys(o).forEach(function (k) { add(o[k]); });
+      var d = t && t.script && t.script.demo_image;
+      if (d && typeof d === 'object') d = d[lang] || d.en || d.ur;
+      add(d);
+    });
+    return Object.keys(out).sort();
+  }
+
   function ask(sw, msg, waitMs) {
     return new Promise(function (ok) {
       var ch = new root.MessageChannel();
@@ -62,16 +84,21 @@
     var nav = root.navigator;
     if (!nav || !nav.serviceWorker) return Promise.resolve({ ready: false, why: 'no_service_worker' });
     var clips = urls(o.battery, o.lang, o.base);
+    var pics = images(o.battery, o.lang);
     return nav.serviceWorker.register('/sa/sw.js', { scope: '/sa/' })
       .then(function () { return nav.serviceWorker.ready; })
       .then(function (reg) {
         var sw = reg.active || nav.serviceWorker.controller;
         if (!sw) return { ready: false, why: 'no_active_worker' };
         var list = [o.battery_url].filter(Boolean);
-        return Promise.all([ask(sw, { type: 'prepare', urls: list }), ask(sw, { type: 'prepare', urls: clips })]).then(function (r) {
+        return Promise.all([ask(sw, { type: 'prepare', urls: list }), ask(sw, { type: 'prepare', urls: clips }), ask(sw, { type: 'prepare', urls: pics })]).then(function (r) {
           var core = r[0] || { ok: false, missing: list };
           var audio = r[1] || { ok: false, missing: clips };
-          return { ready: !!core.ok, battery: !!core.ok, clips: clips.length - audio.missing.length, clips_missing: audio.missing.length, why: core.ok ? undefined : 'battery_not_cached' };
+          var img = r[2] || { ok: false, missing: pics };
+          var ready = !!core.ok && img.missing.length === 0;
+          return { ready: ready, battery: !!core.ok, clips: clips.length - audio.missing.length, clips_missing: audio.missing.length,
+            images: pics.length - img.missing.length, images_missing: img.missing.length,
+            why: !core.ok ? 'battery_not_cached' : (ready ? undefined : 'images_not_cached') };
         });
       })
       .catch(function (e) { return { ready: false, why: String(e && e.message || e) }; });
@@ -121,5 +148,5 @@
     });
   }
 
-  return { urls: urls, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice };
+  return { urls: urls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice };
 }));
