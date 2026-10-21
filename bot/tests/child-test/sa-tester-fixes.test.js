@@ -269,6 +269,8 @@ describe('A02: passages from tested sources, rotating per child', () => {
     const v = task(b, 'ur.story').variants[2];
     expect(v.items).toHaveLength(60);
     expect(v.passage.lines.map((l) => l.to - l.from + 1)).toEqual([9, 21, 11, 9, 10]);
+    // Word 31 as the fielded assessor grid prints it (PDF p.92).
+    expect(v.items[30].target).toBe('انھوں');
     expect(v.stop).toEqual({ first_line_n: 9, first_line_min_correct: 1 });
     const q = task(b, 'ur.story_comp').variants[2].items;
     expect(q.map((x) => x.needs_line)).toEqual([1, 2, 3, 4, 5]);
