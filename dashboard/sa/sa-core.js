@@ -50,6 +50,9 @@
  * moves on after cell_auto_s (3 s, EGRA's "please go on"; tick() answers 'go_on'). One recording for the task as before;
  * the task's clock runs across the cells, each cell's time is kept (result.cells, cell_next events) and last_item_index
  * is the cell reached. Fluency (mental_math_fluency) moves on after 5 s with no answer. Every answer carries its ms.
+ * A task whose data says present 'one_at_a_time' (the W3 forms) runs this way with or without the switch: its cells
+ * are its grid, else its items' show; advance_after_s is the wait (null: next_at_s, the untimed sums' 15 s), and each
+ * kept cell names its item_id.
  * Coach-led (opts.manual, RDF manual): nothing moves on by itself; session_start says admin_mode 'manual'.
  *
  * UMD: window.SAE.core in the browser, module.exports under Node.
@@ -123,11 +126,15 @@
       direction: t.direction || (t.passage && t.passage.direction) || (t.grid && t.grid.direction) || 'ltr',
       instruction: t.instruction || null, script: t.script || {}, source: t.source || null, deviation: t.deviation || null,
       coach_text: t.coach_text || null,
-      tap_on: t.tap_on || null, option_images: t.option_images || null, cell_auto_s: num(t.cell_auto_s),
+      tap_on: t.tap_on || null, option_images: t.option_images || null, present: t.present || null,
+      // One at a time: the wait before a cell moves on by itself (0: never).
+      cell_auto_s: has(t, 'advance_after_s') ? (num(t.advance_after_s, t.next_at_s) || 0) : (num(t.cell_auto_s) || CELL_AUTO_S),
       // The mercy rule's timings on a passage (RULING #10): the battery's, else 12 s / 20 s.
       mercy_after_s: num(t.mercy_after_s, t.record && t.record.mercy_after_s, 12),
       silence_stop_s: num(t.silence_stop_s, t.record && t.record.silence_stop_s, 20),
     };
+    // A one-at-a-time sum read only on the replay tile (W3). Kept off the older tasks, whose say_on the page never read.
+    if (t.present === 'one_at_a_time' && t.say_on) r.say_on = t.say_on;
     if (mode === 'oral') {
       r.item_timeout_s = t.question_timeout_s || t.item_timeout_s || TIMED_ITEM_S;
     } else if (mode === 'tap' || mode === 'keypad' || mode === 'keyboard') {
@@ -220,7 +227,15 @@
     var manual = !!opts.manual;
 
     /** A read-aloud grid shown one cell at a time (never a passage). */
-    function cellTask(t) { return oneAtATime && t && t.mode === 'record' && Array.isArray(t.grid) && t.grid.length > 0 && !t.passage; }
+    function cellTask(t) {
+      if (!t || t.mode !== 'record' || t.passage) return false;
+      if (t.present === 'one_at_a_time') return cellsOf(t).length > 0;
+      return oneAtATime && Array.isArray(t.grid) && t.grid.length > 0;
+    }
+    function cellsOf(t) {
+      if (Array.isArray(t.grid) && t.grid.length) return t.grid;
+      return t.items.map(function (it) { return it.show != null ? it.show : (it.label != null ? it.label : it.target); });
+    }
     function itemTimeoutS(t) {
       if (oneAtATime && t.subtask === 'mental_math_fluency' && t.item_timeout_s === TIMED_ITEM_S) return manual ? null : FLUENCY_ITEM_S;
       return t.item_timeout_s;
@@ -230,6 +245,8 @@
       var c = st.cell;
       if (!c) return;
       var e = { i: c.i, at_ms: Math.round(c.at - st.started), ms: Math.round(now() - c.at), how: how };
+      var it = task().items[c.i];
+      if (it && it.id) e = { i: c.i, item_id: it.id, at_ms: e.at_ms, ms: e.ms, how: how };
       st.cells.push(e);
       st.last_item_index = c.i;
       st.cell = null;
@@ -240,7 +257,7 @@
       if (st.phase !== 'running' || !st.cell) return;
       var i = st.cell.i;
       closeCell(how);
-      if (i + 1 >= t.grid.length) { finish(STOP.COMPLETE); return; }
+      if (i + 1 >= cellsOf(t).length) { finish(STOP.COMPLETE); return; }
       st.cell = { i: i + 1, at: now() };
     }
 
@@ -564,8 +581,8 @@
           return null;
         }
         if (st.cell) {
-          var auto = t.cell_auto_s || CELL_AUTO_S;
-          if (manual || now() - st.cell.at < auto * 1000) return null;
+          var auto = t.cell_auto_s;
+          if (manual || !auto || now() - st.cell.at < auto * 1000) return null;
           nextCell('auto');
           return st.phase === 'running' ? 'go_on' : null;
         }
@@ -615,7 +632,11 @@
           v.item = t.mode === 'record' ? null : st.items[st.item_i];
           v.item_index = st.item_i;
           v.items_n = st.items.length;
-          if (st.cell) { v.cell = String(t.grid[st.cell.i]); v.cell_index = st.cell.i; v.cells_n = t.grid.length; }
+          if (st.cell) {
+            var cells = cellsOf(t);
+            v.cell = String(cells[st.cell.i]); v.cell_index = st.cell.i; v.cells_n = cells.length;
+            v.cell_item = t.items[st.cell.i] || null;
+          }
           if (t.mode !== 'record' && st.item_started != null) {
             var waited = now() - st.item_started;
             v.item_wait_ms = waited;

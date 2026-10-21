@@ -200,3 +200,46 @@ describe('comprehension gates per question (W3 forms: gate.min_words)', () => {
     expect(r.view().result.stop_reason).toBe('skipped_no_first_line');
   });
 });
+
+describe("the content lane's W3 shape: present 'one_at_a_time', items with show, advance_after_s", () => {
+  const item = (id, show, extra) => Object.assign({ id, show, target: show }, extra || {});
+  const task = (extra) => Object.assign({ id: 'ma.number_id8', subtask: 'number_identification', response: 'record', present: 'one_at_a_time',
+    time_limit_s: 60, advance_after_s: 5, items: [item('n1', '9'), item('n2', '12'), item('n3', '45')] }, extra || {});
+
+  test('one at a time from the data alone (no switch): the cells are the items\' show, each cell kept with its item id', () => {
+    const { r, c } = run({ battery_id: 'b', tasks: [task()] });
+    expect(r.view().cell).toBe('9');
+    expect(r.view().cell_item.id).toBe('n1');
+    c.add(1200); r.nextCell('tap');
+    expect(r.view().cell).toBe('12');
+    c.add(4900); expect(r.tick()).toBeNull();
+    c.add(200); expect(r.tick()).toBe('go_on');
+    expect(r.view().cell).toBe('45');
+    c.add(700); r.nextCell('tap');
+    const res = r.view().result;
+    expect(res.stop_reason).toBe('complete');
+    expect(res.cells.map((x) => [x.item_id, x.how])).toEqual([['n1', 'tap'], ['n2', 'auto'], ['n3', 'tap']]);
+    expect(res.last_item_index).toBe(2);
+  });
+
+  test('advance_after_s null on an untimed task: moves on after next_at_s (15 s), never sooner', () => {
+    const t = task({ id: 'ma.add2i', subtask: 'mental_addition', time_limit_s: null, advance_after_s: null, next_at_s: 15, say_on: 'replay',
+      items: [item('a1', '13 + 6', { say: '13 plus 6' }), item('a2', '18 + 7')] });
+    const { r, c } = run({ battery_id: 'b', tasks: [t] });
+    c.add(14000); r.tick();
+    expect(r.view().cell_index).toBe(0);
+    c.add(1100); r.tick();
+    expect(r.view().cell_index).toBe(1);
+  });
+
+  test('a spoken practice item (record) is passed by its own target', () => {
+    const t = task({ practice: [item('p1', '1', { role: 'example' }), item('p2', '2', { role: 'practice' })] });
+    const c = clock();
+    const r = core.createRunner({ battery: { battery_id: 'b', tasks: [t] }, now: c.now, mic: () => 'ok' });
+    r.start(); r.instructionDone();
+    expect(r.view().phase).toBe('practice');
+    expect(r.practiceAnswer('1').ok).toBe(true);
+    expect(r.practiceAnswer('2').ok).toBe(true);
+    expect(r.view().phase).toBe('ready');
+  });
+});

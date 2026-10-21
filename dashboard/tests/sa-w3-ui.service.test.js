@@ -262,6 +262,37 @@ maybe('sa-ui: Wave 3 screens', () => {
     if (lang === 'en') expect(rows.join(' ').split(',').length - 1).toBe(1);
   });
 
+  test("W3 shape: a sum shows left to right in an Urdu page; Jugnu reads it only on replay (say_on 'replay')", async () => {
+    const t = { id: 'ma.add2i', subtask: 'mental_addition', response: 'record', present: 'one_at_a_time', time_limit_s: null, advance_after_s: null, next_at_s: 15,
+      say_on: 'replay', items: [{ id: 'a1', show: '13 + 6', target: 19, say: '13 plus 6' }] };
+    const { runner, el, view, said } = mount({ battery_id: 'b', tasks: [t] }, {}, { lang: 'ur' });
+    runner.start(); runner.instructionDone(); runner.begin();
+    view.render(); await flush();
+    const cell = el.querySelector('.sae-onecell');
+    expect(cell.textContent).toBe('13 + 6');
+    expect(cell.getAttribute('dir')).toBe('ltr');
+    expect(said.map(text)).not.toContain('13 plus 6');
+    el.querySelector('.sae-replay').click(); await flush();
+    expect(said.map(text)).toContain('13 plus 6');
+  });
+
+  test('W3 shape: a spoken practice example shows the item big and Jugnu models the answer; Next moves on', async () => {
+    const model = [{ text: 'The name of this letter is:', lang: 'en' }, { text: 'T', lang: 'en' }];
+    const t = { id: 'en.letter_names5', subtask: 'letter_name_identification', response: 'record', present: 'one_at_a_time', time_limit_s: 60, advance_after_s: 3,
+      grid: ['i', 'y'], items: [{ id: 'i1', show: 'i', target: 'i' }, { id: 'i2', show: 'y', target: 'y' }],
+      practice: [{ id: 'p1', role: 'example', show: 'T', target: 'T', model }, { id: 'p2', role: 'practice', show: 'M', target: 'M', model: [model[0], { text: 'M', lang: 'en' }] }] };
+    const { runner, el, view, said } = mount({ battery_id: 'b', tasks: [t] }, {}, {});
+    runner.start(); runner.instructionDone(); view.render(); await flush();
+    expect(el.querySelector('.sae-practice .sae-onecell').textContent).toBe('T');
+    expect(said.map(text)).toEqual(expect.arrayContaining(['The name of this letter is:', 'T']));
+    el.querySelector('.sa-next').click(); await flush(100);
+    expect(el.querySelector('.sae-practice .sae-onecell').textContent).toBe('M');
+    said.length = 0;
+    el.querySelector('.sa-next').click(); await flush(100);
+    expect(said.map(text)).toEqual(['The name of this letter is:', 'M']);
+    expect(runner.view().phase).toBe('ready');
+  });
+
   test('mental maths: the sum is shown big while the answer is spoken', async () => {
     const t = { id: 'ma.fluency', subtask: 'mental_math_fluency', time_limit_s: 60, items: [{ id: 'f1', shown: '3 + 4', target: '7' }] };
     const { runner, el, view } = mount({ battery_id: 'b', tasks: [t] }, { one_at_a_time: true }, {});

@@ -632,6 +632,7 @@
       return h('p', { class: 'sae-fb sa-feedback ' + (fb.res.ok ? 'is-ok' : 'is-again'), role: 'status' }, [fb.text]);
     }
     function sPractice(v) {
+      if (v.task.mode === 'record' && !hold) return sPracticeSpoken(v);
       var p = hold ? hold.item : v.practice;
       var t = v.task;
       var fb = hold;
@@ -884,13 +885,42 @@
         (t.grid || []).map(function (x, i) { return h('span', { class: 'sae-cell', 'data-i': String(i) }, [String(x)]); }));
     }
     /** The passage: one big star tile ends the reading (its word is spoken once when it shows; mercy() pulses it). */
+    /** One item big: a letter, a word, a number or a sum (a sum reads left to right on an Urdu page too). */
+    var NUMERIC_RX = /^[\d\u06F0-\u06F9\u0660-\u0669.,\s+\-\u2212\u00D7\u00F7=?_]+$/;
+    function oneCell(text, t, i) {
+      var s = String(text);
+      var numeric = NUMERIC_RX.test(s);
+      return h('div', { class: 'sae-onecell sa-onecell' + (Array.from(s).length <= 2 ? ' is-short' : ''), dir: numeric ? 'ltr' : dirOf(t), lang: numeric ? 'en' : taskLang(t), 'data-i': i == null ? null : String(i) }, [s]);
+    }
     function sRunCell(v) {
-      var t = v.task;
+      var t = v.task, it = v.cell_item;
       return screen(v, 'sae-run sae-run-rec sae-run-cell', [
         clock(v),
-        h('p', { class: 'sae-chip sae-chip-rec', text: C.read_aloud }),
-        h('div', { class: 'sae-onecell sa-onecell' + (Array.from(v.cell).length <= 2 ? ' is-short' : ''), dir: dirOf(t), lang: taskLang(t), 'data-i': String(v.cell_index) }, [v.cell]),
+        h('div', { class: 'sae-row' }, [h('p', { class: 'sae-chip sae-chip-rec', text: C.read_aloud }), itemSpeaks(it) ? replayBtn(function () { sayItem(it, t); }) : null]),
+        oneCell(v.cell, t, v.cell_index),
       ], [btn(C.next, function () { runner.nextCell('tap'); draw(); }, 'sae-primary sa-next')]);
+    }
+    /** A spoken practice item (W3 one-at-a-time tasks): the item big; an example is modelled by Jugnu, a practice item
+     *  is modelled after the child's turn (Next); coach-led, the coach models it and Jugnu stays quiet. */
+    function modelOf(p) { return manual || !Array.isArray(p.model) ? [] : p.model.map(function (m) { return [m, m && m.audio]; }); }
+    function sPracticeSpoken(v) {
+      var p = v.practice, t = v.task;
+      return screen(v, 'sae-practice', [
+        h('div', { class: 'sae-row' }, [
+          h('span', { class: 'sae-chip', text: C.practice }),
+          itemSpeaks(p) || (p.model && !manual) ? replayBtn(function () { gen++; if (itemSpeaks(p)) sayItem(p, t); else sayChain(modelOf(p)); }) : null,
+        ]),
+        oneCell(p.show != null ? p.show : p.target, t, null),
+      ], [btn(C.next, function () {
+        busy = true;
+        var k = keyOf(runner.view());
+        (p.role === 'example' ? Promise.resolve() : capped(sayChain(modelOf(p)), 7000)).then(function () {
+          busy = false;
+          if (!alive || keyOf(runner.view()) !== k) return;
+          runner.practiceAnswer(p.target);
+          draw();
+        });
+      }, 'sae-primary sa-next')]);
     }
     function sRunRecord(v) {
       if (v.cell != null) return sRunCell(v);
@@ -1221,7 +1251,11 @@
       else if (v.phase === 'practice' && v.practice) {
         var first = t.practice.indexOf(v.practice) === 0;
         var k0 = keyOf(v);
-        sayChain([first && s.practice_intro && !manual ? [s.practice_intro] : null]).then(function () { if (alive && lastKey === k0 && !hold) sayItem(v.practice, t); });
+        sayChain([first && s.practice_intro && !manual ? [s.practice_intro] : null]).then(function () {
+          if (!alive || lastKey !== k0 || hold) return;
+          if (t.mode === 'record' && v.practice.role === 'example') sayChain(modelOf(v.practice));
+          else if (!(t.mode === 'record' && t.say_on === 'replay')) sayItem(v.practice, t);
+        });
       } else if (v.phase === 'ready') sayChain(manual ? [] : [s.test_intro ? [s.test_intro] : null, s.begin ? [s.begin] : null]);
       else if (v.phase === 'running' && v.item) {
         if (t.mode === 'oral') {
@@ -1243,7 +1277,9 @@
           sayItem(v.item, t).then(function () { if (alive && g3 === gen && lastKey === key2 && runner.promptDone) runner.promptDone(); });
         } else sayItem(v.item, t);
       } else if (v.phase === 'running' && t && t.mode === 'record' && v.cell != null) {
-        // One cell at a time: no star line; the recorder opens at once and runs across the cells.
+        // One cell at a time: no star line; the recorder opens at once and runs across the cells. An item with words
+        // (a sum) is read when it shows, unless the task reads it only on replay.
+        if (itemSpeaks(v.cell_item) && t.say_on !== 'replay') sayItem(v.cell_item, t);
       } else if (v.phase === 'running' && t && t.mode === 'record') {
         // The star line first; the recorder opens after it (recorderHooks), so Jugnu is neither in the child's
         // recording nor in the silence watch's first second.
@@ -1380,7 +1416,7 @@
       /** The mercy rule (RULING #10; the engine calls it after 12 s of no voice): Jugnu says lines.mercy once, the star pulses. */
       mercy: function () {
         var v = runner.view();
-        if (!alive || v.phase !== 'running' || !v.task || v.task.mode !== 'record' || mercied[v.task.id]) return;
+        if (!alive || v.phase !== 'running' || !v.task || v.task.mode !== 'record' || v.cell != null || mercied[v.task.id]) return;
         mercied[v.task.id] = true;
         var star = el.querySelector('.sae-star');
         if (star) star.classList.add('is-mercy');
