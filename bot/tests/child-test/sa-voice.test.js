@@ -84,4 +84,31 @@ describe('record-sa-voice', () => {
     expect(lines).toHaveLength(3);
     expect(lines[0]).toMatchObject({ lane: 'm-sa-content', provider: 'soniox', units: 2 });
   });
+
+  test('--set v2 voices English in Priya and Urdu in Ishita into sa/v2, the key\'s name unchanged', async () => {
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sa-voice-'));
+    for (const [lang, voice] of [['en', 'Priya'], ['ur', 'Ishita']]) {
+      tts.synthesize.mockClear();
+      const row = manifest.find((m) => m.lang === lang && m.role === 'battery');
+      const r = await run(['--lang', lang, '--only', 'battery', '--set', 'v2', '--apply', '--max-usd', '0.0000001'],
+        { tts, level, out: () => {}, env, outDir });
+      expect(r.recorded).toBe(1);
+      expect(tts.synthesize.mock.calls[0][0]).toMatchObject({ provider: 'soniox', voice, language: lang });
+      expect(fs.existsSync(path.join(outDir, row.key.replace('sa/v1/', 'sa/v2/')))).toBe(true);
+      expect(fs.existsSync(path.join(outDir, row.key))).toBe(false);
+    }
+  });
+
+  test('--extra adds lines the bank does not carry yet (same key rule), once', async () => {
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sa-voice-'));
+    const extra = path.join(outDir, 'extra.json');
+    const known = manifest.find((m) => m.lang === 'en');
+    fs.writeFileSync(extra, JSON.stringify([
+      { key: 'sa/v1/en/000000000abc.mp3', lang: 'en', text: 'All done!', role: 'copy' },
+      { key: 'sa/v1/ur/000000000abd.mp3', lang: 'ur', text: 'سب ہو گیا!', role: 'copy' },
+      known,
+    ]));
+    const r = await run(['--lang', 'en', '--extra', extra], { tts, level, out: () => {}, env });
+    expect(r.lines).toBe(manifest.filter((m) => m.lang === 'en').length + 1);
+  });
 });
