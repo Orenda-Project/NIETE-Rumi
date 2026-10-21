@@ -33,7 +33,8 @@
       timed: 'On a ⏱ stone, Jugnu\'s light lasts one minute. Do as many as you can.',
       crossed: function (s) { return s + ': crossed!'; }, towerDone: 'Big flight: done!',
       finished: 'Finished', notYet: 'Not yet', nextTime: 'Next time',
-      star1: 'You finished every stone', star2: 'You did the practice', star3: 'You kept going to the end',
+      star1: 'You reached every stone', star2: 'You did the practice', star3: 'You kept going to the end',
+      langs: { en: 'English', ur: 'Urdu' },
       notReady: 'This is still getting ready. Come back soon.', mute: 'Sound off', unmute: 'Sound on',
       saved: 'Saved on this phone',
       flown: 'You took the Big flight this month! The islands are open any time.',
@@ -49,7 +50,8 @@
       timed: '⏱ والے پتھر پر جگنو کی روشنی ایک منٹ چلتی ہے۔ جتنا ہو سکے، کریں۔',
       crossed: function (s) { return s + ' پار!'; }, towerDone: 'بڑی اڑان پوری!',
       finished: 'پورا کیا', notYet: 'ابھی نہیں', nextTime: 'اگلی بار',
-      star1: 'آپ نے ہر پتھر پورا کیا', star2: 'آپ نے مشق کی', star3: 'آپ نے آخر تک کوشش جاری رکھی',
+      star1: 'آپ ہر پتھر تک پہنچے', star2: 'آپ نے مشق کی', star3: 'آپ نے آخر تک کوشش جاری رکھی',
+      langs: { en: 'انگریزی', ur: 'اردو' },
       notReady: 'یہ ابھی تیار ہو رہا ہے۔ تھوڑی دیر بعد دوبارہ آئیں۔', mute: 'آواز بند', unmute: 'آواز چالو',
       saved: 'اس فون پر محفوظ',
       flown: 'اس مہینے کی بڑی اڑان ہو گئی! جزیرے جب چاہیں دوبارہ کھیلیں۔',
@@ -57,14 +59,16 @@
     },
   }[L];
   var ISLANDS = ['maths', 'english', 'urdu'];
-  var ICON = { maths: '1 2 3', english: 'A b c', urdu: 'ا ب پ' };
+  var ICON = { maths: L === 'ur' ? ud('1 2 3') : '1 2 3', english: 'A b c', urdu: 'ا ب پ' };
   // where each island sits on the 360-wide map (percent of the map box), and Jugnu beside it
   var AT = { maths: [3, 68], english: [52, 48], urdu: [4, 32], tower: [50, 0] };
 
   function ud(n) { return String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.charAt(+d); }); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function J() { return W.WQJ || null; }
-  function title(t) { return (t && t.title && (t.title[L] || t.title.en)) || (t && t.id) || ''; }
+  function base(t) { return (t && t.title && (t.title[L] || t.title.en)) || (t && t.id) || ''; }
+  // a stone's title; in the flight, a title that repeats (Letters, Listening…) carries its language: "Letters · Urdu"
+  function title(t) { return base(t) + (t && t.mark ? ' · ' + t.mark : ''); }
 
   // ---- progress on the phone (a convenience; never the record) ----
   var KEY = 'sg.' + boot.kid + '.' + boot.form;
@@ -120,10 +124,16 @@
     return all.filter(function (id) { return String(id).indexOf(PREFIX[where]) === 0; });
   }
   function byId(id) { for (var i = 0; i < battery.tasks.length; i++) if (battery.tasks[i].id === id) return battery.tasks[i]; return null; }
-  function timedOf(t) { return Boolean(t.timed_s || (t.tap && t.tap.time_limit_s) || (t.record && t.record.time_limit_s)); }
+  function timedOf(t) { return Boolean(t.time_limit_s || t.timed_s || (t.tap && t.tap.time_limit_s) || (t.record && t.record.time_limit_s)); }
   function tasksOf(where) {
     if (!battery) return [];
-    return idsOf(where).map(byId).filter(Boolean).map(function (t) { return { id: t.id, title: t.title, timed: timedOf(t) }; });
+    var list = idsOf(where).map(byId).filter(Boolean);
+    var seen = {};
+    list.forEach(function (t) { seen[base(t)] = (seen[base(t)] || 0) + 1; });
+    return list.map(function (t) {
+      var lang = /^(en|ur)\./.exec(t.id);
+      return { id: t.id, title: t.title, timed: timedOf(t), mark: where === 'tower' && seen[base(t)] > 1 && lang ? T.langs[lang[1]] : null };
+    });
   }
   // ---- the shared top bar: back, the title, the one sound switch ----
   function soundIcon() { var m = J() && J().muted(); return m ? '🔇' : '🔊'; }
