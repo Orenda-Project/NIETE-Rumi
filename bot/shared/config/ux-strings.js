@@ -3095,6 +3095,10 @@ const UX_STRINGS = {
   wqArtPlayed_one: { en: 'played', ur: 'بچے نے کھیلا' },
   wqArtPlayedOf_one: { en: '{n} of {of} played', ur: '{of} میں سے {n} بچے نے کھیلا' },
   wqArtKids_one: { en: 'kid', ur: 'بچہ' },
+  // The one child in words on the Urdu class table picture (web_quiz_end_polish): a lone «۱» reads as alif there.
+  // English keeps its drawn number.
+  wqArtPlayedWord_one: { en: '{n} played', ur: 'ایک بچے نے کھیلا' },
+  wqArtPlayedOfWord_one: { en: '{n} of {of} played', ur: '{of} میں سے ایک بچے نے کھیلا' },
   // A school's sector on the school picture (web_quiz_share_bidi, SECT-1): its display name, never the stored key ("ict").
   wqArtSector_ict: { en: 'ICT', ur: 'آئی سی ٹی' },
   vqTierMastered: { en: 'Brilliant work!', ur: 'زبردست!' },

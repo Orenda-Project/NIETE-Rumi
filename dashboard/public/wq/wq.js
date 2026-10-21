@@ -689,7 +689,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       meta: function (n) { return urDigits(n) + ' سوال · تقریباً ' + urDigits(Math.max(1, Math.round(n * 0.6))) + ' منٹ'; },
       hello: 'السلام علیکم! آئیں، کوئز کھیلیں۔', helloN: function (n) { return n + '، خوش آمدید!'; },
       play: 'کھیلیں', playAs: function (n) { return n + '، شروع کریں'; }, notMe: function (n) { return n + ' نہیں؟'; }, nextTurn: 'کسی اور کی باری',
-      proof: function (n) { return 'آج ' + (PLACE ? PLACE.ur + ' میں ' : '') + urDigits(n.toLocaleString('en')) + (n === 1 ? ' بچے نے کھیلا' : ' بچوں نے کھیلا'); },
+      // web_quiz_end_polish (the answer's end_polish): one child in words, «ایک بچے نے کھیلا» (a lone ۱ reads as alif)
+      proof: function (n) { return 'آج ' + (PLACE ? PLACE.ur + ' میں ' : '') + (n === 1 && B.end_polish === true ? 'ایک بچے نے کھیلا' : urDigits(n.toLocaleString('en')) + (n === 1 ? ' بچے نے کھیلا' : ' بچوں نے کھیلا')); },
       classToday: function (n) { return 'آج آپ کی کلاس میں ' + urDigits(n) + ' نے کھیلا'; },
       whoT: 'آج کس کی باری ہے؟', whoSay: 'اپنے نام پر ٹیپ کریں۔', onPhone: 'اس فون پر', inClass: function (c) { return c + ' میں اپنا نام ڈھونڈیں'; },
       newKid: 'نیا نام', newT: 'السلام علیکم! آپ کا پہلا نام کیا ہے؟', newSay: 'صرف پہلا نام لکھیں۔', start: 'شروع کریں', privacy: 'صرف پہلا نام۔ فون نمبر نہیں۔',
@@ -721,7 +722,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       finN: function (n) { return urDigits(n) + ' نے مکمل کیا'; }, yourScore: 'آپ کا اسکور', avg: 'کلاس کی اوسط', firstOnly: 'صرف پہلے نام۔ برابر اسکور والوں کا نمبر ایک ہے۔',
       shareTable: 'کلاس ٹیبل بھیجیں', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ سب سے پہلے کھیلیں!', tableNone: 'کلاس ٹیبل صرف کلاس کے کوئز میں ہوتی ہے۔',
       schoolsBtn: 'اسکولوں کی لیگ', schoolsT: 'اسکولوں کی لیگ', schoolsRule: 'اس ہفتے · کھیلنے کے ۱۰ پوائنٹس، اسکور کے ۱۰ تک',
-      pts: function (n) { return urDigits(fmtN(n)) + ' پوائنٹس'; }, kidsN: function (n) { return urDigits(fmtN(n)) + (n === 1 ? ' بچے نے کھیلا' : ' بچوں نے کھیلا'); },
+      pts: function (n) { return urDigits(fmtN(n)) + ' پوائنٹس'; }, kidsN: function (n) { return n === 1 && B.end_polish === true ? 'ایک بچے نے کھیلا' : urDigits(fmtN(n)) + (n === 1 ? ' بچے نے کھیلا' : ' بچوں نے کھیلا'); },
       yourSchool: 'آپ کا اسکول', moveNew: 'نیا', schoolPlace: function (s, p) { return s + ' اس ہفتے نمبر ' + urDigits(p) + ' پر'; },
       sinceY: function (m) { return 'کل سے ' + urDigits(Math.abs(m)) + (m > 0 ? ' درجے اوپر' : ' درجے نیچے'); },
       // web_quiz_end_copy_fix: a move of one place in its one form (never «۱ درجے»)
@@ -830,7 +831,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // lists join with «،»: in Nastaliq a «·» reads as the zero «۰»
       schoolsRule: 'اس ہفتے، کھیلنے کے ۱۰ پوائنٹس، اسکور کے ۱۰ تک', second: 'دوسری کوشش، ' + MASC.ur + ' کے ساتھ',
       // the league's counts: Urdu digits, five digits up split with «٬» (urCount)
-      pts: function (n) { return urCount(n) + ' پوائنٹس'; }, kidsN: function (n) { return urCount(n) + (n === 1 ? ' بچے نے کھیلا' : ' بچوں نے کھیلا'); },
+      pts: function (n) { return urCount(n) + ' پوائنٹس'; }, kidsN: function (n) { return n === 1 && B.end_polish === true ? 'ایک بچے نے کھیلا' : urCount(n) + (n === 1 ? ' بچے نے کھیلا' : ' بچوں نے کھیلا'); },
       zeroN: function (n) { return urCount(n) + ' اسکول ابھی شروع نہیں ہوئے'; },
       // the WhatsApp share prose: Western digits, isolated, the approved sentence shape kept
       chalLine: function (w, s, n, t) { return 'میں ⁨' + w + '⁩ ہوں! میں نے ⁨' + t + '⁩ کوئز میں ⁦' + n + '⁩ میں سے ⁦' + s + '⁩ ستارے لیے۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک دبائیں:'; },
@@ -1534,12 +1535,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // it), "Watch another video" only after a video, and on an Urdu end headline each number in the digit face, isolated
   var END_COPY = B.end_copy === true;
   function endDigits(h) { return END_COPY && LANG === 'ur' ? h.replace(/[\u06F0-\u06F9]+/g, '<bdi class="wq-dg">$&</bdi>') : h; }
+  // web_quiz_end_polish (the answer's end_polish): the Urdu headline keeps «سے» with the number after it and may break
+  // right after that number («آپ نے ۷ میں سے ۰» / «درست کیے»), so no line starts with a lone «۰»
+  var END_POLISH = B.end_polish === true;
   function endScore(n, total) {
-    if (!B.end_fit) return '<h1>' + endDigits(esc(T.got(n, total))) + '</h1>' + stars(n, total);
+    if (!B.end_fit) return '<h1>' + endDigits(esc(END_POLISH ? endHead(T.got(n, total)) : T.got(n, total))) + '</h1>' + stars(n, total);
     return '<h1 class="wq-endh">' + endDigits(esc(endHead(T.got(n, total)))) + '</h1>' + stars(n, total).replace('class="wq-stars"', 'class="wq-stars wq-fitstars"');
   }
   function endHead(s) {
     var at = s.indexOf(' میں سے ');
+    if (END_POLISH && LANG === 'ur' && at >= 0) {
+      var c = s.slice(0, at + 7), r = s.slice(at + 8), sp = r.indexOf(' ');
+      if (sp < 0) return s;
+      // under end_short the other gaps hold too, so the one break is the one after the number
+      return END_SHORT ? (c + ' ' + r.slice(0, sp)).replace(/ /g, '\u00A0') + ' ' + r.slice(sp + 1).replace(/ /g, '\u00A0')
+        : c + '\u00A0' + r;
+    }
     if (!END_SHORT || LANG !== 'ur' || at < 0) return s;
     var a = s.slice(0, at + 7), b = s.slice(at + 8);
     return a.replace(/ /g, '\u00A0') + ' ' + b.replace(/ /g, '\u00A0');
@@ -2375,7 +2386,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // button is always shown first.
     var tf = !ok && WQI.kind(q) === 'tf';
     var tfTrue = tf && (q.options || [])[0] && String(q.correct_slot || '') === q.options[0].slot;
-    var lead = vline(ok ? (retry ? 'fixed' : 'right') : tf ? (tfTrue ? 'tftrue' : 'tffalse') : named ? 'notyet' : 'notyetpic');
+    // web_quiz_end_polish (VL-1, the answer's end_polish): a wrong answer's line speaks the page's language, as the end line
+    // does (an English page of an Urdu lesson: the English clip), when that language has its lines
+    var vpin = !ok && END_POLISH && VOICE[LANG] && LANG !== VLANG ? LANG : null;
+    var lead = vline(ok ? (retry ? 'fixed' : 'right') : tf ? (tfTrue ? 'tftrue' : 'tffalse') : named ? 'notyet' : 'notyetpic', null, vpin);
     var line = !ok && named && !tf ? T.notyet(lead.text, optText(right)) : lead.text;
     if (tf) named = false; // the lead already names the answer
     var answered = answeredCount();
@@ -2796,8 +2810,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var place = c.nth || c.done_today ? '<p class="wq-proof wq-nth"><span>' + nthHtml(c.nth || 1) + '</span></p>' : '';
     // The practice note is framing, not a control: on a door card it goes under the door with the place note.
     var practice = (kept ? '<div class="wq-banner">' + esc((typeof END_COPY !== 'undefined' && END_COPY) && replayVs(res.vs, c, total) ? pracKept() : TW.practice(scoreN(kept.correct), scoreN(shareT))) + '</div>' : '');
+    var vsH = vsStrip(res.vs, c, total), nbH = replayVs(res.vs, c, total) === 'win' ? '' : newBest(c, total);
+    var cb = cbFold(practice, vsH || nbH);
+    if (cb) { if (vsH) vsH = cb; else nbH = cb; practice = ''; }
     var notes = (firstTwo ? '' : practice) +
-      vsStrip(res.vs, c, total) + (replayVs(res.vs, c, total) === 'win' ? '' : newBest(c, total)) +
+      vsH + nbH +
       (firstTwo ? '' : place) +
       (nx ? '<button class="wq-vitem wq-nextv" id="wq-next-v">' +
         (nx.poster ? '<img class="wq-vtile" src="' + esc(nx.poster) + '" alt="" loading="lazy">' : '<span class="wq-vtile wq-vt1" aria-hidden="true">' + ic(IC.play, '▶') + '</span>') +
@@ -2805,7 +2822,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // The name notice is for the share it sits on: always directly above "Share to class group".
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>';
     var h = bar() +
-      '<div class="wq-scorecard' + (panel ? ' wq-askon' : '') + '"><header>' + markHtml() + dotJoin(BR ? BR.name : '', doorLabel()) + '</header><div class="wq-in">' +
+      '<div class="wq-scorecard' + (panel ? ' wq-askon' : '') + (cb ? ' wq-sccb' : '') + '"><header>' + markHtml() + dotJoin(BR ? BR.name : '', doorLabel()) + '</header><div class="wq-in">' +
       '<img src="' + jv(IMG + 'celebrate.webp') + '" alt="">' +
       (isVideo ? '<span class="wq-vchip">' + esc(T.vchip) + '</span>' : '') +
       '<div class="wq-name">' + ani(c.animal) + ' ' + esc(c.first || (S.child && S.child.first) || '') + '</div>' +
@@ -2900,19 +2917,30 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (nx) return '<a class="wq-btn wq-go wq-fnext" id="wq-fnext" data-primary href="' + esc(nx.href) + '">' + esc((LANG === 'ur' && nx.title_ur) || nx.title) + '</a>';
     return '<button class="wq-btn wq-go wq-fnext" id="wq-fnext" data-primary>' + esc(T.foldPick) + '</button>';
   }
+  // web_quiz_end_polish (CB-1, the answer's end_polish): when the practice line and a compare box both show, the line is
+  // the box's heading (one box), its verdict and scores one line under it, so the card's buttons stay on a short phone's
+  // first screen (there the score card drops Jugnu's picture, wq-sccb in wq.css). Off, or either missing: null.
+  function cbFold(practice, box) {
+    if (typeof END_POLISH === 'undefined' || !END_POLISH || !practice || !box || box.indexOf('<div class="wq-banner ') !== 0) return null;
+    var line = practice.replace(/^<div class="wq-banner">/, '').replace(/<\/div>$/, '');
+    return box.replace(/^<div class="wq-banner ([^"]*)">/, function (m, k) { return '<div class="wq-banner ' + k + ' wq-cb"><span class="wq-cbh">' + line + '</span>'; })
+      .replace('</b><br>', '</b> ');
+  }
+  function foldNotes(practice, box) { var cb = cbFold(practice, box); return cb || practice + box; }
   function foldCard(res, c, total, fc) {
     var nx = foldOffer(res.next_offer);
     var kept = c.practice && c.kept ? c.kept : null;
     var shareC = kept ? kept.correct : c.correct, shareT = kept ? (kept.total || total) : total;
     var tile = foldNext(nx, fc);
+    var notes = foldNotes(kept ? '<div class="wq-banner">' + esc(TW.practice(scoreN(kept.correct), scoreN(shareT))) + '</div>' : '', newBest(c, total));
     var h = bar(FOLD_BAR) +
-      '<div class="wq-scorecard"><header>' + markHtml() + dotJoin(BR ? BR.name : '', doorLabel()) + '</header><div class="wq-in">' +
+      '<div class="wq-scorecard' + (notes.indexOf(' wq-cb"') > 0 ? ' wq-sccb' : '') + '"><header>' + markHtml() + dotJoin(BR ? BR.name : '', doorLabel()) + '</header><div class="wq-in">' +
       '<img src="' + jv(IMG + 'celebrate.webp') + '" alt="">' +
       '<div class="wq-name">' + ani(c.animal) + ' ' + esc(c.first || (S.child && S.child.first) || '') + '</div>' +
       '<p class="wq-sub wq-ctopic">' + esc(Q.topic) + '</p>' +
       (fc ? fc.quizDeedHtml(LANG) : '') + '<div class="wq-big">' + esc(scoreN(c.correct)) + '/' + esc(scoreN(total)) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
       '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
-      (kept ? '<div class="wq-banner">' + esc(TW.practice(scoreN(kept.correct), scoreN(shareT))) + '</div>' : '') + newBest(c, total) +
+      notes +
       tile +
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
       '<button class="wq-btn wq-soft" id="wq-share">' + esc(res.no_class === true ? T.sharePlain : T.shareBtn) + '</button>' +
@@ -3363,11 +3391,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   // with the look a sector code stays whole ("G-5" never leaves a lone "5"): a hyphen before a digit does not break
   function schoolName(n) { return advOn() ? String(n || '').replace(/-(?=\d)/g, '\u2011') : n; }
+  // web_quiz_end_polish (LH-1, the answer's end_polish): on the Urdu league a Latin school name is its own left-to-right
+  // box at a Latin line height (wq-slat), never two lines at the Nastaliq height. Off, or a name in Urdu: today's.
+  function schoolBdi(n) {
+    var lat = typeof END_POLISH !== 'undefined' && END_POLISH && LANG === 'ur' && !/[\u0600-\u06FF]/.test(String(n || ''));
+    return (lat ? '<bdi dir="ltr" class="wq-slat">' : '<bdi>') + esc(schoolName(n)) + '</bdi>';
+  }
   function schoolRow(r) {
     return '<li class="wq-srow' + (r.mine ? ' wq-you' : '') + '"' + (r.mine ? ' id="wq-mine"' : '') + '>' +
       // with the Urdu polish the rank is in Urdu digits, like the counts beside it and the class table's places
       '<span class="wq-splace">' + esc(UR2 ? urDigits(r.place) : r.place) + '</span>' +
-      '<span class="wq-sname"><bdi>' + esc(schoolName(r.name)) + '</bdi>' + (r.mine ? '<span class="wq-tag">' + esc(T.yourSchool) + '</span>' : '') +
+      '<span class="wq-sname">' + schoolBdi(r.name) + (r.mine ? '<span class="wq-tag">' + esc(T.yourSchool) + '</span>' : '') +
       '<small>' + esc(T.kidsN(r.kids || 0)) + '</small></span>' +
       '<span class="wq-spts">' + esc(T.pts(r.points || 0)) + schoolMove(r.move) + '</span></li>';
   }

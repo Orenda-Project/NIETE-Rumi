@@ -183,9 +183,12 @@ function sectorName(s, L) {
   if (row) return row[L] ?? row[FLOOR];
   return /^[a-z]{2,4}$/.test(String(s)) ? String(s).toUpperCase() : s;
 }
-function oneForms(L) {
+// word (the end polish, `ui.ep`, the Urdu class table): the one child in words, «ایک بچے نے کھیلا» (the `Word_one` keys).
+function oneForms(L, word = false) {
   const s = (k) => (UX_STRINGS[k][L] ?? UX_STRINGS[k][FLOOR]);
-  return { played: s('wqArtPlayed_one'), playedOf: (n, of) => s('wqArtPlayedOf_one').replace('{n}', () => n).replace('{of}', () => of), kids: s('wqArtKids_one') };
+  const of = word ? 'wqArtPlayedOfWord_one' : 'wqArtPlayedOf_one';
+  return { played: s('wqArtPlayed_one'), playedOf: (n, o) => s(of).replace('{n}', () => n).replace('{of}', () => o), kids: s('wqArtKids_one'),
+    ...(word ? { playedN: (n) => s('wqArtPlayedWord_one').replace('{n}', () => n) } : {}) };
 }
 // EL-1 (the one forms' switch, the Urdu class table): a name too long for its box is cut to the longest run of its own
 // letters that fits with «…», so the box ends where the name does and «(میں)» sits right after it. The browser's own cut
@@ -245,7 +248,7 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false, door = false, ud
       // The wide picture has no room for a separate line: the average joins the top line there.
       main: `<p class="kick">${d.cls ? `${own(d.cls)}${ur2 ? ' ' : SEP}` : ''}${own(d.topic)}${size !== 'sq' && d.rows && d.rows.length ? `${ur2 ? '<br>' : SEP}${C.avgLine(PCT(d.avgPct || 0))}` : ''}</p>`
         + `<h1 class="head">${kn(one && Number(d.played) === 1
-          ? (d.of ? one.playedOf(N(1), N(d.of)) : `${N(1)} ${esc(one.played)}`)
+          ? (d.of ? one.playedOf(N(1), N(d.of)) : one.playedN ? one.playedN(N(1)) : `${N(1)} ${esc(one.played)}`)
           : (d.of ? C.playedOf(N(d.played || 0), N(d.of)) : `${N(d.played || 0)} ${esc(C.played)}`))}</h1>`
         + (d.rows && d.rows.length ? `<ol class="crow">${(pp ? topWithMe(d.rows, pp.cap) : us ? topWithMe(d.rows, size === 'sq' ? CLASS_ROWS_SQ : 3) : around(d.rows.map((r) => ({ ...r, you: r.me })), size === 'sq' ? 6 : 3)).map((r) => (r.gap ? '<li class="gap" aria-hidden="true">…</li>' : `<li class="${r.me ? 'me' : ''}">`
           + `<span class="rk">${N(r.place)}</span>${animal(r.animal, pics)}`
@@ -478,7 +481,9 @@ function renderArt({ kind, size, brand, lang, d, ui, door }, opt = {}) {
   // ...and the school picture's sectors by their display names, in both languages (SECT-1)
   const SEC = k === 'school' && Boolean(ui && ui.nb === true) && Boolean(d && Array.isArray(d.rows));
   const dd = SEC ? { ...d, rows: d.rows.map((r) => ({ ...r, sector: sectorName(r.sector, L) })) } : (d || {});
-  const parts = body(k, dd, C, opt.pictures !== false, sz, UR2, OG2, door === true, UD, US || Boolean(PP && k === 'class'), ppOf, ONE ? oneForms(L) : null, NBK);
+  // One child on the Urdu class table in words, «ایک بچے نے کھیلا» (app_settings web_quiz_end_polish, carried as `ui.ep`).
+  const EP = RTL && k === 'class' && Boolean(ui && ui.ep === true);
+  const parts = body(k, dd, C, opt.pictures !== false, sz, UR2, OG2, door === true, UD, US || Boolean(PP && k === 'class'), ppOf, ONE || EP ? oneForms(L, EP) : null, NBK);
   // the Urdu class table picture's numbers in the digit face (app_settings web_quiz_end_copy_fix, carried as `ui.dg`): in
   // Nastaliq a lone ۱ reads as alif («۱ بچے نے کھیلا», a row's place). Off, today's faces.
   const DG = RTL && UD && k === 'class' && Boolean(ui && ui.dg === true);
