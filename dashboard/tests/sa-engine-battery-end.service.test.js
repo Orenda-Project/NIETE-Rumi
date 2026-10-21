@@ -1,15 +1,16 @@
 'use strict';
 /**
- * The battery's end, embedded in the coach page (dashboard/sa/sa-engine.js, RULING #34a): the engine tells the page
- * ({type:'sa:battery_end', s}) as the last task ends, then closes the recording and flushes, so the child is complete
- * however the coach takes the phone back. The page's hold after that is answered sa:done {reason:'complete'}, never a
- * coach_end. Only this session's page, only its origin.
+ * The battery's end, embedded in the coach page (dashboard/sa/sa-engine.js, RULINGs #34a, #48): the engine posts
+ * {type:'sa:battery_ending', s} as the last task ends, closes the recording and sends the events and results ahead of
+ * the audio, then posts {type:'sa:battery_end', s} once the server acked them, or at once if that send fails (offline:
+ * the rows stay queued), so the page is never stuck. The page's hold after the end is answered sa:done
+ * {reason:'complete'}, never a coach_end. Only this session's page, only its origin.
  */
 const core = require('../sa/sa-core');
 const storeMod = require('../sa/sa-store');
 const { start } = require('../sa/sa-engine');
 
-function setup(s, order) {
+function setup(s, order, { flushEvents = async () => { order.push('events_acked'); }, legacy = false } = {}) {
   const listeners = {};
   const posted = [];
   const win = { location: { origin: 'https://p.test' }, addEventListener: (t, fn) => { listeners[t] = fn; }, removeEventListener() {} };
@@ -19,7 +20,7 @@ function setup(s, order) {
     store: { open: () => Promise.resolve(s) },
     ui: { mount: () => ({ destroy() {} }) },
     voice: { create: () => ({ speak: () => Promise.resolve(), stop() {}, setMuted() {} }) },
-    sync: { create: () => ({ flush: async () => { order.push('flushed'); return { state: 'synced' }; }, poke() {}, status: () => ({}), stop() {} }) },
+    sync: { create: () => ({ flush: async () => { order.push('flushed'); return { state: 'synced' }; }, ...(legacy ? {} : { flushEvents }), poke() {}, status: () => ({}), stop() {} }) },
     now: (() => { let t = 0; return () => (t += 100); })(),
     win,
   };
@@ -29,19 +30,66 @@ function setup(s, order) {
 const battery = { battery_id: 'be', tasks: [{ id: 'letters', mode: 'tap', items: [{ id: 'i1', target: 'a', options: ['a', 'b'] }] }] };
 const tick = (ms) => new Promise((r) => setTimeout(r, ms));
 
-test('embedded: battery_end posts sa:battery_end to the page, then flushes', async () => {
+async function toEnd(id, opt) {
   const s = await storeMod.open({ idb: null });
   const order = [];
-  const { posted, deps } = setup(s, order);
-  const e = await start({ mount: {}, battery, mode: 'proctored', lang: 'en', embed: true, session_id: 'sess-be', sink: {}, audio_check: false, warmup: false }, deps);
+  const env = setup(s, order, opt);
+  const e = await start({ mount: {}, battery, mode: 'proctored', lang: 'en', embed: true, session_id: id, sink: {}, audio_check: false, warmup: false }, env.deps);
   e.runner.start(); e.runner.instructionDone(); e.runner.begin(); e.runner.answer('a');
   await tick(10);
-  expect(posted).toEqual([]);
+  expect(env.posted).toEqual([]);
+  return { s, order, e, ...env };
+}
+
+test('embedded: battery_ending at once, then the events are acked, then battery_end', async () => {
+  const { order, posted, e } = await toEnd('sess-be');
   e.runner.next();
   expect(e.runner.view().phase).toBe('battery_end');
+  expect(posted).toEqual([[{ type: 'sa:battery_ending', s: 'sess-be' }, 'https://p.test']]);
   await tick(10);
-  expect(posted).toEqual([[{ type: 'sa:battery_end', s: 'sess-be' }, 'https://p.test']]);
-  expect(order).toEqual(['sa:battery_end', 'flushed']);
+  expect(posted.map((p) => p[0])).toEqual([{ type: 'sa:battery_ending', s: 'sess-be' }, { type: 'sa:battery_end', s: 'sess-be' }]);
+  expect(order).toEqual(['sa:battery_ending', 'events_acked', 'sa:battery_end']);
+});
+
+test('the events send fails (offline): battery_end is still posted, so the page is never stuck', async () => {
+  const { order, e } = await toEnd('sess-be-off', { flushEvents: async () => { order.push('events_failed'); throw new Error('offline'); } });
+  e.runner.next();
+  await tick(10);
+  expect(order).toEqual(['sa:battery_ending', 'events_failed', 'sa:battery_end']);
+});
+
+test('battery_end waits for the ack: nothing but battery_ending while the send is in flight', async () => {
+  let ack;
+  const { order, posted, e } = await toEnd('sess-be-wait', { flushEvents: () => new Promise((r) => { ack = r; }) });
+  e.runner.next();
+  await tick(10);
+  expect(order).toEqual(['sa:battery_ending']);
+  ack();
+  await tick(10);
+  expect(posted.map((p) => p[0].type)).toEqual(['sa:battery_ending', 'sa:battery_end']);
+});
+
+test('a sync without flushEvents: the whole flush stands in, same order', async () => {
+  const { order, e } = await toEnd('sess-be-old', { legacy: true });
+  e.runner.next();
+  await tick(10);
+  expect(order).toEqual(['sa:battery_ending', 'flushed', 'sa:battery_end']);
+});
+
+test('a coach hold between battery_ending and battery_end: sa:done complete, after battery_end', async () => {
+  let ack;
+  const { posted, listeners, e } = await toEnd('sess-be-mid', { flushEvents: () => new Promise((r) => { ack = r; }) });
+  e.runner.next();
+  await tick(10);
+  listeners.message({ origin: 'https://p.test', data: { type: 'sa:coach_end', s: 'sess-be-mid' } });
+  await tick(10);
+  expect(posted.map((p) => p[0].type)).toEqual(['sa:battery_ending']);
+  ack();
+  await tick(10);
+  expect(posted.map((p) => p[0])).toEqual([
+    { type: 'sa:battery_ending', s: 'sess-be-mid' }, { type: 'sa:battery_end', s: 'sess-be-mid' }, { type: 'sa:done', s: 'sess-be-mid', reason: 'complete' },
+  ]);
+  expect(e.runner.results().map((r) => r.stop_reason)).toEqual(['complete']);
 });
 
 test('a coach hold after battery_end is answered sa:done complete, and logs no coach_end', async () => {
@@ -53,13 +101,13 @@ test('a coach hold after battery_end is answered sa:done complete, and logs no c
   await tick(10);
   listeners.message({ origin: 'https://p.test', data: { type: 'sa:coach_end', s: 'sess-be2' } });
   await tick(10);
-  expect(posted.map((p) => p[0])).toEqual([{ type: 'sa:battery_end', s: 'sess-be2' }, { type: 'sa:done', s: 'sess-be2', reason: 'complete' }]);
+  expect(posted.map((p) => p[0])).toEqual([{ type: 'sa:battery_ending', s: 'sess-be2' }, { type: 'sa:battery_end', s: 'sess-be2' }, { type: 'sa:done', s: 'sess-be2', reason: 'complete' }]);
   expect(e.runner.results().map((r) => r.stop_reason)).toEqual(['complete']);
   const types = (await s.events('sess-be2')).map((x) => x.type);
   expect(types).not.toContain('coach_end_run');
   listeners.message({ origin: 'https://p.test', data: { type: 'sa:coach_end', s: 'sess-be2' } });
   await tick(10);
-  expect(posted).toHaveLength(2);
+  expect(posted).toHaveLength(3);
 });
 
 test('not embedded (the game): no message at battery_end', async () => {
