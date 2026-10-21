@@ -671,7 +671,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       moreNone: 'No more videos for your class yet.', vchip: 'Video quiz', nextT: 'Next in this chapter', moreWait: 'Opening the video…', mins: function (n) { return n + ' min'; }, doneTag: 'Done', playAgain: 'Play again',
       selfT: 'This is your own test run. It will not show in your class report.',
       challenged: function (n, s, t) { return n + ' got ' + s + '/' + t + ' stars. Can you beat it?'; }, challengedBy: function (n) { return n + ' challenged you. Can you beat their score?'; },
-      vs: { win: 'You beat the challenge!', tie: "It's a tie!", lose: 'So close! Play again?' }, vsYou: 'You', frOut: { win: 'beat you!', tie: 'tie', lose: 'you won' },
+      vs: { win: 'You beat the challenge!', tie: "It's a tie!", lose: 'So close! Play again?' }, vsYou: 'You', vsFirst: 'Your first try', vsSelfTie: 'Same as your first try!', frOut: { win: 'beat you!', tie: 'tie', lose: 'you won' },
       offWait: 'Your results will reach your teacher when you are back online.', offDone: 'All done! Your answers are saved on this phone.', tryNow: 'Send now',
       offline: 'No internet right now. Your answers are saved on this phone.', tooFew: 'Answer a few more questions first.', oops: 'Something went wrong. Please try again.',
       friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child',
@@ -749,7 +749,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       selfT: 'یہ آپ کا اپنا ٹیسٹ رن ہے۔ یہ کلاس رپورٹ میں شامل نہیں ہوگا۔',
       challenged: function (n, s, t) { return n + ' نے ' + urDigits(t) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ اب آپ کی باری!'; },
       challenged_one: function (n, s, t) { return n + ' نے ' + urDigits(t) + ' میں سے ' + urDigits(s) + ' ستارہ لیا۔ اب آپ کی باری!'; }, challengedBy: function (n) { return n + ' نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!'; },
-      vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑی سی کمی رہ گئی! دوبارہ کھیلیں؟' }, vsYou: 'آپ', frOut: { win: 'آپ سے آگے!', tie: 'برابر', lose: 'آپ کی جیت' },
+      vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑی سی کمی رہ گئی! دوبارہ کھیلیں؟' }, vsYou: 'آپ', vsFirst: 'آپ کی پہلی کوشش', vsSelfTie: 'پہلی کوشش کے برابر!', frOut: { win: 'آپ سے آگے!', tie: 'برابر', lose: 'آپ کی جیت' },
       offWait: 'انٹرنیٹ واپس آتے ہی آپ کا نتیجہ ٹیچر تک پہنچ جائے گا۔', offDone: 'سب ہو گیا! آپ کے جواب اس فون پر محفوظ ہیں۔', tryNow: 'ابھی بھیجیں',
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
       friends: 'دوست جنہوں نے مکمل کیا', home: 'پہلا صفحہ', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں',
@@ -1116,12 +1116,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     return set && set.path && set.v ? '/wq/voice/one/' + set.path + '/' + file + '.mp3?v=' + set.v : null;
   }
   // skip (optional): a word the picked line must not contain; each line keeps its own index, so its recorded clip
-  function vline(set, skip) {
-    var lang = VOICE[VLANG] ? VLANG : 'en';
+  // pin (optional): the language to pick in, in place of the questions' (web_quiz_share_page_lang's end line)
+  function vline(set, skip, pin) {
+    var lang = pin && VOICE[pin] ? pin : VOICE[VLANG] ? VLANG : 'en';
     var lines = VOICE[lang][set] || [];
     var ok = [];
     for (var k = 0; k < lines.length; k++) if (!skip || lines[k].toLowerCase().indexOf(skip) < 0) ok.push(k);
-    if (!ok.length) return skip ? vline(set) : { text: '', url: null };
+    if (!ok.length) return skip ? vline(set, null, pin) : { text: '', url: null };
     var j = Math.floor(Math.random() * ok.length);
     if (ok.length > 1 && ok[j] === lastPick[set]) j = (j + 1) % ok.length;
     var i = ok[j];
@@ -1131,6 +1132,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // web_quiz_end_once (the answer's end_once): Jugnu's done line skips the card heading's last word when both are one
   // language («مکمل» / "complete"), so the child does not read the heading twice
   function doneLine() {
+    // web_quiz_share_page_lang (the answer's share_page_lang): the end line is the end screen's own copy, so it speaks the
+    // page's language (an English page of an Urdu lesson: English), never repeating the heading under end_once
+    if (B.share_page_lang === true && VOICE[LANG] && LANG !== VLANG) {
+      var hw = B.end_once ? String(T.done).toLowerCase().split(/\s+/) : null;
+      return vline('done', hw ? hw[hw.length - 1] : null, LANG);
+    }
     if (!B.end_once || (VOICE[VLANG] ? VLANG : 'en') !== LANG) return vline('done');
     var w = String(T.done).toLowerCase().split(/\s+/);
     return vline('done', w[w.length - 1]);
@@ -2544,7 +2551,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (res.push_remind === true && !friendRun()) (window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : setTimeout)(function () { setTimeout(function () { try { var own = document.querySelector('script[src*="/wq/wq.js"]'), v = own && /[?&]v=([A-Za-z0-9_-]+)/.exec(own.getAttribute('src') || ''), el = document.createElement('script'); el.src = '/wq/wq-remind.js' + (v ? '?v=' + v[1] : ''); el.onload = function () { var slot = ROOT.querySelector('#wq-remind'); if (slot && window.WQREMIND) WQREMIND.mount(slot, { code: CODE, lang: LANG, chips: ((ID && ID.kids) || []).length, host: location.host }); }; document.body.appendChild(el); } catch (e) {} }, 0); });
       if (!foldOn(res)) libPrefetch();   // the folded card opens no video list
       wireBar();
-      if (window.WQJ) WQJ.finish({ el: ROOT.querySelector('.wq-card'), kind: 'quiz' }); else sfx('done');
+      // web_quiz_share_page_lang: the confetti falls behind the card (wq-juice back), never over its headline
+      if (window.WQJ) WQJ.finish(B.share_page_lang === true ? { el: ROOT.querySelector('.wq-card'), kind: 'quiz', back: true } : { el: ROOT.querySelector('.wq-card'), kind: 'quiz' }); else sfx('done');
       speak(done.text, done.url, null);
       on('#wq-card', card);
       on('#wq-class', board);
@@ -2752,7 +2760,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // The practice note is framing, not a control: on a door card it goes under the door with the place note.
     var practice = (kept ? '<div class="wq-banner">' + esc(TW.practice(scoreN(kept.correct), scoreN(shareT))) + '</div>' : '');
     var notes = (firstTwo ? '' : practice) +
-      vsStrip(res.vs, c, total) + newBest(c, total) +
+      vsStrip(res.vs, c, total) + (replayVs(res.vs, c, total) === 'win' ? '' : newBest(c, total)) +
       (firstTwo ? '' : place) +
       (nx ? '<button class="wq-vitem wq-nextv" id="wq-next-v">' +
         (nx.poster ? '<img class="wq-vtile" src="' + esc(nx.poster) + '" alt="" loading="lazy">' : '<span class="wq-vtile wq-vt1" aria-hidden="true">' + ic(IC.play, '▶') + '</span>') +
@@ -2786,7 +2794,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     }
     if (res.vs && T.vs[res.vs.outcome]) ev('challenge_result', { reason: res.vs.outcome });
     // The challenge code names the challenger on the server: no child's name rides in the link.
-    var chalUrl = link('/q/' + (res.challenge_code || CODE));
+    // web_quiz_share_page_lang: the link carries this page's language, so the friend's preview and page speak it
+    var chalUrl = B.share_page_lang === true ? withLang(link('/q/' + (res.challenge_code || CODE))) : link('/q/' + (res.challenge_code || CODE));
     // The class group gets the CLASS link: a classmate who joined through a friend's challenge code would
     // count as that child's friend and drop out of the teacher's class report.
     // The card link names its picture (?a=): the group's preview IS the card. Still the CLASS code.
@@ -2895,7 +2904,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (fc && res.share_v4 === true) on('#wq-share', fc.quizShareTap(fcOpts(classUrl, true), function (t, u, late) { if (late) fallback(line + ' ' + classUrl, 'card', line, classUrl, art.card, true); else share(line, classUrl, 'card', art.card); }));
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
     if (res.share_v4 === true) {
-      var chalUrl = link('/q/' + (res.challenge_code || CODE));
+      var chalUrl = B.share_page_lang === true ? withLang(link('/q/' + (res.challenge_code || CODE))) : link('/q/' + (res.challenge_code || CODE));
       warmArt('invite', art.invite);
       warmLink(chalUrl);
       on('#wq-chal', function () { share(line, chalUrl, 'challenge', art.invite); });
@@ -2986,8 +2995,24 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function vsStrip(vs, c, total) {
     if (!vs || !T.vs[vs.outcome]) return '';
     function sc(a, b) { return '<bdi dir="ltr">' + esc(scoreN(a)) + '/' + esc(scoreN(b)) + '</bdi>'; }
+    // web_quiz_share_page_lang on a replay (a practice round with its kept first try): the challenge was the first try's,
+    // so this round is set against that first try ("Your first try 4/7"), never against a name; beating it is a new best,
+    // matching it is "Same as your first try!"
+    var o = replayVs(vs, c, total);
+    if (o) {
+      return '<div class="wq-banner wq-vs"><b>' + esc(o === 'win' ? TW.newBest : o === 'tie' ? T.vsSelfTie : T.vs[o]) + '</b><br>' + esc(T.vsYou) + ' ' + sc(c.correct, total) +
+        sep() + esc(T.vsFirst) + ' ' + sc(c.kept.correct, c.kept.total) + '</div>';
+    }
     return '<div class="wq-banner wq-vs"><b>' + esc(T.vs[vs.outcome]) + '</b><br>' + esc(T.vsYou) + ' ' + sc(c.correct, total) +
       sep() + esc(vs.first) + ' ' + sc(vs.correct, vs.total) + '</div>';
+  }
+
+  // The outcome of a replay against the child's own kept first try (scores compared as shares, as the server's
+  // challengeOutcome), or null: the switch off, no strip, or not a replay.
+  function replayVs(vs, c, total) {
+    if (B.share_page_lang !== true || !vs || !T.vs[vs.outcome] || !c.practice || !c.kept || !(c.kept.total > 0) || !(total > 0)) return null;
+    var a = (c.correct || 0) * c.kept.total, b = (c.kept.correct || 0) * total;
+    return a > b ? 'win' : a === b ? 'tie' : 'lose';
   }
 
   /* ---------------- M15 watch another video -> its quiz ---------------- */

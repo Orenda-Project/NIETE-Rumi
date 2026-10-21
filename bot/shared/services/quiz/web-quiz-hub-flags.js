@@ -122,6 +122,10 @@ const END_SHORT_KEY = 'web_quiz_end_short';
 // web_quiz_end_once (JSON true only, from this cache only: nowOf('endOnce')): the quiz page answer says `end_once`, so
 // Jugnu's end-screen line is picked only from the recorded lines that do not repeat the card's heading (wq.js results)
 const END_ONCE_KEY = 'web_quiz_end_once';
+// web_quiz_share_page_lang (JSON true only, from this cache only: nowOf('sharePageLang')): the quiz page answer says
+// `share_page_lang`, so on a page whose language is not its lesson's the challenge link carries the page language, Jugnu's end
+// line speaks it, a replay compares with the child's own first try and the end confetti falls behind the card (wq.js)
+const SHARE_PAGE_LANG_KEY = 'web_quiz_share_page_lang';
 // A grown-up changes the child's grade for good (web-quiz-grade-change.js): the hub answer says `grownups.grade`, JSON true only.
 const GRADE_CHANGE_KEY = 'web_quiz_grade_change';
 // web_quiz_hub_waves2 (JSON true only, and only with fanout on): the hub's longest read chains start earlier (hub.js)
@@ -248,6 +252,7 @@ const SWITCHES = Object.freeze([
   ['rewatchDone',  REWATCH_DONE_KEY,      'json'],
   ['serverTiming', SERVER_TIMING_KEY,     'json'],
   ['nameBidi',     NAME_BIDI_KEY,         'json'],
+  ['sharePageLang', SHARE_PAGE_LANG_KEY, 'json'],
   [null,           SHARE_KEY,             'read'],
   ['videoClean',   VIDEO_CLEAN_KEY,       'json'],
   ['home',         HOME_KEY,              'json'],

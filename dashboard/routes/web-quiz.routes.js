@@ -513,7 +513,9 @@ function identityV2(payload) {
  * the live class picture), else the brand's.
  * WhatsApp caches a preview per URL, so ?v rides into the picture URL too.
  */
-function ogImageFor({ payload, code, view, origin, a, v, k }) {
+// l 'en'|'ur' (web_quiz_share_page_lang, a friend's challenge link that names its language): the invite picture is
+// asked in that language (&l=, the edge's per-language picture). Absent: today's picture address.
+function ogImageFor({ payload, code, view, origin, a, v, k, l = null }) {
   // A class quiz shared from the finish card (?k=<card token>, web_quiz_card_v3): the card's own picture.
   if (view === 'quiz' && cardToken(k)) return `${origin}/wq/card/${k}.png`;
   const art = (payload && payload.art) || {};
@@ -529,8 +531,9 @@ function ogImageFor({ payload, code, view, origin, a, v, k }) {
   // The teacher's reminder link (?v=<played>) keeps its live class picture ahead of the class link picture. A story's
   // reminder keeps the story's own picture: the live class picture is a quiz scoreboard (played, average, top score).
   const live = ver && view === 'quiz' && !story ? pic('class', artId(art.class, 'class')) : null;
+  const inv = pic('invite', artId(art.invite, 'invite'));
   return pic('card', artId(a, 'card'))
-    || pic('invite', artId(art.invite, 'invite'))
+    || (inv && l ? `${inv}&l=${l}` : inv)
     || live
     || teach
     || (view === 'class' && !story ? pic('class', artId(art.class, 'class')) : null)
@@ -802,13 +805,15 @@ function flushWire(req, res, top) {
 // linkLang 'ur' (web_quiz_share_link_lang on, an Urdu card's link to an English lesson): the preview speaks Urdu, like
 // the card picture above it and the door it opens; the picture is the same. linkLang 'en' (web_quiz_share_link_lang_en
 // on, an English card's link to an Urdu lesson): the preview speaks English, like its English card picture.
-function renderPreviewPage({ facts, code, view, origin, assetV, url, a, v, k, linkLang = null }) {
+// chalLang (web_quiz_share_page_lang on, a friend's challenge link with ?lang=): the same, and its invite picture is drawn in
+// that language too.
+function renderPreviewPage({ facts, code, view, origin, assetV, url, a, v, k, linkLang = null, chalLang = false }) {
   const urLink = linkLang === 'ur' && facts.quiz.lang !== 'ur';
   const enLink = linkLang === 'en' && facts.quiz.lang === 'ur';
   const lang = (facts.quiz.lang === 'ur' || urLink) && !enLink ? 'ur' : 'en';
   const brand = brandOf(facts.brand);
   const og = ogText(urLink || enLink ? { ...facts, quiz: { ...facts.quiz, lang } } : facts, view, brand);
-  const image = ogImageFor({ payload: facts, code, view, origin, a, v, k });
+  const image = ogImageFor({ payload: facts, code, view, origin, a, v, k, l: chalLang && (urLink || enLink) ? lang : null });
   return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: og.title, desc: og.desc, origin, url, assetV, brand, image, ...cardType(image) })}
 </head>
 <body></body>
@@ -1575,10 +1580,15 @@ function createWebQuizRouter(opts = {}) {
     }
     // web_quiz_share_link_lang: an Urdu card's link previews in Urdu (asked only for such a link; a cached read);
     // web_quiz_share_link_lang_en: an English card's link (&lang=en) previews in English, an Urdu lesson's too
-    const linkLang = preview && view === 'quiz' && req.query.lang === 'ur' && (await linkLangOn()) === true ? 'ur'
+    // web_quiz_share_page_lang: a friend's challenge link (?lang=, the page's language) previews in it, picture included
+    const chalLangOf = async (f) => Boolean(preview && view === 'quiz' && f && f.invited && (req.query.lang === 'en' || req.query.lang === 'ur'))
+      && (await pageLangOn()) === true;
+    const chalLang = await chalLangOf(known);
+    const linkLang = chalLang ? req.query.lang
+      : preview && view === 'quiz' && req.query.lang === 'ur' && (await linkLangOn()) === true ? 'ur'
       : preview && view === 'quiz' && req.query.lang === 'en' && (await linkLangEnOn()) === true ? 'en' : null;
     if (known && !(view === 'class' && known.invited)) {
-      return res.status(200).type('html').send(renderPreviewPage({ facts: known, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k, linkLang }));
+      return res.status(200).type('html').send(renderPreviewPage({ facts: known, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k, linkLang, chalLang }));
     }
     // Fast first page: the head and the Jugnu frame now, the quiz when the bot answers (never on a teacher's preview
     // link, never on a link-preview fetch: a crawler gets the preview page below, never the quiz).
@@ -1635,7 +1645,9 @@ function createWebQuizRouter(opts = {}) {
       // `st` here = step timings, not the session token (no page script reads the boot's `st`: a source-scan row pins it)
       if (flush) return wire.page(renderQuizFlushTail({ guess: flush.guess, payload: uiLangOf(out.steps ? { ...out.body, st: out.steps } : out.body, view, storedLangOf(req, out.body, view) || req.query.lang), code: upper, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k }));
       if (preview) {
-        return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k, linkLang }));
+        const facts = Preview.ogFacts(out.body);
+        const chal = await chalLangOf(facts);
+        return res.status(200).type('html').send(renderPreviewPage({ facts, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k, linkLang: chal ? req.query.lang : linkLang, chalLang: chal }));
       }
       const render = () => renderQuizPage({ payload: uiLangOf(out.body, view, storedLangOf(req, out.body, view) || req.query.lang), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v, k: req.query.k });
       if (!out.steps) return res.status(200).type('html').send(render());
@@ -1914,6 +1926,9 @@ function createWebQuizRouter(opts = {}) {
   const linkLangOn = quickFlag(opts.linkLangOn || StoryAssets.flagReader({ now, key: 'web_quiz_share_link_lang' }));
   // web_quiz_share_link_lang_en: an English card's link (`?lang=en`) previews in English. Off: today's preview.
   const linkLangEnOn = quickFlag(opts.linkLangEnOn || StoryAssets.flagReader({ now, key: 'web_quiz_share_link_lang_en', jsonTrue: true }), { lazy: true });
+  // web_quiz_share_page_lang: a friend's challenge link (`?lang=`) previews in that language, its invite picture too
+  // (renderPreviewPage chalLang). Asked only for such a link. Off: today's preview.
+  const pageLangOn = quickFlag(opts.pageLangOn || StoryAssets.flagReader({ now, key: 'web_quiz_share_page_lang', jsonTrue: true }), { lazy: true });
   // web_quiz_head_full: see page() (the fast first page's guessed head). Off: today's guess.
   const headFullOn = quickFlag(opts.headFullOn || StoryAssets.flagReader({ now, key: 'web_quiz_head_full' }));
   // web_quiz_head_guess_honest (JSON true only): see page(). Read only behind web_quiz_head_full on, never before its
