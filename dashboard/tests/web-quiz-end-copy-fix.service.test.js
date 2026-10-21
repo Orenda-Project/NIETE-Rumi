@@ -11,6 +11,7 @@
  *  - UD-3: the school league's sector chip by its catalog name (the board's `sector_name`), and a move of one place in
  *    its one form («کل سے ایک درجہ نیچے»).
  *  - SH-1: the class table and league sheets keep their words 16 px in from both sides of the box.
+ *  - CF-2: an end with no star earned gets no confetti (the card and the fanfare stay).
  * Off (absent or anything but JSON true): every screen is today's, byte for byte.
  */
 const fs = require('fs');
@@ -108,7 +109,7 @@ const replay = (card, vs) => ({ wq_s_TEST: { st: 'st1', child: CHILD, answers: {
 const VS = { first: 'Testwala', correct: 4, total: 7, outcome: 'lose' };
 describe('DUP-2 on: under the compare box the practice line drops its score', () => {
   test.each([
-    ['en', 'Practice round · your first score is the one that counts', 'Practice round · your first score 3/7'],
+    ['en', 'Practice round · your first try counts', 'Practice round · your first score 3/7'],
     ['ur', 'مشق کا راؤنڈ · صرف پہلی بار کا اسکور گنا جاتا ہے', 'پہلی بار کا اسکور ۳/۷'],
   ])('%s', (lang, short, long) => {
     const on = page({ lang, store: replay({}, VS), bootExtra: { share_page_lang: true, ...ON } });
@@ -212,6 +213,31 @@ describe('SH-1 on: the class table and league sheets pad their words', () => {
     expect(FC).toContain(".wqfc-sh-msg.wqfc-sh-pad{padding-inline:16px}");
     expect(FC).toMatch(/msgHtml\(o\.text, o\.url, o\.iso, o\.one === true && l === 'ur', o\.bidi === true && l === 'ur', o\.pad === true\)/);
     expect(FC).toMatch(/bidi: o\.bidi === true, pad: o\.pad === true \}\);/);
+  });
+});
+
+// ─── CF-2: confetti only with a star ────────────────────────────────────────
+
+describe('CF-2 on: no confetti at 0 stars', () => {
+  async function juiced(bootExtra, correct) {
+    const res = { score: { correct, total: 8 }, card: {} };
+    const p = page({ lang: 'en', store: store(res), bootExtra, api: { '/finish': res } });
+    const calls = [];
+    p.ctx.WQJ = { finish: (o) => calls.push(o), skin() {}, toggle() {}, muted: () => true, stopAll() {} };
+    p.wq.results(0);
+    for (let k = 0; k < 6; k += 1) await flush();
+    return calls;
+  }
+  test('0 of 8: the finish runs without confetti; 1 of 8 keeps it', async () => {
+    expect((await juiced(ON, 0))[0].nc).toBe(true);
+    expect('nc' in (await juiced(ON, 1))[0]).toBe(false);
+  });
+  test.each(OFFS)('off %j: today\'s finish at 0 of 8', async (off) => {
+    expect('nc' in (await juiced(off, 0))[0]).toBe(false);
+  });
+  test('the kit: nc skips only the confetti', () => {
+    const J = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'wq-juice.js'), 'utf8');
+    expect(J).toContain('if (!o.nc) confetti(24, 1600, o.back === true);');
   });
 });
 

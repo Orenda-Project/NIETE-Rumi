@@ -1715,7 +1715,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       isKid: function (n) { return 'Is this ' + n + '?'; }, yes: 'Yes', fixed: 'Fixed.',
       practice: function (c, t) { return 'Practice round · your first score ' + c + '/' + t + ' is the one that counts'; },
       // web_quiz_end_copy_fix: under the replay's own compare box, which already gives both scores
-      practiceKept: 'Practice round · your first score is the one that counts',
+      practiceKept: 'Practice round · your first try counts',
       preview: "This is your preview. It isn't saved for your class.",
       newBest: 'New best!', wasBest: 'was',
       tFor: 'For you, the teacher', tLead: 'Your class plays this from the link you forwarded. See who has played, or try it yourself.',
@@ -2581,7 +2581,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (!foldOn(res)) libPrefetch();   // the folded card opens no video list
       wireBar();
       // web_quiz_share_page_lang: the confetti falls behind the card (wq-juice back), never over its headline
-      if (window.WQJ) WQJ.finish(B.share_page_lang === true ? { el: ROOT.querySelector('.wq-card'), kind: 'quiz', back: true } : { el: ROOT.querySelector('.wq-card'), kind: 'quiz' }); else sfx('done');
+      var jo = B.share_page_lang === true ? { el: ROOT.querySelector('.wq-card'), kind: 'quiz', back: true } : { el: ROOT.querySelector('.wq-card'), kind: 'quiz' };
+      // web_quiz_end_copy_fix (CF-2): confetti only with at least one star earned (nc: the kit's finish without confetti)
+      if ((typeof END_COPY !== 'undefined' && END_COPY) && !(sc.correct > 0)) jo.nc = true;
+      if (window.WQJ) WQJ.finish(jo); else sfx('done');
       speak(done.text, done.url, null);
       on('#wq-card', card);
       on('#wq-class', board);

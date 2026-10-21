@@ -92,6 +92,22 @@ describe('UD-2 the class table picture (ui.dg)', () => {
   });
 });
 
+// ─── UD-4: a sector with no catalog row stays as stored ──────────────────────
+
+describe('UD-4 a sector is named by the catalog only when it has a row', () => {
+  test('the school picture: «آئی سی ٹی» from the catalog, "Urban-I" (no row) as stored', () => {
+    const d = { rows: [{ rank: 1, name: 'School Alpha', sector: 'ict', points: 10, kids: 2, move: 0, you: true }, { rank: 2, name: 'School Beta', sector: 'Urban-I', points: 9, kids: 2, move: 0 }] };
+    const h = art('school', 'sq', 'ur', d, { ...LIVE, nb: true });
+    expect(h).toContain('آئی سی ٹی');
+    expect(h).toContain('Urban-I');
+  });
+  test('the league answer: names only for a catalog row', () => {
+    expect(S._sectorNames('ict')).toEqual({ en: 'ICT', ur: 'آئی سی ٹی' });
+    expect(S._sectorNames('Urban-I')).toBeNull();
+    expect(S._sectorNames(null)).toBeNull();
+  });
+});
+
 // ─── UD-3: the school league's answer ───────────────────────────────────────
 
 describe('UD-3 the school league names the sector by its catalog names', () => {

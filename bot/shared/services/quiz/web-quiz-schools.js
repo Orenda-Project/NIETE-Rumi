@@ -396,4 +396,4 @@ function endCopied(on, out) {
   return { ...out, ...(names ? { mine: { ...out.mine, sector_name: names } } : {}), end_copy: true };
 }
 
-module.exports = { board, scoreSchools, countedPlays, neighbours, pointsFor, weekStartIso, dayStartIso, CACHE_MS, _reset };
+module.exports = { board, scoreSchools, countedPlays, neighbours, pointsFor, weekStartIso, dayStartIso, CACHE_MS, _reset, _sectorNames: sectorNames };
