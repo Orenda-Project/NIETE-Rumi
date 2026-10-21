@@ -26,6 +26,16 @@
  *              against its accept / reject / rubric
  * Numbers at the top of the marks are what the results page shows (sa-api.service numbersOf); the rest is nested.
  * No prompt carries a name: item text and audio only.
+ *
+ * Two switches, both OFF by default (the off path is the one above, unchanged):
+ *   CHILD_TEST_SA_CLIP_WAIT_S=<s>     a questions task whose asked clips have not all come is scored once its row has
+ *                                     had no new clip for <s> seconds (else: 2 min after the session's end). A question
+ *                                     tapped through before Jugnu finished reading it has no clip and never will, so
+ *                                     the last task of a battery waited past the coach's look at Results. A clip that
+ *                                     comes after the marks reopens the row (sa-store setAudio), so nothing is lost.
+ *   CHILD_TEST_SA_SPEECH_GATE=on      every clip goes to STT (Soniox) first. No word heard, or the model's own
+ *                                     found:false, and the clip is "no response": each of its items is not reached /
+ *                                     no answer, conf 0, no_speech: true, never correct (a tone scored 4/4 before).
  */
 
 const { logToFile, logError } = require('../../../utils/logger');
@@ -45,10 +55,13 @@ const SECONDS = 60;
 const TASK_RE = /^[a-z]{2}\.[a-z0-9_]{1,40}$/;
 
 const isOn = () => process.env.CHILD_TEST_SA_SCORER === 'on';
+const gateOn = () => process.env.CHILD_TEST_SA_SPEECH_GATE === 'on';
+const clipWaitMs = () => { const s = Number(process.env.CHILD_TEST_SA_CLIP_WAIT_S); return s > 0 ? s * 1000 : null; };
 const sinceHours = () => Number(process.env.CHILD_TEST_SA_SCORER_SINCE_H) || 48;
 const ownEnv = () => process.env.CHILD_TEST_R2_ENV || process.env.RAILWAY_ENVIRONMENT || 'local';
 const envOf = (key) => { const m = /^child-test\/([^/]+)\//.exec(String(key || '')); return m ? m[1] : null; };
 const round1 = (x) => Math.round(x * 10) / 10;
+const band = (c) => (c == null ? null : c >= 0.8 ? 'high' : c >= 0.5 ? 'mid' : 'low');
 const conf01 = (c) => { const n = Number(c); return Number.isFinite(n) ? Math.max(0, Math.min(1, Math.round(n * 100) / 100)) : null; };
 const mean = (xs) => { const v = xs.filter((x) => x != null); return v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 100) / 100 : null; };
 const resultOf = (r) => (Array.isArray(r.responses) && r.responses.find((x) => x && x.kind === 'result')) || null;
@@ -203,6 +216,16 @@ function defaultDeps() {
         return { base64: clip.base64, durationSec: dur };
       } finally { media.cleanup(file); }
     },
+    // the speech gate: STT on the clip the model hears; words = how many words it heard
+    speechOf: async (clip, lang) => {
+      const fs = require('fs');
+      const file = media.tmpFile('mp3');
+      fs.writeFileSync(file, Buffer.from(clip.base64, 'base64'));
+      try {
+        const r = await require('../scoring/stt').transcribe(file, lang === 'en' ? 'en' : 'ur', clip.durationSec);
+        return { words: (r.words || []).length, model: r.model, cost: r.cost, seconds: r.seconds };
+      } finally { media.cleanup(file); }
+    },
     bank: loadBank(),
     phoneBattery,
   };
@@ -224,12 +247,31 @@ async function call(deps, calls, { prompt, schema, clip, job }) {
   return r.json;
 }
 
+/**
+ * The speech gate (CHILD_TEST_SA_SPEECH_GATE): true when STT hears no word in the clip, false when it hears some,
+ * null when it cannot say (switch off, STT failed): then the model's verdicts stand as they are.
+ */
+async function silent(deps, calls, clip, lang) {
+  if (!gateOn() || !deps.speechOf) return null;
+  try {
+    const s = await deps.speechOf(clip, lang);
+    calls.push({ job: 'child_test.sa_speech_gate', model: s.model || 'stt', cost: s.cost == null ? null : Math.round(s.cost * 1e5) / 1e5, seconds: round1(s.seconds || 0), error: null, words: s.words });
+    return Number.isInteger(s.words) ? s.words === 0 : null;
+  } catch (e) {
+    calls.push({ job: 'child_test.sa_speech_gate', model: 'stt', cost: null, seconds: 0, error: String((e && e.message) || e).slice(0, 120) });
+    return null;
+  }
+}
+
+/** A clip with no speech: each of its items is not reached (timed) / no answer (questions), conf 0, never correct. */
+const MUTE = { verdict: 'not_reached', heard: '', conf: 0, no_speech: true };
+
 /** Timed rows from per-position verdicts; a gap before the last reached item is wrong (EGRA: skipped = incorrect). */
 function timedRows(refs, verdictOf) {
   const v = refs.map((_, k) => verdictOf(k));
   let last = 0;
   v.forEach((x, k) => { if (x.verdict !== 'not_reached') last = k + 1; });
-  return refs.map((ref, k) => ({ i: k + 1, ref, verdict: v[k].verdict === 'not_reached' && k < last ? 'wrong' : v[k].verdict, heard: v[k].heard || '', conf: v[k].conf }));
+  return refs.map((ref, k) => ({ i: k + 1, ref, verdict: v[k].verdict === 'not_reached' && k < last ? 'wrong' : v[k].verdict, heard: v[k].heard || '', conf: v[k].conf, ...(v[k].no_speech ? { no_speech: true } : {}) }));
 }
 
 function firstRowStopped(rows, n) {
@@ -253,10 +295,13 @@ async function scoreGrid(task, rec, row, res, deps, calls, grade) {
   const letters = /letter/.test(task.subtask || task.task);
   const LV = { c: 'correct', w: 'wrong', s: 'not_reached', n: 'not_reached' };
   let rows;
-  if (letters) {
+  const mute = await silent(deps, calls, clip, task.lang);
+  if (mute) rows = timedRows(items, () => MUTE);
+  else if (letters) {
     const json = await call(deps, calls, { prompt: lettersPrompt({ grade, lang: task.lang, items, perRow, sound: /sound/.test(task.subtask || task.task), answers: rec.answers || [], one: task.present === 'one_at_a_time' }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_letters' });
     const by = new Map((json.items || []).map((it, j) => [Number(it.i) || j + 1, it]));
-    rows = timedRows(items, (k) => { const it = by.get(k + 1) || {}; return { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf) }; });
+    rows = gateOn() && json.found === false ? timedRows(items, () => MUTE)
+      : timedRows(items, (k) => { const it = by.get(k + 1) || {}; return { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf) }; });
   } else {
     rows = await storyRows(items, task.lang, clip, deps, calls, 'child_test.sa_words');
   }
@@ -297,11 +342,13 @@ async function scoreOral(task, rec, row, res, deps, calls) {
   for (const p of parts) {
     const clip = await deps.clipOf(p.key);
     durationSec = (durationSec || 0) + (clip.durationSec || 0);
+    if (await silent(deps, calls, clip, task.lang)) { p.at.forEach((k) => got.set(k, { mute: true })); continue; }
     const json = await call(deps, calls, { prompt: oralPrompt({ lang: task.lang, task, items: p.list, one }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_oral_maths' });
     const by = new Map((json.items || []).map((it, j) => [Number(it.i) || j + 1, it]));
-    p.at.forEach((k, j) => got.set(k, by.get(j + 1) || {}));
+    const none = gateOn() && json.found === false;
+    p.at.forEach((k, j) => got.set(k, none ? { mute: true } : by.get(j + 1) || {}));
   }
-  const rows = timedRows(items.map((x) => String(x.show)), (k) => { const it = got.get(k) || {}; return { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf) }; });
+  const rows = timedRows(items.map((x) => String(x.show)), (k) => { const it = got.get(k) || {}; return it.mute ? MUTE : { verdict: LV[it.v] || 'not_reached', heard: String(it.heard || ''), conf: conf01(it.conf) }; });
   rows.forEach((r, k) => { r.id = items[k].id; r.answer = items[k].answer; });
   const timed = Number(rec.time_limit_s) > 0;
   const attemptedTo = reachedOf(task, res, items.length);
@@ -325,7 +372,8 @@ async function scorePassage(task, rec, row, res, deps, calls) {
   const p = rec.passage || {};
   const tokens = Array.isArray(p.words) && p.words.length ? p.words.map((w) => String(w.target)) : String(p.text || '').split(/\s+/).filter(Boolean);
   const clip = await deps.clipOf(row.audio_r2_key);
-  const rows = await storyRows(tokens, task.lang, clip, deps, calls, 'child_test.sa_story');
+  const rows = (await silent(deps, calls, clip, task.lang)) ? timedRows(tokens, () => MUTE)
+    : await storyRows(tokens, task.lang, clip, deps, calls, 'child_test.sa_story');
   // RULING #2: the child taps the last word read; words after it were not attempted
   const tapped = res && Number.isInteger(res.last_word_index) ? Math.min(tokens.length, res.last_word_index + 1) : null;
   const line1 = (p.lines || [])[0];
@@ -345,18 +393,24 @@ async function scoreQuestions(task, rec, row, res, deps, calls) {
       const k = keys.find((x) => x.i === q.id);
       if (!k) continue; // no clip for this question: no answer heard
       const clip = await deps.clipOf(k.key);
+      if (await silent(deps, calls, clip, task.lang)) { marked.set(q.id, { mute: true }); continue; }
       const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: [q], passage, single: false }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
       const got = (json.questions || [])[0];
       if (got) marked.set(q.id, got);
     }
   } else if (row.audio_r2_key) {
     const clip = await deps.clipOf(row.audio_r2_key);
-    const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: qs, passage, single: true }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
-    for (const g of json.questions || []) marked.set(g.id, g);
+    if (await silent(deps, calls, clip, task.lang)) qs.forEach((q) => marked.set(q.id, { mute: true }));
+    else {
+      const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: qs, passage, single: true }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
+      for (const g of json.questions || []) marked.set(g.id, g);
+    }
   }
   const rows = qs.map((q, k) => {
     const g = marked.get(q.id);
-    return { i: k + 1, id: q.id, verdict: g ? g.verdict : 'no_answer', heard: g ? String(g.answer || '') : '', conf: g ? conf01(g.confidence) : null, clip: keys.some((x) => x.i === q.id) || Boolean(row.audio_r2_key) };
+    const clip = keys.some((x) => x.i === q.id) || Boolean(row.audio_r2_key);
+    if (g && g.mute) return { i: k + 1, id: q.id, verdict: 'no_answer', heard: '', conf: 0, no_speech: true, clip };
+    return { i: k + 1, id: q.id, verdict: g ? g.verdict : 'no_answer', heard: g ? String(g.answer || '') : '', conf: g ? conf01(g.confidence) : null, clip };
   });
   return { numbers: { correct: rows.filter((r) => r.verdict === 'correct').length, of: rows.length }, rows, stopped: false };
 }
@@ -393,6 +447,7 @@ async function scoreRow(row, session, deps = {}) {
     else if (Array.isArray(rec.questions)) out = await scoreQuestions(task, rec, row, res, d, calls);
     else return { ok: false, reason: 'no_scorer_for_kind', retry: false };
     const confidence = mean(out.rows.map((r) => r.conf));
+    const mutes = out.rows.filter((r) => r.no_speech).length;
     return {
       ok: true,
       marks: {
@@ -406,6 +461,7 @@ async function scoreRow(row, session, deps = {}) {
           stopped_by_rule: !!out.stopped,
           ...(out.tapped != null ? { last_word_tapped: out.tapped } : {}),
           confidence,
+          ...(gateOn() ? { confidence_band: mutes ? 'low' : band(confidence), no_speech: mutes > 0 && mutes === out.rows.length, no_speech_items: mutes } : {}),
           items: out.rows,
         },
         model_versions: { counts: d.model() },
@@ -425,6 +481,9 @@ function ready(row, session, nowMs) {
   const asked = Array.isArray(res.asked) ? res.asked : [];
   const keys = keysOf(row);
   if (asked.length && asked.every((id) => keys.some((k) => k.i === id))) return true;
+  const quiet = clipWaitMs();
+  const touched = Date.parse(row.updated_at || '') || 0;
+  if (quiet != null && touched > 0) return nowMs - touched > quiet;
   const ended = Date.parse(session.finished_at || session.client_finished_at || '') || Date.parse(row.updated_at || '') || 0;
   return ended > 0 && nowMs - ended > WAIT_FOR_CLIPS_MS;
 }

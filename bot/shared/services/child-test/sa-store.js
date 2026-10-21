@@ -19,6 +19,7 @@ const SESSIONS = 'child_test_sessions';
 const BLOCKS = 'child_test_blocks';
 const PARKED = 'final:sa_score_later';
 const PHONE_SCORER = 'tap-v1';
+const SA_SCORER_MARKS = 'sa-marks-v1'; // sa/score.js VERSION
 const MODES = ['tap', 'keypad', 'keyboard', 'record', 'oral'];
 const DEVICE_FIELDS = ['ua', 'bundle_v', 'offline', 'skew_ms', 'mic_ok', 'mic_rms', 'persisted', 'voice'];
 // the ruling events a session keeps (device.events); past the cap the oldest are kept
@@ -162,8 +163,15 @@ async function setAudio(sessionId, taskId, itemId, key, { scoreLater = false } =
   const got = await rowFor(sessionId, taskId);
   if (!got.ok) return got;
   const row = got.row;
-  if (row.ai_marks) return { ok: false, reason: 'frozen' };
   const patch = {};
+  if (row.ai_marks) {
+    // A spoken answer that comes after the SA scorer marked its task (CHILD_TEST_SA_CLIP_WAIT_S on: the scorer no
+    // longer waits for every clip) reopens the task to be scored again with it. Phone marks stay frozen.
+    const late = itemId && row.ai_marks.version === SA_SCORER_MARKS && Number(process.env.CHILD_TEST_SA_CLIP_WAIT_S) > 0
+      && !(Array.isArray(row.audio_r2_keys) && row.audio_r2_keys.some((k) => k && k.i === itemId));
+    if (!late) return { ok: false, reason: 'frozen' };
+    patch.ai_marks = null;
+  }
   if (itemId) {
     const keys = (Array.isArray(row.audio_r2_keys) ? row.audio_r2_keys : []).filter((k) => k && k.i !== itemId);
     patch.audio_r2_keys = [...keys, { i: itemId, key }];
