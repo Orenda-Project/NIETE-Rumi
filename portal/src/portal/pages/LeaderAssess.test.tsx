@@ -1007,6 +1007,68 @@ describe("LeaderAssess", () => {
       expect(card).toHaveTextContent("فی بچہ تقریباً ⁦۲۰⁩ منٹ");
       expect(within(card).getByRole("radio", { name: /آر ڈی ایف/ })).toBeInTheDocument();
     });
+
+    describe("Wave 3: RDF auto and RDF manual (sa_rdf_w3_forms)", () => {
+
+    it("the RDF entry becomes RDF auto and RDF manual, each about 20 minutes per child and needing a working microphone", async () => {
+      picks({ rdfForm: true, rdfW3Forms: true });
+      await openList();
+      const card = await present("d1");
+      expect(within(card).queryByRole("radio", { name: /^RDF$/ })).toBeNull();
+      for (const name of ["RDF auto", "RDF manual"]) {
+        const r = within(card).getByRole("radio", { name: new RegExp(`^${name}`) });
+        expect(r.closest("label")).toHaveTextContent("about 20 minutes per child");
+        expect(r).toBeDisabled();
+      }
+      expect(card).toHaveTextContent("RDF needs a working microphone");
+    });
+
+    it("RDF manual with a working microphone is sent and run as 'rdf_manual'", async () => {
+      picks({ rdfW3Forms: true });
+      await openListWithMic();
+      const card = await present("d1");
+      fireEvent.click(within(card).getByRole("radio", { name: /^RDF manual/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Start" }));
+      const frame = await screen.findByTestId("assess-engine-frame");
+      const s = new URL(frame.getAttribute("src") as string, "http://x").searchParams;
+      expect(s.get("block")).toBe("rdf_manual");
+      expect(api.markOutcome.mock.calls[0][0]).toMatchObject({ block: "rdf_manual" });
+      saDone(s.get("s") as string);
+      expect(await screen.findByTestId("assess-child-d1")).toHaveTextContent("RDF manual");
+    });
+
+    it("without the coach's picker: RDF auto and RDF manual boxes next to Whole battery", async () => {
+      api.getSwitches.mockResolvedValue({ ...SWITCHES_OFF, rdfForm: true, rdfW3Forms: true });
+      await openListWithMic();
+      const card = await present("d1");
+      expect(within(card).queryByRole("checkbox", { name: /^RDF$/ })).toBeNull();
+      fireEvent.click(within(card).getByRole("checkbox", { name: /^RDF auto/ }));
+      expect(within(card).getByRole("checkbox", { name: /^RDF manual/ })).not.toBeChecked();
+      fireEvent.click(screen.getByRole("button", { name: "Start" }));
+      const frame = await screen.findByTestId("assess-engine-frame");
+      expect(new URL(frame.getAttribute("src") as string, "http://x").searchParams.get("block")).toBe("rdf_auto");
+    });
+
+    it("Urdu names", async () => {
+      picks({ rdfW3Forms: true });
+      window.localStorage.setItem("niete-assess-lang", "ur");
+      renderPage();
+      fireEvent.click(await screen.findByTestId("assess-school-s2"));
+      fireEvent.click(await screen.findByTestId("assess-preflight-ready"));
+      fireEvent.click(within(await screen.findByTestId("assess-child-d1")).getByRole("button", { name: "حاضر" }));
+      const card = await screen.findByTestId("assess-handover");
+      expect(within(card).getByRole("radio", { name: /آر ڈی ایف خودکار/ })).toBeInTheDocument();
+      expect(within(card).getByRole("radio", { name: /آر ڈی ایف دستی/ })).toBeInTheDocument();
+    });
+
+    it("OFF: the single RDF entry, as before", async () => {
+      picks({ rdfForm: true });
+      await openList();
+      const card = await present("d1");
+      expect(within(card).getByRole("radio", { name: /^RDF/ }).closest("label")).not.toHaveTextContent(/auto|manual/);
+      expect(within(card).queryByRole("radio", { name: /RDF manual/ })).toBeNull();
+    });
+    });
   });
 
   describe("results links (sa_results_view)", () => {

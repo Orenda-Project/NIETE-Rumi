@@ -9,7 +9,7 @@ import type { SaSwitches } from '../../types/childTestSa';
  */
 
 export const SWITCHES_OFF: SaSwitches = {
-  handbackV2: false, micRequired: false, coachPicksBlock: false, rdfForm: false, resultsView: false,
+  handbackV2: false, micRequired: false, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false,
 };
 
 export function useSaSwitches(enabled: boolean | null): SaSwitches {
@@ -26,6 +26,7 @@ export function useSaSwitches(enabled: boolean | null): SaSwitches {
           coachPicksBlock: s.coachPicksBlock === true,
           rdfForm: s.rdfForm === true,
           resultsView: s.resultsView === true,
+          rdfW3Forms: s.rdfW3Forms === true,
         });
       })
       .catch(() => { /* off */ });

@@ -11,7 +11,7 @@ export type SaSchool = {
 
 export type SaOutcome = "present" | "absent" | "refused";
 
-export type SaBlock = "B1" | "B2" | "B3" | "B4" | "B5" | "full" | "rdf";
+export type SaBlock = "B1" | "B2" | "B3" | "B4" | "B5" | "full" | "rdf" | "rdf_auto" | "rdf_manual";
 
 /** The page's switches for this coach (GET …/sa/switches); each is off unless its row names them. */
 export type SaSwitches = {
@@ -20,6 +20,8 @@ export type SaSwitches = {
   coachPicksBlock: boolean;
   rdfForm: boolean;
   resultsView: boolean;
+  /** sa_rdf_w3_forms: the RDF entry is two, RDF auto and RDF manual */
+  rdfW3Forms?: boolean;
 };
 
 /** One drawn child. Never a roll number or student id (operator: "Name · Grade 3 - A · Teacher: …"). */
