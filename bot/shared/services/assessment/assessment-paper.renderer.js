@@ -331,7 +331,7 @@ function totalMarks(questions) {
 // accepted so older callers keep working; it changes nothing here.)
 // eslint-disable-next-line no-unused-vars
 function renderPaper({ examJson, grade, subject, schoolName, pageReference,
-                       chapterTitle, includeAnswerKey = false, answerLines = true }) {
+                       chapterTitle, includeAnswerKey = false, answerLines = true, paperKind = null }) {
   // A board-pattern paper carries its layout and prints by it; read off the paper, never a flag.
   if (examJson && examJson._layout) return require('./assessment-paper-fde.renderer').renderPaper(arguments[0]);
   const lineMm = lineHeightMm(grade);
@@ -426,8 +426,8 @@ ${sub ? `<div class="chapter">${sub}</div>` : ''}
 <table class="marks-header">
   <tr><td class="k">Student Name</td><td colspan="3"></td></tr>
   <tr><td class="k">Roll No</td><td></td><td class="k">Date</td><td></td></tr>
-  <tr><td class="k">Total Marks</td><td>${totalMarks(questions)}</td><td class="k">Obtained Marks</td><td></td></tr>
-</table>
+${paperKind === 'topic' ? '' : `  <tr><td class="k">Total Marks</td><td>${totalMarks(questions)}</td><td class="k">Obtained Marks</td><td></td></tr>
+`}</table>
 <div class="instructions"><b>Instructions</b>
   <ol>${INSTRUCTIONS.map((i) => `<li>${esc(i)}</li>`).join('')}</ol>
 </div>
@@ -453,12 +453,14 @@ function questionLabel(question) {
  * On an Urdu key the marks are a Latin run inside a right-to-left table and
  * stay isolated left-to-right.
  */
-function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, chapterTitle }) {
+function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, chapterTitle, topics }) {
   // A board-pattern paper's key is its marking scheme.
   if (examJson && examJson._layout) return require('./assessment-paper-fde.renderer').renderMarkingScheme(arguments[0]);
   const questions = collectQuestions(examJson);
   const rtl = isRtl(subject);
   const dash = '—';
+  // A topic paper's key says which skill each answer tests, and sums the paper by topic.
+  const byTopic = Array.isArray(topics) && topics.length > 0;
 
   const rows = [];
   let number = 1;
@@ -493,7 +495,7 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
       answer = question && question.answer ? escMultiline(question.answer) : dash;
     }
     rows.push(`<tr><td class="num">${number}.</td><td class="qt">${esc(questionLabel(question))}</td>`
-      + `<td class="ans">${answer}</td><td class="mk">${marksLabel(questionMarks(question))}</td></tr>`);
+      + `<td class="ans">${answer}${byTopic && question && question.slo ? `<div class="slo">SLO ${esc(question.slo)}</div>` : ''}</td><td class="mk">${marksLabel(questionMarks(question))}</td></tr>`);
     number += 1;
   }
 
@@ -529,13 +531,17 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
   table.key tr.type td { border-bottom: 1.5px solid #000; font-size: 10.5pt; font-weight: 700;
     text-transform: uppercase; letter-spacing: .04em; padding-top: 14px; }
   tr { page-break-inside: avoid; }
-</style></head>
+${byTopic ? `  .topic-summary { border: 1px solid #999; padding: 6px 10px; margin-bottom: 12px; font-size: 10.5pt; }
+  .ts-line { direction: ltr; unicode-bidi: isolate; text-align: left; }
+  table.key td.ans .slo { font-weight: 400; font-size: 9.5pt; color: #444; direction: ltr; unicode-bidi: isolate; }
+` : ''}</style></head>
 <body>
 ${schoolName ? `<div class="school">${esc(schoolName)}</div>` : ''}
 <div class="class-line">${heading}</div>
 <div class="title">Answer Key</div>
 ${sub ? `<div class="chapter">${sub}</div>` : ''}
-<div class="teacher">For the teacher. Numbers match the question paper. ${dash} marks a question the generator gave no model answer for.</div>
+<div class="teacher">For the teacher. Numbers match the question paper. ${dash} marks a question the generator gave no model answer for.</div>${byTopic ? `
+${require('./topic-key.renderer').renderTopicSummary({ questions, topics })}` : ''}
 <table class="key">
 ${rows.join('\n')}
 </table>
@@ -545,7 +551,7 @@ ${rows.join('\n')}
 module.exports = {
   renderPaper, renderAnswerKey, collectQuestions, totalMarks, renderQuestion,
   answerLinesFor, storedLines, MAX_STORED_LINES,
-  NO_LINES, isRtl, GENERIC_TYPES,
+  NO_LINES, isRtl, GENERIC_TYPES, questionMarks,
   // For a second renderer that prints the same fonts and escapes the same way.
   fontFaces, esc,
 };
