@@ -13,6 +13,15 @@ export type SaOutcome = "present" | "absent" | "refused";
 
 export type SaBlock = "B1" | "B2" | "B3" | "B4" | "B5" | "full";
 
+/** The page's switches for this coach (GET …/sa/switches); each is off unless its row names them. */
+export type SaSwitches = {
+  handbackV2: boolean;
+  micRequired: boolean;
+  coachPicksBlock: boolean;
+  rdfForm: boolean;
+  resultsView: boolean;
+};
+
 /** One drawn child. Never a roll number or student id (operator: "Name · Grade 3 - A · Teacher: …"). */
 export type SaChild = {
   drawId: string;

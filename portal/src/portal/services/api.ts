@@ -4,7 +4,7 @@ import { ANALYTICS_LOGIN } from '../lib/homeRoute';
 import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData, SchoolAnalyticsResponse,
   AttendanceResponse } from '../types/portal';
 import type { ChildTestVisit, ChildTestList, ChildTestCard, ChildTestSession, ChildTestBlockName } from '../types/childTest';
-import type { SaBlock, SaList, SaOutcome, SaSchool, SaSessionStatus } from '../types/childTestSa';
+import type { SaBlock, SaList, SaOutcome, SaSchool, SaSessionStatus, SaSwitches } from '../types/childTestSa';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
 import type { CoachingAnalyticsResponse, SchoolsAnalyticsResponse } from '../types/portal';
@@ -1299,6 +1299,9 @@ const CTS = '/leader/child-test/sa';
 
 export const childTestSa = {
   getSchools: async (): Promise<{ schools: SaSchool[] }> => (await api.get(`${CTS}/schools`)).data,
+
+  /** The page's own switches for this coach (each off unless its app_settings row names them). */
+  getSwitches: async (): Promise<SaSwitches> => (await api.get(`${CTS}/switches`)).data.switches,
 
   getList: async (schoolId: string, visitId?: string | null): Promise<{ list: SaList }> =>
     (await api.get(`${CTS}/list`, { params: visitId ? { schoolId, visitId } : { schoolId } })).data,

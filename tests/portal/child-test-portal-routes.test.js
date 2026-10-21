@@ -234,6 +234,30 @@ describe('the Learning assessment (sa/*): its own switch, the same relay', () =>
   });
 });
 
+describe('the Learning assessment\'s page switches (sa/switches)', () => {
+  test('behind portal_child_test_sa: 404 when off, and the bot is never asked', async () => {
+    tableRows.app_settings.push({ key: 'sa_handback_v2', value: true });
+    expect((await invoke(ROUTES, 'get', '/sa/switches')).statusCode).toBe(404);
+    expect(axiosPost).not.toHaveBeenCalled();
+  });
+
+  test('each switch is off unless its row names this coach (true or a pilot list)', async () => {
+    tableRows.app_settings.push(
+      { key: 'portal_child_test_sa', value: [COACH] },
+      { key: 'sa_handback_v2', value: true },
+      { key: 'sa_mic_required', value: [COACH] },
+      { key: 'sa_coach_picks_block', value: ['someone-else'] },
+    );
+    const out = await invoke(ROUTES, 'get', '/sa/switches');
+    expect(out.statusCode).toBe(200);
+    expect(out.payload).toEqual({
+      success: true,
+      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false },
+    });
+    expect(axiosPost).not.toHaveBeenCalled();
+  });
+});
+
 describe("the Learning assessment's sink (sa/session/:id/*)", () => {
   const SID = '55555555-5555-4555-8555-555555555555';
   const BOT = 'https://bot.example/api/internal/child-test/';

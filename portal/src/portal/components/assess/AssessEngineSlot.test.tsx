@@ -110,6 +110,61 @@ describe("AssessEngineSlot", () => {
     expect(onFinished).toHaveBeenCalledTimes(1);
   });
 
+  describe("hand-back v2 (sa_handback_v2): the battery's end turns the hold into Next child", () => {
+    const batteryEnd = (s = SID) => act(() => {
+      window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:battery_end", s }, origin: window.location.origin }));
+    });
+
+    it("at sa:battery_end the hold reads Next child (coach) / Press and hold, and completing it finishes complete", () => {
+      const { frame, onFinished } = setup({ lang: "en", handbackV2: true });
+      const post = vi.fn();
+      Object.defineProperty(frame, "contentWindow", { configurable: true, get: () => ({ postMessage: post, location: { search: "" } }) });
+      expect(screen.getByRole("button", { name: /End test/ })).toBeInTheDocument();
+      batteryEnd();
+      const hold = screen.getByRole("button", { name: /Next child \(coach\)/ });
+      expect(hold).toHaveTextContent("Press and hold");
+      expect(screen.queryByRole("button", { name: /End test/ })).toBeNull();
+      vi.useFakeTimers();
+      fireEvent.pointerDown(hold);
+      act(() => { vi.advanceTimersByTime(3100); });
+      expect(onFinished).toHaveBeenCalledWith("complete");
+      expect(onFinished).toHaveBeenCalledTimes(1);
+      expect(post).not.toHaveBeenCalledWith(expect.objectContaining({ type: "sa:coach_end" }), expect.anything());
+    });
+
+    it("the Urdu labels", () => {
+      setup({ lang: "ur", handbackV2: true });
+      batteryEnd();
+      const hold = screen.getByRole("button", { name: /اگلا بچہ \(کوچ\)/ });
+      expect(hold).toHaveTextContent("دبا کر رکھیں");
+    });
+
+    it("a hold begun before the end can never yield coach_end once the battery has ended", () => {
+      const { onFinished } = setup({ lang: "en", handbackV2: true });
+      vi.useFakeTimers();
+      fireEvent.pointerDown(screen.getByRole("button", { name: /End test/ }));
+      act(() => { vi.advanceTimersByTime(3100); });
+      batteryEnd();
+      act(() => { window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:done", s: SID, reason: "coach_end" }, origin: window.location.origin })); });
+      expect(onFinished).toHaveBeenCalledWith("complete");
+      act(() => { vi.advanceTimersByTime(3100); });
+      expect(onFinished).toHaveBeenCalledTimes(1);
+    });
+
+    it("another session's battery_end changes nothing", () => {
+      setup({ lang: "en", handbackV2: true });
+      batteryEnd("other");
+      expect(screen.getByRole("button", { name: /End test/ })).toBeInTheDocument();
+    });
+
+    it("switch off: battery_end changes nothing (today's hold)", () => {
+      setup({ lang: "en" });
+      batteryEnd();
+      expect(screen.getByRole("button", { name: /End test/ })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Next child/ })).toBeNull();
+    });
+  });
+
   it("full screen belongs to the page, not the frame, so the coach's hold stays on top of the engine", () => {
     const req = vi.fn().mockResolvedValue(undefined);
     const exit = vi.fn().mockResolvedValue(undefined);
