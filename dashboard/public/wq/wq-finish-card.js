@@ -258,6 +258,7 @@
     '.wqfc-sh-pic{display:block;width:100%;height:auto;aspect-ratio:1200/630;border-radius:16px;background:#FDE68A;object-fit:cover}' +
     '.wqfc-sh-in .wq-btn{display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;min-height:56px;box-sizing:border-box}' +
     '.wqfc-sh-msg{background:#fff;border-radius:16px;padding:12px 14px;box-shadow:0 2px 0 rgba(15,23,42,.08);display:grid;gap:6px}' +
+    '.wqfc-sh-msg.wqfc-sh-pad{padding-inline:16px}.wqfc-sh-pad p{overflow-wrap:break-word;min-width:0}' +
     '.wqfc-sh-msg p{margin:0;font-size:16px;line-height:1.4;color:#1F2937}[lang="ur"] .wqfc-sh-msg p[dir="auto"],[lang="ur"] .wqfc-sh-msg p.wqfc-sh-rtl{font-size:18px;line-height:1.9}.wqfc-sh-msg p.wqfc-sh-ttl[dir="ltr"]{line-height:1.3}[lang="ur"] .wqfc-sh-msg p.wqfc-sh-ttl[dir="rtl"]{font-size:18px;line-height:1.9}.wqfc-sh-msg p.wqfc-sh-ttl.wqfc-sh-lat{font-size:16px;line-height:1.3}' +
     '.wqfc-sh-ok{text-align:center;font-weight:700;margin:0;min-height:1.5em}[lang="ur"] .wqfc-sh-in .wq-btn{font-size:20px;line-height:2}' +
     '@media (prefers-reduced-motion:no-preference){.wqfc-sh-in{animation:wqfc-up .25s ease-out both}@keyframes wqfc-up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}}';
@@ -488,10 +489,12 @@
     if (rtl === true && !RTL_RX.test(m[2])) return '<p class="wqfc-sh-ttl wqfc-sh-lat" dir="rtl">' + m[1] + '<bdi dir="ltr">' + esc(m[2]) + '</bdi>' + m[3] + '</p>';
     return '<p class="wqfc-sh-ttl" dir="' + (RTL_RX.test(m[2]) ? 'rtl' : 'ltr') + '">' + m[1] + '<bdi>' + esc(m[2]) + '</bdi>' + m[3] + '</p>';
   }
-  function msgHtml(text, url, iso, rtl, bidi) {
+  // pad (web_quiz_end_copy_fix, the class table and league sheets): the words 16 px in from both sides of their box
+  function msgHtml(text, url, iso, rtl, bidi, pad) {
     var t = String(text == null ? '' : text);
     if (url && t.slice(-url.length) === url) t = t.slice(0, -url.length).replace(/\s+$/, '');
     if (!t) return '';
+    if (pad === true) return msgHtml(text, url, iso, rtl, bidi).replace('<div class="wqfc-sh-msg">', '<div class="wqfc-sh-msg wqfc-sh-pad">');
     if (iso === true) return '<div class="wqfc-sh-msg">' + t.split('\n').filter(function (s) { return s.trim(); }).map(function (s) { return msgLine(s, rtl, bidi); }).join('') + '</div>';
     return '<div class="wqfc-sh-msg"><p ' + (bidi === true ? 'class="wqfc-sh-rtl" dir="rtl"' : 'dir="auto"') + '>' + esc(t) + '</p></div>';
   }
@@ -501,7 +504,7 @@
     var save = img ? pic(o.save) || img : '';
     return '<div class="wqfc-sheet" id="wqfc-sheet" role="dialog" aria-modal="true" data-screen="share_sheet" lang="' + l + '" dir="' + (l === 'ur' ? 'rtl' : 'ltr') + '"><div class="wqfc-sh-in">' +
       (img ? '<img class="wqfc-sh-pic" src="' + esc(img) + '" alt="" width="1200" height="630">' : '') +
-      msgHtml(o.text, o.url, o.iso, o.one === true && l === 'ur', o.bidi === true && l === 'ur') +
+      msgHtml(o.text, o.url, o.iso, o.one === true && l === 'ur', o.bidi === true && l === 'ur', o.pad === true) +
       '<a class="wq-btn wq-go" id="wqfc-sh-wa" data-primary data-tap="card_share" target="_blank" rel="noopener" href="' + esc(waHref(o.text || '')) + '">' + esc(w.wa) + '</a>' +
       (o.file ? '<button class="wq-btn wq-soft" id="wqfc-sh-file" type="button" data-tap="card_file">' + esc(w.file) + '</button>' : '') +
       (save ? '<a class="wq-btn wq-soft" id="wqfc-sh-save" data-tap="card_save" href="' + esc(save) + '" download="jugnu-card.png">' + esc(w.save) + '</a>' : '') +
@@ -517,7 +520,7 @@
       }
       var old = document.getElementById('wqfc-sheet');
       if (old && old.parentNode) old.parentNode.removeChild(old);
-      document.body.insertAdjacentHTML('beforeend', sheetHtml({ lang: o.lang, img: st.img, save: st.save, text: st.text, url: st.url, iso: st.iso, one: st.one, bidi: st.bidi, file: !!st.file || (Boolean(pic(st.img)) && canFiles()) }));
+      document.body.insertAdjacentHTML('beforeend', sheetHtml({ lang: o.lang, img: st.img, save: st.save, text: st.text, url: st.url, iso: st.iso, one: st.one, bidi: st.bidi, pad: st.pad, file: !!st.file || (Boolean(pic(st.img)) && canFiles()) }));
       ev('card_share', shareEv(o, 'sheet'));
       var sh = document.getElementById('wqfc-sheet');
       var close = function () { try { if (sh && sh.parentNode) sh.parentNode.removeChild(sh); } catch (x) { /* gone */ } };
@@ -745,7 +748,7 @@
   function shareArt(o) {
     var url = typeof o.url === 'string' && /^https?:\/\/[^\s"<>]+$/.test(o.url) ? o.url : null;
     var text = String(o.text == null ? '' : o.text) + (url ? '\n' + url : '');
-    openSheet({ kind: o.src === 'schools' ? 'schools' : 'table', lang: o.lang, ev: o.ev }, { img: o.img, save: o.save, text: text, url: url, file: o.file || null, bidi: o.bidi === true });
+    openSheet({ kind: o.src === 'schools' ? 'schools' : 'table', lang: o.lang, ev: o.ev }, { img: o.img, save: o.save, text: text, url: url, file: o.file || null, bidi: o.bidi === true, pad: o.pad === true });
   }
 
   window.WQFC = { og: og, mount: mount, shareArt: shareArt, primeQuiz: primeQuiz, shareQuiz: shareQuiz, quizShareTap: quizShareTap, quizDeedHtml: quizDeedHtml, shareText: shareText,

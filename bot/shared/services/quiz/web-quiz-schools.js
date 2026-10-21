@@ -37,6 +37,7 @@ const supabase = require('../../config/supabase');
 const { logEvent } = require('../../utils/structured-logger');
 const WebQuiz = require('./web-quiz.service');
 const T = require('./web-quiz-token');
+const { UX_STRINGS } = require('../../config/ux-strings');
 const { underWatchRoot } = require('./watch-root');
 
 const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
@@ -359,6 +360,8 @@ async function board(code, { now = Date.now(), st } = {}) {
   if (!T.secret()) throw new WebQuiz.WqError(503, { error: 'web_quiz_off' });
   // app_settings web_quiz_class_doors: `class_doors: true` tells the page to draw its fixed play button and sector chip
   const doors = require('./web-quiz-class-doors-flag').on().catch(() => false);
+  const Switch = require('./web-quiz-card-switch');
+  const endCopy = Switch.on().then(() => Switch.endCopyCached(), () => false);
   const ctx = await WebQuiz.resolveCode(code);
   // The quiz's twin in the other language for the league's Play, read beside the league only with the switch on.
   const twinP = doors.then((on) => (on ? require('./web-quiz-class-twin').twinOf(ctx, null) : null));
@@ -374,10 +377,23 @@ async function board(code, { now = Date.now(), st } = {}) {
   const fresh = st ? await addedBy(st, data, weekStartIso(now), now) : { added: undefined, plays: data.plays };
   const out = scoreSchools({ plays: fresh.plays, schools: data.schools, mySchoolId, splitAt: dayStartIso(now) });
   const week = new Date(Date.parse(weekStartIso(now)) + PKT_OFFSET_MS).toISOString().slice(0, 10);
-  if (!(await doors)) return { week_start: week, ...out, ...(fresh.added ? { added: fresh.added } : {}) };
+  // web_quiz_end_copy_fix (the card switch's cached read): the viewer's sector chip by its display name in both
+  // languages, from the catalog, and `end_copy` so the page says a move of one place in its one form. Off: today's answer.
+  const ec = await endCopy;
+  if (!(await doors)) return endCopied(ec, { week_start: week, ...out, ...(fresh.added ? { added: fresh.added } : {}) });
   // The same lesson in the other language, for the league's Play (web-quiz-class-twin; read only with the switch on).
   const twin = await twinP;
-  return { week_start: week, ...out, ...(fresh.added ? { added: fresh.added } : {}), class_doors: true, ...(twin ? { twin } : {}) };
+  return endCopied(ec, { week_start: week, ...out, ...(fresh.added ? { added: fresh.added } : {}), class_doors: true, ...(twin ? { twin } : {}) });
+}
+// The catalog's display names of a sector (wqArtSector_<key>), or null when it has none.
+function sectorNames(s) {
+  const row = s == null ? null : UX_STRINGS[`wqArtSector_${String(s).trim().toLowerCase()}`];
+  return row && row.en && row.ur ? { en: row.en, ur: row.ur } : null;
+}
+function endCopied(on, out) {
+  if (!on) return out;
+  const names = out.mine && sectorNames(out.mine.sector);
+  return { ...out, ...(names ? { mine: { ...out.mine, sector_name: names } } : {}), end_copy: true };
 }
 
-module.exports = { board, scoreSchools, countedPlays, neighbours, pointsFor, weekStartIso, dayStartIso, CACHE_MS, _reset };
+module.exports = { board, scoreSchools, countedPlays, neighbours, pointsFor, weekStartIso, dayStartIso, CACHE_MS, _reset, _sectorNames: sectorNames };

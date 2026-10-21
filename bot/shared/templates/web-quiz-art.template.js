@@ -108,6 +108,8 @@ function assets() {
       lexendBold: readBase64('fonts/Lexend-Bold.ttf'),
       nastaliq: readBase64('fonts/NotoNastaliqUrdu-Regular.ttf'),
       nastaliqBold: readBase64('fonts/NotoNastaliqUrdu-Bold.ttf'),
+      // Urdu digits only (U+06F0-06F9, ۴ ۶ ۷ in their Urdu forms), a Naskh face: `ui.dg` (web_quiz_end_copy_fix)
+      urDigits: readBase64('fonts/NotoNaskhArabic-UrduDigits-Bold.ttf'),
       celebrate: readBase64('assets/wq-art/celebrate.webp'),
       hello: readBase64('assets/wq-art/hello.webp'),
       animals: Object.fromEntries(ANIMAL_KEYS.map((k) => [k, readBase64(`assets/wq-art/animals/${k}.svg`)])),
@@ -477,6 +479,9 @@ function renderArt({ kind, size, brand, lang, d, ui, door }, opt = {}) {
   const SEC = k === 'school' && Boolean(ui && ui.nb === true) && Boolean(d && Array.isArray(d.rows));
   const dd = SEC ? { ...d, rows: d.rows.map((r) => ({ ...r, sector: sectorName(r.sector, L) })) } : (d || {});
   const parts = body(k, dd, C, opt.pictures !== false, sz, UR2, OG2, door === true, UD, US || Boolean(PP && k === 'class'), ppOf, ONE ? oneForms(L) : null, NBK);
+  // the Urdu class table picture's numbers in the digit face (app_settings web_quiz_end_copy_fix, carried as `ui.dg`): in
+  // Nastaliq a lone ۱ reads as alif («۱ بچے نے کھیلا», a row's place). Off, today's faces.
+  const DG = RTL && UD && k === 'class' && Boolean(ui && ui.dg === true);
   const col = sq || k === 'school' || (k === 'class' && Boolean(d && d.rows && d.rows.length));   // stacked: the square, and the board in either size
   const deco = B.deco ? `url("data:image/svg+xml;utf8,${encodeURIComponent(B.deco)}")` : 'none';
   // A wide mark (Rumi) sits bare on the dark ground: drawn in white and the accent, never navy on navy.
@@ -486,7 +491,8 @@ function renderArt({ kind, size, brand, lang, d, ui, door }, opt = {}) {
   const fonts = opt.fonts === false ? '' : `@font-face{font-family:'Lexend';font-weight:400;src:url(data:font/ttf;base64,${a.lexend})}
 @font-face{font-family:'Lexend';font-weight:800;src:url(data:font/ttf;base64,${a.lexendBold})}
 @font-face{font-family:'NastaliqUrdu';font-weight:400;src:url(data:font/ttf;base64,${a.nastaliq})}
-@font-face{font-family:'NastaliqUrdu';font-weight:700;src:url(data:font/ttf;base64,${a.nastaliqBold})}`;
+@font-face{font-family:'NastaliqUrdu';font-weight:700;src:url(data:font/ttf;base64,${a.nastaliqBold})}${DG ? `
+@font-face{font-family:'UrDigits';font-weight:400 800;src:url(data:font/ttf;base64,${a.urDigits});unicode-range:U+06F0-06F9}` : ''}`;
   const S = sq ? 1.08 : 1;   // the square is read at a smaller on-screen size: type a step up
   // the polish's Urdu class table stands on the one stack too, with the stack switch or without it
   const usCss = US || (PP && RTL && k === 'class') ? stackCss(k, d || {}, C, sq, S, W, col) : '';
@@ -512,7 +518,8 @@ body{width:${W}px;height:${H}px;overflow:hidden;font-family:${body1};color:#fff}
 .big{font-size:${Math.round((sq ? 100 : 104) * S)}px;line-height:1;font-weight:800}
 .sub{font-size:${Math.round((UR2 ? (OG2 ? (k === 'invite' ? 32 : (topicLen > 22 ? 36 : 44)) : 44) : 32) * S)}px;line-height:${RTL ? (OG2 ? 1.9 : lh) : 1.3};opacity:.92;max-width:100%}
 .num{font-family:${UD ? "'Lexend','NastaliqUrdu'" : "'Lexend'"},sans-serif;unicode-bidi:isolate;direction:ltr;font-weight:800}
-${UD && NBK && k === 'school' ? `/* DG-1: the school board's ranks and points in the Urdu digit face (۴ ۶ ۷ in their Urdu forms), never a Latin one */
+${DG ? `.art .head .num,.art .crow .num{font-family:'UrDigits','Lexend','NastaliqUrdu',sans-serif}
+` : ''}${UD && NBK && k === 'school' ? `/* DG-1: the school board's ranks and points in the Urdu digit face (۴ ۶ ۷ in their Urdu forms), never a Latin one */
 .board .num{font-family:'NastaliqUrdu','Lexend',sans-serif}
 ` : ''}bdi[dir="ltr"]{font-family:'Lexend','NastaliqUrdu',sans-serif}
 bdi[dir="rtl"]{font-family:'NastaliqUrdu','Lexend',sans-serif}

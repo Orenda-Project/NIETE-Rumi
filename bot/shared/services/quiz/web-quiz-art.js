@@ -302,7 +302,11 @@ async function artImageNow(id, { size = 'og', fresh = false, door = false, lang 
   // each Urdu count keeps its word on the class table and the school pictures, and the school picture names its sectors
   // by their display names in either language (web_quiz_share_bidi, the same read)
   const nb = ((f.lang === 'ur' && p.kind === 'l') || p.kind === 's') && require('./web-quiz-card-switch').shareBidiCached();
-  const input = artInput(KIND_OF[p.kind], sz, brand, f, nb ? { ...(u6 || {}), nb: true } : u6, door);
+  const u7 = nb ? { ...(u6 || {}), nb: true } : u6;
+  // the Urdu class table picture's numbers in the digit face, never Nastaliq's (a lone ۱ reads as alif there;
+  // web_quiz_end_copy_fix, the same read)
+  const dg = f.lang === 'ur' && p.kind === 'l' && require('./web-quiz-card-switch').endCopyCached();
+  const input = artInput(KIND_OF[p.kind], sz, brand, f, dg ? { ...(u7 || {}), dg: true } : u7, door);
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
   if (mem.has(key)) {
     byId.set(at, { key, until: Date.now() + BY_ID_MS[p.kind] });
