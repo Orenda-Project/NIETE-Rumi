@@ -236,6 +236,17 @@ describe('the W3 forms (RDF auto / RDF manual): tasks the bank does not carry, s
     expect(r.ai_marks).toMatchObject({ correct: 2, attempted: 3, seconds_used: 20 });
   });
 
+  test('a W3 task the bank also carries (w3: true, no v3 card) is still scored from the battery the phone ran', async () => {
+    const bank = { version: 'x', forms: { 'coach.G3.A': { order: [] } },
+      tasks: { 'coach.G3.A/ur.letter_sounds5': { task: 'ur.letter_sounds5', w3: true, kind: 'grid', lang: 'ur', items: W3.tasks[0].items } } };
+    const r = row('ur.letter_sounds5', { responses: [{ kind: 'result', mode: 'record', session_id: PHONE_SID, time_used_ms: 20000, cells: [{ i: 0 }, { i: 1 }, { i: 2 }] }] });
+    const db = fakeDb({ child_test_blocks: [r], child_test_sessions: [session()] });
+    const m = model();
+    await score.sweepOnce({ now: NOW, deps: { supabase: db, ...m, bank, phoneBattery: load } });
+    expect(r.ai_status).toBe('scored');
+    expect(m.prompts[0].prompt).toContain('1: ب (/ب/)');
+  });
+
   test('mental addition: each sum and its answer go to the model; untimed, so correct of 2', async () => {
     const r = row('ma.add2i', { lang: 'ur' });
     const db = fakeDb({ child_test_blocks: [r], child_test_sessions: [session()] });
