@@ -1,7 +1,7 @@
 /**
  * The child's page, /sa/play.html (switch sa_engine): the one screen both surfaces open.
  *
- *   ?s=<session id>&form=<sa.coach.G3.A.ur>&mode=proctored|game&lang=ur|en&block=B1..B5|full|rdf&back=<same-origin url>
+ *   ?s=<session id>&form=<sa.coach.G3.A.ur>&mode=proctored|game&lang=ur|en&block=B1..B5|full|rdf|rdf_auto|rdf_manual&back=<same-origin url>
  *   &skin=game &embed=1   #n=<first name>
  *
  * embed=1: the page sits in the coach page's same-origin iframe; at the hand-back it tells the parent
@@ -39,7 +39,7 @@
       form: FORM_RX.test(form) ? form : null,
       mode: q.get('mode') === 'game' ? 'game' : 'proctored',
       lang: q.get('lang') === 'en' ? 'en' : (q.get('lang') === 'ur' ? 'ur' : (/\.en$/.test(form) ? 'en' : 'ur')),
-      block: /^(B[1-9]|full|rdf|maths|english|urdu|tower)$/.test(q.get('block') || '') ? q.get('block') : null,
+      block: /^(B[1-9]|full|rdf|rdf_auto|rdf_manual|maths|english|urdu|tower)$/.test(q.get('block') || '') ? q.get('block') : null,
       // Only a same-origin path: never an open redirect.
       back: /^\/(?!\/)[^\s\\]*$/.test(back) ? back : null,
       skin: q.get('skin') === 'game' ? 'game' : null,
@@ -50,6 +50,9 @@
       first_name: name || null,
     };
   }
+
+  /** RDF manual is coach-led only when the server's switch (sa_rdf_manual) put ui.rdf_manual on the battery. */
+  function manualOf(battery, block) { return block === 'rdf_manual' && !!(battery && battery.ui && battery.ui.rdf_manual === true); }
 
   /**
    * The tasks of one block, in the block's own order: a coach block (blocks.B1..B5), the RDF short form (rdf, with its
@@ -63,6 +66,8 @@
     if (block && block !== 'full') {
       if (block === 'tower' && Array.isArray(battery.tower)) want = battery.tower;
       else if (block === 'rdf' && Array.isArray(battery.rdf)) { want = battery.rdf; caps = battery.rdf_items || null; }
+      // Wave 3: RDF auto and RDF manual (the form's own lists; the same tasks, manual is coach-led).
+      else if ((block === 'rdf_auto' || block === 'rdf_manual') && Array.isArray(battery[block])) want = battery[block];
       else if (battery.blocks && Array.isArray(battery.blocks[block])) want = battery.blocks[block];
       else if (battery.islands && Array.isArray(battery.islands[block])) want = battery.islands[block];
     }
@@ -277,6 +282,7 @@
       return root.SAE.start({
         mount: mount, battery: battery, mode: p.mode, lang: p.lang, sink: sink, session_id: p.session_id,
         child: p.first_name ? { first_name: p.first_name } : null, back: p.back, embed: p.embed,
+        manual: manualOf(full, p.block),
       }).then(function (engine) {
         root.__sae = engine;
         if (p.mode === 'proctored') {
@@ -318,5 +324,5 @@
     });
   }
 
-  return { params: params, pick: pick, rotate: rotate, lockDown: lockDown, drain: drain, boot: boot };
+  return { params: params, pick: pick, manualOf: manualOf, rotate: rotate, lockDown: lockDown, drain: drain, boot: boot };
 }));

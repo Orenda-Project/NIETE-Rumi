@@ -122,6 +122,7 @@
       passage: t.passage || null, grid: t.grid || null, per_row: t.per_row || (t.grid && t.grid.cols) || 10,
       direction: t.direction || (t.passage && t.passage.direction) || (t.grid && t.grid.direction) || 'ltr',
       instruction: t.instruction || null, script: t.script || {}, source: t.source || null, deviation: t.deviation || null,
+      coach_text: t.coach_text || null,
       tap_on: t.tap_on || null, option_images: t.option_images || null, cell_auto_s: num(t.cell_auto_s),
       // The mercy rule's timings on a passage (RULING #10): the battery's, else 12 s / 20 s.
       mercy_after_s: num(t.mercy_after_s, t.record && t.record.mercy_after_s, 12),
