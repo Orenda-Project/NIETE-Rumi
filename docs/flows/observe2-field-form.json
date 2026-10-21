@@ -371,7 +371,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "PART_ONE",
-                    "fv": "5",
+                    "fv": "6",
                     "prefill": "1",
                     "present": "${form.present}",
                     "p1_spoke": "${form.p1_spoke}",
@@ -515,9 +515,19 @@
                         "description": "Read what children wrote or did, not only asked \"Done?\""
                       },
                       {
+                        "id": "cfu",
+                        "title": "Asked children one by one",
+                        "description": "Whether they understood or needed help: a check for understanding."
+                      },
+                      {
                         "id": "helped",
                         "title": "Helped those who were stuck",
                         "description": "Explained again, or gave a hint or a smaller step, to a child who was stuck."
+                      },
+                      {
+                        "id": "reteach",
+                        "title": "Re-explained a common mistake",
+                        "description": "Stopped the class and explained again, in a new way, a mistake many children made."
                       },
                       {
                         "id": "more",
@@ -675,7 +685,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "PART_TWO",
-                    "fv": "5",
+                    "fv": "6",
                     "prefill": "1",
                     "p2_spoke": "${form.p2_spoke}",
                     "p2_new": "${form.p2_new}",
@@ -840,7 +850,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "LESSON_PLAN",
-                    "fv": "5",
+                    "fv": "6",
                     "lp": "${form.lp}",
                     "lp_pick": "${form.lp_pick}",
                     "lp_how": "${form.lp_how}"
@@ -907,7 +917,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "LP_PHOTOS",
-                    "fv": "5",
+                    "fv": "6",
                     "lp_photos": "${form.lp_photos}"
                   }
                 }
@@ -978,7 +988,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "LP_FILE",
-                    "fv": "5",
+                    "fv": "6",
                     "lp_file": "${form.lp_file}"
                   }
                 }
@@ -1041,7 +1051,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "LP_TEXT",
-                    "fv": "5",
+                    "fv": "6",
                     "lp_text": "${form.lp_text}"
                   }
                 }
@@ -1122,7 +1132,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "PHOTOS",
-                    "fv": "5",
+                    "fv": "6",
                     "photo_how": "${form.photo_how}"
                   }
                 }
@@ -1183,7 +1193,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "PHOTO_TAKE",
-                    "fv": "5",
+                    "fv": "6",
                     "photos": "${form.photos}"
                   }
                 }
@@ -1251,7 +1261,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "PHOTO_FILES",
-                    "fv": "5",
+                    "fv": "6",
                     "photo_files": "${form.photo_files}"
                   }
                 }
@@ -1810,7 +1820,7 @@
               "name": "data_exchange",
               "payload": {
                 "screen": "CONTINUE",
-                "fv": "5",
+                "fv": "6",
                 "prefill": "1"
               }
             }
