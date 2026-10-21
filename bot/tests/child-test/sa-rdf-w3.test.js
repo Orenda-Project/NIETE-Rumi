@@ -259,6 +259,48 @@ describe('RDF auto / RDF manual forms (Wave 3)', () => {
     expect(n).toBeGreaterThan(40);
   });
 
+  // RULING W3-12 (passage layout): each sentence starts a new line on every served passage, app and paper alike, so
+  // every variant's words carry line = the sentence they sit in, counted on that variant's own printed text.
+  test('every passage variant, UR and EN: line = sentence number; print_lines one per sentence; reach and stop follow', () => {
+    const END = /[.!?۔؟]["”’)]*$/u;
+    const extraUr2 = extra.reading.ur.story2;
+    for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
+      const b = runtime(form, lang);
+      const story = b.tasks.find((x) => x.id === `${lang}.story_w3`);
+      const comp = b.tasks.find((x) => x.id === `${lang}.story_comp_w3`);
+      for (const v of [story, ...(story.variants || [])]) {
+        let n = 1;
+        const want = v.items.map((w, i) => { const at = n; if (END.test(w.text) && i < v.items.length - 1) n += 1; return at; });
+        expect([v.id, v.items.map((w) => w.line)]).toEqual([v.id, want]);
+        expect(v.passage.lines.map((l) => [l.n, l.from, l.to])).toEqual(
+          [...new Set(want)].map((k) => [k, want.indexOf(k), want.lastIndexOf(k)]));
+        expect(v.passage.print_lines).toHaveLength(n);
+        expect(v.passage.print_lines.join(' ')).toBe(v.passage.text.replace(/\s+/g, ' ').trim());
+        // EGRA's early stop is on the first printed line, now the first sentence
+        expect(v.stop.first_line_n).toBe(want.filter((k) => k === 1).length);
+      }
+      if (lang === 'ur') {
+        const sel = story.variants.find((v) => v.id === 'select2024');
+        expect(Math.max(...sel.items.map((w) => w.line))).toBe(8);
+        // SELECT's questions keep the instrument's markers: a question needs the sentence holding its marker word
+        const q = comp.variants.find((v) => v.id === 'select2024').items;
+        expect(q.map((x) => x.needs_line)).toEqual(extraUr2.questions.map((x) => sel.items[x.after_marker - 1].line));
+        expect(q.map((x) => x.needs_line)).toEqual([1, 3, 4, 5, 8]);
+      }
+    }
+  });
+
+  // RULING W3-12 4c: a mental sum is not read aloud; the child says its answer.
+  test('mental + − × and fluency: the chip says "Say the answer" / «جواب بتائیں»; other one-at-a-time tasks keep theirs', () => {
+    for (const form of COACH_FORMS) {
+      for (const [lang, word] of [['en', 'Say the answer'], ['ur', 'جواب بتائیں']]) {
+        const b = runtime(form, lang);
+        for (const id of ['ma.add2i', 'ma.sub2i', 'ma.mul2i', 'ma.fluency1m']) expect([id, b.tasks.find((t) => t.id === id).chip]).toEqual([id, word]);
+        for (const id of ['ma.number_id8', `${lang}.words4`]) expect([id, b.tasks.find((t) => t.id === id).chip]).toEqual([id, undefined]);
+      }
+    }
+  });
+
   test('switch OFF: the battery the server serves has no RDF W3 key and no W3 task (today\'s battery)', () => {
     for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
       const b = runtime(form, lang);

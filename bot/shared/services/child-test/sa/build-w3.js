@@ -67,6 +67,8 @@ const INTRO = {
 // adapted only where a phone changes it: a page becomes items that come one at a time, and the Urdu speaks to the child
 // without the speaker's or the child's gendered forms (گا/گی, گے/گی): passive or imperative instead. Then the hand-over.
 const GIVE = L('Then give the phone to the child.', 'پھر فون بچے کو دے دیں۔', 'W3 RDF manual: the coach screen\'s last line');
+// RULING W3-12 4c: a mental sum is not read aloud, so its screen's chip asks for the answer (shown, not spoken).
+const SAY_ANSWER = { en: 'Say the answer', ur: 'جواب بتائیں' };
 const LANG_NAME = { ur: { en: 'URDU', ur: 'اردو' }, en: { en: 'ENGLISH', ur: 'انگریزی' } };
 const COACH = {
   letter_names: (n) => L(`Here are some letters of the ${n.en} alphabet. They will come one at a time. Please tell me the NAME of each letter. Not its sound, but its name. If you come to a letter you do not know, go on to the next letter.`,
@@ -133,6 +135,24 @@ function at(banks, ref) {
 }
 /** Whitespace tokens of a passage, the reduplicated ٹَیں ٹَیں kept as one word (as the scored items count it). */
 const passageTokens = (text) => text.replace(/ٹَیں ٹَیں/g, 'ٹَیں\u0000ٹَیں').split(/\s+/).filter(Boolean).map((w) => w.replace('\u0000', ' '));
+
+const SENTENCE_END = /[.!?۔؟]["”’)]*$/u;
+/**
+ * One line per sentence on a passage's record (words already carry their printed tokens): words, lines, print_lines
+ * and a first-line stop are rewritten in place. Returns old line → new line, a line mapping to the sentence that holds
+ * its last word (the reach an old line asked for, e.g. SELECT's word markers).
+ */
+function sentenceLines(rec) {
+  const p = rec.passage;
+  const oldLast = new Map((p.lines || []).map((l) => [l.n, l.to]));
+  let n = 1;
+  p.words.forEach((w, i) => { w.line = n; if (SENTENCE_END.test(w.text) && i < p.words.length - 1) n += 1; });
+  p.lines = [];
+  p.words.forEach((w, i) => { const l = p.lines[w.line - 1]; if (l) l.to = i; else p.lines.push({ n: w.line, from: i, to: i }); });
+  p.print_lines = p.lines.map((l) => p.words.slice(l.from, l.to + 1).map((w) => w.text).join(' '));
+  if (rec.stop && rec.stop.type === 'first_line') rec.stop = { ...rec.stop, n: p.lines[0].to + 1 };
+  return (old) => (oldLast.has(old) ? p.words[oldLast.get(old)].line : old);
+}
 
 function w3Tasks(f, { v3, extra, w3 }, core, H) {
   if (f.surface !== 'coach' || !w3) return [];
@@ -236,6 +256,14 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
       if (tokens.length !== p.words.length) throw new Error(`${v.task}: ${tokens.length} tokens of passage.text, ${p.words.length} scored words`);
       p.words.forEach((w, i) => { w.text = tokens[i]; });
     }
+    // RULING W3-12: each sentence starts a new line on every variant (app and paper alike), so a word's line is the
+    // sentence it sits in, counted on that variant's own text; its questions' needs_line and the first-line stop follow.
+    const relined = new Map([story, ...(story.variants || []).map((x) => x.task)].map((v) => [v, sentenceLines(v.record)]));
+    const storyOf = (id) => story.variants.find((x) => x.id === id).task;
+    for (const [c, st] of [[comp, story], ...(comp.variants || []).map((x) => [x.task, storyOf(x.id)])]) {
+      const to = relined.get(st);
+      c.record.questions.forEach((q) => { if (q.needs_line != null) q.needs_line = to(q.needs_line); });
+    }
     // The Set A coach card's accept lists (added to the bank's, never narrower), its rule, and its per-question gate.
     const card = Object.fromEntries((spec.story.questions || []).map((q) => [q.id, q]));
     const own0 = (comp.variants || []).filter((v) => v.id === 'rwp2026').map((v) => v.task.record.questions);
@@ -263,7 +291,7 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
     time_limit_s: extra2.time_limit_s || null, advance_after_s: extra2.advance_after_s || null, ...(extra2.next_at_s ? { next_at_s: extra2.next_at_s } : {}),
     // A sum is shown; Jugnu says it only on the replay tile (RULING #17), so reading it stays the child's.
     ...(items.some((it) => it.say) ? { say_on: 'replay' } : {}),
-    stop: extra2.stop || null, ...(extra2.practice_note ? { practice_note: extra2.practice_note } : {}),
+    stop: extra2.stop || null, ...(extra2.practice_note ? { practice_note: extra2.practice_note } : {}), ...(extra2.chip ? { chip: extra2.chip } : {}),
     script: mScript(kind), coach_text: coachText(kind, null),
     source: { items: extra2.from, script: COACH[kind]().from, sa_adaptation: 'one item at a time, the answer spoken and recorded, scored later' },
     deviation: extra2.deviation,
@@ -309,7 +337,7 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
     const op = key === 'add' ? '+' : key === 'sub' ? '-' : '×';
     return oral(id, kind, picked.map(({ it, src }, i) => sumItem({ ...it, op }, `${id}.${pad(i + 1)}`, src)),
       (sel.practice || (sel.practice_from ? at(banks, sel.practice_from) : [])).map((b, i) => ({ ...sumItem({ ...b, op }, `${id}.p${i + 1}`, b.src), role: 'practice', model: model('sums', b.answer, null) })),
-      { subtask, from: sel.from || 'w3:maths.mul.items', next_at_s: 15, practice_note: sel.practice_note,
+      { subtask, from: sel.from || 'w3:maths.mul.items', next_at_s: 15, practice_note: sel.practice_note, chip: SAY_ANSWER,
         deviation: 'said in the head and answered aloud, no paper (the operator\'s "mental"); Core EGMA Level 2 allows paper and pencil' });
   };
   out.push(mental('add', 'ma.add2i', 'add', 'mental_addition', m.add), mental('sub', 'ma.sub2i', 'sub', 'mental_subtraction', m.sub),
@@ -318,7 +346,7 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
   const fl = m.fluency;
   out.push(oral('ma.fluency1m', 'fluency', fl.items.map((it, i) => sumItem(it, `ma.fluency1m.${pad(i + 1)}`, it.src)),
     (fl.practice || []).map((b, i) => ({ ...sumItem(b, `ma.fluency1m.p${i + 1}`, b.src), role: 'practice', model: model('sums', b.answer, null) })),
-    { subtask: 'mental_math_fluency', from: 'rwp2026:blfluency.blfl1', time_limit_s: fl.timed_s, advance_after_s: ADVANCE.numbers, practice_note: fl.practice_note,
+    { subtask: 'mental_math_fluency', from: 'rwp2026:blfluency.blfl1', time_limit_s: fl.timed_s, advance_after_s: ADVANCE.numbers, practice_note: fl.practice_note, chip: SAY_ANSWER,
       deviation: 'one sum at a time, answered aloud and recorded; the items reached in 60 s are the score basis' }));
 
   const order = new Map(W3_TASKS.map((id, i) => [id, i]));
@@ -350,7 +378,7 @@ function runtimeW3Task(t, lang, H) {
     source: t.source, deviation: t.deviation, ...(t.practice_note ? { practice_note: t.practice_note } : {}),
     response: t.response, present: t.present, time_limit_s: t.time_limit_s, advance_after_s: t.advance_after_s,
     ...(t.next_at_s ? { next_at_s: t.next_at_s } : {}), ...(t.say_on ? { say_on: t.say_on } : {}), stop: {}, ...(t.stop_note ? { stop_note: t.stop_note } : {}),
-    ...(t.grid ? { grid: t.grid, direction: t.direction } : {}), ...(t.letter_rule ? { letter_rule: t.letter_rule } : {}),
+    ...(t.grid ? { grid: t.grid, direction: t.direction } : {}), ...(t.letter_rule ? { letter_rule: t.letter_rule } : {}), ...(t.chip ? { chip: t.chip[lang] } : {}),
     items: t.items.map(item), practice: t.practice.map(item),
   };
 }
