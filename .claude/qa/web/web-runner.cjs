@@ -38,9 +38,11 @@ async function main() {
     // ("sorry, too many clients already"). That is retried — any other SQL error fails the scenario at once.
     for (let attempt = 1; ; attempt++) {
       try {
-        execFileSync(env.WEB_PSQL || 'psql', ['-h', '127.0.0.1', '-p', env.WEB_PG_PORT, '-U', 'postgres',
+        // -A -t: unaligned, tuples only — a SELECT comes back as lines of |-separated values, so a driver can read the
+        // database it set up (a session's student, a count) as well as write it. Empty for an UPDATE/INSERT/DELETE.
+        const out = execFileSync(env.WEB_PSQL || 'psql', ['-h', '127.0.0.1', '-p', env.WEB_PG_PORT, '-U', 'postgres',
           '-d', env.WEB_DB_NAME, '-v', 'ON_ERROR_STOP=1', '-qAtc', text], { stdio: ['ignore', 'pipe', 'pipe'] });
-        return;
+        return String(out || '').trim();
       } catch (e) {
         // keep Postgres's own words — "Command failed" alone says nothing about why
         const why = String((e.stderr && e.stderr.toString()) || e.message).trim().split('\n').slice(-2).join(' | ');
@@ -50,10 +52,18 @@ async function main() {
     }
   };
   const ctx = { baseUrl: env.WEB_BASE_URL.replace(/\/$/, ''), sql,
-    mockUrl: (env.WEB_MOCK_URL || '').replace(/\/$/, ''), headed: env.WEB_HEADED === '1' };
+    mockUrl: (env.WEB_MOCK_URL || '').replace(/\/$/, ''), headed: env.WEB_HEADED === '1',
+    // this run's bot, its internal key and its run dir (<run>/src is the bot's detached worktree): for drivers that mint
+    // the bot's own tokens or call its internal API exactly as the portal does (x-api-key)
+    botUrl: (env.WEB_BOT_URL || '').replace(/\/$/, ''), internalKey: env.WEB_INTERNAL_KEY || '', runDir: env.WEB_RUN_DIR || '' };
 
   const started = Date.now();
   const results = [];
+  // A driver's stray async error (a route handler, a page listener) must fail THAT scenario, never kill the run:
+  // 2026-10-16 a TypeError in a route callback ended a 150-scenario run with no results.json.
+  const stray = [];
+  process.on('uncaughtException', (e) => stray.push(String((e && e.message) || e).split('\n')[0]));
+  process.on('unhandledRejection', (e) => stray.push(String((e && e.message) || e).split('\n')[0]));
   // --headed (e2e-web.sh) → a visible window, each action slowed by WEB_SLOWMO ms so a person can follow it.
   const browser = await loadChromium().launch({ headless: env.WEB_HEADED !== '1', slowMo: Number(env.WEB_SLOWMO || 0) });
   try {
@@ -63,27 +73,43 @@ async function main() {
       const page = await context.newPage();
       const row = { id: s.id, title: s.title };
       try {
-        row.evidence = await s.run(page, ctx);
-        row.status = 'PASS';
+        const out = await s.run(page, ctx);
+        // BLOCKED: the driver ran and says plainly why this scenario cannot be proved on this lane (a microphone, a
+        // live vendor, a WhatsApp token). Not a pass, not a failure; the ledger counts it as blocked (W3 fixture).
+        if (out && typeof out.blocked === 'string' && out.blocked) {
+          row.status = 'BLOCKED'; row.reason = out.blocked;
+          const { blocked, ...rest } = out; if (Object.keys(rest).length) row.evidence = rest;
+        } else { row.evidence = out; row.status = 'PASS'; }
       } catch (e) {
         row.status = 'FAIL';
         row.error = String((e && e.message) || e).split('\n')[0];
+        // Playwright's call log (why a click or a wait stalled: not visible, not stable, intercepted): kept, not just line 1
+        const log = String((e && e.message) || e).split('\n').slice(1).map((l) => l.replace(/\x1b\[[0-9;]*m/g, '').trim()).filter((l) => /waiting|retrying|not |intercept|stable|visible|enabled|scroll|locator/i.test(l));
+        if (log.length) row.detail = [...new Set(log)].slice(0, 6).join(' | ');
         row.url = page.url();
         const shot = path.join(evidence, s.id + '.png');
         await page.screenshot({ path: shot, fullPage: true }).catch(() => {});
         row.screenshot = path.basename(shot);
       }
+      if (stray.length && row.status !== 'FAIL') {
+        row.status = 'FAIL'; row.error = 'stray error in the driver: ' + stray[0];
+        const shot = path.join(evidence, s.id + '.png');
+        await page.screenshot({ path: shot, fullPage: true }).catch(() => {}); row.screenshot = path.basename(shot);
+      }
+      stray.length = 0;
       row.duration_ms = Date.now() - t0;
       await context.close();
       results.push(row);
-      console.log((row.status === 'PASS' ? '  ok   ' : '  FAIL ') + s.id + '  ' + s.title + (row.error ? '\n       ' + row.error : ''));
+      console.log((row.status === 'PASS' ? '  ok   ' : row.status === 'BLOCKED' ? '  BLOCK' : '  FAIL ') + ' ' + s.id + '  ' + s.title
+        + (row.error ? '\n       ' + row.error : '') + (row.detail ? '\n       ' + row.detail : '') + (row.reason ? '\n       blocked: ' + row.reason : ''));
     }
   } finally {
     await browser.close();
   }
   const out = { feature, duration_ms: Date.now() - started, results };
   fs.writeFileSync(path.join(evidence, 'results.json'), JSON.stringify(out, null, 2));
-  process.exit(results.every((r) => r.status === 'PASS') ? 0 : 1);
+  // exit 0 = nothing FAILED (a BLOCKED row is reported, never hidden, and the ledger verdict carries it)
+  process.exit(results.every((r) => r.status !== 'FAIL') ? 0 : 1);
 }
 
 main().catch((e) => { console.error('web-runner: ' + ((e && e.stack) || e)); process.exit(2); });

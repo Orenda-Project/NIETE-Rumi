@@ -117,6 +117,10 @@ Spec-Sync: menu,status=none-needed (<why>)
 Spec-Sync: none-needed (<why>)            # all affected features
 ```
 
+The declaration answers the E2E column too: a none-needed feature with no run in the range
+reads `➖ not needed`, not `⬜ missing`, and does not make the E2E-proof verdict `missing`.
+A run recorded for it anyway still shows its status.
+
 A feature pulled in **only** through a shared fan-out file (`whatsapp.service.js`,
 `text-message.handler.js`, …) is reported `only-shared` and needs no declaration — the
 default for those is to leave the spec alone.

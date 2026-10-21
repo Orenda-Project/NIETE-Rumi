@@ -267,7 +267,8 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
             "only_shared": f["only_shared"], "spec_changed": spec_changed, "action": f["action"],
             "scenario_count": f["scenario_count"], "spec_status": status, "spec_reason": reason,
             "changed_files": [c["path"] for c in f["changed_files"]],
-            "e2e_proof": proof.get(name, "missing"),
+            # a Spec-Sync none-needed declaration answers the E2E column too (bd-481a2c): no run is asked for.
+            "e2e_proof": proof.get(name, "not-needed" if status == "none-needed" else "missing"),
             "e2e_reason": why.get(name, "") if name in proof else "",
             "regression": regr.get(name),
         }
@@ -298,12 +299,12 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
             "changed_files": list((seld.get("web_reasons") or {}).get(name) or []),
             "spec": spec_rel, "spec_changed": spec_rel in paths,
             "scenario_count": _web_scenario_count(repo, name),
-            "e2e_proof": (row.get("status") or "recorded") if row else "missing",
+            "e2e_proof": (row.get("status") or "recorded") if row else (
+                "not-needed" if spec_status == "none-needed" else "missing"),
             "passed": summ.get("passed"), "total": summ.get("total"),
         }
     if res["web_features"]:
-        res["verdict"]["web_e2e_proof"] = "recorded" if all(
-            w["e2e_proof"] != "missing" for w in res["web_per_feature"].values()) else "missing"
+        res["verdict"]["web_e2e_proof"] = _proof_verdict(res["web_per_feature"].values())
     pf = res["per_feature"]
     statuses = [v["spec_status"] for v in pf.values()] + [w["spec_status"] for w in res["web_per_feature"].values()]
     if statuses:
@@ -311,8 +312,16 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
     if pf:
         required = [v for v in pf.values() if not v["only_shared"]]
         if required:
-            res["verdict"]["e2e_proof"] = "recorded" if all(v["e2e_proof"] != "missing" for v in required) else "missing"
+            res["verdict"]["e2e_proof"] = _proof_verdict(required)
     return res
+
+
+def _proof_verdict(feats):
+    """missing if any feature still owes a run; not-needed if every one was declared none-needed; else recorded."""
+    proofs = [f["e2e_proof"] for f in feats]
+    if "missing" in proofs:
+        return "missing"
+    return "not-needed" if proofs and all(p == "not-needed" for p in proofs) else "recorded"
 
 
 def exit_code(res, freshness="warn", proof="warn"):
@@ -327,9 +336,14 @@ def exit_code(res, freshness="warn", proof="warn"):
     return 0
 
 
+def _shown(status):
+    """How an E2E status reads on the PR comment: not-needed → "not needed"."""
+    return "not needed" if status == "not-needed" else status
+
+
 def _icon(status):
     return {"synced": "✅", "none-needed": "✅", "only-shared": "➖", "stale": "❌",
-            "HEALTHY": "✅", "DEGRADED": "⚠️", "CRITICAL": "❌", "recorded": "✅", "missing": "⬜"}.get(status, "")
+            "HEALTHY": "✅", "DEGRADED": "⚠️", "CRITICAL": "❌", "recorded": "✅", "missing": "⬜", "not-needed": "➖"}.get(status, "")
 
 
 def _cassette_owner():
@@ -451,12 +465,12 @@ def _web_markdown(res, proof="warn"):
             spec += " — _%s_" % w["spec_reason"]
         elif w["spec_status"] == "stale":
             spec += " — `%s.feature` unchanged" % name
-        cell = "%s %s" % (_icon(w["e2e_proof"]), w["e2e_proof"])
+        cell = "%s %s" % (_icon(w["e2e_proof"]), _shown(w["e2e_proof"]))
         if w.get("total"):
             cell += " — %s/%s" % (w.get("passed"), w["total"])
         L.append("| **%s** (%d scenarios) | %s | %s | %s |" % (name, w["scenario_count"], via or "—", spec, cell))
     v = res["verdict"].get("web_e2e_proof", "n/a")
-    L += ["", "**Web E2E proof: %s** (mode: %s)" % (v, proof), ""]
+    L += ["", "**Web E2E proof: %s** (mode: %s)" % (_shown(v), proof), ""]
     stale = [n for n in feats if wp[n]["spec_status"] == "stale"]
     if stale:
         L += ["#### Sync the portal specs first",
@@ -502,7 +516,7 @@ def render_markdown(res, freshness="warn", proof="warn"):
         if f["spec_status"] == "stale":
             spec += " — `%s.feature` unchanged" % name
         # E2E-run cell answers only "did the mock run for this commit" (+ any regression note).
-        proof_cell = "%s %s" % (_icon(f["e2e_proof"]), f["e2e_proof"])
+        proof_cell = "%s %s" % (_icon(f["e2e_proof"]), _shown(f["e2e_proof"]))
         if f.get("e2e_reason"):
             proof_cell += " — %s" % f["e2e_reason"]
         note = _regression_note(f.get("regression"))
@@ -514,14 +528,14 @@ def render_markdown(res, freshness="warn", proof="warn"):
         cm = (res.get("cassette_misses") or {}).get(name)
         if cm:
             cassette_cell = "📼 %d missing — %s record" % (cm, _cassette_owner())
-        elif f["e2e_proof"] != "missing":
+        elif f["e2e_proof"] not in ("missing", "not-needed"):
             cassette_cell = "✅ recorded"
         else:
             cassette_cell = "—"
         L.append("| **%s** (%d scenarios) | %s | %s | %s | %s |" % (
             name, f["scenario_count"], via, spec, proof_cell, cassette_cell))
     L += ["", "**Spec freshness: %s** (mode: %s) · **E2E proof: %s** (mode: %s)" % (
-        v["spec_freshness"], freshness, v["e2e_proof"], proof), ""]
+        v["spec_freshness"], freshness, _shown(v["e2e_proof"]), proof), ""]
     regressed = regressed_features(res)
     if regressed:
         L += ["**❌ New regressions in %s** — a scenario broke that is not a documented known finding "
