@@ -239,3 +239,28 @@ describe('the bot and the portal agree on who is on the teacher app', () => {
     expect(bot).toBe(portal);
   });
 });
+
+describe('bd-6clakk Task 9 — isOnTeacherApp, the gate for the "paper on topics" offer', () => {
+  test.each([
+    ['true', true, 'teacher', true],
+    ['"teachers" and a teacher', 'teachers', 'teacher', true],
+    ['"teachers" and a principal', 'teachers', 'principal', false],
+    ['a list holding her', [ME], 'principal', true],
+    ['a list without her', ['someone-else'], 'teacher', false],
+    ['off', false, 'teacher', false],
+  ])('%s', async (_l, value, role, expected) => {
+    mockState.users[ME] = row(role);
+    set('portal_teacher_v2', value);
+    expect(await svc.isOnTeacherApp(ME)).toBe(expected);
+  });
+
+  test('no switch set at all: not on the app', async () => {
+    expect(await svc.isOnTeacherApp(ME)).toBe(false);
+  });
+
+  test('an account that cannot be read fails closed', async () => {
+    set('portal_teacher_v2', 'teachers');
+    mockState.usersError = true;
+    expect(await svc.isOnTeacherApp(ME)).toBe(false);
+  });
+});

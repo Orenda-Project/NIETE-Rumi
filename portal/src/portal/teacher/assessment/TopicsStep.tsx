@@ -42,10 +42,15 @@ export function TopicsStep() {
     if (skip && (p.topicScope != null || p.topicIds != null)) set(clearTopics);
   }, [skip, p.topicScope, p.topicIds, set]);
 
+  // Through the WhatsApp topics link: open straight on Select topics, once the list is there.
+  const ready = topics.status === 'ok' && types.status === 'ok';
+  useEffect(() => {
+    if (p.byTopics && ready && !skip && p.topicScope == null) set(chooseTopics);
+  }, [p.byTopics, ready, skip, p.topicScope, set]);
+
   if (p.grade === null || !p.subject) return <Navigate to={newPaperPath('class')} replace />;
   if (skip) return <Navigate to={newPaperPath('questions')} replace />;
 
-  const ready = topics.status === 'ok' && types.status === 'ok';
   const ticked = new Set(tickedOf(p, all));
   const tick = (ids: string[]) => set((cur) => setTicked(cur, ids, all, offered));
   const flip = (id: string) => tick(ticked.has(id) ? [...ticked].filter((x) => x !== id) : [...ticked, id]);

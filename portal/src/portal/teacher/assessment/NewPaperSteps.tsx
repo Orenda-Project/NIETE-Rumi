@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlignLeft, BookOpen, LayoutList, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { loadGradeSubjects } from '../../lib/gradeSubjects';
@@ -68,6 +68,9 @@ export function ClassStep() {
   const C = useCopy(ASSESSMENT);
   const [p, set] = usePicks();
   const navigate = useNavigate();
+  // The WhatsApp link for "a paper on topics I've taught" lands here with ?by=topics: remembered, so Topics opens on Select topics.
+  const byTopics = useSearchParams()[0].get('by') === 'topics';
+  useEffect(() => { if (byTopics && !p.byTopics) set({ byTopics: true }); }, [byTopics, p.byTopics, set]);
   const [combos, retryCombos] = useLoad(() => loadGradeSubjects('assessment'), 'gs:assessment');
   const [cat, retryCat] = useLoad(catalogueOnce, 'assessment:catalogue');
   const catalogue = dataOf(cat);
