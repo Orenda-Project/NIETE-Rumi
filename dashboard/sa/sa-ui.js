@@ -939,7 +939,7 @@
       var t = v.task, it = v.cell_item;
       return screen(v, 'sae-run sae-run-rec sae-run-cell', [
         clock(v),
-        h('div', { class: 'sae-row' }, [h('p', { class: 'sae-chip sae-chip-rec', text: C.read_aloud }), itemSpeaks(it) ? replayBtn(function () { sayItem(it, t); }) : null]),
+        h('div', { class: 'sae-row' }, [h('p', { class: 'sae-chip sae-chip-rec', text: recChip(t, C) }), itemSpeaks(it) ? replayBtn(function () { sayItem(it, t); }) : null]),
         oneCell(v.cell, t, v.cell_index),
         coachSays(it),
       ], [btn(C.next, function () { runner.nextCell('tap'); draw(); }, 'sae-primary sa-next')]);
@@ -1533,6 +1533,9 @@
    * engine writes the last events, flushes the sync and only then goes to back (or posts sa:done), once. Without it
    * (the standalone demo page) the screen goes to back itself.
    */
+  /** The chip over a one-at-a-time spoken item: the task's own (the mental sums: "Say the answer"), else "Read aloud". */
+  function recChip(t, C) { return (t && t.chip) || C.read_aloud; }
+
   function handBack(opts, assign, safe) {
     try { if (opts.onHandback) opts.onHandback(); } catch (e) { /* page */ }
     if (opts.onUnlock) {
@@ -1543,5 +1546,5 @@
     if (u) assign(u);
   }
 
-  return { mount: mount, handback: handBack, COPY: COPY, passageWords: passageWords };
+  return { mount: mount, handback: handBack, COPY: COPY, passageWords: passageWords, recChip: recChip };
 }));
