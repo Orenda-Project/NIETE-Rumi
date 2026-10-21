@@ -8,18 +8,52 @@
  *   anything else (the sink's /api calls, other paths)  not touched
  *
  * The page asks for a session's files with postMessage({ type: 'prepare', urls }) on a MessageChannel and gets back
- * { ok, cached, missing[] }; "ready offline" is shown only when missing is empty.
+ * { ok, cached, missing[] }; "ready offline" is shown only when missing is empty. The files are fetched six at a time,
+ * and one that fails (a 429 from a busy tunnel, a dropped request) is tried once more after a short pause.
  */
 'use strict';
 
 // sa-3: the install of sa-2 may have kept the portal's page for an engine file the folder did not have yet.
-var VERSION = 'sa-3';
+// sa-4: the prepare queue (six at a time, one retry): phones take the new worker and the new engine files.
+var VERSION = 'sa-4';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 var SESSION = 'sa-session-v2';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
+var PREFETCH_AT_ONCE = 6;
+var RETRY_MS = 1500;
+
+/**
+ * prefetch(urls, { fetch, match, put, ok, limit?, retryMs? }) → Promise<missing urls>: each url not already kept
+ * (match) is fetched, at most `limit` at a time, kept (put) when ok(url, res); a failure is tried once more after
+ * retryMs. Never rejects.
+ */
+function prefetch(urls, o) {
+  var limit = o.limit || PREFETCH_AT_ONCE;
+  var wait = o.retryMs != null ? o.retryMs : RETRY_MS;
+  var queue = urls.slice();
+  var missing = [];
+  function once(u) {
+    return Promise.resolve().then(function () { return o.fetch(u); }).then(function (res) {
+      if (!o.ok(u, res)) throw new Error(String(res && res.status));
+      return Promise.resolve(o.put(u, res)).then(function () { return true; });
+    }).then(null, function () { return false; });
+  }
+  function one(u) {
+    return Promise.resolve().then(function () { return o.match(u); }).then(null, function () { return null; }).then(function (hit) {
+      if (hit) return true;
+      return once(u).then(function (got) {
+        return got ? true : new Promise(function (r) { setTimeout(r, wait); }).then(function () { return once(u); });
+      });
+    }).then(function (got) { if (!got) missing.push(u); });
+  }
+  function worker() { var u = queue.shift(); return u === undefined ? null : one(u).then(worker); }
+  var workers = [];
+  for (var i = 0; i < Math.min(limit, urls.length); i++) workers.push(worker());
+  return Promise.all(workers).then(function () { return urls.filter(function (u) { return missing.indexOf(u) >= 0; }); });
+}
 
 /** A response worth keeping: 2xx, and the type the URL is (a clip is audio, a battery JSON, an engine file not HTML). */
 function cacheable(url, res) {
@@ -53,7 +87,7 @@ function strategyFor(url, method, origin) {
 }
 
 if (typeof module === 'object' && module.exports) {
-  module.exports = { strategyFor: strategyFor, cacheable: cacheable, installOne: installOne, CORE_FILES: CORE_FILES, CORE: CORE, SESSION: SESSION };
+  module.exports = { strategyFor: strategyFor, cacheable: cacheable, installOne: installOne, prefetch: prefetch, CORE_FILES: CORE_FILES, CORE: CORE, SESSION: SESSION };
 } else {
   self.addEventListener('install', function (e) {
     e.waitUntil(caches.open(CORE).then(function (c) {
@@ -108,15 +142,13 @@ if (typeof module === 'object' && module.exports) {
     if (d.type !== 'prepare' || !port) return;
     var urls = (d.urls || []).filter(function (u) { return typeof u === 'string'; });
     e.waitUntil(caches.open(SESSION).then(function (c) {
-      return Promise.all(urls.map(function (u) {
-        return caches.match(u, { ignoreSearch: true }).then(function (hit) {
-          if (hit) return null;
-          return fetch(u).then(function (res) { if (!cacheable(new URL(u, self.location.href).href, res)) throw new Error(String(res.status)); return c.put(u, res); })
-            .then(function () { return null; }, function () { return u; });
-        });
-      }));
-    }).then(function (miss) {
-      var missing = miss.filter(Boolean);
+      return prefetch(urls, {
+        fetch: function (u) { return fetch(u); },
+        match: function (u) { return caches.match(u, { ignoreSearch: true }); },
+        put: function (u, res) { return c.put(u, res); },
+        ok: function (u, res) { return cacheable(new URL(u, self.location.href).href, res); },
+      });
+    }).then(function (missing) {
       port.postMessage({ ok: missing.length === 0, cached: urls.length - missing.length, missing: missing });
     }, function (err) {
       port.postMessage({ ok: false, cached: 0, missing: urls, error: String(err) });
