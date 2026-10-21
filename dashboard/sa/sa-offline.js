@@ -4,6 +4,7 @@
  * network now.
  *
  *   SAE.offline.urls(battery, lang, base) → the clip URLs the session can play
+ *   SAE.offline.lineUrls(battery, lang, base) → the clips of the engine's own lines (battery.lines), asked for first
  *   SAE.offline.images(battery, lang) → the picture URLs the session shows (option_images, script.demo_image)
  *   SAE.offline.prepare({ battery_url, battery, lang, base }) → Promise<{ ready, battery, clips, clips_missing, images,
  *     images_missing, why? }>
@@ -52,6 +53,9 @@
     return Object.keys(out).sort();
   }
 
+  /** The clip URLs of the engine's own lines (battery.lines) for this language. */
+  function lineUrls(battery, lang, base) { return urls({ lines: battery && battery.lines }, lang, base); }
+
   var IMG_RX = /^[A-Za-z0-9_./-]+$/;
 
   /** Every picture in the battery for this language, as URLs from the site root (the way sa-ui.js shows them). */
@@ -84,6 +88,11 @@
     var nav = root.navigator;
     if (!nav || !nav.serviceWorker) return Promise.resolve({ ready: false, why: 'no_service_worker' });
     var clips = urls(o.battery, o.lang, o.base);
+    // The engine's own lines (the welcome, the sound check and its help line, the coach and hand-back lines) play
+    // first, from the first second: they are asked for in their own list, and the task clips after them (still six
+    // at a time on a busy tunnel).
+    var first = lineUrls(o.battery, o.lang, o.base);
+    var rest = clips.filter(function (u) { return first.indexOf(u) < 0; });
     var pics = images(o.battery, o.lang);
     return nav.serviceWorker.register('/sa/sw.js', { scope: '/sa/' })
       .then(function () { return nav.serviceWorker.ready; })
@@ -91,10 +100,12 @@
         var sw = reg.active || nav.serviceWorker.controller;
         if (!sw) return { ready: false, why: 'no_active_worker' };
         var list = [o.battery_url].filter(Boolean);
-        return Promise.all([ask(sw, { type: 'prepare', urls: list }), ask(sw, { type: 'prepare', urls: clips }), ask(sw, { type: 'prepare', urls: pics })]).then(function (r) {
-          var core = r[0] || { ok: false, missing: list };
-          var audio = r[1] || { ok: false, missing: clips };
-          var img = r[2] || { ok: false, missing: pics };
+        var said = first.length ? ask(sw, { type: 'prepare', urls: first }) : Promise.resolve({ ok: true, missing: [] });
+        var then = said.then(function () { return ask(sw, { type: 'prepare', urls: rest }); });
+        return Promise.all([said, ask(sw, { type: 'prepare', urls: list }), then, ask(sw, { type: 'prepare', urls: pics })]).then(function (r) {
+          var core = r[1] || { ok: false, missing: list };
+          var audio = { missing: (r[0] || { missing: first }).missing.concat((r[2] || { missing: rest }).missing) };
+          var img = r[3] || { ok: false, missing: pics };
           var ready = !!core.ok && img.missing.length === 0;
           return { ready: ready, battery: !!core.ok, clips: clips.length - audio.missing.length, clips_missing: audio.missing.length,
             images: pics.length - img.missing.length, images_missing: img.missing.length,
@@ -148,5 +159,5 @@
     });
   }
 
-  return { urls: urls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice };
+  return { urls: urls, lineUrls: lineUrls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice };
 }));
