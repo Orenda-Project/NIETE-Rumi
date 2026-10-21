@@ -13,7 +13,7 @@
  *   onEvent     every logged event, after it is on the phone
  *
  * engine.on(name, fn) for: state (every frame: the view), correct, incorrect, practice_feedback, task_start, task_end,
- * battery_end, audio ({speaking, text}), sync (the status). engine.mute(b) in game mode only. engine.destroy().
+ * battery_end, audio ({speaking, text}), silent ({text, lang}: a clip failed twice, the words stay on screen), sync (the status). engine.mute(b) in game mode only. engine.destroy().
  * Every event is written to the store in order, with the reload snapshot; a write never blocks a tap, and pagehide
  * waits on nothing (IndexedDB commits what it was given).
  */
@@ -121,6 +121,7 @@
             return Promise.all(jobs);
           }).then(function () { if (opts.onEvent) opts.onEvent(e); if (sync) sync.poke(); });
           if (HOOK[e.type]) fire(HOOK[e.type], e);
+          if (e.type === 'battery_end') batteryEnd();
           // The game's mic check is kept for this phone (the coach's pre-flight writes the same keys).
           if (e.type === 'mic_check' && micMod) micMod.remember(!!(e.value && e.value.ok), e.value && e.value.rms);
         }
@@ -131,9 +132,12 @@
           return m === 'unknown' && mode === 'proctored' ? 'no' : m;
         }
 
+        // The sandbox-only "Jump to…" (RULING #43): only when the server put SA_DEV_TOOLS = true on the page (it does
+        // so only on the sandbox service), and only for the coach.
+        var devTools = mode === 'proctored' && (deps.win || root).SA_DEV_TOOLS === true;
         runner = core.createRunner({ battery: battery, now: now, session_id: sessionId, resume: resume, onEvent: onEvent, audio_check: !resume && opts.audio_check !== false, warmup: !resume && opts.warmup !== false,
-          mic: deps.micState || micState, mic_check: mode === 'game', oral_practice: opts.oral_practice !== false, keypad_warmup: opts.keypad_warmup !== false });
-        var voice = voiceMod.create({ lang: lang, base: opts.audio_base || '/', muted: false, onSpeak: function (s) { fire('audio', s); } });
+          dev_tools: devTools, mic: deps.micState || micState, mic_check: mode === 'game', oral_practice: opts.oral_practice !== false, keypad_warmup: opts.keypad_warmup !== false });
+        var voice = voiceMod.create({ lang: lang, base: opts.audio_base || '/', muted: false, onSpeak: function (s) { fire('audio', s); }, onSilent: function (s) { fire('silent', s); } });
         if (syncMod && opts.sink) {
           sync = syncMod.create({ store: store, sink: opts.sink, session_id: sessionId, onStatus: function (s) { fire('sync', s); } });
         }
@@ -200,10 +204,25 @@
             });
           },
           onHandover: function () { runner.log('handover_in'); },
+          devJump: devTools ? function (i) {
+            try { voice.stop(); } catch (_) { /* nothing playing */ }
+            var t = runner.view().task;
+            if (t && rec && rec.recording && rec.recording()) recStop(t, null);
+            if (runner.jumpTo(i) && view && view.render) view.render();
+          } : undefined,
           micProbe: micMod ? function () { return micMod.probe(2000); } : null,
           micLevel: micMod ? function (cb) { return micMod.level(cb); } : null,
         });
         if (sync && view && view.setSync) hooks.sync = [function (st) { view.setSync(st); }];
+        // Embedded in the coach page, the last task's end is told at once ({type:'sa:battery_end', s}: the page offers
+        // "Next child" and counts the child complete), then the recording is closed and the sync flushed (RULING #34a).
+        var ended = null;
+        function batteryEnd() {
+          var w = deps.win || root;
+          if (ended || !opts.embed || !w.parent || w.parent === w || !w.location) return;
+          w.parent.postMessage({ type: 'sa:battery_end', s: sessionId }, w.location.origin);
+          ended = writes.then(closeRecording).then(function () { return sync ? sync.flush() : null; }).then(null, function () { return null; });
+        }
         // Embedded in the coach page: its own corner hold asks the engine to end the run ({type:'sa:coach_end', s}).
         // The running task ends as coach_end (so a coach-ended minute is never read as a whole block), the last
         // writes and the sync go, then sa:done {reason:'coach_end'}, once. Only this session, only the page's origin.
@@ -214,6 +233,13 @@
           if (coachEnded || !opts.embed || !d || d.type !== 'sa:coach_end' || d.s !== sessionId) return;
           if (!win.location || e.origin !== win.location.origin) return;
           coachEnded = true;
+          // The battery has ended: the child is complete, whichever way the coach takes the phone back.
+          if (ended) {
+            ended.then(function () {
+              if (win.parent && win.parent !== win) win.parent.postMessage({ type: 'sa:done', s: sessionId, reason: 'complete' }, win.location.origin);
+            });
+            return;
+          }
           runner.coachEnd();
           runner.log('coach_end_run');
           runner.log('handover_out');

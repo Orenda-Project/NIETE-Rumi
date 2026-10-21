@@ -11,6 +11,8 @@ const maybe = JSDOM ? describe : describe.skip;
 maybe('sa-ui on a DOM', () => {
   let dom;
   const keep = {};
+  const views = [];
+  const keepView = (v) => { views.push(v); return v; };
   beforeEach(() => {
     dom = new JSDOM('<!doctype html><main id="m"></main>', { url: 'https://portal.test/sa/play.html', pretendToBeVisual: true });
     for (const k of ['window', 'document', 'location', 'navigator', 'HTMLElement', 'Node', 'requestAnimationFrame', 'cancelAnimationFrame']) {
@@ -19,7 +21,7 @@ maybe('sa-ui on a DOM', () => {
     }
     jest.resetModules();
   });
-  afterEach(() => { for (const k of Object.keys(keep)) global[k] = keep[k]; dom.window.close(); });
+  afterEach(() => { views.splice(0).forEach((v) => { try { v.destroy(); } catch (_) { /* gone */ } }); for (const k of Object.keys(keep)) global[k] = keep[k]; dom.window.close(); });
 
   const flush = () => new Promise((r) => setTimeout(r, 20));
   function mount(battery, extra) {
@@ -28,7 +30,7 @@ maybe('sa-ui on a DOM', () => {
     const calls = [];
     const runner = core.createRunner(Object.assign({ battery, onEvent: (e) => calls.push(e) }, extra.runner));
     const el = document.getElementById('m');
-    const view = ui.mount(el, Object.assign({ runner, battery, lang: 'en', mode: 'game', speak: () => Promise.resolve() }, extra.ui));
+    const view = keepView(ui.mount(el, Object.assign({ runner, battery, lang: 'en', mode: 'game', speak: () => Promise.resolve() }, extra.ui)));
     return { runner, el, view, calls };
   }
   const rec = { id: 'story', mode: 'record', time_limit_s: 60, passage: { text: 'a b' }, items: [{ id: 'w', target: 'a', line: 1 }] };
@@ -126,13 +128,14 @@ describe('sa-ui game mic check: a way past it', () => {
     const keep = {};
     for (const k of ['window', 'document', 'location', 'navigator', 'HTMLElement', 'Node', 'requestAnimationFrame', 'cancelAnimationFrame']) { keep[k] = global[k]; global[k] = k === 'window' ? dom.window : dom.window[k]; }
     jest.resetModules();
+    let view = null;
     try {
       const core = require('../sa/sa-core');
       const ui = require('../sa/sa-ui');
       const rec = { id: 'story', mode: 'record', time_limit_s: 60, passage: { text: 'a b' }, items: [{ id: 'w', target: 'a', line: 1 }] };
       const runner = core.createRunner({ battery: { battery_id: 'b', tasks: [rec] }, mic: () => 'unknown', mic_check: true });
       const el = document.getElementById('m');
-      const view = ui.mount(el, { runner, battery: { tasks: [rec] }, lang: 'en', mode: 'game', speak: () => Promise.resolve(), micSkipMs: 60, micProbe: () => new Promise(() => {}) });
+      view = ui.mount(el, { runner, battery: { tasks: [rec] }, lang: 'en', mode: 'game', speak: () => Promise.resolve(), micSkipMs: 60, micProbe: () => new Promise(() => {}) });
       runner.start();
       view.render();
       await new Promise((r) => setTimeout(r, 20));
@@ -144,6 +147,6 @@ describe('sa-ui game mic check: a way past it', () => {
       skip.click();
       await new Promise((r) => setTimeout(r, 20));
       expect(runner.results()[0]).toMatchObject({ task_id: 'story', stop_reason: 'mic_unavailable' });
-    } finally { for (const k of Object.keys(keep)) global[k] = keep[k]; dom.window.close(); }
+    } finally { if (view) view.destroy(); for (const k of Object.keys(keep)) global[k] = keep[k]; dom.window.close(); }
   });
 });

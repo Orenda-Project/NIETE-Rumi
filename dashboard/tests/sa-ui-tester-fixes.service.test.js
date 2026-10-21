@@ -3,7 +3,8 @@
  * The external tester's screen findings (dashboard/sa/sa-ui.js), on a real DOM and the forms as the server serves them:
  * - a number sequence shows its blank as a tile reading "__", wherever the gap is (tap and keypad);
  * - the keypad takes as many digits as the task's longest answer (a 4-digit answer fits);
- * - a part's closing line is said once and awaited, and a part skipped for want of a microphone says no "good effort".
+ * - a part's closing line is said once and awaited, and a part skipped for want of a microphone says no "good effort",
+ *   only its own line ("No microphone, so we skip this part", RULING #38b), once per part, 3 s each.
  * Runs where jsdom resolves (a portal dev dependency, not a dashboard one); skipped otherwise.
  */
 const path = require('path');
@@ -19,6 +20,8 @@ const taskOf = (name, id) => JSON.parse(JSON.stringify(form(name).tasks.find((t)
 maybe('sa-ui: the tester\'s screen findings', () => {
   let dom;
   const keep = {};
+  const views = [];
+  const keepView = (v) => { views.push(v); return v; };
   beforeEach(() => {
     dom = new JSDOM('<!doctype html><main id="m"></main>', { url: 'https://portal.test/sa/play.html', pretendToBeVisual: true });
     for (const k of ['window', 'document', 'location', 'navigator', 'HTMLElement', 'Node', 'requestAnimationFrame', 'cancelAnimationFrame']) {
@@ -27,7 +30,7 @@ maybe('sa-ui: the tester\'s screen findings', () => {
     }
     jest.resetModules();
   });
-  afterEach(() => { jest.useRealTimers(); for (const k of Object.keys(keep)) global[k] = keep[k]; dom.window.close(); });
+  afterEach(() => { views.splice(0).forEach((v) => { try { v.destroy(); } catch (_) { /* gone */ } }); jest.useRealTimers(); for (const k of Object.keys(keep)) global[k] = keep[k]; dom.window.close(); });
 
   const flush = () => new Promise((r) => setTimeout(r, 20));
   function mount(battery, extra) {
@@ -36,7 +39,7 @@ maybe('sa-ui: the tester\'s screen findings', () => {
     const calls = [];
     const runner = core.createRunner(Object.assign({ battery, onEvent: (e) => calls.push(e) }, extra.runner));
     const el = document.getElementById('m');
-    const view = ui.mount(el, Object.assign({ runner, battery, lang: 'en', mode: 'game', speak: () => Promise.resolve() }, extra.ui));
+    const view = keepView(ui.mount(el, Object.assign({ runner, battery, lang: 'en', mode: 'game', speak: () => Promise.resolve() }, extra.ui)));
     return { runner, el, view, calls };
   }
   /** Straight to the first scored item (the practice answered right). */
@@ -210,7 +213,8 @@ maybe('sa-ui: the tester\'s screen findings', () => {
     const rec = (id) => ({ id, mode: 'record', time_limit_s: 60, passage: { text: 'a b' }, items: [{ id: id + '.w', target: 'a', line: 1 }], script: { after } });
     const tap = { id: 'tap', mode: 'tap', items: [{ id: 't1', target: 'a', options: ['a', 'b'] }], script: { after } };
 
-    test('no microphone: the record parts skipped one after another never say "good effort"', async () => {
+    test('no microphone: the record parts skipped one after another never say "good effort", only the skip line', async () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
       const said = [];
       const { runner, view } = mount({ battery_id: 'b', tasks: [rec('r1'), rec('r2'), rec('r3'), tap] }, {
         runner: { mic: () => 'no' },
@@ -218,9 +222,10 @@ maybe('sa-ui: the tester\'s screen findings', () => {
       });
       runner.start();
       view.render();
-      await new Promise((r) => setTimeout(r, 2500));
+      await jest.advanceTimersByTimeAsync(9500);
       expect(runner.view().task.id).toBe('tap');
       expect(said.filter((s) => s === after.text)).toEqual([]);
+      expect(said.filter((s) => s === 'No microphone, so we skip this part')).toHaveLength(3);
     });
 
     test('a finished part: the line is said once and awaited to its end (7 s), then the next part', async () => {
@@ -270,7 +275,8 @@ maybe('sa-ui: the tester\'s screen findings', () => {
       toRunning(runner); runner.answer('a');
       view.render();
       await jest.advanceTimersByTimeAsync(9000);
-      expect(heard.filter((s) => s === after.text).length).toBeLessThanOrEqual(1);
+      // A line that has a clip is never said by the phone's voice (RULING #31c): the clip is retried, then silent.
+      expect(heard).toEqual([]);
       expect(runner.view().task.id).toBe('tap2');
     });
   });

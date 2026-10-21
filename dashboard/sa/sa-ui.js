@@ -91,6 +91,8 @@
       mic_tap: 'Tap the microphone, then speak',
       mic_skip: 'Skip for now',
       mic_skip_say: 'If the microphone is not working, tap Skip.',
+      mic_skip_task: 'No microphone, so we skip this part',
+      dev_jump: 'Jump to…',
       mic_speak: 'Speak now…',
       mic_ask: 'Did you hear yourself?',
       mic_yes: 'I heard myself',
@@ -153,6 +155,8 @@
       mic_tap: 'مائیک دبائیں، پھر بولیں',
       mic_skip: 'ابھی چھوڑ دیں',
       mic_skip_say: 'اگر مائیک کام نہیں کر رہا تو چھوڑ دیں دبائیں۔',
+      mic_skip_task: 'مائیک نہیں ہے، اس لیے یہ حصہ چھوڑ رہے ہیں',
+      dev_jump: 'اس حصے پر جائیں…',
       mic_speak: 'اب بولیں…',
       mic_ask: 'کیا آپ کو اپنی آواز سنائی دی؟',
       mic_yes: 'ہاں، سنائی دی',
@@ -179,6 +183,7 @@
   var FEEDBACK_MS = 1200;
   var TASK_END_MS = 1500;
   var TASK_END_CAP_MS = 8000; // the part's closing line is awaited to its end, never longer than this
+  var MIC_SKIP_MS = 3000;   // a record task skipped for no microphone: its line stays this long (RULING #38b)
   var PRESS_MS = 180;
   var WARM_N = 10;
   var WARM_CAP_MS = 25000;
@@ -320,7 +325,24 @@
           onclick: function () { muted = !muted; try { opts.onMute(muted); } catch (e) { /* skin */ } draw(); },
         }, [h('span', { 'aria-hidden': 'true', text: muted ? '🔇' : '🔊' })]));
       }
+      var dj = devJumpEl(v);
+      if (dj) kids.push(dj);
       return h('div', { class: 'sae-top' }, kids);
+    }
+    /** Sandbox only (RULING #43): the session's tasks; choosing one starts it at its instruction. Coach mode only. */
+    function devJumpEl(v) {
+      if (mode !== 'proctored' || typeof opts.devJump !== 'function' || !Array.isArray(v.dev_tasks)) return null;
+      var opt0 = h('option', { value: '', text: C.dev_jump });
+      opt0.selected = true;
+      var sel = h('select', { class: 'sae-devjump', 'aria-label': C.dev_jump }, [opt0].concat(v.dev_tasks.map(function (x) {
+        return h('option', { value: String(x.index), text: (x.index + 1) + '. ' + (tx(x.title) || x.id) });
+      })));
+      sel.addEventListener('change', function () {
+        var i = parseInt(sel.value, 10);
+        if (isNaN(i)) return;
+        try { opts.devJump(i); } catch (e) { /* the engine's */ }
+      });
+      return sel;
     }
     function screen(v, cls, kids, foot, noTop) {
       return h('div', { class: 'sae-screen ' + (cls || '') }, [
@@ -974,11 +996,15 @@
       ]);
     }
 
+    /** The line for a record task skipped with no microphone: the battery's recorded one, else the COPY text. */
+    function micSkipLine() { return line('mic_skip_task') || { en: COPY.en.mic_skip_task, ur: COPY.ur.mic_skip_task }; }
     function sTaskEnd(v) {
       var skipped = v.result && /^skipped|^mic_unavailable|^assets_unavailable/.test(v.result.stop_reason || '');
+      var noMic = v.result && v.result.stop_reason === 'mic_unavailable';
       return screen(v, 'sae-tend', [
         jugnu(skipped ? 'idle' : 'celebrate'),
         skipped ? null : h('h1', { class: 'sae-h1 sae-xl', text: C.well_done }),
+        noMic ? h('p', { class: 'sae-p sae-micskip', text: tx(micSkipLine()) }) : null,
       ], null);
     }
 
@@ -1122,11 +1148,12 @@
         sayChain([v.time_left_ms === 0 && s.time_up ? [s.time_up] : null, s.intro_tap ? [s.intro_tap] : [{ en: COPY.en.last_word, ur: COPY.ur.last_word }]]);
       } else if (v.phase === 'task_end') {
         var r = v.result || {};
-        var skipped = /^skipped|^mic_unavailable|^assets_unavailable/.test(r.stop_reason || '');
-        var said = skipped ? null : ((r.stop_reason === 'time_up' ? s.time_up : r.stop_reason === 'early_stop_first_line' ? s.early_stop : null) || s.after);
+        var skipped = /^skipped|^assets_unavailable/.test(r.stop_reason || '');
+        var noMic = r.stop_reason === 'mic_unavailable';
+        var said = noMic ? micSkipLine() : skipped ? null : ((r.stop_reason === 'time_up' ? s.time_up : r.stop_reason === 'early_stop_first_line' ? s.early_stop : null) || s.after);
         var sp = said ? say(said) : Promise.resolve();
         var at = v.task_index;
-        Promise.all([delay(skipped ? 400 : TASK_END_MS), capped(sp, TASK_END_CAP_MS)]).then(function () {
+        Promise.all([delay(noMic ? MIC_SKIP_MS : skipped ? 400 : TASK_END_MS), capped(sp, TASK_END_CAP_MS)]).then(function () {
           if (!alive) return;
           var now = runner.view();
           if (now.phase === 'task_end' && now.task_index === at) { runner.next(); draw(); }

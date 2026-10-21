@@ -47,6 +47,8 @@ const maybe = JSDOM ? describe : describe.skip;
 maybe('sa-ui on a DOM', () => {
   let dom;
   const keep = {};
+  const views = [];
+  const keepView = (v) => { views.push(v); return v; };
   beforeEach(() => {
     dom = new JSDOM('<!doctype html><main id="m"></main>', { url: 'https://portal.test/sa/play.html', pretendToBeVisual: true });
     for (const k of ['window', 'document', 'location', 'navigator', 'HTMLElement', 'Node', 'requestAnimationFrame', 'cancelAnimationFrame']) {
@@ -55,7 +57,7 @@ maybe('sa-ui on a DOM', () => {
     }
     jest.resetModules();
   });
-  afterEach(() => { for (const k of Object.keys(keep)) global[k] = keep[k]; dom.window.close(); });
+  afterEach(() => { views.splice(0).forEach((v) => { try { v.destroy(); } catch (_) { /* gone */ } }); for (const k of Object.keys(keep)) global[k] = keep[k]; dom.window.close(); });
 
   test('an <img> error on a picture tile: no tap registers, the task says why', () => {
     const core = require('../sa/sa-core');
@@ -63,7 +65,7 @@ maybe('sa-ui on a DOM', () => {
     const calls = [];
     const runner = core.createRunner({ battery: battery(), onEvent: (e) => calls.push(e) });
     const el = document.getElementById('m');
-    const view = ui.mount(el, { runner, battery: battery(), lang: 'ur', mode: 'game', speak: () => Promise.resolve() });
+    const view = keepView(ui.mount(el, { runner, battery: battery(), lang: 'ur', mode: 'game', speak: () => Promise.resolve() }));
     runner.start(); runner.instructionDone(); runner.begin();
     view.render();
     const img = el.querySelector('img.sae-opt-img');

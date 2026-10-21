@@ -24,6 +24,8 @@ const familyOf = (id) => (/^en\./.test(id) ? 'en' : /^ur\./.test(id) ? 'ur' : nu
 maybe('sa-ui: English tasks show and say English only; Urdu tasks Urdu only', () => {
   let dom;
   const keep = {};
+  const views = [];
+  const keepView = (v) => { views.push(v); return v; };
   beforeEach(() => {
     dom = new JSDOM('<!doctype html><main id="m"></main>', { url: 'https://portal.test/sa/play.html', pretendToBeVisual: true });
     for (const k of ['window', 'document', 'location', 'navigator', 'HTMLElement', 'Node', 'requestAnimationFrame', 'cancelAnimationFrame']) {
@@ -32,7 +34,7 @@ maybe('sa-ui: English tasks show and say English only; Urdu tasks Urdu only', ()
     }
     jest.resetModules();
   });
-  afterEach(() => { for (const k of Object.keys(keep)) global[k] = keep[k]; dom.window.close(); });
+  afterEach(() => { views.splice(0).forEach((v) => { try { v.destroy(); } catch (_) { /* gone */ } }); for (const k of Object.keys(keep)) global[k] = keep[k]; dom.window.close(); });
 
   /** What the child sees of the item: tiles, label or sequence, the passage, the keypad's typed box. */
   function shown(el) {
@@ -59,10 +61,10 @@ maybe('sa-ui: English tasks show and say English only; Urdu tasks Urdu only', ()
       const el = document.createElement('main');
       document.body.appendChild(el);
       // Only what Jugnu says for the item itself: an item line goes out as { text, lang } or as the item's prompt.
-      const view = ui.mount(el, {
+      const view = keepView(ui.mount(el, {
         runner, battery: { tasks: [task] }, lang: pageLang, mode: 'game',
         speak: (x) => { if (x && x.lang) said.push(x.text); return Promise.resolve(); },
-      });
+      }));
       const look = (where) => {
         for (const s of shown(el)) if (wrong.test(s)) bad.push(`${task.id} ${where} shows "${s.slice(0, 40)}"`);
         for (const s of said.splice(0)) if (typeof s === 'string' && wrong.test(s)) bad.push(`${task.id} ${where} says "${s.slice(0, 40)}"`);
