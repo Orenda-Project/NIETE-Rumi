@@ -19,6 +19,9 @@
  *                is no quiz home for "Quiz this" / "Send again" to go to); rungs 2, 4, 5 still work.
  *   scores       the teacher's newest own completed report and newest observation sent to the teacher: { marks, max, at, id } only
  *                when marks is a number (the report page's rule), else null
+ *   own report   rung 2 and the coach chip exist only when portal_self_observation is on for the teacher: the report page
+ *                they open answers 404 otherwise (requireSelfObservation in portal.routes.js), so the card never sends a
+ *                teacher there. Off, unreadable or failed = no coach_report rung and no coach chip.
  *   quizHome     the bot's signed quiz-home path, relative, as it gave it; null for a coach / principal
  *
  * Logged (R11), PII-free, never awaited, never thrown: app_funnel.action { action:'home_card.shown' | 'home_card.tap',
@@ -28,6 +31,7 @@ const express = require('express');
 const supabase = require('../config/supabase');
 const {
   isFlagEnabledForUser, PORTAL_TEACHER_V2_KEY, PORTAL_TEACHER_HOME_CARD_KEY, PORTAL_TEACHER_HOME_ORDER_KEY,
+  PORTAL_SELF_OBSERVATION_KEY,
 } = require('../lib/feature-flags');
 const telemetry = require('../services/telemetry.service');
 const TeacherObservation = require('../lib/teacher-observation');
@@ -141,13 +145,15 @@ router.get('/me/home', requirePortalAuth, requireTeacherV2, requireHomeCard, asy
       // the teacher's newest UN-QUIZZED plan of 7 days: the lesson rung's fallback when the bot answered with no job
       one(supabase.from('lesson_plans').select('id, topic, created_at').eq('user_id', userId).is('quiz_id', null)
         .gte('created_at', since7).order('created_at', { ascending: false }).limit(1)),
+      // may the teacher open their own reports? (gates rung 2 and the coach chip; a failed read = no)
+      isFlagEnabledForUser(supabase, PORTAL_SELF_OBSERVATION_KEY, userId).catch(() => false),
     ]);
-    const [user, orderOn, counts, bot, coachRow, obsRow, lpCount, lastPlan] = settled.map(valueOf);
+    const [user, orderOn, counts, bot, coachRow, obsRow, lpCount, lastPlan, selfObservation] = settled.map(valueOf);
 
     const isCoach = Order.isCoachRole(user && user.role);
     const lang = langOf(user && user.preferred_language);
     const quizHome = !isCoach && bot ? bot.path : null;
-    const coach = asSession(coachRow);
+    const coach = selfObservation === true ? asSession(coachRow) : null;
     const observation = asSession(obsRow);
     let card = null;
     try {

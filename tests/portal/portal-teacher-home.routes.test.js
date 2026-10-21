@@ -43,7 +43,7 @@ beforeEach(() => {
   jest.spyOn(console, 'warn').mockImplementation(() => {});
   jest.spyOn(Date, 'now').mockReturnValue(NOW);
   reads = [];
-  flags = { portal_teacher_v2: true, portal_teacher_home_card: true, portal_teacher_home_order: false };
+  flags = { portal_teacher_v2: true, portal_teacher_home_card: true, portal_teacher_home_order: false, portal_self_observation: true };
   tables = {
     users: { data: [{ role: 'teacher', preferred_language: 'ur' }], error: null },
     lesson_plans: (q) => (q.opts && q.opts.head ? { count: 3, data: null, error: null } : { data: [], error: null }),
@@ -58,6 +58,7 @@ beforeEach(() => {
     PORTAL_TEACHER_V2_KEY: 'portal_teacher_v2',
     PORTAL_TEACHER_HOME_CARD_KEY: 'portal_teacher_home_card',
     PORTAL_TEACHER_HOME_ORDER_KEY: 'portal_teacher_home_order',
+    PORTAL_SELF_OBSERVATION_KEY: 'portal_self_observation',
     isFlagEnabledForUser: async (_sb, key, userId) => !!userId && flags[key] === true,
   }));
   process.env.MAIN_BOT_URL = 'http://bot.test'; process.env.INTERNAL_API_KEY = 'k';
@@ -154,6 +155,23 @@ describe('GET /me/home — on', () => {
     expect(payload.scores.observation).toBeNull();
     // 20 days old: past the report's 7-day window, so no coach card; LPs exist, the bot had none → no card
     expect(payload.card).toBeNull();
+  });
+
+  it('portal_self_observation off: no coach_report rung and no coach chip (the report page would answer 404); on: unchanged', async () => {
+    // a fresh own report (2 days): rung 2 and the coach chip when the teacher may open reports
+    tables.coaching_sessions = (q) => (q.filters.some((f) => f[0] === 'is' && f[1] === 'observation_type')
+      ? { data: [{ id: 'c2', created_at: ago(2), scores: { overall_marks: 26, overall_max_marks: 38 }, topic: 'Food Chains' }], error: null }
+      : { data: [], error: null });
+    let { payload } = await home();
+    expect(payload.card).toMatchObject({ kind: 'coach_report', id: 'c2', href: '/portal/teacher/coaching/c2' });
+    expect(payload.scores.coach).toEqual({ marks: 26, max: 38, at: ago(2), id: 'c2' });
+
+    flags.portal_self_observation = false;
+    ({ payload } = await home());
+    expect(payload.card).toBeNull();
+    expect(payload.scores.coach).toBeNull();
+    expect(payload.scores.observation).toBeNull();
+    expect(logEvent).toHaveBeenLastCalledWith('app_funnel.action', expect.objectContaining({ action: 'home_card.shown', kind: 'none' }));
   });
 
   it('the order switch on: ranked from the teacher\'s days; off: fixed and orderOn false', async () => {
