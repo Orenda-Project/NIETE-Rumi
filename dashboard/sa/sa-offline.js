@@ -101,6 +101,8 @@
         if (!sw) return { ready: false, why: 'no_active_worker' };
         var list = [o.battery_url].filter(Boolean);
         var said = first.length ? ask(sw, { type: 'prepare', urls: first }) : Promise.resolve({ ok: true, missing: [] });
+        // The opening lines are on the phone (or given up on): the page may speak them now (o.onLines, RULING W3-18).
+        if (typeof o.onLines === 'function') said.then(function () { o.onLines(); }, function () { o.onLines(); });
         var then = said.then(function () { return ask(sw, { type: 'prepare', urls: rest }); });
         return Promise.all([said, ask(sw, { type: 'prepare', urls: list }), then, ask(sw, { type: 'prepare', urls: pics })]).then(function (r) {
           var core = r[1] || { ok: false, missing: list };
@@ -147,7 +149,7 @@
     var ls = pick(o, 'localStorage', (function () { try { return root.localStorage; } catch (_) { return null; } }()));
     var total = urls(battery, lang, o.base).length;
     return Promise.all([
-      Promise.resolve().then(function () { return off({ battery_url: o.battery_url, battery: battery, lang: lang, base: o.base }); }).then(null, function () { return null; }),
+      Promise.resolve().then(function () { return off({ battery_url: o.battery_url, battery: battery, lang: lang, base: o.base, onLines: o.onLines }); }).then(null, function () { return null; }),
       hasVoice(speech, lang).then(null, function () { return false; }),
       persist(storage),
     ]).then(function (r) {
