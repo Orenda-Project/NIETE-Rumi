@@ -183,6 +183,12 @@ describe('the check\'s "Work on first" screen shows the notes', () => {
     expect(out.data.notes_body).not.toContain('an earlier answer');
   });
 
+  test('the round-6 check (version 2), still open on coaches\' phones, gets the same notes', async () => {
+    const id = await checkable({ p1_notes: PART_1.p1_notes });
+    const out = await Check.handleObserve2CheckDataExchange(checkToken(id), 'ADDED_TWO', { screen: 'ADDED_TWO', cv: '2' });
+    expect(out.data).toMatchObject({ priority_level: 'C7', notes_v: true, notes_body: `Part 1\n${PART_1.p1_notes}` });
+  });
+
   test('nothing typed: the block is hidden, and its text is an empty string (Meta refuses null)', async () => {
     const id = await checkable({});
     const out = await Check.handleObserve2CheckDataExchange(checkToken(id), 'ADDED_TWO', { screen: 'ADDED_TWO', cv: CHECK_VERSION });
