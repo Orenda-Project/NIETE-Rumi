@@ -14,7 +14,7 @@
 
 const crypto = require('crypto');
 const { TASKS_V3 } = require('../tasks');
-const { COMMON, BATTERY, GAME_LINES, TASKS: LINES, CHAINS, MATHS_PRACTICE, UR_LETTER_NAMES, EN_LETTER_SOUNDS } = require('./scripts');
+const { COMMON, BATTERY, CHECK_WORDS, GAME_LINES, TASKS: LINES, CHAINS, MATHS_PRACTICE, UR_LETTER_NAMES, EN_LETTER_SOUNDS } = require('./scripts');
 const W3 = require('./build-w3');
 
 const VERSION = 'child-test-items-sa-v1';
@@ -936,6 +936,8 @@ function buildSaBank({ v3, extra, w3 }) {
       digits: 'maths shows Western digits; Urdu speech uses Urdu digits (v3 convention)',
       translation: 'Urdu renderings of English scripts are pending native review (v3 convention)',
     },
+    // The audio check's words, each with its clip in both languages (the engine's own pool has none).
+    check_words: CHECK_WORDS.map(({ pic, en, ur }) => ({ pic, ...sayBoth(en, ur) })),
     lines: Object.fromEntries(Object.entries({ ...BATTERY, ...(w3 ? W3.LINES_W3 : {}) }).map(([k, l]) => [k, spoken(l)])),
     forms,
     tasks,
@@ -1074,6 +1076,7 @@ function runtimeBattery(bank, formId, lang) {
   return {
     battery_id: `sa.${formId}.${lang}`, version: bank.version, form: formId, lang, ...shape,
     rule: bank.rule, conventions: bank.conventions,
+    check_words: bank.check_words,
     lines: Object.fromEntries(Object.entries(bank.lines).filter(([k]) => !/_game$/.test(k) && !w3Lines.includes(k))
       .map(([k, l]) => [k, inLang(form.lines && form.lines[k] ? bank.lines[form.lines[k]] : l, lang)])),
     // The full order, then the tasks only a short form runs (RDF; RDF auto / manual), so the page can pick either list.

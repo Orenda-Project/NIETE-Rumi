@@ -193,6 +193,7 @@
         }
         var view = ui.mount(opts.mount, {
           runner: runner, battery: battery, lang: lang, mode: mode, speak: voice.speak,
+          check_words: battery.check_words || null,
           onState: function (v) { fire('state', v); },
           onFeedback: function (f) { fire('practice_feedback', f); },
           onRecordStart: function (t, item) { recStart(t, item); fire('record_start', t); },
