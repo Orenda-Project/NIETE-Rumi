@@ -1351,6 +1351,24 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # can name a child or record an incident.
 
   @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: My notes come with the "Record sealed" message, before I talk with the teacher
+    Given I typed notes in Part 1, Part 2 and "Not in the recording"
+    When I tick the seal box and tap "Seal and send"
+    Then the bot's "Record sealed" message ends with "Your notes, as you wrote them:" and each note, word for word, under its part
+    And it is one message, in my language, with the recording steps above the notes
+    # Pilot sheet R23 (16 Oct): "Notes that we take during observation ... should be visible to us before
+    # debriefing the teacher". The brief carries them, but it comes after the check, and most debriefs start
+    # before the check is submitted (30 of 47 on prod since 16 Oct). The seal always comes first.
+    # observe2-form-endpoint.js sendSealed; the brief's own section (observe2/brief.js notesSection), each
+    # note clipped at 400 code points so it stays one message. "Why you changed" is typed later, at the check.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P2
+  Scenario: With no notes typed, the "Record sealed" message is unchanged
+    Given I left every notes box empty
+    When I tick the seal box and tap "Seal and send"
+    Then the bot's "Record sealed" message has the recording steps and no notes section
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
   Scenario: The teacher's report names the thing I picked to work on first
     Given I picked "Real group work" to work on first and kept it at the check
     And my debrief brief said "Work on first: Real group work"
