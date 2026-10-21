@@ -71,6 +71,6 @@ test('the effort stars are unchanged by a skip: every stone ended still earns th
     { task_id: 'ma.add2', stop_reason: 'skipped_level2' },
     { task_id: 'ma.story', stop_reason: 'complete' },
   ]);
-  expect(html).toContain('★ You finished every stone');
+  expect(html).toContain('★ You reached every stone');
   expect(html).not.toContain('<s>★</s>');
 });
