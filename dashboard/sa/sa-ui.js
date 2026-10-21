@@ -35,7 +35,8 @@
  *                       moves a cell on by itself Jugnu says lines.please_go_on. Mental maths shows its sum big.
  *   manual              before each task Jugnu says only lines.coach_will_instruct; a coach screen shows the words to
  *                       read out (task.coach_text, else the instruction) and "Give the phone to the child"; no
- *                       other clip plays (no item, practice model, feedback or end line; the sound check stays). Every
+ *                       other clip plays (no welcome, warm-up, item, practice model, feedback or end line; the sound check
+ *                       keeps its prompt, word and replay, and the hand-over screen says to put the headphones on). Every
  *                       item auto speaks is listed on the coach screen and shown again with its item, for the coach to
  *                       read out; a hidden passage is shown to the coach to read; no replay buttons.
  *   passage_punct       the passage's words are the whitespace tokens of passage.text (its «۔ ، ؟» and ". , ?"),
@@ -121,6 +122,7 @@
       coach_read: 'Read this to the child:',
       coach_then: 'Then give the phone to the child.',
       coach_items: 'Read each one out when it shows:',
+      headphones: 'Put the headphones on the child, then check the sound.',
     },
     ur: {
       hello: 'السلام علیکم! میں جگنو ہوں۔',
@@ -190,6 +192,7 @@
       coach_read: 'یہ بچے کو پڑھ کر سنائیں:',
       coach_then: 'پھر فون بچے کو دے دیں۔',
       coach_items: 'ہر ایک سامنے آنے پر پڑھ کر سنائیں:',
+      headphones: 'بچے کو ہیڈفون لگائیں، پھر آواز چیک کریں۔',
     },
   };
 
@@ -378,8 +381,8 @@
     function btn(label, onclick, cls) {
       return h('button', { class: 'sae-btn ' + (cls || ''), type: 'button', onclick: function (e) { if (!busy) onclick(e); } }, [label]);
     }
-    function replayBtn(onclick) {
-      if (manual) return null; // coach-led: the coach says it again
+    function replayBtn(onclick, device) {
+      if (manual && !device) return null; // coach-led: the coach says it again (the sound check keeps its replay)
       return h('button', { class: 'sae-replay sa-replay', type: 'button', 'aria-label': C.replay, title: C.replay, onclick: onclick }, [h('span', { 'aria-hidden': 'true', text: '🔁' })]);
     }
     function topBar(v) {
@@ -526,7 +529,7 @@
       var b = pool[Math.floor(Math.random() * pool.length)];
       check = { pair: Math.random() < 0.5 ? [a, b] : [b, a], target: a };
     }
-    function playCheck() { return say({ en: check.target.en, ur: check.target.ur }, check.target.audio || null); }
+    function playCheck() { return say({ en: check.target.en, ur: check.target.ur }, check.target.audio || null, true); }
     function sCheck(v) {
       if (checkBad) {
         var f = line('audio_fail');
@@ -550,7 +553,7 @@
         }, [h('span', { class: 'sae-pic-e', 'aria-hidden': 'true', text: w.pic }), h('span', { class: 'sae-pic-w', text: w[lang] })]);
       }));
       return screen(v, 'sae-check', [
-        h('div', { class: 'sae-row' }, [jugnu('thinking', true), replayBtn(function () { playCheck(); })]),
+        h('div', { class: 'sae-row' }, [jugnu('thinking', true), replayBtn(function () { playCheck(); }, true)]),
         h('h1', { class: 'sae-h1', text: C.audio_q }),
         h('p', { class: 'sae-sub', text: C.audio_hint }),
         choices,
@@ -1238,6 +1241,8 @@
           childName
             ? h('h1', { class: 'sae-h1' }, [C.handover_pre, h('bdi', { class: 'sae-name', text: childName }), C.handover_post])
             : h('h1', { class: 'sae-h1', text: C.handover_anon }),
+          // RDF manual: Jugnu is silent but for the sound check and one line per task, so the coach sets the sound up first.
+          manual ? h('p', { class: 'sae-sub sae-headphones', text: C.headphones }) : null,
         ]),
         h('div', { class: 'sae-foot' }, [btn(C.start, function () { handedOver = true; draw(); }, 'sae-primary')]),
       ]);
@@ -1286,7 +1291,7 @@
       var s = (t && t.script) || {};
       if (v.phase === 'battery_intro') say(line('welcome'));
       else if (v.phase === 'audio_check') {
-        if (checkBad) say(line('audio_fail') || { en: COPY.en.audio_bad_sub, ur: COPY.ur.audio_bad_sub });
+        if (checkBad) say(line('audio_fail') || { en: COPY.en.audio_bad_sub, ur: COPY.ur.audio_bad_sub }, null, true);
         else {
           if (!check) newCheck();
           // The sound check is a device check, voiced in a coach-led run too (the coach line needs the speaker).
