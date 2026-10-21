@@ -39,7 +39,8 @@ describe("SlimCard", () => {
     expect(card.className).toMatch(/min-h-\[56px\]/);
     expect(card.getAttribute("data-home-card")).toBe("lesson");
     expect(card.querySelector("[data-primary]")?.textContent).toBe("Quiz this");
-    expect(screen.getByTestId("home-slim-line").textContent).toBe("Quiz: Parts of a Plant");
+    // the line is the topic alone: the pill already says "Quiz this", so no lead-in repeats it
+    expect(screen.getByTestId("home-slim-line").textContent).toBe("Parts of a Plant");
     // the topic is its own isolate and the one thing cut, at its own end, whatever the line's direction
     const topic = screen.getByTestId("home-slim-topic");
     expect(topic.tagName).toBe("BDI");
@@ -100,16 +101,21 @@ describe("SlimCard", () => {
     expect(line.className).toMatch(/\bline-clamp-2\b/);
   });
 
-  it("Urdu: the lesson line keeps the topic whole at its start; the Nastaliq lines are set tighter to fit the fold", async () => {
+  it("Urdu: the lesson line is the topic alone, whole at its start; the card is set tighter to fit the fold", async () => {
     await lang("ur");
     try {
       render(<SlimCard card={{ ...LESSON, title: "All About Me: Key Words" }} userKey={KEY} onGo={vi.fn()} />);
       const line = screen.getByTestId("home-slim-line");
-      expect(line.textContent).toBe("فوری جانچ: All About Me: Key Words");
+      // no lead-in: the pill says فوری جانچ بنائیں, so the line gives the topic the width (the lead's ruling, 21 Oct)
+      expect(line.textContent).toBe("All About Me: Key Words");
       expect(screen.getByTestId("home-slim-topic").getAttribute("dir")).toBe("auto");
       expect(line.className).toMatch(/rtl:!leading-\[1\.5\]/);
+      const card = screen.getByTestId("home-slim-card");
       // the design's R3.7: in Urdu the 8 px come from the gap above the card, never from the buttons
-      expect(screen.getByTestId("home-slim-card").className).toMatch(/rtl:-mt-2\b/);
+      expect(card.className).toMatch(/rtl:-mt-2\b/);
+      // and 4 px from the card's own padding, with the link's Nastaliq line set at 1.25: bottom ≤ 558 at 360×640
+      expect(card.className).toMatch(/rtl:py-1\b/);
+      expect(screen.getByRole("button", { name: "لیسن پلان کھولیں" }).className).toMatch(/rtl:!leading-\[1\.25\]/);
     } finally { await lang("en"); }
   });
 
