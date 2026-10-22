@@ -25,7 +25,7 @@ function chain(data) {
 /** known: the phone's client id matches the session; else the draw is already marked present (another phone, a reload). */
 function world({ on, known = true, status = 'in_progress' } = {}) {
   const session = { id: SID, coach_user_id: COACH, draw_id: 'd-1', visit_key: 'day:x', grade: 5, form: 'A', item_bank_version: 'sa-battery', status, device: { block: 'B4' } };
-  const calls = { setBlock: [], created: 0 };
+  const calls = { setBlock: [], setClient: [], created: 0 };
   const store = {
     getSession: async () => ({ ok: true, session }),
     getSessionByDraw: async () => ({ ok: true, session }),
@@ -35,7 +35,7 @@ function world({ on, known = true, status = 'in_progress' } = {}) {
   };
   const saStore = {
     findByClient: async () => ({ ok: true, sessionId: known ? SID : null }),
-    setClient: async () => ({ ok: true }),
+    setClient: async (id, v) => { calls.setClient.push([id, v]); return { ok: true }; },
     setBlock: async (id, block) => { calls.setBlock.push([id, block]); return { ok: true }; },
   };
   const deps = {
@@ -86,6 +86,19 @@ describe('the coach re-picks the part of a resumed child', () => {
       const { deps, calls } = world({ on: false, known });
       expect(await present(deps, { block: 'B1', repick: true })).toEqual({ status: 'ok', sessionId: SID, list: null });
       expect(calls.setBlock).toEqual([]);
+    }
+  });
+
+  test('ON, a session opened under another phone\'s id (another host, cleared storage): this phone\'s id now names it', async () => {
+    const { deps, calls } = world({ on: true, known: false });
+    await present(deps, { block: 'B1', repick: true });
+    expect(calls.setClient).toEqual([[SID, { clientSessionId: CLIENT }]]);
+  });
+
+  test('ON, the phone already names the session, or a finished one, or OFF: its id is left as it is', async () => {
+    for (const w of [world({ on: true, known: true }), world({ on: true, known: false, status: 'completed' }), world({ on: false, known: false })]) {
+      await present(w.deps, { block: 'B1', repick: true });
+      expect(w.calls.setClient).toEqual([]);
     }
   });
 
