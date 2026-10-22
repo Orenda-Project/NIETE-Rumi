@@ -587,7 +587,9 @@ function ready(row, session, nowMs) {
   const res = resultOf(row);
   if (!res) return false;
   // sa_stop_rules: questions wait for their passage's marks (a passage stopped on line 1 means they were not reached)
-  const passage = session.stopRules === true && session.passages ? session.passages.get(passageOf(row.block)) : null;
+  // a row never waits on itself: only a `_comp` names another block (its passage)
+  const own = passageOf(row.block) === row.block;
+  const passage = !own && session.stopRules === true && session.passages ? session.passages.get(passageOf(row.block)) : null;
   if (passage && passage.pending) return false;
   if (!['oral'].includes(row.response_mode) || row.audio_r2_key) return true;
   const asked = Array.isArray(res.asked) ? res.asked : [];
@@ -640,15 +642,18 @@ async function askedOf(sessionId, supabase) {
 
 /**
  * sa_stop_rules: each recorded passage of the session → { stopped (its marks say the first-line rule stopped it),
- * pending (parked or being scored: no marks yet) }. A passage that failed for good is neither.
+ * pending (parked or being scored: no marks yet) }. A passage that failed for good is neither. Passages only: a
+ * scored row by its marks' kind, an unscored one by having a questions row (`<passage>_comp…`) in the session. Every
+ * other parked row in this map made each row wait on its own marks, so nothing was ever scored.
  */
 async function passagesOf(sessionId, supabase) {
   const { data } = await supabase.from('child_test_blocks').select('block, ai_marks, ai_status, ai_reason').eq('session_id', sessionId);
   const out = new Map();
+  const followed = new Set((data || []).map((r) => r.block).filter((b) => passageOf(b) !== b).map(passageOf));
   for (const r of data || []) {
     const m = r.ai_marks;
     const kind = m && m.detail ? m.detail.kind : null;
-    if (m && kind !== 'passage') continue;
+    if (m ? kind !== 'passage' : !followed.has(r.block)) continue;
     const reason = String(r.ai_reason || '');
     const pending = !m && reason.startsWith('final:sa_') && !reason.startsWith(FAILED);
     if (m || pending) out.set(r.block, { stopped: Boolean(m && m.detail.stopped_by_rule), pending });
