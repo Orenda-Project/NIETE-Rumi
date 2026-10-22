@@ -378,10 +378,14 @@ const DASHBOARD_SESSION_COLUMNS = 'id, coach_user_id, school_id, grade, form, it
 const DASHBOARD_SESSION_CAP = 2000;
 const IN_BATCH = 100;
 
-/** The sessions of one battery mark (one coach's, or every coach's when coachUserId is null), newest first, capped. */
-async function listSaSessions({ mark, coachUserId = null } = {}) {
+/**
+ * The sessions of one battery mark, newest first, capped: one coach's, or every coach's only when the caller says
+ * allCoaches: true (a results admin). No coach and no allCoaches is refused, so an empty user never reads every coach.
+ */
+async function listSaSessions({ mark, coachUserId = null, allCoaches = false } = {}) {
+  if (!coachUserId && allCoaches !== true) return { ok: false, error: 'no_coach' };
   let q = supabase.from(SESSIONS).select(DASHBOARD_SESSION_COLUMNS).eq('item_bank_version', mark);
-  if (coachUserId) q = q.eq('coach_user_id', coachUserId);
+  if (allCoaches !== true) q = q.eq('coach_user_id', coachUserId);
   const { data, error } = await q.order('created_at', { ascending: false }).limit(DASHBOARD_SESSION_CAP);
   if (error) return fail('listSaSessions', error, { coachUserId });
   return { ok: true, sessions: data || [] };
