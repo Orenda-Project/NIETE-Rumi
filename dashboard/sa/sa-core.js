@@ -296,8 +296,9 @@
         // W3 forms: a question asked only once the child read min_words words (the coach card's "only if the child
         // read past …"); older forms by the line reached.
         var read = dep.last_word_index != null ? dep.last_word_index + 1 : 0;
-        // Round 4 (sa_comp_all_questions): the Rawalpindi rule. 10+ words read, not stopped on the first line → every question.
-        if (compAll && t.items.some(function (q) { return q.gate && typeof q.gate.min_words === 'number'; })) {
+        // Round 4 (sa_comp_all_questions): the Rawalpindi rule. 10+ words read, not stopped on the first line → every question,
+        // whatever the variant's questions carry (min_words gates or needs_line).
+        if (compAll) {
           return read >= COMP_ALL_MIN_WORDS && dep.stop_reason !== STOP.FIRST_LINE ? { items: t.items } : { skip: STOP.SKIPPED_NO_LINE };
         }
         var keep = t.items.filter(function (q) {
