@@ -98,3 +98,34 @@ describe('a child added on the spot', () => {
     expect(JSON.stringify(logToFile.mock.calls)).not.toContain('Zara');
   });
 });
+
+// RULING G-16: the printed visit kit numbers the list 1-5 (main) then 6-7 (alternates). An added child takes the next
+// number (8, then 9) and goes at the end; no listed child's number or place changes, whatever its section.
+describe('a child added on the spot keeps everyone else\'s number', () => {
+  const LATER = new Date(NOW.getTime() + 20 * 60 * 1000);
+  const two = [{ id: 'g3a', grade: 3, section: 'A', size: 20 }, { id: 'g3b', grade: 3, section: 'B', size: 20 }, { id: 'g5a', grade: 5, section: 'A', size: 20 }];
+  const numbers = (l) => new Map([...l.children, ...l.alternates].map((k) => [k.drawId, k.childNo]));
+
+  test.each([['later the same morning', LATER], ['in the same second as the draw', NOW]])('5 + 2 listed, one added in section A (%s): #8, last; nobody else moves', async (_, at) => {
+    setup(two);
+    const before = await list('visit-1');
+    expect(before.children).toHaveLength(5);
+    expect(before.alternates).toHaveLength(2);
+    expect(new Set(before.children.map((k) => k.section)).size).toBe(2);
+    const r = await add({ section: 'A', now: at });
+    const kid = r.children.find((k) => k.studentId === KID);
+    expect(kid.childNo).toBe(8);
+    expect(r.children[r.children.length - 1].studentId).toBe(KID);
+    expect(r.children.slice(0, 5).map((k) => k.drawId)).toEqual(before.children.map((k) => k.drawId));
+    const was = numbers(before);
+    for (const [id, n] of was) expect(numbers(r).get(id)).toBe(n);
+  });
+
+  test('two added: #8 then #9, in the order added', async () => {
+    setup(two);
+    await list('visit-1');
+    await add({ section: 'B', now: LATER });
+    const r = await add({ section: 'A', clientChildId: KID2, firstName: 'Bilal', now: new Date(LATER.getTime() + 60000) });
+    expect(r.children.slice(-2).map((k) => [k.studentId, k.childNo])).toEqual([[KID, 8], [KID2, 9]]);
+  });
+});
