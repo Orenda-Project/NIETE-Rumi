@@ -7613,12 +7613,12 @@ router.post('/coaching-upload/start', requirePortalAuth, requireSelfObservation,
     teacherClass: teacherClassPick(teacherClass), liveMoves,
   }), (status) => {
     // bd-c5reix — a recording kept from WhatsApp, sent from the app (the funnel's "pending submitted").
-    if (status === 200 && WHATSAPP_KEY_RX.test(String(key || ''))) logAppAction(req, 'coaching.pending_sent', 'ai_coaching');
+    if (status === 200 && isWhatsAppKey(key)) logAppAction(req, 'coaching.pending_sent', 'ai_coaching');
   });
 });
 
-/** bd-c5reix — a classroom recording the bot kept from WhatsApp (whatsapp-recording.service's key). */
-const WHATSAPP_KEY_RX = /\/portal_wa-[0-9a-f]{16}-[A-Za-z0-9-]+\.[a-z0-9]+$/;
+/** bd-c5reix — a classroom recording the bot kept from WhatsApp: the bot's own predicate (regex only, no bot deps). */
+const { isWhatsAppKey } = require('../../bot/shared/services/coaching/whatsapp-recording.service');
 const logAppAction = (...a) => require('./app-funnel.routes').logAppAction(...a);
 
 /**

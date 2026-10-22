@@ -99,7 +99,7 @@ beforeEach(() => { jest.resetModules(); Svc = require(SERVICE); });
 describe('keepRecording — the door saves her recording for the app (AC1)', () => {
   test('saves the bytes under her portal audio tree, marked as from WhatsApp, with the hash and the length', async () => {
     const d = deps();
-    const out = await Svc.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/ogg; codecs=opus', seconds: 1812, door: 'voice' }, d);
+    const out = await Svc.__internals.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/ogg; codecs=opus', seconds: 1812, door: 'voice' }, d);
 
     expect(out).toEqual({ status: 'saved', key: waKey(ME, '2026-10', SHA, 'b2c3d4e5-0000-4000-8000-000000000001'), sha256: SHA });
     expect(d.r2.uploadBuffer).toHaveBeenCalledTimes(1);
@@ -111,7 +111,7 @@ describe('keepRecording — the door saves her recording for the app (AC1)', () 
   });
 
   test('the saved key is one the app may send: her own, an audio upload, a portal row', async () => {
-    const out = await Svc.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/mpeg', filename: 'lesson.mp3', seconds: 2400, door: 'document' }, deps());
+    const out = await Svc.__internals.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/mpeg', filename: 'lesson.mp3', seconds: 2400, door: 'document' }, deps());
     const Portal = require(PORTAL);
     expect(Portal.isOwnPortalKey(ME, out.key, 'audio')).toBe(true);
     expect(Portal.isOwnPortalKey(OTHER, out.key, 'audio')).toBe(false);
@@ -122,9 +122,9 @@ describe('keepRecording — the door saves her recording for the app (AC1)', () 
 
   test('a file name the app takes wins over its media type; a format the app cannot take is not saved', async () => {
     const d = deps();
-    const m4a = await Svc.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'application/octet-stream', filename: 'Class 4.M4A', door: 'document' }, d);
+    const m4a = await Svc.__internals.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'application/octet-stream', filename: 'Class 4.M4A', door: 'document' }, d);
     expect(m4a.key.endsWith('.m4a')).toBe(true);
-    const flac = await Svc.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/flac', filename: 'x.flac', door: 'document' }, deps());
+    const flac = await Svc.__internals.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/flac', filename: 'x.flac', door: 'document' }, deps());
     expect(flac).toEqual({ status: 'invalid', reason: 'not_audio' });
   });
 });
@@ -134,7 +134,7 @@ describe('keepRecording — the same recording again (AC4)', () => {
     const d = deps({ rows: { coaching_sessions: [
       { id: 'cs-old', user_id: ME, audio_hash: SHA, status: 'completed', observation_type: null, created_at: '2026-09-30T08:00:00Z' },
     ] } });
-    const out = await Svc.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/ogg', seconds: 1800, door: 'voice' }, d);
+    const out = await Svc.__internals.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/ogg', seconds: 1800, door: 'voice' }, d);
     expect(out).toEqual({ status: 'repeat', sessionId: 'cs-old', sha256: SHA });
     expect(d.r2.uploadBuffer).not.toHaveBeenCalled();
   });
@@ -143,13 +143,13 @@ describe('keepRecording — the same recording again (AC4)', () => {
     const d = deps({ rows: { coaching_sessions: [
       { id: 'cs-x', user_id: OTHER, audio_hash: SHA, status: 'completed', observation_type: null, created_at: '2026-09-30T08:00:00Z' },
     ] } });
-    expect((await Svc.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/ogg', door: 'voice' }, d)).status).toBe('saved');
+    expect((await Svc.__internals.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/ogg', door: 'voice' }, d)).status).toBe('saved');
   });
 
   test('the same bytes still waiting for her: no second copy, the waiting one is named', async () => {
     const waiting = waKey(ME, '2026-10', SHA, 'aaaa');
     const d = deps({ objects: { [waiting]: { lastModified: daysAgo(1), size: BYTES.length, metadata: { sha256: SHA } } } });
-    const out = await Svc.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/ogg', door: 'voice' }, d);
+    const out = await Svc.__internals.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/ogg', door: 'voice' }, d);
     expect(out).toEqual({ status: 'waiting', key: waiting, sha256: SHA });
     expect(d.r2.uploadBuffer).not.toHaveBeenCalled();
   });
@@ -160,26 +160,26 @@ describe('keepRecording — the same recording again (AC4)', () => {
       objects: { [sentKey]: { lastModified: daysAgo(1), size: BYTES.length, metadata: { sha256: SHA } } },
       rows: { coaching_sessions: [{ id: 'cs-now', user_id: ME, audio_url: url(sentKey), status: 'analyzing', observation_type: null }] },
     });
-    expect(await Svc.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/ogg', door: 'voice' }, d))
+    expect(await Svc.__internals.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/ogg', door: 'voice' }, d))
       .toEqual({ status: 'repeat', sessionId: 'cs-now', sha256: SHA });
     expect(d.r2.uploadBuffer).not.toHaveBeenCalled();
   });
 
-  test('a copy sent once whose analysis never ran (failed) does not block it: a fresh copy is saved', async () => {
+  test('a copy sent once whose analysis never ran (failed) is still waiting: named, no second copy', async () => {
     const sentKey = waKey(ME, '2026-10', SHA, 'aaaa');
     const d = deps({
       objects: { [sentKey]: { lastModified: daysAgo(1), size: BYTES.length, metadata: { sha256: SHA } } },
       rows: { coaching_sessions: [{ id: 'cs-f', user_id: ME, audio_url: url(sentKey), status: 'failed', observation_type: null }] },
     });
-    const out = await Svc.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/ogg', door: 'voice' }, d);
-    expect(out.status).toBe('saved');
-    expect(out.key).not.toBe(sentKey);
+    const out = await Svc.__internals.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/ogg', door: 'voice' }, d);
+    expect(out).toEqual({ status: 'waiting', key: sentKey, sha256: SHA });
+    expect(d.r2.uploadBuffer).not.toHaveBeenCalled();
   });
 
   test('a waiting copy older than 7 days no longer waits: a fresh copy is saved', async () => {
     const stale = waKey(ME, '2026-10', SHA, 'aaaa');
     const d = deps({ objects: { [stale]: { lastModified: daysAgo(8), size: BYTES.length, metadata: { sha256: SHA } } } });
-    expect((await Svc.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/ogg', door: 'voice' }, d)).status).toBe('saved');
+    expect((await Svc.__internals.keepRecording({ userId: ME, buffer: BYTES, mimeType: 'audio/ogg', door: 'voice' }, d)).status).toBe('saved');
   });
 });
 

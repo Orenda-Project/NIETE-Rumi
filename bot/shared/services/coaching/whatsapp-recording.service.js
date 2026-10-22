@@ -37,6 +37,8 @@ const PENDING_MS = PENDING_DAYS * 24 * 60 * 60 * 1000;
 const SHA_PREFIX = 16;
 /** The listen link's life: long enough for the page to sit open, short enough not to be a share link. */
 const LISTEN_TTL_SECONDS = 30 * 60;
+/** How long the link may wait for the recording to be kept (download + hash + put); past it, today's link goes. */
+const SAVE_TIMEOUT_MS = 60 * 1000;
 /** The most waiting recordings the page is shown (each costs one HEAD). */
 const MAX_PENDING = 10;
 /** A DC observation that never reached analysis was not "sent before" (audio-hash-cache NOT_ANALYSED_STATUSES). */
@@ -130,7 +132,11 @@ async function listSaved(d, userId, shaPrefix = '') {
   return out.sort((a, b) => timeOf(b.lastModified) - timeOf(a.lastModified));
 }
 
-/** Which of these keys a session of hers already holds: key → { id, status }. */
+/**
+ * Which of these keys a session of hers holds — live or completed: key → { id, status }. A session that ended without
+ * analysis (NOT_ANALYSED) does not hold it, so her recording stays waiting and Submit takes it again. The key is matched
+ * as coaching_sessions.audio_url stores it: r2.buildR2PublicUrl(key), exact (startPortalSession writes it so).
+ */
 async function sessionsHolding(d, userId, keys) {
   if (!keys.length) return new Map();
   const byUrl = new Map(keys.map((k) => [d.r2.buildR2PublicUrl(k), k]));
@@ -143,7 +149,7 @@ async function sessionsHolding(d, userId, keys) {
   const out = new Map();
   for (const row of data || []) {
     const key = byUrl.get(row.audio_url);
-    if (key && !out.has(key)) out.set(key, { id: row.id, status: row.status });
+    if (key && !out.has(key) && !NOT_ANALYSED.includes(row.status)) out.set(key, { id: row.id, status: row.status });
   }
   return out;
 }
@@ -200,7 +206,7 @@ async function keepRecording({ userId, buffer, mimeType = null, filename = null,
   const same = await listSaved(d, userId, sha256.slice(0, SHA_PREFIX));
   if (same.length) {
     const held = await sessionsHolding(d, userId, same.map((o) => o.key));
-    const sent = same.find((o) => held.has(o.key) && !NOT_ANALYSED.includes(held.get(o.key).status));
+    const sent = same.find((o) => held.has(o.key));
     if (sent) return { status: 'repeat', sessionId: held.get(sent.key).id, sha256 };
     const nowMs = d.now().getTime();
     const waiting = same.find((o) => !held.has(o.key) && nowMs - timeOf(o.lastModified) < PENDING_MS);
@@ -304,12 +310,24 @@ async function redirectClassroomRecording({
   userId, from, language, reason, mediaId = null, buffer = null, mimeType = null, filename = null, seconds = null, door = null,
 }, deps) {
   const d = withDefaults(deps);
+  const bound = deps && Number.isFinite(deps.saveTimeoutMs) ? deps.saveTimeoutMs : SAVE_TIMEOUT_MS;
+  const keep = async () => {
+    const audio = buffer || await d.downloadMedia(mediaId);
+    return { audio, kept: await keepRecording({ userId, buffer: audio, mimeType, filename, seconds, door }, deps) };
+  };
   const onLink = async ({ journey } = {}) => {
     // Her keyed reference, never the raw id, on a log line (tests/setup/log-raw-ids); the journey id joins the funnel.
     const fx = { journeyId: (journey && journey.journeyId) || null, tk: d.tk(userId), door, seconds };
+    let timer = null;
     try {
-      const audio = buffer || await d.downloadMedia(mediaId);
-      const kept = await keepRecording({ userId, buffer: audio, mimeType, filename, seconds, door }, deps);
+      // Bounded: a download or a put that never answers must not hold the link back — after the bound it goes plain.
+      const outcome = await Promise.race([keep(), new Promise((resolve) => { timer = setTimeout(() => resolve(null), bound); })]);
+      if (!outcome) {
+        d.log('⚠️ WhatsApp recording not kept for the app in time — today\'s link goes', { ...fx, ms: bound }, 'warn');
+        funnel(d, 'app_funnel.recording_save_failed', { ...fx, why: 'timeout' });
+        return null;
+      }
+      const { audio, kept } = outcome;
       if (kept.status === 'saved' || kept.status === 'waiting') {
         funnel(d, 'app_funnel.recording_saved', { ...fx, how: kept.status === 'saved' ? 'new' : 'already_waiting', sizeBytes: audio.length });
         return { landing: SAVED_LANDING };
@@ -325,20 +343,19 @@ async function redirectClassroomRecording({
       d.log('⚠️ WhatsApp recording could not be kept for the app — today\'s link goes', { ...fx, error: err && err.message }, 'warn');
       funnel(d, 'app_funnel.recording_save_failed', { ...fx, why: 'error' });
       return null;
+    } finally {
+      if (timer) clearTimeout(timer);
     }
   };
   return d.redirect.redirectIfFlagged('ai_coaching', { userId, from, language, reason, onLink });
 }
 
 module.exports = {
-  PENDING_DAYS,
-  SAVED_LANDING,
-  REPEAT_COPY,
-  isWhatsAppKey,
-  recordingIdOf,
-  audioExtFor,
-  keepRecording,
+  SAVE_TIMEOUT_MS,
+  isWhatsAppKey, // dashboard portal.routes: a start that sends a kept recording
   pendingRecordings,
   checkDuplicate,
   redirectClassroomRecording,
+  // For the tests only (the child-test services' __internals pattern).
+  __internals: { keepRecording },
 };

@@ -323,15 +323,17 @@ async function startPortalSession({ userId, key, lessonPlanKey = null, lessonPla
 
   const d = withDefaults(deps);
 
-  // bd-c5reix — a recording that is already a session of hers (a saved WhatsApp recording sent twice, or a retried
-  // start) is never a second one: the session that holds it is named instead.
+  // bd-c5reix — a recording that is already a live or completed session of hers (a saved WhatsApp recording sent
+  // twice, or a retried start) is never a second one: that session is named instead. One that ended without analysis
+  // (failed / cancelled / abandoned) does not hold it: she may send it again. Matched on audio_url exactly as the
+  // insert below writes it (buildR2PublicUrl).
   const { data: holding } = await d.supabase
     .from('coaching_sessions')
-    .select('id')
+    .select('id, status')
     .eq('user_id', userId)
-    .eq('audio_url', d.r2.buildR2PublicUrl(key))
-    .limit(1);
-  if (Array.isArray(holding) && holding[0]) return { status: 'already_sent', coachingSessionId: holding[0].id };
+    .eq('audio_url', d.r2.buildR2PublicUrl(key));
+  const holder = Array.isArray(holding) ? holding.find((r) => r && !['failed', 'cancelled', 'abandoned'].includes(r.status)) : null;
+  if (holder) return { status: 'already_sent', coachingSessionId: holder.id };
 
   const missing = await checkUploaded(d, [
     { key, kind: 'audio' },
