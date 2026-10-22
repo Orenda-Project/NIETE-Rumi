@@ -56,7 +56,7 @@ describe('SA battery bank (CONTRACT §2)', () => {
   });
 
   test('forms: coach G3/G5 with the five blocks and the full order; game G1-G5 by band with islands and the tower', () => {
-    expect(Object.keys(bank.forms).sort()).toEqual(['coach.G3.A', 'coach.G5.A', 'game.G1', 'game.G23', 'game.G45']);
+    expect(Object.keys(bank.forms).sort()).toEqual(['coach.G1.A', 'coach.G2.A', 'coach.G3.A', 'coach.G4.A', 'coach.G5.A', 'game.G1', 'game.G23', 'game.G45']);
     const gameGrades = Object.values(bank.forms).filter((f) => f.surface === 'game').flatMap((f) => f.grades).sort();
     expect(gameGrades).toEqual([1, 2, 3, 4, 5]);
     for (const [id, f] of Object.entries(bank.forms)) {
