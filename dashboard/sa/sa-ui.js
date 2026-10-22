@@ -78,6 +78,11 @@
       read_aloud: 'Read aloud',
       im_done: 'I’m done',
       last_word: 'Tap the last word you read',
+      coach_last_word: 'Coach: tap the last word the child read',
+      lw_listening: 'Finding it in the recording…',
+      lw_suggested: 'Marked from the recording. Tap another word to change it.',
+      lw_none: 'Tap the last word the child read.',
+      lw_confirm: 'Confirm',
       say_answer: 'Say your answer out loud',
       answered: 'Done',
       erase: 'Erase',
@@ -148,6 +153,11 @@
       read_aloud: 'اونچی آواز میں پڑھیں',
       im_done: 'میں نے پڑھ لیا',
       last_word: 'آخری پڑھا ہوا لفظ دبائیں',
+      coach_last_word: 'کوچ: بچے کا پڑھا ہوا آخری لفظ دبائیں',
+      lw_listening: 'ریکارڈنگ میں تلاش ہو رہا ہے…',
+      lw_suggested: 'یہ لفظ ریکارڈنگ سے چنا گیا ہے۔ بدلنے کے لیے دوسرا لفظ دبائیں۔',
+      lw_none: 'بچے کا پڑھا ہوا آخری لفظ دبائیں۔',
+      lw_confirm: 'تصدیق کریں',
       say_answer: 'جواب اونچی آواز میں بتائیں',
       answered: 'ہو گیا',
       erase: 'مٹائیں',
@@ -309,6 +319,9 @@
     var childName = opts.child && typeof opts.child.first_name === 'string' ? opts.child.first_name.trim().slice(0, 40) : '';
     var manual = !!opts.manual;
     var sectionRec = !!opts.section_recording; // an oral task is one recording from Begin (sa_section_recording)
+    // sa_coach_last_word: the coach marks the last word read; the recording suggests it, the coach confirms (coach mode only)
+    var coachLW = !!opts.coach_last_word && mode === 'proctored';
+    var lw = null; // { task, state: pending | ready | none, suggested, picked }
     var punct = !!opts.passage_punct;
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
@@ -1041,7 +1054,43 @@
         passageEl(v.task, null),
       ], [starEl]);
     }
+    function askHint(t) {
+      if (lw && lw.task === t.id) return;
+      var mine = lw = { task: t.id, state: 'pending', suggested: null, picked: null };
+      var n = (t.items || []).length;
+      Promise.resolve().then(function () { return opts.lastWordHint ? opts.lastWordHint(t) : null; }).then(null, function () { return null; }).then(function (i) {
+        if (lw !== mine) return;
+        mine.suggested = typeof i === 'number' && i >= 0 && i < n ? i : null;
+        if (mine.picked == null) mine.picked = mine.suggested;
+        mine.state = mine.suggested != null ? 'ready' : 'none';
+        draw();
+      });
+    }
+    function sCoachLastWord(v) {
+      var s = lw && lw.task === v.task.id ? lw : { state: 'none', suggested: null, picked: null };
+      var p = passageEl(v.task, function (i) { if (lw === s) { s.picked = i; draw(); } });
+      var b = s.picked != null ? p.querySelector('.sae-word[data-i="' + s.picked + '"]') : null;
+      if (b) b.classList.add('is-picked');
+      // The suggestion may sit below the passage box's fold: bring it into view once, when it arrives.
+      if (b && s.picked === s.suggested && !s.shown) {
+        s.shown = true;
+        later(function () { try { b.scrollIntoView({ block: 'center' }); } catch (_) { /* old browser */ } }, 0);
+      }
+      var note = s.state === 'pending' ? C.lw_listening : (s.picked != null && s.picked === s.suggested ? C.lw_suggested : C.lw_none);
+      var ok = h('button', { class: 'sae-btn sae-primary sa-lw-confirm', type: 'button', disabled: s.picked == null, onclick: function () {
+        if (busy || s.picked == null) return;
+        lw = null;
+        runner.lastWord(s.picked, { how: s.picked === s.suggested ? 'confirm' : 'tap', suggested: s.suggested });
+        draw();
+      } }, [C.lw_confirm]);
+      return screen(v, 'sae-lastword is-coach', [
+        h('h1', { class: 'sae-h1', text: C.coach_last_word }),
+        h('p', { class: 'sae-sub sa-lw-note', text: note }),
+        p,
+      ], [ok]);
+    }
     function sLastWord(v) {
+      if (coachLW) return sCoachLastWord(v);
       return screen(v, 'sae-lastword', [
         h('h1', { class: 'sae-h1', text: C.last_word }),
         passageEl(v.task, function (i) { runner.lastWord(i); draw(); }),
@@ -1410,6 +1459,9 @@
         // The star line first; the recorder opens after it (recorderHooks), so Jugnu is neither in the child's
         // recording nor in the silence watch's first second.
         starSpeech = say(line('done') || { en: COPY.en.done, ur: COPY.ur.done });
+      } else if (v.phase === 'last_word' && coachLW) {
+        askHint(v.task);
+        sayChain([v.time_left_ms === 0 && s.time_up ? [s.time_up] : null, manual ? null : [copyLine('give_coach')]]);
       } else if (v.phase === 'last_word') {
         sayChain([v.time_left_ms === 0 && s.time_up ? [s.time_up] : null, manual ? null : (s.intro_tap ? [s.intro_tap] : [copyLine('last_word')])]);
       } else if (v.phase === 'task_end') {

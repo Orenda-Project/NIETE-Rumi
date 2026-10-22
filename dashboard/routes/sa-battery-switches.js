@@ -18,6 +18,7 @@
  *   sa_rdf_manual           W3: block rdf_manual runs coach-led (the coach gives the instructions).
  *   sa_voice_gate_v2        the refusal screen ("the voice is not ready") offers Try again, which prepares again.
  *   sa_comp_all_questions   round 4: the passage's questions by the Rawalpindi rule (10+ words read → every question).
+ *   sa_coach_last_word      round 4: the coach marks the last word read, found from the recording; the tap confirms.
  *   sa_section_recording    round 4: an oral task is one recording from Begin to its end, with each question's marks.
  *   sa_cell_pace            round 4: a one-at-a-time item moves on after 3 s with no voice (not 3 s from show), never before 5 s.
  *                           ON, each adds battery.ui.<one_at_a_time|passage_punct|rdf_manual> = true for the engine;
@@ -30,10 +31,11 @@ const SWITCHES = {
   oneAtATime: 'sa_one_at_a_time', passagePunct: 'sa_passage_punct', rdfManual: 'sa_rdf_manual', rdfW3Forms: 'sa_rdf_w3_forms',
   voiceGateV2: 'sa_voice_gate_v2', compAllQuestions: 'sa_comp_all_questions',
   cellPace: 'sa_cell_pace', sectionRecording: 'sa_section_recording',
+  coachLastWord: 'sa_coach_last_word',
 };
 const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManual: 'rdf_manual', voiceGateV2: 'voice_gate_v2',
   compAllQuestions: 'comp_all_questions', cellPace: 'cell_pace',
-  sectionRecording: 'section_recording' };
+  sectionRecording: 'section_recording', coachLastWord: 'coach_last_word' };
 const W3_KEYS = ['rdf_auto', 'rdf_manual', 'rdf_variants', 'rdf_w3_absent'];
 const W3_LINES = ['coach_will_instruct', 'please_go_on'];
 
