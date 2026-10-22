@@ -117,13 +117,19 @@ async function namedGrade(grade, deps) {
   return Number.isInteger(n) && n >= 1 && n <= 5 ? { grade: n } : { bad: true };
 }
 
-/** Today's day key for this coach and school, for the named grade (sa_all_grades). */
-function gradedDay(d, userId, schoolId, grade) {
+/**
+ * Today's day key for this coach and school, for the named grade (sa_all_grades). Today's un-graded day list (drawn
+ * with no grade named, or before the switch) is that grade's list when it is of that grade (RULING G-18), so a coach
+ * who picks the grade they were sent never gets a second list of it.
+ */
+async function gradedDay(d, userId, schoolId, grade) {
+  const today = visitKeyFor({ coachUserId: userId, schoolId, now: d.now() });
+  if (today && (await visitListGrade(d, today)) === grade) return { schoolId, visitId: null, visitKey: today, observedGrade: null };
   const visitKey = visitKeyFor({ coachUserId: userId, schoolId, now: d.now(), grade });
   return visitKey ? { schoolId, visitId: null, visitKey, observedGrade: null } : null;
 }
 
-/** The grade of the list already drawn on an observe visit (its main rows), null when none is drawn. */
+/** The grade of the list already drawn on an observe visit or a day key (its main rows), null when none is drawn. */
 async function visitListGrade(d, visitId) {
   const got = await d.store.listVisitDraws(visitId);
   if (!got || !got.ok) throw new Error((got && got.error) || 'listVisitDraws failed');
@@ -215,7 +221,7 @@ const dayList = (args = {}, deps = {}) => guarded('sa_day_list', async ({ userId
   let list = await draw(visit);
   // a named grade is never answered with another grade's list: the visit's list of another grade → the graded day key
   if (named.grade && visit.visitId && list && list.ok && Number(list.grade) !== named.grade) {
-    visit = gradedDay(d, userId, visit.schoolId, named.grade);
+    visit = await gradedDay(d, userId, visit.schoolId, named.grade);
     if (!visit) return { status: 'not_found' };
     list = await draw(visit);
   }
@@ -273,7 +279,8 @@ const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ 
     if (mine) return resumed(d, mine, { block, repick, clientSessionId, known: true }, deps);
   }
 
-  const res = await d.draw.markOutcome({ drawId, outcome, note, ...visitArgs(visit) });
+  // sa_all_grades: a top-up never takes a child another of today's lists holds (RULING G-18)
+  const res = await d.draw.markOutcome({ drawId, outcome, note, ...visitArgs(visit), ...(named.grade ? { allGrades: true } : {}) });
   if (!res || !res.ok) {
     if (res && res.reason === 'already_marked' && outcome === 'present') {
       const existing = await d.store.getSessionByDraw(drawId);
