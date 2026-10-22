@@ -16,7 +16,7 @@ import { useSaSwitches } from '../lib/assess/switches';
 import { resultsPath } from '../lib/assess/results';
 import { sendQueued } from '../lib/assess/outbox';
 import {
-  allVisitKeys, mintId, mmss, readVisit, saveMic, visitKey, writeVisit, type MicCheck, type QueuedOutcome, type VisitMemory,
+  allVisitKeys, mintId, mmss, readVisit, saveMic, visitKey, writeVisit, VISIT_LIMIT_MS, type MicCheck, type QueuedOutcome, type VisitMemory,
 } from '../lib/assess/visitStore';
 import type { SaChild, SaList, SaOutcome, SaSchool } from '../types/childTestSa';
 
@@ -45,6 +45,9 @@ const LIST_SIZE = 5;
 const TICK_MS = 30_000;
 const DRAIN_EVERY_MS = 30_000;
 const TOAST_MS = 2500;
+// a visit start older than twice the visit's 45 minutes belongs to an earlier sitting (sa_resume_repick)
+const SITTING_MS = 2 * VISIT_LIMIT_MS;
+const earlierSitting = (at: number) => Date.now() - at > SITTING_MS;
 const FULL_MINUTES = 29;
 /** RDF per child (panel review of the RDF list: about 19 min, about 22 at a first sitting). */
 const RDF_MINUTES = 20;
@@ -325,7 +328,9 @@ export default function LeaderAssess() {
     if (step.kind !== 'list') return;
     // with sa_mic_required, a coach who went on without a microphone sees it on the child's row
     const noMic = switches.micRequired && memory?.preflight?.mic?.mic_ok === false;
-    const sess = sessionOf(c) ?? { id: mintId(), block: pickBlock(usedBlocks(c.drawId)), sent: Boolean(c.sessionId), ...(noMic ? { noMic: true } : {}) };
+    // sa_resume_repick: a child the server already has a session for opens on that session's part
+    const first = switches.resumeRepick && c.sessionId && isBlock(c.sessionBlock) ? c.sessionBlock : pickBlock(usedBlocks(c.drawId));
+    const sess = sessionOf(c) ?? { id: mintId(), block: first, sent: Boolean(c.sessionId), ...(noMic ? { noMic: true } : {}) };
     remember((m) => ({ ...m, sessions: { ...m.sessions, [c.drawId]: sess } }));
     setMoved(null);
     setStep({ kind: 'handover', school: step.school, child: c, sessionId: sess.id, block: sess.block });
@@ -345,10 +350,14 @@ export default function LeaderAssess() {
     if (step.kind !== 'handover') return { ok: false, serverId: null, queued: false, block: 'full' };
     const { school, child, sessionId } = step;
     let { block } = step;
-    if (!memory?.startedAt) remember((m) => ({ ...m, startedAt: m.startedAt ?? Date.now() }));
+    if (!memory?.startedAt || (switches.resumeRepick && earlierSitting(memory.startedAt))) {
+      remember((m) => ({ ...m, startedAt: m.startedAt && !(switches.resumeRepick && earlierSitting(m.startedAt)) ? m.startedAt : Date.now() }));
+    }
     const had = sessionOf(child);
-    if (had?.sent) return { ok: true, serverId: had.serverId || child.sessionId || null, queued: false, block: had.block };
-    const args = { schoolId: school.schoolId, visitId: school.visitId, drawId: child.drawId, outcome: 'present' as const, clientSessionId: sessionId, block };
+    // sa_resume_repick: a resumed child's Present goes again, with the part the coach chose on the card
+    const repick = switches.resumeRepick && Boolean(had?.sent);
+    if (had?.sent && !repick) return { ok: true, serverId: had.serverId || child.sessionId || null, queued: false, block: had.block };
+    const args = { schoolId: school.schoolId, visitId: school.visitId, drawId: child.drawId, outcome: 'present' as const, clientSessionId: sessionId, block, ...(repick ? { repick: true } : {}) };
     let serverId: string | null = null;
     let queued = false;
     setBusy(true);
@@ -358,7 +367,10 @@ export default function LeaderAssess() {
       serverId = out?.sessionId || null;
       // the server may give the child a block they have not taken yet; the answer names it
       if (isBlock(out?.block)) block = out.block;
+      // not moved (a finished session, or the server's switch off): the session keeps the part it had
+      else if (repick && isBlock(child.sessionBlock)) block = child.sessionBlock;
     } catch (err) {
+      if (repick) { setBusy(false); setOffline(true); return { ok: false, serverId: null, queued: false, block }; }
       if (!errorOf(err).network) { setBusy(false); setLoadFailed(true); return { ok: false, serverId: null, queued: false, block }; }
       queue(args);
       queued = true;
@@ -461,6 +473,8 @@ export default function LeaderAssess() {
   // the visit's clock: this phone's first Start, or the visit's first session on the server when that is earlier
   const startedAt = [memory?.startedAt, ...children.map((c) => (c.sessionStartedAt ? Date.parse(c.sessionStartedAt) : NaN))]
     .filter((x): x is number => typeof x === 'number' && Number.isFinite(x))
+    // sa_resume_repick: a start from an earlier sitting (another morning, another host) is not this visit's time
+    .filter((x) => !(switches.resumeRepick && earlierSitting(x)))
     .reduce<number | null>((a, x) => (a === null || x < a ? x : a), null);
   const syncOf = (c: SaChild): SyncItem['state'] => {
     const id = sessionOf(c)?.id;
@@ -651,7 +665,8 @@ export default function LeaderAssess() {
           </div>
         );
   } else if (step.kind === 'handover') {
-    const locked = Boolean(sessionOf(step.child)?.sent);
+    // sent: the part is the server's; sa_resume_repick lets the coach choose again (Start re-sends Present)
+    const locked = Boolean(sessionOf(step.child)?.sent) && !switches.resumeRepick;
     const others = usedBlocks(step.child.drawId);
     const held = new Set(others.filter((b) => (BLOCKS as readonly string[]).includes(b)));
     const suggested = pickBlock(others);
