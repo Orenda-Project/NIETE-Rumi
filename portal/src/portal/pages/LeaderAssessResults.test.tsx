@@ -118,6 +118,19 @@ describe("LeaderAssessResults", () => {
     expect(screen.queryByTestId("results-how")).toBeNull();
   });
 
+  it("a task the scorer stopped by EGRA's rule says so (sa_stop_rules), in English and Urdu", async () => {
+    const stopped = { taskId: "ur.story_comp_w3", mode: "oral", attempted: 2, correct: null, optionsN: null, chanceCorrected: null, itemsPerMin: null, stopReason: "stopped_by_rule", recording: "scored", score: { correct: 0, of: 2 } };
+    api.getResults.mockResolvedValue({ ...RESULTS, tasks: [stopped] });
+    const { unmount } = renderAt();
+    const card = await screen.findByTestId("result-task-ur.story_comp_w3");
+    expect(within(card).getByText("Stopped early (EGRA rule)")).toBeTruthy();
+    unmount();
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    renderAt();
+    const ur = await screen.findByTestId("result-task-ur.story_comp_w3");
+    expect(within(ur).getByText("EGRA کے اصول پر جلد روک دیا گیا")).toBeTruthy();
+  });
+
   it("Urdu: right to left, Urdu digits for the scores", async () => {
     window.localStorage.setItem("niete-assess-lang", "ur");
     renderAt();

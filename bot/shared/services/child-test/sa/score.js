@@ -26,6 +26,10 @@
  *              model's last word; words correct per minute on the time used
  *   questions  comprehension, listening, segmentation: one clip per asked item (or one clip for all), each marked
  *              against its accept / reject / rubric
+ * EGRA's stop rules (app_settings sa_stop_rules, OFF by default; the off path is unchanged): a W3 letters / words task
+ * with no stop of its own takes the first-row rule (10 letters / 5 words, or the whole task when shorter), and the
+ * questions after a passage stopped on its first line are not reached (EGRA does not ask them): 0, flagged, no model
+ * call. Those questions wait while their passage is still being scored.
  * Numbers at the top of the marks are what the results page shows (sa-api.service numbersOf); the rest is nested.
  * No prompt carries a name: item text and audio only.
  *
@@ -48,6 +52,7 @@
  */
 
 const { logToFile, logError } = require('../../../utils/logger');
+const stopRulesSwitch = require('../app/stop-rules-switch');
 
 const PARKED = 'final:sa_score_later';
 const SCORING = 'final:sa_scoring';
@@ -473,6 +478,25 @@ function LETTERS_SCHEMA() {
   return LETTERS_SCHEMA_CACHE;
 }
 
+/** The passage a questions task follows: ur.story_comp_w3 → ur.story_w3, ur.story_comp → ur.story. */
+const passageOf = (block) => String(block || '').replace('_comp', '');
+
+/** EGRA's first row (sa_stop_rules) for a W3 letters / words grid that carries no stop of its own. */
+function withFirstRow(task, rec) {
+  if (task.kind !== 'grid' || (rec.stop || {}).type || !Array.isArray(rec.grid) || !rec.grid.length) return rec;
+  const row = /letter/.test(task.subtask || task.task) ? 10 : 5;
+  return { ...rec, stop: { type: 'first_row', n: Math.min(rec.grid.length, row) } };
+}
+
+/** Questions after a passage stopped on its first line: not asked by EGRA, so not reached, 0, flagged. */
+function notReached(rec, res) {
+  const all = rec.questions || [];
+  const asked = res && Array.isArray(res.asked) && res.asked.length ? res.asked : all.map((q) => q.id);
+  const qs = asked.map((id) => all.find((q) => q.id === id)).filter(Boolean);
+  const rows = qs.map((q, k) => ({ i: k + 1, id: q.id, verdict: 'not_reached', heard: '', conf: null, stop_rule: true }));
+  return { numbers: { correct: 0, of: rows.length }, rows, stopped: true };
+}
+
 /**
  * One SA task's row → marks. { ok: true, marks } | { ok: false, reason, retry }.
  * `wait` (not an error): a questions task whose clips are still arriving.
@@ -485,12 +509,15 @@ async function scoreRow(row, session, deps = {}) {
   const found = (byBank && !isW3(d.bank, session, row) ? byBank : null) || phoneSpecFor(session, row, d.phoneBattery) || byBank;
   if (!found) return { ok: false, reason: 'task_not_in_bank', retry: false };
   const { spec: task, variant } = found;
-  const rec = task.record || {};
+  const stops = d.stopRules === true;
+  const rec = stops ? withFirstRow(task, task.record || {}) : (task.record || {});
+  const passage = stops && Array.isArray(rec.questions) && session.passages ? session.passages.get(passageOf(row.block)) : null;
   const calls = [];
   const started = Date.now();
   try {
     let out;
-    if (task.kind === 'grid') out = await scoreGrid(task, rec, row, res, d, calls, Number(session.grade) || 3);
+    if (passage && passage.stopped) out = notReached(rec, res);
+    else if (task.kind === 'grid') out = await scoreGrid(task, rec, row, res, d, calls, Number(session.grade) || 3);
     else if (task.kind === 'passage') out = await scorePassage(task, rec, row, res, d, calls);
     else if (task.kind === 'oral' && !Array.isArray(rec.questions)) out = await scoreOral(task, rec, row, res, d, calls);
     else if (Array.isArray(rec.questions)) out = await scoreQuestions(task, rec, row, res, d, calls);
@@ -526,6 +553,9 @@ async function scoreRow(row, session, deps = {}) {
 function ready(row, session, nowMs) {
   const res = resultOf(row);
   if (!res) return false;
+  // sa_stop_rules: questions wait for their passage's marks (a passage stopped on line 1 means they were not reached)
+  const passage = session.stopRules === true && session.passages ? session.passages.get(passageOf(row.block)) : null;
+  if (passage && passage.pending) return false;
   if (!['oral'].includes(row.response_mode) || row.audio_r2_key) return true;
   const asked = Array.isArray(res.asked) ? res.asked : [];
   const keys = keysOf(row);
@@ -571,6 +601,24 @@ async function askedOf(sessionId, supabase) {
   return (data || []).flatMap((r) => { const res = resultOf(r); return res && Array.isArray(res.asked) ? res.asked : []; });
 }
 
+/**
+ * sa_stop_rules: each recorded passage of the session → { stopped (its marks say the first-line rule stopped it),
+ * pending (parked or being scored: no marks yet) }. A passage that failed for good is neither.
+ */
+async function passagesOf(sessionId, supabase) {
+  const { data } = await supabase.from('child_test_blocks').select('block, ai_marks, ai_status, ai_reason').eq('session_id', sessionId);
+  const out = new Map();
+  for (const r of data || []) {
+    const m = r.ai_marks;
+    const kind = m && m.detail ? m.detail.kind : null;
+    if (m && kind !== 'passage') continue;
+    const reason = String(r.ai_reason || '');
+    const pending = !m && reason.startsWith('final:sa_') && !reason.startsWith(FAILED);
+    if (m || pending) out.set(r.block, { stopped: Boolean(m && m.detail.stopped_by_rule), pending });
+  }
+  return out;
+}
+
 /** Compare-and-set on ai_reason: one process scores one row. */
 async function claim(row, supabase = db()) {
   const { data, error } = await supabase.from('child_test_blocks').update({ ai_reason: MINE, updated_at: new Date().toISOString() })
@@ -600,6 +648,7 @@ async function sweepOnce({ sessionId = null, now = new Date(), deps = {} } = {})
   const out = { found: 0, scored: 0, failed: 0, waiting: 0 };
   try {
     const supabase = deps.supabase || db();
+    const stopRules = await stopRulesSwitch.enabled(deps);
     const rows = await candidates({ sessionId, now, supabase, afterBoot: !swept });
     out.found = rows.length;
     const sessions = new Map();
@@ -610,6 +659,7 @@ async function sweepOnce({ sessionId = null, now = new Date(), deps = {} } = {})
         const { data } = await supabase.from('child_test_sessions').select('id, grade, form, item_bank_version, status, finished_at, client_finished_at').eq('id', row.session_id).limit(1);
         const s = (data || [])[0] || null;
         if (s) s.asked = await askedOf(row.session_id, supabase);
+        if (s && stopRules) { s.stopRules = true; s.passages = await passagesOf(row.session_id, supabase); }
         sessions.set(row.session_id, s);
       }
       const session = sessions.get(row.session_id);
@@ -620,7 +670,7 @@ async function sweepOnce({ sessionId = null, now = new Date(), deps = {} } = {})
       claimed.push({ had, session });
     }
     await Promise.all(claimed.map(async ({ had, session }) => {
-      const got = await scoreRow(had, session, deps);
+      const got = await scoreRow(had, session, { ...deps, stopRules });
       await finish(had, got, supabase);
       if (got.ok) out.scored += 1; else out.failed += 1;
       logToFile('child_test.sa_scored', { block: had.block, ok: got.ok, reason: got.ok ? null : got.reason, cost_usd: got.ok ? got.marks.meta.cost_usd : null });
