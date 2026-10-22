@@ -48,13 +48,13 @@ const iso = (at) => (at instanceof Date ? at : new Date(at || Date.now())).toISO
  * Active classes of the school in the academic session, grades 3 and 5. A merged class is closed
  * with is_active = false (roster merge, 00_complete-schema), so is_active alone excludes it.
  */
-async function listGradeClasses(schoolId, sessionCode) {
+async function listGradeClasses(schoolId, sessionCode, grades = [3, 5]) {
   const { data, error } = await supabase.from('classes')
     .select('id, school_id, grade_code, section, shift_code, session_code, is_active')
     .eq('school_id', schoolId)
     .eq('session_code', sessionCode)
     .eq('is_active', true)
-    .in('grade_code', ['grade_3', 'grade_5']);
+    .in('grade_code', grades.map((g) => `grade_${g}`));
   if (error) return fail('listGradeClasses', error, { schoolId });
   return { ok: true, classes: data || [] };
 }
