@@ -157,11 +157,13 @@ async function listLessons(grade, subjectKey, chapterNumber, userId = null) {
  * ("not rendered yet"), which the caller renders rather than treating as an
  * error. Unknown lesson ids also return null; the portal never invents one.
  */
-async function lessonPdfUrl(lessonId, assetKind = 'lesson', userId = null) {
+async function lessonPdfUrl(lessonId, assetKind = 'lesson', userId = null, { reader = null } = {}) {
   const hit = V8Catalog.lessonById(lessonId);
   if (!hit) return null;
 
   // ch3-10 A/B (bd-5o0ay.10.1): the portal serves the teacher's group, same as WhatsApp.
+  // bd-4joiqz — and a leader READING it (`reader: 'leader'`) gets their school's group too: the plan their teachers get.
+  // Both groups are read-only lookups by school (no assignment is written); a user with no school gets today's plan.
   const LpAb = require('./lp-ab-ch310.service');
   const group = await LpAb.groupFor(userId, { grade: hit.book.grade, chapter: hit.chapter.number });
   const asset = await LpAb.assetFor({ group, lessonId, assetKind, current: V8Delivery.currentAssetFor });
@@ -170,7 +172,7 @@ async function lessonPdfUrl(lessonId, assetKind = 'lesson', userId = null) {
   // v10 coaching test (bd-v0toag.50.1): plan-arm v10 schools open the card; keys never have one.
   const V10Card = require('./lp-v10-card.service');
   const sent = (assetKind !== 'lesson' || group === 'A' ? null
-    : await V10Card.servedFor({ userId, lessonId, lesson: asset, channel: 'app' })) || asset;
+    : await V10Card.servedFor({ userId, lessonId, lesson: asset, channel: 'app', reader })) || asset;
 
   const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
   const url = await getPresignedUrl(buildR2PublicUrl(sent.r2_key));

@@ -36,6 +36,7 @@ const COACH_ICONS: Record<CoachNavKey, GlyphName> = {
   observe: "observations",
   schools: "schools",
   training: "training",
+  lessons: "lessons",
   more: "more",
 };
 

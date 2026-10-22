@@ -19,6 +19,17 @@ export const LESSONS_ALL = `${LESSONS_HOME}/all`;
 /** Reopen a plan by its key (Recent, All lesson plans): `?plan=k5:<id>|g612:<segment>&lang=&title=&grade=`. */
 export const LESSONS_OPEN = `${LESSONS_HOME}/open`;
 
+/**
+ * bd-4joiqz — THE way back to the lesson plans, for every page that sends someone there (an FLN list's Back, an FLN
+ * plan's "not available", "This lesson isn't available"): the Lesson Plans page, or its step 1 (`'new'`, where the
+ * Reading Hour & Numeracy band is). One answer for a teacher and a leader alike: a teacher's Lesson Plans and a
+ * leader's Lesson Plans tab are the same page, which TeacherGate opens to the leader family (routes.tsx `leaders`),
+ * so no target has to ask who is reading — and none can send a leader to a page that turns them away.
+ */
+export function lessonsBack(to: 'home' | 'new' = 'home'): string {
+  return to === 'new' ? LESSONS_NEW : LESSONS_HOME;
+}
+
 export type LessonsView = 'chapters' | 'lessons' | 'preparing';
 
 export type LessonsAt = {

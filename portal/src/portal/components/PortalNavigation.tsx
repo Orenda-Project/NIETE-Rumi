@@ -13,6 +13,7 @@ import { useCoachV2, isCoachV2For } from '../coach/useCoachV2';
 import { COACH_APP_READY } from '../coach/training/appReady';
 import { useTeacherV2, isTeacherV2For } from '../teacher/useTeacherV2';
 import TeacherNavigation from '../teacher/TeacherNavigation';
+import { LESSONS_HOME } from '../teacher/lessons/paths';
 import { cn } from '@/lib/utils';
 import nieteLogo from '@/assets/niete-logo.png';
 
@@ -53,6 +54,12 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
     { title: 'Teachers', path: '/portal/leader/teachers', icon: Users },
     // bd-2455 — schedule + debriefs + completed observations.
     { title: 'Observations', path: '/portal/leader/observations', icon: CalendarDays },
+    // bd-4joiqz — "why can't a coach see LPs in their IAB?" (operator, 22 Oct 2026): the teacher Lesson Plans pages,
+    // read as a leader (TeacherGate opens them to the leader family). A principal off the teacher app had no way to
+    // them. The menu's own words, as the teacher item's ("Lesson Plans"): this nav has no catalogue (its labels are
+    // English literals), and that title also puts it on the phone's bottom bar (MOBILE_PRIMARY), where an in-app
+    // browser is.
+    { title: 'Lesson Plans', path: LESSONS_HOME, icon: Library },
     // bd-60160 — a coach TAKES training too, she does not only supervise it.
     //
     // The leader family never had this entry, so when I-SAPS was assigned to
