@@ -7,6 +7,7 @@ import { urDigits, type Lang } from '../lib/assess/copy';
 import { DASH_COPY } from '../lib/assess/dashboardCopy';
 import { exampleCohort, TASKS, type ReadLang, type TaskSpec } from '../lib/assess/exampleCohort';
 import { applyFilter, groupBy, headline, ORF_BANDS, summariseTask, type Filter } from '../lib/assess/cohortStats';
+import { GRADES, rwpOrf } from '../lib/assess/rwpNorms';
 
 /**
  * The example results dashboard (/portal/leader/assess/dashboard), sandbox only.
@@ -137,6 +138,21 @@ export default function LeaderAssessDashboard() {
     );
   };
 
+  // the Rawalpindi May 2026 cohort's fluency for the grade in view (every grade when none is picked)
+  const rwpReference = (domain: ReadLang) => (
+    <div data-testid="dash-rwp" className="mt-3 rounded-xl bg-slate-50 p-2 text-xs text-slate-700">
+      <p className="text-xs font-medium text-slate-800">{c.rwpTitle}</p>
+      <ul>
+        {(filter.grade ? [filter.grade] : GRADES).map((g) => {
+          const r = rwpOrf(domain, g);
+          return r ? (
+            <li key={g} data-testid="dash-rwp-row">{c.grade(num(g))}: {c.rwpRow(one(r.median), one(r.p25), one(r.p75), pct(r.zero))}</li>
+          ) : null;
+        })}
+      </ul>
+    </div>
+  );
+
   const taskCard = (spec: TaskSpec) => {
     const s = summariseTask(rows, spec);
     const rate = spec.kind === 'passage' || spec.kind === 'fluency';
@@ -150,6 +166,7 @@ export default function LeaderAssessDashboard() {
           {s.benchmarkShare === null ? null : <div><dt className="text-xs text-slate-600">{c.met}</dt><dd className="font-bold text-slate-900">{pct(s.benchmarkShare)}</dd></div>}
         </dl>
         {distribution(spec, s.distribution, s.n)}
+        {spec.kind === 'passage' ? rwpReference(spec.domain as ReadLang) : null}
         <p data-testid="dash-rule" className="mt-2 text-xs text-slate-500">{c.rules[ruleOf(spec)]}</p>
       </li>
     );
@@ -172,8 +189,7 @@ export default function LeaderAssessDashboard() {
           </div>
           <div className="flex flex-wrap gap-2">
             {chip('dash-grade-all', c.allGrades, !filter.grade, () => setFilter((f) => ({ ...f, grade: null })))}
-            {chip('dash-grade-3', c.grade(num(3)), filter.grade === 3, () => setFilter((f) => ({ ...f, grade: 3 })))}
-            {chip('dash-grade-5', c.grade(num(5)), filter.grade === 5, () => setFilter((f) => ({ ...f, grade: 5 })))}
+            {GRADES.map((g) => chip(`dash-grade-${g}`, c.grade(num(g)), filter.grade === g, () => setFilter((f) => ({ ...f, grade: g }))))}
             {chip('dash-gender-all', c.allGenders, !filter.gender, () => setFilter((f) => ({ ...f, gender: null })))}
             {chip('dash-gender-girl', c.girls, filter.gender === 'girl', () => setFilter((f) => ({ ...f, gender: 'girl' })))}
             {chip('dash-gender-boy', c.boys, filter.gender === 'boy', () => setFilter((f) => ({ ...f, gender: 'boy' })))}

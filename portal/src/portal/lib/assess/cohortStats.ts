@@ -23,7 +23,7 @@ export const MATHS_BENCHMARK = 0.75;
 export type Filter = {
   sector?: string | null;
   schoolId?: string | null;
-  grade?: 3 | 5 | null;
+  grade?: 1 | 2 | 3 | 4 | 5 | null;
   gender?: 'girl' | 'boy' | null;
 };
 
