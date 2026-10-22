@@ -57,7 +57,7 @@ This file catalogs what to bring across, sorted by relevance to our four in-scop
 | `shared/services/v20-scanner.service.js` | Voicenote V20 curriculum scanner — deep Rumi-internal, curriculum-specific. Skip. |
 | `shared/services/batch-runner.service.js` | Internal batch execution. Not needed for a region. |
 | `shared/services/storybook-delivery.service.js` + `storybook-feedback.service.js` | Story delivery — Taleemabad-partner-specific. Skip. |
-| `shared/services/proj42/` + `rwp-broadcast.service.js` + `tfsl-broadcast.service.js` + `taleemhub.service.js` | Partner-specific broadcasts (Project 42, Rawalpindi, TFSL, TaleemHub). All skip. |
+| `shared/services/proj42/` + `rwp-broadcast.service.js` + `tfsl-broadcast.service.js` + the main bot's partner lesson-plan sync service | Partner-specific broadcasts (Project 42, Rawalpindi, TFSL) and a partner-specific lesson-plan sync to an external partner system. None of these were ported. All skip. |
 | `shared/services/coaching.service.js` (already deleted from open-source per PR #67) | Dead legacy monolith — the working code is in `shared/services/coaching/` (folder). Do not resurrect. |
 
 ### ❓ Investigate before deciding
