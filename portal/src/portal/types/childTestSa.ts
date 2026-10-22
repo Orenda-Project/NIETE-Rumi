@@ -122,6 +122,8 @@ export type SaResults = {
     endedAt: string | null;
     lang: "ur" | "en" | null;
   };
+  tasks: SaTaskResult[];
+};
 
 /** One session on the results dashboard (GET …/sa/sessions, switch sa_real_dashboard): its school, sub-region and results. No names. */
 export type SaDashboardSession = {
@@ -131,8 +133,6 @@ export type SaDashboardSession = {
   sector: string | null;
   grade: number;
   results: SaResults;
-};
-  tasks: SaTaskResult[];
 };
 
 /** A mark of one scoring agent (or their consensus): correct, wrong, no response, silent. */
