@@ -100,6 +100,13 @@ const SA_RESULTS_VIEW_KEY = 'sa_results_view';
 const SA_RESULTS_ADMINS_KEY = 'sa_results_admins';
 
 /**
+ * The results dashboard on REAL sessions (GET …/sa/sessions): a coach's own sessions, a results admin's every coach's,
+ * in the example dashboard's layout. Same shape and rule as the keys above: true = everyone, a list of users.id = a
+ * pilot, absent = off. Off, the route is 404 and the page stays the example (or "not available").
+ */
+const SA_REAL_DASHBOARD_KEY = 'sa_real_dashboard';
+
+/**
  * bd-5rz1v.6 — app_settings key for a COACH running an /observe observation from
  * the portal (record or send the lesson, check the draft, the talk with the
  * teacher, send her the report). Same shape and rule as the key above.
@@ -333,6 +340,7 @@ module.exports = {
   PORTAL_CHILD_TEST_SA_KEY,
   SA_RESULTS_VIEW_KEY,
   SA_RESULTS_ADMINS_KEY,
+  SA_REAL_DASHBOARD_KEY,
   PORTAL_COACH_OBSERVATION_KEY,
   PORTAL_NEW_UI_KEY,
   PORTAL_COACH_V2_KEY,

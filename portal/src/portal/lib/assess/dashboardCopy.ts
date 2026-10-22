@@ -1,6 +1,6 @@
 import type { Lang } from './copy';
 
-/** The example results dashboard's words, English and Urdu (flat en/ur, as the rest of the assessment pages). */
+/** The results dashboard's words (example and live), English and Urdu (flat en/ur, as the rest of the assessment pages). */
 
 const en = {
   title: 'Results dashboard',
@@ -9,6 +9,13 @@ const en = {
   loading: 'Loading…',
   off: 'This page is not available.',
   banner: 'Example data: 1,000 made-up students, not real children. After the school visit, real results will show here in the same layout.',
+  live: (n: string) => `Live data: ${n} sessions. A group of fewer than 5 children shows <5 and no numbers.`,
+  loadFailed: 'Could not load the results. Please try again.',
+  empty: 'No child has finished an assessment yet. Results show here as soon as one does.',
+  masked: 'Fewer than 5 children: the numbers are hidden.',
+  fewer: '<5',
+  noSector: 'Sub-region not set',
+  rwpNote: 'Measured in May, early in the school year. A reference, not a target: do not read a Grade 1 or 2 child tested in October as behind it.',
   students: 'Students',
   rwc: 'Read with comprehension',
   rwcHint: '80% or more of the passage questions right',
@@ -70,6 +77,12 @@ const en = {
     'Bands: non-reader 0, beginning 1–19, developing 20–39, fluent 40 or more words per minute.',
     'Gender is example data only: the school roster does not record it yet.',
   ],
+  liveNotes: [
+    'Words per minute: correct words read aloud in 60 seconds. Zero: the child read no word of the passage.',
+    'Bands: non-reader 0, beginning 1–19, developing 20–39, fluent 40 or more words per minute.',
+    'No gender filter: the school roster does not record it yet.',
+    'A spoken task counts once its recording is scored; until then it is left out of that task.',
+  ],
 };
 
 type DashCopy = typeof en;
@@ -81,6 +94,13 @@ const ur: DashCopy = {
   loading: 'لوڈ ہو رہا ہے…',
   off: 'یہ صفحہ دستیاب نہیں۔',
   banner: 'مثالی ڈیٹا: ⁦۱,۰۰۰⁩ فرضی طلبہ، اصل بچے نہیں۔ اسکول کے دورے کے بعد اصل نتائج اسی ترتیب میں یہاں نظر آئیں گے۔',
+  live: (n: string) => `اصل ڈیٹا: ${n} سیشن۔ ⁦۵⁩ سے کم بچوں کے گروپ میں صرف ⁦<۵⁩ لکھا آتا ہے، نمبر نہیں۔`,
+  loadFailed: 'نتائج لوڈ نہیں ہو سکے۔ دوبارہ کوشش کریں۔',
+  empty: 'ابھی کسی بچے نے جائزہ مکمل نہیں کیا۔ جیسے ہی کوئی مکمل کرے گا، نتائج یہاں نظر آئیں گے۔',
+  masked: '⁦۵⁩ سے کم بچے: نمبر چھپا دیے گئے ہیں۔',
+  fewer: '⁦<۵⁩',
+  noSector: 'سیکٹر درج نہیں',
+  rwpNote: 'یہ مئی میں، تعلیمی سال کے شروع میں ناپا گیا۔ اسے حوالہ سمجھیں، ہدف نہیں: اکتوبر میں جانچے گئے جماعت ⁦۱⁩ یا ⁦۲⁩ کے بچے کو اس سے پیچھے نہ سمجھیں۔',
   students: 'طلبہ',
   rwc: 'سمجھ کر پڑھنے والے',
   rwcHint: 'عبارت کے ⁦۸۰⁩٪ یا زیادہ سوال درست',
@@ -141,6 +161,12 @@ const ur: DashCopy = {
     'فی منٹ الفاظ: ⁦۶۰⁩ سیکنڈ میں بلند آواز سے درست پڑھے گئے الفاظ۔ صفر: بچہ عبارت کا ایک لفظ بھی نہ پڑھ سکا۔',
     'درجے: پڑھ نہ سکے ⁦۰⁩، آغاز ⁦۱–۱۹⁩، بہتری ⁦۲۰–۳۹⁩، روانی ⁦۴۰⁩ یا زیادہ الفاظ فی منٹ۔',
     'جنس صرف مثالی ڈیٹا میں ہے: اسکول کی فہرست میں یہ ابھی درج نہیں۔',
+  ],
+  liveNotes: [
+    'فی منٹ الفاظ: ⁦۶۰⁩ سیکنڈ میں بلند آواز سے درست پڑھے گئے الفاظ۔ صفر: بچہ عبارت کا ایک لفظ بھی نہ پڑھ سکا۔',
+    'درجے: پڑھ نہ سکے ⁦۰⁩، آغاز ⁦۱–۱۹⁩، بہتری ⁦۲۰–۳۹⁩، روانی ⁦۴۰⁩ یا زیادہ الفاظ فی منٹ۔',
+    'لڑکے اور لڑکیوں کا فلٹر نہیں: اسکول کی فہرست میں جنس ابھی درج نہیں۔',
+    'بولنے والا حصہ اپنی ریکارڈنگ کے نمبر لگنے کے بعد ہی شمار ہوتا ہے؛ تب تک وہ اس حصے میں شامل نہیں۔',
   ],
 };
 

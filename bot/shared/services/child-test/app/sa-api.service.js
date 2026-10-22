@@ -25,6 +25,8 @@
  *   saStatus      what the server holds, for the coach's visit bar
  *   saResults     the session's results page: per task the SA scale, or the recording's state (read only);
  *                 an admin (asAdmin, set by the portal from sa_results_admins) reads any coach's SA session
+ *   saSessions    the results dashboard: every SA session of this coach (an admin: every coach's) in saResults' shape,
+ *                 with its school and sub-region; never a name
  *
  * Another phone (a teacher's, with no coach sign-in) can run one child's battery:
  *   saLink        the coach mints a signed link for one of their children's sessions (1 h)
@@ -666,7 +668,12 @@ const byWhen = (a, b) => String(a.created_at || '').localeCompare(String(b.creat
 async function resultsOf(sessionId, d, session, bank, stops = false) {
   const got = await d.store.listBlocks(sessionId);
   if (!got || !got.ok) throw new Error((got && got.error) || 'listBlocks failed');
-  const blocks = (got.blocks || []).filter((r) => TASK_RE.test(String(r.block || ''))).sort(byWhen);
+  return shapeResults(session, got.blocks, bank, stops);
+}
+
+/** resultsOf on rows already read (the dashboard reads every session's rows at once). */
+function shapeResults(session, rowsIn, bank, stops = false) {
+  const blocks = (rowsIn || []).filter((r) => TASK_RE.test(String(r.block || ''))).sort(byWhen);
   const lang = (blocks.find((r) => LANGS.includes(r.lang)) || {}).lang || null;
   // each task's own name from the battery ({ en, ur }), so the page never heads a card with a code
   const f = formOf(bank, session);
@@ -708,6 +715,43 @@ function saResults(args = {}, deps = {}) {
     d.log('child_test.sa.results_admin', { userId, sessionId });
     return resultsOf(session.id, d, session, deps.bank !== undefined ? deps.bank : loadBank(), await stopRulesSwitch.enabled(deps));
   })(rest, deps);
+}
+
+/**
+ * The results dashboard: every self-administered session of this coach (an admin, asAdmin: true as the portal sets it
+ * from sa_results_admins: every coach's), each in saResults' shape with its school and sub-region (schools.region).
+ * Sessions with no task rows yet are left out. Blocks and schools are read once for all sessions. Never a name.
+ */
+function saSessions(args = {}, deps = {}) {
+  return guarded('sa_sessions', async ({ userId, asAdmin }, d) => {
+    const admin = asAdmin === true;
+    const got = await d.store.listSaSessions({ mark: SA_MARK, coachUserId: admin ? null : userId });
+    if (!got || !got.ok) throw new Error((got && got.error) || 'listSaSessions failed');
+    const sessions = got.sessions || [];
+    if (!sessions.length) return { status: 'ok', sessions: [] };
+    const blocks = await d.store.listBlocksForSessions(sessions.map((s) => s.id));
+    if (!blocks || !blocks.ok) throw new Error((blocks && blocks.error) || 'listBlocksForSessions failed');
+    const schoolIds = [...new Set(sessions.map((s) => s.school_id).filter(Boolean))];
+    const schools = await d.store.getSchoolsByIds(schoolIds);
+    if (!schools || !schools.ok) throw new Error((schools && schools.error) || 'getSchoolsByIds failed');
+    const schoolOf = new Map((schools.schools || []).map((s) => [s.id, s]));
+    const rowsOf = new Map();
+    for (const r of blocks.blocks || []) {
+      if (!rowsOf.has(r.session_id)) rowsOf.set(r.session_id, []);
+      rowsOf.get(r.session_id).push(r);
+    }
+    const bank = deps.bank !== undefined ? deps.bank : loadBank();
+    const stops = await stopRulesSwitch.enabled(deps);
+    const out = [];
+    for (const s of sessions) {
+      const results = shapeResults(s, rowsOf.get(s.id), bank, stops);
+      if (!results.tasks.length) continue;
+      const school = schoolOf.get(s.school_id) || {};
+      out.push({ schoolId: s.school_id || null, schoolName: school.name || null, sector: school.region || null, grade: s.grade, results });
+    }
+    d.log('child_test.sa.sessions_read', { userId, admin, n: out.length });
+    return { status: 'ok', sessions: out };
+  })(args, deps);
 }
 
 // ─── another phone ─────────────────────────────────────────────────────────
@@ -759,4 +803,4 @@ async function saViaLink(args = {}, deps = {}) {
   return fn({ ...rest, userId: p.c, sessionId: p.s }, deps);
 }
 
-module.exports = { SA_MARK, listSchools, dayList, dayOutcome, addChild, saBattery, saBatch, saPresign, saRegister, saStatus, saResults, saLink, saViaLink };
+module.exports = { SA_MARK, listSchools, dayList, dayOutcome, addChild, saBattery, saBatch, saPresign, saRegister, saStatus, saResults, saSessions, saLink, saViaLink };

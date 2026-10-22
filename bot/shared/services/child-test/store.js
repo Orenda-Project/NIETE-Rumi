@@ -373,6 +373,39 @@ async function listOpenSessions({ since, limit = 50 } = {}) {
   return { ok: true, sessions: data || [] };
 }
 
+// The results dashboard's columns of a session: never the student, the draw or the class.
+const DASHBOARD_SESSION_COLUMNS = 'id, coach_user_id, school_id, grade, form, item_bank_version, status, started_at, finished_at, client_finished_at, device, created_at';
+const DASHBOARD_SESSION_CAP = 2000;
+const IN_BATCH = 100;
+
+/** The sessions of one battery mark (one coach's, or every coach's when coachUserId is null), newest first, capped. */
+async function listSaSessions({ mark, coachUserId = null } = {}) {
+  let q = supabase.from(SESSIONS).select(DASHBOARD_SESSION_COLUMNS).eq('item_bank_version', mark);
+  if (coachUserId) q = q.eq('coach_user_id', coachUserId);
+  const { data, error } = await q.order('created_at', { ascending: false }).limit(DASHBOARD_SESSION_CAP);
+  if (error) return fail('listSaSessions', error, { coachUserId });
+  return { ok: true, sessions: data || [] };
+}
+
+/** Every block row of these sessions, read IN_BATCH ids at a time. */
+async function listBlocksForSessions(sessionIds = []) {
+  const out = [];
+  for (let i = 0; i < sessionIds.length; i += IN_BATCH) {
+    const { data, error } = await supabase.from(BLOCKS).select('*').in('session_id', sessionIds.slice(i, i + IN_BATCH));
+    if (error) return fail('listBlocksForSessions', error, { n: sessionIds.length });
+    out.push(...(data || []));
+  }
+  return { ok: true, blocks: out };
+}
+
+/** The schools' names and sub-regions (schools.region). */
+async function getSchoolsByIds(ids = []) {
+  if (!ids.length) return { ok: true, schools: [] };
+  const { data, error } = await supabase.from('schools').select('id, name, region').in('id', ids);
+  if (error) return fail('getSchoolsByIds', error, { n: ids.length });
+  return { ok: true, schools: data || [] };
+}
+
 // ── Blocks ─────────────────────────────────────────────────────────────────────────────────────
 
 async function getBlock(sessionId, block) {
@@ -540,6 +573,10 @@ module.exports = {
   listOpenSessions,
   listRecentlyScoredBlocks,
   claimBlockStatus,
+  // the results dashboard (sa-api.service.js saSessions)
+  listSaSessions,
+  listBlocksForSessions,
+  getSchoolsByIds,
   // the draw's own reads and writes (draw/index.js)
   getDraw,
   listSchoolDraws,
