@@ -89,7 +89,7 @@ beforeEach(() => {
   http.post.mockImplementation(async (url: string, body: unknown) => {
     const hit = posts[url];
     if (!hit) throw Object.assign(new Error(`404 ${url}`), { response: { status: 404 } });
-    return { data: hit(body) };
+    return { data: await hit(body) };
   });
 });
 
@@ -209,6 +209,50 @@ describe("the one screen", () => {
     expect(screen.queryByRole("button", { name: C.submit })).toBeNull();
     expect(portal.presignCoachingUpload).not.toHaveBeenCalled();
     expect(sendLesson).not.toHaveBeenCalled();
+  });
+
+  it("AC8 — beside Open report, an explicit Select another recording opens the picker", async () => {
+    answers["/coaching-upload/pending"] = () => ({ success: true, recordings: [] });
+    posts["/coaching-upload/check-duplicate"] = () => ({ success: true, duplicateOf: { sessionId: "cs-0", date: "2026-10-01T09:00:00Z" } });
+    at(COACHING_NEW);
+    await pickClass();
+    const input = await screen.findByTestId("dc-audio-input");
+    fireEvent.change(input, { target: { files: [new File(["same lesson"], "lesson.m4a", { type: "audio/mp4" })] } });
+    const note = await screen.findByTestId("dc-repeat");
+    expect(within(note).getByRole("link", { name: C.openReport })).toBeTruthy();
+    const click = vi.spyOn(input as HTMLInputElement, "click");
+    fireEvent.click(within(note).getByRole("button", { name: C.selectAnother }));
+    expect(click).toHaveBeenCalledTimes(1);
+  });
+
+  it("AC8 — a repeat file picked after another one was attached: the earlier one is let go, Submit is not armed", async () => {
+    answers["/coaching-upload/pending"] = () => ({ success: true, recordings: [] });
+    at(COACHING_NEW);
+    await pickClass();
+    const input = await screen.findByTestId("dc-audio-input");
+    fireEvent.change(input, { target: { files: [new File(["new lesson"], "first.m4a", { type: "audio/mp4" })] } });
+    expect(await screen.findByRole("button", { name: C.submit })).toBeTruthy();
+    posts["/coaching-upload/check-duplicate"] = () => ({ success: true, duplicateOf: { sessionId: "cs-0", date: "2026-10-01T09:00:00Z" } });
+    fireEvent.change(input, { target: { files: [new File(["same lesson"], "second.m4a", { type: "audio/mp4" })] } });
+    expect(await screen.findByTestId("dc-repeat")).toBeTruthy();
+    expect(screen.queryByTestId("dc-recording")).toBeNull();
+    expect(screen.queryByRole("button", { name: C.submit })).toBeNull();
+  });
+
+  it("while a picked file is checked: Checking…, and no Submit until the answer", async () => {
+    answers["/coaching-upload/pending"] = () => ({ success: true, recordings: [] });
+    let answer: (v: unknown) => void = () => {};
+    posts["/coaching-upload/check-duplicate"] = () => new Promise((resolve) => { answer = resolve; });
+    at(COACHING_NEW);
+    await pickClass();
+    fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [new File(["new lesson"], "lesson.m4a", { type: "audio/mp4" })] } });
+    expect(await screen.findByText(C.checking)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: C.submit })).toBeNull();
+    await waitFor(() => expect(http.post).toHaveBeenCalledWith("/coaching-upload/check-duplicate", expect.anything()));
+    expect(screen.getByText(C.checking)).toBeTruthy();
+    answer({ success: true, duplicateOf: null });
+    expect(await screen.findByRole("button", { name: C.submit })).toBeTruthy();
+    expect(screen.queryByText(C.checking)).toBeNull();
   });
 
   it("a file she has not sent before is attached as always", async () => {

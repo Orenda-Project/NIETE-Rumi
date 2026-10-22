@@ -163,6 +163,8 @@ export const COACHING_V2_COPY = {
   sentBefore: 'Sent before',
   openReport: 'Open report',
   alreadySent: 'Already sent',
+  selectAnother: 'Select another recording',
+  checking: 'Checking…',
   duplicateBeforeLead: "📋 I've heard this recording before \u2014 it's the same one you sent me earlier.",
   /* bd-aqotzx — ICT IAB row 16: the recording did not sound like a class being taught. */
   classNeedsAnswer: 'Needs your answer',
@@ -325,6 +327,8 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   sentBefore: 'پہلے بھیجی گئی',
   openReport: 'رپورٹ کھولیں',
   alreadySent: 'بھیجی جا چکی',
+  selectAnother: 'دوسری ریکارڈنگ چنیں',
+  checking: 'جانچ ہو رہی ہے…',
   duplicateBeforeLead: '📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو پہلے بھیجی گئی تھی۔',
   classNeedsAnswer: 'آپ کا جواب چاہیے',
   classQuestion: 'کیا یہ آپ کی کلاس کی ریکارڈنگ ہے؟',

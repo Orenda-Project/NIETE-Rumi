@@ -113,7 +113,9 @@ export function NewObservationPage() {
   // is never attached: the repeat note says so, with its report.
   const [pending] = useLoad(loadPending, 'dc:pending');
   const waitingList = useMemo(() => dataOf(pending) ?? [], [pending]);
-  const [repeat, setRepeat] = useState<{ sessionId: string } | null>(null);
+  // picked: a file she chose (the note also offers another); else a waiting recording.
+  const [repeat, setRepeat] = useState<{ sessionId: string; picked?: boolean } | null>(null);
+  const [checking, setChecking] = useState(false);
   const attachWaiting = (rec: PendingRecording) => {
     setAudioProblem(null);
     if (rec.duplicateOf) { setRepeat({ sessionId: rec.duplicateOf.sessionId }); return; }
@@ -216,11 +218,19 @@ export function NewObservationPage() {
       return;
     }
     const seconds = await readAudioDuration(file);
-    // bd-c5reix — the same bytes as a recording she sent before: said now, before anything is uploaded.
+    // bd-c5reix — the same bytes as a recording she sent before: said now, before anything is uploaded. The one it
+    // replaces is let go first, so nothing is armed while the file is checked, nor after a repeat.
     setRepeat(null);
-    const sha = await sha256Hex(file);
-    const before = sha ? await sentBefore(sha) : null;
-    if (before) { setRepeat({ sessionId: before.sessionId }); return; }
+    setAudio(null);
+    setChecking(true);
+    let before: Awaited<ReturnType<typeof sentBefore>> = null;
+    try {
+      const sha = await sha256Hex(file);
+      before = sha ? await sentBefore(sha) : null;
+    } finally {
+      setChecking(false);
+    }
+    if (before) { setRepeat({ sessionId: before.sessionId, picked: true }); return; }
     setPhase('idle');
     setAudio({
       blob: file, filename: checked.filename || file.name, durationMs: seconds != null ? seconds * 1000 : null,
@@ -403,13 +413,19 @@ export function NewObservationPage() {
           {repeat ? (
             <section data-testid="dc-repeat" className="flex flex-col gap-3">
               <DuplicateNote lead={C.duplicateBeforeLead} next={C.duplicateRecordingNext} />
-              <Action to={lessonPath(repeat.sessionId)}>{C.openReport}</Action>
+              <div className="flex gap-3">
+                <Action to={lessonPath(repeat.sessionId)}>{C.openReport}</Action>
+                {repeat.picked ? (
+                  <Action tone="outline" icon={Upload} onClick={() => audioInput.current?.click()}>{C.selectAnother}</Action>
+                ) : null}
+              </div>
             </section>
           ) : null}
-          {cls && !audio && phase === 'idle' ? waitingList.map((rec) => (
+          {checking ? <p aria-live="polite" className="mx-1 text-[15px] font-semibold text-[#6b7280]">{C.checking}</p> : null}
+          {cls && !audio && !checking && phase === 'idle' ? waitingList.map((rec) => (
             <WaitingRecording key={rec.key} rec={rec} onPress={() => attachWaiting(rec)} />
           )) : null}
-          {cls && !audio && phase === 'idle' ? (
+          {cls && !audio && !checking && phase === 'idle' ? (
             <>
               {/* Recording is one card that opens a tray with the two choices, as Grade and subject does (operator,
                   16 Oct). A choice closes the tray. */}
