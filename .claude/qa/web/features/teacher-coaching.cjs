@@ -10,6 +10,7 @@ const scenarios = [
   pagesScenario("TC02", "Teacher app v2: coach visits (Observations) open", "teacher", "teacherV2", [{ path: "/portal/teacher/observations", heading: /^Observations$/ }]),
   pagesScenario("TC03", "Classic portal: Coaching opens", "teacher", "classic", [{ path: "/portal/coaching", heading: /^Coaching$/ }]),
   pagesScenario("TC04", "Teacher app v2: Start DC observation opens its one screen", "teacher", "teacherV2", [{ path: "/portal/teacher/coaching/new", heading: /^Start DC observation$/ }]),
+  pagesScenario("TC05", "Teacher app v2: the link for a recording kept from WhatsApp opens the one screen", "teacher", "teacherV2", [{ path: "/portal/teacher/coaching/new?recording=whatsapp", heading: /^Start DC observation$/ }]),
 ];
 
 module.exports = { feature: "teacher-coaching", spec: 'tests/features/web/teacher-coaching.feature', scenarios };
