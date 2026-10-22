@@ -107,6 +107,13 @@ const SA_RESULTS_ADMINS_KEY = 'sa_results_admins';
 const SA_REAL_DASHBOARD_KEY = 'sa_real_dashboard';
 
 /**
+ * The visit review page (GET …/sa/session/:id/review, POST …/review/mark): one session item by item, with the
+ * recordings, the app's and the scoring agents' marks, and a reviewer's own mark per item. Same shape and rule as the
+ * keys above. Off, both routes are 404.
+ */
+const SA_REVIEW_PAGE_KEY = 'sa_review_page';
+
+/**
  * bd-5rz1v.6 — app_settings key for a COACH running an /observe observation from
  * the portal (record or send the lesson, check the draft, the talk with the
  * teacher, send her the report). Same shape and rule as the key above.
@@ -341,6 +348,7 @@ module.exports = {
   SA_RESULTS_VIEW_KEY,
   SA_RESULTS_ADMINS_KEY,
   SA_REAL_DASHBOARD_KEY,
+  SA_REVIEW_PAGE_KEY,
   PORTAL_COACH_OBSERVATION_KEY,
   PORTAL_NEW_UI_KEY,
   PORTAL_COACH_V2_KEY,

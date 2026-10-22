@@ -31,6 +31,9 @@
  *   GET  /sa/switches                 the page's own switches for this coach (read here, no bot call)
  *   GET  /sa/session/:id/results      the session's results page, read only (also behind `sa_results_view`;
  *                                     a session user on `sa_results_admins` reads any coach's session)
+ *   GET  /sa/session/:id/review      the visit review (also behind `sa_review_page`): per task the recordings, the app's
+ *                                     and the agents' marks per item, and the reviewer's own marks
+ *   POST /sa/session/:id/review/mark { taskId, itemKey, mark: correct|wrong|unclear|null, note? } → the reviewer's mark
  *   GET  /sa/sessions                the results dashboard on real sessions (also behind `sa_real_dashboard`): the
  *                                     coach's own; a session user on `sa_results_admins` reads every coach's
  *   another phone, with NO portal session — the token names the session and its coach:
@@ -48,7 +51,7 @@ const express = require('express');
 const supabase = require('../config/supabase');
 const { makeRequireLeaderRole } = require('../lib/leader-role');
 const {
-  isFlagEnabledForUser, PORTAL_CHILD_TEST_KEY, PORTAL_CHILD_TEST_SA_KEY, SA_RESULTS_VIEW_KEY, SA_RESULTS_ADMINS_KEY, SA_REAL_DASHBOARD_KEY,
+  isFlagEnabledForUser, PORTAL_CHILD_TEST_KEY, PORTAL_CHILD_TEST_SA_KEY, SA_RESULTS_VIEW_KEY, SA_RESULTS_ADMINS_KEY, SA_REAL_DASHBOARD_KEY, SA_REVIEW_PAGE_KEY,
 } = require('../lib/feature-flags');
 const Client = require('../services/portal-child-test.client');
 
@@ -136,6 +139,8 @@ const SA_SWITCHES = {
   exampleDashboard: 'sa_example_dashboard',
   // the same dashboard on this tier's real sessions (GET /sa/sessions below): any host, its row decides
   realDashboard: SA_REAL_DASHBOARD_KEY,
+  // the visit review page (GET /sa/session/:id/review below)
+  reviewPage: SA_REVIEW_PAGE_KEY,
 };
 // Switches that are off on any host but sandbox, whatever their row says.
 const SANDBOX_ONLY = new Set(['exampleDashboard']);
@@ -168,8 +173,14 @@ router.get('/sa/session/:id/results', ...saGates, requireFlag(SA_RESULTS_VIEW_KE
 
 // The results dashboard on real sessions, behind its own switch too: the coach's own sessions; a SESSION user on
 // sa_results_admins reads every coach's (asAdmin set here, never from the request). No names (the bot's saSessions).
-router.get('/sa/sessions', ...saGates, requireFlag(SA_REAL_DASHBOARD_KEY), relay('sa/sessions', async (req) => (
-  (await isFlagEnabledForUser(supabase, SA_RESULTS_ADMINS_KEY, req.session.portalUserId)) ? { asAdmin: true } : {})));
+const asAdminOf = async (req) => ((await isFlagEnabledForUser(supabase, SA_RESULTS_ADMINS_KEY, req.session.portalUserId)) ? { asAdmin: true } : {});
+router.get('/sa/sessions', ...saGates, requireFlag(SA_REAL_DASHBOARD_KEY), relay('sa/sessions', asAdminOf));
+// The visit review, behind its own switch too: one session item by item, and a reviewer's mark on one item. The
+// coach's own session; a SESSION user on sa_results_admins any (asAdmin set here, never from the request).
+router.get('/sa/session/:id/review', ...saGates, requireFlag(SA_REVIEW_PAGE_KEY), relay('sa/review', async (req) => (
+  { sessionId: req.params.id, ...(await asAdminOf(req)) })));
+router.post('/sa/session/:id/review/mark', ...saGates, requireFlag(SA_REVIEW_PAGE_KEY), relay('sa/review-mark', async (req) => (
+  { sessionId: req.params.id, ...pick(req.body, ['taskId', 'itemKey', 'mark', 'note']), ...(await asAdminOf(req)) })));
 
 const LINK_FIELDS = {
   batch: ['seqFrom', 'seqTo', 'events', 'results', 'lang', 'device'],

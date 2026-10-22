@@ -36,6 +36,8 @@ export type SaSwitches = {
   exampleDashboard?: boolean;
   /** sa_real_dashboard: the same dashboard on this tier's real sessions (the coach's own; a results admin's every coach's) */
   realDashboard?: boolean;
+  /** sa_review_page: the visit review, one session item by item with a reviewer's mark per item */
+  reviewPage?: boolean;
 };
 
 /** One drawn child. Never a roll number or student id (operator: "Name · Grade 3 - A · Teacher: …"). */
@@ -129,4 +131,45 @@ export type SaDashboardSession = {
   results: SaResults;
 };
   tasks: SaTaskResult[];
+};
+
+/** A mark of one scoring agent (or their consensus): correct, wrong, no response, silent. */
+export type SaAgentMark = "c" | "w" | "n" | "s" | null;
+export type SaEarMark = "correct" | "wrong" | "unclear";
+
+/** One spoken item on the visit review. Never what the child said. */
+export type SaReviewItem = {
+  key: string;
+  /** what the phone showed (a letter, a word) or the question's id */
+  ref: string | null;
+  app: { verdict: string | null; conf: number | null; noSpeech: boolean };
+  agents: {
+    consensus: SaAgentMark; flash: SaAgentMark; pro: SaAgentMark; stt: SaAgentMark;
+    confidence: number | null; noSpeech: boolean; disputed: boolean; lowTrust: boolean;
+  } | null;
+  /** an app "correct" on a clip with no speech, or an answer under 1 s */
+  suspect: boolean;
+  ear: { mark: SaEarMark | null; note: string | null; at: string | null; mine: boolean } | null;
+  /** the app's mark judged by the ear */
+  appRight: "right" | "wrong" | "unclear" | null;
+};
+
+export type SaReviewTask = {
+  taskId: string;
+  mode: SaResponseMode | null;
+  timeUsedS: number | null;
+  app: { correct: number | null; attempted: number | null; of: number | null; perMinute: number | null };
+  scoredAt: string | null;
+  scoredAfterFix: boolean | null;
+  /** 1-hour links to the task's recordings */
+  clips: { label: string; url: string }[];
+  items: SaReviewItem[];
+  agreement: { reviewed: number; earAgreesWithApp: number; agentsAgreeWithApp: number; withAgents: number };
+};
+
+/** GET …/sa/session/:id/review (switch sa_review_page). No names. */
+export type SaReview = {
+  session: { id: string; grade: number; block: string | null; status: string; startedAt: string | null; endedAt: string | null; minutes: number | null };
+  fixAt: string | null;
+  tasks: SaReviewTask[];
 };
