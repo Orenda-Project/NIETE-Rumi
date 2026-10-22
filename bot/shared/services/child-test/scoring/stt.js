@@ -10,10 +10,11 @@ const { wordsFromTokens } = require('./text-norm');
 // Soniox async list price (USD per audio hour). The study paid ≈ $8.50 for ≈ 62 h.
 const SONIOX_ASYNC_USD_PER_HOUR = Number(process.env.SONIOX_ASYNC_USD_PER_HOUR) || 0.135;
 
-async function transcribe(file, language, durationSec) {
+/** `signal` (optional) bounds the wait: on abort it rejects with reason 'timeout' (Soniox's own poll runs for minutes). */
+async function transcribe(file, language, durationSec, { signal } = {}) {
   const AudioService = require('../../audio.service');
   const started = Date.now();
-  const res = await AudioService.transcribe(file, true, language);
+  const res = await untilAborted(AudioService.transcribe(file, true, language), signal);
   const tokens = (res && res.tokens) || [];
   const words = wordsFromTokens(tokens);
   return {
@@ -25,6 +26,16 @@ async function transcribe(file, language, durationSec) {
     seconds: (Date.now() - started) / 1000,
     cost: Number.isFinite(durationSec) ? Math.round(durationSec / 3600 * SONIOX_ASYNC_USD_PER_HOUR * 1e5) / 1e5 : null,
   };
+}
+
+function untilAborted(work, signal) {
+  if (!signal) return work;
+  return new Promise((resolve, reject) => {
+    const fail = () => { const e = new Error('stt_timeout'); e.reason = 'timeout'; reject(e); };
+    if (signal.aborted) { fail(); return; }
+    signal.addEventListener('abort', fail, { once: true });
+    work.then(resolve, reject).finally(() => signal.removeEventListener('abort', fail));
+  });
 }
 
 /** Diarised turns as the study rendered them for text graders: "[12s] spk1: …". */

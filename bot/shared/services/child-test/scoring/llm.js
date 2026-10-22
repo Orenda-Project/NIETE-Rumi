@@ -24,10 +24,11 @@ function parseJson(text) {
  * @param {string} [p.imageDataUrl]
  * @param {string} p.job        e.g. 'child_test.story'
  * @param {number} [p.maxTokens]
+ * @param {AbortSignal} [p.signal]  aborts the request (the SA scorer's 60-s bound); an aborted call is not retried
  * @param {{name: string, schema: object}} [p.schema]  the reply's JSON schema, sent as a strict
  *   response_format so the decoder cannot emit a malformed object (bd-s1oo0.24)
  */
-async function chatJSON({ model, prompt, audio, imageDataUrl, job, maxTokens = 6000, attempts = 2, schema }) {
+async function chatJSON({ model, prompt, audio, imageDataUrl, job, maxTokens = 6000, attempts = 2, schema, signal }) {
   const content = [{ type: 'text', text: prompt }];
   if (audio) content.push({ type: 'input_audio', input_audio: { data: audio.data, format: audio.format || 'mp3' } });
   if (imageDataUrl) content.push({ type: 'image_url', image_url: { url: imageDataUrl } });
@@ -35,12 +36,13 @@ async function chatJSON({ model, prompt, audio, imageDataUrl, job, maxTokens = 6
   const started = Date.now();
   let lastErr = null; let cost = 0;
   const noJson = [];   // per attempt: why the reply held no JSON (never the reply text — a child's words)
-  for (let a = 0; a < attempts; a += 1) {
+  for (let a = 0; a < attempts && !(signal && signal.aborted); a += 1) {
     try {
-      const resp = await getClient().chat.completions.create({
+      const params = {
         model, temperature: 0, max_tokens: maxTokens, job, ...responseFormat,
         messages: [{ role: 'user', content: content.length === 1 ? prompt : content }],
-      });
+      };
+      const resp = await (signal ? getClient().chat.completions.create(params, { signal }) : getClient().chat.completions.create(params));
       const u = (resp && resp.usage) || {};
       if (Number.isFinite(u.cost)) cost += u.cost;
       const text = resp && resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content;
