@@ -604,6 +604,25 @@ function numbersOf(marks) {
 }
 
 /**
+ * sa_stop_rules: the reason a scored task names on Results (panel G-12 §5): questions not asked after the passage, ×
+ * not asked after no right + / −, else stopped early by EGRA's (reading) or EGMA's (maths) rule; null when none.
+ */
+function ruleStop(block, m) {
+  const d = (m && m.detail) || {};
+  if (d.stop_detail === 'comprehension') return 'comprehension_not_asked';
+  if (d.stop_detail === 'multiplication') return 'multiplication_not_asked';
+  if (d.stopped_by_rule !== true) return null;
+  return String(block || '').startsWith('ma.') ? 'stopped_by_rule_egma' : 'stopped_by_rule';
+}
+
+/** Why a reading task stopped early: its first row (a grid) or its first line (a passage). */
+function whyOf(m) {
+  const d = (m && m.detail) || {};
+  if (d.stopped_by_rule !== true || d.stop_detail) return null;
+  return d.kind === 'grid' ? 'first_row' : d.kind === 'passage' ? 'first_line' : null;
+}
+
+/**
  * One task's row as the coach reads it: the SA scale for tap / keypad, the recording's state for a spoken task.
  * With sa_stop_rules (`stops`), a task the scorer stopped by EGRA's rule says so in place of the phone's reason.
  */
@@ -631,7 +650,8 @@ function shapeTask(r, stops = false) {
     optionsN: tap ? pick('options_n', 'options_n') : null,
     chanceCorrected: tap ? numOrNull(m && m.chance_corrected) : null,
     itemsPerMin: spoken ? null : pick('items_per_min', 'per_minute'),
-    stopReason: stops && m && m.detail && m.detail.stopped_by_rule === true ? 'stopped_by_rule' : stop || null,
+    stopReason: (stops && ruleStop(r.block, m)) || stop || null,
+    ...(stops && whyOf(m) ? { stopWhy: whyOf(m) } : {}),
     recording,
     score: recording === 'scored' ? numbersOf(m) : null,
   };

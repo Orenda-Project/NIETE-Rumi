@@ -128,6 +128,7 @@ export default function LeaderAssessResults() {
           {spoken && !scored && t.recording !== 'none' && <Row label={r.recording} value={r.scoredLater} />}
           </>}
           {stop && <Row label={r.stopReason} value={stop} />}
+          {stop && t.stopWhy && r.whys[t.stopWhy] && <Row label={r.why} value={r.whys[t.stopWhy]} />}
         </dl>
       </li>
     );

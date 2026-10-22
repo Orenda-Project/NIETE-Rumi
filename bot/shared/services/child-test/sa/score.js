@@ -514,20 +514,48 @@ function LETTERS_SCHEMA() {
 /** The passage a questions task follows: ur.story_comp_w3 → ur.story_w3, ur.story_comp → ur.story. */
 const passageOf = (block) => String(block || '').replace('_comp', '');
 
-/** EGRA's first row (sa_stop_rules) for a W3 letters / words grid that carries no stop of its own. */
+/**
+ * EGRA's first row (sa_stop_rules) for a letters / words grid that carries no stop of its own, only when the grid is
+ * longer than the window (10 letters / 5 words). The short RDF tasks (5 letters, 4 words) are always finished, so a 0
+ * there is "all wrong", not "stopped early" (panel G-12 §4); timed maths has no stop rule.
+ */
 function withFirstRow(task, rec) {
   if (task.kind !== 'grid' || (rec.stop || {}).type || !Array.isArray(rec.grid) || !rec.grid.length) return rec;
+  if (!/^(ur|en)\./.test(String(task.task || ''))) return rec;
   const row = /letter/.test(task.subtask || task.task) ? 10 : 5;
-  return { ...rec, stop: { type: 'first_row', n: Math.min(rec.grid.length, row) } };
+  if (rec.grid.length <= row) return rec;
+  return { ...rec, stop: { type: 'first_row', n: row } };
 }
 
-/** Questions after a passage stopped on its first line: not asked by EGRA, so not reached, 0, flagged. */
-function notReached(rec, res) {
+// RWP's comprehension gate (G-12 §3): the questions are asked only if the passage was read to at least this many words
+const COMP_MIN_WORDS = 10;
+const SUMS = ['ma.add2i', 'ma.sub2i'];
+const MUL = 'ma.mul2i';
+
+/**
+ * Questions after a passage that failed RWP's gate (stopped on its first line, or fewer than 10 words attempted): not
+ * asked by EGRA, so not reached, 0, flagged with why.
+ */
+function notReached(rec, res, why = 'first_line') {
   const all = rec.questions || [];
   const asked = res && Array.isArray(res.asked) && res.asked.length ? res.asked : all.map((q) => q.id);
   const qs = asked.map((id) => all.find((q) => q.id === id)).filter(Boolean);
   const rows = qs.map((q, k) => ({ i: k + 1, id: q.id, verdict: 'not_reached', heard: '', conf: null, stop_rule: true }));
-  return { numbers: { correct: 0, of: rows.length }, rows, stopped: true };
+  return { numbers: { correct: 0, of: rows.length }, rows, stopped: true, stopDetail: 'comprehension', why, asked: 0 };
+}
+
+/** A passage that fails RWP's comprehension gate: why, or null when the questions count. */
+function compGate(passage) {
+  if (!passage) return null;
+  if (passage.stopped) return 'first_line';
+  return Number.isFinite(passage.attempted) && passage.attempted < COMP_MIN_WORDS ? 'under_10_words' : null;
+}
+
+/** × after no right + / − answer (G-12 §2): the raw marks stay in detail; the score is 0, each item not reached. */
+function gateMul(out) {
+  const raw = { ...out.numbers };
+  const rows = out.rows.map((r) => ({ ...r, raw_verdict: r.verdict, verdict: 'not_reached', stop_rule: true, gated: true }));
+  return { ...out, numbers: { ...out.numbers, correct: 0 }, rows, stopDetail: 'multiplication', gated: true, raw };
 }
 
 /**
@@ -549,12 +577,14 @@ async function scoreRow(row, session, deps = {}) {
   const started = Date.now();
   try {
     let out;
-    if (passage && passage.stopped) out = notReached(rec, res);
+    const gate = compGate(passage);   // null unless sa_stop_rules
+    if (gate) out = notReached(rec, res, gate);
     else if (task.kind === 'grid') out = await scoreGrid(task, rec, row, res, d, calls, Number(session.grade) || 3);
     else if (task.kind === 'passage') out = await scorePassage(task, rec, row, res, d, calls);
     else if (task.kind === 'oral' && !Array.isArray(rec.questions)) out = await scoreOral(task, rec, row, res, d, calls);
     else if (Array.isArray(rec.questions)) out = await scoreQuestions(task, rec, row, res, d, calls);
     else return { ok: false, reason: 'no_scorer_for_kind', retry: false };
+    if (stops && row.block === MUL && session.sums && session.sums.known && !session.sums.right) out = gateMul(out);
     const confidence = mean(out.rows.map((r) => r.conf));
     const mutes = out.rows.filter((r) => r.no_speech).length;
     return {
@@ -568,6 +598,10 @@ async function scoreRow(row, session, deps = {}) {
           subtask: task.subtask || null,
           variant,
           stopped_by_rule: !!out.stopped,
+          ...(stops && out.stopDetail ? { stop_detail: out.stopDetail } : {}),
+          ...(stops && out.why ? { stop_why: out.why } : {}),
+          ...(stops && out.gated ? { gated: true, raw: out.raw } : {}),
+          ...(stops && Array.isArray(rec.questions) ? { of_all: rec.questions.length, of_asked: out.asked ?? out.rows.length } : {}),
           ...(out.tapped != null ? { last_word_tapped: out.tapped } : {}),
           confidence,
           ...(gateOn() ? { confidence_band: mutes ? 'low' : band(confidence), no_speech: mutes > 0 && mutes === out.rows.length, no_speech_items: mutes } : {}),
@@ -591,6 +625,8 @@ function ready(row, session, nowMs) {
   const own = passageOf(row.block) === row.block;
   const passage = !own && session.stopRules === true && session.passages ? session.passages.get(passageOf(row.block)) : null;
   if (passage && passage.pending) return false;
+  // sa_stop_rules: × waits for the + / − marks (none right means × is not counted)
+  if (session.stopRules === true && row.block === MUL && session.sums && session.sums.pending) return false;
   if (!['oral'].includes(row.response_mode) || row.audio_r2_key) return true;
   const asked = Array.isArray(res.asked) ? res.asked : [];
   const keys = keysOf(row);
@@ -656,9 +692,24 @@ async function passagesOf(sessionId, supabase) {
     if (m ? kind !== 'passage' : !followed.has(r.block)) continue;
     const reason = String(r.ai_reason || '');
     const pending = !m && reason.startsWith('final:sa_') && !reason.startsWith(FAILED);
-    if (m || pending) out.set(r.block, { stopped: Boolean(m && m.detail.stopped_by_rule), pending });
+    if (m || pending) out.set(r.block, { stopped: Boolean(m && m.detail.stopped_by_rule), pending, attempted: m && Number.isFinite(Number(m.attempted)) ? Number(m.attempted) : null });
   }
   return out;
+}
+
+/**
+ * sa_stop_rules: the session's + / − rows (ma.add2i, ma.sub2i) → { known (the child took them and they have marks or
+ * are being scored), pending (one still has no marks), right (any item right) }. Failed for good: not known.
+ */
+async function sumsOf(sessionId, supabase) {
+  const { data } = await supabase.from('child_test_blocks').select('block, ai_marks, ai_status, ai_reason').eq('session_id', sessionId);
+  const rows = (data || []).filter((r) => SUMS.includes(r.block));
+  const live = rows.filter((r) => r.ai_marks || (String(r.ai_reason || '').startsWith('final:sa_') && !String(r.ai_reason).startsWith(FAILED)));
+  return {
+    known: live.length > 0,
+    pending: live.some((r) => !r.ai_marks),
+    right: live.some((r) => r.ai_marks && Number(r.ai_marks.correct) > 0),
+  };
 }
 
 /** Compare-and-set on ai_reason: one process scores one row. */
@@ -742,7 +793,7 @@ async function sweepBody({ sessionId, now, deps, out, at }) {
       const { data } = await supabase.from('child_test_sessions').select('id, grade, form, item_bank_version, status, finished_at, client_finished_at').eq('id', row.session_id).limit(1);
       const s = (data || [])[0] || null;
       if (s) s.asked = await askedOf(row.session_id, supabase);
-      if (s && stopRules) { s.stopRules = true; s.passages = await passagesOf(row.session_id, supabase); }
+      if (s && stopRules) { s.stopRules = true; s.passages = await passagesOf(row.session_id, supabase); s.sums = await sumsOf(row.session_id, supabase); }
       sessions.set(row.session_id, s);
     }
     const session = sessions.get(row.session_id);
