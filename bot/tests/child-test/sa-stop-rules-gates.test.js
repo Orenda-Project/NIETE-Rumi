@@ -201,7 +201,7 @@ describe('the results page names why (sa_stop_rules)', () => {
 
   test('comprehension not asked, × not asked, a grid stopped on row 1 (with its why), a maths stop says EGMA', async () => {
     const out = await sa.saResults({ userId: COACH, sessionId: SID }, deps([
-      row('ur.story_comp_w3', { stopped_by_rule: true, stop_detail: 'comprehension', stop_why: 'under_10_words' }),
+      { ...row('ur.story_comp_w3', { stopped_by_rule: true, stop_detail: 'comprehension', stop_why: 'under_10_words' }), audio_r2_keys: [] },
       row('ma.mul2i', { stopped_by_rule: false, stop_detail: 'multiplication', gated: true }),
       row('ur.letters', { kind: 'grid', stopped_by_rule: true }),
       row('ma.missing', { kind: 'oral', stopped_by_rule: true }),
@@ -211,5 +211,14 @@ describe('the results page names why (sa_stop_rules)', () => {
     expect(by['ma.mul2i']).toMatchObject({ stopReason: 'multiplication_not_asked' });
     expect(by['ur.letters']).toMatchObject({ stopReason: 'stopped_by_rule', stopWhy: 'first_row' });
     expect(by['ma.missing']).toMatchObject({ stopReason: 'stopped_by_rule_egma' });
+  });
+
+  test('questions the child WAS asked (recorded) but the recording shows the reading stopped early: voided, not "not asked"', async () => {
+    const asked = row('en.story_comp_w3', { stopped_by_rule: true, stop_detail: 'comprehension', stop_why: 'under_10_words' });
+    const unasked = { ...row('ur.story_comp_w3', { stopped_by_rule: true, stop_detail: 'comprehension', stop_why: 'first_line' }), audio_r2_keys: [] };
+    const out = await sa.saResults({ userId: COACH, sessionId: SID }, deps([asked, unasked]));
+    const by = Object.fromEntries(out.tasks.map((t) => [t.taskId, t]));
+    expect(by['en.story_comp_w3']).toMatchObject({ stopReason: 'comprehension_voided' });
+    expect(by['ur.story_comp_w3']).toMatchObject({ stopReason: 'comprehension_not_asked' });
   });
 });

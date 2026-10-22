@@ -139,6 +139,7 @@ describe("LeaderAssessResults", () => {
       { ...base, taskId: "ma.missing", stopReason: "stopped_by_rule_egma" },
       { ...base, taskId: "ur.letters", mode: "record", stopReason: "stopped_by_rule", stopWhy: "first_row" },
       { ...base, taskId: "ur.story", mode: "record", stopReason: "stopped_by_rule", stopWhy: "first_line" },
+      { ...base, taskId: "en.story_comp_w3", stopReason: "comprehension_voided" },
     ];
     api.getResults.mockResolvedValue({ ...RESULTS, tasks });
     const { unmount } = renderAt();
@@ -148,6 +149,7 @@ describe("LeaderAssessResults", () => {
     expect(within(await card("ma.missing")).getByText("Stopped early (EGMA rule)")).toBeTruthy();
     expect(within(await card("ur.letters")).getByText("Every item in the first row was wrong.")).toBeTruthy();
     expect(within(await card("ur.story")).getByText("No word in the first line was read correctly.")).toBeTruthy();
+    expect(within(await card("en.story_comp_w3")).getByText("Not scored: the recording shows the reading stopped early.")).toBeTruthy();
     unmount();
     window.localStorage.setItem("niete-assess-lang", "ur");
     renderAt();
@@ -156,6 +158,7 @@ describe("LeaderAssessResults", () => {
     expect(within(await card("ma.missing")).getByText("EGMA کے اصول کے تحت پہلے ہی روک دیا گیا")).toBeTruthy();
     expect(within(await card("ur.letters")).getByText("پہلی قطار کے سب جواب غلط تھے۔")).toBeTruthy();
     expect(within(await card("ur.story")).getByText("پہلی سطر کا کوئی لفظ درست نہیں پڑھا گیا۔")).toBeTruthy();
+    expect(within(await card("en.story_comp_w3")).getByText("نمبر نہیں دیے گئے: ریکارڈنگ کے مطابق پڑھائی پہلے ہی رک گئی تھی۔")).toBeTruthy();
   });
 
   it("a recording where another voice was heard is flagged: a note at the top and on its card (EN + UR); none otherwise", async () => {
