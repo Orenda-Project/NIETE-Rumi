@@ -88,6 +88,8 @@ export interface ShareStrings {
   notSwitchedOnBody: string;
   goHome: string;
   whatsapp: string;
+  /** bd-4joiqz — a builder row's link to the plan's own page, to read it before sending. */
+  view: string;
 
   // Entry points
   cardTitle: string;
@@ -165,6 +167,7 @@ const EN: ShareStrings = {
   notSwitchedOnBody: "Sending isn't switched on for your account yet.",
   goHome: 'Go home',
   whatsapp: 'WhatsApp',
+  view: 'View',
 
   cardTitle: 'Send a lesson plan',
   cardBody: 'Reading Hour & Numeracy · send a plan to your teachers',
@@ -240,6 +243,7 @@ const UR: ShareStrings = {
   notSwitchedOnBody: 'آپ کے اکاؤنٹ کے لیے بھیجنا ابھی شروع نہیں ہوا۔',
   goHome: 'ہوم پر جائیں',
   whatsapp: 'واٹس ایپ',
+  view: 'دیکھیں',
 
   cardTitle: 'سبق کا منصوبہ بھیجیں',
   cardBody: 'ریڈنگ آور اور بنیادی حساب — اپنے اساتذہ کو سبق بھیجیں',

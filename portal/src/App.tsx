@@ -311,9 +311,10 @@ const App = () => {
             <Route path="/portal/coach/training/preview" element={<CoachLibraryPreview />} />
             <Route path="/portal/coach/training/:vendorKey" element={<CoachLibraryProvider />} />
             {/* bd-fmf24g.1 — the teacher app v2: teachers with portal_teacher_v2 only; anyone else
-                is sent to today's Home by the gate. Pages register themselves (teacher/routes.tsx). */}
+                is sent to today's Home by the gate. Pages register themselves (teacher/routes.tsx).
+                bd-4joiqz — a route marked `leaders` (the Lesson Plans pages) also opens for the leader family. */}
             {TEACHER_ROUTES.map((r) => (
-              <Route key={r.path} path={r.path} element={<TeacherGate>{r.element}</TeacherGate>} />
+              <Route key={r.path} path={r.path} element={<TeacherGate leaders={r.leaders}>{r.element}</TeacherGate>} />
             ))}
             {/* bd-60117 — principals only; the endpoint 403s the rest of
                 the leader family and the page says so rather than showing

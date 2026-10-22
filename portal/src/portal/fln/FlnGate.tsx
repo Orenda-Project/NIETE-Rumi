@@ -17,9 +17,11 @@ import { FlnProvider } from './FlnContext';
 import { FLN_DIR, flnStrings, type FlnLang } from './strings';
 import type { FlnMe } from './types';
 import { useLang } from '../teacher/i18n';
+import { lessonsBack } from '../teacher/lessons/paths';
 import './fln.css';
 
-export const LESSONS_HOME = '/portal/teacher/lessons';
+// bd-4joiqz — the one way back to the lesson plans (teacher/lessons/paths lessonsBack): a leader's tab too.
+export const LESSONS_HOME = lessonsBack();
 
 type GateState =
   | { k: 'loading' }

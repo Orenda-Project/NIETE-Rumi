@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 /**
@@ -21,7 +21,7 @@ async function settle() {
   }
 }
 
-async function visit(user: Record<string, unknown> | null, features: Record<string, unknown> | "loading", loading = false) {
+async function visit(user: Record<string, unknown> | null, features: Record<string, unknown> | "loading", loading = false, leaders = false) {
   resetTeacherV2Memory();
   if (features === "loading") vi.mocked(portal.getConfig).mockImplementation(() => new Promise(() => {}));
   else vi.mocked(portal.getConfig).mockResolvedValue({ success: true, features } as never);
@@ -29,7 +29,7 @@ async function visit(user: Record<string, unknown> | null, features: Record<stri
   render(
     <MemoryRouter initialEntries={["/portal/teacher"]}>
       <Routes>
-        <Route path="/portal/teacher" element={<TeacherGate><p>v2 page</p></TeacherGate>} />
+        <Route path="/portal/teacher" element={<TeacherGate leaders={leaders}><p>v2 page</p></TeacherGate>} />
         <Route path="/portal/dashboard" element={<p>today's home</p>} />
         <Route path="/portal/leader" element={<p>my patch</p>} />
         <Route path="/portal/login" element={<p>login</p>} />
@@ -89,5 +89,46 @@ describe("TeacherGate", () => {
   it("signed out goes to login", async () => {
     await visit(null, { teacherV2: true });
     expect(screen.getByText("login")).toBeTruthy();
+  });
+});
+
+/**
+ * bd-4joiqz — a route marked `leaders` (the lesson pages a leader reads: teacher/lessons/routes.tsx) also opens for the
+ * leader family, whatever their teacher-app flag. Every other route, and everyone else, is exactly as above.
+ */
+describe("TeacherGate on a route the leader family may read", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it.each(["coach", "aeo", "supervisor", "school_leader", " Principal "])("%s, with or without the flag, sees the page", async (role) => {
+    for (const teacherV2 of [false, true]) {
+      await visit({ id: "l-1", role, phoneNumber: "923001110009" }, { teacherV2 }, false, true);
+      expect(screen.getByText("v2 page")).toBeTruthy();
+      cleanup();
+    }
+  });
+
+  it("a teacher without the flag is still sent to today's Home", async () => {
+    await visit(TEACHER, { teacherV2: false }, false, true);
+    expect(screen.getByText("today's home")).toBeTruthy();
+  });
+
+  it("a user with no role and no flag is still sent to today's Home", async () => {
+    await visit({ id: "u-1", role: null, phoneNumber: "923001110010" }, { teacherV2: false }, false, true);
+    expect(screen.getByText("today's home")).toBeTruthy();
+  });
+
+  it("a teacher with the flag sees it, as before", async () => {
+    await visit(TEACHER, { teacherV2: true }, false, true);
+    expect(screen.getByText("v2 page")).toBeTruthy();
+  });
+
+  it("signed out still goes to login", async () => {
+    await visit(null, { teacherV2: true }, false, true);
+    expect(screen.getByText("login")).toBeTruthy();
+  });
+
+  it("a coach on a route NOT marked for leaders is still turned away", async () => {
+    await visit({ id: "c-1", role: "coach", phoneNumber: "923001110004" }, { teacherV2: true }, false, false);
+    expect(screen.queryByText("v2 page")).toBeNull();
   });
 });

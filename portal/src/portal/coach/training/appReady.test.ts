@@ -1,12 +1,20 @@
 import { describe, it, expect } from "vitest";
 import { COACH_APP_READY, coachPathReady, coachReadyHome } from "./appReady";
 
-/** bd-s42dye.2 — the coach app v2 allow-list: one constant, training only for now. */
+/** bd-s42dye.2 — the coach app v2 allow-list: one constant. bd-4joiqz — Training, then Lesson Plans (read as a leader). */
 describe("COACH_APP_READY", () => {
-  it("is training only", () => {
-    expect([...COACH_APP_READY]).toEqual(["training"]);
+  it("is training and lessons; the Training Library stays her landing page", () => {
+    expect([...COACH_APP_READY]).toEqual(["training", "lessons"]);
     expect(coachReadyHome()).toBe("/portal/coach/training");
   });
+
+  it.each([
+    "/portal/teacher/lessons", "/portal/teacher/lessons/", "/portal/teacher/lessons/new", "/portal/teacher/lessons/chapters",
+    "/portal/teacher/lessons/lessons", "/portal/teacher/lessons/plan", "/portal/teacher/lessons/open", "/portal/teacher/lessons/preparing",
+  ])("%s is reachable (Lesson Plans)", (p) => expect(coachPathReady(p)).toBe(true));
+
+  it.each(["/portal/teacher", "/portal/teacher/coaching", "/portal/teacher/training", "/portal/teacher/more", "/portal/teacher/lessonsx"])(
+    "%s is not (the teacher app's other pages)", (p) => expect(coachPathReady(p)).toBe(false));
 
   it.each([
     "/portal/coach/training", "/portal/coach/training/ISAPS", "/portal/coach/training/module/m-1", "/portal/coach/training/preview",

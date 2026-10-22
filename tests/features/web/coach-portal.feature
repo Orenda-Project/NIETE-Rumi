@@ -70,3 +70,18 @@ Feature: Coach app
     When she opens it
     Then the teacher's card opens
     And no page error or 5xx happened
+
+  # bd-4joiqz — the coach app's Lesson Plans tab: the teacher Lesson Plans pages, read as a leader. Written by hand; the
+  # web driver has no code for it yet (@draft). The full journey is teacher-lessons LDR01.
+  @LDR07 @draft
+  Scenario: Coach app v2: Lesson Plans is in her menu and opens the Lesson Plans pages; her other pages still land on the Training Library
+    Given the teacher app v2 is off and the coach app v2 is on
+    And demo coach 03000000901 is signed in
+    When they open /portal/coach/training
+    Then the menu is Training Library, Lesson Plans and More
+    When they open /portal/teacher/lessons/new
+    Then it opens healthy and stays on /portal/teacher/lessons/new
+    When they open /portal/teacher/coaching
+    Then /portal/teacher/coaching settles on /portal/coach/training
+    When they open /portal/teacher/lessons/all
+    Then /portal/teacher/lessons/all does not open for them
