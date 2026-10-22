@@ -44,6 +44,7 @@ const { BLOCK_NAMES } = require('../tasks');
 const blockHistory = require('./block-history');
 const rdfSwitch = require('./rdf-switch');
 const rdfW3Switch = require('./rdf-w3-switch');
+const resumeRepick = require('./resume-repick-switch');
 const { MEDIA, envSegment, __internals: { guarded, rows, ownVisit, ownSession, gradeOf } } = require('./app-api.service');
 
 const OUTCOMES = ['present', 'absent', 'refused'];
@@ -184,11 +185,24 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const saStoreOf = (deps) => (deps && deps.saStore) || require('../sa-store'); // eslint-disable-line global-require
 
 /**
+ * A present re-sent for a child who already has a session answers that session. With sa_resume_repick ON and
+ * `repick`, the coach chose the part again on the card: an unfinished session moves to that block.
+ */
+async function resumed(d, session, { block, repick }, deps) {
+  const same = { status: 'ok', sessionId: session.id, list: null };
+  if (repick !== true || !block || session.status === 'completed' || !(await resumeRepick.enabled(deps))) return same;
+  const moved = await saStoreOf(deps).setBlock(session.id, block);
+  if (!moved || !moved.ok) throw new Error((moved && moved.error) || 'setBlock failed');
+  d.log('child_test.sa.repick', { sessionId: session.id, block });
+  return { ...same, block };
+}
+
+/**
  * present / absent / refused. The phone may name the child's session itself (clientSessionId, a uuid it
  * minted while offline) and say which part of the battery the child takes (block); a present re-sent with
  * the same client id answers the session it already made.
  */
-const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ userId, schoolId, visitId, drawId, outcome, note, clientSessionId, block }, d) => {
+const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ userId, schoolId, visitId, drawId, outcome, note, clientSessionId, block, repick }, d) => {
   if (!OUTCOMES.includes(outcome)) return { status: 'invalid', reason: 'bad_outcome' };
   if (!drawId) return { status: 'invalid', reason: 'no_draw' };
   if (clientSessionId != null && !UUID_RE.test(String(clientSessionId))) return { status: 'invalid', reason: 'bad_client_id' };
@@ -199,9 +213,8 @@ const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ 
   const sa = clientSessionId && outcome === 'present' ? saStoreOf(deps) : null;
   if (sa) {
     const known = await sa.findByClient(clientSessionId);
-    if (known && known.ok && known.sessionId && (await ownSession(d, userId, known.sessionId))) {
-      return { status: 'ok', sessionId: known.sessionId, list: null };
-    }
+    const mine = known && known.ok && known.sessionId ? await ownSession(d, userId, known.sessionId) : null;
+    if (mine) return resumed(d, mine, { block, repick }, deps);
   }
 
   const res = await d.draw.markOutcome({ drawId, outcome, note, ...visitArgs(visit) });
@@ -209,7 +222,7 @@ const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ 
     if (res && res.reason === 'already_marked' && outcome === 'present') {
       const existing = await d.store.getSessionByDraw(drawId);
       const s = existing && existing.ok ? existing.session : null;
-      if (s && s.coach_user_id === userId) return { status: 'ok', sessionId: s.id, list: null };
+      if (s && s.coach_user_id === userId) return resumed(d, s, { block, repick }, deps);
     }
     if (res && res.reason) return { status: 'invalid', reason: res.reason };
     throw new Error((res && res.error) || 'markOutcome failed');

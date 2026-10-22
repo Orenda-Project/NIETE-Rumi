@@ -1306,7 +1306,7 @@ export const childTestSa = {
   getList: async (schoolId: string, visitId?: string | null): Promise<{ list: SaList }> =>
     (await api.get(`${CTS}/list`, { params: visitId ? { schoolId, visitId } : { schoolId } })).data,
 
-  markOutcome: async (args: { schoolId: string; visitId?: string | null; drawId: string; outcome: SaOutcome; note?: string; clientSessionId?: string; block?: SaBlock }):
+  markOutcome: async (args: { schoolId: string; visitId?: string | null; drawId: string; outcome: SaOutcome; note?: string; clientSessionId?: string; block?: SaBlock; repick?: boolean }):
     Promise<{ sessionId?: string; list?: SaList | null; block?: SaBlock }> => {
     const { visitId, ...rest } = args;
     return (await api.post(`${CTS}/outcome`, visitId ? { ...rest, visitId } : rest)).data;

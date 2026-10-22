@@ -113,6 +113,16 @@ async function setClient(sessionId, { clientSessionId, block } = {}) {
   return { ok: true };
 }
 
+/** The coach's new part for a session not finished yet (switch sa_resume_repick): replaces the block setClient kept. */
+async function setBlock(sessionId, block) {
+  const got = await getSession(sessionId);
+  if (!got.ok) return got;
+  if (!got.session) return { ok: false, reason: 'no_session' };
+  const { error } = await supabase.from(SESSIONS).update({ device: { ...(got.session.device || {}), block } }).eq('id', sessionId);
+  if (error) return fail('setBlock', error, { sessionId });
+  return { ok: true };
+}
+
 const round2 = (n) => Math.round(n * 100) / 100;
 const num = (n) => (Number.isFinite(n) ? n : null);
 
@@ -222,4 +232,4 @@ async function summary(sessionId) {
   };
 }
 
-module.exports = { PARKED, PHONE_SCORER, phoneMarks, findByClient, setClient, markSynced, putResults, setAudio, summary };
+module.exports = { PARKED, PHONE_SCORER, phoneMarks, findByClient, setClient, setBlock, markSynced, putResults, setAudio, summary };
