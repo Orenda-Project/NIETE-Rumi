@@ -995,6 +995,56 @@ describe("LeaderAssess", () => {
       expect(api.markOutcome).toHaveBeenCalledTimes(1);
     });
 
+    describe("a resumed child: a session from an earlier sitting (sa_resume_repick)", () => {
+      const SIX_HOURS = 6 * 60 * 60 * 1000;
+      const resumed = () => api.getList.mockResolvedValue({ list: { ...LIST, children: [
+        child(1, { status: "tested", sessionId: "srv-old", sessionStatus: "in_progress", sessionBlock: "B4", sessionStartedAt: new Date(Date.now() - SIX_HOURS).toISOString() }),
+        ...LIST.children.slice(1),
+      ] } });
+      const resume = async () => {
+        fireEvent.click(within(await screen.findByTestId("assess-child-d1")).getByRole("button", { name: "Continue" }));
+        return screen.findByTestId("assess-handover");
+      };
+
+      it("ON: the card shows the session's part, every part can be chosen, and Start re-sends Present with the choice", async () => {
+        picks({ resumeRepick: true });
+        resumed();
+        api.markOutcome.mockResolvedValue({ sessionId: "srv-old", block: "B1" });
+        await openList();
+        const card = await resume();
+        expect(within(card).getByRole("radio", { name: new RegExp(BLOCK_EN.B4) })).toBeChecked();
+        for (const b of ["B1", "B2", "B3", "B5"]) expect(within(card).getByRole("radio", { name: new RegExp(BLOCK_EN[b]) })).toBeEnabled();
+        expect(within(card).getByRole("radio", { name: /Whole battery/ })).toBeEnabled();
+        fireEvent.click(within(card).getByRole("radio", { name: new RegExp(BLOCK_EN.B1) }));
+        expect(within(card).getByRole("radio", { name: new RegExp(BLOCK_EN.B1) })).toBeChecked();
+        fireEvent.click(screen.getByRole("button", { name: "Start" }));
+        const frame = await screen.findByTestId("assess-engine-frame");
+        expect(new URL(frame.getAttribute("src") as string, "http://x").searchParams.get("block")).toBe("B1");
+        expect(api.markOutcome).toHaveBeenCalledTimes(1);
+        expect(api.markOutcome.mock.calls[0][0]).toMatchObject({ drawId: "d1", outcome: "present", block: "B1", repick: true });
+      });
+
+      it("ON: the visit clock does not count the hours since the earlier sitting", async () => {
+        picks({ resumeRepick: true });
+        resumed();
+        await openList();
+        await resume();
+        expect(screen.getByText(/Time /)).not.toHaveTextContent(/\b3\d\d:\d\d/);
+        expect(screen.getByText(/Time /)).not.toHaveClass("text-red-700");
+      });
+
+      it("OFF: today's card, every part locked and no repick sent", async () => {
+        picks();
+        resumed();
+        await openList();
+        const card = await resume();
+        for (const r of within(card).getAllByRole("radio")) expect(r).toBeDisabled();
+        fireEvent.click(screen.getByRole("button", { name: "Start" }));
+        await screen.findByTestId("assess-engine-frame");
+        expect(api.markOutcome).not.toHaveBeenCalled();
+      });
+    });
+
     it("RDF: about 20 minutes per child, needs a working microphone", async () => {
       picks({ rdfForm: true });
       await openList();
