@@ -378,6 +378,7 @@
         r.last_word_index = st.last_item_index;
         var w = st.last_item_index != null ? t.items[st.last_item_index] : null;
         r.last_word_line = w && w.line != null ? w.line : (st.last_item_index != null ? 1 : null);
+        if (st.last_word_how) { r.last_word_how = st.last_word_how.how; r.last_word_suggested = st.last_word_how.suggested; }
       }
       if (st.cells) r.cells = st.cells.slice();
       if (t.mode === 'oral') r.asked = st.items.map(function (q) { return q.id; });
@@ -592,9 +593,11 @@
         if (task().items.length) st.phase = 'last_word'; else finish(STOP.COMPLETE);
       },
       /** The last word read (index into the passage's words). */
-      lastWord: function (index) {
+      lastWord: function (index, how) {
         if (st.phase !== 'last_word') return;
         st.last_item_index = typeof index === 'number' && index >= 0 ? index : null;
+        // sa_coach_last_word: the coach confirmed the word found in the recording, or tapped another one.
+        if (how && how.how) st.last_word_how = { how: how.how, suggested: typeof how.suggested === 'number' ? how.suggested : null };
         ev('last_word_tap', { task_id: st.task_id, item_id: index != null && task().items[index] ? task().items[index].id : null, value: index });
         finish(st.time_up ? STOP.TIME_UP : STOP.COMPLETE);
       },
