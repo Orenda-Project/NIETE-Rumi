@@ -320,7 +320,9 @@
     var manual = !!opts.manual;
     var sectionRec = !!opts.section_recording; // an oral task is one recording from Begin (sa_section_recording)
     // sa_coach_last_word: the coach marks the last word read; the recording suggests it, the coach confirms (coach mode only)
-    var coachLW = !!opts.coach_last_word && mode === 'proctored';
+    // sa_auto_child_last_word (round 5): in RDF auto the child taps it, as before; the coach's screen is RDF manual's only.
+    var childLW = !!opts.auto_child_last_word && mode === 'proctored' && !manual;
+    var coachLW = !!opts.coach_last_word && mode === 'proctored' && !childLW;
     var lw = null; // { task, state: pending | ready | none, suggested, picked }
     var punct = !!opts.passage_punct;
 
@@ -1106,7 +1108,8 @@
       if (coachLW) return sCoachLastWord(v);
       return screen(v, 'sae-lastword', [
         h('h1', { class: 'sae-h1', text: C.last_word }),
-        passageEl(v.task, function (i) { runner.lastWord(i); draw(); }),
+        // RDF auto (sa_auto_child_last_word): the child's tap is kept as the check; the scorer reads the recording.
+        passageEl(v.task, function (i) { runner.lastWord(i, childLW ? { how: 'child' } : undefined); draw(); }),
       ], null);
     }
 
