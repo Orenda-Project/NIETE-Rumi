@@ -921,6 +921,58 @@ describe("LeaderAssess", () => {
     });
   });
 
+  describe("every grade (sa_all_grades): the coach names Grade 1–5 after the school", () => {
+    const allGrades = () => api.getSwitches.mockResolvedValue({ ...SWITCHES_OFF, allGrades: true });
+
+    it("OFF: no grade step; the list is asked for without a grade", async () => {
+      await openList();
+      expect(screen.queryByTestId("assess-grade-choice")).toBeNull();
+      expect(api.getList).toHaveBeenCalledWith("s2", "v2");
+    });
+
+    it("ON: five grade buttons; Grade 1 asks for Grade 1's list and its outcomes name Grade 1", async () => {
+      allGrades();
+      renderPage();
+      fireEvent.click(await screen.findByTestId("assess-school-s2"));
+      const pick = await screen.findByTestId("assess-grade-choice");
+      const buttons = within(pick).getAllByRole("button");
+      expect(buttons.map((b) => b.textContent)).toEqual(["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5"]);
+      expect(api.getList).not.toHaveBeenCalled();
+      fireEvent.click(within(pick).getByRole("button", { name: "Grade 1" }));
+      const ready = await screen.findByTestId("assess-preflight-ready");
+      fireEvent.click(ready);
+      await screen.findByText("Ayan Testwala");
+      expect(api.getList).toHaveBeenCalledWith("s2", "v2", 1);
+      fireEvent.click(within(screen.getByTestId("assess-child-d2")).getByRole("button", { name: "Absent" }));
+      await waitFor(() => expect(api.markOutcome).toHaveBeenCalled());
+      expect(api.markOutcome.mock.calls[0][0]).toMatchObject({ drawId: "d2", outcome: "absent", grade: 1 });
+      await startChild("d1");
+      expect(api.markOutcome.mock.calls[1][0]).toMatchObject({ drawId: "d1", outcome: "present", grade: 1 });
+    });
+
+    it("ON: each grade keeps its own visit on the phone; Back from the list returns to the grades", async () => {
+      allGrades();
+      renderPage();
+      fireEvent.click(await screen.findByTestId("assess-school-s2"));
+      fireEvent.click(within(await screen.findByTestId("assess-grade-choice")).getByRole("button", { name: "Grade 4" }));
+      fireEvent.click(await screen.findByTestId("assess-preflight-ready"));
+      await screen.findByText("Ayan Testwala");
+      expect(Object.keys(window.localStorage).some((k) => /^assess:s2:\d{4}-\d{2}-\d{2}:g4$/.test(k))).toBe(true);
+      fireEvent.click(screen.getByRole("button", { name: /Back/ }));
+      expect(await screen.findByTestId("assess-grade-choice")).toBeInTheDocument();
+    });
+
+    it("ON, Urdu: جماعت ۱ … جماعت ۵", async () => {
+      allGrades();
+      window.localStorage.setItem("niete-assess-lang", "ur");
+      renderPage();
+      fireEvent.click(await screen.findByTestId("assess-school-s2"));
+      const pick = await screen.findByTestId("assess-grade-choice");
+      expect(within(pick).getAllByRole("button").map((b) => b.textContent)).toEqual(["جماعت ۱", "جماعت ۲", "جماعت ۳", "جماعت ۴", "جماعت ۵"]);
+      expect(pick).toHaveTextContent("کون سی جماعت؟");
+    });
+  });
+
   describe("the coach picks the part (sa_coach_picks_block) and RDF (sa_rdf_form)", () => {
     const picks = (extra: any = {}) => api.getSwitches.mockResolvedValue({ ...SWITCHES_OFF, coachPicksBlock: true, ...extra });
     const present = async (drawId: string) => {
