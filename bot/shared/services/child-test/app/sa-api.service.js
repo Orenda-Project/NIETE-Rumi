@@ -46,6 +46,7 @@ const rdfSwitch = require('./rdf-switch');
 const rdfW3Switch = require('./rdf-w3-switch');
 const resumeRepick = require('./resume-repick-switch');
 const allGradesSwitch = require('./all-grades-switch');
+const stopRulesSwitch = require('./stop-rules-switch');
 const { MEDIA, envSegment, __internals: { guarded, rows, ownVisit, ownSession, gradeOf } } = require('./app-api.service');
 
 const OUTCOMES = ['present', 'absent', 'refused'];
@@ -529,8 +530,11 @@ function numbersOf(marks) {
   return out;
 }
 
-/** One task's row as the coach reads it: the SA scale for tap / keypad, the recording's state for a spoken task. */
-function shapeTask(r) {
+/**
+ * One task's row as the coach reads it: the SA scale for tap / keypad, the recording's state for a spoken task.
+ * With sa_stop_rules (`stops`), a task the scorer stopped by EGRA's rule says so in place of the phone's reason.
+ */
+function shapeTask(r, stops = false) {
   const m = r.ai_marks || null;
   const res = resultOf(r);
   const mode = r.response_mode || (typeof res.mode === 'string' ? res.mode : null);
@@ -554,7 +558,7 @@ function shapeTask(r) {
     optionsN: tap ? pick('options_n', 'options_n') : null,
     chanceCorrected: tap ? numOrNull(m && m.chance_corrected) : null,
     itemsPerMin: spoken ? null : pick('items_per_min', 'per_minute'),
-    stopReason: stop || null,
+    stopReason: stops && m && m.detail && m.detail.stopped_by_rule === true ? 'stopped_by_rule' : stop || null,
     recording,
     score: recording === 'scored' ? numbersOf(m) : null,
   };
@@ -566,7 +570,7 @@ const byWhen = (a, b) => String(a.created_at || '').localeCompare(String(b.creat
  * Read only. The header (grade, form, block, status, times, language) and one entry per task, in the order the child
  * took them. Never the child's name, roll number, student id or draw, and never a recording's key.
  */
-async function resultsOf(sessionId, d, session, bank) {
+async function resultsOf(sessionId, d, session, bank, stops = false) {
   const got = await d.store.listBlocks(sessionId);
   if (!got || !got.ok) throw new Error((got && got.error) || 'listBlocks failed');
   const blocks = (got.blocks || []).filter((r) => TASK_RE.test(String(r.block || ''))).sort(byWhen);
@@ -589,11 +593,11 @@ async function resultsOf(sessionId, d, session, bank) {
       endedAt: session.finished_at || session.client_finished_at || null,
       lang,
     },
-    tasks: blocks.map((r) => ({ ...shapeTask(r), title: titleOf(r.block) })),
+    tasks: blocks.map((r) => ({ ...shapeTask(r, stops), title: titleOf(r.block) })),
   };
 }
 
-const ownResults = onSession('sa_results', ({ sessionId }, d, session, sa) => resultsOf(sessionId, d, session, sa.bank));
+const ownResults = onSession('sa_results', async ({ sessionId }, d, session, sa) => resultsOf(sessionId, d, session, sa.bank, await stopRulesSwitch.enabled(sa.deps)));
 
 /**
  * An admin (sa_results_admins, checked by the portal for ITS session user and sent as asAdmin: true — never taken
@@ -609,7 +613,7 @@ function saResults(args = {}, deps = {}) {
     const session = got.session;
     if (!session || session.item_bank_version !== SA_MARK) return { status: 'not_found' };
     d.log('child_test.sa.results_admin', { userId, sessionId });
-    return resultsOf(session.id, d, session, deps.bank !== undefined ? deps.bank : loadBank());
+    return resultsOf(session.id, d, session, deps.bank !== undefined ? deps.bank : loadBank(), await stopRulesSwitch.enabled(deps));
   })(rest, deps);
 }
 
