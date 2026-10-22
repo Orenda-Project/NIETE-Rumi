@@ -98,6 +98,21 @@ describe("LeaderAssessReview", () => {
     expect(api.getReview).toHaveBeenCalledWith(SID);
   });
 
+  it("a task where the scorer heard another voice says so on its card (EN + UR); others do not", async () => {
+    api.getSwitches.mockResolvedValue({ reviewPage: true });
+    const r = review();
+    (r.tasks[0] as any).secondVoice = true;
+    api.getReview.mockResolvedValue(r);
+    const { unmount } = renderAt(`/portal/leader/assess/review/${SID}`);
+    const words = await screen.findByTestId("review-task-ur.words4");
+    expect(within(words).getByTestId("review-second-voice")).toHaveTextContent(/Another person's voice was heard/);
+    expect(within(screen.getByTestId("review-task-ma.missing4")).queryByTestId("review-second-voice")).toBeNull();
+    unmount();
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    renderAt(`/portal/leader/assess/review/${SID}`);
+    expect(within(await screen.findByTestId("review-task-ur.words4")).getByTestId("review-second-voice")).toHaveTextContent(/کسی اور کی آواز/);
+  });
+
   it("per item: the app's and the agents' marks, the suspect flag, and the ear's mark with the derived verdict", async () => {
     api.getSwitches.mockResolvedValue({ reviewPage: true });
     api.getReview.mockResolvedValue(review());

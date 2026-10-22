@@ -189,6 +189,22 @@ describe("LeaderAssessDashboard on real sessions (sa_real_dashboard)", () => {
     expect(screen.getByTestId("dash-orf").textContent).not.toMatch(/\d/);
   });
 
+  it("sessions with another voice heard in a recording are counted in a caveat; none, no caveat", async () => {
+    window.localStorage.setItem("niete-assess-lang", "en");
+    api.getSwitches.mockResolvedValue({ realDashboard: true });
+    const flagged = many(6, "Urban-I", "a");
+    flagged[0].results.tasks[0] = { ...flagged[0].results.tasks[0], secondVoice: true } as any;
+    flagged[1].results.tasks[1] = { ...flagged[1].results.tasks[1], secondVoice: true } as any;
+    api.getSessions.mockResolvedValue({ sessions: flagged });
+    const { unmount } = renderPage();
+    expect(await screen.findByTestId("dash-second-voice")).toHaveTextContent(/2 of 6 sessions/);
+    unmount();
+    api.getSessions.mockResolvedValue({ sessions: many(6, "Urban-I", "a") });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    expect(screen.queryByTestId("dash-second-voice")).toBeNull();
+  });
+
   it("a school with no sub-region is listed as such", async () => {
     window.localStorage.setItem("niete-assess-lang", "en");
     api.getSwitches.mockResolvedValue({ realDashboard: true });
