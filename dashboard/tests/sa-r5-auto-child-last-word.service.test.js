@@ -3,8 +3,8 @@
  * Round 5: in RDF auto the CHILD taps the last word read, as before round 4; only RDF manual has the coach's screen.
  * Switch sa_auto_child_last_word (default OFF), with sa_coach_last_word ON, coach mode:
  *   - RDF auto: the child's screen ("Tap the last word you read"), Jugnu asks the child to tap, no coach wording, no
- *     word pre-selected, no hint asked; the tap ends it at once and is kept as last_word_how 'child', so the scorer
- *     takes the words read from the recording and the tap is the check;
+ *     word pre-selected, no hint asked; the tap ends it at once with no last_word_how (the scorer's contract: with
+ *     sa_coach_last_word on, it then takes the words read from the recording, and the child's tap is the check);
  *   - RDF manual: the coach's screen stays (suggested from the recording, the tap confirms).
  * OFF: as round 4 (the coach's screen in both).
  */
@@ -66,14 +66,14 @@ maybe('RDF auto: the child taps the last word (sa-ui)', () => {
     x.view.render(); await flush();
     expect(lines(x).some((l) => /last word/i.test(l))).toBe(true);
   });
-  test('ON, auto: the child\'s tap ends it at once, kept as the check (how: child, no suggestion)', async () => {
+  test('ON, auto: the child\'s tap ends it at once, with no last_word_how (the scorer reads the recording)', async () => {
     const x = mount({ auto_child_last_word: true });
     x.view.render(); await flush();
     wordBtn(x.el, 3).click(); await flush();
     const res = x.runner.view().result;
     expect(res.last_word_index).toBe(3);
-    expect(res.last_word_how).toBe('child');
-    expect(res.last_word_suggested).toBeNull();
+    expect(res.last_word_how).toBeUndefined();
+    expect(res.last_word_suggested).toBeUndefined();
   });
   test('ON, auto, Urdu: the child\'s screen in Urdu, no coach wording', async () => {
     const x = mount({ auto_child_last_word: true }, UR_PASSAGE);
@@ -81,7 +81,7 @@ maybe('RDF auto: the child taps the last word (sa-ui)', () => {
     expect(x.el.querySelector('.sae-lastword.is-coach')).toBeNull();
     expect(x.el.querySelector('.sae-h1').textContent).not.toMatch(/کوچ/);
     wordBtn(x.el, 2).click(); await flush();
-    expect(x.runner.view().result.last_word_how).toBe('child');
+    expect(x.runner.view().result.last_word_how).toBeUndefined();
   });
   test('ON, manual: the coach\'s screen stays (suggested, the tap confirms)', async () => {
     const x = mount({ auto_child_last_word: true, manual: true });
