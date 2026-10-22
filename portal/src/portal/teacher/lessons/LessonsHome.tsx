@@ -13,6 +13,8 @@ import { useCopy } from '../i18n';
 import TeacherPage from '../TeacherPage';
 import { LESSONS_ALL, LESSONS_NEW } from './paths';
 import { recentGroups } from './recent';
+import { useLessonsLeader } from './audience';
+import { FlnBand } from '../../fln/FlnBand';
 
 /**
  * bd-fmf24g.3 — the teacher v2 Lesson Plans main page. bd-fgj73x — in the Assessment flow (AssessmentHub), the
@@ -23,11 +25,16 @@ import { recentGroups } from './recent';
  *                          tag 'preparing'); each row opens it (Preparing until it is written).
  *   Recent Lesson Plans    open, with See all: her recent plans (opened here or received on WhatsApp, every grade, plus
  *                          6–12 plans she asked for) by Pakistan day; each row reopens its plan by key (OpenPlanPage).
+ *
+ * bd-4joiqz — for a LEADER (lessons/audience.ts) this is their Lesson Plans tab: a top-level page (no Back into the
+ * teacher's Home, which turns a leader away), New lesson plan, and the Reading Hour & Numeracy band. No Being made and
+ * no Recent: those are a teacher's own history, and they are not even asked for.
  */
 
 export function LessonsHomePage() {
   const C = useCopy(LESSONS);
-  const [recent] = useLoad(() => loadRecentLessonPlans(), 'recent');
+  const leader = useLessonsLeader();
+  const [recent] = useLoad(leader ? null : () => loadRecentLessonPlans(), leader ? 'recent:none' : 'recent');
   const plans = useMemo(() => dataOf(recent) ?? [], [recent]);
 
   const making = useMemo(
@@ -37,7 +44,7 @@ export function LessonsHomePage() {
   const groups = useMemo(() => recentGroups(plans.filter((p) => p.tag !== 'preparing'), undefined, C), [plans, C]);
 
   return (
-    <TeacherPage feature="lessons" crumb={C.home} title={C.title} backTo={teacherPath('home')}>
+    <TeacherPage feature="lessons" crumb={leader ? undefined : C.home} title={C.title} backTo={leader ? undefined : teacherPath('home')}>
       <Link to={LESSONS_NEW} className={cn('flex min-h-[112px] items-center gap-4 p-4', CARD, FOCUS)}>
         <span
           className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full"
@@ -54,7 +61,9 @@ export function LessonsHomePage() {
         <ChevronRight className="h-6 w-6 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
       </Link>
 
-      {making.length > 0 && (
+      {leader ? <FlnBand /> : null}
+
+      {!leader && making.length > 0 && (
         <>
           <h2 className="mx-1 mt-3 flex items-center gap-2 text-[20px] font-light">
             {C.preparing}
@@ -68,17 +77,19 @@ export function LessonsHomePage() {
         </>
       )}
 
-      <div className="mt-3.5">
-        <HistoryList
-          heading={C.recent}
-          collapsible
-          defaultOpen
-          groups={groups}
-          showMore={false}
-          seeAllTo={LESSONS_ALL}
-          emptyLabel={C.noLessonPlansYet}
-        />
-      </div>
+      {leader ? null : (
+        <div className="mt-3.5">
+          <HistoryList
+            heading={C.recent}
+            collapsible
+            defaultOpen
+            groups={groups}
+            showMore={false}
+            seeAllTo={LESSONS_ALL}
+            emptyLabel={C.noLessonPlansYet}
+          />
+        </div>
+      )}
     </TeacherPage>
   );
 }

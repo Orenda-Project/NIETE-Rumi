@@ -224,17 +224,19 @@ describe('the portal download follows the same group', () => {
     expect((await pdf(null)).version_stamp).toBe(V9);
   });
 
+  // bd-4joiqz — the same chain now also carries a leader's id with `reader: 'leader'` (their school's group, no
+  // lifecycle row). Executed end to end in tests/portal/lp-leader-open.test.js and tests/lp-v8/leader-reader-pdf.test.js.
   test('the teacher id is carried from the portal session to the bot', () => {
     const fs = require('fs');
     const path = require('path');
     const root = path.join(__dirname, '..', '..', '..');
     const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
     expect(read('dashboard/routes/portal.routes.js'))
-      .toMatch(/LpCatalogue\.lessonPdf\(lessonId, kind, req\.session\.portalUserId\)/);
+      .toMatch(/const userId = req\.session\.portalUserId;[\s\S]{0,600}?LpCatalogue\.lessonPdf\(lessonId, kind, userId\)/);
     expect(read('dashboard/services/lp-catalogue.service.js'))
-      .toMatch(/ask\('pdf', \{ lessonId, assetKind: kind, userId \}\)/);
+      .toMatch(/ask\('pdf', \{ lessonId, assetKind: kind, userId,/);
     expect(read('bot/shared/routes/internal-api.routes.js'))
-      .toMatch(/Browse\.lessonPdfUrl\(lessonId, assetKind, body\.userId \|\| null\)/);
+      .toMatch(/Browse\.lessonPdfUrl\(lessonId, assetKind, body\.userId \|\| null, \{ reader \}\)/);
   });
 });
 

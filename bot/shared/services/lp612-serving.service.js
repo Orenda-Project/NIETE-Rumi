@@ -913,8 +913,12 @@ async function deliverRender({
 /** `ui_lang` is the language SHE is spoken to in — recorded per waiter, because
  *  two teachers waiting on one render need not share one. The document's own
  *  language is on the row; this is the other territory. */
-function waiterEntry({ userId, phone, uiLang, surface, correlationId }) {
+function waiterEntry({ userId, phone, uiLang, surface, correlationId, reader }) {
   return {
+    // bd-4joiqz — a leader READING the plan in the portal: the worker still writes their claim when the render is
+    // ready, but their ask writes no lifecycle row (lp612-lifecycle.service isLeaderReader). Absent for everyone else,
+    // so a teacher's entry is exactly the old shape.
+    ...(reader === 'leader' ? { reader: 'leader' } : {}),
     // The log id of HER ask, for the lifecycle row the worker writes when the render ends. Only
     // with LP_LIFECYCLE_PATHS on for niete_lp612; off, the entry is exactly the old shape.
     ...Lp612Lifecycle.waiterFields({ correlationId }),
@@ -1140,7 +1144,7 @@ async function requestLesson(req) {
 }
 
 async function requestLessonImpl(
-  { segmentId, userId, phone, lang, uiLang, correlationId, surface, askedAt }, depth = 0,
+  { segmentId, userId, phone, lang, uiLang, correlationId, surface, askedAt, reader }, depth = 0,
 ) {
   const language = clampLanguage(lang);
   const voice = clampLanguage(uiLang || lang);
@@ -1176,11 +1180,11 @@ async function requestLessonImpl(
     return { outcome: 'held' };
   }
 
-  const req = { userId, phone, uiLang: voice, surface, correlationId };
+  const req = { userId, phone, uiLang: voice, surface, correlationId, reader };
   // The INNER function, deliberately: a re-decide is one request, not two, and re-entering the
   // wrapper would emit a second event for the same tap.
   const retry = () => requestLessonImpl(
-    { segmentId, userId, phone, lang, uiLang, correlationId, surface, askedAt }, depth + 1,
+    { segmentId, userId, phone, lang, uiLang, correlationId, surface, askedAt, reader }, depth + 1,
   );
 
   const { render: existing, readFailed } = await findRender(segmentId, language, tv);
@@ -1227,6 +1231,8 @@ async function requestLessonImpl(
         // exactly as it was before the lifecycle existed.
         const requestId = await Lp612Lifecycle.recordPortalReady({
           userId, segment, segmentId, lang: language, askedAt, generatedAt: askedAt, correlationId,
+          // bd-4joiqz — a leader's ask writes no row (and their claim, below, names none).
+          reader,
         });
         await Deliveries.record({
           userId,

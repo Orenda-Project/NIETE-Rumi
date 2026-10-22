@@ -18,7 +18,7 @@ vi.mock("../services/api", () => ({
 import { portal } from "../services/api";
 import PortalLayout from "./PortalLayout";
 
-const api = portal as any;
+const api = portal as unknown as { getDashboard: ReturnType<typeof vi.fn> };
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -39,7 +39,8 @@ describe("PortalLayout navigation", () => {
     renderLayout();
     await screen.findByText("page");
     await waitFor(() => expect(screen.getAllByText("Observations").length).toBeGreaterThan(0));
-    expect(screen.queryByText("Lesson Plans")).toBeNull();
+    // bd-4joiqz — the leader menu has its own Lesson Plans (the leader tab); the teacher nav's is /portal/curriculum.
+    expect(document.querySelector('a[href="/portal/curriculum"]')).toBeNull();
     expect(api.getDashboard).toHaveBeenCalledTimes(1);
   });
 

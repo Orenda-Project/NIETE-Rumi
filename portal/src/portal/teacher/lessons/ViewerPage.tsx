@@ -18,6 +18,7 @@ import { LESSONS_VIEWER, dcHref, type DcPrefill } from './paths';
 import { attachToDc, PICK_DEPTH, type PickTarget } from '../coaching/libraryPick';
 import { ThingToTryStrip } from './ThingToTryStrip';
 import { LessonQuizButton } from '../home/LessonQuizButton';
+import { useLessonsLeader } from './audience';
 
 /**
  * bd-fmf24g.3 — a lesson plan, open (v28 canvas LessonViewer): the plan under its title, and above it
@@ -41,6 +42,10 @@ import { LessonQuizButton } from '../home/LessonQuizButton';
  *   `pick`    with the eye, from From the library: the dock is Use this lesson plan, which attaches it and steps back
  *             to her DC screen (coaching/libraryPick)
  *   `fromDc`  her attached plan, opened to read: Back is her DC screen
+ *
+ * bd-4joiqz — read by a LEADER (lessons/audience.ts): the plan, its answer key and Open in another app. None of the
+ * teacher's own — no Start DC observation (her coaching), no Thing to try (her coaching test group), no Quiz this
+ * lesson (her quiz home), no Send on WhatsApp (a template to her own number).
  */
 
 type ViewerState = { lessonPlan?: LessonPlanView; dc?: DcPrefill; pick?: PickTarget; fromDc?: boolean } | null;
@@ -58,6 +63,9 @@ export function ViewerPage() {
   const dc = state?.dc ?? null;
   const pick = state?.pick ?? null;
   const inDc = !!pick || !!state?.fromDc;
+  const leader = useLessonsLeader();
+  // Hers only: Start DC observation and Quiz this lesson (also not while a lesson records, or inside a DC observation).
+  const teacherActions = !recording && !inDc && !leader;
   // The strip's plan step and her taps on it, for the plan they were read for only: another plan opened from here
   // (the answer key) gets no highlight.
   const [step, setStep] = useState<{ key: string; index: number | null; jump: number }>({ key: '', index: null, jump: 0 });
@@ -100,13 +108,13 @@ export function ViewerPage() {
       ) : (
         <ShareActions
           available={canSend}
-          onSend={() => shareToWhatsApp('lesson', lessonPlanShareId(source))}
+          onSend={leader ? undefined : () => shareToWhatsApp('lesson', lessonPlanShareId(source))}
           // While a lesson records, another app in front would silence the microphone (bd-5rz1v.10): no Open then.
           open={recording ? undefined : { fileUrl: () => lessonPlanFileUrl(source) }}
         />
       )}
     >
-      {recording || inDc ? null : (
+      {teacherActions ? (
         <Link
           to={dcHref(teacherPath('coaching'), dc)}
           className={cn('flex min-h-[68px] items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] px-3.5 text-[16px] font-semibold text-[#1d2025]', FOCUS)}
@@ -115,10 +123,10 @@ export function ViewerPage() {
           <span className="flex-1">{C.startDc}</span>
           <ChevronRight className={cn('h-[22px] w-[22px]', CHEVRON)} strokeWidth={2.4} aria-hidden="true" />
         </Link>
-      )}
-      {answerKey ? (
+      ) : null}
+      {answerKey && !leader ? (
         <ThingToTryStrip
-          lessonId={source.lessonId}
+          lessonId={answerKey.lessonId}
           onStep={(index) => setStep({ key, index, jump: 0 })}
           onShowStep={() => setStep((s) => ({ ...s, jump: s.jump + 1 }))}
         />
@@ -136,7 +144,7 @@ export function ViewerPage() {
             {C.answerKey}
           </button>
         ) : null}
-        {recording || inDc ? null : <LessonQuizButton className={act} />}
+        {teacherActions ? <LessonQuizButton className={act} /> : null}
       </div>
       <LessonPlanViewer
         key={key}

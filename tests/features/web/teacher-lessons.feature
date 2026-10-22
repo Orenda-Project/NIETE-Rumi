@@ -164,3 +164,78 @@ Feature: Teacher lesson plans
     When the demo teacher taps the button
     Then /portal/fln/p/11156 opens signed in as the demo teacher, with no Share bar
     And a send to a teacher key outside the coach's scope is refused with 403 and nothing is sent
+
+  # bd-4joiqz — "why can't a coach see LPs in their IAB? Shouldnt we make them available?" (operator, 22 Oct 2026).
+  # The leader family (coach, principal off the teacher app, AEO, supervisor, school leader) READS the same Lesson
+  # Plans pages a teacher uses. Written by hand like the FLN block above; the web driver has no code for them yet
+  # (@draft). Re-running the generator rewrites this file — carry this block over when it does.
+
+  @LDR01 @draft
+  Scenario: A coach on the coach app opens Lesson Plans from the menu and reads a grade 1–5 plan
+    Given the teacher app v2 is off and the coach app v2 is on
+    And demo coach 03000000901 is signed in
+    When they open /portal/coach/training
+    Then the menu shows Training Library, Lesson Plans and More
+    When they tap Lesson Plans
+    Then /portal/teacher/lessons opens with New lesson plan and no Recent Lesson Plans, and it has no Back
+    When they tap New lesson plan and pick Grade 4, a subject, a chapter and a lesson
+    Then the plan opens in the viewer at /portal/teacher/lessons/plan, not on the Training Library
+    And the viewer has the answer key and Open in another app
+    And the viewer has no Start DC observation, no Thing to try and no Send on WhatsApp
+    And Lesson Plans is the current menu item on each of these pages
+
+  @LDR02 @draft
+  Scenario: A principal off the teacher app finds Lesson Plans in the leader menu and reads a grade 6–12 plan
+    Given the teacher app v2 and the coach app v2 are off
+    And demo principal 03000000902 is signed in
+    When they open /portal/leader
+    Then the leader menu has Lesson Plans, on the phone's bottom bar too
+    When they tap Lesson Plans
+    Then /portal/teacher/lessons opens and stays open (not sent back to /portal/leader)
+    When they open a grade 9 plan
+    Then the plan opens in the viewer, with no Start DC observation and no Send on WhatsApp
+
+  @LDR03 @draft
+  Scenario: A teacher's Lesson Plans, and a principal's on the teacher app, are unchanged
+    Given the teacher app v2 is on and the coach app v2 is off
+    And demo teacher 03000000911 is signed in
+    When they open /portal/teacher/lessons
+    Then it shows "Recent Lesson Plans" under Home, as before
+    When they open a grade 1–5 plan
+    Then the viewer has Start DC observation, Send on WhatsApp and Open in another app, as before
+    And All Lesson Plans opens for them and is still turned away for a coach
+
+  @LDR04 @draft
+  Scenario: A leader's open is not a teacher's: no open row, no survey, one lp.leader_open event
+    Given demo coach 03000000901 is signed in
+    When they open a grade 1–5 plan, a grade 6–12 plan and an FLN plan in the viewer
+    Then no niete_lp_opens row is written for the coach
+    And no "was this plan useful?" survey is requested
+    And the grade 1–5 PDF is asked for without naming the coach, so no lifecycle row and no A/B group
+    And their grade 6–12 request is marked opened, so the ready message never chases it
+    And one lp.leader_open event is logged per open, with the coach's id, role coach, the plan kind, its ref and the source
+    When demo teacher 03000000911 opens the same grade 1–5 plan
+    Then one niete_lp_opens row and one survey request are recorded, as before
+
+  @LDR05 @draft @config-gated
+  Scenario: A leader's way back from an FLN page is their Lesson Plans tab
+    Given portal_fln_lessons is true
+    And the coach app v2 is on
+    And demo coach 03000000901 is signed in
+    When they open /portal/teacher/lessons
+    Then the Reading Hour & Numeracy band is on the page
+    When they open an FLN list from the band and tap Back
+    Then they land on /portal/teacher/lessons/new, not on the Training Library
+    When they open /portal/fln/p/999999999
+    And they tap the link under "This lesson isn't available"
+    Then they land on /portal/teacher/lessons
+
+  @LDR06 @draft @config-gated
+  Scenario: Send a lesson plan: each row has View, which opens that plan's page
+    Given portal_fln_lessons and portal_fln_share are true
+    And demo coach 03000000901 is signed in
+    When they open /portal/fln/send and pick Grade 3 and Numeracy
+    Then each row has View, Send to teacher and Share link
+    When they tap View on a row
+    Then /portal/fln/p/<that plan's id>?grade=3 opens
+    And Send to teacher and Share link work as before
