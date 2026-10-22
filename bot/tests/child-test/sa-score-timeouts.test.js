@@ -54,7 +54,8 @@ const good = async () => ({ json: { found: true, items: [{ i: 1, heard: '12', v:
 const deps = (db, over = {}) => ({
   supabase: db, stopRules: false, phoneBattery: (g, f, l) => (l === 'ur' ? W3 : null),
   clipOf: async () => ({ base64: 'AAAA', durationSec: 9 }), model: () => 'google/gemini-test', chatJSON: good,
-  limits: { model: 60, stt: 60, r2: 60, sweep: 400 },
+  // a wide sweep deadline: only the tests about the deadline itself shrink it (a loaded run must not trip it)
+  limits: { model: 60, stt: 60, r2: 60, sweep: 5000 },
   ...over,
 });
 const NOW = new Date('2026-10-22T09:45:00Z');
@@ -62,6 +63,9 @@ const logged = (name) => [...logger.logToFile.mock.calls, ...logger.logError.moc
 
 describe('the SA scorer cannot be pinned by a call that never answers', () => {
   const before = { ...process.env };
+  // scoreRow's first call loads the scoring modules (the model client and its SDK) synchronously; under a loaded
+  // parallel run that load outlasted a short deadline, so load them before any timed call
+  beforeAll(() => { require('../../shared/services/child-test/scoring/llm'); require('../../shared/services/child-test/scoring/media'); }); // eslint-disable-line global-require
   beforeEach(() => {
     process.env.CHILD_TEST_SA_SCORER = 'on'; process.env.CHILD_TEST_R2_ENV = 'sandbox';
     score.__internals.resetBoot();
