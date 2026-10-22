@@ -96,6 +96,26 @@ describe('saReview: the read', () => {
     expect(out.tasks[2]).toMatchObject({ taskId: 'ma.missing4', mode: 'keypad', clips: [], items: [], app: { correct: 2, attempted: 4 } });
   });
 
+  test('a comprehension row as the phone writes it ({ i, key } per question): the plain key is presigned, the label is the question', async () => {
+    const K1 = 'child-test/sandbox/sch-1/x/sa/0a1b2c3d.webm';
+    const K2 = 'child-test/sandbox/sch-1/x/sa/4e5f6a7b.webm';
+    const w = world();
+    const base = w.deps.store.listBlocks;
+    w.deps.store.listBlocks = async (...a) => {
+      const got = await base(...a);
+      return { ...got, blocks: got.blocks.map((r) => (r.block === 'ur.story_comp_w3'
+        ? { ...r, audio_r2_keys: [{ i: 'ur.story_w3.q1', key: K1 }, { i: 'ur.story_w3.q2', key: K2 }] } : r)) };
+    };
+    const out = await review.saReview({ userId: COACH, sessionId: SID }, w.deps);
+    expect(out.status).toBe('ok');
+    expect(w.calls.presigned.every(([key]) => typeof key === 'string')).toBe(true);
+    expect(w.calls.presigned.map(([key]) => key)).toEqual(expect.arrayContaining([K1, K2]));
+    expect(out.tasks[1].clips).toEqual([
+      { label: 'q1', url: `https://r2.example/${K1}?sig=1` },
+      { label: 'q2', url: `https://r2.example/${K2}?sig=1` },
+    ]);
+  });
+
   test('per item: the app mark, the agents\' marks and the ear; the app right / wrong / unclear derived from the ear', async () => {
     const out = await review.saReview({ userId: COACH, sessionId: SID }, world().deps);
     const items = out.tasks[0].items;
