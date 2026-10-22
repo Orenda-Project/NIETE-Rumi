@@ -461,7 +461,7 @@
       options.forEach(function (o, i) {
         var pic = picOf(t, o);
         var gl = !pic && Array.isArray(glyphs) && typeof glyphs[i] === 'string' && glyphs[i] ? glyphs[i] : null;
-        var face = pic || (gl ? [h('span', { class: 'sae-glyph', 'aria-hidden': 'true', text: gl }), h('span', { class: 'sae-cap', text: String(o) })] : String(o));
+        var face = pic || (gl ? [h('span', { class: 'sae-glyph', 'aria-hidden': 'true', text: gl }), h('span', { class: 'sae-cap', text: String(o) })] : h('span', { class: 'sae-ink' }, [String(o)]));
         var short = !pic && !gl && Array.from(String(o)).length === 1;
         var b = h('button', { class: 'sae-opt sa-tile' + (pic ? ' is-pic' : gl ? ' is-glyph' : short ? ' is-short' : ''), type: 'button', 'data-value': String(o), lang: tl, 'aria-label': gl ? String(o) : null }, [].concat(face));
         b.addEventListener('click', function () { if (!busy && !b.disabled) onPick(o, b); });
@@ -949,17 +949,17 @@
       var s = String(text);
       var numeric = NUMERIC_RX.test(s);
       return h('div', { class: 'sae-onecell sa-onecell' + (Array.from(s).length <= 2 ? ' is-short' : ''), dir: numeric ? 'ltr' : dirOf(t), lang: numeric ? 'en' : taskLang(t), 'data-i': i == null ? null : String(i) }, [
-        h('span', { class: 'sae-onecell-ink' }, [s]),
+        h('span', { class: 'sae-ink' }, [s]),
       ]);
     }
     /**
      * Round 4: Nastaliq ink is not where its line box is (ر ے sink below the middle, ک with ھ climbs above it), so an
-     * Urdu cell is placed by its ink: shrunk when the ink is bigger than the card, then moved so the ink's middle is the
-     * card's middle (canvas ink metrics on the cell's own font, again once the font has loaded).
+     * Urdu cell or text tile is placed by its ink: shrunk when the ink is bigger than its box, then moved so the ink's
+     * middle is the box's middle (canvas ink metrics on its own font, again once the font has loaded).
      */
     function fitCells(scope) {
       if (typeof document === 'undefined' || !document.fonts || !scope.querySelectorAll) return;
-      Array.prototype.forEach.call(scope.querySelectorAll('.sae-onecell[lang=ur] .sae-onecell-ink'), function (ink) {
+      Array.prototype.forEach.call(scope.querySelectorAll('.sae-onecell[lang=ur] > .sae-ink, .sae-opt[lang=ur] > .sae-ink'), function (ink) {
         fitInk(ink, 0);
         document.fonts.load(getComputedStyle(ink).font, ink.textContent).then(function () {
           if (alive && ink.isConnected) fitInk(ink, 0);

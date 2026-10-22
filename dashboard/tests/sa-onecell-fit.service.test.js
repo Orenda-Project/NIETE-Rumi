@@ -64,19 +64,20 @@ maybe('every Urdu letter and word, one at a time, sits inside its card', () => {
     const cell = document.querySelector('.sae-onecell');
     if (!cell) return { has: false };
     const cs = getComputedStyle(cell);
+      const fc = getComputedStyle(cell.querySelector('.sae-ink') || cell); // the ink's own font (fitCells may shrink it)
     const text = cell.textContent;
-    return document.fonts.load(cs.font, text).then(() => {
+    return document.fonts.load(fc.font, text).then(() => {
       const ctx = document.createElement('canvas').getContext('2d');
-      ctx.font = cs.font; ctx.direction = 'ltr'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      ctx.font = fc.font; ctx.direction = 'ltr'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       const m = ctx.measureText(text);
-      const range = document.createRange(); range.selectNodeContents(cell.querySelector('.sae-onecell-ink') || cell);
+      const range = document.createRange(); range.selectNodeContents(cell.querySelector('.sae-ink') || cell);
       const t = range.getBoundingClientRect();
       const lines = new Set(Array.from(range.getClientRects()).map((x) => Math.round(x.top))).size;
       const base = t.top + m.fontBoundingBoxAscent;
       const b = cell.getBoundingClientRect();
       const bw = parseFloat(cs.borderTopWidth) || 0;
       return {
-        has: true, font: cs.font, lines, nastaliq: document.fonts.check(cs.font, text),
+        has: true, font: fc.font, lines, nastaliq: document.fonts.check(fc.font, text),
         ink: { top: base - m.actualBoundingBoxAscent, bottom: base + m.actualBoundingBoxDescent, left: t.left - m.actualBoundingBoxLeft, right: t.left + m.actualBoundingBoxRight },
         card: { top: b.top + bw, bottom: b.bottom - bw, left: b.left + bw, right: b.right - bw },
         sw: document.documentElement.scrollWidth, vw: window.innerWidth,
