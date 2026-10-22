@@ -725,7 +725,8 @@ function saResults(args = {}, deps = {}) {
 function saSessions(args = {}, deps = {}) {
   return guarded('sa_sessions', async ({ userId, asAdmin }, d) => {
     const admin = asAdmin === true;
-    const got = await d.store.listSaSessions({ mark: SA_MARK, coachUserId: admin ? null : userId });
+    if (!admin && !userId) return { status: 'invalid', reason: 'no_user' };
+    const got = await d.store.listSaSessions(admin ? { mark: SA_MARK, coachUserId: null, allCoaches: true } : { mark: SA_MARK, coachUserId: userId });
     if (!got || !got.ok) throw new Error((got && got.error) || 'listSaSessions failed');
     const sessions = got.sessions || [];
     if (!sessions.length) return { status: 'ok', sessions: [] };

@@ -63,7 +63,8 @@ function world({ sessions, blocks, schools } = {}) {
   const store = {
     listSaSessions: async (q) => {
       calls.list.push(q);
-      return { ok: true, sessions: all.filter((s) => s.item_bank_version === q.mark && (!q.coachUserId || s.coach_user_id === q.coachUserId)) };
+      if (!q.coachUserId && q.allCoaches !== true) return { ok: false, error: 'no_coach' };
+      return { ok: true, sessions: all.filter((s) => s.item_bank_version === q.mark && (q.allCoaches === true || s.coach_user_id === q.coachUserId)) };
     },
     listBlocksForSessions: async (ids) => {
       calls.blocks.push(ids);
@@ -105,7 +106,7 @@ describe('saSessions', () => {
   test('a results admin (asAdmin: true) reads every coach\'s sessions', async () => {
     const w = world();
     const out = await sa.saSessions({ userId: COACH, asAdmin: true }, w.deps);
-    expect(w.calls.list).toEqual([{ mark: 'sa-battery', coachUserId: null }]);
+    expect(w.calls.list).toEqual([{ mark: 'sa-battery', coachUserId: null, allCoaches: true }]);
     expect(out.sessions.map((s) => s.results.session.id).sort()).toEqual([S1, S2, S3]);
   });
 
@@ -149,6 +150,15 @@ describe('saSessions', () => {
     expect(out).toEqual({ status: 'ok', sessions: [] });
     expect(w.calls.blocks).toEqual([]);
     expect(w.calls.schools).toEqual([]);
+  });
+
+  test('an empty or missing user (not an admin) is refused, and no session is read', async () => {
+    for (const userId of ['', null, undefined]) {
+      const w = world();
+      // eslint-disable-next-line no-await-in-loop
+      expect(await sa.saSessions({ userId }, w.deps)).toEqual({ status: 'invalid', reason: 'no_user' });
+      expect(w.calls.list).toEqual([]);
+    }
   });
 
   test('the bot route maps /sa/sessions to saSessions with only the user and asAdmin', () => {

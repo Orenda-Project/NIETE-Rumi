@@ -40,14 +40,22 @@ describe('listSaSessions', () => {
     expect(queries[0].ops.find((o) => o[0] === 'select')[1]).not.toMatch(/student_id|draw_id|\*/);
   });
 
-  test('every coach (no coachUserId): no coach filter', async () => {
-    await store.listSaSessions({ mark: 'sa-battery', coachUserId: null });
+  test('every coach only when the caller says allCoaches: then no coach filter', async () => {
+    await store.listSaSessions({ mark: 'sa-battery', coachUserId: null, allCoaches: true });
     expect(queries[0].ops.some((o) => o[0] === 'eq' && o[1] === 'coach_user_id')).toBe(false);
+  });
+
+  test('no coach and no allCoaches: refused before any query (an empty user never reads every coach)', async () => {
+    for (const coachUserId of [null, undefined, '']) {
+      // eslint-disable-next-line no-await-in-loop
+      expect(await store.listSaSessions({ mark: 'sa-battery', coachUserId })).toEqual({ ok: false, error: 'no_coach' });
+    }
+    expect(queries).toHaveLength(0);
   });
 
   test('an error is returned, never read as "no sessions"', async () => {
     answer = { data: null, error: { message: 'down' } };
-    expect(await store.listSaSessions({ mark: 'sa-battery' })).toEqual({ ok: false, error: 'down' });
+    expect(await store.listSaSessions({ mark: 'sa-battery', coachUserId: 'u1' })).toEqual({ ok: false, error: 'down' });
   });
 });
 
