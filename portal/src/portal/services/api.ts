@@ -4,7 +4,7 @@ import { ANALYTICS_LOGIN } from '../lib/homeRoute';
 import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData, SchoolAnalyticsResponse,
   AttendanceResponse } from '../types/portal';
 import type { ChildTestVisit, ChildTestList, ChildTestCard, ChildTestSession, ChildTestBlockName } from '../types/childTest';
-import type { SaBlock, SaDashboardSession, SaList, SaOutcome, SaResults, SaSchool, SaSessionStatus, SaSwitches } from '../types/childTestSa';
+import type { SaBlock, SaDashboardSession, SaEarMark, SaList, SaOutcome, SaResults, SaReview, SaSchool, SaSessionStatus, SaSwitches } from '../types/childTestSa';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
 import type { CoachingAnalyticsResponse, SchoolsAnalyticsResponse } from '../types/portal';
@@ -1330,6 +1330,14 @@ export const childTestSa = {
   /** The results dashboard's sessions: this coach's, or every coach's for a results admin (switch sa_real_dashboard). */
   getSessions: async (): Promise<{ sessions: SaDashboardSession[] }> =>
     (await api.get(`${CTS}/sessions`)).data,
+
+  /** The visit review of one session (switch sa_review_page: 404 when off or not this coach's session). */
+  getReview: async (sessionId: string): Promise<SaReview> =>
+    (await api.get(`${CTS}/session/${encodeURIComponent(sessionId)}/review`)).data,
+
+  /** The reviewer's own mark on one item (null clears it); the note is never a child's name. */
+  markReviewItem: async (sessionId: string, body: { taskId: string; itemKey: string; mark: SaEarMark | null; note: string | null }): Promise<{ status: string }> =>
+    (await api.post(`${CTS}/session/${encodeURIComponent(sessionId)}/review/mark`, body)).data,
 
   /** A one-hour token for opening the server's session on another phone. */
   mintLink: async (sessionId: string): Promise<{ token: string; expiresAt: string }> =>
