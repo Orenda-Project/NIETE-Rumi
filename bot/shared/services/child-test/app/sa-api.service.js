@@ -23,6 +23,8 @@
  *   saRegister    the recording arrived: on the task's row, scored later — by the existing scorer only
  *                 with CHILD_TEST_SA_SCORE_LATER=true, otherwise parked so nothing is scored or paid for
  *   saStatus      what the server holds, for the coach's visit bar
+ *   saLastWordHint  the passage word where the child stopped, from the recording (sa_coach_last_word, default OFF):
+ *                 the coach's tap on the last word then confirms it or picks another
  *   saResults     the session's results page: per task the SA scale, or the recording's state (read only);
  *                 an admin (asAdmin, set by the portal from sa_results_admins) reads any coach's SA session
  *   saSessions    the results dashboard: every SA session of this coach (an admin: every coach's) in saResults' shape,
@@ -50,6 +52,8 @@ const resumeRepick = require('./resume-repick-switch');
 const allGradesSwitch = require('./all-grades-switch');
 const stopRulesSwitch = require('./stop-rules-switch');
 const addChildSwitch = require('./add-child-switch');
+const coachLastWord = require('./coach-last-word-switch');
+const { lastWordIndex } = require('../sa/last-word-hint');
 const { MEDIA, envSegment, __internals: { guarded, rows, ownVisit, ownSession, gradeOf } } = require('./app-api.service');
 
 const OUTCOMES = ['present', 'absent', 'refused'];
@@ -599,6 +603,73 @@ const saStatus = onSession('sa_status', async ({ sessionId }, d, session, sa) =>
   };
 });
 
+// ─── the last word read, from the recording ────────────────────────────────
+
+const HINT_TIMEOUT_MS = 25 * 1000;
+
+/** The passage as the phone showed it: its words, and each rotation variant's (the phone's pick is not known yet). */
+function passageCandidates(session, taskId, load) {
+  const lang = taskId.slice(0, 2) === 'en' ? 'en' : 'ur';
+  const b = load(session.grade, session.form, lang) || load(session.grade, 'A', lang);
+  const t = b && Array.isArray(b.tasks) ? b.tasks.find((x) => x && x.id === taskId) : null;
+  if (!t || t.kind !== 'passage') return null;
+  const words = (items) => (items || []).map((x) => String(x.target != null ? x.target : x.text || ''));
+  return [{ id: null, tokens: words(t.items) }, ...(t.variants || []).map((v) => ({ id: v.id || null, tokens: words(v.items) }))]
+    .filter((c) => c.tokens.length);
+}
+
+function phoneBatteryFile(grade, form, lang) {
+  try { return require(`../../../data/child-test/sa/sa.coach.G${grade}.${form}.${lang}.json`); } catch (_) { return null; } // eslint-disable-line global-require
+}
+
+/** The words heard on the clip (Soniox once), bounded by `signal`. */
+async function hintWordsOf(key, lang, signal) {
+  /* eslint-disable global-require */
+  const media = require('../scoring/media');
+  const stt = require('../scoring/stt');
+  /* eslint-enable global-require */
+  const file = await media.downloadToTemp(key, 'webm', signal);
+  try {
+    const dur = await media.probeDuration(file);
+    return (await stt.transcribe(file, lang, dur, { signal })).words || [];
+  } finally { media.cleanup(file); }
+}
+
+function bounded(ms, run) {
+  const signal = AbortSignal.timeout(ms);
+  return new Promise((resolve, reject) => {
+    const fail = () => reject(new Error('hint_timeout'));
+    signal.addEventListener('abort', fail, { once: true });
+    Promise.resolve().then(() => run(signal)).then(resolve, reject).finally(() => signal.removeEventListener('abort', fail));
+  });
+}
+
+const saLastWordHint = onSession('sa_last_word_hint', async ({ userId, sessionId, taskId }, d, session, sa) => {
+  if (!(await coachLastWord.enabled(sa.deps, userId))) return { status: 'ok', off: true };
+  if (!TASK_RE.test(String(taskId || ''))) return { status: 'invalid', reason: 'bad_task' };
+  const cands = passageCandidates(session, String(taskId), sa.deps.phoneBattery || phoneBatteryFile);
+  if (!cands || !cands.length) return { status: 'invalid', reason: 'not_a_passage' };
+  const got = await d.store.listBlocks(sessionId);
+  if (!got || !got.ok) throw new Error((got && got.error) || 'listBlocks failed');
+  const row = (got.blocks || []).find((b) => b.block === taskId);
+  if (!row || !row.audio_r2_key) return { status: 'ok', pending: true };
+  const lang = taskId.slice(0, 2) === 'en' ? 'en' : 'ur';
+  const t0 = Date.now();
+  let heard;
+  try {
+    heard = await bounded(HINT_TIMEOUT_MS, (signal) => (sa.deps.hintWords || hintWordsOf)(row.audio_r2_key, lang, signal));
+  } catch (err) {
+    d.log('child_test.sa_last_word_hint', { session: String(sessionId).slice(0, 8), task: taskId, index: null, reason: 'stt_failed', error: err.message, ms: Date.now() - t0 });
+    return { status: 'ok', index: null, reason: 'stt_failed' };
+  }
+  // the phone's rotation is not known here: the variant the words heard fit best
+  const best = cands.map((c) => ({ c, r: lastWordIndex(c.tokens, heard, lang) }))
+    .reduce((a, b) => (b.r.matched > a.r.matched ? b : a));
+  const out = { status: 'ok', index: best.r.index, heard: heard.length, matched: best.r.matched, variant: best.c.id };
+  d.log('child_test.sa_last_word_hint', { session: String(sessionId).slice(0, 8), task: taskId, index: out.index, heard: out.heard, matched: out.matched, ms: Date.now() - t0 });
+  return out;
+});
+
 // ─── the coach's results page ──────────────────────────────────────────────
 
 const numOrNull = (n) => (typeof n === 'number' && Number.isFinite(n) ? n : null);
@@ -776,7 +847,7 @@ const saLink = onSession('sa_link', async (a, d, session) => {
   return { status: 'ok', token, expiresAt: new Date(exp * 1000).toISOString() };
 });
 
-const LINK_OPS = { batch: saBatch, presign: saPresign, register: saRegister, status: saStatus };
+const LINK_OPS = { batch: saBatch, presign: saPresign, register: saRegister, status: saStatus, 'last-word-hint': saLastWordHint };
 
 // One phone per link (CHILD_TEST_SA_LINK_ONE_PHONE=true; off by default): the first phone to use a link keeps it for
 // the link's hour. The phone's id is its own random one (sink-coach.js), never a device fingerprint. The claim is a
@@ -811,4 +882,4 @@ async function saViaLink(args = {}, deps = {}) {
   return fn({ ...rest, userId: p.c, sessionId: p.s }, deps);
 }
 
-module.exports = { SA_MARK, listSchools, dayList, dayOutcome, addChild, saBattery, saBatch, saPresign, saRegister, saStatus, saResults, saSessions, saLink, saViaLink };
+module.exports = { SA_MARK, listSchools, dayList, dayOutcome, addChild, saBattery, saBatch, saPresign, saRegister, saStatus, saLastWordHint, saResults, saSessions, saLink, saViaLink };
