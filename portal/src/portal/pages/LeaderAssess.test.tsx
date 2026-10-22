@@ -1069,6 +1069,17 @@ describe("LeaderAssess", () => {
       const row = await screen.findByTestId("assess-grade-row");
       expect(row).toHaveAttribute("dir", "rtl");
       expect(within(row).getAllByRole("button")[0]).toHaveTextContent("جماعت ۱");
+      // the portal sheet's `[dir="rtl"] .grid { direction: ltr }` beats the attribute; an inline style beats the sheet
+      expect(row.style.direction).toBe("rtl");
+    });
+
+    it("ON, English: the grade row runs left to right, inline", async () => {
+      allGrades();
+      renderPage();
+      fireEvent.click(await screen.findByTestId("assess-school-s2"));
+      const row = await screen.findByTestId("assess-grade-row");
+      expect(row.style.direction).toBe("ltr");
+      expect(within(row).getAllByRole("button")[0]).toHaveTextContent("Grade 1");
     });
 
     describe("Find a school (C8)", () => {
