@@ -57,6 +57,9 @@ const ROUTES = {
   '/sa/results': ['saResults', ['userId', 'sessionId', 'asAdmin'], 'sa-api.service'],
   // the results dashboard: this coach's sessions, or (asAdmin) every coach's
   '/sa/sessions': ['saSessions', ['userId', 'asAdmin'], 'sa-api.service'],
+  // the visit review: one session item by item, and a reviewer's mark (services/child-test/app/sa-review.service.js)
+  '/sa/review': ['saReview', ['userId', 'sessionId', 'asAdmin'], 'sa-review.service'],
+  '/sa/review-mark': ['saReviewMark', ['userId', 'sessionId', 'taskId', 'itemKey', 'mark', 'note', 'asAdmin'], 'sa-review.service'],
   // another phone: the coach mints a link; the linked phone's sink calls carry the token, never a user
   '/sa/link-mint': ['saLink', ['userId', 'sessionId'], 'sa-api.service'],
   '/sa/via-link': ['saViaLink', ['token', 'op', 'sessionId', 'phone', 'seqFrom', 'seqTo', 'events', 'results', 'lang', 'device',

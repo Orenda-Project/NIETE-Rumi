@@ -267,7 +267,7 @@ describe('the Learning assessment\'s page switches (sa/switches)', () => {
     expect(out.statusCode).toBe(200);
     expect(out.payload).toEqual({
       success: true,
-      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true, exampleDashboard: false, realDashboard: false, resumeRepick: false, allGrades: false, addChild: false },
+      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true, exampleDashboard: false, realDashboard: false, reviewPage: false, resumeRepick: false, allGrades: false, addChild: false },
     });
     expect(axiosPost).not.toHaveBeenCalled();
   });
@@ -475,5 +475,46 @@ describe('the results dashboard on real sessions (sa/sessions): its own switch, 
 
   test('the switch key is exported from the shared flags', () => {
     expect(require('../../dashboard/lib/feature-flags').SA_REAL_DASHBOARD_KEY).toBe('sa_real_dashboard');
+  });
+});
+
+describe('the visit review (sa/session/:id/review): its own switch, sa_review_page', () => {
+  const SID = '55555555-5555-4555-8555-555555555555';
+  const BOT = 'https://bot.example/api/internal/child-test/';
+  const on = (...extra) => tableRows.app_settings.push({ key: 'portal_child_test_sa', value: true }, { key: 'sa_review_page', value: [COACH] }, ...extra);
+
+  test('sa_review_page off → 404 on the read and the mark, nothing relayed', async () => {
+    tableRows.app_settings.push({ key: 'portal_child_test_sa', value: true });
+    expect((await invoke(ROUTES, 'get', '/sa/session/:id/review', { params: { id: SID } })).statusCode).toBe(404);
+    expect((await invoke(ROUTES, 'post', '/sa/session/:id/review/mark', { params: { id: SID }, body: { taskId: 'ur.words4', itemKey: '1', mark: 'wrong' } })).statusCode).toBe(404);
+    expect(axiosPost).not.toHaveBeenCalled();
+  });
+
+  test('on: the read relays the session id from the path and the SESSION user only', async () => {
+    on();
+    await invoke(ROUTES, 'get', '/sa/session/:id/review', { params: { id: SID }, query: { userId: 'forged', asAdmin: 'true' } });
+    expect(axiosPost).toHaveBeenLastCalledWith(`${BOT}sa/review`, { userId: COACH, sessionId: SID }, expect.anything());
+  });
+
+  test('on: the mark relays only its fields; a body asAdmin or userId is ignored', async () => {
+    on();
+    await invoke(ROUTES, 'post', '/sa/session/:id/review/mark', {
+      params: { id: SID }, body: { taskId: 'ur.words4', itemKey: '2', mark: 'unclear', note: 'n', asAdmin: true, userId: 'forged', reviewedBy: 'x' },
+    });
+    expect(axiosPost).toHaveBeenLastCalledWith(`${BOT}sa/review-mark`, { userId: COACH, sessionId: SID, taskId: 'ur.words4', itemKey: '2', mark: 'unclear', note: 'n' }, expect.anything());
+  });
+
+  test('the session user on sa_results_admins → asAdmin: true on both', async () => {
+    on({ key: 'sa_results_admins', value: [COACH] });
+    await invoke(ROUTES, 'get', '/sa/session/:id/review', { params: { id: SID } });
+    expect(axiosPost).toHaveBeenLastCalledWith(`${BOT}sa/review`, { userId: COACH, sessionId: SID, asAdmin: true }, expect.anything());
+    await invoke(ROUTES, 'post', '/sa/session/:id/review/mark', { params: { id: SID }, body: { taskId: 'ur.words4', itemKey: '2', mark: 'correct' } });
+    expect(axiosPost).toHaveBeenLastCalledWith(`${BOT}sa/review-mark`, { userId: COACH, sessionId: SID, taskId: 'ur.words4', itemKey: '2', mark: 'correct', asAdmin: true }, expect.anything());
+  });
+
+  test('the page switch and the key', async () => {
+    on();
+    expect((await invoke(ROUTES, 'get', '/sa/switches')).payload.switches.reviewPage).toBe(true);
+    expect(require('../../dashboard/lib/feature-flags').SA_REVIEW_PAGE_KEY).toBe('sa_review_page');
   });
 });

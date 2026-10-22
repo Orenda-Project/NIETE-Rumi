@@ -68,6 +68,7 @@ const LeaderChildTest = page(() => import("./portal/pages/LeaderChildTest"));
 const LeaderAssess = page(() => import("./portal/pages/LeaderAssess"));
 const LeaderAssessResults = page(() => import("./portal/pages/LeaderAssessResults"));
 const LeaderAssessDashboard = page(() => import("./portal/pages/LeaderAssessDashboard"));
+const LeaderAssessReview = page(() => import("./portal/pages/LeaderAssessReview"));
 const LeaderObserveRecord = page(() => import("./portal/pages/LeaderObserveRecord"));
 const LeaderObservation = page(() => import("./portal/pages/LeaderObservation"));
 const LeaderObserveDraft = page(() => import("./portal/pages/LeaderObserveDraft"));
@@ -272,6 +273,8 @@ const App = () => {
             <Route path="/portal/leader/assess/results/:sessionId" element={<LeaderAssessResults />} />
             {/* The example results dashboard (synthetic data); the page checks sa_example_dashboard, sandbox only. */}
             <Route path="/portal/leader/assess/dashboard" element={<LeaderAssessDashboard />} />
+            <Route path="/portal/leader/assess/review" element={<LeaderAssessReview />} />
+            <Route path="/portal/leader/assess/review/:sessionId" element={<LeaderAssessReview />} />
             {/* bd-5rz1v.6 — a coach's /observe observation from the portal (dark behind portal_coach_observation). */}
             <Route path="/portal/leader/observe/new" element={<LeaderObserveRecord />} />
             <Route path="/portal/leader/observe/:id" element={<LeaderObservation />} />
