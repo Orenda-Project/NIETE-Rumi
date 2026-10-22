@@ -260,3 +260,19 @@ button{font:inherit;color:inherit}
 /* RULING W3-19: the official Urdu page's pitch (≈ 150 px on a ≈ 60 px glyph), so Nastaliq lines never collide */
 .sae-passage.is-printed[lang=ur]{word-spacing:.35em;line-height:2.45}
 @media (max-width:360px){.sae-passage.is-printed{font-size:23px}.sae-passage.is-printed[lang=ur]{font-size:25px}}
+/* Coach-marked maths (sa_maths_coach_marks): the coach's answer line and two big Right / Wrong buttons. */
+.sae-marks{width:100%;max-width:520px;background:var(--sae-card);border:3px dashed var(--sae-line);border-radius:var(--sae-r);padding:10px 12px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.sae-marks .sae-row{width:100%;justify-content:space-between}
+.sae-mark-secs{margin:0;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--sae-f)}
+.sae-mark-hint{font-size:16px;text-align:center}
+.sae-mark-answer{margin:0;font-size:28px;font-weight:800;unicode-bidi:plaintext}
+.sae-mark-btns{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%}
+.sae-mark{max-width:none;min-height:80px;padding:8px;border-radius:var(--sae-r);font-size:26px;color:#fff;white-space:nowrap;gap:8px}
+.sae-run-cell.is-marking.sae-screen{gap:6px;padding-top:6px}
+.sae-run-cell.is-marking .sae-onecell,.sae-run-cell.is-marking .sae-onecell.is-short{min-height:22vh;font-size:clamp(48px,17vw,96px);line-height:1.2}
+.sae-marks .sae-mark-hint,.sae[lang=ur] .sae-marks .sae-mark-hint{line-height:1.6}
+.sae[lang=ur] .sae-marks .sae-chip,.sae[lang=ur] .sae-mark-answer{line-height:1.7}
+.sae[lang=ur] .sae-mark{font-size:24px;line-height:2.3;padding-top:14px;min-height:88px}
+.sa-mark-right{background:var(--sae-ok);box-shadow:0 6px 0 #145431}
+.sa-mark-wrong{background:#B3261E;box-shadow:0 6px 0 #7A1A15}
+.sae-mark:active{transform:translateY(4px);box-shadow:none}

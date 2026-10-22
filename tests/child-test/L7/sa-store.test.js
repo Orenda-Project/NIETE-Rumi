@@ -206,3 +206,36 @@ describe("the phone's own session id", () => {
     expect(await Store.findByClient('c1')).toEqual({ ok: false, error: 'nope' });
   });
 });
+
+// sa_maths_coach_marks: the coach taps Right / Wrong per spoken maths item (the paper-EGMA way); the phone's result
+// says scored_on 'coach'. Its marks are written with the batch, so Results shows them at once and the SA scorer's
+// sweep (rows with no marks only) never takes the row; the recording still joins it as a backup.
+describe('coach-marked maths (scored_on coach)', () => {
+  const coach = {
+    task_id: 'ma.fluency1m', mode: 'record', scored_on: 'coach', correct: 2, incorrect: 1, attempted: 3, per_minute: 2, time_used_ms: 60000,
+    stop_reason: 'time_up', answers: [{ item_id: 'f1', value: 'right', ok: true, ms: 900, by: 'coach' }, { item_id: 'f2', value: 'right', ok: true, ms: 1200, by: 'coach' }, { item_id: 'f3', value: 'wrong', ok: false, ms: 3000, by: 'coach' }],
+  };
+
+  test('the coach\'s marks are the row\'s marks, scored, with every item\'s mark', async () => {
+    expect(await Store.putResults('s1', [coach], 'en')).toEqual({ ok: true });
+    const row = blockOf('ma.fluency1m');
+    expect(row).toEqual(expect.objectContaining({ response_mode: 'record', ai_status: 'scored', ai_model_versions: { scorer: 'coach-marks-v1' } }));
+    expect(row.ai_marks).toEqual({
+      version: 'coach-marks-v1', task: 'ma.fluency1m', correct: 2, of: 3, attempted: 3, per_minute: 2, stop_reason: 'time_up',
+      detail: { by: 'coach', items: [{ i: 1, id: 'f1', verdict: 'correct', ms: 900 }, { i: 2, id: 'f2', verdict: 'correct', ms: 1200 }, { i: 3, id: 'f3', verdict: 'wrong', ms: 3000 }] },
+    });
+  });
+
+  test('its recording joins the row as the backup; the marks and status stay', async () => {
+    await Store.putResults('s1', [coach], 'en');
+    expect(await Store.setAudio('s1', 'ma.fluency1m', null, 'k-backup')).toEqual({ ok: true, backup: true });
+    expect(blockOf('ma.fluency1m')).toEqual(expect.objectContaining({ audio_r2_key: 'k-backup', ai_status: 'scored' }));
+    expect(blockOf('ma.fluency1m').ai_marks.correct).toBe(2);
+    expect(await Store.setAudio('s1', 'ma.fluency1m', null, 'k-again')).toEqual({ ok: false, reason: 'frozen' });
+  });
+
+  test('a record task scored later is unchanged: no marks', async () => {
+    await Store.putResults('s1', [{ ...coach, task_id: 'ma.add2i', scored_on: 'later', correct: null }], 'en');
+    expect(blockOf('ma.add2i').ai_marks).toBeNull();
+  });
+});

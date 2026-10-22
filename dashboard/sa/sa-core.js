@@ -54,6 +54,11 @@
  * are its grid, else its items' show; advance_after_s is the wait (null: next_at_s, the untimed sums' 15 s), and each
  * kept cell names its item_id.
  * Coach-led (opts.manual, RDF manual): nothing moves on by itself; session_start says admin_mode 'manual'.
+ * Coach-marked maths (opts.coach_marks, switch sa_maths_coach_marks; proctored only): on a one-at-a-time spoken maths
+ * task (number identification, mental addition / subtraction / multiplication, the fluency) the coach marks each item
+ * as the child says it, the paper-EGMA way: mark(true|false) keeps the item's mark ({ value 'right'|'wrong', ok, ms,
+ * by 'coach' }, a coach_mark event) and shows the next. Nothing moves on by itself; the task clock still stops a timed
+ * one. The result is scored_on 'coach' with correct / incorrect (and per_minute when timed); the recording goes on.
  *
  * UMD: window.SAE.core in the browser, module.exports under Node.
  */
@@ -85,6 +90,8 @@
   // One at a time (Toolkit 2016 Annex H: "if the child hesitates for 3 seconds … please go on"; Core EGMA: 5 s).
   var CELL_AUTO_S = 3;
   var FLUENCY_ITEM_S = 5;
+  // The spoken maths the coach can mark (sa_maths_coach_marks).
+  var COACH_MARKED = ['number_identification', 'mental_addition', 'mental_subtraction', 'mental_multiplication', 'mental_math_fluency'];
 
   function str(x) { return typeof x === 'string' && x.length > 0; }
   function num() { for (var i = 0; i < arguments.length; i++) if (typeof arguments[i] === 'number' && arguments[i] > 0) return arguments[i]; return null; }
@@ -225,6 +232,7 @@
     var st = { phase: 'battery_intro' };
     var oneAtATime = !!opts.one_at_a_time;
     var manual = !!opts.manual;
+    var coachMarks = !!opts.coach_marks;
 
     /** A read-aloud grid shown one cell at a time (never a passage). */
     function cellTask(t) {
@@ -236,6 +244,8 @@
       if (Array.isArray(t.grid) && t.grid.length) return t.grid;
       return t.items.map(function (it) { return it.show != null ? it.show : (it.label != null ? it.label : it.target); });
     }
+    /** A one-at-a-time spoken maths task the coach marks item by item. */
+    function marked(t) { return coachMarks && cellTask(t) && COACH_MARKED.indexOf(t.subtask) >= 0; }
     function itemTimeoutS(t) {
       if (oneAtATime && t.subtask === 'mental_math_fluency' && t.item_timeout_s === TIMED_ITEM_S) return manual ? null : FLUENCY_ITEM_S;
       if (manual && t.mode === 'oral') return null; // coach-led: the coach reads the question; the coach moves on
@@ -346,19 +356,20 @@
       var elapsed = used;
       var lim = limitMs(t);
       if (lim != null && used > lim) used = lim;
-      var phone = t.mode === 'tap' || t.mode === 'keypad' || t.mode === 'keyboard';
+      var byCoach = marked(t);
+      var phone = byCoach || t.mode === 'tap' || t.mode === 'keypad' || t.mode === 'keyboard';
       var r = {
         task_id: t.id, legacy_block: t.legacy_block, mode: t.mode, attempted: st.attempted,
         correct: phone ? st.correct : null, incorrect: phone ? st.incorrect : null,
         last_item_index: t.mode === 'record' ? st.last_item_index : (st.attempted ? st.attempted - 1 : null),
         time_used_ms: used, time_left_ms: lim == null ? null : Math.max(0, lim - used),
-        stop_reason: reason, scored_on: phone ? 'phone' : 'later', resumed: st.resumed, per_minute: null,
+        stop_reason: reason, scored_on: byCoach ? 'coach' : phone ? 'phone' : 'later', resumed: st.resumed, per_minute: null,
         options_n: t.mode === 'tap' && t.items[0] && t.items[0].options ? t.items[0].options.length : null,
         taps_per_s: warm ? warm.taps_per_s : null,
         elapsed_ms: elapsed,
         answers: st.answers.slice(),
       };
-      if (t.mode === 'record') {
+      if (t.mode === 'record' && !byCoach) {
         r.mercy_offered = !!st.mercy;
         r.mercy_ear = st.ear || 'running';
         r.silence_s = st.silence_s == null ? null : st.silence_s;
@@ -558,6 +569,17 @@
       },
       /** One at a time: the cell on show is passed (how: 'tap', or 'auto' when the page moves it on). */
       nextCell: function (how) { nextCell(how === 'auto' ? 'auto' : 'tap'); },
+      /** Coach-marked maths: the coach's Right (true) / Wrong (false) for the item on show, then the next. */
+      mark: function (ok) {
+        var t = task();
+        if (st.phase !== 'running' || !st.cell || !marked(t)) return;
+        var it = t.items[st.cell.i];
+        var value = ok ? 'right' : 'wrong';
+        tally(t, !!ok);
+        st.answers.push({ item_id: it.id, value: value, ok: !!ok, ms: Math.round(now() - st.cell.at), by: 'coach' });
+        ev('coach_mark', { task_id: t.id, item_id: it.id, value: value });
+        nextCell('mark');
+      },
       /** The passage: "I'm done" (or time up) → the child taps the last word read. */
       done: function () {
         if (st.phase !== 'running' || task().mode !== 'record') return;
@@ -585,7 +607,7 @@
         }
         if (st.cell) {
           var auto = t.cell_auto_s;
-          if (manual || !auto || now() - st.cell.at < auto * 1000) return null;
+          if (manual || marked(t) || !auto || now() - st.cell.at < auto * 1000) return null;
           nextCell('auto');
           return st.phase === 'running' ? 'go_on' : null;
         }
@@ -639,6 +661,7 @@
             var cells = cellsOf(t);
             v.cell = String(cells[st.cell.i]); v.cell_index = st.cell.i; v.cells_n = cells.length;
             v.cell_item = t.items[st.cell.i] || null;
+            if (marked(t)) v.coach_marks = true;
           }
           if (t.mode !== 'record' && st.item_started != null) {
             var waited = now() - st.item_started;
