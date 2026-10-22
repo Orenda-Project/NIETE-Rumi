@@ -115,20 +115,41 @@ async function namedGrade(grade, deps) {
   return Number.isInteger(n) && n >= 1 && n <= 5 ? { grade: n } : { bad: true };
 }
 
-/** Which visit the list belongs to: the coach's own observe visit at this school, else today's day key (per grade, if named). */
+/** Today's day key for this coach and school, for the named grade (sa_all_grades). */
+function gradedDay(d, userId, schoolId, grade) {
+  const visitKey = visitKeyFor({ coachUserId: userId, schoolId, now: d.now(), grade });
+  return visitKey ? { schoolId, visitId: null, visitKey, observedGrade: null } : null;
+}
+
+/** The grade of the list already drawn on an observe visit (its main rows), null when none is drawn. */
+async function visitListGrade(d, visitId) {
+  const got = await d.store.listVisitDraws(visitId);
+  if (!got || !got.ok) throw new Error((got && got.error) || 'listVisitDraws failed');
+  const rows = got.draws.filter((x) => x.list_slot);
+  const main = rows.find((x) => x.list_slot === 'main') || rows[0];
+  return main ? Number(main.grade) || null : null;
+}
+
+/**
+ * Which visit the list belongs to: the coach's own observe visit at this school, else today's day key (per grade, if
+ * named). A named grade (sa_all_grades) keeps the observe visit's list only when that list is already of that grade;
+ * any other grade, or a visit with no list yet, takes the graded day key, so the visit keeps its own list.
+ */
 async function visitFor(d, userId, { schoolId, visitId, grade = null }) {
   if (visitId) {
     const visit = await ownVisit(d, userId, visitId);
     if (!visit) return null;
     const s = await d.draw.resolveVisitSchool({ coachUserId: userId, visitId });
     if (!s || !s.ok || (schoolId && s.schoolId !== schoolId)) return null;
+    if (grade && (await visitListGrade(d, visitId)) !== grade) return gradedDay(d, userId, s.schoolId, grade);
     return {
       schoolId: s.schoolId, visitId, visitKey: null,
       observedGrade: gradeOf(visit.answers && visit.answers.lp_ref && visit.answers.lp_ref.grade),
     };
   }
   if (!schoolId || !(await linkedSchools(d, userId)).has(schoolId)) return null;
-  const visitKey = visitKeyFor({ coachUserId: userId, schoolId, now: d.now(), ...(grade ? { grade } : {}) });
+  if (grade) return gradedDay(d, userId, schoolId, grade);
+  const visitKey = visitKeyFor({ coachUserId: userId, schoolId, now: d.now() });
   return visitKey ? { schoolId, visitId: null, visitKey, observedGrade: null } : null;
 }
 
@@ -183,12 +204,19 @@ async function sessionsOf(d, visit) {
 const dayList = (args = {}, deps = {}) => guarded('sa_day_list', async ({ userId, schoolId, visitId, grade }, d) => {
   const named = await namedGrade(grade, deps);
   if (named.bad) return { status: 'invalid', reason: 'bad_grade' };
-  const visit = await visitFor(d, userId, { schoolId, visitId, grade: named.grade });
+  let visit = await visitFor(d, userId, { schoolId, visitId, grade: named.grade });
   if (!visit) return { status: 'not_found' };
-  const list = await d.draw.todaysList({
-    coachUserId: userId, schoolId: visit.schoolId, observedGrade: visit.observedGrade, ...visitArgs(visit),
+  const draw = (v) => d.draw.todaysList({
+    coachUserId: userId, schoolId: v.schoolId, observedGrade: v.observedGrade, ...visitArgs(v),
     ...(named.grade ? { grade: named.grade, allGrades: true } : {}),
   });
+  let list = await draw(visit);
+  // a named grade is never answered with another grade's list: the visit's list of another grade → the graded day key
+  if (named.grade && visit.visitId && list && list.ok && Number(list.grade) !== named.grade) {
+    visit = gradedDay(d, userId, visit.schoolId, named.grade);
+    if (!visit) return { status: 'not_found' };
+    list = await draw(visit);
+  }
   if (!list || !list.ok) {
     if (list && list.reason) return { status: 'invalid', reason: list.reason };
     throw new Error((list && list.error) || 'todaysList failed');
