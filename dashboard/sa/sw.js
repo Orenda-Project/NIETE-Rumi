@@ -19,7 +19,9 @@ var VERSION = 'sa-4';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
-var SESSION = 'sa-session-v3';
+// v4: batteries re-read after the round-5 switches (one at a time on Next only, the child's last-word tap in auto); a copy kept
+// under v3 between the deploy and the flip would keep the old behaviour.
+var SESSION = 'sa-session-v4';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
