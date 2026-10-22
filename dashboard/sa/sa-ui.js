@@ -942,7 +942,7 @@
           if (ln !== curLine) { cur = h('span', { class: 'sae-pline' }); rows.push(cur); curLine = ln; }
           var said = printed ? printed[i] : String(wordText(w));
           cur.appendChild(onWord
-            ? h('button', { class: 'sae-word sa-word', type: 'button', 'data-i': String(i), onclick: function () { if (!busy) onWord(i); } }, [said])
+            ? h('button', { class: 'sae-word sa-word', type: 'button', 'data-i': String(i), onclick: function () { if (!busy) onWord(i); } }, [inkOf(said, tl)])
             : h('span', { class: 'sae-word sa-word', 'data-i': String(i) }, [said]));
           cur.appendChild(document.createTextNode(' '));
         });
@@ -952,10 +952,13 @@
         return h('p', { class: 'sae-passage sa-passage', dir: dir, lang: tl, text: t.passage.text || t.passage });
       }
       var per = t.per_row || 10;
-      var narrow = per > 5 ? Math.ceil(per / 2) : per;
+      // On a phone a row of 10 letters becomes 5; an Urdu word row becomes 3, wide enough for its longest word.
+      var narrow = per > 5 ? Math.ceil(per / 2) : tl === 'ur' && per > 3 ? 3 : per;
       return h('div', { class: 'sae-grid sa-grid', dir: dir, lang: tl, style: '--cols:' + per + ';--cols-n:' + narrow },
-        (t.grid || []).map(function (x, i) { return h('span', { class: 'sae-cell', 'data-i': String(i) }, [String(x)]); }));
+        (t.grid || []).map(function (x, i) { return h('span', { class: 'sae-cell', 'data-i': String(i) }, [inkOf(String(x), tl)]); }));
     }
+    /** An Urdu word on a tile goes in its own ink box, for fitCells to place (other languages stay plain text). */
+    function inkOf(s, tl) { return tl === 'ur' ? h('span', { class: 'sae-ink' }, [s]) : s; }
     /** The passage: one big star tile ends the reading (its word is spoken once when it shows; mercy() pulses it). */
     /** One item big: a letter, a word, a number or a sum (a sum reads left to right on an Urdu page too). */
     var NUMERIC_RX = /^[\d\u06F0-\u06F9\u0660-\u0669.,\s+\-\u2212\u00D7\u00F7=?_]+$/;
@@ -968,12 +971,13 @@
     }
     /**
      * Round 4: Nastaliq ink is not where its line box is (ر ے sink below the middle, ک with ھ climbs above it), so an
-     * Urdu cell or text tile is placed by its ink: shrunk when the ink is bigger than its box, then moved so the ink's
-     * middle is the box's middle (canvas ink metrics on its own font, again once the font has loaded).
+     * Urdu cell, text tile, last-word word tile or grid cell is placed by its ink: shrunk when the ink is bigger than its
+     * box (a passage word's tile grows instead), then moved so the ink's middle is the box's middle (canvas ink metrics
+     * on its own font, again once the font has loaded).
      */
     function fitCells(scope) {
       if (typeof document === 'undefined' || !document.fonts || !scope.querySelectorAll) return;
-      Array.prototype.forEach.call(scope.querySelectorAll('.sae-onecell[lang=ur] > .sae-ink, .sae-opt[lang=ur] > .sae-ink'), function (ink) {
+      Array.prototype.forEach.call(scope.querySelectorAll('.sae-onecell[lang=ur] > .sae-ink, .sae-opt[lang=ur] > .sae-ink, .sae-passage.is-pick[lang=ur] .sae-word > .sae-ink, .sae-grid[lang=ur] .sae-cell > .sae-ink'), function (ink) {
         fitInk(ink, 0);
         document.fonts.load(getComputedStyle(ink).font, ink.textContent).then(function () {
           if (alive && ink.isConnected) fitInk(ink, 0);
@@ -985,6 +989,8 @@
       var g = document.createElement('canvas').getContext('2d');
       if (!g || !cell) return;
       ink.style.transform = '';
+      var word = cell.classList.contains('sae-word');
+      if (word) cell.style.minWidth = cell.style.minHeight = '';
       var cs = getComputedStyle(ink);
       g.font = cs.font; g.direction = 'ltr'; g.textAlign = 'left'; g.textBaseline = 'alphabetic';
       var m = g.measureText(ink.textContent);
@@ -994,7 +1000,12 @@
       var hh = cell.clientHeight - parseFloat(pc.paddingTop) - parseFloat(pc.paddingBottom);
       var iw = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
       var ih = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
-      var k = Math.min(1, (w * 0.92) / iw, (hh * 0.92) / ih);
+      // A word in the passage keeps the passage's size: its tile grows to hold the ink instead.
+      if (word) {
+        if (iw / 0.92 > w) cell.style.minWidth = Math.ceil(cell.offsetWidth + iw / 0.92 - w) + 'px';
+        if (ih / 0.92 > hh) cell.style.minHeight = Math.ceil(cell.offsetHeight + ih / 0.92 - hh) + 'px';
+      }
+      var k = word ? 1 : Math.min(1, (w * 0.92) / iw, (hh * 0.92) / ih);
       if (k < 0.98 && tries < 3) {
         ink.style.fontSize = (parseFloat(cs.fontSize) * k).toFixed(1) + 'px';
         return fitInk(ink, tries + 1);
