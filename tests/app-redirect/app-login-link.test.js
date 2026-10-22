@@ -89,6 +89,7 @@ test('only the app features have a landing; anything else cannot be signed', () 
     attendance: '/portal/teacher/attendance',
     classes: '/portal/teacher/classes',
     assessment_topics: '/portal/teacher/assessment/new/class?by=topics', // bd-6clakk Task 9
+    ai_coaching_recording: '/portal/teacher/coaching/new?recording=whatsapp', // bd-c5reix, a kept recording's landing
   });
   expect(signAppLink(USER, 'quiz')).toBeNull();
   expect(signAppLink(USER, 'observe')).toBeNull();

@@ -952,10 +952,10 @@ async function uploadImageWithRetry(imageBuffer, userId, imageId, mimeType) {
  * @param {Buffer} buffer - File buffer
  * @param {string} key - R2 object key
  * @param {string} contentType - MIME content type
- * @param {{bucket?: string, cacheControl?: string}} [opts] - a named bucket; a Cache-Control stored on the object
+ * @param {{bucket?: string, cacheControl?: string, metadata?: object}} [opts] - a named bucket; a Cache-Control stored on the object; extra metadata
  * @returns {Promise<string>} Public URL of uploaded file
  */
-async function uploadBuffer(buffer, key, contentType = 'application/octet-stream', { bucket, cacheControl } = {}) {
+async function uploadBuffer(buffer, key, contentType = 'application/octet-stream', { bucket, cacheControl, metadata } = {}) {
   try {
     const command = new PutObjectCommand({
       Bucket: bucket || BUCKET_NAME,
@@ -963,6 +963,8 @@ async function uploadBuffer(buffer, key, contentType = 'application/octet-stream
       Body: buffer,
       ContentType: contentType,
       Metadata: {
+        // bd-c5reix: optional string fields of the caller's (a saved WhatsApp recording's sha256 and length).
+        ...(metadata || {}),
         uploadedAt: new Date().toISOString()
       },
       // Optional: a content-addressed file (story pictures) is stored immutable; absent, the input is as before.
@@ -1034,12 +1036,13 @@ async function deleteKey(key, { bucket } = {}) {
  * A 404 is an answer ({ exists: false }), not an error; anything else throws.
  *
  * @param {string} key
- * @returns {Promise<{exists: boolean, sizeBytes?: number, contentType?: string}>}
+ * @returns {Promise<{exists: boolean, sizeBytes?: number, contentType?: string, metadata?: object}>}
  */
 async function headObject(key, { bucket } = {}) {
   try {
     const res = await getR2Client().send(new HeadObjectCommand({ Bucket: bucket || BUCKET_NAME, Key: key }));
-    return { exists: true, sizeBytes: res.ContentLength, contentType: res.ContentType };
+    // bd-c5reix: the object's metadata too (a saved WhatsApp recording carries its sha256 and length there).
+    return { exists: true, sizeBytes: res.ContentLength, contentType: res.ContentType, metadata: res.Metadata || {} };
   } catch (error) {
     const status = error && error.$metadata && error.$metadata.httpStatusCode;
     if (status === 404 || (error && (error.name === 'NotFound' || error.name === 'NoSuchKey'))) {
