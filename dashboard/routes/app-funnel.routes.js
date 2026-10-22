@@ -293,4 +293,16 @@ function actionLogger(req, res, next) {
   return next();
 }
 
-module.exports = { createAppFunnelRouter, actionLogger };
+/**
+ * bd-c5reix — a key action a route can only name once it has the bot's answer (actionLogger sees the request alone):
+ * her waiting WhatsApp recordings shown, one sent, a repeat caught before an upload. The same row, the same who.
+ */
+function logAppAction(req, action, feature, extra = {}) {
+  try {
+    const s = req && req.session;
+    if (!s || !s.portalUserId) return;
+    emit('app_funnel.action', { ...who(req, Date.now()), action, feature, ...extra });
+  } catch (_) { /* never */ }
+}
+
+module.exports = { createAppFunnelRouter, actionLogger, logAppAction };
