@@ -39,6 +39,12 @@
  *   CHILD_TEST_SA_SPEECH_GATE=on      every clip goes to STT (Soniox) first. No word heard, or the model's own
  *                                     found:false, and the clip is "no response": each of its items is not reached /
  *                                     no answer, conf 0, no_speech: true, never correct (a tone scored 4/4 before).
+ *                                     STT puts a stray word on a near-silent clip, so "no word" alone let a 0.7-s
+ *                                     comprehension clip through, and the model gave back the expected answer as heard.
+ *                                     So, with the same switch: a clip shorter than CHILD_TEST_SA_MIN_SPEECH_S (0.8 s;
+ *                                     a one-word answer took 0.9 s on sandbox, the echoed sentences 0.5-0.6 s)
+ *                                     holds no answer and is not sent anywhere; and a question the model marks correct
+ *                                     with the expected answer as heard, which STT did not hear, is no answer (echo).
  */
 
 const { logToFile, logError } = require('../../../utils/logger');
@@ -63,6 +69,7 @@ const bootId = () => `${Date.now().toString(36)}${Math.random().toString(36).sli
 let MINE = `${SCORING}:${bootId()}`;
 let swept = false;
 const gateOn = () => process.env.CHILD_TEST_SA_SPEECH_GATE === 'on';
+const minSpeechS = () => { const s = Number(process.env.CHILD_TEST_SA_MIN_SPEECH_S); return s >= 0 && process.env.CHILD_TEST_SA_MIN_SPEECH_S ? s : 0.8; };
 const clipWaitMs = () => { const s = Number(process.env.CHILD_TEST_SA_CLIP_WAIT_S); return s > 0 ? s * 1000 : null; };
 const sinceHours = () => Number(process.env.CHILD_TEST_SA_SCORER_SINCE_H) || 48;
 const ownEnv = () => process.env.CHILD_TEST_R2_ENV || process.env.RAILWAY_ENVIRONMENT || 'local';
@@ -230,7 +237,8 @@ function defaultDeps() {
       fs.writeFileSync(file, Buffer.from(clip.base64, 'base64'));
       try {
         const r = await require('../scoring/stt').transcribe(file, lang === 'en' ? 'en' : 'ur', clip.durationSec);
-        return { words: (r.words || []).length, model: r.model, cost: r.cost, seconds: r.seconds };
+        const words = r.words || [];
+        return { words: words.length, text: words.map((w) => w.raw).join(' '), model: r.model, cost: r.cost, seconds: r.seconds };
       } finally { media.cleanup(file); }
     },
     bank: loadBank(),
@@ -255,19 +263,48 @@ async function call(deps, calls, { prompt, schema, clip, job }) {
 }
 
 /**
- * The speech gate (CHILD_TEST_SA_SPEECH_GATE): true when STT hears no word in the clip, false when it hears some,
- * null when it cannot say (switch off, STT failed): then the model's verdicts stand as they are.
+ * The speech gate (CHILD_TEST_SA_SPEECH_GATE): true when the clip is shorter than the minimum speech duration or STT
+ * hears no word in it, false when it hears some, null when it cannot say (switch off, STT failed): then the model's
+ * verdicts stand as they are. `heard` (when given) gets what STT heard, for the echo check.
  */
-async function silent(deps, calls, clip, lang) {
-  if (!gateOn() || !deps.speechOf) return null;
+async function silent(deps, calls, clip, lang, heard = null) {
+  if (!gateOn()) return null;
+  const dur = Number(clip && clip.durationSec);
+  if (Number.isFinite(dur) && dur < minSpeechS()) {
+    calls.push({ job: 'child_test.sa_speech_gate', model: 'duration', cost: 0, seconds: 0, error: null, words: 0, clip_s: round1(dur) });
+    return true;
+  }
+  if (!deps.speechOf) return null;
   try {
     const s = await deps.speechOf(clip, lang);
     calls.push({ job: 'child_test.sa_speech_gate', model: s.model || 'stt', cost: s.cost == null ? null : Math.round(s.cost * 1e5) / 1e5, seconds: round1(s.seconds || 0), error: null, words: s.words });
+    if (heard && typeof s.text === 'string') heard.text = s.text;
     return Number.isInteger(s.words) ? s.words === 0 : null;
   } catch (e) {
     calls.push({ job: 'child_test.sa_speech_gate', model: 'stt', cost: null, seconds: 0, error: String((e && e.message) || e).slice(0, 120) });
     return null;
   }
+}
+
+// the echo check: letters only (no harakat, punctuation or spaces), compared as character pairs
+const bare = (t) => String(t || '').toLowerCase().normalize('NFC').replace(/[\u064B-\u065F\u0670\u06EA-\u06ED]/g, '').replace(/[^\p{L}\p{N}]/gu, '');
+const pairs = (t) => { const b = bare(t); const out = []; for (let i = 0; i + 1 < b.length; i += 1) out.push(b.slice(i, i + 2)); return b.length === 1 ? [b] : out; };
+const arabic = (t) => (String(t).match(/[\u0600-\u06FF]/g) || []).length > (String(t).match(/[a-z]/gi) || []).length;
+/** Share of a's character pairs that are also in b (0–1). */
+function within(a, b) {
+  const A = pairs(a); const B = new Set(pairs(b));
+  return A.length ? A.filter((x) => B.has(x)).length / A.length : 0;
+}
+/**
+ * A "correct" to distrust: the model's heard text is the expected answer (an accept, near word for word) and STT, in
+ * the same script, heard little of it. A model echoes the answer it was given when the clip holds none.
+ */
+function echoed(q, g, sttText) {
+  if (!g || g.verdict !== 'correct' || typeof sttText !== 'string') return false;
+  const said = String(g.answer || '');
+  if (!bare(said) || (bare(sttText) && arabic(said) !== arabic(sttText))) return false;
+  const isAccept = (q.accept || []).some((a) => within(said, a) >= 0.8 && within(a, said) >= 0.8);
+  return isAccept && within(said, sttText) < 0.5;
 }
 
 /** A clip with no speech: each of its items is not reached (timed) / no answer (questions), conf 0, never correct. */
@@ -400,23 +437,28 @@ async function scoreQuestions(task, rec, row, res, deps, calls) {
       const k = keys.find((x) => x.i === q.id);
       if (!k) continue; // no clip for this question: no answer heard
       const clip = await deps.clipOf(k.key);
-      if (await silent(deps, calls, clip, task.lang)) { marked.set(q.id, { mute: true }); continue; }
+      const stt = {};
+      if (await silent(deps, calls, clip, task.lang, stt)) { marked.set(q.id, { mute: true }); continue; }
       const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: [q], passage, single: false }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
       const got = (json.questions || [])[0];
-      if (got) marked.set(q.id, got);
+      if (got) marked.set(q.id, echoed(q, got, stt.text) ? { mute: true, echo: true } : got);
     }
   } else if (row.audio_r2_key) {
     const clip = await deps.clipOf(row.audio_r2_key);
-    if (await silent(deps, calls, clip, task.lang)) qs.forEach((q) => marked.set(q.id, { mute: true }));
+    const stt = {};
+    if (await silent(deps, calls, clip, task.lang, stt)) qs.forEach((q) => marked.set(q.id, { mute: true }));
     else {
       const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: qs, passage, single: true }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
-      for (const g of json.questions || []) marked.set(g.id, g);
+      for (const g of json.questions || []) {
+        const q = qs.find((x) => x.id === g.id);
+        marked.set(g.id, q && echoed(q, g, stt.text) ? { mute: true, echo: true } : g);
+      }
     }
   }
   const rows = qs.map((q, k) => {
     const g = marked.get(q.id);
     const clip = keys.some((x) => x.i === q.id) || Boolean(row.audio_r2_key);
-    if (g && g.mute) return { i: k + 1, id: q.id, verdict: 'no_answer', heard: '', conf: 0, no_speech: true, clip };
+    if (g && g.mute) return { i: k + 1, id: q.id, verdict: 'no_answer', heard: '', conf: 0, no_speech: true, clip, ...(g.echo ? { echo: true } : {}) };
     return { i: k + 1, id: q.id, verdict: g ? g.verdict : 'no_answer', heard: g ? String(g.answer || '') : '', conf: g ? conf01(g.confidence) : null, clip };
   });
   return { numbers: { correct: rows.filter((r) => r.verdict === 'correct').length, of: rows.length }, rows, stopped: false };
@@ -611,5 +653,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { PARKED, SCORING, RETRY, FAILED, resetBoot: () => { MINE = `${SCORING}:${bootId()}`; swept = false; }, candidates, claim, finish, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt },
+  __internals: { echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { MINE = `${SCORING}:${bootId()}`; swept = false; }, candidates, claim, finish, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt },
 };
