@@ -1067,7 +1067,9 @@
       });
     }
     function sCoachLastWord(v) {
-      var s = lw && lw.task === v.task.id ? lw : { state: 'none', suggested: null, picked: null };
+      // Ask before drawing: the first frame is already "finding it", and the coach's taps count while the hint is on its way.
+      askHint(v.task);
+      var s = lw;
       var p = passageEl(v.task, function (i) { if (lw === s) { s.picked = i; draw(); } });
       var b = s.picked != null ? p.querySelector('.sae-word[data-i="' + s.picked + '"]') : null;
       if (b) b.classList.add('is-picked');
