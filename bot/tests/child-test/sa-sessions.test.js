@@ -56,9 +56,9 @@ function world({ sessions, blocks, schools } = {}) {
     block(S3, 'ma.missing4', null, { response_mode: 'keypad', ai_status: 'pending', responses: [{ kind: 'result', mode: 'keypad', correct: 2, attempted: 4 }] }),
   ];
   const named = schools || [
-    { id: 'sch-1', name: 'IMCG Example', region: 'Urban-I' },
-    { id: 'sch-2', name: 'IMSG Example', region: 'Nilore' },
-    { id: 'sch-3', name: 'IMS Example', region: null },
+    { id: 'sch-1', name: 'School One', region: 'Urban-I' },
+    { id: 'sch-2', name: 'School Two', region: 'Nilore' },
+    { id: 'sch-3', name: 'School Three', region: null },
   ];
   const store = {
     listSaSessions: async (q) => {
@@ -97,7 +97,7 @@ describe('saSessions', () => {
     expect(w.calls.list).toEqual([{ mark: 'sa-battery', coachUserId: COACH }]);
     expect(out.sessions.map((s) => s.results.session.id).sort()).toEqual([S1, S3]);
     const one = out.sessions.find((s) => s.results.session.id === S1);
-    expect(one).toMatchObject({ schoolId: 'sch-1', schoolName: 'IMCG Example', sector: 'Urban-I', grade: 3 });
+    expect(one).toMatchObject({ schoolId: 'sch-1', schoolName: 'School One', sector: 'Urban-I', grade: 3 });
     expect(one.results.session).toMatchObject({ grade: 3, block: 'rdf_auto', status: 'completed', lang: 'ur' });
     expect(one.results.tasks).toEqual([expect.objectContaining({ taskId: 'ur.story_w3', recording: 'scored', score: { correct: 30, attempted: 32, per_minute: 36, seconds_used: 50 } })]);
   });
