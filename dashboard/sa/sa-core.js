@@ -85,6 +85,7 @@
   // One at a time (Toolkit 2016 Annex H: "if the child hesitates for 3 seconds … please go on"; Core EGMA: 5 s).
   var CELL_AUTO_S = 3;
   var FLUENCY_ITEM_S = 5;
+  var COMP_ALL_MIN_WORDS = 10; // RWP May 2026 rdcomp_*: asked when 10+ words were attempted (2,233/2,233 rows)
 
   function str(x) { return typeof x === 'string' && x.length > 0; }
   function num() { for (var i = 0; i < arguments.length; i++) if (typeof arguments[i] === 'number' && arguments[i] > 0) return arguments[i]; return null; }
@@ -225,6 +226,7 @@
     var st = { phase: 'battery_intro' };
     var oneAtATime = !!opts.one_at_a_time;
     var manual = !!opts.manual;
+    var compAll = !!opts.comp_all_questions;
 
     /** A read-aloud grid shown one cell at a time (never a passage). */
     function cellTask(t) {
@@ -287,6 +289,10 @@
         // W3 forms: a question asked only once the child read min_words words (the coach card's "only if the child
         // read past …"); older forms by the line reached.
         var read = dep.last_word_index != null ? dep.last_word_index + 1 : 0;
+        // Round 4 (sa_comp_all_questions): the Rawalpindi rule. 10+ words read, not stopped on the first line → every question.
+        if (compAll && t.items.some(function (q) { return q.gate && typeof q.gate.min_words === 'number'; })) {
+          return read >= COMP_ALL_MIN_WORDS && dep.stop_reason !== STOP.FIRST_LINE ? { items: t.items } : { skip: STOP.SKIPPED_NO_LINE };
+        }
         var keep = t.items.filter(function (q) {
           if (q.gate && typeof q.gate.min_words === 'number') return read >= q.gate.min_words;
           return q.needs_line == null || q.needs_line <= line;
