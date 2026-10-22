@@ -27,12 +27,20 @@ export type DraftClass = {
  * bd-v0toag.31.3 — `live`: the live moves record (ticks and taps) the recording page puts here at Stop, sent with Submit.
  * Left out, the held one is kept while it still belongs to the same recording and the same lesson.
  */
-export type Draft = { audio: Audio | null; plan: DraftPlan | null; photos: File[]; cls?: DraftClass | null; live?: LiveMovesRecord | null };
+/**
+ * bd-c5reix — her recording from WhatsApp, already kept on our side (GET /coaching-upload/pending): nothing to upload;
+ * Submit sends its key. Listened to through its short-lived link.
+ */
+export type SavedAudio = { kind: 'saved'; key: string; id: string; listenUrl: string | null; durationMs: number | null };
+export type DcAudio = Audio | SavedAudio;
+export const isSavedAudio = (a: DcAudio | null | undefined): a is SavedAudio => !!a && 'kind' in a && a.kind === 'saved';
+
+export type Draft = { audio: DcAudio | null; plan: DraftPlan | null; photos: File[]; cls?: DraftClass | null; live?: LiveMovesRecord | null };
 
 let held: Draft | null = null;
 
 const belongs = (live: LiveMovesRecord, d: Draft): boolean =>
-  d.audio?.recordingId === live.liveId && d.plan?.kind === 'library' && 'lessonId' in d.plan.pick && d.plan.pick.lessonId === live.lessonId;
+  !isSavedAudio(d.audio) && d.audio?.recordingId === live.liveId && d.plan?.kind === 'library' && 'lessonId' in d.plan.pick && d.plan.pick.lessonId === live.lessonId;
 
 export function holdDraft(draft: Draft): void {
   const live = draft.live !== undefined ? draft.live : held?.live ?? null;

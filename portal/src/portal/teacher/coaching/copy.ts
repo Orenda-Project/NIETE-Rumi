@@ -156,6 +156,16 @@ export const COACHING_V2_COPY = {
      duplicateRecording), so the portal says what WhatsApp says. */
   duplicateRecordingLead: "📋 I've heard this recording before \u2014 it's the same one you sent me earlier, so here is the report I already made for it.",
   duplicateRecordingNext: "Send a new recording whenever you'd like fresh feedback.",
+  /* bd-c5reix — a classroom recording sent on WhatsApp, kept and waiting here; and the repeat caught before it is sent
+     (the same voice as the bot's duplicateRecording). */
+  fromWhatsApp: 'Recording from WhatsApp',
+  addDetailsSend: 'Add details & send',
+  sentBefore: 'Sent before',
+  openReport: 'Open report',
+  alreadySent: 'Already sent',
+  selectAnother: 'Select another recording',
+  checking: 'Checking…',
+  duplicateBeforeLead: "📋 I've heard this recording before \u2014 it's the same one you sent me earlier.",
   /* bd-aqotzx — ICT IAB row 16: the recording did not sound like a class being taught. */
   classNeedsAnswer: 'Needs your answer',
   classQuestion: 'Is this the recording of your class?',
@@ -311,6 +321,15 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   stopped: 'تجزیہ نہیں ہو سکا',
   duplicateRecordingLead: '📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو آپ نے پہلے بھیجی تھی، اس لیے اس کی پہلے سے تیار کردہ رپورٹ یہ رہی۔',
   duplicateRecordingNext: 'جب بھی نئی رائے چاہیے ہو، نئی ریکارڈنگ بھیج دیجیے۔',
+  // bd-c5reix — machine-drafted (review pending), from the bot's own words.
+  fromWhatsApp: 'واٹس ایپ سے ریکارڈنگ',
+  addDetailsSend: 'تفصیل ڈال کر بھیجیں',
+  sentBefore: 'پہلے بھیجی گئی',
+  openReport: 'رپورٹ کھولیں',
+  alreadySent: 'بھیجی جا چکی',
+  selectAnother: 'دوسری ریکارڈنگ چنیں',
+  checking: 'جانچ ہو رہی ہے…',
+  duplicateBeforeLead: '📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو پہلے بھیجی گئی تھی۔',
   classNeedsAnswer: 'آپ کا جواب چاہیے',
   classQuestion: 'کیا یہ آپ کی کلاس کی ریکارڈنگ ہے؟',
   classWhy: 'آپ کی ریکارڈنگ کلاس میں پڑھائی جیسی نہیں لگتی۔',
@@ -382,5 +401,7 @@ export const COPY_ENTRY: CopyEntry = {
     // bd-rt8wky/bd-hsgah5: the photo count is five words in Urdu («10 میں سے 4 تصاویر»).
     'photoCount',
     // bd-z3cadk: the bot's repeat-recording message, word for word.
-    'duplicateRecordingLead', 'duplicateRecordingNext'],
+    'duplicateRecordingLead', 'duplicateRecordingNext',
+    // bd-c5reix: the same repeat line, said before she sends it.
+    'duplicateBeforeLead'],
 };

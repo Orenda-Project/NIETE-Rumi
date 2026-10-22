@@ -31,3 +31,10 @@ Feature: Teacher digital coaching and coach visits
     And demo teacher 03000000911 is signed in
     When she opens /portal/teacher/coaching/new
     Then the one screen opens on "Start DC observation"
+
+  @TC05
+  Scenario: Teacher app v2: the link for a recording kept from WhatsApp opens the one screen
+    Given the teacher app v2 is on and the coach app v2 is off
+    And demo teacher 03000000911 is signed in
+    When she opens /portal/teacher/coaching/new?recording=whatsapp
+    Then the one screen opens on "Start DC observation"
