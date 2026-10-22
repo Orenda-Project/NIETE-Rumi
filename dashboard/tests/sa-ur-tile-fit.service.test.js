@@ -70,19 +70,20 @@ maybe('every Urdu word tile, at phone width, holds its word', () => {
     const opts = Array.from(document.querySelectorAll('.sae-opts .sae-opt'));
     return Promise.all(opts.map((b) => {
       const cs = getComputedStyle(b);
+      const fc = getComputedStyle(b.querySelector('.sae-ink') || b); // the ink's own font (fitCells may shrink it)
       const text = b.textContent;
-      return document.fonts.load(cs.font, text).then(() => {
+      return document.fonts.load(fc.font, text).then(() => {
         const ctx = document.createElement('canvas').getContext('2d');
-        ctx.font = cs.font; ctx.direction = 'ltr'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+        ctx.font = fc.font; ctx.direction = 'ltr'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
         const m = ctx.measureText(text);
-        const range = document.createRange(); range.selectNodeContents(b);
+        const range = document.createRange(); range.selectNodeContents(b.querySelector('.sae-ink') || b);
         const t = range.getBoundingClientRect();
         const lines = new Set(Array.from(range.getClientRects()).map((x) => Math.round(x.top))).size;
         const base = t.top + m.fontBoundingBoxAscent;
         const r = b.getBoundingClientRect();
         const bw = parseFloat(cs.borderTopWidth) || 0;
         return {
-          text, lines, nastaliq: document.fonts.check(cs.font, text),
+          text, lines, nastaliq: document.fonts.check(fc.font, text),
           ink: { top: base - m.actualBoundingBoxAscent, bottom: base + m.actualBoundingBoxDescent, left: t.left - m.actualBoundingBoxLeft, right: t.left + m.actualBoundingBoxRight },
           tile: { top: r.top + bw, bottom: r.bottom - bw, left: r.left + bw, right: r.right - bw },
         };
