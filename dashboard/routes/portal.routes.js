@@ -49,7 +49,10 @@ const { relayLessonPlanPdf } = require('../lib/lesson-plan-file');
 const LpActivity = require('../services/lp-activity.service');
 // bd-qvevax.2 — a plan she read in the portal's own viewer asks the bot for the lesson-plan survey,
 // exactly as one delivered on WhatsApp does (the bot decides; this only says the open happened).
-const LpOpenSurvey = require('../services/lp-open-survey.client');
+// bd-4joiqz — both through LpReader: who is opening (a teacher, or a leader reading it) and what that open records.
+// A teacher's is the open row + the survey (lp-open-survey.client), as before; a leader's is a telemetry event,
+// never a teacher's open row, survey, lifecycle row or A/B group. The role is read from users, per open.
+const LpReader = require('../services/lp-reader.service');
 const Progress = require('../services/progress.service');
 const { resolveRange, RangeInputError } = require('../lib/pk-range');
 // bd-2469 — the portal's single source of training decisions. Asks the bot;
@@ -2749,15 +2752,16 @@ router.get('/curriculum/lp/:lesson_id/pdf', requirePortalAuth, async (req, res) 
       return res.status(400).json({ success: false, error: 'lesson_id required' });
     }
 
-    const hit = await LpCatalogue.lessonPdf(lessonId, kind, req.session.portalUserId);
+    const userId = req.session.portalUserId;
+    // bd-4joiqz — a leader is named to nobody: the bot's lookup records no lifecycle row and serves today's plan.
+    const reader = await LpReader.readerOf(userId);
+    const hit = await LpCatalogue.lessonPdf(lessonId, kind, reader.leader ? null : userId);
     if (!hit) {
       return res.status(200).json({ success: true, available: false });
     }
     // bd-5rz1v.15 — the link is minted to be opened in another app: that is an open.
     // Not awaited: logging never delays or fails the open.
-    LpActivity.logOpen(dbQuery, {
-      userId: req.session.portalUserId, kind: 'k5', ref: lessonId, source: 'external',
-    }).then(LpOpenSurvey.afterOpen);
+    LpReader.recordOpen(reader, dbQuery, { userId, kind: 'k5', ref: lessonId, source: 'external' });
     res.json({ success: true, available: true, ...hit });
   } catch (error) {
     console.error('❌ Portal curriculum/lp/pdf failed', { error: error?.message });
@@ -2782,9 +2786,12 @@ router.get('/curriculum/lp/:lesson_id/file', requirePortalAuth, async (req, res)
   if (!lessonId) {
     return res.status(400).json({ success: false, error: 'lesson_id required' });
   }
+  const userId = req.session.portalUserId;
+  // bd-4joiqz — a leader is named to nobody: the bot's lookup records no lifecycle row and serves today's plan.
+  const reader = await LpReader.readerOf(userId);
   let hit;
   try {
-    hit = await LpCatalogue.lessonPdf(lessonId, kind, req.session.portalUserId);
+    hit = await LpCatalogue.lessonPdf(lessonId, kind, reader.leader ? null : userId);
   } catch (error) {
     console.error('❌ Portal curriculum/lp/file lookup failed', { error: error?.message });
     return res.status(502).json({ success: false, error: 'Could not open this lesson plan' });
@@ -2796,9 +2803,7 @@ router.get('/curriculum/lp/:lesson_id/file', requirePortalAuth, async (req, res)
   // bd-5rz1v.15 — recorded only once the PDF has gone out whole (a refused link, a storage error
   // or a dropped connection is not an open). After the response, so it can never delay it.
   if (res.statusCode === 200 && res.writableFinished) {
-    LpActivity.logOpen(dbQuery, {
-      userId: req.session.portalUserId, kind: 'k5', ref: lessonId, source: 'viewer',
-    }).then(LpOpenSurvey.afterOpen);
+    LpReader.recordOpen(reader, dbQuery, { userId, kind: 'k5', ref: lessonId, source: 'viewer' });
   }
   return undefined;
 });
@@ -2945,9 +2950,11 @@ router.get('/lp612/status/:render_id', requirePortalAuth, async (req, res) => {
     // call the client marks as an open (?open=1, lib/lessonPlanOpen's "another app" path) on a
     // READY lesson is recorded. The segment + language is the plan; a render id is not stable.
     if (isOpenHint(req.query.open) && out.state === 'ready' && out.url) {
-      LpActivity.logOpen(dbQuery, {
-        userId: req.session.portalUserId, kind: 'g612', ref: out.segmentId, lang: out.lang, source: 'external',
-      }).then(LpOpenSurvey.afterOpen);
+      // bd-4joiqz — whose open it is is read after the answer, so it never delays the poll.
+      const userId = req.session.portalUserId;
+      LpReader.readerOf(userId).then((reader) => LpReader.recordOpen(reader, dbQuery, {
+        userId, kind: 'g612', ref: out.segmentId, lang: out.lang, source: 'external',
+      }, { renderId }));
     }
     res.json({ success: true, ...out });
   } catch (error) {
@@ -2985,9 +2992,11 @@ router.get('/lp612/file/:render_id', requirePortalAuth, async (req, res) => {
   await relayLessonPlanPdf(out.url, res);
   // bd-5rz1v.15 — as for grades 1-5: recorded once the PDF went out whole, after the response.
   if (res.statusCode === 200 && res.writableFinished) {
-    LpActivity.logOpen(dbQuery, {
-      userId: req.session.portalUserId, kind: 'g612', ref: out.segmentId, lang: out.lang, source: 'viewer',
-    }).then(LpOpenSurvey.afterOpen);
+    // bd-4joiqz — a teacher's open row and survey, or a leader's event; read after the response.
+    const userId = req.session.portalUserId;
+    LpReader.readerOf(userId).then((reader) => LpReader.recordOpen(reader, dbQuery, {
+      userId, kind: 'g612', ref: out.segmentId, lang: out.lang, source: 'viewer',
+    }, { renderId }));
   }
   return undefined;
 });

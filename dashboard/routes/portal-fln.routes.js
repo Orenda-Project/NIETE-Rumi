@@ -40,6 +40,7 @@ const express = require('express');
 const { flnAccess, requireFln, requirePortalAuth, noStore } = require('../lib/fln-access');
 const Corpus = require('../services/fln-corpus.service');
 const LpActivity = require('../services/lp-activity.service');
+const LpReader = require('../services/lp-reader.service');
 const FlnMedia = require('../services/fln-media-sign');
 // The portal's OWN telemetry sink (never the bot's pino loggers: pino is not installed for this service).
 const telemetry = require('../services/telemetry.service');
@@ -166,7 +167,12 @@ function createFlnRouter({ query = dbQuery, corpus = Corpus, activity = LpActivi
     // Unknown or hidden is decided FIRST: no open row for a plan nobody can see (SPEC v2 §1, §5).
     if (!plan || corpus.isHidden(id)) return res.status(404).json({ error: 'not_found' });
     // Fire-and-forget, never awaited, and never chained to the lesson-plan survey (SPEC §6 row 9 EXCL).
-    activity.logOpen(query, { userId: req.session.portalUserId, kind: 'fln', ref: id, lang: plan.lang, source: 'viewer' });
+    // bd-4joiqz — a leader reading it is not a teacher's open: a telemetry event, no open row (lp-reader.service).
+    // The role is the one requireFln just re-read from users (req.fln.role): no second read.
+    const userId = req.session.portalUserId;
+    LpReader.readerOf(userId, { role: req.fln ? req.fln.role : null }).then((reader) => LpReader.recordOpen(reader, query, {
+      userId, kind: 'fln', ref: id, lang: plan.lang, source: 'viewer',
+    }, { survey: false, activity }));
     // The body is the plan + where it sits; NO `share` key — the client reads that from /me. Media on the public
     // mirror is served presigned on the portal's own bucket (a new tree; the corpus plan is never touched).
     const served = await media.servePlan(plan, id);

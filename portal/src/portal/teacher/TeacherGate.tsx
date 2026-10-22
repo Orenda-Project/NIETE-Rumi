@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useTeacherV2, isTeacherV2For } from "./useTeacherV2";
+import { isLeader } from "../lib/leaderRole";
 import { FrameSkeleton } from "../components/Skeleton";
 import { readShellHint } from "../lib/shellHint";
 import { useFollowPreferredLanguage } from "./i18n";
@@ -20,15 +21,20 @@ import { useFollowPreferredLanguage } from "./i18n";
  * bd-fmf24g.13 — and it turns a v2 page to her stored preferred_language, locked or not
  * (teacher/i18n.ts useFollowPreferredLanguage; read only, once per page load). Anyone turned
  * away is not asked: today's pages keep their own rule.
+ *
+ * bd-4joiqz — `leaders` (a route's TeacherRoute.leaders: the Lesson Plans pages a leader reads): the leader family
+ * passes too, whatever their teacher-app flag. A leader keeps their own language rule (they are not followed to a
+ * stored preference here, exactly as before). The flag is still read first, so a page can tell a principal ON the
+ * teacher app (a teacher here) from one who is not (lessons/audience.ts).
  */
-const TeacherGate = ({ children }: { children: ReactNode }) => {
+const TeacherGate = ({ children, leaders = false }: { children: ReactNode; leaders?: boolean }) => {
   const { user, loading } = useAuth();
   const flag = useTeacherV2(user?.phoneNumber || null, !loading && !!user);
   useFollowPreferredLanguage(!loading && isTeacherV2For(user, flag));
   if (loading) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
   if (!user) return <Navigate to={"/portal/login?next=" + encodeURIComponent(window.location.pathname + window.location.search)} replace />;
   if (flag === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
-  if (!isTeacherV2For(user, flag)) return <Navigate to="/portal/dashboard" replace />;
+  if (!isTeacherV2For(user, flag) && !(leaders && isLeader(user))) return <Navigate to="/portal/dashboard" replace />;
   return <>{children}</>;
 };
 

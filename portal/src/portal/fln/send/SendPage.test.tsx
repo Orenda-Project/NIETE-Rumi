@@ -176,6 +176,40 @@ describe('SendPage — the builder', () => {
     expect(within(dialog).getByText('Plan 101')).toBeTruthy();
   });
 
+  // bd-4joiqz — the leader can READ a plan before sending it: View opens that plan's FLN page, at the row's grade.
+  it('View on a row opens that plan\'s page (/portal/fln/p/<id>?grade=<g>), with Send and Share as they were', async () => {
+    stubFetch({
+      '/api/portal/fln/me': { status: 200, body: ME_LEADER },
+      '/api/portal/fln/links': { status: 200, body: { rows: [ROW(101), ROW(102)] } },
+    });
+    render(
+      <MemoryRouter initialEntries={['/portal/fln/send?grade=3&subject=num']}>
+        <Routes>
+          <Route path="/portal/fln/send" element={<><SendPage /><Where /></>} />
+          <Route path="/portal/fln/p/:id" element={<Where />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    const row = await screen.findByTestId('fln-send-row-102');
+    const view = within(row).getByRole('link', { name: 'View' });
+    expect(view.getAttribute('href')).toBe('/portal/fln/p/102?grade=3');
+    expect(view.className).toContain('min-h-[48px]');
+    expect(within(row).getByRole('button', { name: 'Send to teacher' })).toBeTruthy();
+    expect(within(row).getByRole('button', { name: 'Copy link' })).toBeTruthy();
+    fireEvent.click(view);
+    await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('/portal/fln/p/102?grade=3'));
+  });
+
+  it('View in Urdu chrome', async () => {
+    stubFetch({
+      '/api/portal/fln/me': { status: 200, body: ME_LEADER_UR },
+      '/api/portal/fln/links': { status: 200, body: { rows: [ROW(101)] } },
+    });
+    mount('/portal/fln/send?grade=1&subject=rh-en');
+    const row = await screen.findByTestId('fln-send-row-101');
+    expect(within(row).getByRole('link', { name: 'دیکھیں' }).getAttribute('href')).toBe('/portal/fln/p/101?grade=1');
+  });
+
   it('Urdu chrome: Urdu subject chips with «—», Urdu digits on the grade chips, rtl', async () => {
     stubFetch({ '/api/portal/fln/me': { status: 200, body: ME_LEADER_UR } });
     mount('/portal/fln/send?grade=1');

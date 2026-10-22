@@ -31,11 +31,13 @@ import ShareBar from './share/ShareBar';
 import { placementForGrade } from './listShared';
 import { nothingBehind } from '../lib/useBack';
 import { flnStrings, type FlnLang } from './strings';
+import { lessonsBack } from '../teacher/lessons/paths';
 import type { FlnMe, FlnPlacement, FlnPlanResponse } from './types';
 import './plan/plan.css';
 
 const BATCH_MS = 5000;
-const LESSONS_HOME = '/portal/teacher/lessons';
+// bd-4joiqz — the one way back to the lesson plans (teacher/lessons/paths lessonsBack): a leader's tab too.
+const LESSONS_HOME = lessonsBack();
 
 type Load =
   | { state: 'loading' }

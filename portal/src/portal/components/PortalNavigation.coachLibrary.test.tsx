@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 /**
  * bd-s42dye.2 — a coach on the coach app v2 sees ONLY the Training Library (and More, where her language, profile
  * and Log out are). Home, Schedule, Observe, Schools, Reports, Analytics and People are not in her menu.
+ * bd-4joiqz — and Lesson Plans: the teacher Lesson Plans pages, read as a leader.
  */
 vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("../services/api", () => ({ portal: { getConfig: vi.fn() } }));
@@ -28,10 +29,10 @@ async function renderNav(role: string, features: Record<string, unknown>) {
 beforeEach(() => vi.clearAllMocks());
 
 describe("the coach v2 menu, as shipped", () => {
-  it("is Training Library and More, nothing else", async () => {
+  it("is Training Library, Lesson Plans and More, nothing else", async () => {
     await renderNav("coach", { coachV2: true });
     const links = within(screen.getByTestId("teacher-nav")).getAllByRole("link").map((a) => [a.textContent, a.getAttribute("href")]);
-    expect(links).toEqual([["Training Library", "/portal/coach/training"], ["More", "/portal/coach/more"]]);
+    expect(links).toEqual([["Training Library", "/portal/coach/training"], ["Lesson Plans", "/portal/teacher/lessons"], ["More", "/portal/coach/more"]]);
     for (const w of ["Home", "Schedule", "Observe", "Schools", "Reports", "Analytics", "People", "Team"]) expect(screen.queryByText(w)).toBeNull();
   });
 
