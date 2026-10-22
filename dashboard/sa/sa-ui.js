@@ -1108,8 +1108,8 @@
       if (coachLW) return sCoachLastWord(v);
       return screen(v, 'sae-lastword', [
         h('h1', { class: 'sae-h1', text: C.last_word }),
-        // RDF auto (sa_auto_child_last_word): the child's tap is kept as the check; the scorer reads the recording.
-        passageEl(v.task, function (i) { runner.lastWord(i, childLW ? { how: 'child' } : undefined); draw(); }),
+        // RDF auto (sa_auto_child_last_word): no last_word_how, so the scorer reads the recording and the child's tap is the check.
+        passageEl(v.task, function (i) { runner.lastWord(i); draw(); }),
       ], null);
     }
 
