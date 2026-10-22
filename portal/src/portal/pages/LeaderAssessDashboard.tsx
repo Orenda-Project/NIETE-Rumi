@@ -31,6 +31,12 @@ function readLang(): Lang {
 
 type Load = 'loading' | 'off' | 'on';
 
+/** Which rule a task's card states under its chart. */
+function ruleOf(spec: TaskSpec): 'items' | 'passage' | 'comprehension' | 'mathsItems' | 'fluency' {
+  if (spec.kind === 'items') return spec.domain === 'ma' ? 'mathsItems' : 'items';
+  return spec.kind;
+}
+
 export default function LeaderAssessDashboard() {
   const [lang, setLang] = useState<Lang>(readLang);
   const [load, setLoad] = useState<Load>('loading');
@@ -144,6 +150,7 @@ export default function LeaderAssessDashboard() {
           {s.benchmarkShare === null ? null : <div><dt className="text-xs text-slate-600">{c.met}</dt><dd className="font-bold text-slate-900">{pct(s.benchmarkShare)}</dd></div>}
         </dl>
         {distribution(spec, s.distribution, s.n)}
+        <p data-testid="dash-rule" className="mt-2 text-xs text-slate-500">{c.rules[ruleOf(spec)]}</p>
       </li>
     );
   };
