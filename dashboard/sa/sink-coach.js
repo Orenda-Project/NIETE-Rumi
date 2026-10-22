@@ -77,6 +77,10 @@
         var s = splitRec(a.task_id);
         return post(a.session_id, '/register', { taskId: s.taskId, itemId: s.itemId, key: a.key, bytes: a.bytes, durationMs: a.duration_ms });
       },
+      /** sa_coach_last_word: the word heard last in the passage's recording → { index } | { pending } | { off }. */
+      lastWordHint: function (a) {
+        return post(a.session_id, '/last-word-hint', { taskId: a.task_id });
+      },
       status: function (sessionId) {
         return Promise.resolve(f(base + '/session/' + encodeURIComponent(sessionId) + '/status', { credentials: cred, cache: 'no-store', headers: hdr({ Accept: 'application/json' }) }))
           .then(function (res) { return res.ok ? res.json() : null; });
