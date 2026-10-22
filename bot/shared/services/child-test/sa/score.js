@@ -68,10 +68,13 @@
  * last_word_how ('confirm' | 'tap') takes words attempted from the recording, the last word the model heard read; the
  * coach's word is the cross-check (last_word_check 'differ' when they are more than one line apart). A recording with
  * no speech falls back to the coach's word, flagged. Without last_word_how the coach's tap counts (RULING #2).
+ * RDF auto (round 5): the child taps and the phone sends no last_word_how; when sa_coach_last_word is on for the
+ * session's coach (the sweep reads it), the recording gives the last word there too and the child's tap is the check.
  */
 
 const { logToFile, logError } = require('../../../utils/logger');
 const stopRulesSwitch = require('../app/stop-rules-switch');
+const coachLastWord = require('../app/coach-last-word-switch');
 
 const PARKED = 'final:sa_score_later';
 const SCORING = 'final:sa_scoring';
@@ -525,17 +528,20 @@ async function scorePassage(task, rec, row, res, deps, calls) {
   const tapped = res && Number.isInteger(res.last_word_index) ? Math.min(tokens.length, res.last_word_index + 1) : null;
   const line1 = (p.lines || [])[0];
   const stopped = (rec.stop || {}).type === 'first_line' && line1 ? firstRowStopped(rows, line1.to - line1.from + 1) : false;
-  const lastWord = res && typeof res.last_word_how === 'string' ? lastWordOf(rows, tapped, p.lines) : null;
+  // the coach's word (RDF manual: last_word_how) or, with sa_coach_last_word on, the child's tap (RDF auto) is the check
+  const tapper = res && typeof res.last_word_how === 'string' ? 'coach' : deps.lastWordFromRecording === true ? 'child' : null;
+  const lastWord = tapper ? lastWordOf(rows, tapped, p.lines, tapper) : null;
   const attemptedTo = lastWord ? lastWord.attempted : tapped;
   return { numbers: timedNumbers(rows, res, { stopped, attemptedTo }), rows, stopped, durationSec: clip.durationSec, tapped, lastWord };
 }
 
 /**
- * sa_coach_last_word: the last word read, from the recording (the model's last word not "not reached"); the coach's
- * confirmed word is the cross-check. A recording with no speech uses the coach's word. 'differ' when the two are more
- * than one line apart (lines: the passage's { from, to } word ranges, 0-based; without them, 10 words a line).
+ * sa_coach_last_word: the last word read, from the recording (the model's last word not "not reached"); the tapped
+ * word (the coach's, or the child's in RDF auto: `tapper`) is the cross-check. A recording with no speech uses the
+ * tapped word. 'differ' when the two are more than one line apart (lines: the passage's { from, to } word ranges,
+ * 0-based; without them, 10 words a line).
  */
-function lastWordOf(rows, tapped, lines) {
+function lastWordOf(rows, tapped, lines, tapper = 'coach') {
   let heard = 0;
   rows.forEach((r) => { if (r.verdict !== 'not_reached') heard = r.i; });
   const mute = rows.length > 0 && rows.every((r) => r.no_speech);
@@ -546,7 +552,7 @@ function lastWordOf(rows, tapped, lines) {
   };
   const differ = tapped == null ? false : (mute ? heard !== tapped : Math.abs(lineOf(heard) - lineOf(tapped)) > 1);
   const useCoach = mute && tapped != null;
-  return { attempted: useCoach ? tapped : heard, heard, source: useCoach ? 'coach' : 'recording', check: tapped == null ? null : differ ? 'differ' : 'agree' };
+  return { attempted: useCoach ? tapped : heard, heard, source: useCoach ? tapper : 'recording', check: tapped == null ? null : differ ? 'differ' : 'agree' };
 }
 
 async function scoreQuestions(task, rec, row, res, deps, calls) {
@@ -930,9 +936,10 @@ async function sweepBody({ sessionId, now, deps, out, at }) {
     if (claimed.length >= PER_TICK) break;
     if (!sessions.has(row.session_id)) {
       at.stage = 'session';
-      const { data } = await supabase.from('child_test_sessions').select('id, grade, form, item_bank_version, status, finished_at, client_finished_at').eq('id', row.session_id).limit(1);
+      const { data } = await supabase.from('child_test_sessions').select('id, grade, form, item_bank_version, status, finished_at, client_finished_at, coach_user_id').eq('id', row.session_id).limit(1);
       const s = (data || [])[0] || null;
       if (s) s.asked = await askedOf(row.session_id, supabase);
+      if (s) s.lastWordFromRecording = await coachLastWord.enabled(deps, s.coach_user_id || null, supabase);
       if (s && stopRules) { s.stopRules = true; s.passages = await passagesOf(row.session_id, supabase); s.sums = await sumsOf(row.session_id, supabase); }
       sessions.set(row.session_id, s);
     }
@@ -946,7 +953,7 @@ async function sweepBody({ sessionId, now, deps, out, at }) {
   }
   at.stage = 'score';
   await Promise.all(claimed.map(async ({ had, session }) => {
-    const got = await scoreRow(had, session, { ...deps, stopRules });
+    const got = await scoreRow(had, session, { ...deps, stopRules, lastWordFromRecording: session.lastWordFromRecording === true });
     await finish(had, got, supabase);
     if (got.ok) out.scored += 1; else out.failed += 1;
     logToFile('child_test.sa_scored', { block: had.block, ok: got.ok, reason: got.ok ? null : got.reason, cost_usd: got.ok ? got.marks.meta.cost_usd : null });
