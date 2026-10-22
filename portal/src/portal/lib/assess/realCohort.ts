@@ -18,6 +18,11 @@ export function masked(n: number): boolean {
 
 const GRADES = [1, 2, 3, 4, 5] as const;
 
+/** How many sessions have a recording where the scorer heard another voice (their scores may include help). */
+export function secondVoiceCount(students: DashStudent[]): number {
+  return (students || []).filter((s) => s.results.tasks.some((t) => t.secondVoice === true)).length;
+}
+
 export function toDashStudents(sessions: SaDashboardSession[]): DashStudent[] {
   const out: DashStudent[] = [];
   for (const s of sessions || []) {

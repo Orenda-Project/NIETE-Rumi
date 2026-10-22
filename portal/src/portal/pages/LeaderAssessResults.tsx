@@ -126,6 +126,7 @@ export default function LeaderAssessResults() {
           ))}
           {/* no score yet is "kept, scored later" — never a 0 or an empty score (no scorer, or scoring off) */}
           {spoken && !scored && t.recording !== 'none' && <Row label={r.recording} value={r.scoredLater} />}
+          {spoken && scored && t.secondVoice && <Row label={r.secondVoice} value={r.secondVoiceYes} />}
           </>}
           {stop && <Row label={r.stopReason} value={stop} />}
           {stop && t.stopWhy && r.whys[t.stopWhy] && <Row label={r.why} value={r.whys[t.stopWhy]} />}
@@ -150,6 +151,7 @@ export default function LeaderAssessResults() {
     const s = load.data.session;
     const tasks = load.data.tasks || [];
     const status = (r.statuses as Record<string, string>)[s.status] || s.status;
+    const voices = tasks.filter((t) => t.secondVoice && t.recording === 'scored').length;
     const part = !s.block ? null : s.block === 'rdf' ? r.rdf : (copy.blocks as Record<string, string>)[s.block] || s.block;
     content = (
       <div className="space-y-4">
@@ -162,6 +164,7 @@ export default function LeaderAssessResults() {
           {whenIn(lang, s.endedAt) && <Row label={r.ended} value={whenIn(lang, s.endedAt) as string} />}
           {s.lang && <Row label={r.language} value={r.langs[s.lang]} />}
         </dl>
+        {voices > 0 && <p data-testid="results-second-voice" role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{r.secondVoiceNote(numIn(lang, voices), voices === 1)}</p>}
         <div className="rounded-2xl border border-sky-200 bg-sky-50">
           <button type="button" aria-expanded={howOpen} onClick={() => setHowOpen((o) => !o)}
             className="flex w-full min-h-[48px] items-center justify-between gap-2 px-4 text-start font-medium text-sky-900">

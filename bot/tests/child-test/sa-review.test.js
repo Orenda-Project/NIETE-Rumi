@@ -127,6 +127,17 @@ describe('saReview: the read', () => {
     expect(out.tasks[0].agreement).toEqual({ reviewed: 3, earAgreesWithApp: 1, agentsAgreeWithApp: 2, withAgents: 3 });
   });
 
+  test('a task whose scorer heard another voice says so (and each item from that clip); else false', async () => {
+    const w = world();
+    const blocks = await w.deps.store.listBlocks(SID);
+    const row = blocks.blocks[0];
+    row.ai_marks = { ...row.ai_marks, detail: { ...row.ai_marks.detail, second_voice: true, items: row.ai_marks.detail.items.map((x, k) => (k === 0 ? { ...x, second_voice: true } : x)) } };
+    const out = await review.saReview({ userId: COACH, sessionId: SID }, w.deps);
+    expect(out.tasks[0].secondVoice).toBe(true);
+    expect(out.tasks[0].items.map((x) => x.app.secondVoice)).toEqual([true, false, false, false]);
+    expect(out.tasks[1].secondVoice).toBe(false);
+  });
+
   test('suspect: an app "correct" on a no-speech clip or an answer under 1 s; never a wrong mark', async () => {
     const out = await review.saReview({ userId: COACH, sessionId: SID }, world().deps);
     expect(out.tasks[0].items.map((x) => x.suspect)).toEqual([false, true, false, false]);

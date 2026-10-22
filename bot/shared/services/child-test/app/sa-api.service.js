@@ -663,6 +663,8 @@ function shapeTask(r, stops = false) {
     ...(stops && whyOf(m) ? { stopWhy: whyOf(m) } : {}),
     recording,
     score: recording === 'scored' ? numbersOf(m) : null,
+    // the scorer heard another person in the recording (CHILD_TEST_SA_SECOND_VOICE): Results caveats the score
+    ...(recording === 'scored' && m.detail && m.detail.second_voice === true ? { secondVoice: true } : {}),
   };
 }
 

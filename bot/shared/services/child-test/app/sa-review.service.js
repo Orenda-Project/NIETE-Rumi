@@ -116,7 +116,7 @@ function shapeTask(r, reviews, userId, fixAt, clips) {
     return {
       key,
       ref: typeof a.ref === 'string' ? a.ref : (typeof a.id === 'string' ? a.id : null),
-      app: { verdict, conf: num(a.conf), noSpeech: a.no_speech === true },
+      app: { verdict, conf: num(a.conf), noSpeech: a.no_speech === true, secondVoice: a.second_voice === true },
       agents,
       suspect: verdict === 'correct' && (a.no_speech === true || Boolean(agents && agents.noSpeech) || (ms !== null && ms !== undefined && ms < SHORT_ANSWER_MS)),
       ear,
@@ -140,6 +140,8 @@ function shapeTask(r, reviews, userId, fixAt, clips) {
     scoredAfterFix: fixAt && scoredAt ? Date.parse(scoredAt) >= Date.parse(fixAt) : null,
     clips,
     items,
+    // the scorer heard another person in the recording (CHILD_TEST_SA_SECOND_VOICE)
+    secondVoice: Boolean(m.detail && m.detail.second_voice === true),
     agreement: {
       reviewed: reviewed.length,
       earAgreesWithApp: reviewed.filter((x) => x.ear.mark === x.app.verdict).length,

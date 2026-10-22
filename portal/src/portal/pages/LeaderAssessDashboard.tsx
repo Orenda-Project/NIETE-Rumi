@@ -6,7 +6,7 @@ import { childTestSa } from '../services/api';
 import { urDigits, type Lang } from '../lib/assess/copy';
 import { DASH_COPY } from '../lib/assess/dashboardCopy';
 import { exampleCohort, TASKS, type DashStudent, type ReadLang, type TaskSpec } from '../lib/assess/exampleCohort';
-import { masked, NO_SECTOR, toDashStudents } from '../lib/assess/realCohort';
+import { masked, NO_SECTOR, secondVoiceCount, toDashStudents } from '../lib/assess/realCohort';
 import { applyFilter, groupBy, headline, ORF_BANDS, summariseTask, type Filter } from '../lib/assess/cohortStats';
 import { GRADES, rwpOrf } from '../lib/assess/rwpNorms';
 
@@ -78,6 +78,7 @@ export default function LeaderAssessDashboard() {
   const rows = useMemo(() => applyFilter(cohort, filter), [cohort, filter]);
   const h = useMemo(() => headline(rows), [rows]);
   const groups = useMemo(() => groupBy(rows, filter.sector ? 'school' : 'sector'), [rows, filter.sector]);
+  const voices = useMemo(() => (isLive ? secondVoiceCount(rows) : 0), [isLive, rows]);
 
   const num = (n: number | string) => (lang === 'ur' ? `${LRI}${urDigits(n)}${PDI}` : String(n));
   const count = (n: number) => num(n.toLocaleString('en-US'));
@@ -219,6 +220,7 @@ export default function LeaderAssessDashboard() {
         {isLive
           ? <p data-testid="dash-live" role="note" className="rounded-2xl border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">{c.live(count(cohort.length))}</p>
           : <p data-testid="dash-banner" role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{c.banner}</p>}
+        {voices > 0 && <p data-testid="dash-second-voice" role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{c.secondVoice(count(voices), count(rows.length))}</p>}
 
         <section aria-label={c.filters} className="space-y-2">
           <div className="flex flex-wrap gap-2">
