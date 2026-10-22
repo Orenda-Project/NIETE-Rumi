@@ -684,12 +684,14 @@ function numbersOf(marks) {
 }
 
 /**
- * sa_stop_rules: the reason a scored task names on Results (panel G-12 §5): questions not asked after the passage, ×
- * not asked after no right + / −, else stopped early by EGRA's (reading) or EGMA's (maths) rule; null when none.
+ * sa_stop_rules: the reason a scored task names on Results (panel G-12 §5): questions not asked after the passage (or,
+ * when they were asked and recorded, voided because the recording shows the reading stopped early), × not asked after
+ * no right + / −, else stopped early by EGRA's (reading) or EGMA's (maths) rule; null when none.
  */
-function ruleStop(block, m) {
+function ruleStop(r, m) {
   const d = (m && m.detail) || {};
-  if (d.stop_detail === 'comprehension') return 'comprehension_not_asked';
+  const block = r.block;
+  if (d.stop_detail === 'comprehension') return hasRecording(r) ? 'comprehension_voided' : 'comprehension_not_asked';
   if (d.stop_detail === 'multiplication') return 'multiplication_not_asked';
   if (d.stopped_by_rule !== true) return null;
   return String(block || '').startsWith('ma.') ? 'stopped_by_rule_egma' : 'stopped_by_rule';
@@ -730,7 +732,7 @@ function shapeTask(r, stops = false) {
     optionsN: tap ? pick('options_n', 'options_n') : null,
     chanceCorrected: tap ? numOrNull(m && m.chance_corrected) : null,
     itemsPerMin: spoken ? null : pick('items_per_min', 'per_minute'),
-    stopReason: (stops && ruleStop(r.block, m)) || stop || null,
+    stopReason: (stops && ruleStop(r, m)) || stop || null,
     ...(stops && whyOf(m) ? { stopWhy: whyOf(m) } : {}),
     recording,
     score: recording === 'scored' ? numbersOf(m) : null,
