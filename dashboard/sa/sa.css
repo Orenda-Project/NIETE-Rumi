@@ -250,6 +250,8 @@ button{font:inherit;color:inherit}
 /* Nastaliq ink (the tail of ل م ن, the top of ک) spans about 2.7em at the face's size-adjust: the line box holds it all */
 .sae-onecell[lang=ur]{font-weight:400;line-height:3.2;font-size:clamp(52px,19vw,124px);overflow-wrap:normal}
 .sae-onecell.is-short[lang=ur]{font-size:clamp(80px,30vw,204px)}
+/* Round 4: the item's ink, placed by sa-ui fitCells (an Urdu cell or text tile is centred on its ink, not on its line box) */
+.sae-ink{display:inline-block}.sae-onecell[lang=ur] .sae-ink,.sae-opt[lang=ur] .sae-ink{white-space:nowrap}
 .sae-coach-text{background:var(--sae-card);border:3px solid var(--sae-line);border-radius:var(--sae-r);padding:12px 14px}
 /* RDF manual: the items the coach reads out (the brief's list, and the line on the child's screen). */
 .sae-coach-items{margin:4px 0 0;padding-inline-start:24px;text-align:start;display:flex;flex-direction:column;gap:6px;font-size:18px;line-height:1.6}
