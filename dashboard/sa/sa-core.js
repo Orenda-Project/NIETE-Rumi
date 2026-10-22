@@ -86,6 +86,7 @@
   var CELL_AUTO_S = 3;
   var FLUENCY_ITEM_S = 5;
   var CELL_PACE_FLOOR_S = 5; // sa_cell_pace: no item moves on by itself before 5 s on screen
+  var CELL_PACE_CAP_S = 10; // sa_cell_pace: and every item moves on by itself at 10 s on screen, whatever the sound
   var COMP_ALL_MIN_WORDS = 10; // RWP May 2026 rdcomp_*: asked when 10+ words were attempted (2,233/2,233 rows)
 
   function str(x) { return typeof x === 'string' && x.length > 0; }
@@ -619,8 +620,10 @@
           if (manual || !auto) return null;
           if (cellPace) {
             // EGRA: move on when the child has not responded for 3 s, so the wait counts from the last voice heard.
+            // A noisy room never goes quiet: the cap moves the item on at 10 s on screen.
+            var shown = now() - st.cell.at;
             var quiet = now() - (st.cell.voice_at != null ? st.cell.voice_at : st.cell.at);
-            if (now() - st.cell.at < Math.max(auto, CELL_PACE_FLOOR_S) * 1000 || quiet < auto * 1000) return null;
+            if (shown < CELL_PACE_CAP_S * 1000 && (shown < Math.max(auto, CELL_PACE_FLOOR_S) * 1000 || quiet < auto * 1000)) return null;
           } else if (now() - st.cell.at < auto * 1000) return null;
           nextCell('auto');
           return st.phase === 'running' ? 'go_on' : null;
