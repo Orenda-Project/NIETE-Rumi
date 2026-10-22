@@ -48,6 +48,8 @@ const en = {
   scoreAxis: 'Correct answers',
   students_: (n: string) => `${n} students`,
   bands: { zero: 'Non-reader (0)', beginning: 'Beginning (1–19)', developing: 'Developing (20–39)', fluent: 'Fluent (40+)' },
+  rwpTitle: 'Rawalpindi study, May 2026 (words per minute in 60 seconds)',
+  rwpRow: (median: string, p25: string, p75: string, zero: string) => `median ${median} · middle half ${p25}–${p75} · ${zero} non-readers`,
   rules: {
     items: 'Mean: the average share of items right. Zero: no item right.',
     passage: 'Words read correctly in 60 seconds. Non-reader 0 · beginning 1–19 · developing 20–39 · fluent 40 or more words per minute.',
@@ -118,6 +120,8 @@ const ur: DashCopy = {
   scoreAxis: 'درست جوابات',
   students_: (n: string) => `${n} طلبہ`,
   bands: { zero: 'پڑھ نہ سکے (⁦۰⁩)', beginning: 'آغاز (⁦۱–۱۹⁩)', developing: 'بہتری (⁦۲۰–۳۹⁩)', fluent: 'روانی (⁦۴۰⁩+)' },
+  rwpTitle: 'راولپنڈی کا جائزہ، مئی ⁦۲۰۲۶⁩ (⁦۶۰⁩ سیکنڈ میں فی منٹ الفاظ)',
+  rwpRow: (median: string, p25: string, p75: string, zero: string) => `درمیانی ${median} · درمیانہ نصف ${p25}–${p75} · ${zero} پڑھ نہ سکے`,
   rules: {
     items: 'اوسط: درست جوابات کا اوسط حصہ۔ صفر: کوئی جواب درست نہیں۔',
     passage: '⁦۶۰⁩ سیکنڈ میں درست پڑھے گئے الفاظ۔ پڑھ نہ سکے ⁦۰⁩ · آغاز ⁦۱–۱۹⁩ · بہتری ⁦۲۰–۳۹⁩ · روانی ⁦۴۰⁩ یا زیادہ الفاظ فی منٹ۔',

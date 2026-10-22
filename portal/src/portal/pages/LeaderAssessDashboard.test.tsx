@@ -106,4 +106,21 @@ describe("LeaderAssessDashboard", () => {
     expect(await screen.findByTestId("dash-banner")).toHaveTextContent(/مثالی/);
     expect(screen.getByTestId("dash-total").textContent).toMatch(/[۰-۹]/);
   });
+
+  it("grades 1 to 5, and the passage card shows that grade's Rawalpindi reference", async () => {
+    api.getSwitches.mockResolvedValue({ exampleDashboard: true });
+    renderPage();
+    await screen.findByTestId("dash-banner");
+    for (const g of [1, 2, 3, 4, 5]) expect(screen.getByTestId(`dash-grade-${g}`)).toBeInTheDocument();
+    const all = within(screen.getByTestId("dash-task-ur.story_w3")).getByTestId("dash-rwp");
+    expect(all).toHaveTextContent(/Rawalpindi/);
+    expect(within(all).getAllByTestId("dash-rwp-row")).toHaveLength(5);
+    fireEvent.click(screen.getByTestId("dash-grade-4"));
+    const g4 = within(screen.getByTestId("dash-task-ur.story_w3")).getByTestId("dash-rwp");
+    expect(within(g4).getAllByTestId("dash-rwp-row")).toHaveLength(1);
+    expect(g4).toHaveTextContent(/Grade 4/);
+    expect(g4).toHaveTextContent(/60/);
+    expect(g4).toHaveTextContent(/14%/);
+  });
 });
+

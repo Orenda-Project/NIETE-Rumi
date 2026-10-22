@@ -58,7 +58,7 @@ export type DashStudent = {
   sector: Sector;
   schoolId: string;
   schoolName: string;
-  grade: 3 | 5;
+  grade: 1 | 2 | 3 | 4 | 5;
   /** null on real data until the roster records it */
   gender: Gender | null;
   results: SaResults;
@@ -88,6 +88,8 @@ const SECTOR_EFFECT: Record<Sector, number> = {
   'Urban-I': 0.4, 'Urban-II': 0.3, 'Tarnol': -0.1, 'Nilore': -0.2, 'Bhara Kahu': -0.3, 'Sihala': -0.4,
 };
 const SCHOOLS_PER_SECTOR = 8;
+/** Ability by grade, against grade 3; set so the example's reading rises with the grade much as Rawalpindi's does. */
+const GRADE_EFFECT: Record<DashStudent['grade'], number> = { 1: -1.5, 2: -0.8, 3: 0, 4: 0.6, 5: 1.1 };
 const EXAMPLE_DAY = Date.UTC(2026, 9, 23, 4, 0, 0);
 
 function taskResult(spec: TaskSpec, ability: number, rnd: () => number, orf: { ur: number; en: number }): SaTaskResult {
@@ -134,9 +136,9 @@ export function exampleCohort(n = 1000, seed = 20261022): DashStudent[] {
   const out: DashStudent[] = [];
   for (let i = 0; i < n; i += 1) {
     const school = schools[Math.floor(rnd() * schools.length)];
-    const grade: 3 | 5 = rnd() < 0.5 ? 3 : 5;
+    const grade = (1 + Math.floor(rnd() * 5)) as DashStudent['grade'];
     const gender: Gender = rnd() < 0.5 ? 'girl' : 'boy';
-    const general = SECTOR_EFFECT[school.sector] + school.effect + (grade === 5 ? 0.9 : 0) + normal(rnd);
+    const general = SECTOR_EFFECT[school.sector] + school.effect + GRADE_EFFECT[grade] + normal(rnd);
     const ability = { ur: general + normal(rnd) * 0.5, en: general - 0.4 + normal(rnd) * 0.6, ma: general + normal(rnd) * 0.6 };
     const orf = { ur: 0, en: 0 };
     const tasks = TASKS.map((spec) => taskResult(spec, ability[spec.domain], rnd, orf));

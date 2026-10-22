@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { exampleCohort, SECTORS, TASKS } from './exampleCohort';
+import { RWP_ORF, rwpOrf } from './rwpNorms';
 import {
   applyFilter, correctOf, groupBy, headline, orfBand, summariseTask, specOf,
 } from './cohortStats';
@@ -30,7 +31,7 @@ describe('exampleCohort', () => {
 
   it('covers every sector, both grades and both genders, with synthetic ids only', () => {
     expect(new Set(cohort.map((s) => s.sector))).toEqual(new Set(SECTORS));
-    expect(new Set(cohort.map((s) => s.grade))).toEqual(new Set([3, 5]));
+    expect(new Set(cohort.map((s) => s.grade))).toEqual(new Set([1, 2, 3, 4, 5]));
     expect(new Set(cohort.map((s) => s.gender))).toEqual(new Set(['girl', 'boy']));
     expect(cohort.every((s) => /^EX-\d{4}$/.test(s.id) && s.schoolName.startsWith('Example school'))).toBe(true);
   });
@@ -44,6 +45,13 @@ describe('exampleCohort', () => {
         expect(c).toBeLessThanOrEqual((specOf(task.taskId) as { max: number }).max);
       }
     }
+  });
+
+  it('reading rises with the grade, as in Rawalpindi', () => {
+    const med = [1, 2, 3, 4, 5].map((g) => headline(applyFilter(cohort, { grade: g as 1 })).orfMedian.ur as number);
+    expect(med[0]).toBeLessThanOrEqual(med[2]);
+    expect(med[2]).toBeLessThan(med[4]);
+    expect(headline(applyFilter(cohort, { grade: 1 })).orfZero.ur as number).toBeGreaterThan(0.5);
   });
 
   it('is plausible: grade 5 reads faster than grade 3, and some children score zero', () => {
@@ -105,5 +113,14 @@ describe('cohortStats', () => {
     expect(rows.map((r) => r.key).sort()).toEqual([...SECTORS].sort());
     expect(rows.reduce((a, r) => a + r.n, 0)).toBe(1000);
     expect(groupBy(applyFilter(cohort, { sector: 'Sihala' }), 'school').every((r) => r.label.includes('Sihala'))).toBe(true);
+  });
+});
+
+describe('rwpNorms', () => {
+  it('holds the Rawalpindi May 2026 reading fluency per grade and language (60-second correct words)', () => {
+    expect(Object.keys(RWP_ORF.ur)).toEqual(['1', '2', '3', '4', '5']);
+    expect(rwpOrf('ur', 3)).toEqual({ n: 420, median: 29, p25: 0, p75: 63.9, zero: 0.279 });
+    expect(rwpOrf('en', 5)).toEqual({ n: 416, median: 54.9, p25: 0, p75: 84.9, zero: 0.262 });
+    expect(rwpOrf('ur', 6 as never)).toBeNull();
   });
 });
