@@ -67,3 +67,93 @@ describe('the last word read: from the recording, the coach\'s word as the cross
     expect(got.marks.detail).not.toHaveProperty('last_word_check');
   });
 });
+
+/**
+ * RDF auto (the tester, round 5): the child taps the last word, as before, and the score still goes by where the
+ * recording shows the child stopped; the child's tap is only the check. The phone sends no last_word_how in auto
+ * mode, so the scorer takes the recording whenever the coach's sa_coach_last_word is on (the sweep reads it for the
+ * session's coach). Off: the tap counts, as before.
+ */
+describe('RDF auto: the child\'s tap is the check, the recording gives the last word (sa_coach_last_word)', () => {
+  const before = { ...process.env };
+  beforeEach(() => { process.env.CHILD_TEST_SA_SCORER = 'on'; process.env.CHILD_TEST_R2_ENV = 'sandbox'; process.env.CHILD_TEST_SA_SPEECH_GATE = 'on'; score.__internals.resetBoot(); });
+  afterEach(() => { process.env = { ...before }; });
+  const on = (x) => ({ ...standIns(x), lastWordFromRecording: true });
+
+  test('the child tapped the last word of the passage, the recording heard 30: attempted 30, flagged', async () => {
+    const got = await score.scoreRow(row({ last_word_index: 59 }), session(), on({ read: 30 }));
+    expect(got.marks).toMatchObject({ attempted: 30, correct: 30 });
+    expect(got.marks.detail).toMatchObject({ last_word_source: 'recording', last_word_heard: 30, last_word_tapped: 60, last_word_check: 'differ' });
+  });
+
+  test('they agree: attempted is the recording\'s last word, no flag', async () => {
+    const got = await score.scoreRow(row({ last_word_index: 28 }), session(), on({ read: 30 }));
+    expect(got.marks).toMatchObject({ attempted: 30, correct: 30 });
+    expect(got.marks.detail).toMatchObject({ last_word_source: 'recording', last_word_heard: 30, last_word_tapped: 29, last_word_check: 'agree' });
+  });
+
+  test('the recording holds no speech: the child\'s tap is used, and the row is flagged', async () => {
+    const got = await score.scoreRow(row({ last_word_index: 29 }), session(), on({ read: 30, words: 0 }));
+    expect(got.marks).toMatchObject({ attempted: 30, correct: 0 });
+    expect(got.marks.detail).toMatchObject({ last_word_source: 'child', last_word_heard: 0, last_word_tapped: 30, last_word_check: 'differ' });
+  });
+
+  test('no tap at all (time up): the recording gives the last word, nothing to check against', async () => {
+    const got = await score.scoreRow(row({ last_word_index: null }), session(), on({ read: 30 }));
+    expect(got.marks).toMatchObject({ attempted: 30, correct: 30 });
+    expect(got.marks.detail).toMatchObject({ last_word_source: 'recording', last_word_heard: 30 });
+    expect(got.marks.detail).not.toHaveProperty('last_word_check');
+  });
+
+  test('RDF manual is unchanged: the coach\'s word stays the check, the no-speech fallback says coach', async () => {
+    const got = await score.scoreRow(row({ last_word_index: 29, last_word_how: 'confirm' }), session(), on({ read: 30, words: 0 }));
+    expect(got.marks.detail).toMatchObject({ last_word_source: 'coach', last_word_tapped: 30, last_word_check: 'differ' });
+  });
+
+  test('the sweep reads the switch for the session\'s coach: on scores from the recording, off keeps the tap', async () => {
+    const COACH_ON = 'aaaaaaaa-0000-4000-8000-0000000000a1';
+    const COACH_OFF = 'aaaaaaaa-0000-4000-8000-0000000000a2';
+    const SID2 = 'cccccccc-0000-4000-8000-000000000016';
+    const rows = [row({ last_word_index: 59 }), { ...row({ last_word_index: 59 }), id: 'row-en-story-2', session_id: SID2, audio_r2_key: `child-test/sandbox/sch-1/${SID2}/sa/en.story_w3.webm` }];
+    const sessions = [{ ...session(), coach_user_id: COACH_ON }, { ...session(), id: SID2, coach_user_id: COACH_OFF }];
+    const db = fakeDb({ child_test_blocks: rows, child_test_sessions: sessions, child_test_events: [] });
+    const seen = [];
+    const out = await score.sweepOnce({ now: new Date('2026-10-22T15:00:00Z'), deps: { ...standIns({ read: 30 }), supabase: db, stopRules: false, coachLastWord: async (u) => { seen.push(u); return u === COACH_ON; } } });
+    expect(out).toMatchObject({ scored: 2 });
+    expect(seen).toEqual(expect.arrayContaining([COACH_ON, COACH_OFF]));
+    expect(rows[0].ai_marks).toMatchObject({ attempted: 30, detail: { last_word_source: 'recording', last_word_tapped: 60, last_word_check: 'differ' } });
+    expect(rows[1].ai_marks).toMatchObject({ attempted: 60 });
+    expect(rows[1].ai_marks.detail).not.toHaveProperty('last_word_source');
+  });
+
+  test('the switch row itself (app_settings sa_coach_last_word = true, as on prod), read through the sweep\'s client', async () => {
+    const r = row({ last_word_index: 59 });
+    const db = fakeDb({ child_test_blocks: [r], child_test_sessions: [{ ...session(), coach_user_id: 'aaaaaaaa-0000-4000-8000-0000000000a3' }], child_test_events: [], app_settings: [{ key: 'sa_coach_last_word', value: true }] });
+    await score.sweepOnce({ now: new Date('2026-10-22T15:00:00Z'), deps: { ...standIns({ read: 30 }), supabase: db, stopRules: false } });
+    expect(r.ai_marks).toMatchObject({ attempted: 30, detail: { last_word_source: 'recording', last_word_heard: 30, last_word_tapped: 60, last_word_check: 'differ' } });
+  });
+});
+
+function fakeDb(tables) {
+  function query(name) {
+    const f = []; let patch = null; let lim = null;
+    const q = {
+      select() { return q; }, order() { return q; }, in(c, v) { f.push((r) => v.includes(r[c])); return q; },
+      limit(n) { lim = n; return q; },
+      eq(c, v) { f.push((r) => r[c] === v); return q; },
+      is(c, v) { f.push((r) => (r[c] ?? null) === v); return q; },
+      like(c, v) { const p = v.replace(/%$/, ''); f.push((r) => String(r[c] || '').startsWith(p)); return q; },
+      gte(c, v) { f.push((r) => String(r[c]) >= v); return q; },
+      update(p) { patch = p; return q; },
+      then(ok, bad) {
+        const hit = (tables[name] || []).filter((r) => f.every((fn) => fn(r)));
+        if (patch) { hit.forEach((r) => { Object.assign(r, patch); }); return Promise.resolve({ data: hit.map((r) => ({ id: r.id })), error: null }).then(ok, bad); }
+        const copy = hit.map((r) => JSON.parse(JSON.stringify(r)));
+        return Promise.resolve({ data: lim ? copy.slice(0, lim) : copy, error: null }).then(ok, bad);
+      },
+    };
+    return q;
+  }
+  return { from: query };
+}
+
