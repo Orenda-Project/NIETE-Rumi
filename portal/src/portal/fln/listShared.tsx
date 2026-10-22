@@ -8,9 +8,11 @@ import { flnApi } from './api';
 import type { FlnCatalogue, FlnPlacement, FlnRow } from './types';
 import type { FlnSubjectKey } from './strings';
 import { bdiRuns } from './Bdi';
+import { lessonsBack } from '../teacher/lessons/paths';
 
 export const FLN_SUBJECTS: readonly FlnSubjectKey[] = ['rh-en', 'rh-ur', 'num'];
-export const NEW_LESSON = '/portal/teacher/lessons/new';
+// bd-4joiqz — the one way back to the lesson plans (teacher/lessons/paths lessonsBack): step 1, where the band is.
+export const NEW_LESSON = lessonsBack('new');
 
 export const isFlnSubject = (v: unknown): v is FlnSubjectKey => typeof v === 'string' && (FLN_SUBJECTS as readonly string[]).includes(v);
 
