@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { clockText } from '../../lib/clockText';
 import { acceptFor, checkAudioFile, checkFile, DC_MAX_PHOTOS, DC_MIN_SECONDS, readAudioDuration } from '../../lib/coachingUpload';
 import { SendError, sendLesson } from '../../lib/coachingSend';
+import { sha256Hex } from '../../lib/audioHash';
 import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
 import { lessonFilename, useMicLevel } from '../../lib/recordFlow';
 import { useRecordingClock, useRecordingSession } from '../../lib/recordingSession';
@@ -26,12 +27,13 @@ import { CARD, FOCUS, LIST_CARD } from '../ui/styles';
 import { useCopy } from '../i18n';
 import { NOTICES } from '../notices/copy';
 import { COACHING } from './copy';
-import { clearDraft, holdDraft, peekDraft, planKeyOf, readPrefill, type DraftClass, type DraftPlan } from './draft';
+import { clearDraft, holdDraft, isSavedAudio, peekDraft, planKeyOf, readPrefill, type DcAudio, type DraftClass, type DraftPlan, type SavedAudio } from './draft';
+import { loadPending, sentBefore, type PendingRecording } from './api';
 import { DC_PICK } from './libraryPick';
 import { libraryKeyFor, sameSubjectName } from '../../lib/classKey';
 import { lessonsUrl, openUrl } from '../lessons/paths';
 import { micBlockedLine, micPermissionDenied } from './micBlocked';
-import { Action, Dock, FlowStep, PhotoGrid, PlanPicker, RecordingCard } from './parts';
+import { Action, Dock, FlowStep, PhotoGrid, PlanPicker, RecordingCard, WaitingRecording } from './parts';
 import { COACHING_HOME, COACHING_NEW, lessonPath } from './paths';
 import { dcSteps } from './report';
 import { ClassCheck, Reflection, stoppedLine } from './reportLive';
@@ -95,7 +97,7 @@ export function NewObservationPage() {
   const cameBack = useNavigationType() === 'POP' || !!(location.state as { keep?: boolean } | null)?.keep || !!session?.active;
   const [kept] = useState(() => (cameBack ? peekDraft() : null));
   const [cls, setCls] = useState<DraftClass | null>(kept?.cls ?? null);
-  const [audio, setAudio] = useState<Audio | null>(kept?.audio ?? null);
+  const [audio, setAudio] = useState<DcAudio | null>(kept?.audio ?? null);
   const [audioProblem, setAudioProblem] = useState<AudioProblem>(null);
   const [plan, setPlan] = useState<DraftPlan | null>(kept?.plan ?? null);
   const [planProblem, setPlanProblem] = useState<'not_a_plan' | null>(null);
@@ -105,6 +107,33 @@ export function NewObservationPage() {
   const [recordTray, setRecordTray] = useState(false);
 
   useEffect(() => { holdDraft({ audio, plan, photos, cls }); }, [audio, plan, photos, cls]);
+
+  // bd-c5reix — her classroom recordings sent on WhatsApp, kept and waiting (a failed read is none). The WhatsApp link
+  // lands with ?recording=whatsapp (the newest); the main page's banner with ?recording=<id>. One she has sent before
+  // is never attached: the repeat note says so, with its report.
+  const [pending] = useLoad(loadPending, 'dc:pending');
+  const waitingList = useMemo(() => dataOf(pending) ?? [], [pending]);
+  // picked: a file she chose (the note also offers another); else a waiting recording.
+  const [repeat, setRepeat] = useState<{ sessionId: string; picked?: boolean } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const attachWaiting = (rec: PendingRecording) => {
+    setAudioProblem(null);
+    if (rec.duplicateOf) { setRepeat({ sessionId: rec.duplicateOf.sessionId }); return; }
+    setRepeat(null);
+    const saved: SavedAudio = {
+      kind: 'saved', key: rec.key, id: rec.id, listenUrl: rec.listenUrl, durationMs: rec.seconds != null ? rec.seconds * 1000 : null,
+    };
+    setAudio(saved);
+  };
+  const wanted = useMemo(() => new URLSearchParams(location.search).get('recording'), [location.search]);
+  const tookWanted = useRef(false);
+  useEffect(() => {
+    if (tookWanted.current || !wanted || pending.status !== 'ok') return;
+    tookWanted.current = true;
+    const rec = wanted === 'whatsapp' ? pending.data[0] : pending.data.find((r) => r.id === wanted);
+    if (rec && !audio) attachWaiting(rec);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wanted, pending]);
 
   // Opened from a lesson plan: the plan's class and that plan (named from her recent plans). bd-fgj73x.10: the class
   // always comes with the plan (operator, 19 Oct) — hers when it is one of her classes (by her subject key, the
@@ -189,6 +218,19 @@ export function NewObservationPage() {
       return;
     }
     const seconds = await readAudioDuration(file);
+    // bd-c5reix — the same bytes as a recording she sent before: said now, before anything is uploaded. The one it
+    // replaces is let go first, so nothing is armed while the file is checked, nor after a repeat.
+    setRepeat(null);
+    setAudio(null);
+    setChecking(true);
+    let before: Awaited<ReturnType<typeof sentBefore>> = null;
+    try {
+      const sha = await sha256Hex(file);
+      before = sha ? await sentBefore(sha) : null;
+    } finally {
+      setChecking(false);
+    }
+    if (before) { setRepeat({ sessionId: before.sessionId, picked: true }); return; }
     setPhase('idle');
     setAudio({
       blob: file, filename: checked.filename || file.name, durationMs: seconds != null ? seconds * 1000 : null,
@@ -196,7 +238,7 @@ export function NewObservationPage() {
     });
   };
   const redo = async () => {
-    const id = audio?.recordingId;
+    const id = isSavedAudio(audio) ? null : audio?.recordingId;
     if (id) { try { await deleteRecording(id); } catch { /* gone */ } }
     setAudio(null);
     setAudioProblem(null);
@@ -216,13 +258,13 @@ export function NewObservationPage() {
     navigate(`${COACHING_NEW}?sent=${UPLOADING}`, { replace: true });
     try {
       const { coachingSessionId } = await sendLesson({
-        audio: { blob: audio.blob, filename: audio.filename },
+        audio: isSavedAudio(audio) ? { key: audio.key } : { blob: audio.blob, filename: audio.filename },
         plan: plan ? (plan.kind === 'library' ? { kind: 'library', pick: plan.pick } : { kind: 'file', file: plan.file }) : null,
         photos,
         teacherClass: { grade: cls.grade, subject: cls.subject, ...(cls.subjectKey ? { subjectKey: cls.subjectKey } : {}) },
         liveMoves: peekDraft()?.live ?? null,
       }, portal, (pct) => setSending({ pct }));
-      if (audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* gone */ } }
+      if (!isSavedAudio(audio) && audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* gone */ } }
       clearDraft();
       setSessionId(coachingSessionId);
       navigate(`${COACHING_NEW}?sent=${encodeURIComponent(coachingSessionId)}`, { replace: true });
@@ -368,7 +410,22 @@ export function NewObservationPage() {
               </Dock>
             </section>
           ) : null}
-          {cls && !audio && phase === 'idle' ? (
+          {repeat ? (
+            <section data-testid="dc-repeat" className="flex flex-col gap-3">
+              <DuplicateNote lead={C.duplicateBeforeLead} next={C.duplicateRecordingNext} />
+              <div className="flex gap-3">
+                <Action to={lessonPath(repeat.sessionId)}>{C.openReport}</Action>
+                {repeat.picked ? (
+                  <Action tone="outline" icon={Upload} onClick={() => audioInput.current?.click()}>{C.selectAnother}</Action>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+          {checking ? <p aria-live="polite" className="mx-1 text-[15px] font-semibold text-[#6b7280]">{C.checking}</p> : null}
+          {cls && !audio && !checking && phase === 'idle' ? waitingList.map((rec) => (
+            <WaitingRecording key={rec.key} rec={rec} onPress={() => attachWaiting(rec)} />
+          )) : null}
+          {cls && !audio && !checking && phase === 'idle' ? (
             <>
               {/* Recording is one card that opens a tray with the two choices, as Grade and subject does (operator,
                   16 Oct). A choice closes the tray. */}
@@ -398,7 +455,7 @@ export function NewObservationPage() {
               </Tray>
             </>
           ) : null}
-          {audio && cls ? (
+          {audio && (cls || isSavedAudio(audio)) ? (
             <RecordingCard audio={audio} onRedo={() => { void redo(); }} onChangeFile={() => audioInput.current?.click()} />
           ) : null}
           {audio && cls && tooShort ? (
@@ -421,10 +478,11 @@ export function NewObservationPage() {
               <span className="text-[17px] font-semibold text-[#c8331f]">
                 {failure.kind === 'network' ? C.noInternet
                   : failure.kind === 'in_progress' ? C.busy
+                    : failure.kind === 'already_sent' ? C.alreadySent
                     : failure.kind === 'plan_not_ready' || failure.kind === 'plan_not_found' ? C.planNotUsed
                       : C.notAccepted}
               </span>
-              {failure.kind === 'in_progress' && failure.coachingSessionId ? (
+              {(failure.kind === 'in_progress' || failure.kind === 'already_sent') && failure.coachingSessionId ? (
                 <Action to={lessonPath(failure.coachingSessionId)}>{C.openThat}</Action>
               ) : failure.kind === 'plan_not_ready' || failure.kind === 'plan_not_found' ? (
                 <Action onClick={() => { setPlan(null); setFailure(null); setPlanSheet(true); }}>{C.changePlan}</Action>

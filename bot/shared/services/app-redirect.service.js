@@ -107,6 +107,7 @@ const APP_LINK_COPY = Object.freeze({
   lesson_plan: ['appLinkBodyLessonPlan', 'appLinkButtonLessonPlan'],
   assessment_generator: ['appLinkBodyAssessment', 'appLinkButtonAssessment'],
   ai_coaching: ['appLinkBodyCoaching', 'appLinkButtonCoaching'],
+  ai_coaching_recording: ['appLinkBodyCoachingSaved', 'appLinkButtonCoachingSaved'], // bd-c5reix — her recording kept
   teacher_training: ['appLinkBodyTraining', 'appLinkButtonTraining'],
   attendance: ['appLinkBodyAttendance', 'appLinkButtonAttendance'],
   classes: ['appLinkBodyClasses', 'appLinkButtonClasses'],
@@ -429,7 +430,7 @@ async function recordNotice(userId, previous, now) {
  * No quiet hour: she asked for this, and each ask (menu, then lessons) is a different page. Failing closed means
  * false — the caller runs the WhatsApp flow — never silence.
  */
-async function sendAppLink(feature, { userId, from, language, reason, journey }) {
+async function sendAppLink(feature, { userId, from, language, reason, journey, copy = null }) {
   const base = String(portalUrl() || '').replace(/\/+$/, '');
   const token = base ? signAppLink(userId, feature, journey && journey.journeyId) : null;
   // The funnel names the request she made (menu, observe…), not the page the token lands on (coach_menu…).
@@ -442,9 +443,10 @@ async function sendAppLink(feature, { userId, from, language, reason, journey })
     return false;
   }
   const url = `${base}/go/${token}`;
-  const [bodyKey, buttonKey] = Object.prototype.hasOwnProperty.call(APP_LINK_COPY, feature)
+  // bd-c5reix: `copy` (from onLink) names another pair of catalog keys for this one link.
+  const [bodyKey, buttonKey] = copy || (Object.prototype.hasOwnProperty.call(APP_LINK_COPY, feature)
     ? APP_LINK_COPY[feature]
-    : APP_LINK_GENERIC;
+    : APP_LINK_GENERIC);
   const body = resolveUx(bodyKey, { language });
   const buttonText = resolveUx(buttonKey, { language });
   let sent = false;
@@ -469,7 +471,28 @@ async function sendAppLink(feature, { userId, from, language, reason, journey })
   return Boolean(sent);
 }
 
-async function redirectIfFlagged(feature, { userId, from, language, reason = 'unspecified', now = Date.now() } = {}) {
+/**
+ * bd-c5reix — what a caller's onLink may change about the teacher link, checked: a teacher-app landing (LANDINGS)
+ * and a pair of catalog keys for the line and the button. Anything else — a throw, null, a landing that is not one,
+ * keys that are not a pair of strings — is today's link. The classroom-recording door saves her recording here.
+ */
+async function shapeLink(onLink, journey) {
+  if (typeof onLink !== 'function') return {};
+  let shape = null;
+  try {
+    shape = await onLink({ journey });
+  } catch (err) {
+    logToFile('⚠️ App link: the caller\'s onLink threw — today\'s link goes', { feature: journey && journey.feature, error: err?.message }, 'warn');
+    return {};
+  }
+  if (!shape || typeof shape !== 'object') return {};
+  const out = {};
+  if (typeof shape.landing === 'string' && Object.prototype.hasOwnProperty.call(LANDINGS, shape.landing)) out.landing = shape.landing;
+  if (Array.isArray(shape.copy) && shape.copy.length === 2 && shape.copy.every((k) => typeof k === 'string' && k)) out.copy = shape.copy;
+  return out;
+}
+
+async function redirectIfFlagged(feature, { userId, from, language, reason = 'unspecified', now = Date.now(), onLink = null } = {}) {
   if (userId && from) {
     const coach = await coachLink(feature, userId, now, reason);
     if (coach) {
@@ -488,7 +511,9 @@ async function redirectIfFlagged(feature, { userId, from, language, reason = 'un
     const verdict = await linkVerdict(feature, userId, now, note, account);
     if (verdict === 'link') {
       const journey = startJourney({ userId, feature, door: reason, verdict: 'link' });
-      return sendAppLink(feature, { userId, from, language, reason, journey });
+      // bd-c5reix: the caller's work between deciding and sending (onLink), on this branch only.
+      const shape = await shapeLink(onLink, journey);
+      return sendAppLink(shape.landing || feature, { userId, from, language, reason, journey, copy: shape.copy || null });
     }
     if (verdict === 'whatsapp') {
       startJourney({ userId, feature, door: reason, verdict: 'whatsapp', why: note.why });

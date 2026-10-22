@@ -90,6 +90,7 @@ test('only the seven app features have a landing; anything else cannot be signed
     teacher_training: '/portal/teacher/training',
     attendance: '/portal/teacher/attendance',
     classes: '/portal/teacher/classes',
+    ai_coaching_recording: '/portal/teacher/coaching/new?recording=whatsapp', // bd-c5reix, a kept recording's landing
   });
   expect(signAppLink(USER, 'quiz')).toBeNull();
   expect(signAppLink(USER, 'observe')).toBeNull();

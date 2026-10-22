@@ -75,6 +75,7 @@ describe('the token', () => {
       teacher_training: '/portal/teacher/training',
       attendance: '/portal/teacher/attendance',
       classes: '/portal/teacher/classes',
+      ai_coaching_recording: '/portal/teacher/coaching/new?recording=whatsapp', // bd-c5reix, a kept recording's landing
     });
   });
 });

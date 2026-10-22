@@ -34,6 +34,10 @@ F = {
    # bd-fgj73x.1 — Start DC observation's one screen: Grade and subject, then the recording, plan, photos, Submit.
    ('TC04', 'Teacher app v2: Start DC observation opens its one screen', 'teacher', 'teacherV2',
      [(T + '/coaching/new', r'^Start DC observation$', None, 'the one screen opens on "Start DC observation"')]),
+   # bd-c5reix — the landing of the WhatsApp link for a kept classroom recording: the one screen, which reads her
+   # waiting recordings (GET /coaching-upload/pending) on the way in. Healthy = no 5xx from that read either.
+   ('TC05', 'Teacher app v2: the link for a recording kept from WhatsApp opens the one screen', 'teacher', 'teacherV2',
+     [(T + '/coaching/new?recording=whatsapp', r'^Start DC observation$', None, 'the one screen opens on "Start DC observation"')]),
  ]),
  'teacher-training': ('Teacher training', 'portal/src/portal/teacher/training/**, PortalTraining*.tsx, PortalVideo*.tsx', [
    ('TT01', 'Teacher app v2: Training lists her courses', 'teacher', 'teacherV2',
