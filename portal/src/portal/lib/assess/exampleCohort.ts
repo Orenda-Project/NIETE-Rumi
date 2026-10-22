@@ -55,7 +55,8 @@ export const TASKS: TaskSpec[] = [
 
 export type DashStudent = {
   id: string;
-  sector: Sector;
+  /** one of SECTORS in the example; on real data the school's own schools.region (realCohort.ts) */
+  sector: string;
   schoolId: string;
   schoolName: string;
   grade: 1 | 2 | 3 | 4 | 5;

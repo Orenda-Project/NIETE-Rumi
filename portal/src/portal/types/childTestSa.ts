@@ -34,6 +34,8 @@ export type SaSwitches = {
   addChild?: boolean;
   /** sa_example_dashboard: the example results dashboard (synthetic students); the server reports it on sandbox only */
   exampleDashboard?: boolean;
+  /** sa_real_dashboard: the same dashboard on this tier's real sessions (the coach's own; a results admin's every coach's) */
+  realDashboard?: boolean;
 };
 
 /** One drawn child. Never a roll number or student id (operator: "Name · Grade 3 - A · Teacher: …"). */
@@ -116,5 +118,15 @@ export type SaResults = {
     endedAt: string | null;
     lang: "ur" | "en" | null;
   };
+
+/** One session on the results dashboard (GET …/sa/sessions, switch sa_real_dashboard): its school, sub-region and results. No names. */
+export type SaDashboardSession = {
+  schoolId: string | null;
+  schoolName: string | null;
+  /** schools.region; null when the school has none */
+  sector: string | null;
+  grade: number;
+  results: SaResults;
+};
   tasks: SaTaskResult[];
 };
