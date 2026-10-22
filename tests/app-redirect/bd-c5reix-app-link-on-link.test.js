@@ -69,8 +69,8 @@ describe('the link branch calls onLink, after the decision and before the send',
     const opts = mockCta.mock.calls[0][1];
     expect(tokenOf(opts)).toEqual(expect.objectContaining({ u: ME, f: 'ai_coaching_recording' }));
     expect(link.LANDINGS.ai_coaching_recording).toBe('/portal/teacher/coaching/new?recording=whatsapp');
-    expect(opts.body).toBe('Your recording is saved. Add your class and send it.');
-    expect(opts.buttonText).toBe('Send recording');
+    expect(opts.body).toBe('Your recording is saved ✅ Tap the button below to complete your Digital Coaching.'); // bd-c5reix.1
+    expect(opts.buttonText).toBe('Digital Coaching');
     expect(logger.logToFile).toHaveBeenCalledWith('app_funnel.link_sent', expect.objectContaining({ feature: 'ai_coaching', door: 'classroom_audio' }));
   });
 
