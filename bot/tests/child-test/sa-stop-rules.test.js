@@ -2,9 +2,8 @@
 
 /**
  * EGRA's stop rules at scoring time for the W3 tasks (app_settings sa_stop_rules, default OFF).
- *  1. A W3 letters / words task (one item at a time, `stop: {}` in the battery) takes EGRA's first-row rule: no
- *     correct item in the first row (10 letters / 5 words, or the whole task when it is shorter) → stopped by rule,
- *     0 correct, flagged.
+ *  1. A letters / words grid with no stop of its own takes EGRA's first-row rule (10 letters / 5 words) only when it
+ *     is longer than that window; the W3 5-letter and 4-word tasks are never flagged (panel G-12 §4).
  *  2. Comprehension after a passage the first-line rule stopped: not asked by EGRA → every question not_reached,
  *     0 correct, flagged, and no model call. While that passage is still being scored, the questions wait.
  * OFF: both are scored exactly as before.
@@ -47,10 +46,10 @@ function model(verdict) {
 }
 
 describe('a W3 letters task: EGRA\'s first row', () => {
-  test('ON, every letter wrong: stopped by rule, 0 correct', async () => {
+  test('ON, every letter of the 5 wrong: 0 correct, not flagged (shorter than the 10-letter window: panel G-12 §4)', async () => {
     const got = await score.scoreRow(letters(), session(), { ...model('w'), stopRules: true });
     expect(got.ok).toBe(true);
-    expect(got.marks.detail.stopped_by_rule).toBe(true);
+    expect(got.marks.detail.stopped_by_rule).toBe(false);
     expect(got.marks.correct).toBe(0);
   });
 

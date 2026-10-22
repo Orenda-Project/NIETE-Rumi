@@ -97,6 +97,8 @@ export type SaTaskResult = {
   chanceCorrected: number | null;
   itemsPerMin: number | null;
   stopReason: string | null;
+  /** sa_stop_rules: why a reading task stopped early by rule ('first_row' | 'first_line') */
+  stopWhy?: string | null;
   recording: "none" | "scored_later" | "scored";
   score: Record<string, number> | null;
 };
