@@ -699,4 +699,8 @@ exports.run = async ({ api, rec, want = () => true }) => {
   // bd-trksw9: both need the report narrative to fail twice; the cassette answers it, it cannot fault it.
   rec('OBS65', 'A report whose written feedback cannot be generated is held, and the coach is offered Regenerate', ...FAULT, 0);
   rec('OBS66', 'Tapping "Regenerate report" rebuilds the same observation\'s report preview', ...FAULT, 0);
+
+  // bd-qmahx1: placeholders for #3317's video-recommendation scenarios (bd-gzfdu9), so the coverage gate sees them.
+  rec('OBS71', 'The observed teacher gets the clip after the report the coach sent', 'BLOCKED', { reason: 'no driver yet: the video-recommendation scenarios were added in #3317 (bd-gzfdu9) as @wip @draft Gherkin without driver code; this placeholder only makes them visible in every run, it is not coverage' }, 0);
+  rec('OBS72', 'No clip when the report went only as an invite or to the review number', 'BLOCKED', { reason: 'no driver yet: the video-recommendation scenarios were added in #3317 (bd-gzfdu9) as @wip @draft Gherkin without driver code; this placeholder only makes them visible in every run, it is not coverage' }, 0);
 };

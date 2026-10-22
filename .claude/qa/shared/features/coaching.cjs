@@ -738,4 +738,12 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
       { reason: 'needs two teachers\' voice notes processed by one container in the same millisecond — no lane can race '
           + 'two senders that tightly; pinned by tests/handlers/voice-note-temp-collision.test.js (real handler + '
           + 'AudioService, Date.now pinned) and tests/handlers/audio-service-temp-collision.test.js' }, 0);
+
+  // bd-qmahx1: placeholders for #3317's video-recommendation scenarios (bd-gzfdu9), so the coverage gate sees them.
+  rec('COA84', 'With the clip on, the report is followed by ONE "watch this" message with a video card', 'BLOCKED', { reason: 'no driver yet: the video-recommendation scenarios were added in #3317 (bd-gzfdu9) as @wip @draft Gherkin without driver code; this placeholder only makes them visible in every run, it is not coverage' }, 0);
+  rec('COA85', 'The report image itself shows the clip under "Try one thing tomorrow"', 'BLOCKED', { reason: 'no driver yet: the video-recommendation scenarios were added in #3317 (bd-gzfdu9) as @wip @draft Gherkin without driver code; this placeholder only makes them visible in every run, it is not coverage' }, 0);
+  rec('COA86', 'The Watch button opens the clip at the right moment, in my language', 'BLOCKED', { reason: 'no driver yet: the video-recommendation scenarios were added in #3317 (bd-gzfdu9) as @wip @draft Gherkin without driver code; this placeholder only makes them visible in every run, it is not coverage' }, 0);
+  rec('COA87', 'An Urdu-speaking teacher gets the clip in Urdu, right to left', 'BLOCKED', { reason: 'no driver yet: the video-recommendation scenarios were added in #3317 (bd-gzfdu9) as @wip @draft Gherkin without driver code; this placeholder only makes them visible in every run, it is not coverage' }, 0);
+  rec('COA88', 'The clip message goes once, and never after a report that did not arrive', 'BLOCKED', { reason: 'no driver yet: the video-recommendation scenarios were added in #3317 (bd-gzfdu9) as @wip @draft Gherkin without driver code; this placeholder only makes them visible in every run, it is not coverage' }, 0);
+  rec('COA89', 'With the clip off, the report is exactly as before', 'BLOCKED', { reason: 'no driver yet: the video-recommendation scenarios were added in #3317 (bd-gzfdu9) as @wip @draft Gherkin without driver code; this placeholder only makes them visible in every run, it is not coverage' }, 0);
 };
