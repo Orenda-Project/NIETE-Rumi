@@ -183,6 +183,7 @@ function TaskCard({ task, sessionId, lang, name, num }: { task: SaReviewTask; se
         <div><dt className="text-xs text-slate-600">⏱</dt><dd className="font-semibold text-slate-900">{task.timeUsedS === null ? '–' : c.timeUsed(num(task.timeUsedS))}</dd></div>
       </dl>
       <p className={`mt-1 text-xs ${task.scoredAfterFix === false ? 'text-amber-700' : 'text-slate-600'}`}>{fix}</p>
+      {task.secondVoice ? <p data-testid="review-second-voice" role="note" className="mt-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900">{c.secondVoice}</p> : null}
       <div className="mt-2">
         <p className="text-xs font-medium text-slate-700">{c.recordings}</p>
         {task.clips.length === 0 ? <p className="text-xs text-slate-500">{c.noRecording}</p> : (

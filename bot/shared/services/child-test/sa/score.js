@@ -50,6 +50,11 @@
  *                                     a one-word answer took 0.9 s on sandbox, the echoed sentences 0.5-0.6 s)
  *                                     holds no answer and is not sent anywhere; and a question the model marks correct
  *                                     with the expected answer as heard, which STT did not hear, is no answer (echo).
+ *   CHILD_TEST_SA_SECOND_VOICE=on     every clip is also asked, in its own small call beside the scoring, whether
+ *                                     another person (an adult, another child) is heard speaking in it. The task's
+ *                                     detail says second_voice (and each item from a flagged clip), and Results
+ *                                     caveats the score. A flag, never a change of mark; the scoring prompts are not
+ *                                     touched. A check that fails is "not checked", never a failed row.
  */
 
 const { logToFile, logError } = require('../../../utils/logger');
@@ -85,6 +90,7 @@ const bootId = () => `${Date.now().toString(36)}${Math.random().toString(36).sli
 let MINE = `${SCORING}:${bootId()}`;
 let swept = false;
 const gateOn = () => process.env.CHILD_TEST_SA_SPEECH_GATE === 'on';
+const voiceOn = () => process.env.CHILD_TEST_SA_SECOND_VOICE === 'on';
 const minSpeechS = () => { const s = Number(process.env.CHILD_TEST_SA_MIN_SPEECH_S); return s >= 0 && process.env.CHILD_TEST_SA_MIN_SPEECH_S ? s : 0.8; };
 const clipWaitMs = () => { const s = Number(process.env.CHILD_TEST_SA_CLIP_WAIT_S); return s > 0 ? s * 1000 : null; };
 const sinceHours = () => Number(process.env.CHILD_TEST_SA_SCORER_SINCE_H) || 48;
@@ -502,6 +508,32 @@ async function scoreQuestions(task, rec, row, res, deps, calls) {
   return { numbers: { correct: rows.filter((r) => r.verdict === 'correct').length, of: rows.length }, rows, stopped: false };
 }
 
+const VOICE_SCHEMA = {
+  name: 'sa_second_voice',
+  schema: {
+    type: 'object', additionalProperties: false, required: ['second_voice', 'who', 'confidence'],
+    properties: { second_voice: { type: 'boolean' }, who: { type: 'string', enum: ['adult', 'child', 'unsure', 'none'] }, confidence: { type: 'number' } },
+  },
+};
+const VOICE_PROMPT = `This is a recording from a phone on which a child in a Pakistani government school (grade 1-5) is doing a reading or maths test, wearing headphones. The phone's own recorded voice (the app's narrator) may be faintly heard. Besides the child being tested and the phone's own voice, is ANOTHER PERSON clearly heard speaking in the clip: an adult (a teacher, a coach, a parent) or another child, e.g. saying the items, prompting, giving answers or talking to the child? Distant background chatter whose words cannot be made out, and noise, do not count.
+Return ONLY JSON: {"second_voice": true|false, "who": "adult|child|unsure|none", "confidence": <0-1>}`;
+
+/** CHILD_TEST_SA_SECOND_VOICE: is another person heard in this clip? { key, heard: true | false | null (not checked) }. */
+async function voiceOf(deps, calls, clip, key) {
+  const dur = Number(clip && clip.durationSec);
+  if (Number.isFinite(dur) && dur < minSpeechS()) return { key, heard: false };
+  const model = deps.model();
+  try {
+    const r = await bounded('model', limitOf(deps, 'model'), (signal) => deps.chatJSON({ model, prompt: VOICE_PROMPT, schema: VOICE_SCHEMA, audio: { data: clip.base64, format: 'mp3', key }, job: 'child_test.sa_second_voice', maxTokens: 200, signal }));
+    const heard = r.json && typeof r.json.second_voice === 'boolean' ? r.json.second_voice : null;
+    calls.push({ job: 'child_test.sa_second_voice', model, cost: r.cost == null ? null : Math.round(r.cost * 1e5) / 1e5, seconds: round1(r.seconds || 0), error: r.error || null, second_voice: heard, who: (r.json && r.json.who) || null });
+    return { key, heard };
+  } catch (e) {
+    calls.push({ job: 'child_test.sa_second_voice', model, cost: null, seconds: 0, error: (e && e.reason) || 'model_failed' });
+    return { key, heard: null };
+  }
+}
+
 let LETTERS_SCHEMA_CACHE = null;
 function LETTERS_SCHEMA() {
   if (!LETTERS_SCHEMA_CACHE) {
@@ -575,6 +607,12 @@ async function scoreRow(row, session, deps = {}) {
   const passage = stops && Array.isArray(rec.questions) && session.passages ? session.passages.get(passageOf(row.block)) : null;
   const calls = [];
   const started = Date.now();
+  // the second-voice check runs beside the scoring, one per clip the scorer fetched
+  const voices = voiceOn() ? [] : null;
+  if (voices) {
+    const fetch = d.clipOf;
+    d.clipOf = async (key, signal) => { const clip = await fetch(key, signal); voices.push(voiceOf(d, calls, clip, key)); return clip; };
+  }
   try {
     let out;
     const gate = compGate(passage);   // null unless sa_stop_rules
@@ -587,6 +625,15 @@ async function scoreRow(row, session, deps = {}) {
     if (stops && row.block === MUL && session.sums && session.sums.known && !session.sums.right) out = gateMul(out);
     const confidence = mean(out.rows.map((r) => r.conf));
     const mutes = out.rows.filter((r) => r.no_speech).length;
+    const heard = voices ? await Promise.all(voices) : null;
+    if (heard) {
+      const flagged = new Set(heard.filter((v) => v.heard === true).map((v) => v.key));
+      const byItem = keysOf(row);
+      out.rows.forEach((r) => {
+        const k = byItem.find((x) => x.i === r.id);
+        if (k ? flagged.has(k.key) : flagged.has(row.audio_r2_key)) r.second_voice = true;
+      });
+    }
     return {
       ok: true,
       marks: {
@@ -604,6 +651,7 @@ async function scoreRow(row, session, deps = {}) {
           ...(stops && Array.isArray(rec.questions) ? { of_all: rec.questions.length, of_asked: out.asked ?? out.rows.length } : {}),
           ...(out.tapped != null ? { last_word_tapped: out.tapped } : {}),
           confidence,
+          ...(heard ? { second_voice: heard.some((v) => v.heard === true), second_voice_clips: heard.filter((v) => v.heard === true).length, second_voice_checked: heard.filter((v) => v.heard !== null).length } : {}),
           ...(gateOn() ? { confidence_band: mutes ? 'low' : band(confidence), no_speech: mutes > 0 && mutes === out.rows.length, no_speech_items: mutes } : {}),
           items: out.rows,
         },

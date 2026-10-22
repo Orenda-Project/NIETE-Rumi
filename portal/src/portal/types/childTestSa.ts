@@ -105,6 +105,8 @@ export type SaTaskResult = {
   stopWhy?: string | null;
   recording: "none" | "scored_later" | "scored";
   score: Record<string, number> | null;
+  /** the scorer heard another person (an adult, another child) in the recording: the score may include their help */
+  secondVoice?: boolean;
 };
 
 /** GET …/sa/session/:id/results (switch sa_results_view; 404 when off or not this coach's session). No names. */
@@ -142,7 +144,7 @@ export type SaReviewItem = {
   key: string;
   /** what the phone showed (a letter, a word) or the question's id */
   ref: string | null;
-  app: { verdict: string | null; conf: number | null; noSpeech: boolean };
+  app: { verdict: string | null; conf: number | null; noSpeech: boolean; secondVoice?: boolean };
   agents: {
     consensus: SaAgentMark; flash: SaAgentMark; pro: SaAgentMark; stt: SaAgentMark;
     confidence: number | null; noSpeech: boolean; disputed: boolean; lowTrust: boolean;
@@ -164,6 +166,8 @@ export type SaReviewTask = {
   /** 1-hour links to the task's recordings */
   clips: { label: string; url: string }[];
   items: SaReviewItem[];
+  /** the scorer heard another person in this task's recording */
+  secondVoice?: boolean;
   agreement: { reviewed: number; earAgreesWithApp: number; agentsAgreeWithApp: number; withAgents: number };
 };
 

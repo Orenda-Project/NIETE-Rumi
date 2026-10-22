@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { masked, MIN_CELL, NO_SECTOR, toDashStudents } from './realCohort';
+import { masked, MIN_CELL, NO_SECTOR, secondVoiceCount, toDashStudents } from './realCohort';
 import { headline, summariseTask, specOf, wcpmOf } from './cohortStats';
 import type { SaDashboardSession } from '../../types/childTestSa';
 
@@ -59,5 +59,12 @@ describe('passage words per minute on real marks', () => {
     expect(s.distribution).toEqual([1, 0, 1, 0]);
     expect(s.meanValue).toBe(12);
     expect(headline(students).orfMedian.ur).toBe(12);
+  });
+
+  it('counts the sessions with a recording where another voice was heard (once per session)', () => {
+    const heard = { ...passage({ correct: 20 }), secondVoice: true };
+    const students = toDashStudents([session('s1', {}, [heard, { ...heard, taskId: 'ur.words4' }]), session('s2', {}, [passage({ correct: 9 })]), session('s3', {}, [heard])]);
+    expect(secondVoiceCount(students)).toBe(2);
+    expect(secondVoiceCount([])).toBe(0);
   });
 });
