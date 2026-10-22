@@ -8,8 +8,11 @@ const { expect, WAIT, CODES, text, inner, count, onScreen, openQuiz, startAsNew,
 const M = (m) => onScreen(m);
 const modes = {}, runs = {};
 let BASE = '';   // this run's portal origin, set as each scenario starts (openHub needs it without a ctx)
-const on = (id, mode, fn) => { modes[id] = mode; runs[id] = (page, ctx) => { BASE = ctx.baseUrl; return fn(page, ctx); }; };
-const PHONE = '923009990001', PHONE2 = '923009990002', PHONE3 = '923009990003';
+// Each scenario's family phones are its own (derived from its id): the bot caps hub replies at 8 per phone per day
+// (message-ledger web_quiz_reply_cap_per_phone), so one shared phone went quiet after the 8th scenario (bd-tgk75t).
+let PHONE = '', PHONE2 = '', PHONE3 = '';
+const phonesFor = (id) => { const n = String(Number(String(id).replace(/\D/g, '')) || 0).padStart(3, '0'); return ['9230091' + n + '01', '9230091' + n + '02', '9230091' + n + '03']; };
+const on = (id, mode, fn) => { modes[id] = mode; runs[id] = (page, ctx) => { BASE = ctx.baseUrl; [PHONE, PHONE2, PHONE3] = phonesFor(id); return fn(page, ctx); }; };
 
 async function api(page, ctx, method, p, body) {
   const url = ctx.baseUrl + '/api/wq/' + p;
@@ -17,17 +20,47 @@ async function api(page, ctx, method, p, body) {
   let json = null; try { json = await r.json(); } catch (_) { /* not JSON */ }
   return { status: r.status(), json };
 }
-// A family phone: these class-list children carry it (students.phone), nobody else does.
-// A family phone as production has it: the class-list children carry the phone, and the phone has joined a quiz on
-// WhatsApp, which leaves a quiz-joined row (no class list) — that row is what student mode reads to treat the phone as
-// a child's (student-mode.service quizStudentsFor: list_id null, is_active). Without it every /quiz is a teacher's.
-async function family(ctx, phone, names) {
-  await ctx.sql('delete from students where phone = ' + q(phone) + " and list_id is null and student_name like 'WA-join %'");
+// A family phone, the way the product ties class-list children to one: phone binding (child-phone-bindings.repo.js).
+// Each named class-list child gets a binding on `phone` (canonical id, phone, HMAC tombstone, a year's expiry), the
+// identity switches it needs are on (web_quiz_identity_canon + web_quiz_phone_bind, with WQ_TOMB_SALT in the lane's
+// settings), and student mode then treats the phone as a child's (student-ingress boundVerdict) while the hub lists
+// exactly the bound children (childrenForPhone). The children also carry the phone (students.phone) as a teacher's
+// roster import would. No invented records (bd-tgk75t).
+const TOMB_SALT = 'e2e-local-lane-tomb-salt';   // = WQ_TOMB_SALT in .claude/qa/config/local-lane.env
+let bindingsReady = null;
+async function ensureBindings(ctx) {
+  // the lane's database is cloned from a baseline older than the binding tables: create them from the repo schema
+  if (!bindingsReady) bindingsReady = (async () => {
+    const fs = require('fs'), path = require('path');
+    const schema = fs.readFileSync(path.resolve(__dirname, '../../../../..', 'infrastructure/supabase/00_complete-schema.sql'), 'utf8');
+    const block = (start, end) => { const i = schema.indexOf(start); const j = schema.indexOf(end, i); expect(i >= 0 && j > i, 'schema block not found: ' + start); return schema.slice(i, j); };
+    const codes = block('CREATE TABLE IF NOT EXISTS child_bind_codes (', 'CREATE TABLE IF NOT EXISTS merge_log');
+    const identity = block('CREATE TABLE IF NOT EXISTS child_identity (', 'CREATE TABLE IF NOT EXISTS child_phone_bindings (');
+    const bindings = block('CREATE TABLE IF NOT EXISTS child_phone_bindings (', 'CREATE TABLE IF NOT EXISTS child_bind_codes (');
+    await ctx.sql(codes + '\n' + identity + '\n' + bindings + "\nNOTIFY pgrst, 'reload schema';");
+    await sleep(1500);
+  })();
+  return bindingsReady;
+}
+async function idSwitchesOn(ctx, page) {
+  const on = await L.rows(ctx, "select key from app_settings where key in ('web_quiz_identity_canon', 'web_quiz_phone_bind') and value::text = 'true'");
+  L.idSwitches.on = true;
+  if (on.length === 2) return;
+  await L.base.setSetting(ctx, 'web_quiz_identity_canon', 'true');
+  await L.setFlag(ctx, page, 'web_quiz_phone_bind', 'true');   // the bot caches identity switches 30 s
+}
+async function family(ctx, phone, names, page) {
+  await ensureBindings(ctx);
+  if (page) await idSwitchesOn(ctx, page);
+  await ctx.sql('delete from child_phone_bindings where phone_norm = ' + q(phone));
   await ctx.sql('update students set phone = null where phone = ' + q(phone));
-  for (const n of names) await ctx.sql('update students set phone = ' + q(phone) + ' where student_name = ' + q(n) + ' and list_id is not null');
-  const first = await L.studentNamed(ctx, names[0]);
-  await ctx.sql("insert into students (student_name, list_id, enrolled_by_user_id, is_active, status, merged_into, phone) select 'WA-join ' || student_name, null, enrolled_by_user_id, true, 'merged', id, " + q(phone) + ' from students where id = ' + q(first));
-  // the bot keeps a phone's verdict a while (student-ingress VerdictCache): a fresh phone each run avoids a stale one
+  const tomb = require('crypto').createHmac('sha256', TOMB_SALT).update(phone).digest('hex').slice(0, 32);
+  for (const n of names) {
+    const id = await L.studentNamed(ctx, n);
+    expect(id, 'no class-list child named ' + n);
+    await ctx.sql('update students set phone = ' + q(phone) + ' where id = ' + q(id));
+    await ctx.sql("insert into child_phone_bindings (canonical_id, phone_norm, phone_tomb, via, confirmed_at, expires_at) values (" + q(id) + ', ' + q(phone) + ', ' + q(tomb) + ", 'teacher', now(), now() + interval '300 days')");
+  }
 }
 // A class-list child's session on `code`, started by chip (the roll pad's way), answered and finished through the API.
 async function chipFinish(page, ctx, code, name, wrongAt, device) {
@@ -64,7 +97,7 @@ async function pick(page, first) {
 
 on('WQ148', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala']);
+  await family(ctx, PHONE, ['Tooba Testwala'], page);
   await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
   const items = await whatsapp(ctx, PHONE, '/quiz');
   expect(items.length === 1, items.length + ' messages arrived: ' + JSON.stringify(items.map((i) => [i.type, i.txt.slice(0, 50)])));
@@ -88,7 +121,7 @@ on('WQ148', 'roster', async (page, ctx) => {
 
 on('WQ149', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala', 'Yusra Testwala']);
+  await family(ctx, PHONE, ['Tooba Testwala', 'Yusra Testwala'], page);
   await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1); await chipFinish(page, ctx, CODES.OPEN, 'Yusra Testwala', 0);
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
   const scr = await openHub(page, url);
@@ -106,7 +139,7 @@ on('WQ149', 'roster', async (page, ctx) => {
 
 on('WQ150', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala', 'Yusra Testwala']);
+  await family(ctx, PHONE, ['Tooba Testwala', 'Yusra Testwala'], page);
   await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);      // English
   await chipFinish(page, ctx, CODES.UR, 'Yusra Testwala', -1);        // Urdu
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
@@ -126,7 +159,7 @@ on('WQ150', 'roster', async (page, ctx) => {
 
 on('WQ151', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala']);
+  await family(ctx, PHONE, ['Tooba Testwala'], page);
   await chipFinish(page, ctx, CODES.UR, 'Tooba Testwala', -1);         // played, but not the teacher's newest English one
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
   await openHub(page, url);
@@ -139,9 +172,9 @@ on('WQ151', 'roster', async (page, ctx) => {
   // a child whose teacher sent nothing in 7 days: the warm empty state
   await ctx.sql("update quiz_share_codes set created_at = now() - interval '10 days' where code = 'SC2ABC'");
   try {
-    await family(ctx, PHONE2, ['Farah Testwala']);                      // Farah is in 3-B of the science teacher… use a school-2 child instead
+    await family(ctx, PHONE2, ['Farah Testwala'], page);                      // Farah is in 3-B of the science teacher… use a school-2 child instead
     const s2kid = await L.one(ctx, "select s.student_name from students s join quiz_share_codes c on c.teacher_user_id = s.enrolled_by_user_id where c.code = 'SC2ABC' and s.list_id is not null order by s.roll_number limit 1");
-    await family(ctx, PHONE2, [s2kid]);
+    await family(ctx, PHONE2, [s2kid], page);
     const url2 = hubUrlOf(await whatsapp(ctx, PHONE2, '/quiz'));
     if (!url2) return { card: card.split('\n')[0], play: 'straight in', note: 'the school-2 child has never played: /quiz gave no hub link, so the empty state was not reached' };
     await openHub(page, url2);
@@ -156,7 +189,7 @@ on('WQ151', 'roster', async (page, ctx) => {
 on('WQ152', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
   await ctx.sql("update quiz_share_codes set created_at = now() where code = 'SM34EF'");  // the unbound one is newer
-  await family(ctx, PHONE, ['Tooba Testwala']); await family(ctx, PHONE2, ['Sara Testwala']);
+  await family(ctx, PHONE, ['Tooba Testwala'], page); await family(ctx, PHONE2, ['Sara Testwala'], page);
   await chipFinish(page, ctx, CODES.UR, 'Tooba Testwala', -1);
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link for Tooba');
   await openHub(page, url);
@@ -175,7 +208,7 @@ on('WQ152', 'roster', async (page, ctx) => {
 
 on('WQ153', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala']);
+  await family(ctx, PHONE, ['Tooba Testwala'], page);
   const first = await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', 0);
   await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1, first.device);
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
@@ -193,12 +226,12 @@ on('WQ153', 'roster', async (page, ctx) => {
 
 on('WQ155', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala']); await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
+  await family(ctx, PHONE, ['Tooba Testwala'], page); await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
   const tampered = url.replace(/(\/h\/[^?#]+?)(.)([?#]|$)/, (m, a, c, d) => a + (c === 'a' ? 'b' : 'a') + d);
-  const r = await page.request.get(tampered);
+  const r = await page.request.get(toRun(page, tampered));
   expect(r.status() === 401 || r.status() === 410, 'a tampered link answered ' + r.status());
-  await page.goto(tampered, { waitUntil: 'domcontentloaded' });
+  await page.goto(toRun(page, tampered), { waitUntil: 'domcontentloaded' });
   const body = await text(page);
   expect(/This link has expired/.test(body) && /Send \/quiz on WhatsApp to get a new one\./.test(body), 'the closed page reads: ' + body.slice(0, 160));
   expect(!/Tooba/.test(body) && !/Parts of a Plant/.test(body), 'a child or quiz is named');
@@ -207,7 +240,7 @@ on('WQ155', 'roster', async (page, ctx) => {
 
 on('WQ156', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala', 'Yusra Testwala']);
+  await family(ctx, PHONE, ['Tooba Testwala', 'Yusra Testwala'], page);
   await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1); await chipFinish(page, ctx, CODES.OPEN, 'Yusra Testwala', -1);
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
   await openHub(page, url);                                 // the family's phone opens it first
@@ -237,7 +270,7 @@ on('WQ156', 'roster', async (page, ctx) => {
 
 on('WQ171', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala']); await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
+  await family(ctx, PHONE, ['Tooba Testwala'], page); await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
   await openHub(page, url); if (await page.$(M('H1'))) await pick(page, 'Tooba');
   const lib = await page.$eval('#wq-h-lib, #wq-h-lib2', (e) => e.getAttribute('href')).catch(() => null);
@@ -257,7 +290,7 @@ on('WQ171', 'roster', async (page, ctx) => {
 
 on('WQ172', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala']);
+  await family(ctx, PHONE, ['Tooba Testwala'], page);
   await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
   // more than 40 other children play the teacher's quizzes after her
   for (let i = 0; i < 41; i++) { const quiz = await api(page, ctx, 'GET', 'quiz/' + CODES.NEXT); const s = await api(page, ctx, 'POST', 'session', { code: CODES.NEXT, new: { name: 'Crowd' + i, force: true } }); if (s.status === 200) { await api(page, ctx, 'POST', 'answers', { st: s.json.st, a: quiz.json.quiz.questions.slice(0, 3).map((x) => ({ qid: x.qid, slot: x.correct_slot, ms: 500 })) }); await api(page, ctx, 'POST', 'finish', { st: s.json.st }); } }
@@ -279,7 +312,7 @@ on('WQ172', 'roster', async (page, ctx) => {
 
 on('WQ173', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala', 'Yusra Testwala']);
+  await family(ctx, PHONE, ['Tooba Testwala', 'Yusra Testwala'], page);
   await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1); await chipFinish(page, ctx, CODES.OPEN, 'Yusra Testwala', -1);
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
   await openHub(page, url);                                  // the family's phone first
@@ -304,7 +337,7 @@ on('WQ173', 'roster', async (page, ctx) => {
 // ── the one-shot handset link ─────────────────────────────────────────────────────────────────────────────────────
 on('WQ197', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala']);
+  await family(ctx, PHONE, ['Tooba Testwala'], page);
   const tooba = await L.studentNamed(ctx, 'Tooba Testwala');
   const items = await whatsapp(ctx, PHONE, 'QUIZ-' + CODES.OPEN);
   const it = items.find((x) => x.cta && /\/q\//.test(x.cta.url));
@@ -323,7 +356,7 @@ on('WQ197', 'roster', async (page, ctx) => {
 
 on('WQ198', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala', 'Yusra Testwala']);
+  await family(ctx, PHONE, ['Tooba Testwala', 'Yusra Testwala'], page);
   const items = await whatsapp(ctx, PHONE, 'QUIZ-' + CODES.OPEN);
   const it = items.find((x) => x.cta && /#x=/.test(x.cta.url)); expect(it, 'no handset button');
   await page.goto(L.local(ctx, it.cta.url), { waitUntil: 'domcontentloaded' });
@@ -342,7 +375,7 @@ on('WQ198', 'roster', async (page, ctx) => {
 
 on('WQ199', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala']);
+  await family(ctx, PHONE, ['Tooba Testwala'], page);
   const items = await whatsapp(ctx, PHONE, 'QUIZ-' + CODES.OPEN);
   const it = items.find((x) => x.cta && /#x=/.test(x.cta.url)); expect(it, 'no handset button');
   const before = Number(await L.one(ctx, 'select count(*) from students'));
@@ -361,7 +394,7 @@ on('WQ200', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
   await L.setFlag(ctx, page, 'web_quiz_handset_link', 'false');
   try {
-    await family(ctx, PHONE, ['Tooba Testwala']);
+    await family(ctx, PHONE, ['Tooba Testwala'], page);
     const items = await whatsapp(ctx, PHONE, 'QUIZ-' + CODES.OPEN);
     const it = items.find((x) => x.cta && /\/q\//.test(x.cta.url)); expect(it, 'no button at all: ' + JSON.stringify(items.map((i) => i.type)));
     expect(!/#x=/.test(it.cta.url), 'the button still carries a handset fragment');
@@ -375,7 +408,7 @@ on('WQ200', 'roster', async (page, ctx) => {
 // ── polish, order, doors, install, Book ───────────────────────────────────────────────────────────────────────────
 on('WQ214', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala', 'Yusra Testwala']);
+  await family(ctx, PHONE, ['Tooba Testwala', 'Yusra Testwala'], page);
   await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1); await chipFinish(page, ctx, CODES.UR, 'Yusra Testwala', -1);
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
   await openHub(page, url.replace(/[?&]lang=[a-z]+/, '') + (url.includes('?') ? '&' : '?') + 'lang=ur');
@@ -392,7 +425,7 @@ on('WQ231', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
   await L.setFlag(ctx, page, 'web_quiz_hub_challenge_first', 'true');
   try {
-    await family(ctx, PHONE, ['Tooba Testwala']); await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
+    await family(ctx, PHONE, ['Tooba Testwala'], page); await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
     const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
     await openHub(page, url); if (await page.$(M('H1'))) await pick(page, 'Tooba');
     const idx = await page.evaluate(() => { const all = [...document.querySelectorAll('#wq *')]; const at = (s) => { const e = document.querySelector(s); return e ? all.indexOf(e) : -1; }; return { ch: at('#wq-h-ch'), last: at('.wq-hlast, .wq-hcard, a.wq-vitem[data-again]'), tiles: document.querySelectorAll('#wq-h-ch').length }; });
@@ -406,7 +439,7 @@ on('WQ234', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
   await L.setFlag(ctx, page, 'web_quiz_events_v2', 'true');
   try {
-    await family(ctx, PHONE, ['Tooba Testwala']); await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
+    await family(ctx, PHONE, ['Tooba Testwala'], page); await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
     const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
     const ev = L.events(page);
     await openHub(page, url); if (await page.$(M('H1'))) await pick(page, 'Tooba');
@@ -422,7 +455,7 @@ on('WQ234', 'roster', async (page, ctx) => {
 
 on('WQ235', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala']); await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
+  await family(ctx, PHONE, ['Tooba Testwala'], page); await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
   const before = await (await page.request.get(L.local(ctx, url))).text();
   expect(!/rel="manifest"/.test(before), 'a manifest link without the switch');
@@ -440,7 +473,7 @@ on('WQ235', 'roster', async (page, ctx) => {
 
 on('WQ241', 'roster', async (page, ctx) => {
   await L.setMode(ctx, page, 'roster');
-  await family(ctx, PHONE, ['Tooba Testwala']); await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
+  await family(ctx, PHONE, ['Tooba Testwala'], page); await chipFinish(page, ctx, CODES.OPEN, 'Tooba Testwala', -1);
   const url = hubUrlOf(await whatsapp(ctx, PHONE, '/quiz')); expect(url, 'no hub link');
   const scripts = new Set(); page.on('request', (r) => { if (r.resourceType() === 'script' || r.resourceType() === 'stylesheet') scripts.add(new URL(r.url()).pathname.split('/').pop()); });
   await openHub(page, url); if (await page.$(M('H1'))) await pick(page, 'Tooba');
