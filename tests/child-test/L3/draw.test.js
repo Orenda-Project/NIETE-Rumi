@@ -106,7 +106,8 @@ describe('reopening: the same list, no redraw', () => {
     expect(ids(b.children)).toEqual(ids(a.children));
   });
   test('the module offers no way to reshuffle, redraw or release a list', () => {
-    expect(Object.keys(draw).sort()).toEqual(['cycleFor', 'markOutcome', 'resolveVisitSchool', 'todaysList']);
+    // addChild (sa_add_child) only seats one more child on an open list; it never touches the drawn rows
+    expect(Object.keys(draw).sort()).toEqual(['ADDED_ALGO', 'addChild', 'cycleFor', 'markOutcome', 'resolveVisitSchool', 'todaysList']);
   });
 });
 

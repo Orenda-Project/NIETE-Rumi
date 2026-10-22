@@ -14,7 +14,7 @@ vi.mock("../components/PortalLayout", () => ({ default: ({ children }: any) => <
 vi.mock("../lib/keepAwake", () => ({ keepScreenOn: vi.fn().mockResolvedValue(async () => {}) }));
 vi.mock("../services/api", () => ({
   portal: { getConfig: vi.fn() },
-  childTestSa: { getSchools: vi.fn(), getList: vi.fn(), markOutcome: vi.fn(), getStatus: vi.fn(), mintLink: vi.fn(), getSwitches: vi.fn() },
+  childTestSa: { getSchools: vi.fn(), getList: vi.fn(), markOutcome: vi.fn(), getStatus: vi.fn(), mintLink: vi.fn(), getSwitches: vi.fn(), addChild: vi.fn() },
 }));
 
 import { portal, childTestSa } from "../services/api";
@@ -918,6 +918,79 @@ describe("LeaderAssess", () => {
       const s = await startChild("d1");
       act(() => { window.dispatchEvent(new MessageEvent("message", { data: { type: "sa:battery_end", s }, origin: window.location.origin })); });
       expect(screen.getByRole("button", { name: /End test/ })).toBeInTheDocument();
+    });
+  });
+
+  describe("Add a child on the spot (sa_add_child)", () => {
+    const withAdd = (extra: any = {}) => api.getSwitches.mockResolvedValue({ ...SWITCHES_OFF, addChild: true, ...extra });
+
+    it("OFF: no Add a child button", async () => {
+      await openList();
+      expect(screen.queryByTestId("assess-add-child")).toBeNull();
+    });
+
+    it("ON: first name, grade (the list's, 3 or 5), section; Add puts the child on the list the server sends back", async () => {
+      withAdd();
+      const added = child(8, { firstName: "Zara", name: "Zara Testwala" });
+      api.addChild.mockResolvedValue({ list: { ...LIST, children: [...LIST.children, added] } });
+      await openList();
+      fireEvent.click(screen.getByTestId("assess-add-child"));
+      const form = screen.getByTestId("assess-add-child-form");
+      const grade = within(form).getByLabelText("Grade") as HTMLSelectElement;
+      expect(grade.value).toBe("3");
+      expect([...grade.options].map((o) => o.value)).toEqual(["3", "5"]);
+      fireEvent.change(within(form).getByLabelText("First name"), { target: { value: "Zara" } });
+      fireEvent.change(within(form).getByLabelText("Section (optional)"), { target: { value: "b" } });
+      fireEvent.click(within(form).getByRole("button", { name: "Add to the list" }));
+      await screen.findByText("Zara Testwala");
+      const args = api.addChild.mock.calls[0][0];
+      expect(args).toMatchObject({ schoolId: "s2", visitId: "v2", grade: 3, firstName: "Zara", section: "b" });
+      expect(args.clientChildId).toMatch(UUID);
+      expect(screen.queryByTestId("assess-add-child-form")).toBeNull();
+    });
+
+    it("ON: a refusal keeps the form and says so; an empty name is not sent", async () => {
+      withAdd();
+      api.addChild.mockRejectedValue(Object.assign(new Error("bad"), { response: { status: 400, data: { reason: "bad_name" } } }));
+      await openList();
+      fireEvent.click(screen.getByTestId("assess-add-child"));
+      const form = screen.getByTestId("assess-add-child-form");
+      fireEvent.click(within(form).getByRole("button", { name: "Add to the list" }));
+      expect(api.addChild).not.toHaveBeenCalled();
+      fireEvent.change(within(form).getByLabelText("First name"), { target: { value: "Zara" } });
+      fireEvent.click(within(form).getByRole("button", { name: "Add to the list" }));
+      expect(await within(form).findByRole("alert")).toHaveTextContent("Could not add the child");
+    });
+
+    it("ON with every grade: Grade 1–5, the list's grade chosen and sent as listGrade", async () => {
+      withAdd({ allGrades: true });
+      api.addChild.mockResolvedValue({ list: LIST });
+      renderPage();
+      fireEvent.click(await screen.findByTestId("assess-school-s2"));
+      fireEvent.click(within(await screen.findByTestId("assess-grade-choice")).getByRole("button", { name: "Grade 4" }));
+      fireEvent.click(await screen.findByTestId("assess-preflight-ready"));
+      await screen.findByText("Ayan Testwala");
+      fireEvent.click(screen.getByTestId("assess-add-child"));
+      const form = screen.getByTestId("assess-add-child-form");
+      const grade = within(form).getByLabelText("Grade") as HTMLSelectElement;
+      expect([...grade.options].map((o) => o.value)).toEqual(["1", "2", "3", "4", "5"]);
+      expect(grade.value).toBe("4");
+      fireEvent.change(within(form).getByLabelText("First name"), { target: { value: "Zara" } });
+      fireEvent.click(within(form).getByRole("button", { name: "Add to the list" }));
+      await waitFor(() => expect(api.addChild).toHaveBeenCalled());
+      expect(api.addChild.mock.calls[0][0]).toMatchObject({ grade: 4, listGrade: 4 });
+    });
+
+    it("Urdu labels", async () => {
+      withAdd();
+      window.localStorage.setItem("niete-assess-lang", "ur");
+      renderPage();
+      fireEvent.click(await screen.findByTestId("assess-school-s2"));
+      fireEvent.click(await screen.findByTestId("assess-preflight-ready"));
+      fireEvent.click(await screen.findByTestId("assess-add-child"));
+      const form = screen.getByTestId("assess-add-child-form");
+      expect(within(form).getByLabelText("پہلا نام")).toBeInTheDocument();
+      expect(within(form).getByRole("button", { name: "فہرست میں شامل کریں" })).toBeInTheDocument();
     });
   });
 
