@@ -136,12 +136,12 @@ export default function LeaderAssessDashboard() {
     const rate = spec.kind === 'passage' || spec.kind === 'fluency';
     return (
       <li key={spec.taskId} data-testid={`dash-task-${spec.taskId}`} className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h3 className="font-semibold text-slate-900">{c.tasks[spec.taskId]}</h3>
+        <h3 className="text-base font-semibold text-slate-900">{c.tasks[spec.taskId]}</h3>
         <p dir="ltr" className="mb-2 text-start text-xs text-slate-500"><bdi>{spec.taskId}</bdi> · {c.of(num(spec.max))}</p>
-        <dl className="mb-3 grid grid-cols-3 gap-2 text-center">
+        <dl className={`mb-3 grid ${s.benchmarkShare === null ? 'grid-cols-2' : 'grid-cols-3'} gap-2 text-center`}>
           <div><dt className="text-xs text-slate-600">{rate ? (spec.kind === 'passage' ? c.meanWpm : c.meanPerMin) : c.mean}</dt><dd className="font-bold text-slate-900">{rate ? one(s.meanValue) : pct(s.meanShare)}</dd></div>
           <div><dt className="text-xs text-slate-600">{c.zero}</dt><dd className="font-bold text-slate-900">{pct(s.zeroShare)}</dd></div>
-          <div><dt className="text-xs text-slate-600">{c.met}</dt><dd className="font-bold text-slate-900">{pct(s.benchmarkShare)}</dd></div>
+          {s.benchmarkShare === null ? null : <div><dt className="text-xs text-slate-600">{c.met}</dt><dd className="font-bold text-slate-900">{pct(s.benchmarkShare)}</dd></div>}
         </dl>
         {distribution(spec, s.distribution, s.n)}
       </li>
@@ -158,6 +158,21 @@ export default function LeaderAssessDashboard() {
       <div className="space-y-5">
         <p data-testid="dash-banner" role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{c.banner}</p>
 
+        <section aria-label={c.filters} className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            {chip('dash-read-ur', `${c.reading}: ${c.urdu}`, read === 'ur', () => setRead('ur'))}
+            {chip('dash-read-en', `${c.reading}: ${c.english}`, read === 'en', () => setRead('en'))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {chip('dash-grade-all', c.allGrades, !filter.grade, () => setFilter((f) => ({ ...f, grade: null })))}
+            {chip('dash-grade-3', c.grade(num(3)), filter.grade === 3, () => setFilter((f) => ({ ...f, grade: 3 })))}
+            {chip('dash-grade-5', c.grade(num(5)), filter.grade === 5, () => setFilter((f) => ({ ...f, grade: 5 })))}
+            {chip('dash-gender-all', c.allGenders, !filter.gender, () => setFilter((f) => ({ ...f, gender: null })))}
+            {chip('dash-gender-girl', c.girls, filter.gender === 'girl', () => setFilter((f) => ({ ...f, gender: 'girl' })))}
+            {chip('dash-gender-boy', c.boys, filter.gender === 'boy', () => setFilter((f) => ({ ...f, gender: 'boy' })))}
+          </div>
+        </section>
+
         <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {tile('dash-total', c.students, count(h.n))}
           {tile('dash-rwc', `${c.rwc} · ${read === 'ur' ? c.urdu : c.english}`, pct(h.readingWithComprehension[read]), c.rwcHint)}
@@ -166,29 +181,14 @@ export default function LeaderAssessDashboard() {
           {tile('dash-minutes', c.minutes, one(h.minutesMedian))}
         </section>
 
-        <section aria-label={c.filters} className="space-y-2">
-          <div className="flex flex-wrap gap-2">
-            {chip('dash-read-ur', `${c.reading}: ${c.urdu}`, read === 'ur', () => setRead('ur'))}
-            {chip('dash-read-en', `${c.reading}: ${c.english}`, read === 'en', () => setRead('en'))}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {chip('dash-grade-all', c.all, !filter.grade, () => setFilter((f) => ({ ...f, grade: null })))}
-            {chip('dash-grade-3', c.grade(num(3)), filter.grade === 3, () => setFilter((f) => ({ ...f, grade: 3 })))}
-            {chip('dash-grade-5', c.grade(num(5)), filter.grade === 5, () => setFilter((f) => ({ ...f, grade: 5 })))}
-            {chip('dash-gender-all', c.all, !filter.gender, () => setFilter((f) => ({ ...f, gender: null })))}
-            {chip('dash-gender-girl', c.girls, filter.gender === 'girl', () => setFilter((f) => ({ ...f, gender: 'girl' })))}
-            {chip('dash-gender-boy', c.boys, filter.gender === 'boy', () => setFilter((f) => ({ ...f, gender: 'boy' })))}
-          </div>
-        </section>
-
         <section className="rounded-2xl border border-slate-200 bg-white p-3">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-semibold text-slate-900">{filter.sector ? c.bySchool(filter.sector) : c.bySector}</h2>
+            <h2 className="text-base font-semibold text-slate-900">{filter.sector ? c.bySchool(filter.sector) : c.bySector}</h2>
             {filter.sector ? chip('dash-all-sectors', c.allSectors, false, () => setFilter((f) => ({ ...f, sector: null, schoolId: null }))) : null}
           </div>
           {!filter.sector ? <p className="mb-2 text-xs text-slate-500">{c.tapRow}</p> : null}
           <div className="overflow-x-auto">
-            <table data-testid="dash-groups" className="w-full min-w-[320px] text-sm">
+            <table data-testid="dash-groups" className="w-full min-w-[300px] text-xs sm:text-sm">
               <thead>
                 <tr className="text-xs text-slate-600">
                   <th className="py-1 text-start font-medium">{c.colArea}</th>
@@ -208,7 +208,7 @@ export default function LeaderAssessDashboard() {
                     onClick={filter.sector ? undefined : () => setFilter((f) => ({ ...f, sector: g.key }))}
                     className={filter.sector ? '' : 'cursor-pointer hover:bg-sky-50'}
                   >
-                    <td className="py-2 pe-2 text-slate-900">{filter.sector ? g.label.replace('Example school ', '') : g.label}</td>
+                    <td className="py-2 pe-1 text-slate-900">{filter.sector ? g.label.replace('Example school ', '') : g.label}</td>
                     <td className="py-2 text-end tabular-nums">{count(g.n)}</td>
                     <td className="py-2 text-end tabular-nums">{pct(g.h.readingWithComprehension[read])}</td>
                     <td className="py-2 text-end tabular-nums">{one(g.h.orfMedian[read])}</td>
@@ -222,11 +222,11 @@ export default function LeaderAssessDashboard() {
         </section>
 
         <section>
-          <h2 className="mb-2 font-semibold text-slate-900">{c.readingTasks(read === 'ur' ? c.urdu : c.english)}</h2>
+          <h2 className="mb-2 text-base font-semibold text-slate-900">{c.readingTasks(read === 'ur' ? c.urdu : c.english)}</h2>
           <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{readTasks.map(taskCard)}</ul>
         </section>
         <section>
-          <h2 className="mb-2 font-semibold text-slate-900">{c.mathsTasks}</h2>
+          <h2 className="mb-2 text-base font-semibold text-slate-900">{c.mathsTasks}</h2>
           <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{mathsTasks.map(taskCard)}</ul>
         </section>
 
