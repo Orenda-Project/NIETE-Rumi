@@ -643,7 +643,7 @@ export default function LeaderAssess() {
                 return (
                   <li key={c.drawId} data-testid={`assess-child-${c.drawId}`} className="rounded-2xl border border-slate-200 bg-white p-3">
                     <div className="flex items-start gap-3">
-                      <span className="h-8 w-8 shrink-0 rounded-full bg-slate-100 flex items-center justify-center font-semibold">{i + 1}</span>
+                      <span className="h-8 w-8 shrink-0 rounded-full bg-slate-100 flex items-center justify-center font-semibold">{switches.addChild && c.childNo ? c.childNo : i + 1}</span>
                       <span className="flex-1 min-w-0">
                         <span className="block font-semibold text-slate-900 break-words">{nameOf(c, lang)}</span>
                         <span className="block text-sm text-slate-600 break-words">{placeOf(c, lang)}</span>

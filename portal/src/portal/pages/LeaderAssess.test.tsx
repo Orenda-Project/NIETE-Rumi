@@ -949,6 +949,22 @@ describe("LeaderAssess", () => {
       expect(screen.queryByTestId("assess-add-child-form")).toBeNull();
     });
 
+    it("ON: an added child shows the number the server gives (next after the alternates), and nobody else's changes", async () => {
+      withAdd();
+      const added = child(8, { firstName: "Iqra", name: "Iqra Testwala", section: "A" });
+      api.getList.mockResolvedValue({ list: { ...LIST, children: [...LIST.children, added] } });
+      await openList();
+      await screen.findByText("Iqra Testwala");
+      expect(within(screen.getByTestId("assess-child-d8")).getByText("8")).toBeInTheDocument();
+      [1, 2, 3, 4, 5].forEach((n) => expect(within(screen.getByTestId(`assess-child-d${n}`)).getByText(String(n))).toBeInTheDocument());
+    });
+
+    it("OFF: the list keeps numbering by place", async () => {
+      api.getList.mockResolvedValue({ list: { ...LIST, children: [...LIST.children, child(8)] } });
+      await openList();
+      expect(within(screen.getByTestId("assess-child-d8")).getByText("6")).toBeInTheDocument();
+    });
+
     it("ON: a refusal keeps the form and says so; an empty name is not sent", async () => {
       withAdd();
       api.addChild.mockRejectedValue(Object.assign(new Error("bad"), { response: { status: 400, data: { reason: "bad_name" } } }));

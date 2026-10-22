@@ -324,9 +324,18 @@ async function claimInOrder(candidates, cursor, need, slot, visitId, at, extra) 
 function childNumbers(rows, visitId, order) {
   const joined = (d) => (d.history || []).find((h) => h.event === 'listed' && visitOfEntry(h) === visitId) || {};
   const slotRank = (d) => ((joined(d).slot || d.list_slot) === 'main' ? 0 : 1);
-  const sorted = [...rows].sort((a, b) => String(joined(a).at || '').localeCompare(String(joined(b).at || ''))
+  const sorted = [...rows].sort((a, b) => addedLast(a, b)
+    || String(joined(a).at || '').localeCompare(String(joined(b).at || ''))
     || slotRank(a) - slotRank(b) || order(a, b));
   return new Map(sorted.map((d, i) => [d.id, i + 1]));
+}
+
+/**
+ * sa_add_child (RULING G-16): a child added on the spot comes after every drawn row, main and alternate, so it takes
+ * the next number and no number the list already printed changes. Lists with no added child sort as before.
+ */
+function addedLast(a, b) {
+  return (a.algo_version === ADDED_ALGO ? 1 : 0) - (b.algo_version === ADDED_ALGO ? 1 : 0);
 }
 
 // ── The list as the coach sees it ──────────────────────────────────────────────────────────────
@@ -435,7 +444,10 @@ async function listFor(visitId, extra = {}) {
   const order = byRoom
     ? (a, b) => ((roomRank.get(a.class_id) ?? 99) - (roomRank.get(b.class_id) ?? 99)) || roleRank(a) - roleRank(b) || a.draw_rank - b.draw_rank
     : (a, b) => roleRank(a) - roleRank(b) || sectionOf(a).localeCompare(sectionOf(b)) || a.draw_rank - b.draw_rank;
-  const main = rows.filter((d) => d.list_slot === 'main').sort(order);
+  const joinedAt = (d) => String(((d.history || []).find((h) => h.event === 'listed' && visitOfEntry(h) === visitId) || {}).at || '');
+  // added children last, in the order they were added
+  const main = rows.filter((d) => d.list_slot === 'main').sort((a, b) => addedLast(a, b)
+    || (a.algo_version === ADDED_ALGO && b.algo_version === ADDED_ALGO ? joinedAt(a).localeCompare(joinedAt(b)) || a.draw_rank - b.draw_rank : order(a, b)));
   const alts = rows.filter((d) => d.list_slot === 'alternate' && d.status === 'listed').sort(order);
   const childNos = childNumbers(rows, visitId, order);
   const children = main.map(item);
