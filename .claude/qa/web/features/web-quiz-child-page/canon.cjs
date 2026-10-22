@@ -20,7 +20,10 @@ async function urPolish(ctx, page, on) {
   }
   throw new Error('the Urdu page does not reflect web_quiz_ur_polish=' + on + ' after 60 s');
 }
-const BIND = 'family phone binding (web_quiz_phone_bind) also needs WQ_TOMB_SALT on the bot (web-quiz-identity-flags.js: phoneBind = switch && canon && salt); the salt is not set on this lane';
+const BIND = 'the family phone binding card and its confirm sheet are not driven yet: the lane now has the bind salt (WQ_TOMB_SALT in local-lane.env) and the hub scenarios bind phones directly, but the JUGNU- code round trip through WhatsApp that these three walk has no driver code';
+// The hub answers a request that names no phone with a locked hub (web-quiz-hub deviceTrusted: a link is bound to the
+// first phone that opens it). Server-side hub reads here name one phone, the first to open each fresh link.
+const HUB_DEVICE = 'e2eLaneDevice000000001';   // the bot's device_ref shape: exactly 22 of [A-Za-z0-9_-] (web-quiz-token DEVICE_REF_RX)
 const V2 = 'a Trail v2 feature (web_quiz_challenge_v2 and its children: book, story, lantern), off on this lane';
 
 on('WQ213', 'off', async (page, ctx) => {
@@ -120,14 +123,17 @@ on('WQ217', 'roster', async (page, ctx) => {
     await canonOn(true);
     // the hub for a link naming the class child and both loose records: the merged one folds, the double-merged one stops after one hop
     const tok = T.signHub([hina, looseA, looseB]);
-    const hub = await L.bot(ctx, 'GET', '/api/internal/wq/hub/' + encodeURIComponent(tok) + '?src=link');
+    const hub = await L.bot(ctx, 'GET', '/api/internal/wq/hub/' + encodeURIComponent(tok) + '?src=link', null, { 'x-wq-device': HUB_DEVICE });
     expect(hub.status === 200 && Array.isArray(hub.json.kids), 'hub → ' + hub.status + ' ' + JSON.stringify(hub.json).slice(0, 120));
     const chips = hub.json.kids.map((k) => k.chip);
     expect(chips.includes(T.chipId('h', hina)), 'the class-list child\'s chip is missing: ' + JSON.stringify(hub.json).slice(0, 300));
-    expect(!chips.includes(T.chipId('h', looseA)), 'the merged loose record kept its own chip');
-    expect(chips.includes(T.chipId('h', looseA)) === false && chips.length === 2, 'kids: ' + JSON.stringify(hub.json.kids.map((k) => k.first)) + ' (the double-merged record maps to the merged one, not further)');
+    // looseA (merged into Hina) folds to Hina; looseB (merged into looseA) maps ONE hop, to looseA, and stops there
+    // (spec: "maps to that record and is not followed further"): so the kids are Hina and looseA, two chips
+    expect(chips.includes(T.chipId('h', looseA)), 'the double-merged record did not map one hop to the merged record: ' + JSON.stringify(hub.json.kids.map((k) => k.first)));
+    expect(!chips.includes(T.chipId('h', looseB)), 'the double-merged record kept its own chip');
+    expect(chips.length === 2, 'kids: ' + JSON.stringify(hub.json.kids.map((k) => k.first)) + ' (want Hina and the merged record)');
     await canonOn(false);
-    const hub0 = await L.bot(ctx, 'GET', '/api/internal/wq/hub/' + encodeURIComponent(tok) + '?src=link');
+    const hub0 = await L.bot(ctx, 'GET', '/api/internal/wq/hub/' + encodeURIComponent(tok) + '?src=link', null, { 'x-wq-device': HUB_DEVICE });
     expect(hub0.json.kids.length === 3, 'with canon off the ids did not map as before: ' + JSON.stringify(hub0.json).slice(0, 300));
     return { canon: chips.length, off: hub0.json.kids.length };
   } finally { await ctx.sql('delete from students where id in (' + q(looseA) + ', ' + q(looseB) + ')'); }
@@ -149,7 +155,9 @@ on('WQ218', 'roster', async (page, ctx) => {
     await page.click('.wq-kid:has-text("Hina")'); await page.waitForSelector(M('H2'), { state: 'attached', timeout: WAIT });
     expect(/Hi Hina!/.test(await text(page)) && !/Omar/.test(await inner(page, '.wq-hcard').catch(() => '')), 'the hub is not Hina\'s alone');
     await L.setFlag(ctx, page, 'web_quiz_identity_canon', null);
-    const off = await L.bot(ctx, 'GET', '/api/internal/wq/hub/' + encodeURIComponent(tok) + '?src=link');
+    // the browser opened this link first, so the link belongs to the browser's phone: ask as that phone
+    const dev = (await L.stored(page, 'wq_d')) || HUB_DEVICE;
+    const off = await L.bot(ctx, 'GET', '/api/internal/wq/hub/' + encodeURIComponent(tok) + '?src=link', null, { 'x-wq-device': dev });
     expect(off.json.kids.length === 3, 'with canon off the hub does not list three: ' + JSON.stringify(off.json).slice(0, 300));
     return { chips: kids };
   } finally { await ctx.sql('delete from students where id = ' + q(loose)); await L.setFlag(ctx, page, 'web_quiz_identity_canon', null).catch(() => {}); }
@@ -193,7 +201,7 @@ on('WQ224', 'roster', async (page, ctx) => {
   const zainChips = chips.filter((c) => /Zain/.test(c.text));
   expect(zainChips.length === 2 && zainChips.every((c) => /Khalid|Tahir/.test(c.text)), 'the two Zains are not told apart by the father\'s name: ' + JSON.stringify(zainChips));
   expect(chips.find((c) => /Hina/.test(c.text)) && !/Imran/.test(chips.find((c) => /Hina/.test(c.text)).text), 'the unique child carries a father line');
-  const hub = await L.bot(ctx, 'GET', '/api/internal/wq/hub/' + encodeURIComponent(tok) + '?src=link');
+  const hub = await L.bot(ctx, 'GET', '/api/internal/wq/hub/' + encodeURIComponent(tok) + '?src=link', null, { 'x-wq-device': HUB_DEVICE });
   const kids = hub.json.kids || [];
   const homonyms = kids.filter((k) => /Zain/.test(k.first));
   expect(homonyms.length === 2 && homonyms.every((k) => k.homonym_in_list === true), 'homonym_in_list is not true on both: ' + JSON.stringify(homonyms));

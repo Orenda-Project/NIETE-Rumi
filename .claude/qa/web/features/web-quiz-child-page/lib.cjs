@@ -63,7 +63,15 @@ async function bot(ctx, method, p, body, headers) {
 //   roster  web_quiz_roster_id = true: Play → the roll-number pad
 //   v2      web_quiz_identity = "v2": name first (wq-identity.js)
 // The bot caches both settings for 30 s, so after a change this fetches the page until its boot shows the new mode.
+// The hub scenarios turn on family phone binding (hub.cjs family): leave it on through the roster group and put it
+// back off for the first scenario of another mode, so name-first sign-in (v2) runs as the rest of the run expects.
+const idSwitches = { on: false };
 async function setMode(ctx, page, mode, code) {
+  if (idSwitches.on && mode !== 'roster') {
+    await ctx.sql("delete from app_settings where key in ('web_quiz_identity_canon', 'web_quiz_phone_bind')");
+    idSwitches.on = false;
+    await sleep(31000);   // the bot caches identity switches 30 s
+  }
   await ctx.sql("delete from app_settings where key in ('web_quiz_identity', 'web_quiz_roster_id')");
   if (mode === 'roster') await base.setSetting(ctx, 'web_quiz_roster_id', 'true');
   if (mode === 'v2') await base.setSetting(ctx, 'web_quiz_identity', '"v2"');
@@ -337,6 +345,6 @@ function events(page) {
   };
 }
 
-module.exports = { reachPlan, reachGo, reachFast, finishFast, local, tap, flatLog, answerRight, nextQ, unesc, og, setFlag, botLog, workerLog, portalLog, expect, watch, WAIT, CODES, TOPIC, text, inner, count, boot, onScreen, screen, sleep, healthy,
+module.exports = { idSwitches, reachPlan, reachGo, reachFast, finishFast, local, tap, flatLog, answerRight, nextQ, unesc, og, setFlag, botLog, workerLog, portalLog, expect, watch, WAIT, CODES, TOPIC, text, inner, count, boot, onScreen, screen, sleep, healthy,
   q, one, rows, codeRow, teacherOf, studentNamed, tokens, bot, setMode, openQuiz, startAsNew, current, wrongSlot,
   tapAndNext, play, toResults, finishAsNew, newPhone, stored, remember, chipFor, events, base };
