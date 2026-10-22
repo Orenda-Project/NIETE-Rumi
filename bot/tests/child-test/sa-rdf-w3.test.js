@@ -27,7 +27,7 @@ const w3 = require('../../shared/data/child-test/item-bank.sa-w3.v1.json');
 
 const ARABIC = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/u;
 const GENDERED_TO_CHILD = /(گا\/گی|گے\/گی|تا\/تی|تے\/تی|سکتے ہیں|سکتی ہیں)/u;
-const COACH_FORMS = ['coach.G3.A', 'coach.G5.A'];
+const COACH_FORMS = ['coach.G1.A', 'coach.G2.A', 'coach.G3.A', 'coach.G4.A', 'coach.G5.A'];
 const COUNTS = {
   letter_names5: 5, letter_sounds5: 5, words4: 4,
   'ma.number_id8': 8, 'ma.discrimination2': 2, 'ma.missing4': 4, 'ma.add2i': 2, 'ma.sub2i': 2, 'ma.mul2i': 2,
