@@ -212,6 +212,10 @@ describe('the Learning assessment (sa/*): its own switch, the same relay', () =>
     await invoke(ROUTES, 'post', '/sa/outcome', { body: { schoolId: 's1', drawId: 'd1', outcome: 'present', clientSessionId: 'c1', block: 'B2', userId: 'forged' } });
     expect(axiosPost).toHaveBeenLastCalledWith('https://bot.example/api/internal/child-test/sa/outcome',
       { userId: COACH, schoolId: 's1', drawId: 'd1', outcome: 'present', clientSessionId: 'c1', block: 'B2' }, expect.anything());
+    // the coach's re-pick of a resumed child's part (sa_resume_repick) reaches the bot
+    await invoke(ROUTES, 'post', '/sa/outcome', { body: { schoolId: 's1', drawId: 'd1', outcome: 'present', clientSessionId: 'c1', block: 'B1', repick: true } });
+    expect(axiosPost).toHaveBeenLastCalledWith('https://bot.example/api/internal/child-test/sa/outcome',
+      { userId: COACH, schoolId: 's1', drawId: 'd1', outcome: 'present', clientSessionId: 'c1', block: 'B1', repick: true }, expect.anything());
   });
 
   test('a teacher is 403 even with the switch on for everyone', async () => {
@@ -253,7 +257,7 @@ describe('the Learning assessment\'s page switches (sa/switches)', () => {
     expect(out.statusCode).toBe(200);
     expect(out.payload).toEqual({
       success: true,
-      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true, exampleDashboard: false },
+      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true, exampleDashboard: false, resumeRepick: false },
     });
     expect(axiosPost).not.toHaveBeenCalled();
   });

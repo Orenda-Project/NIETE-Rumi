@@ -24,6 +24,8 @@ export type SaSwitches = {
   rdfW3Forms?: boolean;
   /** A child the engine refused (its voice was not ready) is not Stopped: the row stays open (RULING #51). */
   voiceGateV2: boolean;
+  /** sa_resume_repick: a resumed child's part can be chosen again on the card; the visit clock skips earlier sittings */
+  resumeRepick?: boolean;
   /** sa_example_dashboard: the example results dashboard (synthetic students); the server reports it on sandbox only */
   exampleDashboard?: boolean;
 };
