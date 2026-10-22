@@ -86,6 +86,7 @@
   var CELL_AUTO_S = 3;
   var FLUENCY_ITEM_S = 5;
   var CELL_PACE_FLOOR_S = 5; // sa_cell_pace: no item moves on by itself before 5 s on screen
+  var CELL_PACE_CAP_S = 10; // sa_cell_pace: and every item moves on by itself at 10 s on screen, whatever the sound
   var COMP_ALL_MIN_WORDS = 10; // RWP May 2026 rdcomp_*: asked when 10+ words were attempted (2,233/2,233 rows)
 
   function str(x) { return typeof x === 'string' && x.length > 0; }
@@ -296,8 +297,9 @@
         // W3 forms: a question asked only once the child read min_words words (the coach card's "only if the child
         // read past …"); older forms by the line reached.
         var read = dep.last_word_index != null ? dep.last_word_index + 1 : 0;
-        // Round 4 (sa_comp_all_questions): the Rawalpindi rule. 10+ words read, not stopped on the first line → every question.
-        if (compAll && t.items.some(function (q) { return q.gate && typeof q.gate.min_words === 'number'; })) {
+        // Round 4 (sa_comp_all_questions): the Rawalpindi rule. 10+ words read, not stopped on the first line → every question,
+        // whatever the variant's questions carry (min_words gates or needs_line).
+        if (compAll) {
           return read >= COMP_ALL_MIN_WORDS && dep.stop_reason !== STOP.FIRST_LINE ? { items: t.items } : { skip: STOP.SKIPPED_NO_LINE };
         }
         var keep = t.items.filter(function (q) {
@@ -618,8 +620,10 @@
           if (manual || !auto) return null;
           if (cellPace) {
             // EGRA: move on when the child has not responded for 3 s, so the wait counts from the last voice heard.
+            // A noisy room never goes quiet: the cap moves the item on at 10 s on screen.
+            var shown = now() - st.cell.at;
             var quiet = now() - (st.cell.voice_at != null ? st.cell.voice_at : st.cell.at);
-            if (now() - st.cell.at < Math.max(auto, CELL_PACE_FLOOR_S) * 1000 || quiet < auto * 1000) return null;
+            if (shown < CELL_PACE_CAP_S * 1000 && (shown < Math.max(auto, CELL_PACE_FLOOR_S) * 1000 || quiet < auto * 1000)) return null;
           } else if (now() - st.cell.at < auto * 1000) return null;
           nextCell('auto');
           return st.phase === 'running' ? 'go_on' : null;

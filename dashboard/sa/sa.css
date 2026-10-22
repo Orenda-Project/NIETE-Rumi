@@ -254,6 +254,13 @@ button{font:inherit;color:inherit}
 .sae-onecell.is-short[lang=ur]{font-size:clamp(80px,30vw,204px)}
 /* Round 4: the item's ink, placed by sa-ui fitCells (an Urdu cell or text tile is centred on its ink, not on its line box) */
 .sae-ink{display:inline-block}.sae-onecell[lang=ur] .sae-ink,.sae-opt[lang=ur] .sae-ink{white-space:nowrap}
+/* Round 4: the last-word word tiles and the read-aloud grid cells: an Urdu word's ink has room on each side and the tile
+   is tall enough for its tails (a row's tiles share the tallest's height); fitCells grows a word's tile to its ink and
+   centres it (a grid cell's word shrinks instead) */
+.sae-passage.is-pick[lang=ur] .sae-pline{display:flex;flex-wrap:wrap;align-items:stretch}
+.sae-passage.is-pick[lang=ur] .sae-word{display:inline-flex;align-items:center;justify-content:center;vertical-align:top;line-height:2.6;padding:.1em 4px}
+.sae-passage.is-pick[lang=ur] .sae-word>.sae-ink,.sae-grid[lang=ur] .sae-cell>.sae-ink{white-space:nowrap;padding:0 .3em}
+.sae-grid[lang=ur] .sae-cell{line-height:2.4;min-height:3.1em}
 .sae-coach-text{background:var(--sae-card);border:3px solid var(--sae-line);border-radius:var(--sae-r);padding:12px 14px}
 /* RDF manual: the items the coach reads out (the brief's list, and the line on the child's screen). */
 .sae-coach-items{margin:4px 0 0;padding-inline-start:24px;text-align:start;display:flex;flex-direction:column;gap:6px;font-size:18px;line-height:1.6}
@@ -264,3 +271,8 @@ button{font:inherit;color:inherit}
 /* RULING W3-19: the official Urdu page's pitch (≈ 150 px on a ≈ 60 px glyph), so Nastaliq lines never collide */
 .sae-passage.is-printed[lang=ur]{word-spacing:.35em;line-height:2.45}
 @media (max-width:360px){.sae-passage.is-printed{font-size:23px}.sae-passage.is-printed[lang=ur]{font-size:25px}}
+/* sa_coach_last_word: the coach's screen fits the phone (the word box scrolls inside it), so the page never scrolls the
+   heading up under the portal's corner "End test" hold. */
+.sae-screen.sae-lastword.is-coach{max-height:100vh;max-height:100dvh}
+.sae-lastword.is-coach .sae-body{min-height:0;justify-content:flex-start}
+.sae-lastword.is-coach .sae-passage.is-pick{flex:0 1 auto;min-height:150px;max-height:none}
