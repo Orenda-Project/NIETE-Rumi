@@ -123,6 +123,11 @@
       coach_then: 'Then give the phone to the child.',
       coach_items: 'Read each one out when it shows:',
       headphones: 'Put the headphones on the child, then check the sound.',
+      mark_hint: 'Tap Right or Wrong as the child answers.',
+      mark_answer: 'Answer',
+      mark_right: 'Right',
+      mark_wrong: 'Wrong',
+      sec: 's',
     },
     ur: {
       hello: 'السلام علیکم! میں جگنو ہوں۔',
@@ -193,6 +198,11 @@
       coach_then: 'پھر فون بچے کو دے دیں۔',
       coach_items: 'ہر ایک سامنے آنے پر پڑھ کر سنائیں:',
       headphones: 'بچے کو ہیڈفون لگائیں، پھر آواز چیک کریں۔',
+      mark_hint: 'بچہ جواب دے تو صحیح یا غلط دبائیں۔',
+      mark_answer: 'جواب',
+      mark_right: 'صحیح',
+      mark_wrong: 'غلط',
+      sec: 'سیکنڈ',
     },
   };
 
@@ -520,7 +530,9 @@
       clockEls.bug.style[lang === 'ur' ? 'right' : 'left'] = 'calc(' + pc + ' - 16px)';
       clockEls.track.setAttribute('aria-valuenow', String(Math.round(p * 100)));
       clockEls.track.classList.toggle('is-low', p < 0.2);
+      if (clockEls.secs) clockEls.secs.textContent = secsLeft(left);
     }
+    function secsLeft(left) { return Math.max(0, Math.ceil(left / 1000)) + ' ' + C.sec; }
     function nextBtn(v) {
       shownOffer = !!v.offer_next;
       if (!v.offer_next) return null;
@@ -952,12 +964,32 @@
     }
     function sRunCell(v) {
       var t = v.task, it = v.cell_item;
-      return screen(v, 'sae-run sae-run-rec sae-run-cell', [
+      return screen(v, 'sae-run sae-run-rec sae-run-cell' + (v.coach_marks ? ' is-marking' : ''), [
         clock(v),
         h('div', { class: 'sae-row' }, [h('p', { class: 'sae-chip sae-chip-rec', text: recChip(t, C) }), itemSpeaks(it) ? replayBtn(function () { sayItem(it, t); }) : null]),
         oneCell(v.cell, t, v.cell_index),
         coachSays(it),
-      ], [btn(C.next, function () { runner.nextCell('tap'); draw(); }, 'sae-primary sa-next')]);
+      ], [v.coach_marks ? marksPanel(v) : btn(C.next, function () { runner.nextCell('tap'); draw(); }, 'sae-primary sa-next')]);
+    }
+    /** Coach-marked maths (sa_maths_coach_marks): the item's answer and Right / Wrong for the coach; a timed task's seconds left. */
+    function marksPanel(v) {
+      var it = v.cell_item || {};
+      var answer = it.answer != null ? it.answer : it.target;
+      var secs = null;
+      if (clockEls && v.time_left_ms != null) {
+        secs = h('p', { class: 'sae-mark-secs', dir: 'ltr', 'aria-live': 'off', text: secsLeft(v.time_left_ms) });
+        clockEls.secs = secs;
+      }
+      function mark(ok) { return function () { runner.mark(ok); draw(); }; }
+      return h('div', { class: 'sae-marks is-coach', 'data-item': it.id || null }, [
+        h('div', { class: 'sae-row' }, [h('p', { class: 'sae-chip', text: C.coach }), secs]),
+        h('p', { class: 'sae-sub sae-mark-hint', text: C.mark_hint }),
+        h('p', { class: 'sae-mark-answer', text: C.mark_answer + ': ' + answer }),
+        h('div', { class: 'sae-mark-btns' }, [
+          btn('✓ ' + C.mark_right, mark(true), 'sae-mark sa-mark-right'),
+          btn('✗ ' + C.mark_wrong, mark(false), 'sae-mark sa-mark-wrong'),
+        ]),
+      ]);
     }
     /** A spoken practice item (W3 one-at-a-time tasks): the item big; an example is modelled by Jugnu, a practice item
      *  is modelled after the child's turn (Next); coach-led, the coach models it and Jugnu stays quiet. */

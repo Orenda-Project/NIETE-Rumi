@@ -20,6 +20,7 @@ const BLOCKS = 'child_test_blocks';
 const PARKED = 'final:sa_score_later';
 const PHONE_SCORER = 'tap-v1';
 const SA_SCORER_MARKS = 'sa-marks-v1'; // sa/score.js VERSION
+const COACH_MARKS = 'coach-marks-v1';
 const MODES = ['tap', 'keypad', 'keyboard', 'record', 'oral'];
 const DEVICE_FIELDS = ['ua', 'bundle_v', 'offline', 'skew_ms', 'mic_ok', 'mic_rms', 'persisted', 'voice'];
 // the ruling events a session keeps (device.events); past the cap the oldest are kept
@@ -137,6 +138,19 @@ function phoneMarks(r) {
   return null;
 }
 
+/**
+ * The coach's marks on a spoken maths task (sa_maths_coach_marks: the phone's result says scored_on 'coach'), in the
+ * SA scorer's shape, so Results shows them as it shows the scorer's; every item the coach marked, in order.
+ */
+function coachMarks(taskId, r) {
+  const items = (Array.isArray(r.answers) ? r.answers : []).filter((a) => a && a.by === 'coach')
+    .map((a, k) => ({ i: k + 1, id: a.item_id, verdict: a.ok ? 'correct' : 'wrong', ms: num(a.ms) }));
+  return {
+    version: COACH_MARKS, task: taskId, correct: num(r.correct), of: num(r.attempted), attempted: num(r.attempted),
+    per_minute: num(r.per_minute), stop_reason: r.stop_reason || null, detail: { by: 'coach', items },
+  };
+}
+
 /** One subtask's result from the phone: [{task_id, scored_on, answers[], ...}] */
 async function putResults(sessionId, results, lang) {
   for (const r of results) {
@@ -150,6 +164,9 @@ async function putResults(sessionId, results, lang) {
     const marks = r.scored_on === 'phone' ? phoneMarks(r) : null;
     if (marks) {
       Object.assign(patch, { ai_marks: marks, ai_status: 'scored', ai_model_versions: { scorer: PHONE_SCORER }, ai_scored_at: new Date().toISOString() });
+    } else if (r.scored_on === 'coach') {
+      // Written now, so the SA scorer's sweep (rows with no marks) never takes the row; the recording joins it later.
+      Object.assign(patch, { ai_marks: coachMarks(r.task_id, r), ai_status: 'scored', ai_model_versions: { scorer: COACH_MARKS }, ai_scored_at: new Date().toISOString() });
     }
     // eslint-disable-next-line no-await-in-loop
     const out = await updateRow(got.row.id, patch, 'putResults');
@@ -164,6 +181,11 @@ async function setAudio(sessionId, taskId, itemId, key, { scoreLater = false } =
   if (!got.ok) return got;
   const row = got.row;
   const patch = {};
+  if (row.ai_marks && row.ai_marks.version === COACH_MARKS && !hasAudio(row)) {
+    // The coach marked this task on the phone; its recording is the backup, kept on the row for a later listen.
+    const backup = await updateRow(row.id, itemId ? { audio_r2_keys: [{ i: itemId, key }] } : { audio_r2_key: key }, 'setAudio');
+    return backup.ok ? { ok: true, backup: true } : backup;
+  }
   if (row.ai_marks) {
     // A spoken answer that comes after the SA scorer marked its task (CHILD_TEST_SA_CLIP_WAIT_S on: the scorer no
     // longer waits for every clip). The marks are written once (DB trigger child_test_blocks_keep_marks), so they
