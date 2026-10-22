@@ -7,13 +7,15 @@
  * (visitId); two coach paths have no such row, so they name the visit with a key (visit_key):
  *   cs:<coaching_session_id>                                  the offer after classic /observe
  *   day:<coachUserId>:<schoolId>:<YYYY-MM-DD, Pakistan time>  /egra on a visit day with no visit
+ *   day:…:<YYYY-MM-DD>:g<N>                                  the same, for grade N (1–5; switch sa_all_grades)
  * Every part is a uuid; the date is a real calendar date. Anything else is not a key.
  */
 
 const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const CS_RE = new RegExp(`^cs:(${UUID})$`);
-const DAY_RE = new RegExp(`^day:(${UUID}):(${UUID}):([0-9]{4}-[0-9]{2}-[0-9]{2})$`);
+const DAY_RE = new RegExp(`^day:(${UUID}):(${UUID}):([0-9]{4}-[0-9]{2}-[0-9]{2})(?::g([1-5]))?$`);
+const KEY_GRADES = [1, 2, 3, 4, 5];
 const UUID_RE = new RegExp(`^${UUID}$`);
 
 const isRealDate = (s) => {
@@ -28,14 +30,16 @@ function pktDate(now = new Date()) {
 }
 
 /**
- * @returns {{kind:'cs', coachingSessionId:string} | {kind:'day', coachUserId:string, schoolId:string, date:string} | null}
+ * @returns {{kind:'cs', coachingSessionId:string} | {kind:'day', coachUserId:string, schoolId:string, date:string, grade?:number} | null}
  */
 function parseVisitKey(key) {
   if (typeof key !== 'string') return null;
   const cs = CS_RE.exec(key);
   if (cs) return { kind: 'cs', coachingSessionId: cs[1] };
   const day = DAY_RE.exec(key);
-  if (day && isRealDate(day[3])) return { kind: 'day', coachUserId: day[1], schoolId: day[2], date: day[3] };
+  if (day && isRealDate(day[3])) {
+    return { kind: 'day', coachUserId: day[1], schoolId: day[2], date: day[3], ...(day[4] ? { grade: Number(day[4]) } : {}) };
+  }
   return null;
 }
 
@@ -43,12 +47,14 @@ const isVisitKey = (key) => parseVisitKey(key) !== null;
 
 /**
  * The key for a visit: pass { coachingSessionId } for classic /observe, or
- * { coachUserId, schoolId, now } for /egra with no visit. Returns null when the ids are not uuids.
+ * { coachUserId, schoolId, now } for /egra with no visit, and a grade (1–5) for that grade's own list.
+ * Returns null when the ids are not uuids or the grade is not 1–5.
  */
-function visitKeyFor({ coachingSessionId, coachUserId, schoolId, now = new Date() } = {}) {
+function visitKeyFor({ coachingSessionId, coachUserId, schoolId, now = new Date(), grade } = {}) {
   if (coachingSessionId != null) return UUID_RE.test(String(coachingSessionId)) ? `cs:${coachingSessionId}` : null;
   if (!UUID_RE.test(String(coachUserId)) || !UUID_RE.test(String(schoolId))) return null;
-  return `day:${coachUserId}:${schoolId}:${pktDate(now)}`;
+  if (grade != null && !KEY_GRADES.includes(grade)) return null;
+  return `day:${coachUserId}:${schoolId}:${pktDate(now)}${grade != null ? `:g${grade}` : ''}`;
 }
 
 /**

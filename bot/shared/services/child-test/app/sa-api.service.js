@@ -45,6 +45,7 @@ const blockHistory = require('./block-history');
 const rdfSwitch = require('./rdf-switch');
 const rdfW3Switch = require('./rdf-w3-switch');
 const resumeRepick = require('./resume-repick-switch');
+const allGradesSwitch = require('./all-grades-switch');
 const { MEDIA, envSegment, __internals: { guarded, rows, ownVisit, ownSession, gradeOf } } = require('./app-api.service');
 
 const OUTCOMES = ['present', 'absent', 'refused'];
@@ -102,8 +103,18 @@ const listSchools = guarded('sa_list_schools', async ({ userId }, d) => {
   return { status: 'ok', schools };
 });
 
-/** Which visit the list belongs to: the coach's own observe visit at this school, else today's day key. */
-async function visitFor(d, userId, { schoolId, visitId }) {
+/**
+ * The grade the coach named, with sa_all_grades ON: { grade } 1–5, { grade: null } when none is named or the switch
+ * is off (today's list), { bad: true } for anything else.
+ */
+async function namedGrade(grade, deps) {
+  if (grade == null || grade === '' || !(await allGradesSwitch.enabled(deps))) return { grade: null };
+  const n = Number(grade);
+  return Number.isInteger(n) && n >= 1 && n <= 5 ? { grade: n } : { bad: true };
+}
+
+/** Which visit the list belongs to: the coach's own observe visit at this school, else today's day key (per grade, if named). */
+async function visitFor(d, userId, { schoolId, visitId, grade = null }) {
   if (visitId) {
     const visit = await ownVisit(d, userId, visitId);
     if (!visit) return null;
@@ -115,7 +126,7 @@ async function visitFor(d, userId, { schoolId, visitId }) {
     };
   }
   if (!schoolId || !(await linkedSchools(d, userId)).has(schoolId)) return null;
-  const visitKey = visitKeyFor({ coachUserId: userId, schoolId, now: d.now() });
+  const visitKey = visitKeyFor({ coachUserId: userId, schoolId, now: d.now(), ...(grade ? { grade } : {}) });
   return visitKey ? { schoolId, visitId: null, visitKey, observedGrade: null } : null;
 }
 
@@ -167,11 +178,14 @@ async function sessionsOf(d, visit) {
   return got && got.ok ? got.sessions : [];
 }
 
-const dayList = guarded('sa_day_list', async ({ userId, schoolId, visitId }, d) => {
-  const visit = await visitFor(d, userId, { schoolId, visitId });
+const dayList = (args = {}, deps = {}) => guarded('sa_day_list', async ({ userId, schoolId, visitId, grade }, d) => {
+  const named = await namedGrade(grade, deps);
+  if (named.bad) return { status: 'invalid', reason: 'bad_grade' };
+  const visit = await visitFor(d, userId, { schoolId, visitId, grade: named.grade });
   if (!visit) return { status: 'not_found' };
   const list = await d.draw.todaysList({
     coachUserId: userId, schoolId: visit.schoolId, observedGrade: visit.observedGrade, ...visitArgs(visit),
+    ...(named.grade ? { grade: named.grade, allGrades: true } : {}),
   });
   if (!list || !list.ok) {
     if (list && list.reason) return { status: 'invalid', reason: list.reason };
@@ -179,7 +193,7 @@ const dayList = guarded('sa_day_list', async ({ userId, schoolId, visitId }, d) 
   }
   d.log('child_test.sa.list_opened', { userId, schoolId: visit.schoolId, reused: !!list.reused });
   return { status: 'ok', list: shapeList(list, visit, await sessionsOf(d, visit)) };
-});
+})(args, deps);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const saStoreOf = (deps) => (deps && deps.saStore) || require('../sa-store'); // eslint-disable-line global-require
@@ -202,13 +216,15 @@ async function resumed(d, session, { block, repick }, deps) {
  * minted while offline) and say which part of the battery the child takes (block); a present re-sent with
  * the same client id answers the session it already made.
  */
-const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ userId, schoolId, visitId, drawId, outcome, note, clientSessionId, block, repick }, d) => {
+const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ userId, schoolId, visitId, drawId, outcome, note, clientSessionId, block, repick, grade }, d) => {
   if (!OUTCOMES.includes(outcome)) return { status: 'invalid', reason: 'bad_outcome' };
   if (!drawId) return { status: 'invalid', reason: 'no_draw' };
   if (clientSessionId != null && !UUID_RE.test(String(clientSessionId))) return { status: 'invalid', reason: 'bad_client_id' };
   if (block != null && !BLOCK_IDS.includes(block) && block !== FULL && !(block === RDF && (await rdfSwitch.enabled(deps)))
     && !(RDF_W3.includes(block) && (await rdfW3Switch.enabled(deps)))) return { status: 'invalid', reason: 'bad_block' };
-  const visit = await visitFor(d, userId, { schoolId, visitId });
+  const named = await namedGrade(grade, deps);
+  if (named.bad) return { status: 'invalid', reason: 'bad_grade' };
+  const visit = await visitFor(d, userId, { schoolId, visitId, grade: named.grade });
   if (!visit) return { status: 'not_found' };
   const sa = clientSessionId && outcome === 'present' ? saStoreOf(deps) : null;
   if (sa) {

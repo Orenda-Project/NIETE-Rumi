@@ -1303,10 +1303,10 @@ export const childTestSa = {
   /** The page's own switches for this coach (each off unless its app_settings row names them). */
   getSwitches: async (): Promise<SaSwitches> => (await api.get(`${CTS}/switches`)).data.switches,
 
-  getList: async (schoolId: string, visitId?: string | null): Promise<{ list: SaList }> =>
-    (await api.get(`${CTS}/list`, { params: visitId ? { schoolId, visitId } : { schoolId } })).data,
+  getList: async (schoolId: string, visitId?: string | null, grade?: number): Promise<{ list: SaList }> =>
+    (await api.get(`${CTS}/list`, { params: { schoolId, ...(visitId ? { visitId } : {}), ...(grade ? { grade } : {}) } })).data,
 
-  markOutcome: async (args: { schoolId: string; visitId?: string | null; drawId: string; outcome: SaOutcome; note?: string; clientSessionId?: string; block?: SaBlock; repick?: boolean }):
+  markOutcome: async (args: { schoolId: string; visitId?: string | null; drawId: string; outcome: SaOutcome; note?: string; clientSessionId?: string; block?: SaBlock; repick?: boolean; grade?: number }):
     Promise<{ sessionId?: string; list?: SaList | null; block?: SaBlock }> => {
     const { visitId, ...rest } = args;
     return (await api.post(`${CTS}/outcome`, visitId ? { ...rest, visitId } : rest)).data;

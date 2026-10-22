@@ -48,6 +48,8 @@ const TOAST_MS = 2500;
 // a visit start older than twice the visit's 45 minutes belongs to an earlier sitting (sa_resume_repick)
 const SITTING_MS = 2 * VISIT_LIMIT_MS;
 const earlierSitting = (at: number) => Date.now() - at > SITTING_MS;
+// sa_all_grades: the grades a coach may name for a school's list
+const GRADE_CHOICES = [1, 2, 3, 4, 5];
 const FULL_MINUTES = 29;
 /** RDF per child (panel review of the RDF list: about 19 min, about 22 at a first sitting). */
 const RDF_MINUTES = 20;
@@ -56,6 +58,7 @@ const URDU_ROOT = '[font-family:var(--font-urdu)] [word-spacing:0.15em] [&_*]:le
 
 type Step =
   | { kind: 'schools' }
+  | { kind: 'grade'; school: SaSchool }
   | { kind: 'preflight'; school: SaSchool }
   | { kind: 'list'; school: SaSchool }
   | { kind: 'handover'; school: SaSchool; child: SaChild; sessionId: string; block: Block }
@@ -161,7 +164,7 @@ export default function LeaderAssess() {
     setProblem(null);
     setOffline(false);
     try {
-      const out = await childTestSa.getList(s.schoolId, s.visitId);
+      const out = s.grade ? await childTestSa.getList(s.schoolId, s.visitId, s.grade) : await childTestSa.getList(s.schoolId, s.visitId);
       setList(out.list);
       updateVisit(key, (m) => ({ ...m, list: out.list }));
     } catch (err) {
@@ -173,11 +176,13 @@ export default function LeaderAssess() {
   }, [updateVisit]);
 
   useEffect(() => {
-    if (step.kind === 'list') void loadList(step.school, visitKey(step.school.schoolId));
+    if (step.kind === 'list') void loadList(step.school, visitKey(step.school.schoolId, undefined, step.school.grade));
   }, [step, loadList]);
 
+  // sa_all_grades: the school, then the grade; the grade rides on the school for every call of that list
   const pickSchool = (s: SaSchool) => {
-    const key = visitKey(s.schoolId);
+    if (switches.allGrades && !s.grade) { setStep({ kind: 'grade', school: s }); return; }
+    const key = visitKey(s.schoolId, undefined, s.grade);
     vkeyRef.current = key;
     setVkey(key);
     const m = readVisit(key);
@@ -357,7 +362,7 @@ export default function LeaderAssess() {
     // sa_resume_repick: a resumed child's Present goes again, with the part the coach chose on the card
     const repick = switches.resumeRepick && Boolean(had?.sent);
     if (had?.sent && !repick) return { ok: true, serverId: had.serverId || child.sessionId || null, queued: false, block: had.block };
-    const args = { schoolId: school.schoolId, visitId: school.visitId, drawId: child.drawId, outcome: 'present' as const, clientSessionId: sessionId, block, ...(repick ? { repick: true } : {}) };
+    const args = { schoolId: school.schoolId, visitId: school.visitId, drawId: child.drawId, outcome: 'present' as const, clientSessionId: sessionId, block, ...(repick ? { repick: true } : {}), ...(school.grade ? { grade: school.grade } : {}) };
     let serverId: string | null = null;
     let queued = false;
     setBusy(true);
@@ -418,12 +423,12 @@ export default function LeaderAssess() {
     const s = step.school;
     setBusy(true);
     try {
-      const out = await childTestSa.markOutcome({ schoolId: s.schoolId, visitId: s.visitId, drawId: c.drawId, outcome: value });
+      const out = await childTestSa.markOutcome({ schoolId: s.schoolId, visitId: s.visitId, drawId: c.drawId, outcome: value, ...(s.grade ? { grade: s.grade } : {}) });
       if (out?.list) keepList(out.list);
       remember((m) => ({ ...m, outcomes: { ...m.outcomes, [c.drawId]: { outcome: value, name: nameOf(c, lang) } } }));
     } catch (err) {
       if (!errorOf(err).network) { setLoadFailed(true); return; }
-      queue({ schoolId: s.schoolId, visitId: s.visitId, drawId: c.drawId, outcome: value });
+      queue({ schoolId: s.schoolId, visitId: s.visitId, drawId: c.drawId, outcome: value, ...(s.grade ? { grade: s.grade } : {}) });
       remember((m) => ({ ...m, outcomes: { ...m.outcomes, [c.drawId]: { outcome: value, name: nameOf(c, lang) } } }));
       if (list) {
         const [next, ...rest] = list.alternates;
@@ -464,7 +469,8 @@ export default function LeaderAssess() {
   };
 
   const back = () => {
-    if (step.kind === 'list' || step.kind === 'preflight') setStep({ kind: 'schools' });
+    if (step.kind === 'grade') setStep({ kind: 'schools' });
+    else if (step.kind === 'list' || step.kind === 'preflight') setStep(step.school.grade ? { kind: 'grade', school: step.school } : { kind: 'schools' });
     else if (step.kind === 'handover' || step.kind === 'summary' || step.kind === 'link') setStep({ kind: 'list', school: step.school });
   };
 
@@ -553,6 +559,19 @@ export default function LeaderAssess() {
             ))}
           </div>
         );
+  } else if (step.kind === 'grade') {
+    content = (
+      <fieldset data-testid="assess-grade-choice" className="space-y-3">
+        <legend className="font-semibold text-slate-800">{copy.whichGrade}</legend>
+        <p className="break-words text-slate-700">{step.school.name || '—'}</p>
+        <div className="grid grid-cols-5 gap-2">
+          {GRADE_CHOICES.map((g) => (
+            <button key={g} type="button" onClick={() => pickSchool({ ...step.school, grade: g })}
+              className="min-h-[56px] rounded-2xl border border-slate-200 bg-white px-1 text-sm font-semibold leading-tight text-slate-900">{copy.grade(g)}</button>
+          ))}
+        </div>
+      </fieldset>
+    );
   } else if (step.kind === 'preflight') {
     content = <AssessPreflight copy={copy} onMic={micChecked} onReady={preflightDone} micRequired={switches.micRequired} />;
   } else if (step.kind === 'link') {

@@ -11,6 +11,7 @@
  *            visits this cycle. 1 returning child + new children in rank order, round-robin across the
  *            grade's sections, to 5; then 2 alternates. A child already tested in any cycle is never
  *            drawn as new again.
+ *            With sa_all_grades the caller may name any grade 1–5: that grade only, no fallback.
  *   Shift    one shift per school-grade: the morning classes, or the evening ones only when the grade
  *            has no morning class with children (R1 §7.5) — a coach never chases a child who is not in
  *            school at that hour.
@@ -50,6 +51,8 @@ const RETURN_AFTER_DAYS = 42;
 const MAX_TRIES = 2;
 const RETURNING_ALGO = 'ctd-v1-returning-earliest-tested';
 const GRADES = [3, 5];
+// switch sa_all_grades: the coach names any of these (the caller reads the switch)
+const ALL_GRADES = [1, 2, 3, 4, 5];
 // A child in one of these states can be put on a visit's list (a 'listed' child from another visit
 // was not reached there and goes back in at their rank).
 const QUEUED = ['pending', 'listed', 'absent', 'refused'];
@@ -68,11 +71,10 @@ const visitColumns = (visit) => (isVisitKey(visit)
 
 const iso = (d) => (d instanceof Date ? d : new Date(d)).toISOString();
 
-function normaliseGrade(g) {
+function normaliseGrade(g, grades = GRADES) {
   const n = Number(String(g == null ? '' : g).replace(/^grade_/, ''));
-  return GRADES.includes(n) ? n : null;
+  return grades.includes(n) ? n : null;
 }
-const gradeOfClass = (c) => normaliseGrade(c.grade_code);
 const bySectionThenId = (a, b) => String(a.section || '').localeCompare(String(b.section || '')) || String(a.id).localeCompare(String(b.id));
 
 // Same-name children (R1 §4): names compared lower-cased with punctuation and digits removed.
@@ -115,8 +117,8 @@ function visitsListedBefore(draws, visit) {
 
 // ── What the school looks like now ─────────────────────────────────────────────────────────────
 
-async function loadContext({ schoolId, cycleId, now }) {
-  const cls = await store.listGradeClasses(schoolId, sessionCodeFor(now));
+async function loadContext({ schoolId, cycleId, now, grades = GRADES }) {
+  const cls = await store.listGradeClasses(schoolId, sessionCodeFor(now), grades);
   if (!cls.ok) return cls;
   const enr = await store.listActiveEnrollments(cls.classes.map((c) => c.id));
   if (!enr.ok) return enr;
@@ -125,9 +127,9 @@ async function loadContext({ schoolId, cycleId, now }) {
     if (!enrolledByClass.has(e.class_id)) enrolledByClass.set(e.class_id, new Map());
     enrolledByClass.get(e.class_id).set(e.student_id, e);
   }
-  const classesByGrade = new Map(GRADES.map((g) => [g, []]));
+  const classesByGrade = new Map(grades.map((g) => [g, []]));
   for (const c of cls.classes) {
-    const g = gradeOfClass(c);
+    const g = normaliseGrade(c.grade_code, grades);
     if (g && enrolledByClass.has(c.id)) classesByGrade.get(g).push(c);
   }
   for (const [g, list] of classesByGrade) classesByGrade.set(g, oneShift(list).sort(bySectionThenId));
@@ -384,7 +386,7 @@ async function listFor(visitId, extra = {}) {
     const t = teacherOf.get(id) || { teacherUserId: null, teacherName: null };
     return [id, {
       classId: id,
-      grade: normaliseGrade(c.grade_code),
+      grade: normaliseGrade(c.grade_code, ALL_GRADES),
       section: c.section || null,
       shift: c.grade_code ? shiftOf(c) : null,
       ...classLabels(c, { noSectionSiblings: !c.section && hasSiblings(c) }),
@@ -471,7 +473,7 @@ function listedExtra(ctx, base) {
 
 // ── todaysList ─────────────────────────────────────────────────────────────────────────────────
 
-async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitKey, observedGrade, now = new Date() } = {}, attempt = 0) {
+async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitKey, observedGrade, grade: namedGrade, allGrades = false, now = new Date() } = {}, attempt = 0) {
   const named = oneVisit(givenVisitId, visitKey);
   if (!named.ok) return named;
   const visitId = named.visit; // a field form id or a visit key, from here on
@@ -482,6 +484,11 @@ async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitK
     logToFile('[child-test] CHILD_TEST_DRAW_SECRET is not set; refusing to draw', { schoolId, visitId }, 'error');
     return { ok: false, reason: 'draw_secret_missing' };
   }
+  // sa_all_grades: the grade the coach named (or the day key's) is the only grade tried
+  const day = visitKey ? parseVisitKey(visitKey) : null;
+  const asked = allGrades ? (namedGrade ?? (day && day.grade) ?? null) : null;
+  const picked = asked == null ? null : normaliseGrade(asked, ALL_GRADES);
+  if (asked != null && !picked) return { ok: false, reason: 'bad_grade' };
 
   const existing = await listFor(visitId, { reused: true });
   if (!existing.ok) return existing;
@@ -489,19 +496,19 @@ async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitK
 
   // A day key draws only for its own coach, at its own school, on its own day (reopening a past
   // day's list, above, is a read and is allowed).
-  const day = visitKey ? parseVisitKey(visitKey) : null;
-  if (day && day.kind === 'day' && (day.schoolId !== schoolId || (coachUserId && day.coachUserId !== coachUserId) || day.date !== pktDate(now))) {
+  if (day && day.kind === 'day' && (day.schoolId !== schoolId || (coachUserId && day.coachUserId !== coachUserId) || day.date !== pktDate(now)
+    || (picked && day.grade !== undefined && day.grade !== picked))) {
     logToFile('[child-test] day key does not match the call; refusing to draw', { schoolId, coachUserId, visitId }, 'warn');
     return { ok: false, reason: 'bad_visit_key' };
   }
 
   const cycleId = cycleFor(now);
-  const ctx = await loadContext({ schoolId, cycleId, now });
+  const ctx = await loadContext({ schoolId, cycleId, now, ...(picked ? { grades: ALL_GRADES } : {}) });
   if (!ctx.ok) return ctx;
   const prior = visitsListedBefore(ctx.draws, visitId);
   const observed = normaliseGrade(observedGrade);
-  const primary = observed || (prior.size % 2 === 0 ? 3 : 5);
-  const tryOrder = [primary, primary === 3 ? 5 : 3];
+  const primary = picked || observed || (prior.size % 2 === 0 ? 3 : 5);
+  const tryOrder = picked ? [picked] : [primary, primary === 3 ? 5 : 3];
 
   let firstReason = null;
   for (const grade of tryOrder) {
@@ -511,7 +518,7 @@ async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitK
 
     const ret = await returningChild(ctx, grade, visitId);
     if (!ret.ok) {
-      if (ret.conflict && attempt < 2) return todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitKey, observedGrade, now }, attempt + 1);
+      if (ret.conflict && attempt < 2) return todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitKey, observedGrade, grade: namedGrade, allGrades, now }, attempt + 1);
       return ret;
     }
     const rotation = prior.size % Math.max(1, ctx.classesByGrade.get(grade).length);
@@ -603,9 +610,11 @@ async function promoteAndTopUp(d, visit, now) {
   }
   const need = ALTERNATES - left;
   if (need <= 0) return { ok: true };
-  const ctx = await loadContext({ schoolId: d.school_id, cycleId: d.cycle_id, now });
+  // a list of a grade outside 3 / 5 (sa_all_grades) tops up from its own grade
+  const grades = GRADES.includes(d.grade) ? GRADES : ALL_GRADES;
+  const ctx = await loadContext({ schoolId: d.school_id, cycleId: d.cycle_id, now, grades });
   if (!ctx.ok) return ctx;
-  if (!ctx.classesByGrade.get(d.grade).length) return { ok: true };
+  if (!(ctx.classesByGrade.get(d.grade) || []).length) return { ok: true };
   const onThisVisit = new Set(v.draws.map((x) => x.id));
   const prior = visitsListedBefore(ctx.draws, visit);
   const rotation = prior.size % Math.max(1, ctx.classesByGrade.get(d.grade).length);

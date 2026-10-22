@@ -59,6 +59,8 @@ export type QueuedOutcome = {
   outcome: SaOutcome;
   clientSessionId?: string;
   block?: Block;
+  /** sa_all_grades: the grade of the list the outcome belongs to */
+  grade?: number;
   at: number;
 };
 
@@ -70,8 +72,8 @@ export function pktDate(now = new Date()): string {
   try { return now.toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' }); } catch { return now.toISOString().slice(0, 10); }
 }
 
-export function visitKey(schoolId: string, now = new Date()): string {
-  return `${PREFIX}${schoolId}:${pktDate(now)}`;
+export function visitKey(schoolId: string, now = new Date(), grade?: number): string {
+  return `${PREFIX}${schoolId}:${pktDate(now)}${grade ? `:g${grade}` : ''}`;
 }
 
 export function readVisit(key: string): VisitMemory {

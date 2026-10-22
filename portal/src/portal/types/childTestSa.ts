@@ -7,6 +7,8 @@ export type SaSchool = {
   visitId: string | null;
   observedGrade: number | null;
   visitToday: boolean;
+  /** sa_all_grades: the grade the coach named for this school's list (1–5); absent = today's grade rotation */
+  grade?: number;
 };
 
 export type SaOutcome = "present" | "absent" | "refused";
@@ -26,6 +28,8 @@ export type SaSwitches = {
   voiceGateV2: boolean;
   /** sa_resume_repick: a resumed child's part can be chosen again on the card; the visit clock skips earlier sittings */
   resumeRepick?: boolean;
+  /** sa_all_grades: the coach names Grade 1–5 after the school */
+  allGrades?: boolean;
   /** sa_example_dashboard: the example results dashboard (synthetic students); the server reports it on sandbox only */
   exampleDashboard?: boolean;
 };

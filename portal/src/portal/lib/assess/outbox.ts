@@ -26,6 +26,7 @@ export async function sendQueued(q: QueuedOutcome): Promise<SendResult> {
   const args: Parameters<typeof childTestSa.markOutcome>[0] = { schoolId: q.schoolId, visitId: q.visitId, drawId: q.drawId, outcome: q.outcome };
   if (q.clientSessionId) args.clientSessionId = q.clientSessionId;
   if (q.block) args.block = q.block;
+  if (q.grade) args.grade = q.grade;
   try {
     const out = await childTestSa.markOutcome(args);
     return { kind: 'sent', list: out?.list ?? null, sessionId: out?.sessionId ?? null };
