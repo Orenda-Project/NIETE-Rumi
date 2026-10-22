@@ -1,0 +1,266 @@
+/* The self-administered battery's screens (sa-ui.js). One child, one phone, 360×640 first.
+   Navy text on a warm paper; ONE warm accent (Jugnu's amber) for the primary action and the clock's light.
+   No external fonts except the house Nastaliq from /wq/fonts. */
+@font-face{font-family:"SAE Nastaliq";src:url(/wq/fonts/wq-nastaliq-6.woff2) format("woff2");font-display:swap;size-adjust:140%;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF,U+00A0,U+200C-200F,U+2066-2069,U+25CC}
+
+:root{
+  --sae-ink:#001F3F;--sae-ink-2:#3A4A5E;
+  --sae-paper:#FFF8EC;--sae-card:#FFFFFF;--sae-line:#EADBC2;
+  --sae-accent:#F2A516;--sae-accent-d:#B97700;--sae-accent-l:#FFEBC2;
+  --sae-ok:#1E7A46;--sae-ok-bg:#DFF3E6;--sae-again:#8A5E06;--sae-again-bg:#FFF2CF;
+  --sae-r:22px;--sae-tap:64px;
+  --sae-f:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --sae-fu:"SAE Nastaliq","Noto Nastaliq Urdu","Jameel Noori Nastaleeq",system-ui,sans-serif;
+}
+html,body{margin:0;padding:0;background:var(--sae-paper);color:var(--sae-ink);font-family:var(--sae-f);-webkit-text-size-adjust:100%;touch-action:manipulation}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit}
+
+.sae{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;background:var(--sae-paper);color:var(--sae-ink);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.sae[lang=ur],.sae [lang=ur]{font-family:var(--sae-fu);line-height:2.1;word-spacing:.12em}
+.sae[lang=en] [lang=ur]{line-height:2.1}
+
+.sae-screen{flex:1;min-width:0;display:flex;flex-direction:column;width:100%;max-width:520px;margin:0 auto;padding:12px 16px 16px;gap:10px}
+.sae-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+.sae-foot{display:flex;flex-direction:column;align-items:center;gap:10px;padding-top:6px}
+.sae-top{display:flex;align-items:center;justify-content:space-between;min-height:44px}
+.sae-dots{display:flex;gap:8px;align-items:center;min-width:0;flex:1 1 auto;overflow:hidden}
+.sae-dot{flex:0 0 auto;width:12px;height:12px;border-radius:50%;background:var(--sae-line)}
+.sae-dot.is-done{background:var(--sae-ink)}
+.sae-dot.is-now{background:var(--sae-accent);box-shadow:0 0 0 4px var(--sae-accent-l)}
+.sae-row{display:flex;align-items:center;justify-content:center;gap:16px;width:100%}
+
+.sae-h1{margin:0;font-size:30px;line-height:1.25;font-weight:800;letter-spacing:-.01em}
+.sae[lang=ur] .sae-h1{font-size:30px;line-height:2;font-weight:700;letter-spacing:0}
+.sae-xl{font-size:40px}
+.sae[lang=ur] .sae-xl{font-size:40px}
+.sae-sub{margin:0;font-size:20px;line-height:1.45;color:var(--sae-ink-2)}
+.sae[lang=ur] .sae-sub{line-height:2.1}
+.sae-say{margin:0;font-size:20px;line-height:1.5;max-width:30ch}
+.sae[lang=ur] .sae-say{line-height:2.2}
+
+.sae-jugnu{width:168px;height:168px;object-fit:contain;display:block}
+.sae-jugnu-s{width:84px;height:84px}
+.sae-jugnu-f{display:grid;place-items:center;font-size:72px;line-height:1;font-family:var(--sae-f)}
+.sae-jugnu-s.sae-jugnu-f{font-size:44px}
+.sae-big-ico{font-size:88px;line-height:1;font-family:var(--sae-f)}
+
+/* buttons: big, round, one primary per screen */
+.sae-btn{display:flex;align-items:center;justify-content:center;width:100%;max-width:360px;min-height:var(--sae-tap);padding:10px 24px;border-radius:999px;border:0;font-size:24px;font-weight:800;cursor:pointer;transition:transform .08s ease,box-shadow .08s ease}
+.sae[lang=ur] .sae-btn{font-weight:700;line-height:1.9;font-size:24px}
+.sae-primary{background:var(--sae-accent);color:var(--sae-ink);box-shadow:0 6px 0 var(--sae-accent-d)}
+.sae-primary:active{transform:translateY(4px);box-shadow:0 2px 0 var(--sae-accent-d)}
+.sae-go{min-height:88px;font-size:32px}
+.sae-secondary{background:var(--sae-card);color:var(--sae-ink);border:3px solid var(--sae-line);min-height:var(--sae-tap)}
+.sae-replay,.sae-mute{width:var(--sae-tap);height:var(--sae-tap);border-radius:50%;border:3px solid var(--sae-line);background:var(--sae-card);font-size:28px;line-height:1;font-family:var(--sae-f);display:grid;place-items:center;cursor:pointer;flex:0 0 auto}
+.sae-mute{width:52px;height:52px;font-size:24px}
+.sae-replay:active,.sae-mute:active{transform:scale(.94)}
+.sae-btn:focus-visible,.sae-opt:focus-visible,.sae-pic:focus-visible,.sae-replay:focus-visible,.sae-mute:focus-visible{outline:4px solid var(--sae-ink);outline-offset:3px}
+
+.sae-chip{display:inline-block;margin:0;padding:4px 16px;border-radius:999px;background:var(--sae-accent-l);color:var(--sae-ink);font-weight:800;font-size:18px}
+.sae[lang=ur] .sae-chip{font-weight:700;line-height:1.9}
+
+/* audio check pictures */
+.sae-pics{display:grid;grid-template-columns:1fr 1fr;gap:14px;width:100%}
+.sae-pic{min-height:132px;border-radius:var(--sae-r);border:3px solid var(--sae-line);background:var(--sae-card);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;box-shadow:0 5px 0 var(--sae-line)}
+.sae-pic:active{transform:translateY(3px);box-shadow:0 2px 0 var(--sae-line)}
+.sae-pic-e{font-size:56px;line-height:1;font-family:var(--sae-f)}
+.sae-pic-w{font-size:20px;font-weight:700}
+
+/* answer options */
+.sae-opts{display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));gap:12px;width:100%}
+.sae-opt{min-height:96px;border-radius:var(--sae-r);border:3px solid var(--sae-line);background:var(--sae-card);color:var(--sae-ink);font-size:44px;font-weight:800;line-height:1.2;display:grid;place-items:center;cursor:pointer;box-shadow:0 5px 0 var(--sae-line);font-family:var(--sae-f)}
+/* Nastaliq ink reaches ~2em above the line's middle (ک with ھ) and ~1.5em below it (the tail of م), and «دوست» is ~3.5em
+   wide at the face's size-adjust: the tile's line and padding hold it all, the size fits two tiles across a phone */
+.sae-opt[lang=ur]{font-family:var(--sae-fu);font-weight:400;font-size:clamp(28px,8.8vw,40px);line-height:2.6;padding:.8em 4px .35em}
+/* one letter: its ink sits about evenly round the line's middle, so a tighter line keeps five letter tiles on one screen */
+.sae-opt.is-short[lang=ur]{font-size:clamp(26px,8vw,36px);line-height:2.9;padding:4px}
+.sae-opts.is-many .sae-opt{min-height:72px;font-size:32px}
+.sae-opt:active,.sae-opt.is-pressed{transform:translateY(3px);box-shadow:0 2px 0 var(--sae-line);background:var(--sae-accent-l);border-color:var(--sae-accent)}
+.sae-opt:disabled{cursor:default}
+.sae-opt.is-right{background:var(--sae-ok-bg);border-color:var(--sae-ok);color:var(--sae-ok);position:relative}
+.sae-opt.is-right::after{content:"✓";position:absolute;top:6px;inset-inline-end:10px;font-size:22px;font-family:var(--sae-f);line-height:1}
+.sae-opt.is-tried{background:var(--sae-again-bg);border-color:var(--sae-again)}
+/* a picture pattern's option: the picture large, its word small underneath */
+.sae-opt.is-glyph{grid-template-rows:auto auto;gap:6px;align-content:center;padding:6px 4px}
+.sae-glyph{display:block;font-size:52px;line-height:1.1}
+.sae-cap{display:block;font-size:18px;font-weight:700;color:var(--sae-ink-2);line-height:1.4}
+.sae-opt.is-glyph[lang=ur] .sae-cap{font-size:20px;line-height:2.1}
+.sae-fb{margin:0;min-height:44px;font-size:20px;font-weight:800;padding:6px 14px;border-radius:14px}
+.sae[lang=ur] .sae-fb{font-weight:700;line-height:2}
+.sae-fb.is-ok{color:var(--sae-ok);background:var(--sae-ok-bg)}
+.sae-fb.is-again{color:var(--sae-again);background:var(--sae-again-bg)}
+.sae-fb.is-empty{background:none}
+
+/* the clock: a shrinking track, Jugnu's light at its end; no digits */
+.sae-clock{position:relative;width:100%;height:20px;border-radius:999px;background:var(--sae-card);border:2px solid var(--sae-line);overflow:visible;flex:0 0 auto;margin:6px 0}
+.sae-clock-fill{position:absolute;top:0;bottom:0;left:0;border-radius:999px;background:linear-gradient(90deg,var(--sae-accent-l),var(--sae-accent))}
+.sae[dir=rtl] .sae-clock-fill{left:auto;right:0;background:linear-gradient(270deg,var(--sae-accent-l),var(--sae-accent))}
+.sae-clock-bug{position:absolute;top:-8px;width:32px;height:32px;border-radius:50%;background:radial-gradient(circle,#FFF6C8 0,var(--sae-accent) 55%,rgba(242,165,22,0) 72%);animation:sae-glow 1.6s ease-in-out infinite}
+.sae-clock.is-low .sae-clock-fill{background:var(--sae-accent)}
+@keyframes sae-glow{50%{transform:scale(1.18)}}
+
+/* read-aloud grid: per_row columns; on a narrow phone each row wraps to two lines (order unchanged) */
+.sae-grid{display:grid;grid-template-columns:repeat(var(--cols,10),minmax(0,1fr));gap:6px;width:100%;padding:10px;background:var(--sae-card);border:3px solid var(--sae-line);border-radius:var(--sae-r)}
+.sae-cell{display:grid;place-items:center;min-width:0;min-height:56px;font-size:34px;font-weight:700;border-radius:10px}
+.sae-cell[lang=ur],.sae-grid[lang=ur] .sae-cell{font-weight:400;font-size:30px;line-height:1.9}
+@media (max-width:520px){.sae-grid{grid-template-columns:repeat(var(--cols-n,5),minmax(0,1fr))}}
+.sae-passage{margin:0;font-size:26px;line-height:1.8;text-align:start;background:var(--sae-card);border:3px solid var(--sae-line);border-radius:var(--sae-r);padding:14px 16px;width:100%}
+.sae-passage[lang=ur]{font-size:28px;line-height:2.3}
+
+.sae-tend .sae-jugnu,.sae-end .sae-jugnu{animation:sae-pop .5s ease-out both}
+@keyframes sae-pop{from{transform:scale(.7);opacity:0}to{transform:none;opacity:1}}
+
+@media (min-height:760px){.sae-opt{min-height:120px}}
+/* tap: 4–5 big tiles (five: the fifth spans the row) */
+.sae-opts.is-five .sae-opt:last-child{grid-column:1 / -1}
+.sae-label,.sae-sum{margin:0;font-size:40px;font-weight:800;line-height:1.3;letter-spacing:.04em;unicode-bidi:isolate;direction:ltr;font-family:var(--sae-f)}
+.sae-sum{font-size:48px}
+/* a number sequence: one tile per number, the blank a bordered tile reading __ (also when it is last) */
+.sae-seq{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;font-size:30px;letter-spacing:0}
+.sae-seq-tile{display:inline-grid;place-items:center;min-width:48px;min-height:56px;padding:0 6px;border-radius:14px;background:var(--sae-card)}
+.sae-gap{border:3px dashed var(--sae-ink-2);color:var(--sae-ink-2)}
+.sae-seq[dir=rtl]{direction:rtl}
+/* longer rows (6–9 tiles) stay on one line at 360px */
+.sae-seq.is-long{gap:4px;font-size:26px}
+.sae-seq.is-long .sae-seq-tile{min-width:40px;min-height:50px;padding:0 4px}
+.sae-seq.is-xlong{gap:2px;font-size:20px}
+.sae-seq.is-xlong .sae-seq-tile{min-width:28px;min-height:42px;padding:0 1px;border-radius:10px}
+.sae-task-tag{margin:0;font-size:18px;font-weight:700;color:var(--sae-ink-2)}
+.sae-danger{color:#8A1C1C;border-color:#E9B7B7}
+
+/* keypad */
+.sae-keyarea{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
+.sae-typed{display:grid;place-items:center;min-width:140px;min-height:68px;padding:4px 18px;border-radius:18px;border:3px solid var(--sae-line);background:var(--sae-card);font-size:44px;font-weight:800;font-family:var(--sae-f);direction:ltr}
+.sae-typed.is-right{background:var(--sae-ok-bg);border-color:var(--sae-ok);color:var(--sae-ok)}
+.sae-typed.is-tried{background:var(--sae-again-bg);border-color:var(--sae-again)}
+.sae-keypad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:100%;max-width:340px;direction:ltr}
+.sae-key{min-height:64px;border-radius:16px;border:3px solid var(--sae-line);background:var(--sae-card);font-size:30px;font-weight:800;font-family:var(--sae-f);cursor:pointer;box-shadow:0 4px 0 var(--sae-line)}
+.sae-key:active{transform:translateY(3px);box-shadow:0 1px 0 var(--sae-line)}
+.sae-key-ok{background:var(--sae-accent);border-color:var(--sae-accent-d);box-shadow:0 4px 0 var(--sae-accent-d)}
+.sae-key:disabled{opacity:.5}
+.sae-counters{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;width:100%;max-width:340px}
+.sae-counter{height:56px;border-radius:50%;border:3px dashed var(--sae-line);background:var(--sae-card);cursor:pointer;aspect-ratio:1;justify-self:center;width:56px}
+.sae-counter[aria-pressed=true]{background:var(--sae-accent);border:3px solid var(--sae-accent-d)}
+
+/* passage words (record) and the last-word pick */
+.sae-passage .sae-pline{display:block}
+.sae-word{display:inline}
+.sae-passage.is-pick{max-height:60vh;overflow-y:auto}
+.sae-passage.is-pick .sae-word{display:inline-block;min-height:64px;min-width:64px;margin:3px;padding:2px 10px;border-radius:14px;border:2px solid var(--sae-line);background:var(--sae-paper);font:inherit;cursor:pointer}
+.sae-passage.is-pick .sae-word:active{background:var(--sae-accent-l);border-color:var(--sae-accent)}
+.sae-passage.is-pick .sae-word.is-picked{background:var(--sae-accent-l);border-color:var(--sae-accent);border-width:3px;font-weight:700}
+.sa-lw-confirm[disabled]{opacity:.45}
+
+/* oral: the listening mic, the story ear */
+.sae-mic,.sae-ear{width:140px;height:140px;border-radius:50%;display:grid;place-items:center;font-size:64px;line-height:1;font-family:var(--sae-f);background:var(--sae-card);border:4px solid var(--sae-line)}
+.sae-mic.is-on{border-color:var(--sae-accent);box-shadow:0 0 0 0 rgba(242,165,22,.5);animation:sae-pulse 1.4s ease-out infinite}
+@keyframes sae-pulse{0%{box-shadow:0 0 0 0 rgba(242,165,22,.55)}100%{box-shadow:0 0 0 28px rgba(242,165,22,0)}}
+
+/* warm-up bubbles */
+.sae-bubbles{position:relative;width:100%;height:min(60vh,420px)}
+.sae-bubble{position:absolute;width:72px;height:72px;border-radius:50%;border:3px solid #9CC7F0;background:radial-gradient(circle at 30% 30%,#FFFFFF 0,#D6ECFF 35%,#A9D3FA 100%);cursor:pointer;transition:transform .15s ease,opacity .15s ease}
+.sae-bubble.is-popped{transform:scale(1.4);opacity:0;pointer-events:none}
+
+/* coach-facing: the hold corner, the menu, the sync dot, the handover */
+.sae{position:relative}
+.sae-hold{position:absolute;top:0;left:0;width:64px;height:64px;border:0;background:transparent;z-index:5;cursor:default;-webkit-touch-callout:none}
+.sae-hold-ring{position:absolute;inset:14px;border-radius:50%;border:3px solid transparent}
+.sae-hold.is-holding .sae-hold-ring{border-color:var(--sae-ink);animation:sae-hold 3s linear forwards}
+@keyframes sae-hold{from{transform:scale(.3);opacity:.3}to{transform:scale(1);opacity:1}}
+.sae-sync{position:absolute;top:8px;right:8px;width:12px;height:12px;border-radius:50%;background:#9AA5B1;z-index:4}
+.sae-sync[data-state=synced],.sae-sync[data-state=ok]{background:#1E7A46}
+.sae-sync[data-state=pending],.sae-sync[data-state=syncing]{background:var(--sae-accent)}
+.sae-sync[data-state=offline],.sae-sync[data-state=error]{background:#B3261E}
+.sae-coach-menu{position:fixed;inset:0;background:rgba(0,31,63,.55);display:grid;place-items:center;z-index:10;padding:16px}
+.sae-coach-card{background:var(--sae-card);border-radius:var(--sae-r);padding:20px 16px;width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.sae-handover .sae-name{font-weight:800}
+.sae-end.is-proctored .sae-handback{color:var(--sae-ink);font-weight:800;font-size:24px;background:var(--sae-accent-l);border-radius:var(--sae-r);padding:14px 18px}
+
+@media (prefers-reduced-motion:reduce){
+  .sae *,.sae *::before,.sae *::after{animation:none!important;transition:none!important}
+}
+
+/* fit 360×640: the primary action stays on screen (sticky foot); keypad screens drop the big Jugnu */
+.sae-foot{position:sticky;bottom:0;background:var(--sae-paper);padding-bottom:8px;z-index:2}
+.sae-intro .sae-jugnu{width:120px;height:120px}
+.sae-intro .sae-sub{font-size:18px}
+.sae-run-keypad .sae-jugnu,.sae-practice .sae-keyarea ~ * .sae-jugnu{display:none}
+.sae-run-keypad .sae-body,.sae-practice .sae-body{gap:8px;justify-content:flex-start}
+.sae-sumrow{display:flex;align-items:center;justify-content:center;gap:12px;direction:ltr}
+.sae-sumrow .sae-sum{font-size:40px}
+.sae-sumrow .sae-typed{min-width:110px;min-height:64px;font-size:46px}
+.sae-counter{width:44px;height:44px}
+.sae-counters{gap:6px;max-width:300px}
+.sae-practice .sae-keyarea ~ .sae-fb.is-empty,.sae-keyarea.has-fb .sae-counters{display:none}
+.sae-counter{width:40px;height:40px}
+.sae-keyarea > .sae-typed{min-height:56px;font-size:40px}
+.sae-run-keypad.sae-screen,.sae-practice.sae-screen{gap:4px;padding-top:6px}
+.sae-keypad{gap:6px}
+.sae-counters{gap:4px}
+.sae-practice .sae-replay{width:56px;height:56px}
+/* keyboard (spelling): a–z strip, always ltr and in the Latin face */
+.sae-letters{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;width:100%;max-width:360px;direction:ltr}
+.sae-letter{min-height:64px;font-size:28px;text-transform:none;font-family:var(--sae-f)}
+.sae-letters .sae-key{min-height:64px}
+.sae-letters .sae-key-ok{grid-column:span 2}
+.sae-word-typed{min-width:200px;font-family:var(--sae-f);letter-spacing:.06em}
+.sae-run-keyboard.sae-screen{gap:4px;padding-top:6px}
+
+/* picture options (vocabulary): the picture fills the tile */
+.sae-opt.is-pic { padding: 6px; }
+.sae-opt-img { width: 100%; height: 100%; max-height: 22vh; object-fit: contain; pointer-events: none; }
+.sae-demo-img { display: block; max-width: 70%; max-height: 28vh; margin: 8px auto 0; object-fit: contain; }
+
+/* car 4a: session gates, the tall ✓, the passage star, the refuse screen */
+.sae-keypad.is-tall-ok{grid-template-columns:repeat(4,minmax(0,1fr))}
+.sae-keypad.is-tall-ok .sae-key-del{grid-column:4;grid-row:1}
+.sae-keypad.is-tall-ok .sae-key-ok{grid-column:4;grid-row:2 / span 3;font-size:44px}
+.sae-keypad.is-tall-ok [data-key="0"]{grid-column:1 / span 3}
+.sae-keypad.is-warm [data-key="0"]{grid-column:2}
+.sae-choice{font-size:22px;font-weight:800;font-family:inherit;min-height:120px;padding:8px}
+.sae[lang=ur] .sae-choice{font-weight:700;line-height:1.9;font-size:22px}
+.sae-choice.is-yes{border-color:var(--sae-ok);background:var(--sae-ok-bg)}
+.sae-mic-btn{cursor:pointer;width:160px;height:160px;font-size:72px}
+.sae-mic-btn:disabled{cursor:default}
+.sae-meter{width:100%;max-width:300px;height:22px;border-radius:999px;background:var(--sae-card);border:2px solid var(--sae-line);overflow:hidden;direction:ltr}
+.sae-meter-fill{height:100%;width:0;background:linear-gradient(90deg,var(--sae-accent-l),var(--sae-accent));transition:width .08s linear}
+.sae-kpw-typed{min-width:200px;min-height:72px;font-size:48px;letter-spacing:.08em}
+.sae-star{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;width:100%;max-width:360px;min-height:96px;border-radius:var(--sae-r);border:0;background:var(--sae-accent);color:var(--sae-ink);box-shadow:0 6px 0 var(--sae-accent-d);cursor:pointer;padding:4px 16px}
+.sae-star:active{transform:translateY(4px);box-shadow:0 2px 0 var(--sae-accent-d)}
+.sae-star-ico{font-size:44px;line-height:1;font-family:var(--sae-f);color:#FFF6C8;text-shadow:0 1px 0 var(--sae-accent-d)}
+.sae-star-word{font-size:22px;font-weight:800}
+.sae[lang=ur] .sae-star-word{font-weight:700;line-height:1.8}
+.sae-star.is-mercy{animation:sae-star-pulse 1.1s ease-in-out infinite}
+@keyframes sae-star-pulse{50%{transform:scale(1.05);box-shadow:0 6px 0 var(--sae-accent-d),0 0 0 12px rgba(242,165,22,.25)}}
+.sae-refused .sae-h1{max-width:18ch}
+@media (prefers-reduced-motion:reduce){.sae-star.is-mercy{animation:none!important;outline:4px solid var(--sae-ink);outline-offset:4px}}
+.sae-kpwarm.sae-screen{gap:4px;padding-top:8px}
+.sae-kpwarm .sae-body{gap:8px;justify-content:flex-start}
+.sae-kpwarm .sae-say{font-size:18px}
+.sae-kpwarm .sae-kpw-typed{min-height:60px;font-size:42px}
+/* The sandbox-only "Jump to…" (RULING #43): a tester's tool, plainly not part of the child's screen; its row starts
+   below the coach's corner hold (the portal's top-start End test, ~56 px). */
+.sae-devjump-row{display:flex;flex:0 0 auto;width:100%;margin-top:56px}
+.sae-devjump{max-width:100%;font-size:13px;padding:4px 6px;border:1px dashed #b45309;border-radius:8px;background:#fff7ed;color:#7c2d12}
+/* A11: the disabled demo copy of item 1 under the instruction (Tangerine's demo pattern). */
+.sae-demo{width:100%;display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.75;pointer-events:none}
+.sae-demo-blank{min-width:120px;min-height:64px;border:3px dashed var(--sae-line);border-radius:var(--sae-r);display:grid;place-items:center;font-size:32px}
+/* Wave 3: one cell at a time (sa_one_at_a_time), the coach's screen (RDF manual), the passage as printed (sa_passage_punct) */
+.sae-onecell{display:grid;place-items:center;width:100%;min-height:40vh;padding:12px;font-size:clamp(40px,15vw,96px);font-weight:700;overflow-wrap:anywhere;text-align:center;background:var(--sae-card);border:3px solid var(--sae-line);border-radius:var(--sae-r)}
+.sae-onecell.is-short{font-size:clamp(72px,30vw,160px)}
+/* Nastaliq ink (the tail of ل م ن, the top of ک) spans about 2.7em at the face's size-adjust: the line box holds it all */
+.sae-onecell[lang=ur]{font-weight:400;line-height:3.2;font-size:clamp(52px,19vw,124px);overflow-wrap:normal}
+.sae-onecell.is-short[lang=ur]{font-size:clamp(80px,30vw,204px)}
+/* Round 4: the item's ink, placed by sa-ui fitCells (an Urdu cell or text tile is centred on its ink, not on its line box) */
+.sae-ink{display:inline-block}.sae-onecell[lang=ur] .sae-ink,.sae-opt[lang=ur] .sae-ink{white-space:nowrap}
+.sae-coach-text{background:var(--sae-card);border:3px solid var(--sae-line);border-radius:var(--sae-r);padding:12px 14px}
+/* RDF manual: the items the coach reads out (the brief's list, and the line on the child's screen). */
+.sae-coach-items{margin:4px 0 0;padding-inline-start:24px;text-align:start;display:flex;flex-direction:column;gap:6px;font-size:18px;line-height:1.6}
+.sae-coach-says{width:100%;max-width:520px;background:var(--sae-card);border:3px dashed var(--sae-line);border-radius:var(--sae-r);padding:8px 12px;text-align:start}
+.sae-coach-says summary{cursor:pointer;font-weight:700}
+.sae-coach-line{margin:4px 0 0;line-height:1.7}
+.sae-passage.is-printed{word-spacing:.35em;line-height:1.6}
+/* RULING W3-19: the official Urdu page's pitch (≈ 150 px on a ≈ 60 px glyph), so Nastaliq lines never collide */
+.sae-passage.is-printed[lang=ur]{word-spacing:.35em;line-height:2.45}
+@media (max-width:360px){.sae-passage.is-printed{font-size:23px}.sae-passage.is-printed[lang=ur]{font-size:25px}}

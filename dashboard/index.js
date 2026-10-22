@@ -137,6 +137,7 @@ const hcpRoutes = require('./routes/hcp.routes');
 const attendanceRoutes = require('./routes/attendance.routes');
 // bd-fmf24g.3 — teacher app v2: grade·subject pairs + Lesson Plans routes.
 const teacherLessonsRoutes = require('./routes/portal-teacher-lessons.routes');
+const childTestRoutes = require('./routes/portal-child-test.routes');
 
 // BYOF Routes (Build Your Own Feature) - Conversational AI for bug/feature planning
 const byofRoutes = require('./routes/byof.routes');
@@ -191,6 +192,8 @@ app.use(createTeacherStoriesRouter());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+// The self-administered EGRA/EGMA battery engine's files at /sa/* (switch sa_engine, app_settings; off → falls through).
+app.use(require('./routes/sa-engine.routes').createSaEngineRouter());
 
 // Latency logging middleware 
 // Tracks request duration and alerts on slow requests
@@ -2842,6 +2845,8 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 // bd-s42dye.1 — the coach app's Training Library: the whole catalogue, read-only, coach role only.
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/training-library.routes'));
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-fln.routes'));
+// bd-s1oo0.7 — the child test in the coach app (relays to the bot; flag portal_child_test).
+app.use('/api/portal/leader/child-test', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, childTestRoutes);
 
 // HCP endpoint tester — an HTML page for internal QA to hit the 10 /api/portal/hcp/*
 // endpoints without curl. Served under /observability/* so it's excluded from the

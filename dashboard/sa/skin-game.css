@@ -1,0 +1,9 @@
+/* The big flight's skin on the child's page (?skin=game): a day sky behind the engine's screens, Jugnu's glow in the
+   corner while a timed task runs, one sound switch. The engine's own layout, tiles and clock are left as they are. */
+html[data-skin=game] body,body:has(.sg-glow){background:linear-gradient(#DDF2FA,#F5F8F6 40%)}
+.sg-glow{position:fixed;top:8px;inset-inline-end:64px;width:56px;height:56px;z-index:30;pointer-events:none;display:none}
+.sg-glow.is-on{display:block}
+.sg-glow::before{content:"";position:absolute;inset:-6px;border-radius:50%;background:radial-gradient(circle,#FFE58A 0,#F6B73Caa 42%,transparent 70%);transform:scale(var(--glow,1));opacity:calc(.25 + .75 * var(--glow,1));transition:transform .9s linear,opacity .9s linear}
+.sg-glow img{position:absolute;inset:8px;width:40px;height:40px}
+.sg-mute{position:fixed;top:8px;inset-inline-end:8px;z-index:31;width:48px;height:48px;border-radius:50%;border:0;background:#fff;box-shadow:0 2px 0 #DCE5DF;font:20px system-ui,sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent}
+@media (prefers-reduced-motion:reduce){.sg-glow::before{transition:none}}

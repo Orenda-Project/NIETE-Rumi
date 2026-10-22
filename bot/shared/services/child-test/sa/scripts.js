@@ -1,0 +1,384 @@
+'use strict';
+
+/**
+ * Jugnu's spoken lines for the self-administered (SA) battery, in English and Urdu. Each line is the official EGRA /
+ * Core EGMA instruction as item-bank.v3.json carries it (`from`), adapted for a child alone with a phone the way
+ * Tangerine SA-EGRMA adapts it: the enumerator's stage directions ("[point to …]") become what the child does on the
+ * screen, "tell me" becomes "say it out loud" (record) or "tap it" (tap), and nothing is added to the measure.
+ *
+ * Copy rules: the child is addressed with آپ and imperatives only, so no Urdu line carries a gendered verb (no
+ * "گا/گی"); Urdu letters, never Arabic look-alikes; no right/wrong feedback during a scored task (EGRA gives
+ * feedback on practice items only). `{x}` is the item the line is about, filled in per item by the builder.
+ */
+
+const L = (en, ur, from) => ({ en, ur, from });
+
+// Lines every task uses, by when they are spoken.
+const COMMON = {
+  begin: L('Ready? Begin.', 'تیار ہو جائیں۔ شروع کریں۔', 'v3:script.begin'),
+  time_up: L('Stop. Well done for trying.', 'رک جائیں۔ کوشش کرنے پر شاباش۔', 'v3:script.stop'),
+  early_stop: L('Thank you! Let us go on to the next one.', 'شکریہ! اب اگلے حصے کی طرف چلتے ہیں۔', 'v3:script.early_stop'),
+  after: L('Good effort! Let us go on to the next part.', 'شاباش! اب اگلے حصے کی طرف چلتے ہیں۔', 'v3:script.after'),
+  practice_intro: L('First, let us practise.', 'پہلے مشق کرتے ہیں۔', 'egra_tk2016:Annex H (practice items)'),
+  test_intro: L('Now it is your turn. Jugnu will not say if an answer is right until the end.', 'اب آپ کی باری ہے۔ جگنو آخر تک نہیں بتائے گا کہ جواب صحیح ہے یا نہیں۔', 'egra_tk2016:no feedback on scored items'),
+  practice_right: L('Yes! Well done.', 'شاباش! بالکل ٹھیک۔', 'v3:script.practice_1_correct'),
+  practice_wrong: L('Not quite. Listen again.', 'یہ والا نہیں۔ دوبارہ سنیں۔', 'v3:script.practice_1_wrong'),
+  replay: L('Listen again.', 'دوبارہ سنیں۔', 'egra_tk2016:3-second rule (replay at 5 s)'),
+  hand_back: L('Well done! Please give the phone back to your teacher.', 'شاباش! اب فون واپس اپنے ٹیچر کو دے دیں۔', 'adapted:handback'),
+};
+
+// The audio check's words (everyday pictures, not test content): the same pool as the engine's own (sa-ui.js
+// CHECK_WORDS), here so the battery carries a clip for each word in the one voice.
+const CHECK_WORDS = [
+  { pic: '🐱', en: 'cat', ur: 'بلی' },
+  { pic: '☀️', en: 'sun', ur: 'سورج' },
+  { pic: '🐟', en: 'fish', ur: 'مچھلی' },
+  { pic: '⚽', en: 'ball', ur: 'گیند' },
+  { pic: '🥭', en: 'mango', ur: 'آم' },
+  { pic: '🏠', en: 'house', ur: 'گھر' },
+];
+
+// Battery-level lines (welcome, the audio check, the end).
+const BATTERY = {
+  welcome: L('Hello! This is not a test for marks. Jugnu will play some reading and number games with you. Listen carefully and do your best.',
+    'السلام علیکم! یہ نمبروں والا امتحان نہیں ہے۔ جگنو آپ کے ساتھ پڑھنے اور گنتی کے کچھ کھیل کھیلے گا۔ غور سے سنیں اور اپنی پوری کوشش کریں۔',
+    'egra_tk2016:p.186 (consent and "this is not a test")'),
+  audio_check: L('Can you hear Jugnu? Tap the picture Jugnu says.', 'کیا آپ کو جگنو کی آواز آ رہی ہے؟ جو تصویر جگنو بتائے، اسے دبائیں۔', 'adapted:headphone check'),
+  audio_fail: L('Ask for help with the headphones, then try again.', 'ہیڈ فون کے لیے مدد مانگیں، پھر دوبارہ کوشش کریں۔', 'adapted:headphone check'),
+  section_urdu: L('Now some Urdu reading.', 'اب کچھ اردو پڑھتے ہیں۔', 'adapted:section'),
+  section_english: L('Now some English reading.', 'اب کچھ انگریزی پڑھتے ہیں۔', 'adapted:section'),
+  section_maths: L('Now some number games.', 'اب گنتی کے کچھ کھیل کھیلتے ہیں۔', 'adapted:section'),
+  end: L('All done! Thank you. Please give the phone back to your teacher.', 'سب ہو گیا! شکریہ۔ اب فون واپس اپنے ٹیچر کو دے دیں۔', 'adapted:handback'),
+  // The game surface (DESIGN §5: no test words on a game screen; at home there is no teacher to hand back to).
+  welcome_game: L('Hello! Jugnu will play some reading and number games with you. Listen carefully and do your best.',
+    'السلام علیکم! جگنو آپ کے ساتھ پڑھنے اور گنتی کے کچھ کھیل کھیلے گا۔ غور سے سنیں اور اپنی پوری کوشش کریں۔', 'egra_tk2016:p.186 (game wording)'),
+  end_game: L('All done! Well done for trying.', 'سب ہو گیا! کوشش کرنے پر شاباش۔', 'adapted:game end'),
+  // The engine's own screens (RULINGs #10, #13, #14, #17).
+  oral_practice: L('Let us practise answering out loud. Say: one, two, three.', 'آئیں، اونچی آواز میں جواب دینے کی مشق کریں۔ کہیں: ایک، دو، تین۔', 'RULING #13 (one practice before the first spoken answer)'),
+  oral_heard: L('I heard you!', 'مجھے سنائی دیا!', 'RULING #13'),
+  mic_check: L('Say: one, two, three.', 'کہیں: ایک، دو، تین۔', 'RULING #13 (mic probe)'),
+  mic_check_ask: L('Did you hear yourself?', 'کیا آپ کو اپنی آواز سنائی دی؟', 'RULING #13 (mic probe playback)'),
+  mercy: L('If reading is hard, tap the star.', 'اگر پڑھنا مشکل ہو تو ستارے کو دبائیں۔', 'RULING #10 (b) mercy rule (gender-neutral wording)'),
+  voice_not_ready: L('Voice not ready', 'آواز ابھی تیار نہیں', 'RULING #14'),
+  keypad_warmup: L('Type any numbers you like. Tap Done when you are ready.', 'جو نمبر چاہیں لکھیں۔ تیار ہوں تو "ہو گیا" دبائیں۔', 'RULING #17 P4 (Tangerine SA free-typing warm-up)'),
+  done: L('Done', 'ہو گیا', 'RULING #10 (c) the star tile'),
+  // RULING #31d: the engine's own lines (dashboard/sa/sa-ui.js COPY, the same words) as battery lines, so each is a
+  // clip and never the phone's speech. A change to a COPY text must change its line here too (a test compares them).
+  right: L('That’s right!', 'بالکل ٹھیک!', 'engine COPY.right (practice, correct)'),
+  try_again: L('Try again.', 'ایک بار پھر کوشش کریں۔', 'engine COPY.try_again (practice, one retry)'),
+  shown: L('This is the right one.', 'یہ والا ٹھیک ہے۔', 'engine COPY.shown (practice, the answer shown)'),
+  mic_skip_say: L('If the microphone is not working, tap Skip.', 'اگر مائیک کام نہیں کر رہا تو چھوڑ دیں دبائیں۔', 'engine COPY.mic_skip_say (mic check)'),
+  warm_title: L('Pop the bubbles!', 'بلبلے پھوڑیں!', 'engine COPY.warm_title (brain break)'),
+  last_word: L('Tap the last word you read', 'آخری پڑھا ہوا لفظ دبائیں', 'engine COPY.last_word (passage)'),
+  all_done: L('All done!', 'سب ہو گیا!', 'engine COPY.all_done (battery end)'),
+  back_wait: L('Your island is saved on this phone. It will go when the internet is back.', 'آپ کا جزیرہ اس فون پر محفوظ ہے۔ انٹرنیٹ آتے ہی چلا جائے گا۔', 'engine COPY.back_wait (game, offline)'),
+  mic_skip_task: L('No microphone, so we skip this part', 'مائیک نہیں ہے، اس لیے یہ حصہ چھوڑ رہے ہیں', 'engine COPY.mic_skip_task (RULING #38b)'),
+  give_coach: L('Give the phone back to the coach.', 'اب فون کوچ کو واپس دے دیں۔', 'engine COPY.give_coach (coach hand-back)'),
+};
+const GAME_LINES = {
+  hand_back: L('Well done! Let us go back to the map.', 'شاباش! اب واپس نقشے پر چلتے ہیں۔', 'adapted:game hand-back'),
+};
+
+// Per task kind. intro_record: the child reads aloud and Jugnu keeps the recording; intro_tap: Jugnu says an item and
+// the child taps it. item: what Jugnu says for one scored item. right / wrong: practice feedback only.
+const TASKS = {
+  'ur.letters': {
+    intro_record: L('Here is a page of Urdu letters. Say the NAME of each letter out loud, not its sound. Start at the first letter and go along each row. If you do not know a letter, go on to the next one. Read as quickly and carefully as you can.',
+      'یہ اردو حروفِ تہجی کا صفحہ ہے۔ ہر حرف کا نام اونچی آواز میں بتائیں۔ حرف کی آواز نہیں، صرف اس کا نام۔ پہلے حرف سے شروع کریں اور ہر سطر میں آگے بڑھیں۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔ جتنا جلدی اور دھیان سے ہو سکے، پڑھیں۔',
+      'v3:sets.A.reading.ur.letters.script.intro+instructions'),
+    intro_tap: L('Here are some Urdu letters. Listen to the name of a letter, then tap that letter. Go as quickly and carefully as you can.',
+      'یہ کچھ اردو حروف ہیں۔ ایک حرف کا نام سنیں، پھر وہی حرف دبائیں۔ جتنا جلدی اور دھیان سے ہو سکے، کریں۔',
+      'v3:sets.A.reading.ur.letters.script.intro (tap adaptation)'),
+    item: L('{x}', '{x}', 'the letter name'),
+    right: L('Yes! This letter is {x}.', 'شاباش! یہ حرف {x} ہے۔', 'v3:sets.A.reading.en.letters.script.practice_1_correct'),
+    wrong: L('This letter is {x}.', 'یہ حرف {x} ہے۔', 'v3:sets.A.reading.en.letters.script.practice_1_wrong'),
+  },
+  'en.letters': {
+    intro_record: L('Here is a page of English letters. Say the NAME of each letter out loud, not its sound. Start at the first letter and go along each row. If you do not know a letter, go on to the next one. Read as quickly and carefully as you can.',
+      'یہ انگریزی حروفِ تہجی کا صفحہ ہے۔ ہر حرف کا نام اونچی آواز میں بتائیں۔ حرف کی آواز نہیں، صرف اس کا نام۔ پہلے حرف سے شروع کریں اور ہر سطر میں آگے بڑھیں۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔ جتنا جلدی اور دھیان سے ہو سکے، پڑھیں۔',
+      'v3:sets.A.reading.en.letters.script.intro+instructions'),
+    intro_tap: L('Here are some English letters. Listen to the name of a letter, then tap that letter. Go as quickly and carefully as you can.',
+      'یہ کچھ انگریزی حروف ہیں۔ ایک حرف کا نام سنیں، پھر وہی حرف دبائیں۔ جتنا جلدی اور دھیان سے ہو سکے، کریں۔',
+      'v3:sets.A.reading.en.letters.script.intro (tap adaptation)'),
+    example: L('For example, the name of this letter is {x}.', 'مثال کے طور پر، اس حرف کا نام {x} ہے۔', 'v3:sets.A.reading.en.letters.script.example'),
+    item: L('{x}', '{x}', 'the letter name'),
+    right: L('Yes! The name of this letter is {x}.', 'شاباش! اس حرف کا نام {x} ہے۔', 'v3:sets.A.reading.en.letters.script.practice_1_correct'),
+    wrong: L('The name of this letter is {x}.', 'اس حرف کا نام {x} ہے۔', 'v3:sets.A.reading.en.letters.script.practice_1_wrong'),
+  },
+  // DESIGN §2b reading extras. English: TK2009 / TK2016 Annex H child instructions; Urdu: SELECT 2024 (initial sound).
+  'en.letter_sounds': {
+    intro_tap: L('Here are some English letters. Jugnu will say the SOUND of a letter, not its name. Tap the letter that makes that sound. Go as quickly and carefully as you can.',
+      'یہ کچھ انگریزی حروف ہیں۔ جگنو ایک حرف کی آواز بولے گا، نام نہیں۔ جو حرف یہ آواز دیتا ہے، اسے دبائیں۔ جتنا جلدی اور دھیان سے ہو سکے، کریں۔',
+      'egra_tk2016:Annex H p.187 letter sound "tell me the sounds of as many letters as you can" (tap adaptation)'),
+    example: L('For example, the sound of this letter is {x}.', 'مثال کے طور پر، اس حرف کی آواز {x} ہے۔', 'egra_tk2016:Annex H p.187 (example T)'),
+    right: L('Yes! The sound of this letter is {x}.', 'شاباش! اس حرف کی آواز {x} ہے۔', 'egra_tk2016:Annex H p.187 (practice, correct)'),
+    wrong: L('The sound of this letter is {x}.', 'اس حرف کی آواز {x} ہے۔', 'egra_tk2016:Annex H p.187 (practice, incorrect)'),
+  },
+  'en.initial_sound': {
+    intro_tap: L('This is a listening game. Jugnu will say a word two times. Listen to the word, then tap the letter for the very first sound in that word.',
+      'یہ سننے کا کھیل ہے۔ جگنو ایک لفظ دو بار بولے گا۔ لفظ غور سے سنیں، پھر اس لفظ کی سب سے پہلی آواز والا حرف دبائیں۔',
+      'egra_tk2009:p34 initial sound "tell me the very first sound in that word" (tap adaptation)'),
+    // {x} = the word, {y} = its first sound as Jugnu says it.
+    example: L('For example, in the word "{x}", the first sound is {y}.', 'مثال کے طور پر، لفظ "{x}" کی پہلی آواز {y} ہے۔', 'egra_tk2009:p34 (example "pot")'),
+    right: L('Very good, the first sound in "{x}" is {y}.', 'شاباش! لفظ "{x}" کی پہلی آواز {y} ہے۔', 'egra_tk2009:p34 (practice, correct)'),
+    wrong: L('Listen again: "{x}". The first sound in "{x}" is {y}.', 'دوبارہ سنیں: "{x}"۔ لفظ "{x}" کی پہلی آواز {y} ہے۔', 'egra_tk2009:p34 (practice, incorrect)'),
+  },
+  'ur.initial_sound': {
+    intro_tap: L('This is a listening game. Jugnu will say some words. Tap the letter for the beginning sound of each word. Jugnu will say each word two times.',
+      'یہ سننے کی مشق ہے۔ جگنو آپ کو کچھ لفظ بتائے گا۔ ہر لفظ کی ابتدائی آواز والا حرف دبائیں۔ جگنو ہر لفظ دو بار دہرائے گا۔',
+      'select2024:p120 initial sound script (tap adaptation)'),
+    example: L('For example, the beginning sound of the word "{x}" is {y}.', 'جیسے: لفظ "{x}" کی ابتدائی آواز {y} ہے۔', 'select2024:p120 (example "جہاز")'),
+    right: L('Well done! The beginning sound of the word "{x}" is {y}.', 'شاباش! لفظ "{x}" کی ابتدائی آواز {y} ہے۔', 'select2024:p120 (practice, correct)'),
+    wrong: L('The beginning sound of the word "{x}" is {y}.', 'لفظ "{x}" کی ابتدائی آواز {y} ہے۔', 'select2024:p120 (practice, incorrect)'),
+  },
+  'en.segmentation': {
+    intro_tap: L('This is a listening game. Jugnu will say a word two times. Listen to the word, then say all the sounds in that word out loud.',
+      'یہ سننے کا کھیل ہے۔ جگنو ایک لفظ دو بار بولے گا۔ لفظ غور سے سنیں، پھر اس لفظ کی ساری آوازیں ایک ایک کر کے اونچی آواز میں بتائیں۔',
+      'egra_tk2009:p33 phoneme segmentation "tell me the sounds in that word" (record adaptation)'),
+    example: L('For example, the sounds in "{x}" are {y}.', 'مثال کے طور پر، لفظ "{x}" کی آوازیں یہ ہیں: {y}۔', 'egra_tk2009:p33 (example "pot", practice "fan", "miss")'),
+  },
+  'en.dictation': {
+    intro_tap: L('Jugnu will say a word, then a sentence with that word, then the word again. Type the word with the letter buttons. To hear it again, tap Jugnu.',
+      'جگنو ایک لفظ بولے گا، پھر اس لفظ والا ایک جملہ، پھر وہی لفظ دوبارہ۔ حروف والے بٹن دبا کر وہ لفظ لکھیں۔ دوبارہ سننے کے لیے جگنو کو دبائیں۔',
+      'egra_tk2009:p41 dictation "I will read you a short sentence ... write what you hear" (Tangerine SA typed-spelling adaptation)'),
+  },
+  'ur.vocabulary': {
+    intro_tap: L('Here are some pictures. Jugnu will say what is happening in one picture. Tap that picture.',
+      'یہ کچھ تصویریں ہیں۔ جگنو بتائے گا کہ ایک تصویر میں کیا ہو رہا ہے۔ وہ تصویر دبائیں۔',
+      'select2024:p122 vocabulary "these are some pictures; tell me what is happening" (receptive tap adaptation)'),
+    example: L('For example, in this picture: {x}.', 'جیسے، اس تصویر میں: {x}۔', 'select2024:p122 (example "پرندہ اڑ رہا ہے")'),
+    right: L('Well done! {x}.', 'شاباش! {x}۔', 'select2024:p122 (practice, correct)'),
+    wrong: L('Look again: {x}.', 'دوبارہ دیکھیں: {x}۔', 'select2024:p122 (practice, incorrect)'),
+  },
+  'en.print_orientation': {
+    intro_tap: L('Look at this story. Do not read it now. Listen to each question and tap your answer on the page.',
+      'اس کہانی کو دیکھیں۔ ابھی اسے نہ پڑھیں۔ ہر سوال سنیں اور صفحے پر اپنا جواب دبائیں۔', 'egra_tk2016:Annex H p.187 orientation to print (tap adaptation)'),
+  },
+  'ur.print_orientation': {
+    intro_tap: L('Look at this story. Do not read it now. Listen to each question and tap your answer on the page.',
+      'اس کہانی کو دیکھیں۔ ابھی اسے نہ پڑھیں۔ ہر سوال سنیں اور صفحے پر اپنا جواب دبائیں۔', 'prpkp2020:p81 orientation to print (tap adaptation)'),
+  },
+  nonwords: {
+    intro_record: L('Here are some made-up words. They are not real words. Read as many as you can, out loud. Do not spell them, read each whole word. Start at the first word and go along each row. If you do not know a word, go on to the next one.',
+      'یہ کچھ بنائے ہوئے الفاظ ہیں، یہ اصلی الفاظ نہیں ہیں۔ جتنے ہو سکیں، اونچی آواز میں پڑھیں۔ ہجے نہ کریں، پورا لفظ پڑھیں۔ پہلے لفظ سے شروع کریں اور ہر سطر میں آگے بڑھیں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔',
+      'v3:sets.A.reading.<lang>.nonwords.script.intro+instructions'),
+    intro_tap: L('Here are some made-up words. They are not real words. Listen to a made-up word, then tap that word.',
+      'یہ کچھ بنائے ہوئے الفاظ ہیں، یہ اصلی الفاظ نہیں ہیں۔ ایک بنایا ہوا لفظ سنیں، پھر وہی لفظ دبائیں۔',
+      'v3:sets.A.reading.<lang>.nonwords.script.intro (tap adaptation)'),
+    example: L('For example, this made-up word is {x}.', 'مثال کے طور پر، یہ بنایا ہوا لفظ ہے: {x}۔', 'v3:sets.A.reading.<lang>.nonwords.script.example'),
+    item: L('{x}', '{x}', 'the made-up word'),
+    right: L('Yes! This made-up word is {x}.', 'شاباش! یہ بنایا ہوا لفظ {x} ہے۔', 'v3:sets.A.reading.<lang>.nonwords.script.practice_1_correct'),
+    wrong: L('This made-up word is {x}.', 'یہ بنایا ہوا لفظ {x} ہے۔', 'v3:sets.A.reading.<lang>.nonwords.script.practice_1_wrong'),
+  },
+  words: {
+    intro_record: L('Here are some words. Read as many as you can, out loud. Do not spell them, read each whole word. Start at the first word and go along each row. If you do not know a word, go on to the next one.',
+      'یہ کچھ الفاظ ہیں۔ جتنے ہو سکیں، اونچی آواز میں پڑھیں۔ ہجے نہ کریں، پورا لفظ پڑھیں۔ پہلے لفظ سے شروع کریں اور ہر سطر میں آگے بڑھیں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔',
+      'v3:sets.A.reading.<lang>.words.script.intro+instructions'),
+    intro_tap: L('Here are some words. Listen to a word, then tap that word.', 'یہ کچھ الفاظ ہیں۔ ایک لفظ سنیں، پھر وہی لفظ دبائیں۔',
+      'v3:sets.A.reading.<lang>.words.script.intro (tap adaptation)'),
+    example: L('For example, this word is {x}.', 'مثال کے طور پر، یہ لفظ {x} ہے۔', 'v3:sets.A.reading.en.words.script.example'),
+    item: L('{x}', '{x}', 'the word'),
+    right: L('Yes! This word is {x}.', 'شاباش! یہ لفظ {x} ہے۔', 'v3:sets.A.reading.en.words.script.practice_1_correct'),
+    wrong: L('This word is {x}.', 'یہ لفظ {x} ہے۔', 'v3:sets.A.reading.en.words.script.practice_1_wrong'),
+  },
+  story: {
+    intro_record: L('Here is a short story. Read it out loud, quickly but carefully. Start at the first word. If you come to a word you do not know, go on to the next word. When you finish, there are some questions about the story.',
+      'یہ ایک مختصر کہانی ہے۔ اسے اونچی آواز میں، جلدی مگر دھیان سے پڑھیں۔ پہلے لفظ سے شروع کریں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔ کہانی پڑھنے کے بعد اس کے بارے میں کچھ سوال ہوں گے۔',
+      'v3:sets.A.reading.<lang>.story.script.intro'),
+    last_word: L('When Jugnu says stop, tap the last word you read.', 'جب جگنو کہے رک جائیں، تو وہ آخری لفظ دبائیں جو آپ نے پڑھا۔',
+      'egra_tk2016:p.197 (the enumerator brackets the last word read)'),
+  },
+  story_comp: {
+    intro_record: L('Now some questions about the story you just read. Listen to each question and say your answer out loud. You can answer in Urdu or English.',
+      'آپ نے ابھی جو کہانی پڑھی، اب اس کے بارے میں کچھ سوال ہیں۔ ہر سوال سنیں اور اپنا جواب اونچی آواز میں بتائیں۔ اردو یا انگریزی، کسی بھی زبان میں جواب دیں۔',
+      'v3:sets.A.reading.<lang>.story.script.questions_intro'),
+    intro_tap: L('Now some questions about the story you just read. Listen to each question, then tap the answer.',
+      'آپ نے ابھی جو کہانی پڑھی، اب اس کے بارے میں کچھ سوال ہیں۔ ہر سوال سنیں، پھر جواب دبائیں۔',
+      'v3:sets.A.reading.<lang>.story.script.questions_intro (tap adaptation)'),
+  },
+  listening: {
+    intro_record: L('Listen to a short story. You will hear it two times. Then there are some questions. Say your answer out loud, in Urdu or English.',
+      'ایک مختصر کہانی سنیں۔ کہانی دو بار سنائی جائے گی۔ پھر کچھ سوال ہوں گے۔ اپنا جواب اونچی آواز میں بتائیں، اردو یا انگریزی میں۔',
+      'v3:sets.A.reading.<lang>.listening.script.intro'),
+    intro_tap: L('Listen to a short story. You will hear it two times. Then listen to each question and tap the answer.',
+      'ایک مختصر کہانی سنیں۔ کہانی دو بار سنائی جائے گی۔ پھر ہر سوال سنیں اور جواب دبائیں۔',
+      'v3:sets.A.reading.<lang>.listening.script.intro (tap adaptation)'),
+  },
+  'ma.number_id': {
+    intro_record: L('Here are some numbers. Say each number out loud. Start at the first number and go along each row.',
+      'یہ کچھ نمبر ہیں۔ ہر نمبر اونچی آواز میں بتائیں۔ پہلے نمبر سے شروع کریں اور ہر سطر میں آگے بڑھیں۔',
+      'v3:sets.A.maths.3.number_id.script.intro'),
+    intro_tap: L('Here are some numbers. Listen to a number, then tap that number.', 'یہ کچھ نمبر ہیں۔ ایک نمبر سنیں، پھر وہی نمبر دبائیں۔',
+      'v3:sets.A.maths.3.number_id.script.intro (tap adaptation)'),
+    item: L('{x}', '{x}', 'the number'),
+  },
+  'ma.discrimination': {
+    intro_record: L('Look at the two numbers. Which number is bigger? Say it out loud.', 'ان دو نمبروں کو دیکھیں۔ کون سا نمبر بڑا ہے؟ اونچی آواز میں بتائیں۔',
+      'v3:sets.A.maths.3.discrimination.script.item'),
+    intro_tap: L('Look at the two numbers. Tap the number that is bigger.', 'ان دو نمبروں کو دیکھیں۔ جو نمبر بڑا ہے، اسے دبائیں۔',
+      'v3:sets.A.maths.3.discrimination.script.item (tap adaptation)'),
+    right: L('That is right, {x} is bigger.', 'بالکل ٹھیک، {x} بڑا ہے۔', 'v3:sets.A.maths.3.discrimination.script.practice_1_correct'),
+    wrong: L('The bigger number is {x}.', 'بڑا نمبر {x} ہے۔', 'v3:sets.A.maths.3.discrimination.script.practice_1_wrong'),
+  },
+  'ma.missing': {
+    intro_record: L('Here are some numbers in a row. One number is missing. What number goes in the empty box? Say it out loud.',
+      'یہ ایک قطار میں کچھ نمبر ہیں۔ ایک نمبر غائب ہے۔ خالی خانے میں کون سا نمبر آئے گا؟ اونچی آواز میں بتائیں۔',
+      'v3:sets.A.maths.3.missing.script.item'),
+    intro_tap: L('Here are some numbers in a row. One number is missing. Tap the number that goes in the empty box.',
+      'یہ ایک قطار میں کچھ نمبر ہیں۔ ایک نمبر غائب ہے۔ خالی خانے میں جو نمبر آئے گا، اسے دبائیں۔',
+      'v3:sets.A.maths.3.missing.script.item (tap adaptation)'),
+    right: L('That is right, {x}.', 'بالکل ٹھیک، {x}۔', 'v3:sets.A.maths.3.missing.script.practice_1_correct'),
+    wrong: L('The number {x} goes here.', 'یہاں {x} آئے گا۔', 'v3:sets.A.maths.3.missing.script.practice_1_wrong'),
+  },
+  'ma.add1': {
+    intro_record: L('Here are some addition problems. Say the answer to each one out loud. If you do not know an answer, go on to the next one.',
+      'یہ کچھ جمع کے سوال ہیں۔ ہر سوال کا جواب اونچی آواز میں بتائیں۔ اگر کسی سوال کا جواب نہ آئے تو اگلے سوال پر چلے جائیں۔',
+      'v3:sets.A.maths.3.add1.script.intro'),
+    intro_tap: L('Here are some addition problems. Tap the answer to each one. If you do not know an answer, tap Next.',
+      'یہ کچھ جمع کے سوال ہیں۔ ہر سوال کا جواب دبائیں۔ اگر جواب نہ آئے تو "اگلا" دبائیں۔',
+      'v3:sets.A.maths.3.add1.script.intro (tap adaptation)'),
+  },
+  'ma.sub1': {
+    intro_record: L('Here are some subtraction problems. Say the answer to each one out loud. If you do not know an answer, go on to the next one.',
+      'یہ کچھ تفریق کے سوال ہیں۔ ہر سوال کا جواب اونچی آواز میں بتائیں۔ اگر کسی سوال کا جواب نہ آئے تو اگلے سوال پر چلے جائیں۔',
+      'v3:sets.A.maths.3.sub1.script.intro'),
+    intro_tap: L('Here are some subtraction problems. Tap the answer to each one. If you do not know an answer, tap Next.',
+      'یہ کچھ تفریق کے سوال ہیں۔ ہر سوال کا جواب دبائیں۔ اگر جواب نہ آئے تو "اگلا" دبائیں۔',
+      'v3:sets.A.maths.3.sub1.script.intro (tap adaptation)'),
+  },
+  'ma.add2': {
+    intro_record: L('Here are some more addition problems. Take your time. Say the answer out loud.', 'یہ جمع کے کچھ اور سوال ہیں۔ آرام سے کریں۔ جواب اونچی آواز میں بتائیں۔',
+      'v3:sets.A.maths.3.add2.script.intro'),
+    intro_tap: L('Here are some more addition problems. Take your time, then tap the answer.', 'یہ جمع کے کچھ اور سوال ہیں۔ آرام سے سوچیں، پھر جواب دبائیں۔',
+      'v3:sets.A.maths.3.add2.script.intro (tap adaptation)'),
+  },
+  'ma.sub2': {
+    intro_record: L('Here are some more subtraction problems. Take your time. Say the answer out loud.', 'یہ تفریق کے کچھ اور سوال ہیں۔ آرام سے کریں۔ جواب اونچی آواز میں بتائیں۔',
+      'v3:sets.A.maths.3.sub2.script.intro'),
+    intro_tap: L('Here are some more subtraction problems. Take your time, then tap the answer.', 'یہ تفریق کے کچھ اور سوال ہیں۔ آرام سے سوچیں، پھر جواب دبائیں۔',
+      'v3:sets.A.maths.3.sub2.script.intro (tap adaptation)'),
+  },
+  // The extra maths tasks (DESIGN §2b). RWP's own administration scripts were not recovered, so each line adapts the
+  // RWP item's printed question ("What comes next?") with the Core EGMA keypad/tap wording of the nearest task.
+  'ma.patterns': {
+    intro_tap: L('Look at the pattern. Tap what comes next.', 'اس ترتیب کو دیکھیں۔ آگے کیا آئے گا؟ اسے دبائیں۔',
+      'rwp2026:patterns item text "What comes next?" (tap adaptation)'),
+  },
+  'ma.patterns_hi': {
+    intro_tap: L('Look at the pattern and listen to the question. Type the answer with the number buttons.',
+      'ترتیب کو دیکھیں اور سوال سنیں۔ جواب نمبر والے بٹن دبا کر لکھیں۔', 'rwp2026:patterns levels 3-4 item text (keypad adaptation)'),
+  },
+  'ma.number_repr': {
+    intro_tap: L('Listen to each question, then type the answer with the number buttons. To hear a question again, tap Jugnu.',
+      'ہر سوال سنیں، پھر جواب نمبر والے بٹن دبا کر لکھیں۔ سوال دوبارہ سننے کے لیے جگنو کو دبائیں۔',
+      'rwp2026:represent item text (keypad adaptation, Core EGMA word problems wording)'),
+  },
+  'ma.ordering': {
+    intro_tap: L('Listen to each question, then tap the answer.', 'ہر سوال سنیں، پھر جواب دبائیں۔',
+      'rwp2026:identify item text (tap adaptation)'),
+  },
+  'ma.fluency_l34': {
+    intro_tap: L('Here are some more sums: adding, taking away, times and sharing. Type the answer to each one. If you do not know an answer, tap Next.',
+      'یہ کچھ اور سوال ہیں: جمع، تفریق، ضرب اور تقسیم۔ ہر سوال کا جواب نمبر والے بٹن دبا کر لکھیں۔ اگر جواب نہ آئے تو "اگلا" دبائیں۔',
+      'v3:sets.A.maths.3.add1.script.intro (keypad adaptation; RWP blfl4 grid)'),
+  },
+  'ma.word_problems': {
+    intro_record: L('Listen to each problem very carefully, then say the answer out loud. To hear a problem again, tap Jugnu.',
+      'ہر سوال بہت دھیان سے سنیں، پھر جواب اونچی آواز میں بتائیں۔ سوال دوبارہ سننے کے لیے جگنو کو دبائیں۔',
+      'v3:sets.A.maths.3.word_problems.script.intro'),
+    intro_tap: L('Listen to each problem very carefully, then tap the answer. To hear a problem again, tap Jugnu.',
+      'ہر سوال بہت دھیان سے سنیں، پھر جواب دبائیں۔ سوال دوبارہ سننے کے لیے جگنو کو دبائیں۔',
+      'v3:sets.A.maths.3.word_problems.script.intro (tap adaptation)'),
+    right: L('That is right, {x}.', 'بالکل ٹھیک، {x}۔', 'v3:sets.A.maths.3.word_problems.script.practice_correct'),
+    wrong: L('The answer is {x}.', 'جواب {x} ہے۔', 'v3:sets.A.maths.3.word_problems.script.practice_wrong'),
+  },
+};
+
+// The record-mode letter sounds of the RDF form (A14): the official letter grids read aloud as sounds. The sound
+// instruction is TK2016's ("the sounds … not their names"); the Urdu wording is PRP-KP's letter-page line with name and
+// sound swapped, the toolkit's own swap (no Urdu letter-sound script is printed in a source we hold).
+TASKS['ur.letter_sounds_rec'] = {
+  intro_record: L('Here is a page of Urdu letters. Say the SOUND of each letter out loud, not its name. Start at the first letter and go along each row. If you do not know a letter, go on to the next one. Read as quickly and carefully as you can.',
+    'یہ اردو حروفِ تہجی کا صفحہ ہے۔ ہر حرف کی آواز بول کر بتائیں۔ حرف کا نام نہیں، صرف اس کی آواز۔ پہلے حرف سے شروع کریں اور ہر سطر میں آگے بڑھیں۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔ جتنا جلدی اور دھیان سے ہو سکے، پڑھیں۔',
+    'egra_tk2016:Annex H p.187 letter sound + prpkp2020:p82 letter page (names → sounds)'),
+};
+TASKS['en.letter_sounds_rec'] = {
+  intro_record: L('Here is a page of English letters. Say the SOUND of each letter out loud, not its name. Start at the first letter and go along each row. If you do not know a letter, go on to the next one. Read as quickly and carefully as you can.',
+    'یہ انگریزی حروفِ تہجی کا صفحہ ہے۔ ہر حرف کی آواز بول کر بتائیں۔ حرف کا نام نہیں، صرف اس کی آواز۔ پہلے حرف سے شروع کریں اور ہر سطر میں آگے بڑھیں۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔ جتنا جلدی اور دھیان سے ہو سکے، پڑھیں۔',
+    'egra_tk2016:Annex H p.187 letter sound "tell me the sounds of as many letters as you can"'),
+};
+
+// Practice feedback for the maths tasks whose source prints no practice line: the Core EGMA word-problem practice
+// wording, which names only the answer (number ID: "this number is").
+const MATHS_PRACTICE = {
+  right: L('That is right, {x}.', 'بالکل ٹھیک، {x}۔', 'v3:sets.A.maths.3.word_problems.script.practice_correct'),
+  wrong: L('The answer is {x}.', 'جواب {x} ہے۔', 'v3:sets.A.maths.3.word_problems.script.practice_wrong'),
+  wrong_number: L('This number is {x}.', 'یہ نمبر {x} ہے۔', 'v3:sets.A.maths.3.word_problems.script.practice_wrong (number ID)'),
+};
+
+// RULING #31a (A08): a line that names an item of the OTHER language than the page is said as a chain: the carrier in
+// the page's language (the same sentence without the item), then the item in its own language's clip. 'x' and 'y' are
+// the item slots of the line ({x}, {y}); every other segment is a carrier. Same-language pages keep the whole line.
+const CHAINS = {
+  'ur.letters': {
+    right: [L('Yes! This letter is:', 'شاباش! یہ حرف ہے:'), 'x'],
+    wrong: [L('This letter is:', 'یہ حرف ہے:'), 'x'],
+  },
+  'en.letters': {
+    example: [L('For example, the name of this letter is:', 'مثال کے طور پر، اس حرف کا نام ہے:'), 'x'],
+    right: [L('Yes! The name of this letter is:', 'شاباش! اس حرف کا نام ہے:'), 'x'],
+    wrong: [L('The name of this letter is:', 'اس حرف کا نام ہے:'), 'x'],
+  },
+  'en.letter_sounds': {
+    example: [L('For example, the sound of this letter is:', 'مثال کے طور پر، اس حرف کی آواز ہے:'), 'x'],
+    right: [L('Yes! The sound of this letter is:', 'شاباش! اس حرف کی آواز ہے:'), 'x'],
+    wrong: [L('The sound of this letter is:', 'اس حرف کی آواز ہے:'), 'x'],
+  },
+  'en.initial_sound': {
+    example: [L('For example, the word is:', 'مثال کے طور پر، لفظ ہے:'), 'x', L('Its first sound is:', 'اس کی پہلی آواز ہے:'), 'y'],
+    right: [L('Very good! The word is:', 'شاباش! لفظ ہے:'), 'x', L('Its first sound is:', 'اس کی پہلی آواز ہے:'), 'y'],
+    wrong: [L('Listen again. The word is:', 'دوبارہ سنیں۔ لفظ ہے:'), 'x', L('Its first sound is:', 'اس کی پہلی آواز ہے:'), 'y'],
+  },
+  'ur.initial_sound': {
+    example: [L('For example, the word is:', 'جیسے، لفظ ہے:'), 'x', L('Its beginning sound is:', 'اس کی ابتدائی آواز ہے:'), 'y'],
+    right: [L('Well done! The word is:', 'شاباش! لفظ ہے:'), 'x', L('Its beginning sound is:', 'اس کی ابتدائی آواز ہے:'), 'y'],
+    wrong: [L('The word is:', 'لفظ ہے:'), 'x', L('Its beginning sound is:', 'اس کی ابتدائی آواز ہے:'), 'y'],
+  },
+  'en.segmentation': {
+    example: [L('For example, the word is:', 'مثال کے طور پر، لفظ ہے:'), 'x', L('Its sounds are:', 'اس کی آوازیں یہ ہیں:'), 'y'],
+  },
+  'ur.vocabulary': {
+    example: [L('For example, in this picture:', 'جیسے، اس تصویر میں:'), 'x'],
+    right: [L('Well done!', 'شاباش!'), 'x'],
+    wrong: [L('Look again:', 'دوبارہ دیکھیں:'), 'x'],
+  },
+  nonwords: {
+    example: [L('For example, this made-up word is:', 'مثال کے طور پر، یہ بنایا ہوا لفظ ہے:'), 'x'],
+    right: [L('Yes! This made-up word is:', 'شاباش! یہ بنایا ہوا لفظ ہے:'), 'x'],
+    wrong: [L('This made-up word is:', 'یہ بنایا ہوا لفظ ہے:'), 'x'],
+  },
+  words: {
+    example: [L('For example, this word is:', 'مثال کے طور پر، یہ لفظ ہے:'), 'x'],
+    right: [L('Yes! This word is:', 'شاباش! یہ لفظ ہے:'), 'x'],
+    wrong: [L('This word is:', 'یہ لفظ ہے:'), 'x'],
+  },
+};
+
+// The names Jugnu says for Urdu letters in the letter task (the standard Urdu alphabet names, as the RWP enumerators
+// accepted them: R7 may_instrument letterid_fl_urd).
+const UR_LETTER_NAMES = {
+  'ا': 'الف', 'آ': 'الف مد', 'ب': 'بے', 'پ': 'پے', 'ت': 'تے', 'ٹ': 'ٹے', 'ث': 'ثے', 'ج': 'جیم', 'چ': 'چے', 'ح': 'بڑی حے',
+  'خ': 'خے', 'د': 'دال', 'ڈ': 'ڈال', 'ذ': 'ذال', 'ر': 'رے', 'ڑ': 'ڑے', 'ز': 'زے', 'ژ': 'ژے', 'س': 'سین', 'ش': 'شین',
+  'ص': 'صواد', 'ض': 'ضواد', 'ط': 'طوئے', 'ظ': 'ظوئے', 'ع': 'عین', 'غ': 'غین', 'ف': 'فے', 'ق': 'قاف', 'ک': 'کاف',
+  'گ': 'گاف', 'ل': 'لام', 'م': 'میم', 'ن': 'نون', 'ں': 'نون غنہ', 'و': 'واؤ', 'ؤ': 'واؤ ہمزہ', 'ہ': 'چھوٹی ہے',
+  'ھ': 'دو چشمی ہے', 'ء': 'ہمزہ', 'ئ': 'ہمزہ', 'ی': 'چھوٹی یے', 'ے': 'بڑی یے',
+};
+
+// What Jugnu says for an English letter SOUND (letter-sound task). TK2009 p.28 accepts /b/ or /buh/ and either vowel
+// sound; these spellings are for the voice only and are checked by ear (a human recording is preferred).
+const EN_LETTER_SOUNDS = {
+  a: 'ah', b: 'buh', c: 'kuh', d: 'duh', e: 'eh', f: 'fff', g: 'guh', h: 'hhh', i: 'ih', j: 'juh', k: 'kuh', l: 'lll', m: 'mmm',
+  n: 'nnn', o: 'aw', p: 'puh', q: 'kwuh', r: 'rrr', s: 'sss', t: 'tuh', u: 'uh', v: 'vvv', w: 'wuh', x: 'ks', y: 'yuh', z: 'zzz',
+};
+
+module.exports = { COMMON, BATTERY, CHECK_WORDS, GAME_LINES, TASKS, CHAINS, MATHS_PRACTICE, UR_LETTER_NAMES, EN_LETTER_SOUNDS };
