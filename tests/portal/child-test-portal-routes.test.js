@@ -216,6 +216,10 @@ describe('the Learning assessment (sa/*): its own switch, the same relay', () =>
     await invoke(ROUTES, 'post', '/sa/outcome', { body: { schoolId: 's1', drawId: 'd1', outcome: 'present', clientSessionId: 'c1', block: 'B1', repick: true } });
     expect(axiosPost).toHaveBeenLastCalledWith('https://bot.example/api/internal/child-test/sa/outcome',
       { userId: COACH, schoolId: 's1', drawId: 'd1', outcome: 'present', clientSessionId: 'c1', block: 'B1', repick: true }, expect.anything());
+    // Add a child (sa_add_child): only its fields reach the bot, with the SESSION user
+    await invoke(ROUTES, 'post', '/sa/child', { body: { schoolId: 's1', grade: 3, firstName: 'Zara', section: 'B', clientChildId: 'k1', userId: 'forged', extra: 1 } });
+    expect(axiosPost).toHaveBeenLastCalledWith('https://bot.example/api/internal/child-test/sa/child',
+      { userId: COACH, schoolId: 's1', grade: 3, firstName: 'Zara', section: 'B', clientChildId: 'k1' }, expect.anything());
     // every grade (sa_all_grades): the grade the coach named reaches the bot with the list and the outcome
     await invoke(ROUTES, 'get', '/sa/list', { query: { schoolId: 's1', grade: '4' } });
     expect(axiosPost).toHaveBeenLastCalledWith('https://bot.example/api/internal/child-test/sa/list', { userId: COACH, schoolId: 's1', grade: '4' }, expect.anything());
@@ -263,7 +267,7 @@ describe('the Learning assessment\'s page switches (sa/switches)', () => {
     expect(out.statusCode).toBe(200);
     expect(out.payload).toEqual({
       success: true,
-      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true, exampleDashboard: false, resumeRepick: false, allGrades: false },
+      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true, exampleDashboard: false, resumeRepick: false, allGrades: false, addChild: false },
     });
     expect(axiosPost).not.toHaveBeenCalled();
   });

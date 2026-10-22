@@ -213,6 +213,37 @@ async function listVisitDraws(visit) {
  * Insert draw rows in one statement. A unique violation (another call wrote the same frame or
  * returning row first) is reported as { ok: false, conflict: true } and not logged as an error.
  */
+// ── A child added on the spot (sa_add_child): the roster rows, each written once ─────────────────
+
+/** The student, under the phone's own id for the child, so a double tap writes one child. */
+async function addStudent({ id, schoolId, name }) {
+  const got = await supabase.from('students').select('id').eq('id', id).limit(1);
+  if (got.error) return fail('addStudent', got.error, { schoolId });
+  if ((got.data || []).length) return { ok: true, created: false };
+  const { error } = await supabase.from('students').insert({ id, school_id: schoolId, student_name: name, status: 'active', is_active: true });
+  if (error) return isUniqueViolation(error) ? { ok: true, created: false } : fail('addStudent', error, { schoolId });
+  return { ok: true, created: true };
+}
+
+/** A class for a grade and section the school has none of this session (the morning shift). */
+async function addClass({ schoolId, grade, section, sessionCode }) {
+  const { data, error } = await supabase.from('classes')
+    .insert({ school_id: schoolId, grade_code: `grade_${grade}`, section, session_code: sessionCode, shift_code: 'morning', is_active: true })
+    .select('*');
+  if (error) return fail('addClass', error, { schoolId });
+  return { ok: true, class: (data || [])[0] };
+}
+
+/** The child's active enrolment in the class, once. */
+async function enrol(classId, studentId) {
+  const got = await supabase.from('class_enrollments').select('id').eq('class_id', classId).eq('student_id', studentId).eq('is_active', true).limit(1);
+  if (got.error) return fail('enrol', got.error, { classId });
+  if ((got.data || []).length) return { ok: true, created: false };
+  const { error } = await supabase.from('class_enrollments').insert({ class_id: classId, student_id: studentId, is_active: true });
+  if (error) return fail('enrol', error, { classId });
+  return { ok: true, created: true };
+}
+
 async function insertDraws(rows) {
   const { data, error } = await supabase.from(DRAWS).insert(rows).select('*');
   if (error) {
@@ -487,6 +518,10 @@ async function saveCoachMarks({ sessionId, block, coachMarks, coachEdits = [] } 
 }
 
 module.exports = {
+  // a child added on the spot (sa_add_child)
+  addStudent,
+  addClass,
+  enrol,
   // L4 / L5 / L6 / L7 (STORE_API.md)
   createSession,
   getSession,

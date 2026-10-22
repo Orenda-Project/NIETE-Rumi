@@ -53,6 +53,10 @@ const RETURNING_ALGO = 'ctd-v1-returning-earliest-tested';
 const GRADES = [3, 5];
 // switch sa_all_grades: the coach names any of these (the caller reads the switch)
 const ALL_GRADES = [1, 2, 3, 4, 5];
+// switch sa_add_child: a child the coach added on the spot is a 'new' row of this algo, ranked above any frame, so
+// it never counts as a class's frame and never takes a frame's rank
+const ADDED_ALGO = 'ctd-added-on-spot-v1';
+const ADDED_RANK = 1000;
 // A child in one of these states can be put on a visit's list (a 'listed' child from another visit
 // was not reached there and goes back in at their rank).
 const QUEUED = ['pending', 'listed', 'absent', 'refused'];
@@ -144,7 +148,7 @@ async function loadContext({ schoolId, cycleId, now, grades = GRADES }) {
 // The frame: written once per class per cycle. A lost race re-reads what the winner wrote.
 async function ensureFrames(ctx, grade, secret) {
   const classes = ctx.classesByGrade.get(grade);
-  const framed = new Set(ctx.draws.filter((d) => d.sample_role === 'new').map((d) => d.class_id));
+  const framed = new Set(ctx.draws.filter((d) => d.sample_role === 'new' && d.algo_version !== ADDED_ALGO).map((d) => d.class_id));
   const inFrame = new Set(ctx.draws.filter((d) => d.sample_role === 'new').map((d) => d.student_id));
   for (const c of classes) {
     if (framed.has(c.id)) continue;
@@ -552,6 +556,73 @@ async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitK
   return { ok: false, reason, grade: primary };
 }
 
+// ── addChild (sa_add_child) ───────────────────────────────────────────────────────────────────
+
+/**
+ * A child the coach adds on the spot to an open list: first name, grade, section (else the grade's first morning
+ * class; a class is made when the school has none for that grade and section). The child goes on the roster under
+ * the phone's id for them (clientChildId), is enrolled, and is seated as a main row of this visit's list. Ids only
+ * in the logs.
+ */
+async function addChild({ schoolId, visitId: givenVisitId, visitKey, grade, firstName, section = null, clientChildId, now = new Date() } = {}) {
+  const named = oneVisit(givenVisitId, visitKey);
+  if (!named.ok) return named;
+  const visitId = named.visit;
+  if (!visitId) return { ok: false, reason: 'missing_visit' };
+  const g = normaliseGrade(grade, ALL_GRADES);
+  if (!g) return { ok: false, reason: 'bad_grade' };
+  const name = String(firstName == null ? '' : firstName).trim();
+  if (!name || !clientChildId) return { ok: false, reason: 'bad_child' };
+  const open = await listFor(visitId);
+  if (!open.ok) return open;
+  if (open.empty) return { ok: false, reason: 'no_list' };
+
+  const cycleId = cycleFor(now);
+  const sessionCode = sessionCodeFor(now);
+  const cls = await store.listGradeClasses(schoolId, sessionCode, [g]);
+  if (!cls.ok) return cls;
+  const sec = section ? String(section).trim().toUpperCase() : null;
+  let room = sec ? cls.classes.find((c) => String(c.section || '').toUpperCase() === sec) : oneShift(cls.classes).sort(bySectionThenId)[0];
+  if (!room) {
+    const made = await store.addClass({ schoolId, grade: g, section: sec || 'A', sessionCode });
+    if (!made.ok) return made;
+    room = made.class;
+  }
+  const st = await store.addStudent({ id: clientChildId, schoolId, name });
+  if (!st.ok) return st;
+  const en = await store.enrol(room.id, clientChildId);
+  if (!en.ok) return en;
+
+  const draws = await store.listSchoolDraws(schoolId, cycleId);
+  if (!draws.ok) return draws;
+  if (!draws.draws.some((d) => d.student_id === clientChildId && d.sample_role === 'new')) {
+    const ranks = draws.draws.filter((d) => d.class_id === room.id && d.sample_role === 'new').map((d) => d.draw_rank);
+    const at = iso(now);
+    const ins = await store.insertDraws([{
+      cycle_id: cycleId,
+      region: REGION,
+      school_id: schoolId,
+      class_id: room.id,
+      grade: g,
+      student_id: clientChildId,
+      frame_size: 1,
+      draw_rank: Math.max(ADDED_RANK, ...ranks) + 1,
+      seed_digest: 'added',
+      algo_version: ADDED_ALGO,
+      sample_role: 'new',
+      form: formPolicy() === 'term' ? termSet(cycleId) : 'A',
+      status: 'listed',
+      list_slot: 'main',
+      attempts: 0,
+      ...visitColumns(visitId),
+      history: [{ event: 'listed', ...visitRef(visitId), slot: 'main', at, list_order: LIST_ORDER, added: true }],
+    }]);
+    if (!ins.ok && !ins.conflict) return ins;
+    logToFile('[child-test] child added on the spot', { schoolId, visitId, classId: room.id, drawId: ins.ok ? ins.draws[0].id : null });
+  }
+  return listFor(visitId);
+}
+
 // ── markOutcome ────────────────────────────────────────────────────────────────────────────────
 
 async function markOutcome({ drawId, outcome, note = null, visitId, visitKey, now = new Date() } = {}) {
@@ -643,4 +714,4 @@ async function resolveVisitSchool({ coachUserId, visitId } = {}) {
   return { ok: false, reason: 'no_school' };
 }
 
-module.exports = { cycleFor, todaysList, markOutcome, resolveVisitSchool };
+module.exports = { cycleFor, todaysList, markOutcome, resolveVisitSchool, addChild, ADDED_ALGO };

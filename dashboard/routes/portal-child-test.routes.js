@@ -19,6 +19,7 @@
  * The Learning assessment (the child takes the battery alone; the coach picks a school, not a visit):
  *   GET  /sa/schools                  the coach's schools, today's observe visit first
  *   GET  /sa/list?schoolId=&visitId=&grade=  today's children at that school (visitId optional; grade 1–5 with sa_all_grades)
+ *   POST /sa/child                    { schoolId, visitId?, grade, listGrade?, firstName, section?, clientChildId } → the list (sa_add_child)
  *   POST /sa/outcome                  { schoolId, visitId?, drawId, outcome, note?, clientSessionId?, block?, repick?, grade? } → present opens a session
  *   the engine's sink, for one session the coach opened here:
  *   GET  /sa/session/:id/battery?lang=&full= this child's block of the battery (or the whole form), ur or en
@@ -127,6 +128,8 @@ const SA_SWITCHES = {
   resumeRepick: 'sa_resume_repick',
   // every grade: the coach names Grade 1–5 for the school (the bot's own row of the same name draws it)
   allGrades: 'sa_all_grades',
+  // Add a child on the spot (the bot's own row of the same name writes the child)
+  addChild: 'sa_add_child',
   // the example results dashboard (synthetic students, no DB rows): sandbox only, see SANDBOX_ONLY
   exampleDashboard: 'sa_example_dashboard',
 };
@@ -144,6 +147,7 @@ router.get('/sa/switches', ...saGates, async (req, res) => {
 router.get('/sa/schools', ...saGates, relay('sa/schools', () => ({})));
 router.get('/sa/list', ...saGates, relay('sa/list', (req) => pick(req.query, ['schoolId', 'visitId', 'grade'])));
 router.post('/sa/outcome', ...saGates, relay('sa/outcome', (req) => pick(req.body, ['schoolId', 'visitId', 'drawId', 'outcome', 'note', 'clientSessionId', 'block', 'repick', 'grade'])));
+router.post('/sa/child', ...saGates, relay('sa/child', (req) => pick(req.body, ['schoolId', 'visitId', 'grade', 'listGrade', 'firstName', 'section', 'clientChildId'])));
 const onSession = (fields) => (req) => ({ sessionId: req.params.id, ...pick(req.method === 'GET' ? req.query : req.body, fields) });
 router.get('/sa/session/:id/battery', ...saGates, relay('sa/battery', onSession(['lang', 'full'])));
 router.post('/sa/session/:id/batch', ...saGates, relay('sa/batch', onSession(['seqFrom', 'seqTo', 'events', 'results', 'lang', 'device'])));
