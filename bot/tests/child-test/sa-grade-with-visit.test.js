@@ -97,7 +97,7 @@ describe('a named grade at a school with today\'s observe visit', () => {
   test('the server never answers with another grade: a list that comes back as the wrong grade is redrawn on the graded key', async () => {
     const { deps, calls } = world();
     // the visit's draws say Grade 1, but the list the draw returns is Grade 3 (a stale or mixed visit list)
-    deps.store.listVisitDraws = async () => ({ ok: true, draws: [{ id: 'd-1', list_slot: 'main', grade: 1, status: 'listed' }] });
+    deps.store.listVisitDraws = async (v) => (v !== VISIT ? { ok: true, draws: [] } : { ok: true, draws: [{ id: 'd-1', list_slot: 'main', grade: 1, status: 'listed' }] });
     deps.draw.todaysList = async (a) => { calls.todaysList.push(a); return { ok: true, cycleId: 'c', grade: a.visitId ? 3 : a.grade, children: [], alternates: [] }; };
     const out = await sa.dayList({ userId: COACH, schoolId: SCHOOL, visitId: VISIT, grade: 1 }, deps);
     expect(out.list.grade).toBe(1);

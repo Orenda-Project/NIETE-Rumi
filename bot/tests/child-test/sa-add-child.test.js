@@ -30,7 +30,7 @@ function world({ on = true, allGrades = false, out } = {}) {
   const deps = {
     enabled: async () => true,
     supabase: { from: (t) => chain(t === 'leader_schools' ? [{ school_id: SCHOOL, school_name: 'Testwala School' }] : []) },
-    store: { listSessionsForVisit: async () => ({ ok: true, sessions: [] }) },
+    store: { listSessionsForVisit: async () => ({ ok: true, sessions: [] }), listVisitDraws: async () => ({ ok: true, draws: [] }) },
     draw: { addChild: async (a) => { calls.addChild.push(a); return out || LIST; } },
     now: () => NOW,
     log: (...a) => calls.logs.push(a), logError: (...a) => calls.logs.push(a),
