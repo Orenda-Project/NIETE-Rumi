@@ -141,6 +141,28 @@
       watches.push(end);
       return end;
     }
+    /** cb() on every tick the mic hears a voice (three loud ticks in a row, as onSilence), until cancel(). */
+    function onVoice(cb) {
+      var an = ear();
+      if (!an) return function () {};
+      wake();
+      var buf = new Uint8Array(an.fftSize || 2048);
+      var t0 = now();
+      var floor = null;
+      var loud = 0;
+      var h = null;
+      function end() { if (h != null) { interval.clear(h); h = null; } watches = watches.filter(function (w) { return w !== end; }); }
+      h = interval.set(function () {
+        if (!running()) return;
+        an.getByteTimeDomainData(buf);
+        var r = rmsOf(buf);
+        floor = floor == null ? r : Math.min(floor, r);
+        loud = now() - t0 >= 1000 && r > thresholdFor(floor, ls) ? loud + 1 : 0;
+        if (loud >= VOICE_TICKS) cb();
+      }, TICK_MS);
+      watches.push(end);
+      return end;
+    }
     function endWatches() { watches.slice().forEach(function (w) { w(); }); }
 
     function ready() {
@@ -198,7 +220,7 @@
       stream = null;
     }
 
-    var api = { supported: function () { return !!type; }, type: function () { return type; }, ready: ready, start: start, stop: stop, release: release, recording: function () { return !!cur; }, onSilence: onSilence, wake: wake,
+    var api = { supported: function () { return !!type; }, type: function () { return type; }, ready: ready, start: start, stop: stop, release: release, recording: function () { return !!cur; }, onSilence: onSilence, onVoice: onVoice, wake: wake,
       /** 'running' | 'unavailable' (the last watch's ear), null before any watch. */
       ear: function () { return earState; } };
     last = api;

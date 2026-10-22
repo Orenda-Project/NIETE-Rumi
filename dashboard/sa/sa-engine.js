@@ -141,7 +141,8 @@
         var manual = mode === 'proctored' && opts.manual === true;
         runner = core.createRunner({ battery: battery, now: now, session_id: sessionId, resume: resume, onEvent: onEvent, audio_check: !resume && opts.audio_check !== false, warmup: !resume && opts.warmup !== false,
           dev_tools: devTools, mic: deps.micState || micState, mic_check: mode === 'game', oral_practice: opts.oral_practice !== false, keypad_warmup: opts.keypad_warmup !== false,
-          one_at_a_time: w3.one_at_a_time === true, manual: manual, comp_all_questions: w3.comp_all_questions === true });
+          one_at_a_time: w3.one_at_a_time === true, manual: manual, comp_all_questions: w3.comp_all_questions === true,
+          cell_pace: w3.cell_pace === true });
         var voice = voiceMod.create({ lang: lang, base: opts.audio_base || '/', muted: false, onSpeak: function (s) { fire('audio', s); }, onSilent: function (s) { fire('silent', s); } });
         if (syncMod && opts.sink) {
           sync = syncMod.create({ store: store, sink: opts.sink, session_id: sessionId, onStatus: function (s) { fire('sync', s); } });
@@ -152,11 +153,14 @@
         var rec = needsMic && recMod ? recMod.create({ store: store, session_id: sessionId }) : null;
         var micReady = rec ? rec.ready() : Promise.resolve(false);
         var cancelSilence = null;
+        var cancelVoice = null;
+        function endVoice() { if (cancelVoice) { try { cancelVoice(); } catch (_) { /* ended */ } cancelVoice = null; } }
         // A recording still open when the phone goes back (the last spoken answer, a coach's early end) is closed
         // first, so its final marker is on the phone before the last flush and it goes up with it.
         function closeRecording() {
           if (!rec || !rec.recording || !rec.recording()) return null;
           if (cancelSilence) { try { cancelSilence(); } catch (_) { /* ended */ } cancelSilence = null; }
+          endVoice();
           return Promise.resolve(rec.stop()).then(null, function () { return null; });
         }
         function recStart(t, item) {
@@ -166,6 +170,11 @@
             if (rec.start(item ? t.id + '/' + item.id : t.id)) runner.log('record_start', { task_id: t.id, item_id: item ? item.id : undefined });
             // The mercy rule on the passage (RULING #10): no voice for 12 s → Jugnu offers the star once; 20 s → the
             // task ends as early_stop_silence. The recorder's watch starts now, with the recording running.
+            // sa_cell_pace: a one-at-a-time item waits 3 s after the child's last voice, so the engine hears the voice.
+            if (w3.cell_pace === true && t.mode === 'record' && !item && !t.passage && rec.onVoice) {
+              endVoice();
+              cancelVoice = rec.onVoice(function () { runner.voice(); });
+            }
             if (t.mode === 'record' && !item && rec.onSilence) {
               cancelSilence = rec.onSilence({ after_s: t.mercy_after_s || 12, total_s: t.silence_stop_s || 20 }, function (s) {
                 if (s.kind === 'mercy') {
@@ -184,6 +193,7 @@
         }
         function recStop(t, item) {
           if (cancelSilence) { try { cancelSilence(); } catch (_) { /* ended */ } cancelSilence = null; }
+          endVoice();
           if (!rec) return Promise.resolve(null);
           return rec.stop().then(function (meta) {
             if (meta) runner.log('record_stop', { task_id: t.id, item_id: item ? item.id : undefined, value: { duration_ms: meta.duration_ms, parts: meta.parts } });

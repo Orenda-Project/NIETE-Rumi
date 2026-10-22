@@ -85,6 +85,7 @@
   // One at a time (Toolkit 2016 Annex H: "if the child hesitates for 3 seconds … please go on"; Core EGMA: 5 s).
   var CELL_AUTO_S = 3;
   var FLUENCY_ITEM_S = 5;
+  var CELL_PACE_FLOOR_S = 5; // sa_cell_pace: no item moves on by itself before 5 s on screen
   var COMP_ALL_MIN_WORDS = 10; // RWP May 2026 rdcomp_*: asked when 10+ words were attempted (2,233/2,233 rows)
 
   function str(x) { return typeof x === 'string' && x.length > 0; }
@@ -227,6 +228,7 @@
     var oneAtATime = !!opts.one_at_a_time;
     var manual = !!opts.manual;
     var compAll = !!opts.comp_all_questions;
+    var cellPace = !!opts.cell_pace;
 
     /** A read-aloud grid shown one cell at a time (never a passage). */
     function cellTask(t) {
@@ -493,6 +495,10 @@
         ev('visibility_lost', { task_id: st.task_id || undefined, value: { phase: st.phase } });
         if (st.phase === 'running' && t && t.time_limit_s) enterTask(true);
       },
+      /** sa_cell_pace: the mic heard the child on the cell on show (the 3-s wait starts again). */
+      voice: function () {
+        if (st.phase === 'running' && st.cell) st.cell.voice_at = now();
+      },
       /** The mercy rule: Jugnu offered the star (12 s of no voice on the passage). */
       mercyOffered: function () {
         if (st.phase !== 'running' || task().mode !== 'record' || st.mercy) return;
@@ -591,7 +597,12 @@
         }
         if (st.cell) {
           var auto = t.cell_auto_s;
-          if (manual || !auto || now() - st.cell.at < auto * 1000) return null;
+          if (manual || !auto) return null;
+          if (cellPace) {
+            // EGRA: move on when the child has not responded for 3 s, so the wait counts from the last voice heard.
+            var quiet = now() - (st.cell.voice_at != null ? st.cell.voice_at : st.cell.at);
+            if (now() - st.cell.at < Math.max(auto, CELL_PACE_FLOOR_S) * 1000 || quiet < auto * 1000) return null;
+          } else if (now() - st.cell.at < auto * 1000) return null;
           nextCell('auto');
           return st.phase === 'running' ? 'go_on' : null;
         }
