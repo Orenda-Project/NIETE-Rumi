@@ -111,8 +111,10 @@ async function listLessons(grade, subject, chapterKey, lang = 'en', userId = nul
  *
  * `withheld` and `notFound` are real answers, not throws.
  */
-async function requestLesson(segmentId, userId, lang = 'en') {
-  return ask('request', { segmentId, userId, lang });
+async function requestLesson(segmentId, userId, lang = 'en', { reader } = {}) {
+  // bd-4joiqz — `reader: 'leader'`: the bot keeps the leader's claim on the render and writes no lifecycle row.
+  // Absent for a teacher: today's body exactly.
+  return ask('request', { segmentId, userId, lang, ...(reader === 'leader' ? { reader } : {}) });
 }
 
 /** Poll one request. A `ready` state carries a freshly presigned URL. */

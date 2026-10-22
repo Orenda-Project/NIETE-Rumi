@@ -50,8 +50,11 @@ const LpActivity = require('../services/lp-activity.service');
 // bd-qvevax.2 — a plan she read in the portal's own viewer asks the bot for the lesson-plan survey,
 // exactly as one delivered on WhatsApp does (the bot decides; this only says the open happened).
 // bd-4joiqz — both through LpReader: who is opening (a teacher, or a leader reading it) and what that open records.
-// A teacher's is the open row + the survey (lp-open-survey.client), as before; a leader's is a telemetry event,
-// never a teacher's open row, survey, lifecycle row or A/B group. The role is read from users, per open.
+// A teacher's is exactly as before: the open row, the survey (lp-open-survey.client), and the bot's lifecycle row.
+// A leader's is a telemetry event (lp.leader_open): no open row, no survey, and the bot is asked AS A READER
+// (`reader: 'leader'`), so it writes no lifecycle row and logs no v10 plan_served event, while serving the plan of the
+// leader's school. A leader's 6-12 claim on a render IS written (status/file need it). The role is read from users,
+// per open, bounded (LpReader.READ_TIMEOUT_MS; late = a teacher). Full list: services/lp-reader.service.js.
 const LpReader = require('../services/lp-reader.service');
 const Progress = require('../services/progress.service');
 const { resolveRange, RangeInputError } = require('../lib/pk-range');
@@ -2760,9 +2763,11 @@ router.get('/curriculum/lp/:lesson_id/pdf', requirePortalAuth, async (req, res) 
     }
 
     const userId = req.session.portalUserId;
-    // bd-4joiqz — a leader is named to nobody: the bot's lookup records no lifecycle row and serves today's plan.
+    // bd-4joiqz — a leader is named AS A READER: the plan of their school, and no lifecycle row or plan_served event.
     const reader = await LpReader.readerOf(userId);
-    const hit = await LpCatalogue.lessonPdf(lessonId, kind, reader.leader ? null : userId);
+    const hit = reader.leader
+      ? await LpCatalogue.lessonPdf(lessonId, kind, userId, { reader: 'leader' })
+      : await LpCatalogue.lessonPdf(lessonId, kind, userId);
     if (!hit) {
       return res.status(200).json({ success: true, available: false });
     }
@@ -2794,11 +2799,13 @@ router.get('/curriculum/lp/:lesson_id/file', requirePortalAuth, async (req, res)
     return res.status(400).json({ success: false, error: 'lesson_id required' });
   }
   const userId = req.session.portalUserId;
-  // bd-4joiqz — a leader is named to nobody: the bot's lookup records no lifecycle row and serves today's plan.
+  // bd-4joiqz — a leader is named AS A READER: the plan of their school, and no lifecycle row or plan_served event.
   const reader = await LpReader.readerOf(userId);
   let hit;
   try {
-    hit = await LpCatalogue.lessonPdf(lessonId, kind, reader.leader ? null : userId);
+    hit = reader.leader
+      ? await LpCatalogue.lessonPdf(lessonId, kind, userId, { reader: 'leader' })
+      : await LpCatalogue.lessonPdf(lessonId, kind, userId);
   } catch (error) {
     console.error('❌ Portal curriculum/lp/file lookup failed', { error: error?.message });
     return res.status(502).json({ success: false, error: 'Could not open this lesson plan' });
@@ -2919,7 +2926,13 @@ router.post('/lp612/request', requirePortalAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'segment_id required' });
     }
     const lang = (req.body || {}).lang === 'ur' ? 'ur' : 'en';
-    const out = await Lp612.requestLesson(segmentId, req.session.portalUserId, lang);
+    // bd-4joiqz — a leader's ask is not a teacher's: the bot keeps their claim on the render (status/file need it)
+    // and writes no lifecycle row for it.
+    const userId = req.session.portalUserId;
+    const reader = await LpReader.readerOf(userId);
+    const out = reader.leader
+      ? await Lp612.requestLesson(segmentId, userId, lang, { reader: 'leader' })
+      : await Lp612.requestLesson(segmentId, userId, lang);
 
     // Real answers about a real lesson, not faults.
     if (out.notFound) {

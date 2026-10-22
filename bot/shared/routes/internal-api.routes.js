@@ -1298,24 +1298,30 @@ router.post('/lp/v8/pdf', requireInternalKey, lpBrowseRoute('pdf', async (Browse
   const lessonId = String(body.lessonId || '').trim();
   const assetKind = body.assetKind === 'answer_key' ? 'answer_key' : 'lesson';
   if (!lessonId) return res.status(400).json({ success: false, error: 'lessonId is required' });
+  // bd-4joiqz — `reader: 'leader'`: a coach, principal (off the teacher app), AEO, supervisor or school leader READING
+  // the plan; the portal decided it from users. They get the plan of their SCHOOL (lessonPdfUrl's `reader`), and their
+  // read is not a teacher's ask: no lifecycle row. Anything else is a teacher's fetch, exactly as before.
+  const reader = body.reader === 'leader' ? 'leader' : null;
 
   const askedAt = new Date().toISOString();
   const LpV8Lifecycle = require('../services/lp-v8-lifecycle.service');
   let hit;
   try {
-    hit = await Browse.lessonPdfUrl(lessonId, assetKind, body.userId || null);
+    hit = await Browse.lessonPdfUrl(lessonId, assetKind, body.userId || null, { reader });
   } catch (error) {
     // Her ask ended in a failure we caused: recorded (switch on only), then the 500 she always got.
-    await LpV8Lifecycle.recordPortalLesson({ userId: body.userId || null, lessonId, assetKind, available: false, askedAt, error });
+    if (!reader) await LpV8Lifecycle.recordPortalLesson({ userId: body.userId || null, lessonId, assetKind, available: false, askedAt, error });
     throw error;
   }
   if (!hit) res.json({ success: true, available: false });
   else res.json({ success: true, available: true, ...hit });
   // Her ask's lifecycle row — AFTER the answer, so the portal's open never waits on it (switch on
   // only; never throws). The portal and the teacher app are where most grade 1-5 plans are read.
-  await LpV8Lifecycle.recordPortalLesson({
-    userId: body.userId || null, lessonId, assetKind, available: Boolean(hit), askedAt,
-  });
+  if (!reader) {
+    await LpV8Lifecycle.recordPortalLesson({
+      userId: body.userId || null, lessonId, assetKind, available: Boolean(hit), askedAt,
+    });
+  }
   return undefined;
 }));
 
@@ -2149,6 +2155,9 @@ router.post('/lp612/request', requireInternalKey, async (req, res) => {
       lang: body.lang === 'ur' ? 'ur' : 'en',
       surface: 'portal',
       correlationId: body.correlationId || null,
+      // bd-4joiqz — a leader READING the plan (the portal decided it from users): their claim on the render is kept
+      // (status/file need it), but their ask writes no lifecycle row (lp612-lifecycle.service isLeaderReader).
+      ...(body.reader === 'leader' ? { reader: 'leader' } : {}),
     });
 
     // `held` and `not_found` are real answers about a real request, not server

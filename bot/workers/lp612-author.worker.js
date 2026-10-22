@@ -1540,6 +1540,8 @@ async function process(payload) {
             generatedAt: readyAt,
             readyAt,
             correlationId: w.correlation_id,
+            // bd-4joiqz — a leader reading the plan: their claim below, but no lifecycle row.
+            reader: w.reader,
           });
           await Deliveries.record({
             userId: w.user_id,
