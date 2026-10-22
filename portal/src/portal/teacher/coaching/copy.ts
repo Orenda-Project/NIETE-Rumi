@@ -325,7 +325,7 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   sentBefore: 'پہلے بھیجی گئی',
   openReport: 'رپورٹ کھولیں',
   alreadySent: 'بھیجی جا چکی',
-  duplicateBeforeLead: '📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو آپ نے پہلے بھیجی تھی۔',
+  duplicateBeforeLead: '📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو پہلے بھیجی گئی تھی۔',
   classNeedsAnswer: 'آپ کا جواب چاہیے',
   classQuestion: 'کیا یہ آپ کی کلاس کی ریکارڈنگ ہے؟',
   classWhy: 'آپ کی ریکارڈنگ کلاس میں پڑھائی جیسی نہیں لگتی۔',

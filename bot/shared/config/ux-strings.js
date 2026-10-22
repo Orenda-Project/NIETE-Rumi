@@ -975,7 +975,7 @@ const UX_STRINGS = {
   appLinkButtonCoachingSaved: { en: 'Send recording', ur: 'ریکارڈنگ بھیجیں' },
   appLinkBodyCoachingRepeat: {
     en: "📋 I've heard this recording before \u2014 it's the same one you sent me earlier. Its report is in the app.",
-    ur: '📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو آپ نے پہلے بھیجی تھی۔ اس کی رپورٹ ایپ میں ہے۔',
+    ur: '📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو پہلے بھیجی گئی تھی۔ اس کی رپورٹ ایپ میں ہے۔',
   },
   appLinkButtonCoachingRepeat: { en: 'Digital Coaching', ur: 'ڈیجیٹل کوچنگ' },
   appLinkBodyTraining: { en: 'Open your training.', ur: 'اپنی ٹریننگ کھولیں۔' },
