@@ -267,7 +267,7 @@ describe('the Learning assessment\'s page switches (sa/switches)', () => {
     expect(out.statusCode).toBe(200);
     expect(out.payload).toEqual({
       success: true,
-      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true, exampleDashboard: false, resumeRepick: false, allGrades: false, addChild: false },
+      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true, exampleDashboard: false, realDashboard: false, resumeRepick: false, allGrades: false, addChild: false },
     });
     expect(axiosPost).not.toHaveBeenCalled();
   });
@@ -428,5 +428,52 @@ describe('another phone: the coach mints a link; the linked phone syncs without 
     axiosPost.mockResolvedValueOnce({ status: 200, data: { success: true, status: 'ok', coachUserId: COACH, sessionId: SID } });
     expect((await invoke(ROUTES, 'post', '/sa/link/:token/session/:id/:op', { userId: null, params: { token: 'tok', id: SID, op: 'batch' } })).statusCode).toBe(404);
     expect(axiosPost).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('the results dashboard on real sessions (sa/sessions): its own switch, sa_real_dashboard', () => {
+  const BOT = 'https://bot.example/api/internal/child-test/';
+  const prevEnv = process.env.RAILWAY_ENVIRONMENT_NAME;
+  afterEach(() => {
+    if (prevEnv === undefined) delete process.env.RAILWAY_ENVIRONMENT_NAME;
+    else process.env.RAILWAY_ENVIRONMENT_NAME = prevEnv;
+  });
+
+  test('sa_real_dashboard off (row missing) → 404 and nothing relayed, even with the Learning assessment on', async () => {
+    tableRows.app_settings.push({ key: 'portal_child_test_sa', value: true });
+    expect((await invoke(ROUTES, 'get', '/sa/sessions')).statusCode).toBe(404);
+    expect(axiosPost).not.toHaveBeenCalled();
+  });
+
+  test('on, with the Learning assessment off → 404', async () => {
+    tableRows.app_settings.push({ key: 'sa_real_dashboard', value: true });
+    expect((await invoke(ROUTES, 'get', '/sa/sessions')).statusCode).toBe(404);
+    expect(axiosPost).not.toHaveBeenCalled();
+  });
+
+  test('on for this coach → relays the SESSION user only; a request that says asAdmin or another user is ignored', async () => {
+    tableRows.app_settings.push({ key: 'portal_child_test_sa', value: true }, { key: 'sa_real_dashboard', value: [COACH] });
+    axiosPost.mockResolvedValueOnce({ status: 200, data: { success: true, status: 'ok', sessions: [] } });
+    const out = await invoke(ROUTES, 'get', '/sa/sessions', { query: { userId: 'forged', asAdmin: 'true' } });
+    expect(out.statusCode).toBe(200);
+    expect(out.payload.sessions).toEqual([]);
+    expect(axiosPost).toHaveBeenLastCalledWith(`${BOT}sa/sessions`, { userId: COACH }, expect.anything());
+  });
+
+  test('the session user on sa_results_admins → asAdmin: true is relayed (every coach\'s sessions)', async () => {
+    tableRows.app_settings.push({ key: 'portal_child_test_sa', value: true }, { key: 'sa_real_dashboard', value: true },
+      { key: 'sa_results_admins', value: [COACH] });
+    await invoke(ROUTES, 'get', '/sa/sessions');
+    expect(axiosPost).toHaveBeenLastCalledWith(`${BOT}sa/sessions`, { userId: COACH, asAdmin: true }, expect.anything());
+  });
+
+  test.each([['sandbox'], ['production']])('the page switch follows its row on a %s host (not sandbox-only: real rows of that tier)', async (envName) => {
+    process.env.RAILWAY_ENVIRONMENT_NAME = envName;
+    tableRows.app_settings.push({ key: 'portal_child_test_sa', value: true }, { key: 'sa_real_dashboard', value: [COACH] });
+    expect((await invoke(ROUTES, 'get', '/sa/switches')).payload.switches.realDashboard).toBe(true);
+  });
+
+  test('the switch key is exported from the shared flags', () => {
+    expect(require('../../dashboard/lib/feature-flags').SA_REAL_DASHBOARD_KEY).toBe('sa_real_dashboard');
   });
 });
