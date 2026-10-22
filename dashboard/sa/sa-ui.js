@@ -461,7 +461,7 @@
       options.forEach(function (o, i) {
         var pic = picOf(t, o);
         var gl = !pic && Array.isArray(glyphs) && typeof glyphs[i] === 'string' && glyphs[i] ? glyphs[i] : null;
-        var face = pic || (gl ? [h('span', { class: 'sae-glyph', 'aria-hidden': 'true', text: gl }), h('span', { class: 'sae-cap', text: String(o) })] : String(o));
+        var face = pic || (gl ? [h('span', { class: 'sae-glyph', 'aria-hidden': 'true', text: gl }), h('span', { class: 'sae-cap', text: String(o) })] : h('span', { class: 'sae-ink' }, [String(o)]));
         var short = !pic && !gl && Array.from(String(o)).length === 1;
         var b = h('button', { class: 'sae-opt sa-tile' + (pic ? ' is-pic' : gl ? ' is-glyph' : short ? ' is-short' : ''), type: 'button', 'data-value': String(o), lang: tl, 'aria-label': gl ? String(o) : null }, [].concat(face));
         b.addEventListener('click', function () { if (!busy && !b.disabled) onPick(o, b); });
@@ -948,7 +948,51 @@
     function oneCell(text, t, i) {
       var s = String(text);
       var numeric = NUMERIC_RX.test(s);
-      return h('div', { class: 'sae-onecell sa-onecell' + (Array.from(s).length <= 2 ? ' is-short' : ''), dir: numeric ? 'ltr' : dirOf(t), lang: numeric ? 'en' : taskLang(t), 'data-i': i == null ? null : String(i) }, [s]);
+      return h('div', { class: 'sae-onecell sa-onecell' + (Array.from(s).length <= 2 ? ' is-short' : ''), dir: numeric ? 'ltr' : dirOf(t), lang: numeric ? 'en' : taskLang(t), 'data-i': i == null ? null : String(i) }, [
+        h('span', { class: 'sae-ink' }, [s]),
+      ]);
+    }
+    /**
+     * Round 4: Nastaliq ink is not where its line box is (ر ے sink below the middle, ک with ھ climbs above it), so an
+     * Urdu cell or text tile is placed by its ink: shrunk when the ink is bigger than its box, then moved so the ink's
+     * middle is the box's middle (canvas ink metrics on its own font, again once the font has loaded).
+     */
+    function fitCells(scope) {
+      if (typeof document === 'undefined' || !document.fonts || !scope.querySelectorAll) return;
+      Array.prototype.forEach.call(scope.querySelectorAll('.sae-onecell[lang=ur] > .sae-ink, .sae-opt[lang=ur] > .sae-ink'), function (ink) {
+        fitInk(ink, 0);
+        document.fonts.load(getComputedStyle(ink).font, ink.textContent).then(function () {
+          if (alive && ink.isConnected) fitInk(ink, 0);
+        }, function () {});
+      });
+    }
+    function fitInk(ink, tries) {
+      var cell = ink.parentNode;
+      var g = document.createElement('canvas').getContext('2d');
+      if (!g || !cell) return;
+      ink.style.transform = '';
+      var cs = getComputedStyle(ink);
+      g.font = cs.font; g.direction = 'ltr'; g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+      var m = g.measureText(ink.textContent);
+      if (m.actualBoundingBoxAscent == null || m.fontBoundingBoxAscent == null) return;
+      var pc = getComputedStyle(cell);
+      var w = cell.clientWidth - parseFloat(pc.paddingLeft) - parseFloat(pc.paddingRight);
+      var hh = cell.clientHeight - parseFloat(pc.paddingTop) - parseFloat(pc.paddingBottom);
+      var iw = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
+      var ih = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+      var k = Math.min(1, (w * 0.92) / iw, (hh * 0.92) / ih);
+      if (k < 0.98 && tries < 3) {
+        ink.style.fontSize = (parseFloat(cs.fontSize) * k).toFixed(1) + 'px';
+        return fitInk(ink, tries + 1);
+      }
+      var range = document.createRange();
+      range.selectNodeContents(ink);
+      var r = range.getBoundingClientRect();
+      var c = cell.getBoundingClientRect();
+      var base = r.top + m.fontBoundingBoxAscent;
+      var dx = (c.left + c.right) / 2 - (r.left + (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2);
+      var dy = (c.top + c.bottom) / 2 - (base + (m.actualBoundingBoxDescent - m.actualBoundingBoxAscent) / 2);
+      ink.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px)';
     }
     function sRunCell(v) {
       var t = v.task, it = v.cell_item;
@@ -1450,6 +1494,7 @@
       }
       while (el.firstChild) el.removeChild(el.firstChild);
       el.appendChild(s);
+      fitCells(s);
       if (mode === 'proctored' && showPhase !== 'handover' && showPhase !== 'refused') {
         coachLayer(v).forEach(function (n) { el.appendChild(n); });
         if (coachMenu) el.appendChild(sCoachMenu(v));
