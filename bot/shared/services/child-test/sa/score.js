@@ -667,6 +667,15 @@ async function scoreRow(row, session, deps = {}) {
   if (voices) {
     const fetch = d.clipOf;
     d.clipOf = async (key, signal) => { const clip = await fetch(key, signal); voices.push(voiceOf(d, calls, clip, key)); return clip; };
+    // a section recording is cut per item for the marks; the voice check hears it whole, once
+    const cut = d.sliceOf;
+    if (cut) {
+      d.sliceOf = async (key, windows, signal) => {
+        const clips = await cut(key, windows, signal);
+        voices.push(fetch(key, signal).then((clip) => voiceOf(d, calls, clip, key), () => ({ key, heard: null })));
+        return clips;
+      };
+    }
   }
   try {
     let out;

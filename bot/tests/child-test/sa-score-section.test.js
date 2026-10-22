@@ -130,4 +130,24 @@ describe('one recording per section: each item is cut from the task\'s one clip 
     expect(asked[1]).toMatch(/1: shown "18 \+ 7"/);
     expect(got.marks.detail.items.map((i) => i.verdict)).toEqual(['correct', 'correct']);
   });
+
+  test('with CHILD_TEST_SA_SECOND_VOICE: the second-voice check hears the whole section clip once, never once per cut', async () => {
+    process.env.CHILD_TEST_SA_SECOND_VOICE = 'on';
+    const s = standIns();
+    const whole = [];
+    const voice = [];
+    s.clipOf = async (key) => { whole.push(key); return { base64: 'AAAA', durationSec: 32, item: ID('q1') }; };
+    const mark = s.chatJSON;
+    s.chatJSON = async (args) => {
+      if (args.job === 'child_test.sa_second_voice') { voice.push(args.audio.key); return { json: { second_voice: true, who: 'adult', confidence: 0.9 }, cost: 0, seconds: 1 }; }
+      return mark(args);
+    };
+    const got = await score.scoreRow(row(), session(), s);
+    expect(got.ok).toBe(true);
+    expect(s.cuts).toHaveLength(1);
+    expect(whole).toEqual([KEY]);
+    expect(voice).toEqual([KEY]);
+    expect(got.marks.detail).toMatchObject({ section: true, second_voice: true, second_voice_clips: 1, second_voice_checked: 1 });
+    expect(got.marks.detail.items.every((i) => i.second_voice === true)).toBe(true);
+  });
 });
