@@ -605,7 +605,8 @@ export default function LeaderAssess() {
       <fieldset data-testid="assess-grade-choice" className="space-y-3">
         <legend className="font-semibold text-slate-800">{copy.whichGrade}</legend>
         <p className="break-words text-slate-700">{step.school.name || '—'}</p>
-        <div data-testid="assess-grade-row" dir={lang === 'ur' ? 'rtl' : 'ltr'} className="grid grid-cols-5 gap-2">
+        {/* inline direction: the sheet's [dir="rtl"] .grid { direction: ltr } beats the dir attribute */}
+        <div data-testid="assess-grade-row" dir={lang === 'ur' ? 'rtl' : 'ltr'} style={{ direction: lang === 'ur' ? 'rtl' : 'ltr' }} className="grid grid-cols-5 gap-2">
           {GRADE_CHOICES.map((g) => (
             <button key={g} type="button" onClick={() => pickSchool({ ...step.school, grade: g })}
               className="min-h-[56px] rounded-2xl border border-slate-200 bg-white px-1 text-sm font-semibold leading-tight text-slate-900">{copy.grade(g)}</button>
