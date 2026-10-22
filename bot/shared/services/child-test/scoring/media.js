@@ -26,9 +26,9 @@ function tmpFile(ext) {
   return path.join(os.tmpdir(), `child-test-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`);
 }
 
-async function downloadToTemp(key, ext) {
+async function downloadToTemp(key, ext, signal) {
   const { downloadFromR2 } = require('../../../storage/r2');
-  const buf = await downloadFromR2(key);
+  const buf = await (signal ? downloadFromR2(key, { abortSignal: signal }) : downloadFromR2(key));
   const p = tmpFile(ext);
   fs.writeFileSync(p, buf);
   return p;
