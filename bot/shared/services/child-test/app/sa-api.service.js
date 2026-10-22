@@ -202,11 +202,19 @@ const saStoreOf = (deps) => (deps && deps.saStore) || require('../sa-store'); //
 
 /**
  * A present re-sent for a child who already has a session answers that session. With sa_resume_repick ON and
- * `repick`, the coach chose the part again on the card: an unfinished session moves to that block.
+ * `repick`, the coach chose the part again on the card: an unfinished session moves to that block, and a phone that
+ * does not know it yet (another host, a cleared phone: `known` false) takes it over under its own id, so the
+ * engine's sink calls on that id reach the session.
  */
-async function resumed(d, session, { block, repick }, deps) {
+async function resumed(d, session, { block, repick, clientSessionId, known }, deps) {
   const same = { status: 'ok', sessionId: session.id, list: null };
-  if (repick !== true || !block || session.status === 'completed' || !(await resumeRepick.enabled(deps))) return same;
+  if (repick !== true || session.status === 'completed' || !(await resumeRepick.enabled(deps))) return same;
+  if (clientSessionId && !known) {
+    const kept = await saStoreOf(deps).setClient(session.id, { clientSessionId });
+    if (!kept || !kept.ok) throw new Error((kept && kept.error) || 'setClient failed');
+    d.log('child_test.sa.resume_claimed', { sessionId: session.id });
+  }
+  if (!block) return same;
   const moved = await saStoreOf(deps).setBlock(session.id, block);
   if (!moved || !moved.ok) throw new Error((moved && moved.error) || 'setBlock failed');
   d.log('child_test.sa.repick', { sessionId: session.id, block });
@@ -232,7 +240,7 @@ const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ 
   if (sa) {
     const known = await sa.findByClient(clientSessionId);
     const mine = known && known.ok && known.sessionId ? await ownSession(d, userId, known.sessionId) : null;
-    if (mine) return resumed(d, mine, { block, repick }, deps);
+    if (mine) return resumed(d, mine, { block, repick, clientSessionId, known: true }, deps);
   }
 
   const res = await d.draw.markOutcome({ drawId, outcome, note, ...visitArgs(visit) });
@@ -240,7 +248,7 @@ const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ 
     if (res && res.reason === 'already_marked' && outcome === 'present') {
       const existing = await d.store.getSessionByDraw(drawId);
       const s = existing && existing.ok ? existing.session : null;
-      if (s && s.coach_user_id === userId) return resumed(d, s, { block, repick }, deps);
+      if (s && s.coach_user_id === userId) return resumed(d, s, { block, repick, clientSessionId, known: false }, deps);
     }
     if (res && res.reason) return { status: 'invalid', reason: res.reason };
     throw new Error((res && res.error) || 'markOutcome failed');
