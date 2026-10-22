@@ -577,6 +577,8 @@
         var t = task();
         var lim = limitMs(t);
         if (lim != null && now() - st.started >= lim) {
+          // One at a time: the cell reached is the last item (no passage to tap a last word on).
+          if (st.cell) { finish(STOP.TIME_UP); return null; }
           if (t.mode === 'record') { st.time_up = true; st.used_at_stop = now(); ev('reading_done', { task_id: t.id, value: 'time_up' }); st.phase = t.items.length ? 'last_word' : st.phase; if (!t.items.length) finish(STOP.TIME_UP); return null; }
           finish(STOP.TIME_UP);
           return null;
