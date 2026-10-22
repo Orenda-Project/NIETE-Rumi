@@ -54,6 +54,8 @@
  * are its grid, else its items' show; advance_after_s is the wait (null: next_at_s, the untimed sums' 15 s), and each
  * kept cell names its item_id.
  * Coach-led (opts.manual, RDF manual): nothing moves on by itself; session_start says admin_mode 'manual'.
+ * Next only (opts.cell_next_only, switch sa_cell_next_only, round 5): an Urdu or English letter/word cell never moves on
+ * by itself, in any mode (it wins over cell_pace); only Next does. The task's clock still runs; no silence stop for it.
  *
  * UMD: window.SAE.core in the browser, module.exports under Node.
  */
@@ -230,8 +232,11 @@
     var manual = !!opts.manual;
     var compAll = !!opts.comp_all_questions;
     var cellPace = !!opts.cell_pace;
+    var cellNextOnly = !!opts.cell_next_only;
     var sectionRec = !!opts.section_recording;
 
+    /** sa_cell_next_only: an Urdu or English letter/word cell moves on only on Next (maths cells keep their pace). */
+    function holdsCell(t) { return cellNextOnly && cellTask(t) && /^(ur|en)\./.test(String(t.id)); }
     /** A read-aloud grid shown one cell at a time (never a passage). */
     function cellTask(t) {
       if (!t || t.mode !== 'record' || t.passage) return false;
@@ -516,7 +521,7 @@
       },
       /** The mercy rule: Jugnu offered the star (12 s of no voice on the passage). */
       mercyOffered: function () {
-        if (st.phase !== 'running' || task().mode !== 'record' || st.mercy) return;
+        if (st.phase !== 'running' || task().mode !== 'record' || st.mercy || holdsCell(task())) return;
         st.mercy = true;
         ev('mercy_offered', { task_id: st.task_id });
       },
@@ -528,7 +533,7 @@
       },
       /** No voice for the whole window (20 s): the passage ends as early_stop_silence, no last word asked. */
       silence: function (seconds) {
-        if (st.phase !== 'running' || task().mode !== 'record') return;
+        if (st.phase !== 'running' || task().mode !== 'record' || holdsCell(task())) return;
         st.silence_s = typeof seconds === 'number' ? seconds : null;
         finish(STOP.SILENCE);
       },
@@ -588,6 +593,8 @@
       },
       /** One at a time: the cell on show is passed (how: 'tap', or 'auto' when the page moves it on). */
       nextCell: function (how) { nextCell(how === 'auto' ? 'auto' : 'tap'); },
+      /** sa_cell_next_only: the task on show is a letter/word cell that waits for Next (no silence stop for it). */
+      holdsCell: function () { return holdsCell(task()); },
       /** The passage: "I'm done" (or time up) → the child taps the last word read. */
       done: function () {
         if (st.phase !== 'running' || task().mode !== 'record') return;
@@ -617,7 +624,7 @@
         }
         if (st.cell) {
           var auto = t.cell_auto_s;
-          if (manual || !auto) return null;
+          if (manual || !auto || holdsCell(t)) return null;
           if (cellPace) {
             // EGRA: move on when the child has not responded for 3 s, so the wait counts from the last voice heard.
             // A noisy room never goes quiet: the cap moves the item on at 10 s on screen.
