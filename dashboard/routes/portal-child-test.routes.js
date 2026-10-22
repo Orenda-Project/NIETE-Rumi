@@ -163,6 +163,7 @@ router.post('/sa/session/:id/batch', ...saGates, relay('sa/batch', onSession(['s
 router.post('/sa/session/:id/presign', ...saGates, relay('sa/presign', onSession(['taskId', 'itemId', 'mime', 'bytes'])));
 router.post('/sa/session/:id/register', ...saGates, relay('sa/register', onSession(['taskId', 'itemId', 'key'])));
 router.get('/sa/session/:id/status', ...saGates, relay('sa/status', onSession([])));
+router.post('/sa/session/:id/last-word-hint', ...saGates, relay('sa/last-word-hint', onSession(['taskId'])));
 router.post('/sa/session/:id/link', ...saGates, relay('sa/link-mint', onSession([])));
 // Read only, behind its own switch too. The coach's own session (the bot checks); a SESSION user on
 // sa_results_admins reads any coach's — asAdmin is set here from that check, never from the request.
