@@ -1060,6 +1060,64 @@ describe("LeaderAssess", () => {
       expect(within(pick).getAllByRole("button").map((b) => b.textContent)).toEqual(["جماعت ۱", "جماعت ۲", "جماعت ۳", "جماعت ۴", "جماعت ۵"]);
       expect(pick).toHaveTextContent("کون سی جماعت؟");
     });
+
+    it("ON, Urdu: the grade row runs right to left (Grade 1 first in DOM order, the row itself RTL)", async () => {
+      allGrades();
+      window.localStorage.setItem("niete-assess-lang", "ur");
+      renderPage();
+      fireEvent.click(await screen.findByTestId("assess-school-s2"));
+      const row = await screen.findByTestId("assess-grade-row");
+      expect(row).toHaveAttribute("dir", "rtl");
+      expect(within(row).getAllByRole("button")[0]).toHaveTextContent("جماعت ۱");
+    });
+
+    describe("Find a school (C8)", () => {
+      const MANY = [
+        { schoolId: "s2", name: "School Beta", visitId: "v2", observedGrade: 3, visitToday: true },
+        { schoolId: "s3", name: "IMCG F-7/4", visitId: null, observedGrade: null, visitToday: false },
+        { schoolId: "s4", name: "IMCB G-6/2", visitId: null, observedGrade: null, visitToday: false },
+        { schoolId: "s5", name: "Café Primary", visitId: null, observedGrade: null, visitToday: false },
+        { schoolId: "s6", name: "گورنمنٹ اسکول", visitId: null, observedGrade: null, visitToday: false },
+      ];
+
+      it("OFF: no filter box", async () => {
+        api.getSchools.mockResolvedValue({ schools: MANY });
+        renderPage();
+        await screen.findByTestId("assess-school-s3");
+        expect(screen.queryByTestId("assess-school-filter")).toBeNull();
+      });
+
+      it("ON: typing filters by name (case- and accent-insensitive), shows N of total; today's visit stays pinned at the top", async () => {
+        allGrades();
+        api.getSchools.mockResolvedValue({ schools: MANY });
+        renderPage();
+        const box = await screen.findByTestId("assess-school-filter");
+        expect(box).not.toHaveFocus();
+        expect(box).toHaveAccessibleName("Find a school");
+        expect(screen.getByTestId("assess-school-count")).toHaveTextContent("5 of 5");
+        fireEvent.change(box, { target: { value: "imcg" } });
+        let shown = screen.getAllByTestId(/^assess-school-s/).map((b) => b.getAttribute("data-testid"));
+        expect(shown).toEqual(["assess-school-s2", "assess-school-s3"]);
+        expect(screen.getByTestId("assess-school-count")).toHaveTextContent("1 of 5");
+        fireEvent.change(box, { target: { value: "cafe" } });
+        shown = screen.getAllByTestId(/^assess-school-s/).map((b) => b.getAttribute("data-testid"));
+        expect(shown).toEqual(["assess-school-s2", "assess-school-s5"]);
+        fireEvent.change(box, { target: { value: "" } });
+        expect(screen.getAllByTestId(/^assess-school-s/)).toHaveLength(5);
+      });
+
+      it("ON, Urdu: the box reads «اسکول تلاش کریں» and matches an Urdu name", async () => {
+        allGrades();
+        window.localStorage.setItem("niete-assess-lang", "ur");
+        api.getSchools.mockResolvedValue({ schools: MANY });
+        renderPage();
+        const box = await screen.findByTestId("assess-school-filter");
+        expect(box).toHaveAccessibleName("اسکول تلاش کریں");
+        fireEvent.change(box, { target: { value: "گورنمنٹ" } });
+        expect(screen.getAllByTestId(/^assess-school-s/).map((b) => b.getAttribute("data-testid"))).toEqual(["assess-school-s2", "assess-school-s6"]);
+        expect(screen.getByTestId("assess-school-count")).toHaveTextContent("۵ میں سے ۱");
+      });
+    });
   });
 
   describe("the coach picks the part (sa_coach_picks_block) and RDF (sa_rdf_form)", () => {
