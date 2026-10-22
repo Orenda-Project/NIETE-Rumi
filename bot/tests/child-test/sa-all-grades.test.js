@@ -27,7 +27,7 @@ function world({ on } = {}) {
   const deps = {
     enabled: async () => true,
     supabase: { from: (t) => chain(t === 'leader_schools' ? [{ school_id: SCHOOL, school_name: 'Testwala School' }] : []) },
-    store: { listSessionsForVisit: async () => ({ ok: true, sessions: [] }) },
+    store: { listSessionsForVisit: async () => ({ ok: true, sessions: [] }), listVisitDraws: async () => ({ ok: true, draws: [] }) },
     draw: {
       todaysList: async (a) => { calls.todaysList.push(a); return LIST; },
       markOutcome: async (a) => { calls.markOutcome.push(a); return { ok: true, list: null }; },
