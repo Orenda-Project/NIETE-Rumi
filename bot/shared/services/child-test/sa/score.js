@@ -55,6 +55,14 @@
  *                                     detail says second_voice (and each item from a flagged clip), and Results
  *                                     caveats the score. A flag, never a change of mark; the scoring prompts are not
  *                                     touched. A check that fails is "not checked", never a failed row.
+ *
+ * One recording per section (the phone's sa_section_recording, battery ui; OFF by default): an oral task is recorded
+ * once, from Begin to its end, so an answer given early or late is never cut. Its row has one audio_r2_key, and the
+ * result says rec_section: true with rec_marks [{ item_id, ask_ms, answer_ms, end_ms }] (ms from the recording's start).
+ * Each item's stretch is cut from that one clip, from 1 s before its answer window opens to the next item's ask (the
+ * last: 2.5 s after its screen moved on), and marked as a per-item clip is (the gate, the echo check, one item per
+ * call). An item with no mark is no answer. Without usable marks the clip is scored whole. Rows without rec_section
+ * are unchanged.
  */
 
 const { logToFile, logError } = require('../../../utils/logger');
@@ -83,6 +91,8 @@ const SECONDS = 60;
 const LIMITS = { model: 60 * 1000, stt: 60 * 1000, r2: 30 * 1000, sweep: 90 * 1000 };
 const SKIP_LOG_MS = 60 * 1000;
 const TASK_RE = /^[a-z]{2}\.[a-z0-9_]{1,40}$/;
+const SECTION_LEAD_MS = 1000;   // a section stretch starts this long before the item's answer window opens
+const SECTION_TAIL_MS = 2500;   // the last stretch ends this long after its screen moved on
 
 const isOn = () => process.env.CHILD_TEST_SA_SCORER === 'on';
 // this process's claim token; `swept` turns true after its first full sweep
@@ -263,6 +273,19 @@ function defaultDeps() {
         return { words: words.length, text: words.map((w) => w.raw).join(' '), model: r.model, cost: r.cost, seconds: r.seconds };
       } finally { media.cleanup(file); }
     },
+    // one recording per section: download once, cut each item's stretch
+    sliceOf: async (key, windows, signal) => {
+      const file = await media.downloadToTemp(key, 'webm', signal);
+      try {
+        const out = [];
+        for (const w of windows) {
+          const clip = await media.cutClip(file, w.from_s, w.to_s, 'mp3');
+          media.cleanup(clip.path);
+          out.push({ base64: clip.base64, durationSec: Math.max(0.5, w.to_s - w.from_s) });
+        }
+        return out;
+      } finally { media.cleanup(file); }
+    },
     bank: loadBank(),
     phoneBattery,
   };
@@ -283,6 +306,35 @@ function bounded(stage, ms, run) {
 }
 const limitOf = (deps, k) => Number((deps.limits || {})[k]) || LIMITS[k];
 const clipOf = (deps, key) => bounded('r2', limitOf(deps, 'r2'), (signal) => deps.clipOf(key, signal));
+const sec = (ms) => Math.round(Math.max(0, ms) / 100) / 10;
+
+/**
+ * sa_section_recording: each marked item's stretch of the task's one clip, in recording order, as
+ * [{ item_id, from_s, to_s }]; null when the row is not a section recording or has no usable marks.
+ */
+function sectionWindows(row, res) {
+  if (!res || res.rec_section !== true || !row.audio_r2_key || !Array.isArray(res.rec_marks)) return null;
+  const n = (x) => (x === null || x === undefined || x === '' ? NaN : Number(x));
+  const marks = res.rec_marks.filter((m) => m && typeof m.item_id === 'string' && Number.isFinite(n(m.answer_ms)))
+    .sort((a, b) => (Number.isFinite(n(a.ask_ms)) ? n(a.ask_ms) : n(a.answer_ms)) - (Number.isFinite(n(b.ask_ms)) ? n(b.ask_ms) : n(b.answer_ms)));
+  if (!marks.length) return null;
+  return marks.map((m, k) => {
+    const from = Math.max(0, n(m.answer_ms) - SECTION_LEAD_MS);
+    const next = marks[k + 1];
+    const end = Number.isFinite(n(m.end_ms)) ? n(m.end_ms) : n(m.answer_ms);
+    let to = next && Number.isFinite(n(next.ask_ms)) ? n(next.ask_ms) : end + SECTION_TAIL_MS;
+    if (to <= from) to = Math.max(end + SECTION_TAIL_MS, from + 500);
+    return { item_id: m.item_id, from_s: sec(from), to_s: sec(to) };
+  });
+}
+
+/** The section's stretches by item id, cut from one download; null when the row is not a section recording. */
+async function sectionClips(deps, row, res) {
+  const windows = sectionWindows(row, res);
+  if (!windows) return null;
+  const clips = await bounded('r2', 2 * limitOf(deps, 'r2'), (signal) => deps.sliceOf(row.audio_r2_key, windows, signal));
+  return new Map(windows.map((w, k) => [w.item_id, clips[k]]).filter(([, c]) => c));
+}
 
 /** The time the child used, seconds (the phone's clock), 1–60. */
 function usedSeconds(res) {
@@ -424,11 +476,13 @@ async function scoreOral(task, rec, row, res, deps, calls) {
   const one = task.present === 'one_at_a_time';
   const got = new Map();
   const keys = keysOf(row);
-  const parts = keys.length ? items.map((x, k) => ({ list: [x], at: [k], key: (keys.find((y) => y.i === x.id) || {}).key })).filter((p) => p.key)
+  const section = await sectionClips(deps, row, res);
+  const parts = section ? items.map((x, k) => ({ list: [x], at: [k], clip: section.get(x.id) })).filter((p) => p.clip)
+    : keys.length ? items.map((x, k) => ({ list: [x], at: [k], key: (keys.find((y) => y.i === x.id) || {}).key })).filter((p) => p.key)
     : (row.audio_r2_key ? [{ list: items, at: items.map((_, k) => k), key: row.audio_r2_key }] : []);
   let durationSec = null;
   for (const p of parts) {
-    const clip = await clipOf(deps, p.key);
+    const clip = p.clip || await clipOf(deps, p.key);
     durationSec = (durationSec || 0) + (clip.durationSec || 0);
     if (await silent(deps, calls, clip, task.lang)) { p.at.forEach((k) => got.set(k, { mute: true })); continue; }
     const json = await call(deps, calls, { prompt: oralPrompt({ lang: task.lang, task, items: p.list, one }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_oral_maths' });
@@ -442,7 +496,7 @@ async function scoreOral(task, rec, row, res, deps, calls) {
   const attemptedTo = reachedOf(task, res, items.length);
   const numbers = timed ? timedNumbers(rows, res, { stopped: false, attemptedTo })
     : { correct: rows.filter((r) => r.verdict === 'correct').length, of: rows.length };
-  return { numbers, rows, stopped: false, durationSec };
+  return { numbers, rows, stopped: false, durationSec, section: Boolean(section) };
 }
 
 async function storyRows(tokens, lang, clip, deps, calls, job) {
@@ -476,11 +530,12 @@ async function scoreQuestions(task, rec, row, res, deps, calls) {
   const passage = (rec.passage && rec.passage.text) || null;
   const marked = new Map();
   const keys = keysOf(row);
-  if (keys.length) {
+  const section = await sectionClips(deps, row, res);
+  if (section || keys.length) {
     for (const q of qs) {
-      const k = keys.find((x) => x.i === q.id);
-      if (!k) continue; // no clip for this question: no answer heard
-      const clip = await clipOf(deps, k.key);
+      const k = section ? null : keys.find((x) => x.i === q.id);
+      if (!(section ? section.has(q.id) : k)) continue; // no clip (or stretch) for this question: no answer heard
+      const clip = section ? section.get(q.id) : await clipOf(deps, k.key);
       const stt = {};
       if (await silent(deps, calls, clip, task.lang, stt)) { marked.set(q.id, { mute: true }); continue; }
       const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: [q], passage, single: false }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
@@ -505,7 +560,7 @@ async function scoreQuestions(task, rec, row, res, deps, calls) {
     if (g && g.mute) return { i: k + 1, id: q.id, verdict: 'no_answer', heard: '', conf: 0, no_speech: true, clip, ...(g.echo ? { echo: true } : {}) };
     return { i: k + 1, id: q.id, verdict: g ? g.verdict : 'no_answer', heard: g ? String(g.answer || '') : '', conf: g ? conf01(g.confidence) : null, clip };
   });
-  return { numbers: { correct: rows.filter((r) => r.verdict === 'correct').length, of: rows.length }, rows, stopped: false };
+  return { numbers: { correct: rows.filter((r) => r.verdict === 'correct').length, of: rows.length }, rows, stopped: false, section: Boolean(section) };
 }
 
 const VOICE_SCHEMA = {
@@ -650,6 +705,7 @@ async function scoreRow(row, session, deps = {}) {
           ...(stops && out.gated ? { gated: true, raw: out.raw } : {}),
           ...(stops && Array.isArray(rec.questions) ? { of_all: rec.questions.length, of_asked: out.asked ?? out.rows.length } : {}),
           ...(out.tapped != null ? { last_word_tapped: out.tapped } : {}),
+          ...(out.section ? { section: true } : {}),
           confidence,
           ...(heard ? { second_voice: heard.some((v) => v.heard === true), second_voice_clips: heard.filter((v) => v.heard === true).length, second_voice_checked: heard.filter((v) => v.heard !== null).length } : {}),
           ...(gateOn() ? { confidence_band: mutes ? 'low' : band(confidence), no_speech: mutes > 0 && mutes === out.rows.length, no_speech_items: mutes } : {}),
@@ -882,5 +938,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { MINE = `${SCORING}:${bootId()}`; swept = false; running = null; skipLogged = 0; }, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt },
+  __internals: { sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { MINE = `${SCORING}:${bootId()}`; swept = false; running = null; skipLogged = 0; }, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt },
 };
