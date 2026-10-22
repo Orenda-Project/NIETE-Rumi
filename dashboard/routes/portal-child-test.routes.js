@@ -123,12 +123,17 @@ const SA_SWITCHES = {
   // Wave 3: the card's RDF entry becomes RDF auto + RDF manual (the content lane's forms switch)
   rdfW3Forms: 'sa_rdf_w3_forms',
   voiceGateV2: 'sa_voice_gate_v2',
+  // the example results dashboard (synthetic students, no DB rows): sandbox only, see SANDBOX_ONLY
+  exampleDashboard: 'sa_example_dashboard',
 };
+// Switches that are off on any host but sandbox, whatever their row says.
+const SANDBOX_ONLY = new Set(['exampleDashboard']);
+const onThisHost = (name) => !SANDBOX_ONLY.has(name) || process.env.RAILWAY_ENVIRONMENT_NAME === 'sandbox';
 
 router.get('/sa/switches', ...saGates, async (req, res) => {
   const userId = req.session.portalUserId;
   const names = Object.keys(SA_SWITCHES);
-  const on = await Promise.all(names.map((n) => isFlagEnabledForUser(supabase, SA_SWITCHES[n], userId)));
+  const on = await Promise.all(names.map((n) => onThisHost(n) && isFlagEnabledForUser(supabase, SA_SWITCHES[n], userId)));
   return res.json({ success: true, switches: Object.fromEntries(names.map((n, i) => [n, on[i]])) });
 });
 
