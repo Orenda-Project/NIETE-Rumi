@@ -56,3 +56,25 @@ describe('the day key with a grade', () => {
       .toEqual({ ok: false, reason: 'bad_visit_key' });
   });
 });
+
+describe('the database accepts what the draw writes (migration V1.7.3)', () => {
+  const fs = require('fs'); // eslint-disable-line global-require
+  const path = require('path'); // eslint-disable-line global-require
+  const sql = fs.readFileSync(path.join(__dirname, '../../../infrastructure/supabase/migrations/V1.7.3__child_test_all_grades.sql'), 'utf8');
+  const checks = [...sql.matchAll(/ADD CONSTRAINT (child_test_\w+_visit_key_format) CHECK \(visit_key IS NULL OR visit_key ~\s*'([^']+)'\)/g)];
+
+  test('both visit-key checks accept every key visitKeyFor builds, with and without a grade, and refuse :g6', () => {
+    expect(checks.map((m) => m[1]).sort()).toEqual(['child_test_draws_visit_key_format', 'child_test_sessions_visit_key_format']);
+    for (const [, , re] of checks) {
+      const ok = new RegExp(re);
+      for (const g of [undefined, 1, 2, 3, 4, 5]) expect(ok.test(visitKeyFor({ coachUserId: COACH, schoolId: SCHOOL, now: NOW, grade: g }))).toBe(true);
+      expect(ok.test(`${DAY_KEY}:g6`)).toBe(false);
+      expect(ok.test(`sa:${COACH}:2026-10-05`)).toBe(true);
+    }
+  });
+
+  test('both grade checks allow 1–5', () => {
+    expect(sql).toMatch(/child_test_draws_grade_check CHECK \(grade BETWEEN 1 AND 5\)/);
+    expect(sql).toMatch(/child_test_sessions_grade_check CHECK \(grade BETWEEN 1 AND 5\)/);
+  });
+});
