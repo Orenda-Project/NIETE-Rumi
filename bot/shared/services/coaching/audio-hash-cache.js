@@ -138,7 +138,8 @@ async function findRecentDuplicateSession(supabase, opts) {
  *   terminal session is still handled, just silently).
  */
 async function resolveDuplicateSubmission(ctx, opts) {
-  const { coachingSessionId, from, userId, audioHash, duplicate } = ctx;
+  // bd-c5reix: `quiet` — a recording sent from the app, followed there (its page shows the repeat): nothing to WhatsApp.
+  const { coachingSessionId, from, userId, audioHash, duplicate, quiet = false } = ctx;
   const log = opts.log || (() => {});
   // Class N: a degraded-but-recovered path must not land at `info`, or the
   // error monitor cannot see it. Falls back to `log` only for tests that do
@@ -160,6 +161,13 @@ async function resolveDuplicateSubmission(ctx, opts) {
   // ended, and we do not reopen it.
   if (!applied) {
     log('🚫 duplicate audio, but the session is already over — not reopened', { coachingSessionId });
+    return true;
+  }
+
+  if (quiet) {
+    log('🎯 duplicate audio — prior score reused (a portal recording: nothing sent to WhatsApp)', {
+      coachingSessionId, priorSessionId: duplicate.id, audioHash,
+    });
     return true;
   }
 

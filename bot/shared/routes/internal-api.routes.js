@@ -2739,6 +2739,7 @@ const PORTAL_COACHING_HTTP = {
   not_found: 404,
   not_ready: 409,
   in_progress: 409,
+  already_sent: 409, // bd-c5reix — that recording is already a session of hers
   queue_failed: 502,
 };
 
@@ -2806,6 +2807,17 @@ for (const [name, fields] of Object.entries(LIVE_FIELDS)) {
  */
 router.post('/coaching/recent-plans', requireInternalKey, portalCoachingRoute('recent-plans',
   (Svc, b) => Svc.recentLessonPlans({ userId: b.userId })));
+
+/**
+ * bd-c5reix — her classroom recordings sent on WhatsApp, kept for the app (whatsapp-recording.service).
+ * POST /api/internal/coaching/pending           Body { userId }          → 200 { status:'ok', recordings }
+ * POST /api/internal/coaching/check-duplicate   Body { userId, sha256 }  → 200 { status:'ok', duplicateOf }
+ */
+const loadWhatsAppRecording = () => require('../services/coaching/whatsapp-recording.service');
+router.post('/coaching/pending', requireInternalKey, portalCoachingRoute('pending',
+  (Svc, b) => Svc.pendingRecordings({ userId: b.userId }), loadWhatsAppRecording));
+router.post('/coaching/check-duplicate', requireInternalKey, portalCoachingRoute('check-duplicate',
+  (Svc, b) => Svc.checkDuplicate({ userId: b.userId, sha256: b.sha256 }), loadWhatsAppRecording));
 
 /**
  * POST /api/internal/coaching/reflection

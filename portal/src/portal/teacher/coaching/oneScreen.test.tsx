@@ -224,7 +224,8 @@ describe("the one screen", () => {
     fireEvent.change(await screen.findByTestId("dc-audio-input"), { target: { files: [m4a()] } });
     expect(await screen.findByText(C.photos)).toBeTruthy();
     expect(screen.getByRole("heading", { name: new RegExp(C.lessonPlan) })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: C.submit }));
+    // bd-c5reix: a picked file is attached once the "sent before?" check has answered.
+    fireEvent.click(await screen.findByRole("button", { name: C.submit }));
     await waitFor(() => expect(sendLesson).toHaveBeenCalled());
     expect((sendLesson.mock.calls[0][0] as { teacherClass: unknown }).teacherClass)
       .toEqual(expect.objectContaining({ grade: 4, subject: "General Science" }));

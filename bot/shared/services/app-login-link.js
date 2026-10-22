@@ -43,6 +43,8 @@ const LANDINGS = Object.freeze({
   teacher_training: '/portal/teacher/training',
   attendance: '/portal/teacher/attendance',
   classes: '/portal/teacher/classes',
+  // bd-c5reix — not a command: a classroom recording sent on WhatsApp, kept; the one screen opens with it attached.
+  ai_coaching_recording: '/portal/teacher/coaching/new?recording=whatsapp',
 });
 /** Where a teacher who is no longer on the teacher app lands instead (today's portal home). */
 const LEGACY_LANDING = '/portal/dashboard';

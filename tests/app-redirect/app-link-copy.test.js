@@ -99,7 +99,8 @@ const CASES = Object.entries(COPY).flatMap(([feature, langs]) =>
 
 test('the table covers exactly the seven linkable features', () => {
   const { LANDINGS } = require(LOGIN_LINK);
-  expect(Object.keys(COPY).sort()).toEqual(Object.keys(LANDINGS).sort());
+  // ai_coaching_recording is not a command: ai_coaching's link when her recording was kept (bd-c5reix, its own suite).
+  expect(Object.keys(COPY).sort()).toEqual(Object.keys(LANDINGS).filter((f) => f !== 'ai_coaching_recording').sort());
 });
 
 describe.each(CASES)('%s in %s', (feature, language, body, button) => {

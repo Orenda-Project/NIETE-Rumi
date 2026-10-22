@@ -7507,9 +7507,11 @@ async function requireSelfObservation(req, res, next) {
 }
 
 /** Relay the bot's answer; a throw (unreachable / 5xx) is a 502, never success. */
-async function relayToBot(res, label, call) {
+async function relayToBot(res, label, call, onAnswer) {
   try {
     const { httpStatus, body } = await call();
+    // bd-c5reix: a look at the answer for the funnel; it never changes what she gets.
+    if (onAnswer) { try { onAnswer(httpStatus, body || {}); } catch (_) { /* never */ } }
     return res.status(httpStatus).json(body);
   } catch (error) {
     console.error(`Portal coaching ${label} failed:`, error.message);
@@ -7572,7 +7574,39 @@ router.post('/coaching-upload/start', requirePortalAuth, requireSelfObservation,
   return relayToBot(res, 'start', () => PortalCoachingClient.startSession({
     userId: req.session.portalUserId, key, lessonPlanKey, photoKeys, lessonPlan: libraryPlanPick(lessonPlan),
     teacherClass: teacherClassPick(teacherClass), liveMoves,
-  }));
+  }), (status) => {
+    // bd-c5reix — a recording kept from WhatsApp, sent from the app (the funnel's "pending submitted").
+    if (status === 200 && isWhatsAppKey(key)) logAppAction(req, 'coaching.pending_sent', 'ai_coaching');
+  });
+});
+
+/** bd-c5reix — a classroom recording the bot kept from WhatsApp: the bot's own predicate (regex only, no bot deps). */
+const { isWhatsAppKey } = require('../../bot/shared/services/coaching/whatsapp-recording.service');
+const logAppAction = (...a) => require('./app-funnel.routes').logAppAction(...a);
+
+/**
+ * bd-c5reix — GET /api/portal/coaching-upload/pending
+ * → { recordings: [{ key, id, seconds, receivedAt, listenUrl, duplicateOf }] }: her classroom recordings sent on
+ *   WhatsApp, kept for the app and not sent yet, newest first (the bot reads R2 and her rows).
+ */
+router.get('/coaching-upload/pending', requirePortalAuth, requireSelfObservation, (req, res) => (
+  relayToBot(res, 'pending', () => PortalCoachingClient.pendingRecordings({ userId: req.session.portalUserId }), (status, body) => {
+    const recs = status === 200 && Array.isArray(body.recordings) ? body.recordings : [];
+    if (recs.length) {
+      logAppAction(req, 'coaching.pending_shown', 'ai_coaching', { count: recs.length, repeats: recs.filter((r) => r && r.duplicateOf).length });
+    }
+  })
+));
+
+/**
+ * bd-c5reix — POST /api/portal/coaching-upload/check-duplicate  Body { sha256 }
+ * → { duplicateOf: null | { sessionId, date, ready } }: has she sent these bytes before? Asked before an upload.
+ */
+router.post('/coaching-upload/check-duplicate', requirePortalAuth, requireSelfObservation, (req, res) => {
+  const { sha256 } = req.body || {};
+  return relayToBot(res, 'check-duplicate', () => PortalCoachingClient.checkDuplicate({ userId: req.session.portalUserId, sha256 }), (status, body) => {
+    if (status === 200 && body.duplicateOf) logAppAction(req, 'coaching.duplicate_shown', 'ai_coaching', { where: 'upload' });
+  });
 });
 
 /**

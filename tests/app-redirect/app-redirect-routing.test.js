@@ -391,7 +391,9 @@ describe('doors that cannot be driven here are wired at the source', () => {
 
   test('voice: a classroom recording asks ai_coaching; the intent asks its switch, else general_chat', () => {
     const s = src('shared/handlers/voice-message.handler.js');
-    expect(s).toMatch(/redirectIfFlagged\('ai_coaching'/);
+    // bd-c5reix: through redirectClassroomRecording, which keeps her recording for the app and asks ai_coaching.
+    expect(s).toMatch(/redirectClassroomRecording\(/);
+    expect(src('shared/services/coaching/whatsapp-recording.service.js')).toMatch(/redirectIfFlagged\('ai_coaching'/);
     expect(s).toMatch(/intent\.type === 'lesson_plan' \? 'lesson_plan' : 'general_chat'/);
     expect(s).toMatch(/redirectIfFlagged\(voiceFeature/);
   });

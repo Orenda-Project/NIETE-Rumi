@@ -10,10 +10,11 @@ import { HistoryList, HistoryRow } from '../ui';
 import { CARD, FOCUS, LIST_CARD } from '../ui/styles';
 import { useCopy } from '../i18n';
 import { LESSONS } from '../lessons/copy';
-import { lessonGroups, loadDcHistory } from './api';
+import { lessonGroups, loadDcHistory, loadPending } from './api';
 import { COACHING } from './copy';
 import { readPrefill } from './draft';
 import { COACHING_ALL, COACHING_NEW } from './paths';
+import { WaitingRecording } from './parts';
 
 /**
  * The teacher v2 Digital Coaching main page, in Assessment's shape (design v6, the hub template of 12 Oct):
@@ -21,6 +22,8 @@ import { COACHING_ALL, COACHING_NEW } from './paths';
  *   Start DC observation   the + card → the one screen (NewObservation): Grade and subject, Recording, Lesson plan,
  *                          Photos, Submit, then its progress there.
  *   Summary                her DC observations in all → All DC Observations.
+ *   From WhatsApp          bd-c5reix: each classroom recording she sent on WhatsApp, kept and not sent yet → the one
+ *                          screen with it attached (or, sent before, its report).
  *   Analysing              only while a lesson is being analysed (GET /teacher/coaching/history: no report yet, no
  *                          band); each opens its lesson, where she answers the reflection question.
  *   Recent DC Observations the newest four with a report or band, open, no See all.
@@ -36,6 +39,9 @@ export function CoachingHomePage() {
   const location = useLocation();
   const prefill = useMemo(() => readPrefill(location.search), [location.search]);
   const [history] = useLoad(() => loadDcHistory({ range: 'all' }), 'dc:history');
+  // bd-c5reix — her classroom recordings sent on WhatsApp, kept and waiting (a failed read shows none).
+  const [pending] = useLoad(loadPending, 'dc:pending');
+  const waiting = dataOf(pending) ?? [];
 
   const items = useMemo(() => dataOf(history)?.items ?? [], [history]);
   // bd-aqotzx — a lesson closed because it did not sound like a class sits with the finished ones (marked Stopped).
@@ -76,6 +82,10 @@ export function CoachingHomePage() {
         </span>
         <ChevronRight className="h-6 w-6 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
       </Link>
+
+      {waiting.map((rec) => (
+        <WaitingRecording key={rec.key} rec={rec} to={`${COACHING_NEW}?recording=${encodeURIComponent(rec.id)}`} />
+      ))}
 
       {making.length > 0 ? (
         <>
