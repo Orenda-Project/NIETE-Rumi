@@ -66,6 +66,12 @@ const WAIT_FOR_CLIPS_MS = 2 * 60 * 1000;   // a questions task whose session end
 const INTERVAL_MS = 20 * 1000;
 const PER_TICK = 8;   // rows claimed per tick, scored side by side: one child's spoken tasks in about a minute
 const SECONDS = 60;
+// Every outbound await is bounded: one model, STT or R2 call that never answered kept `running` set, and every later
+// tick was skipped without a word. A timed-out call is a retry (reason 'timeout'); a sweep past its deadline clears
+// `running`, logs the stage it reached and changes this process's claim token, so its abandoned claims go stale and are
+// taken again like a dead process's. deps.limits (ms) overrides these in tests.
+const LIMITS = { model: 60 * 1000, stt: 60 * 1000, r2: 30 * 1000, sweep: 90 * 1000 };
+const SKIP_LOG_MS = 60 * 1000;
 const TASK_RE = /^[a-z]{2}\.[a-z0-9_]{1,40}$/;
 
 const isOn = () => process.env.CHILD_TEST_SA_SCORER === 'on';
@@ -226,8 +232,8 @@ function defaultDeps() {
   return {
     chatJSON: require('../scoring/llm').chatJSON,
     model: () => require('../scoring/models').modelFor('counts'),
-    clipOf: async (key) => {
-      const file = await media.downloadToTemp(key, 'webm');
+    clipOf: async (key, signal) => {
+      const file = await media.downloadToTemp(key, 'webm', signal);
       try {
         const dur = (await media.probeDuration(file)) || (await media.decodedDuration(file)) || SECONDS + 5;
         const clip = await media.cutClip(file, 0, dur, 'mp3');
@@ -236,12 +242,12 @@ function defaultDeps() {
       } finally { media.cleanup(file); }
     },
     // the speech gate: STT on the clip the model hears; words = how many words it heard
-    speechOf: async (clip, lang) => {
+    speechOf: async (clip, lang, signal) => {
       const fs = require('fs');
       const file = media.tmpFile('mp3');
       fs.writeFileSync(file, Buffer.from(clip.base64, 'base64'));
       try {
-        const r = await require('../scoring/stt').transcribe(file, lang === 'en' ? 'en' : 'ur', clip.durationSec);
+        const r = await require('../scoring/stt').transcribe(file, lang === 'en' ? 'en' : 'ur', clip.durationSec, { signal });
         const words = r.words || [];
         return { words: words.length, text: words.map((w) => w.raw).join(' '), model: r.model, cost: r.cost, seconds: r.seconds };
       } finally { media.cleanup(file); }
@@ -252,6 +258,21 @@ function defaultDeps() {
   /* eslint-enable global-require */
 }
 
+/**
+ * run(signal), bounded: rejects with reason 'timeout' (and the stage) once `ms` pass, whether or not the callee
+ * honours the signal. A callee that does (the model client, R2, STT) also stops its own request.
+ */
+function bounded(stage, ms, run) {
+  const signal = AbortSignal.timeout(ms);
+  return new Promise((resolve, reject) => {
+    const fail = () => { const e = new Error(`${stage}_timeout`); e.reason = 'timeout'; e.stage = stage; reject(e); };
+    signal.addEventListener('abort', fail, { once: true });
+    Promise.resolve().then(() => run(signal)).then(resolve, reject).finally(() => signal.removeEventListener('abort', fail));
+  });
+}
+const limitOf = (deps, k) => Number((deps.limits || {})[k]) || LIMITS[k];
+const clipOf = (deps, key) => bounded('r2', limitOf(deps, 'r2'), (signal) => deps.clipOf(key, signal));
+
 /** The time the child used, seconds (the phone's clock), 1–60. */
 function usedSeconds(res) {
   const ms = Number(res && res.time_used_ms);
@@ -261,7 +282,13 @@ function usedSeconds(res) {
 
 async function call(deps, calls, { prompt, schema, clip, job }) {
   const model = deps.model();
-  const r = await deps.chatJSON({ model, prompt, schema, audio: { data: clip.base64, format: 'mp3' }, job, maxTokens: 12000 });
+  let r;
+  try {
+    r = await bounded('model', limitOf(deps, 'model'), (signal) => deps.chatJSON({ model, prompt, schema, audio: { data: clip.base64, format: 'mp3' }, job, maxTokens: 12000, signal }));
+  } catch (e) {
+    calls.push({ job, model, cost: null, seconds: round1(limitOf(deps, 'model') / 1000), error: e.reason || 'model_failed' });
+    throw e;
+  }
   calls.push({ job, model, cost: r.cost == null ? null : Math.round(r.cost * 1e5) / 1e5, seconds: round1(r.seconds || 0), error: r.error || null });
   if (!r.json) { const e = new Error('model_failed'); e.reason = 'model_failed'; throw e; }
   return r.json;
@@ -281,12 +308,13 @@ async function silent(deps, calls, clip, lang, heard = null) {
   }
   if (!deps.speechOf) return null;
   try {
-    const s = await deps.speechOf(clip, lang);
+    const s = await bounded('stt', limitOf(deps, 'stt'), (signal) => deps.speechOf(clip, lang, signal));
     calls.push({ job: 'child_test.sa_speech_gate', model: s.model || 'stt', cost: s.cost == null ? null : Math.round(s.cost * 1e5) / 1e5, seconds: round1(s.seconds || 0), error: null, words: s.words });
     if (heard && typeof s.text === 'string') heard.text = s.text;
     return Number.isInteger(s.words) ? s.words === 0 : null;
   } catch (e) {
     calls.push({ job: 'child_test.sa_speech_gate', model: 'stt', cost: null, seconds: 0, error: String((e && e.message) || e).slice(0, 120) });
+    if (e && e.reason === 'timeout') throw e; // no answer is not "STT cannot say": the row is retried
     return null;
   }
 }
@@ -340,7 +368,7 @@ function timedNumbers(rows, res, { stopped, attemptedTo = null }) {
 async function scoreGrid(task, rec, row, res, deps, calls, grade) {
   const items = (rec.grid || []).map(String);
   const perRow = Number(rec.per_row) || 10;
-  const clip = await deps.clipOf(row.audio_r2_key);
+  const clip = await clipOf(deps, row.audio_r2_key);
   const letters = /letter/.test(task.subtask || task.task);
   const LV = { c: 'correct', w: 'wrong', s: 'not_reached', n: 'not_reached' };
   let rows;
@@ -389,7 +417,7 @@ async function scoreOral(task, rec, row, res, deps, calls) {
     : (row.audio_r2_key ? [{ list: items, at: items.map((_, k) => k), key: row.audio_r2_key }] : []);
   let durationSec = null;
   for (const p of parts) {
-    const clip = await deps.clipOf(p.key);
+    const clip = await clipOf(deps, p.key);
     durationSec = (durationSec || 0) + (clip.durationSec || 0);
     if (await silent(deps, calls, clip, task.lang)) { p.at.forEach((k) => got.set(k, { mute: true })); continue; }
     const json = await call(deps, calls, { prompt: oralPrompt({ lang: task.lang, task, items: p.list, one }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_oral_maths' });
@@ -420,7 +448,7 @@ async function storyRows(tokens, lang, clip, deps, calls, job) {
 async function scorePassage(task, rec, row, res, deps, calls) {
   const p = rec.passage || {};
   const tokens = Array.isArray(p.words) && p.words.length ? p.words.map((w) => String(w.target)) : String(p.text || '').split(/\s+/).filter(Boolean);
-  const clip = await deps.clipOf(row.audio_r2_key);
+  const clip = await clipOf(deps, row.audio_r2_key);
   const rows = (await silent(deps, calls, clip, task.lang)) ? timedRows(tokens, () => MUTE)
     : await storyRows(tokens, task.lang, clip, deps, calls, 'child_test.sa_story');
   // RULING #2: the child taps the last word read; words after it were not attempted
@@ -441,7 +469,7 @@ async function scoreQuestions(task, rec, row, res, deps, calls) {
     for (const q of qs) {
       const k = keys.find((x) => x.i === q.id);
       if (!k) continue; // no clip for this question: no answer heard
-      const clip = await deps.clipOf(k.key);
+      const clip = await clipOf(deps, k.key);
       const stt = {};
       if (await silent(deps, calls, clip, task.lang, stt)) { marked.set(q.id, { mute: true }); continue; }
       const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: [q], passage, single: false }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
@@ -449,7 +477,7 @@ async function scoreQuestions(task, rec, row, res, deps, calls) {
       if (got) marked.set(q.id, echoed(q, got, stt.text) ? { mute: true, echo: true } : got);
     }
   } else if (row.audio_r2_key) {
-    const clip = await deps.clipOf(row.audio_r2_key);
+    const clip = await clipOf(deps, row.audio_r2_key);
     const stt = {};
     if (await silent(deps, calls, clip, task.lang, stt)) qs.forEach((q) => marked.set(q.id, { mute: true }));
     else {
@@ -639,49 +667,81 @@ async function finish(row, got, supabase = db()) {
   return !error;
 }
 
-let running = false;
+let running = null;   // the running global sweep's token, null when none
+let skipLogged = 0;
 
 async function sweepOnce({ sessionId = null, now = new Date(), deps = {} } = {}) {
   if (!isOn()) return { skipped: 'off' };
-  if (running && !sessionId) return { skipped: 'running' };
-  if (!sessionId) running = true;
-  const out = { found: 0, scored: 0, failed: 0, waiting: 0 };
-  try {
-    const supabase = deps.supabase || db();
-    const stopRules = await stopRulesSwitch.enabled(deps);
-    const rows = await candidates({ sessionId, now, supabase, afterBoot: !swept });
-    out.found = rows.length;
-    const sessions = new Map();
-    const claimed = [];
-    for (const row of rows) {
-      if (claimed.length >= PER_TICK) break;
-      if (!sessions.has(row.session_id)) {
-        const { data } = await supabase.from('child_test_sessions').select('id, grade, form, item_bank_version, status, finished_at, client_finished_at').eq('id', row.session_id).limit(1);
-        const s = (data || [])[0] || null;
-        if (s) s.asked = await askedOf(row.session_id, supabase);
-        if (s && stopRules) { s.stopRules = true; s.passages = await passagesOf(row.session_id, supabase); }
-        sessions.set(row.session_id, s);
-      }
-      const session = sessions.get(row.session_id);
-      if (!session || session.item_bank_version !== SA_MARK) continue;
-      if (!ready(row, session, now.getTime())) { out.waiting += 1; continue; }
-      const had = { ...row }; // the reason before the claim: the retry count lives in it
-      if (!(await claim(had, supabase))) continue;
-      claimed.push({ had, session });
+  if (running && !sessionId) {
+    if (Date.now() - skipLogged >= SKIP_LOG_MS) {
+      skipLogged = Date.now();
+      logToFile('child_test.sa_score.sweep_skipped', { reason: 'running', running_s: round1((Date.now() - running.at) / 1000) });
     }
-    await Promise.all(claimed.map(async ({ had, session }) => {
-      const got = await scoreRow(had, session, { ...deps, stopRules });
-      await finish(had, got, supabase);
-      if (got.ok) out.scored += 1; else out.failed += 1;
-      logToFile('child_test.sa_scored', { block: had.block, ok: got.ok, reason: got.ok ? null : got.reason, cost_usd: got.ok ? got.marks.meta.cost_usd : null });
-    }));
+    return { skipped: 'running' };
+  }
+  const me = { at: Date.now() };
+  if (!sessionId) running = me;
+  const out = { found: 0, scored: 0, failed: 0, waiting: 0 };
+  const at = { stage: 'start' };
+  let deadline = null;
+  const late = new Promise((resolve) => {
+    deadline = setTimeout(() => resolve('timeout'), limitOf(deps, 'sweep'));
+    if (deadline.unref) deadline.unref();
+  });
+  try {
+    const done = await Promise.race([sweepBody({ sessionId, now, deps, out, at }), late]);
+    if (done === 'timeout') {
+      // the body still runs: its claims go stale under a new token and are taken again; its late writes do not land
+      MINE = `${SCORING}:${bootId()}`;
+      logError('child_test.sa_score.sweep_timeout', { stage: at.stage, after_s: round1(limitOf(deps, 'sweep') / 1000), session: Boolean(sessionId), ...out });
+      return { ...out, timeout: at.stage };
+    }
     return out;
   } catch (e) {
-    logError('child_test.sa_score.sweep_failed', { error: e.message });
+    logError('child_test.sa_score.sweep_failed', { error: e.message, stage: at.stage });
     return out;
   } finally {
-    if (!sessionId) { running = false; swept = true; }
+    clearTimeout(deadline);
+    if (!sessionId && running === me) { running = null; swept = true; }
   }
+}
+
+async function sweepBody({ sessionId, now, deps, out, at }) {
+  const supabase = deps.supabase || db();
+  at.stage = 'switch';
+  const stopRules = await stopRulesSwitch.enabled(deps);
+  at.stage = 'candidates';
+  const rows = await candidates({ sessionId, now, supabase, afterBoot: !swept });
+  out.found = rows.length;
+  const sessions = new Map();
+  const claimed = [];
+  for (const row of rows) {
+    if (claimed.length >= PER_TICK) break;
+    if (!sessions.has(row.session_id)) {
+      at.stage = 'session';
+      const { data } = await supabase.from('child_test_sessions').select('id, grade, form, item_bank_version, status, finished_at, client_finished_at').eq('id', row.session_id).limit(1);
+      const s = (data || [])[0] || null;
+      if (s) s.asked = await askedOf(row.session_id, supabase);
+      if (s && stopRules) { s.stopRules = true; s.passages = await passagesOf(row.session_id, supabase); }
+      sessions.set(row.session_id, s);
+    }
+    const session = sessions.get(row.session_id);
+    if (!session || session.item_bank_version !== SA_MARK) continue;
+    if (!ready(row, session, now.getTime())) { out.waiting += 1; continue; }
+    const had = { ...row }; // the reason before the claim: the retry count lives in it
+    at.stage = 'claim';
+    if (!(await claim(had, supabase))) continue;
+    claimed.push({ had, session });
+  }
+  at.stage = 'score';
+  await Promise.all(claimed.map(async ({ had, session }) => {
+    const got = await scoreRow(had, session, { ...deps, stopRules });
+    await finish(had, got, supabase);
+    if (got.ok) out.scored += 1; else out.failed += 1;
+    logToFile('child_test.sa_scored', { block: had.block, ok: got.ok, reason: got.ok ? null : got.reason, cost_usd: got.ok ? got.marks.meta.cost_usd : null });
+  }));
+  at.stage = 'done';
+  return out;
 }
 
 /** saRegister's nudge: never awaited by the caller, never throws. */
@@ -703,5 +763,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { MINE = `${SCORING}:${bootId()}`; swept = false; }, candidates, claim, finish, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt },
+  __internals: { echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { MINE = `${SCORING}:${bootId()}`; swept = false; running = null; skipLogged = 0; }, candidates, claim, finish, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt },
 };

@@ -469,14 +469,14 @@ async function uploadFeatureVideo(filePath, featureName) {
  * @param {string} key - R2 object key (e.g., "reports/userId/sessionId_report.pdf")
  * @returns {Promise<Buffer>} File buffer
  */
-async function downloadFromR2(key, { bucket } = {}) {
+async function downloadFromR2(key, { bucket, abortSignal } = {}) {
   try {
     const command = new GetObjectCommand({
       Bucket: bucket || BUCKET_NAME,
       Key: key,
     });
 
-    const response = await getR2Client().send(command);
+    const response = abortSignal ? await getR2Client().send(command, { abortSignal }) : await getR2Client().send(command);
 
     // Convert stream to buffer
     const chunks = [];
