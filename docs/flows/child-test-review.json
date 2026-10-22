@@ -1,0 +1,706 @@
+{
+  "version": "7.3",
+  "screens": [
+    {
+      "id": "REVIEW",
+      "title": "جواب · Answers",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "heading": {
+          "type": "string",
+          "__example__": "یہ جواب چیک کریں"
+        },
+        "intro": {
+          "type": "string",
+          "__example__": "ریکارڈنگ سے ان جوابوں کا فیصلہ نہیں ہو سکا۔ بتائیں کہ بچے نے کیا کہا۔ چاہیں تو پہلے چیٹ میں وائس نوٹ سن لیں۔"
+        },
+        "t_mark": {
+          "type": "string",
+          "__example__": "بچے کا جواب"
+        },
+        "save": {
+          "type": "string",
+          "__example__": "جواب محفوظ کریں"
+        },
+        "verdicts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "__example__": [
+            {
+              "id": "correct",
+              "title": "صحیح"
+            },
+            {
+              "id": "wrong",
+              "title": "غلط"
+            },
+            {
+              "id": "none",
+              "title": "جواب نہیں دیا"
+            }
+          ]
+        },
+        "review_ref": {
+          "type": "string",
+          "__example__": "rv_example"
+        },
+        "i1_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "i1_who": {
+          "type": "string",
+          "__example__": "‏⁨Child A⁩ کا اردو سوال ۲"
+        },
+        "i1_q": {
+          "type": "string",
+          "__example__": "بلال نے کس چیز کو حرکت کرتے دیکھا؟"
+        },
+        "i1_h": {
+          "type": "string",
+          "__example__": "سنا گیا: «پانی»"
+        },
+        "i1_k": {
+          "type": "string",
+          "__example__": "example|urdu|questions|u3A-q2"
+        },
+        "i2_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "i2_who": {
+          "type": "string",
+          "__example__": "‏⁨Child A⁩ کا حساب سوال ۳"
+        },
+        "i2_q": {
+          "type": "string",
+          "__example__": "92 − 41"
+        },
+        "i2_h": {
+          "type": "string",
+          "__example__": "سنا گیا: «۴۱»"
+        },
+        "i2_k": {
+          "type": "string",
+          "__example__": "example|maths|sums|m3A-s3"
+        },
+        "i3_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "i3_who": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i3_q": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i3_h": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i3_k": {
+          "type": "string",
+          "__example__": ""
+        },
+        "i4_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "i4_who": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i4_q": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i4_h": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i4_k": {
+          "type": "string",
+          "__example__": ""
+        },
+        "i5_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "i5_who": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i5_q": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i5_h": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i5_k": {
+          "type": "string",
+          "__example__": ""
+        },
+        "i6_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "i6_who": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i6_q": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i6_h": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i6_k": {
+          "type": "string",
+          "__example__": ""
+        },
+        "i7_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "i7_who": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i7_q": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i7_h": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i7_k": {
+          "type": "string",
+          "__example__": ""
+        },
+        "i8_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "i8_who": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i8_q": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i8_h": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i8_k": {
+          "type": "string",
+          "__example__": ""
+        },
+        "i9_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "i9_who": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i9_q": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i9_h": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i9_k": {
+          "type": "string",
+          "__example__": ""
+        },
+        "i10_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "i10_who": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i10_q": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i10_h": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i10_k": {
+          "type": "string",
+          "__example__": ""
+        },
+        "i11_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "i11_who": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i11_q": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i11_h": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i11_k": {
+          "type": "string",
+          "__example__": ""
+        },
+        "i12_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "i12_who": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i12_q": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i12_h": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i12_k": {
+          "type": "string",
+          "__example__": ""
+        },
+        "i13_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "i13_who": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i13_q": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i13_h": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i13_k": {
+          "type": "string",
+          "__example__": ""
+        },
+        "i14_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "i14_who": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i14_q": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i14_h": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i14_k": {
+          "type": "string",
+          "__example__": ""
+        },
+        "i15_v": {
+          "type": "boolean",
+          "__example__": false
+        },
+        "i15_who": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i15_q": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i15_h": {
+          "type": "string",
+          "__example__": "—"
+        },
+        "i15_k": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "review_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "${data.heading}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.intro}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.i1_who}",
+                "visible": "${data.i1_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.i1_q}",
+                "visible": "${data.i1_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r1",
+                "label": "${data.t_mark}",
+                "description": "${data.i1_h}",
+                "data-source": "${data.verdicts}",
+                "required": "${data.i1_v}",
+                "visible": "${data.i1_v}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.i2_who}",
+                "visible": "${data.i2_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.i2_q}",
+                "visible": "${data.i2_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r2",
+                "label": "${data.t_mark}",
+                "description": "${data.i2_h}",
+                "data-source": "${data.verdicts}",
+                "required": "${data.i2_v}",
+                "visible": "${data.i2_v}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.i3_who}",
+                "visible": "${data.i3_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.i3_q}",
+                "visible": "${data.i3_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r3",
+                "label": "${data.t_mark}",
+                "description": "${data.i3_h}",
+                "data-source": "${data.verdicts}",
+                "required": "${data.i3_v}",
+                "visible": "${data.i3_v}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.i4_who}",
+                "visible": "${data.i4_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.i4_q}",
+                "visible": "${data.i4_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r4",
+                "label": "${data.t_mark}",
+                "description": "${data.i4_h}",
+                "data-source": "${data.verdicts}",
+                "required": "${data.i4_v}",
+                "visible": "${data.i4_v}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.i5_who}",
+                "visible": "${data.i5_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.i5_q}",
+                "visible": "${data.i5_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r5",
+                "label": "${data.t_mark}",
+                "description": "${data.i5_h}",
+                "data-source": "${data.verdicts}",
+                "required": "${data.i5_v}",
+                "visible": "${data.i5_v}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.i6_who}",
+                "visible": "${data.i6_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.i6_q}",
+                "visible": "${data.i6_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r6",
+                "label": "${data.t_mark}",
+                "description": "${data.i6_h}",
+                "data-source": "${data.verdicts}",
+                "required": "${data.i6_v}",
+                "visible": "${data.i6_v}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.i7_who}",
+                "visible": "${data.i7_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.i7_q}",
+                "visible": "${data.i7_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r7",
+                "label": "${data.t_mark}",
+                "description": "${data.i7_h}",
+                "data-source": "${data.verdicts}",
+                "required": "${data.i7_v}",
+                "visible": "${data.i7_v}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.i8_who}",
+                "visible": "${data.i8_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.i8_q}",
+                "visible": "${data.i8_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r8",
+                "label": "${data.t_mark}",
+                "description": "${data.i8_h}",
+                "data-source": "${data.verdicts}",
+                "required": "${data.i8_v}",
+                "visible": "${data.i8_v}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.i9_who}",
+                "visible": "${data.i9_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.i9_q}",
+                "visible": "${data.i9_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r9",
+                "label": "${data.t_mark}",
+                "description": "${data.i9_h}",
+                "data-source": "${data.verdicts}",
+                "required": "${data.i9_v}",
+                "visible": "${data.i9_v}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.i10_who}",
+                "visible": "${data.i10_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.i10_q}",
+                "visible": "${data.i10_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r10",
+                "label": "${data.t_mark}",
+                "description": "${data.i10_h}",
+                "data-source": "${data.verdicts}",
+                "required": "${data.i10_v}",
+                "visible": "${data.i10_v}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.i11_who}",
+                "visible": "${data.i11_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.i11_q}",
+                "visible": "${data.i11_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r11",
+                "label": "${data.t_mark}",
+                "description": "${data.i11_h}",
+                "data-source": "${data.verdicts}",
+                "required": "${data.i11_v}",
+                "visible": "${data.i11_v}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.i12_who}",
+                "visible": "${data.i12_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.i12_q}",
+                "visible": "${data.i12_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r12",
+                "label": "${data.t_mark}",
+                "description": "${data.i12_h}",
+                "data-source": "${data.verdicts}",
+                "required": "${data.i12_v}",
+                "visible": "${data.i12_v}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.i13_who}",
+                "visible": "${data.i13_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.i13_q}",
+                "visible": "${data.i13_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r13",
+                "label": "${data.t_mark}",
+                "description": "${data.i13_h}",
+                "data-source": "${data.verdicts}",
+                "required": "${data.i13_v}",
+                "visible": "${data.i13_v}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.i14_who}",
+                "visible": "${data.i14_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.i14_q}",
+                "visible": "${data.i14_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r14",
+                "label": "${data.t_mark}",
+                "description": "${data.i14_h}",
+                "data-source": "${data.verdicts}",
+                "required": "${data.i14_v}",
+                "visible": "${data.i14_v}"
+              },
+              {
+                "type": "TextSubheading",
+                "text": "${data.i15_who}",
+                "visible": "${data.i15_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.i15_q}",
+                "visible": "${data.i15_v}"
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "r15",
+                "label": "${data.t_mark}",
+                "description": "${data.i15_h}",
+                "data-source": "${data.verdicts}",
+                "required": "${data.i15_v}",
+                "visible": "${data.i15_v}"
+              },
+              {
+                "type": "Footer",
+                "label": "${data.save}",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "child_test": "review",
+                    "review_ref": "${data.review_ref}",
+                    "k1": "${data.i1_k}",
+                    "r1": "${form.r1}",
+                    "k2": "${data.i2_k}",
+                    "r2": "${form.r2}",
+                    "k3": "${data.i3_k}",
+                    "r3": "${form.r3}",
+                    "k4": "${data.i4_k}",
+                    "r4": "${form.r4}",
+                    "k5": "${data.i5_k}",
+                    "r5": "${form.r5}",
+                    "k6": "${data.i6_k}",
+                    "r6": "${form.r6}",
+                    "k7": "${data.i7_k}",
+                    "r7": "${form.r7}",
+                    "k8": "${data.i8_k}",
+                    "r8": "${form.r8}",
+                    "k9": "${data.i9_k}",
+                    "r9": "${form.r9}",
+                    "k10": "${data.i10_k}",
+                    "r10": "${form.r10}",
+                    "k11": "${data.i11_k}",
+                    "r11": "${form.r11}",
+                    "k12": "${data.i12_k}",
+                    "r12": "${form.r12}",
+                    "k13": "${data.i13_k}",
+                    "r13": "${form.r13}",
+                    "k14": "${data.i14_k}",
+                    "r14": "${form.r14}",
+                    "k15": "${data.i15_k}",
+                    "r15": "${form.r15}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

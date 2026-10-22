@@ -73,11 +73,14 @@ KNOWN_TAGS = frozenset(GATING_TAGS | {
     # feature / surface
     "menu", "training", "ask", "portal", "language", "register", "registration",
     "coaching", "observe", "attendance", "status", "lesson-plan", "quiz",
+    "child-test",
     # scope + slice
     "menu-feature", "out-of-region", "copy", "flow", "negative", "edge",
     "certificates", "data", "vendor", "content-driven", "defensive",
     "role-fork", "debrief", "voice", "audio", "acceptance", "scheduling",
     "excel", "harm-gate", "seeded", "out-of-band", "i18n", "coverage", "new",
+    # lane: the documented escape hatch of check-scenario-coverage.py (chrome-only, no mock driver)
+    "no-mock-driver",
     # priority
     "p1", "p2", "p3",
     # backend

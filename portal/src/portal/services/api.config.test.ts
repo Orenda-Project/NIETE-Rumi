@@ -27,7 +27,7 @@ describe("portal.getConfig fallback", () => {
   it("keeps every other feature off too", async () => {
     const cfg = await portal.getConfig();
     expect(cfg.features).toMatchObject({
-      assessmentGenerator: false, selfObservation: false, coachObservation: false, newUi: false,
+      assessmentGenerator: false, selfObservation: false, childTest: false, childTestSa: false, coachObservation: false, newUi: false,
     });
   });
 });

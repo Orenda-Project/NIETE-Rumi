@@ -1,0 +1,638 @@
+{
+  "version": "child-test-items-sa-w3-v1",
+  "rule": "The RDF auto / RDF manual forms (switch sa_rdf_w3_forms). Nothing here is new test content: every scored and practice item is picked by its place in an official bank (item-bank.v3.json Set A = the Rawalpindi May 2026 instrument + Core EGMA; item-bank.sa-extra.v1.json) or, for the two Rawalpindi maths lists v3 does not carry, copied with its instrument field id. Each pick names its src.",
+  "sources": {
+    "rwp2026": {
+      "title": "Rawalpindi/ICT May 2026 EGRA/EGMA instrument (SurveyCTO codebook v109/v110), fields cited per item"
+    },
+    "core_egma": {
+      "title": "Core EGMA instrument (RTI International, March 2013; re-issued March 2014)",
+      "url": "https://shared.rti.org/content/core-egma-instrument"
+    },
+    "egra_tk2016": {
+      "title": "Early Grade Reading Assessment (EGRA) Toolkit, 2nd edition (RTI International / USAID, 2016)",
+      "url": "https://ierc-publicfiles.s3.amazonaws.com/public/resources/EGRA%20Toolkit%20V2%202016.pdf"
+    },
+    "egra_tk2009": {
+      "title": "Early Grade Reading Assessment Toolkit (RTI International, 2009), sample assessment"
+    },
+    "prpkp2020": {
+      "title": "Pakistan Reading Project, Khyber Pakhtunkhwa, Endline 2020 (USAID), EGRA Urdu Form 1"
+    },
+    "prpkp2020_report": {
+      "title": "PRP 2020 Early Grade Reading Endline Assessment, Khyber Pakhtunkhwa (NORC, 2021), USAID DEC PA00Z7MW, Table 1",
+      "url": "https://docs.aiddata.org/ad4/pdfs/usaid-archive/txt/PA00Z7MW.txt"
+    },
+    "select2024": {
+      "title": "Sindh SELECT EGRA Baseline Assessment Report (2024), Urdu",
+      "url": "https://rsusindh.gov.pk/contents/SELECT/EGRA_Baseline_Assessment_Report_Sindh.pdf"
+    },
+    "tangerine_gh_sa": {
+      "title": "Tangerine SA-EGRMA (Ghana) form definitions"
+    },
+    "egra_sbs": {
+      "title": "The official Set A test pages (EGRA step-by-step page, booklet images)",
+      "url": "https://hyasin270.github.io/egra-step-by-step/"
+    }
+  },
+  "order": [
+    "ur.letter_names5",
+    "ur.letter_sounds5",
+    "ur.words4",
+    "ur.story_w3",
+    "ur.story_comp_w3",
+    "en.letter_names5",
+    "en.letter_sounds5",
+    "en.words4",
+    "en.story_w3",
+    "en.story_comp_w3",
+    "ma.number_id8",
+    "ma.discrimination2",
+    "ma.missing4",
+    "ma.add2i",
+    "ma.sub2i",
+    "ma.mul2i",
+    "ma.fluency1m"
+  ],
+  "absent": {
+    "blending": {
+      "en": "No blending task: the EGRA Toolkit 2016 has none (core subtasks pp.39-40; phonemic-awareness options Exhibit 9 p.41; Annex H pp.187-198), nor the Rawalpindi May 2026 instrument (17 subtasks).",
+      "ur": "No blending task: the national Urdu EGRA has none (PRP 2020, PA00Z7MW Table 1), Sindh SELECT 2024 says it was not included (p.47), and the Rawalpindi May 2026 instrument has none.",
+      "src": "egra_tk2016:pp.39-41, Annex H; prpkp2020_report:Table 1; select2024:p.47; rwp2026:administration_order"
+    }
+  },
+  "reading": {
+    "ur": {
+      "letter_names": {
+        "from": "v3:sets.A.reading.ur.letters",
+        "pick": [
+          1,
+          5,
+          6,
+          7,
+          9
+        ],
+        "note": "ITEMS_W3 v3 (panel-signed): Rawalpindi grid row 1 minus the five sound letters (items 2, 6, 7, 8, 10)",
+        "practice": [
+          {
+            "from": "extra:reading.ur.letters_practice",
+            "index": 0,
+            "why": "the PRP-KP letter-page example (ث), modelled; its practice letters ج ب are scored here, so they are left out"
+          }
+        ]
+      },
+      "letter_sounds": {
+        "from": "v3:sets.A.reading.ur.letters",
+        "pick": [
+          8,
+          2,
+          3,
+          4,
+          0
+        ],
+        "practice": [
+          {
+            "pick": 16,
+            "role": "example",
+            "src": "v3:sets.A.reading.ur.letters.items[16]",
+            "why": "the panel-signed Urdu letter-sound instructions model ل (RWP letterid_urd #17)"
+          },
+          {
+            "pick": 19,
+            "role": "practice",
+            "src": "v3:sets.A.reading.ur.letters.items[19]",
+            "why": "and practise ن (RWP letterid_urd #20); both outside the scored five"
+          }
+        ],
+        "no_sound_of_own": [
+          "ء",
+          "ع",
+          "ں",
+          "ے",
+          "ھ",
+          "ا",
+          "آ",
+          "و",
+          "ی",
+          "ث",
+          "ص",
+          "ذ",
+          "ض",
+          "ظ",
+          "ط",
+          "ح"
+        ],
+        "no_sound_rule": "Letter-sound items use only letters with a consonant sound of their own: not ء ع ں ے ھ or the vowel letters ا آ و ی, and only the common member of a class that shares one sound (س not ث ص; ز not ذ ض ظ; ت not ط; ہ not ح).",
+        "deviation": "the national Urdu EGRA and the Rawalpindi instrument test letter NAMES (PRP 2020 Table 1; rwp2026:letterid_urd); no published Urdu letter-sound grid or rule exists, so these are the Rawalpindi grid's own letters used for their sound (ب م ک س ر, row 1), matching Sindh SELECT's initial-sound keys (pp.100-101)",
+        "src": "prpkp2020_report:Table 1; select2024:pp.100-101; egra_tk2016:p.45"
+      },
+      "words": {
+        "from": "v3:sets.A.reading.ur.words",
+        "pick": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "practice_from": "extra:reading.ur.words_practice"
+      },
+      "story": {
+        "from": "v3:sets.A.reading.ur.story",
+        "print_lines": [
+          "آج بلال اپنے والد کے ساتھ دریائے جہلم کے کنارے گیا۔",
+          "وہاں ٹھنڈی ہوا چل رہی تھی اور پانی آہستہ بہہ رہا تھا۔",
+          "بلال نے کشتی کو حرکت کرتے دیکھا۔",
+          "اس کے والد نے اسے بتایا کہ دریا ہمارے ملک کے لیے اہم ہیں۔",
+          "واپسی پر بلال نے خوبصورت پتھر جمع کیے اور مسکراتا رہا۔",
+          "وہ بہت خوش بھی تھا۔"
+        ],
+        "print_src": "egra_sbs:ur-p04 (Set A booklet page 4): one sentence per printed line",
+        "questions": [
+          {
+            "id": "ur.story_w3.q1",
+            "accept": [
+              "اپنے والد کے ساتھ",
+              "والد کے ساتھ",
+              "پاپا کے ساتھ",
+              "والد",
+              "ابو",
+              "ابا"
+            ],
+            "accept_rule": "same meaning, either language",
+            "gate": {
+              "read_past": null,
+              "min_words": 1
+            },
+            "src": "egra_sbs:coach-ur-p03 question 1 (Set A coach card: accept list and gate, verbatim)"
+          },
+          {
+            "id": "ur.story_w3.q2",
+            "accept": [
+              "پانی",
+              "دریا"
+            ],
+            "accept_rule": "same meaning, either language",
+            "gate": {
+              "read_past": "بہہ رہا تھا",
+              "min_words": 23
+            },
+            "src": "egra_sbs:coach-ur-p03 question 2 (Set A coach card: accept list and gate, verbatim)"
+          },
+          {
+            "id": "ur.story_w3.q3",
+            "accept": [
+              "کشتی"
+            ],
+            "accept_rule": "same meaning, either language",
+            "gate": {
+              "read_past": "حرکت کرتے دیکھا",
+              "min_words": 30
+            },
+            "src": "egra_sbs:coach-ur-p03 question 3 (Set A coach card: accept list and gate, verbatim)"
+          },
+          {
+            "id": "ur.story_w3.q4",
+            "accept": [
+              "پتھر",
+              "خوبصورت پتھر",
+              "پتھروں"
+            ],
+            "accept_rule": "same meaning, either language",
+            "gate": {
+              "read_past": "اور مسکراتا رہا",
+              "min_words": 55
+            },
+            "src": "egra_sbs:coach-ur-p03 question 4 (Set A coach card: accept list and gate, verbatim)"
+          },
+          {
+            "id": "ur.story_w3.q5",
+            "accept": [
+              "دریا کی اہمیت سمجھانے کے لیے",
+              "سکھانے کے لیے",
+              "معلومات دینے کے لیے",
+              "کیونکہ دریا اہم ہیں"
+            ],
+            "accept_rule": "same meaning, either language",
+            "gate": {
+              "read_past": "لیے اہم ہیں",
+              "min_words": 44
+            },
+            "src": "egra_sbs:coach-ur-p03 question 5 (Set A coach card: accept list and gate, verbatim)"
+          },
+          {
+            "id": "ur.story_w3.q6",
+            "accept": [
+              "سیر کرنے کی وجہ سے",
+              "دریا کی سیر کی",
+              "پتھر جمع کرنے کی وجہ سے",
+              "خوبصورت پتھر ملے",
+              "دریا دیکھ کر خوش تھا"
+            ],
+            "accept_rule": "same meaning, either language",
+            "gate": {
+              "read_past": "اور مسکراتا رہا",
+              "min_words": 55
+            },
+            "src": "egra_sbs:coach-ur-p03 question 6 (Set A coach card: accept list and gate, verbatim)"
+          }
+        ],
+        "variants": [
+          "rwp2026",
+          "select2024"
+        ]
+      }
+    },
+    "en": {
+      "letter_names": {
+        "from": "v3:sets.A.reading.en.letters",
+        "pick": [
+          1,
+          5,
+          6,
+          7,
+          14
+        ],
+        "practice_from": "v3:sets.A.reading.en.letters.practice",
+        "note": "ITEMS_W3 v3 F5 (panel-signed): items 2, 6, 7, 8, 15, not the practice letters T M S, none in the letter-sound set"
+      },
+      "letter_sounds": {
+        "from": "v3:sets.A.reading.en.letters",
+        "pick": [
+          0,
+          2,
+          3,
+          8,
+          13
+        ],
+        "practice_from": "extra:reading.en.letter_sounds.practice",
+        "note": "ITEMS_W3 v3 F5 (panel-signed): Rawalpindi English grid row 1-2, items 1, 3, 4, 9, 14; the Toolkit prints no English letter grid (only Icibemba, Exh. 12 p.47), so the booklet grid serves both sets",
+        "deviation": "letter SOUNDS read from the Rawalpindi letter-name grid (the Toolkit 2016 prints no English letter-sound grid)"
+      },
+      "words": {
+        "from": "v3:sets.A.reading.en.words",
+        "pick": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "practice_from": "v3:sets.A.reading.en.words.practice"
+      },
+      "story": {
+        "from": "v3:sets.A.reading.en.story",
+        "print_lines": [
+          "Imran woke up early for school.",
+          "Today his class was planting trees.",
+          "He took a small plant in a bag.",
+          "The teacher asked Imran to show the class how to plant it.",
+          "Imran dug a hole, put the plant in the soil and put water in it slowly.",
+          "The teacher was happy with his work.",
+          "His friends clapped for him."
+        ],
+        "print_src": "egra_sbs:en-p04 (Set A booklet page 4): one sentence per printed line",
+        "questions": [
+          {
+            "id": "en.story_w3.q1",
+            "accept": [
+              "school",
+              "for school",
+              "he woke up for school"
+            ],
+            "accept_rule": "same meaning, either language",
+            "gate": {
+              "read_past": null,
+              "min_words": 1
+            },
+            "src": "egra_sbs:coach-en-p03 question 1 (Set A coach card: accept list and gate, verbatim)"
+          },
+          {
+            "id": "en.story_w3.q2",
+            "accept": [
+              "trees",
+              "tree",
+              "plants",
+              "plant"
+            ],
+            "accept_rule": "same meaning, either language",
+            "gate": {
+              "read_past": "was planting trees",
+              "min_words": 12
+            },
+            "src": "egra_sbs:coach-en-p03 question 2 (Set A coach card: accept list and gate, verbatim)"
+          },
+          {
+            "id": "en.story_w3.q3",
+            "accept": [
+              "a small plant",
+              "plant",
+              "a small tree",
+              "a baby tree"
+            ],
+            "accept_rule": "same meaning, either language",
+            "gate": {
+              "read_past": "in a bag",
+              "min_words": 20
+            },
+            "src": "egra_sbs:coach-en-p03 question 3 (Set A coach card: accept list and gate, verbatim)"
+          },
+          {
+            "id": "en.story_w3.q4",
+            "accept": [
+              "the plant",
+              "plant"
+            ],
+            "accept_rule": "same meaning, either language",
+            "gate": {
+              "read_past": "in it slowly",
+              "min_words": 48
+            },
+            "src": "egra_sbs:coach-en-p03 question 4 (Set A coach card: accept list and gate, verbatim)"
+          },
+          {
+            "id": "en.story_w3.q5",
+            "accept": [
+              "he planted the tree well",
+              "he showed the class how to plant it",
+              "he did good work",
+              "his work was good"
+            ],
+            "accept_rule": "same meaning, either language",
+            "gate": {
+              "read_past": "with his work",
+              "min_words": 55
+            },
+            "src": "egra_sbs:coach-en-p03 question 5 (Set A coach card: accept list and gate, verbatim)"
+          },
+          {
+            "id": "en.story_w3.q6",
+            "accept": [
+              "because he did a good job",
+              "he planted the tree well",
+              "he showed the class",
+              "he did good work"
+            ],
+            "accept_rule": "same meaning, either language",
+            "gate": {
+              "read_past": "clapped for him",
+              "min_words": 60
+            },
+            "src": "egra_sbs:coach-en-p03 question 6 (Set A coach card: accept list and gate, verbatim)"
+          }
+        ],
+        "variants": [
+          "rwp2026"
+        ]
+      }
+    }
+  },
+  "maths": {
+    "number_id": {
+      "from": "v3:sets.A.maths.{g}.number_id",
+      "pick": [
+        1,
+        3,
+        6,
+        8,
+        11,
+        13,
+        16,
+        18
+      ],
+      "practice_from": "extra:maths.practice.items.ma.number_id",
+      "note": "ITEMS_W3 v3: Core EGMA Task 1 cells 2 and 4 of each printed row (p.2)"
+    },
+    "discrimination": {
+      "from": "v3:sets.A.maths.3.discrimination",
+      "pick": [
+        1,
+        5
+      ],
+      "practice_from": "v3:sets.A.maths.3.discrimination.practice",
+      "practice_pick": [
+        0
+      ],
+      "practice_note": "Core EGMA P1 only: P2 reads 10|12 in the protocol (p.3) but 12|22 in the child booklet (ITEMS_W3 v3)"
+    },
+    "missing": {
+      "from": "v3:sets.A.maths.3.missing",
+      "pick": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "practice_from": "v3:sets.A.maths.3.missing.practice"
+    },
+    "add": {
+      "from": "v3:sets.A.maths.3.add2",
+      "pick": [
+        0,
+        1
+      ],
+      "practice_from": "extra:maths.practice.items.ma.add2"
+    },
+    "sub": {
+      "from": "v3:sets.A.maths.3.sub2",
+      "pick": [
+        0,
+        1
+      ],
+      "practice_from": "extra:maths.practice.items.ma.sub2"
+    },
+    "mul": {
+      "items": [
+        {
+          "a": 3,
+          "b": 4,
+          "answer": 12,
+          "src": "rwp2026:blfluency.blfl4[10] (3*4 = 12)"
+        },
+        {
+          "a": 8,
+          "b": 9,
+          "answer": 72,
+          "src": "rwp2026:bleffcomp.computation_3a (8 x 9 = 72)"
+        }
+      ],
+      "practice": [
+        {
+          "a": 5,
+          "b": 7,
+          "answer": 35,
+          "src": "rwp2026:blfluency.blfl4[11] (5*7 = 35)"
+        }
+      ],
+      "practice_note": "Core EGMA has no multiplication task, so the items are the Rawalpindi instrument's; the practice item is another Rawalpindi multiplication item, never scored here"
+    },
+    "fluency": {
+      "timed_s": 60,
+      "items": [
+        {
+          "a": 1,
+          "op": "+",
+          "b": 4,
+          "answer": 5,
+          "src": "rwp2026:blfluency.blfl1[0]"
+        },
+        {
+          "a": 2,
+          "op": "+",
+          "b": 2,
+          "answer": 4,
+          "src": "rwp2026:blfluency.blfl1[1]"
+        },
+        {
+          "a": 3,
+          "op": "+",
+          "b": 3,
+          "answer": 6,
+          "src": "rwp2026:blfluency.blfl1[2]"
+        },
+        {
+          "a": 6,
+          "op": "+",
+          "b": 4,
+          "answer": 10,
+          "src": "rwp2026:blfluency.blfl1[3]"
+        },
+        {
+          "a": 5,
+          "op": "+",
+          "b": 5,
+          "answer": 10,
+          "src": "rwp2026:blfluency.blfl1[4]"
+        },
+        {
+          "a": 5,
+          "op": "-",
+          "b": 1,
+          "answer": 4,
+          "src": "rwp2026:blfluency.blfl1[5]"
+        },
+        {
+          "a": 4,
+          "op": "-",
+          "b": 2,
+          "answer": 2,
+          "src": "rwp2026:blfluency.blfl1[6]"
+        },
+        {
+          "a": 6,
+          "op": "-",
+          "b": 3,
+          "answer": 3,
+          "src": "rwp2026:blfluency.blfl1[7]"
+        },
+        {
+          "a": 10,
+          "op": "-",
+          "b": 6,
+          "answer": 4,
+          "src": "rwp2026:blfluency.blfl1[8]"
+        },
+        {
+          "a": 10,
+          "op": "-",
+          "b": 5,
+          "answer": 5,
+          "src": "rwp2026:blfluency.blfl1[9]"
+        },
+        {
+          "a": 4,
+          "op": "+",
+          "b": 2,
+          "answer": 6,
+          "src": "rwp2026:blfluency.blfl1[10]"
+        },
+        {
+          "a": 5,
+          "op": "+",
+          "b": 3,
+          "answer": 8,
+          "src": "rwp2026:blfluency.blfl1[11]"
+        },
+        {
+          "a": 5,
+          "op": "+",
+          "b": 4,
+          "answer": 9,
+          "src": "rwp2026:blfluency.blfl1[12]"
+        },
+        {
+          "a": 2,
+          "op": "+",
+          "b": 5,
+          "answer": 7,
+          "src": "rwp2026:blfluency.blfl1[13]"
+        },
+        {
+          "a": 2,
+          "op": "+",
+          "b": 7,
+          "answer": 9,
+          "src": "rwp2026:blfluency.blfl1[14]"
+        },
+        {
+          "a": 6,
+          "op": "-",
+          "b": 2,
+          "answer": 4,
+          "src": "rwp2026:blfluency.blfl1[15]"
+        },
+        {
+          "a": 8,
+          "op": "-",
+          "b": 5,
+          "answer": 3,
+          "src": "rwp2026:blfluency.blfl1[16]"
+        },
+        {
+          "a": 9,
+          "op": "-",
+          "b": 4,
+          "answer": 5,
+          "src": "rwp2026:blfluency.blfl1[17]"
+        },
+        {
+          "a": 7,
+          "op": "-",
+          "b": 2,
+          "answer": 5,
+          "src": "rwp2026:blfluency.blfl1[18]"
+        },
+        {
+          "a": 9,
+          "op": "-",
+          "b": 7,
+          "answer": 2,
+          "src": "rwp2026:blfluency.blfl1[19]"
+        }
+      ],
+      "practice": [
+        {
+          "a": 1,
+          "op": "+",
+          "b": 3,
+          "answer": 4,
+          "src": "v3:sets.A.maths.3.add1.items[0] (core_egma:p.6 Task 4A item 1)"
+        }
+      ],
+      "practice_note": "the Rawalpindi fluency list prints no practice item: the practice is the first Core EGMA Task 4A sum (the same format), never scored here"
+    }
+  },
+  "coach_text": {
+    "ur.letter_sounds5": {
+      "ur": "کہیں: «میں آپ کو ایک ایک کر کے کچھ حروف دکھاؤں گا/گی۔ ہر حرف کی آواز بتائیں۔ اس کا نام نہیں، اس کی آواز۔ مثال کے طور پر، اس حرف [ل کی طرف اشارہ کریں] کی آواز ہے «لَ»۔ اب آپ بتائیں، اس حرف [ن کی طرف اشارہ کریں] کی آواز کیا ہے؟»\nصحیح ہو تو: «شاباش! اس کی آواز ہے «نَ»۔» غلط ہو تو: «اس کی آواز ہے «نَ»۔»\nکہیں: «جب میں کہوں «شروع کریں» تو ہر حرف کی آواز اونچی آواز میں بتائیں۔ جتنا جلدی اور دھیان سے ہو سکے بتائیں۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔ کیا آپ تیار ہیں؟ شروع کریں۔»\nاگر بچہ حرف کا نام بتائے تو ایک بار کہیں: «حرف کی آواز بتائیں۔»\nپھر فون بچے کو دے دیں۔",
+      "authored_translation": true,
+      "src": "egra_tk2016:Annex H pp.187-188 letter-sound instructions, Urdu translation (panel-signed); example and practice letters rwp2026:letterid_urd #17 (ل), #20 (ن)"
+    },
+    "en.letter_sounds5": {
+      "en": "Say: \"I will show you letters of the English alphabet one at a time. Please tell me the SOUNDS of as many letters of the alphabet as you can. Not their names, but their sounds. For example, the sound of this letter [point to the letter T] is /t/. Let's practice: Tell me the sound of this letter [point to the letter M]:\" Right: \"Good, the sound of this letter is /m/.\" Wrong: \"The sound of this letter is /m/.\" \"Now try another one: Tell me the sound of this letter [point to the letter S]:\" Right: \"Good, the sound of this letter is /s/.\" Wrong: \"The sound of this letter is /s/.\" \"When I say 'Begin,' tell me the sound of that letter in a loud voice. Read as quickly and carefully as you can. If you come to a letter you do not know, go on to the next letter. Ready? Begin.\" If the child gives the letter name: \"Please tell me the SOUND of the letter.\" (once only). Then give the phone to the child.",
+      "src": "egra_tk2016:Annex H pp.187-188 (PDF pp.211-212) letter sound identification, instructions to the child, verbatim, adapted to one letter at a time"
+    }
+  },
+  "built_from_items": {
+    "version": "ITEMS_W3 v3",
+    "note": "the official item list, checked page by page and signed off item by item before this build"
+  }
+}

@@ -151,6 +151,24 @@ async function listKeys(prefix, { bucket } = {}) {
 }
 
 /**
+ * Every object under a prefix with its upload time and size: [{ key, lastModified, size }]. Like listKeys, a prefix
+ * is required. Used by the big flight's audio purge, which deletes by age.
+ */
+async function listObjects(prefix, { bucket } = {}) {
+  if (!prefix || typeof prefix !== 'string') throw new Error('listObjects needs a non-empty prefix');
+  const out = [];
+  let token;
+  do {
+    const input = { Bucket: bucket || BUCKET_NAME, Prefix: prefix };
+    if (token) input.ContinuationToken = token;
+    const page = await getR2Client().send(new ListObjectsV2Command(input));
+    for (const o of page?.Contents || []) if (o && o.Key) out.push({ key: o.Key, lastModified: o.LastModified || null, size: o.Size == null ? null : o.Size });
+    token = page?.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (token);
+  return out;
+}
+
+/**
  * Delete audio file from R2 (for cleanup)
  * @param {string} url - Full URL of the file
  */
@@ -451,14 +469,14 @@ async function uploadFeatureVideo(filePath, featureName) {
  * @param {string} key - R2 object key (e.g., "reports/userId/sessionId_report.pdf")
  * @returns {Promise<Buffer>} File buffer
  */
-async function downloadFromR2(key, { bucket } = {}) {
+async function downloadFromR2(key, { bucket, abortSignal } = {}) {
   try {
     const command = new GetObjectCommand({
       Bucket: bucket || BUCKET_NAME,
       Key: key,
     });
 
-    const response = await getR2Client().send(command);
+    const response = abortSignal ? await getR2Client().send(command, { abortSignal }) : await getR2Client().send(command);
 
     // Convert stream to buffer
     const chunks = [];
@@ -1073,4 +1091,5 @@ module.exports = {
   uploadBuffer, // Generic buffer upload for attendance Excel
   uploadExamBuffer, // Exam paper .docx delivery
   listKeys, // every key under a prefix (paper-version backfill)
+  listObjects, // every object under a prefix with its upload time (the big flight's audio purge)
 };

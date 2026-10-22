@@ -1,3 +1,4 @@
+import { ClipboardCheck } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { coach } from "../../services/api";
 import TeacherPage from "../../teacher/TeacherPage";
@@ -6,6 +7,9 @@ import { FeatureMotionProvider } from "../../teacher/icons";
 import { TEACHER_FRAME } from "../../teacher/copy";
 import { useCopy, useLang } from "../../teacher/i18n";
 import { fullName, todayLabel } from "../../teacher/format";
+import { Card, RowLink } from "../../teacher/pages/More";
+import { useChildTest } from "../../lib/useChildTest";
+import { useChildTestSa } from "../../lib/useChildTestSa";
 import { COACH_PROFILE } from "../profile/copy";
 import CoachGate from "../CoachGate";
 import { COACH_HOME } from "../home/copy";
@@ -23,6 +27,8 @@ const CoachHome = () => {
   const F = useCopy(TEACHER_FRAME);
   const W = useCopy(COACH_HOME);
   const P = useCopy(COACH_PROFILE);
+  const childTest = useChildTest() === true;
+  const assess = useChildTestSa() === true;
   const lang = useLang();
   const { user } = useAuth();
   const { data, failed, reload } = useLoad(() => coach.getHome(), []);
@@ -76,6 +82,17 @@ const CoachHome = () => {
           </nav>
         </FeatureMotionProvider>
 
+        {/* bd-fmf24g.33 — the child test left More; with her flag on it is a row here (bd-s1oo0.7: the flag decides). */}
+        {childTest && (
+          <Card label={P.childTest}>
+            <RowLink id="child-test" to="/portal/leader/child-test" icon={ClipboardCheck} label={P.childTest} />
+          </Card>
+        )}
+        {assess && (
+          <Card label={P.assess}>
+            <RowLink id="assess" to="/portal/leader/assess" icon={ClipboardCheck} label={P.assess} />
+          </Card>
+        )}
       </TeacherPage>
     </CoachGate>
   );

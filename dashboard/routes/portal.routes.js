@@ -75,6 +75,8 @@ const {
   ASSESSMENT_GENERATOR_OFF_MESSAGE,
   isFlagEnabledForUser,
   PORTAL_SELF_OBSERVATION_KEY,
+  PORTAL_CHILD_TEST_KEY,
+  PORTAL_CHILD_TEST_SA_KEY,
   PORTAL_COACH_OBSERVATION_KEY,
   PORTAL_NEW_UI_KEY,
   isPortalAssessmentEditingEnabled,
@@ -8721,6 +8723,8 @@ router.get('/config', async (req, res) => {
       coachV2,
       teacherV2,
       coachDisagreements,
+      childTest,
+      childTestSa,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -8737,6 +8741,10 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_V2_KEY, userId),
       // bd-tbprit.1: the coach's disagreements card, per user (off unless set).
       isFlagEnabledForUser(supabase, COACH_DISAGREEMENT_CARD_KEY, userId),
+      // bd-s1oo0.7: the child test in the coach app, per user, same rule.
+      isFlagEnabledForUser(supabase, PORTAL_CHILD_TEST_KEY, userId),
+      // the coach's Learning assessment (the child takes the battery alone), per user.
+      isFlagEnabledForUser(supabase, PORTAL_CHILD_TEST_SA_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -8745,11 +8753,13 @@ router.get('/config', async (req, res) => {
         assessmentEditing,
         assessmentGeneratorMessage: assessmentGenerator ? null : ASSESSMENT_GENERATOR_OFF_MESSAGE,
         selfObservation,
+        childTest,
         coachObservation,
         newUi,
         coachV2,
         teacherV2,
         coachDisagreements,
+        childTestSa,
       },
     });
   } catch (error) {
@@ -8762,11 +8772,13 @@ router.get('/config', async (req, res) => {
         assessmentEditing: false,
         assessmentGeneratorMessage: ASSESSMENT_GENERATOR_OFF_MESSAGE,
         selfObservation: false,
+        childTest: false,
         coachObservation: false,
         newUi: false,
         coachV2: false,
         teacherV2: false,
         coachDisagreements: false,
+        childTestSa: false,
       },
     });
   }
