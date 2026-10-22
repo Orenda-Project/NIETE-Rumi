@@ -17,6 +17,10 @@
  * Switch sa_voice_v2 (app_settings, OFF by default): ON, a battery is served with its clip keys under sa/v2/ instead of
  * sa/v1/ (the second voice set: one South Asian voice per language), so the phone fetches and keeps the new clips under
  * new addresses. OFF, or a failed read, the battery is served exactly as before.
+ *
+ * Switch sa_voice_tashdeed (app_settings, OFF by default; round 4): ON with sa_voice_v2, an Urdu key that has a tashdeed
+ * take (sa/v3/ur/<key>.mp3: the same voice given the narration with its doubled letters marked) is served from
+ * sa/v3/ur/; every other key stays where sa_voice_v2 puts it. OFF, or sa_voice_v2 OFF, nothing changes.
  */
 const fs = require('fs');
 const path = require('path');
@@ -27,12 +31,18 @@ const { SWITCHES, applySwitches } = require('./sa-battery-switches');
 
 const KEY = 'sa_engine';
 const VOICE_V2_KEY = 'sa_voice_v2';
+const VOICE_TASHDEED_KEY = 'sa_voice_tashdeed';
 const DIR = path.join(__dirname, '..', 'sa');
 // The content lane's battery files (sa.<form>.<lang>.json), served by name at /sa/batteries/<name>.
 const BATTERIES = path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa');
 const BATTERY_RX = /^sa\.(coach|game)\.[A-Za-z0-9]+(\.[A-Za-z0-9]+)?\.(en|ur)\.json$/;
 const DEV_PAGES = ['play.html', 'run.html'];
 const DEV_TAG = '<script src="./sa-dev.js"></script>';
+
+/** The tashdeed takes on disk (sa/v3/ur/<12 hex>.mp3), by file name; none when the folder is missing. */
+function tashdeedTakes(dir = path.join(DIR, 'v3', 'ur')) {
+  try { return new Set(fs.readdirSync(dir).filter((n) => /^[0-9a-f]{12}\.mp3$/.test(n))); } catch (_) { return new Set(); }
+}
 
 /** The sandbox's dev tools: both variables, exactly 'sandbox'. Never on any other service. */
 function devToolsOn(env = process.env) {
@@ -49,7 +59,7 @@ function safe(read) {
 /**
  * createSaEngineRouter({ on, practiceAllMaths, env }) → router. on() is the switch (default: app_settings sa_engine);
  * practiceAllMaths() and passageRotation() the content switches (app_settings sa_practice_all_maths, sa_passage_rotation);
- * voiceV2() the voice set's (app_settings sa_voice_v2).
+ * voiceV2() the voice set's (app_settings sa_voice_v2); voiceTashdeed() the Urdu tashdeed takes' (sa_voice_tashdeed).
  */
 function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), practiceAllMaths: practiceReader = createBrotliFlag({ key: SWITCHES.practiceAllMaths }),
   passageRotation: rotationReader = createBrotliFlag({ key: SWITCHES.passageRotation }), voiceV2: voiceReader = createBrotliFlag({ key: VOICE_V2_KEY }),
@@ -60,6 +70,7 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   cellPace: paceReader = createBrotliFlag({ key: SWITCHES.cellPace }),
   sectionRecording: sectionReader = createBrotliFlag({ key: SWITCHES.sectionRecording }),
   coachLastWord: lastWordReader = createBrotliFlag({ key: SWITCHES.coachLastWord }),
+  voiceTashdeed: tashdeedReader = createBrotliFlag({ key: VOICE_TASHDEED_KEY }),
   holdMs, now, env } = {}) {
   const router = express.Router();
   // The switch as routes/sa-switch.js reads it: the first request waits for the first read, and a failed read after an
@@ -79,8 +90,10 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   const cellPace = steady(safe(paceReader), hold);
   const sectionRecording = steady(safe(sectionReader), hold);
   const coachLastWord = steady(safe(lastWordReader), hold);
+  const voiceTashdeed = steady(safe(tashdeedReader), hold);
+  const takes = tashdeedTakes();
   router.use('/sa', on.warm(), practiceAllMaths.warm(), passageRotation.warm(), voiceV2.warm(), oneAtATime.warm(), passagePunct.warm(), rdfManual.warm(),
-    rdfW3Forms.warm(), voiceGateV2.warm(), compAllQuestions.warm(), cellPace.warm(), sectionRecording.warm(), coachLastWord.warm());
+    rdfW3Forms.warm(), voiceGateV2.warm(), compAllQuestions.warm(), cellPace.warm(), sectionRecording.warm(), coachLastWord.warm(), voiceTashdeed.warm());
   const files = express.static(DIR, {
     index: false,
     dotfiles: 'ignore',
@@ -125,7 +138,11 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
       let v2 = false;
       try { v2 = voiceV2() === true; } catch (_) { v2 = false; }
       if (!v2) return res.json(out);
-      return res.type('json').send(JSON.stringify(out).replace(/"sa\/v1\/(en|ur)\//g, '"sa/v2/$1/'));
+      let tashdeed = false;
+      try { tashdeed = voiceTashdeed() === true; } catch (_) { tashdeed = false; }
+      const moved = JSON.stringify(out).replace(/"sa\/v1\/(en|ur)\//g, '"sa/v2/$1/');
+      return res.type('json').send(!tashdeed ? moved
+        : moved.replace(/"sa\/v2\/ur\/([0-9a-f]{12}\.mp3)"/g, (m, n) => (takes.has(n) ? `"sa/v3/ur/${n}"` : m)));
     });
   });
   // On: a file the folder does not have (a clip not made yet, a typo) is a 404 here. Falling through would let the
@@ -135,4 +152,4 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   return router;
 }
 
-module.exports = { KEY, VOICE_V2_KEY, createSaEngineRouter, devToolsOn };
+module.exports = { KEY, VOICE_V2_KEY, VOICE_TASHDEED_KEY, createSaEngineRouter, devToolsOn };
