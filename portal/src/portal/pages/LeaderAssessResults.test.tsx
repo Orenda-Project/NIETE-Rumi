@@ -128,7 +128,34 @@ describe("LeaderAssessResults", () => {
     window.localStorage.setItem("niete-assess-lang", "ur");
     renderAt();
     const ur = await screen.findByTestId("result-task-ur.story_comp_w3");
-    expect(within(ur).getByText("EGRA کے اصول پر جلد روک دیا گیا")).toBeTruthy();
+    expect(within(ur).getByText("EGRA کے اصول کے تحت پہلے ہی روک دیا گیا")).toBeTruthy();
+  });
+
+  it("the panel's lines, verbatim: questions / × not asked, EGMA for maths, and why a reading task stopped (EN + UR)", async () => {
+    const base = { mode: "oral", attempted: 2, correct: null, optionsN: null, chanceCorrected: null, itemsPerMin: null, recording: "scored", score: { correct: 0, of: 2 } };
+    const tasks = [
+      { ...base, taskId: "ur.story_comp_w3", stopReason: "comprehension_not_asked" },
+      { ...base, taskId: "ma.mul2i", stopReason: "multiplication_not_asked" },
+      { ...base, taskId: "ma.missing", stopReason: "stopped_by_rule_egma" },
+      { ...base, taskId: "ur.letters", mode: "record", stopReason: "stopped_by_rule", stopWhy: "first_row" },
+      { ...base, taskId: "ur.story", mode: "record", stopReason: "stopped_by_rule", stopWhy: "first_line" },
+    ];
+    api.getResults.mockResolvedValue({ ...RESULTS, tasks });
+    const { unmount } = renderAt();
+    const card = async (id: string) => screen.findByTestId(`result-task-${id}`);
+    expect(within(await card("ur.story_comp_w3")).getByText("Questions not asked: the reading stopped early. Scored 0.")).toBeTruthy();
+    expect(within(await card("ma.mul2i")).getByText("Not asked: no addition or subtraction answer was right. Scored 0.")).toBeTruthy();
+    expect(within(await card("ma.missing")).getByText("Stopped early (EGMA rule)")).toBeTruthy();
+    expect(within(await card("ur.letters")).getByText("Every item in the first row was wrong.")).toBeTruthy();
+    expect(within(await card("ur.story")).getByText("No word in the first line was read correctly.")).toBeTruthy();
+    unmount();
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    renderAt();
+    expect(within(await card("ur.story_comp_w3")).getByText("سوال نہیں پوچھے گئے، کیونکہ پڑھائی پہلے ہی رک گئی تھی۔ نمبر: ۰")).toBeTruthy();
+    expect(within(await card("ma.mul2i")).getByText("سوال نہیں پوچھے گئے، کیونکہ جمع یا تفریق کا کوئی جواب درست نہیں تھا۔ نمبر: ۰")).toBeTruthy();
+    expect(within(await card("ma.missing")).getByText("EGMA کے اصول کے تحت پہلے ہی روک دیا گیا")).toBeTruthy();
+    expect(within(await card("ur.letters")).getByText("پہلی قطار کے سب جواب غلط تھے۔")).toBeTruthy();
+    expect(within(await card("ur.story")).getByText("پہلی سطر کا کوئی لفظ درست نہیں پڑھا گیا۔")).toBeTruthy();
   });
 
   it("Urdu: right to left, Urdu digits for the scores", async () => {
