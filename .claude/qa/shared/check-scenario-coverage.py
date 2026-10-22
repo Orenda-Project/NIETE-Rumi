@@ -10,6 +10,8 @@ Measured on 2026-09-22: coaching had 33 @e2e scenarios and 15 implemented, with 
 BOTH DIRECTIONS, because both drift:
   E-NODRIVER    a spec scenario whose id no driver records — the gap this was written for
   E-NOSCENARIO  a driver id with no scenario — an id that outlived a deleted or renamed scenario
+  E-DUPID       two scenarios carrying one id — the driver records one result for the id, so the
+                other scenario vanishes from every run (bd-7g913e: @COA72 and @COA84, twice each)
 
 ENROLMENT IS IMPLICIT. A feature is checked once its spec carries id tags. An untagged spec reports
 I-NOTENROLLED and cannot fail. Backfilling nine specs in one commit would make this red on arrival
@@ -100,6 +102,15 @@ def check_feature(root, feature):
                          "this feature." % px.upper())]
 
     have, out = existing, []
+    by_id = {}
+    for sid, name, _ in scen:
+        by_id.setdefault(sid, []).append(name)
+    for sid, names in sorted(by_id.items()):
+        if len(names) > 1:
+            out.append(_finding("E-DUPID", feature, sid,
+                                "%d scenarios carry @%s (%s) — a run records one result for the id, "
+                                "so the others are absent. Give each its own unused id."
+                                % (len(names), sid, "; ".join(repr(n) for n in names))))
     if not os.path.isfile(driver):
         return [_finding("E-NODRIVERFILE", feature, None,
                          "%d tagged scenario(s) but no driver at %s. Create one: "

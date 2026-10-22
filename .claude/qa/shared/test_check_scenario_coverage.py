@@ -140,6 +140,21 @@ def test_a_Scenario_Outline_is_a_scenario_too():
         "an Outline was treated as missing: %r" % (fs,)
 
 
+def test_two_scenarios_sharing_one_id_fail():
+    """bd-7g913e. coaching.feature carried @COA72 twice and @COA84 twice: a later PR numbered its
+    scenarios from an id already taken. The driver records one result per id, so the run reported
+    one of each pair and the other scenario silently vanished — and this gate, which only compared
+    sets of ids, called the feature clean."""
+    spec = TAGGED_SPEC.replace("@e2e @P2 @COA16", "@e2e @P2 @COA01")
+    fs = cov.check_feature(_tree(spec=spec, driver=DRIVER_ONE), "coaching")
+    dup = [f for f in fs if f["code"] == "E-DUPID"]
+    assert dup, "two scenarios sharing @COA01 were not reported: %r" % (fs,)
+    assert dup[0]["id"] == "COA01", dup
+    assert "quiz offer" in dup[0]["msg"] and "recording" in dup[0]["msg"], \
+        "the finding does not name both scenarios: %r" % dup[0]
+    assert cov.main(["--root", _tree(spec=spec, driver=DRIVER_ONE)]) != 0, "a duplicate id did not fail the gate"
+
+
 if __name__ == "__main__":
     fns = [(n, f) for n, f in sorted(globals().items()) if n.startswith("test_") and callable(f)]
     failed = 0
