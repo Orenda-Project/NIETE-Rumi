@@ -201,6 +201,23 @@
             return meta;
           });
         }
+        // sa_coach_last_word: the word heard last in the passage's recording, from the server once the clip is up (it
+        // answers pending until then: asked again every few seconds for up to 30 s). null: the coach taps it.
+        function lastWordHint(t) {
+          if (w3.coach_last_word !== true || !opts.sink || !opts.sink.lastWordHint) return Promise.resolve(null);
+          var retryMs = typeof deps.hintRetryMs === 'number' ? deps.hintRetryMs : 3000;
+          var tries = Math.ceil(30000 / Math.max(1, retryMs));
+          function once(n) {
+            return Promise.resolve(sync ? sync.flush() : null).then(null, function () { return null; })
+              .then(function () { return opts.sink.lastWordHint({ session_id: sessionId, task_id: t.id }); })
+              .then(function (r) {
+                if (r && typeof r.index === 'number') return r.index;
+                if (r && r.pending && n < tries) return new Promise(function (ok) { setTimeout(ok, retryMs); }).then(function () { return once(n + 1); });
+                return null;
+              }, function () { return null; });
+          }
+          return once(1);
+        }
         var view = ui.mount(opts.mount, {
           runner: runner, battery: battery, lang: lang, mode: mode, speak: voice.speak,
           check_words: battery.check_words || null,
@@ -229,6 +246,7 @@
           micProbe: micMod ? function () { return micMod.probe(2000); } : null,
           micLevel: micMod ? function (cb) { return micMod.level(cb); } : null,
           manual: manual, passage_punct: w3.passage_punct === true, opening: opts.opening || null, section_recording: w3.section_recording === true,
+          coach_last_word: w3.coach_last_word === true, lastWordHint: lastWordHint,
         });
         if (sync && view && view.setSync) hooks.sync = [function (st) { view.setSync(st); }];
         // Embedded in the coach page (RULINGs #34a, #48): the last task's end is told at once ({type:'sa:battery_ending',
