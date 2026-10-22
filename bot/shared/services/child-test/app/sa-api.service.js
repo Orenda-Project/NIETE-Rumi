@@ -47,6 +47,7 @@ const rdfW3Switch = require('./rdf-w3-switch');
 const resumeRepick = require('./resume-repick-switch');
 const allGradesSwitch = require('./all-grades-switch');
 const stopRulesSwitch = require('./stop-rules-switch');
+const addChildSwitch = require('./add-child-switch');
 const { MEDIA, envSegment, __internals: { guarded, rows, ownVisit, ownSession, gradeOf } } = require('./app-api.service');
 
 const OUTCOMES = ['present', 'absent', 'refused'];
@@ -271,6 +272,42 @@ const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ 
     if (!kept || !kept.ok) d.logError('child_test.sa.client_not_kept', { sessionId: created.session.id, error: kept && kept.error });
   }
   return { status: 'ok', sessionId: created.session.id, list, ...(byHistory || moved ? { block } : {}) };
+})(args, deps);
+
+// ─── a child added on the spot (sa_add_child) ─────────────────────────────
+
+// a first name as a coach types it: letters (any script), spaces, an apostrophe, a dot or a hyphen
+const NAME_RE = /^[\p{L}\p{M}][\p{L}\p{M} .'-]{0,39}$/u;
+const SECTION_RE = /^[A-Za-z]{1,2}$/;
+
+/**
+ * Seat a child who is not on the roster on the coach's open list today: first name, grade, section (optional), and
+ * the phone's own id for the child (a double tap is one child). With sa_all_grades the list's grade (listGrade) names
+ * the day key and the child may be Grade 1–5; without it, Grade 3 or 5. The name is never logged.
+ */
+const addChild = (args = {}, deps = {}) => guarded('sa_add_child', async ({ userId, schoolId, visitId, grade, listGrade, firstName, section, clientChildId }, d) => {
+  if (!(await addChildSwitch.enabled(deps))) return { status: 'not_found' };
+  if (!UUID_RE.test(String(clientChildId || ''))) return { status: 'invalid', reason: 'bad_client_id' };
+  const name = String(firstName == null ? '' : firstName).trim();
+  if (!NAME_RE.test(name)) return { status: 'invalid', reason: 'bad_name' };
+  const sec = section == null || String(section).trim() === '' ? null : String(section).trim();
+  if (sec && !SECTION_RE.test(sec)) return { status: 'invalid', reason: 'bad_section' };
+  const all = await allGradesSwitch.enabled(deps);
+  const g = Number(grade);
+  if (!Number.isInteger(g) || !(all ? [1, 2, 3, 4, 5] : [3, 5]).includes(g)) return { status: 'invalid', reason: 'bad_grade' };
+  const named = await namedGrade(listGrade, deps);
+  if (named.bad) return { status: 'invalid', reason: 'bad_grade' };
+  const visit = await visitFor(d, userId, { schoolId, visitId, grade: named.grade });
+  if (!visit) return { status: 'not_found' };
+  const out = await d.draw.addChild({
+    schoolId: visit.schoolId, ...visitArgs(visit), grade: g, firstName: name, section: sec ? sec.toUpperCase() : null, clientChildId, now: d.now(),
+  });
+  if (!out || !out.ok) {
+    if (out && out.reason) return { status: 'invalid', reason: out.reason };
+    throw new Error((out && out.error) || 'addChild failed');
+  }
+  d.log('child_test.sa.child_added', { userId, schoolId: visit.schoolId });
+  return { status: 'ok', list: shapeList(out, visit, await sessionsOf(d, visit)) };
 })(args, deps);
 
 // ─── the engine's sink ─────────────────────────────────────────────────────
@@ -666,4 +703,4 @@ async function saViaLink(args = {}, deps = {}) {
   return fn({ ...rest, userId: p.c, sessionId: p.s }, deps);
 }
 
-module.exports = { SA_MARK, listSchools, dayList, dayOutcome, saBattery, saBatch, saPresign, saRegister, saStatus, saResults, saLink, saViaLink };
+module.exports = { SA_MARK, listSchools, dayList, dayOutcome, addChild, saBattery, saBatch, saPresign, saRegister, saStatus, saResults, saLink, saViaLink };
