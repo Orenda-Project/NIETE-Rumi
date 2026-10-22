@@ -11,7 +11,8 @@
  *            visits this cycle. 1 returning child + new children in rank order, round-robin across the
  *            grade's sections, to 5; then 2 alternates. A child already tested in any cycle is never
  *            drawn as new again.
- *            With sa_all_grades the caller may name any grade 1–5: that grade only, no fallback.
+ *            With sa_all_grades the caller may name any grade 1–5: that grade only, no fallback; and a child
+ *            listed, not yet reached, on another of the coach's lists today is not listed again (RULING G-18).
  *   Shift    one shift per school-grade: the morning classes, or the evening ones only when the grade
  *            has no morning class with children (R1 §7.5) — a coach never chases a child who is not in
  *            school at that hour.
@@ -119,6 +120,40 @@ function visitsListedBefore(draws, visit) {
   return visits;
 }
 
+/** The coach whose list a visit is: a day key names it; an observe visit's observer; null when unknown (cs: keys). */
+async function listCoach(visit) {
+  const key = parseVisitKey(visit);
+  if (key) return { ok: true, coach: key.kind === 'day' ? key.coachUserId : null };
+  const got = await store.getVisit(visit);
+  if (!got.ok) return got;
+  return { ok: true, coach: (got.visit && got.visit.observer_user_id) || null };
+}
+
+/**
+ * sa_all_grades (RULING G-18): a coach can hold several lists at one school on one day (the observe visit's, today's
+ * un-graded day key, one per named grade). The rows listed — not yet reached — on another of this coach's lists that
+ * were listed today (Pakistan time): no other list of theirs takes them. A list whose coach is unknown counts as theirs.
+ */
+async function heldToday(ctx, visitId, coachUserId) {
+  const today = pktDate(ctx.now);
+  const coachOf = new Map();
+  const held = new Set();
+  for (const d of ctx.draws) {
+    const v = visitOf(d);
+    if (d.status !== 'listed' || !v || v === visitId) continue;
+    const listed = (d.history || []).filter((h) => h.event === 'listed' && visitOfEntry(h) === v).pop();
+    if (!listed || !listed.at || pktDate(new Date(listed.at)) !== today) continue;
+    if (!coachOf.has(v)) {
+      const c = await listCoach(v);
+      if (!c.ok) return c;
+      coachOf.set(v, c.coach);
+    }
+    const coach = coachOf.get(v);
+    if (!coachUserId || !coach || coach === coachUserId) held.add(d.id);
+  }
+  return { ok: true, held };
+}
+
 // ── What the school looks like now ─────────────────────────────────────────────────────────────
 
 async function loadContext({ schoolId, cycleId, now, grades = GRADES }) {
@@ -224,12 +259,12 @@ function currentClassOf(ctx, grade, studentId) {
 
 // The returning slot: a queued returning row of this cycle first (an absent returning child is
 // sought again), else the earliest-tested eligible child, for whom a returning row is written.
-async function returningChild(ctx, grade, visitId) {
+async function returningChild(ctx, grade, visitId, exclude = new Set()) {
   const term = formPolicy() === 'term';
   const set = term ? termSet(ctx.cycleId) : 'B';
   const thisCycle = ctx.draws.filter((d) => d.sample_role === 'returning' && d.grade === grade);
   const queued = thisCycle
-    .filter((d) => QUEUED.includes(d.status) && visitOf(d) !== visitId && currentClassOf(ctx, grade, d.student_id))
+    .filter((d) => QUEUED.includes(d.status) && visitOf(d) !== visitId && !exclude.has(d.id) && currentClassOf(ctx, grade, d.student_id))
     .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
   if (queued.length) return { ok: true, draw: queued[0] };
 
@@ -522,6 +557,8 @@ async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitK
   const ctx = await loadContext({ schoolId, cycleId, now, ...(picked ? { grades: ALL_GRADES } : {}) });
   if (!ctx.ok) return ctx;
   const prior = visitsListedBefore(ctx.draws, visitId);
+  const held = allGrades ? await heldToday(ctx, visitId, coachUserId) : { ok: true, held: new Set() };
+  if (!held.ok) return held;
   const observed = normaliseGrade(observedGrade);
   const primary = picked || observed || (prior.size % 2 === 0 ? 3 : 5);
   const tryOrder = picked ? [picked] : [primary, primary === 3 ? 5 : 3];
@@ -532,13 +569,13 @@ async function todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitK
     const framed = await ensureFrames(ctx, grade, secret);
     if (!framed.ok) return framed;
 
-    const ret = await returningChild(ctx, grade, visitId);
+    const ret = await returningChild(ctx, grade, visitId, held.held);
     if (!ret.ok) {
       if (ret.conflict && attempt < 2) return todaysList({ coachUserId, schoolId, visitId: givenVisitId, visitKey, observedGrade, grade: namedGrade, allGrades, now }, attempt + 1);
       return ret;
     }
     const rotation = prior.size % Math.max(1, ctx.classesByGrade.get(grade).length);
-    const seq = newSequence(ctx, grade, { visitId, rotation });
+    const seq = newSequence(ctx, grade, { visitId, exclude: held.held, rotation });
     if (!ret.draw && !seq.length) { firstReason = firstReason || 'frame_exhausted'; continue; }
 
     const at = iso(now);
@@ -637,7 +674,7 @@ async function addChild({ schoolId, visitId: givenVisitId, visitKey, grade, firs
 
 // ── markOutcome ────────────────────────────────────────────────────────────────────────────────
 
-async function markOutcome({ drawId, outcome, note = null, visitId, visitKey, now = new Date() } = {}) {
+async function markOutcome({ drawId, outcome, note = null, visitId, visitKey, allGrades = false, now = new Date() } = {}) {
   if (!OUTCOMES.includes(outcome)) return { ok: false, reason: 'bad_outcome' };
   const named = oneVisit(visitId, visitKey);
   if (!named.ok) return named;
@@ -669,7 +706,7 @@ async function markOutcome({ drawId, outcome, note = null, visitId, visitKey, no
   logToFile('[child-test] outcome', { drawId: d.id, visitId: visit, outcome, status: upd.draw.status, attempts: upd.draw.attempts });
 
   if (outcome !== 'present') {
-    const promoted = await promoteAndTopUp(d, visit, now);
+    const promoted = await promoteAndTopUp(d, visit, now, allGrades);
     if (!promoted.ok) return promoted;
   }
   const list = await listFor(visit);
@@ -677,7 +714,7 @@ async function markOutcome({ drawId, outcome, note = null, visitId, visitKey, no
   return { ok: true, list };
 }
 
-async function promoteAndTopUp(d, visit, now) {
+async function promoteAndTopUp(d, visit, now, allGrades = false) {
   const v = await store.listVisitDraws(visit);
   if (!v.ok) return v;
   const alts = v.draws.filter((x) => x.list_slot === 'alternate' && x.status === 'listed').sort((a, b) => a.draw_rank - b.draw_rank);
@@ -698,10 +735,17 @@ async function promoteAndTopUp(d, visit, now) {
   const ctx = await loadContext({ schoolId: d.school_id, cycleId: d.cycle_id, now, grades });
   if (!ctx.ok) return ctx;
   if (!(ctx.classesByGrade.get(d.grade) || []).length) return { ok: true };
-  const onThisVisit = new Set(v.draws.map((x) => x.id));
+  const skip = new Set(v.draws.map((x) => x.id)); // on this visit, or (sa_all_grades) held by another of today's lists
+  if (allGrades) {
+    const coach = await listCoach(visit);
+    if (!coach.ok) return coach;
+    const held = await heldToday(ctx, visit, coach.coach);
+    if (!held.ok) return held;
+    for (const id of held.held) skip.add(id);
+  }
   const prior = visitsListedBefore(ctx.draws, visit);
   const rotation = prior.size % Math.max(1, ctx.classesByGrade.get(d.grade).length);
-  const more = newSequence(ctx, d.grade, { visitId: visit, exclude: onThisVisit, rotation });
+  const more = newSequence(ctx, d.grade, { visitId: visit, exclude: skip, rotation });
   const got = await claimInOrder(more, { i: 0 }, need, 'alternate', visit, at, listedExtra(ctx, { top_up: true }));
   return got.ok ? { ok: true } : got;
 }
