@@ -32,9 +32,13 @@ const supabase = require('../config/supabase');
 const { isLeaderRole } = require('../lib/leader-role');
 const { isFlagEnabledForUser, PORTAL_TEACHER_V2_KEY } = require('../lib/feature-flags');
 const LpActivity = require('./lp-activity.service');
-const LpOpenSurvey = require('./lp-open-survey.client');
-const Notices = require('./teacher-notices.service');
 const telemetry = require('./telemetry.service');
+
+// Required where they are used, not here: the FLN routes load this module and never ask for a survey or mark a
+// 6-12 request, so loading them never pulls the bot HTTP client (axios) or the notices' bot vocabulary along
+// (tests/portal/fln-ab-isolation.test.js loads the FLN routes in a bare Node).
+const surveyClient = () => require('./lp-open-survey.client');
+const notices = () => require('./teacher-notices.service');
 
 const EVENT = 'lp.leader_open';
 
@@ -83,7 +87,7 @@ async function readerOf(userId, known = {}) {
 function recordOpen(reader, query, open, { survey = true, renderId = null, activity = LpActivity } = {}) {
   if (!reader || !reader.leader) {
     const pending = activity.logOpen(query, open);
-    return survey ? pending.then(LpOpenSurvey.afterOpen) : pending;
+    return survey ? pending.then((result) => surveyClient().afterOpen(result)) : pending;
   }
   try {
     telemetry.logEvent(EVENT, {
@@ -92,7 +96,7 @@ function recordOpen(reader, query, open, { survey = true, renderId = null, activ
   } catch (_) { /* a log line never costs the plan */ }
   if (!renderId) return Promise.resolve({ recorded: false, leader: true });
   return Promise.resolve()
-    .then(() => Notices.markOpened(query, open.userId, `lesson:${renderId}`))
+    .then(() => notices().markOpened(query, open.userId, `lesson:${renderId}`))
     .catch((error) => {
       console.error('❌ Lesson plan open: a leader\'s request not marked opened', { error: error && error.message });
     })
