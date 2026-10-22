@@ -107,7 +107,7 @@ describe('SA bank: RULINGs #13, #16, #17', () => {
 
   test('RULING #10: every passage carries the mercy timings as data (12 s → the star offered, 20 s → early_stop_silence)', () => {
     const files = fs.readdirSync(path.join(DATA, 'sa')).filter((f) => /^sa\..+\.(en|ur)\.json$/.test(f));
-    expect(files.length).toBe(10);
+    expect(files.length).toBe(16);
     for (const f of files) {
       for (const t of runtime(f).tasks.filter((x) => /\.story2?$/.test(x.id))) {
         expect([f, t.id, t.mercy_after_s, t.silence_stop_s]).toEqual([f, t.id, 12, 20]);

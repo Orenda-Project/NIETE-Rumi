@@ -20,11 +20,15 @@ const W3 = require('./build-w3');
 const VERSION = 'child-test-items-sa-v1';
 const SET = 'A';
 
-// The forms (RULING #4). Coach: Grades 3 and 5 on the term's set (draw/term-set.js). Game: the Challenge's grade
+// The forms (RULING #4). Coach: Grades 1-5 on the term's set (draw/term-set.js); EGRA/EGMA have no per-grade forms, so
+// Grades 1-2 take the G3 items and Grade 4 the G5 items. Game: the Challenge's grade
 // bands (web-quiz-challenge-draw.js gradeBand: 2-3 → G3, 4-5 → G5) plus grade 1, which reads the same EGRA forms (the
 // May RWP instrument was one form for Grades 1-5) and Core EGMA (written for Grades 1-3).
 const FORMS = [
+  { form: 'coach.G1.A', surface: 'coach', grades: [1], maths: '3' },
+  { form: 'coach.G2.A', surface: 'coach', grades: [2], maths: '3' },
   { form: 'coach.G3.A', surface: 'coach', grades: [3], maths: '3' },
+  { form: 'coach.G4.A', surface: 'coach', grades: [4], maths: '5' },
   { form: 'coach.G5.A', surface: 'coach', grades: [5], maths: '5' },
   { form: 'game.G1', surface: 'game', grades: [1], maths: '3' },
   { form: 'game.G23', surface: 'game', grades: [2, 3], maths: '3' },
