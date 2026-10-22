@@ -53,6 +53,8 @@ const ROUTES = {
   '/sa/presign': ['saPresign', ['userId', 'sessionId', 'taskId', 'itemId', 'mime', 'bytes'], 'sa-api.service'],
   '/sa/register': ['saRegister', ['userId', 'sessionId', 'taskId', 'itemId', 'key'], 'sa-api.service'],
   '/sa/status': ['saStatus', ['userId', 'sessionId'], 'sa-api.service'],
+  // the passage word where the child stopped, from the recording (sa_coach_last_word): the coach's tap confirms it
+  '/sa/last-word-hint': ['saLastWordHint', ['userId', 'sessionId', 'taskId'], 'sa-api.service'],
   // asAdmin: the portal's own sa_results_admins check for its session user, never the browser's
   '/sa/results': ['saResults', ['userId', 'sessionId', 'asAdmin'], 'sa-api.service'],
   // the results dashboard: this coach's sessions, or (asAdmin) every coach's
