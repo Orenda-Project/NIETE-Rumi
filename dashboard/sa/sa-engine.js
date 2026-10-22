@@ -142,7 +142,7 @@
         runner = core.createRunner({ battery: battery, now: now, session_id: sessionId, resume: resume, onEvent: onEvent, audio_check: !resume && opts.audio_check !== false, warmup: !resume && opts.warmup !== false,
           dev_tools: devTools, mic: deps.micState || micState, mic_check: mode === 'game', oral_practice: opts.oral_practice !== false, keypad_warmup: opts.keypad_warmup !== false,
           one_at_a_time: w3.one_at_a_time === true, manual: manual, comp_all_questions: w3.comp_all_questions === true,
-          cell_pace: w3.cell_pace === true });
+          cell_pace: w3.cell_pace === true, section_recording: w3.section_recording === true });
         var voice = voiceMod.create({ lang: lang, base: opts.audio_base || '/', muted: false, onSpeak: function (s) { fire('audio', s); }, onSilent: function (s) { fire('silent', s); } });
         if (syncMod && opts.sink) {
           sync = syncMod.create({ store: store, sink: opts.sink, session_id: sessionId, onStatus: function (s) { fire('sync', s); } });
@@ -228,7 +228,7 @@
           } : undefined,
           micProbe: micMod ? function () { return micMod.probe(2000); } : null,
           micLevel: micMod ? function (cb) { return micMod.level(cb); } : null,
-          manual: manual, passage_punct: w3.passage_punct === true, opening: opts.opening || null,
+          manual: manual, passage_punct: w3.passage_punct === true, opening: opts.opening || null, section_recording: w3.section_recording === true,
         });
         if (sync && view && view.setSync) hooks.sync = [function (st) { view.setSync(st); }];
         // Embedded in the coach page (RULINGs #34a, #48): the last task's end is told at once ({type:'sa:battery_ending',
