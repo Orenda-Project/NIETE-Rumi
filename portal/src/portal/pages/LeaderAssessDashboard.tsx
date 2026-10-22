@@ -5,12 +5,17 @@ import PortalLayout from '../components/PortalLayout';
 import { childTestSa } from '../services/api';
 import { urDigits, type Lang } from '../lib/assess/copy';
 import { DASH_COPY } from '../lib/assess/dashboardCopy';
-import { exampleCohort, TASKS, type ReadLang, type TaskSpec } from '../lib/assess/exampleCohort';
+import { exampleCohort, TASKS, type DashStudent, type ReadLang, type TaskSpec } from '../lib/assess/exampleCohort';
+import { masked, NO_SECTOR, toDashStudents } from '../lib/assess/realCohort';
 import { applyFilter, groupBy, headline, ORF_BANDS, summariseTask, type Filter } from '../lib/assess/cohortStats';
 import { GRADES, rwpOrf } from '../lib/assess/rwpNorms';
 
 /**
- * The example results dashboard (/portal/leader/assess/dashboard), sandbox only.
+ * The results dashboard (/portal/leader/assess/dashboard): the example, sandbox only, or this tier's real sessions.
+ *
+ * Live (sa_real_dashboard, any tier, checked first): the coach's own sessions, or every coach's for a results admin
+ * (GET …/sa/sessions), in the same layout under "Live data: N sessions"; no gender filter (the roster has none), and
+ * a cell of 1–4 children shows "<5" and no numbers. A failed read says so and never falls back to the example.
  *
  * Behind sa_example_dashboard, which the server reports on only on the sandbox host (fail closed: off until the
  * switches answer, and when they cannot be read). It shows 1,000 synthetic students from a seeded generator in the
@@ -30,7 +35,7 @@ function readLang(): Lang {
   try { return window.localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'ur'; } catch { return 'ur'; }
 }
 
-type Load = 'loading' | 'off' | 'on';
+type Load = 'loading' | 'off' | 'example' | 'live' | 'failed';
 
 /** Which rule a task's card states under its chart. */
 function ruleOf(spec: TaskSpec): 'items' | 'passage' | 'comprehension' | 'mathsItems' | 'fluency' {
@@ -43,17 +48,33 @@ export default function LeaderAssessDashboard() {
   const [load, setLoad] = useState<Load>('loading');
   const [filter, setFilter] = useState<Filter>({});
   const [read, setRead] = useState<ReadLang>('ur');
+  const [real, setReal] = useState<DashStudent[]>([]);
   const c = DASH_COPY[lang];
 
   useEffect(() => {
     let live = true;
     Promise.resolve().then(() => childTestSa.getSwitches())
-      .then((s) => { if (live) setLoad(s && s.exampleDashboard === true ? 'on' : 'off'); })
+      .then(async (s) => {
+        if (!live) return;
+        if (s && s.realDashboard === true) {
+          try {
+            const got = await childTestSa.getSessions();
+            if (!live) return;
+            setReal(toDashStudents((got && got.sessions) || []));
+            setLoad('live');
+          } catch {
+            if (live) setLoad('failed');
+          }
+          return;
+        }
+        setLoad(s && s.exampleDashboard === true ? 'example' : 'off');
+      })
       .catch(() => { if (live) setLoad('off'); });
     return () => { live = false; };
   }, []);
 
-  const cohort = useMemo(() => (load === 'on' ? exampleCohort() : []), [load]);
+  const isLive = load === 'live';
+  const cohort = useMemo(() => (load === 'example' ? exampleCohort() : load === 'live' ? real : []), [load, real]);
   const rows = useMemo(() => applyFilter(cohort, filter), [cohort, filter]);
   const h = useMemo(() => headline(rows), [rows]);
   const groups = useMemo(() => groupBy(rows, filter.sector ? 'school' : 'sector'), [rows, filter.sector]);
@@ -62,6 +83,9 @@ export default function LeaderAssessDashboard() {
   const count = (n: number) => num(n.toLocaleString('en-US'));
   const pct = (x: number | null) => (x === null ? '–' : num(`${Math.round(x * 100)}%`));
   const one = (x: number | null) => (x === null ? '–' : num(Math.round(x * 10) / 10));
+  // live data: a cell of 1–4 children shows "<5" and none of its numbers
+  const hide = (n: number) => isLive && masked(n);
+  const sectorName = (key: string) => (key === NO_SECTOR ? c.noSector : key);
 
   const switchLang = () => {
     const next: Lang = lang === 'ur' ? 'en' : 'ur';
@@ -150,6 +174,7 @@ export default function LeaderAssessDashboard() {
           ) : null;
         })}
       </ul>
+      <p data-testid="dash-rwp-note" className="mt-1 text-xs text-slate-500">{c.rwpNote}</p>
     </div>
   );
 
@@ -160,12 +185,14 @@ export default function LeaderAssessDashboard() {
       <li key={spec.taskId} data-testid={`dash-task-${spec.taskId}`} className="rounded-2xl border border-slate-200 bg-white p-4">
         <h3 className="text-base font-semibold text-slate-900">{c.tasks[spec.taskId]}</h3>
         <p dir="ltr" className="mb-2 text-start text-xs text-slate-500"><bdi>{spec.taskId}</bdi> · {c.of(num(spec.max))}</p>
+        {hide(s.n) ? <p data-testid="dash-masked" className="mb-3 rounded-xl bg-slate-50 p-2 text-sm text-slate-600">{c.masked}</p> : (<>
         <dl className={`mb-3 grid ${s.benchmarkShare === null ? 'grid-cols-2' : 'grid-cols-3'} gap-2 text-center`}>
           <div><dt className="text-xs text-slate-600">{rate ? (spec.kind === 'passage' ? c.meanWpm : c.meanPerMin) : c.mean}</dt><dd className="font-bold text-slate-900">{rate ? one(s.meanValue) : pct(s.meanShare)}</dd></div>
           <div><dt className="text-xs text-slate-600">{c.zero}</dt><dd className="font-bold text-slate-900">{pct(s.zeroShare)}</dd></div>
           {s.benchmarkShare === null ? null : <div><dt className="text-xs text-slate-600">{c.met}</dt><dd className="font-bold text-slate-900">{pct(s.benchmarkShare)}</dd></div>}
         </dl>
         {distribution(spec, s.distribution, s.n)}
+        </>)}
         {spec.kind === 'passage' ? rwpReference(spec.domain as ReadLang) : null}
         <p data-testid="dash-rule" className="mt-2 text-xs text-slate-500">{c.rules[ruleOf(spec)]}</p>
       </li>
@@ -175,12 +202,23 @@ export default function LeaderAssessDashboard() {
   let body;
   if (load === 'loading') body = <p className="text-slate-600">{c.loading}</p>;
   else if (load === 'off') body = <p data-testid="dash-off" className="rounded-2xl border border-slate-200 bg-white p-4 text-slate-700">{c.off}</p>;
-  else {
+  else if (load === 'failed') body = <p data-testid="dash-load-failed" role="alert" className="rounded-2xl border border-slate-200 bg-white p-4 text-slate-700">{c.loadFailed}</p>;
+  else if (isLive && !cohort.length) {
+    body = (
+      <div className="space-y-3">
+        <p data-testid="dash-live" role="note" className="rounded-2xl border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">{c.live(count(0))}</p>
+        <p data-testid="dash-empty" className="rounded-2xl border border-slate-200 bg-white p-4 text-slate-700">{c.empty}</p>
+      </div>
+    );
+  } else {
+    const hideAll = hide(h.n);
     const readTasks = TASKS.filter((t) => t.domain === read);
     const mathsTasks = TASKS.filter((t) => t.domain === 'ma');
     body = (
       <div className="space-y-5">
-        <p data-testid="dash-banner" role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{c.banner}</p>
+        {isLive
+          ? <p data-testid="dash-live" role="note" className="rounded-2xl border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">{c.live(count(cohort.length))}</p>
+          : <p data-testid="dash-banner" role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{c.banner}</p>}
 
         <section aria-label={c.filters} className="space-y-2">
           <div className="flex flex-wrap gap-2">
@@ -190,23 +228,25 @@ export default function LeaderAssessDashboard() {
           <div className="flex flex-wrap gap-2">
             {chip('dash-grade-all', c.allGrades, !filter.grade, () => setFilter((f) => ({ ...f, grade: null })))}
             {GRADES.map((g) => chip(`dash-grade-${g}`, c.grade(num(g)), filter.grade === g, () => setFilter((f) => ({ ...f, grade: g }))))}
-            {chip('dash-gender-all', c.allGenders, !filter.gender, () => setFilter((f) => ({ ...f, gender: null })))}
-            {chip('dash-gender-girl', c.girls, filter.gender === 'girl', () => setFilter((f) => ({ ...f, gender: 'girl' })))}
-            {chip('dash-gender-boy', c.boys, filter.gender === 'boy', () => setFilter((f) => ({ ...f, gender: 'boy' })))}
+            {isLive ? null : (<>
+              {chip('dash-gender-all', c.allGenders, !filter.gender, () => setFilter((f) => ({ ...f, gender: null })))}
+              {chip('dash-gender-girl', c.girls, filter.gender === 'girl', () => setFilter((f) => ({ ...f, gender: 'girl' })))}
+              {chip('dash-gender-boy', c.boys, filter.gender === 'boy', () => setFilter((f) => ({ ...f, gender: 'boy' })))}
+            </>)}
           </div>
         </section>
 
         <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-          {tile('dash-total', c.students, count(h.n))}
-          {tile('dash-rwc', `${c.rwc} · ${read === 'ur' ? c.urdu : c.english}`, pct(h.readingWithComprehension[read]), c.rwcHint)}
-          {tile('dash-orf', `${c.orf} · ${read === 'ur' ? c.urdu : c.english}`, one(h.orfMedian[read]), c.orfZero(pct(h.orfZero[read])))}
-          {tile('dash-maths', c.maths, pct(h.mathsAllMet), c.mathsHint)}
-          {tile('dash-minutes', c.minutes, one(h.minutesMedian))}
+          {tile('dash-total', c.students, hideAll ? c.fewer : count(h.n))}
+          {tile('dash-rwc', `${c.rwc} · ${read === 'ur' ? c.urdu : c.english}`, hideAll ? '–' : pct(h.readingWithComprehension[read]), hideAll ? c.masked : c.rwcHint)}
+          {tile('dash-orf', `${c.orf} · ${read === 'ur' ? c.urdu : c.english}`, hideAll ? '–' : one(h.orfMedian[read]), hideAll ? undefined : c.orfZero(pct(h.orfZero[read])))}
+          {tile('dash-maths', c.maths, hideAll ? '–' : pct(h.mathsAllMet), hideAll ? undefined : c.mathsHint)}
+          {tile('dash-minutes', c.minutes, hideAll ? '–' : one(h.minutesMedian))}
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-3">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-base font-semibold text-slate-900">{filter.sector ? c.bySchool(filter.sector) : c.bySector}</h2>
+            <h2 className="text-base font-semibold text-slate-900">{filter.sector ? c.bySchool(sectorName(filter.sector)) : c.bySector}</h2>
             {filter.sector ? chip('dash-all-sectors', c.allSectors, false, () => setFilter((f) => ({ ...f, sector: null, schoolId: null }))) : null}
           </div>
           {!filter.sector ? <p className="mb-2 text-xs text-slate-500">{c.tapRow}</p> : null}
@@ -231,12 +271,12 @@ export default function LeaderAssessDashboard() {
                     onClick={filter.sector ? undefined : () => setFilter((f) => ({ ...f, sector: g.key }))}
                     className={filter.sector ? '' : 'cursor-pointer hover:bg-sky-50'}
                   >
-                    <td className="py-2 pe-1 text-slate-900">{filter.sector ? g.label.replace('Example school ', '') : g.label}</td>
-                    <td className="py-2 text-end tabular-nums">{count(g.n)}</td>
-                    <td className="py-2 text-end tabular-nums">{pct(g.h.readingWithComprehension[read])}</td>
-                    <td className="py-2 text-end tabular-nums">{one(g.h.orfMedian[read])}</td>
-                    <td className="py-2 text-end tabular-nums">{pct(g.h.orfZero[read])}</td>
-                    <td className="py-2 text-end tabular-nums">{pct(g.h.mathsAllMet)}</td>
+                    <td className="py-2 pe-1 text-slate-900">{filter.sector ? g.label.replace('Example school ', '') : sectorName(g.label)}</td>
+                    <td className="py-2 text-end tabular-nums">{hide(g.n) ? c.fewer : count(g.n)}</td>
+                    <td className="py-2 text-end tabular-nums">{hide(g.n) ? '–' : pct(g.h.readingWithComprehension[read])}</td>
+                    <td className="py-2 text-end tabular-nums">{hide(g.n) ? '–' : one(g.h.orfMedian[read])}</td>
+                    <td className="py-2 text-end tabular-nums">{hide(g.n) ? '–' : pct(g.h.orfZero[read])}</td>
+                    <td className="py-2 text-end tabular-nums">{hide(g.n) ? '–' : pct(g.h.mathsAllMet)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -253,7 +293,7 @@ export default function LeaderAssessDashboard() {
           <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{mathsTasks.map(taskCard)}</ul>
         </section>
 
-        <ul className="list-disc space-y-1 ps-5 text-xs text-slate-600">{c.notes.map((n) => <li key={n}>{n}</li>)}</ul>
+        <ul className="list-disc space-y-1 ps-5 text-xs text-slate-600">{(isLive ? c.liveNotes : c.notes).map((n) => <li key={n}>{n}</li>)}</ul>
       </div>
     );
   }

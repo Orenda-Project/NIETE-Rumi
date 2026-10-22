@@ -46,6 +46,15 @@ export function correctOf(t: SaTaskResult | undefined): number | null {
   return typeof t.correct === 'number' ? t.correct : null;
 }
 
+/**
+ * A passage's correct words per minute: the scorer's per_minute (a child who finishes the passage early reads faster
+ * than their count of words), else the count itself; null when unscored.
+ */
+export function wcpmOf(t: SaTaskResult | undefined): number | null {
+  if (t && t.score && typeof t.score.per_minute === 'number') return t.score.per_minute;
+  return correctOf(t);
+}
+
 function taskIn(s: DashStudent, taskId: string): SaTaskResult | undefined {
   return s.results.tasks.find((t) => t.taskId === taskId);
 }
@@ -83,7 +92,7 @@ export function summariseTask(students: DashStudent[], spec: TaskSpec): TaskSumm
   const shares: number[] = [];
   for (const s of students) {
     const t = taskIn(s, spec.taskId);
-    const c = correctOf(t);
+    const c = spec.kind === 'passage' ? wcpmOf(t) : correctOf(t);
     if (c === null) continue;
     values.push(c);
     shares.push(spec.kind === 'comprehension' ? (comprehensionShare(t, spec) as number) : c / spec.max);
@@ -131,7 +140,7 @@ export function headline(students: DashStudent[]): Headline {
   const per = (lang: ReadLang) => {
     const passage = TASKS.find((t) => t.domain === lang && t.kind === 'passage') as TaskSpec;
     const comp = TASKS.find((t) => t.domain === lang && t.kind === 'comprehension') as TaskSpec;
-    const wcpm = students.map((s) => correctOf(taskIn(s, passage.taskId))).filter((v): v is number => v !== null);
+    const wcpm = students.map((s) => wcpmOf(taskIn(s, passage.taskId))).filter((v): v is number => v !== null);
     const shares = students.map((s) => comprehensionShare(taskIn(s, comp.taskId), comp)).filter((v): v is number => v !== null);
     return {
       rwc: shares.length ? shares.filter((x) => x >= COMPREHENSION_BENCHMARK).length / shares.length : null,

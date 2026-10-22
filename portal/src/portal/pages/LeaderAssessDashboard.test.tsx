@@ -7,7 +7,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 // students, a sub-region table that drills into schools, filters, and one card per task. It never reads a session.
 
 vi.mock("../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
-vi.mock("../services/api", () => ({ childTestSa: { getSwitches: vi.fn(), getResults: vi.fn() } }));
+vi.mock("../services/api", () => ({ childTestSa: { getSwitches: vi.fn(), getResults: vi.fn(), getSessions: vi.fn() } }));
 
 import { childTestSa } from "../services/api";
 import LeaderAssessDashboard from "./LeaderAssessDashboard";
@@ -122,5 +122,106 @@ describe("LeaderAssessDashboard", () => {
     expect(g4).toHaveTextContent(/60/);
     expect(g4).toHaveTextContent(/14%/);
   });
+
+  it("the example page never reads real sessions", async () => {
+    api.getSwitches.mockResolvedValue({ exampleDashboard: true, realDashboard: false });
+    renderPage();
+    await screen.findByTestId("dash-banner");
+    expect(api.getSessions).not.toHaveBeenCalled();
+  });
+
+  it("the Rawalpindi reference says May, early in the school year, so an October child is not read as behind", async () => {
+    api.getSwitches.mockResolvedValue({ exampleDashboard: true });
+    renderPage();
+    const rwp = within(await screen.findByTestId("dash-task-ur.story_w3")).getByTestId("dash-rwp");
+    expect(rwp).toHaveTextContent(/Rawalpindi study, May 2026/);
+    expect(within(rwp).getByTestId("dash-rwp-note")).toHaveTextContent(/early in the school year/);
+  });
 });
 
+// The same page on REAL sessions (sa_real_dashboard): the coach's own, or every coach's for a results admin.
+const realTask = (taskId: string, score: Record<string, number> | null, correct: number | null = null) => ({
+  taskId, mode: correct === null ? "record" : "keypad", attempted: null, correct, optionsN: null, chanceCorrected: null,
+  itemsPerMin: null, stopReason: null, recording: score ? "scored" : "none", score,
+});
+const realSession = (id: string, sector: string | null, schoolId: string, grade = 3) => ({
+  schoolId, schoolName: `School ${schoolId}`, sector, grade,
+  results: {
+    session: { id, grade, form: "A", block: "rdf_auto", status: "completed", startedAt: "2026-10-23T05:00:00Z", endedAt: "2026-10-23T05:32:00Z", lang: "ur" },
+    tasks: [realTask("ur.story_w3", { correct: 20, per_minute: 24 }), realTask("ur.words4", { correct: 3 }), realTask("ma.missing4", null, 2)],
+  },
+});
+const many = (n: number, sector: string | null, schoolId: string) => Array.from({ length: n }, (_, i) => realSession(`${schoolId}-${i}`, sector, schoolId));
+
+describe("LeaderAssessDashboard on real sessions (sa_real_dashboard)", () => {
+  it("live: reads the sessions, says how many, and drops the example banner and the gender filter", async () => {
+    api.getSwitches.mockResolvedValue({ exampleDashboard: true, realDashboard: true });
+    api.getSessions.mockResolvedValue({ sessions: [...many(6, "Urban-I", "a"), ...many(5, "Nilore", "b")] });
+    renderPage();
+    const banner = await screen.findByTestId("dash-live");
+    expect(banner).toHaveTextContent(/Live data: 11 sessions/);
+    expect(screen.queryByTestId("dash-banner")).toBeNull();
+    expect(screen.queryByTestId("dash-gender-girl")).toBeNull();
+    expect(screen.getByTestId("dash-total")).toHaveTextContent("11");
+    const rows = within(screen.getByTestId("dash-groups")).getAllByTestId("dash-group-row");
+    expect(rows.map((r) => r.getAttribute("data-key"))).toEqual(["Nilore", "Urban-I"]);
+    expect(within(screen.getByTestId("dash-task-ur.story_w3")).queryByTestId("dash-masked")).toBeNull();
+  });
+
+  it("live without the example switch (any tier): still the live page", async () => {
+    api.getSwitches.mockResolvedValue({ exampleDashboard: false, realDashboard: true });
+    api.getSessions.mockResolvedValue({ sessions: many(5, "Urban-I", "a") });
+    renderPage();
+    expect(await screen.findByTestId("dash-live")).toHaveTextContent(/5 sessions/);
+  });
+
+  it("a cell under 5 children shows <5 and no numbers: a sub-region row, the totals and a task card", async () => {
+    api.getSwitches.mockResolvedValue({ realDashboard: true });
+    api.getSessions.mockResolvedValue({ sessions: [...many(6, "Urban-I", "a"), ...many(2, "Sihala", "c")] });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    const sihala = within(screen.getByTestId("dash-groups")).getAllByTestId("dash-group-row").find((r) => r.getAttribute("data-key") === "Sihala") as HTMLElement;
+    expect(sihala).toHaveTextContent("<5");
+    expect(sihala.textContent).not.toMatch(/\d+%/);
+    fireEvent.click(sihala);
+    expect(screen.getByTestId("dash-total")).toHaveTextContent("<5");
+    expect(within(screen.getByTestId("dash-task-ur.story_w3")).getByTestId("dash-masked")).toBeInTheDocument();
+    expect(screen.getByTestId("dash-orf").textContent).not.toMatch(/\d/);
+  });
+
+  it("a school with no sub-region is listed as such", async () => {
+    window.localStorage.setItem("niete-assess-lang", "en");
+    api.getSwitches.mockResolvedValue({ realDashboard: true });
+    api.getSessions.mockResolvedValue({ sessions: many(5, null, "z") });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    expect(within(screen.getByTestId("dash-groups")).getByTestId("dash-group-row")).toHaveTextContent(/Sub-region not set/);
+  });
+
+  it("the read fails: says so, and never falls back to the example numbers", async () => {
+    api.getSwitches.mockResolvedValue({ exampleDashboard: true, realDashboard: true });
+    api.getSessions.mockRejectedValue({ response: { status: 502 } });
+    renderPage();
+    expect(await screen.findByTestId("dash-load-failed")).toBeInTheDocument();
+    expect(screen.queryByTestId("dash-banner")).toBeNull();
+    expect(screen.queryByTestId("dash-total")).toBeNull();
+  });
+
+  it("no sessions yet: says so", async () => {
+    api.getSwitches.mockResolvedValue({ realDashboard: true });
+    api.getSessions.mockResolvedValue({ sessions: [] });
+    renderPage();
+    expect(await screen.findByTestId("dash-live")).toHaveTextContent(/0 sessions/);
+    expect(screen.getByTestId("dash-empty")).toBeInTheDocument();
+  });
+
+  it("Urdu: the live banner in Urdu with Urdu digits", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    api.getSwitches.mockResolvedValue({ realDashboard: true });
+    api.getSessions.mockResolvedValue({ sessions: many(5, "Urban-I", "a") });
+    renderPage();
+    const live = await screen.findByTestId("dash-live");
+    expect(live.textContent).toMatch(/[\u0600-\u06FF]/);
+    expect(live.textContent).toMatch(/۵/);
+  });
+});
