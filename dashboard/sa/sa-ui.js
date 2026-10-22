@@ -308,6 +308,7 @@
     var starSpeech = null;
     var childName = opts.child && typeof opts.child.first_name === 'string' ? opts.child.first_name.trim().slice(0, 40) : '';
     var manual = !!opts.manual;
+    var sectionRec = !!opts.section_recording; // an oral task is one recording from Begin (sa_section_recording)
     var punct = !!opts.passage_punct;
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
@@ -1049,7 +1050,7 @@
 
     function sRunOral(v) {
       var it = v.item, t = v.task;
-      var on = !!(oralRec && oralRec.key === keyOf(v));
+      var on = sectionRec ? recording === t : !!(oralRec && oralRec.key === keyOf(v));
       return screen(v, 'sae-run sae-run-oral', [
         h('p', { class: 'sae-task-tag', text: tx(t.title) }),
         h('div', { class: 'sae-row' }, [jugnu('idle', true), replayBtn(function () { sayItem(it, t); })]),
@@ -1387,6 +1388,7 @@
           sayItem(v.item, t).then(function () {
             if (!alive || g2 !== gen || lastKey !== key) return;
             if (runner.promptDone) runner.promptDone(); // the answer window starts after the question
+            if (sectionRec) return; // the task's one recording is already running (recorderHooks)
             oralRec = { task: t, item: v.item, key: key };
             try { if (opts.onRecordStart) opts.onRecordStart(t, v.item); } catch (e) { /* recorder */ }
             var mic = el.querySelector('.sae-mic');
@@ -1430,7 +1432,7 @@
 
     // The recorder hooks: a record task's running phase (however it ends), and each oral question.
     function recorderHooks(v) {
-      var isRec = v.phase === 'running' && v.task && v.task.mode === 'record';
+      var isRec = v.phase === 'running' && v.task && (v.task.mode === 'record' || (sectionRec && v.task.mode === 'oral'));
       if (isRec && recording !== v.task) {
         var task = v.task;
         recording = task;

@@ -229,6 +229,7 @@
     var manual = !!opts.manual;
     var compAll = !!opts.comp_all_questions;
     var cellPace = !!opts.cell_pace;
+    var sectionRec = !!opts.section_recording;
 
     /** A read-aloud grid shown one cell at a time (never a passage). */
     function cellTask(t) {
@@ -270,7 +271,11 @@
       var e = { session_id: opts.session_id || null, seq: ++seq, t_ms: Math.round(now() - t0), at: wall(), type: type };
       if (extra) for (var k in extra) if (has(extra, k) && extra[k] !== undefined) e[k] = extra[k];
       // The engine logs record_start when the recorder really opens: the task then has a recording to wait for.
-      if (type === 'record_start' && st && st.task_id && (!e.task_id || e.task_id === st.task_id)) st.recorded = true;
+      if (type === 'record_start' && st && st.task_id && (!e.task_id || e.task_id === st.task_id)) {
+        st.recorded = true;
+        // sa_section_recording: the oral task's one recording starts here; the items' marks count from it.
+        if (sectionRec && !e.item_id && st.rec_t0 == null) { st.rec_t0 = now(); st.rec_marks = []; }
+      }
       emit(e);
       return e;
     }
@@ -376,6 +381,7 @@
       }
       if (st.cells) r.cells = st.cells.slice();
       if (t.mode === 'oral') r.asked = st.items.map(function (q) { return q.id; });
+      if (t.mode === 'oral' && st.rec_marks) { r.rec_section = true; r.rec_marks = st.rec_marks.slice(); }
       // Whether the recorder ever opened for this task (a skip, no mic, or the coach's early end before it: false), so
       // the server waits for audio only where a recording exists.
       if (t.mode === 'record' || t.mode === 'oral') r.recorded = !!st.recorded;
@@ -421,10 +427,16 @@
       tally(t, ok);
       var a = { item_id: it.id, value: value, ok: ok };
       if (oneAtATime && st.item_started != null) a.ms = Math.round(now() - st.item_started);
+      if (st.rec_marks) {
+        var at = function (x) { return Math.max(0, Math.round(x - st.rec_t0)); };
+        st.rec_marks.push({ item_id: it.id, ask_ms: at(st.ask_at), answer_ms: at(st.answer_at != null ? st.answer_at : st.ask_at), end_ms: at(now()) });
+      }
       st.answers.push(a);
       ev(ok === null ? 'answer' : (ok ? 'item_correct' : 'item_incorrect'), { task_id: t.id, item_id: it.id, value: value });
       st.item_i++;
       st.item_started = now();
+      st.ask_at = st.item_started;
+      st.answer_at = null;
       st.replayed = false;
       var stop = stopRule(t);
       if (stop) finish(stop);
@@ -546,6 +558,8 @@
         st.phase = 'running';
         st.started = now();
         st.item_started = st.started;
+        st.ask_at = st.started;
+        st.answer_at = null;
         if (cellTask(task())) { st.cells = []; st.cell = { i: 0, at: st.started }; }
         ev('task_start', { task_id: st.task_id, value: { time_limit_s: task().time_limit_s || null, mode: task().mode, items: st.items.length } });
       },
@@ -561,6 +575,7 @@
       promptDone: function () {
         if (st.phase !== 'running' || task().mode === 'record') return;
         st.item_started = now();
+        st.answer_at = st.item_started;
       },
       /** "Next" on an untimed item the child cannot answer (offered after next_at_s): no response = wrong. */
       skip: function () {
