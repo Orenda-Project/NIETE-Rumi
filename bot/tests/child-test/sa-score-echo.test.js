@@ -94,6 +94,13 @@ describe('the speech gate on comprehension: an answer the child never gave is no
     expect(marks(got)[3]).toEqual(['q4', 'correct', 0.8, false]);
   });
 
+  test('a one-word answer in a 0.9-s clip is heard and marked (the minimum is 0.8 s)', async () => {
+    const s = standIns({ q3: { dur: 0.9, stt: 'بانو', answer: 'بانو', verdict: 'correct', confidence: 0.9 } });
+    const got = await score.scoreRow(row(), session(), s);
+    expect(s.sttFor).toContain('q3');
+    expect(marks(got)[2]).toEqual(['q3', 'correct', 0.9, false]);
+  });
+
   test('the minimum is a setting: 0 turns the length check off (STT and the model then hear q4)', async () => {
     process.env.CHILD_TEST_SA_MIN_SPEECH_S = '0';
     const s = standIns();

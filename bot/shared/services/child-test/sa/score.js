@@ -41,7 +41,8 @@
  *                                     no answer, conf 0, no_speech: true, never correct (a tone scored 4/4 before).
  *                                     STT puts a stray word on a near-silent clip, so "no word" alone let a 0.7-s
  *                                     comprehension clip through, and the model gave back the expected answer as heard.
- *                                     So, with the same switch: a clip shorter than CHILD_TEST_SA_MIN_SPEECH_S (1 s)
+ *                                     So, with the same switch: a clip shorter than CHILD_TEST_SA_MIN_SPEECH_S (0.8 s;
+ *                                     a one-word answer took 0.9 s on sandbox, the echoed sentences 0.5-0.6 s)
  *                                     holds no answer and is not sent anywhere; and a question the model marks correct
  *                                     with the expected answer as heard, which STT did not hear, is no answer (echo).
  */
@@ -68,7 +69,7 @@ const bootId = () => `${Date.now().toString(36)}${Math.random().toString(36).sli
 let MINE = `${SCORING}:${bootId()}`;
 let swept = false;
 const gateOn = () => process.env.CHILD_TEST_SA_SPEECH_GATE === 'on';
-const minSpeechS = () => { const s = Number(process.env.CHILD_TEST_SA_MIN_SPEECH_S); return s >= 0 && process.env.CHILD_TEST_SA_MIN_SPEECH_S ? s : 1; };
+const minSpeechS = () => { const s = Number(process.env.CHILD_TEST_SA_MIN_SPEECH_S); return s >= 0 && process.env.CHILD_TEST_SA_MIN_SPEECH_S ? s : 0.8; };
 const clipWaitMs = () => { const s = Number(process.env.CHILD_TEST_SA_CLIP_WAIT_S); return s > 0 ? s * 1000 : null; };
 const sinceHours = () => Number(process.env.CHILD_TEST_SA_SCORER_SINCE_H) || 48;
 const ownEnv = () => process.env.CHILD_TEST_R2_ENV || process.env.RAILWAY_ENVIRONMENT || 'local';
