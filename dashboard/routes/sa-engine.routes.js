@@ -70,6 +70,7 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   cellPace: paceReader = createBrotliFlag({ key: SWITCHES.cellPace }),
   sectionRecording: sectionReader = createBrotliFlag({ key: SWITCHES.sectionRecording }),
   coachLastWord: lastWordReader = createBrotliFlag({ key: SWITCHES.coachLastWord }),
+  cellNextOnly: nextOnlyReader = createBrotliFlag({ key: SWITCHES.cellNextOnly }),
   voiceTashdeed: tashdeedReader = createBrotliFlag({ key: VOICE_TASHDEED_KEY }),
   holdMs, now, env } = {}) {
   const router = express.Router();
@@ -90,10 +91,11 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   const cellPace = steady(safe(paceReader), hold);
   const sectionRecording = steady(safe(sectionReader), hold);
   const coachLastWord = steady(safe(lastWordReader), hold);
+  const cellNextOnly = steady(safe(nextOnlyReader), hold);
   const voiceTashdeed = steady(safe(tashdeedReader), hold);
   const takes = tashdeedTakes();
   router.use('/sa', on.warm(), practiceAllMaths.warm(), passageRotation.warm(), voiceV2.warm(), oneAtATime.warm(), passagePunct.warm(), rdfManual.warm(),
-    rdfW3Forms.warm(), voiceGateV2.warm(), compAllQuestions.warm(), cellPace.warm(), sectionRecording.warm(), coachLastWord.warm(), voiceTashdeed.warm());
+    rdfW3Forms.warm(), voiceGateV2.warm(), compAllQuestions.warm(), cellPace.warm(), sectionRecording.warm(), coachLastWord.warm(), cellNextOnly.warm(), voiceTashdeed.warm());
   const files = express.static(DIR, {
     index: false,
     dotfiles: 'ignore',
@@ -133,7 +135,7 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
         oneAtATime: oneAtATime() === true, passagePunct: passagePunct() === true, rdfManual: rdfManual() === true,
         rdfW3Forms: rdfW3Forms() === true, voiceGateV2: voiceGateV2() === true, compAllQuestions: compAllQuestions() === true,
         cellPace: cellPace() === true, sectionRecording: sectionRecording() === true,
-        coachLastWord: coachLastWord() === true,
+        coachLastWord: coachLastWord() === true, cellNextOnly: cellNextOnly() === true,
       });
       let v2 = false;
       try { v2 = voiceV2() === true; } catch (_) { v2 = false; }
