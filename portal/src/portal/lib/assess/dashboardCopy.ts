@@ -47,7 +47,14 @@ const en = {
   of: (n: number | string) => `of ${n}`,
   scoreAxis: 'Correct answers',
   students_: (n: string) => `${n} students`,
-  bands: { zero: 'Zero (0)', beginning: 'Beginning (1–19)', developing: 'Developing (20–39)', fluent: 'Fluent (40+)' },
+  bands: { zero: 'Non-reader (0)', beginning: 'Beginning (1–19)', developing: 'Developing (20–39)', fluent: 'Fluent (40+)' },
+  rules: {
+    items: 'Mean: the average share of items right. Zero: no item right.',
+    passage: 'Words read correctly in 60 seconds. Non-reader 0 · beginning 1–19 · developing 20–39 · fluent 40 or more words per minute.',
+    comprehension: 'Met: 80% or more of the passage questions right (reading with comprehension).',
+    mathsItems: 'Met: 75% or more of the items right. Zero: no item right.',
+    fluency: 'Correct answers in 60 seconds, of 20 sums. Zero: none right.',
+  },
   tasks: {
     'ur.letter_names5': 'Letter names', 'ur.letter_sounds5': 'Letter sounds', 'ur.words4': 'Familiar words',
     'ur.story_w3': 'Passage reading', 'ur.story_comp_w3': 'Reading comprehension',
@@ -58,7 +65,7 @@ const en = {
   } as Record<string, string>,
   notes: [
     'Words per minute: correct words read aloud in 60 seconds. Zero: the child read no word of the passage.',
-    'Bands: zero 0, beginning 1–19, developing 20–39, fluent 40 or more words per minute.',
+    'Bands: non-reader 0, beginning 1–19, developing 20–39, fluent 40 or more words per minute.',
     'Gender is example data only: the school roster does not record it yet.',
   ],
 };
@@ -110,7 +117,14 @@ const ur: DashCopy = {
   of: (n: number | string) => `کل ${n} میں سے`,
   scoreAxis: 'درست جوابات',
   students_: (n: string) => `${n} طلبہ`,
-  bands: { zero: 'صفر (⁦۰⁩)', beginning: 'آغاز (⁦۱–۱۹⁩)', developing: 'بہتری (⁦۲۰–۳۹⁩)', fluent: 'روانی (⁦۴۰⁩+)' },
+  bands: { zero: 'پڑھ نہ سکے (⁦۰⁩)', beginning: 'آغاز (⁦۱–۱۹⁩)', developing: 'بہتری (⁦۲۰–۳۹⁩)', fluent: 'روانی (⁦۴۰⁩+)' },
+  rules: {
+    items: 'اوسط: درست جوابات کا اوسط حصہ۔ صفر: کوئی جواب درست نہیں۔',
+    passage: '⁦۶۰⁩ سیکنڈ میں درست پڑھے گئے الفاظ۔ پڑھ نہ سکے ⁦۰⁩ · آغاز ⁦۱–۱۹⁩ · بہتری ⁦۲۰–۳۹⁩ · روانی ⁦۴۰⁩ یا زیادہ الفاظ فی منٹ۔',
+    comprehension: 'معیار پورا: عبارت کے ⁦۸۰⁩٪ یا زیادہ سوال درست (سمجھ کر پڑھنا)۔',
+    mathsItems: 'معیار پورا: ⁦۷۵⁩٪ یا زیادہ سوال درست۔ صفر: کوئی جواب درست نہیں۔',
+    fluency: '⁦۶۰⁩ سیکنڈ میں درست جوابات، ⁦۲۰⁩ سوالوں میں سے۔ صفر: کوئی درست نہیں۔',
+  },
   tasks: {
     'ur.letter_names5': 'حروف کے نام', 'ur.letter_sounds5': 'حروف کی آوازیں', 'ur.words4': 'جانے پہچانے الفاظ',
     'ur.story_w3': 'عبارت پڑھنا', 'ur.story_comp_w3': 'عبارت کی سمجھ',
@@ -121,7 +135,7 @@ const ur: DashCopy = {
   },
   notes: [
     'فی منٹ الفاظ: ⁦۶۰⁩ سیکنڈ میں بلند آواز سے درست پڑھے گئے الفاظ۔ صفر: بچہ عبارت کا ایک لفظ بھی نہ پڑھ سکا۔',
-    'درجے: صفر ⁦۰⁩، آغاز ⁦۱–۱۹⁩، بہتری ⁦۲۰–۳۹⁩، روانی ⁦۴۰⁩ یا زیادہ الفاظ فی منٹ۔',
+    'درجے: پڑھ نہ سکے ⁦۰⁩، آغاز ⁦۱–۱۹⁩، بہتری ⁦۲۰–۳۹⁩، روانی ⁦۴۰⁩ یا زیادہ الفاظ فی منٹ۔',
     'جنس صرف مثالی ڈیٹا میں ہے: اسکول کی فہرست میں یہ ابھی درج نہیں۔',
   ],
 };

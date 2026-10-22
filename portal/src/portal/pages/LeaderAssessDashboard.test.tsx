@@ -57,6 +57,18 @@ describe("LeaderAssessDashboard", () => {
     expect(api.getResults).not.toHaveBeenCalled();
   });
 
+  it("each chart names its rule, and the reading bands are in plain words", async () => {
+    api.getSwitches.mockResolvedValue({ exampleDashboard: true });
+    renderPage();
+    const passage = await screen.findByTestId("dash-task-ur.story_w3");
+    expect(passage).toHaveTextContent(/Non-reader \(0\)/);
+    expect(within(passage).getByTestId("dash-rule")).toHaveTextContent(/40 or more words per minute/);
+    expect(within(screen.getByTestId("dash-task-ur.story_comp_w3")).getByTestId("dash-rule")).toHaveTextContent(/80% or more/);
+    expect(within(screen.getByTestId("dash-task-ma.missing4")).getByTestId("dash-rule")).toHaveTextContent(/75% or more/);
+    expect(within(screen.getByTestId("dash-task-ma.fluency1m")).getByTestId("dash-rule")).toHaveTextContent(/60 seconds/);
+    expect(within(screen.getByTestId("dash-task-ur.words4")).getByTestId("dash-rule")).toHaveTextContent(/no item right/);
+  });
+
   it("drills from a sub-region into its schools, and back", async () => {
     api.getSwitches.mockResolvedValue({ exampleDashboard: true });
     renderPage();
