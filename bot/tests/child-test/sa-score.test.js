@@ -272,9 +272,9 @@ describe('the W3 forms (RDF auto / RDF manual): tasks the bank does not carry, s
     expect(got.spec.record.stop).toEqual({ type: 'first_line', n: 3 });
   });
 
-  test('a task neither the bank nor the battery carries is a final failure, never a guess', async () => {
+  test('a task neither the bank nor the battery carries is never a guess: not scored, retried until a newer build knows it (24 h cap)', async () => {
     const got = await score.scoreRow(row('ur.nothing_here'), session(), { ...model(), phoneBattery: load });
-    expect(got).toMatchObject({ ok: false, reason: 'task_not_in_bank', retry: false });
+    expect(got).toMatchObject({ ok: false, reason: 'task_not_in_bank', retry: true });
   });
 
   test('the Wave 2 forms still score from the bank (the bank wins over the battery)', () => {

@@ -12,7 +12,8 @@
  *   start() / stop()              the sweep, every 20 s, only with the switch on
  *
  * Claims never use `pending`/`scoring`: every state this file writes stays under `final:` (sa_score_later →
- * sa_scoring:<process> → sa_retry:<n> → the marks, or sa_score_failed:<reason>), so the older recovery sweep, which
+ * sa_scoring:<process> → sa_retry:<n> (or sa_wait_bank:<n>, a task this build does not know) → the marks, or
+ * sa_score_failed:<reason>), so the older recovery sweep, which
  * skips a final failure (recovery.js verdict), never takes an SA row — not on this host, not on another build sharing
  * the DB. A claim names its process, so the compare-and-set changes the value and only the owner writes the marks. A
  * restart mid-score leaves a claim behind: it is taken again after 2 min, and at once by the new process's first sweep.
@@ -58,6 +59,10 @@ const PARKED = 'final:sa_score_later';
 const SCORING = 'final:sa_scoring';
 const RETRY = 'final:sa_retry:';
 const FAILED = 'final:sa_score_failed:';
+// A task this build does not know (recorded on a newer build, e.g. a grade its bank lacks) waits and is tried again,
+// 1, 2, 4 … min apart, at most an hour, and fails for good only after 24 h: a build skew heals itself.
+const WAIT_BANK = 'final:sa_wait_bank:';
+const BANK_CAP_MS = 24 * 3600 * 1000;
 const VERSION = 'sa-marks-v1';
 const SA_MARK = 'sa-battery';
 const MAX_ATTEMPTS = 3;
@@ -535,7 +540,7 @@ async function scoreRow(row, session, deps = {}) {
   // A W3 task (w3: true in the bank) is scored from the battery the phone ran: its items carry show + answer.
   const byBank = specFor(d.bank, session, row);
   const found = (byBank && !isW3(d.bank, session, row) ? byBank : null) || phoneSpecFor(session, row, d.phoneBattery) || byBank;
-  if (!found) return { ok: false, reason: 'task_not_in_bank', retry: false };
+  if (!found) return { ok: false, reason: 'task_not_in_bank', retry: true };
   const { spec: task, variant } = found;
   const stops = d.stopRules === true;
   const rec = stops ? withFirstRow(task, task.record || {}) : (task.record || {});
@@ -595,10 +600,13 @@ function ready(row, session, nowMs) {
   return ended > 0 && nowMs - ended > WAIT_FOR_CLIPS_MS;
 }
 
-function attemptOf(reason) {
-  const m = new RegExp(`^${RETRY}(\\d+)$`).exec(String(reason || ''));
+function attemptOf(reason, prefix = RETRY) {
+  const m = new RegExp(`^${prefix}(\\d+)$`).exec(String(reason || ''));
   return m ? Number(m[1]) : 0;
 }
+const bankBackoffMs = (n) => Math.min(2 ** (n - 1), 60) * 60 * 1000;
+/** How long a row at wait n has waited in all (the backoffs 1..n). */
+const bankWaitedMs = (n) => { let t = 0; for (let k = 1; k <= n; k += 1) t += bankBackoffMs(k); return t; };
 
 // ------------------------------------------------------------------ the database side
 
@@ -618,6 +626,7 @@ async function candidates({ sessionId = null, now = new Date(), supabase = db(),
     if (!TASK_RE.test(String(r.block || '')) || !hasAudio(r)) return false;
     if (envOf(r.audio_r2_key || (keysOf(r)[0] || {}).key) !== ownEnv()) return false;
     if (r.ai_reason === PARKED || r.ai_reason.startsWith(RETRY)) return true;
+    if (r.ai_reason.startsWith(WAIT_BANK)) return nowMs - Date.parse(r.updated_at || 0) >= bankBackoffMs(attemptOf(r.ai_reason, WAIT_BANK));
     if (!r.ai_reason.startsWith(SCORING) || r.ai_reason === MINE) return false;
     return afterBoot || nowMs - Date.parse(r.updated_at || 0) > STALE_CLAIM_MS;
   });
@@ -655,13 +664,19 @@ async function claim(row, supabase = db()) {
   return Array.isArray(data) && data.length === 1;
 }
 
-async function finish(row, got, supabase = db()) {
-  let patch;
-  if (got.ok) patch = { ai_marks: got.marks, ai_status: 'scored', ai_reason: null, ai_scored_at: new Date().toISOString() };
-  else {
-    const n = attemptOf(row.ai_reason) + 1;
-    patch = { ai_reason: got.retry && n < MAX_ATTEMPTS ? `${RETRY}${n}` : `${FAILED}${got.reason}` };
+function finishPatch(row, got) {
+  if (got.ok) return { ai_marks: got.marks, ai_status: 'scored', ai_reason: null, ai_scored_at: new Date().toISOString() };
+  if (got.retry && got.reason === 'task_not_in_bank') {
+    const waited = attemptOf(row.ai_reason, WAIT_BANK);
+    if (bankWaitedMs(waited) >= BANK_CAP_MS) return { ai_reason: `${FAILED}${got.reason}` };
+    return { ai_reason: `${WAIT_BANK}${waited + 1}`, updated_at: new Date().toISOString() };   // the backoff runs from now
   }
+  const n = attemptOf(row.ai_reason) + 1;
+  return { ai_reason: got.retry && n < MAX_ATTEMPTS ? `${RETRY}${n}` : `${FAILED}${got.reason}` };
+}
+
+async function finish(row, got, supabase = db()) {
+  const patch = finishPatch(row, got);
   const { error } = await supabase.from('child_test_blocks').update(patch).eq('id', row.id).eq('ai_reason', MINE).is('ai_marks', null);
   if (error) logError('child_test.sa_score.write_failed', { block: row.block, error: error.message });
   return !error;
@@ -763,5 +778,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { MINE = `${SCORING}:${bootId()}`; swept = false; running = null; skipLogged = 0; }, candidates, claim, finish, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt },
+  __internals: { echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { MINE = `${SCORING}:${bootId()}`; swept = false; running = null; skipLogged = 0; }, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt },
 };
