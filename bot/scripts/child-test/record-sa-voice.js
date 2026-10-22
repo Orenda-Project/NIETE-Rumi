@@ -8,10 +8,12 @@
  *
  * --set v2: the second set (switch sa_voice_v2), one voice per language, both South Asian: English in Priya, Urdu in
  * Ishita (Reyna's accent is South-East Asian in Soniox's own catalogue). Same keys with sa/v2/ for sa/v1/, so the form's
- * keys do not change; the router moves the base. --extra <file.json>: rows ({ key, lang, text, role }) the bank does
+ * keys do not change; the router moves the base. --set v3 (switch sa_voice_tashdeed, Urdu only): the v2 Urdu voice
+ * given each narration with its tashdeed (sa/ur-tashdeed.js), only the lines it changes, into sa/v3/ur/ with the same
+ * keys; the router serves those keys from v3. --extra <file.json>: rows ({ key, lang, text, role }) the bank does
  * not carry yet (the engine's own lines, a content car not landed); a key already in the bank is voiced once.
  *
- *   node scripts/child-test/record-sa-voice.js --lang en|ur [--only item|instruction|…] [--set v1|v2] [--extra <file>]
+ *   node scripts/child-test/record-sa-voice.js --lang en|ur [--only item|instruction|…] [--set v1|v2|v3] [--extra <file>]
  *        [--apply] [--max-usd 1] [--spend-log <file.jsonl> --spend-extra '<json merged into each line>']
  *
  * Without --apply: prints the line count, the characters and the price, and calls nothing. With --apply: one call a
@@ -26,7 +28,8 @@ const DATA = path.join(REPO, 'bot', 'shared', 'data', 'child-test');
 const SONIOX_USD_PER_SEC = 0.722 / 3600;
 const SONIOX_CHARS_PER_SEC = 12;
 const VOICE = 'Reyna';
-const SETS = Object.freeze({ v1: Object.freeze({ en: VOICE, ur: VOICE }), v2: Object.freeze({ en: 'Priya', ur: 'Ishita' }) });
+const SETS = Object.freeze({ v1: Object.freeze({ en: VOICE, ur: VOICE }), v2: Object.freeze({ en: 'Priya', ur: 'Ishita' }),
+  v3: Object.freeze({ ur: 'Ishita' }) });
 const LUFS = -21;
 const KBPS = 32;
 
@@ -54,8 +57,9 @@ function loadBank(dataDir = DATA) {
 async function run(argv, { tts = null, level = null, out = console.log, outDir = path.join(REPO, 'dashboard'), dataDir = DATA, env = process.env } = {}) {
   const args = parseArgs(argv);
   if (!['en', 'ur'].includes(args.lang)) throw new Error('--lang en|ur is required');
-  if (!SETS[args.set]) throw new Error('--set v1|v2');
+  if (!SETS[args.set]) throw new Error('--set v1|v2|v3');
   const voice = SETS[args.set][args.lang];
+  if (!voice) throw new Error(`--set ${args.set} has no ${args.lang} voice`);
   const { voiceManifest } = require('../../shared/services/child-test/sa/voice-manifest');
   const Voice = require('../../shared/services/quiz/web-quiz-voice');
   const rows = voiceManifest(loadBank(dataDir));
@@ -63,9 +67,11 @@ async function run(argv, { tts = null, level = null, out = console.log, outDir =
     const seen = new Set(rows.map((r) => r.key));
     for (const r of JSON.parse(fs.readFileSync(args.extra, 'utf8'))) if (r && r.key && r.text && !seen.has(r.key)) { seen.add(r.key); rows.push(r); }
   }
-  const jobs = rows
+  const { voicedWithTashdeed } = require('../../shared/services/child-test/sa/ur-tashdeed');
+  const lines = args.set === 'v3' ? voicedWithTashdeed(rows) : rows.map((r) => ({ ...r, say: r.text }));
+  const jobs = lines
     .filter((r) => r.lang === args.lang && (!args.only || r.role === args.only))
-    .map((r) => ({ ...r, key: r.key.replace(/^sa\/v1\//, `sa/${args.set}/`), say: Voice.sayAs(r.text, args.lang, { voice }) }));
+    .map((r) => ({ ...r, key: r.key.replace(/^sa\/v1\//, `sa/${args.set}/`), say: Voice.sayAs(r.say, args.lang, { voice }) }));
   const chars = jobs.reduce((n, j) => n + j.say.length, 0);
   const estUsd = (chars / SONIOX_CHARS_PER_SEC) * SONIOX_USD_PER_SEC;
   out(`sa voice set=${args.set} voice=${voice} lang=${args.lang} lines=${jobs.length} chars=${chars} usd≈${estUsd.toFixed(3)}${args.apply ? '' : ' (dry run)'}`);
