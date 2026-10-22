@@ -40,7 +40,9 @@ describe("coaching: copy", () => {
         // bd-i0u6n2 — a video in the recording slot: what it is and what to send instead.
         "notVideo",
         // bd-z3cadk — the bot's repeat-recording message, word for word.
-        "duplicateRecordingLead", "duplicateRecordingNext"].includes(c.path))
+        "duplicateRecordingLead", "duplicateRecordingNext",
+        // bd-c5reix — the same repeat line, said before she sends it.
+        "duplicateBeforeLead"].includes(c.path))
       .filter((c) => copyProblem(c.text))
       .map((c) => `${c.path}: ${c.text}`);
     expect(bad).toEqual([]);

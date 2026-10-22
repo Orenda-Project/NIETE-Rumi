@@ -109,3 +109,34 @@ export function dcKpiItems(h: Pick<DcHistory, 'kpis' | 'trend' | 'items'>, C: Co
     tile(h.kpis.reports, C.kpiReports),
   ];
 }
+
+/**
+ * bd-c5reix — a classroom recording she sent on WhatsApp, kept by the bot and waiting for her here
+ * (GET /coaching-upload/pending). `duplicateOf`: she has sent the same bytes before — that DC observation.
+ */
+export type PendingRecording = {
+  key: string;
+  id: string;
+  seconds: number | null;
+  receivedAt: string;
+  listenUrl: string | null;
+  duplicateOf: { sessionId: string; date: string; ready?: boolean } | null;
+};
+
+/** Her waiting recordings, newest first. A failed read throws (the page then shows none, as it would for zero). */
+export async function loadPending(): Promise<PendingRecording[]> {
+  const { data } = await api.get('/coaching-upload/pending');
+  if (!data || data.success === false || !Array.isArray(data.recordings)) throw new Error('pending unavailable');
+  return data.recordings as PendingRecording[];
+}
+
+/** Has she sent these bytes before? null when not — or when nobody could say (the server's own dedupe still stands). */
+export async function sentBefore(sha256: string): Promise<PendingRecording['duplicateOf']> {
+  try {
+    const res = await api.post('/coaching-upload/check-duplicate', { sha256 });
+    const dup = res && res.data && res.data.duplicateOf;
+    return dup && typeof dup.sessionId === 'string' ? dup : null;
+  } catch {
+    return null;
+  }
+}
