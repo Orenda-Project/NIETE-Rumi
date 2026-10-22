@@ -9,7 +9,7 @@ import type { SaSwitches } from '../../types/childTestSa';
  */
 
 export const SWITCHES_OFF: SaSwitches = {
-  handbackV2: false, micRequired: false, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: false, resumeRepick: false, allGrades: false,
+  handbackV2: false, micRequired: false, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: false, resumeRepick: false, allGrades: false, addChild: false,
 };
 
 export function useSaSwitches(enabled: boolean | null): SaSwitches {
@@ -30,6 +30,7 @@ export function useSaSwitches(enabled: boolean | null): SaSwitches {
           voiceGateV2: s.voiceGateV2 === true,
           resumeRepick: s.resumeRepick === true,
           allGrades: s.allGrades === true,
+          addChild: s.addChild === true,
         });
       })
       .catch(() => { /* off */ });

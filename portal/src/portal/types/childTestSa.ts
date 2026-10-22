@@ -30,6 +30,8 @@ export type SaSwitches = {
   resumeRepick?: boolean;
   /** sa_all_grades: the coach names Grade 1–5 after the school */
   allGrades?: boolean;
+  /** sa_add_child: the coach can add a child who is not on the roster to the open list */
+  addChild?: boolean;
   /** sa_example_dashboard: the example results dashboard (synthetic students); the server reports it on sandbox only */
   exampleDashboard?: boolean;
 };

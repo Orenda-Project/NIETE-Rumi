@@ -1303,6 +1303,13 @@ export const childTestSa = {
   /** The page's own switches for this coach (each off unless its app_settings row names them). */
   getSwitches: async (): Promise<SaSwitches> => (await api.get(`${CTS}/switches`)).data.switches,
 
+  /** sa_add_child: seat a child who is not on the roster on the open list; the server answers with the list. */
+  addChild: async (args: { schoolId: string; visitId?: string | null; grade: number; listGrade?: number; firstName: string; section?: string | null; clientChildId: string }):
+    Promise<{ list: SaList }> => {
+    const { visitId, ...rest } = args;
+    return (await api.post(`${CTS}/child`, visitId ? { ...rest, visitId } : rest)).data;
+  },
+
   getList: async (schoolId: string, visitId?: string | null, grade?: number): Promise<{ list: SaList }> =>
     (await api.get(`${CTS}/list`, { params: { schoolId, ...(visitId ? { visitId } : {}), ...(grade ? { grade } : {}) } })).data,
 
