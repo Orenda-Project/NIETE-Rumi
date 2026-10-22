@@ -92,6 +92,11 @@ function errorOf(err: unknown): { reason: string | null; network: boolean } {
   return { reason: r?.data?.reason || null, network: !r };
 }
 
+/** A school name for the filter: lower case, no accents or Urdu diacritics (sa_all_grades' "Find a school"). */
+function plain(s: string) {
+  return s.normalize('NFD').replace(/[\u0300-\u036f\u064B-\u065F\u0670]/g, '').toLowerCase().trim();
+}
+
 function todaysFirst(schools: SaSchool[]) {
   return [...schools].sort((a, b) => Number(b.visitToday) - Number(a.visitToday));
 }
@@ -104,6 +109,7 @@ export default function LeaderAssess() {
   const copy = COPY[lang];
   const [step, setStep] = useState<Step>({ kind: 'schools' });
   const [schools, setSchools] = useState<SaSchool[] | null>(null);
+  const [schoolFilter, setSchoolFilter] = useState('');
   const [list, setList] = useState<SaList | null>(null);
   const [problem, setProblem] = useState<Problem | null>(null);
   const [offline, setOffline] = useState(false);
@@ -572,7 +578,17 @@ export default function LeaderAssess() {
         : (
           <div className="space-y-3">
             <h2 className="font-semibold text-slate-800">{copy.chooseSchool}</h2>
-            {schools.map((s) => (
+            {switches.allGrades && (
+              <div className="space-y-1">
+                <input type="search" data-testid="assess-school-filter" aria-label={copy.findSchool} placeholder={copy.findSchool}
+                  value={schoolFilter} onChange={(e) => setSchoolFilter(e.target.value)}
+                  className="w-full min-h-[56px] rounded-2xl border border-slate-300 bg-white px-4 text-base" />
+                <p data-testid="assess-school-count" className="text-sm text-slate-600">
+                  {copy.schoolCount(schools.filter((s) => plain(s.name || '').includes(plain(schoolFilter))).length, schools.length)}
+                </p>
+              </div>
+            )}
+            {schools.filter((s) => !switches.allGrades || s.visitToday || plain(s.name || '').includes(plain(schoolFilter))).map((s) => (
               <button key={s.schoolId} type="button" data-testid={`assess-school-${s.schoolId}`} onClick={() => pickSchool(s)}
                 className={`w-full min-h-[56px] rounded-2xl border p-4 text-start flex items-center justify-between gap-2 ${s.visitToday ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
                 <span className="min-w-0">
@@ -589,7 +605,7 @@ export default function LeaderAssess() {
       <fieldset data-testid="assess-grade-choice" className="space-y-3">
         <legend className="font-semibold text-slate-800">{copy.whichGrade}</legend>
         <p className="break-words text-slate-700">{step.school.name || '—'}</p>
-        <div className="grid grid-cols-5 gap-2">
+        <div data-testid="assess-grade-row" dir={lang === 'ur' ? 'rtl' : 'ltr'} className="grid grid-cols-5 gap-2">
           {GRADE_CHOICES.map((g) => (
             <button key={g} type="button" onClick={() => pickSchool({ ...step.school, grade: g })}
               className="min-h-[56px] rounded-2xl border border-slate-200 bg-white px-1 text-sm font-semibold leading-tight text-slate-900">{copy.grade(g)}</button>
