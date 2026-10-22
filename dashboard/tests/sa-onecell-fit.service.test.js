@@ -69,7 +69,7 @@ maybe('every Urdu letter and word, one at a time, sits inside its card', () => {
       const ctx = document.createElement('canvas').getContext('2d');
       ctx.font = cs.font; ctx.direction = 'ltr'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       const m = ctx.measureText(text);
-      const range = document.createRange(); range.selectNodeContents(cell);
+      const range = document.createRange(); range.selectNodeContents(cell.querySelector('.sae-onecell-ink') || cell);
       const t = range.getBoundingClientRect();
       const lines = new Set(Array.from(range.getClientRects()).map((x) => Math.round(x.top))).size;
       const base = t.top + m.fontBoundingBoxAscent;
