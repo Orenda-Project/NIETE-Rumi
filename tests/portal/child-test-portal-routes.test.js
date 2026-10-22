@@ -253,9 +253,40 @@ describe('the Learning assessment\'s page switches (sa/switches)', () => {
     expect(out.statusCode).toBe(200);
     expect(out.payload).toEqual({
       success: true,
-      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true },
+      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true, exampleDashboard: false },
     });
     expect(axiosPost).not.toHaveBeenCalled();
+  });
+
+  describe('the example dashboard (synthetic data): sandbox only', () => {
+    const prevEnv = process.env.RAILWAY_ENVIRONMENT_NAME;
+    afterEach(() => {
+      if (prevEnv === undefined) delete process.env.RAILWAY_ENVIRONMENT_NAME;
+      else process.env.RAILWAY_ENVIRONMENT_NAME = prevEnv;
+    });
+    const on = () => tableRows.app_settings.push(
+      { key: 'portal_child_test_sa', value: true },
+      { key: 'sa_example_dashboard', value: true },
+    );
+
+    test('on the sandbox host its row turns it on', async () => {
+      process.env.RAILWAY_ENVIRONMENT_NAME = 'sandbox';
+      on();
+      expect((await invoke(ROUTES, 'get', '/sa/switches')).payload.switches.exampleDashboard).toBe(true);
+    });
+
+    test.each([['production'], ['staging'], [undefined]])('with a %s config it is off, even when its row is on', async (envName) => {
+      if (envName === undefined) delete process.env.RAILWAY_ENVIRONMENT_NAME;
+      else process.env.RAILWAY_ENVIRONMENT_NAME = envName;
+      on();
+      expect((await invoke(ROUTES, 'get', '/sa/switches')).payload.switches.exampleDashboard).toBe(false);
+    });
+
+    test('on the sandbox host without its row it is off', async () => {
+      process.env.RAILWAY_ENVIRONMENT_NAME = 'sandbox';
+      tableRows.app_settings.push({ key: 'portal_child_test_sa', value: true });
+      expect((await invoke(ROUTES, 'get', '/sa/switches')).payload.switches.exampleDashboard).toBe(false);
+    });
   });
 });
 
