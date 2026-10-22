@@ -271,3 +271,8 @@ button{font:inherit;color:inherit}
 /* RULING W3-19: the official Urdu page's pitch (≈ 150 px on a ≈ 60 px glyph), so Nastaliq lines never collide */
 .sae-passage.is-printed[lang=ur]{word-spacing:.35em;line-height:2.45}
 @media (max-width:360px){.sae-passage.is-printed{font-size:23px}.sae-passage.is-printed[lang=ur]{font-size:25px}}
+/* sa_coach_last_word: the coach's screen fits the phone (the word box scrolls inside it), so the page never scrolls the
+   heading up under the portal's corner "End test" hold. */
+.sae-screen.sae-lastword.is-coach{max-height:100vh;max-height:100dvh}
+.sae-lastword.is-coach .sae-body{min-height:0;justify-content:flex-start}
+.sae-lastword.is-coach .sae-passage.is-pick{flex:0 1 auto;min-height:150px;max-height:none}
