@@ -158,6 +158,25 @@ describe("LeaderAssessResults", () => {
     expect(within(await card("ur.story")).getByText("پہلی سطر کا کوئی لفظ درست نہیں پڑھا گیا۔")).toBeTruthy();
   });
 
+  it("a recording where another voice was heard is flagged: a note at the top and on its card (EN + UR); none otherwise", async () => {
+    const heard = { taskId: "ur.story_w3", mode: "record", attempted: null, correct: null, optionsN: null, chanceCorrected: null, itemsPerMin: null, stopReason: "time_up", recording: "scored", score: { correct: 40 }, secondVoice: true };
+    api.getResults.mockResolvedValue({ ...RESULTS, tasks: [...RESULTS.tasks, heard] });
+    const { unmount } = renderAt();
+    expect(await screen.findByTestId("results-second-voice")).toHaveTextContent(/Another person's voice was heard in 1 recording/);
+    const card = screen.getByTestId("result-task-ur.story_w3");
+    expect(within(card).getByText("Another voice heard")).toBeTruthy();
+    expect(within(screen.getByTestId("result-task-ur.listening")).queryByText("Another voice heard")).toBeNull();
+    unmount();
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    const { unmount: un2 } = renderAt();
+    expect(await screen.findByTestId("results-second-voice")).toHaveTextContent(/کسی اور کی آواز/);
+    un2();
+    api.getResults.mockResolvedValue(RESULTS);
+    renderAt();
+    await screen.findByTestId("result-task-ur.listening");
+    expect(screen.queryByTestId("results-second-voice")).toBeNull();
+  });
+
   it("Urdu: right to left, Urdu digits for the scores", async () => {
     window.localStorage.setItem("niete-assess-lang", "ur");
     renderAt();
