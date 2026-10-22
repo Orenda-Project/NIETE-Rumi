@@ -46,6 +46,9 @@ let settings;
 let events;
 let lessonPdf;
 let requestStatus;
+let requestLesson;
+// How a table read behaves: undefined = answers from the fixture; 'hang' = never answers; { error } = answers an error.
+let tableFault;
 
 function supabaseStub() {
   const lookup = (table, eqs) => {
@@ -60,7 +63,12 @@ function supabaseStub() {
         select: () => q,
         eq: (c, v) => { eqs[c] = v; return q; },
         in: () => q,
-        maybeSingle: async () => ({ data: lookup(table, eqs), error: null }),
+        maybeSingle: async () => {
+          const fault = tableFault[table];
+          if (fault === 'hang') return new Promise(() => {});
+          if (fault) return { data: null, error: fault };
+          return { data: lookup(table, eqs), error: null };
+        },
         single: async () => ({ data: lookup(table, eqs), error: null }),
       };
       return q;
@@ -93,6 +101,7 @@ beforeEach(() => {
   settings = { portal_fln_lessons: true, fln_corpus_version: VERSION };
   queries = [];
   events = [];
+  tableFault = {};
 
   axios = require('axios');
   axios.post.mockReset();
@@ -100,9 +109,14 @@ beforeEach(() => {
 
   lessonPdf = jest.fn(async () => ({ url: SIGNED, asset_kind: 'lesson', version_stamp: 'v8' }));
   requestStatus = jest.fn(async () => ({ state: 'ready', url: SIGNED_612, segmentId: SEGMENT, lang: 'en' }));
+  requestLesson = jest.fn(async () => ({ state: 'ready', renderId: RENDER }));
 
   jest.doMock('../../dashboard/config/database', () => ({
-    query: jest.fn(async (sql, params) => { queries.push({ sql, params }); return { rows: [{ id: 'open-1' }] }; }),
+    query: jest.fn(async (sql, params) => {
+      queries.push({ sql, params });
+      if (tableFault.niete_lp612_deliveries && /UPDATE niete_lp612_deliveries/.test(sql)) throw new Error('connection reset');
+      return { rows: [{ id: 'open-1' }] };
+    }),
   }));
   jest.doMock('../../dashboard/config/supabase', () => supabaseStub());
   jest.doMock('../../dashboard/services/telemetry.service', () => ({
@@ -117,7 +131,7 @@ beforeEach(() => {
   }));
   jest.doMock('../../dashboard/services/lp612.service', () => ({
     listGrades: jest.fn(), listSubjects: jest.fn(), listChapters: jest.fn(), listLessons: jest.fn(),
-    requestLesson: jest.fn(), requestStatus, myLessons: jest.fn(),
+    requestLesson, requestStatus, myLessons: jest.fn(),
   }));
   jest.doMock('bcryptjs', () => ({ hash: jest.fn(), compare: jest.fn(), genSalt: jest.fn() }), { virtual: true });
   jest.doMock('express-rate-limit', () => jest.fn(() => (_req, _res, next) => next()), { virtual: true });
@@ -164,13 +178,13 @@ async function settle(n = 12) {
   }
 }
 
-async function invoke(userId, routePath, { params = {}, query = {} } = {}) {
+async function invoke(userId, routePath, { params = {}, query = {}, method = 'get', body = {} } = {}) {
   const routes = require('../../dashboard/routes/portal.routes');
-  const stack = findRoute(routes, 'get', routePath);
-  if (!stack) throw new Error(`Route GET ${routePath} not found`);
+  const stack = findRoute(routes, method, routePath);
+  if (!stack) throw new Error(`Route ${method.toUpperCase()} ${routePath} not found`);
   const req = {
     session: { portalUserId: userId, id: 'sess-1' },
-    params, query, body: {}, method: 'GET', path: routePath, ip: '127.0.0.1', headers: {}, get: () => undefined,
+    params, query, body, method: method.toUpperCase(), path: routePath, ip: '127.0.0.1', headers: {}, get: () => undefined,
   };
   const res = makeRes();
   const finished = new Promise((resolve) => { res.on('finish', resolve); res.on('close', resolve); });
@@ -199,12 +213,13 @@ describe('a leader opening a grades 1-5 plan', () => {
   test.each([
     ['the viewer (/file)', K5_FILE, 'viewer'],
     ['another app (/pdf)', K5_PDF, 'external'],
-  ])('%s: no open row, no survey, no teacher named to the PDF lookup — one lp.leader_open', async (_n, [path, opts], source) => {
+  ])('%s: no open row, no survey, the PDF asked for AS A LEADER — one lp.leader_open', async (_n, [path, opts], source) => {
     const res = await invoke(COACH, path, opts);
     expect(res.statusCode).toBe(200);
     expect(lessonPdf).toHaveBeenCalledTimes(1);
-    // Named to nobody: the bot's lp/v8/pdf records no lifecycle row and picks no A/B group without a user.
-    expect(lessonPdf).toHaveBeenCalledWith(K5, 'lesson', null);
+    // Named as a READER (second commit): the bot serves the plan of the leader's school (its A/B arms, the v10
+    // card) and records no lifecycle row and no plan_served event for it.
+    expect(lessonPdf).toHaveBeenCalledWith(K5, 'lesson', COACH, { reader: 'leader' });
     expect(openRows()).toHaveLength(0);
     expect(surveyCalls()).toHaveLength(0);
     expect(leaderOpens()).toEqual([{ userId: COACH, role: 'coach', kind: 'k5', ref: K5, source }]);
@@ -213,7 +228,7 @@ describe('a leader opening a grades 1-5 plan', () => {
   test('the answer key is the same: read, never logged as hers', async () => {
     const res = await invoke(AEO, '/curriculum/lp/:lesson_id/file', { params: { lesson_id: K5 }, query: { kind: 'answer_key' } });
     expect(res.statusCode).toBe(200);
-    expect(lessonPdf).toHaveBeenCalledWith(K5, 'answer_key', null);
+    expect(lessonPdf).toHaveBeenCalledWith(K5, 'answer_key', AEO, { reader: 'leader' });
     expect(openRows()).toHaveLength(0);
     expect(leaderOpens()).toEqual([{ userId: AEO, role: 'aeo', kind: 'k5', ref: K5, source: 'viewer' }]);
   });
@@ -242,7 +257,7 @@ describe('who counts as a leader is the server\'s call', () => {
   test('a principal NOT on the teacher app is a leader', async () => {
     settings.portal_teacher_v2 = [TEACHER];
     await invoke(PRINCIPAL, ...K5_FILE);
-    expect(lessonPdf).toHaveBeenCalledWith(K5, 'lesson', null);
+    expect(lessonPdf).toHaveBeenCalledWith(K5, 'lesson', PRINCIPAL, { reader: 'leader' });
     expect(openRows()).toHaveLength(0);
     expect(leaderOpens()).toEqual([{ userId: PRINCIPAL, role: 'principal', kind: 'k5', ref: K5, source: 'viewer' }]);
   });
@@ -281,6 +296,73 @@ describe('a teacher\'s open is exactly today\'s (golden)', () => {
     expect(surveyCalls()[0][1]).toEqual({ openId: 'open-1' });
     expect(leaderOpens()).toEqual([]);
     expect(claimOpened()).toHaveLength(0);
+  });
+});
+
+/* ── second commit: the role read can never hold a teacher's plan, and every way it fails is a teacher ───────── */
+
+describe('the role read is bounded and fails to the teacher path', () => {
+  test('a role read that NEVER answers: a teacher\'s plan still opens in under 3 s, as a teacher open', async () => {
+    tableFault.users = 'hang';
+    const t0 = Date.now();
+    let res = null;
+    invoke(TEACHER, ...K5_FILE).then((r) => { res = r; });
+    for (let i = 0; i < 40 && !res; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, 75));
+    }
+    expect(res).not.toBeNull();
+    expect(Date.now() - t0).toBeLessThan(3000);
+    expect(res.statusCode).toBe(200);
+    expect(lessonPdf).toHaveBeenCalledWith(K5, 'lesson', TEACHER);
+    expect(openRows()).toHaveLength(1);
+    expect(leaderOpens()).toEqual([]);
+  }, 10000);
+
+  test('a role read that answers an ERROR: 200, a teacher open (open row + survey), never a leader event', async () => {
+    tableFault.users = { message: 'connection reset' };
+    const res = await invoke(TEACHER, ...K5_FILE);
+    expect(res.statusCode).toBe(200);
+    expect(lessonPdf).toHaveBeenCalledWith(K5, 'lesson', TEACHER);
+    expect(openRows()).toHaveLength(1);
+    expect(surveyCalls()).toHaveLength(1);
+    expect(leaderOpens()).toEqual([]);
+    expect(console.warn).toHaveBeenCalledWith(expect.stringMatching(/role could not be read/), expect.any(Object));
+  });
+
+  test('a principal whose teacher-app switch cannot be read is a TEACHER (unreadable = teacher), not a leader', async () => {
+    tableFault.app_settings = { message: 'statement timeout' };
+    const res = await invoke(PRINCIPAL, ...K5_FILE);
+    expect(res.statusCode).toBe(200);
+    expect(lessonPdf).toHaveBeenCalledWith(K5, 'lesson', PRINCIPAL);
+    expect(openRows()).toHaveLength(1);
+    expect(leaderOpens()).toEqual([]);
+  });
+
+  test('a leader\'s 6-12 open whose "opened" mark FAILS: still 200, the event still logged, the failure said at error level', async () => {
+    tableFault.niete_lp612_deliveries = true;
+    const res = await invoke(COACH, ...G612_FILE);
+    expect(res.statusCode).toBe(200);
+    expect(claimOpened()).toHaveLength(1);
+    expect(openRows()).toHaveLength(0);
+    expect(leaderOpens()).toEqual([{ userId: COACH, role: 'coach', kind: 'g612', ref: SEGMENT, source: 'viewer' }]);
+    expect(console.error).toHaveBeenCalledWith(expect.stringMatching(/not marked opened/), expect.any(Object));
+  });
+});
+
+describe('a leader asking for a 6-12 plan is not a teacher\'s ask', () => {
+  const REQUEST = ['/lp612/request', { method: 'post', body: { segment_id: SEGMENT, lang: 'en' } }];
+
+  test('the ask goes to the bot AS A LEADER (no lifecycle row there; the claim is still written)', async () => {
+    const res = await invoke(COACH, ...REQUEST);
+    expect(res.statusCode).toBe(202);
+    expect(requestLesson).toHaveBeenCalledWith(SEGMENT, COACH, 'en', { reader: 'leader' });
+  });
+
+  test('a teacher\'s ask is exactly today\'s', async () => {
+    const res = await invoke(TEACHER, ...REQUEST);
+    expect(res.statusCode).toBe(202);
+    expect(requestLesson).toHaveBeenCalledWith(SEGMENT, TEACHER, 'en');
   });
 });
 

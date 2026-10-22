@@ -131,12 +131,18 @@ const COACH_DISAGREEMENT_CARD_KEY = 'coach_disagreement_card';
  * well-formed value. An object, a number or an empty list is OFF, and a pilot
  * list never matches a missing user.
  *
+ * `strict` (bd-4joiqz): a READ that fails throws instead of answering OFF, for the one caller whose safe answer
+ * to "unknown" is not "off" (lp-reader: a principal ON the teacher app is a teacher, so a switch it cannot read
+ * must not class her as a leader). No row, and every value above, answer exactly as without it. Default off:
+ * every other caller is unchanged.
+ *
  * @param {object} supabase
  * @param {string} key app_settings.key
  * @param {string|null} userId the SESSION user
+ * @param {{ strict?: boolean }} [opts]
  * @returns {Promise<boolean>}
  */
-async function isFlagEnabledForUser(supabase, key, userId) {
+async function isFlagEnabledForUser(supabase, key, userId, { strict = false } = {}) {
   if (!userId) return false;
   try {
     const { data, error } = await supabase
@@ -144,6 +150,7 @@ async function isFlagEnabledForUser(supabase, key, userId) {
       .select('value')
       .eq('key', key)
       .maybeSingle();
+    if (error && strict) throw new Error(error.message || 'app_settings read failed');
     if (error || !data) return false;
 
     let value = data.value;
@@ -152,11 +159,12 @@ async function isFlagEnabledForUser(supabase, key, userId) {
     }
     if (value === true) return true;
     // `await` so a failed read lands in the catch below (OFF), never in the caller.
-    if (isTeachersValue(value)) return await isTeacherUser(supabase, userId);
+    if (isTeachersValue(value)) return await isTeacherUser(supabase, userId, { strict });
     if (typeof value === 'string') return value.trim().toLowerCase() === 'true';
     if (Array.isArray(value)) return value.some((id) => typeof id === 'string' && id === userId);
     return false;
-  } catch (_) {
+  } catch (error) {
+    if (strict) throw error;
     return false;
   }
 }
@@ -187,13 +195,14 @@ async function isCoachAppUser(supabase, userId) {
   }
 }
 
-/** bd-fmf24g.46 — is this user a teacher (users.role)? No row or a failed read is no. */
-async function isTeacherUser(supabase, userId) {
+/** bd-fmf24g.46 — is this user a teacher (users.role)? No row or a failed read is no (`strict`: a failed read throws). */
+async function isTeacherUser(supabase, userId, { strict = false } = {}) {
   const { data, error } = await supabase
     .from('users')
     .select('role')
     .eq('id', userId)
     .maybeSingle();
+  if (error && strict) throw new Error(error.message || 'users read failed');
   if (error || !data) return false;
   return isTeacherRole(data.role);
 }
