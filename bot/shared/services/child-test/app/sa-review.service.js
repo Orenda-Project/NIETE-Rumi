@@ -69,6 +69,13 @@ function clipLabel(key, taskId) {
   return q ? q[1] : (base || taskId);
 }
 
+// A recording is a key string, or { i, key } per question on a comprehension row ('ur.story_w3.q1' or 1 as i).
+const clipOf = (k) => (k && typeof k === 'object' ? { key: k.key || null, i: k.i == null ? null : k.i } : { key: k || null, i: null });
+function labelOf(k, taskId) {
+  const q = k.i == null ? null : String(k.i).match(/(?:^|[._])q?([0-9]+)$/);
+  return q ? `q${q[1]}` : clipLabel(k.key, taskId);
+}
+
 /** The agents' marks as the page reads them: marks and numbers only. */
 function agentsOut(a) {
   if (!a || typeof a !== 'object') return null;
@@ -153,9 +160,9 @@ function saReview(args = {}, deps = {}) {
     const fixAt = (await rd.settings.fixAt()) || null;
     const tasks = [];
     for (const r of rows) {
-      const keys = [r.audio_r2_key, ...(Array.isArray(r.audio_r2_keys) ? r.audio_r2_keys : [])].filter(Boolean);
+      const keys = [r.audio_r2_key, ...(Array.isArray(r.audio_r2_keys) ? r.audio_r2_keys : [])].map(clipOf).filter((k) => k.key);
       // eslint-disable-next-line no-await-in-loop
-      const clips = await Promise.all(keys.map(async (k) => ({ label: clipLabel(k, r.block), url: await d.r2.presignKey(k, CLIP_TTL_S) })));
+      const clips = await Promise.all(keys.map(async (k) => ({ label: labelOf(k, r.block), url: await d.r2.presignKey(k.key, CLIP_TTL_S) })));
       tasks.push(shapeTask(r, got.reviews || [], userId, fixAt, clips));
     }
     const start = Date.parse(session.started_at || '');

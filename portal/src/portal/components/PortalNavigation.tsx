@@ -43,7 +43,6 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
   // leader family). It wins over the new UI. Off, loading, unreadable, or not a teacher:
   // the markup below, unchanged.
   const teacherV2 = isTeacherV2For(user, useTeacherV2(user?.phoneNumber || null));
-  const childTestOn = useChildTest() === true;
   const currentPath = location.pathname;
 
   // bd-2434 (Leader Portal): the school-leader family gets the leader nav

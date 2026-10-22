@@ -14,7 +14,10 @@ jest.mock('../../../bot/shared/services/whatsapp.service', () => ({
   sendFlow: jest.fn(() => Promise.resolve(true)),
   sendInteractiveButtons: jest.fn(() => Promise.resolve(true)),
 }));
-jest.mock('../../../bot/shared/services/observe/observe-debrief.service', () => ({ displayTimeZone: () => 'Asia/Karachi' }));
+jest.mock('../../../bot/shared/services/observe/observe-debrief.service', () => ({
+  displayTimeZone: () => 'Asia/Karachi',
+  buildDebriefChoiceButtons: () => ({ body: 'Debrief now or later?', buttons: [{ id: 'debrief_now', title: 'Now' }] }),
+}));
 
 const WhatsAppService = require('../../../bot/shared/services/whatsapp.service');
 const Store = require('../../../bot/shared/services/observe/observe2/field-form.store');
@@ -85,13 +88,15 @@ describe('the offer after the brief', () => {
     await Check.handleObserve2CheckDataExchange(token(id), 'PRIORITY', { screen: 'PRIORITY', priority_final: 'C2', why: '' });
     await flush();
     expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);           // the brief
-    expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
-    const [to, msg] = WhatsAppService.sendInteractiveButtons.mock.calls[0];
+    // On this branch the saved line is followed by the debrief buttons, then the offer.
+    const offerAt = WhatsAppService.sendInteractiveButtons.mock.calls.findIndex(([, m]) => /Test 5 children now/.test(m.body));
+    expect(offerAt).toBeGreaterThanOrEqual(0);
+    const [to, msg] = WhatsAppService.sendInteractiveButtons.mock.calls[offerAt];
     expect(to).toBe('923000000001');
     expect(msg.body).toMatch(/Test 5 children now\? About 25 minutes/);
     expect(msg.buttons.map((b) => b.id)).toEqual([`ctst_offer:f:${id}`, `ctst_later:f:${id}`]);
     const briefOrder = WhatsAppService.sendMessage.mock.invocationCallOrder[0];
-    expect(WhatsAppService.sendInteractiveButtons.mock.invocationCallOrder[0]).toBeGreaterThan(briefOrder);
+    expect(WhatsAppService.sendInteractiveButtons.mock.invocationCallOrder[offerAt]).toBeGreaterThan(briefOrder);
   });
 
   test('kept separate (CHILD_TEST_OBSERVE_LINK unset): the brief only, no child-test offer', async () => {
@@ -102,7 +107,7 @@ describe('the offer after the brief', () => {
     await Check.handleObserve2CheckDataExchange(token(id), 'PRIORITY', { screen: 'PRIORITY', priority_final: 'C2', why: '' });
     await flush();
     expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
-    expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendInteractiveButtons.mock.calls.some(([, m]) => /Test 5 children now/.test(m.body))).toBe(false);
   });
 
   test('gated off: the brief only', async () => {
@@ -112,7 +117,7 @@ describe('the offer after the brief', () => {
     await Check.handleObserve2CheckDataExchange(token(id), 'PRIORITY', { screen: 'PRIORITY', priority_final: 'C2', why: '' });
     await flush();
     expect(WhatsAppService.sendMessage).toHaveBeenCalledTimes(1);
-    expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendInteractiveButtons.mock.calls.some(([, m]) => /Test 5 children now/.test(m.body))).toBe(false);
   });
 
   test('a teacher observer (not a coach) gets no offer', async () => {
@@ -123,6 +128,6 @@ describe('the offer after the brief', () => {
     await toPriority(id);
     await Check.handleObserve2CheckDataExchange(token(id), 'PRIORITY', { screen: 'PRIORITY', priority_final: 'C2', why: '' });
     await flush();
-    expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendInteractiveButtons.mock.calls.some(([, m]) => /Test 5 children now/.test(m.body))).toBe(false);
   });
 });

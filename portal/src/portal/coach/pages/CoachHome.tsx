@@ -1,3 +1,4 @@
+import { ClipboardCheck } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { coach } from "../../services/api";
 import TeacherPage from "../../teacher/TeacherPage";
