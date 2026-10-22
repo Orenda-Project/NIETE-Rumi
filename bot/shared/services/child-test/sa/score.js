@@ -63,6 +63,11 @@
  * last: 2.5 s after its screen moved on), and marked as a per-item clip is (the gate, the echo check, one item per
  * call). An item with no mark is no answer. Without usable marks the clip is scored whole. Rows without rec_section
  * are unchanged.
+ *
+ * The coach confirms the last word read (the phone's sa_coach_last_word; OFF by default): a passage whose result says
+ * last_word_how ('confirm' | 'tap') takes words attempted from the recording, the last word the model heard read; the
+ * coach's word is the cross-check (last_word_check 'differ' when they are more than one line apart). A recording with
+ * no speech falls back to the coach's word, flagged. Without last_word_how the coach's tap counts (RULING #2).
  */
 
 const { logToFile, logError } = require('../../../utils/logger');
@@ -520,7 +525,28 @@ async function scorePassage(task, rec, row, res, deps, calls) {
   const tapped = res && Number.isInteger(res.last_word_index) ? Math.min(tokens.length, res.last_word_index + 1) : null;
   const line1 = (p.lines || [])[0];
   const stopped = (rec.stop || {}).type === 'first_line' && line1 ? firstRowStopped(rows, line1.to - line1.from + 1) : false;
-  return { numbers: timedNumbers(rows, res, { stopped, attemptedTo: tapped }), rows, stopped, durationSec: clip.durationSec, tapped };
+  const lastWord = res && typeof res.last_word_how === 'string' ? lastWordOf(rows, tapped, p.lines) : null;
+  const attemptedTo = lastWord ? lastWord.attempted : tapped;
+  return { numbers: timedNumbers(rows, res, { stopped, attemptedTo }), rows, stopped, durationSec: clip.durationSec, tapped, lastWord };
+}
+
+/**
+ * sa_coach_last_word: the last word read, from the recording (the model's last word not "not reached"); the coach's
+ * confirmed word is the cross-check. A recording with no speech uses the coach's word. 'differ' when the two are more
+ * than one line apart (lines: the passage's { from, to } word ranges, 0-based; without them, 10 words a line).
+ */
+function lastWordOf(rows, tapped, lines) {
+  let heard = 0;
+  rows.forEach((r) => { if (r.verdict !== 'not_reached') heard = r.i; });
+  const mute = rows.length > 0 && rows.every((r) => r.no_speech);
+  const lineOf = (n) => {
+    if (!(n > 0)) return 0;
+    const at = (lines || []).findIndex((l) => n - 1 >= l.from && n - 1 <= l.to);
+    return at >= 0 ? at + 1 : Math.ceil(n / 10);
+  };
+  const differ = tapped == null ? false : (mute ? heard !== tapped : Math.abs(lineOf(heard) - lineOf(tapped)) > 1);
+  const useCoach = mute && tapped != null;
+  return { attempted: useCoach ? tapped : heard, heard, source: useCoach ? 'coach' : 'recording', check: tapped == null ? null : differ ? 'differ' : 'agree' };
 }
 
 async function scoreQuestions(task, rec, row, res, deps, calls) {
@@ -714,6 +740,7 @@ async function scoreRow(row, session, deps = {}) {
           ...(stops && out.gated ? { gated: true, raw: out.raw } : {}),
           ...(stops && Array.isArray(rec.questions) ? { of_all: rec.questions.length, of_asked: out.asked ?? out.rows.length } : {}),
           ...(out.tapped != null ? { last_word_tapped: out.tapped } : {}),
+          ...(out.lastWord ? { last_word_source: out.lastWord.source, last_word_heard: out.lastWord.heard, ...(out.lastWord.check ? { last_word_check: out.lastWord.check } : {}) } : {}),
           ...(out.section ? { section: true } : {}),
           confidence,
           ...(heard ? { second_voice: heard.some((v) => v.heard === true), second_voice_clips: heard.filter((v) => v.heard === true).length, second_voice_checked: heard.filter((v) => v.heard !== null).length } : {}),
