@@ -676,4 +676,7 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
       { reason: 'needs two teachers\' voice notes processed by one container in the same millisecond — no lane can race '
           + 'two senders that tightly; pinned by tests/handlers/voice-note-temp-collision.test.js (real handler + '
           + 'AudioService, Date.now pinned) and tests/handlers/audio-service-temp-collision.test.js' }, 0);
+
+  // bd-7g913e: this scenario carried @COA72, which sandbox's survey 🙏 scenario also uses; it is COA96 on both branches.
+  rec('COA96', 'The lesson-plan list says a photo, a PDF, or typing the plan all work', 'BLOCKED', { reason: 'no driver yet: this scenario never had driver code of its own (it shared @COA72 on sandbox until bd-7g913e); this placeholder only makes it visible in every run, it is not coverage' }, 0);
 };
