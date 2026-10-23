@@ -34,18 +34,26 @@ async function currentCard(lessonId) {
   return data || null;
 }
 
-/** The asset to send for this teacher: the card for plan arm v10, else `lesson`. Never throws. */
-async function servedFor({ userId, lessonId, lesson, channel }) {
+/**
+ * The asset to send for this teacher: the card for plan arm v10, else `lesson`. Never throws.
+ *
+ * bd-4joiqz — `reader: 'leader'`: a coach, principal, AEO… READING the plan in the portal. They get exactly what a
+ * teacher of their school gets (the card in a plan-arm school), but it is not logged as lp.v10.plan_served: that event
+ * counts plans served to the test's teachers, and a leader's read is not one.
+ */
+async function servedFor({ userId, lessonId, lesson, channel, reader = null }) {
   if (!lesson) return null;
   try {
     const arms = await groupFor(userId);
     if (!arms) return lesson;
     const card = arms.plan === 'v10' ? await currentCard(lessonId) : null;
     const { asset, served } = pickServed({ plan: arms.plan, lesson, card });
-    logEvent(EVENT, {
-      userId, lessonId, channel, group: arms.group, plan: arms.plan, served,
-      cardAssetId: card ? card.id : null, lessonAssetId: lesson.id || null,
-    });
+    if (reader !== 'leader') {
+      logEvent(EVENT, {
+        userId, lessonId, channel, group: arms.group, plan: arms.plan, served,
+        cardAssetId: card ? card.id : null, lessonAssetId: lesson.id || null,
+      });
+    }
     return asset;
   } catch (err) {
     logToFile('v10 test: card lookup failed — v9 plan sent', { userId, lessonId, error: err.message });

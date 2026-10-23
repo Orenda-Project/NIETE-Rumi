@@ -3,7 +3,7 @@
  *
  *   grade chips 1–5 (FLN is Grades 1–5 only, bd-elc1qz; an old ?grade=6..12 reads as no grade) → subject chips (3) →
  *   search + filter chips (Screener · Has sounds · Story audio) → rows ("n/N", the title in its own language and direction, chips, minutes), each with
- *   **Send to teacher** (the teacher sheet) and **Share link** (Copy + WhatsApp).
+ *   **View** (the plan's own page, bd-4joiqz), **Send to teacher** (the teacher sheet) and **Share link** (Copy + WhatsApp).
  *
  * The rows are GET /api/portal/fln/links — the catalogue the teacher sees, so a hidden plan can never be linked. All
  * state is in the URL query (grade, subject, q, has) so Back works; an old link's `level` is ignored, since the grade
@@ -24,6 +24,7 @@ import SendSheet from '../share/SendSheet';
 import ShareSheet, { BTN, Toast, WA_GREEN, useCopyLink } from '../share/ShareSheet';
 import { num, SHARE_DIR, shareStrings, type HasChip, type ShareLang, type ShareSubject } from '../share/strings.share';
 import { langOf, useFlnMe } from '../share/useFlnMe';
+import { planUrl } from '../listShared';
 import '../share/share.css';
 
 const GRADES = [1, 2, 3, 4, 5];
@@ -115,7 +116,7 @@ function RowChips({ row, lang }: { row: LinkRow; lang: ShareLang }) {
   return <div className="flex flex-wrap items-center gap-2">{items}</div>;
 }
 
-function RowCard({ row, subject, lang, onSend }: { row: LinkRow; subject: ShareSubject; lang: ShareLang; onSend: (p: SharePlan) => void }) {
+function RowCard({ row, subject, grade, lang, onSend }: { row: LinkRow; subject: ShareSubject; grade: number; lang: ShareLang; onSend: (p: SharePlan) => void }) {
   const S = shareStrings(lang);
   const plan = planOfRow(row, subject);
   const { state, copy } = useCopyLink(row.url, row.id);
@@ -131,6 +132,10 @@ function RowCard({ row, subject, lang, onSend }: { row: LinkRow; subject: ShareS
         <p lang={plan.lang} dir={plan.dir} className="min-w-0 flex-1 text-[18px] font-bold leading-snug text-[#1f2333]">{row.title}</p>
       </div>
       <RowChips row={row} lang={lang} />
+      {/* bd-4joiqz — read the plan before sending it: its own page, at the grade this list is for. */}
+      <Link to={planUrl(row.id, grade)} className={cn(BTN, 'border-[#333748] bg-white text-[#333748]', FOCUS)}>
+        {S.view}
+      </Link>
       <button type="button" onClick={() => onSend(plan)} style={{ backgroundColor: WA_GREEN, borderColor: WA_GREEN }} className={cn(BTN, 'text-white', FOCUS)}>
         {S.sendToTeacher}
       </button>
@@ -264,7 +269,7 @@ export default function SendPage() {
                 ) : null}
                 {load.kind === 'rows' && load.rows.length > 0 ? (
                   <ul className="flex flex-col gap-3">
-                    {load.rows.map((r) => <RowCard key={r.id} row={r} subject={st.subject as ShareSubject} lang={lang} onSend={setSendFor} />)}
+                    {load.rows.map((r) => <RowCard key={r.id} row={r} subject={st.subject as ShareSubject} grade={st.grade as number} lang={lang} onSend={setSendFor} />)}
                   </ul>
                 ) : null}
               </>

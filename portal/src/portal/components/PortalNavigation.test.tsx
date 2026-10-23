@@ -16,8 +16,8 @@ vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
 import { useAuth } from "../hooks/useAuth";
 import PortalNavigation from "./PortalNavigation";
 
-function renderNav(user: any) {
-  (useAuth as any).mockReturnValue({ user, logout: vi.fn() });
+function renderNav(user: Record<string, unknown>) {
+  vi.mocked(useAuth).mockReturnValue({ user, logout: vi.fn() } as unknown as ReturnType<typeof useAuth>);
   render(
     <MemoryRouter>
       <PortalNavigation />
@@ -32,7 +32,10 @@ describe("PortalNavigation role gating", () => {
     expect(screen.queryAllByText("Teachers").length).toBeGreaterThan(0);
     expect(screen.queryByText("Coaching")).toBeNull();
     expect(screen.queryByText("Curriculum")).toBeNull();
-    expect(screen.queryByText("Lesson Plans")).toBeNull();
+    // bd-4joiqz — a leader's Lesson Plans is the leader tab (the teacher pages, read as a leader), never the
+    // teacher nav's /portal/curriculum.
+    expect(document.querySelector('a[href="/portal/curriculum"]')).toBeNull();
+    screen.getAllByRole("link", { name: /Lesson Plans/ }).forEach((a) => expect(a).toHaveAttribute("href", "/portal/teacher/lessons"));
     expect(screen.queryByText("Assessment Generator")).toBeNull();
   });
 

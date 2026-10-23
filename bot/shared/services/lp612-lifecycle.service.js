@@ -72,11 +72,19 @@ function recordAsk({
 }
 
 /**
+ * bd-4joiqz — a LEADER (coach, principal off the teacher app, AEO…) asking for a plan in the portal only to READ it
+ * (`reader: 'leader'`, decided by the portal from users). Their ask is not a teacher's lesson-plan ask, so none of
+ * the writers below records it; their claim on the render (the deliveries row) is still written by the callers.
+ */
+const isLeaderReader = (reader) => reader === 'leader';
+
+/**
  * A PORTAL ask whose lesson is ready for her — at the cache hit (it already existed: generated when
  * she asked) or when the worker finished it (generated = ready). Ready in her portal is delivered:
  * the portal serves it on her next poll. Resolves to the row id or null; never throws.
  */
-function recordPortalReady({ userId, segment, segmentId, lang, askedAt, generatedAt, readyAt, correlationId } = {}) {
+function recordPortalReady({ userId, segment, segmentId, lang, askedAt, generatedAt, readyAt, correlationId, reader } = {}) {
+  if (isLeaderReader(reader)) return Promise.resolve(null);
   return recordAsk({
     userId,
     segment,
@@ -108,7 +116,7 @@ async function recordWaitersFailed({ waiters, segment, segmentId, lang, code, de
   if (!Lifecycle.enabled(SOURCE)) return 0;
   let written = 0;
   for (const w of waiters || []) {
-    if (!w || !w.user_id) continue;
+    if (!w || !w.user_id || isLeaderReader(w.reader)) continue;
     const portal = isPortal(w.surface);
     if (!portal && !w.phone) continue;
     // Sequential on purpose: a handful of waiters at most, and the job is already in its failure path.
@@ -143,7 +151,7 @@ const ENDS_THE_ASK = Object.freeze({
 /** Record a requestLesson outcome that ends an ask — WhatsApp or portal. Resolves to the row id or null. */
 async function recordRequestOutcome({ req, outcome, result, askedAt } = {}) {
   const errorCode = ENDS_THE_ASK[outcome];
-  if (!errorCode || !req) return null;
+  if (!errorCode || !req || isLeaderReader(req.reader)) return null;
   const surface = req.surface || 'whatsapp';
   const portal = isPortal(surface);
   if (portal ? !req.userId : (surface !== 'whatsapp' || !req.phone)) return null;
@@ -173,6 +181,7 @@ function waiterFields({ correlationId } = {}) {
 }
 
 module.exports = {
+  isLeaderReader,
   recordAsk,
   recordPortalReady,
   recordWaitersFailed,

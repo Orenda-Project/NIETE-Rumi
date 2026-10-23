@@ -101,3 +101,20 @@ Feature: Portal-wide smoke — every main page, every role
     Then it opens healthy
     When she opens /portal/delete-account
     Then it opens healthy
+
+  # bd-4joiqz — the leader family on the Lesson Plans pages. Written by hand; the web driver has no code for it yet
+  # (@draft).
+  @LDR08 @draft
+  Scenario: Leader family: the Lesson Plans pages open healthy for a coach and a principal off the teacher app
+    Given the teacher app v2 and the coach app v2 are off
+    And demo principal 03000000902 is signed in
+    When they open /portal/teacher/lessons
+    Then it opens healthy
+    When they open /portal/teacher/lessons/new
+    Then it opens healthy
+    Given the coach app v2 is on
+    And demo coach 03000000901 is signed in
+    When they open /portal/teacher/lessons
+    Then it opens healthy
+    When they open /portal/teacher/lessons/new
+    Then it opens healthy

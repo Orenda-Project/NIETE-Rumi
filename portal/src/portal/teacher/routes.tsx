@@ -27,7 +27,16 @@ export type { TeacherFeature } from "./paths";
  * Once a feature's main path is registered, every link to that feature (the bottom
  * menu, Home's tiles, More) goes to it; until then they go to today's page.
  */
-export type TeacherRoute = { path: string; element: ReactElement };
+export type TeacherRoute = {
+  path: string;
+  element: ReactElement;
+  /**
+   * bd-4joiqz — the leader family (coach, principal, AEO, supervisor, school leader) may READ this page too, whatever
+   * their teacher-app flag: TeacherGate lets them through on it (and only on it). For the Lesson Plans pages a leader
+   * reads, never a page of the teacher's own (her history, her coaching, her Home).
+   */
+  leaders?: boolean;
+};
 
 const modules = import.meta.glob<{ default?: TeacherRoute[] }>("./*/routes.tsx", { eager: true });
 

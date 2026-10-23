@@ -1,3 +1,5 @@
+import { LESSONS_HOME } from "../../teacher/lessons/paths";
+
 /**
  * bd-s42dye.2 — what the coach app v2 shows while only some of it is ready.
  *
@@ -5,12 +7,15 @@
  * their pages. Every other portal page she reaches (a bookmark, an old link, /portal/dashboard, /portal/leader/*,
  * the old /portal/training*) goes to the first ready feature's page. Enabling Observe later is one line:
  * add "observe" to COACH_APP_READY.
+ *
+ * bd-4joiqz — "lessons": the teacher Lesson Plans pages (/portal/teacher/lessons/*), read as a leader ("why can't a
+ * coach see LPs in their IAB?", operator, 22 Oct 2026). Training stays first, so it stays her landing page.
  */
-export type CoachFeature = "training" | "home" | "schedule" | "observe" | "schools" | "analytics";
+export type CoachFeature = "training" | "lessons" | "home" | "schedule" | "observe" | "schools" | "analytics";
 
 type Id = number | string;
 
-export const COACH_APP_READY: readonly CoachFeature[] = ["training"];
+export const COACH_APP_READY: readonly CoachFeature[] = ["training", "lessons"];
 
 export const COACH_TRAINING_BASE = "/portal/coach/training";
 
@@ -26,6 +31,8 @@ export const coachTrainingPaths = {
 /** Where each feature lives. `exact` = that address only (Home's is a prefix of every coach page). */
 const FEATURE_PATHS: Record<CoachFeature, { prefixes: readonly string[]; exact?: boolean }> = {
   training: { prefixes: [COACH_TRAINING_BASE] },
+  // The teacher's own Lesson Plans pages; TeacherGate decides which of them a leader reads (routes.tsx `leaders`).
+  lessons: { prefixes: [LESSONS_HOME] },
   home: { prefixes: ["/portal/coach"], exact: true },
   schedule: { prefixes: ["/portal/coach/scheduling", "/portal/coach/schedule", "/portal/coach/team", "/portal/coach/new-visit"] },
   observe: { prefixes: ["/portal/coach/observe", "/portal/coach/visit", "/portal/coach/observation", "/portal/coach/reports"] },
