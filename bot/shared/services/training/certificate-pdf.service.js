@@ -139,6 +139,30 @@ function cpdDisplayName(levelName, cpdLevel) {
 }
 
 /**
+ * bd-yef5iq — the I-SAPS body line names the level the teacher finished. The
+ * approved Level 1 wording ("Level 1 (Basic Level)") was a literal, so a Level 2
+ * certificate printed Level 1. I-SAPS's three levels are Novice / Intermediate /
+ * Advanced (Assessment Administration Process §1).
+ *
+ * The number comes from `cpd_level` when the caller has it, otherwise from the
+ * level name ("Level 2: Intermediate") — the re-render path passes only the
+ * name snapshot. An unrecognised level prints its own name, never another level's.
+ */
+const ISAPS_LEVEL_PHRASES = {
+  1: 'Level 1 (Basic Level)',
+  2: 'Level 2 (Intermediate Level)',
+  3: 'Level 3 (Advanced Level)',
+};
+
+function isapsLevelPhrase(levelName, cpdLevel) {
+  const fromName = /Level\s+(\d+)/i.exec(String(levelName || ''));
+  const n = Number.isInteger(Number(cpdLevel)) && Number(cpdLevel) > 0
+    ? Number(cpdLevel)
+    : (fromName ? Number(fromName[1]) : 1);
+  return ISAPS_LEVEL_PHRASES[n] || String(levelName || ISAPS_LEVEL_PHRASES[1]);
+}
+
+/**
  * Normalise a vendor key to a template id.
  * Legacy registered both 'BEACONHOUSE' and 'Beaconhouse', so callers may pass
  * either the raw API value or the title-case display name.
@@ -398,7 +422,7 @@ async function renderCertificatePdf({
        .text('has successfully completed the', MARGIN, y, centered);
     y += 19;
     doc.font('Helvetica-Bold').fontSize(15).fillColor(ISAPS_GREEN)
-       .text("Level 1 (Basic Level) of Secondary School Teachers' Training",
+       .text(`${isapsLevelPhrase(levelName, cpdLevel)} of Secondary School Teachers' Training`,
              MARGIN + 40, y, { width: centerW - 80, align: 'center' });
     y += 24;
     doc.font('Helvetica').fontSize(10.5).fillColor(COLORS.muted)
