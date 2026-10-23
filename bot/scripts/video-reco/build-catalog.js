@@ -25,7 +25,7 @@ const MODULE_FIELDS = ['module_id', 'level_id', 'cpd_level', 'level_name', 'cour
   'fico', 'symptoms', 'not_for', 'topic', 'quality', 'recommendable', 'recommendable_reason', 'media_ok'];
 // fico_main37: the prod scheme's ids per chapter (native match before the crosswalk); language: a chapter's own spoken
 // language (module 60 splices Urdu and English). continues_to is dropped (SPEC v1.2.1: one chapter = one playable unit).
-const SEGMENT_FIELDS = ['seg_id', 'start_s', 'end_s', 'title_en', 'title_ur', 'summary_en', 'moves', 'fico', 'fico_main37', 'language', 'recommendable', 'recommendable_reason', 'phase', 'grade_band'];
+const SEGMENT_FIELDS = ['seg_id', 'start_s', 'end_s', 'title_en', 'title_ur', 'summary_en', 'moves', 'fico', 'fico_main37', 'language', 'recommendable', 'recommendable_reason', 'keep_with_caveat', 'phase', 'grade_band'];
 
 function pick(obj, fields) {
   const out = {};

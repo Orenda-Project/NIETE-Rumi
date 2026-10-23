@@ -179,7 +179,8 @@ async function compute(a, d, state) {
   if (silence.labelOffSubject(t.scheme, t.storedIndicator, shortlist.subjectId(subject))) {
     return finish({ ...base, status: 'none', none_reason: 'silence:label_subject', candidates: [] });
   }
-  if (t.storedIndicator === 'B6' && !silence.levelsMoment(prompt.transcriptLines(session))) {
+  const levelsMoment = silence.levelsMoment(prompt.transcriptLines(session));
+  if (t.storedIndicator === 'B6' && !levelsMoment) {
     return finish({ ...base, status: 'none', none_reason: 'silence:no_levels_moment', candidates: [] });
   }
 
@@ -188,6 +189,7 @@ async function compute(a, d, state) {
     grade: await gradeOf(analysis, session.user_id, store),
     topic: (analysis && analysis.topic) || (session.lesson_plan_structured && session.lesson_plan_structured.topic) || null,
     inapplicable: inapplicableRows(analysis),
+    levelsMoment,
   };
   const ctx = {
     language,
