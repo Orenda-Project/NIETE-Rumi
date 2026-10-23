@@ -11,8 +11,8 @@ const { fallbackSubjectOk } = require('./shortlist');
 const { stripBidi } = require('./copy');
 const CONTENT_TERMS = require('./content-terms');
 const LEX = require('./name-lexicon');
-const { childTurnNear, imperative, routineLine, echoReading, notTeaching, isClosure, earlyForClosure } = require('./silence');
-const { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, sceneClaim, recallMislabel, pointerNoLine, recallLeft } = require('./copy-rules');
+const { childTurnNear, imperative, routineLine, echoReading, notTeaching, isClosure, earlyForClosure, levelsNear } = require('./silence');
+const { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, sceneClaim, recallMislabel, pointerNoLine, recallLeft, namesGap, notGapLine, auditWords } = require('./copy-rules');
 
 const JOB = 'coaching.videoReco';
 const LLM_TIMEOUT_MS = 45000; // lead-converge 18:48Z: measured 22–33 s at the default effort; the report itself never waits on it
@@ -106,7 +106,7 @@ function quoteLine(quote, excerpts) {
   const qw = q.split(' ').filter(Boolean);
   if (qw.length < 2 && [...q].length < 6) return -1;
   for (const [n, line] of (excerpts || []).entries()) {
-    const l = norm(line);
+    const l = norm(String(line || '').replace(/\[a student\]/gi, ' ')); // R7f (Q066): the line's own placeholder, as the quote's
     if (l.includes(q)) return n;
     const lw = l.split(' ');
     for (let size = Math.max(1, qw.length - 1); size <= qw.length + 1; size++) {
@@ -230,10 +230,12 @@ function arabicShare(text) {
  * @param {object} opts {stepIndicator, indicators, source, catalog, teacherName, scorerQuote, textRoute}
  * @returns {{ok:boolean, none:null|'llm_none'|'validation:<why>', confidence:number, momentSource:'transcript'|'scorer'|null}}
  *   <why> (lead-review 19:40Z, so evals and red-team can count them): shape | candidate | quote | moment_at | placeholder |
- *   scorer | id | name | length | urdu | roman | gender | step | unshown | scene | recall | no_line | no_child_turn | not_moment | closure_early | error
+ *   scorer | id | name | length | urdu | roman | gender | step | unshown | scene | recall | no_line | no_gap | not_gap | no_evidence |
+ *   no_child_turn | not_moment | closure_early | error. A not_moment from a line spoken while no lesson is happening also
+ *   carries `lessonless: true` (R7f: only such a line takes the card fallback away, engine.js).
  */
 function validate(p, shortlist, excerpts, opts) {
-  const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false, rawExcerpts = null, fullLines = null, vocab = [], oovVocab = [], roster = null, topic = null, grade = null } = opts || {};
+  const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false, rawExcerpts = null, fullLines = null, vocab = [], oovVocab = [], roster = null, topic = null, grade = null, cardIndicator = null } = opts || {};
   const bad = (why) => ({ ok: false, none: `validation:${why}`, confidence: 0, momentSource: null });
   try {
     if (!p || typeof p !== 'object') return bad('shape');
@@ -268,15 +270,18 @@ function validate(p, shortlist, excerpts, opts) {
     const full = typeof fullLines === 'function' ? fullLines() : fullLines;
     const whole = Array.isArray(full) && full.length ? full : null;
     const at = whole ? quoteLine(quote, whole) : -1;
-    if (whole && notTeaching(whole, at)) return bad('not_moment');
+    if (whole && notTeaching(whole, at)) return { ...bad('not_moment'), lessonless: true };
     // R7e (panel §6.2: Q117 Q136 Q197): a closure chapter on a line from the first two thirds of the lesson. Not routine:
     // the retry may find a late line, else the card fallback carries the closure card
     const picked = catalog && catalog.segment(cand.seg_id);
     // the stamp of the line the quote was found on (the model's moment.at can name another line, red7 200255)
     const said = at >= 0 ? (/^\s*\[([\d:]+)\]/.exec(String(whole[at])) || [])[1] : null;
     if (picked && isClosure(picked.segment) && earlyForClosure(said || p.moment.at, whole || lines)) return bad('closure_early');
+    // R7f (COS 223858 1a; panel Q191 ⛔2, Q166): a differentiation pick (a B6 card, or a chapter kept only for a mixed-level
+    // task) needs the mixed-level line at the moment. Not a fallback rule: else silence, as the levels rule already does.
+    if ((cardIndicator === 'B6' || (picked && picked.segment.keep_with_caveat === 'mixed_level_task')) && !levelsNear(lines, quoteLine(quote, lines))) return bad('no_evidence');
     const reasons = [p.reason_en, p.reason_ur].map((x) => String(x || ''));
-    if (reasons.some((x) => BANNED_COPY.test(x))) return bad('scorer');
+    if (reasons.some((x) => BANNED_COPY.test(x) || auditWords(x))) return bad('scorer');
     if ([quote, ...reasons].some(systemNote)) return bad('scorer'); // R7b (P005): «No student activity recorded» is no lesson
     if (reasons.some((x) => CLIP_ID.test(x))) return bad('id');
     if (namesIn(p.moment.quote, teacherName) || namesIn(p.reason_en, teacherName) || namesIn(p.reason_ur, teacherName)) return bad('name');
@@ -302,6 +307,9 @@ function validate(p, shortlist, excerpts, opts) {
     if (chosen && sceneClaim(p.reason_en, p.reason_ur, chosen.module)) return bad('scene');
     if (recallMislabel(quote, p.reason_en, p.reason_ur) || recallLeft(quote, p.reason_en, p.reason_ur)) return bad('recall');
     if (pointerNoLine(p.reason_en)) return bad('no_line'); // R7e (panel §6.7): "said that line" with no line
+    // R7f (COS 223858 1b): the reason names what was missing, and the cited line shows the pattern the chapter answers
+    if (!namesGap(p.reason_en)) return bad('no_gap');
+    if (chosen && notGapLine(quote, lines[quoteLine(quote, lines)], chosen.segment)) return bad('not_gap');
     // R7b (panel P183, P076), checked last so every other rule names its own fault first: the moment's line or a line
     // beside it is a child's turn, else it is talk with no class in it.
     if (!childTurnNear(lines, quoteLine(quote, lines))) return bad('no_child_turn');
@@ -348,6 +356,19 @@ function groundReasons(p, catalog) {
   return { ...p, reason_en: groundReason(p.reason_en, 'en', hit.segment), reason_ur: groundReason(p.reason_ur, 'ur', hit.segment) };
 }
 
+/**
+ * R7f (COS 223858 e; Q090 Q179): the pick's quote is a line spoken while no lesson is happening (before the class is
+ * greeted, or in a test period), whatever rule refused the pick. Only such a line takes the card fallback away: a greeting
+ * or an announcement cited by a retry says nothing about whether the lesson had a moment.
+ */
+function lessonlessQuote(p, fullLines) {
+  const q = p && p.moment && p.moment.quote;
+  const lines = typeof fullLines === 'function' ? fullLines() : fullLines;
+  if (!q || !Array.isArray(lines) || !lines.length) return false;
+  const at = quoteLine(storedQuote(String(q)), lines);
+  return at >= 0 && !!notTeaching(lines, at);
+}
+
 /** red7 194127 (Q170): the pick's quote is a routine line, whatever rule refused the pick (a placeholder is checked first). */
 function routineQuote(p, topic = null) {
   const q = p && p.moment && p.moment.quote;
@@ -379,7 +400,9 @@ function topicVocab(topic) {
 
 // The validation rules that leave the pick on a shortlisted, code-gated chapter. Not candidate/shape (no such chapter),
 // not step (a code gate: the chapter is not for the step), not error.
-const FALLBACK_RULES = new Set(['quote', 'moment_at', 'placeholder', 'scorer', 'id', 'name', 'length', 'urdu', 'roman', 'gender', 'unshown', 'scene', 'recall', 'no_child_turn']);
+// R7f: closure_early (Q117: the card names the closing move the chapter shows), no_gap and not_gap (ask 1b: the card frame
+// is 96.9% right/acceptable on v5) take it too; no_evidence (1a) never does.
+const FALLBACK_RULES = new Set(['quote', 'moment_at', 'placeholder', 'scorer', 'id', 'name', 'length', 'urdu', 'roman', 'gender', 'unshown', 'scene', 'recall', 'no_child_turn', 'closure_early', 'no_gap', 'not_gap']);
 const FALLBACK_MAX = 300; // code points of each composed reason (en and ur)
 const MIN_WORDS = 3; // a trimmed card sentence keeps at least this many words, else the none stands
 
@@ -506,4 +529,4 @@ function cardFallback({ none, segId, shortlist, sentence, startS, endS, language
   }
 }
 
-module.exports = { routineQuote, groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
+module.exports = { routineQuote, lessonlessQuote, groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };

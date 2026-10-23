@@ -58,9 +58,10 @@ function deps(answers) {
 
 // 867856ac (scale-run shard, 3b3e0d9b5f): the moment is copied WITHOUT quote marks, elided with "...".
 const LINE = 'اب یہ ہم نے ریڈنگ کی، میں نے آپ کو کر کے پڑھائی، اس کا مقصود سمجھایا۔ اب آپ لوگ بیٹھے ہوئے ہیں، دو دو کر کے۔ جو پڑھا ہے اس کو ذرا پڑھیں۔';
+// R7f 1b: an instruction to read is no gap for an open-questions chapter (not_gap), so this shape is kept on a wait-time chapter
 const A867 = {
-  seg_id: '10-s1', moment: { at: '12:08', quote: LINE },
-  reason_en: '[12:08] Teacher: اب یہ ہم نے ریڈنگ کی، میں نے آپ کو کر کے پڑھائی... جو پڑھا ہے اس کو ذرا پڑھیں۔ The clip shows a teacher preparing one easy and one challenge version of a poem task.', // R7b: no claim the chapter cannot back
+  seg_id: '10-s2', moment: { at: '12:08', quote: LINE },
+  reason_en: '[12:08] Teacher: اب یہ ہم نے ریڈنگ کی، میں نے آپ کو کر کے پڑھائی... جو پڑھا ہے اس کو ذرا پڑھیں۔ Only the teacher read. The clip shows a teacher preparing one easy and one challenge version of a poem task.', // R7b: no claim the chapter cannot back
   reason_ur: '[12:08] Teacher: اب یہ ہم نے ریڈنگ کی، میں نے آپ کو کر کے پڑھائی... جو پڑھا ہے اس کو ذرا پڑھیں۔ اس کلپ میں استاد ایک آسان اور ایک مشکل ورژن تیار کرتے ہیں۔',
   confidence: 0.6,
 };
@@ -68,7 +69,7 @@ const A867 = {
 test('867856ac: prefix dropped, the unquoted Urdu moment in one FSI…PDI, no quote mark added (en); prefix only (ur)', async () => {
   const row = await E.recommendForReport({ ...args([{ start_ms: 728000, label: 'Teacher', text: LINE }, { start_ms: 729000, label: 'Student', text: 'جی۔' }]), deps: deps([A867]) });
   expect(row.status).toBe('shown');
-  expect(row.reason_en).toBe(`${FSI}اب یہ ہم نے ریڈنگ کی، میں نے آپ کو کر کے پڑھائی... جو پڑھا ہے اس کو ذرا پڑھیں۔${PDI} This clip is about: Ask why and how.`); // R7d §6: the clip half is the chapter's title
+  expect(row.reason_en).toBe(`${FSI}اب یہ ہم نے ریڈنگ کی، میں نے آپ کو کر کے پڑھائی... جو پڑھا ہے اس کو ذرا پڑھیں۔${PDI} Only the teacher read. This clip is about: Wait before taking answers.`); // R7f 1b: the fixture names a gap // R7d §6: the clip half is the chapter's title
   expect(row.reason_en).not.toMatch(/"/);
   expect(row.reason_ur).toBe('اب یہ ہم نے ریڈنگ کی، میں نے آپ کو کر کے پڑھائی... جو پڑھا ہے اس کو ذرا پڑھیں۔ یہ کلپ اس بارے میں ہے: عنوان۔');
 });

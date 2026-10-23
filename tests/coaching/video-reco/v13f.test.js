@@ -168,13 +168,13 @@ describe('2 · the name check ignores honorifics and role words in users.name', 
 
 describe('3 · a quoted lesson moment sits in an FSI…PDI isolate in the stored reasons', () => {
   // c53bf86d / 98-s3 on the React card: the leading "9" of the Urdu quote rendered on the wrong side.
-  const Q = { ...GOOD, reason_en: 'The teacher confirms a student\'s answer: "9 ہم نے اوپر لکھنا ہے". The clip shows a teacher giving specific praise and one clear next step.' };
+  const Q = { ...GOOD, reason_en: 'The teacher only confirms a student\'s answer: "9 ہم نے اوپر لکھنا ہے". The clip shows a teacher giving specific praise and one clear next step.' }; // R7f 1b: a gap named
 
   test('the 98-s3 reason is stored with the quote isolated; the words are unchanged', async () => {
     const d = deps([Q]);
     const row = await E.recommendForReport({ ...args(), deps: d });
     expect(row.status).toBe('shown');
-    expect(row.reason_en).toBe(`The teacher confirms a student's answer: "${FSI}9 ہم نے اوپر لکھنا ہے${PDI}". This clip is about: Ask why and how.`); // R7d §6: the clip half is the chapter's title
+    expect(row.reason_en).toBe(`The teacher only confirms a student's answer: "${FSI}9 ہم نے اوپر لکھنا ہے${PDI}". This clip is about: Ask why and how.`); // R7d §6: the clip half is the chapter's title
   });
 
   test('both reasons are isolated, and a reason with no quote is byte-identical', async () => {
