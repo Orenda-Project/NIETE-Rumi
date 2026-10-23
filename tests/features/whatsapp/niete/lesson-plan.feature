@@ -1028,14 +1028,69 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the app opens on the Lesson Plans tab, signed in
     # The classic leader menu has Lesson Plans, and TeacherGate lets the leader family read the tab (bd-4joiqz).
 
-  @e2e @config-gated @P2
+  @obsolete @config-gated @P2
   Scenario: A coach who names a topic keeps the WhatsApp lesson-plan path, switch on or off
+    # OBSOLETE 2026-10-23 (bd-l6424d): a coach who names a topic gets the Lesson Plans tab too — replaced by "A coach who types a lesson-plan topic gets the Lesson Plans tab button, not the catalogue" and its voice and in-flight twins below. Kept (not deleted) for the audit trail.
     Given the NIETE bot chat is open on a coach account
     And lesson plans for leaders open in the app (leader_app_lesson_plan is on)
     When I send "make me a lesson plan on photosynthesis for grade 7"
     Then the bot answers on WhatsApp as before, not with the Lesson plans button
     # Only the plain doors (bare_command, chip, menu, menu_choice). UPDATED 2026-10-23 (bd-a73p5m): the button is
     # "Lesson plans" now (was "Send a plan"); a named topic still keeps today's path.
+
+  # ADDED 2026-10-23 (bd-l6424d): a coach who NAMES A TOPIC gets the same tab. Asked whether a coach who names a topic in
+  # a lesson-plan request ("lesson plan on fractions", typed or by voice) should also get the Lesson Plans tab, the
+  # operator: "yes to topic requests too". The tab has every plan, a teacher's topic door already opens their app, and
+  # no path carries the topic into the app. Same switch and words as the plain doors; principals under "coaches",
+  # analytics-only accounts and teachers are unchanged. Doors (app-redirect.service LEADER_TOPIC_DOORS): intent,
+  # lesson_plan_intent, voice_intent, voice_lesson_plan_intent, cutover_inflight_gamma. Unit:
+  # tests/app-redirect/app-link-leader-lessons-doors.test.js (typed), app-link-leader-lessons-voice-topic.test.js
+  # (voice), app-link-leader-lessons-rescue.test.js (in flight), app-link-leader-lesson-plan.test.js (each door).
+  @e2e @config-gated @P1
+  Scenario: A coach who types a lesson-plan topic gets the Lesson Plans tab button, not the catalogue
+    Given the NIETE bot chat is open on a coach account
+    And lesson plans for leaders open in the app for coaches (leader_app_lesson_plan is "coaches")
+    When I send "make me a lesson plan on fractions"
+    Then I get one message saying "Read the lesson plans your teachers get." with a "Lesson plans" button
+    And no lesson-plan menu opens, and no "lesson plans now come from your textbook" line arrives
+    When I tap "Lesson plans"
+    Then the app opens on the Lesson Plans tab, signed in, without typing a password
+    # The same one message when the menu asked me for a topic and I typed it, and when I tap the Oxbridge picker's
+    # "Generate" button. Axiom: ONE app_funnel.command feature=lesson_plan audience=leader verdict=link door=intent
+    # (door=lesson_plan_intent for those two), then app_funnel.link_sent; funnel.py reports it as lesson_plan@leader.
+
+  @e2e @voice @config-gated @P1
+  Scenario: A coach who asks for a lesson-plan topic in a voice note gets the Lesson Plans tab button, and nothing else
+    Given the NIETE bot chat is open on a coach account
+    And lesson plans for leaders open in the app for coaches (leader_app_lesson_plan is "coaches")
+    When I send a short voice note asking for a lesson plan on fractions
+    Then I get one message with the "Lesson plans" button, in the language I spoke
+    And no spoken answer, no "preparing" sticker and no lesson-plan menu arrive
+    When I tap "Lesson plans"
+    Then the app opens on the Lesson Plans tab, signed in
+    # In Urdu: «وہ لیسن پلان پڑھیں جو آپ کے اساتذہ کو ملتے ہیں۔» with «لیسن پلان». Before this a coach got the spoken
+    # answer, the sticker and the catalogue Flow. Axiom: app_funnel.command door=voice_intent audience=leader verdict=link.
+
+  @e2e @config-gated @no-mock-driver @P2
+  Scenario: A coach whose lesson-plan request was already being prepared at the cutover gets the Lesson Plans tab button, once
+    # Not runnable on the mock lane: it needs a free-form lesson-plan job queued before the cutover.
+    Given a coach's free-form lesson-plan request was still in the queue when free-form generation was retired
+    And lesson plans for leaders open in the app for coaches (leader_app_lesson_plan is "coaches")
+    When the lesson-plan worker drains that request
+    Then the coach gets one message with the "Lesson plans" button, in the language they asked in
+    And no lesson-plan menu, no "lesson plans now come from your textbook" line and no apology arrive
+    # lesson-plan-generation.worker openLpBrowseFlowForCutover asks the switch (door cutover_inflight_gamma) and returns
+    # on the link; only when it says no does the catalogue open, whose own door asks again and gets the same no. If the
+    # button and its plain-text fallback are both refused, the catalogue Flow goes alone. Without LP_612_ROUTE_ALL the
+    # worker never asks: the not-in-catalogue line, for everyone, as before.
+
+  @e2e @config-gated @P2
+  Scenario: With the leader switch on "coaches", a principal who names a topic keeps the WhatsApp lesson-plan menu
+    Given the NIETE bot chat is open on a principal account
+    And lesson plans for leaders open in the app for coaches only (leader_app_lesson_plan is "coaches")
+    When I send "make me a lesson plan on fractions"
+    Then the lesson-plan menu opens on WhatsApp, as before, with no Lesson plans button
+    # The same by voice, and for an analytics-only coach (the portal sends those to analytics, not the tab).
 
   @e2e @config-gated @P2
   Scenario: With the leader switch on "coaches", a principal keeps the WhatsApp lesson-plan menu
