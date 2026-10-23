@@ -20,7 +20,8 @@ const PICTURE_RULE = 'Pictures: a slot whose rule names a picture gives EVERY it
   + 'Write object names and scene descriptions in plain English, even on an Urdu paper. A picture never carries words, letters or numbers to read. '
   + 'A slot that names no picture carries none, and no item says "look at the picture" unless it has one. '
   + 'Each picture shows exactly that item\'s own word, one plain thing alone: for "h_t" a hat, never a cap or a scene. '
-  + 'No two items show the same thing, even in different questions: a teacher never draws the cat twice on one paper.';
+  + 'No two items show the same thing, even in different questions: a teacher never draws the cat twice on one paper. '
+  + 'Another name for the same thing is still a repeat: "rooster" and "male chicken" are one picture.';
 
 /** What each picture kind must carry for the pipeline to draw it. */
 const PICTURE_FIELDS = {
@@ -125,10 +126,24 @@ function thingKey(name) {
   return k.length > 3 && /[^s]s$/.test(k) ? k.slice(0, -1) : k;
 }
 
+/** The item's own word when the question is one word (Urdu Q6 «مرغا»), else null; "c + at = ____" is not. */
+function itemWord(q) {
+  const w = String((q && q.question) || '').trim();
+  return /^[\p{L}\p{M}]+$/u.test(w) ? w.toLowerCase() : null;
+}
+
+/** "male chicken (مرغا)": the artist's name, and the word it pictures when there is one. */
+function pictureLabel(q) {
+  const name = String(q.picture.name).trim();
+  const word = itemWord(q);
+  return word && word !== name.toLowerCase() ? `${name} (${String(q.question).trim()})` : name;
+}
+
 /**
  * Object pictures shown more than once, as `{slot, reason:'repeat', pictures}` for each question
  * that repeats one. The question set first on the paper keeps the thing; a later one is flagged.
- * Scenes, counts, dots and shapes are not one thing, so they never repeat.
+ * Two items repeat when their pictures share a name or picture one word: v14 drew «مرغا» as "rooster"
+ * in Q6 and "male chicken" in Q7. Scenes, counts, dots and shapes are not one thing, so they never repeat.
  */
 function repeatedPictures(examJson, P) {
   const order = new Map();
@@ -136,31 +151,46 @@ function repeatedPictures(examJson, P) {
   const objects = [];
   eachItem(examJson, (q) => {
     const p = q.picture;
-    if (p && p.kind === 'object' && p.name && order.has(q.slot)) objects.push({ slot: q.slot, name: String(p.name).trim(), at: objects.length });
+    if (p && p.kind === 'object' && p.name && order.has(q.slot)) {
+      const keys = [thingKey(p.name), itemWord(q)].filter(Boolean);
+      objects.push({ slot: q.slot, keys, label: pictureLabel(q), at: objects.length });
+    }
   });
   objects.sort((a, b) => order.get(a.slot) - order.get(b.slot) || a.at - b.at);
   const seen = new Set();
   const out = new Map();
   for (const o of objects) {
-    const k = thingKey(o.name);
-    if (!seen.has(k)) { seen.add(k); continue; }
+    const again = o.keys.some((k) => seen.has(k));
+    o.keys.forEach((k) => seen.add(k));
+    if (!again) continue;
     const r = out.get(o.slot) || { slot: o.slot, reason: 'repeat', pictures: [] };
-    if (!r.pictures.includes(o.name)) r.pictures.push(o.name);
+    if (!r.pictures.includes(o.label)) r.pictures.push(o.label);
     out.set(o.slot, r);
   }
   return [...out.values()];
 }
 
-/** A re-ask's note naming the object pictures the paper's other sections already show; null if none. */
-function takenPicturesNote(trees) {
+/**
+ * A re-ask's note naming the object pictures the paper's other sections already show, and the items in this
+ * section that repeat an earlier question (`repeats`, from repeatedPictures); null if there is neither.
+ */
+function takenPicturesNote(trees, repeats = []) {
   const names = new Map();
   trees.forEach((t) => eachItem(t, (q) => {
     const p = q.picture;
-    if (p && p.kind === 'object' && p.name && !names.has(thingKey(p.name))) names.set(thingKey(p.name), String(p.name).trim());
+    if (p && p.kind === 'object' && p.name && !names.has(thingKey(p.name))) names.set(thingKey(p.name), pictureLabel(q));
   }));
-  if (!names.size) return null;
-  return `These pictures are already on this paper, in other questions: ${[...names.values()].join(', ')}. `
-    + 'Draw none of them again, and no two items you write may show the same thing.';
+  const own = repeats.filter((f) => f.reason === 'repeat').flatMap((f) => f.pictures);
+  const parts = [];
+  if (names.size) {
+    parts.push(`These pictures are already on this paper, in other questions: ${[...names.values()].join(', ')}. `
+      + 'Draw none of them again, and no two items you write may show the same thing.');
+  }
+  if (own.length) {
+    parts.push(`In this section these items repeat a picture or word from an earlier question: ${[...new Set(own)].join(', ')}. `
+      + 'Give each a different word, not another name for the same thing.');
+  }
+  return parts.length ? parts.join(' ') : null;
 }
 
 const slotsOf = (P) => new Map(P.sections.flatMap((s) => s.slots).map((sl) => [sl.slot, sl]));
