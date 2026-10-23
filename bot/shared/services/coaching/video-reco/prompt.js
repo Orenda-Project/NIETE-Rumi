@@ -73,9 +73,12 @@ function rawExcerpts(session, { timestamp, uptakeMoment } = {}) {
   return lines.slice(start, start + EXCERPT_LINES).map((l) => l.text);
 }
 
-/** Children's names → [a student]; the teacher's own name masked too (redact-names.js, r-corpus port). */
+/**
+ * Children's names → [a student]; the teacher's own name masked too (redact-names.js, r-corpus port).
+ * people.vocab: subject terms; people.oovVocab: topic words, the vocabulary rule only (bd-8hhqhf r7).
+ */
 function redact(text, people = {}) {
-  return redactNames(String(text || ''), { teacher: people.teacher || null, placeholders: { child: '[a student]' } });
+  return redactNames(String(text || ''), { teacher: people.teacher || null, placeholders: { child: '[a student]' }, vocab: people.vocab || [], oovVocab: people.oovVocab || [] });
 }
 
 function candidateLine(c, catalog) {
