@@ -131,6 +131,59 @@ const UX_STRINGS = {
     ur: 'مدد درکار',
   },
 
+  // ─── bd-gzfdu9 (VIDREC): the recommended training clip ───────────────────
+  // One WhatsApp message after the report (video-reco/send.js), a card on /cr and the /v player.
+  // {n} is whole minutes, passed in Urdu-Indic digits for ur (video-reco/copy.js). Buttons ≤ 20 CODE POINTS.
+  videoRecoButton: {
+    en: '▶ Watch {n} min',
+    ur: '▶\u200F {n} منٹ دیکھیں', // the RLM keeps ▶ at the right end of the Urdu label (SPEC v1.2 §4.2)
+  },
+  videoRecoBodyLead: {
+    en: '🎬 A {n}-minute clip for your one thing to try.',
+    ur: '🎬 آپ کی آزمانے والی ایک بات کے لیے {n} منٹ کا کلپ۔',
+  },
+  videoRecoBodyMeta: {
+    en: '⏱ {n} min · {lang}',
+    ur: '⏱ {n} منٹ · {lang}',
+  },
+  videoRecoLangUr: { en: 'Urdu', ur: 'اردو' },
+  videoRecoLangEn: { en: 'English', ur: 'انگریزی' },
+  videoRecoLangMixed: { en: 'Urdu + English', ur: 'اردو + انگریزی' },
+  videoRecoCardTitle: {
+    en: '🎬 Watch this next',
+    ur: '🎬 اگلا یہ دیکھیں',
+  },
+  videoRecoCardButton: {
+    en: 'Watch ({n} min)',
+    ur: 'دیکھیں ({n} منٹ)',
+  },
+  videoRecoPlayerClip: {
+    en: 'This clip: {a} – {b}',
+    ur: 'یہ کلپ: {a} – {b}',
+  },
+  videoRecoPlayerWhy: { en: 'Why this clip', ur: 'یہ کلپ کیوں' },
+  videoRecoPlayerFromStart: { en: 'Watch from the start', ur: 'شروع سے دیکھیں' },
+  videoRecoPlayerLookFor: {
+    en: 'Try it in your next lesson and record it — your next report will show the change.',
+    ur: 'اگلے سبق میں آزمائیں اور ریکارڈ کریں — اگلی رپورٹ میں فرق نظر آئے گا۔',
+  },
+  videoRecoPlayerBack: { en: '← Back to my report', ur: 'میری رپورٹ پر واپس →' },
+  // The strip on the report image (SPEC v1.2 §4.9): the image cannot be tapped, so it points at the message below.
+  videoRecoStripTitle: {
+    en: '▶ Watch next: {title}',
+    ur: '▶\u200F اگلا دیکھیں: {title}',
+  },
+  videoRecoStripHint: {
+    en: '{n} min · tap ▶ Watch in the next message',
+    ur: '{n} منٹ · اگلے پیغام میں ▶\u200F دیکھیں دبائیں',
+  },
+  // The card-sentence fallback reason (SPEC v1.3c §3.5, lead-review 20:33Z), verbatim: when the model's quote fails
+  // validation twice, the clip is still sent with the report's own "Try this tomorrow" sentence. {n} is seconds.
+  videoRecoCardFallbackReason: {
+    en: 'Your report asks you to try: "{sentence}". This {n}-second clip shows one way to do it.',
+    ur: 'آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "{sentence}"۔ یہ {n} سیکنڈ کا کلپ اس کا ایک طریقہ دکھاتا ہے۔',
+  },
+
   // ─── the registration Flow invite (services/registration-invite.service.js) ──
   // One message, three cases: a new person, a registered teacher fixing her details, and an
   // unregistered person who reached a feature that needs her school. Header ≤ 60 and button

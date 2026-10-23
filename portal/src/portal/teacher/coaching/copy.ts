@@ -145,6 +145,12 @@ export const COACHING_V2_COPY = {
   answerSent: 'Answer sent',
   couldNotSend: 'Could not send',
   download: 'Download',
+  /* bd-gzfdu9 (VIDREC, SPEC §4.2/§4.7) — the recommended clip's card under "Try next class"; the /cr card's words. */
+  videoRecoCardTitle: '🎬 Watch this next',
+  videoRecoCardButton: (n: number) => `Watch (${n} min)`,
+  videoRecoCardButtonPlain: 'Watch',
+  videoRecoMinutes: (n: number) => `⏱ ${n} min`,
+  videoRecoLanguage: { ur: 'Urdu', en: 'English' } as Record<string, string>,
   stopped: 'Could not analyse',
   /* bd-z3cadk — ICT IAB row 23: the same recording sent again. The bot's own words (coaching-messages.js
      duplicateRecording), so the portal says what WhatsApp says. */
@@ -307,6 +313,11 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   answerSent: 'جواب بھیجا گیا',
   couldNotSend: 'بھیجا نہیں جا سکا',
   download: 'ڈاؤن لوڈ',
+  videoRecoCardTitle: '🎬 اگلا یہ دیکھیں',
+  videoRecoCardButton: (n: number) => `دیکھیں (${n} منٹ)`,
+  videoRecoCardButtonPlain: 'دیکھیں',
+  videoRecoMinutes: (n: number) => `⏱ ${n} منٹ`,
+  videoRecoLanguage: { ur: 'اردو', en: 'انگریزی' } as Record<string, string>,
   stopped: 'تجزیہ نہیں ہو سکا',
   duplicateRecordingLead: '📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو آپ نے پہلے بھیجی تھی، اس لیے اس کی پہلے سے تیار کردہ رپورٹ یہ رہی۔',
   duplicateRecordingNext: 'جب بھی نئی رائے چاہیے ہو، نئی ریکارڈنگ بھیج دیجیے۔',

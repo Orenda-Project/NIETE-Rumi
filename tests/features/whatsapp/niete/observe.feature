@@ -1502,3 +1502,19 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given a coach in the portal_coach_v2 pilot sent an observation with a PDF as the teacher's plan
     When the plan finishes being read before the analysis finishes
     Then the Feedback Form's lesson-plan part is scored from that plan, not marked "not scored"
+
+  # bd-gzfdu9 (VIDREC): the recommended clip on the coach-observation path (hook B2, observe-send deliver/tap).
+  # Unit: tests/coaching/video-reco/observe-send.video-reco-send.test.js.
+  @e2e @wip @draft @config-gated @P1 @OBS71
+  Scenario: The observed teacher gets the clip after the report the coach sent
+    Given VIDEO_RECO_ENABLED is on for the NIETE sandbox bot
+    And a coach sent an observation report to the teacher
+    When the teacher's report is delivered (directly or after tapping the invite)
+    Then the teacher gets one "watch this" message after the report image
+    And the coach's preview never includes a clip message
+
+  @e2e @wip @draft @config-gated @negative @P2 @OBS72
+  Scenario: No clip when the report went only as an invite or to the review number
+    Given VIDEO_RECO_ENABLED is on for the NIETE sandbox bot
+    When the teacher's window was closed and only the invite template went out, or review mode sent it to the operator
+    Then no clip message is sent to anyone
