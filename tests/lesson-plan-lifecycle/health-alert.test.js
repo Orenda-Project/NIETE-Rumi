@@ -9,6 +9,8 @@
  *
  * RULES PINNED.
  *   · ONE message per tick, naming every fresh reason; the same path or reason at most once in 2 h.
+ *   · Its first line cannot be mistaken for a quiz watcher post: the two share a channel, and the watcher's
+ *     own lesson-plan lines ("Lesson plans — class report owed") arrive many times a day.
  *   · A quiet path that stays down is paged once per newest failure — never every 2 h for a day.
  *   · A 6-12 incident is paged once between this check and the quiz watcher, whichever sees it first.
  *   · Five lifecycle write failures in the window (counted in Axiom, in this deployment's env) are a
@@ -161,7 +163,7 @@ describe('a tick that is not healthy reaches a person', () => {
     expect(headers.Authorization).toBe('Bearer xoxb-test');
     expect(body.channel).toBe('D0TEST');
     const lines = body.text.split('\n');
-    expect(lines[0]).toBe('⚠️ *Lesson plans — needs a look* · 11:00 PKT');
+    expect(lines[0]).toBe('🔴 *Lesson-plan health alert* · 11:00 PKT');
     expect(lines).toEqual(expect.arrayContaining([
       '• *Stuck* — 1 ask still waiting after 6 hours',
       '• *Grade 6-12 plans* · WhatsApp — 3 of 10 finished asks failed (30%) between 09:45 and 10:45 PKT · DELIVERY_FAILED 3',
@@ -169,6 +171,17 @@ describe('a tick that is not healthy reaches a person', () => {
     ]));
     expect(lines).toHaveLength(4);
     expect(alerts()).toEqual([expect.objectContaining({ outcome: 'sent', reasons: out.reasons })]);
+  });
+
+  test('its first line cannot be mistaken for one of the quiz watcher\'s posts in the channel they share', async () => {
+    mockDb.tables.lesson_plan_requests = groundedDown(T0);
+    await tick(T0, redis);
+    expect(net.slack).toHaveLength(1);
+    const ours = net.slack[0].body.text.split('\n')[0];
+    const quiz = Watch.buildAlert([], T0).split('\n')[0];
+    expect(Array.from(ours)[0]).not.toBe(Array.from(quiz)[0]);
+    expect(ours).not.toContain('needs a look');
+    expect(ours).not.toContain('Lesson plans —');
   });
 
   test('production\'s configuration: the old digest\'s Slack settings are used when the watcher has none of its own', async () => {

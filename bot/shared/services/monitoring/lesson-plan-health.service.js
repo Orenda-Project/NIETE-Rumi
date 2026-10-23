@@ -482,7 +482,9 @@ async function alert({ now, snap, reasons, writeFailures, start, end, cache, env
     const alreadyReported = already.map((i) => i.reason);
     if (!fresh.length) return { outcome: 'deduped', alreadyReported };
     const sending = fresh.map((i) => i.reason);
-    const text = [`⚠️ *Lesson plans — needs a look* · ${W.hhmm(now)} PKT`, ...fresh.map((i) => `• ${i.text}`)].join('\n');
+    // Its own lead and words: the quiz watcher posts to the same channel many times a day, as
+    // "⚠️ *NIETE quizzes — needs a look*", often with a "Lesson plans —" line of its own.
+    const text = [`🔴 *Lesson-plan health alert* · ${W.hhmm(now)} PKT`, ...fresh.map((i) => `• ${i.text}`)].join('\n');
     try {
       await within(POST_TIMEOUT_MS, W.postToSlack(text, slack));
     } catch (error) {
