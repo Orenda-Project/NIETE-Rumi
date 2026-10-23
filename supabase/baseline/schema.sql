@@ -2857,7 +2857,7 @@ CREATE TABLE public.assessment_requests (
     CONSTRAINT assessment_requests_content_source_check CHECK ((content_source = ANY (ARRAY['seen'::text, 'unseen'::text, 'both'::text]))),
     CONSTRAINT assessment_requests_has_coverage CHECK (((chapter_number IS NOT NULL) OR (page_ranges IS NOT NULL))),
     CONSTRAINT assessment_requests_output_format_check CHECK ((output_format = ANY (ARRAY['pdf'::text, 'docx'::text]))),
-    CONSTRAINT assessment_requests_question_count_check CHECK (((question_count >= 1) AND (question_count <= 60))),
+    CONSTRAINT assessment_requests_question_count_check CHECK (((question_count >= 1) AND (question_count <= 100))),
     CONSTRAINT assessment_requests_surface_check CHECK ((surface = ANY (ARRAY['whatsapp'::text, 'portal'::text, 'api'::text])))
 );
 
