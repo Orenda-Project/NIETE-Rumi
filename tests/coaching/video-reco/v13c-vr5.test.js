@@ -25,7 +25,7 @@ const VR4_SHA = 'cb4916019c55a692d20f8aad05f72be0ff33bd8a785d31e39270e20d8e6bea1
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 
 describe('prompt vr-5: the cross-language paraphrase rule', () => {
-  test('PROMPT_VERSION is vr-7', () => expect(P.PROMPT_VERSION).toBe('vr-7'));
+  test('PROMPT_VERSION is vr-8', () => expect(P.PROMPT_VERSION).toBe('vr-8'));
 
   test('en report + ur lesson: reason_en paraphrases the moment in English and quotes at most 6 words; moment.quote stays verbatim', () => {
     const text = P.build({ ...base, reportLanguage: 'en', lessonLanguage: 'ur' });
@@ -111,7 +111,7 @@ describe('engine: the prompt gets the report and lesson languages', () => {
     const d = deps();
     const row = await E.recommendForReport({ ...args('en'), deps: d });
     expect(d.completeJson.mock.calls[0][0]).toMatch(/in reason_en, paraphrase the moment in English/);
-    expect(row).toMatchObject({ status: 'shown', seg_id: '10-s1', prompt_version: 'vr-7', moment_source: 'transcript' });
+    expect(row).toMatchObject({ status: 'shown', seg_id: '10-s1', prompt_version: 'vr-8', moment_source: 'transcript' });
     expect(row.moment_quote).toBe(PARAPHRASED.moment.quote);
     expect(row.reason_en).toBe(PARAPHRASED.reason_en.replace('"yes or no"', '"\u2068yes or no\u2069"')); // bd-8hhqhf: the quote is isolated
   });

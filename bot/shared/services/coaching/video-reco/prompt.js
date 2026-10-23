@@ -7,7 +7,7 @@
  */
 const { redactNames } = require('./redact-names');
 
-const PROMPT_VERSION = 'vr-7'; // vr-7 (bd-8hhqhf R7b, COS 144730 2b): the clip's own words; a teacher is plural in Urdu
+const PROMPT_VERSION = 'vr-8'; // vr-8 (red7 155809): no vocative in "Try this tomorrow"; vr-7 (R7b 2b): the clip's own words, the Urdu plural
 const EXCERPT_LINES = 12;
 const EXCERPT_MAX_CHARS = 220;
 
