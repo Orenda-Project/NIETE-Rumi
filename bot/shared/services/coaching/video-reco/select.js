@@ -213,15 +213,16 @@ function postRedact(text, teacherName, vocab = []) {
   return redactNames(text, { teacher: teacherName || null, strict: false, placeholders: { child: '[a student]' }, vocab });
 }
 
-// bd-8hhqhf (lead-final 21:24Z): maths/science loanwords a teacher says in Urdu script, never a child's name; with the
-// lesson's topic words they are the output redactor's vocabulary.
+// bd-8hhqhf (lead-final 21:24Z): maths/science loanwords a teacher says in Urdu script, never a child's name: the output
+// redactor's vocabulary. Topic words are NOT in it: a topic can name a person ("حضرت علی کی سیرت"), and in the non-strict
+// output redactor the vocabulary only ever decides an address slot (red7 070504/070505, COS 070543).
 const SUBJECT_TERMS = ('میڈین موڈ مین رینج اوسط میگنیٹ مقناطیس رگڑا رگڑ چارج کرنٹ سرکٹ بلب بیٹری وولٹیج فورس گریویٹی انرجی '
   + 'ایٹم مالیکیول الیکٹران پروٹان نیوٹران آکسیجن کاربن ہائیڈروجن فریکشن نیومریٹر ڈینومینیٹر ڈیسیمل پرسنٹیج فیکٹر ملٹیپل '
   + 'اینگل ٹرائینگل سرکل اسکوائر ریکٹینگل ایریا پیرامیٹر والیوم ریڈیس ڈایامیٹر').split(' ');
 
-/** The output redactor's vocabulary for a lesson: SUBJECT_TERMS + the topic's words. */
-function subjectVocab(topic) {
-  return [...SUBJECT_TERMS, ...String(topic || '').split(/[^\p{L}]+/u).filter((w) => [...w].length >= 3)];
+/** The output redactor's vocabulary: SUBJECT_TERMS (a topic argument is ignored, see above). */
+function subjectVocab() {
+  return SUBJECT_TERMS;
 }
 
 // The validation rules that leave the pick on a shortlisted, code-gated chapter. Not candidate/shape (no such chapter),
