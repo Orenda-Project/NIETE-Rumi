@@ -888,7 +888,7 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
 .p2head .r{ font-size:15.5px; color:var(--mut); font-weight:600; text-align:${PAGE.oneColumn ? start : end}; line-height:${rtl ? "1.85" : "1.45"}; }
 .p2sec{ break-inside:avoid; }
 .p2bar{ display:flex; align-items:center; gap:7px; margin:0; }
-.p2bar .badge{ flex:0 0 auto; width:21px; height:21px; border-radius:var(--r-1); background:var(--navy); color:#fff;
+.p2bar .badge{ flex:0 0 auto; width:${rtl ? "auto; min-width:21px; padding:0 5px" : "21px"}; height:21px; border-radius:var(--r-1); background:var(--navy); color:#fff;
       font-size:15.5px; font-weight:800; display:flex; align-items:center; justify-content:center; line-height:1; }
 .p2bar .nm{ font-size:17px; font-weight:800; color:var(--navy); letter-spacing:.03em;
       text-transform:uppercase; line-height:${rtl ? "1.8" : "1.35"}; }
@@ -971,7 +971,11 @@ ${rtl ? ".katex-html, .mathb{ text-align:center; }" : ""}
    nowrap block has exactly one line box whatever it holds; overflow+ellipsis is what keeps that
    from running off the page edge instead. Clamping only ever SHRINKS the measured strip, so the
    packer's page budget cannot lose a pixel to this. No padding, no line-height, no font-size. */
-.foot .fl{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.foot .fl{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; }
+/* bd-5o0ay.10.38: the page ref was the tail of .fl, so a long chapter title pushed "pp. 68" under
+   the ellipsis ("pp. …"). The chapter run clips now; the page ref keeps its width. */
+.foot .fch{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.foot .fpp{ flex:none; white-space:nowrap; }
 .foot .fr{ text-align:${start}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .foot .wm{ font-weight:800; color:var(--brand, var(--navy)); }
 ${rtl ? `
@@ -1464,16 +1468,20 @@ function atom(html, o = {}) {
   return { html: decorate(html, `sp-${sp}`), sec: o.sec || null, first: !!o.first, glue: !!o.glue, sp };
 }
 
+/** The printed badge: Latin letter in English, the Urdu label set's own badge in Urdu (bd-psa3u). */
+const secBadge = (id, L) => (L.badge && L.badge[id]) || SECTION_META[id].letter;
+const p2Badge = (letter, L) => (L.p2Badge && L.p2Badge[letter.charCodeAt(0) - 65]) || letter;
+
 function bar(id, name, minutes, L, extraCls = "") {
   const m = SECTION_META[id];
   return `<div class="bar ${m.cls}${extraCls ? " " + extraCls : ""}" data-sec="${esc(id)}">
-    <span class="badge">${m.letter}</span><span class="nm">${rich(name)}</span>
+    <span class="badge">${secBadge(id, L)}</span><span class="nm">${rich(name)}</span>
     ${minutes ? `<span class="mins">${minutes} ${esc(L.min)}</span>` : ""}</div>`;
 }
 
-function p2bar(letter, name, extraCls = "") {
+function p2bar(letter, name, L, extraCls = "") {
   return `<div class="p2bar${extraCls ? " " + extraCls : ""}" data-sec="p2-${esc(letter)}">
-    <span class="badge">${esc(letter)}</span><span class="nm">${esc(name)}</span><span class="rule"></span></div>`;
+    <span class="badge">${esc(p2Badge(letter, L))}</span><span class="nm">${esc(name)}</span><span class="rule"></span></div>`;
 }
 
 /** Rebuild a section's bar for a page that opens in the middle of it. */
@@ -1507,11 +1515,11 @@ function contBarHtml(key, ctx, secIndex) {
   const name = `${esc(info.title)} &middot; ${esc(L.continued)}`;
   if (info.kind === "p2") {
     return `<div class="p2bar cont" data-sec="p2-${esc(info.letter)}">
-      <span class="badge">${esc(info.letter)}</span><span class="nm">${name}</span><span class="rule"></span></div>`;
+      <span class="badge">${esc(p2Badge(info.letter, L))}</span><span class="nm">${name}</span><span class="rule"></span></div>`;
   }
   const m = SECTION_META[info.id];
   return `<div class="bar ${m.cls} cont" data-sec="${esc(info.id)}">
-    <span class="badge">${m.letter}</span><span class="nm">${name}</span></div>`;
+    <span class="badge">${secBadge(info.id, L)}</span><span class="nm">${name}</span></div>`;
 }
 
 function contStripHtml(doc, ctx) {
@@ -1561,7 +1569,7 @@ function footerHtml(doc, ctx, n, total) {
   const L = ctx.L;
   const named = p.chapter_title && !String(p.chapter || "").includes(p.chapter_title);
   const chapter = named ? `${rich(p.chapter)} &mdash; ${rich(p.chapter_title)}` : rich(p.chapter || p.chapter_title);
-  const left = `${esc(L.grade)} ${p.grade} ${rich(p.subject)} &middot; ${chapter} &middot; ${esc(L.pp)}${isoAtom(esc(p.printed_pages), ctx)}`;
+  const left = `<span class="fch">${esc(L.grade)} ${p.grade} ${rich(p.subject)} &middot; ${chapter}</span><span class="fpp">&nbsp;&middot; ${esc(L.pp)}${isoAtom(esc(p.printed_pages), ctx)}</span>`;
   const brand = p.brand && p.brand.name ? `<span class="wm">${esc(p.brand.name)}</span> &middot; ` : "";
   return `<div class="foot"><div class="fl">${left}</div><div class="fr">${brand}${esc(L.pageOf(n, total))}</div></div>`;
 }
@@ -2008,7 +2016,7 @@ function boardPlanAtoms(doc, ctx) {
   if (order.length) {
     out.push({
       html: `<div class="card"><span class="lbl">${esc(L.drawOrder)}</span>
-      <ol class="ord">${order.map((d) => `<li>${rich(unnumber(d))}</li>`).join("")}</ol></div>`,
+      <ol class="ord"${ctx.rtl ? ` style="list-style-type:persian"` : ""}>${order.map((d) => `<li>${rich(unnumber(d))}</li>`).join("")}</ol></div>`,
       sp: 1,
     });
   }
@@ -2110,7 +2118,7 @@ function page2(doc, ctx, secIndex) {
     const letter = String.fromCharCode(65 + nS++);
     const key = `p2-${letter}`;
     secIndex[key] = { kind: "p2", letter, title: name };
-    A.push(atom(p2bar(letter, name), { sec: key, first: true, glue: true, sp: 2 }));
+    A.push(atom(p2bar(letter, name, L), { sec: key, first: true, glue: true, sp: 2 }));
     present.forEach((b) => {
       const html = typeof b === "string" ? b : b.html;
       // A body may now declare its own `glue`. It could not before, and it did not need to
