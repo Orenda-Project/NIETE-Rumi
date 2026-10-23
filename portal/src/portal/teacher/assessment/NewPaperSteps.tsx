@@ -240,7 +240,7 @@ export function CoverStep() {
   if (fdePicked) {
     return (
       <StepFrame step="cover" backTo={backTo('class')} hint={C.skips4} next={{ label: C.next, why: null, to: newPaperPath('check') }}>
-        <SideDoor picked onFlip={flip} C={C} />
+        <SideDoor picked onFlip={flip} C={C} grade={p.grade} />
         <p className="px-1.5 text-[15px] font-semibold text-[#6b7280]">{C.chaptersOff}</p>
         {list.length > 0 && (
           <div aria-hidden="true" className="pointer-events-none opacity-40">
@@ -260,7 +260,7 @@ export function CoverStep() {
 
   return (
     <StepFrame step="cover" steps={topicsApply(p) ? TOPIC_STEPS : STEPS} backTo={backTo('class')} next={{ label: C.next, why: stepReason('cover', p, 50, C, { offerFde: !!pattern }), to: newPaperPath(topicsApply(p) ? 'topics' : 'questions') }}>
-      {pattern && <SideDoor picked={false} onFlip={flip} C={C} />}
+      {pattern && <SideDoor picked={false} onFlip={flip} C={C} grade={p.grade} />}
       <Tabs
         label={C.steps.cover}
         value={p.coverBy}
@@ -355,11 +355,11 @@ export function CoverStep() {
   );
 }
 
-/** The side door: the FDE board pattern as one pickable card above today's Chapters step (Grade 5, eligible, flag on). */
-function SideDoor({ picked, onFlip, C }: { picked: boolean; onFlip: () => void; C: AssessmentV2Copy }) {
+/** The side door: the FDE board pattern as one pickable card above today's Chapters step (a pattern grade, eligible, flag on). */
+function SideDoor({ picked, onFlip, C, grade }: { picked: boolean; onFlip: () => void; C: AssessmentV2Copy; grade: number | null }) {
   return (
     <div data-testid="fde-side-door" role="radiogroup" aria-label={C.styleFde}>
-      <Choice picked={picked} onPick={onFlip} icon={<LayoutList className="h-6 w-6" aria-hidden="true" />} name={C.styleFde} sub={C.fdeDoorChips} />
+      <Choice picked={picked} onPick={onFlip} icon={<LayoutList className="h-6 w-6" aria-hidden="true" />} name={C.styleFde} sub={C.fdeDoorChips(grade === null ? [] : [grade])} />
     </div>
   );
 }

@@ -4913,7 +4913,7 @@ CREATE TABLE IF NOT EXISTS assessment_requests (
 
   content_source    TEXT NOT NULL DEFAULT 'unseen'
                       CHECK (content_source IN ('seen', 'unseen', 'both')),
-  question_count    INTEGER NOT NULL CHECK (question_count BETWEEN 1 AND 60),
+  question_count    INTEGER NOT NULL CHECK (question_count BETWEEN 1 AND 100),  -- V1.7.5
   question_types    JSONB NOT NULL DEFAULT '[]'::jsonb,   -- empty = we chose
   has_answer_key    BOOLEAN NOT NULL DEFAULT FALSE,
   has_answer_lines  BOOLEAN NOT NULL DEFAULT TRUE,

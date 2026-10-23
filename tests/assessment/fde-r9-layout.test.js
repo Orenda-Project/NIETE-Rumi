@@ -299,12 +299,15 @@ describe('r9 · subjects without a cross-section table lay out as before', () =>
   // maths and urdu re-recorded for bd-5jmnfj.19: the only change is each section's `levels` carried into
   // _layout; with it stripped they hash to the values before it (maths: 3c8623bd…, the .11 value above). urdu again when its A/C split moved to R20 / R10 U10
   // (with the old split restored they hash to the previous values).
+  // All five again for bd-5jmnfj.4.26: the header lost disclaimer_*, footer_* and the covers suffix; nothing
+  // else in the layout differs (with those six strings restored they hash to c89b21fc…, de227f21…, 8c2c920f…,
+  // 2956ee5a…, 2b3b7900…).
   const BEFORE = {
-    science: ['science', 'c89b21fc0d5a437e51246e5f213f96f99ebd7eb7fa052e5a166c2623ff91bbe7'],
-    maths: ['maths', 'de227f21b454c135e9a7a2237792b7ef7d06abac558dae44c74684bfb55b3a8e'],
-    urdu: ['urdu', '8c2c920fd16d2283b4c5a5ff692989a2d53ebe60811d4ded965d168e8b13b0a6'],
-    'r7-science-full1.exam': ['science', '2956ee5a438aa0fe16d14a4e2a4dabcfcb1cea63b813eb234abd75bd0598e7d2'],
-    'urdu-gen-full': ['urdu', '2b3b79003825b0c0ec3c3f4590a83e0b2c24aab5e962bccec423b21022f1dbd5'],
+    science: ['science', 'b29d8b25035f442ff8b932ebd310e6954a648908c15e53d6d1ce779f37a8d2c6'],
+    maths: ['maths', 'a73eaa01bae0f1c0ac857aba6cfdcc290e7eab1f8a02fe8d0f423385650b2c1a'],
+    urdu: ['urdu', '5158f4b46210756da93975500a8948c87f7a10528955e4ff7baa38282fc24d6a'],
+    'r7-science-full1.exam': ['science', 'c443e2c5661b6bdd9539c8c06c2914c3a6e6f99a2eeb70b449627bbe552b1ad1'],
+    'urdu-gen-full': ['urdu', '06802bc7adfdacfa9ac215ddae580d30c9e14e86cc7c78683685fcaf8cbdb849'],
   };
   test.each(Object.keys(BEFORE))('%s lays out byte-identical to before', (name) => {
     const [subject, sha] = BEFORE[name];
