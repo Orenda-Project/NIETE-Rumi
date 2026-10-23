@@ -987,8 +987,9 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   # accepting that leaders lose the WhatsApp picker. Unit: tests/app-redirect/app-link-leader-lesson-plan.test.js,
   # tests/routes/app-login-fln.test.js (fln:send lands /portal/fln/send).
   # UPDATED 2026-10-23 (bd-a73p5m): the link now opens the Lesson Plans tab (/portal/teacher/lessons), where a leader
-  # reads the plans their teachers get (bd-4joiqz), and FLN share is no longer needed for it (Send a lesson plan,
-  # inside the tab, still asks for it on its own page). Operator, 23 Oct: "A coach who types 'lesson plan' on WhatsApp
+  # reads the plans their teachers get (bd-4joiqz), and FLN share is no longer needed for it. The builder (Send a lesson
+  # plan, /portal/fln/send) is not linked from the tab; inside it a leader can send only from a Reading Hour / Numeracy
+  # plan's own page ("Send to teacher", shown only with FLN share). Operator, 23 Oct: "A coach who types 'lesson plan' on WhatsApp
   # still gets 'Send a lesson plan', not the new tab -- they can get new tab". Same switch, same doors, analytics-only
   # accounts still skipped. Unit: tests/app-redirect/app-link-leader-lesson-plan.test.js,
   # tests/app-redirect/app-link-leader-lessons-doors.test.js (each door, then /go), portal
@@ -1009,12 +1010,13 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Given the NIETE bot chat is open on a coach account
     And lesson plans for leaders open in the app (leader_app_lesson_plan is on)
     When I send "lesson plan"
-    Then I get one message saying "Read the lesson plans your teachers get, and send one to a teacher." with a "Lesson plans" button
+    Then I get one message saying "Read the lesson plans your teachers get." with a "Lesson plans" button
     And no lesson-plan menu opens
     When I tap "Lesson plans"
     Then the app opens on the Lesson Plans tab, signed in, without typing a password
     And I can open a lesson plan my teachers get
-    # In Urdu the line is «وہ لیسن پلان پڑھیں جو آپ کے اساتذہ کو ملتے ہیں، اور انہیں پلان بھیجیں۔» and the button «لیسن پلان».
+    # In Urdu the line is «وہ لیسن پلان پڑھیں جو آپ کے اساتذہ کو ملتے ہیں۔» and the button «لیسن پلان». It promises reading
+    # only: Grades 1-5 and 6-12 plans have no send button for a leader.
     # Axiom: app_funnel.command feature=lesson_plan audience=leader verdict=link; app_link.open feature=leader_lessons.
 
   @e2e @config-gated @P2

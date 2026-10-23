@@ -1000,11 +1000,13 @@ const UX_STRINGS = {
   appLinkBodyCoachTraining: { en: 'Open the Training Library.', ur: 'ٹریننگ لائبریری کھولیں۔' },
   appLinkButtonCoachTraining: { en: 'Open library', ur: 'لائبریری کھولیں' },
   // bd-zcgpkx, bd-a73p5m — a leader's "lesson plan": the Lesson Plans tab, where a leader reads the plans their
-  // teachers get and can send one. The button carries the teacher link's words (appLinkButtonLessonPlan, «لیسن پلان»);
-  // imperatives only, and the Urdu verb agrees with the plans, so nothing assumes a gender. Button 12 en / 9 ur code points.
+  // teachers get. It promises reading only: most plans there have no send button for a leader, and a Reading Hour /
+  // Numeracy plan's "Send to teacher" needs FLN share, which this link does not ask for. The button carries the teacher
+  // link's words (appLinkButtonLessonPlan, «لیسن پلان»); imperatives only, and the Urdu verb agrees with the plans, so
+  // nothing assumes a gender. Body 40 en / 47 ur, button 12 en / 9 ur code points.
   appLinkBodyLeaderLessonPlan: {
-    en: 'Read the lesson plans your teachers get, and send one to a teacher.',
-    ur: 'وہ لیسن پلان پڑھیں جو آپ کے اساتذہ کو ملتے ہیں، اور انہیں پلان بھیجیں۔',
+    en: 'Read the lesson plans your teachers get.',
+    ur: 'وہ لیسن پلان پڑھیں جو آپ کے اساتذہ کو ملتے ہیں۔',
   },
   appLinkButtonLeaderLessonPlan: { en: 'Lesson plans', ur: 'لیسن پلان' },
 

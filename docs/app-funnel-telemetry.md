@@ -129,6 +129,6 @@ median time on that page; then the direct (no journey) sessions.
 - A leader's lesson-plan link (bd-a73p5m) lands on `/portal/teacher/lessons`, the same page as a teacher's, so its page
   rows carry `feature: lesson_plan` like hers. The route cannot tell them apart and nothing here keys on it: a journey's
   funnel is named by its command row, so the leader's is `lesson_plan@leader` (its `app_link.open` and page rows also
-  carry `leader_lessons` as `feature` / `linkFeature`). Links sent before 23 Oct carry `fln:send` and land on
-  `/portal/fln/send`.
+  carry `leader_lessons` as `feature` / `linkFeature`; its `app_link.open` has `v2: false`, because /go asks no
+  app question for a leader token). Links sent before 23 Oct carry `fln:send` and land on `/portal/fln/send`.
 - Actions are logged at the API; an action the app performs without an API call is not seen.
