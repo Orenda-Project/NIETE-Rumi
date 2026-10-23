@@ -202,7 +202,7 @@ describe('the board-pattern paper', () => {
     const text = visible(paperHtml(mathsPaper()));
     expect(text).toContain('School: ____________');
     expect(text).not.toMatch(/MODEL PAPER FOR|Federal Directorate/i);
-    expect(text).toContain('Not an official FDE paper.');
+    expect(text).not.toMatch(/official/i); // bd-5jmnfj.4.26
   });
 
   it('counts printed per slot equal generate', () => {
@@ -324,7 +324,7 @@ describe('the Urdu paper', () => {
     expect(opts.footerTemplate).toMatch(/font-family:'FdeUrduDigits'/);
     expect(opts.footerTemplate).toMatch(/class="pageNumber"/);
     expect(opts.footerTemplate).toMatch(/class="totalPages"/);
-    expect(opts.footerTemplate).toContain('یہ سرکاری');
+    expect(opts.footerTemplate).not.toContain('سرکاری'); // bd-5jmnfj.4.26
     // A footer font loads only when the page declares the same face: every face in the footer is in the page.
     const html = R.renderPaper({ examJson: exam, grade: 5, subject: 'urdu', answerLines: true });
     const faces = opts.footerTemplate.match(/@font-face\{[^}]*\}/g);
@@ -336,7 +336,7 @@ describe('the Urdu paper', () => {
   it('the English footer names the page atoms and is not typed', () => {
     const opts = R.pdfOptions(mathsPaper(), 'scheme');
     expect(opts.footerTemplate).toMatch(/Page <span class="pageNumber"><\/span> of <span class="totalPages"><\/span>/);
-    expect(opts.footerTemplate).toContain('Not an official FDE paper');
+    expect(opts.footerTemplate).not.toMatch(/official/i); // bd-5jmnfj.4.26
     expect(opts.margin).toEqual({ top: '12mm', right: '12mm', bottom: '18mm', left: '12mm' });
   });
 

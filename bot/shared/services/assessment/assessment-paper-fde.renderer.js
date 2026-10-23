@@ -690,7 +690,6 @@ function css(medium, kind) {
   .ascii, .ltr { font-family: 'PaperLatin', Arial, sans-serif; }
   .school { text-align: center; font-weight: 700; }
   .title { text-align: center; font-weight: 700; font-size: ${ur ? '13.5pt' : '12.5pt'}; margin-top: 2px; }
-  .disclaimer { text-align: center; font-size: ${ur ? '10pt' : '8.5pt'}; color: #333; margin: 2px 0 6px; }
   .atoms { display: flex; justify-content: space-between; font-weight: 700; margin: 4px 0; }
   .note { border: 1px solid #000; padding: 4px 8px; font-size: ${ur ? '11pt' : '9.5pt'}; margin: 4px 0 8px; break-inside: avoid; }
   table.student { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: ${ur ? '11pt' : '9.5pt'}; }
@@ -812,7 +811,6 @@ function headerBlock(L, ctx, total) {
   const atoms = `<div class="atoms"><span>${textOf(H[`time_line_${lang}`] || '', ctx)}</span><span>${textOf(substitute(H[`total_line_${lang}`] || '', { w: total, n: total, t: total, g: total }, lang), ctx)}</span></div>`;
   return `<div class="school">${textOf(H[`school_line_${lang}`], ctx)}</div>
 <div class="title">${textOf(H[`title_${lang}`], ctx)}</div>
-<div class="disclaimer">${textOf(H[`disclaimer_${lang}`], ctx)}</div>
 ${atoms}
 ${H[`note_${lang}`] ? `<div class="note">${textOf(H[`note_${lang}`], ctx)}</div>` : ''}
 <table class="student">
@@ -1307,16 +1305,15 @@ function pdfOptions(examJson, kind = 'paper') {
     const page = esc(H.footer_page_ur)
       .replace('{n}', `<span class="pageNumber" style="${digits}"></span>`)
       .replace('{N}', `<span class="totalPages" style="${digits}"></span>`);
-    const line2 = esc(H.footer_ur).replace('FDE', "<span style=\"font-family:'PaperLatin';direction:ltr;unicode-bidi:isolate;margin:0 .3em\">FDE</span>");
     const prefix = kind === 'scheme' ? `${esc(H.scheme_title_ur)} · ` : '';
     body = `<div dir="rtl" style="width:100%;font-family:'PaperUrdu';font-size:8.5pt;line-height:1.7;text-align:center;color:#333;padding:0 12mm">`
-      + `<div>${prefix}${page}</div><div>${line2}</div></div>`;
+      + `<div>${prefix}${page}</div></div>`;
   } else {
     const prefix = kind === 'scheme' ? `${esc(H.scheme_title_en)} · ` : '';
     const page = esc(H.footer_page_en)
       .replace('{n}', '<span class="pageNumber"></span>')
       .replace('{N}', '<span class="totalPages"></span>');
-    body = `<div style="width:100%;font-family:'PaperLatin';font-size:7.5pt;text-align:center;color:#333;padding:0 12mm">${prefix}${page} · ${esc(H.footer_en)}</div>`;
+    body = `<div style="width:100%;font-family:'PaperLatin';font-size:7.5pt;text-align:center;color:#333;padding:0 12mm">${prefix}${page}</div>`;
   }
   return {
     format: 'A4',
