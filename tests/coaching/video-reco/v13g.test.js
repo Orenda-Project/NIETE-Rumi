@@ -78,14 +78,14 @@ describe('the vocabulary rule no longer masks content words', () => {
 
   test('red7 070505: on the prompt side a topic word never opens an address slot, and never shields a lexicon name', () => {
     const people = { teacher: 'Saima Khan', vocab: [], oovVocab: ['راشد', 'منہاج', 'شہید', 'کوئنچ'] };
-    const s = (text) => ({ diarization_data: { segments: [{ start_ms: 1000, label: 'Teacher', text }] } });
+    const s = (text) => ({ diarization_data: { segments: [{ start_ms: 1000, label: 'Teacher', text }, { start_ms: 2000, label: 'Student', text: 'جی۔' }] } });
     expect(P.excerpts(s('راشد، آپ پڑھیں'), {}, people)[0]).toContain('[a student]');
     expect(P.excerpts(s('منہاج، آپ پڑھیں'), {}, people)[0]).toContain('[a student]');
     expect(P.excerpts(s('آج ہم کوئنچ کا مطلب پڑھیں گے'), {}, people)[0]).toContain('کوئنچ'); // narration: the vocabulary rule only
   });
 
   test('the excerpt redaction takes the lesson vocab: کوئنچ (no retroflex) with vocab is kept', () => {
-    const s = { diarization_data: { segments: [{ start_ms: 1000, label: 'Teacher', text: 'آج ہم کوئنچ کا مطلب پڑھیں گے، ٹھیک ہے؟' }] } };
+    const s = { diarization_data: { segments: [{ start_ms: 1000, label: 'Teacher', text: 'آج ہم کوئنچ کا مطلب پڑھیں گے، ٹھیک ہے؟' }, { start_ms: 2000, label: 'Student', text: 'جی۔' }] } };
     expect(P.excerpts(s, {}, { teacher: 'Saima Khan' })[0]).toContain('[a student]');
     expect(P.excerpts(s, {}, { teacher: 'Saima Khan', vocab: ['کوئنچ'] })[0]).toContain('کوئنچ');
   });
@@ -124,7 +124,7 @@ describe('engine: the prompt carries the subject word; the quote passes on the f
       completeJson,
     };
   }
-  const LINES = [{ start_ms: 1000, label: 'Teacher', text: 'آج ہمارا جو ٹاپک ہے نا، وہ ہے میڈین کے بارے میں، ٹھیک ہے؟' }];
+  const LINES = [{ start_ms: 1000, label: 'Teacher', text: 'آج ہمارا جو ٹاپک ہے نا، وہ ہے میڈین کے بارے میں، ٹھیک ہے؟' }, { start_ms: 2000, label: 'Student', text: 'جی۔' }];
   const ANSWER = {
     seg_id: '10-s1', moment: { at: '00:01', quote: 'آج ہمارا جو ٹاپک ہے نا، وہ ہے میڈین کے بارے میں' },
     reason_en: 'At 00:01 the topic was named but no goal was written. This clip shows a teacher writing the objective on the board.',

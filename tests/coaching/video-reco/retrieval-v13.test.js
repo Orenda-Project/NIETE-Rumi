@@ -197,7 +197,7 @@ describe('R4 the row (engine)', () => {
     };
     const session = {
       id: SID, user_id: UID, transcript_language: 'ur', users: { name: 'Saima Khan', preferred_language: 'ur' },
-      diarization_data: { segments: [{ start_ms: 30000, label: 'Teacher', text: 'Ahmed, tum batao: is this a triangle? Yes or no, quickly!' }] },
+      diarization_data: { segments: [{ start_ms: 30000, label: 'Teacher', text: 'Ahmed, tum batao: is this a triangle? Yes or no, quickly!' }, { start_ms: 31000, label: 'Student', text: 'جی۔' }] },
     };
     const a = { framework: 'fico', subject_resolution: { code: subject, grade: '3', confidence: 'high' }, ...analysis };
     return E.recommendForReport({ session, analysis: a, nextStep, card, coachingSessionId: SID, deps }).then((row) => ({ row, completeJson }));
