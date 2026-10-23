@@ -867,12 +867,14 @@ const UX_STRINGS = {
   // bd-s42dye.3 — a coach's /training: the coach app's Training Library. The body names it; the button is short enough for the 15-code-point headroom rule (12 en, 14 ur).
   appLinkBodyCoachTraining: { en: 'Open the Training Library.', ur: 'ٹریننگ لائبریری کھولیں۔' },
   appLinkButtonCoachTraining: { en: 'Open library', ur: 'لائبریری کھولیں' },
-  // bd-zcgpkx — a leader's "lesson plan": Send a lesson plan, the Reading Hour and Numeracy plans for their teachers.
+  // bd-zcgpkx, bd-a73p5m — a leader's "lesson plan": the Lesson Plans tab, where a leader reads the plans their
+  // teachers get and can send one. The button carries the teacher link's words (appLinkButtonLessonPlan, «لیسن پلان»);
+  // imperatives only, and the Urdu verb agrees with the plans, so nothing assumes a gender. Button 12 en / 9 ur code points.
   appLinkBodyLeaderLessonPlan: {
-    en: 'Send Reading Hour and Numeracy lesson plans to your teachers.',
-    ur: 'ریڈنگ آور اور بنیادی حساب کے لیسن پلان اپنے اساتذہ کو بھیجیں۔',
+    en: 'Read the lesson plans your teachers get, and send one to a teacher.',
+    ur: 'وہ لیسن پلان پڑھیں جو آپ کے اساتذہ کو ملتے ہیں، اور انہیں پلان بھیجیں۔',
   },
-  appLinkButtonLeaderLessonPlan: { en: 'Send a plan', ur: 'پلان بھیجیں' },
+  appLinkButtonLeaderLessonPlan: { en: 'Lesson plans', ur: 'لیسن پلان' },
 
   // ─── the registration Flow, v5 (bd-x7aprz.2) ──────────────────────────────
   // The screens after the first one are served by the endpoint in the language she picked on
