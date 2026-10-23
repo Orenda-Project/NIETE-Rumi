@@ -91,7 +91,8 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     .concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall)
     .concat(d.emptyQuestionParts(firstLaid.examJson))
     .concat(Prompt.pictureShortfall(firstLaid.examJson, P))
-    .concat(Prompt.repeatedPictures(firstLaid.examJson, P));
+    .concat(Prompt.repeatedPictures(firstLaid.examJson, P))
+    .concat(Prompt.answerShortfall(firstLaid.examJson, P));
   const shortSlots = new Set(short.map((f) => f.slot));
   const again = built.filter(({ section }) => section.slots.some((s) => shortSlots.has(s.slot)));
 
@@ -118,7 +119,8 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     const pictures = shortfall.some((f) => f.reason === 'repeat')
       ? Prompt.takenPicturesNote(results.filter((r) => r.id !== b.section.id).map((r) => r.tree))
       : null;
-    const note = [takenNote(MP, b.section, firstLaid.examJson, { topUp, shortfall, held: firstLaid.held }), pictures].filter(Boolean).join('\n\n');
+    const note = [takenNote(MP, b.section, firstLaid.examJson, { topUp, shortfall, held: firstLaid.held }), pictures, Prompt.answerNote(shortfall, P)]
+      .filter(Boolean).join('\n\n');
     const second = await writeOne(note
       ? { ...b, messages: d.sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }
       : b);
@@ -140,6 +142,9 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   // A picture still repeated after the re-ask is logged, not failed: the teacher still gets a paper.
   const repeated = Prompt.repeatedPictures(examJson, P);
   if (repeated.length) d.logToFile('[assessment] repeated pictures', { requestId, pattern, repeated });
+  // So is a key still off its slot's rule: one wrong item is better than no paper for the teacher.
+  const answers = Prompt.answerShortfall(examJson, P);
+  if (answers.length) d.logToFile('[assessment] answers off the rule', { requestId, pattern, answers });
   const finalShort = laid.shortfall.concat(d.emptyQuestionParts(examJson), Prompt.pictureShortfall(examJson, P));
   if (finalShort.length) {
     throw d.fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: finalShort, examJson, model });
