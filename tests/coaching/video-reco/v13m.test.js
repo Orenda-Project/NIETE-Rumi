@@ -33,7 +33,7 @@ const A = {
 };
 function args() {
   return {
-    session: { id: SID, user_id: UID, transcript_language: 'ur', users: { name: 'Saima Khan', preferred_language: 'ur' }, diarization_data: { segments: [{ start_ms: 192000, label: 'Teacher', text: LINE }] } },
+    session: { id: SID, user_id: UID, transcript_language: 'ur', users: { name: 'Saima Khan', preferred_language: 'ur' }, diarization_data: { segments: [{ start_ms: 192000, label: 'Teacher', text: LINE }, { start_ms: 193000, label: 'Student', text: 'جی۔' }] } },
     analysis: {
       framework: 'fico',
       domains: { C: { indicators: [{ id: 'C1', name: 'Quality Questioning', score: 1, applicable: true, evidence: 'x', evidence_summary: 'x', timestamp: '[03:12]' }] } },
@@ -88,7 +88,7 @@ test('a placeholder that is the subject, or that sits mid-reason, stays', () => 
 describe('red7 085115 finding 1: an unshowable placeholder in an LLM reason or quote is refused', () => {
   const S = () => require('../../../bot/shared/services/coaching/video-reco/select');
   const list = { candidates: [{ seg_id: '10-s1', indicator: 'C1' }] };
-  const ex = ['[00:30] Teacher: [TEACHER], class, open your books and read the first line'];
+  const ex = ['[00:30] Teacher: [TEACHER], class, open your books and read the first line', '[00:31] Student: جی۔'];
   const pick = (over) => ({
     seg_id: '10-s1', moment: { at: '00:30', quote: 'class, open your books and read the first line' },
     reason_en: 'The class waited for one instruction. The clip shows a teacher giving a clear first step.',

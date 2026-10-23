@@ -18,6 +18,7 @@ const target = require('./target');
 const shortlist = require('./shortlist');
 const prompt = require('./prompt');
 const select = require('./select');
+const silence = require('./silence');
 const { composeReason, stripBidi } = require('./copy');
 
 const ENGINE_TIMEOUT_MS = 60000; // the LLM call is capped at 45 s (select.js); the sender awaits this after the report has gone
@@ -173,6 +174,13 @@ async function compute(a, d, state) {
   if (t.none && t.none !== 'unknown_indicator' && t.none !== 'unscored_step') {
     // v1.3b NO_MOVE: no route ran, so the row says so (route null, an empty list).
     return finish({ ...base, status: 'none', none_reason: t.none, ...(t.none === 'hole:no_move' ? { candidates: [] } : {}) });
+  }
+  // R7b silence (silence.js, panel §6.1): a subject label off its subject, and B6 with no mixed-level moment, are no move.
+  if (silence.labelOffSubject(t.scheme, t.storedIndicator, shortlist.subjectId(subject))) {
+    return finish({ ...base, status: 'none', none_reason: 'silence:label_subject', candidates: [] });
+  }
+  if (t.storedIndicator === 'B6' && !silence.levelsMoment(prompt.transcriptLines(session))) {
+    return finish({ ...base, status: 'none', none_reason: 'silence:no_levels_moment', candidates: [] });
   }
 
   const lesson = {

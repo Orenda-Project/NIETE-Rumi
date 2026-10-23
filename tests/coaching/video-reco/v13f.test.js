@@ -129,7 +129,7 @@ describe('1 · the card-sentence fallback fits a long card sentence under the ca
 });
 
 describe('2 · the name check ignores honorifics and role words in users.name', () => {
-  const excerpts = ['[00:30] Teacher: is this a triangle? Yes or no, quickly!'];
+  const excerpts = ['[00:30] Teacher: is this a triangle? Yes or no, quickly!', '[00:31] Student: جی۔'];
   const list = { candidates: [{ seg_id: '10-s1', indicator: 'C1' }] };
   const pick = (reasonEn, reasonUr = GOOD.reason_ur) => ({
     seg_id: '10-s1', moment: { at: '00:30', quote: 'is this a triangle? Yes or no' }, reason_en: reasonEn, reason_ur: reasonUr, confidence: 0.6,
@@ -203,7 +203,7 @@ describe('5 · redactor false positives', () => {
   // d2a235f4 (gold, maths): the strict excerpt redactor masked میڈین (median); the model quoted the placeholder.
   // The fixture uses کوئنچ (quench, 383a31f3): since v13g میڈین is kept by the retroflex rule, کوئنچ is still masked by
   // the vocabulary rule alone, which is what this check is about.
-  const MEDIAN = [{ start_ms: 1000, label: 'Teacher', text: 'آج ہمارا جو ٹاپک ہے نا، وہ ہے کوئنچ کے بارے میں، ٹھیک ہے؟' }];
+  const MEDIAN = [{ start_ms: 1000, label: 'Teacher', text: 'آج ہمارا جو ٹاپک ہے نا، وہ ہے کوئنچ کے بارے میں، ٹھیک ہے؟' }, { start_ms: 2000, label: 'Student', text: 'جی۔' }];
   const QUOTE_MEDIAN = {
     ...GOOD, moment: { at: '00:01', quote: 'آج ہمارا جو ٹاپک ہے نا، وہ ہے [a student] کے بارے میں' },
     reason_en: 'At 00:01 the topic was named but no goal was written. This clip shows a teacher writing the objective on the board.',
@@ -229,7 +229,7 @@ describe('5 · redactor false positives', () => {
   });
 
   test('(a) an Urdu lexicon name in the same slot → still shown', async () => {
-    const lines = [{ start_ms: 1000, label: 'Teacher', text: 'آج ہمارا جو ٹاپک ہے نا، وہ ہے احمد کے بارے میں، ٹھیک ہے؟' }];
+    const lines = [{ start_ms: 1000, label: 'Teacher', text: 'آج ہمارا جو ٹاپک ہے نا، وہ ہے احمد کے بارے میں، ٹھیک ہے؟' }, { start_ms: 2000, label: 'Student', text: 'جی۔' }];
     const d = deps([QUOTE_MEDIAN]);
     const row = await E.recommendForReport({ ...args({ lines, subject: 'maths' }), deps: d });
     expect(row).toMatchObject({ status: 'shown', moment_source: 'transcript' });
@@ -252,7 +252,7 @@ describe('5 · redactor false positives', () => {
 });
 
 describe('red7 (23 Oct) probes on fixes 2 and 3', () => {
-  const excerpts = ['[04:17] Teacher: open page twelve and read the first line'];
+  const excerpts = ['[04:17] Teacher: open page twelve and read the first line', '[04:18] Student: جی۔'];
   const list = { candidates: [{ seg_id: '10-s1', indicator: 'C1' }] };
   const pick = (reasonEn, quote = 'open page twelve and read') => ({
     seg_id: '10-s1', moment: { at: '04:17', quote }, reason_en: reasonEn, reason_ur: GOOD.reason_ur, confidence: 0.6,

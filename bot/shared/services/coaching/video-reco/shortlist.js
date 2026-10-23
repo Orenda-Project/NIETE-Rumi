@@ -17,6 +17,7 @@
  * noneReason names the gate that emptied the list: hole | language | history | unknown_indicator | unscored_step | no_target.
  */
 const { redactNames } = require('./redact-names');
+const { LABEL_SUBJECTS } = require('./silence');
 
 const MAX_CANDIDATES = 12;
 const MAX_TEXT = 6;
@@ -28,7 +29,6 @@ const LABEL_37 = new Set(['F5', 'F6', 'F7', 'F8', 'B7', 'B8', 'C10']);
 // ⛔4 on the 37 LABEL path (lead-review 19:37Z): a subject-pedagogy label's TAG route runs only on its own subject.
 // target.pick nones that the step-text route can still serve from the card's sentence.
 const TEXT_ROUTE_NONES = new Set(['unknown_indicator', 'unscored_step']);
-const LABEL_SUBJECTS = Object.freeze({ F5: ['maths'], F6: ['science'], F7: ['urdu', 'english', 'literacy'] });
 const CONTENT_TARGETS = new Set(['F1', 'F2', 'F3']);
 const SUBJECT_ONLY_ROWS = new Set(['F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10']);
 const BAD_MEDIA = new Set(['broken_media', 'no_speech']);

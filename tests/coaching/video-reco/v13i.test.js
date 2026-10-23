@@ -40,7 +40,7 @@ describe('1 · a bare speaker label is not words', () => {
     ['Teacher (EN):', 'Teacher (EN): today we read the story'],
   ])('%s is stripped and a real line still passes', (_, quote) => {
     const line = `[00:29] Teacher (UR): آج ہم کہانی پڑھیں گے، today we read the story`;
-    expect(S.validate(pick(quote), list, [line], {}).ok).toBe(true);
+    expect(S.validate(pick(quote), list, [line, '[00:31] Student (UR): جی۔'], {}).ok).toBe(true);
   });
 
   test('a two-word quote that is not in the transcript is placeholder (too short to be a moment), not quote', () => {
@@ -105,7 +105,7 @@ describe('2 · a scorer-path quote must appear in the full transcript (engine)',
   test('a scorer quote that IS a transcript line outside the 12-line window still passes as scorer', async () => {
     // the quoted line at 00:01; the window sits around the scorer's [04:24], lines 3–14, so the line is outside it
     const far = Array.from({ length: 30 }, (_, i) => ({ start_ms: 200000 + i * 10000, label: 'Teacher', text: `Line number ${i} about the story and its people` }));
-    const lines = [{ start_ms: 1000, label: 'Teacher', text: 'Please read the first paragraph aloud together now' }, ...far];
+    const lines = [{ start_ms: 1000, label: 'Teacher', text: 'Please read the first paragraph aloud together now' }, { start_ms: 2000, label: 'Student', text: 'جی۔' }, ...far];
     const quote = 'Please read the first paragraph aloud together now';
     const d = deps([pick(quote, '00:01')]);
     const row = await E.recommendForReport({ ...args(`Choral reading. Quote: "${quote}"`, lines), deps: d });

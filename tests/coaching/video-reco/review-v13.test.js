@@ -78,7 +78,7 @@ test('deviation 8: .env.template documents VIDEO_RECO_REASONING', () => {
 
 describe('validator rulings (SPEC §3.5 [v1.3, evals 19:13Z])', () => {
   const list = { candidates: [{ seg_id: '10-s1', indicator: 'C1' }] };
-  const EX = ['[00:30] Teacher: [a student], is this a triangle? Yes or no, quickly!'];
+  const EX = ['[00:30] Teacher: [a student], is this a triangle? Yes or no, quickly!', '[00:31] Student: جی۔'];
   const pickOf = (extra) => ({
     seg_id: '10-s1', moment: { at: '00:30', quote: 'is this a triangle? Yes or no' },
     reason_en: 'At 00:30 the class could only answer yes or no. This clip shows a teacher asking why instead.',
@@ -134,7 +134,7 @@ describe('engine: ladderComplete over recommendable modules (deviation 4) and th
       completeJson: jest.fn().mockResolvedValue({ result: GOOD, usage: {}, finishReason: 'stop' }),
     };
     const session = { id: 's1', user_id: 'u1', transcript_language: 'ur', users: { name: 'Saima Khan', preferred_language: 'ur' },
-      diarization_data: { segments: [{ start_ms: 30000, label: 'Teacher', text: 'Ahmed, is this a triangle? Yes or no, quickly!' }] } };
+      diarization_data: { segments: [{ start_ms: 30000, label: 'Teacher', text: 'Ahmed, is this a triangle? Yes or no, quickly!' }, { start_ms: 31000, label: 'Student', text: 'جی۔' }] } };
     const analysis = { framework: 'fico', subject_resolution: { code: 'urdu', grade: '3', confidence: 'high' },
       domains: { C: { indicators: [rowOverride || { id: 'C1', name: 'Questioning', score: 1, applicable: true, evidence: 'Quote: "Is this a triangle"', timestamp: '[00:30]' }] } } };
     return E.recommendForReport({ session, analysis, nextStep, card, coachingSessionId: 's1', deps }).then((row) => Object.assign(row || {}, { _prompt: (deps.completeJson.mock.calls[0] || [])[0] || '' }));
@@ -208,7 +208,7 @@ describe('vr-3 teacher copy (lead-review 19:37Z ruling 2)', () => {
     expect(text).toContain('no judgement of the teacher. Never write a clip id, number or code; never write a clock time (no [mm:ss], no \"at 12:08\") or a speaker label (no \"Teacher:\", \"Student:\") in reason_en or reason_ur: the moment\'s time goes only in moment.at; never mention the scorer, the report or the analysis; describe the lesson moment itself. Choose a moment with the teacher\'s or a child\'s own words; if the only candidate line is mostly [a student] placeholders, pick another line. If no real moment fits, return seg_id null — never write N/A, unknown or [around unknown].');
   });
   const list = { candidates: [{ seg_id: '10-s1', indicator: 'C1' }] };
-  const EX = ['[00:30] Teacher: [a student], is this a triangle? Yes or no, quickly!'];
+  const EX = ['[00:30] Teacher: [a student], is this a triangle? Yes or no, quickly!', '[00:31] Student: جی۔'];
   const opts = { stepIndicator: 'C1', indicators: ['C1'], source: 'step', catalog: C.fromData(FIX), teacherName: 'Saima Khan' };
   const ok = {
     seg_id: '10-s1', moment: { at: '00:30', quote: 'is this a triangle? Yes or no' },
@@ -230,7 +230,7 @@ describe('vr-3 teacher copy (lead-review 19:37Z ruling 2)', () => {
 
 describe('vr-3 last copy rules (lead-review 19:40Z) and red-team session 2 (lead-review 19:41Z)', () => {
   const list = { candidates: [{ seg_id: '10-s1', indicator: 'C1' }] };
-  const EX = ['[00:30] Teacher: [a student], is this a triangle? Yes or no, quickly!', '[00:50] Teacher: [a student] [a student] لکھنا ہے'];
+  const EX = ['[00:30] Teacher: [a student], is this a triangle? Yes or no, quickly!', '[00:31] Student: جی۔', '[00:50] Teacher: [a student] [a student] لکھنا ہے'];
   const opts = { stepIndicator: 'C1', indicators: ['C1'], source: 'step', catalog: C.fromData(FIX), teacherName: 'Saima Khan' };
   const ok = {
     seg_id: '10-s1', moment: { at: '00:30', quote: 'is this a triangle? Yes or no' },
@@ -304,12 +304,13 @@ describe('engine: unscored step reaches the text route; card action and rational
       v10GroupFor: async () => null, completeJson,
     };
     const session = { id: 's1', user_id: 'u1', transcript_language: 'ur', users: { name: 'Saima Khan', preferred_language: 'ur' },
-      diarization_data: { segments: [{ start_ms: 30000, label: 'Teacher', text: 'is this a triangle? Yes or no, quickly!' }] } };
+      diarization_data: { segments: [{ start_ms: 30000, label: 'Teacher', text: 'is this a triangle? Yes or no, quickly!' }, { start_ms: 31000, label: 'Student', text: 'جی۔' }] } };
     return E.recommendForReport({ session, analysis: { framework: 'fico', subject_resolution: { code: 'urdu', grade: '3', confidence: 'high' }, ...analysis }, nextStep, card, coachingSessionId: 's1', deps })
       .then((row) => ({ row, prompt: (completeJson.mock.calls[0] || [])[0] || '' }));
   }
   test('unscored 37-F5 with a card sentence → step_text list, alias_kind unscored', async () => {
-    const { row } = await run({ indicator_scheme: 'fico_main_37', domains: { F: { domain_max: 4, indicators: [{ id: 'F5', score: null, applicable: false }, { id: 'F1', score: 1, applicable: true }] } } },
+    // R7b: an F5 MATH label is a move only on a maths lesson (silence:label_subject elsewhere, r7b-silence.test.js)
+    const { row } = await run({ subject_resolution: { code: 'maths', grade: '3', confidence: 'high' }, indicator_scheme: 'fico_main_37', domains: { F: { domain_max: 4, indicators: [{ id: 'F5', score: null, applicable: false }, { id: 'F1', score: 1, applicable: true }] } } },
       { target: { indicator: 'F5' } }, { action: 'wait for silence and pause' + PAD });
     expect(row).toMatchObject({ route: 'step_text', alias_kind: 'unscored', none_reason: 'llm_none' });
   });
