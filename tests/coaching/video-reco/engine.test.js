@@ -241,6 +241,9 @@ test('no transcript lines but a scorer quote → the pick may cite it (moment_so
   const d = deps();
   const a = args();
   a.session.diarization_data = null;
+  // SPEC v1.2.1: a transcript with no [mm:ss] lines (excerpts empty). bd-8hhqhf r7 (scale-run 081240): the scorer quote
+  // must still be a line of it, and a session with NO transcript at all is none no_moments (v13k).
+  a.session.transcript_text = 'Is this a triangle? Yes or no, quickly!';
   d.completeJson.mockResolvedValue({ result: { ...GOOD, moment: { at: '00:40', quote: 'Is this a triangle? Yes or no' } }, usage: {}, finishReason: 'stop' });
   expect(await E.recommendForReport({ ...a, deps: d })).toMatchObject({ status: 'shown', moment_source: 'scorer' });
 });

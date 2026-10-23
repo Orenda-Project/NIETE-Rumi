@@ -208,7 +208,9 @@ async function compute(a, d, state) {
   // vr-3: only the `Quote:` part of the scorer's evidence is shown or citable; without one the line is omitted.
   const scorerQuote = t.source === 'card_text' ? '' : prompt.redact(target.scorerQuoteOnly(t.row), people);
   const uptakeQuote = t.source === 'card_text' && up.moment ? prompt.redact(up.moment, people) : '';
-  if (!ex.length && !scorerQuote && !uptakeQuote) {
+  // scale-run 081240: an empty transcript has no moment, whatever the scorer wrote ("No transcript recorded.")
+  const noTranscript = !prompt.transcriptLines(session).length;
+  if (noTranscript || (!ex.length && !scorerQuote && !uptakeQuote)) {
     return finish({ ...base, status: 'none', none_reason: 'no_moments', candidates: list.candidates });
   }
   const step = (nextStep && nextStep.target) || {};

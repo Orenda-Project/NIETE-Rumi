@@ -115,10 +115,14 @@ function quoteLine(quote, excerpts) {
 
 const quoteFound = (quote, excerpts) => quoteLine(quote, excerpts) >= 0;
 
-/** The quote is a line of the whole transcript; `fullLines` is a thunk (redacted lines), skipped when there are none. */
+/**
+ * The quote is a line of the whole transcript; `fullLines` is a thunk (redacted lines). Not given (a caller that does
+ * not check) → not judged; given but empty → no line can be the moment (scale-run 081240: "No transcript recorded.").
+ */
 function inTranscript(quote, fullLines) {
+  if (fullLines === null || fullLines === undefined) return true;
   const lines = typeof fullLines === 'function' ? fullLines() : fullLines;
-  return !Array.isArray(lines) || !lines.length || quoteFound(quote, lines);
+  return Array.isArray(lines) && lines.length > 0 && quoteFound(quote, lines);
 }
 
 const CHILD_PH = /\[a student\]/gi;
