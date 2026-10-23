@@ -176,7 +176,10 @@ function createAppLoginRouter({
     // a teacher token asks the teacher-app question, exactly as before. Either way, off the app → today's dashboard.
     const coach = Object.prototype.hasOwnProperty.call(COACH_LANDINGS, payload.f);
     let onApp = false;
-    try { onApp = Boolean(await (coach ? isCoachApp(user.id) : isTeacherV2(user.id))); } catch (_) { onApp = false; }
+    // bd-a73p5m: a leader token lands on the tab whatever the flags say, so it asks neither app question.
+    if (!leaderPathFor(payload.f)) {
+      try { onApp = Boolean(await (coach ? isCoachApp(user.id) : isTeacherV2(user.id))); } catch (_) { onApp = false; }
+    }
     // An FLN target and (bd-a73p5m) a leader's Lesson Plans tab land as they are: their pages decide who reads them.
     const landing = require('../../bot/shared/services/fln-go-target').flnPathFor(payload.f) || leaderPathFor(payload.f)
       || (onApp ? (coach ? COACH_LANDINGS : LANDINGS)[payload.f] : LEGACY_LANDING);
