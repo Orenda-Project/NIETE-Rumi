@@ -162,8 +162,9 @@ let handler;
 // The engine is not on this deployment yet; a test that needs it present stands it in through the index's
 // own resolver (the module a later change ports).
 const mockEngine = { generateAndDeliver: jest.fn() };
-function load({ switchOn, settings = [], user = TEACHER, engine = true, row = null }) {
+function load({ switchOn, settings = [], user = TEACHER, engine = true, row = null, beforeRequire = null }) {
   jest.resetModules();
+  if (beforeRequire) beforeRequire();
   mockRec.length = 0;
   mockRedisRec.length = 0;
   mockStore.clear();
@@ -430,5 +431,33 @@ describe('the job cannot be queued after the row is written', () => {
     expect(writes[1][3]).toMatchObject({ status: 'failed' });
     expect(rec.filter((r) => r[0] !== 'db' || r[1] !== 'lesson_plan_requests')).toEqual(before);
     expect(mockDb.tables.lesson_plan_requests[0]).toMatchObject({ status: 'failed', source: 'freeform_v1' });
+  });
+});
+
+describe('the free-form door takes its language from the deployment registry, not its own rule', () => {
+  const UX = '../../bot/shared/config/ux-strings';
+  afterEach(() => { jest.dontMock(UX); });
+  const queued = () => mockRec.filter((r) => r[0] === 'db' && r[1] === 'lesson_plan_requests' && r[2] === 'insert');
+
+  test('the queued row and the writing line follow clampLanguage, whatever it decides', async () => {
+    const seen = [];
+    load({
+      switchOn: true,
+      beforeRequire: () => jest.doMock(UX, () => {
+        const actual = jest.requireActual(UX);
+        return { ...actual, clampLanguage: (lang, offered) => { seen.push(lang); return lang === 'urdu' ? 'ur' : actual.clampLanguage(lang, offered); } };
+      }),
+    });
+    await direct(MISS_TOPIC, TEACHER, 'urdu');
+    expect(seen).toContain('urdu');
+    expect(queued()).toHaveLength(1);
+    expect(queued()[0][3]).toMatchObject({ language: 'ur' });
+    expect(recording().filter((r) => r[0] === 'wa')).toEqual([['wa', 'sendMessage', PHONE, expect.stringContaining('لیسن پلان')]]);
+  });
+
+  test('a padded code the registry accepts (" ur ") is Urdu, not the English floor', async () => {
+    load({ switchOn: true });
+    await direct(MISS_TOPIC, TEACHER, ' ur ');
+    expect(queued()[0][3]).toMatchObject({ language: 'ur' });
   });
 });

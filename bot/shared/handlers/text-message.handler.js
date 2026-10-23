@@ -2968,7 +2968,8 @@ const TYPED_TOPIC_ENTRY = 'typed_topic';
 async function routeCatalogueMissToFreeform({ from, messageBody, user, sessionId, responseLanguage, entry }) {
   if (entry !== TYPED_TOPIC_ENTRY) return false;
   const ENTRY = 'niete_catalogue_miss';
-  const language = responseLanguage === 'ur' ? 'ur' : 'en';
+  // The deployment's own clamp (flat en/ur offer): one rule for every surface, never a local copy.
+  const language = require('../config/ux-strings').clampLanguage(responseLanguage);
   try {
     const fflp = require('../services/fflp');
     const decided = await fflp.switch.decide({
