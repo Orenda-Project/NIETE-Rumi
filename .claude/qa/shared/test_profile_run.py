@@ -117,6 +117,23 @@ def test_bottlenecks_are_ranked_by_total_and_classified():
     assert settle["category"] == "intentional" and settle["p50_ms"] in (800, 1500) and settle["max_ms"] == 1500
 
 
+def test_outside_scenario_windows_are_accounted():
+    d = _run_dir()
+    # a primitive AFTER both windows, and the feature row covering 15 s in all
+    rows = [json.loads(l) for l in open(os.path.join(d, "trace-menu.jsonl"))]
+    t_end = max(r["t1"] for r in rows)
+    rows.append({"v": 1, "run": "r1", "feature": "menu", "span": "x1", "parent": None, "name": "seed.db", "layer": "harness-db",
+                 "kind": "seed", "t0": t_end + 1000, "t1": t_end + 1500, "ms": 500, "status": "ok", "attrs": {"arg": "revert-level"}})
+    rows.append({"v": 1, "run": "r1", "feature": "menu", "span": "f1", "parent": None, "name": "feature", "layer": "feature",
+                 "kind": "feature", "t0": rows[0]["t0"], "t1": rows[0]["t0"] + 15000, "ms": 15000, "status": "ok", "attrs": {}})
+    _write(os.path.join(d, "trace-menu.jsonl"), rows)
+    p = pr.build(d)
+    o = p["summary"]["outside"]
+    assert o["primitives"] == 1 and o["primitives_ms"] == 500 and o["by_op"]["seed.db"] == {"count": 1, "ms": 500}
+    assert o["feature_span_ms"] == 15000
+    assert o["idle_ms"] == 15000 - 9000 - 500
+
+
 def test_percentile_helper():
     assert pr.percentile([1, 2, 3, 4, 5], 50) == 3
     assert pr.percentile([1, 2, 3, 4, 5], 90) == 5
