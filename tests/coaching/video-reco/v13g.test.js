@@ -42,7 +42,7 @@ describe('the vocabulary rule no longer masks content words', () => {
     expect(strict('یہ بلینڈ ہے، ٹھیک ہے؟', { vocab: S.subjectVocab() })).toBe('یہ بلینڈ ہے، ٹھیک ہے؟');
   });
 
-  test.each(['ڈینا', 'ٹرینا', 'جینیٹ', 'کرسٹینا', 'ڈانیال', 'منٹو'])('red7 073035: the loan-name %s stays masked on the prompt side', (name) => {
+  test.each(['ڈینا', 'ٹرینا', 'جینیٹ', 'کرسٹینا', 'ڈانیال', 'منٹو', 'سویٹی', 'منٹی'])('red7 073035: the loan-name %s stays masked on the prompt side', (name) => {
     const S = require('../../../bot/shared/services/coaching/video-reco/select');
     const people = { teacher: 'Saima Khan', vocab: S.subjectVocab(), oovVocab: S.topicVocab('reading a story') };
     const s = { diarization_data: { segments: [{ start_ms: 1000, label: 'Teacher', text: `${name} نے پڑھا` }] } };
