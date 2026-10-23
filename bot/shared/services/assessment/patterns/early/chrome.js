@@ -5,7 +5,7 @@
  * subject files hold only what differs per subject (sections, slots, oral).
  *
  * The header, "before the exam" and supplies text are Grade 5's, read from its
- * frozen pattern; only the disclaimer and the subject lines are new here.
+ * frozen pattern; only the subject lines are new here.
  *
  * Pure data and pure builders.
  */
@@ -15,16 +15,12 @@ const G5 = require('../fde-g5-2027');
 const GRADE_WORD = { 1: { en: 'Grade I', ur: 'جماعت اول' }, 2: { en: 'Grade II', ur: 'جماعت دوم' } };
 
 // Grade 5's per-subject lines; everything else in its header is shared chrome.
-const OWN_KEYS = /^(title|time_line|total_line|note|covers_partial|disclaimer)_(en|ur)$/;
+const OWN_KEYS = /^(title|time_line|total_line|note|covers_partial)_(en|ur)$/;
 
-function commonHeader(grade) {
+function commonHeader() {
   const g5 = G5.subjects.english.header;
   const out = {};
   Object.keys(g5).filter((k) => !OWN_KEYS.test(k)).forEach((k) => { out[k] = g5[k]; });
-  const g = GRADE_WORD[grade];
-  out.disclaimer_en = `Practice paper in the FDE ${g.en} annual assessment pattern (2026-27). Not an official FDE paper.`;
-  // needs fluent-Urdu review
-  out.disclaimer_ur = `یہ مشق کا پرچہ ہے جو FDE کے ${g.ur} کے سالانہ جائزے (2026-27) کے pattern پر بنایا گیا ہے۔ یہ سرکاری پرچہ نہیں ہے۔`;
   return out;
 }
 
