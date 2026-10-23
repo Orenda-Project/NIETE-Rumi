@@ -861,7 +861,11 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # app_funnel.link_sent; funnel.py reports it as lesson_plan@leader. When the menu asked me for a topic and I typed
     # it, or when I tap the Oxbridge picker's "Generate" button, the "lesson plans now come from your textbook" line
     # arrives first and then the same button (door=lesson_plan_intent): handleLessonPlanRequest sends the line before
-    # it asks the switch, as it does for a covered teacher.
+    # it asks the switch, as it does for a covered teacher. If Meta refuses the button and its plain-text link, the
+    # intent door's attempt fails and the catalogue door (lesson_plan_intent), where the switch still says yes, tries
+    # the link once more (a second app_funnel.command and link_failed row); when that is refused too, the coach gets
+    # the textbook line and the catalogue Flow. Every refused attempt delivered nothing. The voice path retries the same
+    # way (voice_intent, then voice_lesson_plan_intent).
 
   @e2e @voice @config-gated @P1
   Scenario: A coach who asks for a lesson-plan topic in a voice note gets the Lesson Plans tab button, and nothing else
