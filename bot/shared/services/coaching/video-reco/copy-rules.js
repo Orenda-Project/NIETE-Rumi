@@ -10,14 +10,15 @@ const { redactNames } = require('./redact-names');
 // it and the non-strict redactor knows only its lexicon's names. The vocative is found by its SHAPE: up to three words
 // before the first comma that the strict redactor masks as names, with any title or honorific around them.
 const TITLE = new Set('سید سیدہ محترم محترمہ mr mrs ms miss madam sir'.split(' '));
-// «جی» is not here: «اچھا جی، / ہاں جی، / تو جی،» open ordinary classroom lines (16 refused quotes on the 3efb501 view).
-const HONORIFIC = new Set('بی بیبی صاحب صاحبہ sahib sahiba bibi'.split(' '));
+// «جی» is an honorific after a name («‹name› جی،», red7 161951); «اچھا جی، / ہاں جی، / تو جی،» are not names because the word
+// left after it is a FUNCTION word (below), which no name is.
+const HONORIFIC = new Set('بی بیبی صاحب صاحبہ جی sahib sahiba bibi ji'.split(' '));
 const PLACEHOLDER_WORD = /^\[(?:a student|CHILD|TEACHER)\]$/;
 // red7 REVIEW_3630: a role word is an address, not a name (F2); a word a clause is built from is never part of a name (F1).
 const ROLE = new Set('استاد استانی ٹیچر teacher sir madam miss مس میڈم سر'.split(' '));
 const FUNCTION = new Set(('میں کے کی کا کو سے نے پر اور یا کہ جب تو ہر یہ وہ ایک آج کل اگلی اگلے پہلے بعد اب پھر ساتھ لیے کلاس سبق بچوں بچے آپ ہم '
   + 'دوران شروع آخر جواب سوال صفحہ the a an in on at for of to and next today tomorrow class lesson when after before dear good '
-  + 'جی اچھا ہاں تو چلیں بیٹا بیٹے بچو شاباش ٹھیک بالکل پڑھیں ok okay yes').split(' '));
+  + 'اچھا ہاں تو چلیں بیٹا بیٹے بچو شاباش ٹھیک بالکل پڑھیں ok okay yes').split(' '));
 const VOC = /^(\s*[⁦-⁩]?\s*)((?:[^\s،,:]+\s+){0,4}[^\s،,:]+?)\s*[⁦-⁩]?\s*[،,:]\s*/u;
 
 /** The words before the first comma are an address to a person: names (strict-masked), titles and honorifics only. */

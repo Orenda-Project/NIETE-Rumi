@@ -228,3 +228,16 @@ test('a card quoting an ordinary indicator name keeps its fallback in the engine
   expect(await run('اگلی کلاس کے پانچ منٹ Student-to-Student Interaction بہتر کرنے کے لیے دو کیوں والے سوال پوچھیں۔')).toMatchObject({ status: 'shown', moment_source: 'card' });
   expect(await run("اگلی کلاس میں 'Subject-Specific Pedagogy: MATH' کے لیے دو کیوں والے سوال پوچھیں۔")).toMatchObject({ status: 'none' });
 });
+
+// ── red7 161951: «‹name› جی،» is a vocative; «اچھا جی، / ہاں جی، / تو جی،» are not ──────────────────────────────────────
+test('red7 161951: «جی» is an honorific after a name and nothing after an interjection', () => {
+  const R = require('../../../bot/shared/services/coaching/video-reco/copy-rules');
+  for (const v of ['زرفشاں جی، ', 'زرفشاں گلریز جی، ']) {
+    expect(R.leadingVocative(`${v}${BODY}`)).toBe([...v].length);
+    expect(R.quotedVocative(`try: "⁨${v}${BODY}⁩"`)).toBe(true);
+  }
+  for (const v of ['اچھا جی، ', 'ہاں جی، ', 'تو جی، ', 'پڑھیں جی، ', 'اچھا بیٹا جی، ']) {
+    expect(R.leadingVocative(`${v}${BODY}`)).toBe(0);
+    expect(R.quotedVocative(`try: "⁨${v}${BODY}⁩"`)).toBe(false);
+  }
+});
