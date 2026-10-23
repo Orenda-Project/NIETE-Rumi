@@ -21,7 +21,8 @@ const PICTURE_RULE = 'Pictures: a slot whose rule names a picture gives EVERY it
   + 'A slot that names no picture carries none, and no item says "look at the picture" unless it has one. '
   + 'Each picture shows exactly that item\'s own word, one plain thing alone: for "h_t" a hat, never a cap or a scene. '
   + 'No two items show the same thing, even in different questions: a teacher never draws the cat twice on one paper. '
-  + 'Another name for the same thing is still a repeat: "rooster" and "male chicken" are one picture.';
+  + 'Another name for the same thing is still a repeat: "rooster" and "male chicken" are one picture. '
+  + 'No fact is asked twice on one paper, in any two items or any two questions.';
 
 /** What each picture kind must carry for the pipeline to draw it. */
 const PICTURE_FIELDS = {
@@ -193,6 +194,21 @@ function takenPicturesNote(trees, repeats = []) {
   return parts.length ? parts.join(' ') : null;
 }
 
+/**
+ * What a later section is told before it is written (bd-5jmnfj.4.16): every question the earlier
+ * sections ask, with its answer, and never to ask those facts again; null when nothing is written yet.
+ */
+function askedNote(trees) {
+  const lines = [];
+  trees.forEach((t) => eachItem(t, (q) => {
+    if (q.question) lines.push(`- ${String(q.question).trim()} → ${String(q.answer == null ? '' : q.answer).trim()}`);
+  }));
+  if (!lines.length) return null;
+  return `The paper already asks these (question → answer):\n${lines.join('\n')}\n`
+    + 'Never ask any of these facts again, in any form (a blank, a choice, true or false, a match, a short answer), '
+    + 'and give none of these answers as an answer.';
+}
+
 const slotsOf = (P) => new Map(P.sections.flatMap((s) => s.slots).map((sl) => [sl.slot, sl]));
 
 /** Items whose key breaks their slot's `answer_ok`, as `{slot, reason:'answer', items}` ("question → answer"). */
@@ -223,5 +239,5 @@ function answerNote(shortfall, P) {
 
 module.exports = {
   NO_PICTURES, PICTURE_RULE, maskP, sectionPrompt, oralPrompt, oralContent, pictureShortfall, repeatedPictures, takenPicturesNote,
-  answerShortfall, answerNote,
+  answerShortfall, answerNote, askedNote,
 };
