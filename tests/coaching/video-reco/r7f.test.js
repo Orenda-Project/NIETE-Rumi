@@ -94,7 +94,8 @@ const answer = (over = {}) => ({
 
 function deps(answers, catalog = DATA) {
   const completeJson = jest.fn();
-  answers.forEach((a) => completeJson.mockResolvedValueOnce({ result: a, usage: { prompt_tokens: 900, completion_tokens: 100 }, finishReason: 'stop' }));
+  // an answer may be a function of the prompt (it picks a chapter the list actually offers)
+  answers.forEach((a) => completeJson.mockImplementationOnce(async (p) => ({ result: typeof a === 'function' ? a(p) : a, usage: { prompt_tokens: 900, completion_tokens: 100 }, finishReason: 'stop' })));
   completeJson.mockResolvedValue({ result: { seg_id: null, none_reason: 'no more answers' }, usage: {}, finishReason: 'stop' });
   return {
     env: { VIDEO_RECO_ENABLED: 'true' },
@@ -375,19 +376,29 @@ describe('1b · the card sentence the fallback now carries more often: sentence 
 describe('red7 230552 (pre-PR probes on the WIP)', () => {
   const ctxLines = [...CLASS, T('02:00', 'Teacher', 'سب نے کام ختم کیا؟'), T('02:05', 'Student', 'سر، میں نے کر لیا۔')];
 
+  // a v4 analysis: D5 is on no chapter at strength ≥ 1, so the tag pool is empty and the step-text route runs; the stations
+  // chapter carries v4-D5 at strength 0 (as the real 122-s4), so it passes the tag gate
+  const V4 = { ...DATA, modules: [...DATA.modules.filter((m) => ![24, 122].includes(m.module_id)),
+    mod(122, 'talking_head', 'x', 'ur', [seg('122-s4', 0, 56, 'Rotate groups and observe as facilitator', 'Rotate the groups through stations and observe independent work and on task behavior.', [{ indicator: 'B6', strength: 1 }, { indicator: 'D5', strength: 0 }], ['C6', 'B6'], ['routines'])])] };
   test('A1 (Q031 shape): a step-text pick refused for naming no gap is silence, never the card\'s sentence', async () => {
-    const a = args({ lines: ctxLines, indicator: 'D5', action: 'Next class, improve on task behavior during independent work and observe each group.', subject: 'english' });
-    const pick = answer({ seg_id: '24-s3', moment: { at: '02:05', quote: 'سر، میں نے کر لیا۔' },
-      reason_en: 'During the lesson one student announced completion: "سر، میں نے کر لیا۔". This clip is about independent work.' });
-    const row = await run(a, deps([pick, pick, pick]));
+    const a = args({ lines: ctxLines, indicator: 'D5', action: 'Next class, rotate the groups through stations and observe independent work and on task behavior for each group.', subject: 'english' });
+    delete a.analysis.indicator_scheme;
+    a.analysis.domains = { D: { indicators: [{ id: 'D5', name: 'On-Task Behavior During Independent Work', score: 1, applicable: true, evidence: 'x', timestamp: '[02:00]' }] } };
+    const pick = answer({ seg_id: '122-s4', moment: { at: '02:05', quote: 'سر، میں نے کر لیا۔' },
+      reason_en: 'During the lesson one student announced completion: "سر، میں نے کر لیا۔". This clip is about rotating groups.' });
+    const d = deps([pick, pick, pick], V4);
+    const row = await run(a, d);
+    expect(d.completeJson.mock.calls.length).toBeGreaterThan(0); // the route did offer the chapter
     expect(row.status).toBe('none');
     expect(row.moment_source || null).not.toBe('card');
   });
 
   test('A3 (Q166 shape): a tiered-work card refused for naming no gap is silence, never the card\'s sentence', async () => {
-    const a = args({ indicator: null, card: { indicator: null, action: 'اگلی کلاس میں تین سطحی کام دیں: آسان اور مشکل version، ہر گروپ کو اس کی سطح کا کام۔' } });
-    const pick = answer({ seg_id: '51-s1', reason_en: 'The lesson opened with "Is this a triangle? Yes or no?", starting the task for the whole class. This clip is about open questions.' });
-    const row = await run(a, deps([pick, pick, pick]));
+    const a = args({ indicator: null, card: { indicator: null, action: 'Next class, give a three-tier task: an easy and a challenge version of the shapes task, and ask each group why.' } });
+    const first = (p) => answer({ seg_id: (p.match(/\b\d{1,3}-s\d+\b/g) || ['51-s1'])[0], reason_en: 'The lesson opened with "Is this a triangle? Yes or no?", starting the task for the whole class. This clip is about the task.' });
+    const d = deps([first, first, first]);
+    const row = await run(a, d);
+    expect(d.completeJson.mock.calls.length).toBeGreaterThan(0);
     expect(row.moment_source || null).not.toBe('card');
   });
   test('control: the same no-gap reason on a questioning card still takes the card\'s sentence', async () => {
