@@ -96,13 +96,16 @@ describe('the assessment generator has one door', () => {
 
   describe('bd-6clakk Task 9 — the second option, a paper on topics she has taught', () => {
     const ENV = { ...process.env };
-    const live = (on = true, onApp = true) => {
+    const live = (on = true, onApp = true, topicCta = true) => {
       jest.doMock('../../bot/shared/services/app-redirect.service', () => ({
         redirectIfFlagged: jest.fn().mockResolvedValue(false),
         isOnTeacherApp: jest.fn().mockResolvedValue(onApp),
       }));
       process.env = { ...ENV, ASSESSMENT_GEN_FLOW_ID: 'flow-assess', INTERNAL_API_KEY: 'k', PORTAL_URL: 'https://portal.example.test', SUPABASE_URL: 'https://abc.supabase.co' };
-      jest.doMock('../../bot/shared/config/feature-flags', () => ({ isAssessmentGeneratorEnabled: jest.fn().mockResolvedValue(on) }));
+      jest.doMock('../../bot/shared/config/feature-flags', () => ({
+        isAssessmentGeneratorEnabled: jest.fn().mockResolvedValue(on),
+        isAssessmentTopicCtaEnabled: typeof topicCta === 'function' ? topicCta : jest.fn().mockResolvedValue(topicCta),
+      }));
     };
     afterAll(() => { process.env = ENV; });
 
@@ -127,6 +130,21 @@ describe('the assessment generator has one door', () => {
 
     test('not offered to a teacher the teacher app does not cover (the link would land on the old dashboard)', async () => {
       live(true, false);
+      expect(await load().openAssessmentFlow({ from: FROM, userId: USER.id, language: 'en' })).toBe(true);
+      expect(wa().sendFlow).toHaveBeenCalledTimes(1);
+      expect(wa().sendCtaUrl).not.toHaveBeenCalled();
+    });
+
+    // bd-6clakk.6 — its own switch, so prod keeps it hidden until the A/B test starts.
+    test('switch off: the chapter-test Flow still goes, the topics button is not sent', async () => {
+      live(true, true, false);
+      expect(await load().openAssessmentFlow({ from: FROM, userId: USER.id, language: 'en' })).toBe(true);
+      expect(wa().sendFlow).toHaveBeenCalledTimes(1);
+      expect(wa().sendCtaUrl).not.toHaveBeenCalled();
+    });
+
+    test('a switch that cannot be read counts as off, and never undoes the Flow', async () => {
+      live(true, true, jest.fn().mockRejectedValue(new Error('db down')));
       expect(await load().openAssessmentFlow({ from: FROM, userId: USER.id, language: 'en' })).toBe(true);
       expect(wa().sendFlow).toHaveBeenCalledTimes(1);
       expect(wa().sendCtaUrl).not.toHaveBeenCalled();
