@@ -605,15 +605,19 @@ const VOICE_SCHEMA = {
 const VOICE_PROMPT = `This is a recording from a phone on which a child in a Pakistani government school (grade 1-5) is doing a reading or maths test, wearing headphones. The phone's own recorded voice (the app's narrator) may be faintly heard. Besides the child being tested and the phone's own voice, is ANOTHER PERSON clearly heard speaking in the clip: an adult (a teacher, a coach, a parent) or another child, e.g. saying the items, prompting, giving answers or talking to the child? Distant background chatter whose words cannot be made out, and noise, do not count.
 Return ONLY JSON: {"second_voice": true|false, "who": "adult|child|unsure|none", "confidence": <0-1>}`;
 
+// The reply is three fields, but a thinking model spends its budget reasoning first: at 200 tokens about half the prod
+// checks ended before any JSON (no_json). The cap leaves room for that; the reply itself stays small.
+const VOICE_MAX_TOKENS = 2000;
+
 /** CHILD_TEST_SA_SECOND_VOICE: is another person heard in this clip? { key, heard: true | false | null (not checked) }. */
 async function voiceOf(deps, calls, clip, key) {
   const dur = Number(clip && clip.durationSec);
   if (Number.isFinite(dur) && dur < minSpeechS()) return { key, heard: false };
   const model = deps.model();
   try {
-    const r = await bounded('model', limitOf(deps, 'model'), (signal) => deps.chatJSON({ model, prompt: VOICE_PROMPT, schema: VOICE_SCHEMA, audio: { data: clip.base64, format: 'mp3', key }, job: 'child_test.sa_second_voice', maxTokens: 200, signal }));
+    const r = await bounded('model', limitOf(deps, 'model'), (signal) => deps.chatJSON({ model, prompt: VOICE_PROMPT, schema: VOICE_SCHEMA, audio: { data: clip.base64, format: 'mp3', key }, job: 'child_test.sa_second_voice', maxTokens: VOICE_MAX_TOKENS, signal }));
     const heard = r.json && typeof r.json.second_voice === 'boolean' ? r.json.second_voice : null;
-    calls.push({ job: 'child_test.sa_second_voice', model, cost: r.cost == null ? null : Math.round(r.cost * 1e5) / 1e5, seconds: round1(r.seconds || 0), error: r.error || null, second_voice: heard, who: (r.json && r.json.who) || null });
+    calls.push({ job: 'child_test.sa_second_voice', model, cost: r.cost == null ? null : Math.round(r.cost * 1e5) / 1e5, seconds: round1(r.seconds || 0), error: r.error || null, second_voice: heard, who: (r.json && r.json.who) || null, ...(r.detail ? { detail: r.detail } : {}) });
     return { key, heard };
   } catch (e) {
     calls.push({ job: 'child_test.sa_second_voice', model, cost: null, seconds: 0, error: (e && e.reason) || 'model_failed' });
@@ -981,5 +985,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { MINE = `${SCORING}:${bootId()}`; swept = false; running = null; skipLogged = 0; }, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt },
+  __internals: { sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { MINE = `${SCORING}:${bootId()}`; swept = false; running = null; skipLogged = 0; }, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt, voiceOf, keysOf, defaultDeps },
 };
