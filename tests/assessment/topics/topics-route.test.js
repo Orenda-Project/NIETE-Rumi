@@ -6,6 +6,7 @@
 const KEY = 'shared-secret-key';
 let router;
 let listChapterTopics;
+let topicsOn;
 
 function findRoute(r, method, p) {
   for (const layer of r.stack) {
@@ -46,6 +47,11 @@ beforeEach(() => {
   jest.resetModules();
   process.env.INTERNAL_API_KEY = KEY;
   listChapterTopics = jest.fn(async () => [TOPIC]);
+  topicsOn = jest.fn(async () => true);
+  jest.doMock('../../../bot/shared/config/feature-flags', () => ({
+    ...jest.requireActual('../../../bot/shared/config/feature-flags'),
+    isAssessmentTopicCtaEnabled: topicsOn,
+  }));
   jest.doMock('../../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
   jest.doMock('../../../bot/shared/config/supabase', () => ({ from: jest.fn() }));
   jest.doMock('../../../bot/shared/services/assessment/topics/topics.repo', () => ({
@@ -114,5 +120,30 @@ describe('POST /api/internal/assessment/topics', () => {
     const { statusCode, payload } = await invoke('/assessment/topics', { grade: 1, subject: 'maths', chapterNumber: 3 });
     expect(statusCode).toBe(500);
     expect(payload).toEqual({ success: false, error: 'Assessment lookup failed' });
+  });
+});
+
+// bd-6clakk.9 — the same switch as the WhatsApp button hides the portal's Topics step: no topics → the step steps aside.
+describe('the topics switch (assessment_topic_cta_enabled)', () => {
+  test('off: [] for a chapter that has topics, and the table is never read', async () => {
+    topicsOn.mockResolvedValueOnce(false);
+    const { statusCode, payload } = await invoke('/assessment/topics', { grade: 1, subject: 'maths', chapterNumber: 3 });
+    expect(statusCode).toBe(200);
+    expect(payload).toEqual({ success: true, topics: [] });
+    expect(listChapterTopics).not.toHaveBeenCalled();
+  });
+
+  test('a switch that cannot be read counts as off', async () => {
+    topicsOn.mockRejectedValueOnce(new Error('app_settings down'));
+    const { statusCode, payload } = await invoke('/assessment/topics', { grade: 1, subject: 'maths', chapterNumber: 3 });
+    expect(statusCode).toBe(200);
+    expect(payload).toEqual({ success: true, topics: [] });
+    expect(listChapterTopics).not.toHaveBeenCalled();
+  });
+
+  test('a bad request is still a 400 with the switch off', async () => {
+    topicsOn.mockResolvedValue(false);
+    const r = await invoke('/assessment/topics', { grade: 1, subject: 'maths' });
+    expect(r.statusCode).toBe(400);
   });
 });
