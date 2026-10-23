@@ -25,4 +25,11 @@ driven. There is no CI counterpart by design: the pipeline is hooks only.
 Switches: `QA_HOOKS_OFF=1` (both hooks silent) · `QA_HOOKS_QUIET=1` (post-commit
 arms but prints nothing) · `QA_HOOKS_STRICT=1` (pre-push blocks on a stale spec).
 
-Tests: `bash .githooks/githooks.test.sh`.
+**Every off switch is on the record** (bd-61jjzd). `QA_HOOKS_OFF`, `E2E_SPEC_SYNC_OFF`
+and `E2E_AUTORUN_OFF`, the Stop hook giving up on a stale spec after its holds, and every
+`--clear` / `--clear --force` each append one JSON line to `<git common dir>/qa-events.jsonl`
+(`.git/qa-events.jsonl` in a plain clone; shared by all its worktrees; `QA_LEDGER=` overrides).
+Fields: `ts hook event switch detail sha branch user cwd`; events are `switch-off`, `gave-up`,
+`cleared`, `force-cleared`. Read it: `jq -c . "$(git rev-parse --git-common-dir)/qa-events.jsonl"`.
+
+Tests: `bash .githooks/githooks.test.sh` · `bash .claude/hooks/qa-ledger.test.sh` (the ledger).
