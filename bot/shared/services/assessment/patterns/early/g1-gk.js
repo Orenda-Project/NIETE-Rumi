@@ -34,9 +34,9 @@ module.exports = makeSubject({
         S({ slot: 'g1.general_knowledge.A.Q3', label_en: 'Q3.', type: 'True False', shape: 'mcq', generate: 5, option_labels: 'ur',
           instruction_ur: 'درست یا غلط لکھیں۔',
           prompt_rule: 'Five statements from the book; options exactly درست and غلط. Mix both answers.' }),
-        S({ slot: 'g1.general_knowledge.A.Q4', label_en: 'Q4.', type: 'Match Columns', shape: 'mcq', generate: 5, option_labels: 'ur',
+        S({ slot: 'g1.general_knowledge.A.Q4', label_en: 'Q4.', type: 'Match Columns', shape: 'match', generate: 5,
           instruction_ur: 'درست جوڑ ملائیں۔',
-          prompt_rule: 'Five items: a thing as the stem and three options of what goes with it (an animal and its home, a job and its tool, a sign and its meaning).' }),
+          prompt_rule: 'Five pairs to match, no options: the question is the thing (Column A) and the answer is what goes with it (Column B), five different answers (an animal and its home, a job and its tool, a sign and its meaning). The paper prints Column B shuffled.' }),
       ],
     },
     {

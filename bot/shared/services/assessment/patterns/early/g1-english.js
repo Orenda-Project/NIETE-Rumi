@@ -58,7 +58,7 @@ module.exports = makeSubject({
           prompt_rule: 'Four items, each a child doing one action from the book (run, jump, read, eat, sleep, swim) as picture: {kind:"scene", describe}. Answer: the -ing word the question asks for ("running"); accept lists the plain word ("run").' }),
         { slot: 'g1.english.B.Q9', label_en: 'Q9.', type: 'Complete the Sentences', generate: 5, marks_each: 2, lines: 1, print_words: true,
           instruction_en: 'Fill in the blanks with words from the box.',
-          prompt_rule: 'Five short sentences from the book, each with one blank. Put the five answer words, mixed, in "words" on the FIRST item. Scheme: K 2 for the right word.' },
+          prompt_rule: 'Five short sentences from the book, each with one blank. Each sentence rules out every other word: only one word from the box fits each blank (never "likes to ___ in the park", where play, run or paint all fit). Put the five answer words, mixed, in "words" on the FIRST item. Scheme: K 2 for the right word.' },
         S({ slot: 'g1.english.B.Q10', label_en: 'Q10.', type: 'Match Capital and Small Letters', generate: 5, shape: 'mcq',
           instruction_en: 'Match the capital letter with its small letter.',
           prompt_rule: 'Five items: a capital letter as the stem and four small letters as options (a, b, c, d). Answer: the matching small letter.' }),
