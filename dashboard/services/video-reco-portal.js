@@ -12,7 +12,7 @@
  * (SPEC v1.2.1: `levelLabel` is null everywhere).
  *
  * flags.js / catalog.js (eng-engine) and link-token.js (eng-surfaces) are required lazily and guarded: they are
- * pure (no dotenv, no queue driver), so requiring them from the portal is safe once they land (bd-60085).
+ * pure (no dotenv, no queue driver), so requiring them from the portal is safe once they land.
  */
 const VR = '../../bot/shared/services/coaching/video-reco';
 
