@@ -39,6 +39,15 @@ function levelsMoment(lines) {
   return (lines || []).some((l) => typeof l === 'string' && LEVELS.some((rx) => rx.test(l)));
 }
 
+// R7f (COS 20261023T223858 1a; panel Q191 ⛔2, Q166): a differentiation pick rests on the cited line, not on a mixed-level
+// line somewhere in the lesson: the line itself or one within two lines of it shows the levels.
+const LEVELS_NEAR = 2;
+/** The line at `i`, or one within two lines of it, shows children at different levels. */
+function levelsNear(lines, i) {
+  if (!Array.isArray(lines) || i < 0) return false;
+  return lines.slice(Math.max(0, i - LEVELS_NEAR), i + LEVELS_NEAR + 1).some((l) => LEVELS.some((rx) => rx.test(String(l))));
+}
+
 // The 37 scheme's subject labels and the lessons they belong to (the shortlist's LABEL_SUBJECTS reads this one).
 const LABEL_SUBJECTS = Object.freeze({ F5: ['maths'], F6: ['science'], F7: ['urdu', 'english', 'literacy'] });
 
@@ -53,7 +62,7 @@ function labelOffSubject(scheme, indicator, subject) {
 const EN_DO = new Set(('ask add allow assign begin call check choose circulate clap cold-call collect count dedicate display divide draw encourage end '
   + 'explain give go have help hold introduce invite keep let link list make mark model move name nominate note offer pair pause plan point practise '
   + 'practice praise prepare provide put re-teach read record remind repeat replace reteach rotate run say set share show signal speak start stop '
-  + 'summarise summarize swap tell think try turn use wait walk write').split(' '));
+  + 'summarise summarize swap tell think try turn use wait walk write pause').split(' ')); // R7f: «Pause 5 seconds.»
 const EN_DONT = /(?:^|[.;:,]\s*)(?:don['’]?t|never|avoid)\s/i;
 const UR_FORMS = ['\\S*(?:کریں|دیں|لیں|پوچھیں|کہیں|رکھیں|ائیں|لکھیں|پڑھیں|سنیں|دیکھیں|سوچیں|گنیں|بانٹیں)', // ائیں: بنائیں، آزمائیں، اپنائیں…
   // familiar, -یے polite, the impersonal «پوچھا جائے» and the verbal noun «مشق کروانا» a card also uses
@@ -309,8 +318,40 @@ function earlyForClosure(at, lines) {
   return last > 0 && t < last * CLOSURE_FROM;
 }
 
+// R7f (COS 223858 1c; panel Q075 Q151 Q117 Q136): a closure card. The gap is at the END of the lesson, so the model is
+// asked only when the excerpt reaches that end; otherwise the card's own closing move goes to a closure chapter or nothing.
+// A card with no indicator is a closure card when its opening when-clause is the lesson's end AND it names a closing move;
+// a questioning card that mentions a summary mid-sentence is not one.
+const CLOSING_WHEN = /^\s*(?:(?:next class|in your next class|اگلی کلاس(?: میں)?)\s*[,،]?\s*)?(?:at (?:the )?(?:lesson|class)(?:['’]s)? end|at the end of (?:the |each |every )?(?:lesson|class|period)|(?:when|as) (?:the )?(?:lesson|class) (?:ends|closes)|(?:سبق|کلاس|پیریڈ) کے (?:آخر|اختتام) (?:میں|پر)|جب (?:سبق (?:ختم ہو|ختم ہونے لگے)|خلاصہ کرنے کا وقت آئے))/iu;
+const CLOSING_MOVE = /exit (?:ticket|slip)|what (?:did )?(?:we|you|they) learn|کیا سیکھا|خلاصہ|summar|in (?:their|your|his|her) own words|اپنی زبان میں|اپنے الفاظ میں|key points?|نکات|recap/iu;
+/** The card's sentence (vocative already removed) is a closing move at the lesson's end. */
+function closingCard(sentence) {
+  const s = String(sentence || '').replace(/^(?:\s*\[[A-Z ]+\]\s*)+[،,:]?\s*/u, '');
+  return CLOSING_WHEN.test(s) && CLOSING_MOVE.test(s);
+}
+/** The card's sentence names a closing move anywhere (a B10 card's sentence; a bare label names none). */
+const closingMove = (sentence) => CLOSING_MOVE.test(String(sentence || ''));
+
+// The excerpt reaches the lesson's end when one of its lines is within the last 10% of the lesson (at least the last
+// minute). Unknown lengths are not judged (true).
+const END_SHARE = 0.1;
+const END_MIN_S = 60;
+function reachesEnd(excerpts, lines) {
+  const ends = (lines || []).map(lineSec).filter((x) => x !== null);
+  if (!ends.length) return true;
+  const last = Math.max(...ends);
+  const from = last - Math.max(END_MIN_S, last * END_SHARE);
+  return (excerpts || []).some((l) => (lineSec(l) ?? -1) >= from);
+}
+
+// R7f (COS 223858 e; panel Q036 Q083): a lesson with no labelled child turn at all is one teacher talking.
+const monologue = (lines) => Array.isArray(lines) && lines.length > 0 && !lines.some((l) => KID.test(String(l)));
+
 // The card asks for a why/how or open question.
 const WHY_CARD = /کیوں|کیسے|\bwhy\b|\bhow\b|open[- ]ended|open questions?|کھلے سوال|کھلا سوال|اوپن اینڈ/iu;
 const whyCard = (sentence) => WHY_CARD.test(String(sentence || ''));
+// R7f (panel Q102 Q127 Q139): the card names the open question itself, not only a why or a how somewhere in its steps
+const OPEN_CARD = /open[- ]ended|open questions?|کھلے سوال|کھلا سوال|اوپن اینڈ/iu;
+const openQuestionCard = (sentence) => OPEN_CARD.test(String(sentence || ''));
 
-module.exports = { levelsMoment, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, notTeaching, testPeriod, isClosure, earlyForClosure, LABEL_SUBJECTS };
+module.exports = { levelsMoment, levelsNear, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, openQuestionCard, notTeaching, testPeriod, isClosure, earlyForClosure, closingCard, closingMove, reachesEnd, monologue, KID, LABEL_SUBJECTS };

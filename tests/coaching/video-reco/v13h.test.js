@@ -98,10 +98,10 @@ describe('1 · a vocabulary word never shields a lexicon name or an address slot
 describe('2 · the isolate goes around the accepted moment span (red7 070727)', () => {
   // d029b87c (gold r7, b226499a95): the retry's stored reason, isolates removed, and its accepted moment quote.
   const QUOTE = 'کسی بھی لیٹر کا ساؤنڈ، جیسے ہم پڑھتے ہیں "اے"۔ "اے" کا ساؤنڈ کیا ہے؟ "بی"۔ "بی"۔ شاباش۔ "سی"؟ "خ"۔ جی، "سی"۔ "خ"۔ اب "سی" اے ٹی کیا ہوتا ہے؟';
-  const EN = '[00:03] "اب "سی" اے ٹی کیا ہوتا ہے؟". The clip shows a teacher using a simple peer checklist and modelling a short peer exchange so children practice reading, blending and clapping syllables — copy that model and checklist tomorrow.';
+  const EN = '[00:03] "اب "سی" اے ٹی کیا ہوتا ہے؟". Only the teacher answered. The clip shows a teacher using a simple peer checklist and modelling a short peer exchange so children practice reading, blending and clapping syllables — copy that model and checklist tomorrow.';
 
   test('d029b87c: one FSI…PDI around «اب "سی" اے ٹی کیا ہوتا ہے؟» (today: split into three runs)', () => {
-    expect(C.isolateQuotes(EN, QUOTE)).toBe(`[00:03] "${FSI}اب "سی" اے ٹی کیا ہوتا ہے؟${PDI}". The clip shows a teacher using a simple peer checklist and modelling a short peer exchange so children practice reading, blending and clapping syllables — copy that model and checklist tomorrow.`);
+    expect(C.isolateQuotes(EN, QUOTE)).toBe(`[00:03] "${FSI}اب "سی" اے ٹی کیا ہوتا ہے؟${PDI}". Only the teacher answered. The clip shows a teacher using a simple peer checklist and modelling a short peer exchange so children practice reading, blending and clapping syllables — copy that model and checklist tomorrow.`);
   });
 
   test('no known span, two plain pairs of Latin text → two isolates', () => {

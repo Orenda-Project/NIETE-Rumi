@@ -15,7 +15,8 @@ const TITLE = new Set('سید سیدہ محترم محترمہ mr mrs ms miss ma
 // «جی» is an honorific after a name («‹name› جی،», red7 161951); «اچھا جی، / ہاں جی، / تو جی،» are not names because the word
 // left after it is a FUNCTION word (below), which no name is.
 const HONORIFIC = new Set('بی بیبی صاحب صاحبہ جی sahib sahiba bibi ji'.split(' '));
-const PLACEHOLDER_WORD = /^\[(?:a student|CHILD|TEACHER)\]$/;
+// R7f (Q036 Q083: «[TEACHER] Bibi, try …»): the teacher's own masked name is part of the address; a child's placeholder is not
+const PLACEHOLDER_WORD = /^\[(?:a student|CHILD)\]$/;
 // red7 REVIEW_3630: a role word is an address, not a name (F2); a word a clause is built from is never part of a name (F1).
 const ROLE = new Set('استاد استانی ٹیچر teacher sir madam miss مس میڈم سر'.split(' '));
 const FUNCTION = new Set(('میں کے کی کا کو سے نے پر اور یا کہ جب تو ہر یہ وہ ایک آج کل اگلی اگلے پہلے بعد اب پھر ساتھ لیے کلاس سبق بچوں بچے آپ ہم '
@@ -28,7 +29,8 @@ function vocativeWords(words, { partial = false } = {}) {
   const core = words.filter((w) => !TITLE.has(w.toLowerCase()) && !HONORIFIC.has(w.toLowerCase()));
   const honorific = words.length - core.length;
   if (!core.length || core.length > 3 || core.some((w) => PLACEHOLDER_WORD.test(w) || ROLE.has(w.toLowerCase()) || FUNCTION.has(w.toLowerCase()))) return false;
-  const masked = (redactNames(core.join(' '), { placeholders: { child: '[a student]' } }).match(/\[(?:a student|TEACHER)\]/g) || []).length;
+  // R7f: «‹name›» is the eval corpus's own mask of a name (never in prod text), so it counts as one
+  const masked = (redactNames(core.join(' '), { placeholders: { child: '[a student]' } }).match(/\[(?:a student|TEACHER)\]|‹name›/g) || []).length;
   // F1: «‹name› جہاں،» — one masked word and no word a clause is built from is a name made partly of dictionary words
   // (Urdu-script words only: a capitalised English run is not a name)
   const nameLike = partial && masked >= 1 && core.length >= 2 && core.every((w) => /^\p{Script=Arabic}+$/u.test(w));
@@ -93,6 +95,11 @@ function systemNote(text) {
   return SYSTEM_NOTE.test(String(text || ''));
 }
 
+// R7f (COS 223858 1b; panel Q002 «کوئی ثبوت نہیں ملا»): audit wording in a REASON — "evidence", found or not, in either
+// language. Not on the quote: a lesson may ask for evidence.
+const AUDIT = /\bevidence\b|ثبوت|شواہد/i;
+const auditWords = (reason) => AUDIT.test(String(reason || '').replace(/"[^"]*"|“[^”]*”|«[^»]*»|\u2068[^\u2069]*\u2069/g, ' '));
+
 // ── the reason describes what the CLIP shows (≥ 36 panel rows: wait time, cold-call, why-probes it never shows) ────────
 // Each claim a reason makes about the clip must have a word for it in the chapter's own title, summary, keywords or moves.
 // (red7 REVIEW_3630 F3: keywords carry transcript words; dropping them refuses 805 of 2,200 first answers instead of 343
@@ -153,7 +160,7 @@ const NOT_A_NAME = new Set(('taleemabad prior rumi niete bloom checker reporter 
   + 'reader timekeeper leader manager spotter matcher underliner encourager questioner summariser summarizer').split(' '));
 // A Title-case word inside a Title-case term is the term («Subject-Specific Pedagogy», «Use of Technology», «Student-to-Student
 // Interaction»: 2,990 r7 cards), unless the word before it opens the sentence («Ask X why …»).
-const IN_TERM = /([A-Z][a-z]+)(?:-|\s+(?:of|to|and|&|for|the|in)\s+|\s+)$/;
+const IN_TERM = /([A-Z][a-z]+)(?:-|\/|\s+(?:of|to|and|&|for|the|in)\s+|\s+)$/; // R7f: «(Apply/Analyze)»
 const N = `${NAME_MARK}N${NAME_MARK}`;
 const NAMES = `${N}(?:['’]s)?(?:\\s+(?:and|or|اور)\\s+${N}(?:['’]s)?)*(?:\\s+${N})*`;
 const DROPS = [
@@ -183,7 +190,8 @@ function childFreeCard(sentence, { teacher = null, vocab = [], oovVocab = [], wh
     const afterName = latin && (new RegExp(`${N}\\s+$`).test(before) || (nameEnd >= 0 && /^\s+$/.test(all.slice(nameEnd, at))));
     if (afterName || (masked.has(w) && nameEnd >= 0 && /^\s+$/.test(all.slice(nameEnd, at)))) { nameEnd = at + w.length; return hit('surname'); }
     if (latin) {
-      const first = !/[\p{L}\p{N}]/u.test(before.replace(new RegExp(N, 'g'), ''));
+      // R7f (Q019 Q058 Q090: «… explain.' Pause 5 seconds.»): a word that opens a later sentence opens it as the first one does
+      const first = !/[\p{L}\p{N}]/u.test(before.replace(new RegExp(N, 'g'), '')) || /[.!?؟;]["'’”)]*\s+$/u.test(before);
       const prevWord = (before.match(/([\p{L}]+)[^\p{L}]*$/u) || [])[1] || '';
       const term = IN_TERM.exec(before);
       const inTerm = !!term && /[\p{L}]/u.test(before.slice(0, term.index)) && !new RegExp(`${N}$`).test(before.slice(0, term.index + term[1].length));
@@ -241,7 +249,8 @@ const RELABEL = {
   // R7e (panel §4/§6.6, 51-s1 Urdu 75.7%): the bare-word rules («recall» → «question», «یادداشت» → «سوال») wrote «سوال سوال
   // تک محدود», «سوال/ہاں-نہ سوال», «سوال کی جواب», "keeps asking question". Only whole labels are rewritten; a bare label
   // left over is refused in validation (recallLeft), so the retry or the card fallback carries the row.
-  ur: [[/(?:ایک )?(?:یادداشت|یاد داشت|یاداشت|یاددہانی|ریکال)(?: پر مبنی| والا| والے| والی| کا| کے| کی)? سوال/gu, 'سوال']],
+  // R7f: the Latin «recall» the model leaves in the Urdu line too (copy.js would render it «یادداشت پر مبنی»)
+  ur: [[/(?:ایک )?(?:یادداشت|یاد داشت|یاداشت|یاددہانی|ریکال|recall(?:[- ]based)?)(?: پر مبنی| والا| والے| والی| کا| کے| کی)? سوال/giu, 'سوال']],
 };
 
 const APPOSITIVE_EN = /,?\s*(?:which is )?a question(?=\s*[.;])/gi;
@@ -289,4 +298,42 @@ function pointerNoLine(reasonEn) {
   return POINTER_EN.test(head) && !QUOTED_SPAN.test(head);
 }
 
-module.exports = { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, clipKind, sceneClaim, recallMislabel, relabelRecall, pointerNoLine, recallLeft };
+// ── the lesson half names the gap (R7f, COS 20261023T223858 1b; panel §4/§6.2: ~20 reasons name none, moment_ok false 59/139) ─
+// Outside the quoted line, the English lesson half says what was missing or closed in it: a recall, yes/no, one-word or
+// chorus answer, an answer accepted and moved on, no time, no partner, no reason. A reason that only says "the teacher
+// asked: «…»" names nothing the clip answers; it fails, and the retry or the card's own sentence carries the row.
+const QUOTED_ALL = new RegExp(QUOTED_SPAN.source, 'gu');
+const GAP_EN = /\b(?:recall|yes[/ -]?(?:or[/ -])?no|whether|closed|chorus|choral|one[- ]word|short|brief|quick(?:ly)?|only|just|without|instead|rather than|but|accept(?:s|ed|ing)?|moved? on|moves? (?:straight|quickly|on)|straight|immediately|at once|alone|no|not|never|cannot|none|nobody|together|in unison|same answer|label|definition|memor\w*|fact(?:ual)?|repeat\w*|read(?:ing)? aloud|answered (?:it )?(?:themselves|herself|himself)|own answer)\b|n['’]t\b/i;
+
+/** The English lesson half, quotes removed, names a gap (true = keep). A reason with no lesson half names none. */
+function namesGap(reasonEn) {
+  const head = lessonSide(String(reasonEn || '').replace(/[⁦-⁩]/g, ''), /\b(?:clip|video|chapter)\b/i);
+  return GAP_EN.test(head.replace(QUOTED_ALL, ' '));
+}
+
+// ── the cited line shows the pattern the clip answers (R7f 1b; panel Q122 Q022 Q005 Q111 Q144) ──────────────────────────────
+// A questioning chapter (open questions, think-pair-share, asking for reasoning, follow-up probes) answers a question or
+// its answers: the line is a child's turn, or a teacher line that asks or leads a chorus. A teacher line that only tells
+// or announces is no such pattern. The yes/no-to-why chapters answer a closed question: a line that already asks why or
+// how shows the move done, not the gap.
+const QUESTIONING_MOVES = new Set(['open_questions', 'think_pair_share', 'ask_for_reasoning', 'follow_up_probe']);
+const WHY_SWAP = new Set(['51-s1', '51-s2']);
+// asks: a question mark, a wh-word, an inverted English question («is this a triangle»), an Urdu or Roman-Urdu question word
+const ASKS = /[?؟]|\b(?:what|which|who|whom|where|when|why|how)\b|\b(?:is|are|was|were|do|does|did|can|could|will|would|have|has)\s+(?:this|that|these|those|it|he|she|they|you|we|there|the|a|an|your|our|everyone|anyone)\b|\b(?:kya|kyun|kyon|kaise|kaun|kitn\w*|kahan|kab|batao|bataen|bataein|bataiye)\b|کیوں|کیسے|کون|کس |کتن|کہاں|کب|بتائیں|بتاؤ|بتائیے|بتائے گا|بتا سکتا|بتا سکتی/iu;
+const CHORUS_CUE = /\bsab\b|سب|سارے|ساری|مل کر|ساتھ میں|ایک ساتھ|اونچا|دہرائیں|دہراؤ|\btogether\b|\beveryone\b|\ball of you\b|\brepeat\b|\bin chorus\b|\bclass,? say\b/iu;
+const SPEAKER = /^\s*\[\d{1,2}:\d{2}(?::\d{2})?\]\s*[^:\n]{1,30}:/;
+const TEACHER_SPEAKER = /^\s*\[\d{1,2}:\d{2}(?::\d{2})?\]\s*(?:teacher|coach|استاد|استانی|ٹیچر|speaker\s*1\b)/i;
+
+/**
+ * The cited line does NOT show the pattern a questioning chapter answers (true = refuse). `line` is the transcript line
+ * the quote was found on ("[mm:ss] Label: …"); `quote` the cited words. Unlabelled lines are not judged.
+ */
+function notGapLine(quote, line, segment) {
+  if (!segment || !SPEAKER.test(String(line || '')) || !(segment.moves || []).some((m) => QUESTIONING_MOVES.has(m))) return false;
+  if (!TEACHER_SPEAKER.test(String(line))) return false; // a child's answer is the evidence
+  const q = String(quote || '').replace(/[⁦-⁩]/g, '');
+  if (WHY_SWAP.has(String(segment.seg_id)) && WHY_HOW_Q.test(q)) return true;
+  return !ASKS.test(q) && !CHORUS_CUE.test(q);
+}
+
+module.exports = { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, clipKind, sceneClaim, recallMislabel, relabelRecall, pointerNoLine, recallLeft, namesGap, notGapLine, auditWords };
