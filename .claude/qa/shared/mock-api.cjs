@@ -42,6 +42,11 @@ function makeMockApi(opts) {
   const quiesceMs = opts.quiesceMs || Number(process.env.E2E_QUIESCE_MS) || 1500;
   const settleMs = opts.settleMs != null ? opts.settleMs : 1200;   // the CDP runner settles 1200ms too
   const trace = opts.trace || (() => {});
+  // Profiling (bd-5zzbvq): every primitive is a span, its quiesce / inject / bot.reply / poll.detect /
+  // settle the children. E2E_TRACE_FILE (set per feature by run-suite.sh) switches it on; trace.cjs
+  // writes one line per finished span and never throws, so the run it measures is unchanged.
+  const tracer = opts.tracer || require('./trace.cjs').createTracer({});
+  let current = null;   // the primitive span in flight — the parent of the inner spans below
   if (!driver) throw new Error('HARNESS mock-api: a driver phone is required (E2E_DRIVER)');
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -71,48 +76,71 @@ function makeMockApi(opts) {
     return lastBatch.slice().reverse().find((it) => it.list) || null;   // within THIS reply group only
   }
   async function inject(kind, body) {
-    const r = await fetchRetry(`${base}/inject`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kind, from: driver, ...body }) });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok || !j.ok) throw new Error('HARNESS mock-api: inject failed: ' + JSON.stringify(j).slice(0, 200));
+    const sp = tracer.span('mock.inject', { layer: 'mock', kind: 'http', parent: current, attrs: { kind } });
+    let j = {};
+    try {
+      const r = await fetchRetry(`${base}/inject`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind, from: driver, ...body }) });
+      j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) { sp.end('error', { messageId: j.messageId || null, ackMs: j.ackMs, status: r.status }); throw new Error('HARNESS mock-api: inject failed: ' + JSON.stringify(j).slice(0, 200)); }
+    } catch (e) { sp.end('error', { err: String(e.message).slice(0, 120) }); throw e; }
+    // ackMs: the bot's webhook ack, timed by the mock; at: the mock's clock when the webhook left — bot.reply
+    // is measured from it against the outbox item's own `at`, so poll granularity never inflates bot time.
+    sp.end('ok', { messageId: j.messageId || null, ackMs: j.ackMs, mediaId: j.mediaId });
     return j;
   }
   /** Wait until nothing new has landed for `quiesceMs` (a late reply to the PREVIOUS send would
    *  otherwise be counted as this one's). Returns the outbox seq to count fresh items from. */
   async function quiesce() {
-    let last = (await outbox(0)).last, stableSince = Date.now();
+    const sp = tracer.span('wait.quiesce', { layer: 'wait', kind: 'intentional', parent: current, attrs: { quiesceMs } });
+    let last = (await outbox(0)).last, stableSince = Date.now(), moved = 0;
     const t0 = Date.now();
     while (Date.now() - t0 < 20000) {
       await sleep(Math.min(pollMs, quiesceMs));
       const now = (await outbox(0)).last;
-      if (now !== last) { last = now; stableSince = Date.now(); }
+      if (now !== last) { last = now; stableSince = Date.now(); moved++; }
       else if (Date.now() - stableSince >= quiesceMs) break;
     }
     cursor = last;
+    sp.end('ok', { moved });   // moved > 0: a late reply to the PREVIOUS send landed while we waited
     return last;
   }
   /** Poll for items after `since`; return the newest as the reply, or the NO REPLY sentinel. */
-  async function waitReply(since, timeoutMs, label) {
+  async function waitReply(since, timeoutMs, label, injectedAt) {
     const s0 = Date.now();
-    let items = [];
+    const botT0 = injectedAt || s0;   // the mock's clock when the webhook left (same machine, same Date.now())
+    let items = [], detectedAt = null;
     while (Date.now() - s0 < timeoutMs) {
       ({ items } = await outbox(since));
-      if (items.length) break;
+      if (items.length) { detectedAt = Date.now(); break; }
       await sleep(pollMs);
+    }
+    if (items.length) {
+      // bot.reply: webhook left → the bot's FIRST send hit the mock (its own `at`). poll.detect: that send →
+      // the harness noticed it (poll granularity, pure harness overhead).
+      const firstAt = Math.max(botT0, Number(items[0].at) || detectedAt);
+      tracer.fixed('bot.reply', botT0, firstAt, { layer: 'bot', kind: 'processing', parent: current, attrs: { label, type: items[0].type } });
+      tracer.fixed('poll.detect', firstAt, Math.max(firstAt, detectedAt), { layer: 'harness', kind: 'polling', parent: current, attrs: { pollMs } });
+    } else {
+      tracer.fixed('bot.reply', botT0, Date.now(), { layer: 'bot', kind: 'processing', parent: current, status: 'timeout', attrs: { label, timeoutMs } });
     }
     // Settle like the CDP runner: the bot often answers in two or three messages (a text, then the
     // card). Keep polling until the outbox has been QUIET for settleMs, then take the last item —
     // a fixed pause stops at whichever part happened to land inside it. Bounded so a chatty bot
     // cannot hold a scenario forever.
     if (items.length && settleMs) {
-      let n = items.length, quietSince = Date.now();
+      const sp = tracer.span('wait.settle', { layer: 'wait', kind: 'intentional', parent: current, attrs: { settleMs } });
+      let n = items.length, quietSince = Date.now(), grew = 0;
       const cap = Date.now() + Math.max(settleMs * 10, 15000);
       while (Date.now() < cap) {
         await sleep(Math.min(pollMs, settleMs));
         ({ items } = await outbox(since));
-        if (items.length !== n) { n = items.length; quietSince = Date.now(); }
+        if (items.length !== n) { n = items.length; quietSince = Date.now(); grew++; }
         else if (Date.now() - quietSince >= settleMs) break;
       }
+      // lastAt: when the LAST message of the reply group landed — the time after it is pure settle cost
+      const lastAt = Number(items[items.length - 1].at) || null;
+      sp.end('ok', { items: n, grew, idleMs: lastAt ? Math.max(0, Date.now() - lastAt) : null });
     }
     const waitedMs = Date.now() - s0;
     waits.push({ label, waitedMs, timedOut: !items.length });
@@ -169,10 +197,11 @@ function makeMockApi(opts) {
   };
   let flow = null;              // the open emulator, or null
   let flowCompletionSince = 0;  // outbox seq when the completion was injected
+  let flowCompletionAt = 0;     // the mock's clock when it was injected (profiling: bot.reply starts here)
   const flowStats = { opened: 0, completed: 0, refused: 0, flows: [] };
   const noFlow = () => ({ ok: false, err: FL ? 'NO_FLOW_OPEN' : 'MOCK_NO_FLOW_RENDER' });
 
-  return {
+  const api = {
     caps: { method: 'mock', flows: FL ? 'emulated' : false, upload: true, render: false, rawInject: true },
     /** A page-side evaluate has no page here. Resolve to a JSON failure (the shape every caller
      *  parses) rather than throw: the callers are Flow-gated scenarios that are BLOCKED anyway, and a
@@ -186,8 +215,8 @@ function makeMockApi(opts) {
       const since = await quiesce();
       // The WhatsApp client trims what the teacher types before it leaves the phone (menu M05 is
       // written against that: "client trims"). Deliver what the bot would actually receive.
-      await inject('text', { text: String(text).trim() });
-      const r = await waitReply(since, timeoutMs, 'send:' + String(text).slice(0, 20));
+      const ij = await inject('text', { text: String(text).trim() });
+      const r = await waitReply(since, timeoutMs, 'send:' + String(text).slice(0, 20), ij.at);
       r.wallMs = Date.now() - t0;
       trace('send ok    ' + JSON.stringify(text).slice(0, 30) + ' waited=' + r.waitedMs);
       return r;
@@ -203,8 +232,8 @@ function makeMockApi(opts) {
       // cursor behind, and a card already sitting quiet would otherwise be mistaken for the tap's reply
       // (the training module card, with the real answer 6s away: bd tap→quiz).
       const since = (await outbox(0)).last;
-      await inject('button', { id: btn.reply.id, title: btn.reply.title });
-      const r = await waitReply(since, timeoutMs, 'tap:' + label);
+      const ij = await inject('button', { id: btn.reply.id, title: btn.reply.title });
+      const r = await waitReply(since, timeoutMs, 'tap:' + label, ij.at);
       return { ok: r.ok, waitedMs: r.waitedMs, tapped: label, newIds: r.freshIds, txt: r.txt, btns: r.btns };
     },
     async openList(opener) {
@@ -220,8 +249,8 @@ function makeMockApi(opts) {
       const hit = l && l.rows.find((r) => r.title === row);
       if (!hit) throw new Error(`HARNESS mock-api: no list row titled ${JSON.stringify(row)} on any recent reply (rows=${JSON.stringify(l && l.rows.map((r) => r.title))})`);
       const since = (await outbox(0)).last;
-      await inject('list', { id: hit.id, title: hit.title });
-      const r = await waitReply(since, timeoutMs, 'pick:' + row);
+      const ij = await inject('list', { id: hit.id, title: hit.title });
+      const r = await waitReply(since, timeoutMs, 'pick:' + row, ij.at);
       return { ok: r.ok, waitedMs: r.waitedMs, picked: row, newIds: r.freshIds, txt: r.txt, btns: r.btns };
     },
     async closeDialog() { return true; },
@@ -258,7 +287,8 @@ function makeMockApi(opts) {
           // on it (flow-response.handler reads responseJson.flow_token — the STUDENT_JOIN completion is
           // recognised by its 'vqjoin:' prefix). Without it the join fell through to the generic
           // "Thanks for your response!" (debug run, bd-5d294).
-          await inject('flow', { flowId: done.flowId, response_json: { ...(done.response_json || {}), flow_token: done.flowToken } });
+          const ij = await inject('flow', { flowId: done.flowId, response_json: { ...(done.response_json || {}), flow_token: done.flowToken } });
+          flowCompletionAt = ij.at || Date.now();
           flowStats.completed++;
         },
       });
@@ -288,8 +318,8 @@ function makeMockApi(opts) {
      *  browser lane cannot forge this, so scripts gate it on caps.rawInject. */
     async injectList(id, title, timeoutMs = 60000) {
       const since = cursor;
-      await inject('list', { id, title: title || id });
-      const r = await waitReply(since, timeoutMs, 'inject:list:' + id);
+      const ij = await inject('list', { id, title: title || id });
+      const r = await waitReply(since, timeoutMs, 'inject:list:' + id, ij.at);
       return { ok: r.ok, waitedMs: r.waitedMs, txt: r.txt, btns: r.btns };
     },
     async flowAria(labelText) { if (!flow || !flow.isOpen()) return noFlow(); const r = await flow.click(labelText, {}); return r.ok ? { ok: true, label: labelText } : { ok: false, err: 'NO_ARIA:' + labelText }; },
@@ -297,7 +327,7 @@ function makeMockApi(opts) {
     async flowState(labelRe) { if (!flow || !flow.isOpen()) return { found: false }; return flow.state(labelRe); },
     closeFlow() { if (flow) flow.close(); flow = null; },
     /** After a completion: wait for the bot's reaction to the nfm_reply (its next message). */
-    async flowComplete(timeoutMs = 90000) { return waitReply(flowCompletionSince, timeoutMs, 'flow:complete'); },
+    async flowComplete(timeoutMs = 90000) { return waitReply(flowCompletionSince, timeoutMs, 'flow:complete', flowCompletionAt); },
     async flowStats() { return { ...flowStats, flows: [...new Set(flowStats.flows)] }; },
 
     /** A SECOND phone on the same mock stack — a child opening a class quiz link, a friend they
@@ -378,7 +408,7 @@ function makeMockApi(opts) {
           headers: { ...H, Prefer: 'resolution=merge-duplicates,return=minimal' },
           body: JSON.stringify({ key, value, updated_at: new Date().toISOString() }) });
         if (!res.ok) return { ok: false, status: res.status, err: (await res.text()).slice(0, 200) };
-        if (settleMs) await new Promise((r) => setTimeout(r, settleMs));
+        if (settleMs) { const sp = tracer.span('wait.settle.app-setting', { layer: 'wait', kind: 'intentional', parent: current, attrs: { key, settleMs } }); await new Promise((r) => setTimeout(r, settleMs)); sp.end('ok'); }
         return { ok: true };
       } catch (e) { return { ok: false, err: String(e.message).slice(0, 160) }; }
     },
@@ -413,7 +443,7 @@ function makeMockApi(opts) {
         } catch (_) { /* best effort — the run's database is dropped at down anyway */ }
       }
       touchedSettings.clear();
-      if (settleMs) await new Promise((r) => setTimeout(r, settleMs));
+      if (settleMs) { const sp = tracer.span('wait.settle.app-setting', { layer: 'wait', kind: 'intentional', parent: current, attrs: { restored: n, settleMs } }); await new Promise((r) => setTimeout(r, settleMs)); sp.end('ok'); }
       return { ok: true, restored: n };
     },
     /** Seed a DEDICATED observe roster for THIS driver so the visit picker can advance: one school, two
@@ -523,7 +553,7 @@ function makeMockApi(opts) {
       trace('upload START ' + kind + ' ' + path.basename(String(file)));
       const since = await quiesce();
       const j = await inject(kind, { path: file, mime: MIME_BY_EXT[path.extname(String(file)).toLowerCase()] });
-      const r = await waitReply(since, timeoutMs, 'upload:' + path.basename(String(file)));
+      const r = await waitReply(since, timeoutMs, 'upload:' + path.basename(String(file)), j.at);
       trace('upload ok    ' + kind + ' waited=' + r.waitedMs + ' media=' + j.mediaId);
       return { ok: r.ok, waitedMs: r.waitedMs, newIds: r.freshIds, kind: r.ok ? r.kind : 'none', txt: r.txt, btns: r.btns, mediaId: j.mediaId };
     },
@@ -544,6 +574,46 @@ function makeMockApi(opts) {
     },
     async waitLog() { return waits.map((w) => JSON.stringify(w)).join('\n'); },
   };
+  // ── profiling: every public primitive becomes a span; the inner spans above hang off `current` ──
+  // name · layer · kind. Anything not listed (caps, ev, closeDialog, flow(), flowStats, waitStats…) is free.
+  const TRACED = {
+    sendWait: ['send', 'harness', 'primitive'], tapAndWait: ['tap', 'harness', 'primitive'], pickRowAndWait: ['pick', 'harness', 'primitive'],
+    upload: ['upload', 'harness', 'primitive'], injectList: ['inject.list', 'harness', 'primitive'], tapId: ['tap.id', 'harness', 'primitive'],
+    openList: ['open.list', 'harness', 'primitive'], flowComplete: ['flow.complete', 'harness', 'primitive'],
+    openFlow: ['flow.open', 'flow', 'primitive'], flowClick: ['flow.click', 'flow', 'primitive'], flowPick: ['flow.pick', 'flow', 'primitive'],
+    flowType: ['flow.type', 'flow', 'primitive'], flowAria: ['flow.aria', 'flow', 'primitive'], flowRaw: ['flow.raw', 'flow', 'primitive'],
+    flowProbe: ['flow.probe', 'flow', 'primitive'], flowState: ['flow.state', 'flow', 'primitive'],
+    fresh: ['poll.fresh', 'harness', 'polling'], freshReset: ['poll.fresh.reset', 'harness', 'polling'],
+    db: ['seed.db', 'harness-db', 'seed'], resetConversation: ['seed.reset-conversation', 'harness-db', 'seed'],
+    setUser: ['seed.set-user', 'harness-db', 'seed'], setRole: ['seed.set-role', 'harness-db', 'seed'],
+    setAppSetting: ['seed.app-setting', 'harness-db', 'seed'], restoreAppSettings: ['seed.app-setting.restore', 'harness-db', 'seed'],
+    resetRedirectNotice: ['seed.reset-redirect-notice', 'harness-db', 'seed'], setRoster: ['seed.roster', 'harness-db', 'seed'],
+    resetObserve: ['seed.reset-observe', 'harness-db', 'seed'], clearRoster: ['seed.roster.clear', 'harness-db', 'seed'],
+  };
+  const argLabel = (a) => (a == null ? null : typeof a === 'object' ? JSON.stringify(a).slice(0, 60) : String(a).slice(0, 60));
+  const summary = (r) => {
+    if (!r || typeof r !== 'object') return {};
+    const o = {};
+    for (const k of ['ok', 'waitedMs', 'freshIds', 'newIds', 'kind', 'err', 'screen', 'tapped', 'picked', 'items', 'clicked', 'flow', 'restored']) if (r[k] !== undefined && typeof r[k] !== 'object') o[k] = r[k];
+    if (Array.isArray(r)) o.items = r.length;
+    return o;
+  };
+  if (tracer.enabled) {
+    for (const [m, [name, layer, kind]] of Object.entries(TRACED)) {
+      const orig = api[m];
+      if (typeof orig !== 'function') continue;
+      api[m] = function traced(...args) {
+        const sp = tracer.span(name, { layer, kind, parent: current, attrs: { arg: argLabel(args[0]) } });
+        const prev = current; current = sp;
+        const done = (r) => { current = prev; sp.end(r && r.ok === false ? 'fail' : 'ok', summary(r)); return r; };
+        const fail = (e) => { current = prev; sp.end('error', { err: String(e && e.message || e).slice(0, 160) }); throw e; };
+        let out;
+        try { out = orig.apply(api, args); } catch (e) { return fail(e); }
+        return out && typeof out.then === 'function' ? out.then(done, fail) : done(out);
+      };
+    }
+  }
+  return api;
 }
 
 module.exports = { makeMockApi, endpointPathFor };

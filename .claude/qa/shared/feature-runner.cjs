@@ -595,12 +595,15 @@ function makeApi(c) {
   // bot/scripts/e2e/mock-graph-api.js, and mock-api.cjs exposes the SAME primitives this file's
   // makeApi() does, so the feature scripts below run unchanged. Default (chrome) is untouched.
   const MOCK = (process.env.E2E_METHOD || 'chrome') === 'mock';
+  // Profiling (bd-5zzbvq): the span trace for this feature — E2E_TRACE_FILE is set by run-suite.sh to
+  // <run_dir>/trace-<feature>.jsonl; unset, the tracer is a no-op. Scenario rows come from rec() below.
+  const tracer = require(path.join(__dirname, 'trace.cjs')).createTracer({ run: process.env.RUN_DIR ? path.basename(process.env.RUN_DIR) : null, feature: FEATURE });
   const c = MOCK ? { close() {} } : await connect();
   const flows = MOCK && process.env.E2E_FLOWS_DIR && process.env.E2E_FLOW_PUBLIC_KEY_B64
     ? { dir: process.env.E2E_FLOWS_DIR, botUrl: process.env.E2E_BOT_URL, publicKeyPem: Buffer.from(process.env.E2E_FLOW_PUBLIC_KEY_B64, 'base64').toString('utf8') }
     : null;
   const api = MOCK
-    ? require(path.join(__dirname, 'mock-api.cjs')).makeMockApi({ baseUrl: process.env.E2E_MOCK_URL, driver: process.env.E2E_DRIVER, env: ENV, repo: REPO, trace, flows })
+    ? require(path.join(__dirname, 'mock-api.cjs')).makeMockApi({ baseUrl: process.env.E2E_MOCK_URL, driver: process.env.E2E_DRIVER, env: ENV, repo: REPO, trace, flows, tracer })
     : makeApi(c);
   const results = [];
   // ── scenario selection (select_scenarios.py → run-suite --only → E2E_ONLY_MAP) ──────────────────────
@@ -623,6 +626,7 @@ function makeApi(c) {
   const rec = (id, name, verdict, evidence, ms) => {
     if (ONLY && SCENARIO_ID.test(String(id)) && !ONLY.has(id)) { outOfScope++; trace(`SKIP ${id} (not selected for this commit)`); return; }
     trace(`REC ${id} ${verdict} ${Math.round((ms||0)/1000)}s`); results.push({ id, name, verdict, evidence, ms });
+    tracer.scenario(id, { verdict, ms, title: name });
   };
   if (ONLY) trace(`selection: ${[...ONLY].join(',')} (${ONLY.size} scenario(s) of ${FEATURE})`);
   // Generic role/persona support: snapshot the driver's mutable identity (role, language) so a feature
@@ -688,6 +692,7 @@ function makeApi(c) {
         + '(a block it depends on was skipped, or the driver has no code for this id yet)' } });
     const wallMs = Date.now() - started;
     const pass = results.filter(r => r.verdict === 'PASS').length;
+    tracer.fixed('feature', started, Date.now(), { layer: 'feature', kind: 'feature', attrs: { feature: FEATURE, scenarios: results.length, pass } });
     const payload = {
       feature: FEATURE, wallMs, wallMin: +(wallMs / 60000).toFixed(2),
       scenarios: results.length, pass,

@@ -213,11 +213,17 @@ function createMockGraphApi(opts = {}) {
     // knows which id the bot was started with, so it stamps it here rather than trusting the env.
     payload.entry[0].changes[0].value.metadata.phone_number_id = phoneNumberId;
     const messageId = payload.entry[0].changes[0].value.messages[0].id;
+    // Profiling (bd-5zzbvq): `at` is this server's clock when the webhook left for the bot and `ackMs`
+    // how long the bot took to answer it. Outbox items carry `ts` on the same clock, so the harness
+    // can measure bot processing (inject → first send) without any poll-granularity error.
+    const at = Date.now();
     try {
       const r = await fetch(botUrl + '/webhook', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      return { status: 200, body: { ok: r.ok, status: r.status, messageId, ...(mediaId ? { mediaId } : {}) } };
+      const ackMs = Date.now() - at;
+      tlog({ dir: 'ack', messageId, ackMs, status: r.status });
+      return { status: 200, body: { ok: r.ok, status: r.status, messageId, at, ackMs, ...(mediaId ? { mediaId } : {}) } };
     } catch (e) {
-      return { status: 502, body: { ok: false, error: 'bot unreachable at ' + botUrl + ': ' + e.message, messageId } };
+      return { status: 502, body: { ok: false, error: 'bot unreachable at ' + botUrl + ': ' + e.message, messageId, at, ackMs: Date.now() - at } };
     }
   }
   const readRaw = (req) => new Promise((resolve, reject) => { const c = []; req.on('data', (d) => c.push(d)); req.on('error', reject); req.on('end', () => resolve(Buffer.concat(c))); });
@@ -305,7 +311,7 @@ function createMockGraphApi(opts = {}) {
           norm.media = { ...norm.media, filename: norm.media.filename || rec.filename, mime: rec.mime, bytes: rec.bytes.length, sha256: rec.sha256 };
           if (/\.pdf$/i.test(norm.media.filename || '') || rec.mime === 'application/pdf') norm.pdf = true;
         }
-        state.outbox.push({ seq, id, ts: new Date().toISOString(), to: payload.to, ...norm, raw: payload });
+        state.outbox.push({ seq, id, ts: new Date().toISOString(), at: Date.now(), to: payload.to, ...norm, raw: payload });
         tlog({ dir: 'out', seq, type: norm.type, txt: norm.txt, btns: norm.btns, list: norm.list, flow: norm.flow, media: norm.media, pdf: norm.pdf });
         say(`#${seq} ${norm.type} → ${payload.to}: ${JSON.stringify(norm.txt).slice(0, 70)}${norm.btns.length ? ' btns=' + JSON.stringify(norm.btns) : ''}`);
         return json(res, 200, { messaging_product: 'whatsapp', contacts: [{ input: payload.to, wa_id: payload.to }], messages: [{ id }] });
