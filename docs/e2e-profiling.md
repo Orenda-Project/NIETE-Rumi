@@ -155,3 +155,16 @@ Repeated expensive calls: `send /training` × 18 (105 s), `send /quiz` × 21 (82
 
 Applying 2–6 is harness/env work with no product code change and removes an estimated 20 min of the 37 m 45 s
 wall; 1 is driver work and removes most of what remains.
+
+### Applied (bd-k5gjje) — the lane's waits, after the first profile
+
+| Knob | Where | Mock-lane value | Before |
+|---|---|---|---|
+| `WA_PAIR_PACING` | the bot's env, composed by `local-stack.sh` (`E2E_WA_PAIR_PACING=on` restores it) | `off` | on: 6 s per phone after 8 sends |
+| `APP_SETTINGS_FLAG_TTL_MS` | the bot's env (`app-redirect.service.js`, default 30 s unchanged) | `1000` | 30 000 |
+| `E2E_APP_SETTING_SETTLE_MS` | `run-suite.sh` → `mock-api.cjs` setAppSetting/restoreAppSettings | `1500` | 31 000 |
+| `E2E_SETTLE_MS` | `run-suite.sh` → `mock-api.cjs` post-reply settle | `800` | 1200 |
+| `E2E_POLL_MS` | `run-suite.sh` → `mock-api.cjs` outbox poll | `100` | 500 |
+| quiesce skip | `mock-api.cjs`: the pre-send quiesce is skipped when the outbox has not changed since a settle proved it quiet (`attrs.skipped`) | automatic | 800 ms every send |
+
+The chrome lane is untouched (its defaults are the old values; none of the `E2E_*` knobs is set there).
