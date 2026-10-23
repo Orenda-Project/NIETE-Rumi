@@ -40,6 +40,9 @@ const DELIVER = { WHATSAPP: 'whatsapp', NONE: 'none' };
 /** Which surfaces may ask. Mirrors the CHECK on assessment_requests.surface. */
 const SURFACES = ['whatsapp', 'portal', 'api'];
 
+/** Which door a request came through, when it is not just its surface. Mirrors the CHECK on assessment_requests.origin. */
+const ORIGINS = ['report'];
+
 /**
  * Delivery follows from the surface, and is not a caller's choice.
  *
@@ -84,6 +87,8 @@ async function createAndQueue(spec) {
     scope = null,
     // 'topic' for a paper on some of one chapter's topics; the column default ('chapter') holds otherwise.
     paperKind = null,
+    // 'report' when the Class Quiz Traffic Light report's button opened the generator (bd-pw1ccr.1); NULL otherwise.
+    origin = null,
   } = spec;
 
   // Every paper gets an answer key, and she is no longer asked (bd-bfnsk). A
@@ -93,6 +98,9 @@ async function createAndQueue(spec) {
 
   if (!SURFACES.includes(surface)) {
     throw new Error(`unknown surface: ${surface}`);
+  }
+  if (origin !== null && !ORIGINS.includes(origin)) {
+    throw new Error(`unknown origin: ${origin}`);
   }
 
   const { data: request, error } = await supabase
@@ -117,6 +125,7 @@ async function createAndQueue(spec) {
       has_answer_lines: answerLines !== false,
       output_format: outputFormat,
       ...(paperKind ? { paper_kind: paperKind } : {}),
+      ...(origin ? { origin } : {}),
     })
     .select('id')
     .single();
@@ -246,4 +255,4 @@ async function findGenerating({ userId, grade, subject, pattern = null, withinMi
   }
 }
 
-module.exports = { createAndQueue, findGenerating, deliveryFor, DELIVER, SURFACES };
+module.exports = { createAndQueue, findGenerating, deliveryFor, DELIVER, SURFACES, ORIGINS };
