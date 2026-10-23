@@ -292,7 +292,9 @@ async function compute(a, d, state) {
   };
   const lessonLanguage = { report_language_null: !hasPref, lesson_language: hasPref ? transcriptLanguage : language };
   // …so when no excerpt line reaches that end, no model is asked: the card's closing move goes to a closure chapter, else nothing.
-  if (closure && !silence.reachesEnd(ex, lines)) {
+  // red7 230552 C2: a scorer's quote the model may cite is part of what it sees (the line, found in the transcript)
+  const citable = [scorerQuote, uptakeQuote].filter(Boolean).map((q) => lines.find((l) => select.quoteFound(q, [l]))).filter(Boolean);
+  if (closure && !silence.reachesEnd([...ex, ...citable], lines)) {
     const fixed = silence.closingMove(bareCard) ? fixedFallback(CLOSURE_CHAPTERS, 'validation:closure_early', 'closure') : null;
     if (!fixed) return finish({ ...base, status: 'none', none_reason: 'closure:no_end', candidates: list.candidates });
     return emit({ res: { pick: { seg_id: fixed.segId }, model: null, usage: {} }, pickList: fixed.list, fallback: fixed.said, v: { ok: false, none: null },
@@ -342,6 +344,10 @@ async function compute(a, d, state) {
   const cardFallbackFor = ({ direct = false } = {}) => {
     if (v.ok || (attempts < 2 && !direct) || routineSeen || !res.pick || !res.pick.seg_id) return null;
     if (silence.testPeriod(lines)) return null; // red7 H1 (210805, T1): no lesson for the sentence to attach to
+    // R7f 1a (red7 230552 A1/A3): a step-text pick, or a differentiation card, rests on its moment alone — refused, it is
+    // silence (as the levels rule), never the card's sentence on a chapter the card's words or label happened to reach
+    const cand = (pickList.candidates || []).find((x) => x.seg_id === String(res.pick.seg_id));
+    if ((cand && cand.route === 'step_text') || cardInd === 'B6' || silence.levelsCard(cardSentence)) return null;
     const seg = catalog.segment(String(res.pick.seg_id));
     return seg && select.cardFallback({
       none: v.none, segId: res.pick.seg_id, shortlist: pickList, sentence: (card && card.action) || step.try || fa.try_this_tomorrow || '',

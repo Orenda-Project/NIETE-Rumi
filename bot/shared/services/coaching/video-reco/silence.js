@@ -42,6 +42,10 @@ function levelsMoment(lines) {
 // R7f (COS 20261023T223858 1a; panel Q191 ⛔2, Q166): a differentiation pick rests on the cited line, not on a mixed-level
 // line somewhere in the lesson: the line itself or one within two lines of it shows the levels.
 const LEVELS_NEAR = 2;
+// …and a card whose move is tiered work (the panel's 157-s3 rows: Q166 Q159) is a differentiation card whatever it is tagged
+const LEVELS_CARD = /تین (?:سطح|لیول)|دو سطحی|سطحی (?:کام|ٹاسک|task|worksheet)|\b(?:three|two)[- ]tier|\btiered\b|\beasy (?:and|or|\/) (?:a )?(?:hard|challenge)|\beasier\b.{0,30}\bharder\b|آسان (?:اور|یا) (?:ایک )?(?:مشکل|چیلنج)|آسان version|challenge version|\bscaffold\b.{0,60}\bstretch\b|\bsupport (?:and|\/) stretch|core\s*\/\s*challenge/iu;
+const levelsCard = (sentence) => LEVELS_CARD.test(String(sentence || ''));
+
 /** The line at `i`, or one within two lines of it, shows children at different levels. */
 function levelsNear(lines, i) {
   if (!Array.isArray(lines) || i < 0) return false;
@@ -354,4 +358,4 @@ const whyCard = (sentence) => WHY_CARD.test(String(sentence || ''));
 const OPEN_CARD = /open[- ]ended|open questions?|کھلے سوال|کھلا سوال|اوپن اینڈ/iu;
 const openQuestionCard = (sentence) => OPEN_CARD.test(String(sentence || ''));
 
-module.exports = { levelsMoment, levelsNear, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, openQuestionCard, notTeaching, testPeriod, isClosure, earlyForClosure, closingCard, closingMove, reachesEnd, monologue, KID, LABEL_SUBJECTS };
+module.exports = { levelsMoment, levelsNear, levelsCard, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, openQuestionCard, notTeaching, testPeriod, isClosure, earlyForClosure, closingCard, closingMove, reachesEnd, monologue, KID, LABEL_SUBJECTS };
