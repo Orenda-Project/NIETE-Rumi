@@ -12,7 +12,7 @@
 const { logToFile } = require('../../../utils/logger');
 const { getCurrentCorrelationId } = require('../../../utils/structured-logger');
 const { clampLanguage } = require('../../../config/ux-strings');
-const { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode } = require('./flags');
+const { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist } = require('./flags');
 const { assignArm, AB_SALT } = require('./arm');
 const target = require('./target');
 const shortlist = require('./shortlist');
@@ -275,6 +275,9 @@ async function compute(a, d, state) {
     // red7 074627: a scorer-path quote must be a transcript line; redacted once, only when that path is reached
     fullLines: (() => { let all = null; return () => (all = all || prompt.transcriptLines(session).map((l) => prompt.redact(l, people))); })(),
   };
+  // R7e (COS 185329): "proven chapters" — set, a pick off the list is none/'allowlist' in either arm; null = today
+  const allow = videoRecoAllowlist(d.env);
+  const offList = (segId) => !!allow && !allow.has(String(segId));
   let pickList = list; // R7c §7: the enacted-chapters second pass answers from its own list
   let routineSeen = false; // red7 194127 (Q170): a rejected routine moment means the lesson gave none; no card fallback either
   const check = (r, l = pickList, o = vopts) => {
@@ -315,9 +318,9 @@ async function compute(a, d, state) {
     // R7d (gold be2a6d28, G3 "no second ask"): on a move step only the enacted chapters tagged for the step; 51-s1 on a
     // C3 card was a second ask. A card_text / label / hole step has no tag to keep (the list is the gate, as R7c ruled).
     const why = shortlist.whyFirst(four.candidates, catalog, { apply: silence.whyCard(cardSentence), history });
-    const forStep = MOVE_REASONS.has(list.textReason)
+    const forStep = (MOVE_REASONS.has(list.textReason)
       ? why.filter((c) => { const hit = catalog.segment(c.seg_id); return hit && tagMismatch(t, hit.segment) !== true; })
-      : why;
+      : why).filter((c) => !offList(c.seg_id));
     const two = { ...list, repeatModule: four.repeatModule, candidates: forStep };
     if (!two.candidates.length) return false;
     attempts += 1;
@@ -351,13 +354,21 @@ async function compute(a, d, state) {
       roster: people.roster,
     });
   }
+  // R7e: the card's sentence is never sent on an off-list chapter; the (on-list) second pass may still find a moment
+  const listRefused = !!fallback && offList(res.pick.seg_id);
+  if (listRefused) fallback = null;
   if (!v.ok && !fallback && v.none !== 'llm_none' && await secondMoment()) {
     Object.assign(withLlm, { candidates: pickList.candidates, repeat_module: !!pickList.repeatModule, model: res.model, usage: res.usage, attempts, first_none_reason: firstNone });
   }
-  if (!v.ok && !fallback) return finish({ ...withLlm, status: 'none', none_reason: v.none, ...(v.confidence === undefined ? {} : { confidence: v.confidence }) });
+  if (!v.ok && !fallback) {
+    if (listRefused) return finish({ ...withLlm, status: 'none', none_reason: 'allowlist' });
+    return finish({ ...withLlm, status: 'none', none_reason: v.none, ...(v.confidence === undefined ? {} : { confidence: v.confidence }) });
+  }
 
   const p = select.groundReasons(res.pick, catalog); // R7d §6: the clip half from the chapter, as validated
   const hit = catalog.segment(String(p.seg_id));
+  // R7e: before the arm sets status, so the video and the control arm store the same none for an off-list pick
+  if (offList(hit.segment.seg_id)) return finish({ ...withLlm, status: 'none', none_reason: 'allowlist' });
   // bd-8hhqhf: the model's own bidi controls are dropped before the quotes are isolated (red7 C3: a stray PDI).
   const asked = p.moment && p.moment.quote; // R7d §6: a what-question is never labelled recall
   const said = fallback || {
