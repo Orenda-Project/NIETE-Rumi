@@ -71,12 +71,28 @@ test('ladderProgress: the Taleemabad ladder only (level ids 1–4); no rows → 
   expect(await S.ladderProgress(UID)).toEqual({ level: null, completedModules: [] });
 });
 
-test('trainingBands: users.training_bands (H7 grade chain); missing → []', async () => {
-  load({ users: { data: { training_bands: ['PRIMARY'] }, error: null } });
-  expect(await S.trainingBands(UID)).toEqual(['PRIMARY']);
-  expect(db.calls[0]).toEqual(['users', ['select', ['training_bands']], ['eq', ['id', UID]], ['maybeSingle', []]]);
-  load({ users: new Error('column does not exist') });
+// bd-8hhqhf r7 (promo 073156, COS 073244): users.training_bands exists on the sandbox DB only. A users table shaped
+// like staging/prod: training_bands → 42703, teacher_level → the bands.
+const PROD_USERS = (chain) => {
+  const cols = chain.find((c) => c[0] === 'select')[1][0];
+  if (/training_bands/.test(cols)) return { data: null, error: { code: '42703', message: 'column users.training_bands does not exist' } };
+  return { data: { teacher_level: ['high', 'MIDDLE', 'grade_3', null] }, error: null };
+};
+
+test('trainingBands on a prod-shaped users table → the teacher_level bands, canonical order, unknown tokens dropped; no warn', async () => {
+  load({ users: PROD_USERS });
+  expect(await S.trainingBands(UID)).toEqual(['MIDDLE', 'HIGH']);
+  expect(db.calls[0]).toEqual(['users', ['select', ['teacher_level']], ['eq', ['id', UID]], ['maybeSingle', []]]);
+  expect(log).not.toHaveBeenCalled();
+});
+
+test('trainingBands: an empty or missing teacher_level → [] (no fallback to another column); a DB error → [] + one warn', async () => {
+  load({ users: { data: { teacher_level: null }, error: null } });
   expect(await S.trainingBands(UID)).toEqual([]);
+  expect(db.calls).toHaveLength(1);
+  load({ users: new Error('boom') });
+  expect(await S.trainingBands(UID)).toEqual([]);
+  expect(log).toHaveBeenCalledTimes(1);
 });
 
 test('write: upsert on coaching_session_id, returns the stored row; never throws', async () => {

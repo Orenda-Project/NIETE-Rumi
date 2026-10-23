@@ -12,8 +12,9 @@ beforeEach(() => {
   S = require('../../../bot/shared/services/coaching/video-reco/select');
 });
 
-const FALLBACK_UR = (s, n) => `آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "${s}"۔ یہ ${n} سیکنڈ کا کلپ اس کا ایک طریقہ دکھاتا ہے۔`;
-const FALLBACK_EN = (s, n) => `Your report asks you to try: "${s}". This ${n}-second clip shows one way to do it.`;
+const FALLBACK_UR = (s, n) => `آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "\u2068${s}\u2069"۔ یہ ${n} سیکنڈ کا کلپ اس کا ایک طریقہ دکھاتا ہے۔`;
+// bd-8hhqhf: the card sentence sits in an FSI…PDI isolate.
+const FALLBACK_EN = (s, n) => `Your report asks you to try: "\u2068${s}\u2069". This ${n}-second clip shows one way to do it.`;
 const list = { candidates: [{ seg_id: '10-s1', indicator: 'C1' }] };
 const base = { none: 'validation:roman', segId: '10-s1', shortlist: list, startS: 30, endS: 120, language: 'ur', module: { subjects: ['general'] }, subject: null };
 

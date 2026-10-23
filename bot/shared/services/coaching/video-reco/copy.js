@@ -12,8 +12,9 @@ const { getLanguage } = require('../../../config/languages');
 
 const BODY_MAX = 1024; // Meta's cap on an interactive body, in code points
 const URDU_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
-const LRI = '⁦';
-const PDI = '⁩';
+const LRI = '\u2066';
+const FSI = '\u2068';
+const PDI = '\u2069';
 const RLM = '‏';
 
 /** The reader's language as NIETE offers it (flat en/ur, language-protocol): the catalog's own clamp. */
@@ -48,10 +49,52 @@ const clipLanguageName = (clipLanguage, l) => resolveUx(LANG_KEY[clipLanguage] |
  */
 function isolateLatin(text) {
   const s = String(text || '');
-  if (!s || /[⁦-⁩]/.test(s)) return s;
-  const out = s.replace(/[A-Za-z][A-Za-z0-9'’-]*(?:\s+[A-Za-z0-9][A-Za-z0-9'’-]*)*/g, (run) => `${LRI}${run}${PDI}`);
+  if (!s) return s;
+  // Text already inside an isolate (a quoted moment, bd-8hhqhf) is left as it is; only the rest is scanned.
+  const out = s.split(/([\u2066-\u2068][^\u2066-\u2069]*\u2069)/).map((part, i) => (i % 2 ? part
+    : part.replace(/[A-Za-z][A-Za-z0-9'’-]*(?:\s+[A-Za-z0-9][A-Za-z0-9'’-]*)*/g, (run) => `${LRI}${run}${PDI}`))).join('');
   const first = [...out].find((ch) => /\p{L}/u.test(ch) && !/[⁦-⁩]/.test(ch));
   return first && /[؀-ۿ]/.test(first) ? out : `${RLM}${out}`;
+}
+
+/** Bidi embedding/override/isolate controls removed (U+202A–202E, U+2066–2069): a stray PDI in model text would close an outer isolate. */
+const stripBidi = (text) => (typeof text === 'string' ? text.replace(/[\u202A-\u202E\u2066-\u2069]/g, '') : text);
+
+const QUOTE_PAIR = /"([^"]+)"|“([^”]+)”|«([^»]+)»/g;
+const ISOLATE_CH = /[\u2066-\u2069]/;
+const ARABIC_SCRIPT = /[\u0600-\u06FF]/;
+
+/** Each quoted pair isolated — only when the pairing cannot be wrong: one pair, or several holding no Urdu text. */
+function isolatePairs(text) {
+  const pairs = [...text.matchAll(QUOTE_PAIR)];
+  if (!pairs.length) return text;
+  if (pairs.length > 1 && pairs.some((p) => ARABIC_SCRIPT.test(p[1] ?? p[2] ?? p[3]))) return text; // inner quotes possible: no guess
+  return text.replace(QUOTE_PAIR, (m, a, b, c) => {
+    const q = a ?? b ?? c;
+    return ISOLATE_CH.test(q[0]) ? m : `${m[0]}${FSI}${q}${PDI}${m[m.length - 1]}`;
+  });
+}
+
+/**
+ * Every quoted lesson moment in a reason set in its own first-strong isolate (FSI…PDI), inside the quote marks, so an
+ * Urdu quote in an English line (or a quote opening with a digit, "9 ہم نے …") renders in place on WhatsApp, /cr and
+ * the React card (bd-8hhqhf, live session c53bf86d). `quote` is the moment the validator accepted: the longest stretch
+ * between two quote marks that lies inside it is the moment, however many quote marks it holds (red7 070727,
+ * d029b87c «اب "سی" اے ٹی …»); the rest of the text gets isolatePairs. A text with no quote is unchanged.
+ */
+function isolateQuotes(text, quote) {
+  if (typeof text !== 'string' || !text) return text;
+  const q = typeof quote === 'string' ? quote : '';
+  const marks = [...text.matchAll(/["“”«»]/g)].map((m) => m.index);
+  let best = null;
+  for (let i = 0; q && i < marks.length; i++) {
+    for (let j = i + 1; j < marks.length; j++) {
+      const inner = text.slice(marks[i] + 1, marks[j]);
+      if ([...inner.trim()].length >= 6 && !ISOLATE_CH.test(inner) && q.includes(inner.trim()) && (!best || inner.length > best.inner.length)) best = { i: marks[i], j: marks[j], inner };
+    }
+  }
+  if (!best) return isolatePairs(text);
+  return `${isolatePairs(text.slice(0, best.i))}${text[best.i]}${FSI}${best.inner}${PDI}${text[best.j]}${isolatePairs(text.slice(best.j + 1))}`;
 }
 
 // An Urdu line sets its English runs in isolates; other lines are as written.
@@ -88,5 +131,5 @@ function messageBody({ minutes, reason, clipLanguage, language }) {
 const word = (key, language, params) => resolveUx(key, { language: lang(language), params });
 
 module.exports = {
-  lang, dirOf, localized, num, minutesOf, urduDigits, clock, isolateLatin, buttonText, cardButton, messageBody, clipLanguageName, word, BODY_MAX,
+  lang, dirOf, localized, num, minutesOf, urduDigits, clock, isolateLatin, isolateQuotes, stripBidi, buttonText, cardButton, messageBody, clipLanguageName, word, BODY_MAX,
 };

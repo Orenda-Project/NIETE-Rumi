@@ -12,7 +12,10 @@
  *     («نور نے بتایا») or ends the turn, and split compound names («عبد اللہ», «عطا اللہ») are masked too. A lexicon can never list every
  *     child's name; on 110 held-out lessons the lexicon + address rules alone let 39% of names through.
  * ctx: { teacher, coach, school: name strings of this session's people (from the DB); roster: [student names];
- *        placeholders: { teacher, coach, school, child }; strict: false turns the vocabulary rule off }. Over-redaction is the safe direction: a word wrongly
+ *        placeholders: { teacher, coach, school, child }; strict: false turns the vocabulary rule off;
+ *        vocab: [the lesson's subject terms] (bd-8hhqhf) — they shield only the unknown-word rules (an unknown word
+ *        in an address slot, the vocabulary rule), never a lexicon name (red7 070504, COS 070543);
+ *        trace: an array that receives {word, rep, why} for every masked word, why = the rule that masked it }. Over-redaction is the safe direction: a word wrongly
  * replaced costs quote fidelity; a name let through puts a child's name in a forwardable WhatsApp message.
  */
 
@@ -22,7 +25,9 @@ const DEFAULT_PH = { teacher: '[TEACHER]', coach: '[COACH]', school: '[SCHOOL]',
 const WORD = /[ء-غف-يً-ٰٟ-ۓە‌]+|[ऀ-ॣ०-ॿ]+|[A-Za-z]+/g;
 const IS_UR = /[؀-ۿ]/;
 const IS_DEV = /[ऀ-ॿ]/;
-const ROLE_STOP = new Set('teacher madam miss sir mam maam sahib sahiba bibi govt government school girls boys model primary middle high higher secondary college islamabad sector class federal fde imsg imsb imcg imcb academy public institute village number مس میڈم سر صاحب صاحبہ سکول اسکول گورنمنٹ ماڈل'.split(' '));
+// Role words and honorifics: never a person's name, in users.name or anywhere (bd-8hhqhf adds test/mrs/ٹیچر/استاد/استانی:
+// the walk user "VIDREC Test Teacher" failed every reason that said "test").
+const ROLE_STOP = new Set('teacher madam miss sir mam maam sahib sahiba bibi govt government school girls boys model primary middle high higher secondary college islamabad sector class federal fde imsg imsb imcg imcb academy public institute village number مس میڈم سر صاحب صاحبہ سکول اسکول گورنمنٹ ماڈل test mrs ms mr ٹیچر استاد استانی'.split(' '));
 const HONOR_BEFORE = new Set(['حضرت', 'محترمہ', 'قائد', 'علامہ', 'سیدنا', 'سیدہ', 'نبی', 'رسول', 'امام', 'hazrat', 'quaid', 'allama', 'prophet', 'imam']);
 const HONOR_AFTER = new Set(['صلی', 'رضی', 'علیہ', 'جناح', 'اقبال', 'صدیق', 'فاروق', 'غنی', 'بن', 'jinnah', 'iqbal', 'pbuh', 'saw', 'bin']);
 const PRAISE = new Set(['شاباش', 'گڈ', 'اچھا', 'ایکسیلنٹ', 'زبردست', 'بیٹا', 'بیٹے', 'بیٹی', 'good', 'shabash', 'excellent', 'done', 'beta', 'yes']);
@@ -42,6 +47,8 @@ function redactNames(text, ctx = {}) {
   if (typeof text !== 'string' || !text) return text;
   const ph = { ...DEFAULT_PH, ...(ctx.placeholders || {}) };
   const strict = ctx.strict !== false;
+  const vocab = new Set([].concat(ctx.vocab || []).map((v) => norm(String(v))));
+  const trace = Array.isArray(ctx.trace) ? ctx.trace : null;
   const roles = new Map();
   [].concat(ctx.roster || []).forEach((n) => nameTokens(n).forEach((t) => roles.set(t, ph.child)));
   ['school', 'coach', 'teacher'].forEach((r) => nameTokens(ctx[r]).forEach((t) => roles.set(t, ph[r])));
@@ -65,23 +72,27 @@ function redactNames(text, ctx = {}) {
     const common = ur ? SETS.urCommon.has(n) : SETS.latCommon.has(n);
     const placeholder = s[m.index - 1] === '[' && after[0] === ']';
     let rep = placeholder ? null : roles.get(n);
+    let why = rep ? 'role' : null;
     if (!rep && !honorific && !placeholder) {
       const strong = ur ? SETS.urStrong.has(n) : SETS.latStrong.has(n) && (address || /^[A-Z]/.test(w));
       const amb = ur ? SETS.urAmbig.has(n) : SETS.latAmbig.has(n);
-      const unknownAddressed = address && !common && n.length >= 3 && (ur || /^[A-Z]/.test(w));
-      const oov = strict && !common && !amb && !ROLE_STOP.has(n) && !SETS.vocab.has(n) && (ur || /^[A-Z]/.test(w));
+      const unknownAddressed = address && !common && !vocab.has(n) && n.length >= 3 && (ur || /^[A-Z]/.test(w));
+      const oov = strict && !common && !amb && !ROLE_STOP.has(n) && !SETS.vocab.has(n) && !vocab.has(n) && (ur || /^[A-Z]/.test(w));
       const turnEnd = /^\s*[۔!؟.?]?\s*(\n|$)/.test(after);
       const named = amb && (NAMED_BY.has(next) || turnEnd || SETS.urStrong.has(next));
       const compound = ur && GOD_NAME.has(next) && (n === 'عبد' || (!common && !SETS.vocab.has(n)) || amb || SETS.urStrong.has(n));
       if (compound) forceNext = i + 1;
       const surname = lastChild === i - 1 && !common && (ur || /^[A-Z]/.test(w)) && /^\s*$/.test(s.slice(words[i - 1].index + words[i - 1][0].length, m.index));
-      if (strong || (address && amb) || named || unknownAddressed || oov || surname || compound || forceNext === i) rep = ph.child;
+      why = (strong && 'strong') || (address && amb && 'address') || (named && 'named') || (unknownAddressed && 'address')
+        || (surname && 'surname') || ((compound || forceNext === i) && 'compound') || (oov && 'oov') || null;
+      if (why) rep = ph.child;
     }
     if (rep === ph.child) lastChild = i;
+    if (rep && trace) trace.push({ word: w, rep, why });
     out += s.slice(at, m.index) + (rep || w);
     at = m.index + w.length;
   });
   return out + s.slice(at);
 }
 
-module.exports = { redactNames };
+module.exports = { redactNames, ROLE_STOP };
