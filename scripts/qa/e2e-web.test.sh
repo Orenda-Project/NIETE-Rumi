@@ -76,7 +76,9 @@ chk "W7e WEB_HEADED=1 in the environment cannot sneak a window into a commit run
 chk "W8 mock WhatsApp URL is the slot's mock port" \
     "$(printf '%s\n' "$plan" | sed -nE 's/^MOCK_URL=//p')" "http://127.0.0.1:4013"
 # W9 — the local bot's links point at THIS stack's portal (dev-portal.sh), not the Vite dev port in local-lane.env.
-grep -q 'PORTAL_URL=http://localhost:\$PORTAL_PORT' "$ROOT/scripts/dev-portal.sh" \
+# The port is the run's own (portal_port: its portal/.env, else PORTAL_PORT) since bd-i56c2u, so a refresh keeps it;
+# scripts/dev-portal.test.sh R4b proves the value the bot is actually restarted with.
+grep -q 'PORTAL_URL=http://localhost:\$port' "$ROOT/scripts/dev-portal.sh" \
   && ok "W9 dev-portal.sh gives the bot PORTAL_URL=http://localhost:\$PORTAL_PORT" \
   || no "W9 dev-portal.sh gives the bot PORTAL_URL=http://localhost:\$PORTAL_PORT"
 
