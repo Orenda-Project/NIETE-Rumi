@@ -101,3 +101,46 @@ describe('pictureShortfall', () => {
     expect(Prompt.pictureShortfall({ unseen: { s: { T: [{ slot: 'g1.maths.A.Q1' }] } } }, P)).toEqual([]);
   });
 });
+
+// Amena, 23 Oct 2026: "For grade 1, its the same pictures in the whole paper, we know that is
+// never how a teacher sets up a paper" (bd-5jmnfj.4.27).
+describe('repeatedPictures', () => {
+  const P = g1('english');
+  const obj = (slot, name) => ({ slot, picture: { kind: 'object', name } });
+  const paper = (...items) => ({ unseen: { subjective: { T: items } } });
+
+  test('a picture shown in two questions flags the later question only', () => {
+    const out = Prompt.repeatedPictures(paper(obj('g1.english.C.Q11', 'cat'), obj('g1.english.A.Q1', 'Cat'), obj('g1.english.A.Q1', 'dog')), P);
+    expect(out).toEqual([{ slot: 'g1.english.C.Q11', reason: 'repeat', pictures: ['cat'] }]);
+  });
+
+  test('the same thing named with an article or as a plural is still a repeat; different things are not', () => {
+    expect(Prompt.repeatedPictures(paper(obj('g1.english.A.Q1', 'a hat'), obj('g1.english.A.Q4', 'hats')), P)).toHaveLength(1);
+    expect(Prompt.repeatedPictures(paper(obj('g1.english.A.Q1', 'bus'), obj('g1.english.A.Q4', 'bat')), P)).toEqual([]);
+  });
+
+  test('two items of one question showing the same thing flag that question', () => {
+    expect(Prompt.repeatedPictures(paper(obj('g1.english.B.Q7', 'cup'), obj('g1.english.B.Q7', 'cup')), P))
+      .toEqual([{ slot: 'g1.english.B.Q7', reason: 'repeat', pictures: ['cup'] }]);
+  });
+
+  test('scenes, counts, dots and shapes are never repeats', () => {
+    const scene = { slot: 'g1.english.B.Q8', picture: { kind: 'scene', describe: 'a child runs' } };
+    const count = { slot: 'g1.english.B.Q8', picture: { kind: 'count', name: 'apple', n: 3 } };
+    expect(Prompt.repeatedPictures(paper(scene, { ...scene }, count, { ...count }), P)).toEqual([]);
+  });
+});
+
+describe('takenPicturesNote', () => {
+  const tree = (...names) => ({ unseen: { subjective: { T: names.map((name) => ({ slot: 's', picture: { kind: 'object', name } })) } } });
+
+  test('names every object picture in the other sections, once each', () => {
+    const note = Prompt.takenPicturesNote([tree('cat', 'dog'), tree('Cat', 'sun')]);
+    expect(note).toMatch(/cat, dog, sun/);
+    expect(note).toMatch(/same thing/i);
+  });
+
+  test('is null when the other sections show no object', () => {
+    expect(Prompt.takenPicturesNote([{ unseen: { subjective: {} } }])).toBeNull();
+  });
+});
