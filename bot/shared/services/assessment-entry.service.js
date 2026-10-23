@@ -27,6 +27,8 @@ const { resolveUx } = require('../config/ux-strings');
  */
 async function offerTopicPaper({ from, userId, language }) {
   try {
+    // bd-6clakk.6 — its own switch, off on prod until the A/B test starts.
+    if (!(await require('../config/feature-flags').isAssessmentTopicCtaEnabled())) return;
     if (!(await require('./app-redirect.service').isOnTeacherApp(userId))) return;
     const base = String(require('../config/branding').portalUrl() || '').replace(/\/+$/, '');
     const token = base ? require('./app-login-link').signAppLink(userId, 'assessment_topics') : null;
