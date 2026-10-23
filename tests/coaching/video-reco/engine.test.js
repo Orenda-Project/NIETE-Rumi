@@ -173,7 +173,7 @@ test('no ladder rows → teacher_level null, source none, level unknown', async 
   expect(await E.recommendForReport({ ...args(), deps: d })).toMatchObject({ teacher_level: null, teacher_level_source: 'none', level_match: 'unknown' });
 });
 
-test('grade chain: subject_resolution.grade first; else users.training_bands', async () => {
+test('grade chain: subject_resolution.grade first; else the teacher bands (users.teacher_level)', async () => {
   const d = deps();
   await E.recommendForReport({ ...args(), deps: d });
   expect(d.store.trainingBands).not.toHaveBeenCalled();
