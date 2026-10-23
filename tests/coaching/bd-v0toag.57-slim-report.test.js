@@ -10,12 +10,12 @@
  */
 jest.mock('../../bot/shared/services/coaching/ab-v10-arms', () => ({ groupFor: jest.fn() }));
 jest.mock('../../bot/shared/services/coaching/report-link-token', () => ({ reportLinkUrl: jest.fn() }));
-jest.mock('../../bot/shared/services/coaching/thing-to-try-pick', () => ({ pickThingToTry: jest.fn() }));
+jest.mock('../../bot/shared/services/coaching/thing-to-try-pick', () => ({ resolveThing: jest.fn() }));
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
 
 const { groupFor } = require('../../bot/shared/services/coaching/ab-v10-arms');
 const { reportLinkUrl } = require('../../bot/shared/services/coaching/report-link-token');
-const { pickThingToTry } = require('../../bot/shared/services/coaching/thing-to-try-pick');
+const { resolveThing } = require('../../bot/shared/services/coaching/thing-to-try-pick');
 const { slimReportFor } = require('../../bot/shared/services/coaching/slim-report');
 const { buildSlimCardHtml } = require('../../bot/shared/services/coaching/report-v2/slim-card.template');
 
@@ -29,22 +29,34 @@ const call = (commitmentAction = 'Ask three children to explain') =>
 beforeEach(() => {
   jest.clearAllMocks();
   reportLinkUrl.mockReturnValue('https://portal.example/cr/tok');
-  pickThingToTry.mockReturnValue({ move_id: 'm2', lesson_id: 'L1', text: 'Children read the word aloud together', tag: 'C4' });
+  // bd-v0toag.100.8: the thing the stored card gets (carried or new), with the step it was set in.
+  resolveThing.mockResolvedValue({ thing: {
+    move_id: 'm2', lesson_id: 'L1', text: 'Children read the word aloud together', tag: 'C4', step: { name: 'We Do', index: 3 },
+  } });
 });
 
 describe('slimReportFor', () => {
-  test.each(['C', 'D'])('group %s gets the slim image with the .20 pick as the thing to try', async (g) => {
+  test.each(['C', 'D'])('group %s gets the slim image with the resolved thing to try', async (g) => {
     groupFor.mockResolvedValue(arm(g, 'new'));
     expect(await call()).toEqual({ tryNext: 'Children read the word aloud together', step: { name: 'We Do', index: 3 }, tag: 'C4' });
     expect(groupFor).toHaveBeenCalledWith(UID);
     expect(reportLinkUrl).toHaveBeenCalledWith({ sessionId: SID, userId: UID });
-    expect(pickThingToTry).toHaveBeenCalledWith(LPF);
+    expect(resolveThing).toHaveBeenCalledWith({ userId: UID, coachingSessionId: SID, lpFidelity: LPF });
   });
 
-  test('no pick: the commitment action', async () => {
+  test.each([
+    ['no thing', { thing: null }],
+    ['a done marker (no text)', { thing: { move_id: null, lesson_id: 'L1', text: null, tag: null, step: null } }],
+  ])('%s: the commitment action', async (_l, resolved) => {
     groupFor.mockResolvedValue(arm('C', 'new'));
-    pickThingToTry.mockReturnValue(null);
+    resolveThing.mockResolvedValue(resolved);
     expect(await call()).toEqual({ tryNext: 'Ask three children to explain', step: null, tag: null });
+  });
+
+  test('a carried thing keeps the step it was set in, not a move of today\'s plan with the same id', async () => {
+    groupFor.mockResolvedValue(arm('D', 'new'));
+    resolveThing.mockResolvedValue({ thing: { move_id: 'm1', lesson_id: 'L0', text: 'Pair talk', tag: 'C9', step: { name: 'You Do', index: 4 } } });
+    expect(await call()).toEqual({ tryNext: 'Pair talk', step: { name: 'You Do', index: 4 }, tag: 'C9' });
   });
 
   test.each([
