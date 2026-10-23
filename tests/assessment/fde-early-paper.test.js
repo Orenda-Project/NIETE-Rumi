@@ -101,3 +101,40 @@ describe('"from the box" prints the box', () => {
     words.forEach((w) => expect(block).toContain(w));
   });
 });
+
+/*
+ * What the v12 sandbox papers showed (bd-5jmnfj.4.20): a full-width box lost its
+ * right border at the page edge, "34 ☐ 43" printed its square as a missing glyph
+ * with a box under it, and G1 GK Q1's words sat as a line under item i.
+ */
+describe('v12 sandbox papers', () => {
+  const maths = require('./fixtures/early/g1-maths-exam.json');
+  const mathsHtml = R.renderPaper({ examJson: maths, grade: 1, subject: 'maths' });
+  const gkHtml = R.renderPaper({ examJson: gk, grade: 1, subject: 'general_knowledge' });
+
+  test('a write box stops short of the page edge on its end side', () => {
+    expect(html).toMatch(/\.write-box \{[^}]*margin-right: 0\.5mm/);
+    expect(gkHtml).toMatch(/\.write-box \{[^}]*margin-left: 0\.5mm/);
+  });
+
+  test('a compare item draws its square and needs no box under it', () => {
+    const q4 = itemsOf(mathsHtml, 'g1.maths.A.Q4');
+    expect(q4.length).toBeGreaterThan(0);
+    q4.forEach((it) => {
+      expect(it).not.toContain('☐');
+      expect(it).toContain('class="sq"');
+      expect(it).not.toContain('write-box');
+    });
+  });
+
+  test.each([
+    ['G1 GK Q1', () => gkHtml, 'g1.general_knowledge.A.Q1'],
+    ['G1 English Q9', () => html, 'g1.english.B.Q9'],
+  ])('%s prints one boxed bank above its items, none under them', (_, page, slot) => {
+    const block = slotHtml(page(), slot);
+    expect(block.match(/word-box bank/g)).toHaveLength(1);
+    expect(block.indexOf('word-box bank')).toBeLessThan(block.indexOf('<div class="q'));
+    expect(block).not.toContain('word-line');
+    itemsOf(page(), slot).forEach((it) => expect(it).not.toMatch(/word-(box|line)/));
+  });
+});
