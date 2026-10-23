@@ -238,10 +238,12 @@ const RELABEL = {
     [/(?:یادداشت|یاد داشت|یاداشت|یاددہانی|ریکال)/gu, 'سوال']],
 };
 
+const CLIP_WORD = { en: /\b(?:clip|video|chapter)\b/i, ur: /کلپ|ویڈیو/u };
+
 /** The lesson half of a reason with the recall label replaced, when the cited line asks what (en or ur). */
 function relabelRecall(text, l, quote) {
   if (typeof text !== 'string' || !WHAT_Q.test(String(quote || '')) || WHY_HOW_Q.test(String(quote || ''))) return text;
-  const at = text.search(l === 'ur' ? /کلپ|ویڈیو/u : /\b(?:clip|video|chapter)\b/i);
+  const at = text.search(CLIP_WORD[l] || CLIP_WORD.en);
   const head = at < 0 ? text : text.slice(0, at);
   return (RELABEL[l] || []).reduce((t, [rx, to]) => t.replace(rx, to), head) + (at < 0 ? '' : text.slice(at));
 }
