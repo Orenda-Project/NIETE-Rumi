@@ -178,6 +178,7 @@ const RETRY_RULES = Object.freeze({
   urdu: 'reason_ur was not written in Urdu script.',
   roman: 'reason_ur contained Roman Urdu or English words; write it in Urdu script.',
   step: "The clip does not show the step's teaching move; choose one that does.",
+  no_child_turn: "The moment had no child's turn on its line or the lines beside it; choose a moment where a child speaks.",
 });
 
 /** The two lines added to the same prompt for the one retry: which rule the first answer broke, then answer again. */

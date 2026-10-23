@@ -10,6 +10,7 @@ const { redactNames, ROLE_STOP } = require('./redact-names');
 const { fallbackSubjectOk } = require('./shortlist');
 const { stripBidi } = require('./copy');
 const CONTENT_TERMS = require('./content-terms');
+const { childTurnNear, imperative } = require('./silence');
 
 const JOB = 'coaching.videoReco';
 const LLM_TIMEOUT_MS = 45000; // lead-converge 18:48Z: measured 22–33 s at the default effort; the report itself never waits on it
@@ -203,7 +204,7 @@ function arabicShare(text) {
  * @param {object} opts {stepIndicator, indicators, source, catalog, teacherName, scorerQuote, textRoute}
  * @returns {{ok:boolean, none:null|'llm_none'|'validation:<why>', confidence:number, momentSource:'transcript'|'scorer'|null}}
  *   <why> (lead-review 19:40Z, so evals and red-team can count them): shape | candidate | quote | moment_at | placeholder |
- *   scorer | id | name | length | urdu | roman | step | error
+ *   scorer | id | name | length | urdu | roman | step | no_child_turn | error
  */
 function validate(p, shortlist, excerpts, opts) {
   const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false, rawExcerpts = null, fullLines = null, vocab = [], oovVocab = [] } = opts || {};
@@ -245,6 +246,10 @@ function validate(p, shortlist, excerpts, opts) {
       const step = indicators && indicators.length ? indicators : [stepIndicator];
       if (!step.includes(cand.indicator) && !step.some((id) => ids.includes(id))) return bad('step');
     }
+    // R7b (panel P183, P076), checked last so every other rule names its own fault first: the moment's line or a line
+    // beside it is a child's turn, else it is talk with no class in it.
+    const around = momentSource === 'transcript' ? excerpts : (() => { const l = typeof fullLines === 'function' ? fullLines() : fullLines; return Array.isArray(l) ? l : []; })();
+    if (!childTurnNear(around, quoteLine(quote, around))) return bad('no_child_turn');
     return { ok: true, none: null, confidence, momentSource };
   } catch (e) {
     return bad('error');
@@ -276,7 +281,7 @@ function topicVocab(topic) {
 
 // The validation rules that leave the pick on a shortlisted, code-gated chapter. Not candidate/shape (no such chapter),
 // not step (a code gate: the chapter is not for the step), not error.
-const FALLBACK_RULES = new Set(['quote', 'moment_at', 'placeholder', 'scorer', 'id', 'name', 'length', 'urdu', 'roman']);
+const FALLBACK_RULES = new Set(['quote', 'moment_at', 'placeholder', 'scorer', 'id', 'name', 'length', 'urdu', 'roman', 'no_child_turn']);
 const FALLBACK_MAX = 300; // code points of each composed reason (en and ur)
 const MIN_WORDS = 3; // a trimmed card sentence keeps at least this many words, else the none stands
 
@@ -313,6 +318,7 @@ function cardFallback({ none, segId, shortlist, sentence, startS, endS, language
     const bare = stripBidi(String(sentence || '')).replace(LEADING_VOCATIVE, '');
     const s = String(postRedact(bare, teacherName, vocab) || '').replace(LEADING_ADDRESS, '').trim();
     if (!s || s.startsWith('[') || UNSHOWABLE.test(s)) return null; // [v1.3c-5] a placeholder never opens it
+    if (!imperative(s)) return null; // R7b (P123, P161): a diagnosis fragment is not a move to try
     const n = Math.round(Number(endS) - Number(startS));
     if (!Number.isFinite(n) || n <= 0) return null;
     // bd-8hhqhf: a long card sentence is trimmed at a word boundary to fit, in each language (session 077b8021:

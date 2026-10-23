@@ -39,7 +39,7 @@ test('an invented quote → validation; spacing/punctuation/case are fine; Urdu 
   expect(validate({ ...good(), moment: { at: '03:00', quote: 'Please explain why the sky is blue' } }, shortlist, excerpts, opts).none).toMatch(/^validation:/);
   expect(validate({ ...good(), moment: { at: '03:00', quote: 'is this a  TRIANGLE yes or no' } }, shortlist, excerpts, opts).ok).toBe(true);
   expect(validate({ ...good(), moment: { at: '03:20', quote: 'جی ہاں یہ مثلث ہے' } }, shortlist, excerpts, opts).ok).toBe(true);
-  const ex = ['[05:00] Teacher: [a student], tum batao is this a triangle'];
+  const ex = ['[05:00] Teacher: [a student], tum batao is this a triangle', '[05:01] Student: جی۔'];
   expect(validate({ ...good(), moment: { at: '05:00', quote: '[a student], tum batao is this a triangle' } }, shortlist, ex, opts).ok).toBe(true);
   expect(validate({ ...good(), moment: null }, shortlist, excerpts, opts).none).toMatch(/^validation:/);
 });
