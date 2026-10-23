@@ -10,6 +10,19 @@
  * minted link through the REAL GET /go router: typed "lesson plan" (bare_command), the "Lesson plan" chip (chip), the
  * menu's Lesson Plans row (menu) and its number (menu_choice). Production's switch value is "coaches". Mocked: the DB
  * (memory), the WhatsApp send layer, the LLM, redis, and the portal's user/app lookups at /go.
+ *
+ * bd-l6424d — and a coach who NAMES A TOPIC. Asked whether a coach who names a topic ("lesson plan on fractions", typed
+ * or by voice) should also get the tab, the operator, 23 Oct 2026: "yes to topic requests too". The typed doors are
+ * here: the lesson_plan intent (intent), and a topic typed after the menu asked for one or the Oxbridge picker's
+ * "Generate" tap (both reach handleLessonPlanRequest directly: lesson_plan_intent). The voice note has its own harness,
+ * app-link-leader-lessons-voice-topic.test.js. This branch has no in-flight rescue in the lesson-plan worker, so there is
+ * no rescue test here.
+ *
+ * On this branch the topic doors sit behind the cutover gate in handleLessonPlanRequest (LP_612_ENABLED and
+ * LP_612_ROUTE_ALL and PAKISTAN_LP_FLOW_ID), which production runs ON: this suite runs with it on, as production does,
+ * and says what happens with it off. Under the gate handleLessonPlanRequest sends the "lessons come from your textbook"
+ * line on its own BEFORE it asks the switch, so the two doors that reach it directly answer with that line and then the
+ * button, the same two messages a covered teacher gets there.
  */
 
 jest.mock('uuid', () => ({ v4: () => 'stub-uuid' }), { virtual: true });
@@ -147,8 +160,17 @@ const DOORS = [
 beforeEach(() => {
   jest.clearAllMocks();
   mockStore.clear();
-  process.env = { ...ENV, INTERNAL_API_KEY: 'test-internal-key', PORTAL_URL: PORTAL, SUPABASE_URL: 'https://abcdefgh.supabase.co', PAKISTAN_LP_FLOW_ID: 'flow-lp' };
+  mockDetectIntent.mockResolvedValue({ type: 'general' });
+  // Dummy LLM keys (bd-i26e96): the real text handler builds an LLM client on load, so without them this file passed in
+  // CI and failed on a machine with no keys in its environment. The LLM itself is mocked above; nothing is called.
+  process.env = {
+    ...ENV, INTERNAL_API_KEY: 'test-internal-key', PORTAL_URL: PORTAL, SUPABASE_URL: 'https://abcdefgh.supabase.co',
+    PAKISTAN_LP_FLOW_ID: 'flow-lp', OPENAI_API_KEY: 'test-openai', OPENROUTER_API_KEY: 'test-openrouter',
+  };
   delete process.env.APP_STORE_URL;
+  // Production's cutover gate: topic requests open the catalogue, not a generated plan (see the header).
+  process.env.LP_612_ENABLED = 'true';
+  process.env.LP_612_ROUTE_ALL = 'true';
 });
 afterAll(() => { process.env = ENV; });
 
@@ -239,5 +261,152 @@ describe('everyone else is exactly as before', () => {
     expect(buttonText).toBe('Lesson plans');
     expect((await tap(url, { teacherApp: true })).location).toBe('/portal/teacher/lessons');
     expect((await tap(url, { teacherApp: false })).location).toBe('/portal/dashboard');
+  });
+});
+
+// ── bd-l6424d: a coach who names a topic ────────────────────────────────────────────────────────────────────────
+// The operator, 23 Oct 2026: "yes to topic requests too". The typed topic doors, each driven through the real handler.
+const logRows = (name) => require('../../bot/shared/utils/logger').logToFile.mock.calls.filter(([n]) => n === name).map(([, p]) => p);
+const texts = () => mockWa.sendMessage.mock.calls.map(([, t]) => t);
+const textbookLine = (language = 'en') => require('../../bot/shared/config/ux-strings').resolveUx('lp612RouteRedirect', { language });
+async function awaitingTopic() {
+  // What the menu's Lesson Plans row leaves behind when no Flow could be sent: the next message is her topic.
+  await require('../../bot/shared/services/conversation-state.service').setState(me.id, {
+    flow: 'lesson_plan', step: 'awaiting_topic', payload: { sessionId: 'sess-1', language: 'en', from: PHONE }, ttlSeconds: 3600,
+  });
+}
+const typedTopic = async () => {
+  mockDetectIntent.mockResolvedValue({ type: 'lesson_plan' });
+  await say('lesson plan on fractions');
+};
+// The two doors that reach handleLessonPlanRequest without the intent door in front of them.
+const DIRECT_DOORS = [
+  ['a topic typed after the menu asked for one', async () => { await awaitingTopic(); await say('fractions'); }],
+  ['the Oxbridge picker\'s "Generate" tap, with the topic it cached', async () => {
+    await handler.handleLessonPlanRequest(PHONE, 'fractions', { ...me }, null, 'en', { stop() {} });
+  }],
+];
+
+async function expectTab(res) {
+  expect(res.status).toBe(303);
+  expect(res.location).toBe('/portal/teacher/lessons');
+  expect(res.session).toEqual(expect.objectContaining({ portalUserId: COACH.id, isPortalAuth: true }));
+}
+
+describe('a coach under "coaches" who names a topic (bd-l6424d)', () => {
+  test('a typed topic ("lesson plan on fractions", the lesson_plan intent): ONE message, the tab button. No textbook line, no catalogue', async () => {
+    load(COACH);
+    await typedTopic();
+    expect(ctas()).toHaveLength(1);
+    expect(mockWa.sendFlow).not.toHaveBeenCalled();
+    expect(mockWa.sendMessage).not.toHaveBeenCalled();
+    const [to, { body, buttonText, url }] = ctas()[0];
+    expect(to).toBe(PHONE);
+    // The same words as the plain doors: the tab has every plan, so the topic needs no line of its own.
+    expect(body).toBe('Read the lesson plans your teachers get.');
+    expect(buttonText).toBe('Lesson plans');
+    const res = await tap(url, { coachApp: true });
+    await expectTab(res);
+    // ONE funnel journey, the leader's (lesson_plan@leader), through the intent door. No teacher row saying
+    // not_a_teacher first.
+    const cmds = logRows('app_funnel.command');
+    expect(cmds).toEqual([expect.objectContaining({ feature: 'lesson_plan', door: 'intent', verdict: 'link', audience: 'leader' })]);
+    expect(logRows('app_funnel.link_sent')).toEqual([expect.objectContaining({ feature: 'lesson_plan', audience: 'leader', via: 'cta_url' })]);
+    expect(res.session.appJourney).toEqual(expect.objectContaining({ id: cmds[0].journeyId, feature: 'leader_lessons' }));
+  });
+
+  test.each(DIRECT_DOORS)('%s: the textbook line, then the tab button; no catalogue (a covered teacher gets the same two here)', async (_label, open) => {
+    load(COACH);
+    await open();
+    expect(texts()).toEqual([textbookLine('en')]);
+    expect(ctas()).toHaveLength(1);
+    expect(mockWa.sendFlow).not.toHaveBeenCalled();
+    // The line goes first: handleLessonPlanRequest sends it before openLpBrowseFlow asks the switch.
+    expect(mockWa.sendMessage.mock.invocationCallOrder[0]).toBeLessThan(mockWa.sendCtaUrl.mock.invocationCallOrder[0]);
+    const [, { body, buttonText, url }] = ctas()[0];
+    expect(body).toBe('Read the lesson plans your teachers get.');
+    expect(buttonText).toBe('Lesson plans');
+    await expectTab(await tap(url, { coachApp: true }));
+    expect(logRows('app_funnel.command')).toEqual([
+      expect.objectContaining({ feature: 'lesson_plan', door: 'lesson_plan_intent', verdict: 'link', audience: 'leader' }),
+    ]);
+  });
+
+  test('in Urdu: the tab\'s Urdu line and button', async () => {
+    load({ ...COACH, preferred_language: 'ur' });
+    mockDetectIntent.mockResolvedValue({ type: 'lesson_plan' });
+    await say('کسور پر لیسن پلان');
+    expect(ctas()).toHaveLength(1);
+    const [, { body, buttonText }] = ctas()[0];
+    expect(body).toBe('وہ لیسن پلان پڑھیں جو آپ کے اساتذہ کو ملتے ہیں۔');
+    expect(buttonText).toBe('لیسن پلان');
+  });
+
+  test('an analytics-only coach who names a topic keeps today\'s path: the textbook line and the catalogue Flow', async () => {
+    load(COACH, [...PROD, { key: 'portal_analytics_only', value: [COACH.id] }]);
+    await typedTopic();
+    expect(ctas()).toHaveLength(0);
+    expect(texts()).toEqual([textbookLine('en')]);
+    expect(lpFlows()).toHaveLength(1);
+    expect(require('../../bot/shared/utils/logger').logToFile).toHaveBeenCalledWith(
+      expect.stringMatching(/Leader app link: not for this user/), expect.objectContaining({ why: 'analytics_only' }));
+  });
+
+  test('with the leader switch off, a coach who names a topic keeps today\'s path: the textbook line and the catalogue Flow', async () => {
+    load(COACH, PROD.filter((r) => r.key !== 'leader_app_lesson_plan'));
+    await typedTopic();
+    expect(ctas()).toHaveLength(0);
+    expect(texts()).toEqual([textbookLine('en')]);
+    expect(lpFlows()).toHaveLength(1);
+  });
+
+  test('with the cutover gate off (the Gamma rollback lever), the switch still answers first at the intent door, as it does for a teacher', async () => {
+    delete process.env.LP_612_ROUTE_ALL;
+    load(COACH);
+    await typedTopic();
+    expect(ctas()).toHaveLength(1);
+    expect(mockWa.sendMessage).not.toHaveBeenCalled();
+    expect(mockWa.sendFlow).not.toHaveBeenCalled();
+  });
+});
+
+describe('who names a topic and is not a covered coach: exactly as before (bd-l6424d)', () => {
+  test('a principal under "coaches", a typed topic: the textbook line and the catalogue Flow, no link', async () => {
+    load(PRINCIPAL);
+    await typedTopic();
+    expect(ctas()).toHaveLength(0);
+    expect(texts()).toEqual([textbookLine('en')]);
+    expect(lpFlows()).toHaveLength(1);
+  });
+
+  test.each(DIRECT_DOORS)('a principal under "coaches", %s: the textbook line and the catalogue Flow, no link', async (_label, open) => {
+    load(PRINCIPAL);
+    await open();
+    expect(ctas()).toHaveLength(0);
+    expect(texts()).toEqual([textbookLine('en')]);
+    expect(lpFlows()).toHaveLength(1);
+  });
+
+  test('a teacher, a typed topic: the teacher link to her own lesson plans and nothing else, as before', async () => {
+    load(TEACHER);
+    await typedTopic();
+    expect(ctas()).toHaveLength(1);
+    expect(lpFlows()).toHaveLength(0);
+    expect(mockWa.sendMessage).not.toHaveBeenCalled();
+    const [, { body, url }] = ctas()[0];
+    expect(body).toBe('Open your lesson plans.');
+    expect(require('../../bot/shared/services/app-login-link').verifyAppLink(url.slice(`${PORTAL}/go/`.length)).f).toBe('lesson_plan');
+    expect(logRows('app_funnel.command')).toEqual([
+      expect.objectContaining({ feature: 'lesson_plan', door: 'intent', verdict: 'link', audience: 'teacher' }),
+    ]);
+  });
+
+  test.each(DIRECT_DOORS)('a teacher, %s: the textbook line, then the teacher link, as before', async (_label, open) => {
+    load(TEACHER);
+    await open();
+    expect(texts()).toEqual([textbookLine('en')]);
+    expect(ctas()).toHaveLength(1);
+    expect(lpFlows()).toHaveLength(0);
+    expect(require('../../bot/shared/services/app-login-link').verifyAppLink(ctas()[0][1].url.slice(`${PORTAL}/go/`.length)).f).toBe('lesson_plan');
   });
 });

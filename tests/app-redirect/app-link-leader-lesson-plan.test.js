@@ -133,22 +133,54 @@ describe('a leader asks for lesson plans with the switch on', () => {
       expect(tokenOf(mockCta.mock.calls[0][1]).f).toBe('leader_lessons');
     });
 
-  // The plain "open lesson plans" doors only; a leader who names a topic keeps today's WhatsApp path. The reason given
-  // in PR #3069 (the builder has only Reading Hour and Numeracy) no longer holds: the link now opens the tab, which has
-  // every plan, and a teacher's topic door already opens her app. The doors are kept as they were (bd-a73p5m changed
-  // the landing, not who gets the link); whether a leader's topic door should open the tab too is an open decision.
+  // The plain "open lesson plans" doors.
   test.each(['bare_command', 'chip', 'menu', 'menu_choice'])('plain door %p reaches it', async (reason) => {
     set('leader_app_lesson_plan', true);
     expect(await ask({ reason })).toBe(true);
     expect(mockCta).toHaveBeenCalledTimes(1);
   });
 
-  test.each(['lesson_plan_intent', 'voice_lesson_plan_intent', 'voice_intent', 'cutover_inflight_gamma', 'command'])(
-    'door %p (a named topic, or not an open-the-plans door) keeps today\'s path', async (reason) => {
+  // bd-l6424d — and the doors where a leader NAMES A TOPIC. Until 23 Oct these kept the WhatsApp catalogue (PR #3069's
+  // reason, "the builder has only Reading Hour and Numeracy", stopped holding when the link moved to the tab, which has
+  // every plan). Asked whether a coach who names a topic should also get the tab, the operator, 23 Oct 2026: "yes to
+  // topic requests too". Typed: the lesson_plan intent (intent), a topic typed after the menu asked for one and the
+  // Oxbridge picker's "Generate" tap (lesson_plan_intent). Spoken: voice_intent, and voice_lesson_plan_intent inside the
+  // catalogue door. (Sandbox also has the worker's in-flight rescue, cutover_inflight_gamma; this branch has no such
+  // rescue, so it is not a door here.)
+  test.each(['intent', 'lesson_plan_intent', 'voice_intent', 'voice_lesson_plan_intent'])(
+    'topic door %p reaches it', async (reason) => {
+      set('leader_app_lesson_plan', true);
+      expect(await ask({ reason })).toBe(true);
+      expect(mockCta).toHaveBeenCalledTimes(1);
+      expect(tokenOf(mockCta.mock.calls[0][1]).f).toBe('leader_lessons');
+    });
+
+  test.each(['command', 'ice_breaker', 'unspecified', 'keyword'])(
+    'door %p (not one this switch opens) keeps today\'s path', async (reason) => {
       set('leader_app_lesson_plan', true);
       expect(await ask({ reason })).toBe(false);
       expect(mockCta).not.toHaveBeenCalled();
     });
+
+  test('"coaches" at a topic door: a coach gets the tab, a principal keeps the WhatsApp catalogue', async () => {
+    set('leader_app_lesson_plan', 'coaches');
+    expect(await ask({ reason: 'intent' })).toBe(true);
+    expect(tokenOf(mockCta.mock.calls[0][1]).f).toBe('leader_lessons');
+
+    mockCta.mockClear();
+    svc._resetForTests();
+    mockState.users[ME] = row('principal');
+    expect(await ask({ reason: 'intent' })).toBe(false);
+    expect(mockCta).not.toHaveBeenCalled();
+  });
+
+  test('a topic door asks nothing for a request that is not a lesson plan: general chat at `intent` is never moved', async () => {
+    set('leader_app_lesson_plan', true);
+    set('app_redirect_general_chat', false);
+    expect(await ask({ feature: 'general_chat', reason: 'intent' })).toBe(false);
+    expect(mockCta).not.toHaveBeenCalled();
+    expect(mockState.userReads).toBe(0);
+  });
 
   test('"coaches" covers coaches only: a coach gets the link, a principal keeps the WhatsApp menu', async () => {
     set('leader_app_lesson_plan', 'coaches');
