@@ -18,7 +18,7 @@ const target = require('./target');
 const shortlist = require('./shortlist');
 const prompt = require('./prompt');
 const select = require('./select');
-const { isolateQuotes, stripBidi } = require('./copy');
+const { composeReason, stripBidi } = require('./copy');
 
 const ENGINE_TIMEOUT_MS = 60000; // the LLM call is capped at 45 s (select.js); the sender awaits this after the report has gone
 const RETRY_MIN_LEFT_MS = 20000; // v1.3b: the one validation retry runs only with ≥ 20 s of the engine budget left
@@ -305,8 +305,8 @@ async function compute(a, d, state) {
     end_s: hit.segment.end_s,
     language_match: cand.language_match || null,
     chapter_language: hit.segment.language || hit.module.language || null,
-    reason_en: isolateQuotes(clean(said.reason_en), accepted), // bd-8hhqhf: a quoted moment renders in place in every surface
-    reason_ur: isolateQuotes(clean(said.reason_ur), accepted),
+    reason_en: composeReason(clean(said.reason_en), 'en', accepted), // bd-8hhqhf: no log-line prefix; the moment renders in place
+    reason_ur: composeReason(clean(said.reason_ur), 'ur', accepted),
     moment_at: !fallback && p.moment && p.moment.at ? String(p.moment.at) : null,
     moment_quote: accepted,
     moment_source: fallback ? 'card' : v.momentSource, // 'card' = the v1.3c fallback: no moment, the card's sentence
