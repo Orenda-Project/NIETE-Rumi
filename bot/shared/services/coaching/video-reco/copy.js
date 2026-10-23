@@ -159,7 +159,30 @@ function composeReason(text, language, quote) {
   if (typeof text !== 'string' || !text) return text;
   const s = isolateQuotes(stripLead(text), quote);
   if (lang(language) === 'en') return isolateArabic(westernDigits(s.replace(/。\s*/g, '. ').trim()));
-  return isolateLatin(urduDigitsInProse(s.replace(/。/g, '۔')), false); // the WhatsApp body adds its own RLM
+  return isolateLatin(oneDigitSystem(urduDigitsInProse(urduWordTable(s.replace(/。/g, '۔')))), false); // the WhatsApp body adds its own RLM
+}
+
+// R7c (COS 20261023T170515 §6; panel ped/REVIEW_r7b_rejudge.md §4): the model's recurring Urdu slips, each fixed to the word a
+// teacher uses. Only forms that are wrong in every context are rewritten; «جوڑ» stays where it means addition.
+const URDU_WORDS = [
+  [/(^|[\s«"(])جوڑ(?= میں(?=[\s،۔]|$))/gu, '$1جوڑوں'], // pairs (Q092 Q096 Q101 Q111 Q145)
+  [/(^|[\s«"(])جوڑ(?= بنا)/gu, '$1جوڑے'],
+  [/(^|[\s«"(])ہمزات(?=[\s،۔]|$)/gu, '$1ساتھی'], // Q101
+  [/(^|[\s«"(])طبقے(?=[\s،۔]|$)/gu, '$1کلاس'], // «class» (Q137)
+  [/جگہ قدر/gu, 'مقامی قدر'], // place value (Q098)
+  [/پورے کلاس/gu, 'پوری کلاس'], // Q081 Q105
+  [/اگلے کلاس/gu, 'اگلی کلاس'], // Q020
+  [/(^|[\s«"(])یاداشت/gu, '$1یادداشت'], // Q167
+  [/مثلاََ|مثلاَ/gu, 'مثلاً'], // Q164
+  [/آپ کیوں سوچتے ہیں کہ/gu, 'آپ کے خیال میں کیوں'], // "why do you think" calque (Q082 Q149 Q200)
+  [/آپ کیوں سوچتے ہیں/gu, 'آپ کے خیال میں ایسا کیوں ہے'],
+  [/(^|[\s«"(])پروب(?=[\s،۔]|$)/gu, '$1مزید سوال'], // Q141
+];
+const urduWordTable = (text) => URDU_WORDS.reduce((t, [rx, to]) => t.replace(rx, to), text);
+
+/** One digit system per Urdu line (14 panel rows): when a Western number must stay (inside a Latin run), all are Western. */
+function oneDigitSystem(text) {
+  return /[0-9]/.test(text) ? text.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))) : text;
 }
 
 // An Urdu line sets its English runs in isolates; other lines are as written.

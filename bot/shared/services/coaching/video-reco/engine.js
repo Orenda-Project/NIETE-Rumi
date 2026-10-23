@@ -96,6 +96,13 @@ function signalOf(t, analysis, nextStep, card) {
  * The card as the engine reads it. The observe path (hook A2) passes the stored prioritized_action record, whose
  * indicator sits under `target` (uptake-loop buildRecord); a phase target has none and stays a card_text card.
  */
+/** The step's try sentence when the card has no action (the fallback's sentence, the same order). */
+function step0(nextStep, analysis) {
+  const step = (nextStep && nextStep.target) || {};
+  const fa = (analysis && analysis.focus_area) || {};
+  return step.try || fa.try_this_tomorrow || '';
+}
+
 function cardOf(card) {
   if (!card || typeof card !== 'object' || card.indicator) return card;
   const t = card.target;
@@ -201,6 +208,11 @@ async function compute(a, d, state) {
     history,
   };
   const list = shortlist.build(catalog, t, ctx, signalOf(t, analysis, nextStep, card), lesson, stepTextOf(t, analysis, card));
+  // R7c §4: 51-s1 before 51-s3 for a why/how card on a lesson whose children answer in a word
+  const cardSentence = (card && card.action) || step0(nextStep, analysis);
+  list.candidates = shortlist.whyFirst(list.candidates, catalog, {
+    apply: silence.whyCard(cardSentence) && silence.closedAnswers(prompt.transcriptLines(session)), history,
+  });
   base.repeat_module = list.repeatModule;
   base.level_match = list.levelMatch || null;
   base.route = list.route || null;
@@ -227,9 +239,13 @@ async function compute(a, d, state) {
   if (noTranscript || (!ex.length && !scorerQuote && !uptakeQuote)) {
     return finish({ ...base, status: 'none', none_reason: 'no_moments', candidates: list.candidates });
   }
+  // R7c (Q194): a transcript that is mostly a recogniser loop has no moment, whatever the scorer quoted from it
+  if (silence.degenerate(prompt.transcriptLines(session))) {
+    return finish({ ...base, status: 'none', none_reason: 'no_moments:degenerate', candidates: list.candidates });
+  }
   const step = (nextStep && nextStep.target) || {};
   const fa = (analysis && analysis.focus_area) || {};
-  const text = prompt.build({
+  const promptArgs = {
     target: t.none ? { ...t, indicator: t.storedIndicator } : t, // unknown 37-id: the prompt names the id the report scored
     // Names never reach the model: the card's action opens with the teacher's name in prod; the rationale is free text.
     rationale: prompt.redact(step.rationale || fa.rationale || '', people),
@@ -244,7 +260,8 @@ async function compute(a, d, state) {
     topRung: t.topRung || (t.scheme === 'fico_main_37' ? 4 : 2),
     reportLanguage: language, // vr-5: a report language ≠ the lesson's → paraphrase the moment, quote ≤ 6 words
     lessonLanguage: transcriptLanguage,
-  });
+  };
+  const text = prompt.build(promptArgs);
   const vopts = {
     stepIndicator: t.stepIndicator, indicators: t.indicators, source: t.source, catalog, textRoute: !!list.textReason,
     teacherName: people.teacher, scorerQuote: scorerQuote || uptakeQuote, // §3.5 [v1.3] d: the Quote: part, never evidence_summary
@@ -252,7 +269,8 @@ async function compute(a, d, state) {
     // red7 074627: a scorer-path quote must be a transcript line; redacted once, only when that path is reached
     fullLines: (() => { let all = null; return () => (all = all || prompt.transcriptLines(session).map((l) => prompt.redact(l, people))); })(),
   };
-  const check = (r) => (r.truncated ? { ok: false, none: 'llm_truncated', confidence: undefined } : select.validate(r.pick, list, ex, vopts));
+  let pickList = list; // R7c §7: the enacted-chapters second pass answers from its own list
+  const check = (r, l = pickList, o = vopts) => (r.truncated ? { ok: false, none: 'llm_truncated', confidence: undefined } : select.validate(r.pick, l, ex, o));
   let res = await select.pick({ prompt: text, deps: d, timeoutMs: a.llmTimeoutMs });
   let v = check(res);
   let attempts = 1;
@@ -270,19 +288,43 @@ async function compute(a, d, state) {
       v = check(again);
     } catch (e) { /* the first answer's none stands */ }
   }
+  // R7c §7 (panel: 7 of the 8 wrong silences were llm_none): the model returned null for a C1/D3/C3 card (or a card_text
+  // card asking why/how) on a lesson whose children answer in a word → ONE more call, the four enacted chapters the only
+  // shortlist. Its answer is validated like any other (the step gate does not apply: the list is the gate).
+  const stepId = t.storedIndicator || t.stepIndicator || null;
+  const enactedFits = v.none === 'llm_none'
+    && (shortlist.ENACTED_STEPS.has(stepId) || (t.source === 'card_text' && silence.whyCard(cardSentence)))
+    && silence.closedAnswers(prompt.transcriptLines(session));
+  const left2 = (a.timeoutMs || ENGINE_TIMEOUT_MS) - (Date.now() - state.t0);
+  if (enactedFits && left2 >= RETRY_MIN_LEFT_MS) {
+    const two = { ...list, candidates: shortlist.whyFirst(shortlist.enacted(catalog, ctx, lesson), catalog, { apply: silence.whyCard(cardSentence), history }) };
+    if (two.candidates.length) {
+      attempts += 1;
+      firstNone = firstNone || 'llm_none';
+      try {
+        const again = await select.pick({
+          prompt: prompt.build({ ...promptArgs, candidates: two.candidates }), deps: d, timeoutMs: Math.min(a.llmTimeoutMs || select.LLM_TIMEOUT_MS, left2 - 1000),
+        });
+        res = { ...again, usage: sumUsage(res.usage, again.usage) };
+        pickList = two;
+        v = check(again, two, { ...vopts, textRoute: true });
+      } catch (e) { /* the first answer's none stands */ }
+    }
+  }
   // r-ab EVENTS_SCHEMA §3b (V1.7.2): the language facts the STOP_lang_null guardrail reads, on every row with a call.
   const withLlm = {
-    ...base, candidates: list.candidates, model: res.model, usage: res.usage, attempts, first_none_reason: firstNone,
+    ...base, candidates: pickList.candidates, model: res.model, usage: res.usage, attempts, first_none_reason: firstNone,
     report_language_null: !hasPref, lesson_language: hasPref ? transcriptLanguage : language,
   };
   // v1.3c (b): the retry failed too, on a validation rule, but the pick is a shortlisted chapter → the card's own sentence.
   let fallback = null;
-  if (!v.ok && attempts === 2 && res.pick && res.pick.seg_id) {
+  if (!v.ok && attempts >= 2 && res.pick && res.pick.seg_id) {
     const seg = catalog.segment(String(res.pick.seg_id));
     fallback = seg && select.cardFallback({
-      none: v.none, segId: res.pick.seg_id, shortlist: list, sentence: (card && card.action) || step.try || fa.try_this_tomorrow || '',
-      startS: seg.segment.start_s, endS: seg.segment.end_s, teacherName: people.teacher, module: seg.module, subject, vocab,
+      none: v.none, segId: res.pick.seg_id, shortlist: pickList, sentence: (card && card.action) || step.try || fa.try_this_tomorrow || '',
+      startS: seg.segment.start_s, endS: seg.segment.end_s, teacherName: people.teacher, module: seg.module, subject, vocab, oovVocab,
       segment: seg.segment, // R7b: the clause the clip serves
+      language, // R7c: the reader's line is the one that must fit and the one that quotes (was never passed: always 'en')
     });
   }
   if (!v.ok && !fallback) return finish({ ...withLlm, status: 'none', none_reason: v.none, ...(v.confidence === undefined ? {} : { confidence: v.confidence }) });
@@ -294,7 +336,7 @@ async function compute(a, d, state) {
   const c = Number(p.confidence);
   // v1.3c (a) ⛔9: the reasons and the quote are stored (and so sent) after the non-strict name redactor.
   const clean = (x) => select.postRedact(x, people.teacher, vocab);
-  const cand = list.candidates.find((x) => x.seg_id === hit.segment.seg_id) || {};
+  const cand = pickList.candidates.find((x) => x.seg_id === hit.segment.seg_id) || {};
   const chosen = t.source === 'card_text' || t.source === 'phase' ? (((hit.segment.fico || [])[0] || {}).indicator || null) : null;
   // bd-8hhqhf (scale-run 070730, COS 070808): `indicator` is in the analysis's own scheme. On fico_main_37 that is the
   // chapter's main-37 tag, never a v4 id under a 37 label; `catalog_indicator` keeps the v4 tag.
@@ -302,7 +344,7 @@ async function compute(a, d, state) {
   // red7 070727: the isolate goes around the span the validator accepted as the moment (inner quotes stay one run).
   const accepted = !fallback && p.moment && p.moment.quote ? clean(stripBidi(String(p.moment.quote))) : null;
   const mismatch = tagMismatch(t, hit.segment);
-  const route = cand.route || list.route || null;
+  const route = cand.route || pickList.route || null;
   return finish({
     ...withLlm,
     ...(t.source === 'card_text' ? { indicator: stored, catalog_indicator: chosen } : {}),

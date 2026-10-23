@@ -17,7 +17,7 @@ const text = () => P.build({
   catalog: C.fromData(FIX), scorerQuote: '', uptakeQuote: '', topRung: 2, reportLanguage: 'ur', lessonLanguage: 'ur',
 });
 
-test('PROMPT_VERSION is vr-8 (vr-6 + R7b)', () => expect(P.PROMPT_VERSION).toBe('vr-8'));
+test('PROMPT_VERSION is vr-9 (vr-6 + R7b + R7c)', () => expect(P.PROMPT_VERSION).toBe('vr-9'));
 
 test('rule 2 no longer asks for "the [mm:ss]" in the reason', () => {
   expect(text()).not.toMatch(/cite ONE real moment: the \[mm:ss\]/);
