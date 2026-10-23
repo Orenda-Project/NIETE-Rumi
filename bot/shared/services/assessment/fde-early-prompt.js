@@ -162,6 +162,35 @@ function takenPicturesNote(trees) {
     + 'Draw none of them again, and no two items you write may show the same thing.';
 }
 
+const slotsOf = (P) => new Map(P.sections.flatMap((s) => s.slots).map((sl) => [sl.slot, sl]));
+
+/** Items whose key breaks their slot's `answer_ok`, as `{slot, reason:'answer', items}` ("question → answer"). */
+function answerShortfall(examJson, P) {
+  const slots = slotsOf(P);
+  const out = new Map();
+  eachItem(examJson, (q) => {
+    const sl = slots.get(q.slot);
+    if (!sl || !sl.answer_ok || sl.answer_ok(q)) return;
+    const r = out.get(q.slot) || { slot: q.slot, reason: 'answer', items: [] };
+    r.items.push(`${String(q.question).trim()} → ${String(q.answer).trim()}`);
+    out.set(q.slot, r);
+  });
+  return [...out.values()];
+}
+
+/** A re-ask's note naming each item keyed off its slot's rule, and the rule; null if none. */
+function answerNote(shortfall, P) {
+  const slots = slotsOf(P);
+  const notes = shortfall.filter((f) => f.reason === 'answer' && slots.has(f.slot)).map((f) => {
+    const sl = slots.get(f.slot);
+    const label = sl.label_en || f.slot;
+    return `${label} broke its rule in these items (question → answer):\n${f.items.map((i) => `- ${i}`).join('\n')}\n`
+      + `Write ${label} again so every item follows it: ${sl.prompt_rule}`;
+  });
+  return notes.length ? notes.join('\n\n') : null;
+}
+
 module.exports = {
   NO_PICTURES, PICTURE_RULE, maskP, sectionPrompt, oralPrompt, oralContent, pictureShortfall, repeatedPictures, takenPicturesNote,
+  answerShortfall, answerNote,
 };
