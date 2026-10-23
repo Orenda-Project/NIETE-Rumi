@@ -7,7 +7,7 @@
  *   dots, shapes, clock   drawn as SVG in place (fde-picture-svg)
  *   object, count, scene  read from R2, or drawn by the image model on a miss,
  *                         shrunk to a 320px grey JPEG and cached:
- *                         fde-pictures/v1/<object|scene>/<slug>.jpg
+ *                         fde-pictures/v2/object/<slug>.jpg, fde-pictures/v2/scene-no-text/<slug>-<hash>.jpg
  *
  * A count is its object's picture, repeated by the renderer. A failed drawing is
  * tried once more; a second failure fails the paper PICTURE_FAILED, so a paper
@@ -29,7 +29,7 @@ const canon = (text) => String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, 
 function cacheKey(picture) {
   if (picture.kind === 'scene') {
     const hash = crypto.createHash('sha256').update(canon(picture.describe)).digest('hex').slice(0, 8);
-    return `${PREFIX}/scene/${slug(picture.describe)}-${hash}.jpg`;
+    return `${PREFIX}/scene-no-text/${slug(picture.describe)}-${hash}.jpg`;
   }
   return `${PREFIX}/object/${slug(picture.name)}.jpg`;
 }
