@@ -109,17 +109,18 @@ function isolateArabic(text) {
 }
 
 const LABEL = '(?:Teacher|Students?|Speaker|Coach|ٹیچر|استاد|استانی|طالب علم|بچہ|بچے|بچی)(?:\\s*\\([A-Za-z]{2}\\))?';
-const STAMPED_LABEL = new RegExp(`\\[(\\d{1,2}:\\d{2}(?::\\d{2})?)\\]\\s*${LABEL}\\s*:\\s*`, 'g');
-const BARE_LABEL = new RegExp(`(^|[.!?۔؟]\\s+)${LABEL}\\s*:\\s*`, 'g');
+// A copied line prefix at a sentence start: "[mm:ss] Label:", "[mm:ss]", "mm:ss:" or a bare "Label:" (COS 081156).
+const LINE_PREFIX_AT = new RegExp(`(^|[.!?۔؟]\\s+)(?:\\[\\d{1,2}:\\d{2}(?::\\d{2})?\\]\\s*(?:${LABEL}\\s*:)?|\\d{1,2}:\\d{2}(?::\\d{2})?\\s*:|${LABEL}\\s*:)\\s*`, 'g');
 
 /**
- * The stored reason (bd-8hhqhf r7, red7 075837 / 080908): a copied transcript prefix «[10:51] Teacher:» becomes «10:51: »
- * and a bare speaker label goes; the accepted moment is isolated (isolateQuotes); in the English reason every Urdu run
- * outside an isolate is isolated too, so an unquoted moment renders in place. No quote mark is ever added.
+ * The stored reason (bd-8hhqhf r7; red7 075837 / 080908; COS 081156 = the panel's option 1): a copied transcript prefix
+ * («[10:51] Teacher:», «00:00:», «استاد:») is dropped, clock stamp and label both; the accepted moment is isolated
+ * (isolateQuotes); in the English reason every Urdu run outside an isolate is isolated too, so an unquoted moment
+ * renders in place. No quote mark is ever added.
  */
 function composeReason(text, language, quote) {
   if (typeof text !== 'string' || !text) return text;
-  const s = isolateQuotes(text.replace(STAMPED_LABEL, '$1: ').replace(BARE_LABEL, '$1'), quote);
+  const s = isolateQuotes(text.replace(LINE_PREFIX_AT, '$1'), quote);
   return lang(language) === 'en' ? isolateArabic(s) : s;
 }
 
