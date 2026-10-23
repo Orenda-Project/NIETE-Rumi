@@ -97,6 +97,33 @@ function isolateQuotes(text, quote) {
   return `${isolatePairs(text.slice(0, best.i))}${text[best.i]}${FSI}${best.inner}${PDI}${text[best.j]}${isolatePairs(text.slice(best.j + 1))}`;
 }
 
+const AR = '\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF';
+// An Urdu run inside an English line: Urdu words with the spaces, digits, Urdu punctuation and "..." between them.
+const AR_RUN = new RegExp(`[${AR}](?:[${AR}\\s\\d،۔؟؛…]|\\.{2,3}|[,.!?](?=\\s*[${AR}]))*`, 'g');
+
+/** Each Urdu run of an English line, outside existing isolates, in its own FSI…PDI (no quote marks are added). */
+function isolateArabic(text) {
+  const s = String(text || '');
+  return s.split(/([\u2066-\u2068][^\u2066-\u2069]*\u2069)/).map((part, i) => (i % 2 ? part
+    : part.replace(AR_RUN, (run) => { const t = run.trimEnd(); return `${FSI}${t}${PDI}${run.slice(t.length)}`; }))).join('');
+}
+
+const LABEL = '(?:Teacher|Students?|Speaker|Coach|ٹیچر|استاد|استانی|طالب علم|بچہ|بچے|بچی)(?:\\s*\\([A-Za-z]{2}\\))?';
+// A copied line prefix at a sentence start: "[mm:ss] Label:", "[mm:ss]", "mm:ss:" or a bare "Label:" (COS 081156).
+const LINE_PREFIX_AT = new RegExp(`(^|[.!?۔؟]\\s+)(?:\\[\\d{1,2}:\\d{2}(?::\\d{2})?\\]\\s*(?:${LABEL}\\s*:)?|\\d{1,2}:\\d{2}(?::\\d{2})?\\s*:|${LABEL}\\s*:)\\s*`, 'g');
+
+/**
+ * The stored reason (bd-8hhqhf r7; red7 075837 / 080908; COS 081156 = the panel's option 1): a copied transcript prefix
+ * («[10:51] Teacher:», «00:00:», «استاد:») is dropped, clock stamp and label both; the accepted moment is isolated
+ * (isolateQuotes); in the English reason every Urdu run outside an isolate is isolated too, so an unquoted moment
+ * renders in place. No quote mark is ever added.
+ */
+function composeReason(text, language, quote) {
+  if (typeof text !== 'string' || !text) return text;
+  const s = isolateQuotes(text.replace(LINE_PREFIX_AT, '$1'), quote);
+  return lang(language) === 'en' ? isolateArabic(s) : s;
+}
+
 // An Urdu line sets its English runs in isolates; other lines are as written.
 const LINE = { ur: isolateLatin };
 
@@ -131,5 +158,5 @@ function messageBody({ minutes, reason, clipLanguage, language }) {
 const word = (key, language, params) => resolveUx(key, { language: lang(language), params });
 
 module.exports = {
-  lang, dirOf, localized, num, minutesOf, urduDigits, clock, isolateLatin, isolateQuotes, stripBidi, buttonText, cardButton, messageBody, clipLanguageName, word, BODY_MAX,
+  lang, dirOf, localized, num, minutesOf, urduDigits, clock, isolateLatin, isolateQuotes, isolateArabic, composeReason, stripBidi, buttonText, cardButton, messageBody, clipLanguageName, word, BODY_MAX,
 };
