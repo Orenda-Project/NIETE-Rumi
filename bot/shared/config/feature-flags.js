@@ -82,8 +82,8 @@ const ASSESSMENT_FDE_PATTERN_SUBJECTS_KEY = 'assessment_fde_pattern_subjects';
 const ASSESSMENT_FDE_READER_PASS_SUBJECTS_KEY = 'assessment_fde_reader_pass_subjects';
 // The subjects the FDE stem check runs for (bd-5jmnfj.22), a JSON list like the reader pass's.
 const ASSESSMENT_FDE_STEM_CHECK_SUBJECTS_KEY = 'assessment_fde_stem_check_subjects';
-// The WhatsApp door's "paper on topics" button (bd-6clakk.6). Off until the A/B test starts; the portal's
-// Topics step is not behind it.
+// Topic papers (bd-6clakk.6/.9): the WhatsApp door's "paper on topics" button and the portal's Topics step
+// (the topics list comes back empty). Off until the A/B test starts.
 const ASSESSMENT_TOPIC_CTA_KEY = 'assessment_topic_cta_enabled';
 
 async function isFlagEnabled(key) {
