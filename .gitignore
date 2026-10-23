@@ -164,3 +164,5 @@ bot/vendor/lp-v9/.figcache/
 .claude/qa/results/
 .claude/.e2e-pending/
 .stryker-tmp-topics/
+# mock-lane performance profiles (profile_run.py) — local, per machine; the dashboard reads them
+.claude/qa/profiles/*.json

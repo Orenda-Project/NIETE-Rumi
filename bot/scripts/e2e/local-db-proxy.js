@@ -21,6 +21,20 @@ const REQUEST_LOG = process.env.LOCAL_DB_REQUEST_LOG;
 // The FULL request (`<METHOD> <table>?<query>`, decoded): replaying the reads against the full seed tells which
 // reference ROWS a run actually used (bd-z3ze4.6). Set by local-db.sh to <run_dir>/queries.log.
 const QUERY_LOG = process.env.LOCAL_DB_QUERY_LOG;
+// Profiling (bd-5zzbvq): one JSON line per request with its wall time, status and response size —
+// {ts, ms, method, table, query, status, bytes}. Set by local-db.sh to <run_dir>/db-timing.jsonl. This is
+// the DB layer of a run's profile: supabase-js sends no correlation header, so the profiler attributes a
+// query to a scenario by its timestamp. Off (and free) when unset.
+const TIMING_LOG = process.env.LOCAL_DB_TIMING_LOG;
+const timing = (row) => { if (!TIMING_LOG) return; try { fs.appendFileSync(TIMING_LOG, JSON.stringify(row) + '\n'); } catch (_) { /* never fail a request over the log */ } };
+const splitTarget = (rest) => {
+  const q = rest.indexOf('?');
+  const target = (q === -1 ? rest : rest.slice(0, q)).replace(/^\/+/, '');
+  let query = q === -1 ? '' : rest.slice(q + 1);
+  try { query = decodeURIComponent(query); } catch (_) { /* keep it encoded */ }
+  let table = target; try { table = decodeURIComponent(target); } catch (_) { /* keep it encoded */ }
+  return { table: table || '/', query };
+};
 const record = (method, rest) => {
   if (!REQUEST_LOG && !QUERY_LOG) return;
   const target = decodeURIComponent(rest.split('?')[0].replace(/^\/+/, '')) || '/';
@@ -39,12 +53,23 @@ http.createServer((req, res) => {
     return res.end(JSON.stringify({ message: `local-db: ${req.url.split('?')[0]} is not served (only ${PREFIX})` }));
   }
   record(req.method, req.url.slice(PREFIX.length));
+  const t0 = Date.now();
+  const { table, query } = TIMING_LOG ? splitTarget(req.url.slice(PREFIX.length)) : {};
   const upstream = http.request({
     host: '127.0.0.1', port: restPort, method: req.method,
     path: req.url.slice(PREFIX.length) || '/',
     headers: { ...req.headers, host: `127.0.0.1:${restPort}` },
-  }, (up) => { res.writeHead(up.statusCode, up.headers); up.pipe(res); });
+  }, (up) => {
+    res.writeHead(up.statusCode, up.headers);
+    let bytes = 0;
+    if (TIMING_LOG) {
+      up.on('data', (c) => { bytes += c.length; });
+      up.on('end', () => timing({ ts: t0, ms: Date.now() - t0, method: req.method, table, query, status: up.statusCode, bytes }));
+    }
+    up.pipe(res);
+  });
   upstream.on('error', (e) => {
+    if (TIMING_LOG) timing({ ts: t0, ms: Date.now() - t0, method: req.method, table, query, status: 502, bytes: 0, error: e.code });
     res.writeHead(502, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ message: `local-db: PostgREST unreachable (${e.code})` }));
   });
