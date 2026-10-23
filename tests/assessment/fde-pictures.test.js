@@ -64,7 +64,8 @@ test('the same picture twice on one paper is drawn once', async () => {
 
 test('a scene key is its slug plus a hash of the whole description', () => {
   const a = Pictures.cacheKey({ kind: 'scene', describe: 'a long pencil and a short pencil' });
-  expect(a).toMatch(/^fde-pictures\/v2\/scene\/a-long-pencil-and-a-short-pencil-[0-9a-f]{8}\.jpg$/);
+  // scene-no-text: scenes cached before bd-5jmnfj.4.11 carry words (ROOT, SCHOOL) and are never reused
+  expect(a).toMatch(/^fde-pictures\/v2\/scene-no-text\/a-long-pencil-and-a-short-pencil-[0-9a-f]{8}\.jpg$/);
   expect(Pictures.cacheKey({ kind: 'scene', describe: 'A long pencil and a short pencil.' })).toBe(a);
 });
 

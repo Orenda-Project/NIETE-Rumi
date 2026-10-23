@@ -13,6 +13,9 @@ const KIE_URL = 'https://api.kie.ai/api/v1/jobs';
 const STYLE = 'Simple black and white line drawing for a young child. Thick clean outlines, no shading, no colour, child-friendly.';
 const ALONE = 'Only one thing in the picture, centred on a plain white background: no other objects, no ground, no people, '
   + 'no text, no letters, no label, no caption, no heading, no border.';
+// v12: a plant with an arrow came back labelled ROOT, a school said SCHOOL; the scene prompt had no text rule.
+const NO_TEXT = 'No text anywhere: no words, no letters, no label, no caption, no sign, no writing on buildings or boards; '
+  + 'an arrow points with no word beside it.';
 const NEGATIVE = 'text, words, letters, typography, captions, labels, watermark, signature, writing, numbers, digits, symbols, '
   + 'colour, photo, grey background, border, frame, worksheet, heading, title, caption, multiple objects';
 
@@ -27,7 +30,7 @@ function promptFor(picture) {
   if (kind === 'scene') {
     const describe = String(picture.describe || '').trim();
     if (!describe) throw new Error('scene picture: nothing to draw');
-    return `${STYLE} The picture: ${describe}.`;
+    return `${STYLE} The picture: ${describe}. ${NO_TEXT}`;
   }
   throw new Error(`${kind}: not an image-model picture`);
 }
