@@ -1,0 +1,14 @@
+[
+  [
+    "wa",
+    "sendFlow",
+    "923000000003",
+    {
+      "flowId": "flow-lp",
+      "header": "📘 Lesson Plans",
+      "body": "Pick your class, subject and chapter, then the day's lesson — the plan lands in your chat.",
+      "buttonText": "Pick Class",
+      "flowToken": "22222222-2222-4222-8222-222222222222:pakistan-lp:<ts>"
+    }
+  ]
+]

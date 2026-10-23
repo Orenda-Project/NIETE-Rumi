@@ -21,6 +21,8 @@ const REFERENCE = fs.readFileSync(path.join(ROOT, 'infrastructure/supabase/00_co
 // V1.6.14 adds the error_code CHECK. Read without throwing, so a missing file fails ITS test, not the suite.
 const readIf = (rel) => { const f = path.join(ROOT, rel); return fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : ''; };
 const HARDENING = readIf('infrastructure/supabase/migrations/V1.6.14__lp_lifecycle_hardening.sql');
+// V1.7.7 re-defines the source CHECK with the free-form engine's track. The NEWEST definition is the live one.
+const SOURCE_FREEFORM = readIf('infrastructure/supabase/migrations/V1.7.7__lp_source_freeform.sql');
 
 const Lifecycle = require('../../bot/shared/services/lesson-plan-lifecycle.service');
 
@@ -55,7 +57,7 @@ describe('lesson-plan lifecycle vocabulary — code and database are one list', 
   });
 
   test.each([
-    ['the migration', 'lesson_plan_requests_source_check', MIGRATION],
+    ['the newest migration that defines it (V1.7.7)', 'lesson_plan_requests_source_check', SOURCE_FREEFORM],
     ['the reference schema', 'lesson_plan_requests_source_check', REFERENCE],
   ])('source: %s (%s) lists exactly the paths the writer knows', (_label, name, sql) => {
     expect(checkValues(sql, name)).toEqual(sorted(Object.values(LIFECYCLE.SOURCES)));

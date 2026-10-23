@@ -1,0 +1,16 @@
+[
+  [
+    "wa",
+    "sendMessage",
+    "923000000003",
+    "We don't have that lesson plan in the catalog yet. Send \"menu\" to see what's available."
+  ],
+  [
+    "conv",
+    "22222222-2222-4222-8222-222222222222",
+    "assistant",
+    "We don't have that lesson plan in the catalog yet. Send \"menu\" to see what's available.",
+    "text",
+    "sess-1"
+  ]
+]
