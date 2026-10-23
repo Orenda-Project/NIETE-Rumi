@@ -49,9 +49,9 @@ function emit(event, userId, found, extra) {
 
 router.get('/teacher/thing-to-try', requirePortalAuth, requireTeacherV2, async (req, res) => {
   const userId = req.session.portalUserId;
-  const found = await ThingToTry.thingFor(supabase, userId);
-  if (!found) return res.json({ success: true, thing: null });
   const { lessonId } = ThingToTry.cleanTap({ lessonId: req.query.lessonId });
+  const found = await ThingToTry.thingFor(supabase, userId, lessonId);
+  if (!found) return res.json({ success: true, thing: null });
   const step = found.thing.step || null;
   emit('coaching.thing_to_try.portal_shown', userId, found, { lessonId, step: step && step.index });
   return res.json({ success: true, thing: { text: found.thing.text, tag: found.thing.tag, step } });
@@ -60,8 +60,9 @@ router.get('/teacher/thing-to-try', requirePortalAuth, requireTeacherV2, async (
 router.post('/teacher/thing-to-try/tap', requirePortalAuth, requireTeacherV2, async (req, res) => {
   const userId = req.session.portalUserId;
   try {
-    const found = await ThingToTry.thingFor(supabase, userId);
-    if (found) emit('coaching.thing_to_try.tap', userId, found, ThingToTry.cleanTap(req.body));
+    const tap = ThingToTry.cleanTap(req.body);
+    const found = await ThingToTry.thingFor(supabase, userId, tap.lessonId);
+    if (found) emit('coaching.thing_to_try.tap', userId, found, tap);
   } catch (_) { /* a tap is never an error to her */ }
   return res.status(204).end();
 });
