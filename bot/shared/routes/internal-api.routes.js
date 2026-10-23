@@ -1511,6 +1511,10 @@ router.post('/assessment/topics', requireInternalKey, assessmentRoute('topics', 
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
   if (!Number.isInteger(chapterNumber)) return res.status(400).json({ success: false, error: 'chapterNumber is required' });
 
+  // bd-6clakk.9 — off (or unreadable) → no topics, so the portal's Topics step steps aside until the A/B test.
+  const { isAssessmentTopicCtaEnabled } = require('../config/feature-flags');
+  if (!(await isAssessmentTopicCtaEnabled().catch(() => false))) return res.json({ success: true, topics: [] });
+
   const { listChapterTopics } = require('../services/assessment/topics/topics.repo');
   const topics = (await listChapterTopics(grade, subject, chapterNumber)).map((t) => ({
     topicId: t.topicId, name: t.name, heading: t.heading, headingOrder: t.headingOrder, sortOrder: t.sortOrder,
