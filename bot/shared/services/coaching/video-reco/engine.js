@@ -307,7 +307,13 @@ async function compute(a, d, state) {
     const left2 = (a.timeoutMs || ENGINE_TIMEOUT_MS) - (Date.now() - state.t0);
     if (!enactedFits(v.none) || left2 < RETRY_MIN_LEFT_MS) return false;
     const four = shortlist.enacted(catalog, ctx, lesson);
-    const two = { ...list, repeatModule: four.repeatModule, candidates: shortlist.whyFirst(four.candidates, catalog, { apply: silence.whyCard(cardSentence), history }) };
+    // R7d (gold be2a6d28, G3 "no second ask"): on a move step only the enacted chapters tagged for the step; 51-s1 on a
+    // C3 card was a second ask. A card_text / label / hole step has no tag to keep (the list is the gate, as R7c ruled).
+    const why = shortlist.whyFirst(four.candidates, catalog, { apply: silence.whyCard(cardSentence), history });
+    const forStep = MOVE_REASONS.has(list.textReason)
+      ? why.filter((c) => { const hit = catalog.segment(c.seg_id); return hit && tagMismatch(t, hit.segment) !== true; })
+      : why;
+    const two = { ...list, repeatModule: four.repeatModule, candidates: forStep };
     if (!two.candidates.length) return false;
     attempts += 1;
     firstNone = firstNone || v.none;
