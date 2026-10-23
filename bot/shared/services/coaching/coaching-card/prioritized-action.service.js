@@ -97,9 +97,9 @@ const SELECTION_POLICIES = {
 
 const DEFAULT_SELECTION_POLICY = 'weakest';
 
-// Rows that are scored and shown but never the one thing to try (bd-v0toag.100.10): C10 Integration of
-// Taleemabad Technology is not a classroom move (video-reco/target.js NO_MOVE), and as the weakest row it
-// made the card "spend 5 minutes on Integration of Taleemabad Technology".
+// Rows that are scored and shown but never the one thing to try (bd-v0toag.100.10): C10, technology
+// integration, is not a classroom move (video-reco/target.js NO_MOVE), and as the weakest row it made the
+// card ask the teacher to spend 5 minutes on it.
 const NOT_AN_ASK = new Set(['C10']);
 
 function askable(analysis) {
