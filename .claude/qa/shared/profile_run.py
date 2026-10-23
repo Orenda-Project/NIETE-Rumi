@@ -83,7 +83,9 @@ def _stats(xs):
 # ── layer classification ────────────────────────────────────────────────────────
 
 LAYERS = ["wait.intentional", "bot.processing", "bot.pacing", "bot.timeout", "harness.polling", "mock.http", "flow", "seed",
-          "harness.overhead", "driver.unaccounted"]
+          "harness.overhead", "driver.sleep", "driver.unaccounted"]
+# driver.sleep: a feature script's sleep() on the mock lane (mock-api smartSleep, bd-aqi0ay) — long-polls the outbox and
+# wakes when the bot answers. Accounted, so what remains in driver.unaccounted is the script's own compute and seeds.
 # bot.timeout: a bot.reply that never came — the harness waited its full timeout (60–120 s). Not processing: nothing
 # answered. Counted apart so one missing reply cannot masquerade as the slowest bot work of the run.
 # bot.pacing: time the bot's own WhatsApp send pacer (whatsapp-send-pacer.js, GCRA per phone, 6 s interval,
@@ -111,6 +113,8 @@ def layer_of(span):
         return "flow"
     if layer == "harness-db" or kind == "seed":
         return "seed"
+    if layer == "driver":
+        return "driver.sleep"
     return "harness.overhead"
 
 

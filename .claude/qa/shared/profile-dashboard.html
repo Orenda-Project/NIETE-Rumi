@@ -10,19 +10,19 @@
     --surface: #fcfcfb; --surface-2: #f3f2ef; --surface-3: #e9e8e3; --line: #d9d8d2;
     --text: #0b0b0b; --text-2: #52514e; --text-3: #8a8984; --accent: #2a78d6;
     /* layers — categorical, FIXED order (reference palette slots 1–7; the unknown remainder is gray) */
-    --l-bot: #2a78d6; --l-wait: #eb6834; --l-pace: #6250d6; --l-poll: #1baf7a; --l-mock: #eda100; --l-flow: #e87ba4; --l-seed: #008300; --l-over: #c3c2b7; --l-driver: #9a9994; --l-tout: #e34948;
+    --l-bot: #2a78d6; --l-wait: #eb6834; --l-pace: #6250d6; --l-poll: #1baf7a; --l-mock: #eda100; --l-flow: #e87ba4; --l-seed: #008300; --l-over: #c3c2b7; --l-driver: #9a9994; --l-dsleep: #6b6a66; --l-tout: #e34948;
     --s-pass: #0ca30c; --s-fail: #d03b3b; --s-warn: #fab219;
     --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
     color-scheme: dark; --surface: #1a1a19; --surface-2: #232322; --surface-3: #2d2d2b; --line: #3a3a38;
     --text: #f0efec; --text-2: #c3c2b7; --text-3: #8d8c86; --accent: #3987e5;
-    --l-bot: #3987e5; --l-wait: #d95926; --l-pace: #9085e9; --l-poll: #199e70; --l-mock: #c98500; --l-flow: #d55181; --l-seed: #008300; --l-over: #52514e; --l-driver: #76756f; --l-tout: #e66767;
+    --l-bot: #3987e5; --l-wait: #d95926; --l-pace: #9085e9; --l-poll: #199e70; --l-mock: #c98500; --l-flow: #d55181; --l-seed: #008300; --l-over: #52514e; --l-driver: #76756f; --l-dsleep: #a3a29b; --l-tout: #e66767;
   } }
   :root[data-theme="dark"] {
     color-scheme: dark; --surface: #1a1a19; --surface-2: #232322; --surface-3: #2d2d2b; --line: #3a3a38;
     --text: #f0efec; --text-2: #c3c2b7; --text-3: #8d8c86; --accent: #3987e5;
-    --l-bot: #3987e5; --l-wait: #d95926; --l-pace: #9085e9; --l-poll: #199e70; --l-mock: #c98500; --l-flow: #d55181; --l-seed: #008300; --l-over: #52514e; --l-driver: #76756f; --l-tout: #e66767;
+    --l-bot: #3987e5; --l-wait: #d95926; --l-pace: #9085e9; --l-poll: #199e70; --l-mock: #c98500; --l-flow: #d55181; --l-seed: #008300; --l-over: #52514e; --l-driver: #76756f; --l-dsleep: #a3a29b; --l-tout: #e66767;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -116,6 +116,7 @@ const LAYERS = [
   ['flow', 'Flow emulator', 'var(--l-flow)'],
   ['seed', 'Seeds / DB reach-through', 'var(--l-seed)'],
   ['harness.overhead', 'Harness overhead', 'var(--l-over)'],
+  ['driver.sleep', 'Driver sleep (wakes on bot reply)', 'var(--l-dsleep)'],
   ['driver.unaccounted', 'Driver sleeps / polling (unaccounted)', 'var(--l-driver)'],
 ];
 const LCOL = Object.fromEntries(LAYERS.map(([k, , c]) => [k, c]));
@@ -129,6 +130,7 @@ const layerOf = (s) => {
   if (s.layer === 'mock') return 'mock.http';
   if (s.layer === 'flow') return 'flow';
   if (s.layer === 'harness-db' || s.kind === 'seed') return 'seed';
+  if (s.layer === 'driver') return 'driver.sleep';
   return 'harness.overhead';
 };
 const ms = (v) => v == null ? '–' : v >= 10000 ? (v / 1000).toFixed(1) + ' s' : v >= 1000 ? (v / 1000).toFixed(2) + ' s' : Math.round(v) + ' ms';

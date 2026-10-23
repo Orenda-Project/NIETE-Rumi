@@ -30,7 +30,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       for (const r of await api.fresh()) seen.push(r);
       const hit = seen.find(pred);
       if (hit) return { ok: true, waitedMs: Date.now() - t0, hit, seen };
-      await new Promise((r) => setTimeout(r, stepMs));
+      await sleep(stepMs);   // on the mock lane this wakes when the bot sends (bd-aqi0ay)
     }
     return { ok: false, waitedMs: Date.now() - t0, seen, last: (seen[seen.length - 1] || {}).txt || '' };
   };
@@ -378,7 +378,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
     // 🏆 Congratulations or ❌ Not this time card; a written exam opens with ✍️ Question 1.
     const GQ_TERM = /\ud83c\udfc6 \*Congratulations|\u274c \*Not this time|You have completed every|\u270d\ufe0f \*Question 1 of/;
     const isTerm = (x) => NOT_QUITE.test(x.txt || '') || PASSED.test(x.txt || '') || GQ_TERM.test(x.txt || '');
-    const waitFor = async (pred, ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { await pull(); const h = [...seen].reverse().find(pred); if (h) return h; await new Promise(r => setTimeout(r, 1200)); } return null; };
+    const waitFor = async (pred, ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { await pull(); const h = [...seen].reverse().find(pred); if (h) return h; await sleep(1200); } return null; };
     const trail = []; let first = null; const answered = new Set();
     for (let n = 0; n < 40; n++) {
       // Dedupe a question on its Qn/N header, NOT on its row-id set: the options are shuffled per
@@ -398,10 +398,13 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
         }
         const notQuite = NOT_QUITE.test(hit.txt);
         let btns = hit.btns || [];
-        // A not-quite verdict is followed by a SEPARATE card carrying 🔄 Try again / ⏸ Pause — wait for it.
-        // A PASS is followed by the NEXT module's card; do NOT poll here or we would consume it (T01).
-        if (notQuite) { const t0 = Date.now(); while (Date.now() - t0 < 8000) { await pull(); const b = [...seen].reverse().find(x => (x.btns || []).some(bb => /Try again|Pause/i.test(bb))); if (b) { btns = b.btns; break; } await new Promise(r => setTimeout(r, 800)); } }
-        return { first, trail, seen, last: { verdict: notQuite ? 'not-quite' : 'passed', txt: (hit.txt || '').slice(0, 220), btns } };
+        // bd-w2daa.8 (fewer bubbles): a not-quite verdict now CARRIES 🔄 Try again / ⏸ Pause on the same
+        // message; the wait below only runs for the over-cap fallback, where they follow as a separate card.
+        // A PASS now opens the NEXT module's card (or the certificate PDF's caption, or the level-complete
+        // line) — the hit IS that card, returned whole so T01/T08 do not wait for a second one.
+        if (notQuite && !btns.some(bb => /Try again|Pause/i.test(bb))) { const t0 = Date.now(); while (Date.now() - t0 < 8000) { await pull(); const b = [...seen].reverse().find(x => (x.btns || []).some(bb => /Try again|Pause/i.test(bb))); if (b) { btns = b.btns; break; } await sleep(800); } }
+        return { first, trail, seen, last: { verdict: notQuite ? 'not-quite' : 'passed', txt: (hit.txt || '').slice(0, 220), btns,
+                                             doc: !!(hit.doc || hit.pdf), hit } };
       }
       if (isFlowQ(hit)) {
         answered.add(String(hit.flow.token));
@@ -523,7 +526,13 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       s = t();
       const l2 = run2.last || {};
       let nextCard = null;
-      if (l2.verdict === 'passed') nextCard = await waitFresh((x) => (x.btns || []).some(b => CTA_RE.test(b)), 90000);
+      if (l2.verdict === 'passed') {
+        // bd-w2daa.8: "Module check — passed" opens the next module's card, so the pass hit usually IS the
+        // card. A PDF module's buttons trail its captioned document, and may already sit in run2.seen.
+        const cardIn = (x) => (x.btns || []).some(b => CTA_RE.test(b));
+        const already = (l2.hit && cardIn(l2.hit)) ? l2.hit : [...(run2.seen || [])].reverse().find(cardIn);
+        nextCard = already ? { ok: true, hit: already } : await waitFresh(cardIn, 90000);
+      }
       rec('T01', NAME.T01, ...(l2.verdict ? V(l2.verdict === 'passed' && !!(nextCard && nextCard.ok),
                                                 { verdict: l2.verdict, reply: l2.txt, answered: run2.trail.length, nextModuleCard: nextCard && nextCard.ok ? (nextCard.hit.txt || '').slice(0, 120) : null })
                                             : ['BLOCKED', { harness: l2.err, detail: l2 }]), t() - s);
@@ -616,11 +625,15 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
             await api.tapAndWait(card.cta, 60000);
             run = await takeQuiz(key);
             if ((run.last || {}).verdict === 'passed') {
-              cert = await waitFresh((x) => x.doc || x.pdf || /certificate|\u0633\u0631\u0679\u06cc\u0641\u06a9\u06cc\u0679/i.test(x.txt || ''), 120000);
+              // bd-w2daa.8: the pass line and the congratulation ride on the certificate PDF's caption, so the
+              // pass hit is usually the certificate itself (or already in run.seen).
+              const isCert = (x) => x.doc || x.pdf || /certificate|\u0633\u0631\u0679\u06cc\u0641\u06a9\u06cc\u0679/i.test(x.txt || '');
+              const certSeen = (run.last.hit && isCert(run.last.hit)) ? run.last.hit : (run.seen || []).find(isCert);
+              cert = certSeen ? { ok: true, hit: certSeen } : await waitFresh(isCert, 120000);
               // T06 — while this certificate exists (the finally below deletes it): read its code off
               // /certificates, ask for it by code, expect the PDF document (bd-w3cb9.6).
               const s06 = t();
-              await waitFresh((x) => x.doc || x.pdf, 30000);
+              if (!(cert.ok && cert.hit && (cert.hit.doc || cert.hit.pdf))) await waitFresh((x) => x.doc || x.pdf, 30000);
               await sleep(4000); await api.freshReset();   // the level-complete card trails the PDF (run 20260925-1108)
               await api.sendWait('/certificates');
               const lst = await waitFresh((x) => /Cert:\s*`/.test(x.txt || ''), 30000);   // the list, not whatever landed first
@@ -1754,118 +1767,21 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
     rec('T93', T93, 'BLOCKED', { reason: APP_REDIRECT_WHY, setAppSetting: r9x.reason }, 0);
   }
 
-
-  // ══ T692–T695 — a child's /quiz opens their home page; a teacher's /quiz never does ══════════════
-  // Driven on the run's OWN local database (the switches are global): a children's row is seeded for a
-  // second phone (api.as) the way the bot writes one, so the door classifies that phone as a child; the
-  // driver itself is the registered teacher. The Home message is a cta_url, which the mock outbox now
-  // records with its button and URL. T694 (the registration Flow inside the cached verdict) is
-  // @no-mock-driver: registration is not on this lane; the webhook test executes it.
-  if (want('T692', 'T693', 'T695', 'T708')) {
-    const HOME_TITLE = { T692: 'A child\'s /quiz sends one "Home" button that opens their home page with the last quiz on top',
-      T693: 'A teacher\'s /quiz never opens the child\'s home page, even when children played on the teacher\'s phone',
-      T695: 'With the home switch off, a child\'s /quiz is exactly today\'s',
-      T708: 'A child\'s "portal" opens their home, the same one button as "quiz"' };
-    const { dbCreds, canFlipGlobal } = require('../db-target.cjs');
-    const HOME_RX = /^(🏠 )?(Home|ہوم)$/;
-    const isCta = (x) => x && x.type === 'interactive.cta_url';
-    const isHub = (x) => !!x && ((isCta(x) && /\/h\//.test((x.cta && x.cta.url) || '')) || /\/h\//.test(String(x.txt || '')));
-    const collect = async (actor, ms) => {
-      const t0 = Date.now(); const seen = [];
-      while (Date.now() - t0 < ms) { for (const r of await actor.fresh()) seen.push(r); await sleep(800); }
-      return seen;
-    };
-    const ask = async (actor, text, ms = 12000) => {
-      await actor.freshReset();
-      await actor.sendWait(text);
-      return collect(actor, ms);
-    };
-    const brief = (seen) => seen.map((x) => ({ type: x.type, txt: String(x.txt || '').slice(0, 90), btns: x.btns, url: x.cta ? String(x.cta.url || '').replace(/\/h\/.*/, '/h/<token>') : undefined }));
-    if (!canFlipGlobal()) {
-      for (const id of ['T692', 'T693', 'T695', 'T708']) if (want(id)) rec(id, HOME_TITLE[id], 'BLOCKED', { reason: 'GLOBAL_SWITCH: web_quiz_child_quiz_home is flipped only on the run\'s own local database (E2E_LOCAL_DB=1)' }, 0);
-    } else {
-      const { url, key } = dbCreds();
-      const H = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
-      const seedChild = async (phone) => {
-        const r = await fetch(`${url}/rest/v1/students`, { method: 'POST', headers: { ...H, Prefer: 'return=representation' },
-          body: JSON.stringify({ student_name: 'Home Testcase', self_reported_class: '4', phone, is_active: true }) });
-        const rows = await r.json().catch(() => []);
-        return r.ok && rows[0] ? rows[0].id : null;
-      };
-      const dropRow = async (id) => { if (id) await fetch(`${url}/rest/v1/students?id=eq.${id}`, { method: 'DELETE', headers: H }).catch(() => {}); };
-      const KID_PHONE = '923009900692';
-      const kid = api.as(KID_PHONE);
-      const seeded = [];
-      // The lane's bot runs without the door's child verdict (STUDENT_MODE_ENABLED) and without a portal to link
-      // to: this block restarts it with both (stack-control, as T72/T73 and child-test do) and puts it back after.
-      const SC = require('../stack-control.cjs');
-      const LANE_ENV = { STUDENT_MODE_ENABLED: 'true', WEB_QUIZ_BASE_URL: 'https://portal.example.test', WEB_QUIZ_TOKEN_SECRET: 'mock-lane-home-secret' };
-      let restarted = null;
-      try {
-        restarted = SC.runDir() ? await SC.restart('bot', LANE_ENV) : { ok: false, err: 'no RUN_DIR' };
-        await api.setAppSetting('web_quiz_hub', true, { settleMs: 0 });
-        await api.setAppSetting('web_quiz_child_quiz_home', true);   // waits out the bot's 30 s switch cache
-        const kidId = await seedChild(KID_PHONE); seeded.push(kidId);
-
-        let on = null;
-        if (want('T692')) {
-          s = t();
-          const seen = await ask(kid, '/quiz');
-          const ctas = seen.filter(isCta);
-          on = { seen: brief(seen) };
-          const home = ctas.length === 1 && (ctas[0].btns || []).some((b) => HOME_RX.test(b)) && isHub(ctas[0])
-            && !/https?:|\/h\//.test(String(ctas[0].txt || ''));
-          if (!kidId) rec('T692', HOME_TITLE.T692, 'BLOCKED', { harness: 'could not seed the child row', ...on }, t() - s);
-          else if (!(restarted && restarted.ok)) rec('T692', HOME_TITLE.T692, 'BLOCKED', { harness: 'could not restart the bot with STUDENT_MODE_ENABLED: ' + JSON.stringify(restarted).slice(0, 120), ...on }, t() - s);
-          else if (!ctas.length && !seen.some(isHub)) rec('T692', HOME_TITLE.T692, 'BLOCKED', { harness: 'no hub link on this lane (PORTAL_URL / token secret unset?)', ...on }, t() - s);
-          else rec('T692', HOME_TITLE.T692, ...V(home, on), t() - s);
-        }
-
-        // T708 — "portal" / "/portal" / «پورٹل» from the child: the same one button as their "/quiz" (portal-request.js
-        // in student-ingress.js), never "That one isn't for students" and never the tutor. Before T695 flips the home off.
-        if (want('T708')) {
-          s = t();
-          const shape = (seen) => seen.filter(isCta).map((x) => ({ btns: x.btns, hub: isHub(x), txt: String(x.txt || '').slice(0, 90) }));
-          const quiz = shape(await ask(kid, '/quiz'));
-          const per = {};
-          for (const typed of ['portal', '/portal', 'پورٹل']) {
-            const seen = await ask(kid, typed);
-            const got = shape(seen);
-            const refused = seen.some((x) => /isn.t for students|طلبہ کے لیے نہیں/i.test(String(x.txt || '')));
-            per[typed] = { ok: got.length === 1 && got[0].hub && JSON.stringify(got) === JSON.stringify(quiz) && !refused, got };
-          }
-          const ok = quiz.length === 1 && quiz[0].hub && Object.values(per).every((v) => v.ok);
-          if (!kidId) rec('T708', HOME_TITLE.T708, 'BLOCKED', { harness: 'could not seed the child row', per }, t() - s);
-          else if (!(restarted && restarted.ok)) rec('T708', HOME_TITLE.T708, 'BLOCKED', { harness: 'could not restart the bot with STUDENT_MODE_ENABLED', per }, t() - s);
-          else if (!quiz.length) rec('T708', HOME_TITLE.T708, 'BLOCKED', { harness: 'no hub link on this lane for the /quiz control (PORTAL_URL / token secret unset?)', per }, t() - s);
-          else rec('T708', HOME_TITLE.T708, ...V(ok, { quiz, per }), t() - s);
-        }
-
-        if (want('T693')) {
-          s = t();
-          const rowId = await seedChild(String(process.env.E2E_DRIVER || '')); seeded.push(rowId);
-          const seen = await ask(api, '/quiz');
-          rec('T693', HOME_TITLE.T693, ...V(seen.length > 0 && !seen.some(isHub), { childRowOnTeacherPhone: Boolean(rowId), studentMode: Boolean(restarted && restarted.ok), seen: brief(seen) }), t() - s);
-        }
-
-        if (want('T695')) {
-          s = t();
-          await api.setAppSetting('web_quiz_child_quiz_home', false);
-          const seen = await ask(kid, '/quiz');
-          const ctas = seen.filter(isCta);
-          const today = ctas.length === 1 && isHub(ctas[0]) && (ctas[0].btns || []).some((b) => /^(Open|کھولیں)$/.test(b));
-          if (!(restarted && restarted.ok)) rec('T695', HOME_TITLE.T695, 'BLOCKED', { harness: 'could not restart the bot with STUDENT_MODE_ENABLED', seen: brief(seen) }, t() - s);
-          else if (!ctas.length && !seen.some(isHub)) rec('T695', HOME_TITLE.T695, 'BLOCKED', { harness: 'no hub link on this lane (PORTAL_URL / token secret unset?)', seen: brief(seen) }, t() - s);
-          else rec('T695', HOME_TITLE.T695, ...V(today, { seen: brief(seen) }), t() - s);
-        }
-      } finally {
-        for (const id of seeded) await dropRow(id);
-        if (restarted && restarted.ok) await SC.restart('bot', {});
-      }
-    }
+  // bd-w2daa.7 — fewer bubbles, same words (the Meta bill cut). Recorded with the reason, not left
+  // absent: no driver yet reads reactions or counts a child's bubbles on this lane. Each rule is
+  // covered red-first by the suites named in the spec's section header.
+  {
+    const why = 'no driver yet counts a child\'s bubbles or reads reactions on this lane; covered by '
+      + 'tests/quiz/child-quiz-fewer-bubbles.test.js, child-refusals-once-a-day.test.js and '
+      + 'teacher-quiz-handoff-fewer-bubbles.test.js';
+    rec('T94', 'A child\'s answer gets a ✅ or ❌ on the tap, and the verdict rides on the next question when that one starts with words', 'BLOCKED', { reason: why }, 0);
+    rec('T95', 'A double tap does not bring the same question twice', 'BLOCKED', { reason: why }, 0);
+    rec('T96', 'A class quiz opens in one message when its first question starts with words', 'BLOCKED', { reason: why }, 0);
+    rec('T97', 'The score card is the picture on the "invite a friend" message', 'BLOCKED', { reason: why }, 0);
+    rec('T98', 'A child who keeps sending voice notes hears the "please type" line once a day', 'BLOCKED', { reason: why }, 0);
+    rec('T99', '"Not now" on the quiz offer is answered with a 👍', 'BLOCKED', { reason: why }, 0);
   }
 
-};
 
   // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
   //    but had no driver. Implement each one, then turn BLOCKED into V(...).
@@ -1916,6 +1832,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
   rec('T499', 'A child who has just joined from a class quiz link gets the child\'s /quiz, not the teacher\'s', 'BLOCKED',
       { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
 
+
   // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
   //    but had no driver. Implement each one, then turn BLOCKED into V(...).
   // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
@@ -1926,6 +1843,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
   rec('T597', 'An old quiz link with the redirect off, or for a teacher whose web quiz is off, starts the chat quiz as before', 'BLOCKED',
       { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
 
+
   // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
   //    but had no driver. Implement each one, then turn BLOCKED into V(...).
   // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
@@ -1935,3 +1853,94 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
   // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
   rec('T691', 'No second button after ten minutes, mid chat quiz, once the page has opened, or for a slash command', 'BLOCKED',
       { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+
+  // ══ T692–T695 — a child's /quiz opens their home page; a teacher's /quiz never does ══════════════
+  // Driven on the run's OWN local database (the switches are global): a children's row is seeded for a
+  // second phone (api.as) the way the bot writes one, so the door classifies that phone as a child; the
+  // driver itself is the registered teacher. The Home message is a cta_url, which the mock outbox now
+  // records with its button and URL. T694 (the registration Flow inside the cached verdict) is
+  // @no-mock-driver: registration is not on this lane; the webhook test executes it.
+  if (want('T692', 'T693', 'T695')) {
+    const HOME_TITLE = { T692: 'A child\'s /quiz sends one "Home" button that opens their home page with the last quiz on top',
+      T693: 'A teacher\'s /quiz never opens the child\'s home page, even when children played on the teacher\'s phone',
+      T695: 'With the home switch off, a child\'s /quiz is exactly today\'s' };
+    const { dbCreds, canFlipGlobal } = require('../db-target.cjs');
+    const HOME_RX = /^(🏠 )?(Home|ہوم)$/;
+    const isCta = (x) => x && x.type === 'interactive.cta_url';
+    const isHub = (x) => !!x && ((isCta(x) && /\/h\//.test((x.cta && x.cta.url) || '')) || /\/h\//.test(String(x.txt || '')));
+    const collect = async (actor, ms) => {
+      const t0 = Date.now(); const seen = [];
+      while (Date.now() - t0 < ms) { for (const r of await actor.fresh()) seen.push(r); await sleep(800); }
+      return seen;
+    };
+    const ask = async (actor, text, ms = 12000) => {
+      await actor.freshReset();
+      await actor.sendWait(text);
+      return collect(actor, ms);
+    };
+    const brief = (seen) => seen.map((x) => ({ type: x.type, txt: String(x.txt || '').slice(0, 90), btns: x.btns, url: x.cta ? String(x.cta.url || '').replace(/\/h\/.*/, '/h/<token>') : undefined }));
+    if (!canFlipGlobal()) {
+      for (const id of ['T692', 'T693', 'T695']) if (want(id)) rec(id, HOME_TITLE[id], 'BLOCKED', { reason: 'GLOBAL_SWITCH: web_quiz_child_quiz_home is flipped only on the run\'s own local database (E2E_LOCAL_DB=1)' }, 0);
+    } else {
+      const { url, key } = dbCreds();
+      const H = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
+      const seedChild = async (phone) => {
+        const r = await fetch(`${url}/rest/v1/students`, { method: 'POST', headers: { ...H, Prefer: 'return=representation' },
+          body: JSON.stringify({ student_name: 'Home Testcase', self_reported_class: '4', phone, is_active: true }) });
+        const rows = await r.json().catch(() => []);
+        return r.ok && rows[0] ? rows[0].id : null;
+      };
+      const dropRow = async (id) => { if (id) await fetch(`${url}/rest/v1/students?id=eq.${id}`, { method: 'DELETE', headers: H }).catch(() => {}); };
+      const KID_PHONE = '923009900692';
+      const kid = api.as(KID_PHONE);
+      const seeded = [];
+      // The lane's bot runs without the door's child verdict (STUDENT_MODE_ENABLED) and without a portal to link
+      // to: this block restarts it with both (stack-control, as T72/T73 and child-test do) and puts it back after.
+      const SC = require('../stack-control.cjs');
+      const LANE_ENV = { STUDENT_MODE_ENABLED: 'true', WEB_QUIZ_BASE_URL: 'https://portal.example.test', WEB_QUIZ_TOKEN_SECRET: 'mock-lane-home-secret' };
+      let restarted = null;
+      try {
+        restarted = SC.runDir() ? await SC.restart('bot', LANE_ENV) : { ok: false, err: 'no RUN_DIR' };
+        await api.setAppSetting('web_quiz_hub', true, { settleMs: 0 });
+        await api.setAppSetting('web_quiz_child_quiz_home', true);   // waits out the bot's 30 s switch cache
+        const kidId = await seedChild(KID_PHONE); seeded.push(kidId);
+
+        let on = null;
+        if (want('T692')) {
+          s = t();
+          const seen = await ask(kid, '/quiz');
+          const ctas = seen.filter(isCta);
+          on = { seen: brief(seen) };
+          const home = ctas.length === 1 && (ctas[0].btns || []).some((b) => HOME_RX.test(b)) && isHub(ctas[0])
+            && !/https?:|\/h\//.test(String(ctas[0].txt || ''));
+          if (!kidId) rec('T692', HOME_TITLE.T692, 'BLOCKED', { harness: 'could not seed the child row', ...on }, t() - s);
+          else if (!(restarted && restarted.ok)) rec('T692', HOME_TITLE.T692, 'BLOCKED', { harness: 'could not restart the bot with STUDENT_MODE_ENABLED: ' + JSON.stringify(restarted).slice(0, 120), ...on }, t() - s);
+          else if (!ctas.length && !seen.some(isHub)) rec('T692', HOME_TITLE.T692, 'BLOCKED', { harness: 'no hub link on this lane (PORTAL_URL / token secret unset?)', ...on }, t() - s);
+          else rec('T692', HOME_TITLE.T692, ...V(home, on), t() - s);
+        }
+
+        if (want('T693')) {
+          s = t();
+          const rowId = await seedChild(String(process.env.E2E_DRIVER || '')); seeded.push(rowId);
+          const seen = await ask(api, '/quiz');
+          rec('T693', HOME_TITLE.T693, ...V(seen.length > 0 && !seen.some(isHub), { childRowOnTeacherPhone: Boolean(rowId), studentMode: Boolean(restarted && restarted.ok), seen: brief(seen) }), t() - s);
+        }
+
+        if (want('T695')) {
+          s = t();
+          await api.setAppSetting('web_quiz_child_quiz_home', false);
+          const seen = await ask(kid, '/quiz');
+          const ctas = seen.filter(isCta);
+          const today = ctas.length === 1 && isHub(ctas[0]) && (ctas[0].btns || []).some((b) => /^(Open|کھولیں)$/.test(b));
+          if (!(restarted && restarted.ok)) rec('T695', HOME_TITLE.T695, 'BLOCKED', { harness: 'could not restart the bot with STUDENT_MODE_ENABLED', seen: brief(seen) }, t() - s);
+          else if (!ctas.length && !seen.some(isHub)) rec('T695', HOME_TITLE.T695, 'BLOCKED', { harness: 'no hub link on this lane (PORTAL_URL / token secret unset?)', seen: brief(seen) }, t() - s);
+          else rec('T695', HOME_TITLE.T695, ...V(today, { seen: brief(seen) }), t() - s);
+        }
+      } finally {
+        for (const id of seeded) await dropRow(id);
+        if (restarted && restarted.ok) await SC.restart('bot', {});
+      }
+    }
+  }
+};

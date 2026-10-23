@@ -70,10 +70,38 @@ function makeMockApi(opts) {
       catch (e) { if (i >= tries || !/fetch failed|ECONNRESET|ECONNREFUSED|socket hang up|EPIPE/i.test(String(e && (e.cause && e.cause.message || e.message)))) throw e; await new Promise((r) => setTimeout(r, 1500 * i)); }
     }
   }
-  async function outbox(after) {
-    const r = await fetchRetry(`${base}/outbox?after=${after}&to=${encodeURIComponent(driver)}`);
+  async function outbox(after, waitMs) {
+    const r = await fetchRetry(`${base}/outbox?after=${after}&to=${encodeURIComponent(driver)}${waitMs ? '&wait=' + Math.round(waitMs) : ''}`);
     if (!r.ok) throw new Error('HARNESS mock-api: outbox ' + r.status);
     return r.json();
+  }
+  /** The drivers' sleep on the mock lane (bd-aqi0ay). A feature script's `await sleep(2500)` is almost always
+   *  "give the bot time to answer"; with cassette replay the bot answers in milliseconds and the rest of the
+   *  sleep is dead time (737 s inside scenario windows, most of the 2400 s between them, run 20261023-1202-par).
+   *  So: long-poll the outbox for up to `ms`; once something lands, wait for the outbox to stay quiet for
+   *  settleMs (the same rule a reply gets), then return. Nothing is consumed — fresh() still sees the item.
+   *  Below 300 ms it is a plain sleep: those are pacing nudges, not waits for the bot. */
+  async function smartSleep(ms) {
+    if (!(ms >= 300)) return sleep(ms);
+    const sp = tracer.span('driver.sleep', { layer: 'driver', kind: 'intentional', parent: current, attrs: { askedMs: ms } });
+    const t0 = Date.now();
+    let woke = 'timeout';
+    try {
+      const tip = (await outbox(0)).last;
+      const { items } = await outbox(tip, ms - (Date.now() - t0));
+      if (items.length) {
+        woke = 'message';
+        let last = items[items.length - 1].seq, quietSince = Date.now();
+        const cap = Date.now() + Math.min(Math.max(0, ms - (Date.now() - t0)), Math.max(settleMs * 10, 15000));
+        while (Date.now() < cap) {
+          await sleep(Math.min(pollMs, settleMs));
+          const now = (await outbox(0)).last;
+          if (now !== last) { last = now; quietSince = Date.now(); }
+          else if (Date.now() - quietSince >= settleMs) break;
+        }
+      }
+    } catch (e) { woke = 'error'; await sleep(Math.max(0, ms - (Date.now() - t0))); }   // the mock unreachable: behave like a sleep
+    sp.end('ok', { woke, sleptMs: Date.now() - t0 });
   }
   /** The most recent interactive list still on screen. A text can land AFTER a list card, so relying
    *  on lastReply alone loses it — scan the recent outbox newest-first, as a tap in WhatsApp would. */
@@ -579,6 +607,7 @@ function makeMockApi(opts) {
       if (items.length) freshCursor = items[items.length - 1].seq; else freshCursor = Math.max(freshCursor, last);
       return items.map(flagsOf);
     },
+    sleep: smartSleep,
     async waitStats() {
       const ms = waits.map((w) => w.waitedMs).sort((a, b) => a - b);
       const total = ms.reduce((a, b) => a + b, 0);

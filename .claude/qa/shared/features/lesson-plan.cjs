@@ -45,8 +45,9 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
     const hits = [];
     for (const k of kws) {
       // Five Flow sends inside ~40s tripped Meta #131056 "(Business Account, Consumer Account) pair rate
-      // limit hit" on 2026-09-02 and the 5th card never arrived. Pace the burst.
-      if (hits.length) await sleep(15000);
+      // limit hit" on 2026-09-02 and the 5th card never arrived. Pace the burst — on the chrome lane only:
+      // the mock Graph API has no pair limit and the bot's pacer is off there (bd-aqi0ay).
+      if (hits.length && api.caps.method !== 'mock') await sleep(15000);
       const x = await api.sendWait(k);
       hits.push({ k, card: CARD.test(x.txt) && x.btns.length > 0, wait: x.waitedMs });
     }
@@ -69,7 +70,7 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
     // one teachers actually type, and it earns a line of its own in the ledger. The pace sleep is
     // L02's — this is now a SIXTH Flow send in the same burst, and five inside ~40s already tripped
     // Meta #131056 once (2026-09-02).
-    if (want('L02')) await sleep(15000);
+    if (want('L02') && api.caps.method !== 'mock') await sleep(15000);
     s = t();
     r = await api.sendWait('/lesson plan');
     rec('L08', '"/lesson plan" opens the Lesson Plans Flow',
