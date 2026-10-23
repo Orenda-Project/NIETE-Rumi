@@ -46,8 +46,9 @@
  *      teaches, and the WhatsApp catalogue holds their own class's plans), or a JSON list of users.id; no row, any
  *      other value, or a failed read is OFF. Only when users.role is in the leader family (observe-gate LEADER_ROLES)
  *      and they are not an analytics-only account (portal_analytics_only; the portal sends those to analytics). Only
- *      from the plain "open lesson plans" doors (LEADER_LINK_DOORS): a leader who names a topic keeps today's path.
- *      The operator, 19 Oct: "Send leaders straight into the app, the same as teachers"; until 23 Oct it opened Send
+ *      from LEADER_LINK_DOORS: the plain "open lesson plans" doors and, since bd-l6424d, the doors where a leader names
+ *      a topic, typed, spoken or already in flight (the operator, 23 Oct: "yes to topic requests too"; the tab has
+ *      every plan, and no path carries the topic into the app). The operator, 19 Oct: "Send leaders straight into the app, the same as teachers"; until 23 Oct it opened Send
  *      a lesson plan (the FLN builder) and asked for FLN share. The operator, 23 Oct: "A coach who types 'lesson plan'
  *      on WhatsApp still gets 'Send a lesson plan', not the new tab -- they can get new tab". The tab (bd-4joiqz)
  *      needs no FLN share. The builder (/portal/fln/send) is not linked from the tab (LeaderHome and the coach
@@ -168,8 +169,22 @@ const TEACHER_APP_KEY = 'portal_teacher_v2';
 /** bd-a73p5m — request → the page a leader's link lands on (app-login-link.js LEADER_LANDINGS), behind LEADER_LP_KEY. */
 const LEADER_LINKS = Object.freeze({ lesson_plan: 'leader_lessons' });
 const LEADER_LP_KEY = 'leader_app_lesson_plan';
-/** The doors that mean "open lesson plans": typed "lesson plan", the chip, the menu row and its number. Not a topic. */
-const LEADER_LINK_DOORS = Object.freeze(['bare_command', 'chip', 'menu', 'menu_choice']);
+/** The doors that mean "open lesson plans": typed "lesson plan", the chip, the menu row and its number. */
+const LEADER_PLAIN_DOORS = Object.freeze(['bare_command', 'chip', 'menu', 'menu_choice']);
+/**
+ * bd-l6424d — the doors where a leader NAMES A TOPIC, which open the same tab (the operator, 23 Oct: "yes to topic
+ * requests too"). Typed: the lesson_plan intent (`intent`, before the catalogue), then `lesson_plan_intent` (the
+ * catalogue door that intent, a topic typed after the menu asked for one, and the Oxbridge picker's "Generate" tap
+ * reach). Spoken: `voice_intent` (before the spoken answer), then `voice_lesson_plan_intent`. In flight: the worker's
+ * cutover rescue, `cutover_inflight_gamma`. Each path asks its first door first and returns once a link is sent, so a
+ * leader receives the tab at most once. The later door decides only when the first did not send: if the switch said
+ * no, it says no again and the catalogue Flow goes; if the switch said yes but Meta refused the button and its
+ * plain-text link, it tries the link once more (a second app_funnel.command and link_failed row) before the Flow.
+ * `ft_fallback` (the first-touch "Lesson plan" button) is in neither list: a covered coach who taps it gets the Flow.
+ */
+const LEADER_TOPIC_DOORS = Object.freeze(['intent', 'lesson_plan_intent', 'voice_intent', 'voice_lesson_plan_intent',
+  'cutover_inflight_gamma']);
+const LEADER_LINK_DOORS = Object.freeze([...LEADER_PLAIN_DOORS, ...LEADER_TOPIC_DOORS]);
 /** dashboard/lib/feature-flags.js PORTAL_ANALYTICS_ONLY_KEY: a JSON list of users.id the portal routes to analytics. */
 const ANALYTICS_ONLY_KEY = 'portal_analytics_only';
 
