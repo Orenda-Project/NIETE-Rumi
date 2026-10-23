@@ -89,6 +89,8 @@ const {
   PORTAL_COACH_V2_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
+  PORTAL_TEACHER_HOME_CARD_KEY,
+  PORTAL_TEACHER_HOME_ORDER_KEY,
   isCoachObservationOn,
   PORTAL_ANALYTICS_ONLY_KEY,
   readUserListFlag,
@@ -116,6 +118,7 @@ const TeacherObservation = require('../lib/teacher-observation');
 const { getOverall } = require('../services/coaching-frameworks.service');
 const { narrativeView } = require('../services/report-narrative-view'); // bd-fmf24g.10
 const { reportExtras } = require('../services/report-extras'); // bd-z3cadk
+const VideoRecoPortal = require('../services/video-reco-portal'); // bd-gzfdu9
 // Leader "patch" resolver (leader_teachers → Rumi users + activity) needs the
 // pg pool — the LATERAL-join SQL can't be expressed through supabase-js.
 const pool = require('../config/database');
@@ -3139,6 +3142,26 @@ router.get('/assessment/chapters', requirePortalAuth, async (req, res) => {
     res.json({ success: true, chapters });
   } catch (error) {
     assessmentFailure(res, error, 'Could not load chapters');
+  }
+});
+
+/**
+ * GET /api/portal/assessment/topics?grade=1&subject=maths&chapter=3
+ * → { success, topics: [{ topicId, name, heading, headingOrder, sortOrder }] }; [] when the chapter has none loaded.
+ */
+router.get('/assessment/topics', requirePortalAuth, async (req, res) => {
+  try {
+    const digits = (v) => (/^\d+$/.test(String(v ?? '')) ? parseInt(v, 10) : NaN);
+    const grade = digits(req.query.grade);
+    const subject = String(req.query.subject || '').trim();
+    const chapterNumber = digits(req.query.chapter);
+    if (!Number.isFinite(grade) || !subject || !Number.isFinite(chapterNumber)) {
+      return res.status(400).json({ success: false, error: 'grade + subject + chapter required' });
+    }
+    const topics = await Assessment.listTopics(grade, subject, chapterNumber);
+    res.json({ success: true, topics });
+  } catch (error) {
+    assessmentFailure(res, error, 'Could not load topics');
   }
 });
 
@@ -7337,6 +7360,9 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
       return data || null;
     });
 
+    // bd-gzfdu9 — the recommended clip's card; undefined (no key, no read) while VIDEO_RECO_ENABLED is off.
+    const videoRecommendation = await VideoRecoPortal.fieldFor(supabase, sessionId, userId, reportLanguage === 'ur' ? 'ur' : 'en');
+
     // Extract narrative arrays from analysis_data
     const strengthsArray = session.analysis_data?.strengths?.map(s =>
       typeof s === 'string' ? s : s.title || s.analysis || 'Strength identified'
@@ -7442,6 +7468,7 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
         duplicate: extras.duplicate,
         reportDate: extras.reportDate,
         lastAsked: extras.lastAsked,
+        ...(videoRecommendation === undefined ? {} : { video_recommendation: videoRecommendation }),
 
         // ── how she was scored ─────────────────────────────────────────────
         overallScore: overallMarks,
@@ -7531,9 +7558,11 @@ async function requireSelfObservation(req, res, next) {
 }
 
 /** Relay the bot's answer; a throw (unreachable / 5xx) is a 502, never success. */
-async function relayToBot(res, label, call) {
+async function relayToBot(res, label, call, onAnswer) {
   try {
     const { httpStatus, body } = await call();
+    // bd-c5reix: a look at the answer for the funnel; it never changes what she gets.
+    if (onAnswer) { try { onAnswer(httpStatus, body || {}); } catch (_) { /* never */ } }
     return res.status(httpStatus).json(body);
   } catch (error) {
     console.error(`Portal coaching ${label} failed:`, error.message);
@@ -7596,7 +7625,39 @@ router.post('/coaching-upload/start', requirePortalAuth, requireSelfObservation,
   return relayToBot(res, 'start', () => PortalCoachingClient.startSession({
     userId: req.session.portalUserId, key, lessonPlanKey, photoKeys, lessonPlan: libraryPlanPick(lessonPlan),
     teacherClass: teacherClassPick(teacherClass), liveMoves,
-  }));
+  }), (status) => {
+    // bd-c5reix — a recording kept from WhatsApp, sent from the app (the funnel's "pending submitted").
+    if (status === 200 && isWhatsAppKey(key)) logAppAction(req, 'coaching.pending_sent', 'ai_coaching');
+  });
+});
+
+/** bd-c5reix — a classroom recording the bot kept from WhatsApp: the bot's own predicate (regex only, no bot deps). */
+const { isWhatsAppKey } = require('../../bot/shared/services/coaching/whatsapp-recording.service');
+const logAppAction = (...a) => require('./app-funnel.routes').logAppAction(...a);
+
+/**
+ * bd-c5reix — GET /api/portal/coaching-upload/pending
+ * → { recordings: [{ key, id, seconds, receivedAt, listenUrl, duplicateOf }] }: her classroom recordings sent on
+ *   WhatsApp, kept for the app and not sent yet, newest first (the bot reads R2 and her rows).
+ */
+router.get('/coaching-upload/pending', requirePortalAuth, requireSelfObservation, (req, res) => (
+  relayToBot(res, 'pending', () => PortalCoachingClient.pendingRecordings({ userId: req.session.portalUserId }), (status, body) => {
+    const recs = status === 200 && Array.isArray(body.recordings) ? body.recordings : [];
+    if (recs.length) {
+      logAppAction(req, 'coaching.pending_shown', 'ai_coaching', { count: recs.length, repeats: recs.filter((r) => r && r.duplicateOf).length });
+    }
+  })
+));
+
+/**
+ * bd-c5reix — POST /api/portal/coaching-upload/check-duplicate  Body { sha256 }
+ * → { duplicateOf: null | { sessionId, date, ready } }: has she sent these bytes before? Asked before an upload.
+ */
+router.post('/coaching-upload/check-duplicate', requirePortalAuth, requireSelfObservation, (req, res) => {
+  const { sha256 } = req.body || {};
+  return relayToBot(res, 'check-duplicate', () => PortalCoachingClient.checkDuplicate({ userId: req.session.portalUserId, sha256 }), (status, body) => {
+    if (status === 200 && body.duplicateOf) logAppAction(req, 'coaching.duplicate_shown', 'ai_coaching', { where: 'upload' });
+  });
 });
 
 /**
@@ -8776,6 +8837,8 @@ router.get('/config', async (req, res) => {
       coachDisagreements,
       childTest,
       childTestSa,
+      teacherHomeCard,
+      teacherHomeOrderRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -8796,6 +8859,9 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_CHILD_TEST_KEY, userId),
       // the coach's Learning assessment (the child takes the battery alone), per user.
       isFlagEnabledForUser(supabase, PORTAL_CHILD_TEST_SA_KEY, userId),
+      // Teacher Home: the teacher Home's card, and its per-teacher order — the order only rides with the card on.
+      isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_CARD_KEY, userId),
+      isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_ORDER_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -8811,6 +8877,8 @@ router.get('/config', async (req, res) => {
         teacherV2,
         coachDisagreements,
         childTestSa,
+        teacherHomeCard,
+        teacherHomeOrder: teacherHomeCard && teacherHomeOrderRaw,
       },
     });
   } catch (error) {
@@ -8830,6 +8898,8 @@ router.get('/config', async (req, res) => {
         teacherV2: false,
         coachDisagreements: false,
         childTestSa: false,
+        teacherHomeCard: false,
+        teacherHomeOrder: false,
       },
     });
   }

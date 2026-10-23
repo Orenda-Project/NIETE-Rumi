@@ -76,9 +76,53 @@ THINKING.codes = [...THINKING.teacher, ...THINKING.children];
 // or F indicator, so its id is no code and nothing reads it as one (analysis.js, brief.js and the
 // target resolver handle it by name). Its title fits the 30-code-point option cap.
 const PLAN_FOCUS = 'plan';
-const FOCUS = { ...PRIORITY, [PLAN_FOCUS]: "Following the plan's steps" };
-// The list follows the four moments, so related choices sit together; the plan comes last.
-const FOCUS_ORDER = [...MOMENTS.flatMap((m) => m.codes), PLAN_FOCUS];
+
+// Coaching focus areas (FICO pilot sheet R20 and R21, two coaches, 16 Oct): what coaches coach on that no
+// one of the 17 names. Like the plan's steps they are not scored: no level, no section sum, no V4 bars. Each
+// id is no code, and every reader asks isCoachingFocus before reading a pick as an indicator. What the brief
+// shows for each (what was seen, the next step) is in focus-areas.js and strings.js.
+//   wait    C1 L1 is the rubric's own line on it: "provides the answer immediately without pausing".
+//   manage  the workbook names C5 "Classroom Management", but the live form scores only its switch half,
+//           so this is a focus of its own whose "what you saw" reads C5's level.
+//   rules   C5 L4: "states or signals the expectation before it's needed".
+//   warmup, close   the 5-step plan's first and last steps, coachable with or without a plan.
+const COACHING_FOCUS = {
+  wait: 'Wait time after a question',
+  manage: 'Classroom management',
+  rules: 'Classroom rules',
+  warmup: 'An engaging warm-up',
+  close: 'Effective lesson closure',
+};
+const FOCUS = { ...PRIORITY, [PLAN_FOCUS]: "Following the plan's steps", ...COACHING_FOCUS };
+// The picks with no C, D or F row: the plan's steps and the coaching focus areas.
+const NOT_SCORED = [PLAN_FOCUS, ...Object.keys(COACHING_FOCUS)];
+const isCoachingFocus = (id) => Object.prototype.hasOwnProperty.call(COACHING_FOCUS, String(id || ''));
+// The FICO section a non-scored pick is told under, in the report narrative's prompt only (it is a label
+// there, never a score). The plan is Section B. The others are teaching practices, never Section B: the
+// narrative drops a Section B target when the recording is a different lesson from the plan, and a warm-up
+// or a closure can be coached without one.
+const FOCUS_DOMAIN = {
+  [PLAN_FOCUS]: 'lesson_plan_fidelity',
+  ...Object.fromEntries(Object.keys(COACHING_FOCUS).map((id) => [id, 'high_leverage_practices'])),
+};
+// The line under a choice in the lists, where the title alone was not recognised (R20, R21: "Classroom
+// Structure / LP Fidelity", "Following the 5-step Lesson Plan", "Assigning and managing group work"), or
+// where two choices sit close (switches and classroom management). Within the 300-code-point cap.
+const FOCUS_DESCRIPTION = {
+  [PLAN_FOCUS]: 'The whole 5-step lesson plan: warm-up, explanation, guided practice, independent practice and wrap-up. Lesson plan fidelity and classroom structure.',
+  C7: 'Assigning and managing group work: a task the group must do together, with roles and a report back.',
+  C5: 'Moving from one activity to the next quickly, with a clear signal.',
+  wait: 'Giving children a few seconds to think after a question, before anyone answers.',
+  manage: 'Routines for attention and for switching tasks, discipline, and a calm room ready to learn.',
+  rules: 'Setting class rules with the children and making sure every child knows them.',
+  warmup: "A short opening activity that gets every child thinking and links to today's topic.",
+  close: 'Ending well: the children recap what they learned and the teacher checks it, e.g. with an exit ticket.',
+};
+// The list follows the four moments, so related choices sit together: wait time after the asking ones,
+// classroom management and rules after switches (C5). The lesson's structure comes last: the plan's steps,
+// then its first and last step.
+const BESIDE = { D5: ['wait'], C5: ['manage', 'rules'] };
+const FOCUS_ORDER = [...MOMENTS.flatMap((m) => m.codes).flatMap((c) => [c, ...(BESIDE[c] || [])]), PLAN_FOCUS, 'warmup', 'close'];
 
 // Up to two more beside the first pick, optional. "Nothing else" lets a coach undo a pick: a
 // WhatsApp Dropdown cannot be cleared once chosen.
@@ -98,5 +142,6 @@ function pickAlso(ids, first) {
 
 module.exports = {
   CODES, CORE, MOMENTS, PLAIN, EXTRA, ROW, PRIORITY, THINKING,
-  PLAN_FOCUS, FOCUS, FOCUS_ORDER, ALSO_NONE, MAX_ALSO, pickAlso,
+  PLAN_FOCUS, COACHING_FOCUS, NOT_SCORED, isCoachingFocus, FOCUS_DOMAIN, FOCUS, FOCUS_DESCRIPTION, FOCUS_ORDER,
+  ALSO_NONE, MAX_ALSO, pickAlso,
 };

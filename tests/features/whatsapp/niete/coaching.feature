@@ -601,7 +601,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # never called) → prioritized_action.teacher_response never becomes 'yes' and the
     # agency reminder can't fire. Expected to FAIL until wired.
 
-  @e2e @wip @draft @P1 @COA72
+  @e2e @wip @draft @P1 @COA96
   Scenario: The lesson-plan list says a photo, a PDF, or typing the plan all work
     Given the NIETE bot chat is open
     And an observation I started is waiting at the lesson-plan step with the teacher's recent lesson plans listed
@@ -987,3 +987,107 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     When the teacher opens that lesson in the portal
     Then she sees the report as WhatsApp delivered it
     And she does not see the coach's conversation transcript or the feedback written for the coach
+
+  # v10 A/B groups C and D only (ab_v10_enabled on; A, B and teachers outside the draw: today's caption and
+  # reminder). bd-v0toag.100.8, from Quratulain's week-1 review: a G2 English ask was checked on a G5 lesson,
+  # and the check judged moves that only shared the ask's practice tag. An ask now belongs to the grade and
+  # subject of the lesson it was set on, stays until a recording of that grade and subject shows it done, and
+  # the ask itself is judged against the transcript. Units: tests/coaching/thing-to-try-{scope,judge,pick}.test.js,
+  # tests/coaching/thing-to-try.test.js, tests/portal/bd-v0toag.8-thing-to-try{,-step}.test.js.
+  @e2e @wip @draft @config-gated @P1 @COA97
+  Scenario: The thing to try shows only on plans of its own grade and subject
+    Given I am in v10 group C or D
+    And my last Grade 2 English recording gave me a thing to try
+    When I get my next Grade 2 English lesson plan
+    Then its caption ends with that thing to try
+    When I get a Grade 5 English or a Grade 2 Maths lesson plan
+    Then its caption does not name the Grade 2 English thing to try
+
+  @e2e @wip @draft @config-gated @P1 @COA98
+  Scenario: The thing to try stays on my plans until a recording shows I did it
+    Given I am in v10 group C or D
+    And I have a Grade 2 English thing to try
+    When I send a Grade 2 English recording where I did not do it
+    Then my report's "Try one thing tomorrow" is the same thing to try, with its own step
+    And my next Grade 2 English plan still names it
+    When I send a Grade 2 English recording where I did it
+    Then my report gives a new thing to try, or none if the lesson gave nothing new to try
+
+  @e2e @wip @draft @config-gated @P1 @COA99
+  Scenario: A recording in another subject or grade leaves my thing to try alone
+    Given I am in v10 group C or D
+    And I have a Grade 2 English thing to try
+    When I send a Grade 5 English recording
+    Then the Grade 2 English thing to try is not checked against that lesson
+    And my next Grade 2 English plan still names it
+
+  @e2e @wip @draft @config-gated @P1 @COA100
+  Scenario: The ask itself is judged, not a move that shares its practice
+    Given I am in v10 group C or D
+    And my thing to try is a move in the We Do step
+    When my next recording of that grade and subject is checked
+    Then the check reads the ask's own words against my transcript, wherever in the lesson I did it
+    And the record names the move it judged, a quote from my lesson and one sentence on why
+    # coaching.thing_to_try.checked: outcome did | partly | not_done | couldnt_tell | not_graded, plus
+    # judgedMoveId, evidence, why, carried. No transcript, no graded plan or a failed call → not_graded, never
+    # a crash; the report still arrives.
+
+  @e2e @wip @draft @negative @P1 @COA101
+  Scenario: Outside groups C and D nothing about the thing to try changes
+    Given I am in v10 group A or B, or outside the draw
+    When I get a lesson plan or a coaching report
+    Then the caption and the "Quick reminder" are exactly as before
+
+  # ─── bd-gzfdu9 (VIDREC): the recommended training clip ──────────────────────────────────────────────
+  # Behind VIDEO_RECO_ENABLED (unset = off: every message, image and page exactly as today). The engine picks
+  # ONE chapter of one training video from this lesson's transcript + analysis; the surfaces show it.
+  # Units: tests/coaching/video-reco/{send,report-generator.video-reco-send,report-image-strip,card-image}.test.js,
+  # tests/portal/{video-reco-routes,coaching-report-page.video}.test.js.
+  # The /cr card and the /v player are dashboard routes (portal service): sign-in is never involved, the
+  # token in the link is the credential (video-reco/link-token.js, 120 days, ids only).
+  @e2e @wip @draft @config-gated @P1 @COA90
+  Scenario: With the clip on, the report is followed by ONE "watch this" message with a video card
+    Given VIDEO_RECO_ENABLED is on for the NIETE sandbox bot
+    And I sent a classroom recording and answered the reflection questions
+    When my coaching report arrives
+    Then after the commit buttons I get one message with a picture of the clip, its title and its length
+    And the message says why this clip, quoting one moment of my own lesson with its time
+    And the message has one "▶ Watch" button
+    And no picture or message shows a training level
+
+  @e2e @wip @draft @config-gated @P1 @COA91
+  Scenario: The report image itself shows the clip under "Try one thing tomorrow"
+    Given VIDEO_RECO_ENABLED is on for the NIETE sandbox bot
+    When my coaching report image arrives
+    Then under "Try one thing tomorrow" the image shows the clip's picture, "▶ Watch next:" and its title
+    And it says to tap ▶ Watch in the next message
+
+  @e2e @wip @draft @config-gated @P1 @COA92
+  Scenario: The Watch button opens the clip at the right moment, in my language
+    Given I got the "watch this" message
+    When I tap the "▶ Watch" button
+    Then a page opens in WhatsApp with the clip title, "Why this clip" and a video player
+    And the video starts at the chapter, not at the start of the module
+    And "Watch from the start" plays the module from 0:00
+    And "Back to my report" opens my report page
+
+  @e2e @wip @draft @config-gated @P2 @COA93
+  Scenario: An Urdu-speaking teacher gets the clip in Urdu, right to left
+    Given my preferred language is Urdu
+    And VIDEO_RECO_ENABLED is on for the NIETE sandbox bot
+    When the "watch this" message arrives
+    Then its button reads "▶ ۲ منٹ دیکھیں" with Urdu digits
+    And the clip page reads right to left with "یہ کلپ کیوں"
+
+  @e2e @wip @draft @config-gated @negative @P1 @COA94
+  Scenario: The clip message goes once, and never after a report that did not arrive
+    Given VIDEO_RECO_ENABLED is on for the NIETE sandbox bot
+    When the report job runs twice for the same session
+    Then I get the "watch this" message only once
+    And if my 24-hour window had closed and the report came as a template, no clip message is sent
+
+  @e2e @wip @draft @negative @P1 @COA95
+  Scenario: With the clip off, the report is exactly as before
+    Given VIDEO_RECO_ENABLED is not set
+    When my coaching report arrives
+    Then no "watch this" message, no clip on the image, and no clip card on my report page

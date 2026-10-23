@@ -187,6 +187,9 @@ app.use(createCoachCardRouter());
 // After the edge list: its /quiz/teacher/:th/stories is the teacher home's page too, which answers first.
 const { createTeacherStoriesRouter } = require('./routes/teacher-stories.routes');
 app.use(createTeacherStoriesRouter());
+// bd-gzfdu9: the recommended training clip's tracked player /v/:token (+ its beacons and thumbnails). Same rules as /cr.
+const { createVideoRecoRouter } = require('./routes/video-reco.routes');
+app.use(createVideoRecoRouter());
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));
@@ -2842,6 +2845,8 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-notices.routes'));
 // bd-fmf24g.30 — Send on WhatsApp from a teacher-app screen (template only; the bot answers the real result).
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-share.routes'));
+// Teacher Home card — the teacher Home's one card, scores row and per-teacher order (behind portal_teacher_home_card / _order).
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-home.routes'));
 // bd-s42dye.1 — the coach app's Training Library: the whole catalogue, read-only, coach role only.
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/training-library.routes'));
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-fln.routes'));

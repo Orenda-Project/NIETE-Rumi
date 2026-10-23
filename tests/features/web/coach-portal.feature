@@ -5,38 +5,38 @@ Feature: Coach app
   # screen, and renders its own heading/content.
 
   @CP01
-  Scenario: Coach app v2: her home greets her and shows today's visits
+  Scenario: Coach app v2: her home sends her to the Training Library
     Given the teacher app v2 is off and the coach app v2 is on
     And demo coach 03000000901 is signed in
     When she opens /portal/coach
-    Then her home shows "Today's visits"
+    Then /portal/coach settles on /portal/coach/training, with "Training Library"
 
   @CP02
-  Scenario: Coach app v2: Schools & teachers, My schedule and Team schedule open
+  Scenario: Coach app v2: Schools & teachers, My schedule and Team schedule send her to the Training Library
     Given the teacher app v2 is off and the coach app v2 is on
     And demo coach 03000000901 is signed in
     When she opens /portal/coach/people
-    Then Schools & teachers opens
+    Then /portal/coach/people settles on /portal/coach/training
     When she opens /portal/coach/schedule
-    Then My schedule opens
+    Then /portal/coach/schedule settles on /portal/coach/training
     When she opens /portal/coach/team
-    Then Team schedule opens
+    Then /portal/coach/team settles on /portal/coach/training
 
   @CP03
-  Scenario: Coach app v2: Reports open, and Analytics counts her teachers
+  Scenario: Coach app v2: Reports and Analytics send her to the Training Library
     Given the teacher app v2 is off and the coach app v2 is on
     And demo coach 03000000901 is signed in
     When she opens /portal/coach/reports
-    Then Reports opens
+    Then /portal/coach/reports settles on /portal/coach/training
     When she opens /portal/coach/analytics
-    Then Analytics shows "Teachers" with at least one
+    Then /portal/coach/analytics settles on /portal/coach/training
 
   @CP04
-  Scenario: Coach app v2: Observe, More and My profile open
+  Scenario: Coach app v2: Observe sends her to the Training Library; More and My profile open
     Given the teacher app v2 is off and the coach app v2 is on
     And demo coach 03000000901 is signed in
     When she opens /portal/coach/observe
-    Then Observe opens
+    Then /portal/coach/observe settles on /portal/coach/training
     When she opens /portal/coach/more
     Then More opens
     When she opens /portal/coach/profile

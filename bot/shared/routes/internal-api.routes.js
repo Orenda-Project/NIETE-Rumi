@@ -1496,6 +1496,33 @@ router.post('/assessment/chapters', requireInternalKey, assessmentRoute('chapter
 }));
 
 /**
+ * POST /api/internal/assessment/topics
+ * Body { grade, subject, chapterNumber } → { success, topics: [{ topicId, name, heading, headingOrder, sortOrder }] }
+ *
+ * The topic picker's list (assessment_topics, V1.6.18). Names and headings only: SLO codes never reach a
+ * teacher's screen, and pages are resolved on the bot when the paper is made. A chapter not loaded → [].
+ */
+router.post('/assessment/topics', requireInternalKey, assessmentRoute('topics', async (_Browse, req, res) => {
+  const body = req.body || {};
+  const grade = num(body.grade);
+  const subject = String(body.subject || '').trim();
+  const chapterNumber = num(body.chapterNumber);
+  if (!Number.isInteger(grade)) return res.status(400).json({ success: false, error: 'grade is required' });
+  if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
+  if (!Number.isInteger(chapterNumber)) return res.status(400).json({ success: false, error: 'chapterNumber is required' });
+
+  // bd-6clakk.9 — off (or unreadable) → no topics, so the portal's Topics step steps aside until the A/B test.
+  const { isAssessmentTopicCtaEnabled } = require('../config/feature-flags');
+  if (!(await isAssessmentTopicCtaEnabled().catch(() => false))) return res.json({ success: true, topics: [] });
+
+  const { listChapterTopics } = require('../services/assessment/topics/topics.repo');
+  const topics = (await listChapterTopics(grade, subject, chapterNumber)).map((t) => ({
+    topicId: t.topicId, name: t.name, heading: t.heading, headingOrder: t.headingOrder, sortOrder: t.sortOrder,
+  }));
+  return res.json({ success: true, topics });
+}));
+
+/**
  * Her chapters as one tidy list: numbers only, each once, in book order.
  * `chapterNumbers` wins over the scalar `chapterNumber` older portal builds send.
  */
@@ -1644,6 +1671,39 @@ function rememberQueued(key, id) {
 }
 
 /**
+ * The topic scope of a plain create. { partial: false } when `topicIds` is absent, empty or covers the
+ * chapter's whole topic set (the request is today's chapter request); { error } for a refusal; otherwise
+ * { partial: true, pageRanges, scope: {kind:'topics', topicIds, slos} }. Exactly one chapter is needed,
+ * and an id that is not that chapter's (unknown, or another chapter's) is refused.
+ */
+async function resolveTopicScope(body, { grade, subject, picked }) {
+  const ids = Array.isArray(body.topicIds) ? body.topicIds.map((t) => String(t)).filter(Boolean) : [];
+  if (!ids.length) return { partial: false };
+  if (picked.length !== 1) return { error: 'Topics belong to one chapter. Pick one chapter.' };
+  const { listChapterTopics } = require('../services/assessment/topics/topics.repo');
+  const { resolveTopics, TopicNotFound } = require('../services/assessment/topics/resolve');
+  const all = await listChapterTopics(grade, subject, picked[0]);
+  let resolved;
+  try { resolved = resolveTopics(all, ids); } catch (err) {
+    if (err instanceof TopicNotFound) return { error: 'One of those topics is not in this chapter.' };
+    throw err;
+  }
+  if (resolved.isAll) return { partial: false };
+  if (!resolved.pageRanges) return { error: 'We do not have the pages for those topics yet.' };
+  return {
+    partial: true,
+    pageRanges: resolved.pageRanges,
+    scope: {
+      kind: 'topics',
+      topicIds: resolved.topics.map((t) => t.topicId),
+      // Ticked topics by name, so a topic whose skills another ticked topic already lists still shows on the key.
+      topics: resolved.topics.map((t) => ({ topicId: t.topicId, name: t.name })),
+      slos: resolved.slos,
+    },
+  };
+}
+
+/**
  * POST /api/internal/assessment/create
  * Body { userId, grade, subject, chapterNumbers|chapterNumber|pageRanges, ... } → 202 { success, requestId }
  *
@@ -1741,6 +1801,12 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     return res.status(400).json({ success: false, error: 'chapterNumbers or pageRanges is required' });
   }
 
+  // A paper on some of one chapter's topics. None, or every one ticked, is the whole chapter: that
+  // request goes on below exactly as it always has.
+  const topicScope = await resolveTopicScope(body, { grade, subject, picked });
+  if (topicScope.error) return res.status(400).json({ success: false, error: topicScope.error });
+  const byTopics = topicScope.partial;
+
   // The cap is enforced HERE as well as offered by /options. A form that reads
   // the cap is a convenience; a server that enforces it is the actual rule, and
   // the request row's own CHECK allows up to 60.
@@ -1810,7 +1876,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   // She picked a chapter, not pages — but the row should still say which pages
   // it covers, so a request is readable later without re-reading a contents
   // page that a re-import can change underneath it.
-  let pages = pageRanges;
+  let pages = byTopics ? topicScope.pageRanges : pageRanges;
   if (!pages && picked.length) {
     const chapters = await Browse.listChapters(grade, subject);
     if (picked.some((n) => !chapters.some((c) => c.chapter_number === n))) {
@@ -1830,7 +1896,8 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     grade,
     subject,
     textbookId: book.id,
-    chapterNumber,
+    // A topic paper names no chapter: its pages are the resolved ranges (spec §6), loaded range by range.
+    chapterNumber: byTopics ? null : chapterNumber,
     chapterNumbers: picked.length ? picked : null,
     pageRanges: pages,
     contentSource,
@@ -1842,6 +1909,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     includeAnswerKey: true,
     answerLines: body.answerLines !== false,
     outputFormat: body.outputFormat || 'pdf',
+    ...(byTopics ? { paperKind: 'topic', scope: topicScope.scope } : {}),
   });
 
   return res.status(202).json({ success: true, requestId });
@@ -2748,6 +2816,7 @@ const PORTAL_COACHING_HTTP = {
   not_found: 404,
   not_ready: 409,
   in_progress: 409,
+  already_sent: 409, // bd-c5reix — that recording is already a session of hers
   queue_failed: 502,
 };
 
@@ -2815,6 +2884,17 @@ for (const [name, fields] of Object.entries(LIVE_FIELDS)) {
  */
 router.post('/coaching/recent-plans', requireInternalKey, portalCoachingRoute('recent-plans',
   (Svc, b) => Svc.recentLessonPlans({ userId: b.userId })));
+
+/**
+ * bd-c5reix — her classroom recordings sent on WhatsApp, kept for the app (whatsapp-recording.service).
+ * POST /api/internal/coaching/pending           Body { userId }          → 200 { status:'ok', recordings }
+ * POST /api/internal/coaching/check-duplicate   Body { userId, sha256 }  → 200 { status:'ok', duplicateOf }
+ */
+const loadWhatsAppRecording = () => require('../services/coaching/whatsapp-recording.service');
+router.post('/coaching/pending', requireInternalKey, portalCoachingRoute('pending',
+  (Svc, b) => Svc.pendingRecordings({ userId: b.userId }), loadWhatsAppRecording));
+router.post('/coaching/check-duplicate', requireInternalKey, portalCoachingRoute('check-duplicate',
+  (Svc, b) => Svc.checkDuplicate({ userId: b.userId, sha256: b.sha256 }), loadWhatsAppRecording));
 
 /**
  * POST /api/internal/coaching/reflection

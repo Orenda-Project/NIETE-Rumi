@@ -45,6 +45,8 @@ function thing(s, a, l) {
     const action = text(pa.action);
     return action ? { text: action, why: null, step: null } : null;
   }
+  // bd-v0toag.100.8: an ask carried from an earlier lesson keeps its stored step.
+  if ('step' in t) return { text: move, why: practiceWhy(t.tag, l), step: t.step || null };
   const moves = (a.lp_fidelity && Array.isArray(a.lp_fidelity.moves)) ? a.lp_fidelity.moves : [];
   const m = moves.find((x) => x && t.move_id && x.move_id === t.move_id);
   return { text: move, why: practiceWhy(t.tag, l), step: m ? stepOf(m.phase) : null };
@@ -71,7 +73,10 @@ function journey(trend) {
   return { points, first: points[0], best: Math.max(...points), now: points[points.length - 1] };
 }
 
-/** input = { session, firstName, language, trend: [{created_at, pct}] oldest first, quizMessage, card? (bd-v0toag.31) } */
+/**
+ * input = { session, firstName, language, trend: [{created_at, pct}] oldest first, quizMessage, card? (bd-v0toag.31),
+ *           video? (bd-gzfdu9: the recommended clip's card, shaped by video-reco-events.cardFor; absent → no key) }
+ */
 function buildReportView(input = {}) {
   const l = input.language === 'ur' ? 'ur' : 'en';
   const s = input.session || {};
@@ -87,6 +92,7 @@ function buildReportView(input = {}) {
     voice: https(s.voice_debrief_url),
     report: https(s.report_pdf_url),
     disagreements: disagreementsFor(a.live_moves, a.lp_fidelity, input.card),
+    ...(input.video ? { video: input.video } : {}),
   };
 }
 

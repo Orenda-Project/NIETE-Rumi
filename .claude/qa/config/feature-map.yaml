@@ -648,6 +648,7 @@ web:
     - dashboard/services/**
     - dashboard/index.js
     - dashboard/config/**
+    - dashboard/public/wq/**                       # the child's quiz page, served as static files by web-quiz.routes.js
     - tests/features/web/**
   fallback: portal-smoke
   # Which SCENARIOS a changed file drives (select_scenarios.py, the WhatsApp rules): a path pinned here runs exactly
@@ -812,6 +813,10 @@ web:
       - portal/src/portal/teacher/assessment/**        # the door, Check and make, the refusals the app shows
       - dashboard/services/assessment.service.js       # the proxy: pattern/scope, errorCode, 409 passthrough
       - dashboard/lib/assessment-rate-limit.js         # the soft limit (FB06/FB07)
+    web-quiz-child-page:
+      - dashboard/routes/web-quiz.routes.js            # /q/<code>: the server-rendered page, og tags, the API proxy to the bot
+      - dashboard/routes/web-quiz-class-link.js
+      - dashboard/public/wq/**                       # wq.js and friends: the child's page itself
     coach-portal:
       - portal/src/portal/coach/**
       - dashboard/services/coach-v2.service.js

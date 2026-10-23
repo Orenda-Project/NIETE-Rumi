@@ -116,7 +116,11 @@ describe('the check\'s PRIORITY screen', () => {
   test('a check on the new Flow pre-fills all three picks from the seal', async () => {
     const id = await sealedWith({ priority: 'plan', also_1: 'C7' });
     const out = await Check.handleObserve2CheckDataExchange(checkToken(id), 'ADDED_TWO', { screen: 'ADDED_TWO', cv: CHECK_VERSION });
-    expect(out).toEqual({ screen: 'PRIORITY', data: { priority_level: 'plan', also_level_1: 'C7', also_level_2: 'none' } });
+    // The coach's notes ride on the same screen (R23, notes-before-debrief.test.js); none were typed here.
+    expect(out).toEqual({
+      screen: 'PRIORITY',
+      data: { priority_level: 'plan', also_level_1: 'C7', also_level_2: 'none', notes_v: false, notes_body: '' },
+    });
   });
 
   test('a check opened on today\'s Flow keeps today\'s screen data, and never pre-fills a pick its list lacks', async () => {

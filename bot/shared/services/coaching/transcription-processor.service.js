@@ -184,7 +184,11 @@ class TranscriptionProcessorService {
 
           if (duplicate) {
             handled = await resolveDuplicateSubmission(
-              { coachingSessionId, from, userId: session.user_id, audioHash, duplicate },
+              // bd-c5reix: her own portal recording is followed in the app — nothing about it goes to WhatsApp.
+              {
+                coachingSessionId, from, userId: session.user_id, audioHash, duplicate,
+                quiet: require('./portal-coaching.service').isPortalTeacherSession(session),
+              },
               {
                 updateIfNotTerminal,
                 sendMessage: (to, body) => WhatsAppService.sendMessage(to, body),

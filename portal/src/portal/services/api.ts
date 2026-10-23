@@ -493,6 +493,16 @@ export const portal = {
     return response.data;
   },
 
+  /** One chapter's topics for the topic picker — names and headings only, never SLO codes. [] when none loaded. */
+  getAssessmentTopics: async (
+    grade: number,
+    subject: string,
+    chapter: number
+  ): Promise<{ success: boolean; topics: AssessmentTopic[] }> => {
+    const response = await api.get('/assessment/topics', { params: { grade, subject, chapter } });
+    return response.data;
+  },
+
   /** Ask for a paper. 202 + a requestId to poll on; the paper does not exist yet. */
   generateAssessment: async (
     spec: AssessmentSpec
@@ -664,6 +674,10 @@ export type PortalConfig = {
     coachDisagreements?: boolean;
     /** bd-fmf24g.1 — the teacher app v2 is on for THIS user (fail-closed; shown to teachers only). */
     teacherV2?: boolean;
+    /** The teacher Home card, its score chips and tap log (portal_teacher_home_card; fail-closed). */
+    teacherHomeCard?: boolean;
+    /** The per-teacher Home tile order (portal_teacher_home_order; read only with the card's switch). */
+    teacherHomeOrder?: boolean;
   };
 };
 
@@ -777,6 +791,15 @@ export type AssessmentChapter = {
   page_start: number | null;
   page_end: number | null;
   page_count: number | null;
+};
+
+/** A topic of one chapter (assessment_topics). `heading` groups topics on screen; sortOrder is book order. */
+export type AssessmentTopic = {
+  topicId: string;
+  name: string;
+  heading: string | null;
+  headingOrder: number | null;
+  sortOrder: number;
 };
 
 export type AssessmentOptions = {

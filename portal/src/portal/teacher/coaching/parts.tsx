@@ -3,12 +3,15 @@ import { Link } from 'react-router-dom';
 import { BookOpen, Camera, Check, ChevronDown, Eye, ImageIcon, Pause, Play, RotateCcw, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { acceptFor, checkFile, MAX_PHOTOS } from '../../lib/coachingUpload';
-import type { Audio } from '../../newui/coaching/useSendFlow';
-import { ListRow } from '../ui';
+import { AttentionBanner, ListRow } from '../ui';
 import { CARD, FOCUS, GRID } from '../ui/styles';
 import { useCopy } from '../i18n';
+import { LESSONS } from '../lessons/copy';
+import { dayName, pkDayOf, pkToday } from '../lessons/days';
+import type { PendingRecording } from './api';
 import { COACHING } from './copy';
-import type { DraftPlan } from './draft';
+import { isSavedAudio, type DcAudio, type DraftPlan } from './draft';
+import { lessonPath } from './paths';
 
 /**
  * bd-fmf24g.4 — the pieces the Digital Coaching page and the recording page share (v28 canvas Coaching / CoachingCheck).
@@ -225,13 +228,16 @@ const minutesOf = (ms: number | null) => (ms != null ? Math.max(1, Math.round(ms
  * deleted from the phone and she records again) or Change file (one she uploaded: the picker opens). It plays from a url
  * made once per recording and released with it.
  */
-export function RecordingCard({ audio, onRedo, onChangeFile }: { audio: Audio; onRedo: () => void; onChangeFile: () => void }) {
+export function RecordingCard({ audio, onRedo, onChangeFile }: { audio: DcAudio; onRedo: () => void; onChangeFile: () => void }) {
   const C = useCopy(COACHING);
   const player = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
+  // bd-c5reix: her recording kept from WhatsApp is listened to through its link; Change lets go of it.
+  const saved = isSavedAudio(audio);
   useEffect(() => {
     setPlaying(false);
+    if (isSavedAudio(audio)) { setUrl(audio.listenUrl); return undefined; }
     let made: string | null = null;
     try { made = URL.createObjectURL(audio.blob); } catch { made = null; }
     setUrl(made);
@@ -247,7 +253,7 @@ export function RecordingCard({ audio, onRedo, onChangeFile }: { audio: Audio; o
     }
   };
   const minutes = minutesOf(audio.durationMs);
-  const recordedHere = !!audio.recordingId;
+  const recordedHere = saved || !!audio.recordingId;
   return (
     <section aria-label={C.yourRecording} data-testid="dc-recording" className={cn(CARD, 'flex min-h-[84px] items-center gap-3 p-3')}>
       <button
@@ -260,7 +266,7 @@ export function RecordingCard({ audio, onRedo, onChangeFile }: { audio: Audio; o
         {playing ? <Pause className="h-[22px] w-[22px]" aria-hidden="true" /> : <Play className="h-[22px] w-[22px] rtl:rotate-180" aria-hidden="true" />}
       </button>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-[16px] font-semibold">{audio.source === 'file' ? audio.filename : C.yourRecording}</span>
+        <span className="truncate text-[16px] font-semibold">{saved ? C.fromWhatsApp : audio.source === 'file' ? audio.filename : C.yourRecording}</span>
         {minutes != null ? <span className="text-[13px] text-[#6b7280]">{C.minutes(minutes)}</span> : null}
       </span>
       <button
@@ -269,10 +275,37 @@ export function RecordingCard({ audio, onRedo, onChangeFile }: { audio: Audio; o
         className={cn('flex min-h-14 items-center gap-1.5 rounded-xl bg-[#f3f4f6] px-3.5 text-[14px] font-semibold text-[#33374a]', FOCUS)}
       >
         <RotateCcw className="h-4 w-4" aria-hidden="true" />
-        {recordedHere ? C.redo : C.changeFile}
+        {saved ? C.change : recordedHere ? C.redo : C.changeFile}
       </button>
       {url ? <audio ref={player} src={url} preload="metadata" onEnded={() => setPlaying(false)} className="hidden" /> : null}
     </section>
+  );
+}
+
+/**
+ * bd-c5reix — a classroom recording she sent on WhatsApp, kept and waiting for her: the kit's "this needs you" banner.
+ * Sent before → it opens that report. Otherwise `to` opens the one screen with it, or `onPress` attaches it there.
+ */
+export function WaitingRecording({ rec, to, onPress }: { rec: PendingRecording; to?: string; onPress?: () => void }) {
+  const C = useCopy(COACHING);
+  const { days } = useCopy(LESSONS);
+  const minutes = rec.seconds != null ? Math.max(1, Math.round(rec.seconds / 60)) : null;
+  const day = pkDayOf(rec.receivedAt);
+  const line = [C.fromWhatsApp, minutes != null ? C.minutes(minutes) : null, day ? dayName(day, pkToday(), days) : null]
+    .filter(Boolean).join(' · ');
+  const repeat = rec.duplicateOf;
+  return (
+    <AttentionBanner
+      testId="dc-waiting"
+      text={(
+        <span className="flex flex-col">
+          <span>{line}</span>
+          <span className="font-normal">{repeat ? C.sentBefore : C.addDetailsSend}</span>
+        </span>
+      )}
+      to={repeat ? lessonPath(repeat.sessionId) : to}
+      onPress={repeat ? undefined : onPress}
+    />
   );
 }
 

@@ -47,6 +47,7 @@ const {
   FIELDS, FIELDS_V4, PREFILL, PREFILLED, PREFILLED_TYPES, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES,
 } = require('../services/observe/observe2/field-form.flow');
 const { observe2Strings } = require('../services/observe/observe2/strings');
+const { notesSection } = require('../services/observe/observe2/brief');
 const { logToFile } = require('../utils/logger');
 
 const DEFAULT_PERIOD = 40;
@@ -385,6 +386,24 @@ async function storePhotos(form, photos, { convert = false, how = null } = {}) {
   return keys;
 }
 
+// A plain WhatsApp text holds 4,096 code points; Meta refuses the whole message past it.
+const TEXT_CAP = 4096;
+
+// "Record sealed" in the chat, with the coach's notes under it (pilot sheet R23): the conversation with
+// the teacher usually starts before the check is submitted, so before the brief that also carries them
+// (30 of 47 debriefs on prod since 16 Oct). The seal always comes first. The notes are the brief's own
+// section, word for word, in the coach's language. One message when it fits; otherwise the notes follow.
+async function sendSealed(WhatsAppService, to, sealedText, form, lang) {
+  const notes = notesSection(form, { lang, except: ['why'] }).join('\n');
+  const joined = notes ? `${sealedText}\n\n${notes}` : sealedText;
+  if ([...joined].length <= TEXT_CAP) {
+    await WhatsAppService.sendMessage(to, joined);
+    return;
+  }
+  await WhatsAppService.sendMessage(to, sealedText);
+  await WhatsAppService.sendMessage(to, notes);
+}
+
 async function afterSeal(form, photos) {
   try {
     const { data: coach, error } = await supabase.from('users')
@@ -395,8 +414,8 @@ async function afterSeal(form, photos) {
       const WhatsAppService = require('../services/whatsapp.service');
       const S = observe2Strings(coach.preferred_language);
       const time = clock(form.sealed_at);
-      await WhatsAppService.sendMessage(coach.phone_number,
-        form.coaching_session_id ? S.sealed_chat_recording_in(time) : S.sealed_chat(time));
+      await sendSealed(WhatsAppService, coach.phone_number,
+        form.coaching_session_id ? S.sealed_chat_recording_in(time) : S.sealed_chat(time), form, coach.preferred_language);
     }
   } catch (err) {
     logToFile('[observe2] the after-seal message failed', { formId: form.id, error: err.message }, 'error');
@@ -590,4 +609,6 @@ module.exports = {
   parseToken,
   handleObserve2FormInit,
   handleObserve2FormDataExchange,
+  // For the test that drives the over-the-cap path, which today's 400-code-point note clip never reaches.
+  __sendSealed: sendSealed,
 };

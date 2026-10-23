@@ -27,10 +27,9 @@ const WhatsAppService = require('../whatsapp.service');
 const Delivery = require('./assessment-delivery');
 const { resolveUx } = require('../../config/ux-strings');
 
-const SUBJECT_LABEL = {
-  english: 'English', urdu: 'Urdu', maths: 'Maths', islamiat: 'Islamiat',
-  science: 'Science', general_knowledge: 'General Knowledge', social_studies: 'Social Studies',
-};
+// One definition, shared with the Flow endpoint and the portal's browse
+// service. Was copied verbatim into three files.
+const { SUBJECT_LABEL } = require('./assessment-vocabulary');
 
 const TEACHER_MESSAGE = {
   EMPTY_SELECTION: 'Keep at least one question and I will make the paper again.',
@@ -41,6 +40,21 @@ const TEACHER_MESSAGE = {
   SEND_FAILED: "Your paper is made but we couldn't send it here. "
     + 'Please send /assessment to try again.',
 };
+/**
+ * What a topic paper's re-render needs so it keeps its header (no marks row) and
+ * its "by topic" key summary. Any other request gets nothing, so a chapter or
+ * board-pattern paper is rendered exactly as before.
+ *
+ * The ticked topics live in the paper's own tree (`exam_json._topics`, written when
+ * it was made): `scope` is not a column of assessment_requests, so it is never
+ * selected. Selection keeps `_topics` through every edit.
+ */
+function _topicRender(req, examJson) {
+  if (!req || req.paper_kind !== 'topic') return {};
+  const topics = examJson && examJson._topics;
+  return { paperKind: 'topic', ...(Array.isArray(topics) && topics.length ? { topics } : {}) };
+}
+
 const FALLBACK_MESSAGE = 'Sorry — something went wrong making your paper. Please try again.';
 
 /**
@@ -87,7 +101,7 @@ async function _loadOwnedPaper(paperId, userId) {
     // CheckboxGroup with no options, while the paper itself was fine.
     .select('id, status, exam_json, selected_question_ids, request_id, '
       + 'assessment_requests!inner(id, user_id, grade_code, subject_code, '
-      + 'chapter_number, page_ranges, output_format, has_answer_lines)')
+      + 'chapter_number, page_ranges, output_format, has_answer_lines, paper_kind)')
     .eq('id', paperId)
     .maybeSingle();
 
@@ -268,6 +282,7 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone, budge
       pageReference: pageRanges,
       chapterTitle: null,
       answerLines,
+      ..._topicRender(req, paper.exam_json),
     });
 
     let buffer;
@@ -329,6 +344,7 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone, budge
       try {
         const keyBuffer = schemeBuffer || await renderer.render(Renderer.renderAnswerKey({
           examJson, grade, subject, schoolName, pageReference: pageRanges, chapterTitle: null,
+          ..._topicRender(req, paper.exam_json),
         }));
         const keyName = fileName({
           grade, subject, format: renderer.ext, suffix: pattern ? '_FDE_Edited_MarkingScheme' : '_Edited_AnswerKey',
@@ -426,7 +442,7 @@ async function saveEdit({ paperId, userId, questionId, edit }) {
 const VERSION_COLUMNS = 'id, status, exam_json, request_id, attempt, edited_from, created_at, '
   + 'file_r2_key, answer_key_r2_key, question_count, total_marks, '
   + 'assessment_requests!inner(id, user_id, grade_code, subject_code, chapter_number, '
-  + 'page_ranges, output_format, has_answer_lines, textbook_id)';
+  + 'page_ranges, output_format, has_answer_lines, textbook_id, paper_kind)';
 
 /** A version, with its request — only if it is hers (checked in the query). */
 async function loadVersion({ paperId, userId }) {
@@ -600,7 +616,10 @@ async function buildVersion({ parentId, userId, tree, schoolName: knownSchool })
     const chapterTitle = pattern ? null : await _chapterTitle(req, grade, subject);
     const renderer = rendererFor(pattern ? 'pdf' : format);
     const schoolName = knownSchool !== undefined ? knownSchool : (await _teacher(userId, null)).schoolName;
-    const common = { examJson: active, grade, subject, schoolName, pageReference: pageRanges, chapterTitle };
+    const common = {
+      examJson: active, grade, subject, schoolName, pageReference: pageRanges, chapterTitle,
+      ...(pattern ? {} : _topicRender(req, tree)),
+    };
 
     const v = `${pattern ? '_FDE' : ''}${version ? `_v${version}` : '_Edited'}`;
     const name = fileName({ grade, subject, chapterTitle, format: renderer.ext, suffix: v });
@@ -753,7 +772,7 @@ async function resendVersion({ paperId, userId, phone: knownPhone, user = null, 
       const keyHtml = Renderer.renderAnswerKey({
         examJson: pattern ? p.exam_json : Selection.activeTree(p.exam_json),
         grade, subject, schoolName, pageReference: pageRanges, chapterTitle,
-        ...(pattern ? { paperFileName: name } : {}),
+        ...(pattern ? { paperFileName: name } : _topicRender(req, p.exam_json)),
       });
       const keyBuffer = pattern
         ? await renderer.render(keyHtml, { pdfOptions: FdeRenderer.pdfOptions(p.exam_json, 'scheme') })

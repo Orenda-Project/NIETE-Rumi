@@ -118,6 +118,12 @@ async function listChapters(grade, subject) {
   return data.chapters || [];
 }
 
+/** One chapter's topics for the picker: [{ topicId, name, heading, headingOrder, sortOrder }]; [] when none loaded. */
+async function listTopics(grade, subject, chapterNumber) {
+  const data = await ask('topics', { grade, subject, chapterNumber });
+  return data.topics || [];
+}
+
 /**
  * Ask for a paper. Returns a requestId to poll on; the paper does not exist yet.
  *
@@ -213,4 +219,4 @@ const editAddKinds = (paperId, userId) => askEdit('edit/add-kinds', { paperId, u
 const editValidate = ({ paperId, userId, id = null, kind = null, edit = {} }) => askEdit('edit/validate', { paperId, userId, id, kind, edit });
 const editSave = ({ parentId, userId, changes }) => askEdit('edit/save', { parentId, userId, changes }, { timeout: SAVE_TIMEOUT_MS });
 
-module.exports = { options, listChapters, create, status, download, listPapers, viewPaper, editVersions, editQuestions, editAddKinds, editValidate, editSave };
+module.exports = { options, listChapters, listTopics, create, status, download, listPapers, viewPaper, editVersions, editQuestions, editAddKinds, editValidate, editSave };

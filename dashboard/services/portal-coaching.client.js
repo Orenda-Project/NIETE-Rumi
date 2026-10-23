@@ -83,6 +83,14 @@ function answerClassCheck({ userId, coachingSessionId, answer }) {
   return post('class-check', { userId, coachingSessionId, answer });
 }
 
+/** bd-c5reix — her classroom recordings sent on WhatsApp, kept for the app and not sent yet. @param {{userId}} args */
+function pendingRecordings({ userId }) {
+  return post('pending', { userId });
+}
+/** bd-c5reix — has she sent these bytes before? @param {{userId, sha256}} args */
+function checkDuplicate({ userId, sha256 }) {
+  return post('check-duplicate', { userId, sha256 });
+}
 /** bd-5rz1v — her recent plans, from the WhatsApp list's source. @param {{userId}} args */
 function recentPlans({ userId }) {
   return post('recent-plans', { userId });
@@ -132,6 +140,7 @@ function liveTaps({ userId, coachingSessionId, taps }) { return post('live/taps'
 
 module.exports = {
   presignUpload, startSession, submitReflection, answerClassCheck, recentPlans,
+  pendingRecordings, checkDuplicate, // bd-c5reix
   startObservation, observeRecentPlans, listObservations, observationView, getObservationDraft,
   saveObservationDraft, observationTalkGuide, startObservationTalk, retryObservationTalk,
   previewObservationReport, sendObservationReport,

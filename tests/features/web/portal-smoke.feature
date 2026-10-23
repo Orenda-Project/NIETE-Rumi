@@ -51,23 +51,25 @@ Feature: Portal-wide smoke — every main page, every role
     Then it opens healthy
 
   @PS03
-  Scenario: Coach app v2: every main page opens healthy
+  Scenario: Coach app v2: the Training Library and her account open healthy, every other coach page lands on the Training Library
     Given the teacher app v2 is off and the coach app v2 is on
     And demo coach 03000000901 is signed in
+    When she opens /portal/coach/training
+    Then it opens healthy
     When she opens /portal/coach
-    Then it opens healthy
+    Then it opens healthy (settles on /portal/coach/training)
     When she opens /portal/coach/people
-    Then it opens healthy
+    Then it opens healthy (settles on /portal/coach/training)
     When she opens /portal/coach/schedule
-    Then it opens healthy
+    Then it opens healthy (settles on /portal/coach/training)
     When she opens /portal/coach/team
-    Then it opens healthy
+    Then it opens healthy (settles on /portal/coach/training)
     When she opens /portal/coach/reports
-    Then it opens healthy
+    Then it opens healthy (settles on /portal/coach/training)
     When she opens /portal/coach/analytics
-    Then it opens healthy
+    Then it opens healthy (settles on /portal/coach/training)
     When she opens /portal/coach/observe
-    Then it opens healthy
+    Then it opens healthy (settles on /portal/coach/training)
     When she opens /portal/coach/more
     Then it opens healthy
     When she opens /portal/coach/profile

@@ -1391,15 +1391,30 @@ class WhatsAppService {
    * One link button (interactive cta_url): the body, and a button that opens `url`.
    * The button label is cut to 20 CODE POINTS (Meta's cap); the body to 1024.
    * @param {string} to
-   * @param {{body: string, buttonText: string, url: string}} options
+   * bd-gzfdu9: an optional `headerImage` (PNG Buffer) is uploaded to the Media API, as
+   * sendImageBufferWithButtons does, and sent as the image header; a failed upload is a failed send
+   * (false). Without it the payload is exactly as before.
+   * @param {{body: string, buttonText: string, url: string, headerImage?: Buffer}} options
    * @returns {Promise<boolean>}
    */
   static async sendCtaUrl(to, options, opts = {}) {
     try {
-      const { body, buttonText, url } = options || {};
+      const { body, buttonText, url, headerImage } = options || {};
       if (!body || !buttonText || !/^https:\/\//.test(String(url || ''))) {
         logToFile('⚠️ cta_url message refused: body, button and an https url are required', {}, 'error');
         return false;
+      }
+      let header;
+      if (Buffer.isBuffer(headerImage) && headerImage.length) {
+        const formData = new FormData();
+        formData.append('file', headerImage, { contentType: 'image/png', filename: 'image.png' });
+        formData.append('messaging_product', 'whatsapp');
+        const uploadResp = await axios.post(
+          `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/media`,
+          formData,
+          { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, ...formData.getHeaders() }, timeout: 30000 },
+        );
+        header = { type: 'image', image: { id: uploadResp.data.id } };
       }
       const response = await axios.post(
         `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/messages`,
@@ -1410,6 +1425,7 @@ class WhatsAppService {
           type: 'interactive',
           interactive: {
             type: 'cta_url',
+            ...(header ? { header } : {}),
             body: { text: [...body].slice(0, 1024).join('') },
             action: {
               name: 'cta_url',

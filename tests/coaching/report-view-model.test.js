@@ -59,6 +59,13 @@ test('thing to try: the move, why it matters, and the step its move sits in', ()
   expect(t.step).toEqual({ name: 'We Do', index: 3 });
 });
 
+// bd-v0toag.100.8: an ask carried from an earlier lesson keeps its own step, not today's move of that id.
+test('thing to try carried from an earlier lesson: its stored step, even null', () => {
+  const carried = (step) => ({ ...SESSION, prioritized_action: { thing_to_try: { move_id: 'm2', text: 'Exit ticket', tag: 'C3', step } } });
+  expect(view({ session: carried({ name: 'Check', index: 5 }) }).thing.step).toEqual({ name: 'Check', index: 5 });
+  expect(view({ session: carried(null) }).thing.step).toBeNull();
+});
+
 test('thing to try falls back to the action, with no why or step; neither: null', () => {
   const s = { ...SESSION, prioritized_action: { action: 'Ask two children by name.' } };
   expect(view({ session: s }).thing).toEqual({ text: 'Ask two children by name.', why: null, step: null });

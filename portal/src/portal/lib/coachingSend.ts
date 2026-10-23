@@ -27,7 +27,8 @@ export type PlanChoice =
  */
 export type TeacherClass = { grade: number; subject: string; subjectKey?: string };
 
-export type SendKind = "network" | "in_progress" | "plan_not_ready" | "plan_not_found" | "refused";
+/** already_sent (bd-c5reix): that recording is already a DC observation of hers (a kept WhatsApp recording sent twice). */
+export type SendKind = "network" | "in_progress" | "already_sent" | "plan_not_ready" | "plan_not_found" | "refused";
 
 export class SendError extends Error {
   constructor(public kind: SendKind, public coachingSessionId?: string, message?: string) {
@@ -39,7 +40,8 @@ export class SendError extends Error {
 type Api = Pick<typeof portal, "presignCoachingUpload" | "uploadToR2" | "startCoachingUpload">;
 
 type Args = {
-  audio: { blob: Blob; filename: string };
+  /** The recording to upload, or (bd-c5reix) the key of one already in R2: her recording kept from WhatsApp. */
+  audio: { blob: Blob; filename: string } | { key: string };
   plan: PlanChoice | null;
   photos: File[];
   /** Digital Coaching from the teacher app: the class she picked. Absent elsewhere. */
@@ -66,8 +68,9 @@ export async function sendLesson(
   /** bd-1d6g8o: where a failure is reported (the logs); never changes the outcome. */
   report: (f: SendFailure) => void = reportSendFailure,
 ): Promise<{ coachingSessionId: string }> {
+  const saved = "key" in audio ? audio.key : null;
   const items: Item[] = [
-    { blob: audio.blob, filename: audio.filename, kind: "audio" },
+    ...("key" in audio ? [] : [{ blob: audio.blob, filename: audio.filename, kind: "audio" as const }]),
     ...(plan && plan.kind === "file" ? [{ blob: plan.file, filename: plan.file.name, kind: "lesson_plan" as const }] : []),
     ...photos.map((p) => ({ blob: p, filename: p.name, kind: "photo" as const })),
   ];
@@ -105,8 +108,9 @@ export async function sendLesson(
     throw new SendError("network");
   }
 
+  if (!items.length) onProgress?.(100);
   const start: Parameters<Api["startCoachingUpload"]>[0] = {
-    key: keys.find((k) => k.kind === "audio")!.key,
+    key: saved ?? keys.find((k) => k.kind === "audio")!.key,
     photoKeys: keys.filter((k) => k.kind === "photo").map((k) => k.key),
   };
   const lessonPlanKey = keys.find((k) => k.kind === "lesson_plan")?.key;
@@ -121,8 +125,8 @@ export async function sendLesson(
     tell({ stage: "start", kind: null, item: 0, ...failureOf(err), sizeBytes: 0, type: "" });
     const status = httpStatus(err);
     const b = body(err);
-    if (status === 409 && b.status === "in_progress") {
-      throw new SendError("in_progress", typeof b.coachingSessionId === "string" ? b.coachingSessionId : undefined);
+    if (status === 409 && (b.status === "in_progress" || b.status === "already_sent")) {
+      throw new SendError(b.status, typeof b.coachingSessionId === "string" ? b.coachingSessionId : undefined);
     }
     if (status === 400 && (b.reason === "plan_not_ready" || b.reason === "plan_not_found")) {
       throw new SendError(b.reason);

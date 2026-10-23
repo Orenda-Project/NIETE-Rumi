@@ -34,10 +34,11 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
         { header: head(r.txt), botWaitMs: r.waitedMs })), t() - s);
   }
 
-  if (want('M21')) {
-    // M21 — "/menu" typed back reversed, as an Urdu line displayed it (bd-5ls6qy.7)
+  if (want('M28')) {
+    // M28 — "/menu" typed back reversed, as an Urdu line displayed it (bd-5ls6qy.7). Was a second
+    // M21 until bd-7g913e: the /portal scenario already held that id, so one of them never reported.
     s = t(); r = await api.sendWait('Menu/');
-    rec('M21', '/menu typed back the way Urdu text showed it ("Menu/") still opens the menu',
+    rec('M28', '/menu typed back the way Urdu text showed it ("Menu/") still opens the menu',
         ...Object.values(V(head(r.txt) === "Here's what I can do" && r.btns.includes('See what I do'),
         { header: head(r.txt), botWaitMs: r.waitedMs })), t() - s);
   }

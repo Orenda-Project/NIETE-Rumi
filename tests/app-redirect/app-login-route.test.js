@@ -131,3 +131,10 @@ test('rate limited per IP', async () => {
   for (let i = 0; i < 70; i += 1) last = await get(srv, '/go/nope');
   expect(last.status).toBe(429);
 });
+
+test('bd-6clakk Task 9 — the topics landing keeps its query string intact in the 303', async () => {
+  const srv = await app();
+  const res = await get(srv, `/go/${tok(USER, 'assessment_topics')}`);
+  expect(res.status).toBe(303);
+  expect(res.headers.location).toBe('/portal/teacher/assessment/new/class?by=topics');
+});

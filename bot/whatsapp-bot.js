@@ -131,6 +131,9 @@ async function handleBroadcastStatusWebhook(statuses) {
         continue;
       }
 
+      // bd-gzfdu9: the recommended clip's message → video_reco_events (flag off: no read). Never throws.
+      await require('./shared/services/coaching/video-reco/status-events').recordStatus(status);
+
       logToFile('📬 Broadcast status update received', {
         messageWamid,
         status: newStatus,
@@ -2575,7 +2578,16 @@ async function handleDocumentMessage(message, from, user) {
           }
 
           // bd-uwpohl — a lesson sent as a file is a coaching request, same as a voice note.
-          if (await buttonRedirectsToApp('ai_coaching', user, from, 'classroom_audio_document')) return;
+          // bd-c5reix — when the answer is the app link, the file is kept for the app (the bytes are already here).
+          {
+            const { getUserLanguage } = require('./shared/utils/language-cache');
+            const kept = await require('./shared/services/coaching/whatsapp-recording.service').redirectClassroomRecording({
+              userId: user.id, from, language: await getUserLanguage(user.id), reason: 'classroom_audio_document',
+              mediaId: documentId, buffer: audioBuffer, mimeType, filename: message.document.filename,
+              seconds: audioDurationRounded, door: 'document',
+            });
+            if (kept) return;
+          }
 
           // Route to classroom coaching flow
           await CoachingService.initiateCoachingSession(

@@ -120,6 +120,34 @@ describe('planCaption', () => {
     expect(await run()).toBe(CAPTION);
   });
 
+  // bd-v0toag.100.8: an ask shows only on plans of its own subject and grade, and stays there.
+  test('a newer ask in another subject or grade does not replace this one', async () => {
+    sessions([
+      { prioritized_action: { thing_to_try: { ...THING, lesson_id: 'grade_1_urdu_ch2_seg1', text: 'Urdu ask' } } },
+      { prioritized_action: { thing_to_try: { ...THING, lesson_id: 'grade_4_english_ch2_seg1', text: 'G4 ask' } } },
+      { prioritized_action: { action: 'no thing' } },
+      { prioritized_action: { thing_to_try: THING } },
+    ]);
+    expect(await run()).toBe(`${CAPTION}\n\n${T.captionLine(THING, 'en')}`);
+  });
+
+  test('only asks of other subjects or grades: today\'s caption', async () => {
+    sessions([{ prioritized_action: { thing_to_try: { ...THING, lesson_id: 'grade_2_english_ch8_seg5' } } }]);
+    expect(await run()).toBe(CAPTION);
+  });
+
+  test('a done marker in this subject and grade: today\'s caption', async () => {
+    sessions([
+      { prioritized_action: { thing_to_try: { lesson_id: 'grade_1_english_ch8_seg5', text: null } } },
+      { prioritized_action: { thing_to_try: THING } },
+    ]);
+    expect(await run()).toBe(CAPTION);
+  });
+
+  test('a plan whose lesson id gives no subject and grade: today\'s caption', async () => {
+    expect(await T.planCaption({ userId: 'u-1', lessonId: 'weird', caption: CAPTION, lang: 'en' })).toBe(CAPTION);
+  });
+
   test.each([[{ fail: true }], [{ throws: true }]])('a failed read (%p): today\'s caption, never throws', async (how) => {
     sessions(null, how);
     expect(await run()).toBe(CAPTION);

@@ -31,6 +31,7 @@ const { resolveUx } = require('../../bot/shared/config/ux-strings');
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendFlow: jest.fn().mockResolvedValue(true),
+  sendCtaUrl: jest.fn().mockResolvedValue(true),
   sendMessage: jest.fn().mockResolvedValue(true),
   sendInteractiveButtons: jest.fn().mockResolvedValue(true),
   sendInteractiveMessage: jest.fn().mockResolvedValue(true),
@@ -91,6 +92,83 @@ describe('the assessment generator has one door', () => {
     expect(opts.body).toBe(resolveUx('assessmentFlowBody', { language: 'ur' }));
     expect(opts.buttonText).toBe(resolveUx('assessmentFlowButton', { language: 'ur' }));
     expect(opts.flowToken.startsWith(`${USER.id}:`)).toBe(true);
+  });
+
+  describe('bd-6clakk Task 9 — the second option, a paper on topics she has taught', () => {
+    const ENV = { ...process.env };
+    const live = (on = true, onApp = true, topicCta = true) => {
+      jest.doMock('../../bot/shared/services/app-redirect.service', () => ({
+        redirectIfFlagged: jest.fn().mockResolvedValue(false),
+        isOnTeacherApp: jest.fn().mockResolvedValue(onApp),
+      }));
+      process.env = { ...ENV, ASSESSMENT_GEN_FLOW_ID: 'flow-assess', INTERNAL_API_KEY: 'k', PORTAL_URL: 'https://portal.example.test', SUPABASE_URL: 'https://abc.supabase.co' };
+      jest.doMock('../../bot/shared/config/feature-flags', () => ({
+        isAssessmentGeneratorEnabled: jest.fn().mockResolvedValue(on),
+        isAssessmentTopicCtaEnabled: typeof topicCta === 'function' ? topicCta : jest.fn().mockResolvedValue(topicCta),
+      }));
+    };
+    afterAll(() => { process.env = ENV; });
+
+    test.each(['en', 'ur'])('the live door also sends a signed link to the Topics flow, in %s', async (language) => {
+      live();
+      const ok = await load().openAssessmentFlow({ from: FROM, userId: USER.id, language });
+      expect(ok).toBe(true);
+      expect(wa().sendFlow).toHaveBeenCalledTimes(1); // the chapter-test option is untouched
+      const [to, opts] = wa().sendCtaUrl.mock.calls[0];
+      expect(to).toBe(FROM);
+      expect(opts.body).toBe(resolveUx('assessmentTopicsBody', { language }));
+      expect(opts.buttonText).toBe(resolveUx('assessmentTopicsButton', { language }));
+      expect(opts.url.startsWith('https://portal.example.test/go/')).toBe(true);
+      const link = require('../../bot/shared/services/app-login-link');
+      expect(link.verifyAppLink(opts.url.split('/go/')[1])).toEqual(expect.objectContaining({ u: USER.id, f: 'assessment_topics' }));
+    });
+
+    test.each(['en', 'ur'])('the button fits WhatsApp\'s 20 code points, and the body still names the paper, in %s', (language) => {
+      expect([...resolveUx('assessmentTopicsButton', { language })].length).toBeLessThanOrEqual(20);
+      expect(resolveUx('assessmentTopicsBody', { language })).toContain(language === 'en' ? "topics you've taught" : 'موضوعات');
+    });
+
+    test('not offered to a teacher the teacher app does not cover (the link would land on the old dashboard)', async () => {
+      live(true, false);
+      expect(await load().openAssessmentFlow({ from: FROM, userId: USER.id, language: 'en' })).toBe(true);
+      expect(wa().sendFlow).toHaveBeenCalledTimes(1);
+      expect(wa().sendCtaUrl).not.toHaveBeenCalled();
+    });
+
+    // bd-6clakk.6 — its own switch, so prod keeps it hidden until the A/B test starts.
+    test('switch off: the chapter-test Flow still goes, the topics button is not sent', async () => {
+      live(true, true, false);
+      expect(await load().openAssessmentFlow({ from: FROM, userId: USER.id, language: 'en' })).toBe(true);
+      expect(wa().sendFlow).toHaveBeenCalledTimes(1);
+      expect(wa().sendCtaUrl).not.toHaveBeenCalled();
+    });
+
+    test('a switch that cannot be read counts as off, and never undoes the Flow', async () => {
+      live(true, true, jest.fn().mockRejectedValue(new Error('db down')));
+      expect(await load().openAssessmentFlow({ from: FROM, userId: USER.id, language: 'en' })).toBe(true);
+      expect(wa().sendFlow).toHaveBeenCalledTimes(1);
+      expect(wa().sendCtaUrl).not.toHaveBeenCalled();
+    });
+
+    test('not offered where the door is not live', async () => {
+      live(false);
+      await load().openAssessmentFlow({ from: FROM, userId: USER.id, language: 'en' });
+      expect(wa().sendCtaUrl).not.toHaveBeenCalled();
+    });
+
+    test('no portal url: the chapter-test Flow still goes, the second option is simply not offered', async () => {
+      live();
+      delete process.env.PORTAL_URL;
+      expect(await load().openAssessmentFlow({ from: FROM, userId: USER.id, language: 'en' })).toBe(true);
+      expect(wa().sendFlow).toHaveBeenCalledTimes(1);
+      expect(wa().sendCtaUrl).not.toHaveBeenCalled();
+    });
+
+    test('a refused send never undoes the Flow', async () => {
+      live();
+      wa().sendCtaUrl.mockRejectedValueOnce(new Error('meta 500'));
+      expect(await load().openAssessmentFlow({ from: FROM, userId: USER.id, language: 'en' })).toBe(true);
+    });
   });
 
   test('the DB switch is fail-closed, and the refusal is in her language', async () => {

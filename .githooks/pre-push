@@ -20,8 +20,12 @@
 # which runs the same analysis on the PR and DOES fail on a stale spec.
 #
 # Off: QA_HOOKS_OFF=1     Strict: QA_HOOKS_STRICT=1
-[ "${QA_HOOKS_OFF:-}" = "1" ] && exit 0
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+# The off switch is on the clone's QA ledger (bd-61jjzd); the ledger never fails a push.
+if [ "${QA_HOOKS_OFF:-}" = "1" ]; then
+  . "$ROOT/.claude/hooks/lib/qa-ledger.sh" 2>/dev/null && qa_ledger_log "$ROOT" pre-push switch-off QA_HOOKS_OFF "${1:-}"
+  exit 0
+fi
 command -v python3 >/dev/null 2>&1 || { echo "qa: python3 not on PATH — pre-push impact report skipped" >&2; exit 0; }
 IMPACT="$ROOT/scripts/qa/impact.py"
 [ -f "$IMPACT" ] || exit 0

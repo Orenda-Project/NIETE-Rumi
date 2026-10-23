@@ -8,6 +8,7 @@ import { PaperPage } from './PaperPage';
 import { VersionsPage } from './VersionsPage';
 import { ASSESSMENT_ALL, ASSESSMENT_V2_BASE as B, newPaperPath } from './paths';
 import { RequestPage } from './RequestPage';
+import { TopicsStep } from './TopicsStep';
 
 /**
  * bd-fmf24g.6 — the teacher v2 Assessment pages (each flag-gated by App's TeacherGate). The main page is
@@ -19,6 +20,7 @@ const routes: TeacherRoute[] = [
   { path: ASSESSMENT_ALL, element: <AssessmentAll /> },
   { path: `${B}/new/class`, element: <ClassStep /> },
   { path: `${B}/new/cover`, element: <CoverStep /> },
+  { path: `${B}/new/topics`, element: <TopicsStep /> },
   { path: `${B}/new/questions`, element: <QuestionsStep /> },
   // The old Question types and Marks and lines steps are part of Questions now: an old link or a reload lands there.
   { path: `${B}/new/types`, element: <Navigate to={newPaperPath('questions')} replace /> },

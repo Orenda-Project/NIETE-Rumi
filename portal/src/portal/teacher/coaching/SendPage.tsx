@@ -18,7 +18,7 @@ import { ConfirmTray } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
 import { useCopy } from '../i18n';
 import { COACHING } from './copy';
-import { clearDraft, holdDraft, peekDraft, planKeyOf } from './draft';
+import { clearDraft, holdDraft, isSavedAudio, peekDraft, planKeyOf } from './draft';
 import { Action, Dock } from './parts';
 import { micBlockedLine, micPermissionDenied } from './micBlocked';
 import { isInAppBrowser } from '@/lib/runtime';
@@ -74,7 +74,8 @@ export function SendPage() {
   const flow = useSendFlow(session, PATHS, {
     adopt: () => {
       const d = peekDraft();
-      return d ? { audio: d.audio, plan: d.plan, photos: d.photos } : null;
+      // bd-c5reix: a recording kept from WhatsApp is never recorded here; it stays on the Digital Coaching page.
+      return d ? { audio: isSavedAudio(d.audio) ? null : d.audio, plan: d.plan, photos: d.photos } : null;
     },
     liveMoves: () => peekDraft()?.live ?? null,
   });

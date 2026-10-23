@@ -27,7 +27,6 @@
 # Off switch: E2E_AUTORUN_OFF=1 (export it — inline `VAR=1 cmd` is invisible to
 # hooks; see CLAUDE.md). E2E_SPEC_SYNC_OFF=1 drops phase 1 only.
 
-[ "${E2E_AUTORUN_OFF:-}" = "1" ] && exit 0
 command -v jq >/dev/null 2>&1 || exit 0
 
 _HOOK_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd)
@@ -38,6 +37,20 @@ SESSION=$(printf '%s' "$INPUT" | jq -r '.session_id // "default"' 2>/dev/null)
 PAYLOAD_CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // ""' 2>/dev/null)
 PEND="$PROJECT_ROOT/.claude/.e2e-pending"
 MARKER="$PEND/$SESSION.json"
+# shellcheck source=lib/qa-ledger.sh
+. "$_HOOK_DIR/lib/qa-ledger.sh" 2>/dev/null || qa_ledger_log() { :; }
+
+# The off switch still lets every turn end — and, when it silenced a pending
+# marker, says so on the ledger once per marker (bd-61jjzd). `off_logged` keeps
+# a session that runs switched off for a day from writing a line every turn.
+if [ "${E2E_AUTORUN_OFF:-}" = "1" ]; then
+  if [ -f "$MARKER" ] && [ "$(jq -r '.off_logged // false' "$MARKER" 2>/dev/null)" != "true" ]; then
+    qa_ledger_log "$PROJECT_ROOT" e2e-autorun-stop switch-off E2E_AUTORUN_OFF "$SESSION"
+    TMP="$MARKER.tmp.$$"
+    if jq '.off_logged = true' "$MARKER" > "$TMP" 2>/dev/null; then mv "$TMP" "$MARKER" 2>/dev/null || rm -f "$TMP"; else rm -f "$TMP"; fi
+  fi
+  exit 0
+fi
 # shellcheck source=lib/git-push-match.sh
 . "$_HOOK_DIR/lib/git-push-match.sh" 2>/dev/null || exit 0
 
@@ -116,6 +129,12 @@ if [ "$NUDGED" = "true" ]; then
   SYNC_FILE="${MARKER%.json}.sync.json"
   if [ "$BLOCKS" -ge "$PHASE1_MAX_BLOCKS" ]; then
     echo "e2e-autorun-stop: phase 1 still $KIND for [$DETAIL] after $BLOCKS holds — letting the turn end. The Gherkin spec is NOT synced; qa-impact will fail the PR until it is synced or declared (Spec-Sync: trailer)." >&2
+    # Once per marker on the ledger: every later turn passes through here again.
+    if [ "$(jq -r '.gave_up_logged // false' "$MARKER" 2>/dev/null)" != "true" ]; then
+      qa_ledger_log "${PAYLOAD_CWD:-$PROJECT_ROOT}" e2e-autorun-stop gave-up "" "$KIND $DETAIL after $BLOCKS holds ($(basename "${MARKER%.json}"))"
+      TMP="$MARKER.tmp.$$"
+      if jq '.gave_up_logged = true' "$MARKER" > "$TMP" 2>/dev/null; then mv "$TMP" "$MARKER" 2>/dev/null || rm -f "$TMP"; else rm -f "$TMP"; fi
+    fi
     exit 0
   fi
   TMP="$MARKER.tmp.$$"

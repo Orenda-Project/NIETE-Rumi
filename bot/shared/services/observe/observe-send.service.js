@@ -1279,6 +1279,10 @@ async function processTeacherReport(sessionId, payload = {}) {
       sent_at: nowIso,
       ...(phase === 'teacher_tap' ? { tapped_at: nowIso } : {}),
     });
+    // bd-gzfdu9: the recommended clip for the report the teacher now has (never the coach preview). Row|null, never rejects.
+    const videoReco = require('../coaching/video-reco/engine').recommendForReport({
+      session, analysis: session.analysis_data, card: session.prioritized_action || (session.analysis_data || {}).prioritized_action, coachingSessionId: sessionId, observationType: 'leader_observation',
+    });
     // bd-9rrd5: report sent — if the debrief is done too, the observation is
     // COMPLETE. Without this flip HITL sessions never left
     // observer_review_complete and every "completed" count read coaches as 0.
@@ -1286,6 +1290,11 @@ async function processTeacherReport(sessionId, payload = {}) {
       const { maybeCompleteObservation } = require('./observe-completion');
       await maybeCompleteObservation(sessionId);
     }
+    // bd-gzfdu9: the recommended clip, one message to the TEACHER after their report (never on the coach's
+    // preview). Nothing unless VIDEO_RECO_ENABLED and the session's row is 'shown'; a failure changes nothing.
+    await require('../coaching/video-reco/send').sendAfterReport({
+      coachingSessionId: sessionId, phone: delivery.teacher_phone, language: teacherLang, row: videoReco,
+    }).catch(() => null);
     if (!portal) {
       await WhatsAppService.sendMessage(
         foPhone,

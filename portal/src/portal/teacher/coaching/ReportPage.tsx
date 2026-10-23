@@ -23,6 +23,8 @@ import { COACHING_HOME, COACHING_NEW } from './paths';
 import { dcSteps, toReportData } from './report';
 import { ClassCheck, Reflection, stoppedLine } from './reportLive';
 import { useDcReport } from './useDcReport';
+import { VideoRecoCard } from './VideoRecoCard';
+import { LessonQuizButton } from '../home/LessonQuizButton';
 
 /**
  * bd-fmf24g.4 — the shared report page (v28 canvas CoachingLesson; the coach-visit report uses the same
@@ -35,6 +37,7 @@ import { useDcReport } from './useDcReport';
  *   reflection    the one question, answered here by text or by voice (bd-eygg2f, ICT feedback row 5: a mic
  *                 where Send is while the box is empty; tap, speak, Stop, listen, Send — the bot transcribes it);
  *                 answered, it folds into "Your answer"
+ *   quiz          "Quiz this lesson" once a Digital Coach report is ready (the Home card's switch; home/LessonQuizButton)
  *   report        ReportBody — the report's own scores, photos, journey, next step, the coach's note
  *
  * Polled as today's lesson page polls (5 s for two minutes, then 15 s) until ready or stopped.
@@ -157,6 +160,10 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
 
       <Reflection r={r} />
 
+      {ready && !isVisit ? (
+        <LessonQuizButton from="coach" className={cn(CARD, 'flex min-h-[56px] w-full items-center gap-2 px-4 text-[15px] font-semibold text-[#33374a]')} />
+      ) : null}
+
       {ready && isVisit && answered.length ? (
         <>
           <button
@@ -186,9 +193,20 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
           {isVisit ? null : <SectionHeading>{C.fullReport}</SectionHeading>}
           {/* bd-z3cadk — a report the bot wrote no narrative for (older ones, and their repeats) would show bare score
               bars here; the WhatsApp report image is the full report, so it is shown instead. */}
+          {/* bd-gzfdu9 — the recommended clip under "Try next class" (under the image when that is the report); none → as today. */}
           {!isVisit && !detail.reportNarrative && reportImage
-            ? <img src={reportImage} alt={C.fullReport} className="block w-full rounded-[18px] border border-[#e5e7eb] bg-white" />
-            : <ReportBody data={toReportData(detail, { teacher: fullName(user), journey, words: C, days })} />}
+            ? (
+              <>
+                <img src={reportImage} alt={C.fullReport} className="block w-full rounded-[18px] border border-[#e5e7eb] bg-white" />
+                {detail.video_recommendation ? <div className="mt-3"><VideoRecoCard video={detail.video_recommendation} /></div> : null}
+              </>
+            )
+            : (
+              <ReportBody
+                data={toReportData(detail, { teacher: fullName(user), journey, words: C, days })}
+                afterTryNext={detail.video_recommendation ? <VideoRecoCard video={detail.video_recommendation} /> : undefined}
+              />
+            )}
         </div>
       ) : null}
     </TeacherPage>

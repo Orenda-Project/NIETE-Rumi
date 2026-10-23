@@ -54,7 +54,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     # text-message.handler.js:1495 matches messageBody.toLowerCase() === '/menu',
     # so "/MENU" / "/Menu" open the menu too.
 
-  @e2e @menu @edge @P1 @M21
+  @e2e @menu @edge @P1 @M28
   Scenario: /menu typed back the way Urdu text showed it ("Menu/") still opens the menu
     Given the NIETE bot chat is open
     When I send "Menu/"
@@ -70,7 +70,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     When I send "/ menu"
     Then the "See what I do" menu is shown with the core teacher rows
     # ADDED 2026-10-13 (bd-5ls6qy.7): 76 "/ menu" messages in 10–13 Oct went to the
-    # general chat. Same canonicaliser as M21. A bare "menu" stays a non-command (M06).
+    # general chat. Same canonicaliser as M28. A bare "menu" stays a non-command (M06).
 
   @e2e @menu @edge @P2 @M03
   Scenario: /menu re-opens the menu from inside a feature flow (escape hatch)
@@ -332,14 +332,27 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
   # ADDED 2026-10-19 (bd-zcgpkx): with leader_app_lesson_plan on, a leader's "Lesson Plans" row (and its number) opens
   # Send a lesson plan in the app, like "lesson plan" typed. "coaches" covers coaches only; a principal keeps the
   # WhatsApp lesson-plan menu until the switch is true. Unit: tests/app-redirect/app-link-leader-lesson-plan.test.js.
-  @e2e @menu @config-gated @P1
+  # UPDATED 2026-10-23 (bd-a73p5m): the row (and its number) opens the Lesson Plans tab now (/portal/teacher/lessons),
+  # not Send a lesson plan, and needs no FLN share. Unit: tests/app-redirect/app-link-leader-lessons-doors.test.js.
+  @obsolete @menu @config-gated @P1
   Scenario: A coach tapping the Lesson Plans row gets one button that opens Send a lesson plan
+    # OBSOLETE 2026-10-23 (bd-a73p5m): the row opens the Lesson Plans tab now — replaced by "A coach tapping the Lesson Plans row gets one button that opens the Lesson Plans tab" below. Kept (not deleted) for the audit trail.
     Given the NIETE bot chat is open on a coach account
     And lesson plans for leaders open in the app (leader_app_lesson_plan is on)
     When I send "/menu"
     And I open the "See what I do" list
     And I tap the "Lesson Plans" row
     Then I get one message with a "Send a plan" button that opens Send a lesson plan, signed in
+    And no lesson-plan menu opens
+
+  @e2e @menu @config-gated @P1
+  Scenario: A coach tapping the Lesson Plans row gets one button that opens the Lesson Plans tab
+    Given the NIETE bot chat is open on a coach account
+    And lesson plans for leaders open in the app (leader_app_lesson_plan is on)
+    When I send "/menu"
+    And I open the "See what I do" list
+    And I tap the "Lesson Plans" row
+    Then I get one message with a "Lesson plans" button that opens the Lesson Plans tab, signed in
     And no lesson-plan menu opens
 
   # ═══════ ADDED 2026-10-20 (bd-xw56ed) · a message no door catches is read against the live menu (@wip) ═══════

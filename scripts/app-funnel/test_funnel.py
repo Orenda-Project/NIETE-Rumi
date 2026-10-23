@@ -87,8 +87,8 @@ class Funnel(unittest.TestCase):
         self.assertEqual([k for k in keys if funnel.feature_matches(k, 'menu@coach')], ['menu@coach'])
 
     def test_a_leader_or_coach_journey_is_its_own_funnel_never_mixed_into_the_teachers(self):
-        # bd-zcgpkx: leaders' lesson-plan asks land on Send a lesson plan, not the teacher app; mixed in, ~7% of the
-        # lesson_plan asks would never reach a teacher page and the teachers' rates would sag for no teacher reason.
+        # bd-zcgpkx: leaders' lesson-plan asks landed on Send a lesson plan (bd-a73p5m: the Lesson Plans tab now, see the
+        # next test), not the teacher app; mixed in, ~7% of the lesson_plan asks would skew the teachers' rates.
         rows = journey_full('j_t', pages=('/portal/teacher/lessons',))
         rows += [bot('app_funnel.command', 'j_l', 0, 'lesson_plan', door='bare_command', verdict='link', audience='leader'),
                  bot('app_funnel.link_sent', 'j_l', 0, 'lesson_plan', via='cta_url', audience='leader'),
@@ -102,6 +102,26 @@ class Funnel(unittest.TestCase):
         self.assertEqual(res['by_feature']['lesson_plan']['steps'][0], {'name': 'asked', 'n': 2, **{k: v for k, v in res['by_feature']['lesson_plan']['steps'][0].items() if k not in ('name', 'n')}})
         leader = dict((s['name'], s['n']) for s in res['by_feature']['lesson_plan@leader']['steps'])
         self.assertEqual((leader['asked'], leader['acted']), (1, 1))
+
+    def test_a_leader_on_the_lesson_plans_tab_is_lesson_plan_at_leader_never_a_teacher(self):
+        # bd-a73p5m: a leader's link now lands on the SAME page a teacher's does (/portal/teacher/lessons). The route
+        # cannot tell them apart; the journey's command row (audience leader) does. A leader reading a plan there is a
+        # lesson_plan@leader act, and the teachers' funnel neither grows nor shrinks by it.
+        teacher = journey_full('j_t', pages=('/portal/teacher/lessons', '/portal/teacher/lessons/open'), action='lesson_plan.opened')
+        before = funnel.build(teacher)['by_feature']['lesson_plan']
+        rows = teacher + [
+            bot('app_funnel.command', 'j_l', 0, 'lesson_plan', door='bare_command', verdict='link', audience='leader'),
+            bot('app_funnel.link_sent', 'j_l', 0, 'lesson_plan', via='cta_url', audience='leader'),
+            row('app_link.open', 'j_l', 1, user='u2', outcome='ok', feature='leader_lessons'),
+            row('app_funnel.page_view', 'j_l', 2, user='u2', route='/portal/teacher/lessons', feature='lesson_plan', linkFeature='leader_lessons'),
+            row('app_funnel.page_view', 'j_l', 3, user='u2', route='/portal/teacher/lessons/plan', feature='lesson_plan', linkFeature='leader_lessons'),
+            row('app_funnel.action', 'j_l', 4, user='u2', action='lesson_plan.opened', feature='lesson_plan', lane='k5'),
+        ]
+        res = funnel.build(rows)
+        self.assertEqual(res['by_feature']['lesson_plan'], before)
+        leader = dict((s['name'], s['n']) for s in res['by_feature']['lesson_plan@leader']['steps'])
+        self.assertEqual(leader, {'asked': 1, 'link_sent': 1, 'opened': 1, 'landed': 1, 'went_deeper': 1, 'acted': 1})
+        self.assertEqual(res['by_feature']['lesson_plan@leader']['actions'], {'lesson_plan.opened': 1})
 
     def test_journeys_are_counted_once_even_when_the_link_is_tapped_twice(self):
         rows = journey_full('j_a', pages=('/portal/teacher/lessons',))

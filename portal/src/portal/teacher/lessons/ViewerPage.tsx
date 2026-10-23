@@ -18,6 +18,7 @@ import { LESSONS_VIEWER, dcHref, type DcPrefill } from './paths';
 import { ThingToTryStrip } from './ThingToTryStrip';
 import { attachToDc, PICK_DEPTH, type PickTarget } from '../coaching/libraryPick';
 import { useLessonsLeader } from './audience';
+import { LessonQuizButton } from '../home/LessonQuizButton';
 
 /**
  * bd-fmf24g.3 — a lesson plan, open (v28 canvas LessonViewer): the plan under its title, and above it
@@ -27,6 +28,7 @@ import { useLessonsLeader } from './audience';
  *   Answer key            grades 1–5, in this same viewer
  *   Thing to try          grades 1–5, v10 coaching test groups C and D only (ThingToTryStrip; nothing for anyone else).
  *                         Its plan step is outlined in the viewer, and the tap that opens it takes her there (bd-v0toag.8)
+ *   Quiz this lesson      the Home card's switch on and a quiz home for her: the signed quiz home (home/LessonQuizButton)
  *   ShareActions          the dock: Send on WhatsApp (a template; grey "Not available yet" until one is configured) and
  *                         Open in another app (the plan's presigned PDF link, opened the way her browser allows)
  *
@@ -142,6 +144,7 @@ export function ViewerPage() {
             {C.answerKey}
           </button>
         ) : null}
+        {recording || inDc ? null : <LessonQuizButton className={act} />}
       </div>
       <LessonPlanViewer
         key={key}

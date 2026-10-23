@@ -34,7 +34,7 @@ const IV_LEN = 12;
 const TAG_LEN = 16;
 const MAX_LEN = 1024;
 
-/** feature → the teacher-app (v2) page it lands on. The seven requests that have a v2 page; nothing else is linkable. */
+/** feature → the teacher-app (v2) page it lands on. The requests that have a v2 page; nothing else is linkable. */
 const LANDINGS = Object.freeze({
   menu: '/portal/teacher',
   lesson_plan: '/portal/teacher/lessons',
@@ -43,6 +43,10 @@ const LANDINGS = Object.freeze({
   teacher_training: '/portal/teacher/training',
   attendance: '/portal/teacher/attendance',
   classes: '/portal/teacher/classes',
+  // bd-c5reix — not a command: a classroom recording sent on WhatsApp, kept; the one screen opens with it attached.
+  ai_coaching_recording: '/portal/teacher/coaching/new?recording=whatsapp',
+  // bd-6clakk Task 9 — not a command: the second offer under the assessment door, "a paper on topics I've taught".
+  assessment_topics: '/portal/teacher/assessment/new/class?by=topics',
 });
 /** Where a teacher who is no longer on the teacher app lands instead (today's portal home). */
 const LEGACY_LANDING = '/portal/dashboard';
@@ -58,9 +62,26 @@ const COACH_LANDINGS = Object.freeze({
   coach_training: '/portal/coach/training', // bd-s42dye.3 — the coach app's Training Library
 });
 
-/** A feature a token may carry: a teacher page or a coach page. Anything else cannot be signed or verified. */
+/**
+ * bd-a73p5m — the pages a LEADER's link lands on (app-redirect.service.js LEADER_LINKS): a leader's "lesson plan" →
+ * the Lesson Plans tab. It is the teacher's own address, but its own name, so /go lands it for a leader on neither app:
+ * a coach on the coach app has it as a tab, the classic leader menu links it, and TeacherGate lets the leader family
+ * read it (bd-4joiqz). Like an FLN target, it lands whatever the app flags say.
+ */
+const LEADER_LANDINGS = Object.freeze({
+  leader_lessons: '/portal/teacher/lessons',
+});
+
+const own = (map, f) => Object.prototype.hasOwnProperty.call(map, f);
+
+/** A feature a token may carry: a teacher, coach or leader page, or an FLN target. Anything else cannot be signed or verified. */
 const linkable = (f) => typeof f === 'string'
-  && (Object.prototype.hasOwnProperty.call(LANDINGS, f) || Object.prototype.hasOwnProperty.call(COACH_LANDINGS, f) || require('./fln-go-target').isFlnTarget(f));
+  && (own(LANDINGS, f) || own(COACH_LANDINGS, f) || own(LEADER_LANDINGS, f) || require('./fln-go-target').isFlnTarget(f));
+
+/** The page a leader token lands on, or null when `f` is not one. */
+function leaderPathFor(f) {
+  return typeof f === 'string' && own(LEADER_LANDINGS, f) ? LEADER_LANDINGS[f] : null;
+}
 
 /** This environment, as its Supabase host (`<ref>.supabase.co`), or null when SUPABASE_URL is missing or not a URL. */
 function environment() {
@@ -125,4 +146,4 @@ function verifyAppLink(token) {
   }
 }
 
-module.exports = { signAppLink, verifyAppLink, LANDINGS, COACH_LANDINGS, LEGACY_LANDING, TTL_S };
+module.exports = { signAppLink, verifyAppLink, leaderPathFor, LANDINGS, COACH_LANDINGS, LEADER_LANDINGS, LEGACY_LANDING, TTL_S };

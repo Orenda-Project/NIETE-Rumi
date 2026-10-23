@@ -58,4 +58,38 @@ describe("HomeGreeting", () => {
     const all = [container, ...Array.from(container.querySelectorAll("*"))].flatMap((e) => classes(e as Element));
     expect(all.filter((c) => /^(-?(m|p)[lr]-|left-|right-|text-(left|right)$)/.test(c))).toEqual([]);
   });
+
+  // Unswitched fix (the build contract, §4): in an Urdu greeting the name is a Latin run inside RTL text, and a bare "!"
+  // after it took the paragraph's direction and was drawn BEFORE the name ("!Testwala"). The name and its "!" are one
+  // isolate now, so the "!" stays right after the name; and the isolate keeps a Latin line height of its own instead
+  // of the Nastaliq one (the Urdu band was ~30 px too tall).
+  it("Urdu: the name and its '!' are one isolate, the '!' right after the name, with a Latin line height", () => {
+    render(<HomeGreeting {...base} title="السلام علیکم، Amina Testwala!" name="Amina Testwala" />);
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(h1.textContent).toBe("السلام علیکم، Amina Testwala!");
+    expect(h1.textContent?.endsWith("Amina Testwala!")).toBe(true);
+    const iso = screen.getByTestId("home-greeting-name");
+    expect(iso.tagName).toBe("BDI");
+    expect(iso.textContent).toBe("Amina Testwala!");
+    expect(iso.className).toMatch(/!leading-\[1\.15\]/);
+    expect(iso.hasAttribute("data-latin")).toBe(true);
+  });
+
+  it("Urdu: a Latin name is set a size down, so the greeting stays on one line at 360 px", () => {
+    render(<HomeGreeting {...base} title="السلام علیکم، Amina Testwala!" name="Amina Testwala" />);
+    expect(screen.getByTestId("home-greeting-name").className).toMatch(/rtl:text-\[0\.7em\]/);
+  });
+
+  it("an Urdu-script name is isolated too, without the Latin font", () => {
+    render(<HomeGreeting {...base} title="السلام علیکم، عائشہ بی بی!" name="عائشہ بی بی" />);
+    const iso = screen.getByTestId("home-greeting-name");
+    expect(iso.textContent).toBe("عائشہ بی بی!");
+    expect(iso.hasAttribute("data-latin")).toBe(false);
+  });
+
+  it("no name, or a title without it: the title as it is, no isolate", () => {
+    render(<HomeGreeting {...base} title="Salaam!" name="" />);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Salaam!");
+    expect(screen.queryByTestId("home-greeting-name")).toBeNull();
+  });
 });

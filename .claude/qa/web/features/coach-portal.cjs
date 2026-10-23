@@ -6,10 +6,10 @@
 const { pagesScenario } = require('../lib.cjs');
 
 const scenarios = [
-  pagesScenario("CP01", "Coach app v2: her home greets her and shows today's visits", "coach", "coachV2", [{ path: "/portal/coach", heading: /^Today's visits\s+\d/ }]),
-  pagesScenario("CP02", "Coach app v2: Schools & teachers, My schedule and Team schedule open", "coach", "coachV2", [{ path: "/portal/coach/people", heading: /^Schools & teachers$/ }, { path: "/portal/coach/schedule", heading: /^My schedule$/ }, { path: "/portal/coach/team", heading: /^Team schedule$/ }]),
-  pagesScenario("CP03", "Coach app v2: Reports open, and Analytics counts her teachers", "coach", "coachV2", [{ path: "/portal/coach/reports", heading: /^Reports$/ }, { path: "/portal/coach/analytics", heading: /^Teachers\s+[1-9]/ }]),
-  pagesScenario("CP04", "Coach app v2: Observe, More and My profile open", "coach", "coachV2", [{ path: "/portal/coach/observe", heading: /^Observe$/ }, { path: "/portal/coach/more", heading: /^More$/ }, { path: "/portal/coach/profile", heading: /^My profile$/ }]),
+  pagesScenario("CP01", "Coach app v2: her home sends her to the Training Library", "coach", "coachV2", [{ path: "/portal/coach", heading: /^Training Library/, settle: "/portal/coach/training" }]),
+  pagesScenario("CP02", "Coach app v2: Schools & teachers, My schedule and Team schedule send her to the Training Library", "coach", "coachV2", [{ path: "/portal/coach/people", heading: /^Training Library/, settle: "/portal/coach/training" }, { path: "/portal/coach/schedule", heading: /^Training Library/, settle: "/portal/coach/training" }, { path: "/portal/coach/team", heading: /^Training Library/, settle: "/portal/coach/training" }]),
+  pagesScenario("CP03", "Coach app v2: Reports and Analytics send her to the Training Library", "coach", "coachV2", [{ path: "/portal/coach/reports", heading: /^Training Library/, settle: "/portal/coach/training" }, { path: "/portal/coach/analytics", heading: /^Training Library/, settle: "/portal/coach/training" }]),
+  pagesScenario("CP04", "Coach app v2: Observe sends her to the Training Library; More and My profile open", "coach", "coachV2", [{ path: "/portal/coach/observe", heading: /^Training Library/, settle: "/portal/coach/training" }, { path: "/portal/coach/more", heading: /^More$/ }, { path: "/portal/coach/profile", heading: /^My profile$/ }]),
 ];
 scenarios.push(...require("../flows/coach-disagreement.cjs"));
 

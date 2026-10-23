@@ -485,7 +485,8 @@ def test_web_stale_spec_tells_the_author_how_to_sync():
     r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
     head = commit(r, "feat(portal): login copy", **{"portal/src/portal/pages/PortalLogin.tsx": "// c\n"})
     md = ci.render_markdown(ci.analyse(r, base, head))
-    assert "❌ stale" in md and "/sync-specs portal-login" in md, md
+    assert "❌ **Test scenarios not updated**" in md and "/sync-specs portal-login" in md, md
+    assert "the portal-login code changed, but `portal-login.feature` didn't" in md, md
     assert "Spec-Sync: portal-login=none-needed" in md, md
     shutil.rmtree(r)
 
@@ -496,6 +497,85 @@ def test_portal_smoke_fan_out_is_never_stale():
     res = ci.analyse(r, base, head)
     assert res["web_per_feature"]["portal-smoke"]["spec_status"] == "only-shared", res["web_per_feature"]
     assert ci.exit_code(res, freshness="block", proof="warn") == 0
+    shutil.rmtree(r)
+
+
+# ── a none-needed declaration also answers the E2E column (bd-481a2c, operator 2026-10-21) ─────────────────────────
+def test_none_needed_feature_without_a_run_is_not_needed_not_missing():
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "fix(menu): copy\n\nSpec-Sync: menu=none-needed (log line only)",
+                  **{"bot/shared/services/menu.service.js": "// c\n"})
+    res = ci.analyse(r, base, head)
+    assert res["per_feature"]["menu"]["e2e_proof"] == "not-needed", res["per_feature"]["menu"]
+    assert res["verdict"]["e2e_proof"] != "missing", res["verdict"]
+    assert ci.exit_code(res, freshness="block", proof="block") == 0
+    md = ci.render_markdown(res)
+    assert "not needed" in md and "⬜ missing" not in md, md
+    assert "E2E proof: missing" not in md, md
+    assert "e2e: missing" not in ci.render_text(res), ci.render_text(res)
+    shutil.rmtree(r)
+
+
+def test_none_needed_feature_with_a_run_still_shows_the_run():
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    commit(r, "fix(menu): copy\n\nSpec-Sync: menu=none-needed (log line only)",
+           **{"bot/shared/services/menu.service.js": "// c\n"})
+    row = {"run_id": "x", "surface": "whatsapp", "feature": "menu", "status": "HEALTHY",
+           "summary": {"total": 12, "passed": 12, "failed": 0, "blocked": 0}}
+    head = commit(r, "qa: menu run", **{".claude/qa/ledgers/runs.jsonl": json.dumps(row) + "\n"})
+    res = ci.analyse(r, base, head)
+    assert res["per_feature"]["menu"]["e2e_proof"] == "HEALTHY", res["per_feature"]["menu"]
+    assert res["verdict"]["e2e_proof"] == "recorded", res["verdict"]
+    shutil.rmtree(r)
+
+
+def test_web_none_needed_feature_without_a_run_is_not_needed_not_missing():
+    r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "refactor(portal): rename a variable", **{"portal/src/portal/pages/PortalLogin.tsx": "// c\n"})
+    res = ci.analyse(r, base, head, pr_body="Spec-Sync: portal-login=none-needed (pure rename, nothing a user sees)")
+    assert res["web_per_feature"]["portal-login"]["e2e_proof"] == "not-needed", res["web_per_feature"]
+    assert res["verdict"]["web_e2e_proof"] != "missing", res["verdict"]
+    assert ci.exit_code(res, freshness="block", proof="block") == 0
+    md = ci.render_markdown(res)
+    assert "Web E2E proof: missing" not in md and "⬜ missing" not in md, md
+    shutil.rmtree(r)
+
+
+# ── the spec column reads in plain words (bd-u8r04u, operator 2026-10-23) ─────────────────────────────────────────
+# "❌ stale — `child-test.feature` unchanged" told nobody what happened or what to do. The status KEYS stay as they
+# are (analyse(), exit_code() and the dashboard read them); only what a person reads changes.
+
+def test_stale_spec_cell_says_what_happened_and_what_to_do():
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "feat(menu): x", **{"bot/shared/services/menu.service.js": "// c\n"})
+    res = ci.analyse(r, base, head)
+    assert res["per_feature"]["menu"]["spec_status"] == "stale", "the status key is unchanged"
+    md = ci.render_markdown(res, "warn", "warn")
+    assert ("❌ **Test scenarios not updated** — the menu code changed, but `menu.feature` didn't. "
+            "Add or update its scenarios, or, if nothing a teacher sees changed, add "
+            "`Spec-Sync: menu=none-needed (<why>)` to the PR description.") in md, md
+    assert "❌ stale" not in md and "`menu.feature` unchanged" not in md, md
+    txt = ci.render_text(res, "warn", "warn")
+    assert "spec: NOT UPDATED" in txt and "(menu.feature unchanged)" not in txt, txt
+    shutil.rmtree(r)
+
+
+def test_synced_none_needed_and_shared_cells_read_in_plain_words():
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "feat(menu): x", **{"bot/shared/services/menu.service.js": "// c\n",
+                                         "tests/features/whatsapp/niete/menu.feature": "\n# synced\n"})
+    md = ci.render_markdown(ci.analyse(r, base, head), "warn", "warn")
+    assert "✅ Scenarios updated" in md and "✅ synced" not in md, md
+    head2 = commit(r, "fix(menu): copy\n\nSpec-Sync: menu=none-needed (wording only, no behaviour)",
+                   **{"bot/shared/services/menu.service.js": "// d\n"})
+    md = ci.render_markdown(ci.analyse(r, head, head2), "warn", "warn")
+    assert "✅ No update needed — _wording only, no behaviour_" in md and "✅ none-needed" not in md, md
+    head3 = commit(r, "chore: log", **{"bot/shared/services/whatsapp.service.js": "// log\n"})
+    res = ci.analyse(r, head2, head3)
+    md = ci.render_markdown(res, "warn", "warn")
+    assert "➖ Only shared code changed, no update expected" in md and "➖ only-shared" not in md, md
+    txt = ci.render_text(res, "warn", "warn")
+    assert "spec: shared only" in txt, txt
     shutil.rmtree(r)
 
 
