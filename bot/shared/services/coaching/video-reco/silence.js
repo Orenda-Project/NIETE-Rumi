@@ -239,9 +239,11 @@ const CHILD_LABEL = /^\s*\[[\d:]+\]\s*(?:students?|class|child(?:ren)?|طالب|
 const SETUP_CAP_S = 180;
 const lineSec = (l) => { const m = /^\s*\[([\d:]+)\]/.exec(String(l)); return m ? stampSec(m[1]) : null; };
 
-// red7 T4: a test that ends and a lesson that follows — the lesson resumes at the first of ≥ 3 teacher questions a child
-// answers (a test period has «did you finish?» and orders, not a run of answered questions)
+// red7 T4: a test that ends and a lesson that follows — the lesson resumes at a RUN of 3 teacher questions a child answers
+// within 90 s, none about the test. Q170 (a real test period) has answered admin questions minutes apart: never a run.
 const RESUME_PAIRS = 3;
+const RESUME_WINDOW_S = 90;
+const TEST_WORD = /ٹیسٹ|پیپر|امتحان|\b(?:test|exam|quiz)\b/iu;
 /** [start, end) of the test period in `lines`, or null: from the line holding a test THIS period to the lesson resuming. */
 function testSpan(lines) {
   if (!Array.isArray(lines)) return null;
@@ -251,9 +253,11 @@ function testSpan(lines) {
   const pairs = [];
   for (let n = start + 1; n + 1 < all.length; n++) {
     const x = textOf(all[n]);
-    if (TEACHER_LABEL.test(all[n]) && asks(x) && !isRoutine(x) && KID.test(all[n + 1])) pairs.push(n);
+    if (TEACHER_LABEL.test(all[n]) && asks(x) && !isRoutine(x) && !TEST_WORD.test(x) && KID.test(all[n + 1])) pairs.push(n);
   }
-  return [start, pairs.length >= RESUME_PAIRS ? pairs[0] : all.length];
+  const run = pairs.findIndex((n, k) => k + RESUME_PAIRS - 1 < pairs.length
+    && (lineSec(all[pairs[k + RESUME_PAIRS - 1]]) ?? Infinity) - (lineSec(all[n]) ?? -Infinity) <= RESUME_WINDOW_S);
+  return [start, run >= 0 ? pairs[run] : all.length];
 }
 /** red7 H1: the lesson is a test period that never resumes (the card fallback has nothing to attach to). */
 const testPeriod = (lines) => { const t = testSpan(lines); return !!t && t[1] === lines.length; };
