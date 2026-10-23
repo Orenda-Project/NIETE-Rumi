@@ -199,6 +199,9 @@ function validate(p, shortlist, excerpts, opts) {
     if (!momentSource) return bad('quote');
     if (!MOMENT_AT.test(String(p.moment.at || '').trim())) return bad('moment_at'); // never "unknown", "N/A" or "[00:30]"
     if (realWords(quote) < 3) return bad('placeholder');
+    // red7 085115: a placeholder no teacher may see ([TEACHER] from the excerpt redactor, [URL] …) in the quote or a
+    // reason → refused; the retry or the card fallback takes it ([v1.3c-5], until now only on the fallback path).
+    if ([quote, p.reason_en, p.reason_ur].some((x) => UNSHOWABLE.test(String(x || '')))) return bad('placeholder');
     if (momentSource === 'transcript' && unfoundedPlaceholder(quote, excerpts, rawExcerpts, teacherName, vocab, oovVocab)) return bad('placeholder');
     const reasons = [p.reason_en, p.reason_ur].map((x) => String(x || ''));
     if (reasons.some((x) => BANNED_COPY.test(x))) return bad('scorer');

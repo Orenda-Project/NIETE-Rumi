@@ -119,9 +119,25 @@ const LINE_PREFIX_AT = new RegExp(`(^|[.!?۔؟]\\s+)(?:\\[\\d{1,2}:\\d{2}(?::\\d
  * (isolateQuotes); in the English reason every Urdu run outside an isolate is isolated too, so an unquoted moment
  * renders in place. No quote mark is ever added.
  */
+// A child placeholder used as a vocative at the very start, inside an opening quote mark or not (scale-run 084820):
+// the reason must never open with it ([v1.3c-5]); the quote stays a verbatim stretch of the line without it.
+// One or more in a row («[a student]، [a student]، آپ دونوں پڑھیں», red7 085645).
+const LEADING_VOCATIVE = /^(\s*["“«]?)\s*(?:\[(?:a student|CHILD)\]\s*[،,:]\s*)+/;
+
+/** The copied prefix and the leading vocative, stripped until neither is left («[a student]، [00:12] …»). */
+function stripLead(text) {
+  let s = text;
+  let prev;
+  do {
+    prev = s;
+    s = s.replace(LINE_PREFIX_AT, '$1').replace(LEADING_VOCATIVE, '$1');
+  } while (s !== prev);
+  return s;
+}
+
 function composeReason(text, language, quote) {
   if (typeof text !== 'string' || !text) return text;
-  const s = isolateQuotes(text.replace(LINE_PREFIX_AT, '$1'), quote);
+  const s = isolateQuotes(stripLead(text), quote);
   return lang(language) === 'en' ? isolateArabic(s) : s;
 }
 
