@@ -7,7 +7,7 @@
  *   dots, shapes, clock   drawn as SVG in place (fde-picture-svg)
  *   object, count, scene  read from R2, or drawn by the image model on a miss,
  *                         shrunk to a 320px grey JPEG and cached:
- *                         fde-pictures/v2/object/<slug>.jpg, fde-pictures/v2/scene-no-text/<slug>-<hash>.jpg
+ *                         fde-pictures/v3/object/<slug>.jpg, fde-pictures/v3/scene-no-text/<slug>-<hash>.jpg
  *
  * A count is its object's picture, repeated by the renderer. A failed drawing is
  * tried once more; a second failure fails the paper PICTURE_FAILED, so a paper
@@ -18,7 +18,8 @@ const crypto = require('crypto');
 const Svg = require('./fde-picture-svg');
 const Kie = require('./fde-picture-kie');
 
-const PREFIX = 'fde-pictures/v2';
+// v3: pictures cached under v2 carry arrows and scan edges (bd-5jmnfj.4.30) and are never reused.
+const PREFIX = 'fde-pictures/v3';
 const CACHE_CONTROL = 'public, max-age=31536000, immutable';
 const MODEL_KINDS = ['object', 'count', 'scene'];
 
