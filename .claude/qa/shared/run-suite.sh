@@ -258,7 +258,9 @@ run_feature() {   # $1 feature, extra env vars already exported by caller
   local f="$1" t1 t2
   t1=$(date +%s); say "--- $f START $(date -u +%T)"
   python3 "$QA/driver_lock.py" heartbeat --driver "$DRIVER" >/dev/null 2>&1
-  E2E_PROGRESS="$RUN_DIR/progress-$f.log" node "$QA/feature-runner.cjs" "$f" >"$RUN_DIR/$f.stdout.json" 2>"$RUN_DIR/$f.stderr.log"
+  # E2E_TRACE_FILE (bd-5zzbvq): the span trace behind the profiler — every primitive, its quiesce / inject /
+  # bot.reply / poll.detect / settle, and one row per scenario. Append-only JSON lines; the run is unchanged.
+  E2E_PROGRESS="$RUN_DIR/progress-$f.log" E2E_TRACE_FILE="$RUN_DIR/trace-$f.jsonl" node "$QA/feature-runner.cjs" "$f" >"$RUN_DIR/$f.stdout.json" 2>"$RUN_DIR/$f.stderr.log"
   local rc=$?   # captured on the very next line — `$?` after a `date` call reported date's status, always 0
   t2=$(date +%s); say "--- $f END $(date -u +%T) ($((t2-t1))s) exit=$rc"
   python3 - "$RUN_DIR/$f.json" <<'PY' | tee -a "$LOG"
@@ -276,6 +278,12 @@ PY
   python3 "$QA/ledger_row.py" --root "$ROOT" --run-dir "$RUN_DIR" --feature "$f" --run-id "$RUN_ID" --env "$ENV" \
     --method "$METHOD" --seconds "$((t2-t1))" --driver "$DRIVER" --trigger "$TRIGGER" \
     ${COMMIT:+--commit "$COMMIT"} ${SPEC_SYNC:+--spec-sync "$SPEC_SYNC"} ${VALIDATOR_EXIT:+--validator-exit "$VALIDATOR_EXIT"} 2>&1 | tee -a "$LOG"
+  # ── the profile: <run_dir>/profile-<feature>.json from the trace + the mock transcript + the DB-proxy and
+  # cassette timing logs, published to .claude/qa/profiles/ for the dashboard (profile-dashboard.sh). Informational:
+  # a profiler failure never fails the run. E2E_PROFILE_OFF=1 skips it. (bd-5zzbvq)
+  if [ "${E2E_PROFILE_OFF:-}" != 1 ] && [ -f "$QA/profile_run.py" ]; then
+    python3 "$QA/profile_run.py" "$RUN_DIR" --feature "$f" --publish "$ROOT/.claude/qa/profiles" 2>&1 | sed 's/^/    profile: /' | tee -a "$LOG" || say "(profile_run.py failed — the run is unaffected)"
+  fi
 }
 
 for f in $FEATURES; do

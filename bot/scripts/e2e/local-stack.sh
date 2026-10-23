@@ -171,6 +171,8 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     echo "E2E_CASSETTE=$cassette_mode"
     echo "E2E_CASSETTE_DIR=$cassette_dir"
     echo "E2E_CASSETTE_MISS_LOG=$run_dir/cassette-misses.jsonl"
+    # Profiling (bd-5zzbvq): every cassette-mediated vendor call, with replay ms and the recorded live ms.
+    echo "E2E_CASSETTE_TRACE_LOG=$run_dir/cassette-trace.jsonl"
     # Feature flags the mock lane tests as SHIPPED, not inherited from whatever is (or isn't) in the
     # local keys file. LP_612_ENABLED: the grade 6-12 Pakistan LP corpus is live (bd-mww73) and the
     # sandbox DB is seeded; without this the bot falls to the Oxbridge fallback and lesson-plan/L03
@@ -235,7 +237,7 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     echo "FLOW_PUBLIC_KEY_B64=$flow_pub_b64"
   } > "$src/.env"
   printf '%s' "$flow_pub_b64" > "$run_dir/flow-public-key.b64"
-  rm -f "$run_dir/cassette-misses.jsonl"
+  rm -f "$run_dir/cassette-misses.jsonl" "$run_dir/cassette-trace.jsonl"
 
   # 4. processes
   # `exec` so the recorded pid IS node's, not a wrapper subshell's — killing a wrapper left the
