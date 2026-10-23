@@ -79,6 +79,8 @@ test.each([
   ['[00:14] Student (UR): "ایچ سی ایف۔" The clip shows a check.', `"${FSI}ایچ سی ایف۔${PDI}" The clip shows a check.`],
   ['Teacher: "سب کتاب کھولیں" The clip shows how to start.', `"${FSI}سب کتاب کھولیں${PDI}" The clip shows how to start.`],
   ['00:00: "سب کتاب کھولیں" The clip shows how to start.', `"${FSI}سب کتاب کھولیں${PDI}" The clip shows how to start.`],
+  // red7 081458: a lower-case label at a sentence start (7a2cc41e's shape)
+  ['teacher: "All kids mark it." The clip shows pair talk.', `"${FSI}All kids mark it.${PDI}" The clip shows pair talk.`],
   ['The class was quiet. [04:10] Teacher: "سب سنیں" The clip shows wait time.', `The class was quiet. "${FSI}سب سنیں${PDI}" The clip shows wait time.`],
 ])('copy.composeReason en: %s', (raw, want) => {
   expect(C.composeReason(raw, 'en')).toBe(want);
