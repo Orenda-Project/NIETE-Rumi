@@ -186,6 +186,15 @@ test('a section whose picture repeats an earlier question is asked once more, to
   expect(cats.map((q) => q.slot)).toEqual(['g1.english.A.Q1']);
 });
 
+test('two questions in one section showing one thing: that section is re-asked, told which items repeat', async () => {
+  const { calls, go } = run(1, 'english', { replies: { A: [{ names: { 'g1.english.A.Q1': ['cat'], 'g1.english.A.Q4': ['cat'] } }] } });
+  await go();
+  const a = calls.sections.filter((x) => x.id === 'A');
+  expect(a).toHaveLength(2);
+  expect(a[1].user).toMatch(/\bcat\b/);
+  expect(a[1].user).toMatch(/different word/i);
+});
+
 test('a repeat left after the re-ask is logged and the paper still comes back', async () => {
   const again = { names: { 'g1.english.C.Q11': ['cat'] } };
   const { d, go } = run(1, 'english', { replies: { A: [{ names: { 'g1.english.A.Q1': ['cat'] } }], C: [again, again] } });
