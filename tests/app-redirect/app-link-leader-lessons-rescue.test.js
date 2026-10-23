@@ -6,10 +6,15 @@
  * Asked whether a coach who names a topic in a lesson-plan request should also get the Lesson Plans tab, the operator,
  * 23 Oct 2026: "yes to topic requests too". A request already being worked when the cutover came is the third topic
  * door: the worker drains the free-form job (it carries the topic the coach asked for) and, under LP_612_ROUTE_ALL,
- * answers it (`cutover_inflight_gamma`). It asks the switch first and returns on a link; only when the switch says no
- * does it open the catalogue, whose own door asks the switch again (and gets the same no). So one message either way:
- * the tab for a covered coach, the Flow led by the "lessons come from your textbook" line for everyone else, and the
- * not-in-catalogue line only when neither could be sent.
+ * answers it (`cutover_inflight_gamma`). It asks the switch first and returns once a link is sent. Otherwise it opens
+ * the catalogue, whose own door asks the switch again:
+ *   - the switch said no (a principal, an analytics-only coach, a teacher the link does not cover): the second ask says
+ *     no too, and the Flow goes — the Flow led by the "lessons come from your textbook" line, one message;
+ *   - the switch said yes but the SEND failed (Meta refused the button and the same link as plain text): the second
+ *     ask says yes again and tries the link once more — a second button and a second plain-text attempt, a second
+ *     app_funnel.command and a second link_failed row — and only when that is refused too does the Flow go. Nothing
+ *     the coach sees is doubled: every refused attempt delivered nothing, so the Flow is the one message that arrives.
+ * The not-in-catalogue line goes only when neither the link nor the Flow could be sent.
  *
  * Drives the REAL worker `process()`, app-redirect and the catalogue door, and the minted link through the REAL GET /go
  * router. Faked: WhatsApp, the database (memory), the queue's row writes, and the generation services the drained job
@@ -152,13 +157,18 @@ describe('a covered coach whose request was in flight', () => {
     expect(require('../../bot/shared/services/lesson-plan-queue.service').markFailed).toHaveBeenCalledTimes(1);
   });
 
-  test('if the button cannot be delivered, the coach gets the catalogue Flow alone: a refused link is never also sent', async () => {
+  test('if the link cannot be delivered, it is tried at each door, then the catalogue Flow is the one message that arrives', async () => {
     load(COACH);
     mockWa.sendCtaUrl.mockResolvedValue(false);  // Meta refuses the button…
     mockWa.sendMessage.mockResolvedValue(false); // …and the same link as plain text
     await Worker.process(jobFor(COACH));
     expect(flows()).toHaveLength(1);
-    expect(mockWa.sendCtaUrl).toHaveBeenCalled(); // the link WAS tried: this is the coach's path, not today's
+    // The rescue's own ask tries the link (button, then plain text) and is refused; the catalogue door asks again, the
+    // switch still says yes, and it tries once more. Two attempts, pinned, so a change to the retry is a visible one.
+    expect(mockWa.sendCtaUrl).toHaveBeenCalledTimes(2);
+    expect(mockWa.sendMessage).toHaveBeenCalledTimes(2);
+    expect(funnelRows('app_funnel.command')).toHaveLength(2);
+    expect(funnelRows('app_funnel.link_failed')).toHaveLength(2);
     // Every link attempt was refused, so the Flow is the only thing that reached the coach.
     for (const r of [...mockWa.sendCtaUrl.mock.results, ...mockWa.sendMessage.mock.results]) expect(await r.value).toBe(false);
   });

@@ -1080,9 +1080,13 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the coach gets one message with the "Lesson plans" button, in the language they asked in
     And no lesson-plan menu, no "lesson plans now come from your textbook" line and no apology arrive
     # lesson-plan-generation.worker openLpBrowseFlowForCutover asks the switch (door cutover_inflight_gamma) and returns
-    # on the link; only when it says no does the catalogue open, whose own door asks again and gets the same no. If the
-    # button and its plain-text fallback are both refused, the catalogue Flow goes alone. Without LP_612_ROUTE_ALL the
-    # worker never asks: the not-in-catalogue line, for everyone, as before.
+    # once the link is sent. Otherwise the catalogue opens, whose own door asks the switch again. When the switch said no,
+    # the second ask says no too and the Flow goes. When the switch said yes but the SEND failed (the button and its
+    # plain-text fallback both refused), the second ask says yes again and tries the link once more (a second button, a
+    # second plain-text attempt, a second app_funnel.command and link_failed row); only when that is refused too does the
+    # Flow go. Every refused attempt delivered nothing, so the Flow is the one message the coach sees. The typed
+    # (intent, then lesson_plan_intent) and voice (voice_intent, then voice_lesson_plan_intent) paths retry the same way.
+    # Without LP_612_ROUTE_ALL the worker never asks: the not-in-catalogue line, for everyone, as before.
 
   @e2e @config-gated @P2
   Scenario: With the leader switch on "coaches", a principal who names a topic keeps the WhatsApp lesson-plan menu

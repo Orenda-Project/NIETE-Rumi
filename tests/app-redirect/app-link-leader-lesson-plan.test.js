@@ -154,7 +154,9 @@ describe('a leader asks for lesson plans with the switch on', () => {
       expect(tokenOf(mockCta.mock.calls[0][1]).f).toBe('leader_lessons');
     });
 
-  test.each(['command', 'ice_breaker', 'unspecified', 'keyword'])(
+  // `ft_fallback` (the first-touch "Lesson plan" button, first-touch/maker.fallback.js) is in neither list: a covered coach
+  // who taps it still gets the catalogue Flow. Pinned here so adding it is a deliberate change, not a side effect.
+  test.each(['command', 'ice_breaker', 'unspecified', 'keyword', 'ft_fallback'])(
     'door %p (not one this switch opens) keeps today\'s path', async (reason) => {
       set('leader_app_lesson_plan', true);
       expect(await ask({ reason })).toBe(false);

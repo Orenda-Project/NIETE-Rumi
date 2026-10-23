@@ -176,8 +176,11 @@ const LEADER_PLAIN_DOORS = Object.freeze(['bare_command', 'chip', 'menu', 'menu_
  * requests too"). Typed: the lesson_plan intent (`intent`, before the catalogue), then `lesson_plan_intent` (the
  * catalogue door that intent, a topic typed after the menu asked for one, and the Oxbridge picker's "Generate" tap
  * reach). Spoken: `voice_intent` (before the spoken answer), then `voice_lesson_plan_intent`. In flight: the worker's
- * cutover rescue, `cutover_inflight_gamma`. Each path asks its first door first and returns on a link, so a leader gets
- * the tab at most once; the later door only decides if the first one did not send.
+ * cutover rescue, `cutover_inflight_gamma`. Each path asks its first door first and returns once a link is sent, so a
+ * leader receives the tab at most once. The later door decides only when the first did not send: if the switch said
+ * no, it says no again and the catalogue Flow goes; if the switch said yes but Meta refused the button and its
+ * plain-text link, it tries the link once more (a second app_funnel.command and link_failed row) before the Flow.
+ * `ft_fallback` (the first-touch "Lesson plan" button) is in neither list: a covered coach who taps it gets the Flow.
  */
 const LEADER_TOPIC_DOORS = Object.freeze(['intent', 'lesson_plan_intent', 'voice_intent', 'voice_lesson_plan_intent',
   'cutover_inflight_gamma']);
