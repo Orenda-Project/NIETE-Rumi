@@ -135,7 +135,8 @@ const ROUTINE = [
   // greeting
   /السلام علیکم|وعلیکم السلام|\bassalam|\bgood (?:morning|afternoon)\b|\bhow are you\b|آپ کیسے ہیں|\bhello\b|تم کیسے ہو|کیسے ہیں سب|کیا حال ہے|سب ٹھیک (?:ہیں|ہو)/iu, // R7d: «تم کیسے ہو؟» (Q113)
   // R7e (COS 202042; Q179 Q136 Q063): an attention check, small talk, attendance, the phone or the recording
-  /ایکٹیو ہیں|تیار ہیں|\bare you ready\b|\beveryone ready\b|اسکول کیسے آئے|سکول کیسے آئے|حاضری|\battendance\b|\broll call\b|موبائل|پاسورڈ|ریکارڈنگ|\b(?:mobile|password|recording)\b/iu,
+  // red7 F5: the roll call's answers («present miss», «یس میڈم») and its question ("who is absent?")
+  /ایکٹیو ہیں|تیار ہیں|\bare you ready\b|\beveryone ready\b|اسکول کیسے آئے|سکول کیسے آئے|حاضری|\battendance\b|\broll call\b|موبائل|پاسورڈ|ریکارڈنگ|\b(?:mobile|password|recording)\b|\bpresent (?:miss|sir|madam|teacher)\b|\bsay present\b|\babsent\b|غیر حاضر|^\s*یس (?:میڈم|سر|مس)\s*[۔.!]?\s*$/iu,
   // page or book call
   /(?:پیج|صفحہ|صفحے)\s*(?:نمبر)?\s*[\d۰-۹]|\bpage\s*(?:no\.?|number)?\s*\d|\bopen your (?:book|copy|notebook)|(?:کتاب|کتابیں|کاپی|کاپیاں)\s+(?:کھول|نکال)|چیپٹر نمبر/iu,
   // order about the room
@@ -151,9 +152,7 @@ const ASKING_ROUTINE = [
   // a test held in THIS period (a test announced for tomorrow is homework talk, P183: the card fallback, as ruled)
   /(?:آج|ابھی) (?:\S+\s+){0,3}(?:ٹیسٹ|پیپر|امتحان|کوئز)|\b(?:test|exam|quiz) (?:today|now)\b|\btoday(?:'s| is| we have)? (?:a |your |the )?(?:test|exam|quiz)\b/iu,
   /(?:ٹاپک|سبق|موضوع|لیسن)\s+(?:\S+\s+){0,2}(?:کیا|کون سا|کونسا) (?:ہے|تھا)|\bwhat(?:'s| is| was) (?:our|today'?s|the) (?:topic|lesson)\b/iu,
-  // R7e (Q188 Q200 Q117 Q130): which lesson, or what we read — «آج ہم نے کون سا سبق پڑھنا ہے؟», «کیا پڑھنا ہے ہم نے؟»
-  // …but «what did we learn/read today?» at the end is the closure question itself: only yesterday's lesson or the one to come
-  /(?:کون سا|کونسا|کون سی|کونسی) (?:سبق|ٹاپک|موضوع|لیسن|چیپٹر|نظم|کہانی)|(?:ہم|آپ)(?: لوگ)?(?: نے)? (?:\S+\s+){0,2}کیا پڑھ(?:نا|نی|نے) (?:ہے|ہیں)|کیا پڑھنا ہے|کل (?:\S+\s+){0,4}کیا پڑھ|\bwhat (?:are|will) we (?:reading|read|studying|study) today\b|\bwhat (?:were|did) we (?:read|reading|study|studying|learn|learning|do) (?:yesterday|last (?:class|time|lesson|week))\b|\bwhich (?:lesson|chapter|topic|poem|story)\b/iu,
+  // red7 F1 (210805): a which-lesson regex (Q188 Q200 Q130) silenced Q026 (right) and 3 acceptable rows for 0 unique wrong; not built
 ];
 const TOPIC_STOP = new Set('what is was are the a an of this that کیا ہے ہیں تھا کون سا کس کی کا کے یہ وہ'.split(' '));
 // …but a page call, an order or an announcement is a statement: a sentence that asks («ہم نے کس چیز کو سرکل کرنا ہے؟», Q135; «تو سب سے پہلے ہم کیا
@@ -179,6 +178,7 @@ function routineLine(quote, { topic = null } = {}) {
   const words = (x) => (x.match(/[\p{L}\p{N}]+/gu) || []).length;
   const all = sentences.reduce((n, x) => n + words(x), 0);
   if (!all) return false;
+  if (DEVICE.test(String(quote))) return true; // red7 H2 (N1 N6): «Sir, the app is open now» rides on the recording question
   const routine = sentences.filter((x) => isRoutine(x) || topicOnly(x, topic)).reduce((n, x) => n + words(x), 0);
   return routine / all >= ROUTINE_SHARE;
 }
@@ -230,6 +230,33 @@ function closedAnswers(lines, { grade = null } = {}) {
 const CLASS_GREETING = /(?:السلام علیکم|اسلام علیکم|\bassalam\w*|\bgood (?:morning|afternoon))[^\n]{0,24}?(?:بچو|بچوں|بچے|\bstudents\b|\bclass\b|\bchildren\b|\beveryone\b)/iu;
 const TEST_NOW = /(?:آج|ابھی) (?:\S+\s+){0,3}(?:ٹیسٹ|پیپر|امتحان|کوئز)(?!\s*(?:کی|کے) (?:تیاری|لیے))|(?:ٹیسٹ|پیپر|امتحان) ہو رہا ہے|\b(?:test|exam|quiz) (?:today|now)\b|\btoday(?:'s| is| we have)? (?:a |your |the )?(?:test|exam|quiz)\b(?! (?:prep|preparation|revision))/iu;
 const OPENING_SHARE = 0.25;
+// red7 F3: a test announced for later in the period («آخر میں», "at the end") leaves the lesson before it a lesson
+const LATER = /آخر میں|بعد میں|پہلے (?:سبق|ہم)|\bat the end\b|\blater\b|\bfirst (?:we|let'?s)\b/iu;
+const testNow = (x) => TEST_NOW.test(x) && !LATER.test(x);
+// red7 H2 (P1, N1): talk about the phone, the app or the recording, to the observer
+const DEVICE = /موبائل|پاسورڈ|ریکارڈنگ|(?<!\p{L})ایپ(?!\p{L})|کیمرہ|\b(?:mobile|password|recording|camera)\b|\bthe app\b/iu;
+const CHILD_LABEL = /^\s*\[[\d:]+\]\s*(?:students?|class|child(?:ren)?|طالب|طلبہ|بچ)[^:\n]{0,12}:/iu;
+const SETUP_CAP_S = 180;
+const lineSec = (l) => { const m = /^\s*\[([\d:]+)\]/.exec(String(l)); return m ? stampSec(m[1]) : null; };
+
+// red7 T4: a test that ends and a lesson that follows — the lesson resumes at the first of ≥ 3 teacher questions a child
+// answers (a test period has «did you finish?» and orders, not a run of answered questions)
+const RESUME_PAIRS = 3;
+/** [start, end) of the test period in `lines`, or null: from the line holding a test THIS period to the lesson resuming. */
+function testSpan(lines) {
+  if (!Array.isArray(lines)) return null;
+  const all = lines.map(String);
+  const start = all.findIndex((l) => testNow(textOf(l)));
+  if (start < 0) return null;
+  const pairs = [];
+  for (let n = start + 1; n + 1 < all.length; n++) {
+    const x = textOf(all[n]);
+    if (TEACHER_LABEL.test(all[n]) && asks(x) && !isRoutine(x) && KID.test(all[n + 1])) pairs.push(n);
+  }
+  return [start, pairs.length >= RESUME_PAIRS ? pairs[0] : all.length];
+}
+/** red7 H1: the lesson is a test period that never resumes (the card fallback has nothing to attach to). */
+const testPeriod = (lines) => { const t = testSpan(lines); return !!t && t[1] === lines.length; };
 
 /** 'before_lesson' | 'test' | false: the line at `i` of the whole transcript is spoken while no lesson is happening. */
 function notTeaching(lines, i) {
@@ -237,7 +264,16 @@ function notTeaching(lines, i) {
   const texts = lines.map(textOf);
   const g = texts.findIndex((x) => CLASS_GREETING.test(x));
   if (g > 0 && g < Math.max(2, Math.ceil(texts.length * OPENING_SHARE)) && i < g) return 'before_lesson';
-  if (texts.slice(0, i + 1).some((x) => TEST_NOW.test(x))) return 'test';
+  // red7 H2 (P1): no class greeting: after device talk in the opening, the lesson starts at the teacher's line before the
+  // first child answer (labels «Speaker 2» can be the observer, so only a student/class label counts), within 3 minutes
+  if (g < 0) {
+    const k = lines.findIndex((l) => CHILD_LABEL.test(String(l)));
+    const sec = lineSec(lines[i]);
+    if (k > 1 && i < k - 1 && sec !== null && sec <= SETUP_CAP_S
+      && lines.slice(0, i + 1).some((l, n) => DEVICE.test(texts[n]) && (lineSec(l) ?? Infinity) <= SETUP_CAP_S)) return 'before_lesson';
+  }
+  const t = testSpan(lines);
+  if (t && i >= t[0] && i < t[1]) return 'test';
   return false;
 }
 
@@ -269,4 +305,4 @@ function earlyForClosure(at, lines) {
 const WHY_CARD = /کیوں|کیسے|\bwhy\b|\bhow\b|open[- ]ended|open questions?|کھلے سوال|کھلا سوال|اوپن اینڈ/iu;
 const whyCard = (sentence) => WHY_CARD.test(String(sentence || ''));
 
-module.exports = { levelsMoment, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, notTeaching, isClosure, earlyForClosure, LABEL_SUBJECTS };
+module.exports = { levelsMoment, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, notTeaching, testPeriod, isClosure, earlyForClosure, LABEL_SUBJECTS };

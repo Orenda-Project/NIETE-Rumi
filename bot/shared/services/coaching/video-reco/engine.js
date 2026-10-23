@@ -345,6 +345,8 @@ async function compute(a, d, state) {
   };
   // v1.3c (b): the retry failed too, on a validation rule, but the pick is a shortlisted chapter → the card's own sentence.
   let fallback = null;
+  // red7 H1 (210805, T1): a test period has no lesson for the card's sentence to attach to, whichever rule refused the quote
+  if (!v.ok && silence.testPeriod(prompt.transcriptLines(session))) routineSeen = true;
   if (!v.ok && attempts >= 2 && !routineSeen && res.pick && res.pick.seg_id) {
     const seg = catalog.segment(String(res.pick.seg_id));
     fallback = seg && select.cardFallback({
