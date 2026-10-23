@@ -57,6 +57,11 @@ function inapplicableRows(analysis) {
 const MOVE_REASONS = new Set([null, 'empty']);
 // R7d §2: the nones after which the enacted chapters are asked once for another moment, rather than silence.
 const SECOND_MOMENT = new Set(['llm_none', 'validation:quote', 'validation:placeholder', 'validation:not_moment']);
+// R7f (COS 223858 1c; panel Q117 Q136): the closure chapters a closing card falls back to, in this order (47-s6 is the
+// panel's named clip: «what did we learn today?» in Urdu, 61 s).
+const CLOSURE_CHAPTERS = ['47-s6', '11-s5'];
+// R7f (COS 223858 1b): the rules whose refusal goes straight to the card's own sentence (no retry)
+const DIRECT_FALLBACK = new Set(['validation:no_gap', 'validation:not_gap']);
 
 /**
  * The chosen chapter does not carry the step indicator (R4). null when there is no step indicator (card_text, phase).
@@ -190,18 +195,27 @@ async function compute(a, d, state) {
     // v1.3b NO_MOVE: no route ran, so the row says so (route null, an empty list).
     return finish({ ...base, status: 'none', none_reason: t.none, ...(t.none === 'hole:no_move' ? { candidates: [] } : {}) });
   }
+  const step = (nextStep && nextStep.target) || {};
+  const fa = (analysis && analysis.focus_area) || {};
+  const cardSentence = (card && card.action) || step0(nextStep, analysis);
+  const lines = prompt.transcriptLines(session);
+  const grade = await gradeOf(analysis, session.user_id, store);
   // R7b silence (silence.js, panel §6.1): a subject label off its subject, and B6 with no mixed-level moment, are no move.
-  if (silence.labelOffSubject(t.scheme, t.storedIndicator, shortlist.subjectId(subject))) {
+  // R7f (panel Q102 Q127 Q139): …unless the label's sentence asks for open questions on a lesson whose children answer in
+  // a word: then the questioning chapters the engine enacts are its list (the evidence test is the lesson's own answers).
+  const labelOpen = silence.labelOffSubject(t.scheme, t.storedIndicator, shortlist.subjectId(subject))
+    && silence.openQuestionCard(cardSentence) && silence.closedAnswers(lines, { grade });
+  if (!labelOpen && silence.labelOffSubject(t.scheme, t.storedIndicator, shortlist.subjectId(subject))) {
     return finish({ ...base, status: 'none', none_reason: 'silence:label_subject', candidates: [] });
   }
-  const levelsMoment = silence.levelsMoment(prompt.transcriptLines(session));
+  const levelsMoment = silence.levelsMoment(lines);
   if (t.storedIndicator === 'B6' && !levelsMoment) {
     return finish({ ...base, status: 'none', none_reason: 'silence:no_levels_moment', candidates: [] });
   }
 
   const lesson = {
     subject,
-    grade: await gradeOf(analysis, session.user_id, store),
+    grade,
     topic: (analysis && analysis.topic) || (session.lesson_plan_structured && session.lesson_plan_structured.topic) || null,
     inapplicable: inapplicableRows(analysis),
     levelsMoment,
@@ -214,11 +228,14 @@ async function compute(a, d, state) {
     ladderComplete,
     history,
   };
-  const list = shortlist.build(catalog, t, ctx, signalOf(t, analysis, nextStep, card), lesson, stepTextOf(t, analysis, card));
+  let list = shortlist.build(catalog, t, ctx, signalOf(t, analysis, nextStep, card), lesson, stepTextOf(t, analysis, card));
+  if (labelOpen) {
+    const four = shortlist.enacted(catalog, ctx, lesson);
+    list = { ...list, candidates: four.candidates, repeatModule: four.repeatModule, noneReason: four.candidates.length ? null : 'no_target', route: 'enacted' };
+  }
   // R7c §4: 51-s1 before 51-s3 for a why/how card on a lesson whose children answer in a word
-  const cardSentence = (card && card.action) || step0(nextStep, analysis);
   list.candidates = shortlist.whyFirst(list.candidates, catalog, {
-    apply: silence.whyCard(cardSentence) && silence.closedAnswers(prompt.transcriptLines(session), { grade: lesson.grade }), history,
+    apply: silence.whyCard(cardSentence) && silence.closedAnswers(lines, { grade: lesson.grade }), history,
   });
   base.repeat_module = list.repeatModule;
   base.level_match = list.levelMatch || null;
@@ -232,7 +249,12 @@ async function compute(a, d, state) {
   const st = stepTextOf(t, analysis, card);
   base.step_text_query = list.stepTextQuery ? shortlist.stepQuery({ ...st, action: prompt.redact(st.action, people) }) || null : null;
   if (list.route === 'step_text') base.alias_kind = list.textReason;
-  if (!list.candidates.length) return finish({ ...base, status: 'none', none_reason: list.noneReason || 'hole' });
+  // R7f (COS 223858 1c; panel Q075 Q151 wrong, Q117 Q136 owed): a closure card — B10 (v4 B7), or no indicator and a
+  // when-clause at the lesson's end — has its gap at the END of the lesson, whatever its own shortlist holds.
+  const cardInd = t.storedIndicator || st.indicator || null;
+  const bareCard = stripBidi(String(cardSentence || '')).slice(leadingVocative(stripBidi(String(cardSentence || ''))));
+  const closure = (cardInd === 'B10' && t.scheme !== 'fico_v4') || (cardInd === 'B7' && t.scheme === 'fico_v4') || (!cardInd && silence.closingCard(bareCard));
+  if (!list.candidates.length && !closure) return finish({ ...base, status: 'none', none_reason: list.noneReason || 'hole' });
 
   const row = t.row || {};
   const up = (analysis && analysis.uptake) || {};
@@ -242,16 +264,43 @@ async function compute(a, d, state) {
   const scorerQuote = t.source === 'card_text' ? '' : prompt.redact(target.scorerQuoteOnly(t.row), people);
   const uptakeQuote = t.source === 'card_text' && up.moment ? prompt.redact(up.moment, people) : '';
   // scale-run 081240: an empty transcript has no moment, whatever the scorer wrote ("No transcript recorded.")
-  const noTranscript = !prompt.transcriptLines(session).length;
+  const noTranscript = !lines.length;
   if (noTranscript || (!ex.length && !scorerQuote && !uptakeQuote)) {
     return finish({ ...base, status: 'none', none_reason: 'no_moments', candidates: list.candidates });
   }
   // R7c (Q194): a transcript that is mostly a recogniser loop has no moment, whatever the scorer quoted from it
-  if (silence.degenerate(prompt.transcriptLines(session))) {
+  if (silence.degenerate(lines)) {
     return finish({ ...base, status: 'none', none_reason: 'no_moments:degenerate', candidates: list.candidates });
   }
-  const step = (nextStep && nextStep.target) || {};
-  const fa = (analysis && analysis.focus_area) || {};
+  // R7e (COS 185329): "proven chapters" — set, a pick off the list is none/'allowlist' in either arm; null = today
+  const allow = videoRecoAllowlist(d.env);
+  const offList = (segId) => !!allow && !allow.has(String(segId));
+  /** R7f: the card's own sentence on the first of `ids` this teacher may get (no model call) → {said, segId, list} | null. */
+  const fixedFallback = (ids, none, route) => {
+    const pool = shortlist.enacted(catalog, ctx, lesson, ids);
+    const cands = pool.candidates.filter((c) => !offList(c.seg_id)).map((c) => ({ ...c, route }));
+    const fixedList = { ...list, candidates: cands, repeatModule: pool.repeatModule, route };
+    for (const c of cands) {
+      const hit = catalog.segment(c.seg_id);
+      const said = hit && select.cardFallback({
+        none, segId: c.seg_id, shortlist: fixedList, sentence: cardSentence, startS: hit.segment.start_s, endS: hit.segment.end_s,
+        teacherName: people.teacher, module: hit.module, subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster,
+      });
+      if (said) return { said, segId: c.seg_id, list: fixedList };
+    }
+    return null;
+  };
+  const lessonLanguage = { report_language_null: !hasPref, lesson_language: hasPref ? transcriptLanguage : language };
+  // …so when no excerpt line reaches that end, no model is asked: the card's closing move goes to a closure chapter, else nothing.
+  // red7 230552 C2: a scorer's quote the model may cite is part of what it sees (the line, found in the transcript)
+  const citable = [scorerQuote, uptakeQuote].filter(Boolean).map((q) => lines.find((l) => select.quoteFound(q, [l]))).filter(Boolean);
+  if (closure && !silence.reachesEnd([...ex, ...citable], lines)) {
+    const fixed = silence.closingMove(bareCard) ? fixedFallback(CLOSURE_CHAPTERS, 'validation:closure_early', 'closure') : null;
+    if (!fixed) return finish({ ...base, status: 'none', none_reason: 'closure:no_end', candidates: list.candidates });
+    return emit({ res: { pick: { seg_id: fixed.segId }, model: null, usage: {} }, pickList: fixed.list, fallback: fixed.said, v: { ok: false, none: null },
+      withLlm: { ...base, candidates: fixed.list.candidates, repeat_module: !!fixed.list.repeatModule, attempts: 0, first_none_reason: null, ...lessonLanguage } });
+  }
+  if (!list.candidates.length) return finish({ ...base, status: 'none', none_reason: list.noneReason || 'hole' });
   const promptArgs = {
     target: t.none ? { ...t, indicator: t.storedIndicator } : t, // unknown 37-id: the prompt names the id the report scored
     // Names never reach the model: the card's action opens with the teacher's name in prod; the rationale is free text.
@@ -273,26 +322,48 @@ async function compute(a, d, state) {
     stepIndicator: t.stepIndicator, indicators: t.indicators, source: t.source, catalog, textRoute: !!list.textReason,
     teacherName: people.teacher, scorerQuote: scorerQuote || uptakeQuote, // §3.5 [v1.3] d: the Quote: part, never evidence_summary
     rawExcerpts: rawEx, vocab, oovVocab, roster: people.roster, topic: lesson.topic, grade: lesson.grade, // R7d §5
+    cardIndicator: cardInd, // R7f 1a: a B6 card's moment shows the levels
     // red7 074627: a scorer-path quote must be a transcript line; redacted once, only when that path is reached
     fullLines: (() => { let all = null; return () => (all = all || prompt.transcriptLines(session).map((l) => prompt.redact(l, people))); })(),
   };
-  // R7e (COS 185329): "proven chapters" — set, a pick off the list is none/'allowlist' in either arm; null = today
-  const allow = videoRecoAllowlist(d.env);
-  const offList = (segId) => !!allow && !allow.has(String(segId));
   let pickList = list; // R7c §7: the enacted-chapters second pass answers from its own list
-  let routineSeen = false; // red7 194127 (Q170): a rejected routine moment means the lesson gave none; no card fallback either
+  // red7 194127 (Q170): a rejected moment from no lesson means the lesson gave none; no card fallback either. R7f (Q090
+  // Q179): only a line spoken while no lesson is happening counts — a greeting cited by a retry no longer does.
+  let routineSeen = false;
   const check = (r, l = pickList, o = vopts) => {
     const out = r.truncated ? { ok: false, none: 'llm_truncated', confidence: undefined } : select.validate(select.groundReasons(r.pick, catalog), l, ex, o); // R7d §6: the grounded text is what is checked
-    if (!out.ok && (out.none === 'validation:not_moment' || select.routineQuote(r.pick, lesson.topic))) routineSeen = true;
+    if (!out.ok && (out.lessonless || select.lessonlessQuote(r.pick, vopts.fullLines))) routineSeen = true;
     return out;
   };
   let res = await select.pick({ prompt: text, deps: d, timeoutMs: a.llmTimeoutMs });
   let v = check(res);
   let attempts = 1;
   let firstNone = null;
+  // v1.3c (b): the retry failed too, on a validation rule, but the pick is a shortlisted chapter → the card's own sentence.
+  // `direct` (R7f): a rule whose answer IS the card's sentence takes it on the first answer, with no retry.
+  const cardFallbackFor = ({ direct = false } = {}) => {
+    if (v.ok || (attempts < 2 && !direct) || routineSeen || !res.pick || !res.pick.seg_id) return null;
+    if (silence.testPeriod(lines)) return null; // red7 H1 (210805, T1): no lesson for the sentence to attach to
+    // R7f 1a (red7 230552 A1/A3): a step-text pick, or a differentiation card, rests on its moment alone — refused, it is
+    // silence (as the levels rule), never the card's sentence on a chapter the card's words or label happened to reach
+    const cand = (pickList.candidates || []).find((x) => x.seg_id === String(res.pick.seg_id));
+    if ((cand && cand.route === 'step_text') || cardInd === 'B6' || silence.levelsCard(cardSentence)) return null;
+    const seg = catalog.segment(String(res.pick.seg_id));
+    return seg && select.cardFallback({
+      none: v.none, segId: res.pick.seg_id, shortlist: pickList, sentence: (card && card.action) || step.try || fa.try_this_tomorrow || '',
+      startS: seg.segment.start_s, endS: seg.segment.end_s, teacherName: people.teacher, module: seg.module, subject, vocab, oovVocab,
+      segment: seg.segment, // R7b: the clause the clip serves
+      language, // R7c: the reader's line is the one that must fit and the one that quotes (was never passed: always 'en')
+      roster: people.roster,
+    });
+  };
+  // R7f (COS 223858 1b): a reason that names no gap, or a cited line that shows none, goes straight to the card's own
+  // sentence (96.9% right/acceptable on v5, against 86.9% for a model moment); the retry only when that cannot be built.
+  let fallback = !v.ok && DIRECT_FALLBACK.has(v.none) ? cardFallbackFor({ direct: true }) : null;
+  if (fallback) firstNone = v.none; // the refused rule stays on the row
   // v1.3b: ONE more call when the answer broke a validation rule and the budget allows; the appendix names the rule.
   const left = (a.timeoutMs || ENGINE_TIMEOUT_MS) - (Date.now() - state.t0);
-  if (!v.ok && /^validation:/.test(v.none) && left >= RETRY_MIN_LEFT_MS) {
+  if (!v.ok && !fallback && /^validation:/.test(v.none) && left >= RETRY_MIN_LEFT_MS) {
     attempts = 2;
     firstNone = v.none;
     try {
@@ -311,7 +382,7 @@ async function compute(a, d, state) {
   const stepId = t.storedIndicator || t.stepIndicator || null;
   const enactedFits = (none) => SECOND_MOMENT.has(none)
     && (shortlist.ENACTED_STEPS.has(stepId) || (t.source === 'card_text' && silence.whyCard(cardSentence)))
-    && silence.closedAnswers(prompt.transcriptLines(session), { grade: lesson.grade });
+    && silence.closedAnswers(lines, { grade: lesson.grade });
   const secondMoment = async () => {
     const left2 = (a.timeoutMs || ENGINE_TIMEOUT_MS) - (Date.now() - state.t0);
     if (!enactedFits(v.none) || left2 < RETRY_MIN_LEFT_MS) return false;
@@ -337,37 +408,43 @@ async function compute(a, d, state) {
     } catch (e) { /* the first answer's none stands */ }
     return true;
   };
-  if (v.none === 'llm_none') await secondMoment();
+  if (!fallback && v.none === 'llm_none') await secondMoment();
   // r-ab EVENTS_SCHEMA §3b (V1.7.2): the language facts the STOP_lang_null guardrail reads, on every row with a call.
   const withLlm = {
     ...base, candidates: pickList.candidates, repeat_module: !!pickList.repeatModule, model: res.model, usage: res.usage, attempts, first_none_reason: firstNone,
-    report_language_null: !hasPref, lesson_language: hasPref ? transcriptLanguage : language,
+    ...lessonLanguage,
   };
-  // v1.3c (b): the retry failed too, on a validation rule, but the pick is a shortlisted chapter → the card's own sentence.
-  let fallback = null;
   // red7 H1 (210805, T1): a test period has no lesson for the card's sentence to attach to, whichever rule refused the quote
-  if (!v.ok && silence.testPeriod(prompt.transcriptLines(session))) routineSeen = true;
-  if (!v.ok && attempts >= 2 && !routineSeen && res.pick && res.pick.seg_id) {
-    const seg = catalog.segment(String(res.pick.seg_id));
-    fallback = seg && select.cardFallback({
-      none: v.none, segId: res.pick.seg_id, shortlist: pickList, sentence: (card && card.action) || step.try || fa.try_this_tomorrow || '',
-      startS: seg.segment.start_s, endS: seg.segment.end_s, teacherName: people.teacher, module: seg.module, subject, vocab, oovVocab,
-      segment: seg.segment, // R7b: the clause the clip serves
-      language, // R7c: the reader's line is the one that must fit and the one that quotes (was never passed: always 'en')
-      roster: people.roster,
-    });
-  }
+  if (!v.ok && silence.testPeriod(lines)) routineSeen = true;
+  if (!fallback) fallback = cardFallbackFor();
   // R7e: the card's sentence is never sent on an off-list chapter; the (on-list) second pass may still find a moment
   const listRefused = !!fallback && offList(res.pick.seg_id);
   if (listRefused) fallback = null;
   if (!v.ok && !fallback && v.none !== 'llm_none' && await secondMoment()) {
     Object.assign(withLlm, { candidates: pickList.candidates, repeat_module: !!pickList.repeatModule, model: res.model, usage: res.usage, attempts, first_none_reason: firstNone });
+    // R7f (COS 223858 e; Q090 Q179): the second pass's own pick, refused on a fallback rule, takes the card's sentence too
+    // (its list is the enacted chapters, so never off the allowlist)
+    fallback = cardFallbackFor();
+  }
+  // R7f (COS 223858 e; panel Q036 Q083): a D3 (student-to-student) card over a lesson where no child speaks at all — the
+  // lesson itself is the gap the card names; when the model finds no line, the card's sentence goes on 50-s2.
+  if (!v.ok && !fallback && !routineSeen && stepId === 'D3' && silence.monologue(lines)) {
+    const fixed = fixedFallback(['50-s2'], 'validation:no_child_turn', 'enacted');
+    if (fixed) {
+      res = { ...res, pick: { ...(res.pick || {}), seg_id: fixed.segId } };
+      pickList = fixed.list;
+      fallback = fixed.said;
+      Object.assign(withLlm, { candidates: pickList.candidates, repeat_module: !!pickList.repeatModule });
+    }
   }
   if (!v.ok && !fallback) {
     if (listRefused) return finish({ ...withLlm, status: 'none', none_reason: 'allowlist' });
     return finish({ ...withLlm, status: 'none', none_reason: v.none, ...(v.confidence === undefined ? {} : { confidence: v.confidence }) });
   }
+  return emit({ res, pickList, fallback, v, withLlm });
 
+  /** The shown/shadow row for a validated pick or a card fallback (`v` null-ish ok when `fallback` is set). */
+  async function emit({ res, pickList, fallback, v, withLlm }) { // eslint-disable-line no-shadow
   const p = select.groundReasons(res.pick, catalog); // R7d §6: the clip half from the chapter, as validated
   const hit = catalog.segment(String(p.seg_id));
   // R7e: before the arm sets status, so the video and the control arm store the same none for an off-list pick
@@ -414,6 +491,7 @@ async function compute(a, d, state) {
     confidence: fallback ? (Number.isFinite(c) ? Math.min(1, Math.max(0, c)) : 0) : v.confidence,
     none_reason: null,
   });
+  }
 }
 
 /**
