@@ -36,9 +36,14 @@ function excerpts(session, anchors = {}, people = {}) {
   return rawExcerpts(session, anchors).map((l) => clip(redact(l, people)));
 }
 
-/** Every transcript line "[mm:ss] Label: text", unredacted, in order (bd-8hhqhf: the scorer-path quote check). */
+/**
+ * Every transcript line "[mm:ss] Label: text", unredacted, in order (bd-8hhqhf: the scorer-path quote check). A
+ * transcript with no [mm:ss] lines gives its non-empty lines as they are (scale-run 081240), so it is still checked.
+ */
 function transcriptLines(session) {
-  return allLines(session).map((l) => l.text);
+  const stamped = allLines(session).map((l) => l.text);
+  if (stamped.length) return stamped;
+  return String((session && session.transcript_text) || '').split('\n').map((l) => l.trim()).filter(Boolean);
 }
 
 function allLines(session) {
