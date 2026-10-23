@@ -116,6 +116,29 @@ function quoteLine(quote, excerpts) {
 
 const quoteFound = (quote, excerpts) => quoteLine(quote, excerpts) >= 0;
 
+const BARE_STAMP = /^\s*\[\d{1,2}:\d{2}(?::\d{2})?\]\s*/;
+const TRAILING_STAMP = /\s*[([]\d{1,2}:\d{2}(?::\d{2})?[)\]]\s*$/;
+const QUOTE_WRAP = /^["“«]([\s\S]*)["”»]$/;
+
+/**
+ * The moment as stored and shown on /v (red7 091238): a leading stamp / speaker label, a trailing "(mm:ss)" and one
+ * wrapping pair of quote marks (or an orphaned closing one) go, until none is left; what stays is a verbatim stretch of
+ * the line (a [a student] placeholder in it is kept, as the redactor wrote it). Nothing left → the quote as given.
+ */
+function storedQuote(quote) {
+  const given = String(quote || '').trim();
+  let s = given;
+  let prev;
+  do {
+    prev = s;
+    s = s.replace(LINE_PREFIX, '').replace(BARE_STAMP, '').replace(TRAILING_STAMP, '').trim();
+    const w = QUOTE_WRAP.exec(s);
+    if (w) s = w[1].trim();
+    else if ((/"$/.test(s) && (s.match(/"/g) || []).length % 2 === 1) || (/[”»]$/.test(s) && !/[“«]/.test(s))) s = s.slice(0, -1).trim();
+  } while (s !== prev);
+  return s || given;
+}
+
 /**
  * The quote is a line of the whole transcript; `fullLines` is a thunk (redacted lines). Not given (a caller that does
  * not check) → not judged; given but empty → no line can be the moment (scale-run 081240: "No transcript recorded.").
@@ -302,4 +325,4 @@ function cardFallback({ none, segId, shortlist, sentence, startS, endS, language
   }
 }
 
-module.exports = { pick, validate, quoteFound, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
+module.exports = { pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
