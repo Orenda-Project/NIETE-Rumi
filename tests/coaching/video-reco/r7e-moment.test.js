@@ -314,8 +314,8 @@ describe('7 · red7 HOLD 210805 on #3648', () => {
     expect(SI().notTeaching(stamped(PRE), 6)).toBe(false);
     expect(SI().notTeaching(stamped(PRE), 9)).toBe(false);
   });
-  test('control: no device talk in the opening → nothing before the first child answer is voided', () => {
-    expect(SI().notTeaching(stamped(PRE.slice(2)), 2)).toBe(false);
+  test('control: no device talk and no adult turn in the opening → nothing before the first child answer is voided', () => {
+    expect(SI().notTeaching(stamped(PRE.slice(2).filter((l) => l.label !== 'Speaker 2')), 1)).toBe(false);
   });
 
   test.each([
@@ -360,5 +360,49 @@ describe('9 · Q170 (real shape): answered admin questions minutes apart do not 
   test('the student line at 03:30 is in the test period, and the lesson is a test period', () => {
     expect(SI().notTeaching(lines, 3)).toBe('test');
     expect(SI().testPeriod(lines)).toBe(true);
+  });
+});
+
+describe('10 · red7 HOLD 212728 on 5cddf11 (X9, X1, X6)', () => {
+  const STU = '[03:30] Student 2 (UR): میں اپنے گروپ میں ایکسپلین کرواؤں گی۔';
+  test('X9: three progress checks answered «جی» in 90 s are no resume → still a test period', () => {
+    const lines = ['[00:01] Teacher (UR): آج ٹیسٹ ہے آپ کا، لکھیں۔', '[01:00] Teacher (UR): ہو گیا؟', '[01:02] Students (UR): جی',
+      '[01:20] Teacher (UR): لکھ لیا سب نے؟', '[01:22] Students (UR): جی میڈم', '[01:40] Teacher (UR): سمجھ آ گئی سوال کی؟', '[01:42] Student (UR): جی', STU];
+    expect(SI().testPeriod(lines)).toBe(true);
+    expect(SI().notTeaching(lines, 7)).toBe('test');
+    expect(SI().routineLine('لکھ لیا سب نے؟')).toBe(true);
+    expect(SI().routineLine('Finished? Is everyone done?')).toBe(true);
+  });
+  test('X1: «بعد میں» about something else on the test line does not switch the test off', () => {
+    const lines = ['[00:01] Teacher (UR): آج ٹیسٹ ہے آپ کا، بعد میں چھٹی ہو گی۔', STU];
+    expect(SI().testPeriod(lines)).toBe(true);
+  });
+  test('X6 control: «کیمرہ» / «موبائل» as lesson content after the greeting is a lesson line', () => {
+    expect(SI().routineLine('کیمرہ کیسے کام کرتا ہے؟ سوچ کر بتاؤ')).toBe(false);
+    expect(SI().routineLine('موبائل فون کے فائدے اور نقصانات کیا ہیں؟')).toBe(false);
+    const lines = ['[00:05] Teacher: السلام علیکم بچو۔', '[00:08] Students: وعلیکم السلام', '[02:00] Teacher: کیمرہ کیسے کام کرتا ہے؟ سوچ کر بتاؤ', '[02:05] Student: روشنی سے'];
+    expect(SI().notTeaching(lines, 2)).toBe(false);
+  });
+  test('setup window: «موبائل» talk in the opening, before the first answered question, is still before_lesson', () => {
+    const lines = ['[00:05] Teacher: میرا موبائل کدھر ہے؟ ہاں یہ رکھ دیں۔', '[00:20] Speaker 2: جی رکھ دیا', '[00:40] Teacher: یہ دیکھو، کیسی لگی؟',
+      '[01:00] Teacher: Is this a triangle?', '[01:03] Student: Yes'];
+    expect(SI().notTeaching(lines, 2)).toBe('before_lesson');
+    expect(SI().notTeaching(lines, 3)).toBe(false);
+  });
+});
+
+describe('11 · red7 F8 (X3): adult-to-adult talk with no device word and no greeting', () => {
+  const lines = ['[00:05] Teacher: جی سر، میں شروع کروں؟', '[00:08] Speaker 2: جی، شروع کریں', '[00:30] Teacher: یہ دیکھو، کیسی لگی؟',
+    '[00:33] Speaker 2: اچھی ہے', '[01:00] Teacher: Is this a triangle?', '[01:03] Student: Yes', '[01:06] Teacher: Is it a square?', '[01:09] Student: No'];
+  test('the line answered by the observer before the first student answer → before_lesson', () => {
+    expect(SI().notTeaching(lines, 2)).toBe('before_lesson');
+  });
+  test('control: the lesson\'s first question and after → teaching', () => {
+    expect(SI().notTeaching(lines, 4)).toBe(false);
+    expect(SI().notTeaching(lines, 6)).toBe(false);
+  });
+  test('control: a class labelled only «Speaker N» (no Student label) is never voided', () => {
+    const sp = lines.map((l) => l.replace('Student:', 'Speaker 3:'));
+    expect(SI().notTeaching(sp, 2)).toBe(false);
   });
 });
