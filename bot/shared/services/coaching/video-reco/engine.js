@@ -282,7 +282,7 @@ async function compute(a, d, state) {
     fallback = seg && select.cardFallback({
       none: v.none, segId: res.pick.seg_id, shortlist: list, sentence: (card && card.action) || step.try || fa.try_this_tomorrow || '',
       startS: seg.segment.start_s, endS: seg.segment.end_s, teacherName: people.teacher, module: seg.module, subject, vocab,
-      segment: seg.segment, labels: Object.values(catalog.aliases || {}).map((x) => x && x.name).filter(Boolean), // R7b
+      segment: seg.segment, // R7b: the clause the clip serves
     });
   }
   if (!v.ok && !fallback) return finish({ ...withLlm, status: 'none', none_reason: v.none, ...(v.confidence === undefined ? {} : { confidence: v.confidence }) });
