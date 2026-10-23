@@ -18,7 +18,8 @@ const NO_PICTURES = 'The paper carries no pictures. A slot marked frame prints a
 
 const PICTURE_RULE = 'Pictures: a slot whose rule names a picture gives EVERY item one "picture" object, in one of the shapes that slot lists. '
   + 'Write object names and scene descriptions in plain English, even on an Urdu paper. A picture never carries words, letters or numbers to read. '
-  + 'A slot that names no picture carries none, and no item says "look at the picture" unless it has one.';
+  + 'A slot that names no picture carries none, and no item says "look at the picture" unless it has one. '
+  + 'Each picture shows exactly that item\'s own word, one plain thing alone: for "h_t" a hat, never a cap or a scene.';
 
 /** What each picture kind must carry for the pipeline to draw it. */
 const PICTURE_FIELDS = {

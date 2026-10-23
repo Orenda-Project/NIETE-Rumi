@@ -90,6 +90,9 @@ function makeSlot(o) {
     alternatives: null,
     or: false,
     picture: o.picture || null,
+    answer_box: true,
+    picture_only: Boolean(o.picture_only),
+    print_words: Boolean(o.print_words),
   };
 }
 
