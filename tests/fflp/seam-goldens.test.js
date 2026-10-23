@@ -145,7 +145,8 @@ const TEACHER = {
   id: '22222222-2222-4222-8222-222222222222', phone_number: PHONE, name: 'Ayesha', first_name: 'Ayesha', role: 'teacher',
   preferred_language: 'en', registration_completed: true, registration_state: 'completed',
 };
-const ON_ROW = { key: 'freeform_lp', value: JSON.stringify({ mode_by_segment: { '*': 'on' }, handoff: { niete_catalogue_miss: true, followup: true }, testers: [] }) };
+const ON_ROW = { key: 'freeform_lp', value: JSON.stringify({ mode_by_segment: { '*': 'on' }, handoff: { niete_catalogue_miss: true, followup: true }, testers: [], schema_ready: true }) };
+const onRow = (extra) => ({ key: 'freeform_lp', value: JSON.stringify({ ...JSON.parse(ON_ROW.value), ...extra }) });
 const SEGMENTS = [
   { segment_id: 's-1', grade: 7, subject: 'science', is_current: true, is_religious: false, subtopic_title: 'Photosynthesis in green plants', menu_title: 'Photosynthesis', chapter_title: 'Nutrition in plants' },
 ];
@@ -154,16 +155,20 @@ const MISS_TOPIC = 'lesson plan on quasars and black holes';
 
 const ENV = { ...process.env };
 let handler;
-function load({ switchOn, settings = [], user = TEACHER }) {
+// The engine is not on this deployment yet; a test that needs it present stands it in through the index's
+// own resolver (the module a later change ports).
+const mockEngine = { generateAndDeliver: jest.fn() };
+function load({ switchOn, settings = [], user = TEACHER, engine = true, row = null }) {
   jest.resetModules();
   mockRec.length = 0;
   mockStore.clear();
   mockDb = makeDb({
     users: [{ ...user }],
-    app_settings: [...settings.map((r) => ({ ...r })), ...(switchOn ? [{ ...ON_ROW }] : [])],
+    app_settings: [...settings.map((r) => ({ ...r })), ...(switchOn ? [{ ...(row || ON_ROW) }] : [])],
     user_feature_first_use: [], coaching_sessions: [], niete_lp612_segments: SEGMENTS.map((r) => ({ ...r })),
   });
   handler = require('../../bot/shared/handlers/text-message.handler');
+  if (switchOn && engine) require('../../bot/shared/services/fflp')._internals.resolveEngine = () => mockEngine;
 }
 
 /** What a run did, with clock values masked (flow tokens, ISO stamps, the signed /go link, a generated request id). */
@@ -188,7 +193,7 @@ function golden(row, rec) {
 const typing = () => ({ stop: jest.fn() });
 async function direct(body, user = TEACHER, language = 'en') {
   global.__TEST_USER__ = { ...user };
-  await handler.handleLessonPlanRequest(PHONE, body, { ...user }, 'sess-1', language, typing());
+  await handler.handleLessonPlanRequest(PHONE, body, { ...user }, 'sess-1', language, typing(), 'typed_topic');
   await new Promise((r) => setImmediate(r));
 }
 async function say(body, user = TEACHER) {
@@ -277,7 +282,7 @@ describe('N1-MISS — a typed topic in neither catalogue', () => {
     load({ switchOn: true });
     await direct('آتش فشاں اور زلزلے پر سبق', TEACHER, 'ur');
     const wa = recording().filter((r) => r[0] === 'wa');
-    expect(wa).toEqual([['wa', 'sendMessage', PHONE, 'آپ کا سبق کا منصوبہ لکھا جا رہا ہے۔ تقریباً ایک منٹ لگے گا۔']]);
+    expect(wa).toEqual([['wa', 'sendMessage', PHONE, 'آپ کا لیسن پلان لکھا جا رہا ہے۔ تقریباً ایک منٹ لگے گا۔']]);
   });
   test('switch ON but the request cannot be queued (the database refuses the row): today\'s catalogue door, unchanged', async () => {
     load({ switchOn: false });
@@ -339,5 +344,85 @@ describe('N-NIETE — the other catalogue doors, switch absent vs on', () => {
     expect(off.filter((r) => r[0] === 'sqs')).toEqual([]);
     expect(on.filter((r) => r[0] === 'sqs')).toHaveLength(1);
     expect(on.filter((r) => r[0] === 'wa' && r[1] === 'sendFlow')).toEqual([]);
+  });
+});
+
+describe('only the typed-topic door routes: the other two callers of the same handler are unchanged', () => {
+  test('N-NIETE-oxbridge-tap: the picker\'s "Generate LP" tap (same arguments as the webhook passes) is identical, switch absent or on', async () => {
+    const run = async () => {
+      global.__TEST_USER__ = { ...TEACHER };
+      await handler.handleLessonPlanRequest(PHONE, MISS_TOPIC, { ...TEACHER }, null, 'en', typing());
+      await new Promise((r) => setImmediate(r));
+    };
+    const { off, on } = await both(run);
+    golden('N-NIETE-oxbridge-tap', off); // today's bytes, pinned first
+    expect(on).toEqual(off);
+    expect(on.filter((r) => r[0] === 'sqs')).toEqual([]);
+  });
+  test('N-NIETE-menu-fallback: a topic typed after the menu\'s "Lesson Planning" is identical, switch absent or on', async () => {
+    const run = async () => {
+      const CS = require('../../bot/shared/services/conversation-state.service');
+      await CS.setState(TEACHER.id, {
+        flow: 'lesson_plan', step: 'awaiting_topic', ttlSeconds: 3600,
+        payload: { sessionId: 'sess-1', language: 'en', from: PHONE, askedAt: '2026-01-01T00:00:00.000Z' },
+      });
+      mockRec.length = 0;
+      await say(MISS_TOPIC);
+    };
+    const { off, on } = await both(run);
+    golden('N-NIETE-menu-fallback', off); // today's bytes, pinned first
+    expect(on).toEqual(off);
+    expect(on.filter((r) => r[0] === 'sqs')).toEqual([]);
+    expect(off.filter((r) => r[0] === 'wa').length).toBeGreaterThan(0);
+  });
+});
+
+describe('the engine and the schema must both be there before the switch can route anything', () => {
+  async function today() {
+    load({ switchOn: false });
+    await direct(MISS_TOPIC);
+    return recording();
+  }
+  test('engine absent => today\'s door even with the switch on', async () => {
+    const before = await today();
+    load({ switchOn: true, engine: false });
+    await direct(MISS_TOPIC);
+    expect(recording()).toEqual(before);
+  });
+  test.each([
+    ['missing', {}],
+    ['the string "true"', { schema_ready: 'true' }],
+    ['the number 1', { schema_ready: 1 }],
+  ])('schema_ready %s => today\'s door', async (_n, extra) => {
+    const before = await today();
+    const v = JSON.parse(ON_ROW.value);
+    delete v.schema_ready;
+    load({ switchOn: true, row: { key: 'freeform_lp', value: JSON.stringify({ ...v, ...extra }) } });
+    await direct(MISS_TOPIC);
+    expect(recording()).toEqual(before);
+  });
+  test('engine present + schema_ready:true => one queued job', async () => {
+    load({ switchOn: true });
+    await direct(MISS_TOPIC);
+    const rec = recording();
+    expect(rec.filter((r) => r[0] === 'sqs')).toHaveLength(1);
+    expect(rec.filter((r) => r[0] === 'db' && r[2] === 'insert' && r[1] === 'lesson_plan_requests')).toHaveLength(1);
+  });
+});
+
+describe('the job cannot be queued after the row is written', () => {
+  test('an SQS failure marks the row failed at once and she gets today\'s door, not "writing your plan"', async () => {
+    load({ switchOn: false });
+    await direct(MISS_TOPIC);
+    const before = recording();
+    load({ switchOn: true });
+    require('../../bot/shared/services/queue').queueCoachingJob.mockRejectedValueOnce(new Error('sqs down'));
+    await direct(MISS_TOPIC);
+    const rec = recording();
+    const writes = rec.filter((r) => r[0] === 'db' && r[1] === 'lesson_plan_requests');
+    expect(writes.map((r) => r[2])).toEqual(['insert', 'update']);
+    expect(writes[1][3]).toMatchObject({ status: 'failed' });
+    expect(rec.filter((r) => r[0] !== 'db' || r[1] !== 'lesson_plan_requests')).toEqual(before);
+    expect(mockDb.tables.lesson_plan_requests[0]).toMatchObject({ status: 'failed', source: 'freeform_v1' });
   });
 });

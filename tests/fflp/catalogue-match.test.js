@@ -105,3 +105,17 @@ describe('matchTopic() — the live lookup', () => {
     expect((await M.matchTopic('tectonic plates')).hit).toBe(true);
   });
 });
+
+describe('Urdu stop-words survive normalise()', () => {
+  test('«سائنس کا سبق بنائیں» has no content words (every word is a stop word once normalised)', () => {
+    expect(M.tokens('سائنس کا سبق بنائیں')).toEqual([]);
+  });
+  test('«برائے» and «بنائیں» are dropped around a real topic word', () => {
+    expect(M.tokens('ضیائی تالیف برائے جماعت ہفتم سبق بنائیں')).toEqual([M.normalise('ضیائی'), M.normalise('تالیف')]);
+  });
+  test('a catalogue topic typed in Urdu with those words is a HIT, not a MISS', () => {
+    const titles = [{ title: 'ضیائی تالیف', source: 'lp612' }];
+    expect(M.match('سائنس میں ضیائی تالیف پر سبق بنائیں برائے جماعت ہفتم', titles)).toMatchObject({ hit: true, score: 1 });
+  });
+});
+

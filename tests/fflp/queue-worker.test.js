@@ -72,11 +72,12 @@ describe('createAndQueueFreeform', () => {
     }) }]);
     expect(mockSqs[0].payload.sourceLpUuid).toBeUndefined();
   });
-  test('an SQS failure leaves the row pending for the recovery sweep and still returns the id', async () => {
+  test('an SQS failure after the insert marks the row failed at once and throws (no sweep reads pending rows; the caller gives today\'s door)', async () => {
     const SQS = require('../../bot/shared/services/queue');
     SQS.queueCoachingJob.mockRejectedValueOnce(new Error('sqs down'));
-    const id = await LessonPlanQueueService.createAndQueueFreeform({ userId: USER_ID, phoneNumber: PHONE, topic: 't', language: 'en' });
-    expect(mockDb.rows('lesson_plan_requests')[0]).toMatchObject({ id, status: 'pending', error_message: 'SQS queue failed: sqs down' });
+    await expect(LessonPlanQueueService.createAndQueueFreeform({ userId: USER_ID, phoneNumber: PHONE, topic: 't', language: 'en' }))
+      .rejects.toThrow(/sqs down/);
+    expect(mockDb.rows('lesson_plan_requests')[0]).toMatchObject({ status: 'failed', error_message: 'SQS queue failed: sqs down', source: 'freeform_v1' });
   });
   test('an insert the database refuses throws (the caller falls back to today\'s reply)', async () => {
     const real = mockDb.from;
