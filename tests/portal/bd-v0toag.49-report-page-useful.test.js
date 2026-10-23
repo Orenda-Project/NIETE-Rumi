@@ -170,6 +170,7 @@ describe('default writer and group lookup', () => {
       const c = {
         select: () => c, eq: (k, v) => { filters.push([k, v]); return c; },
         maybeSingle: async () => ({ data: tables[t] === undefined ? null : tables[t], error: null }),
+        limit: async () => ({ data: tables[t] === undefined ? [] : [tables[t]], error: null }),
         update: (p) => { ops.push([t, 'update', p, filters]); return c; },
         insert: async (r) => { ops.push([t, 'insert', r]); return { error: null }; },
         then: (ok, bad) => Promise.resolve({ error: null }).then(ok, bad),
