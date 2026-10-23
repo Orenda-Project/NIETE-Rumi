@@ -103,7 +103,7 @@ test('happy path: one LLM call, a shown row with the clip, the reason, the momen
     indicator: 'C1', catalog_indicator: 'C1', indicator_scheme: 'fico_v4', step_indicator: 'C1', differs_from_step: false,
     step_at_top: false, alias_kind: null, repeat_module: false, target_source: 'step', loop_angle: 'show', observation_type: 'self',
     language: 'ur', language_match: 'preferred', teacher_level: 2, teacher_level_source: 'ladder', level_match: 'near', ladder_completed: false,
-    reason_en: GOOD.reason_en, reason_ur: GOOD.reason_ur, moment_at: '00:30', moment_quote: GOOD.moment.quote, moment_source: 'transcript',
+    reason_en: 'At 00:30 the class could only answer yes or no. This clip is about: Ask why and how.', reason_ur: 'کلاس صرف ہاں یا نہیں میں جواب دے سکی۔ یہ کلپ اس بارے میں ہے: عنوان۔', moment_at: '00:30', moment_quote: GOOD.moment.quote, moment_source: 'transcript',
     confidence: 0.7, none_reason: null, catalog_version: 'catalog-fixture', prompt_version: 'vr-9', model: 'gpt-5-mini-2025-08-07',
     experiment: null, v10_group: 'C', image_strip: false,
   });

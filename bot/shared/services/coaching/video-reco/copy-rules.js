@@ -5,6 +5,7 @@
  */
 const { redactNames } = require('./redact-names');
 const LEX = require('./name-lexicon');
+const { imperative } = require('./silence');
 
 // ── the card's vocative (P165 ⛔9; red7 145611 V1–V10, N1–N4) ───────────────────────────────────────────────────────────
 // A prod card opens with the teacher's name, often in Urdu script while users.name is Latin, so a name match cannot find
@@ -186,7 +187,10 @@ function childFreeCard(sentence, { teacher = null, vocab = [], oovVocab = [], wh
       const prevWord = (before.match(/([\p{L}]+)[^\p{L}]*$/u) || [])[1] || '';
       const term = IN_TERM.exec(before);
       const inTerm = !!term && /[\p{L}]/u.test(before.slice(0, term.index)) && !new RegExp(`${N}$`).test(before.slice(0, term.index + term[1].length));
-      if (!masked.has(w) || first || inTerm || /[؀-ۿ]/.test(prevWord)) return w;
+      // red7 194127 A14: the first word is a name too when the strict redactor masks it and it is no move a card opens with
+      // («Zunaira should answer first …»); «Ask», «Model», «Circulate» are imperatives and stay
+      const firstName = first && masked.has(w) && !imperative(w) && !LEX.latCommon.includes(w.toLowerCase());
+      if (!masked.has(w) || (first && !firstName) || inTerm || /[؀-ۿ]/.test(prevWord)) return w;
       nameEnd = at + w.length;
       return hit(`latin${why && why.words ? `:${w}` : ''}`);
     }
@@ -226,8 +230,29 @@ function sceneClaim(reasonEn, reasonUr, module) {
 }
 
 const WHY_HOW_Q = /کیوں|کیسے|\bwhy\b|\bhow\b(?! are you)/iu;
+// R7d §6 (COS 184404): a what-question is never called "recall" either. Not a refusal (on the 600 that refused 46 shown
+// answers, most of them right): the label is rewritten to a plain "question". «کیا» counts only inside the question (at
+// its start it is the yes/no particle: «کیا یہ مثلث ہے؟»).
+const WHAT_Q = /\bwhat\b|(?<=\S\s+)کیا(?=\s|[؟?]|$)/iu;
+const RELABEL = {
+  en: [[/\b(?:a |an )?(?:(?:quick|simple|short|basic) )?(?:recall|memory|memori[sz]ation|factual|fact|closed|one-word)(?:[- ]based)? question/gi, 'a question'],
+    [/\b(?:asks?|asked|asking) for (?:quick |simple )?recall\b/gi, (m) => m.replace(/for (?:quick |simple )?recall/i, 'a question')],
+    [/\b(?:quick |simple )?recall\b/gi, 'question']],
+  ur: [[/(?:ایک )?(?:یادداشت|یاد داشت|یاداشت|یاددہانی|ریکال)(?: پر مبنی| والا| کا| کے| کی)? سوال/gu, 'سوال'],
+    [/(?:یادداشت|یاد داشت|یاداشت|یاددہانی|ریکال)/gu, 'سوال']],
+};
+
+const CLIP_WORD = { en: /\b(?:clip|video|chapter)\b/i, ur: /کلپ|ویڈیو/u };
+
+/** The lesson half of a reason with the recall label replaced, when the cited line asks what (en or ur). */
+function relabelRecall(text, l, quote) {
+  if (typeof text !== 'string' || !WHAT_Q.test(String(quote || '')) || WHY_HOW_Q.test(String(quote || ''))) return text;
+  const at = text.search(CLIP_WORD[l] || CLIP_WORD.en);
+  const head = at < 0 ? text : text.slice(0, at);
+  return (RELABEL[l] || []).reduce((t, [rx, to]) => t.replace(rx, to), head) + (at < 0 ? '' : text.slice(at));
+}
 const RECALL_EN = /\brecall\b|\bmemori[sz]|\bfact(?:ual)? question|\bclosed question|\byes[/ -]?(?:or[/ -])?no question|\bone-word question/i;
-const RECALL_UR = /یادداشت|یاد داشت|یاداشت|رٹا|ہاں یا نہیں والا|ہاں\/نہیں والا|بند سوال/u;
+const RECALL_UR = /یادداشت|یاد داشت|یاداشت|یاددہانی|رٹا|ہاں یا نہیں والا|ہاں\/نہیں والا|بند سوال/u;
 
 // Only the lesson side of a reason labels the cited line: the text before it turns to the clip («turn a yes/no question
 // into a why question» describes the clip, not the line).
@@ -239,4 +264,4 @@ function recallMislabel(quote, reasonEn, reasonUr) {
     && (RECALL_EN.test(lessonSide(reasonEn, /\b(?:clip|video|chapter)\b/i)) || RECALL_UR.test(lessonSide(reasonUr, /کلپ|ویڈیو/u)));
 }
 
-module.exports = { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, clipKind, sceneClaim, recallMislabel };
+module.exports = { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, clipKind, sceneClaim, recallMislabel, relabelRecall };
