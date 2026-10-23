@@ -18,6 +18,7 @@ const target = require('./target');
 const shortlist = require('./shortlist');
 const prompt = require('./prompt');
 const select = require('./select');
+const silence = require('./silence');
 const { composeReason, stripBidi } = require('./copy');
 
 const ENGINE_TIMEOUT_MS = 60000; // the LLM call is capped at 45 s (select.js); the sender awaits this after the report has gone
@@ -174,12 +175,21 @@ async function compute(a, d, state) {
     // v1.3b NO_MOVE: no route ran, so the row says so (route null, an empty list).
     return finish({ ...base, status: 'none', none_reason: t.none, ...(t.none === 'hole:no_move' ? { candidates: [] } : {}) });
   }
+  // R7b silence (silence.js, panel §6.1): a subject label off its subject, and B6 with no mixed-level moment, are no move.
+  if (silence.labelOffSubject(t.scheme, t.storedIndicator, shortlist.subjectId(subject))) {
+    return finish({ ...base, status: 'none', none_reason: 'silence:label_subject', candidates: [] });
+  }
+  const levelsMoment = silence.levelsMoment(prompt.transcriptLines(session));
+  if (t.storedIndicator === 'B6' && !levelsMoment) {
+    return finish({ ...base, status: 'none', none_reason: 'silence:no_levels_moment', candidates: [] });
+  }
 
   const lesson = {
     subject,
     grade: await gradeOf(analysis, session.user_id, store),
     topic: (analysis && analysis.topic) || (session.lesson_plan_structured && session.lesson_plan_structured.topic) || null,
     inapplicable: inapplicableRows(analysis),
+    levelsMoment,
   };
   const ctx = {
     language,
@@ -270,6 +280,7 @@ async function compute(a, d, state) {
     fallback = seg && select.cardFallback({
       none: v.none, segId: res.pick.seg_id, shortlist: list, sentence: (card && card.action) || step.try || fa.try_this_tomorrow || '',
       startS: seg.segment.start_s, endS: seg.segment.end_s, teacherName: people.teacher, module: seg.module, subject, vocab,
+      segment: seg.segment, labels: Object.values(catalog.aliases || {}).map((x) => x && x.name).filter(Boolean), // R7b
     });
   }
   if (!v.ok && !fallback) return finish({ ...withLlm, status: 'none', none_reason: v.none, ...(v.confidence === undefined ? {} : { confidence: v.confidence }) });

@@ -48,7 +48,7 @@ function args({ lines, topic = 'shapes', card = { indicator: 'C1', action: 'Ask 
   return {
     session: {
       id: SID, user_id: UID, transcript_language: 'ur', users: { name: 'Saima Khan', preferred_language: 'ur' },
-      diarization_data: { segments: lines || [{ start_ms: 30000, label: 'Teacher', text: 'Ahmed, tum batao: is this a triangle? Yes or no, quickly!' }] },
+      diarization_data: { segments: lines || [{ start_ms: 30000, label: 'Teacher', text: 'Ahmed, tum batao: is this a triangle? Yes or no, quickly!' }, { start_ms: 31000, label: 'Student', text: 'جی۔' }] },
     },
     analysis: {
       framework: 'fico',
@@ -98,10 +98,10 @@ describe('1 · a vocabulary word never shields a lexicon name or an address slot
 describe('2 · the isolate goes around the accepted moment span (red7 070727)', () => {
   // d029b87c (gold r7, b226499a95): the retry's stored reason, isolates removed, and its accepted moment quote.
   const QUOTE = 'کسی بھی لیٹر کا ساؤنڈ، جیسے ہم پڑھتے ہیں "اے"۔ "اے" کا ساؤنڈ کیا ہے؟ "بی"۔ "بی"۔ شاباش۔ "سی"؟ "خ"۔ جی، "سی"۔ "خ"۔ اب "سی" اے ٹی کیا ہوتا ہے؟';
-  const EN = '[00:03] "اب "سی" اے ٹی کیا ہوتا ہے؟". The clip shows a teacher using a simple peer checklist and modelling a short peer exchange so pairs practice reading, blending and clapping syllables — copy that model and checklist tomorrow.';
+  const EN = '[00:03] "اب "سی" اے ٹی کیا ہوتا ہے؟". The clip shows a teacher using a simple peer checklist and modelling a short peer exchange so children practice reading, blending and clapping syllables — copy that model and checklist tomorrow.';
 
   test('d029b87c: one FSI…PDI around «اب "سی" اے ٹی کیا ہوتا ہے؟» (today: split into three runs)', () => {
-    expect(C.isolateQuotes(EN, QUOTE)).toBe(`[00:03] "${FSI}اب "سی" اے ٹی کیا ہوتا ہے؟${PDI}". The clip shows a teacher using a simple peer checklist and modelling a short peer exchange so pairs practice reading, blending and clapping syllables — copy that model and checklist tomorrow.`);
+    expect(C.isolateQuotes(EN, QUOTE)).toBe(`[00:03] "${FSI}اب "سی" اے ٹی کیا ہوتا ہے؟${PDI}". The clip shows a teacher using a simple peer checklist and modelling a short peer exchange so children practice reading, blending and clapping syllables — copy that model and checklist tomorrow.`);
   });
 
   test('no known span, two plain pairs of Latin text → two isolates', () => {
@@ -118,7 +118,7 @@ describe('2 · the isolate goes around the accepted moment span (red7 070727)', 
   });
 
   test('engine: the stored reason isolates the accepted span; moment_quote carries no bidi controls', async () => {
-    const lines = [{ start_ms: 3000, label: 'Teacher', text: QUOTE }];
+    const lines = [{ start_ms: 3000, label: 'Teacher', text: QUOTE }, { start_ms: 4000, label: 'Student', text: 'جی۔' }];
     const r = {
       seg_id: '10-s1', moment: { at: '00:03', quote: `${PDI}${QUOTE}` }, reason_en: EN,
       reason_ur: 'استاد نے پوچھا "اب "سی" اے ٹی کیا ہوتا ہے؟"؛ اس کلپ میں جوڑوں کی مشق ہے۔', confidence: 0.6,

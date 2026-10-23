@@ -17,6 +17,7 @@
  * noneReason names the gate that emptied the list: hole | language | history | unknown_indicator | unscored_step | no_target.
  */
 const { redactNames } = require('./redact-names');
+const { LABEL_SUBJECTS } = require('./silence');
 
 const MAX_CANDIDATES = 12;
 const MAX_TEXT = 6;
@@ -28,7 +29,6 @@ const LABEL_37 = new Set(['F5', 'F6', 'F7', 'F8', 'B7', 'B8', 'C10']);
 // ⛔4 on the 37 LABEL path (lead-review 19:37Z): a subject-pedagogy label's TAG route runs only on its own subject.
 // target.pick nones that the step-text route can still serve from the card's sentence.
 const TEXT_ROUTE_NONES = new Set(['unknown_indicator', 'unscored_step']);
-const LABEL_SUBJECTS = Object.freeze({ F5: ['maths'], F6: ['science'], F7: ['urdu', 'english', 'literacy'] });
 const CONTENT_TARGETS = new Set(['F1', 'F2', 'F3']);
 const SUBJECT_ONLY_ROWS = new Set(['F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10']);
 const BAD_MEDIA = new Set(['broken_media', 'no_speech']);
@@ -167,6 +167,8 @@ function eligible(catalog, lesson) {
       // a chapter's own grade_band (the panel's review, ped/GRADE_REVIEW_r7.md) before its module's (bd-8hhqhf r7)
       if (!gradeOk(seg.grade_band || module.grade_band, l.grade)) continue;
       if (!recommendable(module, seg) || isIntro(module, seg)) continue;
+      // R7b (panel §6.2): a leader-facing differentiation chapter helps only where the lesson shows mixed levels
+      if (seg.keep_with_caveat === 'mixed_level_task' && !l.levelsMoment) continue;
       const fico = (seg.fico || []).map((f) => f && f.indicator).filter(Boolean);
       if (fico.length && fico.every((id) => SUBJECT_ONLY_ROWS.has(id) && inapplicable.has(id))) continue;
       out.push({ module, seg, lang: seg.language || module.language, level: Number(module.level_id) });
@@ -342,7 +344,7 @@ function tagRoute(catalog, t, ctx, signal, lesson) {
  * @param {object} target   target.pick(...) — incl. an unknown_indicator target, which goes to the step-text route
  * @param {{language:string, languages:string[], level:number|null, ladderComplete:boolean, history:{segments:string[], modules:number[]}}} ctx
  * @param {string} signal   the lesson's evidence text (tag route ranking)
- * @param {{subject:string|null, grade:{lo:number,hi:number}|null, topic:string|null, inapplicable:string[]}} lesson
+ * @param {{subject:string|null, grade:{lo:number,hi:number}|null, topic:string|null, inapplicable:string[], levelsMoment?:boolean}} lesson
  * @param {{action:string, tryTomorrow:string, thingToTry:string, name:string}} [step]  the card's words (step-text route)
  * @returns {{candidates:Array<{seg_id, score, indicator, language_match, level_id, level_match, route}>, noneReason:string|null,
  *   repeatModule:boolean, levelMatch:'completed'|'unknown'|null, textReason:string|null, stepTextQuery:string|null, route:string|null}}
