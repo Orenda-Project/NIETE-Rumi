@@ -13,19 +13,21 @@ const { NO_PICTURES } = require('../../bot/shared/services/assessment/fde-early-
 const SAMPLE = { count: { kind: 'count', name: 'apple', n: 3 }, dots: { kind: 'dots', n: 4 }, shapes: { kind: 'shapes', shapes: [{ shape: 'circle' }] },
   object: { kind: 'object', name: 'cat' }, scene: { kind: 'scene', describe: 'children in a park' }, clock: { kind: 'clock', hour: 3, minute: 0 } };
 
-function itemsFor(slot, { noPicture = false } = {}) {
+// Every object picture is a different thing unless a reply names it (`names`: slot -> names by item).
+function itemsFor(slot, { noPicture = false, names = [] } = {}) {
   return Array.from({ length: slot.generate }, (_, i) => ({
     slot: slot.slot, question: `Question ${i + 1} for ${slot.slot}`, marks: slot.marks_each, blooms: 'Remember',
     ...(slot.shape === 'mcq' ? { options: ['a) one', 'b) two', 'c) three'], answer: 'a) one' } : { answer: String(i + 1) }),
     scheme: { points: [{ kind: 'A', text: 'correct', marks: slot.marks_each }] },
-    ...(slot.picture && !noPicture ? { picture: { ...SAMPLE[slot.picture[0]] } } : {}),
+    ...(slot.picture && !noPicture ? { picture: { ...SAMPLE[slot.picture[0]],
+      ...(slot.picture[0] === 'object' ? { name: names[i] || `${slot.slot} thing ${i}` } : {}) } } : {}),
   }));
 }
 
 function treeFor(section, opts = {}) {
   const tree = { unseen: { objective: {}, subjective: {} } };
   section.slots.forEach((slot) => {
-    const list = itemsFor(slot, { noPicture: (opts.noPicture || []).includes(slot.slot) });
+    const list = itemsFor(slot, { noPicture: (opts.noPicture || []).includes(slot.slot), names: (opts.names || {})[slot.slot] });
     (tree.unseen[slot.category][slot.type] = tree.unseen[slot.category][slot.type] || []).push(...list);
   });
   return tree;
@@ -160,4 +162,27 @@ test('a picture that cannot be drawn fails the paper, keeping what was written',
   expect(err.code).toBe('PICTURE_FAILED');
   expect(err.examJson._layout.subject).toBe('maths');
   expect(err.model).toBe('test/model');
+});
+
+// Amena, 23 Oct 2026: "For grade 1, its the same pictures in the whole paper" (bd-5jmnfj.4.27).
+test('a section whose picture repeats an earlier question is asked once more, told the pictures taken', async () => {
+  const { calls, go } = run(1, 'english', { replies: { C: [{ names: { 'g1.english.C.Q11': ['cat'] } }] , A: [{ names: { 'g1.english.A.Q1': ['cat'] } }] } });
+  const out = await go();
+  expect(calls.sections.filter((c) => c.id === 'A')).toHaveLength(1);
+  const c = calls.sections.filter((x) => x.id === 'C');
+  expect(c).toHaveLength(2);
+  expect(c[1].user).toMatch(/already on this paper/);
+  expect(c[1].user).toMatch(/\bcat\b/);
+  const cats = items(out.examJson).filter((q) => q.picture && q.picture.name === 'cat');
+  expect(cats.map((q) => q.slot)).toEqual(['g1.english.A.Q1']);
+});
+
+test('a repeat left after the re-ask is logged and the paper still comes back', async () => {
+  const again = { names: { 'g1.english.C.Q11': ['cat'] } };
+  const { d, go } = run(1, 'english', { replies: { A: [{ names: { 'g1.english.A.Q1': ['cat'] } }], C: [again, again] } });
+  const out = await go();
+  expect(out.examJson).toBeDefined();
+  expect(d.logToFile).toHaveBeenCalledWith('[assessment] repeated pictures', expect.objectContaining({
+    repeated: [{ slot: 'g1.english.C.Q11', reason: 'repeat', pictures: ['cat'] }],
+  }));
 });
