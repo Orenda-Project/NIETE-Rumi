@@ -36,6 +36,7 @@ const PICTURE_CSS = `
   .pic-dots img, .pic-clock img { height: 24mm; }
   .pic-shapes img { height: 22mm; }
   .pic-scene img { height: 45mm; }
+  .pic-plant img { height: 60mm; }
 `;
 
 module.exports = { pictureBlock, PICTURE_CSS };

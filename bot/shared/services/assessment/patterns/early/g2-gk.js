@@ -56,9 +56,10 @@ module.exports = makeSubject({
         S({ slot: 'g2.general_knowledge.B.Q8', label_en: 'Q8.', type: 'Put in Order', generate: 5, lines: 1,
           instruction_ur: 'روئی سے کپڑا بننے کے مراحل کو درست ترتیب سے لکھیں۔',
           prompt_rule: 'Five items that together are the five steps from cotton to cloth as the book gives them (picking, cleaning, spinning, weaving, stitching), listed out of order. Answer: each step\'s number in the right order.' }),
-        S({ slot: 'g2.general_knowledge.B.Q9', label_en: 'Q9.', type: 'Parts of a Plant', generate: 3, lines: 1, picture: ['scene'],
-          instruction_ur: 'تصویر میں پودے کے حصوں کے نام لکھیں۔',
-          prompt_rule: 'Three items, each a plant drawing with one part pointed at by an arrow (root, stem, leaf, flower) as picture: {kind:"scene", describe} in English for the artist. Answer: the Urdu name of the part.' }),
+        S({ slot: 'g2.general_knowledge.B.Q9', label_en: 'Q9.', type: 'Parts of a Plant', generate: 1, marks_each: 3, lines: 0, picture: ['plant'],
+          instruction_ur: 'پودے کے حصوں کے نام خالی لائنوں پر لکھیں۔',
+          // bd-5jmnfj.4.33: "label the plant": the paper draws the plant and its three blank lines.
+          prompt_rule: 'One item, 3 marks. picture: {kind:"plant"} and nothing else: the paper draws the plant with a blank line beside its leaf, stem and root. Question: "پودے کے حصوں کے نام لکھیں۔". Answer, the blank lines from top to bottom: "پتا، تنا، جڑ".' }),
       ],
     },
   ],

@@ -64,7 +64,7 @@ test('clock: a face with twelve marks and two hands at the time given', () => {
 
 test('kinds drawn elsewhere return null; drawable kinds are listed', () => {
   expect(Svg.svgFor({ kind: 'object', name: 'apple' })).toBeNull();
-  expect(Svg.SVG_KINDS).toEqual(['dots', 'shapes', 'clock']);
+  expect(Svg.SVG_KINDS).toEqual(['dots', 'shapes', 'clock', 'plant']);
 });
 
 test('dataUri wraps the svg as base64', () => {
