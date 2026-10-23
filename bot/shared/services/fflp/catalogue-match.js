@@ -32,6 +32,8 @@ const PAGE = 1000;
 const SEGMENTS = 'niete_lp612_segments';
 
 // Words that say "I want a lesson plan" or name a class/subject rather than a topic.
+// Normalised through the same normalise() as the request, so a word that normalise() changes (an
+// Urdu hamza, «ئ» → «ی») still matches. normalise is a function declaration, hoisted.
 const STOP = new Set([
   // English
   'a', 'an', 'the', 'and', 'or', 'of', 'on', 'in', 'for', 'to', 'about', 'with', 'my', 'me', 'i', 'we', 'our', 'is', 'are',
@@ -47,7 +49,7 @@ const STOP = new Set([
   'اور', 'کو', 'سے', 'لیے', 'لئے', 'برائے', 'بنائیں', 'بنا', 'بنادیں', 'دیں', 'دے', 'چاہیے', 'ہے', 'ہیں', 'یہ', 'ایک', 'مجھے',
   'ریاضی', 'سائنس', 'انگریزی', 'اردو', 'اسلامیات', 'معاشرتی', 'علوم',
   'اول', 'دوم', 'سوم', 'چہارم', 'پنجم', 'ششم', 'ہفتم', 'ہشتم', 'نہم', 'دہم',
-]);
+].map((w) => normalise(w)));
 
 /** Lower-case; strip Latin diacritics and Arabic-script harakat; fold ي/ى→ی, ك→ک, ه→ہ, ة→ہ. */
 function normalise(text) {

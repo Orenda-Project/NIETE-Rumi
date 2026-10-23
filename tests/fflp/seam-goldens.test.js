@@ -85,18 +85,22 @@ jest.mock('../../bot/shared/services/queue', () => ({
 }));
 
 const mockStore = new Map();
+// Redis writes, recorded apart from the golden files (which pin WhatsApp, database and queue) so the
+// absent-vs-on comparison covers them too.
+const mockRedisRec = [];
+const mockRw = (op, k, v) => { mockRedisRec.push([op, k, v === undefined ? null : v]); };
 jest.mock('../../bot/shared/services/cache/railway-redis.service', () => ({
   redis: {
     get: jest.fn(async (k) => (mockStore.has(k) ? JSON.stringify(mockStore.get(k)) : null)),
-    set: jest.fn(async (k, v) => { mockStore.set(k, typeof v === 'string' ? JSON.parse(v) : v); return 'OK'; }),
-    del: jest.fn(async (k) => { mockStore.delete(k); return 1; }),
+    set: jest.fn(async (k, v) => { mockRw('redis.set', k, v); mockStore.set(k, typeof v === 'string' ? JSON.parse(v) : v); return 'OK'; }),
+    del: jest.fn(async (k) => { mockRw('redis.del', k); mockStore.delete(k); return 1; }),
   },
   get: jest.fn(async (k) => (mockStore.has(k) ? mockStore.get(k) : null)),
-  set: jest.fn(async (k, v) => { mockStore.set(k, v); return true; }),
-  setexWithCeiling: jest.fn(async (k, _t, v) => { mockStore.set(k, typeof v === 'string' ? JSON.parse(v) : v); return true; }),
-  setNX: jest.fn(async (k, v) => { if (mockStore.has(k)) return false; mockStore.set(k, v); return true; }),
-  delete: jest.fn(async (k) => { mockStore.delete(k); return true; }),
-  del: jest.fn(async (k) => { mockStore.delete(k); return true; }),
+  set: jest.fn(async (k, v) => { mockRw('set', k, v); mockStore.set(k, v); return true; }),
+  setexWithCeiling: jest.fn(async (k, t, v) => { mockRw('setex', k, [t, v]); mockStore.set(k, typeof v === 'string' ? JSON.parse(v) : v); return true; }),
+  setNX: jest.fn(async (k, v) => { mockRw('setNX', k, v); if (mockStore.has(k)) return false; mockStore.set(k, v); return true; }),
+  delete: jest.fn(async (k) => { mockRw('delete', k); mockStore.delete(k); return true; }),
+  del: jest.fn(async (k) => { mockRw('del', k); mockStore.delete(k); return true; }),
 }));
 
 const mockDetectIntent = jest.fn().mockResolvedValue({ type: 'general' });
@@ -161,6 +165,7 @@ const mockEngine = { generateAndDeliver: jest.fn() };
 function load({ switchOn, settings = [], user = TEACHER, engine = true, row = null }) {
   jest.resetModules();
   mockRec.length = 0;
+  mockRedisRec.length = 0;
   mockStore.clear();
   mockDb = makeDb({
     users: [{ ...user }],
@@ -198,20 +203,21 @@ async function direct(body, user = TEACHER, language = 'en') {
 }
 async function say(body, user = TEACHER) {
   global.__TEST_USER__ = { ...user };
-  try {
-    await handler.handleTextMessage({ id: 'wamid.test' }, PHONE, body, { ...user });
-  } catch (_) { /* a branch this suite does not stub: the recording says what mattered */ }
+  await handler.handleTextMessage({ id: 'wamid.test' }, PHONE, body, { ...user });
   await new Promise((r) => setImmediate(r));
 }
 
-async function both(run, opts = {}) {
+const redisRecording = () => JSON.parse(JSON.stringify(mockRedisRec).replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z/g, '<iso>'));
+async function both(run, { sameRedis = true, ...opts } = {}) {
   load({ ...opts, switchOn: false });
   await run();
   const off = recording();
+  const offRedis = redisRecording();
   load({ ...opts, switchOn: true });
   await run();
   const on = recording();
-  return { off, on };
+  if (sameRedis) expect(redisRecording()).toEqual(offRedis);
+  return { off, on, offRedis };
 }
 
 beforeEach(() => {
@@ -339,7 +345,7 @@ describe('N-NIETE — the other catalogue doors, switch absent vs on', () => {
   });
   test('N1-MISS through the real lesson_plan intent door: switch absent = today\'s Flow; switch on = the one queued job', async () => {
     mockDetectIntent.mockResolvedValue({ type: 'lesson_plan' });
-    const { off, on } = await both(() => say(MISS_TOPIC));
+    const { off, on } = await both(() => say(MISS_TOPIC), { sameRedis: false });
     golden('N-NIETE-intent-miss-off', off);
     expect(off.filter((r) => r[0] === 'sqs')).toEqual([]);
     expect(on.filter((r) => r[0] === 'sqs')).toHaveLength(1);

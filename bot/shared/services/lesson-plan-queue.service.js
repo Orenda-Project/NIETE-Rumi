@@ -149,9 +149,9 @@ class LessonPlanQueueService {
    * generation worker routes on, plus the `entry` that brought her here. No sourceLpUuid, so the
    * grounded branch never sees it.
    *
-   * Throws when the row cannot be written (the caller then gives today's catalogue answer). An SQS
-   * failure after the row exists leaves it pending for the recovery sweep, exactly as the grounded
-   * path does, and still returns the id.
+   * Throws when the row cannot be written, and when the job cannot be queued after the row exists:
+   * nothing reads pending free-form rows back, so the row is marked failed at once and the caller
+   * gives today's catalogue answer.
    *
    * @param {Object} params
    * @param {string} params.userId
@@ -201,11 +201,16 @@ class LessonPlanQueueService {
       });
       logToFile('Free-form LP job queued to SQS', { requestId });
     } catch (sqsError) {
-      await supabase
-        .from('lesson_plan_requests')
-        .update({ status: 'pending', error_message: `SQS queue failed: ${sqsError.message}` })
-        .eq('id', requestId);
-      logToFile('Failed to queue free-form LP to SQS, left pending for retry', { requestId, error: sqsError.message }, 'warn');
+      try {
+        await supabase
+          .from('lesson_plan_requests')
+          .update({ status: 'failed', error_message: `SQS queue failed: ${sqsError.message}` })
+          .eq('id', requestId);
+      } catch (markErr) {
+        logToFile('Failed to mark the unqueued free-form LP row failed', { requestId, error: markErr.message }, 'warn');
+      }
+      logToFile('Failed to queue free-form LP to SQS, row marked failed', { requestId, error: sqsError.message }, 'warn');
+      throw new Error(`Failed to queue free-form LP request: ${sqsError.message}`);
     }
 
     return requestId;

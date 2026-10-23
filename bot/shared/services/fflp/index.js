@@ -17,17 +17,27 @@ class FflpModuleMissing extends Error {
   }
 }
 
+// "Cannot find module './engine' …" names the module itself; a missing dependency of a module that IS
+// there names the dependency instead, and must surface as its own error.
+function isSelfMissing(err, relPath) {
+  return !!err && err.code === 'MODULE_NOT_FOUND' && String(err.message).includes(`'${relPath}'`);
+}
+
 function lazy(name, relPath, loader) {
-  const load = loader || (() => require(relPath));
-  const exists = loader ? () => true : () => {
-    try { require.resolve(relPath); return true; } catch (err) {
-      if (err && err.code === 'MODULE_NOT_FOUND') return false;
-      throw err;
-    }
-  };
+  if (loader) return function get() { return loader(); };
   return function get() {
-    if (!exists()) throw new FflpModuleMissing(name);
-    return load();
+    try {
+      require.resolve(relPath);
+    } catch (err) {
+      if (!err || err.code !== 'MODULE_NOT_FOUND') throw err;
+      // Not on disk. A registered stand-in (a test's virtual module) still loads; anything else is
+      // "not ported yet".
+      try { return require(relPath); } catch (loadErr) {
+        if (isSelfMissing(loadErr, relPath)) throw new FflpModuleMissing(name);
+        throw loadErr;
+      }
+    }
+    return require(relPath);
   };
 }
 
@@ -40,7 +50,19 @@ const _internals = {
   resolvePublish: lazy('publish', './publish'),
 };
 
-const fflp = { FflpModuleMissing, _internals };
+/**
+ * TRUE when the engine module is on this deployment and loads. The typed-topic seam checks it before
+ * queueing anything, so the switch cannot send a teacher to an engine that is not there.
+ */
+function engineReady() {
+  try {
+    return !!_internals.resolveEngine();
+  } catch (err) {
+    return false;
+  }
+}
+
+const fflp = { FflpModuleMissing, engineReady, _internals };
 Object.defineProperty(fflp, 'engine', { enumerable: true, get: () => _internals.resolveEngine() });
 Object.defineProperty(fflp, 'chat', { enumerable: true, get: () => _internals.resolveChat() });
 Object.defineProperty(fflp, 'render', { enumerable: true, get: () => _internals.resolveRender() });

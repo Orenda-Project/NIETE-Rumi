@@ -1,6 +1,11 @@
 -- ROLLBACK V1.7.7 — back to V1.6.4's source CHECK (without 'freeform_v1'). Refuses while any row carries
 -- 'freeform_v1' (re-adding the old list would fail VALIDATE): switch app_settings.freeform_lp off and decide what
 -- happens to those rows first. Idempotent. Removes this migration's ledger row so the runner can apply it again.
+-- The CHECK swap takes an ACCESS EXCLUSIVE lock on lesson_plan_requests: wait at most 5s for it, as the forward file does.
+
+DO $$ BEGIN
+  PERFORM set_config('lock_timeout', '5s', true);
+END $$;
 
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM lesson_plan_requests WHERE source = 'freeform_v1') THEN

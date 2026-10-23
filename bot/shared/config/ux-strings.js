@@ -1857,7 +1857,7 @@ const UX_STRINGS = {
    */
   fflpWriting: {
     en: 'Writing your lesson plan now. It takes about a minute.',
-    ur: 'آپ کا سبق کا منصوبہ لکھا جا رہا ہے۔ تقریباً ایک منٹ لگے گا۔',
+    ur: 'آپ کا لیسن پلان لکھا جا رہا ہے۔ تقریباً ایک منٹ لگے گا۔',
   },
 
   /**
