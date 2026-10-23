@@ -200,6 +200,12 @@ describe('3 · a greeting, page call, order to the room or the lesson announceme
     const row = await run(args({ lines }), deps([page, page]));
     expect(row).toMatchObject({ status: 'none', none_reason: 'validation:not_moment', attempts: 2 });
   });
+  test('a page call with a second fault in the reason (roman) is still silence: a routine line is never rescued by the fallback (Q063)', async () => {
+    const lines = [{ start_ms: 30000, label: 'Teacher', text: 'Open your book on page number 35.' }, { start_ms: 33000, label: 'Student', text: 'Yes' }];
+    const page = { ...ROMAN, moment: { at: '00:30', quote: 'Open your book on page number 35' } };
+    const row = await run(args({ lines }), deps([page, page]));
+    expect(row).toMatchObject({ status: 'none', none_reason: 'validation:not_moment' });
+  });
 });
 
 describe('4 · 51-s1 before 51-s3 for a why/how card on a closed-answer lesson (11 picks, 0 right)', () => {

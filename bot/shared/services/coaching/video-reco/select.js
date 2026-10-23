@@ -232,6 +232,10 @@ function validate(p, shortlist, excerpts, opts) {
     // reason → refused; the retry or the card fallback takes it ([v1.3c-5], until now only on the fallback path).
     if ([quote, p.reason_en, p.reason_ur].some((x) => UNSHOWABLE.test(String(x || '')))) return bad('placeholder');
     if (momentSource === 'transcript' && unfoundedPlaceholder(quote, excerpts, rawExcerpts, teacherName, vocab, oovVocab)) return bad('placeholder');
+    // R7c (Q031 Q061 Q063 Q072 Q084 Q170 …): a greeting, a page call, an order about the room or the lesson's announcement is
+    // no moment. Not a fallback rule: the retry may find a real one, else the none stands (Q063, Q170 → silence, as ruled). Before every
+    // reason rule, so a routine line is never rescued by the fallback a reason fault would allow.
+    if (routineLine(storedQuote(quote))) return bad('not_moment');
     const reasons = [p.reason_en, p.reason_ur].map((x) => String(x || ''));
     if (reasons.some((x) => BANNED_COPY.test(x))) return bad('scorer');
     if ([quote, ...reasons].some(systemNote)) return bad('scorer'); // R7b (P005): «No student activity recorded» is no lesson
@@ -259,9 +263,6 @@ function validate(p, shortlist, excerpts, opts) {
     if (recallMislabel(quote, p.reason_en, p.reason_ur)) return bad('recall');
     // R7b (panel P183, P076), checked last so every other rule names its own fault first: the moment's line or a line
     // beside it is a child's turn, else it is talk with no class in it.
-    // R7c (Q031 Q061 Q063 Q072 Q084 Q170 …): a greeting, a page call, an order about the room or the lesson's announcement is
-    // no moment. Not a fallback rule: the retry may find a real one, else the none stands (Q063, Q170 → silence, as ruled).
-    if (routineLine(storedQuote(quote))) return bad('not_moment');
     const around = momentSource === 'transcript' ? excerpts : (() => { const l = typeof fullLines === 'function' ? fullLines() : fullLines; return Array.isArray(l) ? l : []; })();
     if (!childTurnNear(around, quoteLine(quote, around))) return bad('no_child_turn');
     return { ok: true, none: null, confidence, momentSource };
