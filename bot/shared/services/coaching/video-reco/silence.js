@@ -136,7 +136,7 @@ const ROUTINE = [
   /السلام علیکم|وعلیکم السلام|\bassalam|\bgood (?:morning|afternoon)\b|\bhow are you\b|آپ کیسے ہیں|\bhello\b|تم کیسے ہو|کیسے ہیں سب|کیا حال ہے|سب ٹھیک (?:ہیں|ہو)/iu, // R7d: «تم کیسے ہو؟» (Q113)
   // R7e (COS 202042; Q179 Q136 Q063): an attention check, small talk, attendance, the phone or the recording
   // red7 F5: the roll call's answers («present miss», «یس میڈم») and its question ("who is absent?")
-  /ایکٹیو ہیں|تیار ہیں|\bare you ready\b|\beveryone ready\b|اسکول کیسے آئے|سکول کیسے آئے|حاضری|\battendance\b|\broll call\b|موبائل|پاسورڈ|ریکارڈنگ|\b(?:mobile|password|recording)\b|\bpresent (?:miss|sir|madam|teacher)\b|\bsay present\b|\babsent\b|غیر حاضر|^\s*یس (?:میڈم|سر|مس)\s*[۔.!]?\s*$/iu,
+  /ایکٹیو ہیں|تیار ہیں|\bare you ready\b|\beveryone ready\b|اسکول کیسے آئے|سکول کیسے آئے|حاضری|\battendance\b|\broll call\b|پاسورڈ|ریکارڈنگ|(?<!\p{L})ایپ(?!\p{L})|\b(?:password|recording)\b|\bthe app\b|\bpresent (?:miss|sir|madam|teacher)\b|\bsay present\b|\babsent\b|غیر حاضر|^\s*یس (?:میڈم|سر|مس)\s*[۔.!]?\s*$|^\s*(?:\S+\s+){0,2}(?:ہو گیا|ہوگیا|لکھ لیا|لکھ لی|ختم ہو گیا|کر لیا|سمجھ آ گئی)(?:\s+\S+){0,3}\s*[؟?]|\b(?:done|finished)\s*\?|\bis everyone (?:done|finished)\b/iu,
   // page or book call
   /(?:پیج|صفحہ|صفحے)\s*(?:نمبر)?\s*[\d۰-۹]|\bpage\s*(?:no\.?|number)?\s*\d|\bopen your (?:book|copy|notebook)|(?:کتاب|کتابیں|کاپی|کاپیاں)\s+(?:کھول|نکال)|چیپٹر نمبر/iu,
   // order about the room
@@ -178,7 +178,6 @@ function routineLine(quote, { topic = null } = {}) {
   const words = (x) => (x.match(/[\p{L}\p{N}]+/gu) || []).length;
   const all = sentences.reduce((n, x) => n + words(x), 0);
   if (!all) return false;
-  if (DEVICE.test(String(quote))) return true; // red7 H2 (N1 N6): «Sir, the app is open now» rides on the recording question
   const routine = sentences.filter((x) => isRoutine(x) || topicOnly(x, topic)).reduce((n, x) => n + words(x), 0);
   return routine / all >= ROUTINE_SHARE;
 }
@@ -231,7 +230,9 @@ const CLASS_GREETING = /(?:السلام علیکم|اسلام علیکم|\bassal
 const TEST_NOW = /(?:آج|ابھی) (?:\S+\s+){0,3}(?:ٹیسٹ|پیپر|امتحان|کوئز)(?!\s*(?:کی|کے) (?:تیاری|لیے))|(?:ٹیسٹ|پیپر|امتحان) ہو رہا ہے|\b(?:test|exam|quiz) (?:today|now)\b|\btoday(?:'s| is| we have)? (?:a |your |the )?(?:test|exam|quiz)\b(?! (?:prep|preparation|revision))/iu;
 const OPENING_SHARE = 0.25;
 // red7 F3: a test announced for later in the period («آخر میں», "at the end") leaves the lesson before it a lesson
-const LATER = /آخر میں|بعد میں|پہلے (?:سبق|ہم)|\bat the end\b|\blater\b|\bfirst (?:we|let'?s)\b/iu;
+// red7 H3: bound to the test word, within a clause («آج ٹیسٹ ہے آپ کا، بعد میں چھٹی ہو گی» is a test now)
+const W3 = '(?:[^\\s،,۔.!?؟]+\\s+){0,3}';
+const LATER = new RegExp(`(?:ٹیسٹ|پیپر|امتحان|\\b(?:test|exam|quiz)\\b)\\s+${W3}(?:آخر میں|بعد میں|\\bat the end\\b|\\blater\\b)|(?:آخر میں|بعد میں|\\bat the end\\b|\\blater\\b)\\s+${W3}(?:ٹیسٹ|پیپر|امتحان|\\b(?:test|exam|quiz)\\b)`, 'iu');
 const testNow = (x) => TEST_NOW.test(x) && !LATER.test(x);
 // red7 H2 (P1, N1): talk about the phone, the app or the recording, to the observer
 const DEVICE = /موبائل|پاسورڈ|ریکارڈنگ|(?<!\p{L})ایپ(?!\p{L})|کیمرہ|\b(?:mobile|password|recording|camera)\b|\bthe app\b/iu;
@@ -253,6 +254,7 @@ function testSpan(lines) {
   const pairs = [];
   for (let n = start + 1; n + 1 < all.length; n++) {
     const x = textOf(all[n]);
+    // red7 X9: a progress check («ہو گیا؟», «لکھ لیا سب نے؟») is routine (ROUTINE[1]), so it never counts here
     if (TEACHER_LABEL.test(all[n]) && asks(x) && !isRoutine(x) && !TEST_WORD.test(x) && KID.test(all[n + 1])) pairs.push(n);
   }
   const run = pairs.findIndex((n, k) => k + RESUME_PAIRS - 1 < pairs.length
@@ -274,7 +276,9 @@ function notTeaching(lines, i) {
     const k = lines.findIndex((l) => CHILD_LABEL.test(String(l)));
     const sec = lineSec(lines[i]);
     if (k > 1 && i < k - 1 && sec !== null && sec <= SETUP_CAP_S
-      && lines.slice(0, i + 1).some((l, n) => DEVICE.test(texts[n]) && (lineSec(l) ?? Infinity) <= SETUP_CAP_S)) return 'before_lesson';
+      // red7 F8 (X3): or an adult answers the teacher — a labelled turn neither the teacher's nor a student's
+      && lines.slice(0, Math.max(i + 2, 0)).some((l, n) => (lineSec(l) ?? Infinity) <= SETUP_CAP_S
+        && (DEVICE.test(texts[n]) || (n <= i + 1 && LABELLED.test(String(l)) && !TEACHER_LABEL.test(String(l)) && !CHILD_LABEL.test(String(l)))))) return 'before_lesson';
   }
   const t = testSpan(lines);
   if (t && i >= t[0] && i < t[1]) return 'test';
