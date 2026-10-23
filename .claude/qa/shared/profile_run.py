@@ -82,8 +82,14 @@ def _stats(xs):
 
 # ── layer classification ────────────────────────────────────────────────────────
 
-LAYERS = ["wait.intentional", "bot.processing", "harness.polling", "mock.http", "flow", "seed",
+LAYERS = ["wait.intentional", "bot.processing", "bot.pacing", "bot.timeout", "harness.polling", "mock.http", "flow", "seed",
           "harness.overhead", "driver.unaccounted"]
+# bot.timeout: a bot.reply that never came — the harness waited its full timeout (60–120 s). Not processing: nothing
+# answered. Counted apart so one missing reply cannot masquerade as the slowest bot work of the run.
+# bot.pacing: time the bot's own WhatsApp send pacer (whatsapp-send-pacer.js, GCRA per phone, 6 s interval,
+# burst 8) made a reply WAIT before it reached the mock — read off the `whatsapp.paced` log events of the
+# message's correlation (outcome 'waited', delayMs). It sits INSIDE bot.reply; the profiler moves it out of
+# bot.processing so an intentional, production-faithful wait is never read as slow code.
 
 
 def layer_of(span):
@@ -91,6 +97,10 @@ def layer_of(span):
     layer, kind, name = span.get("layer"), span.get("kind"), span.get("name", "")
     if layer == "wait" or kind == "intentional":
         return "wait.intentional"
+    if name == "bot.pacing":
+        return "bot.pacing"
+    if name == "bot.reply" and span.get("status") == "timeout":
+        return "bot.timeout"
     if name == "bot.reply" or (layer == "bot" and kind == "processing"):
         return "bot.processing"
     if kind == "polling":
@@ -108,6 +118,8 @@ def category_of(span):
     kind, name = span.get("kind"), span.get("name", "")
     if kind == "intentional":
         return "intentional"
+    if name == "bot.reply" and span.get("status") == "timeout":
+        return "timeout"
     if name == "bot.reply" or kind == "processing":
         return "processing"
     if kind == "polling":
@@ -195,8 +207,8 @@ def _runner_log(run_dir):
         with open(os.path.join(run_dir, "runner.log"), encoding="utf-8", errors="replace") as f:
             for line in f:
                 line = line.rstrip("\n")
-                m = re.search(r"=== suite start (\S+)", line)
-                if m:
+                m = re.search(r"=== suite start (\S+)", line) or re.search(r"^=== .*? · (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)", line)
+                if m and not info["suite_start"]:
                     info["suite_start"] = m.group(1)
                 m = re.search(r"--- (\S+) START (\d{2}:\d{2}:\d{2})", line)
                 if m:
@@ -294,10 +306,25 @@ def build(run_dir, feature=None):
             evs = sorted(evs, key=lambda e: e["ts"])
             if not evs:
                 continue
+            paced = sum(int(e.get("fields", {}).get("delayMs") or 0) for e in evs
+                        if e.get("msg") == "whatsapp.paced" and e.get("fields", {}).get("outcome") == "waited")
             bot_traces.append({"messageId": mid, "correlationId": corr, "t0": evs[0]["ts"], "t1": evs[-1]["ts"],
-                               "ms": evs[-1]["ts"] - evs[0]["ts"], "events": len(evs),
+                               "ms": evs[-1]["ts"] - evs[0]["ts"], "events": len(evs), "pacing_ms": paced,
                                "timeline": [{"dt": e["ts"] - evs[0]["ts"], "level": e["level"], "msg": e["msg"][:120],
                                              "src": "worker" if e in worker_tl.get(corr, []) else "bot"} for e in evs[:60]]})
+        pacing = min(layers["bot.processing"], sum(b["pacing_ms"] for b in bot_traces))
+        layers["bot.pacing"] = pacing
+        layers["bot.processing"] -= pacing
+        # the bot.reply spans carry the same split, so the op ranking separates pacing from processing too
+        # the message id lives on the mock.inject sibling, not on bot.reply: map parent → messageId first
+        mid_by_parent = {o["parent"]: (o.get("attrs") or {}).get("messageId") for o in ops if o["name"] == "mock.inject" and o.get("parent")}
+        for o in list(ops):
+            if o["name"] == "bot.reply" and pacing > 0:
+                bt = next((b for b in bot_traces if b["messageId"] == mid_by_parent.get(o.get("parent"))), None)
+                if bt and bt["pacing_ms"]:
+                    cut = min(o["own_ms"], bt["pacing_ms"])
+                    o["own_ms"] -= cut
+                    ops.append({**o, "name": "bot.pacing", "own_ms": cut, "ms": cut, "kind": "intentional", "layer": "bot", "span": o["span"] + "-pace", "attrs": {**(o.get("attrs") or {}), "delayMs": cut}})
         scenarios.append({
             "id": (sc.get("attrs") or {}).get("id"), "title": (sc.get("attrs") or {}).get("title"),
             "status": sc.get("status"), "t0": a, "t1": b, "ms": int(sc.get("ms", 0)),
@@ -313,9 +340,53 @@ def build(run_dir, feature=None):
         for o in ops:
             all_ops.append((o, (sc.get("attrs") or {}).get("id")))
 
+    # ── outside any scenario window: the feature's wall time is often far more than its scenarios' sum. A driver
+    # seeds, navigates and polls BETWEEN the windows it measures (coaching walks a pipeline, training re-enters a
+    # ladder) and a BLOCKED row is recorded with 0 ms after real work. Count the primitives that fall outside every
+    # window, by op, and the idle time (no primitive, no scenario) — so the wall is accounted for, not just the sum.
+    windows = sorted((sc["t0"], sc["t1"]) for sc in scenarios)
+    inside = lambda t: any(a <= t < b for a, b in windows)   # noqa: E731
+    out_prims = [p for p in top if not inside(p.get("t0", 0))]
+    out_by_op = {}
+    for p in out_prims:
+        e = out_by_op.setdefault(p.get("name"), {"count": 0, "ms": 0})
+        e["count"] += 1
+        e["ms"] += int(p.get("ms", 0))
+    feat_t0 = feature_rows[0]["t0"] if feature_rows else (min([sc["t0"] for sc in scenarios] + [p["t0"] for p in top]) if (scenarios or top) else 0)
+    feat_t1 = feature_rows[0]["t1"] if feature_rows else (max([sc["t1"] for sc in scenarios] + [p["t1"] for p in top]) if (scenarios or top) else 0)
+    busy = sorted([(sc["t0"], sc["t1"]) for sc in scenarios] + [(p["t0"], p["t1"]) for p in out_prims])
+    busy_ms, cur = 0, None
+    for a, b in busy:
+        if cur is None or a > cur[1]:
+            if cur:
+                busy_ms += cur[1] - cur[0]
+            cur = [a, b]
+        else:
+            cur[1] = max(cur[1], b)
+    if cur:
+        busy_ms += cur[1] - cur[0]
+    outside = {"primitives_ms": sum(int(p.get("ms", 0)) for p in out_prims), "primitives": len(out_prims),
+               "by_op": dict(sorted(out_by_op.items(), key=lambda kv: -kv[1]["ms"])[:20]),
+               "idle_ms": max(0, (feat_t1 - feat_t0) - busy_ms), "feature_span_ms": max(0, feat_t1 - feat_t0)}
+
     # ── summary ──
     ms_list = [s["ms"] for s in scenarios]
     total = sum(ms_list)
+    # Scenario windows can OVERLAP: a driver block that records two ids from one measured stretch (language
+    # LANG06 + LANG18 share a 55 s window) makes the plain sum exceed the feature's wall time. `union_ms` is the
+    # de-duplicated length of all windows; `overlap_ms` is what the sum double-counts. Per-scenario figures are
+    # left as the driver reported them.
+    union = 0
+    cur = None
+    for a, b in sorted((sc["t0"], sc["t1"]) for sc in scenarios):
+        if cur is None or a > cur[1]:
+            if cur:
+                union += cur[1] - cur[0]
+            cur = [a, b]
+        else:
+            cur[1] = max(cur[1], b)
+    if cur:
+        union += cur[1] - cur[0]
     layers_total = {k: sum(s["layers"][k] for s in scenarios) for k in LAYERS}
     summary = {
         "scenarios": len(scenarios),
@@ -325,6 +396,8 @@ def build(run_dir, feature=None):
         "total_ms": total, "mean_ms": (total // len(ms_list)) if ms_list else 0,
         "p50_ms": percentile(ms_list, 50), "p90_ms": percentile(ms_list, 90), "p95_ms": percentile(ms_list, 95),
         "max_ms": max(ms_list) if ms_list else 0,
+        "union_ms": union, "overlap_ms": max(0, total - union),
+        "outside": outside,
         "layers": layers_total,
         "intentional_share": (layers_total["wait.intentional"] / total) if total else 0.0,
         "bot_share": (layers_total["bot.processing"] / total) if total else 0.0,
@@ -339,7 +412,8 @@ def build(run_dir, feature=None):
     # ── bottlenecks: every span name, ranked by OWN time ──
     groups = {}
     for o, sid in all_ops:
-        g = groups.setdefault(o["name"], {"own": [], "cat": category_of(o), "layer": o["layer"], "examples": []})
+        oname = "bot.reply.timeout" if (o["name"] == "bot.reply" and o.get("status") == "timeout") else o["name"]
+        g = groups.setdefault(oname, {"own": [], "cat": category_of(o), "layer": o["layer"], "examples": []})
         g["own"].append(o["own_ms"])
         g["examples"].append((o["own_ms"], sid, (o.get("attrs") or {}).get("arg") or (o.get("attrs") or {}).get("label"), o.get("status")))
     bottlenecks = []
@@ -398,11 +472,16 @@ def build(run_dir, feature=None):
     setup["transcript_acks"] = len(tr_in)
 
     gaps = [
+        "bot.pacing is read from whatsapp.paced log events (delayMs, outcome=waited) on the message's correlation id; a paced send on a correlation the parser could not link stays inside bot.processing",
         "bot internals are point events parsed from pino-pretty logs (bot.log/worker.log), not timed spans — a stage's duration is the gap to the next log line",
         "DB queries carry no correlation id (supabase-js sends none); they are attributed to a scenario by timestamp window",
         "driver.unaccounted is derived (scenario − covered primitives): the feature scripts' own sleep()/polling loops are not individually instrumented",
         "vendor time is the cassette replay cost; liveMs is what the vendor took when recorded, not measured in this run",
     ]
+    if outside["idle_ms"] > 0:
+        gaps.append("%d ms of the feature's wall time is outside every scenario window and every primitive — driver sleeps/polls between scenarios, BLOCKED rows recorded with 0 ms, seeds run outside a window" % outside["idle_ms"])
+    if summary["overlap_ms"] > 0:
+        gaps.append("scenario windows overlap by %d ms (a driver block records several ids from one measured stretch): the per-scenario sum double-counts that much; union_ms is the de-duplicated total" % summary["overlap_ms"])
     if not db_rows:
         gaps.append("no db/db-timing.jsonl — the run predates the proxy timing log or ran on the sandbox DB (E2E_LOCAL_DB=0)")
     if not vendor_rows:
