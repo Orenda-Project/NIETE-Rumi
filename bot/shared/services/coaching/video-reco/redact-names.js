@@ -15,6 +15,7 @@
  *        placeholders: { teacher, coach, school, child }; strict: false turns the vocabulary rule off;
  *        vocab: [the lesson's subject terms] (bd-8hhqhf) — they shield only the unknown-word rules (an unknown word
  *        in an address slot, the vocabulary rule), never a lexicon name (red7 070504, COS 070543);
+ *        oovVocab: [the lesson's topic words] — they shield the vocabulary rule only;
  *        trace: an array that receives {word, rep, why} for every masked word, why = the rule that masked it }. Over-redaction is the safe direction: a word wrongly
  * replaced costs quote fidelity; a name let through puts a child's name in a forwardable WhatsApp message.
  */
@@ -41,13 +42,31 @@ const norm = (t) => (IS_UR.test(t)
   ? t.replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/[ةه]/g, 'ہ').replace(/[ً-ٰٟـ‌‍]/g, '')
   : t.toLowerCase());
 const SETS = Object.fromEntries(Object.entries(LEX).map(([k, v]) => [k, new Set(v)]));
+const LEXICON_NAME = (n) => SETS.urStrong.has(n) || SETS.urAmbig.has(n) || SETS.latStrong.has(n) || SETS.latAmbig.has(n);
+
+// bd-8hhqhf r7 (COS 07:01Z): words the vocabulary rule must not take for a child's name. It masked whole Devanagari
+// transcripts and Urdu-script English loanwords (ڈویژبلٹی, رولنگ, میڈین), and the model then quoted "[a student]".
+// Only the vocabulary rule is narrowed: the lexicon, address, named, surname and compound rules still apply.
+// English-loan endings (-ing, -tion, -ment, -ity, plural -s after those): no lexicon name ends in one. A letter
+// class alone is not used: retroflex loan-NAMES exist (ڈینا, کرسٹینا; red7 073035); retroflex loanwords come in as a
+// curated word list through the subject vocabulary instead (content-terms.js).
+const LOAN_END = /(?:نگ|نگز|شن|شنز|منٹ|منٹس|ٹی|ٹیز|جز|گز|ٹس|ڈز)$/;
+// The most frequent words of the Devanagari corpus transcripts (2 of 1,500), all function words.
+const DEV_COMMON = new Set('जाए कोई देखा से क्यों वाला है मिलके आगे दो दिए देख बताएँगे जैसे कहाँ आना अंदर ओके आपको आपका बैठ समझ नजर लिखें अच्छा उधर ये हूँ लिया गए पहले इसको बैठे आ करो टाइम गया आओ हमने के देखें और मैं लिखा आता लो चलो इस उसका करना सा इसकी आएगी कि हुआ ही कह तो हुए हर इनके बना का मेरा बताया आएगा बहुत नंबर उसे बनाया जी कुछ हमारा कहा जब लोगे बता ले कौन आपके हैं रहे उसमें मैम साथ करेंगे चाह क्या की आज खड़े दोस्त मेरे नाम लिखोगे ज़रा बनाए लगेगा सामने हाँ रही बनाने पे किया अपना देखो बात जो आपस दिया पता जाओ उसी होगा अपने हम नहीं बनाओ उसको होंगे अगर रहा अब अभी ऐसा जल्दी में करें ठीक था वो मैंने बाद कैसे थोड़ा आपने इसका दे मतलब आपकी भी वापस लिख को दी कर लोगों सही जाएँ मेरी लगा इन लिखेंगे हो कितने ने आप लिए यही बच्चों थे करूँ यहाँ उसके इसके फिर ना अपनी पर पीछे मुझे एक करते यानी बार करने करके इसमें क्योंकि दोनों इधर लेकिन उसने आया'.split(' '));
+// Given names and nicknames that end like a loanword (بنٹی, سویٹی, منٹی: the -ٹی nickname class, red7 074312) or that a
+// list could catch: they stay maskable.
+const LOAN_NAMES = new Set('پیٹر رابرٹ ڈیوڈ ڈیوڈز ڈینیئل ڈینیل ڈینی ٹونی ٹینا ڈمپل گڈو گڈی مٹھو البرٹ گلبرٹ ٹیپو ڈولی ریٹا ڈیانا ڈیزی وکٹر ٹام ٹمی ٹیری ڈین بنٹی ٹوبی ایڈورڈ ایڈون اسٹیفن سٹیفن ٹموتھی پیٹرک برٹ ہربرٹ رابرٹس ویلیئم سویٹی سوئیٹی سوئٹی منٹی چنٹی پنٹی شنٹی کیوٹی بیوٹی لکی'.split(' '));
+const contentWord = (n, w) => (IS_DEV.test(w) ? DEV_COMMON.has(n)
+  : IS_UR.test(w) && [...n].length >= 3 && !LOAN_NAMES.has(n) && LOAN_END.test(n));
 const nameTokens = (s) => (String(s || '').match(WORD) || []).map(norm).filter((t) => t.length >= 3 && !ROLE_STOP.has(t));
 
 function redactNames(text, ctx = {}) {
   if (typeof text !== 'string' || !text) return text;
   const ph = { ...DEFAULT_PH, ...(ctx.placeholders || {}) };
   const strict = ctx.strict !== false;
-  const vocab = new Set([].concat(ctx.vocab || []).map((v) => norm(String(v))));
+  const lexSet = (list) => new Set([].concat(list || []).map((v) => norm(String(v))).filter((v) => !LEXICON_NAME(v))); // never a lexicon name
+  const vocab = lexSet(ctx.vocab);
+  const oovVocab = lexSet(ctx.oovVocab); // the lesson's topic words: the vocabulary rule only, never an address slot (red7 070505)
   const trace = Array.isArray(ctx.trace) ? ctx.trace : null;
   const roles = new Map();
   [].concat(ctx.roster || []).forEach((n) => nameTokens(n).forEach((t) => roles.set(t, ph.child)));
@@ -77,7 +96,7 @@ function redactNames(text, ctx = {}) {
       const strong = ur ? SETS.urStrong.has(n) : SETS.latStrong.has(n) && (address || /^[A-Z]/.test(w));
       const amb = ur ? SETS.urAmbig.has(n) : SETS.latAmbig.has(n);
       const unknownAddressed = address && !common && !vocab.has(n) && n.length >= 3 && (ur || /^[A-Z]/.test(w));
-      const oov = strict && !common && !amb && !ROLE_STOP.has(n) && !SETS.vocab.has(n) && !vocab.has(n) && (ur || /^[A-Z]/.test(w));
+      const oov = strict && !common && !amb && !ROLE_STOP.has(n) && !SETS.vocab.has(n) && !vocab.has(n) && !oovVocab.has(n) && !contentWord(n, w) && (ur || /^[A-Z]/.test(w));
       const turnEnd = /^\s*[۔!؟.?]?\s*(\n|$)/.test(after);
       const named = amb && (NAMED_BY.has(next) || turnEnd || SETS.urStrong.has(next));
       const compound = ur && GOD_NAME.has(next) && (n === 'عبد' || (!common && !SETS.vocab.has(n)) || amb || SETS.urStrong.has(n));

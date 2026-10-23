@@ -193,7 +193,10 @@ async function compute(a, d, state) {
   base.repeat_module = list.repeatModule;
   base.level_match = list.levelMatch || null;
   base.route = list.route || null;
-  const people = { teacher: session.users && session.users.name };
+  // bd-8hhqhf r7: the lesson's subject terms + topic words are never a child's name, in the prompt or the stored text.
+  const vocab = select.subjectVocab();
+  const oovVocab = select.topicVocab(analysis && analysis.topic);
+  const people = { teacher: session.users && session.users.name, vocab, oovVocab };
   // F1: the card's action (it opens with the teacher's name in prod) is stored redacted (V1.7.1 "no names"); the BM25
   // query itself ran on the raw words. Only the action: the redactor masks Title-Case indicator names too.
   const st = stepTextOf(t, analysis, card);
@@ -233,11 +236,10 @@ async function compute(a, d, state) {
   const vopts = {
     stepIndicator: t.stepIndicator, indicators: t.indicators, source: t.source, catalog, textRoute: !!list.textReason,
     teacherName: people.teacher, scorerQuote: scorerQuote || uptakeQuote, // §3.5 [v1.3] d: the Quote: part, never evidence_summary
-    rawExcerpts: rawEx,
+    rawExcerpts: rawEx, vocab, oovVocab,
     // red7 074627: a scorer-path quote must be a transcript line; redacted once, only when that path is reached
     fullLines: (() => { let all = null; return () => (all = all || prompt.transcriptLines(session).map((l) => prompt.redact(l, people))); })(),
   };
-  const vocab = select.subjectVocab(); // bd-8hhqhf: subject terms are never a child's name (topic words are not used here)
   const check = (r) => (r.truncated ? { ok: false, none: 'llm_truncated', confidence: undefined } : select.validate(r.pick, list, ex, vopts));
   let res = await select.pick({ prompt: text, deps: d, timeoutMs: a.llmTimeoutMs });
   let v = check(res);

@@ -201,13 +201,15 @@ describe('4 · 37-B8 is a NO_MOVE indicator', () => {
 
 describe('5 · redactor false positives', () => {
   // d2a235f4 (gold, maths): the strict excerpt redactor masked میڈین (median); the model quoted the placeholder.
-  const MEDIAN = [{ start_ms: 1000, label: 'Teacher', text: 'آج ہمارا جو ٹاپک ہے نا، وہ ہے میڈین کے بارے میں، ٹھیک ہے؟' }];
+  // The fixture uses کوئنچ (quench, 383a31f3): since v13g میڈین is kept by the retroflex rule, کوئنچ is still masked by
+  // the vocabulary rule alone, which is what this check is about.
+  const MEDIAN = [{ start_ms: 1000, label: 'Teacher', text: 'آج ہمارا جو ٹاپک ہے نا، وہ ہے کوئنچ کے بارے میں، ٹھیک ہے؟' }];
   const QUOTE_MEDIAN = {
     ...GOOD, moment: { at: '00:01', quote: 'آج ہمارا جو ٹاپک ہے نا، وہ ہے [a student] کے بارے میں' },
     reason_en: 'At 00:01 the topic was named but no goal was written. This clip shows a teacher writing the objective on the board.',
   };
 
-  test('(a) the excerpt really masks میڈین (the premise)', () => {
+  test('(a) the excerpt really masks کوئنچ (the premise)', () => {
     const P = require('../../../bot/shared/services/coaching/video-reco/prompt');
     expect(P.excerpts({ diarization_data: { segments: MEDIAN } }, {}, { teacher: 'Saima Khan' })[0]).toContain('[a student]');
   });
