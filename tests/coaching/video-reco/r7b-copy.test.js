@@ -148,3 +148,25 @@ describe('composition: one digit system per message, Latin runs isolated in Urdu
     expect(composeReason('کلاس نے ایک لفظ کہا。 کلپ میں کیوں کے سوال ہیں۔', 'ur', null)).not.toContain('。');
   });
 });
+
+// ── red7 REVIEW_3630 F1–F4 (bin/attack_r7b_copy.js cases) ──────────────────────────────────────────────────────────────
+describe('red7 REVIEW_3630', () => {
+  const R = require('../../../bot/shared/services/coaching/video-reco/copy-rules');
+  test('F1: a name with one dictionary word and one strict-masked word is still a vocative; a clause opener is not', () => {
+    const one = 'زرفشاں جہاں، ';
+    expect(R.leadingVocative(`${one}${BODY}`)).toBe([...one].length);
+    for (const opener of ['اگلی کلاس میں، ', 'کل کلاس میں، ', 'ہر جواب کے بعد، ', 'Dear teacher, ']) expect(R.leadingVocative(`${opener}${BODY}`)).toBe(0);
+  });
+  test('F1 stays on the card\'s own opening: in a reason, a capitalised English run after a quote is not a name', () => {
+    expect(R.quotedVocative('"⁨[a student]، آپ بتائیں⁩" The clip shows a Why-style question (example, then pairs).')).toBe(false);
+  });
+  test('F2: «استاد صاحب،» (role + honorific) is an address, not a name in a quote', () => {
+    expect(R.quotedVocative(`try: "⁨استاد صاحب، ${BODY}⁩"`)).toBe(false);
+  });
+  // F3 (keywords carry transcript words) is NOT changed: without them 805 of 2,200 first answers are refused, not 343.
+  test('F4: an adjective predicate of a teacher (G12) and «no hands up was observed» (S4)', () => {
+    expect(R.genderedUrdu('استاد کلاس میں کھڑی ہیں')).toBe(true);
+    expect(R.genderedUrdu('استاد کلاس میں کھڑے ہیں')).toBe(false);
+    expect(R.systemNote('At 03:10 no hands up was observed, so you asked again')).toBe(true);
+  });
+});
