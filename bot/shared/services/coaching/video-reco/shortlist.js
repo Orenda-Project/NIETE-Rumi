@@ -167,6 +167,8 @@ function eligible(catalog, lesson) {
       // a chapter's own grade_band (the panel's review, ped/GRADE_REVIEW_r7.md) before its module's (bd-8hhqhf r7)
       if (!gradeOk(seg.grade_band || module.grade_band, l.grade)) continue;
       if (!recommendable(module, seg) || isIntro(module, seg)) continue;
+      // R7b (panel §6.2): a leader-facing differentiation chapter helps only where the lesson shows mixed levels
+      if (seg.keep_with_caveat === 'mixed_level_task' && !l.levelsMoment) continue;
       const fico = (seg.fico || []).map((f) => f && f.indicator).filter(Boolean);
       if (fico.length && fico.every((id) => SUBJECT_ONLY_ROWS.has(id) && inapplicable.has(id))) continue;
       out.push({ module, seg, lang: seg.language || module.language, level: Number(module.level_id) });
@@ -342,7 +344,7 @@ function tagRoute(catalog, t, ctx, signal, lesson) {
  * @param {object} target   target.pick(...) — incl. an unknown_indicator target, which goes to the step-text route
  * @param {{language:string, languages:string[], level:number|null, ladderComplete:boolean, history:{segments:string[], modules:number[]}}} ctx
  * @param {string} signal   the lesson's evidence text (tag route ranking)
- * @param {{subject:string|null, grade:{lo:number,hi:number}|null, topic:string|null, inapplicable:string[]}} lesson
+ * @param {{subject:string|null, grade:{lo:number,hi:number}|null, topic:string|null, inapplicable:string[], levelsMoment?:boolean}} lesson
  * @param {{action:string, tryTomorrow:string, thingToTry:string, name:string}} [step]  the card's words (step-text route)
  * @returns {{candidates:Array<{seg_id, score, indicator, language_match, level_id, level_match, route}>, noneReason:string|null,
  *   repeatModule:boolean, levelMatch:'completed'|'unknown'|null, textReason:string|null, stepTextQuery:string|null, route:string|null}}
