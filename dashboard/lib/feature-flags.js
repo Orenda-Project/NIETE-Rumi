@@ -152,6 +152,21 @@ const PORTAL_TEACHER_V2_KEY = 'portal_teacher_v2';
 const COACH_DISAGREEMENT_CARD_KEY = 'coach_disagreement_card';
 
 /**
+ * Teacher Home card — app_settings key for the teacher Home's ONE card (the next thing to do: a class send few children
+ * finished, a fresh coach report, a lesson to quiz, an observation, the first plan), the scores row under it, and the
+ * card's tap log. Same shape and rule as the keys above: true = everyone, a list of users.id = a pilot,
+ * "teachers" = every teacher, absent = off. Off, the Home is today's tree and GET /me/home is 404.
+ */
+const PORTAL_TEACHER_HOME_CARD_KEY = 'portal_teacher_home_card';
+
+/**
+ * Teacher Home card — app_settings key for the PER-TEACHER tile order on the Home (most-used first, by distinct days in 28;
+ * services/teacher-home-order.service.js). Read only when portal_teacher_home_card is on too: the order is an
+ * experiment measured against the card's cohort, so it never runs alone. Same shape and rule as the keys above.
+ */
+const PORTAL_TEACHER_HOME_ORDER_KEY = 'portal_teacher_home_order';
+
+/**
  * bd-3bvfj — a flag that can be on for EVERYONE or for a PILOT.
  *
  *   true (or "true")            → on for every user
@@ -363,6 +378,8 @@ module.exports = {
   PORTAL_COACH_V2_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
+  PORTAL_TEACHER_HOME_CARD_KEY,
+  PORTAL_TEACHER_HOME_ORDER_KEY,
   isFlagEnabledForUser,
   isCoachAppUser,
   isCoachObservationOn,

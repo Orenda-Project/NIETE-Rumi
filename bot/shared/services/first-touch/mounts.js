@@ -11,4 +11,5 @@ module.exports = Object.freeze([
   ['maker', 'maker.mount', 'mountMaker'],                        // /api/internal/ft (quiz_maker_page)
   ['sa-game', 'sa-game.mount', 'mountSaGame'],                   // /api/internal/sagame (sa_game: the big flight page; off → 404 {off:true} and the edge falls through)
   ['teacher-home', 'teacher-home.mount', 'mountTeacherHome'],    // /api/internal/th (quiz_teacher_home; off → 404 {off:true} and the edge falls through)
+  ['teacher-home-portal', 'teacher-home.portal.mount', 'mountTeacherHomePortal'], // /api/internal/thportal (quiz_teacher_home: the teacher app's home card)
 ].map(Object.freeze));
