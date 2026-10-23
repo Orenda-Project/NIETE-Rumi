@@ -209,9 +209,11 @@ const UX_STRINGS = {
   },
   // The card-sentence fallback reason (SPEC v1.3c §3.5, lead-review 20:33Z), verbatim: when the model's quote fails
   // validation twice, the clip is still sent with the report's own "Try this tomorrow" sentence. {n} is seconds.
+  // The sentence sits in its own FSI…PDI isolate (bd-8hhqhf): an Urdu card sentence inside the English line, or a
+  // leading digit, otherwise reorders on the React card and in WhatsApp.
   videoRecoCardFallbackReason: {
-    en: 'Your report asks you to try: "{sentence}". This {n}-second clip shows one way to do it.',
-    ur: 'آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "{sentence}"۔ یہ {n} سیکنڈ کا کلپ اس کا ایک طریقہ دکھاتا ہے۔',
+    en: 'Your report asks you to try: "\u2068{sentence}\u2069". This {n}-second clip shows one way to do it.',
+    ur: 'آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "\u2068{sentence}\u2069"۔ یہ {n} سیکنڈ کا کلپ اس کا ایک طریقہ دکھاتا ہے۔',
   },
 
   // ─── commitment-card buttons ──────────────────────────────────────────────

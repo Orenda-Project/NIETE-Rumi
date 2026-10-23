@@ -32,7 +32,12 @@ function clip(line) {
  * each "[mm:ss] Label: text" ≤ 220 code points. From diarization_data.segments; without it, from the
  * transcript_text lines that start with [mm:ss].
  */
-function excerpts(session, { timestamp, uptakeMoment } = {}, people = {}) {
+function excerpts(session, anchors = {}, people = {}) {
+  return rawExcerpts(session, anchors).map((l) => clip(redact(l, people)));
+}
+
+/** The same lines before redaction, index for index (bd-8hhqhf: what the validator checks a placeholder against). */
+function rawExcerpts(session, { timestamp, uptakeMoment } = {}) {
   let lines = [];
   const segs = session && session.diarization_data && Array.isArray(session.diarization_data.segments)
     ? session.diarization_data.segments.filter((s) => s && String(s.text || '').trim()) : [];
@@ -50,7 +55,7 @@ function excerpts(session, { timestamp, uptakeMoment } = {}, people = {}) {
     lines.forEach((l, i) => { if (l.ms <= anchor) idx = i; });
     start = Math.max(0, Math.min(idx - 4, lines.length - EXCERPT_LINES));
   }
-  return lines.slice(start, start + EXCERPT_LINES).map((l) => clip(redact(l.text, people)));
+  return lines.slice(start, start + EXCERPT_LINES).map((l) => l.text);
 }
 
 /** Children's names → [a student]; the teacher's own name masked too (redact-names.js, r-corpus port). */
@@ -164,4 +169,4 @@ function retryAppendix(none) {
   return `\n\nYOUR FIRST ANSWER WAS REJECTED (validation:${why}): ${rule}\nAnswer again in the same JSON shape, keeping every rule above; if no clip fits, return seg_id null.`;
 }
 
-module.exports = { build, excerpts, redact, retryAppendix, PROMPT_VERSION, stampMs };
+module.exports = { build, excerpts, rawExcerpts, redact, retryAppendix, PROMPT_VERSION, stampMs };
