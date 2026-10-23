@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { CalendarDays, School } from "lucide-react";
 import { cn } from "@/lib/utils";
 import nieteLogo from "@/assets/niete-logo.png";
+import { latinDir } from "@/lib/textDir";
 import { NieteLattice } from "../icons/NieteLattice";
 
 /**
@@ -19,9 +20,19 @@ import { NieteLattice } from "../icons/NieteLattice";
  * `footer`: one control at the foot of the band, under the date and school: Home's English | اردو switch (operator,
  * 2026-10-14, design doc option B). It sits inside the band, so the tiles still climb into it. The band's own lines
  * stay plain text; only what is passed here is tappable.
+ *
+ * `name`: her name as it appears in `title`. It is drawn with the "!" after it as ONE isolate (`<bdi>`), so in Urdu
+ * the "!" stays right after the name instead of taking the RTL paragraph's side ("!Testwala"; language-protocol §9.6:
+ * the atom keeps its punctuation inside its isolate). A Latin name is set in the English font with an English line
+ * height (`!leading-[1.15]`, important because index.css gives every Urdu span line-height 2): mixed into the
+ * Nastaliq h1 it used to stretch each line box, and the Urdu band stood ~30 px taller than it should. In Urdu it is
+ * also set a size down (0.7em): at the h1's 32 px a Latin name is far wider than the Nastaliq around it and pushed the
+ * greeting onto a second line at 360 px (another ~50 px of band).
  */
 export interface HomeGreetingProps {
   title: string;
+  /** Her name as it appears in `title` (isolated with its "!"); empty or absent draws the title as it is. */
+  name?: string | null;
   /** Today, already in her language ("Thursday 8 October"). */
   date: string;
   /** Her school; null or empty shows no school row. */
@@ -35,7 +46,7 @@ export interface HomeGreetingProps {
   className?: string;
 }
 
-export function HomeGreeting({ title, date, school, brand, logoAlt, markSrc = nieteLogo, footer, className }: HomeGreetingProps) {
+export function HomeGreeting({ title, name, date, school, brand, logoAlt, markSrc = nieteLogo, footer, className }: HomeGreetingProps) {
   return (
     <header
       data-testid="home-greeting"
@@ -47,7 +58,7 @@ export function HomeGreeting({ title, date, school, brand, logoAlt, markSrc = ni
         <span dir="ltr" className="text-[17px] font-bold tracking-[0.14em]">{brand}</span>
       </div>
       <div className="relative flex flex-col gap-3">
-        <h1 className="break-words text-[32px] font-light leading-[1.15] tracking-[-0.015em] [overflow-wrap:anywhere] rtl:leading-[1.5]">{title}</h1>
+        <h1 className="break-words text-[32px] font-light leading-[1.15] tracking-[-0.015em] [overflow-wrap:anywhere] rtl:leading-[1.5]">{greetingParts(title, name)}</h1>
         <div className="flex flex-col gap-2">
           <p data-testid="home-date" className="flex items-start gap-2 text-[17px] font-medium leading-[1.35] text-[#d5d9e4] rtl:leading-[1.6]">
             <CalendarDays className="mt-[3px] h-5 w-5 shrink-0" aria-hidden="true" />
@@ -63,5 +74,22 @@ export function HomeGreeting({ title, date, school, brand, logoAlt, markSrc = ni
         {footer ? <div data-testid="home-greeting-footer" className="mt-1">{footer}</div> : null}
       </div>
     </header>
+  );
+}
+
+/** The title with `name` and the "!" after it as one isolate; the title as it is when the name is not in it. */
+function greetingParts(title: string, name?: string | null): ReactNode {
+  const at = name ? title.lastIndexOf(name) : -1;
+  if (!name || at < 0) return title;
+  const end = at + name.length + (title.charAt(at + name.length) === "!" ? 1 : 0);
+  const latin = latinDir(name) === "ltr";
+  return (
+    <>
+      {title.slice(0, at)}
+      <bdi data-testid="home-greeting-name" {...(latin ? { "data-latin": "" } : {})} className={latin ? "!leading-[1.15] rtl:text-[0.7em]" : "!leading-[1.15]"}>
+        {title.slice(at, end)}
+      </bdi>
+      {title.slice(end) || null}
+    </>
   );
 }

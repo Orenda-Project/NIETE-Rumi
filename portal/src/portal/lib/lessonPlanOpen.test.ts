@@ -8,7 +8,7 @@ const get = vi.fn();
 vi.mock("../services/api", () => ({ default: { get: (...args: unknown[]) => get(...args) } }));
 vi.mock("./recordingSession", () => ({ useRecordingSession: () => null }));
 
-import { openLessonPlanOutside } from "./lessonPlanOpen";
+import { fetchLessonPlanPdf, lessonPlanFileUrl, LessonPlanNotReady, openLessonPlanOutside, sourceKey } from "./lessonPlanOpen";
 
 beforeEach(() => {
   get.mockReset();
@@ -26,5 +26,39 @@ describe("openLessonPlanOutside", () => {
     get.mockResolvedValue({ data: { available: true, url: "https://r2/y.pdf" } });
     expect(await openLessonPlanOutside({ lane: "k5", lessonId: "grade_4_english_ch1_seg2", assetKind: "lesson" })).toBe("opened");
     expect(get).toHaveBeenCalledWith("/curriculum/lp/grade_4_english_ch1_seg2/pdf", { params: { kind: "lesson" } });
+  });
+});
+
+// bd-7tgiyc — an assessment paper opens in the same viewer: its bytes through the portal's own /file route, its link
+// for "open in another app" from /download (the same lookup), never a lesson plan route.
+describe("a paper in the lesson plan viewer", () => {
+  const paper = { lane: "paper", paperId: "p-9", artifact: "paper" } as const;
+  const key = { lane: "paper", paperId: "p-9", artifact: "answer_key" } as const;
+
+  it("reads the PDF from the paper's own file route, for the paper or its answer key", async () => {
+    get.mockResolvedValue({ data: new ArrayBuffer(4) });
+    await fetchLessonPlanPdf(paper);
+    expect(get).toHaveBeenCalledWith("/assessment/paper/p-9/file", expect.objectContaining({ params: { artifact: "paper" }, responseType: "arraybuffer" }));
+    await fetchLessonPlanPdf(key);
+    expect(get).toHaveBeenLastCalledWith("/assessment/paper/p-9/file", expect.objectContaining({ params: { artifact: "answer_key" } }));
+  });
+
+  it("nothing there yet (not hers, not made, no key) is not ready, not a fault", async () => {
+    get.mockRejectedValue({ response: { status: 404 } });
+    await expect(fetchLessonPlanPdf(key)).rejects.toBeInstanceOf(LessonPlanNotReady);
+  });
+
+  it("the link for another app comes from /download", async () => {
+    get.mockResolvedValue({ data: { success: true, available: true, url: "https://r2/paper.pdf" } });
+    expect(await lessonPlanFileUrl(paper)).toBe("https://r2/paper.pdf");
+    expect(get).toHaveBeenCalledWith("/assessment/paper/p-9/download", { params: { artifact: "paper" } });
+    get.mockResolvedValue({ data: { success: true, available: false } });
+    expect(await lessonPlanFileUrl(key)).toBeNull();
+    expect(await openLessonPlanOutside(key)).toBe("not_ready");
+  });
+
+  it("the paper and its answer key are two different documents to the viewer", () => {
+    expect(sourceKey(paper)).not.toBe(sourceKey(key));
+    expect(sourceKey(paper)).not.toBe(sourceKey({ lane: "g612", renderId: "p-9" }));
   });
 });

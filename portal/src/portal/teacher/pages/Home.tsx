@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import TeacherPage from "../TeacherPage";
 import { FeatureTile, HomeGreeting } from "../ui";
@@ -8,7 +9,12 @@ import { cleanSchool, fullName, todayLabel } from "../format";
 import { teacherPath } from "../routes";
 import type { TeacherFeature } from "../paths";
 import { ReadyForYou } from "../notices/ReadyForYou";
+import { noticeTracker } from "../notices/tracker";
 import { LanguageTabs } from "../LanguageTabs";
+import { NextCard, FULL_KINDS } from "../home/NextCard";
+import { SlimCard, SLIM_KINDS } from "../home/SlimCard";
+import { ScoresRow } from "../home/ScoresRow";
+import { useHomeData, useHomeGo, useHomeSwitches } from "../home/useHomeData";
 
 /**
  * bd-fmf24g.1 — teacher v2 Home (canvas v28 Main, after the operator's changes 1–3):
@@ -29,18 +35,70 @@ const TILES: HomeTile[] = [
 
 type HomeTile = { key: Exclude<TeacherFeature, "home" | "more" | "profile">; art: AnyFeature };
 
+/**
+ * The Home card (portal_teacher_home_card, default OFF). OFF, or until /config says otherwise: the tree below the
+ * band is exactly today's (the last `return`, untouched). ON: "Ready for you" (when it has rows) or the full card, the score
+ * chips, then the tiles (in the server's order under portal_teacher_home_order), with the slim card spanning both
+ * columns after the second tile. The full card yields to a tray with rows; the slim card does not.
+ */
 export default function Home() {
   const C = useCopy(TEACHER_FRAME);
   const lang = useLang();
   const tiles = TILES.map(({ key, art }) => ({ key, art, label: C.home.tiles[key] }));
   const { user } = useAuth();
   const school = cleanSchool(user?.schoolName);
+  const sw = useHomeSwitches();
+  const { data, order } = useHomeData(sw.card, sw.order, user?.phoneNumber);
+  const tray = useSyncExternalStore(noticeTracker.subscribe, noticeTracker.getHome, noticeTracker.getHome);
+  const go = useHomeGo();
+  if (sw.card) {
+    const greeting = (
+      <HomeGreeting
+        title={C.home.greeting(fullName(user))}
+        name={fullName(user)}
+        date={todayLabel(new Date(), lang)}
+        school={school}
+        brand={C.brand}
+        logoAlt={C.logoAlt}
+        footer={<LanguageTabs testId="home-language" />}
+      />
+    );
+    const card = data?.card ?? null;
+    const full = card && FULL_KINDS.includes(card.kind) && tray.length === 0 ? card : null;
+    const slim = card && SLIM_KINDS.includes(card.kind) ? card : null;
+    const byKey = new Map(tiles.map((t) => [t.key, t]));
+    const ordered = order ? order.map((k) => byKey.get(k)).filter((t): t is (typeof tiles)[number] => !!t) : tiles;
+    const drawn = (ordered.length === tiles.length ? ordered : tiles).map(({ key, art, label }) => (
+      <FeatureTile key={key} feature={art} label={label} to={teacherPath(key)} />
+    ));
+    if (slim) drawn.splice(2, 0, <SlimCard key="home-slim-card" card={slim} userKey={user?.phoneNumber} onGo={go} />);
+    // The chips sit under the card region (the design's R6): under the slim card when that is the card, so row 1 stays
+    // whole above the fold; else under the full card, or under the band when there is no card.
+    const chipsInGrid = !!slim && !!data && !!(data.scores.coach || data.scores.observation);
+    if (chipsInGrid) drawn.splice(3, 0, <div key="home-scores" className="col-span-2"><ScoresRow scores={data.scores} cardKind={null} onGo={go} /></div>);
+
+    return (
+      <TeacherPage testId="teacher-home" hero={greeting}>
+        {user?.phoneNumber && <ReadyForYou userKey={user.phoneNumber} />}
+        {full ? <NextCard card={full} quizHome={data?.quizHome ?? null} onGo={go} /> : null}
+        {data && !chipsInGrid ? <ScoresRow scores={data.scores} cardKind={full?.kind ?? null} onGo={go} /> : null}
+        <FeatureMotionProvider>
+        <nav aria-label={C.home.features} data-testid="feature-tiles" className="relative [display:grid] grid-cols-2 gap-3 first:-mt-10">
+          {drawn}
+        </nav>
+        </FeatureMotionProvider>
+      </TeacherPage>
+    );
+  }
+
+  // OFF: today's tree, unchanged (the greeting's `name` is the unswitched "!" fix).
   return (
     <TeacherPage
       testId="teacher-home"
       hero={(
         <HomeGreeting
           title={C.home.greeting(fullName(user))}
+          name={fullName(user)}
           date={todayLabel(new Date(), lang)}
           school={school}
           brand={C.brand}

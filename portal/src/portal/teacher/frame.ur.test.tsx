@@ -51,6 +51,17 @@ describe("the frame in Urdu", () => {
     expect(screen.queryByText(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) /)).toBeNull();
   });
 
+  it("Home: the Urdu greeting ends with '!' right after her name, the '!' inside the name's isolate (not '!Testwala')", () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { ...USER, firstName: "Amina Testwala" }, loading: false, logout: vi.fn() } as unknown as ReturnType<typeof useAuth>);
+    inRouter(<Home />);
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(h1.textContent).toBe(U.home.greeting("Amina Testwala"));
+    expect(h1.textContent?.endsWith("Amina Testwala!")).toBe(true);
+    const iso = h1.querySelector("bdi");
+    expect(iso?.textContent).toBe("Amina Testwala!");
+    expect(h1.lastChild).toBe(iso); // nothing after the isolate: the "!" cannot drift to the other end of the line
+  });
+
   it("More: rows and Logout in Urdu; the Language row names English in English", () => {
     inRouter(<More />, "/portal/teacher/more");
     for (const w of [U.more.language, U.more.profile, U.more.logout]) {
