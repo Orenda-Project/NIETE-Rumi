@@ -157,10 +157,43 @@ const westernDigits = (text) => text.split(/([\u2066-\u2068][^\u2066-\u2069]*\u2
  */
 function composeReason(text, language, quote) {
   if (typeof text !== 'string' || !text) return text;
-  const s = isolateQuotes(stripLead(text), quote);
-  if (lang(language) === 'en') return isolateArabic(westernDigits(s.replace(/。\s*/g, '. ').trim()));
-  return isolateLatin(urduDigitsInProse(s.replace(/。/g, '۔')), false); // the WhatsApp body adds its own RLM
+  if (lang(language) === 'en') return isolateArabic(westernDigits(isolateQuotes(stripLead(text), quote).replace(/。\s*/g, '. ').trim()));
+  // red7 N4/H7: the word table and the digit rule leave the lesson's own words alone (the accepted moment, and the card
+  // sentence the fallback template isolates); a quoted suggestion the model wrote is its own copy and is rewritten
+  const q = typeof quote === 'string' ? quote : '';
+  const own = (span) => /^[\u2066-\u2068]/.test(span) || (!!q && [...span.slice(1, -1).trim()].length >= 6 && q.includes(span.slice(1, -1).trim()));
+  const parts = stripLead(text).replace(/。/g, '۔').split(QUOTED_SPAN);
+  const prose = parts.map((part, i) => (i % 2 && own(part) ? part : urduDigitsInProse(urduWordTable(part))));
+  const western = prose.some((part) => /[0-9]/.test(part));
+  const fixed = prose.map((part, i) => (i % 2 && own(parts[i]) ? part : oneDigitSystem(part, western))).join('');
+  return isolateLatin(isolateQuotes(fixed, quote), false); // the WhatsApp body adds its own RLM
 }
+
+// R7c (COS 20261023T170515 §6; panel ped/REVIEW_r7b_rejudge.md §4): the model's recurring Urdu slips, each fixed to the word a
+// teacher uses. Only forms that are wrong in every context are rewritten; «جوڑ» stays where it means addition.
+const URDU_WORDS = [
+  [/(^|[\s«"(])جوڑ(?= میں(?=[\s،۔]|$))/gu, '$1جوڑوں'], // pairs (Q092 Q096 Q101 Q111 Q145)
+  [/(^|[\s«"(])جوڑ(?= بنا)/gu, '$1جوڑے'],
+  [/(^|[\s«"(])ہمزات(?=[\s،۔]|$)/gu, '$1ساتھی'], // Q101
+  [/(^|[\s«"(])طبقے(?=[\s،۔]|$)/gu, '$1کلاس'], // «class» (Q137)
+  [/جگہ قدر/gu, 'مقامی قدر'], // place value (Q098)
+  [/پورے کلاس/gu, 'پوری کلاس'], // Q081 Q105
+  [/اگلے کلاس/gu, 'اگلی کلاس'], // Q020
+  [/(^|[\s«"(])یاداشت/gu, '$1یادداشت'], // Q167
+  [/مثلاََ|مثلاَ/gu, 'مثلاً'], // Q164
+  // "why do you think" calque (Q082 Q149 Q200); red7 N5: «کیوں» goes after the subject, so the clause keeps its order
+  [/آپ کیوں سوچتے ہیں کہ ([^؟?۔]+?)\s*([؟?])/gu, 'آپ کے خیال میں $1، ایسا کیوں$2'],
+  [/آپ کیوں سوچتے ہیں/gu, 'آپ کے خیال میں ایسا کیوں ہے'],
+  [/(^|[\s«"(])پروب(?=[\s،۔]|$)/gu, '$1مزید سوال'], // Q141
+];
+const urduWordTable = (text) => URDU_WORDS.reduce((t, [rx, to]) => t.replace(rx, to), text);
+
+/** One digit system per Urdu line (14 panel rows): when a Western number must stay (inside a Latin run), all are Western. */
+function oneDigitSystem(text, westernElsewhere = false) {
+  return westernElsewhere || /[0-9]/.test(text) ? text.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))) : text;
+}
+// A quoted span: an isolate, or a pair of quote marks (the parts at odd indexes after a split)
+const QUOTED_SPAN = /([\u2066-\u2068][^\u2066-\u2069]*\u2069|"[^"]*"|«[^»]*»|“[^”]*”)/;
 
 // An Urdu line sets its English runs in isolates; other lines are as written.
 const LINE = { ur: isolateLatin };

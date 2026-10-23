@@ -215,6 +215,12 @@ const UX_STRINGS = {
     en: 'Your report asks you to try: "\u2068{sentence}\u2069". This {n}-second clip shows one way to do it.',
     ur: 'آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "\u2068{sentence}\u2069"۔ یہ {n} سیکنڈ کا کلپ اس کا ایک طریقہ دکھاتا ہے۔',
   },
+  // R7c (panel §4): the line in the OTHER language, when the report's sentence is in the reader's language — the sentence is
+  // not quoted in a language it was not written in (an English sentence inside an Urdu line, 51.6% copy-ok on the panel).
+  videoRecoCardFallbackReasonPlain: {
+    en: 'Your report gives you one thing to try next class. This {n}-second clip shows one way to do it.',
+    ur: 'آپ کی رپورٹ اگلی کلاس کے لیے ایک قدم بتاتی ہے۔ یہ {n} سیکنڈ کا کلپ اسے کرنے کا ایک طریقہ دکھاتا ہے۔',
+  },
 
   // ─── commitment-card buttons ──────────────────────────────────────────────
   // The one-line acknowledgement after a tap on "Will you commit to trying this

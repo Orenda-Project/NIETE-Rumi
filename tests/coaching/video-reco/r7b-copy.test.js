@@ -93,10 +93,10 @@ describe('the validator: gendered Urdu, system notes, claims the clip cannot bac
   test('the retry appendix names both new rules; the prompt is vr-7 and carries both', () => {
     expect(P.retryAppendix('validation:gender')).toMatch(/plural/);
     expect(P.retryAppendix('validation:unshown')).toMatch(/clip/);
-    expect(P.PROMPT_VERSION).toBe('vr-8');
+    expect(P.PROMPT_VERSION).toBe('vr-9');
     const text = P.build({ target: { source: 'card_text' }, candidates: [], catalog: cat, excerpts: ['[00:30] Teacher: x'] });
     expect(text).toContain('کرتے ہیں');
-    expect(text).toMatch(/only what the clip's own line says it shows/);
+    expect(text).toMatch(/only what the clip's own line says/);
   });
 });
 
@@ -108,11 +108,12 @@ describe('the card fallback: trimmed at a clause, keeping the clause the clip se
   test('P033/P037/P040: the clause the clip serves survives the trim, cut at a clause boundary, ≤ 300 code points', () => {
     const r = fb(LONG);
     expect(r).not.toBeNull();
-    for (const x of [r.reason_en, r.reason_ur]) {
-      expect([...x].length).toBeLessThanOrEqual(300);
-      expect(x).toContain('why اور how والا سوال پوچھیں');
-    }
-    expect(r.reason_ur).toMatch(/"⁨…/);
+    expect([...r.reason_ur].length).toBeLessThanOrEqual(300);
+    expect(r.reason_ur).toContain('why اور how والا سوال پوچھیں');
+    // R7c (Q172): the sentence's own opening stays in front of the clause the clip serves; the English line does not
+    // quote an Urdu sentence (R7c §6)
+    expect(r.reason_ur).toMatch(/"⁨اگلی کلاس میں [^"]*… [^"]*why اور how/);
+    expect(r.reason_en).not.toContain('⁨');
   });
 
   test('a card sentence that quotes an indicator label is not a fallback (P036, P042, P046)', () => {
@@ -129,11 +130,17 @@ describe('the card fallback: trimmed at a clause, keeping the clause the clip se
 });
 
 describe('composition: one digit system per message, Latin runs isolated in Urdu, no CJK stop', () => {
-  test('ur: Western digits in Urdu prose become Urdu digits; a number inside a Latin run stays as it is', () => {
-    const out = composeReason('یہ 55 سیکنڈ کا کلپ ہے؛ کل 5-7 سیکنڈ انتظار کریں اور 4 digit addition کی مثال دیں۔', 'ur', null);
+  test('ur: Western digits in Urdu prose become Urdu digits', () => {
+    const out = composeReason('یہ 55 سیکنڈ کا کلپ ہے؛ کل 5-7 سیکنڈ انتظار کریں۔', 'ur', null);
     expect(out).toContain('۵۵ سیکنڈ');
     expect(out).toContain('۵-۷ سیکنڈ');
+  });
+  test('ur, R7c (14 panel rows): a number that must stay Western (inside a Latin run) makes the whole line Western', () => {
+    const out = composeReason('یہ ۵۵ سیکنڈ کا کلپ ہے؛ کل 5-7 سیکنڈ انتظار کریں اور 4 digit addition کی مثال دیں۔', 'ur', null);
+    expect(out).toContain('55 سیکنڈ');
+    expect(out).toContain('5-7 سیکنڈ');
     expect(out).toContain('\u20664 digit addition\u2069');
+    expect(out).not.toMatch(/[۰-۹]/);
   });
   test('ur: an English term inside the Urdu line is set in its own LTR isolate (translate-or-isolate)', () => {
     expect(composeReason('اس کلپ میں استاد wait time دیتے ہیں۔', 'ur', null)).toContain('⁦wait time⁩');

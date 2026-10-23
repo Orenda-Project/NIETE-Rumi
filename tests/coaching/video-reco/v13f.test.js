@@ -100,7 +100,9 @@ describe('1 · the card-sentence fallback fits a long card sentence under the ca
 
   test('the trim is at a word boundary, ends with an ellipsis, and never cuts a word', () => {
     const out = S.cardFallback(base);
-    for (const r of [out.reason_ur, out.reason_en]) {
+    // R7c §6: the Urdu sentence is quoted in the Urdu reader's line only; the English line does not carry it
+    expect(out.reason_en).not.toMatch(FSI);
+    for (const r of [out.reason_ur]) {
       const quoted = new RegExp(`"${FSI}([^${PDI}]*)${PDI}"`).exec(r);
       expect(quoted).not.toBeNull();
       const shown = quoted[1];
@@ -203,9 +205,10 @@ describe('5 · redactor false positives', () => {
   // d2a235f4 (gold, maths): the strict excerpt redactor masked میڈین (median); the model quoted the placeholder.
   // The fixture uses کوئنچ (quench, 383a31f3): since v13g میڈین is kept by the retroflex rule, کوئنچ is still masked by
   // the vocabulary rule alone, which is what this check is about.
-  const MEDIAN = [{ start_ms: 1000, label: 'Teacher', text: 'آج ہمارا جو ٹاپک ہے نا، وہ ہے کوئنچ کے بارے میں، ٹھیک ہے؟' }, { start_ms: 2000, label: 'Student', text: 'جی۔' }];
+  // R7c: a question (a topic announcement is not_moment)
+  const MEDIAN = [{ start_ms: 1000, label: 'Teacher', text: 'ان نمبروں میں کوئنچ کون سا ہے، کون بتائے گا؟' }, { start_ms: 2000, label: 'Student', text: 'جی۔' }];
   const QUOTE_MEDIAN = {
-    ...GOOD, moment: { at: '00:01', quote: 'آج ہمارا جو ٹاپک ہے نا، وہ ہے [a student] کے بارے میں' },
+    ...GOOD, moment: { at: '00:01', quote: 'ان نمبروں میں [a student] کون سا ہے، کون بتائے گا' },
     reason_en: 'At 00:01 the topic was named but no goal was written. This clip shows a teacher writing the objective on the board.',
   };
 
@@ -229,7 +232,7 @@ describe('5 · redactor false positives', () => {
   });
 
   test('(a) an Urdu lexicon name in the same slot → still shown', async () => {
-    const lines = [{ start_ms: 1000, label: 'Teacher', text: 'آج ہمارا جو ٹاپک ہے نا، وہ ہے احمد کے بارے میں، ٹھیک ہے؟' }, { start_ms: 2000, label: 'Student', text: 'جی۔' }];
+    const lines = [{ start_ms: 1000, label: 'Teacher', text: 'ان نمبروں میں احمد کون سا ہے، کون بتائے گا؟' }, { start_ms: 2000, label: 'Student', text: 'جی۔' }];
     const d = deps([QUOTE_MEDIAN]);
     const row = await E.recommendForReport({ ...args({ lines, subject: 'maths' }), deps: d });
     expect(row).toMatchObject({ status: 'shown', moment_source: 'transcript' });

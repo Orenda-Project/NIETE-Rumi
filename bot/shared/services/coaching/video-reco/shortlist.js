@@ -389,4 +389,51 @@ function build(catalog, target, ctx, signal, lesson, step) {
   }
 }
 
-module.exports = { build, textRoute, recommendable, fallbackSubjectOk, stepQuery, contentWords, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, STUB_FLOOR, LABEL_37 };
+// R7c (COS 20261023T170515 §4, panel ped/REVIEW_r7b_rejudge.md §3): for a why/how card on a closed-answer lesson the move is
+// 51-s1 (turn the yes/no question into a "why" one); 51-s3 (open questions in a crowded class) presumes the open question
+// already exists: 11 picks, 0 right. 51-s3 gives its place to 51-s1, or goes when 51-s1 is already listed.
+const WHY_FIRST = Object.freeze({ before: '51-s1', instead: '51-s3' });
+
+/** The candidates with 51-s3 replaced by 51-s1 when `apply`, or dropped (51-s1 listed already, sent already, or not shown). */
+function whyFirst(candidates, catalog, { apply = false, history = null } = {}) {
+  const list = candidates || [];
+  const at = list.findIndex((c) => c.seg_id === WHY_FIRST.instead);
+  if (!apply || at < 0) return list;
+  if (list.some((c) => c.seg_id === WHY_FIRST.before)) return list.filter((_, i) => i !== at);
+  const hit = catalog && catalog.segment(WHY_FIRST.before);
+  const seen = history && (history.segments || []).includes(WHY_FIRST.before);
+  // red7 N2: 51-s1 cannot be offered (already sent, or not recommendable) → 51-s3 still goes; it is the wrong move here
+  if (!hit || seen || !recommendable(hit.module, hit.segment)) return list.filter((_, i) => i !== at);
+  const out = list.slice();
+  out[at] = { ...list[at], seg_id: WHY_FIRST.before, level_id: hit.module.level_id, indicator: ((hit.segment.fico || [])[0] || {}).indicator || list[at].indicator };
+  return out;
+}
+
+// R7c (COS 20261023T170515 §7; panel §1.5): the four chapters the engine enacts well (106 of 159 picks at 90.6%). When the
+// model returns null for a C1/D3/C3 card on a closed-answer lesson, it is asked once more with only these.
+const ENACTED = Object.freeze(['50-s2', '51-s1', '51-s3', '95-s3']);
+const ENACTED_STEPS = new Set(['C1', 'D3', 'C3']);
+
+/**
+ * The enacted chapters this lesson and teacher may get, with the tag route's gates (subject, grade, language, history):
+ * a chapter already sent never, a module already sent only when nothing else is left (then repeatModule, red7 H6).
+ * → {candidates, repeatModule}
+ */
+function enacted(catalog, ctx, lesson) {
+  const { preferred, languages } = languagesOf(ctx);
+  const lv = levelOf(ctx);
+  const h = (ctx && ctx.history) || {};
+  const seen = new Set((h.segments || []).map(String));
+  const seenMods = new Set((h.modules || []).map(Number));
+  const ok = new Map(eligible(catalog, lesson).map((x) => [x.seg.seg_id, x]));
+  const fresh = ENACTED.map((id) => ok.get(id)).filter((x) => x && languages.has(x.lang) && !seen.has(x.seg.seg_id));
+  let pool = fresh.filter((x) => !seenMods.has(Number(x.module.module_id)));
+  const repeatModule = !pool.length && fresh.length > 0 && seenMods.size > 0;
+  if (repeatModule) pool = fresh;
+  return { repeatModule, candidates: pool.map((x) => ({
+    seg_id: x.seg.seg_id, score: 0, indicator: ((x.seg.fico || [])[0] || {}).indicator || null, language_match: languageMatch(x.lang, preferred),
+    level_id: x.level, level_match: levelMatchOf(lv, x.level), route: 'enacted',
+  })) };
+}
+
+module.exports = { enacted, ENACTED, ENACTED_STEPS, whyFirst, WHY_FIRST, build, textRoute, recommendable, fallbackSubjectOk, stepQuery, contentWords, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, STUB_FLOOR, LABEL_37 };
