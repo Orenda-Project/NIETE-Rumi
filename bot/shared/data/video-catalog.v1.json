@@ -1,6 +1,6 @@
 {
- "version": "catalog-v1-20261020T2022-7097e261",
- "built_at": "2026-10-20T20:22:55.808Z",
+ "version": "catalog-v1-20261023T1535-r7bpanel",
+ "built_at": "2026-10-23T15:35:00.000Z",
  "framework": "fico-v4",
  "indicator_aliases": {
   "B1": {

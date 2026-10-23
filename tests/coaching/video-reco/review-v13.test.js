@@ -40,9 +40,9 @@ describe('deviation 1 (D3a): §3.3 candidate rule seg.recommendable===true || (m
 describe('deviation 2 + validator (c): prompt rule 2 verbatim from SPEC §3.4, "(under 300 characters)", vr-3', () => {
   const text = P.build({ target: tgt('C1'), candidates: [], catalog: C.fromData(FIX), excerpts: ['[00:30] Teacher: hello'] });
   test('rule 2 carries the "explains the move" clause and the length hint', () => {
-    expect(text).toContain('then what the clip shows a teacher doing instead — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person\'s name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher.');
+    expect(text).toContain('then what the clip shows a teacher doing instead — say only what the clip\'s own line says it shows, in your own plain words (in reason_ur, in Urdu: never copy the clip\'s English title or summary); never add wait time, cold-calling, pairs, roles or a "why" question it does not name — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person\'s name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher.');
   });
-  test('PROMPT_VERSION is vr-6 (v1.3c-3 + r7 no clock time)', () => expect(P.PROMPT_VERSION).toBe('vr-6'));
+  test('PROMPT_VERSION is vr-7 (v1.3c-3 + r7 no clock time + R7b clip words, Urdu plural)', () => expect(P.PROMPT_VERSION).toBe('vr-7'));
 });
 
 describe('deviation 5 (D3b): the tie-break needs moves[0] = target AND evidence_s inside (indicator path: evidence_s only)', () => {

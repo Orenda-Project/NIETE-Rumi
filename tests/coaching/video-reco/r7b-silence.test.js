@@ -110,7 +110,7 @@ test('P099: the B6 template card on a greeting-and-Q&A lesson → silence:no_lev
 
 test('P011: B6 on a lesson where children are visibly not following still picks', async () => {
   const lines = [T(40000, 'اچھا، اب ان جملوں کو کمانڈ بنائیں۔ سمجھ نہیں آ رہا؟ دوبارہ دیکھیں۔'), K(45000, 'مس، یہ والا مشکل ہے۔')];
-  const d = deps([pick('56-s2', 'اچھا، اب ان جملوں کو کمانڈ بنائیں۔')]);
+  const d = deps([{ ...pick('56-s2', 'اچھا، اب ان جملوں کو کمانڈ بنائیں۔'), reason_en: 'Some children were not following the task. The clip shows a simpler task and a challenge task on one theme.' }]);
   const row = await E.recommendForReport({ ...args({ lines, indicator: 'B6', action: B6_CARD }), deps: d });
   expect(d.completeJson).toHaveBeenCalled();
   expect(row).toMatchObject({ status: 'shown', seg_id: '56-s2' });
@@ -152,4 +152,53 @@ test('an imperative card sentence still makes the fallback (en and ur)', async (
     const row = await E.recommendForReport({ ...args({ lines: CLASS, indicator: 'C1', action, scheme: 'fico_v4' }), deps: d });
     expect(row).toMatchObject({ status: 'shown', moment_source: 'card' });
   }
+});
+
+// ── red7 REVIEW_3621 F1–F3 (bin/attack_r7b_silence.js cases, verbatim) ──────────────────────────────────────────────────
+describe('red7 F1: natural mixed-level phrasings are a levels moment; content uses are not', () => {
+  const { levelsMoment } = require('../../../bot/shared/services/coaching/video-reco/silence');
+  test.each([
+    ['[03:10] Student (ur): سمجھ نہیں آرہا', true],
+    ['[03:10] Student (ur): مجھے سمجھ میں نہیں آیا', true],
+    ['[03:10] Teacher (ur): جو پہلے ختم کر لیں وہ اگلا سوال کریں', true],
+    ['[03:10] Teacher (ur): جنہوں نے کر لیا ہے ہاتھ اٹھائیں', true],
+    ['[03:10] Teacher (en): fast finishers can try the next one', true],
+    ['[03:10] Teacher (en): those who are done, help your partner', true],
+    ["[03:10] Teacher (en): you look confused, you couldn't do it?", true],
+    ['[03:10] Student (ur): samajh nahi aya', true],
+    ['[03:10] Teacher (ur): جو بچے پیچھے رہ گئے ہیں وہ میرے پاس آئیں', true],
+    ['[03:10] Teacher (ur): کیا میں دوبارہ سمجھاؤں؟', true],
+    ['[03:10] Teacher (ur): زندگی میں ہر چیلنج کا سامنا کرو', false],
+    ['[03:10] Teacher (ur): یہ والا سوال مشکل ہے سب کے لیے', false],
+  ])('%s → %s', (line, want) => expect(levelsMoment([line])).toBe(want));
+});
+
+describe('red7 F2: ordinary card verbs are moves; a diagnosis is not', () => {
+  const { imperative } = require('../../../bot/shared/services/coaching/video-reco/silence');
+  test.each([
+    ['Encourage students to answer in full sentences', true], ['Remind the class of the rule before starting', true],
+    ['Help a child who is stuck before moving on', true], ['Rotate between groups during pair work', true],
+    ['Speak slowly and face the class when explaining', true], ['Begin the lesson with one question about yesterday', true],
+    ['Nominate one child per row to answer', true], ['Re-teach the step tomorrow with two examples', true],
+    ["Don't repeat the answer for them", true], ['بچوں کے درمیان چلیں اور ان کے ساتھ بیٹھیں', true],
+    ['غلط جواب پر فوراً نہ ٹوکیں', true],
+    ['Students do not understand the task', false], ['Good questioning throughout', false], ['پورے سبق میں اچھے سوالات', false],
+  ])('%s → %s', (s, want) => expect(imperative(s)).toBe(want));
+});
+
+describe('red7 F3: a child turn is any labelled turn that is not the teacher\'s', () => {
+  const { childTurnNear } = require('../../../bot/shared/services/coaching/video-reco/silence');
+  test.each([
+    [['[00:01] Teacher: a', '[00:02] Child: b']], [['[00:01] Teacher: a', '[00:02] Class: b']],
+    [['[00:01] استاد: a', '[00:02] طالب علم: b']], [['[00:01] Speaker 1: a', '[00:02] Speaker 2: b']],
+  ])('%j → a child turn', (lines) => expect(childTurnNear(lines, 0)).toBe(true));
+  test('a teacher monologue is still no child turn', () => {
+    expect(childTurnNear(['[00:01] Teacher (ur): a', '[00:02] Teacher (ur): b', '[00:03] Teacher (ur): c', '[00:04] Student (ur): d'], 0)).toBe(false);
+  });
+});
+
+test('red7 REVIEW_3623 F1: the hand-edited catalogue carries a new version, so R7b rows are told apart', () => {
+  const data = require('../../../bot/shared/data/video-catalog.v1.json');
+  expect(data.version).not.toBe('catalog-v1-20261020T2022-7097e261');
+  expect(data.version).toMatch(/^catalog-v1-20261023T\d{4}-/);
 });

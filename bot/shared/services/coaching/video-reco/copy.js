@@ -45,14 +45,17 @@ const clipLanguageName = (clipLanguage, l) => resolveUx(LANG_KEY[clipLanguage] |
 
 /**
  * Each Latin phrase inside an Urdu line in its own isolate, and the line opened right to left. A phrase is
- * Latin words joined by spaces/hyphens/apostrophes; a bare number or clock ("12:40") is left alone.
+ * Latin words joined by spaces/hyphens/apostrophes, with a number that leads into them («4 digit addition», R7b); a bare
+ * number or clock ("12:40") is left alone.
  */
-function isolateLatin(text) {
+function isolateLatin(text, mark = true) {
   const s = String(text || '');
   if (!s) return s;
-  // Text already inside an isolate (a quoted moment, bd-8hhqhf) is left as it is; only the rest is scanned.
-  const out = s.split(/([\u2066-\u2068][^\u2066-\u2069]*\u2069)/).map((part, i) => (i % 2 ? part
-    : part.replace(/[A-Za-z][A-Za-z0-9'’-]*(?:\s+[A-Za-z0-9][A-Za-z0-9'’-]*)*/g, (run) => `${LRI}${run}${PDI}`))).join('');
+  // Text already inside an isolate (a quoted moment, bd-8hhqhf) and a name placeholder ([a student], R7b) are left as
+  // they are; only the rest is scanned.
+  const out = s.split(/([\u2066-\u2068][^\u2066-\u2069]*\u2069|\[(?:a student|CHILD|TEACHER)\])/).map((part, i) => (i % 2 ? part
+    : part.replace(/(?:[0-9][0-9.,:–-]*\s+)?[A-Za-z][A-Za-z0-9'’-]*(?:\s+[A-Za-z0-9][A-Za-z0-9'’-]*)*/g, (run) => `${LRI}${run}${PDI}`))).join('');
+  if (!mark) return out;
   const first = [...out].find((ch) => /\p{L}/u.test(ch) && !/[⁦-⁩]/.test(ch));
   return first && /[؀-ۿ]/.test(first) ? out : `${RLM}${out}`;
 }
@@ -135,10 +138,28 @@ function stripLead(text) {
   return s;
 }
 
+// R7b (panel §4 item 5; language-protocol §9.4): one digit system per message. Urdu prose takes Urdu digits, except a
+// number that belongs to a Latin run («4 digit addition»); an English line takes Western digits outside the quoted moment.
+const ASCII_RUN = /\d+(?:[.,:\-–]\d+)*/g;
+const nearestLetter = (t, i, step) => { for (let k = i; k >= 0 && k < t.length; k += step) if (/\p{L}/u.test(t[k])) return t[k]; return ''; };
+function urduDigitsInProse(text) {
+  return text.replace(ASCII_RUN, (run, at, all) => {
+    const latin = /[A-Za-z]/;
+    return latin.test(nearestLetter(all, at - 1, -1)) || latin.test(nearestLetter(all, at + run.length, 1)) ? run : urduDigits(run);
+  });
+}
+const westernDigits = (text) => text.split(/([\u2066-\u2068][^\u2066-\u2069]*\u2069)/).map((part, i) => (i % 2 ? part
+  : part.replace(/[۰-۹٠-٩]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d) >= 0 ? '۰۱۲۳۴۵۶۷۸۹'.indexOf(d) : '٠١٢٣٤٥٦٧٨٩'.indexOf(d))))).join('');
+
+/**
+ * The stored reason. Urdu: Urdu digits, the CJK stop «。» as «۔», every Latin run in its own LTR isolate (translate-or-isolate,
+ * R7b; the WhatsApp body's isolateLatin skips runs already isolated). English: Western digits, «。» as «.», Urdu runs isolated.
+ */
 function composeReason(text, language, quote) {
   if (typeof text !== 'string' || !text) return text;
   const s = isolateQuotes(stripLead(text), quote);
-  return lang(language) === 'en' ? isolateArabic(s) : s;
+  if (lang(language) === 'en') return isolateArabic(westernDigits(s.replace(/。\s*/g, '. ').trim()));
+  return isolateLatin(urduDigitsInProse(s.replace(/。/g, '۔')), false); // the WhatsApp body adds its own RLM
 }
 
 // An Urdu line sets its English runs in isolates; other lines are as written.

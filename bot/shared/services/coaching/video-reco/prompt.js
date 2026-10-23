@@ -7,7 +7,7 @@
  */
 const { redactNames } = require('./redact-names');
 
-const PROMPT_VERSION = 'vr-6'; // vr-6 (bd-8hhqhf r7, COS 081156): no clock time or speaker label in a reason
+const PROMPT_VERSION = 'vr-7'; // vr-7 (bd-8hhqhf R7b, COS 144730 2b): the clip's own words; a teacher is plural in Urdu
 const EXCERPT_LINES = 12;
 const EXCERPT_MAX_CHARS = 220;
 
@@ -141,8 +141,8 @@ ${(candidates || []).map((c) => candidateLine(c, catalog)).join('\n')}
 
 RULES
 1. Choose the clip that SHOWS the exact move in "Try this tomorrow". Every candidate is for that step: you choose among them and ground the moment; you never change the step.
-2. The reason must cite ONE real moment: a short quote copied from the report's moment or the TRANSCRIPT MOMENTS (never invented, never paraphrased), introduced in words (what was happening in the lesson), then what the clip shows a teacher doing instead — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person's name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher. Never write a clip id, number or code; never write a clock time (no [mm:ss], no "at 12:08") or a speaker label (no "Teacher:", "Student:") in reason_en or reason_ur: the moment's time goes only in moment.at; never mention the scorer, the report or the analysis; describe the lesson moment itself. Choose a moment with the teacher's or a child's own words; if the only candidate line is mostly [a student] placeholders, pick another line. If no real moment fits, return seg_id null — never write N/A, unknown or [around unknown].${crossLanguageRule(reportLanguage, lessonLanguage)}
-3. Gender-neutral: say "the teacher" / "they"; in Urdu use verbal nouns or impersonal forms, never gendered second-person verbs. Keep pedagogical terms in English letters inside Urdu (e.g. open-ended questions, wait time). No Roman Urdu (Urdu in Latin letters); Urdu is written in Nastaliq script; only pedagogical terms stay in English letters (one or two words).
+2. The reason must cite ONE real moment: a short quote copied from the report's moment or the TRANSCRIPT MOMENTS (never invented, never paraphrased), introduced in words (what was happening in the lesson), then what the clip shows a teacher doing instead — say only what the clip's own line says it shows, in your own plain words (in reason_ur, in Urdu: never copy the clip's English title or summary); never add wait time, cold-calling, pairs, roles or a "why" question it does not name — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person's name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher. Never write a clip id, number or code; never write a clock time (no [mm:ss], no "at 12:08") or a speaker label (no "Teacher:", "Student:") in reason_en or reason_ur: the moment's time goes only in moment.at; never mention the scorer, the report or the analysis; describe the lesson moment itself. Choose a moment with the teacher's or a child's own words; if the only candidate line is mostly [a student] placeholders, pick another line. If no real moment fits, return seg_id null — never write N/A, unknown or [around unknown].${crossLanguageRule(reportLanguage, lessonLanguage)}
+3. Gender-neutral: say "the teacher" / "they"; in Urdu use verbal nouns or impersonal forms, never gendered second-person verbs. Any teacher (the reader or the one in the clip) is plural in Urdu: «استاد … کرتے ہیں / پوچھتے ہیں», «آپ … کریں»; never «کرتا ہے», «کرتی ہے», «کہتی ہیں», «استانی», «معلمہ» or «استاذہ». Keep pedagogical terms in English letters inside Urdu (e.g. open-ended questions, wait time). No Roman Urdu (Urdu in Latin letters); Urdu is written in Nastaliq script; only pedagogical terms stay in English letters (one or two words).
 4. If no candidate would help this teacher with this step, return "seg_id": null and say why in "none_reason". That is a good answer, not a failure.
 5. Never pick a clip whose "needs" clearly do not match this lesson, or one meant for a different subject than this lesson (${subject || 'unknown'}).
 
@@ -179,6 +179,8 @@ const RETRY_RULES = Object.freeze({
   roman: 'reason_ur contained Roman Urdu or English words; write it in Urdu script.',
   step: "The clip does not show the step's teaching move; choose one that does.",
   no_child_turn: "The moment had no child's turn on its line or the lines beside it; choose a moment where a child speaks.",
+  gender: 'reason_ur spoke of a teacher in a gendered form; use the respectful plural («استاد … کرتے ہیں», «آپ … کریں»).',
+  unshown: "The reason said the clip shows something its own line does not name; say only what that clip shows.",
 });
 
 /** The two lines added to the same prompt for the one retry: which rule the first answer broke, then answer again. */
