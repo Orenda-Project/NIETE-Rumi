@@ -196,6 +196,16 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     echo "E2E_CASSETTE_FAULTS=$run_dir/cassette-faults.json"
     # The class-quiz join lock is a minute in production; a rejoin scenario idled that long. 5 s here.
     echo "VIDEO_QUIZ_JOIN_LOCK_SECS=${VIDEO_QUIZ_JOIN_LOCK_SECS:-5}"
+    # The WhatsApp send pacer (whatsapp-send-pacer.js) spaces sends to one phone 6 s apart once 8 are in flight —
+    # Meta's pair rate limit. The mock Graph API has no such limit, and the driver is ONE phone talking every
+    # 3 s, so from the 9th message on every reply waited ~3.3 s for a slot: 527 s of run 20261023-1006-par
+    # (bd-k5gjje). Off here; the pacer's own tests (tests/whatsapp/send-pacing.redis.test.js) are its coverage.
+    # E2E_WA_PAIR_PACING=on puts it back for a run that wants to see the pacing.
+    echo "WA_PAIR_PACING=${E2E_WA_PAIR_PACING:-off}"
+    # The app_settings switch cache (app-redirect.service FLAG_TTL_MS, 30 s in production) made every
+    # setAppSetting/restoreAppSettings in the harness sleep 31 s — 217 s of the same run. 1 s here, and the
+    # harness settles 1.5 s (run-suite E2E_APP_SETTING_SETTLE_MS).
+    echo "APP_SETTINGS_FLAG_TTL_MS=${E2E_APP_SETTINGS_FLAG_TTL_MS:-1000}"
     # observe capability gate (observe-gate.js:62) + the visit-picker Flow. keys/niete-local.env already
     # carries both real ids, and dotenv keeps the first value, so these are FALLBACKS for a clone whose
     # keys file lacks them — the ids match the committed flow fixtures (fixtures/flows/*.json + manifest),
