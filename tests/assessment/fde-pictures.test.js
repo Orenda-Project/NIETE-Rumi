@@ -105,3 +105,44 @@ test('a paper with no pictures is returned as it was', async () => {
 test('the cache moved to v3: no v2 arrowed or scan-look picture is reused (bd-5jmnfj.4.30)', () => {
   expect(Pictures.PREFIX).toBe('fde-pictures/v3');
 });
+
+// bd-5jmnfj.4.21: five papers drawing at once got "call frequency is too high" (429) and G1 English failed.
+const tooFast = () => new Error('image model: no task ({"code":429,"msg":"Your call frequency is too high. Please try again later."})');
+
+test('a 429 is retried after a growing pause until the image model draws it', async () => {
+  const x = deps();
+  let refusals = 3;
+  const waits = [];
+  x.d.sleep = async (ms) => { waits.push(ms); };
+  x.d.generateImage = async () => { if (refusals-- > 0) throw tooFast(); return Buffer.from('png'); };
+  const out = await Pictures.resolvePictures(paper([{ kind: 'object', name: 'pig' }]), x.d);
+  expect(items(out)[0].picture.src).toMatch(/^data:image\/jpeg;base64,/);
+  expect(waits).toHaveLength(3);
+  expect(waits[1]).toBeGreaterThan(waits[0]);
+  expect(waits[2]).toBeGreaterThan(waits[1]);
+});
+
+test('a 429 that never clears fails the paper PICTURE_FAILED after four tries', async () => {
+  const x = deps();
+  let tries = 0;
+  x.d.sleep = async () => {};
+  x.d.generateImage = async () => { tries += 1; throw tooFast(); };
+  await expect(Pictures.resolvePictures(paper([{ kind: 'object', name: 'pig' }]), x.d))
+    .rejects.toMatchObject({ code: 'PICTURE_FAILED' });
+  expect(tries).toBe(4);
+});
+
+test('no more than two image-model draws run at once, across papers', async () => {
+  const x = deps();
+  let running = 0;
+  let most = 0;
+  x.d.generateImage = async () => {
+    running += 1; most = Math.max(most, running);
+    await new Promise((r) => setTimeout(r, 5));
+    running -= 1;
+    return Buffer.from('png');
+  };
+  const names = (p) => paper(['cat', 'dog', 'cow', 'hen'].map((n) => ({ kind: 'object', name: `${p}-${n}` })));
+  await Promise.all([Pictures.resolvePictures(names('a'), x.d), Pictures.resolvePictures(names('b'), x.d)]);
+  expect(most).toBe(2);
+});
