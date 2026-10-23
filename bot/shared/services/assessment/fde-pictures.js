@@ -15,6 +15,9 @@
  * never prints an empty box. The image model refuses (429) when called too fast, so
  * a worker draws at most MAX_DRAWS at once across all its papers, and a 429 is
  * tried again after each pause in RATE_WAITS_MS (bd-5jmnfj.4.21).
+ *
+ * A picture with a grey frame round it is never printed (bd-5jmnfj.4.36): a framed
+ * cache hit is drawn again, and a framed drawing counts as a failed one.
  */
 
 const crypto = require('crypto');
@@ -27,6 +30,12 @@ const CACHE_CONTROL = 'public, max-age=31536000, immutable';
 const MODEL_KINDS = ['object', 'count', 'scene'];
 const MAX_DRAWS = 2;
 const RATE_WAITS_MS = [5000, 15000, 30000];
+// Pictures whose cached drawing was rejected on review get a fresh key, so they are drawn again.
+// v17: the egg has a curve that reads like a smile (bd-5jmnfj.4.37).
+const REDRAWN = { egg: 'r1' };
+// v17: the framed sock had 34% of its outer 3px grey; scenes whose ground line touches the edge have under 2%.
+const RING_PX = 3;
+const FRAME_SHARE = 0.2;
 
 const slug = (text) => String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
 const canon = (text) => String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -37,7 +46,22 @@ function cacheKey(picture) {
     const hash = crypto.createHash('sha256').update(canon(picture.describe)).digest('hex').slice(0, 8);
     return `${PREFIX}/scene-no-text/${slug(picture.describe)}-${hash}.jpg`;
   }
-  return `${PREFIX}/object/${slug(picture.name)}.jpg`;
+  const name = slug(picture.name);
+  return `${PREFIX}/object/${REDRAWN[name] ? `${name}-${REDRAWN[name]}` : name}.jpg`;
+}
+
+/** True when the outer ring of a greyscale image ({data, width, height}) is mostly not white: a frame. */
+function framed({ data, width, height }) {
+  let ring = 0;
+  let dark = 0;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (Math.min(x, y, width - 1 - x, height - 1 - y) >= RING_PX) continue;
+      ring += 1;
+      if (data[y * width + x] < 235) dark += 1;
+    }
+  }
+  return ring > 0 && dark / ring > FRAME_SHARE;
 }
 
 function realDeps() {
@@ -51,6 +75,10 @@ function realDeps() {
     log: require('../../utils/logger').logToFile,
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     shrink: (buf) => sharp(buf).resize(320, 320, { fit: 'inside' }).grayscale().jpeg({ quality: 80 }).toBuffer(),
+    gray: async (buf) => {
+      const { data, info } = await sharp(buf).grayscale().raw().toBuffer({ resolveWithObject: true });
+      return { data, width: info.width, height: info.height };
+    },
   };
 }
 
@@ -108,15 +136,23 @@ async function draw(prompt, d) {
   }
 }
 
+const isFramed = async (buf, d) => framed(await d.gray(buf));
+
 async function modelPicture(picture, d) {
   const key = cacheKey(picture);
   const head = await d.headObject(key);
-  if (head && head.exists) return d.downloadFromR2(key);
+  if (head && head.exists) {
+    const cached = await d.downloadFromR2(key);
+    if (!(await isFramed(cached, d))) return cached;
+  }
   const prompt = Kie.promptFor(picture);
-  const png = await draw(prompt, d);
-  const jpg = await d.shrink(png);
-  await d.uploadBuffer(jpg, key, 'image/jpeg', { cacheControl: CACHE_CONTROL });
-  return jpg;
+  for (let tries = 0; tries < 2; tries += 1) {
+    const jpg = await d.shrink(await draw(prompt, d));
+    if (await isFramed(jpg, d)) continue;
+    await d.uploadBuffer(jpg, key, 'image/jpeg', { cacheControl: CACHE_CONTROL });
+    return jpg;
+  }
+  throw new Error('the picture came back with a grey frame twice');
 }
 
 /** Sets picture.src on every item that carries a picture. Throws PICTURE_FAILED on the first it cannot draw. */
@@ -145,4 +181,4 @@ async function resolvePictures(examJson, deps = null) {
   return examJson;
 }
 
-module.exports = { resolvePictures, cacheKey, PREFIX };
+module.exports = { resolvePictures, cacheKey, framed, PREFIX };
