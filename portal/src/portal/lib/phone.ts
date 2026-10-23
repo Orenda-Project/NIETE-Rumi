@@ -47,6 +47,17 @@ export function isValidPkMobile(input: string): boolean {
   return /^923\d{9}$/.test(normalizePkMobile(input));
 }
 
+/**
+ * True when the input is a non-PK mobile written with its country code (`+` or `00` first), 10-15 digits in all: the
+ * shape the server's validatePhoneNumber takes. A `92` number is left to isValidPkMobile, so a PK number with a dropped
+ * digit is still caught. Only used behind portal_login_intl_numbers.
+ */
+export function isValidIntlMobile(input: string): boolean {
+  if (!/^\s*(\+|00)/.test(input) || /[a-z]/i.test(input)) return false;
+  const digits = digitsOf(input);
+  return /^\d{10,15}$/.test(digits) && !digits.startsWith('92');
+}
+
 /** The one message shown when `isValidPkMobile` says no. */
 export const PK_MOBILE_HINT =
   'Enter an 11-digit mobile number starting with 03 — for example 0336 1234567.';

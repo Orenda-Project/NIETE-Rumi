@@ -95,6 +95,7 @@ const {
   PORTAL_ANALYTICS_ONLY_KEY,
   readUserListFlag,
   isAnalyticsOnlyUser,
+  isLoginIntlNumbersEnabled,
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
@@ -8847,6 +8848,7 @@ router.get('/config', async (req, res) => {
       childTestSa,
       teacherHomeCard,
       teacherHomeOrderRaw,
+      loginIntlNumbers,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -8870,6 +8872,8 @@ router.get('/config', async (req, res) => {
       // Teacher Home: the teacher Home's card, and its per-teacher order — the order only rides with the card on.
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_CARD_KEY, userId),
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_ORDER_KEY, userId),
+      // the teacher sign-in takes a non-PK number: one switch, read signed out too.
+      isLoginIntlNumbersEnabled(supabase),
     ]);
     return res.json({
       success: true,
@@ -8887,6 +8891,7 @@ router.get('/config', async (req, res) => {
         childTestSa,
         teacherHomeCard,
         teacherHomeOrder: teacherHomeCard && teacherHomeOrderRaw,
+        loginIntlNumbers,
       },
     });
   } catch (error) {
@@ -8908,6 +8913,7 @@ router.get('/config', async (req, res) => {
         childTestSa: false,
         teacherHomeCard: false,
         teacherHomeOrder: false,
+        loginIntlNumbers: false,
       },
     });
   }
