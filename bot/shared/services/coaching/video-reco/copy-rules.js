@@ -226,8 +226,27 @@ function sceneClaim(reasonEn, reasonUr, module) {
 }
 
 const WHY_HOW_Q = /کیوں|کیسے|\bwhy\b|\bhow\b(?! are you)/iu;
+// R7d §6 (COS 184404): a what-question is never called "recall" either. Not a refusal (on the 600 that refused 46 shown
+// answers, most of them right): the label is rewritten to a plain "question". «کیا» counts only inside the question (at
+// its start it is the yes/no particle: «کیا یہ مثلث ہے؟»).
+const WHAT_Q = /\bwhat\b|(?<=\S\s+)کیا(?=\s|[؟?]|$)/iu;
+const RELABEL = {
+  en: [[/\b(?:a |an )?(?:(?:quick|simple|short|basic) )?(?:recall|memory|memori[sz]ation|factual|fact|closed|one-word)(?:[- ]based)? question/gi, 'a question'],
+    [/\b(?:asks?|asked|asking) for (?:quick |simple )?recall\b/gi, (m) => m.replace(/for (?:quick |simple )?recall/i, 'a question')],
+    [/\b(?:quick |simple )?recall\b/gi, 'question']],
+  ur: [[/(?:ایک )?(?:یادداشت|یاد داشت|یاداشت|یاددہانی|ریکال)(?: پر مبنی| والا| کا| کے| کی)? سوال/gu, 'سوال'],
+    [/(?:یادداشت|یاد داشت|یاداشت|یاددہانی|ریکال)/gu, 'سوال']],
+};
+
+/** The lesson half of a reason with the recall label replaced, when the cited line asks what (en or ur). */
+function relabelRecall(text, l, quote) {
+  if (typeof text !== 'string' || !WHAT_Q.test(String(quote || '')) || WHY_HOW_Q.test(String(quote || ''))) return text;
+  const at = text.search(l === 'ur' ? /کلپ|ویڈیو/u : /\b(?:clip|video|chapter)\b/i);
+  const head = at < 0 ? text : text.slice(0, at);
+  return (RELABEL[l] || []).reduce((t, [rx, to]) => t.replace(rx, to), head) + (at < 0 ? '' : text.slice(at));
+}
 const RECALL_EN = /\brecall\b|\bmemori[sz]|\bfact(?:ual)? question|\bclosed question|\byes[/ -]?(?:or[/ -])?no question|\bone-word question/i;
-const RECALL_UR = /یادداشت|یاد داشت|یاداشت|رٹا|ہاں یا نہیں والا|ہاں\/نہیں والا|بند سوال/u;
+const RECALL_UR = /یادداشت|یاد داشت|یاداشت|یاددہانی|رٹا|ہاں یا نہیں والا|ہاں\/نہیں والا|بند سوال/u;
 
 // Only the lesson side of a reason labels the cited line: the text before it turns to the clip («turn a yes/no question
 // into a why question» describes the clip, not the line).
@@ -239,4 +258,4 @@ function recallMislabel(quote, reasonEn, reasonUr) {
     && (RECALL_EN.test(lessonSide(reasonEn, /\b(?:clip|video|chapter)\b/i)) || RECALL_UR.test(lessonSide(reasonUr, /کلپ|ویڈیو/u)));
 }
 
-module.exports = { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, clipKind, sceneClaim, recallMislabel };
+module.exports = { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, clipKind, sceneClaim, recallMislabel, relabelRecall };

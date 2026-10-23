@@ -96,6 +96,42 @@ async function trainingBands(userId) {
   }
 }
 
+/**
+ * bd-8hhqhf R7d (⛔9, panel Q086): the name words on the teacher's own class roster — students and fathers, Latin and
+ * Urdu — from the classes they teach (class_teachers → class_enrollments) and the lists they keep (student_lists). Held
+ * in memory for this run only, never stored. [] on any error or when the teacher has no roster.
+ */
+async function rosterNames(userId) {
+  try {
+    const cols = 'student_name, student_name_urdu, father_name, father_name_urdu';
+    const [classes, lists] = await Promise.all([
+      supabase.from('class_teachers').select('class_id').eq('teacher_user_id', userId).eq('is_active', true).limit(MAX_ROWS),
+      supabase.from('student_lists').select('id').eq('user_id', userId).limit(MAX_ROWS),
+    ]);
+    if (classes.error) throw classes.error;
+    if (lists.error) throw lists.error;
+    const classIds = (classes.data || []).map((r) => r.class_id).filter(Boolean);
+    const listIds = (lists.data || []).map((r) => r.id).filter(Boolean);
+    const reads = [];
+    if (classIds.length) reads.push(supabase.from('class_enrollments').select(`students(${cols})`).in('class_id', classIds).limit(MAX_ROWS));
+    if (listIds.length) reads.push(supabase.from('students').select(cols).in('list_id', listIds).limit(MAX_ROWS));
+    const words = new Set();
+    for (const { data, error } of await Promise.all(reads)) {
+      if (error) throw error;
+      for (const r of data || []) {
+        const s = (r && r.students) || r || {};
+        for (const v of [s.student_name, s.student_name_urdu, s.father_name, s.father_name_urdu]) {
+          for (const w of String(v || '').split(/[^\p{L}\p{M}]+/u)) if ([...w].length >= 3) words.add(w);
+        }
+      }
+    }
+    return [...words];
+  } catch (e) {
+    warn('rosterNames', e, { userId });
+    return [];
+  }
+}
+
 async function write(row) {
   try {
     const { data, error } = await supabase.from(TABLE).upsert(row, { onConflict: 'coaching_session_id' }).select('*').single();
@@ -120,4 +156,4 @@ async function markSent(coachingSessionId, { sent_via, wamid, image_strip } = {}
   }
 }
 
-module.exports = { readForSession, recentHistory, ladderProgress, trainingBands, write, markSent };
+module.exports = { readForSession, recentHistory, ladderProgress, trainingBands, rosterNames, write, markSent };

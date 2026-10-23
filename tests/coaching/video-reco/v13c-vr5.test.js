@@ -113,7 +113,7 @@ describe('engine: the prompt gets the report and lesson languages', () => {
     expect(d.completeJson.mock.calls[0][0]).toMatch(/in reason_en, paraphrase the moment in English/);
     expect(row).toMatchObject({ status: 'shown', seg_id: '10-s1', prompt_version: 'vr-9', moment_source: 'transcript' });
     expect(row.moment_quote).toBe(PARAPHRASED.moment.quote);
-    expect(row.reason_en).toBe(PARAPHRASED.reason_en.replace('"yes or no"', '"\u2068yes or no\u2069"')); // bd-8hhqhf: the quote is isolated
+    expect(row.reason_en).toBe(`At 00:30 the teacher asked the class whether the shape was a triangle, "\u2068yes or no\u2069". This clip is about: Ask why and how.`); // bd-8hhqhf: the quote is isolated; R7d §6: the clip half is the chapter's title
   });
 
   test('preferred ur + Urdu lesson: no rule', async () => {

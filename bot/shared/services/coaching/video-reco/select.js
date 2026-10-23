@@ -10,7 +10,8 @@ const { redactNames, ROLE_STOP } = require('./redact-names');
 const { fallbackSubjectOk } = require('./shortlist');
 const { stripBidi } = require('./copy');
 const CONTENT_TERMS = require('./content-terms');
-const { childTurnNear, imperative, routineLine } = require('./silence');
+const LEX = require('./name-lexicon');
+const { childTurnNear, imperative, routineLine, echoReading } = require('./silence');
 const { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, sceneClaim, recallMislabel } = require('./copy-rules');
 
 const JOB = 'coaching.videoReco';
@@ -194,6 +195,29 @@ function namesIn(text, name) {
   return norm(name).split(' ').some((w) => [...w].length >= 3 && !ROLE_STOP.has(w) && words.has(w));
 }
 
+// R7d (⛔9, panel Q086): the teacher's own class roster as a people check, in any position. Everyday and lesson words
+// (the lexicon's common lists and vocabulary, the subject terms, role words) are never taken from it: a father named
+// «Noor» must not refuse every card that says «نور».
+const normWord = (w) => String(w || '').toLowerCase().replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/[ةه]/g, 'ہ').replace(/[\u064B-\u0670\u0640\u200C\u200D]/g, '');
+let commonWords = null;
+
+/** The roster's name words, normalised, minus every word a lesson or a card uses. */
+function rosterSet(names) {
+  commonWords = commonWords || new Set([...LEX.urCommon, ...LEX.latCommon, ...LEX.vocab, ...SUBJECT_TERMS].map(normWord));
+  const out = new Set();
+  for (const w of names || []) {
+    const n = normWord(w);
+    if ([...n].length >= 3 && !commonWords.has(n) && !ROLE_STOP.has(n)) out.add(n);
+  }
+  return out;
+}
+
+/** A word of the text is a roster name. */
+function rosterIn(text, roster) {
+  if (!roster || !roster.size) return false;
+  return String(text || '').replace(/\p{Cf}/gu, '').split(/[^\p{L}\p{M}]+/u).some((w) => roster.has(normWord(w)));
+}
+
 /** Arabic-script share of the letters, after removing quoted text and [a student] (§3.5 [v1.3] a: English terms are the prompt's rule 3). */
 function arabicShare(text) {
   const rest = String(text || '').replace(QUOTED, ' ').replace(/\[a student\]/gi, ' ');
@@ -209,7 +233,7 @@ function arabicShare(text) {
  *   scorer | id | name | length | urdu | roman | gender | step | unshown | scene | recall | no_child_turn | not_moment | error
  */
 function validate(p, shortlist, excerpts, opts) {
-  const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false, rawExcerpts = null, fullLines = null, vocab = [], oovVocab = [] } = opts || {};
+  const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false, rawExcerpts = null, fullLines = null, vocab = [], oovVocab = [], roster = null, topic = null, grade = null } = opts || {};
   const bad = (why) => ({ ok: false, none: `validation:${why}`, confidence: 0, momentSource: null });
   try {
     if (!p || typeof p !== 'object') return bad('shape');
@@ -235,13 +259,17 @@ function validate(p, shortlist, excerpts, opts) {
     // R7c (Q031 Q061 Q063 Q072 Q084 Q170 …): a greeting, a page call, an order about the room or the lesson's announcement is
     // no moment. Not a fallback rule: the retry may find a real one, else the none stands (Q063, Q170 → silence, as ruled). Before every
     // reason rule, so a routine line is never rescued by the fallback a reason fault would allow.
-    if (routineLine(storedQuote(quote))) return bad('not_moment');
+    if (routineLine(storedQuote(quote), { topic })) return bad('not_moment');
+    // R7d (Q038 Q056): in Grade 1–2 a line the children read back is echo reading, not the gap
+    const lines = momentSource === 'transcript' ? excerpts : (() => { const l = typeof fullLines === 'function' ? fullLines() : fullLines; return Array.isArray(l) ? l : []; })();
+    if (echoReading(lines, quoteLine(quote, lines), grade)) return bad('not_moment');
     const reasons = [p.reason_en, p.reason_ur].map((x) => String(x || ''));
     if (reasons.some((x) => BANNED_COPY.test(x))) return bad('scorer');
     if ([quote, ...reasons].some(systemNote)) return bad('scorer'); // R7b (P005): «No student activity recorded» is no lesson
     if (reasons.some((x) => CLIP_ID.test(x))) return bad('id');
     if (namesIn(p.moment.quote, teacherName) || namesIn(p.reason_en, teacherName) || namesIn(p.reason_ur, teacherName)) return bad('name');
     if (reasons.some(quotedVocative)) return bad('name'); // R7b (P165, red7 N1/N3): a quoted card still opening with a name
+    if ([quote, ...reasons].some((x) => rosterIn(x, roster))) return bad('name'); // R7d: a child on the teacher's roster
     const en = [...reasons[0].trim()].length;
     if (en < 20 || en > 400) return bad('length');
     if (arabicShare(p.reason_ur) < 0.6 || OTHER_SCRIPT.test(reasons.join(' ').replace(QUOTED, ' '))) return bad('urdu'); // R7c: «факт» (Q097)
@@ -263,12 +291,45 @@ function validate(p, shortlist, excerpts, opts) {
     if (recallMislabel(quote, p.reason_en, p.reason_ur)) return bad('recall');
     // R7b (panel P183, P076), checked last so every other rule names its own fault first: the moment's line or a line
     // beside it is a child's turn, else it is talk with no class in it.
-    const around = momentSource === 'transcript' ? excerpts : (() => { const l = typeof fullLines === 'function' ? fullLines() : fullLines; return Array.isArray(l) ? l : []; })();
-    if (!childTurnNear(around, quoteLine(quote, around))) return bad('no_child_turn');
+    if (!childTurnNear(lines, quoteLine(quote, lines))) return bad('no_child_turn');
     return { ok: true, none: null, confidence, momentSource };
   } catch (e) {
     return bad('error');
   }
+}
+
+// R7d §6 (COS 184404; panel §4: the clip-misdescription class, 46 rows): the clip half of a reason is the chapter's own
+// title, never the model's account of it (the card's script, an invented example). The lesson half is the model's text
+// before its first clip sentence, cut at a sentence end. A reason that opens with the clip is left whole (validated as is).
+const CLIP_AT = {
+  en: /(?:^|(?<=[.!?;۔؟؛]["'”»\u2069]?\s+|["'”»\u2069]\s+))(?:This|this|The|the|In this|in this|In the|in the) (?:clip|video|chapter)\b/,
+  ur: /(?:یہ|اس|ایک) (?:کلپ|ویڈیو)|(?:کلپ|ویڈیو) (?:میں|سے)/u,
+};
+const SENTENCE_END = { en: /[.!?;۔؟؛]["'”»)\u2069]*$|["”»\u2069]$/u, ur: /[۔؟!.؛;]["'”»)\u2069]*$|["”»\u2069]$/u };
+// a clause the clip half followed after a semicolon now ends the reason's first part
+const CLOSE = { en: (h) => h.replace(/\s*[;؛]$/u, '.'), ur: (h) => h.replace(/\s*[;؛]$/u, '۔') };
+
+/** One reason with its clip half replaced by the chapter's title line; unchanged when no lesson half precedes the clip. */
+function groundReason(text, l, segment) {
+  const s = String(text || '');
+  const m = CLIP_AT[l].exec(s);
+  if (!m || !segment) return s;
+  let head = s.slice(0, m.index).trim();
+  while (head && !SENTENCE_END[l].test(head)) {
+    const cut = Math.max(...[...head.matchAll(/[.!?;۔؟؛]["'”»)\u2069]*\s/gu)].map((x) => x.index + x[0].length - 1), -1);
+    head = cut > 0 ? head.slice(0, cut).trim() : '';
+  }
+  if (!/\p{L}/u.test(head)) return s;
+  const title = String((l === 'ur' && segment.title_ur) || segment.title_en || '').trim();
+  return title ? `${CLOSE[l](head)} ${resolveUx('videoRecoClipLine', { language: l, params: { title } })}` : s;
+}
+
+/** The pick with both reasons grounded on its chapter (a pick without a listed chapter is returned as it is). */
+function groundReasons(p, catalog) {
+  if (!p || typeof p !== 'object' || !p.seg_id || !catalog) return p;
+  const hit = catalog.segment(String(p.seg_id));
+  if (!hit) return p;
+  return { ...p, reason_en: groundReason(p.reason_en, 'en', hit.segment), reason_ur: groundReason(p.reason_ur, 'ur', hit.segment) };
 }
 
 /** ⛔9 (SPEC v1.3c §3.5 a): what is stored and sent passes the non-strict redactor; a text with no name is unchanged. */
@@ -382,7 +443,7 @@ const singleQuotes = (t) => t.replace(/"([^"]*)"/g, '‘$1’').replace(/“([^�
  * "Try this tomorrow" sentence. No LLM call. → {reason_en, reason_ur} | null (the none stands).
  * @param {object} a {none, segId, shortlist, sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab, segment, labels}
  */
-function cardFallback({ none, segId, shortlist, sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab = [], segment, labels = [] } = {}) {
+function cardFallback({ none, segId, shortlist, sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab = [], segment, labels = [], roster = null } = {}) {
   try {
     const m = /^validation:(.+)$/.exec(String(none || ''));
     if (!m || !FALLBACK_RULES.has(m[1])) return null;
@@ -396,6 +457,7 @@ function cardFallback({ none, segId, shortlist, sentence, startS, endS, language
     // R7c ⛔9 (Q168, Q174; Q181, Q193): a child named inside the sentence → the comparison goes, or the fallback does
     s = childFreeCard(s, { teacher: teacherName, vocab, oovVocab });
     if (!s) return null;
+    if (rosterIn(s, roster)) return null; // R7d (Q086): a roster name in any position, a quoted title included
     if (!imperative(s)) return null; // R7b (P123, P161): a diagnosis fragment is not a move to try
     if (LABEL_TEXT.test(s) || labels.some((x) => x && s.toLowerCase().includes(String(x).toLowerCase()))) return null;
     s = singleQuotes(s).replace(/^[a-z]/, (c) => c.toUpperCase()); // P109: no lower-case start after the strip
@@ -421,4 +483,4 @@ function cardFallback({ none, segId, shortlist, sentence, startS, endS, language
   }
 }
 
-module.exports = { pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
+module.exports = { groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };

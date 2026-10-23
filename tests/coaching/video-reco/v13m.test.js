@@ -66,7 +66,7 @@ function deps(answers) {
 test('26435821: neither stored reason opens with "[a student]"; the rest of the line is kept (today: both open with it)', async () => {
   const row = await E.recommendForReport({ ...args(), deps: deps([A]) });
   expect(row.status).toBe('shown');
-  expect(row.reason_en.startsWith(`${FSI}پہلی پکچر میں کیا کر رہے ہیں؟${PDI} The clip shows`)).toBe(true);
+  expect(row.reason_en.startsWith(`${FSI}پہلی پکچر میں کیا کر رہے ہیں؟${PDI} This clip is about`)).toBe(true); // R7d §6
   expect(row.reason_ur.startsWith('پہلی پکچر میں کیا کر رہے ہیں؟ یہ کلپ')).toBe(true);
 });
 
