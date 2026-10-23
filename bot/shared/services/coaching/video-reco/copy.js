@@ -197,6 +197,7 @@ const URDU_WORDS = [
   [/(^|[\s«"(])چہار(?=\s)(?!\s+(?:سو|طرف|جانب))/gu, '$1چار'], // four (Q128)
   [/(^|[\s«"(])پوچھائی(?=[\s،۔؟]|$)/gu, '$1پوچھی'], // asked (Q165)
   [/پیشن گوئی/gu, 'پیشین گوئی'], // Q103
+  [/(^|[\s«"(،,])کہ کر(?=[\s،۔"«]|$)/gu, '$1کہہ کر'], // R7e: "saying" (Q106)
 ];
 // factors (Q072): «عناصر» is right in a science lesson (elements), wrong in a maths one
 const MATHS_WORDS = [[/(^|[\s«"(])عناصر(?=[\s،۔]|$)/gu, '$1اجزائے ضربی']];

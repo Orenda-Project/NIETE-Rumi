@@ -134,6 +134,8 @@ function degenerate(lines) {
 const ROUTINE = [
   // greeting
   /السلام علیکم|وعلیکم السلام|\bassalam|\bgood (?:morning|afternoon)\b|\bhow are you\b|آپ کیسے ہیں|\bhello\b|تم کیسے ہو|کیسے ہیں سب|کیا حال ہے|سب ٹھیک (?:ہیں|ہو)/iu, // R7d: «تم کیسے ہو؟» (Q113)
+  // R7e (COS 202042; Q179 Q136 Q063): an attention check, small talk, attendance, the phone or the recording
+  /ایکٹیو ہیں|تیار ہیں|\bare you ready\b|\beveryone ready\b|اسکول کیسے آئے|سکول کیسے آئے|حاضری|\battendance\b|\broll call\b|موبائل|پاسورڈ|ریکارڈنگ|\b(?:mobile|password|recording)\b/iu,
   // page or book call
   /(?:پیج|صفحہ|صفحے)\s*(?:نمبر)?\s*[\d۰-۹]|\bpage\s*(?:no\.?|number)?\s*\d|\bopen your (?:book|copy|notebook)|(?:کتاب|کتابیں|کاپی|کاپیاں)\s+(?:کھول|نکال)|چیپٹر نمبر/iu,
   // order about the room
@@ -149,6 +151,9 @@ const ASKING_ROUTINE = [
   // a test held in THIS period (a test announced for tomorrow is homework talk, P183: the card fallback, as ruled)
   /(?:آج|ابھی) (?:\S+\s+){0,3}(?:ٹیسٹ|پیپر|امتحان|کوئز)|\b(?:test|exam|quiz) (?:today|now)\b|\btoday(?:'s| is| we have)? (?:a |your |the )?(?:test|exam|quiz)\b/iu,
   /(?:ٹاپک|سبق|موضوع|لیسن)\s+(?:\S+\s+){0,2}(?:کیا|کون سا|کونسا) (?:ہے|تھا)|\bwhat(?:'s| is| was) (?:our|today'?s|the) (?:topic|lesson)\b/iu,
+  // R7e (Q188 Q200 Q117 Q130): which lesson, or what we read — «آج ہم نے کون سا سبق پڑھنا ہے؟», «کیا پڑھنا ہے ہم نے؟»
+  // …but «what did we learn/read today?» at the end is the closure question itself: only yesterday's lesson or the one to come
+  /(?:کون سا|کونسا|کون سی|کونسی) (?:سبق|ٹاپک|موضوع|لیسن|چیپٹر|نظم|کہانی)|(?:ہم|آپ)(?: لوگ)?(?: نے)? (?:\S+\s+){0,2}کیا پڑھ(?:نا|نی|نے) (?:ہے|ہیں)|کیا پڑھنا ہے|کل (?:\S+\s+){0,4}کیا پڑھ|\bwhat (?:are|will) we (?:reading|read|studying|study) today\b|\bwhat (?:were|did) we (?:read|reading|study|studying|learn|learning|do) (?:yesterday|last (?:class|time|lesson|week))\b|\bwhich (?:lesson|chapter|topic|poem|story)\b/iu,
 ];
 const TOPIC_STOP = new Set('what is was are the a an of this that کیا ہے ہیں تھا کون سا کس کی کا کے یہ وہ'.split(' '));
 // …but a page call, an order or an announcement is a statement: a sentence that asks («ہم نے کس چیز کو سرکل کرنا ہے؟», Q135; «تو سب سے پہلے ہم کیا
@@ -158,7 +163,7 @@ const TAG_QUESTION = /[،,]?\s*(?:ٹھیک ہے|ہے نا|نا|okay|ok|right)\s*
 const WHY_HOW = /کیوں|کیسے|\bwhy\b|\bhow\b(?! are you)/iu;
 // red7 H5: «page 46, question 3: why does the sun rise?» asks; only a greeting ("how are you?") stays routine when it asks
 const asks = (x) => WHY_HOW.test(x) || /[?؟]/.test(x.replace(TAG_QUESTION, ''));
-const isRoutine = (x) => ROUTINE[0].test(x) || ASKING_ROUTINE.some((rx) => rx.test(x)) || (ROUTINE.slice(1).some((rx) => rx.test(x)) && !asks(x));
+const isRoutine = (x) => ROUTINE[0].test(x) || ROUTINE[1].test(x) || ASKING_ROUTINE.some((rx) => rx.test(x)) || (ROUTINE.slice(2).some((rx) => rx.test(x)) && !asks(x));
 const wordList = (x) => String(x || '').toLowerCase().match(/[\p{L}\p{N}]+/gu) || [];
 
 /** R7d (Q199): the sentence is the lesson's own topic said as a question or a title («What is sound» on a lesson about sound). */
@@ -204,8 +209,10 @@ function echoOf(lines, i) {
 
 /** Grade 1–2: the line at `i` is read aloud and the next line is a child echoing it (no question in it). */
 function echoReading(lines, i, grade) {
-  if (!early(grade) || !Array.isArray(lines) || i < 0 || i + 1 >= lines.length) return false;
-  return KID.test(String(lines[i + 1])) && !KID.test(String(lines[i])) && echoOf(lines.map(String), i + 1);
+  if (!early(grade) || !Array.isArray(lines) || i < 0 || i >= lines.length) return false;
+  const all = lines.map(String);
+  // R7e (Q038): the quote is the child's echo, or the teacher's line that the child echoes, inside an echo run
+  return (KID.test(all[i + 1] || '') && !KID.test(all[i]) && echoOf(all, i + 1)) || echoChild(all, i) || echoChild(all, i + 1);
 }
 
 /** The lesson's child turns are closed or chorus answers (false when there are fewer than 3 labelled child turns). */
@@ -217,8 +224,49 @@ function closedAnswers(lines, { grade = null } = {}) {
   return short / kids.length >= CLOSED_SHARE && kids.filter((k) => REASON.test(k)).length <= Math.max(1, kids.length * 0.05);
 }
 
+// R7e (COS 20261023T202042; panel Q063 Q170): a line spoken while no lesson is happening is no moment, however it reads.
+// Before the class is greeted («السلام علیکم بچو» in the opening quarter, after earlier talk) the teacher is setting up the
+// phone or talking to the observer; from a line that holds a test THIS period on, the period is a test.
+const CLASS_GREETING = /(?:السلام علیکم|اسلام علیکم|\bassalam\w*|\bgood (?:morning|afternoon))[^\n]{0,24}?(?:بچو|بچوں|بچے|\bstudents\b|\bclass\b|\bchildren\b|\beveryone\b)/iu;
+const TEST_NOW = /(?:آج|ابھی) (?:\S+\s+){0,3}(?:ٹیسٹ|پیپر|امتحان|کوئز)(?!\s*(?:کی|کے) (?:تیاری|لیے))|(?:ٹیسٹ|پیپر|امتحان) ہو رہا ہے|\b(?:test|exam|quiz) (?:today|now)\b|\btoday(?:'s| is| we have)? (?:a |your |the )?(?:test|exam|quiz)\b(?! (?:prep|preparation|revision))/iu;
+const OPENING_SHARE = 0.25;
+
+/** 'before_lesson' | 'test' | false: the line at `i` of the whole transcript is spoken while no lesson is happening. */
+function notTeaching(lines, i) {
+  if (!Array.isArray(lines) || i < 0 || i >= lines.length) return false;
+  const texts = lines.map(textOf);
+  const g = texts.findIndex((x) => CLASS_GREETING.test(x));
+  if (g > 0 && g < Math.max(2, Math.ceil(texts.length * OPENING_SHARE)) && i < g) return 'before_lesson';
+  if (texts.slice(0, i + 1).some((x) => TEST_NOW.test(x))) return 'test';
+  return false;
+}
+
+// R7e (Q038): a CHILD line that echoes the teacher's line before it, inside an echo run (a pair either side echoes too).
+function echoChild(lines, i) {
+  if (i < 1 || !KID.test(String(lines[i])) || KID.test(String(lines[i - 1])) || /[?؟]/.test(textOf(lines[i - 1]))) return false;
+  const w = wordList(textOf(lines[i]));
+  const prev = new Set(wordList(textOf(lines[i - 1])));
+  if (w.length < 2 || w.filter((k) => prev.has(k)).length / w.length < ECHO_SHARE) return false;
+  return [i - 4, i - 2, i + 2, i + 4].some((n) => n >= 1 && n < lines.length && KID.test(String(lines[n])) && echoOf(lines, n));
+}
+
+// R7e (panel §6.2: Q117 Q136 Q197): a closure chapter (37-B10, v4-B7 first) answers a gap at the END of the lesson; a
+// line from the first two thirds of it is no closure moment. Not a routine line: the card fallback may still carry it.
+const CLOSURE_FROM = 2 / 3;
+const isClosure = (segment) => !!segment && ((segment.fico_main37 || []).includes('B10') || (((segment.fico || [])[0] || {}).indicator === 'B7'));
+const stampSec = (x) => { const m = /(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(String(x || '')); if (!m) return null; return m[3] ? (+m[1] * 3600) + (+m[2] * 60) + +m[3] : (+m[1] * 60) + +m[2]; };
+
+/** The moment at `at` ("mm:ss") is before the last third of the lesson (false when the lesson's length is unknown). */
+function earlyForClosure(at, lines) {
+  const t = stampSec(at);
+  const ends = (lines || []).map((l) => { const m = /^\s*\[([\d:]+)\]/.exec(String(l)); return m ? stampSec(m[1]) : null; }).filter((x) => x !== null);
+  if (t === null || !ends.length) return false;
+  const last = Math.max(...ends);
+  return last > 0 && t < last * CLOSURE_FROM;
+}
+
 // The card asks for a why/how or open question.
 const WHY_CARD = /کیوں|کیسے|\bwhy\b|\bhow\b|open[- ]ended|open questions?|کھلے سوال|کھلا سوال|اوپن اینڈ/iu;
 const whyCard = (sentence) => WHY_CARD.test(String(sentence || ''));
 
-module.exports = { levelsMoment, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, LABEL_SUBJECTS };
+module.exports = { levelsMoment, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, notTeaching, isClosure, earlyForClosure, LABEL_SUBJECTS };

@@ -17,7 +17,7 @@
  * noneReason names the gate that emptied the list: hole | language | history | unknown_indicator | unscored_step | no_target.
  */
 const { redactNames } = require('./redact-names');
-const { LABEL_SUBJECTS } = require('./silence');
+const { LABEL_SUBJECTS, whyCard: WHY_CARD } = require('./silence');
 
 const MAX_CANDIDATES = 12;
 const MAX_TEXT = 6;
@@ -252,6 +252,41 @@ function oneWordOk(segId, words, cardIndicator) {
 }
 
 /**
+ * R7e (COS 202042; panel §6.3 Q095 Q171 Q197 Q033 Q034 …): on the card_text route a chapter outside the enacted four must
+ * carry the indicator the card is about, in the analysis's own scheme (37-ids and v4 ids share letters with other
+ * meanings). Two matched words were not enough: «peer, checklist» put a collaboration rubric on a questioning card.
+ * Measured on the panel’s 200 v4 judgements (r7e/card_tag_measure.md): 10 wrong and 6 acceptable leave, 0 right.
+ */
+function cardTagOk(seg, indicator, scheme) {
+  if (!indicator || ONE_WORD_KEEP.has(String(seg && seg.seg_id))) return true;
+  const tags = scheme === 'fico_main_37' ? (seg.fico_main37 || []) : (seg.fico || []).map((f) => f && f.indicator);
+  return !tags.length || tags.includes(String(indicator)); // a chapter with no tag in the scheme is not judged here (as whyCardOk)
+}
+
+// R7e (same measure): a card that asks for why/how or open questions (silence.whyCard) and has no indicator of its own
+// — the v10 A/undrawn card record carries none — keeps a non-enacted card_text chapter only when the chapter is tagged
+// 37-C1 (Quality Questioning) or 37-C8 (Modeling, Scaffolding & Problem-Solving). Panel 200: 7 wrong (Q095 Q171 Q197
+// Q136 Q033 Q007 Q053) and 2 acceptable leave, 0 right; with C1 alone 1 right and 5 acceptable left too.
+const QUESTIONING_37 = new Set(['C1', 'C8']);
+function whyCardOk(seg, step) {
+  const s = step || {};
+  if (s.indicator || s.scheme !== 'fico_main_37' || ONE_WORD_KEEP.has(String(seg && seg.seg_id))) return true;
+  if (!WHY_CARD([s.action, s.tryTomorrow, s.thingToTry].filter((x) => typeof x === 'string').join('\n'))) return true;
+  const tags = seg.fico_main37 || [];
+  return !tags.length || tags.some((id) => QUESTIONING_37.has(id)); // a chapter with no main-37 tag is not judged here
+}
+
+// R7e (COS 202042 "model" → 1-s5; panel ⛔2 Q011, Q031): a Classroom Management & Routines chapter (first 37 tag C6) on a
+// text route only for a card about management — «model the correct sentence» is a language move, not an entry routine.
+// Panel 200: the only two text-route rows on a C6-first chapter, both ⛔.
+const MANAGEMENT = /\b(?:routines?|behaviou?r|discipline|noise|noisy|quiet|rules?|attention signal|signal|line up|transition|seating|class(?:room)? management|monitors?|duties)\b|روٹین|معمول|نظم و ضبط|ڈسپلن|شور|خاموش|قواعد|اصول|توجہ|اشارہ|لائن|بیٹھنے/iu;
+function managementOk(seg, step) {
+  if (((seg && seg.fico_main37) || [])[0] !== 'C6') return true;
+  const s = step || {};
+  return MANAGEMENT.test([s.action, s.tryTomorrow, s.thingToTry].filter((x) => typeof x === 'string').join('\n'));
+}
+
+/**
  * The step-text route (R3): BM25 of the card's words over every chapter that passes subject, grade, language,
  * history and media; floor 2.0; up to 6 not in `exclude`, BM25 order. Content modules never (they need F1–F3).
  */
@@ -272,6 +307,8 @@ function textRoute(catalog, step, ctx, lesson, exclude = [], route = 'step_text'
       .map((x) => ({ x, score: lexical.get(x.seg.seg_id) || 0 }))
       .filter((y) => y.score >= TEXT_FLOOR)
       .filter((y) => route !== 'card_text' || oneWordOk(y.x.seg.seg_id, lexical.words.get(y.x.seg.seg_id) || 0, step && step.indicator))
+      .filter((y) => route !== 'card_text' || (cardTagOk(y.x.seg, step && step.indicator, step && step.scheme) && whyCardOk(y.x.seg, step)))
+      .filter((y) => managementOk(y.x.seg, step))
       .sort((a, b) => b.score - a.score || String(a.x.seg.seg_id).localeCompare(String(b.x.seg.seg_id)))
       .slice(0, MAX_TEXT)
       .map(({ x, score }) => ({

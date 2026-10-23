@@ -237,11 +237,14 @@ const WHAT_Q = /\bwhat\b|(?<=\S\s+)کیا(?=\s|[؟?]|$)/iu;
 const RELABEL = {
   en: [[/\b(?:a |an )?(?:(?:quick|simple|short|basic) )?(?:recall|memory|memori[sz]ation|factual|fact|closed|one-word)(?:[- ]based)? question/gi, 'a question'],
     [/\b(?:asks?|asked|asking) for (?:quick |simple )?recall\b/gi, (m) => m.replace(/for (?:quick |simple )?recall/i, 'a question')],
-    [/\b(?:quick |simple )?recall\b/gi, 'question']],
-  ur: [[/(?:ایک )?(?:یادداشت|یاد داشت|یاداشت|یاددہانی|ریکال)(?: پر مبنی| والا| کا| کے| کی)? سوال/gu, 'سوال'],
-    [/(?:یادداشت|یاد داشت|یاداشت|یاددہانی|ریکال)/gu, 'سوال']],
+  ],
+  // R7e (panel §4/§6.6, 51-s1 Urdu 75.7%): the bare-word rules («recall» → «question», «یادداشت» → «سوال») wrote «سوال سوال
+  // تک محدود», «سوال/ہاں-نہ سوال», «سوال کی جواب», "keeps asking question". Only whole labels are rewritten; a bare label
+  // left over is refused in validation (recallLeft), so the retry or the card fallback carries the row.
+  ur: [[/(?:ایک )?(?:یادداشت|یاد داشت|یاداشت|یاددہانی|ریکال)(?: پر مبنی| والا| والے| والی| کا| کے| کی)? سوال/gu, 'سوال']],
 };
 
+const APPOSITIVE_EN = /,?\s*(?:which is )?a question(?=\s*[.;])/gi;
 const CLIP_WORD = { en: /\b(?:clip|video|chapter)\b/i, ur: /کلپ|ویڈیو/u };
 
 /** The lesson half of a reason with the recall label replaced, when the cited line asks what (en or ur). */
@@ -249,7 +252,9 @@ function relabelRecall(text, l, quote) {
   if (typeof text !== 'string' || !WHAT_Q.test(String(quote || '')) || WHY_HOW_Q.test(String(quote || ''))) return text;
   const at = text.search(CLIP_WORD[l] || CLIP_WORD.en);
   const head = at < 0 ? text : text.slice(0, at);
-  return (RELABEL[l] || []).reduce((t, [rx, to]) => t.replace(rx, to), head) + (at < 0 ? '' : text.slice(at));
+  const out = (RELABEL[l] || []).reduce((t, [rx, to]) => t.replace(rx, to), head);
+  // R7e (panel §4, 7 of the 600): the label rewritten to «a question» left an appositive that says nothing («…», a question.)
+  return (l === 'en' ? out.replace(APPOSITIVE_EN, '') : out) + (at < 0 ? '' : text.slice(at));
 }
 const RECALL_EN = /\brecall\b|\bmemori[sz]|\bfact(?:ual)? question|\bclosed question|\byes[/ -]?(?:or[/ -])?no question|\bone-word question/i;
 const RECALL_UR = /یادداشت|یاد داشت|یاداشت|یاددہانی|رٹا|ہاں یا نہیں والا|ہاں\/نہیں والا|بند سوال/u;
@@ -264,4 +269,24 @@ function recallMislabel(quote, reasonEn, reasonUr) {
     && (RECALL_EN.test(lessonSide(reasonEn, /\b(?:clip|video|chapter)\b/i)) || RECALL_UR.test(lessonSide(reasonUr, /کلپ|ویڈیو/u)));
 }
 
-module.exports = { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, clipKind, sceneClaim, recallMislabel, relabelRecall };
+/** R7e: a what-question whose reason still carries a recall label after the whole-label rewrite (true = refuse). */
+function recallLeft(quote, reasonEn, reasonUr) {
+  const q = String(quote || '');
+  if (!WHAT_Q.test(q) || WHY_HOW_Q.test(q)) return false;
+  return RECALL_EN.test(lessonSide(relabelRecall(String(reasonEn || ''), 'en', q), /\b(?:clip|video|chapter)\b/i))
+    || RECALL_UR.test(lessonSide(relabelRecall(String(reasonUr || ''), 'ur', q), /کلپ|ویڈیو/u));
+}
+
+// R7e (COS 20261023T202042; panel §6.7: Q191 "said that line", Q182 "at this moment"): a lesson half that points at a line
+// it never quotes reads as system text to a teacher. Measured on the 600 (r7e/gap_measure.md): a wider "names no gap"
+// lexicon refused 55 right/acceptable rows for 15 wrong, so only the pointer with nothing quoted is refused.
+const QUOTED_SPAN = /\u2068[^\u2069]*\u2069|"[^"]*"|“[^”]*”|«[^»]*»|‘[^’]*’|(?<![\p{L}])'[^']{3,}'(?![\p{L}])/u;
+const POINTER_EN = /\b(?:that|this|the) line\b|\bat this moment\b|\bthis moment\b/i;
+
+/** The English lesson half points at "that line" / "this moment" and quotes nothing (true = refuse). */
+function pointerNoLine(reasonEn) {
+  const head = lessonSide(String(reasonEn || ''), /\b(?:clip|video|chapter)\b/i);
+  return POINTER_EN.test(head) && !QUOTED_SPAN.test(head);
+}
+
+module.exports = { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, clipKind, sceneClaim, recallMislabel, relabelRecall, pointerNoLine, recallLeft };
