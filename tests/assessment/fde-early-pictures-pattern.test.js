@@ -38,7 +38,7 @@ test.each([
 });
 
 test.each([
-  'g1 english Q1', 'g1 english Q9', 'g1 urdu Q5', 'g1 general_knowledge Q1', 'g2 general_knowledge Q1',
+  'g1 english Q1', 'g1 english Q7', 'g1 english Q9', 'g1 urdu Q5', 'g1 general_knowledge Q1', 'g2 general_knowledge Q1',
 ])('%s prints its word bank', (key) => {
   expect(slots[key].print_words).toBe(true);
 });
@@ -71,4 +71,15 @@ test('makeSlot carries the three flags, off by default', () => {
 test('the picture rule asks for exactly the item\'s own word, alone', () => {
   expect(Prompt.PICTURE_RULE).toMatch(/exactly/i);
   expect(Prompt.PICTURE_RULE).toMatch(/alone/i);
+});
+
+// Amena, 23 Oct 2026: "Q7 should have a word bank for students to pick the right word for the picture" (bd-5jmnfj.4.28).
+test('G1 English Q7 names its pictures from a printed box', () => {
+  const q7 = slots['g1 english Q7'];
+  expect(q7.instruction_en).toMatch(/from the box/i);
+  expect(q7.prompt_rule).toMatch(/"words" on the FIRST item/);
+});
+
+test('the picture rule never lets two items show the same thing', () => {
+  expect(Prompt.PICTURE_RULE).toMatch(/same thing/i);
 });
