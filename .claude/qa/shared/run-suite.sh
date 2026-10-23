@@ -146,10 +146,12 @@ export RUN_DIR="$ROOT/.claude/qa/results/whatsapp/niete/$RUN_ID" E2E_ENV="$ENV" 
 # reply counts as complete after 800 ms of outbox silence instead of 1.5 s.
 if [ "$METHOD" = mock ]; then export E2E_JOIN_LOCK_SECS="${VIDEO_QUIZ_JOIN_LOCK_SECS:-5}" E2E_QUIESCE_MS="${E2E_QUIESCE_MS:-800}"; fi
 # The harness waits, measured (run 20261023-1006-par, bd-k5gjje): a 500 ms poll cost 66 s of detect latency, the
-# 1.2 s settle 318 s (nothing more arrived in 208 of 210), the 31 s app-setting settles 217 s. On the mock lane the
-# bot is local and the pacer is off, so: poll 100 ms; settle 800 ms (the longest real gap between two messages of one
-# reply was 1.2 s with the pacer on — most were the pacer's own 6 s); app-setting settle 1.5 s over a 1 s cache.
-if [ "$METHOD" = mock ]; then export E2E_POLL_MS="${E2E_POLL_MS:-100}" E2E_SETTLE_MS="${E2E_SETTLE_MS:-800}" E2E_APP_SETTING_SETTLE_MS="${E2E_APP_SETTING_SETTLE_MS:-1500}"; fi
+# 1.2 s settle 318 s (nothing more arrived in 208 of 210). On the mock lane the bot is local and the pacer is off, so:
+# poll 100 ms; settle 800 ms (the longest real gap between two messages of one reply was 1.2 s with the pacer on —
+# most were the pacer's own 6 s). The 31 s app-setting settle STAYS: seven switch caches in the bot each hold their
+# own 30 s TTL (web-quiz-hub-flags.js, web-quiz-link.js, …) and a 1.5 s settle broke training T695 on the first
+# fixed run. E2E_APP_SETTING_SETTLE_MS is the knob for the day every cache reads one TTL.
+if [ "$METHOD" = mock ]; then export E2E_POLL_MS="${E2E_POLL_MS:-100}" E2E_SETTLE_MS="${E2E_SETTLE_MS:-800}" E2E_APP_SETTING_SETTLE_MS="${E2E_APP_SETTING_SETTLE_MS:-31000}"; fi
 mkdir -p "$RUN_DIR"; LOG="$RUN_DIR/runner.log"
 say() { echo "$*" | tee -a "$LOG"; }
 T0=$(date +%s)

@@ -161,8 +161,9 @@ wall; 1 is driver work and removes most of what remains.
 | Knob | Where | Mock-lane value | Before |
 |---|---|---|---|
 | `WA_PAIR_PACING` | the bot's env, composed by `local-stack.sh` (`E2E_WA_PAIR_PACING=on` restores it) | `off` | on: 6 s per phone after 8 sends |
-| `APP_SETTINGS_FLAG_TTL_MS` | the bot's env (`app-redirect.service.js`, default 30 s unchanged) | `1000` | 30 000 |
-| `E2E_APP_SETTING_SETTLE_MS` | `run-suite.sh` → `mock-api.cjs` setAppSetting/restoreAppSettings | `1500` | 31 000 |
+| `RATE_LIMIT_MAX` | the bot's env (`constants.js`, 30 per 60 s in production) — one phone sending every second trips it once the pacer is off (training T24/T37 on the first fixed run) | `1000` | 30 |
+| `APP_SETTINGS_FLAG_TTL_MS` | the bot's env (`app-redirect.service.js`, default 30 s unchanged) | `30000` (unchanged: six more switch caches in `quiz/*` keep their own 30 s, and a 1.5 s settle broke training T695) | 30 000 |
+| `E2E_APP_SETTING_SETTLE_MS` | `run-suite.sh` → `mock-api.cjs` setAppSetting/restoreAppSettings | `31000` (unchanged, knob only; ≈ 217 s still on the table once every cache reads one TTL) | 31 000 |
 | `E2E_SETTLE_MS` | `run-suite.sh` → `mock-api.cjs` post-reply settle | `800` | 1200 |
 | `E2E_POLL_MS` | `run-suite.sh` → `mock-api.cjs` outbox poll | `100` | 500 |
 | quiesce skip | `mock-api.cjs`: the pre-send quiesce is skipped when the outbox has not changed since a settle proved it quiet (`attrs.skipped`) | automatic | 800 ms every send |

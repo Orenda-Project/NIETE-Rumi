@@ -202,10 +202,14 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     # (bd-k5gjje). Off here; the pacer's own tests (tests/whatsapp/send-pacing.redis.test.js) are its coverage.
     # E2E_WA_PAIR_PACING=on puts it back for a run that wants to see the pacing.
     echo "WA_PAIR_PACING=${E2E_WA_PAIR_PACING:-off}"
-    # The app_settings switch cache (app-redirect.service FLAG_TTL_MS, 30 s in production) made every
-    # setAppSetting/restoreAppSettings in the harness sleep 31 s — 217 s of the same run. 1 s here, and the
-    # harness settles 1.5 s (run-suite E2E_APP_SETTING_SETTLE_MS).
-    echo "APP_SETTINGS_FLAG_TTL_MS=${E2E_APP_SETTINGS_FLAG_TTL_MS:-1000}"
+    # The per-phone inbound rate limit (whatsapp-bot.js: RATE_LIMIT_MAX per RATE_LIMIT_WINDOW_SECONDS, 30/60 s in
+    # production) drops a message and answers "slow down". With the pacer off the driver — ONE phone — talks far
+    # faster than any teacher, and training T24/T37 hit the limit on the first fixed run (bd-k5gjje). 1000 here.
+    echo "RATE_LIMIT_MAX=${E2E_RATE_LIMIT_MAX:-1000}"
+    # The app_settings switch caches (app-redirect.service.js FLAG_TTL_MS and SIX more TTL_MS in quiz/*, all 30 s)
+    # are why the harness settles 31 s after every setAppSetting. Only app-redirect reads APP_SETTINGS_FLAG_TTL_MS
+    # today, so the lane keeps the 31 s settle (run-suite E2E_APP_SETTING_SETTLE_MS) until every cache reads one TTL.
+    echo "APP_SETTINGS_FLAG_TTL_MS=${E2E_APP_SETTINGS_FLAG_TTL_MS:-30000}"
     # observe capability gate (observe-gate.js:62) + the visit-picker Flow. keys/niete-local.env already
     # carries both real ids, and dotenv keeps the first value, so these are FALLBACKS for a clone whose
     # keys file lacks them — the ids match the committed flow fixtures (fixtures/flows/*.json + manifest),

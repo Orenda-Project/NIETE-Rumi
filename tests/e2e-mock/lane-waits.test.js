@@ -29,14 +29,18 @@ describe('1. the lane env switches the pacer off and shortens the switch cache',
   test('WA_PAIR_PACING=off, overridable through E2E_WA_PAIR_PACING', () => {
     expect(src).toMatch(/echo "WA_PAIR_PACING=\$\{E2E_WA_PAIR_PACING:-off\}"/);
   });
-  test('APP_SETTINGS_FLAG_TTL_MS=1000, overridable through E2E_APP_SETTINGS_FLAG_TTL_MS', () => {
-    expect(src).toMatch(/echo "APP_SETTINGS_FLAG_TTL_MS=\$\{E2E_APP_SETTINGS_FLAG_TTL_MS:-1000\}"/);
+  test('the inbound rate limit is lifted to 1000 per window, overridable through E2E_RATE_LIMIT_MAX', () => {
+    // the first fixed run: training T24/T37 got "You're sending messages very quickly" — 30/min per phone, one phone
+    expect(src).toMatch(/echo "RATE_LIMIT_MAX=\$\{E2E_RATE_LIMIT_MAX:-1000\}"/);
+  });
+  test('the switch-cache TTL stays 30 s on the lane until every cache reads it (seven keep their own)', () => {
+    expect(src).toMatch(/echo "APP_SETTINGS_FLAG_TTL_MS=\$\{E2E_APP_SETTINGS_FLAG_TTL_MS:-30000\}"/);
   });
   test('run-suite.sh sets the three harness knobs for the mock lane only', () => {
     const rs = fs.readFileSync(path.join(REPO, '.claude', 'qa', 'shared', 'run-suite.sh'), 'utf8');
     expect(rs).toMatch(/E2E_POLL_MS="\$\{E2E_POLL_MS:-100\}"/);
     expect(rs).toMatch(/E2E_SETTLE_MS="\$\{E2E_SETTLE_MS:-800\}"/);
-    expect(rs).toMatch(/E2E_APP_SETTING_SETTLE_MS="\$\{E2E_APP_SETTING_SETTLE_MS:-1500\}"/);
+    expect(rs).toMatch(/E2E_APP_SETTING_SETTLE_MS="\$\{E2E_APP_SETTING_SETTLE_MS:-31000\}"/);
   });
 });
 
