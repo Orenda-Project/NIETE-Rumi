@@ -232,6 +232,8 @@ async function compute(a, d, state) {
     stepIndicator: t.stepIndicator, indicators: t.indicators, source: t.source, catalog, textRoute: !!list.textReason,
     teacherName: people.teacher, scorerQuote: scorerQuote || uptakeQuote, // §3.5 [v1.3] d: the Quote: part, never evidence_summary
     rawExcerpts: rawEx,
+    // red7 074627: a scorer-path quote must be a transcript line; redacted once, only when that path is reached
+    fullLines: (() => { let all = null; return () => (all = all || prompt.transcriptLines(session).map((l) => prompt.redact(l, people))); })(),
   };
   const vocab = select.subjectVocab(); // bd-8hhqhf: subject terms are never a child's name (topic words are not used here)
   const check = (r) => (r.truncated ? { ok: false, none: 'llm_truncated', confidence: undefined } : select.validate(r.pick, list, ex, vopts));

@@ -91,8 +91,9 @@ function latinRun(text) {
   }
   return best;
 }
-// A leading excerpt-line prefix the model copied with the quote: "[04:17] Teacher:" (§3.5 [v1.3] b).
-const LINE_PREFIX = /^\s*\[?\d{1,2}:\d{2}(?::\d{2})?\]?\s*[^:\n]{0,40}:\s*/;
+// A leading excerpt-line prefix the model copied with the quote: "[04:17] Teacher:" (§3.5 [v1.3] b), or a bare speaker
+// label with no stamp, any case, with an opening quote mark after it ("Student (UR): …", "teacher: \"…") (red7 074627).
+const LINE_PREFIX = /^\s*(?:\[?\d{1,2}:\d{2}(?::\d{2})?\]?\s*[^:\n]{0,40}|(?:teacher|students?|speaker|coach)(?:\s*\([a-z]{2}\))?)\s*:\s*["“«]?/i;
 
 /** The index of the excerpt line the quote appears in, allowing for spacing, punctuation and case (Dice ≥ 0.8); -1 if none. */
 function quoteLine(quote, excerpts) {
@@ -113,6 +114,12 @@ function quoteLine(quote, excerpts) {
 }
 
 const quoteFound = (quote, excerpts) => quoteLine(quote, excerpts) >= 0;
+
+/** The quote is a line of the whole transcript; `fullLines` is a thunk (redacted lines), skipped when there are none. */
+function inTranscript(quote, fullLines) {
+  const lines = typeof fullLines === 'function' ? fullLines() : fullLines;
+  return !Array.isArray(lines) || !lines.length || quoteFound(quote, lines);
+}
 
 const CHILD_PH = /\[a student\]/gi;
 /** The word before each [a student] in a text ('' at the start): how a quote's placeholder is found in its line. */
@@ -168,7 +175,7 @@ function arabicShare(text) {
  *   scorer | id | name | length | urdu | roman | step | error
  */
 function validate(p, shortlist, excerpts, opts) {
-  const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false, rawExcerpts = null } = opts || {};
+  const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false, rawExcerpts = null, fullLines = null } = opts || {};
   const bad = (why) => ({ ok: false, none: `validation:${why}`, confidence: 0, momentSource: null });
   try {
     if (!p || typeof p !== 'object') return bad('shape');
@@ -178,9 +185,12 @@ function validate(p, shortlist, excerpts, opts) {
     const cand = ((shortlist && shortlist.candidates) || []).find((x) => x.seg_id === String(p.seg_id));
     if (!cand) return bad('candidate');
     const quote = p.moment && p.moment.quote;
+    // red7 074501: a quote of fewer than 3 real words (a speaker label does not count) is no moment, found or not.
+    if (quote && realWords(quote) < 3) return bad('placeholder');
     let momentSource = null;
     if (quote && quoteFound(quote, excerpts)) momentSource = 'transcript';
-    else if (quote && scorerQuote && quoteFound(quote, [scorerQuote])) momentSource = 'scorer';
+    // red7 074627: the scorer's "Quote:" can be a summary; a scorer-path quote must also be a line of the transcript.
+    else if (quote && scorerQuote && quoteFound(quote, [scorerQuote]) && inTranscript(quote, fullLines)) momentSource = 'scorer';
     if (!momentSource) return bad('quote');
     if (!MOMENT_AT.test(String(p.moment.at || '').trim())) return bad('moment_at'); // never "unknown", "N/A" or "[00:30]"
     if (realWords(quote) < 3) return bad('placeholder');
