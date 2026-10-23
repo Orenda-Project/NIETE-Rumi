@@ -104,7 +104,7 @@ test('happy path: one LLM call, a shown row with the clip, the reason, the momen
     step_at_top: false, alias_kind: null, repeat_module: false, target_source: 'step', loop_angle: 'show', observation_type: 'self',
     language: 'ur', language_match: 'preferred', teacher_level: 2, teacher_level_source: 'ladder', level_match: 'near', ladder_completed: false,
     reason_en: GOOD.reason_en, reason_ur: GOOD.reason_ur, moment_at: '00:30', moment_quote: GOOD.moment.quote, moment_source: 'transcript',
-    confidence: 0.7, none_reason: null, catalog_version: 'catalog-fixture', prompt_version: 'vr-5', model: 'gpt-5-mini-2025-08-07',
+    confidence: 0.7, none_reason: null, catalog_version: 'catalog-fixture', prompt_version: 'vr-6', model: 'gpt-5-mini-2025-08-07',
     experiment: null, v10_group: 'C', image_strip: false,
   });
   expect(row.candidates[0]).toEqual(expect.objectContaining({ seg_id: expect.any(String), score: expect.any(Number), indicator: 'C1' }));
@@ -241,6 +241,9 @@ test('no transcript lines but a scorer quote → the pick may cite it (moment_so
   const d = deps();
   const a = args();
   a.session.diarization_data = null;
+  // SPEC v1.2.1: a transcript with no [mm:ss] lines (excerpts empty). bd-8hhqhf r7 (scale-run 081240): the scorer quote
+  // must still be a line of it, and a session with NO transcript at all is none no_moments (v13k).
+  a.session.transcript_text = 'Is this a triangle? Yes or no, quickly!';
   d.completeJson.mockResolvedValue({ result: { ...GOOD, moment: { at: '00:40', quote: 'Is this a triangle? Yes or no' } }, usage: {}, finishReason: 'stop' });
   expect(await E.recommendForReport({ ...a, deps: d })).toMatchObject({ status: 'shown', moment_source: 'scorer' });
 });

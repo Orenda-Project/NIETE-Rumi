@@ -78,9 +78,12 @@ function fallbackSubjectOk(module, rawSubject) {
 
 function gradeOk(band, grade) {
   const b = String(band || 'all').toLowerCase();
-  const narrow = NARROW_BANDS[b];
+  const range = /^(\d{1,2})-(\d{1,2})$/.exec(b); // a chapter's own band, e.g. '1-8' (PRIMARY+MIDDLE), bd-8hhqhf r7
+  const narrow = NARROW_BANDS[b] || (range && [Number(range[1]), Number(range[2])]);
   const g = grade && Number.isFinite(Number(grade.lo)) ? grade : null;
   if (b === 'primary') return !g || (g.lo <= 5 && g.hi >= 1);
+  // a chapter range that covers the primary span widens a primary module: an unknown grade passes, as 'primary' does
+  if (range && !g) return Number(range[1]) <= 1 && Number(range[2]) >= 5;
   if (!narrow) return true; // 'all' or anything unknown
   return !!g && g.lo <= narrow[1] && g.hi >= narrow[0];
 }
@@ -160,8 +163,9 @@ function eligible(catalog, lesson) {
     if (((module.quality && module.quality.flags) || []).some((f) => BAD_MEDIA.has(f))) continue;
     if (!suitsSubject(module, subject)) continue;
     if (notFor(module, subject)) continue;
-    if (!gradeOk(module.grade_band, l.grade)) continue;
     for (const seg of module.segments || []) {
+      // a chapter's own grade_band (the panel's review, ped/GRADE_REVIEW_r7.md) before its module's (bd-8hhqhf r7)
+      if (!gradeOk(seg.grade_band || module.grade_band, l.grade)) continue;
       if (!recommendable(module, seg) || isIntro(module, seg)) continue;
       const fico = (seg.fico || []).map((f) => f && f.indicator).filter(Boolean);
       if (fico.length && fico.every((id) => SUBJECT_ONLY_ROWS.has(id) && inapplicable.has(id))) continue;

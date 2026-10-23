@@ -125,7 +125,8 @@ describe('2 · the isolate goes around the accepted moment span (red7 070727)', 
     };
     const row = await E.recommendForReport({ ...args({ lines }), deps: deps([r]) });
     expect(row.status).toBe('shown');
-    expect(row.reason_en.startsWith(`[00:03] "${FSI}اب "سی" اے ٹی کیا ہوتا ہے؟${PDI}".`)).toBe(true);
+    // the copied "[00:03]" stamp is dropped at composition (COS 081156, v13j)
+    expect(row.reason_en.startsWith(`"${FSI}اب "سی" اے ٹی کیا ہوتا ہے؟${PDI}".`)).toBe(true);
     expect(row.reason_ur).toBe(`استاد نے پوچھا "${FSI}اب "سی" اے ٹی کیا ہوتا ہے؟${PDI}"؛ اس کلپ میں جوڑوں کی مشق ہے۔`);
     expect(row.moment_quote).toBe(QUOTE);
   });

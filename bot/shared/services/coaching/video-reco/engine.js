@@ -18,7 +18,7 @@ const target = require('./target');
 const shortlist = require('./shortlist');
 const prompt = require('./prompt');
 const select = require('./select');
-const { isolateQuotes, stripBidi } = require('./copy');
+const { composeReason, stripBidi } = require('./copy');
 
 const ENGINE_TIMEOUT_MS = 60000; // the LLM call is capped at 45 s (select.js); the sender awaits this after the report has gone
 const RETRY_MIN_LEFT_MS = 20000; // v1.3b: the one validation retry runs only with ≥ 20 s of the engine budget left
@@ -193,7 +193,10 @@ async function compute(a, d, state) {
   base.repeat_module = list.repeatModule;
   base.level_match = list.levelMatch || null;
   base.route = list.route || null;
-  const people = { teacher: session.users && session.users.name };
+  // bd-8hhqhf r7: the lesson's subject terms + topic words are never a child's name, in the prompt or the stored text.
+  const vocab = select.subjectVocab();
+  const oovVocab = select.topicVocab(analysis && analysis.topic);
+  const people = { teacher: session.users && session.users.name, vocab, oovVocab };
   // F1: the card's action (it opens with the teacher's name in prod) is stored redacted (V1.7.1 "no names"); the BM25
   // query itself ran on the raw words. Only the action: the redactor masks Title-Case indicator names too.
   const st = stepTextOf(t, analysis, card);
@@ -208,7 +211,9 @@ async function compute(a, d, state) {
   // vr-3: only the `Quote:` part of the scorer's evidence is shown or citable; without one the line is omitted.
   const scorerQuote = t.source === 'card_text' ? '' : prompt.redact(target.scorerQuoteOnly(t.row), people);
   const uptakeQuote = t.source === 'card_text' && up.moment ? prompt.redact(up.moment, people) : '';
-  if (!ex.length && !scorerQuote && !uptakeQuote) {
+  // scale-run 081240: an empty transcript has no moment, whatever the scorer wrote ("No transcript recorded.")
+  const noTranscript = !prompt.transcriptLines(session).length;
+  if (noTranscript || (!ex.length && !scorerQuote && !uptakeQuote)) {
     return finish({ ...base, status: 'none', none_reason: 'no_moments', candidates: list.candidates });
   }
   const step = (nextStep && nextStep.target) || {};
@@ -231,9 +236,10 @@ async function compute(a, d, state) {
   const vopts = {
     stepIndicator: t.stepIndicator, indicators: t.indicators, source: t.source, catalog, textRoute: !!list.textReason,
     teacherName: people.teacher, scorerQuote: scorerQuote || uptakeQuote, // §3.5 [v1.3] d: the Quote: part, never evidence_summary
-    rawExcerpts: rawEx,
+    rawExcerpts: rawEx, vocab, oovVocab,
+    // red7 074627: a scorer-path quote must be a transcript line; redacted once, only when that path is reached
+    fullLines: (() => { let all = null; return () => (all = all || prompt.transcriptLines(session).map((l) => prompt.redact(l, people))); })(),
   };
-  const vocab = select.subjectVocab(); // bd-8hhqhf: subject terms are never a child's name (topic words are not used here)
   const check = (r) => (r.truncated ? { ok: false, none: 'llm_truncated', confidence: undefined } : select.validate(r.pick, list, ex, vopts));
   let res = await select.pick({ prompt: text, deps: d, timeoutMs: a.llmTimeoutMs });
   let v = check(res);
@@ -301,10 +307,10 @@ async function compute(a, d, state) {
     end_s: hit.segment.end_s,
     language_match: cand.language_match || null,
     chapter_language: hit.segment.language || hit.module.language || null,
-    reason_en: isolateQuotes(clean(said.reason_en), accepted), // bd-8hhqhf: a quoted moment renders in place in every surface
-    reason_ur: isolateQuotes(clean(said.reason_ur), accepted),
+    reason_en: composeReason(clean(said.reason_en), 'en', accepted), // bd-8hhqhf: no log-line prefix; the moment renders in place
+    reason_ur: composeReason(clean(said.reason_ur), 'ur', accepted),
     moment_at: !fallback && p.moment && p.moment.at ? String(p.moment.at) : null,
-    moment_quote: accepted,
+    moment_quote: accepted ? select.storedQuote(accepted) : null, // red7 091238: no speaker label or stamp on /v
     moment_source: fallback ? 'card' : v.momentSource, // 'card' = the v1.3c fallback: no moment, the card's sentence
     confidence: fallback ? (Number.isFinite(c) ? Math.min(1, Math.max(0, c)) : 0) : v.confidence,
     none_reason: null,

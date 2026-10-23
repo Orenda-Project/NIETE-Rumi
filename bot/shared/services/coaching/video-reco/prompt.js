@@ -7,7 +7,7 @@
  */
 const { redactNames } = require('./redact-names');
 
-const PROMPT_VERSION = 'vr-5';
+const PROMPT_VERSION = 'vr-6'; // vr-6 (bd-8hhqhf r7, COS 081156): no clock time or speaker label in a reason
 const EXCERPT_LINES = 12;
 const EXCERPT_MAX_CHARS = 220;
 
@@ -36,8 +36,17 @@ function excerpts(session, anchors = {}, people = {}) {
   return rawExcerpts(session, anchors).map((l) => clip(redact(l, people)));
 }
 
-/** The same lines before redaction, index for index (bd-8hhqhf: what the validator checks a placeholder against). */
-function rawExcerpts(session, { timestamp, uptakeMoment } = {}) {
+/**
+ * Every transcript line "[mm:ss] Label: text", unredacted, in order (bd-8hhqhf: the scorer-path quote check). A
+ * transcript with no [mm:ss] lines gives its non-empty lines as they are (scale-run 081240), so it is still checked.
+ */
+function transcriptLines(session) {
+  const stamped = allLines(session).map((l) => l.text);
+  if (stamped.length) return stamped;
+  return String((session && session.transcript_text) || '').split('\n').map((l) => l.trim()).filter(Boolean);
+}
+
+function allLines(session) {
   let lines = [];
   const segs = session && session.diarization_data && Array.isArray(session.diarization_data.segments)
     ? session.diarization_data.segments.filter((s) => s && String(s.text || '').trim()) : [];
@@ -47,6 +56,12 @@ function rawExcerpts(session, { timestamp, uptakeMoment } = {}) {
     lines = String(session.transcript_text).split('\n').map((l) => l.trim())
       .filter((l) => /^\[\d{1,2}:\d{2}\]/.test(l)).map((l) => ({ ms: stampMs(l), text: l }));
   }
+  return lines;
+}
+
+/** The same lines before redaction, index for index (bd-8hhqhf: what the validator checks a placeholder against). */
+function rawExcerpts(session, { timestamp, uptakeMoment } = {}) {
+  const lines = allLines(session);
   if (!lines.length) return [];
   const anchor = stampMs(timestamp) ?? stampMs(uptakeMoment);
   let start = 0;
@@ -58,9 +73,12 @@ function rawExcerpts(session, { timestamp, uptakeMoment } = {}) {
   return lines.slice(start, start + EXCERPT_LINES).map((l) => l.text);
 }
 
-/** Children's names → [a student]; the teacher's own name masked too (redact-names.js, r-corpus port). */
+/**
+ * Children's names → [a student]; the teacher's own name masked too (redact-names.js, r-corpus port).
+ * people.vocab: subject terms; people.oovVocab: topic words, the vocabulary rule only (bd-8hhqhf r7).
+ */
 function redact(text, people = {}) {
-  return redactNames(String(text || ''), { teacher: people.teacher || null, placeholders: { child: '[a student]' } });
+  return redactNames(String(text || ''), { teacher: people.teacher || null, placeholders: { child: '[a student]' }, vocab: people.vocab || [], oovVocab: people.oovVocab || [] });
 }
 
 function candidateLine(c, catalog) {
@@ -123,7 +141,7 @@ ${(candidates || []).map((c) => candidateLine(c, catalog)).join('\n')}
 
 RULES
 1. Choose the clip that SHOWS the exact move in "Try this tomorrow". Every candidate is for that step: you choose among them and ground the moment; you never change the step.
-2. The reason must cite ONE real moment: the [mm:ss] and a short quote copied from the report's moment or the TRANSCRIPT MOMENTS (never invented, never paraphrased), then what the clip shows a teacher doing instead — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person's name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher. Never write a clip id, number or code; never mention the scorer, the report or the analysis; describe the lesson moment itself. Choose a moment with the teacher's or a child's own words; if the only candidate line is mostly [a student] placeholders, pick another line. If no real moment fits, return seg_id null — never write N/A, unknown or [around unknown].${crossLanguageRule(reportLanguage, lessonLanguage)}
+2. The reason must cite ONE real moment: a short quote copied from the report's moment or the TRANSCRIPT MOMENTS (never invented, never paraphrased), introduced in words (what was happening in the lesson), then what the clip shows a teacher doing instead — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person's name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher. Never write a clip id, number or code; never write a clock time (no [mm:ss], no "at 12:08") or a speaker label (no "Teacher:", "Student:") in reason_en or reason_ur: the moment's time goes only in moment.at; never mention the scorer, the report or the analysis; describe the lesson moment itself. Choose a moment with the teacher's or a child's own words; if the only candidate line is mostly [a student] placeholders, pick another line. If no real moment fits, return seg_id null — never write N/A, unknown or [around unknown].${crossLanguageRule(reportLanguage, lessonLanguage)}
 3. Gender-neutral: say "the teacher" / "they"; in Urdu use verbal nouns or impersonal forms, never gendered second-person verbs. Keep pedagogical terms in English letters inside Urdu (e.g. open-ended questions, wait time). No Roman Urdu (Urdu in Latin letters); Urdu is written in Nastaliq script; only pedagogical terms stay in English letters (one or two words).
 4. If no candidate would help this teacher with this step, return "seg_id": null and say why in "none_reason". That is a good answer, not a failure.
 5. Never pick a clip whose "needs" clearly do not match this lesson, or one meant for a different subject than this lesson (${subject || 'unknown'}).
@@ -169,4 +187,4 @@ function retryAppendix(none) {
   return `\n\nYOUR FIRST ANSWER WAS REJECTED (validation:${why}): ${rule}\nAnswer again in the same JSON shape, keeping every rule above; if no clip fits, return seg_id null.`;
 }
 
-module.exports = { build, excerpts, rawExcerpts, redact, retryAppendix, PROMPT_VERSION, stampMs };
+module.exports = { build, excerpts, rawExcerpts, transcriptLines, redact, retryAppendix, PROMPT_VERSION, stampMs };

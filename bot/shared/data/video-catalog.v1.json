@@ -23000,6 +23000,7 @@
     },
     {
      "seg_id": "50-s2",
+     "grade_band": "all",
      "start_s": 81.63,
      "end_s": 136.83,
      "title_en": "Think-pair-share in three steps",
@@ -23450,6 +23451,7 @@
    "segments": [
     {
      "seg_id": "51-s1",
+     "grade_band": "all",
      "start_s": 0,
      "end_s": 51.57,
      "title_en": "Yes/no question vs. a 'why' question",
@@ -23558,6 +23560,7 @@
     },
     {
      "seg_id": "51-s2",
+     "grade_band": "all",
      "start_s": 51.87,
      "end_s": 81.99,
      "title_en": "Open questions for every subject",
@@ -33200,6 +33203,7 @@
     },
     {
      "seg_id": "65-s4",
+     "grade_band": "1-8",
      "start_s": 162.39,
      "end_s": 211.29,
      "title_en": "Personal narratives with partner summary and feedback",
@@ -35371,6 +35375,7 @@
     },
     {
      "seg_id": "68-s4",
+     "grade_band": "1-8",
      "start_s": 134.01,
      "end_s": 170.49,
      "title_en": "Structured pair dialogues, then fade the frames",
@@ -70299,6 +70304,7 @@
     },
     {
      "seg_id": "141-s5",
+     "grade_band": "all",
      "start_s": 224.19,
      "end_s": 270.99,
      "title_en": "Facilitate discussion, not answers",
@@ -77017,6 +77023,7 @@
     },
     {
      "seg_id": "156-s2",
+     "grade_band": "1-8",
      "start_s": 59.31,
      "end_s": 99.45,
      "title_en": "Different tasks for one topic: 'Describing People'",
