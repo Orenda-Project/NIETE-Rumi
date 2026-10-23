@@ -108,8 +108,9 @@ describe('existing landings unchanged', () => {
 });
 
 /**
- * bd-zcgpkx — a leader's "lesson plan" opens the app on Send a lesson plan (the FLN builder). The token's target is
- * the fixed string `fln:send`; like a plan target it lands whether or not the user is on the teacher app.
+ * bd-zcgpkx — Send a lesson plan (the FLN builder): the fixed target `fln:send`; like a plan target it lands whether
+ * or not the user is on the teacher app. bd-a73p5m: the bot no longer mints it (a leader's "lesson plan" lands on the
+ * Lesson Plans tab, tests/app-redirect/app-link-leader-lesson-plan.test.js); a link already sent still lands here.
  */
 test('sign fln:send → GET /go/<token> → 303 /portal/fln/send, signed in, no-store, even off the teacher app', async () => {
   const token = link().signAppLink(USER, 'fln:send');

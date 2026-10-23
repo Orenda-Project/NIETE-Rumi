@@ -97,7 +97,7 @@ const KEY_FIELD = {
   // bd-s42dye.3 — the coach's Training Library link.
   appLinkBodyCoachTraining: 'body',
   appLinkButtonCoachTraining: 'buttonText',
-  // bd-zcgpkx — a leader's lesson-plan link (Send a lesson plan).
+  // bd-zcgpkx, bd-a73p5m — a leader's lesson-plan link (the Lesson Plans tab).
   appLinkBodyLeaderLessonPlan: 'body',
   appLinkButtonLeaderLessonPlan: 'buttonText',
 };
