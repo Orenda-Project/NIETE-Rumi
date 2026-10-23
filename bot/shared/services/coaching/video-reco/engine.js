@@ -276,7 +276,12 @@ async function compute(a, d, state) {
     fullLines: (() => { let all = null; return () => (all = all || prompt.transcriptLines(session).map((l) => prompt.redact(l, people))); })(),
   };
   let pickList = list; // R7c §7: the enacted-chapters second pass answers from its own list
-  const check = (r, l = pickList, o = vopts) => (r.truncated ? { ok: false, none: 'llm_truncated', confidence: undefined } : select.validate(select.groundReasons(r.pick, catalog), l, ex, o)); // R7d §6: the grounded text is what is checked
+  let routineSeen = false; // red7 194127 (Q170): a rejected routine moment means the lesson gave none; no card fallback either
+  const check = (r, l = pickList, o = vopts) => {
+    const out = r.truncated ? { ok: false, none: 'llm_truncated', confidence: undefined } : select.validate(select.groundReasons(r.pick, catalog), l, ex, o); // R7d §6: the grounded text is what is checked
+    if (!out.ok && (out.none === 'validation:not_moment' || select.routineQuote(r.pick, lesson.topic))) routineSeen = true;
+    return out;
+  };
   let res = await select.pick({ prompt: text, deps: d, timeoutMs: a.llmTimeoutMs });
   let v = check(res);
   let attempts = 1;
@@ -336,7 +341,7 @@ async function compute(a, d, state) {
   };
   // v1.3c (b): the retry failed too, on a validation rule, but the pick is a shortlisted chapter → the card's own sentence.
   let fallback = null;
-  if (!v.ok && attempts >= 2 && res.pick && res.pick.seg_id) {
+  if (!v.ok && attempts >= 2 && !routineSeen && res.pick && res.pick.seg_id) {
     const seg = catalog.segment(String(res.pick.seg_id));
     fallback = seg && select.cardFallback({
       none: v.none, segId: res.pick.seg_id, shortlist: pickList, sentence: (card && card.action) || step.try || fa.try_this_tomorrow || '',

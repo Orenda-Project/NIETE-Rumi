@@ -5,6 +5,7 @@
  */
 const { redactNames } = require('./redact-names');
 const LEX = require('./name-lexicon');
+const { imperative } = require('./silence');
 
 // ── the card's vocative (P165 ⛔9; red7 145611 V1–V10, N1–N4) ───────────────────────────────────────────────────────────
 // A prod card opens with the teacher's name, often in Urdu script while users.name is Latin, so a name match cannot find
@@ -186,7 +187,10 @@ function childFreeCard(sentence, { teacher = null, vocab = [], oovVocab = [], wh
       const prevWord = (before.match(/([\p{L}]+)[^\p{L}]*$/u) || [])[1] || '';
       const term = IN_TERM.exec(before);
       const inTerm = !!term && /[\p{L}]/u.test(before.slice(0, term.index)) && !new RegExp(`${N}$`).test(before.slice(0, term.index + term[1].length));
-      if (!masked.has(w) || first || inTerm || /[؀-ۿ]/.test(prevWord)) return w;
+      // red7 194127 A14: the first word is a name too when the strict redactor masks it and it is no move a card opens with
+      // («Zunaira should answer first …»); «Ask», «Model», «Circulate» are imperatives and stay
+      const firstName = first && masked.has(w) && !imperative(w) && !LEX.latCommon.includes(w.toLowerCase());
+      if (!masked.has(w) || (first && !firstName) || inTerm || /[؀-ۿ]/.test(prevWord)) return w;
       nameEnd = at + w.length;
       return hit(`latin${why && why.words ? `:${w}` : ''}`);
     }

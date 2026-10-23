@@ -350,3 +350,40 @@ describe('7 · Urdu: the fixed lexical list, the familiar imperative, one digit 
     expect(row.reason_en).not.toMatch(/\d+-second/);
   });
 });
+
+describe('red7 HOLD 194127 on 34450db474', () => {
+  test('H1 (Q170): a rejected routine quote (a test held this period) never falls back to the card → silence', async () => {
+    const lines = [{ start_ms: 30000, label: 'Teacher', text: 'آج ٹیسٹ ہے آپ کا، ابھی آپ مجھے لکھ کر دکھائیں گے۔' }, { start_ms: 33000, label: 'Student', text: 'جی' }];
+    const test = answer({ moment: { at: '00:30', quote: 'آج ٹیسٹ ہے آپ کا، ابھی آپ مجھے لکھ کر دکھائیں گے' } });
+    const elsewhere = answer({ moment: { at: '00:30', quote: 'Tell me about the history of triangles in Egypt' } });
+    const row = await run(args({ lines }), deps([test, elsewhere]));
+    expect(row).toMatchObject({ status: 'none' });
+    expect(row.moment_source).not.toBe('card');
+  });
+
+  test('H1 (Q170, be44ca36 shape): the routine quote is refused for a placeholder first, twice → still no card fallback', async () => {
+    const lines = [{ start_ms: 30000, label: 'Teacher', text: 'آج ٹیسٹ ہے آپ کا، ابھی آپ مجھے لکھ کر دکھائیں گے۔' }, { start_ms: 33000, label: 'Student', text: 'جی' }];
+    const ph = answer({ moment: { at: '00:30', quote: 'آج ٹیسٹ ہے [TEACHER] آپ کا، ابھی آپ مجھے لکھ کر دکھائیں گے' } });
+    const d = deps([ph, ph]);
+    const row = await run(args({ lines }), d);
+    expect(row.first_none_reason).toBe('validation:placeholder');
+    expect(row).toMatchObject({ status: 'none', none_reason: 'validation:placeholder' });
+  });
+
+  test('H2 (A14): a strong lexicon name as the card\'s first word, no comma → no fallback', async () => {
+    const row = await run(args({ action: 'Zunaira should answer first, then ask the class why.' }), deps([ROMAN, ROMAN]));
+    expect(row).toMatchObject({ status: 'none', none_reason: 'validation:roman' });
+  });
+
+  test('control: a card opening with an ordinary capitalised word keeps its fallback', async () => {
+    const row = await run(args({ action: 'Ask the class why after every answer and wait five seconds.' }), deps([ROMAN, ROMAN]));
+    expect(row).toMatchObject({ status: 'shown', moment_source: 'card' });
+  });
+
+  test('nit: a chapter title ending in a question mark is not doubled with the line\'s full stop', () => {
+    const Q = { ...DATA, modules: DATA.modules.map((m) => (m.module_id !== 51 ? m : { ...m, segments: m.segments.map((x) => (x.seg_id !== '51-s1' ? x : { ...x, title_en: 'What did you learn today?', title_ur: 'آج کیا سیکھا؟' })) })) };
+    const out = S.groundReasons(answer({ seg_id: '51-s1', reason_en: 'The class answered yes. This clip shows more.', reason_ur: 'کلاس نے ہاں کہا۔ یہ کلپ مزید دکھاتا ہے۔' }), C.fromData(Q));
+    expect(out.reason_en).toBe('The class answered yes. This clip is about: What did you learn today?');
+    expect(out.reason_ur).toBe('کلاس نے ہاں کہا۔ یہ کلپ اس بارے میں ہے: آج کیا سیکھا؟');
+  });
+});
