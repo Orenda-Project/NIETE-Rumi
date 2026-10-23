@@ -62,9 +62,26 @@ const COACH_LANDINGS = Object.freeze({
   coach_training: '/portal/coach/training', // bd-s42dye.3 — the coach app's Training Library
 });
 
-/** A feature a token may carry: a teacher page or a coach page. Anything else cannot be signed or verified. */
+/**
+ * bd-a73p5m — the pages a LEADER's link lands on (app-redirect.service.js LEADER_LINKS): a leader's "lesson plan" →
+ * the Lesson Plans tab. It is the teacher's own address, but its own name, so /go lands it for a leader on neither app:
+ * a coach on the coach app has it as a tab, the classic leader menu links it, and TeacherGate lets the leader family
+ * read it (bd-4joiqz). Like an FLN target, it lands whatever the app flags say.
+ */
+const LEADER_LANDINGS = Object.freeze({
+  leader_lessons: '/portal/teacher/lessons',
+});
+
+const own = (map, f) => Object.prototype.hasOwnProperty.call(map, f);
+
+/** A feature a token may carry: a teacher, coach or leader page, or an FLN target. Anything else cannot be signed or verified. */
 const linkable = (f) => typeof f === 'string'
-  && (Object.prototype.hasOwnProperty.call(LANDINGS, f) || Object.prototype.hasOwnProperty.call(COACH_LANDINGS, f) || require('./fln-go-target').isFlnTarget(f));
+  && (own(LANDINGS, f) || own(COACH_LANDINGS, f) || own(LEADER_LANDINGS, f) || require('./fln-go-target').isFlnTarget(f));
+
+/** The page a leader token lands on, or null when `f` is not one. */
+function leaderPathFor(f) {
+  return typeof f === 'string' && own(LEADER_LANDINGS, f) ? LEADER_LANDINGS[f] : null;
+}
 
 /** This environment, as its Supabase host (`<ref>.supabase.co`), or null when SUPABASE_URL is missing or not a URL. */
 function environment() {
@@ -129,4 +146,4 @@ function verifyAppLink(token) {
   }
 }
 
-module.exports = { signAppLink, verifyAppLink, LANDINGS, COACH_LANDINGS, LEGACY_LANDING, TTL_S };
+module.exports = { signAppLink, verifyAppLink, leaderPathFor, LANDINGS, COACH_LANDINGS, LEADER_LANDINGS, LEGACY_LANDING, TTL_S };
