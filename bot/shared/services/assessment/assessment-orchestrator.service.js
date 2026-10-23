@@ -577,7 +577,8 @@ async function buildPaper(job, user = {}) {
   let paperId = null;
   try {
     const { data, error } = await supabase.from('assessment_papers')
-      .insert({ request_id: requestId, status: 'generating' })
+      // A topic paper says so on its own row, as its request does (bd-6clakk.8); any other keeps the default.
+      .insert({ request_id: requestId, status: 'generating', ...(scope && scope.kind === 'topics' ? { paper_kind: 'topic' } : {}) })
       .select('id').single();
     if (error && String(error.code) === UNIQUE_VIOLATION) {
       const dup = await _onDuplicate(requestId);
