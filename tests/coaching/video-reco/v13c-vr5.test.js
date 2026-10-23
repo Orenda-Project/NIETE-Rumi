@@ -21,7 +21,7 @@ const base = {
 // sha256 of P.build(base) with no cross-language rule. Was the vr-4 text (cbcd4c39e4, 846c8f5e…); re-taken at vr-6
 // (bd-8hhqhf r7: rule 2 drops the clock time) and at vr-7 (R7b: rule 2's clip words, rule 3's Urdu plural), which change
 // the base text, not the cross-language rule tested here.
-const VR4_SHA = '3d2c05c60fac0ff3a40a1d34970867b6e670d0495fe901757dcd0e9488e91654';
+const VR4_SHA = 'cb4916019c55a692d20f8aad05f72be0ff33bd8a785d31e39270e20d8e6bea14';
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 
 describe('prompt vr-5: the cross-language paraphrase rule', () => {
