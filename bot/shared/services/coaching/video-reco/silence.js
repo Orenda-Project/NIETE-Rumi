@@ -9,6 +9,7 @@
  *   (P066 ⛔4, P072, P076: all 16 F5 rows were F5 cards on non-maths lessons);
  * - a card sentence a teacher cannot do (no imperative: «Made one thing together», P123, P161) → no card fallback;
  * - a cited moment with no student turn on its line or the line either side → not a moment (P183, P076).
+ * R7c (COS 20261023T170515 §2, panel Q194): a transcript that is mostly a recogniser loop has no moments at all.
  */
 
 // A visible mixed-level moment: a child not following, an early finisher, a task offered at two levels, a learner
@@ -82,4 +83,142 @@ function childTurnNear(lines, i) {
   return [i - 1, i, i + 1].some((n) => n >= 0 && n < lines.length && KID.test(String(lines[n])));
 }
 
-module.exports = { levelsMoment, labelOffSubject, imperative, childTurnNear, LABEL_SUBJECTS };
+// R7c (Q194): Soniox can loop one phrase for minutes («… کیسے بچا جائے» ×5, then a two-word loop ×90); the engine quoted
+// the loop as the teacher's question. A loop is a unit of 1–8 words said 3+ times back to back, or of 9–24 words said 5+
+// times (red7 H3: Soniox loops the last utterance whatever its length; B4: a sentence said 4 times is still a lesson). Measured on the 3,000 r7 transcripts: ≥ 50% of the words inside loops flags 10
+// (Q194 at 85%); a times-table drill, where each line is said twice, is not a loop. Speaker labels and stamps are not
+// words; the loop test needs 20 words. A transcript of 3+ lines that are mostly placeholders («…», [inaudible]) has no
+// moment either, at any length (red7 H4).
+const LOOP_SHARE = 0.5;
+const MIN_LOOP_WORDS = 20;
+const MAX_PERIOD = 24;
+
+/** The share of words inside back-to-back loops. */
+function loopShare(words) {
+  const cov = new Uint8Array(words.length);
+  const same = (a, b, p) => { for (let k = 0; k < p; k++) if (words[a + k] !== words[b + k]) return false; return true; };
+  for (let i = 0; i < words.length; i++) {
+    for (let p = 1; p <= MAX_PERIOD && i + 3 * p <= words.length; p++) {
+      // a unit of over 8 words (a whole sentence) counts from 5 repeats: a line said 4 times among real turns is a
+      // lesson (red7 B4); a short phrase counts from 3
+      const reps = p > 8 ? 5 : 3;
+      if (i + reps * p > words.length) continue;
+      let k = 1;
+      while (k < reps && same(i, i + k * p, p)) k++;
+      if (k < reps) continue;
+      let end = i + reps * p;
+      while (end + p <= words.length && same(i, end, p)) end += p;
+      cov.fill(1, i, end);
+      break;
+    }
+  }
+  return words.length ? cov.reduce((a, b) => a + b, 0) / words.length : 0;
+}
+
+/** The transcript lines are mostly a recogniser loop (or placeholders): no line of it is a moment. */
+function degenerate(lines) {
+  const texts = (lines || []).map((l) => String(l || '').replace(/^\s*\[[\d:]+\]\s*[^:\n]{0,30}:\s*/, ''));
+  // a placeholder line: no word left once «…», dashes and [bracketed] tokens are removed
+  const empty = texts.filter((t) => !/[\p{L}\p{N}]/u.test(t.replace(/\[[^\]]*\]/g, ' '))).length;
+  if (texts.length >= 3 && empty / texts.length >= LOOP_SHARE) return true;
+  const words = texts.join(' ').match(/\[[^\]\s]+(?: [^\]\s]+)?\]|[\p{L}\p{N}]+/gu) || [];
+  if (words.length < MIN_LOOP_WORDS) return false;
+  const placeholders = words.filter((w) => w.startsWith('[')).length / words.length;
+  return placeholders >= LOOP_SHARE || loopShare(words) >= LOOP_SHARE;
+}
+
+// R7c (COS 20261023T170515 §3; panel Q031 Q061 Q063 Q072 Q084 Q170 Q179 Q187 Q198 Q028): a line that only greets, calls a
+// page, gives an order about the room or announces the lesson is not a teaching moment, however the model reads it.
+// Sentence by sentence; the quote is no moment when ≥ 60% of its words are in such sentences, so a real question after
+// an announcement still is one («Today we learn fractions. Who can tell me why half is bigger than a quarter?»).
+const ROUTINE = [
+  // greeting
+  /السلام علیکم|وعلیکم السلام|\bassalam|\bgood (?:morning|afternoon)\b|\bhow are you\b|آپ کیسے ہیں|\bhello\b|تم کیسے ہو|کیسے ہیں سب|کیا حال ہے|سب ٹھیک (?:ہیں|ہو)/iu, // R7d: «تم کیسے ہو؟» (Q113)
+  // page or book call
+  /(?:پیج|صفحہ|صفحے)\s*(?:نمبر)?\s*[\d۰-۹]|\bpage\s*(?:no\.?|number)?\s*\d|\bopen your (?:book|copy|notebook)|(?:کتاب|کتابیں|کاپی|کاپیاں)\s+(?:کھول|نکال)|چیپٹر نمبر/iu,
+  // order about the room
+  /بیٹھ (?:جاؤ|جائیں|جاو)|\bsit down\b|خاموش (?:ہو|رہ)|\bbe quiet\b|\bsilence please\b|لائن (?:بنا|میں)|\bstand up\b|کھڑے ہو (?:جاؤ|جائیں)/iu,
+  // announcing the lesson or what will happen in it
+  /^(?=.*آج)(?=.*(?:ٹاپک|سبق|موضوع|لیسن|پڑھائی))|(?:ٹاپک|سبق|موضوع) (?:ہے|کون سا ہے|کیا ہے)|\b(?:today|now) we (?:will|are going to|shall)\b|\b(?:our|today'?s) (?:topic|lesson) is\b|\btopic is\b|ہم (?:\S+\s+){0,3}(?:پڑھیں|سیکھیں|بنائیں|دیکھیں|لکھیں|سنیں|شروع کریں|کریں) گے|(?:میں|ہم) نے (?:\S+\s+){0,8}(?:کرنا|کرنے|پڑھنا|پڑھنے|کروانا|کروانے|سیکھنا|سیکھنے) (?:ہے|ہیں)/iu,
+];
+const ROUTINE_SHARE = 0.6;
+// R7d (COS 20261023T184404 item 5; panel Q076 Q170 Q198): routine whether or not it asks — a reprimand («آپ کیوں اتنے سست
+// ہو کے بیٹھے ہیں؟»), a test announced («آج ٹیسٹ ہے آپ کا»), the lesson's topic asked («آج کا ٹاپک کیا ہے؟»).
+const ASKING_ROUTINE = [
+  /کیوں (?:\S+\s+){0,4}(?:سست|شور|باتیں کر|سو رہے|سوئے|دیر سے|لیٹ|نہیں لائے|نہیں لائی|نہیں لائیں)|کیا (?:ہوا|ہو گیا|ہوگیا) ہے (?:آپ|تم) (?:کو|لوگوں کو)|\bwhy (?:are|is) (?:you|he|she|they) (?:late|talking|sleeping|making (?:a )?noise)\b|\bwhy (?:didn['’]?t|did not) you bring\b/iu,
+  // a test held in THIS period (a test announced for tomorrow is homework talk, P183: the card fallback, as ruled)
+  /(?:آج|ابھی) (?:\S+\s+){0,3}(?:ٹیسٹ|پیپر|امتحان|کوئز)|\b(?:test|exam|quiz) (?:today|now)\b|\btoday(?:'s| is| we have)? (?:a |your |the )?(?:test|exam|quiz)\b/iu,
+  /(?:ٹاپک|سبق|موضوع|لیسن)\s+(?:\S+\s+){0,2}(?:کیا|کون سا|کونسا) (?:ہے|تھا)|\bwhat(?:'s| is| was) (?:our|today'?s|the) (?:topic|lesson)\b/iu,
+];
+const TOPIC_STOP = new Set('what is was are the a an of this that کیا ہے ہیں تھا کون سا کس کی کا کے یہ وہ'.split(' '));
+// …but a page call, an order or an announcement is a statement: a sentence that asks («ہم نے کس چیز کو سرکل کرنا ہے؟», Q135; «تو سب سے پہلے ہم کیا
+// کریں گے؟», Q069), or asks why or how, is a question about the lesson
+// a tag question («…، ٹھیک ہے؟», Q063) does not make a statement a question
+const TAG_QUESTION = /[،,]?\s*(?:ٹھیک ہے|ہے نا|نا|okay|ok|right)\s*[?؟]\s*$/iu;
+const WHY_HOW = /کیوں|کیسے|\bwhy\b|\bhow\b(?! are you)/iu;
+// red7 H5: «page 46, question 3: why does the sun rise?» asks; only a greeting ("how are you?") stays routine when it asks
+const asks = (x) => WHY_HOW.test(x) || /[?؟]/.test(x.replace(TAG_QUESTION, ''));
+const isRoutine = (x) => ROUTINE[0].test(x) || ASKING_ROUTINE.some((rx) => rx.test(x)) || (ROUTINE.slice(1).some((rx) => rx.test(x)) && !asks(x));
+const wordList = (x) => String(x || '').toLowerCase().match(/[\p{L}\p{N}]+/gu) || [];
+
+/** R7d (Q199): the sentence is the lesson's own topic said as a question or a title («What is sound» on a lesson about sound). */
+function topicOnly(x, topic) {
+  const t = new Set(wordList(topic));
+  const w = wordList(x).filter((k) => !TOPIC_STOP.has(k));
+  return t.size > 0 && w.length > 0 && w.every((k) => t.has(k));
+}
+
+/** The quoted line only greets, calls a page, orders the room, reprimands, announces a test or the lesson, or names its topic. */
+function routineLine(quote, { topic = null } = {}) {
+  const sentences = String(quote || '').split(/(?<=[.!?۔؟])\s+|\s*—\s*/u).filter((x) => /[\p{L}\p{N}]/u.test(x));
+  const words = (x) => (x.match(/[\p{L}\p{N}]+/gu) || []).length;
+  const all = sentences.reduce((n, x) => n + words(x), 0);
+  if (!all) return false;
+  const routine = sentences.filter((x) => isRoutine(x) || topicOnly(x, topic)).reduce((n, x) => n + words(x), 0);
+  return routine / all >= ROUTINE_SHARE;
+}
+
+// R7c (COS 20261023T170515 §4; panel: 51-s3 sent 11 times, 0 right): a lesson whose children answer in a word or a chorus.
+// Of the labelled child turns, ≥ 60% are ≤ 3 words and at most one in twenty gives a reason (Q121: 155 of 165 short, 3
+// reasons). Unlabelled transcripts are not judged.
+const CLOSED_SHARE = 0.6;
+const REASON = /کیونکہ|کیوں کہ|اس لیے|\bbecause\b/iu;
+
+// R7d (panel Q038 Q056): in Grade 1–2, children reading back the line the teacher just read is echo reading, a fluency
+// technique, never a chorus answer to a question. A turn echoes a STATEMENT when it has ≥ 2 words and the two lines share
+// ≥ 60% of each one's words (a one-word answer that reuses the question's word, «پلس کو ہم کیا کہتے ہیں؟» → «پلس», is an answer).
+const ECHO_SHARE = 0.6;
+const EARLY_GRADE = 2;
+const early = (grade) => !!grade && Number.isFinite(Number(grade.hi)) && Number(grade.hi) <= EARLY_GRADE;
+const textOf = (l) => String(l || '').replace(LABELLED, '');
+
+/** The turn at `i` repeats the line before it. */
+function echoOf(lines, i) {
+  if (i < 1 || /[?؟]/.test(textOf(lines[i - 1]))) return false;
+  const w = wordList(textOf(lines[i]));
+  const prev = wordList(textOf(lines[i - 1]));
+  const a = new Set(w);
+  const b = new Set(prev);
+  return w.length >= 2 && w.filter((k) => b.has(k)).length / w.length >= ECHO_SHARE && prev.filter((k) => a.has(k)).length / prev.length >= ECHO_SHARE;
+}
+
+/** Grade 1–2: the line at `i` is read aloud and the next line is a child echoing it (no question in it). */
+function echoReading(lines, i, grade) {
+  if (!early(grade) || !Array.isArray(lines) || i < 0 || i + 1 >= lines.length) return false;
+  return KID.test(String(lines[i + 1])) && !KID.test(String(lines[i])) && echoOf(lines.map(String), i + 1);
+}
+
+/** The lesson's child turns are closed or chorus answers (false when there are fewer than 3 labelled child turns). */
+function closedAnswers(lines, { grade = null } = {}) {
+  const all = (lines || []).map(String);
+  const kids = all.filter((l, i) => KID.test(l) && !(early(grade) && echoOf(all, i))).map((l) => l.replace(LABELLED, ''));
+  if (kids.length < 3) return false;
+  const short = kids.filter((k) => (k.match(/[\p{L}\p{N}]+/gu) || []).length <= 3).length;
+  return short / kids.length >= CLOSED_SHARE && kids.filter((k) => REASON.test(k)).length <= Math.max(1, kids.length * 0.05);
+}
+
+// The card asks for a why/how or open question.
+const WHY_CARD = /کیوں|کیسے|\bwhy\b|\bhow\b|open[- ]ended|open questions?|کھلے سوال|کھلا سوال|اوپن اینڈ/iu;
+const whyCard = (sentence) => WHY_CARD.test(String(sentence || ''));
+
+module.exports = { levelsMoment, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, LABEL_SUBJECTS };

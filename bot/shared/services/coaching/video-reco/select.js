@@ -10,8 +10,9 @@ const { redactNames, ROLE_STOP } = require('./redact-names');
 const { fallbackSubjectOk } = require('./shortlist');
 const { stripBidi } = require('./copy');
 const CONTENT_TERMS = require('./content-terms');
-const { childTurnNear, imperative } = require('./silence');
-const { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim } = require('./copy-rules');
+const LEX = require('./name-lexicon');
+const { childTurnNear, imperative, routineLine, echoReading } = require('./silence');
+const { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, sceneClaim, recallMislabel } = require('./copy-rules');
 
 const JOB = 'coaching.videoReco';
 const LLM_TIMEOUT_MS = 45000; // lead-converge 18:48Z: measured 22–33 s at the default effort; the report itself never waits on it
@@ -41,6 +42,7 @@ async function pick({ prompt, deps = {}, timeoutMs = LLM_TIMEOUT_MS }) {
   }
 }
 
+const OTHER_SCRIPT = /[\u0400-\u04FF\u0900-\u097F\u3040-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF]/u; // Cyrillic, Devanagari, CJK, Hangul
 const ARABIC = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/u;
 
 // Format characters (bidi isolates/marks, ZWNJ) are dropped first: a name glued to an isolate is still a name (red7 A11/A12).
@@ -193,6 +195,29 @@ function namesIn(text, name) {
   return norm(name).split(' ').some((w) => [...w].length >= 3 && !ROLE_STOP.has(w) && words.has(w));
 }
 
+// R7d (⛔9, panel Q086): the teacher's own class roster as a people check, in any position. Everyday and lesson words
+// (the lexicon's common lists and vocabulary, the subject terms, role words) are never taken from it: a father named
+// «Noor» must not refuse every card that says «نور».
+const normWord = (w) => String(w || '').toLowerCase().replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/[ةه]/g, 'ہ').replace(/[\u064B-\u0670\u0640\u200C\u200D]/g, '');
+let commonWords = null;
+
+/** The roster's name words, normalised, minus every word a lesson or a card uses. */
+function rosterSet(names) {
+  commonWords = commonWords || new Set([...LEX.urCommon, ...LEX.latCommon, ...LEX.vocab, ...SUBJECT_TERMS].map(normWord));
+  const out = new Set();
+  for (const w of names || []) {
+    const n = normWord(w);
+    if ([...n].length >= 3 && !commonWords.has(n) && !ROLE_STOP.has(n)) out.add(n);
+  }
+  return out;
+}
+
+/** A word of the text is a roster name. */
+function rosterIn(text, roster) {
+  if (!roster || !roster.size) return false;
+  return String(text || '').replace(/\p{Cf}/gu, '').split(/[^\p{L}\p{M}]+/u).some((w) => roster.has(normWord(w)));
+}
+
 /** Arabic-script share of the letters, after removing quoted text and [a student] (§3.5 [v1.3] a: English terms are the prompt's rule 3). */
 function arabicShare(text) {
   const rest = String(text || '').replace(QUOTED, ' ').replace(/\[a student\]/gi, ' ');
@@ -205,10 +230,10 @@ function arabicShare(text) {
  * @param {object} opts {stepIndicator, indicators, source, catalog, teacherName, scorerQuote, textRoute}
  * @returns {{ok:boolean, none:null|'llm_none'|'validation:<why>', confidence:number, momentSource:'transcript'|'scorer'|null}}
  *   <why> (lead-review 19:40Z, so evals and red-team can count them): shape | candidate | quote | moment_at | placeholder |
- *   scorer | id | name | length | urdu | roman | gender | step | unshown | no_child_turn | error
+ *   scorer | id | name | length | urdu | roman | gender | step | unshown | scene | recall | no_child_turn | not_moment | error
  */
 function validate(p, shortlist, excerpts, opts) {
-  const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false, rawExcerpts = null, fullLines = null, vocab = [], oovVocab = [] } = opts || {};
+  const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false, rawExcerpts = null, fullLines = null, vocab = [], oovVocab = [], roster = null, topic = null, grade = null } = opts || {};
   const bad = (why) => ({ ok: false, none: `validation:${why}`, confidence: 0, momentSource: null });
   try {
     if (!p || typeof p !== 'object') return bad('shape');
@@ -231,15 +256,23 @@ function validate(p, shortlist, excerpts, opts) {
     // reason → refused; the retry or the card fallback takes it ([v1.3c-5], until now only on the fallback path).
     if ([quote, p.reason_en, p.reason_ur].some((x) => UNSHOWABLE.test(String(x || '')))) return bad('placeholder');
     if (momentSource === 'transcript' && unfoundedPlaceholder(quote, excerpts, rawExcerpts, teacherName, vocab, oovVocab)) return bad('placeholder');
+    // R7c (Q031 Q061 Q063 Q072 Q084 Q170 …): a greeting, a page call, an order about the room or the lesson's announcement is
+    // no moment. Not a fallback rule: the retry may find a real one, else the none stands (Q063, Q170 → silence, as ruled). Before every
+    // reason rule, so a routine line is never rescued by the fallback a reason fault would allow.
+    if (routineLine(storedQuote(quote), { topic })) return bad('not_moment');
+    // R7d (Q038 Q056): in Grade 1–2 a line the children read back is echo reading, not the gap
+    const lines = momentSource === 'transcript' ? excerpts : (() => { const l = typeof fullLines === 'function' ? fullLines() : fullLines; return Array.isArray(l) ? l : []; })();
+    if (echoReading(lines, quoteLine(quote, lines), grade)) return bad('not_moment');
     const reasons = [p.reason_en, p.reason_ur].map((x) => String(x || ''));
     if (reasons.some((x) => BANNED_COPY.test(x))) return bad('scorer');
     if ([quote, ...reasons].some(systemNote)) return bad('scorer'); // R7b (P005): «No student activity recorded» is no lesson
     if (reasons.some((x) => CLIP_ID.test(x))) return bad('id');
     if (namesIn(p.moment.quote, teacherName) || namesIn(p.reason_en, teacherName) || namesIn(p.reason_ur, teacherName)) return bad('name');
     if (reasons.some(quotedVocative)) return bad('name'); // R7b (P165, red7 N1/N3): a quoted card still opening with a name
+    if ([quote, ...reasons].some((x) => rosterIn(x, roster))) return bad('name'); // R7d: a child on the teacher's roster
     const en = [...reasons[0].trim()].length;
     if (en < 20 || en > 400) return bad('length');
-    if (arabicShare(p.reason_ur) < 0.6) return bad('urdu');
+    if (arabicShare(p.reason_ur) < 0.6 || OTHER_SCRIPT.test(reasons.join(' ').replace(QUOTED, ' '))) return bad('urdu'); // R7c: «факт» (Q097)
     if (latinRun(p.reason_ur) > 2) return bad('roman');
     if (genderedUrdu(p.reason_ur)) return bad('gender'); // R7b (26 panel rows): a teacher is plural in Urdu
     // Indicator path: every candidate is for the step; a pick outside the step's chapters is refused (SPEC v1.2 §3.5).
@@ -253,14 +286,59 @@ function validate(p, shortlist, excerpts, opts) {
     // R7b (≥ 36 panel rows): what the reason says the clip shows has a word for it in the chapter's own text
     const chosen = catalog && catalog.segment(cand.seg_id);
     if (chosen && unshownClaim(p.reason_en, chosen.segment)) return bad('unshown');
+    // R7c §5: a conversation, talk, slides or animation never "shows a teacher"; a cited why/how line is never "recall"
+    if (chosen && sceneClaim(p.reason_en, p.reason_ur, chosen.module)) return bad('scene');
+    if (recallMislabel(quote, p.reason_en, p.reason_ur)) return bad('recall');
     // R7b (panel P183, P076), checked last so every other rule names its own fault first: the moment's line or a line
     // beside it is a child's turn, else it is talk with no class in it.
-    const around = momentSource === 'transcript' ? excerpts : (() => { const l = typeof fullLines === 'function' ? fullLines() : fullLines; return Array.isArray(l) ? l : []; })();
-    if (!childTurnNear(around, quoteLine(quote, around))) return bad('no_child_turn');
+    if (!childTurnNear(lines, quoteLine(quote, lines))) return bad('no_child_turn');
     return { ok: true, none: null, confidence, momentSource };
   } catch (e) {
     return bad('error');
   }
+}
+
+// R7d §6 (COS 184404; panel §4: the clip-misdescription class, 46 rows): the clip half of a reason is the chapter's own
+// title, never the model's account of it (the card's script, an invented example). The lesson half is the model's text
+// before its first clip sentence, cut at a sentence end. A reason that opens with the clip is left whole (validated as is).
+const CLIP_AT = {
+  en: /(?:^|(?<=[.!?;۔؟؛]["'”»\u2069]?\s+|["'”»\u2069]\s+))(?:This|this|The|the|In this|in this|In the|in the) (?:clip|video|chapter)\b/,
+  ur: /(?:یہ|اس|ایک) (?:کلپ|ویڈیو)|(?:کلپ|ویڈیو) (?:میں|سے)/u,
+};
+const SENTENCE_END = { en: /[.!?;۔؟؛]["'”»)\u2069]*$|["”»\u2069]$/u, ur: /[۔؟!.؛;]["'”»)\u2069]*$|["”»\u2069]$/u };
+// a clause the clip half followed after a semicolon now ends the reason's first part
+const CLOSE = { en: (h) => h.replace(/\s*[;؛]$/u, '.'), ur: (h) => h.replace(/\s*[;؛]$/u, '۔') };
+
+/** One reason with its clip half replaced by the chapter's title line; unchanged when no lesson half precedes the clip. */
+function groundReason(text, l, segment) {
+  const s = String(text || '');
+  const m = CLIP_AT[l].exec(s);
+  if (!m || !segment) return s;
+  let head = s.slice(0, m.index).trim();
+  while (head && !SENTENCE_END[l].test(head)) {
+    const cut = Math.max(...[...head.matchAll(/[.!?;۔؟؛]["'”»)\u2069]*\s/gu)].map((x) => x.index + x[0].length - 1), -1);
+    head = cut > 0 ? head.slice(0, cut).trim() : '';
+  }
+  if (!/\p{L}/u.test(head)) return s;
+  const title = String((l === 'ur' && segment.title_ur) || segment.title_en || '').trim();
+  if (!title) return s;
+  const line = resolveUx('videoRecoClipLine', { language: l, params: { title } });
+  // red7 194127 nit: a title that ends in its own mark («…today?») takes no second one
+  return `${CLOSE[l](head)} ${/[?؟!.۔]["'”»]?$/u.test(title) ? line.replace(/[.۔]$/u, '') : line}`;
+}
+
+/** The pick with both reasons grounded on its chapter (a pick without a listed chapter is returned as it is). */
+function groundReasons(p, catalog) {
+  if (!p || typeof p !== 'object' || !p.seg_id || !catalog) return p;
+  const hit = catalog.segment(String(p.seg_id));
+  if (!hit) return p;
+  return { ...p, reason_en: groundReason(p.reason_en, 'en', hit.segment), reason_ur: groundReason(p.reason_ur, 'ur', hit.segment) };
+}
+
+/** red7 194127 (Q170): the pick's quote is a routine line, whatever rule refused the pick (a placeholder is checked first). */
+function routineQuote(p, topic = null) {
+  const q = p && p.moment && p.moment.quote;
+  return !!q && routineLine(storedQuote(String(q).replace(PLACEHOLDERS, ' ').replace(UNSHOWABLE_G, ' ')), { topic });
 }
 
 /** ⛔9 (SPEC v1.3c §3.5 a): what is stored and sent passes the non-strict redactor; a text with no name is unchanged. */
@@ -288,7 +366,7 @@ function topicVocab(topic) {
 
 // The validation rules that leave the pick on a shortlisted, code-gated chapter. Not candidate/shape (no such chapter),
 // not step (a code gate: the chapter is not for the step), not error.
-const FALLBACK_RULES = new Set(['quote', 'moment_at', 'placeholder', 'scorer', 'id', 'name', 'length', 'urdu', 'roman', 'gender', 'unshown', 'no_child_turn']);
+const FALLBACK_RULES = new Set(['quote', 'moment_at', 'placeholder', 'scorer', 'id', 'name', 'length', 'urdu', 'roman', 'gender', 'unshown', 'scene', 'recall', 'no_child_turn']);
 const FALLBACK_MAX = 300; // code points of each composed reason (en and ur)
 const MIN_WORDS = 3; // a trimmed card sentence keeps at least this many words, else the none stands
 
@@ -341,6 +419,15 @@ function fitClauses(sentence, room, segment) {
     let j = best + 1;
     while (j < parts.length && cps(tidy(`${mid} ${parts[j]}`)) <= room - 2) { mid = `${mid} ${parts[j]}`; j++; }
     const tail = j < parts.length ? '…' : '';
+    // R7c (Q172): the sentence's own opening stays in front of the clause the clip serves, as much of it as fits, so the
+    // teacher reads when to do it, not only the card's tail
+    for (let p = Math.min(k, best); p >= 1; p--) {
+      const lead = parts.slice(0, p).join(' ').replace(/[\s،؛;,:—۔.]+$/u, ''); // a closing bracket or quote stays
+      const both = `${lead}… ${tail ? tidy(mid) : mid}${tail}`;
+      const open = (t, a, b) => (t.split(a).length - t.split(b).length);
+      const balanced = !open(lead, '(', ')') && !open(lead, '‘', '’') && (lead.split("'").length - 1) % 2 === 0;
+      if (balanced && cps(both) <= room && realWords(lead) >= MIN_WORDS) return both;
+    }
     if (cps(tidy(mid)) + 1 + tail.length <= room && realWords(mid) >= MIN_WORDS) return `…${tail ? tidy(mid) : mid}${tail}`;
     const cut = fitWords(mid, room - 1);
     if (cut) return `…${cut}`;
@@ -351,6 +438,7 @@ function fitClauses(sentence, room, segment) {
 // never as the sentence's subject ("[a student] reads …" keeps the none).
 const LEADING_ADDRESS = /^(\s*\[TEACHER\]\s*)+[،,:]?\s*|^\s*\[(a student|CHILD)\]\s*[،,:]\s*/;
 const UNSHOWABLE = /\[(TEACHER|COACH|SCHOOL|URL|EMAIL|NUMBER)\]/;
+const UNSHOWABLE_G = /\[(?:TEACHER|COACH|SCHOOL|URL|EMAIL|NUMBER)\]/g;
 // R7b (P036, P042, P046, P135, P178): the labels the panel named are report jargon, never a move to quote to a teacher.
 // Only these: an ordinary indicator name («Student-to-Student Interaction») in a template card was a right pick
 // (P003, P015, P051, P056, P062; scale-run 161526).
@@ -363,9 +451,9 @@ const singleQuotes = (t) => t.replace(/"([^"]*)"/g, '‘$1’').replace(/“([^�
  * The card-sentence fallback (SPEC v1.3c §3.5 b): when the retry also failed on a validation rule but the model's
  * seg_id is one of the shortlist's candidates, the clip keeps a quote-free reason built from the report's own
  * "Try this tomorrow" sentence. No LLM call. → {reason_en, reason_ur} | null (the none stands).
- * @param {object} a {none, segId, shortlist, sentence, startS, endS, language, teacherName, module, subject, vocab, segment, labels}
+ * @param {object} a {none, segId, shortlist, sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab, segment, labels}
  */
-function cardFallback({ none, segId, shortlist, sentence, startS, endS, language, teacherName, module, subject, vocab, segment, labels = [] } = {}) {
+function cardFallback({ none, segId, shortlist, sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab = [], segment, labels = [], roster = null } = {}) {
   try {
     const m = /^validation:(.+)$/.exec(String(none || ''));
     if (!m || !FALLBACK_RULES.has(m[1])) return null;
@@ -376,6 +464,10 @@ function cardFallback({ none, segId, shortlist, sentence, startS, endS, language
     const bare = raw.slice(leadingVocative(raw));
     let s = String(postRedact(bare, teacherName, vocab) || '').replace(LEADING_ADDRESS, '').trim();
     if (!s || s.startsWith('[') || UNSHOWABLE.test(s)) return null; // [v1.3c-5] a placeholder never opens it
+    // R7c ⛔9 (Q168, Q174; Q181, Q193): a child named inside the sentence → the comparison goes, or the fallback does
+    s = childFreeCard(s, { teacher: teacherName, vocab, oovVocab });
+    if (!s) return null;
+    if (rosterIn(s, roster)) return null; // R7d (Q086): a roster name in any position, a quoted title included
     if (!imperative(s)) return null; // R7b (P123, P161): a diagnosis fragment is not a move to try
     if (LABEL_TEXT.test(s) || labels.some((x) => x && s.toLowerCase().includes(String(x).toLowerCase()))) return null;
     s = singleQuotes(s).replace(/^[a-z]/, (c) => c.toUpperCase()); // P109: no lower-case start after the strip
@@ -385,10 +477,14 @@ function cardFallback({ none, segId, shortlist, sentence, startS, endS, language
     // ur, and no clip was sent). The teacher's language must fit; the other one is trimmed when it can be and otherwise
     // stored whole, as before.
     const out = {};
+    // R7c §6: the reader's line quotes the sentence; the other language's line quotes it only when it is in that language
+    const reader = clampLanguage(language);
+    const script = (/[\u0600-\u06FF]/.test(s) && (s.match(/[\u0600-\u06FF]/g) || []).length >= (s.match(/[A-Za-z]/g) || []).length) ? 'ur' : 'en';
     for (const l of ['en', 'ur']) {
+      if (l !== reader && l !== script) { out[`reason_${l}`] = resolveUx('videoRecoCardFallbackReasonPlain', { language: l, params: { n } }); continue; }
       const whole = resolveUx('videoRecoCardFallbackReason', { language: l, params: { sentence: s, n } });
       const fit = fitClauses(s, FALLBACK_MAX - ([...whole].length - [...s].length), segment);
-      if (!fit && l === clampLanguage(language)) return null;
+      if (!fit && l === reader) return null;
       out[`reason_${l}`] = !fit || fit === s ? whole : resolveUx('videoRecoCardFallbackReason', { language: l, params: { sentence: fit, n } });
     }
     return out;
@@ -397,4 +493,4 @@ function cardFallback({ none, segId, shortlist, sentence, startS, endS, language
   }
 }
 
-module.exports = { pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
+module.exports = { routineQuote, groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };

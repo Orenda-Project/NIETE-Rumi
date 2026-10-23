@@ -127,7 +127,7 @@ describe('2 · the isolate goes around the accepted moment span (red7 070727)', 
     expect(row.status).toBe('shown');
     // the copied "[00:03]" stamp is dropped at composition (COS 081156, v13j)
     expect(row.reason_en.startsWith(`"${FSI}اب "سی" اے ٹی کیا ہوتا ہے؟${PDI}".`)).toBe(true);
-    expect(row.reason_ur).toBe(`استاد نے پوچھا "${FSI}اب "سی" اے ٹی کیا ہوتا ہے؟${PDI}"؛ اس کلپ میں جوڑوں کی مشق ہے۔`);
+    expect(row.reason_ur).toBe(`استاد نے پوچھا "${FSI}اب "سی" اے ٹی کیا ہوتا ہے؟${PDI}"۔ یہ کلپ اس بارے میں ہے: عنوان۔`); // R7d §6: the clip half is the chapter's title
     expect(row.moment_quote).toBe(QUOTE);
   });
 });

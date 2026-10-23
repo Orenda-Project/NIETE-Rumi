@@ -12,7 +12,7 @@
 const { logToFile } = require('../../../utils/logger');
 const { getCurrentCorrelationId } = require('../../../utils/structured-logger');
 const { clampLanguage } = require('../../../config/ux-strings');
-const { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode } = require('./flags');
+const { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist } = require('./flags');
 const { assignArm, AB_SALT } = require('./arm');
 const target = require('./target');
 const shortlist = require('./shortlist');
@@ -20,7 +20,7 @@ const prompt = require('./prompt');
 const select = require('./select');
 const silence = require('./silence');
 const { composeReason, stripBidi } = require('./copy');
-const { leadingVocative } = require('./copy-rules');
+const { leadingVocative, relabelRecall } = require('./copy-rules');
 
 const ENGINE_TIMEOUT_MS = 60000; // the LLM call is capped at 45 s (select.js); the sender awaits this after the report has gone
 const RETRY_MIN_LEFT_MS = 20000; // v1.3b: the one validation retry runs only with ≥ 20 s of the engine budget left
@@ -55,6 +55,8 @@ function inapplicableRows(analysis) {
 
 // textReason values under which the target is still a teaching MOVE (null: tag route only; empty: its pool emptied).
 const MOVE_REASONS = new Set([null, 'empty']);
+// R7d §2: the nones after which the enacted chapters are asked once for another moment, rather than silence.
+const SECOND_MOMENT = new Set(['llm_none', 'validation:quote', 'validation:placeholder', 'validation:not_moment']);
 
 /**
  * The chosen chapter does not carry the step indicator (R4). null when there is no step indicator (card_text, phase).
@@ -79,6 +81,8 @@ function stepTextOf(t, analysis, card) {
     tryTomorrow: typeof fa.try_this_tomorrow === 'string' ? fa.try_this_tomorrow : '',
     thingToTry: typeof thing === 'string' ? thing : (thing && typeof thing.text === 'string' ? thing.text : ''),
     name: t.source === 'card_text' ? '' : (t.name || (t.row && t.row.name) || ''),
+    // R7d §4: what the card is about when it carries no indicator (the scorer's focus area; never a route of its own)
+    indicator: (card && card.indicator) || fa.indicator || null,
   };
 }
 
@@ -96,6 +100,13 @@ function signalOf(t, analysis, nextStep, card) {
  * The card as the engine reads it. The observe path (hook A2) passes the stored prioritized_action record, whose
  * indicator sits under `target` (uptake-loop buildRecord); a phase target has none and stays a card_text card.
  */
+/** The step's try sentence when the card has no action (the fallback's sentence, the same order). */
+function step0(nextStep, analysis) {
+  const step = (nextStep && nextStep.target) || {};
+  const fa = (analysis && analysis.focus_area) || {};
+  return step.try || fa.try_this_tomorrow || '';
+}
+
 function cardOf(card) {
   if (!card || typeof card !== 'object' || card.indicator) return card;
   const t = card.target;
@@ -122,7 +133,9 @@ async function compute(a, d, state) {
   const rawTranscript = typeof session.transcript_language === 'string' ? session.transcript_language.trim().toLowerCase() : '';
   const transcriptLanguage = ['en', 'ur'].includes(rawTranscript) ? rawTranscript : null;
   const language = hasPref ? clampLanguage(pref) : (transcriptLanguage || 'ur');
-  const [history, ladder] = await Promise.all([store.recentHistory(session.user_id), store.ladderProgress(session.user_id)]);
+  // R7d (⛔9, Q086): the teacher's class roster, in memory for this run only (a store without it → no roster check)
+  const [history, ladder, rosterWords] = await Promise.all([store.recentHistory(session.user_id), store.ladderProgress(session.user_id),
+    typeof store.rosterNames === 'function' ? store.rosterNames(session.user_id) : []]);
   const completed = new Set(ladder.completedModules || []);
   // The ladder a teacher can finish = the recommendable modules (review_3313 F6): a retired module never blocks "complete".
   const ladderModules = catalog.modules.filter((m) => m && m.recommendable !== false);
@@ -201,13 +214,18 @@ async function compute(a, d, state) {
     history,
   };
   const list = shortlist.build(catalog, t, ctx, signalOf(t, analysis, nextStep, card), lesson, stepTextOf(t, analysis, card));
+  // R7c §4: 51-s1 before 51-s3 for a why/how card on a lesson whose children answer in a word
+  const cardSentence = (card && card.action) || step0(nextStep, analysis);
+  list.candidates = shortlist.whyFirst(list.candidates, catalog, {
+    apply: silence.whyCard(cardSentence) && silence.closedAnswers(prompt.transcriptLines(session), { grade: lesson.grade }), history,
+  });
   base.repeat_module = list.repeatModule;
   base.level_match = list.levelMatch || null;
   base.route = list.route || null;
   // bd-8hhqhf r7: the lesson's subject terms + topic words are never a child's name, in the prompt or the stored text.
   const vocab = select.subjectVocab();
   const oovVocab = select.topicVocab(analysis && analysis.topic);
-  const people = { teacher: session.users && session.users.name, vocab, oovVocab };
+  const people = { teacher: session.users && session.users.name, vocab, oovVocab, roster: select.rosterSet(rosterWords) };
   // F1: the card's action (it opens with the teacher's name in prod) is stored redacted (V1.7.1 "no names"); the BM25
   // query itself ran on the raw words. Only the action: the redactor masks Title-Case indicator names too.
   const st = stepTextOf(t, analysis, card);
@@ -227,9 +245,13 @@ async function compute(a, d, state) {
   if (noTranscript || (!ex.length && !scorerQuote && !uptakeQuote)) {
     return finish({ ...base, status: 'none', none_reason: 'no_moments', candidates: list.candidates });
   }
+  // R7c (Q194): a transcript that is mostly a recogniser loop has no moment, whatever the scorer quoted from it
+  if (silence.degenerate(prompt.transcriptLines(session))) {
+    return finish({ ...base, status: 'none', none_reason: 'no_moments:degenerate', candidates: list.candidates });
+  }
   const step = (nextStep && nextStep.target) || {};
   const fa = (analysis && analysis.focus_area) || {};
-  const text = prompt.build({
+  const promptArgs = {
     target: t.none ? { ...t, indicator: t.storedIndicator } : t, // unknown 37-id: the prompt names the id the report scored
     // Names never reach the model: the card's action opens with the teacher's name in prod; the rationale is free text.
     rationale: prompt.redact(step.rationale || fa.rationale || '', people),
@@ -244,15 +266,25 @@ async function compute(a, d, state) {
     topRung: t.topRung || (t.scheme === 'fico_main_37' ? 4 : 2),
     reportLanguage: language, // vr-5: a report language ≠ the lesson's → paraphrase the moment, quote ≤ 6 words
     lessonLanguage: transcriptLanguage,
-  });
+  };
+  const text = prompt.build(promptArgs);
   const vopts = {
     stepIndicator: t.stepIndicator, indicators: t.indicators, source: t.source, catalog, textRoute: !!list.textReason,
     teacherName: people.teacher, scorerQuote: scorerQuote || uptakeQuote, // §3.5 [v1.3] d: the Quote: part, never evidence_summary
-    rawExcerpts: rawEx, vocab, oovVocab,
+    rawExcerpts: rawEx, vocab, oovVocab, roster: people.roster, topic: lesson.topic, grade: lesson.grade, // R7d §5
     // red7 074627: a scorer-path quote must be a transcript line; redacted once, only when that path is reached
     fullLines: (() => { let all = null; return () => (all = all || prompt.transcriptLines(session).map((l) => prompt.redact(l, people))); })(),
   };
-  const check = (r) => (r.truncated ? { ok: false, none: 'llm_truncated', confidence: undefined } : select.validate(r.pick, list, ex, vopts));
+  // R7e (COS 185329): "proven chapters" — set, a pick off the list is none/'allowlist' in either arm; null = today
+  const allow = videoRecoAllowlist(d.env);
+  const offList = (segId) => !!allow && !allow.has(String(segId));
+  let pickList = list; // R7c §7: the enacted-chapters second pass answers from its own list
+  let routineSeen = false; // red7 194127 (Q170): a rejected routine moment means the lesson gave none; no card fallback either
+  const check = (r, l = pickList, o = vopts) => {
+    const out = r.truncated ? { ok: false, none: 'llm_truncated', confidence: undefined } : select.validate(select.groundReasons(r.pick, catalog), l, ex, o); // R7d §6: the grounded text is what is checked
+    if (!out.ok && (out.none === 'validation:not_moment' || select.routineQuote(r.pick, lesson.topic))) routineSeen = true;
+    return out;
+  };
   let res = await select.pick({ prompt: text, deps: d, timeoutMs: a.llmTimeoutMs });
   let v = check(res);
   let attempts = 1;
@@ -270,31 +302,82 @@ async function compute(a, d, state) {
       v = check(again);
     } catch (e) { /* the first answer's none stands */ }
   }
+  // R7c §7 (panel: 7 of the 8 wrong silences were llm_none): the model returned null for a C1/D3/C3 card (or a card_text
+  // card asking why/how) on a lesson whose children answer in a word → ONE more call, the four enacted chapters the only
+  // shortlist. Its answer is validated like any other (the step gate does not apply: the list is the gate).
+  // R7d §2 (panel: validation:quote 0/4 right, placeholder 2/4, not_moment 2/3): a quote the lesson does not have, a
+  // placeholder or a routine line ends the same way only after the card fallback was tried, with the rule named.
+  const stepId = t.storedIndicator || t.stepIndicator || null;
+  const enactedFits = (none) => SECOND_MOMENT.has(none)
+    && (shortlist.ENACTED_STEPS.has(stepId) || (t.source === 'card_text' && silence.whyCard(cardSentence)))
+    && silence.closedAnswers(prompt.transcriptLines(session), { grade: lesson.grade });
+  const secondMoment = async () => {
+    const left2 = (a.timeoutMs || ENGINE_TIMEOUT_MS) - (Date.now() - state.t0);
+    if (!enactedFits(v.none) || left2 < RETRY_MIN_LEFT_MS) return false;
+    const four = shortlist.enacted(catalog, ctx, lesson);
+    // R7d (gold be2a6d28, G3 "no second ask"): on a move step only the enacted chapters tagged for the step; 51-s1 on a
+    // C3 card was a second ask. A card_text / label / hole step has no tag to keep (the list is the gate, as R7c ruled).
+    const why = shortlist.whyFirst(four.candidates, catalog, { apply: silence.whyCard(cardSentence), history });
+    const forStep = (MOVE_REASONS.has(list.textReason)
+      ? why.filter((c) => { const hit = catalog.segment(c.seg_id); return hit && tagMismatch(t, hit.segment) !== true; })
+      : why).filter((c) => !offList(c.seg_id));
+    const two = { ...list, repeatModule: four.repeatModule, candidates: forStep };
+    if (!two.candidates.length) return false;
+    attempts += 1;
+    firstNone = firstNone || v.none;
+    try {
+      const appendix = v.none === 'llm_none' ? '' : prompt.retryAppendix(v.none);
+      const again = await select.pick({
+        prompt: prompt.build({ ...promptArgs, candidates: two.candidates }) + appendix, deps: d, timeoutMs: Math.min(a.llmTimeoutMs || select.LLM_TIMEOUT_MS, left2 - 1000),
+      });
+      res = { ...again, usage: sumUsage(res.usage, again.usage) };
+      pickList = two;
+      v = check(again, two, { ...vopts, textRoute: true });
+    } catch (e) { /* the first answer's none stands */ }
+    return true;
+  };
+  if (v.none === 'llm_none') await secondMoment();
   // r-ab EVENTS_SCHEMA §3b (V1.7.2): the language facts the STOP_lang_null guardrail reads, on every row with a call.
   const withLlm = {
-    ...base, candidates: list.candidates, model: res.model, usage: res.usage, attempts, first_none_reason: firstNone,
+    ...base, candidates: pickList.candidates, repeat_module: !!pickList.repeatModule, model: res.model, usage: res.usage, attempts, first_none_reason: firstNone,
     report_language_null: !hasPref, lesson_language: hasPref ? transcriptLanguage : language,
   };
   // v1.3c (b): the retry failed too, on a validation rule, but the pick is a shortlisted chapter → the card's own sentence.
   let fallback = null;
-  if (!v.ok && attempts === 2 && res.pick && res.pick.seg_id) {
+  if (!v.ok && attempts >= 2 && !routineSeen && res.pick && res.pick.seg_id) {
     const seg = catalog.segment(String(res.pick.seg_id));
     fallback = seg && select.cardFallback({
-      none: v.none, segId: res.pick.seg_id, shortlist: list, sentence: (card && card.action) || step.try || fa.try_this_tomorrow || '',
-      startS: seg.segment.start_s, endS: seg.segment.end_s, teacherName: people.teacher, module: seg.module, subject, vocab,
+      none: v.none, segId: res.pick.seg_id, shortlist: pickList, sentence: (card && card.action) || step.try || fa.try_this_tomorrow || '',
+      startS: seg.segment.start_s, endS: seg.segment.end_s, teacherName: people.teacher, module: seg.module, subject, vocab, oovVocab,
       segment: seg.segment, // R7b: the clause the clip serves
+      language, // R7c: the reader's line is the one that must fit and the one that quotes (was never passed: always 'en')
+      roster: people.roster,
     });
   }
-  if (!v.ok && !fallback) return finish({ ...withLlm, status: 'none', none_reason: v.none, ...(v.confidence === undefined ? {} : { confidence: v.confidence }) });
+  // R7e: the card's sentence is never sent on an off-list chapter; the (on-list) second pass may still find a moment
+  const listRefused = !!fallback && offList(res.pick.seg_id);
+  if (listRefused) fallback = null;
+  if (!v.ok && !fallback && v.none !== 'llm_none' && await secondMoment()) {
+    Object.assign(withLlm, { candidates: pickList.candidates, repeat_module: !!pickList.repeatModule, model: res.model, usage: res.usage, attempts, first_none_reason: firstNone });
+  }
+  if (!v.ok && !fallback) {
+    if (listRefused) return finish({ ...withLlm, status: 'none', none_reason: 'allowlist' });
+    return finish({ ...withLlm, status: 'none', none_reason: v.none, ...(v.confidence === undefined ? {} : { confidence: v.confidence }) });
+  }
 
-  const p = res.pick;
+  const p = select.groundReasons(res.pick, catalog); // R7d §6: the clip half from the chapter, as validated
   const hit = catalog.segment(String(p.seg_id));
+  // R7e: before the arm sets status, so the video and the control arm store the same none for an off-list pick
+  if (offList(hit.segment.seg_id)) return finish({ ...withLlm, status: 'none', none_reason: 'allowlist' });
   // bd-8hhqhf: the model's own bidi controls are dropped before the quotes are isolated (red7 C3: a stray PDI).
-  const said = fallback || { reason_en: stripBidi(String(p.reason_en)).trim(), reason_ur: stripBidi(String(p.reason_ur)).trim() };
+  const asked = p.moment && p.moment.quote; // R7d §6: a what-question is never labelled recall
+  const said = fallback || {
+    reason_en: relabelRecall(stripBidi(String(p.reason_en)).trim(), 'en', asked), reason_ur: relabelRecall(stripBidi(String(p.reason_ur)).trim(), 'ur', asked),
+  };
   const c = Number(p.confidence);
   // v1.3c (a) ⛔9: the reasons and the quote are stored (and so sent) after the non-strict name redactor.
   const clean = (x) => select.postRedact(x, people.teacher, vocab);
-  const cand = list.candidates.find((x) => x.seg_id === hit.segment.seg_id) || {};
+  const cand = pickList.candidates.find((x) => x.seg_id === hit.segment.seg_id) || {};
   const chosen = t.source === 'card_text' || t.source === 'phase' ? (((hit.segment.fico || [])[0] || {}).indicator || null) : null;
   // bd-8hhqhf (scale-run 070730, COS 070808): `indicator` is in the analysis's own scheme. On fico_main_37 that is the
   // chapter's main-37 tag, never a v4 id under a 37 label; `catalog_indicator` keeps the v4 tag.
@@ -302,7 +385,7 @@ async function compute(a, d, state) {
   // red7 070727: the isolate goes around the span the validator accepted as the moment (inner quotes stay one run).
   const accepted = !fallback && p.moment && p.moment.quote ? clean(stripBidi(String(p.moment.quote))) : null;
   const mismatch = tagMismatch(t, hit.segment);
-  const route = cand.route || list.route || null;
+  const route = cand.route || pickList.route || null;
   return finish({
     ...withLlm,
     ...(t.source === 'card_text' ? { indicator: stored, catalog_indicator: chosen } : {}),
@@ -321,7 +404,7 @@ async function compute(a, d, state) {
     language_match: cand.language_match || null,
     chapter_language: hit.segment.language || hit.module.language || null,
     reason_en: composeReason(clean(said.reason_en), 'en', accepted), // bd-8hhqhf: no log-line prefix; the moment renders in place
-    reason_ur: composeReason(clean(said.reason_ur), 'ur', accepted),
+    reason_ur: composeReason(clean(said.reason_ur), 'ur', accepted, { subject }), // R7d: «عناصر» is factors only in maths
     moment_at: !fallback && p.moment && p.moment.at ? String(p.moment.at) : null,
     moment_quote: accepted ? select.storedQuote(accepted) : null, // red7 091238: no speaker label or stamp on /v
     moment_source: fallback ? 'card' : v.momentSource, // 'card' = the v1.3c fallback: no moment, the card's sentence

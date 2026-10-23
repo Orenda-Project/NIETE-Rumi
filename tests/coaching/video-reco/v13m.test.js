@@ -66,7 +66,7 @@ function deps(answers) {
 test('26435821: neither stored reason opens with "[a student]"; the rest of the line is kept (today: both open with it)', async () => {
   const row = await E.recommendForReport({ ...args(), deps: deps([A]) });
   expect(row.status).toBe('shown');
-  expect(row.reason_en.startsWith(`${FSI}پہلی پکچر میں کیا کر رہے ہیں؟${PDI} The clip shows`)).toBe(true);
+  expect(row.reason_en.startsWith(`${FSI}پہلی پکچر میں کیا کر رہے ہیں؟${PDI} This clip is about`)).toBe(true); // R7d §6
   expect(row.reason_ur.startsWith('پہلی پکچر میں کیا کر رہے ہیں؟ یہ کلپ')).toBe(true);
 });
 
@@ -88,20 +88,21 @@ test('a placeholder that is the subject, or that sits mid-reason, stays', () => 
 describe('red7 085115 finding 1: an unshowable placeholder in an LLM reason or quote is refused', () => {
   const S = () => require('../../../bot/shared/services/coaching/video-reco/select');
   const list = { candidates: [{ seg_id: '10-s1', indicator: 'C1' }] };
-  const ex = ['[00:30] Teacher: [TEACHER], class, open your books and read the first line', '[00:31] Student: جی۔'];
+  // R7c: a book call is no moment (not_moment), so the line is a question
+  const ex = ['[00:30] Teacher: [TEACHER], class, read the first line and tell me who the hero is', '[00:31] Student: جی۔'];
   const pick = (over) => ({
-    seg_id: '10-s1', moment: { at: '00:30', quote: 'class, open your books and read the first line' },
+    seg_id: '10-s1', moment: { at: '00:30', quote: 'class, read the first line and tell me who the hero is' },
     reason_en: 'The class waited for one instruction. The clip shows a teacher giving a clear first step.',
     reason_ur: 'کلاس ایک ہدایت کا انتظار کرتی رہی؛ اس کلپ میں استاد ایک واضح پہلا قدم دیتے ہیں۔', confidence: 0.6, ...over,
   });
 
   test('fa7fa5c9 shape: «[TEACHER], class, open your books…» in reason_en → validation:placeholder (today: ok)', () => {
-    const p = pick({ reason_en: "The teacher said '[TEACHER], class, open your books' and waited. The clip shows a teacher giving a clear first step." });
+    const p = pick({ reason_en: "The teacher said '[TEACHER], class, read the first line' and waited. The clip shows a teacher giving a clear first step." });
     expect(S().validate(p, list, ex, {}).none).toBe('validation:placeholder');
   });
 
   test('[TEACHER] in the quote → validation:placeholder', () => {
-    expect(S().validate(pick({ moment: { at: '00:30', quote: '[TEACHER], class, open your books and read' } }), list, ex, {}).none).toBe('validation:placeholder');
+    expect(S().validate(pick({ moment: { at: '00:30', quote: '[TEACHER], class, read the first line and tell me' } }), list, ex, {}).none).toBe('validation:placeholder');
   });
 
   test('a reason with only [a student] placeholders is not refused by this rule', () => {

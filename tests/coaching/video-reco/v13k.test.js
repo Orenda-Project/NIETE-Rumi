@@ -74,7 +74,7 @@ test('a transcript with no [mm:ss] lines: a scorer meta quote is refused (valida
 });
 
 test('a transcript with no [mm:ss] lines: a scorer quote that IS a line still passes as scorer (guard)', async () => {
-  const LINE = 'سب کتاب کھولیں اور پہلا صفحہ دیکھیں';
+  const LINE = 'بتائیں کہ کہانی میں لومڑی نے کیا کیا'; // R7c: a book call is no moment
   const text = `آج ہم کہانی پڑھیں گے۔\n${LINE}۔`;
   const d = deps([pick(LINE)]);
   const row = await E.recommendForReport({ ...args({ transcript_text: text }, LINE), deps: d });

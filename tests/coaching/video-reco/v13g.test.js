@@ -124,9 +124,10 @@ describe('engine: the prompt carries the subject word; the quote passes on the f
       completeJson,
     };
   }
-  const LINES = [{ start_ms: 1000, label: 'Teacher', text: 'آج ہمارا جو ٹاپک ہے نا، وہ ہے میڈین کے بارے میں، ٹھیک ہے؟' }, { start_ms: 2000, label: 'Student', text: 'جی۔' }];
+  // R7c: the real line announced the topic, which is not_moment now; the shape kept is the subject word in a question
+  const LINES = [{ start_ms: 1000, label: 'Teacher', text: 'ان پانچ نمبروں میں میڈین کون سا ہے، کون بتائے گا؟' }, { start_ms: 2000, label: 'Student', text: 'جی۔' }];
   const ANSWER = {
-    seg_id: '10-s1', moment: { at: '00:01', quote: 'آج ہمارا جو ٹاپک ہے نا، وہ ہے میڈین کے بارے میں' },
+    seg_id: '10-s1', moment: { at: '00:01', quote: 'ان پانچ نمبروں میں میڈین کون سا ہے' },
     reason_en: 'At 00:01 the topic was named but no goal was written. This clip shows a teacher writing the objective on the board.',
     reason_ur: 'سبق کا موضوع بتایا گیا مگر مقصد نہیں لکھا گیا؛ اس کلپ میں استاد بورڈ پر مقصد لکھتے ہیں۔', confidence: 0.7,
   };
@@ -134,7 +135,7 @@ describe('engine: the prompt carries the subject word; the quote passes on the f
   test('d2a235f4 shape: the excerpt in the prompt says میڈین, and the verbatim quote is shown on attempt 1', async () => {
     const d = deps([ANSWER]);
     const row = await E.recommendForReport({ ...args(LINES), deps: d });
-    expect(d.completeJson.mock.calls[0][0]).toContain('وہ ہے میڈین کے بارے میں');
+    expect(d.completeJson.mock.calls[0][0]).toContain('ان پانچ نمبروں میں میڈین کون سا ہے');
     expect(row).toMatchObject({ status: 'shown', moment_source: 'transcript', attempts: 1, moment_quote: ANSWER.moment.quote });
   });
 });

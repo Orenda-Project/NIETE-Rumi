@@ -20,12 +20,12 @@ const base = {
 };
 // sha256 of P.build(base) with no cross-language rule. Was the vr-4 text (cbcd4c39e4, 846c8f5e…); re-taken at vr-6
 // (bd-8hhqhf r7: rule 2 drops the clock time) and at vr-7 (R7b: rule 2's clip words, rule 3's Urdu plural), which change
-// the base text, not the cross-language rule tested here.
-const VR4_SHA = 'cb4916019c55a692d20f8aad05f72be0ff33bd8a785d31e39270e20d8e6bea14';
+// the base text, not the cross-language rule tested here; and at vr-9 (R7c: the clip's kind, explain-not-show, recall).
+const VR4_SHA = '959f389cc7acc3cb69cf5f700ca7c18dc60065cc1c3200908d199318183b810c';
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 
 describe('prompt vr-5: the cross-language paraphrase rule', () => {
-  test('PROMPT_VERSION is vr-8', () => expect(P.PROMPT_VERSION).toBe('vr-8'));
+  test('PROMPT_VERSION is vr-9', () => expect(P.PROMPT_VERSION).toBe('vr-9'));
 
   test('en report + ur lesson: reason_en paraphrases the moment in English and quotes at most 6 words; moment.quote stays verbatim', () => {
     const text = P.build({ ...base, reportLanguage: 'en', lessonLanguage: 'ur' });
@@ -111,9 +111,9 @@ describe('engine: the prompt gets the report and lesson languages', () => {
     const d = deps();
     const row = await E.recommendForReport({ ...args('en'), deps: d });
     expect(d.completeJson.mock.calls[0][0]).toMatch(/in reason_en, paraphrase the moment in English/);
-    expect(row).toMatchObject({ status: 'shown', seg_id: '10-s1', prompt_version: 'vr-8', moment_source: 'transcript' });
+    expect(row).toMatchObject({ status: 'shown', seg_id: '10-s1', prompt_version: 'vr-9', moment_source: 'transcript' });
     expect(row.moment_quote).toBe(PARAPHRASED.moment.quote);
-    expect(row.reason_en).toBe(PARAPHRASED.reason_en.replace('"yes or no"', '"\u2068yes or no\u2069"')); // bd-8hhqhf: the quote is isolated
+    expect(row.reason_en).toBe(`At 00:30 the teacher asked the class whether the shape was a triangle, "\u2068yes or no\u2069". This clip is about: Ask why and how.`); // bd-8hhqhf: the quote is isolated; R7d §6: the clip half is the chapter's title
   });
 
   test('preferred ur + Urdu lesson: no rule', async () => {
