@@ -4,6 +4,7 @@
  * §2, §4). Pure. select.js validates and builds the card fallback with them; copy.js composes with the digit rule.
  */
 const { redactNames } = require('./redact-names');
+const LEX = require('./name-lexicon');
 
 // ── the card's vocative (P165 ⛔9; red7 145611 V1–V10, N1–N4) ───────────────────────────────────────────────────────────
 // A prod card opens with the teacher's name, often in Urdu script while users.name is Latin, so a name match cannot find
@@ -127,18 +128,31 @@ function unshownClaim(reasonEn, segment) {
 // The fallback quotes the report's sentence, which can name a child mid-sentence ("when a child like X answers", "before
 // calling on X Y or another quiet voice", «کوئی بچہ X کی طرح»). The non-strict output redactor knows only its lexicon, and
 // the strict one masks a subject word in 6 of 10 Urdu cards, so a name is found by its SLOT: a placeholder token; a
-// capitalised Latin word the strict redactor masks that does not open a sentence or a quote; an Urdu word the strict
-// redactor masks right after a kinship, praise or example cue, or right before «کی طرح / جیسا». A comparison that only
+// capitalised Latin word the strict redactor masks anywhere but the sentence's first word, unless an Urdu word stands
+// before it (an English term in an Urdu sentence, «… Think-Pair-Share کرائیں»); the capitalised word after a name or a
+// placeholder; an Urdu word after a kinship, praise or example cue, or before «کی طرح / جیسا», that is not an everyday
+// or lesson word (red7 H1/H2: «Ask X why…», «بیٹا X سے پوچھیں» with a name no lexicon knows). A comparison that only
 // names the child is dropped («like X», «X کی طرح», "X or another" → "another"); any other name refuses the fallback.
 const NAME_MARK = '\u0000';
 const CHILD_TOKEN = /\[(?:CHILD|a student|STUDENT)\]|‹name›/g;
-const CUE_BEFORE = new Set('بیٹا بیٹے بیٹی شاباش مثلاً مثلا جیسے بچی بچہ طالبہ'.split(' '));
+const CUE_BEFORE = new Set('بیٹا بیٹے بیٹی شاباش مثلاً مثلا جیسے'.split(' '));
+// A child noun is a cue too («بچی X نے …», red7 A25), unless the word after it is a verb: «جو بچہ اٹک جائے» (N1)
+const CHILD_CUE = new Set('بچہ بچی بچے طالبہ'.split(' '));
+const LIGHT_VERB = /^\s*(?:جائے|جاتا|جاتی|جاتے|جائیں|گیا|گئی|گئے|ہو|ہے|ہیں|ہوں|رہا|رہی|رہے|سکے|سکیں|کرے|کریں|دے|دیں|لے|لیں|پائے)(?=\s|$|[،,.۔؟])/u;
+const normUr = (t) => t.replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/[ةه]/g, 'ہ').replace(/[\u064B-\u0670\u0640\u200C\u200D]/g, '');
+const UR_KNOWN = new Set([...LEX.urCommon, ...LEX.vocab]); // everyday and lesson words (name-lexicon.js)
+// …but a lexicon name stays a name in a cue slot, even one that is also a word («تبسم», red7 A23/A29)
+const UR_NAME = new Set([...LEX.urStrong, ...LEX.urAmbig]);
 const CUE_AFTER = /^\s*(?:کی طرح|کے جیسا|کے جیسی|کے جیسے|جیسا|جیسی|جیسے)(?=\s|$|[،,.۔])/u;
 const OPENS = /(?:^|[.!?;:—–(\[«"“‘'۔؟]|\s[-–—])\s*$/u;
-const LATIN_CAP = /^[A-Z][a-z’']+$/;
+const LATIN_CAP = /^[A-Z][a-z]+$/;
 // Title-case words a card uses mid-sentence that are not people (2,990 r7 cards: 228 «the Taleemabad lesson plan», 25
 // «activate Prior Knowledge»)
-const NOT_A_NAME = new Set('taleemabad prior rumi niete bloom bloom’s bloom\'s'.split(' '));
+const NOT_A_NAME = new Set(('taleemabad prior rumi niete bloom checker reporter speaker listener recorder writer explainer scribe '
+  + 'reader timekeeper leader manager spotter matcher underliner encourager questioner summariser summarizer').split(' '));
+// A Title-case word inside a Title-case term is the term («Subject-Specific Pedagogy», «Use of Technology», «Student-to-Student
+// Interaction»: 2,990 r7 cards), unless the word before it opens the sentence («Ask X why …»).
+const IN_TERM = /([A-Z][a-z]+)(?:-|\s+(?:of|to|and|&|for|the|in)\s+|\s+)$/;
 const N = `${NAME_MARK}N${NAME_MARK}`;
 const NAMES = `${N}(?:['’]s)?(?:\\s+(?:and|or|اور)\\s+${N}(?:['’]s)?)*(?:\\s+${N})*`;
 const DROPS = [
@@ -159,19 +173,30 @@ function childFreeCard(sentence, { teacher = null, vocab = [], oovVocab = [], wh
   const hit = (k) => { if (why) why.push(k); return N; };
   let marked = s.replace(CHILD_TOKEN, () => hit('token'));
   let nameEnd = -1; // a masked word right after a name is its surname («X Y or another quiet voice», Q174)
-  marked = marked.replace(/[A-Za-z’']+|[؀-ۿ‌]+/g, (w, at, all) => {
+  const own = new Set([...vocab, ...oovVocab].map((v) => normUr(String(v))));
+  marked = marked.replace(/[A-Za-z]+|[؀-ۿ‌]+/g, (w, at, all) => { // «X's» is X, as the redactor reads it
     if (NOT_A_NAME.has(w.toLowerCase())) return w;
+    const before = all.slice(0, at);
+    const latin = LATIN_CAP.test(w);
     // after a placeholder, a capitalised word is the rest of the name even when it is also a word («[a student] Rani», Q174)
-    const afterToken = LATIN_CAP.test(w) && new RegExp(`${N}\\s+$`).test(all.slice(0, at));
-    if (!masked.has(w) && !afterToken) return w;
-    if (afterToken || (nameEnd >= 0 && /^\s+$/.test(all.slice(nameEnd, at)))) { nameEnd = at + w.length; return hit('surname'); }
-    // a Latin name sits in a Latin clause: the word before it is a lower-case Latin word (an English term inside an Urdu
-    // sentence, «Think-Pair-Share», is not a name)
-    if (LATIN_CAP.test(w)) return !OPENS.test(all.slice(0, at)) && /(?:^|\s)[a-z][a-z’']*[,]?\s+$/.test(all.slice(Math.max(0, at - 30), at)) ? (nameEnd = at + w.length, hit('latin')) : w;
+    const afterName = latin && (new RegExp(`${N}\\s+$`).test(before) || (nameEnd >= 0 && /^\s+$/.test(all.slice(nameEnd, at))));
+    if (afterName || (masked.has(w) && nameEnd >= 0 && /^\s+$/.test(all.slice(nameEnd, at)))) { nameEnd = at + w.length; return hit('surname'); }
+    if (latin) {
+      const first = !/[\p{L}\p{N}]/u.test(before.replace(new RegExp(N, 'g'), ''));
+      const prevWord = (before.match(/([\p{L}]+)[^\p{L}]*$/u) || [])[1] || '';
+      const term = IN_TERM.exec(before);
+      const inTerm = !!term && /[\p{L}]/u.test(before.slice(0, term.index)) && !new RegExp(`${N}$`).test(before.slice(0, term.index + term[1].length));
+      if (!masked.has(w) || first || inTerm || /[؀-ۿ]/.test(prevWord)) return w;
+      nameEnd = at + w.length;
+      return hit(`latin${why && why.words ? `:${w}` : ''}`);
+    }
     if (!/[؀-ۿ]/.test(w)) return w;
-    const prev = (all.slice(0, at).match(/([؀-ۿ]+)[\s،,]*$/u) || [])[1];
-    if (prev && CUE_BEFORE.has(prev)) { nameEnd = at + w.length; return hit(`cue:${prev}`); }
-    return CUE_AFTER.test(all.slice(at + w.length)) ? hit('cue:after') : w;
+    const n = normUr(w);
+    const unknown = masked.has(w) || UR_NAME.has(n) || (!UR_KNOWN.has(n) && !own.has(n));
+    const prev = (before.match(/([؀-ۿ]+)[\s،,]*$/u) || [])[1];
+    const childCue = prev && CHILD_CUE.has(prev) && !LIGHT_VERB.test(all.slice(at + w.length));
+    if (unknown && prev && (CUE_BEFORE.has(prev) || childCue)) { nameEnd = at + w.length; return hit(`cue:${prev}`); }
+    return unknown && CUE_AFTER.test(all.slice(at + w.length)) ? hit('cue:after') : w;
   });
   if (!marked.includes(NAME_MARK)) return s;
   for (const [rx, to] of DROPS) marked = marked.replace(rx, to);

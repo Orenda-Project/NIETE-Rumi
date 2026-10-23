@@ -297,7 +297,8 @@ async function compute(a, d, state) {
     && silence.closedAnswers(prompt.transcriptLines(session));
   const left2 = (a.timeoutMs || ENGINE_TIMEOUT_MS) - (Date.now() - state.t0);
   if (enactedFits && left2 >= RETRY_MIN_LEFT_MS) {
-    const two = { ...list, candidates: shortlist.whyFirst(shortlist.enacted(catalog, ctx, lesson), catalog, { apply: silence.whyCard(cardSentence), history }) };
+    const four = shortlist.enacted(catalog, ctx, lesson);
+    const two = { ...list, repeatModule: four.repeatModule, candidates: shortlist.whyFirst(four.candidates, catalog, { apply: silence.whyCard(cardSentence), history }) };
     if (two.candidates.length) {
       attempts += 1;
       firstNone = firstNone || 'llm_none';
@@ -313,7 +314,7 @@ async function compute(a, d, state) {
   }
   // r-ab EVENTS_SCHEMA §3b (V1.7.2): the language facts the STOP_lang_null guardrail reads, on every row with a call.
   const withLlm = {
-    ...base, candidates: pickList.candidates, model: res.model, usage: res.usage, attempts, first_none_reason: firstNone,
+    ...base, candidates: pickList.candidates, repeat_module: !!pickList.repeatModule, model: res.model, usage: res.usage, attempts, first_none_reason: firstNone,
     report_language_null: !hasPref, lesson_language: hasPref ? transcriptLanguage : language,
   };
   // v1.3c (b): the retry failed too, on a validation rule, but the pick is a shortlisted chapter → the card's own sentence.

@@ -273,7 +273,7 @@ describe('6 · Urdu copy: the word table, the card in the other language, one di
     ['پورے کلاس سے پوچھیں', 'پوری کلاس سے پوچھیں'],
     ['اگلے کلاس میں', 'اگلی کلاس میں'],
     ['بچے جوڑ میں کام کریں', 'بچے جوڑوں میں کام کریں'],
-    ['آپ کیوں سوچتے ہیں کہ پانی ضروری ہے؟', 'آپ کے خیال میں کیوں پانی ضروری ہے؟'],
+    ['آپ کیوں سوچتے ہیں کہ پانی ضروری ہے؟', 'آپ کے خیال میں پانی ضروری ہے، ایسا کیوں؟'],
     ['یہ یاداشت کا سوال نہیں', 'یہ یادداشت کا سوال نہیں'],
     ['جگہ قدر سمجھائیں', 'مقامی قدر سمجھائیں'],
   ])('«%s» → «%s»', (from, to) => expect(composeReason(from, 'ur', null)).toBe(to));
@@ -351,5 +351,87 @@ describe('7 · llm_none: one more call with the four enacted chapters for a C1/D
     const lines = [...CLOSED, { start_ms: 48000, label: 'Teacher', text: 'Who has finished? Those who are done take the extra question' }];
     await run(args({ indicator: 'B6', lines }), d);
     expect(d.completeJson).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('red7 HOLD 174103 on 6c7c480f8b (H1–H6) and notes N2/N4/N5', () => {
+  const cat = () => C.fromData(DATA);
+  const fb = (sentence, language = 'en') => {
+    const hit = cat().segment('10-s1');
+    return S.cardFallback({
+      none: 'validation:roman', segId: '10-s1', shortlist: { candidates: [{ seg_id: '10-s1' }] }, startS: 30, endS: 120, language,
+      module: hit.module, subject: null, segment: hit.segment, sentence, teacherName: 'Saima Khan',
+    });
+  };
+
+  test.each([
+    ['A20 after the capitalised opener', 'Ask Pervaize why the ice floats before telling the class.'],
+    ['A14 glued to ’s', "Ask Zunaira's group why the sum changed."],
+    ['A22 after a closing quote', 'Say "why?" Pervaize should answer first, then the class.'],
+    ['A21 after a digit', 'Give 2 Pervaize-style why questions to the class.'],
+  ])('H1 %s: a Latin child name is never shown', (_, sentence) => {
+    const out = fb(sentence);
+    expect(out === null || !/Pervaize|Zunaira/.test(`${out.reason_en} ${out.reason_ur}`)).toBe(true);
+  });
+
+  test.each([
+    ['A29 after بیٹا', 'کل بیٹا تبسم سے پوچھیں کہ یہ کیوں ہوا'],
+    ['A23 before کی طرح', 'کوئی بچہ تبسم کی طرح ایک لفظ میں جواب دے تو کیوں پوچھیں'],
+  ])('H2 %s: an Urdu name that is also a word («تبسم») is never shown', (_, sentence) => {
+    const out = fb(sentence, 'ur');
+    expect(out === null || !/تبسم/.test(`${out.reason_en} ${out.reason_ur}`)).toBe(true);
+  });
+
+  test('controls: Title-case terms and an Urdu verb after «بچہ» keep the fallback (N1)', () => {
+    expect(fb('Next class, use Student-to-Student Interaction and the Use of Technology: ask why after each answer.')).not.toBeNull();
+    expect(fb('اگلی کلاس میں جو بچہ اٹک جائے اس کی مدد کریں اور کیوں پوچھیں۔', 'ur')).not.toBeNull();
+  });
+
+  const silence = () => require('../../../bot/shared/services/coaching/video-reco/silence');
+  const stamp = (texts) => texts.map((t, i) => `[00:${String(i).padStart(2, '0')}] Teacher: ${t}`);
+
+  test('H3: a looped line of 9 or 11 words is a loop', () => {
+    expect(silence().degenerate(stamp([...Array(10).fill('how can we save water at home and at school'), '…', '[inaudible]', '…', '…']))).toBe(true);
+    expect(silence().degenerate(stamp(Array(10).fill('we will now read the lesson about saving water in our homes')))).toBe(true);
+  });
+
+  test('H4: a transcript of placeholder lines under 20 words has no moments (engine: no LLM call)', async () => {
+    expect(silence().degenerate(stamp(['…', '[inaudible]', '…', '—', '[inaudible]']))).toBe(true);
+    const lines = ['…', '[inaudible]', '…', '—', '[inaudible]'].map((text, i) => ({ start_ms: 1000 * (i + 1), label: 'Teacher', text }));
+    const d = deps([answer(), answer()]);
+    const row = await run(args({ lines }), d);
+    expect(row).toMatchObject({ status: 'none', none_reason: 'no_moments:degenerate' });
+    expect(d.completeJson).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['C6', 'page 46, question 3: why does the sun rise in the east?'],
+    ['C9', 'صفحہ ۱۲ کھولیں، بتاؤ تصویر میں کیا ہے؟'],
+  ])('H5 %s: a page call that asks a question in the same sentence is a moment', (_, q) => {
+    expect(silence().routineLine(q)).toBe(false);
+  });
+
+  test('H6: the second pass keeps the module no-repeat (module 51 already sent → 51-s1 is not offered first)', async () => {
+    const NONE = { seg_id: null, none_reason: 'nothing fits', confidence: 0.2 };
+    const d = deps([NONE, answer({ seg_id: '95-s3' })]);
+    d.store.recentHistory = jest.fn().mockResolvedValue({ segments: ['51-s2'], modules: [51] });
+    await run(args({ lang: 'en' }), d);
+    expect(d.completeJson).toHaveBeenCalledTimes(2);
+    const second = [...d.completeJson.mock.calls[1][0].matchAll(/^(\d+-s\d+) · /gm)].map((m) => m[1]);
+    expect(second.some((id) => id.startsWith('51-'))).toBe(false);
+  });
+
+  test('N2: 51-s1 already sent → 51-s3 is not offered either', () => {
+    const sl = require('../../../bot/shared/services/coaching/video-reco/shortlist');
+    const out = sl.whyFirst([{ seg_id: '51-s3' }, { seg_id: '10-s1' }], cat(), { apply: true, history: { segments: ['51-s1'], modules: [] } });
+    expect(out.map((c) => c.seg_id)).toEqual(['10-s1']);
+  });
+
+  test('N4: a quoted transcript span keeps its own words and digits; N5: «کیوں» keeps the clause order', () => {
+    const { composeReason } = require('../../../bot/shared/services/coaching/video-reco/copy');
+    const out = composeReason('استاد نے کہا "طبقے میں ۱۲ بچے ہیں" اور پورے کلاس سے پوچھا؛ یہ 52 سیکنڈ کا کلپ ہے۔', 'ur', null);
+    expect(out).toContain('طبقے میں ۱۲ بچے ہیں');
+    expect(out).toContain('پوری کلاس');
+    expect(composeReason('آپ کیوں سوچتے ہیں کہ پانی ضروری ہے؟', 'ur', null)).toBe('آپ کے خیال میں پانی ضروری ہے، ایسا کیوں؟');
   });
 });

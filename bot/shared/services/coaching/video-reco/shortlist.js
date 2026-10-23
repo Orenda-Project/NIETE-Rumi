@@ -394,7 +394,7 @@ function build(catalog, target, ctx, signal, lesson, step) {
 // already exists: 11 picks, 0 right. 51-s3 gives its place to 51-s1, or goes when 51-s1 is already listed.
 const WHY_FIRST = Object.freeze({ before: '51-s1', instead: '51-s3' });
 
-/** The candidates with 51-s3 replaced by 51-s1 (or dropped) when `apply`; 51-s1 only when the catalogue can show it. */
+/** The candidates with 51-s3 replaced by 51-s1 when `apply`, or dropped (51-s1 listed already, sent already, or not shown). */
 function whyFirst(candidates, catalog, { apply = false, history = null } = {}) {
   const list = candidates || [];
   const at = list.findIndex((c) => c.seg_id === WHY_FIRST.instead);
@@ -402,7 +402,8 @@ function whyFirst(candidates, catalog, { apply = false, history = null } = {}) {
   if (list.some((c) => c.seg_id === WHY_FIRST.before)) return list.filter((_, i) => i !== at);
   const hit = catalog && catalog.segment(WHY_FIRST.before);
   const seen = history && (history.segments || []).includes(WHY_FIRST.before);
-  if (!hit || seen || !recommendable(hit.module, hit.segment)) return list;
+  // red7 N2: 51-s1 cannot be offered (already sent, or not recommendable) → 51-s3 still goes; it is the wrong move here
+  if (!hit || seen || !recommendable(hit.module, hit.segment)) return list.filter((_, i) => i !== at);
   const out = list.slice();
   out[at] = { ...list[at], seg_id: WHY_FIRST.before, level_id: hit.module.level_id, indicator: ((hit.segment.fico || [])[0] || {}).indicator || list[at].indicator };
   return out;
@@ -413,16 +414,26 @@ function whyFirst(candidates, catalog, { apply = false, history = null } = {}) {
 const ENACTED = Object.freeze(['50-s2', '51-s1', '51-s3', '95-s3']);
 const ENACTED_STEPS = new Set(['C1', 'D3', 'C3']);
 
-/** The enacted chapters this lesson and teacher may get, with the same gates as the tag route (subject, grade, language, history). */
+/**
+ * The enacted chapters this lesson and teacher may get, with the tag route's gates (subject, grade, language, history):
+ * a chapter already sent never, a module already sent only when nothing else is left (then repeatModule, red7 H6).
+ * → {candidates, repeatModule}
+ */
 function enacted(catalog, ctx, lesson) {
   const { preferred, languages } = languagesOf(ctx);
   const lv = levelOf(ctx);
-  const seen = new Set((((ctx && ctx.history) || {}).segments || []).map(String));
+  const h = (ctx && ctx.history) || {};
+  const seen = new Set((h.segments || []).map(String));
+  const seenMods = new Set((h.modules || []).map(Number));
   const ok = new Map(eligible(catalog, lesson).map((x) => [x.seg.seg_id, x]));
-  return ENACTED.map((id) => ok.get(id)).filter((x) => x && languages.has(x.lang) && !seen.has(x.seg.seg_id)).map((x) => ({
+  const fresh = ENACTED.map((id) => ok.get(id)).filter((x) => x && languages.has(x.lang) && !seen.has(x.seg.seg_id));
+  let pool = fresh.filter((x) => !seenMods.has(Number(x.module.module_id)));
+  const repeatModule = !pool.length && fresh.length > 0 && seenMods.size > 0;
+  if (repeatModule) pool = fresh;
+  return { repeatModule, candidates: pool.map((x) => ({
     seg_id: x.seg.seg_id, score: 0, indicator: ((x.seg.fico || [])[0] || {}).indicator || null, language_match: languageMatch(x.lang, preferred),
     level_id: x.level, level_match: levelMatchOf(lv, x.level), route: 'enacted',
-  }));
+  })) };
 }
 
 module.exports = { enacted, ENACTED, ENACTED_STEPS, whyFirst, WHY_FIRST, build, textRoute, recommendable, fallbackSubjectOk, stepQuery, contentWords, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, STUB_FLOOR, LABEL_37 };
