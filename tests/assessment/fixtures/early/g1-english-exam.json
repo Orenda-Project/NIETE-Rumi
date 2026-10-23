@@ -1,0 +1,2751 @@
+{
+ "unseen": {
+  "objective": {
+   "Is Am Are": [
+    {
+     "slot": "g1.english.C.Q15",
+     "lines": 1,
+     "marks": 1,
+     "answer": "am",
+     "blooms": "Remember",
+     "options": [
+      "is",
+      "am",
+      "are",
+      "be"
+     ],
+     "question": "I ___ a student.",
+     "main_question": "Choose the correct word to fill in the blank"
+    },
+    {
+     "slot": "g1.english.C.Q15",
+     "lines": 1,
+     "marks": 1,
+     "answer": "is",
+     "blooms": "Understand",
+     "options": [
+      "are",
+      "am",
+      "is",
+      "be"
+     ],
+     "question": "Pinky ___ my friend.",
+     "main_question": "Choose the correct word to fill in the blank"
+    },
+    {
+     "slot": "g1.english.C.Q15",
+     "lines": 1,
+     "marks": 1,
+     "answer": "are",
+     "blooms": "Understand",
+     "options": [
+      "is",
+      "are",
+      "am",
+      "be"
+     ],
+     "question": "Jojo and Pinky ___ at the park.",
+     "main_question": "Choose the correct word to fill in the blank"
+    },
+    {
+     "slot": "g1.english.C.Q15",
+     "lines": 1,
+     "marks": 1,
+     "answer": "is",
+     "blooms": "Understand",
+     "options": [
+      "am",
+      "are",
+      "be",
+      "is"
+     ],
+     "question": "The cake ___ yummy.",
+     "main_question": "Choose the correct word to fill in the blank"
+    },
+    {
+     "slot": "g1.english.C.Q15",
+     "lines": 1,
+     "marks": 1,
+     "answer": "are",
+     "blooms": "Understand",
+     "options": [
+      "are",
+      "is",
+      "am",
+      "be"
+     ],
+     "question": "We ___ in grade 1.",
+     "main_question": "Choose the correct word to fill in the blank"
+    }
+   ],
+   "Match Capital and Small Letters": [
+    {
+     "slot": "g1.english.B.Q10",
+     "lines": 1,
+     "marks": 1,
+     "answer": "b) b",
+     "blooms": "Remember",
+     "options": [
+      "a) d",
+      "b) b",
+      "c) p",
+      "d) q"
+     ],
+     "question": "Which small letter matches the capital letter B?",
+     "main_question": "Choose the small letter that matches the capital letter"
+    },
+    {
+     "slot": "g1.english.B.Q10",
+     "lines": 1,
+     "marks": 1,
+     "answer": "c) m",
+     "blooms": "Remember",
+     "options": [
+      "a) n",
+      "b) w",
+      "c) m",
+      "d) h"
+     ],
+     "question": "Which small letter matches the capital letter M?",
+     "main_question": "Choose the small letter that matches the capital letter"
+    },
+    {
+     "slot": "g1.english.B.Q10",
+     "lines": 1,
+     "marks": 1,
+     "answer": "a) r",
+     "blooms": "Remember",
+     "options": [
+      "a) r",
+      "b) n",
+      "c) k",
+      "d) t"
+     ],
+     "question": "Which small letter matches the capital letter R?",
+     "main_question": "Choose the small letter that matches the capital letter"
+    },
+    {
+     "slot": "g1.english.B.Q10",
+     "lines": 1,
+     "marks": 1,
+     "answer": "d) g",
+     "blooms": "Remember",
+     "options": [
+      "a) q",
+      "b) c",
+      "c) j",
+      "d) g"
+     ],
+     "question": "Which small letter matches the capital letter G?",
+     "main_question": "Choose the small letter that matches the capital letter"
+    },
+    {
+     "slot": "g1.english.B.Q10",
+     "lines": 1,
+     "marks": 1,
+     "answer": "d) t",
+     "blooms": "Remember",
+     "options": [
+      "a) f",
+      "b) l",
+      "c) i",
+      "d) t"
+     ],
+     "question": "Which small letter matches the capital letter T?",
+     "main_question": "Choose the small letter that matches the capital letter"
+    }
+   ]
+  },
+  "subjective": {
+   "This Is A": [
+    {
+     "slot": "g1.english.C.Q12",
+     "lines": 1,
+     "marks": 2,
+     "answer": "This is a cat.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "This is a cat."
+      ],
+      "points": [
+       {
+        "kind": "K",
+        "text": "Writes the correct word for the object",
+        "marks": 1
+       },
+       {
+        "kind": "K",
+        "text": "Writes the sentence with a capital letter and a full stop",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Missing the capital letter or full stop"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "cat"
+     },
+     "question": "Write the name of the picture and make a sentence.",
+     "main_question": "Look at the picture and write the word. Then write a sentence starting with 'This is a'"
+    },
+    {
+     "slot": "g1.english.C.Q12",
+     "lines": 1,
+     "marks": 2,
+     "answer": "This is a kite.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "This is a kite."
+      ],
+      "points": [
+       {
+        "kind": "K",
+        "text": "Writes the correct word for the object",
+        "marks": 1
+       },
+       {
+        "kind": "K",
+        "text": "Writes the sentence with a capital letter and a full stop",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Missing the capital letter or full stop"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "kite"
+     },
+     "question": "Write the name of the picture and make a sentence.",
+     "main_question": "Look at the picture and write the word. Then write a sentence starting with 'This is a'"
+    },
+    {
+     "slot": "g1.english.C.Q12",
+     "lines": 1,
+     "marks": 2,
+     "answer": "This is a tree.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "This is a tree."
+      ],
+      "points": [
+       {
+        "kind": "K",
+        "text": "Writes the correct word for the object",
+        "marks": 1
+       },
+       {
+        "kind": "K",
+        "text": "Writes the sentence with a capital letter and a full stop",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Missing the capital letter or full stop"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "tree"
+     },
+     "question": "Write the name of the picture and make a sentence.",
+     "main_question": "Look at the picture and write the word. Then write a sentence starting with 'This is a'"
+    },
+    {
+     "slot": "g1.english.C.Q12",
+     "lines": 1,
+     "marks": 2,
+     "answer": "This is a bus.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "This is a bus."
+      ],
+      "points": [
+       {
+        "kind": "K",
+        "text": "Writes the correct word for the object",
+        "marks": 1
+       },
+       {
+        "kind": "K",
+        "text": "Writes the sentence with a capital letter and a full stop",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Missing the capital letter or full stop"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "bus"
+     },
+     "question": "Write the name of the picture and make a sentence.",
+     "main_question": "Look at the picture and write the word. Then write a sentence starting with 'This is a'"
+    },
+    {
+     "slot": "g1.english.C.Q12",
+     "lines": 1,
+     "marks": 2,
+     "answer": "This is a trophy.",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "This is a trophy."
+      ],
+      "points": [
+       {
+        "kind": "K",
+        "text": "Writes the correct word for the object",
+        "marks": 1
+       },
+       {
+        "kind": "K",
+        "text": "Writes the sentence with a capital letter and a full stop",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Missing the capital letter or full stop"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "trophy"
+     },
+     "question": "Write the name of the picture and make a sentence.",
+     "main_question": "Look at the picture and write the word. Then write a sentence starting with 'This is a'"
+    }
+   ],
+   "Action Words": [
+    {
+     "slot": "g1.english.B.Q8",
+     "lines": 1,
+     "marks": 1,
+     "answer": "run",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "running",
+       "runs"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Correct action word",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing a naming word like 'field'"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "scene",
+      "describe": "A child running fast across a field"
+     },
+     "question": "What is the child doing?",
+     "main_question": "Write the action word for each picture"
+    },
+    {
+     "slot": "g1.english.B.Q8",
+     "lines": 1,
+     "marks": 1,
+     "answer": "jump",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "jumping",
+       "jumps"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Correct action word",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing 'hop' or a different action"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "scene",
+      "describe": "A child jumping up with both feet off the ground"
+     },
+     "question": "What is the child doing?",
+     "main_question": "Write the action word for each picture"
+    },
+    {
+     "slot": "g1.english.B.Q8",
+     "lines": 1,
+     "marks": 1,
+     "answer": "read",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "reading",
+       "reads"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Correct action word",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing 'book' instead of the action"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "scene",
+      "describe": "A child sitting and reading a book"
+     },
+     "question": "What is the child doing?",
+     "main_question": "Write the action word for each picture"
+    },
+    {
+     "slot": "g1.english.B.Q8",
+     "lines": 1,
+     "marks": 1,
+     "answer": "sleep",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "sleeping",
+       "sleeps"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Correct action word",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing 'bed' instead of the action"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "scene",
+      "describe": "A child sleeping in a bed with eyes closed"
+     },
+     "question": "What is the child doing?",
+     "main_question": "Write the action word for each picture"
+    }
+   ],
+   "Rhyming Pairs": [
+    {
+     "slot": "g1.english.B.Q6",
+     "lines": 1,
+     "marks": 1,
+     "answer": "bat",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "mat",
+       "rat",
+       "hat",
+       "fat",
+       "pat"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "A real word that rhymes with cat",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing a word that does not end with the -at sound"
+     },
+     "question": "cat",
+     "main_question": "Write a word that rhymes with the given word"
+    },
+    {
+     "slot": "g1.english.B.Q6",
+     "lines": 1,
+     "marks": 1,
+     "answer": "fun",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "bun",
+       "sun",
+       "gun",
+       "nun"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "A real word that rhymes with run",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing a word that does not end with the -un sound"
+     },
+     "question": "run",
+     "main_question": "Write a word that rhymes with the given word"
+    },
+    {
+     "slot": "g1.english.B.Q6",
+     "lines": 1,
+     "marks": 1,
+     "answer": "van",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "fan",
+       "can",
+       "ran",
+       "pan"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "A real word that rhymes with man",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing a word that does not end with the -an sound"
+     },
+     "question": "man",
+     "main_question": "Write a word that rhymes with the given word"
+    },
+    {
+     "slot": "g1.english.B.Q6",
+     "lines": 1,
+     "marks": 1,
+     "answer": "tall",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "fall",
+       "wall",
+       "call",
+       "small"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "A real word that rhymes with ball",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing a word that does not end with the -all sound"
+     },
+     "question": "ball",
+     "main_question": "Write a word that rhymes with the given word"
+    }
+   ],
+   "Word Families": [
+    {
+     "slot": "g1.english.A.Q3",
+     "lines": 1,
+     "marks": 1,
+     "answer": "cat",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "cat"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct word",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes the wrong first letter or ending"
+     },
+     "question": "c + at = ____",
+     "main_question": "Join the first letter with the ending to make a word."
+    },
+    {
+     "slot": "g1.english.A.Q3",
+     "lines": 1,
+     "marks": 1,
+     "answer": "pin",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "pin"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct word",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes the wrong first letter or ending"
+     },
+     "question": "p + in = ____"
+    },
+    {
+     "slot": "g1.english.A.Q3",
+     "lines": 1,
+     "marks": 1,
+     "answer": "van",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "van"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct word",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes the wrong first letter or ending"
+     },
+     "question": "v + an = ____"
+    },
+    {
+     "slot": "g1.english.A.Q3",
+     "lines": 1,
+     "marks": 1,
+     "answer": "hop",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "hop"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct word",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes the wrong first letter or ending"
+     },
+     "question": "h + op = ____"
+    }
+   ],
+   "Speech Bubbles": [
+    {
+     "slot": "g1.english.C.Q13",
+     "lines": 1,
+     "marks": 2,
+     "answer": "Good morning",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Good morning",
+       "Good morning!"
+      ],
+      "points": [
+       {
+        "kind": "K",
+        "text": "Writes a correct polite greeting that fits the scene",
+        "marks": 2
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing a word that does not fit the scene"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "scene",
+      "describe": "Two children meet at the school gate in the morning. One child waves and smiles at the other."
+     },
+     "question": "What does the child say?",
+     "main_question": "Look at the picture. Write what the child says in the speech bubble"
+    },
+    {
+     "slot": "g1.english.C.Q13",
+     "lines": 1,
+     "marks": 2,
+     "answer": "Thank you",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Thank you",
+       "Thank you!"
+      ],
+      "points": [
+       {
+        "kind": "K",
+        "text": "Writes a correct polite phrase that fits the scene",
+        "marks": 2
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing a word that does not fit the scene"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "scene",
+      "describe": "One child gives a pencil to another child, who smiles happily and takes it."
+     },
+     "question": "What does the child say?",
+     "main_question": "Look at the picture. Write what the child says in the speech bubble"
+    }
+   ],
+   "Capital Letters": [
+    {
+     "slot": "g1.english.C.Q14",
+     "lines": 1,
+     "marks": 1,
+     "answer": "Pinky likes to paint.",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Pinky likes to paint."
+      ],
+      "points": [
+       {
+        "kind": "K",
+        "text": "Rewrites the sentence with the correct capital letter",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Leaving the name in small letters"
+     },
+     "question": "pinky likes to paint.",
+     "main_question": "Rewrite the sentences using capital letters where needed"
+    },
+    {
+     "slot": "g1.english.C.Q14",
+     "lines": 1,
+     "marks": 1,
+     "answer": "We play in the park.",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "We play in the park."
+      ],
+      "points": [
+       {
+        "kind": "K",
+        "text": "Rewrites the sentence with the correct capital letter",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Leaving the first word in small letters"
+     },
+     "question": "we play in the park.",
+     "main_question": "Rewrite the sentences using capital letters where needed"
+    },
+    {
+     "slot": "g1.english.C.Q14",
+     "lines": 1,
+     "marks": 1,
+     "answer": "Today is Monday.",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Today is Monday."
+      ],
+      "points": [
+       {
+        "kind": "K",
+        "text": "Rewrites the sentence with the correct capital letters",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Leaving the day name in small letters"
+     },
+     "question": "today is monday.",
+     "main_question": "Rewrite the sentences using capital letters where needed"
+    },
+    {
+     "slot": "g1.english.C.Q14",
+     "lines": 1,
+     "marks": 1,
+     "answer": "Jojo has a red bag.",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Jojo has a red bag."
+      ],
+      "points": [
+       {
+        "kind": "K",
+        "text": "Rewrites the sentence with the correct capital letter",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Leaving the name in small letters"
+     },
+     "question": "jojo has a red bag.",
+     "main_question": "Rewrite the sentences using capital letters where needed"
+    }
+   ],
+   "Missing Letters": [
+    {
+     "slot": "g1.english.A.Q5",
+     "lines": 0,
+     "marks": 1,
+     "answer": "bat",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "bat"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the full word with the correct letter",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes a wrong vowel"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "bat"
+     },
+     "question": "b_t",
+     "main_question": "Look at the picture and write the missing letter to complete the word."
+    },
+    {
+     "slot": "g1.english.A.Q5",
+     "lines": 0,
+     "marks": 1,
+     "answer": "hat",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "hat"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the full word with the correct letter",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes a wrong vowel"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "hat"
+     },
+     "question": "h_t"
+    },
+    {
+     "slot": "g1.english.A.Q5",
+     "lines": 0,
+     "marks": 1,
+     "answer": "cup",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "cup"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the full word with the correct letter",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes a wrong vowel"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "cup"
+     },
+     "question": "c_p"
+    },
+    {
+     "slot": "g1.english.A.Q5",
+     "lines": 0,
+     "marks": 1,
+     "answer": "fish",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "fish"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the full word with the correct letter",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes a wrong vowel"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "fish"
+     },
+     "question": "f_sh"
+    }
+   ],
+   "Name the Picture": [
+    {
+     "slot": "g1.english.B.Q7",
+     "lines": 1,
+     "marks": 1,
+     "answer": "dog",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Dog"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Correct word written",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Spelling it as 'dgo' or 'ogd'"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "dog"
+     },
+     "question": "What is this?",
+     "main_question": "Write the name of each picture"
+    },
+    {
+     "slot": "g1.english.B.Q7",
+     "lines": 1,
+     "marks": 1,
+     "answer": "cat",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Cat"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Correct word written",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Spelling it as 'kat'"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "cat"
+     },
+     "question": "What is this?",
+     "main_question": "Write the name of each picture"
+    },
+    {
+     "slot": "g1.english.B.Q7",
+     "lines": 1,
+     "marks": 1,
+     "answer": "apple",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Apple"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Correct word written",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Missing a letter p"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "apple"
+     },
+     "question": "What is this?",
+     "main_question": "Write the name of each picture"
+    },
+    {
+     "slot": "g1.english.B.Q7",
+     "lines": 1,
+     "marks": 1,
+     "answer": "pen",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Pen"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Correct word written",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Spelling it as 'nep'"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "pen"
+     },
+     "question": "What is this?",
+     "main_question": "Write the name of each picture"
+    },
+    {
+     "slot": "g1.english.B.Q7",
+     "lines": 1,
+     "marks": 1,
+     "answer": "book",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Book"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Correct word written",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing only one o"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "book"
+     },
+     "question": "What is this?",
+     "main_question": "Write the name of each picture"
+    },
+    {
+     "slot": "g1.english.B.Q7",
+     "lines": 1,
+     "marks": 1,
+     "answer": "sun",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Sun"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Correct word written",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Spelling it as 'nus'"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "sun"
+     },
+     "question": "What is this?",
+     "main_question": "Write the name of each picture"
+    },
+    {
+     "slot": "g1.english.B.Q7",
+     "lines": 1,
+     "marks": 1,
+     "answer": "fish",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Fish"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Correct word written",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Spelling it as 'fich'"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "fish"
+     },
+     "question": "What is this?",
+     "main_question": "Write the name of each picture"
+    },
+    {
+     "slot": "g1.english.B.Q7",
+     "lines": 1,
+     "marks": 1,
+     "answer": "bat",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Bat"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Correct word written",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Mixing up b and d"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "bat"
+     },
+     "question": "What is this?",
+     "main_question": "Write the name of each picture"
+    },
+    {
+     "slot": "g1.english.B.Q7",
+     "lines": 1,
+     "marks": 1,
+     "answer": "banana",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Banana"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Correct word written",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Wrong number of n or a letters"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "banana"
+     },
+     "question": "What is this?",
+     "main_question": "Write the name of each picture"
+    }
+   ],
+   "Unscramble Words": [
+    {
+     "slot": "g1.english.A.Q4",
+     "lines": 1,
+     "marks": 1,
+     "answer": "cat",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "cat"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct word",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Letters in the wrong order"
+     },
+     "question": "t a c",
+     "main_question": "Put the letters in the correct order to make a word."
+    },
+    {
+     "slot": "g1.english.A.Q4",
+     "lines": 1,
+     "marks": 1,
+     "answer": "sun",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "sun"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct word",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Letters in the wrong order"
+     },
+     "question": "n u s"
+    },
+    {
+     "slot": "g1.english.A.Q4",
+     "lines": 1,
+     "marks": 1,
+     "answer": "dog",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "dog"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct word",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Letters in the wrong order"
+     },
+     "question": "g o d"
+    },
+    {
+     "slot": "g1.english.A.Q4",
+     "lines": 1,
+     "marks": 1,
+     "answer": "bee",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "bee"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct word",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Letters in the wrong order"
+     },
+     "question": "b e e"
+    },
+    {
+     "slot": "g1.english.A.Q4",
+     "lines": 1,
+     "marks": 1,
+     "answer": "stop",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "stop"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct word",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Letters in the wrong order"
+     },
+     "question": "p t o s"
+    }
+   ],
+   "Alphabetical Order": [
+    {
+     "slot": "g1.english.A.Q2",
+     "lines": 1,
+     "marks": 1,
+     "answer": "b c d",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "b c d",
+       "b, c, d"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes all letters in correct ABC order",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Leaves one letter out of place"
+     },
+     "question": "d b c",
+     "main_question": "Write the letters in alphabetical order (ABC order)."
+    },
+    {
+     "slot": "g1.english.A.Q2",
+     "lines": 1,
+     "marks": 1,
+     "answer": "k l m",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "k l m",
+       "k, l, m"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes all letters in correct ABC order",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Leaves one letter out of place"
+     },
+     "question": "m k l"
+    },
+    {
+     "slot": "g1.english.A.Q2",
+     "lines": 1,
+     "marks": 1,
+     "answer": "r s t",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "r s t",
+       "r, s, t"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes all letters in correct ABC order",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Leaves one letter out of place"
+     },
+     "question": "t r s"
+    },
+    {
+     "slot": "g1.english.A.Q2",
+     "lines": 1,
+     "marks": 1,
+     "answer": "e f g h",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "e f g h",
+       "e, f, g, h"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes all letters in correct ABC order",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Leaves one letter out of place"
+     },
+     "question": "g e f h"
+    },
+    {
+     "slot": "g1.english.A.Q2",
+     "lines": 1,
+     "marks": 1,
+     "answer": "n o p",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "n o p",
+       "n, o, p"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes all letters in correct ABC order",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Leaves one letter out of place"
+     },
+     "question": "p n o"
+    }
+   ],
+   "Complete the Words": [
+    {
+     "slot": "g1.english.C.Q11",
+     "lines": 1,
+     "marks": 1,
+     "answer": "dog",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "dog"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct missing letters",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing the wrong vowel, such as dig"
+     },
+     "question": "an animal that barks: d _ _",
+     "main_question": "Complete the words by writing the missing letters"
+    },
+    {
+     "slot": "g1.english.C.Q11",
+     "lines": 1,
+     "marks": 1,
+     "answer": "bird",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "bird"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct missing letters",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing bard or burd"
+     },
+     "question": "a bird that sings in the sky: b _ _ d",
+     "main_question": "Complete the words by writing the missing letters"
+    },
+    {
+     "slot": "g1.english.C.Q11",
+     "lines": 1,
+     "marks": 1,
+     "answer": "sun",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "sun"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct missing letters",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing son"
+     },
+     "question": "it shines in the day: s _ _",
+     "main_question": "Complete the words by writing the missing letters"
+    },
+    {
+     "slot": "g1.english.C.Q11",
+     "lines": 1,
+     "marks": 1,
+     "answer": "pen",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "pen"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct missing letters",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing pin"
+     },
+     "question": "we use it to write: p _ _",
+     "main_question": "Complete the words by writing the missing letters"
+    },
+    {
+     "slot": "g1.english.C.Q11",
+     "lines": 1,
+     "marks": 1,
+     "answer": "kulfi",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "kulfi"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct missing letters",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writing kalfi"
+     },
+     "question": "a sweet cold treat: k _ _ fi",
+     "main_question": "Complete the words by writing the missing letters"
+    }
+   ],
+   "Match Word to Picture": [
+    {
+     "slot": "g1.english.A.Q1",
+     "lines": 1,
+     "marks": 1,
+     "words": [
+      "cat",
+      "dog",
+      "sun",
+      "pen",
+      "kite",
+      "cake"
+     ],
+     "answer": "cat",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "cat"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct word for the picture",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes the word for a different picture"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "cat"
+     },
+     "question": "Write the correct word for this picture.",
+     "main_question": "Match each picture with the correct word from the box."
+    },
+    {
+     "slot": "g1.english.A.Q1",
+     "lines": 1,
+     "marks": 1,
+     "answer": "dog",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "dog"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct word for the picture",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes the word for a different picture"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "dog"
+     },
+     "question": "Write the correct word for this picture."
+    },
+    {
+     "slot": "g1.english.A.Q1",
+     "lines": 1,
+     "marks": 1,
+     "answer": "sun",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "sun"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct word for the picture",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes the word for a different picture"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "sun"
+     },
+     "question": "Write the correct word for this picture."
+    },
+    {
+     "slot": "g1.english.A.Q1",
+     "lines": 1,
+     "marks": 1,
+     "answer": "pen",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "pen"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct word for the picture",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes the word for a different picture"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "pen"
+     },
+     "question": "Write the correct word for this picture."
+    },
+    {
+     "slot": "g1.english.A.Q1",
+     "lines": 1,
+     "marks": 1,
+     "answer": "kite",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "kite"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct word for the picture",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes the word for a different picture"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "kite"
+     },
+     "question": "Write the correct word for this picture."
+    },
+    {
+     "slot": "g1.english.A.Q1",
+     "lines": 1,
+     "marks": 1,
+     "answer": "cake",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "cake"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct word for the picture",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes the word for a different picture"
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "cake"
+     },
+     "question": "Write the correct word for this picture."
+    }
+   ],
+   "Complete the Sentences": [
+    {
+     "slot": "g1.english.B.Q9",
+     "lines": 1,
+     "marks": 2,
+     "words": [
+      "paint",
+      "school",
+      "brother",
+      "rest",
+      "hands"
+     ],
+     "answer": "paint",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [],
+      "points": [
+       {
+        "kind": "K",
+        "text": "Correct word for the blank",
+        "marks": 2
+       }
+      ],
+      "checked": null,
+      "common_error": "Choosing a word that does not fit the sentence"
+     },
+     "question": "Pinky likes to ___ in the park.",
+     "main_question": "Fill in the blank with the correct word from the word bank"
+    },
+    {
+     "slot": "g1.english.B.Q9",
+     "lines": 1,
+     "marks": 2,
+     "answer": "brother",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [],
+      "points": [
+       {
+        "kind": "K",
+        "text": "Correct word for the blank",
+        "marks": 2
+       }
+      ],
+      "checked": null,
+      "common_error": "Choosing a word that does not fit the sentence"
+     },
+     "question": "Jojo is Pinky's ___.",
+     "main_question": "Fill in the blank with the correct word from the word bank"
+    },
+    {
+     "slot": "g1.english.B.Q9",
+     "lines": 1,
+     "marks": 2,
+     "answer": "school",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [],
+      "points": [
+       {
+        "kind": "K",
+        "text": "Correct word for the blank",
+        "marks": 2
+       }
+      ],
+      "checked": null,
+      "common_error": "Choosing a word that does not fit the sentence"
+     },
+     "question": "We learn new things at ___.",
+     "main_question": "Fill in the blank with the correct word from the word bank"
+    },
+    {
+     "slot": "g1.english.B.Q9",
+     "lines": 1,
+     "marks": 2,
+     "answer": "hands",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [],
+      "points": [
+       {
+        "kind": "K",
+        "text": "Correct word for the blank",
+        "marks": 2
+       }
+      ],
+      "checked": null,
+      "common_error": "Choosing a word that does not fit the sentence"
+     },
+     "question": "We should wash our ___ before eating.",
+     "main_question": "Fill in the blank with the correct word from the word bank"
+    },
+    {
+     "slot": "g1.english.B.Q9",
+     "lines": 1,
+     "marks": 2,
+     "answer": "rest",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [],
+      "points": [
+       {
+        "kind": "K",
+        "text": "Correct word for the blank",
+        "marks": 2
+       }
+      ],
+      "checked": null,
+      "common_error": "Choosing a word that does not fit the sentence"
+     },
+     "question": "On Sunday, Pinky and Jojo ___ at home.",
+     "main_question": "Fill in the blank with the correct word from the word bank"
+    }
+   ]
+  }
+ },
+ "_layout": {
+  "v": 2,
+  "oral": {
+   "marks": 16,
+   "tasks": [
+    {
+     "n": 5,
+     "id": "listening",
+     "ask": "A story of 4 to 6 short sentences on a book theme, then five questions (2 recall, 2 understand, 1 apply), one mark each, with answers.",
+     "kind": "listening",
+     "marks": 5,
+     "rubric": [
+      {
+       "en": "Each right answer",
+       "ur": "ہر درست جواب",
+       "marks": 1
+      }
+     ],
+     "scoring": "each",
+     "label_en": "Listening",
+     "label_ur": "سننا",
+     "instruction_en": "Read the short story aloud twice. Then ask the questions; the child answers aloud.",
+     "instruction_ur": "مختصر کہانی دو بار بلند آواز سے پڑھیں، پھر سوال پوچھیں؛ بچہ زبانی جواب دے۔"
+    },
+    {
+     "n": 3,
+     "id": "speaking",
+     "ask": "One topic a Grade 1 child knows (my family, my school, my favourite food), with three prompt questions.",
+     "kind": "speaking",
+     "marks": 5,
+     "rubric": [
+      {
+       "en": "Speaks with confidence",
+       "ur": "اعتماد سے بولتا ہے",
+       "marks": 2
+      },
+      {
+       "en": "Says three or more things about the topic",
+       "ur": "موضوع پر تین یا زیادہ باتیں",
+       "marks": 2
+      },
+      {
+       "en": "Uses English words and short sentences",
+       "ur": "انگریزی الفاظ اور مختصر جملے",
+       "marks": 1
+      }
+     ],
+     "scoring": "criteria",
+     "label_en": "Speaking",
+     "label_ur": "بولنا",
+     "instruction_en": "Ask the child to talk about the topic for about a minute. Prompt with the questions if they stop.",
+     "instruction_ur": "بچے سے موضوع پر تقریباً ایک منٹ بات کرنے کو کہیں۔ رک جائے تو سوالوں سے مدد کریں۔"
+    },
+    {
+     "n": 6,
+     "id": "read_aloud",
+     "ask": "Six simple book words (three-letter and sight words) printed large for the child to read.",
+     "kind": "read_aloud",
+     "marks": 6,
+     "rubric": [
+      {
+       "en": "Each word read right",
+       "ur": "ہر درست پڑھا گیا لفظ",
+       "marks": 1
+      }
+     ],
+     "scoring": "each",
+     "label_en": "Read aloud",
+     "label_ur": "بلند خوانی",
+     "instruction_en": "Point to each word in turn. The child reads it aloud. One mark per word read right.",
+     "instruction_ur": "ہر لفظ پر باری باری انگلی رکھیں۔ بچہ اسے بلند آواز سے پڑھے۔ ہر درست لفظ پر 1 نمبر۔"
+    }
+   ],
+   "content": [
+    {
+     "id": "listening",
+     "items": [
+      {
+       "ask": "Who went to the park with Pinky?",
+       "answer": "Jojo"
+      },
+      {
+       "ask": "What did Pinky see on the ground?",
+       "answer": "A small bird (a hurt bird)"
+      },
+      {
+       "ask": "Why did Pinky give the bird water and food?",
+       "answer": "Because the bird was hurt and she wanted to help it."
+      },
+      {
+       "ask": "How did the bird feel at the end?",
+       "answer": "Better, happy (it sang a sweet song)."
+      },
+      {
+       "ask": "What would you do if you saw a hurt bird?",
+       "answer": "Any kind answer, e.g. help it, give it water, tell a grown-up."
+      }
+     ],
+     "script": "Pinky and Jojo went to the park. Pinky saw a small bird on the ground. The bird was hurt. Pinky gave the bird water and food. Jojo helped her. Soon the bird sang a sweet song."
+    },
+    {
+     "id": "speaking",
+     "items": [
+      {
+       "ask": "Topic: My family. Who lives in your home with you?",
+       "answer": "Any answer naming family members, e.g. mother, father, brother, sister, Dadi."
+      },
+      {
+       "ask": "What do you like to do with your family?",
+       "answer": "Any answer, e.g. play, eat together, go to the park."
+      },
+      {
+       "ask": "How do you help at home?",
+       "answer": "Any answer, e.g. I help my mother, I put away my toys."
+      }
+     ]
+    },
+    {
+     "id": "read_aloud",
+     "items": [
+      {
+       "ask": "cat",
+       "answer": ""
+      },
+      {
+       "ask": "sun",
+       "answer": ""
+      },
+      {
+       "ask": "dog",
+       "answer": ""
+      },
+      {
+       "ask": "the",
+       "answer": ""
+      },
+      {
+       "ask": "and",
+       "answer": ""
+      },
+      {
+       "ask": "she",
+       "answer": ""
+      }
+     ]
+    }
+   ],
+   "note_en": "Take the oral part one child at a time, before or after the written paper. Read the script aloud as written.",
+   "note_ur": "زبانی حصہ ہر بچے سے الگ الگ لیں، تحریری پرچے سے پہلے یا بعد میں۔ اسکرپٹ لکھے ہوئے الفاظ میں پڑھ کر سنائیں۔",
+   "title_en": "Oral assessment · teacher sheet",
+   "title_ur": "زبانی جائزہ · استاد کی شیٹ"
+  },
+  "notes": [],
+  "pages": {
+   "paper": 8,
+   "scheme": 8
+  },
+  "scope": {
+   "kind": "fde",
+   "pages": null,
+   "line_en": "The whole English book (pages 1-166).",
+   "line_ur": "انگریزی کی پوری کتاب (صفحات 1-166)۔",
+   "chapters": null,
+   "label_en": "Whole book",
+   "label_ur": "پوری کتاب",
+   "covers_en": null,
+   "covers_ur": null
+  },
+  "header": {
+   "or_en": "OR",
+   "or_ur": "یا",
+   "band_en": "TEACHER'S COPY · Do not give to children",
+   "band_ur": "استاد کی کاپی · بچوں کو نہ دیں",
+   "note_en": "Written 84 + oral 16 = 100 marks. The oral part is taken by the teacher from the marking scheme.",
+   "note_ur": "تحریری 84 + زبانی 16 = 100 نمبر۔ زبانی حصہ استاد مارکنگ اسکیم سے لیں گے۔",
+   "title_en": "Grade I · English · FDE pattern practice paper",
+   "title_ur": "جماعت اول · انگریزی · FDE pattern کا مشقی پرچہ",
+   "accept_en": "accept:",
+   "accept_ur": "یہ بھی درست:",
+   "covers_en": "Covers: {scope}. Not an official FDE paper.",
+   "covers_ur": "احاطہ: {scope}۔ یہ سرکاری FDE پرچہ نہیں ہے۔",
+   "footer_en": "Not an official FDE paper",
+   "footer_ur": "یہ سرکاری FDE پرچہ نہیں ہے",
+   "checked_en": "✓ checked",
+   "checked_ur": "✓ جانچا گیا",
+   "time_line_en": "",
+   "time_line_ur": "",
+   "disclaimer_en": "Practice paper in the FDE Grade I annual assessment pattern (2026-27). Not an official FDE paper.",
+   "disclaimer_ur": "یہ مشق کا پرچہ ہے جو FDE کے جماعت اول کے سالانہ جائزے (2026-27) کے pattern پر بنایا گیا ہے۔ یہ سرکاری پرچہ نہیں ہے۔",
+   "total_line_en": "Written Marks: {t:84}",
+   "total_line_ur": "تحریری نمبر: {t:84}",
+   "footer_page_en": "Page {n} of {N}",
+   "footer_page_ur": "صفحہ {n} از {N}",
+   "notes_title_en": "Notes",
+   "notes_title_ur": "نوٹ",
+   "record_cols_en": [
+    "Roll",
+    "Name"
+   ],
+   "record_cols_ur": [
+    "رول نمبر",
+    "نام"
+   ],
+   "school_line_en": "School: ____________",
+   "school_line_ur": "اسکول: ____________",
+   "student_box_en": [
+    "Student Name",
+    "Roll No",
+    "Date",
+    "Total Marks",
+    "Obtained Marks"
+   ],
+   "student_box_ur": [
+    "نام طالب علم",
+    "رول نمبر",
+    "تاریخ",
+    "کل نمبر",
+    "حاصل کردہ نمبر"
+   ],
+   "answer_sheet_en": "answer sheet",
+   "answer_sheet_ur": "جوابی کاپی",
+   "common_error_en": "common error:",
+   "common_error_ur": "عام غلطی:",
+   "record_grade_en": "Grade",
+   "record_grade_ur": "گریڈ",
+   "record_title_en": "Class record",
+   "record_title_ur": "کلاس ریکارڈ",
+   "record_total_en": "Total",
+   "record_total_ur": "کل",
+   "scheme_title_en": "MARKING SCHEME",
+   "scheme_title_ur": "مارکنگ اسکیم",
+   "note_replaced_en": "{n}: key corrected by code; the model wrote {value}.",
+   "note_replaced_ur": "{n}: کلید کوڈ نے درست کی؛ ماڈل نے {value} لکھا۔",
+   "covers_partial_en": "Covers {units}.",
+   "covers_partial_ur": "احاطہ: {units}۔"
+  },
+  "legend": {
+   "subject": "english",
+   "key_line": 1,
+   "lines_en": [
+    "One mark per correct item unless the paper says otherwise. Spelling is not marked in Maths or GK.",
+    "",
+    "Written marks only. Record the oral marks from the oral sheet, then add both on the class record."
+   ],
+   "lines_ur": [
+    "جب تک پرچے میں کچھ اور نہ لکھا ہو، ہر درست جواب پر 1 نمبر۔ ریاضی اور معلومات عامہ میں املا کے نمبر نہیں کٹتے۔",
+    "",
+    "یہ صرف تحریری نمبر ہیں۔ زبانی نمبر زبانی جائزے کی شیٹ سے لکھیں، پھر کلاس ریکارڈ پر دونوں جمع کریں۔"
+   ],
+   "title_en": "How to mark",
+   "title_ur": "جانچنے کا طریقہ",
+   "bands_line": -1,
+   "maths_lines": [],
+   "key_names_en": {
+    "A": "answer",
+    "K": "key point",
+    "L": "label",
+    "M": "method",
+    "U": "unit"
+   },
+   "key_names_ur": {
+    "A": "جواب",
+    "K": "اہم نکتہ",
+    "L": "نام",
+    "M": "طریقہ",
+    "U": "اکائی"
+   },
+   "bands_lead_ur": "",
+   "key_from_chips": true
+  },
+  "medium": "en",
+  "subject": "english",
+  "sections": [
+   {
+    "id": "A",
+    "marks": 24,
+    "slots": [
+     {
+      "or": false,
+      "slot": "g1.english.A.Q1",
+      "type": "Match Word to Picture",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 6,
+      "picture": [
+       "object"
+      ],
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 6,
+      "label_en": "Q1.",
+      "label_ur": "سوال 1",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Six items, each one book object as picture: {kind:\"object\", name}. Put all six words, mixed, in \"words\" on the FIRST item only. Answer: the word.",
+      "alternatives": null,
+      "marks_line_en": "({t:6})",
+      "marks_line_ur": "{t:6}",
+      "section_pages": "scope",
+      "instruction_en": "Look at the picture and write its word from the box.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.english.A.Q2",
+      "type": "Alphabetical Order",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 5,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q2.",
+      "label_ur": "سوال 2",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Five items of three or four letters out of order, e.g. \"d b c\". Answer: the ordered letters.",
+      "alternatives": null,
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "section_pages": "scope",
+      "instruction_en": "Write the letters in ABC order.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.english.A.Q3",
+      "type": "Word Families",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 4,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 4,
+      "label_en": "Q3.",
+      "label_ur": "سوال 3",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Four items: a first letter and an ending (-at, -in, -an, -ig, -op) from the book, e.g. \"c + at = ____\". Answer: the word.",
+      "alternatives": null,
+      "marks_line_en": "({t:4})",
+      "marks_line_ur": "{t:4}",
+      "section_pages": "scope",
+      "instruction_en": "Make words with -at and -in.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.english.A.Q4",
+      "type": "Unscramble Words",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 5,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q4.",
+      "label_ur": "سوال 4",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Five three- or four-letter book words with letters mixed, e.g. \"t a c\". Only one word can be made. Answer: the word.",
+      "alternatives": null,
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "section_pages": "scope",
+      "instruction_en": "Put the letters in order to make a word.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.english.A.Q5",
+      "type": "Missing Letters",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 0,
+      "parts": null,
+      "shape": "short",
+      "attempt": 4,
+      "picture": [
+       "object"
+      ],
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 4,
+      "label_en": "Q5.",
+      "label_ur": "سوال 5",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Four items, each a book object as picture: {kind:\"object\", name} and its word with one letter blank, e.g. \"b_g\". Answer: the full word.",
+      "alternatives": null,
+      "marks_line_en": "({t:4})",
+      "marks_line_ur": "{t:4}",
+      "section_pages": "scope",
+      "instruction_en": "Look at the picture and fill in the missing letter.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     }
+    ],
+    "levels": {
+     "Apply": 5,
+     "Remember": 10,
+     "Understand": 9
+    },
+    "note_en": null,
+    "time_en": null,
+    "label_en": "Reading",
+    "label_ur": null,
+    "marks_en": "Total Marks: {t:24}",
+    "marks_ur": "کل نمبر: {t:24}",
+    "answer_on": "question_paper"
+   },
+   {
+    "id": "B",
+    "marks": 32,
+    "slots": [
+     {
+      "or": false,
+      "slot": "g1.english.B.Q6",
+      "type": "Rhyming Pairs",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 4,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 4,
+      "label_en": "Q6.",
+      "label_ur": "سوال 6",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Four simple book words, e.g. \"cat\". Answer: one rhyming word; accept lists other real rhymes.",
+      "alternatives": null,
+      "marks_line_en": "({t:4})",
+      "marks_line_ur": "{t:4}",
+      "section_pages": "scope",
+      "instruction_en": "Write a word that rhymes.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.english.B.Q7",
+      "type": "Name the Picture",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 9,
+      "picture": [
+       "object"
+      ],
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 9,
+      "label_en": "Q7.",
+      "label_ur": "سوال 7",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Nine book objects (animals, fruit, school things), each as picture: {kind:\"object\", name}. Stem: \"What is this?\". Answer: the word.",
+      "alternatives": null,
+      "marks_line_en": "({t:9})",
+      "marks_line_ur": "{t:9}",
+      "section_pages": "scope",
+      "instruction_en": "Write the name of each picture.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.english.B.Q8",
+      "type": "Action Words",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 4,
+      "picture": [
+       "scene"
+      ],
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 4,
+      "label_en": "Q8.",
+      "label_ur": "سوال 8",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Four items, each a child doing one action from the book (run, jump, read, eat, sleep, swim) as picture: {kind:\"scene\", describe}. Answer: the action word.",
+      "alternatives": null,
+      "marks_line_en": "({t:4})",
+      "marks_line_ur": "{t:4}",
+      "section_pages": "scope",
+      "instruction_en": "What is the child doing? Write the action word.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.english.B.Q9",
+      "type": "Complete the Sentences",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 5,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q9.",
+      "label_ur": "سوال 9",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 2,
+      "prompt_rule": "Five short sentences from the book, each with one blank. Put the five answer words, mixed, in \"words\" on the FIRST item. Scheme: K 2 for the right word.",
+      "alternatives": null,
+      "marks_line_en": "({t:10})",
+      "marks_line_ur": "{t:10}",
+      "section_pages": "scope",
+      "instruction_en": "Fill in the blanks with words from the box.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.english.B.Q10",
+      "type": "Match Capital and Small Letters",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "mcq",
+      "attempt": 5,
+      "picture": null,
+      "work_mm": null,
+      "category": "objective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q10.",
+      "label_ur": "سوال 10",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Five items: a capital letter as the stem and four small letters as options (a, b, c, d). Answer: the matching small letter.",
+      "alternatives": null,
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "option_labels": "a",
+      "section_pages": "scope",
+      "instruction_en": "Match the capital letter with its small letter.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     }
+    ],
+    "levels": {
+     "Apply": 7,
+     "Remember": 12,
+     "Understand": 13
+    },
+    "note_en": null,
+    "time_en": null,
+    "label_en": "Writing (1)",
+    "label_ur": null,
+    "marks_en": "Total Marks: {t:32}",
+    "marks_ur": "کل نمبر: {t:32}",
+    "answer_on": "question_paper"
+   },
+   {
+    "id": "C",
+    "marks": 28,
+    "slots": [
+     {
+      "or": false,
+      "slot": "g1.english.C.Q11",
+      "type": "Complete the Words",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 5,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q11.",
+      "label_ur": "سوال 11",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Five book words with two letters missing, with a clue, e.g. \"a fruit: m _ _ go\". Answer: the word.",
+      "alternatives": null,
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "section_pages": "scope",
+      "instruction_en": "Complete the words.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.english.C.Q12",
+      "type": "This Is A",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 5,
+      "picture": [
+       "object"
+      ],
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q12.",
+      "label_ur": "سوال 12",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 2,
+      "prompt_rule": "Five book objects as picture: {kind:\"object\", name}. Answer: \"This is a <name>.\" Scheme: K 1 for the word, K 1 for the sentence with capital and full stop.",
+      "alternatives": null,
+      "marks_line_en": "({t:10})",
+      "marks_line_ur": "{t:10}",
+      "section_pages": "scope",
+      "instruction_en": "Look at the picture and write \"This is a ____.\"",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.english.C.Q13",
+      "type": "Speech Bubbles",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 2,
+      "picture": [
+       "scene"
+      ],
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 2,
+      "label_en": "Q13.",
+      "label_ur": "سوال 13",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 2,
+      "prompt_rule": "Two greetings or polite words from the book (Good morning, Thank you, Sorry, Please), each a scene as picture: {kind:\"scene\", describe} of two children. Answer: the words. Scheme: K 2.",
+      "alternatives": null,
+      "marks_line_en": "({t:4})",
+      "marks_line_ur": "{t:4}",
+      "section_pages": "scope",
+      "instruction_en": "What will they say? Write in the speech bubble.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.english.C.Q14",
+      "type": "Capital Letters",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 4,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 4,
+      "label_en": "Q14.",
+      "label_ur": "سوال 14",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Four short sentences written all in small letters, each needing one capital (start or a name). Answer: the corrected sentence.",
+      "alternatives": null,
+      "marks_line_en": "({t:4})",
+      "marks_line_ur": "{t:4}",
+      "section_pages": "scope",
+      "instruction_en": "Rewrite the sentence with a capital letter.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.english.C.Q15",
+      "type": "Is Am Are",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "mcq",
+      "attempt": 5,
+      "picture": null,
+      "work_mm": null,
+      "category": "objective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q15.",
+      "label_ur": "سوال 15",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Five short sentences with one blank; options exactly is, am, are. Answer: the right word.",
+      "alternatives": null,
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "option_labels": "a",
+      "section_pages": "scope",
+      "instruction_en": "Choose is, am or are.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     }
+    ],
+    "levels": {
+     "Apply": 7,
+     "Remember": 10,
+     "Understand": 11
+    },
+    "note_en": null,
+    "time_en": null,
+    "label_en": "Writing (2)",
+    "label_ur": null,
+    "marks_en": "Total Marks: {t:28}",
+    "marks_ur": "کل نمبر: {t:28}",
+    "answer_on": "question_paper"
+   }
+  ],
+  "supplies": [],
+  "unplaced": 0,
+  "blueprint": {
+   "ok": false,
+   "total": 84,
+   "levels": {
+    "Apply": {
+     "pct": 23.809523809523807,
+     "marks": 20,
+     "target": 20
+    },
+    "Remember": {
+     "pct": 34.523809523809526,
+     "marks": 29,
+     "target": 40
+    },
+    "Understand": {
+     "pct": 41.66666666666667,
+     "marks": 35,
+     "target": 40
+    }
+   },
+   "expected": 84,
+   "problems": [
+    {
+     "code": "SECTION_LEVEL",
+     "level": "Remember",
+     "marks": 4,
+     "target": 10,
+     "section": "C"
+    },
+    {
+     "code": "SECTION_LEVEL",
+     "level": "Apply",
+     "marks": 14,
+     "target": 7,
+     "section": "C"
+    },
+    {
+     "off": -5.4761904761904745,
+     "pct": 34.523809523809526,
+     "code": "LEVEL",
+     "level": "Remember",
+     "target": 40
+    }
+   ],
+   "sections": [
+    {
+     "id": "A",
+     "marks": 24,
+     "levels": {
+      "Apply": {
+       "marks": 4,
+       "target": 5
+      },
+      "Remember": {
+       "marks": 11,
+       "target": 10
+      },
+      "Understand": {
+       "marks": 9,
+       "target": 9
+      }
+     },
+     "expected": 24
+    },
+    {
+     "id": "B",
+     "marks": 32,
+     "levels": {
+      "Apply": {
+       "marks": 2,
+       "target": 7
+      },
+      "Remember": {
+       "marks": 14,
+       "target": 12
+      },
+      "Understand": {
+       "marks": 16,
+       "target": 13
+      }
+     },
+     "expected": 32
+    },
+    {
+     "id": "C",
+     "marks": 28,
+     "levels": {
+      "Apply": {
+       "marks": 14,
+       "target": 7
+      },
+      "Remember": {
+       "marks": 4,
+       "target": 10
+      },
+      "Understand": {
+       "marks": 10,
+       "target": 11
+      }
+     },
+     "expected": 28
+    }
+   ]
+  },
+  "preset_id": "fde_g1_2026",
+  "before_exam": {
+   "lines_en": [
+    "This is the marking scheme for {file} ({n} pages). Do not give it to children.",
+    "Photocopy the question paper, all {n} pages, one per child.",
+    "You add: {duty} on the question paper, page {p} (book p. {b}).",
+    "Tell the class: {sections}; {attempts}.",
+    "Time: {t}.",
+    "Mark question by question across all copies, not copy by copy."
+   ],
+   "lines_ur": [
+    "یہ {file} ({n} صفحات) کی مارکنگ اسکیم ہے۔ بچوں کو نہ دیں۔",
+    "سوالیہ پرچے کے تمام {n} صفحات کی فوٹو کاپی کریں، ہر بچے کے لیے ایک۔",
+    "شامل کریں: {duty}، سوالیہ پرچہ صفحہ {p} (کتاب ص {b})۔",
+    "کلاس کو بتائیں: {sections}؛ {attempts}۔",
+    "وقت: {t}۔",
+    "ہر سوال کو تمام کاپیوں میں ایک ساتھ جانچیں، ایک کاپی مکمل کر کے دوسری نہیں۔"
+   ],
+   "title_en": "Teacher: before the exam",
+   "title_ur": "استاد کے لیے: امتحان سے پہلے",
+   "either_en": "{label}: answer one of the two",
+   "either_ur": "{label}: دو میں سے ایک",
+   "attempt_en": "{label}: attempt any {n} of {g}",
+   "attempt_ur": "{label}: {g} میں سے کوئی سے {n}",
+   "nothing_en": "You add: nothing.",
+   "nothing_ur": "شامل کرنے کو کچھ نہیں۔",
+   "on_paper_en": "{sections} on the question paper",
+   "on_paper_ur": "{sections} سوالیہ پرچے پر",
+   "on_sheet_en": "{sections} on the answer sheet",
+   "on_sheet_ur": "{sections} جوابی کاپی پر",
+   "unknown_pages_en": "see the question paper",
+   "unknown_pages_ur": "سوالیہ پرچہ دیکھیں"
+  },
+  "frame_pages": null,
+  "total_marks": 84,
+  "generated_at": "2026-10-23T05:04:29.438Z",
+  "total_time_en": "as the school sets",
+  "total_time_ur": "اسکول کے مطابق"
+ }
+}

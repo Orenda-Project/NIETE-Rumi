@@ -24,7 +24,7 @@ module.exports = makeSubject({
       label_ur: 'معروضی',
       levels: { Remember: 14, Understand: 6, Apply: 0 },
       slots: [
-        S({ slot: 'g2.general_knowledge.A.Q1', label_en: 'Q1.', type: 'Fill in the Blanks', generate: 5,
+        S({ slot: 'g2.general_knowledge.A.Q1', label_en: 'Q1.', type: 'Fill in the Blanks', generate: 5, print_words: true,
           instruction_ur: 'خالی جگہ پُر کریں۔',
           prompt_rule: 'Five one-line facts from the book with one blank; the five answers, mixed, in "words" on the FIRST item.' }),
         S({ slot: 'g2.general_knowledge.A.Q2', label_en: 'Q2.', type: 'MCQs', shape: 'mcq', generate: 5, option_labels: 'ur',

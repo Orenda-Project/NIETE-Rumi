@@ -66,3 +66,22 @@ test('no key is refused before any call', async () => {
   await expect(Kie.generateImage('d', { ...opts(f), apiKey: '' })).rejects.toThrow('KIE_API_KEY');
   expect(f.calls).toHaveLength(0);
 });
+
+// Amena, 23 Oct 2026: pictures came back as worksheets with a banner, a caption
+// that gave the answer, and four objects in one frame (bd-5jmnfj.4.11).
+test('an object prompt asks for one thing alone, never a worksheet or a caption', () => {
+  const p = Kie.promptFor({ kind: 'object', name: 'pot' });
+  expect(p).not.toMatch(/worksheet|setting/i);
+  expect(p).toMatch(/only one/i);
+  expect(p).toMatch(/plain white background/i);
+  expect(p).toMatch(/no (other objects|second object)/i);
+  expect(p).toMatch(/no text/i);
+});
+
+test('the negative prompt names worksheets, headings and extra objects', () => {
+  const f = fakeFetch([{ state: 'success', resultJson: JSON.stringify({ resultUrls: ['https://x/y.png'] }) }]);
+  return Kie.generateImage('p', opts(f)).then(() => {
+    const neg = JSON.parse(f.calls[0].opts.body).input.negative_prompt;
+    ['worksheet', 'heading', 'caption', 'multiple objects'].forEach((w) => expect(neg).toContain(w));
+  });
+});
