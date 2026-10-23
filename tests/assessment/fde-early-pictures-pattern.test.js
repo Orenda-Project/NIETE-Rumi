@@ -83,3 +83,16 @@ test('G1 English Q7 names its pictures from a printed box', () => {
 test('the picture rule never lets two items show the same thing', () => {
   expect(Prompt.PICTURE_RULE).toMatch(/same thing/i);
 });
+
+// Amena, 23 Oct 2026, after the Q7 box: the other G1 "Name the Picture" questions get the same box (bd-5jmnfj.4.29).
+test.each(['g1 urdu Q4', 'g1 general_knowledge Q5'])('%s names its pictures from a printed box', (key) => {
+  const s = slots[key];
+  expect(s.print_words).toBe(true);
+  expect(s.instruction_ur).toMatch(/خانے/);
+  expect(s.prompt_rule).toMatch(/"words" on the FIRST item/);
+});
+
+// v13: the example pair مرغا in this rule drew a rooster that Q6 had already drawn (bd-5jmnfj.4.29).
+test('G1 Urdu Q7 names no example nouns for the writer to copy', () => {
+  expect(slots['g1 urdu Q7'].prompt_rule).not.toMatch(/[؀-ۿ]/);
+});
