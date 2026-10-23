@@ -196,6 +196,20 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     echo "E2E_CASSETTE_FAULTS=$run_dir/cassette-faults.json"
     # The class-quiz join lock is a minute in production; a rejoin scenario idled that long. 5 s here.
     echo "VIDEO_QUIZ_JOIN_LOCK_SECS=${VIDEO_QUIZ_JOIN_LOCK_SECS:-5}"
+    # The WhatsApp send pacer (whatsapp-send-pacer.js) spaces sends to one phone 6 s apart once 8 are in flight —
+    # Meta's pair rate limit. The mock Graph API has no such limit, and the driver is ONE phone talking every
+    # 3 s, so from the 9th message on every reply waited ~3.3 s for a slot: 527 s of run 20261023-1006-par
+    # (bd-k5gjje). Off here; the pacer's own tests (tests/whatsapp/send-pacing.redis.test.js) are its coverage.
+    # E2E_WA_PAIR_PACING=on puts it back for a run that wants to see the pacing.
+    echo "WA_PAIR_PACING=${E2E_WA_PAIR_PACING:-off}"
+    # The per-phone inbound rate limit (whatsapp-bot.js: RATE_LIMIT_MAX per RATE_LIMIT_WINDOW_SECONDS, 30/60 s in
+    # production) drops a message and answers "slow down". With the pacer off the driver — ONE phone — talks far
+    # faster than any teacher, and training T24/T37 hit the limit on the first fixed run (bd-k5gjje). 1000 here.
+    echo "RATE_LIMIT_MAX=${E2E_RATE_LIMIT_MAX:-1000}"
+    # The app_settings switch caches (app-redirect.service.js FLAG_TTL_MS and SIX more TTL_MS in quiz/*, all 30 s)
+    # are why the harness settles 31 s after every setAppSetting. Only app-redirect reads APP_SETTINGS_FLAG_TTL_MS
+    # today, so the lane keeps the 31 s settle (run-suite E2E_APP_SETTING_SETTLE_MS) until every cache reads one TTL.
+    echo "APP_SETTINGS_FLAG_TTL_MS=${E2E_APP_SETTINGS_FLAG_TTL_MS:-30000}"
     # observe capability gate (observe-gate.js:62) + the visit-picker Flow. keys/niete-local.env already
     # carries both real ids, and dotenv keeps the first value, so these are FALLBACKS for a clone whose
     # keys file lacks them — the ids match the committed flow fixtures (fixtures/flows/*.json + manifest),

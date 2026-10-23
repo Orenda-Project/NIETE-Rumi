@@ -36,11 +36,17 @@ function makeMockApi(opts) {
   const touchedSettings = new Map();   // app_settings keys setAppSetting changed → original value
   const env = opts.env || process.env.E2E_ENV || 'sandbox';
   const repo = opts.repo || path.resolve(__dirname, '..', '..', '..');
-  const pollMs = opts.pollMs || 500;
+  const pollMs = opts.pollMs || Number(process.env.E2E_POLL_MS) || 500;   // run-suite sets 100 on the mock lane (bd-k5gjje)
   // How long the outbox must stay still before a reply counts as complete. 1.5 s on the chrome lane;
   // the mock lane sets E2E_QUIESCE_MS=800 (a hundred sends a run, each paying this once).
   const quiesceMs = opts.quiesceMs || Number(process.env.E2E_QUIESCE_MS) || 1500;
-  const settleMs = opts.settleMs != null ? opts.settleMs : 1200;   // the CDP runner settles 1200ms too
+  const settleMs = opts.settleMs != null ? opts.settleMs : (Number(process.env.E2E_SETTLE_MS) || 1200);   // the CDP runner settles 1200ms; the mock lane 800 (bd-k5gjje)
+  // setAppSetting/restoreAppSettings sleep out the bot's app_settings cache: 31 s in production terms; the mock lane
+  // runs the bot with APP_SETTINGS_FLAG_TTL_MS=1000 and settles 1.5 s (run-suite E2E_APP_SETTING_SETTLE_MS).
+  const appSettingSettleMs = opts.appSettingSettleMs != null ? opts.appSettingSettleMs : (Number(process.env.E2E_APP_SETTING_SETTLE_MS) || 31000);
+  // The outbox seq a settle last proved QUIET (nothing landed for settleMs). A quiesce that finds the outbox still at
+  // that seq has nothing to wait for — in run 20261023-1006-par the outbox moved during a quiesce 0 times in 153.
+  let quietAt = null;
   const trace = opts.trace || (() => {});
   // Profiling (bd-5zzbvq): every primitive is a span, its quiesce / inject / bot.reply / poll.detect /
   // settle the children. E2E_TRACE_FILE (set per feature by run-suite.sh) switches it on; trace.cjs
@@ -94,6 +100,11 @@ function makeMockApi(opts) {
   async function quiesce() {
     const sp = tracer.span('wait.quiesce', { layer: 'wait', kind: 'intentional', parent: current, attrs: { quiesceMs } });
     let last = (await outbox(0)).last, stableSince = Date.now(), moved = 0;
+    if (quietAt !== null && last === quietAt) {   // proven quiet by the last settle, and nothing since: no wait
+      cursor = last;
+      sp.end('ok', { moved: 0, skipped: true });
+      return last;
+    }
     const t0 = Date.now();
     while (Date.now() - t0 < 20000) {
       await sleep(Math.min(pollMs, quiesceMs));
@@ -102,7 +113,8 @@ function makeMockApi(opts) {
       else if (Date.now() - stableSince >= quiesceMs) break;
     }
     cursor = last;
-    sp.end('ok', { moved });   // moved > 0: a late reply to the PREVIOUS send landed while we waited
+    quietAt = last;   // this quiesce proved it too
+    sp.end('ok', { moved, skipped: false });   // moved > 0: a late reply to the PREVIOUS send landed while we waited
     return last;
   }
   /** Poll for items after `since`; return the newest as the reply, or the NO REPLY sentinel. */
@@ -140,6 +152,7 @@ function makeMockApi(opts) {
       }
       // lastAt: when the LAST message of the reply group landed — the time after it is pure settle cost
       const lastAt = Number(items[items.length - 1].at) || null;
+      quietAt = items[items.length - 1].seq;   // the outbox was quiet for settleMs after this seq
       sp.end('ok', { items: n, grew, idleMs: lastAt ? Math.max(0, Date.now() - lastAt) : null });
     }
     const waitedMs = Date.now() - s0;
@@ -393,7 +406,8 @@ function makeMockApi(opts) {
      *  reach every tester. The first value seen is remembered and put back by restoreAppSettings(), which the
      *  harness calls in its finally. The bot caches these switches for 30 s (app-redirect.service FLAG_TTL_MS),
      *  so the call waits that out before returning — the next message sees the new value. */
-    async setAppSetting(key, value, { settleMs = 31000 } = {}) {
+    appSettingSettleMs,
+    async setAppSetting(key, value, { settleMs = appSettingSettleMs } = {}) {
       trace('setAppSetting ' + key);
       if (!canFlipGlobal()) return { ok: false, err: 'GLOBAL_SWITCH: app_settings is global — flipped only on the run\'s own local database (E2E_LOCAL_DB=1)' };
       const { url, key: k } = dbCreds();
@@ -429,7 +443,7 @@ function makeMockApi(opts) {
       } catch (e) { return { ok: false, err: String(e.message).slice(0, 120) }; }
     },
     /** Put back every switch setAppSetting changed (delete the rows it created). Idempotent. */
-    async restoreAppSettings({ settleMs = 31000 } = {}) {
+    async restoreAppSettings({ settleMs = appSettingSettleMs } = {}) {
       if (!touchedSettings.size) return { ok: true, restored: 0 };
       const { url, key: k } = dbCreds();
       const H = { apikey: k, Authorization: `Bearer ${k}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' };
