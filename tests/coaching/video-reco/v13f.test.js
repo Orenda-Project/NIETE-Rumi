@@ -146,7 +146,7 @@ describe('2 · the name check ignores honorifics and role words in users.name', 
   });
 
   test('Urdu role words in users.name (مس، ٹیچر، استانی) are not the name', () => {
-    const ur = 'مس اور ٹیچر کی کلاس صرف ہاں یا نہیں میں جواب دے سکی؛ اس کلپ میں استانی کیوں کے سوال پوچھتی ہیں۔';
+    const ur = 'مس اور ٹیچر کی کلاس صرف ہاں یا نہیں میں جواب دے سکی؛ اس کلپ میں استاد کیوں کے سوال پوچھتے ہیں۔'; // R7b: the respectful plural (validation:gender otherwise)
     const v = S.validate(pick(GOOD.reason_en, ur), list, excerpts, { teacherName: 'مس صائمہ ٹیچر استانی' });
     expect(v.ok).toBe(true);
   });
