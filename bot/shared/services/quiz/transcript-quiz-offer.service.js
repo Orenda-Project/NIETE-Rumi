@@ -45,17 +45,7 @@ const OFFER_NO = 'tq_no_';
 const BUTTON_RX = /^tq_(yes|no)_([0-9a-fA-F-]{36})$/;
 const LANGUAGE_RX = /^tq_lang_(ur|en)_([0-9a-fA-F-]{36})$/;
 const MIN_TRANSCRIPT_CHARS = 1500;
-// 240 s in production. TRANSCRIPT_QUIZ_OFFER_DELAY_SECS shortens it for a test lane (the mock lane sets 5: its
-// coaching walker waits for the offer and gave up at 240 s on every run, bd-aqi0ay) — same shape as
-// VIDEO_QUIZ_JOIN_LOCK_SECS. A whole number of seconds 0..900 (the SQS cap); anything else → 240.
-const OFFER_DELAY_SECONDS = (() => {
-  const raw = String(process.env.TRANSCRIPT_QUIZ_OFFER_DELAY_SECS || '').trim();
-  if (!raw) return 240;
-  const n = /^\d+$/.test(raw) ? parseInt(raw, 10) : NaN;
-  if (Number.isInteger(n) && n >= 0 && n <= 900) return n;
-  logToFile('⚠️ TRANSCRIPT_QUIZ_OFFER_DELAY_SECS is not a whole number of seconds up to 900 — using 240', { raw }, 'warn');
-  return 240;
-})();
+const OFFER_DELAY_SECONDS = 240;
 const MIN_CONFIDENCE = 0.6;
 const MIN_SLOS = 2;
 /** The user_feature_first_use row that marks "this teacher has had the offer". */
