@@ -110,7 +110,7 @@ test('P099: the B6 template card on a greeting-and-Q&A lesson → silence:no_lev
 
 test('P011: B6 on a lesson where children are visibly not following still picks', async () => {
   const lines = [T(40000, 'اچھا، اب ان جملوں کو کمانڈ بنائیں۔ سمجھ نہیں آ رہا؟ دوبارہ دیکھیں۔'), K(45000, 'مس، یہ والا مشکل ہے۔')];
-  const d = deps([pick('56-s2', 'اچھا، اب ان جملوں کو کمانڈ بنائیں۔')]);
+  const d = deps([{ ...pick('56-s2', 'اچھا، اب ان جملوں کو کمانڈ بنائیں۔'), reason_en: 'Some children were not following the task. The clip shows a simpler task and a challenge task on one theme.' }]);
   const row = await E.recommendForReport({ ...args({ lines, indicator: 'B6', action: B6_CARD }), deps: d });
   expect(d.completeJson).toHaveBeenCalled();
   expect(row).toMatchObject({ status: 'shown', seg_id: '56-s2' });

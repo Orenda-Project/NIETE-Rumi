@@ -75,6 +75,8 @@ function deps(answers) {
 // bd-8hhqhf: the card sentence sits in an FSI…PDI isolate.
 const FALLBACK_EN = (s, n) => `Your report asks you to try: "\u2068${s}\u2069". This ${n}-second clip shows one way to do it.`;
 const FALLBACK_UR = (s, n) => `آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "\u2068${s}\u2069"۔ یہ ${n} سیکنڈ کا کلپ اس کا ایک طریقہ دکھاتا ہے۔`;
+// R7b: the STORED reason is composed, and Urdu prose takes Urdu digits, so the clip's seconds read «۹۰»
+const STORED_UR = (s, n) => FALLBACK_UR(s, String(n).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]));
 
 describe('(a) ⛔9 post-redaction: the stored reason and quote are the redacted ones', () => {
   test('a lexicon child name in reason_en, reason_ur and the quote is stored as [a student]', async () => {
@@ -102,7 +104,7 @@ describe('(a) ⛔9 post-redaction: the stored reason and quote are the redacted 
   });
 
   test('the post-redaction is the NON-strict one: ordinary capitalised English words survive', async () => {
-    const plain = { ...GOOD, reason_en: 'At 00:30 the class answered only Yes or No. This clip shows Think-Pair-Share instead of chorus answers.' };
+    const plain = { ...GOOD, reason_en: 'At 00:30 the class answered only Yes or No. This clip shows Why and How questions instead of chorus answers.' }; // R7b: a claim the clip backs
     const row = await E.recommendForReport({ ...args(), deps: deps([plain]) });
     expect(row.reason_en).toBe(plain.reason_en);
   });
@@ -119,7 +121,7 @@ describe('(b) the card-sentence fallback', () => {
       attempts: 2, first_none_reason: 'validation:roman', confidence: 0.55,
     });
     expect(row.reason_en).toBe(FALLBACK_EN('Ask two why questions about shapes', 90));
-    expect(row.reason_ur).toBe(FALLBACK_UR('Ask two why questions about shapes', 90));
+    expect(row.reason_ur).toBe(STORED_UR('Ask two why questions about shapes', 90));
   });
 
   test('a first-attempt pick that passes keeps moment_source transcript (the fallback never touches it)', async () => {
@@ -171,7 +173,7 @@ describe('(b) the card-sentence fallback', () => {
   test('the card action opening with the teacher\'s name: the address is dropped, no name and no [TEACHER] is stored', async () => {
     const row = await E.recommendForReport({ ...args({}, { indicator: 'C1', action: 'Saima Khan، کل دو کیوں والے سوال پوچھیں' }), deps: deps([ROMAN, ROMAN]) });
     expect(row).toMatchObject({ status: 'shown', moment_source: 'card' });
-    expect(row.reason_ur).toBe(FALLBACK_UR('کل دو کیوں والے سوال پوچھیں', 90));
+    expect(row.reason_ur).toBe(STORED_UR('کل دو کیوں والے سوال پوچھیں', 90));
     expect(JSON.stringify(row)).not.toMatch(/Saima|\[TEACHER\]/);
   });
 

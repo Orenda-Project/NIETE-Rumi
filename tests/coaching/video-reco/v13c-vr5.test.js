@@ -19,12 +19,13 @@ const base = {
   scorerQuote: 'Is this a triangle? Yes or no',
 };
 // sha256 of P.build(base) with no cross-language rule. Was the vr-4 text (cbcd4c39e4, 846c8f5e…); re-taken at vr-6
-// (bd-8hhqhf r7: rule 2 drops the clock time), which changes the base text, not the cross-language rule tested here.
-const VR4_SHA = 'a2c7fab6f5835cf3ee9cd29fb9c9dbbecabb361ec34fb61d1300cdc313d3f349';
+// (bd-8hhqhf r7: rule 2 drops the clock time) and at vr-7 (R7b: rule 2's clip words, rule 3's Urdu plural), which change
+// the base text, not the cross-language rule tested here.
+const VR4_SHA = '3d2c05c60fac0ff3a40a1d34970867b6e670d0495fe901757dcd0e9488e91654';
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 
 describe('prompt vr-5: the cross-language paraphrase rule', () => {
-  test('PROMPT_VERSION is vr-6', () => expect(P.PROMPT_VERSION).toBe('vr-6'));
+  test('PROMPT_VERSION is vr-7', () => expect(P.PROMPT_VERSION).toBe('vr-7'));
 
   test('en report + ur lesson: reason_en paraphrases the moment in English and quotes at most 6 words; moment.quote stays verbatim', () => {
     const text = P.build({ ...base, reportLanguage: 'en', lessonLanguage: 'ur' });
@@ -110,7 +111,7 @@ describe('engine: the prompt gets the report and lesson languages', () => {
     const d = deps();
     const row = await E.recommendForReport({ ...args('en'), deps: d });
     expect(d.completeJson.mock.calls[0][0]).toMatch(/in reason_en, paraphrase the moment in English/);
-    expect(row).toMatchObject({ status: 'shown', seg_id: '10-s1', prompt_version: 'vr-6', moment_source: 'transcript' });
+    expect(row).toMatchObject({ status: 'shown', seg_id: '10-s1', prompt_version: 'vr-7', moment_source: 'transcript' });
     expect(row.moment_quote).toBe(PARAPHRASED.moment.quote);
     expect(row.reason_en).toBe(PARAPHRASED.reason_en.replace('"yes or no"', '"\u2068yes or no\u2069"')); // bd-8hhqhf: the quote is isolated
   });
