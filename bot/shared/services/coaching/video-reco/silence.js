@@ -14,15 +14,19 @@
 // A visible mixed-level moment: a child not following, an early finisher, a task offered at two levels, a learner
 // named as weaker or stronger. Content uses of the same words ("آسان کام ہے", "سمجھ نہیں آئیں گے") do not count.
 const LEVELS = [
-  /سمجھ نہیں (?:آیا|آئی|آ رہا|آ رہی)(?![ںے])/u,
+  /سمجھ (?:میں )?نہیں (?:آیا|آئی|آ ?رہا|آ ?رہی)(?![ںے])/u,
+  /\bsamajh nahi?n? (?:aya|ayi|aa? ?raha|aa? ?rahi)\b/i,
+  /\b(?:confused|could ?n.t do it|fast finishers?|(?:those|who) (?:are|is) (?:done|finished))\b/i,
+  /پیچھے رہ (?:گئے|گیا|گئی)|دوبارہ سمجھاؤں/u,
+  /جو (?:بچے |بچیاں |طلبہ )?پہلے (?:ختم|مکمل)/u,
   /\b(?:did ?n[o']?t|do ?n[o']?t|not) understand/i,
-  /جن(?:ہوں)? نے (?:کام )?(?:ختم|مکمل) کر (?:لیا|لی)/u,
+  /جن(?:ہوں)? نے (?:کام )?(?:(?:ختم|مکمل) )?کر (?:لیا|لی)/u,
   /جو (?:بچے|بچیاں|طلبہ) (?:کام )?(?:ختم|مکمل)/u,
   /\b(?:who|if you) (?:has |have )?finish/i,
   /\bfinished early/i,
   /(?:آسان|مشکل) (?:سوال|والا|والی|ورژن)/u,
   /\b(?:easy|easier|difficult|hard|harder|challenge) (?:one|question|task|version)/i,
-  /چیلنج/u,
+  /چیلنج (?:والا|والی|والے|سوال|ٹاسک|ورژن|کام)/u, // red7 F1: «زندگی میں ہر چیلنج» is not a task level
   /ایکسٹرا (?:کام|سوال|ورک)/u,
   /\bextra (?:work|question|task)/i,
   /(?:کمزور|ہوشیار|ذہین|لائق) (?:بچ|طلب|طالب)/u,
@@ -44,28 +48,33 @@ function labelOffSubject(scheme, indicator, subject) {
 }
 
 // The card's move: an English imperative verb, or an Urdu polite / familiar imperative. A diagnosis fragment has none.
-const EN_DO = new Set(('ask add allow assign call check choose circulate cold-call collect count dedicate display divide do draw end '
-  + 'explain give go have hold introduce invite keep let link list make mark model move name note offer pair pause plan point practise '
-  + 'practice praise prepare provide put read record repeat replace run say set share show start stop summarise summarize swap tell '
-  + 'think try turn use wait walk write').split(' '));
+// red7 F2: no "do" ("Students do not understand" is a diagnosis); "Don't …" counts by its own rule below.
+const EN_DO = new Set(('ask add allow assign begin call check choose circulate clap cold-call collect count dedicate display divide draw encourage end '
+  + 'explain give go have help hold introduce invite keep let link list make mark model move name nominate note offer pair pause plan point practise '
+  + 'practice praise prepare provide put re-teach read record remind repeat replace reteach rotate run say set share show signal speak start stop '
+  + 'summarise summarize swap tell think try turn use wait walk write').split(' '));
+const EN_DONT = /(?:^|[.;:,]\s*)(?:don['’]?t|never|avoid)\s/i;
 const UR_FORMS = ['\\S*(?:کریں|دیں|لیں|پوچھیں|کہیں|رکھیں|ائیں|لکھیں|پڑھیں|سنیں|دیکھیں|سوچیں|گنیں|بانٹیں)', // ائیں: بنائیں، آزمائیں، اپنائیں…
   // familiar, -یے polite, the impersonal «پوچھا جائے» and the verbal noun «مشق کروانا» a card also uses
   'کرو', 'کرواؤ', 'کراؤ', 'دو', 'لو', 'پوچھو', 'کہو', 'بتاؤ', 'دیکھو', 'لکھو', 'رکھو', 'سنو', 'جائے', 'پوچھیے', 'کیجیے', 'دیجیے', 'لیجیے', 'رکھیے', 'بتائیے',
-  'دکھائیے', 'لکھیے', 'کرنا', 'کروانا', 'کرانا', 'دینا', 'لینا', 'پوچھنا', 'بتانا', 'دکھانا', 'لکھنا', 'رکھنا'];
+  'دکھائیے', 'لکھیے', 'چلیں', 'بیٹھیں', 'ٹوکیں', 'بولیں', 'روکیں', 'سمجھیں', 'جوڑیں', 'کرنا', 'کروانا', 'کرانا', 'دینا', 'لینا', 'پوچھنا', 'بتانا', 'دکھانا', 'لکھنا', 'رکھنا'];
 const UR_DO = new RegExp(`(?:^|[\\s،؛,(«"'])(?:${UR_FORMS.join('|')})(?=$|[\\s،؛,.۔:)»"'!?؟])`, 'u');
 
 /** The sentence asks the teacher to DO something (en or ur); a fragment like «Made one thing together» does not. */
 function imperative(sentence) {
   const s = String(sentence || '');
-  if (UR_DO.test(s)) return true;
+  if (UR_DO.test(s) || EN_DONT.test(s)) return true;
   return s.toLowerCase().split(/[^a-z-]+/).some((w) => EN_DO.has(w));
 }
 
-const LABELLED = /^\s*\[\d{1,2}:\d{2}(?::\d{2})?\]\s*(?:teacher|students?|speaker)\b/i;
-const KID = /^\s*\[\d{1,2}:\d{2}(?::\d{2})?\]\s*students?\b/i;
+// red7 F3: any labelled turn that is not the teacher's is a child's («Student 2», «Class», «طالب علم», «Speaker 2»).
+const LABELLED = /^\s*\[\d{1,2}:\d{2}(?::\d{2})?\]\s*[^:\n]{1,30}:/;
+const TEACHER_LABEL = /^\s*\[\d{1,2}:\d{2}(?::\d{2})?\]\s*(?:teacher|coach|استاد|استانی|ٹیچر|speaker\s*1\b)/i;
+const KID = { test: (l) => LABELLED.test(l) && !TEACHER_LABEL.test(l) };
 
 /**
- * The line at `i` or the line either side is a student turn. Lines without speaker labels are not judged (true).
+ * The line at `i` or the line either side is a child's turn (any labelled turn but the teacher's). Lines without speaker
+ * labels are not judged (true).
  * @param {string[]} lines  excerpt or transcript lines "[mm:ss] Label: text"
  */
 function childTurnNear(lines, i) {
