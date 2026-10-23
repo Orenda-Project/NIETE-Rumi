@@ -69,7 +69,7 @@ afterEach(() => { jest.restoreAllMocks(); });
 describe('thingFor', () => {
   test.each([['C'], ['D']])('%s: the stored thing to try, trimmed, with the group', async (g) => {
     const sb = fakeSupabase(world(g));
-    expect(await S().thingFor(sb, TEACHER)).toEqual({
+    expect(await S().thingFor(sb, TEACHER, LESSON)).toEqual({
       group: g,
       thing: {
         text: 'Ask one child to explain to a neighbour.', tag: 'hlp_peer_talk', moveId: 'm4', setOnLessonId: THING.lesson_id,
@@ -80,32 +80,32 @@ describe('thingFor', () => {
 
   test.each([['A'], ['B']])('%s: null, and no session is read', async (g) => {
     const sb = fakeSupabase(world(g));
-    expect(await S().thingFor(sb, TEACHER)).toBeNull();
+    expect(await S().thingFor(sb, TEACHER, LESSON)).toBeNull();
     expect(sb.read).not.toContain('coaching_sessions');
   });
 
   test('switch off: null, nothing past the switch read', async () => {
     const sb = fakeSupabase(world('C', { app_settings: [{ key: 'ab_v10_enabled', value: 'false' }] }));
-    expect(await S().thingFor(sb, TEACHER)).toBeNull();
+    expect(await S().thingFor(sb, TEACHER, LESSON)).toBeNull();
     expect(sb.read).toEqual(['app_settings']);
   });
 
   test('switch row missing: off', async () => {
     const sb = fakeSupabase(world('C', { app_settings: [] }));
-    expect(await S().thingFor(sb, TEACHER)).toBeNull();
+    expect(await S().thingFor(sb, TEACHER, LESSON)).toBeNull();
   });
 
   test('school not in the draw: null', async () => {
-    expect(await S().thingFor(fakeSupabase(world(null)), TEACHER)).toBeNull();
+    expect(await S().thingFor(fakeSupabase(world(null)), TEACHER, LESSON)).toBeNull();
   });
 
   test('no school on her row: null', async () => {
-    expect(await S().thingFor(fakeSupabase(world('C', { users: [{ id: TEACHER, school_id: null }] })), TEACHER)).toBeNull();
+    expect(await S().thingFor(fakeSupabase(world('C', { users: [{ id: TEACHER, school_id: null }] })), TEACHER, LESSON)).toBeNull();
   });
 
   test('never reads the ch3-8 LP test assignment', async () => {
     const sb = fakeSupabase(world('C'));
-    await S().thingFor(sb, TEACHER);
+    await S().thingFor(sb, TEACHER, LESSON);
     expect(sb.read).toContain('niete_coaching_ab_assignment');
     expect(sb.read).not.toContain('niete_lp_ab_assignment');
   });
@@ -115,21 +115,21 @@ describe('thingFor', () => {
     [{ prioritized_action: { thing_to_try: { text: '   ' } } }],
   ])('no usable thing to try stored: null (%p)', async (row) => {
     const sb = fakeSupabase(world('C', { coaching_sessions: [{ user_id: TEACHER, ...row }] }));
-    expect(await S().thingFor(sb, TEACHER)).toBeNull();
+    expect(await S().thingFor(sb, TEACHER, LESSON)).toBeNull();
   });
 
   test('no session at all: null', async () => {
-    expect(await S().thingFor(fakeSupabase(world('C', { coaching_sessions: [] })), TEACHER)).toBeNull();
+    expect(await S().thingFor(fakeSupabase(world('C', { coaching_sessions: [] })), TEACHER, LESSON)).toBeNull();
   });
 
   test.each([['users'], ['niete_coaching_ab_assignment'], ['coaching_sessions']])('a failed %s read: null, never throws', async (t) => {
     const sb = fakeSupabase(world('C'), { fail: { [t]: true } });
-    await expect(S().thingFor(sb, TEACHER)).resolves.toBeNull();
+    await expect(S().thingFor(sb, TEACHER, LESSON)).resolves.toBeNull();
   });
 
   test('no user id: null, nothing read', async () => {
     const sb = fakeSupabase(world('C'));
-    expect(await S().thingFor(sb, null)).toBeNull();
+    expect(await S().thingFor(sb, null, LESSON)).toBeNull();
     expect(sb.read).toEqual([]);
   });
 });
@@ -234,6 +234,7 @@ describe('routes', () => {
     expect(statusCode).toBe(200);
     expect(payload).toEqual({ success: true, thing: { text: 'Wait five seconds.', tag: 'hlp_wait_time', step: STEP } });
     expect(thingFor.mock.calls[0][1]).toBe(TEACHER);
+    expect(thingFor.mock.calls[0][2]).toBe(LESSON);
     expect(telemetry.logEvent).toHaveBeenCalledWith('coaching.thing_to_try.portal_shown', {
       userId: TEACHER, group: 'D', lessonId: LESSON, moveId: 'm2', setOnLessonId: 'grade_1_english_ch8_seg5', tag: 'hlp_wait_time', step: 4,
     });
@@ -262,6 +263,7 @@ describe('routes', () => {
   test('POST tap: 204, logged with the group, the move and the step', async () => {
     const { statusCode } = await invoke('post', '/teacher/thing-to-try/tap', { body: { lessonId: LESSON, step: 4 } });
     expect(statusCode).toBe(204);
+    expect(thingFor.mock.calls[0][2]).toBe(LESSON);
     expect(telemetry.logEvent).toHaveBeenCalledWith('coaching.thing_to_try.tap', {
       userId: TEACHER, group: 'D', lessonId: LESSON, step: 4, moveId: 'm2', setOnLessonId: 'grade_1_english_ch8_seg5', tag: 'hlp_wait_time',
     });

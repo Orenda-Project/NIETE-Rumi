@@ -6,6 +6,7 @@
  */
 
 const TEACHER = '6f1c2a7e-0b8d-4c55-9a51-2d7f0e3b9c10';
+const LESSON = 'grade_1_english_ch8_seg6';
 const THING = { move_id: 'm4', lesson_id: 'grade_1_english_ch8_seg5', text: '  Ask one child to explain to a neighbour. ', tag: 'hlp_peer_talk' };
 
 const S = () => require('../../dashboard/services/thing-to-try.service');
@@ -64,16 +65,48 @@ describe('thingFor: the step', () => {
     ['moves is not a list', { moves: 'x' }, THING],
     ['the thing to try has no move id', { moves: [{ move_id: 'm4', phase: 'guided' }] }, { ...THING, move_id: null }],
   ])('step null when %s: the thing still shows', async (_l, lpf, thing) => {
-    const found = await S().thingFor(fakeSupabase(world('C', session(lpf, thing))), TEACHER);
+    const found = await S().thingFor(fakeSupabase(world('C', session(lpf, thing))), TEACHER, LESSON);
     expect(found.thing.text).toBe('Ask one child to explain to a neighbour.');
     expect(found.thing.step).toBeNull();
   });
 
   test.each([['warm_up', 1, 'Opening'], ['explain', 2, 'Explanation'], ['independent', 4, 'You Do'], ['exit', 5, 'Check']])(
     'a %s move is step %i (%s)', async (phase, index, name) => {
-      const found = await S().thingFor(fakeSupabase(world('D', session({ moves: [{ move_id: 'm4', phase }] }))), TEACHER);
+      const found = await S().thingFor(fakeSupabase(world('D', session({ moves: [{ move_id: 'm4', phase }] }))), TEACHER, LESSON);
       expect(found.thing.step).toEqual({ name, index });
     },
   );
 
+});
+
+describe('thingFor: this plan\'s subject and grade (bd-v0toag.100.8)', () => {
+  // bd-v0toag.100.8: the strip shows the ask of this plan's subject and grade only.
+  const row = (id, thing) => ({ id, user_id: TEACHER, prioritized_action: { thing_to_try: thing }, lp_fidelity: null });
+  test('a newer ask in another subject or grade is passed over for this plan\'s ask', async () => {
+    const sb = fakeSupabase(world('C', { coaching_sessions: [
+      row('s3', { ...THING, lesson_id: 'grade_1_urdu_ch2_seg1', text: 'Urdu ask', step: null }),
+      row('s2', { ...THING, lesson_id: 'grade_3_english_ch2_seg1', text: 'G3 ask', step: null }),
+      row('s1', { ...THING, step: { name: 'You Do', index: 4 } }),
+    ] }));
+    const out = await S().thingFor(sb, TEACHER, LESSON);
+    expect(out.thing.text).toBe('Ask one child to explain to a neighbour.');
+    expect(out.thing.step).toEqual({ name: 'You Do', index: 4 });
+  });
+
+  test('only asks of other subjects or grades: null', async () => {
+    const sb = fakeSupabase(world('C', { coaching_sessions: [row('s1', { ...THING, lesson_id: 'grade_2_english_ch8_seg5' })] }));
+    expect(await S().thingFor(sb, TEACHER, LESSON)).toBeNull();
+  });
+
+  test('a done marker in this subject and grade: null', async () => {
+    const sb = fakeSupabase(world('C', { coaching_sessions: [
+      row('s2', { move_id: null, lesson_id: 'grade_1_english_ch8_seg5', text: null, tag: null, step: null }),
+      row('s1', THING),
+    ] }));
+    expect(await S().thingFor(sb, TEACHER, LESSON)).toBeNull();
+  });
+
+  test.each([[undefined], [null], ['weird']])('no subject and grade in the lesson id (%p): null', async (lessonId) => {
+    expect(await S().thingFor(fakeSupabase(world('C')), TEACHER, lessonId)).toBeNull();
+  });
 });

@@ -2,9 +2,10 @@
  * v10 coaching test (bd-v0toag.20): the thing to try is picked from the plan moves the grading marked
  * missed, and checked on the next recording.
  *
- * Move ids only mean something inside one lesson, so the check on the next recording (a different lesson)
- * looks at the moves with the same practice tag (practice-tag.js). Runs only while ab_v10_enabled is on,
- * for every group (A and B never see it; it gives the test its comparison). Never throws.
+ * bd-v0toag.100.8: an ask belongs to its subject and grade, and stays until a recording of that subject
+ * and grade shows she did it; the check judges the ask's own text against the recording
+ * (thing-to-try-judge.js). Runs only while ab_v10_enabled is on, for every group (A and B never see it;
+ * it gives the test its comparison). Never throws.
  */
 const mockSupabase = { from: jest.fn() };
 jest.mock('../../bot/shared/config/supabase', () => mockSupabase);
@@ -18,8 +19,11 @@ const mockArms = { groupFor: jest.fn() };
 jest.mock('../../bot/shared/services/coaching/ab-v10-arms', () => ({
   groupFor: (...a) => mockArms.groupFor(...a),
 }));
+const mockJudge = { judgeThing: jest.fn() };
+jest.mock('../../bot/shared/services/coaching/thing-to-try-judge', () => ({
+  judgeThing: (...a) => mockJudge.judgeThing(...a),
+}));
 
-const { logEvent } = require('../../bot/shared/utils/structured-logger');
 const P = require('../../bot/shared/services/coaching/thing-to-try-pick');
 
 const row = (move_id, phase, text, verdict, bucket = 'must_happen') => ({ move_id, phase, text, verdict, bucket });
@@ -37,6 +41,7 @@ describe('pickThingToTry', () => {
   test('the first must_happen move marked not_done that has a tag', () => {
     expect(P.pickThingToTry(graded(MOVES))).toEqual({
       move_id: 'm3', lesson_id: 'grade_2_maths_ch4_seg3', text: 'In pairs, students solve Q1.', tag: 'C9',
+      step: { name: 'We Do', index: 3 },
     });
   });
 
@@ -76,85 +81,18 @@ describe('pickThingToTry', () => {
   });
 });
 
-describe('checkThing', () => {
-  const PRIOR = { move_id: 'm3', lesson_id: 'grade_2_maths_ch4_seg2', text: 'In pairs, solve Q1.', tag: 'C9' };
-
-  test('did: a same-practice move was done (or substituted)', () => {
-    for (const verdict of ['executed', 'substituted_equivalent', 'substituted_better']) {
-      const lp = graded([row('m1', 'guided', 'In groups, sort the cards.', verdict), row('m2', 'guided', 'Partners read.', 'not_done')]);
-      expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'did', matched: 2, moveIds: ['m1', 'm2'], matchedBy: 'tag' });
-    }
-  });
-
-  test('partly: the best same-practice move was partial', () => {
-    const lp = graded([row('m1', 'guided', 'In groups, sort the cards.', 'partial'), row('m2', 'guided', 'Partners read.', 'not_done')]);
-    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'partly', matched: 2, moveIds: ['m1', 'm2'], matchedBy: 'tag' });
-  });
-
-  test('not_done: every same-practice move was missed', () => {
-    const lp = graded([row('m1', 'guided', 'In groups, sort the cards.', 'not_done')]);
-    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'not_done', matched: 1, moveIds: ['m1'], matchedBy: 'tag' });
-  });
-
-  test('no_matching_move: this plan had no move with that practice', () => {
-    const lp = graded([row('m1', 'exit', 'Exit ticket.', 'executed')]);
-    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'no_matching_move', matched: 0, moveIds: [], matchedBy: null });
-  });
-
-  test('not_adjudicable moves are left out', () => {
-    const lp = graded([row('m1', 'guided', 'In groups, sort the cards.', 'not_adjudicable')]);
-    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'no_matching_move', matched: 0, moveIds: [], matchedBy: null });
-  });
-
-  test('optional moves count too: she may try it anywhere in the lesson', () => {
-    const lp = graded([row('m1', 'guided', 'In groups, sort the cards.', 'executed', 'optional_extension')]);
-    expect(P.checkThing(PRIOR, lp).outcome).toBe('did');
-  });
-
-  test('not_graded when this recording has no grading', () => {
-    expect(P.checkThing(PRIOR, { status: 'lp_absent' })).toEqual({ outcome: 'not_graded', matched: 0, moveIds: [], matchedBy: null });
-    expect(P.checkThing(PRIOR, null)).toEqual({ outcome: 'not_graded', matched: 0, moveIds: [], matchedBy: null });
-  });
-
-  // bd-v0toag.100.5: the tag reads the move's wording first, so the same pair activity is C9 or C11
-  // ("swap", "each other") and the same class question C1 or C4 ("choral", "by name") on wording alone.
-  test('no same-tag move: a pair/peer move counts for pair work, and the reverse', () => {
-    const lp = graded([row('m8', 'peer_review', 'Pupils swap notebooks with a partner.', 'not_done')]);
-    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'not_done', matched: 1, moveIds: ['m8'], matchedBy: 'family' });
-    const peer = { ...PRIOR, tag: 'C11' };
-    const lp2 = graded([row('m2', 'grouping', 'Divide the class into three groups.', 'executed')]);
-    expect(P.checkThing(peer, lp2)).toEqual({ outcome: 'did', matched: 1, moveIds: ['m2'], matchedBy: 'family' });
-  });
-
-  test('no same-tag move: a whole-class question counts for questioning, and the reverse', () => {
-    const ask = { ...PRIOR, tag: 'C1' };
-    const lp = graded([row('m2', 'hook', 'Tell the story, then the class answers chorally.', 'executed')]);
-    expect(P.checkThing(ask, lp)).toEqual({ outcome: 'did', matched: 1, moveIds: ['m2'], matchedBy: 'family' });
-    const all = { ...PRIOR, tag: 'C4' };
-    expect(P.checkThing(all, graded([row('m1', 'hook', 'Ask: what do you see?', 'partial')])).outcome).toBe('partly');
-  });
-
-  test('a same-tag move wins over the family', () => {
-    const lp = graded([row('m1', 'guided', 'In groups, sort the cards.', 'not_done'), row('m2', 'peer_review', 'Swap and check.', 'executed')]);
-    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'not_done', matched: 1, moveIds: ['m1'], matchedBy: 'tag' });
-  });
-
-  test('practices with no near equivalent still find no match', () => {
-    const lp = graded([row('m1', 'hook', 'Ask: what do you see?', 'executed')]);
-    expect(P.checkThing({ ...PRIOR, tag: 'C6' }, lp)).toEqual({ outcome: 'no_matching_move', matched: 0, moveIds: [], matchedBy: null });
-  });
-
-  test('null when there is no prior thing or it has no tag', () => {
-    expect(P.checkThing(null, graded(MOVES))).toBeNull();
-    expect(P.checkThing({ ...PRIOR, tag: null }, graded(MOVES))).toBeNull();
-  });
-});
-
-describe('withThingToTry', () => {
+describe('withThingToTry (bd-v0toag.100.8: same subject and grade, stays till done, the ask judged)', () => {
   const ACTION = { action: 'Ask two children by name.', language: 'en' };
-  const PRIOR_ACTION = { action: 'old', thing_to_try: { move_id: 'm5', lesson_id: 'grade_2_maths_ch4_seg2', text: 'Exit ticket.', tag: 'C3' } };
+  const OLD = { move_id: 'm5', lesson_id: 'grade_2_maths_ch4_seg2', text: 'Exit ticket.', tag: 'C3', step: { name: 'Check', index: 5 } };
+  const NEW = {
+    move_id: 'm3', lesson_id: 'grade_2_maths_ch4_seg3', text: 'In pairs, students solve Q1.', tag: 'C9',
+    step: { name: 'We Do', index: 3 },
+  };
+  const s = (id, thing, lp_fidelity) => ({ id, prioritized_action: { action: 'old', thing_to_try: thing }, lp_fidelity });
 
-  function priorSessions(rows, { fail = false } = {}) {
+  let P;
+  let logEvent;
+  function sessions(rows, { fail = false } = {}) {
     mockSupabase.from.mockImplementation(() => {
       const c = {
         select: () => c, eq: () => c, neq: () => c, not: () => c, order: () => c,
@@ -163,77 +101,113 @@ describe('withThingToTry', () => {
       return c;
     });
   }
-
   const input = (over = {}) => ({
     userId: 'u1', coachingSessionId: 's2', lpFidelity: graded(MOVES), actionData: ACTION, ...over,
   });
+  const checked = () => logEvent.mock.calls.filter(([e]) => e === 'coaching.thing_to_try.checked').map(([, d]) => d);
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.resetModules();
+    P = require('../../bot/shared/services/coaching/thing-to-try-pick');
+    ({ logEvent } = require('../../bot/shared/utils/structured-logger'));
     mockArms.groupFor.mockResolvedValue({ group: 'C', plan: 'v9', report: 'new' });
+    mockSwitch.v10Enabled.mockResolvedValue(true);
+    mockJudge.judgeThing.mockResolvedValue({ outcome: 'not_done', moveId: 'm5', evidence: null, why: 'No exit ticket.' });
   });
 
-  test('switch off: actionData unchanged, nothing read, nothing logged', async () => {
+  test('switch off: actionData unchanged, nothing read, nothing judged, nothing logged', async () => {
     mockSwitch.v10Enabled.mockResolvedValue(false);
-    const out = await P.withThingToTry(input());
-    expect(out).toBe(ACTION);
+    expect(await P.withThingToTry(input())).toBe(ACTION);
     expect(mockSupabase.from).not.toHaveBeenCalled();
-    expect(mockArms.groupFor).not.toHaveBeenCalled();
+    expect(mockJudge.judgeThing).not.toHaveBeenCalled();
     expect(logEvent).not.toHaveBeenCalled();
   });
 
-  test('switch on: adds the thing to try and logs it with the group', async () => {
-    mockSwitch.v10Enabled.mockResolvedValue(true);
-    priorSessions([]);
+  test('no live ask in this subject and grade: a new one is picked, with its step, and nothing judged', async () => {
+    sessions([s('s1', { ...OLD, lesson_id: 'grade_5_maths_ch4_seg2' }), s('s0', { ...OLD, lesson_id: 'grade_2_english_ch4_seg2' })]);
     const out = await P.withThingToTry(input());
-    expect(out).toEqual({ ...ACTION, thing_to_try: { move_id: 'm3', lesson_id: 'grade_2_maths_ch4_seg3', text: 'In pairs, students solve Q1.', tag: 'C9' } });
+    expect(out).toEqual({ ...ACTION, thing_to_try: NEW });
     expect(ACTION.thing_to_try).toBeUndefined();
+    expect(mockJudge.judgeThing).not.toHaveBeenCalled();
+    expect(checked()).toEqual([]);
     expect(logEvent).toHaveBeenCalledWith('coaching.thing_to_try.set', expect.objectContaining({
-      userId: 'u1', sessionId: 's2', group: 'C', moveId: 'm3', tag: 'C9',
+      userId: 'u1', sessionId: 's2', group: 'C', moveId: 'm3', tag: 'C9', carried: false,
     }));
-    expect(logEvent).not.toHaveBeenCalledWith('coaching.thing_to_try.checked', expect.anything());
   });
 
-  test('checks the last session\'s thing to try against this recording', async () => {
-    mockSwitch.v10Enabled.mockResolvedValue(true);
-    priorSessions([{ id: 's1', prioritized_action: PRIOR_ACTION }]);
-    await P.withThingToTry(input());
-    expect(logEvent).toHaveBeenCalledWith('coaching.thing_to_try.checked', {
+  test('a live ask not done yet is carried forward unchanged, and the check logs the judge\'s call', async () => {
+    sessions([s('s1', OLD)]);
+    const out = await P.withThingToTry(input());
+    expect(out.thing_to_try).toEqual(OLD);
+    expect(mockJudge.judgeThing).toHaveBeenCalledWith({ thing: OLD, lpFidelity: graded(MOVES), sessionId: 's2' });
+    expect(checked()).toEqual([{
       userId: 'u1', sessionId: 's2', priorSessionId: 's1', group: 'C',
       moveId: 'm5', setOnLessonId: 'grade_2_maths_ch4_seg2', lessonId: 'grade_2_maths_ch4_seg3',
-      tag: 'C3', outcome: 'not_done', matched: 1, moveIds: ['m5'], matchedBy: 'tag',
+      tag: 'C3', outcome: 'not_done', judgedMoveId: 'm5', moveIds: ['m5'], evidence: null, why: 'No exit ticket.', carried: true,
+    }]);
+  });
+
+  test.each(['partly', 'couldnt_tell', 'not_graded'])('%s: the ask stays', async (outcome) => {
+    sessions([s('s1', OLD)]);
+    mockJudge.judgeThing.mockResolvedValue({ outcome, moveId: null, evidence: null, why: null });
+    expect((await P.withThingToTry(input())).thing_to_try).toEqual(OLD);
+    expect(checked()[0]).toMatchObject({ outcome, carried: true, moveIds: [] });
+  });
+
+  test('did: a new ask is picked from this recording', async () => {
+    sessions([s('s1', OLD)]);
+    mockJudge.judgeThing.mockResolvedValue({ outcome: 'did', moveId: 'm5', evidence: 'exit ticket now', why: 'She did it.' });
+    expect((await P.withThingToTry(input())).thing_to_try).toEqual(NEW);
+    expect(checked()[0]).toMatchObject({ outcome: 'did', carried: false, evidence: 'exit ticket now' });
+  });
+
+  test('did, and nothing missed today: a done marker is stored so the old ask is not found again', async () => {
+    sessions([s('s1', OLD)]);
+    mockJudge.judgeThing.mockResolvedValue({ outcome: 'did', moveId: 'm5', evidence: null, why: null });
+    const lpFidelity = graded(MOVES.map((m) => ({ ...m, verdict: 'executed' })));
+    expect((await P.withThingToTry(input({ lpFidelity }))).thing_to_try).toEqual({
+      move_id: null, lesson_id: 'grade_2_maths_ch4_seg3', text: null, tag: null, step: null,
     });
   });
 
-  test('group A and teachers outside the draw are checked too, group null when not drawn', async () => {
-    mockSwitch.v10Enabled.mockResolvedValue(true);
+  test('a carried ask set before this fix gets the step of its move from the session it was set on', async () => {
+    const { step, ...bare } = OLD;
+    sessions([s('s1', bare, { status: 'ok', moves: [{ move_id: 'm5', phase: 'exit' }] })]);
+    expect((await P.withThingToTry(input())).thing_to_try).toEqual(OLD);
+  });
+
+  test('the slim image and the stored card resolve once: one read, one judgement, one check', async () => {
+    sessions([s('s1', OLD)]);
+    const a = await P.resolveThing({ userId: 'u1', coachingSessionId: 's2', lpFidelity: graded(MOVES) });
+    await P.withThingToTry(input());
+    expect(a.thing).toEqual(OLD);
+    expect(mockJudge.judgeThing).toHaveBeenCalledTimes(1);
+    expect(checked()).toHaveLength(1);
+  });
+
+  test('group null for a teacher outside the draw; they are checked too', async () => {
     mockArms.groupFor.mockResolvedValue(null);
-    priorSessions([{ id: 's1', prioritized_action: PRIOR_ACTION }]);
-    const out = await P.withThingToTry(input());
-    expect(out.thing_to_try).toBeTruthy();
-    expect(logEvent).toHaveBeenCalledWith('coaching.thing_to_try.checked', expect.objectContaining({ group: null }));
+    sessions([s('s1', OLD)]);
+    await P.withThingToTry(input());
+    expect(checked()[0]).toMatchObject({ group: null });
   });
 
   test('no actionData: the check still runs and null comes back', async () => {
-    mockSwitch.v10Enabled.mockResolvedValue(true);
-    priorSessions([{ id: 's1', prioritized_action: PRIOR_ACTION }]);
+    sessions([s('s1', OLD)]);
     expect(await P.withThingToTry(input({ actionData: null }))).toBeNull();
-    expect(logEvent).toHaveBeenCalledWith('coaching.thing_to_try.checked', expect.anything());
-    expect(logEvent).not.toHaveBeenCalledWith('coaching.thing_to_try.set', expect.anything());
+    expect(checked()).toHaveLength(1);
   });
 
-  test('nothing missed: actionData unchanged', async () => {
-    mockSwitch.v10Enabled.mockResolvedValue(true);
-    priorSessions([]);
+  test('nothing missed and no live ask: actionData unchanged', async () => {
+    sessions([]);
     const lpFidelity = graded(MOVES.map((m) => ({ ...m, verdict: 'executed' })));
     expect(await P.withThingToTry(input({ lpFidelity }))).toBe(ACTION);
   });
 
-  test('a failed read of the last session still adds the new thing', async () => {
-    mockSwitch.v10Enabled.mockResolvedValue(true);
-    priorSessions(null, { fail: true });
-    const out = await P.withThingToTry(input());
-    expect(out.thing_to_try.move_id).toBe('m3');
+  test('a failed read of the earlier sessions still adds the new thing', async () => {
+    sessions(null, { fail: true });
+    expect((await P.withThingToTry(input())).thing_to_try).toEqual(NEW);
   });
 
   test('never throws: any failure returns actionData unchanged', async () => {
@@ -242,8 +216,8 @@ describe('withThingToTry', () => {
     mockSwitch.v10Enabled.mockResolvedValue(true);
     mockSupabase.from.mockImplementation(() => { throw new Error('client down'); });
     mockArms.groupFor.mockRejectedValue(new Error('down'));
-    const lpFidelity = { status: 'ok', get moves() { throw new Error('bad grading'); } };
-    expect(await P.withThingToTry(input({ lpFidelity }))).toBe(ACTION);
+    const lpFidelity = { status: 'ok', lesson_id: 'grade_2_maths_ch4_seg3', get moves() { throw new Error('bad grading'); } };
+    expect(await P.withThingToTry(input({ coachingSessionId: 's9', lpFidelity }))).toBe(ACTION);
   });
 });
 
