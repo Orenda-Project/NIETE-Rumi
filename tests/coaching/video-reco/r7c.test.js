@@ -429,9 +429,29 @@ describe('red7 HOLD 174103 on 6c7c480f8b (H1–H6) and notes N2/N4/N5', () => {
 
   test('N4: a quoted transcript span keeps its own words and digits; N5: «کیوں» keeps the clause order', () => {
     const { composeReason } = require('../../../bot/shared/services/coaching/video-reco/copy');
-    const out = composeReason('استاد نے کہا "طبقے میں ۱۲ بچے ہیں" اور پورے کلاس سے پوچھا؛ یہ 52 سیکنڈ کا کلپ ہے۔', 'ur', null);
+    // the transcript's moment is the span the validator accepted (red7 H7: only it, and the card isolate, are skipped)
+    const out = composeReason('استاد نے کہا "طبقے میں ۱۲ بچے ہیں" اور پورے کلاس سے پوچھا؛ یہ 52 سیکنڈ کا کلپ ہے۔', 'ur', 'طبقے میں ۱۲ بچے ہیں');
     expect(out).toContain('طبقے میں ۱۲ بچے ہیں');
     expect(out).toContain('پوری کلاس');
     expect(composeReason('آپ کیوں سوچتے ہیں کہ پانی ضروری ہے؟', 'ur', null)).toBe('آپ کے خیال میں پانی ضروری ہے، ایسا کیوں؟');
+  });
+});
+
+describe('red7 HOLD 175620 on 4a67ce8fb2 (H7): the word table reaches the model\'s own quoted suggestion', () => {
+  const { composeReason } = require('../../../bot/shared/services/coaching/video-reco/copy');
+
+  test('a quoted suggestion carrying the calque is rewritten (Q082/Q149/Q200 shape)', () => {
+    const out = composeReason('کلاس نے ایک لفظ کہا؛ کل پوچھیں "آپ کیوں سوچتے ہیں کہ پانی ضروری ہے؟" اور سنیں۔', 'ur', 'بچو یہ سوال کس نے حل کیا ہے');
+    expect(out).toContain('آپ کے خیال میں پانی ضروری ہے، ایسا کیوں؟');
+    expect(out).not.toContain('آپ کیوں سوچتے ہیں');
+  });
+
+  test('the transcript\'s moment keeps its words and digits; the card isolate keeps the card\'s words', () => {
+    const moment = 'طبقے میں ۱۲ بچے جوڑ میں بیٹھے ہیں';
+    const out = composeReason(`استاد نے کہا "${moment}" تو پورے کلاس خاموش رہی؛ یہ 52 سیکنڈ کا کلپ ہے۔`, 'ur', moment);
+    expect(out).toContain(moment);
+    expect(out).toContain('پوری کلاس');
+    const card = composeReason('آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "⁨جوڑ میں کام کرائیں⁩"۔ یہ 52 سیکنڈ کا کلپ ہے۔', 'ur', null);
+    expect(card).toContain('⁨جوڑ میں کام کرائیں⁩');
   });
 });

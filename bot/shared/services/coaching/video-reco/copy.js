@@ -157,13 +157,16 @@ const westernDigits = (text) => text.split(/([\u2066-\u2068][^\u2066-\u2069]*\u2
  */
 function composeReason(text, language, quote) {
   if (typeof text !== 'string' || !text) return text;
-  const s = isolateQuotes(stripLead(text), quote);
-  if (lang(language) === 'en') return isolateArabic(westernDigits(s.replace(/。\s*/g, '. ').trim()));
-  // red7 N4: the word table and the digit rewrite never touch a quoted span (the transcript's or the card's own words)
-  const prose = (fn) => (t) => t.split(QUOTED_SPAN).map((part, i) => (i % 2 ? part : fn(part))).join('');
-  const western = /[0-9]/.test(s.split(QUOTED_SPAN).filter((_, i) => i % 2).join(' '));
-  const digits = prose((t) => oneDigitSystem(urduDigitsInProse(t), western));
-  return isolateLatin(digits(prose(urduWordTable)(s.replace(/。/g, '۔'))), false); // the WhatsApp body adds its own RLM
+  if (lang(language) === 'en') return isolateArabic(westernDigits(isolateQuotes(stripLead(text), quote).replace(/。\s*/g, '. ').trim()));
+  // red7 N4/H7: the word table and the digit rule leave the lesson's own words alone (the accepted moment, and the card
+  // sentence the fallback template isolates); a quoted suggestion the model wrote is its own copy and is rewritten
+  const q = typeof quote === 'string' ? quote : '';
+  const own = (span) => /^[\u2066-\u2068]/.test(span) || (!!q && [...span.slice(1, -1).trim()].length >= 6 && q.includes(span.slice(1, -1).trim()));
+  const parts = stripLead(text).replace(/。/g, '۔').split(QUOTED_SPAN);
+  const prose = parts.map((part, i) => (i % 2 && own(part) ? part : urduDigitsInProse(urduWordTable(part))));
+  const western = prose.some((part) => /[0-9]/.test(part));
+  const fixed = prose.map((part, i) => (i % 2 && own(parts[i]) ? part : oneDigitSystem(part, western))).join('');
+  return isolateLatin(isolateQuotes(fixed, quote), false); // the WhatsApp body adds its own RLM
 }
 
 // R7c (COS 20261023T170515 §6; panel ped/REVIEW_r7b_rejudge.md §4): the model's recurring Urdu slips, each fixed to the word a
