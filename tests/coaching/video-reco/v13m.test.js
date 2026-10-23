@@ -73,6 +73,9 @@ test('26435821: neither stored reason opens with "[a student]"; the rest of the 
 test.each([
   ['"[a student]، سب سنیں" The clip shows wait time.', `"${FSI}سب سنیں${PDI}" The clip shows wait time.`],
   ['[a student], read the next line. The clip shows pair reading.', 'read the next line. The clip shows pair reading.'],
+  // red7 085645: two vocatives in a row, and a vocative before a copied stamp
+  ['[a student]، [a student]، آپ دونوں پڑھیں۔ The clip shows turns.', `${FSI}آپ دونوں پڑھیں۔${PDI} The clip shows turns.`],
+  ['[a student]، [00:12] آپ پڑھیں۔ The clip shows turns.', `${FSI}آپ پڑھیں۔${PDI} The clip shows turns.`],
 ])('a leading vocative placeholder goes: %s', (raw, want) => {
   expect(C.composeReason(raw, 'en')).toBe(want);
 });
