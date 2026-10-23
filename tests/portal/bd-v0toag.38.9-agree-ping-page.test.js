@@ -122,7 +122,8 @@ describe('the reasons page', () => {
     expect(res.body).toContain('accept="audio/*"');
     expect(res.body).toContain('data-max-seconds="20"');
     expect(res.body).toContain('Send to my coach');
-    expect(res.body).toContain(`href="/cr/${t}"`);
+    // bd-v0toag.80: Cancel submits the form (keeps her ticked reasons) rather than linking back to the card
+    expect(res.body).toContain('name="cancel" value="1" formnovalidate>Cancel</button>');
     expect(res.body).not.toContain('name="coach"');
     expect(emitted).toContainEqual({ e: 'coaching.coach_ping.asked', d: { coachingSessionId: S, userId: U, group: 'C', coaches: 1 } });
   });
