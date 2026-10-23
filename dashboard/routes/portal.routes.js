@@ -3203,6 +3203,10 @@ router.post('/assessment/generate', requirePortalAuth, assessmentRateLimit, asyn
       // request reaches the bot byte-identical to before.
       pattern: body.pattern ?? undefined,
       scope: body.scope ?? undefined,
+      // A topic paper's ticked topics (bd-6clakk.10) — without them the bot builds the whole chapter — and the
+      // door it came through (bd-pw1ccr.1). Absent the same way, so a plain request is unchanged.
+      topicIds: body.topicIds ?? undefined,
+      origin: body.origin ?? undefined,
     });
     res.status(202).json({ success: true, requestId });
   } catch (error) {
