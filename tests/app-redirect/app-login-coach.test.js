@@ -76,6 +76,7 @@ describe('the token', () => {
       attendance: '/portal/teacher/attendance',
       classes: '/portal/teacher/classes',
       assessment_topics: '/portal/teacher/assessment/new/class?by=topics', // bd-6clakk Task 9, a landing of its own
+      assessment_report: '/portal/teacher/assessment/new/class', // bd-pw1ccr.2, the A/B report button
     });
   });
 });

@@ -19,6 +19,7 @@ import { makeErrorText } from './failure';
 import { pagesMessage, stepReason } from './reasons';
 import { ASSESSMENT_V2_BASE, newPaperPath, requestPath } from './paths';
 import { usePicks } from './store';
+import { readLink, reportPicks } from './linkPicks';
 import { clearTopics, topicsApply } from './topics';
 import { useJobs } from './useJobs';
 import {
@@ -74,6 +75,21 @@ export function ClassStep() {
   const [combos, retryCombos] = useLoad(() => loadGradeSubjects('assessment'), 'gs:assessment');
   const [cat, retryCat] = useLoad(catalogueOnce, 'assessment:catalogue');
   const catalogue = dataOf(cat);
+  // bd-pw1ccr.2 — the A/B report button: ?origin=report tags the paper; its grade, subject and chapter, once the catalogue
+  // offers them, start a fresh paper on that chapter and go on to Cover. Applied once per visit.
+  const [query] = useSearchParams();
+  const link = useMemo(() => readLink(query), [query]);
+  const linkDone = useRef(false);
+  useEffect(() => {
+    if (!link.origin || linkDone.current) return;
+    if (link.prefill && !catalogue) return;
+    linkDone.current = true;
+    const fresh = link.prefill && catalogue ? reportPicks(link.prefill, catalogue, catalogue.defaultQuestions) : null;
+    if (fresh) {
+      set(fresh);
+      navigate(newPaperPath('cover'), { replace: true });
+    } else set({ origin: link.origin });
+  }, [link, catalogue, set, navigate]);
   const mine = useMemo(() => (dataOf(combos) ?? []).filter((c) => c.grade !== null), [combos]);
 
   const byGradeNames = useMemo(() => (catalogue
