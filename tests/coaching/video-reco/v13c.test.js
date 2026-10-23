@@ -72,12 +72,12 @@ function deps(answers) {
     completeJson,
   };
 }
-// bd-8hhqhf: the card sentence sits in an FSI…PDI isolate.
-const FALLBACK_EN = (s, n) => `Your report asks you to try: "\u2068${s}\u2069". This ${n}-second clip shows one way to do it.`;
-const FALLBACK_UR = (s, n) => `آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "\u2068${s}\u2069"۔ یہ ${n} سیکنڈ کا کلپ اس کا ایک طریقہ دکھاتا ہے۔`;
+// bd-8hhqhf: the card sentence sits in an FSI…PDI isolate. R7d: no seconds (the header says minutes); n is unused.
+const FALLBACK_EN = (s, n) => `Your report asks you to try: "\u2068${s}\u2069". This clip shows one way to do it.`;
+const FALLBACK_UR = (s, n) => `آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "\u2068${s}\u2069"۔ یہ کلپ اس کا ایک طریقہ دکھاتا ہے۔`;
 // R7b: the STORED reason is composed, and Urdu prose takes Urdu digits, so the clip's seconds read «۹۰»
 // R7c §6: an English sentence is not quoted inside the Urdu line of an English reader's message
-const PLAIN_UR = (n) => `آپ کی رپورٹ اگلی کلاس کے لیے ایک قدم بتاتی ہے۔ یہ ${n} سیکنڈ کا کلپ اسے کرنے کا ایک طریقہ دکھاتا ہے۔`;
+const PLAIN_UR = (n) => `آپ کی رپورٹ اگلی کلاس کے لیے ایک قدم بتاتی ہے۔ یہ کلپ اسے کرنے کا ایک طریقہ دکھاتا ہے۔`;
 const STORED_UR = (s, n) => FALLBACK_UR(s, String(n).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]));
 
 describe('(a) ⛔9 post-redaction: the stored reason and quote are the redacted ones', () => {
@@ -91,8 +91,8 @@ describe('(a) ⛔9 post-redaction: the stored reason and quote are the redacted 
     const d = deps([named]);
     const row = await E.recommendForReport({ ...args(), deps: d });
     expect(row).toMatchObject({ status: 'shown', seg_id: '10-s1', moment_source: 'transcript' });
-    expect(row.reason_en).toBe('At 00:30 [a student] could only answer yes or no. This clip shows a teacher asking why and how instead.');
-    expect(row.reason_ur).toBe('[a student] صرف ہاں یا نہیں میں جواب دے سکا؛ اس کلپ میں استاد کیوں اور کیسے کے سوال پوچھتے ہیں۔');
+    expect(row.reason_en).toBe('At 00:30 [a student] could only answer yes or no. This clip is about: Ask why and how.'); // R7d §6: the clip half is the chapter's title
+    expect(row.reason_ur).toBe('[a student] صرف ہاں یا نہیں میں جواب دے سکا۔ یہ کلپ اس بارے میں ہے: عنوان۔');
     expect(row.moment_quote).toBe('[a student], tum batao: is this a triangle? Yes or no');
     expect(JSON.stringify(d.written)).not.toMatch(/Ahmed|علی/);
   });
@@ -100,15 +100,15 @@ describe('(a) ⛔9 post-redaction: the stored reason and quote are the redacted 
   test('a reason with no name is byte-identical', async () => {
     const d = deps([GOOD]);
     const row = await E.recommendForReport({ ...args(), deps: d });
-    expect(row.reason_en).toBe(GOOD.reason_en);
-    expect(row.reason_ur).toBe(GOOD.reason_ur);
+    expect(row.reason_en).toBe('At 00:30 the class could only answer yes or no. This clip is about: Ask why and how.'); // R7d §6: the clip half is the chapter's title
+    expect(row.reason_ur).toBe('کلاس صرف ہاں یا نہیں میں جواب دے سکی۔ یہ کلپ اس بارے میں ہے: عنوان۔');
     expect(row.moment_quote).toBe(GOOD.moment.quote);
   });
 
   test('the post-redaction is the NON-strict one: ordinary capitalised English words survive', async () => {
     const plain = { ...GOOD, reason_en: 'At 00:30 the class answered only Yes or No. This clip shows Why and How questions instead of chorus answers.' }; // R7b: a claim the clip backs
     const row = await E.recommendForReport({ ...args(), deps: deps([plain]) });
-    expect(row.reason_en).toBe(plain.reason_en);
+    expect(row.reason_en).toBe('At 00:30 the class answered only Yes or No. This clip is about: Ask why and how.'); // R7d §6: the clip half is the chapter's title
   });
 });
 
@@ -153,7 +153,7 @@ describe('(b) the card-sentence fallback', () => {
   });
 
   test('the length cap is on the TEACHER\'s language: an en teacher with a sentence that fits in en gets the clip', async () => {
-    const s = `Ask ${'a'.repeat(216)}`; // en template + 220 = 293 ≤ 300; the ur one would be 302 (R7b: a sentence with a move)
+    const s = `Ask ${'a'.repeat(224)}`; // en template + 228 = 296 ≤ 300; the ur one would be 302 (R7b: a sentence with a move; R7d: no seconds)
     expect([...FALLBACK_EN(s, 90)].length).toBeLessThanOrEqual(300);
     expect([...FALLBACK_UR(s, 90)].length).toBeGreaterThan(300);
     const row = await E.recommendForReport({ ...args({}, { indicator: 'C1', action: s }, 'en'), deps: deps([ROMAN, ROMAN]) });
@@ -204,8 +204,8 @@ describe('select.cardFallback (pure): which validation rules it follows', () => 
     'validation:step', 'validation:error'])('%s → null (a code gate failed, or no pick)', (none) => {
     expect(S.cardFallback({ ...base, none })).toBeNull();
   });
-  test('N is round(end − start)', () => {
-    expect(S.cardFallback({ ...base, none: 'validation:quote', startS: 10.4, endS: 55.9 }).reason_en).toContain('This 46-second clip');
+  test('R7d: the line names no seconds, whatever the clip length (the header and button say minutes)', () => {
+    expect(S.cardFallback({ ...base, none: 'validation:quote', startS: 10.4, endS: 55.9 }).reason_en).toContain('This clip shows one way to do it.');
   });
   test('a sentence that is only placeholders after redaction → null', () => {
     expect(S.cardFallback({ ...base, none: 'validation:quote', sentence: '[TEACHER]،  ' })).toBeNull();

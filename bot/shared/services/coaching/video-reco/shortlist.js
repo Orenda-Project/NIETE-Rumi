@@ -137,18 +137,24 @@ function bm25(catalog, query) {
   for (const d of docs) for (const t of new Set(d.toks)) df.set(t, (df.get(t) || 0) + 1);
   const q = [...new Set(tokens(query))];
   const scores = new Map();
+  const words = new Map();
   for (const d of docs) {
     const tf = new Map();
     for (const t of d.toks) tf.set(t, (tf.get(t) || 0) + 1);
     let s = 0;
+    let content = 0;
+    let asks = true;
     for (const t of q) {
       const f = tf.get(t);
       if (!f) continue;
       const n = df.get(t) || 0;
       s += Math.log(1 + (N - n + 0.5) / (n + 0.5)) * ((f * (K1 + 1)) / (f + K1 * (1 - B + (B * d.toks.length) / avg)));
+      if (!ONE_WORD_STOP.has(t)) { content += 1; asks = asks && QUESTION_WORDS.has(t); }
     }
     scores.set(d.id, s);
+    words.set(d.id, content === 1 && asks ? 'ask' : content);
   }
+  scores.words = words; // R7d: how many distinct content words of the query the chapter holds ('ask': one, a question word)
   return scores;
 }
 
@@ -212,6 +218,14 @@ const FUNCTION_WORDS = new Set(('the a an and or of to in on for with at by from
   + 'more most very just also only when what which who how why where after before while about up out over').split(' ')
   .concat('کے کی کا کو میں سے پر اور یا ہے ہیں تھا تھی تھے کہ جو یہ وہ ان اس ایک بھی نہ نہیں کر کریں کرے کرنا ہو ہوں ہوتا تک لیے لئے ساتھ اپنے اپنی اپنا آپ'.split(' ')));
 const STUB_FLOOR = 6;
+// R7d §4 (panel ⛔2 × 6 of 10: "model" → 1-s5, "checklist" → 97-s5, "steps" → 50-s2, "one thing" → 22-s2): a card_text
+// chapter carried by ONE content word is a pun, not the move. Words a card says whatever its move are not content.
+const QUESTION_WORDS = new Set(['why', 'how', 'what']); // the move of a questioning card, never a function word here
+const ONE_WORD_STOP = new Set([...[...FUNCTION_WORDS].filter((w) => !QUESTION_WORDS.has(w)), ...('back next first thing things time give get let make like such class student students '
+  + 'child children lesson answer answers ask question questions teacher دیں لیں پھر بعد پہلے جب کلاس بچوں بچے سبق سوال جواب').split(' ')]);
+// …except the four chapters the engine enacts well, unless the card's move is another one (COS 184404 item 4).
+const ONE_WORD_KEEP = new Set(['50-s2', '51-s1', '51-s3', '95-s3']);
+const OTHER_MOVE_CARDS = new Set(['C3', 'C5', 'C8', 'B6', 'B7', 'D6']);
 
 /** The card's own content words (action + try-tomorrow + thing to try; never the indicator's name), names redacted, distinct. */
 function contentWords(step) {
@@ -225,6 +239,16 @@ function contentWords(step) {
 function stepQuery(step) {
   const s = step || {};
   return [s.action, s.tryTomorrow, s.thingToTry, s.name].filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim()).join('\n');
+}
+
+/**
+ * R7d §4: a card_text chapter stays when it holds two or more of the card's content words; on one word only when the card's
+ * move is not another one and the word is the questioning move itself (why/how/what) or the chapter is enacted.
+ */
+function oneWordOk(segId, words, cardIndicator) {
+  if (words >= 2) return true;
+  if (OTHER_MOVE_CARDS.has(String(cardIndicator || ''))) return false;
+  return words === 'ask' || ONE_WORD_KEEP.has(String(segId));
 }
 
 /**
@@ -247,6 +271,7 @@ function textRoute(catalog, step, ctx, lesson, exclude = [], route = 'step_text'
       .filter((x) => !seenSegs.has(String(x.seg.seg_id)) && !seenMods.has(Number(x.module.module_id)) && !skip.has(String(x.seg.seg_id)))
       .map((x) => ({ x, score: lexical.get(x.seg.seg_id) || 0 }))
       .filter((y) => y.score >= TEXT_FLOOR)
+      .filter((y) => route !== 'card_text' || oneWordOk(y.x.seg.seg_id, lexical.words.get(y.x.seg.seg_id) || 0, step && step.indicator))
       .sort((a, b) => b.score - a.score || String(a.x.seg.seg_id).localeCompare(String(b.x.seg.seg_id)))
       .slice(0, MAX_TEXT)
       .map(({ x, score }) => ({

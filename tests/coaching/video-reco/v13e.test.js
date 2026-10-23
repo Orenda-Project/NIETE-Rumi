@@ -12,10 +12,10 @@ beforeEach(() => {
   S = require('../../../bot/shared/services/coaching/video-reco/select');
 });
 
-const FALLBACK_UR = (s, n) => `آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "\u2068${s}\u2069"۔ یہ ${n} سیکنڈ کا کلپ اس کا ایک طریقہ دکھاتا ہے۔`;
-// bd-8hhqhf: the card sentence sits in an FSI…PDI isolate.
-const PLAIN_EN = (n) => `Your report gives you one thing to try next class. This ${n}-second clip shows one way to do it.`; // R7c §6
-const FALLBACK_EN = (s, n) => `Your report asks you to try: "\u2068${s}\u2069". This ${n}-second clip shows one way to do it.`;
+const FALLBACK_UR = (s, n) => `آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "\u2068${s}\u2069"۔ یہ کلپ اس کا ایک طریقہ دکھاتا ہے۔`;
+// bd-8hhqhf: the card sentence sits in an FSI…PDI isolate. R7d: no seconds (the header says minutes); n is unused.
+const PLAIN_EN = (n) => `Your report gives you one thing to try next class. This clip shows one way to do it.`; // R7c §6
+const FALLBACK_EN = (s, n) => `Your report asks you to try: "\u2068${s}\u2069". This clip shows one way to do it.`;
 const list = { candidates: [{ seg_id: '10-s1', indicator: 'C1' }] };
 const base = { none: 'validation:roman', segId: '10-s1', shortlist: list, startS: 30, endS: 120, language: 'ur', module: { subjects: ['general'] }, subject: null };
 
