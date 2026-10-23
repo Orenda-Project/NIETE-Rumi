@@ -81,3 +81,16 @@ test.each([
 ])('storedQuote: %s', (q, want) => {
   expect(S.storedQuote(q)).toBe(want);
 });
+
+describe('red7 093352: the storage strip only takes a real speaker label, never text before a colon', () => {
+  test.each([
+    ['[00:05] اب سوال یہ ہے: کیا کریں گے؟', 'اب سوال یہ ہے: کیا کریں گے؟'],
+    ['[00:05] Rule one: open your books, page 77.', 'Rule one: open your books, page 77.'],
+    ['ٹیچر: آج ہم کہانی پڑھیں گے', 'آج ہم کہانی پڑھیں گے'],
+    ['[03:10] استاد (UR): سب کتاب کھولیں', 'سب کتاب کھولیں'],
+    ['[1:02:03] Teacher: open the book', 'open the book'],
+  ])('storedQuote: %s', (q, want) => {
+    expect(S.storedQuote(q)).toBe(want);
+  });
+});
+
