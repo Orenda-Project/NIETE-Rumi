@@ -91,6 +91,34 @@ describe('a second voice in a recording is flagged on the marks (CHILD_TEST_SA_S
     const got = await score.scoreRow(one, session(), standIns({ q1: true }));
     expect(got.marks.detail).toMatchObject({ second_voice: true, second_voice_clips: 1, second_voice_checked: 1 });
   });
+
+  test('on: the voice check gives the model room to think before its JSON (200 tokens ended half the prod checks no_json)', async () => {
+    process.env.CHILD_TEST_SA_SECOND_VOICE = 'on';
+    const s = standIns({});
+    const asked = [];
+    const inner = s.chatJSON;
+    s.chatJSON = async (p) => { asked.push(p); return inner(p); };
+    await score.scoreRow(row(), session(), s);
+    const voice = asked.filter((p) => p.job === 'child_test.sa_second_voice');
+    expect(voice).toHaveLength(3);
+    expect(voice.every((p) => p.maxTokens >= 2000)).toBe(true);
+  });
+
+  test('on: a voice check with no JSON keeps why (finish reason, tokens) on its call record', async () => {
+    process.env.CHILD_TEST_SA_SECOND_VOICE = 'on';
+    const s = standIns({});
+    const inner = s.chatJSON;
+    const why = [{ finish_reason: 'length', content_chars: 0, reasoning_tokens: 200, completion_tokens: 200 }];
+    s.chatJSON = async (p) => (p.job === 'child_test.sa_second_voice'
+      ? { json: null, cost: 0.003, seconds: 8, error: 'no_json', detail: why }
+      : inner(p));
+    const got = await score.scoreRow(row(), session(), s);
+    const calls = got.marks.meta.calls.filter((c) => c.job === 'child_test.sa_second_voice');
+    expect(calls).toHaveLength(3);
+    expect(calls.every((c) => c.error === 'no_json' && c.second_voice === null)).toBe(true);
+    expect(calls[0].detail).toEqual(why);
+    expect(got.marks.detail).toMatchObject({ second_voice: false, second_voice_checked: 0 });
+  });
 });
 
 describe('Results says a second voice was heard', () => {
