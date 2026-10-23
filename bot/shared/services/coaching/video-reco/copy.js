@@ -108,7 +108,8 @@ function isolateArabic(text) {
     : part.replace(AR_RUN, (run) => { const t = run.trimEnd(); return `${FSI}${t}${PDI}${run.slice(t.length)}`; }))).join('');
 }
 
-const LABEL = '(?:Teacher|Students?|Speaker|Coach|ٹیچر|استاد|استانی|طالب علم|بچہ|بچے|بچی)(?:\\s*\\([A-Za-z]{2}\\))?';
+// Any case: a label only counts at a sentence start (LINE_PREFIX_AT), so "the teacher: …" mid-sentence is untouched.
+const LABEL = '(?:[Tt]eacher|[Ss]tudents?|[Ss]peaker|[Cc]oach|ٹیچر|استاد|استانی|طالب علم|بچہ|بچے|بچی)(?:\\s*\\([A-Za-z]{2}\\))?';
 // A copied line prefix at a sentence start: "[mm:ss] Label:", "[mm:ss]", "mm:ss:" or a bare "Label:" (COS 081156).
 const LINE_PREFIX_AT = new RegExp(`(^|[.!?۔؟]\\s+)(?:\\[\\d{1,2}:\\d{2}(?::\\d{2})?\\]\\s*(?:${LABEL}\\s*:)?|\\d{1,2}:\\d{2}(?::\\d{2})?\\s*:|${LABEL}\\s*:)\\s*`, 'g');
 
