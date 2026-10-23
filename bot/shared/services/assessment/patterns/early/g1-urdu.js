@@ -42,9 +42,9 @@ module.exports = makeSubject({
       label_ur: 'تحریر',
       levels: { Remember: 12, Understand: 18, Apply: 10 },
       slots: [
-        S({ slot: 'g1.urdu.B.Q4', label_en: 'Q4.', type: 'Name the Picture', generate: 5, picture: ['object'], picture_only: true,
-          instruction_ur: 'تصویر دیکھ کر نام لکھیں۔',
-          prompt_rule: 'Five book objects, each as picture: {kind:"object", name} with name in English for the artist. Answer: the Urdu word.' }),
+        S({ slot: 'g1.urdu.B.Q4', label_en: 'Q4.', type: 'Name the Picture', generate: 5, picture: ['object'], picture_only: true, print_words: true,
+          instruction_ur: 'تصویر دیکھ کر خانے میں سے نام لکھیں۔', // needs fluent-Urdu review
+          prompt_rule: 'Five book objects, each as picture: {kind:"object", name} with name in English for the artist. Put all five Urdu words, mixed, in "words" on the FIRST item only. Answer: the Urdu word.' }),
         S({ slot: 'g1.urdu.B.Q5', label_en: 'Q5.', type: 'Fill in the Blanks', generate: 5, print_words: true,
           instruction_ur: 'خالی جگہ پُر کریں۔',
           prompt_rule: 'Five short book sentences, one blank each; the five answer words, mixed, in "words" on the FIRST item.' }),
@@ -53,7 +53,7 @@ module.exports = makeSubject({
           prompt_rule: 'Five book nouns. Answer: the plural. Each item also carries picture: {kind:"object", name} of the given noun, one of it, in English for the artist; choose only words that can be drawn.' }),
         S({ slot: 'g1.urdu.B.Q7', label_en: 'Q7.', type: 'Masculine Feminine', generate: 5, picture: ['object'],
           instruction_ur: 'مذکر سے مؤنث بنائیں۔',
-          prompt_rule: 'Five book nouns with a common pair (لڑکا، مرغا، شیر). Answer: the feminine. Each item also carries picture: {kind:"object", name} of the given noun, in English for the artist; choose only words that can be drawn.' }),
+          prompt_rule: 'Five book nouns that have a common feminine pair. Answer: the feminine. Each item also carries picture: {kind:"object", name} of the given noun, in English for the artist; choose only words that can be drawn.' }),
         S({ slot: 'g1.urdu.B.Q8', label_en: 'Q8.', type: 'Opposites', generate: 5,
           instruction_ur: 'الٹ لکھیں۔',
           prompt_rule: 'Five book words with a common opposite (بڑا، دن، اوپر). Answer: the opposite.' }),

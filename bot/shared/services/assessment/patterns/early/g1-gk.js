@@ -45,9 +45,9 @@ module.exports = makeSubject({
       label_ur: 'مختصر جواب اور تصاویر',
       levels: { Remember: 6, Understand: 14, Apply: 10 },
       slots: [
-        S({ slot: 'g1.general_knowledge.B.Q5', label_en: 'Q5.', type: 'Name the Picture', generate: 4, picture: ['object'], picture_only: true,
-          instruction_ur: 'تصویر دیکھ کر نام لکھیں۔',
-          prompt_rule: 'Four book things (a body part, a traffic sign, a fruit, a tool) as picture: {kind:"object", name} in English for the artist. Answer: the Urdu name.' }),
+        S({ slot: 'g1.general_knowledge.B.Q5', label_en: 'Q5.', type: 'Name the Picture', generate: 4, picture: ['object'], picture_only: true, print_words: true,
+          instruction_ur: 'تصویر دیکھ کر خانے میں سے نام لکھیں۔', // needs fluent-Urdu review
+          prompt_rule: 'Four book things (a body part, a traffic sign, a fruit, a tool) as picture: {kind:"object", name} in English for the artist. Put all four Urdu names, mixed, in "words" on the FIRST item only. Answer: the Urdu name.' }),
         { slot: 'g1.general_knowledge.B.Q6', label_en: 'Q6.', type: 'Short Answers', generate: 4, marks_each: 2, lines: 2,
           instruction_ur: 'مختصر جواب دیں۔',
           prompt_rule: 'Four questions on good habits, cleanliness, water and sources of income. Answer: one or two short sentences. Scheme: K 1 per idea.' },
