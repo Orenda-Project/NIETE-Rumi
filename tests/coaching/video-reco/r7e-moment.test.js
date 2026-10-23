@@ -200,16 +200,10 @@ describe('3 · Grade 1–2: the child\'s own echo of the teacher\'s line is read
   });
 });
 
-describe('4 · which lesson, small talk and an attention check are routine lines (Q188 Q200 Q117 Q130 Q179 Q136)', () => {
+describe('4 · small talk and an attention check are routine lines (Q179 Q136); which-lesson is not built (red7 F1)', () => {
   test.each([
-    ['Q188', 'چلیں، آج ہم نے کون سا سبق پڑھنا ہے؟'],
-    ['Q200', 'کیا پڑھنا ہے ہم نے؟'],
-    ['Q117', 'کل ہم کیا پڑھ رہے تھے؟'],
-    ['Q130', 'ہمم۔ کل یاد ہے ہم نے کیا پڑھا تھا؟'],
     ['Q179', 'اوکے۔ ایکٹیو ہیں؟'],
     ['Q136', 'میں نے کہا، آج آپ لوگ اسکول کیسے آئے؟'],
-    ['en', 'Which lesson are we on today?'],
-    ['en yesterday', 'What did we read yesterday?'],
   ])('%s → routine', (_, line) => expect(SI().routineLine(line)).toBe(true));
 
   test.each([
@@ -218,6 +212,8 @@ describe('4 · which lesson, small talk and an attention check are routine lines
     ['a how question with «پڑھ»', 'یہ لفظ کیسے پڑھیں گے، اور کیوں؟'],
     ['the closure question (en)', 'So what did we learn about shapes today?'],
     ['the closure question (ur)', 'آج ہم نے کیا پڑھا؟ کون بتائے گا؟'],
+    ['red7 F1: which lesson (Q026 was right)', 'آج ہم نے کون سا سبق پڑھنا ہے؟'],
+    ['apple, not the app', 'ایپل کس رنگ کا ہوتا ہے اور کیوں؟'],
   ])('control: %s → not routine', (_, line) => expect(SI().routineLine(line)).toBe(false));
 });
 
@@ -280,5 +276,78 @@ describe('6 · copy: no pointer without a line, no empty appositive, no bare rec
   test('Q106: «کہ کر» is written «کہہ کر» in the Urdu line', () => {
     const { composeReason } = require('../../../bot/shared/services/coaching/video-reco/copy');
     expect(composeReason('استاد نے بچے سے پوچھا، کہ کر کہ یہ کس کے قریب ہے۔', 'ur', null)).toContain('کہہ کر');
+  });
+});
+
+describe('7 · red7 HOLD 210805 on #3648', () => {
+  const STUDENT = 'میں اپنے گروپ میں ایکسپلین کرواؤں گی۔';
+  const TEST = [T('00:01', 'Teacher', 'السلام علیکم، پیارے بچوں۔ آج ٹیسٹ ہے آپ کا، ابھی آپ مجھے لکھ کر دکھائیں گے۔'), T('00:20', 'Students', 'جی میڈم'),
+    T('00:30', 'Teacher', 'لکھیں، اور ڈائری میں مجھے چیک کروائیں'), T('00:40', 'Student', 'جی'), T('00:50', 'Teacher', 'جلدی کریں، وقت کم ہے'),
+    T('01:00', 'Student', 'میڈم پنسل'), T('03:30', 'Student', STUDENT), T('03:40', 'Teacher', 'ٹھیک ہے، لکھو')];
+  // the model quotes the student line at a stamp the excerpt does not carry: validation:quote, then the fallback path
+  const MISQUOTED = answer({ moment: { at: '03:30', quote: `${STUDENT} اور میں سب کو بتاؤں گی` } });
+
+  test('H1 (T1): a test period never gets the card fallback, whatever rule refused the quote', async () => {
+    const row = await run(args({ lines: TEST }), deps([MISQUOTED, MISQUOTED, MISQUOTED]));
+    expect(row.status).toBe('none');
+    expect(row.moment_source || null).not.toBe('card');
+  });
+
+  test('control: a lesson that announces a test for later («آخر میں») is a lesson: the fallback stays open', () => {
+    const lines = ['[01:00] Teacher: آج ہم ٹیسٹ لیں گے آخر میں، پہلے سبق دہراتے ہیں۔', '[10:00] Teacher: پانی کیوں ضروری ہے؟'];
+    expect(SI().testPeriod(lines)).toBe(false);
+    expect(SI().notTeaching(lines, 1)).toBe(false);
+    expect(SI().testPeriod(TEST.map((l) => `[00:00] ${l.label}: ${l.text}`))).toBe(true);
+  });
+
+  // P1: device talk to the observer, no class greeting anywhere; the first child answer comes at 01:43
+  const PRE = [T('00:05', 'Teacher', 'جی سر، یہ ایپ کھل گئی ہے۔ ریکارڈنگ چل رہی ہے؟'), T('00:12', 'Speaker 2', 'جی، چل رہی ہے، آپ شروع کریں'),
+    T('00:36', 'Teacher', 'دیکھیں نا، ہمارا آج جو ہے پڑھائی ہے۔ ان شاء اللہ ہم بنائیں گے، ٹھیک ہے؟'), T('01:00', 'Speaker 2', 'ٹھیک ہے'),
+    T('01:16', 'Teacher', 'یہ دیکھو، کیسی لگی؟ اچھی ہے نا یہ والی؟'), T('01:20', 'Speaker 2', 'اچھی ہے'),
+    ...CLASS.map((l) => ({ ...l, start_ms: l.start_ms + 40000 }))];
+  const stamped = (ls) => ls.map((l) => `[${String(Math.floor(l.start_ms / 60000)).padStart(2, '0')}:${String((l.start_ms / 1000) % 60).padStart(2, '0')}] ${l.label}: ${l.text}`);
+
+  test('H2 (P1): with no class greeting, a line before the lesson\'s first question, after device talk → before_lesson', () => {
+    expect(SI().notTeaching(stamped(PRE), 4)).toBe('before_lesson');
+  });
+  test('control (P2): the lesson\'s first question itself, and every line after → teaching', () => {
+    expect(SI().notTeaching(stamped(PRE), 6)).toBe(false);
+    expect(SI().notTeaching(stamped(PRE), 9)).toBe(false);
+  });
+  test('control: no device talk in the opening → nothing before the first child answer is voided', () => {
+    expect(SI().notTeaching(stamped(PRE.slice(2)), 2)).toBe(false);
+  });
+
+  test.each([
+    ['N5', 'Is it recording? Sir, the app is open now.'],
+    ['N6', 'جی سر، یہ ایپ کھل گئی ہے۔ ریکارڈنگ چل رہی ہے؟'],
+    ['F5 roll call', 'present miss'],
+    ['F5 roll call ur', 'یس میڈم'],
+    ['N8', 'Who is absent today? Say present.'],
+  ])('%s → routine', (_, line) => expect(SI().routineLine(line)).toBe(true));
+  test.each([
+    ['N9 «ریکارڈ» as content', 'آج کا درجہ حرارت ریکارڈ کیوں ٹوٹا؟'],
+    ['present tense', 'Why do we use the present tense here?'],
+  ])('control: %s → not routine', (_, line) => expect(SI().routineLine(line)).toBe(false));
+
+  test('F2 (Q090): a C1 card keeps a non-enacted 37-C8 chapter, as the open-question card does', () => {
+    expect(SL().cardTagOk({ seg_id: 'x', fico_main37: ['C8'] }, 'C1', 'fico_main_37')).toBe(true);
+    expect(SL().cardTagOk({ seg_id: 'x', fico_main37: ['C5'] }, 'C1', 'fico_main_37')).toBe(false);
+  });
+});
+
+describe('8 · red7 T4: a test that ends, then a lesson → the lesson is teaching again', () => {
+  const lines = ['[00:01] Teacher: آج ٹیسٹ ہے آپ کا، ابھی لکھیں۔', '[00:20] Students: جی میڈم', '[00:50] Teacher: جلدی کریں، وقت کم ہے',
+    '[05:30] Teacher: Is water necessary? Yes or no, quickly!', '[05:45] Student: Yes', '[05:50] Teacher: Good. Is air necessary? Yes or no',
+    '[05:55] Students: Yes miss', '[06:00] Teacher: Is the sun hot? Yes or no', '[06:05] Student: Yes'];
+  test('the test lines are test, the lesson after is not, and the lesson is no test period', () => {
+    expect(SI().notTeaching(lines, 2)).toBe('test');
+    expect(SI().notTeaching(lines, 3)).toBe(false);
+    expect(SI().testPeriod(lines)).toBe(false);
+  });
+  test('control: a test period with two «did you finish?» exchanges never resumes', () => {
+    const t = ['[00:01] Teacher: آج ٹیسٹ ہے آپ کا۔', '[01:00] Teacher: سب نے لکھ لیا؟', '[01:02] Students: جی', '[02:00] Teacher: کس نے نہیں لکھا؟', '[02:02] Student: میں نے', '[03:30] Student: میں اپنے گروپ میں ایکسپلین کرواؤں گی۔'];
+    expect(SI().testPeriod(t)).toBe(true);
+    expect(SI().notTeaching(t, 5)).toBe('test');
   });
 });
