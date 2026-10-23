@@ -226,3 +226,32 @@ test('a key still off its rule after the re-ask is logged and the paper still co
     answers: [{ slot: 'g2.english.B.Q10', reason: 'answer', items: ['The bird is ____ the tree. → above'] }],
   }));
 });
+
+// v17 G2 GK asked the capital, the national animal and the root in two questions each: the sections
+// were written at once, blind to each other (bd-5jmnfj.4.16).
+test('sections are written in turn, each told what the earlier ones asked', async () => {
+  const { P, d, calls, go } = run(2, 'general_knowledge');
+  let running = 0;
+  let most = 0;
+  const write = d.writeSection.getMockImplementation();
+  d.writeSection.mockImplementation(async (args) => {
+    running += 1; most = Math.max(most, running);
+    await new Promise((r) => setTimeout(r, 2));
+    running -= 1;
+    return write(args);
+  });
+  await go();
+  expect(calls.sections.map((c) => c.id)).toEqual(P.sections.map((s) => s.id));
+  expect(calls.sections[0].user).not.toMatch(/already asks/);
+  expect(calls.sections[1].user).toMatch(/already asks/);
+  expect(calls.sections[1].user).toContain('Question 1 for g2.general_knowledge.A.Q1 → 1');
+  expect(most).toBeLessThanOrEqual(1 + (P.oral ? 1 : 0));
+});
+
+test('a re-asked section keeps the note of what the earlier sections asked', async () => {
+  const { calls, go } = run(1, 'maths', { replies: { B: [{ noPicture: ['g1.maths.B.Q7'] }] } });
+  await go();
+  const b = calls.sections.filter((c) => c.id === 'B');
+  expect(b).toHaveLength(2);
+  expect(b[1].user).toMatch(/already asks/);
+});

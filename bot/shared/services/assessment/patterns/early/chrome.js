@@ -64,7 +64,7 @@ function makeSlot(o) {
     marks_line_en: `({t:${total}})`,
     marks_line_ur: `{t:${total}}`,
     type: o.type,
-    category: mcq || o.objective ? 'objective' : 'subjective',
+    category: mcq || o.shape === 'match' || o.objective ? 'objective' : 'subjective',
     shape: o.shape || 'short',
     generate: o.generate,
     attempt,

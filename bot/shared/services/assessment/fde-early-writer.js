@@ -3,7 +3,8 @@
  * Writes a Grade 1-2 FDE practice paper (bd-5jmnfj.4.1): Grade 5's pattern writer,
  * cut down to what an early paper needs, plus pictures and the oral part.
  *
- *   1. every section is written from the whole book, in parallel with the oral part;
+ *   1. every section is written from the whole book, one after another, each told what the
+ *      earlier ones asked so no fact is asked twice; the oral part is written beside them;
  *   2. the paper is laid out on the masked pattern (fde-early-prompt maskP), so none
  *      of Grade 5's per-subject layout rules apply;
  *   3. a section short of items, marking points or pictures is asked once more (a
@@ -69,7 +70,21 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     return d.writeSection({ messages, model, ownModel, job, pattern, section: ORAL_SECTION });
   };
 
-  const [results, oralFirst] = await Promise.all([Promise.all(built.map(writeOne)), P.oral ? writeOral(null) : null]);
+  // In turn, so each section sees what the ones before it asked (bd-5jmnfj.4.16). The note goes on
+  // the section's own prompt, so a re-ask keeps it.
+  const writeInTurn = async () => {
+    const done = [];
+    for (const b of built) {
+      const asked = Prompt.askedNote(done.map((r) => r.tree));
+      if (asked) {
+        b.user = `${b.user}\n\n${asked}`;
+        b.messages = d.sectionMessages({ system, user: b.user, pageContent: b.pageContent, model });
+      }
+      done.push(await writeOne(b));
+    }
+    return done;
+  };
+  const [results, oralFirst] = await Promise.all([writeInTurn(), P.oral ? writeOral(null) : null]);
   const extraUsages = [];
   const now = new Date().toISOString();
   const merged = () => {
