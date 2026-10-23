@@ -83,6 +83,8 @@ export type Picks = {
   topicIds?: string[] | null;
   /** She came through the WhatsApp link for a paper on topics (?by=topics): Topics opens on Select topics. */
   byTopics?: boolean;
+  /** bd-pw1ccr.1 — she came through the A/B report button: the paper is tagged origin report. A new paper clears it. */
+  origin?: 'report' | null;
 };
 
 export function newPicks(defaultCount: number): Picks {
@@ -92,7 +94,7 @@ export function newPicks(defaultCount: number): Picks {
     seen: Math.min(5, Math.max(0, defaultCount - 1)), typeCounts: {}, typesSeeded: false,
     marks: null, answerLines: true,
     patternIntent: null, style: null, pattern: null,
-    topicScope: null, topicIds: null,
+    topicScope: null, topicIds: null, origin: null,
   };
 }
 
@@ -255,6 +257,8 @@ export type V2Spec = {
   outputFormat: 'pdf';
   /** A topic paper: the ticked topics of its one chapter. Absent = the whole chapter (today's request). */
   topicIds?: string[];
+  /** bd-pw1ccr.1 — made from the A/B report button. Absent = any other paper. */
+  origin?: 'report';
 };
 
 /** The board pattern's request: the pattern, and the FDE syllabus (`scope`) or the chosen chapters / pages; the pattern fixes
@@ -308,6 +312,7 @@ export function toSpec(p: Picks): V2Spec | FdeSpec {
     // Word stays off: its flag (assessment_docx_enabled) is false in production.
     outputFormat: 'pdf',
     ...(byChapters && p.chapters.length === 1 && p.topicScope === 'topics' && p.topicIds?.length ? { topicIds: [...p.topicIds] } : {}),
+    ...(p.origin === 'report' ? { origin: 'report' as const } : {}),
   };
 }
 

@@ -5200,7 +5200,10 @@ CREATE TABLE IF NOT EXISTS assessment_requests (
   notice_whatsapp_at TIMESTAMPTZ,
   -- Migration V1.6.18: what the paper was built from — a whole 'chapter', a 'topic' selection, or a 'pattern'.
   paper_kind        TEXT NOT NULL DEFAULT 'chapter'
-                      CHECK (paper_kind IN ('chapter', 'topic', 'pattern'))
+                      CHECK (paper_kind IN ('chapter', 'topic', 'pattern')),
+  -- Migration V1.7.6: which door the request came through — 'report' = the Class Quiz Traffic Light report's button;
+  -- NULL = any other.
+  origin            TEXT CHECK (origin IN ('report'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_assessment_requests_user_time

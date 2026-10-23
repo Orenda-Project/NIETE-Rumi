@@ -15,7 +15,7 @@
  * the credential: it is never logged, and the response is no-store. Rate limited per IP (60 a minute).
  */
 const express = require('express');
-const { verifyAppLink, leaderPathFor, LANDINGS, COACH_LANDINGS, LEGACY_LANDING } = require('../../bot/shared/services/app-login-link');
+const { verifyAppLink, leaderPathFor, landingQuery, LANDINGS, COACH_LANDINGS, LEGACY_LANDING } = require('../../bot/shared/services/app-login-link');
 // The portal's OWN sink (the bot's loggers need pino, which this service does not install).
 const telemetry = require('../services/telemetry.service');
 
@@ -182,7 +182,7 @@ function createAppLoginRouter({
     }
     // An FLN target and (bd-a73p5m) a leader's Lesson Plans tab land as they are: their pages decide who reads them.
     const landing = require('../../bot/shared/services/fln-go-target').flnPathFor(payload.f) || leaderPathFor(payload.f)
-      || (onApp ? (coach ? COACH_LANDINGS : LANDINGS)[payload.f] : LEGACY_LANDING);
+      || (onApp ? (coach ? COACH_LANDINGS : LANDINGS)[payload.f] + landingQuery(payload) : LEGACY_LANDING);
 
     // A new session id, never the one the browser arrived with (session fixation). No portalScope: the whole app.
     req.session.regenerate((err) => {
