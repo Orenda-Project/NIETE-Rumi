@@ -13,6 +13,7 @@ jest.mock('../../bot/shared/config/supabase', () => ({
       select: () => c,
       eq: (k, v) => { filters.push([k, v]); return c; },
       maybeSingle: async () => ({ data: mockDb.rows[t] === undefined ? null : mockDb.rows[t], error: null }),
+      limit: async () => ({ data: mockDb.rows[t] === undefined ? [] : [mockDb.rows[t]], error: null }),
       update: (patch) => { mockDb.writes.push([t, 'update', patch, filters]); return c; },
       insert: async (row) => { mockDb.writes.push([t, 'insert', row]); return { error: null }; },
       then: (ok, bad) => Promise.resolve({ error: null }).then(ok, bad),
