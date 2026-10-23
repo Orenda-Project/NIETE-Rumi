@@ -76,6 +76,8 @@ function deps(answers) {
 const FALLBACK_EN = (s, n) => `Your report asks you to try: "\u2068${s}\u2069". This ${n}-second clip shows one way to do it.`;
 const FALLBACK_UR = (s, n) => `آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "\u2068${s}\u2069"۔ یہ ${n} سیکنڈ کا کلپ اس کا ایک طریقہ دکھاتا ہے۔`;
 // R7b: the STORED reason is composed, and Urdu prose takes Urdu digits, so the clip's seconds read «۹۰»
+// R7c §6: an English sentence is not quoted inside the Urdu line of an English reader's message
+const PLAIN_UR = (n) => `آپ کی رپورٹ اگلی کلاس کے لیے ایک قدم بتاتی ہے۔ یہ ${n} سیکنڈ کا کلپ اسے کرنے کا ایک طریقہ دکھاتا ہے۔`;
 const STORED_UR = (s, n) => FALLBACK_UR(s, String(n).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]));
 
 describe('(a) ⛔9 post-redaction: the stored reason and quote are the redacted ones', () => {
@@ -177,9 +179,9 @@ describe('(b) the card-sentence fallback', () => {
     expect(JSON.stringify(row)).not.toMatch(/Saima|\[TEACHER\]/);
   });
 
-  test('a child\'s name inside the card sentence is [a student] in the stored fallback', async () => {
+  test('a child\'s name inside the card sentence: no fallback (R7c ⛔9, was: shown as [a student])', async () => {
     const row = await E.recommendForReport({ ...args({}, { indicator: 'C1', action: 'Ask Ahmed two why questions' }), deps: deps([ROMAN, ROMAN]) });
-    expect(row.reason_en).toBe(FALLBACK_EN('Ask [a student] two why questions', 90));
+    expect(row).toMatchObject({ status: 'none', none_reason: 'validation:roman' });
   });
 
   test('control arm: the fallback row is stored as shadow, like any other pick', async () => {
@@ -195,7 +197,7 @@ describe('select.cardFallback (pure): which validation rules it follows', () => 
   test.each(['validation:roman', 'validation:quote', 'validation:urdu', 'validation:length', 'validation:scorer', 'validation:id',
     'validation:name', 'validation:placeholder', 'validation:moment_at'])('%s → a fallback', (none) => {
     expect(S.cardFallback({ ...base, none })).toEqual({
-      reason_en: FALLBACK_EN('Ask two why questions', 90), reason_ur: FALLBACK_UR('Ask two why questions', 90),
+      reason_en: FALLBACK_EN('Ask two why questions', 90), reason_ur: PLAIN_UR(90),
     });
   });
   test.each(['llm_none', 'llm_truncated', 'no_moments', 'error:Timeout', 'validation:candidate', 'validation:shape',
@@ -232,7 +234,7 @@ describe('[v1.3c-2] the fallback carries its own subject gate (ped-review 20:45Z
   });
   test('general module + unknown lesson subject → the fallback fires', () => {
     expect(S.cardFallback({ ...base, module: GENERAL, subject: null })).toEqual({
-      reason_en: FALLBACK_EN('Ask two why questions', 90), reason_ur: FALLBACK_UR('Ask two why questions', 90),
+      reason_en: FALLBACK_EN('Ask two why questions', 90), reason_ur: PLAIN_UR(90),
     });
   });
   test('a literacy module on an Urdu lesson still fires (suitsSubject holds, not_for silent)', () => {

@@ -389,4 +389,40 @@ function build(catalog, target, ctx, signal, lesson, step) {
   }
 }
 
-module.exports = { build, textRoute, recommendable, fallbackSubjectOk, stepQuery, contentWords, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, STUB_FLOOR, LABEL_37 };
+// R7c (COS 20261023T170515 §4, panel ped/REVIEW_r7b_rejudge.md §3): for a why/how card on a closed-answer lesson the move is
+// 51-s1 (turn the yes/no question into a "why" one); 51-s3 (open questions in a crowded class) presumes the open question
+// already exists: 11 picks, 0 right. 51-s3 gives its place to 51-s1, or goes when 51-s1 is already listed.
+const WHY_FIRST = Object.freeze({ before: '51-s1', instead: '51-s3' });
+
+/** The candidates with 51-s3 replaced by 51-s1 (or dropped) when `apply`; 51-s1 only when the catalogue can show it. */
+function whyFirst(candidates, catalog, { apply = false, history = null } = {}) {
+  const list = candidates || [];
+  const at = list.findIndex((c) => c.seg_id === WHY_FIRST.instead);
+  if (!apply || at < 0) return list;
+  if (list.some((c) => c.seg_id === WHY_FIRST.before)) return list.filter((_, i) => i !== at);
+  const hit = catalog && catalog.segment(WHY_FIRST.before);
+  const seen = history && (history.segments || []).includes(WHY_FIRST.before);
+  if (!hit || seen || !recommendable(hit.module, hit.segment)) return list;
+  const out = list.slice();
+  out[at] = { ...list[at], seg_id: WHY_FIRST.before, level_id: hit.module.level_id, indicator: ((hit.segment.fico || [])[0] || {}).indicator || list[at].indicator };
+  return out;
+}
+
+// R7c (COS 20261023T170515 §7; panel §1.5): the four chapters the engine enacts well (106 of 159 picks at 90.6%). When the
+// model returns null for a C1/D3/C3 card on a closed-answer lesson, it is asked once more with only these.
+const ENACTED = Object.freeze(['50-s2', '51-s1', '51-s3', '95-s3']);
+const ENACTED_STEPS = new Set(['C1', 'D3', 'C3']);
+
+/** The enacted chapters this lesson and teacher may get, with the same gates as the tag route (subject, grade, language, history). */
+function enacted(catalog, ctx, lesson) {
+  const { preferred, languages } = languagesOf(ctx);
+  const lv = levelOf(ctx);
+  const seen = new Set((((ctx && ctx.history) || {}).segments || []).map(String));
+  const ok = new Map(eligible(catalog, lesson).map((x) => [x.seg.seg_id, x]));
+  return ENACTED.map((id) => ok.get(id)).filter((x) => x && languages.has(x.lang) && !seen.has(x.seg.seg_id)).map((x) => ({
+    seg_id: x.seg.seg_id, score: 0, indicator: ((x.seg.fico || [])[0] || {}).indicator || null, language_match: languageMatch(x.lang, preferred),
+    level_id: x.level, level_match: levelMatchOf(lv, x.level), route: 'enacted',
+  }));
+}
+
+module.exports = { enacted, ENACTED, ENACTED_STEPS, whyFirst, WHY_FIRST, build, textRoute, recommendable, fallbackSubjectOk, stepQuery, contentWords, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, STUB_FLOOR, LABEL_37 };

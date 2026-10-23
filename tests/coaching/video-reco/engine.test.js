@@ -104,7 +104,7 @@ test('happy path: one LLM call, a shown row with the clip, the reason, the momen
     step_at_top: false, alias_kind: null, repeat_module: false, target_source: 'step', loop_angle: 'show', observation_type: 'self',
     language: 'ur', language_match: 'preferred', teacher_level: 2, teacher_level_source: 'ladder', level_match: 'near', ladder_completed: false,
     reason_en: GOOD.reason_en, reason_ur: GOOD.reason_ur, moment_at: '00:30', moment_quote: GOOD.moment.quote, moment_source: 'transcript',
-    confidence: 0.7, none_reason: null, catalog_version: 'catalog-fixture', prompt_version: 'vr-8', model: 'gpt-5-mini-2025-08-07',
+    confidence: 0.7, none_reason: null, catalog_version: 'catalog-fixture', prompt_version: 'vr-9', model: 'gpt-5-mini-2025-08-07',
     experiment: null, v10_group: 'C', image_strip: false,
   });
   expect(row.candidates[0]).toEqual(expect.objectContaining({ seg_id: expect.any(String), score: expect.any(Number), indicator: 'C1' }));
