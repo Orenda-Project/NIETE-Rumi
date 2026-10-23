@@ -485,7 +485,8 @@ def test_web_stale_spec_tells_the_author_how_to_sync():
     r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
     head = commit(r, "feat(portal): login copy", **{"portal/src/portal/pages/PortalLogin.tsx": "// c\n"})
     md = ci.render_markdown(ci.analyse(r, base, head))
-    assert "❌ stale" in md and "/sync-specs portal-login" in md, md
+    assert "❌ **Test scenarios not updated**" in md and "/sync-specs portal-login" in md, md
+    assert "the portal-login code changed, but `portal-login.feature` didn't" in md, md
     assert "Spec-Sync: portal-login=none-needed" in md, md
     shutil.rmtree(r)
 
@@ -537,6 +538,44 @@ def test_web_none_needed_feature_without_a_run_is_not_needed_not_missing():
     assert ci.exit_code(res, freshness="block", proof="block") == 0
     md = ci.render_markdown(res)
     assert "Web E2E proof: missing" not in md and "⬜ missing" not in md, md
+    shutil.rmtree(r)
+
+
+# ── the spec column reads in plain words (bd-u8r04u, operator 2026-10-23) ─────────────────────────────────────────
+# "❌ stale — `child-test.feature` unchanged" told nobody what happened or what to do. The status KEYS stay as they
+# are (analyse(), exit_code() and the dashboard read them); only what a person reads changes.
+
+def test_stale_spec_cell_says_what_happened_and_what_to_do():
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "feat(menu): x", **{"bot/shared/services/menu.service.js": "// c\n"})
+    res = ci.analyse(r, base, head)
+    assert res["per_feature"]["menu"]["spec_status"] == "stale", "the status key is unchanged"
+    md = ci.render_markdown(res, "warn", "warn")
+    assert ("❌ **Test scenarios not updated** — the menu code changed, but `menu.feature` didn't. "
+            "Add or update its scenarios, or, if nothing a teacher sees changed, add "
+            "`Spec-Sync: menu=none-needed (<why>)` to the PR description.") in md, md
+    assert "❌ stale" not in md and "`menu.feature` unchanged" not in md, md
+    txt = ci.render_text(res, "warn", "warn")
+    assert "spec: NOT UPDATED" in txt and "(menu.feature unchanged)" not in txt, txt
+    shutil.rmtree(r)
+
+
+def test_synced_none_needed_and_shared_cells_read_in_plain_words():
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "feat(menu): x", **{"bot/shared/services/menu.service.js": "// c\n",
+                                         "tests/features/whatsapp/niete/menu.feature": "\n# synced\n"})
+    md = ci.render_markdown(ci.analyse(r, base, head), "warn", "warn")
+    assert "✅ Scenarios updated" in md and "✅ synced" not in md, md
+    head2 = commit(r, "fix(menu): copy\n\nSpec-Sync: menu=none-needed (wording only, no behaviour)",
+                   **{"bot/shared/services/menu.service.js": "// d\n"})
+    md = ci.render_markdown(ci.analyse(r, head, head2), "warn", "warn")
+    assert "✅ No update needed — _wording only, no behaviour_" in md and "✅ none-needed" not in md, md
+    head3 = commit(r, "chore: log", **{"bot/shared/services/whatsapp.service.js": "// log\n"})
+    res = ci.analyse(r, head2, head3)
+    md = ci.render_markdown(res, "warn", "warn")
+    assert "➖ Only shared code changed, no update expected" in md and "➖ only-shared" not in md, md
+    txt = ci.render_text(res, "warn", "warn")
+    assert "spec: shared only" in txt, txt
     shutil.rmtree(r)
 
 

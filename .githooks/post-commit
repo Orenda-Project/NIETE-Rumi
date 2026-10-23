@@ -16,8 +16,10 @@
 #
 # Install:  bash scripts/qa/install-hooks.sh   (also run by `npm install` at the root)
 # Off:      QA_HOOKS_OFF=1 git commit …        Quiet: QA_HOOKS_QUIET=1
-[ "${QA_HOOKS_OFF:-}" = "1" ] && exit 0
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+# Every off switch is on the clone's QA ledger (bd-61jjzd); the ledger never fails a commit.
+. "$ROOT/.claude/hooks/lib/qa-ledger.sh" 2>/dev/null || qa_ledger_log() { :; }
+if [ "${QA_HOOKS_OFF:-}" = "1" ]; then qa_ledger_log "$ROOT" post-commit switch-off QA_HOOKS_OFF ""; exit 0; fi
 command -v python3 >/dev/null 2>&1 || { echo "qa: python3 not on PATH — E2E selection skipped for this commit" >&2; exit 0; }
 SEL_BIN="$ROOT/.claude/qa/shared/select_e2e.py"
 SYNC_BIN="$ROOT/.claude/qa/shared/spec_sync.py"
@@ -54,6 +56,8 @@ if [ "${E2E_SPEC_SYNC_OFF:-}" != "1" ]; then
   if [ -n "$BRIEF" ] && [ "$(printf '%s' "$BRIEF" | python3 -c 'import json,sys; print(str(json.load(sys.stdin).get("sync_needed", False)).lower())' 2>/dev/null)" = "true" ]; then
     printf '%s' "$BRIEF" > "$SYNC" 2>/dev/null && SPEC_SYNC=true
   fi
+else
+  qa_ledger_log "$ROOT" post-commit switch-off E2E_SPEC_SYNC_OFF ""
 fi
 
 # The selection travels in an env var: stdin is taken by the heredoc script.
