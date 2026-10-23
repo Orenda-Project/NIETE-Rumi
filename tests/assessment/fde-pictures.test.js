@@ -78,6 +78,17 @@ test('one failure is retried; two fail the paper PICTURE_FAILED with the picture
     .rejects.toMatchObject({ code: 'PICTURE_FAILED', slot: 's0', kind: 'object' });
 });
 
+test('a failed picture logs which one and the image model\'s own error (bd-5jmnfj.4.32)', async () => {
+  const bad = deps({ fail: 2 });
+  const logged = [];
+  bad.d.log = (msg, data) => logged.push({ msg, data });
+  await expect(Pictures.resolvePictures(paper([{ kind: 'object', name: 'cat' }]), bad.d)).rejects.toThrow();
+  expect(logged).toEqual([{
+    msg: '[assessment] picture failed',
+    data: { slot: 's0', kind: 'object', name: 'cat', cause: 'kie down' },
+  }]);
+});
+
 test('an item whose picture cannot be drawn fails the paper, never prints empty', async () => {
   await expect(Pictures.resolvePictures(paper([{ kind: 'shapes', shapes: [{ shape: 'hexagon' }] }]), deps().d))
     .rejects.toMatchObject({ code: 'PICTURE_FAILED' });
