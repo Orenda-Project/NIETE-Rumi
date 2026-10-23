@@ -204,3 +204,27 @@ describe('red7 155809', () => {
     expect(prompt).not.toMatch(/جہاں|زرفشاں/);
   });
 });
+
+// ── scale-run 161526: the label refusal took right picks (P003, P015, P051, P056, P062: «Student-to-Student
+// Interaction», «Student Agency & Voice» cards). Only the labels the panel named are refused (P036/42/46, P135/178).
+test('a card quoting an ordinary indicator name keeps its fallback in the engine; the subject-pedagogy label does not', async () => {
+  jest.resetModules();
+  jest.doMock('../../../bot/shared/config/supabase', () => ({ from: jest.fn(() => { throw new Error('no supabase'); }) }));
+  jest.doMock('../../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logWarn: jest.fn() }));
+  const E = require('../../../bot/shared/services/coaching/video-reco/engine');
+  const data = JSON.parse(JSON.stringify(FIXTURE));
+  data.indicator_aliases.D3 = { exact: 'D3', approx: [], name: 'Student-to-Student Interaction' };
+  const catalog = C.fromData(data);
+  const bad = { seg_id: '10-s1', moment: { at: '00:40', quote: 'a line that is nowhere in the lesson' }, reason_en: 'x'.repeat(30), reason_ur: 'ی'.repeat(30), confidence: 0.5 };
+  const run = async (action) => E.recommendForReport({
+    session: { id: 's', user_id: 'u', transcript_language: 'ur', users: { name: 'Saima Khan', preferred_language: 'ur' },
+      diarization_data: { segments: [{ start_ms: 40000, label: 'Teacher', text: 'یہ لفظ کون پڑھے گا؟' }, { start_ms: 41000, label: 'Student', text: 'میں پڑھوں گا۔' }] } },
+    analysis: { framework: 'fico', domains: { C: { indicators: [{ id: 'C1', name: 'Q', score: 1, applicable: true, evidence: 'x', timestamp: '[00:40]' }] } }, subject_resolution: { code: 'urdu', grade: '3', confidence: 'high' } },
+    nextStep: { target: { indicator: 'C1', rung: 1, rationale: 'r', try: '' } }, card: { indicator: 'C1', action }, coachingSessionId: 's',
+    deps: { env: { VIDEO_RECO_ENABLED: 'true' }, catalog, v10GroupFor: async () => null,
+      completeJson: jest.fn().mockResolvedValue({ result: bad, usage: {}, finishReason: 'stop' }),
+      store: { readForSession: async () => null, recentHistory: async () => ({ segments: [], modules: [] }), ladderProgress: async () => ({ level: 2, completedModules: [] }), trainingBands: async () => [], write: async (r) => r } },
+  });
+  expect(await run('اگلی کلاس کے پانچ منٹ Student-to-Student Interaction بہتر کرنے کے لیے دو کیوں والے سوال پوچھیں۔')).toMatchObject({ status: 'shown', moment_source: 'card' });
+  expect(await run("اگلی کلاس میں 'Subject-Specific Pedagogy: MATH' کے لیے دو کیوں والے سوال پوچھیں۔")).toMatchObject({ status: 'none' });
+});

@@ -351,7 +351,9 @@ function fitClauses(sentence, room, segment) {
 // never as the sentence's subject ("[a student] reads …" keeps the none).
 const LEADING_ADDRESS = /^(\s*\[TEACHER\]\s*)+[،,:]?\s*|^\s*\[(a student|CHILD)\]\s*[،,:]\s*/;
 const UNSHOWABLE = /\[(TEACHER|COACH|SCHOOL|URL|EMAIL|NUMBER)\]/;
-// R7b (P036, P042, P046, P135, P178): an indicator's own name is report jargon, never a move to quote to a teacher.
+// R7b (P036, P042, P046, P135, P178): the labels the panel named are report jargon, never a move to quote to a teacher.
+// Only these: an ordinary indicator name («Student-to-Student Interaction») in a template card was a right pick
+// (P003, P015, P051, P056, P062; scale-run 161526).
 const LABEL_TEXT = /Subject-Specific|Real-World Connections|Depth of Explanation|Pedagogy:/i;
 
 /** The card's own double quotes become single ones inside the template's quote marks (P109, P135, P154, P156). */
