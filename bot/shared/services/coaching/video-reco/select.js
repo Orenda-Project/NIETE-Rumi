@@ -9,6 +9,7 @@ const { resolveUx, clampLanguage } = require('../../../config/ux-strings');
 const { redactNames, ROLE_STOP } = require('./redact-names');
 const { fallbackSubjectOk } = require('./shortlist');
 const { stripBidi } = require('./copy');
+const CONTENT_TERMS = require('./content-terms');
 
 const JOB = 'coaching.videoReco';
 const LLM_TIMEOUT_MS = 45000; // lead-converge 18:48Z: measured 22–33 s at the default effort; the report itself never waits on it
@@ -230,9 +231,9 @@ function postRedact(text, teacherName, vocab = []) {
 // bd-8hhqhf (lead-final 21:24Z): maths/science loanwords a teacher says in Urdu script, never a child's name: the output
 // redactor's vocabulary. Topic words are NOT in it: a topic can name a person ("حضرت علی کی سیرت"), and in the non-strict
 // output redactor the vocabulary only ever decides an address slot (red7 070504/070505, COS 070543).
-const SUBJECT_TERMS = ('میڈین موڈ مین رینج اوسط میگنیٹ مقناطیس رگڑا رگڑ چارج کرنٹ سرکٹ بلب بیٹری وولٹیج فورس گریویٹی انرجی '
+const SUBJECT_TERMS = [...('میڈین موڈ مین رینج اوسط میگنیٹ مقناطیس رگڑا رگڑ چارج کرنٹ سرکٹ بلب بیٹری وولٹیج فورس گریویٹی انرجی '
   + 'ایٹم مالیکیول الیکٹران پروٹان نیوٹران آکسیجن کاربن ہائیڈروجن فریکشن نیومریٹر ڈینومینیٹر ڈیسیمل پرسنٹیج فیکٹر ملٹیپل '
-  + 'اینگل ٹرائینگل سرکل اسکوائر ریکٹینگل ایریا پیرامیٹر والیوم ریڈیس ڈایامیٹر').split(' ');
+  + 'اینگل ٹرائینگل سرکل اسکوائر ریکٹینگل ایریا پیرامیٹر والیوم ریڈیس ڈایامیٹر').split(' '), ...CONTENT_TERMS];
 
 /** The output redactor's vocabulary: SUBJECT_TERMS (a topic argument is ignored, see above). */
 function subjectVocab() {

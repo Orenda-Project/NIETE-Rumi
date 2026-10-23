@@ -29,12 +29,24 @@ const strict = (t, ctx = {}) => R.redactNames(t, { placeholders: { child: '[a st
 
 describe('the vocabulary rule no longer masks content words', () => {
   test.each([
-    ['retroflex: divisibility', 'آج ہم ڈویژبلٹی کے رولز پڑھیں گے'],
-    ['retroflex: blend', 'یہ بلینڈ ہے، ٹھیک ہے؟'],
+    ['-ity loan: divisibility', 'آج ہم ڈویژبلٹی کے رولز پڑھیں گے'],
     ['-ing loan', 'اب رولنگ کر کے دکھائیں'],
     ['-tion loan', 'یہ وائبریشنز سے آواز بنتی ہے'],
   ])('%s → unchanged', (_, text) => {
     expect(strict(text)).toBe(text);
+  });
+
+  test('a curated retroflex loanword (بلینڈ blend) is kept through the subject vocabulary, not a letter rule', () => {
+    const S = require('../../../bot/shared/services/coaching/video-reco/select');
+    expect(strict('یہ بلینڈ ہے، ٹھیک ہے؟')).toContain('[a student]');
+    expect(strict('یہ بلینڈ ہے، ٹھیک ہے؟', { vocab: S.subjectVocab() })).toBe('یہ بلینڈ ہے، ٹھیک ہے؟');
+  });
+
+  test.each(['ڈینا', 'ٹرینا', 'جینیٹ', 'کرسٹینا', 'ڈانیال', 'منٹو'])('red7 073035: the loan-name %s stays masked on the prompt side', (name) => {
+    const S = require('../../../bot/shared/services/coaching/video-reco/select');
+    const people = { teacher: 'Saima Khan', vocab: S.subjectVocab(), oovVocab: S.topicVocab('reading a story') };
+    const s = { diarization_data: { segments: [{ start_ms: 1000, label: 'Teacher', text: `${name} نے پڑھا` }] } };
+    expect(P.excerpts(s, {}, people)[0]).not.toContain(name);
   });
 
   test('Devanagari function words → unchanged', () => {

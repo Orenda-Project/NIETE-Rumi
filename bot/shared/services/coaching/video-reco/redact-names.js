@@ -47,16 +47,16 @@ const LEXICON_NAME = (n) => SETS.urStrong.has(n) || SETS.urAmbig.has(n) || SETS.
 // bd-8hhqhf r7 (COS 07:01Z): words the vocabulary rule must not take for a child's name. It masked whole Devanagari
 // transcripts and Urdu-script English loanwords (ڈویژبلٹی, رولنگ, میڈین), and the model then quoted "[a student]".
 // Only the vocabulary rule is narrowed: the lexicon, address, named, surname and compound rules still apply.
-// Retroflex ٹ ڈ ڑ ژ: 0 of the 472 Urdu lexicon names carry one. Loan endings: 0 lexicon names end in one.
-const RETROFLEX = /[ٹڈڑژ]/;
+// English-loan endings (-ing, -tion, -ment, -ity, plural -s after those): no lexicon name ends in one. A letter
+// class alone is not used: retroflex loan-NAMES exist (ڈینا, کرسٹینا; red7 073035); retroflex loanwords come in as a
+// curated word list through the subject vocabulary instead (content-terms.js).
 const LOAN_END = /(?:نگ|نگز|شن|شنز|منٹ|منٹس|ٹی|ٹیز|جز|گز|ٹس|ڈز)$/;
 // The most frequent words of the Devanagari corpus transcripts (2 of 1,500), all function words.
 const DEV_COMMON = new Set('जाए कोई देखा से क्यों वाला है मिलके आगे दो दिए देख बताएँगे जैसे कहाँ आना अंदर ओके आपको आपका बैठ समझ नजर लिखें अच्छा उधर ये हूँ लिया गए पहले इसको बैठे आ करो टाइम गया आओ हमने के देखें और मैं लिखा आता लो चलो इस उसका करना सा इसकी आएगी कि हुआ ही कह तो हुए हर इनके बना का मेरा बताया आएगा बहुत नंबर उसे बनाया जी कुछ हमारा कहा जब लोगे बता ले कौन आपके हैं रहे उसमें मैम साथ करेंगे चाह क्या की आज खड़े दोस्त मेरे नाम लिखोगे ज़रा बनाए लगेगा सामने हाँ रही बनाने पे किया अपना देखो बात जो आपस दिया पता जाओ उसी होगा अपने हम नहीं बनाओ उसको होंगे अगर रहा अब अभी ऐसा जल्दी में करें ठीक था वो मैंने बाद कैसे थोड़ा आपने इसका दे मतलब आपकी भी वापस लिख को दी कर लोगों सही जाएँ मेरी लगा इन लिखेंगे हो कितने ने आप लिए यही बच्चों थे करूँ यहाँ उसके इसके फिर ना अपनी पर पीछे मुझे एक करते यानी बार करने करके इसमें क्योंकि दोनों इधर लेकिन उसने आया'.split(' '));
-// Given names that DO carry a retroflex letter (English/Christian names, nicknames): seen among the words this rule
-// released on the 1,500 eval transcripts, or common enough to list. They stay maskable by the vocabulary rule.
-const RETROFLEX_NAMES = new Set('پیٹر رابرٹ ڈیوڈ ڈیوڈز ڈینیئل ڈینیل ڈینی ٹونی ٹینا ڈمپل گڈو گڈی مٹھو البرٹ گلبرٹ ٹیپو ڈولی ریٹا ڈیانا ڈیزی وکٹر ٹام ٹمی ٹیری ڈین بنٹی ٹوبی ایڈورڈ ایڈون اسٹیفن سٹیفن ٹموتھی پیٹرک برٹ ہربرٹ رابرٹس ویلیئم'.split(' '));
+// Given names and nicknames that end like a loanword (بنٹی) or that a list could catch: they stay maskable.
+const LOAN_NAMES = new Set('پیٹر رابرٹ ڈیوڈ ڈیوڈز ڈینیئل ڈینیل ڈینی ٹونی ٹینا ڈمپل گڈو گڈی مٹھو البرٹ گلبرٹ ٹیپو ڈولی ریٹا ڈیانا ڈیزی وکٹر ٹام ٹمی ٹیری ڈین بنٹی ٹوبی ایڈورڈ ایڈون اسٹیفن سٹیفن ٹموتھی پیٹرک برٹ ہربرٹ رابرٹس ویلیئم'.split(' '));
 const contentWord = (n, w) => (IS_DEV.test(w) ? DEV_COMMON.has(n)
-  : IS_UR.test(w) && [...n].length >= 3 && !RETROFLEX_NAMES.has(n) && (RETROFLEX.test(n) || LOAN_END.test(n)));
+  : IS_UR.test(w) && [...n].length >= 3 && !LOAN_NAMES.has(n) && LOAN_END.test(n));
 const nameTokens = (s) => (String(s || '').match(WORD) || []).map(norm).filter((t) => t.length >= 3 && !ROLE_STOP.has(t));
 
 function redactNames(text, ctx = {}) {
