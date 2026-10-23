@@ -135,14 +135,14 @@ const wordsBefore = (text) => [...String(text).matchAll(CHILD_PH)].map((m) => no
  * vocabulary. Re-runs the excerpt's own redaction on the raw line with a trace; a placeholder whose masked word was
  * caught by the vocabulary rule alone ('oov') is unfounded. No raw line (the scorer's quote) → not judged here.
  */
-function unfoundedPlaceholder(quote, excerpts, raw, teacherName) {
+function unfoundedPlaceholder(quote, excerpts, raw, teacherName, vocab = [], oovVocab = []) {
   const q = String(quote || '');
   const want = wordsBefore(q);
   if (!want.length || !Array.isArray(raw)) return false;
   const i = quoteLine(q, excerpts);
   if (i < 0 || typeof raw[i] !== 'string') return false;
   const trace = [];
-  redactNames(raw[i], { teacher: teacherName || null, placeholders: { child: '[a student]' }, trace });
+  redactNames(raw[i], { teacher: teacherName || null, placeholders: { child: '[a student]' }, vocab, oovVocab, trace }); // = prompt.redact
   const masked = trace.filter((t) => t.rep === '[a student]');
   const have = wordsBefore(excerpts[i]);
   const used = new Set();
@@ -179,7 +179,7 @@ function arabicShare(text) {
  *   scorer | id | name | length | urdu | roman | step | error
  */
 function validate(p, shortlist, excerpts, opts) {
-  const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false, rawExcerpts = null, fullLines = null } = opts || {};
+  const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false, rawExcerpts = null, fullLines = null, vocab = [], oovVocab = [] } = opts || {};
   const bad = (why) => ({ ok: false, none: `validation:${why}`, confidence: 0, momentSource: null });
   try {
     if (!p || typeof p !== 'object') return bad('shape');
@@ -198,7 +198,7 @@ function validate(p, shortlist, excerpts, opts) {
     if (!momentSource) return bad('quote');
     if (!MOMENT_AT.test(String(p.moment.at || '').trim())) return bad('moment_at'); // never "unknown", "N/A" or "[00:30]"
     if (realWords(quote) < 3) return bad('placeholder');
-    if (momentSource === 'transcript' && unfoundedPlaceholder(quote, excerpts, rawExcerpts, teacherName)) return bad('placeholder');
+    if (momentSource === 'transcript' && unfoundedPlaceholder(quote, excerpts, rawExcerpts, teacherName, vocab, oovVocab)) return bad('placeholder');
     const reasons = [p.reason_en, p.reason_ur].map((x) => String(x || ''));
     if (reasons.some((x) => BANNED_COPY.test(x))) return bad('scorer');
     if (reasons.some((x) => CLIP_ID.test(x))) return bad('id');
@@ -237,6 +237,11 @@ const SUBJECT_TERMS = ('میڈین موڈ مین رینج اوسط میگنیٹ 
 /** The output redactor's vocabulary: SUBJECT_TERMS (a topic argument is ignored, see above). */
 function subjectVocab() {
   return SUBJECT_TERMS;
+}
+
+/** The topic's words: the PROMPT-side redactor's vocabulary rule only (never an address slot, never a lexicon name). */
+function topicVocab(topic) {
+  return String(topic || '').split(/[^\p{L}]+/u).filter((w) => [...w].length >= 3);
 }
 
 // The validation rules that leave the pick on a shortlisted, code-gated chapter. Not candidate/shape (no such chapter),
@@ -296,4 +301,4 @@ function cardFallback({ none, segId, shortlist, sentence, startS, endS, language
   }
 }
 
-module.exports = { pick, validate, quoteFound, reasoningEffort, cardFallback, postRedact, subjectVocab, JOB, LLM_TIMEOUT_MS };
+module.exports = { pick, validate, quoteFound, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
