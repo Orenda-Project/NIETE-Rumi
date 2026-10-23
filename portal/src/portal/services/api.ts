@@ -672,6 +672,8 @@ export type PortalConfig = {
     teacherV2?: boolean;
     /** The teacher Home card, its score chips and tap log (portal_teacher_home_card; fail-closed). */
     teacherHomeCard?: boolean;
+    /** The teacher sign-in takes a non-PK number with its country code (portal_login_intl_numbers; one switch, fail-closed). */
+    loginIntlNumbers?: boolean;
     /** The per-teacher Home tile order (portal_teacher_home_order; read only with the card's switch). */
     teacherHomeOrder?: boolean;
   };

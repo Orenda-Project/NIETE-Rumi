@@ -360,7 +360,20 @@ async function isPortalAssessmentEditingEnabled(supabase) {
   }
 }
 
+/**
+ * The teacher sign-in page takes a non-PK mobile written with its country code (the server already accepts 10-15
+ * digits). One switch for everyone: it is read before anyone is signed in. Off unless set.
+ */
+const PORTAL_LOGIN_INTL_NUMBERS_KEY = 'portal_login_intl_numbers';
+
+/** @returns {Promise<boolean>} whether portal_login_intl_numbers is on */
+function isLoginIntlNumbersEnabled(supabase) {
+  return isFlagEnabled(supabase, PORTAL_LOGIN_INTL_NUMBERS_KEY);
+}
+
 module.exports = {
+  PORTAL_LOGIN_INTL_NUMBERS_KEY,
+  isLoginIntlNumbersEnabled,
   PORTAL_ANALYTICS_ONLY_KEY,
   readUserListFlag,
   isAnalyticsOnlyUser,
