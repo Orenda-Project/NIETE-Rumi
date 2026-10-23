@@ -371,3 +371,47 @@ describe('1b · the card sentence the fallback now carries more often: sentence 
     expect(s.slice(CR().leadingVocative(s))).toBe('یہ پوچھیں: کیوں؟');
   });
 });
+
+describe('red7 230552 (pre-PR probes on the WIP)', () => {
+  const ctxLines = [...CLASS, T('02:00', 'Teacher', 'سب نے کام ختم کیا؟'), T('02:05', 'Student', 'سر، میں نے کر لیا۔')];
+
+  test('A1 (Q031 shape): a step-text pick refused for naming no gap is silence, never the card\'s sentence', async () => {
+    const a = args({ lines: ctxLines, indicator: 'D5', action: 'Next class, improve on task behavior during independent work and observe each group.', subject: 'english' });
+    const pick = answer({ seg_id: '24-s3', moment: { at: '02:05', quote: 'سر، میں نے کر لیا۔' },
+      reason_en: 'During the lesson one student announced completion: "سر، میں نے کر لیا۔". This clip is about independent work.' });
+    const row = await run(a, deps([pick, pick, pick]));
+    expect(row.status).toBe('none');
+    expect(row.moment_source || null).not.toBe('card');
+  });
+
+  test('A3 (Q166 shape): a tiered-work card refused for naming no gap is silence, never the card\'s sentence', async () => {
+    const a = args({ indicator: null, card: { indicator: null, action: 'اگلی کلاس میں تین سطحی کام دیں: آسان اور مشکل version، ہر گروپ کو اس کی سطح کا کام۔' } });
+    const pick = answer({ seg_id: '51-s1', reason_en: 'The lesson opened with "Is this a triangle? Yes or no?", starting the task for the whole class. This clip is about open questions.' });
+    const row = await run(a, deps([pick, pick, pick]));
+    expect(row.moment_source || null).not.toBe('card');
+  });
+  test('control: the same no-gap reason on a questioning card still takes the card\'s sentence', async () => {
+    const pick = answer({ seg_id: '51-s1', reason_en: 'The lesson opened with "Is this a triangle? Yes or no?", starting the task for the whole class. This clip is about open questions.' });
+    const row = await run(args(), deps([pick]));
+    expect(row).toMatchObject({ status: 'shown', moment_source: 'card' });
+  });
+
+  test('C2: a scorer quote from the lesson\'s last minute counts as reaching the end → the model is asked', async () => {
+    const lines = [...CLASS, T('10:00', 'Teacher', 'Now open your copies and draw three shapes.'), T('10:05', 'Student', 'Okay teacher'),
+      T('19:50', 'Teacher', 'So what did we learn about shapes today?'), T('19:55', 'Students', 'Shapes')];
+    const a = args({ indicator: 'B10', action: 'سبق کے آخر میں دو بچوں سے کہیں کہ وہ اپنی زبان میں بتائیں کہ آج ہم نے کیا سیکھا۔', lines });
+    a.analysis.domains = { B: { indicators: [{ id: 'B10', name: 'Closure', score: 1, applicable: true, evidence: 'No summary. Quote: "So what did we learn about shapes today?"', timestamp: '[01:00]' }] } };
+    const d = deps([answer({ seg_id: '47-s6', moment: { at: '19:50', quote: 'So what did we learn about shapes today?' }, reason_en: 'At the end only one child answered with a single word. The clip is about closing.' })]);
+    await run(a, d);
+    expect(d.completeJson).toHaveBeenCalled();
+  });
+
+  test('D1: the calque «ریکال سوال» is written «یادداشت پر مبنی سوال»', () => {
+    expect(CP().composeReason('استاد نے ایک ریکال سوال پوچھا۔', 'ur', null)).toContain('یادداشت پر مبنی سوال');
+  });
+  test('D4: «وہ کیوں پوچھنا بھول گیا» speaks of the teacher in the masculine singular → gendered', () => {
+    const CR = require('../../../bot/shared/services/coaching/video-reco/copy-rules');
+    expect(CR.genderedUrdu('استاد نے سوال کیا، وہ کیوں پوچھنا بھول گیا۔')).toBe(true);
+    expect(CR.genderedUrdu('استاد نے سوال کیا، وہ کیوں پوچھنا بھول گئے۔')).toBe(false);
+  });
+});
