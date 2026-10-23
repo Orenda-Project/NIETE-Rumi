@@ -182,6 +182,31 @@ describe('3 · the second-pass shortlist is exactly the four enacted chapters', 
   });
 });
 
+describe('3b · G3 (no second ask): on a move step the enacted list keeps only chapters tagged for that step (gold be2a6d28)', () => {
+  test('control: a step with no tag to keep (D3 is a declared hole in this catalogue) → the four are the gate, as R7c ruled', async () => {
+    const NONE = { seg_id: null, none_reason: 'nothing fits', confidence: 0.2 };
+    const d = deps([NONE, NONE]);
+    await run(args({ indicator: 'D3' }), d);
+    expect(d.completeJson).toHaveBeenCalledTimes(2);
+    expect(ids(d.completeJson.mock.calls[1][0])).toEqual(expect.arrayContaining(['50-s2', '51-s1']));
+  });
+
+
+  test('a C1 step: 51-s1 is offered (tagged C1), 50-s2 (D3) is not, and the shown pick is never a second ask', async () => {
+    const NONE = { seg_id: null, none_reason: 'nothing fits', confidence: 0.2 };
+    const PICK = answer({
+      seg_id: '51-s1', reason_en: 'The class could only answer yes or no. The clip explains how to turn that question into a why question.',
+      reason_ur: 'کلاس صرف ہاں یا نہیں میں جواب دے سکی۔ یہ کلپ سمجھاتا ہے کہ اس سوال کو کیوں والے سوال میں کیسے بدلیں۔',
+    });
+    const d = deps([NONE, PICK]);
+    const row = await run(args(), d);
+    const second = ids(d.completeJson.mock.calls[1][0]);
+    expect(second).toContain('51-s1');
+    expect(second).not.toContain('50-s2');
+    expect(row).toMatchObject({ status: 'shown', seg_id: '51-s1', differs_from_step: false });
+  });
+});
+
 describe('4 · card_text route: a single-word match never carries a chapter (⛔2 × 6 of 10)', () => {
   const SL = () => require('../../../bot/shared/services/coaching/video-reco/shortlist');
   const CHECK = {
