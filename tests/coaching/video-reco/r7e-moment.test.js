@@ -351,3 +351,14 @@ describe('8 · red7 T4: a test that ends, then a lesson → the lesson is teachi
     expect(SI().notTeaching(t, 5)).toBe('test');
   });
 });
+
+describe('9 · Q170 (real shape): answered admin questions minutes apart do not end a test period', () => {
+  const lines = ['[00:01] Teacher (UR): السلام علیکم، پیارے بچوں۔ آج ٹیسٹ ہے آپ کا، ابھی لکھ کر دکھائیں گے۔', '[00:52] Student (UR): جو آپ نے ٹک لگایا تھا، وہی؟',
+    '[00:54] Teacher (UR): وہ فارم چیک کریں ذرا، سمجھ آئی؟', '[03:30] Student 2 (UR): میں اپنے گروپ میں ایکسپلین کرواؤں گی۔',
+    '[03:36] Teacher (UR): یہ نہیں ہے نا؟ وہ میں نے مانگا تھا؟', '[03:43] Student (UR): مجھے وہ—', '[11:38] Teacher (UR): کون سا والا؟ یہاں پہ تو ہے نا؟',
+    '[11:48] Student (UR): یس۔', '[12:31] Teacher (UR): کون تیاری کرواتا ہے آپ کو؟', '[12:34] Student (UR): میں تو آج ہی کر لوں گی۔'];
+  test('the student line at 03:30 is in the test period, and the lesson is a test period', () => {
+    expect(SI().notTeaching(lines, 3)).toBe('test');
+    expect(SI().testPeriod(lines)).toBe(true);
+  });
+});
