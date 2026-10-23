@@ -260,7 +260,10 @@ function oneWordOk(segId, words, cardIndicator) {
 function cardTagOk(seg, indicator, scheme) {
   if (!indicator || ONE_WORD_KEEP.has(String(seg && seg.seg_id))) return true;
   const tags = scheme === 'fico_main_37' ? (seg.fico_main37 || []) : (seg.fico || []).map((f) => f && f.indicator);
-  return !tags.length || tags.includes(String(indicator)); // a chapter with no tag in the scheme is not judged here (as whyCardOk)
+  if (!tags.length) return true; // a chapter with no tag in the scheme is not judged here (as whyCardOk)
+  // red7 F2 (Q090): a 37-C1 card keeps a C8 chapter, as the open-question card (whyCardOk) does
+  const family = scheme === 'fico_main_37' && QUESTIONING_37.has(String(indicator)) ? QUESTIONING_37 : new Set([String(indicator)]);
+  return tags.some((id) => family.has(id));
 }
 
 // R7e (same measure): a card that asks for why/how or open questions (silence.whyCard) and has no indicator of its own
@@ -498,4 +501,4 @@ function enacted(catalog, ctx, lesson) {
   })) };
 }
 
-module.exports = { enacted, ENACTED, ENACTED_STEPS, whyFirst, WHY_FIRST, build, textRoute, recommendable, fallbackSubjectOk, stepQuery, contentWords, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, STUB_FLOOR, LABEL_37 };
+module.exports = { enacted, ENACTED, ENACTED_STEPS, whyFirst, WHY_FIRST, build, textRoute, recommendable, fallbackSubjectOk, stepQuery, contentWords, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, STUB_FLOOR, LABEL_37, cardTagOk };
