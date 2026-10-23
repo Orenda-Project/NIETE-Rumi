@@ -24,4 +24,13 @@ function videoRecoMode(env = process.env) {
   return String(env.VIDEO_RECO_MODE || '').trim().toLowerCase() === 'shadow' ? 'shadow' : 'normal';
 }
 
-module.exports = { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode };
+/**
+ * "Proven chapters" mode (COS ruling 20261023T185329): the seg ids a pick may land on, comma-separated
+ * ('50-s2,51-s1,51-s3,95-s3', the daily.sql :allowlist string). Unset or blank = null = every chapter (today).
+ */
+function videoRecoAllowlist(env = process.env) {
+  const raw = String(env.VIDEO_RECO_ALLOWLIST || '').trim();
+  return raw ? new Set(raw.split(',').map((s) => s.trim()).filter(Boolean)) : null;
+}
+
+module.exports = { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist };
