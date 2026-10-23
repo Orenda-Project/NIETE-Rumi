@@ -259,12 +259,26 @@ const DRAW_IT_LINE = '• For Mind Map / Flow Chart / Graphs & Geometric Problem
   + 'figure printed on the paper.';
 
 /**
+ * A topic paper's skills (spec §2): each ticked skill as "code — description", and the rule that every question
+ * tests one of them. Empty for any other paper, so its prompt is the string it always was.
+ */
+function sloBlock(slos) {
+  if (!Array.isArray(slos) || !slos.length) return '';
+  const list = slos.map((s) => `  - ${s.code} — ${s.description}`).join('\n');
+  return `
+• This paper covers only these skills:
+${list}
+• Every question must test one of these skills and carry \`"slo": "<code>"\` with that skill's code. Do not write a question about the chapter's story or about anything that is not one of these skills
+• The counts in this message override any counts in the instructions`;
+}
+
+/**
  * What to make, in the words the prompts expect. Objective and subjective are
  * listed separately because that is the shape of the tree the model returns.
  */
 function buildUserPrompt({ grade, subject, pageContent, pageReference,
                            contentSource, questionCount, questionTypes = [], totalMarks = null,
-                           seenCount = null }) {
+                           seenCount = null, slos = null }) {
   const plan = planCounts({ contentSource, questionCount, questionTypes, seenCount });
   const objective = plan.questionTypes.filter((q) => q.category === 'objective');
   const subjective = plan.questionTypes.filter((q) => q.category !== 'objective');
@@ -300,7 +314,7 @@ ${pageContent}
 
 **GENERATE THE FOLLOWING:**
 ${items.map((i) => `• ${i}`).join('\n')}
-• In total the paper must have exactly ${plan.total} questions — no more${budget ? `
+• In total the paper must have exactly ${plan.total} questions — no more${sloBlock(slos)}${budget ? `
 • The whole paper must be worth ${budget} marks in total — allocate the marks across the questions so they add up to ${budget} and NEVER exceed it` : ''}
 
 **IMPORTANT NOTES:**
@@ -596,7 +610,7 @@ function answerCoverage(examJson) {
 async function generateExam(args) {
   const { grade, subject, pageContent, pageReference,
           contentSource = 'unseen', questionCount, questionTypes = [], includeAnswerKey = false,
-          totalMarks = null, seenCount = null } = args;
+          totalMarks = null, seenCount = null, slos = null } = args;
 
   const key = canonical(subject) || 'eng';
   const family = URDU_MEDIUM.has(key) ? 'urdu' : 'eng';
@@ -612,7 +626,7 @@ async function generateExam(args) {
 
   const messages = [
     { role: 'system', content: buildSystemPrompt({ subject, includeAnswerKey }) },
-    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount }) },
+    { role: 'user', content: buildUserPrompt({ grade, subject, pageContent, pageReference, contentSource, questionCount, questionTypes, totalMarks, seenCount, slos }) },
   ];
 
   logToFile('[assessment] generating', {

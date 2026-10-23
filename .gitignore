@@ -152,3 +152,4 @@ bot/vendor/lp-v9/.figcache/
 # QA automation (.claude/qa) — disposable run output and per-machine pending markers
 .claude/qa/results/
 .claude/.e2e-pending/
+.stryker-tmp-topics/

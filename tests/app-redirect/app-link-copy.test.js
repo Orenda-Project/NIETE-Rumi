@@ -99,8 +99,9 @@ const CASES = Object.entries(COPY).flatMap(([feature, langs]) =>
 
 test('the table covers exactly the seven linkable features', () => {
   const { LANDINGS } = require(LOGIN_LINK);
-  // ai_coaching_recording is not a command: ai_coaching's link when her recording was kept (bd-c5reix, its own suite).
-  expect(Object.keys(COPY).sort()).toEqual(Object.keys(LANDINGS).filter((f) => f !== 'ai_coaching_recording').sort());
+  // ai_coaching_recording and assessment_topics are not commands: a kept recording's link (bd-c5reix) and the
+  // second offer under the assessment door (assessment-entry.service.js).
+  expect(Object.keys(COPY).sort()).toEqual(Object.keys(LANDINGS).filter((f) => f !== 'ai_coaching_recording' && f !== 'assessment_topics').sort());
 });
 
 describe.each(CASES)('%s in %s', (feature, language, body, button) => {

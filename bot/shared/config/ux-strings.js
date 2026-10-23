@@ -780,6 +780,16 @@ const UX_STRINGS = {
     ur: 'شروع کریں',
   },
 
+  // bd-6clakk Task 9 — the second option under the assessment door: a paper on the topics she has taught (opens the app).
+  assessmentTopicsBody: {
+    en: "Or make a paper on the topics you've taught.", // button is capped at 20 code points; the full phrase lives here
+    ur: 'یا جو موضوعات آپ نے پڑھائے ہیں ان پر پرچہ بنائیں۔',
+  },
+  assessmentTopicsButton: {
+    en: 'Topic paper',
+    ur: 'موضوعاتی پرچہ',
+  },
+
   /**
    * bd-q3rfn (AG 1.2 item 6) — the offer sent after a paper is delivered.
    *
