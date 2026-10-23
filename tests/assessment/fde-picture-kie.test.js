@@ -33,6 +33,14 @@ test('a scene prompt carries the description', () => {
   expect(Kie.promptFor({ kind: 'scene', describe: 'a long pencil and a short pencil' })).toContain('a long pencil and a short pencil');
 });
 
+// v12: "A simple plant drawing with an arrow pointing to the root" came back labelled ROOT; a school said SCHOOL (bd-5jmnfj.4.11).
+test('a scene prompt forbids any writing in the picture', () => {
+  const p = Kie.promptFor({ kind: 'scene', describe: 'a plant with an arrow pointing to the root' });
+  expect(p).toMatch(/no text/i);
+  expect(p).toMatch(/no label/i);
+  expect(p).toMatch(/sign/i);
+});
+
 test('a picture with nothing to draw is refused', () => {
   expect(() => Kie.promptFor({ kind: 'object', name: '' })).toThrow('nothing to draw');
   expect(() => Kie.promptFor({ kind: 'scene' })).toThrow('nothing to draw');
