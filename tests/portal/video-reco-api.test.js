@@ -8,8 +8,10 @@
  *   on, a 'shown' row                                   → {title, levelLabel: null, durationS, language, reason, thumbUrl, href}
  *   on, the read fails / the token cannot be signed     → null, and the report still answers 200
  *
- * flags.js, link-token.js and catalog.js are the other two VIDREC PRs (eng-engine, eng-surfaces): mocked here
- * (virtual, so this file runs before they land).
+ * flags.js, link-token.js and catalog.js are mocked at their REAL paths, never `virtual`: Jest's resolver caches a
+ * (from, name) → module id per worker, so once an earlier suite in the same worker loads the real flags.js through
+ * video-reco-portal.js, a virtual mock (keyed by the extension-less path) is never consulted and every flag-on case
+ * reads the real env (CI on #3592; reproduced with a primer suite run before this one in one worker).
  */
 let tableRows;
 let tableErrors;
@@ -66,8 +68,8 @@ let linkFor;
 
 function mockVideoReco({ flags = true, linkToken = true, catalog = true } = {}) {
   const missing = () => { throw new Error("Cannot find module"); };
-  jest.doMock(`${VR}/flags`, flags ? () => ({ videoRecoEnabled: () => enabled }) : missing, { virtual: true });
-  jest.doMock(`${VR}/link-token`, linkToken ? () => ({ signVideoLink: (ids) => linkFor(ids), VIDEO_PATH: '/v' }) : missing, { virtual: true });
+  jest.doMock(`${VR}/flags`, flags ? () => ({ videoRecoEnabled: () => enabled }) : missing);
+  jest.doMock(`${VR}/link-token`, linkToken ? () => ({ signVideoLink: (ids) => linkFor(ids), VIDEO_PATH: '/v' }) : missing);
   jest.doMock(`${VR}/catalog`, catalog ? () => ({
     segment: (id) => (id === '3-s2' ? {
       module: { module_id: 3, cpd_level: 1, title: 'Asking why-questions (full module)', duration_s: 600, language: 'ur' },
@@ -76,7 +78,7 @@ function mockVideoReco({ flags = true, linkToken = true, catalog = true } = {}) 
       module: { module_id: 3, title: 'Asking why-questions (full module)', duration_s: 600, language: 'ur' },
       segment: { seg_id: '3-s4', start_s: 300, end_s: 360, title_en: 'The English demo', language: 'en' },
     } : null),
-  }) : missing, { virtual: true });
+  }) : missing);
 }
 
 beforeEach(() => {
