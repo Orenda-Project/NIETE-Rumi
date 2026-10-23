@@ -134,6 +134,10 @@ Feature: NIETE (ICT) Teacher Training
     And every session of the remaining module is passed
     When I take that module exam and pass it
     Then the bot sends the certificate PDF captioned "You have completed every module of Level 1: Novice." with my certificate code
+    And the certificate reads "Level 1 (Basic Level) of Secondary School Teachers' Training"
+    # UPDATED 2026-10-23 (bd-yef5iq): the level line is no longer a literal — it names the level certified
+    # (Level 2: Intermediate prints "Level 2 (Intermediate Level) ..."). Level 2 is pinned by
+    # tests/training/bd-yef5iq-isaps-level2-certificate.test.js; this run proves Level 1 kept its wording.
     # UPDATED 2026-10-01 (bd-vej4h): was "...whatever units are left". The certificate still waits on the
     # module exams ONLY, but a module exam now opens only after that module's sessions are passed, so
     # "units left" can no longer reach the exam. @wip — needs an I-SAPS level seeded 8/9 on the throwaway.

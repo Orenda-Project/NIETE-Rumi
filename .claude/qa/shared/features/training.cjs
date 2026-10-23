@@ -750,13 +750,11 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       ev.code = (/`([A-Z0-9][A-Z0-9-]{7,})`/.exec(txt) || /\b(CERT-\d{8}-[A-Z0-9]+)\b/.exec(txt) || [])[1] || null;
       doc = seen.find(x => x.doc || x.pdf) || null; ev.pdfDocument = !!doc; ev.filename = doc && doc.media && doc.media.filename;
     } catch (e) { crashed26 = String((e && e.message) || e); }
-    rec('T26', 'For an I-SAPS programme passing the ninth module exam certifies the level',
-        ...(crashed26 ? ['BLOCKED', { reason: 'threw: ' + crashed26, ...ev }]
-            : V(ev.completedEveryModule && !!ev.code && ev.pdfDocument && ev.mcq && ev.mcq.first === 'Q1/3', ev)), t() - s);
 
-    // T27 — read the certificate's text off the mock's media store
-    s = t();
+    // Read the certificate's text off the mock's media store once: T26 checks its level line (bd-yef5iq),
+    // T27 its watermark.
     let wm = { reason: 'no certificate document arrived from T26' };
+    let pdfText = null;
     if (doc && doc.media && doc.media.id) {
       try {
         const base = String(process.env.E2E_MOCK_URL || 'http://127.0.0.1:4010').replace(/\/+$/, '');
@@ -764,10 +762,18 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
         const buf = Buffer.from(await res.arrayBuffer());
         const out = path.join(process.env.RUN_DIR || '.', 'isaps-certificate.pdf'); fs.writeFileSync(out, buf);
         const text = execFileSync('python3', ['-c', 'import sys,pypdf;r=pypdf.PdfReader(sys.argv[1]);print("\\n".join((p.extract_text() or "") for p in r.pages))', out], { encoding: 'utf8', timeout: 60000 });
+        pdfText = text.replace(/\s+/g, ' ');
         wm = { bytes: buf.length, pages: (text.match(/\n/g) || []).length, watermark: /NOT A REAL CERTIFICATE/.test(text), sample: text.replace(/\s+/g, ' ').slice(0, 160), saved: out,
                productionHalf: 'not observable in the mock lane: NODE_ENV is not production, so shouldStampTestBanner stamps EVERY vendor here; the "other programmes are clean on production" rule is pinned by certificate-env.rules tests' };
       } catch (e) { wm = { reason: 'could not read the PDF text: ' + String((e && e.message) || e).slice(0, 160) }; }
     }
+    ev.levelLine = pdfText === null ? null : /Level 1 \(Basic Level\) of Secondary School Teachers' Training/.test(pdfText);
+    rec('T26', 'For an I-SAPS programme passing the ninth module exam certifies the level',
+        ...(crashed26 ? ['BLOCKED', { reason: 'threw: ' + crashed26, ...ev }]
+            : V(ev.completedEveryModule && !!ev.code && ev.pdfDocument && ev.mcq && ev.mcq.first === 'Q1/3' && ev.levelLine === true, ev)), t() - s);
+
+    // T27 — the watermark, from the same PDF text
+    s = t();
     rec('T27', 'An I-SAPS certificate on production carries no "not a real certificate" watermark',
         ...(wm.watermark === undefined ? ['BLOCKED', wm] : V(wm.watermark === true, wm)), t() - s);
     if (seeded26) { try { api.db('revert-level', ['--level', String(ISAPS_LEVEL)]); } catch (e) {} }
