@@ -12,7 +12,7 @@
 const Patterns = require('../../bot/shared/services/assessment/patterns');
 
 const SUBJECTS = ['maths', 'english', 'urdu', 'general_knowledge'];
-const PICTURE_KINDS = ['dots', 'count', 'shapes', 'clock', 'object', 'scene'];
+const PICTURE_KINDS = ['dots', 'count', 'shapes', 'clock', 'object', 'scene', 'plant'];
 
 // FDE 2023-24 model papers: written marks and oral marks per subject (null = no oral part).
 const EXPECT = {

@@ -4,7 +4,8 @@
  * (bd-5jmnfj.4.3). An item carries `picture: {kind, ...}`; this sets `picture.src`
  * to a data URI the renderer embeds, so the PDF needs no network.
  *
- *   dots, shapes, clock   drawn as SVG in place (fde-picture-svg)
+ *   dots, shapes,         drawn as SVG in place (fde-picture-svg)
+ *   clock, plant
  *   object, count, scene  read from R2, or drawn by the image model on a miss,
  *                         shrunk to a 320px grey JPEG and cached:
  *                         fde-pictures/v3/object/<slug>.jpg, fde-pictures/v3/scene-no-text/<slug>-<hash>.jpg

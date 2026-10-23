@@ -437,6 +437,8 @@ function workSpace(q, slot) {
     if (Array.isArray(q.options) && q.options.length) return '';
     // "34 ☐ 43": the child writes the sign in the drawn square (bd-5jmnfj.4.20).
     if (/☐/.test(String(q.question || ''))) return '';
+    // A plant to label carries its own blank lines (bd-5jmnfj.4.33).
+    if (q.picture && q.picture.kind === 'plant') return '';
     return `<div class="write-box" style="height:${12 + 8 * Math.max(0, (slot.lines || 1) - 1)}mm"></div>`;
   }
   if ((slot.lines || 0) >= 2) {
