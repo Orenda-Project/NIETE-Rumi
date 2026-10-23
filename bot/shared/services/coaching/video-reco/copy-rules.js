@@ -10,17 +10,27 @@ const { redactNames } = require('./redact-names');
 // it and the non-strict redactor knows only its lexicon's names. The vocative is found by its SHAPE: up to three words
 // before the first comma that the strict redactor masks as names, with any title or honorific around them.
 const TITLE = new Set('سید سیدہ محترم محترمہ mr mrs ms miss madam sir'.split(' '));
+// «جی» is an honorific after a name («‹name› جی،», red7 161951); «اچھا جی، / ہاں جی، / تو جی،» are not names because the word
+// left after it is a FUNCTION word (below), which no name is.
 const HONORIFIC = new Set('بی بیبی صاحب صاحبہ جی sahib sahiba bibi ji'.split(' '));
 const PLACEHOLDER_WORD = /^\[(?:a student|CHILD|TEACHER)\]$/;
+// red7 REVIEW_3630: a role word is an address, not a name (F2); a word a clause is built from is never part of a name (F1).
+const ROLE = new Set('استاد استانی ٹیچر teacher sir madam miss مس میڈم سر'.split(' '));
+const FUNCTION = new Set(('میں کے کی کا کو سے نے پر اور یا کہ جب تو ہر یہ وہ ایک آج کل اگلی اگلے پہلے بعد اب پھر ساتھ لیے کلاس سبق بچوں بچے آپ ہم '
+  + 'دوران شروع آخر جواب سوال صفحہ the a an in on at for of to and next today tomorrow class lesson when after before dear good '
+  + 'اچھا ہاں تو چلیں بیٹا بیٹے بچو شاباش ٹھیک بالکل پڑھیں ok okay yes').split(' '));
 const VOC = /^(\s*[⁦-⁩]?\s*)((?:[^\s،,:]+\s+){0,4}[^\s،,:]+?)\s*[⁦-⁩]?\s*[،,:]\s*/u;
 
 /** The words before the first comma are an address to a person: names (strict-masked), titles and honorifics only. */
-function vocativeWords(words) {
+function vocativeWords(words, { partial = false } = {}) {
   const core = words.filter((w) => !TITLE.has(w.toLowerCase()) && !HONORIFIC.has(w.toLowerCase()));
   const honorific = words.length - core.length;
-  if (!core.length || core.length > 3 || core.some((w) => PLACEHOLDER_WORD.test(w))) return false;
+  if (!core.length || core.length > 3 || core.some((w) => PLACEHOLDER_WORD.test(w) || ROLE.has(w.toLowerCase()) || FUNCTION.has(w.toLowerCase()))) return false;
   const masked = (redactNames(core.join(' '), { placeholders: { child: '[a student]' } }).match(/\[(?:a student|TEACHER)\]/g) || []).length;
-  return masked === core.length || (honorific > 0 && core.length <= 2);
+  // F1: «‹name› جہاں،» — one masked word and no word a clause is built from is a name made partly of dictionary words
+  // (Urdu-script words only: a capitalised English run is not a name)
+  const nameLike = partial && masked >= 1 && core.length >= 2 && core.every((w) => /^\p{Script=Arabic}+$/u.test(w));
+  return masked === core.length || nameLike || (honorific > 0 && core.length <= 2);
 }
 
 /**
@@ -32,7 +42,7 @@ function leadingVocative(text) {
   if (!m) return 0;
   const words = m[2].split(/\s+/).map((w) => w.replace(/[⁦-⁩]/g, '')).filter(Boolean);
   if (words.length === 1) return m[0].length;
-  return vocativeWords(words) ? m[0].length : 0;
+  return vocativeWords(words, { partial: true }) ? m[0].length : 0;
 }
 
 /** A reason that quotes a card still opening with a name (two or more words), at its start or after a quote mark. */
@@ -43,7 +53,7 @@ function quotedVocative(text) {
     const m = VOC.exec(s.slice(i));
     if (!m) return false;
     const words = m[2].split(/\s+/).map((w) => w.replace(/[⁦-⁩]/g, '')).filter(Boolean);
-    return words.length >= 2 && vocativeWords(words);
+    return words.length >= 2 && vocativeWords(words, { partial: true }); // red7 155809: the same shape on the reason path
   });
 }
 
@@ -58,7 +68,8 @@ const TEACHER_SUBJECT = /(?:^|\s)(?:استاد|استاذ|ٹیچر|معلم|آپ
 // marked object («سوال کو», «سوال میں») does not. After «آپ» a feminine plural verb is always the reader's.
 const OTHER_SUBJECT = /(?:^|\s)(?:کلپ|clip|ویڈیو|video|رپورٹ|سوال|سوالات|بچہ|بچے|بچی|طلبہ|طالب|کلاس|جماعت|گروپ)(?!\s+(?:کو|کی|کا|کے|سے|میں|پر|نے)(?=\s|$))(?=\s|$)/iu;
 const SINGULAR = /\S(?:تا|تی)\s+(?:ہے|تھا|تھی)(?=$|\s)|\s(?:رہا|رہی)\s+(?:ہے|تھا|تھی)(?=$|\s)|\S\s+(?:گا|گی)(?=$|\s)/u;
-const FEMININE_PLURAL = /\S(?:تی|رہی)\s+(?:ہیں|تھیں)(?=$|\s)|\s(?:رہی|سکتی|چکی)\s+(?:ہیں|تھیں)(?=$|\s)|\S\s+گی(?=$|\s)/u;
+// …and a feminine adjective predicate («استاد کھڑی ہیں», red7 REVIEW_3630 G12).
+const FEMININE_PLURAL = /\S(?:تی|رہی)\s+(?:ہیں|تھیں)(?=$|\s)|\s(?:رہی|سکتی|چکی)\s+(?:ہیں|تھیں)(?=$|\s)|\S\s+گی(?=$|\s)|\s(?:کھڑی|بیٹھی|تھکی|اچھی)\s+(?:ہیں|تھیں)(?=$|\s)/u;
 
 /** reason_ur speaks of a teacher in a gendered form (a feminine noun, or a singular / feminine verb of a teacher subject). */
 function genderedUrdu(text) {
@@ -73,7 +84,7 @@ function genderedUrdu(text) {
 }
 
 // ── scorer or system text in the teacher line (P003, P005, P013, P014, P016) ───────────────────────────────────────────
-const SYSTEM_NOTE = /\bno (?:student|pupil|child|children|material|pair|group|peer)[\w\s'-]{0,30}?\b(?:recorded|referenced|appears?|observed|evident|noted|detected)\b|\bnot (?:recorded|referenced|observed)\b|\(no [^)]{0,60}\)/i;
+const SYSTEM_NOTE = /\bno [\w\s'-]{0,30}?\b(?:was|were) (?:observed|recorded|seen|noted)\b|\bno (?:student|pupil|child|children|material|pair|group|peer)[\w\s'-]{0,30}?\b(?:recorded|referenced|appears?|observed|evident|noted|detected)\b|\bnot (?:recorded|referenced|observed)\b|\(no [^)]{0,60}\)/i;
 
 /** A scorer's or the system's own note («No student activity recorded», «(no material use referenced)»). */
 function systemNote(text) {
@@ -82,6 +93,8 @@ function systemNote(text) {
 
 // ── the reason describes what the CLIP shows (≥ 36 panel rows: wait time, cold-call, why-probes it never shows) ────────
 // Each claim a reason makes about the clip must have a word for it in the chapter's own title, summary, keywords or moves.
+// (red7 REVIEW_3630 F3: keywords carry transcript words; dropping them refuses 805 of 2,200 first answers instead of 343
+// on the 3efb501 view, a cost for the COS to choose, so they stay.)
 const CLIP_CLAIMS = [
   [/\bwait(?:s|ing)?\b(?! for the (?:answer|class))|\bpaus(?:e|es|ing)\b|\bsilen(?:t|ce)\b|\bthinking time\b/i, /wait|pause|silen|think time|thinking time/i],
   [/\bcold[- ]?call/i, /cold|no hands|names? a (?:student|child)|calls? on/i],

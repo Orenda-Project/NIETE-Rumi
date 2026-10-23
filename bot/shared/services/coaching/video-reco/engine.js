@@ -20,6 +20,7 @@ const prompt = require('./prompt');
 const select = require('./select');
 const silence = require('./silence');
 const { composeReason, stripBidi } = require('./copy');
+const { leadingVocative } = require('./copy-rules');
 
 const ENGINE_TIMEOUT_MS = 60000; // the LLM call is capped at 45 s (select.js); the sender awaits this after the report has gone
 const RETRY_MIN_LEFT_MS = 20000; // v1.3b: the one validation retry runs only with ≥ 20 s of the engine budget left
@@ -232,7 +233,8 @@ async function compute(a, d, state) {
     target: t.none ? { ...t, indicator: t.storedIndicator } : t, // unknown 37-id: the prompt names the id the report scored
     // Names never reach the model: the card's action opens with the teacher's name in prod; the rationale is free text.
     rationale: prompt.redact(step.rationale || fa.rationale || '', people),
-    tryText: prompt.redact((card && card.action) || step.try || fa.try_this_tomorrow || '', people),
+    // red7 155809: the card's vocative (the teacher's name, often in a spelling users.name cannot match) never reaches the model
+    tryText: prompt.redact(((s) => s.slice(leadingVocative(s)))(stripBidi(String((card && card.action) || step.try || fa.try_this_tomorrow || ''))), people),
     subject,
     excerpts: ex,
     candidates: list.candidates,
@@ -280,7 +282,7 @@ async function compute(a, d, state) {
     fallback = seg && select.cardFallback({
       none: v.none, segId: res.pick.seg_id, shortlist: list, sentence: (card && card.action) || step.try || fa.try_this_tomorrow || '',
       startS: seg.segment.start_s, endS: seg.segment.end_s, teacherName: people.teacher, module: seg.module, subject, vocab,
-      segment: seg.segment, labels: Object.values(catalog.aliases || {}).map((x) => x && x.name).filter(Boolean), // R7b
+      segment: seg.segment, // R7b: the clause the clip serves
     });
   }
   if (!v.ok && !fallback) return finish({ ...withLlm, status: 'none', none_reason: v.none, ...(v.confidence === undefined ? {} : { confidence: v.confidence }) });
