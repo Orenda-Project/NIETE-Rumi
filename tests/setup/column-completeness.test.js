@@ -68,7 +68,10 @@ const ALLOWLIST = {
   quiz_sessions: ['updated_at', 'sessionid', 'sharecodeid', 'fromlisted'],
   // Nested keys inside the users.preferences / screen-data objects (parser artifact);
   // users stores language in preferred_language + preferences, grade in grades_taught.
-  users: ['grade', 'language'],
+  // `onconflict` is the upsert OPTION (same class as exam_grades above), from video-reco/store.js:101
+  // `.from(TABLE).upsert(row, { onConflict: 'coaching_session_id' })`: TABLE is a constant, not a
+  // literal, so the parser takes the table from the nearest literal `.from('users')` (store.js:90).
+  users: ['grade', 'language', 'onconflict'],
   // `error` is the destructured result of the storybook miss write (`const { error } = await ….insert(rows)`, rows a
   // variable): the scanner walks forward to the next object, the logToFile payload { error: error.message }. Not a
   // column: story_events rows carry child_id, book_id, page_n, event, data, at.
