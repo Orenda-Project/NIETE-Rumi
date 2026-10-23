@@ -668,7 +668,9 @@ function makeApi(c) {
     const ok = await api.inject();
     if (!ok) throw new Error('wa-drive failed to inject');
     const mod = require(path.join(__dirname, 'features', FEATURE + '.cjs'));
-    await mod.run({ api, rec, sleep, want, only: ONLY });
+    // On the mock lane a driver's sleep() long-polls the outbox and wakes when the bot answers (mock-api smartSleep,
+    // bd-aqi0ay); the chrome lane keeps the plain setTimeout sleep.
+    await mod.run({ api, rec, sleep: MOCK && api.sleep ? api.sleep : sleep, want, only: ONLY });
   } catch (e) {
     results.push({ id: 'RUNNER', verdict: 'ERROR', evidence: String(e && e.message || e) });
   } finally {
