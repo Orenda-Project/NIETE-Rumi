@@ -169,3 +169,24 @@ wall; 1 is driver work and removes most of what remains.
 | quiesce skip | `mock-api.cjs`: the pre-send quiesce is skipped when the outbox has not changed since a settle proved it quiet (`attrs.skipped`) | automatic | 800 ms every send |
 
 The chrome lane is untouched (its defaults are the old values; none of the `E2E_*` knobs is set there).
+
+**Measured** (all seven features, one slot each, same machine, same cassettes):
+
+| | baseline `479f4a7` | fix 1 `09a45dc` | fix 2 `c23df43` |
+|---|---|---|---|
+| suite wall | 37 m 45 s | 25 m 14 s | **28 m 12 s** |
+| features' walls, summed | 4643 s | 3132 s | 3411 s |
+| bot send pacer (inside windows) | 527 s | 0 | 0 |
+| harness quiesce/settle/app-setting (inside windows) | 472 s | 221 s | 221 s |
+| poll granularity | 66 s | 15 s | 15 s |
+| "slow down" rate-limit replies | 0 | 4 | 0 |
+| verdicts pass / fail | 151 / 23 | 159 / 26 | 160 / 23 |
+
+Fix 1 also settled app-settings in 1.5 s and let the lane trip the bot's inbound rate limit; fix 2 lifts the
+limit on the lane and puts the 31 s app-setting settle back (the 3 min between fix 1 and fix 2 is exactly those
+settles: menu, lesson-plan and coaching flip switches). Verdicts that changed baseline → fix 2 and are not
+explained by the change: `COA28` PASS → BLOCKED ("no progress for 240 s at step 2": after the lesson-plan pick of
+the pipeline's second run the bot queued no analysis job, so `COA21/23/24` block on "needs run 2"); `T64`
+PASS → FAIL (the `/quiz` list came back with its two seeded rows in the other order; the check requires
+newest-first). `M26` FAIL → PASS and `COA16` FAIL → PASS went the other way. Menu now reaches all 26 scenarios
+(the baseline runner aborted at M07 on a missing list row). The suite's known cassette misses are unchanged.
