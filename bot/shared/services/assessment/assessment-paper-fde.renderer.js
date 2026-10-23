@@ -435,6 +435,8 @@ function workSpace(q, slot) {
   // A Grade 1-2 child writes in a box under every written item (bd-5jmnfj.4.8); circling needs none.
   if (slotFlag(slot, 'answer_box')) {
     if (Array.isArray(q.options) && q.options.length) return '';
+    // "34 ☐ 43": the child writes the sign in the drawn square (bd-5jmnfj.4.20).
+    if (/☐/.test(String(q.question || ''))) return '';
     return `<div class="write-box" style="height:${12 + 8 * Math.max(0, (slot.lines || 1) - 1)}mm"></div>`;
   }
   if ((slot.lines || 0) >= 2) {
@@ -568,7 +570,7 @@ function itemBody(q, slot, i, ctx, inlineQ) {
   if (Array.isArray(q.topics) && q.topics.length && printsField(slot, 'topics')) {
     parts.push(`<div class="topics">${q.topics.map((t, k) => `<span class="topic">${textOf(itemNumber({ numbering: 'alpha_paren' }, k, ctx.medium), ctx)} ${textOf(t, ctx)}</span>`).join('')}</div>`);
   }
-  if (printsWords(slot) && !slotFlag(slot, 'picture_only') && Array.isArray(q.words) && q.words.length) parts.push(wordList(q.words, ctx, ctx.medium !== 'ur'));
+  if (printsWords(slot) && !slotFlag(slot, 'answer_box') && Array.isArray(q.words) && q.words.length) parts.push(wordList(q.words, ctx, ctx.medium !== 'ur'));
   if (Array.isArray(q.questions) && q.questions.length) parts.push(subQuestions(q.questions, slot.sub_numbering || 'alpha_paren', ctx));
   if (ctx.answerLines !== false) parts.push(workSpace(q, slot));
   return parts.join('');
@@ -620,19 +622,19 @@ function slotBlock(slot, sec, list, ctx) {
     const stem = stemOf(q, slot, inlineQ);
     const numHtml = num ? `<span class="n">${textOf(num, ctx)}</span>` : '';
     const leadHtml = lead ? `<div class="or-lead">${textOf(lead, ctx)}</div>` : '';
-    const stemHtml = stem ? ` ${textOf(stem, ctx)}` : '';
+    const stemHtml = stem ? ` ${textOf(stem, ctx).replace(/☐/g, '<span class="sq"></span>')}` : '';
     body.push(`<div class="q${cont ? ' qcont' : ''}${slot.shape === 'comprehension' ? ' comp' : ''}${grid ? ' pic-cell' : ''}" data-slot="${esc(slot.slot)}">${numHtml}${leadHtml}${stemHtml}${itemBody(q, slot, i, ctx, inlineQ)}</div>`);
   });
   if (slot.alternatives && !live.length) body.push(fixedAlternatives(slot, null, ctx));
   // An either/or question is read as one choice: never split across a page.
   const either = slot.or || slot.alternatives ? ' either' : '';
-  if (grid) {
-    // The bank is sorted so its order never matches the pictures' order: a model lists them as it drew them.
-    const words = [...new Set(live.flatMap((q) => (Array.isArray(q.words) ? q.words : [])))].sort((x, y) => String(x).localeCompare(String(y)));
-    const bank = printsWords(slot) && words.length ? `<div class="word-box bank">${words.map((w) => `<span class="w">${textOf(w, ctx)}</span>`).join('')}</div>` : '';
-    return `<div class="slot${either}">${head}${bank}<div class="pic-grid">${body.join('')}</div></div>`;
-  }
-  return `<div class="slot${either}">${head}${body.join('')}</div>`;
+  // A Grade 1-2 slot prints its words once, boxed, above its items (bd-5jmnfj.4.20). The bank is
+  // sorted so its order never matches the items' order: a model lists them as it wrote them.
+  const words = [...new Set(live.flatMap((q) => (Array.isArray(q.words) ? q.words : [])))].sort((x, y) => String(x).localeCompare(String(y)));
+  const bank = printsWords(slot) && slotFlag(slot, 'answer_box') && words.length
+    ? `<div class="word-box bank">${words.map((w) => `<span class="w">${textOf(w, ctx)}</span>`).join('')}</div>` : '';
+  if (grid) return `<div class="slot${either}">${head}${bank}<div class="pic-grid">${body.join('')}</div></div>`;
+  return `<div class="slot${either}">${head}${bank}${body.join('')}</div>`;
 }
 
 // Verses given from a lesson the paper does not cover name it under them, as English Q5 names its
@@ -718,7 +720,9 @@ function css(medium, kind) {
   .work-box { border: 1px solid #555; margin: 3px 0 2px;
     background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 7.5mm, #bbb 7.5mm, #bbb 7.8mm); }
   .work-square { border: 1px solid #555; margin: 3px 0 2px; }
-  .write-box { border: 1.2px solid #000; margin: 2mm 0 1mm; }
+  /* Inset from the end: a border on the content edge is clipped from the PDF (bd-5jmnfj.4.20). */
+  .write-box { border: 1.2px solid #000; margin: 2mm 0 1mm; margin-${end}: 0.5mm; }
+  .sq { display: inline-block; width: 9mm; height: 7mm; border: 1.2px solid #000; vertical-align: middle; margin: 0 2mm; }
   .word-box.bank { display: flex; flex-wrap: wrap; justify-content: center; gap: 2mm 8mm; padding: 2mm 4mm; font-size: 13pt; }
   .pic-grid { display: flex; flex-wrap: wrap; gap: 4mm; }
   .q.pic-cell { width: 30%; break-inside: avoid; }

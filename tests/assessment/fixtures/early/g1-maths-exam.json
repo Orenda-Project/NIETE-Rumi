@@ -1,0 +1,1719 @@
+{
+ "unseen": {
+  "subjective": {
+   "Measurement": [
+    {
+     "slot": "g1.maths.B.Q8",
+     "lines": 1,
+     "marks": 1,
+     "answer": "The long pencil",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "The pencil on the left or right that is longer, named clearly"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Names the correct object",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Choosing the shorter pencil."
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "scene",
+      "describe": "a long pencil and a short pencil lying side by side"
+     },
+     "question": "Which pencil is longer?",
+     "main_question": "Look and answer."
+    },
+    {
+     "slot": "g1.maths.B.Q8",
+     "lines": 1,
+     "marks": 1,
+     "answer": "The tall tree",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "The tree with the greater height, named clearly"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Names the correct object",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Choosing the shorter tree."
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "scene",
+      "describe": "a tall tree and a short tree standing side by side"
+     },
+     "question": "Which tree is taller?",
+     "main_question": "Look and answer."
+    },
+    {
+     "slot": "g1.maths.B.Q8",
+     "lines": 1,
+     "marks": 1,
+     "answer": "The watermelon",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "The object on the lower side of the balance"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Names the correct object",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Choosing the lighter side that is up."
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "scene",
+      "describe": "a watermelon and a small apple on the two sides of a balance scale, the watermelon side down"
+     },
+     "question": "Which is heavier?",
+     "main_question": "Look and answer."
+    },
+    {
+     "slot": "g1.maths.B.Q8",
+     "lines": 1,
+     "marks": 1,
+     "answer": "The big glass",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "The glass with more water, named clearly"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Names the correct object",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Choosing the glass with less water."
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "scene",
+      "describe": "a big glass full of water and a small glass with a little water side by side"
+     },
+     "question": "Which glass holds more water?",
+     "main_question": "Look and answer."
+    },
+    {
+     "slot": "g1.maths.B.Q8",
+     "lines": 1,
+     "marks": 1,
+     "answer": "The feather",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "The object on the higher side of the balance"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Names the correct object",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Choosing the heavier object."
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "scene",
+      "describe": "a feather and a stone on the two sides of a balance scale, the feather side up"
+     },
+     "question": "Which is lighter?",
+     "main_question": "Look and answer."
+    }
+   ],
+   "Number Series": [
+    {
+     "slot": "g1.maths.A.Q2",
+     "lines": 1,
+     "marks": 2,
+     "answer": "8, 10",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Skip counting in 2s",
+       "Using the multiplication table of 2",
+       "Counting on 2 on a number line"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "First missing number correct",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Second missing number correct",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Counts on by 1 and writes 7, 8."
+     },
+     "question": "2, 4, 6, __, __",
+     "main_question": "Write the two missing numbers in each series."
+    },
+    {
+     "slot": "g1.maths.A.Q2",
+     "lines": 1,
+     "marks": 2,
+     "answer": "15, 25",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Skip counting in 5s",
+       "Using the multiplication table of 5",
+       "Counting on 5 on a number line"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "First missing number correct",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Second missing number correct",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Counts on by 2 or 10 instead of 5."
+     },
+     "question": "5, 10, __, 20, __",
+     "main_question": "Write the two missing numbers in each series."
+    },
+    {
+     "slot": "g1.maths.A.Q2",
+     "lines": 1,
+     "marks": 2,
+     "answer": "60, 70",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Skip counting in 10s",
+       "Using the multiplication table of 10",
+       "Adding 1 ten each time"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "First missing number correct",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Second missing number correct",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Adds 1 instead of 10 and writes 51, 52."
+     },
+     "question": "30, 40, 50, __, __",
+     "main_question": "Write the two missing numbers in each series."
+    },
+    {
+     "slot": "g1.maths.A.Q2",
+     "lines": 1,
+     "marks": 2,
+     "answer": "6, 5",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Counting back by 1",
+       "Using a number line moving left",
+       "Using the number that comes before"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "First missing number correct",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Second missing number correct",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Counts forward and writes 10, 11."
+     },
+     "question": "9, 8, 7, __, __",
+     "main_question": "Write the two missing numbers in each series."
+    },
+    {
+     "slot": "g1.maths.A.Q2",
+     "lines": 1,
+     "marks": 2,
+     "answer": "18, 22",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Skip counting in 2s",
+       "Counting on 2 on a number line",
+       "Adding 2 to the previous number"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "First missing number correct",
+        "marks": 1
+       },
+       {
+        "kind": "A",
+        "text": "Second missing number correct",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Counts on by 1 and writes 17, 21."
+     },
+     "question": "14, 16, __, 20, __",
+     "main_question": "Write the two missing numbers in each series."
+    }
+   ],
+   "Name the Shape": [
+    {
+     "slot": "g1.maths.B.Q7",
+     "lines": 1,
+     "marks": 1,
+     "answer": "Circle",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Round shape"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "The correct shape name",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Calling it an oval."
+     },
+     "picture": {
+      "src": "data:image/svg+xml;base64,AAAA",
+      "kind": "shapes",
+      "shapes": [
+       {
+        "shape": "circle"
+       }
+      ]
+     },
+     "main_question": "Write the name of the shape."
+    },
+    {
+     "slot": "g1.maths.B.Q7",
+     "lines": 1,
+     "marks": 1,
+     "answer": "Square",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "A shape with 4 equal sides"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "The correct shape name",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Calling it a rectangle."
+     },
+     "picture": {
+      "src": "data:image/svg+xml;base64,AAAA",
+      "kind": "shapes",
+      "shapes": [
+       {
+        "shape": "square"
+       }
+      ]
+     },
+     "main_question": "Write the name of the shape."
+    },
+    {
+     "slot": "g1.maths.B.Q7",
+     "lines": 1,
+     "marks": 1,
+     "answer": "Triangle",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "A shape with 3 sides and 3 corners"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "The correct shape name",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Calling it a square."
+     },
+     "picture": {
+      "src": "data:image/svg+xml;base64,AAAA",
+      "kind": "shapes",
+      "shapes": [
+       {
+        "shape": "triangle"
+       }
+      ]
+     },
+     "main_question": "Write the name of the shape."
+    },
+    {
+     "slot": "g1.maths.B.Q7",
+     "lines": 1,
+     "marks": 1,
+     "answer": "Rectangle",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "A shape with 4 sides where opposite sides are equal"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "The correct shape name",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Calling it a square."
+     },
+     "picture": {
+      "src": "data:image/svg+xml;base64,AAAA",
+      "kind": "shapes",
+      "shapes": [
+       {
+        "shape": "rectangle"
+       }
+      ]
+     },
+     "main_question": "Write the name of the shape."
+    },
+    {
+     "slot": "g1.maths.B.Q7",
+     "lines": 1,
+     "marks": 1,
+     "answer": "Star",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Star shape"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "The correct shape name",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Calling it a triangle."
+     },
+     "picture": {
+      "src": "data:image/svg+xml;base64,AAAA",
+      "kind": "shapes",
+      "shapes": [
+       {
+        "shape": "star"
+       }
+      ]
+     },
+     "main_question": "Write the name of the shape."
+    }
+   ],
+   "Compare Numbers": [
+    {
+     "slot": "g1.maths.A.Q4",
+     "lines": 0,
+     "marks": 1,
+     "answer": "<",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Comparing tens first",
+       "Using the hundreds chart or place value blocks"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct sign",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Reverses the sign."
+     },
+     "question": "34 ☐ 43",
+     "main_question": "Write > , < or = in the box."
+    },
+    {
+     "slot": "g1.maths.A.Q4",
+     "lines": 0,
+     "marks": 1,
+     "answer": ">",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Comparing tens first",
+       "Using the hundreds chart or place value blocks"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct sign",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Reverses the sign."
+     },
+     "question": "67 ☐ 59",
+     "main_question": "Write > , < or = in the box."
+    },
+    {
+     "slot": "g1.maths.A.Q4",
+     "lines": 0,
+     "marks": 1,
+     "answer": "=",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Seeing that tens and ones are the same",
+       "Using place value blocks"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct sign",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes > or < for equal numbers."
+     },
+     "question": "82 ☐ 82",
+     "main_question": "Write > , < or = in the box."
+    },
+    {
+     "slot": "g1.maths.A.Q4",
+     "lines": 0,
+     "marks": 1,
+     "answer": "<",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Same tens, then comparing ones",
+       "Using the hundreds chart"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct sign",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Compares only the tens and writes =."
+     },
+     "question": "75 ☐ 78",
+     "main_question": "Write > , < or = in the box."
+    },
+    {
+     "slot": "g1.maths.A.Q4",
+     "lines": 0,
+     "marks": 1,
+     "answer": ">",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Comparing tens first",
+       "Using place value blocks"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct sign",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Compares ones first and thinks 9 is greater than 0."
+     },
+     "question": "90 ☐ 19",
+     "main_question": "Write > , < or = in the box."
+    }
+   ],
+   "Count and Write": [
+    {
+     "slot": "g1.maths.A.Q3",
+     "lines": 1,
+     "marks": 1,
+     "answer": "6",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Touching and counting each object once",
+       "Counting in groups"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct count",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Miscounts by skipping or counting twice."
+     },
+     "picture": {
+      "n": 6,
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "count",
+      "name": "apple"
+     },
+     "main_question": "Count the objects. Write how many."
+    },
+    {
+     "slot": "g1.maths.A.Q3",
+     "lines": 1,
+     "marks": 1,
+     "answer": "4",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Touching and counting each object once",
+       "Counting in groups"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct count",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Miscounts by skipping or counting twice."
+     },
+     "picture": {
+      "n": 4,
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "count",
+      "name": "butterfly"
+     },
+     "main_question": "Count the objects. Write how many."
+    },
+    {
+     "slot": "g1.maths.A.Q3",
+     "lines": 1,
+     "marks": 1,
+     "answer": "9",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Touching and counting each object once",
+       "Counting in groups"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct count",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Miscounts by skipping or counting twice."
+     },
+     "picture": {
+      "n": 9,
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "count",
+      "name": "balloon"
+     },
+     "main_question": "Count the objects. Write how many."
+    },
+    {
+     "slot": "g1.maths.A.Q3",
+     "lines": 1,
+     "marks": 1,
+     "answer": "7",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Marking each dot while counting",
+       "Counting in groups"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct count",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Miscounts by skipping or counting twice."
+     },
+     "picture": {
+      "n": 7,
+      "src": "data:image/svg+xml;base64,AAAA",
+      "kind": "dots"
+     },
+     "main_question": "Count the objects. Write how many."
+    },
+    {
+     "slot": "g1.maths.A.Q3",
+     "lines": 1,
+     "marks": 1,
+     "answer": "10",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Touching and counting each object once",
+       "Counting in groups of 5 or 2"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct count",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Miscounts by skipping or counting twice."
+     },
+     "picture": {
+      "n": 10,
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "count",
+      "name": "star"
+     },
+     "main_question": "Count the objects. Write how many."
+    }
+   ],
+   "Missing Numbers": [
+    {
+     "slot": "g1.maths.A.Q1",
+     "lines": 1,
+     "marks": 1,
+     "answer": "23",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Counting on by 1 from 22",
+       "Counting back by 1 from 24",
+       "Using the number line or hundreds chart"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct missing number",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes 22 or 24 by repeating a neighbouring number."
+     },
+     "question": "21, 22, __, 24, 25",
+     "main_question": "Write the missing number in each row."
+    },
+    {
+     "slot": "g1.maths.A.Q1",
+     "lines": 1,
+     "marks": 1,
+     "answer": "49",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "Counting on by 1 from 48",
+       "Counting back by 1 from 50",
+       "Using the number line or hundreds chart"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct missing number",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes 48 or 51 instead of the number between."
+     },
+     "question": "46, 47, 48, __, 50",
+     "main_question": "Write the missing number in each row."
+    },
+    {
+     "slot": "g1.maths.A.Q1",
+     "lines": 1,
+     "marks": 1,
+     "answer": "74",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Counting on by 1 from 73",
+       "Number that comes between 73 and 75",
+       "Using the hundreds chart"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct missing number",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes 72 or 76."
+     },
+     "question": "73, __, 75, 76, 77",
+     "main_question": "Write the missing number in each row."
+    },
+    {
+     "slot": "g1.maths.A.Q1",
+     "lines": 1,
+     "marks": 1,
+     "answer": "87",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Counting back by 1 from 88",
+       "Number that comes before 88",
+       "Using the hundreds chart"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct missing number",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes 89 or 86."
+     },
+     "question": "__, 88, 89, 90, 91",
+     "main_question": "Write the missing number in each row."
+    },
+    {
+     "slot": "g1.maths.A.Q1",
+     "lines": 1,
+     "marks": 1,
+     "answer": "62",
+     "blooms": "Remember",
+     "scheme": {
+      "accept": [
+       "Counting on by 1 from 61",
+       "Number that comes after 61",
+       "Using the hundreds chart"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "Writes the correct missing number",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Writes 60 or 63."
+     },
+     "question": "58, 59, 60, 61, __",
+     "main_question": "Write the missing number in each row."
+    }
+   ],
+   "Addition Word Problems": [
+    {
+     "slot": "g1.maths.B.Q5",
+     "lines": 2,
+     "marks": 1,
+     "answer": "6 + 5 = 11 apples",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Counting on from the bigger number 6 to reach 11",
+       "Number line jumps of 5 starting from 6",
+       "Drawing 6 and 5 objects and counting all"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "A correct addition sentence and the sum with the unit",
+        "marks": 1
+       }
+      ],
+      "checked": "ok",
+      "common_error": "Subtracting instead of adding, or miscounting on."
+     },
+     "question": "Bunty has 6 red apples. Babloo gives her 5 more apples. How many apples does Bunty have now?",
+     "main_question": "Read and solve. Write the number sentence."
+    },
+    {
+     "slot": "g1.maths.B.Q5",
+     "lines": 2,
+     "marks": 1,
+     "answer": "8 + 7 = 15 balloons",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Counting on from 8 by 7 steps",
+       "Make 10 by adding 2 to 8, then add 5 more",
+       "Number line jumps"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "A correct addition sentence and the sum with the unit",
+        "marks": 1
+       }
+      ],
+      "checked": "ok",
+      "common_error": "Counting 8 as the first step when counting on, giving 14."
+     },
+     "question": "Pinky has 8 balloons. Jojo has 7 balloons. How many balloons do they have in all?",
+     "main_question": "Read and solve. Write the number sentence."
+    },
+    {
+     "slot": "g1.maths.B.Q5",
+     "lines": 2,
+     "marks": 1,
+     "answer": "9 + 4 = 13 birds",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Counting on from 9 by 4 steps",
+       "Make 10 using 1 from the 4, then add 3",
+       "Number line jumps"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "A correct addition sentence and the sum with the unit",
+        "marks": 1
+       }
+      ],
+      "checked": "ok",
+      "common_error": "Writing 9 - 4 = 5."
+     },
+     "question": "There are 9 birds on a tree. 4 more birds come. How many birds are on the tree now?",
+     "main_question": "Read and solve. Write the number sentence."
+    },
+    {
+     "slot": "g1.maths.B.Q5",
+     "lines": 2,
+     "marks": 1,
+     "answer": "12 + 6 = 18 cookies",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Counting on from 12 by 6 steps",
+       "Place value chart: add ones 2 + 6 = 8, tens stay 1",
+       "Number line jumps"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "A correct addition sentence and the sum with the unit",
+        "marks": 1
+       }
+      ],
+      "checked": "ok",
+      "common_error": "Adding the digits wrongly, such as writing 17 or 19."
+     },
+     "question": "Ammi baked 12 cookies in the morning and 6 cookies in the evening. How many cookies did Ammi bake in all?",
+     "main_question": "Read and solve. Write the number sentence."
+    },
+    {
+     "slot": "g1.maths.B.Q5",
+     "lines": 2,
+     "marks": 1,
+     "answer": "10 + 7 = 17 marbles",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Counting on from 10 by 7 steps",
+       "Place value chart: 1 ten and 7 ones make 17",
+       "Number line jumps"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "A correct addition sentence and the sum with the unit",
+        "marks": 1
+       }
+      ],
+      "checked": "ok",
+      "common_error": "Writing 10 - 7 = 3."
+     },
+     "question": "Babloo has 10 marbles. He finds 7 more marbles. How many marbles does Babloo have now?",
+     "main_question": "Read and solve. Write the number sentence."
+    }
+   ],
+   "Subtraction Word Problems": [
+    {
+     "slot": "g1.maths.B.Q6",
+     "lines": 2,
+     "marks": 1,
+     "answer": "14 - 6 = 8 stickers",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Counting back 6 steps from 14",
+       "Number line jumps to the left",
+       "Crossing out 6 of 14 drawn objects and counting the rest"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "A correct subtraction sentence and the difference with the unit",
+        "marks": 1
+       }
+      ],
+      "checked": "ok",
+      "common_error": "Adding 14 + 6 = 20."
+     },
+     "question": "Bunty has 14 stickers. She gives 6 stickers to Pinky. How many stickers does Bunty have left?",
+     "main_question": "Read and solve. Write the number sentence."
+    },
+    {
+     "slot": "g1.maths.B.Q6",
+     "lines": 2,
+     "marks": 1,
+     "answer": "18 - 9 = 9 ducks",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Counting back 9 steps from 18",
+       "Number line jumps to the left",
+       "Crossing out 9 of 18 drawn objects"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "A correct subtraction sentence and the difference with the unit",
+        "marks": 1
+       }
+      ],
+      "checked": "ok",
+      "common_error": "Miscounting back by one step."
+     },
+     "question": "There are 18 ducks in a pond. 9 ducks swim away. How many ducks are left in the pond?",
+     "main_question": "Read and solve. Write the number sentence."
+    },
+    {
+     "slot": "g1.maths.B.Q6",
+     "lines": 2,
+     "marks": 1,
+     "answer": "16 - 7 = 9 pencils",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Counting back 7 steps from 16",
+       "Number line jumps to the left",
+       "Crossing out 7 of 16 drawn objects"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "A correct subtraction sentence and the difference with the unit",
+        "marks": 1
+       }
+      ],
+      "checked": "ok",
+      "common_error": "Writing 16 + 7 = 23."
+     },
+     "question": "Jojo has 16 pencils. He gives 7 pencils to his friends. How many pencils does Jojo have now?",
+     "main_question": "Read and solve. Write the number sentence."
+    },
+    {
+     "slot": "g1.maths.B.Q6",
+     "lines": 2,
+     "marks": 1,
+     "answer": "20 - 8 = 12 mangoes",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Counting back 8 steps from 20",
+       "Number line jumps to the left",
+       "Bar model with total 20 and part 8"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "A correct subtraction sentence and the difference with the unit",
+        "marks": 1
+       }
+      ],
+      "checked": "ok",
+      "common_error": "Writing 8 as the answer or adding the numbers."
+     },
+     "question": "A shop has 20 mangoes. They sell 8 mangoes. How many mangoes are left?",
+     "main_question": "Read and solve. Write the number sentence."
+    },
+    {
+     "slot": "g1.maths.B.Q6",
+     "lines": 2,
+     "marks": 1,
+     "answer": "13 - 5 = 8 candies",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "Counting back 5 steps from 13",
+       "Number line jumps to the left",
+       "Crossing out 5 of 13 drawn objects"
+      ],
+      "points": [
+       {
+        "kind": "A",
+        "text": "A correct subtraction sentence and the difference with the unit",
+        "marks": 1
+       }
+      ],
+      "checked": "ok",
+      "common_error": "Writing 13 + 5 = 18."
+     },
+     "question": "Rani has 13 candies. She eats 5 candies. How many candies does Rani have left?",
+     "main_question": "Read and solve. Write the number sentence."
+    }
+   ]
+  }
+ },
+ "_layout": {
+  "v": 2,
+  "oral": {
+   "marks": 5,
+   "tasks": [
+    {
+     "n": 5,
+     "id": "oral_maths",
+     "ask": "Five quick questions read aloud: count on, one more/one less, add or take away within 10, which number is bigger. Each with its answer.",
+     "kind": "oral_maths",
+     "marks": 5,
+     "rubric": [
+      {
+       "en": "All five right",
+       "ur": "پانچوں درست",
+       "marks": 5
+      },
+      {
+       "en": "Three or four right",
+       "ur": "تین یا چار درست",
+       "marks": 3
+      },
+      {
+       "en": "One or two right",
+       "ur": "ایک یا دو درست",
+       "marks": 1
+      },
+      {
+       "en": "None right or no answer",
+       "ur": "کوئی درست نہیں",
+       "marks": 0
+      }
+     ],
+     "scoring": "bands",
+     "label_en": "Mental maths",
+     "label_ur": "زبانی ریاضی",
+     "instruction_en": "Ask each question aloud once. The child answers aloud; no paper or fingers counted against them.",
+     "instruction_ur": "ہر سوال ایک بار بلند آواز سے پوچھیں۔ بچہ زبانی جواب دے۔"
+    }
+   ],
+   "content": [
+    {
+     "id": "oral_maths",
+     "items": [
+      {
+       "ask": "Bunty has 5 apples. Count on from 5. What are the next three numbers?",
+       "answer": "6, 7, 8"
+      },
+      {
+       "ask": "Bunty is on stair number 6. What is one more than 6? What is one less than 6?",
+       "answer": "One more is 7. One less is 5."
+      },
+      {
+       "ask": "Bunty has 4 cookies. Her mother gives her 3 more cookies. How many cookies does Bunty have now?",
+       "answer": "7 cookies"
+      },
+      {
+       "ask": "There are 9 cats on the wall. Three cats jump down. How many cats are left on the wall?",
+       "answer": "6 cats"
+      },
+      {
+       "ask": "Bunty has 8 pencils. Babloo has 6 pencils. Which number is bigger, 8 or 6? Who has more pencils?",
+       "answer": "8 is bigger. Bunty has more pencils."
+      }
+     ]
+    }
+   ],
+   "note_en": "Take the oral part one child at a time, before or after the written paper. Read the script aloud as written.",
+   "note_ur": "زبانی حصہ ہر بچے سے الگ الگ لیں، تحریری پرچے سے پہلے یا بعد میں۔ اسکرپٹ لکھے ہوئے الفاظ میں پڑھ کر سنائیں۔",
+   "title_en": "Oral assessment · teacher sheet",
+   "title_ur": "زبانی جائزہ · استاد کی شیٹ"
+  },
+  "notes": [],
+  "pages": {
+   "paper": 7,
+   "scheme": 6
+  },
+  "scope": {
+   "kind": "fde",
+   "pages": null,
+   "line_en": "The whole Mathematics book (pages 1-292).",
+   "line_ur": "ریاضی کی پوری کتاب (صفحات 1-292)۔",
+   "chapters": null,
+   "label_en": "Whole book",
+   "label_ur": "پوری کتاب",
+   "covers_en": null,
+   "covers_ur": null
+  },
+  "header": {
+   "or_en": "OR",
+   "or_ur": "یا",
+   "band_en": "TEACHER'S COPY · Do not give to children",
+   "band_ur": "استاد کی کاپی · بچوں کو نہ دیں",
+   "note_en": "Written 45 + oral 5 = 50 marks. The oral part is taken by the teacher from the marking scheme.",
+   "note_ur": "تحریری 45 + زبانی 5 = 50 نمبر۔ زبانی حصہ استاد مارکنگ اسکیم سے لیں گے۔",
+   "title_en": "Grade I · Mathematics · FDE pattern practice paper",
+   "title_ur": "جماعت اول · ریاضی · FDE pattern کا مشقی پرچہ",
+   "accept_en": "accept:",
+   "accept_ur": "یہ بھی درست:",
+   "covers_en": "Covers: {scope}. Not an official FDE paper.",
+   "covers_ur": "احاطہ: {scope}۔ یہ سرکاری FDE پرچہ نہیں ہے۔",
+   "footer_en": "Not an official FDE paper",
+   "footer_ur": "یہ سرکاری FDE پرچہ نہیں ہے",
+   "checked_en": "✓ checked",
+   "checked_ur": "✓ جانچا گیا",
+   "time_line_en": "",
+   "time_line_ur": "",
+   "disclaimer_en": "Practice paper in the FDE Grade I annual assessment pattern (2026-27). Not an official FDE paper.",
+   "disclaimer_ur": "یہ مشق کا پرچہ ہے جو FDE کے جماعت اول کے سالانہ جائزے (2026-27) کے pattern پر بنایا گیا ہے۔ یہ سرکاری پرچہ نہیں ہے۔",
+   "total_line_en": "Written Marks: {t:45}",
+   "total_line_ur": "تحریری نمبر: {t:45}",
+   "footer_page_en": "Page {n} of {N}",
+   "footer_page_ur": "صفحہ {n} از {N}",
+   "notes_title_en": "Notes",
+   "notes_title_ur": "نوٹ",
+   "record_cols_en": [
+    "Roll",
+    "Name"
+   ],
+   "record_cols_ur": [
+    "رول نمبر",
+    "نام"
+   ],
+   "school_line_en": "School: ____________",
+   "school_line_ur": "اسکول: ____________",
+   "student_box_en": [
+    "Student Name",
+    "Roll No",
+    "Date",
+    "Total Marks",
+    "Obtained Marks"
+   ],
+   "student_box_ur": [
+    "نام طالب علم",
+    "رول نمبر",
+    "تاریخ",
+    "کل نمبر",
+    "حاصل کردہ نمبر"
+   ],
+   "answer_sheet_en": "answer sheet",
+   "answer_sheet_ur": "جوابی کاپی",
+   "common_error_en": "common error:",
+   "common_error_ur": "عام غلطی:",
+   "record_grade_en": "Grade",
+   "record_grade_ur": "گریڈ",
+   "record_title_en": "Class record",
+   "record_title_ur": "کلاس ریکارڈ",
+   "record_total_en": "Total",
+   "record_total_ur": "کل",
+   "scheme_title_en": "MARKING SCHEME",
+   "scheme_title_ur": "مارکنگ اسکیم",
+   "note_replaced_en": "{n}: key corrected by code; the model wrote {value}.",
+   "note_replaced_ur": "{n}: کلید کوڈ نے درست کی؛ ماڈل نے {value} لکھا۔",
+   "covers_partial_en": "Covers {units}.",
+   "covers_partial_ur": "احاطہ: {units}۔"
+  },
+  "legend": {
+   "subject": "maths",
+   "key_line": 1,
+   "lines_en": [
+    "One mark per correct item unless the paper says otherwise. Spelling is not marked in Maths or GK.",
+    "",
+    "Written marks only. Record the oral marks from the oral sheet, then add both on the class record."
+   ],
+   "lines_ur": [
+    "جب تک پرچے میں کچھ اور نہ لکھا ہو، ہر درست جواب پر 1 نمبر۔ ریاضی اور معلومات عامہ میں املا کے نمبر نہیں کٹتے۔",
+    "",
+    "یہ صرف تحریری نمبر ہیں۔ زبانی نمبر زبانی جائزے کی شیٹ سے لکھیں، پھر کلاس ریکارڈ پر دونوں جمع کریں۔"
+   ],
+   "title_en": "How to mark",
+   "title_ur": "جانچنے کا طریقہ",
+   "bands_line": -1,
+   "maths_lines": [],
+   "key_names_en": {
+    "A": "answer",
+    "K": "key point",
+    "L": "label",
+    "M": "method",
+    "U": "unit"
+   },
+   "key_names_ur": {
+    "A": "جواب",
+    "K": "اہم نکتہ",
+    "L": "نام",
+    "M": "طریقہ",
+    "U": "اکائی"
+   },
+   "bands_lead_ur": "",
+   "key_from_chips": true
+  },
+  "medium": "en",
+  "subject": "maths",
+  "sections": [
+   {
+    "id": "A",
+    "marks": 25,
+    "slots": [
+     {
+      "or": false,
+      "slot": "g1.maths.A.Q1",
+      "type": "Missing Numbers",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 5,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q1.",
+      "label_ur": "سوال 1",
+      "numbering": "roman",
+      "answer_box": true,
+      "compulsory": true,
+      "marks_each": 1,
+      "print_words": false,
+      "prompt_rule": "Five rows of four or five numbers in order up to 100, each with one blank (__) to fill. Answer: the missing number.",
+      "alternatives": null,
+      "picture_only": false,
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "section_pages": "scope",
+      "instruction_en": "Write the missing numbers.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.maths.A.Q2",
+      "type": "Number Series",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 5,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q2.",
+      "label_ur": "سوال 2",
+      "numbering": "roman",
+      "answer_box": true,
+      "compulsory": true,
+      "marks_each": 2,
+      "print_words": false,
+      "prompt_rule": "Five series (count on by 1, 2, 5 or 10, or count back by 1) with two blanks each; 1 mark per blank. Answer: both numbers.",
+      "alternatives": null,
+      "picture_only": false,
+      "marks_line_en": "({t:10})",
+      "marks_line_ur": "{t:10}",
+      "section_pages": "scope",
+      "instruction_en": "Complete the series.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.maths.A.Q3",
+      "type": "Count and Write",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 5,
+      "picture": [
+       "count",
+       "dots"
+      ],
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q3.",
+      "label_ur": "سوال 3",
+      "numbering": "roman",
+      "answer_box": true,
+      "compulsory": true,
+      "marks_each": 1,
+      "print_words": false,
+      "prompt_rule": "Five items, each a picture of 1 to 10 of one book object (picture: {kind:\"count\", name, n}) or dots ({kind:\"dots\", n}). The instruction asks the question; the item needs no stem. Answer: n.",
+      "alternatives": null,
+      "picture_only": true,
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "section_pages": "scope",
+      "instruction_en": "Count and write the number.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.maths.A.Q4",
+      "type": "Compare Numbers",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 0,
+      "parts": null,
+      "shape": "short",
+      "attempt": 5,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q4.",
+      "label_ur": "سوال 4",
+      "numbering": "roman",
+      "answer_box": true,
+      "compulsory": true,
+      "marks_each": 1,
+      "print_words": false,
+      "prompt_rule": "Five pairs of numbers up to 100 written \"34 ☐ 43\". Answer: the sign.",
+      "alternatives": null,
+      "picture_only": false,
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "section_pages": "scope",
+      "instruction_en": "Write <, > or = in the box.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     }
+    ],
+    "levels": {
+     "Apply": 8,
+     "Remember": 3,
+     "Understand": 14
+    },
+    "note_en": null,
+    "time_en": null,
+    "label_en": "Numbers and counting",
+    "label_ur": null,
+    "marks_en": "Total Marks: {t:25}",
+    "marks_ur": "کل نمبر: {t:25}",
+    "answer_on": "question_paper"
+   },
+   {
+    "id": "B",
+    "marks": 20,
+    "slots": [
+     {
+      "or": false,
+      "slot": "g1.maths.B.Q5",
+      "type": "Addition Word Problems",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 2,
+      "parts": null,
+      "shape": "short",
+      "attempt": 5,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q5.",
+      "label_ur": "سوال 5",
+      "numbering": "roman",
+      "answer_box": true,
+      "compulsory": true,
+      "marks_each": 1,
+      "print_words": false,
+      "prompt_rule": "Five one-step addition stories from the book, sums up to 20, one or two short sentences a Grade 1 child can read. Answer: the number sentence and the sum.",
+      "alternatives": null,
+      "picture_only": false,
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "section_pages": "scope",
+      "instruction_en": "Solve.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.maths.B.Q6",
+      "type": "Subtraction Word Problems",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 2,
+      "parts": null,
+      "shape": "short",
+      "attempt": 5,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q6.",
+      "label_ur": "سوال 6",
+      "numbering": "roman",
+      "answer_box": true,
+      "compulsory": true,
+      "marks_each": 1,
+      "print_words": false,
+      "prompt_rule": "Five one-step take-away stories from the book, numbers up to 20. Answer: the number sentence and the difference.",
+      "alternatives": null,
+      "picture_only": false,
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "section_pages": "scope",
+      "instruction_en": "Solve.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.maths.B.Q7",
+      "type": "Name the Shape",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 5,
+      "picture": [
+       "shapes"
+      ],
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q7.",
+      "label_ur": "سوال 7",
+      "numbering": "roman",
+      "answer_box": true,
+      "compulsory": true,
+      "marks_each": 1,
+      "print_words": false,
+      "prompt_rule": "Five items, each one shape the book teaches (circle, square, triangle, rectangle, oval, star, heart) drawn as picture: {kind:\"shapes\", shapes:[{shape}]}. The item needs no stem. Answer: the name. Never the same shape twice.",
+      "alternatives": null,
+      "picture_only": true,
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "section_pages": "scope",
+      "instruction_en": "Write the name of each shape.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.maths.B.Q8",
+      "type": "Measurement",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 5,
+      "picture": [
+       "scene"
+      ],
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q8.",
+      "label_ur": "سوال 8",
+      "numbering": "roman",
+      "answer_box": true,
+      "compulsory": true,
+      "marks_each": 1,
+      "print_words": false,
+      "prompt_rule": "Five compare items from the book's measurement pages (longer/shorter, taller/shorter, heavier/lighter, more/less). Each carries picture: {kind:\"scene\", describe} naming two objects side by side, e.g. \"a long pencil and a short pencil\". Stem asks which is longer/heavier etc. Answer: the object.",
+      "alternatives": null,
+      "picture_only": false,
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "section_pages": "scope",
+      "instruction_en": "Look and answer.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     }
+    ],
+    "levels": {
+     "Apply": 7,
+     "Remember": 2,
+     "Understand": 11
+    },
+    "note_en": null,
+    "time_en": null,
+    "label_en": "Sums, shapes and measuring",
+    "label_ur": null,
+    "marks_en": "Total Marks: {t:20}",
+    "marks_ur": "کل نمبر: {t:20}",
+    "answer_on": "question_paper"
+   }
+  ],
+  "supplies": [],
+  "unplaced": 0,
+  "blueprint": {
+   "ok": true,
+   "total": 45,
+   "levels": {
+    "Apply": {
+     "pct": 31.11111111111111,
+     "marks": 14,
+     "target": 30
+    },
+    "Remember": {
+     "pct": 15.555555555555555,
+     "marks": 7,
+     "target": 20
+    },
+    "Understand": {
+     "pct": 53.333333333333336,
+     "marks": 24,
+     "target": 50
+    }
+   },
+   "expected": 45,
+   "problems": [],
+   "sections": [
+    {
+     "id": "A",
+     "marks": 25,
+     "levels": {
+      "Apply": {
+       "marks": 4,
+       "target": 8
+      },
+      "Remember": {
+       "marks": 5,
+       "target": 3
+      },
+      "Understand": {
+       "marks": 16,
+       "target": 14
+      }
+     },
+     "expected": 25
+    },
+    {
+     "id": "B",
+     "marks": 20,
+     "levels": {
+      "Apply": {
+       "marks": 10,
+       "target": 7
+      },
+      "Remember": {
+       "marks": 2,
+       "target": 2
+      },
+      "Understand": {
+       "marks": 8,
+       "target": 11
+      }
+     },
+     "expected": 20
+    }
+   ]
+  },
+  "preset_id": "fde_g1_2026",
+  "before_exam": {
+   "lines_en": [
+    "This is the marking scheme for {file} ({n} pages). Do not give it to children.",
+    "Photocopy the question paper, all {n} pages, one per child.",
+    "You add: {duty} on the question paper, page {p} (book p. {b}).",
+    "Tell the class: {sections}; {attempts}.",
+    "Time: {t}.",
+    "Mark question by question across all copies, not copy by copy."
+   ],
+   "lines_ur": [
+    "یہ {file} ({n} صفحات) کی مارکنگ اسکیم ہے۔ بچوں کو نہ دیں۔",
+    "سوالیہ پرچے کے تمام {n} صفحات کی فوٹو کاپی کریں، ہر بچے کے لیے ایک۔",
+    "شامل کریں: {duty}، سوالیہ پرچہ صفحہ {p} (کتاب ص {b})۔",
+    "کلاس کو بتائیں: {sections}؛ {attempts}۔",
+    "وقت: {t}۔",
+    "ہر سوال کو تمام کاپیوں میں ایک ساتھ جانچیں، ایک کاپی مکمل کر کے دوسری نہیں۔"
+   ],
+   "title_en": "Teacher: before the exam",
+   "title_ur": "استاد کے لیے: امتحان سے پہلے",
+   "either_en": "{label}: answer one of the two",
+   "either_ur": "{label}: دو میں سے ایک",
+   "attempt_en": "{label}: attempt any {n} of {g}",
+   "attempt_ur": "{label}: {g} میں سے کوئی سے {n}",
+   "nothing_en": "You add: nothing.",
+   "nothing_ur": "شامل کرنے کو کچھ نہیں۔",
+   "on_paper_en": "{sections} on the question paper",
+   "on_paper_ur": "{sections} سوالیہ پرچے پر",
+   "on_sheet_en": "{sections} on the answer sheet",
+   "on_sheet_ur": "{sections} جوابی کاپی پر",
+   "unknown_pages_en": "see the question paper",
+   "unknown_pages_ur": "سوالیہ پرچہ دیکھیں"
+  },
+  "frame_pages": null,
+  "total_marks": 45,
+  "generated_at": "2026-10-23T06:17:31.263Z",
+  "total_time_en": "as the school sets",
+  "total_time_ur": "اسکول کے مطابق"
+ }
+}
