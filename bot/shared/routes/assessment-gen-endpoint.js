@@ -1570,13 +1570,16 @@ async function handleDataExchange(userId, screenId, formData, flowToken) {
       .filter((id, i, all) => offered.includes(id) && all.indexOf(id) === i);
 
     if (picked.length === 0) {
-      return typesScreen(state, 'Please choose at least one type of Unseen question.');
+      const message = 'Please choose at least one type of Unseen question.';
+      refused('TYPES', state, message, { picked: 0 });
+      return typesScreen(state, message);
     }
     // The count boxes are a fixed bank, so more picks than boxes would silently
     // drop the tail of her selection. Say so instead.
     if (picked.length > QuestionTypes.MAX_TYPE_SLOTS) {
-      return typesScreen(state,
-        `Please choose up to ${QuestionTypes.MAX_TYPE_SLOTS} types of Unseen question.`);
+      const message = `Please choose up to ${QuestionTypes.MAX_TYPE_SLOTS} types of Unseen question.`;
+      refused('TYPES', state, message, { picked: picked.length });
+      return typesScreen(state, message);
     }
 
     state.pickedTypes = picked;
@@ -1765,8 +1768,10 @@ function questionsScreen(state, error = '') {
 
 /** The types this subject and grade support, as she sees them. */
 function typesScreen(state, error = '') {
+  // The limit rides the caption, so she reads it before she ticks, not after a
+  // bounce. English and Urdu offer 18 types for 8 count boxes (bd-5jmnfj.4.18).
   return screen('TYPES', {
-    summary: summaryOf(state),
+    summary: `${summaryOf(state)} · Pick up to ${QuestionTypes.MAX_TYPE_SLOTS}`,
     types: QuestionTypes.forSubject(state.subject, state.grade)
       .map((t) => ({ id: t.id, title: t.id })),
     error,
