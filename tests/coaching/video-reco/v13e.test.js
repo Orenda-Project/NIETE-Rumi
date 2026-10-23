@@ -28,7 +28,7 @@ describe('[v1.3c-5] the fallback sentence never opens with a placeholder', () =>
   });
   test('a Latin vocative the redactor would not map ("Sir, …") is stripped too', () => {
     const out = S.cardFallback({ ...base, language: 'en', sentence: 'Sir, ask two why questions', teacherName: 'Asghar' });
-    expect(out.reason_en).toBe(FALLBACK_EN('ask two why questions', 90));
+    expect(out.reason_en).toBe(FALLBACK_EN('Ask two why questions', 90)); // R7b (P109): capital after the strip
   });
   test('a card already masked "[a student]، …" yields a sentence that starts at the verb', () => {
     const out = S.cardFallback({ ...base, sentence: '[a student]، اگلی کلاس میں سوال پوچھیں', teacherName: null });
