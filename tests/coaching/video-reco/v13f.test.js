@@ -99,7 +99,9 @@ describe('1 · the card-sentence fallback fits a long card sentence under the ca
   });
 
   test('the trim is at a word boundary, ends with an ellipsis, and never cuts a word', () => {
-    const out = S.cardFallback(base);
+    // R7d: the template lost its seconds, so the 224-cp sentence now fits whole in Urdu; a longer one is still trimmed
+    const LONG = SENTENCE.replace(/۔$/, '، اور آخر میں بورڈ پر ایک حل شدہ مثال بھی لکھیں۔');
+    const out = S.cardFallback({ ...base, sentence: LONG });
     // R7c §6: the Urdu sentence is quoted in the Urdu reader's line only; the English line does not carry it
     expect(out.reason_en).not.toMatch(FSI);
     for (const r of [out.reason_ur]) {
@@ -108,8 +110,8 @@ describe('1 · the card-sentence fallback fits a long card sentence under the ca
       const shown = quoted[1];
       expect(shown.endsWith('…')).toBe(true);
       const kept = shown.slice(0, -1);
-      expect(SENTENCE.startsWith(kept)).toBe(true);
-      expect(/[\s\p{P}]/u.test(SENTENCE[kept.length])).toBe(true); // next char of the original: a space or a mark — whole words only
+      expect(LONG.startsWith(kept)).toBe(true);
+      expect(/[\s\p{P}]/u.test(LONG[kept.length])).toBe(true); // next char of the original: a space or a mark — whole words only
     }
   });
 
@@ -172,16 +174,16 @@ describe('3 · a quoted lesson moment sits in an FSI…PDI isolate in the stored
     const d = deps([Q]);
     const row = await E.recommendForReport({ ...args(), deps: d });
     expect(row.status).toBe('shown');
-    expect(row.reason_en).toBe(`The teacher confirms a student's answer: "${FSI}9 ہم نے اوپر لکھنا ہے${PDI}". The clip shows a teacher giving specific praise and one clear next step.`);
+    expect(row.reason_en).toBe(`The teacher confirms a student's answer: "${FSI}9 ہم نے اوپر لکھنا ہے${PDI}". This clip is about: Ask why and how.`); // R7d §6: the clip half is the chapter's title
   });
 
   test('both reasons are isolated, and a reason with no quote is byte-identical', async () => {
     const both = { ...Q, reason_ur: 'استاد نے کہا "is this a triangle" اور کلاس نے صرف ہاں کہا؛ اس کلپ میں کیوں کے سوال ہیں۔' };
     const row = await E.recommendForReport({ ...args(), deps: deps([both]) });
-    expect(row.reason_ur).toBe(`استاد نے کہا "${FSI}is this a triangle${PDI}" اور کلاس نے صرف ہاں کہا؛ اس کلپ میں کیوں کے سوال ہیں۔`);
+    expect(row.reason_ur).toBe(`استاد نے کہا "${FSI}is this a triangle${PDI}" اور کلاس نے صرف ہاں کہا۔ یہ کلپ اس بارے میں ہے: عنوان۔`);
     const plain = await E.recommendForReport({ ...args(), deps: deps([GOOD]) });
-    expect(plain.reason_en).toBe(GOOD.reason_en);
-    expect(plain.reason_ur).toBe(GOOD.reason_ur);
+    expect(plain.reason_en).toBe('At 00:30 the class could only answer yes or no. This clip is about: Ask why and how.');
+    expect(plain.reason_ur).toBe('کلاس صرف ہاں یا نہیں میں جواب دے سکی۔ یہ کلپ اس بارے میں ہے: عنوان۔');
   });
 
   test('the WhatsApp body still isolates English runs OUTSIDE the quote in an Urdu line', () => {
@@ -246,7 +248,7 @@ describe('5 · redactor false positives', () => {
   test('(b) the engine passes the subject terms: a maths/science term in an address slot survives to the stored reason', async () => {
     const r = { ...GOOD, reason_ur: 'کلاس صرف ہاں یا نہیں کہتی رہی؛ اگلی بار پوچھیں: میڈین، آپ بتائیں کیسے نکالتے ہیں؟ اس کلپ میں استاد کیوں کے سوال پوچھتے ہیں۔' };
     const row = await E.recommendForReport({ ...args({ subject: 'maths' }), deps: deps([r]) });
-    expect(row.reason_ur).toBe(r.reason_ur);
+    expect(row.reason_ur).toBe('کلاس صرف ہاں یا نہیں کہتی رہی؛ اگلی بار پوچھیں: میڈین، آپ بتائیں کیسے نکالتے ہیں؟ یہ کلپ اس بارے میں ہے: عنوان۔'); // R7d §6: the clip half is the chapter's title
   });
 
   test('(b) the redactor vocabulary never shields a teacher-name token', () => {
@@ -272,7 +274,7 @@ describe('red7 (23 Oct) probes on fixes 2 and 3', () => {
   test('C3: a stray PDI in the model\'s reason is dropped before the quote is isolated', async () => {
     const r = { ...GOOD, reason_en: `The class said "yes${PDI} or no" only. This clip shows a teacher asking why and how instead.` };
     const row = await E.recommendForReport({ ...args(), deps: deps([r]) });
-    expect(row.reason_en).toBe(`The class said "${FSI}yes or no${PDI}" only. This clip shows a teacher asking why and how instead.`);
+    expect(row.reason_en).toBe(`The class said "${FSI}yes or no${PDI}" only. This clip is about: Ask why and how.`);
   });
 
   test('C1/C2: an Urdu reason with an isolated quote AND a bare English run → both isolated in the WhatsApp body', () => {

@@ -178,18 +178,26 @@ const UX_STRINGS = {
     ur: '{n} منٹ · اگلے پیغام میں ▶\u200F دیکھیں دبائیں',
   },
   // The card-sentence fallback reason (SPEC v1.3c §3.5, lead-review 20:33Z), verbatim: when the model's quote fails
-  // validation twice, the clip is still sent with the report's own "Try this tomorrow" sentence. {n} is seconds.
+  // validation twice, the clip is still sent with the report's own "Try this tomorrow" sentence. R7d (panel Q043 Q078 Q080
+  // Q083 Q130): no seconds in the line: the header and button say whole minutes, and the two disagreed.
   // The sentence sits in its own FSI…PDI isolate (bd-8hhqhf): an Urdu card sentence inside the English line, or a
   // leading digit, otherwise reorders on the React card and in WhatsApp.
   videoRecoCardFallbackReason: {
-    en: 'Your report asks you to try: "\u2068{sentence}\u2069". This {n}-second clip shows one way to do it.',
-    ur: 'آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "\u2068{sentence}\u2069"۔ یہ {n} سیکنڈ کا کلپ اس کا ایک طریقہ دکھاتا ہے۔',
+    en: 'Your report asks you to try: "\u2068{sentence}\u2069". This clip shows one way to do it.',
+    ur: 'آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "\u2068{sentence}\u2069"۔ یہ کلپ اس کا ایک طریقہ دکھاتا ہے۔',
   },
   // R7c (panel §4): the line in the OTHER language, when the report's sentence is in the reader's language — the sentence is
   // not quoted in a language it was not written in (an English sentence inside an Urdu line, 51.6% copy-ok on the panel).
   videoRecoCardFallbackReasonPlain: {
-    en: 'Your report gives you one thing to try next class. This {n}-second clip shows one way to do it.',
-    ur: 'آپ کی رپورٹ اگلی کلاس کے لیے ایک قدم بتاتی ہے۔ یہ {n} سیکنڈ کا کلپ اسے کرنے کا ایک طریقہ دکھاتا ہے۔',
+    en: 'Your report gives you one thing to try next class. This clip shows one way to do it.',
+    ur: 'آپ کی رپورٹ اگلی کلاس کے لیے ایک قدم بتاتی ہے۔ یہ کلپ اسے کرنے کا ایک طریقہ دکھاتا ہے۔',
+  },
+
+  // R7d (panel §4, §6.6: 46 rows attributed the card's script to the clip): the clip half of a reason, written from the
+  // chapter's own title, never from the model. {title} is the chapter title in the reader's language.
+  videoRecoClipLine: {
+    en: 'This clip is about: {title}.',
+    ur: 'یہ کلپ اس بارے میں ہے: {title}۔',
   },
 
   // ─── the registration Flow invite (services/registration-invite.service.js) ──

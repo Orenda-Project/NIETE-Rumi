@@ -155,7 +155,7 @@ const westernDigits = (text) => text.split(/([\u2066-\u2068][^\u2066-\u2069]*\u2
  * The stored reason. Urdu: Urdu digits, the CJK stop «。» as «۔», every Latin run in its own LTR isolate (translate-or-isolate,
  * R7b; the WhatsApp body's isolateLatin skips runs already isolated). English: Western digits, «。» as «.», Urdu runs isolated.
  */
-function composeReason(text, language, quote) {
+function composeReason(text, language, quote, { subject = null } = {}) {
   if (typeof text !== 'string' || !text) return text;
   if (lang(language) === 'en') return isolateArabic(westernDigits(isolateQuotes(stripLead(text), quote).replace(/。\s*/g, '. ').trim()));
   // red7 N4/H7: the word table and the digit rule leave the lesson's own words alone (the accepted moment, and the card
@@ -163,8 +163,10 @@ function composeReason(text, language, quote) {
   const q = typeof quote === 'string' ? quote : '';
   const own = (span) => /^[\u2066-\u2068]/.test(span) || (!!q && [...span.slice(1, -1).trim()].length >= 6 && q.includes(span.slice(1, -1).trim()));
   const parts = stripLead(text).replace(/。/g, '۔').split(QUOTED_SPAN);
-  const prose = parts.map((part, i) => (i % 2 && own(part) ? part : urduDigitsInProse(urduWordTable(part))));
-  const western = prose.some((part) => /[0-9]/.test(part));
+  const words = (part, i) => (i % 2 ? urduWordTable(part, subject) : urduImperative(urduWordTable(part, subject))); // R7d: never inside a quote
+  const prose = parts.map((part, i) => (i % 2 && own(part) ? part : urduDigitsInProse(words(part, i))));
+  // R7d (Q078 Q048): only the reason's own prose decides the digit system; the lesson's own quoted digits stay as they are
+  const western = prose.some((part, i) => !(i % 2 && own(parts[i])) && /[0-9]/.test(part));
   const fixed = prose.map((part, i) => (i % 2 && own(parts[i]) ? part : oneDigitSystem(part, western))).join('');
   return isolateLatin(isolateQuotes(fixed, quote), false); // the WhatsApp body adds its own RLM
 }
@@ -185,8 +187,25 @@ const URDU_WORDS = [
   [/آپ کیوں سوچتے ہیں کہ ([^؟?۔]+?)\s*([؟?])/gu, 'آپ کے خیال میں $1، ایسا کیوں$2'],
   [/آپ کیوں سوچتے ہیں/gu, 'آپ کے خیال میں ایسا کیوں ہے'],
   [/(^|[\s«"(])پروب(?=[\s،۔]|$)/gu, '$1مزید سوال'], // Q141
+  // R7d (COS 20261023T184404 item 7; panel ped/REVIEW_r7c_rejudge.md §4): the fixed list
+  [/[يى]/gu, 'ی'], [/ك/gu, 'ک'], // an Arabic letter in an Urdu word («پوچھي», Q103)
+  [/یاددہانی(?: والا)? سوال/gu, 'یادداشت پر مبنی سوال'], // recall question (Q014 Q131 Q179 Q182)
+  [/(^|[\s«"(])جوڑ کی گفتگو/gu, '$1جوڑوں میں گفتگو'], // pair (Q032)
+  [/(^|[\s«"(])ایک جوڑ (کی|کا|کے)(?=\s)/gu, '$1ایک جوڑے $2'], // Q178
+  [/(^|[\s«"(])طالب(?=\s)(?!\s+علم)/gu, '$1طالب علم'], // student (Q082 Q100)
+  [/نفی (?:کا )?(?:مسئلہ|سوال)/gu, 'تفریق کا سوال'], // subtraction (Q045)
+  [/(^|[\s«"(])چہار(?=\s)(?!\s+(?:سو|طرف|جانب))/gu, '$1چار'], // four (Q128)
+  [/(^|[\s«"(])پوچھائی(?=[\s،۔؟]|$)/gu, '$1پوچھی'], // asked (Q165)
+  [/پیشن گوئی/gu, 'پیشین گوئی'], // Q103
 ];
-const urduWordTable = (text) => URDU_WORDS.reduce((t, [rx, to]) => t.replace(rx, to), text);
+// factors (Q072): «عناصر» is right in a science lesson (elements), wrong in a maths one
+const MATHS_WORDS = [[/(^|[\s«"(])عناصر(?=[\s،۔]|$)/gu, '$1اجزائے ضربی']];
+const urduWordTable = (text, subject = null) => [...URDU_WORDS, ...(subject === 'maths' ? MATHS_WORDS : [])].reduce((t, [rx, to]) => t.replace(rx, to), text);
+
+// R7d (Q163): the familiar imperative addressed to the teacher becomes the polite one; a quoted line to children keeps it.
+const FAMILIAR = { کہو: 'کہیں', کرو: 'کریں', پوچھو: 'پوچھیں', بتاؤ: 'بتائیں', دیکھو: 'دیکھیں', لکھو: 'لکھیں', رکھو: 'رکھیں', سنو: 'سنیں', کرواؤ: 'کروائیں', کراؤ: 'کرائیں', سمجھاؤ: 'سمجھائیں' };
+const FAMILIAR_RX = new RegExp(`(^|[\\s«"(،])(${Object.keys(FAMILIAR).join('|')})(?=[\\s،۔؟!.]|$)`, 'gu');
+const urduImperative = (text) => text.replace(FAMILIAR_RX, (m, pre, w) => `${pre}${FAMILIAR[w]}`);
 
 /** One digit system per Urdu line (14 panel rows): when a Western number must stay (inside a Latin run), all are Western. */
 function oneDigitSystem(text, westernElsewhere = false) {

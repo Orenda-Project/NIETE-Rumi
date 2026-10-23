@@ -202,7 +202,8 @@ describe('red7 155809', () => {
       session: { id: 's', user_id: 'u', transcript_language: 'ur', users: { name: 'Saima Khan', preferred_language: 'ur' },
         diarization_data: { segments: [{ start_ms: 40000, label: 'Teacher', text: 'یہ لفظ کون پڑھے گا؟' }, { start_ms: 41000, label: 'Student', text: 'میں پڑھوں گا۔' }] } },
       analysis: { framework: 'fico', subject_resolution: { code: 'urdu', grade: '3', confidence: 'high' } },
-      nextStep: { target: null }, card: { action: `زرفشاں جہاں، ${BODY}` }, coachingSessionId: 's',
+      // R7d: an indicator card, so the prompt is built (on card_text this fixture card meets 11-s2 on «explain» alone)
+      nextStep: { target: null }, card: { indicator: 'C1', action: `زرفشاں جہاں، ${BODY}` }, coachingSessionId: 's',
       deps: { env: { VIDEO_RECO_ENABLED: 'true' }, catalog: cat, completeJson, v10GroupFor: async () => null,
         store: { readForSession: async () => null, recentHistory: async () => ({ segments: [], modules: [] }), ladderProgress: async () => ({ level: 2, completedModules: [] }), trainingBands: async () => [], write: async (r) => r } },
     });
