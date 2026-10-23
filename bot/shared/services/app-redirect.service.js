@@ -40,16 +40,19 @@
  *      Library (/portal/coach/training) and only for the doors that mean "open training" (COACH_LINK_DOORS) — typed
  *      /training, the chip, the menu row and openTrainingFlow — never /certificates or an exam/capstone button. Old
  *      code never reads the key, so a rollback reads it as OFF.
- *   2d. LEADER LESSON PLANS (bd-zcgpkx): a leader's lesson-plan request opens Send a lesson plan (the FLN builder,
- *      target `fln:send`) under its OWN switch, `leader_app_lesson_plan`: true (every leader), "coaches" (users.role
- *      coach only — in ICT a principal also teaches, and the WhatsApp catalogue holds their own class's plans), or a
- *      JSON list of users.id; no row, any other value, or a failed read is OFF. Only when users.role is in the leader
- *      family (observe-gate LEADER_ROLES), FLN share is on for them (portal_fln_share: true or a list holding them —
- *      the builder refuses anyone else), and they are not an analytics-only account (portal_analytics_only; the
- *      portal sends those to analytics). Only from the plain "open lesson plans" doors (LEADER_LINK_DOORS): a leader
- *      who names a topic keeps today's path, since the builder has only Reading Hour and Numeracy. The operator,
- *      19 Oct: "Send leaders straight into the app, the same as teachers". Old code never reads the key: a rollback
- *      is OFF.
+ *   2d. LEADER LESSON PLANS (bd-zcgpkx, bd-a73p5m): a leader's lesson-plan request opens the Lesson Plans tab
+ *      (/portal/teacher/lessons, target `leader_lessons`, app-login-link.js LEADER_LANDINGS) under its OWN switch,
+ *      `leader_app_lesson_plan`: true (every leader), "coaches" (users.role coach only — in ICT a principal also
+ *      teaches, and the WhatsApp catalogue holds their own class's plans), or a JSON list of users.id; no row, any
+ *      other value, or a failed read is OFF. Only when users.role is in the leader family (observe-gate LEADER_ROLES)
+ *      and they are not an analytics-only account (portal_analytics_only; the portal sends those to analytics). Only
+ *      from the plain "open lesson plans" doors (LEADER_LINK_DOORS): a leader who names a topic keeps today's path.
+ *      The operator, 19 Oct: "Send leaders straight into the app, the same as teachers"; until 23 Oct it opened Send
+ *      a lesson plan (the FLN builder) and asked for FLN share. The operator, 23 Oct: "A coach who types 'lesson plan'
+ *      on WhatsApp still gets 'Send a lesson plan', not the new tab -- they can get new tab". The tab (bd-4joiqz)
+ *      needs no FLN share. The builder (/portal/fln/send) is not linked from the tab (LeaderHome and the coach
+ *      Training Library link it); inside the tab a leader can send only from a Reading Hour / Numeracy plan's own page
+ *      ("Send to teacher"), which shows only with FLN share. Old code never reads the key: a rollback is OFF.
  *   3. QUIET HOUR, per teacher, shared by every switch. A second redirect
  *      inside 60 minutes sends NOTHING — and still reports "handled", so the
  *      caller does not fall through to the feature or to AI chat. After the
@@ -103,7 +106,7 @@ const APP_LINK_COPY = Object.freeze({
   coach_menu: ['appLinkBodyCoachHome', 'appLinkButtonCoachHome'], // bd-fmf24g.52
   coach_observe: ['appLinkBodyCoachObserve', 'appLinkButtonCoachObserve'], // bd-fmf24g.52
   coach_training: ['appLinkBodyCoachTraining', 'appLinkButtonCoachTraining'], // bd-s42dye.3
-  'fln:send': ['appLinkBodyLeaderLessonPlan', 'appLinkButtonLeaderLessonPlan'], // bd-zcgpkx
+  leader_lessons: ['appLinkBodyLeaderLessonPlan', 'appLinkButtonLeaderLessonPlan'], // bd-zcgpkx, bd-a73p5m — the tab
   lesson_plan: ['appLinkBodyLessonPlan', 'appLinkButtonLessonPlan'],
   assessment_generator: ['appLinkBodyAssessment', 'appLinkButtonAssessment'],
   ai_coaching: ['appLinkBodyCoaching', 'appLinkButtonCoaching'],
@@ -161,15 +164,13 @@ const COACH_APP_KEY = 'portal_coach_v2';
 /** The teacher app's own switch (dashboard/lib/feature-flags.js PORTAL_TEACHER_V2_KEY): true, "teachers", or a list of users.id. */
 const TEACHER_APP_KEY = 'portal_teacher_v2';
 
-/** bd-zcgpkx — request → the FLN target a leader's link lands on (fln-go-target.js), behind LEADER_LP_KEY. */
-const LEADER_LINKS = Object.freeze({ lesson_plan: 'fln:send' });
+/** bd-a73p5m — request → the page a leader's link lands on (app-login-link.js LEADER_LANDINGS), behind LEADER_LP_KEY. */
+const LEADER_LINKS = Object.freeze({ lesson_plan: 'leader_lessons' });
 const LEADER_LP_KEY = 'leader_app_lesson_plan';
 /** The doors that mean "open lesson plans": typed "lesson plan", the chip, the menu row and its number. Not a topic. */
 const LEADER_LINK_DOORS = Object.freeze(['bare_command', 'chip', 'menu', 'menu_choice']);
 /** dashboard/lib/feature-flags.js PORTAL_ANALYTICS_ONLY_KEY: a JSON list of users.id the portal routes to analytics. */
 const ANALYTICS_ONLY_KEY = 'portal_analytics_only';
-/** The builder's own gate (dashboard/lib/fln-access.js FLN_SHARE_KEY): a leader without it would land on a refusal. */
-const FLN_SHARE_KEY = 'portal_fln_share';
 
 const NOTICE_FEATURE = 'app_redirect_notice';
 const QUIET_MS = 60 * 60 * 1000;
@@ -218,7 +219,7 @@ async function settingValues(now) {
       .from('app_settings')
       .select('key,value')
       .in('key', [...Object.values(APP_REDIRECT_FLAGS), TEACHER_APP_KEY, COACH_LINK_KEY, COACH_TRAINING_KEY, COACH_APP_KEY,
-        LEADER_LP_KEY, FLN_SHARE_KEY, ANALYTICS_ONLY_KEY]);
+        LEADER_LP_KEY, ANALYTICS_ONLY_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     for (const row of data || []) values.set(row.key, row.value);
   } catch (err) {
@@ -341,11 +342,11 @@ function isLeaderRole(role) {
 }
 
 /**
- * bd-zcgpkx — the leader link: the FLN target to land on (LEADER_LINKS), or null for the next path. Asked only from
+ * bd-zcgpkx — the leader link: the page to land on (LEADER_LINKS), or null for the next path. Asked only from
  * LEADER_LINK_DOORS and only when the switch covers them, so nobody pays a users read while it is off. `account` is
  * the caller's memoised users read, shared with the teacher link. Someone who is not a leader (or, on "coaches", not a
- * coach) is not this link's audience and goes on, unlogged, to the teacher link; a leader without FLN share, an
- * analytics-only account, or an unreadable account keeps today's flow.
+ * coach) is not this link's audience and goes on, unlogged, to the teacher link; an analytics-only account or an
+ * unreadable account keeps today's flow. bd-a73p5m: FLN share is not asked — the Lesson Plans tab does not need it.
  */
 async function leaderLink(feature, userId, now, reason, account) {
   if (!Object.prototype.hasOwnProperty.call(LEADER_LINKS, feature)) return null;
@@ -362,12 +363,8 @@ async function leaderLink(feature, userId, now, reason, account) {
     return null;
   }
   if (!a || !isLeaderRole(a.role) || (coachesOnly && !isCoachRole(a.role))) return null;
-  let why = null;
-  const share = values.get(FLN_SHARE_KEY);
-  if (!(isOn(share) || listHas(share, userId))) why = 'fln_share_off';
-  else if (listHas(values.get(ANALYTICS_ONLY_KEY), userId)) why = 'analytics_only';
-  if (why) {
-    logToFile('↩️ Leader app link: not for this user — the WhatsApp flow runs', { userId, feature, why });
+  if (listHas(values.get(ANALYTICS_ONLY_KEY), userId)) {
+    logToFile('↩️ Leader app link: not for this user — the WhatsApp flow runs', { userId, feature, why: 'analytics_only' });
     return null;
   }
   return LEADER_LINKS[feature];

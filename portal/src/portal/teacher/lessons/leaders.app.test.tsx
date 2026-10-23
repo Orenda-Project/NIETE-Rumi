@@ -168,6 +168,19 @@ describe("a leader off the coach app and the teacher app", () => {
     expect(here()).toBe("/portal/teacher/lessons/new");
   }, 30_000);
 
+  // bd-a73p5m — a coach's "lesson plan" on WhatsApp now opens /go, which lands on /portal/teacher/lessons itself. A
+  // coach is not on the teacher app and may be off the coach app (the classic leader portal): the tab opens there too,
+  // with no FLN share (this table's /fln/me answers share: false).
+  it.each([
+    ["off the coach app (the classic leader portal)", false],
+    ["on the coach app", true],
+  ])("a coach %s lands on the Lesson Plans tab from the WhatsApp link and stays", async (_l, coachV2) => {
+    await openApp("/portal/teacher/lessons", COACH, { coachV2, teacherV2: false });
+    await waitFor(() => expect(screen.getByText("New lesson plan")).toBeTruthy(), { timeout: 10_000 });
+    expect(here()).toBe("/portal/teacher/lessons");
+    expect(screen.queryByText("Recent Lesson Plans")).toBeNull();
+  }, 30_000);
+
   it("All Lesson Plans (a teacher's own history) is not theirs: sent away, as before", async () => {
     await openApp("/portal/teacher/lessons/all", PRINCIPAL, { coachV2: false, teacherV2: false });
     await waitFor(() => expect(here()).not.toBe("/portal/teacher/lessons/all"), { timeout: 10_000 });
