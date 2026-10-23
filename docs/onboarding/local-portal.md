@@ -21,8 +21,16 @@ No keys file and no `npm ci` by hand: the stack installs the bot's modules from 
 ```bash
 bash scripts/dev-portal.sh up        # first time ~15 min (copies the sandbox, ~1.4 GB); after that ~1 min, from the cache
 bash scripts/dev-portal.sh status
+bash scripts/dev-portal.sh refresh   # move it to this checkout's HEAD now, database kept (a commit does this for you)
 bash scripts/dev-portal.sh down      # stops everything and drops the database
 ```
+
+**It follows your commits.** Every commit in the checkout you ran `up` from moves the running portal to that commit,
+in the background: the bot and worker restart at the new `HEAD`, the portal API restarts, the SPA is rebuilt when
+`portal/` changed, and the database (with whatever you did in it) is kept. The commit prints one line and never waits.
+Commits in any other checkout or worktree never move it. A refresh that fails goes back to the commit that was running.
+Log: `~/.cache/niete-dev-portal/run/refresh.log`. Off for one commit: `DEV_PORTAL_FOLLOW=0 git commit …`. A portal
+started before this existed does not follow — `down` + `up` once.
 
 `up` prints the URL and the logins. **Every sandbox account works with its sandbox password.** The made-up
 accounts below are added on top so there is always a login you know — password **`Demo2026`**:
@@ -60,9 +68,11 @@ and the session cookie drops `Secure` when `PORTAL_LOCAL_DEV=1` *and* the databa
 - **"a port this stack would bind is already in use"** — another run is up. `bash scripts/dev-portal.sh down`, or
   move this one: `PORTAL_PORT=4100 MOCK_PORT=4110 E2E_BOT_PORT=3110 E2E_REDIS_PORT=6391 E2E_WORKER_HEALTH_PORT=3211
   LOCAL_R2_PORT=54610 E2E_SUPABASE_PORT=54341 LOCAL_DB_REST_PORT=54340 bash scripts/dev-portal.sh up <run_dir>`.
-- **Changed portal code** — `PORTAL_REBUILD=1` on `up` rebuilds the SPA. Changed `dashboard/` code — `down` then `up`.
-- **Changed bot code** — commit it first; the stack runs `HEAD`.
-- **Logs** — `~/.cache/niete-dev-portal/run/portal.log` (API), `bot.log`, `worker.log`.
+- **Changed code** — commit it; the stack follows this checkout's commits (above). Uncommitted `dashboard/` edits:
+  `refresh` restarts the API only when `HEAD` moved, so `down` then `up`. Uncommitted `portal/` edits: `PORTAL_REBUILD=1` on `up`.
+- **Changed `supabase/baseline/`** — the refresh keeps your database and says so in `refresh.log`; `down` + `up` for a
+  fresh one with the new schema.
+- **Logs** — `~/.cache/niete-dev-portal/run/portal.log` (API), `bot.log`, `worker.log`, `refresh.log`.
 
 ## What it can't do (yet)
 

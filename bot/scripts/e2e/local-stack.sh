@@ -3,6 +3,7 @@
 #
 #   bash bot/scripts/e2e/local-stack.sh up   <sha> <run_dir>     # writes <run_dir>/stack.json
 #   bash bot/scripts/e2e/local-stack.sh down <run_dir>
+#   bash bot/scripts/e2e/local-stack.sh retarget <sha> <run_dir>   # move a running stack to another commit
 #
 # What `up` guarantees, in order:
 #   1. The code under test is a DETACHED GIT WORKTREE at exactly <sha> (<run_dir>/src). The developer's
@@ -30,6 +31,10 @@
 # lands in <run_dir>/r2; a file the run did not write is read through from staging, read-only. The staging
 # R2 keys go to local-r2.js only; the bot gets dummy local ones.
 set -uo pipefail
+# A git hook exports GIT_INDEX_FILE (and, from a worktree, GIT_DIR/GIT_WORK_TREE). Inherited, they point every
+# `git -C <dir>` below at the COMMITTING checkout: the first refresh from .githooks/post-commit detached the
+# committer's branch instead of moving the stack (bd-i56c2u). This script always names its repo with -C.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
 local_db_on() { [ "${E2E_LOCAL_DB:-1}" != 0 ]; }   # default ON; only an explicit 0 means the sandbox
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
@@ -346,9 +351,58 @@ restart() {
   log "restart: $proc with ${*:-no overrides}"
 }
 
+# retarget <sha> <run_dir> — move a RUNNING stack's code to another commit and keep everything else: the
+# database, redis, the mock and the file store (bd-i56c2u: the developer's own portal follows their commits).
+# Stops the bot and worker (their code is about to move under them) and leaves starting them to the caller,
+# who knows the env overrides they ran with: `restart bot|worker`, then `verify`. The mock keeps the code it
+# loaded at `up`. Exit 11 on an unknown commit, with the worktree untouched.
+retarget() {
+  local sha="$1" run_dir="$2" src="$2/src"
+  [ -d "$src" ] && [ -f "$run_dir/stack.json" ] || { log "retarget: no running stack at $run_dir"; exit 2; }
+  local full; full=$(git -C "$REPO" rev-parse --verify "${sha}^{commit}" 2>/dev/null) || { log "retarget: unknown commit $sha"; exit 11; }
+  local old; old=$(git -C "$src" rev-parse HEAD)
+  # Everything that can refuse is checked BEFORE the bot and worker stop, so a refusal leaves them running.
+  # node_modules and .env are untracked links/files the lane adds after its own clean check in `up`.
+  [ -z "$(git -C "$src" status --porcelain --untracked-files=no)" ] || { log "retarget: $src has local changes — nothing stopped"; exit 11; }
+  local f; for f in worker bot; do
+    [ -f "$run_dir/$f.pid" ] && { kill "$(cat "$run_dir/$f.pid")" >/dev/null 2>&1 || true; }
+  done
+  git -C "$src" checkout -q --detach "$full" 2>/dev/null || { log "retarget: checkout of $full failed in $src"; exit 11; }
+  [ "$(git -C "$src" rev-parse HEAD)" = "$full" ] || { log "retarget: worktree is not at $full"; exit 11; }
+  # A lockfile that changed between the two commits gets its own module tree, exactly as `up` provisions it.
+  local prov="$HERE/provision-local-modules.sh" kind lock link tree
+  for kind in bot root; do
+    if [ "$kind" = bot ]; then lock=bot/package-lock.json; link="$src/bot/node_modules"; else lock=package-lock.json; link="$src/node_modules"; fi
+    [ "$(git -C "$REPO" rev-parse -q --verify "$old:$lock")" = "$(git -C "$REPO" rev-parse -q --verify "$full:$lock")" ] && continue
+    if [ "$kind" = bot ]; then tree=$(bash "$prov" --repo "$REPO" --sha "$full" --kind bot --installed-root "$NM_BOT") || { log "retarget: no bot modules for $full"; exit 10; }; tree="$tree/bot/node_modules"
+    else tree=$(bash "$prov" --repo "$REPO" --sha "$full" --kind root --installed-root "$NM_ROOT") || { log "retarget: no root modules for $full"; exit 10; }; tree="$tree/node_modules"; fi
+    rm -f "$link"; ln -s "$tree" "$link"
+  done
+  python3 - "$src/.env" "$run_dir/stack.json" "$full" <<'PY'
+import json, sys
+env, stack, sha = sys.argv[1:]
+lines = [l for l in open(env).read().splitlines() if not l.startswith("E2E_COMMIT_SHA=")]
+open(env, "w").write("\n".join(lines + ["E2E_COMMIT_SHA=" + sha]) + "\n")
+d = json.load(open(stack)); d["commit_sha"] = sha; json.dump(d, open(stack, "w"), indent=1)
+PY
+  log "retarget: ${old:0:9} → ${full:0:9} in $src (database kept)"
+}
+
+# verify <run_dir> — the bot's /health must report the commit stack.json names (exit 13 otherwise).
+verify() {
+  local run_dir="$1" _m bot_port _rest health want running
+  read -r _m bot_port _rest <"$run_dir/ports"
+  want=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["commit_sha"])' "$run_dir/stack.json")
+  health=$(curl -sf -m 3 "http://127.0.0.1:$bot_port/health" 2>/dev/null)
+  running=$(printf '%s' "$health" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("commit") or "")' 2>/dev/null)
+  [ "$running" = "$want" ] || { log "verify: /health reports '${running:-nothing}', wanted $want"; exit 13; }
+}
+
 case "$CMD" in
   up)   up "${1:-}" "${2:-}";;
   down) down "${1:?run_dir}";;
   restart) restart "${1:?bot|worker}" "${2:?run_dir}" "${@:3}";;
-  *) echo "usage: local-stack.sh up <sha> <run_dir> | down <run_dir> | restart bot|worker <run_dir> [KEY=VAL ...]" >&2; exit 2;;
+  retarget) retarget "${1:?sha}" "${2:?run_dir}";;
+  verify) verify "${1:?run_dir}";;
+  *) echo "usage: local-stack.sh up <sha> <run_dir> | down <run_dir> | restart bot|worker <run_dir> [KEY=VAL ...] | retarget <sha> <run_dir> | verify <run_dir>" >&2; exit 2;;
 esac
