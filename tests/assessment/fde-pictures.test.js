@@ -29,6 +29,7 @@ function deps({ cached = {}, fail = 0 } = {}) {
         return Buffer.from('png');
       },
       shrink: async (buf) => Buffer.from(`jpg:${buf.toString()}`),
+      gray: async () => ({ data: new Uint8Array(100).fill(255), width: 10, height: 10 }),
     },
   };
 }
