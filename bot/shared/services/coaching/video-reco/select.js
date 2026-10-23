@@ -321,7 +321,10 @@ function groundReason(text, l, segment) {
   }
   if (!/\p{L}/u.test(head)) return s;
   const title = String((l === 'ur' && segment.title_ur) || segment.title_en || '').trim();
-  return title ? `${CLOSE[l](head)} ${resolveUx('videoRecoClipLine', { language: l, params: { title } })}` : s;
+  if (!title) return s;
+  const line = resolveUx('videoRecoClipLine', { language: l, params: { title } });
+  // red7 194127 nit: a title that ends in its own mark («…today?») takes no second one
+  return `${CLOSE[l](head)} ${/[?؟!.۔]["'”»]?$/u.test(title) ? line.replace(/[.۔]$/u, '') : line}`;
 }
 
 /** The pick with both reasons grounded on its chapter (a pick without a listed chapter is returned as it is). */
@@ -330,6 +333,12 @@ function groundReasons(p, catalog) {
   const hit = catalog.segment(String(p.seg_id));
   if (!hit) return p;
   return { ...p, reason_en: groundReason(p.reason_en, 'en', hit.segment), reason_ur: groundReason(p.reason_ur, 'ur', hit.segment) };
+}
+
+/** red7 194127 (Q170): the pick's quote is a routine line, whatever rule refused the pick (a placeholder is checked first). */
+function routineQuote(p, topic = null) {
+  const q = p && p.moment && p.moment.quote;
+  return !!q && routineLine(storedQuote(String(q).replace(PLACEHOLDERS, ' ').replace(UNSHOWABLE_G, ' ')), { topic });
 }
 
 /** ⛔9 (SPEC v1.3c §3.5 a): what is stored and sent passes the non-strict redactor; a text with no name is unchanged. */
@@ -429,6 +438,7 @@ function fitClauses(sentence, room, segment) {
 // never as the sentence's subject ("[a student] reads …" keeps the none).
 const LEADING_ADDRESS = /^(\s*\[TEACHER\]\s*)+[،,:]?\s*|^\s*\[(a student|CHILD)\]\s*[،,:]\s*/;
 const UNSHOWABLE = /\[(TEACHER|COACH|SCHOOL|URL|EMAIL|NUMBER)\]/;
+const UNSHOWABLE_G = /\[(?:TEACHER|COACH|SCHOOL|URL|EMAIL|NUMBER)\]/g;
 // R7b (P036, P042, P046, P135, P178): the labels the panel named are report jargon, never a move to quote to a teacher.
 // Only these: an ordinary indicator name («Student-to-Student Interaction») in a template card was a right pick
 // (P003, P015, P051, P056, P062; scale-run 161526).
@@ -483,4 +493,4 @@ function cardFallback({ none, segId, shortlist, sentence, startS, endS, language
   }
 }
 
-module.exports = { groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
+module.exports = { routineQuote, groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
