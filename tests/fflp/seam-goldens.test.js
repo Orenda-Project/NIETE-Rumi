@@ -157,7 +157,25 @@ const SEGMENTS = [
 const HIT_TOPIC = 'Make a lesson plan on photosynthesis for grade 7';
 const MISS_TOPIC = 'lesson plan on quasars and black holes';
 
-const ENV = { ...process.env };
+// The test's WHOLE environment, written here and never copied from the runner's shell: a golden that
+// follows whatever the shell happens to carry passes on one machine and fails on a clean CI runner.
+// Every value is a fixture. SUPABASE_URL matters beyond the faked database: the app-link door signs its
+// /go token with a key derived from INTERNAL_API_KEY and this deployment's Supabase host
+// (services/app-login-link.js, environment() + key()), so without it the door mints nothing and falls
+// back to the Flow. Loopback, never reached: every client below is faked and egress is refused.
+const SHELL_ENV = process.env;
+const ENV = Object.freeze({
+  NODE_ENV: 'test',
+  SUPABASE_URL: 'http://127.0.0.1:9',
+  SUPABASE_SERVICE_ROLE_KEY: 'fixture-not-a-real-key',
+  REDIS_URL: 'redis://127.0.0.1:9',
+  INTERNAL_API_KEY: 'test-internal-key',
+  PORTAL_URL: 'https://portal.example.test',
+  PAKISTAN_LP_FLOW_ID: 'flow-lp',
+  OPENAI_API_KEY: 'test-openai',
+  OPENROUTER_API_KEY: 'test-openrouter',
+});
+process.env = { ...ENV };
 let handler;
 // The engine is not on this deployment yet; a test that needs it present stands it in through the index's
 // own resolver (the module a later change ports).
@@ -189,7 +207,8 @@ function recording() {
 
 function golden(row, rec) {
   const file = path.join(GOLDEN_DIR, `${row}.golden.json`);
-  if (process.env.UPDATE_FFLP_GOLDENS === '1') {
+  // The re-record knob is read from the runner's shell on purpose: it writes the files, it never changes a recording.
+  if (SHELL_ENV.UPDATE_FFLP_GOLDENS === '1') {
     fs.writeFileSync(file, `${JSON.stringify(rec, null, 2)}\n`);
   }
   expect(fs.existsSync(file)).toBe(true);
@@ -224,19 +243,13 @@ async function both(run, { sameRedis = true, ...opts } = {}) {
 beforeEach(() => {
   jest.clearAllMocks();
   mockDetectIntent.mockResolvedValue({ type: 'general' });
-  process.env = {
-    ...ENV, INTERNAL_API_KEY: 'test-internal-key', PORTAL_URL: 'https://portal.example.test',
-    PAKISTAN_LP_FLOW_ID: 'flow-lp', OPENAI_API_KEY: 'test-openai', OPENROUTER_API_KEY: 'test-openrouter',
-  };
-  delete process.env.APP_STORE_URL;
-  delete process.env.LP_612_ROUTE_ALL;
-  delete process.env.LP_LIFECYCLE_PATHS;
+  process.env = { ...ENV };
 });
 afterEach(() => {
   const seen = mockEgress.splice(0);
   expect(seen).toEqual([]);
 });
-afterAll(() => { process.env = ENV; });
+afterAll(() => { process.env = SHELL_ENV; });
 
 describe('N1-HIT — a typed topic the catalogue holds: the IDENTICAL catalogue door, switch absent or on', () => {
   test.each([
