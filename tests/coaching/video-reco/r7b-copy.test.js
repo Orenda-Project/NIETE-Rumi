@@ -45,7 +45,7 @@ describe('P165 ⛔9: the card\'s vocative is dropped by its shape, whatever user
     const EX = ['[03:10] Teacher: آج ہم نے صفحہ بارہ کھولا اور سب نے مل کر پڑھا', '[03:12] Student: جی، پڑھا۔'];
     const p = (voc) => ({
       seg_id: '10-s1', moment: { at: '03:10', quote: 'آج ہم نے صفحہ بارہ کھولا اور سب نے مل کر پڑھا' }, confidence: 0.8,
-      reason_en: `Your lesson moment fits this step: "⁨${voc}${BODY}⁩". The clip shows a teacher asking why and how instead.`,
+      reason_en: `The class only read along: "⁨${voc}${BODY}⁩". The clip shows a teacher asking why and how instead.`, // R7f 1b: a gap named
       reason_ur: `سبق کا یہ لمحہ اس قدم سے ملتا ہے: "⁨${voc}${BODY}⁩"۔ اس کلپ میں استاد کیوں اور کیسے کے سوال پوچھتے ہیں۔`,
     });
     for (const name of ['Saima Khan', 'Teacher']) {
@@ -135,20 +135,21 @@ describe('composition: one digit system per message, Latin runs isolated in Urdu
     expect(out).toContain('۵۵ سیکنڈ');
     expect(out).toContain('۵-۷ سیکنڈ');
   });
-  test('ur, R7c (14 panel rows): a number that must stay Western (inside a Latin run) makes the whole line Western', () => {
+  test('ur, R7f 1d (panel v5 §4): one digit system, the frame\'s — a number beside a Latin run is Urdu too', () => {
     const out = composeReason('یہ ۵۵ سیکنڈ کا کلپ ہے؛ کل 5-7 سیکنڈ انتظار کریں اور 4 digit addition کی مثال دیں۔', 'ur', null);
-    expect(out).toContain('55 سیکنڈ');
-    expect(out).toContain('5-7 سیکنڈ');
-    expect(out).toContain('\u20664 digit addition\u2069');
-    expect(out).not.toMatch(/[۰-۹]/);
+    expect(out).toContain('۵۵ سیکنڈ');
+    expect(out).toContain('۵-۷ سیکنڈ');
+    expect(out).toContain('۴ \u2066digit addition\u2069');
+    expect(out).not.toMatch(/[0-9]/);
   });
-  test('ur: an English term inside the Urdu line is set in its own LTR isolate (translate-or-isolate)', () => {
-    expect(composeReason('اس کلپ میں استاد wait time دیتے ہیں۔', 'ur', null)).toContain('⁦wait time⁩');
+  test('ur: an English term inside the Urdu line is set in its own LTR isolate (translate-or-isolate; R7f translates the panel\'s terms)', () => {
+    expect(composeReason('اس کلپ میں استاد think-pair-share کرتے ہیں۔', 'ur', null)).toContain('⁦think-pair-share⁩');
+    expect(composeReason('اس کلپ میں استاد wait time دیتے ہیں۔', 'ur', null)).toContain('انتظار کا وقفہ');
   });
-  test('en: Urdu digits outside the quoted moment become Western digits; the quote stays verbatim', () => {
+  test('en: Urdu digits become Western digits, the quoted moment\'s too (R7f 1d: the frame\'s system)', () => {
     const out = composeReason('This ۵۵-second clip shows it. The class said "۹ ہم نے گنے" together.', 'en', '۹ ہم نے گنے');
     expect(out).toContain('This 55-second clip');
-    expect(out).toContain('۹ ہم نے گنے');
+    expect(out).toContain('9 ہم نے گنے');
   });
   test('P027/P140: a CJK full stop becomes the line\'s own stop', () => {
     expect(composeReason('The class answered in one word。 The clip shows why questions.', 'en', null)).not.toContain('。');
@@ -183,7 +184,7 @@ describe('red7 155809', () => {
   const EX = ['[03:10] Teacher: آج ہم نے صفحہ بارہ کھولا اور سب نے مل کر پڑھا', '[03:12] Student: جی، پڑھا۔'];
   const p = (opening) => ({
     seg_id: '10-s1', moment: { at: '03:10', quote: 'آج ہم نے صفحہ بارہ کھولا اور سب نے مل کر پڑھا' }, confidence: 0.8,
-    reason_en: `Your lesson moment fits this step: "${opening}${BODY}". The clip shows a teacher asking why and how instead.`,
+    reason_en: `The class only read along: "${opening}${BODY}". The clip shows a teacher asking why and how instead.`, // R7f 1b: a gap named
     reason_ur: `سبق کا یہ لمحہ اس قدم سے ملتا ہے: "${opening}${BODY}"۔ اس کلپ میں استاد کیوں اور کیسے کے سوال پوچھتے ہیں۔`,
   });
   test('N1 with a name of one masked and one dictionary word → validation:name', () => {
