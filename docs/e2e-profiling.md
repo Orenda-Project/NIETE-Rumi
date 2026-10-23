@@ -190,3 +190,27 @@ the pipeline's second run the bot queued no analysis job, so `COA21/23/24` block
 PASS → FAIL (the `/quiz` list came back with its two seeded rows in the other order; the check requires
 newest-first). `M26` FAIL → PASS and `COA16` FAIL → PASS went the other way. Menu now reaches all 26 scenarios
 (the baseline runner aborted at M07 on a missing list row). The suite's known cassette misses are unchanged.
+
+### Applied (bd-aqi0ay) — the drivers' own sleeps
+
+The feature scripts' `sleep()` was the largest layer left (737 s inside windows after bd-k5gjje, most of the
+2400 s between them). On the mock lane the drivers now get `api.sleep`: the mock Graph API long-polls
+(`GET /outbox?wait=<ms>`), and a sleep returns as soon as the bot sends something and the outbox then stays
+quiet for the settle, else at its full length (plain below 300 ms). It consumes nothing; `fresh()` still
+sees the message. `training.cjs`'s three inline waits go through it, and `lesson-plan.cjs`'s two 15 s
+Meta-pacing sleeps are skipped on the mock lane. Traced as `driver.sleep` (`woke: message | timeout`).
+
+| | waits + pacer `c23df43` | driver sleep `c4acebd` |
+|---|---|---|
+| suite wall | 28 m 12 s | **25 m 23 s** |
+| driver sleeps inside windows | 737 s (unaccounted) | 612 s, of which 273 of 321 sleeps timed out |
+| verdicts pass / fail | 160 / 23 | 162 / 24 |
+
+**What the sleeps are waiting for now.** Only 48 of 321 sleeps woke on a message; the rest ran out. Outside
+the scenario windows, 549 timed-out 1.5 s sleeps in coaching (784 s) and 422 in training (645 s) all follow a
+`poll.fresh` — the pipeline walkers polling for a bot message that does not come. In coaching that is the
+walker's 240 s "no progress" stall at step 2, four to five times per run (COA19/20/28/29/30 BLOCKED), and it
+is not explained by the quiz offer's 240 s delay: setting `TRANSCRIPT_QUIZ_OFFER_DELAY_SECS=5` on the lane
+(tried, measured, reverted) left the stalls in place and blocked sixteen more coaching scenarios. The
+remaining time on the lane is the bot not producing what the walkers wait for — the 115 cassette misses are
+the first place to look (`--record-missing` with real vendor keys, a paid run).
