@@ -198,3 +198,13 @@ Feature: Teacher assessment
     And the teacher has asked for 10 papers in the last hour
     When the teacher taps Make my paper on a plain Check and make
     Then the screen says "Paper limit reached · try again at" with the time, above the rows, in the teacher's language
+
+  # The A/B source tag (bd-pw1ccr.1). Run on sandbox by the QA agent, reading the request row after each paper.
+  @sandbox
+  Scenario: A paper made from the class report's button is marked as one; the next paper she starts is not
+    Given the demo teacher opened the paper maker from the report link for Grade 3, English, chapter 4
+    When she taps Make my paper
+    Then the stored request says it came from the report
+    When she starts a new paper from the paper maker's own door and makes it
+    Then that request carries no report mark
+    And a request whose grade has no such subject keeps her on Class, still marked as from the report
