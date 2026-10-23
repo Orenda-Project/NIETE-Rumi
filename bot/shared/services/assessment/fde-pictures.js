@@ -43,6 +43,7 @@ function realDeps() {
     downloadFromR2: R2.downloadFromR2,
     uploadBuffer: R2.uploadBuffer,
     generateImage: (prompt) => Kie.generateImage(prompt),
+    log: require('../../utils/logger').logToFile,
     shrink: (buf) => sharp(buf).resize(320, 320, { fit: 'inside' }).grayscale().jpeg({ quality: 80 }).toBuffer(),
   };
 }
@@ -99,6 +100,9 @@ async function resolvePictures(examJson, deps = null) {
       const buf = await drawn.get(key);
       q.picture.src = `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}`;
     } catch (err) {
+      // The paper's own failure says only that a picture failed; this line says which and why.
+      const p = q.picture || {};
+      if (d.log) d.log('[assessment] picture failed', { slot: q.slot || null, kind: p.kind || null, name: p.name || p.describe || null, cause: err.message });
       throw pictureFailed(q, err);
     }
   }));
