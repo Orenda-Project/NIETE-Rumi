@@ -1,0 +1,46 @@
+[
+  [
+    "db",
+    "lesson_plan_requests",
+    "insert",
+    {
+      "user_id": "22222222-2222-4222-8222-222222222222",
+      "phone_number": "923000000003",
+      "topic": "lesson plan on quasars and black holes",
+      "full_message": "lesson plan on quasars and black holes",
+      "language": "en",
+      "content_type": "lesson_plan",
+      "status": "pending",
+      "source": "freeform_v1"
+    }
+  ],
+  [
+    "sqs",
+    "lesson_plan_generation",
+    {
+      "requestId": "<request-id>",
+      "userId": "22222222-2222-4222-8222-222222222222",
+      "phoneNumber": "923000000003",
+      "topic": "lesson plan on quasars and black holes",
+      "fullMessage": "lesson plan on quasars and black holes",
+      "language": "en",
+      "contentType": "lesson_plan",
+      "track": "freeform_v1",
+      "entry": "niete_catalogue_miss"
+    }
+  ],
+  [
+    "wa",
+    "sendMessage",
+    "923000000003",
+    "Writing your lesson plan now. It takes about a minute."
+  ],
+  [
+    "conv",
+    "22222222-2222-4222-8222-222222222222",
+    "assistant",
+    "Writing your lesson plan now. It takes about a minute.",
+    "text",
+    "sess-1"
+  ]
+]

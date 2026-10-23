@@ -2952,6 +2952,51 @@ async function offerRegistrationAfterReply(turn, from) {
 }
 
 /**
+ * The free-form lesson plan's door from a typed topic. TRUE only when the request was queued for the
+ * free-form engine and she was told; FALSE means "give today's answer", and in that case nothing has
+ * been sent or written.
+ *
+ * Order: the switch first (one cached app_settings read; with it off nothing else runs), then the
+ * catalogue lookup (a HIT is never changed), then the queue. Any failure is FALSE.
+ */
+async function routeCatalogueMissToFreeform({ from, messageBody, user, sessionId, responseLanguage }) {
+  const ENTRY = 'niete_catalogue_miss';
+  const language = responseLanguage === 'ur' ? 'ur' : 'en';
+  try {
+    const fflp = require('../services/fflp');
+    const decided = await fflp.switch.decide({
+      source: 'gamma_standard', contentType: 'lesson_plan', entry: ENTRY,
+      user: { id: user.id, phone: user.phone_number || from },
+    });
+    if (decided.track !== 'freeform_v1') return false;
+    const found = await fflp.catalogueMatch.matchTopic(messageBody);
+    if (found.hit) {
+      logToFile('fflp: typed topic is in the catalogue, opening it', { userId: user.id, reason: found.reason, source: found.source });
+      return false;
+    }
+    const requestId = await LessonPlanQueueService.createAndQueueFreeform({
+      userId: user.id, phoneNumber: from, topic: messageBody, fullMessage: messageBody, language, entry: ENTRY,
+    });
+    logToFile('fflp: catalogue miss queued for the free-form engine', { userId: user.id, requestId, reason: decided.reason, score: found.score });
+  } catch (err) {
+    logToFile('⚠️ fflp: free-form door failed, giving today\'s catalogue answer', { userId: user.id, error: err.message }, 'warn');
+    return false;
+  }
+  const line = resolveUx('fflpWriting', { language });
+  try {
+    await WhatsAppService.sendMessage(from, line);
+  } catch (err) {
+    logToFile('⚠️ fflp: the writing line failed to send (the job is queued)', { userId: user.id, error: err.message }, 'warn');
+  }
+  try {
+    await storeConversation(user.id, 'assistant', line, 'text', sessionId);
+  } catch (err) {
+    logToFile('⚠️ fflp: failed to store the writing line', { error: err.message }, 'warn');
+  }
+  return true;
+}
+
+/**
  * Handle lesson plan request
  * @param {string} from - Sender phone number
  * @param {string} messageBody - Message text
@@ -2971,6 +3016,13 @@ async function handleLessonPlanRequest(from, messageBody, user, sessionId, respo
   // Reached by: the lesson_plan intent (text), the /menu topic fallback, and
   // the Oxbridge picker's "Generate NIETE LP" tap.
   typingController.stop();
+  // The free-form seam: a typed topic that is in NEITHER catalogue, for a teacher the free-form switch
+  // (app_settings.freeform_lp, off by default) sends there, is queued for the free-form engine instead
+  // of the catalogue. Everything else — the switch off, a catalogue hit, a lookup or queue failure —
+  // falls through to exactly today's answer below.
+  if (user && await routeCatalogueMissToFreeform({ from, messageBody, user, sessionId, responseLanguage })) {
+    return;
+  }
   // bd-oak77.4 — she typed a TOPIC and is about to be shown a grade picker. One short line first,
   // saying where lessons come from now. Only on this door: the bare "lp" command and the /menu tap
   // open the Flow with no preamble because nothing needs explaining there.

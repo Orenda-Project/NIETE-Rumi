@@ -66,6 +66,7 @@ const LIFECYCLE = Object.freeze({
     NIETE_LP612: 'niete_lp612',
     NIETE_OXBRIDGE: 'niete_oxbridge',           // the Oxbridge catalogue (typed-topic picker + Flow)
     NIETE_PORTAL_SHARE: 'niete_portal_share',   // the portal's "Send on WhatsApp" for a lesson plan
+    FREEFORM_V1: 'freeform_v1',                 // the free-form engine (typed topic in neither catalogue)
   }),
   CHANNELS: Object.freeze({ WHATSAPP: 'whatsapp', PORTAL: 'portal' }),
   // Short machine codes for a failed ask. error_message keeps the human detail.

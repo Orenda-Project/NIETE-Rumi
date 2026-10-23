@@ -1849,6 +1849,18 @@ const UX_STRINGS = {
    * once, rather than in each caller's inline map (the bd-72dth drift).
    */
   /**
+   * The free-form lesson plan's first line: a typed topic that is in neither catalogue, with
+   * app_settings.freeform_lp sending this teacher to the free-form engine. Sent once, the moment the
+   * request is queued, so the wait has a reason. It names what is happening (rule 24(d)), not the
+   * engine. No placeholders: the grade and subject are asked for by the engine itself, if missing.
+   * Urdu is passive (`لکھا جا رہا ہے`), so no gendered verb. Body field; 1024 cap in CODE POINTS.
+   */
+  fflpWriting: {
+    en: 'Writing your lesson plan now. It takes about a minute.',
+    ur: 'آپ کا سبق کا منصوبہ لکھا جا رہا ہے۔ تقریباً ایک منٹ لگے گا۔',
+  },
+
+  /**
    * bd-oak77.4 — she typed a TOPIC, and under LP_612_ROUTE_ALL the answer is the menu.
    *
    * One short line, and only on the topic-bearing doors: the bare "lp" command and the /menu tap
