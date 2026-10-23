@@ -11,7 +11,9 @@
  *
  * A count is its object's picture, repeated by the renderer. A failed drawing is
  * tried once more; a second failure fails the paper PICTURE_FAILED, so a paper
- * never prints an empty box.
+ * never prints an empty box. The image model refuses (429) when called too fast, so
+ * a worker draws at most MAX_DRAWS at once across all its papers, and a 429 is
+ * tried again after each pause in RATE_WAITS_MS (bd-5jmnfj.4.21).
  */
 
 const crypto = require('crypto');
@@ -22,6 +24,8 @@ const Kie = require('./fde-picture-kie');
 const PREFIX = 'fde-pictures/v3';
 const CACHE_CONTROL = 'public, max-age=31536000, immutable';
 const MODEL_KINDS = ['object', 'count', 'scene'];
+const MAX_DRAWS = 2;
+const RATE_WAITS_MS = [5000, 15000, 30000];
 
 const slug = (text) => String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
 const canon = (text) => String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -44,6 +48,7 @@ function realDeps() {
     uploadBuffer: R2.uploadBuffer,
     generateImage: (prompt) => Kie.generateImage(prompt),
     log: require('../../utils/logger').logToFile,
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     shrink: (buf) => sharp(buf).resize(320, 320, { fit: 'inside' }).grayscale().jpeg({ quality: 80 }).toBuffer(),
   };
 }
@@ -67,17 +72,47 @@ function pictureFailed(q, err) {
   return e;
 }
 
+// Shared by every paper this worker resolves, so five papers at once still draw two pictures at a time.
+let drawing = 0;
+const waiting = [];
+async function limited(fn) {
+  if (drawing >= MAX_DRAWS) await new Promise((resolve) => waiting.push(resolve));
+  else drawing += 1;
+  try {
+    return await fn();
+  } finally {
+    const next = waiting.shift();
+    if (next) next(); else drawing -= 1;
+  }
+}
+
+const isRateLimited = (err) => /\b429\b|call frequency/i.test(String(err && err.message));
+
+/** A 429 waits and tries again (RATE_WAITS_MS); any other failure is tried once more. */
+async function draw(prompt, d) {
+  let otherRetried = false;
+  for (let rate = 0; ; ) {
+    try {
+      return await limited(() => d.generateImage(prompt));
+    } catch (err) {
+      if (isRateLimited(err) && rate < RATE_WAITS_MS.length) {
+        await d.sleep(RATE_WAITS_MS[rate]);
+        rate += 1;
+      } else if (!isRateLimited(err) && !otherRetried) {
+        otherRetried = true;
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
 async function modelPicture(picture, d) {
   const key = cacheKey(picture);
   const head = await d.headObject(key);
   if (head && head.exists) return d.downloadFromR2(key);
   const prompt = Kie.promptFor(picture);
-  let png;
-  try {
-    png = await d.generateImage(prompt);
-  } catch (first) {
-    png = await d.generateImage(prompt);
-  }
+  const png = await draw(prompt, d);
   const jpg = await d.shrink(png);
   await d.uploadBuffer(jpg, key, 'image/jpeg', { cacheControl: CACHE_CONTROL });
   return jpg;
