@@ -12,10 +12,14 @@
  * PR3: the thing carries its step (Opening … Check) — the step of the move it was picked from, in that
  * session's lp_fidelity, through report-card stepOf (pure, no imports; the /cr page reads it the same way) —
  * so the app can open the plan at that step's heading. A move or phase that cannot be found is step null.
+ *
+ * bd-v0toag.100.8: the strip shows the live ask of this plan's subject and grade (the bot's pure
+ * thing-to-try-scope), not the latest session's; an ask stored with its step keeps that step.
  */
 
 const { isFlagEnabled } = require('../lib/feature-flags');
 const { stepOf } = require('../../bot/shared/services/coaching/report-card');
+const { scopeOf, activeThing } = require('../../bot/shared/services/coaching/thing-to-try-scope');
 
 const SWITCH_KEY = 'ab_v10_enabled';
 const NEW_REPORT = new Set(['C', 'D']);
@@ -33,21 +37,23 @@ async function groupOf(supabase, userId) {
   return row ? row.ab_group : null;
 }
 
-async function latestThing(supabase, userId) {
+async function latestThing(supabase, userId, lessonId) {
+  const scope = scopeOf(lessonId);
+  if (!scope) return null;
   const { data, error } = await supabase
     .from('coaching_sessions')
-    .select('prioritized_action, lp_fidelity:analysis_data->lp_fidelity')
+    .select('id, prioritized_action, lp_fidelity:analysis_data->lp_fidelity')
     .eq('user_id', userId)
     .not('prioritized_action', 'is', null)
     .order('created_at', { ascending: false })
-    .limit(1);
+    .limit(20);
   if (error) throw new Error(error.message);
-  const row = data && data[0];
-  const t = row && row.prioritized_action && row.prioritized_action.thing_to_try;
-  if (!t || typeof t.text !== 'string' || !t.text.trim()) return null;
+  const found = activeThing(data, scope);
+  if (!found) return null;
+  const t = found.thing;
   return {
     text: t.text.trim(), tag: t.tag || null, moveId: t.move_id || null, setOnLessonId: t.lesson_id || null,
-    step: stepOfMove(row.lp_fidelity, t.move_id),
+    step: 'step' in t ? t.step || null : stepOfMove(found.lpFidelity, t.move_id),
   };
 }
 
@@ -58,14 +64,14 @@ function stepOfMove(lpFidelity, moveId) {
   return m ? stepOf(m.phase) : null;
 }
 
-/** { group, thing } for a teacher in C or D with a stored thing to try, else null. Never throws. */
-async function thingFor(supabase, userId) {
+/** { group, thing } for a teacher in C or D with a live ask for this plan, else null. Never throws. */
+async function thingFor(supabase, userId, lessonId) {
   if (!userId) return null;
   try {
     if (!(await isFlagEnabled(supabase, SWITCH_KEY))) return null;
     const group = await groupOf(supabase, userId);
     if (!NEW_REPORT.has(group)) return null;
-    const thing = await latestThing(supabase, userId);
+    const thing = await latestThing(supabase, userId, lessonId);
     return thing ? { group, thing } : null;
   } catch (error) {
     console.error('v10 test: thing to try read failed (the plan opens without it)', { error: error && error.message });
