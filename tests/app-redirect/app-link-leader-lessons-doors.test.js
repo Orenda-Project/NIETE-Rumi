@@ -189,7 +189,7 @@ describe('a coach under "coaches", through each plain door', () => {
     expect(lpFlows()).toHaveLength(0);
     const [to, { body, buttonText, url }] = ctas()[0];
     expect(to).toBe(PHONE);
-    expect(body).toBe('Read the lesson plans your teachers get, and send one to a teacher.');
+    expect(body).toBe('Read the lesson plans your teachers get.');
     expect(buttonText).toBe('Lesson plans');
     // The coach app off (the classic leader portal) and on: the same tab either way.
     for (const coachApp of [false, true]) {

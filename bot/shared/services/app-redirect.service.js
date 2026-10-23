@@ -50,8 +50,9 @@
  *      The operator, 19 Oct: "Send leaders straight into the app, the same as teachers"; until 23 Oct it opened Send
  *      a lesson plan (the FLN builder) and asked for FLN share. The operator, 23 Oct: "A coach who types 'lesson plan'
  *      on WhatsApp still gets 'Send a lesson plan', not the new tab -- they can get new tab". The tab (bd-4joiqz)
- *      needs no FLN share; Send a lesson plan, inside it, still asks for share on its own page. Old code never reads
- *      the key: a rollback is OFF.
+ *      needs no FLN share. The builder (/portal/fln/send) is not linked from the tab (LeaderHome and the coach
+ *      Training Library link it); inside the tab a leader can send only from a Reading Hour / Numeracy plan's own page
+ *      ("Send to teacher"), which shows only with FLN share. Old code never reads the key: a rollback is OFF.
  *   3. QUIET HOUR, per teacher, shared by every switch. A second redirect
  *      inside 60 minutes sends NOTHING — and still reports "handled", so the
  *      caller does not fall through to the feature or to AI chat. After the
