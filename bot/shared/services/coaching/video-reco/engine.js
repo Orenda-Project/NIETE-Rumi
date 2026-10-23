@@ -83,6 +83,7 @@ function stepTextOf(t, analysis, card) {
     name: t.source === 'card_text' ? '' : (t.name || (t.row && t.row.name) || ''),
     // R7d §4: what the card is about when it carries no indicator (the scorer's focus area; never a route of its own)
     indicator: (card && card.indicator) || fa.indicator || null,
+    scheme: t.scheme || null, // R7e: the card_text tag check reads the indicator in the analysis's own scheme
   };
 }
 
@@ -344,6 +345,8 @@ async function compute(a, d, state) {
   };
   // v1.3c (b): the retry failed too, on a validation rule, but the pick is a shortlisted chapter → the card's own sentence.
   let fallback = null;
+  // red7 H1 (210805, T1): a test period has no lesson for the card's sentence to attach to, whichever rule refused the quote
+  if (!v.ok && silence.testPeriod(prompt.transcriptLines(session))) routineSeen = true;
   if (!v.ok && attempts >= 2 && !routineSeen && res.pick && res.pick.seg_id) {
     const seg = catalog.segment(String(res.pick.seg_id));
     fallback = seg && select.cardFallback({

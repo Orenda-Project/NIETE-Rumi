@@ -11,8 +11,8 @@ const { fallbackSubjectOk } = require('./shortlist');
 const { stripBidi } = require('./copy');
 const CONTENT_TERMS = require('./content-terms');
 const LEX = require('./name-lexicon');
-const { childTurnNear, imperative, routineLine, echoReading } = require('./silence');
-const { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, sceneClaim, recallMislabel } = require('./copy-rules');
+const { childTurnNear, imperative, routineLine, echoReading, notTeaching, isClosure, earlyForClosure } = require('./silence');
+const { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, sceneClaim, recallMislabel, pointerNoLine, recallLeft } = require('./copy-rules');
 
 const JOB = 'coaching.videoReco';
 const LLM_TIMEOUT_MS = 45000; // lead-converge 18:48Z: measured 22–33 s at the default effort; the report itself never waits on it
@@ -230,7 +230,7 @@ function arabicShare(text) {
  * @param {object} opts {stepIndicator, indicators, source, catalog, teacherName, scorerQuote, textRoute}
  * @returns {{ok:boolean, none:null|'llm_none'|'validation:<why>', confidence:number, momentSource:'transcript'|'scorer'|null}}
  *   <why> (lead-review 19:40Z, so evals and red-team can count them): shape | candidate | quote | moment_at | placeholder |
- *   scorer | id | name | length | urdu | roman | gender | step | unshown | scene | recall | no_child_turn | not_moment | error
+ *   scorer | id | name | length | urdu | roman | gender | step | unshown | scene | recall | no_line | no_child_turn | not_moment | closure_early | error
  */
 function validate(p, shortlist, excerpts, opts) {
   const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false, rawExcerpts = null, fullLines = null, vocab = [], oovVocab = [], roster = null, topic = null, grade = null } = opts || {};
@@ -263,6 +263,18 @@ function validate(p, shortlist, excerpts, opts) {
     // R7d (Q038 Q056): in Grade 1–2 a line the children read back is echo reading, not the gap
     const lines = momentSource === 'transcript' ? excerpts : (() => { const l = typeof fullLines === 'function' ? fullLines() : fullLines; return Array.isArray(l) ? l : []; })();
     if (echoReading(lines, quoteLine(quote, lines), grade)) return bad('not_moment');
+    // R7e (COS 202042; Q063 Q170): before the class is greeted (the phone, the observer), or in a test period, read on the
+    // whole transcript: a window of it cannot show where the lesson starts
+    const full = typeof fullLines === 'function' ? fullLines() : fullLines;
+    const whole = Array.isArray(full) && full.length ? full : null;
+    const at = whole ? quoteLine(quote, whole) : -1;
+    if (whole && notTeaching(whole, at)) return bad('not_moment');
+    // R7e (panel §6.2: Q117 Q136 Q197): a closure chapter on a line from the first two thirds of the lesson. Not routine:
+    // the retry may find a late line, else the card fallback carries the closure card
+    const picked = catalog && catalog.segment(cand.seg_id);
+    // the stamp of the line the quote was found on (the model's moment.at can name another line, red7 200255)
+    const said = at >= 0 ? (/^\s*\[([\d:]+)\]/.exec(String(whole[at])) || [])[1] : null;
+    if (picked && isClosure(picked.segment) && earlyForClosure(said || p.moment.at, whole || lines)) return bad('closure_early');
     const reasons = [p.reason_en, p.reason_ur].map((x) => String(x || ''));
     if (reasons.some((x) => BANNED_COPY.test(x))) return bad('scorer');
     if ([quote, ...reasons].some(systemNote)) return bad('scorer'); // R7b (P005): «No student activity recorded» is no lesson
@@ -288,7 +300,8 @@ function validate(p, shortlist, excerpts, opts) {
     if (chosen && unshownClaim(p.reason_en, chosen.segment)) return bad('unshown');
     // R7c §5: a conversation, talk, slides or animation never "shows a teacher"; a cited why/how line is never "recall"
     if (chosen && sceneClaim(p.reason_en, p.reason_ur, chosen.module)) return bad('scene');
-    if (recallMislabel(quote, p.reason_en, p.reason_ur)) return bad('recall');
+    if (recallMislabel(quote, p.reason_en, p.reason_ur) || recallLeft(quote, p.reason_en, p.reason_ur)) return bad('recall');
+    if (pointerNoLine(p.reason_en)) return bad('no_line'); // R7e (panel §6.7): "said that line" with no line
     // R7b (panel P183, P076), checked last so every other rule names its own fault first: the moment's line or a line
     // beside it is a child's turn, else it is talk with no class in it.
     if (!childTurnNear(lines, quoteLine(quote, lines))) return bad('no_child_turn');
