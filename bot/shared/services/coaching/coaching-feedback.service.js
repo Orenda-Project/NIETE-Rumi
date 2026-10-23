@@ -94,26 +94,16 @@ async function _resolveLanguage(userId, contextLanguage) {
  */
 async function _writeMetrics(coachingSessionId, patch) {
   try {
-    const { data: existing } = await supabase
-      .from('coaching_quality_metrics')
-      .select('id')
-      .eq('coaching_session_id', coachingSessionId)
-      .maybeSingle();
-
-    if (existing) {
-      await supabase
-        .from('coaching_quality_metrics')
-        .update(patch)
-        .eq('coaching_session_id', coachingSessionId);
-    } else {
-      await supabase
-        .from('coaching_quality_metrics')
-        .insert({
-          coaching_session_id: coachingSessionId,
-          created_at: new Date().toISOString(),
-          ...patch,
-        });
-    }
+    // limit(1), not maybeSingle(): on a session with two rows maybeSingle errors with no data, which used to
+    // insert a third (bd-v0toag.80). Supabase returns failures as { error }, so each one is checked.
+    const { data: existing, error: readError } = await supabase.from('coaching_quality_metrics')
+      .select('id').eq('coaching_session_id', coachingSessionId).limit(1);
+    if (readError) throw new Error(readError.message);
+    const { error } = existing && existing.length
+      ? await supabase.from('coaching_quality_metrics').update(patch).eq('coaching_session_id', coachingSessionId)
+      : await supabase.from('coaching_quality_metrics')
+        .insert({ coaching_session_id: coachingSessionId, created_at: new Date().toISOString(), ...patch });
+    if (error) throw new Error(error.message);
     return true;
   } catch (err) {
     logToFile('Coaching Feedback: metrics write failed', {
