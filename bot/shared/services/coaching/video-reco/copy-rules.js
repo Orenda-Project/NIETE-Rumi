@@ -104,6 +104,9 @@ const CLIP_CLAIMS = [
   [/\broles?\b/i, /role/i],
   [/\btimers?\b/i, /timer/i],
   [/\bsentence (?:starters?|stems?|frames?)\b/i, /starter|stem|frame/i],
+  // R7c (panel §3.5, §4: Q045 Q037 Q117): easy and hard sheets, support/stretch sentences, children's summaries
+  [/\b(?:easy|easier)\b[^.]{0,40}\b(?:hard|harder|difficult)\b|\bsupport (?:and|or) stretch\b|\bstretch (?:task|question|sentence)s?\b/i, /easy|hard|difficult|level|tier|stretch|support/i],
+  [/\b(?:students?|children|child|pupils?) (?:write |give |make )?(?:a )?summar/i, /summar/i],
 ];
 
 /**
@@ -120,4 +123,95 @@ function unshownClaim(reasonEn, segment) {
   return CLIP_CLAIMS.some(([claim, evidence]) => claim.test(span) && !evidence.test(doc));
 }
 
-module.exports = { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim };
+// ── a child's name inside the card sentence a fallback quotes (R7c ⛔9, COS 20261023T170515 §1; panel Q168 Q174 Q181 Q193) ─
+// The fallback quotes the report's sentence, which can name a child mid-sentence ("when a child like X answers", "before
+// calling on X Y or another quiet voice", «کوئی بچہ X کی طرح»). The non-strict output redactor knows only its lexicon, and
+// the strict one masks a subject word in 6 of 10 Urdu cards, so a name is found by its SLOT: a placeholder token; a
+// capitalised Latin word the strict redactor masks that does not open a sentence or a quote; an Urdu word the strict
+// redactor masks right after a kinship, praise or example cue, or right before «کی طرح / جیسا». A comparison that only
+// names the child is dropped («like X», «X کی طرح», "X or another" → "another"); any other name refuses the fallback.
+const NAME_MARK = '\u0000';
+const CHILD_TOKEN = /\[(?:CHILD|a student|STUDENT)\]|‹name›/g;
+const CUE_BEFORE = new Set('بیٹا بیٹے بیٹی شاباش مثلاً مثلا جیسے بچی بچہ طالبہ'.split(' '));
+const CUE_AFTER = /^\s*(?:کی طرح|کے جیسا|کے جیسی|کے جیسے|جیسا|جیسی|جیسے)(?=\s|$|[،,.۔])/u;
+const OPENS = /(?:^|[.!?;:—–(\[«"“‘'۔؟]|\s[-–—])\s*$/u;
+const LATIN_CAP = /^[A-Z][a-z’']+$/;
+// Title-case words a card uses mid-sentence that are not people (2,990 r7 cards: 228 «the Taleemabad lesson plan», 25
+// «activate Prior Knowledge»)
+const NOT_A_NAME = new Set('taleemabad prior rumi niete bloom bloom’s bloom\'s'.split(' '));
+const N = `${NAME_MARK}N${NAME_MARK}`;
+const NAMES = `${N}(?:['’]s)?(?:\\s+(?:and|or|اور)\\s+${N}(?:['’]s)?)*(?:\\s+${N})*`;
+const DROPS = [
+  [new RegExp(`\\s*,?\\s*\\b(?:like|such as|e\\.g\\.,?|for example,?)\\s+${NAMES}`, 'g'), ''],
+  [new RegExp(`${NAMES}\\s+or\\s+(?=another\\b|other\\b|a\\b)`, 'g'), ''],
+  [new RegExp(`\\s*${NAMES}\\s+(?:کی طرح|کے جیسا|کے جیسی|کے جیسے|جیسا|جیسی|جیسے)(?=\\s|$|[،,.۔])`, 'gu'), ''],
+];
+
+/**
+ * The card sentence with every comparison that names a child dropped, or null when a child's name (or a placeholder) is
+ * still in it. `vocab`/`oovVocab` as redact-names.js; `teacher` is users.name.
+ */
+function childFreeCard(sentence, { teacher = null, vocab = [], oovVocab = [], why = null } = {}) {
+  const s = String(sentence || '');
+  const trace = [];
+  redactNames(s, { teacher, placeholders: { child: '[a student]' }, vocab, oovVocab, trace });
+  const masked = new Set(trace.filter((t) => t.rep === '[a student]').map((t) => t.word));
+  const hit = (k) => { if (why) why.push(k); return N; };
+  let marked = s.replace(CHILD_TOKEN, () => hit('token'));
+  let nameEnd = -1; // a masked word right after a name is its surname («X Y or another quiet voice», Q174)
+  marked = marked.replace(/[A-Za-z’']+|[؀-ۿ‌]+/g, (w, at, all) => {
+    if (NOT_A_NAME.has(w.toLowerCase())) return w;
+    // after a placeholder, a capitalised word is the rest of the name even when it is also a word («[a student] Rani», Q174)
+    const afterToken = LATIN_CAP.test(w) && new RegExp(`${N}\\s+$`).test(all.slice(0, at));
+    if (!masked.has(w) && !afterToken) return w;
+    if (afterToken || (nameEnd >= 0 && /^\s+$/.test(all.slice(nameEnd, at)))) { nameEnd = at + w.length; return hit('surname'); }
+    // a Latin name sits in a Latin clause: the word before it is a lower-case Latin word (an English term inside an Urdu
+    // sentence, «Think-Pair-Share», is not a name)
+    if (LATIN_CAP.test(w)) return !OPENS.test(all.slice(0, at)) && /(?:^|\s)[a-z][a-z’']*[,]?\s+$/.test(all.slice(Math.max(0, at - 30), at)) ? (nameEnd = at + w.length, hit('latin')) : w;
+    if (!/[؀-ۿ]/.test(w)) return w;
+    const prev = (all.slice(0, at).match(/([؀-ۿ]+)[\s،,]*$/u) || [])[1];
+    if (prev && CUE_BEFORE.has(prev)) { nameEnd = at + w.length; return hit(`cue:${prev}`); }
+    return CUE_AFTER.test(all.slice(at + w.length)) ? hit('cue:after') : w;
+  });
+  if (!marked.includes(NAME_MARK)) return s;
+  for (const [rx, to] of DROPS) marked = marked.replace(rx, to);
+  return marked.includes(NAME_MARK) ? null : marked.replace(/\s{2,}/g, ' ').trim();
+}
+
+// ── what the clip IS, and what the cited line IS (R7c, COS 20261023T170515 §5; panel §3.2, §3.5, §4: 51 rows) ─────────
+// Most chapters are a conversation, a podcast, a trainer's talk, slides or an animation, not a class: the reason must say
+// the clip explains or discusses the move, never that it "shows a teacher" doing it. `mixed` footage is not judged.
+const CONVERSATION = /dramatis|conversation|podcast|interview|talk through|two-voice|scripted/i;
+
+/** 'conversation' | 'talk' | 'slides' | 'animation' | 'footage' (mixed or unknown: not judged). */
+function clipKind(module) {
+  const m = module || {};
+  if (CONVERSATION.test(String(m.summary_en || ''))) return 'conversation';
+  return { talking_head: 'talk', slides: 'slides', animation: 'animation' }[m.format] || 'footage';
+}
+
+const SCENE_EN = /\b(?:shows?|showing|see|watch|models?)\s+(?:a|the|another|one)\s+teacher\b|\b(?:a|the) teacher in the (?:clip|video)\b|\bin (?:the|this) (?:clip|video),? (?:a|the) teacher\b/i;
+const SCENE_UR = /(?:کلپ|ویڈیو) میں (?:ایک )?(?:استاد|ٹیچر)|دکھا(?:تا|تی|تے) (?:ہے|ہیں) کہ (?:ایک )?(?:استاد|ٹیچر)/u;
+
+/** A reason that says the clip shows a teacher doing the move, on a chapter that is not classroom footage. */
+function sceneClaim(reasonEn, reasonUr, module) {
+  if (clipKind(module) === 'footage') return false;
+  const bare = (t) => String(t || '').replace(/[⁦-⁩]/g, '').replace(/"[^"]*"|“[^”]*”|«[^»]*»/g, ' ');
+  return SCENE_EN.test(bare(reasonEn)) || SCENE_UR.test(bare(reasonUr));
+}
+
+const WHY_HOW_Q = /کیوں|کیسے|\bwhy\b|\bhow\b(?! are you)/iu;
+const RECALL_EN = /\brecall\b|\bmemori[sz]|\bfact(?:ual)? question|\bclosed question|\byes[/ -]?(?:or[/ -])?no question|\bone-word question/i;
+const RECALL_UR = /یادداشت|یاد داشت|یاداشت|رٹا|ہاں یا نہیں والا|ہاں\/نہیں والا|بند سوال/u;
+
+// Only the lesson side of a reason labels the cited line: the text before it turns to the clip («turn a yes/no question
+// into a why question» describes the clip, not the line).
+const lessonSide = (t, clip) => { const s = String(t || ''); const i = s.search(clip); return i < 0 ? s : s.slice(0, i); };
+
+/** The cited line asks why or how, and the reason calls it recall (Q146 Q119 Q141 Q149: coaching what the teacher did). */
+function recallMislabel(quote, reasonEn, reasonUr) {
+  return WHY_HOW_Q.test(String(quote || ''))
+    && (RECALL_EN.test(lessonSide(reasonEn, /\b(?:clip|video|chapter)\b/i)) || RECALL_UR.test(lessonSide(reasonUr, /کلپ|ویڈیو/u)));
+}
+
+module.exports = { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, clipKind, sceneClaim, recallMislabel };

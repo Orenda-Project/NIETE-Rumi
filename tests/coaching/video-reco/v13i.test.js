@@ -35,11 +35,12 @@ describe('1 · a bare speaker label is not words', () => {
   });
 
   test.each([
-    ['Teacher:', 'Teacher: آج ہم کہانی پڑھیں گے'],
-    ['teacher: "…" (lower case, opening quote mark)', 'teacher: "آج ہم کہانی پڑھیں گے"'],
-    ['Teacher (EN):', 'Teacher (EN): today we read the story'],
+    ['Teacher:', 'Teacher: یہ کہانی ہمیں کیا سکھاتی ہے'],
+    ['teacher: "…" (lower case, opening quote mark)', 'teacher: "یہ کہانی ہمیں کیا سکھاتی ہے"'],
+    ['Teacher (EN):', 'Teacher (EN): what does the story teach us'],
   ])('%s is stripped and a real line still passes', (_, quote) => {
-    const line = `[00:29] Teacher (UR): آج ہم کہانی پڑھیں گے، today we read the story`;
+    // R7c: «آج ہم کہانی پڑھیں گے» announces the lesson (not_moment), so the line is a question
+    const line = `[00:29] Teacher (UR): یہ کہانی ہمیں کیا سکھاتی ہے، what does the story teach us`;
     expect(S.validate(pick(quote), list, [line, '[00:31] Student (UR): جی۔'], {}).ok).toBe(true);
   });
 

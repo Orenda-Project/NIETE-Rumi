@@ -13,8 +13,8 @@ const session = { diarization_data: { segments: segs }, transcript_text: '' };
 const target = { indicator: 'C1', source: 'step', row: { id: 'C1', name: 'Quality Questioning', score: 1, timestamp: '[03:10]' } };
 const cands = [{ seg_id: '10-s1', indicator: 'C1' }, { seg_id: '11-s1', indicator: 'C1' }];
 
-test('PROMPT_VERSION is vr-8 (vr-6 + R7b: the clip\'s own words, the Urdu plural)', () => {
-  expect(P.PROMPT_VERSION).toBe('vr-8');
+test('PROMPT_VERSION is vr-9 (vr-8 + R7c: the clip\'s kind, explain-not-show, a why/how line is not recall)', () => {
+  expect(P.PROMPT_VERSION).toBe('vr-9');
 });
 
 test('excerpts: the 12 diarized segments around the target timestamp, [mm:ss] Label: text, ≤ 220 chars each', () => {
@@ -49,7 +49,7 @@ test('build (indicator path): the vr-2 text, the score of the scheme\'s max, the
   expect(prompt).toContain('Try this tomorrow: Ask two why questions');
   expect(prompt).toContain('The report\'s own moment: "Is this red? Yes or no" (around [03:10]). Cite it unless a transcript line below fits the clip better.');
   expect(prompt).toContain(ex[0]);
-  expect(prompt).toContain('10-s1 · Ask why and how · 90s · ur · The teacher turns yes/no questions into why and how questions. · needs:  · C1');
+  expect(prompt).toContain('10-s1 · Ask why and how · 90s · ur · kind: footage · The teacher turns yes/no questions into why and how questions. · needs:  · C1');
   expect(prompt).toContain('1. Choose the clip that SHOWS the exact move in "Try this tomorrow". Every candidate is for that step: you choose among them and ground the moment; you never change the step.');
   expect(prompt).toContain('The quote must contain no person\'s name: write [a student] in its place.');
   expect(prompt).toContain('meant for a different subject than this lesson (maths)');
