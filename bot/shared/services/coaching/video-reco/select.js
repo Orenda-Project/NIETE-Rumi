@@ -117,6 +117,9 @@ function quoteLine(quote, excerpts) {
 const quoteFound = (quote, excerpts) => quoteLine(quote, excerpts) >= 0;
 
 const BARE_STAMP = /^\s*\[\d{1,2}:\d{2}(?::\d{2})?\]\s*/;
+// For STORAGE only (red7 093352): an optional stamp, then a real speaker label (en or ur) and its colon. LINE_PREFIX
+// takes any text before a colon after a stamp, which is right for counting words but eats words when stored.
+const STORE_PREFIX = /^\s*(?:\[\d{1,2}:\d{2}(?::\d{2})?\]\s*)?(?:teacher|students?|speaker|coach|ٹیچر|استاد|استانی|طالب علم)(?:\s*\([a-z]{2}\))?\s*:\s*["“«]?/i;
 const TRAILING_STAMP = /\s*[([]\d{1,2}:\d{2}(?::\d{2})?[)\]]\s*$/;
 const QUOTE_WRAP = /^["“«]([\s\S]*)["”»]$/;
 
@@ -131,7 +134,7 @@ function storedQuote(quote) {
   let prev;
   do {
     prev = s;
-    s = s.replace(LINE_PREFIX, '').replace(BARE_STAMP, '').replace(TRAILING_STAMP, '').trim();
+    s = s.replace(STORE_PREFIX, '').replace(BARE_STAMP, '').replace(TRAILING_STAMP, '').trim();
     const w = QUOTE_WRAP.exec(s);
     if (w) s = w[1].trim();
     else if ((/"$/.test(s) && (s.match(/"/g) || []).length % 2 === 1) || (/[”»]$/.test(s) && !/[“«]/.test(s))) s = s.slice(0, -1).trim();
