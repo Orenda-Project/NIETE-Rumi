@@ -8,10 +8,13 @@
  */
 
 const KIE_URL = 'https://api.kie.ai/api/v1/jobs';
-const STYLE = 'Simple black and white line drawing for a Grade 1 school worksheet. Thick clean outlines, white background, '
-  + 'no shading, no colour, one clear picture, child-friendly, Pakistani everyday setting.';
+// Amena, 23 Oct 2026: "worksheet" and "setting" drew worksheets — a banner, a caption giving the answer,
+// four objects in one frame (bd-5jmnfj.4.11). A Grade 1 child names one plain thing.
+const STYLE = 'Simple black and white line drawing for a young child. Thick clean outlines, no shading, no colour, child-friendly.';
+const ALONE = 'Only one thing in the picture, centred on a plain white background: no other objects, no ground, no people, '
+  + 'no text, no letters, no label, no caption, no heading, no border.';
 const NEGATIVE = 'text, words, letters, typography, captions, labels, watermark, signature, writing, numbers, digits, symbols, '
-  + 'colour, photo, grey background, border, frame';
+  + 'colour, photo, grey background, border, frame, worksheet, heading, title, caption, multiple objects';
 
 /** The image-model prompt for a picture. A count draws one of its object; the paper repeats it. */
 function promptFor(picture) {
@@ -19,7 +22,7 @@ function promptFor(picture) {
   if (kind === 'object' || kind === 'count') {
     const name = String(picture.name || '').trim();
     if (!name) throw new Error(`${kind} picture: nothing to draw`);
-    return `${STYLE} The picture: one ${name}, alone, centred.`;
+    return `${STYLE} The picture: one ${name}. ${ALONE}`;
   }
   if (kind === 'scene') {
     const describe = String(picture.describe || '').trim();

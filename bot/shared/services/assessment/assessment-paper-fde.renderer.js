@@ -432,6 +432,11 @@ function workSpace(q, slot) {
   if (slot.work_mm && /^\s*draw\b/i.test(String(q.question || ''))) {
     return `<div class="work-square" style="width:${slot.work_mm}mm;height:${slot.work_mm}mm"></div>`;
   }
+  // A Grade 1-2 child writes in a box under every written item (bd-5jmnfj.4.8); circling needs none.
+  if (slotFlag(slot, 'answer_box')) {
+    if (Array.isArray(q.options) && q.options.length) return '';
+    return `<div class="write-box" style="height:${12 + 8 * Math.max(0, (slot.lines || 1) - 1)}mm"></div>`;
+  }
   if ((slot.lines || 0) >= 2) {
     const h = Math.max(16, slot.lines * 8);
     return `<div class="work-box" style="height:${h}mm"></div>`;
@@ -463,10 +468,15 @@ function patternSlot(id) {
   return null;
 }
 
-function printsWords(slot) {
-  if (typeof slot.print_words === 'boolean') return slot.print_words;
+/** A slot's own boolean flag, else its pattern's: a paper laid out before the flag still prints right. */
+function slotFlag(slot, name) {
+  if (typeof slot[name] === 'boolean') return slot[name];
   const p = patternSlot(slot.slot);
-  return Boolean(p && p.print_words === true);
+  return Boolean(p && p[name] === true);
+}
+
+function printsWords(slot) {
+  return slotFlag(slot, 'print_words');
 }
 
 /*
@@ -558,7 +568,7 @@ function itemBody(q, slot, i, ctx, inlineQ) {
   if (Array.isArray(q.topics) && q.topics.length && printsField(slot, 'topics')) {
     parts.push(`<div class="topics">${q.topics.map((t, k) => `<span class="topic">${textOf(itemNumber({ numbering: 'alpha_paren' }, k, ctx.medium), ctx)} ${textOf(t, ctx)}</span>`).join('')}</div>`);
   }
-  if (printsWords(slot) && Array.isArray(q.words) && q.words.length) parts.push(wordList(q.words, ctx, ctx.medium !== 'ur'));
+  if (printsWords(slot) && !slotFlag(slot, 'picture_only') && Array.isArray(q.words) && q.words.length) parts.push(wordList(q.words, ctx, ctx.medium !== 'ur'));
   if (Array.isArray(q.questions) && q.questions.length) parts.push(subQuestions(q.questions, slot.sub_numbering || 'alpha_paren', ctx));
   if (ctx.answerLines !== false) parts.push(workSpace(q, slot));
   return parts.join('');
@@ -574,6 +584,8 @@ function withoutOwnLabel(text, slot) {
 
 function stemOf(q, slot, inlineQ) {
   if (inlineQ) return '';
+  // A picture-naming item is the picture and a box: the instruction above already asks (bd-5jmnfj.4.19).
+  if (slotFlag(slot, 'picture_only')) return '';
   if (slot.shape === 'frame' || slot.shape === 'comprehension') return '';
   if (slot.shape === 'words' && !q.question) return '';
   return withoutOwnLabel(q.question || '', slot);
@@ -591,6 +603,7 @@ function slotBlock(slot, sec, list, ctx) {
     ? `<div class="slot-head">${label ? `<span class="lab">${textOf(label, ctx)}</span> ` : ''}${instruction ? `<span class="ins">${textOf(instruction, ctx)}</span>` : ''}${line.marksLine ? `<span class="ml">${textOf(line.marksLine, ctx)}</span>` : ''}</div>`
     : '';
   const body = [];
+  const grid = slotFlag(slot, 'picture_only');
   const or = lang === 'ur' ? 'یا' : 'OR';
   live.forEach((q, i) => {
     if (slot.or && i > 0) body.push(`<div class="or">${textOf(or, ctx)}</div>`);
@@ -608,11 +621,17 @@ function slotBlock(slot, sec, list, ctx) {
     const numHtml = num ? `<span class="n">${textOf(num, ctx)}</span>` : '';
     const leadHtml = lead ? `<div class="or-lead">${textOf(lead, ctx)}</div>` : '';
     const stemHtml = stem ? ` ${textOf(stem, ctx)}` : '';
-    body.push(`<div class="q${cont ? ' qcont' : ''}${slot.shape === 'comprehension' ? ' comp' : ''}" data-slot="${esc(slot.slot)}">${numHtml}${leadHtml}${stemHtml}${itemBody(q, slot, i, ctx, inlineQ)}</div>`);
+    body.push(`<div class="q${cont ? ' qcont' : ''}${slot.shape === 'comprehension' ? ' comp' : ''}${grid ? ' pic-cell' : ''}" data-slot="${esc(slot.slot)}">${numHtml}${leadHtml}${stemHtml}${itemBody(q, slot, i, ctx, inlineQ)}</div>`);
   });
   if (slot.alternatives && !live.length) body.push(fixedAlternatives(slot, null, ctx));
   // An either/or question is read as one choice: never split across a page.
   const either = slot.or || slot.alternatives ? ' either' : '';
+  if (grid) {
+    // The bank is sorted so its order never matches the pictures' order: a model lists them as it drew them.
+    const words = [...new Set(live.flatMap((q) => (Array.isArray(q.words) ? q.words : [])))].sort((x, y) => String(x).localeCompare(String(y)));
+    const bank = printsWords(slot) && words.length ? `<div class="word-box bank">${words.map((w) => `<span class="w">${textOf(w, ctx)}</span>`).join('')}</div>` : '';
+    return `<div class="slot${either}">${head}${bank}<div class="pic-grid">${body.join('')}</div></div>`;
+  }
   return `<div class="slot${either}">${head}${body.join('')}</div>`;
 }
 
@@ -699,6 +718,10 @@ function css(medium, kind) {
   .work-box { border: 1px solid #555; margin: 3px 0 2px;
     background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 7.5mm, #bbb 7.5mm, #bbb 7.8mm); }
   .work-square { border: 1px solid #555; margin: 3px 0 2px; }
+  .write-box { border: 1.2px solid #000; margin: 2mm 0 1mm; }
+  .word-box.bank { display: flex; flex-wrap: wrap; justify-content: center; gap: 2mm 8mm; padding: 2mm 4mm; font-size: 13pt; }
+  .pic-grid { display: flex; flex-wrap: wrap; gap: 4mm; }
+  .q.pic-cell { width: 30%; break-inside: avoid; }
   table.data { border-collapse: collapse; margin: 4px 0; }
   table.data th, table.data td { border: 1px solid #000; padding: 2px 10px; text-align: center; }
   table.data th { background: #f0f0f0; }

@@ -18,7 +18,7 @@ const crypto = require('crypto');
 const Svg = require('./fde-picture-svg');
 const Kie = require('./fde-picture-kie');
 
-const PREFIX = 'fde-pictures/v1';
+const PREFIX = 'fde-pictures/v2';
 const CACHE_CONTROL = 'public, max-age=31536000, immutable';
 const MODEL_KINDS = ['object', 'count', 'scene'];
 
