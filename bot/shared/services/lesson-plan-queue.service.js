@@ -47,7 +47,7 @@ async function isOwnRow(requestId) {
 
 class LessonPlanQueueService {
   // createAndQueue (freeform LP / presentation via Gamma) was removed with
-  // bd-2540 (Option A partial Gamma strip). The teacher-facing paths are
+  // the partial Gamma strip. The teacher-facing paths are
   // createAndQueueGrounded (a pre-authored AST row) and createAndQueueFreeform
   // (the free-form engine, behind app_settings.freeform_lp; off by default).
 
