@@ -83,6 +83,7 @@ function stepTextOf(t, analysis, card) {
     name: t.source === 'card_text' ? '' : (t.name || (t.row && t.row.name) || ''),
     // R7d §4: what the card is about when it carries no indicator (the scorer's focus area; never a route of its own)
     indicator: (card && card.indicator) || fa.indicator || null,
+    scheme: t.scheme || null, // R7e: the card_text tag check reads the indicator in the analysis's own scheme
   };
 }
 
