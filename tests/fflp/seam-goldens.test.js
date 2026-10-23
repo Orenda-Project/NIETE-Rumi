@@ -24,6 +24,33 @@ jest.mock('bullmq', () => ({ Queue: class {}, Worker: class {}, QueueEvents: cla
 jest.mock('chartjs-node-canvas', () => ({ ChartJSNodeCanvas: class {} }), { virtual: true });
 jest.mock('microsoft-cognitiveservices-speech-sdk', () => ({}), { virtual: true });
 
+// No test here may open a connection: every boundary is faked below. The guard refuses any call
+// that slips past the fakes at once (as an aborted request, which no client retries, so a missed
+// boundary fails the test instead of hanging it) and the afterEach names the caller.
+const mockEgress = [];
+{
+  const net = require('net');
+  const where = () => new Error().stack.split('\n').slice(3)
+    .find((l) => l.includes('/bot/') && !l.includes('node_modules')) || '(no bot frame)';
+  const rel = (l) => l.trim().replace(`${process.cwd()}/`, '');
+  net.Socket.prototype.connect = function guardedConnect(...a) {
+    const o = (a[0] && typeof a[0] === 'object') ? a[0] : { port: a[0], host: a[1] };
+    mockEgress.push(`socket ${o.host || o.path}:${o.port} from ${rel(where())}`);
+    this.destroy(new Error('egress refused by the test'));
+    return this;
+  };
+  if (typeof global.fetch === 'function') {
+    global.fetch = async (u) => {
+      let host = '?';
+      try { host = new URL(String((u && u.url) || u)).host; } catch (_) { /* keep ? */ }
+      mockEgress.push(`fetch ${host} from ${rel(where())}`);
+      const e = new Error('egress refused by the test');
+      e.name = 'AbortError';
+      throw e;
+    };
+  }
+}
+
 const fs = require('fs');
 const path = require('path');
 const { makeDb } = require('../quiz/helpers/memory-db');
@@ -46,6 +73,12 @@ function mockRecordingFrom(table) {
 jest.mock('../../bot/shared/config/supabase', () => ({
   from: (...a) => mockRecordingFrom(...a),
   rpc: (...a) => mockDb.rpc(...a),
+}));
+// A service that builds its OWN client instead of using the shared config (the comprehension-flow
+// check on every routed text does) reaches the same memory database, so the intent door runs whole
+// with nothing on the network.
+jest.mock('../../bot/node_modules/@supabase/supabase-js', () => ({
+  createClient: () => ({ from: (...a) => mockRecordingFrom(...a), rpc: (...a) => mockDb.rpc(...a) }),
 }));
 jest.mock('../../bot/shared/services/queue', () => ({
   queueCoachingJob: jest.fn(async (id, type, payload) => { mockRec.push(['sqs', type, payload]); return { MessageId: 'm' }; }),
@@ -186,6 +219,10 @@ beforeEach(() => {
   delete process.env.APP_STORE_URL;
   delete process.env.LP_612_ROUTE_ALL;
   delete process.env.LP_LIFECYCLE_PATHS;
+});
+afterEach(() => {
+  const seen = mockEgress.splice(0);
+  expect(seen).toEqual([]);
 });
 afterAll(() => { process.env = ENV; });
 
