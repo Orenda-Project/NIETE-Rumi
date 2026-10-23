@@ -201,10 +201,6 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     echo "E2E_CASSETTE_FAULTS=$run_dir/cassette-faults.json"
     # The class-quiz join lock is a minute in production; a rejoin scenario idled that long. 5 s here.
     echo "VIDEO_QUIZ_JOIN_LOCK_SECS=${VIDEO_QUIZ_JOIN_LOCK_SECS:-5}"
-    # The transcript-quiz offer is a job delayed 240 s in production (transcript-quiz-offer.service.js); the coaching
-    # walker waits for it and gave up at exactly 240 s on every completed run — four 240 s stalls per coaching run
-    # and COA20/28/29/30 BLOCKED (bd-aqi0ay). 5 s here.
-    echo "TRANSCRIPT_QUIZ_OFFER_DELAY_SECS=${E2E_TRANSCRIPT_QUIZ_OFFER_DELAY_SECS:-5}"
     # The WhatsApp send pacer (whatsapp-send-pacer.js) spaces sends to one phone 6 s apart once 8 are in flight —
     # Meta's pair rate limit. The mock Graph API has no such limit, and the driver is ONE phone talking every
     # 3 s, so from the 9th message on every reply waited ~3.3 s for a slot: 527 s of run 20261023-1006-par
