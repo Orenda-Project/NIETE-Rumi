@@ -80,7 +80,7 @@ beforeEach(() => {
 
 describe("a paper she just asked for", () => {
   it("is followed from the shell, with its title, class and the request that makes it again", async () => {
-    setPicks({ ...newPicks(15), grade: 4, subject: "science", subjectName: "Science", chapters: [1] });
+    setPicks({ ...newPicks(15), grade: 4, subject: "science", subjectName: "Science", chapters: [1], typesSeeded: true, seen: 5, typeCounts: { MCQs: 10 } });
     portal.generateAssessment.mockResolvedValue({ success: true, requestId: "req-9" });
     at(newPaperPath("check"), newPaperPath("check"), <CheckStep />);
     fireEvent.click(await screen.findByRole("button", { name: /Make my paper/ }));

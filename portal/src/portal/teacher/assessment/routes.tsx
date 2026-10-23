@@ -1,11 +1,12 @@
+import { Navigate } from 'react-router-dom';
 import type { TeacherRoute } from '../routes';
 import { AssessmentAll } from './AssessmentAll';
 import { AssessmentHub } from './AssessmentHub';
 import { EditPaperPage, EditQuestionPage } from './EditPages';
-import { CheckStep, ClassStep, CoverStep, ExtrasStep, QuestionsStep, TypesStep } from './NewPaperSteps';
+import { CheckStep, ClassStep, CoverStep, QuestionsStep } from './NewPaperSteps';
 import { PaperPage } from './PaperPage';
 import { VersionsPage } from './VersionsPage';
-import { ASSESSMENT_ALL, ASSESSMENT_V2_BASE as B } from './paths';
+import { ASSESSMENT_ALL, ASSESSMENT_V2_BASE as B, newPaperPath } from './paths';
 import { RequestPage } from './RequestPage';
 
 /**
@@ -19,8 +20,9 @@ const routes: TeacherRoute[] = [
   { path: `${B}/new/class`, element: <ClassStep /> },
   { path: `${B}/new/cover`, element: <CoverStep /> },
   { path: `${B}/new/questions`, element: <QuestionsStep /> },
-  { path: `${B}/new/types`, element: <TypesStep /> },
-  { path: `${B}/new/extras`, element: <ExtrasStep /> },
+  // The old Question types and Marks and lines steps are part of Questions now: an old link or a reload lands there.
+  { path: `${B}/new/types`, element: <Navigate to={newPaperPath('questions')} replace /> },
+  { path: `${B}/new/extras`, element: <Navigate to={newPaperPath('questions')} replace /> },
   { path: `${B}/new/check`, element: <CheckStep /> },
   { path: `${B}/request/:requestId`, element: <RequestPage /> },
   { path: `${B}/paper/:paperId`, element: <PaperPage /> },

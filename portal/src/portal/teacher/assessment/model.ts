@@ -6,21 +6,27 @@ const EN = ASSESSMENT.en;
 /**
  * bd-fmf24g.6 — the teacher v2 New paper's choices and its rules, kept out of the screens so they can be
  * tested on their own. The rules are the WhatsApp Flow's (bot assessment-gen-endpoint.js +
- * question-types.js), which POST /api/internal/assessment/create now holds the portal to as well:
+ * question-types.js), which POST /api/internal/assessment/create now holds the portal to as well.
  *
- *   Book (seen)    the book's own questions: no types to pick, no book count
- *   New (unseen)   new questions on the same topics: the per-type counts add up to the paper's count
- *   Mix (both)     a book count that leaves room for at least one new question; the per-type counts
- *                  add up to the rest
+ * She chooses the paper in parts, as the Flow counts it: how many seen questions (the book's own; no types,
+ * the book's questions already are one), and a count for each unseen type she picked. The paper is what
+ * they add up to, so nothing she types has to match a number typed somewhere else:
+ *
+ *   seen only      contentSource "seen", no types
+ *   unseen only    contentSource "unseen", the types add up to the paper
+ *   both           contentSource "both" with the seen count; the types add up to the rest
  *
  * Nothing here holds a cap or a list the bot owns: the question cap and the type list come from
  * GET /assessment/options; the marks ceiling is the bot's MAX_TOTAL_MARKS (1000), checked again server-side.
  */
 
 export type Source = 'seen' | 'unseen' | 'both';
-export type Step = 'class' | 'cover' | 'questions' | 'types' | 'extras' | 'check';
+export type Step = 'class' | 'cover' | 'questions' | 'check';
 
-export const STEPS: readonly Step[] = ['class', 'cover', 'questions', 'types', 'extras', 'check'];
+export const STEPS: readonly Step[] = ['class', 'cover', 'questions', 'check'];
+
+/** The Flow's MAX_TYPE_SLOTS (question-types.js): the most unseen types one paper takes. */
+export const MAX_TYPES = 8;
 
 /**
  * The FDE board pattern's New paper: Class, then Check (scope and style are trays on Check). Only when
@@ -53,13 +59,12 @@ export type Picks = {
   chapters: number[];
   /** Page ranges [from, to], inclusive. */
   ranges: Array<[number, number]>;
-  count: number;
-  source: Source;
-  /** Mix only: how many from the book. */
+  /** How many seen questions (the book's own); 0 = none. */
   seen: number;
-  typeMode: 'auto' | 'pick';
-  /** Type id → how many, in the order she ticked them. */
+  /** The unseen types on the page, type id → how many, in the order she added them. A 0 is a row she emptied. */
   typeCounts: Record<string, number>;
+  /** The first visit to Questions for this class has filled in the default mix (a class change clears it). */
+  typesSeeded: boolean;
   /** null = no limit. */
   marks: number | null;
   answerLines: boolean;
@@ -75,8 +80,7 @@ export function newPicks(defaultCount: number): Picks {
   return {
     grade: null, subject: null, subjectName: null,
     coverBy: 'chapters', chapters: [], ranges: [],
-    count: defaultCount, source: 'unseen', seen: Math.min(5, Math.max(1, defaultCount - 1)),
-    typeMode: 'auto', typeCounts: {},
+    seen: Math.min(5, Math.max(0, defaultCount - 1)), typeCounts: {}, typesSeeded: false,
     marks: null, answerLines: true,
     patternIntent: null, style: null, pattern: null,
   };
@@ -93,15 +97,43 @@ export function fdeUnitRanges(unitRanges: Array<{ chapter: number; ranges: strin
       .map((m) => [Number(m[1]), Number(m[2])] as [number, number]));
 }
 
-/** How many questions the types are for: none on a book paper, the rest after the book on Mix. */
-export function unseenTarget(p: Picks): number {
-  if (p.source === 'seen') return 0;
-  if (p.source === 'both') return p.count - p.seen;
-  return p.count;
+/** The unseen types with a count, in her order (a row she emptied to 0 is not on the paper). */
+export function chosenTypes(p: Pick<Picks, 'typeCounts'>): Array<[string, number]> {
+  return Object.entries(p.typeCounts).filter(([, n]) => n > 0);
 }
 
-export function typesTotal(p: Picks): number {
-  return Object.values(p.typeCounts).reduce((s, n) => s + (n > 0 ? n : 0), 0);
+/** How many unseen questions: her types added up. */
+export function unseenTotal(p: Pick<Picks, 'typeCounts'>): number {
+  return chosenTypes(p).reduce((s, [, n]) => s + n, 0);
+}
+
+/** How many questions on the paper: the seen ones and the unseen ones. */
+export function questionTotal(p: Pick<Picks, 'seen' | 'typeCounts'>): number {
+  return Math.max(0, p.seen) + unseenTotal(p);
+}
+
+/** Where the paper's questions come from, as the bot names it. */
+export function sourceOf(p: Pick<Picks, 'seen' | 'typeCounts'>): Source {
+  const unseen = unseenTotal(p);
+  if (p.seen > 0 && unseen > 0) return 'both';
+  return p.seen > 0 ? 'seen' : 'unseen';
+}
+
+/** The kinds a first visit starts with, in this order: the objective ones a teacher marks fastest (the bot's DEFAULT_MIX). */
+const DEFAULT_KINDS = ['MCQs', 'True/False', 'Fill in the Blanks'];
+
+/**
+ * A first visit's unseen types: `unseen` questions over the default kinds this subject offers, the remainder to the
+ * earlier ones (as the bot spreads a count), each at least 1. A subject offering none of them starts with its first type.
+ */
+export function defaultTypeCounts(offered: Array<{ id: string; category: 'objective' | 'subjective' }>, unseen: number): Record<string, number> {
+  if (unseen <= 0 || offered.length === 0) return {};
+  const ids = offered.map((t) => t.id);
+  const kinds = DEFAULT_KINDS.filter((k) => ids.includes(k));
+  const use = (kinds.length ? kinds : [ids[0]]).slice(0, unseen);
+  const base = Math.floor(unseen / use.length);
+  const spare = unseen - base * use.length;
+  return Object.fromEntries(use.map((id, i) => [id, base + (i < spare ? 1 : 0)]));
 }
 
 /** "4-14, 30-33" — page_ranges as the bot reads it. */
@@ -116,19 +148,20 @@ export type Why =
   | { code: 'class' }
   | { code: 'chapters' }
   | { code: 'ranges' }
+  | { code: 'none' }
   | { code: 'count'; max: number }
-  | { code: 'seen'; count: number }
-  | { code: 'typesNone' }
-  | { code: 'typesUnder' | 'typesOver'; total: number; target: number }
+  | { code: 'typesMax'; max: number }
   | { code: 'marks'; max: number }
+  | { code: 'marksLow'; total: number }
   | { code: 'earlier'; step: Step }
   | { code: 'generating' }
   | { code: 'scopeOrFde' };
 
 /**
  * Why she may not go on from this step, or null when she may. `max` is GET /assessment/options' maxQuestions.
- * The limits are the server's: count 1..max, a Mix book count 1..count-1, the per-type counts add up to the new
- * questions, marks 1..MAX_TOTAL_MARKS. Every disabled Next / Make my paper says this beside it (ButtonWithReason).
+ * The limits are the server's: the paper 1..max questions, up to MAX_TYPES unseen types, marks 1..MAX_TOTAL_MARKS;
+ * and a marks total under the question count is held here, because the generator drops whole questions to fit a
+ * budget it cannot meet. Every disabled Next / Make my paper says this beside it (ButtonWithReason).
  */
 export function stepWhy(step: Step, p: Picks, max: number, opts: { busy?: boolean; offerFde?: boolean } = {}): Why | null {
   if (isFde(p)) {
@@ -148,20 +181,17 @@ export function stepWhy(step: Step, p: Picks, max: number, opts: { busy?: boolea
     case 'cover':
       if (p.coverBy === 'chapters') return p.chapters.length > 0 ? null : { code: opts.offerFde ? 'scopeOrFde' : 'chapters' };
       return p.ranges.length > 0 ? null : { code: 'ranges' };
-    case 'questions':
-      if (!intIn(p.count, 1, max)) return { code: 'count', max };
-      if (p.source === 'both' && !intIn(p.seen, 1, p.count - 1)) return { code: 'seen', count: p.count };
-      return null;
-    case 'types': {
-      if (p.source === 'seen' || p.typeMode === 'auto') return null;
-      const t = typesStatus(p);
-      if (t.kind === 'none') return { code: 'typesNone' };
-      if (t.kind === 'under') return { code: 'typesUnder', total: t.total, target: t.target };
-      if (t.kind === 'over') return { code: 'typesOver', total: t.total, target: t.target };
+    case 'questions': {
+      const total = questionTotal(p);
+      if (total === 0) return { code: 'none' };
+      if (total > max) return { code: 'count', max };
+      if (Object.keys(p.typeCounts).length > MAX_TYPES) return { code: 'typesMax', max: MAX_TYPES };
+      if (p.marks !== null) {
+        if (!intIn(p.marks, 1, MAX_TOTAL_MARKS)) return { code: 'marks', max: MAX_TOTAL_MARKS };
+        if (p.marks < total) return { code: 'marksLow', total };
+      }
       return null;
     }
-    case 'extras':
-      return p.marks === null || intIn(p.marks, 1, MAX_TOTAL_MARKS) ? null : { code: 'marks', max: MAX_TOTAL_MARKS };
     case 'check': {
       const first = STEPS.slice(0, -1).find((s) => stepWhy(s, p, max) !== null);
       return first ? { code: 'earlier', step: first } : null;
@@ -174,15 +204,6 @@ export function stepWhy(step: Step, p: Picks, max: number, opts: { busy?: boolea
 /** May she go on from this step? */
 export function stepReady(step: Step, p: Picks, max: number): boolean {
   return stepWhy(step, p, max) === null;
-}
-
-/** The per-type counts against the paper's new questions: nothing picked, short of it, past it, or exactly it. */
-export function typesStatus(p: Picks): { kind: 'none' | 'under' | 'over' | 'ok'; total: number; target: number; diff: number } {
-  const total = typesTotal(p);
-  const target = unseenTarget(p);
-  const diff = total - target;
-  const kind = total === 0 ? 'none' : diff < 0 ? 'under' : diff > 0 ? 'over' : 'ok';
-  return { kind, total, target, diff };
 }
 
 export { digitsOnly } from '../ui/digits';
@@ -256,18 +277,17 @@ export function toSpec(p: Picks): V2Spec | FdeSpec {
     };
   }
   const byChapters = p.coverBy === 'chapters';
-  const picked = p.source !== 'seen' && p.typeMode === 'pick';
+  const source = sourceOf(p);
   return {
     grade: p.grade as number,
     subject: p.subject as string,
     chapterNumbers: byChapters ? [...p.chapters].sort((a, b) => a - b) : null,
     pageRanges: byChapters ? null : rangesText(p.ranges),
-    questionCount: p.count,
-    contentSource: p.source,
-    seenCount: p.source === 'both' ? p.seen : null,
-    questionTypes: picked
-      ? Object.entries(p.typeCounts).filter(([, n]) => n > 0).map(([id, count]) => ({ id, count }))
-      : [],
+    questionCount: questionTotal(p),
+    contentSource: source,
+    seenCount: source === 'both' ? p.seen : null,
+    // A seen-only paper sends none: the server holds any types it is sent to the paper's whole count.
+    questionTypes: source === 'seen' ? [] : chosenTypes(p).map(([id, count]) => ({ id, count })),
     totalMarks: p.marks,
     answerLines: p.answerLines,
     // Word stays off: its flag (assessment_docx_enabled) is false in production.
@@ -319,6 +339,8 @@ export function fromSpec(spec: AnySpec, subjectName: string | null): Picks {
   const counted = (spec.questionTypes ?? []).filter((t): t is { id: string; count: number } => typeof t === 'object' && !!t);
   const source: Source = spec.contentSource ?? 'unseen';
   const pattern = spec.pattern ?? null;
+  // An older request with no per-type counts (the auto mix) comes back without types: Questions fills in the default mix.
+  const typed = source !== 'seen' && counted.length > 0;
   return {
     ...newPicks(spec.questionCount),
     grade: spec.grade,
@@ -327,24 +349,22 @@ export function fromSpec(spec: AnySpec, subjectName: string | null): Picks {
     coverBy: chapters.length || !ranges.length ? 'chapters' : 'pages',
     chapters,
     ranges,
-    count: spec.questionCount,
-    source,
-    seen: source === 'both' && spec.seenCount ? spec.seenCount : newPicks(spec.questionCount).seen,
-    typeMode: counted.length ? 'pick' : 'auto',
-    typeCounts: Object.fromEntries(counted.map((t) => [t.id, t.count])),
+    seen: source === 'both' ? (spec.seenCount ?? 0) : source === 'seen' ? spec.questionCount : 0,
+    typeCounts: typed ? Object.fromEntries(counted.map((t) => [t.id, t.count])) : {},
+    typesSeeded: typed || source === 'seen',
     marks: spec.totalMarks ?? null,
     answerLines: spec.answerLines !== false,
     ...(pattern ? {
       style: 'fde' as const, pattern, patternIntent: pattern,
       ...(spec.scope === 'fde' ? { coverBy: 'fde' as const } : {}),
-      count: newPicks(15).count, seen: newPicks(15).seen,
+      seen: newPicks(15).seen, typeCounts: {}, typesSeeded: false,
     } : {}),
   };
 }
 
 /** The job's label in Being made: "Grade 4 · Science · 15 questions". */
 export function paperLabel(p: Picks, C: AssessmentV2Copy = EN): string {
-  return C.join(p.grade !== null ? C.grade(p.grade) : null, p.subjectName ?? p.subject, C.questionsCount(p.count));
+  return C.join(p.grade !== null ? C.grade(p.grade) : null, p.subjectName ?? p.subject, C.questionsCount(questionTotal(p)));
 }
 
 /* ── days (Pakistan, UTC+5 all year) ─────────────────────────────────────── */
