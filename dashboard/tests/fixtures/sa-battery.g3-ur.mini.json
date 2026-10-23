@@ -1,0 +1,1920 @@
+{
+ "battery_id": "sa.coach.G3.A.ur",
+ "version": "1",
+ "form": "coach.G3.A",
+ "surface": "coach",
+ "grades": [
+  3
+ ],
+ "set": "A",
+ "lang": "ur",
+ "maths_form": "G3",
+ "lines": {
+  "welcome": {
+   "en": "Hello! This is not a test for marks. Jugnu will play some reading and number games with you. Listen carefully and do your best.",
+   "ur": "السلام علیکم! یہ نمبروں والا امتحان نہیں ہے۔ جگنو آپ کے ساتھ پڑھنے اور گنتی کے کچھ کھیل کھیلے گا۔ غور سے سنیں اور اپنی پوری کوشش کریں۔",
+   "from": "egra_tk2016:p.186 (consent and \"this is not a test\")",
+   "audio": {
+    "en": "sa/v1/en/cb28c2cafe6e.mp3",
+    "ur": "sa/v1/ur/de57040b398f.mp3"
+   }
+  },
+  "audio_check": {
+   "en": "Can you hear Jugnu? Tap the picture Jugnu says.",
+   "ur": "کیا آپ کو جگنو کی آواز آ رہی ہے؟ جو تصویر جگنو بتائے، اسے دبائیں۔",
+   "from": "adapted:headphone check",
+   "audio": {
+    "en": "sa/v1/en/75aa6411952a.mp3",
+    "ur": "sa/v1/ur/c17051e9cebd.mp3"
+   }
+  },
+  "audio_fail": {
+   "en": "Ask for help with the headphones, then try again.",
+   "ur": "ہیڈ فون کے لیے مدد مانگیں، پھر دوبارہ کوشش کریں۔",
+   "from": "adapted:headphone check",
+   "audio": {
+    "en": "sa/v1/en/1fe934e933f1.mp3",
+    "ur": "sa/v1/ur/661e5cbb64d1.mp3"
+   }
+  },
+  "section_urdu": {
+   "en": "Now some Urdu reading.",
+   "ur": "اب کچھ اردو پڑھتے ہیں۔",
+   "from": "adapted:section",
+   "audio": {
+    "en": "sa/v1/en/cc302c9e13ab.mp3",
+    "ur": "sa/v1/ur/9024dc3146f8.mp3"
+   }
+  },
+  "section_english": {
+   "en": "Now some English reading.",
+   "ur": "اب کچھ انگریزی پڑھتے ہیں۔",
+   "from": "adapted:section",
+   "audio": {
+    "en": "sa/v1/en/54121dfbff4a.mp3",
+    "ur": "sa/v1/ur/648d811d6cf7.mp3"
+   }
+  },
+  "section_maths": {
+   "en": "Now some number games.",
+   "ur": "اب گنتی کے کچھ کھیل۔",
+   "from": "adapted:section",
+   "audio": {
+    "en": "sa/v1/en/03f8f5e8f87f.mp3",
+    "ur": "sa/v1/ur/dcb5a65b8d19.mp3"
+   }
+  },
+  "end": {
+   "en": "All done! Thank you. Please give the phone back to your teacher.",
+   "ur": "سب ہو گیا! شکریہ۔ اب فون واپس اپنے استاد کو دے دیں۔",
+   "from": "adapted:handback",
+   "audio": {
+    "en": "sa/v1/en/ca7101db1ee9.mp3",
+    "ur": "sa/v1/ur/a8369cffa46a.mp3"
+   }
+  }
+ },
+ "tasks": [
+  {
+   "id": "ur.letters",
+   "legacy_block": "ur.letters",
+   "family": "egra",
+   "subtask": "letter_name_identification",
+   "lang": "ur",
+   "title": {
+    "en": "Letters",
+    "ur": "حروف"
+   },
+   "kind": "grid",
+   "mode": "both",
+   "timed_s": 60,
+   "grid": {
+    "cols": 10,
+    "direction": "rtl"
+   },
+   "distractor_pool": [
+    "ر",
+    "د",
+    "م",
+    "ک",
+    "س",
+    "ج",
+    "پ",
+    "ت",
+    "ب",
+    "ا",
+    "ش",
+    "ح",
+    "ع",
+    "گ",
+    "ف",
+    "ق",
+    "ل",
+    "و",
+    "ہ",
+    "ن",
+    "ص",
+    "ث",
+    "ظ",
+    "ز",
+    "ذ",
+    "خ",
+    "ڑ",
+    "ڈ",
+    "ٹ",
+    "چ",
+    "ؤ",
+    "ئ",
+    "ں",
+    "ے",
+    "ض",
+    "ط",
+    "غ",
+    "آ",
+    "ء",
+    "ی"
+   ],
+   "stop": {
+    "first_line_n": 10,
+    "first_line_min_correct": 1,
+    "time_up": true
+   },
+   "scoring": {
+    "unit": "correct_per_minute",
+    "tap": "choice === answer",
+    "record": "scored later from audio (child-test scorer)"
+   },
+   "instruction": {
+    "text": {
+     "en": "Here are some Urdu letters. Listen to the name of a letter, then tap that letter. Go as quickly and carefully as you can.",
+     "ur": "یہ کچھ اردو حروف ہیں۔ ایک حرف کا نام سنیں، پھر وہی حرف دبائیں۔ جتنا جلدی اور دھیان سے ہو سکے، کریں۔"
+    },
+    "audio": {
+     "en": "sa/v1/en/d6c408e8a12e.mp3",
+     "ur": "sa/v1/ur/5d5755a48131.mp3"
+    }
+   },
+   "script": {
+    "intro_record": {
+     "en": "Here is a page of Urdu letters. Say the NAME of each letter out loud, not its sound. Start at the first letter and go along each row. If you do not know a letter, go on to the next one. Read as quickly and carefully as you can.",
+     "ur": "یہ اردو حروفِ تہجی کا صفحہ ہے۔ ہر حرف کا نام اونچی آواز میں بتائیں، آواز نہیں، صرف نام۔ پہلے حرف سے شروع کریں اور ہر سطر میں آگے بڑھیں۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔ جتنا جلدی اور دھیان سے ہو سکے، پڑھیں۔",
+     "from": "v3:sets.A.reading.ur.letters.script.intro+instructions",
+     "audio": {
+      "en": "sa/v1/en/225e29f9cac5.mp3",
+      "ur": "sa/v1/ur/397d029cd267.mp3"
+     }
+    },
+    "intro_tap": {
+     "en": "Here are some Urdu letters. Listen to the name of a letter, then tap that letter. Go as quickly and carefully as you can.",
+     "ur": "یہ کچھ اردو حروف ہیں۔ ایک حرف کا نام سنیں، پھر وہی حرف دبائیں۔ جتنا جلدی اور دھیان سے ہو سکے، کریں۔",
+     "from": "v3:sets.A.reading.ur.letters.script.intro (tap adaptation)",
+     "audio": {
+      "en": "sa/v1/en/d6c408e8a12e.mp3",
+      "ur": "sa/v1/ur/5d5755a48131.mp3"
+     }
+    },
+    "practice_intro": {
+     "en": "First, let us practise.",
+     "ur": "پہلے مشق کرتے ہیں۔",
+     "from": "egra_tk2016:Annex H (practice items)",
+     "audio": {
+      "en": "sa/v1/en/e6b96fe4b839.mp3",
+      "ur": "sa/v1/ur/82460cb82700.mp3"
+     }
+    },
+    "test_intro": {
+     "en": "Now it is your turn. Jugnu will not say if an answer is right until the end.",
+     "ur": "اب آپ کی باری ہے۔ اب جگنو آخر تک نہیں بتائے گا کہ جواب صحیح ہے یا نہیں۔",
+     "from": "egra_tk2016:no feedback on scored items",
+     "audio": {
+      "en": "sa/v1/en/4839742290e1.mp3",
+      "ur": "sa/v1/ur/3b604945be0e.mp3"
+     }
+    },
+    "begin": {
+     "en": "Ready? Begin.",
+     "ur": "تیار ہو جائیں۔ شروع کریں۔",
+     "from": "v3:script.begin",
+     "audio": {
+      "en": "sa/v1/en/66070ffadd11.mp3",
+      "ur": "sa/v1/ur/4d0b7d3e0148.mp3"
+     }
+    },
+    "time_up": {
+     "en": "Stop. Well done for trying.",
+     "ur": "رک جائیں۔ کوشش کرنے پر شاباش۔",
+     "from": "v3:script.stop",
+     "audio": {
+      "en": "sa/v1/en/f210c8da68eb.mp3",
+      "ur": "sa/v1/ur/1cdd01dab734.mp3"
+     }
+    },
+    "early_stop": {
+     "en": "Thank you! Let us go on to the next one.",
+     "ur": "شکریہ! اب اگلے حصے کی طرف چلتے ہیں۔",
+     "from": "v3:script.early_stop",
+     "audio": {
+      "en": "sa/v1/en/1d7b9f0b7745.mp3",
+      "ur": "sa/v1/ur/35b95f7e36d8.mp3"
+     }
+    },
+    "after": {
+     "en": "Good effort! Let us go on to the next part.",
+     "ur": "شاباش! اب اگلے حصے کی طرف چلتے ہیں۔",
+     "from": "v3:script.after",
+     "audio": {
+      "en": "sa/v1/en/4ca13cbee983.mp3",
+      "ur": "sa/v1/ur/c286e8a3cef3.mp3"
+     }
+    }
+   },
+   "practice": [],
+   "practice_note": "No Urdu practice letters: RWP did not record them (R7) and no official Urdu EGRA instrument publishing them was found (SOURCES.md).",
+   "items": [
+    {
+     "id": "ur.letters.001",
+     "label": "ر",
+     "answer": "ر",
+     "say": "رے",
+     "prompt_audio": "sa/v1/ur/816f0a90b6e8.mp3",
+     "choices": [
+      "ث",
+      "ر",
+      "ز",
+      "د"
+     ],
+     "src": "v3:sets.A.reading.ur.letters.items[0]"
+    },
+    {
+     "id": "ur.letters.002",
+     "label": "د",
+     "answer": "د",
+     "say": "دال",
+     "prompt_audio": "sa/v1/ur/19c809448e9c.mp3",
+     "choices": [
+      "ج",
+      "س",
+      "ڑ",
+      "د"
+     ],
+     "src": "v3:sets.A.reading.ur.letters.items[1]"
+    },
+    {
+     "id": "ur.letters.003",
+     "label": "م",
+     "answer": "م",
+     "say": "میم",
+     "prompt_audio": "sa/v1/ur/bf807f818af8.mp3",
+     "choices": [
+      "پ",
+      "م",
+      "ت",
+      "و"
+     ],
+     "src": "v3:sets.A.reading.ur.letters.items[2]"
+    },
+    {
+     "id": "ur.letters.004",
+     "label": "ک",
+     "answer": "ک",
+     "say": "کاف",
+     "prompt_audio": "sa/v1/ur/4283e5e14e7a.mp3",
+     "choices": [
+      "ک",
+      "ج",
+      "خ",
+      "پ"
+     ],
+     "src": "v3:sets.A.reading.ur.letters.items[3]"
+    },
+    {
+     "id": "ur.letters.005",
+     "label": "س",
+     "answer": "س",
+     "say": "سین",
+     "prompt_audio": "sa/v1/ur/ae501622fe29.mp3",
+     "choices": [
+      "ر",
+      "د",
+      "و",
+      "س"
+     ],
+     "src": "v3:sets.A.reading.ur.letters.items[4]"
+    },
+    {
+     "id": "ur.letters.006",
+     "label": "ج",
+     "answer": "ج",
+     "say": "جیم",
+     "prompt_audio": "sa/v1/ur/ac19d85e7375.mp3",
+     "choices": [
+      "ج",
+      "ن",
+      "ئ",
+      "ق"
+     ],
+     "src": "v3:sets.A.reading.ur.letters.items[5]"
+    },
+    {
+     "id": "ur.letters.007",
+     "label": "پ",
+     "answer": "پ",
+     "say": "پے",
+     "prompt_audio": "sa/v1/ur/08df359450d5.mp3",
+     "choices": [
+      "ی",
+      "ع",
+      "ط",
+      "پ"
+     ],
+     "src": "v3:sets.A.reading.ur.letters.items[6]"
+    },
+    {
+     "id": "ur.letters.008",
+     "label": "ت",
+     "answer": "ت",
+     "say": "تے",
+     "prompt_audio": "sa/v1/ur/2f21faeb3c2e.mp3",
+     "choices": [
+      "ت",
+      "گ",
+      "ج",
+      "ظ"
+     ],
+     "src": "v3:sets.A.reading.ur.letters.items[7]"
+    },
+    {
+     "id": "ur.letters.009",
+     "label": "ب",
+     "answer": "ب",
+     "say": "بے",
+     "prompt_audio": "sa/v1/ur/f597912f9c77.mp3",
+     "choices": [
+      "ک",
+      "ب",
+      "ڈ",
+      "ں"
+     ],
+     "src": "v3:sets.A.reading.ur.letters.items[8]"
+    },
+    {
+     "id": "ur.letters.010",
+     "label": "ا",
+     "answer": "ا",
+     "say": "الف",
+     "prompt_audio": "sa/v1/ur/ae3bcc8c0aa8.mp3",
+     "choices": [
+      "ز",
+      "ں",
+      "ے",
+      "ا"
+     ],
+     "src": "v3:sets.A.reading.ur.letters.items[9]"
+    },
+    {
+     "id": "ur.letters.011",
+     "label": "ش",
+     "answer": "ش",
+     "say": "شین",
+     "prompt_audio": "sa/v1/ur/d36d09c210b5.mp3",
+     "choices": [
+      "ط",
+      "پ",
+      "ش",
+      "چ"
+     ],
+     "src": "v3:sets.A.reading.ur.letters.items[10]"
+    },
+    {
+     "id": "ur.letters.012",
+     "label": "ح",
+     "answer": "ح",
+     "say": "بڑی حے",
+     "prompt_audio": "sa/v1/ur/8ecac027d791.mp3",
+     "choices": [
+      "ح",
+      "ئ",
+      "ر",
+      "ف"
+     ],
+     "src": "v3:sets.A.reading.ur.letters.items[11]"
+    }
+   ],
+   "source": {
+    "items": "rwp2026:letterid_fl_urd",
+    "script": "egra_tk2016:p.189",
+    "sa_choices": "poolChoices: the answer + 3 others from the same grid"
+   }
+  },
+  {
+   "id": "ur.story",
+   "legacy_block": "ur.story",
+   "family": "egra",
+   "subtask": "oral_reading_fluency",
+   "lang": "ur",
+   "title": {
+    "en": "Story reading",
+    "ur": "کہانی پڑھنا"
+   },
+   "kind": "passage",
+   "mode": "record",
+   "timed_s": 60,
+   "passage": {
+    "text": "آج بلال اپنے والد کے ساتھ دریائے جہلم کے کنارے گیا۔ وہاں ٹھنڈی ہوا چل رہی تھی اور پانی آہستہ بہہ رہا تھا۔ بلال نے کشتی کو حرکت کرتے دیکھا۔ اس کے والد نے اسے بتایا کہ دریا ہمارے ملک کے لیے اہم ہیں۔ واپسی پر بلال نے خوبصورت پتھر جمع کیے اور مسکراتا رہا۔ وہ بہت خوش بھی تھا۔",
+    "lines": [
+     {
+      "n": 1,
+      "from": 0,
+      "to": 10
+     },
+     {
+      "n": 2,
+      "from": 11,
+      "to": 22
+     },
+     {
+      "n": 3,
+      "from": 23,
+      "to": 29
+     },
+     {
+      "n": 4,
+      "from": 30,
+      "to": 43
+     },
+     {
+      "n": 5,
+      "from": 44,
+      "to": 54
+     },
+     {
+      "n": 6,
+      "from": 55,
+      "to": 59
+     }
+    ],
+    "direction": "rtl"
+   },
+   "stop": {
+    "first_line_n": 11,
+    "first_line_min_correct": 1,
+    "time_up": true
+   },
+   "scoring": {
+    "unit": "correct_words_per_minute",
+    "record": "scored later from audio (child-test scorer)",
+    "tap": "the child taps the last word read; words read = position (not scored for accuracy on the phone)"
+   },
+   "instruction": {
+    "text": {
+     "en": "Here is a short story. Read it out loud, quickly but carefully. Start at the first word. If you come to a word you do not know, go on to the next word. When you finish, there are some questions about the story.",
+     "ur": "یہ ایک مختصر کہانی ہے۔ اسے اونچی آواز میں، جلدی مگر دھیان سے پڑھیں۔ پہلے لفظ سے شروع کریں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔ کہانی پڑھنے کے بعد اس کے بارے میں کچھ سوال ہوں گے۔"
+    },
+    "audio": {
+     "en": "sa/v1/en/2fbfba504dc3.mp3",
+     "ur": "sa/v1/ur/cc1046230196.mp3"
+    }
+   },
+   "script": {
+    "intro_record": {
+     "en": "Here is a short story. Read it out loud, quickly but carefully. Start at the first word. If you come to a word you do not know, go on to the next word. When you finish, there are some questions about the story.",
+     "ur": "یہ ایک مختصر کہانی ہے۔ اسے اونچی آواز میں، جلدی مگر دھیان سے پڑھیں۔ پہلے لفظ سے شروع کریں۔ اگر کوئی لفظ نہ آئے تو اگلے لفظ پر چلے جائیں۔ کہانی پڑھنے کے بعد اس کے بارے میں کچھ سوال ہوں گے۔",
+     "from": "v3:sets.A.reading.<lang>.story.script.intro",
+     "audio": {
+      "en": "sa/v1/en/2fbfba504dc3.mp3",
+      "ur": "sa/v1/ur/cc1046230196.mp3"
+     }
+    },
+    "intro_tap": {
+     "en": "When Jugnu says stop, tap the last word you read.",
+     "ur": "جب جگنو کہے رک جائیں، تو وہ آخری لفظ دبائیں جو آپ نے پڑھا۔",
+     "from": "egra_tk2016:p.197 (the enumerator brackets the last word read)",
+     "audio": {
+      "en": "sa/v1/en/4b94e917b89f.mp3",
+      "ur": "sa/v1/ur/bb58aef42874.mp3"
+     }
+    },
+    "practice_intro": {
+     "en": "First, let us practise.",
+     "ur": "پہلے مشق کرتے ہیں۔",
+     "from": "egra_tk2016:Annex H (practice items)",
+     "audio": {
+      "en": "sa/v1/en/e6b96fe4b839.mp3",
+      "ur": "sa/v1/ur/82460cb82700.mp3"
+     }
+    },
+    "test_intro": {
+     "en": "Now it is your turn. Jugnu will not say if an answer is right until the end.",
+     "ur": "اب آپ کی باری ہے۔ اب جگنو آخر تک نہیں بتائے گا کہ جواب صحیح ہے یا نہیں۔",
+     "from": "egra_tk2016:no feedback on scored items",
+     "audio": {
+      "en": "sa/v1/en/4839742290e1.mp3",
+      "ur": "sa/v1/ur/3b604945be0e.mp3"
+     }
+    },
+    "begin": {
+     "en": "Ready? Begin.",
+     "ur": "تیار ہو جائیں۔ شروع کریں۔",
+     "from": "v3:script.begin",
+     "audio": {
+      "en": "sa/v1/en/66070ffadd11.mp3",
+      "ur": "sa/v1/ur/4d0b7d3e0148.mp3"
+     }
+    },
+    "time_up": {
+     "en": "Stop. Well done for trying.",
+     "ur": "رک جائیں۔ کوشش کرنے پر شاباش۔",
+     "from": "v3:script.stop",
+     "audio": {
+      "en": "sa/v1/en/f210c8da68eb.mp3",
+      "ur": "sa/v1/ur/1cdd01dab734.mp3"
+     }
+    },
+    "early_stop": {
+     "en": "Thank you! Let us go on to the next one.",
+     "ur": "شکریہ! اب اگلے حصے کی طرف چلتے ہیں۔",
+     "from": "v3:script.early_stop",
+     "audio": {
+      "en": "sa/v1/en/1d7b9f0b7745.mp3",
+      "ur": "sa/v1/ur/35b95f7e36d8.mp3"
+     }
+    },
+    "after": {
+     "en": "Good effort! Let us go on to the next part.",
+     "ur": "شاباش! اب اگلے حصے کی طرف چلتے ہیں۔",
+     "from": "v3:script.after",
+     "audio": {
+      "en": "sa/v1/en/4ca13cbee983.mp3",
+      "ur": "sa/v1/ur/c286e8a3cef3.mp3"
+     }
+    }
+   },
+   "practice": [],
+   "practice_note": "EGRA oral reading has no practice item (TK p.197).",
+   "items": [
+    {
+     "id": "ur.story.001",
+     "label": "آج",
+     "answer": "آج",
+     "line": 1,
+     "src": "v3:sets.A.reading.ur.story.items[0]"
+    },
+    {
+     "id": "ur.story.002",
+     "label": "بلال",
+     "answer": "بلال",
+     "line": 1,
+     "src": "v3:sets.A.reading.ur.story.items[1]"
+    },
+    {
+     "id": "ur.story.003",
+     "label": "اپنے",
+     "answer": "اپنے",
+     "line": 1,
+     "src": "v3:sets.A.reading.ur.story.items[2]"
+    },
+    {
+     "id": "ur.story.004",
+     "label": "والد",
+     "answer": "والد",
+     "line": 1,
+     "src": "v3:sets.A.reading.ur.story.items[3]"
+    },
+    {
+     "id": "ur.story.005",
+     "label": "کے",
+     "answer": "کے",
+     "line": 1,
+     "src": "v3:sets.A.reading.ur.story.items[4]"
+    },
+    {
+     "id": "ur.story.006",
+     "label": "ساتھ",
+     "answer": "ساتھ",
+     "line": 1,
+     "src": "v3:sets.A.reading.ur.story.items[5]"
+    },
+    {
+     "id": "ur.story.007",
+     "label": "دریائے",
+     "answer": "دریائے",
+     "line": 1,
+     "src": "v3:sets.A.reading.ur.story.items[6]"
+    },
+    {
+     "id": "ur.story.008",
+     "label": "جہلم",
+     "answer": "جہلم",
+     "line": 1,
+     "src": "v3:sets.A.reading.ur.story.items[7]"
+    },
+    {
+     "id": "ur.story.009",
+     "label": "کے",
+     "answer": "کے",
+     "line": 1,
+     "src": "v3:sets.A.reading.ur.story.items[8]"
+    },
+    {
+     "id": "ur.story.010",
+     "label": "کنارے",
+     "answer": "کنارے",
+     "line": 1,
+     "src": "v3:sets.A.reading.ur.story.items[9]"
+    },
+    {
+     "id": "ur.story.011",
+     "label": "گیا",
+     "answer": "گیا",
+     "line": 1,
+     "src": "v3:sets.A.reading.ur.story.items[10]"
+    },
+    {
+     "id": "ur.story.012",
+     "label": "وہاں",
+     "answer": "وہاں",
+     "line": 2,
+     "src": "v3:sets.A.reading.ur.story.items[11]"
+    },
+    {
+     "id": "ur.story.013",
+     "label": "ٹھنڈی",
+     "answer": "ٹھنڈی",
+     "line": 2,
+     "src": "v3:sets.A.reading.ur.story.items[12]"
+    },
+    {
+     "id": "ur.story.014",
+     "label": "ہوا",
+     "answer": "ہوا",
+     "line": 2,
+     "src": "v3:sets.A.reading.ur.story.items[13]"
+    },
+    {
+     "id": "ur.story.015",
+     "label": "چل",
+     "answer": "چل",
+     "line": 2,
+     "src": "v3:sets.A.reading.ur.story.items[14]"
+    },
+    {
+     "id": "ur.story.016",
+     "label": "رہی",
+     "answer": "رہی",
+     "line": 2,
+     "src": "v3:sets.A.reading.ur.story.items[15]"
+    },
+    {
+     "id": "ur.story.017",
+     "label": "تھی",
+     "answer": "تھی",
+     "line": 2,
+     "src": "v3:sets.A.reading.ur.story.items[16]"
+    },
+    {
+     "id": "ur.story.018",
+     "label": "اور",
+     "answer": "اور",
+     "line": 2,
+     "src": "v3:sets.A.reading.ur.story.items[17]"
+    },
+    {
+     "id": "ur.story.019",
+     "label": "پانی",
+     "answer": "پانی",
+     "line": 2,
+     "src": "v3:sets.A.reading.ur.story.items[18]"
+    },
+    {
+     "id": "ur.story.020",
+     "label": "آہستہ",
+     "answer": "آہستہ",
+     "line": 2,
+     "src": "v3:sets.A.reading.ur.story.items[19]"
+    },
+    {
+     "id": "ur.story.021",
+     "label": "بہہ",
+     "answer": "بہہ",
+     "line": 2,
+     "src": "v3:sets.A.reading.ur.story.items[20]"
+    },
+    {
+     "id": "ur.story.022",
+     "label": "رہا",
+     "answer": "رہا",
+     "line": 2,
+     "src": "v3:sets.A.reading.ur.story.items[21]"
+    },
+    {
+     "id": "ur.story.023",
+     "label": "تھا",
+     "answer": "تھا",
+     "line": 2,
+     "src": "v3:sets.A.reading.ur.story.items[22]"
+    },
+    {
+     "id": "ur.story.024",
+     "label": "بلال",
+     "answer": "بلال",
+     "line": 3,
+     "src": "v3:sets.A.reading.ur.story.items[23]"
+    },
+    {
+     "id": "ur.story.025",
+     "label": "نے",
+     "answer": "نے",
+     "line": 3,
+     "src": "v3:sets.A.reading.ur.story.items[24]"
+    },
+    {
+     "id": "ur.story.026",
+     "label": "کشتی",
+     "answer": "کشتی",
+     "line": 3,
+     "src": "v3:sets.A.reading.ur.story.items[25]"
+    },
+    {
+     "id": "ur.story.027",
+     "label": "کو",
+     "answer": "کو",
+     "line": 3,
+     "src": "v3:sets.A.reading.ur.story.items[26]"
+    },
+    {
+     "id": "ur.story.028",
+     "label": "حرکت",
+     "answer": "حرکت",
+     "line": 3,
+     "src": "v3:sets.A.reading.ur.story.items[27]"
+    },
+    {
+     "id": "ur.story.029",
+     "label": "کرتے",
+     "answer": "کرتے",
+     "line": 3,
+     "src": "v3:sets.A.reading.ur.story.items[28]"
+    },
+    {
+     "id": "ur.story.030",
+     "label": "دیکھا",
+     "answer": "دیکھا",
+     "line": 3,
+     "src": "v3:sets.A.reading.ur.story.items[29]"
+    },
+    {
+     "id": "ur.story.031",
+     "label": "اس",
+     "answer": "اس",
+     "line": 4,
+     "src": "v3:sets.A.reading.ur.story.items[30]"
+    },
+    {
+     "id": "ur.story.032",
+     "label": "کے",
+     "answer": "کے",
+     "line": 4,
+     "src": "v3:sets.A.reading.ur.story.items[31]"
+    },
+    {
+     "id": "ur.story.033",
+     "label": "والد",
+     "answer": "والد",
+     "line": 4,
+     "src": "v3:sets.A.reading.ur.story.items[32]"
+    },
+    {
+     "id": "ur.story.034",
+     "label": "نے",
+     "answer": "نے",
+     "line": 4,
+     "src": "v3:sets.A.reading.ur.story.items[33]"
+    },
+    {
+     "id": "ur.story.035",
+     "label": "اسے",
+     "answer": "اسے",
+     "line": 4,
+     "src": "v3:sets.A.reading.ur.story.items[34]"
+    },
+    {
+     "id": "ur.story.036",
+     "label": "بتایا",
+     "answer": "بتایا",
+     "line": 4,
+     "src": "v3:sets.A.reading.ur.story.items[35]"
+    },
+    {
+     "id": "ur.story.037",
+     "label": "کہ",
+     "answer": "کہ",
+     "line": 4,
+     "src": "v3:sets.A.reading.ur.story.items[36]"
+    },
+    {
+     "id": "ur.story.038",
+     "label": "دریا",
+     "answer": "دریا",
+     "line": 4,
+     "src": "v3:sets.A.reading.ur.story.items[37]"
+    },
+    {
+     "id": "ur.story.039",
+     "label": "ہمارے",
+     "answer": "ہمارے",
+     "line": 4,
+     "src": "v3:sets.A.reading.ur.story.items[38]"
+    },
+    {
+     "id": "ur.story.040",
+     "label": "ملک",
+     "answer": "ملک",
+     "line": 4,
+     "src": "v3:sets.A.reading.ur.story.items[39]"
+    },
+    {
+     "id": "ur.story.041",
+     "label": "کے",
+     "answer": "کے",
+     "line": 4,
+     "src": "v3:sets.A.reading.ur.story.items[40]"
+    },
+    {
+     "id": "ur.story.042",
+     "label": "لیے",
+     "answer": "لیے",
+     "line": 4,
+     "src": "v3:sets.A.reading.ur.story.items[41]"
+    },
+    {
+     "id": "ur.story.043",
+     "label": "اہم",
+     "answer": "اہم",
+     "line": 4,
+     "src": "v3:sets.A.reading.ur.story.items[42]"
+    },
+    {
+     "id": "ur.story.044",
+     "label": "ہیں",
+     "answer": "ہیں",
+     "line": 4,
+     "src": "v3:sets.A.reading.ur.story.items[43]"
+    },
+    {
+     "id": "ur.story.045",
+     "label": "واپسی",
+     "answer": "واپسی",
+     "line": 5,
+     "src": "v3:sets.A.reading.ur.story.items[44]"
+    },
+    {
+     "id": "ur.story.046",
+     "label": "پر",
+     "answer": "پر",
+     "line": 5,
+     "src": "v3:sets.A.reading.ur.story.items[45]"
+    },
+    {
+     "id": "ur.story.047",
+     "label": "بلال",
+     "answer": "بلال",
+     "line": 5,
+     "src": "v3:sets.A.reading.ur.story.items[46]"
+    },
+    {
+     "id": "ur.story.048",
+     "label": "نے",
+     "answer": "نے",
+     "line": 5,
+     "src": "v3:sets.A.reading.ur.story.items[47]"
+    },
+    {
+     "id": "ur.story.049",
+     "label": "خوبصورت",
+     "answer": "خوبصورت",
+     "line": 5,
+     "src": "v3:sets.A.reading.ur.story.items[48]"
+    },
+    {
+     "id": "ur.story.050",
+     "label": "پتھر",
+     "answer": "پتھر",
+     "line": 5,
+     "src": "v3:sets.A.reading.ur.story.items[49]"
+    },
+    {
+     "id": "ur.story.051",
+     "label": "جمع",
+     "answer": "جمع",
+     "line": 5,
+     "src": "v3:sets.A.reading.ur.story.items[50]"
+    },
+    {
+     "id": "ur.story.052",
+     "label": "کیے",
+     "answer": "کیے",
+     "line": 5,
+     "src": "v3:sets.A.reading.ur.story.items[51]"
+    },
+    {
+     "id": "ur.story.053",
+     "label": "اور",
+     "answer": "اور",
+     "line": 5,
+     "src": "v3:sets.A.reading.ur.story.items[52]"
+    },
+    {
+     "id": "ur.story.054",
+     "label": "مسکراتا",
+     "answer": "مسکراتا",
+     "line": 5,
+     "src": "v3:sets.A.reading.ur.story.items[53]"
+    },
+    {
+     "id": "ur.story.055",
+     "label": "رہا",
+     "answer": "رہا",
+     "line": 5,
+     "src": "v3:sets.A.reading.ur.story.items[54]"
+    },
+    {
+     "id": "ur.story.056",
+     "label": "وہ",
+     "answer": "وہ",
+     "line": 6,
+     "src": "v3:sets.A.reading.ur.story.items[55]"
+    },
+    {
+     "id": "ur.story.057",
+     "label": "بہت",
+     "answer": "بہت",
+     "line": 6,
+     "src": "v3:sets.A.reading.ur.story.items[56]"
+    },
+    {
+     "id": "ur.story.058",
+     "label": "خوش",
+     "answer": "خوش",
+     "line": 6,
+     "src": "v3:sets.A.reading.ur.story.items[57]"
+    },
+    {
+     "id": "ur.story.059",
+     "label": "بھی",
+     "answer": "بھی",
+     "line": 6,
+     "src": "v3:sets.A.reading.ur.story.items[58]"
+    },
+    {
+     "id": "ur.story.060",
+     "label": "تھا",
+     "answer": "تھا",
+     "line": 6,
+     "src": "v3:sets.A.reading.ur.story.items[59]"
+    }
+   ],
+   "source": {
+    "items": "rwp2026:orf_reading_urd",
+    "script": "egra_tk2016:pp.197-198",
+    "script_ur": "select2024:pp.103-104"
+   }
+  },
+  {
+   "id": "ur.story_comp",
+   "legacy_block": "ur.story",
+   "family": "egra",
+   "subtask": "reading_comprehension",
+   "lang": "ur",
+   "title": {
+    "en": "Reading questions",
+    "ur": "کہانی کے سوال"
+   },
+   "kind": "choice",
+   "mode": "both",
+   "timed_s": null,
+   "depends_on": {
+    "task": "ur.story",
+    "items_read_upto": true
+   },
+   "stop": {
+    "only_read_lines": true
+   },
+   "scoring": {
+    "unit": "correct_of_asked",
+    "tap": "choice === answer",
+    "record": "scored later against accept[] (child-test scorer)"
+   },
+   "instruction": {
+    "text": {
+     "en": "Now some questions about the story you just read. Listen to each question, then tap the answer.",
+     "ur": "اب اس کہانی کے بارے میں کچھ سوال ہیں جو آپ نے ابھی پڑھی۔ ہر سوال سنیں، پھر جواب دبائیں۔"
+    },
+    "audio": {
+     "en": "sa/v1/en/2bcdddcfb9db.mp3",
+     "ur": "sa/v1/ur/6ecd72346365.mp3"
+    }
+   },
+   "script": {
+    "intro_record": {
+     "en": "Now some questions about the story you just read. Listen to each question and say your answer out loud. You can answer in Urdu or English.",
+     "ur": "اب اس کہانی کے بارے میں کچھ سوال ہیں جو آپ نے ابھی پڑھی۔ ہر سوال سنیں اور اپنا جواب اونچی آواز میں بتائیں۔ اردو یا انگریزی، کسی بھی زبان میں جواب دیں۔",
+     "from": "v3:sets.A.reading.<lang>.story.script.questions_intro",
+     "audio": {
+      "en": "sa/v1/en/b3d0e3009fd9.mp3",
+      "ur": "sa/v1/ur/f95a6c31d1ef.mp3"
+     }
+    },
+    "intro_tap": {
+     "en": "Now some questions about the story you just read. Listen to each question, then tap the answer.",
+     "ur": "اب اس کہانی کے بارے میں کچھ سوال ہیں جو آپ نے ابھی پڑھی۔ ہر سوال سنیں، پھر جواب دبائیں۔",
+     "from": "v3:sets.A.reading.<lang>.story.script.questions_intro (tap adaptation)",
+     "audio": {
+      "en": "sa/v1/en/2bcdddcfb9db.mp3",
+      "ur": "sa/v1/ur/6ecd72346365.mp3"
+     }
+    },
+    "practice_intro": {
+     "en": "First, let us practise.",
+     "ur": "پہلے مشق کرتے ہیں۔",
+     "from": "egra_tk2016:Annex H (practice items)",
+     "audio": {
+      "en": "sa/v1/en/e6b96fe4b839.mp3",
+      "ur": "sa/v1/ur/82460cb82700.mp3"
+     }
+    },
+    "test_intro": {
+     "en": "Now it is your turn. Jugnu will not say if an answer is right until the end.",
+     "ur": "اب آپ کی باری ہے۔ اب جگنو آخر تک نہیں بتائے گا کہ جواب صحیح ہے یا نہیں۔",
+     "from": "egra_tk2016:no feedback on scored items",
+     "audio": {
+      "en": "sa/v1/en/4839742290e1.mp3",
+      "ur": "sa/v1/ur/3b604945be0e.mp3"
+     }
+    },
+    "begin": {
+     "en": "Ready? Begin.",
+     "ur": "تیار ہو جائیں۔ شروع کریں۔",
+     "from": "v3:script.begin",
+     "audio": {
+      "en": "sa/v1/en/66070ffadd11.mp3",
+      "ur": "sa/v1/ur/4d0b7d3e0148.mp3"
+     }
+    },
+    "time_up": {
+     "en": "Stop. Well done for trying.",
+     "ur": "رک جائیں۔ کوشش کرنے پر شاباش۔",
+     "from": "v3:script.stop",
+     "audio": {
+      "en": "sa/v1/en/f210c8da68eb.mp3",
+      "ur": "sa/v1/ur/1cdd01dab734.mp3"
+     }
+    },
+    "early_stop": {
+     "en": "Thank you! Let us go on to the next one.",
+     "ur": "شکریہ! اب اگلے حصے کی طرف چلتے ہیں۔",
+     "from": "v3:script.early_stop",
+     "audio": {
+      "en": "sa/v1/en/1d7b9f0b7745.mp3",
+      "ur": "sa/v1/ur/35b95f7e36d8.mp3"
+     }
+    },
+    "after": {
+     "en": "Good effort! Let us go on to the next part.",
+     "ur": "شاباش! اب اگلے حصے کی طرف چلتے ہیں۔",
+     "from": "v3:script.after",
+     "audio": {
+      "en": "sa/v1/en/4ca13cbee983.mp3",
+      "ur": "sa/v1/ur/c286e8a3cef3.mp3"
+     }
+    }
+   },
+   "practice": [],
+   "practice_note": "EGRA oral reading has no practice item (TK p.197).",
+   "items": [
+    {
+     "id": "ur.story.q1",
+     "prompt": {
+      "text": "بلال کس کے ساتھ دریائے جہلم گیا؟",
+      "lang": "ur",
+      "audio": "sa/v1/ur/9ab9e3a1167b.mp3"
+     },
+     "answer": "اپنے والد کے ساتھ",
+     "accept": [
+      "اپنے والد کے ساتھ",
+      "والد کے ساتھ",
+      "ابو کے ساتھ",
+      "ابا کے ساتھ",
+      "باپ کے ساتھ",
+      "پاپا کے ساتھ",
+      "اپنے ابو کے ساتھ",
+      "والد",
+      "ابو",
+      "ابا",
+      "باپ"
+     ],
+     "choices": [
+      "اپنے والد کے ساتھ",
+      "والدہ کے ساتھ",
+      "امی کے ساتھ"
+     ],
+     "choice_audio": [
+      "sa/v1/ur/f3e817c067ea.mp3",
+      "sa/v1/ur/8257298e3778.mp3",
+      "sa/v1/ur/1acabeb6565a.mp3"
+     ],
+     "needs_line": 1,
+     "rubric": "Correct if the child says Bilal went with his father (والد / ابو / ابا / باپ).",
+     "src": "v3:sets.A.reading.ur.story.questions[0]"
+    },
+    {
+     "id": "ur.story.q2",
+     "prompt": {
+      "text": "وہاں کیا بہہ رہا تھا؟",
+      "lang": "ur",
+      "audio": "sa/v1/ur/10718f2f04e3.mp3"
+     },
+     "answer": "پانی",
+     "accept": [
+      "پانی",
+      "دریا کا پانی",
+      "دریا"
+     ],
+     "choices": [
+      "ہوا",
+      "پانی",
+      "کشتی"
+     ],
+     "choice_audio": [
+      "sa/v1/ur/db3ae984f7c7.mp3",
+      "sa/v1/ur/873e72f46545.mp3",
+      "sa/v1/ur/88050e6fd446.mp3"
+     ],
+     "needs_line": 2,
+     "rubric": "Correct if the child says the water (پانی). The breeze, the boat or stones are wrong.",
+     "src": "v3:sets.A.reading.ur.story.questions[1]"
+    },
+    {
+     "id": "ur.story.q3",
+     "prompt": {
+      "text": "بلال نے کیا حرکت کرتے دیکھا؟",
+      "lang": "ur",
+      "audio": "sa/v1/ur/ce6ebd916cb4.mp3"
+     },
+     "answer": "کشتی",
+     "accept": [
+      "کشتی",
+      "ایک کشتی"
+     ],
+     "choices": [
+      "کشتی",
+      "ہوا",
+      "پانی"
+     ],
+     "choice_audio": [
+      "sa/v1/ur/88050e6fd446.mp3",
+      "sa/v1/ur/db3ae984f7c7.mp3",
+      "sa/v1/ur/873e72f46545.mp3"
+     ],
+     "needs_line": 3,
+     "rubric": "Correct only if the child says a boat (کشتی).",
+     "src": "v3:sets.A.reading.ur.story.questions[2]"
+    },
+    {
+     "id": "ur.story.q4",
+     "prompt": {
+      "text": "واپسی پر بلال نے کیا جمع کیے؟",
+      "lang": "ur",
+      "audio": "sa/v1/ur/0594a34275cc.mp3"
+     },
+     "answer": "پتھر",
+     "accept": [
+      "پتھر",
+      "خوبصورت پتھر",
+      "پتھروں"
+     ],
+     "choices": [
+      "پانی",
+      "پتھر",
+      "کشتی"
+     ],
+     "choice_audio": [
+      "sa/v1/ur/873e72f46545.mp3",
+      "sa/v1/ur/5a84f5d4ee45.mp3",
+      "sa/v1/ur/88050e6fd446.mp3"
+     ],
+     "needs_line": 5,
+     "rubric": "Correct if the child says stones or beautiful stones (پتھر).",
+     "src": "v3:sets.A.reading.ur.story.questions[3]"
+    },
+    {
+     "id": "ur.story.q5",
+     "prompt": {
+      "text": "والد نے دریا کے بارے میں کیوں بتایا ہوگا؟",
+      "lang": "ur",
+      "audio": "sa/v1/ur/34b1b5228630.mp3"
+     },
+     "answer": "دریا کی اہمیت سمجھانے کے لیے",
+     "accept": [
+      "دریا کی اہمیت سمجھانے کے لیے",
+      "سکھانے کے لیے",
+      "معلومات دینے کے لیے",
+      "کیونکہ دریا اہم ہیں",
+      "بتانے کے لیے کہ دریا ملک کے لیے اہم ہیں",
+      "تاکہ بلال کو پتا چلے"
+     ],
+     "choices": [
+      "معلوم نہیں",
+      "کیونکہ کشتی چل رہی تھی",
+      "دریا کی اہمیت سمجھانے کے لیے"
+     ],
+     "choice_audio": [
+      "sa/v1/ur/c160d2fbc4a6.mp3",
+      "sa/v1/ur/65c080f50626.mp3",
+      "sa/v1/ur/54d23c4bb958.mp3"
+     ],
+     "needs_line": 4,
+     "rubric": "Correct if the child says the father wanted to teach or explain why rivers matter for the country, as in the RWP key.",
+     "src": "v3:sets.A.reading.ur.story.questions[4]"
+    },
+    {
+     "id": "ur.story.q6",
+     "prompt": {
+      "text": "بلال خوش کیوں تھا؟",
+      "lang": "ur",
+      "audio": "sa/v1/ur/8b7d8f5fb408.mp3"
+     },
+     "answer": "سیر کرنے کی وجہ سے",
+     "accept": [
+      "سیر کرنے کی وجہ سے",
+      "دریا کی سیر کی",
+      "پتھر جمع کرنے کی وجہ سے",
+      "خوبصورت پتھر ملے",
+      "دریا دیکھ کر",
+      "والد کے ساتھ دریا پر گیا تھا",
+      "ابو کے ساتھ سیر کی",
+      "کشتی دیکھ کر",
+      "ٹھنڈی ہوا چل رہی تھی"
+     ],
+     "choices": [
+      "سیر کرنے کی وجہ سے",
+      "کیونکہ وہ خوش تھا",
+      "معلوم نہیں"
+     ],
+     "choice_audio": [
+      "sa/v1/ur/227145f81bbb.mp3",
+      "sa/v1/ur/47463a056698.mp3",
+      "sa/v1/ur/c160d2fbc4a6.mp3"
+     ],
+     "needs_line": 5,
+     "rubric": "Correct if the reason comes from the story: the trip to the river with his father, the cool breeze, seeing the river or the boat, or collecting beautiful stones. A circular answer (\"because he was happy / smiling\") is wrong. Evidence is spread over lines 1-5; needs_line marks the stones (line 5).",
+     "src": "v3:sets.A.reading.ur.story.questions[5]"
+    }
+   ],
+   "question_timeout_s": null,
+   "source": {
+    "items": "rwp2026:orf_reading_urd",
+    "script": "egra_tk2016:pp.197-198",
+    "script_ur": "select2024:pp.103-104",
+    "sa_choices": "the key's first accepted answer + its first two listed wrong answers (item-bank v3 accept/reject)"
+   }
+  },
+  {
+   "id": "ma.add1",
+   "legacy_block": "ma.add1",
+   "family": "egma",
+   "subtask": "addition_level_1",
+   "lang": null,
+   "title": {
+    "en": "Addition, quick",
+    "ur": "جمع، فوری"
+   },
+   "kind": "choice",
+   "mode": "both",
+   "timed_s": 60,
+   "stop": {
+    "time_up": true
+   },
+   "scoring": {
+    "unit": "correct_per_minute",
+    "tap": "choice === answer",
+    "record": "scored later from audio (child-test scorer)"
+   },
+   "instruction": {
+    "text": {
+     "en": "Here are some addition problems. Tap the answer to each one. If you do not know an answer, tap Next.",
+     "ur": "یہ کچھ جمع کے سوال ہیں۔ ہر سوال کا جواب دبائیں۔ اگر جواب نہ آئے تو \"اگلا\" دبائیں۔"
+    },
+    "audio": {
+     "en": "sa/v1/en/db34d6c3ded7.mp3",
+     "ur": "sa/v1/ur/ebc40be53d77.mp3"
+    }
+   },
+   "script": {
+    "intro_record": {
+     "en": "Here are some addition problems. Say the answer to each one out loud. If you do not know an answer, go on to the next one.",
+     "ur": "یہ کچھ جمع کے سوال ہیں۔ ہر سوال کا جواب اونچی آواز میں بتائیں۔ اگر کسی سوال کا جواب نہ آئے تو اگلے سوال پر چلے جائیں۔",
+     "from": "v3:sets.A.maths.3.add1.script.intro",
+     "audio": {
+      "en": "sa/v1/en/5254563c52dc.mp3",
+      "ur": "sa/v1/ur/f99a34632238.mp3"
+     }
+    },
+    "intro_tap": {
+     "en": "Here are some addition problems. Tap the answer to each one. If you do not know an answer, tap Next.",
+     "ur": "یہ کچھ جمع کے سوال ہیں۔ ہر سوال کا جواب دبائیں۔ اگر جواب نہ آئے تو \"اگلا\" دبائیں۔",
+     "from": "v3:sets.A.maths.3.add1.script.intro (tap adaptation)",
+     "audio": {
+      "en": "sa/v1/en/db34d6c3ded7.mp3",
+      "ur": "sa/v1/ur/ebc40be53d77.mp3"
+     }
+    },
+    "practice_intro": {
+     "en": "First, let us practise.",
+     "ur": "پہلے مشق کرتے ہیں۔",
+     "from": "egra_tk2016:Annex H (practice items)",
+     "audio": {
+      "en": "sa/v1/en/e6b96fe4b839.mp3",
+      "ur": "sa/v1/ur/82460cb82700.mp3"
+     }
+    },
+    "test_intro": {
+     "en": "Now it is your turn. Jugnu will not say if an answer is right until the end.",
+     "ur": "اب آپ کی باری ہے۔ اب جگنو آخر تک نہیں بتائے گا کہ جواب صحیح ہے یا نہیں۔",
+     "from": "egra_tk2016:no feedback on scored items",
+     "audio": {
+      "en": "sa/v1/en/4839742290e1.mp3",
+      "ur": "sa/v1/ur/3b604945be0e.mp3"
+     }
+    },
+    "begin": {
+     "en": "Ready? Begin.",
+     "ur": "تیار ہو جائیں۔ شروع کریں۔",
+     "from": "v3:script.begin",
+     "audio": {
+      "en": "sa/v1/en/66070ffadd11.mp3",
+      "ur": "sa/v1/ur/4d0b7d3e0148.mp3"
+     }
+    },
+    "time_up": {
+     "en": "Stop. Well done for trying.",
+     "ur": "رک جائیں۔ کوشش کرنے پر شاباش۔",
+     "from": "v3:script.stop",
+     "audio": {
+      "en": "sa/v1/en/f210c8da68eb.mp3",
+      "ur": "sa/v1/ur/1cdd01dab734.mp3"
+     }
+    },
+    "early_stop": {
+     "en": "Thank you! Let us go on to the next one.",
+     "ur": "شکریہ! اب اگلے حصے کی طرف چلتے ہیں۔",
+     "from": "v3:script.early_stop",
+     "audio": {
+      "en": "sa/v1/en/1d7b9f0b7745.mp3",
+      "ur": "sa/v1/ur/35b95f7e36d8.mp3"
+     }
+    },
+    "after": {
+     "en": "Good effort! Let us go on to the next part.",
+     "ur": "شاباش! اب اگلے حصے کی طرف چلتے ہیں۔",
+     "from": "v3:script.after",
+     "audio": {
+      "en": "sa/v1/en/4ca13cbee983.mp3",
+      "ur": "sa/v1/ur/c286e8a3cef3.mp3"
+     }
+    }
+   },
+   "practice": [],
+   "practice_note": "Core EGMA Level 1 has no practice items.",
+   "items": [
+    {
+     "id": "ma.add1.G3.01",
+     "label": "1 + 3 =",
+     "answer": 4,
+     "choices": [
+      3,
+      4,
+      5,
+      6
+     ],
+     "src": "v3:sets.A.maths.3.add1.items[0]"
+    },
+    {
+     "id": "ma.add1.G3.02",
+     "label": "2 + 3 =",
+     "answer": 5,
+     "choices": [
+      7,
+      4,
+      5,
+      6
+     ],
+     "src": "v3:sets.A.maths.3.add1.items[1]"
+    },
+    {
+     "id": "ma.add1.G3.03",
+     "label": "6 + 2 =",
+     "answer": 8,
+     "choices": [
+      7,
+      8,
+      10,
+      9
+     ],
+     "src": "v3:sets.A.maths.3.add1.items[2]"
+    },
+    {
+     "id": "ma.add1.G3.04",
+     "label": "4 + 5 =",
+     "answer": 9,
+     "choices": [
+      10,
+      9,
+      11,
+      8
+     ],
+     "src": "v3:sets.A.maths.3.add1.items[3]"
+    },
+    {
+     "id": "ma.add1.G3.05",
+     "label": "3 + 3 =",
+     "answer": 6,
+     "choices": [
+      8,
+      6,
+      7,
+      5
+     ],
+     "src": "v3:sets.A.maths.3.add1.items[4]"
+    },
+    {
+     "id": "ma.add1.G3.06",
+     "label": "8 + 1 =",
+     "answer": 9,
+     "choices": [
+      10,
+      8,
+      9,
+      11
+     ],
+     "src": "v3:sets.A.maths.3.add1.items[5]"
+    }
+   ],
+   "source": {
+    "items": "core_egma:p.6",
+    "script": "core_egma:p.6",
+    "sa_choices": "the answer + near neighbours (v4 G1A tiles_rule: k±1, k±2; ±step for patterns; ±10 for two-digit)"
+   }
+  },
+  {
+   "id": "ma.add2",
+   "legacy_block": "ma.add2",
+   "family": "egma",
+   "subtask": "addition_level_2",
+   "lang": null,
+   "title": {
+    "en": "Addition, harder",
+    "ur": "جمع، مشکل"
+   },
+   "kind": "choice",
+   "mode": "both",
+   "timed_s": null,
+   "stop": {
+    "consecutive_errors": 4
+   },
+   "scoring": {
+    "unit": "correct_of_attempted",
+    "tap": "choice === answer",
+    "record": "scored later from audio (child-test scorer)"
+   },
+   "instruction": {
+    "text": {
+     "en": "Here are some more addition problems. Take your time, then tap the answer.",
+     "ur": "یہ جمع کے کچھ اور سوال ہیں۔ آرام سے سوچیں، پھر جواب دبائیں۔"
+    },
+    "audio": {
+     "en": "sa/v1/en/4c408e02b8b9.mp3",
+     "ur": "sa/v1/ur/8ad1af9eccc7.mp3"
+    }
+   },
+   "script": {
+    "intro_record": {
+     "en": "Here are some more addition problems. Take your time. Say the answer out loud.",
+     "ur": "یہ جمع کے کچھ اور سوال ہیں۔ آرام سے کریں۔ جواب اونچی آواز میں بتائیں۔",
+     "from": "v3:sets.A.maths.3.add2.script.intro",
+     "audio": {
+      "en": "sa/v1/en/313bd0ced6dc.mp3",
+      "ur": "sa/v1/ur/ef322d403936.mp3"
+     }
+    },
+    "intro_tap": {
+     "en": "Here are some more addition problems. Take your time, then tap the answer.",
+     "ur": "یہ جمع کے کچھ اور سوال ہیں۔ آرام سے سوچیں، پھر جواب دبائیں۔",
+     "from": "v3:sets.A.maths.3.add2.script.intro (tap adaptation)",
+     "audio": {
+      "en": "sa/v1/en/4c408e02b8b9.mp3",
+      "ur": "sa/v1/ur/8ad1af9eccc7.mp3"
+     }
+    },
+    "practice_intro": {
+     "en": "First, let us practise.",
+     "ur": "پہلے مشق کرتے ہیں۔",
+     "from": "egra_tk2016:Annex H (practice items)",
+     "audio": {
+      "en": "sa/v1/en/e6b96fe4b839.mp3",
+      "ur": "sa/v1/ur/82460cb82700.mp3"
+     }
+    },
+    "test_intro": {
+     "en": "Now it is your turn. Jugnu will not say if an answer is right until the end.",
+     "ur": "اب آپ کی باری ہے۔ اب جگنو آخر تک نہیں بتائے گا کہ جواب صحیح ہے یا نہیں۔",
+     "from": "egra_tk2016:no feedback on scored items",
+     "audio": {
+      "en": "sa/v1/en/4839742290e1.mp3",
+      "ur": "sa/v1/ur/3b604945be0e.mp3"
+     }
+    },
+    "begin": {
+     "en": "Ready? Begin.",
+     "ur": "تیار ہو جائیں۔ شروع کریں۔",
+     "from": "v3:script.begin",
+     "audio": {
+      "en": "sa/v1/en/66070ffadd11.mp3",
+      "ur": "sa/v1/ur/4d0b7d3e0148.mp3"
+     }
+    },
+    "time_up": {
+     "en": "Stop. Well done for trying.",
+     "ur": "رک جائیں۔ کوشش کرنے پر شاباش۔",
+     "from": "v3:script.stop",
+     "audio": {
+      "en": "sa/v1/en/f210c8da68eb.mp3",
+      "ur": "sa/v1/ur/1cdd01dab734.mp3"
+     }
+    },
+    "early_stop": {
+     "en": "Thank you! Let us go on to the next one.",
+     "ur": "شکریہ! اب اگلے حصے کی طرف چلتے ہیں۔",
+     "from": "v3:script.early_stop",
+     "audio": {
+      "en": "sa/v1/en/1d7b9f0b7745.mp3",
+      "ur": "sa/v1/ur/35b95f7e36d8.mp3"
+     }
+    },
+    "after": {
+     "en": "Good effort! Let us go on to the next part.",
+     "ur": "شاباش! اب اگلے حصے کی طرف چلتے ہیں۔",
+     "from": "v3:script.after",
+     "audio": {
+      "en": "sa/v1/en/4ca13cbee983.mp3",
+      "ur": "sa/v1/ur/c286e8a3cef3.mp3"
+     }
+    }
+   },
+   "practice": [],
+   "practice_note": "Core EGMA Level 2 has no practice items.",
+   "items": [
+    {
+     "id": "ma.add2.G3.01",
+     "label": "13 + 6 =",
+     "answer": 19,
+     "choices": [
+      19,
+      18,
+      20,
+      21
+     ],
+     "src": "v3:sets.A.maths.3.add2.items[0]"
+    },
+    {
+     "id": "ma.add2.G3.02",
+     "label": "18 + 7 =",
+     "answer": 25,
+     "choices": [
+      25,
+      26,
+      27,
+      24
+     ],
+     "src": "v3:sets.A.maths.3.add2.items[1]"
+    },
+    {
+     "id": "ma.add2.G3.03",
+     "label": "12 + 14 =",
+     "answer": 26,
+     "choices": [
+      27,
+      25,
+      26,
+      28
+     ],
+     "src": "v3:sets.A.maths.3.add2.items[2]"
+    },
+    {
+     "id": "ma.add2.G3.04",
+     "label": "22 + 37 =",
+     "answer": 59,
+     "choices": [
+      60,
+      61,
+      58,
+      59
+     ],
+     "src": "v3:sets.A.maths.3.add2.items[3]"
+    },
+    {
+     "id": "ma.add2.G3.05",
+     "label": "38 + 26 =",
+     "answer": 64,
+     "choices": [
+      65,
+      63,
+      66,
+      64
+     ],
+     "src": "v3:sets.A.maths.3.add2.items[4]"
+    }
+   ],
+   "source": {
+    "items": "core_egma:p.7",
+    "script": "core_egma:p.7",
+    "sa_choices": "the answer + near neighbours (v4 G1A tiles_rule: k±1, k±2; ±step for patterns; ±10 for two-digit)"
+   },
+   "depends_on": {
+    "task": "ma.add1",
+    "skip_if_zero": true
+   }
+  },
+  {
+   "id": "ma.discrimination",
+   "legacy_block": "ma.discrimination",
+   "family": "egma",
+   "subtask": "quantity_discrimination",
+   "lang": null,
+   "title": {
+    "en": "Which is bigger",
+    "ur": "کون سا بڑا ہے"
+   },
+   "kind": "choice",
+   "mode": "both",
+   "timed_s": null,
+   "stop": {
+    "consecutive_errors": 4
+   },
+   "scoring": {
+    "unit": "correct_of_attempted",
+    "tap": "choice === answer",
+    "record": "scored later from audio (child-test scorer)"
+   },
+   "instruction": {
+    "text": {
+     "en": "Look at the two numbers. Tap the number that is bigger.",
+     "ur": "ان دو نمبروں کو دیکھیں۔ جو نمبر بڑا ہے، اسے دبائیں۔"
+    },
+    "audio": {
+     "en": "sa/v1/en/16287345a662.mp3",
+     "ur": "sa/v1/ur/1989fc2b9419.mp3"
+    }
+   },
+   "script": {
+    "intro_record": {
+     "en": "Look at the two numbers. Which number is bigger? Say it out loud.",
+     "ur": "ان دو نمبروں کو دیکھیں۔ کون سا نمبر بڑا ہے؟ اونچی آواز میں بتائیں۔",
+     "from": "v3:sets.A.maths.3.discrimination.script.item",
+     "audio": {
+      "en": "sa/v1/en/a29399a1c7a4.mp3",
+      "ur": "sa/v1/ur/c0f70e46625a.mp3"
+     }
+    },
+    "intro_tap": {
+     "en": "Look at the two numbers. Tap the number that is bigger.",
+     "ur": "ان دو نمبروں کو دیکھیں۔ جو نمبر بڑا ہے، اسے دبائیں۔",
+     "from": "v3:sets.A.maths.3.discrimination.script.item (tap adaptation)",
+     "audio": {
+      "en": "sa/v1/en/16287345a662.mp3",
+      "ur": "sa/v1/ur/1989fc2b9419.mp3"
+     }
+    },
+    "practice_intro": {
+     "en": "First, let us practise.",
+     "ur": "پہلے مشق کرتے ہیں۔",
+     "from": "egra_tk2016:Annex H (practice items)",
+     "audio": {
+      "en": "sa/v1/en/e6b96fe4b839.mp3",
+      "ur": "sa/v1/ur/82460cb82700.mp3"
+     }
+    },
+    "test_intro": {
+     "en": "Now it is your turn. Jugnu will not say if an answer is right until the end.",
+     "ur": "اب آپ کی باری ہے۔ اب جگنو آخر تک نہیں بتائے گا کہ جواب صحیح ہے یا نہیں۔",
+     "from": "egra_tk2016:no feedback on scored items",
+     "audio": {
+      "en": "sa/v1/en/4839742290e1.mp3",
+      "ur": "sa/v1/ur/3b604945be0e.mp3"
+     }
+    },
+    "begin": {
+     "en": "Ready? Begin.",
+     "ur": "تیار ہو جائیں۔ شروع کریں۔",
+     "from": "v3:script.begin",
+     "audio": {
+      "en": "sa/v1/en/66070ffadd11.mp3",
+      "ur": "sa/v1/ur/4d0b7d3e0148.mp3"
+     }
+    },
+    "time_up": {
+     "en": "Stop. Well done for trying.",
+     "ur": "رک جائیں۔ کوشش کرنے پر شاباش۔",
+     "from": "v3:script.stop",
+     "audio": {
+      "en": "sa/v1/en/f210c8da68eb.mp3",
+      "ur": "sa/v1/ur/1cdd01dab734.mp3"
+     }
+    },
+    "early_stop": {
+     "en": "Thank you! Let us go on to the next one.",
+     "ur": "شکریہ! اب اگلے حصے کی طرف چلتے ہیں۔",
+     "from": "v3:script.early_stop",
+     "audio": {
+      "en": "sa/v1/en/1d7b9f0b7745.mp3",
+      "ur": "sa/v1/ur/35b95f7e36d8.mp3"
+     }
+    },
+    "after": {
+     "en": "Good effort! Let us go on to the next part.",
+     "ur": "شاباش! اب اگلے حصے کی طرف چلتے ہیں۔",
+     "from": "v3:script.after",
+     "audio": {
+      "en": "sa/v1/en/4ca13cbee983.mp3",
+      "ur": "sa/v1/ur/c286e8a3cef3.mp3"
+     }
+    }
+   },
+   "practice": [
+    {
+     "id": "ma.discrimination.G3.p1",
+     "label": "8   4",
+     "answer": 8,
+     "choices": [
+      8,
+      4
+     ],
+     "src": "v3:sets.A.maths.3.discrimination.practice[0]",
+     "feedback": {
+      "right": {
+       "en": "That is right, 8 is bigger.",
+       "ur": "بالکل ٹھیک، ۸ بڑا ہے۔",
+       "audio": {
+        "en": "sa/v1/en/441fea47e34a.mp3",
+        "ur": "sa/v1/ur/69e97332dfa3.mp3"
+       }
+      },
+      "wrong": {
+       "en": "The bigger number is 8.",
+       "ur": "بڑا نمبر ۸ ہے۔",
+       "audio": {
+        "en": "sa/v1/en/951520461c09.mp3",
+        "ur": "sa/v1/ur/900ef0663b0b.mp3"
+       }
+      }
+     }
+    },
+    {
+     "id": "ma.discrimination.G3.p2",
+     "label": "10   12",
+     "answer": 12,
+     "choices": [
+      10,
+      12
+     ],
+     "src": "v3:sets.A.maths.3.discrimination.practice[1]",
+     "feedback": {
+      "right": {
+       "en": "That is right, 12 is bigger.",
+       "ur": "بالکل ٹھیک، ۱۲ بڑا ہے۔",
+       "audio": {
+        "en": "sa/v1/en/7c7dcca03c60.mp3",
+        "ur": "sa/v1/ur/5530c2709a39.mp3"
+       }
+      },
+      "wrong": {
+       "en": "The bigger number is 12.",
+       "ur": "بڑا نمبر ۱۲ ہے۔",
+       "audio": {
+        "en": "sa/v1/en/8d7b12af776d.mp3",
+        "ur": "sa/v1/ur/85bc0673fd48.mp3"
+       }
+      }
+     }
+    }
+   ],
+   "items": [
+    {
+     "id": "ma.discrimination.G3.01",
+     "label": "7   5",
+     "answer": 7,
+     "choices": [
+      7,
+      5
+     ],
+     "src": "v3:sets.A.maths.3.discrimination.items[0]"
+    },
+    {
+     "id": "ma.discrimination.G3.02",
+     "label": "11   24",
+     "answer": 24,
+     "choices": [
+      11,
+      24
+     ],
+     "src": "v3:sets.A.maths.3.discrimination.items[1]"
+    },
+    {
+     "id": "ma.discrimination.G3.03",
+     "label": "39   23",
+     "answer": 39,
+     "choices": [
+      39,
+      23
+     ],
+     "src": "v3:sets.A.maths.3.discrimination.items[2]"
+    },
+    {
+     "id": "ma.discrimination.G3.04",
+     "label": "58   49",
+     "answer": 58,
+     "choices": [
+      58,
+      49
+     ],
+     "src": "v3:sets.A.maths.3.discrimination.items[3]"
+    },
+    {
+     "id": "ma.discrimination.G3.05",
+     "label": "65   67",
+     "answer": 67,
+     "choices": [
+      65,
+      67
+     ],
+     "src": "v3:sets.A.maths.3.discrimination.items[4]"
+    },
+    {
+     "id": "ma.discrimination.G3.06",
+     "label": "94   78",
+     "answer": 94,
+     "choices": [
+      94,
+      78
+     ],
+     "src": "v3:sets.A.maths.3.discrimination.items[5]"
+    },
+    {
+     "id": "ma.discrimination.G3.07",
+     "label": "146   153",
+     "answer": 153,
+     "choices": [
+      146,
+      153
+     ],
+     "src": "v3:sets.A.maths.3.discrimination.items[6]"
+    },
+    {
+     "id": "ma.discrimination.G3.08",
+     "label": "287   534",
+     "answer": 534,
+     "choices": [
+      287,
+      534
+     ],
+     "src": "v3:sets.A.maths.3.discrimination.items[7]"
+    },
+    {
+     "id": "ma.discrimination.G3.09",
+     "label": "623   632",
+     "answer": 632,
+     "choices": [
+      623,
+      632
+     ],
+     "src": "v3:sets.A.maths.3.discrimination.items[8]"
+    },
+    {
+     "id": "ma.discrimination.G3.10",
+     "label": "867   965",
+     "answer": 965,
+     "choices": [
+      867,
+      965
+     ],
+     "src": "v3:sets.A.maths.3.discrimination.items[9]"
+    }
+   ],
+   "source": {
+    "items": "core_egma:p.3",
+    "script": "core_egma:p.3",
+    "practice": "core_egma:p.3",
+    "sa_choices": "the item's own two numbers"
+   }
+  }
+ ]
+}

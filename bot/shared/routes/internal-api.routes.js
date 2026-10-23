@@ -2844,6 +2844,9 @@ router.post('/coaching/class-check', requireInternalKey, portalCoachingRoute('cl
     userId: b.userId, coachingSessionId: b.coachingSessionId, answer: b.answer,
   })));
 
+// bd-s1oo0.7 — the coach app's child test (portal → bot). Its own file; the
+// router checks the internal key itself.
+router.use('/child-test', require('./child-test-app.routes').router);
 /* ------------------------------------------------------------------------- *
  * bd-5rz1v.6 — a COACH's /observe observation, run from the portal.
  *

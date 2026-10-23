@@ -79,6 +79,40 @@ function isAssessmentGeneratorEnabled(supabase) {
 /** bd-3bvfj — app_settings key for teacher self-observation from the portal. */
 const PORTAL_SELF_OBSERVATION_KEY = 'portal_self_observation';
 
+/** bd-s1oo0.7 — app_settings key for the child test in the coach app (true or a pilot list). */
+const PORTAL_CHILD_TEST_KEY = 'portal_child_test';
+
+/** The coach's Learning assessment (the child takes the battery alone on the coach's phone): true or a pilot list. */
+const PORTAL_CHILD_TEST_SA_KEY = 'portal_child_test_sa';
+
+/**
+ * The coach's per-session Results page for the Learning assessment (per task: how the child answered, the SA scale,
+ * the recording's state; read only, no names). Same shape and rule as the keys above: true = everyone, a list of
+ * users.id = a pilot, absent = off. Off, GET …/sa/session/:id/results is 404 and the page says "not available".
+ */
+const SA_RESULTS_VIEW_KEY = 'sa_results_view';
+
+/**
+ * Who reads ANY coach's session on that Results page (the admin view). Same shape and rule as the keys above: true =
+ * everyone, a list of users.id = those users, absent = nobody. Checked for the portal SESSION user only; the bot then
+ * skips its own-session check for that one read.
+ */
+const SA_RESULTS_ADMINS_KEY = 'sa_results_admins';
+
+/**
+ * The results dashboard on REAL sessions (GET …/sa/sessions): a coach's own sessions, a results admin's every coach's,
+ * in the example dashboard's layout. Same shape and rule as the keys above: true = everyone, a list of users.id = a
+ * pilot, absent = off. Off, the route is 404 and the page stays the example (or "not available").
+ */
+const SA_REAL_DASHBOARD_KEY = 'sa_real_dashboard';
+
+/**
+ * The visit review page (GET …/sa/session/:id/review, POST …/review/mark): one session item by item, with the
+ * recordings, the app's and the scoring agents' marks, and a reviewer's own mark per item. Same shape and rule as the
+ * keys above. Off, both routes are 404.
+ */
+const SA_REVIEW_PAGE_KEY = 'sa_review_page';
+
 /**
  * bd-5rz1v.6 — app_settings key for a COACH running an /observe observation from
  * the portal (record or send the lesson, check the draft, the talk with the
@@ -318,6 +352,12 @@ module.exports = {
   PORTAL_ASSESSMENT_EDITING_KEY,
   isPortalAssessmentEditingEnabled,
   PORTAL_SELF_OBSERVATION_KEY,
+  PORTAL_CHILD_TEST_KEY,
+  PORTAL_CHILD_TEST_SA_KEY,
+  SA_RESULTS_VIEW_KEY,
+  SA_RESULTS_ADMINS_KEY,
+  SA_REAL_DASHBOARD_KEY,
+  SA_REVIEW_PAGE_KEY,
   PORTAL_COACH_OBSERVATION_KEY,
   PORTAL_NEW_UI_KEY,
   PORTAL_COACH_V2_KEY,

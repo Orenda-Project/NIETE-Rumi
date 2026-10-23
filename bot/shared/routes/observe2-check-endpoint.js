@@ -332,6 +332,8 @@ async function askDebrief(form, coach) {
       await WhatsAppService.sendInteractiveButtons(coach.phone_number, Debrief.buildDebriefChoiceButtons(form.coaching_session_id, S));
     }
     logToFile('[observe2] debrief offered', { formId: form.id, sessionId: form.coaching_session_id });
+    const ChildTestOffer = require('../services/child-test/conversation/offer');
+    await ChildTestOffer.sendOffer({ coachUserId: form.observer_user_id, kind: 'f', id: form.id });
   } catch (err) {
     logToFile('[observe2] asking about the debrief failed', { formId: form.id, error: err.message }, 'error');
   }

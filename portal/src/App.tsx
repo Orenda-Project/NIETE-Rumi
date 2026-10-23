@@ -64,6 +64,11 @@ const LeaderHome = page(() => import("./portal/pages/LeaderHome"));
 const LeaderTeachers = page(() => import("./portal/pages/LeaderTeachers"));
 const LeaderTeacherDetail = page(() => import("./portal/pages/LeaderTeacherDetail"));
 const LeaderObservations = page(() => import("./portal/pages/LeaderObservations"));
+const LeaderChildTest = page(() => import("./portal/pages/LeaderChildTest"));
+const LeaderAssess = page(() => import("./portal/pages/LeaderAssess"));
+const LeaderAssessResults = page(() => import("./portal/pages/LeaderAssessResults"));
+const LeaderAssessDashboard = page(() => import("./portal/pages/LeaderAssessDashboard"));
+const LeaderAssessReview = page(() => import("./portal/pages/LeaderAssessReview"));
 const LeaderObserveRecord = page(() => import("./portal/pages/LeaderObserveRecord"));
 const LeaderObservation = page(() => import("./portal/pages/LeaderObservation"));
 const LeaderObserveDraft = page(() => import("./portal/pages/LeaderObserveDraft"));
@@ -259,6 +264,17 @@ const App = () => {
             <Route path="/portal/leader" element={<LeaderHome />} />
             <Route path="/portal/leader/teachers" element={<LeaderTeachers />} />
             <Route path="/portal/leader/observations" element={<LeaderObservations />} />
+            {/* bd-s1oo0.7 — the child test in the coach app; the page and the
+                API both check the portal_child_test flag. */}
+            <Route path="/portal/leader/child-test" element={<LeaderChildTest />} />
+            {/* The coach's Learning assessment; the page and the API both check portal_child_test_sa. */}
+            <Route path="/portal/leader/assess" element={<LeaderAssess />} />
+            {/* One session's results (read only); the API checks sa_results_view. */}
+            <Route path="/portal/leader/assess/results/:sessionId" element={<LeaderAssessResults />} />
+            {/* The example results dashboard (synthetic data); the page checks sa_example_dashboard, sandbox only. */}
+            <Route path="/portal/leader/assess/dashboard" element={<LeaderAssessDashboard />} />
+            <Route path="/portal/leader/assess/review" element={<LeaderAssessReview />} />
+            <Route path="/portal/leader/assess/review/:sessionId" element={<LeaderAssessReview />} />
             {/* bd-5rz1v.6 — a coach's /observe observation from the portal (dark behind portal_coach_observation). */}
             <Route path="/portal/leader/observe/new" element={<LeaderObserveRecord />} />
             <Route path="/portal/leader/observe/:id" element={<LeaderObservation />} />

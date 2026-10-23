@@ -1,0 +1,1429 @@
+{
+ "version": "child-test-items-v1",
+ "cue": {
+  "urdu": {
+   "start": "اب شروع کریں",
+   "stop": "بس، شکریہ",
+   "alt_start": [
+    "شروع کریں",
+    "چلیں شروع کریں"
+   ],
+   "alt_stop": [
+    "بس",
+    "شکریہ"
+   ],
+   "stt_language": "ur"
+  },
+  "english": {
+   "start": "Please start reading",
+   "stop": "Stop, thank you",
+   "alt_start": [
+    "start reading",
+    "start now",
+    "اب شروع کریں"
+   ],
+   "alt_stop": [
+    "stop",
+    "thank you",
+    "بس، شکریہ"
+   ],
+   "stt_language": "en"
+  },
+  "maths": {
+   "start": "اب سوال شروع کریں",
+   "stop": "بس، شکریہ",
+   "alt_start": [
+    "سوال شروع کریں",
+    "اب شروع کریں"
+   ],
+   "alt_stop": [
+    "بس",
+    "شکریہ"
+   ],
+   "stt_language": "ur",
+   "note": "Marks the start of the 60-second quick-sums run; the 8 numbers are read before it, untimed."
+  }
+ },
+ "grades": {
+  "3": {
+   "forms": {
+    "A": {
+     "urdu": {
+      "story": {
+       "id": "u3A-story",
+       "title": "دریا کی سیر",
+       "text": "آج بلال اپنے والد کے ساتھ دریائے جہلم کے کنارے گیا۔ وہاں ٹھنڈی ہوا چل رہی تھی اور پانی آہستہ بہہ رہا تھا۔ بلال نے کشتی کو حرکت کرتے دیکھا۔ اس کے والد نے اسے بتایا کہ دریا ہمارے ملک کے لیے اہم ہیں۔ واپسی پر بلال نے خوبصورت پتھر جمع کیے اور مسکراتا رہا۔ وہ بہت خوش بھی تھا۔",
+       "tokens": [
+        "آج",
+        "بلال",
+        "اپنے",
+        "والد",
+        "کے",
+        "ساتھ",
+        "دریائے",
+        "جہلم",
+        "کے",
+        "کنارے",
+        "گیا",
+        "وہاں",
+        "ٹھنڈی",
+        "ہوا",
+        "چل",
+        "رہی",
+        "تھی",
+        "اور",
+        "پانی",
+        "آہستہ",
+        "بہہ",
+        "رہا",
+        "تھا",
+        "بلال",
+        "نے",
+        "کشتی",
+        "کو",
+        "حرکت",
+        "کرتے",
+        "دیکھا",
+        "اس",
+        "کے",
+        "والد",
+        "نے",
+        "اسے",
+        "بتایا",
+        "کہ",
+        "دریا",
+        "ہمارے",
+        "ملک",
+        "کے",
+        "لیے",
+        "اہم",
+        "ہیں",
+        "واپسی",
+        "پر",
+        "بلال",
+        "نے",
+        "خوبصورت",
+        "پتھر",
+        "جمع",
+        "کیے",
+        "اور",
+        "مسکراتا",
+        "رہا",
+        "وہ",
+        "بہت",
+        "خوش",
+        "بھی",
+        "تھا"
+       ],
+       "word_count": 60,
+       "source": "may2026-orf_urd",
+       "lines": [
+        {
+         "n": 1,
+         "from": 0,
+         "to": 10
+        },
+        {
+         "n": 2,
+         "from": 11,
+         "to": 22
+        },
+        {
+         "n": 3,
+         "from": 23,
+         "to": 29
+        },
+        {
+         "n": 4,
+         "from": 30,
+         "to": 43
+        },
+        {
+         "n": 5,
+         "from": 44,
+         "to": 54
+        },
+        {
+         "n": 6,
+         "from": 55,
+         "to": 59
+        }
+       ],
+       "names": [
+        "بلال",
+        "جہلم",
+        "دریائے"
+       ],
+       "vetting": {
+        "metrics": {
+         "word_count": 60,
+         "mean_word_len": 3.43,
+         "sentences": 6,
+         "mean_sentence_len": 10.0,
+         "corpus_coverage": 92.7,
+         "distinct_chars": 29
+        },
+        "status": "pending-llm-panel"
+       }
+      },
+      "questions": [
+       {
+        "id": "u3A-q1",
+        "prompt": "بلال کس کے ساتھ دریائے جہلم گیا؟",
+        "type": "literal",
+        "needs_line": 1,
+        "accept": [
+         "اپنے والد کے ساتھ",
+         "والد کے ساتھ",
+         "ابو کے ساتھ",
+         "ابا کے ساتھ",
+         "باپ کے ساتھ"
+        ],
+        "reject": [
+         "امی کے ساتھ",
+         "دوست کے ساتھ",
+         "اکیلا"
+        ],
+        "rubric": "Correct if the child says Bilal went with his father (والد / ابو / ابا / باپ).",
+        "source": "rdcomp_lit1_urd"
+       },
+       {
+        "id": "u3A-q2",
+        "prompt": "بلال نے کیا حرکت کرتے دیکھا؟",
+        "type": "literal",
+        "needs_line": 3,
+        "accept": [
+         "کشتی",
+         "ایک کشتی"
+        ],
+        "reject": [
+         "پانی",
+         "ہوا",
+         "مچھلی",
+         "دریا"
+        ],
+        "rubric": "Correct only if the child says a boat (کشتی).",
+        "source": "rdcomp_lit3_urd"
+       },
+       {
+        "id": "u3A-q3",
+        "prompt": "بلال خوش کیوں تھا؟",
+        "type": "inferential",
+        "needs_line": 6,
+        "accept": [
+         "سیر کرنے کی وجہ سے",
+         "پتھر جمع کرنے کی وجہ سے",
+         "دریا دیکھ کر",
+         "والد کے ساتھ دریا پر گیا تھا",
+         "کشتی دیکھ کر"
+        ],
+        "reject": [
+         "معلوم نہیں",
+         "اسکول سے چھٹی تھی"
+        ],
+        "rubric": "Correct if the reason comes from the story: the trip to the river with his father, seeing the river or the boat, or collecting beautiful stones.",
+        "source": "rdcomp_inf2_urd"
+       }
+      ],
+      "first_sounds": [
+       {
+        "id": "u3A-fs1",
+        "word": "مچھلی",
+        "sound": "م",
+        "say": "مَ",
+        "accept": [
+         "م",
+         "مَ"
+        ]
+       },
+       {
+        "id": "u3A-fs2",
+        "word": "چاند",
+        "sound": "چ",
+        "say": "چَ",
+        "accept": [
+         "چ",
+         "چَ"
+        ]
+       },
+       {
+        "id": "u3A-fs3",
+        "word": "بکری",
+        "sound": "ب",
+        "say": "بَ",
+        "accept": [
+         "ب",
+         "بَ"
+        ]
+       },
+       {
+        "id": "u3A-fs4",
+        "word": "لڑکا",
+        "sound": "ل",
+        "say": "لَ",
+        "accept": [
+         "ل",
+         "لَ"
+        ]
+       },
+       {
+        "id": "u3A-fs5",
+        "word": "ڈبہ",
+        "sound": "ڈ",
+        "say": "ڈَ",
+        "accept": [
+         "ڈ",
+         "ڈَ"
+        ]
+       }
+      ],
+      "nonwords": [
+       {
+        "id": "u3A-nw1",
+        "text": "تامو",
+        "sounds": [
+         "ت",
+         "ا",
+         "م",
+         "و"
+        ]
+       },
+       {
+        "id": "u3A-nw2",
+        "text": "نوپی",
+        "sounds": [
+         "ن",
+         "و",
+         "پ",
+         "ی"
+        ]
+       },
+       {
+        "id": "u3A-nw3",
+        "text": "کیبا",
+        "sounds": [
+         "ک",
+         "ی",
+         "ب",
+         "ا"
+        ]
+       },
+       {
+        "id": "u3A-nw4",
+        "text": "لوشے",
+        "sounds": [
+         "ل",
+         "و",
+         "ش",
+         "ے"
+        ]
+       },
+       {
+        "id": "u3A-nw5",
+        "text": "ریدو",
+        "sounds": [
+         "ر",
+         "ی",
+         "د",
+         "و"
+        ]
+       }
+      ],
+      "fallback": {
+       "letters": [
+        "ر",
+        "د",
+        "م",
+        "ک",
+        "س",
+        "ج",
+        "پ",
+        "ت",
+        "ب",
+        "ا"
+       ],
+       "words": [
+        "بچہ",
+        "دروازہ",
+        "پانی",
+        "کتاب",
+        "گھر",
+        "قلم",
+        "بستہ",
+        "کمرہ",
+        "استاد",
+        "سکول"
+       ],
+       "source": "may2026-letterid_urd+idwrd_urd row 1"
+      }
+     },
+     "english": {
+      "story": {
+       "id": "e3A-story",
+       "title": "Planting Trees",
+       "text": "Imran woke up early for school. Today his class was planting trees. He took a small plant in a bag. The teacher asked Imran to show the class how to plant it. Imran dug a hole, put the plant in the soil and put water in it slowly. The teacher was happy with his work. His friends clapped for him.",
+       "tokens": [
+        "Imran",
+        "woke",
+        "up",
+        "early",
+        "for",
+        "school",
+        "Today",
+        "his",
+        "class",
+        "was",
+        "planting",
+        "trees",
+        "He",
+        "took",
+        "a",
+        "small",
+        "plant",
+        "in",
+        "a",
+        "bag",
+        "The",
+        "teacher",
+        "asked",
+        "Imran",
+        "to",
+        "show",
+        "the",
+        "class",
+        "how",
+        "to",
+        "plant",
+        "it",
+        "Imran",
+        "dug",
+        "a",
+        "hole",
+        "put",
+        "the",
+        "plant",
+        "in",
+        "the",
+        "soil",
+        "and",
+        "put",
+        "water",
+        "in",
+        "it",
+        "slowly",
+        "The",
+        "teacher",
+        "was",
+        "happy",
+        "with",
+        "his",
+        "work",
+        "His",
+        "friends",
+        "clapped",
+        "for",
+        "him"
+       ],
+       "word_count": 60,
+       "source": "may2026-orf_eng",
+       "lines": [
+        {
+         "n": 1,
+         "from": 0,
+         "to": 5
+        },
+        {
+         "n": 2,
+         "from": 6,
+         "to": 11
+        },
+        {
+         "n": 3,
+         "from": 12,
+         "to": 19
+        },
+        {
+         "n": 4,
+         "from": 20,
+         "to": 31
+        },
+        {
+         "n": 5,
+         "from": 32,
+         "to": 47
+        },
+        {
+         "n": 6,
+         "from": 48,
+         "to": 54
+        },
+        {
+         "n": 7,
+         "from": 55,
+         "to": 59
+        }
+       ],
+       "names": [
+        "Imran"
+       ],
+       "vetting": {
+        "metrics": {
+         "word_count": 60,
+         "mean_word_len": 3.82,
+         "sentences": 7,
+         "mean_sentence_len": 8.57,
+         "corpus_coverage": 94.7,
+         "distinct_chars": 21
+        },
+        "status": "pending-llm-panel"
+       }
+      },
+      "questions": [
+       {
+        "id": "e3A-q1",
+        "prompt": "What was the class planting?",
+        "type": "literal",
+        "needs_line": 2,
+        "accept": [
+         "trees",
+         "tree",
+         "plants",
+         "درخت",
+         "پودے"
+        ],
+        "reject": [
+         "flowers",
+         "seeds",
+         "grass"
+        ],
+        "rubric": "Correct if the child says trees or plants. An answer in Urdu or English is accepted.",
+        "source": "rdcomp_lit2_eng"
+       },
+       {
+        "id": "e3A-q2",
+        "prompt": "Why was the teacher happy with Imran?",
+        "type": "inferential",
+        "needs_line": 6,
+        "accept": [
+         "he planted the tree well",
+         "he showed the class how to plant it",
+         "he did good work",
+         "he put water in the plant",
+         "اس نے اچھا کام کیا"
+        ],
+        "reject": [
+         "he woke up early",
+         "he was clapping"
+        ],
+        "rubric": "Correct if the child gives a reason from the story about Imran's planting: he planted it well, showed the class how, or did good work. An answer in Urdu or English is accepted.",
+        "source": "rdcomp_inf1_eng"
+       }
+      ],
+      "nonwords": [
+       {
+        "id": "e3A-nw1",
+        "text": "rup",
+        "sounds": [
+         "r",
+         "u",
+         "p"
+        ]
+       },
+       {
+        "id": "e3A-nw2",
+        "text": "jeg",
+        "sounds": [
+         "j",
+         "e",
+         "g"
+        ]
+       },
+       {
+        "id": "e3A-nw3",
+        "text": "nif",
+        "sounds": [
+         "n",
+         "i",
+         "f"
+        ]
+       },
+       {
+        "id": "e3A-nw4",
+        "text": "sut",
+        "sounds": [
+         "s",
+         "u",
+         "t"
+        ]
+       },
+       {
+        "id": "e3A-nw5",
+        "text": "vab",
+        "sounds": [
+         "v",
+         "a",
+         "b"
+        ]
+       },
+       {
+        "id": "e3A-nw6",
+        "text": "tep",
+        "sounds": [
+         "t",
+         "e",
+         "p"
+        ]
+       },
+       {
+        "id": "e3A-nw7",
+        "text": "hig",
+        "sounds": [
+         "h",
+         "i",
+         "g"
+        ]
+       },
+       {
+        "id": "e3A-nw8",
+        "text": "mok",
+        "sounds": [
+         "m",
+         "o",
+         "k"
+        ]
+       }
+      ],
+      "fallback": {
+       "letters": [
+        "L",
+        "i",
+        "h",
+        "R",
+        "S",
+        "y",
+        "E",
+        "O",
+        "n",
+        "T"
+       ],
+       "words": [
+        "boy",
+        "girl",
+        "school",
+        "book",
+        "pen",
+        "bag",
+        "teacher",
+        "student",
+        "class",
+        "read"
+       ],
+       "source": "may2026-letterid_eng+idwrd_eng row 1"
+      }
+     },
+     "maths": {
+      "numbers": [
+       {
+        "id": "m3A-n1",
+        "value": 6,
+        "say_ur": "چھ",
+        "say_en": "six"
+       },
+       {
+        "id": "m3A-n2",
+        "value": 13,
+        "say_ur": "تیرہ",
+        "say_en": "thirteen"
+       },
+       {
+        "id": "m3A-n3",
+        "value": 20,
+        "say_ur": "بیس",
+        "say_en": "twenty"
+       },
+       {
+        "id": "m3A-n4",
+        "value": 47,
+        "say_ur": "سینتالیس",
+        "say_en": "forty-seven"
+       },
+       {
+        "id": "m3A-n5",
+        "value": 85,
+        "say_ur": "پچاسی",
+        "say_en": "eighty-five"
+       },
+       {
+        "id": "m3A-n6",
+        "value": 100,
+        "say_ur": "سو",
+        "say_en": "one hundred"
+       },
+       {
+        "id": "m3A-n7",
+        "value": 309,
+        "say_ur": "تین سو نو",
+        "say_en": "three hundred and nine"
+       },
+       {
+        "id": "m3A-n8",
+        "value": 652,
+        "say_ur": "چھ سو باون",
+        "say_en": "six hundred and fifty-two"
+       }
+      ],
+      "numbers_stop_rule": "stop after 4 wrong in a row",
+      "quick_sums": [
+       {
+        "id": "m3A-qs1",
+        "prompt": "3 + 1",
+        "answer": 4
+       },
+       {
+        "id": "m3A-qs2",
+        "prompt": "5 + 1",
+        "answer": 6
+       },
+       {
+        "id": "m3A-qs3",
+        "prompt": "2 + 1",
+        "answer": 3
+       },
+       {
+        "id": "m3A-qs4",
+        "prompt": "1 + 1",
+        "answer": 2
+       },
+       {
+        "id": "m3A-qs5",
+        "prompt": "4 + 1",
+        "answer": 5
+       },
+       {
+        "id": "m3A-qs6",
+        "prompt": "6 + 1",
+        "answer": 7
+       }
+      ],
+      "quick_sums_seconds": 60,
+      "written": [
+       {
+        "id": "m3A-w1",
+        "prompt": "34 + 28",
+        "answer": 62
+       },
+       {
+        "id": "m3A-w2",
+        "prompt": "56 + 27",
+        "answer": 83
+       },
+       {
+        "id": "m3A-w3",
+        "prompt": "52 - 17",
+        "answer": 35
+       },
+       {
+        "id": "m3A-w4",
+        "prompt": "73 - 48",
+        "answer": 25
+       }
+      ],
+      "word_problem": {
+       "id": "m3A-wp",
+       "prompt_ur": "علی کے پاس 15 کنچے ہیں۔ وہ 6 کنچے اپنی بہن کو دے دیتا ہے۔ اب علی کے پاس کتنے کنچے ہیں؟",
+       "prompt_en": "Ali has 15 marbles. He gives 6 marbles to his sister. How many marbles does Ali have now?",
+       "answer": 9
+      }
+     }
+    },
+    "B": {
+     "urdu": {
+      "story": {
+       "id": "u3B-story",
+       "title": "بازار کی سیر",
+       "text": "اتوار کو زینب اپنی والدہ کے ساتھ بازار گئی۔ وہاں بہت سی دکانیں تھیں اور لوگ خریداری کر رہے تھے۔ زینب نے پھلوں کی دکان پر سرخ سیب دیکھے۔ اس کی والدہ نے بتایا کہ پھل صحت کے لیے مفید ہوتے ہیں۔ گھر پہنچ کر زینب نے سیب دھوئے اور سب کو دیے۔ دادی جان نے خوش ہو کر اسے بہت دعائیں دیں۔",
+       "tokens": [
+        "اتوار",
+        "کو",
+        "زینب",
+        "اپنی",
+        "والدہ",
+        "کے",
+        "ساتھ",
+        "بازار",
+        "گئی",
+        "وہاں",
+        "بہت",
+        "سی",
+        "دکانیں",
+        "تھیں",
+        "اور",
+        "لوگ",
+        "خریداری",
+        "کر",
+        "رہے",
+        "تھے",
+        "زینب",
+        "نے",
+        "پھلوں",
+        "کی",
+        "دکان",
+        "پر",
+        "سرخ",
+        "سیب",
+        "دیکھے",
+        "اس",
+        "کی",
+        "والدہ",
+        "نے",
+        "بتایا",
+        "کہ",
+        "پھل",
+        "صحت",
+        "کے",
+        "لیے",
+        "مفید",
+        "ہوتے",
+        "ہیں",
+        "گھر",
+        "پہنچ",
+        "کر",
+        "زینب",
+        "نے",
+        "سیب",
+        "دھوئے",
+        "اور",
+        "سب",
+        "کو",
+        "دیے",
+        "دادی",
+        "جان",
+        "نے",
+        "خوش",
+        "ہو",
+        "کر",
+        "اسے",
+        "بہت",
+        "دعائیں",
+        "دیں"
+       ],
+       "word_count": 63,
+       "source": "generated",
+       "lines": [
+        {
+         "n": 1,
+         "from": 0,
+         "to": 8
+        },
+        {
+         "n": 2,
+         "from": 9,
+         "to": 19
+        },
+        {
+         "n": 3,
+         "from": 20,
+         "to": 28
+        },
+        {
+         "n": 4,
+         "from": 29,
+         "to": 41
+        },
+        {
+         "n": 5,
+         "from": 42,
+         "to": 52
+        },
+        {
+         "n": 6,
+         "from": 53,
+         "to": 62
+        }
+       ],
+       "names": [
+        "زینب"
+       ],
+       "vetting": {
+        "metrics": {
+         "word_count": 63,
+         "mean_word_len": 3.3,
+         "sentences": 6,
+         "mean_sentence_len": 10.5,
+         "corpus_coverage": 90.0,
+         "distinct_chars": 28
+        },
+        "status": "pending-llm-panel"
+       }
+      },
+      "questions": [
+       {
+        "id": "u3B-q1",
+        "prompt": "زینب کس کے ساتھ بازار گئی؟",
+        "type": "literal",
+        "needs_line": 1,
+        "accept": [
+         "اپنی والدہ کے ساتھ",
+         "والدہ کے ساتھ",
+         "امی کے ساتھ",
+         "ماں کے ساتھ",
+         "امی جان کے ساتھ"
+        ],
+        "reject": [
+         "دادی کے ساتھ",
+         "ابو کے ساتھ",
+         "اکیلی"
+        ],
+        "rubric": "Correct if the child says Zainab went with her mother (والدہ / امی / ماں).",
+        "source": "generated"
+       },
+       {
+        "id": "u3B-q2",
+        "prompt": "زینب نے پھلوں کی دکان پر کیا دیکھا؟",
+        "type": "literal",
+        "needs_line": 3,
+        "accept": [
+         "سیب",
+         "سرخ سیب",
+         "لال سیب"
+        ],
+        "reject": [
+         "کیلے",
+         "آم",
+         "سبزی"
+        ],
+        "rubric": "Correct only if the child says apples (سیب); \"fruit\" alone is not enough.",
+        "source": "generated"
+       },
+       {
+        "id": "u3B-q3",
+        "prompt": "دادی جان نے زینب کو دعائیں کیوں دیں؟",
+        "type": "inferential",
+        "needs_line": 6,
+        "accept": [
+         "زینب نے سیب سب کو دیے",
+         "اس نے سیب دھو کر سب کو دیے",
+         "اس نے اچھا کام کیا",
+         "وہ خوش ہوئیں کہ زینب نے سب کا خیال رکھا"
+        ],
+        "reject": [
+         "زینب بازار گئی",
+         "معلوم نہیں"
+        ],
+        "rubric": "Correct if the child connects the blessing to Zainab washing the apples and sharing them with everyone (a kind act).",
+        "source": "generated"
+       }
+      ],
+      "first_sounds": [
+       {
+        "id": "u3B-fs1",
+        "word": "ناک",
+        "sound": "ن",
+        "say": "نَ",
+        "accept": [
+         "ن",
+         "نَ"
+        ]
+       },
+       {
+        "id": "u3B-fs2",
+        "word": "پنکھا",
+        "sound": "پ",
+        "say": "پَ",
+        "accept": [
+         "پ",
+         "پَ"
+        ]
+       },
+       {
+        "id": "u3B-fs3",
+        "word": "جہاز",
+        "sound": "ج",
+        "say": "جَ",
+        "accept": [
+         "ج",
+         "جَ"
+        ]
+       },
+       {
+        "id": "u3B-fs4",
+        "word": "شیر",
+        "sound": "ش",
+        "say": "شَ",
+        "accept": [
+         "ش",
+         "شَ"
+        ]
+       },
+       {
+        "id": "u3B-fs5",
+        "word": "کرسی",
+        "sound": "ک",
+        "say": "کَ",
+        "accept": [
+         "ک",
+         "کَ"
+        ]
+       }
+      ],
+      "nonwords": [
+       {
+        "id": "u3B-nw1",
+        "text": "بوشا",
+        "sounds": [
+         "ب",
+         "و",
+         "ش",
+         "ا"
+        ]
+       },
+       {
+        "id": "u3B-nw2",
+        "text": "ٹیما",
+        "sounds": [
+         "ٹ",
+         "ی",
+         "م",
+         "ا"
+        ]
+       },
+       {
+        "id": "u3B-nw3",
+        "text": "چاپو",
+        "sounds": [
+         "چ",
+         "ا",
+         "پ",
+         "و"
+        ]
+       },
+       {
+        "id": "u3B-nw4",
+        "text": "سیکے",
+        "sounds": [
+         "س",
+         "ی",
+         "ک",
+         "ے"
+        ]
+       },
+       {
+        "id": "u3B-nw5",
+        "text": "نودا",
+        "sounds": [
+         "ن",
+         "و",
+         "د",
+         "ا"
+        ]
+       }
+      ],
+      "fallback": {
+       "letters": [
+        "ل",
+        "ن",
+        "گ",
+        "ش",
+        "ف",
+        "و",
+        "چ",
+        "ڈ",
+        "ہ",
+        "ز"
+       ],
+       "words": [
+        "دوست",
+        "بہن",
+        "بھائی",
+        "باپ",
+        "ماں",
+        "ہاتھ",
+        "جوتا",
+        "کپڑا",
+        "گیند",
+        "کھیل"
+       ],
+       "source": "new letters; words = May 2026 idwrd_urd items 21-30"
+      }
+     },
+     "english": {
+      "story": {
+       "id": "e3B-story",
+       "title": "Ducks in the Park",
+       "text": "Hina got up early on Saturday. Her family was going to the park. She packed some bread and two eggs in a box for lunch. At the park, Hina saw ducks on the pond. Her little brother wanted to feed them. Hina gave him some bread to throw in the water. The ducks swam fast to eat it, and everyone laughed.",
+       "tokens": [
+        "Hina",
+        "got",
+        "up",
+        "early",
+        "on",
+        "Saturday",
+        "Her",
+        "family",
+        "was",
+        "going",
+        "to",
+        "the",
+        "park",
+        "She",
+        "packed",
+        "some",
+        "bread",
+        "and",
+        "two",
+        "eggs",
+        "in",
+        "a",
+        "box",
+        "for",
+        "lunch",
+        "At",
+        "the",
+        "park",
+        "Hina",
+        "saw",
+        "ducks",
+        "on",
+        "the",
+        "pond",
+        "Her",
+        "little",
+        "brother",
+        "wanted",
+        "to",
+        "feed",
+        "them",
+        "Hina",
+        "gave",
+        "him",
+        "some",
+        "bread",
+        "to",
+        "throw",
+        "in",
+        "the",
+        "water",
+        "The",
+        "ducks",
+        "swam",
+        "fast",
+        "to",
+        "eat",
+        "it",
+        "and",
+        "everyone",
+        "laughed"
+       ],
+       "word_count": 61,
+       "source": "generated",
+       "lines": [
+        {
+         "n": 1,
+         "from": 0,
+         "to": 5
+        },
+        {
+         "n": 2,
+         "from": 6,
+         "to": 12
+        },
+        {
+         "n": 3,
+         "from": 13,
+         "to": 24
+        },
+        {
+         "n": 4,
+         "from": 25,
+         "to": 33
+        },
+        {
+         "n": 5,
+         "from": 34,
+         "to": 40
+        },
+        {
+         "n": 6,
+         "from": 41,
+         "to": 50
+        },
+        {
+         "n": 7,
+         "from": 51,
+         "to": 60
+        }
+       ],
+       "names": [
+        "Hina"
+       ],
+       "vetting": {
+        "metrics": {
+         "word_count": 61,
+         "mean_word_len": 3.8,
+         "sentences": 7,
+         "mean_sentence_len": 8.71,
+         "corpus_coverage": 91.4,
+         "distinct_chars": 23
+        },
+        "status": "pending-llm-panel"
+       }
+      },
+      "questions": [
+       {
+        "id": "e3B-q1",
+        "prompt": "Where was Hina's family going?",
+        "type": "literal",
+        "needs_line": 2,
+        "accept": [
+         "to the park",
+         "park",
+         "پارک"
+        ],
+        "reject": [
+         "to school",
+         "to the shop",
+         "to the pond"
+        ],
+        "rubric": "Correct if the child says the park. An answer in Urdu or English is accepted.",
+        "source": "generated"
+       },
+       {
+        "id": "e3B-q2",
+        "prompt": "Why did the ducks swim fast?",
+        "type": "inferential",
+        "needs_line": 7,
+        "accept": [
+         "to eat the bread",
+         "they wanted the bread",
+         "they were hungry",
+         "روٹی کھانے کے لیے"
+        ],
+        "reject": [
+         "they were scared",
+         "to go home"
+        ],
+        "rubric": "Correct if the child says the ducks wanted to eat the bread (or were hungry). An answer in Urdu or English is accepted.",
+        "source": "generated"
+       }
+      ],
+      "nonwords": [
+       {
+        "id": "e3B-nw1",
+        "text": "kib",
+        "sounds": [
+         "k",
+         "i",
+         "b"
+        ]
+       },
+       {
+        "id": "e3B-nw2",
+        "text": "lem",
+        "sounds": [
+         "l",
+         "e",
+         "m"
+        ]
+       },
+       {
+        "id": "e3B-nw3",
+        "text": "gub",
+        "sounds": [
+         "g",
+         "u",
+         "b"
+        ]
+       },
+       {
+        "id": "e3B-nw4",
+        "text": "wep",
+        "sounds": [
+         "w",
+         "e",
+         "p"
+        ]
+       },
+       {
+        "id": "e3B-nw5",
+        "text": "daf",
+        "sounds": [
+         "d",
+         "a",
+         "f"
+        ]
+       },
+       {
+        "id": "e3B-nw6",
+        "text": "tob",
+        "sounds": [
+         "t",
+         "o",
+         "b"
+        ]
+       },
+       {
+        "id": "e3B-nw7",
+        "text": "zim",
+        "sounds": [
+         "z",
+         "i",
+         "m"
+        ]
+       },
+       {
+        "id": "e3B-nw8",
+        "text": "nud",
+        "sounds": [
+         "n",
+         "u",
+         "d"
+        ]
+       }
+      ],
+      "fallback": {
+       "letters": [
+        "M",
+        "a",
+        "P",
+        "k",
+        "G",
+        "u",
+        "D",
+        "e",
+        "B",
+        "w"
+       ],
+       "words": [
+        "dog",
+        "cup",
+        "tree",
+        "ball",
+        "house",
+        "chair",
+        "milk",
+        "sun",
+        "hand",
+        "fish"
+       ],
+       "source": "new; words from the Grade 3 textbook corpus"
+      }
+     },
+     "maths": {
+      "numbers": [
+       {
+        "id": "m3B-n1",
+        "value": 4,
+        "say_ur": "چار",
+        "say_en": "four"
+       },
+       {
+        "id": "m3B-n2",
+        "value": 15,
+        "say_ur": "پندرہ",
+        "say_en": "fifteen"
+       },
+       {
+        "id": "m3B-n3",
+        "value": 60,
+        "say_ur": "ساٹھ",
+        "say_en": "sixty"
+       },
+       {
+        "id": "m3B-n4",
+        "value": 38,
+        "say_ur": "اڑتیس",
+        "say_en": "thirty-eight"
+       },
+       {
+        "id": "m3B-n5",
+        "value": 92,
+        "say_ur": "بانوے",
+        "say_en": "ninety-two"
+       },
+       {
+        "id": "m3B-n6",
+        "value": 210,
+        "say_ur": "دو سو دس",
+        "say_en": "two hundred and ten"
+       },
+       {
+        "id": "m3B-n7",
+        "value": 507,
+        "say_ur": "پانچ سو سات",
+        "say_en": "five hundred and seven"
+       },
+       {
+        "id": "m3B-n8",
+        "value": 846,
+        "say_ur": "آٹھ سو چھیالیس",
+        "say_en": "eight hundred and forty-six"
+       }
+      ],
+      "numbers_stop_rule": "stop after 4 wrong in a row",
+      "quick_sums": [
+       {
+        "id": "m3B-qs1",
+        "prompt": "2 + 1",
+        "answer": 3
+       },
+       {
+        "id": "m3B-qs2",
+        "prompt": "6 + 1",
+        "answer": 7
+       },
+       {
+        "id": "m3B-qs3",
+        "prompt": "4 + 1",
+        "answer": 5
+       },
+       {
+        "id": "m3B-qs4",
+        "prompt": "5 + 1",
+        "answer": 6
+       },
+       {
+        "id": "m3B-qs5",
+        "prompt": "7 + 1",
+        "answer": 8
+       },
+       {
+        "id": "m3B-qs6",
+        "prompt": "8 + 1",
+        "answer": 9
+       }
+      ],
+      "quick_sums_seconds": 60,
+      "written": [
+       {
+        "id": "m3B-w1",
+        "prompt": "45 + 37",
+        "answer": 82
+       },
+       {
+        "id": "m3B-w2",
+        "prompt": "29 + 46",
+        "answer": 75
+       },
+       {
+        "id": "m3B-w3",
+        "prompt": "64 - 28",
+        "answer": 36
+       },
+       {
+        "id": "m3B-w4",
+        "prompt": "90 - 34",
+        "answer": 56
+       }
+      ],
+      "word_problem": {
+       "id": "m3B-wp",
+       "prompt_ur": "ایک دکان میں 24 انڈے ہیں۔ ان میں سے 8 انڈے ٹوٹ جاتے ہیں۔ اب کتنے انڈے باقی ہیں؟",
+       "prompt_en": "A shop has 24 eggs. 8 of the eggs break. How many eggs are left?",
+       "answer": 16
+      }
+     }
+    }
+   }
+  }
+ }
+}

@@ -1,0 +1,8 @@
+Picture cards for the Urdu vocabulary task (ur.vocabulary), cropped one per card, unchanged, from:
+Early Grade Reading Assessment (EGRA), Sindh Baseline 2024 (USAID Sindh Early Learning Enhancement through
+Classroom Transformation, SELECT), Grade 2 Urdu instrument annex, student stimulus "picture page", printed p.113
+(PDF p.133). Item keys: the same annex, printed pp.102-103.
+ur.vocabulary.ex1-ex3 = the instrument's example and practice cards (bird, sun, train); ur.vocabulary.01-10 = its
+ten scored cards in answer-key order.
+Official assessment instrument; used here for non-commercial research use in a child reading assessment, with
+attribution. Not to be reused outside this assessment without checking the source's terms.

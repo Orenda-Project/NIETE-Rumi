@@ -8,8 +8,12 @@ vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { chil
 vi.mock("../CoachGate", () => ({ default: ({ children }: any) => <>{children}</> }));
 vi.mock("../../hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("../../services/api", () => ({ language: { get: vi.fn(), set: vi.fn() }, coach: { getHome: vi.fn() } }));
+vi.mock("../../lib/useChildTest", () => ({ useChildTest: vi.fn() }));
+vi.mock("../../lib/useChildTestSa", () => ({ useChildTestSa: vi.fn() }));
 vi.mock("../../lib/recordingSession", () => ({ useLogoutGuard: (fn: () => void) => fn }));
 import { useAuth } from "../../hooks/useAuth";
+import { useChildTest } from "../../lib/useChildTest";
+import { useChildTestSa } from "../../lib/useChildTestSa";
 import { coach, language } from "../../services/api";
 import CoachMore from "./CoachMore";
 
@@ -29,6 +33,8 @@ describe("CoachMore", () => {
     vi.clearAllMocks();
     if (!i18n.isInitialized) await i18n.init({ lng: "en", resources: {} });
     await act(async () => { await i18n.changeLanguage("en"); });
+    vi.mocked(useChildTest).mockReturnValue(false);
+    vi.mocked(useChildTestSa).mockReturnValue(false);
     vi.mocked(language.get).mockResolvedValue({ language: "en", locked: false });
     vi.mocked(language.set).mockResolvedValue(undefined);
     vi.mocked(coach.getHome).mockResolvedValue({ success: true, home: HOME } as never);
@@ -83,5 +89,16 @@ describe("CoachMore", () => {
     expect(screen.getByText("میری پروفائل")).toBeInTheDocument();
     expect(screen.getByText("لاگ آؤٹ")).toBeInTheDocument();
     expect(await screen.findByText(/12 اسکول/)).toBeInTheDocument();
+  });
+
+  it("with childTestSa on, a Learning assessment row opens /portal/leader/assess; off or loading, no row", async () => {
+    vi.mocked(useChildTestSa).mockReturnValue(true);
+    const { unmount } = renderMore();
+    expect(screen.getByTestId("more-row-assess")).toHaveAttribute("href", "/portal/leader/assess");
+    expect(screen.getByTestId("more-row-assess")).toHaveTextContent("Learning assessment");
+    unmount();
+    vi.mocked(useChildTestSa).mockReturnValue(null);
+    renderMore();
+    expect(screen.queryByTestId("more-row-assess")).toBeNull();
   });
 });

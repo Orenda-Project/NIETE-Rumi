@@ -8,7 +8,7 @@ tag (`@e2e`); the rest are for slicing/reporting.
 | **Identity** | `@COA16` `@M09` `@OBS04` | **The scenario ID.** Letters then digits, matching the id its mock driver records via `rec()`. This is what binds a Gherkin scenario to executable code: without it nothing can tell that a scenario has no driver. Structural, not descriptive — `validate_specs.py` recognises the shape (`SCENARIO_ID_RE`) rather than listing every id here. |
 | **Layer** | `@e2e` | Full user-flow test the agent runs. |
 | | `@smoke` | Minimal liveness subset (fast). |
-| **Feature** | `@menu` `@training` `@ask` `@portal` `@language` `@register` | Which feature the scenario exercises. |
+| **Feature** | `@menu` `@training` `@ask` `@portal` `@language` `@register` `@child-test` | Which feature the scenario exercises. |
 | **Scope** | `@menu-feature` | One of the 4 `/menu` features (the focus set). |
 | | `@out-of-region` | Command exists but the feature is not part of this tenant's region (N/A). |
 | | `@copy` | Asserts EXACT teacher-facing strings (headers/labels). Deliberately brittle — a fail is usually an intended copy tweak; update the one fixture line. Copy assertions may live INSIDE a structural scenario when they share its trigger and state (anti-redundancy rule, 2026-08-19) — tag the merged scenario `@copy` and, on a fail, check WHICH Then step broke before filing: the structural steps are the contract, the exact strings are not. |
@@ -25,6 +25,7 @@ tag (`@e2e`); the rest are for slicing/reporting.
 | | `@config-gated` | Only meaningful when its env/Flow id is set/unset. **Excluded from the default run.** |
 | | `@obsolete` | The spec sync believes the behaviour is gone. **A DELETION PROPOSAL, never a deletion** — `gherkin-spec-sync` may not remove a scenario, because a wrong auto-delete drops coverage with no failing test to catch it. Requires a `# OBSOLETE <date> (<bead>): <why>` comment inside the scenario; `validate_specs.py` errors (`E-OBSOLETE-NOREASON`) without one. A human deletes it, or removes the tag if the behaviour is still there. **Excluded from the default run.** |
 | | `@first-use` | Depends on a fresh/unregistered account. **Excluded from the default run.** |
+| **Lane** | `@no-mock-driver` | The scenario cannot run on the mock lane (needs real pixels, a real phone, or a file past WhatsApp's upload ceiling), so no mock driver records its id. Excuses it in `check-scenario-coverage.py`; still run on the chrome lane. Declared, listed on every run, reviewable in the diff. |
 | **Backend** | `@chunk` | API/backend-level — not UI-drivable; skip in the WhatsApp agent (mark BLOCKED). |
 | **Profile** | `@profile:<tenant>` | Feature-level only. Resolves the target via `whatsapp-targets.yaml`. |
 

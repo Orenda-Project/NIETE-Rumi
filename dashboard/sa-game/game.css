@@ -1,0 +1,65 @@
+/* The Big Test's look (switch sa_game): the child pages' tokens (public/wq/wq.css :root), a sea map, three islands and
+   a tower, Jugnu's glow as the clock. The engine draws its own task screens inside .sg-run; nothing here restyles them. */
+:root{--brand:#47BA7D;--brand-d:#23794D;--brand-l:#E3F5EA;--ink:#2A2D3A;--navy:#333748;--muted:#5F6374;--line:#DCE5DF;
+--gold:#F6B73C;--gold-d:#B37A0C;--s1:#6D3FC0;--s2:#1F5FBF;--sea1:#BFE6F5;--sea2:#7CC8E8;--sea3:#5BB4DB;--sand:#F7E3A1;--sand-d:#E4C574;
+--f:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--fu:"WQ Nastaliq","Noto Nastaliq Urdu",system-ui,sans-serif}
+.sg-app{min-height:100vh;min-height:100dvh;max-width:480px;margin:0 auto;display:flex;flex-direction:column;position:relative;overflow-x:clip}
+.sg-scr{flex:1;display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;padding:0 0 16px}
+.sg-sea{background:linear-gradient(var(--sea1),var(--sea2) 60%,var(--sea3))}
+.sg-land{background:#F5F8F6}
+.sg-top{display:flex;align-items:center;gap:8px;padding:10px 16px;min-height:64px;direction:ltr}
+.sg-top .sg-grow{flex:1;text-align:center;font-weight:800;color:var(--navy)}
+.sg-ico{width:48px;height:48px;border-radius:50%;border:0;background:#fff;box-shadow:0 2px 0 var(--line);display:grid;place-items:center;font:700 20px var(--f);color:var(--navy);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.sg-ico svg{width:24px;height:24px}
+.sg-say{margin:0 16px;background:#fff;border-radius:18px;padding:10px 14px;box-shadow:0 2px 0 var(--line);font-weight:700;font-size:17px;position:relative}
+html[lang=ur] .sg-say{line-height:2}
+.sg-btn{display:block;width:calc(100% - 32px);margin:0 16px;min-height:56px;border:0;border-radius:18px;background:var(--brand);color:#fff;font:800 20px var(--f);box-shadow:0 5px 0 var(--brand-d);cursor:pointer;padding:6px 16px;-webkit-tap-highlight-color:transparent}
+html[lang=ur] .sg-btn{font-family:var(--fu);font-size:19px;line-height:1.9}
+.sg-btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--brand-d)}
+.sg-btn[disabled]{background:#cfd8d3;box-shadow:0 5px 0 #b3bdb7;color:#5F6374}
+.sg-grow{flex:1}
+/* the map */
+.sg-map{position:relative;flex:1;min-height:420px}
+.sg-path{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.sg-isl{position:absolute;width:144px;height:104px;border:0;padding:0;border-radius:50%;background:radial-gradient(ellipse closest-side at 50% 46%,var(--sand) 0 70%,var(--sand-d) 71% 86%,var(--sea3) 87%);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--navy);-webkit-tap-highlight-color:transparent;font:inherit}
+.sg-isl i{font:900 19px var(--f);font-style:normal;color:var(--s2);line-height:1.2;margin-bottom:2px}
+.sg-isl span{font-size:13px;line-height:1.5;font-weight:800;max-width:120px;text-align:center}
+html[lang=ur] .sg-isl span{font-size:14px;line-height:1.7}
+.sg-isl.is-done::after{content:"✓";position:absolute;top:2px;right:10px;width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;font:900 16px var(--f);display:grid;place-items:center}
+.sg-isl.is-next{animation:sg-pulse 1.6s ease-in-out infinite}
+.sg-tower{position:absolute;left:50%;top:0;transform:translateX(-50%);width:120px;border:0;background:none;padding:0;text-align:center;cursor:pointer;font:inherit;-webkit-tap-highlight-color:transparent}
+.sg-tw{width:58px;height:96px;margin:24px auto 0;background:linear-gradient(90deg,#8a7bd1,var(--s1));border-radius:10px 10px 4px 4px;position:relative;display:grid;place-items:center;font-size:24px}
+.sg-tw::before{content:"";position:absolute;top:-24px;left:-7px;right:-7px;height:26px;background:#4b2a8c;clip-path:polygon(50% 0,100% 100%,0 100%)}
+.sg-tower span{display:block;color:#fff;text-shadow:0 1px 2px #0007;font-weight:800;font-size:15px;line-height:1.8}
+.sg-tower.is-open .sg-tw{box-shadow:0 0 28px #FFE58A}
+.sg-jug{position:absolute;width:64px;height:64px;transition:left .9s ease,top .9s ease;pointer-events:none}
+/* an island's stones */
+.sg-stones{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:12px 16px}
+.sg-stone{width:96px;min-height:64px;padding:6px 4px;border-radius:16px;background:#fff;box-shadow:0 3px 0 var(--line);text-align:center;font-size:13px;line-height:1.5;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center}
+html[lang=ur] .sg-stone{font-size:14px;line-height:1.8}
+.sg-stone b{font:400 14px var(--f)}
+.sg-stone.is-now{outline:3px solid var(--gold)}
+.sg-stone.is-done{background:var(--brand-l);box-shadow:0 3px 0 var(--brand)}
+/* the run: the engine's screens, with Jugnu's glow over them while a timed task runs */
+.sg-run{flex:1;display:flex;flex-direction:column;position:relative}
+.sg-glow{position:fixed;top:8px;inset-inline-end:8px;width:72px;height:72px;z-index:20;pointer-events:none;display:none}
+.sg-glow.is-on{display:block}
+.sg-glow::before{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,#FFE58A 0,#F6B73Caa 42%,transparent 70%);transform:scale(var(--glow,1));transition:transform .9s linear,opacity .9s linear;opacity:calc(.25 + .75 * var(--glow,1))}
+.sg-glow img{position:absolute;inset:12px;width:48px;height:48px}
+/* the result card */
+.sg-card{margin:8px 16px;background:#fff;border-radius:22px;padding:16px;box-shadow:0 4px 0 var(--line);text-align:center}
+.sg-card h2{margin:4px 0;font-size:22px;color:var(--navy)}
+html[lang=ur] .sg-card h2{line-height:2}
+.sg-rows{text-align:start;margin:8px 0;font-size:15px}
+.sg-rows div{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding:4px 0}
+.sg-rows em{font-style:normal;color:var(--brand-d);font-weight:800;white-space:nowrap}
+.sg-stars{font-size:40px;color:var(--gold);letter-spacing:6px;line-height:1.2}
+.sg-stars s{text-decoration:none;color:#E2E5E3}
+.sg-why{font-size:14px;color:var(--muted);line-height:1.7}
+html[lang=ur] .sg-why{line-height:2.1}
+.sg-note{margin:8px 16px;font-size:15px;color:var(--muted);text-align:center}
+.sg-sync{font-size:12px;color:var(--muted);text-align:center;margin:4px 0}
+@keyframes sg-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+@keyframes sg-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.sg-bob{animation:sg-bob 2.4s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.sg-isl.is-next,.sg-bob{animation:none}.sg-jug{transition:none}}

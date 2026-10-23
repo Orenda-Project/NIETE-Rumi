@@ -3,6 +3,8 @@ import { getApiBaseUrl } from '@/lib/runtime';
 import { ANALYTICS_LOGIN } from '../lib/homeRoute';
 import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData, SchoolAnalyticsResponse,
   AttendanceResponse } from '../types/portal';
+import type { ChildTestVisit, ChildTestList, ChildTestCard, ChildTestSession, ChildTestBlockName } from '../types/childTest';
+import type { SaBlock, SaDashboardSession, SaEarMark, SaList, SaOutcome, SaResults, SaReview, SaSchool, SaSessionStatus, SaSwitches } from '../types/childTestSa';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
 import type { CoachingAnalyticsResponse, SchoolsAnalyticsResponse } from '../types/portal';
@@ -447,6 +449,8 @@ export const portal = {
           assessmentGeneratorMessage:
             "The assessment generator is being prepared for you. We'll notify you when it's live.",
           selfObservation: false,
+          childTest: false,
+          childTestSa: false,
           coachObservation: false,
           newUi: false,
           assessmentEditing: false,
@@ -644,6 +648,10 @@ export type PortalConfig = {
     assessmentGeneratorMessage: string | null;
     /** bd-3bvfj — "Analyse a lesson" is on for THIS user (fail-closed). */
     selfObservation?: boolean;
+    /** bd-s1oo0.7 — the child test in the coach app is on for THIS user (fail-closed). */
+    childTest?: boolean;
+    /** The coach's Learning assessment (child test on the SA engine) is on for THIS user (fail-closed). */
+    childTestSa?: boolean;
     /** bd-5rz1v.6 — a coach can run an /observe observation from the portal (fail-closed). */
     coachObservation?: boolean;
     /** bd-5rz1v.12 — the new UI (Direction B) is on for THIS user (fail-closed). */
@@ -1246,6 +1254,94 @@ export const classes = {
     const response = await api.delete(`/classes/${classId}/students/${studentId}`);
     return response.data;
   },
+};
+
+// ── bd-s1oo0.7: the child test in the coach app ─────────────────────────────
+// Every call relays to the bot (dashboard/routes/portal-child-test.routes.js);
+// the server's draw picks the children and can never be redrawn from here.
+
+const CT = '/leader/child-test';
+
+export const childTest = {
+  getVisits: async (): Promise<{ visits: ChildTestVisit[] }> => (await api.get(`${CT}/visits`)).data,
+
+  getList: async (visitId: string): Promise<{ list: ChildTestList }> =>
+    (await api.get(`${CT}/list`, { params: { visitId } })).data,
+
+  markOutcome: async (args: { visitId: string; drawId: string; outcome: 'present' | 'absent' | 'refused'; note?: string }):
+    Promise<{ sessionId?: string; list: ChildTestList | null }> => (await api.post(`${CT}/outcome`, args)).data,
+
+  getSession: async (sessionId: string): Promise<ChildTestSession> =>
+    (await api.get(`${CT}/session/${encodeURIComponent(sessionId)}`)).data,
+
+  getCard: async (sessionId: string, block: ChildTestBlockName): Promise<{ card: ChildTestCard }> =>
+    (await api.get(`${CT}/session/${encodeURIComponent(sessionId)}/card/${block}`)).data,
+
+  presignBlockUpload: async (sessionId: string, args: { block: string; kind: 'audio' | 'photo'; contentType: string; sizeBytes: number }):
+    Promise<{ key: string; uploadUrl: string; contentType: string }> =>
+    (await api.post(`${CT}/session/${encodeURIComponent(sessionId)}/presign`, args)).data,
+
+  uploadToR2: (uploadUrl: string, blob: Blob, contentType: string): Promise<void> =>
+    portal.uploadToR2(uploadUrl, blob, contentType),
+
+  registerBlockMedia: async (sessionId: string, args: { block: string; audioKey?: string; photoKey?: string; timing?: Record<string, unknown>; photoDeclined?: boolean }):
+    Promise<{ scoring?: string }> => (await api.post(`${CT}/session/${encodeURIComponent(sessionId)}/media`, args)).data,
+
+  submitCheck: async (sessionId: string, args: { block: ChildTestBlockName; coachMarks: Record<string, unknown> }):
+    Promise<{ edits: number; allChecked: boolean }> =>
+    (await api.post(`${CT}/session/${encodeURIComponent(sessionId)}/check`, args)).data,
+};
+
+// ── The coach's Learning assessment (child test on the SA engine) ──────────
+// Relays to the bot like childTest; the server draws the children and names the visit.
+
+const CTS = '/leader/child-test/sa';
+
+export const childTestSa = {
+  getSchools: async (): Promise<{ schools: SaSchool[] }> => (await api.get(`${CTS}/schools`)).data,
+
+  /** The page's own switches for this coach (each off unless its app_settings row names them). */
+  getSwitches: async (): Promise<SaSwitches> => (await api.get(`${CTS}/switches`)).data.switches,
+
+  /** sa_add_child: seat a child who is not on the roster on the open list; the server answers with the list. */
+  addChild: async (args: { schoolId: string; visitId?: string | null; grade: number; listGrade?: number; firstName: string; section?: string | null; clientChildId: string }):
+    Promise<{ list: SaList }> => {
+    const { visitId, ...rest } = args;
+    return (await api.post(`${CTS}/child`, visitId ? { ...rest, visitId } : rest)).data;
+  },
+
+  getList: async (schoolId: string, visitId?: string | null, grade?: number): Promise<{ list: SaList }> =>
+    (await api.get(`${CTS}/list`, { params: { schoolId, ...(visitId ? { visitId } : {}), ...(grade ? { grade } : {}) } })).data,
+
+  markOutcome: async (args: { schoolId: string; visitId?: string | null; drawId: string; outcome: SaOutcome; note?: string; clientSessionId?: string; block?: SaBlock; repick?: boolean; grade?: number }):
+    Promise<{ sessionId?: string; list?: SaList | null; block?: SaBlock }> => {
+    const { visitId, ...rest } = args;
+    return (await api.post(`${CTS}/outcome`, visitId ? { ...rest, visitId } : rest)).data;
+  },
+
+  /** sessionId: the server's id or the phone-minted clientSessionId. */
+  getStatus: async (sessionId: string): Promise<SaSessionStatus> =>
+    (await api.get(`${CTS}/session/${encodeURIComponent(sessionId)}/status`)).data,
+
+  /** One session's results, read only (switch sa_results_view: 404 when off or not this coach's session). */
+  getResults: async (sessionId: string): Promise<SaResults> =>
+    (await api.get(`${CTS}/session/${encodeURIComponent(sessionId)}/results`)).data,
+
+  /** The results dashboard's sessions: this coach's, or every coach's for a results admin (switch sa_real_dashboard). */
+  getSessions: async (): Promise<{ sessions: SaDashboardSession[] }> =>
+    (await api.get(`${CTS}/sessions`)).data,
+
+  /** The visit review of one session (switch sa_review_page: 404 when off or not this coach's session). */
+  getReview: async (sessionId: string): Promise<SaReview> =>
+    (await api.get(`${CTS}/session/${encodeURIComponent(sessionId)}/review`)).data,
+
+  /** The reviewer's own mark on one item (null clears it); the note is never a child's name. */
+  markReviewItem: async (sessionId: string, body: { taskId: string; itemKey: string; mark: SaEarMark | null; note: string | null }): Promise<{ status: string }> =>
+    (await api.post(`${CTS}/session/${encodeURIComponent(sessionId)}/review/mark`, body)).data,
+
+  /** A one-hour token for opening the server's session on another phone. */
+  mintLink: async (sessionId: string): Promise<{ token: string; expiresAt: string }> =>
+    (await api.post(`${CTS}/session/${encodeURIComponent(sessionId)}/link`)).data,
 };
 
 export default api;
