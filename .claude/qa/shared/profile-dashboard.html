@@ -122,6 +122,7 @@ const LAYERS = [
 const LCOL = Object.fromEntries(LAYERS.map(([k, , c]) => [k, c]));
 const LNAME = Object.fromEntries(LAYERS.map(([k, n]) => [k, n]));
 const layerOf = (s) => {
+  if (s.layer === 'driver') return 'driver.sleep';   // the SCRIPT's wait, before the harness's intentional waits
   if (s.layer === 'wait' || s.kind === 'intentional') return 'wait.intentional';
   if (s.name === 'bot.pacing') return 'bot.pacing';
   if (s.name === 'bot.reply' && s.status === 'timeout') return 'bot.timeout';
@@ -130,7 +131,6 @@ const layerOf = (s) => {
   if (s.layer === 'mock') return 'mock.http';
   if (s.layer === 'flow') return 'flow';
   if (s.layer === 'harness-db' || s.kind === 'seed') return 'seed';
-  if (s.layer === 'driver') return 'driver.sleep';
   return 'harness.overhead';
 };
 const ms = (v) => v == null ? '–' : v >= 10000 ? (v / 1000).toFixed(1) + ' s' : v >= 1000 ? (v / 1000).toFixed(2) + ' s' : Math.round(v) + ' ms';
@@ -228,7 +228,7 @@ function aggregateOps(ps) {
   const g = new Map();
   for (const p of ps) for (const s of p.scenarios) for (const o of s.spans) {
     const oname = o.name === 'bot.reply' && o.status === 'timeout' ? 'bot.reply.timeout' : o.name;
-    const e = g.get(oname) || { op: oname, layer: layerOf(o), category: oname === 'bot.reply.timeout' ? 'timeout' : o.name === 'bot.pacing' ? 'bot-pacing' : o.kind === 'intentional' ? 'intentional' : o.name === 'bot.reply' ? 'processing' : o.kind === 'polling' ? 'polling' : o.kind === 'http' ? 'http' : o.kind === 'seed' ? 'setup' : o.layer === 'flow' ? 'flow' : 'harness', own: [], ex: [] };
+    const e = g.get(oname) || { op: oname, layer: layerOf(o), category: o.layer === 'driver' ? 'driver-sleep' : oname === 'bot.reply.timeout' ? 'timeout' : o.name === 'bot.pacing' ? 'bot-pacing' : o.kind === 'intentional' ? 'intentional' : o.name === 'bot.reply' ? 'processing' : o.kind === 'polling' ? 'polling' : o.kind === 'http' ? 'http' : o.kind === 'seed' ? 'setup' : o.layer === 'flow' ? 'flow' : 'harness', own: [], ex: [] };
     e.own.push(o.own_ms); e.ex.push({ ms: o.own_ms, scenario: s.id, run: p.run_id, feature: p.feature, arg: (o.attrs || {}).arg || (o.attrs || {}).label, status: o.status });
     g.set(oname, e);
   }
