@@ -7,9 +7,10 @@
  */
 const supabase = require('../../../config/supabase');
 const { logToFile } = require('../../../utils/logger');
+const { teacherLevelOf } = require('../../../utils/teacher-level');
 
 const TABLE = 'video_recommendations';
-const LADDER_LEVELS = new Set([1, 2, 3, 4]); // training_levels 1–4 = the Taleemabad CPD ladder (vendor af3e929e…); other vendors' ids are not ours
+const LADDER_LEVELS = new Set([1, 2, 3, 4]); // training_levels 1–4 = the CPD ladder (vendor af3e929e…); other vendors' ids are not ours
 const MAX_ROWS = 500;
 const DAY = 86400000;
 
@@ -79,12 +80,16 @@ async function ladderProgress(userId) {
   }
 }
 
-/** users.training_bands (V1.1.8, teacher-chosen PRIMARY/MIDDLE/HIGH): the grade chain's second link (H7). */
+/**
+ * The teacher's bands (PRIMARY/MIDDLE/HIGH), the grade chain's second link (H7), read through the repo's single
+ * source: users.teacher_level via utils/teacher-level.js. users.training_bands exists on the sandbox DB only; on
+ * staging and prod the query failed and the link was always empty (bd-8hhqhf r7, promo 073156).
+ */
 async function trainingBands(userId) {
   try {
-    const { data, error } = await supabase.from('users').select('training_bands').eq('id', userId).maybeSingle();
+    const { data, error } = await supabase.from('users').select('teacher_level').eq('id', userId).maybeSingle();
     if (error) throw error;
-    return Array.isArray(data && data.training_bands) ? data.training_bands : [];
+    return teacherLevelOf(data);
   } catch (e) {
     warn('trainingBands', e, { userId });
     return [];

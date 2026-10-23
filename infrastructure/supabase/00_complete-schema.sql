@@ -8128,4 +8128,95 @@ DROP TRIGGER IF EXISTS wqps_updated_at ON public.web_quiz_push_subscriptions;
 CREATE TRIGGER wqps_updated_at BEFORE UPDATE ON public.web_quiz_push_subscriptions
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+
+-- ============================================================================
+-- video_recommendations + video_reco_events: the training-video clip recommended after a NIETE coaching report,
+-- and what the teacher did with it. Mirrors migrations V1.7.0 + V1.7.1 + V1.7.2 (final shape). No names, no phones.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS video_recommendations (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  coaching_session_id UUID NOT NULL REFERENCES coaching_sessions (id),
+  user_id             UUID NOT NULL REFERENCES users (id),
+  status              TEXT NOT NULL CHECK (status IN ('shown', 'shadow', 'none', 'error')),
+  arm                 TEXT NOT NULL CHECK (arm IN ('video', 'control')),
+  module_id           INTEGER,
+  seg_id              TEXT,
+  start_s             NUMERIC,
+  end_s               NUMERIC,
+  indicator           TEXT,      -- the id in this session's analysis scheme (37-id on prod), the outcome join key
+  catalog_indicator   TEXT,      -- the chapter's v4 id
+  indicator_scheme    TEXT,      -- fico_main_37 | fico_v4
+  step_indicator      TEXT,
+  differs_from_step   BOOLEAN NOT NULL DEFAULT false,
+  repeat_module       BOOLEAN NOT NULL DEFAULT false,
+  step_at_top         BOOLEAN NOT NULL DEFAULT false,
+  target_source       TEXT,      -- step | card | card_text | phase
+  alias_kind          TEXT,
+  loop_angle          TEXT,
+  observation_type    TEXT,      -- self | leader_observation
+  language            TEXT,
+  language_match      TEXT,
+  teacher_level       INTEGER,
+  teacher_level_source TEXT,
+  level_match         TEXT,
+  ladder_completed    BOOLEAN,
+  reason_en           TEXT,
+  reason_ur           TEXT,
+  moment_at           TEXT,
+  moment_quote        TEXT,      -- a short transcript line, names replaced by "[a student]"
+  moment_source       TEXT,      -- transcript | scorer | card
+  confidence          NUMERIC,
+  none_reason         TEXT,
+  candidates          JSONB,
+  model               TEXT,
+  catalog_version     TEXT,
+  prompt_version      TEXT,
+  usage               JSONB,
+  experiment          TEXT,
+  v10_group           TEXT,
+  engine_ms           INTEGER,
+  sent_via            TEXT,
+  wamid               TEXT,
+  sent_at             TIMESTAMPTZ,
+  image_strip         BOOLEAN NOT NULL DEFAULT false,
+  route               TEXT CHECK (route IN ('tag', 'step_text', 'card_text')),
+  tag_mismatch        BOOLEAN,
+  step_text_query     TEXT,
+  attempts            SMALLINT CHECK (attempts IS NULL OR attempts IN (1, 2)),
+  first_none_reason   TEXT,
+  report_language_null BOOLEAN,
+  lesson_language     TEXT CHECK (lesson_language IS NULL OR lesson_language IN ('en', 'ur')),
+  chapter_language    TEXT CHECK (chapter_language IS NULL OR chapter_language IN ('en', 'ur', 'mixed')),
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (coaching_session_id)
+);
+COMMENT ON TABLE video_recommendations IS
+  'The training-video chapter recommended after one coaching report (one row per session; control arm = status shadow, never sent).';
+CREATE INDEX IF NOT EXISTS idx_video_reco_user_created ON video_recommendations (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_video_reco_wamid ON video_recommendations (wamid) WHERE wamid IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_video_reco_experiment ON video_recommendations (experiment, created_at) WHERE experiment IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS video_reco_events (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  recommendation_id UUID NOT NULL REFERENCES video_recommendations (id),
+  event             TEXT NOT NULL CHECK (event IN ('delivered', 'read', 'send_failed', 'click', 'open', 'play', 't30',
+                                                   'segment_start', 'p50', 'p90', 'segment_end', 'ended', 'error')),
+  at_s              NUMERIC,
+  ua_class          TEXT,      -- in_app | browser | crawler
+  surface           TEXT CHECK (surface IN ('wa', 'cr', 'portal')),
+  code              TEXT,
+  device            TEXT,      -- first 16 hex of sha256 of a random first-party cookie, never a phone
+  client_ts         TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+COMMENT ON TABLE video_reco_events IS
+  'Delivery and player events for one video recommendation (first-only per event, surface and ua_class; clicks per device).';
+CREATE INDEX IF NOT EXISTS idx_video_reco_events_rec ON video_reco_events (recommendation_id, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_video_reco_events_first
+  ON video_reco_events (recommendation_id, event, COALESCE(surface, 'wa'), COALESCE(ua_class, '-'))
+  WHERE event NOT IN ('error', 'click');
+CREATE UNIQUE INDEX IF NOT EXISTS uq_video_reco_events_click_device
+  ON video_reco_events (recommendation_id, COALESCE(surface, 'wa'), COALESCE(ua_class, '-'), COALESCE(device, '-'))
+  WHERE event = 'click';
+
 NOTIFY pgrst, 'reload schema';
