@@ -67,11 +67,13 @@ function quotedVocative(text) {
 // («یہ کلپ دکھاتا ہے», «آپ کی رپورٹ کہتی ہے» are right).
 const FEMININE_TEACHER = /استاذہ|معلمہ|استانی|ٹیچر صاحبہ/u;
 // The teacher as SUBJECT: not «استاد کو / کی / کا / کے / سے / نے / پر» (object, possessive, ergative).
-const TEACHER_SUBJECT = /(?:^|\s)(?:استاد|استاذ|ٹیچر|معلم|آپ)(?!\s+(?:کو|کی|کا|کے|سے|نے|پر)(?=\s|$))(?=\s|$)/gu;
+// R7f (red7 230552 D4: «وہ کیوں پوچھنا بھول گیا»): «وہ» opening a clause of a reason is the teacher it speaks of
+const TEACHER_SUBJECT = /(?:^|\s)(?:استاد|استاذ|ٹیچر|معلم|آپ|وہ)(?!\s+(?:کو|کی|کا|کے|سے|نے|پر)(?=\s|$))(?=\s|$)/gu;
 // Another subject between the teacher and the verb (a clip, the report, the questions, the children) owns the verb; a
 // marked object («سوال کو», «سوال میں») does not. After «آپ» a feminine plural verb is always the reader's.
 const OTHER_SUBJECT = /(?:^|\s)(?:کلپ|clip|ویڈیو|video|رپورٹ|سوال|سوالات|بچہ|بچے|بچی|طلبہ|طالب|کلاس|جماعت|گروپ)(?!\s+(?:کو|کی|کا|کے|سے|میں|پر|نے)(?=\s|$))(?=\s|$)/iu;
-const SINGULAR = /\S(?:تا|تی)\s+(?:ہے|تھا|تھی)(?=$|\s)|\s(?:رہا|رہی)\s+(?:ہے|تھا|تھی)(?=$|\s)|\S\s+(?:گا|گی)(?=$|\s)/u;
+// …and the perfective «گیا / گئی» of a teacher subject (R7f, red7 D4)
+const SINGULAR = /\S(?:تا|تی)\s+(?:ہے|تھا|تھی)(?=$|\s)|\s(?:رہا|رہی)\s+(?:ہے|تھا|تھی)(?=$|\s)|\S\s+(?:گا|گی)(?=$|\s)|\s(?:گیا|گئی)(?=$|\s)/u;
 // …and a feminine adjective predicate («استاد کھڑی ہیں», red7 REVIEW_3630 G12).
 const FEMININE_PLURAL = /\S(?:تی|رہی)\s+(?:ہیں|تھیں)(?=$|\s)|\s(?:رہی|سکتی|چکی)\s+(?:ہیں|تھیں)(?=$|\s)|\S\s+گی(?=$|\s)|\s(?:کھڑی|بیٹھی|تھکی|اچھی)\s+(?:ہیں|تھیں)(?=$|\s)/u;
 
