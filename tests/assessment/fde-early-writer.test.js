@@ -13,11 +13,20 @@ const { NO_PICTURES } = require('../../bot/shared/services/assessment/fde-early-
 const SAMPLE = { count: { kind: 'count', name: 'apple', n: 3 }, dots: { kind: 'dots', n: 4 }, shapes: { kind: 'shapes', shapes: [{ shape: 'circle' }] },
   object: { kind: 'object', name: 'cat' }, scene: { kind: 'scene', describe: 'children in a park' }, clock: { kind: 'clock', hour: 3, minute: 0 } };
 
+// A slot with an answer rule gets keys that fit it unless a reply gives its own (`keys`: slot -> {question, answer} by item).
+const GOOD = {
+  'g1.english.B.Q8': (i) => ({ question: `What is child ${i + 1} doing?`, answer: ['running', 'reading', 'eating', 'sleeping'][i] }),
+  'g2.english.B.Q6': (i) => ({ question: ['c_t', 'd_g', 's_n'][i], answer: ['cat', 'dog', 'sun'][i] }),
+  'g2.english.B.Q10': (i) => ({ question: `Thing ${i + 1} is ____ the box.`, answer: ['in', 'on', 'under', 'near', 'behind'][i] }),
+  'g2.english.C.Q14': (i) => ({ question: `Is it hot ${i + 1}`, answer: `Is it hot ${i + 1}?` }),
+};
+
 // Every object picture is a different thing unless a reply names it (`names`: slot -> names by item).
-function itemsFor(slot, { noPicture = false, names = [] } = {}) {
+function itemsFor(slot, { noPicture = false, names = [], keys = [] } = {}) {
   return Array.from({ length: slot.generate }, (_, i) => ({
     slot: slot.slot, question: `Question ${i + 1} for ${slot.slot}`, marks: slot.marks_each, blooms: 'Remember',
     ...(slot.shape === 'mcq' ? { options: ['a) one', 'b) two', 'c) three'], answer: 'a) one' } : { answer: String(i + 1) }),
+    ...(keys[i] || (GOOD[slot.slot] ? GOOD[slot.slot](i) : {})),
     scheme: { points: [{ kind: 'A', text: 'correct', marks: slot.marks_each }] },
     ...(slot.picture && !noPicture ? { picture: { ...SAMPLE[slot.picture[0]],
       ...(slot.picture[0] === 'object' ? { name: names[i] || `${slot.slot} thing ${i}` } : {}) } } : {}),
@@ -27,7 +36,7 @@ function itemsFor(slot, { noPicture = false, names = [] } = {}) {
 function treeFor(section, opts = {}) {
   const tree = { unseen: { objective: {}, subjective: {} } };
   section.slots.forEach((slot) => {
-    const list = itemsFor(slot, { noPicture: (opts.noPicture || []).includes(slot.slot), names: (opts.names || {})[slot.slot] });
+    const list = itemsFor(slot, { noPicture: (opts.noPicture || []).includes(slot.slot), names: (opts.names || {})[slot.slot], keys: (opts.keys || {})[slot.slot] });
     (tree.unseen[slot.category][slot.type] = tree.unseen[slot.category][slot.type] || []).push(...list);
   });
   return tree;
@@ -184,5 +193,27 @@ test('a repeat left after the re-ask is logged and the paper still comes back', 
   expect(out.examJson).toBeDefined();
   expect(d.logToFile).toHaveBeenCalledWith('[assessment] repeated pictures', expect.objectContaining({
     repeated: [{ slot: 'g1.english.C.Q11', reason: 'repeat', pictures: ['cat'] }],
+  }));
+});
+
+// v12 G2 English Q10 iv: the bird is above the tree, but the child may write only in, on, under, near or behind (bd-5jmnfj.4.22).
+const above = { keys: { 'g2.english.B.Q10': [{ question: 'The bird is ____ the tree.', answer: 'above' }] } };
+
+test('a section keyed off its own rule is asked once more, told the item and the rule', async () => {
+  const { d, calls, go } = run(2, 'english', { replies: { B: [above] } });
+  await go();
+  const b = calls.sections.filter((c) => c.id === 'B');
+  expect(b).toHaveLength(2);
+  expect(b[1].user).toMatch(/The bird is ____ the tree\. → above/);
+  expect(b[1].user).toMatch(/never above/i);
+  expect(d.logToFile).not.toHaveBeenCalledWith('[assessment] answers off the rule', expect.anything());
+});
+
+test('a key still off its rule after the re-ask is logged and the paper still comes back', async () => {
+  const { d, go } = run(2, 'english', { replies: { B: [above, above] } });
+  const out = await go();
+  expect(out.examJson).toBeDefined();
+  expect(d.logToFile).toHaveBeenCalledWith('[assessment] answers off the rule', expect.objectContaining({
+    answers: [{ slot: 'g2.english.B.Q10', reason: 'answer', items: ['The bird is ____ the tree. → above'] }],
   }));
 });
