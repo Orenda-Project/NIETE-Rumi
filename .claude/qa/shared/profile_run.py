@@ -97,6 +97,8 @@ LAYERS = ["wait.intentional", "bot.processing", "bot.pacing", "bot.timeout", "ha
 def layer_of(span):
     """Which layer a span's OWN time belongs to."""
     layer, kind, name = span.get("layer"), span.get("kind"), span.get("name", "")
+    if layer == "driver":        # a driver's sleep is intentional too, but it is the SCRIPT's wait, not the harness's
+        return "driver.sleep"
     if layer == "wait" or kind == "intentional":
         return "wait.intentional"
     if name == "bot.pacing":
@@ -113,13 +115,13 @@ def layer_of(span):
         return "flow"
     if layer == "harness-db" or kind == "seed":
         return "seed"
-    if layer == "driver":
-        return "driver.sleep"
     return "harness.overhead"
 
 
 def category_of(span):
     kind, name = span.get("kind"), span.get("name", "")
+    if span.get("layer") == "driver":
+        return "driver-sleep"
     if kind == "intentional":
         return "intentional"
     if name == "bot.reply" and span.get("status") == "timeout":
