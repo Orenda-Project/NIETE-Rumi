@@ -1,0 +1,12 @@
+[
+  [
+    "wa",
+    "sendCtaUrl",
+    "923000000003",
+    {
+      "body": "Open your lesson plans.",
+      "buttonText": "Lesson plans",
+      "url": "https://portal.example.test/go/<signed-token>"
+    }
+  ]
+]

@@ -17,6 +17,8 @@ const { MAX_ATTEMPTS } = require('../config/lesson-plan-generation');
 // The lifecycle path of every request row this service writes (lesson-plan-lifecycle.service);
 // with LP_LIFECYCLE_PATHS off for it, every insert and update below is exactly the old one.
 const LIFECYCLE_SOURCE = Lifecycle.LIFECYCLE.SOURCES.NIETE_GROUNDED;
+// The free-form engine's track: the request row's source and the SQS payload's `track`.
+const FREEFORM_TRACK = Lifecycle.LIFECYCLE.SOURCES.FREEFORM_V1;
 
 /**
  * Whether this request row is one the grounded path recorded — the only rows its stage columns and
@@ -45,8 +47,9 @@ async function isOwnRow(requestId) {
 
 class LessonPlanQueueService {
   // createAndQueue (freeform LP / presentation via Gamma) was removed with
-  // bd-2540 (Option A partial Gamma strip). The only remaining teacher-facing
-  // path is createAndQueueGrounded below, which renders a pre-authored AST row.
+  // the partial Gamma strip. The teacher-facing paths are
+  // createAndQueueGrounded (a pre-authored AST row) and createAndQueueFreeform
+  // (the free-form engine, behind app_settings.freeform_lp; off by default).
 
   /**
    * Create a GROUNDED lesson plan request (curriculum_lp_ast row) and queue
@@ -131,6 +134,83 @@ class LessonPlanQueueService {
         .eq('id', requestId), Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'queue_failed'), { source: LIFECYCLE_SOURCE, table: 'lesson_plan_requests', requestId });
       Lifecycle.queueEvent(LIFECYCLE_SOURCE, 'lesson_plan.queue.failed', { requestId, errorCode: 'QUEUE_FAILED' });
       logToFile('Failed to queue grounded LP to SQS, marked for retry', { requestId, error: sqsError.message });
+    }
+
+    return requestId;
+  }
+
+  /**
+   * Create a FREE-FORM lesson plan request and queue it for the free-form engine.
+   *
+   * Reached only from the typed-topic seam (text-message.handler handleLessonPlanRequest) when the
+   * topic is in neither catalogue AND app_settings.freeform_lp sends this teacher there; with the
+   * switch off nothing calls it. The row carries source='freeform_v1' (the lesson_plan_requests
+   * source CHECK lists it from V1.7.7); the SQS payload carries `track: 'freeform_v1'`, the field the
+   * generation worker routes on, plus the `entry` that brought her here. No sourceLpUuid, so the
+   * grounded branch never sees it.
+   *
+   * Throws when the row cannot be written, and when the job cannot be queued after the row exists:
+   * nothing reads pending free-form rows back, so the row is marked failed at once and the caller
+   * gives today's catalogue answer.
+   *
+   * @param {Object} params
+   * @param {string} params.userId
+   * @param {string} params.phoneNumber
+   * @param {string} params.topic          — what she typed (trimmed to the column's 500)
+   * @param {string} [params.fullMessage]  — the whole message; defaults to topic
+   * @param {'en'|'ur'} [params.language]
+   * @param {string} [params.entry]        — the door, for the engine and the logs
+   * @returns {Promise<string>} Request ID
+   */
+  static async createAndQueueFreeform(params) {
+    const {
+      userId, phoneNumber, topic, fullMessage, language = 'en', entry = 'unknown',
+    } = params || {};
+    const topicCol = [...String(topic || '')].slice(0, 500).join('');
+
+    const { data: request, error } = await supabase
+      .from('lesson_plan_requests')
+      .insert({
+        user_id: userId,
+        phone_number: phoneNumber,
+        topic: topicCol,
+        full_message: fullMessage || topic,
+        language,
+        content_type: 'lesson_plan',
+        status: 'pending',
+        source: FREEFORM_TRACK,
+      })
+      .select('id')
+      .single();
+    if (error) throw new Error(`Failed to create free-form LP request: ${error.message}`);
+
+    const requestId = request.id;
+    logToFile('Free-form LP request created', { requestId, userId, entry, language });
+
+    try {
+      await SQSQueueService.queueCoachingJob(requestId, 'lesson_plan_generation', {
+        requestId,
+        userId,
+        phoneNumber,
+        topic: topicCol,
+        fullMessage: fullMessage || topic,
+        language,
+        contentType: 'lesson_plan',
+        track: FREEFORM_TRACK,
+        entry,
+      });
+      logToFile('Free-form LP job queued to SQS', { requestId });
+    } catch (sqsError) {
+      try {
+        await supabase
+          .from('lesson_plan_requests')
+          .update({ status: 'failed', error_message: `SQS queue failed: ${sqsError.message}` })
+          .eq('id', requestId);
+      } catch (markErr) {
+        logToFile('Failed to mark the unqueued free-form LP row failed', { requestId, error: markErr.message }, 'warn');
+      }
+      logToFile('Failed to queue free-form LP to SQS, row marked failed', { requestId, error: sqsError.message }, 'warn');
+      throw new Error(`Failed to queue free-form LP request: ${sqsError.message}`);
     }
 
     return requestId;
@@ -302,6 +382,8 @@ class LessonPlanQueueService {
         language: request.language,
         contentType: request.content_type,
         ...(grounded ? { sourceLpUuid: request.artifact_ref } : {}),
+        // A free-form row keeps its track, or the worker would take it for a stale job and drop it.
+        ...(request.source === FREEFORM_TRACK ? { track: FREEFORM_TRACK } : {}),
       });
 
       logToFile('Lesson plan request requeued', { requestId: request.id, grounded: Boolean(grounded) });
