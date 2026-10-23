@@ -66,7 +66,7 @@ const A867 = {
 };
 
 test('867856ac: prefix dropped, the unquoted Urdu moment in one FSI…PDI, no quote mark added (en); prefix only (ur)', async () => {
-  const row = await E.recommendForReport({ ...args([{ start_ms: 728000, label: 'Teacher', text: LINE }]), deps: deps([A867]) });
+  const row = await E.recommendForReport({ ...args([{ start_ms: 728000, label: 'Teacher', text: LINE }, { start_ms: 729000, label: 'Student', text: 'جی۔' }]), deps: deps([A867]) });
   expect(row.status).toBe('shown');
   expect(row.reason_en).toBe(`${FSI}اب یہ ہم نے ریڈنگ کی، میں نے آپ کو کر کے پڑھائی... جو پڑھا ہے اس کو ذرا پڑھیں۔${PDI} The clip shows a teacher preparing one easy and one challenge version of a poem task, explaining roles.`);
   expect(row.reason_en).not.toMatch(/"/);

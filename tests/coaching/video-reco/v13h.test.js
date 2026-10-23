@@ -48,7 +48,7 @@ function args({ lines, topic = 'shapes', card = { indicator: 'C1', action: 'Ask 
   return {
     session: {
       id: SID, user_id: UID, transcript_language: 'ur', users: { name: 'Saima Khan', preferred_language: 'ur' },
-      diarization_data: { segments: lines || [{ start_ms: 30000, label: 'Teacher', text: 'Ahmed, tum batao: is this a triangle? Yes or no, quickly!' }] },
+      diarization_data: { segments: lines || [{ start_ms: 30000, label: 'Teacher', text: 'Ahmed, tum batao: is this a triangle? Yes or no, quickly!' }, { start_ms: 31000, label: 'Student', text: 'جی۔' }] },
     },
     analysis: {
       framework: 'fico',
@@ -118,7 +118,7 @@ describe('2 · the isolate goes around the accepted moment span (red7 070727)', 
   });
 
   test('engine: the stored reason isolates the accepted span; moment_quote carries no bidi controls', async () => {
-    const lines = [{ start_ms: 3000, label: 'Teacher', text: QUOTE }];
+    const lines = [{ start_ms: 3000, label: 'Teacher', text: QUOTE }, { start_ms: 4000, label: 'Student', text: 'جی۔' }];
     const r = {
       seg_id: '10-s1', moment: { at: '00:03', quote: `${PDI}${QUOTE}` }, reason_en: EN,
       reason_ur: 'استاد نے پوچھا "اب "سی" اے ٹی کیا ہوتا ہے؟"؛ اس کلپ میں جوڑوں کی مشق ہے۔', confidence: 0.6,

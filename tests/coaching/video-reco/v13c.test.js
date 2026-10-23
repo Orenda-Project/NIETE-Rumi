@@ -149,7 +149,7 @@ describe('(b) the card-sentence fallback', () => {
   });
 
   test('the length cap is on the TEACHER\'s language: an en teacher with a sentence that fits in en gets the clip', async () => {
-    const s = 'a'.repeat(220); // en template + 220 = 293 ≤ 300; the ur one would be 302
+    const s = `Ask ${'a'.repeat(216)}`; // en template + 220 = 293 ≤ 300; the ur one would be 302 (R7b: a sentence with a move)
     expect([...FALLBACK_EN(s, 90)].length).toBeLessThanOrEqual(300);
     expect([...FALLBACK_UR(s, 90)].length).toBeGreaterThan(300);
     const row = await E.recommendForReport({ ...args({}, { indicator: 'C1', action: s }, 'en'), deps: deps([ROMAN, ROMAN]) });

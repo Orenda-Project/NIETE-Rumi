@@ -58,14 +58,14 @@ const pick = (quote, at = '00:40') => ({
 });
 
 test('70f7c682: the label leaves the stored moment_quote (today: «Teacher (UR): سب سیٹ کسے کہتے ہیں؟»)', async () => {
-  const lines = [{ start_ms: 40000, label: 'Teacher (UR)', text: 'سب سیٹ کسے کہتے ہیں؟' }];
+  const lines = [{ start_ms: 40000, label: 'Teacher (UR)', text: 'سب سیٹ کسے کہتے ہیں؟' }, { start_ms: 41000, label: 'Student', text: 'جی۔' }];
   const row = await E.recommendForReport({ ...args(lines), deps: deps([pick('Teacher (UR): سب سیٹ کسے کہتے ہیں؟')]) });
   expect(row).toMatchObject({ status: 'shown', moment_source: 'transcript', moment_quote: 'سب سیٹ کسے کہتے ہیں؟' });
 });
 
 test('0a69a5c4: a trailing "(15:29)" and the wrapping quote marks leave the stored scorer quote', async () => {
   const LINE = 'چلو مل کر... گائیڈ نوٹ تیار کرتے ہیں.';
-  const lines = [{ start_ms: 929000, label: 'Teacher', text: LINE }, { start_ms: 40000, label: 'Teacher', text: 'سب بیٹھ جائیں' }];
+  const lines = [{ start_ms: 929000, label: 'Teacher', text: LINE }, { start_ms: 930000, label: 'Student', text: 'جی۔' }, { start_ms: 40000, label: 'Teacher', text: 'سب بیٹھ جائیں' }];
   const q = `"${LINE}" (15:29)`;
   const row = await E.recommendForReport({ ...args(lines, `Planning together. Quote: ${q}`), deps: deps([pick(q, '15:29')]) });
   expect(row.status).toBe('shown');
