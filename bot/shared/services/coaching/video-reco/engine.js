@@ -310,7 +310,7 @@ async function compute(a, d, state) {
     reason_en: composeReason(clean(said.reason_en), 'en', accepted), // bd-8hhqhf: no log-line prefix; the moment renders in place
     reason_ur: composeReason(clean(said.reason_ur), 'ur', accepted),
     moment_at: !fallback && p.moment && p.moment.at ? String(p.moment.at) : null,
-    moment_quote: accepted,
+    moment_quote: accepted ? select.storedQuote(accepted) : null, // red7 091238: no speaker label or stamp on /v
     moment_source: fallback ? 'card' : v.momentSource, // 'card' = the v1.3c fallback: no moment, the card's sentence
     confidence: fallback ? (Number.isFinite(c) ? Math.min(1, Math.max(0, c)) : 0) : v.confidence,
     none_reason: null,
