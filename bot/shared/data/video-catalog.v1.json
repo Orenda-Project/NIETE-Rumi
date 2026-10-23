@@ -3919,6 +3919,7 @@
     },
     {
      "seg_id": "10-s2",
+     "grade_band": "all",
      "start_s": 53.6,
      "end_s": 124.5,
      "title_en": "Three ways to group: mixed, same-level, task roles",
@@ -4062,6 +4063,7 @@
     },
     {
      "seg_id": "10-s3",
+     "grade_band": "1-8",
      "start_s": 125.1,
      "end_s": 187.46,
      "title_en": "One poem task, three groupings: goal first, then groups",
@@ -10969,6 +10971,7 @@
     },
     {
      "seg_id": "22-s3",
+     "grade_band": "1-8",
      "start_s": 104.61,
      "end_s": 169.5,
      "title_en": "When to check and what to do with the result",
@@ -21793,7 +21796,8 @@
       "F4"
      ],
      "language": "ur",
-     "recommendable": true,
+     "recommendable": false,
+     "recommendable_reason": "panel_veto: ladder only, not a next-step pick (a definition chapter; 0/8 in the R7 panel, ped/REVIEW_r7_scale.md §6.2)",
      "phase": "explain",
      "keywords": [
       "remember",
@@ -22022,7 +22026,8 @@
       "C8"
      ],
      "language": "ur",
-     "recommendable": true,
+     "recommendable": false,
+     "recommendable_reason": "panel_veto: ladder only, not a next-step pick (a definition chapter; 0/8 in the R7 panel, ped/REVIEW_r7_scale.md §6.2)",
      "phase": "guided",
      "keywords": [
       "analyze",
@@ -22137,7 +22142,8 @@
       "C8"
      ],
      "language": "ur",
-     "recommendable": true,
+     "recommendable": false,
+     "recommendable_reason": "panel_veto: ladder only, not a next-step pick (a definition chapter; 0/8 in the R7 panel, ped/REVIEW_r7_scale.md §6.2)",
      "phase": "guided",
      "keywords": [
       "evaluate",
@@ -23133,6 +23139,7 @@
     },
     {
      "seg_id": "50-s3",
+     "grade_band": "1-8",
      "start_s": 137.85,
      "end_s": 240.09,
      "title_en": "Three kinds of pairs in a Grade 4 maths class",
@@ -45582,7 +45589,8 @@
       "F8"
      ],
      "language": "en",
-     "recommendable": true,
+     "recommendable": false,
+     "recommendable_reason": "panel_veto: ladder only, not a next-step pick (a definition chapter; 0/8 in the R7 panel, ped/REVIEW_r7_scale.md §6.2)",
      "phase": "opening",
      "keywords": [
       "inquiry",
@@ -64485,6 +64493,7 @@
     },
     {
      "seg_id": "128-s4",
+     "grade_band": "all",
      "start_s": 238.23,
      "end_s": 290.43,
      "title_en": "Reflection questions after a conflict",
@@ -77046,6 +77055,7 @@
      ],
      "language": "ur",
      "recommendable": true,
+     "keep_with_caveat": "mixed_level_task",
      "phase": "guided",
      "keywords": [
       "different",
@@ -78046,6 +78056,7 @@
      ],
      "language": "ur",
      "recommendable": true,
+     "keep_with_caveat": "mixed_level_task",
      "phase": "independent",
      "keywords": [
       "same",
