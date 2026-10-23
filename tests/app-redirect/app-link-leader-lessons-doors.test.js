@@ -342,6 +342,26 @@ describe('a coach under "coaches" who names a topic (bd-l6424d)', () => {
     expect(buttonText).toBe('لیسن پلان');
   });
 
+  test('if the button and its plain-text link are both refused: the intent door tries, the catalogue door tries again, then the line and the Flow', async () => {
+    load(COACH);
+    mockWa.sendCtaUrl.mockResolvedValue(false);
+    mockWa.sendMessage.mockImplementation(async (_to, text) => !String(text).includes('/go/'));
+    try {
+      await typedTopic();
+      // Two link attempts (intent, then lesson_plan_intent inside the catalogue door), each a button and a plain-text
+      // try, each logged; every one refused, so what the coach receives is the textbook line and the catalogue Flow.
+      expect(mockWa.sendCtaUrl).toHaveBeenCalledTimes(2);
+      expect(texts().filter((t) => t.includes('/go/'))).toHaveLength(2);
+      expect(logRows('app_funnel.command')).toHaveLength(2);
+      expect(logRows('app_funnel.link_failed')).toHaveLength(2);
+      expect(texts().filter((t) => !t.includes('/go/'))).toEqual([textbookLine('en')]);
+      expect(lpFlows()).toHaveLength(1);
+    } finally {
+      mockWa.sendCtaUrl.mockResolvedValue(true);
+      mockWa.sendMessage.mockReset().mockResolvedValue(true);
+    }
+  });
+
   test('an analytics-only coach who names a topic keeps today\'s path: the textbook line and the catalogue Flow', async () => {
     load(COACH, [...PROD, { key: 'portal_analytics_only', value: [COACH.id] }]);
     await typedTopic();

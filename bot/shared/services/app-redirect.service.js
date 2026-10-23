@@ -176,11 +176,14 @@ const LEADER_PLAIN_DOORS = Object.freeze(['bare_command', 'chip', 'menu', 'menu_
  * catalogue door inside handleLessonPlanRequest, which that intent, a topic typed after the menu asked for one, and
  * the Oxbridge picker's "Generate" tap reach). Spoken: `voice_intent` (before the spoken answer), then
  * `voice_lesson_plan_intent`. (Sandbox also has the lesson-plan worker's in-flight rescue, `cutover_inflight_gamma`;
- * this branch has no such rescue, so it is not listed.) Each path asks its first door first and returns on a link, so
- * a leader gets the tab at most once; the later door only decides if the first one did not send. Under the cutover gate
- * handleLessonPlanRequest sends the "lessons come from your textbook" line BEFORE it asks, so the two doors that reach
- * it directly (the menu's topic prompt, the Oxbridge tap) answer with that line and then the tab, as they do for a
- * covered teacher.
+ * this branch has no such rescue, so it is not listed.) Each path asks its first door first and returns once a link is
+ * sent, so a leader receives the tab at most once. The later door decides only when the first did not send: if the
+ * switch said no, it says no again and the catalogue goes; if the switch said yes but Meta refused the button and its
+ * plain-text link, it tries the link once more (a second app_funnel.command and link_failed row) before the catalogue.
+ * Under the cutover gate handleLessonPlanRequest sends the "lessons come from your textbook" line BEFORE it asks, so the
+ * two doors that reach it directly (the menu's topic prompt, the Oxbridge tap) answer with that line and then the tab,
+ * as they do for a covered teacher. `ft_fallback` (the first-touch "Lesson plan" button) and `pic_lp_book_page` (a
+ * textbook-page photo) are in neither list: a covered coach there keeps today's path.
  */
 const LEADER_TOPIC_DOORS = Object.freeze(['intent', 'lesson_plan_intent', 'voice_intent', 'voice_lesson_plan_intent']);
 const LEADER_LINK_DOORS = Object.freeze([...LEADER_PLAIN_DOORS, ...LEADER_TOPIC_DOORS]);

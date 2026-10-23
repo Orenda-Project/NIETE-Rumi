@@ -155,7 +155,10 @@ describe('a leader asks for lesson plans with the switch on', () => {
       expect(tokenOf(mockCta.mock.calls[0][1]).f).toBe('leader_lessons');
     });
 
-  test.each(['command', 'ice_breaker', 'unspecified', 'keyword'])(
+  // `ft_fallback` (the first-touch "Lesson plan" button, first-touch/maker.fallback.js) and `pic_lp_book_page` (a photo
+  // of a textbook page, image-message.handler) are in neither list: a covered coach there still gets today's WhatsApp
+  // path. Pinned here so adding either is a deliberate change, not a side effect.
+  test.each(['command', 'ice_breaker', 'unspecified', 'keyword', 'ft_fallback', 'pic_lp_book_page'])(
     'door %p (not one this switch opens) keeps today\'s path', async (reason) => {
       set('leader_app_lesson_plan', true);
       expect(await ask({ reason })).toBe(false);
