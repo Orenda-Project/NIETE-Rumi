@@ -161,7 +161,11 @@ function createMockGraphApi(opts = {}) {
   const phoneNumberId = opts.phoneNumberId || process.env.PHONE_NUMBER_ID || 'e2e-local';
   const botUrl = (opts.botUrl || process.env.MOCK_BOT_URL || 'http://127.0.0.1:3100').replace(/\/+$/, '');
   const state = { seq: 0, outbox: [], signals: 0, media: new Map(), mediaSeq: 0 };
-  const reset = () => { state.seq = 0; state.outbox = []; state.signals = 0; state.media.clear(); state.mediaSeq = 0; };
+  // Long-poll waiters on /outbox?wait= (bd-aqi0ay): {to, after, resolve, timer}. Woken by the next send to `to`
+  // (or any send when `to` is unset), or by the timer. A reset wakes them all with nothing.
+  const waiters = new Set();
+  const wake = (item) => { for (const w of [...waiters]) { if (!w.to || w.to === item.to) { waiters.delete(w); clearTimeout(w.timer); w.resolve(); } } };
+  const reset = () => { state.seq = 0; state.outbox = []; state.signals = 0; state.media.clear(); state.mediaSeq = 0; for (const w of [...waiters]) { waiters.delete(w); clearTimeout(w.timer); w.resolve(); } };
   let selfBase = '';   // set on listen(); the URL getMediaInfo hands back must point at THIS server
   const storeMedia = (bytes, mime, filename) => {
     const id = `media.mock.${++state.mediaSeq}`;
@@ -244,7 +248,15 @@ function createMockGraphApi(opts = {}) {
       if (req.method === 'GET' && u.pathname === '/outbox') {
         const after = Number(u.searchParams.get('after') || 0);
         const to = u.searchParams.get('to');
-        const items = state.outbox.filter((i) => i.seq > after && (!to || i.to === to));
+        const pick = () => state.outbox.filter((i) => i.seq > after && (!to || i.to === to));
+        let items = pick();
+        // wait=<ms>: hold the request until an item for `to` lands after `after`, or the wait elapses (cap 30 s).
+        // The harness's api.sleep() rides this so a driver's polling loop wakes when the bot answers (bd-aqi0ay).
+        const wait = Math.min(30000, Math.max(0, Number(u.searchParams.get('wait') || 0)));
+        if (!items.length && wait > 0) {
+          await new Promise((resolve) => { const w = { to, after, resolve, timer: setTimeout(() => { waiters.delete(w); resolve(); }, wait) }; waiters.add(w); });
+          items = pick();
+        }
         return json(res, 200, { items, last: state.seq });
       }
       if (req.method === 'POST' && u.pathname === '/reset') { reset(); return json(res, 200, { ok: true }); }
@@ -314,6 +326,7 @@ function createMockGraphApi(opts = {}) {
           if (/\.pdf$/i.test(norm.media.filename || '') || rec.mime === 'application/pdf') norm.pdf = true;
         }
         state.outbox.push({ seq, id, ts: new Date().toISOString(), at: Date.now(), to: payload.to, ...norm, raw: payload });
+        wake(state.outbox[state.outbox.length - 1]);
         tlog({ dir: 'out', seq, type: norm.type, txt: norm.txt, btns: norm.btns, list: norm.list, flow: norm.flow, media: norm.media, pdf: norm.pdf });
         say(`#${seq} ${norm.type} → ${payload.to}: ${JSON.stringify(norm.txt).slice(0, 70)}${norm.btns.length ? ' btns=' + JSON.stringify(norm.btns) : ''}`);
         return json(res, 200, { messaging_product: 'whatsapp', contacts: [{ input: payload.to, wa_id: payload.to }], messages: [{ id }] });

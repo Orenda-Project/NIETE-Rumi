@@ -83,7 +83,9 @@ def _stats(xs):
 # ── layer classification ────────────────────────────────────────────────────────
 
 LAYERS = ["wait.intentional", "bot.processing", "bot.pacing", "bot.timeout", "harness.polling", "mock.http", "flow", "seed",
-          "harness.overhead", "driver.unaccounted"]
+          "harness.overhead", "driver.sleep", "driver.unaccounted"]
+# driver.sleep: a feature script's sleep() on the mock lane (mock-api smartSleep, bd-aqi0ay) — long-polls the outbox and
+# wakes when the bot answers. Accounted, so what remains in driver.unaccounted is the script's own compute and seeds.
 # bot.timeout: a bot.reply that never came — the harness waited its full timeout (60–120 s). Not processing: nothing
 # answered. Counted apart so one missing reply cannot masquerade as the slowest bot work of the run.
 # bot.pacing: time the bot's own WhatsApp send pacer (whatsapp-send-pacer.js, GCRA per phone, 6 s interval,
@@ -95,6 +97,8 @@ LAYERS = ["wait.intentional", "bot.processing", "bot.pacing", "bot.timeout", "ha
 def layer_of(span):
     """Which layer a span's OWN time belongs to."""
     layer, kind, name = span.get("layer"), span.get("kind"), span.get("name", "")
+    if layer == "driver":        # a driver's sleep is intentional too, but it is the SCRIPT's wait, not the harness's
+        return "driver.sleep"
     if layer == "wait" or kind == "intentional":
         return "wait.intentional"
     if name == "bot.pacing":
@@ -116,6 +120,8 @@ def layer_of(span):
 
 def category_of(span):
     kind, name = span.get("kind"), span.get("name", "")
+    if span.get("layer") == "driver":
+        return "driver-sleep"
     if kind == "intentional":
         return "intentional"
     if name == "bot.reply" and span.get("status") == "timeout":

@@ -30,7 +30,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       for (const r of await api.fresh()) seen.push(r);
       const hit = seen.find(pred);
       if (hit) return { ok: true, waitedMs: Date.now() - t0, hit, seen };
-      await new Promise((r) => setTimeout(r, stepMs));
+      await sleep(stepMs);   // on the mock lane this wakes when the bot sends (bd-aqi0ay)
     }
     return { ok: false, waitedMs: Date.now() - t0, seen, last: (seen[seen.length - 1] || {}).txt || '' };
   };
@@ -378,7 +378,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
     // 🏆 Congratulations or ❌ Not this time card; a written exam opens with ✍️ Question 1.
     const GQ_TERM = /\ud83c\udfc6 \*Congratulations|\u274c \*Not this time|You have completed every|\u270d\ufe0f \*Question 1 of/;
     const isTerm = (x) => NOT_QUITE.test(x.txt || '') || PASSED.test(x.txt || '') || GQ_TERM.test(x.txt || '');
-    const waitFor = async (pred, ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { await pull(); const h = [...seen].reverse().find(pred); if (h) return h; await new Promise(r => setTimeout(r, 1200)); } return null; };
+    const waitFor = async (pred, ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { await pull(); const h = [...seen].reverse().find(pred); if (h) return h; await sleep(1200); } return null; };
     const trail = []; let first = null; const answered = new Set();
     for (let n = 0; n < 40; n++) {
       // Dedupe a question on its Qn/N header, NOT on its row-id set: the options are shuffled per
@@ -402,7 +402,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
         // message; the wait below only runs for the over-cap fallback, where they follow as a separate card.
         // A PASS now opens the NEXT module's card (or the certificate PDF's caption, or the level-complete
         // line) — the hit IS that card, returned whole so T01/T08 do not wait for a second one.
-        if (notQuite && !btns.some(bb => /Try again|Pause/i.test(bb))) { const t0 = Date.now(); while (Date.now() - t0 < 8000) { await pull(); const b = [...seen].reverse().find(x => (x.btns || []).some(bb => /Try again|Pause/i.test(bb))); if (b) { btns = b.btns; break; } await new Promise(r => setTimeout(r, 800)); } }
+        if (notQuite && !btns.some(bb => /Try again|Pause/i.test(bb))) { const t0 = Date.now(); while (Date.now() - t0 < 8000) { await pull(); const b = [...seen].reverse().find(x => (x.btns || []).some(bb => /Try again|Pause/i.test(bb))); if (b) { btns = b.btns; break; } await sleep(800); } }
         return { first, trail, seen, last: { verdict: notQuite ? 'not-quite' : 'passed', txt: (hit.txt || '').slice(0, 220), btns,
                                              doc: !!(hit.doc || hit.pdf), hit } };
       }
