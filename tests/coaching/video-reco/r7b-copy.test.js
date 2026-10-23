@@ -170,3 +170,37 @@ describe('red7 REVIEW_3630', () => {
     expect(R.systemNote('At 03:10 no hands up was observed, so you asked again')).toBe(true);
   });
 });
+
+// ── red7 155809 (HOLD #3632): the same shape on the reason path, and the model never sees the vocative ──────────────────
+describe('red7 155809', () => {
+  const EX = ['[03:10] Teacher: آج ہم نے صفحہ بارہ کھولا اور سب نے مل کر پڑھا', '[03:12] Student: جی، پڑھا۔'];
+  const p = (opening) => ({
+    seg_id: '10-s1', moment: { at: '03:10', quote: 'آج ہم نے صفحہ بارہ کھولا اور سب نے مل کر پڑھا' }, confidence: 0.8,
+    reason_en: `Your lesson moment fits this step: "${opening}${BODY}". The clip shows a teacher asking why and how instead.`,
+    reason_ur: `سبق کا یہ لمحہ اس قدم سے ملتا ہے: "${opening}${BODY}"۔ اس کلپ میں استاد کیوں اور کیسے کے سوال پوچھتے ہیں۔`,
+  });
+  test('N1 with a name of one masked and one dictionary word → validation:name', () => {
+    expect(S.validate(p('زرفشاں جہاں، '), SL, EX, { teacherName: 'Saima Khan', source: 'card_text', catalog: cat }).none).toBe('validation:name');
+  });
+  test('a classroom line opening «اچھا جی،» / «ہاں جی،» is a moment, not a name', () => {
+    for (const o of ['اچھا جی، ', 'ہاں جی، ', 'تو جی، ']) expect(S.validate(p(o), SL, EX, { teacherName: 'Saima Khan', source: 'card_text', catalog: cat }).ok).toBe(true);
+  });
+  test('the prompt\'s "Try this tomorrow" never carries the card\'s vocative', async () => {
+    jest.resetModules();
+    jest.doMock('../../../bot/shared/config/supabase', () => ({ from: jest.fn(() => { throw new Error('no supabase'); }) }));
+    jest.doMock('../../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logWarn: jest.fn() }));
+    const E = require('../../../bot/shared/services/coaching/video-reco/engine');
+    const completeJson = jest.fn().mockResolvedValue({ result: { seg_id: null, none_reason: 'x' }, usage: {}, finishReason: 'stop' });
+    await E.recommendForReport({
+      session: { id: 's', user_id: 'u', transcript_language: 'ur', users: { name: 'Saima Khan', preferred_language: 'ur' },
+        diarization_data: { segments: [{ start_ms: 40000, label: 'Teacher', text: 'یہ لفظ کون پڑھے گا؟' }, { start_ms: 41000, label: 'Student', text: 'میں پڑھوں گا۔' }] } },
+      analysis: { framework: 'fico', subject_resolution: { code: 'urdu', grade: '3', confidence: 'high' } },
+      nextStep: { target: null }, card: { action: `زرفشاں جہاں، ${BODY}` }, coachingSessionId: 's',
+      deps: { env: { VIDEO_RECO_ENABLED: 'true' }, catalog: cat, completeJson, v10GroupFor: async () => null,
+        store: { readForSession: async () => null, recentHistory: async () => ({ segments: [], modules: [] }), ladderProgress: async () => ({ level: 2, completedModules: [] }), trainingBands: async () => [], write: async (r) => r } },
+    });
+    const prompt = completeJson.mock.calls[0][0];
+    expect(prompt).toContain("Try this tomorrow: 'Do you understand?'");
+    expect(prompt).not.toMatch(/جہاں|زرفشاں/);
+  });
+});
