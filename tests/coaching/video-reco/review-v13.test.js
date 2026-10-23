@@ -42,7 +42,7 @@ describe('deviation 2 + validator (c): prompt rule 2 verbatim from SPEC §3.4, "
   test('rule 2 carries the "explains the move" clause and the length hint', () => {
     expect(text).toContain('then what the clip shows a teacher doing instead — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person\'s name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher.');
   });
-  test('PROMPT_VERSION is vr-5 (v1.3c-3)', () => expect(P.PROMPT_VERSION).toBe('vr-5'));
+  test('PROMPT_VERSION is vr-6 (v1.3c-3 + r7 no clock time)', () => expect(P.PROMPT_VERSION).toBe('vr-6'));
 });
 
 describe('deviation 5 (D3b): the tie-break needs moves[0] = target AND evidence_s inside (indicator path: evidence_s only)', () => {
@@ -205,7 +205,7 @@ describe('vr-3 teacher copy (lead-review 19:37Z ruling 2)', () => {
   });
   test('rule 2 ends with the no-scorer and no-N/A sentences', () => {
     const text = P.build({ target: tgt('C1'), candidates: [], catalog: C.fromData(FIX), excerpts: ['[00:30] Teacher: x'] });
-    expect(text).toContain('no judgement of the teacher. Never write a clip id, number or code; never mention the scorer, the report or the analysis; describe the lesson moment itself. Choose a moment with the teacher\'s or a child\'s own words; if the only candidate line is mostly [a student] placeholders, pick another line. If no real moment fits, return seg_id null — never write N/A, unknown or [around unknown].');
+    expect(text).toContain('no judgement of the teacher. Never write a clip id, number or code; never write a clock time (no [mm:ss], no \"at 12:08\") or a speaker label (no \"Teacher:\", \"Student:\") in reason_en or reason_ur: the moment\'s time goes only in moment.at; never mention the scorer, the report or the analysis; describe the lesson moment itself. Choose a moment with the teacher\'s or a child\'s own words; if the only candidate line is mostly [a student] placeholders, pick another line. If no real moment fits, return seg_id null — never write N/A, unknown or [around unknown].');
   });
   const list = { candidates: [{ seg_id: '10-s1', indicator: 'C1' }] };
   const EX = ['[00:30] Teacher: [a student], is this a triangle? Yes or no, quickly!'];
