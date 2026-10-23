@@ -31,6 +31,7 @@ const PICTURE_FIELDS = {
   object: (p) => Boolean(p.name),
   scene: (p) => Boolean(p.describe),
   clock: (p) => Number.isInteger(p.hour),
+  plant: () => true, // the paper draws it whole: nothing for the writer to fill in
 };
 
 /** The pattern with its key masked, so the builder and the layout skip Grade 5's subject rules. */
