@@ -119,6 +119,14 @@ describe('a second voice in a recording is flagged on the marks (CHILD_TEST_SA_S
     expect(calls[0].detail).toEqual(why);
     expect(got.marks.detail).toMatchObject({ second_voice: false, second_voice_checked: 0 });
   });
+
+  test('the voice check alone (a re-check of old clips uses it): one call, its answer and its record', async () => {
+    const s = standIns({ q1: true });
+    const calls = [];
+    const got = await score.__internals.voiceOf(s, calls, { base64: 'AAAA', durationSec: 4 }, KEY('q1'));
+    expect(got).toEqual({ key: KEY('q1'), heard: true });
+    expect(calls).toEqual([expect.objectContaining({ job: 'child_test.sa_second_voice', second_voice: true, who: 'adult', error: null })]);
+  });
 });
 
 describe('Results says a second voice was heard', () => {
