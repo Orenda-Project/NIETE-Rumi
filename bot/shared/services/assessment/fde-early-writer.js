@@ -117,7 +117,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     extraUsages.push(...first.usages);
     const topUp = shortfall.every((f) => layoutShort.has(f.slot));
     const pictures = shortfall.some((f) => f.reason === 'repeat')
-      ? Prompt.takenPicturesNote(results.filter((r) => r.id !== b.section.id).map((r) => r.tree))
+      ? Prompt.takenPicturesNote(results.filter((r) => r.id !== b.section.id).map((r) => r.tree), shortfall)
       : null;
     const note = [takenNote(MP, b.section, firstLaid.examJson, { topUp, shortfall, held: firstLaid.held }), pictures, Prompt.answerNote(shortfall, P)]
       .filter(Boolean).join('\n\n');
