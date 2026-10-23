@@ -13,7 +13,8 @@
  *     child's name; on 110 held-out lessons the lexicon + address rules alone let 39% of names through.
  * ctx: { teacher, coach, school: name strings of this session's people (from the DB); roster: [student names];
  *        placeholders: { teacher, coach, school, child }; strict: false turns the vocabulary rule off;
- *        vocab: [words never taken for a child's name — the lesson's subject terms] (bd-8hhqhf);
+ *        vocab: [the lesson's subject terms] (bd-8hhqhf) — they shield only the unknown-word rules (an unknown word
+ *        in an address slot, the vocabulary rule), never a lexicon name (red7 070504, COS 070543);
  *        trace: an array that receives {word, rep, why} for every masked word, why = the rule that masked it }. Over-redaction is the safe direction: a word wrongly
  * replaced costs quote fidelity; a name let through puts a child's name in a forwardable WhatsApp message.
  */
@@ -72,11 +73,11 @@ function redactNames(text, ctx = {}) {
     const placeholder = s[m.index - 1] === '[' && after[0] === ']';
     let rep = placeholder ? null : roles.get(n);
     let why = rep ? 'role' : null;
-    if (!rep && !honorific && !placeholder && !vocab.has(n)) {
+    if (!rep && !honorific && !placeholder) {
       const strong = ur ? SETS.urStrong.has(n) : SETS.latStrong.has(n) && (address || /^[A-Z]/.test(w));
       const amb = ur ? SETS.urAmbig.has(n) : SETS.latAmbig.has(n);
-      const unknownAddressed = address && !common && n.length >= 3 && (ur || /^[A-Z]/.test(w));
-      const oov = strict && !common && !amb && !ROLE_STOP.has(n) && !SETS.vocab.has(n) && (ur || /^[A-Z]/.test(w));
+      const unknownAddressed = address && !common && !vocab.has(n) && n.length >= 3 && (ur || /^[A-Z]/.test(w));
+      const oov = strict && !common && !amb && !ROLE_STOP.has(n) && !SETS.vocab.has(n) && !vocab.has(n) && (ur || /^[A-Z]/.test(w));
       const turnEnd = /^\s*[۔!؟.?]?\s*(\n|$)/.test(after);
       const named = amb && (NAMED_BY.has(next) || turnEnd || SETS.urStrong.has(next));
       const compound = ur && GOD_NAME.has(next) && (n === 'عبد' || (!common && !SETS.vocab.has(n)) || amb || SETS.urStrong.has(n));

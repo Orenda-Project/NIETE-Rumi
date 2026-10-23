@@ -60,17 +60,41 @@ function isolateLatin(text) {
 /** Bidi embedding/override/isolate controls removed (U+202A–202E, U+2066–2069): a stray PDI in model text would close an outer isolate. */
 const stripBidi = (text) => (typeof text === 'string' ? text.replace(/[\u202A-\u202E\u2066-\u2069]/g, '') : text);
 
+const QUOTE_PAIR = /"([^"]+)"|“([^”]+)”|«([^»]+)»/g;
+const ISOLATE_CH = /[\u2066-\u2069]/;
+const ARABIC_SCRIPT = /[\u0600-\u06FF]/;
+
+/** Each quoted pair isolated — only when the pairing cannot be wrong: one pair, or several holding no Urdu text. */
+function isolatePairs(text) {
+  const pairs = [...text.matchAll(QUOTE_PAIR)];
+  if (!pairs.length) return text;
+  if (pairs.length > 1 && pairs.some((p) => ARABIC_SCRIPT.test(p[1] ?? p[2] ?? p[3]))) return text; // inner quotes possible: no guess
+  return text.replace(QUOTE_PAIR, (m, a, b, c) => {
+    const q = a ?? b ?? c;
+    return ISOLATE_CH.test(q[0]) ? m : `${m[0]}${FSI}${q}${PDI}${m[m.length - 1]}`;
+  });
+}
+
 /**
  * Every quoted lesson moment in a reason set in its own first-strong isolate (FSI…PDI), inside the quote marks, so an
  * Urdu quote in an English line (or a quote opening with a digit, "9 ہم نے …") renders in place on WhatsApp, /cr and
- * the React card (bd-8hhqhf, live session c53bf86d). A quote already isolated, and a text with no quote, are unchanged.
+ * the React card (bd-8hhqhf, live session c53bf86d). `quote` is the moment the validator accepted: the longest stretch
+ * between two quote marks that lies inside it is the moment, however many quote marks it holds (red7 070727,
+ * d029b87c «اب "سی" اے ٹی …»); the rest of the text gets isolatePairs. A text with no quote is unchanged.
  */
-function isolateQuotes(text) {
+function isolateQuotes(text, quote) {
   if (typeof text !== 'string' || !text) return text;
-  return text.replace(/"([^"]+)"|“([^”]+)”|«([^»]+)»/g, (m, a, b, c) => {
-    const q = a ?? b ?? c;
-    return /^[\u2066-\u2068]/.test(q) ? m : `${m[0]}${FSI}${q}${PDI}${m[m.length - 1]}`;
-  });
+  const q = typeof quote === 'string' ? quote : '';
+  const marks = [...text.matchAll(/["“”«»]/g)].map((m) => m.index);
+  let best = null;
+  for (let i = 0; q && i < marks.length; i++) {
+    for (let j = i + 1; j < marks.length; j++) {
+      const inner = text.slice(marks[i] + 1, marks[j]);
+      if ([...inner.trim()].length >= 6 && !ISOLATE_CH.test(inner) && q.includes(inner.trim()) && (!best || inner.length > best.inner.length)) best = { i: marks[i], j: marks[j], inner };
+    }
+  }
+  if (!best) return isolatePairs(text);
+  return `${isolatePairs(text.slice(0, best.i))}${text[best.i]}${FSI}${best.inner}${PDI}${text[best.j]}${isolatePairs(text.slice(best.j + 1))}`;
 }
 
 // An Urdu line sets its English runs in isolates; other lines are as written.

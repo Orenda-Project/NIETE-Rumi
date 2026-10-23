@@ -233,7 +233,7 @@ async function compute(a, d, state) {
     teacherName: people.teacher, scorerQuote: scorerQuote || uptakeQuote, // §3.5 [v1.3] d: the Quote: part, never evidence_summary
     rawExcerpts: rawEx,
   };
-  const vocab = select.subjectVocab(analysis && analysis.topic); // bd-8hhqhf: subject words are never a child's name
+  const vocab = select.subjectVocab(); // bd-8hhqhf: subject terms are never a child's name (topic words are not used here)
   const check = (r) => (r.truncated ? { ok: false, none: 'llm_truncated', confidence: undefined } : select.validate(r.pick, list, ex, vopts));
   let res = await select.pick({ prompt: text, deps: d, timeoutMs: a.llmTimeoutMs });
   let v = check(res);
@@ -277,11 +277,16 @@ async function compute(a, d, state) {
   const clean = (x) => select.postRedact(x, people.teacher, vocab);
   const cand = list.candidates.find((x) => x.seg_id === hit.segment.seg_id) || {};
   const chosen = t.source === 'card_text' || t.source === 'phase' ? (((hit.segment.fico || [])[0] || {}).indicator || null) : null;
+  // bd-8hhqhf (scale-run 070730, COS 070808): `indicator` is in the analysis's own scheme. On fico_main_37 that is the
+  // chapter's main-37 tag, never a v4 id under a 37 label; `catalog_indicator` keeps the v4 tag.
+  const stored = t.scheme === 'fico_main_37' ? ((hit.segment.fico_main37 || [])[0] || null) : chosen;
+  // red7 070727: the isolate goes around the span the validator accepted as the moment (inner quotes stay one run).
+  const accepted = !fallback && p.moment && p.moment.quote ? clean(stripBidi(String(p.moment.quote))) : null;
   const mismatch = tagMismatch(t, hit.segment);
   const route = cand.route || list.route || null;
   return finish({
     ...withLlm,
-    ...(t.source === 'card_text' ? { indicator: chosen, catalog_indicator: chosen } : {}),
+    ...(t.source === 'card_text' ? { indicator: stored, catalog_indicator: chosen } : {}),
     route,
     alias_kind: route === 'step_text' ? list.textReason : base.alias_kind,
     level_match: cand.level_match || base.level_match,
@@ -296,10 +301,10 @@ async function compute(a, d, state) {
     end_s: hit.segment.end_s,
     language_match: cand.language_match || null,
     chapter_language: hit.segment.language || hit.module.language || null,
-    reason_en: isolateQuotes(clean(said.reason_en)), // bd-8hhqhf: a quoted moment renders in place in every surface
-    reason_ur: isolateQuotes(clean(said.reason_ur)),
+    reason_en: isolateQuotes(clean(said.reason_en), accepted), // bd-8hhqhf: a quoted moment renders in place in every surface
+    reason_ur: isolateQuotes(clean(said.reason_ur), accepted),
     moment_at: !fallback && p.moment && p.moment.at ? String(p.moment.at) : null,
-    moment_quote: !fallback && p.moment && p.moment.quote ? clean(String(p.moment.quote)) : null,
+    moment_quote: accepted,
     moment_source: fallback ? 'card' : v.momentSource, // 'card' = the v1.3c fallback: no moment, the card's sentence
     confidence: fallback ? (Number.isFinite(c) ? Math.min(1, Math.max(0, c)) : 0) : v.confidence,
     none_reason: null,
