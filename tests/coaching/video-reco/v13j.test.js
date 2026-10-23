@@ -2,7 +2,8 @@
 /**
  * bd-8hhqhf (VIDREC round 7, red7 075837 / 080908): a reason that copied the transcript's line prefix
  * («[10:51] Teacher: "…"») reads as a log line; 126 of 4,876 reasons in scale-run's shards. At composition, code-only:
- *  - "[mm:ss] <speaker label>:" → "mm:ss: " (the time kept; the lead may rule the wording), a bare label removed;
+ *  - a copied prefix at a sentence start ("[mm:ss] <speaker label>:", "mm:ss:", a bare label) is dropped entirely
+ *    (COS 081156: the panel's option 1, no clock stamp and no label in a teacher-facing reason);
  *  - in the English reason every Urdu run not already isolated sits in FSI…PDI, so an UNQUOTED moment renders in
  *    place too; no quote mark is ever added (quote marks assert verbatim speech, ⛔2).
  */
@@ -64,19 +65,21 @@ const A867 = {
   confidence: 0.6,
 };
 
-test('867856ac: prefix → "12:08: ", the unquoted Urdu moment in one FSI…PDI, no quote mark added (en); prefix only (ur)', async () => {
+test('867856ac: prefix dropped, the unquoted Urdu moment in one FSI…PDI, no quote mark added (en); prefix only (ur)', async () => {
   const row = await E.recommendForReport({ ...args([{ start_ms: 728000, label: 'Teacher', text: LINE }]), deps: deps([A867]) });
   expect(row.status).toBe('shown');
-  expect(row.reason_en).toBe(`12:08: ${FSI}اب یہ ہم نے ریڈنگ کی، میں نے آپ کو کر کے پڑھائی... جو پڑھا ہے اس کو ذرا پڑھیں۔${PDI} The clip shows a teacher preparing one easy and one challenge version of a poem task, explaining roles.`);
+  expect(row.reason_en).toBe(`${FSI}اب یہ ہم نے ریڈنگ کی، میں نے آپ کو کر کے پڑھائی... جو پڑھا ہے اس کو ذرا پڑھیں۔${PDI} The clip shows a teacher preparing one easy and one challenge version of a poem task, explaining roles.`);
   expect(row.reason_en).not.toMatch(/"/);
-  expect(row.reason_ur).toBe('12:08: اب یہ ہم نے ریڈنگ کی، میں نے آپ کو کر کے پڑھائی... جو پڑھا ہے اس کو ذرا پڑھیں۔ اس کلپ میں استاد ایک آسان اور ایک مشکل ورژن تیار کرتے ہیں۔');
+  expect(row.reason_ur).toBe('اب یہ ہم نے ریڈنگ کی، میں نے آپ کو کر کے پڑھائی... جو پڑھا ہے اس کو ذرا پڑھیں۔ اس کلپ میں استاد ایک آسان اور ایک مشکل ورژن تیار کرتے ہیں۔');
 });
 
 test.each([
   // 2366d25c, 574f7d6b (shards): quoted moments behind a prefix
-  ['[10:51] Teacher: "آپ باقی سب غور سے سنیں۔" Clip shows a routine.', `10:51: "${FSI}آپ باقی سب غور سے سنیں۔${PDI}" Clip shows a routine.`],
-  ['[00:14] Student (UR): "ایچ سی ایف۔" The clip shows a check.', `00:14: "${FSI}ایچ سی ایف۔${PDI}" The clip shows a check.`],
+  ['[10:51] Teacher: "آپ باقی سب غور سے سنیں۔" Clip shows a routine.', `"${FSI}آپ باقی سب غور سے سنیں۔${PDI}" Clip shows a routine.`],
+  ['[00:14] Student (UR): "ایچ سی ایف۔" The clip shows a check.', `"${FSI}ایچ سی ایف۔${PDI}" The clip shows a check.`],
   ['Teacher: "سب کتاب کھولیں" The clip shows how to start.', `"${FSI}سب کتاب کھولیں${PDI}" The clip shows how to start.`],
+  ['00:00: "سب کتاب کھولیں" The clip shows how to start.', `"${FSI}سب کتاب کھولیں${PDI}" The clip shows how to start.`],
+  ['The class was quiet. [04:10] Teacher: "سب سنیں" The clip shows wait time.', `The class was quiet. "${FSI}سب سنیں${PDI}" The clip shows wait time.`],
 ])('copy.composeReason en: %s', (raw, want) => {
   expect(C.composeReason(raw, 'en')).toBe(want);
 });
@@ -86,6 +89,7 @@ test('Urdu bare label removed in the Urdu reason; nothing else changes', () => {
 });
 
 test('a reason with no prefix and no Urdu is byte-identical; "the teacher:" inside a sentence is not a label', () => {
+  // an in-sentence time ("At 12:08 …") is the model's wording, not a copied prefix: a prompt matter, not this code
   const t = 'At 12:08 the class read aloud together. The clip shows the teacher: modelling first, then pairs.';
   expect(C.composeReason(t, 'en')).toBe(t);
 });
