@@ -10,14 +10,18 @@
 const KIE_URL = 'https://api.kie.ai/api/v1/jobs';
 // Amena, 23 Oct 2026: "worksheet" and "setting" drew worksheets — a banner, a caption giving the answer,
 // four objects in one frame (bd-5jmnfj.4.11). A Grade 1 child names one plain thing.
-const STYLE = 'Simple black and white line drawing for a young child. Thick clean outlines, no shading, no colour, child-friendly.';
+// v14: arrows pointed at the answer and one scene came back a photographed colouring page. Amena, 23 Oct 2026:
+// "we want black outlines, plain pictures so theyre easy to print" (bd-5jmnfj.4.30).
+const STYLE = 'Simple black and white line drawing for a young child. Thick clean black outlines on pure white, no shading, '
+  + 'no colour, child-friendly. No arrows, no pointers, no lines pointing at anything. A clean digital drawing, not a scan '
+  + 'or photo of paper: no page edge, no grey, no paper texture, no shadow.';
 const ALONE = 'Only one thing in the picture, centred on a plain white background: no other objects, no ground, no people, '
   + 'no text, no letters, no label, no caption, no heading, no border.';
 // v12: a plant with an arrow came back labelled ROOT, a school said SCHOOL; the scene prompt had no text rule.
-const NO_TEXT = 'No text anywhere: no words, no letters, no label, no caption, no sign, no writing on buildings or boards; '
-  + 'an arrow points with no word beside it.';
+const NO_TEXT = 'No text anywhere: no words, no letters, no label, no caption, no sign, no writing on buildings or boards.';
 const NEGATIVE = 'text, words, letters, typography, captions, labels, watermark, signature, writing, numbers, digits, symbols, '
-  + 'colour, photo, grey background, border, frame, worksheet, heading, title, caption, multiple objects';
+  + 'colour, photo, grey background, border, frame, worksheet, heading, title, caption, multiple objects, '
+  + 'arrow, pointer, scanned page, paper texture, page edge, shadow';
 
 /** The image-model prompt for a picture. A count draws one of its object; the paper repeats it. */
 function promptFor(picture) {
@@ -70,4 +74,4 @@ async function generateImage(prompt, {
   throw new Error(`image model: task ${taskId} did not finish`);
 }
 
-module.exports = { promptFor, generateImage, KIE_URL };
+module.exports = { promptFor, generateImage, KIE_URL, NEGATIVE };

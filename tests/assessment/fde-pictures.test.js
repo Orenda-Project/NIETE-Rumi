@@ -44,12 +44,12 @@ test('a cache miss is drawn once, shrunk, stored and embedded', async () => {
   const x = deps();
   const out = await Pictures.resolvePictures(paper([{ kind: 'object', name: 'Red Apple' }]), x.d);
   expect(x.calls.generate).toHaveLength(1);
-  expect(x.calls.upload).toEqual(['fde-pictures/v2/object/red-apple.jpg']);
+  expect(x.calls.upload).toEqual(['fde-pictures/v3/object/red-apple.jpg']);
   expect(items(out)[0].picture.src).toBe(`data:image/jpeg;base64,${Buffer.from('jpg:png').toString('base64')}`);
 });
 
 test('a cache hit is read from R2, never drawn again', async () => {
-  const x = deps({ cached: { 'fde-pictures/v2/object/apple.jpg': Buffer.from('old') } });
+  const x = deps({ cached: { 'fde-pictures/v3/object/apple.jpg': Buffer.from('old') } });
   const out = await Pictures.resolvePictures(paper([{ kind: 'count', name: 'apple', n: 4 }]), x.d);
   expect(x.calls.generate).toHaveLength(0);
   expect(items(out)[0].picture.src).toBe(`data:image/jpeg;base64,${Buffer.from('old').toString('base64')}`);
@@ -65,7 +65,7 @@ test('the same picture twice on one paper is drawn once', async () => {
 test('a scene key is its slug plus a hash of the whole description', () => {
   const a = Pictures.cacheKey({ kind: 'scene', describe: 'a long pencil and a short pencil' });
   // scene-no-text: scenes cached before bd-5jmnfj.4.11 carry words (ROOT, SCHOOL) and are never reused
-  expect(a).toMatch(/^fde-pictures\/v2\/scene-no-text\/a-long-pencil-and-a-short-pencil-[0-9a-f]{8}\.jpg$/);
+  expect(a).toMatch(/^fde-pictures\/v3\/scene-no-text\/a-long-pencil-and-a-short-pencil-[0-9a-f]{8}\.jpg$/);
   expect(Pictures.cacheKey({ kind: 'scene', describe: 'A long pencil and a short pencil.' })).toBe(a);
 });
 
@@ -91,6 +91,6 @@ test('a paper with no pictures is returned as it was', async () => {
   expect(await Pictures.resolvePictures(p, x.d)).toEqual(p);
 });
 
-test('the cache moved to v2: no v1 worksheet picture is reused (bd-5jmnfj.4.11)', () => {
-  expect(Pictures.PREFIX).toBe('fde-pictures/v2');
+test('the cache moved to v3: no v2 arrowed or scan-look picture is reused (bd-5jmnfj.4.30)', () => {
+  expect(Pictures.PREFIX).toBe('fde-pictures/v3');
 });

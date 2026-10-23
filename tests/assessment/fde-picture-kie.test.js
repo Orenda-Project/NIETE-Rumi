@@ -41,6 +41,23 @@ test('a scene prompt forbids any writing in the picture', () => {
   expect(p).toMatch(/sign/i);
 });
 
+// v14: arrows pointed at the answer (G2 English Q10, G2 GK Q9) and G2 English Q15 came back a photographed
+// colouring page. Amena, 23 Oct 2026: "we want black outlines, plain pictures so theyre easy to print" (bd-5jmnfj.4.30).
+test('every prompt asks for plain black outlines with no arrows and no scanned-page look', () => {
+  [{ kind: 'object', name: 'rooster' }, { kind: 'count', name: 'apple', n: 3 }, { kind: 'scene', describe: 'a bird near a tree' }]
+    .forEach((picture) => {
+      const p = Kie.promptFor(picture);
+      expect(p).toMatch(/black outlines/i);
+      expect(p).toMatch(/no arrows/i);
+      expect(p).toMatch(/not a scan/i);
+      expect(p).toMatch(/pure white/i);
+    });
+});
+
+test('the negative prompt rules out arrows and scanned paper', () => {
+  ['arrow', 'pointer', 'scanned page', 'paper texture', 'page edge', 'shadow'].forEach((term) => expect(Kie.NEGATIVE).toContain(term));
+});
+
 test('a picture with nothing to draw is refused', () => {
   expect(() => Kie.promptFor({ kind: 'object', name: '' })).toThrow('nothing to draw');
   expect(() => Kie.promptFor({ kind: 'scene' })).toThrow('nothing to draw');
