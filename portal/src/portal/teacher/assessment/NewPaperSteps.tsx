@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { AlignLeft, BookOpen, LayoutList, ListChecks, Plus, Shuffle, Sparkles, X } from 'lucide-react';
+import { AlignLeft, BookOpen, LayoutList, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { loadGradeSubjects } from '../../lib/gradeSubjects';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import { ClassPicker, NumberField, type ClassPick, type GradeSubjectPair } from '../ui';
-import { CARD, FOCUS } from '../ui/styles';
+import { Tray } from '../ui/Tray';
+import { FOCUS } from '../ui/styles';
 import { ASSESSMENT, type AssessmentV2Copy } from './copy';
 import { useCopy } from '../i18n';
 import { catalogueOnce, loadChapters, loadTypes, patternFor, patternOffer, subjectName } from './api';
 import {
-  FDE_STEPS, MAX_TOTAL_MARKS, STEPS, checkPages, isFde, toSpec, typesStatus, unseenTarget, type Picks, type Source,
+  FDE_STEPS, MAX_TOTAL_MARKS, MAX_TYPES, STEPS, checkPages, chosenTypes, defaultTypeCounts, isFde, questionTotal, toSpec,
+  unseenTotal, type Picks,
 } from './model';
 import { FdeCheck } from './FdeCheck';
 import { makeErrorText } from './failure';
@@ -19,23 +21,23 @@ import { ASSESSMENT_V2_BASE, newPaperPath, requestPath } from './paths';
 import { usePicks } from './store';
 import { useJobs } from './useJobs';
 import {
-  CheckRow, Chip, Choice, Label, ListCard, LoadState, PRIMARY, StepFrame, Stepper, SwitchRow, Tabs,
+  CheckRow, Chip, Choice, CountRow, Label, ListCard, LoadState, PRIMARY, StepFrame, SwitchRow, Tabs,
 } from './ui';
 import { portal, type AssessmentPattern } from '../../services/api';
 
 /**
- * bd-fmf24g.6 — the teacher v2 New paper, six steps (v28 canvas AssessmentNew … AssessConfirm), each its
- * own route so Back and a reload work; the choices live in ./store. Every option the WhatsApp Flow
- * offers, Word aside (its flag is off in production):
+ * bd-fmf24g.6 — the teacher v2 New paper, four steps, each its own route so Back and a reload work; the choices live in
+ * ./store. Every option the WhatsApp Flow offers, Word aside (its flag is off in production):
  *
  *   1 Class       the kit's ClassPicker (bd-fmf24g.14): any grade and subject of the live /assessment/options
  *                 catalogue, her classes (GET /me/grade-subjects?feature=assessment) starred, one the
  *                 catalogue cannot make shown and off; a pick goes on to step 2
  *   2 Cover       chapters (several) | page ranges
- *   3 Questions   how many (the bot's cap) · from the book / new / a mix, and on a mix how many from the book
- *   4 Types       Auto mix | her types and how many of each, adding up to the new questions
- *   5 Extras      a total-marks budget or none · answer lines
- *   6 Check       every choice with Edit, then Make paper → the request page
+ *   3 Questions   one screen: the seen count, the unseen types she chose with a count each (Add a type for the rest),
+ *                 an optional total marks; the paper is what they add up to
+ *   4 Check       every choice with Edit, the Answer lines switch, then Make my paper → the request page
+ *
+ * The old Question types and Marks and lines steps (their URLs land on Questions; routes.tsx) were folded into 3 and 4.
  */
 
 const backTo = (step: Parameters<typeof newPaperPath>[0]) => newPaperPath(step);
@@ -49,7 +51,7 @@ const changeClass = (p: Picks, grade: number, subject: string | null, name: stri
   const same = p.grade === grade && p.subject === subject;
   // A new class has other chapters and other types: what she picked for the old one goes.
   if (same) return { subjectName: name };
-  const out: Partial<Picks> = { grade, subject, subjectName: name, chapters: [], ranges: [], typeCounts: {}, typeMode: 'auto' };
+  const out: Partial<Picks> = { grade, subject, subjectName: name, chapters: [], ranges: [], typeCounts: {}, typesSeeded: false };
   // …and a board pattern picked for the old class (the side door) goes too; the FDE door's intent is decided by the pick.
   return p.style || p.coverBy === 'fde' ? { ...out, coverBy: 'chapters', style: null, pattern: null } : out;
 };
@@ -359,132 +361,69 @@ function SideDoor({ picked, onFlip, C }: { picked: boolean; onFlip: () => void; 
 
 /* ── 3 Questions ─────────────────────────────────────────────────────────── */
 
-const SOURCE_ICON: Record<Source, JSX.Element> = {
-  seen: <BookOpen className="h-6 w-6" aria-hidden="true" />,
-  unseen: <Sparkles className="h-6 w-6" aria-hidden="true" />,
-  both: <Shuffle className="h-6 w-6" aria-hidden="true" />,
-};
+const GROUP = 'mx-1.5 mt-2 text-[13px] font-bold uppercase tracking-[.04em] text-[#6b7280]';
 
+/**
+ * The paper's questions on one screen (the operator's pick, 20 Oct; design canvas "Questions · simpler", B v5): the
+ * seen questions (the book's own: a count, no types), the unseen types she chose with a count each, Add a type for the
+ * rest (the subject's types, Objective and Written, up to MAX_TYPES), and an optional total marks. Every number is a
+ * box she can type in or step. The paper is what they add up to, so nothing has to match: the line above Next says it.
+ */
 export function QuestionsStep() {
   const C = useCopy(ASSESSMENT);
   const [p, set] = usePicks();
   const [cat] = useLoad(catalogueOnce, 'assessment:catalogue');
   const max = dataOf(cat)?.maxQuestions ?? 50;
-  if (needsClassOf(p)) return <Navigate to={newPaperPath('class')} replace />;
-
-  const setCount = (n: number) => set((cur) => {
-    const count = Math.max(1, Math.min(max, n));
-    return { count, seen: Math.max(1, Math.min(cur.seen, count - 1)) };
-  });
-  const quick = [10, 15, 20, 25, 30].filter((n) => n <= max);
-  const pct = Math.round((p.seen / Math.max(1, p.count)) * 100);
-
-  return (
-    <StepFrame step="questions" backTo={backTo('cover')} next={{ label: C.next, why: stepReason('questions', p, max, C), to: newPaperPath('types') }}>
-      <Label chip={<Chip>{C.upTo(max)}</Chip>}>{C.howMany}</Label>
-      <div role="radiogroup" aria-label={C.howMany} className="flex gap-2">
-        {quick.map((n) => (
-          <button
-            key={n}
-            type="button"
-            role="radio"
-            aria-checked={p.count === n}
-            onClick={() => setCount(n)}
-            className={cn(
-              'flex min-h-[56px] flex-1 items-center justify-center rounded-[14px] border text-[18px] font-bold tabular-nums',
-              p.count === n ? 'border-[#33374a] bg-[#33374a] text-white' : 'border-[#e5e7eb] bg-white',
-              FOCUS,
-            )}
-          >
-            {n}
-          </button>
-        ))}
-      </div>
-      <Stepper value={p.count} sub={C.questions} lessLabel={C.fewer} moreLabel={C.more}
-        canLess={p.count > 1} canMore={p.count < max}
-        onLess={() => setCount(p.count - 1)} onMore={() => setCount(p.count + 1)} />
-
-      <Label>{C.fromWhere}</Label>
-      <div role="radiogroup" aria-label={C.fromWhere} className="flex flex-col gap-2.5">
-        {(['seen', 'unseen', 'both'] as Source[]).map((s) => (
-          <Choice
-            key={s}
-            picked={p.source === s}
-            onPick={() => set((cur) => ({ source: s, seen: Math.max(1, Math.min(cur.seen, cur.count - 1)) }))}
-            icon={SOURCE_ICON[s]}
-            name={C.sources[s].name}
-            sub={C.sources[s].sub}
-          />
-        ))}
-      </div>
-
-      {p.source === 'both' && (
-        <>
-          <Label>{C.fromBook}</Label>
-          <Stepper value={p.seen} sub={C.ofCount(p.count)} lessLabel={C.fewer} moreLabel={C.more}
-            canLess={p.seen > 1} canMore={p.seen < p.count - 1}
-            onLess={() => set((cur) => ({ seen: Math.max(1, cur.seen - 1) }))}
-            onMore={() => set((cur) => ({ seen: Math.min(cur.count - 1, cur.seen + 1) }))} />
-          <div className="flex flex-col gap-2 rounded-2xl border border-[#e5e7eb] bg-white p-3" aria-hidden="true">
-            <div className="flex h-3 overflow-hidden rounded-full bg-[#e5e7eb]">
-              <span className="bg-[#33374a]" style={{ width: `${pct}%` }} />
-              <span className="bg-[#8b90a6]" style={{ width: `${100 - pct}%` }} />
-            </div>
-            <div className="flex justify-between text-[13px] font-semibold text-[#374151]">
-              <span>{C.bookShort(p.seen)}</span>
-              <span>{C.newShort(p.count - p.seen)}</span>
-            </div>
-          </div>
-        </>
-      )}
-    </StepFrame>
-  );
-}
-
-/* ── 4 Question types ────────────────────────────────────────────────────── */
-
-export function TypesStep() {
-  const C = useCopy(ASSESSMENT);
-  const [p, set] = usePicks();
+  const defaultCount = dataOf(cat)?.defaultQuestions ?? 15;
   const needsClass = needsClassOf(p);
   const [types, retry] = useLoad(
-    needsClass || p.source === 'seen' ? null : () => loadTypes(p.grade as number, p.subject as string),
+    needsClass ? null : () => loadTypes(p.grade as number, p.subject as string),
     `types:${p.grade}:${p.subject}`,
   );
+  const offered = useMemo(() => dataOf(types) ?? [], [types]);
+  const [tray, setTray] = useState(false);
+  // A first visit for this class starts with the default mix; after that the page is hers (a class change clears it).
+  const seedNow = !needsClass && !p.typesSeeded && types.status === 'ok';
+  useEffect(() => {
+    if (!seedNow) return;
+    set((cur) => (cur.typesSeeded ? {} : { typeCounts: defaultTypeCounts(offered, Math.max(1, defaultCount - cur.seen)), typesSeeded: true }));
+  }, [seedNow, offered, defaultCount, set]);
   if (needsClass) return <Navigate to={newPaperPath('class')} replace />;
-  const status = typesStatus(p);
-  const { total, target } = status;
-  const all = dataOf(types) ?? [];
-  const setCount = (id: string, n: number) => set((cur) => {
+
+  const total = questionTotal(p);
+  const unseen = unseenTotal(p);
+  const rows = Object.entries(p.typeCounts);
+  const full = total >= max;
+  const over = total > max;
+  const marks = p.marks;
+  const marksBad = marks !== null && (marks < 1 || marks > MAX_TOTAL_MARKS || marks < total);
+  const num = (d: string) => Number(d || '0');
+  const setCount = (id: string, n: number) => set((cur) => ({ typeCounts: { ...cur.typeCounts, [id]: Math.max(0, n) } }));
+  const remove = (id: string) => set((cur) => {
     const next = { ...cur.typeCounts };
-    if (n <= 0) delete next[id]; else next[id] = n;
+    delete next[id];
     return { typeCounts: next };
   });
+  const add = (id: string) => set((cur) => ({ typeCounts: { ...cur.typeCounts, [id]: 1 } }));
 
   const group = (category: 'objective' | 'subjective', name: string) => {
-    const rows = all.filter((t) => t.category === category);
-    if (rows.length === 0) return null;
+    const list = offered.filter((t) => t.category === category);
+    if (list.length === 0) return null;
     return (
       <>
-        <p className="mx-1.5 mt-2 text-[13px] font-bold uppercase tracking-[.04em] text-[#6b7280]">{name}</p>
+        <p className={GROUP}>{name}</p>
         <ListCard label={name}>
-          {rows.map((t, i) => {
-            const n = p.typeCounts[t.id] ?? 0;
+          {list.map((t, i) => {
+            const on = t.id in p.typeCounts;
             return (
-              <div key={t.id} className={cn('flex min-h-[72px] items-center gap-3 px-3 py-2', i > 0 && 'border-t border-[#f0f1f3]', n > 0 && 'bg-[#f4f5f8]')}>
-                <NumberField
-                  size="row"
-                  value={String(n)}
-                  dim={n === 0}
-                  maxLength={3}
-                  ariaLabel={C.typeCount(t.id)}
-                  describedBy="types-total"
-                  error={status.kind === 'over' && n > 0}
-                  onChange={(d) => setCount(t.id, Number(d || '0'))}
-                  testId={`type-count-${t.id}`}
-                />
-                <span className="min-w-0 flex-1 text-[16px] font-semibold">{t.id}</span>
-              </div>
+              <CheckRow
+                key={t.id}
+                first={i === 0}
+                checked={on}
+                disabled={!on && rows.length >= MAX_TYPES}
+                onToggle={() => (on ? remove(t.id) : add(t.id))}
+                label={<span className="min-w-0 flex-1 text-[16px] font-semibold">{t.id}</span>}
+              />
             );
           })}
         </ListCard>
@@ -492,81 +431,98 @@ export function TypesStep() {
     );
   };
 
-  return (
-    <StepFrame step="types" backTo={backTo('questions')} next={{ label: C.next, why: stepReason('types', p, 50, C), to: newPaperPath('extras') }}>
-      {p.source === 'seen' ? (
-        <div className={cn('flex items-center gap-3.5 p-4', CARD)}>
-          <BookOpen className="h-6 w-6 text-[#33374a]" aria-hidden="true" />
-          <span className="text-[16px] font-semibold">{C.bookOnly}</span>
-        </div>
-      ) : (
-        <>
-          <div className="flex flex-wrap items-center gap-2 px-1 text-[14px] font-semibold text-[#374151]">
-            {C.newCount}<Chip>{target}</Chip>
-            {p.source === 'both' && <>{C.bookCount}<Chip>{p.seen}</Chip></>}
-          </div>
-          <div role="radiogroup" aria-label={C.steps.types} className="flex flex-col gap-2.5">
-            <Choice picked={p.typeMode === 'auto'} onPick={() => set({ typeMode: 'auto' })}
-              icon={<Sparkles className="h-6 w-6" aria-hidden="true" />} name={C.autoMix} />
-            <Choice picked={p.typeMode === 'pick'} onPick={() => set({ typeMode: 'pick' })}
-              icon={<ListChecks className="h-6 w-6" aria-hidden="true" />} name={C.chooseTypes} />
-          </div>
-          {p.typeMode === 'pick' && (
-            types.status !== 'ok'
-              ? <LoadState status={types.status} onRetry={retry} />
-              : (
-                <>
-                  <Label>{C.howManyEach}</Label>
-                  <div
-                    id="types-total"
-                    role="status"
-                    data-testid="types-total"
-                    className={cn(
-                      'flex flex-col gap-1 rounded-2xl border p-3.5',
-                      status.kind === 'over' ? 'border-[#f5b5ad] bg-[#fff8f7]' : status.kind === 'ok' ? 'border-[#e5e7eb] bg-white' : 'border-[#fde68a] bg-[#fffbeb]',
-                    )}
-                  >
-                    <b className="text-[24px] font-bold tabular-nums text-[#1d2025]">{C.why.totalOf(total, target)}</b>
-                    <span className={cn('text-[15px] font-semibold', status.kind === 'over' ? 'text-[#c8331f]' : status.kind === 'ok' ? 'text-[#2f7a52]' : 'text-[#b45309]')}>
-                      {status.kind === 'none' ? C.why.typesNone : status.kind === 'over' ? C.why.over(status.diff) : status.kind === 'under' ? C.why.under(-status.diff) : C.why.allAdded(target)}
-                    </span>
-                  </div>
-                  {group('objective', C.objective)}
-                  {group('subjective', C.written)}
-                </>
-              )
-          )}
-        </>
-      )}
-    </StepFrame>
+  const totalLine = (
+    <span data-testid="questions-total">
+      {C.join(C.questionsCount(total), C.seenShort(p.seen), C.unseenShort(unseen), marks !== null ? C.marksCount(marks) : null)}
+    </span>
   );
-}
 
-/* ── 5 Marks and lines ───────────────────────────────────────────────────── */
-
-export function ExtrasStep() {
-  const C = useCopy(ASSESSMENT);
-  const [p, set] = usePicks();
-  if (needsClassOf(p)) return <Navigate to={newPaperPath('class')} replace />;
-  const marks = p.marks;
   return (
-    <StepFrame step="extras" backTo={backTo('types')} next={{ label: C.next, why: stepReason('extras', p, 50, C), to: newPaperPath('check') }}>
-      <Label chip={<Chip>{C.optional}</Chip>}>{C.totalMarks}</Label>
-      <Tabs
-        label={C.totalMarks}
-        value={marks === null ? 'none' : 'set'}
-        onChange={(k) => set({ marks: k === 'none' ? null : Math.min(MAX_TOTAL_MARKS, Math.max(5, p.count * 2)) })}
-        options={[{ key: 'none', label: C.noLimit }, { key: 'set', label: C.setTotal }]}
-      />
-      {marks !== null && (
-        <Stepper value={marks} sub={C.marks} lessLabel={C.fewer} moreLabel={C.more}
-          canLess={marks > 1} canMore={marks < MAX_TOTAL_MARKS}
-          onLess={() => set({ marks: Math.max(1, marks - 5) })}
-          onMore={() => set({ marks: Math.min(MAX_TOTAL_MARKS, marks + 5) })} />
-      )}
-      <Label>{C.onPaper}</Label>
-      <SwitchRow on={p.answerLines} onFlip={() => set({ answerLines: !p.answerLines })}
-        icon={<AlignLeft className="h-6 w-6" aria-hidden="true" />} name={C.answerLines} />
+    <StepFrame step="questions" backTo={backTo('cover')} hint={totalLine} next={{ label: C.next, why: stepReason('questions', p, max, C), to: newPaperPath('check') }}>
+      <h2 className="mx-1 mt-3 text-[20px] font-bold leading-snug">{C.askCount}</h2>
+
+      <p className={GROUP}>{C.seenQuestions}</p>
+      <ListCard label={C.seenQuestions}>
+        <CountRow
+          first
+          name={C.asInBook}
+          ariaName={C.typeCount(C.seenQuestions)}
+          value={String(p.seen)}
+          dim={p.seen === 0}
+          error={over && p.seen > 0}
+          onType={(d) => set({ seen: num(d) })}
+          onLess={() => set({ seen: Math.max(0, p.seen - 1) })}
+          onMore={() => set({ seen: p.seen + 1 })}
+          canLess={p.seen > 0}
+          canMore={!full}
+          lessLabel={C.fewerOf(C.seenQuestions)}
+          moreLabel={C.moreOf(C.seenQuestions)}
+          testId="count-seen"
+        />
+      </ListCard>
+
+      <p className={GROUP}>{C.unseenQuestions}</p>
+      <ListCard label={C.unseenQuestions}>
+        {rows.map(([id, n], i) => (
+          <CountRow
+            key={id}
+            first={i === 0}
+            name={id}
+            ariaName={C.typeCount(id)}
+            value={String(n)}
+            dim={n === 0}
+            error={over && n > 0}
+            bin={n <= 1}
+            onType={(d) => setCount(id, num(d))}
+            onLess={() => (n <= 1 ? remove(id) : setCount(id, n - 1))}
+            onMore={() => setCount(id, n + 1)}
+            canLess
+            canMore={!full}
+            lessLabel={n <= 1 ? C.removeType(id) : C.fewerOf(id)}
+            moreLabel={C.moreOf(id)}
+            testId={`type-count-${id}`}
+          />
+        ))}
+        <button
+          type="button"
+          data-testid="add-type"
+          onClick={() => setTray(true)}
+          className={cn('flex min-h-[60px] w-full items-center justify-center gap-2 text-[16px] font-semibold text-[#33374a]', rows.length > 0 && 'border-t border-dashed border-[#c7cad6]', FOCUS)}
+        >
+          <Plus className="h-5 w-5" aria-hidden="true" />
+          {C.addType}
+        </button>
+      </ListCard>
+
+      <p className={GROUP}>{C.totalMarks}</p>
+      <ListCard label={C.totalMarks}>
+        <CountRow
+          first
+          name={<>{C.wholePaper}<Chip>{C.optional}</Chip></>}
+          ariaName={C.totalMarks}
+          value={marks === null ? '' : String(marks)}
+          dim={marks === null}
+          error={marksBad}
+          maxLength={4}
+          onType={(d) => set({ marks: d === '' ? null : Number(d) })}
+          // As the old Marks step: steps of 5; the first + suggests 2 a question; down past 5 clears it (no limit).
+          onLess={() => set({ marks: marks === null || marks <= 5 ? null : marks - 5 })}
+          onMore={() => set({ marks: marks === null ? Math.min(MAX_TOTAL_MARKS, Math.max(5, total * 2)) : Math.min(MAX_TOTAL_MARKS, marks + 5) })}
+          canLess={marks !== null}
+          canMore={marks === null || marks < MAX_TOTAL_MARKS}
+          lessLabel={C.fewerOf(C.marks)}
+          moreLabel={C.moreOf(C.marks)}
+          testId="total-marks"
+        />
+      </ListCard>
+
+      <Tray open={tray} title={C.steps.types} onClose={() => setTray(false)} closeLabel={C.close} testId="types-tray">
+        {types.status !== 'ok'
+          ? <LoadState status={types.status} onRetry={retry} />
+          : <>{group('objective', C.objective)}{group('subjective', C.written)}</>}
+        <p className="px-1.5 text-[14px] font-semibold text-[#6b7280]">{C.typesCap(rows.length, MAX_TYPES)}</p>
+        <button type="button" onClick={() => setTray(false)} className={cn(PRIMARY, 'flex-none', FOCUS)}>{C.done}</button>
+      </Tray>
     </StepFrame>
   );
 }
@@ -581,7 +537,7 @@ export function CheckStep() {
 
 function PlainCheck() {
   const C = useCopy(ASSESSMENT);
-  const [p] = usePicks();
+  const [p, set] = usePicks();
   const navigate = useNavigate();
   const { start } = useJobs();
   const needsClass = needsClassOf(p);
@@ -604,21 +560,21 @@ function PlainCheck() {
     ? (titles.length ? `${titles[0].chapter_title}${titles.length > 1 ? ` +${titles.length - 1}` : ''}`
       : firstChapters.length ? `${C.chapterShort(firstChapters[0])}${firstChapters.length > 1 ? ` +${firstChapters.length - 1}` : ''}` : C.chapters)
     : (p.ranges.length ? C.pageRange(p.ranges[0][0], p.ranges[0][1]) : C.pages);
-  const typesLine = p.source === 'seen' ? C.bookOnly
-    : p.typeMode === 'auto' ? C.autoMix
-      : Object.entries(p.typeCounts).filter(([, n]) => n > 0).map(([id, n]) => `${id} ${n}`).join(' · ');
-  const questionsLine = p.source === 'both'
-    ? C.join(C.questionsCount(p.count), C.bookShort(p.seen), C.newShort(p.count - p.seen))
-    : C.join(C.questionsCount(p.count), C.sources[p.source].name);
+  // One Questions row: the count, then its seen / unseen parts, then the unseen types (as she chose them on Questions).
+  const unseen = unseenTotal(p);
+  const typesLine = chosenTypes(p).map(([id, n]) => `${id} ${n}`).join(' · ');
+  const questionsSub = (
+    <>
+      <span className="block">{C.join(C.seenShort(p.seen), C.unseenShort(unseen))}</span>
+      {typesLine && <span className="block">{typesLine}</span>}
+    </>
+  );
 
-  const rows: Array<{ k: string; v: ReactNode; to?: string }> = [
+  const rows: Array<{ k: string; v: ReactNode; sub?: ReactNode; to?: string }> = [
     { k: C.steps.class, v: C.gradeSubject(p.grade as number, p.subjectName ?? p.subject ?? ''), to: newPaperPath('class') },
     { k: p.coverBy === 'chapters' ? C.chapters : C.pages, v: cover.map((c) => <span key={c} className="block">{c}</span>), to: newPaperPath('cover') },
-    { k: C.steps.questions, v: questionsLine, to: newPaperPath('questions') },
-    { k: C.steps.types, v: typesLine, to: newPaperPath('types') },
-    { k: C.totalMarks, v: p.marks === null ? C.noLimit : C.marksCount(p.marks), to: newPaperPath('extras') },
-    { k: C.answerLines, v: p.answerLines ? C.on : C.off, to: newPaperPath('extras') },
-    { k: C.file, v: C.pdfWithKey },
+    { k: C.steps.questions, v: C.questionsCount(questionTotal(p)), sub: questionsSub, to: newPaperPath('questions') },
+    { k: C.totalMarks, v: p.marks === null ? C.noLimit : C.marksCount(p.marks), to: newPaperPath('questions') },
   ];
 
   const make = async () => {
@@ -633,7 +589,7 @@ function PlainCheck() {
   };
 
   return (
-    <StepFrame step="check" backTo={backTo('extras')} next={{ label: busy ? C.making : C.makePaper, why: stepReason('check', p, 50, C), onPress: make, busy }}>
+    <StepFrame step="check" backTo={backTo('questions')} next={{ label: busy ? C.making : C.makePaper, why: stepReason('check', p, 50, C), onPress: make, busy }}>
       {/* Above the rows, as on the board-pattern Check: under them it sits below the fold, behind the dock. */}
       {error && <p role="alert" className="rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">{error}</p>}
       <ListCard label={C.steps.check}>
@@ -642,6 +598,7 @@ function PlainCheck() {
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="text-[13px] font-semibold text-[#6b7280]">{r.k}</span>
               <span className="text-[16px] font-semibold leading-snug">{r.v}</span>
+              {r.sub && <span className="text-[13px] leading-snug text-[#4b5563]">{r.sub}</span>}
             </span>
             {r.to
               ? <Link to={r.to} className={cn('flex min-h-[56px] min-w-[72px] items-center justify-center rounded-[14px] px-3 text-[15px] font-semibold text-[#33374a]', FOCUS)}>{C.edit}</Link>
@@ -649,6 +606,9 @@ function PlainCheck() {
           </div>
         ))}
       </ListCard>
+      {/* Answer lines moved here from the old Marks and lines step: the one choice it had left. */}
+      <SwitchRow on={p.answerLines} onFlip={() => set({ answerLines: !p.answerLines })}
+        icon={<AlignLeft className="h-6 w-6" aria-hidden="true" />} name={C.answerLines} />
     </StepFrame>
   );
 }
