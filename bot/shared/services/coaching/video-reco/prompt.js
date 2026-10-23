@@ -36,8 +36,12 @@ function excerpts(session, anchors = {}, people = {}) {
   return rawExcerpts(session, anchors).map((l) => clip(redact(l, people)));
 }
 
-/** The same lines before redaction, index for index (bd-8hhqhf: what the validator checks a placeholder against). */
-function rawExcerpts(session, { timestamp, uptakeMoment } = {}) {
+/** Every transcript line "[mm:ss] Label: text", unredacted, in order (bd-8hhqhf: the scorer-path quote check). */
+function transcriptLines(session) {
+  return allLines(session).map((l) => l.text);
+}
+
+function allLines(session) {
   let lines = [];
   const segs = session && session.diarization_data && Array.isArray(session.diarization_data.segments)
     ? session.diarization_data.segments.filter((s) => s && String(s.text || '').trim()) : [];
@@ -47,6 +51,12 @@ function rawExcerpts(session, { timestamp, uptakeMoment } = {}) {
     lines = String(session.transcript_text).split('\n').map((l) => l.trim())
       .filter((l) => /^\[\d{1,2}:\d{2}\]/.test(l)).map((l) => ({ ms: stampMs(l), text: l }));
   }
+  return lines;
+}
+
+/** The same lines before redaction, index for index (bd-8hhqhf: what the validator checks a placeholder against). */
+function rawExcerpts(session, { timestamp, uptakeMoment } = {}) {
+  const lines = allLines(session);
   if (!lines.length) return [];
   const anchor = stampMs(timestamp) ?? stampMs(uptakeMoment);
   let start = 0;
@@ -169,4 +179,4 @@ function retryAppendix(none) {
   return `\n\nYOUR FIRST ANSWER WAS REJECTED (validation:${why}): ${rule}\nAnswer again in the same JSON shape, keeping every rule above; if no clip fits, return seg_id null.`;
 }
 
-module.exports = { build, excerpts, rawExcerpts, redact, retryAppendix, PROMPT_VERSION, stampMs };
+module.exports = { build, excerpts, rawExcerpts, transcriptLines, redact, retryAppendix, PROMPT_VERSION, stampMs };
