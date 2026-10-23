@@ -125,6 +125,8 @@ function applySelection(examJson, selectedIds) {
   // would print as a plain paper. The layout holds no questions, so the counts it
   // prints follow whatever is left in the tree.
   if (examJson && examJson._layout) out._layout = examJson._layout;
+  // A topic paper's ticked topics ride in the tree so every edit can re-render its key.
+  if (examJson && examJson._topics) out._topics = examJson._topics;
   return out;
 }
 

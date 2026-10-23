@@ -260,6 +260,22 @@ async function onTeacherApp(appValue, userId, account) {
 }
 
 /**
+ * bd-6clakk Task 9 — is this user on the teacher app (the portal's rule)? The gate for an offer that lands in the app
+ * outside a redirect (the assessment door's "paper on topics"): off the app the link would land on the old dashboard.
+ * Fails closed: an unreadable switch or account is false.
+ */
+async function isOnTeacherApp(userId) {
+  try {
+    const values = await settingValues(Date.now());
+    let read = null;
+    return await onTeacherApp(values.get(TEACHER_APP_KEY), userId, () => { if (!read) read = loadAccount(userId); return read; });
+  } catch (err) {
+    logToFile('⚠️ teacher-app check failed — treated as off', { userId, error: err?.message }, 'warn');
+    return false;
+  }
+}
+
+/**
  * bd-fmf24g.35/.46 — the one-tap link. For a feature with a v2 page:
  *   'link'      her switch is a LIST holding her (a pilot), or "teachers" and she is a registered teacher —
  *               and, either way, she is on the teacher app. The pilot gate and the v2 flag must agree, so a
@@ -532,6 +548,7 @@ module.exports = {
   QUIET_MS,
   FLAG_TTL_MS,
   isRedirectEnabled,
+  isOnTeacherApp,
   redirectIfFlagged,
   _resetForTests,
 };

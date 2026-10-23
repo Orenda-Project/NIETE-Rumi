@@ -493,6 +493,16 @@ export const portal = {
     return response.data;
   },
 
+  /** One chapter's topics for the topic picker — names and headings only, never SLO codes. [] when none loaded. */
+  getAssessmentTopics: async (
+    grade: number,
+    subject: string,
+    chapter: number
+  ): Promise<{ success: boolean; topics: AssessmentTopic[] }> => {
+    const response = await api.get('/assessment/topics', { params: { grade, subject, chapter } });
+    return response.data;
+  },
+
   /** Ask for a paper. 202 + a requestId to poll on; the paper does not exist yet. */
   generateAssessment: async (
     spec: AssessmentSpec
@@ -777,6 +787,15 @@ export type AssessmentChapter = {
   page_start: number | null;
   page_end: number | null;
   page_count: number | null;
+};
+
+/** A topic of one chapter (assessment_topics). `heading` groups topics on screen; sortOrder is book order. */
+export type AssessmentTopic = {
+  topicId: string;
+  name: string;
+  heading: string | null;
+  headingOrder: number | null;
+  sortOrder: number;
 };
 
 export type AssessmentOptions = {

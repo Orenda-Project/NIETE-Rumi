@@ -22,6 +22,28 @@ const { logToFile } = require('../utils/logger');
 const { resolveUx } = require('../config/ux-strings');
 
 /**
+ * bd-6clakk Task 9 — the second option: a signed link that opens the app, signed in, on the Topics flow. Best effort:
+ * no portal url or signing key, or a send that fails, leaves the chapter-test Flow exactly as it was.
+ */
+async function offerTopicPaper({ from, userId, language }) {
+  try {
+    // bd-6clakk.6 — its own switch, off on prod until the A/B test starts.
+    if (!(await require('../config/feature-flags').isAssessmentTopicCtaEnabled())) return;
+    if (!(await require('./app-redirect.service').isOnTeacherApp(userId))) return;
+    const base = String(require('../config/branding').portalUrl() || '').replace(/\/+$/, '');
+    const token = base ? require('./app-login-link').signAppLink(userId, 'assessment_topics') : null;
+    if (!token) return;
+    await WhatsAppService.sendCtaUrl(from, {
+      body: resolveUx('assessmentTopicsBody', { language }),
+      buttonText: resolveUx('assessmentTopicsButton', { language }),
+      url: `${base}/go/${token}`,
+    });
+  } catch (err) {
+    logToFile('⚠️ topic-paper link not sent', { userId, error: err?.message }, 'warn');
+  }
+}
+
+/**
  * @param {object} args
  * @param {string} args.from       WhatsApp number to send to
  * @param {string} args.userId     users.id — leads the flow token
@@ -54,6 +76,7 @@ async function openAssessmentFlow({ from, userId, language, reason = 'unspecifie
     flowToken: `${userId}:assessment-gen:${Date.now()}`,
   });
 
+  await offerTopicPaper({ from, userId, language });
   logToFile('📝 sent assessment flow', { userId, reason });
   return true;
 }
