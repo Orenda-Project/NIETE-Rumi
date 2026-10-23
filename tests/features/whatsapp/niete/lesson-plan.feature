@@ -986,8 +986,17 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
   # school_leader) with FLN share on. Operator, 19 Oct: "Send leaders straight into the app, the same as teachers",
   # accepting that leaders lose the WhatsApp picker. Unit: tests/app-redirect/app-link-leader-lesson-plan.test.js,
   # tests/routes/app-login-fln.test.js (fln:send lands /portal/fln/send).
-  @e2e @config-gated @P1
+  # UPDATED 2026-10-23 (bd-a73p5m): the link now opens the Lesson Plans tab (/portal/teacher/lessons), where a leader
+  # reads the plans their teachers get (bd-4joiqz), and FLN share is no longer needed for it. The builder (Send a lesson
+  # plan, /portal/fln/send) is not linked from the tab; inside it a leader can send only from a Reading Hour / Numeracy
+  # plan's own page ("Send to teacher", shown only with FLN share). Operator, 23 Oct: "A coach who types 'lesson plan' on WhatsApp
+  # still gets 'Send a lesson plan', not the new tab -- they can get new tab". Same switch, same doors, analytics-only
+  # accounts still skipped. Unit: tests/app-redirect/app-link-leader-lesson-plan.test.js,
+  # tests/app-redirect/app-link-leader-lessons-doors.test.js (each door, then /go), portal
+  # src/portal/teacher/lessons/leaders.app.test.tsx (the tab opens for a coach on or off the coach app).
+  @obsolete @config-gated @P1
   Scenario: A coach asking for a lesson plan gets one button that opens Send a lesson plan in the app
+    # OBSOLETE 2026-10-23 (bd-a73p5m): the link opens the Lesson Plans tab now, with new words — replaced by "A coach asking for a lesson plan gets one button that opens the Lesson Plans tab in the app" below. Kept (not deleted) for the audit trail.
     Given the NIETE bot chat is open on a coach account
     And lesson plans for leaders open in the app (leader_app_lesson_plan is on)
     When I send "lesson plan"
@@ -996,13 +1005,37 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When I tap "Send a plan"
     Then the app opens on Send a lesson plan, signed in, without typing a password
 
+  @e2e @config-gated @P1
+  Scenario: A coach asking for a lesson plan gets one button that opens the Lesson Plans tab in the app
+    Given the NIETE bot chat is open on a coach account
+    And lesson plans for leaders open in the app (leader_app_lesson_plan is on)
+    When I send "lesson plan"
+    Then I get one message saying "Read the lesson plans your teachers get." with a "Lesson plans" button
+    And no lesson-plan menu opens
+    When I tap "Lesson plans"
+    Then the app opens on the Lesson Plans tab, signed in, without typing a password
+    And I can open a lesson plan my teachers get
+    # In Urdu the line is «وہ لیسن پلان پڑھیں جو آپ کے اساتذہ کو ملتے ہیں۔» and the button «لیسن پلان». It promises reading
+    # only: Grades 1-5 and 6-12 plans have no send button for a leader.
+    # Axiom: app_funnel.command feature=lesson_plan audience=leader verdict=link; app_link.open feature=leader_lessons.
+
+  @e2e @config-gated @P2
+  Scenario: A coach off the coach app, or without FLN share, still lands on the Lesson Plans tab
+    Given the NIETE bot chat is open on a coach account that is not on the coach app and has no FLN share
+    And lesson plans for leaders open in the app (leader_app_lesson_plan is on)
+    When I send "lesson plan"
+    And I tap "Lesson plans"
+    Then the app opens on the Lesson Plans tab, signed in
+    # The classic leader menu has Lesson Plans, and TeacherGate lets the leader family read the tab (bd-4joiqz).
+
   @e2e @config-gated @P2
   Scenario: A coach who names a topic keeps the WhatsApp lesson-plan path, switch on or off
     Given the NIETE bot chat is open on a coach account
     And lesson plans for leaders open in the app (leader_app_lesson_plan is on)
     When I send "make me a lesson plan on photosynthesis for grade 7"
-    Then the bot answers on WhatsApp as before, not with the Send a plan button
-    # Only the plain doors (bare_command, chip, menu, menu_choice): the builder holds Reading Hour and Numeracy only.
+    Then the bot answers on WhatsApp as before, not with the Lesson plans button
+    # Only the plain doors (bare_command, chip, menu, menu_choice). UPDATED 2026-10-23 (bd-a73p5m): the button is
+    # "Lesson plans" now (was "Send a plan"); a named topic still keeps today's path.
 
   @e2e @config-gated @P2
   Scenario: With the leader switch on "coaches", a principal keeps the WhatsApp lesson-plan menu
