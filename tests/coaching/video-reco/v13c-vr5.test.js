@@ -111,7 +111,7 @@ describe('engine: the prompt gets the report and lesson languages', () => {
     expect(d.completeJson.mock.calls[0][0]).toMatch(/in reason_en, paraphrase the moment in English/);
     expect(row).toMatchObject({ status: 'shown', seg_id: '10-s1', prompt_version: 'vr-5', moment_source: 'transcript' });
     expect(row.moment_quote).toBe(PARAPHRASED.moment.quote);
-    expect(row.reason_en).toBe(PARAPHRASED.reason_en);
+    expect(row.reason_en).toBe(PARAPHRASED.reason_en.replace('"yes or no"', '"\u2068yes or no\u2069"')); // bd-8hhqhf: the quote is isolated
   });
 
   test('preferred ur + Urdu lesson: no rule', async () => {

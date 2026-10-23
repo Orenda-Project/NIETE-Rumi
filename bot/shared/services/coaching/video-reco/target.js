@@ -78,7 +78,8 @@ function nativeAvailable(catalog, id) {
 
 // SPEC v1.3b (lead-review 20:16Z): 37-ids no chapter enacts as a classroom move — Use of Taleemabad Lesson Plan,
 // Integration of Taleemabad Technology. A catalogue hole, resolved before any route on every source.
-const NO_MOVE = new Set(['B7', 'C10']);
+// bd-8hhqhf (lead-final §6.5, ruled): B8 Use of Prescribed Resources joins them — its one gold pick was ⛔2.
+const NO_MOVE = new Set(['B7', 'B8', 'C10']);
 
 function none(reason, extra = {}) {
   return {

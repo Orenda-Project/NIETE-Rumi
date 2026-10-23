@@ -12,8 +12,9 @@ const { getLanguage } = require('../../../config/languages');
 
 const BODY_MAX = 1024; // Meta's cap on an interactive body, in code points
 const URDU_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
-const LRI = '⁦';
-const PDI = '⁩';
+const LRI = '\u2066';
+const FSI = '\u2068';
+const PDI = '\u2069';
 const RLM = '‏';
 
 /** The reader's language as NIETE offers it (flat en/ur, language-protocol): the catalog's own clamp. */
@@ -48,10 +49,28 @@ const clipLanguageName = (clipLanguage, l) => resolveUx(LANG_KEY[clipLanguage] |
  */
 function isolateLatin(text) {
   const s = String(text || '');
-  if (!s || /[⁦-⁩]/.test(s)) return s;
-  const out = s.replace(/[A-Za-z][A-Za-z0-9'’-]*(?:\s+[A-Za-z0-9][A-Za-z0-9'’-]*)*/g, (run) => `${LRI}${run}${PDI}`);
+  if (!s) return s;
+  // Text already inside an isolate (a quoted moment, bd-8hhqhf) is left as it is; only the rest is scanned.
+  const out = s.split(/([\u2066-\u2068][^\u2066-\u2069]*\u2069)/).map((part, i) => (i % 2 ? part
+    : part.replace(/[A-Za-z][A-Za-z0-9'’-]*(?:\s+[A-Za-z0-9][A-Za-z0-9'’-]*)*/g, (run) => `${LRI}${run}${PDI}`))).join('');
   const first = [...out].find((ch) => /\p{L}/u.test(ch) && !/[⁦-⁩]/.test(ch));
   return first && /[؀-ۿ]/.test(first) ? out : `${RLM}${out}`;
+}
+
+/** Bidi embedding/override/isolate controls removed (U+202A–202E, U+2066–2069): a stray PDI in model text would close an outer isolate. */
+const stripBidi = (text) => (typeof text === 'string' ? text.replace(/[\u202A-\u202E\u2066-\u2069]/g, '') : text);
+
+/**
+ * Every quoted lesson moment in a reason set in its own first-strong isolate (FSI…PDI), inside the quote marks, so an
+ * Urdu quote in an English line (or a quote opening with a digit, "9 ہم نے …") renders in place on WhatsApp, /cr and
+ * the React card (bd-8hhqhf, live session c53bf86d). A quote already isolated, and a text with no quote, are unchanged.
+ */
+function isolateQuotes(text) {
+  if (typeof text !== 'string' || !text) return text;
+  return text.replace(/"([^"]+)"|“([^”]+)”|«([^»]+)»/g, (m, a, b, c) => {
+    const q = a ?? b ?? c;
+    return /^[\u2066-\u2068]/.test(q) ? m : `${m[0]}${FSI}${q}${PDI}${m[m.length - 1]}`;
+  });
 }
 
 // An Urdu line sets its English runs in isolates; other lines are as written.
@@ -88,5 +107,5 @@ function messageBody({ minutes, reason, clipLanguage, language }) {
 const word = (key, language, params) => resolveUx(key, { language: lang(language), params });
 
 module.exports = {
-  lang, dirOf, localized, num, minutesOf, urduDigits, clock, isolateLatin, buttonText, cardButton, messageBody, clipLanguageName, word, BODY_MAX,
+  lang, dirOf, localized, num, minutesOf, urduDigits, clock, isolateLatin, isolateQuotes, stripBidi, buttonText, cardButton, messageBody, clipLanguageName, word, BODY_MAX,
 };

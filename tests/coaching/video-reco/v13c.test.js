@@ -72,8 +72,9 @@ function deps(answers) {
     completeJson,
   };
 }
-const FALLBACK_EN = (s, n) => `Your report asks you to try: "${s}". This ${n}-second clip shows one way to do it.`;
-const FALLBACK_UR = (s, n) => `آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "${s}"۔ یہ ${n} سیکنڈ کا کلپ اس کا ایک طریقہ دکھاتا ہے۔`;
+// bd-8hhqhf: the card sentence sits in an FSI…PDI isolate.
+const FALLBACK_EN = (s, n) => `Your report asks you to try: "\u2068${s}\u2069". This ${n}-second clip shows one way to do it.`;
+const FALLBACK_UR = (s, n) => `آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "\u2068${s}\u2069"۔ یہ ${n} سیکنڈ کا کلپ اس کا ایک طریقہ دکھاتا ہے۔`;
 
 describe('(a) ⛔9 post-redaction: the stored reason and quote are the redacted ones', () => {
   test('a lexicon child name in reason_en, reason_ur and the quote is stored as [a student]', async () => {

@@ -18,6 +18,7 @@ const target = require('./target');
 const shortlist = require('./shortlist');
 const prompt = require('./prompt');
 const select = require('./select');
+const { isolateQuotes, stripBidi } = require('./copy');
 
 const ENGINE_TIMEOUT_MS = 60000; // the LLM call is capped at 45 s (select.js); the sender awaits this after the report has gone
 const RETRY_MIN_LEFT_MS = 20000; // v1.3b: the one validation retry runs only with ≥ 20 s of the engine budget left
@@ -203,6 +204,7 @@ async function compute(a, d, state) {
   const row = t.row || {};
   const up = (analysis && analysis.uptake) || {};
   const ex = prompt.excerpts(session, { timestamp: row.timestamp, uptakeMoment: up.moment }, people);
+  const rawEx = prompt.rawExcerpts(session, { timestamp: row.timestamp, uptakeMoment: up.moment }); // bd-8hhqhf: placeholder check
   // vr-3: only the `Quote:` part of the scorer's evidence is shown or citable; without one the line is omitted.
   const scorerQuote = t.source === 'card_text' ? '' : prompt.redact(target.scorerQuoteOnly(t.row), people);
   const uptakeQuote = t.source === 'card_text' && up.moment ? prompt.redact(up.moment, people) : '';
@@ -229,7 +231,9 @@ async function compute(a, d, state) {
   const vopts = {
     stepIndicator: t.stepIndicator, indicators: t.indicators, source: t.source, catalog, textRoute: !!list.textReason,
     teacherName: people.teacher, scorerQuote: scorerQuote || uptakeQuote, // §3.5 [v1.3] d: the Quote: part, never evidence_summary
+    rawExcerpts: rawEx,
   };
+  const vocab = select.subjectVocab(analysis && analysis.topic); // bd-8hhqhf: subject words are never a child's name
   const check = (r) => (r.truncated ? { ok: false, none: 'llm_truncated', confidence: undefined } : select.validate(r.pick, list, ex, vopts));
   let res = await select.pick({ prompt: text, deps: d, timeoutMs: a.llmTimeoutMs });
   let v = check(res);
@@ -259,17 +263,18 @@ async function compute(a, d, state) {
     const seg = catalog.segment(String(res.pick.seg_id));
     fallback = seg && select.cardFallback({
       none: v.none, segId: res.pick.seg_id, shortlist: list, sentence: (card && card.action) || step.try || fa.try_this_tomorrow || '',
-      startS: seg.segment.start_s, endS: seg.segment.end_s, language, teacherName: people.teacher, module: seg.module, subject,
+      startS: seg.segment.start_s, endS: seg.segment.end_s, teacherName: people.teacher, module: seg.module, subject, vocab,
     });
   }
   if (!v.ok && !fallback) return finish({ ...withLlm, status: 'none', none_reason: v.none, ...(v.confidence === undefined ? {} : { confidence: v.confidence }) });
 
   const p = res.pick;
   const hit = catalog.segment(String(p.seg_id));
-  const said = fallback || { reason_en: String(p.reason_en).trim(), reason_ur: String(p.reason_ur).trim() };
+  // bd-8hhqhf: the model's own bidi controls are dropped before the quotes are isolated (red7 C3: a stray PDI).
+  const said = fallback || { reason_en: stripBidi(String(p.reason_en)).trim(), reason_ur: stripBidi(String(p.reason_ur)).trim() };
   const c = Number(p.confidence);
   // v1.3c (a) ⛔9: the reasons and the quote are stored (and so sent) after the non-strict name redactor.
-  const clean = (x) => select.postRedact(x, people.teacher);
+  const clean = (x) => select.postRedact(x, people.teacher, vocab);
   const cand = list.candidates.find((x) => x.seg_id === hit.segment.seg_id) || {};
   const chosen = t.source === 'card_text' || t.source === 'phase' ? (((hit.segment.fico || [])[0] || {}).indicator || null) : null;
   const mismatch = tagMismatch(t, hit.segment);
@@ -291,8 +296,8 @@ async function compute(a, d, state) {
     end_s: hit.segment.end_s,
     language_match: cand.language_match || null,
     chapter_language: hit.segment.language || hit.module.language || null,
-    reason_en: clean(said.reason_en),
-    reason_ur: clean(said.reason_ur),
+    reason_en: isolateQuotes(clean(said.reason_en)), // bd-8hhqhf: a quoted moment renders in place in every surface
+    reason_ur: isolateQuotes(clean(said.reason_ur)),
     moment_at: !fallback && p.moment && p.moment.at ? String(p.moment.at) : null,
     moment_quote: !fallback && p.moment && p.moment.quote ? clean(String(p.moment.quote)) : null,
     moment_source: fallback ? 'card' : v.momentSource, // 'card' = the v1.3c fallback: no moment, the card's sentence
