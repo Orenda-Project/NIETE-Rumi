@@ -97,6 +97,15 @@ const SELECTION_POLICIES = {
 
 const DEFAULT_SELECTION_POLICY = 'weakest';
 
+// Rows that are scored and shown but never the one thing to try (bd-v0toag.100.10): C10, technology
+// integration, is not a classroom move (video-reco/target.js NO_MOVE), and as the weakest row it made the
+// card ask the teacher to spend 5 minutes on it.
+const NOT_AN_ASK = new Set(['C10']);
+
+function askable(analysis) {
+  return extractIndicators(analysis).filter((i) => !NOT_AN_ASK.has(String(i.id)));
+}
+
 /**
  * Select the focus indicator from a list of candidates using a named,
  * swappable policy. This is the SELECTION seam — distinct from the
@@ -126,7 +135,7 @@ function selectFocusIndicator(indicators, policy = DEFAULT_SELECTION_POLICY) {
  * @returns {{ name: string, score: number, maxScore: number, areaName: string }|null}
  */
 function findWeakestIndicator(analysis) {
-  return selectFocusIndicator(extractIndicators(analysis), 'weakest');
+  return selectFocusIndicator(askable(analysis), 'weakest');
 }
 
 /**
@@ -144,7 +153,7 @@ async function generatePrioritizedAction(analysis, teacherName, priorAction = nu
 
   try {
     const byId = focusId ? (inds) => inds.find((i) => String(i.id) === String(focusId)) || null : null;
-    const weakest = (byId && selectFocusIndicator(extractIndicators(analysis), byId)) || findWeakestIndicator(analysis);
+    const weakest = (byId && selectFocusIndicator(askable(analysis), byId)) || findWeakestIndicator(analysis);
     if (!weakest) {
       logToFile('No weak indicator found for coaching card', { framework: analysis.framework });
       return {
@@ -215,6 +224,7 @@ function generateExample(indicator, teacherName) {
 module.exports = {
   generatePrioritizedAction,
   findWeakestIndicator,
+  NOT_AN_ASK,
   extractIndicators,
   selectFocusIndicator,
   SELECTION_POLICIES,
