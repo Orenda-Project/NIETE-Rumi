@@ -267,10 +267,10 @@ describe('1d · the Urdu line: the calques, «chorus», Latin terms, punctuation
   const ur = (t, q = null) => CP().composeReason(t, 'ur', q);
 
   test.each([
-    ['Q189 «یاددہانی کی سوال»', 'استاد نے یاددہانی کی سوال پوچھا۔', 'یادداشت پر مبنی سوال'],
+    ['Q189 «یاددہانی کی سوال»', 'استاد نے یاددہانی کی سوال پوچھا۔', 'یاد سے بتانے والا سوال'], // R7g: the approved word
     ['Q033 «یاددہانی / ہاں-نہ سوال»', 'استاد نے ایک یاددہانی / ہاں-نہ سوال پوچھا۔', 'ہاں/نہیں والا سوال'],
     ['Q006 Latin «recall yes/no»', 'استاد نے ایک recall yes/no سوال پوچھا۔', 'ہاں/نہیں والا سوال'],
-    ['Q143 Latin «recall»', 'ایک مختصر recall سوال پوچھا گیا۔', 'یادداشت پر مبنی سوال'],
+    ['Q143 Latin «recall»', 'ایک مختصر recall سوال پوچھا گیا۔', 'یاد سے بتانے والا سوال'],
     ['Q025 «open why/how»', 'اگلا قدم open why/how سوال مانگتا ہے۔', 'کیوں/کیسے والا سوال'],
     ['Q111 «why سوال»', 'استاد ایک why سوال پوچھتے ہیں۔', 'کیوں والا سوال'],
     ['Q189 «کورس جواب»', 'جس سے مختصر کورس جواب ملتے ہیں۔', 'اجتماعی جواب'],
@@ -305,11 +305,11 @@ describe('1d · the Urdu line: the calques, «chorus», Latin terms, punctuation
     const q = 'تو ۲۸ کا فیکٹر ہے ۷؟';
     expect(CP().composeReason(`The teacher asked "${q}" and gave no time.`, 'en', q)).toContain('28');
   });
-  test('engine: an en-report teacher\'s Urdu line gets the same fixes as an ur-report teacher\'s', async () => {
+  test('engine: the model\'s Urdu line gets the word table (R7g: an ur-report teacher; an en reader\'s Urdu line is the card frame)', async () => {
     const A = answer({ reason_ur: 'کلاس نے مختصر کورس جواب دیے اور استاد نے ایک recall سوال پوچھا؛ اس کلپ میں استاد کیوں کے سوال پوچھتے ہیں۔' });
-    const row = await run(args({ lang: 'en' }), deps([A]));
+    const row = await run(args({ lang: 'ur' }), deps([A]));
     expect(row.reason_ur).toContain('اجتماعی جواب');
-    expect(row.reason_ur).toContain('یادداشت پر مبنی سوال');
+    expect(row.reason_ur).toContain('یاد سے بتانے والا سوال');
   });
 });
 
@@ -388,7 +388,7 @@ describe('red7 230552 (pre-PR probes on the WIP)', () => {
       reason_en: 'During the lesson one student announced completion: "سر، میں نے کر لیا۔". This clip is about rotating groups.' });
     const d = deps([pick, pick, pick], V4);
     const row = await run(a, d);
-    expect(d.completeJson.mock.calls.length).toBeGreaterThan(0); // the route did offer the chapter
+    expect(d.completeJson).not.toHaveBeenCalled(); // R7g: the step-text route that offered the chapter is retired
     expect(row.status).toBe('none');
     expect(row.moment_source || null).not.toBe('card');
   });
@@ -417,8 +417,8 @@ describe('red7 230552 (pre-PR probes on the WIP)', () => {
     expect(d.completeJson).toHaveBeenCalled();
   });
 
-  test('D1: the calque «ریکال سوال» is written «یادداشت پر مبنی سوال»', () => {
-    expect(CP().composeReason('استاد نے ایک ریکال سوال پوچھا۔', 'ur', null)).toContain('یادداشت پر مبنی سوال');
+  test('D1: the calque «ریکال سوال» is written «یاد سے بتانے والا سوال» (R7g: the approved word)', () => {
+    expect(CP().composeReason('استاد نے ایک ریکال سوال پوچھا۔', 'ur', null)).toContain('یاد سے بتانے والا سوال');
   });
   test('D4: «وہ کیوں پوچھنا بھول گیا» speaks of the teacher in the masculine singular → gendered', () => {
     const CR = require('../../../bot/shared/services/coaching/video-reco/copy-rules');
