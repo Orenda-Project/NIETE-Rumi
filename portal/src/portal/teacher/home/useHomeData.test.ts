@@ -7,7 +7,7 @@ import { createElement, type ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { fetchHome, tapHome, type HomeData } from "./api";
 import { readConfigShared } from "../../lib/useNewUi";
-import { REORDER_BUDGET_MS, TAP_WAIT_MS, resetHomeOrderMemory, useHomeData, useHomeGo, useHomeSwitches } from "./useHomeData";
+import { REORDER_BUDGET_MS, TAP_WAIT_MS, resetHomeLookMemory, resetHomeOrderMemory, useHomeData, useHomeGo, useHomeLook, useHomeSwitches } from "./useHomeData";
 
 /**
  * The Home card's loading rule: one request; the tiles keep the order they painted unless the fetched order lands
@@ -32,10 +32,38 @@ describe("useHomeData", () => {
   });
   afterEach(() => { vi.restoreAllMocks(); });
 
-  it("off: no request, no order", () => {
-    const { result } = renderHook(() => useHomeData(false, true, "k"));
+  it("off: no data, no order; no request without a user key", () => {
+    vi.mocked(fetchHome).mockResolvedValue(DATA);
+    const { result } = renderHook(() => useHomeData(false, true, null));
     expect(fetchHome).not.toHaveBeenCalled();
     expect(result.current).toEqual({ data: null, order: null });
+  });
+
+  it("a signed-in teacher: the read starts before the switch (with /config), and the switch turning on uses it, not a second one", async () => {
+    vi.mocked(fetchHome).mockResolvedValue(DATA);
+    const { result, rerender } = renderHook(({ on }) => useHomeData(on, false, "k"), { initialProps: { on: false } });
+    expect(fetchHome).toHaveBeenCalledTimes(1);
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current.data).toBeNull();
+    rerender({ on: true });
+    await waitFor(() => expect(result.current.data).toBe(DATA));
+    expect(fetchHome).toHaveBeenCalledTimes(1);
+  });
+
+  it("the order switch arriving after the card's (a remembered look, then /config): still one read, its order applied in time", async () => {
+    vi.mocked(fetchHome).mockResolvedValue(DATA);
+    const { result, rerender } = renderHook(({ order }) => useHomeData(true, order, "k"), { initialProps: { order: false } });
+    await waitFor(() => expect(result.current.data).toBe(DATA));
+    rerender({ order: true });
+    await waitFor(() => expect(result.current.order).toEqual(ORDER));
+    expect(fetchHome).toHaveBeenCalledTimes(1);
+  });
+
+  it("the card's switch on at the first render (a remembered look): still one read", async () => {
+    vi.mocked(fetchHome).mockResolvedValue(DATA);
+    const { result } = renderHook(() => useHomeData(true, false, "k"));
+    await waitFor(() => expect(result.current.data).toBe(DATA));
+    expect(fetchHome).toHaveBeenCalledTimes(1);
   });
 
   it("an order that lands within the budget is applied; one request", async () => {
@@ -122,18 +150,98 @@ describe("useHomeSwitches", () => {
   it("only a real true is on; the order switch counts only with the card's", async () => {
     vi.mocked(readConfigShared).mockResolvedValue({ features: { teacherHomeCard: true, teacherHomeOrder: true } } as never);
     const a = renderHook(() => useHomeSwitches());
-    await waitFor(() => expect(a.result.current).toEqual({ card: true, order: true }));
+    await waitFor(() => expect(a.result.current).toEqual({ card: true, order: true, look: false }));
     vi.mocked(readConfigShared).mockResolvedValue({ features: { teacherHomeCard: "yes", teacherHomeOrder: true } } as never);
     const b = renderHook(() => useHomeSwitches());
     await act(async () => { await Promise.resolve(); });
-    expect(b.result.current).toEqual({ card: false, order: false });
+    expect(b.result.current).toEqual({ card: false, order: false, look: false });
   });
 
   it("an unreadable config is off", async () => {
     vi.mocked(readConfigShared).mockRejectedValue(new Error("down"));
     const { result } = renderHook(() => useHomeSwitches());
     await act(async () => { await Promise.resolve(); });
-    expect(result.current).toEqual({ card: false, order: false });
+    expect(result.current).toEqual({ card: false, order: false, look: false });
+  });
+});
+
+describe("useHomeSwitches — the look (portal_teacher_home_look)", () => {
+  beforeEach(() => { vi.clearAllMocks(); resetHomeLookMemory(); });
+
+  it("is off until /config answers, then on only for a real true with the card on", async () => {
+    vi.mocked(readConfigShared).mockResolvedValue({ features: { teacherHomeCard: true, teacherHomeLook: true } } as never);
+    const { result } = renderHook(() => useHomeSwitches("k"));
+    expect(result.current.look).toBe(false);
+    await waitFor(() => expect(result.current).toEqual({ card: true, order: false, look: true }));
+  });
+
+  it("rides on the card: the look true with the card off is off", async () => {
+    vi.mocked(readConfigShared).mockResolvedValue({ features: { teacherHomeCard: false, teacherHomeLook: true } } as never);
+    const { result } = renderHook(() => useHomeSwitches("k"));
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current.look).toBe(false);
+  });
+
+  it("anything but a real true is off", async () => {
+    vi.mocked(readConfigShared).mockResolvedValue({ features: { teacherHomeCard: true, teacherHomeLook: "true" } } as never);
+    const { result } = renderHook(() => useHomeSwitches("k"));
+    await waitFor(() => expect(result.current.card).toBe(true));
+    expect(result.current.look).toBe(false);
+  });
+
+  it("a look answered on is remembered: the next open starts from it, before /config answers", async () => {
+    vi.mocked(readConfigShared).mockResolvedValue({ features: { teacherHomeCard: true, teacherHomeLook: true } } as never);
+    const a = renderHook(() => useHomeSwitches("k"));
+    await waitFor(() => expect(a.result.current.look).toBe(true));
+    a.unmount();
+    expect(localStorage.getItem("teacher-home-look:v1:k")).toBe("1");
+    vi.mocked(readConfigShared).mockReturnValue(new Promise(() => {}));
+    const b = renderHook(() => useHomeSwitches("k"));
+    expect(b.result.current).toEqual({ card: true, order: false, look: true });
+    const other = renderHook(() => useHomeSwitches("someone-else"));
+    expect(other.result.current.look).toBe(false);
+  });
+
+  it("/config's false wins over the memory and clears it", async () => {
+    localStorage.setItem("teacher-home-look:v1:k", "1");
+    vi.mocked(readConfigShared).mockResolvedValue({ features: { teacherHomeCard: true, teacherHomeLook: false } } as never);
+    const { result } = renderHook(() => useHomeSwitches("k"));
+    expect(result.current.look).toBe(true);
+    await waitFor(() => expect(result.current.look).toBe(false));
+    expect(result.current.card).toBe(true);
+    expect(localStorage.getItem("teacher-home-look:v1:k")).toBeNull();
+  });
+
+  it("an unreadable config after a remembered look is off, and forgets it", async () => {
+    localStorage.setItem("teacher-home-look:v1:k", "1");
+    vi.mocked(readConfigShared).mockRejectedValue(new Error("down"));
+    const { result } = renderHook(() => useHomeSwitches("k"));
+    await waitFor(() => expect(result.current).toEqual({ card: false, order: false, look: false }));
+    expect(localStorage.getItem("teacher-home-look:v1:k")).toBeNull();
+  });
+
+  it("a blocked store is no memory, never a throw", () => {
+    const get = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("blocked"); });
+    vi.mocked(readConfigShared).mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => useHomeSwitches("k"));
+    expect(result.current.look).toBe(false);
+    get.mockRestore();
+  });
+
+  it("a user key that arrives after the first render still starts from the remembered look", async () => {
+    localStorage.setItem("teacher-home-look:v1:k", "1");
+    vi.mocked(readConfigShared).mockReturnValue(new Promise(() => {}));
+    const { result, rerender } = renderHook(({ key }: { key?: string }) => useHomeSwitches(key), { initialProps: {} as { key?: string } });
+    expect(result.current.look).toBe(false);
+    rerender({ key: "k" });
+    await waitFor(() => expect(result.current).toEqual({ card: true, order: false, look: true }));
+  });
+
+  it("no user key: no memory read or written", async () => {
+    vi.mocked(readConfigShared).mockResolvedValue({ features: { teacherHomeCard: true, teacherHomeLook: true } } as never);
+    const { result } = renderHook(() => useHomeSwitches());
+    await waitFor(() => expect(result.current.look).toBe(true));
+    expect(Object.keys(localStorage).filter((k) => k.startsWith("teacher-home-look:v1:"))).toEqual([]);
   });
 });
 
@@ -171,5 +279,37 @@ describe("useHomeGo", () => {
     expect(assign).not.toHaveBeenCalled();
     await act(async () => { await vi.advanceTimersByTimeAsync(TAP_WAIT_MS); });
     expect(assign).toHaveBeenCalledWith("/quiz/teacher/abc");
+  });
+});
+
+describe("useHomeLook (the menu's read of the look)", () => {
+  beforeEach(() => { vi.clearAllMocks(); resetHomeLookMemory(); });
+
+  it("is the look switch, from the same /config read", async () => {
+    vi.mocked(readConfigShared).mockResolvedValue({ features: { teacherHomeCard: true, teacherHomeLook: true } } as never);
+    const { result } = renderHook(() => useHomeLook("k"));
+    expect(result.current).toBe(false);
+    await waitFor(() => expect(result.current).toBe(true));
+    expect(readConfigShared).toHaveBeenCalledTimes(1);
+  });
+
+  it("rides on the card, and starts from a remembered look before /config answers", async () => {
+    vi.mocked(readConfigShared).mockResolvedValue({ features: { teacherHomeCard: false, teacherHomeLook: true } } as never);
+    const a = renderHook(() => useHomeLook("k"));
+    await act(async () => { await Promise.resolve(); });
+    expect(a.result.current).toBe(false);
+    localStorage.setItem("teacher-home-look:v1:k", "1");
+    vi.mocked(readConfigShared).mockReturnValue(new Promise(() => {}));
+    expect(renderHook(() => useHomeLook("k")).result.current).toBe(true);
+  });
+
+  it("not enabled (a coach): no read, no memory, always off", async () => {
+    localStorage.setItem("teacher-home-look:v1:k", "1");
+    vi.mocked(readConfigShared).mockResolvedValue({ features: { teacherHomeCard: true, teacherHomeLook: true } } as never);
+    const { result } = renderHook(() => useHomeLook("k", false));
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current).toBe(false);
+    expect(readConfigShared).not.toHaveBeenCalled();
+    expect(localStorage.getItem("teacher-home-look:v1:k")).toBe("1");
   });
 });

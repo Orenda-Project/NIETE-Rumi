@@ -8,11 +8,11 @@ import { NieteLattice } from "../icons/NieteLattice";
 /**
  * bd-fmf24g.22 — HomeGreeting: the top of the teacher Home, option C of the canvas's "Home top · options" (chosen by
  * the operator, 9 Oct 2026). A NIETE band in the brand book's navy-slate (#333748): the N/ن mark and "NIETE", a faint
- * diamond lattice at the far end, her whole name with "!" as the page's h1, then today's date and her school as PLAIN
+ * diamond lattice at the far end, the teacher's whole name with "!" as the page's h1, then today's date and their school as PLAIN
  * text (the two white pills this replaces looked tappable; nothing here is a control).
  *
  * Words come in by props (`title` is "Salaam, {full name}!" already composed, `brand`/`logoAlt` from the frame copy);
- * data (her name, school, the date) is shown as it comes. Real fields only: GET /api/portal/me (`firstName`,
+ * data (the name, school, the date) is shown as it comes. Real fields only: GET /api/portal/me (`firstName`,
  * `schoolName`) and the clock. The bottom padding (52px) leaves room for the first thing under the band to climb 28px
  * into it; Home does that with a `-mt-10` body (TeacherPage's `hero` slot supplies the full-bleed edges).
  * Start/end spacing only, so it mirrors for Urdu. Canvas: the `HomeGreeting` component board, variant `brand`.
@@ -21,7 +21,7 @@ import { NieteLattice } from "../icons/NieteLattice";
  * 2026-10-14, design doc option B). It sits inside the band, so the tiles still climb into it. The band's own lines
  * stay plain text; only what is passed here is tappable.
  *
- * `name`: her name as it appears in `title`. It is drawn with the "!" after it as ONE isolate (`<bdi>`), so in Urdu
+ * `name`: the teacher's name as it appears in `title`. It is drawn with the "!" after it as ONE isolate (`<bdi>`), so in Urdu
  * the "!" stays right after the name instead of taking the RTL paragraph's side ("!Testwala"; language-protocol §9.6:
  * the atom keeps its punctuation inside its isolate). A Latin name is set in the English font with an English line
  * height (`!leading-[1.15]`, important because index.css gives every Urdu span line-height 2): mixed into the
@@ -31,11 +31,11 @@ import { NieteLattice } from "../icons/NieteLattice";
  */
 export interface HomeGreetingProps {
   title: string;
-  /** Her name as it appears in `title` (isolated with its "!"); empty or absent draws the title as it is. */
+  /** The teacher's name as it appears in `title` (isolated with its "!"); empty or absent draws the title as it is. */
   name?: string | null;
-  /** Today, already in her language ("Thursday 8 October"). */
+  /** Today, already in the teacher's language ("Thursday 8 October"). */
   date: string;
-  /** Her school; null or empty shows no school row. */
+  /** The teacher's school; null or empty shows no school row. */
   school?: string | null;
   brand: string;
   logoAlt: string;
@@ -77,8 +77,19 @@ export function HomeGreeting({ title, name, date, school, brand, logoAlt, markSr
   );
 }
 
+/**
+ * How the name's isolate wraps, for a caller that decides it (the look's band): "nowrap" keeps the name whole (it moves
+ * to the next line as one piece), "words" lets it wrap at its own spaces and break a word only when that word alone is
+ * wider than the line. Absent: the name inherits the heading's wrapping (HomeGreeting).
+ */
+const WRAP = { inherit: "", nowrap: "whitespace-nowrap", words: "break-words" } as const;
+
+export interface GreetingPartsOptions {
+  nameWrap?: "nowrap" | "words";
+}
+
 /** The title with `name` and the "!" after it as one isolate; the title as it is when the name is not in it. */
-function greetingParts(title: string, name?: string | null): ReactNode {
+export function greetingParts(title: string, name?: string | null, options: GreetingPartsOptions = {}): ReactNode {
   const at = name ? title.lastIndexOf(name) : -1;
   if (!name || at < 0) return title;
   const end = at + name.length + (title.charAt(at + name.length) === "!" ? 1 : 0);
@@ -86,7 +97,7 @@ function greetingParts(title: string, name?: string | null): ReactNode {
   return (
     <>
       {title.slice(0, at)}
-      <bdi data-testid="home-greeting-name" {...(latin ? { "data-latin": "" } : {})} className={latin ? "!leading-[1.15] rtl:text-[0.7em]" : "!leading-[1.15]"}>
+      <bdi data-testid="home-greeting-name" {...(latin ? { "data-latin": "" } : {})} className={cn(latin ? "!leading-[1.15] rtl:text-[0.7em]" : "!leading-[1.15]", WRAP[options.nameWrap ?? "inherit"])}>
         {title.slice(at, end)}
       </bdi>
       {title.slice(end) || null}
