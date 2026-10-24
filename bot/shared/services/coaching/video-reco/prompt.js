@@ -7,8 +7,9 @@
  */
 const { redactNames } = require('./redact-names');
 const { clipKind } = require('./copy-rules');
+const terms = require('./urdu-terms'); // R7j §2: ped-scale's terms file, the only source of the Urdu move words
 
-const PROMPT_VERSION = 'vr-10'; // vr-10 (R7g 1b): the approved Urdu word for each move it may name, past tense with the teacher as subject; vr-9 (R7c §5): the clip's kind on each candidate; explain-not-show; a why/how line is not recall; vr-8 (red7 155809): no vocative in "Try this tomorrow"; vr-7 (R7b 2b): the clip's own words, the Urdu plural
+const PROMPT_VERSION = 'vr-11'; // vr-11 (R7j §2): the move id and answer type from ped-scale's terms file (the engine writes the Urdu line); vr-10 (R7g 1b): the approved Urdu word for each move it may name, past tense with the teacher as subject; vr-9 (R7c §5): the clip's kind on each candidate; explain-not-show; a why/how line is not recall; vr-8 (red7 155809): no vocative in "Try this tomorrow"; vr-7 (R7b 2b): the clip's own words, the Urdu plural
 const EXCERPT_LINES = 12;
 const EXCERPT_MAX_CHARS = 220;
 
@@ -152,22 +153,11 @@ RULES
 3. Gender-neutral: say "the teacher" / "they"; in Urdu use verbal nouns or impersonal forms, never gendered second-person verbs. Any teacher (the reader or the one in the clip) is plural in Urdu: «استاد … کرتے ہیں / پوچھتے ہیں», «آپ … کریں»; never «کرتا ہے», «کرتی ہے», «کہتی ہیں», «استانی», «معلمہ» or «استاذہ». The moves in rule 6 take rule 6's Urdu words; keep any other pedagogical term in English letters inside Urdu (one or two words). No Roman Urdu (Urdu in Latin letters); Urdu is written in Nastaliq script.
 4. If no candidate would help this teacher with this step, return "seg_id": null and say why in "none_reason". That is a good answer, not a failure.
 5. Never pick a clip whose "needs" clearly do not match this lesson, or one meant for a different subject than this lesson (${subject || 'unknown'}).
-6. In reason_ur, name a teaching move with these Urdu words, never a word-for-word translation and never the English word in Latin letters: ${URDU_GLOSSARY}. The lesson is over: say what happened in the past tense with the teacher as the subject («استاد نے پوچھا»), never «پوچھ رہے ہیں» or «پوچھا گیا».
+6. Name the move the cited line shows in "move" by its English id, the part before «=», from this list (the Urdu after it is the team's own word for it): ${terms.glossary()}; null when none fits. In "answer", name how the children answered that line when the next lines show it: ${terms.answerIds().join(', ')}, else null. In reason_ur use only these Urdu words for a move, never a word-for-word translation and never the English word in Latin letters. The lesson is over: say what happened in the past tense with the teacher as the subject («استاد نے پوچھا»), never «پوچھ رہے ہیں» or «پوچھا گیا».
 
 Return exactly this JSON:
-{"seg_id": "<one of the candidate ids, or null>", "moment": {"at": "mm:ss", "quote": "<copied from the transcript moments>"}, "reason_en": "<two sentences>", "reason_ur": "<the same, in natural Urdu (Nastaliq script)>", "confidence": <0.0-1.0>, "none_reason": "<only when seg_id is null>"}`;
+{"seg_id": "<one of the candidate ids, or null>", "moment": {"at": "mm:ss", "quote": "<copied from the transcript moments>"}, "move": "<one move id from rule 6, or null>", "answer": "<one answer id from rule 6, or null>", "reason_en": "<two sentences>", "reason_ur": "<the same, in natural Urdu (Nastaliq script)>", "confidence": <0.0-1.0>, "none_reason": "<only when seg_id is null>"}`;
 }
-
-// R7g (COS 002603 1b; panel v6 §4: the Urdu misses are the model's calques of English move names): the approved word for each
-// move, from the catalogue's own Urdu chapter titles (51-s1, 50-s2, 51-s2, 48-s1 «یاد سے بتانا») and the report's Urdu.
-// copy.js rewrites the panel's variants to the same words (the backstop).
-const URDU_MOVES = Object.freeze([
-  ['recall question', 'یاد سے بتانے والا سوال'], ['yes/no question', 'ہاں/نہیں والا سوال'], ['why question', "'کیوں' والا سوال"],
-  ['open question', 'کھلا سوال'], ['chorus answer', 'سب کا مل کر جواب'], ['warm-up question', 'ابتدائی سوال'],
-  ['think-pair-share', 'تھنک پیئر شیئر'], ['pair or partner talk', 'ساتھی سے بات چیت'], ['children talking to each other', 'بچوں کی آپس میں بات چیت'],
-  ['wait time', 'انتظار کا وقفہ'],
-]);
-const URDU_GLOSSARY = URDU_MOVES.map(([en, ur]) => `${en} = «${ur}»`).join('; ');
 
 const LANGUAGE_NAMES = Object.freeze({ en: 'English', ur: 'Urdu' });
 
@@ -203,6 +193,7 @@ const RETRY_RULES = Object.freeze({
   scene: 'The reason said the clip shows a teacher doing the move, but the clip is a conversation, a talk, slides or an animation; say the clip explains it or the teachers in it discuss it.',
   recall: 'The reason called the cited line a recall or yes/no question, but it asks why or how; say what the line really is.',
   not_moment: 'The quoted line only greeted the class, called a page, gave an order about the room or announced the lesson; quote a moment of teaching, where the teacher asks or explains or a child answers.',
+  routine: 'The quoted line only greeted the class, called a page, gave an order about the room, was a filler or children reading back; quote a moment of teaching, where the teacher asks or explains or a child answers.',
 });
 
 /** The two lines added to the same prompt for the one retry: which rule the first answer broke, then answer again. */

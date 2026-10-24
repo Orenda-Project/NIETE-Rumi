@@ -21,11 +21,11 @@ const base = {
 // sha256 of P.build(base) with no cross-language rule. Was the vr-4 text (cbcd4c39e4, 846c8f5e…); re-taken at vr-6
 // (bd-8hhqhf r7: rule 2 drops the clock time) and at vr-7 (R7b: rule 2's clip words, rule 3's Urdu plural), which change
 // the base text, not the cross-language rule tested here; and at vr-9 (R7c: the clip's kind, explain-not-show, recall).
-const VR4_SHA = '347d1c6383f1adba5580ac90c243a2d4abb361bd52820b3195fb633f61242abc'; // re-taken at vr-10 (R7g: rule 6, the Urdu move words)
+const VR4_SHA = '5c2a01a98fd5e68f295dbb7c1c3fae50c3228752055f93ffa45a9bd7032593a3'; // re-taken at vr-11 (R7j: rule 6 and the move/answer fields from the terms file)
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 
 describe('prompt vr-5: the cross-language paraphrase rule', () => {
-  test('PROMPT_VERSION is vr-10', () => expect(P.PROMPT_VERSION).toBe('vr-10'));
+  test('PROMPT_VERSION is vr-11', () => expect(P.PROMPT_VERSION).toBe('vr-11'));
 
   test('en report + ur lesson: reason_en paraphrases the moment in English and quotes at most 6 words; moment.quote stays verbatim', () => {
     const text = P.build({ ...base, reportLanguage: 'en', lessonLanguage: 'ur' });
@@ -111,7 +111,7 @@ describe('engine: the prompt gets the report and lesson languages', () => {
     const d = deps();
     const row = await E.recommendForReport({ ...args('en'), deps: d });
     expect(d.completeJson.mock.calls[0][0]).toMatch(/in reason_en, paraphrase the moment in English/);
-    expect(row).toMatchObject({ status: 'shown', seg_id: '10-s1', prompt_version: 'vr-10', moment_source: 'transcript' });
+    expect(row).toMatchObject({ status: 'shown', seg_id: '10-s1', prompt_version: 'vr-11', moment_source: 'transcript' });
     expect(row.moment_quote).toBe(PARAPHRASED.moment.quote);
     expect(row.reason_en).toBe(`At 00:30 the teacher asked the class whether the shape was a triangle, "\u2068yes or no\u2069". This clip is about: Ask why and how.`); // bd-8hhqhf: the quote is isolated; R7d §6: the clip half is the chapter's title
   });

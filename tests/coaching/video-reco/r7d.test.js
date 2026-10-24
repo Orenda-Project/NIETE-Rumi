@@ -247,18 +247,18 @@ describe('5 · a test period, a greeting, a reprimand, an announcement, an echo-
   const v = (line, quote, opts = {}, next = '[00:31] Student: جی۔') => S.validate(answer({ moment: { at: '00:30', quote } }), list, [`[00:30] Teacher: ${line}`, next], opts);
 
   test.each([
-    ['Q113 greeting', 'تم کیسے ہو؟ سب ٹھیک ہیں؟', 'تم کیسے ہو؟ سب ٹھیک ہیں'],
+    ['Q113 greeting', 'تم کیسے ہو؟ سب ٹھیک ہیں؟', 'تم کیسے ہو؟ سب ٹھیک ہیں', 'routine'],
     ['Q076 reprimand', 'آپ کیوں اتنے سست ہو کے بیٹھے ہوئے ہیں؟ کیا ہوا ہے آپ کو؟', 'آپ کیوں اتنے سست ہو کے بیٹھے ہوئے ہیں؟ کیا ہوا ہے آپ کو؟'],
     ['Q170 test period', 'آج ٹیسٹ ہے آپ کا، ابھی آپ مجھے لکھ کر دکھائیں گے۔', 'آج ٹیسٹ ہے آپ کا، ابھی آپ مجھے لکھ کر دکھائیں گے'],
     ['Q198 the topic asked', 'اچھا، آج کا جو ہمارا ٹاپک ہے وہ کیا ہے؟', 'اچھا، آج کا جو ہمارا ٹاپک ہے وہ کیا ہے؟'],
-  ])('%s → validation:not_moment', (_, line, quote) => expect(v(line, quote).none).toBe('validation:not_moment'));
+  ])('%s → validation:not_moment (R7j: a greeting → validation:routine, the card frame)', (_, line, quote, why = 'not_moment') => expect(v(line, quote).none).toBe(`validation:${why}`));
 
   test('Q199: the lesson\'s own topic said as a question («What is sound») → validation:not_moment', () => {
     expect(v('What is sound? Today we read about it.', 'What is sound', { topic: 'Sound' }).none).toBe('validation:not_moment');
   });
 
-  test('Q038/Q056: in Grade 1–2 a line the children echo back is reading, not a question → validation:not_moment', () => {
-    expect(v('A girl is smiling at the cat.', 'A girl is smiling at the cat', { grade: { lo: 1, hi: 1 } }, '[00:32] Student: A girl is smiling at the cat.').none).toBe('validation:not_moment');
+  test('Q038/Q056: in Grade 1–2 a line the children echo back is reading, not a question → R7j: validation:routine (the card frame)', () => {
+    expect(v('A girl is smiling at the cat.', 'A girl is smiling at the cat', { grade: { lo: 1, hi: 1 } }, '[00:32] Student: A girl is smiling at the cat.').none).toBe('validation:routine');
   });
 
   test.each([
@@ -291,7 +291,7 @@ describe('6 · the clip half is written from the chapter; the lesson half from t
     expect(both(row)).not.toMatch(/Say it with me|میرے ساتھ دہرائیں/);
     expect(row.reason_en).toMatch(/^The class could only answer yes or no/);
     expect(row.reason_en).toContain('Yes/no question vs. a why question');
-    expect(row.reason_ur).toContain('کلاس صرف ہاں یا نہیں میں جواب دے سکی');
+    expect(row.reason_ur).toMatch(/^سبق میں استاد نے/); // R7j: an Urdu reader's line is the terms file's frame
     expect(row.reason_ur).toContain('عنوان');
   });
 
@@ -316,7 +316,7 @@ describe('6 · the clip half is written from the chapter; the lesson half from t
     const row = await run(args({ lines, lang: 'ur' }), deps([r])); // R7g: an Urdu reader reads the model's Urdu line
     expect(row.status).toBe('shown');
     expect(row.reason_en).toMatch(/^The teacher asked a question:/);
-    expect(row.reason_ur).toMatch(/^استاد نے سوال پوچھا/);
+    expect(row.reason_ur).toMatch(/^سبق میں استاد نے بچوں سے پوچھا، "/); // R7j: the frame (no move named), never a recall label
     expect(both(row)).not.toMatch(/recall|یادداشت/);
   });
 
@@ -326,8 +326,8 @@ describe('7 · Urdu: the fixed lexical list, the familiar imperative, one digit 
   const { composeReason } = require('../../../bot/shared/services/coaching/video-reco/copy');
 
   test.each([
-    ['استاد نے یاددہانی سوال پوچھا', 'استاد نے یاد سے بتانے والا سوال پوچھا'], // R7g: the approved word
-    ['جوڑ کی گفتگو نہیں ہوئی', 'جوڑوں میں گفتگو نہیں ہوئی'],
+    ['استاد نے یاددہانی سوال پوچھا', 'استاد نے سیدھا سا سوال پوچھا'], // R7j: the terms file's word
+    ['جوڑ کی گفتگو نہیں ہوئی', 'جوڑیوں میں بات چیت نہیں ہوئی'],
     ['ہم ایک جوڑ کی وجہ سنتے ہیں', 'ہم ایک جوڑے کی وجہ سنتے ہیں'],
     ['ایک طالب نے کہا', 'ایک طالب علم نے کہا'],
     ['ہر طالب سوچ کر لکھے', 'ہر طالب علم سوچ کر لکھے'],

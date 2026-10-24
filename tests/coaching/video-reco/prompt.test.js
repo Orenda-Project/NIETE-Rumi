@@ -13,8 +13,8 @@ const session = { diarization_data: { segments: segs }, transcript_text: '' };
 const target = { indicator: 'C1', source: 'step', row: { id: 'C1', name: 'Quality Questioning', score: 1, timestamp: '[03:10]' } };
 const cands = [{ seg_id: '10-s1', indicator: 'C1' }, { seg_id: '11-s1', indicator: 'C1' }];
 
-test('PROMPT_VERSION is vr-10 (vr-8 + R7c: the clip\'s kind, explain-not-show, a why/how line is not recall + R7g Urdu words)', () => {
-  expect(P.PROMPT_VERSION).toBe('vr-10');
+test('PROMPT_VERSION is vr-11 (vr-8 + R7c: the clip\'s kind, explain-not-show, a why/how line is not recall + R7g Urdu words + R7j terms file)', () => {
+  expect(P.PROMPT_VERSION).toBe('vr-11');
 });
 
 test('excerpts: the 12 diarized segments around the target timestamp, [mm:ss] Label: text, ≤ 220 chars each', () => {
@@ -53,7 +53,7 @@ test('build (indicator path): the vr-2 text, the score of the scheme\'s max, the
   expect(prompt).toContain('1. Choose the clip that SHOWS the exact move in "Try this tomorrow". Every candidate is for that step: you choose among them and ground the moment; you never change the step.');
   expect(prompt).toContain('The quote must contain no person\'s name: write [a student] in its place.');
   expect(prompt).toContain('meant for a different subject than this lesson (maths)');
-  expect(prompt).toContain('{"seg_id": "<one of the candidate ids, or null>", "moment": {"at": "mm:ss", "quote": "<copied from the transcript moments>"}, "reason_en"');
+  expect(prompt).toContain('{"seg_id": "<one of the candidate ids, or null>", "moment": {"at": "mm:ss", "quote": "<copied from the transcript moments>"}, "move": "<one move id from rule 6, or null>", "answer": "<one answer id from rule 6, or null>", "reason_en"');
   expect(prompt).not.toContain('differs_from_step');
 });
 

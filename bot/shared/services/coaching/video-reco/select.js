@@ -11,7 +11,7 @@ const { fallbackSubjectOk } = require('./shortlist');
 const { stripBidi } = require('./copy');
 const CONTENT_TERMS = require('./content-terms');
 const LEX = require('./name-lexicon');
-const { childTurnNear, imperative, routineLine, echoReading, notTeaching, isClosure, earlyForClosure, levelsNear } = require('./silence');
+const { cardRoutine, childTurnNear, imperative, routineLine, echoReading, notTeaching, isClosure, earlyForClosure, levelsNear } = require('./silence');
 const { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, sceneClaim, recallMislabel, pointerNoLine, recallLeft, namesGap, notGapLine, auditWords, closedQuestion, urduSlip } = require('./copy-rules');
 
 const JOB = 'coaching.videoReco';
@@ -221,7 +221,7 @@ function rosterRaw(names) {
   const out = new Set();
   for (const w of names || []) {
     const n = normWord(w);
-    if ([...n].length >= 3 && !ROLE_STOP.has(n)) out.add(n);
+    if ([...n].length >= (/[\u0600-\u06FF]/.test(n) ? 2 : 3) && !ROLE_STOP.has(n)) out.add(n); // «گل» is a name
   }
   return out;
 }
@@ -245,7 +245,7 @@ function arabicShare(text) {
  * @returns {{ok:boolean, none:null|'llm_none'|'validation:<why>', confidence:number, momentSource:'transcript'|'scorer'|null}}
  *   <why> (lead-review 19:40Z, so evals and red-team can count them): shape | candidate | quote | moment_at | placeholder |
  *   scorer | id | name | length | urdu | roman | gender | step | unshown | scene | recall | no_line | no_gap | not_gap | no_evidence |
- *   no_child_turn | not_moment | closure_early | urdu_form | error. A not_moment from a line spoken while no lesson is happening also
+ *   no_child_turn | not_moment | routine | closure_early | urdu_form | error. A not_moment from a line spoken while no lesson is happening also
  *   carries `lessonless: true` (R7f: only such a line takes the card fallback away, engine.js).
  */
 function validate(p, shortlist, excerpts, opts) {
@@ -275,13 +275,14 @@ function validate(p, shortlist, excerpts, opts) {
     // R7c (Q031 Q061 Q063 Q072 Q084 Q170 …): a greeting, a page call, an order about the room or the lesson's announcement is
     // no moment. Not a fallback rule: the retry may find a real one, else the none stands (Q063, Q170 → silence, as ruled). Before every
     // reason rule, so a routine line is never rescued by the fallback a reason fault would allow.
-    if (routineLine(storedQuote(quote), { topic })) return bad('not_moment');
+    // R7j (COS 022905 §2/§5; panel v7 Z282 Z043 Z379 Z267): a greeting, page call, filler or echo falls back to the card frame
+    if (routineLine(storedQuote(quote), { topic })) return bad(cardRoutine(storedQuote(quote)) ? 'routine' : 'not_moment');
     // R7g (COS 002603 1a; panel Z199 ⛔2, Z025 right): a subject label let through for its open-question sentence answers a
     // closed question; any other cited line (a page announcement, a why already asked) is no moment for it
     if (labelClosed && !closedQuestion(storedQuote(quote))) return bad('not_moment');
     // R7d (Q038 Q056): in Grade 1–2 a line the children read back is echo reading, not the gap
     const lines = momentSource === 'transcript' ? excerpts : (() => { const l = typeof fullLines === 'function' ? fullLines() : fullLines; return Array.isArray(l) ? l : []; })();
-    if (echoReading(lines, quoteLine(quote, lines), grade)) return bad('not_moment');
+    if (echoReading(lines, quoteLine(quote, lines), grade)) return bad('routine');
     // R7e (COS 202042; Q063 Q170): before the class is greeted (the phone, the observer), or in a test period, read on the
     // whole transcript: a window of it cannot show where the lesson starts
     const full = typeof fullLines === 'function' ? fullLines() : fullLines;
@@ -394,9 +395,10 @@ function routineQuote(p, topic = null) {
 }
 
 /** ⛔9 (SPEC v1.3c §3.5 a): what is stored and sent passes the non-strict redactor; a text with no name is unchanged. */
-function postRedact(text, teacherName, vocab = [], counts = null) {
+function postRedact(text, teacherName, vocab = [], counts = null, carry = null, trace = null) {
   if (typeof text !== 'string' || !text) return text;
-  return redactNames(text, { teacher: teacherName || null, strict: false, placeholders: { child: '[a student]' }, vocab, counts }); // counts: red7 013349
+  // counts: red7 013349; carry (R7i): the lesson's and the quote's masked names, masked wherever they stand
+  return redactNames(text, { teacher: teacherName || null, strict: false, placeholders: { child: '[a student]' }, vocab, counts, carry, trace, secondGuard: true });
 }
 
 // bd-8hhqhf (lead-final 21:24Z): maths/science loanwords a teacher says in Urdu script, never a child's name: the output
@@ -420,7 +422,7 @@ function topicVocab(topic) {
 // not step (a code gate: the chapter is not for the step), not error.
 // R7f: closure_early (Q117: the card names the closing move the chapter shows), no_gap and not_gap (ask 1b: the card frame
 // is 96.9% right/acceptable on v5) take it too; no_evidence (1a) never does.
-const FALLBACK_RULES = new Set(['quote', 'moment_at', 'placeholder', 'scorer', 'id', 'name', 'length', 'urdu', 'roman', 'gender', 'unshown', 'scene', 'recall', 'no_child_turn', 'closure_early', 'no_gap', 'not_gap', 'urdu_form']);
+const FALLBACK_RULES = new Set(['quote', 'moment_at', 'placeholder', 'scorer', 'id', 'name', 'length', 'urdu', 'roman', 'gender', 'unshown', 'scene', 'recall', 'no_child_turn', 'closure_early', 'no_gap', 'not_gap', 'urdu_form', 'routine']);
 const FALLBACK_MAX = 300; // code points of each composed reason (en and ur)
 const MIN_WORDS = 3; // a trimmed card sentence keeps at least this many words, else the none stands
 
@@ -514,14 +516,22 @@ function cardFallback(a = {}) {
   return cardFrame(a);
 }
 
+/** The plain frame (no quote) in language `l`; the Urdu one names the chapter (ped/urdu_terms.json card_frame_other_ur). */
+function plainFrame(l, segment) {
+  const n = segment ? Math.round(Number(segment.end_s) - Number(segment.start_s)) : 0;
+  const title = String((segment && ((l === 'ur' && segment.title_ur) || segment.title_en)) || '').trim().replace(/[۔.]$/u, '');
+  const line = resolveUx('videoRecoCardFallbackReasonPlain', { language: l, params: { n, title } });
+  return title ? line : line.replace(/:\s*[۔.]$/u, '۔'); // no title: the terms file's alt line (it ends after «دکھاتا ہے»)
+}
+
 /** The card frame for a chapter (the fallback's text, no rule or list gate): {reason_en, reason_ur} | null. */
-function cardFrame({ sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab = [], segment, labels = [], roster = null, plainIfNamed = false } = {}) {
+function cardFrame({ sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab = [], segment, labels = [], roster = null, rosterRaw = null, plainIfNamed = false, carry = null, counts = null } = {}) {
   try {
     if (!fallbackSubjectOk(module, subject)) return null; // [v1.3c-2] ⛔4: no literacy clip on a science lesson
     // [v1.3c-5] + R7b (P165, red7 V1–V10): the card's vocative goes BEFORE redaction, found by its shape (copy-rules.js)
     const raw = stripBidi(String(sentence || ''));
     const bare = raw.slice(leadingVocative(raw));
-    let s = String(postRedact(bare, teacherName, vocab) || '').replace(LEADING_ADDRESS, '').trim();
+    let s = String(postRedact(bare, teacherName, vocab, null, carry) || '').replace(LEADING_ADDRESS, '').trim(); // R7i: carry
     if (!s || s.startsWith('[') || UNSHOWABLE.test(s)) return null; // [v1.3c-5] a placeholder never opens it
     if (!imperative(s)) return null; // R7b (P123, P161): a diagnosis fragment is not a move to try
     if (LABEL_TEXT.test(s) || labels.some((x) => x && s.toLowerCase().includes(String(x).toLowerCase()))) return null;
@@ -529,8 +539,8 @@ function cardFrame({ sentence, startS, endS, language, teacherName, module, subj
     if (!Number.isFinite(n) || n <= 0) return null;
     // R7c ⛔9 (Q168, Q174; Q181, Q193): a child named inside the sentence → the comparison goes. R7g (COS 002603 1e; panel Z036
     // Z100, R/A sends in v5): a name that cannot go → the plain frame, the sentence not quoted (was: no clip at all)
-    const plain = () => ({ reason_en: resolveUx('videoRecoCardFallbackReasonPlain', { language: 'en', params: { n } }), reason_ur: resolveUx('videoRecoCardFallbackReasonPlain', { language: 'ur', params: { n } }) });
-    s = childFreeCard(s, { teacher: teacherName, vocab, oovVocab });
+    const plain = () => ({ reason_en: plainFrame('en', segment), reason_ur: plainFrame('ur', segment) });
+    s = childFreeCard(s, { teacher: teacherName, vocab, oovVocab, roster: rosterRaw, counts }); // S12: a roster possessor, read raw; F: the lesson's counts
     if (!s || rosterIn(s, roster)) return plainIfNamed ? plain() : null; // R7d (Q086): a roster name in any position, a quoted title included
     s = singleQuotes(s).replace(/^[a-z]/, (c) => c.toUpperCase()); // P109: no lower-case start after the strip
     // bd-8hhqhf: a long card sentence is trimmed to fit, in each language (session 077b8021: 224 cp → 308 cp composed in
@@ -541,11 +551,13 @@ function cardFrame({ sentence, startS, endS, language, teacherName, module, subj
     const reader = clampLanguage(language);
     const script = (/[\u0600-\u06FF]/.test(s) && (s.match(/[\u0600-\u06FF]/g) || []).length >= (s.match(/[A-Za-z]/g) || []).length) ? 'ur' : 'en';
     for (const l of ['en', 'ur']) {
-      if (l !== reader && l !== script) { out[`reason_${l}`] = resolveUx('videoRecoCardFallbackReasonPlain', { language: l, params: { n } }); continue; }
+      if (l !== reader && l !== script) { out[`reason_${l}`] = plainFrame(l, segment); continue; }
       const whole = resolveUx('videoRecoCardFallbackReason', { language: l, params: { sentence: s, n } });
       const fit = fitClauses(s, FALLBACK_MAX - ([...whole].length - [...s].length), segment);
-      if (!fit && l === reader) return null;
-      out[`reason_${l}`] = !fit || fit === s ? whole : resolveUx('videoRecoCardFallbackReason', { language: l, params: { sentence: fit, n } });
+      // R7j (COS 022905 §2; panel v7 §4b Z152 Z418): a cut card keeps its imperative, else the frame is shortened, not the
+      // card: the plain frame (never a quote that lost its verb)
+      if (!fit || (fit !== s && !imperative(fit))) { out[`reason_${l}`] = plainFrame(l, segment); continue; }
+      out[`reason_${l}`] = fit === s ? whole : resolveUx('videoRecoCardFallbackReason', { language: l, params: { sentence: fit, n } });
     }
     return out;
   } catch (e) {
@@ -574,14 +586,26 @@ const MOVE_WORDS = Object.freeze({
   peer_self_assessment: /assess|checklist|rubric|self[- ]check|review each other|جانچ|چیک لسٹ|روبرک|جائزہ/iu,
 });
 
+// R7j (COS 022905 §3; panel v7 Z363 ⛔2: «…and assign by table or quick exit ticket» put a closure chapter on a two-page
+// practice card): the card's move, not a word that only names HOW something else is done. The move check reads the
+// sentence without its «by …» phrases (to the clause's end). A cut at the first clause break was tried and refused the
+// moves real cards put after a colon or a semicolon («…جملہ استعمال کریں: تعریف + ایک بہتری», «…؛ پھر pairs میں
+// Think-Pair-Share»): gold 0d461fa9 a93ff7bb b1c63a25 d0450f59 lost acceptable frames.
+const BY_PHRASE = /\b(?:by|via)\b[^.;:،؛۔!?؟]*/giu;
+/** The card's sentence as its move reads: the «by …» phrases (the manner of another step) dropped. */
+function headClause(sentence) {
+  return stripBidi(String(sentence || '')).replace(BY_PHRASE, ' ').replace(/\s{2,}/g, ' ').trim();
+}
+
 /**
- * The card's sentence names one of the chapter's moves. A chapter none of whose moves has an entry is not judged (true),
- * unless `strict` (the plain frame for a card that names a child needs the move named, R7g 1e: Z078 stays silent).
+ * The card's HEAD clause names one of the chapter's moves (the quoted frame's claim). A chapter none of whose moves has an
+ * entry is not judged (true), unless `strict`: the plain frame for a card that names a child needs the move named, anywhere
+ * in the sentence (R7g 1e: Z078 stays silent; the plain frame quotes nothing, so no head claim is made).
  */
 function cardMoveOk(sentence, segment, { strict = false } = {}) {
   const known = ((segment && segment.moves) || []).map((m) => MOVE_WORDS[m]).filter(Boolean);
   if (!known.length) return !strict;
-  const s = stripBidi(String(sentence || ''));
+  const s = (!strict && headClause(sentence)) || stripBidi(String(sentence || ''));
   return known.some((rx) => rx.test(s));
 }
 
@@ -596,4 +620,4 @@ const ARTICLE_SLIP = /\ban? questions\b|\ban? \w+ an? question\b/i;
 /** R7g: the model's English line has no article slip (the rest of it was validated whole). */
 const englishLineOk = (text) => !ARTICLE_SLIP.test(String(text || '').replace(QUOTED, ' '));
 
-module.exports = { rosterRaw, cardFrame, cardMoveOk, urduLineOk, englishLineOk, routineQuote, lessonlessQuote, groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
+module.exports = { plainFrame, headClause, rosterRaw, cardFrame, cardMoveOk, urduLineOk, englishLineOk, routineQuote, lessonlessQuote, groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
