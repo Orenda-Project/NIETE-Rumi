@@ -433,6 +433,11 @@ const FALLBACK_RULES = new Set(['quote', 'moment_at', 'placeholder', 'scorer', '
 const FALLBACK_MAX = 300; // code points of each composed reason (en and ur)
 const MIN_WORDS = 3; // a trimmed card sentence keeps at least this many words, else the none stands
 
+// R7k §1f: an example clause and an open bracket or quote (a cut inside them leaves a list or a quote half said, Z233 Z241 Z307)
+const DEPENDENT = /^\s*(?:جیسے|مثلاً|مثلا|یعنی|like\b|such as\b|e\.g\.|for example\b|for instance\b|['‘"“«])/iu;
+const openInside = (t) => (t.split('(').length - t.split(')').length) > 0 || (t.split('‘').length - t.split('’').length) > 0
+  || (t.split('“').length - t.split('”').length) > 0 || (String(t).replace(/\b['’]\b/g, '').split("'").length - 1) % 2 === 1;
+
 /** The sentence whole if it fits `room` code points, else cut after its last whole word that fits, plus "…"; null if < MIN_WORDS. */
 function fitWords(sentence, room) {
   const c = [...sentence];
@@ -440,6 +445,8 @@ function fitWords(sentence, room) {
   if (room < 2) return null;
   let head = c.slice(0, room - 1).join('');
   if (!/\s/.test(c[room - 1])) head = head.replace(/\S*$/u, '');
+  // never inside an open bracket or quote: back off to before it opened
+  while (openInside(head)) head = head.slice(0, Math.max(head.lastIndexOf('('), head.lastIndexOf('‘'), head.lastIndexOf('“'), head.lastIndexOf("'"))).replace(/\S*$/u, '');
   head = head.replace(/[\s\p{P}]+$/u, '');
   return realWords(head) >= MIN_WORDS ? `${head}…` : null;
 }
@@ -463,7 +470,13 @@ function servesClip(clause, segment) {
  */
 function fitClauses(sentence, room, segment) {
   if ([...sentence].length <= room) return sentence;
-  const parts = sentence.split(CLAUSE).filter(Boolean);
+  // R7k §1f (panel v8 Z180 Z015): a clause that only gives the example («جیسے '…'», «: 'Why …?'») stays with the clause whose
+  // verb it serves, and no boundary inside brackets or quotes splits a clause
+  const parts = sentence.split(CLAUSE).filter(Boolean).reduce((out, x) => {
+    const prev = out[out.length - 1];
+    if (prev && (DEPENDENT.test(x) || openInside(prev))) out[out.length - 1] = `${prev} ${x}`; else out.push(x);
+    return out;
+  }, []);
   const cps = (t) => [...t].length;
   const tidy = (t) => t.replace(/[\s\p{P}]+$/u, '');
   let pre = '';
