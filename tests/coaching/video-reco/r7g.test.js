@@ -177,9 +177,12 @@ describe('1a · the F5-label class needs a closed question at the cited line (Z1
     const row = await run(label(), deps([A, A, A]));
     expect(row.status).toBe('none');
   });
+  // R7k (COS 044233 §1e): this card's head move is open questions + wait time, so pair talk (50-s2) no longer serves it;
+  // the control cites the head move's chapter
   test('control (Z025): a closed question cited → shown', async () => {
-    const row = await run(label(), deps([cite('01:00', 'Is this a triangle? Yes or no?')]));
-    expect(row).toMatchObject({ status: 'shown', seg_id: '50-s2', moment_source: 'transcript' });
+    const cite51 = (at, quote) => answer({ seg_id: '51-s1', moment: { at, quote }, reason_en: 'The class only gave one-word answers to the teacher. The clip is about asking why.' });
+    const row = await run(label(), deps([cite51('01:00', 'Is this a triangle? Yes or no?')]));
+    expect(row).toMatchObject({ status: 'shown', seg_id: '51-s1', moment_source: 'transcript' });
   });
 });
 
