@@ -42,3 +42,13 @@ describe("Home card copy", () => {
     expect(UR.scores.coach(31, 40)).toBe("کوچ ⁦31/40⁩");
   });
 });
+
+describe("the Home look's words (portal_teacher_home_look)", () => {
+  it("the Urdu no-card question is «آج کیا کریں؟» (subjunctive: no gendered verb addressed to the teacher)", () => {
+    expect(UR.look.ask).toBe("آج کیا کریں؟");
+  });
+
+  it("no look string ends a verb in a gendered second-person form («گے» / «گی»)", () => {
+    for (const v of Object.values(UR.look)) expect(v).not.toMatch(/(گے|گی)(\s|؟|$)/);
+  });
+});
