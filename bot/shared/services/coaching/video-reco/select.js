@@ -294,7 +294,8 @@ function validate(p, shortlist, excerpts, opts) {
     // (the line stamped with moment.at when it holds the quote: a fuzzy match can land on an earlier line that says the same)
     const stamped = whole ? whole.findIndex((l) => l.startsWith(`[${String(p.moment.at).trim()}]`) && quoteFound(quote, [l])) : -1;
     const own = stamped >= 0 ? stamped : at;
-    if (whole && own >= 0 && (KID.test(whole[own]) || own < whole.findIndex((l) => KID.test(l)))) return bad('routine');
+    // (the line the first child answers is the lesson's opening question, a moment: only a line before THAT one is refused)
+    if (whole && own >= 0 && (KID.test(whole[own]) || own < whole.findIndex((l) => KID.test(l)) - 1)) return bad('routine');
     // R7e (panel §6.2: Q117 Q136 Q197): a closure chapter on a line from the first two thirds of the lesson. Not routine:
     // the retry may find a late line, else the card fallback carries the closure card
     const picked = catalog && catalog.segment(cand.seg_id);
