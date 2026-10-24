@@ -270,8 +270,32 @@ describe("teacher Home, the new look", () => {
       expect(screen.queryByTestId("home-look-slot")).toBeNull();
     });
 
+    // jsdom lays nothing out: each block's top is given, so the remembered height is the rows' offset under the climber.
+    const tops = (m: Record<string, number>) => vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      const top = m[this.dataset.testid ?? ""] ?? 0;
+      return { top, bottom: top, left: 0, right: 0, width: 0, height: 0, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
+    });
+
+    it("the slot holds the whole block above the rows: card + strip + label (less the one gap the slot keeps)", async () => {
+      const r = tops({ "home-look-card": 100, "feature-tiles": 420 });
+      serve({ home: body({ card: COACH_CARD, scores: { coach: null, observation: OBS } }) });
+      renderHome();
+      await screen.findByTestId("home-scores");
+      await waitFor(() => expect(localStorage.getItem(SLOT)).toBe("310"));
+      r.mockRestore();
+    });
+
+    it("a no-card day with the strip remembers the strip + the question, so its rows hold too", async () => {
+      const r = tops({ "home-scores": 100, "feature-tiles": 200 });
+      serve({ home: body({ scores: { coach: null, observation: OBS } }) });
+      renderHome();
+      await screen.findByTestId("home-look-ask");
+      await waitFor(() => expect(localStorage.getItem(SLOT)).toBe("90"));
+      r.mockRestore();
+    });
+
     it("a drawn card remembers its height; a no-card answer forgets it", async () => {
-      const h = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(196);
+      const h = tops({ "home-look-card": 100, "feature-tiles": 306 });
       serve({ home: body({ card: COACH_CARD }) });
       const a = renderHome();
       await screen.findByTestId("home-look-card");

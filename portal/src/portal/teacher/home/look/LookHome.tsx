@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../../../hooks/useAuth';
 import TeacherPage from '../../TeacherPage';
@@ -29,12 +29,16 @@ const CLIMB = 'relative z-[1] first:-mt-8';
 const UNDER = 'first:-mt-3 first:pt-2';
 
 /**
- * The card's slot while /me/home loads: the last drawn card's height for this teacher (`teacher-home-slot:v1:<key>`), so a
- * warm open holds the card's place and the rows never move under a finger. Written after a card draws, removed on a
- * no-card answer; no memory, no slot. A slot that is never answered (a failed read) goes after SLOT_MAX_MS.
+ * The slot while /me/home loads: how far the rows sat under the climber last time for this teacher (card, strip and the
+ * line under them; `teacher-home-slot:v1:<key>`), so a warm open holds the whole block and the rows never move under a
+ * finger. Measured after each answer, removed on a day with no climber; no memory, no slot. A slot that is never
+ * answered (a failed read) goes after SLOT_MAX_MS.
  */
 export const SLOT_MAX_MS = 4000;
 const slotKey = (userKey: string) => `teacher-home-slot:v1:${userKey}`;
+/** TeacherPage's gap between blocks: the slot keeps one before the rows, so it is left out of the remembered height. */
+const BLOCK_GAP = 10;
+const CLIMBERS = ['home-look-card', 'home-scores'];
 
 function readSlot(userKey?: string | null): number | null {
   if (!userKey) return null;
@@ -83,13 +87,23 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
   const [hiddenId, setHiddenId] = useState<string | null>(null);
   const cardId = drawn ? `${drawn.kind}:${drawn.id ?? ''}` : null;
   const key = user?.phoneNumber;
-  const onDrawn = useCallback((shown: boolean, height: number) => {
-    setHiddenId(shown ? null : cardId);
-    writeSlot(key, shown && height > 0 ? height : null);
-  }, [cardId, key]);
+  const onDrawn = useCallback((shown: boolean) => { setHiddenId(shown ? null : cardId); }, [cardId]);
   const cardDay = !!drawn && hiddenId !== cardId;
-  // A no-card answer (or a full card yielding to the tray): nothing to hold next time.
-  useEffect(() => { if (data && !drawn) writeSlot(key, null); }, [data, drawn, key]);
+  // Once answered: remember the rows' offset under the first climber (again when the Urdu font lands); with no climber, forget it.
+  useLayoutEffect(() => {
+    if (!data) return undefined;
+    const measure = () => {
+      const page = document.querySelector('[data-testid="teacher-home"]');
+      const climber = CLIMBERS.map((id) => page?.querySelector<HTMLElement>(`[data-testid="${id}"]`)).find(Boolean);
+      const rows = page?.querySelector<HTMLElement>('[data-testid="feature-tiles"]');
+      const h = climber && rows ? rows.getBoundingClientRect().top - climber.getBoundingClientRect().top - BLOCK_GAP : 0;
+      writeSlot(key, h > 0 ? h : null);
+    };
+    measure();
+    let live = true;
+    document.fonts?.ready.then(() => { if (live) measure(); }).catch(() => {});
+    return () => { live = false; };
+  }, [data, cardDay, chips.length, key]);
   const remembered = useMemo(() => readSlot(key), [key]);
   const [slotGone, setSlotGone] = useState(false);
   const slot = !data && !slotGone ? remembered : null;

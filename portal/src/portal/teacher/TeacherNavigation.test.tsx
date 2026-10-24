@@ -79,6 +79,11 @@ describe("TeacherNavigation — look ON", () => {
     }
   });
 
+  it("the Urdu line height sits on the label itself (index.css's Urdu rule reaches every element, so an inherited one never lands)", async () => {
+    await on();
+    for (const a of items()) expect(a.lastElementChild?.className.split(" ")).toContain("rtl:!leading-[1.5]");
+  });
+
   it("the current item: a green pill, a green glyph, an ink bold label; the others muted", async () => {
     await on();
     const [home, ...rest] = items();

@@ -120,7 +120,8 @@ const TeacherNavigation = ({ role = "teacher", ready }: { role?: MenuRole; ready
                 <span data-look-pill aria-hidden="true" className={cn("flex h-7 w-[52px] items-center justify-center rounded-full", on && "bg-[#e7f5ed] text-[#2e7d57]")}>
                   <Icon size={22} data-look-glyph={feature} />
                 </span>
-                <span className="max-w-full">{label}</span>
+                {/* index.css gives every Urdu element line-height 2, so the label carries its own 1.5 (inherited from the item it would never land). */}
+                <span className="max-w-full rtl:!leading-[1.5]">{label}</span>
               </Link>
             );
           }
