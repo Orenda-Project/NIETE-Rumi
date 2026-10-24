@@ -57,6 +57,16 @@ export function todayLabel(now: Date = new Date(), lang: "en" | "ur" = "en"): st
 }
 
 /**
+ * Today in Pakistan, short, for the look's band: "Fri 23 Oct". In Urdu it is todayLabel's own words, «جمعہ 23 اکتوبر»
+ * (the Urdu weekday and month have no short form; Western digits, as the bot).
+ */
+export function shortDayLabel(now: Date = new Date(), lang: "en" | "ur" = "en"): string {
+  if (lang === "ur") return todayLabel(now, "ur");
+  const fmt = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", ...o }).format(now);
+  return `${fmt({ weekday: "short" })} ${fmt({ day: "numeric" })} ${fmt({ month: "short" })}`;
+}
+
+/**
  * A day in Pakistan, short: "18 Oct" (English), "18 اکتوبر" (Urdu; Western digits, as todayLabel). For a row's date
  * on the Home card. An unreadable date is "" (nothing drawn, never "Invalid Date").
  */

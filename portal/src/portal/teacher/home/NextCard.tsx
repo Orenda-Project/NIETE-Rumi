@@ -4,11 +4,8 @@ import type { AnyFeature } from '../icons/features';
 import { FOCUS } from '../ui/styles';
 import { useCopy, useLang } from '../i18n';
 import { dayLabel } from '../format';
-import { lessonPath, COACHING_HOME } from '../coaching/paths';
-import { OBS_HOME } from '../observations/paths';
-import { LESSONS_HOME } from '../lessons/paths';
-import { teacherPath } from '../routes';
 import { HOME_CARD } from './copy';
+import { fullCardWords, type CardAction as Action } from './look/cardWords';
 import type { HomeCard, HomeCardKind, TapKind } from './api';
 
 /**
@@ -20,14 +17,13 @@ import type { HomeCard, HomeCardKind, TapKind } from './api';
  * topic does not flip to LTR; the data inside it is isolated by the copy.
  *
  * Where a tap goes: the portal's own route for the rung (coaching report by id, Observations, Lesson Plans), built
- * here from the router's paths; "Quiz this" goes to the signed quiz home, and is not drawn without one.
+ * from the router's paths (look/cardWords.ts, shared with the look's card); "Quiz this" goes to the signed quiz home,
+ * and is not drawn without one.
  */
 export type FullKind = Extract<HomeCardKind, 'coach_report' | 'observation' | 'first_plan'>;
 export const FULL_KINDS: readonly HomeCardKind[] = ['coach_report', 'observation', 'first_plan'];
 
 const ART: Record<FullKind, AnyFeature> = { coach_report: 'coaching', observation: 'observations', first_plan: 'lessons' };
-
-type Action = { label: string; href: string };
 
 export interface NextCardProps {
   card: HomeCard;
@@ -45,23 +41,7 @@ export function NextCard({ card, quizHome, onGo, className }: NextCardProps) {
   const kind = card.kind as FullKind;
   const day = dayLabel(card.at, lang);
 
-  const words: { title: string; sub: string; primary: Action; secondary: Action | null } =
-    kind === 'coach_report' ? {
-      title: C.coach.title,
-      sub: C.coach.sub(card.title, day),
-      primary: { label: C.coach.primary, href: card.id ? lessonPath(card.id) : COACHING_HOME },
-      secondary: quizHome ? { label: C.coach.secondary, href: quizHome } : null,
-    } : kind === 'observation' ? {
-      title: C.obs.title(day || card.title),
-      sub: C.obs.sub,
-      primary: { label: C.obs.primary, href: OBS_HOME },
-      secondary: { label: C.obs.secondary, href: LESSONS_HOME },
-    } : {
-      title: C.first.title,
-      sub: C.first.sub,
-      primary: { label: C.first.primary, href: LESSONS_HOME },
-      secondary: { label: C.first.secondary, href: teacherPath('training') },
-    };
+  const words = fullCardWords(kind, card, quizHome, C, day);
   const dir = ur ? 'rtl' : undefined;
 
   return (
