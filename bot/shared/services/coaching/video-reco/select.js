@@ -587,17 +587,14 @@ const MOVE_WORDS = Object.freeze({
 });
 
 // R7j (COS 022905 §3; panel v7 Z363 ⛔2: «…and assign by table or quick exit ticket» put a closure chapter on a two-page
-// practice card): the card's HEAD move — after the «next class» opener and a when-clause, up to the first clause break.
-const OPENER = /^\s*(?:(?:in )?(?:your )?next class|tomorrow|اگلی کلاس(?: میں)?|کل)\s*[,،]?\s*/iu;
-const WHEN_CLAUSE = /^\s*(?:(?:when|after|before|as|while|during|once|if)\b[^,،]*[,،]\s*|جب\s[^،,]*?(?:\sتو\s|[،,]\s*))/iu;
-// not «then / پھر»: «X should answer first, then ask the class why» has its move after it
-const CLAUSE_BREAK = /[;؛:.۔!?؟]/u;
-/** The card's head clause: its opener and leading when-clause dropped, cut at the first clause break. */
+// practice card): the card's move, not a word that only names HOW something else is done. The move check reads the
+// sentence without its «by …» phrases (to the clause's end). A cut at the first clause break was tried and refused the
+// moves real cards put after a colon or a semicolon («…جملہ استعمال کریں: تعریف + ایک بہتری», «…؛ پھر pairs میں
+// Think-Pair-Share»): gold 0d461fa9 a93ff7bb b1c63a25 d0450f59 lost acceptable frames.
+const BY_PHRASE = /\b(?:by|via)\b[^.;:،؛۔!?؟]*/giu;
+/** The card's sentence as its move reads: the «by …» phrases (the manner of another step) dropped. */
 function headClause(sentence) {
-  let s = stripBidi(String(sentence || '')).trim();
-  s = s.slice(leadingVocative(s)).replace(OPENER, '').replace(WHEN_CLAUSE, '').trim();
-  const at = s.search(CLAUSE_BREAK);
-  return (at > 0 ? s.slice(0, at) : s).trim();
+  return stripBidi(String(sentence || '')).replace(BY_PHRASE, ' ').replace(/\s{2,}/g, ' ').trim();
 }
 
 /**

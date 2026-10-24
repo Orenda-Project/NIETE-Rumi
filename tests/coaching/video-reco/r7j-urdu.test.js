@@ -88,6 +88,10 @@ describe('the Urdu reader\'s line from the transcript frame: the move term befor
     expect(bare(row.reason_ur)).toMatch(/^سبق میں استاد نے بچوں سے پوچھا، "/);
     expect(bare(row.reason_ur)).not.toMatch(/جو سوال تھا|یہ سوال تھا/);
   });
+  test('the model writing the term itself (not its id) is the same move (gold r7: 14 of 52 answers)', async () => {
+    const row = await run(args(), deps([answer({ move: term('recall_question') })]));
+    expect(bare(row.reason_ur)).toContain(`${term('recall_question')} پوچھا،`);
+  });
   test('an activity move takes «کروایا», never «پوچھا»', async () => {
     const row = await run(args(), deps([answer({ move: 'think_pair_share' })]));
     expect(bare(row.reason_ur)).toContain('تھنک پیئر شیئر کروایا');
