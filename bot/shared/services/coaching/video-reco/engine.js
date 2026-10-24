@@ -66,6 +66,8 @@ const CLOSURE_CHAPTERS = ['47-s6', '11-s5'];
 const MODULE_MOMENT = Object.freeze({ 96: (ex) => silence.groupMoment(ex), 148: (ex) => silence.assessMoment(ex) });
 // R7g (COS 002603 1c): the chapter a why / wait-time card's frame moves to when the model's chapter is another move
 const WHY_SWAP_CHAPTER = '51-s1';
+// R7o-b a3: the questioning moves (the C1 family) a label card may name and still get the plain frame
+const ASK_MOVES = new Set(['open_questions', 'ask_for_reasoning', 'follow_up_probe', 'explain_why', 'wait_time']);
 // R7f (COS 223858 1b): the rules whose refusal goes straight to the card's own sentence (no retry)
 // R7g (1b): …and a reader's Urdu line in the wrong tense or voice (the card frame's Urdu is 94.3% ok on v6)
 // R7j (§5): …and a cited greeting, page call, filler or echo («routine»)
@@ -395,7 +397,9 @@ async function compute(a, d, state) {
         sentence, startS: hit.segment.start_s, endS: hit.segment.end_s, teacherName: people.teacher, module: hit.module,
         subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster, rosterRaw: people.rosterRaw, counts: people.counts,
         plainIfNamed: strictMove,
-        plainIfUnquotable: strictMove, // R7o-b a3 (Z007 Z257 Z146): a label card or a placeholder card that names the move → the plain frame
+        // R7o-b a3 (Z007 Z257 Z146): a label or placeholder card that names an ASKING move → the plain frame; other label cards stay
+        // silent (v10 Z103 Z153 Z237 Z238 «… together, worked alone» were right silences)
+        plainIfUnquotable: strictMove && (hit.segment.moves || []).some((m) => ASK_MOVES.has(m)),
       });
       if (said) return cardOnly(said, c.seg_id, list);
     }
