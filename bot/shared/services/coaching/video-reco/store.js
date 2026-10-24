@@ -132,9 +132,20 @@ async function rosterNames(userId) {
   }
 }
 
+/**
+ * bd-8hhqhf R7n (promo 191116): V1.7.2 CHECKs attempts IN (1, 2). The engine counts 0 when no completeJson call was
+ * made (card mode, the fixed paths) and 3–4 when the second moment runs; either failed the CHECK and the row was lost.
+ * No call → NULL (the column's own meaning); more than two → 2 (a retry happened).
+ */
+function checkedAttempts(row) {
+  if (!row || !('attempts' in row) || row.attempts === null) return row;
+  const n = Number(row.attempts);
+  return { ...row, attempts: n >= 2 ? 2 : n === 1 ? 1 : null };
+}
+
 async function write(row) {
   try {
-    const { data, error } = await supabase.from(TABLE).upsert(row, { onConflict: 'coaching_session_id' }).select('*').single();
+    const { data, error } = await supabase.from(TABLE).upsert(checkedAttempts(row), { onConflict: 'coaching_session_id' }).select('*').single();
     if (error) throw error;
     return data || null;
   } catch (e) {
