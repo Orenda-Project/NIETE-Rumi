@@ -67,7 +67,8 @@ test('26435821: neither stored reason opens with "[a student]"; the rest of the 
   const row = await E.recommendForReport({ ...args(), deps: deps([A]) });
   expect(row.status).toBe('shown');
   expect(row.reason_en.startsWith(`${FSI}پہلی پکچر میں کیا کر رہے ہیں؟${PDI} Only one child was asked. This clip is about`)).toBe(true); // R7d §6; R7f 1b: a gap named
-  expect(row.reason_ur.startsWith('پہلی پکچر میں کیا کر رہے ہیں؟ یہ کلپ')).toBe(true);
+  expect(row.reason_ur.startsWith('[a student]')).toBe(false); // R7j: the terms file's frame opens it
+  expect(row.reason_ur).toMatch(/^سبق میں استاد نے بچوں سے پوچھا، "/);
 });
 
 test.each([

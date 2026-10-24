@@ -93,7 +93,7 @@ describe('the validator: gendered Urdu, system notes, claims the clip cannot bac
   test('the retry appendix names both new rules; the prompt is vr-7 and carries both', () => {
     expect(P.retryAppendix('validation:gender')).toMatch(/plural/);
     expect(P.retryAppendix('validation:unshown')).toMatch(/clip/);
-    expect(P.PROMPT_VERSION).toBe('vr-10');
+    expect(P.PROMPT_VERSION).toBe('vr-11');
     const text = P.build({ target: { source: 'card_text' }, candidates: [], catalog: cat, excerpts: ['[00:30] Teacher: x'] });
     expect(text).toContain('کرتے ہیں');
     expect(text).toMatch(/only what the clip's own line says/);
@@ -144,7 +144,7 @@ describe('composition: one digit system per message, Latin runs isolated in Urdu
   });
   test('ur: an English term inside the Urdu line is set in its own LTR isolate (translate-or-isolate; R7f translates the panel\'s terms)', () => {
     expect(composeReason('اس کلپ میں استاد think-pair-share کرتے ہیں۔', 'ur', null)).toContain('⁦think-pair-share⁩');
-    expect(composeReason('اس کلپ میں استاد wait time دیتے ہیں۔', 'ur', null)).toContain('انتظار کا وقفہ');
+    expect(composeReason('اس کلپ میں استاد wait time دیتے ہیں۔', 'ur', null)).toContain('سوال کے بعد وقفہ'); // R7j: the terms file
   });
   test('en: Urdu digits become Western digits, the quoted moment\'s too (R7f 1d: the frame\'s system)', () => {
     const out = composeReason('This ۵۵-second clip shows it. The class said "۹ ہم نے گنے" together.', 'en', '۹ ہم نے گنے');

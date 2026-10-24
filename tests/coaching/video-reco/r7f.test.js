@@ -123,7 +123,8 @@ describe('e · a retry that cites a greeting does not take the card fallback awa
 
   test('Q179 shape: placeholder, a routine line, then the second pass\'s placeholder → the card fallback, not silence', async () => {
     const row = await run(args({ lines: HELLO }), deps([SHORT, GREET, answer({ seg_id: '51-s1', moment: { at: '01:03', quote: 'Yes' } })]));
-    expect(row).toMatchObject({ status: 'shown', moment_source: 'card', seg_id: '51-s1' });
+    // R7j §5: the retry's greeting now takes the card frame itself (on the retry's chapter), not the second pass's
+    expect(row).toMatchObject({ status: 'shown', moment_source: 'card' });
   });
 
   test('control (Q063): a line from before the class is greeted still ends in silence, never the card', async () => {
@@ -267,14 +268,14 @@ describe('1d · the Urdu line: the calques, «chorus», Latin terms, punctuation
   const ur = (t, q = null) => CP().composeReason(t, 'ur', q);
 
   test.each([
-    ['Q189 «یاددہانی کی سوال»', 'استاد نے یاددہانی کی سوال پوچھا۔', 'یاد سے بتانے والا سوال'], // R7g: the approved word
-    ['Q033 «یاددہانی / ہاں-نہ سوال»', 'استاد نے ایک یاددہانی / ہاں-نہ سوال پوچھا۔', 'ہاں/نہیں والا سوال'],
-    ['Q006 Latin «recall yes/no»', 'استاد نے ایک recall yes/no سوال پوچھا۔', 'ہاں/نہیں والا سوال'],
-    ['Q143 Latin «recall»', 'ایک مختصر recall سوال پوچھا گیا۔', 'یاد سے بتانے والا سوال'],
-    ['Q025 «open why/how»', 'اگلا قدم open why/how سوال مانگتا ہے۔', 'کیوں/کیسے والا سوال'],
+    ['Q189 «یاددہانی کی سوال»', 'استاد نے یاددہانی کی سوال پوچھا۔', 'سیدھا سا سوال'], // R7j: ped/urdu_terms.json
+    ['Q033 «یاددہانی / ہاں-نہ سوال»', 'استاد نے ایک یاددہانی / ہاں-نہ سوال پوچھا۔', 'ہاں یا نہیں والا سوال'],
+    ['Q006 Latin «recall yes/no»', 'استاد نے ایک recall yes/no سوال پوچھا۔', 'ہاں یا نہیں والا سوال'],
+    ['Q143 Latin «recall»', 'ایک مختصر recall سوال پوچھا گیا۔', 'سیدھا سا سوال'],
+    ['Q025 «open why/how»', 'اگلا قدم open why/how سوال مانگتا ہے۔', 'کیوں یا کیسے والا سوال'],
     ['Q111 «why سوال»', 'استاد ایک why سوال پوچھتے ہیں۔', 'کیوں والا سوال'],
-    ['Q189 «کورس جواب»', 'جس سے مختصر کورس جواب ملتے ہیں۔', 'اجتماعی جواب'],
-    ['Q126 «کلی طور پر جواب»', 'جس سے ایک بچے یا کلی طور پر جواب مل رہا تھا۔', 'اجتماعی طور پر جواب'],
+    ['Q189 «کورس جواب»', 'جس سے مختصر کورس جواب ملتے ہیں۔', 'ایک ساتھ جواب'],
+    ['Q126 «کلی طور پر جواب»', 'جس سے ایک بچے یا کلی طور پر جواب مل رہا تھا۔', 'ایک ساتھ'],
     ['Q055 masculine singular', 'استاد نے مختصر جواب قبول کر کے آگے بڑھا: «x»', 'آگے بڑھے'],
     ['Q157 tense slip', 'استاد نے جلدی جواب قبول کیا جب وہ پوچھتے ہیں «x»', 'قبول کیا جب انہوں نے پوچھا'],
     ['Q047 «سننے جائیں»', 'تاکہ جملے سننے جائیں۔', 'سنے جائیں'],
@@ -282,15 +283,15 @@ describe('1d · the Urdu line: the calques, «chorus», Latin terms, punctuation
     ['Q143 «شریکِ طالبِ علم کی گفتگو»', 'سوال بغیر شریکِ طالبِ علم کی گفتگو کے۔', 'ساتھی سے گفتگو'],
   ])('%s', (_, text, want) => expect(ur(text)).toContain(want));
 
-  test('Q032/Q106: digits inside the quoted lesson line follow the frame (Urdu digits)', () => {
+  test('Q032/Q106 → R7j: a quoted lesson line keeps its own digits (ped/urdu_terms.json rules; COS 022905 §2)', () => {
     const q = 'تو آپ مجھے بتائیں کہ کیا 28 جو ہے، 28 کا فیکٹر ہے 7؟';
     const out = ur(`سبق میں استاد نے پوچھا، "${q}" اور وقت نہیں دیا۔`, q);
-    expect(out).not.toMatch(/[0-9]/);
-    expect(out).toContain('۲۸');
+    expect(out).toMatch(/[0-9]/); // the quote's own digits
+    expect(out).toContain('28');
   });
-  test('Q048/Q197: digits beside Latin words in a quoted card follow the frame too (one system per message)', () => {
+  test('Q048/Q197 → R7j: a quoted card keeps its own digits', () => {
     const out = ur('آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "⁨جب Exit ticket دینے کا وقت آئے، تو اس پر 2 open-ended questions لکھیں، اور 5–7 سیکنڈ wait time رکھیں۔⁩"۔');
-    expect(out).not.toMatch(/[0-9]/);
+    expect(out).toMatch(/[0-9]/); // the quote's own digits
   });
   test('Q098: Latin punctuation after an Urdu word becomes Urdu punctuation, inside the quote too', () => {
     const q = 'جو decimal سے پہلے والا ہے, وو کیا ہے? Whole ہی۔';
@@ -305,11 +306,10 @@ describe('1d · the Urdu line: the calques, «chorus», Latin terms, punctuation
     const q = 'تو ۲۸ کا فیکٹر ہے ۷؟';
     expect(CP().composeReason(`The teacher asked "${q}" and gave no time.`, 'en', q)).toContain('28');
   });
-  test('engine: the model\'s Urdu line gets the word table (R7g: an ur-report teacher; an en reader\'s Urdu line is the card frame)', async () => {
-    const A = answer({ reason_ur: 'کلاس نے مختصر کورس جواب دیے اور استاد نے ایک recall سوال پوچھا؛ اس کلپ میں استاد کیوں کے سوال پوچھتے ہیں۔' });
-    const row = await run(args({ lang: 'ur' }), deps([A]));
-    expect(row.reason_ur).toContain('اجتماعی جواب');
-    expect(row.reason_ur).toContain('یاد سے بتانے والا سوال');
+  test('the word table on a model-written Urdu line (R7j: an Urdu reader\'s own line is the terms file\'s frame; the table still runs on any model Urdu)', () => {
+    const out = CP().composeReason('کلاس نے مختصر کورس جواب دیے اور استاد نے ایک recall سوال پوچھا؛ اس کلپ میں استاد کیوں کے سوال پوچھتے ہیں۔', 'ur', null);
+    expect(out).toContain('ایک ساتھ جواب');
+    expect(out).toContain('سیدھا سا سوال');
   });
 });
 
@@ -418,7 +418,7 @@ describe('red7 230552 (pre-PR probes on the WIP)', () => {
   });
 
   test('D1: the calque «ریکال سوال» is written «یاد سے بتانے والا سوال» (R7g: the approved word)', () => {
-    expect(CP().composeReason('استاد نے ایک ریکال سوال پوچھا۔', 'ur', null)).toContain('یاد سے بتانے والا سوال');
+    expect(CP().composeReason('استاد نے ایک ریکال سوال پوچھا۔', 'ur', null)).toContain('سیدھا سا سوال');
   });
   test('D4: «وہ کیوں پوچھنا بھول گیا» speaks of the teacher in the masculine singular → gendered', () => {
     const CR = require('../../../bot/shared/services/coaching/video-reco/copy-rules');
