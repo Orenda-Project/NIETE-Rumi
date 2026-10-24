@@ -9,7 +9,8 @@
  *  (a5, Z228, is not here: an English reader's why chapter, 95-s3, is refused by notFor's reading of «…in English only»;
  *  it waits for the catalogue's not_for_subjects, eng-fix 210903)
  *  b  a card_text chapter whose move the lexicon cannot judge, or whose tag is weak, is not sent on the card's nouns (Z203 Z056)
- *  d  a teacher who already asks why / how is not sent the yes/no-to-why chapter (Z071 Z186 Z224 Z242)
+ *  (d, «51-s1 when the class already reasons», was built and measured, then left out: on v10 it fixed Z186 Z242 but moved
+ *  Z285 (right), Z061 Z239 (acceptable) and a gold rank-1 51-s1 off the chapter that is right 98/103; eng-fix r7ob)
  */
 const SHIPPED = require('../../../bot/shared/data/video-catalog.v1.json');
 
@@ -32,12 +33,6 @@ const RECALL_UR = [
   T('01:00', 'Teacher', 'بچو، پچھلی کلاس میں ہم نے کیا پڑھا تھا؟ یاد ہے؟'), T('01:04', 'Student', 'جی ہاں'), T('01:08', 'Teacher', 'زمین کی کتنی تہیں ہوتی ہیں؟ تین ہوتی ہیں نا؟'),
   T('01:12', 'Student', 'جی تین'), T('01:16', 'Teacher', 'شاباش۔ سب نے کتاب کھولی؟ صفحہ بارہ کھولیں۔'), T('01:20', 'Student', 'جی'),
   T('01:24', 'Teacher', 'یہ کور ہے نا؟ ٹھیک ہے؟'), T('01:28', 'Student', 'جی ہاں'), T('01:32', 'Teacher', 'اچھا، اب سب مل کر پڑھیں۔'), T('01:36', 'Student', 'زمین کی تہیں'),
-];
-// a class that already gives reasons to the teacher's why / how (Z186 Z224 shape): three children's «کیونکہ» lines
-const PROBING_UR = [
-  T('01:00', 'Teacher', 'بچو، یہ پانی کیوں جم گیا؟ کیوں ہوا ایسا؟'), T('01:05', 'Student', 'کیونکہ ٹھنڈ تھی'), T('01:10', 'Teacher', 'اچھا، آپ کو کیسے پتا چلا کہ ٹھنڈ کی وجہ سے؟'),
-  T('01:16', 'Student', 'کیونکہ برف بھی ٹھنڈی ہوتی ہے'), T('01:22', 'Teacher', 'تو اگر دھوپ میں رکھیں تو کیا ہوگا؟ کیوں؟'), T('01:28', 'Student', 'پگھل جائے گا کیونکہ گرمی ہے'),
-  T('01:34', 'Teacher', 'شاباش۔ اور کون بتائے گا کہ ایسا کیوں ہوتا ہے؟'), T('01:40', 'Student', 'جی میں'), T('01:44', 'Teacher', 'بتائیں، آپ نے یہ کیسے سوچا؟'), T('01:50', 'Student', 'کتاب میں تھا'),
 ];
 const run = ({ lines = RECALL_UR, indicator = 'C1', action, lang = 'ur', transcript = 'ur', subject = 'science', analysis = null, env = {}, unstamped = false, level = 2 }) => E.recommendForReport({
   session: { id: 's1', user_id: 'u1', transcript_language: transcript, users: { name: 'Saima Khan', preferred_language: lang },
@@ -105,16 +100,5 @@ describe('b a card_text chapter sent on the card\'s nouns (Z203)', () => {
   test('«exit routine» on an error-correction card is not the management-routines chapter', async () => {
     const row = await run({ indicator: null, lang: 'en', action: "End the class with a 3-minute exit routine: pairs check each other's comma and apostrophe errors, then fix one sentence together." });
     expect(row.seg_id).not.toBe('86-s2');
-  });
-});
-
-describe('d a teacher who already asks why / how (Z186 Z224)', () => {
-  test('C1 card on a probing lesson: not the yes/no-to-why chapter', async () => {
-    const row = await run({ lines: PROBING_UR, action: 'اگلی کلاس میں ہر جواب کے بعد ایک کیوں والا سوال پوچھیں اور پانچ سیکنڈ انتظار کریں۔' });
-    expect(row.seg_id).not.toBe('51-s1');
-  });
-  test('control: the same card on a recall lesson still gets 51-s1', async () => {
-    const row = await run({ action: 'اگلی کلاس میں ہر جواب کے بعد ایک کیوں والا سوال پوچھیں اور پانچ سیکنڈ انتظار کریں۔' });
-    expect(row.seg_id).toBe('51-s1');
   });
 });

@@ -383,12 +383,9 @@ async function compute(a, d, state) {
     // R7o-b a2 (panel v10 Z240 Z190 Z033): a tiered tail does not silence a card whose head asks (the head move decides)
     const headAsks = (() => { const h = cardHead(stripBidi(String(cardSentence || ''))); return !!h && (said(h, '51-s1') || said(h, '95-s3')); })();
     if (!sentence || silence.testPeriod(lines) || cardInd === 'B6' || (silence.levelsCard(cardSentence) && !headAsks)) return silent();
-    // R7o-b d (panel v10 Z071 Z186 Z224 Z242): a teacher who already asks why / how does not get the yes/no-to-why chapter
-    const probing = silence.asksWhy(lines);
     for (const c of list.candidates) {
       const hit = c.route !== 'step_text' && !offList(c.seg_id) && catalog.segment(c.seg_id);
       if (!hit || !select.cardMoveOk(sentence, hit.segment) || !gateOk(hit.module, sentence)) continue;
-      if (probing && c.seg_id === WHY_SWAP_CHAPTER) continue;
       // R7o-b b (panel v10 Z203 Z056): on the card's own words alone (card_text) the chapter's move must be one the lexicon
       // judges and the card names, and its tag not weak («exit routine» is not the management-routines chapter)
       if (c.route === 'card_text' && (!select.cardMoveOk(sentence, hit.segment, { strict: true }) || Number(((hit.segment.fico || [])[0] || {}).strength) === 0)) continue;
@@ -403,11 +400,9 @@ async function compute(a, d, state) {
       });
       if (said) return cardOnly(said, c.seg_id, list);
     }
-    // d: a class that already gives reasons gets the probes chapter as the rescue, never the why-swap
-    const rescue = probing ? ['95-s3'] : [WHY_SWAP_CHAPTER];
-    const why = silence.whyWaitCard(sentence) && catalog.segment(rescue[0]);
+    const why = silence.whyWaitCard(sentence) && catalog.segment(WHY_SWAP_CHAPTER);
     if (!why || (MOVE_REASONS.has(list.textReason) && tagMismatch(t, why.segment) === true)) return silent();
-    const fixed = fixedFallback(rescue, 'validation:no_gap', 'enacted'); // a rule cardFallback takes
+    const fixed = fixedFallback([WHY_SWAP_CHAPTER], 'validation:no_gap', 'enacted'); // a rule cardFallback takes
     return fixed ? cardOnly(fixed.said, fixed.segId, fixed.list) : silent();
   }
   const promptArgs = {
