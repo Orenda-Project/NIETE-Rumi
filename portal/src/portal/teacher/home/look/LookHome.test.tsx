@@ -13,6 +13,7 @@ import { forgetConfig } from "../../../lib/useNewUi";
 import { resetHomeMemo } from "../api";
 import { resetHomeLookMemory, resetHomeOrderMemory } from "../useHomeData";
 import Home from "../../pages/Home";
+import { ROWS_WAIT_MS } from "./LookHome";
 import { teacherPath } from "../../routes";
 import type { TeacherFeature } from "../../paths";
 
@@ -166,7 +167,11 @@ describe("teacher Home, the new look", () => {
     serve({ home: body() });
     renderHome();
     await screen.findByTestId("home-band");
-    const drawn = Array.from(screen.getByTestId("feature-tiles").querySelectorAll("[data-row]"));
+    const drawn = await waitFor(() => {
+      const d = Array.from(screen.getByTestId("feature-tiles").querySelectorAll("[data-row]"));
+      expect(d.length).toBe(8);
+      return d;
+    });
     expect(drawn.map((a) => a.getAttribute("data-row"))).toEqual(FIXED);
     expect(drawn.map((a) => a.getAttribute("href"))).toEqual(FIXED.map((k) => teacherPath(k as TeacherFeature)));
   });
@@ -183,7 +188,7 @@ describe("teacher Home, the new look", () => {
     expect(screen.queryByTestId("home-look-all")).toBeNull();
   });
 
-  it("while /me/home loads: the band and the rows only (no question, no section label), then the question once it answers", async () => {
+  it("while /me/home loads: nothing tappable under the band (no rows, no question, no label); then all of it in one commit", async () => {
     let answer!: (v: unknown) => void;
     vi.mocked(portal.getConfig).mockResolvedValue({ features: LOOK } as never);
     vi.mocked(api.get).mockImplementation(((url: string) => {
@@ -193,11 +198,24 @@ describe("teacher Home, the new look", () => {
     renderHome();
     await screen.findByTestId("home-band");
     await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalledWith("/me/home"));
-    expect(screen.getByTestId("feature-tiles")).toBeTruthy();
+    expect(screen.queryByTestId("feature-tiles")).toBeNull();
     expect(screen.queryByTestId("home-look-ask")).toBeNull();
     expect(screen.queryByTestId("home-look-all")).toBeNull();
-    answer({ data: body() });
-    expect(await screen.findByTestId("home-look-ask")).toBeTruthy();
+    answer({ data: body({ card: COACH_CARD }) });
+    const card = await screen.findByTestId("home-look-card");
+    expect(screen.getByTestId("feature-tiles")).toBeTruthy();
+    expect(screen.getByTestId("home-look-all")).toBeTruthy();
+    expect(follows(card, screen.getByTestId("feature-tiles"))).toBe(true);
+  });
+
+  it(`an unanswered /me/home: the rows draw anyway after ${ROWS_WAIT_MS} ms`, async () => {
+    vi.mocked(portal.getConfig).mockResolvedValue({ features: LOOK } as never);
+    vi.mocked(api.get).mockImplementation(((url: string) => (url === "/me/home" ? new Promise(() => {}) : Promise.resolve({ data: { success: true, items: [] } }))) as never);
+    renderHome();
+    await screen.findByTestId("home-band");
+    await new Promise((r) => setTimeout(r, ROWS_WAIT_MS - 500));
+    expect(screen.queryByTestId("feature-tiles")).toBeNull();
+    expect(await screen.findByTestId("feature-tiles", {}, { timeout: 2000 })).toBeTruthy();
   });
 
   it("the first thing under the band climbs 32 px (the page's 12 px top padding + 20) and paints above the band", async () => {
@@ -231,7 +249,7 @@ describe("teacher Home, the new look", () => {
     resetHomeMemo();
     vi.mocked(api.get).mockImplementation(((url: string) => (url === "/me/home" ? new Promise(() => {}) : Promise.resolve({ data: { success: true, items: [] } }))) as never);
     renderHome();
-    await screen.findByTestId("home-band");
+    await screen.findByTestId("feature-tiles", {}, { timeout: ROWS_WAIT_MS + 1000 });
     expect(cls("home-band")).toContain("pb-[8px]");
     for (const c of ["first:-mt-3", "first:pt-2"]) expect(cls("feature-tiles")).toContain(c);
   });
@@ -248,7 +266,22 @@ describe("teacher Home, the new look", () => {
       return (v: unknown) => answer(v);
     };
 
-    it("a remembered card height: a skeleton of that height climbs into the band, then the card replaces it", async () => {
+    it("a remembered block {card, total}: a skeleton of the total climbs into the band, a white card of `card` px at its top", async () => {
+      localStorage.setItem(SLOT, JSON.stringify({ card: 213, total: 300 }));
+      const answer = pending();
+      renderHome();
+      const slot = await screen.findByTestId("home-look-slot");
+      expect(slot.style.minHeight).toBe("300px");
+      const white = within(slot).getByTestId("home-look-slot-card");
+      expect(white.style.height).toBe("213px");
+      expect(white.className.split(" ")).toContain("bg-white");
+      expect(slot.className.split(" ")).not.toContain("bg-white");
+      answer({ data: body({ card: COACH_CARD }) });
+      await screen.findByTestId("home-look-card");
+      expect(screen.queryByTestId("home-look-slot")).toBeNull();
+    });
+
+    it("an older memory (a bare card height): a skeleton of that height climbs into the band, then the card replaces it", async () => {
       localStorage.setItem(SLOT, "184");
       const answer = pending();
       renderHome();
@@ -270,12 +303,55 @@ describe("teacher Home, the new look", () => {
       expect(screen.queryByTestId("home-look-slot")).toBeNull();
     });
 
+    // jsdom lays nothing out: each block's top is given, so the remembered height is the rows' offset under the climber.
+    const tops = (m: Record<string, number>) => vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      const top = m[this.dataset.testid ?? ""] ?? 0;
+      return { top, bottom: top, left: 0, right: 0, width: 0, height: 0, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
+    });
+
+    it("the slot holds the whole block above the rows: card + strip + label (less the one gap the slot keeps)", async () => {
+      const r = tops({ "home-look-card": 100, "feature-tiles": 420 });
+      const h = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) { return this.dataset.testid === "home-look-card" ? 205 : 0; });
+      serve({ home: body({ card: COACH_CARD, scores: { coach: null, observation: OBS } }) });
+      renderHome();
+      await screen.findByTestId("home-scores");
+      await waitFor(() => expect(JSON.parse(localStorage.getItem(SLOT) ?? "null")).toEqual({ card: 205, total: 310 }));
+      r.mockRestore();
+      h.mockRestore();
+    });
+
+    it("a no-card day with the strip remembers the strip + the question, so its rows hold too", async () => {
+      const r = tops({ "home-scores": 100, "feature-tiles": 200 });
+      serve({ home: body({ scores: { coach: null, observation: OBS } }) });
+      renderHome();
+      await screen.findByTestId("home-look-ask");
+      await waitFor(() => expect(JSON.parse(localStorage.getItem(SLOT) ?? "null")).toEqual({ card: 0, total: 90 }));
+      r.mockRestore();
+    });
+
+    it("measured again when the fonts land (a late Nastaliq swap grows the block)", async () => {
+      let fontsLanded!: () => void;
+      const ready = new Promise<void>((r) => { fontsLanded = r; });
+      Object.defineProperty(document, "fonts", { configurable: true, value: { ready } });
+      const m: Record<string, number> = { "home-look-card": 100, "feature-tiles": 306 };
+      const r = tops(m);
+      serve({ home: body({ card: COACH_CARD }) });
+      renderHome();
+      await screen.findByTestId("home-look-card");
+      await waitFor(() => expect(JSON.parse(localStorage.getItem(SLOT) ?? "null")?.total).toBe(196));
+      m["feature-tiles"] = 318;
+      fontsLanded();
+      await waitFor(() => expect(JSON.parse(localStorage.getItem(SLOT) ?? "null")?.total).toBe(208));
+      r.mockRestore();
+      delete (document as { fonts?: unknown }).fonts;
+    });
+
     it("a drawn card remembers its height; a no-card answer forgets it", async () => {
-      const h = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(196);
+      const h = tops({ "home-look-card": 100, "feature-tiles": 306 });
       serve({ home: body({ card: COACH_CARD }) });
       const a = renderHome();
       await screen.findByTestId("home-look-card");
-      await waitFor(() => expect(localStorage.getItem(SLOT)).toBe("196"));
+      await waitFor(() => expect(JSON.parse(localStorage.getItem(SLOT) ?? "null")).toEqual({ card: 0, total: 196 }));
       h.mockRestore();
       a.unmount();
       resetHomeMemo();
