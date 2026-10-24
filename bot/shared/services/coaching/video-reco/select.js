@@ -212,6 +212,20 @@ function rosterSet(names) {
   return out;
 }
 
+/**
+ * red7 013349 (S5): the roster's name words as they are, every word of three letters or more but role words. The card
+ * sentence's check keeps rosterSet (a father named «Noor» must not refuse every card that says «نور»); the quote and the
+ * reasons, where a child is named in the lesson, are checked against this: a vocabulary word on the roster is a name there.
+ */
+function rosterRaw(names) {
+  const out = new Set();
+  for (const w of names || []) {
+    const n = normWord(w);
+    if ([...n].length >= 3 && !ROLE_STOP.has(n)) out.add(n);
+  }
+  return out;
+}
+
 /** A word of the text is a roster name. */
 function rosterIn(text, roster) {
   if (!roster || !roster.size) return false;
@@ -235,7 +249,7 @@ function arabicShare(text) {
  *   carries `lessonless: true` (R7f: only such a line takes the card fallback away, engine.js).
  */
 function validate(p, shortlist, excerpts, opts) {
-  const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false, rawExcerpts = null, fullLines = null, vocab = [], oovVocab = [], roster = null, topic = null, grade = null, cardIndicator = null, labelClosed = false, reader = null } = opts || {};
+  const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false, rawExcerpts = null, fullLines = null, vocab = [], oovVocab = [], roster = null, topic = null, grade = null, cardIndicator = null, labelClosed = false, reader = null, rosterRaw: rosterAll = null } = opts || {};
   const bad = (why) => ({ ok: false, none: `validation:${why}`, confidence: 0, momentSource: null });
   try {
     if (!p || typeof p !== 'object') return bad('shape');
@@ -289,7 +303,7 @@ function validate(p, shortlist, excerpts, opts) {
     if (reasons.some((x) => CLIP_ID.test(x))) return bad('id');
     if (namesIn(p.moment.quote, teacherName) || namesIn(p.reason_en, teacherName) || namesIn(p.reason_ur, teacherName)) return bad('name');
     if (reasons.some(quotedVocative)) return bad('name'); // R7b (P165, red7 N1/N3): a quoted card still opening with a name
-    if ([quote, ...reasons].some((x) => rosterIn(x, roster))) return bad('name'); // R7d: a child on the teacher's roster
+    if ([quote, ...reasons].some((x) => rosterIn(x, rosterAll || roster))) return bad('name'); // R7d: a child on the teacher's roster (red7 013349: the raw roster)
     const en = [...reasons[0].trim()].length;
     if (en < 20 || en > 400) return bad('length');
     if (arabicShare(p.reason_ur) < 0.6 || OTHER_SCRIPT.test(reasons.join(' ').replace(QUOTED, ' '))) return bad('urdu'); // R7c: «факт» (Q097)
@@ -380,9 +394,9 @@ function routineQuote(p, topic = null) {
 }
 
 /** ⛔9 (SPEC v1.3c §3.5 a): what is stored and sent passes the non-strict redactor; a text with no name is unchanged. */
-function postRedact(text, teacherName, vocab = []) {
+function postRedact(text, teacherName, vocab = [], counts = null) {
   if (typeof text !== 'string' || !text) return text;
-  return redactNames(text, { teacher: teacherName || null, strict: false, placeholders: { child: '[a student]' }, vocab });
+  return redactNames(text, { teacher: teacherName || null, strict: false, placeholders: { child: '[a student]' }, vocab, counts }); // counts: red7 013349
 }
 
 // bd-8hhqhf (lead-final 21:24Z): maths/science loanwords a teacher says in Urdu script, never a child's name: the output
@@ -582,4 +596,4 @@ const ARTICLE_SLIP = /\ban? questions\b|\ban? \w+ an? question\b/i;
 /** R7g: the model's English line has no article slip (the rest of it was validated whole). */
 const englishLineOk = (text) => !ARTICLE_SLIP.test(String(text || '').replace(QUOTED, ' '));
 
-module.exports = { cardFrame, cardMoveOk, urduLineOk, englishLineOk, routineQuote, lessonlessQuote, groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
+module.exports = { rosterRaw, cardFrame, cardMoveOk, urduLineOk, englishLineOk, routineQuote, lessonlessQuote, groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
