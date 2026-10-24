@@ -198,11 +198,11 @@ describe('d. card quotes keep the served clause; transcript quotes end on a whol
     expect((q.match(/…/g) || []).length).toBeLessThanOrEqual(1);
   });
   test('Z062: a quote never opens on "…" (the plain frame instead)', () => {
-    const out = frame('71-s2', "اگلی کلاس میں، جب آپ 'anagram' یا 'abbreviation' کا قاعدہ پوچھیں، تو 2 open-ended questions لکھیں، 8 سیکنڈ wait time دیں، pair work میں ہر جوڑے کو ایک sentence frame (\"My favorite YouTuber is ___ .\") اور ایک two‑sentence paragraph extension (یعنی تیز مکمل کرنے والوں کے لیے اضافی مشق) بنانے کو کہیں تاکہ وہ قاعدہ ایک جملے میں apply کریں۔");
+    const out = frame('71-s2', "اگلی کلاس میں، جب آپ 'anagram' یا 'abbreviation' کا اصول پوچھیں، تو 2 open-ended questions لکھیں، 8 سیکنڈ wait time دیں، pair work میں ہر جوڑے کو ایک sentence frame (\"My favorite youtuber is ___ .\") اور ایک two‑sentence paragraph extension (یعنی تیز مکمل کرنے والوں کے لیے اضافی مشق) بنانے کو کہیں تاکہ وہ اصول ایک جملے میں apply کریں۔");
     expect(quoted(out.reason_ur).startsWith('…')).toBe(false);
   });
   test('Z062: …and when it is cut, it is cut at a clause boundary, not inside a clause', () => {
-    const sentence = "اگلی کلاس میں، جب آپ 'anagram' یا 'abbreviation' کا قاعدہ پوچھیں، تو 2 open-ended questions لکھیں، 8 سیکنڈ wait time دیں، pair work میں ہر جوڑے کو ایک sentence frame (\"My favorite YouTuber is ___ .\") اور ایک two‑sentence paragraph extension (یعنی تیز مکمل کرنے والوں کے لیے اضافی مشق) بنانے کو کہیں تاکہ وہ قاعدہ ایک جملے میں apply کریں۔";
+    const sentence = "اگلی کلاس میں، جب آپ 'anagram' یا 'abbreviation' کا اصول پوچھیں، تو 2 open-ended questions لکھیں، 8 سیکنڈ wait time دیں، pair work میں ہر جوڑے کو ایک sentence frame (\"My favorite youtuber is ___ .\") اور ایک two‑sentence paragraph extension (یعنی تیز مکمل کرنے والوں کے لیے اضافی مشق) بنانے کو کہیں تاکہ وہ اصول ایک جملے میں apply کریں۔";
     const bare = (t) => t.replace(/["“”‘’]/g, '');
     const stem = bare(quoted(frame('71-s2', sentence).reason_ur).replace(/…$/u, ''));
     expect(bare(sentence).startsWith(stem)).toBe(true); // the sentence's own opening

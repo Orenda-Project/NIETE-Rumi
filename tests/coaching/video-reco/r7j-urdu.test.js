@@ -124,7 +124,7 @@ describe('frames and copy rules (finding §4 b–e)', () => {
   });
   test('a long card whose elision would drop its imperative → the plain frame (shorten the frame, not the card)', () => {
     const S = require('../../../bot/shared/services/coaching/video-reco/select');
-    const long = `اگلی کلاس میں ${'شکلوں کے نام اور ان کی خصوصیات '.repeat(12)}پڑھنے کے بعد، ہر جواب کے بعد کیوں پوچھیں۔`;
+    const long = `اگلی کلاس میں ${'سبق کے نام اور ان کی خصوصیات '.repeat(12)}پڑھنے کے بعد، ہر جواب کے بعد کیوں پوچھیں۔`;
     const cat = C.fromData(DATA);
     const hit = cat.segment('51-s1');
     const out = S.cardFrame({ sentence: long, startS: 0, endS: 52, language: 'ur', module: hit.module, subject: 'maths', segment: hit.segment });
