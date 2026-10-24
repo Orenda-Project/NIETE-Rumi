@@ -176,7 +176,8 @@ const nameKey = (w) => norm(String(w || ''));
 function maskedKeys(lines, ctx = {}) {
   const trace = [];
   for (const l of lines || []) redactNames(String(l || ''), { ...ctx, strict: true, placeholders: { child: '[a student]' }, trace });
-  return new Set(trace.filter((x) => x.rep === '[a student]' && x.why !== 'oov' && x.why !== 'carry').map((x) => nameKey(x.word)));
+  // three letters or more, as a roster name (a 'surname' «I» after a masked name is not carried)
+  return new Set(trace.filter((x) => x.rep === '[a student]' && x.why !== 'oov' && x.why !== 'carry').map((x) => nameKey(x.word)).filter((k) => [...k].length >= 3));
 }
 
 module.exports = { redactNames, wordCounts, nameKey, maskedKeys, ROLE_STOP };
