@@ -7,7 +7,7 @@ import { createElement, type ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { fetchHome, tapHome, type HomeData } from "./api";
 import { readConfigShared } from "../../lib/useNewUi";
-import { REORDER_BUDGET_MS, TAP_WAIT_MS, resetHomeLookMemory, resetHomeOrderMemory, useHomeData, useHomeGo, useHomeSwitches } from "./useHomeData";
+import { REORDER_BUDGET_MS, TAP_WAIT_MS, resetHomeLookMemory, resetHomeOrderMemory, useHomeData, useHomeGo, useHomeLook, useHomeSwitches } from "./useHomeData";
 
 /**
  * The Home card's loading rule: one request; the tiles keep the order they painted unless the fetched order lands
@@ -242,5 +242,37 @@ describe("useHomeGo", () => {
     expect(assign).not.toHaveBeenCalled();
     await act(async () => { await vi.advanceTimersByTimeAsync(TAP_WAIT_MS); });
     expect(assign).toHaveBeenCalledWith("/quiz/teacher/abc");
+  });
+});
+
+describe("useHomeLook (the menu's read of the look)", () => {
+  beforeEach(() => { vi.clearAllMocks(); resetHomeLookMemory(); });
+
+  it("is the look switch, from the same /config read", async () => {
+    vi.mocked(readConfigShared).mockResolvedValue({ features: { teacherHomeCard: true, teacherHomeLook: true } } as never);
+    const { result } = renderHook(() => useHomeLook("k"));
+    expect(result.current).toBe(false);
+    await waitFor(() => expect(result.current).toBe(true));
+    expect(readConfigShared).toHaveBeenCalledTimes(1);
+  });
+
+  it("rides on the card, and starts from a remembered look before /config answers", async () => {
+    vi.mocked(readConfigShared).mockResolvedValue({ features: { teacherHomeCard: false, teacherHomeLook: true } } as never);
+    const a = renderHook(() => useHomeLook("k"));
+    await act(async () => { await Promise.resolve(); });
+    expect(a.result.current).toBe(false);
+    localStorage.setItem("teacher-home-look:v1:k", "1");
+    vi.mocked(readConfigShared).mockReturnValue(new Promise(() => {}));
+    expect(renderHook(() => useHomeLook("k")).result.current).toBe(true);
+  });
+
+  it("not enabled (a coach): no read, no memory, always off", async () => {
+    localStorage.setItem("teacher-home-look:v1:k", "1");
+    vi.mocked(readConfigShared).mockResolvedValue({ features: { teacherHomeCard: true, teacherHomeLook: true } } as never);
+    const { result } = renderHook(() => useHomeLook("k", false));
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current).toBe(false);
+    expect(readConfigShared).not.toHaveBeenCalled();
+    expect(localStorage.getItem("teacher-home-look:v1:k")).toBe("1");
   });
 });
