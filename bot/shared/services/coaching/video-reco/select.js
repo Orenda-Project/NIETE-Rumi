@@ -11,7 +11,7 @@ const { fallbackSubjectOk } = require('./shortlist');
 const { stripBidi } = require('./copy');
 const CONTENT_TERMS = require('./content-terms');
 const LEX = require('./name-lexicon');
-const { cardRoutine, childTurnNear, imperative, routineLine, echoReading, notTeaching, isClosure, earlyForClosure, levelsNear, KID } = require('./silence');
+const { cardRoutine, childTurnNear, imperative, routineLine, echoReading, notTeaching, isClosure, earlyForClosure, levelsNear, KID, dashed } = require('./silence');
 const { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, sceneClaim, recallMislabel, pointerNoLine, recallLeft, namesGap, notGapLine, auditWords, closedQuestion, urduSlip } = require('./copy-rules');
 
 const JOB = 'coaching.videoReco';
@@ -598,21 +598,23 @@ function plainFrame(l, segment) {
 }
 
 /** The card frame for a chapter (the fallback's text, no rule or list gate): {reason_en, reason_ur} | null. */
-function cardFrame({ sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab = [], segment, labels = [], roster = null, rosterRaw = null, plainIfNamed = false, carry = null, counts = null } = {}) {
+function cardFrame({ sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab = [], segment, labels = [], roster = null, rosterRaw = null, plainIfNamed = false, plainIfUnquotable = false, carry = null, counts = null } = {}) {
   try {
     if (!fallbackSubjectOk(module, subject)) return null; // [v1.3c-2] ⛔4: no literacy clip on a science lesson
+    const plain = () => ({ reason_en: plainFrame('en', segment), reason_ur: plainFrame('ur', segment) });
     // [v1.3c-5] + R7b (P165, red7 V1–V10): the card's vocative goes BEFORE redaction, found by its shape (copy-rules.js)
     const raw = stripBidi(String(sentence || ''));
     const bare = raw.slice(leadingVocative(raw));
     let s = String(postRedact(bare, teacherName, vocab, null, carry) || '').replace(LEADING_ADDRESS, '').trim(); // R7i: carry
-    if (!s || s.startsWith('[') || UNSHOWABLE.test(s)) return null; // [v1.3c-5] a placeholder never opens it
-    if (!imperative(s)) return null; // R7b (P123, P161): a diagnosis fragment is not a move to try
+    // R7o-b a3 (panel v10 Z146; Z007 Z257): with plainIfUnquotable (card mode, the move named) a card that cannot be quoted —
+    // a placeholder in it, or a label rather than an imperative («Open questions, one child each») — takes the plain frame
+    if (!s || s.startsWith('[') || UNSHOWABLE.test(s)) return plainIfUnquotable ? plain() : null; // [v1.3c-5] a placeholder never opens it
+    if (!imperative(s)) return plainIfUnquotable ? plain() : null; // R7b (P123, P161): a diagnosis fragment is not a move to try
     if (LABEL_TEXT.test(s) || labels.some((x) => x && s.toLowerCase().includes(String(x).toLowerCase()))) return null;
     const n = Math.round(Number(endS) - Number(startS));
     if (!Number.isFinite(n) || n <= 0) return null;
     // R7c ⛔9 (Q168, Q174; Q181, Q193): a child named inside the sentence → the comparison goes. R7g (COS 002603 1e; panel Z036
     // Z100, R/A sends in v5): a name that cannot go → the plain frame, the sentence not quoted (was: no clip at all)
-    const plain = () => ({ reason_en: plainFrame('en', segment), reason_ur: plainFrame('ur', segment) });
     s = childFreeCard(s, { teacher: teacherName, vocab, oovVocab, roster: rosterRaw, counts }); // S12: a roster possessor, read raw; F: the lesson's counts
     if (!s || rosterIn(s, roster)) return plainIfNamed ? plain() : null; // R7d (Q086): a roster name in any position, a quoted title included
     // R7o-a (COS 194233 §1; panel v10 Z044/Z054 ⛔9): the sentence as it will be quoted passes the excerpts' own STRICT
@@ -672,7 +674,7 @@ const MOVE_WORDS = Object.freeze({
 const BY_PHRASE = /\b(?:by|via)\b[^.;:،؛۔!?؟]*/giu;
 /** The card's sentence as its move reads: the «by …» phrases (the manner of another step) dropped. */
 function headClause(sentence) {
-  return stripBidi(String(sentence || '')).replace(BY_PHRASE, ' ').replace(/\s{2,}/g, ' ').trim();
+  return dashed(stripBidi(String(sentence || ''))).replace(BY_PHRASE, ' ').replace(/\s{2,}/g, ' ').trim();
 }
 
 /**
@@ -683,14 +685,14 @@ function headClause(sentence) {
 function cardMoveOk(sentence, segment, { strict = false } = {}) {
   const known = ((segment && segment.moves) || []).map((m) => MOVE_WORDS[m]).filter(Boolean);
   if (!known.length) return !strict;
-  const s = (!strict && headClause(sentence)) || stripBidi(String(sentence || ''));
+  const s = (!strict && headClause(sentence)) || dashed(stripBidi(String(sentence || '')));
   return known.some((rx) => rx.test(s));
 }
 
 /** R7l (Z176): where in `sentence` the first of the chapter's moves is named (the head-clause reading), -1 when none is. */
 function cardMoveAt(sentence, segment) {
   const known = ((segment && segment.moves) || []).map((m) => MOVE_WORDS[m]).filter(Boolean);
-  const s = headClause(sentence) || stripBidi(String(sentence || ''));
+  const s = headClause(sentence) || dashed(stripBidi(String(sentence || '')));
   const at = known.map((rx) => s.search(rx)).filter((i) => i >= 0);
   return at.length ? Math.min(...at) : -1;
 }
