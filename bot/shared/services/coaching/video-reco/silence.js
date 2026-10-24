@@ -179,7 +179,7 @@ const TAG_QUESTION = /[،,]?\s*(?:ٹھیک ہے|ہے نا|نا|okay|ok|right)\s*
 const WHY_HOW = /کیوں|کیسے|\bwhy\b|\bhow\b(?! are you)/iu;
 // red7 H5: «page 46, question 3: why does the sun rise?» asks; only a greeting ("how are you?") stays routine when it asks
 const asks = (x) => WHY_HOW.test(x) || /[?؟]/.test(x.replace(TAG_QUESTION, ''));
-const isRoutine = (x) => ROUTINE[0].test(x) || ROUTINE[1].test(x) || CARD_EXTRA.test(x) || ASKING_ROUTINE.some((rx) => rx.test(x)) || (ROUTINE.slice(2).some((rx) => rx.test(x)) && !asks(x));
+const isRoutine = (x, extra = true) => ROUTINE[0].test(x) || ROUTINE[1].test(x) || (extra && CARD_EXTRA.test(x)) || ASKING_ROUTINE.some((rx) => rx.test(x)) || (ROUTINE.slice(2).some((rx) => rx.test(x)) && !asks(x));
 const wordList = (x) => String(x || '').toLowerCase().match(/[\p{L}\p{N}]+/gu) || [];
 
 /**
@@ -203,12 +203,16 @@ function topicOnly(x, topic) {
 }
 
 /** The quoted line only greets, calls a page, orders the room, reprimands, announces a test or the lesson, or names its topic. */
-function routineLine(quote, { topic = null } = {}) {
+/**
+ * …`extra: false` leaves out the R7k card-frame classes (filler, day talk, a number call): red7 061530 R1 — a line those
+ * tipped into routine was a moment before, so it falls back to the card frame like them, never to silence.
+ */
+function routineLine(quote, { topic = null, extra = true } = {}) {
   const sentences = String(quote || '').split(/(?<=[.!?۔؟])\s+|\s*—\s*/u).filter((x) => /[\p{L}\p{N}]/u.test(x));
   const words = (x) => (x.match(/[\p{L}\p{N}]+/gu) || []).length;
   const all = sentences.reduce((n, x) => n + words(x), 0);
   if (!all) return false;
-  const routine = sentences.filter((x) => isRoutine(x) || topicOnly(x, topic)).reduce((n, x) => n + words(x), 0);
+  const routine = sentences.filter((x) => isRoutine(x, extra) || topicOnly(x, topic)).reduce((n, x) => n + words(x), 0);
   return routine / all >= ROUTINE_SHARE;
 }
 

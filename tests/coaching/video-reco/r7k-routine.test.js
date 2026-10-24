@@ -46,6 +46,7 @@ describe('engine: a student line or a line before any child spoke → the card f
     T('00:30', 'Teacher', 'پانی کہاں سے آتا ہے؟'),
     T('00:33', 'Student', 'جی پانی بادل سے آتا ہے'), T('00:36', 'Teacher', 'اور کہاں سے آتا ہے؟'), T('00:39', 'Student', 'دریا سے'),
     T('00:42', 'Teacher', 'ٹھیک ہے بچو، اور کون بتائے گا؟'), T('00:45', 'Student', 'جی'),
+    T('00:50', 'Teacher', 'سب سنیں۔ آج کا ٹاپک پانی ہے۔ ٹھیک ہے؟'), T('00:53', 'Student', 'جی'),
   ];
   const run = (q, at, lang = 'ur') => E.recommendForReport({
     session: { id: 's1', user_id: 'u1', transcript_language: 'ur', users: { name: 'Saima Khan', preferred_language: lang }, diarization_data: { segments: LINES } },
@@ -75,5 +76,11 @@ describe('engine: a student line or a line before any child spoke → the card f
   test('control: a teacher question after a child has spoken is cited', async () => {
     const row = await run('اور کہاں سے آتا ہے؟', '00:36');
     expect([row.first_none_reason, row.none_reason]).not.toContain('validation:routine');
+  });
+  test('red7 061530 R1 (Z180 Z143): an announcement only the filler made routine falls back like routine, never silence', async () => {
+    const row = await run('سب سنیں۔ آج کا ٹاپک پانی ہے۔ ٹھیک ہے؟', '00:50');
+    expect(row.moment_source).not.toBe('transcript');
+    expect([row.first_none_reason, row.none_reason]).toContain('validation:routine');
+    expect(row.none_reason).not.toBe('validation:not_moment');
   });
 });
