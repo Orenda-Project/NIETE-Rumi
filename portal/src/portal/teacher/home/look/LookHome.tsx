@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../../../hooks/useAuth';
 import TeacherPage from '../../TeacherPage';
@@ -35,7 +35,7 @@ const UNDER = 'first:-mt-3 first:pt-2';
  */
 export const SLOT_MAX_MS = 4000;
 /**
- * A cold open draws nothing tappable before /me/home answers: the card, strip, heading and rows arrive in one commit,
+ * A cold open (no slot memory) draws nothing tappable before /me/home answers: the card, strip, heading and rows arrive in one commit,
  * so none of them moves under a finger. After ROWS_WAIT_MS unanswered the rows draw anyway (a late card pushes once).
  */
 export const ROWS_WAIT_MS = 1500;
@@ -100,6 +100,7 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
   const key = user?.phoneNumber;
   const onDrawn = useCallback((shown: boolean) => { setHiddenId(shown ? null : cardId); }, [cardId]);
   const cardDay = !!drawn && hiddenId !== cardId;
+  const [spacer, setSpacer] = useState(0);
   // Once answered: remember the rows' offset under the first climber (again when the Urdu font lands); with no climber, forget it.
   useLayoutEffect(() => {
     if (!data) return undefined;
@@ -107,7 +108,7 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
       const page = document.querySelector('[data-testid="teacher-home"]');
       const climber = CLIMBERS.map((id) => page?.querySelector<HTMLElement>(`[data-testid="${id}"]`)).find(Boolean);
       const rows = page?.querySelector<HTMLElement>('[data-testid="feature-tiles"]');
-      const total = climber && rows ? rows.getBoundingClientRect().top - climber.getBoundingClientRect().top - BLOCK_GAP : 0;
+      const total = climber && rows ? rows.getBoundingClientRect().top - climber.getBoundingClientRect().top - BLOCK_GAP - spacer : 0;
       const card = page?.querySelector<HTMLElement>('[data-testid="home-look-card"]')?.offsetHeight ?? 0;
       writeSlot(key, total > 0 ? { card, total } : null);
     };
@@ -115,7 +116,7 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
     let live = true;
     document.fonts?.ready.then(() => { if (live) measure(); }).catch(() => {});
     return () => { live = false; };
-  }, [data, cardDay, chips.length, key]);
+  }, [data, cardDay, chips.length, key, spacer]);
   const remembered = useMemo(() => readSlot(key), [key]);
   const [slotGone, setSlotGone] = useState(false);
   const slot = !data && !slotGone ? remembered : null;
@@ -130,7 +131,23 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
     const t = setTimeout(() => setWaited(true), ROWS_WAIT_MS);
     return () => clearTimeout(t);
   }, [data]);
-  const holding = !data && !waited;
+  // A warm open's slot already holds the whole block above the rows, so they draw at first paint and never move.
+  const holding = !data && !waited && !slot;
+  // Rows painted under a slot never move UP when the answer draws a smaller block (the lesson card in its cool-down, a
+  // card day followed by a no-card day): their top under the slot is kept, and the gap is filled for this load only. A
+  // taller block still pushes them down. The memory is rewritten from the real block, so the next open has no gap.
+  const underSlot = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const page = document.querySelector('[data-testid="teacher-home"]');
+    const rows = page?.querySelector<HTMLElement>('[data-testid="feature-tiles"]');
+    if (!page || !rows) return;
+    const top = rows.getBoundingClientRect().top - page.getBoundingClientRect().top;
+    if (slot) { underSlot.current = top; return; }
+    if (!data) { underSlot.current = null; return; } // the slot went unanswered: nothing to keep
+    if (underSlot.current == null) return;
+    const d = Math.max(0, Math.round(underSlot.current - (top - spacer)));
+    if (d !== spacer) setSpacer(d);
+  }, [slot, data, cardDay, chips.length, spacer]);
   const climb = !!slot || cardDay || chips.length > 0;
 
   return (
@@ -160,6 +177,8 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
       )}
       {holding ? null : (
         <>
+          {/* The spacer cancels its own block gap, so the rows sit exactly `spacer` px lower. */}
+          {spacer ? <div data-testid="home-look-spacer" aria-hidden="true" style={{ height: spacer, marginTop: -BLOCK_GAP }} /> : null}
           <FeatureRows tiles={tiles} order={order} className={UNDER} />
         </>
       )}

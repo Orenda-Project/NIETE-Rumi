@@ -208,6 +208,20 @@ describe("teacher Home, the new look", () => {
     expect(follows(card, screen.getByTestId("feature-tiles"))).toBe(true);
   });
 
+  it("a cold open (no memory): /me/home starts with /config, not after it; one read in all", async () => {
+    let configAnswer!: (v: unknown) => void;
+    vi.mocked(portal.getConfig).mockReturnValue(new Promise((r) => { configAnswer = r; }) as never);
+    vi.mocked(api.get).mockImplementation(((url: string) => {
+      if (url === "/me/home") return Promise.resolve({ data: body({ card: COACH_CARD }) });
+      return Promise.resolve({ data: { success: true, items: [] } });
+    }) as never);
+    renderHome();
+    await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalledWith("/me/home"));
+    configAnswer({ features: LOOK });
+    await screen.findByTestId("home-look-card");
+    expect(vi.mocked(api.get).mock.calls.filter(([u]) => u === "/me/home")).toHaveLength(1);
+  });
+
   it(`an unanswered /me/home: the rows draw anyway after ${ROWS_WAIT_MS} ms`, async () => {
     vi.mocked(portal.getConfig).mockResolvedValue({ features: LOOK } as never);
     vi.mocked(api.get).mockImplementation(((url: string) => (url === "/me/home" ? new Promise(() => {}) : Promise.resolve({ data: { success: true, items: [] } }))) as never);
@@ -293,6 +307,92 @@ describe("teacher Home, the new look", () => {
       answer({ data: body({ card: COACH_CARD }) });
       await screen.findByTestId("home-look-card");
       expect(screen.queryByTestId("home-look-slot")).toBeNull();
+    });
+
+    it("a warm open (slot memory): the rows draw at first paint under the slot, before /me/home answers, and stay the same rows when it does", async () => {
+      localStorage.setItem(`teacher-home-look:v1:${TEACHER.phoneNumber}`, "1");
+      localStorage.setItem(SLOT, JSON.stringify({ card: 213, total: 300 }));
+      const answer = pending();
+      renderHome();
+      const slot = await screen.findByTestId("home-look-slot");
+      const tiles = screen.getByTestId("feature-tiles");
+      expect(follows(slot, tiles)).toBe(true);
+      expect(rows()).toEqual(FIXED);
+      answer({ data: body({ card: COACH_CARD }) });
+      const card = await screen.findByTestId("home-look-card");
+      expect(screen.queryByTestId("home-look-slot")).toBeNull();
+      expect(screen.getByTestId("feature-tiles")).toBe(tiles);
+      expect(follows(card, tiles)).toBe(true);
+      expect(screen.queryByTestId("home-look-spacer")).toBeNull();
+    });
+
+    // The rows' top (relative to the page) as the browser would lay it out: `base`, plus a drawn spacer's height.
+    const rowsAt = (base: { v: number }) => vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      const sp = document.querySelector<HTMLElement>('[data-testid="home-look-spacer"]');
+      const top = this.dataset.testid === "feature-tiles" ? base.v + (sp ? parseFloat(sp.style.height) : 0) : 0;
+      return { top, bottom: top, left: 0, right: 0, width: 0, height: 0, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
+    });
+
+    it("rows painted under a slot never move UP: a smaller answer (no card) fills the gap with a spacer, and the memory is rewritten", async () => {
+      localStorage.setItem(`teacher-home-look:v1:${TEACHER.phoneNumber}`, "1");
+      localStorage.setItem(SLOT, JSON.stringify({ card: 213, total: 300 }));
+      const base = { v: 340 };
+      const r = rowsAt(base);
+      const answer = pending();
+      renderHome();
+      await screen.findByTestId("home-look-slot");
+      const tiles = screen.getByTestId("feature-tiles");
+      base.v = 96;
+      answer({ data: body() });
+      await screen.findByTestId("home-look-ask");
+      const spacer = await screen.findByTestId("home-look-spacer");
+      expect(spacer.style.height).toBe("244px");
+      expect(spacer.getAttribute("aria-hidden")).toBe("true");
+      expect(follows(spacer, tiles)).toBe(true);
+      expect(follows(screen.getByTestId("home-look-ask"), spacer)).toBe(true);
+      expect(screen.getByTestId("feature-tiles")).toBe(tiles);
+      expect(tiles.getBoundingClientRect().top).toBe(340);
+      await waitFor(() => expect(localStorage.getItem(SLOT)).toBeNull());
+      r.mockRestore();
+    });
+
+    it("the memory written on a spacer load is the real block, without the spacer", async () => {
+      localStorage.setItem(`teacher-home-look:v1:${TEACHER.phoneNumber}`, "1");
+      localStorage.setItem(SLOT, JSON.stringify({ card: 213, total: 300 }));
+      const base = { v: 340 };
+      const r = rowsAt(base);
+      const answer = pending();
+      renderHome();
+      await screen.findByTestId("home-look-slot");
+      base.v = 150;
+      answer({ data: body({ scores: { coach: null, observation: OBS } }) });
+      expect((await screen.findByTestId("home-look-spacer")).style.height).toBe("190px");
+      await waitFor(() => expect(JSON.parse(localStorage.getItem(SLOT) ?? "null")).toEqual({ card: 0, total: 140 }));
+      r.mockRestore();
+    });
+
+    it("a taller answer moves the rows down, as today's card does: no spacer", async () => {
+      localStorage.setItem(`teacher-home-look:v1:${TEACHER.phoneNumber}`, "1");
+      localStorage.setItem(SLOT, JSON.stringify({ card: 213, total: 300 }));
+      const base = { v: 340 };
+      const r = rowsAt(base);
+      const answer = pending();
+      renderHome();
+      await screen.findByTestId("home-look-slot");
+      base.v = 400;
+      answer({ data: body({ card: COACH_CARD, scores: { coach: null, observation: OBS } }) });
+      await screen.findByTestId("home-look-card");
+      expect(screen.queryByTestId("home-look-spacer")).toBeNull();
+      r.mockRestore();
+    });
+
+    it("no slot memory: never a spacer (the cold hold draws the rows with the answer)", async () => {
+      const r = rowsAt({ v: 96 });
+      serve({ home: body() });
+      renderHome();
+      await screen.findByTestId("home-look-ask");
+      expect(screen.queryByTestId("home-look-spacer")).toBeNull();
+      r.mockRestore();
     });
 
     it("no memory: no skeleton", async () => {
