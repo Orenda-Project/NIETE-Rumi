@@ -257,7 +257,9 @@ async function compute(a, d, state) {
   const cardInd = t.storedIndicator || st.indicator || null;
   const bareCard = stripBidi(String(cardSentence || '')).slice(leadingVocative(stripBidi(String(cardSentence || ''))));
   const closure = (cardInd === 'B10' && t.scheme !== 'fico_v4') || (cardInd === 'B7' && t.scheme === 'fico_v4') || (!cardInd && silence.closingCard(bareCard));
-  if (!list.candidates.length && !closure) return finish({ ...base, status: 'none', none_reason: list.noneReason || 'hole' });
+  // red7 E3 (R7f e kept): a D3 card over a lesson where no child speaks keeps its 50-s2 card path even with no route (a v4 hole)
+  const d3Monologue = (t.storedIndicator || t.stepIndicator) === 'D3' && silence.monologue(lines);
+  if (!list.candidates.length && !closure && !d3Monologue) return finish({ ...base, status: 'none', none_reason: list.noneReason || 'hole' });
 
   const row = t.row || {};
   const up = (analysis && analysis.uptake) || {};
@@ -302,6 +304,12 @@ async function compute(a, d, state) {
     if (!fixed) return finish({ ...base, status: 'none', none_reason: 'closure:no_end', candidates: list.candidates });
     return emit({ res: { pick: { seg_id: fixed.segId }, model: null, usage: {} }, pickList: fixed.list, fallback: fixed.said, v: { ok: false, none: null },
       withLlm: { ...base, candidates: fixed.list.candidates, repeat_module: !!fixed.list.repeatModule, attempts: 0, first_none_reason: null, ...lessonLanguage } });
+  }
+  if (!list.candidates.length && d3Monologue) {
+    const fixed = fixedFallback(['50-s2'], 'validation:no_child_turn', 'enacted');
+    if (!fixed) return finish({ ...base, status: 'none', none_reason: list.noneReason || 'hole' });
+    return emit({ res: { pick: { seg_id: fixed.segId }, model: null, usage: {} }, pickList: fixed.list, fallback: fixed.said, v: { ok: false, none: null },
+      withLlm: { ...base, candidates: fixed.list.candidates, repeat_module: !!fixed.list.repeatModule, attempts: 0, first_none_reason: 'validation:no_child_turn', ...lessonLanguage } });
   }
   if (!list.candidates.length) return finish({ ...base, status: 'none', none_reason: list.noneReason || 'hole' });
   const promptArgs = {
@@ -476,14 +484,17 @@ async function compute(a, d, state) {
   };
   // R7g (COS 002603 1b; panel v6: card frame 94.3% Urdu-ok, model-written 66.0%): an English reader's Urdu line (the portal's)
   // is never the model's translation when the card frame exists — the card frame on a chapter whose move the card names,
-  // else the model's line only when it passes every Urdu check, else the plain frame
-  if (!fallback && language === 'en') {
+  // else the model's line only when it passes every Urdu check, else the plain frame. red7 G2: an Urdu reader's English line
+  // (96.4% ok on v6, validated whole) stays the model's unless it carries an article slip («asked a questions», Z011 Z168).
+  if (!fallback && (language === 'en' || !select.englishLineOk(said.reason_en))) {
+    const other = language === 'en' ? 'ur' : 'en';
     const sentence = (card && card.action) || step.try || fa.try_this_tomorrow || '';
     const args0 = { startS: hit.segment.start_s, endS: hit.segment.end_s, teacherName: people.teacher, module: hit.module, subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster };
     const frame = sentence && select.cardMoveOk(sentence, hit.segment) ? select.cardFrame({ ...args0, sentence, plainIfNamed: true }) : null;
     const n = Math.round(Number(hit.segment.end_s) - Number(hit.segment.start_s));
-    said.reason_ur = frame ? frame.reason_ur : select.urduLineOk(said.reason_ur) ? said.reason_ur
-      : resolveUx('videoRecoCardFallbackReasonPlain', { language: 'ur', params: { n } });
+    const checked = other === 'ur' && select.urduLineOk(said.reason_ur);
+    said[`reason_${other}`] = frame ? frame[`reason_${other}`] : checked ? said.reason_ur
+      : resolveUx('videoRecoCardFallbackReasonPlain', { language: other, params: { n } });
   }
   const c = Number(p.confidence);
   // v1.3c (a) ⛔9: the reasons and the quote are stored (and so sent) after the non-strict name redactor.

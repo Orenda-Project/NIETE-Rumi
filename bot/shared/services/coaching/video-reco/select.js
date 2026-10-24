@@ -577,4 +577,9 @@ function urduLineOk(text) {
   return arabicShare(t) >= 0.6 && latinRun(t) <= 2 && !OTHER_SCRIPT.test(t.replace(QUOTED, ' ')) && !genderedUrdu(t) && !urduSlip(t);
 }
 
-module.exports = { cardFrame, cardMoveOk, urduLineOk, routineQuote, lessonlessQuote, groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
+// red7 G2 (panel v6 Z011 «asked a questions», Z168 «asked a content a question»): an article that does not fit its noun
+const ARTICLE_SLIP = /\ban? questions\b|\ban? \w+ an? question\b/i;
+/** R7g: the model's English line has no article slip (the rest of it was validated whole). */
+const englishLineOk = (text) => !ARTICLE_SLIP.test(String(text || '').replace(QUOTED, ' '));
+
+module.exports = { cardFrame, cardMoveOk, urduLineOk, englishLineOk, routineQuote, lessonlessQuote, groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
