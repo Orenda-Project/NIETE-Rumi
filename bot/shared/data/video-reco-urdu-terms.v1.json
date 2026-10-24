@@ -1,6 +1,6 @@
 {
- "_about": "ped/urdu_terms.json — the Urdu terms the engine may use in a teacher-facing reason line, owned by the pedagogy panel (COS ruling 20261024T022905 §2). Written 2026-10-24T02:42:00Z by the ped-scale chair from two blind expert proposals (outputs/lanes/ped-scale/judge7/terms/{coach,pedagogy}/terms_<persona>.json; brief in judge7/terms/brief_<persona>.md; the engine inventory in judge7/terms/engine_terms.json from origin/sandbox f1846f27dc prompt.js URDU_MOVES + copy.js URDU_WORDS). `agreement`=both means the two experts wrote the same term (or the same stem); `chair` means they wrote near-synonyms and the chair picked, with the other as ur_alt — both forms are accepted; the engine must emit NOTHING for a move that is not the `ur` or `ur_alt` of its row, and never any phrase in `never_use`. eng-fix consumes this file only (prompt glossary and copy.js rewrite targets).",
- "version": 1,
+ "_about": "ped/urdu_terms.json — the Urdu terms the engine may use in a teacher-facing reason line, owned by the pedagogy panel (COS ruling 20261024T022905 §2). Written 2026-10-24T02:42:00Z by the ped-scale chair from two blind expert proposals (outputs/lanes/ped-scale/judge7/terms/{coach,pedagogy}/terms_<persona>.json; brief in judge7/terms/brief_<persona>.md; the engine inventory in judge7/terms/engine_terms.json from origin/sandbox f1846f27dc prompt.js URDU_MOVES + copy.js URDU_WORDS). `agreement`=both means the two experts wrote the same term (or the same stem); `chair` means they wrote near-synonyms and the chair picked, with the other as ur_alt — both forms are accepted; the engine must emit NOTHING for a move that is not the `ur` or `ur_alt` of its row, and never any phrase in `never_use`. eng-fix consumes this file only (prompt glossary and copy.js rewrite targets). | v2 (2026-10-24T04:45:18Z, COS 20261024T044233 §1d, §2): adds `reason_frames` — the sentence frames for the LLM-moment reason line by term KIND. v8 (second held-out read, judge8) found the terms held (0 calque rows) but the single frame «استاد نے ‹term› پوچھا/کروایا، \"quote\"، اور … جواب آیا» is false for a MOVE-name term (think-pair-share, pair talk, two-part feedback): it tells the teacher they already did the move the clip teaches (12 of 28 failed Urdu lines on fresh-2, 10 of 21 on list A). The frame now depends on `kind`: a question-type term keeps the old frame; a move-name term takes the gap-first frame, then the move as the clip's («یہ کلپ ‹term› دکھاتا ہے۔»). Every `moves[]` entry now carries `kind` and `frame`.",
+ "version": 2,
  "head_reviewed": "f1846f27dc",
  "written": "2026-10-24T02:42:00Z",
  "rules": [
@@ -39,7 +39,9 @@
     "آج سبق میں آپ نے سیدھا سوال پوچھا، \"پاکستان کا دارالحکومت کیا ہے؟\" اور بچوں نے فوراً بتایا۔",
     "سبق میں استاد نے سیدھا سا سوال پوچھا، \"پاکستان کا دارالحکومت کیا ہے؟\"، اور بچوں نے ایک ساتھ جواب دیا۔"
    ],
-   "note": "both experts replace the calque with the same stem; the engine may use either form. Never a word built on یاد/یادداشت/یاددہانی/ریکال."
+   "note": "both experts replace the calque with the same stem; the engine may use either form. Never a word built on یاد/یادداشت/یاددہانی/ریکال.",
+   "kind": "question_type",
+   "frame": "q_frame"
   },
   {
    "id": "yes_no_question",
@@ -63,7 +65,9 @@
     "سبق میں آپ نے ہاں/نہیں والا سوال پوچھا، \"کیا پانی ابلتا ہے؟\" اور سب نے ہاں کہا۔",
     "استاد نے ہاں نہیں والا سوال پوچھا، \"کیا پانی ابلتا ہے؟\"، اور پوری کلاس نے ہاں کہا۔"
    ],
-   "note": "no slash in a spoken-register term; the slash form ہاں/نہیں والا سوال is retired from the body (it survives only inside a quoted card)."
+   "note": "no slash in a spoken-register term; the slash form ہاں/نہیں والا سوال is retired from the body (it survives only inside a quoted card).",
+   "kind": "question_type",
+   "frame": "q_frame"
   },
   {
    "id": "why_question",
@@ -87,7 +91,9 @@
     "آپ نے جواب کے بعد کیوں والا سوال پوچھا اور کلاس چند لمحے سوچ میں پڑ گئی۔",
     "استاد نے پہلے جواب پر کیوں والا سوال پوچھا، \"یہ کیوں ہوا؟\"، اور ایک ایک آواز سنی۔"
    ],
-   "note": "drop the Latin apostrophes around کیوں."
+   "note": "drop the Latin apostrophes around کیوں.",
+   "kind": "question_type",
+   "frame": "q_frame"
   },
   {
    "id": "why_how_question",
@@ -111,7 +117,9 @@
     "آپ نے ایک جواب پر کیوں/کیسے والا سوال پوچھا، \"تمہیں کیسے پتا؟\" اور بچے نے وجہ بتائی۔",
     "استاد نے جواب سن کر کیوں کیسے والا سوال پوچھا، \"تمہیں کیسے پتا چلا؟\""
    ],
-   "note": "no slash."
+   "note": "no slash.",
+   "kind": "question_type",
+   "frame": "q_frame"
   },
   {
    "id": "open_question",
@@ -135,7 +143,9 @@
     "سبق کے آخر میں آپ نے کھلا سوال پوچھا، \"اگر بارش نہ ہو تو کیا ہوگا؟\"",
     "استاد نے کھلا سوال پوچھا، \"اس کہانی میں تم کیا بدلتے؟\"، اور کئی مختلف جواب آئے۔"
    ],
-   "note": "ur_alt is the oblique form (before کے بعد / میں / کو); کھلے سوالات for the plural."
+   "note": "ur_alt is the oblique form (before کے بعد / میں / کو); کھلے سوالات for the plural.",
+   "kind": "question_type",
+   "frame": "q_frame"
   },
   {
    "id": "follow_up_probe",
@@ -159,7 +169,9 @@
     "پہلے جواب کے بعد آپ نے جواب پر دوسرا سوال پوچھا، \"یہ کیسے معلوم ہوا؟\"",
     "جواب \"بارہ\" آیا تو استاد نے جواب پر اگلا سوال پوچھا، \"بارہ کیسے نکلا؟\""
    ],
-   "note": "a question ON the child's answer; مزید سوال and پروب retired."
+   "note": "a question ON the child's answer; مزید سوال and پروب retired.",
+   "kind": "question_type",
+   "frame": "q_frame"
   },
   {
    "id": "chorus_answer",
@@ -183,7 +195,9 @@
     "آپ نے پوچھا، \"یہ کون سی شکل ہے؟\" اور جواب ایک ساتھ آیا، \"مثلث!\"",
     "استاد نے سوال پوچھا اور ہر بار ایک ساتھ جواب آیا، کوئی ایک آواز الگ نہ سنی گئی۔"
    ],
-   "note": "the rubric §3 wording; as a clause: «اور جواب ایک ساتھ آیا». سب کا مل کر جواب / اجتماعی جواب retired."
+   "note": "the rubric §3 wording; as a clause: «اور جواب ایک ساتھ آیا». سب کا مل کر جواب / اجتماعی جواب retired.",
+   "kind": "question_type",
+   "frame": "q_frame"
   },
   {
    "id": "warm_up_question",
@@ -207,7 +221,9 @@
     "آپ نے شروع کا سوال پوچھا، \"کل کیا پڑھا تھا؟\" اور بچوں نے پچھلا سبق یاد کیا۔",
     "سبق سے پہلے استاد نے شروع کا سوال پوچھا، \"کل ہم نے کیا پڑھا تھا؟\""
    ],
-   "note": "ابتدائی سوال retired (reads as \"basic\")."
+   "note": "ابتدائی سوال retired (reads as \"basic\").",
+   "kind": "question_type",
+   "frame": "q_frame"
   },
   {
    "id": "think_pair_share",
@@ -231,7 +247,9 @@
     "آپ نے تھنک پیئر شیئر کروایا: پہلے سوچا، پھر ساتھی سے بات، پھر دو جوڑیوں نے سب کو بتایا۔",
     "استاد نے تھنک پیئر شیئر کروایا؛ بچوں نے پہلے سوچا، پھر جوڑی میں بات کی، پھر سب کو بتایا۔"
    ],
-   "note": "the catalogue's own name; the verb is کروایا, never پوچھا."
+   "note": "the catalogue's own name; the verb is کروایا, never پوچھا.",
+   "kind": "move_name",
+   "frame": "move_frame"
   },
   {
    "id": "pair_talk",
@@ -255,7 +273,9 @@
     "آپ نے سوال پوچھ کر ایک منٹ ساتھی سے بات چیت کروائی، پھر تین جوڑیوں سے جواب لیا۔",
     "استاد نے سوال لکھ کر جوڑیوں میں بات چیت کروائی اور دو منٹ بعد جواب سنے۔"
    ],
-   "note": "جوڑوں میں گفتگو retired (written register)."
+   "note": "جوڑوں میں گفتگو retired (written register).",
+   "kind": "move_name",
+   "frame": "move_frame"
   },
   {
    "id": "partner_explanation",
@@ -279,7 +299,9 @@
     "آپ نے کہا کہ جس کو آ گیا وہ ساتھی کو سمجھائے، اور ساتھی کو سمجھانے کے بعد ہاتھ اٹھے۔",
     "استاد نے بچوں کو ساتھی کو سمجھانے کو کہا کہ جمع کیسے کی۔"
    ],
-   "note": "oblique before کے بعد / کو."
+   "note": "oblique before کے بعد / کو.",
+   "kind": "move_name",
+   "frame": "move_frame"
   },
   {
    "id": "student_to_student",
@@ -303,7 +325,9 @@
     "آپ نے جوڑیاں بنوائیں اور پانچ منٹ آپس میں بات چیت چلتی رہی۔",
     "سبق میں بچوں کی آپس میں بات چیت کا موقع نہیں آیا؛ ہر جواب استاد نے خود سنا۔"
    ],
-   "note": "add بچوں کی only when the sentence has not named the children."
+   "note": "add بچوں کی only when the sentence has not named the children.",
+   "kind": "move_name",
+   "frame": "move_frame"
   },
   {
    "id": "wait_time",
@@ -327,7 +351,9 @@
     "آپ نے سوال پوچھا، سوال کے بعد وقفہ دیا، اور پانچ سیکنڈ بعد چار ہاتھ اٹھے۔",
     "استاد نے سوال پوچھا اور تھوڑا رکنے کے بعد ہاتھ اٹھانے والوں میں سے ایک کو سنا۔"
    ],
-   "note": "انتظار کا وقفہ and ویٹ ٹائم retired; keep distinct from think time."
+   "note": "انتظار کا وقفہ and ویٹ ٹائم retired; keep distinct from think time.",
+   "kind": "descriptor",
+   "frame": "none: a tail/oblique descriptor («سوال کے بعد وقفہ»), never the ‹term› of either frame"
   },
   {
    "id": "think_time",
@@ -351,7 +377,9 @@
     "آپ نے کہا، \"پہلے سوچو\"، بچوں کو سوچنے کا وقت دیا، پھر جواب لیا۔",
     "استاد نے سوال لکھا، بچوں کو سوچنے کا وقت دیا، اور پھر جواب پوچھا۔"
    ],
-   "note": null
+   "note": null,
+   "kind": "descriptor",
+   "frame": "none: a tail/oblique descriptor, never the ‹term› of either frame"
   },
   {
    "id": "one_word_answer",
@@ -375,7 +403,9 @@
     "آپ کے سوال پر زیادہ تر ایک لفظ کا جواب آیا، جیسے \"ہاں\"، \"تین\"، \"پانی\"۔",
     "استاد نے پوچھا، \"یہ کون سی شکل ہے؟\"، اور ایک لفظ کا جواب آیا، \"مثلث\"۔"
    ],
-   "note": "مختصر جواب is allowed but vaguer."
+   "note": "مختصر جواب is allowed but vaguer.",
+   "kind": "question_type",
+   "frame": "q_frame"
   },
   {
    "id": "quick_answers",
@@ -399,7 +429,9 @@
     "آپ نے سوال پوچھا، فوری جواب آیا اور سبق اگلی مثال پر چلا گیا۔",
     "استاد نے سوال پوچھا، پہلا جواب لیا اور اگلا سوال پوچھ لیا۔"
    ],
-   "note": "the answer is the grammatical subject; never «فوراً جوابات مانگے» (reproach) and never a doubled فوراً."
+   "note": "the answer is the grammatical subject; never «فوراً جوابات مانگے» (reproach) and never a doubled فوراً.",
+   "kind": "question_type",
+   "frame": "q_frame"
   },
   {
    "id": "feedback_two_part",
@@ -423,7 +455,9 @@
     "آپ نے جواب پر تعریف، پھر ایک مشورہ دیا: \"صحیح کہا، اب وجہ بھی بتاؤ۔\"",
     "استاد نے کام دیکھ کر شاباش اور ایک مشورہ دیا، \"حاشیہ اچھا ہے، اب ہندسے قطار میں لکھو\"۔"
    ],
-   "note": "names the two parts in the teacher's own words (the 23-s2 move)."
+   "note": "names the two parts in the teacher's own words (the 23-s2 move).",
+   "kind": "move_name",
+   "frame": "move_frame"
   },
   {
    "id": "recap_review",
@@ -447,7 +481,9 @@
     "دہرائی کے دوران آپ نے پچھلے سبق کے تین سوال پوچھے اور بچوں نے سب کے جواب دیے۔",
     "دہرائی میں استاد نے پوچھا، \"کل ہم نے کون سا سبق پڑھا تھا؟\""
    ],
-   "note": "دورِ جائزے / دوبارہ سوال میں retired."
+   "note": "دورِ جائزے / دوبارہ سوال میں retired.",
+   "kind": "question_type",
+   "frame": "q_frame with the term as the object of پوچھا only when the line IS a recap question; a praise line is not a recap (v8 Z025 «دہرائی پوچھا»)"
   },
   {
    "id": "logistics_aside",
@@ -471,7 +507,9 @@
     "صفحہ نمبر یا حاضری کے بعد آپ نے سبق کا پہلا سوال پوچھا۔",
     "استاد نے روزمرہ کی ہدایت دی، \"صفحہ بارہ کھولو\"، اور پھر سبق شروع کیا۔"
    ],
-   "note": "a page call, roll call or housekeeping line is never described in the reason: the message falls back to the card frame (COS 022905 §2). If a word is unavoidable: روزمرہ کی ہدایت (pedagogy) or name it concretely, صفحہ نمبر یا حاضری (coach). منطقی ہدایات / معروضی گفتگو retired."
+   "note": "a page call, roll call or housekeeping line is never described in the reason: the message falls back to the card frame (COS 022905 §2). If a word is unavoidable: روزمرہ کی ہدایت (pedagogy) or name it concretely, صفحہ نمبر یا حاضری (coach). منطقی ہدایات / معروضی گفتگو retired.",
+   "kind": "never_a_term",
+   "frame": "none: a logistics line (page call, roll call, greeting) is never described; COS 022905 §5 → card frame"
   },
   {
    "id": "subtraction",
@@ -495,7 +533,9 @@
     "آپ نے تختے پر تفریق کا سوال لکھا، \"۴۵ منفی ۱۸\"، اور بچوں نے کاپی میں حل کیا۔",
     "استاد نے تختے پر تفریق کا سوال لکھا، \"۱۵ میں سے ۷ گئے\"، اور بچوں نے کاپی میں حل کیا۔"
    ],
-   "note": "نفی retired; the experts differ on منفی (coach: spoken form; pedagogy: the sign), so it is not listed."
+   "note": "نفی retired; the experts differ on منفی (coach: spoken form; pedagogy: the sign), so it is not listed.",
+   "kind": "subject_term",
+   "frame": "none: a subject word, never a move term"
   }
  ],
  "frames": [
@@ -997,10 +1037,61 @@
    "from": [
     "coach"
    ]
+  },
+  {
+   "phrase": "استاد نے تھنک پیئر شیئر کروایا / آپس میں بات چیت کروایا / دو حصوں والا فیڈبیک دیا (any «استاد نے ‹move› کروایا/دیا/پوچھا» with a move-name term)",
+   "use_instead": "reason_frames.move_frame (gap first, then «یہ کلپ ‹term› دکھاتا ہے۔»)",
+   "why": "Asserts the teacher already did the clip's move; false on every v8 row it appeared (16 rows).",
+   "from": [
+    "coach",
+    "pedagogy",
+    "chair v8"
+   ]
+  },
+  {
+   "phrase": "شاباش اور ایک مشورہ پوچھا",
+   "use_instead": "reason_frames.move_frame feedback_variant",
+   "why": "Garbled: a move name is not an object of پوچھنا (v8 Z045 Z096 Z412).",
+   "from": [
+    "coach",
+    "pedagogy",
+    "chair v8"
+   ]
   }
  ],
  "expert_notes": {
   "coach": "Frame voice: the teacher reads about their own lesson, so «آپ نے» (neutral, respectful plural) beats third-person «استاد نے». Put the move term before the quote («آپ نے ‹term› پوچھا: \"…\"۔»); for answer-type moves append «اور جواب ایک ساتھ آیا» / «اور فوری جواب آیا». No free LLM clause after the quote. Logistics lines: card frame, never a descriptor.",
   "pedagogy": "ur is the direct form for the «‹term› پوچھا» slot; ur_alt is the oblique form to use before کے بعد / میں / کو; null alt means the term does not inflect. Examples use نے constructions so no verb shows the teacher's gender. Logistics lines (page, roll call) should fall back to the card frame, not be described."
+ },
+ "written_v2": "2026-10-24T04:45:18Z",
+ "head_reviewed_v2": "ab71c4f3fa",
+ "reason_frames": {
+  "_about": "The LLM-moment reason line (WhatsApp body, report language ur) is built from ONE of these frames by the term's `kind`; the LLM never writes a free clause (RUBRIC §3). ‹quote› is the cited lesson line (its own digits, bidi-isolated, no Latin full stop after it); ‹term› is `moves[].ur` (direct form) or `ur_alt` where the slot is oblique; ‹answer_tail› is the answer-type clause («، اور فوری جواب آیا» / «، اور ایک ساتھ جواب آیا» / «، اور ایک لفظ کا جواب آیا») ONLY when the excerpt shows it, else the sentence closes at the quote with «۔». Voice: third person «استاد نے» per RUBRIC §3 pending the COS's call on the voice note; «آپ نے» drops in unchanged. No form ever asserts that the teacher performed the clip's move.",
+  "q_frame": {
+   "when": "kind = question_type (the term names the KIND OF QUESTION the teacher asked: سیدھا سا سوال، ہاں یا نہیں والا سوال، شروع کا سوال …)",
+   "ur": "سبق میں استاد نے ‹term› پوچھا، \"‹quote›\"‹answer_tail›۔ یہ کلپ اس بارے میں ہے: ‹chapter_title_ur›۔",
+   "example": "سبق میں استاد نے سیدھا سا سوال پوچھا، \"پاکستان کا دارالحکومت کیا ہے؟\"، اور فوری جواب آیا۔ یہ کلپ اس بارے میں ہے: ہاں یا نہیں والا سوال بمقابلہ 'کیوں' والا سوال۔",
+   "guard": "the term must describe the cited line truthfully: a recall/closed line is never called «کھلا سوال» or «کیوں والا سوال» (v8 Z032 Z392 Z403 Z409); a student's line, a greeting, a page or number call or filler is never the ‹quote› (COS 022905 §5 → card frame)."
+  },
+  "move_frame": {
+   "when": "kind = move_name (the term names a ROUTINE the clip teaches: تھنک پیئر شیئر، آپس میں بات چیت، دو حصوں والا فیڈبیک، تین درجوں والا کام …). NEVER «استاد نے ‹term› کروایا/پوچھا»: that asserts the teacher already did the clip's move (v8: Z035 Z041 Z050 Z094 Z137 Z157 Z227 Z277 Z294 Z377 Z386 Z417; Z135 Z221 Z239 Z304 for بات چیت; Z045 Z096 Z412 for «شاباش اور ایک مشورہ پوچھا»).",
+   "ur": "سبق میں استاد نے سوال پوچھا، \"‹quote›\"، ‹gap_clause›۔ یہ کلپ ‹term› دکھاتا ہے۔",
+   "gap_clauses": {
+    "one_child_answered": "اور ایک بچے نے جواب دیا؛ باقی بچوں نے آپس میں بات نہیں کی",
+    "chorus": "اور سب نے ایک ساتھ جواب دیا؛ بچوں نے آپس میں بات نہیں کی",
+    "teacher_answered": "اور خود ہی جواب بتا دیا",
+    "bare_praise": "اور \"شاباش\" کے بعد اگلا قدم نہیں بتایا گیا",
+    "no_gap_visible": "(no clause: close at the quote with «۔»)"
+   },
+   "examples": [
+    "سبق میں استاد نے سوال پوچھا، \"ابا جان نے چھٹی کے دن کیا کیا؟\"، اور ایک بچے نے جواب دیا؛ باقی بچوں نے آپس میں بات نہیں کی۔ یہ کلپ تھنک پیئر شیئر دکھاتا ہے۔",
+    "سبق میں استاد نے جواب پر \"شاباش\" کہا اور اگلا قدم نہیں بتایا۔ یہ کلپ دو حصوں والا فیڈبیک دکھاتا ہے۔"
+   ],
+   "feedback_variant": "for a feedback term the first clause is the praise line itself: «سبق میں استاد نے جواب پر \"‹quote›\" کہا اور اگلا قدم نہیں بتایا۔ یہ کلپ ‹term› دکھاتا ہے۔»",
+   "guard": "the gap clause must be true of the excerpt (v8 Z235 Z316: «ایک لفظ کا جواب» when the child answered in a sentence); when the engine cannot read a gap, use no_gap_visible, never invent one; this frame needs no verb on the teacher's person, so the «کروایا» gender reading (Z221 Z239 Z304) does not arise."
+  },
+  "other_language_line_en": {
+   "when": "the English portal line for ur-report teachers mirrors the same frame: question type → 'In the lesson the teacher asked a ‹term_en›, \"‹quote›\"‹answer_tail›. This clip is about: ‹chapter_title_en›.'; move name → 'In the lesson the teacher asked, \"‹quote›\", and one child answered; the others did not talk to each other. This clip shows ‹term_en›.' Never 'the teacher ran think-pair-share'. The line stays in one script after the quote (v8 Z017 Z294 Z386 switched to Urdu)."
+  }
  }
 }

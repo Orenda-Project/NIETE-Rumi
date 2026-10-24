@@ -209,7 +209,9 @@ function childFreeCard(sentence, { teacher = null, vocab = [], oovVocab = [], wh
   let marked = s.replace(CHILD_TOKEN, () => hit('token'));
   let nameEnd = -1; // a masked word right after a name is its surname («X Y or another quiet voice», Q174)
   const own = new Set([...vocab, ...oovVocab].map((v) => normUr(String(v))));
-  marked = marked.replace(/[A-Za-z]+|[؀-ۿ‌]+/g, (w, at, all) => { // «X's» is X, as the redactor reads it
+  // R7k §1f (panel v8 Z015 Z098 Z204 Z281): a word is its letters; «پوچھیں،» with its comma was no known word, read as a
+  // name before «جیسے» and dropped with it
+  marked = marked.replace(/[A-Za-z]+|(?:(?=[؀-ۿ])[\p{L}\p{M}]|‌)+/gu, (w, at, all) => { // «X's» is X, as the redactor reads it
     if (NOT_A_NAME.has(w.toLowerCase())) return w;
     const before = all.slice(0, at);
     const latin = LATIN_CAP.test(w);
