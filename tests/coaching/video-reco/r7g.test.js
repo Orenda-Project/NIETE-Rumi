@@ -372,6 +372,16 @@ describe('red7 E3: a D3 card over a teacher monologue keeps its 50-s2 card path 
   });
 });
 
+describe('red7 013349 (S5): a vocabulary-word name listed after masked names never reaches the model or the stored row', () => {
+  const LIST = [T('01:00', 'Teacher', 'عائشہ، بلال اور کرن نے کام ختم کر لیا، شاباش۔ کیا یہ مثلث ہے؟'), T('01:03', 'Student', 'جی'), ...CLASS.slice(2)];
+  test('the excerpt the model sees masks it; the stored quote and reasons carry none of it', async () => {
+    const d = deps([answer({ moment: { at: '01:00', quote: '[a student]، [a student] اور کرن نے کام ختم کر لیا' } })]);
+    const row = await run(args({ lines: LIST, lang: 'ur' }), d);
+    expect(prompts(d)).not.toContain('کرن');
+    expect(`${row.moment_quote || ''} ${row.reason_en || ''} ${row.reason_ur || ''}`).not.toContain('کرن');
+  });
+});
+
 describe('1e · owed silences: the card placeholder rows (Z036 Z100, R/A sends in v5)', () => {
   test('Z100 shape: a why card naming children in a slot that cannot be dropped → the plain frame on 51-s1, no name, no quote', async () => {
     const NAMES = "Next class, when a student answers with just one word like 'minus' on Abu's wood or Bunty's ribbon problem, ask 'Why did you choose that operation?' and give them time to explain.";

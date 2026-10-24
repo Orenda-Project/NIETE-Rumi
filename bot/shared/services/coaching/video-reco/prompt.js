@@ -79,7 +79,7 @@ function rawExcerpts(session, { timestamp, uptakeMoment } = {}) {
  * people.vocab: subject terms; people.oovVocab: topic words, the vocabulary rule only (bd-8hhqhf r7).
  */
 function redact(text, people = {}) {
-  return redactNames(String(text || ''), { teacher: people.teacher || null, placeholders: { child: '[a student]' }, vocab: people.vocab || [], oovVocab: people.oovVocab || [] });
+  return redactNames(String(text || ''), { teacher: people.teacher || null, placeholders: { child: '[a student]' }, vocab: people.vocab || [], oovVocab: people.oovVocab || [], counts: people.counts || null });
 }
 
 // R7c §5: what kind of clip it is, so the reason never says a conversation or a talk "shows a teacher" in class
