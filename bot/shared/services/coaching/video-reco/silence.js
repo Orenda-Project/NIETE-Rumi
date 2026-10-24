@@ -421,12 +421,5 @@ const whyWaitCard = (sentence) => whyCard(sentence) || (WAIT_CARD.test(dashed(se
 // R7f (panel Q102 Q127 Q139): the card names the open question itself, not only a why or a how somewhere in its steps
 const OPEN_CARD = /open[- ]ended|open questions?|کھلے سوال|کھلا سوال|اوپن اینڈ/iu;
 const openQuestionCard = (sentence) => OPEN_CARD.test(dashed(sentence));
-// R7o-b d (panel v10 Z186 Z224 Z242): the class already gives reasons — three or more children's lines with a reason
-// («کیونکہ», because, «وجہ», «اس لیے»). The yes/no-to-why chapter tells such a teacher what they already get; the gap is
-// the follow-up. Counting the teacher's own why / how lines does not separate (v10: right sends had 18, wrong ones 5–11);
-// at 3 children's reason lines fresh-4's 51-s1 sends split wrong 3 / right 1 / acceptable 2 (fitted there: fresh-5 reads it).
-const REASON_SAID = /کیونکہ|کیوں کہ|\bbecause\b|\bcause\b|وجہ|اس لیے|اس لئے|\bso that\b/iu;
-const REASONS_MIN = 3;
-const asksWhy = (lines) => (lines || []).filter((l) => { const x = String(l || ''); return KID.test(x) && REASON_SAID.test(x); }).length >= REASONS_MIN;
 
-module.exports = { asksWhy, dashed, levelsMoment, levelsNear, levelsCard, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, whyWaitCard, correctionCard, notLesson, groupMoment, assessMoment, cardRoutine, openQuestionCard, notTeaching, testPeriod, isClosure, earlyForClosure, closingCard, closingMove, reachesEnd, monologue, KID, LABEL_SUBJECTS };
+module.exports = { dashed, levelsMoment, levelsNear, levelsCard, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, whyWaitCard, correctionCard, notLesson, groupMoment, assessMoment, cardRoutine, openQuestionCard, notTeaching, testPeriod, isClosure, earlyForClosure, closingCard, closingMove, reachesEnd, monologue, KID, LABEL_SUBJECTS };
