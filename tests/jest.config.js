@@ -90,7 +90,9 @@ module.exports = {
     // Suites that need a PREDICTABLE id keep their own jest.mock — that wins over this mapping.
     '^uuid$': '<rootDir>/tests/__mocks__/uuid.js',
   },
-  setupFiles: ['<rootDir>/tests/setup.js'],
+  // bot/tests/setup-loopback.js first: no root-tree test reaches a live service unless the run sets
+  // ALLOW_LIVE_SERVICES_IN_TESTS=1 (openai, @anthropic-ai/sdk and ioredis above resolve to the real packages).
+  setupFiles: ['<rootDir>/bot/tests/setup-loopback.js', '<rootDir>/tests/setup.js'],
   testEnvironment: 'node',
   testEnvironmentOptions: {
     customExportConditions: ['node', 'node-addons'],
