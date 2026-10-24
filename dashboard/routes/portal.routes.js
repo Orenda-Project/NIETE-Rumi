@@ -118,6 +118,7 @@ const TeacherObservation = require('../lib/teacher-observation');
 const { getOverall } = require('../services/coaching-frameworks.service');
 const { narrativeView } = require('../services/report-narrative-view'); // bd-fmf24g.10
 const { reportExtras } = require('../services/report-extras'); // bd-z3cadk
+const VideoRecoPortal = require('../services/video-reco-portal'); // bd-gzfdu9
 // Leader "patch" resolver (leader_teachers → Rumi users + activity) needs the
 // pg pool — the LATERAL-join SQL can't be expressed through supabase-js.
 const pool = require('../config/database');
@@ -7339,6 +7340,9 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
       return data || null;
     });
 
+    // bd-gzfdu9 — the recommended clip's card; undefined (no key, no read) while VIDEO_RECO_ENABLED is off.
+    const videoRecommendation = await VideoRecoPortal.fieldFor(supabase, sessionId, userId, reportLanguage === 'ur' ? 'ur' : 'en');
+
     // Extract narrative arrays from analysis_data
     const strengthsArray = session.analysis_data?.strengths?.map(s =>
       typeof s === 'string' ? s : s.title || s.analysis || 'Strength identified'
@@ -7444,6 +7448,7 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
         duplicate: extras.duplicate,
         reportDate: extras.reportDate,
         lastAsked: extras.lastAsked,
+        ...(videoRecommendation === undefined ? {} : { video_recommendation: videoRecommendation }),
 
         // ── how she was scored ─────────────────────────────────────────────
         overallScore: overallMarks,

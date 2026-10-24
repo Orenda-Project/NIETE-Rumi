@@ -196,6 +196,19 @@ export interface ReportNarrative {
   journeyNote?: string | null;
 }
 
+/** bd-gzfdu9 (VIDREC, SPEC §4.7) — GET /coaching-session/:id `video_recommendation`: one clip, its /v player link. */
+export interface VideoRecommendation {
+  title: string | null;
+  /** Always null (SPEC v1.2.1: no surface shows the ladder level). */
+  levelLabel: string | null;
+  durationS: number | null;
+  /** The clip's spoken language ('ur' | 'en'), null when unknown. */
+  language: string | null;
+  reason: string | null;
+  thumbUrl: string | null;
+  href: string;
+}
+
 export interface SessionDetail extends CoachingSession {
   status?: string;
   /** HER lesson recording. Present on 100% of sessions, never served before. */
@@ -221,6 +234,8 @@ export interface SessionDetail extends CoachingSession {
   reportDate?: string | null;
   /** bd-z3cadk — the WhatsApp report's "Last time we asked" block, in the report's language. */
   lastAsked?: { text: string; status: string; statusLabel: string; line: string } | null;
+  /** bd-gzfdu9 (VIDREC) — the recommended training clip; absent while VIDEO_RECO_ENABLED is off, null when none. */
+  video_recommendation?: VideoRecommendation | null;
   reflection?: ReflectionEntry[];
   prioritizedAction?: PrioritizedAction | null;
   analysisData: AnalysisData;

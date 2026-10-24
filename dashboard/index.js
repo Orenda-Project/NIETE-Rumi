@@ -187,6 +187,9 @@ app.use(createCoachCardRouter());
 // After the edge list: its /quiz/teacher/:th/stories is the teacher home's page too, which answers first.
 const { createTeacherStoriesRouter } = require('./routes/teacher-stories.routes');
 app.use(createTeacherStoriesRouter());
+// bd-gzfdu9: the recommended training clip's tracked player /v/:token (+ its beacons and thumbnails). Same rules as /cr.
+const { createVideoRecoRouter } = require('./routes/video-reco.routes');
+app.use(createVideoRecoRouter());
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));

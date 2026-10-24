@@ -331,12 +331,21 @@ class ReportGeneratorService {
         });
       }
 
+      // bd-gzfdu9: the recommended video clip (one row per session). STARTED here, awaited only by the sender after the
+      // report has gone, so it adds no delay; a promise of the row|null that never rejects. Flag off → null, nothing runs.
+      const videoReco = require('./video-reco/engine').recommendForReport({
+        // staging/main carry no uptake loop (no `loop` binding here): the engine gets null, as it does with the loop off.
+        session, analysis: enhancedAnalysis, nextStep, loop: null, card: precomputedCommitment, coachingSessionId, isRetry,
+      });
+
       // Generate report via the per-framework transformer + PDFReportService.
       // Return shape is EITHER a Buffer (PDFKit/HTML renderers) OR
       // `{ png, caption }` (hero renderer — currently FICO on NIETE, plus
       // OECD/HOTS/TEACH/MEWAKA once they're wired). Delivery path branches
       // on the shape.
-      const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, nextStep);
+      // bd-gzfdu9 §4.9: the recommended clip on the report image — waits ≤ 20 s for the pick; null when off or slower.
+      const videoStrip = await require('./video-reco/strip').stripFor({ coachingSessionId, language: outputLanguage, row: videoReco }).catch(() => null);
+      const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, nextStep, videoStrip);
       const isHeroImage = !Buffer.isBuffer(reportResult) && reportResult && reportResult.png;
 
       // Upload report to R2 for portal access.
@@ -365,9 +374,11 @@ class ReportGeneratorService {
       // Deliver to WhatsApp — image+caption path (hero renderer) or document
       // path (PDFKit/HTML renderers).
       let followUps = true;
+      let videoClipAfter = false; // bd-gzfdu9: the clip goes last, only after a report that arrived in an open window
       if (isHeroImage) {
+        let heroSent; // bd-gzfdu9 (staging port): read after the try by the clip hook below
         try {
-          const heroSent = await this.sendHeroImageReport(
+          heroSent = await this.sendHeroImageReport(
             from,
             coachingSessionId,
             reportResult.slimPng || reportResult.png, // bd-v0toag.57: C/D get the slim image; R2 keeps the full one
@@ -390,6 +401,7 @@ class ReportGeneratorService {
           await require('./report-link-send').sendReportLinkIfNew({
             coachingSessionId, userId: session.user_id, phone: from, language: outputLanguage, track,
           });
+          videoClipAfter = heroSent !== false;
         }
       } else {
         await this.sendPDFReport(from, coachingSessionId, reportResult, session.users.name, session.created_at);
@@ -520,6 +532,14 @@ class ReportGeneratorService {
           error: cardError.message,
         });
         // Don't fail the session — card is optional.
+      }
+
+      // bd-gzfdu9: the recommended clip, the LAST follow-up (lead 18:48Z: the engine's wait overlaps the voice
+      // note, survey and commit prompt). Nothing unless VIDEO_RECO_ENABLED and the row is 'shown'; never throws.
+      if (videoClipAfter) {
+        await require('./video-reco/send').sendAfterReport({
+          coachingSessionId, phone: from, language: outputLanguage, track, imageStrip: Boolean(videoStrip), row: videoReco,
+        }).catch(() => null);
       }
 
       // Mark session as completed
@@ -831,7 +851,7 @@ class ReportGeneratorService {
    * @returns {Promise<Buffer>} PDF buffer
    * @private
    */
-  static async generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment = null, nextStep = null) {
+  static async generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment = null, nextStep = null, videoStrip = null) {
     logToFile('Generating PDF report', { coachingSessionId: session.id });
 
     // Resolve framework and dispatch to correct transformer
@@ -905,6 +925,7 @@ class ReportGeneratorService {
         slim,
         // bd-v0toag.1.5: the report's ONE next step (the card got the same object) pins the horizon.
         target: (nextStep && nextStep.target) || null,
+        ...(videoStrip ? { videoStrip } : {}), // bd-gzfdu9 §4.9: the clip strip; absent → the hero opts as today
       },
     };
 
