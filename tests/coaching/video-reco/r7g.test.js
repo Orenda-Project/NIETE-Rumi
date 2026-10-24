@@ -266,6 +266,13 @@ describe('1c · the card frame says "this clip shows one way to do it" only on a
     const row = await run(cardText(STONES), deps([SHORT('122-s3'), SHORT('122-s3')]));
     expect(row).toMatchObject({ status: 'shown', seg_id: '51-s1', moment_source: 'card' });
   });
+  test('G3 (gold b4d78b5e, no second ask): on a move step 51-s1 is not the rescue unless it carries the step\'s tag', async () => {
+    const a = args({ indicator: 'D3', subject: 'english', action: 'Next class, ask two why questions about the story and wait five seconds.' });
+    a.analysis.domains = { D: { indicators: [{ id: 'D3', name: 'Student-to-Student Interaction', score: 1, applicable: true, evidence: 'x', timestamp: '[01:00]' }] } };
+    const row = await run(a, deps([SHORT('50-s2'), SHORT('50-s2')]));
+    expect(row.seg_id || null).not.toBe('51-s1');
+    expect(row.status).toBe('none');
+  });
   test('control: a think-pair-share card keeps its card frame on 50-s2', async () => {
     const row = await run(cardText(TPS), deps([SHORT('50-s2'), SHORT('50-s2')]));
     expect(row).toMatchObject({ status: 'shown', seg_id: '50-s2', moment_source: 'card' });
