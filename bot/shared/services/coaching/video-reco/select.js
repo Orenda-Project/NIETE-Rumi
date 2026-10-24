@@ -417,7 +417,7 @@ const NOUN_NEXT = new Set('کے کی کا کو سے میں پر نے تک وال
 // ped-scale 201500: a word the lexicon, the roster or an address marks as a NAME (not merely unknown) → plain, any slot
 const NAME_WHY = new Set(['strong', 'address', 'named', 'role', 'compound', 'carry']);
 // COS 201132: the fail-closed switch. true = any word the strict redactor masks → the plain frame (56/151 fresh-4 quotes)
-const ANY_MASK = false;
+const ANY_MASK = true;
 function strictNamed(text, { teacher = null, vocab = [], oovVocab = [], counts = null } = {}) {
   const s = String(text || '');
   const trace = [];
