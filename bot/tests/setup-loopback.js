@@ -10,7 +10,7 @@
  *     points at a dead loopback port, keeping its scheme and path; every credential-shaped one
  *     (…_KEY, …_TOKEN, …_SECRET, …_PASSWORD, …_PIN) becomes a dummy; log-shipping tokens are emptied.
  *     Public link bases and every other variable are left for dotenv as before.
- *  2. Construction. `pg.Pool` / `pg.Client` (when installed) and supabase-js `createClient` throw
+ *  2. Construction. The REAL `pg.Pool` / `pg.Client` (when installed) and supabase-js `createClient` throw
  *     EGRESS_BLOCKED when built for a real host. Loopback and the reserved test names of RFC 2606 /
  *     6761 (`*.test`, `*.example`, `*.invalid`, `*.localhost`, `example.com|net|org`) are allowed:
  *     they cannot be a live service, and many tests build a client for them with fetch mocked.
@@ -98,9 +98,15 @@ function hostOfUrl(url) {
   try { return new URL(String(url)).hostname; } catch { return null; }
 }
 
+// A module a jest moduleNameMapper maps to a fake (the repo-root tree fakes pg and supabase-js) cannot
+// reach anything, and tests build it for placeholder hosts: only the REAL package is wrapped.
+function isRealPackage(name) {
+  try { return /[\\/]node_modules[\\/]/.test(require.resolve(name)); } catch { return false; }
+}
+
 function installConstructorGuards() {
   let pg = null;
-  try { pg = require('pg'); } catch { /* not installed */ }
+  try { if (isRealPackage('pg')) pg = require('pg'); } catch { /* not installed */ }
   if (pg && !pg.__loopbackGuard) {
     const check = (cfg) => {
       const c = typeof cfg === 'string' ? { connectionString: cfg } : (cfg || {});
@@ -115,7 +121,7 @@ function installConstructorGuards() {
     pg.__loopbackGuard = true;
   }
   let supabaseJs = null;
-  try { supabaseJs = require('@supabase/supabase-js'); } catch { /* not installed */ }
+  try { if (isRealPackage('@supabase/supabase-js')) supabaseJs = require('@supabase/supabase-js'); } catch { /* not installed */ }
   if (supabaseJs && !supabaseJs.createClient.__loopbackGuard) {
     const original = supabaseJs.createClient;
     const guarded = function createClient(url, ...rest) {
