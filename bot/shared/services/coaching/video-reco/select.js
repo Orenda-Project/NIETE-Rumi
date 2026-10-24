@@ -525,7 +525,7 @@ function plainFrame(l, segment) {
 }
 
 /** The card frame for a chapter (the fallback's text, no rule or list gate): {reason_en, reason_ur} | null. */
-function cardFrame({ sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab = [], segment, labels = [], roster = null, rosterRaw = null, plainIfNamed = false, carry = null } = {}) {
+function cardFrame({ sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab = [], segment, labels = [], roster = null, rosterRaw = null, plainIfNamed = false, carry = null, counts = null } = {}) {
   try {
     if (!fallbackSubjectOk(module, subject)) return null; // [v1.3c-2] ⛔4: no literacy clip on a science lesson
     // [v1.3c-5] + R7b (P165, red7 V1–V10): the card's vocative goes BEFORE redaction, found by its shape (copy-rules.js)
@@ -540,7 +540,7 @@ function cardFrame({ sentence, startS, endS, language, teacherName, module, subj
     // R7c ⛔9 (Q168, Q174; Q181, Q193): a child named inside the sentence → the comparison goes. R7g (COS 002603 1e; panel Z036
     // Z100, R/A sends in v5): a name that cannot go → the plain frame, the sentence not quoted (was: no clip at all)
     const plain = () => ({ reason_en: plainFrame('en', segment), reason_ur: plainFrame('ur', segment) });
-    s = childFreeCard(s, { teacher: teacherName, vocab, oovVocab, roster: rosterRaw }); // S12: a roster possessor, read raw
+    s = childFreeCard(s, { teacher: teacherName, vocab, oovVocab, roster: rosterRaw, counts }); // S12: a roster possessor, read raw; F: the lesson's counts
     if (!s || rosterIn(s, roster)) return plainIfNamed ? plain() : null; // R7d (Q086): a roster name in any position, a quoted title included
     s = singleQuotes(s).replace(/^[a-z]/, (c) => c.toUpperCase()); // P109: no lower-case start after the strip
     // bd-8hhqhf: a long card sentence is trimmed to fit, in each language (session 077b8021: 224 cp → 308 cp composed in

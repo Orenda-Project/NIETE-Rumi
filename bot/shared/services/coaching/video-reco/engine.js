@@ -307,7 +307,7 @@ async function compute(a, d, state) {
       const hit = catalog.segment(c.seg_id);
       const said = hit && select.cardFallback({
         none, segId: c.seg_id, shortlist: fixedList, sentence: cardSentence, startS: hit.segment.start_s, endS: hit.segment.end_s,
-        teacherName: people.teacher, module: hit.module, subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster, rosterRaw: people.rosterRaw,
+        teacherName: people.teacher, module: hit.module, subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster, rosterRaw: people.rosterRaw, counts: people.counts,
       });
       if (said) return { said, segId: c.seg_id, list: fixedList };
     }
@@ -403,6 +403,7 @@ async function compute(a, d, state) {
       language, // R7c: the reader's line is the one that must fit and the one that quotes (was never passed: always 'en')
       roster: people.roster,
       rosterRaw: people.rosterRaw, // S12
+      counts: people.counts, // red7 024934 F
       plainIfNamed: select.cardMoveOk(sentence, seg.segment, { strict: true }), // R7g 1e (Z100; Z078 stays silent)
     });
   };
@@ -530,7 +531,7 @@ async function compute(a, d, state) {
   if (!fallback && (language === 'en' || !select.englishLineOk(said.reason_en))) {
     const other = language === 'en' ? 'ur' : 'en';
     const sentence = (card && card.action) || step.try || fa.try_this_tomorrow || '';
-    const args0 = { startS: hit.segment.start_s, endS: hit.segment.end_s, teacherName: people.teacher, module: hit.module, subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster, rosterRaw: people.rosterRaw };
+    const args0 = { startS: hit.segment.start_s, endS: hit.segment.end_s, teacherName: people.teacher, module: hit.module, subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster, rosterRaw: people.rosterRaw, counts: people.counts };
     const frame = sentence && select.cardMoveOk(sentence, hit.segment) ? select.cardFrame({ ...args0, sentence, plainIfNamed: true }) : null;
     const n = Math.round(Number(hit.segment.end_s) - Number(hit.segment.start_s));
     const checked = other === 'ur' && select.urduLineOk(said.reason_ur);
