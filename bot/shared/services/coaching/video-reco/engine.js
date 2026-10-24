@@ -400,7 +400,13 @@ async function compute(a, d, state) {
       });
       if (said) return cardOnly(said, c.seg_id, list);
     }
-    const why = silence.whyWaitCard(sentence) && catalog.segment(WHY_SWAP_CHAPTER);
+    // R7o-c (ped-scale 220500, panel v11 Z134 Z181 Z249): the why-swap rescue only when the card's HEAD asks — its head move is a
+    // question, or it names none of the moves and its FIRST step is the why / wait («…give 5 seconds of wait time, then…»
+    // stays, R7l; «…action model کریں، پھر … wait time» does not). fresh-5 + fresh-4: asking heads 5/5 right, the rest 3/3 wrong.
+    const whole = stripBidi(String(cardSentence || ''));
+    const firstStep = whole.split(/,?\s+(?:and\s+)?then\b|،?\s+(?:اور\s+)?پھر(?![\p{L}])/u)[0] || '';
+    const rescueOk = headAsks || (!cardHead(whole) && silence.whyWaitCard(firstStep));
+    const why = rescueOk && silence.whyWaitCard(sentence) && catalog.segment(WHY_SWAP_CHAPTER);
     if (!why || (MOVE_REASONS.has(list.textReason) && tagMismatch(t, why.segment) === true)) return silent();
     const fixed = fixedFallback([WHY_SWAP_CHAPTER], 'validation:no_gap', 'enacted'); // a rule cardFallback takes
     return fixed ? cardOnly(fixed.said, fixed.segId, fixed.list) : silent();
