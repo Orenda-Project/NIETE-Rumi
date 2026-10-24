@@ -247,6 +247,28 @@ async function compute(a, d, state) {
   });
   // R7j (COS 022905 §3; Z001 Z218): a goal-on-board D6/B1 card → 47-s1, not 47-s3
   list.candidates = shortlist.goalFirst(list.candidates, catalog, { indicator: t.storedIndicator || (card && card.indicator), sentence: stripBidi(String(cardSentence || '')), history });
+  // R7e (COS 185329): "proven chapters" — set, a pick off the list is none/'allowlist' in either arm; null = today
+  const allow = videoRecoAllowlist(d.env);
+  const offList = (segId) => !!allow && !allow.has(String(segId));
+  // R7k (COS 044233 §1e; panel v8 Z327 Z348 Z197 Z124): the card's HEAD move decides the clip. Pair talk (50-s2) not when the
+  // head names another move and not pair talk; a why / open-question head on a C1 card puts 51-s1 (else 95-s3) first; a feedback head on a C3 card puts
+  // 23-s2 first (on a card with no indicator, whichever the head names). The fronted chapter passes the enacted gates.
+  const headOrder = (cands) => {
+    // the head: the first instruction, before «then» / «پھر» or the end of the sentence («…ask why, then let pairs share», Z327)
+    const s = stripBidi(String(cardSentence || '')).split(/[;؛.۔!]\s|,?\s+(?:and\s+)?then\b|،?\s+(?:اور\s+)?پھر(?![\p{L}])/u)[0];
+    if (!s.trim()) return cands;
+    const ind = t.storedIndicator || (card && card.indicator) || null;
+    const names = (id) => { const h = catalog.segment(id); return !!h && select.cardMoveOk(s, h.segment); };
+    // a head that names no move (a subject label, Z025) decides nothing
+    const other = names('51-s1') || names('95-s3') || names('23-s2');
+    const out = cands.filter((c) => c.seg_id !== '50-s2' || names('50-s2') || !other);
+    const want = names('23-s2') && (ind === 'C3' || !ind) ? ['23-s2'] : names('51-s1') && (ind === 'C1' || !ind) ? ['51-s1', '95-s3'] : null;
+    if (!want) return out;
+    const listed = want.map((id) => out.find((c) => c.seg_id === id)).find(Boolean);
+    const lead = listed || shortlist.enacted(catalog, ctx, lesson, want).candidates.find((c) => !offList(c.seg_id));
+    return lead ? [{ ...lead, route: lead.route || out[0] && out[0].route }, ...out.filter((c) => c.seg_id !== lead.seg_id)] : out;
+  };
+  list.candidates = headOrder(list.candidates);
   base.repeat_module = list.repeatModule;
   base.level_match = list.levelMatch || null;
   base.route = list.route || null;
@@ -298,9 +320,6 @@ async function compute(a, d, state) {
   if (silence.degenerate(lines)) {
     return finish({ ...base, status: 'none', none_reason: 'no_moments:degenerate', candidates: list.candidates });
   }
-  // R7e (COS 185329): "proven chapters" — set, a pick off the list is none/'allowlist' in either arm; null = today
-  const allow = videoRecoAllowlist(d.env);
-  const offList = (segId) => !!allow && !allow.has(String(segId));
   /** R7f: the card's own sentence on the first of `ids` this teacher may get (no model call) → {said, segId, list} | null. */
   const fixedFallback = (ids, none, route) => {
     const pool = shortlist.enacted(catalog, ctx, lesson, ids);
@@ -465,12 +484,12 @@ async function compute(a, d, state) {
     const four = shortlist.enacted(catalog, ctx, lesson);
     // R7d (gold be2a6d28, G3 "no second ask"): on a move step only the enacted chapters tagged for the step; 51-s1 on a
     // C3 card was a second ask. A card_text / label / hole step has no tag to keep (the list is the gate, as R7c ruled).
-    const why = shortlist.whyFirst(four.candidates, catalog, { apply: silence.whyCard(cardSentence), history });
+    const why = headOrder(shortlist.whyFirst(four.candidates, catalog, { apply: silence.whyCard(cardSentence), history })); // R7k §1e
     const forStep = (MOVE_REASONS.has(list.textReason)
       ? why.filter((c) => { const hit = catalog.segment(c.seg_id); return hit && tagMismatch(t, hit.segment) !== true; })
       : why).filter((c) => !offList(c.seg_id));
     const two = { ...list, repeatModule: four.repeatModule, candidates: forStep };
-    if (!two.candidates.length) return false;
+      if (!two.candidates.length) return false;
     attempts += 1;
     firstNone = firstNone || v.none;
     try {
