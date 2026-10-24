@@ -576,6 +576,8 @@ async function compute(a, d, state) {
   // no free model clause after the quote, no stub when no move is named
   if (!fallback && language === 'ur' && accepted) {
     said.reason_ur = terms.transcriptLine({ moveId: p.move, answerId: p.answer, quote: accepted, title: hit.segment.title_ur || hit.segment.title_en });
+    // R7k §1d (urdu_terms v2 other_language_line_en): the portal's English line mirrors the same frame, one script after the quote
+    said.reason_en = terms.transcriptLineEn({ moveId: p.move, answerId: p.answer, quote: accepted, title: hit.segment.title_en }) || said.reason_en;
   }
   if (!fallback && (language === 'en' || !select.englishLineOk(said.reason_en))) {
     const other = language === 'en' ? 'ur' : 'en';
