@@ -314,7 +314,8 @@ describe('1d · the Urdu line: the calques, «chorus», Latin terms, punctuation
 });
 
 describe('e · owed silences: a D3 card over a teacher monologue → 50-s2 by the card (Q036 Q083)', () => {
-  const MONO = [T('00:02', 'Teacher', 'کھانے میں کیا ہے؟ ناشتہ، دوپہر کا کھانا، رات کا کھانا، ہم سب یہ کھاتے ہیں، ٹھیک ہے، اب اگلا لفظ پڑھتے ہیں۔')];
+  // R7l §1a: a monologue LESSON (three teacher turns, no child's); one short turn alone is no lesson (r7l.test.js)
+  const MONO = [T('00:02', 'Teacher', 'کھانے میں کیا ہے؟ ناشتہ، دوپہر کا کھانا، رات کا کھانا، ہم سب یہ کھاتے ہیں، ٹھیک ہے، اب اگلا لفظ پڑھتے ہیں۔'), T('00:20', 'Teacher', 'یہ لفظ بورڈ پر لکھا ہے، سب اپنی کاپی میں لکھیں۔'), T('00:40', 'Teacher', 'اب اگلا لفظ دیکھیں اور اس کا مطلب یاد کریں۔')];
   const NO_KID = answer({ seg_id: '50-s2', moment: { at: '00:02', quote: 'کھانے میں کیا ہے؟' }, reason_en: 'The teacher talked alone and no child spoke to another. The clip is about pair talk.' });
   const NONE = { seg_id: null, moment: { at: '', quote: '' }, reason_en: '', reason_ur: '', confidence: 0.3, none_reason: 'no child line' };
   const D3 = 'Next class, give children five minutes to talk to a partner about the words before you read them.';
