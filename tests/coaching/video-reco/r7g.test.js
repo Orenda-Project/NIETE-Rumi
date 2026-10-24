@@ -355,7 +355,8 @@ describe('1d · the tag / card-text leaks (Z063 Z070 Z200 Z165)', () => {
 });
 
 describe('red7 E3: a D3 card over a teacher monologue keeps its 50-s2 card path where D3 is a declared v4 hole', () => {
-  const MONO = [T('00:02', 'Teacher', 'کھانے میں کیا ہے؟ ناشتہ، دوپہر کا کھانا، رات کا کھانا، ہم سب یہ کھاتے ہیں، ٹھیک ہے، اب اگلا لفظ پڑھتے ہیں۔')];
+  // R7l §1a: a monologue LESSON (three teacher turns, no child's); one short turn alone is no lesson (r7l.test.js)
+  const MONO = [T('00:02', 'Teacher', 'کھانے میں کیا ہے؟ ناشتہ، دوپہر کا کھانا، رات کا کھانا، ہم سب یہ کھاتے ہیں، ٹھیک ہے، اب اگلا لفظ پڑھتے ہیں۔'), T('00:20', 'Teacher', 'یہ لفظ بورڈ پر لکھا ہے، سب اپنی کاپی میں لکھیں۔'), T('00:40', 'Teacher', 'اب اگلا لفظ دیکھیں اور اس کا مطلب یاد کریں۔')];
   const D3 = 'Next class, give children five minutes to talk to a partner about the words before you read them.';
   const v4 = (lines) => {
     const a = args({ lines, indicator: 'D3', action: D3, subject: 'urdu' });

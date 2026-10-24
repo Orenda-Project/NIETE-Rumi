@@ -41,6 +41,8 @@ describe('Taleemabad Content Stripping', () => {
         if (file.includes('version-check.js')) continue;
         // Allow registration-data.js which lists Taleemabad as a valid organization
         if (file.includes('registration-data.js')) continue;
+        // Allow video-reco/copy-rules.js: the organisation's name is data there (never a child's name), not copy (red7 163556)
+        if (file.includes('video-reco/copy-rules.js')) continue;
 
         const content = fs.readFileSync(file, 'utf8');
         if (/taleemabad/i.test(content)) {
