@@ -96,7 +96,8 @@ export function LookCard({ card, quizHome, userKey, onGo, className, onDrawn }: 
           </p>
           <h2
             data-testid="home-look-title"
-            className={cn('mt-0.5 font-semibold text-[#333748]', ur ? 'overflow-visible text-[17px]' : 'line-clamp-2 text-[18px] leading-snug')}
+            // A Nastaliq ascender rises above the h2's line box: in Urdu the gap above it is in em, so it grows with the font
+            className={cn(ur ? 'mt-[0.4em]' : 'mt-0.5', 'font-semibold text-[#333748]', ur ? 'overflow-visible text-[17px]' : 'line-clamp-2 text-[18px] leading-snug')}
           >
             {words.title}
           </h2>
@@ -120,7 +121,7 @@ export function LookCard({ card, quizHome, userKey, onGo, className, onDrawn }: 
         data-primary=""
         onClick={() => onGo(kind, words.primary.href)}
         className={cn(
-          'flex w-full min-h-[48px] items-center justify-center whitespace-normal rounded-full bg-[#2e7d57] px-3 text-center text-[16px] font-semibold leading-tight text-white shadow-[0_2px_0_#1e5c3f] rtl:text-[15px]',
+          'flex w-full min-h-[48px] items-center justify-center whitespace-normal rounded-full bg-[#2e7d57] px-3 text-center text-[16px] font-semibold leading-tight text-white shadow-[0_2px_0_#1e5c3f] rtl:py-1.5 rtl:text-[15px]',
           small ? 'mt-2.5' : 'mt-3',
           FOCUS,
         )}

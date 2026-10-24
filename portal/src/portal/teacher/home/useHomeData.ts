@@ -148,19 +148,18 @@ export function useHomeData(on: boolean, orderOn: boolean, userKey?: string | nu
     if (on && orderOn && userKey && !touched.current) setOrder((o) => o ?? recall(userKey));
   }, [on, orderOn, userKey]);
 
-  // A cold open: /me/home starts with /config (the card's switch arrives with it), not after it. Nothing reads it until the
-  // switch is on; a teacher whose card is off gets one answer that nothing draws.
-  const early = useRef<{ userKey: string; read: Promise<HomeData | null> } | null>(null);
+  // This load's one read. A cold open: /me/home starts with /config (the card's switch arrives with it), not after it.
+  // Nothing reads it until the switch is on; a teacher whose card is off gets one answer that nothing draws. The switches
+  // changing again (the order's arriving after a remembered look's) reuse it.
+  const read = useRef<{ userKey: string; answer: Promise<HomeData | null> } | null>(null);
   useEffect(() => {
-    if (userKey && early.current?.userKey !== userKey) early.current = { userKey, read: fetchHome() };
+    if (userKey && read.current?.userKey !== userKey) read.current = { userKey, answer: fetchHome() };
   }, [userKey]);
 
   useEffect(() => {
     if (!on) return undefined;
     let live = true;
-    const mine = early.current?.userKey === userKey ? early.current.read : null;
-    early.current = null;
-    (mine ?? fetchHome()).then((d) => {
+    (read.current?.userKey === userKey && userKey ? read.current.answer : fetchHome()).then((d) => {
       if (!live || !d) return;
       setData(d);
       if (!orderOn || !d.orderOn) return;
