@@ -39,7 +39,7 @@ const FEEDBACK = String((RF.move_frame && RF.move_frame.feedback_variant) || '')
 const FEEDBACK_CLIP = ((((RF.move_frame && RF.move_frame.examples) || []).find((x) => x.includes('شاباش')) || '').match(/یہ کلپ (.+?) دکھاتا ہے/u) || [])[1] || null;
 const clipTerm = (m) => (m.id === 'feedback_two_part' && FEEDBACK_CLIP) || m.ur;
 // a quote that ends in its own mark takes no second one («؟۔», v8 Z108)
-const closeQ = (line) => line.replace(/([؟?!])"([۔.])/gu, '$1"');
+const closeQ = (line) => line.replace(/([؟?!])"([۔.])/gu, '$1"').replace(/([؟?!])\s*[۔.]$/u, '$1'); // …and a title's own mark (H2)
 const kindOf = (m) => m.kind || (ACTIVITY.has(m.id) || m.id === 'feedback_two_part' ? 'move_name' : 'question_type');
 const LINE_MOVES = FRAME_MOVES.filter((m) => ['question_type', 'move_name'].includes(kindOf(m)));
 // the file's truth guards: a closed line is never «کھلا سوال» / «کیوں والا سوال»; «دہرائی» only on a question; the feedback

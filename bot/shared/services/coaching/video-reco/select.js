@@ -541,7 +541,8 @@ function plainFrame(l, segment) {
   const n = segment ? Math.round(Number(segment.end_s) - Number(segment.start_s)) : 0;
   const title = String((segment && ((l === 'ur' && segment.title_ur) || segment.title_en)) || '').trim().replace(/[۔.]$/u, '');
   const line = resolveUx('videoRecoCardFallbackReasonPlain', { language: l, params: { n, title } });
-  return title ? line : line.replace(/:\s*[۔.]$/u, '۔'); // no title: the terms file's alt line (it ends after «دکھاتا ہے»)
+  // a title that ends in its own mark («…آگے کیا ہوگا؟») takes no second one (v8 Z108 «؟۔», red7 055554 H2)
+  return title ? line.replace(/([؟?!])\s*[۔.]$/u, '$1') : line.replace(/:\s*[۔.]$/u, '۔'); // no title: the terms file's alt line (it ends after «دکھاتا ہے»)
 }
 
 /** The card frame for a chapter (the fallback's text, no rule or list gate): {reason_en, reason_ur} | null. */
