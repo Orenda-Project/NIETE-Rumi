@@ -175,7 +175,7 @@ const DROPS = [
  * The card sentence with every comparison that names a child dropped, or null when a child's name (or a placeholder) is
  * still in it. `vocab`/`oovVocab` as redact-names.js; `teacher` is users.name.
  */
-function childFreeCard(sentence, { teacher = null, vocab = [], oovVocab = [], why = null, roster = null } = {}) {
+function childFreeCard(sentence, { teacher = null, vocab = [], oovVocab = [], why = null, roster = null, counts = null } = {}) {
   const s = String(sentence || '');
   const trace = [];
   redactNames(s, { teacher, placeholders: { child: '[a student]' }, vocab, oovVocab, trace });
@@ -212,7 +212,7 @@ function childFreeCard(sentence, { teacher = null, vocab = [], oovVocab = [], wh
     if (unknown && prev && (CUE_BEFORE.has(prev) || childCue)) { nameEnd = at + w.length; return hit(`cue:${prev}`); }
     return unknown && CUE_AFTER.test(all.slice(at + w.length)) ? hit('cue:after') : w;
   });
-  marked = possessives(marked, { own, roster, hit });
+  marked = possessives(marked, { own, roster, hit, counts });
   if (!marked.includes(NAME_MARK)) return s;
   for (const [rx, to] of DROPS) marked = marked.replace(rx, to);
   return marked.includes(NAME_MARK) ? null : marked.replace(/\s{2,}/g, ' ').trim();
@@ -229,12 +229,14 @@ const UR_POSSESSIVE = new RegExp(String.raw`([؀-ۿ]+)(\s+(?:کا|کی|کے)\s+(
 const LAT_POSSESSIVE = /(^|[^\p{L}])([A-Za-z]+)(?=['’]s\b)/gu;
 const DEMONSTRATIVE = new Set('اس ان یہ وہ ہر کس جس جن آپ ہم تم میرا میری میرے ہمارا ہماری ہمارے کسی کوئی ایک دوسرے سب'.split(' '));
 const LAT_NAME = new Set([...LEX.latStrong, ...LEX.latAmbig].map((w) => String(w).toLowerCase()));
-function possessives(marked, { own, roster, hit }) {
+function possessives(marked, { own, roster, hit, counts = null }) {
   const isRoster = (w) => !!roster && roster.has(normUr(String(w).toLowerCase()));
   let out = marked.replace(UR_POSSESSIVE, (m, w, rest) => {
     const n = normUr(w);
-    // a plural oblique («بچوں / شکلوں کے») is never one child
-    if (FUNCTION.has(w) || DEMONSTRATIVE.has(w) || own.has(n) || /(?:وں|ؤں)$/u.test(w) || (UR_KNOWN.has(n) && !LEX.vocab.includes(n) && !UR_NAME.has(n) && !isRoster(w))) return m;
+    // a plural oblique («بچوں / شکلوں کے») is never one child; red7 024934 F: a word the lesson says more than 3 times is the
+    // lesson's own word, not a child, unless the class list has it
+    const lessonWord = !!counts && (counts.get(n) || counts.get(w) || 0) > 3 && !isRoster(w);
+    if (FUNCTION.has(w) || DEMONSTRATIVE.has(w) || own.has(n) || lessonWord || /(?:وں|ؤں)$/u.test(w) || (UR_KNOWN.has(n) && !LEX.vocab.includes(n) && !UR_NAME.has(n) && !isRoster(w))) return m;
     return `${hit('possessive')}${rest}`;
   });
   out = out.replace(LAT_POSSESSIVE, (m, pre, w, at, all) => {
