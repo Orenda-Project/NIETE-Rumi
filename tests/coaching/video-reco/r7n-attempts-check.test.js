@@ -61,6 +61,10 @@ describe('store.write sends only what the attempts CHECK allows', () => {
     expect(upserted()[0].candidates).toEqual(candidates);
     expect(passesCheck(upserted()[0])).toBe(true);
   });
+  test.each([[{ coaching_session_id: 's1', user_id: null }], [{ coaching_session_id: null, user_id: 'u1' }]])('NOT NULL ids: %p is refused before the DB, with one warn', async (ids) => {
+    expect(await S.write({ ...ids, status: 'none', arm: 'video' })).toBeNull();
+    expect(upserted()).toHaveLength(0);
+  });
   test('a row with no attempts key (the error row) is sent unchanged', async () => {
     const row = { coaching_session_id: 's1', user_id: 'u1', status: 'error', none_reason: 'error:Error' };
     await S.write(row);

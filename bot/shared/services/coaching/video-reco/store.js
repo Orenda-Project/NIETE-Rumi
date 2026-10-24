@@ -151,6 +151,8 @@ function tableRow(row) {
 
 async function write(row) {
   try {
+    // R7n (COS 192920 §2): both are NOT NULL; coaching_sessions.user_id is nullable, so name it rather than send a 23502
+    if (!row || !row.coaching_session_id || !row.user_id) throw new Error('missing coaching_session_id or user_id');
     const { data, error } = await supabase.from(TABLE).upsert(tableRow(row), { onConflict: 'coaching_session_id' }).select('*').single();
     if (error) throw error;
     return data || null;
