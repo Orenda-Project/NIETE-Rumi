@@ -242,6 +242,16 @@ describe('1b · Urdu at the source: the approved word for each move, in the prom
     const bad = await run(args({ lang: 'en', card: null }), deps([answer({ reason_ur: 'استاد ہر بار ہاں یا نہیں والے سوال پوچھ رہے ہیں؛ یہ کلپ کیوں کے سوال سمجھاتا ہے۔' })]));
     expect(bad.reason_ur).toContain(UR_PLAIN);
   });
+  test('red7 G2: an ur-report teacher\'s English line (the portal\'s) with an article slip («asked a questions») → the card frame', async () => {
+    const row = await run(args({ lang: 'ur' }), deps([answer({ reason_en: 'In the lesson the teacher asked a questions "Is this a triangle? Yes or no?" and the class answered in one word. The clip explains asking why.' })]));
+    expect(row).toMatchObject({ status: 'shown', moment_source: 'transcript' });
+    expect(row.reason_en).toContain('Next class, ask two why questions about shapes'); // an English card: quoted in the English line
+    expect(row.reason_en).not.toContain('a questions');
+  });
+  test('control: an ur-report teacher\'s checked English line stays the model\'s', async () => {
+    const row = await run(args({ lang: 'ur' }), deps([answer()]));
+    expect(row.reason_en).toMatch(/^The class could only answer yes or no/);
+  });
   test('control: an ur-report teacher\'s Urdu line is the model\'s, with the word table applied', async () => {
     const row = await run(args({ lang: 'ur' }), deps([answer()]));
     expect(row.reason_ur).toContain('کلاس صرف');
@@ -326,6 +336,28 @@ describe('1d · the tag / card-text leaks (Z063 Z070 Z200 Z165)', () => {
     const listed = (st) => SL().textRoute(C.fromData(DATA), st, ctx, lesson, [], 'card_text').map((c) => c.seg_id);
     expect(listed(step)).not.toContain('95-s3');
     expect(listed({ ...step, indicator: 'C1' })).toContain('95-s3'); // control: a questioning card keeps it
+  });
+});
+
+describe('red7 E3: a D3 card over a teacher monologue keeps its 50-s2 card path where D3 is a declared v4 hole', () => {
+  const MONO = [T('00:02', 'Teacher', 'کھانے میں کیا ہے؟ ناشتہ، دوپہر کا کھانا، رات کا کھانا، ہم سب یہ کھاتے ہیں، ٹھیک ہے، اب اگلا لفظ پڑھتے ہیں۔')];
+  const D3 = 'Next class, give children five minutes to talk to a partner about the words before you read them.';
+  const v4 = (lines) => {
+    const a = args({ lines, indicator: 'D3', action: D3, subject: 'urdu' });
+    delete a.analysis.indicator_scheme;
+    a.analysis.domains = { D: { indicators: [{ id: 'D3', name: 'Student-to-Student Interaction', score: 1, applicable: true, evidence: 'x', timestamp: '[00:02]' }] } };
+    return a;
+  };
+  const HOLE = { ...DATA, holes: ['D3'] };
+  test('no route (D3 is a hole), no model call: the card sentence on 50-s2', async () => {
+    const d = deps([], HOLE);
+    const row = await run(v4(MONO), d);
+    expect(row).toMatchObject({ status: 'shown', seg_id: '50-s2', moment_source: 'card' });
+    expect(d.completeJson).not.toHaveBeenCalled();
+  });
+  test('control: the same hole card on a lesson where children speak stays silent (no route)', async () => {
+    const row = await run(v4(CLASS), deps([], HOLE));
+    expect(row).toMatchObject({ status: 'none', none_reason: 'hole' });
   });
 });
 
