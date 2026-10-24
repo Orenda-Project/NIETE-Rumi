@@ -276,7 +276,10 @@ function validate(p, shortlist, excerpts, opts) {
     // no moment. Not a fallback rule: the retry may find a real one, else the none stands (Q063, Q170 → silence, as ruled). Before every
     // reason rule, so a routine line is never rescued by the fallback a reason fault would allow.
     // R7j (COS 022905 §2/§5; panel v7 Z282 Z043 Z379 Z267): a greeting, page call, filler or echo falls back to the card frame
-    if (routineLine(storedQuote(quote), { topic })) return bad(cardRoutine(storedQuote(quote)) ? 'routine' : 'not_moment');
+    // red7 061530 R1 (Z180 Z143): a line only the R7k card-frame classes made routine (an announcement + «ٹھیک ہے؟») falls back too
+    if (routineLine(storedQuote(quote), { topic })) {
+      return bad(cardRoutine(storedQuote(quote)) || !routineLine(storedQuote(quote), { topic, extra: false }) ? 'routine' : 'not_moment');
+    }
     // R7g (COS 002603 1a; panel Z199 ⛔2, Z025 right): a subject label let through for its open-question sentence answers a
     // closed question; any other cited line (a page announcement, a why already asked) is no moment for it
     if (labelClosed && !closedQuestion(storedQuote(quote))) return bad('not_moment');
