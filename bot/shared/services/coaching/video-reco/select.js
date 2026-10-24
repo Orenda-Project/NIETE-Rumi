@@ -617,8 +617,9 @@ function cardFrame({ sentence, startS, endS, language, teacherName, module, subj
     if (!s || rosterIn(s, roster)) return plainIfNamed ? plain() : null; // R7d (Q086): a roster name in any position, a quoted title included
     // R7o-a (COS 194233 §1; panel v10 Z044/Z054 ⛔9): the sentence as it will be quoted passes the excerpts' own STRICT
     // redactor (prompt.redact's context); postRedact above is non-strict, so an unknown word naming a child inside an Urdu
-    // card («…کرائیں: X 1 منٹ…», 'oov') reached the quote. Any word it masks → the plain frame, never the quote.
-    if (strictNamed(s, { teacher: teacherName, vocab, oovVocab, counts })) return plainIfNamed ? plain() : null;
+    // card («…کرائیں: X 1 منٹ…», 'oov') reached the quote. Any word it masks → the plain frame, never the quote: on every
+    // path, plainIfNamed or not (the quote is what is unsafe, not the clip; a null here dropped 5 gold picks)
+    if (strictNamed(s, { teacher: teacherName, vocab, oovVocab, counts })) return plain();
     s = singleQuotes(s).replace(/^[a-z]/, (c) => c.toUpperCase()); // P109: no lower-case start after the strip
     // bd-8hhqhf: a long card sentence is trimmed to fit, in each language (session 077b8021: 224 cp → 308 cp composed in
     // ur, and no clip was sent). The teacher's language must fit; the other one is trimmed when it can be and otherwise

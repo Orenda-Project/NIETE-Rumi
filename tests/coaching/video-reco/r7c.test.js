@@ -387,8 +387,10 @@ describe('red7 HOLD 174103 on 6c7c480f8b (H1–H6) and notes N2/N4/N5', () => {
 
   test('controls: Title-case terms and an Urdu verb after «بچہ» keep the fallback (N1)', () => {
     // R7o-a (COS 201132, fail closed): unknown Title-case words («Interaction», «Technology») are masked by the strict
-    // redactor, so that card no longer carries the fallback; known terms do
-    expect(fb('Next class, use Student-to-Student Interaction and the Use of Technology: ask why after each answer.')).toBeNull();
+    // redactor, so that card keeps the fallback as the plain frame, not quoted; known terms are still quoted
+    const tc = fb('Next class, use Student-to-Student Interaction and the Use of Technology: ask why after each answer.');
+    expect(tc).not.toBeNull();
+    expect(tc.reason_en).not.toContain('Interaction');
     expect(fb('Next class, use think-pair-share: ask why after each answer and wait five seconds.')).not.toBeNull();
     expect(fb('اگلی کلاس میں جو بچہ رک جائے اس کی مدد کریں اور کیوں پوچھیں۔', 'ur')).not.toBeNull();
   });

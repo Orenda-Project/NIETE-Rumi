@@ -53,8 +53,10 @@ describe('1. the quoted card sentence passes the strict redactor, or the plain f
     const out = frame(make(nm));
     if (out) expect(`${out.reason_ur} ${out.reason_en}`).not.toContain(nm);
   });
-  test('without plainIfNamed (the LLM-path fallback): no clip rather than a quoted name', () => {
-    expect(frame("ایک مثال بورڈ پر حل کریں، پھر 'Think-Pair-Share' کرائیں: زونی 1 منٹ جوڑوں میں بیان کرے۔", { plainIfNamed: false })).toBeNull();
+  test('without plainIfNamed (the LLM-path / fixed-path fallback): the plain frame, never a quoted name, and the clip still goes', () => {
+    const out = frame("ایک مثال بورڈ پر حل کریں، پھر 'Think-Pair-Share' کرائیں: زونی 1 منٹ جوڑوں میں بیان کرے۔", { plainIfNamed: false });
+    expect(out).not.toBeNull();
+    expect(`${out.reason_ur} ${out.reason_en}`).not.toContain('زونی');
   });
   test('control: the same card with no name is still quoted', () => {
     const out = frame("ایک مثال بورڈ پر حل کریں، پھر 'Think-Pair-Share' کرائیں: ہر جوڑی 1 منٹ بیان کرے۔");
