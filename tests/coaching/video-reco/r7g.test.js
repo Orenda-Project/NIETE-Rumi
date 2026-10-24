@@ -283,6 +283,17 @@ describe('1c · the card frame says "this clip shows one way to do it" only on a
     expect(row.seg_id || null).not.toBe('51-s1');
     expect(row.status).toBe('none');
   });
+  test('a wait-time card whose model chapter already is 51-s1 keeps the card frame on 51-s1 (the rescue chapter itself)', async () => {
+    const WAIT_ONLY = 'Next class, after each yes/no question, wait five seconds so the child thinks before answering.';
+    const row = await run(cardText(WAIT_ONLY), deps([SHORT('51-s1'), SHORT('51-s1')]));
+    expect(row).toMatchObject({ status: 'shown', seg_id: '51-s1', moment_source: 'card' });
+  });
+  test('red7 G5: a think-pair-share card that names seconds of thinking is not a wait-time card', () => {
+    const SI = require('../../../bot/shared/services/coaching/video-reco/silence');
+    expect(SI.whyWaitCard('سوچو، جوڑی بناؤ، بتاؤ: ہر بچہ دس سیکنڈ سوچے، ساتھی کو بتائے، پھر دو جوڑیاں کلاس کو بتائیں۔')).toBe(false);
+    expect(SI.whyWaitCard('ہر سوال کے بعد 8–10 سیکنڈ انتظار کریں۔')).toBe(true);
+    expect(SI.whyWaitCard('Ask the question, then pause 8–10 seconds.')).toBe(true);
+  });
   test('control: a think-pair-share card keeps its card frame on 50-s2', async () => {
     const row = await run(cardText(TPS), deps([SHORT('50-s2'), SHORT('50-s2')]));
     expect(row).toMatchObject({ status: 'shown', seg_id: '50-s2', moment_source: 'card' });
