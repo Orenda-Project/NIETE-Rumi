@@ -11,7 +11,7 @@ const { fallbackSubjectOk } = require('./shortlist');
 const { stripBidi } = require('./copy');
 const CONTENT_TERMS = require('./content-terms');
 const LEX = require('./name-lexicon');
-const { cardRoutine, childTurnNear, imperative, routineLine, echoReading, notTeaching, isClosure, earlyForClosure, levelsNear } = require('./silence');
+const { cardRoutine, childTurnNear, imperative, routineLine, echoReading, notTeaching, isClosure, earlyForClosure, levelsNear, KID } = require('./silence');
 const { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, sceneClaim, recallMislabel, pointerNoLine, recallLeft, namesGap, notGapLine, auditWords, closedQuestion, urduSlip } = require('./copy-rules');
 
 const JOB = 'coaching.videoReco';
@@ -289,6 +289,12 @@ function validate(p, shortlist, excerpts, opts) {
     const whole = Array.isArray(full) && full.length ? full : null;
     const at = whole ? quoteLine(quote, whole) : -1;
     if (whole && notTeaching(whole, at)) return { ...bad('not_moment'), lessonless: true };
+    // R7k (COS 044233 §1b; panel v8 Z199 Z129 ⛔2, Z255): a line a student says (a child counting stand-ups, an aside about
+    // the recording), or one said before any child has spoken, is no teaching moment; the card frame carries the lesson
+    // (the line stamped with moment.at when it holds the quote: a fuzzy match can land on an earlier line that says the same)
+    const stamped = whole ? whole.findIndex((l) => l.startsWith(`[${String(p.moment.at).trim()}]`) && quoteFound(quote, [l])) : -1;
+    const own = stamped >= 0 ? stamped : at;
+    if (whole && own >= 0 && (KID.test(whole[own]) || own < whole.findIndex((l) => KID.test(l)))) return bad('routine');
     // R7e (panel §6.2: Q117 Q136 Q197): a closure chapter on a line from the first two thirds of the lesson. Not routine:
     // the retry may find a late line, else the card fallback carries the closure card
     const picked = catalog && catalog.segment(cand.seg_id);
