@@ -16,6 +16,7 @@
  *        vocab: [the lesson's subject terms] (bd-8hhqhf) — they shield only the unknown-word rules (an unknown word
  *        in an address slot, the vocabulary rule), never a lexicon name (red7 070504, COS 070543);
  *        oovVocab: [the lesson's topic words] — they shield the vocabulary rule only;
+ *        counts: Map(normalised word → its occurrences in the whole lesson), for the position rule's guard;
  *        trace: an array that receives {word, rep, why} for every masked word, why = the rule that masked it }. Over-redaction is the safe direction: a word wrongly
  * replaced costs quote fidelity; a name let through puts a child's name in a forwardable WhatsApp message.
  */
@@ -111,7 +112,51 @@ function redactNames(text, ctx = {}) {
     out += s.slice(at, m.index) + (rep || w);
     at = m.index + w.length;
   });
-  return out + s.slice(at);
+  return coordinated(out + s.slice(at), ph.child, { vocab, oovVocab, counts: ctx.counts, trace });
 }
 
-module.exports = { redactNames, ROLE_STOP };
+// red7 20261024T013349 (S3 S5, COS 003908; scale-run name_neighbours.js): a name that is also a dictionary or vocabulary word
+// survives every rule above when it is coordinated with, or listed beside, a name already masked: «X اور ‹p›»,
+// «‹p›، ‹p› اور X», «‹p›، X، …». By its POSITION it is a name too, strict or not. A word of the lesson said more than
+// COORD_MAX_REPEAT times is lesson content; function words, role words and the lesson's own terms are never taken.
+const COORD_MAX_REPEAT = 3;
+const COORD_STOP = new Set(('اور یا کو کے کی کا نے سے میں پر بھی تو جی ہاں نہیں آپ ہم یہ وہ اب پھر سب بچے بچو بچوں بیٹا بیٹی شاباش '
+  + 'چلیں اچھا ٹھیک بالکل جلدی آئیں بیٹھیں کھڑے کھڑی ہو گا گی گے ہیں ہے تھا تھی جو کیا کون کہاں کیسے ایک دو تین تینوں دونوں '
+  + 'باقی سارے ساری the and good very yes no you ok okay all both others everyone').split(' '));
+const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function coordinated(text, child, { vocab, oovVocab, counts, trace }) {
+  // each placeholder once: a repeated alternative ('[a student]' is also the child placeholder) made «(?:[\s،,]+P)*» backtrack
+  // exponentially on a long run of masked names (v6 3456b11c hung)
+  const P = `(?:${[...new Set([child, '[a student]', '[CHILD]', '‹name›'])].map(esc).join('|')})`;
+  const W = '((?:(?=\\p{Script=Arabic})[\\p{L}\\p{M}]){2,}|[A-Z][a-z]{2,})';
+  const rules = [
+    new RegExp(`${P}(?:[\\s،,]+${P})*\\s+(?:اور|and)\\s+${W}(?=[\\s،,۔.!؟?]|$)`, 'gu'), // ‹p› اور X
+    new RegExp(`${P}\\s*[،,]\\s*${W}(?=\\s*(?:[،,]|اور\\s|and\\s))`, 'gu'), // ‹p›، X، (a list)
+    new RegExp(`(?:^|[\\s“"«:])${W}\\s+(?:اور|and)\\s+${P}`, 'gu'), // X اور ‹p›
+  ];
+  let out = text;
+  for (let pass = 0; pass < 3; pass++) { // a list gives up one name per pass
+    let changed = false;
+    for (const rx of rules) {
+      out = out.replace(rx, (m, w) => {
+        const n = norm(w);
+        if (!w || COORD_STOP.has(n) || ROLE_STOP.has(n) || SETS.urCommon.has(n) || SETS.latCommon.has(n) || vocab.has(n) || oovVocab.has(n)
+          || GOD_NAME.has(n) || HONOR_AFTER.has(n) || (counts && (counts.get(n) || 0) > COORD_MAX_REPEAT)) return m;
+        changed = true;
+        if (trace) trace.push({ word: w, rep: child, why: 'coord' });
+        return m.replace(new RegExp(`(?<![\\p{L}])${esc(w)}(?![\\p{L}])`, 'u'), child);
+      });
+    }
+    if (!changed) break;
+  }
+  return out;
+}
+
+/** The lesson's word counts for the position rule's guard (normalised as the redactor reads words). */
+function wordCounts(lines) {
+  const c = new Map();
+  for (const l of lines || []) for (const w of String(l).match(WORD) || []) { const n = norm(w); c.set(n, (c.get(n) || 0) + 1); }
+  return c;
+}
+
+module.exports = { redactNames, wordCounts, ROLE_STOP };
