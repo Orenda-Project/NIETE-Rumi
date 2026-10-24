@@ -22,7 +22,7 @@ const silence = require('./silence');
 const { composeReason, stripBidi } = require('./copy');
 const { leadingVocative, vocativeNames, relabelRecall } = require('./copy-rules');
 const terms = require('./urdu-terms');
-const { wordCounts, maskedKeys, nameKey, guarded, scrubNames } = require('./redact-names');
+const { wordCounts, maskedKeys, nameKey, guarded, scrubNames, vocativeKeys } = require('./redact-names');
 
 const ENGINE_TIMEOUT_MS = 60000; // the LLM call is capped at 45 s (select.js); the sender awaits this after the report has gone
 const RETRY_MIN_LEFT_MS = 20000; // v1.3b: the one validation retry runs only with ≥ 20 s of the engine budget left
@@ -518,6 +518,10 @@ async function compute(a, d, state) {
   const quoteMasks = new Map();
   for (const x of quoteTrace) if (x.rep === '[a student]' && x.why !== 'oov') quoteMasks.set(nameKey(x.word), (quoteMasks.get(nameKey(x.word)) || 0) + 1);
   for (const k of guarded(quoteMasks, people.counts)) names.add(k);
+  // R7k (COS 044233 §1c; panel v8 Z377 ⛔9): a word in vocative position that the lesson says 3 times or fewer, fail closed
+  for (const x of [p.moment && p.moment.quote, said.reason_en, said.reason_ur]) {
+    for (const k of vocativeKeys(stripBidi(String(x || '')), { counts: people.counts, vocab: [...vocab, ...oovVocab] })) names.add(k);
+  }
   const gate = (x) => scrubNames(x, names);
   const accepted = quoted ? gate(quoted) : null;
   // R7g (COS 002603 1b; panel v6: card frame 94.3% Urdu-ok, model-written 66.0%): an English reader's Urdu line (the portal's)
