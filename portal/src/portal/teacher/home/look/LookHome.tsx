@@ -1,4 +1,4 @@
-import { useCallback, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../../../hooks/useAuth';
 import TeacherPage from '../../TeacherPage';
@@ -27,6 +27,30 @@ import { FeatureRows } from './FeatureRows';
 const CLIMB = 'relative z-[1] first:-mt-8';
 /** With no climber the band ends short, and the first block (the question, or the rows while loading) starts 16 px under it. */
 const UNDER = 'first:-mt-3 first:pt-2';
+
+/**
+ * The card's slot while /me/home loads: the last drawn card's height for this teacher (`teacher-home-slot:v1:<key>`), so a
+ * warm open holds the card's place and the rows never move under a finger. Written after a card draws, removed on a
+ * no-card answer; no memory, no slot. A slot that is never answered (a failed read) goes after SLOT_MAX_MS.
+ */
+export const SLOT_MAX_MS = 4000;
+const slotKey = (userKey: string) => `teacher-home-slot:v1:${userKey}`;
+
+function readSlot(userKey?: string | null): number | null {
+  if (!userKey) return null;
+  try {
+    const h = Number(localStorage.getItem(slotKey(userKey)));
+    return Number.isFinite(h) && h > 0 ? Math.round(h) : null;
+  } catch { return null; }
+}
+
+function writeSlot(userKey: string | null | undefined, height: number | null): void {
+  if (!userKey) return;
+  try {
+    if (height) localStorage.setItem(slotKey(userKey), String(Math.round(height)));
+    else localStorage.removeItem(slotKey(userKey));
+  } catch { /* no store: no slot next time */ }
+}
 
 export type LookTile = { key: HomeTileKey; art: AnyFeature };
 
@@ -58,9 +82,23 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
   // The card that the lesson's cool-down left out on this load: the day reads as a no-card day (the question, not the label).
   const [hiddenId, setHiddenId] = useState<string | null>(null);
   const cardId = drawn ? `${drawn.kind}:${drawn.id ?? ''}` : null;
-  const onDrawn = useCallback((shown: boolean) => setHiddenId(shown ? null : cardId), [cardId]);
+  const key = user?.phoneNumber;
+  const onDrawn = useCallback((shown: boolean, height: number) => {
+    setHiddenId(shown ? null : cardId);
+    writeSlot(key, shown && height > 0 ? height : null);
+  }, [cardId, key]);
   const cardDay = !!drawn && hiddenId !== cardId;
-  const climb = cardDay || chips.length > 0;
+  // A no-card answer (or a full card yielding to the tray): nothing to hold next time.
+  useEffect(() => { if (data && !drawn) writeSlot(key, null); }, [data, drawn, key]);
+  const remembered = useMemo(() => readSlot(key), [key]);
+  const [slotGone, setSlotGone] = useState(false);
+  const slot = !data && !slotGone ? remembered : null;
+  useEffect(() => {
+    if (!slot) return undefined;
+    const t = setTimeout(() => setSlotGone(true), SLOT_MAX_MS);
+    return () => clearTimeout(t);
+  }, [slot]);
+  const climb = !!slot || cardDay || chips.length > 0;
 
   return (
     <TeacherPage
@@ -68,6 +106,7 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
       hero={<HomeBand title={C.home.greeting(fullName(user))} name={fullName(user)} now={new Date()} school={cleanSchool(user?.schoolName)} climb={climb} />}
     >
       {user?.phoneNumber && <ReadyForYou userKey={user.phoneNumber} />}
+      {slot ? <div data-testid="home-look-slot" aria-hidden="true" className={cn(CLIMB, 'rounded-[20px] bg-white')} style={{ minHeight: slot }} /> : null}
       {drawn ? (
         <LookCard card={drawn} quizHome={data?.quizHome ?? null} userKey={user?.phoneNumber} onGo={onGo} onDrawn={onDrawn} className={CLIMB} />
       ) : null}

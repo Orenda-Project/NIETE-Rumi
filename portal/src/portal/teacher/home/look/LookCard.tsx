@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { AudioLines, BookOpen, ChevronRight, Eye, ListChecks, Users, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { latinDir, useLatinAttrs } from '@/lib/textDir';
@@ -52,8 +52,8 @@ export interface LookCardProps {
   userKey?: string | null;
   onGo: (kind: TapKind, href: string) => void;
   className?: string;
-  /** Told once whether the card is drawn on this load (the lesson's cool-down may leave it out). */
-  onDrawn?: (drawn: boolean) => void;
+  /** Told whether the card is drawn on this load (the lesson's cool-down may leave it out), and its height when it is. */
+  onDrawn?: (drawn: boolean, height: number) => void;
 }
 
 export function LookCard({ card, quizHome, userKey, onGo, className, onDrawn }: LookCardProps) {
@@ -62,7 +62,8 @@ export function LookCard({ card, quizHome, userKey, onGo, className, onDrawn }: 
   const ltrOf = useLatinAttrs();
   const draw = useCoolDown(card, userKey);
   const drawn = draw && LOOK_KINDS.includes(card.kind);
-  useEffect(() => { onDrawn?.(drawn); }, [drawn, onDrawn]);
+  const box = useRef<HTMLElement>(null);
+  useEffect(() => { onDrawn?.(drawn, box.current?.offsetHeight ?? 0); }, [drawn, onDrawn]);
   if (!drawn) return null;
 
   const ur = lang === 'ur';
@@ -76,6 +77,7 @@ export function LookCard({ card, quizHome, userKey, onGo, className, onDrawn }: 
 
   return (
     <section
+      ref={box}
       data-testid="home-look-card"
       data-home-card={kind}
       data-kind={kind}

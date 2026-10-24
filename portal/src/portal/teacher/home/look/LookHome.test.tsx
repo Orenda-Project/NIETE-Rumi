@@ -235,5 +235,55 @@ describe("teacher Home, the new look", () => {
     expect(cls("home-band")).toContain("pb-[8px]");
     for (const c of ["first:-mt-3", "first:pt-2"]) expect(cls("feature-tiles")).toContain(c);
   });
+
+  describe("the card's slot while /me/home loads (no layout jump on a warm open)", () => {
+    const SLOT = `teacher-home-slot:v1:${TEACHER.phoneNumber}`;
+    const pending = () => {
+      let answer!: (v: unknown) => void;
+      vi.mocked(portal.getConfig).mockResolvedValue({ features: LOOK } as never);
+      vi.mocked(api.get).mockImplementation(((url: string) => {
+        if (url === "/me/home") return new Promise((r) => { answer = r; });
+        return Promise.resolve({ data: { success: true, items: [] } });
+      }) as never);
+      return (v: unknown) => answer(v);
+    };
+
+    it("a remembered card height: a skeleton of that height climbs into the band, then the card replaces it", async () => {
+      localStorage.setItem(SLOT, "184");
+      const answer = pending();
+      renderHome();
+      const slot = await screen.findByTestId("home-look-slot");
+      expect(slot.getAttribute("aria-hidden")).toBe("true");
+      expect(slot.style.minHeight).toBe("184px");
+      for (const c of ["first:-mt-8", "relative", "z-[1]"]) expect(slot.className.split(" ")).toContain(c);
+      expect(screen.getByTestId("home-band").className.split(" ")).toContain("pb-[30px]");
+      answer({ data: body({ card: COACH_CARD }) });
+      await screen.findByTestId("home-look-card");
+      expect(screen.queryByTestId("home-look-slot")).toBeNull();
+    });
+
+    it("no memory: no skeleton", async () => {
+      pending();
+      renderHome();
+      await screen.findByTestId("home-band");
+      await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalledWith("/me/home"));
+      expect(screen.queryByTestId("home-look-slot")).toBeNull();
+    });
+
+    it("a drawn card remembers its height; a no-card answer forgets it", async () => {
+      const h = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(196);
+      serve({ home: body({ card: COACH_CARD }) });
+      const a = renderHome();
+      await screen.findByTestId("home-look-card");
+      await waitFor(() => expect(localStorage.getItem(SLOT)).toBe("196"));
+      h.mockRestore();
+      a.unmount();
+      resetHomeMemo();
+      serve({ home: body() });
+      renderHome();
+      await screen.findByTestId("home-look-ask");
+      await waitFor(() => expect(localStorage.getItem(SLOT)).toBeNull());
+    });
+  });
 });
 
