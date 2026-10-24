@@ -12,7 +12,7 @@
 const { logToFile } = require('../../../utils/logger');
 const { getCurrentCorrelationId } = require('../../../utils/structured-logger');
 const { clampLanguage, resolveUx } = require('../../../config/ux-strings');
-const { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist } = require('./flags');
+const { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason } = require('./flags');
 const { assignArm, AB_SALT } = require('./arm');
 const target = require('./target');
 const shortlist = require('./shortlist');
@@ -333,6 +333,29 @@ async function compute(a, d, state) {
       withLlm: { ...base, candidates: fixed.list.candidates, repeat_module: !!fixed.list.repeatModule, attempts: 0, first_none_reason: 'validation:no_child_turn', ...lessonLanguage } });
   }
   if (!list.candidates.length) return finish({ ...base, status: 'none', none_reason: list.noneReason || 'hole' });
+  // R7k (COS 044233 §1a): VIDEO_RECO_REASON=card — no model call. The shortlist's first chapter whose move the card names
+  // carries the card frame (the fallback's own gates), else 51-s1 on a why / wait card, else silence. Unset = today.
+  if (videoRecoReason(d.env) === 'card') {
+    const sentence = (card && card.action) || step.try || fa.try_this_tomorrow || '';
+    const cardOnly = (said, segId, l) => emit({ res: { pick: { seg_id: segId }, model: null, usage: {} }, pickList: l, fallback: said, v: { ok: false, none: null },
+      withLlm: { ...base, candidates: l.candidates, repeat_module: !!l.repeatModule, attempts: 0, first_none_reason: 'card_mode', ...lessonLanguage } });
+    const silent = () => finish({ ...base, status: 'none', none_reason: 'card_mode:no_frame', candidates: list.candidates });
+    if (!sentence || silence.testPeriod(lines) || cardInd === 'B6' || silence.levelsCard(cardSentence)) return silent();
+    for (const c of list.candidates) {
+      const hit = c.route !== 'step_text' && !offList(c.seg_id) && catalog.segment(c.seg_id);
+      if (!hit || !select.cardMoveOk(sentence, hit.segment)) continue;
+      const said = select.cardFrame({ // the frame itself: cardFallback's gate is for a refused model answer, and there is none
+        sentence, startS: hit.segment.start_s, endS: hit.segment.end_s, teacherName: people.teacher, module: hit.module,
+        subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster, rosterRaw: people.rosterRaw, counts: people.counts,
+        plainIfNamed: select.cardMoveOk(sentence, hit.segment, { strict: true }),
+      });
+      if (said) return cardOnly(said, c.seg_id, list);
+    }
+    const why = silence.whyWaitCard(sentence) && catalog.segment(WHY_SWAP_CHAPTER);
+    if (!why || (MOVE_REASONS.has(list.textReason) && tagMismatch(t, why.segment) === true)) return silent();
+    const fixed = fixedFallback([WHY_SWAP_CHAPTER], 'validation:no_gap', 'enacted'); // a rule cardFallback takes
+    return fixed ? cardOnly(fixed.said, fixed.segId, fixed.list) : silent();
+  }
   const promptArgs = {
     target: t.none ? { ...t, indicator: t.storedIndicator } : t, // unknown 37-id: the prompt names the id the report scored
     // Names never reach the model: the card's action opens with the teacher's name in prod; the rationale is free text.
