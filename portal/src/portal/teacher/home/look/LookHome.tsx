@@ -62,7 +62,8 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
         <LookCard card={drawn} quizHome={data?.quizHome ?? null} userKey={user?.phoneNumber} onGo={onGo} onDrawn={onDrawn} className="first:-mt-5" />
       ) : null}
       {data && chips.length ? <LookScores scores={data.scores} cardKind={drawn?.kind ?? null} onGo={onGo} className="first:-mt-5" /> : null}
-      {cardDay ? (
+      {/* Neither line until /me/home answers: a question that the card then replaces would be read and taken away. */}
+      {!data ? null : cardDay ? (
         <p data-testid="home-look-all" className="mt-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#636878] rtl:text-[13px] rtl:normal-case rtl:tracking-normal">
           {H.look.all}
         </p>

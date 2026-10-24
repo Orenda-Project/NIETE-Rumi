@@ -182,4 +182,22 @@ describe("teacher Home, the new look", () => {
     expect(screen.queryByTestId("home-look-card")).toBeNull();
     expect(screen.queryByTestId("home-look-all")).toBeNull();
   });
+
+  it("while /me/home loads: the band and the rows only (no question, no section label), then the question once it answers", async () => {
+    let answer!: (v: unknown) => void;
+    vi.mocked(portal.getConfig).mockResolvedValue({ features: LOOK } as never);
+    vi.mocked(api.get).mockImplementation(((url: string) => {
+      if (url === "/me/home") return new Promise((r) => { answer = r; });
+      return Promise.resolve({ data: { success: true, items: [] } });
+    }) as never);
+    renderHome();
+    await screen.findByTestId("home-band");
+    await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalledWith("/me/home"));
+    expect(screen.getByTestId("feature-tiles")).toBeTruthy();
+    expect(screen.queryByTestId("home-look-ask")).toBeNull();
+    expect(screen.queryByTestId("home-look-all")).toBeNull();
+    answer({ data: body() });
+    expect(await screen.findByTestId("home-look-ask")).toBeTruthy();
+  });
 });
+
