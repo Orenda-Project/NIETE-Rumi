@@ -161,4 +161,25 @@ describe("teacher Home, the new look", () => {
     renderHome();
     expect(screen.getByTestId("home-band")).toBeTruthy();
   });
+
+  it("the rows are the look's 2-up rows: 8 [data-row] links, each to its feature", async () => {
+    serve({ home: body() });
+    renderHome();
+    await screen.findByTestId("home-band");
+    const drawn = Array.from(screen.getByTestId("feature-tiles").querySelectorAll("[data-row]"));
+    expect(drawn.map((a) => a.getAttribute("data-row"))).toEqual(FIXED);
+    expect(drawn.map((a) => a.getAttribute("href"))).toEqual(FIXED.map((k) => teacherPath(k as TeacherFeature)));
+  });
+
+  it("a lesson card left out by its cool-down: the day reads as a no-card day (the question, no section label)", async () => {
+    localStorage.setItem(`teacher-home-card:v1:${TEACHER.phoneNumber}`, JSON.stringify({ [LESSON_CARD.id]: 3 }));
+    serve({ home: body({ card: LESSON_CARD }) });
+    renderHome();
+    await screen.findByTestId("home-band");
+    await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalledWith("/me/home"));
+    await new Promise((r) => setTimeout(r, 0));
+    await waitFor(() => expect(screen.getByTestId("home-look-ask")).toBeTruthy());
+    expect(screen.queryByTestId("home-look-card")).toBeNull();
+    expect(screen.queryByTestId("home-look-all")).toBeNull();
+  });
 });

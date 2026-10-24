@@ -200,6 +200,15 @@ describe("useHomeSwitches — the look (portal_teacher_home_look)", () => {
     get.mockRestore();
   });
 
+  it("a user key that arrives after the first render still starts from the remembered look", async () => {
+    localStorage.setItem("teacher-home-look:v1:k", "1");
+    vi.mocked(readConfigShared).mockReturnValue(new Promise(() => {}));
+    const { result, rerender } = renderHook(({ key }: { key?: string }) => useHomeSwitches(key), { initialProps: {} as { key?: string } });
+    expect(result.current.look).toBe(false);
+    rerender({ key: "k" });
+    await waitFor(() => expect(result.current).toEqual({ card: true, order: false, look: true }));
+  });
+
   it("no user key: no memory read or written", async () => {
     vi.mocked(readConfigShared).mockResolvedValue({ features: { teacherHomeCard: true, teacherHomeLook: true } } as never);
     const { result } = renderHook(() => useHomeSwitches());

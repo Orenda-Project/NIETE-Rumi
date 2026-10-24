@@ -38,6 +38,13 @@ describe("TeacherNavigation — look OFF is today's bar", () => {
     expect(cls.slice(1)).toEqual([TODAY_OFF, TODAY_OFF, TODAY_OFF, TODAY_OFF]);
   });
 
+  it("the bar keeps today's side padding", async () => {
+    vi.mocked(readConfigShared).mockResolvedValue(config(false));
+    at();
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getByTestId("teacher-nav").className.split(" ")).toContain("px-1");
+  });
+
   it("an unreadable config is today's bar too", async () => {
     vi.mocked(readConfigShared).mockRejectedValue(new Error("down"));
     at();
@@ -52,6 +59,14 @@ describe("TeacherNavigation — look ON", () => {
     at(path);
     await waitFor(() => expect(items()[0].className).toContain("min-h-[56px]"));
   };
+
+  it("the bar has no side padding under the look (each item a full fifth), and each label is at most its item's width", async () => {
+    await on();
+    const bar = screen.getByTestId("teacher-nav");
+    expect(bar.className.split(" ")).toContain("px-0");
+    expect(bar.className.split(" ")).not.toContain("px-1");
+    for (const a of items()) expect(a.lastElementChild?.className.split(" ")).toContain("max-w-full");
+  });
 
   it("labels may wrap: no item is nowrap, each wraps at its spaces, 11px on a 1.15 line, 56px tall", async () => {
     await on();

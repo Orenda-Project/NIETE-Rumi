@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { AudioLines, BookOpen, ChevronRight, Eye, ListChecks, Users, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { latinDir, useLatinAttrs } from '@/lib/textDir';
@@ -51,14 +52,18 @@ export interface LookCardProps {
   userKey?: string | null;
   onGo: (kind: TapKind, href: string) => void;
   className?: string;
+  /** Told once whether the card is drawn on this load (the lesson's cool-down may leave it out). */
+  onDrawn?: (drawn: boolean) => void;
 }
 
-export function LookCard({ card, quizHome, userKey, onGo, className }: LookCardProps) {
+export function LookCard({ card, quizHome, userKey, onGo, className, onDrawn }: LookCardProps) {
   const C = useCopy(HOME_CARD);
   const lang = useLang();
   const ltrOf = useLatinAttrs();
   const draw = useCoolDown(card, userKey);
-  if (!draw || !LOOK_KINDS.includes(card.kind)) return null;
+  const drawn = draw && LOOK_KINDS.includes(card.kind);
+  useEffect(() => { onDrawn?.(drawn); }, [drawn, onDrawn]);
+  if (!drawn) return null;
 
   const ur = lang === 'ur';
   const kind = card.kind;

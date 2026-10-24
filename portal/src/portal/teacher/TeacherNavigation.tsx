@@ -100,7 +100,10 @@ const TeacherNavigation = ({ role = "teacher", ready }: { role?: MenuRole; ready
       <nav
         aria-label={C.menu}
         data-testid="teacher-nav"
-        className="fixed inset-x-0 bottom-0 z-40 flex justify-around border-t border-[#e5e7eb] bg-white px-1 pb-[calc(14px+env(safe-area-inset-bottom))] pt-1.5 md:hidden"
+        className={look
+          // Under the look the bar has no side padding, so each of the five items is a full fifth (64px at 320).
+          ? "fixed inset-x-0 bottom-0 z-40 flex justify-around border-t border-[#e5e7eb] bg-white px-0 pb-[calc(14px+env(safe-area-inset-bottom))] pt-1.5 md:hidden"
+          : "fixed inset-x-0 bottom-0 z-40 flex justify-around border-t border-[#e5e7eb] bg-white px-1 pb-[calc(14px+env(safe-area-inset-bottom))] pt-1.5 md:hidden"}
       >
         {items.map(({ feature, label, to, glyph }) => {
           const on = current === feature;
@@ -117,7 +120,7 @@ const TeacherNavigation = ({ role = "teacher", ready }: { role?: MenuRole; ready
                 <span data-look-pill aria-hidden="true" className={cn("flex h-7 w-[52px] items-center justify-center rounded-full", on && "bg-[#e7f5ed] text-[#2e7d57]")}>
                   <Icon size={22} data-look-glyph={feature} />
                 </span>
-                <span>{label}</span>
+                <span className="max-w-full">{label}</span>
               </Link>
             );
           }

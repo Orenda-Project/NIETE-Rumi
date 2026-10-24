@@ -1,11 +1,9 @@
-import { useSyncExternalStore } from 'react';
+import { useCallback, useState, useSyncExternalStore } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import TeacherPage from '../../TeacherPage';
-import { FeatureTile } from '../../ui';
 import { TEACHER_FRAME } from '../../copy';
 import { useCopy } from '../../i18n';
 import { cleanSchool, fullName } from '../../format';
-import { teacherPath } from '../../routes';
 import { ReadyForYou } from '../../notices/ReadyForYou';
 import { noticeTracker } from '../../notices/tracker';
 import { RemindCard } from '../../notices/RemindCard';
@@ -19,6 +17,7 @@ import type { AnyFeature } from '../../icons';
 import { HomeBand } from './HomeBand';
 import { LookCard } from './LookCard';
 import { LookScores } from './LookScores';
+import { FeatureRows } from './FeatureRows';
 
 export type LookTile = { key: HomeTileKey; art: AnyFeature };
 
@@ -47,9 +46,11 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
   // A full kind yields to a tray with rows; a slim kind does not (its own cool-down decides).
   const drawn = card && ((FULL_KINDS.includes(card.kind) && tray.length === 0) || SLIM_KINDS.includes(card.kind)) ? card : null;
   const chips = data ? pickChips(data.scores, drawn?.kind ?? null, H) : [];
-  const byKey = new Map(tiles.map((t) => [t.key, t]));
-  const ordered = order ? order.map((k) => byKey.get(k)).filter((t): t is LookTile => !!t) : [];
-  const rows = ordered.length === tiles.length ? ordered : tiles;
+  // The card that the lesson's cool-down left out on this load: the day reads as a no-card day (the question, not the label).
+  const [hiddenId, setHiddenId] = useState<string | null>(null);
+  const cardId = drawn ? `${drawn.kind}:${drawn.id ?? ''}` : null;
+  const onDrawn = useCallback((shown: boolean) => setHiddenId(shown ? null : cardId), [cardId]);
+  const cardDay = !!drawn && hiddenId !== cardId;
 
   return (
     <TeacherPage
@@ -58,10 +59,10 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
     >
       {user?.phoneNumber && <ReadyForYou userKey={user.phoneNumber} />}
       {drawn ? (
-        <LookCard card={drawn} quizHome={data?.quizHome ?? null} userKey={user?.phoneNumber} onGo={onGo} className="first:-mt-5" />
+        <LookCard card={drawn} quizHome={data?.quizHome ?? null} userKey={user?.phoneNumber} onGo={onGo} onDrawn={onDrawn} className="first:-mt-5" />
       ) : null}
       {data && chips.length ? <LookScores scores={data.scores} cardKind={drawn?.kind ?? null} onGo={onGo} className="first:-mt-5" /> : null}
-      {drawn ? (
+      {cardDay ? (
         <p data-testid="home-look-all" className="mt-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#636878] rtl:text-[13px] rtl:normal-case rtl:tracking-normal">
           {H.look.all}
         </p>
@@ -70,11 +71,7 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
           {H.look.ask}
         </h2>
       )}
-      <nav aria-label={C.home.features} data-testid="feature-tiles" className="[display:grid] grid-cols-2 gap-3">
-        {rows.map(({ key, art }) => (
-          <FeatureTile key={key} feature={art} label={C.home.tiles[key]} to={teacherPath(key)} />
-        ))}
-      </nav>
+      <FeatureRows tiles={tiles} order={order} />
       {/* The evening reminder (portal_push_remind): last, as in the card build. */}
       <RemindCard />
     </TeacherPage>
