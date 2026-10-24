@@ -55,9 +55,23 @@ const same = (a: HomeSwitches, b: HomeSwitches) => a.card === b.card && a.order 
  * @param userKey whose remembered look to use (memory and this device's store; nothing is read or written without it)
  */
 export function useHomeSwitches(userKey?: string | null): HomeSwitches {
-  const [sw, setSw] = useState<HomeSwitches>(() => startFor(userKey));
+  return useSwitches(userKey, true);
+}
+
+/**
+ * The look's switch alone, for the menu: the same shared /config read and the same remembered value as Home.
+ * @param userKey whose remembered look to use (as useHomeSwitches)
+ * @param enabled false for a reader that never has the look (a coach's menu): nothing is read, always off
+ */
+export function useHomeLook(userKey?: string | null, enabled = true): boolean {
+  return useSwitches(userKey, enabled).look;
+}
+
+function useSwitches(userKey: string | null | undefined, enabled: boolean): HomeSwitches {
+  const [sw, setSw] = useState<HomeSwitches>(() => (enabled ? startFor(userKey) : OFF));
   const answered = useRef(false);
   useEffect(() => {
+    if (!enabled) return undefined;
     let live = true;
     // The user can arrive after the first render: take their remembered look if /config has not answered yet.
     if (!answered.current) { const s = startFor(userKey); if (s.look) setSw(s); }
@@ -76,8 +90,8 @@ export function useHomeSwitches(userKey?: string | null): HomeSwitches {
         setSw((prev) => (same(prev, v) ? prev : v));
       });
     return () => { live = false; };
-  }, [userKey]);
-  return sw;
+  }, [userKey, enabled]);
+  return enabled ? sw : OFF;
 }
 
 /** The last order the server gave this user, so a late answer still counts on the next load (and the next page). */

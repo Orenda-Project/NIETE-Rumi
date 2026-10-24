@@ -110,6 +110,18 @@ describe("HomeBand", () => {
     expect(b).not.toMatch(/overflow-wrap:anywhere/);
   });
 
+  it("the greeting itself wraps at word edges only: break-words, never anywhere, in both shapes", () => {
+    for (const props of [SHORT, LONG]) {
+      for (const vw of [320, 360]) {
+        const { unmount } = render(<HomeBand {...props} vw={vw} />);
+        const h1 = screen.getByTestId("home-look-greeting").className;
+        expect(h1).toMatch(/break-words/);
+        expect(h1).not.toMatch(/overflow-wrap:anywhere/);
+        unmount();
+      }
+    }
+  });
+
   it("nothing is cut: the greeting is never truncated or given a fixed height", () => {
     for (const vw of [320, 360]) {
       const { unmount } = render(<HomeBand {...LONG} vw={vw} />);
@@ -119,4 +131,18 @@ describe("HomeBand", () => {
       unmount();
     }
   });
+
+  it("a Latin school in Urdu is cut at its END: the school isolate is the truncating element (ltr + data-latin), not the meta line", () => {
+    setLang("ur");
+    render(<HomeBand {...UR} vw={360} />);
+    const meta = screen.getByTestId("home-look-meta");
+    const school = meta.querySelector("bdi") as HTMLElement;
+    expect(school.textContent).toBe("IMSG Testwala School");
+    expect(school.getAttribute("dir")).toBe("ltr");
+    expect(school.hasAttribute("data-latin")).toBe(true);
+    expect(school.className.split(" ")).toEqual(expect.arrayContaining(["block", "min-w-0", "truncate"]));
+    expect(meta.className.split(" ")).not.toContain("truncate");
+    setLang("en");
+  });
 });
+
