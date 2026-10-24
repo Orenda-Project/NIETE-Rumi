@@ -283,6 +283,9 @@ describe('1c · the card frame says "this clip shows one way to do it" only on a
     expect(SE().cardMoveOk(TPS, cat.segment('50-s2').segment)).toBe(true);
     expect(SE().cardMoveOk(WAIT, cat.segment('51-s1').segment)).toBe(true);
     expect(SE().cardMoveOk(MODEL, cat.segment('23-s2').segment)).toBe(false);
+    // gold b4d78b5e (50-s2 rank 1): «Turn-and-Tell» is the pair move; gold b1664ce6: «Sat together» is group work
+    expect(SE().cardMoveOk('90 سیکنڈ Turn-and-Tell کروائیں؛ ایک open-ended question پوچھیں۔', cat.segment('50-s2').segment)).toBe(true);
+    expect(SE().cardMoveOk('Sat together, worked alone', { moves: ['group_work'] })).toBe(true);
   });
 });
 
