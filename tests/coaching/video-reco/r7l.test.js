@@ -107,6 +107,12 @@ describe('b. route gates (ped/vetoes.json kind: route_gate)', () => {
     const ids = SL.textRoute(cat, step, { language: 'ur', languages: ['ur', 'mixed'] }, { subject, grade }, [], 'card_text').map((c) => c.seg_id);
     expect(ids.filter((id) => /^(?:128|122|75)-/.test(id))).toEqual([]);
   });
+  test('Z338 replay: the next chapter is no behaviour reminder either (first tag 37-C7, the routines test)', () => {
+    const cat = C.fromData(SHIPPED);
+    const step = { action: "اگلی کلاس میں، جب کوئی بچہ 'آسمان سر پر اٹھا لینا' جیسے محاورے کا نیا معنی خود بتائے، تو اس سے فوراً ایک جملہ بنوائیں اور ساتھی طالب علم سے 3-point checklist پر جانچ کروائیں۔", indicator: null, scheme: 'fico_main_37' };
+    const ids = SL.textRoute(cat, step, { language: 'ur', languages: ['ur', 'mixed'] }, { subject: 'urdu', grade: null }, [], 'card_text').map((c) => c.seg_id);
+    expect(ids).not.toContain('2-s2');
+  });
   test('the gate opens for its own card: a C6 conflict card in the gate\'s words', () => {
     const m = SHIPPED.modules.find((x) => x.module_id === 128);
     expect(SL.routeGateOk(m, { indicator: 'C6', scheme: 'fico_main_37', text: 'When two children fight, ask each to use an I-statement about their feelings.' })).toBe(true);
@@ -170,6 +176,12 @@ describe('c. the card\'s own move family', () => {
 });
 
 describe('d. card quotes keep the served clause; transcript quotes end on a whole word', () => {
+  test('Z029 as recorded: two excerpt lines stitched into one quote, ending on a capped line\'s cut token → that token goes', () => {
+    const ex = ['[02:40] Teacher (UR): واٹر، ایک دو منٹ۔ اچھا، ایک منٹ۔ یہاں سٹاپ کریں۔ ادھر آپ نے ایک چیز نوٹ کی ہے؟', '[03:04] Teacher (UR): لگی ہوئی ہے نا؟ اور ہم نے دو دن پہلے یہ ٹاپک پڑھا تھا جو یہاں پہ یوز ہوا ہ…'];
+    const q = 'واٹر، ایک دو منٹ۔ اچھا، ایک منٹ۔ یہاں سٹاپ کریں۔ ادھر آپ نے ایک چیز نوٹ کی ہے؟ کہ ہم نے دو دن پہلے ایک ٹاپک پڑھا تھا اور اس کا یہاں پہ یوز ہوا ہ…';
+    expect(S.wholeWordQuote(q, ex)).toBe('واٹر، ایک دو منٹ۔ اچھا، ایک منٹ۔ یہاں سٹاپ کریں۔ ادھر آپ نے ایک چیز نوٹ کی ہے؟ کہ ہم نے دو دن پہلے ایک ٹاپک پڑھا تھا اور اس کا یہاں پہ یوز ہوا…');
+    expect(S.wholeWordQuote('یہ سوال کس نے پوچھا…', ex)).toBe('یہ سوال کس نے پوچھا…'); // no capped line ends on «پوچھا»: unchanged
+  });
   const frame = (segId, sentence, subject = 'english') => {
     const hit = C.fromData(SHIPPED).segment(segId);
     return S.cardFrame({ sentence, startS: hit.segment.start_s, endS: hit.segment.end_s, language: 'ur', teacherName: 'Saima Khan', module: hit.module, subject, vocab: [], segment: hit.segment });
@@ -188,6 +200,13 @@ describe('d. card quotes keep the served clause; transcript quotes end on a whol
   test('Z062: a quote never opens on "…" (the plain frame instead)', () => {
     const out = frame('71-s2', "اگلی کلاس میں، جب آپ 'anagram' یا 'abbreviation' کا قاعدہ پوچھیں، تو 2 open-ended questions لکھیں، 8 سیکنڈ wait time دیں، pair work میں ہر جوڑے کو ایک sentence frame (\"My favorite YouTuber is ___ .\") اور ایک two‑sentence paragraph extension (یعنی تیز مکمل کرنے والوں کے لیے اضافی مشق) بنانے کو کہیں تاکہ وہ قاعدہ ایک جملے میں apply کریں۔");
     expect(quoted(out.reason_ur).startsWith('…')).toBe(false);
+  });
+  test('Z062: …and when it is cut, it is cut at a clause boundary, not inside a clause', () => {
+    const sentence = "اگلی کلاس میں، جب آپ 'anagram' یا 'abbreviation' کا قاعدہ پوچھیں، تو 2 open-ended questions لکھیں، 8 سیکنڈ wait time دیں، pair work میں ہر جوڑے کو ایک sentence frame (\"My favorite YouTuber is ___ .\") اور ایک two‑sentence paragraph extension (یعنی تیز مکمل کرنے والوں کے لیے اضافی مشق) بنانے کو کہیں تاکہ وہ قاعدہ ایک جملے میں apply کریں۔";
+    const bare = (t) => t.replace(/["“”‘’]/g, '');
+    const stem = bare(quoted(frame('71-s2', sentence).reason_ur).replace(/…$/u, ''));
+    expect(bare(sentence).startsWith(stem)).toBe(true); // the sentence's own opening
+    expect(/^[،,؛;:]/u.test(bare(sentence).slice(stem.length))).toBe(true); // …up to a clause mark
   });
   test('Z029: a model quote copied from a capped excerpt line never ends mid-word', async () => {
     const long = 'بچو، ایک منٹ۔ یہاں سٹاپ کریں۔ ادھر آپ نے ایک چیز نوٹ کی ہے؟ کہ ہم نے دو دن پہلے ایک ٹاپک پڑھا تھا اور اس کا یہاں پہ یوز ہوا ہے۔ کوئی بتائے گا کہ وہ کون سا ٹاپک تھا جو ہم نے پڑھا تھا اور اس کا یہاں کیا مطلب بنتا ہے؟ سب بچے سوچیں اور پھر ہاتھ اٹھائیں۔';
