@@ -407,6 +407,8 @@ module.exports = {
   kindOf,
   metaCodeOfBody,
   metaErrorCodeOf,
+  // a log line that names the code that asked for a send
+  describeSite,
   // the real-Redis contract test (tests/whatsapp/send-pacing.redis.test.js)
   RESERVE_LUA,
   pairKey,
