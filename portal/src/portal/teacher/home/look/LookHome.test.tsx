@@ -199,5 +199,41 @@ describe("teacher Home, the new look", () => {
     answer({ data: body() });
     expect(await screen.findByTestId("home-look-ask")).toBeTruthy();
   });
+
+  it("the first thing under the band climbs 32 px (the page's 12 px top padding + 20) and paints above the band", async () => {
+    serve({ home: body({ card: COACH_CARD }) });
+    const first = renderHome();
+    const card = await screen.findByTestId("home-look-card");
+    for (const c of ["first:-mt-8", "relative", "z-[1]"]) expect(card.className.split(" ")).toContain(c);
+    first.unmount();
+    resetHomeMemo();
+    serve({ home: body({ scores: { coach: null, observation: OBS } }) });
+    renderHome();
+    const strip = await screen.findByTestId("home-scores");
+    for (const c of ["first:-mt-8", "relative", "z-[1]"]) expect(strip.className.split(" ")).toContain(c);
+  });
+
+  it("with no climber (no card and no strip, or while /me/home loads) the band is short and the first block starts 16 px under it", async () => {
+    const cls = (id: string) => screen.getByTestId(id).className.split(" ");
+    serve({ home: body({ card: COACH_CARD }) });
+    const a = renderHome();
+    await screen.findByTestId("home-look-card");
+    expect(cls("home-band")).toContain("pb-[30px]");
+    a.unmount();
+    resetHomeMemo();
+    serve({ home: body() });
+    const b = renderHome();
+    await screen.findByTestId("home-look-ask");
+    expect(cls("home-band")).toContain("pb-[8px]");
+    expect(cls("home-band")).not.toContain("pb-[30px]");
+    for (const c of ["first:-mt-3", "first:pt-2"]) expect(cls("home-look-ask")).toContain(c);
+    b.unmount();
+    resetHomeMemo();
+    vi.mocked(api.get).mockImplementation(((url: string) => (url === "/me/home" ? new Promise(() => {}) : Promise.resolve({ data: { success: true, items: [] } }))) as never);
+    renderHome();
+    await screen.findByTestId("home-band");
+    expect(cls("home-band")).toContain("pb-[8px]");
+    for (const c of ["first:-mt-3", "first:pt-2"]) expect(cls("feature-tiles")).toContain(c);
+  });
 });
 

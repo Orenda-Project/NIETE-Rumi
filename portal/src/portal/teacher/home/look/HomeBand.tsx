@@ -33,9 +33,11 @@ export interface HomeBandProps {
   /** The teacher's school (already cleaned); null shows the date alone. */
   school: string | null;
   vw?: number;
+  /** Something climbs into the band (the card, or the strip): keep the 30 px it climbs into; else a short 8 px end. */
+  climb?: boolean;
 }
 
-export function HomeBand({ title, name, now, school, vw }: HomeBandProps) {
+export function HomeBand({ title, name, now, school, vw, climb = true }: HomeBandProps) {
   const C = useCopy(TEACHER_FRAME);
   const lang = useLang();
   const measured = useViewportWidth();
@@ -51,11 +53,14 @@ export function HomeBand({ title, name, now, school, vw }: HomeBandProps) {
   const meta = (
     <p
       data-testid="home-look-meta"
-      className={cn("min-w-0 truncate text-[#d5d9e4]", ur ? "text-[13px]" : "text-[12.5px] leading-[1.3]", shape === "two" && "flex-1")}
+      className={cn("flex min-w-0 text-[#d5d9e4]", ur ? "text-[13px]" : "text-[12.5px] leading-[1.3]", shape === "two" && "flex-1")}
     >
-      {date}
-      {date && school ? (ur ? "، " : " · ") : null}
-      {school ? <bdi {...latinAttrs(school)}>{school}</bdi> : null}
+      {/* The date stays whole; the school is the one that is cut, at ITS end (a Latin school in Urdu keeps its start). */}
+      <span className="shrink-0 whitespace-pre">
+        {date}
+        {date && school ? (ur ? "، " : " · ") : null}
+      </span>
+      {school ? <bdi {...latinAttrs(school)} className="block min-w-0 truncate">{school}</bdi> : null}
     </p>
   );
   const greeting = (
@@ -77,7 +82,7 @@ export function HomeBand({ title, name, now, school, vw }: HomeBandProps) {
     <header
       data-testid="home-band"
       data-shape={shape}
-      className="relative overflow-hidden bg-[#333748] px-4 pb-[30px] pt-[calc(6px+env(safe-area-inset-top))] text-white"
+      className={cn("relative overflow-hidden bg-[#333748] px-4 pt-[calc(6px+env(safe-area-inset-top))] text-white", climb ? "pb-[30px]" : "pb-[8px]")}
     >
       <NieteLattice className="absolute inset-y-0 end-0 w-[42%]" line="#48b078" strength={0.35} />
       {shape === "two" ? (

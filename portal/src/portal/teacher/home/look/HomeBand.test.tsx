@@ -131,4 +131,18 @@ describe("HomeBand", () => {
       unmount();
     }
   });
+
+  it("a Latin school in Urdu is cut at its END: the school isolate is the truncating element (ltr + data-latin), not the meta line", () => {
+    setLang("ur");
+    render(<HomeBand {...UR} vw={360} />);
+    const meta = screen.getByTestId("home-look-meta");
+    const school = meta.querySelector("bdi") as HTMLElement;
+    expect(school.textContent).toBe("IMSG Testwala School");
+    expect(school.getAttribute("dir")).toBe("ltr");
+    expect(school.hasAttribute("data-latin")).toBe(true);
+    expect(school.className.split(" ")).toEqual(expect.arrayContaining(["block", "min-w-0", "truncate"]));
+    expect(meta.className.split(" ")).not.toContain("truncate");
+    setLang("en");
+  });
 });
+

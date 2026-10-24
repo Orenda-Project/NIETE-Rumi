@@ -1,4 +1,5 @@
 import { useCallback, useState, useSyncExternalStore } from 'react';
+import { cn } from '@/lib/utils';
 import { useAuth } from '../../../hooks/useAuth';
 import TeacherPage from '../../TeacherPage';
 import { TEACHER_FRAME } from '../../copy';
@@ -18,6 +19,14 @@ import { HomeBand } from './HomeBand';
 import { LookCard } from './LookCard';
 import { LookScores } from './LookScores';
 import { FeatureRows } from './FeatureRows';
+
+/**
+ * The first thing under the band climbs into it: 20 px of overlap plus TeacherPage's 12 px top padding, and it paints
+ * above the band (which is positioned for its lattice).
+ */
+const CLIMB = 'relative z-[1] first:-mt-8';
+/** With no climber the band ends short, and the first block (the question, or the rows while loading) starts 16 px under it. */
+const UNDER = 'first:-mt-3 first:pt-2';
 
 export type LookTile = { key: HomeTileKey; art: AnyFeature };
 
@@ -51,28 +60,29 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
   const cardId = drawn ? `${drawn.kind}:${drawn.id ?? ''}` : null;
   const onDrawn = useCallback((shown: boolean) => setHiddenId(shown ? null : cardId), [cardId]);
   const cardDay = !!drawn && hiddenId !== cardId;
+  const climb = cardDay || chips.length > 0;
 
   return (
     <TeacherPage
       testId="teacher-home"
-      hero={<HomeBand title={C.home.greeting(fullName(user))} name={fullName(user)} now={new Date()} school={cleanSchool(user?.schoolName)} />}
+      hero={<HomeBand title={C.home.greeting(fullName(user))} name={fullName(user)} now={new Date()} school={cleanSchool(user?.schoolName)} climb={climb} />}
     >
       {user?.phoneNumber && <ReadyForYou userKey={user.phoneNumber} />}
       {drawn ? (
-        <LookCard card={drawn} quizHome={data?.quizHome ?? null} userKey={user?.phoneNumber} onGo={onGo} onDrawn={onDrawn} className="first:-mt-5" />
+        <LookCard card={drawn} quizHome={data?.quizHome ?? null} userKey={user?.phoneNumber} onGo={onGo} onDrawn={onDrawn} className={CLIMB} />
       ) : null}
-      {data && chips.length ? <LookScores scores={data.scores} cardKind={drawn?.kind ?? null} onGo={onGo} className="first:-mt-5" /> : null}
+      {data && chips.length ? <LookScores scores={data.scores} cardKind={drawn?.kind ?? null} onGo={onGo} className={CLIMB} /> : null}
       {/* Neither line until /me/home answers: a question that the card then replaces would be read and taken away. */}
       {!data ? null : cardDay ? (
         <p data-testid="home-look-all" className="mt-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#636878] rtl:text-[13px] rtl:normal-case rtl:tracking-normal">
           {H.look.all}
         </p>
       ) : (
-        <h2 data-testid="home-look-ask" className="mb-0.5 mt-1 text-[18px] font-semibold text-[#333748] rtl:text-[17px]">
+        <h2 data-testid="home-look-ask" className={cn("mb-0.5 mt-1 text-[18px] font-semibold text-[#333748] rtl:text-[17px]", UNDER)}>
           {H.look.ask}
         </h2>
       )}
-      <FeatureRows tiles={tiles} order={order} />
+      <FeatureRows tiles={tiles} order={order} className={UNDER} />
       {/* The evening reminder (portal_push_remind): last, as in the card build. */}
       <RemindCard />
     </TeacherPage>

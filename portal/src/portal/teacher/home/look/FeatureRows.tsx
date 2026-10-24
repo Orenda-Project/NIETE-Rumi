@@ -29,11 +29,11 @@ function isPermutation(order: readonly HomeTileKey[], tiles: readonly { key: Hom
  * @param tiles the features, in Home's fixed order
  * @param order the server's order; used only when it is a whole permutation of `tiles`
  */
-export function FeatureRows({ tiles, order }: { tiles: readonly { key: HomeTileKey }[]; order?: HomeTileKey[] | null }) {
+export function FeatureRows({ tiles, order, className }: { tiles: readonly { key: HomeTileKey }[]; order?: HomeTileKey[] | null; className?: string }) {
   const C = useCopy(TEACHER_FRAME);
   const keys = order && isPermutation(order, tiles) ? order : tiles.map((t) => t.key);
   return (
-    <nav aria-label={C.home.features} data-testid="feature-tiles" className="[display:grid] grid-cols-2 gap-2">
+    <nav aria-label={C.home.features} data-testid="feature-tiles" className={cn("[display:grid] grid-cols-2 gap-2", className)}>
       {keys.map((key) => {
         const Icon = LOOK_ICONS[key];
         return (
