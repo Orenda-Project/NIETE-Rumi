@@ -180,10 +180,12 @@ describe('3 · a quoted lesson moment sits in an FSI…PDI isolate in the stored
   test('both reasons are isolated, and a reason with no quote is byte-identical', async () => {
     const both = { ...Q, reason_ur: 'استاد نے کہا "is this a triangle" اور کلاس نے صرف ہاں کہا؛ اس کلپ میں کیوں کے سوال ہیں۔' };
     const row = await E.recommendForReport({ ...args(), deps: deps([both]) });
-    expect(row.reason_ur).toBe(`استاد نے کہا "${FSI}is this a triangle${PDI}" اور کلاس نے صرف ہاں کہا۔ یہ کلپ اس بارے میں ہے: عنوان۔`);
+    // R7j: the Urdu line is the terms file's frame, its quote in an isolate
+    expect(row.reason_ur).toMatch(/^سبق میں استاد نے بچوں سے پوچھا، "/);
+    expect(row.reason_ur).toContain(`"${FSI}`);
     const plain = await E.recommendForReport({ ...args(), deps: deps([GOOD]) });
     expect(plain.reason_en).toBe('At 00:30 the class could only answer yes or no. This clip is about: Ask why and how.');
-    expect(plain.reason_ur).toBe('کلاس صرف ہاں یا نہیں میں جواب دے سکی۔ یہ کلپ اس بارے میں ہے: عنوان۔');
+    expect(plain.reason_ur).toMatch(/^سبق میں استاد نے بچوں سے پوچھا، "/); // R7j: an Urdu reader's line is the terms file's frame
   });
 
   test('the WhatsApp body still isolates English runs OUTSIDE the quote in an Urdu line', () => {
@@ -248,7 +250,8 @@ describe('5 · redactor false positives', () => {
   test('(b) the engine passes the subject terms: a maths/science term in an address slot survives to the stored reason', async () => {
     const r = { ...GOOD, reason_ur: 'کلاس صرف ہاں یا نہیں کہتی رہی؛ اگلی بار پوچھیں: میڈین، آپ بتائیں کیسے نکالتے ہیں؟ اس کلپ میں استاد کیوں کے سوال پوچھتے ہیں۔' };
     const row = await E.recommendForReport({ ...args({ subject: 'maths' }), deps: deps([r]) });
-    expect(row.reason_ur).toBe('کلاس صرف ہاں یا نہیں کہتی رہی؛ اگلی بار پوچھیں: میڈین، آپ بتائیں کیسے نکالتے ہیں؟ یہ کلپ اس بارے میں ہے: عنوان۔'); // R7d §6: the clip half is the chapter's title
+    expect(row.reason_ur).toMatch(/^سبق میں استاد نے بچوں سے پوچھا، "/); // R7j: the terms file's frame (the model's Urdu is not shown to an Urdu reader)
+    expect(row.reason_ur).not.toContain('[a student]، آپ بتائیں');
   });
 
   test('(b) the redactor vocabulary never shields a teacher-name token', () => {

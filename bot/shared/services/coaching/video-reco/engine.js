@@ -21,7 +21,8 @@ const select = require('./select');
 const silence = require('./silence');
 const { composeReason, stripBidi } = require('./copy');
 const { leadingVocative, relabelRecall } = require('./copy-rules');
-const { wordCounts } = require('./redact-names');
+const terms = require('./urdu-terms');
+const { wordCounts, maskedKeys, nameKey, guarded, scrubNames } = require('./redact-names');
 
 const ENGINE_TIMEOUT_MS = 60000; // the LLM call is capped at 45 s (select.js); the sender awaits this after the report has gone
 const RETRY_MIN_LEFT_MS = 20000; // v1.3b: the one validation retry runs only with ≥ 20 s of the engine budget left
@@ -57,15 +58,18 @@ function inapplicableRows(analysis) {
 // textReason values under which the target is still a teaching MOVE (null: tag route only; empty: its pool emptied).
 const MOVE_REASONS = new Set([null, 'empty']);
 // R7d §2: the nones after which the enacted chapters are asked once for another moment, rather than silence.
-const SECOND_MOMENT = new Set(['llm_none', 'validation:quote', 'validation:placeholder', 'validation:not_moment']);
+const SECOND_MOMENT = new Set(['llm_none', 'validation:quote', 'validation:placeholder', 'validation:not_moment', 'validation:routine']);
 // R7f (COS 223858 1c; panel Q117 Q136): the closure chapters a closing card falls back to, in this order (47-s6 is the
 // panel's named clip: «what did we learn today?» in Urdu, 61 s).
 const CLOSURE_CHAPTERS = ['47-s6', '11-s5'];
+// R7j (COS 022905 §3): the modules that need their own moment in the excerpt for a C/D-row card
+const MODULE_MOMENT = Object.freeze({ 96: (ex) => silence.groupMoment(ex), 148: (ex) => silence.assessMoment(ex) });
 // R7g (COS 002603 1c): the chapter a why / wait-time card's frame moves to when the model's chapter is another move
 const WHY_SWAP_CHAPTER = '51-s1';
 // R7f (COS 223858 1b): the rules whose refusal goes straight to the card's own sentence (no retry)
 // R7g (1b): …and a reader's Urdu line in the wrong tense or voice (the card frame's Urdu is 94.3% ok on v6)
-const DIRECT_FALLBACK = new Set(['validation:no_gap', 'validation:not_gap', 'validation:urdu_form']);
+// R7j (§5): …and a cited greeting, page call, filler or echo («routine»)
+const DIRECT_FALLBACK = new Set(['validation:no_gap', 'validation:not_gap', 'validation:urdu_form', 'validation:routine']);
 
 /**
  * The chosen chapter does not carry the step indicator (R4). null when there is no step indicator (card_text, phase).
@@ -241,6 +245,8 @@ async function compute(a, d, state) {
   list.candidates = shortlist.whyFirst(list.candidates, catalog, {
     apply: silence.whyCard(cardSentence) && silence.closedAnswers(lines, { grade: lesson.grade }), history,
   });
+  // R7j (COS 022905 §3; Z001 Z218): a goal-on-board D6/B1 card → 47-s1, not 47-s3
+  list.candidates = shortlist.goalFirst(list.candidates, catalog, { indicator: t.storedIndicator || (card && card.indicator), sentence: stripBidi(String(cardSentence || '')), history });
   base.repeat_module = list.repeatModule;
   base.level_match = list.levelMatch || null;
   base.route = list.route || null;
@@ -250,6 +256,9 @@ async function compute(a, d, state) {
   // red7 013349: the lesson's word counts (the redactor's position-rule guard) and the raw roster (the quote/reason check)
   const people = { teacher: session.users && session.users.name, vocab, oovVocab, roster: select.rosterSet(rosterWords), rosterRaw: select.rosterRaw(rosterWords),
     counts: wordCounts(prompt.transcriptLines(session)) };
+  // R7j (COS 022905 §1): the lesson's name set — the roster as it is and the strict redactor's guarded masks — for the ONE
+  // output gate in emit; never an input to the model, validation or routing (red7 HOLD 023908 H2)
+  people.names = new Set([...maskedKeys(prompt.transcriptLines(session), people), ...people.rosterRaw]);
   // F1: the card's action (it opens with the teacher's name in prod) is stored redacted (V1.7.1 "no names"); the BM25
   // query itself ran on the raw words. Only the action: the redactor masks Title-Case indicator names too.
   const st = stepTextOf(t, analysis, card);
@@ -268,6 +277,12 @@ async function compute(a, d, state) {
   const up = (analysis && analysis.uptake) || {};
   const ex = prompt.excerpts(session, { timestamp: row.timestamp, uptakeMoment: up.moment }, people);
   const rawEx = prompt.rawExcerpts(session, { timestamp: row.timestamp, uptakeMoment: up.moment }); // bd-8hhqhf: placeholder check
+  // R7j (COS 022905 §3; panel v7 Z192 Z392 Z235 ⛔2): group projects (96) and assessment rubrics (148) serve a C-row, D-row or
+  // indicator-less card only when the excerpt shows group work or an assessment; else they are not offered
+  if (!cardInd || /^[CD]\d/.test(String(cardInd))) {
+    const keep = (c) => { const hit = catalog.segment(c.seg_id); const m = hit && Number(hit.module.module_id); return !MODULE_MOMENT[m] || MODULE_MOMENT[m](ex); };
+    list.candidates = list.candidates.filter(keep);
+  }
   // vr-3: only the `Quote:` part of the scorer's evidence is shown or citable; without one the line is omitted.
   const scorerQuote = t.source === 'card_text' ? '' : prompt.redact(target.scorerQuoteOnly(t.row), people);
   const uptakeQuote = t.source === 'card_text' && up.moment ? prompt.redact(up.moment, people) : '';
@@ -292,7 +307,7 @@ async function compute(a, d, state) {
       const hit = catalog.segment(c.seg_id);
       const said = hit && select.cardFallback({
         none, segId: c.seg_id, shortlist: fixedList, sentence: cardSentence, startS: hit.segment.start_s, endS: hit.segment.end_s,
-        teacherName: people.teacher, module: hit.module, subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster,
+        teacherName: people.teacher, module: hit.module, subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster, rosterRaw: people.rosterRaw, counts: people.counts,
       });
       if (said) return { said, segId: c.seg_id, list: fixedList };
     }
@@ -387,6 +402,8 @@ async function compute(a, d, state) {
       segment: seg.segment, // R7b: the clause the clip serves
       language, // R7c: the reader's line is the one that must fit and the one that quotes (was never passed: always 'en')
       roster: people.roster,
+      rosterRaw: people.rosterRaw, // S12
+      counts: people.counts, // red7 024934 F
       plainIfNamed: select.cardMoveOk(sentence, seg.segment, { strict: true }), // R7g 1e (Z100; Z078 stays silent)
     });
   };
@@ -487,30 +504,56 @@ async function compute(a, d, state) {
   const said = fallback || {
     reason_en: relabelRecall(stripBidi(String(p.reason_en)).trim(), 'en', asked), reason_ur: relabelRecall(stripBidi(String(p.reason_ur)).trim(), 'ur', asked),
   };
+  // R7i/R7j (COS 021017 §1, 022905 §1; panel v7 Z049 ⛔9): the quote and each reason were redacted as separate texts, and the
+  // `named` rule's turn-end test (redact-names.js) depends on what follows a word in the text it reads: «…؟ X؟» ends the
+  // quote (masked) but not the reason that re-quotes it (kept). By construction now: one gate (scrubNames) over every
+  // teacher-facing string, against the lesson's names plus every name the quote's own redaction masked.
+  const names = new Set(people.names);
+  const quoteTrace = [];
+  const quoted = !fallback && p.moment && p.moment.quote
+    ? select.postRedact(stripBidi(String(p.moment.quote)), people.teacher, vocab, people.counts, null, quoteTrace) : null;
+  const quoteMasks = new Map();
+  for (const x of quoteTrace) if (x.rep === '[a student]' && x.why !== 'oov') quoteMasks.set(nameKey(x.word), (quoteMasks.get(nameKey(x.word)) || 0) + 1);
+  for (const k of guarded(quoteMasks, people.counts)) names.add(k);
+  const gate = (x) => scrubNames(x, names);
+  const accepted = quoted ? gate(quoted) : null;
   // R7g (COS 002603 1b; panel v6: card frame 94.3% Urdu-ok, model-written 66.0%): an English reader's Urdu line (the portal's)
   // is never the model's translation when the card frame exists — the card frame on a chapter whose move the card names,
   // else the model's line only when it passes every Urdu check, else the plain frame. red7 G2: an Urdu reader's English line
   // (96.4% ok on v6, validated whole) stays the model's unless it carries an article slip («asked a questions», Z011 Z168).
+  const frameLines = new Set(fallback ? ['en', 'ur'] : []); // the lines that quote the report's own sentence
+  // R7j (COS 022905 §2; ped/urdu_terms.json transcript_frame_ur): an Urdu reader's line for a cited moment is the team's
+  // frame — the move term (by the model's id) BEFORE the quote, an answer clause only from the file, the chapter's title;
+  // no free model clause after the quote, no stub when no move is named
+  if (!fallback && language === 'ur' && accepted) {
+    said.reason_ur = terms.transcriptLine({ moveId: p.move, answerId: p.answer, quote: accepted, title: hit.segment.title_ur || hit.segment.title_en });
+  }
   if (!fallback && (language === 'en' || !select.englishLineOk(said.reason_en))) {
     const other = language === 'en' ? 'ur' : 'en';
     const sentence = (card && card.action) || step.try || fa.try_this_tomorrow || '';
-    const args0 = { startS: hit.segment.start_s, endS: hit.segment.end_s, teacherName: people.teacher, module: hit.module, subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster };
+    const args0 = { startS: hit.segment.start_s, endS: hit.segment.end_s, teacherName: people.teacher, module: hit.module, subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster, rosterRaw: people.rosterRaw, counts: people.counts };
     const frame = sentence && select.cardMoveOk(sentence, hit.segment) ? select.cardFrame({ ...args0, sentence, plainIfNamed: true }) : null;
     const n = Math.round(Number(hit.segment.end_s) - Number(hit.segment.start_s));
     const checked = other === 'ur' && select.urduLineOk(said.reason_ur);
     said[`reason_${other}`] = frame ? frame[`reason_${other}`] : checked ? said.reason_ur
-      : resolveUx('videoRecoCardFallbackReasonPlain', { language: other, params: { n } });
+      : select.plainFrame(other, hit.segment);
+    if (frame) frameLines.add(other);
   }
   const c = Number(p.confidence);
-  // v1.3c (a) ⛔9: the reasons and the quote are stored (and so sent) after the non-strict name redactor.
-  const clean = (x) => select.postRedact(x, people.teacher, vocab, people.counts);
+  // v1.3c (a) ⛔9: the reasons and the quote are stored (and so sent) after the non-strict name redactor, then the gate.
+  const clean = (x) => gate(select.postRedact(x, people.teacher, vocab, people.counts)); // R7j: the one output gate
+  // R7j: a quoted card sentence the gate had to change is never shown with a placeholder in it: that line is the plain frame
+  const lineOf = (l) => {
+    const redacted = select.postRedact(said[`reason_${l}`], people.teacher, vocab, people.counts);
+    if (!frameLines.has(l) || gate(redacted) === redacted) return clean(said[`reason_${l}`]);
+    return select.plainFrame(l, hit.segment);
+  };
   const cand = pickList.candidates.find((x) => x.seg_id === hit.segment.seg_id) || {};
   const chosen = t.source === 'card_text' || t.source === 'phase' ? (((hit.segment.fico || [])[0] || {}).indicator || null) : null;
   // bd-8hhqhf (scale-run 070730, COS 070808): `indicator` is in the analysis's own scheme. On fico_main_37 that is the
   // chapter's main-37 tag, never a v4 id under a 37 label; `catalog_indicator` keeps the v4 tag.
   const stored = t.scheme === 'fico_main_37' ? ((hit.segment.fico_main37 || [])[0] || null) : chosen;
-  // red7 070727: the isolate goes around the span the validator accepted as the moment (inner quotes stay one run).
-  const accepted = !fallback && p.moment && p.moment.quote ? clean(stripBidi(String(p.moment.quote))) : null;
+  // red7 070727: the isolate goes around the span the validator accepted as the moment (inner quotes stay one run): `accepted`, above.
   const mismatch = tagMismatch(t, hit.segment);
   const route = cand.route || pickList.route || null;
   return finish({
@@ -530,8 +573,8 @@ async function compute(a, d, state) {
     end_s: hit.segment.end_s,
     language_match: cand.language_match || null,
     chapter_language: hit.segment.language || hit.module.language || null,
-    reason_en: composeReason(clean(said.reason_en), 'en', accepted), // bd-8hhqhf: no log-line prefix; the moment renders in place
-    reason_ur: composeReason(clean(said.reason_ur), 'ur', accepted, { subject }), // R7d: «عناصر» is factors only in maths
+    reason_en: composeReason(lineOf('en'), 'en', accepted), // bd-8hhqhf: no log-line prefix; the moment renders in place
+    reason_ur: composeReason(lineOf('ur'), 'ur', accepted, { subject }), // R7d: «عناصر» is factors only in maths
     moment_at: !fallback && p.moment && p.moment.at ? String(p.moment.at) : null,
     moment_quote: accepted ? select.storedQuote(accepted) : null, // red7 091238: no speaker label or stamp on /v
     moment_source: fallback ? 'card' : v.momentSource, // 'card' = the v1.3c fallback: no moment, the card's sentence

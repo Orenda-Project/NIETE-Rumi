@@ -183,12 +183,12 @@ describe('3 · a greeting, page call, order to the room or the lesson announceme
   const v = (line, quote) => S.validate(answer({ moment: { at: '00:30', quote } }), list, [`[00:30] Teacher: ${line}`, '[00:31] Student: جی۔'], {});
 
   test.each([
-    ['Q031 page call', 'اس کے لیے آپ پیج نمبر 46 اوپن کر دیں۔', 'اس کے لیے آپ پیج نمبر 46 اوپن کر دیں'],
-    ['Q061 book call', 'Open your book on page number 35.', 'Open your book on page number 35'],
-    ['Q084 greeting', 'السلام علیکم، اسٹوڈنٹس۔ How are you all?', 'السلام علیکم، اسٹوڈنٹس۔ How are you all'],
+    ['Q031 page call', 'اس کے لیے آپ پیج نمبر 46 اوپن کر دیں۔', 'اس کے لیے آپ پیج نمبر 46 اوپن کر دیں', 'routine'],
+    ['Q061 book call', 'Open your book on page number 35.', 'Open your book on page number 35', 'routine'],
+    ['Q084 greeting', 'السلام علیکم، اسٹوڈنٹس۔ How are you all?', 'السلام علیکم، اسٹوڈنٹس۔ How are you all', 'routine'],
     ['Q170 order to the room', 'بیٹھ جاؤ، دو منٹ بیٹھ جاؤ۔', 'بیٹھ جاؤ، دو منٹ بیٹھ جاؤ'],
     ['Q063 announcement', 'دیکھیں نا، ہمارا آج جو ہے پڑھائی ہے۔ الفاظ میں نہیں، اور جملے ہیں۔ ان شاء اللہ ہم بنائیں گے، ٹھیک ہے؟', 'ہمارا آج جو ہے پڑھائی ہے۔ الفاظ میں نہیں، اور جملے ہیں۔ ان شاء اللہ ہم بنائیں گے'],
-  ])('%s → validation:not_moment', (_, line, quote) => expect(v(line, quote).none).toBe('validation:not_moment'));
+  ])('%s → validation:not_moment (R7j: a greeting or page call → validation:routine, the card frame)', (_, line, quote, why = 'not_moment') => expect(v(line, quote).none).toBe(`validation:${why}`));
 
   test.each([
     ['a why question', 'آپ کو کیا لگتا ہے پانی کیوں ضروری ہے؟ سوچ کر بتائیں۔', 'آپ کو کیا لگتا ہے پانی کیوں ضروری ہے'],
@@ -196,16 +196,16 @@ describe('3 · a greeting, page call, order to the room or the lesson announceme
     ['an announcement followed by the real question', 'Today we will learn fractions. Who can tell me why half is bigger than a quarter?', 'Today we will learn fractions. Who can tell me why half is bigger than a quarter'],
   ])('control: %s is a moment', (_, line, quote) => expect(v(line, quote).ok).toBe(true));
 
-  test('engine: both answers cite a page call → silence, never the card fallback (Q063/Q170 → silence, as ruled)', async () => {
+  test('engine: a page call cited → R7j §5: the card frame, with no retry (was silence, R7c)', async () => {
     const lines = [{ start_ms: 30000, label: 'Teacher', text: 'Open your book on page number 35.' }, { start_ms: 33000, label: 'Student', text: 'Yes' }];
     const page = answer({ moment: { at: '00:30', quote: 'Open your book on page number 35' } });
     const row = await run(args({ lines }), deps([page, page]));
-    expect(row).toMatchObject({ status: 'none', none_reason: 'validation:not_moment', attempts: 2 });
+    expect(row).toMatchObject({ status: 'shown', moment_source: 'card', first_none_reason: 'validation:routine', attempts: 1 });
   });
-  test('a page call with a second fault in the reason (roman) is still silence: a routine line is never rescued by the fallback (Q063)', async () => {
-    const lines = [{ start_ms: 30000, label: 'Teacher', text: 'Open your book on page number 35.' }, { start_ms: 33000, label: 'Student', text: 'Yes' }];
-    const page = { ...ROMAN, moment: { at: '00:30', quote: 'Open your book on page number 35' } };
-    const row = await run(args({ lines }), deps([page, page]));
+  test('an order to the room (not one of §5\'s kinds) with a second fault is still silence (Q063 Q170)', async () => {
+    const lines = [{ start_ms: 30000, label: 'Teacher', text: 'بیٹھ جاؤ، دو منٹ بیٹھ جاؤ۔' }, { start_ms: 33000, label: 'Student', text: 'Yes' }];
+    const order = { ...ROMAN, moment: { at: '00:30', quote: 'بیٹھ جاؤ، دو منٹ بیٹھ جاؤ' } };
+    const row = await run(args({ lines }), deps([order, order]));
     expect(row).toMatchObject({ status: 'none', none_reason: 'validation:not_moment' });
   });
 });
@@ -261,7 +261,7 @@ describe('5 · reason grounding: what the clip IS, and what the cited line IS', 
   test('the prompt (vr-9) tells the model what kind each clip is', () => {
     const P = require('../../../bot/shared/services/coaching/video-reco/prompt');
     const text = P.build({ target: { source: 'card_text' }, candidates: [{ seg_id: '51-s1' }, { seg_id: '95-s3' }], catalog: C.fromData(DATA), excerpts: ['[00:30] Teacher: x'] });
-    expect(P.PROMPT_VERSION).toBe('vr-10');
+    expect(P.PROMPT_VERSION).toBe('vr-11');
     expect(text).toContain('51-s1 · Yes/no question vs. a why question · 52s · ur · kind: a conversation between teachers (not a class) ·');
     expect(text).toContain('95-s3 · Ask why after an answer · 77s · en · kind: footage ·');
     expect(text).toContain('a line that asks why or how is never a recall or yes/no question');
@@ -276,7 +276,7 @@ describe('6 · Urdu copy: the word table, the card in the other language, one di
     ['اگلے کلاس میں', 'اگلی کلاس میں'],
     ['بچے جوڑ میں کام کریں', 'بچے جوڑوں میں کام کریں'],
     ['آپ کیوں سوچتے ہیں کہ پانی ضروری ہے؟', 'آپ کے خیال میں پانی ضروری ہے، ایسا کیوں؟'],
-    ['یہ یاداشت کا سوال نہیں', 'یہ یاد سے بتانے والا سوال نہیں'], // R7g: the spelling, then the approved word
+    ['یہ یاداشت کا سوال نہیں', 'یہ سیدھا سا سوال نہیں'], // R7j: the spelling, then the terms file's word
     ['جگہ قدر سمجھائیں', 'مقامی قدر سمجھائیں'],
   ])('«%s» → «%s»', (from, to) => expect(composeReason(from, 'ur', null)).toBe(to));
 
@@ -300,7 +300,7 @@ describe('6 · Urdu copy: the word table, the card in the other language, one di
     const row = await run(args({ lang: 'en' }), deps([ROMAN, ROMAN]));
     expect(row.reason_en).toContain('Next class, ask two why questions');
     expect(row.reason_ur).not.toMatch(/[A-Za-z]/);
-    expect(row.reason_ur).toContain('آپ کی رپورٹ اگلی کلاس کے لیے ایک قدم بتاتی ہے');
+    expect(row.reason_ur).toContain('آپ کی رپورٹ میں اگلی کلاس کے لیے ایک بات آزمانے کو کہا گیا ہے'); // R7j: card_frame_other_ur
   });
 
   test('an Urdu reader with an English card still reads it, quoted and isolated, in the Urdu line (the engine passes the language)', async () => {
