@@ -414,10 +414,15 @@ function routineQuote(p, topic = null) {
  */
 const CLAUSE_START = /^[:،؛,]$/;
 const NOUN_NEXT = new Set('کے کی کا کو سے میں پر نے تک والا والی والے جیسے جیسا جیسی کریں کرنا کرنے کرو کرے کر جا جائے جاتا ہو ہے ہیں تھا تھی ؟ ? ۔ .'.split(' '));
+// ped-scale 201500: a word the lexicon, the roster or an address marks as a NAME (not merely unknown) → plain, any slot
+const NAME_WHY = new Set(['strong', 'address', 'named', 'role', 'compound', 'carry']);
+// COS 201132: the fail-closed switch. true = any word the strict redactor masks → the plain frame (56/151 fresh-4 quotes)
+const ANY_MASK = false;
 function strictNamed(text, { teacher = null, vocab = [], oovVocab = [], counts = null } = {}) {
   const s = String(text || '');
   const trace = [];
   redactNames(s, { teacher, placeholders: { child: '[a student]' }, vocab, oovVocab, counts, trace });
+  if (ANY_MASK ? trace.length > 0 : trace.some((t) => NAME_WHY.has(t.why))) return true;
   const masked = new Set(trace.filter((t) => /[؀-ۿ]/.test(t.word)).map((t) => t.word));
   if (!masked.size) return false;
   const toks = s.match(/[\p{L}\p{M}\p{N}'’‑-]+|[:،؛۔.?!؟,]/gu) || [];
