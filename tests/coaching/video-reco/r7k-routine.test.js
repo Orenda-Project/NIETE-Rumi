@@ -42,7 +42,8 @@ describe('engine: a student line or a line before any child spoke → the card f
   });
   const T = (mmss, who, text) => ({ start_ms: ((+mmss.split(':')[0] * 60) + +mmss.split(':')[1]) * 1000, label: who, text });
   const LINES = [
-    T('00:20', 'Teacher', 'آج ہم پانی کے بارے میں بات کریں گے اور سب دھیان سے سنیں'), T('00:30', 'Teacher', 'پانی کہاں سے آتا ہے؟'),
+    T('00:20', 'Teacher', 'آج ہم پانی کے بارے میں بات کریں گے اور سب دھیان سے سنیں'), T('00:25', 'Teacher', 'پانی ہمارے لیے بہت ضروری ہے اور ہم اسے روز پیتے ہیں'),
+    T('00:30', 'Teacher', 'پانی کہاں سے آتا ہے؟'),
     T('00:33', 'Student', 'جی پانی بادل سے آتا ہے'), T('00:36', 'Teacher', 'اور کہاں سے آتا ہے؟'), T('00:39', 'Student', 'دریا سے'),
     T('00:42', 'Teacher', 'ٹھیک ہے بچو، اور کون بتائے گا؟'), T('00:45', 'Student', 'جی'),
   ];
@@ -62,10 +63,14 @@ describe('engine: a student line or a line before any child spoke → the card f
     expect(cited(row)).toBe(false);
     expect([row.first_none_reason, row.none_reason]).toContain('validation:routine');
   });
-  test('Z255 shape: a line said before any child has spoken', async () => {
-    const row = await run('پانی کہاں سے آتا ہے؟', '00:30');
+  test('Z255 shape: a line said before any child has spoken (and not the question the first child answers)', async () => {
+    const row = await run('پانی ہمارے لیے بہت ضروری ہے اور ہم اسے روز پیتے ہیں', '00:25');
     expect(cited(row)).toBe(false);
     expect([row.first_none_reason, row.none_reason]).toContain('validation:routine');
+  });
+  test('control: the opening question the first child answers is a moment', async () => {
+    const row = await run('پانی کہاں سے آتا ہے؟', '00:30');
+    expect([row.first_none_reason, row.none_reason]).not.toContain('validation:routine');
   });
   test('control: a teacher question after a child has spoken is cited', async () => {
     const row = await run('اور کہاں سے آتا ہے؟', '00:36');
