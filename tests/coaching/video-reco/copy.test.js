@@ -58,7 +58,7 @@ describe('the body', () => {
   test('ur: Urdu digits, Urdu language name, Latin runs inside isolates, every line opens right to left', () => {
     const b = C.messageBody({ minutes: 2, reason: reasonUr, clipLanguage: 'en', language: 'ur' });
     const lines = b.split('\n');
-    expect(shown(lines[0])).toBe('🎬 آپ کی آزمانے والی ایک بات کے لیے ۲ منٹ کا کلپ۔');
+    expect(shown(lines[0])).toBe('🎬 اگلی کلاس میں آزمانے کے لیے ۲ منٹ کا کلپ۔'); // R7j: header_ur
     expect(shown(lines[2])).toBe('⏱ ۲ منٹ · انگریزی');
     expect(lines[1]).toContain('⁦open-ended questions⁩');
     expect(lines[1]).toContain('⁦wait time⁩');

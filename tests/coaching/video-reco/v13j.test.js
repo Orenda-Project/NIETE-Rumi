@@ -71,7 +71,8 @@ test('867856ac: prefix dropped, the unquoted Urdu moment in one FSI…PDI, no qu
   expect(row.status).toBe('shown');
   expect(row.reason_en).toBe(`${FSI}اب یہ ہم نے ریڈنگ کی، میں نے آپ کو کر کے پڑھائی... جو پڑھا ہے اس کو ذرا پڑھیں۔${PDI} Only the teacher read. This clip is about: Wait before taking answers.`); // R7f 1b: the fixture names a gap // R7d §6: the clip half is the chapter's title
   expect(row.reason_en).not.toMatch(/"/);
-  expect(row.reason_ur).toBe('اب یہ ہم نے ریڈنگ کی، میں نے آپ کو کر کے پڑھائی... جو پڑھا ہے اس کو ذرا پڑھیں۔ یہ کلپ اس بارے میں ہے: عنوان۔');
+  expect(row.reason_ur).toMatch(/^سبق میں استاد نے بچوں سے پوچھا، "/); // R7j: the terms file's frame
+  expect(row.reason_ur).not.toMatch(/\[\d{1,2}:\d{2}\]|Teacher:/);
 });
 
 test.each([

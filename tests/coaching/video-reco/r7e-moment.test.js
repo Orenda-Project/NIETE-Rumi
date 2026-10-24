@@ -193,10 +193,10 @@ describe('3 · Grade 1–2: the child\'s own echo of the teacher\'s line is read
   const v = (grade) => S.validate(answer({ moment: { at: '02:12', quote: 'A girl is۔' } }), list, lines, { grade });
 
   test('Q038: the quoted line is the child echoing, inside an echo run, in Grade 1 → validation:not_moment', () => {
-    expect(v({ lo: 1, hi: 1 }).none).toBe('validation:not_moment');
+    expect(v({ lo: 1, hi: 1 }).none).toBe('validation:routine'); // R7j §5: echo reading takes the card frame
   });
   test('control: the same lines in Grade 4 are not judged as echo reading', () => {
-    expect(v({ lo: 4, hi: 4 }).none).not.toBe('validation:not_moment');
+    expect(v({ lo: 4, hi: 4 }).none).not.toBe('validation:routine');
   });
 });
 

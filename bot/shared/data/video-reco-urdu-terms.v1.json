@@ -1,0 +1,1006 @@
+{
+ "_about": "ped/urdu_terms.json — the Urdu terms the engine may use in a teacher-facing reason line, owned by the pedagogy panel (COS ruling 20261024T022905 §2). Written 2026-10-24T02:42:00Z by the ped-scale chair from two blind expert proposals (outputs/lanes/ped-scale/judge7/terms/{coach,pedagogy}/terms_<persona>.json; brief in judge7/terms/brief_<persona>.md; the engine inventory in judge7/terms/engine_terms.json from origin/sandbox f1846f27dc prompt.js URDU_MOVES + copy.js URDU_WORDS). `agreement`=both means the two experts wrote the same term (or the same stem); `chair` means they wrote near-synonyms and the chair picked, with the other as ur_alt — both forms are accepted; the engine must emit NOTHING for a move that is not the `ur` or `ur_alt` of its row, and never any phrase in `never_use`. eng-fix consumes this file only (prompt glossary and copy.js rewrite targets).",
+ "version": 1,
+ "head_reviewed": "f1846f27dc",
+ "written": "2026-10-24T02:42:00Z",
+ "rules": [
+  "Register: spoken staff-room Urdu a Punjab/KP government-school teacher says themselves; no dictionary coinage, no word-for-word rendering of an English term, no Latin letters except the catalogue's own proper name تھنک پیئر شیئر.",
+  "No slash inside a term («ہاں یا نہیں والا سوال», not «ہاں/نہیں والا سوال»); never fuse two terms with a slash.",
+  "Inflection: `ur` is the direct form for the «‹term› پوچھا» slot; `ur_alt` where given is the oblique form before کے بعد / میں / کو (or an accepted synonym, see `agreement`).",
+  "Sentence shape (RUBRIC §3): the move term comes BEFORE the quoted line — «سبق میں استاد نے ‹term› پوچھا، \"…\"۔ یہ کلپ اس بارے میں ہے: ‹chapter title›۔»; no free LLM clause after the quote; an answer-type clause («اور جواب ایک ساتھ آیا» / «اور فوری جواب آیا» / «اور ایک لفظ کا جواب آیا») only when the lesson shows it.",
+  "Empty descriptor: when the engine has a quoted line but no move name, use «سبق میں استاد نے بچوں سے پوچھا، \"…\"۔» — never a stub («جو سوال تھا», «یہ سوال تھا», \"which was.\").",
+  "Gender and person: third person «استاد نے …» in نے constructions, or the respectful plural («استاد … کرتے ہیں», «آپ … کریں»); never a gendered verb, never استاد صاحب / استانی / ٹیچر صاحبہ, never طلبہ و طالبات (say بچے).",
+  "Tone: name what happened, never what the teacher failed to do («آپ نے … نہیں پوچھا», «did not pause», «moved on quickly» are out; say «جواب ایک ساتھ آیا», «فوری جواب آیا», or «سبق میں … کا موقع نہیں آیا»).",
+  "Logistics lines (page call, roll call, \"open your books\", greetings, fillers, echo reading) are never described: the message falls back to the card frame.",
+  "Quoted text keeps itself: a quoted card or lesson line keeps its own digits and words; elide a long card at a clause boundary and keep its imperative (or shorten the frame, not the card); no Latin full stop or comma after an Urdu word; no quote cut to a letter.",
+  "Verbs: تھنک پیئر شیئر / جوڑیوں میں بات چیت / ساتھی کو سمجھانا take کروایا or کرایا, never پوچھا; questions take پوچھا."
+ ],
+ "voice_note": "The coach proposes second person for the transcript frame («سبق میں آپ نے ‹term› پوچھا …»): the teacher reads about their own lesson on WhatsApp, آپ is the gender-neutral respectful plural, and «استاد نے» cannot show plural or gender in a نے construction. The pedagogy specialist and RUBRIC §3 keep third person. The chair keeps third person in this file; the COS decides the voice, and every term works in either slot unchanged.",
+ "moves": [
+  {
+   "id": "recall_question",
+   "en": "recall question (a closed question asking the child to remember a fact)",
+   "ur": "سیدھا سا سوال",
+   "ur_alt": "سیدھا سوال",
+   "agreement": "both (same stem)",
+   "coach": {
+    "ur": "سیدھا سوال",
+    "alt": "ایک جواب والا سوال",
+    "verdict_on_current": "REPLACE",
+    "why": "Calque failed 19/19; teachers say a 'straight question', one fixed answer."
+   },
+   "pedagogy": {
+    "ur": "سیدھا سا سوال",
+    "alt": "سیدھے سے سوال",
+    "verdict_on_current": "REPLACE",
+    "why": "Word-for-word calque, failed 19/19; teachers say «سیدھا سا سوال» for a one-fact question."
+   },
+   "example_lines": [
+    "آج سبق میں آپ نے سیدھا سوال پوچھا، \"پاکستان کا دارالحکومت کیا ہے؟\" اور بچوں نے فوراً بتایا۔",
+    "سبق میں استاد نے سیدھا سا سوال پوچھا، \"پاکستان کا دارالحکومت کیا ہے؟\"، اور بچوں نے ایک ساتھ جواب دیا۔"
+   ],
+   "note": "both experts replace the calque with the same stem; the engine may use either form. Never a word built on یاد/یادداشت/یاددہانی/ریکال."
+  },
+  {
+   "id": "yes_no_question",
+   "en": "yes/no question",
+   "ur": "ہاں یا نہیں والا سوال",
+   "ur_alt": "ہاں نہیں والا سوال",
+   "agreement": "both (coach alt = pedagogy form)",
+   "coach": {
+    "ur": "ہاں/نہیں والا سوال",
+    "alt": "ہاں یا نہیں والا سوال",
+    "verdict_on_current": "ACCEPT",
+    "why": "Passed; natural. Never fuse it with another term by a slash."
+   },
+   "pedagogy": {
+    "ur": "ہاں نہیں والا سوال",
+    "alt": "ہاں نہیں والے سوال",
+    "verdict_on_current": "REPLACE",
+    "why": "Meaning right; the slash is typed English, nobody says it; spoken form has none."
+   },
+   "example_lines": [
+    "سبق میں آپ نے ہاں/نہیں والا سوال پوچھا، \"کیا پانی ابلتا ہے؟\" اور سب نے ہاں کہا۔",
+    "استاد نے ہاں نہیں والا سوال پوچھا، \"کیا پانی ابلتا ہے؟\"، اور پوری کلاس نے ہاں کہا۔"
+   ],
+   "note": "no slash in a spoken-register term; the slash form ہاں/نہیں والا سوال is retired from the body (it survives only inside a quoted card)."
+  },
+  {
+   "id": "why_question",
+   "en": "why question (a question that asks for a reason)",
+   "ur": "کیوں والا سوال",
+   "ur_alt": "کیوں والے سوال",
+   "agreement": "both",
+   "coach": {
+    "ur": "کیوں والا سوال",
+    "alt": null,
+    "verdict_on_current": "ACCEPT",
+    "why": "Natural; drop the Latin apostrophes around کیوں, they look wrong in Nastaliq."
+   },
+   "pedagogy": {
+    "ur": "کیوں والا سوال",
+    "alt": "کیوں والے سوال",
+    "verdict_on_current": "ACCEPT",
+    "why": "Exactly what teachers say; only drop the Latin quote marks around کیوں."
+   },
+   "example_lines": [
+    "آپ نے جواب کے بعد کیوں والا سوال پوچھا اور کلاس چند لمحے سوچ میں پڑ گئی۔",
+    "استاد نے پہلے جواب پر کیوں والا سوال پوچھا، \"یہ کیوں ہوا؟\"، اور ایک ایک آواز سنی۔"
+   ],
+   "note": "drop the Latin apostrophes around کیوں."
+  },
+  {
+   "id": "why_how_question",
+   "en": "why/how question (a follow-up probe asking how the child got the answer)",
+   "ur": "کیوں یا کیسے والا سوال",
+   "ur_alt": "کیوں کیسے والا سوال",
+   "agreement": "both (coach alt; pedagogy form as alt)",
+   "coach": {
+    "ur": "کیوں/کیسے والا سوال",
+    "alt": "کیوں یا کیسے والا سوال",
+    "verdict_on_current": "ACCEPT",
+    "why": "Natural; teachers say exactly this. Slash is fine in text."
+   },
+   "pedagogy": {
+    "ur": "کیوں کیسے والا سوال",
+    "alt": "کیوں کیسے والے سوال",
+    "verdict_on_current": "REPLACE",
+    "why": "Slash again; «کیوں کیسے» is a set spoken pair and needs no slash."
+   },
+   "example_lines": [
+    "آپ نے ایک جواب پر کیوں/کیسے والا سوال پوچھا، \"تمہیں کیسے پتا؟\" اور بچے نے وجہ بتائی۔",
+    "استاد نے جواب سن کر کیوں کیسے والا سوال پوچھا، \"تمہیں کیسے پتا چلا؟\""
+   ],
+   "note": "no slash."
+  },
+  {
+   "id": "open_question",
+   "en": "open / open-ended question",
+   "ur": "کھلا سوال",
+   "ur_alt": "کھلے سوال",
+   "agreement": "both",
+   "coach": {
+    "ur": "کھلا سوال",
+    "alt": "سوچنے والا سوال",
+    "verdict_on_current": "ACCEPT",
+    "why": "Established training word, teachers know it; سوچنے والا سوال is the spoken form."
+   },
+   "pedagogy": {
+    "ur": "کھلا سوال",
+    "alt": "کھلے سوال",
+    "verdict_on_current": "ACCEPT",
+    "why": "Standard in Punjab and KP training; teachers use کھلے اور بند سوال themselves."
+   },
+   "example_lines": [
+    "سبق کے آخر میں آپ نے کھلا سوال پوچھا، \"اگر بارش نہ ہو تو کیا ہوگا؟\"",
+    "استاد نے کھلا سوال پوچھا، \"اس کہانی میں تم کیا بدلتے؟\"، اور کئی مختلف جواب آئے۔"
+   ],
+   "note": "ur_alt is the oblique form (before کے بعد / میں / کو); کھلے سوالات for the plural."
+  },
+  {
+   "id": "follow_up_probe",
+   "en": "follow-up probe (a second question after the child's answer: 'how do you know?')",
+   "ur": "جواب پر اگلا سوال",
+   "ur_alt": "جواب پر دوسرا سوال",
+   "agreement": "chair (near-synonyms, both accepted)",
+   "coach": {
+    "ur": "جواب پر دوسرا سوال",
+    "alt": "”کیسے پتا؟“ والا سوال",
+    "verdict_on_current": "REPLACE",
+    "why": "مزید سوال reads as 'more questions', not a second question on the answer."
+   },
+   "pedagogy": {
+    "ur": "جواب پر اگلا سوال",
+    "alt": "جواب پر اگلے سوال",
+    "verdict_on_current": "REPLACE",
+    "why": "«مزید سوال» is just 'more questions'; the move is a question ON the child's answer."
+   },
+   "example_lines": [
+    "پہلے جواب کے بعد آپ نے جواب پر دوسرا سوال پوچھا، \"یہ کیسے معلوم ہوا؟\"",
+    "جواب \"بارہ\" آیا تو استاد نے جواب پر اگلا سوال پوچھا، \"بارہ کیسے نکلا؟\""
+   ],
+   "note": "a question ON the child's answer; مزید سوال and پروب retired."
+  },
+  {
+   "id": "chorus_answer",
+   "en": "chorus answer (the whole class answering together)",
+   "ur": "ایک ساتھ جواب",
+   "ur_alt": "جواب ایک ساتھ آیا",
+   "agreement": "both",
+   "coach": {
+    "ur": "ایک ساتھ جواب",
+    "alt": "سب نے ایک ساتھ جواب دیا",
+    "verdict_on_current": "REPLACE",
+    "why": "سب کا مل کر جواب is ungrammatical in a sentence; RUBRIC itself says ایک ساتھ."
+   },
+   "pedagogy": {
+    "ur": "ایک ساتھ جواب",
+    "alt": null,
+    "verdict_on_current": "REPLACE",
+    "why": "«سب کا مل کر جواب» cannot sit in a sentence; teachers say «ایک ساتھ»."
+   },
+   "example_lines": [
+    "آپ نے پوچھا، \"یہ کون سی شکل ہے؟\" اور جواب ایک ساتھ آیا، \"مثلث!\"",
+    "استاد نے سوال پوچھا اور ہر بار ایک ساتھ جواب آیا، کوئی ایک آواز الگ نہ سنی گئی۔"
+   ],
+   "note": "the rubric §3 wording; as a clause: «اور جواب ایک ساتھ آیا». سب کا مل کر جواب / اجتماعی جواب retired."
+  },
+  {
+   "id": "warm_up_question",
+   "en": "warm-up question (an opening question before the lesson)",
+   "ur": "شروع کا سوال",
+   "ur_alt": "شروع کے سوال",
+   "agreement": "both",
+   "coach": {
+    "ur": "شروع کا سوال",
+    "alt": "سبق شروع کرنے والا سوال",
+    "verdict_on_current": "REPLACE",
+    "why": "ابتدائی also means 'basic'; can read as belittling. شروع کا is plain speech."
+   },
+   "pedagogy": {
+    "ur": "شروع کا سوال",
+    "alt": "شروع کے سوال",
+    "verdict_on_current": "REPLACE",
+    "why": "«ابتدائی» is textbook register; a teacher says شروع کا سوال or پہلا سوال."
+   },
+   "example_lines": [
+    "آپ نے شروع کا سوال پوچھا، \"کل کیا پڑھا تھا؟\" اور بچوں نے پچھلا سبق یاد کیا۔",
+    "سبق سے پہلے استاد نے شروع کا سوال پوچھا، \"کل ہم نے کیا پڑھا تھا؟\""
+   ],
+   "note": "ابتدائی سوال retired (reads as \"basic\")."
+  },
+  {
+   "id": "think_pair_share",
+   "en": "think-pair-share",
+   "ur": "تھنک پیئر شیئر",
+   "ur_alt": null,
+   "agreement": "both",
+   "coach": {
+    "ur": "تھنک پیئر شیئر",
+    "alt": null,
+    "verdict_on_current": "ACCEPT",
+    "why": "Catalogue's own name; verb is کروایا, never پوچھا."
+   },
+   "pedagogy": {
+    "ur": "تھنک پیئر شیئر",
+    "alt": null,
+    "verdict_on_current": "ACCEPT",
+    "why": "The catalogue's own chapter name; teachers know the routine by this name."
+   },
+   "example_lines": [
+    "آپ نے تھنک پیئر شیئر کروایا: پہلے سوچا، پھر ساتھی سے بات، پھر دو جوڑیوں نے سب کو بتایا۔",
+    "استاد نے تھنک پیئر شیئر کروایا؛ بچوں نے پہلے سوچا، پھر جوڑی میں بات کی، پھر سب کو بتایا۔"
+   ],
+   "note": "the catalogue's own name; the verb is کروایا, never پوچھا."
+  },
+  {
+   "id": "pair_talk",
+   "en": "pair / partner / peer talk (short structured talk between two children)",
+   "ur": "جوڑیوں میں بات چیت",
+   "ur_alt": "ساتھی سے بات چیت",
+   "agreement": "both (pedagogy form; coach alt جوڑی میں بات چیت)",
+   "coach": {
+    "ur": "ساتھی سے بات چیت",
+    "alt": "جوڑی میں بات چیت",
+    "verdict_on_current": "ACCEPT",
+    "why": "Natural; keep this one, retire جوڑوں میں گفتگو (گفتگو is bookish)."
+   },
+   "pedagogy": {
+    "ur": "جوڑیوں میں بات چیت",
+    "alt": null,
+    "verdict_on_current": "REPLACE",
+    "why": "Teachers say «جوڑی بنا لو»; «جوڑوں میں گفتگو» is written register."
+   },
+   "example_lines": [
+    "آپ نے سوال پوچھ کر ایک منٹ ساتھی سے بات چیت کروائی، پھر تین جوڑیوں سے جواب لیا۔",
+    "استاد نے سوال لکھ کر جوڑیوں میں بات چیت کروائی اور دو منٹ بعد جواب سنے۔"
+   ],
+   "note": "جوڑوں میں گفتگو retired (written register)."
+  },
+  {
+   "id": "partner_explanation",
+   "en": "partner explanation (one child explains to another)",
+   "ur": "ساتھی کو سمجھانا",
+   "ur_alt": "ساتھی کو سمجھانے",
+   "agreement": "both",
+   "coach": {
+    "ur": "ساتھی کو سمجھانا",
+    "alt": null,
+    "verdict_on_current": "ACCEPT",
+    "why": "Exactly what a teacher says: 'جس کو آ گیا، ساتھی کو سمجھائے'."
+   },
+   "pedagogy": {
+    "ur": "ساتھی کو سمجھانا",
+    "alt": "ساتھی کو سمجھانے",
+    "verdict_on_current": "ACCEPT",
+    "why": "Natural; infinitive bends to سمجھانے before کے بعد or کو."
+   },
+   "example_lines": [
+    "آپ نے کہا کہ جس کو آ گیا وہ ساتھی کو سمجھائے، اور ساتھی کو سمجھانے کے بعد ہاتھ اٹھے۔",
+    "استاد نے بچوں کو ساتھی کو سمجھانے کو کہا کہ جمع کیسے کی۔"
+   ],
+   "note": "oblique before کے بعد / کو."
+  },
+  {
+   "id": "student_to_student",
+   "en": "children talking to each other (student-to-student interaction)",
+   "ur": "آپس میں بات چیت",
+   "ur_alt": "بچوں کی آپس میں بات چیت",
+   "agreement": "both",
+   "coach": {
+    "ur": "آپس میں بات چیت",
+    "alt": "بچوں کی آپس میں بات چیت",
+    "verdict_on_current": "ACCEPT",
+    "why": "Natural; trim to four words, add بچوں کی only where the subject is unclear."
+   },
+   "pedagogy": {
+    "ur": "آپس میں بات چیت",
+    "alt": "بچوں کی آپس میں بات چیت",
+    "verdict_on_current": "ACCEPT",
+    "why": "Fine; drop «بچوں کی» when the sentence already names the children (≤ 4 words)."
+   },
+   "example_lines": [
+    "آپ نے جوڑیاں بنوائیں اور پانچ منٹ آپس میں بات چیت چلتی رہی۔",
+    "سبق میں بچوں کی آپس میں بات چیت کا موقع نہیں آیا؛ ہر جواب استاد نے خود سنا۔"
+   ],
+   "note": "add بچوں کی only when the sentence has not named the children."
+  },
+  {
+   "id": "wait_time",
+   "en": "wait time (the pause after a question)",
+   "ur": "سوال کے بعد وقفہ",
+   "ur_alt": "تھوڑا رکنا",
+   "agreement": "chair (coach form; pedagogy form as alt)",
+   "coach": {
+    "ur": "سوال کے بعد وقفہ",
+    "alt": "تھوڑا سا وقفہ",
+    "verdict_on_current": "REPLACE",
+    "why": "انتظار کا وقفہ is a calque of 'wait time'; no teacher says it."
+   },
+   "pedagogy": {
+    "ur": "تھوڑا رکنا",
+    "alt": "تھوڑا رکنے",
+    "verdict_on_current": "REPLACE",
+    "why": "Calque of 'wait time'; teachers say سوال پوچھ کر تھوڑا رکنا."
+   },
+   "example_lines": [
+    "آپ نے سوال پوچھا، سوال کے بعد وقفہ دیا، اور پانچ سیکنڈ بعد چار ہاتھ اٹھے۔",
+    "استاد نے سوال پوچھا اور تھوڑا رکنے کے بعد ہاتھ اٹھانے والوں میں سے ایک کو سنا۔"
+   ],
+   "note": "انتظار کا وقفہ and ویٹ ٹائم retired; keep distinct from think time."
+  },
+  {
+   "id": "think_time",
+   "en": "think time",
+   "ur": "سوچنے کا وقت",
+   "ur_alt": "سوچنے کے وقت",
+   "agreement": "both",
+   "coach": {
+    "ur": "سوچنے کا وقت",
+    "alt": null,
+    "verdict_on_current": "ACCEPT",
+    "why": "Natural; 'بچوں کو سوچنے کا وقت دیا' is everyday staffroom speech."
+   },
+   "pedagogy": {
+    "ur": "سوچنے کا وقت",
+    "alt": "سوچنے کے وقت",
+    "verdict_on_current": "ACCEPT",
+    "why": "Natural spoken Urdu; keep distinct from wait time (تھوڑا رکنا)."
+   },
+   "example_lines": [
+    "آپ نے کہا، \"پہلے سوچو\"، بچوں کو سوچنے کا وقت دیا، پھر جواب لیا۔",
+    "استاد نے سوال لکھا، بچوں کو سوچنے کا وقت دیا، اور پھر جواب پوچھا۔"
+   ],
+   "note": null
+  },
+  {
+   "id": "one_word_answer",
+   "en": "a one-word / short answer",
+   "ur": "ایک لفظ کا جواب",
+   "ur_alt": "ایک لفظ کے جواب",
+   "agreement": "both",
+   "coach": {
+    "ur": "ایک لفظ کا جواب",
+    "alt": "مختصر جواب",
+    "verdict_on_current": "REPLACE",
+    "why": "No fixed term today; pin it. ایک لفظ کا جواب is what teachers say."
+   },
+   "pedagogy": {
+    "ur": "ایک لفظ کا جواب",
+    "alt": "ایک لفظ کے جواب",
+    "verdict_on_current": "REPLACE",
+    "why": "«مختصر جواب» is correct but vague; «ایک لفظ کا جواب» names what happened."
+   },
+   "example_lines": [
+    "آپ کے سوال پر زیادہ تر ایک لفظ کا جواب آیا، جیسے \"ہاں\"، \"تین\"، \"پانی\"۔",
+    "استاد نے پوچھا، \"یہ کون سی شکل ہے؟\"، اور ایک لفظ کا جواب آیا، \"مثلث\"۔"
+   ],
+   "note": "مختصر جواب is allowed but vaguer."
+  },
+  {
+   "id": "quick_answers",
+   "en": "the teacher took quick answers / moved straight on",
+   "ur": "فوری جواب آیا",
+   "ur_alt": "پہلا جواب لیا",
+   "agreement": "chair (coach form; pedagogy form as alt)",
+   "coach": {
+    "ur": "فوری جواب",
+    "alt": "جواب فوراً آ گیا",
+    "verdict_on_current": "REPLACE",
+    "why": "فوراً جوابات مانگے blames the teacher and doubles فوراً; make the answer the subject."
+   },
+   "pedagogy": {
+    "ur": "پہلا جواب لینا",
+    "alt": "پہلا جواب لینے",
+    "verdict_on_current": "REPLACE",
+    "why": "«فوراً … مانگے» reads as reproach; «پہلا جواب لیا» states the fact, neutrally."
+   },
+   "example_lines": [
+    "آپ نے سوال پوچھا، فوری جواب آیا اور سبق اگلی مثال پر چلا گیا۔",
+    "استاد نے سوال پوچھا، پہلا جواب لیا اور اگلا سوال پوچھ لیا۔"
+   ],
+   "note": "the answer is the grammatical subject; never «فوراً جوابات مانگے» (reproach) and never a doubled فوراً."
+  },
+  {
+   "id": "feedback_two_part",
+   "en": "two-part feedback (name what went well, then one next step)",
+   "ur": "شاباش اور ایک مشورہ",
+   "ur_alt": "تعریف، پھر ایک مشورہ",
+   "agreement": "chair (pedagogy form; coach form as alt)",
+   "coach": {
+    "ur": "تعریف، پھر ایک مشورہ",
+    "alt": "دو حصوں والا فیڈبیک",
+    "verdict_on_current": "REPLACE",
+    "why": "No fixed term; name the two parts in the words the teacher uses."
+   },
+   "pedagogy": {
+    "ur": "شاباش اور ایک مشورہ",
+    "alt": "شاباش اور ایک مشورے",
+    "verdict_on_current": "REPLACE",
+    "why": "No fixed term now; teachers say a شاباش with one مشورہ."
+   },
+   "example_lines": [
+    "آپ نے جواب پر تعریف، پھر ایک مشورہ دیا: \"صحیح کہا، اب وجہ بھی بتاؤ۔\"",
+    "استاد نے کام دیکھ کر شاباش اور ایک مشورہ دیا، \"حاشیہ اچھا ہے، اب ہندسے قطار میں لکھو\"۔"
+   ],
+   "note": "names the two parts in the teacher's own words (the 23-s2 move)."
+  },
+  {
+   "id": "recap_review",
+   "en": "during the review / recap of the last lesson",
+   "ur": "دہرائی",
+   "ur_alt": "دہرائی کے دوران",
+   "agreement": "both (same stem)",
+   "coach": {
+    "ur": "دہرائی کے دوران",
+    "alt": "پچھلا سبق دہراتے ہوئے",
+    "verdict_on_current": "ACCEPT",
+    "why": "دہرائی is the teachers' own word for recap; keep."
+   },
+   "pedagogy": {
+    "ur": "دہرائی",
+    "alt": null,
+    "verdict_on_current": "ACCEPT",
+    "why": "«دہرائی» is the teachers' own word; «دورِ جائزہ» is a calque nobody says."
+   },
+   "example_lines": [
+    "دہرائی کے دوران آپ نے پچھلے سبق کے تین سوال پوچھے اور بچوں نے سب کے جواب دیے۔",
+    "دہرائی میں استاد نے پوچھا، \"کل ہم نے کون سا سبق پڑھا تھا؟\""
+   ],
+   "note": "دورِ جائزے / دوبارہ سوال میں retired."
+  },
+  {
+   "id": "logistics_aside",
+   "en": "a logistical aside / housekeeping line (page call, roll call)",
+   "ur": null,
+   "ur_alt": "روزمرہ کی ہدایت",
+   "agreement": "both: do not describe",
+   "coach": {
+    "ur": "صفحہ نمبر یا حاضری",
+    "alt": "سبق سے ہٹ کر ایک بات",
+    "verdict_on_current": "REPLACE",
+    "why": "منطقی ہدایات is a mistranslation. Prefer card frame; if named, be concrete."
+   },
+   "pedagogy": {
+    "ur": "روزمرہ کی ہدایت",
+    "alt": null,
+    "verdict_on_current": "REPLACE",
+    "why": "«منطقی» means logical, not logistical; better still, do not describe such lines."
+   },
+   "example_lines": [
+    "صفحہ نمبر یا حاضری کے بعد آپ نے سبق کا پہلا سوال پوچھا۔",
+    "استاد نے روزمرہ کی ہدایت دی، \"صفحہ بارہ کھولو\"، اور پھر سبق شروع کیا۔"
+   ],
+   "note": "a page call, roll call or housekeeping line is never described in the reason: the message falls back to the card frame (COS 022905 §2). If a word is unavoidable: روزمرہ کی ہدایت (pedagogy) or name it concretely, صفحہ نمبر یا حاضری (coach). منطقی ہدایات / معروضی گفتگو retired."
+  },
+  {
+   "id": "subtraction",
+   "en": "subtraction (maths)",
+   "ur": "تفریق کا سوال",
+   "ur_alt": null,
+   "agreement": "both",
+   "coach": {
+    "ur": "تفریق کا سوال",
+    "alt": "منفی کا سوال",
+    "verdict_on_current": "ACCEPT",
+    "why": "Textbook word, teachers know it; منفی is the spoken form. نفی→تفریق rewrite is right."
+   },
+   "pedagogy": {
+    "ur": "تفریق کا سوال",
+    "alt": "تفریق کے سوال",
+    "verdict_on_current": "ACCEPT",
+    "why": "Textbook and teacher term; «منفی» is the sign, «نفی» is negation."
+   },
+   "example_lines": [
+    "آپ نے تختے پر تفریق کا سوال لکھا، \"۴۵ منفی ۱۸\"، اور بچوں نے کاپی میں حل کیا۔",
+    "استاد نے تختے پر تفریق کا سوال لکھا، \"۱۵ میں سے ۷ گئے\"، اور بچوں نے کاپی میں حل کیا۔"
+   ],
+   "note": "نفی retired; the experts differ on منفی (coach: spoken form; pedagogy: the sign), so it is not listed."
+  }
+ ],
+ "frames": [
+  {
+   "id": "header_ur",
+   "verdict": "REPLACE",
+   "ur": "🎬 اگلی کلاس میں آزمانے کے لیے ۱ منٹ کا کلپ۔",
+   "alt": "🎬 جو بات آپ کو آزمانی ہے، اس پر ۱ منٹ کا کلپ۔",
+   "agreement": "both REPLACE the current line (a calque of \"your one thing to try\"); chair picks the coach's (shorter, names when), pedagogy's as alt",
+   "cap": "body line; header cap 60 code points if ever used as a header"
+  },
+  {
+   "id": "card_frame_ur",
+   "verdict": "ACCEPT",
+   "ur": "آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: \"…\"۔ یہ کلپ اس کا ایک طریقہ دکھاتا ہے۔",
+   "alt": null,
+   "agreement": "both ACCEPT (94.6% ok on v7)"
+  },
+  {
+   "id": "card_frame_other_ur",
+   "verdict": "REPLACE",
+   "ur": "آپ کی رپورٹ میں اگلی کلاس کے لیے ایک بات آزمانے کو کہا گیا ہے۔ یہ کلپ اس کا ایک طریقہ دکھاتا ہے: ‹chapter title›۔",
+   "alt": "آپ کی رپورٹ میں اگلی کلاس کے لیے ایک بات آزمانے کو کہا گیا ہے۔ یہ کلپ اس کا ایک طریقہ دکھاتا ہے۔",
+   "agreement": "both REPLACE («ایک قدم بتاتی ہے» is not said; the line said nothing about the clip); chair merges pedagogy's wording with the coach's chapter-title slot — a merged line neither expert saw, to be confirmed on v8",
+   "cap": "portal card line"
+  },
+  {
+   "id": "transcript_frame_ur",
+   "verdict": "REPLACE",
+   "ur": "سبق میں استاد نے ‹term› پوچھا، \"…\"۔ یہ کلپ اس بارے میں ہے: ‹chapter title›۔",
+   "alt": "سبق میں استاد نے ‹term› پوچھا، \"…\"، اور ‹answer-term›۔ یہ کلپ اس بارے میں ہے: ‹chapter title›۔",
+   "agreement": "both REPLACE: the move term goes BEFORE the quote, from this file only; no free LLM clause after the quote; the answer-type clause («اور جواب ایک ساتھ آیا» / «اور فوری جواب آیا» / «اور ایک لفظ کا جواب آیا») only when the lesson shows it. Voice: the chair keeps third person «استاد نے» (RUBRIC §3, the engine's gender rule); the coach proposes second person «آپ نے» (the teacher reads about their own lesson) — a product-voice decision for the COS, recorded in voice_note",
+   "cap": "body"
+  },
+  {
+   "id": "footer_ur",
+   "verdict": "ACCEPT",
+   "ur": "⏱ ۱ منٹ · اردو",
+   "alt": "⏱ ۱ منٹ · اردو + انگریزی",
+   "agreement": "coach ACCEPT; pedagogy not asked"
+  },
+  {
+   "id": "button_ur",
+   "verdict": "ACCEPT",
+   "ur": "▶ ۱ منٹ دیکھیں",
+   "alt": null,
+   "agreement": "coach ACCEPT; pedagogy not asked; ≤ 20 code points"
+  }
+ ],
+ "empty_descriptor_template": "سبق میں استاد نے بچوں سے پوچھا، \"…\"۔",
+ "never_use": [
+  {
+   "phrase": "ابتدائی سوال",
+   "use_instead": "شروع کا سوال",
+   "why": "Also means 'basic'; can belittle.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "اجتماعی جواب",
+   "use_instead": "ایک ساتھ جواب",
+   "why": "Formal, newspaper register.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "انتظار کا وقفہ",
+   "use_instead": "سوال کے بعد وقفہ",
+   "why": "Calque of 'wait time'.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "بچوں نے سب کا مل کر جواب دیا",
+   "use_instead": "ایک ساتھ جواب / جواب ایک ساتھ آیا",
+   "why": "Ungrammatical (Z429).",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "جو سوال تھا / یہ سوال تھا",
+   "use_instead": "(omit; close quote with ۔) / empty_descriptor_template",
+   "why": "Empty stub; says nothing.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "جو مل کر جواب لاتا ہے",
+   "use_instead": "ایک ساتھ جواب",
+   "why": "Ungrammatical relative clause.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "جوڑوں میں گفتگو",
+   "use_instead": "جوڑیوں میں بات چیت",
+   "why": "گفتگو is bookish; one term only.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "دوبارہ سوال میں",
+   "use_instead": "دہرائی",
+   "why": "Means 'in the re-question'; wrong.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "دورِ جائزے میں",
+   "use_instead": "دہرائی",
+   "why": "Calque of 'review period'.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "سب کا مل کر جواب",
+   "use_instead": "ایک ساتھ جواب",
+   "why": "Does not sit in a sentence.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "سبق کی سوال",
+   "use_instead": "سبق کا سوال",
+   "why": "Gender agreement error.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "طلبہ کا کلام بند رہا",
+   "use_instead": "آپس میں بات چیت / بچوں کی آپس میں بات چیت کا موقع نہیں آیا",
+   "why": "Archaic and deficit-framed.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "فوراً جوابات مانگے",
+   "use_instead": "فوری جواب آیا",
+   "why": "Reproachful; doubles فوراً.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "مزید سوال",
+   "use_instead": "جواب پر اگلا سوال",
+   "why": "Reads as 'more questions'.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "معروضی گفتگو",
+   "use_instead": "(use card frame) / سبق کی بات",
+   "why": "Means 'objective talk'; mistranslation.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "منطقی ہدایات",
+   "use_instead": "صفحہ نمبر یا حاضری / روزمرہ کی ہدایت (or card frame)",
+   "why": "Means 'logical instructions'; mistranslation.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "نفی کا سوال",
+   "use_instead": "تفریق کا سوال",
+   "why": "نفی is negation, not subtraction.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "ویٹ ٹائم",
+   "use_instead": "سوال کے بعد وقفہ",
+   "why": "Transliterated English.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "پروب",
+   "use_instead": "جواب پر اگلا سوال",
+   "why": "Transliterated jargon.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "کورس میں جواب",
+   "use_instead": "ایک ساتھ جواب",
+   "why": "Transliterated English.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "گرمی سوال",
+   "use_instead": "شروع کا سوال",
+   "why": "Literal 'warm'; teachers laugh.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "یاد رکھنے والا سوال",
+   "use_instead": "سیدھا سا سوال",
+   "why": "Means a question to remember; wrong sense.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "یاد سے بتانے والا سوال",
+   "use_instead": "سیدھا سا سوال",
+   "why": "Word-for-word calque; failed 19/19.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "یاد سے بتانے والا/ہاں/نہیں والا سوال",
+   "use_instead": "ہاں یا نہیں والا سوال",
+   "why": "Slash-fused terms; pick one.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "یادداشت پر مبنی سوال",
+   "use_instead": "سیدھا سا سوال",
+   "why": "Dictionary coinage; nobody says it.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "یادداشتی سوال",
+   "use_instead": "سیدھا سا سوال",
+   "why": "Invented adjective.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "یاددہانی کا ہاں/نہ سوال",
+   "use_instead": "ہاں یا نہیں والا سوال",
+   "why": "Two terms fused; unreadable.",
+   "from": [
+    "coach",
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "Latin 'peer talk' / 'partner talk' inside an Urdu sentence",
+   "use_instead": "جوڑیوں میں بات چیت",
+   "why": "script switch mid-sentence",
+   "from": [
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "Latin 'recall' inside an Urdu sentence",
+   "use_instead": "سیدھا سا سوال",
+   "why": "script switch mid-sentence",
+   "from": [
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "peer talk / partner talk / recall (Latin inside Urdu)",
+   "use_instead": "جوڑیوں میں بات چیت / سیدھا سا سوال",
+   "why": "Latin inside Urdu; failed Z172 Z200.",
+   "from": [
+    "coach"
+   ]
+  },
+  {
+   "phrase": "آپ نے … نہیں پوچھا / آپ نے … نہیں کیا",
+   "use_instead": "سبق میں … کا موقع نہیں آیا",
+   "why": "deficit wording, R7 ≤ 3",
+   "from": [
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "آپ نے … نہیں پوچھا / نہیں کیا",
+   "use_instead": "name what happened, neutrally",
+   "why": "Deficit wording; ⛔9.",
+   "from": [
+    "coach"
+   ]
+  },
+  {
+   "phrase": "آپ کی آزمانے والی ایک بات",
+   "use_instead": "اگلی کلاس میں آزمانے کے لیے",
+   "why": "Header calque.",
+   "from": [
+    "coach"
+   ]
+  },
+  {
+   "phrase": "استاد صاحب / استانی / ٹیچر صاحبہ",
+   "use_instead": "آپ",
+   "why": "Gendered; آپ is neutral plural.",
+   "from": [
+    "coach"
+   ]
+  },
+  {
+   "phrase": "اوپن اینڈڈ سوال",
+   "use_instead": "کھلا سوال",
+   "why": "Transliterated English.",
+   "from": [
+    "coach"
+   ]
+  },
+  {
+   "phrase": "بندہ",
+   "use_instead": "بند",
+   "why": "Typo for بند; means 'person'.",
+   "from": [
+    "coach"
+   ]
+  },
+  {
+   "phrase": "بندہ (for بند)",
+   "use_instead": "بند",
+   "why": "بندہ means 'a person'",
+   "from": [
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "جوڑ کی گفتگو",
+   "use_instead": "جوڑیوں میں بات چیت",
+   "why": "جوڑ is a joint or a sum",
+   "from": [
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "جھٹ جواب لے کر آگے بڑھ گئے",
+   "use_instead": "پہلا جواب لیا اور اگلا سوال پوچھا",
+   "why": "mocking tone",
+   "from": [
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "دو حصوں والی رائے / فیڈبیک",
+   "use_instead": "شاباش اور ایک مشورہ",
+   "why": "calque / Latin loan",
+   "from": [
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "رٹے والا سوال",
+   "use_instead": "سیدھا سا سوال",
+   "why": "Pejorative; shames the teacher.",
+   "from": [
+    "coach"
+   ]
+  },
+  {
+   "phrase": "ری کال سوال",
+   "use_instead": "سیدھا سا سوال",
+   "why": "Transliterated English.",
+   "from": [
+    "coach"
+   ]
+  },
+  {
+   "phrase": "طلبہ و طالبات",
+   "use_instead": "بچے",
+   "why": "heavy, gendered; teachers say بچے",
+   "from": [
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "فالو اپ سوال",
+   "use_instead": "جواب پر اگلا سوال",
+   "why": "Transliterated English.",
+   "from": [
+    "coach"
+   ]
+  },
+  {
+   "phrase": "فوراً فوراً",
+   "use_instead": "فوری",
+   "why": "Doubled adverb (Z198).",
+   "from": [
+    "coach"
+   ]
+  },
+  {
+   "phrase": "پیر ٹاک",
+   "use_instead": "جوڑیوں میں بات چیت",
+   "why": "Transliterated English.",
+   "from": [
+    "coach"
+   ]
+  },
+  {
+   "phrase": "کلی طور پر جواب",
+   "use_instead": "ایک ساتھ جواب",
+   "why": "means 'entirely', not 'together'",
+   "from": [
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "کمزور / غلطی / سکور",
+   "use_instead": "(never in a reason line)",
+   "why": "Shames; RUBRIC §3.",
+   "from": [
+    "coach"
+   ]
+  },
+  {
+   "phrase": "کولڈ کال",
+   "use_instead": "نام لے کر پوچھنا",
+   "why": "transliterated English",
+   "from": [
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "کھلے ختم سوال",
+   "use_instead": "کھلا سوال",
+   "why": "literal 'open-ended'; nonsense",
+   "from": [
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "کھلے سرے والا سوال",
+   "use_instead": "کھلا سوال",
+   "why": "Literal 'open end'; comic.",
+   "from": [
+    "coach"
+   ]
+  },
+  {
+   "phrase": "گرم جوشی والا سوال",
+   "use_instead": "شروع کا سوال",
+   "why": "'warm' misread as enthusiasm",
+   "from": [
+    "pedagogy"
+   ]
+  },
+  {
+   "phrase": "گرم کرنے والا سوال",
+   "use_instead": "شروع کا سوال",
+   "why": "Literal warm-up; comic.",
+   "from": [
+    "coach"
+   ]
+  }
+ ],
+ "expert_notes": {
+  "coach": "Frame voice: the teacher reads about their own lesson, so «آپ نے» (neutral, respectful plural) beats third-person «استاد نے». Put the move term before the quote («آپ نے ‹term› پوچھا: \"…\"۔»); for answer-type moves append «اور جواب ایک ساتھ آیا» / «اور فوری جواب آیا». No free LLM clause after the quote. Logistics lines: card frame, never a descriptor.",
+  "pedagogy": "ur is the direct form for the «‹term› پوچھا» slot; ur_alt is the oblique form to use before کے بعد / میں / کو; null alt means the term does not inflect. Examples use نے constructions so no verb shows the teacher's gender. Logistics lines (page, roll call) should fall back to the card frame, not be described."
+ }
+}

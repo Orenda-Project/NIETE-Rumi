@@ -500,6 +500,24 @@ function whyFirst(candidates, catalog, { apply = false, history = null } = {}) {
   return out;
 }
 
+// R7j (COS 022905 §3; panel v7 Z001 Z218): a D6/B1 card that puts the learning goal on the board is the objective chapter 47-s1
+// (write the SLO), never 47-s3 (explain with a two-column board), which the D6 tag would otherwise list.
+const GOAL_CARD = /\b(?:learning )?(?:goal|objective|slo)\b|مقصد|ہدف|ٹارگٹ/iu;
+const BOARD = /\bboard\b|بورڈ|تختہ/iu;
+/** The candidates with 47-s3 replaced by 47-s1 for a goal-on-board card (or dropped when 47-s1 is listed or cannot be offered). */
+function goalFirst(candidates, catalog, { indicator = null, sentence = '', history = null } = {}) {
+  const list = candidates || [];
+  const at = list.findIndex((c) => c.seg_id === '47-s3');
+  if (at < 0 || !['D6', 'B1'].includes(String(indicator)) || !GOAL_CARD.test(sentence) || !BOARD.test(sentence)) return list;
+  if (list.some((c) => c.seg_id === '47-s1')) return list.filter((_, i) => i !== at);
+  const hit = catalog && catalog.segment('47-s1');
+  const seen = history && (history.segments || []).includes('47-s1');
+  if (!hit || seen || !recommendable(hit.module, hit.segment)) return list.filter((_, i) => i !== at);
+  const out = list.slice();
+  out[at] = { ...list[at], seg_id: '47-s1', level_id: hit.module.level_id, indicator: ((hit.segment.fico || [])[0] || {}).indicator || list[at].indicator };
+  return out;
+}
+
 // R7c (COS 20261023T170515 §7; panel §1.5): the four chapters the engine enacts well (106 of 159 picks at 90.6%). When the
 // model returns null for a C1/D3/C3 card on a closed-answer lesson, it is asked once more with only these.
 const ENACTED = Object.freeze(['50-s2', '51-s1', '51-s3', '95-s3']);
@@ -527,4 +545,4 @@ function enacted(catalog, ctx, lesson, ids = ENACTED) {
   })) };
 }
 
-module.exports = { enacted, ENACTED, ENACTED_STEPS, whyFirst, WHY_FIRST, build, textRoute, recommendable, fallbackSubjectOk, stepQuery, contentWords, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, STUB_FLOOR, LABEL_37, cardTagOk };
+module.exports = { goalFirst, enacted, ENACTED, ENACTED_STEPS, whyFirst, WHY_FIRST, build, textRoute, recommendable, fallbackSubjectOk, stepQuery, contentWords, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, STUB_FLOOR, LABEL_37, cardTagOk };
