@@ -171,7 +171,7 @@ export function useHomeData(on: boolean, orderOn: boolean, userKey?: string | nu
     return () => { live = false; };
   }, [on, orderOn, userKey]);
 
-  return { data, order: on ? order : null };
+  return { data: on ? data : null, order: on ? order : null };
 }
 
 /** A path outside the portal's router: the signed quiz home (same host as the portal). */
