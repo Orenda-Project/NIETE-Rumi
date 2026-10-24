@@ -329,6 +329,23 @@ describe("teacher Home, the new look", () => {
       r.mockRestore();
     });
 
+    it("measured again when the fonts land (a late Nastaliq swap grows the block)", async () => {
+      let fontsLanded!: () => void;
+      const ready = new Promise<void>((r) => { fontsLanded = r; });
+      Object.defineProperty(document, "fonts", { configurable: true, value: { ready } });
+      const m: Record<string, number> = { "home-look-card": 100, "feature-tiles": 306 };
+      const r = tops(m);
+      serve({ home: body({ card: COACH_CARD }) });
+      renderHome();
+      await screen.findByTestId("home-look-card");
+      await waitFor(() => expect(JSON.parse(localStorage.getItem(SLOT) ?? "null")?.total).toBe(196));
+      m["feature-tiles"] = 318;
+      fontsLanded();
+      await waitFor(() => expect(JSON.parse(localStorage.getItem(SLOT) ?? "null")?.total).toBe(208));
+      r.mockRestore();
+      delete (document as { fonts?: unknown }).fonts;
+    });
+
     it("a drawn card remembers its height; a no-card answer forgets it", async () => {
       const h = tops({ "home-look-card": 100, "feature-tiles": 306 });
       serve({ home: body({ card: COACH_CARD }) });
