@@ -26,6 +26,9 @@ module.exports = {
   ],
 
   // Setup files
+  // setup-loopback.js runs before every test file: no test reaches a live service unless the run
+  // sets ALLOW_LIVE_SERVICES_IN_TESTS=1.
+  setupFiles: ['<rootDir>/tests/setup-loopback.js'],
   setupFilesAfterEnv: [],
 
   // Coverage settings
