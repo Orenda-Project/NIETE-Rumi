@@ -20,7 +20,7 @@ const prompt = require('./prompt');
 const select = require('./select');
 const silence = require('./silence');
 const { composeReason, stripBidi } = require('./copy');
-const { leadingVocative, relabelRecall } = require('./copy-rules');
+const { leadingVocative, vocativeNames, relabelRecall } = require('./copy-rules');
 const terms = require('./urdu-terms');
 const { wordCounts, maskedKeys, nameKey, guarded, scrubNames } = require('./redact-names');
 
@@ -259,6 +259,9 @@ async function compute(a, d, state) {
   // R7j (COS 022905 §1): the lesson's name set — the roster as it is and the strict redactor's guarded masks — for the ONE
   // output gate in emit; never an input to the model, validation or routing (red7 HOLD 023908 H2)
   people.names = new Set([...maskedKeys(prompt.transcriptLines(session), people), ...people.rosterRaw]);
+  // Z086 (ped-scale 042448): the teacher's own name, users.name and the card's leading address, joins the set. Everyday
+  // words stay out (rosterSet): an address made of dictionary words is dropped from every card path by leadingVocative.
+  for (const w of select.rosterSet([...String(people.teacher || '').split(/\s+/), ...vocativeNames(stripBidi(String(cardSentence || '')))])) people.names.add(w);
   // F1: the card's action (it opens with the teacher's name in prod) is stored redacted (V1.7.1 "no names"); the BM25
   // query itself ran on the raw words. Only the action: the redactor masks Title-Case indicator names too.
   const st = stepTextOf(t, analysis, card);
