@@ -405,6 +405,25 @@ function routineQuote(p, topic = null) {
 }
 
 /** ⛔9 (SPEC v1.3c §3.5 a): what is stored and sent passes the non-strict redactor; a text with no name is unchanged. */
+/**
+ * R7o-a: true when the strict redactor, called as the excerpts call it (prompt.redact), masks an Urdu-script word of
+ * `text` that stands in a NAME SLOT: a clause's bare subject — after «:» «،» «؛» or at the start, and followed by no
+ * postposition, light verb or question mark («…کرائیں: X 1 منٹ جوڑوں میں بیان کرے۔», Z044). The strict redactor alone
+ * cannot tell an unknown name from a noun the lexicon lacks («ہر X کے بعد», «دو X سے», «'…' X کی جگہ», «جو بچہ X جائے»): on
+ * the v10 fresh-4 card run, "any masked word" took the quote from 56 of 151 sends; the name slot takes it from 2.
+ */
+const CLAUSE_START = /^[:،؛,]$/;
+const NOUN_NEXT = new Set('کے کی کا کو سے میں پر نے تک والا والی والے جیسے جیسا جیسی کریں کرنا کرنے کرو کرے کر جا جائے جاتا ہو ہے ہیں تھا تھی ؟ ? ۔ .'.split(' '));
+function strictNamed(text, { teacher = null, vocab = [], oovVocab = [], counts = null } = {}) {
+  const s = String(text || '');
+  const trace = [];
+  redactNames(s, { teacher, placeholders: { child: '[a student]' }, vocab, oovVocab, counts, trace });
+  const masked = new Set(trace.filter((t) => /[؀-ۿ]/.test(t.word)).map((t) => t.word));
+  if (!masked.size) return false;
+  const toks = s.match(/[\p{L}\p{M}\p{N}'’‑-]+|[:،؛۔.?!؟,]/gu) || [];
+  return toks.some((w, i) => masked.has(w) && (i === 0 || CLAUSE_START.test(toks[i - 1])) && !NOUN_NEXT.has(toks[i + 1] || '۔'));
+}
+
 function postRedact(text, teacherName, vocab = [], counts = null, carry = null, trace = null) {
   if (typeof text !== 'string' || !text) return text;
   // counts: red7 013349; carry (R7i): the lesson's and the quote's masked names, masked wherever they stand
@@ -591,6 +610,10 @@ function cardFrame({ sentence, startS, endS, language, teacherName, module, subj
     const plain = () => ({ reason_en: plainFrame('en', segment), reason_ur: plainFrame('ur', segment) });
     s = childFreeCard(s, { teacher: teacherName, vocab, oovVocab, roster: rosterRaw, counts }); // S12: a roster possessor, read raw; F: the lesson's counts
     if (!s || rosterIn(s, roster)) return plainIfNamed ? plain() : null; // R7d (Q086): a roster name in any position, a quoted title included
+    // R7o-a (COS 194233 §1; panel v10 Z044/Z054 ⛔9): the sentence as it will be quoted passes the excerpts' own STRICT
+    // redactor (prompt.redact's context); postRedact above is non-strict, so an unknown word naming a child inside an Urdu
+    // card («…کرائیں: X 1 منٹ…», 'oov') reached the quote. Any word it masks → the plain frame, never the quote.
+    if (strictNamed(s, { teacher: teacherName, vocab, oovVocab, counts })) return plainIfNamed ? plain() : null;
     s = singleQuotes(s).replace(/^[a-z]/, (c) => c.toUpperCase()); // P109: no lower-case start after the strip
     // bd-8hhqhf: a long card sentence is trimmed to fit, in each language (session 077b8021: 224 cp → 308 cp composed in
     // ur, and no clip was sent). The teacher's language must fit; the other one is trimmed when it can be and otherwise
