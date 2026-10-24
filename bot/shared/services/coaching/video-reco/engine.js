@@ -365,8 +365,10 @@ async function compute(a, d, state) {
     const sentence = (card && card.action) || step.try || fa.try_this_tomorrow || '';
     // R7g (COS 002603 1c; panel Z040 Z077 Z135 Z063 Z167): "this clip shows one way to do it" only on a chapter whose move the
     // card names; else 51-s1 when the card asks for a why / how / open question or wait time, else silence
-    if (seg && !select.cardMoveOk(sentence, seg.segment)) {
-      if (!silence.whyWaitCard(sentence) || String(res.pick.seg_id) === WHY_SWAP_CHAPTER) return null;
+    const rescue = seg && !select.cardMoveOk(sentence, seg.segment);
+    if (rescue && String(res.pick.seg_id) === WHY_SWAP_CHAPTER && !silence.whyWaitCard(sentence)) return null;
+    if (rescue && String(res.pick.seg_id) !== WHY_SWAP_CHAPTER) { // (the pick already is 51-s1 on a why/wait card: its frame stands)
+      if (!silence.whyWaitCard(sentence)) return null;
       // G3 (gold b4d78b5e: no second ask): on a move step 51-s1 only when it carries the step's tag, as the second pass
       const why = catalog.segment(WHY_SWAP_CHAPTER);
       if (!why || (MOVE_REASONS.has(list.textReason) && tagMismatch(t, why.segment) === true)) return null;
