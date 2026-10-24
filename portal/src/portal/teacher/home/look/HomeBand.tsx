@@ -62,7 +62,7 @@ export function HomeBand({ title, name, now, school, vw }: HomeBandProps) {
     <h1
       data-testid="home-look-greeting"
       className={cn(
-        "min-w-0 break-words font-semibold text-white [overflow-wrap:anywhere]",
+        "min-w-0 break-words font-semibold text-white",
         shape === "two" ? "mt-1 text-[20px] leading-[26px] rtl:text-[19px]" : "flex-1 text-[17px] leading-[22px] rtl:text-[16px]",
       )}
     >
