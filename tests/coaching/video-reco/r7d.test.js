@@ -291,13 +291,15 @@ describe('6 · the clip half is written from the chapter; the lesson half from t
     expect(row.reason_ur).toContain('عنوان');
   });
 
-  test('control: a reason that opens with the clip keeps the model\'s text (validators still apply)', async () => {
+  test('control: a reason that opens with the clip keeps the model\'s text, and the validators still apply (R7f 1b: it names no gap of the lesson → the card\'s sentence)', async () => {
     const lead = answer({
       seg_id: '51-s1', reason_en: 'This clip explains how to turn a yes/no question into a why question, as in "Is this a triangle? Yes or no, everyone together".',
       reason_ur: 'یہ کلپ سمجھاتا ہے کہ ہاں یا نہیں والے سوال کو کیوں والے سوال میں کیسے بدلیں۔',
     });
+    const grounded = S.groundReasons(lead, C.fromData(DATA));
+    expect(grounded.reason_en).toContain('This clip explains how to turn a yes/no question into a why question');
     const row = await run(args(), deps([lead]));
-    expect(row.reason_en).toContain('This clip explains how to turn a yes/no question into a why question');
+    expect(row).toMatchObject({ moment_source: 'card', first_none_reason: 'validation:no_gap' });
   });
 
   test('a what-question is never called recall: the label is rewritten in the lesson half (en + ur), the pick is kept', async () => {

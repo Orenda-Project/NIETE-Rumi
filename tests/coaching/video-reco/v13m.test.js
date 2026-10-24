@@ -27,7 +27,7 @@ beforeEach(() => {
 const LINE = 'ثنا، پہلی پکچر میں کیا کر رہے ہیں؟';
 const A = {
   seg_id: '10-s1', moment: { at: '03:12', quote: '[a student]، پہلی پکچر میں کیا کر رہے ہیں؟' },
-  reason_en: '[a student]، پہلی پکچر میں کیا کر رہے ہیں؟ The clip shows the teacher preparing an easier spoken-sentence task and a challenge paragraph task so students can choose the version that matches their level.',
+  reason_en: '[a student]، پہلی پکچر میں کیا کر رہے ہیں؟ Only one child was asked. The clip shows the teacher preparing an easier spoken-sentence task and a challenge paragraph task so students can choose the version that matches their level.',
   reason_ur: '[a student]، پہلی پکچر میں کیا کر رہے ہیں؟ یہ کلپ دکھاتا ہے کہ استاد ایک آسان زبانی جملے کا کام اور ایک مشکل پیراگراف کا کام تیار کرتے ہیں تاکہ بچے اپنی سطح کے مطابق کام چن سکیں۔',
   confidence: 0.6,
 };
@@ -66,7 +66,7 @@ function deps(answers) {
 test('26435821: neither stored reason opens with "[a student]"; the rest of the line is kept (today: both open with it)', async () => {
   const row = await E.recommendForReport({ ...args(), deps: deps([A]) });
   expect(row.status).toBe('shown');
-  expect(row.reason_en.startsWith(`${FSI}پہلی پکچر میں کیا کر رہے ہیں؟${PDI} This clip is about`)).toBe(true); // R7d §6
+  expect(row.reason_en.startsWith(`${FSI}پہلی پکچر میں کیا کر رہے ہیں؟${PDI} Only one child was asked. This clip is about`)).toBe(true); // R7d §6; R7f 1b: a gap named
   expect(row.reason_ur.startsWith('پہلی پکچر میں کیا کر رہے ہیں؟ یہ کلپ')).toBe(true);
 });
 
@@ -106,7 +106,7 @@ describe('red7 085115 finding 1: an unshowable placeholder in an LLM reason or q
   });
 
   test('a reason with only [a student] placeholders is not refused by this rule', () => {
-    expect(S().validate(pick({ reason_en: 'The class waited while [a student] read. The clip shows a teacher giving a clear first step.' }), list, ex, {}).ok).toBe(true);
+    expect(S().validate(pick({ reason_en: 'The class only waited while [a student] read. The clip shows a teacher giving a clear first step.' }), list, ex, {}).ok).toBe(true);
   });
 });
 

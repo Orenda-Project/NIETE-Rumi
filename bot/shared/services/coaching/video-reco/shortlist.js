@@ -257,8 +257,8 @@ function oneWordOk(segId, words, cardIndicator) {
  * meanings). Two matched words were not enough: «peer, checklist» put a collaboration rubric on a questioning card.
  * Measured on the panel’s 200 v4 judgements (r7e/card_tag_measure.md): 10 wrong and 6 acceptable leave, 0 right.
  */
-function cardTagOk(seg, indicator, scheme) {
-  if (!indicator || ONE_WORD_KEEP.has(String(seg && seg.seg_id))) return true;
+function cardTagOk(seg, indicator, scheme, { keepEnacted = true } = {}) {
+  if (!indicator || (keepEnacted && ONE_WORD_KEEP.has(String(seg && seg.seg_id)))) return true;
   const tags = scheme === 'fico_main_37' ? (seg.fico_main37 || []) : (seg.fico || []).map((f) => f && f.indicator);
   if (!tags.length) return true; // a chapter with no tag in the scheme is not judged here (as whyCardOk)
   // red7 F2 (Q090): a 37-C1 card keeps a C8 chapter, as the open-question card (whyCardOk) does
@@ -293,7 +293,7 @@ function managementOk(seg, step) {
  * The step-text route (R3): BM25 of the card's words over every chapter that passes subject, grade, language,
  * history and media; floor 2.0; up to 6 not in `exclude`, BM25 order. Content modules never (they need F1–F3).
  */
-function textRoute(catalog, step, ctx, lesson, exclude = [], route = 'step_text') {
+function textRoute(catalog, step, ctx, lesson, exclude = [], route = 'step_text', { tagGate = false } = {}) {
   try {
     const query = stepQuery(step);
     if (!catalog || !Array.isArray(catalog.modules) || !query) return [];
@@ -311,6 +311,11 @@ function textRoute(catalog, step, ctx, lesson, exclude = [], route = 'step_text'
       .filter((y) => y.score >= TEXT_FLOOR)
       .filter((y) => route !== 'card_text' || oneWordOk(y.x.seg.seg_id, lexical.words.get(y.x.seg.seg_id) || 0, step && step.indicator))
       .filter((y) => route !== 'card_text' || (cardTagOk(y.x.seg, step && step.indicator, step && step.scheme) && whyCardOk(y.x.seg, step)))
+      // R7f (COS 223858 1a; panel Q031 ⛔2 five heads running, Q002 Q151: step_text 0/3 shown): for an unknown, unscored or
+      // emptied indicator the step-text route passes the card_text evidence test — the chapter carries the card's indicator —
+      // with no exemption for the enacted four (a D5 card is not a questioning card). A hole (no chapter carries it by
+      // definition), a 37 label and a subject-blocked label keep the card-words route as before.
+      .filter((y) => !tagGate || cardTagOk(y.x.seg, step && step.indicator, step && step.scheme, { keepEnacted: false }))
       .filter((y) => managementOk(y.x.seg, step))
       .sort((a, b) => b.score - a.score || String(a.x.seg.seg_id).localeCompare(String(b.x.seg.seg_id)))
       .slice(0, MAX_TEXT)
@@ -439,7 +444,8 @@ function build(catalog, target, ctx, signal, lesson, step) {
     const routeName = textReason === 'card_text' ? 'card_text' : 'step_text';
     // v1.3c-4: no BM25 over a stub card on the step-text route (coaches type short labels); the tag list stands.
     const stub = routeName === 'step_text' && !!query && contentWords(s).length < STUB_FLOOR;
-    const text = query && !stub ? textRoute(catalog, s, ctx, lesson, tag.candidates.map((c) => c.seg_id), routeName) : [];
+    const tagGate = ['unknown', 'unscored', 'empty'].includes(textReason); // R7f 1a
+    const text = query && !stub ? textRoute(catalog, s, ctx, lesson, tag.candidates.map((c) => c.seg_id), routeName, { tagGate }) : [];
     const candidates = nearFirst(lv, [...tag.candidates, ...text]); // v1.3c: after the concat, so the text route is near-first too
     const common = { repeatModule: tag.repeatModule, levelMatch, textReason, stepTextQuery: query || null };
     if (!candidates.length) {
@@ -482,16 +488,16 @@ const ENACTED_STEPS = new Set(['C1', 'D3', 'C3']);
 /**
  * The enacted chapters this lesson and teacher may get, with the tag route's gates (subject, grade, language, history):
  * a chapter already sent never, a module already sent only when nothing else is left (then repeatModule, red7 H6).
- * → {candidates, repeatModule}
+ * `ids` (R7f): another fixed list under the same gates (the closure chapters, 50-s2 alone). → {candidates, repeatModule}
  */
-function enacted(catalog, ctx, lesson) {
+function enacted(catalog, ctx, lesson, ids = ENACTED) {
   const { preferred, languages } = languagesOf(ctx);
   const lv = levelOf(ctx);
   const h = (ctx && ctx.history) || {};
   const seen = new Set((h.segments || []).map(String));
   const seenMods = new Set((h.modules || []).map(Number));
   const ok = new Map(eligible(catalog, lesson).map((x) => [x.seg.seg_id, x]));
-  const fresh = ENACTED.map((id) => ok.get(id)).filter((x) => x && languages.has(x.lang) && !seen.has(x.seg.seg_id));
+  const fresh = ids.map((id) => ok.get(id)).filter((x) => x && languages.has(x.lang) && !seen.has(x.seg.seg_id));
   let pool = fresh.filter((x) => !seenMods.has(Number(x.module.module_id)));
   const repeatModule = !pool.length && fresh.length > 0 && seenMods.size > 0;
   if (repeatModule) pool = fresh;
