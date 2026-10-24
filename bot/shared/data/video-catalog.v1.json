@@ -1,6 +1,6 @@
 {
- "version": "catalog-v1-20261024T2010-r7opanel",
- "built_at": "2026-10-24T20:10:00.000Z",
+ "version": "catalog-v1-20261024T2130-r7onfs",
+ "built_at": "2026-10-24T21:30:00.000Z",
  "framework": "fico-v4",
  "indicator_aliases": {
   "B1": {
@@ -949,7 +949,8 @@
       "فل"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 2,
@@ -1329,7 +1330,8 @@
       "اسٹیکر"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 3,
@@ -1697,7 +1699,8 @@
       "positive"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 4,
@@ -2120,7 +2123,8 @@
       "بنتا"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 5,
@@ -2395,7 +2399,8 @@
       "فاسٹ"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 6,
@@ -2782,7 +2787,8 @@
       "مطابق"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 8,
@@ -3106,7 +3112,8 @@
       "ڈیزرٹس"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 9,
@@ -3753,6 +3760,10 @@
       "pair"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science"
    ]
   },
   {
@@ -4199,7 +4210,8 @@
       "لمبی"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 11,
@@ -5101,7 +5113,8 @@
       "سوچیے"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 12,
@@ -5550,6 +5563,10 @@
       "present"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science"
    ]
   },
   {
@@ -6252,6 +6269,13 @@
       "امپلیمنٹ"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -6823,6 +6847,13 @@
       "گائیڈنگ"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -7607,6 +7638,13 @@
       "شپ"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -8638,6 +8676,13 @@
       "کنیکٹڈ"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -9252,6 +9297,13 @@
       "master"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -9704,6 +9756,12 @@
       "ٹیکنیکس"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science"
    ]
   },
   {
@@ -9907,6 +9965,13 @@
       "روف"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -10253,7 +10318,8 @@
       "بہترین"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 21,
@@ -10659,7 +10725,8 @@
       "لکھ"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 22,
@@ -11106,7 +11173,8 @@
       "re"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 23,
@@ -11506,7 +11574,8 @@
       "مزید"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 24,
@@ -11905,7 +11974,8 @@
       "منٹ"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 25,
@@ -12356,7 +12426,8 @@
       "engaging"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 26,
@@ -12691,7 +12762,8 @@
       "resources"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 27,
@@ -13087,7 +13159,8 @@
       "تفصیلات"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 28,
@@ -13238,7 +13311,8 @@
      ],
      "recommendable_reason": "panel_veto: not_a_move (a teacher's own reflection habit, no classroom move; v6 Z150 ⛔2, ped/vetoes.json module 28, COS 20261024T002603 1a)"
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 30,
@@ -13590,7 +13664,8 @@
       "واقعہ"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 32,
@@ -14382,6 +14457,11 @@
       "teaching"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science",
+    "urdu"
    ]
   },
   {
@@ -15005,6 +15085,11 @@
       "break"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science",
+    "urdu"
    ]
   },
   {
@@ -15716,6 +15801,10 @@
       "سبجیکٹ"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science"
    ]
   },
   {
@@ -16286,6 +16375,10 @@
       "لا"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science"
    ]
   },
   {
@@ -16718,6 +16811,10 @@
       "پیپر"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "urdu",
+    "maths"
    ]
   },
   {
@@ -17499,6 +17596,10 @@
       "ایسا"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science"
    ]
   },
   {
@@ -17894,6 +17995,10 @@
       "انہی"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science"
    ]
   },
   {
@@ -18441,6 +18546,10 @@
       "کروا"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science"
    ]
   },
   {
@@ -18890,7 +18999,8 @@
       "bee"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 41,
@@ -19169,6 +19279,12 @@
       "بچے"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "maths",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -19507,6 +19623,10 @@
       "ہونی"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "maths"
    ]
   },
   {
@@ -19833,6 +19953,12 @@
       "پہچانتے"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "maths",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -20138,6 +20264,11 @@
       "زور"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "maths",
+    "science"
    ]
   },
   {
@@ -20453,6 +20584,11 @@
       "repeated"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science",
+    "english"
    ]
   },
   {
@@ -20802,6 +20938,10 @@
       "implement"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "maths"
    ]
   },
   {
@@ -21609,7 +21749,8 @@
       "سکھائے"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 48,
@@ -22344,7 +22485,8 @@
       "ساری"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 49,
@@ -22831,7 +22973,8 @@
       "challenges"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 50,
@@ -23399,7 +23542,8 @@
       "پلس"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 51,
@@ -23809,7 +23953,8 @@
       "بڑھتی"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 53,
@@ -24735,7 +24880,8 @@
       "اگلے"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 54,
@@ -25714,6 +25860,13 @@
       "step"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -26288,6 +26441,13 @@
       "identify"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -26709,6 +26869,13 @@
       "trainings"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -27550,6 +27717,13 @@
       "interesting"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -27931,6 +28105,13 @@
       "ہنس"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -28529,6 +28710,13 @@
       "ریپریزنٹ"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -29783,6 +29971,13 @@
       "towards"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -30531,6 +30726,9 @@
       "interactive"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "urdu"
    ]
   },
   {
@@ -31496,6 +31694,10 @@
       "skills"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science"
    ]
   },
   {
@@ -32306,6 +32508,9 @@
       "act"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "urdu"
    ]
   },
   {
@@ -32756,6 +32961,9 @@
       "sentence"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "urdu"
    ]
   },
   {
@@ -33591,6 +33799,10 @@
       "sequence"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science"
    ]
   },
   {
@@ -34148,6 +34360,10 @@
       "sentence"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "urdu",
+    "maths"
    ]
   },
   {
@@ -34970,6 +35186,12 @@
       "سیکھا"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "urdu",
+    "maths",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -35607,7 +35829,8 @@
       "confidence"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 69,
@@ -36296,6 +36519,10 @@
       "سکسیس"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science"
    ]
   },
   {
@@ -37045,6 +37272,11 @@
       "تین"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "maths",
+    "science"
    ]
   },
   {
@@ -37633,6 +37865,10 @@
       "پانی"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science"
    ]
   },
   {
@@ -38381,6 +38617,11 @@
       "اختتام"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science",
+    "english"
    ]
   },
   {
@@ -39038,6 +39279,10 @@
       "دلچسپ"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "maths"
    ]
   },
   {
@@ -39628,6 +39873,12 @@
       "سبق"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "maths",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -40268,7 +40519,8 @@
     },
     "allow_card_text": "\\b(?:(?:unseen|application|transfer) questions? (?:in|on) (?:the |every |each )?(?:test|paper|exam)|question papers?|(?:design|set|make|write|prepare|build)\\w* (?:a |the |your )?(?:test|paper|exam|quiz) (?:with|that|so)|(?:test|exam) (?:questions?|design|items?) (?:that|which|should)|rote(?:-| )(?:learn\\w*|memori[sz]\\w*)|memori[sz]ed answers?|out of syllabus)\\b|پرچ[ہے] (?:میں|کے) (?:ایک |کوئی )?(?:نیا|غیر دیکھا|ان دیکھا|اطلاقی)? ?سوال|امتحان(?:ی)? (?:کے )?سوال(?:ات)? (?:ایسے|جو|میں)|سوالنام[ہے] میں|(?:پرچ[ہے]|امتحان|ٹیسٹ|سوالنام[ہے])[^۔]{0,40}رٹ[اے]|رٹ[اے][^۔]{0,40}(?:پرچ[ہے]|امتحان|ٹیسٹ|سوالنام[ہے])",
     "reason": "context_gated_move: a talking-head argument for one unseen application question in every test paper (its own caveat: 'right for a teacher whose checks and tests are all recited textbook answers; not a questioning-technique clip'). v9 card mode sent 75-s5 for a B6 two-task differentiation card (Z325): wrong by both experts, R1/R2 = 2, 'a competing habit'. Right only for an assessment/feedback card about test or paper design."
-   }
+   },
+   "not_for_subjects": []
   },
   {
    "module_id": 76,
@@ -40703,7 +40955,8 @@
       "results"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 77,
@@ -41259,7 +41512,8 @@
       "effective"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 78,
@@ -41649,7 +41903,8 @@
       "ٹریننگ"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 79,
@@ -42143,7 +42398,8 @@
       "precipitation"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 80,
@@ -42513,7 +42769,8 @@
       "ریویو"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 86,
@@ -43095,7 +43352,8 @@
       "آئیڈیاز"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 87,
@@ -43632,7 +43890,8 @@
       "چیک"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 88,
@@ -44245,7 +44504,8 @@
       "سیٹ"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 93,
@@ -44757,7 +45017,8 @@
       "راستہ"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 94,
@@ -45368,7 +45629,8 @@
       "realized"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 95,
@@ -45841,7 +46103,8 @@
       "inquiry"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 96,
@@ -46595,7 +46858,8 @@
       "ڈیویلپ"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 97,
@@ -47328,7 +47592,8 @@
       "کولیبریشن"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 98,
@@ -48029,7 +48294,8 @@
       "ڈاکٹر"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 99,
@@ -48733,7 +48999,8 @@
       "آگے"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 100,
@@ -49429,7 +49696,8 @@
       "saw"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 101,
@@ -50243,6 +50511,13 @@
       "relate"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -51232,6 +51507,13 @@
       "problem"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -52095,6 +52377,13 @@
       "activities"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -52875,6 +53164,13 @@
       "life"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -53923,6 +54219,11 @@
       "ڈائریکٹ"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "urdu",
+    "maths",
+    "science"
    ]
   },
   {
@@ -54815,6 +55116,10 @@
       "summary"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science"
    ]
   },
   {
@@ -55760,6 +56065,10 @@
       "context"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science"
    ]
   },
   {
@@ -56669,6 +56978,10 @@
       "build"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science"
    ]
   },
   {
@@ -57475,6 +57788,12 @@
       "لگتی"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "maths",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -58005,6 +58324,12 @@
       "لکھنا"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "maths",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -58738,6 +59063,10 @@
       "دار"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science"
    ]
   },
   {
@@ -59542,6 +59871,10 @@
       "مشاہدے"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science"
    ]
   },
   {
@@ -60377,6 +60710,11 @@
       "خوش"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "maths",
+    "science"
    ]
   },
   {
@@ -61196,6 +61534,11 @@
       "پہچاننا"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "maths",
+    "science"
    ]
   },
   {
@@ -61754,7 +62097,8 @@
       "better"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 121,
@@ -62206,7 +62550,8 @@
       "زندگی"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 122,
@@ -62916,7 +63261,8 @@
     },
     "allow_card_text": "(?:\\b(?:learning (?:stations?|corners?|cent(?:re|er)s?)|(?:set up|make|create|build|arrange|prepare|organi[sz]e|run|rotate (?:through|between|around)) (?:a |the |three |four |3 |4 |two |several )?(?:(?:maths?|reading|writing|science|activity|task|play|art) )?(?:stations?|corners?|cent(?:re|er)s?)\\b|(?:maths?|reading|writing|science|activity|task) (?:stations?|corners?) (?:with|where|for|and)|stations? rotation|rotate (?:the )?groups (?:between|through|around) (?:the )?(?:stations?|corners?))|سیکھنے کے (?:اسٹیشن|کونے|مراکز)|(?:ریڈنگ|رائٹنگ|میتھس|حساب|سائنس|سرگرمی) (?:اسٹیشن|کونا|کونے) (?:بنائیں|لگائیں|پر|میں|جہاں)|(?:تین|چار|کئی) (?:اسٹیشن|کونے) (?:بنائیں|لگائیں))",
     "reason": "context_gated_move: a three-corner classroom redesign with its own catalogue caveat ('needs a changed lesson plan… not a quick next move'). v9 sent 122-s3 for a C1 'how did you work it out' card (Z238, full run) and 122-s2 for a D3 student-to-student talk card (Z477, card mode): wrong by both experts, R1/R2 = 2, as a competing system rather than the card's move. Right only for a differentiation card that itself asks for stations or levelled corners."
-   }
+   },
+   "not_for_subjects": []
   },
   {
    "module_id": 124,
@@ -63256,7 +63602,8 @@
       "پیسجز"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 125,
@@ -63613,7 +63960,8 @@
       "فری"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 127,
@@ -64162,7 +64510,8 @@
       "ڈالتے"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 128,
@@ -64851,7 +65200,8 @@
     },
     "allow_card_text": "(?:\\b(?:(?:when|after|if) (?:two |the )?(?:children|students|pupils|kids|boys|girls) (?:fight|argue|quarrel|hit|push|bully|tease)\\w*|(?:a |the )?(?:fight|quarrel|conflict) (?:between|among|in) (?:two |the )?(?:children|students|pupils|classmates|the class)|bull(?:y|ies|ying) (?:in|among) (?:the )?(?:class|children|students)|restorative (?:circle|practice|question|conversation)s?|I[- ]statements?|(?:hold|run|start|sit in|use) (?:a |the )?(?:restorative |sharing |morning )?circle(?: time)?|peace (?:corner|table)|ask (?:him|her|them|the child|the children|both) to apologi[sz]e|apologi[sz]e to (?:each other|the classmate|his|her)|praise respectful behaviou?r)\\b|(?:جب|اگر) (?:دو )?(?:بچے|بچوں|طلبہ|طالب ?علم)(?: آپس میں)? (?:لڑ|جھگڑ|مار|دھکا|تنگ)\\w*|(?:دو )?(?:بچوں|طلبہ) (?:کی|کے|کے درمیان|میں) (?:لڑائی|جھگڑ\\w*|تنازع\\w*)|(?:کلاس|بچوں) میں (?:بدتمیزی|مار ?پیٹ|لڑائی)|(?:معافی مانگنے|صلح کرنے) (?:کو|کے لیے) کہیں|غصے? (?:پر|میں|کو) قابو)",
     "reason": "context_gated_move: the five chapters enact restorative circles, I-statements and post-conflict reflection; they are moves only for a behaviour/climate card. v9 card mode sent 128-s4/128-s3 on a maths exit-check card (Z321), an Urdu idiom-sentence card (Z338) and a bare D1 'Active Participation Rate' label (Z350): ⛔2 by both experts all three times; the lexical picker matched reflect/feel/participation. 0 right on any card_text send across v7–v9."
-   }
+   },
+   "not_for_subjects": []
   },
   {
    "module_id": 129,
@@ -65451,7 +65801,8 @@
       "ملنا"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 132,
@@ -66069,7 +66420,8 @@
       "خیز"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 133,
@@ -66647,7 +66999,8 @@
       "سمپل"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 135,
@@ -67336,7 +67689,8 @@
       "کون"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 137,
@@ -67712,7 +68066,8 @@
       "کیلنڈر"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 138,
@@ -68420,7 +68775,8 @@
       "کولیبوریشن"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 139,
@@ -69213,7 +69569,8 @@
       "ایفیکٹو"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 140,
@@ -69824,7 +70181,8 @@
       "reflection"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 141,
@@ -70613,6 +70971,13 @@
       "اسٹوڈنٹس"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "english",
+    "urdu",
+    "literacy",
+    "science",
+    "social_studies"
    ]
   },
   {
@@ -71651,6 +72016,10 @@
       "yourself"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science"
    ]
   },
   {
@@ -72612,6 +72981,11 @@
       "participation"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science",
+    "urdu"
    ]
   },
   {
@@ -73498,6 +73872,11 @@
       "connected"
      ]
     }
+   ],
+   "not_for_subjects": [
+    "maths",
+    "science",
+    "urdu"
    ]
   },
   {
@@ -74279,7 +74658,8 @@
       "فن"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 146,
@@ -75010,7 +75390,8 @@
       "فروغ"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 148,
@@ -75800,7 +76181,8 @@
       "ڈیزائن"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 150,
@@ -76324,7 +76706,8 @@
       "اپروچ"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 152,
@@ -76921,7 +77304,8 @@
       "دیجیے"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 156,
@@ -77818,7 +78202,8 @@
       "کلاس"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 157,
@@ -78552,7 +78937,8 @@
       "کریئیٹ"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 159,
@@ -79026,7 +79412,8 @@
       "اسٹڈیز"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 162,
@@ -79663,7 +80050,8 @@
       "support"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 163,
@@ -80168,7 +80556,8 @@
       "strong"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 164,
@@ -80668,7 +81057,8 @@
       "display"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   },
   {
    "module_id": 165,
@@ -81251,7 +81641,8 @@
       "شروع"
      ]
     }
-   ]
+   ],
+   "not_for_subjects": []
   }
  ]
 }
