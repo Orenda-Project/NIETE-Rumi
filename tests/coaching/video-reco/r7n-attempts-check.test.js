@@ -1,24 +1,31 @@
 'use strict';
 /**
- * bd-8hhqhf R7n (promo 20261024T191116, BLOCKER for the card-mode shadow): V1.7.2 has
- * `CHECK (attempts IS NULL OR attempts IN (1, 2))`, but the engine writes attempts 0 on every no-call pick (card mode,
- * the R7f fixed paths) and 3–4 when the second moment runs. store.write caught the 23514 and returned null, so in card
- * mode every pick row was lost. The store is the one place every row reaches the table, so it writes what the column
- * allows: no completeJson call → NULL (the column's own comment), a retry beyond the second → 2 ("2 after a retry").
- * The CHECK is read from the migration file itself, so the test and the schema cannot drift apart.
+ * bd-8hhqhf R7n (promo 20261024T191116, red7 191357/191815, COS 191154 §1; BLOCKER for the card-mode shadow): V1.7.2
+ * has `CHECK (attempts IS NULL OR attempts IN (1, 2))` and V1.7.1 `CHECK (route IN ('tag','step_text','card_text'))`,
+ * but the engine writes attempts 0 on every no-call pick (card mode, the R7f fixed paths), 3–4 when the second moment
+ * runs, and route 'enacted' / 'closure' on the fixed paths. store.write caught the 23514 and returned null, so those
+ * pick rows were lost. The store is the one place every row reaches the table: outside the allowed set → NULL.
+ * Both CHECKs are read from the migration files themselves, so the test and the schema cannot drift apart.
  */
 const fs = require('fs');
 const path = require('path');
 const { fakeSupabase } = require('./fixtures/fake-supabase');
 const FIXTURE = require('./fixtures/catalog.fixture.json');
 
-const MIGRATION = path.join(__dirname, '../../../infrastructure/supabase/migrations/V1.7.2__video_recommendations_retry.sql');
+const MIGRATIONS = path.join(__dirname, '../../../infrastructure/supabase/migrations');
+const read = (f) => fs.readFileSync(path.join(MIGRATIONS, f), 'utf8');
 const ALLOWED = (() => {
-  const m = /attempts SMALLINT\s+CHECK \(attempts IS NULL OR attempts IN \(([\d,\s]+)\)\)/.exec(fs.readFileSync(MIGRATION, 'utf8'));
+  const m = /attempts SMALLINT\s+CHECK \(attempts IS NULL OR attempts IN \(([\d,\s]+)\)\)/.exec(read('V1.7.2__video_recommendations_retry.sql'));
   if (!m) throw new Error('V1.7.2 attempts CHECK not found');
   return new Set(m[1].split(',').map((x) => Number(x.trim())));
 })();
-const passesCheck = (row) => !('attempts' in row) || row.attempts === null || ALLOWED.has(row.attempts);
+const ROUTES = (() => {
+  const m = /route TEXT\s+CHECK \(route IN \(([^)]+)\)\)/.exec(read('V1.7.1__video_reco_retrieval_route.sql'));
+  if (!m) throw new Error('V1.7.1 route CHECK not found');
+  return new Set(m[1].split(',').map((x) => x.trim().replace(/'/g, '')));
+})();
+// a NULL passes a CHECK (SQL: unknown is not false)
+const passesCheck = (row) => (row.attempts == null || ALLOWED.has(row.attempts)) && (row.route == null || ROUTES.has(row.route));
 
 let db;
 let S;
@@ -35,16 +42,24 @@ beforeEach(() => {
 });
 const upserted = () => db.calls.filter((c) => c[0] === 'video_recommendations').map((c) => (c.find((x) => x[0] === 'upsert') || [])[1]).filter(Boolean).map((a) => a[0]);
 
-test('the CHECK this test mirrors is V1.7.2\'s: {1, 2}', () => {
+test('the CHECKs this test mirrors: V1.7.2 attempts {1, 2}, V1.7.1 route {tag, step_text, card_text}', () => {
   expect([...ALLOWED].sort()).toEqual([1, 2]);
+  expect([...ROUTES].sort()).toEqual(['card_text', 'step_text', 'tag']);
 });
 
 describe('store.write sends only what the attempts CHECK allows', () => {
-  test.each([[0, null], [3, 2], [4, 2], [1, 1], [2, 2], [null, null]])('attempts %p → %p', async (given, stored) => {
+  test.each([[0, null], [3, null], [4, null], [1, 1], [2, 2], [null, null]])('attempts %p → %p', async (given, stored) => {
     const out = await S.write({ coaching_session_id: 's1', user_id: 'u1', status: 'shadow', attempts: given });
     expect(upserted()[0].attempts).toBe(stored);
     expect(passesCheck(upserted()[0])).toBe(true);
     expect(out).not.toBeNull();
+  });
+  test.each([['enacted', null], ['closure', null], ['tag', 'tag'], ['step_text', 'step_text'], ['card_text', 'card_text'], [null, null]])('route %p → %p; candidates keep the real route', async (given, stored) => {
+    const candidates = [{ seg_id: '51-s1', route: given }];
+    await S.write({ coaching_session_id: 's1', user_id: 'u1', status: 'shown', route: given, attempts: 1, candidates });
+    expect(upserted()[0].route).toBe(stored);
+    expect(upserted()[0].candidates).toEqual(candidates);
+    expect(passesCheck(upserted()[0])).toBe(true);
   });
   test('a row with no attempts key (the error row) is sent unchanged', async () => {
     const row = { coaching_session_id: 's1', user_id: 'u1', status: 'error', none_reason: 'error:Error' };
