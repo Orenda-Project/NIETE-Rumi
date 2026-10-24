@@ -62,8 +62,15 @@ function suitsSubject(module, subject) {
   return subs.map((x) => subjectId(x) || x).some((x) => ok.has(x));
 }
 
+/**
+ * R7o-b (eng-fix 210903, COS 210937 §2, ped-scale 211122): the lesson subjects a module is NOT for. The catalogue's
+ * `not_for_subjects` (the panel's reading of the not_for prose) when present; the prose is never parsed then. Word by word
+ * it refused 95 every English lesson («…it is in English only») and maths modules every maths lesson («…maths lessons»).
+ */
 function notFor(module, subject) {
-  return !!subject && !!module.not_for && tokens(module.not_for).some((tok) => subjectId(tok) === subject);
+  if (!subject || !module) return false;
+  if (Array.isArray(module.not_for_subjects)) return module.not_for_subjects.some((x) => (subjectId(x) || String(x).toLowerCase()) === subject);
+  return !!module.not_for && tokens(module.not_for).some((tok) => subjectId(tok) === subject);
 }
 
 /**
@@ -575,4 +582,4 @@ function enacted(catalog, ctx, lesson, ids = ENACTED) {
   })) };
 }
 
-module.exports = { routeGateOk, cardFamilyOk, goalFirst, enacted, ENACTED, ENACTED_STEPS, whyFirst, WHY_FIRST, build, textRoute, recommendable, fallbackSubjectOk, stepQuery, contentWords, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, STUB_FLOOR, LABEL_37, cardTagOk };
+module.exports = { notFor, routeGateOk, cardFamilyOk, goalFirst, enacted, ENACTED, ENACTED_STEPS, whyFirst, WHY_FIRST, build, textRoute, recommendable, fallbackSubjectOk, stepQuery, contentWords, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, STUB_FLOOR, LABEL_37, cardTagOk };

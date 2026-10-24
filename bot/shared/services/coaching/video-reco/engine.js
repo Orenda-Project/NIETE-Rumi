@@ -66,6 +66,8 @@ const CLOSURE_CHAPTERS = ['47-s6', '11-s5'];
 const MODULE_MOMENT = Object.freeze({ 96: (ex) => silence.groupMoment(ex), 148: (ex) => silence.assessMoment(ex) });
 // R7g (COS 002603 1c): the chapter a why / wait-time card's frame moves to when the model's chapter is another move
 const WHY_SWAP_CHAPTER = '51-s1';
+// R7o-b a3: the questioning moves (the C1 family) a label card may name and still get the plain frame
+const ASK_MOVES = new Set(['open_questions', 'ask_for_reasoning', 'follow_up_probe', 'explain_why', 'wait_time']);
 // R7f (COS 223858 1b): the rules whose refusal goes straight to the card's own sentence (no retry)
 // R7g (1b): …and a reader's Urdu line in the wrong tense or voice (the card frame's Urdu is 94.3% ok on v6)
 // R7j (§5): …and a cited greeting, page call, filler or echo («routine»)
@@ -253,14 +255,15 @@ async function compute(a, d, state) {
   // R7k (COS 044233 §1e; panel v8 Z327 Z348 Z197 Z124): the card's HEAD move decides the clip. Pair talk (50-s2) not when the
   // head names another move and not pair talk; a why / open-question head on a C1 card puts 51-s1 (else 95-s3) first; a feedback head on a C3 card puts
   // 23-s2 first (on a card with no indicator, whichever the head names). The fronted chapter passes the enacted gates.
+  const said = (text, id, strict = false) => { const h = catalog.segment(id); return !!h && select.cardMoveOk(text, h.segment, { strict }); };
+  // the head move: the first clause that names one of the four moves («اگلی کلاس میں جب …،» names none; red7 055554 H1)
+  const cardHead = (whole) => whole.split(/[;؛.۔!]\s|,?\s+(?:and\s+)?then\b|،?\s+(?:اور\s+)?پھر(?![\p{L}])|[،,]\s/u).filter((x) => x.trim())
+    .find((x) => ['23-s2', '51-s1', '95-s3', '50-s2'].some((id) => said(x, id))) || '';
   const headOrder = (cands) => {
     const whole = stripBidi(String(cardSentence || ''));
     if (!whole.trim()) return cands;
     const ind = t.storedIndicator || (card && card.indicator) || null;
-    const said = (text, id, strict = false) => { const h = catalog.segment(id); return !!h && select.cardMoveOk(text, h.segment, { strict }); };
-    // the head move: the first clause that names one of the four moves («اگلی کلاس میں جب …،» names none; red7 055554 H1)
-    const clauses = whole.split(/[;؛.۔!]\s|,?\s+(?:and\s+)?then\b|،?\s+(?:اور\s+)?پھر(?![\p{L}])|[،,]\s/u).filter((x) => x.trim());
-    const head = clauses.find((x) => ['23-s2', '51-s1', '95-s3', '50-s2'].some((id) => said(x, id))) || '';
+    const head = cardHead(whole);
     const names = (id) => !!head && said(head, id);
     // pair talk goes only when NO clause names it and the head names another move (red7 H1: «… open question, then
     // think-pair-share» keeps 50-s2; Z327 Z348 name no pair talk at all); a head that names no move decides nothing (Z025)
@@ -322,7 +325,9 @@ async function compute(a, d, state) {
   const uptakeQuote = t.source === 'card_text' && up.moment ? prompt.redact(up.moment, people) : '';
   // scale-run 081240: an empty transcript has no moment, whatever the scorer wrote ("No transcript recorded.")
   const noTranscript = !lines.length;
-  if (noTranscript || (!ex.length && !scorerQuote && !uptakeQuote)) {
+  // R7o-b a4 (panel v10 Z010 Z076 Z088 Z289: unstamped transcripts give lines but no excerpt): card mode quotes the card,
+  // never a lesson moment, so only an empty transcript stops it
+  if (noTranscript || (!ex.length && !scorerQuote && !uptakeQuote && videoRecoReason(d.env) !== 'card')) {
     return finish({ ...base, status: 'none', none_reason: 'no_moments', candidates: list.candidates });
   }
   // R7c (Q194): a transcript that is mostly a recogniser loop has no moment, whatever the scorer quoted from it
@@ -375,14 +380,23 @@ async function compute(a, d, state) {
     const cardOnly = (said, segId, l) => emit({ res: { pick: { seg_id: segId }, model: null, usage: {} }, pickList: l, fallback: said, v: { ok: false, none: null },
       withLlm: { ...base, candidates: l.candidates, repeat_module: !!l.repeatModule, attempts: 0, first_none_reason: 'card_mode', ...lessonLanguage } });
     const silent = () => finish({ ...base, status: 'none', none_reason: 'card_mode:no_frame', candidates: list.candidates });
-    if (!sentence || silence.testPeriod(lines) || cardInd === 'B6' || silence.levelsCard(cardSentence)) return silent();
+    // R7o-b a2 (panel v10 Z240 Z190 Z033): a tiered tail does not silence a card whose head asks (the head move decides)
+    const headAsks = (() => { const h = cardHead(stripBidi(String(cardSentence || ''))); return !!h && (said(h, '51-s1') || said(h, '95-s3')); })();
+    if (!sentence || silence.testPeriod(lines) || cardInd === 'B6' || (silence.levelsCard(cardSentence) && !headAsks)) return silent();
     for (const c of list.candidates) {
       const hit = c.route !== 'step_text' && !offList(c.seg_id) && catalog.segment(c.seg_id);
       if (!hit || !select.cardMoveOk(sentence, hit.segment) || !gateOk(hit.module, sentence)) continue;
+      // R7o-b b (panel v10 Z203 Z056): on the card's own words alone (card_text) the chapter's move must be one the lexicon
+      // judges and the card names, and its tag not weak («exit routine» is not the management-routines chapter)
+      if (c.route === 'card_text' && (!select.cardMoveOk(sentence, hit.segment, { strict: true }) || Number(((hit.segment.fico || [])[0] || {}).strength) === 0)) continue;
+      const strictMove = select.cardMoveOk(sentence, hit.segment, { strict: true });
       const said = select.cardFrame({ // the frame itself: cardFallback's gate is for a refused model answer, and there is none
         sentence, startS: hit.segment.start_s, endS: hit.segment.end_s, teacherName: people.teacher, module: hit.module,
         subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster, rosterRaw: people.rosterRaw, counts: people.counts,
-        plainIfNamed: select.cardMoveOk(sentence, hit.segment, { strict: true }),
+        plainIfNamed: strictMove,
+        // R7o-b a3 (Z007 Z257 Z146): a label or placeholder card that names an ASKING move → the plain frame; other label cards stay
+        // silent (v10 Z103 Z153 Z237 Z238 «… together, worked alone» were right silences)
+        plainIfUnquotable: strictMove && (hit.segment.moves || []).some((m) => ASK_MOVES.has(m)),
       });
       if (said) return cardOnly(said, c.seg_id, list);
     }
