@@ -79,6 +79,10 @@ describe('a3 a label card that names the move (Z007 Z257)', () => {
     expect(row).toMatchObject({ status: 'shown', seg_id: '51-s1' });
     expect(quoted(row)).toBe(false);
   });
+  test('control: a label card naming a non-asking move («… together, worked alone», v10 Z103 Z237) stays silent', async () => {
+    const row = await run({ indicator: null, action: 'Planned together, worked alone', lang: 'en' });
+    expect(row.status).toBe('none');
+  });
   test('control: a diagnosis with no move named stays silent', async () => {
     const row = await run({ action: 'The lesson lacked pace and the class was restless', lang: 'en' });
     expect(row.status).toBe('none');
