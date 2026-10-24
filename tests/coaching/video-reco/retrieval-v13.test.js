@@ -2,7 +2,7 @@
 /**
  * bd-gzfdu9 — SPEC v1.3 retrieval (design/RETRIEVAL_v1.3.md §3, lead-review 19:09Z). One test per rule:
  * R1 level is a preference, never a filter; R2 the tag route sends up to 12; R3 the step-text route for
- * label / hole / unknown / empty / card_text targets; R4 route + tag_mismatch + step_text_query on the row;
+ * label / hole / unknown / empty / card_text targets (R7g: retired except card_text); R4 route + tag_mismatch + step_text_query on the row;
  * history counts only rows the teacher could have seen (status 'shown', lead-review 19:11Z).
  */
 const fs = require('fs');
@@ -68,18 +68,15 @@ test('R2 the tag route sends up to 12 chapters', () => {
   expect(new Set(routes(r))).toEqual(new Set(['tag']));
 });
 
-describe('R3 the step-text route', () => {
-  test('LABEL (37-F5 on maths): tag candidates first, then step_text ones, never a duplicate', () => {
+// R7g (COS 20261024T002603 1a): the step-text route is RETIRED (0 right on six heads: Q031 ⛔2 v2–v5, Z150 ⛔2 v6). A label,
+// hole, unknown, unscored or emptied indicator keeps its tag pool and nothing else; card_text keeps the text route.
+describe('R3 the step-text route (retired R7g; card_text keeps the text route)', () => {
+  test('LABEL (37-F5 on maths): the tag candidates only, no step_text chapter, no query', () => {
     const r = S.build(cat, F5, ctx(), 'reasoning', L({ subject: 'maths' }), step('wait for silence, pause, then feedback'));
     expect(r.textReason).toBe('label');
-    expect(ids(r)[0]).toBe('22-s1');
-    expect(r.candidates[0].route).toBe('tag');
-    expect(ids(r)).toEqual(expect.arrayContaining(['10-s2', '14-s1']));
-    const firstText = routes(r).indexOf('step_text');
-    expect(firstText).toBeGreaterThan(0);
-    expect(routes(r).slice(firstText).every((x) => x === 'step_text')).toBe(true);
-    expect(new Set(ids(r)).size).toBe(ids(r).length);
-    expect(r.stepTextQuery).toContain('silence');
+    expect(ids(r)).toEqual(['22-s1']);
+    expect(new Set(routes(r))).toEqual(new Set(['tag']));
+    expect(r.stepTextQuery).toBeNull();
   });
   test('a MOVE indicator never gets the text route (the list stays step-indicator-only)', () => {
     const r = S.build(cat, tgt('C1'), ctx(), 'why', L(), step('feedback correct next exit summary'));
@@ -88,19 +85,18 @@ describe('R3 the step-text route', () => {
     expect(new Set(routes(r))).toEqual(new Set(['tag']));
     expect(r.stepTextQuery).toBeNull();
   });
-  test('37 label with a NATIVE tag pool still appends the text route', () => {
+  test('37 label with a NATIVE tag pool: the native chapters only', () => {
     const c = copy((d) => { seg(d, '22-s1').fico_main37 = ['F5']; });
     const t = tgt('F5', { native37: true, scheme: 'fico_main_37', storedIndicator: 'F5', aliasKind: 'native37' });
     const r = S.build(c, t, ctx(), 'x', L({ subject: 'maths' }), step('wait pause silence'));
     expect(r.textReason).toBe('label');
-    expect(ids(r)).toEqual(['22-s1', '10-s2']);
+    expect(ids(r)).toEqual(['22-s1']);
   });
-  test('v4 id in holes[]: the text route alone; nothing over the floor → none:hole', () => {
+  test('v4 id in holes[]: no route → none:hole, whatever the card says', () => {
     const r = S.build(cat, tgt('D3'), ctx(), 'x', L(), step('feedback correct next'));
     expect(r.textReason).toBe('hole');
-    expect(ids(r)).toEqual(['14-s1']);
-    expect(routes(r)).toEqual(['step_text']);
-    expect(S.build(cat, tgt('D3'), ctx(), 'x', L(), step('zzz')).noneReason).toBe('hole');
+    expect(ids(r)).toEqual([]);
+    expect(r.noneReason).toBe('hole');
   });
   test('v1.3b F2: a NATIVE 37 match whose v4 exact is a hole is a move: tag route only, the hole check never applies', () => {
     const c = copy((d) => { seg(d, '14-s1').fico_main37 = ['D9']; d.indicator_aliases.D9 = { exact: 'D3', approx: [] }; });
@@ -110,22 +106,21 @@ describe('R3 the step-text route', () => {
     expect(ids(r)).toEqual(['14-s1']);
     expect(routes(r)).toEqual(['tag']);
   });
-  test('unknown_indicator: the text route alone; nothing over the floor → none:unknown_indicator', () => {
+  test('unknown_indicator: no route → none:unknown_indicator, whatever the card says', () => {
     const r = S.build(cat, B7, ctx(), 'x', L(), step('exit summary'));
     expect(r.textReason).toBe('unknown');
-    expect(ids(r)).toEqual(['14-s2']);
-    expect(routes(r)).toEqual(['step_text']);
-    expect(S.build(cat, B7, ctx(), 'x', L(), step('zzz')).noneReason).toBe('unknown_indicator');
+    expect(ids(r)).toEqual([]);
+    expect(r.noneReason).toBe('unknown_indicator');
   });
   test('subject-blocked alias is its own reason', () => {
     expect(S.build(cat, { ...B7, storedIndicator: 'F5', aliasKind: 'subject_blocked' }, ctx(), 'x', L(), step('exit summary')).textReason).toBe('subject_blocked');
   });
-  test('tag pool emptied by the filters (language): the text route alone; still empty → the filter\'s own reason', () => {
+  test('tag pool emptied by the filters (language): no route → the filter\'s own reason', () => {
     const en = ctx({ language: 'en', languages: ['en', 'mixed'] });
     const r = S.build(cat, tgt('B4'), en, 'x', L(), step('feedback correct next'));
     expect(r.textReason).toBe('empty');
-    expect(ids(r)).toEqual(['14-s1']);
-    expect(S.build(cat, tgt('B4'), en, 'x', L(), step('zzz')).noneReason).toBe('language');
+    expect(ids(r)).toEqual([]);
+    expect(r.noneReason).toBe('language');
   });
   test('card_text: the text route alone, route card_text, the query is the card words (never the evidence)', () => {
     const r = S.build(cat, CARD, ctx(), 'wait pause silence', L(), step('feedback correct next'));
@@ -140,19 +135,20 @@ describe('R3 the step-text route', () => {
         d.modules.push({ ...JSON.parse(JSON.stringify(d.modules[0])), module_id: 200 + i, segments: [{ seg_id: `${200 + i}-s1`, start_s: 0, end_s: 60, fico: [{ indicator: 'B6', strength: 2 }], keywords: ['rhyme', 'chant', ...Array(i).fill('filler')] }] });
       }
     });
-    const r = S.build(c, B7, ctx(), 'x', L(), step('rhyme chant'));
+    const r = S.build(c, CARD, ctx(), 'x', L(), step('rhyme chant'));
     expect(r.candidates).toHaveLength(6);
     expect(r.candidates.every((x) => x.score >= 2.0)).toBe(true);
     expect(ids(r)).toEqual(['200-s1', '201-s1', '202-s1', '203-s1', '204-s1', '205-s1']);
-    const weak = S.build(cat, B7, ctx(), 'x', L(), step('why question'));
+    const weak = S.build(cat, CARD, ctx(), 'x', L(), step('why question'));
     expect(weak.candidates.every((x) => x.score >= 2.0)).toBe(true);
   });
   test('the text pool keeps the subject, grade, language, history and media filters', () => {
-    const r = S.build(cat, B7, ctx({ history: { segments: ['10-s2'], modules: [] } }), 'x', L(), step('reasoning know wait pause welcome course recall'));
-    for (const id of ['22-s1', '10-s2', '16-s1']) expect(ids(r)).not.toContain(id); // maths-only, seen, programme intro
-    expect(ids(r)).toContain('19-s1');
-    expect(ids(S.build(cat, B7, ctx(), 'x', L({ grade: { lo: 3, hi: 3 } }), step('why question')))).not.toContain('18-s1');
-    expect(ids(S.build(cat, B7, ctx(), 'x', L(), step('why question')))).not.toContain('12-s1'); // English chapter, Urdu teacher
+    const q = (action) => ({ ...step(action), action: action + PAD }); // the text route itself (card_text is built the same way)
+    const r = S.textRoute(cat, q('reasoning know wait pause welcome course recall'), ctx({ history: { segments: ['10-s2'], modules: [] } }), L());
+    for (const id of ['22-s1', '10-s2', '16-s1']) expect(r.map((x) => x.seg_id)).not.toContain(id); // maths-only, seen, programme intro
+    expect(r.map((x) => x.seg_id)).toContain('19-s1');
+    expect(S.textRoute(cat, q('why question'), ctx(), L({ grade: { lo: 3, hi: 3 } })).map((x) => x.seg_id)).not.toContain('18-s1');
+    expect(S.textRoute(cat, q('why question'), ctx(), L()).map((x) => x.seg_id)).not.toContain('12-s1'); // English chapter, Urdu teacher
   });
   test('textRoute is pure and exported; exclude drops already-listed chapters', () => {
     const q = { action: 'feedback correct', tryTomorrow: 'next', thingToTry: '', name: '' };
@@ -204,17 +200,13 @@ describe('R4 the row (engine)', () => {
   }
   const a37 = (id, name) => ({ indicator_scheme: 'fico_main_37', domains: { B: { domain_max: 4, indicators: [{ id, name, score: 1, applicable: true, evidence: 'Quote: "Is this a triangle"', timestamp: '[00:30]' }] } } });
 
-  test('unknown 37-id (C11, no alias, not native): reaches the model via the text route; route step_text, alias_kind unknown, tag_mismatch true, differs false', async () => {
+  test('R7g: unknown 37-id (C11, no alias, not native) → none:unknown_indicator, no LLM call (the step-text route is retired)', async () => {
     const { row, completeJson } = await run({
       analysis: a37('C11', 'Student Talk Time'), nextStep: { target: { indicator: 'C11' } },
       card: { action: 'Close with an exit summary of what we learned' + PAD }, pick: '14-s2',
     });
-    expect(completeJson).toHaveBeenCalledTimes(1);
-    expect(completeJson.mock.calls[0][0]).toContain('Indicator: C11 — Student Talk Time');
-    expect(row).toMatchObject({ status: 'shown', seg_id: '14-s2', route: 'step_text', alias_kind: 'unknown', tag_mismatch: true, differs_from_step: false });
-    expect(row.step_text_query).toContain('exit summary');
-    expect(new Set(row.candidates.map((c) => c.route))).toEqual(new Set(['step_text']));
-    expect(row.step_text_query).toContain('Student Talk Time');
+    expect(completeJson).not.toHaveBeenCalled();
+    expect(row).toMatchObject({ status: 'none', none_reason: 'unknown_indicator', step_text_query: null });
   });
   test('v1.3b: the same card on 37-B7 (use of the plan) → none hole:no_move, no LLM call', async () => {
     const { row, completeJson } = await run({
@@ -224,13 +216,14 @@ describe('R4 the row (engine)', () => {
     expect(completeJson).not.toHaveBeenCalled();
     expect(row).toMatchObject({ status: 'none', none_reason: 'hole:no_move', alias_kind: 'no_move', route: null });
   });
-  test('LABEL (37-F5, maths): a step_text pick passes validation; differs false, tag_mismatch reported', async () => {
+  test('R7g: LABEL (37-F5, maths): the tag chapters only, never a step_text one', async () => {
     const { row } = await run({
       analysis: a37('F5', 'Subject-Specific Pedagogy: MATH'), nextStep: { target: { indicator: 'F5' } },
       card: { action: 'Wait for silence and pause before you ask' + PAD }, pick: '10-s2', subject: 'maths',
     });
-    expect(row).toMatchObject({ status: 'shown', seg_id: '10-s2', route: 'step_text', alias_kind: 'label', tag_mismatch: true, differs_from_step: false });
+    expect(row.candidates.map((c) => c.route)).toEqual(['tag']);
     expect(row.candidates[0]).toMatchObject({ seg_id: '22-s1', route: 'tag' });
+    expect(row.step_text_query).toBeNull();
   });
   test('MOVE indicator (C1): route tag, tag_mismatch false, no step_text_query', async () => {
     const { row } = await run({
@@ -303,10 +296,11 @@ describe('v1.3b ⛔11 (lead-review 19:56Z ruling 1): near chapters first, the SA
 
 describe('v1.3c ⛔11 text route (red-team 20:47Z, lead-final 20:48Z): the near-first partition runs after the concat', () => {
   // 13-s1 is level 4 and the BM25 winner of the step text; 10-s2 is level 2 (near to a rung-2 teacher), a weaker match.
-  const loud = copy((d) => { seg(d, '13-s1').keywords = ['zebra', 'zebra', 'zebra', 'zebra']; seg(d, '10-s2').keywords = ['zebra', 'zebra']; });
+  // R7g: two content words (the card_text route keeps a chapter on one word only for a question word or an enacted chapter)
+  const loud = copy((d) => { seg(d, '13-s1').keywords = ['zebra', 'zebra', 'zebra', 'zebra', 'marimba']; seg(d, '10-s2').keywords = ['zebra', 'zebra', 'marimba']; });
   test('a near chapter on a text list is listed before every far one', () => {
-    const r = S.build(loud, B7, ctx({ level: 2 }), 'x', L(), step('zebra'));
-    expect(r.route).toBe('step_text');
+    const r = S.build(loud, CARD, ctx({ level: 2 }), 'x', L(), step('zebra'));
+    expect(r.route).toBe('card_text');
     const m = r.candidates.map((c) => c.level_match);
     expect(m).toContain('far');
     expect(m).toContain('near');
@@ -314,16 +308,14 @@ describe('v1.3c ⛔11 text route (red-team 20:47Z, lead-final 20:48Z): the near-
     const near = r.candidates.filter((c) => c.level_match === 'near').map((c) => c.score);
     expect(near).toEqual([...near].sort((a, b) => b - a)); // score order inside the group
   });
-  test('a near text chapter appended to a tag list goes before a far tag chapter (label route, stable inside each group)', () => {
+  test('R7g: a label keeps its far tag chapter and gets no near text chapter (the step-text route is retired)', () => {
     const c = copy((d) => { d.modules.find((m) => m.module_id === 22).level_id = 4; }); // the tag route's only chapter, now far
     const r = S.build(c, F5, ctx({ level: 2 }), 'reasoning', L({ subject: 'maths' }), step('wait for silence, pause, then feedback'));
     expect(r.textReason).toBe('label');
-    expect(r.candidates[0]).toMatchObject({ route: 'step_text', level_match: 'near' });
-    expect(ids(r)[ids(r).length - 1]).toBe('22-s1');
-    expect(r.candidates.filter((x) => x.level_match === 'near').every((x) => x.route === 'step_text')).toBe(true);
+    expect(r.candidates).toEqual([expect.objectContaining({ seg_id: '22-s1', route: 'tag', level_match: 'far' })]);
   });
   test('completed ladder / unknown level: text-route order is the BM25 order (unchanged)', () => {
-    const r = S.build(loud, B7, ctx({ level: 4, ladderComplete: true }), 'x', L(), step('zebra'));
+    const r = S.build(loud, CARD, ctx({ level: 4, ladderComplete: true }), 'x', L(), step('zebra'));
     expect(ids(r)[0]).toBe('13-s1');
   });
 });

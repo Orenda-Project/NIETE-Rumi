@@ -159,7 +159,7 @@ const LATIN_CAP = /^[A-Z][a-z]+$/;
 // Title-case words a card uses mid-sentence that are not people (2,990 r7 cards: 228 «the Taleemabad lesson plan», 25
 // «activate Prior Knowledge»)
 const NOT_A_NAME = new Set(('taleemabad prior rumi niete bloom checker reporter speaker listener recorder writer explainer scribe '
-  + 'reader timekeeper leader manager spotter matcher underliner encourager questioner summariser summarizer').split(' '));
+  + 'reader timekeeper leader manager spotter matcher underliner encourager questioner summariser summarizer tier').split(' ')); // R7g: «a Tier 2 sentence» (Z036)
 // A Title-case word inside a Title-case term is the term («Subject-Specific Pedagogy», «Use of Technology», «Student-to-Student
 // Interaction»: 2,990 r7 cards), unless the word before it opens the sentence («Ask X why …»).
 const IN_TERM = /([A-Z][a-z]+)(?:-|\/|\s+(?:of|to|and|&|for|the|in)\s+|\s+)$/; // R7f: «(Apply/Analyze)»
@@ -252,7 +252,8 @@ const RELABEL = {
   // تک محدود», «سوال/ہاں-نہ سوال», «سوال کی جواب», "keeps asking question". Only whole labels are rewritten; a bare label
   // left over is refused in validation (recallLeft), so the retry or the card fallback carries the row.
   // R7f: the Latin «recall» the model leaves in the Urdu line too (copy.js would render it «یادداشت پر مبنی»)
-  ur: [[/(?:ایک )?(?:یادداشت|یاد داشت|یاداشت|یاددہانی|ریکال|recall(?:[- ]based)?)(?: پر مبنی| والا| والے| والی| کا| کے| کی)? سوال/giu, 'سوال']],
+  // R7g: the approved «یاد سے بتانے والا سوال» and the panel's «یادداشتی / یاد رکھنے والا» variants are labels too
+  ur: [[/(?:ایک )?(?:یاد سے بتانے والا|یاد رکھنے والا|یادداشتی|یادداشت|یاد داشت|یاداشت|یاددہانی|ریکال|recall(?:[- ]based)?)(?: پر مبنی| والا| والے| والی| کا| کے| کی)? سوال/giu, 'سوال']],
 };
 
 const APPOSITIVE_EN = /,?\s*(?:which is )?a question(?=\s*[.;])/gi;
@@ -268,7 +269,7 @@ function relabelRecall(text, l, quote) {
   return (l === 'en' ? out.replace(APPOSITIVE_EN, '') : out) + (at < 0 ? '' : text.slice(at));
 }
 const RECALL_EN = /\brecall\b|\bmemori[sz]|\bfact(?:ual)? question|\bclosed question|\byes[/ -]?(?:or[/ -])?no question|\bone-word question/i;
-const RECALL_UR = /یادداشت|یاد داشت|یاداشت|یاددہانی|رٹا|ہاں یا نہیں والا|ہاں\/نہیں والا|بند سوال/u;
+const RECALL_UR = /یادداشت|یاد داشت|یاداشت|یاددہانی|یاد سے بتان|یاد رکھنے والا|رٹا|ہاں یا نہیں والا|ہاں\/نہیں والا|بند سوال/u;
 
 // Only the lesson side of a reason labels the cited line: the text before it turns to the clip («turn a yes/no question
 // into a why question» describes the clip, not the line).
@@ -338,4 +339,17 @@ function notGapLine(quote, line, segment) {
   return !ASKS.test(q) && !CHORUS_CUE.test(q);
 }
 
-module.exports = { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, clipKind, sceneClaim, recallMislabel, relabelRecall, pointerNoLine, recallLeft, namesGap, notGapLine, auditWords };
+// R7g (COS 002603 1a; panel Z199 ⛔2, Z025 right): the F5-label class answers a CLOSED question. The cited words ask (a
+// question mark, a question word) and never why or how; «how many / کتنے» is a count, a closed question.
+function closedQuestion(quote) {
+  const q = String(quote || '').replace(/[⁦-⁩]/g, '');
+  return ASKS.test(q) && !WHY_HOW_Q.test(q.replace(/\bhow (?:many|much)\b/gi, ' '));
+}
+
+// R7g (COS 002603 1b; panel Z091 Z019): the lesson is over, and its teacher is the subject: the lesson half of reason_ur
+// never says «پوچھ رہے ہیں» (now) or «پوچھا گیا» (the passive, no one asking). Refused for an Urdu reader (the retry or the
+// card's own sentence carries the row); for an English reader it decides whether the Urdu line may be the model's.
+const URDU_SLIP = /پوچھ (?:رہے|رہی) (?:ہیں|ہو)|پوچھ(?:ا|ے|ی) (?:گیا|گئے|گئی)(?=[\s،۔؛.]|$)/u;
+const urduSlip = (reasonUr) => URDU_SLIP.test(lessonSide(String(reasonUr || '').replace(/[⁦-⁩]/g, ''), /کلپ|ویڈیو/u));
+
+module.exports = { closedQuestion, urduSlip, leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, clipKind, sceneClaim, recallMislabel, relabelRecall, pointerNoLine, recallLeft, namesGap, notGapLine, auditWords };

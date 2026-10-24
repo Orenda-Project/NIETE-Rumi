@@ -200,5 +200,5 @@ describe('red7 F3: a child turn is any labelled turn that is not the teacher\'s'
 test('red7 REVIEW_3623 F1: the hand-edited catalogue carries a new version, so R7b rows are told apart', () => {
   const data = require('../../../bot/shared/data/video-catalog.v1.json');
   expect(data.version).not.toBe('catalog-v1-20261020T2022-7097e261');
-  expect(data.version).toMatch(/^catalog-v1-20261023T\d{4}-/);
+  expect(data.version).toMatch(/^catalog-v1-2026102[34]T\d{4}-/); // R7g re-versioned it (28-s1 veto)
 });

@@ -137,9 +137,11 @@ describe('1 · ⛔9 (MUST): a child named inside the card sentence never reaches
     expect(row.reason_ur).toContain('جب کوئی بچہ صرف ایک لفظ بولے');
   });
 
-  test('a name that is not a comparison («Ask X to read aloud») → no fallback, the none stands', async () => {
+  test('a name that is not a comparison («Ask X to read aloud») → never quoted; R7g: the plain frame', async () => {
     const row = await run(args({ action: 'Next class, ask Zarvesh to read the next line aloud and explain why.' }), deps([ROMAN, ROMAN]));
-    expect(row).toMatchObject({ status: 'none', none_reason: 'validation:roman' });
+    // R7g 1e (COS 20261024T002603; panel Z100): the sentence that names a child is never quoted; the plain frame carries the clip
+    expect(row).toMatchObject({ status: 'shown', moment_source: 'card', reason_en: 'Your report gives you one thing to try next class. This clip shows one way to do it.' });
+    expect(`${row.reason_en} ${row.reason_ur}`).not.toMatch(/Zarvesh/);
   });
 
   test('an Urdu name after a praise cue («شاباش X») → no fallback', () => {
@@ -259,7 +261,7 @@ describe('5 · reason grounding: what the clip IS, and what the cited line IS', 
   test('the prompt (vr-9) tells the model what kind each clip is', () => {
     const P = require('../../../bot/shared/services/coaching/video-reco/prompt');
     const text = P.build({ target: { source: 'card_text' }, candidates: [{ seg_id: '51-s1' }, { seg_id: '95-s3' }], catalog: C.fromData(DATA), excerpts: ['[00:30] Teacher: x'] });
-    expect(P.PROMPT_VERSION).toBe('vr-9');
+    expect(P.PROMPT_VERSION).toBe('vr-10');
     expect(text).toContain('51-s1 · Yes/no question vs. a why question · 52s · ur · kind: a conversation between teachers (not a class) ·');
     expect(text).toContain('95-s3 · Ask why after an answer · 77s · en · kind: footage ·');
     expect(text).toContain('a line that asks why or how is never a recall or yes/no question');
@@ -274,7 +276,7 @@ describe('6 · Urdu copy: the word table, the card in the other language, one di
     ['اگلے کلاس میں', 'اگلی کلاس میں'],
     ['بچے جوڑ میں کام کریں', 'بچے جوڑوں میں کام کریں'],
     ['آپ کیوں سوچتے ہیں کہ پانی ضروری ہے؟', 'آپ کے خیال میں پانی ضروری ہے، ایسا کیوں؟'],
-    ['یہ یاداشت کا سوال نہیں', 'یہ یادداشت کا سوال نہیں'],
+    ['یہ یاداشت کا سوال نہیں', 'یہ یاد سے بتانے والا سوال نہیں'], // R7g: the spelling, then the approved word
     ['جگہ قدر سمجھائیں', 'مقامی قدر سمجھائیں'],
   ])('«%s» → «%s»', (from, to) => expect(composeReason(from, 'ur', null)).toBe(to));
 

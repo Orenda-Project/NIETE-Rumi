@@ -9,6 +9,7 @@
  * card's own words (never the evidence), floor 2.0, up to 6 more, appended — ONLY when the indicator cannot name a
  * move: a 37-scheme LABEL, a v4 hole, an unknown indicator, an empty tag pool, or no indicator at all (card_text,
  * whose list is this route alone). On a move indicator the list stays step-indicator-only.
+ * R7g: the step-text route is retired (0 right on six heads); textRoute now runs for card_text only.
  *
  * The pedagogy rubric's ⛔ rows are code here: declared holes, recommendable / programme intro (⛔7), media
  * (⛔12), subject incl. content modules (⛔4), grade (⛔5), language (⛔3: preferred ∪ transcript ∪ mixed, the
@@ -258,7 +259,8 @@ function oneWordOk(segId, words, cardIndicator) {
  * Measured on the panel’s 200 v4 judgements (r7e/card_tag_measure.md): 10 wrong and 6 acceptable leave, 0 right.
  */
 function cardTagOk(seg, indicator, scheme, { keepEnacted = true } = {}) {
-  if (!indicator || (keepEnacted && ONE_WORD_KEEP.has(String(seg && seg.seg_id)))) return true;
+  // R7g (COS 002603 1d; panel Z165): a content card (precise terms, F1–F3) is no questioning card: no enacted exemption
+  if (!indicator || (keepEnacted && ONE_WORD_KEEP.has(String(seg && seg.seg_id)) && !CONTENT_TARGETS.has(String(indicator)))) return true;
   const tags = scheme === 'fico_main_37' ? (seg.fico_main37 || []) : (seg.fico || []).map((f) => f && f.indicator);
   if (!tags.length) return true; // a chapter with no tag in the scheme is not judged here (as whyCardOk)
   // red7 F2 (Q090): a 37-C1 card keeps a C8 chapter, as the open-question card (whyCardOk) does
@@ -287,6 +289,23 @@ function managementOk(seg, step) {
   if (((seg && seg.fico_main37) || [])[0] !== 'C6') return true;
   const s = step || {};
   return MANAGEMENT.test([s.action, s.tryTomorrow, s.thingToTry].filter((x) => typeof x === 'string').join('\n'));
+}
+
+// R7g (COS 002603 1d; panel Z063 Z070: 150-s4 2/4, red7's ⛔7 opt-in): the Teacher-Leader debrief says "why do you think" once,
+// inside a mentor role-play; it never serves a why / wait / cold-call card unless the card is about feedback itself.
+const NOT_FOR_QUESTIONING = new Set(['150-s4']);
+const FEEDBACK_CARD = /\bfeedback\b|\bpraise\b|\bspecific\b|['‘"]good['’"]|\bwell done\b|فیڈبیک|تعریف|شاباش|نصیحت/iu;
+// …and a chapter that assesses finished group work (first move peer_self_assessment: 97-s5, Z200) presumes the group work:
+// it is listed only for a card that asks the teacher to assess or check it.
+const ASSESS_CARD = /\bassess|\bchecklists?\b|\brubrics?\b|\bevaluat|\breview each other|\bself[- ]check|جانچ|چیک لسٹ|روبرک|جائزہ/iu;
+
+/** The chapter fits the card's own words (R7g 1d): false for a questioning card on 150-s4, or an assessing chapter on a card that assesses nothing. */
+function cardFitOk(seg, step) {
+  const s = step || {};
+  const text = [s.action, s.tryTomorrow, s.thingToTry].filter((x) => typeof x === 'string').join('\n');
+  if (NOT_FOR_QUESTIONING.has(String(seg && seg.seg_id)) && WHY_CARD(text) && !FEEDBACK_CARD.test(text)) return false;
+  if (((seg && seg.moves) || [])[0] === 'peer_self_assessment' && !ASSESS_CARD.test(text)) return false;
+  return true;
 }
 
 /**
@@ -440,18 +459,19 @@ function build(catalog, target, ctx, signal, lesson, step) {
     const tag = textOnly ? { candidates: [], noneReason: null, repeatModule: false } : tagRoute(catalog, t, ctx, signal, lesson);
     const textReason = early || (tag.candidates.length ? null : 'empty');
     const s = step || (target.source === 'card_text' ? { action: target.cardText } : null);
-    const query = textReason ? stepQuery(s) : '';
     const routeName = textReason === 'card_text' ? 'card_text' : 'step_text';
-    // v1.3c-4: no BM25 over a stub card on the step-text route (coaches type short labels); the tag list stands.
-    const stub = routeName === 'step_text' && !!query && contentWords(s).length < STUB_FLOOR;
-    const tagGate = ['unknown', 'unscored', 'empty'].includes(textReason); // R7f 1a
-    const text = query && !stub ? textRoute(catalog, s, ctx, lesson, tag.candidates.map((c) => c.seg_id), routeName, { tagGate }) : [];
-    const candidates = nearFirst(lv, [...tag.candidates, ...text]); // v1.3c: after the concat, so the text route is near-first too
+    // R7g (COS 002603 1a): the step-text route is RETIRED. Six heads, 0 right: Q031 ⛔2 on v2–v5, Z150 ⛔2 on v6 (all three
+    // v6 sends were 28-s1 through an unknown indicator). An indicator that names no move has no route but its tag pool;
+    // only a card with no indicator (card_text) is read by its words.
+    const query = textReason === 'card_text' ? stepQuery(s) : '';
+    const text = query ? textRoute(catalog, s, ctx, lesson, tag.candidates.map((c) => c.seg_id), routeName) : [];
+    // R7g 1d: the chapter fits the card's words, on every route
+    const fit = (c) => { const hit = catalog.segment ? catalog.segment(c.seg_id) : null; return !hit || cardFitOk(hit.segment, s); };
+    const candidates = nearFirst(lv, [...tag.candidates, ...text]).filter(fit); // v1.3c: after the concat, so the text route is near-first too
     const common = { repeatModule: tag.repeatModule, levelMatch, textReason, stepTextQuery: query || null };
     if (!candidates.length) {
-      // A stub card is no_target, except when a filter emptied the tag pool: that gate stays the reason (the module contract).
-      const why = textReason === 'card_text' || (stub && textReason !== 'empty') ? 'no_target' : textReason === 'unscored' ? 'unscored_step'
-        : textOnly ? 'unknown_indicator' : (tag.noneReason || 'hole');
+      const why = textReason === 'card_text' ? 'no_target' : textReason === 'unscored' ? 'unscored_step'
+        : textOnly ? 'unknown_indicator' : (tag.noneReason || (tag.candidates.length ? 'no_target' : 'hole'));
       return empty(why, { ...common, route: textReason ? routeName : 'tag' });
     }
     return { candidates, noneReason: null, ...common, route: tag.candidates.length ? 'tag' : routeName };
