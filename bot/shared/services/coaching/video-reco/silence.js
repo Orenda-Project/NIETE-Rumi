@@ -373,6 +373,19 @@ function reachesEnd(excerpts, lines) {
 // R7f (COS 223858 e; panel Q036 Q083): a lesson with no labelled child turn at all is one teacher talking.
 const monologue = (lines) => Array.isArray(lines) && lines.length > 0 && !lines.some((l) => KID.test(String(l)));
 
+// R7l (COS 164428 §1a; panel v9 Z261 ⛔2, Z350): a transcript that is not a lesson — under 100 spoken words, at most two
+// teacher turns and no child's turn at all («the video I recorded did not save…») — has no moment and no card to attach
+// to. Measured on the 3,000 r7 transcripts: 6 (Z261, Z350's lesson and 4 other one-turn fragments), no judged R/A pick.
+const MIN_LESSON_WORDS = 100;
+const MAX_NOT_LESSON_TURNS = 2;
+function notLesson(lines) {
+  const all = (lines || []).map((l) => String(l || ''));
+  if (!all.length) return false; // no transcript: no_moments, as before
+  const words = all.map((l) => l.replace(/^\s*\[[\d:]+\]\s*[^:\n]{0,30}:\s*/, '')).join(' ').match(/[\p{L}\p{N}]+/gu) || [];
+  const teacherTurns = all.filter((l) => TEACHER_LABEL.test(l) || !LABELLED.test(l)).length;
+  return words.length < MIN_LESSON_WORDS && teacherTurns <= MAX_NOT_LESSON_TURNS && !all.some((l) => KID.test(l));
+}
+
 // R7j (COS 022905 §3): the excerpt shows children working in groups or pairs / an assessment being made or used
 const GROUP_MOMENT = /گروپ|ٹولی|ٹیم|جوڑی|جوڑے|اپنے ساتھی|پارٹنر|\bgroups?\b|\bpairs?\b|\bpartners?\b|\bteams?\b/iu;
 const ASSESS_MOMENT = /روبرک|چیک لسٹ|نمبر (?:دی|لگا|ملے)|مارکس|گریڈ|جانچ|\brubrics?\b|\bchecklists?\b|\bmarks?\b|\bgrades?\b|\bscores?\b|\bassess/iu;
@@ -385,9 +398,13 @@ const whyCard = (sentence) => WHY_CARD.test(String(sentence || ''));
 // R7g (COS 002603 1c): …or wait time («5-7 سیکنڈ کا wait time», «Pause 8–10 seconds»); seconds of thinking alone are not
 // wait time (red7 G5: a think-pair-share card's «دس سیکنڈ سوچے»)
 const WAIT_CARD = /\bwait(?:s|ing)?\b|\bpause\b|انتظار|رکیں/iu;
-const whyWaitCard = (sentence) => whyCard(sentence) || WAIT_CARD.test(String(sentence || ''));
+// R7l (COS 164428 §1c; panel v9 Z207): a correction card («name the exact error, give 5 seconds of wait time, then have them
+// repeat the corrected sentence») is a feedback card; its wait time is a step of the correction, not a why / wait card
+const CORRECTION_CARD = /\b(?:errors?|mistakes?|mix(?:es|ed)? up|correct(?:ed|ion|ions|s)?|wrong)\b|غلطی|غلطیاں|تصحیح|درست کر/iu;
+const correctionCard = (sentence) => CORRECTION_CARD.test(String(sentence || '')) && !whyCard(sentence);
+const whyWaitCard = (sentence) => whyCard(sentence) || (WAIT_CARD.test(String(sentence || '')) && !correctionCard(sentence));
 // R7f (panel Q102 Q127 Q139): the card names the open question itself, not only a why or a how somewhere in its steps
 const OPEN_CARD = /open[- ]ended|open questions?|کھلے سوال|کھلا سوال|اوپن اینڈ/iu;
 const openQuestionCard = (sentence) => OPEN_CARD.test(String(sentence || ''));
 
-module.exports = { levelsMoment, levelsNear, levelsCard, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, whyWaitCard, groupMoment, assessMoment, cardRoutine, openQuestionCard, notTeaching, testPeriod, isClosure, earlyForClosure, closingCard, closingMove, reachesEnd, monologue, KID, LABEL_SUBJECTS };
+module.exports = { levelsMoment, levelsNear, levelsCard, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, whyWaitCard, correctionCard, notLesson, groupMoment, assessMoment, cardRoutine, openQuestionCard, notTeaching, testPeriod, isClosure, earlyForClosure, closingCard, closingMove, reachesEnd, monologue, KID, LABEL_SUBJECTS };
