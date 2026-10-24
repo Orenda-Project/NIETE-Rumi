@@ -151,7 +151,7 @@ const ROUTINE = [
   // red7 F5: the roll call's answers («present miss», «یس میڈم») and its question ("who is absent?")
   /ایکٹیو ہیں|تیار ہیں|\bare you ready\b|\beveryone ready\b|اسکول کیسے آئے|سکول کیسے آئے|حاضری|\battendance\b|\broll call\b|پاسورڈ|ریکارڈنگ|(?<!\p{L})ایپ(?!\p{L})|\b(?:password|recording)\b|\bthe app\b|\bpresent (?:miss|sir|madam|teacher)\b|\bsay present\b|\babsent\b|غیر حاضر|^\s*یس (?:میڈم|سر|مس)\s*[۔.!]?\s*$|^\s*(?:\S+\s+){0,2}(?:ہو گیا|ہوگیا|لکھ لیا|لکھ لی|ختم ہو گیا|کر لیا|سمجھ آ گئی)(?:\s+\S+){0,3}\s*[؟?]|\b(?:done|finished)\s*\?|\bis everyone (?:done|finished)\b/iu,
   // page or book call
-  /(?:پیج|صفحہ|صفحے)\s*(?:نمبر)?\s*[\d۰-۹]|\bpage\s*(?:no\.?|number)?\s*\d|\bopen your (?:book|copy|notebook)|(?:کتاب|کتابیں|کاپی|کاپیاں|بک|بکس)\s+(?:کھول|نکال)|\btake out your\b|چیپٹر نمبر/iu,
+  /(?:پیج|صفحہ|صفحے)\s*(?:نمبر)?\s*[\d۰-۹]|\bpage\s*(?:no\.?|number)?\s*\d|\bopen your (?:book|copy|notebook)|(?:کتاب|کتابیں|کاپی|کاپیاں)\s+(?:کھول|نکال)|چیپٹر نمبر/iu,
   // order about the room
   /بیٹھ (?:جاؤ|جائیں|جاو)|\bsit down\b|خاموش (?:ہو|رہ)|\bbe quiet\b|\bsilence please\b|لائن (?:بنا|میں)|\bstand up\b|کھڑے ہو (?:جاؤ|جائیں)/iu,
   // announcing the lesson or what will happen in it
@@ -160,7 +160,8 @@ const ROUTINE = [
 // R7k (COS 044233 §1b; panel v8 Z387 Z255 Z149): a filler sentence, small talk about the day or the weather, "do you
 // remember yesterday's lesson?", a bare number call («Grade 8 number?») — routine whether or not it asks, and the card
 // frame carries the lesson instead (cardRoutine)
-const CARD_EXTRA = /^\s*(?:ٹھیک ہے|اچھا|جی|ہاں جی|ہاں|چلیں|okay|ok|right)\s*[؟?۔.!]?\s*$|آج کون سا (?:دن|ڈے)|آج (?:کیا |کون سی )?تاریخ|\bwhat day is (?:it|today)\b|\bwhat(?:'s| is) the date\b|موسم|\bweather\b|(?:کل|پچھلے|پچھلا) (?:کا |کے |والا |والے )?(?:لیسن|سبق) (?:\S+\s+){0,3}یاد|^\s*(?:grade|class|question|exercise|q|سوال|مشق|کلاس|جماعت|گریڈ|ایکسرسائز)\s*(?:no\.?|number|نمبر)?\s*[\d۰-۹]+\s*(?:number|نمبر)?\s*[؟?.۔]?\s*$/iu;
+// red7 063214 (Z143): the R7k book call («بکس نکالیں», "take out your") is one of these classes, not the page rule
+const CARD_EXTRA = /(?:بک|بکس)\s+(?:کھول|نکال)|\btake out your\b|^\s*(?:ٹھیک ہے|اچھا|جی|ہاں جی|ہاں|چلیں|okay|ok|right)\s*[؟?۔.!]?\s*$|آج کون سا (?:دن|ڈے)|آج (?:کیا |کون سی )?تاریخ|\bwhat day is (?:it|today)\b|\bwhat(?:'s| is) the date\b|موسم|\bweather\b|(?:کل|پچھلے|پچھلا) (?:کا |کے |والا |والے )?(?:لیسن|سبق) (?:\S+\s+){0,3}یاد|^\s*(?:grade|class|question|exercise|q|سوال|مشق|کلاس|جماعت|گریڈ|ایکسرسائز)\s*(?:no\.?|number|نمبر)?\s*[\d۰-۹]+\s*(?:number|نمبر)?\s*[؟?.۔]?\s*$/iu;
 const ROUTINE_SHARE = 0.6;
 // R7d (COS 20261023T184404 item 5; panel Q076 Q170 Q198): routine whether or not it asks — a reprimand («آپ کیوں اتنے سست
 // ہو کے بیٹھے ہیں؟»), a test announced («آج ٹیسٹ ہے آپ کا»), the lesson's topic asked («آج کا ٹاپک کیا ہے؟»).
