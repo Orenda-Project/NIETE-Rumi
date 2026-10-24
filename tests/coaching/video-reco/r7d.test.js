@@ -118,16 +118,20 @@ const ENACTED = ['50-s2', '51-s1', '51-s3', '95-s3'];
 const ids = (prompt) => [...prompt.matchAll(/^(\d+-s\d+) · /gm)].map((m) => m[1]);
 
 describe('1 · ⛔9: a name in the card sentence refuses the fallback whatever its position (Q086)', () => {
-  test('a lexicon name inside a quoted title (no cue before or after it) → no fallback', async () => {
+  test('a lexicon name inside a quoted title (no cue before or after it) → never quoted; R7g: the plain frame', async () => {
     const action = "اگلی کلاس میں، جب 'گنتی احمد' کا پیراگراف پڑھیں، تو بورڈ پر تین کیوں والے سوال لکھیں اور پانچ سیکنڈ رکیں۔";
     const row = await run(args({ action, lang: 'ur' }), deps([ROMAN, ROMAN]));
-    expect(row).toMatchObject({ status: 'none', none_reason: 'validation:roman' });
+    // R7g 1e (COS 20261024T002603; panel Z100): the sentence that names a child is never quoted; the plain frame carries the clip
+    expect(row).toMatchObject({ status: 'shown', moment_source: 'card', reason_en: 'Your report gives you one thing to try next class. This clip shows one way to do it.' });
+    expect(`${row.reason_en} ${row.reason_ur}`).not.toMatch(/احمد/);
   });
 
-  test('a name on the teacher\'s own class roster, anywhere in the card → no fallback', async () => {
+  test('a name on the teacher\'s own class roster, anywhere in the card → never quoted; R7g: the plain frame', async () => {
     const action = "اگلی کلاس میں، جب 'گنتی زرویش' کا پیراگراف پڑھیں، تو بورڈ پر تین کیوں والے سوال لکھیں اور پانچ سیکنڈ رکیں۔";
     const row = await run(args({ action, lang: 'ur' }), withRoster(deps([ROMAN, ROMAN]), ['زرویش', 'Kintal']));
-    expect(row).toMatchObject({ status: 'none', none_reason: 'validation:roman' });
+    // R7g 1e (COS 20261024T002603; panel Z100): the sentence that names a child is never quoted; the plain frame carries the clip
+    expect(row).toMatchObject({ status: 'shown', moment_source: 'card', reason_en: 'Your report gives you one thing to try next class. This clip shows one way to do it.' });
+    expect(`${row.reason_en} ${row.reason_ur}`).not.toMatch(/زرویش/);
   });
 
   test('a roster name in the model\'s own reason → validation:name (never stored, never sent)', async () => {
@@ -183,12 +187,12 @@ describe('3 · the second-pass shortlist is exactly the four enacted chapters', 
 });
 
 describe('3b · G3 (no second ask): on a move step the enacted list keeps only chapters tagged for that step (gold be2a6d28)', () => {
-  test('control: a step with no tag to keep (D3 is a declared hole in this catalogue) → the four are the gate, as R7c ruled', async () => {
+  test('control: a step with no tag to keep (D3 is a declared hole in this catalogue) → R7g: no route at all, no model call', async () => {
     const NONE = { seg_id: null, none_reason: 'nothing fits', confidence: 0.2 };
     const d = deps([NONE, NONE]);
-    await run(args({ indicator: 'D3' }), d);
-    expect(d.completeJson).toHaveBeenCalledTimes(2);
-    expect(ids(d.completeJson.mock.calls[1][0])).toEqual(expect.arrayContaining(['50-s2', '51-s1']));
+    const row = await run(args({ indicator: 'D3' }), d);
+    expect(d.completeJson).not.toHaveBeenCalled(); // the step-text list it was asked from is retired (COS 20261024T002603 1a)
+    expect(row).toMatchObject({ status: 'none', none_reason: 'hole' });
   });
 
 
@@ -282,7 +286,7 @@ describe('6 · the clip half is written from the chapter; the lesson half from t
   });
 
   test('Q105/Q150 shape: the card\'s script attributed to the clip is replaced by the chapter\'s own title (en + ur)', async () => {
-    const row = await run(args(), deps([SCRIPT]));
+    const row = await run(args({ lang: 'ur' }), deps([SCRIPT])); // R7g: an Urdu reader (an en reader's Urdu line is the card frame)
     expect(row.status).toBe('shown');
     expect(both(row)).not.toMatch(/Say it with me|میرے ساتھ دہرائیں/);
     expect(row.reason_en).toMatch(/^The class could only answer yes or no/);
@@ -309,7 +313,7 @@ describe('6 · the clip half is written from the chapter; the lesson half from t
       reason_en: 'The teacher asked a recall question: "What is the name of this shape". The clip explains asking why instead.',
       reason_ur: 'استاد نے یادداشت پر مبنی سوال پوچھا۔ یہ کلپ سمجھاتا ہے کہ کیوں والا سوال کیسے پوچھیں۔',
     });
-    const row = await run(args({ lines }), deps([r]));
+    const row = await run(args({ lines, lang: 'ur' }), deps([r])); // R7g: an Urdu reader reads the model's Urdu line
     expect(row.status).toBe('shown');
     expect(row.reason_en).toMatch(/^The teacher asked a question:/);
     expect(row.reason_ur).toMatch(/^استاد نے سوال پوچھا/);
@@ -322,7 +326,7 @@ describe('7 · Urdu: the fixed lexical list, the familiar imperative, one digit 
   const { composeReason } = require('../../../bot/shared/services/coaching/video-reco/copy');
 
   test.each([
-    ['استاد نے یاددہانی سوال پوچھا', 'استاد نے یادداشت پر مبنی سوال پوچھا'],
+    ['استاد نے یاددہانی سوال پوچھا', 'استاد نے یاد سے بتانے والا سوال پوچھا'], // R7g: the approved word
     ['جوڑ کی گفتگو نہیں ہوئی', 'جوڑوں میں گفتگو نہیں ہوئی'],
     ['ہم ایک جوڑ کی وجہ سنتے ہیں', 'ہم ایک جوڑے کی وجہ سنتے ہیں'],
     ['ایک طالب نے کہا', 'ایک طالب علم نے کہا'],
@@ -372,9 +376,11 @@ describe('red7 HOLD 194127 on 34450db474', () => {
     expect(row).toMatchObject({ status: 'none', none_reason: 'validation:placeholder' });
   });
 
-  test('H2 (A14): a strong lexicon name as the card\'s first word, no comma → no fallback', async () => {
+  test('H2 (A14): a strong lexicon name as the card\'s first word, no comma → never quoted; R7g: the plain frame', async () => {
     const row = await run(args({ action: 'Zunaira should answer first, then ask the class why.' }), deps([ROMAN, ROMAN]));
-    expect(row).toMatchObject({ status: 'none', none_reason: 'validation:roman' });
+    // R7g 1e (COS 20261024T002603; panel Z100): the sentence that names a child is never quoted; the plain frame carries the clip
+    expect(row).toMatchObject({ status: 'shown', moment_source: 'card', reason_en: 'Your report gives you one thing to try next class. This clip shows one way to do it.' });
+    expect(`${row.reason_en} ${row.reason_ur}`).not.toMatch(/Zunaira/);
   });
 
   test('control: a card opening with an ordinary capitalised word keeps its fallback', async () => {

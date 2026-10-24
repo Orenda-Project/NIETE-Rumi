@@ -11,7 +11,7 @@
  */
 const { logToFile } = require('../../../utils/logger');
 const { getCurrentCorrelationId } = require('../../../utils/structured-logger');
-const { clampLanguage } = require('../../../config/ux-strings');
+const { clampLanguage, resolveUx } = require('../../../config/ux-strings');
 const { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist } = require('./flags');
 const { assignArm, AB_SALT } = require('./arm');
 const target = require('./target');
@@ -60,8 +60,11 @@ const SECOND_MOMENT = new Set(['llm_none', 'validation:quote', 'validation:place
 // R7f (COS 223858 1c; panel Q117 Q136): the closure chapters a closing card falls back to, in this order (47-s6 is the
 // panel's named clip: «what did we learn today?» in Urdu, 61 s).
 const CLOSURE_CHAPTERS = ['47-s6', '11-s5'];
+// R7g (COS 002603 1c): the chapter a why / wait-time card's frame moves to when the model's chapter is another move
+const WHY_SWAP_CHAPTER = '51-s1';
 // R7f (COS 223858 1b): the rules whose refusal goes straight to the card's own sentence (no retry)
-const DIRECT_FALLBACK = new Set(['validation:no_gap', 'validation:not_gap']);
+// R7g (1b): …and a reader's Urdu line in the wrong tense or voice (the card frame's Urdu is 94.3% ok on v6)
+const DIRECT_FALLBACK = new Set(['validation:no_gap', 'validation:not_gap', 'validation:urdu_form']);
 
 /**
  * The chosen chapter does not carry the step indicator (R4). null when there is no step indicator (card_text, phase).
@@ -323,6 +326,8 @@ async function compute(a, d, state) {
     teacherName: people.teacher, scorerQuote: scorerQuote || uptakeQuote, // §3.5 [v1.3] d: the Quote: part, never evidence_summary
     rawExcerpts: rawEx, vocab, oovVocab, roster: people.roster, topic: lesson.topic, grade: lesson.grade, // R7d §5
     cardIndicator: cardInd, // R7f 1a: a B6 card's moment shows the levels
+    labelClosed: labelOpen, // R7g 1a (Z199): the label class cites a closed question
+    reader: language, // R7g 1b: tense and voice are refused on the reader's Urdu line only
     // red7 074627: a scorer-path quote must be a transcript line; redacted once, only when that path is reached
     fullLines: (() => { let all = null; return () => (all = all || prompt.transcriptLines(session).map((l) => prompt.redact(l, people))); })(),
   };
@@ -349,12 +354,24 @@ async function compute(a, d, state) {
     const cand = (pickList.candidates || []).find((x) => x.seg_id === String(res.pick.seg_id));
     if ((cand && cand.route === 'step_text') || cardInd === 'B6' || silence.levelsCard(cardSentence)) return null;
     const seg = catalog.segment(String(res.pick.seg_id));
+    const sentence = (card && card.action) || step.try || fa.try_this_tomorrow || '';
+    // R7g (COS 002603 1c; panel Z040 Z077 Z135 Z063 Z167): "this clip shows one way to do it" only on a chapter whose move the
+    // card names; else 51-s1 when the card asks for a why / how / open question or wait time, else silence
+    if (seg && !select.cardMoveOk(sentence, seg.segment)) {
+      if (!silence.whyWaitCard(sentence) || String(res.pick.seg_id) === WHY_SWAP_CHAPTER) return null;
+      const fixed = fixedFallback([WHY_SWAP_CHAPTER], v.none, 'enacted');
+      if (!fixed) return null;
+      res = { ...res, pick: { ...res.pick, seg_id: fixed.segId } };
+      pickList = fixed.list;
+      return fixed.said;
+    }
     return seg && select.cardFallback({
-      none: v.none, segId: res.pick.seg_id, shortlist: pickList, sentence: (card && card.action) || step.try || fa.try_this_tomorrow || '',
+      none: v.none, segId: res.pick.seg_id, shortlist: pickList, sentence,
       startS: seg.segment.start_s, endS: seg.segment.end_s, teacherName: people.teacher, module: seg.module, subject, vocab, oovVocab,
       segment: seg.segment, // R7b: the clause the clip serves
       language, // R7c: the reader's line is the one that must fit and the one that quotes (was never passed: always 'en')
       roster: people.roster,
+      plainIfNamed: select.cardMoveOk(sentence, seg.segment, { strict: true }), // R7g 1e (Z100; Z078 stays silent)
     });
   };
   // R7f (COS 223858 1b): a reason that names no gap, or a cited line that shows none, goes straight to the card's own
@@ -454,6 +471,17 @@ async function compute(a, d, state) {
   const said = fallback || {
     reason_en: relabelRecall(stripBidi(String(p.reason_en)).trim(), 'en', asked), reason_ur: relabelRecall(stripBidi(String(p.reason_ur)).trim(), 'ur', asked),
   };
+  // R7g (COS 002603 1b; panel v6: card frame 94.3% Urdu-ok, model-written 66.0%): an English reader's Urdu line (the portal's)
+  // is never the model's translation when the card frame exists — the card frame on a chapter whose move the card names,
+  // else the model's line only when it passes every Urdu check, else the plain frame
+  if (!fallback && language === 'en') {
+    const sentence = (card && card.action) || step.try || fa.try_this_tomorrow || '';
+    const args0 = { startS: hit.segment.start_s, endS: hit.segment.end_s, teacherName: people.teacher, module: hit.module, subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster };
+    const frame = sentence && select.cardMoveOk(sentence, hit.segment) ? select.cardFrame({ ...args0, sentence, plainIfNamed: true }) : null;
+    const n = Math.round(Number(hit.segment.end_s) - Number(hit.segment.start_s));
+    said.reason_ur = frame ? frame.reason_ur : select.urduLineOk(said.reason_ur) ? said.reason_ur
+      : resolveUx('videoRecoCardFallbackReasonPlain', { language: 'ur', params: { n } });
+  }
   const c = Number(p.confidence);
   // v1.3c (a) ⛔9: the reasons and the quote are stored (and so sent) after the non-strict name redactor.
   const clean = (x) => select.postRedact(x, people.teacher, vocab);

@@ -12,7 +12,7 @@ const { stripBidi } = require('./copy');
 const CONTENT_TERMS = require('./content-terms');
 const LEX = require('./name-lexicon');
 const { childTurnNear, imperative, routineLine, echoReading, notTeaching, isClosure, earlyForClosure, levelsNear } = require('./silence');
-const { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, sceneClaim, recallMislabel, pointerNoLine, recallLeft, namesGap, notGapLine, auditWords } = require('./copy-rules');
+const { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, sceneClaim, recallMislabel, pointerNoLine, recallLeft, namesGap, notGapLine, auditWords, closedQuestion, urduSlip } = require('./copy-rules');
 
 const JOB = 'coaching.videoReco';
 const LLM_TIMEOUT_MS = 45000; // lead-converge 18:48Z: measured 22–33 s at the default effort; the report itself never waits on it
@@ -231,11 +231,11 @@ function arabicShare(text) {
  * @returns {{ok:boolean, none:null|'llm_none'|'validation:<why>', confidence:number, momentSource:'transcript'|'scorer'|null}}
  *   <why> (lead-review 19:40Z, so evals and red-team can count them): shape | candidate | quote | moment_at | placeholder |
  *   scorer | id | name | length | urdu | roman | gender | step | unshown | scene | recall | no_line | no_gap | not_gap | no_evidence |
- *   no_child_turn | not_moment | closure_early | error. A not_moment from a line spoken while no lesson is happening also
+ *   no_child_turn | not_moment | closure_early | urdu_form | error. A not_moment from a line spoken while no lesson is happening also
  *   carries `lessonless: true` (R7f: only such a line takes the card fallback away, engine.js).
  */
 function validate(p, shortlist, excerpts, opts) {
-  const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false, rawExcerpts = null, fullLines = null, vocab = [], oovVocab = [], roster = null, topic = null, grade = null, cardIndicator = null } = opts || {};
+  const { stepIndicator = null, indicators = null, source = null, catalog = null, teacherName = null, scorerQuote = '', textRoute = false, rawExcerpts = null, fullLines = null, vocab = [], oovVocab = [], roster = null, topic = null, grade = null, cardIndicator = null, labelClosed = false, reader = null } = opts || {};
   const bad = (why) => ({ ok: false, none: `validation:${why}`, confidence: 0, momentSource: null });
   try {
     if (!p || typeof p !== 'object') return bad('shape');
@@ -262,6 +262,9 @@ function validate(p, shortlist, excerpts, opts) {
     // no moment. Not a fallback rule: the retry may find a real one, else the none stands (Q063, Q170 → silence, as ruled). Before every
     // reason rule, so a routine line is never rescued by the fallback a reason fault would allow.
     if (routineLine(storedQuote(quote), { topic })) return bad('not_moment');
+    // R7g (COS 002603 1a; panel Z199 ⛔2, Z025 right): a subject label let through for its open-question sentence answers a
+    // closed question; any other cited line (a page announcement, a why already asked) is no moment for it
+    if (labelClosed && !closedQuestion(storedQuote(quote))) return bad('not_moment');
     // R7d (Q038 Q056): in Grade 1–2 a line the children read back is echo reading, not the gap
     const lines = momentSource === 'transcript' ? excerpts : (() => { const l = typeof fullLines === 'function' ? fullLines() : fullLines; return Array.isArray(l) ? l : []; })();
     if (echoReading(lines, quoteLine(quote, lines), grade)) return bad('not_moment');
@@ -292,6 +295,7 @@ function validate(p, shortlist, excerpts, opts) {
     if (arabicShare(p.reason_ur) < 0.6 || OTHER_SCRIPT.test(reasons.join(' ').replace(QUOTED, ' '))) return bad('urdu'); // R7c: «факт» (Q097)
     if (latinRun(p.reason_ur) > 2) return bad('roman');
     if (genderedUrdu(p.reason_ur)) return bad('gender'); // R7b (26 panel rows): a teacher is plural in Urdu
+    if (reader === 'ur' && urduSlip(p.reason_ur)) return bad('urdu_form'); // R7g 1b (Z091 Z019): tense and voice, the reader's line
     // Indicator path: every candidate is for the step; a pick outside the step's chapters is refused (SPEC v1.2 §3.5).
     // When the step-text route ran (label / hole / unknown / unscored / empty target, v1.3 R4) any listed candidate is valid.
     if ((source === 'step' || source === 'card') && stepIndicator && !textRoute) {
@@ -402,7 +406,7 @@ function topicVocab(topic) {
 // not step (a code gate: the chapter is not for the step), not error.
 // R7f: closure_early (Q117: the card names the closing move the chapter shows), no_gap and not_gap (ask 1b: the card frame
 // is 96.9% right/acceptable on v5) take it too; no_evidence (1a) never does.
-const FALLBACK_RULES = new Set(['quote', 'moment_at', 'placeholder', 'scorer', 'id', 'name', 'length', 'urdu', 'roman', 'gender', 'unshown', 'scene', 'recall', 'no_child_turn', 'closure_early', 'no_gap', 'not_gap']);
+const FALLBACK_RULES = new Set(['quote', 'moment_at', 'placeholder', 'scorer', 'id', 'name', 'length', 'urdu', 'roman', 'gender', 'unshown', 'scene', 'recall', 'no_child_turn', 'closure_early', 'no_gap', 'not_gap', 'urdu_form']);
 const FALLBACK_MAX = 300; // code points of each composed reason (en and ur)
 const MIN_WORDS = 3; // a trimmed card sentence keeps at least this many words, else the none stands
 
@@ -489,26 +493,32 @@ const singleQuotes = (t) => t.replace(/"([^"]*)"/g, '‘$1’').replace(/“([^�
  * "Try this tomorrow" sentence. No LLM call. → {reason_en, reason_ur} | null (the none stands).
  * @param {object} a {none, segId, shortlist, sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab, segment, labels}
  */
-function cardFallback({ none, segId, shortlist, sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab = [], segment, labels = [], roster = null } = {}) {
+function cardFallback(a = {}) {
+  const m = /^validation:(.+)$/.exec(String(a.none || ''));
+  if (!m || !FALLBACK_RULES.has(m[1])) return null;
+  if (!((a.shortlist && a.shortlist.candidates) || []).some((c) => c.seg_id === String(a.segId))) return null;
+  return cardFrame(a);
+}
+
+/** The card frame for a chapter (the fallback's text, no rule or list gate): {reason_en, reason_ur} | null. */
+function cardFrame({ sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab = [], segment, labels = [], roster = null, plainIfNamed = false } = {}) {
   try {
-    const m = /^validation:(.+)$/.exec(String(none || ''));
-    if (!m || !FALLBACK_RULES.has(m[1])) return null;
-    if (!((shortlist && shortlist.candidates) || []).some((c) => c.seg_id === String(segId))) return null;
     if (!fallbackSubjectOk(module, subject)) return null; // [v1.3c-2] ⛔4: no literacy clip on a science lesson
     // [v1.3c-5] + R7b (P165, red7 V1–V10): the card's vocative goes BEFORE redaction, found by its shape (copy-rules.js)
     const raw = stripBidi(String(sentence || ''));
     const bare = raw.slice(leadingVocative(raw));
     let s = String(postRedact(bare, teacherName, vocab) || '').replace(LEADING_ADDRESS, '').trim();
     if (!s || s.startsWith('[') || UNSHOWABLE.test(s)) return null; // [v1.3c-5] a placeholder never opens it
-    // R7c ⛔9 (Q168, Q174; Q181, Q193): a child named inside the sentence → the comparison goes, or the fallback does
-    s = childFreeCard(s, { teacher: teacherName, vocab, oovVocab });
-    if (!s) return null;
-    if (rosterIn(s, roster)) return null; // R7d (Q086): a roster name in any position, a quoted title included
     if (!imperative(s)) return null; // R7b (P123, P161): a diagnosis fragment is not a move to try
     if (LABEL_TEXT.test(s) || labels.some((x) => x && s.toLowerCase().includes(String(x).toLowerCase()))) return null;
-    s = singleQuotes(s).replace(/^[a-z]/, (c) => c.toUpperCase()); // P109: no lower-case start after the strip
     const n = Math.round(Number(endS) - Number(startS));
     if (!Number.isFinite(n) || n <= 0) return null;
+    // R7c ⛔9 (Q168, Q174; Q181, Q193): a child named inside the sentence → the comparison goes. R7g (COS 002603 1e; panel Z036
+    // Z100, R/A sends in v5): a name that cannot go → the plain frame, the sentence not quoted (was: no clip at all)
+    const plain = () => ({ reason_en: resolveUx('videoRecoCardFallbackReasonPlain', { language: 'en', params: { n } }), reason_ur: resolveUx('videoRecoCardFallbackReasonPlain', { language: 'ur', params: { n } }) });
+    s = childFreeCard(s, { teacher: teacherName, vocab, oovVocab });
+    if (!s || rosterIn(s, roster)) return plainIfNamed ? plain() : null; // R7d (Q086): a roster name in any position, a quoted title included
+    s = singleQuotes(s).replace(/^[a-z]/, (c) => c.toUpperCase()); // P109: no lower-case start after the strip
     // bd-8hhqhf: a long card sentence is trimmed to fit, in each language (session 077b8021: 224 cp → 308 cp composed in
     // ur, and no clip was sent). The teacher's language must fit; the other one is trimmed when it can be and otherwise
     // stored whole, as before.
@@ -529,4 +539,42 @@ function cardFallback({ none, segId, shortlist, sentence, startS, endS, language
   }
 }
 
-module.exports = { routineQuote, lessonlessQuote, groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
+// R7g (COS 002603 1c; panel Z040 Z077 Z135, list A's only wrong rows): the card frame says "this clip shows one way to do
+// it", so one of the chapter's moves must be named in the card's sentence. Moves with no entry are not judged.
+const MOVE_WORDS = Object.freeze({
+  think_pair_share: /student[- ]to[- ]student|think[- ]pair|\bpairs?\b|\bpartners?\b|\bneighbou?rs?\b|turn (?:and|to) (?:talk|your)|جوڑ|جوڑی|ساتھی|پیئر|پارٹنر/iu,
+  open_questions: /\bwhy\b|\bhow\b|open[- ]ended|open questions?|کیوں|کیسے|کھلے سوال|کھلا سوال|اوپن/iu,
+  ask_for_reasoning: /\bwhy\b|\bhow\b|\bexplain|\breasons?\b|کیوں|کیسے|وجہ|وضاحت|سمجھا/iu,
+  follow_up_probe: /\bwhy\b|\bhow\b|follow[- ]up|probe|کیوں|کیسے|مزید سوال/iu,
+  explain_why: /\bwhy\b|\bexplain|\breasons?\b|کیوں|وجہ|وضاحت/iu,
+  wait_time: /\bwait|\bpause|seconds|سیکنڈ|انتظار/iu,
+  specific_feedback: /feedback|\bpraise|\bspecific|['‘"]good['’"]|well done|فیڈبیک|تعریف|شاباش|نصیحت/iu,
+  next_step_feedback: /feedback|\bpraise|next step|well done|فیڈبیک|تعریف|شاباش|نصیحت|اگلا قدم/iu,
+  concrete_pictorial_abstract: /concrete|counters|\bobjects\b|manipulative|pictures?|pictorial|\bdraw|bottle caps|ٹھوس|تصویر|اشیا|ڈھکن|کاؤنٹر/iu,
+  student_explains_in_own_words: /own words|sentence (?:starters?|stems?|frames?)|اپنے الفاظ|اپنی زبان/iu, // not a bare "explain" (Z077)
+  closure_check: /exit (?:ticket|slip)|what (?:did )?(?:we|you|they) learn|summar|recap|key points?|at the end|end of (?:the )?(?:lesson|class)|کیا سیکھا|خلاصہ|نکات|اپنی زبان میں|اپنے الفاظ میں|آخر میں|اختتام/iu,
+  differentiate_tasks: /\blevel(?:s|led|ed)?\b|\btiers?\b|tiered|\beasy\b|\bhard\b|challenge|support|stretch|سطح|لیول|آسان|مشکل|چیلنج|گروپ/iu,
+  group_work: /\bgroups?\b|\bpairs?\b|\bpartners?\b|student[- ]to[- ]student|گروپ|ٹولی|جوڑ|ساتھی/iu,
+  student_choice: /\bchoice|\bchoose|\bvoice\b|\bagency\b|انتخاب|پسند/iu,
+  group_by_level: /\blevels?\b|\btiers?\b|\bgroups?\b|سطح|لیول|گروپ/iu,
+  peer_self_assessment: /assess|checklist|rubric|self[- ]check|review each other|جانچ|چیک لسٹ|روبرک|جائزہ/iu,
+});
+
+/**
+ * The card's sentence names one of the chapter's moves. A chapter none of whose moves has an entry is not judged (true),
+ * unless `strict` (the plain frame for a card that names a child needs the move named, R7g 1e: Z078 stays silent).
+ */
+function cardMoveOk(sentence, segment, { strict = false } = {}) {
+  const known = ((segment && segment.moves) || []).map((m) => MOVE_WORDS[m]).filter(Boolean);
+  if (!known.length) return !strict;
+  const s = stripBidi(String(sentence || ''));
+  return known.some((rx) => rx.test(s));
+}
+
+/** R7g 1b: a model-written Urdu line that passes every Urdu check (script, Roman Urdu, gender, tense and voice). */
+function urduLineOk(text) {
+  const t = String(text || '');
+  return arabicShare(t) >= 0.6 && latinRun(t) <= 2 && !OTHER_SCRIPT.test(t.replace(QUOTED, ' ')) && !genderedUrdu(t) && !urduSlip(t);
+}
+
+module.exports = { cardFrame, cardMoveOk, urduLineOk, routineQuote, lessonlessQuote, groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };

@@ -1,6 +1,6 @@
 {
- "version": "catalog-v1-20261023T1535-r7bpanel",
- "built_at": "2026-10-23T15:35:00.000Z",
+ "version": "catalog-v1-20261024T0030-r7gpanel",
+ "built_at": "2026-10-24T00:30:00.000Z",
  "framework": "fico-v4",
  "indicator_aliases": {
   "B1": {
@@ -13140,7 +13140,7 @@
      "fico": [],
      "fico_main37": [],
      "language": "ur",
-     "recommendable": true,
+     "recommendable": false,
      "phase": null,
      "keywords": [
       "minute",
@@ -13231,7 +13231,8 @@
       "اڈاپٹ",
       "ایونٹ",
       "امپیکٹ"
-     ]
+     ],
+     "recommendable_reason": "panel_veto: not_a_move (a teacher's own reflection habit, no classroom move; v6 Z150 ⛔2, ped/vetoes.json module 28, COS 20261024T002603 1a)"
     }
    ]
   },
