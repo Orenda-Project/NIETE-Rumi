@@ -285,8 +285,10 @@ function whyCardOk(seg, step) {
 // text route only for a card about management — «model the correct sentence» is a language move, not an entry routine.
 // Panel 200: the only two text-route rows on a C6-first chapter, both ⛔.
 const MANAGEMENT = /\b(?:routines?|behaviou?r|discipline|noise|noisy|quiet|rules?|attention signal|signal|line up|transition|seating|class(?:room)? management|monitors?|duties)\b|روٹین|معمول|نظم و ضبط|ڈسپلن|شور|خاموش|قواعد|اصول|توجہ|اشارہ|لائن|بیٹھنے/iu;
+// R7l (COS 164428 §1c; replay of v9 Z338: an idiom-sentence card → 2-s2 «calm reminder when a child calls out», first tag
+// 37-C7): a behaviour chapter (first tag C7) is held to the same test as a routines one
 function managementOk(seg, step) {
-  if (((seg && seg.fico_main37) || [])[0] !== 'C6') return true;
+  if (!['C6', 'C7'].includes(((seg && seg.fico_main37) || [])[0])) return true;
   const s = step || {};
   return MANAGEMENT.test([s.action, s.tryTomorrow, s.thingToTry].filter((x) => typeof x === 'string').join('\n'));
 }
