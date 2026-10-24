@@ -47,6 +47,7 @@ describe('engine: a student line or a line before any child spoke → the card f
     T('00:33', 'Student', 'جی پانی بادل سے آتا ہے'), T('00:36', 'Teacher', 'اور کہاں سے آتا ہے؟'), T('00:39', 'Student', 'دریا سے'),
     T('00:42', 'Teacher', 'ٹھیک ہے بچو، اور کون بتائے گا؟'), T('00:45', 'Student', 'جی'),
     T('00:50', 'Teacher', 'سب سنیں۔ آج کا ٹاپک پانی ہے۔ ٹھیک ہے؟'), T('00:53', 'Student', 'جی'),
+    T('01:00', 'Teacher', 'آپ کی جی پی کی بکس نکالیں۔ آج جو ٹاپک ہم پڑھیں گے، آپ کا چیپٹر 5: غیر جانبداری۔ چیپٹر کا کیا نام ہے؟'), T('01:03', 'Student', 'پانی'),
   ];
   const run = (q, at, lang = 'ur') => E.recommendForReport({
     session: { id: 's1', user_id: 'u1', transcript_language: 'ur', users: { name: 'Saima Khan', preferred_language: lang }, diarization_data: { segments: LINES } },
@@ -82,5 +83,11 @@ describe('engine: a student line or a line before any child spoke → the card f
     expect(row.moment_source).not.toBe('transcript');
     expect([row.first_none_reason, row.none_reason]).toContain('validation:routine');
     expect(row.none_reason).not.toBe('validation:not_moment');
+  });
+  test('red7 063214 (Z143): a book call + an announcement + a question falls back like routine, never silence', async () => {
+    const row = await run('آپ کی جی پی کی بکس نکالیں۔ آج جو ٹاپک ہم پڑھیں گے، آپ کا چیپٹر 5: غیر جانبداری۔ چیپٹر کا کیا نام ہے؟', '01:00');
+    expect(row.moment_source).not.toBe('transcript');
+    expect(row.none_reason).not.toBe('validation:not_moment');
+    expect([row.first_none_reason, row.none_reason]).toContain('validation:routine');
   });
 });
