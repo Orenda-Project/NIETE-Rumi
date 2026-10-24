@@ -542,7 +542,7 @@ function cardFrame({ sentence, startS, endS, language, teacherName, module, subj
 // R7g (COS 002603 1c; panel Z040 Z077 Z135, list A's only wrong rows): the card frame says "this clip shows one way to do
 // it", so one of the chapter's moves must be named in the card's sentence. Moves with no entry are not judged.
 const MOVE_WORDS = Object.freeze({
-  think_pair_share: /student[- ]to[- ]student|think[- ]pair|\bpairs?\b|\bpartners?\b|\bneighbou?rs?\b|turn (?:and|to) (?:talk|your)|جوڑ|جوڑی|ساتھی|پیئر|پارٹنر/iu,
+  think_pair_share: /student[- ]to[- ]student|think[- ]pair|\bpairs?\b|\bpartners?\b|\bneighbou?rs?\b|turn[- ](?:and|to)[- ](?:talk|tell|your)|جوڑ|جوڑی|ساتھی|پیئر|پارٹنر/iu,
   open_questions: /\bwhy\b|\bhow\b|open[- ]ended|open questions?|کیوں|کیسے|کھلے سوال|کھلا سوال|اوپن/iu,
   ask_for_reasoning: /\bwhy\b|\bhow\b|\bexplain|\breasons?\b|کیوں|کیسے|وجہ|وضاحت|سمجھا/iu,
   follow_up_probe: /\bwhy\b|\bhow\b|follow[- ]up|probe|کیوں|کیسے|مزید سوال/iu,
@@ -554,7 +554,7 @@ const MOVE_WORDS = Object.freeze({
   student_explains_in_own_words: /own words|sentence (?:starters?|stems?|frames?)|اپنے الفاظ|اپنی زبان/iu, // not a bare "explain" (Z077)
   closure_check: /exit (?:ticket|slip)|what (?:did )?(?:we|you|they) learn|summar|recap|key points?|at the end|end of (?:the )?(?:lesson|class)|کیا سیکھا|خلاصہ|نکات|اپنی زبان میں|اپنے الفاظ میں|آخر میں|اختتام/iu,
   differentiate_tasks: /\blevel(?:s|led|ed)?\b|\btiers?\b|tiered|\beasy\b|\bhard\b|challenge|support|stretch|سطح|لیول|آسان|مشکل|چیلنج|گروپ/iu,
-  group_work: /\bgroups?\b|\bpairs?\b|\bpartners?\b|student[- ]to[- ]student|گروپ|ٹولی|جوڑ|ساتھی/iu,
+  group_work: /\bgroups?\b|\btogether\b|\bpairs?\b|\bpartners?\b|student[- ]to[- ]student|گروپ|ٹولی|جوڑ|ساتھی/iu,
   student_choice: /\bchoice|\bchoose|\bvoice\b|\bagency\b|انتخاب|پسند/iu,
   group_by_level: /\blevels?\b|\btiers?\b|\bgroups?\b|سطح|لیول|گروپ/iu,
   peer_self_assessment: /assess|checklist|rubric|self[- ]check|review each other|جانچ|چیک لسٹ|روبرک|جائزہ/iu,
