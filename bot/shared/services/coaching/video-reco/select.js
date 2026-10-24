@@ -11,7 +11,7 @@ const { fallbackSubjectOk } = require('./shortlist');
 const { stripBidi } = require('./copy');
 const CONTENT_TERMS = require('./content-terms');
 const LEX = require('./name-lexicon');
-const { cardRoutine, childTurnNear, imperative, routineLine, echoReading, notTeaching, isClosure, earlyForClosure, levelsNear } = require('./silence');
+const { cardRoutine, childTurnNear, imperative, routineLine, echoReading, notTeaching, isClosure, earlyForClosure, levelsNear, KID } = require('./silence');
 const { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, sceneClaim, recallMislabel, pointerNoLine, recallLeft, namesGap, notGapLine, auditWords, closedQuestion, urduSlip } = require('./copy-rules');
 
 const JOB = 'coaching.videoReco';
@@ -276,7 +276,10 @@ function validate(p, shortlist, excerpts, opts) {
     // no moment. Not a fallback rule: the retry may find a real one, else the none stands (Q063, Q170 → silence, as ruled). Before every
     // reason rule, so a routine line is never rescued by the fallback a reason fault would allow.
     // R7j (COS 022905 §2/§5; panel v7 Z282 Z043 Z379 Z267): a greeting, page call, filler or echo falls back to the card frame
-    if (routineLine(storedQuote(quote), { topic })) return bad(cardRoutine(storedQuote(quote)) ? 'routine' : 'not_moment');
+    // red7 061530 R1 (Z180 Z143): a line only the R7k card-frame classes made routine (an announcement + «ٹھیک ہے؟») falls back too
+    if (routineLine(storedQuote(quote), { topic })) {
+      return bad(cardRoutine(storedQuote(quote)) || !routineLine(storedQuote(quote), { topic, extra: false }) ? 'routine' : 'not_moment');
+    }
     // R7g (COS 002603 1a; panel Z199 ⛔2, Z025 right): a subject label let through for its open-question sentence answers a
     // closed question; any other cited line (a page announcement, a why already asked) is no moment for it
     if (labelClosed && !closedQuestion(storedQuote(quote))) return bad('not_moment');
@@ -289,6 +292,13 @@ function validate(p, shortlist, excerpts, opts) {
     const whole = Array.isArray(full) && full.length ? full : null;
     const at = whole ? quoteLine(quote, whole) : -1;
     if (whole && notTeaching(whole, at)) return { ...bad('not_moment'), lessonless: true };
+    // R7k (COS 044233 §1b; panel v8 Z199 Z129 ⛔2, Z255): a line a student says (a child counting stand-ups, an aside about
+    // the recording), or one said before any child has spoken, is no teaching moment; the card frame carries the lesson
+    // (the line stamped with moment.at when it holds the quote: a fuzzy match can land on an earlier line that says the same)
+    const stamped = whole ? whole.findIndex((l) => l.startsWith(`[${String(p.moment.at).trim()}]`) && quoteFound(quote, [l])) : -1;
+    const own = stamped >= 0 ? stamped : at;
+    // (the line the first child answers is the lesson's opening question, a moment: only a line before THAT one is refused)
+    if (whole && own >= 0 && (KID.test(whole[own]) || own < whole.findIndex((l) => KID.test(l)) - 1)) return bad('routine');
     // R7e (panel §6.2: Q117 Q136 Q197): a closure chapter on a line from the first two thirds of the lesson. Not routine:
     // the retry may find a late line, else the card fallback carries the closure card
     const picked = catalog && catalog.segment(cand.seg_id);
@@ -426,6 +436,11 @@ const FALLBACK_RULES = new Set(['quote', 'moment_at', 'placeholder', 'scorer', '
 const FALLBACK_MAX = 300; // code points of each composed reason (en and ur)
 const MIN_WORDS = 3; // a trimmed card sentence keeps at least this many words, else the none stands
 
+// R7k §1f: an example clause and an open bracket or quote (a cut inside them leaves a list or a quote half said, Z233 Z241 Z307)
+const DEPENDENT = /^\s*(?:جیسے|مثلاً|مثلا|یعنی|like\b|such as\b|e\.g\.|for example\b|for instance\b|['‘"“«])/iu;
+const openInside = (t) => (t.split('(').length - t.split(')').length) > 0 || (t.split('‘').length - t.split('’').length) > 0
+  || (t.split('“').length - t.split('”').length) > 0 || (String(t).replace(/\b['’]\b/g, '').split("'").length - 1) % 2 === 1;
+
 /** The sentence whole if it fits `room` code points, else cut after its last whole word that fits, plus "…"; null if < MIN_WORDS. */
 function fitWords(sentence, room) {
   const c = [...sentence];
@@ -433,6 +448,8 @@ function fitWords(sentence, room) {
   if (room < 2) return null;
   let head = c.slice(0, room - 1).join('');
   if (!/\s/.test(c[room - 1])) head = head.replace(/\S*$/u, '');
+  // never inside an open bracket or quote: back off to before it opened
+  while (openInside(head)) head = head.slice(0, Math.max(head.lastIndexOf('('), head.lastIndexOf('‘'), head.lastIndexOf('“'), head.lastIndexOf("'"))).replace(/\S*$/u, '');
   head = head.replace(/[\s\p{P}]+$/u, '');
   return realWords(head) >= MIN_WORDS ? `${head}…` : null;
 }
@@ -456,7 +473,13 @@ function servesClip(clause, segment) {
  */
 function fitClauses(sentence, room, segment) {
   if ([...sentence].length <= room) return sentence;
-  const parts = sentence.split(CLAUSE).filter(Boolean);
+  // R7k §1f (panel v8 Z180 Z015): a clause that only gives the example («جیسے '…'», «: 'Why …?'») stays with the clause whose
+  // verb it serves, and no boundary inside brackets or quotes splits a clause
+  const parts = sentence.split(CLAUSE).filter(Boolean).reduce((out, x) => {
+    const prev = out[out.length - 1];
+    if (prev && (DEPENDENT.test(x) || openInside(prev))) out[out.length - 1] = `${prev} ${x}`; else out.push(x);
+    return out;
+  }, []);
   const cps = (t) => [...t].length;
   const tidy = (t) => t.replace(/[\s\p{P}]+$/u, '');
   let pre = '';
@@ -521,7 +544,8 @@ function plainFrame(l, segment) {
   const n = segment ? Math.round(Number(segment.end_s) - Number(segment.start_s)) : 0;
   const title = String((segment && ((l === 'ur' && segment.title_ur) || segment.title_en)) || '').trim().replace(/[۔.]$/u, '');
   const line = resolveUx('videoRecoCardFallbackReasonPlain', { language: l, params: { n, title } });
-  return title ? line : line.replace(/:\s*[۔.]$/u, '۔'); // no title: the terms file's alt line (it ends after «دکھاتا ہے»)
+  // a title that ends in its own mark («…آگے کیا ہوگا؟») takes no second one (v8 Z108 «؟۔», red7 055554 H2)
+  return title ? line.replace(/([؟?!])\s*[۔.]$/u, '$1') : line.replace(/:\s*[۔.]$/u, '۔'); // no title: the terms file's alt line (it ends after «دکھاتا ہے»)
 }
 
 /** The card frame for a chapter (the fallback's text, no rule or list gate): {reason_en, reason_ur} | null. */

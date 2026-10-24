@@ -1,6 +1,6 @@
 {
- "version": "catalog-v1-20261024T0030-r7gpanel",
- "built_at": "2026-10-24T00:30:00.000Z",
+ "version": "catalog-v1-20261024T0700-r7kpanel",
+ "built_at": "2026-10-24T07:00:00.000Z",
  "framework": "fico-v4",
  "indicator_aliases": {
   "B1": {
@@ -4325,7 +4325,7 @@
       "C8"
      ],
      "language": "ur",
-     "recommendable": true,
+     "recommendable": false,
      "phase": "opening",
      "keywords": [
       "opening",
@@ -4432,7 +4432,8 @@
       "بڑھے",
       "سنائیں",
       "ایکٹو"
-     ]
+     ],
+     "recommendable_reason": "panel_veto: not_enacted_voice_over (lists the sections of a lesson plan, nothing enacted; v8 Z063 Z254 Z275 Z160 wrong, 0 right; ped/vetoes.json module 11, COS 20261024T044233 §2)"
     },
     {
      "seg_id": "11-s2",
@@ -4616,7 +4617,7 @@
       "C12"
      ],
      "language": "ur",
-     "recommendable": true,
+     "recommendable": false,
      "phase": "guided",
      "keywords": [
       "guided",
@@ -4709,7 +4710,8 @@
       "کانسیپٹ",
       "پلان",
       "کروائیں"
-     ]
+     ],
+     "recommendable_reason": "panel_veto: not_enacted_voice_over (lists the sections of a lesson plan, nothing enacted; v8 Z063 Z254 Z275 Z160 wrong, 0 right; ped/vetoes.json module 11, COS 20261024T044233 §2)"
     },
     {
      "seg_id": "11-s4",
@@ -4741,7 +4743,7 @@
       "F8"
      ],
      "language": "ur",
-     "recommendable": true,
+     "recommendable": false,
      "phase": "independent",
      "keywords": [
       "independent",
@@ -4843,7 +4845,8 @@
       "کاپی",
       "جس",
       "کمپلیٹ"
-     ]
+     ],
+     "recommendable_reason": "panel_veto: not_enacted_voice_over (lists the sections of a lesson plan, nothing enacted; v8 Z063 Z254 Z275 Z160 wrong, 0 right; ped/vetoes.json module 11, COS 20261024T044233 §2)"
     },
     {
      "seg_id": "11-s5",
@@ -4874,7 +4877,7 @@
       "C3"
      ],
      "language": "ur",
-     "recommendable": true,
+     "recommendable": false,
      "phase": "closure",
      "keywords": [
       "closure",
@@ -4974,7 +4977,8 @@
       "کوئک",
       "سیکھے",
       "کوئز"
-     ]
+     ],
+     "recommendable_reason": "panel_veto: not_enacted_voice_over (lists the sections of a lesson plan, nothing enacted; v8 Z063 Z254 Z275 Z160 wrong, 0 right; ped/vetoes.json module 11, COS 20261024T044233 §2)"
     },
     {
      "seg_id": "11-s6",
@@ -42313,7 +42317,7 @@
       "C3"
      ],
      "language": "ur",
-     "recommendable": true,
+     "recommendable": false,
      "phase": "independent",
      "keywords": [
       "choice",
@@ -42407,7 +42411,8 @@
       "کوئز",
       "پوسٹر",
       "ٹیسٹ"
-     ]
+     ],
+     "recommendable_reason": "panel_veto: not_enacted_voice_over (lists assessment formats, nothing enacted; v8 Z234 wrong; ped/vetoes.json module 80, COS 20261024T044233 §2)"
     },
     {
      "seg_id": "80-s3",
