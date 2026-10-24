@@ -203,6 +203,15 @@ class WhatsAppService {
    * @returns {Promise<boolean>}
    */
   static async sendMessage(to, message, opts = {}) {
+    // bd-mo5pru: with no recipient Meta answers #100 «The parameter to is required».
+    // Never call it; name the caller so the send site can be found and fixed.
+    if (!to) {
+      logToFile('whatsapp.send.no_recipient', {
+        event: 'whatsapp.send.no_recipient',
+        ...pacer.describeSite(new Error('whatsapp send site')),
+      }, 'warn');
+      return false;
+    }
     try {
       // Remove emotion tags from text messages (they're only for voice)
       const cleanMessage = this._removeEmotionTags(message);

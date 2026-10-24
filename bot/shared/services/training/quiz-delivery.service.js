@@ -2021,6 +2021,9 @@ async function getVendorCooldownHoursByLevel(levelId) {
  * @param {string} [opts.lead] a line that must open the FIRST message this
  *        sends (the verdict on the last answer). Every branch folds it in.
  */
+// bd-mo5pru — `phoneNumber` is null when the portal grades (submitModuleExamPaper's
+// background marking): a web request has no phone. The verdict is still written;
+// every WhatsApp send below is skipped, the way the HELD branch always did.
 async function gradeAttempt(attemptId, phoneNumber, opts = {}) {
   const lead = opts.lead || null;
   const { data: attempt } = await supabase
@@ -2029,7 +2032,7 @@ async function gradeAttempt(attemptId, phoneNumber, opts = {}) {
     .eq('id', attemptId)
     .single();
   if (!attempt) {
-    if (lead) await WhatsAppService.sendMessage(phoneNumber, lead);
+    if (lead && phoneNumber) await WhatsAppService.sendMessage(phoneNumber, lead);
     return false;
   }
 
@@ -2121,18 +2124,20 @@ async function gradeAttempt(attemptId, phoneNumber, opts = {}) {
       const pctRounded = Math.round(pct);
       // The result and its retry buttons are ONE message (they were two). Over
       // the body cap, or refused, they go out as the text then the buttons.
-      await sendTextWithButtons(phoneNumber, {
-        text: withLead(lead,
-          `📝 *Module check — not quite.*\n\n` +
-          `You got *${score}/${total}* (${pctRounded}%). You need ${passingPct}% to move on.\n\n` +
-          `Give it another go — you can retry right away.`),
-        prompt: 'Ready to try the module check again?',
-        buttons: [
-          { id: `training_quiz_retry_${attempt.training_module_id}`, title: '🔄 Try again' },
-          { id: 'training_pause', title: '⏸ Pause' },
-        ],
-        logCtx: { attemptId, moduleId: attempt.training_module_id, branch: 'module_check_failed' },
-      });
+      if (phoneNumber) {
+        await sendTextWithButtons(phoneNumber, {
+          text: withLead(lead,
+            `📝 *Module check — not quite.*\n\n` +
+            `You got *${score}/${total}* (${pctRounded}%). You need ${passingPct}% to move on.\n\n` +
+            `Give it another go — you can retry right away.`),
+          prompt: 'Ready to try the module check again?',
+          buttons: [
+            { id: `training_quiz_retry_${attempt.training_module_id}`, title: '🔄 Try again' },
+            { id: 'training_pause', title: '⏸ Pause' },
+          ],
+          logCtx: { attemptId, moduleId: attempt.training_module_id, branch: 'module_check_failed' },
+        });
+      }
       return true;
     }
 
@@ -2181,7 +2186,7 @@ async function gradeAttempt(attemptId, phoneNumber, opts = {}) {
       attemptId: attempt.id,
       programId: attempt.program_id,
     });
-    if (certRes.issued) {
+    if (certRes.issued && phoneNumber) {
       // The pass line and the congratulation ride on the certificate PDF —
       // the certificate comes before whatever is next, as it always did.
       await sendCongratulation(phoneNumber, withLead(passLead,
@@ -2207,7 +2212,7 @@ async function gradeAttempt(attemptId, phoneNumber, opts = {}) {
       logError('❌ onModuleCompleted threw after a module-check pass', {
         attemptId, moduleId: attempt.training_module_id, error: err && err.message,
       });
-      if (passLead) await WhatsAppService.sendMessage(phoneNumber, passLead);
+      if (passLead && phoneNumber) await WhatsAppService.sendMessage(phoneNumber, passLead);
       throw err;
     }
     return true;
@@ -2316,13 +2321,15 @@ async function gradeAttempt(attemptId, phoneNumber, opts = {}) {
         .eq('level_id', attempt.level_id).ilike('title', `Module ${modNo}%`).maybeSingle();
       moduleTitle = c?.title || course?.title || null;
     }
-    await WhatsAppService.sendMessage(phoneNumber, withLead(lead, moduleExamPassMessage({
-      // MARKS, not the question count. `score` here is already a
-      // mark total (2 MCQs at 1 each + a CRQ out of 10), so dividing it by
-      // attempt.total_questions printed "12/3". examTotal is the same
-      // denominator the pass/fail decision above is computed against.
-      moduleTitle, score, total: examTotal, hasCrq: Boolean(crqQuizId),
-    })));
+    if (phoneNumber) {
+      await WhatsAppService.sendMessage(phoneNumber, withLead(lead, moduleExamPassMessage({
+        // MARKS, not the question count. `score` here is already a
+        // mark total (2 MCQs at 1 each + a CRQ out of 10), so dividing it by
+        // attempt.total_questions printed "12/3". examTotal is the same
+        // denominator the pass/fail decision above is computed against.
+        moduleTitle, score, total: examTotal, hasCrq: Boolean(crqQuizId),
+      })));
+    }
     logToFile('🎓 Module exam passed — no level certificate', {
       userId: attempt.user_id, attemptId, sourceQuizId: attemptQuiz?.source_quiz_id,
       hasCrq: Boolean(crqQuizId),
@@ -2361,7 +2368,7 @@ async function gradeAttempt(attemptId, phoneNumber, opts = {}) {
       attemptId: attempt.id,
       programId: attempt.program_id,
     });
-    if (levelCert.issued) {
+    if (levelCert.issued && phoneNumber) {
       // The congratulation is the certificate PDF's caption (text when there
       // is no PDF, or the PDF does not arrive).
       await sendCongratulation(phoneNumber,
@@ -2385,12 +2392,14 @@ async function gradeAttempt(attemptId, phoneNumber, opts = {}) {
     });
     // One message: the certificate PDF captioned with the congratulation and
     // its code (text when there is no PDF, or the PDF does not arrive).
-    await sendCongratulation(phoneNumber, withLead(lead,
-      `🏆 *Congratulations, ${cert.teacher_name}!*\n\n` +
-      `You passed the ${cert.level_name} grand quiz with *${score}/${attempt.total_questions}* (${Math.round(examPct)}%).\n\n` +
-      `Certificate code: \`${cert.certificate_code}\`\n\nSend /training to continue to the next level.`
-    ), cert, { attemptId, branch: 'level_exam_certificate' });
-  } else {
+    if (phoneNumber) {
+      await sendCongratulation(phoneNumber, withLead(lead,
+        `🏆 *Congratulations, ${cert.teacher_name}!*\n\n` +
+        `You passed the ${cert.level_name} grand quiz with *${score}/${attempt.total_questions}* (${Math.round(examPct)}%).\n\n` +
+        `Certificate code: \`${cert.certificate_code}\`\n\nSend /training to continue to the next level.`
+      ), cert, { attemptId, branch: 'level_exam_certificate' });
+    }
+  } else if (phoneNumber) {
     await WhatsAppService.sendMessage(
       phoneNumber,
       withLead(lead,
