@@ -125,7 +125,9 @@ const COORD_STOP = new Set(('اور یا کو کے کی کا نے سے میں پ
   + 'باقی سارے ساری the and good very yes no you ok okay all both others everyone').split(' '));
 const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 function coordinated(text, child, { vocab, oovVocab, counts, trace }) {
-  const P = `(?:${[child, '[a student]', '[CHILD]', '‹name›'].map(esc).join('|')})`;
+  // each placeholder once: a repeated alternative ('[a student]' is also the child placeholder) made «(?:[\s،,]+P)*» backtrack
+  // exponentially on a long run of masked names (v6 3456b11c hung)
+  const P = `(?:${[...new Set([child, '[a student]', '[CHILD]', '‹name›'])].map(esc).join('|')})`;
   const W = '((?:(?=\\p{Script=Arabic})[\\p{L}\\p{M}]){2,}|[A-Z][a-z]{2,})';
   const rules = [
     new RegExp(`${P}(?:[\\s،,]+${P})*\\s+(?:اور|and)\\s+${W}(?=[\\s،,۔.!؟?]|$)`, 'gu'), // ‹p› اور X

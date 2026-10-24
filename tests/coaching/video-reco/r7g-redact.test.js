@@ -41,6 +41,13 @@ describe('the position rule: a word coordinated with, or listed beside, a masked
     expect(loose('عائشہ اور مقناطیس', { vocab: ['مقناطیس'] })).toContain('مقناطیس');
   });
 
+  test('a long run of masked names with no «اور» after it returns at once (v6 3456b11c: the run never ended)', () => {
+    const run = `${'عائشہ، '.repeat(40)}آپ سب آئیں۔`;
+    const t0 = Date.now();
+    loose(run);
+    strict(run);
+    expect(Date.now() - t0).toBeLessThan(500);
+  });
   test('the trace names the rule', () => {
     const trace = [];
     loose('نور اور عائشہ نے جواب دیا', { trace });
