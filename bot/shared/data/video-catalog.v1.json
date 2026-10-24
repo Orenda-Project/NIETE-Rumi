@@ -1,6 +1,6 @@
 {
- "version": "catalog-v1-20261024T2130-r7onfs",
- "built_at": "2026-10-24T21:30:00.000Z",
+ "version": "catalog-v1-20261024T2145-r7onfs",
+ "built_at": "2026-10-24T21:45:00.000Z",
  "framework": "fico-v4",
  "indicator_aliases": {
   "B1": {
@@ -37869,7 +37869,27 @@
    "not_for_subjects": [
     "maths",
     "science"
-   ]
+   ],
+   "route_gate": {
+    "deny_routes": [
+     "card_text"
+    ],
+    "allow_routes": [
+     "tag",
+     "enacted"
+    ],
+    "allow_card_indicators": {
+     "fico_main_37": [
+      "F10",
+      "F2",
+      "C2",
+      "C4"
+     ],
+     "v4": []
+    },
+    "allow_card_text": "(?:\\b(?:(?:write|writes|writing|draft|drafts|drafting|compose|composing|model|models|modell?ing|outline|outlining|plan|planning|structure|structuring|organi[sz]e|organi[sz]ing)(?: (?:a|an|one|the|your|their|his|her|own|short|simple|small|five|5|three|3)){0,3} (?:paragraphs?|essays?|compositions?|letters?|applications?|stor(?:y|ies)|descriptions?|diary entr(?:y|ies))|(?:paragraph|essay|letter|application|composition|story|descriptive|creative) (?:writing|outline|structure|format|frame|plan)|topic sentences?|concluding sentences?|supporting (?:details|sentences)|(?:informal|formal) letter|leave application|application to the (?:principal|head)|(?:write|complete|finish) (?:one|two|three|1|2|3|a few|some|their own|full|complete) sentences? (?:using|with|from) (?:the |a |these )?(?:sentence |given )?(?:starters?|frames?|stems?|prompts? on the board)|sentence[- ]writing|writing (?:task|frame|scaffold|template))\\b|(?:پیرا ?گراف|مضمون|خط|درخواست|کہانی|تحریر|جملے|جملہ)(?:\\s+\\S+){0,3}\\s+لکھ(?:یں|وائیں|نا|نے|یے|و|ائیں|ائے)|لکھ(?:یں|وائیں|نا|نے|یے|و)(?:\\s+\\S+){0,2}\\s+(?:پیرا ?گراف|مضمون|خط|درخواست)|(?:پیرا ?گراف|مضمون|خط|درخواست) (?:کا|کی|کے) (?:ڈھانچ|خاکہ|ترتیب|آغاز|اختتام|مرکزی جملہ)|(?:مرکزی|موضوعی|پہلا|آخری) جملہ (?:لکھ|بنا)|sentence starters? (?:کے ساتھ|سے) (?:جملے|پیرا ?گراف|مضمون) لکھ)",
+    "reason": "context_gated_move: 71's chapters model paragraph/letter/sentence WRITING (mind map → outline → think-aloud paragraph; informal/formal letter formats; sentence starters). The card_text picker matched the words 'model' / 'write' / 'on the board' and sent 71-s2 to an oral nouns-and-adjectives lesson (Z020: a why/how-prompts card) and to an oral science brainstorm (Z135: a 'name the mix-up, one-line model' card): R1 1 / R2 2 by both experts, both reason lines false ('this clip shows one way to do it'). The module's own not_for (maths/science, letter-formation grades) was not honoured. v10 card mode: 2 sends, 0 right."
+   }
   },
   {
    "module_id": 72,
