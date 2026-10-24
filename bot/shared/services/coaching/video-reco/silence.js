@@ -146,7 +146,7 @@ function degenerate(lines) {
 // an announcement still is one («Today we learn fractions. Who can tell me why half is bigger than a quarter?»).
 const ROUTINE = [
   // greeting
-  /السلام علیکم|وعلیکم السلام|\bassalam|\bgood (?:morning|afternoon)\b|\bhow are you\b|آپ کیسے ہیں|\bhello\b|تم کیسے ہو|کیسے ہیں سب|کیا حال ہے|سب ٹھیک (?:ہیں|ہو)/iu, // R7d: «تم کیسے ہو؟» (Q113)
+  /السلام علیکم|وعلیکم السلام|\bassalam|\bgood (?:morning|afternoon)\b|\bhow are you\b|آپ کیسے ہیں|\bhello\b|تم کیسے ہو|کیسے ہیں سب|کیا حال ہے|سب ٹھیک (?:ہیں|ہو)|\bi am fine\b|\bi'?m fine\b|\bfine,? thank you\b|میں ٹھیک ہوں|ہم ٹھیک ہیں/iu, // R7d: «تم کیسے ہو؟» (Q113); R7j: the reply (Z282)
   // R7e (COS 202042; Q179 Q136 Q063): an attention check, small talk, attendance, the phone or the recording
   // red7 F5: the roll call's answers («present miss», «یس میڈم») and its question ("who is absent?")
   /ایکٹیو ہیں|تیار ہیں|\bare you ready\b|\beveryone ready\b|اسکول کیسے آئے|سکول کیسے آئے|حاضری|\battendance\b|\broll call\b|پاسورڈ|ریکارڈنگ|(?<!\p{L})ایپ(?!\p{L})|\b(?:password|recording)\b|\bthe app\b|\bpresent (?:miss|sir|madam|teacher)\b|\bsay present\b|\babsent\b|غیر حاضر|^\s*یس (?:میڈم|سر|مس)\s*[۔.!]?\s*$|^\s*(?:\S+\s+){0,2}(?:ہو گیا|ہوگیا|لکھ لیا|لکھ لی|ختم ہو گیا|کر لیا|سمجھ آ گئی)(?:\s+\S+){0,3}\s*[؟?]|\b(?:done|finished)\s*\?|\bis everyone (?:done|finished)\b/iu,
@@ -177,6 +177,19 @@ const WHY_HOW = /کیوں|کیسے|\bwhy\b|\bhow\b(?! are you)/iu;
 const asks = (x) => WHY_HOW.test(x) || /[?؟]/.test(x.replace(TAG_QUESTION, ''));
 const isRoutine = (x) => ROUTINE[0].test(x) || ROUTINE[1].test(x) || ASKING_ROUTINE.some((rx) => rx.test(x)) || (ROUTINE.slice(2).some((rx) => rx.test(x)) && !asks(x));
 const wordList = (x) => String(x || '').toLowerCase().match(/[\p{L}\p{N}]+/gu) || [];
+
+/**
+ * R7j (COS 022905 §2/§5): the routine line is a greeting or a page / book call — the kinds the card frame carries instead
+ * of silence (Z282 Z043 Z379). An order to the room, an announcement, a reprimand, a test or the topic asked stay silent.
+ */
+function cardRoutine(quote) {
+  const sentences = String(quote || '').split(/(?<=[.!?۔؟])\s+|\s*—\s*/u).filter((x) => /[\p{L}\p{N}]/u.test(x));
+  const words = (x) => (x.match(/[\p{L}\p{N}]+/gu) || []).length;
+  const all = sentences.reduce((n, x) => n + words(x), 0);
+  if (!all) return false;
+  const kind = sentences.filter((x) => ROUTINE[0].test(x) || (ROUTINE[2].test(x) && !asks(x))).reduce((n, x) => n + words(x), 0);
+  return kind / all >= ROUTINE_SHARE;
+}
 
 /** R7d (Q199): the sentence is the lesson's own topic said as a question or a title («What is sound» on a lesson about sound). */
 function topicOnly(x, topic) {
@@ -351,6 +364,12 @@ function reachesEnd(excerpts, lines) {
 // R7f (COS 223858 e; panel Q036 Q083): a lesson with no labelled child turn at all is one teacher talking.
 const monologue = (lines) => Array.isArray(lines) && lines.length > 0 && !lines.some((l) => KID.test(String(l)));
 
+// R7j (COS 022905 §3): the excerpt shows children working in groups or pairs / an assessment being made or used
+const GROUP_MOMENT = /گروپ|ٹولی|ٹیم|جوڑی|جوڑے|اپنے ساتھی|پارٹنر|\bgroups?\b|\bpairs?\b|\bpartners?\b|\bteams?\b/iu;
+const ASSESS_MOMENT = /روبرک|چیک لسٹ|نمبر (?:دی|لگا|ملے)|مارکس|گریڈ|جانچ|\brubrics?\b|\bchecklists?\b|\bmarks?\b|\bgrades?\b|\bscores?\b|\bassess/iu;
+const groupMoment = (lines) => (lines || []).some((l) => GROUP_MOMENT.test(String(l)));
+const assessMoment = (lines) => (lines || []).some((l) => ASSESS_MOMENT.test(String(l)));
+
 // The card asks for a why/how or open question.
 const WHY_CARD = /کیوں|کیسے|\bwhy\b|\bhow\b|open[- ]ended|open questions?|کھلے سوال|کھلا سوال|اوپن اینڈ/iu;
 const whyCard = (sentence) => WHY_CARD.test(String(sentence || ''));
@@ -362,4 +381,4 @@ const whyWaitCard = (sentence) => whyCard(sentence) || WAIT_CARD.test(String(sen
 const OPEN_CARD = /open[- ]ended|open questions?|کھلے سوال|کھلا سوال|اوپن اینڈ/iu;
 const openQuestionCard = (sentence) => OPEN_CARD.test(String(sentence || ''));
 
-module.exports = { levelsMoment, levelsNear, levelsCard, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, whyWaitCard, openQuestionCard, notTeaching, testPeriod, isClosure, earlyForClosure, closingCard, closingMove, reachesEnd, monologue, KID, LABEL_SUBJECTS };
+module.exports = { levelsMoment, levelsNear, levelsCard, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, whyWaitCard, groupMoment, assessMoment, cardRoutine, openQuestionCard, notTeaching, testPeriod, isClosure, earlyForClosure, closingCard, closingMove, reachesEnd, monologue, KID, LABEL_SUBJECTS };

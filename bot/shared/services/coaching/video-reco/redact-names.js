@@ -116,7 +116,7 @@ function redactNames(text, ctx = {}) {
     out += s.slice(at, m.index) + (rep || w);
     at = m.index + w.length;
   });
-  return coordinated(out + s.slice(at), ph.child, { vocab, oovVocab, counts: ctx.counts, trace });
+  return coordinated(out + s.slice(at), ph.child, { vocab, oovVocab, counts: ctx.counts, trace, call: ctx.secondGuard === true });
 }
 
 // red7 20261024T013349 (S3 S5, COS 003908; scale-run name_neighbours.js): a name that is also a dictionary or vocabulary word
@@ -128,7 +128,7 @@ const COORD_STOP = new Set(('اور یا کو کے کی کا نے سے میں پ
   + 'چلیں اچھا ٹھیک بالکل جلدی آئیں بیٹھیں کھڑے کھڑی ہو گا گی گے ہیں ہے تھا تھی جو کیا کون کہاں کیسے ایک دو تین تینوں دونوں '
   + 'باقی سارے ساری the and good very yes no you ok okay all both others everyone').split(' '));
 const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-function coordinated(text, child, { vocab, oovVocab, counts, trace }) {
+function coordinated(text, child, { vocab, oovVocab, counts, trace, call = false }) {
   // each placeholder once: a repeated alternative ('[a student]' is also the child placeholder) made «(?:[\s،,]+P)*» backtrack
   // exponentially on a long run of masked names (v6 3456b11c hung)
   const P = `(?:${[...new Set([child, '[a student]', '[CHILD]', '‹name›'])].map(esc).join('|')})`;
@@ -137,8 +137,9 @@ function coordinated(text, child, { vocab, oovVocab, counts, trace }) {
     new RegExp(`${P}(?:[\\s،,]+${P})*\\s+(?:اور|and)\\s+${W}(?=[\\s،,۔.!؟?]|$)`, 'gu'), // ‹p› اور X
     new RegExp(`${P}\\s*[،,]\\s*${W}(?=\\s*(?:[،,]|اور\\s|and\\s))`, 'gu'), // ‹p›، X، (a list)
     new RegExp(`(?:^|[\\s“"«:])${W}\\s+(?:اور|and)\\s+${P}`, 'gu'), // X اور ‹p›
-    // R7i second guard (red7 S11, Z049): a one-word call just before a masked name, «…چاہے؟ X؟ ‹p› ‹p›؟»
-    new RegExp(`(?:^|[؟?!۔.،,:]\\s*)${W}\\s*[؟?!،,]\\s*${P}`, 'gu'),
+    // R7i second guard (red7 S11, Z049): a one-word call just before a masked name, «…چاہے؟ X؟ ‹p› ‹p›؟». R7j (red7 H2): only
+    // for the lesson's name set and the stored text (ctx.secondGuard), never the model's input, so no pick moves
+    ...(call ? [new RegExp(`(?:^|[؟?!۔.،,:]\\s*)${W}\\s*[؟?!،,]\\s*${P}`, 'gu')] : []),
   ];
   let out = text;
   for (let pass = 0; pass < 3; pass++) { // a list gives up one name per pass
@@ -167,17 +168,47 @@ function wordCounts(lines) {
 
 /** The key a carry set holds for a word (the redactor's own normalisation). */
 const nameKey = (w) => norm(String(w || ''));
+/** A key long enough to be a name: two letters in Urdu script («گل»), three in Latin (not «I»). */
+const keyLong = (k) => [...k].length >= (IS_UR.test(k) ? 2 : 3);
 
 /**
- * R7i (COS 022306 §1): the name keys the STRICT redactor masks as a child anywhere in these lines, by a name rule. The
- * vocabulary rule ('oov', an unknown word) is not carried: it masks lesson words too (bd-8hhqhf 2/53), and the model never
- * sees an unknown word unmasked anyway. ctx as redactNames (teacher, vocab, oovVocab, counts).
+ * R7j (COS 022905 §1; red7 HOLD 023908 H1): the name keys the STRICT redactor masks as a child anywhere in these lines, by a
+ * name rule ('oov', the vocabulary rule, masks lesson words too and is never carried), long enough (keyLong), and only
+ * when the lesson does not use the word as a word: its masks outnumber its plain uses, or it occurs 3 times or fewer
+ * (a subject word on 19 lines masked once after a name is a noun, red7 Z142 Z055 Z084). ctx as redactNames.
  */
 function maskedKeys(lines, ctx = {}) {
   const trace = [];
-  for (const l of lines || []) redactNames(String(l || ''), { ...ctx, strict: true, placeholders: { child: '[a student]' }, trace });
-  // three letters or more, as a roster name (a 'surname' «I» after a masked name is not carried)
-  return new Set(trace.filter((x) => x.rep === '[a student]' && x.why !== 'oov' && x.why !== 'carry').map((x) => nameKey(x.word)).filter((k) => [...k].length >= 3));
+  for (const l of lines || []) redactNames(String(l || ''), { ...ctx, strict: true, secondGuard: true, placeholders: { child: '[a student]' }, trace });
+  const masks = new Map();
+  for (const x of trace) {
+    if (x.rep !== '[a student]' || x.why === 'oov' || x.why === 'carry') continue;
+    const k = nameKey(x.word);
+    if (keyLong(k)) masks.set(k, (masks.get(k) || 0) + 1);
+  }
+  return guarded(masks, ctx.counts);
 }
 
-module.exports = { redactNames, wordCounts, nameKey, maskedKeys, ROLE_STOP };
+/** The keys of `masks` (key → times masked) the lesson does not use as a word (see maskedKeys). */
+function guarded(masks, counts) {
+  const out = new Set();
+  for (const [k, m] of masks) {
+    const all = counts ? (counts.get(k) || 0) : 0;
+    if (all <= COORD_MAX_REPEAT || m >= all - m) out.add(k);
+  }
+  return out;
+}
+
+/**
+ * R7j (COS 022905 §1): the ONE output gate. Every whole word of a teacher-facing string whose key is in the lesson's name set
+ * becomes [a student]: the roster as it is, the strict redactor's guarded masks, the stored quote's own masks. Forms of a
+ * name ("X's", «X کا / کی / کے») are the word X here. Nothing upstream (the model's input, validation, routing) reads it.
+ */
+function scrubNames(text, names) {
+  if (typeof text !== 'string' || !text || !names || !names.size) return text;
+  // a bracketed placeholder ([a student], [TEACHER]) is left as it is; only the text between them is read
+  return text.split(/(\[[^\][\n]{1,24}\])/).map((part, i) => (i % 2 ? part
+    : part.replace(WORD, (w) => (names.has(nameKey(w)) ? '[a student]' : w)))).join('');
+}
+
+module.exports = { redactNames, wordCounts, nameKey, keyLong, maskedKeys, guarded, scrubNames, ROLE_STOP };

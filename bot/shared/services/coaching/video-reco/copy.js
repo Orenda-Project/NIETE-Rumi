@@ -9,6 +9,7 @@
  */
 const { resolveUx, clampLanguage } = require('../../../config/ux-strings');
 const { getLanguage } = require('../../../config/languages');
+const terms = require('./urdu-terms');
 
 const BODY_MAX = 1024; // Meta's cap on an interactive body, in code points
 const URDU_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
@@ -155,17 +156,20 @@ const urduForm = (text) => urduPunctuation(urduDigits(text));
  */
 function composeReason(text, language, quote, { subject = null } = {}) {
   if (typeof text !== 'string' || !text) return text;
-  if (lang(language) === 'en') return isolateArabic(westernDigits(isolateQuotes(stripLead(text), quote).replace(/。\s*/g, '. ').trim()));
+  // R7j (panel v7 §4c, Z321): an empty descriptor's stub «, which was.» says nothing
+  if (lang(language) === 'en') return isolateArabic(westernDigits(isolateQuotes(stripLead(text).replace(/,?\s*which was\s*\./gi, '.'), quote).replace(/。\s*/g, '. ').trim()));
   // R7f (COS 223858 1d): every digit is the frame's (Urdu), the accepted moment and a quoted card included; the moment is
   // matched in that same form so it is still isolated in place
   // red7 N4/H7: the word table and the digit rule leave the lesson's own words alone (the accepted moment, and the card
   // sentence the fallback template isolates); a quoted suggestion the model wrote is its own copy and is rewritten
   const q = typeof quote === 'string' ? quote : '';
-  const own = (span) => /^[\u2066-\u2068]/.test(span) || (!!q && [...span.slice(1, -1).trim()].length >= 6 && q.includes(span.slice(1, -1).trim()));
+  const own = (span) => /^["“«]?[\u2066-\u2068]/.test(span) || (!!q && [...span.slice(1, -1).trim()].length >= 6 && q.includes(span.slice(1, -1).trim()));
   const parts = stripLead(text).replace(/。/g, '۔').split(QUOTED_SPAN);
-  const words = (part, i) => (i % 2 ? urduWordTable(part, subject) : urduImperative(latinTerms(urduWordTable(part, subject)))); // R7d: never inside a quote
-  const fixed = urduForm(parts.map((part, i) => (i % 2 && own(part) ? part : words(part, i))).join(''));
-  return isolateLatin(isolateQuotes(fixed, q ? urduForm(q) : quote), false); // the WhatsApp body adds its own RLM
+  const words = (part, i) => (i % 2 ? urduWordTable(part, subject) : retire(urduImperative(latinTerms(urduWordTable(part, subject))))); // R7d: never inside a quote
+  // R7j (COS 022905 §2; panel v7 §4d): a quoted card or lesson line keeps its own digits and words; the frame's are Urdu
+  // …but its punctuation after an Urdu word is still the Urdu mark (R7f Q098; the terms file's rule)
+  const fixed = quoteStop(parts.map((part, i) => (i % 2 && own(part) ? urduPunctuation(part) : urduForm(words(part, i)))).join(''));
+  return isolateLatin(isolateQuotes(fixed, quote), false); // the WhatsApp body adds its own RLM
 }
 
 // R7c (COS 20261023T170515 §6; panel ped/REVIEW_r7b_rejudge.md §4): the model's recurring Urdu slips, each fixed to the word a
@@ -210,9 +214,9 @@ const URDU_WORDS = [
   [/(^|[\s«"(،,])کہ کر(?=[\s،۔"«]|$)/gu, '$1کہہ کر'], // R7e: "saying" (Q106)
   // R7f (COS 223858 1d; panel v5 §4: the Urdu line en-report teachers read, 71.4% ok) — the slips the panel named
   [/(^|[\s«"(\/])ہاں\s*[-–]\s*نہ(?:یں|اں)?(?=[\s\/،۔]|$)/gu, '$1ہاں/نہیں'], // «ہاں–نہاں» (Q066)
-  [/(^|[\s«"(])کورس (?=جواب)/gu, '$1اجتماعی '], // chorus answers (Q189)
+  [/(^|[\s«"(])کورس (?=جواب)/gu, '$1ایک ساتھ '], // chorus answers (Q189); R7j: the terms file's «ایک ساتھ جواب»
   [/(^|[\s«"(])کورس میں(?=[\s،۔]|$)/gu, '$1مل کر'],
-  [/کلی طور پر (?=جواب)/gu, 'اجتماعی طور پر '], // chorus, mistranslated (Q126)
+  [/کلی طور پر (?=جواب)/gu, 'ایک ساتھ '], // chorus, mistranslated (Q126); R7j: «ایک ساتھ جواب»
   [/آگے بڑھا(?=[\s:،۔]|$)/gu, 'آگے بڑھے'], [/آگے بڑھ گیا(?=[\s:،۔]|$)/gu, 'آگے بڑھ گئے'], // masculine singular (Q055)
   [/(کیا|دیا|لیا) جب وہ پوچھتے ہیں/gu, '$1 جب انہوں نے پوچھا'], [/(کیا|دیا|لیا) جب وہ کہتے ہیں/gu, '$1 جب انہوں نے کہا'], // tense (Q157)
   [/سننے جائیں/gu, 'سنے جائیں'], // Q047
@@ -228,7 +232,7 @@ const LATIN_TERMS = [
   [/\b(?:open\s+)?why\s*\/\s*how(?=\s+سوال)/gi, 'کیوں/کیسے والا'],
   [/\bwhy(?=\s+سوال)/gi, 'کیوں والا'],
   [/\bopen[- ]ended(?=\s+سوال(?:ات|وں))/gi, 'کھلے'], [/\bopen[- ]ended(?=\s+سوال)/gi, 'کھلا'],
-  [/\bchorus(?=\s+جواب)/gi, 'اجتماعی'], [/\bchorus\s+میں/gi, 'مل کر'],
+  [/\bchorus(?=\s+جواب)/gi, 'ایک ساتھ'], [/\bchorus\s+میں/gi, 'ایک ساتھ'], // R7j: the terms file
   [/\bpartner explanation\b/gi, 'ساتھی کو سمجھانا'], [/\bwait time\b/gi, 'انتظار کا وقفہ'], [/\bthink time\b/gi, 'سوچنے کا وقت'],
   [/\b(?:(?:short|brief)\s+)?(?:structured\s+)?(?:peer|partner|pair)\s+talk\b/gi, 'ساتھی سے بات چیت'], // R7g (Z172 Z200)
 ];
@@ -244,6 +248,14 @@ const urduImperative = (text) => text.replace(FAMILIAR_RX, (m, pre, w) => `${pre
 
 // A quoted span: an isolate, or a pair of quote marks (the parts at odd indexes after a split)
 const QUOTED_SPAN = /([\u2066-\u2068][^\u2066-\u2069]*\u2069|"[^"]*"|«[^»]*»|“[^”]*”)/;
+
+// R7j (COS 022905 §2; ped/urdu_terms.json never_use): the phrases the copy never carries, rewritten to the team's own words,
+// outside quotes, after the word tables; the slash forms are retired from the body («ہاں یا نہیں والا سوال»)
+const SLASH = [[/ہاں\s*\/\s*نہیں/gu, 'ہاں یا نہیں'], [/کیوں\s*\/\s*کیسے/gu, 'کیوں یا کیسے']];
+const retire = (text) => [...SLASH, ...terms.NEVER.map(([a, b]) => [new RegExp(a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gu'), b])]
+  .reduce((t, [rx, to]) => t.replace(rx, to), text);
+// R7j (panel v7 §4e, Z164 Z209 Z235): no Latin full stop or comma right after a quote in an Urdu line
+const quoteStop = (text) => text.replace(/(["”»\u2069])\.(?![.\d])/g, '$1۔').replace(/(["”»\u2069]),(?=\s)/g, '$1،');
 
 // An Urdu line sets its English runs in isolates; other lines are as written.
 const LINE = { ur: isolateLatin };

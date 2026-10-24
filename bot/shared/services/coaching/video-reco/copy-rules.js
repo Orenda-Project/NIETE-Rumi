@@ -223,7 +223,8 @@ function childFreeCard(sentence, { teacher = null, vocab = [], oovVocab = [], wh
 // case), a roster name (raw: a vocabulary word on the class list), a capitalised Latin word that opens no sentence and is
 // no term («Bloom's»), or an Urdu word before «کا / کی / کے» and a person's noun (an answer, a turn, a copy…) that is no
 // function, demonstrative or everyday word. Marked as a name: no comparison drops it, so the sentence is never quoted.
-const PERSON_NOUN = 'جواب|جوابات|بات|باتیں|باری|کاپی|نام|ہاتھ|کام|خیال|آواز|ساتھی|جملہ|جملے';
+// not «نام / کام»: a shape has a name and a lesson has work («شکلوں کے نام», R7j)
+const PERSON_NOUN = 'جواب|جوابات|بات|باتیں|باری|کاپی|ہاتھ|خیال|آواز|ساتھی|جملہ|جملے';
 const UR_POSSESSIVE = new RegExp(String.raw`([؀-ۿ]+)(\s+(?:کا|کی|کے)\s+(?:${PERSON_NOUN})(?=[\s،,.۔؟!]|$))`, 'gu');
 const LAT_POSSESSIVE = /(^|[^\p{L}])([A-Za-z]+)(?=['’]s\b)/gu;
 const DEMONSTRATIVE = new Set('اس ان یہ وہ ہر کس جس جن آپ ہم تم میرا میری میرے ہمارا ہماری ہمارے کسی کوئی ایک دوسرے سب'.split(' '));
@@ -232,7 +233,8 @@ function possessives(marked, { own, roster, hit }) {
   const isRoster = (w) => !!roster && roster.has(normUr(String(w).toLowerCase()));
   let out = marked.replace(UR_POSSESSIVE, (m, w, rest) => {
     const n = normUr(w);
-    if (FUNCTION.has(w) || DEMONSTRATIVE.has(w) || own.has(n) || (UR_KNOWN.has(n) && !LEX.vocab.includes(n) && !UR_NAME.has(n) && !isRoster(w))) return m;
+    // a plural oblique («بچوں / شکلوں کے») is never one child
+    if (FUNCTION.has(w) || DEMONSTRATIVE.has(w) || own.has(n) || /(?:وں|ؤں)$/u.test(w) || (UR_KNOWN.has(n) && !LEX.vocab.includes(n) && !UR_NAME.has(n) && !isRoster(w))) return m;
     return `${hit('possessive')}${rest}`;
   });
   out = out.replace(LAT_POSSESSIVE, (m, pre, w, at, all) => {

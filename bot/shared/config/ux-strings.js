@@ -140,7 +140,7 @@ const UX_STRINGS = {
   },
   videoRecoBodyLead: {
     en: '🎬 A {n}-minute clip for your one thing to try.',
-    ur: '🎬 آپ کی آزمانے والی ایک بات کے لیے {n} منٹ کا کلپ۔',
+    ur: '🎬 اگلی کلاس میں آزمانے کے لیے {n} منٹ کا کلپ۔', // R7j: ped/urdu_terms.json header_ur
   },
   videoRecoBodyMeta: {
     en: '⏱ {n} min · {lang}',
@@ -190,7 +190,7 @@ const UX_STRINGS = {
   // not quoted in a language it was not written in (an English sentence inside an Urdu line, 51.6% copy-ok on the panel).
   videoRecoCardFallbackReasonPlain: {
     en: 'Your report gives you one thing to try next class. This clip shows one way to do it.',
-    ur: 'آپ کی رپورٹ اگلی کلاس کے لیے ایک قدم بتاتی ہے۔ یہ کلپ اسے کرنے کا ایک طریقہ دکھاتا ہے۔',
+    ur: 'آپ کی رپورٹ میں اگلی کلاس کے لیے ایک بات آزمانے کو کہا گیا ہے۔ یہ کلپ اس کا ایک طریقہ دکھاتا ہے: {title}۔', // R7j: card_frame_other_ur
   },
 
   // R7d (panel §4, §6.6: 46 rows attributed the card's script to the clip): the clip half of a reason, written from the

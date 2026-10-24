@@ -77,7 +77,7 @@ const FALLBACK_EN = (s, n) => `Your report asks you to try: "\u2068${s}\u2069". 
 const FALLBACK_UR = (s, n) => `آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "\u2068${s}\u2069"۔ یہ کلپ اس کا ایک طریقہ دکھاتا ہے۔`;
 // R7b: the STORED reason is composed, and Urdu prose takes Urdu digits, so the clip's seconds read «۹۰»
 // R7c §6: an English sentence is not quoted inside the Urdu line of an English reader's message
-const PLAIN_UR = (n) => `آپ کی رپورٹ اگلی کلاس کے لیے ایک قدم بتاتی ہے۔ یہ کلپ اسے کرنے کا ایک طریقہ دکھاتا ہے۔`;
+const PLAIN_UR = (n) => `آپ کی رپورٹ میں اگلی کلاس کے لیے ایک بات آزمانے کو کہا گیا ہے۔ یہ کلپ اس کا ایک طریقہ دکھاتا ہے۔`; // R7j: card_frame_other_ur (alt: no title)
 const STORED_UR = (s, n) => FALLBACK_UR(s, String(n).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]));
 
 describe('(a) ⛔9 post-redaction: the stored reason and quote are the redacted ones', () => {
@@ -92,7 +92,9 @@ describe('(a) ⛔9 post-redaction: the stored reason and quote are the redacted 
     const row = await E.recommendForReport({ ...args(), deps: d });
     expect(row).toMatchObject({ status: 'shown', seg_id: '10-s1', moment_source: 'transcript' });
     expect(row.reason_en).toBe('At 00:30 [a student] could only answer yes or no. This clip is about: Ask why and how.'); // R7d §6: the clip half is the chapter's title
-    expect(row.reason_ur).toBe('[a student] صرف ہاں یا نہیں میں جواب دے سکا۔ یہ کلپ اس بارے میں ہے: عنوان۔');
+    // R7j: an Urdu reader's line is the terms file's frame; the model's name never reaches it
+    expect(row.reason_ur).toMatch(/^سبق میں استاد نے بچوں سے پوچھا، "/);
+    expect(row.reason_ur).not.toContain('علی');
     expect(row.moment_quote).toBe('[a student], tum batao: is this a triangle? Yes or no');
     expect(JSON.stringify(d.written)).not.toMatch(/Ahmed|علی/);
   });
@@ -101,7 +103,7 @@ describe('(a) ⛔9 post-redaction: the stored reason and quote are the redacted 
     const d = deps([GOOD]);
     const row = await E.recommendForReport({ ...args(), deps: d });
     expect(row.reason_en).toBe('At 00:30 the class could only answer yes or no. This clip is about: Ask why and how.'); // R7d §6: the clip half is the chapter's title
-    expect(row.reason_ur).toBe('کلاس صرف ہاں یا نہیں میں جواب دے سکی۔ یہ کلپ اس بارے میں ہے: عنوان۔');
+    expect(row.reason_ur).toMatch(/^سبق میں استاد نے بچوں سے پوچھا، "/); // R7j: the terms file's frame
     expect(row.moment_quote).toBe(GOOD.moment.quote);
   });
 

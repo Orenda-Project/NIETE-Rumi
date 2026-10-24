@@ -120,7 +120,7 @@ const SL = () => require('../../../bot/shared/services/coaching/video-reco/short
 const SE = () => require('../../../bot/shared/services/coaching/video-reco/select');
 const CP = () => require('../../../bot/shared/services/coaching/video-reco/copy');
 const PR = () => require('../../../bot/shared/services/coaching/video-reco/prompt');
-const UR_PLAIN = 'آپ کی رپورٹ اگلی کلاس کے لیے ایک قدم بتاتی ہے۔';
+const UR_PLAIN = 'آپ کی رپورٹ میں اگلی کلاس کے لیے ایک بات آزمانے کو کہا گیا ہے۔'; // R7j: card_frame_other_ur
 const prompts = (d) => d.completeJson.mock.calls.map((c) => c[0]).join('\n');
 
 describe('1a · the step-text route is retired (Z150 ⛔2; Q031 ⛔2 on v2–v5: 0 right on six heads)', () => {
@@ -186,26 +186,26 @@ describe('1a · the F5-label class needs a closed question at the cited line (Z1
 describe('1b · Urdu at the source: the approved word for each move, in the prompt and in the word table', () => {
   const ur = (t, q = null) => CP().composeReason(t, 'ur', q);
 
-  test('the prompt names the approved Urdu words (vr-10)', () => {
+  test('the prompt names the team\'s Urdu words (vr-11: ped/urdu_terms.json)', () => {
     const P = PR();
-    expect(P.PROMPT_VERSION).toBe('vr-10');
+    expect(P.PROMPT_VERSION).toBe('vr-11');
     const text = P.build({ target: { source: 'card_text' }, candidates: [], catalog: C.fromData(DATA), excerpts: [], reportLanguage: 'ur', lessonLanguage: 'ur' });
-    for (const w of ['یاد سے بتانے والا سوال', 'ہاں/نہیں والا سوال', 'سب کا مل کر جواب', 'ساتھی سے بات چیت', 'ابتدائی سوال']) expect(text).toContain(w);
+    for (const w of ['سیدھا سا سوال', 'ہاں یا نہیں والا سوال', 'جواب پر اگلا سوال', 'جوڑیوں میں بات چیت', 'شروع کا سوال', 'chorus_answer']) expect(text).toContain(w);
   });
   test.each([
-    ['Z032 «یادداشت پر مبنی سوال»', 'استاد نے یادداشت پر مبنی سوال پوچھا۔', 'یاد سے بتانے والا سوال', 'یادداشت'],
-    ['Z118 «یادداشتی سوال»', 'استاد نے ایک یادداشتی سوال پوچھا۔', 'یاد سے بتانے والا سوال', 'یادداشتی'],
-    ['Z025 «یاد رکھنے والا سوال»', 'استاد نے یاد رکھنے والا سوال پوچھا۔', 'یاد سے بتانے والا سوال', 'یاد رکھنے'],
-    ['Z062 «یاددہانی کا ہاں/نہ سوال»', 'استاد نے یاددہانی کا ہاں/نہ سوال پوچھا۔', 'ہاں/نہیں والا سوال', 'یاددہانی'],
-    ['Latin «recall»', 'استاد نے ایک recall سوال پوچھا۔', 'یاد سے بتانے والا سوال', 'recall'],
-    ['Z113 «گرمی سوال»', 'سبق ایک گرمی سوال سے شروع ہوا۔', 'ابتدائی سوال', 'گرمی'],
+    ['Z032 «یادداشت پر مبنی سوال»', 'استاد نے یادداشت پر مبنی سوال پوچھا۔', 'سیدھا سا سوال', 'یادداشت'],
+    ['Z118 «یادداشتی سوال»', 'استاد نے ایک یادداشتی سوال پوچھا۔', 'سیدھا سا سوال', 'یادداشتی'],
+    ['Z025 «یاد رکھنے والا سوال»', 'استاد نے یاد رکھنے والا سوال پوچھا۔', 'سیدھا سا سوال', 'یاد رکھنے'],
+    ['Z062 «یاددہانی کا ہاں/نہ سوال»', 'استاد نے یاددہانی کا ہاں/نہ سوال پوچھا۔', 'ہاں یا نہیں والا سوال', 'یاددہانی'],
+    ['Latin «recall»', 'استاد نے ایک recall سوال پوچھا۔', 'سیدھا سا سوال', 'recall'],
+    ['Z113 «گرمی سوال»', 'سبق ایک گرمی سوال سے شروع ہوا۔', 'شروع کا سوال', 'گرمی'],
     ['Z102 «جو مل کر جواب لاتا ہے»', 'استاد نے ایک سوال کیا جو مل کر جواب لاتا ہے۔', 'سب مل کر', 'لاتا ہے'],
     ['Z139 «طلبہ کا کلام بند رہا»', 'پورے سبق میں طلبہ کا کلام بند رہا۔', 'بچوں کی آپس میں بات چیت', 'کلام'],
     ['Z172 Latin «peer talk»', 'سبق میں مختصر مرتب peer talk نہیں تھی۔', 'ساتھی سے بات چیت', 'peer'],
     ['Z200 Latin «partner talk»', 'کوئی partner talk نہیں ہوئی۔', 'ساتھی سے بات چیت', 'partner'],
-    ['Z151 «ہاں/نہ پوچھا»', 'استاد نے ہاں/نہ پوچھا۔', 'ہاں/نہیں والا سوال پوچھا', 'ہاں/نہ پوچھا'],
+    ['Z151 «ہاں/نہ پوچھا»', 'استاد نے ہاں/نہ پوچھا۔', 'ہاں یا نہیں والا سوال پوچھا', 'ہاں/نہ پوچھا'],
     ['Z081 doubled «فوراً»', 'استاد نے فوراً فوراً جواب بتا دیا۔', 'نے فوراً جواب', 'فوراً فوراً'],
-    ['Z001 «بندہ» for «بند»', 'یہ بندہ ہاں/نہ والا سوال تھا۔', 'یہ ہاں/نہیں والا سوال تھا', 'بندہ'],
+    ['Z001 «بندہ» for «بند»', 'یہ بندہ ہاں/نہ والا سوال تھا۔', 'یہ ہاں یا نہیں والا سوال تھا', 'بندہ'],
   ])('%s', (_, text, want, gone) => {
     const out = ur(text);
     expect(out).toContain(want);
@@ -252,9 +252,10 @@ describe('1b · Urdu at the source: the approved word for each move, in the prom
     const row = await run(args({ lang: 'ur' }), deps([answer()]));
     expect(row.reason_en).toMatch(/^The class could only answer yes or no/);
   });
-  test('control: an ur-report teacher\'s Urdu line is the model\'s, with the word table applied', async () => {
+  test('control: an ur-report teacher\'s Urdu line is the team\'s transcript frame (R7j: ped/urdu_terms.json), not the model\'s', async () => {
     const row = await run(args({ lang: 'ur' }), deps([answer()]));
-    expect(row.reason_ur).toContain('کلاس صرف');
+    expect(row.reason_ur).toMatch(/^سبق میں استاد نے بچوں سے پوچھا، "/);
+    expect(row.reason_ur).not.toContain('کلاس صرف');
   });
 });
 
