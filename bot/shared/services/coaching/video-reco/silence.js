@@ -378,12 +378,25 @@ const monologue = (lines) => Array.isArray(lines) && lines.length > 0 && !lines.
 // to. Measured on the 3,000 r7 transcripts: 6 (Z261, Z350's lesson and 4 other one-turn fragments), no judged R/A pick.
 const MIN_LESSON_WORDS = 100;
 const MAX_NOT_LESSON_TURNS = 2;
-function notLesson(lines) {
+// R7o-a (COS 194233 §1; panel v10 Z253: 398 words in 15 min — a car ride, adults labelled "Student"): a long recording
+// with little speech and no classroom talk is not a lesson either, however its speakers were labelled. Measured on the
+// 3,844 r7/r7l/r7o transcripts: 12 (0.3%) under 30 words a minute with ≤ 3 classroom words; the slowest diarized lessons
+// (19–24 wpm) carry 5–24. Unknown duration → not judged; nor is a recording under 10 minutes (red7 202632: a 100-s clip
+// is too short to say; every corpus hit is ≥ 906 s).
+const MIN_WPM = 30;
+const MIN_JUDGED_S = 600;
+const MAX_CLASSROOM_WORDS = 3;
+const CLASSROOM = /بچو|بچوں|بچے|بیٹا|بیٹی|شاباش|سبق|صفحہ|کتاب|کاپی|بورڈ|سوال|جواب|پڑھیں|لکھیں|کلاس|ہوم ?ورک|\bchildren\b|\bclass\b|\bstudents?\b|\bpage\b|\bbook\b|\bcopy\b|\bboard\b|\blesson\b|\bread\b|\bwrite\b|\banswer\b|\bquestion\b|good job|very good|well done|\bhomework\b/giu;
+function notLesson(lines, { durationS = null } = {}) {
   const all = (lines || []).map((l) => String(l || ''));
   if (!all.length) return false; // no transcript: no_moments, as before
-  const words = all.map((l) => l.replace(/^\s*\[[\d:]+\]\s*[^:\n]{0,30}:\s*/, '')).join(' ').match(/[\p{L}\p{N}]+/gu) || [];
+  const spoken = all.map((l) => l.replace(/^\s*\[[\d:]+\]\s*[^:\n]{0,30}:\s*/, ''));
+  const words = spoken.join(' ').match(/[\p{L}\p{N}]+/gu) || [];
   const teacherTurns = all.filter((l) => TEACHER_LABEL.test(l) || !LABELLED.test(l)).length;
-  return words.length < MIN_LESSON_WORDS && teacherTurns <= MAX_NOT_LESSON_TURNS && !all.some((l) => KID.test(l));
+  if (words.length < MIN_LESSON_WORDS && teacherTurns <= MAX_NOT_LESSON_TURNS && !all.some((l) => KID.test(l))) return true;
+  const minutes = Number(durationS) / 60;
+  if (!(Number(durationS) >= MIN_JUDGED_S) || words.length / minutes >= MIN_WPM) return false;
+  return spoken.reduce((n, l) => n + (l.match(CLASSROOM) || []).length, 0) <= MAX_CLASSROOM_WORDS;
 }
 
 // R7j (COS 022905 §3): the excerpt shows children working in groups or pairs / an assessment being made or used

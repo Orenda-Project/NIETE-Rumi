@@ -331,7 +331,7 @@ async function compute(a, d, state) {
   }
   // R7l (COS 164428 §1a; panel v9 Z261 ⛔2 in every mode): a transcript that is no lesson (a teacher's one turn about a
   // recording that did not save) has no moment and no lesson for the card's sentence: before every route and mode
-  if (silence.notLesson(lines)) {
+  if (silence.notLesson(lines, { durationS: session.audio_duration_seconds })) { // R7o-a: + slow with no classroom talk (Z253)
     return finish({ ...base, status: 'none', none_reason: 'no_moments:not_lesson', candidates: list.candidates });
   }
   // R7l (COS 164428 §1b): a gated module (ped/vetoes.json route_gate) never carries the card's own sentence unless the card is its own

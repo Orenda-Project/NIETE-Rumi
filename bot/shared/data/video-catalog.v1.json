@@ -1,6 +1,6 @@
 {
- "version": "catalog-v1-20261024T1700-r7lpanel",
- "built_at": "2026-10-24T17:00:00.000Z",
+ "version": "catalog-v1-20261024T2010-r7opanel",
+ "built_at": "2026-10-24T20:10:00.000Z",
  "framework": "fico-v4",
  "indicator_aliases": {
   "B1": {
@@ -18905,8 +18905,7 @@
    "format": "mixed",
    "subjects": [
     "urdu",
-    "literacy",
-    "early_years"
+    "literacy"
    ],
    "grade_band": "ece",
    "teacher_line_en": "Hear the Urdu letter sounds from alif to ye recited in order",
