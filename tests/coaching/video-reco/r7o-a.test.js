@@ -74,6 +74,10 @@ describe('2. a slow recording with no classroom talk is not a lesson', () => {
     for (let i = 0; i < 22; i += 1) slow.push(T(30 + i * 45, i % 2 ? 'Student (UR)' : 'Teacher (UR)', `${LESSON[i % LESSON.length]} ${ADULT[i % ADULT.length]}`));
     expect(SIL.notLesson(slow, { durationS: 1692 })).toBe(false);
   });
+  test('red7 202632: a short slow recording (5 min, ~12 wpm, no classroom words) is too short to judge → not by this rule', () => {
+    expect(wpm(car.slice(0, 5), 300)).toBeLessThan(30);
+    expect(SIL.notLesson(car.slice(0, 5), { durationS: 300 })).toBe(false);
+  });
   test('control: a normal-pace lesson is never judged by talk alone', () => {
     expect(SIL.notLesson(car, { durationS: 300 })).toBe(false);
   });
