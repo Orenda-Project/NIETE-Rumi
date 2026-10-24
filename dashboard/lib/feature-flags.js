@@ -167,6 +167,13 @@ const PORTAL_TEACHER_HOME_CARD_KEY = 'portal_teacher_home_card';
 const PORTAL_TEACHER_HOME_ORDER_KEY = 'portal_teacher_home_order';
 
 /**
+ * Teacher Home look — app_settings key for the teacher Home's new LOOK (the band, the tinted card, the progress strip,
+ * the 2-up rows and the phone menu). Read only when portal_teacher_home_card is on too: the look redraws the card's
+ * Home, so it never runs alone. Same shape and rule as the keys above; absent = off, and off is today's Home.
+ */
+const PORTAL_TEACHER_HOME_LOOK_KEY = 'portal_teacher_home_look';
+
+/**
  * bd-3bvfj — a flag that can be on for EVERYONE or for a PILOT.
  *
  *   true (or "true")            → on for every user
@@ -393,6 +400,7 @@ module.exports = {
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,
   PORTAL_TEACHER_HOME_ORDER_KEY,
+  PORTAL_TEACHER_HOME_LOOK_KEY,
   isFlagEnabledForUser,
   isCoachAppUser,
   isCoachObservationOn,

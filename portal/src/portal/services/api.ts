@@ -676,6 +676,8 @@ export type PortalConfig = {
     loginIntlNumbers?: boolean;
     /** The per-teacher Home tile order (portal_teacher_home_order; read only with the card's switch). */
     teacherHomeOrder?: boolean;
+    /** The teacher Home's new look (portal_teacher_home_look; read only with the card's switch; fail-closed). */
+    teacherHomeLook?: boolean;
   };
 };
 
