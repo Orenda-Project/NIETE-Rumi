@@ -285,8 +285,10 @@ function whyCardOk(seg, step) {
 // text route only for a card about management — «model the correct sentence» is a language move, not an entry routine.
 // Panel 200: the only two text-route rows on a C6-first chapter, both ⛔.
 const MANAGEMENT = /\b(?:routines?|behaviou?r|discipline|noise|noisy|quiet|rules?|attention signal|signal|line up|transition|seating|class(?:room)? management|monitors?|duties)\b|روٹین|معمول|نظم و ضبط|ڈسپلن|شور|خاموش|قواعد|اصول|توجہ|اشارہ|لائن|بیٹھنے/iu;
+// R7l (COS 164428 §1c; replay of v9 Z338: an idiom-sentence card → 2-s2 «calm reminder when a child calls out», first tag
+// 37-C7): a behaviour chapter (first tag C7) is held to the same test as a routines one
 function managementOk(seg, step) {
-  if (((seg && seg.fico_main37) || [])[0] !== 'C6') return true;
+  if (!['C6', 'C7'].includes(((seg && seg.fico_main37) || [])[0])) return true;
   const s = step || {};
   return MANAGEMENT.test([s.action, s.tryTomorrow, s.thingToTry].filter((x) => typeof x === 'string').join('\n'));
 }
@@ -306,6 +308,33 @@ function cardFitOk(seg, step) {
   if (NOT_FOR_QUESTIONING.has(String(seg && seg.seg_id)) && WHY_CARD(text) && !FEEDBACK_CARD.test(text)) return false;
   if (((seg && seg.moves) || [])[0] === 'peer_self_assessment' && !ASSESS_CARD.test(text)) return false;
   return true;
+}
+
+// R7l (COS 164428 §1b; ped/vetoes.json kind route_gate, panel v9 Z321 Z338 Z350 ⛔2, Z238 Z477 Z325): a module the panel
+// gates (128 Restorative Practices, 122 Learning Stations, 75 Conceptual Understanding) is never carried by the card's own
+// words — the card_text route, or the card's sentence as the reason — unless the card is about its move: the card's
+// indicator, in the analysis's own scheme, is in the gate's list AND the card's text says it in the gate's words.
+// A module with no gate is not judged. The tag route with a cited moment is not gated (the panel's allow_routes).
+const gateRx = new Map();
+function routeGateOk(module, { indicator = null, scheme = null, text = '' } = {}) {
+  const g = module && module.route_gate;
+  if (!g) return true;
+  const ids = ((g.allow_card_indicators || {})[scheme === 'fico_main_37' ? 'fico_main_37' : 'v4']) || [];
+  if (!indicator || !ids.includes(String(indicator))) return false;
+  if (!gateRx.has(g.allow_card_text)) gateRx.set(g.allow_card_text, new RegExp(g.allow_card_text || '(?!)', 'iu'));
+  return gateRx.get(g.allow_card_text).test(String(text || ''));
+}
+const cardText = (step) => { const s = step || {}; return [s.action, s.tryTomorrow, s.thingToTry].filter((x) => typeof x === 'string').join('\n'); };
+
+// R7l (COS 164428 §1c; panel v9 Z196 ⛔-free wrong: a C6 silent-work-signal card got 51-s3): the questioning chapters the
+// engine enacts are exempt from the card_text tag check (cardTagOk), but not for a management card (37-C6/C7/D4) that asks
+// no why / open question. Panel v9: C6 cards that ask one (Z015 Z111 Z465) were right on 51-s1 and stay.
+const QUESTIONING_ENACTED = new Set(['51-s1', '51-s3', '95-s3']);
+const MANAGEMENT_37 = new Set(['C6', 'C7', 'D4']);
+function cardFamilyOk(seg, step) {
+  const s = step || {};
+  if (!QUESTIONING_ENACTED.has(String(seg && seg.seg_id)) || s.scheme !== 'fico_main_37' || !MANAGEMENT_37.has(String(s.indicator || ''))) return true;
+  return WHY_CARD(cardText(s));
 }
 
 /**
@@ -336,6 +365,7 @@ function textRoute(catalog, step, ctx, lesson, exclude = [], route = 'step_text'
       // definition), a 37 label and a subject-blocked label keep the card-words route as before.
       .filter((y) => !tagGate || cardTagOk(y.x.seg, step && step.indicator, step && step.scheme, { keepEnacted: false }))
       .filter((y) => managementOk(y.x.seg, step))
+      .filter((y) => route !== 'card_text' || (cardFamilyOk(y.x.seg, step) && routeGateOk(y.x.module, { indicator: step && step.indicator, scheme: step && step.scheme, text: cardText(step) })))
       .sort((a, b) => b.score - a.score || String(a.x.seg.seg_id).localeCompare(String(b.x.seg.seg_id)))
       .slice(0, MAX_TEXT)
       .map(({ x, score }) => ({
@@ -545,4 +575,4 @@ function enacted(catalog, ctx, lesson, ids = ENACTED) {
   })) };
 }
 
-module.exports = { goalFirst, enacted, ENACTED, ENACTED_STEPS, whyFirst, WHY_FIRST, build, textRoute, recommendable, fallbackSubjectOk, stepQuery, contentWords, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, STUB_FLOOR, LABEL_37, cardTagOk };
+module.exports = { routeGateOk, cardFamilyOk, goalFirst, enacted, ENACTED, ENACTED_STEPS, whyFirst, WHY_FIRST, build, textRoute, recommendable, fallbackSubjectOk, stepQuery, contentWords, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, STUB_FLOOR, LABEL_37, cardTagOk };
