@@ -36,7 +36,7 @@ const UNDER = 'first:-mt-3 first:pt-2';
  */
 export const SLOT_MAX_MS = 4000;
 /**
- * A cold open draws nothing tappable before /me/home answers: the card, strip, heading and rows arrive in one commit,
+ * A cold open (no slot memory) draws nothing tappable before /me/home answers: the card, strip, heading and rows arrive in one commit,
  * so none of them moves under a finger. After ROWS_WAIT_MS unanswered the rows draw anyway (a late card pushes once).
  */
 export const ROWS_WAIT_MS = 1500;
@@ -131,7 +131,8 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
     const t = setTimeout(() => setWaited(true), ROWS_WAIT_MS);
     return () => clearTimeout(t);
   }, [data]);
-  const holding = !data && !waited;
+  // A warm open's slot already holds the whole block above the rows, so they draw at first paint and never move.
+  const holding = !data && !waited && !slot;
   const climb = !!slot || cardDay || chips.length > 0;
 
   return (

@@ -12,7 +12,7 @@ import { fetchHome, tapHome, type HomeData, type HomeTileKey, type TapKind } fro
  * only a real `true` is on; while /config is read, or when it cannot be read, all are off and Home is exactly today's
  * (the one exception, by one paint: a look this user last had ON, see useHomeSwitches).
  *
- * Loading, kept simple on purpose: the tiles paint at once in the fixed order; ONE GET /me/home follows. The card and
+ * Loading, kept simple on purpose: the tiles paint at once in the fixed order; ONE GET /me/home, started with /config. The card and
  * the chips are drawn whenever it answers (they sit between rows, so nothing above row 1 jumps for the slim card).
  * The fetched tile ORDER is applied only when it lands within REORDER_BUDGET_MS of the first paint AND before her
  * first tap, key or scroll; otherwise this load keeps the order it painted, and the fetched order (remembered in
@@ -148,10 +148,19 @@ export function useHomeData(on: boolean, orderOn: boolean, userKey?: string | nu
     if (on && orderOn && userKey && !touched.current) setOrder((o) => o ?? recall(userKey));
   }, [on, orderOn, userKey]);
 
+  // A cold open: /me/home starts with /config (the card's switch arrives with it), not after it. Nothing reads it until the
+  // switch is on; a teacher whose card is off gets one answer that nothing draws.
+  const early = useRef<{ userKey: string; read: Promise<HomeData | null> } | null>(null);
+  useEffect(() => {
+    if (userKey && early.current?.userKey !== userKey) early.current = { userKey, read: fetchHome() };
+  }, [userKey]);
+
   useEffect(() => {
     if (!on) return undefined;
     let live = true;
-    fetchHome().then((d) => {
+    const mine = early.current?.userKey === userKey ? early.current.read : null;
+    early.current = null;
+    (mine ?? fetchHome()).then((d) => {
       if (!live || !d) return;
       setData(d);
       if (!orderOn || !d.orderOn) return;

@@ -208,6 +208,20 @@ describe("teacher Home, the new look", () => {
     expect(follows(card, screen.getByTestId("feature-tiles"))).toBe(true);
   });
 
+  it("a cold open (no memory): /me/home starts with /config, not after it; one read in all", async () => {
+    let configAnswer!: (v: unknown) => void;
+    vi.mocked(portal.getConfig).mockReturnValue(new Promise((r) => { configAnswer = r; }) as never);
+    vi.mocked(api.get).mockImplementation(((url: string) => {
+      if (url === "/me/home") return Promise.resolve({ data: body({ card: COACH_CARD }) });
+      return Promise.resolve({ data: { success: true, items: [] } });
+    }) as never);
+    renderHome();
+    await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalledWith("/me/home"));
+    configAnswer({ features: LOOK });
+    await screen.findByTestId("home-look-card");
+    expect(vi.mocked(api.get).mock.calls.filter(([u]) => u === "/me/home")).toHaveLength(1);
+  });
+
   it(`an unanswered /me/home: the rows draw anyway after ${ROWS_WAIT_MS} ms`, async () => {
     vi.mocked(portal.getConfig).mockResolvedValue({ features: LOOK } as never);
     vi.mocked(api.get).mockImplementation(((url: string) => (url === "/me/home" ? new Promise(() => {}) : Promise.resolve({ data: { success: true, items: [] } }))) as never);
@@ -293,6 +307,22 @@ describe("teacher Home, the new look", () => {
       answer({ data: body({ card: COACH_CARD }) });
       await screen.findByTestId("home-look-card");
       expect(screen.queryByTestId("home-look-slot")).toBeNull();
+    });
+
+    it("a warm open (slot memory): the rows draw at first paint under the slot, before /me/home answers, and stay the same rows when it does", async () => {
+      localStorage.setItem(`teacher-home-look:v1:${TEACHER.phoneNumber}`, "1");
+      localStorage.setItem(SLOT, JSON.stringify({ card: 213, total: 300 }));
+      const answer = pending();
+      renderHome();
+      const slot = await screen.findByTestId("home-look-slot");
+      const tiles = screen.getByTestId("feature-tiles");
+      expect(follows(slot, tiles)).toBe(true);
+      expect(rows()).toEqual(FIXED);
+      answer({ data: body({ card: COACH_CARD }) });
+      const card = await screen.findByTestId("home-look-card");
+      expect(screen.queryByTestId("home-look-slot")).toBeNull();
+      expect(screen.getByTestId("feature-tiles")).toBe(tiles);
+      expect(follows(card, tiles)).toBe(true);
     });
 
     it("no memory: no skeleton", async () => {

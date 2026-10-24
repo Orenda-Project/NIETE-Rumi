@@ -32,10 +32,29 @@ describe("useHomeData", () => {
   });
   afterEach(() => { vi.restoreAllMocks(); });
 
-  it("off: no request, no order", () => {
-    const { result } = renderHook(() => useHomeData(false, true, "k"));
+  it("off: no data, no order; no request without a user key", () => {
+    vi.mocked(fetchHome).mockResolvedValue(DATA);
+    const { result } = renderHook(() => useHomeData(false, true, null));
     expect(fetchHome).not.toHaveBeenCalled();
     expect(result.current).toEqual({ data: null, order: null });
+  });
+
+  it("a signed-in teacher: the read starts before the switch (with /config), and the switch turning on uses it, not a second one", async () => {
+    vi.mocked(fetchHome).mockResolvedValue(DATA);
+    const { result, rerender } = renderHook(({ on }) => useHomeData(on, false, "k"), { initialProps: { on: false } });
+    expect(fetchHome).toHaveBeenCalledTimes(1);
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current.data).toBeNull();
+    rerender({ on: true });
+    await waitFor(() => expect(result.current.data).toBe(DATA));
+    expect(fetchHome).toHaveBeenCalledTimes(1);
+  });
+
+  it("the card's switch on at the first render (a remembered look): still one read", async () => {
+    vi.mocked(fetchHome).mockResolvedValue(DATA);
+    const { result } = renderHook(() => useHomeData(true, false, "k"));
+    await waitFor(() => expect(result.current.data).toBe(DATA));
+    expect(fetchHome).toHaveBeenCalledTimes(1);
   });
 
   it("an order that lands within the budget is applied; one request", async () => {
