@@ -95,3 +95,20 @@ describe('2. a slow recording with no classroom talk is not a lesson', () => {
     expect(row.none_reason).toBe('no_moments:not_lesson');
   });
 });
+
+describe('3. module 41 (Urdu sound recitation) is subject-bound in the shipped catalogue (ped-scale 194700)', () => {
+  const shipped = () => {
+    const SH = require('../../../bot/shared/services/coaching/video-reco/shortlist');
+    const m = require('../../../bot/shared/data/video-catalog.v1.json').modules.find((x) => x.module_id === 41);
+    return { SH, m };
+  };
+  test.each(['maths', 'science'])('never a %s lesson (early_years was read as "any subject")', (subject) => {
+    const { SH, m } = shipped();
+    expect(SH.fallbackSubjectOk(m, subject)).toBe(false);
+  });
+  test('control: still an Urdu / literacy module, ECE band (only early_years left the subject list)', () => {
+    const { m } = shipped();
+    expect(m.subjects).toEqual(['urdu', 'literacy']);
+    // (its not_for «non-Urdu» is read by notFor as «Urdu»: a separate, pre-existing parse; out of R7o-a, posted to ped-scale)
+  });
+});
