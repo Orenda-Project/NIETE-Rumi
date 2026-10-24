@@ -30,12 +30,15 @@ const CLIP_HALF = TRANSCRIPT.slice(TRANSCRIPT.indexOf('یہ کلپ')); // «یہ
  */
 function transcriptLine({ moveId = null, answerId = null, quote = '', title = '' } = {}) {
   const q = String(quote || '').trim();
-  const move = FRAME_MOVES.find((m) => m.id === moveId) || null;
+  // the model names a move by id; it sometimes writes the term itself (gold r7 b1ad001: 14 of 52), which is the same move
+  const key = String(moveId || '').trim();
+  const move = FRAME_MOVES.find((m) => m.id === key || m.ur === key || m.ur_alt === key) || null;
   const clip = CLIP_HALF.replace('‹chapter title›', String(title || '').trim().replace(/[۔.]$/u, ''));
   if (!move) return `${EMPTY.replace('…', q)} ${clip}`;
   const verb = ACTIVITY.has(move.id) ? 'کروایا' : 'پوچھا';
   const head = TRANSCRIPT.slice(0, TRANSCRIPT.indexOf('"…"') + 3).replace('‹term›', move.ur).replace('پوچھا', verb).replace('…', q);
-  const ans = ANSWERS[answerId];
+  const ansKey = Object.keys(ANSWERS).find((id) => id === answerId || (BY_ID.get(id) || {}).ur === answerId || (BY_ID.get(id) || {}).ur_alt === answerId);
+  const ans = ANSWERS[ansKey];
   return ans ? `${head}، اور ${ans}۔ ${clip}` : `${head}۔ ${clip}`;
 }
 

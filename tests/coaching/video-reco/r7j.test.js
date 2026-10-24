@@ -98,10 +98,13 @@ describe('3b · the card frame reads the card\'s HEAD move, not any move word in
     const row = await run(args({ action }), deps([SHORT('11-s5'), SHORT('11-s5')]));
     expect(row).toMatchObject({ status: 'shown', seg_id: '11-s5', moment_source: 'card' });
   });
-  test('unit: headClause drops the when-clause and stops at the first clause break', () => {
+  test('unit: the move text drops the «by …» manner phrase and keeps every clause (a colon or semicolon does not end the move)', () => {
     const S = require('../../../bot/shared/services/coaching/video-reco/select');
-    expect(S.headClause('Next class, when students move to practice, hand out two sheets (A: hints; B: stretch) and assign by exit ticket.')).toBe('hand out two sheets (A');
-    expect(S.headClause('اگلی کلاس میں جب بچہ اٹکے، فوراً جواب بتانے کے بجائے پانچ سیکنڈ رکیں؛ پھر کیوں پوچھیں۔')).toBe('فوراً جواب بتانے کے بجائے پانچ سیکنڈ رکیں');
+    const h = S.headClause('Next class, when students move to practice, hand out two sheets (A: hints; B: stretch) and assign by table or quick exit ticket.');
+    expect(h).toContain('hand out two sheets');
+    expect(h).not.toContain('exit ticket');
+    expect(S.headClause('دو طلبہ کے جوابات پر تین حصوں والا جملہ استعمال کریں: تعریف + ایک ٹھوس بہتری۔')).toContain('تعریف'); // gold 0d461fa9
+    expect(S.headClause('loud clip چلائیں؛ پھر pairs میں Think-Pair-Share کروائیں۔')).toContain('Think-Pair-Share'); // gold d0450f59
   });
 });
 
