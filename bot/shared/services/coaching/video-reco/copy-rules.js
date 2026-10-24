@@ -175,7 +175,7 @@ const DROPS = [
  * The card sentence with every comparison that names a child dropped, or null when a child's name (or a placeholder) is
  * still in it. `vocab`/`oovVocab` as redact-names.js; `teacher` is users.name.
  */
-function childFreeCard(sentence, { teacher = null, vocab = [], oovVocab = [], why = null } = {}) {
+function childFreeCard(sentence, { teacher = null, vocab = [], oovVocab = [], why = null, roster = null } = {}) {
   const s = String(sentence || '');
   const trace = [];
   redactNames(s, { teacher, placeholders: { child: '[a student]' }, vocab, oovVocab, trace });
@@ -212,9 +212,37 @@ function childFreeCard(sentence, { teacher = null, vocab = [], oovVocab = [], wh
     if (unknown && prev && (CUE_BEFORE.has(prev) || childCue)) { nameEnd = at + w.length; return hit(`cue:${prev}`); }
     return unknown && CUE_AFTER.test(all.slice(at + w.length)) ? hit('cue:after') : w;
   });
+  marked = possessives(marked, { own, roster, hit });
   if (!marked.includes(NAME_MARK)) return s;
   for (const [rx, to] of DROPS) marked = marked.replace(rx, to);
   return marked.includes(NAME_MARK) ? null : marked.replace(/\s{2,}/g, ' ').trim();
+}
+
+// red7 20261024T023206 S12 (panel v7 Z382 ⛔9): a child named in the POSSESSIVE inside the card sentence — "Hope's answer",
+// "ayesha's answer", «کرن کے جواب» — escaped every slot above. The possessor is a person when it is a lexicon name (any
+// case), a roster name (raw: a vocabulary word on the class list), a capitalised Latin word that opens no sentence and is
+// no term («Bloom's»), or an Urdu word before «کا / کی / کے» and a person's noun (an answer, a turn, a copy…) that is no
+// function, demonstrative or everyday word. Marked as a name: no comparison drops it, so the sentence is never quoted.
+const PERSON_NOUN = 'جواب|جوابات|بات|باتیں|باری|کاپی|نام|ہاتھ|کام|خیال|آواز|ساتھی|جملہ|جملے';
+const UR_POSSESSIVE = new RegExp(String.raw`([؀-ۿ]+)(\s+(?:کا|کی|کے)\s+(?:${PERSON_NOUN})(?=[\s،,.۔؟!]|$))`, 'gu');
+const LAT_POSSESSIVE = /(^|[^\p{L}])([A-Za-z]+)(?=['’]s\b)/gu;
+const DEMONSTRATIVE = new Set('اس ان یہ وہ ہر کس جس جن آپ ہم تم میرا میری میرے ہمارا ہماری ہمارے کسی کوئی ایک دوسرے سب'.split(' '));
+const LAT_NAME = new Set([...LEX.latStrong, ...LEX.latAmbig].map((w) => String(w).toLowerCase()));
+function possessives(marked, { own, roster, hit }) {
+  const isRoster = (w) => !!roster && roster.has(normUr(String(w).toLowerCase()));
+  let out = marked.replace(UR_POSSESSIVE, (m, w, rest) => {
+    const n = normUr(w);
+    if (FUNCTION.has(w) || DEMONSTRATIVE.has(w) || own.has(n) || (UR_KNOWN.has(n) && !LEX.vocab.includes(n) && !UR_NAME.has(n) && !isRoster(w))) return m;
+    return `${hit('possessive')}${rest}`;
+  });
+  out = out.replace(LAT_POSSESSIVE, (m, pre, w, at, all) => {
+    const lower = w.toLowerCase();
+    const before = all.slice(0, at + pre.length).replace(new RegExp(N, 'g'), '');
+    const first = !/[\p{L}\p{N}]/u.test(before) || /[.!?؟;:]["'’”)]*\s*$/u.test(before);
+    const name = LAT_NAME.has(lower) || isRoster(w) || (LATIN_CAP.test(w) && !first && !NOT_A_NAME.has(lower));
+    return name ? `${pre}${hit('possessive')}` : m;
+  });
+  return out;
 }
 
 // ── what the clip IS, and what the cited line IS (R7c, COS 20261023T170515 §5; panel §3.2, §3.5, §4: 51 rows) ─────────
