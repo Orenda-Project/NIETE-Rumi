@@ -233,7 +233,7 @@ describe('1b · Urdu at the source: the approved word for each move, in the prom
     expect(row.reason_ur).not.toContain('کلاس صرف');
   });
   test('…an Urdu card is quoted in that Urdu line', async () => {
-    const action = 'اگلی کلاس میں شکلوں کے بارے میں دو کیوں والے سوال پوچھیں اور پانچ سیکنڈ انتظار کریں۔';
+    const action = 'اگلی کلاس میں سبق کے بارے میں دو کیوں والے سوال پوچھیں اور پانچ سیکنڈ انتظار کریں۔'; // R7o-a: a word the strict redactor knows
     const row = await run(args({ lang: 'en', action }), deps([answer()]));
     expect(row.reason_ur).toContain('دو کیوں والے سوال پوچھیں');
   });
@@ -395,11 +395,13 @@ describe('1e · owed silences: the card placeholder rows (Z036 Z100, R/A sends i
     expect(row.reason_en).toBe('Your report gives you one thing to try next class. This clip shows one way to do it.');
     expect(`${row.reason_en} ${row.reason_ur}`).not.toMatch(/Bunty|Abu/);
   });
-  test('Z036 shape: «Tier 2» is a card word, not a name → the card sentence is quoted', async () => {
+  // R7o-a (COS 201132, fail closed): «Tier» is a word the strict redactor masks, so the card is no longer quoted (Z036 is
+  // a word, not a name; R7o-b earns such quotes back with a positive vocabulary signal). The clip itself still goes.
+  test('Z036 shape: «Tier 2» is masked by the strict redactor → the clip still goes, the card is not quoted', async () => {
     const TIER = 'Next class, when a child answers in one word, ask a quick why follow-up, then give a Tier 2 sentence to explain why.';
     const row = await run(cardText(TIER), deps([SHORT('51-s1'), SHORT('51-s1')]));
-    expect(row).toMatchObject({ status: 'shown', seg_id: '51-s1', moment_source: 'card' });
-    expect(row.reason_en).toContain('Tier 2 sentence');
+    expect(row).toMatchObject({ status: 'shown', seg_id: '51-s1' });
+    expect(row.reason_en).not.toContain('Tier 2 sentence');
   });
   test('Z078 (a right silence): a scrubbed label card on a chapter whose moves the lexicon does not judge → no plain frame', () => {
     const LABEL = 'Try dedicating 5 minutes of your next class specifically to improving "[a student] [a student] & Learning [a student]".';

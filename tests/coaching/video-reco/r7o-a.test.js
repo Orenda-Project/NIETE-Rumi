@@ -40,6 +40,19 @@ describe('1. the quoted card sentence passes the strict redactor, or the plain f
     expect(out.reason_en).not.toContain(nm);
     if (plainUr()) expect(out.reason_ur).toBe(plainUr());
   });
+  // R7o-a fail closed (COS 201132 §2, red7 202632 O2–O8): an unknown or Latin-script name in ANY slot, synthetic names
+  test.each([
+    ['«X کو»', (n) => `اگلی کلاس میں ${n} کو پہلے بولنے دیں، پھر باقی بچوں سے کیوں پوچھیں۔`, 'زونی'],
+    ['«X نے»', (n) => `اگلی کلاس میں ${n} نے جو جواب دیا اس پر کیوں پوچھیں اور پانچ سیکنڈ رکیں۔`, 'ریشا'],
+    ['«X سے»', (n) => `اگلی کلاس میں ${n} سے کیوں پوچھیں اور پانچ سیکنڈ انتظار کریں۔`, 'شانو'],
+    ['mid-clause', (n) => `اگلی کلاس میں جب ${n} ایک لفظ میں جواب دے تو کیوں پوچھیں۔`, 'نینا'],
+    ['«X اور Y»', (n) => `اگلی کلاس میں ${n} اور زرشی سے کیوں پوچھیں اور پانچ سیکنڈ رکیں۔`, 'زونی'],
+    ['Latin + «کو»', (n) => `اگلی کلاس میں ${n} کو پہلے بولنے دیں، پھر باقی بچوں سے کیوں پوچھیں۔`, 'Zoni'],
+    ['Latin bare subject', (n) => `کیوں والا سوال پوچھیں: ${n} 1 منٹ جوڑوں میں بیان کرے۔`, 'Zoni'],
+  ])('%s: the name is never quoted', (_label, make, nm) => {
+    const out = frame(make(nm));
+    if (out) expect(`${out.reason_ur} ${out.reason_en}`).not.toContain(nm);
+  });
   test('without plainIfNamed (the LLM-path fallback): no clip rather than a quoted name', () => {
     expect(frame("ایک مثال بورڈ پر حل کریں، پھر 'Think-Pair-Share' کرائیں: زونی 1 منٹ جوڑوں میں بیان کرے۔", { plainIfNamed: false })).toBeNull();
   });
