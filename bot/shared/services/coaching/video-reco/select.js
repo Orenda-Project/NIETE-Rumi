@@ -534,6 +534,8 @@ function fitClauses(sentence, room, segment) {
   }
   if (pre && (best < 0 || best < k) && realWords(tidy(pre)) >= MIN_WORDS) return `${tidy(pre)}…`;
   if (best >= 0) { const got = around(best, () => true); if (got) return got; }
+  // R7l (Z062): a clause boundary before a word boundary
+  if (pre && realWords(tidy(pre)) >= MIN_WORDS) return `${tidy(pre)}…`;
   return fitWords(sentence, room);
 }
 // prod card actions open with the teacher's name; a child placeholder is stripped only as an address (with its comma),
@@ -665,14 +667,17 @@ function cardMoveAt(sentence, segment) {
 }
 
 /**
- * R7l (COS 164428 §1d; panel v9 Z029): a quote the model copied from an excerpt line the prompt capped (prompt.js
- * EXCERPT_MAX_CHARS, a cut that can fall inside a word) ends on its last whole word, then "…". Any other quote is unchanged.
+ * R7l (COS 164428 §1d; panel v9 Z029): a quote that ends on the cut of an excerpt line the prompt capped (prompt.js
+ * EXCERPT_MAX_CHARS, a cut that can fall inside a word: «…یوز ہوا ہ…») ends on its last whole word, then "…". The model
+ * may stitch two lines into one quote, so the test is the cut-off token itself. Any other quote is unchanged.
  */
+const lastToken = (t) => (/(\S+)$/u.exec(t) || [])[1] || '';
 function wholeWordQuote(quote, excerpts) {
   const q = String(quote || '');
   if (!/…$/u.test(q)) return quote;
   const stem = q.slice(0, -1).trimEnd();
-  const capped = (excerpts || []).some((l) => { const t = stripBidi(String(l || '')).trimEnd(); return /…$/u.test(t) && t.slice(0, -1).trimEnd().endsWith(stem); });
+  const tail = lastToken(stem);
+  const capped = !!tail && (excerpts || []).some((l) => { const t = stripBidi(String(l || '')).trimEnd(); return /…$/u.test(t) && lastToken(t.slice(0, -1)) === tail; });
   if (!capped) return quote;
   const whole = stem.replace(/\s*\S+$/u, '').replace(/[\s،,؛;:—-]+$/u, '');
   return realWords(whole) >= MIN_WORDS ? `${whole}…` : quote;
