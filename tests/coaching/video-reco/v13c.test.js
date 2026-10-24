@@ -153,7 +153,7 @@ describe('(b) the card-sentence fallback', () => {
   });
 
   test('the length cap is on the TEACHER\'s language: an en teacher with a sentence that fits in en gets the clip', async () => {
-    const s = `Ask ${'a'.repeat(224)}`; // en template + 228 = 296 ≤ 300; the ur one would be 302 (R7b: a sentence with a move; R7d: no seconds)
+    const s = `Ask why ${'a'.repeat(220)}`; // en template + 228 = 296 ≤ 300; the ur one would be 302 (R7b: a sentence with a move; R7d: no seconds; R7g: it names the chapter's move)
     expect([...FALLBACK_EN(s, 90)].length).toBeLessThanOrEqual(300);
     expect([...FALLBACK_UR(s, 90)].length).toBeGreaterThan(300);
     const row = await E.recommendForReport({ ...args({}, { indicator: 'C1', action: s }, 'en'), deps: deps([ROMAN, ROMAN]) });
@@ -179,9 +179,11 @@ describe('(b) the card-sentence fallback', () => {
     expect(JSON.stringify(row)).not.toMatch(/Saima|\[TEACHER\]/);
   });
 
-  test('a child\'s name inside the card sentence: no fallback (R7c ⛔9, was: shown as [a student])', async () => {
+  test('a child\'s name inside the card sentence: never quoted (R7c ⛔9); R7g: the plain frame on a chapter the card names', async () => {
     const row = await E.recommendForReport({ ...args({}, { indicator: 'C1', action: 'Ask Ahmed two why questions' }), deps: deps([ROMAN, ROMAN]) });
-    expect(row).toMatchObject({ status: 'none', none_reason: 'validation:roman' });
+    // R7g 1e (COS 20261024T002603; panel Z100): the sentence that names a child is never quoted; the plain frame carries the clip
+    expect(row).toMatchObject({ status: 'shown', moment_source: 'card', reason_en: 'Your report gives you one thing to try next class. This clip shows one way to do it.' });
+    expect(`${row.reason_en} ${row.reason_ur}`).not.toMatch(/Ahmed/);
   });
 
   test('control arm: the fallback row is stored as shadow, like any other pick', async () => {

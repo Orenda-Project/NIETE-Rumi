@@ -8,7 +8,7 @@
 const { redactNames } = require('./redact-names');
 const { clipKind } = require('./copy-rules');
 
-const PROMPT_VERSION = 'vr-9'; // vr-9 (R7c §5): the clip's kind on each candidate; explain-not-show; a why/how line is not recall; vr-8 (red7 155809): no vocative in "Try this tomorrow"; vr-7 (R7b 2b): the clip's own words, the Urdu plural
+const PROMPT_VERSION = 'vr-10'; // vr-10 (R7g 1b): the approved Urdu word for each move it may name, past tense with the teacher as subject; vr-9 (R7c §5): the clip's kind on each candidate; explain-not-show; a why/how line is not recall; vr-8 (red7 155809): no vocative in "Try this tomorrow"; vr-7 (R7b 2b): the clip's own words, the Urdu plural
 const EXCERPT_LINES = 12;
 const EXCERPT_MAX_CHARS = 220;
 
@@ -149,13 +149,25 @@ ${(candidates || []).map((c) => candidateLine(c, catalog)).join('\n')}
 RULES
 1. Choose the clip that SHOWS the exact move in "Try this tomorrow". Every candidate is for that step: you choose among them and ground the moment; you never change the step.
 2. The reason must cite ONE real moment: a short quote copied from the report's moment or the TRANSCRIPT MOMENTS (never invented, never paraphrased), introduced in words (what was happening in the lesson), then what the clip offers instead — say only what the clip's own line says, in your own plain words; when its kind is "not a class", say the clip explains the move or the teachers in it talk it through («یہ کلپ سمجھاتا ہے کہ …»), never that it shows a teacher doing it (in reason_ur, in Urdu: never copy the clip's English title or summary); never add wait time, cold-calling, pairs, roles or a "why" question it does not name — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person's name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher. Never write a clip id, number or code; never write a clock time (no [mm:ss], no "at 12:08") or a speaker label (no "Teacher:", "Student:") in reason_en or reason_ur: the moment's time goes only in moment.at; never mention the scorer, the report or the analysis; describe the lesson moment itself. Name the cited line for what it is: a line that asks why or how is never a recall or yes/no question, and a greeting, a page number, an order to the class or the lesson's title is not a moment. Choose a moment with the teacher's or a child's own words; if the only candidate line is mostly [a student] placeholders, pick another line. If no real moment fits, return seg_id null — never write N/A, unknown or [around unknown].${crossLanguageRule(reportLanguage, lessonLanguage)}
-3. Gender-neutral: say "the teacher" / "they"; in Urdu use verbal nouns or impersonal forms, never gendered second-person verbs. Any teacher (the reader or the one in the clip) is plural in Urdu: «استاد … کرتے ہیں / پوچھتے ہیں», «آپ … کریں»; never «کرتا ہے», «کرتی ہے», «کہتی ہیں», «استانی», «معلمہ» or «استاذہ». Keep pedagogical terms in English letters inside Urdu (e.g. open-ended questions, wait time). No Roman Urdu (Urdu in Latin letters); Urdu is written in Nastaliq script; only pedagogical terms stay in English letters (one or two words).
+3. Gender-neutral: say "the teacher" / "they"; in Urdu use verbal nouns or impersonal forms, never gendered second-person verbs. Any teacher (the reader or the one in the clip) is plural in Urdu: «استاد … کرتے ہیں / پوچھتے ہیں», «آپ … کریں»; never «کرتا ہے», «کرتی ہے», «کہتی ہیں», «استانی», «معلمہ» or «استاذہ». The moves in rule 6 take rule 6's Urdu words; keep any other pedagogical term in English letters inside Urdu (one or two words). No Roman Urdu (Urdu in Latin letters); Urdu is written in Nastaliq script.
 4. If no candidate would help this teacher with this step, return "seg_id": null and say why in "none_reason". That is a good answer, not a failure.
 5. Never pick a clip whose "needs" clearly do not match this lesson, or one meant for a different subject than this lesson (${subject || 'unknown'}).
+6. In reason_ur, name a teaching move with these Urdu words, never a word-for-word translation and never the English word in Latin letters: ${URDU_GLOSSARY}. The lesson is over: say what happened in the past tense with the teacher as the subject («استاد نے پوچھا»), never «پوچھ رہے ہیں» or «پوچھا گیا».
 
 Return exactly this JSON:
 {"seg_id": "<one of the candidate ids, or null>", "moment": {"at": "mm:ss", "quote": "<copied from the transcript moments>"}, "reason_en": "<two sentences>", "reason_ur": "<the same, in natural Urdu (Nastaliq script)>", "confidence": <0.0-1.0>, "none_reason": "<only when seg_id is null>"}`;
 }
+
+// R7g (COS 002603 1b; panel v6 §4: the Urdu misses are the model's calques of English move names): the approved word for each
+// move, from the catalogue's own Urdu chapter titles (51-s1, 50-s2, 51-s2, 48-s1 «یاد سے بتانا») and the report's Urdu.
+// copy.js rewrites the panel's variants to the same words (the backstop).
+const URDU_MOVES = Object.freeze([
+  ['recall question', 'یاد سے بتانے والا سوال'], ['yes/no question', 'ہاں/نہیں والا سوال'], ['why question', "'کیوں' والا سوال"],
+  ['open question', 'کھلا سوال'], ['chorus answer', 'سب کا مل کر جواب'], ['warm-up question', 'ابتدائی سوال'],
+  ['think-pair-share', 'تھنک پیئر شیئر'], ['pair or partner talk', 'ساتھی سے بات چیت'], ['children talking to each other', 'بچوں کی آپس میں بات چیت'],
+  ['wait time', 'انتظار کا وقفہ'],
+]);
+const URDU_GLOSSARY = URDU_MOVES.map(([en, ur]) => `${en} = «${ur}»`).join('; ');
 
 const LANGUAGE_NAMES = Object.freeze({ en: 'English', ur: 'Urdu' });
 
