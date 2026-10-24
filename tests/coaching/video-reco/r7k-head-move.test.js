@@ -38,7 +38,7 @@ const CLASS = [
   T('01:09', 'Student', 'No'), T('01:12', 'Teacher', 'How many sides then?'), T('01:15', 'Student', 'Three'),
   T('01:18', 'Teacher', 'Is it big or small?'), T('01:21', 'Student', 'Big'), T('01:24', 'Teacher', 'Good, next one, is it red?'), T('01:27', 'Student', 'Yes'),
 ];
-async function offered(indicator, action) {
+async function offered(indicator, action, which = 0) {
   const prompts = [];
   await E.recommendForReport({
     session: { id: 's1', user_id: 'u1', transcript_language: 'ur', users: { name: 'Saima Khan', preferred_language: 'en' }, diarization_data: { segments: CLASS } },
@@ -47,14 +47,14 @@ async function offered(indicator, action) {
     deps: { env: { VIDEO_RECO_ENABLED: 'true' }, catalog: C.fromData(DATA), store: { readForSession: async () => null, recentHistory: async () => ({ segments: [], modules: [] }), ladderProgress: async () => ({ level: 2, completedModules: [] }), trainingBands: async () => [], write: async (r) => r }, v10GroupFor: async () => null,
       completeJson: async (p) => { prompts.push(p); return { result: { seg_id: null, none_reason: 'test' }, usage: {}, finishReason: 'stop' }; } },
   });
-  const p = prompts[0] || '';
+  const p = prompts[which] || '';
   return (p.split('CANDIDATE CLIPS')[1] || '').match(/\b\d{1,3}-s\d+\b/g) || [];
 }
 
-test('Z327 shape: a why-probe head that mentions pairs later → 50-s2 not offered, 51-s1 first', async () => {
+test('a why-probe head with pair talk in a later clause → 51-s1 first, 50-s2 still offered (red7 055554 H1)', async () => {
   const ids = await offered(null, "Next class, after a one-word answer ask 'why do you think so?', then let pairs discuss and share with a partner.");
-  expect(ids).not.toContain('50-s2');
   expect(ids[0]).toBe('51-s1');
+  expect(ids).toContain('50-s2');
 });
 test('Z197/Z124 shape: a feedback head (no indicator, a why later) → 23-s2 first', async () => {
   const ids = await offered(null, "Next class, after each answer name one thing done well and give one next step, then ask 'why do you think so?'.");
@@ -67,4 +67,25 @@ test('a C3 feedback head keeps 23-s2 first', async () => {
 test('control: a pair-talk head keeps 50-s2', async () => {
   const ids = await offered(null, 'Next class, give one minute for pairs to discuss with a partner, then ask two pairs to share.');
   expect(ids).toContain('50-s2');
+});
+
+// red7 055554 H1: pair talk named in ANY clause keeps 50-s2; the head move is the first clause that names a move
+test('red7 H1: «ask open questions, then think-pair-share» keeps 50-s2', async () => {
+  const ids = await offered(null, 'Next class, ask three open questions about the story, then let pairs discuss with a partner and share.');
+  expect(ids).toContain('50-s2');
+});
+test('red7 H1 (Urdu): «… open-ended questions پوچھیں … پھر Think-Pair-Share کریں» keeps 50-s2', async () => {
+  const ids = await offered(null, 'اگلی کلاس میں تین open-ended questions پوچھیں اور ہر سوال کے بعد پانچ سیکنڈ رکیں، پھر Think-Pair-Share کریں۔');
+  expect(ids).toContain('50-s2');
+});
+test('red7 H1: a when-clause opener names no move; the next clause is the head (feedback → 23-s2 first)', async () => {
+  const ids = await offered(null, 'Next class, when a child answers in one word, name one thing done well and give one next step.');
+  expect(ids[0]).toBe('23-s2');
+});
+
+test('Z327/Z348 shape: a why card that names pair talk nowhere → the second (enacted) pass offers no 50-s2, 51-s1 first', async () => {
+  const ids = await offered('C1', "Next class, after a one-word answer ask 'why do you think so?' and wait five seconds.", 1);
+  expect(ids.length).toBeGreaterThan(0);
+  expect(ids).not.toContain('50-s2');
+  expect(ids[0]).toBe('51-s1');
 });

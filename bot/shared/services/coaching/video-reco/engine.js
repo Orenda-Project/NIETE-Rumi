@@ -254,14 +254,18 @@ async function compute(a, d, state) {
   // head names another move and not pair talk; a why / open-question head on a C1 card puts 51-s1 (else 95-s3) first; a feedback head on a C3 card puts
   // 23-s2 first (on a card with no indicator, whichever the head names). The fronted chapter passes the enacted gates.
   const headOrder = (cands) => {
-    // the head: the first instruction, before «then» / «پھر» or the end of the sentence («…ask why, then let pairs share», Z327)
-    const s = stripBidi(String(cardSentence || '')).split(/[;؛.۔!]\s|,?\s+(?:and\s+)?then\b|،?\s+(?:اور\s+)?پھر(?![\p{L}])/u)[0];
-    if (!s.trim()) return cands;
+    const whole = stripBidi(String(cardSentence || ''));
+    if (!whole.trim()) return cands;
     const ind = t.storedIndicator || (card && card.indicator) || null;
-    const names = (id) => { const h = catalog.segment(id); return !!h && select.cardMoveOk(s, h.segment); };
-    // a head that names no move (a subject label, Z025) decides nothing
+    const said = (text, id, strict = false) => { const h = catalog.segment(id); return !!h && select.cardMoveOk(text, h.segment, { strict }); };
+    // the head move: the first clause that names one of the four moves («اگلی کلاس میں جب …،» names none; red7 055554 H1)
+    const clauses = whole.split(/[;؛.۔!]\s|,?\s+(?:and\s+)?then\b|،?\s+(?:اور\s+)?پھر(?![\p{L}])|[،,]\s/u).filter((x) => x.trim());
+    const head = clauses.find((x) => ['23-s2', '51-s1', '95-s3', '50-s2'].some((id) => said(x, id))) || '';
+    const names = (id) => !!head && said(head, id);
+    // pair talk goes only when NO clause names it and the head names another move (red7 H1: «… open question, then
+    // think-pair-share» keeps 50-s2; Z327 Z348 name no pair talk at all); a head that names no move decides nothing (Z025)
     const other = names('51-s1') || names('95-s3') || names('23-s2');
-    const out = cands.filter((c) => c.seg_id !== '50-s2' || names('50-s2') || !other);
+    const out = cands.filter((c) => c.seg_id !== '50-s2' || !other || said(whole, '50-s2', true));
     const want = names('23-s2') && (ind === 'C3' || !ind) ? ['23-s2'] : names('51-s1') && (ind === 'C1' || !ind) ? ['51-s1', '95-s3'] : null;
     if (!want) return out;
     const listed = want.map((id) => out.find((c) => c.seg_id === id)).find(Boolean);

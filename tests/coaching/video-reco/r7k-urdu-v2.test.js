@@ -53,3 +53,15 @@ describe('transcriptLineEn (the portal line for an Urdu-report teacher)', () => 
     expect(U.transcriptLineEn({ moveId: null, quote: Q, title: 'x' })).toBeNull();
   });
 });
+
+describe('red7 055554 H2: a chapter title that ends in «؟» takes no second mark', () => {
+  const T = 'سنیں اور اندازہ لگائیں: آگے کیا ہوگا؟';
+  test('q-frame and empty template', () => {
+    for (const m of ['recall_question', null]) expect(U.transcriptLine({ moveId: m, quote: 'یہ کیا ہے', title: T })).not.toMatch(/؟\s*۔/);
+  });
+  test('the plain frame (Z108)', () => {
+    const S = require('../../../bot/shared/services/coaching/video-reco/select');
+    expect(S.plainFrame('ur', { start_s: 0, end_s: 60, title_ur: T })).not.toMatch(/؟\s*۔/);
+    expect(S.plainFrame('en', { start_s: 0, end_s: 60, title_en: 'What happens next?' })).not.toMatch(/\?\s*\.$/);
+  });
+});
