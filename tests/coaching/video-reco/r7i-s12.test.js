@@ -22,6 +22,19 @@ describe('a possessive person in the card sentence → the sentence is not quota
   });
 });
 
+describe('red7 024934 F: an everyday vocabulary word the lesson uses as a word is no possessor (the counts guard)', () => {
+  const S = "اگلی کلاس میں جب کرن کے جواب ایک لفظ کے ہوں تو پوچھیں 'کیوں؟' اور پانچ سیکنڈ رکیں۔";
+  test('said 65 times in the lesson → content: the sentence stays quotable', () => {
+    expect(free(S, { counts: new Map([['کرن', 65]]) })).toBe(S);
+  });
+  test('…unless the class list has it (the roster wins)', () => {
+    expect(free(S, { counts: new Map([['کرن', 65]]), roster: new Set(['کرن']) })).toBeNull();
+  });
+  test('said once (or no counts): a possessor', () => {
+    expect(free(S, { counts: new Map([['کرن', 1]]) })).toBeNull();
+  });
+});
+
 describe('controls', () => {
   test.each([
     ['S12a capitalised strong name (already masked)', "Next class, when Ayesha's answer is one word, ask 'why do you think so?'"],
