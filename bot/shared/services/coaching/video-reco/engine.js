@@ -359,6 +359,9 @@ async function compute(a, d, state) {
     // card names; else 51-s1 when the card asks for a why / how / open question or wait time, else silence
     if (seg && !select.cardMoveOk(sentence, seg.segment)) {
       if (!silence.whyWaitCard(sentence) || String(res.pick.seg_id) === WHY_SWAP_CHAPTER) return null;
+      // G3 (gold b4d78b5e: no second ask): on a move step 51-s1 only when it carries the step's tag, as the second pass
+      const why = catalog.segment(WHY_SWAP_CHAPTER);
+      if (!why || (MOVE_REASONS.has(list.textReason) && tagMismatch(t, why.segment) === true)) return null;
       const fixed = fixedFallback([WHY_SWAP_CHAPTER], v.none, 'enacted');
       if (!fixed) return null;
       res = { ...res, pick: { ...res.pick, seg_id: fixed.segId } };
