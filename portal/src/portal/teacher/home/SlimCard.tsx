@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FeatureArt } from '../icons/FeatureArt';
 import { FOCUS } from '../ui/styles';
 import { useCopy, useLang } from '../i18n';
-import { lessonPath } from '../coaching/paths';
-import { LESSONS_HOME } from '../lessons/paths';
 import { HOME_CARD } from './copy';
+import { useCoolDown } from './coolDown';
+import { slimCardActions } from './look/cardWords';
 import type { HomeCard, HomeCardKind, TapKind } from './api';
 
 /**
@@ -18,36 +17,17 @@ import type { HomeCard, HomeCardKind, TapKind } from './api';
  * The lesson line is the topic alone (the pill already says "Quiz this"; a lead-in left a Nastaliq line one word of
  * topic), and in Urdu the card's padding is 4 px and the link's line 1.25, so the card ends above the 561 fold.
  *
- * Cool-down (lesson rung only, the design rule R3.4): a plan's slim card is drawn on at most COOL_DOWN_SHOWS home loads on
- * this device. localStorage `teacher-home-card:v1:<userKey>` holds `{ [lessonId]: shows }`, only the current plan
+ * Cool-down (lesson rung only, the design rule R3.4, coolDown.ts): a plan's slim card is drawn on at most COOL_DOWN_SHOWS
+ * home loads on this device. localStorage `teacher-home-card:v1:<userKey>` holds `{ [lessonId]: shows }`, only the current plan
  * (a newer plan starts at 0). Every read and write is in try/catch; a blocked store means "always draw". The class
  * rung keeps the bot's 72-hour rule and no counter.
  */
 export const SLIM_KINDS: readonly HomeCardKind[] = ['class', 'lesson'];
-export const COOL_DOWN_SHOWS = 3;
-
-export const coolDownKey = (userKey: string) => `teacher-home-card:v1:${userKey}`;
-
-/** How many times this plan's card was drawn here; null when the store cannot be read (draw it). */
-function readShows(userKey: string, lessonId: string): number | null {
-  try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(coolDownKey(userKey)) || '{}');
-    const n = parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>)[lessonId] : 0;
-    return typeof n === 'number' && Number.isFinite(n) ? n : 0;
-  } catch {
-    return null;
-  }
-}
-
-function writeShows(userKey: string, lessonId: string, shows: number): void {
-  try {
-    localStorage.setItem(coolDownKey(userKey), JSON.stringify({ [lessonId]: shows }));
-  } catch { /* a blocked store only means the card is drawn again next time */ }
-}
+export { COOL_DOWN_SHOWS, coolDownKey } from './coolDown';
 
 export interface SlimCardProps {
   card: HomeCard;
-  /** Whose device counter (her phone number, as Ready for you keys its store). */
+  /** Whose device counter (the phone number, as Ready for you keys its store). */
   userKey?: string | null;
   onGo: (kind: TapKind, href: string) => void;
   className?: string;
@@ -56,25 +36,14 @@ export interface SlimCardProps {
 export function SlimCard({ card, userKey, onGo, className }: SlimCardProps) {
   const C = useCopy(HOME_CARD);
   const ur = useLang() === 'ur';
-  const counted = card.kind === 'lesson' && !!userKey && !!card.id;
-  // Decided once per home load (this mount): drawn while the plan has been shown fewer than 3 times.
-  const [shows] = useState<number | null>(() => (counted ? readShows(userKey as string, card.id as string) : null));
-  const draw = SLIM_KINDS.includes(card.kind) && (shows == null || shows < COOL_DOWN_SHOWS);
-  const wrote = useRef(false);
-
-  useEffect(() => {
-    if (!counted || !draw || shows == null || wrote.current) return;
-    wrote.current = true;
-    writeShows(userKey as string, card.id as string, shows + 1);
-  }, [counted, draw, shows, userKey, card.id]);
+  // Decided once per home load (this mount): drawn while the plan has been shown fewer than 3 times (coolDown.ts).
+  const cool = useCoolDown(card, userKey);
+  const draw = SLIM_KINDS.includes(card.kind) && cool;
 
   if (!draw) return null;
   const isClass = card.kind === 'class';
   const line = isClass ? C.class.title(card.played ?? 0) : card.title;
-  const primary = isClass ? C.class.primary : C.lesson.primary;
-  const secondary = isClass
-    ? { label: C.class.secondary, href: card.href }
-    : { label: C.lesson.secondary, href: card.from === 'coach' && card.id ? lessonPath(card.id) : LESSONS_HOME };
+  const { primary, secondary } = slimCardActions(card, C);
   const dir = ur ? 'rtl' : undefined;
 
   return (
@@ -114,10 +83,10 @@ export function SlimCard({ card, userKey, onGo, className }: SlimCardProps) {
         type="button"
         dir={dir}
         data-primary=""
-        onClick={() => onGo(card.kind, card.href)}
+        onClick={() => onGo(card.kind, primary.href)}
         className={cn('min-h-[44px] shrink-0 rounded-full bg-[#333748] px-4 text-[15px] font-semibold text-white', FOCUS)}
       >
-        {primary}
+        {primary.label}
       </button>
     </div>
   );
