@@ -15,12 +15,16 @@ describe('Z086: a dictionary-word Urdu name heading the card is the address', ()
     ['three words', 'چاند تارا روشنی'],
     ['two words', 'گلاب بہار'],
     ['two words and a title', 'محترمہ چاند تارا'],
+    ['red7 H1 (K21): a role word before the name', 'میڈم چاند تارا'],
+    ['red7 H2: a diacritic inside a name word', 'چاندَ تارا روشنی'],
+    ['red7 H3 (K9): four words', 'چاند تارا روشنی بہار'],
   ])('%s → dropped', (_, name) => {
     const card = `${name}، ${REST}`;
     expect(card.slice(leadingVocative(card))).toBe(REST);
   });
   test('vocativeNames gives the name words without the title', () => {
     expect(vocativeNames(`محترمہ چاند تارا، ${REST}`)).toEqual(['چاند', 'تارا']);
+    expect(vocativeNames(`میڈم چاندَ تارا، ${REST}`)).toEqual(['چاند', 'تارا']);
   });
 });
 
@@ -32,7 +36,8 @@ describe('controls: an opener that is not a name stays', () => {
     ['a verb (imperative)', 'سوال پوچھیں،'],
     ['a role word', 'ٹیچر صاحبہ،'],
     ['a digit', 'پہلے 5،'],
-    ['four words', 'چاند تارا روشنی بہار،'],
+    ['five words', 'چاند تارا روشنی بہار گلاب،'],
+    ['a role word alone with an honorific', 'ٹیچر صاحبہ،'],
     ['a colon, not a comma', 'چاند تارا روشنی:'],
   ])('%s', (_, opener) => {
     const card = `${opener} ${REST}`;

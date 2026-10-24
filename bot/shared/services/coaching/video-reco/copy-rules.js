@@ -55,10 +55,15 @@ function leadingVocative(text) {
 // is built from (function, role, verb, digit).
 const NOT_NAME_OPENER = new Set(['اگلی کلاس', 'آگلی کلاس', 'ایک سوال پوچھیں', 'ایک سوال دیں', 'ایک سوال لیں', 'ایک لفظ دیں',
   'سبق کے شروع', 'سبق کے ابتدائی', 'کلاس سے پہلے', 'سرورت بنیں']);
+// red7 045106 (HOLD #3662): a role word or title in front of the name («میڈم ‹name› ‹name›،», H1) is dropped and the rest
+// tested; a diacritic is not a letter of another script (H2: Script=Inherited); a name runs to four words (H3).
+const MARKS = /[\u064B-\u0652\u0670]/gu;
 function cardOpenerName(opener, words) {
-  if (!/،\s*$/.test(opener) || words.length > 3 || NOT_NAME_OPENER.has(words.join(' '))) return false;
-  return words.every((w) => /^\p{Script=Arabic}+$/u.test(w) && !/[ں\d۰-۹٠-٩]/u.test(w) && !imperative(w)
-    && !FUNCTION.has(w) && !ROLE.has(w) && !TITLE.has(w));
+  if (!/،\s*$/.test(opener)) return false;
+  const bare = words.map((w) => w.replace(MARKS, ''));
+  const core = bare.filter((w) => !TITLE.has(w.toLowerCase()) && !HONORIFIC.has(w.toLowerCase()) && !ROLE.has(w.toLowerCase()));
+  if (!core.length || core.length > 4 || NOT_NAME_OPENER.has(bare.join(' ')) || NOT_NAME_OPENER.has(core.join(' '))) return false;
+  return core.every((w) => /^\p{Script=Arabic}+$/u.test(w) && !/[ں\d۰-۹٠-٩]/u.test(w) && !imperative(w) && !FUNCTION.has(w));
 }
 
 /** The name words of a card's leading vocative (titles and honorifics dropped), [] when the card opens with none. */
@@ -66,7 +71,7 @@ function vocativeNames(text) {
   const s = String(text || '');
   const n = leadingVocative(s);
   if (!n) return [];
-  return VOC.exec(s)[2].split(/\s+/).map((w) => w.replace(/[⁦-⁩]/g, '')).filter((w) => w && !TITLE.has(w.toLowerCase()) && !HONORIFIC.has(w.toLowerCase()));
+  return VOC.exec(s)[2].split(/\s+/).map((w) => w.replace(/[⁦-⁩]/g, '')).map((w) => w.replace(MARKS, '')).filter((w) => w && !TITLE.has(w.toLowerCase()) && !HONORIFIC.has(w.toLowerCase()) && !ROLE.has(w.toLowerCase()));
 }
 
 /** A reason that quotes a card still opening with a name (two or more words), at its start or after a quote mark. */
