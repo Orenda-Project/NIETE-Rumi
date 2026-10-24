@@ -161,4 +161,129 @@ describe("teacher Home, the new look", () => {
     renderHome();
     expect(screen.getByTestId("home-band")).toBeTruthy();
   });
+
+  it("the rows are the look's 2-up rows: 8 [data-row] links, each to its feature", async () => {
+    serve({ home: body() });
+    renderHome();
+    await screen.findByTestId("home-band");
+    const drawn = Array.from(screen.getByTestId("feature-tiles").querySelectorAll("[data-row]"));
+    expect(drawn.map((a) => a.getAttribute("data-row"))).toEqual(FIXED);
+    expect(drawn.map((a) => a.getAttribute("href"))).toEqual(FIXED.map((k) => teacherPath(k as TeacherFeature)));
+  });
+
+  it("a lesson card left out by its cool-down: the day reads as a no-card day (the question, no section label)", async () => {
+    localStorage.setItem(`teacher-home-card:v1:${TEACHER.phoneNumber}`, JSON.stringify({ [LESSON_CARD.id]: 3 }));
+    serve({ home: body({ card: LESSON_CARD }) });
+    renderHome();
+    await screen.findByTestId("home-band");
+    await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalledWith("/me/home"));
+    await new Promise((r) => setTimeout(r, 0));
+    await waitFor(() => expect(screen.getByTestId("home-look-ask")).toBeTruthy());
+    expect(screen.queryByTestId("home-look-card")).toBeNull();
+    expect(screen.queryByTestId("home-look-all")).toBeNull();
+  });
+
+  it("while /me/home loads: the band and the rows only (no question, no section label), then the question once it answers", async () => {
+    let answer!: (v: unknown) => void;
+    vi.mocked(portal.getConfig).mockResolvedValue({ features: LOOK } as never);
+    vi.mocked(api.get).mockImplementation(((url: string) => {
+      if (url === "/me/home") return new Promise((r) => { answer = r; });
+      return Promise.resolve({ data: { success: true, items: [] } });
+    }) as never);
+    renderHome();
+    await screen.findByTestId("home-band");
+    await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalledWith("/me/home"));
+    expect(screen.getByTestId("feature-tiles")).toBeTruthy();
+    expect(screen.queryByTestId("home-look-ask")).toBeNull();
+    expect(screen.queryByTestId("home-look-all")).toBeNull();
+    answer({ data: body() });
+    expect(await screen.findByTestId("home-look-ask")).toBeTruthy();
+  });
+
+  it("the first thing under the band climbs 32 px (the page's 12 px top padding + 20) and paints above the band", async () => {
+    serve({ home: body({ card: COACH_CARD }) });
+    const first = renderHome();
+    const card = await screen.findByTestId("home-look-card");
+    for (const c of ["first:-mt-8", "relative", "z-[1]"]) expect(card.className.split(" ")).toContain(c);
+    first.unmount();
+    resetHomeMemo();
+    serve({ home: body({ scores: { coach: null, observation: OBS } }) });
+    renderHome();
+    const strip = await screen.findByTestId("home-scores");
+    for (const c of ["first:-mt-8", "relative", "z-[1]"]) expect(strip.className.split(" ")).toContain(c);
+  });
+
+  it("with no climber (no card and no strip, or while /me/home loads) the band is short and the first block starts 16 px under it", async () => {
+    const cls = (id: string) => screen.getByTestId(id).className.split(" ");
+    serve({ home: body({ card: COACH_CARD }) });
+    const a = renderHome();
+    await screen.findByTestId("home-look-card");
+    expect(cls("home-band")).toContain("pb-[30px]");
+    a.unmount();
+    resetHomeMemo();
+    serve({ home: body() });
+    const b = renderHome();
+    await screen.findByTestId("home-look-ask");
+    expect(cls("home-band")).toContain("pb-[8px]");
+    expect(cls("home-band")).not.toContain("pb-[30px]");
+    for (const c of ["first:-mt-3", "first:pt-2"]) expect(cls("home-look-ask")).toContain(c);
+    b.unmount();
+    resetHomeMemo();
+    vi.mocked(api.get).mockImplementation(((url: string) => (url === "/me/home" ? new Promise(() => {}) : Promise.resolve({ data: { success: true, items: [] } }))) as never);
+    renderHome();
+    await screen.findByTestId("home-band");
+    expect(cls("home-band")).toContain("pb-[8px]");
+    for (const c of ["first:-mt-3", "first:pt-2"]) expect(cls("feature-tiles")).toContain(c);
+  });
+
+  describe("the card's slot while /me/home loads (no layout jump on a warm open)", () => {
+    const SLOT = `teacher-home-slot:v1:${TEACHER.phoneNumber}`;
+    const pending = () => {
+      let answer!: (v: unknown) => void;
+      vi.mocked(portal.getConfig).mockResolvedValue({ features: LOOK } as never);
+      vi.mocked(api.get).mockImplementation(((url: string) => {
+        if (url === "/me/home") return new Promise((r) => { answer = r; });
+        return Promise.resolve({ data: { success: true, items: [] } });
+      }) as never);
+      return (v: unknown) => answer(v);
+    };
+
+    it("a remembered card height: a skeleton of that height climbs into the band, then the card replaces it", async () => {
+      localStorage.setItem(SLOT, "184");
+      const answer = pending();
+      renderHome();
+      const slot = await screen.findByTestId("home-look-slot");
+      expect(slot.getAttribute("aria-hidden")).toBe("true");
+      expect(slot.style.minHeight).toBe("184px");
+      for (const c of ["first:-mt-8", "relative", "z-[1]"]) expect(slot.className.split(" ")).toContain(c);
+      expect(screen.getByTestId("home-band").className.split(" ")).toContain("pb-[30px]");
+      answer({ data: body({ card: COACH_CARD }) });
+      await screen.findByTestId("home-look-card");
+      expect(screen.queryByTestId("home-look-slot")).toBeNull();
+    });
+
+    it("no memory: no skeleton", async () => {
+      pending();
+      renderHome();
+      await screen.findByTestId("home-band");
+      await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalledWith("/me/home"));
+      expect(screen.queryByTestId("home-look-slot")).toBeNull();
+    });
+
+    it("a drawn card remembers its height; a no-card answer forgets it", async () => {
+      const h = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(196);
+      serve({ home: body({ card: COACH_CARD }) });
+      const a = renderHome();
+      await screen.findByTestId("home-look-card");
+      await waitFor(() => expect(localStorage.getItem(SLOT)).toBe("196"));
+      h.mockRestore();
+      a.unmount();
+      resetHomeMemo();
+      serve({ home: body() });
+      renderHome();
+      await screen.findByTestId("home-look-ask");
+      await waitFor(() => expect(localStorage.getItem(SLOT)).toBeNull());
+    });
+  });
 });
+

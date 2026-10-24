@@ -37,12 +37,12 @@ export function LookScores({ scores, cardKind, onGo, className }: LookScoresProp
       data-testid="home-scores"
       aria-label={C.look.progress}
       dir={ur ? 'rtl' : undefined}
-      className={cn('flex flex-wrap items-center gap-1.5 rounded-2xl border border-[#e5e7eb] bg-white p-1.5', !two && 'ps-3', className)}
+      className={cn('flex flex-wrap items-center gap-1.5 rounded-2xl border border-[#e5e7eb] bg-white p-1.5', !two && 'ps-3 max-[343px]:ps-1.5', className)}
     >
       {!two && (
         <p
           data-testid="home-look-progress"
-          className={cn('flex min-w-0 flex-1 items-center gap-1.5 text-[#636878]', ur ? 'text-[13px]' : 'text-[12.5px]')}
+          className={cn('flex min-w-0 flex-1 items-center gap-1.5 text-[#636878] max-[343px]:hidden', ur ? 'text-[13px]' : 'text-[12.5px]')}
         >
           <Award className="h-4 w-4 shrink-0 text-[#2e7d57]" strokeWidth={2.2} aria-hidden="true" />
           <span className="min-w-0 truncate">{C.look.progress}</span>

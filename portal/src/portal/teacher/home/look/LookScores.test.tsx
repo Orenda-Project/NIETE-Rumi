@@ -26,6 +26,8 @@ describe("LookScores", () => {
     expect(strip.tagName).toBe("SECTION");
     expect(strip.getAttribute("aria-label")).toBe("Your progress");
     const label = screen.getByTestId("home-look-progress");
+    // Under 344 px one chip and the label do not both fit: the label hides (the section's aria-label still names the strip).
+    expect(label.className.split(" ")).toContain("max-[343px]:hidden");
     expect(label.textContent).toBe("Your progress");
     expect(label.className).toContain("text-[12.5px]");
     expect(label.className).toContain("text-[#636878]");
