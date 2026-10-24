@@ -50,6 +50,15 @@ describe("useHomeData", () => {
     expect(fetchHome).toHaveBeenCalledTimes(1);
   });
 
+  it("the order switch arriving after the card's (a remembered look, then /config): still one read, its order applied in time", async () => {
+    vi.mocked(fetchHome).mockResolvedValue(DATA);
+    const { result, rerender } = renderHook(({ order }) => useHomeData(true, order, "k"), { initialProps: { order: false } });
+    await waitFor(() => expect(result.current.data).toBe(DATA));
+    rerender({ order: true });
+    await waitFor(() => expect(result.current.order).toEqual(ORDER));
+    expect(fetchHome).toHaveBeenCalledTimes(1);
+  });
+
   it("the card's switch on at the first render (a remembered look): still one read", async () => {
     vi.mocked(fetchHome).mockResolvedValue(DATA);
     const { result } = renderHook(() => useHomeData(true, false, "k"));

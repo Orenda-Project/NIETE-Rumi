@@ -86,6 +86,8 @@ for (const code of ["en", "ur"] as const) {
         expect(primaries[0].className).toMatch(/\bw-full\b/);
         expect(primaries[0].className).toMatch(/min-h-\[48px\]/);
         expect(primaries[0].className).toMatch(/\bwhitespace-normal\b/);
+        // Nastaliq tops at 160% stay inside the green
+        expect(primaries[0].className).toMatch(/(^|\s)rtl:py-1\.5(\s|$)/);
         const secondaries = within(card).getAllByRole("button").filter((b) => !b.hasAttribute("data-primary"));
         expect(secondaries).toHaveLength(1);
         expect(secondaries[0].className).toMatch(/min-h-\[44px\]/);
@@ -96,9 +98,13 @@ for (const code of ["en", "ur"] as const) {
         if (code === "ur") {
           expect(title.className).not.toMatch(/line-clamp/);
           expect(title.className).toMatch(/overflow-visible/);
+          // a Nastaliq ascender rises above the h2's line box: the gap above grows with the font
+          expect(title.className).toMatch(/(^|\s)mt-\[0\.4em\](\s|$)/);
+          expect(title.className).not.toMatch(/(^|\s)mt-0\.5(\s|$)/);
           expect(card.getAttribute("dir")).toBe("rtl");
         } else {
           expect(title.className).toMatch(/\bline-clamp-2\b/);
+          expect(title.className).toBe("mt-0.5 font-semibold text-[#333748] line-clamp-2 text-[18px] leading-snug");
         }
         if (kind === "lesson") {
           expect(screen.queryByTestId("home-look-sub")).toBeNull();
