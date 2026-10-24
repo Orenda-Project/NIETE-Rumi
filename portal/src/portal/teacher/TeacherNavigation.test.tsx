@@ -65,6 +65,10 @@ describe("TeacherNavigation — look ON", () => {
     const bar = screen.getByTestId("teacher-nav");
     expect(bar.className.split(" ")).toContain("px-0");
     expect(bar.className.split(" ")).not.toContain("px-1");
+    // A shorter bar under the look (pt 4, bottom 10 + the safe area), so a row stays above it at 320 in Urdu.
+    expect(bar.className.split(" ")).toContain("pt-1");
+    expect(bar.className.split(" ")).toContain("pb-[calc(10px+env(safe-area-inset-bottom))]");
+    expect(bar.className.split(" ")).not.toContain("pt-1.5");
     for (const a of items()) expect(a.lastElementChild?.className.split(" ")).toContain("max-w-full");
   });
 
