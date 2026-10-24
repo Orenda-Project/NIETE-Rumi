@@ -3,7 +3,7 @@
  * bd-gzfdu9 (VIDREC) SPEC §4.9: the report IMAGE carries the clip — one block right under "Try one thing tomorrow" on
  * the hero (794) and slim (480) templates: a 16:9 thumbnail with a play badge, "▶ Watch next: {title}" and
  * "{n} min · tap ▶ Watch in the next message". Without a strip the HTML is byte-identical to today (sha256 of the
- * base templates, pinned before the change). stripFor() races the engine for ≤ 20 s and reads the flag at call time.
+ * base templates, pinned before the change). stripFor() races the engine for ≤ stripWaitMs() (R7m: shadow 0, card 1.5 s, llm 5 s) and reads the flag at call time.
  */
 const fs = require('fs');
 const os = require('os');
@@ -70,7 +70,7 @@ describe('with a strip', () => {
   });
 });
 
-describe('stripFor: the engine raced for ≤ 20 s, the flag read at call time', () => {
+describe('stripFor: the engine raced for ≤ the mode\'s cap, the flag read at call time', () => {
   const S = require('../../../bot/shared/services/coaching/video-reco/strip');
   const ROW = { id: 'r', coaching_session_id: 's', status: 'shown', module_id: 63, seg_id: '63-s2', start_s: 95, end_s: 229 };
   const catalog = { segment: () => ({ module: { module_id: 63, title: 'Questioning', cpd_level: 1, thumb: 'video-thumbs/63.jpg' }, segment: { title_en: 'Asking why-questions', title_ur: 'کیوں والے سوال' } }) };
@@ -96,7 +96,7 @@ describe('stripFor: the engine raced for ≤ 20 s, the flag read at call time', 
     expect(await S.stripFor({ coachingSessionId: 's', language: 'en', row: never, capMs: 50, deps: deps() })).toBeNull();
     expect(Date.now() - t0).toBeLessThan(1000);
   });
-  test('the default cap is 20 s', () => { expect(S.CAP_MS).toBe(20000); });
+  test('the default caps (R7m, COS 165956): llm 5 s, card 1.5 s', () => { expect(S.CAP_MS).toBe(5000); expect(S.CARD_CAP_MS).toBe(1500); });
   test('no row handed over → read by session (merge-order safety); a throw → null', async () => {
     const d = deps();
     expect(await S.stripFor({ coachingSessionId: 's', language: 'en', deps: d })).not.toBeNull();

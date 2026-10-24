@@ -12,7 +12,7 @@
 const { logToFile } = require('../../../utils/logger');
 const { getCurrentCorrelationId } = require('../../../utils/structured-logger');
 const { clampLanguage, resolveUx } = require('../../../config/ux-strings');
-const { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist } = require('./flags');
+const { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason } = require('./flags');
 const { assignArm, AB_SALT } = require('./arm');
 const target = require('./target');
 const shortlist = require('./shortlist');
@@ -20,9 +20,9 @@ const prompt = require('./prompt');
 const select = require('./select');
 const silence = require('./silence');
 const { composeReason, stripBidi } = require('./copy');
-const { leadingVocative, relabelRecall } = require('./copy-rules');
+const { leadingVocative, vocativeNames, relabelRecall } = require('./copy-rules');
 const terms = require('./urdu-terms');
-const { wordCounts, maskedKeys, nameKey, guarded, scrubNames } = require('./redact-names');
+const { wordCounts, maskedKeys, nameKey, guarded, scrubNames, vocativeKeys } = require('./redact-names');
 
 const ENGINE_TIMEOUT_MS = 60000; // the LLM call is capped at 45 s (select.js); the sender awaits this after the report has gone
 const RETRY_MIN_LEFT_MS = 20000; // v1.3b: the one validation retry runs only with ≥ 20 s of the engine budget left
@@ -247,6 +247,37 @@ async function compute(a, d, state) {
   });
   // R7j (COS 022905 §3; Z001 Z218): a goal-on-board D6/B1 card → 47-s1, not 47-s3
   list.candidates = shortlist.goalFirst(list.candidates, catalog, { indicator: t.storedIndicator || (card && card.indicator), sentence: stripBidi(String(cardSentence || '')), history });
+  // R7e (COS 185329): "proven chapters" — set, a pick off the list is none/'allowlist' in either arm; null = today
+  const allow = videoRecoAllowlist(d.env);
+  const offList = (segId) => !!allow && !allow.has(String(segId));
+  // R7k (COS 044233 §1e; panel v8 Z327 Z348 Z197 Z124): the card's HEAD move decides the clip. Pair talk (50-s2) not when the
+  // head names another move and not pair talk; a why / open-question head on a C1 card puts 51-s1 (else 95-s3) first; a feedback head on a C3 card puts
+  // 23-s2 first (on a card with no indicator, whichever the head names). The fronted chapter passes the enacted gates.
+  const headOrder = (cands) => {
+    const whole = stripBidi(String(cardSentence || ''));
+    if (!whole.trim()) return cands;
+    const ind = t.storedIndicator || (card && card.indicator) || null;
+    const said = (text, id, strict = false) => { const h = catalog.segment(id); return !!h && select.cardMoveOk(text, h.segment, { strict }); };
+    // the head move: the first clause that names one of the four moves («اگلی کلاس میں جب …،» names none; red7 055554 H1)
+    const clauses = whole.split(/[;؛.۔!]\s|,?\s+(?:and\s+)?then\b|،?\s+(?:اور\s+)?پھر(?![\p{L}])|[،,]\s/u).filter((x) => x.trim());
+    const head = clauses.find((x) => ['23-s2', '51-s1', '95-s3', '50-s2'].some((id) => said(x, id))) || '';
+    const names = (id) => !!head && said(head, id);
+    // pair talk goes only when NO clause names it and the head names another move (red7 H1: «… open question, then
+    // think-pair-share» keeps 50-s2; Z327 Z348 name no pair talk at all); a head that names no move decides nothing (Z025)
+    const other = names('51-s1') || names('95-s3') || names('23-s2');
+    const out = cands.filter((c) => c.seg_id !== '50-s2' || !other || said(whole, '50-s2', true));
+    // R7l (COS 164428 §1c; panel v9 Z176): a head that names both moves («… open-ended questions پوچھیں … اور فوری feedback
+    // دیں») is about the one it names FIRST (was: feedback whenever named); a correction card asks no question (Z207)
+    const at = (id) => { const h = catalog.segment(id); return h ? select.cardMoveAt(head, h.segment) : -1; };
+    const ask = names('51-s1') && !silence.correctionCard(whole);
+    const order = ask && names('23-s2') && at('51-s1') < at('23-s2') ? ['ask', 'feedback'] : ['feedback', 'ask'];
+    const want = order.map((k) => (k === 'feedback' ? names('23-s2') && (ind === 'C3' || !ind) && ['23-s2'] : ask && (ind === 'C1' || !ind) && ['51-s1', '95-s3'])).find(Boolean) || null;
+    if (!want) return out;
+    const listed = want.map((id) => out.find((c) => c.seg_id === id)).find(Boolean);
+    const lead = listed || shortlist.enacted(catalog, ctx, lesson, want).candidates.find((c) => !offList(c.seg_id));
+    return lead ? [{ ...lead, route: lead.route || out[0] && out[0].route }, ...out.filter((c) => c.seg_id !== lead.seg_id)] : out;
+  };
+  list.candidates = headOrder(list.candidates);
   base.repeat_module = list.repeatModule;
   base.level_match = list.levelMatch || null;
   base.route = list.route || null;
@@ -259,6 +290,9 @@ async function compute(a, d, state) {
   // R7j (COS 022905 §1): the lesson's name set — the roster as it is and the strict redactor's guarded masks — for the ONE
   // output gate in emit; never an input to the model, validation or routing (red7 HOLD 023908 H2)
   people.names = new Set([...maskedKeys(prompt.transcriptLines(session), people), ...people.rosterRaw]);
+  // Z086 (ped-scale 042448): the teacher's own name, users.name and the card's leading address, joins the set. Everyday
+  // words stay out (rosterSet): an address made of dictionary words is dropped from every card path by leadingVocative.
+  for (const w of select.rosterSet([...String(people.teacher || '').split(/\s+/), ...vocativeNames(stripBidi(String(cardSentence || '')))])) people.names.add(w);
   // F1: the card's action (it opens with the teacher's name in prod) is stored redacted (V1.7.1 "no names"); the BM25
   // query itself ran on the raw words. Only the action: the redactor masks Title-Case indicator names too.
   const st = stepTextOf(t, analysis, card);
@@ -295,9 +329,13 @@ async function compute(a, d, state) {
   if (silence.degenerate(lines)) {
     return finish({ ...base, status: 'none', none_reason: 'no_moments:degenerate', candidates: list.candidates });
   }
-  // R7e (COS 185329): "proven chapters" — set, a pick off the list is none/'allowlist' in either arm; null = today
-  const allow = videoRecoAllowlist(d.env);
-  const offList = (segId) => !!allow && !allow.has(String(segId));
+  // R7l (COS 164428 §1a; panel v9 Z261 ⛔2 in every mode): a transcript that is no lesson (a teacher's one turn about a
+  // recording that did not save) has no moment and no lesson for the card's sentence: before every route and mode
+  if (silence.notLesson(lines, { durationS: session.audio_duration_seconds })) { // R7o-a: + slow with no classroom talk (Z253)
+    return finish({ ...base, status: 'none', none_reason: 'no_moments:not_lesson', candidates: list.candidates });
+  }
+  // R7l (COS 164428 §1b): a gated module (ped/vetoes.json route_gate) never carries the card's own sentence unless the card is its own
+  const gateOk = (module, text) => shortlist.routeGateOk(module, { indicator: cardInd, scheme: t.scheme, text: stripBidi(String(text || '')) });
   /** R7f: the card's own sentence on the first of `ids` this teacher may get (no model call) → {said, segId, list} | null. */
   const fixedFallback = (ids, none, route) => {
     const pool = shortlist.enacted(catalog, ctx, lesson, ids);
@@ -330,6 +368,29 @@ async function compute(a, d, state) {
       withLlm: { ...base, candidates: fixed.list.candidates, repeat_module: !!fixed.list.repeatModule, attempts: 0, first_none_reason: 'validation:no_child_turn', ...lessonLanguage } });
   }
   if (!list.candidates.length) return finish({ ...base, status: 'none', none_reason: list.noneReason || 'hole' });
+  // R7k (COS 044233 §1a): VIDEO_RECO_REASON=card — no model call. The shortlist's first chapter whose move the card names
+  // carries the card frame (the fallback's own gates), else 51-s1 on a why / wait card, else silence. Unset = today.
+  if (videoRecoReason(d.env) === 'card') {
+    const sentence = (card && card.action) || step.try || fa.try_this_tomorrow || '';
+    const cardOnly = (said, segId, l) => emit({ res: { pick: { seg_id: segId }, model: null, usage: {} }, pickList: l, fallback: said, v: { ok: false, none: null },
+      withLlm: { ...base, candidates: l.candidates, repeat_module: !!l.repeatModule, attempts: 0, first_none_reason: 'card_mode', ...lessonLanguage } });
+    const silent = () => finish({ ...base, status: 'none', none_reason: 'card_mode:no_frame', candidates: list.candidates });
+    if (!sentence || silence.testPeriod(lines) || cardInd === 'B6' || silence.levelsCard(cardSentence)) return silent();
+    for (const c of list.candidates) {
+      const hit = c.route !== 'step_text' && !offList(c.seg_id) && catalog.segment(c.seg_id);
+      if (!hit || !select.cardMoveOk(sentence, hit.segment) || !gateOk(hit.module, sentence)) continue;
+      const said = select.cardFrame({ // the frame itself: cardFallback's gate is for a refused model answer, and there is none
+        sentence, startS: hit.segment.start_s, endS: hit.segment.end_s, teacherName: people.teacher, module: hit.module,
+        subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster, rosterRaw: people.rosterRaw, counts: people.counts,
+        plainIfNamed: select.cardMoveOk(sentence, hit.segment, { strict: true }),
+      });
+      if (said) return cardOnly(said, c.seg_id, list);
+    }
+    const why = silence.whyWaitCard(sentence) && catalog.segment(WHY_SWAP_CHAPTER);
+    if (!why || (MOVE_REASONS.has(list.textReason) && tagMismatch(t, why.segment) === true)) return silent();
+    const fixed = fixedFallback([WHY_SWAP_CHAPTER], 'validation:no_gap', 'enacted'); // a rule cardFallback takes
+    return fixed ? cardOnly(fixed.said, fixed.segId, fixed.list) : silent();
+  }
   const promptArgs = {
     target: t.none ? { ...t, indicator: t.storedIndicator } : t, // unknown 37-id: the prompt names the id the report scored
     // Names never reach the model: the card's action opens with the teacher's name in prod; the rationale is free text.
@@ -381,6 +442,7 @@ async function compute(a, d, state) {
     if ((cand && cand.route === 'step_text') || cardInd === 'B6' || silence.levelsCard(cardSentence)) return null;
     const seg = catalog.segment(String(res.pick.seg_id));
     const sentence = (card && card.action) || step.try || fa.try_this_tomorrow || '';
+    if (seg && !gateOk(seg.module, sentence)) return null; // R7l §1b: the card's sentence never on a gated module (Z477 class)
     // R7g (COS 002603 1c; panel Z040 Z077 Z135 Z063 Z167): "this clip shows one way to do it" only on a chapter whose move the
     // card names; else 51-s1 when the card asks for a why / how / open question or wait time, else silence
     const rescue = seg && !select.cardMoveOk(sentence, seg.segment);
@@ -439,12 +501,12 @@ async function compute(a, d, state) {
     const four = shortlist.enacted(catalog, ctx, lesson);
     // R7d (gold be2a6d28, G3 "no second ask"): on a move step only the enacted chapters tagged for the step; 51-s1 on a
     // C3 card was a second ask. A card_text / label / hole step has no tag to keep (the list is the gate, as R7c ruled).
-    const why = shortlist.whyFirst(four.candidates, catalog, { apply: silence.whyCard(cardSentence), history });
+    const why = headOrder(shortlist.whyFirst(four.candidates, catalog, { apply: silence.whyCard(cardSentence), history })); // R7k §1e
     const forStep = (MOVE_REASONS.has(list.textReason)
       ? why.filter((c) => { const hit = catalog.segment(c.seg_id); return hit && tagMismatch(t, hit.segment) !== true; })
       : why).filter((c) => !offList(c.seg_id));
     const two = { ...list, repeatModule: four.repeatModule, candidates: forStep };
-    if (!two.candidates.length) return false;
+      if (!two.candidates.length) return false;
     attempts += 1;
     firstNone = firstNone || v.none;
     try {
@@ -515,8 +577,16 @@ async function compute(a, d, state) {
   const quoteMasks = new Map();
   for (const x of quoteTrace) if (x.rep === '[a student]' && x.why !== 'oov') quoteMasks.set(nameKey(x.word), (quoteMasks.get(nameKey(x.word)) || 0) + 1);
   for (const k of guarded(quoteMasks, people.counts)) names.add(k);
+  // R7k (COS 044233 §1c; panel v8 Z377 ⛔9): a word in vocative position that the lesson says 3 times or fewer, fail closed
+  for (const x of [p.moment && p.moment.quote, said.reason_en, said.reason_ur]) {
+    for (const k of vocativeKeys(stripBidi(String(x || '')), { counts: people.counts, vocab: [...vocab, ...oovVocab] })) names.add(k);
+  }
   const gate = (x) => scrubNames(x, names);
-  const accepted = quoted ? gate(quoted) : null;
+  const gated = quoted ? gate(quoted) : null;
+  // R7l (COS 164428 §1d; panel v9 Z029 «…یوز ہوا ہ…»): the excerpt cap (prompt.js) cuts a long line mid-word and the model
+  // copies the cut; the stored moment, and the reasons that quote it, end on the last whole word
+  const accepted = gated ? select.wholeWordQuote(gated, ex) : null;
+  if (accepted !== gated) for (const l of ['en', 'ur']) said[`reason_${l}`] = String(said[`reason_${l}`] || '').split(gated).join(accepted);
   // R7g (COS 002603 1b; panel v6: card frame 94.3% Urdu-ok, model-written 66.0%): an English reader's Urdu line (the portal's)
   // is never the model's translation when the card frame exists — the card frame on a chapter whose move the card names,
   // else the model's line only when it passes every Urdu check, else the plain frame. red7 G2: an Urdu reader's English line
@@ -527,12 +597,14 @@ async function compute(a, d, state) {
   // no free model clause after the quote, no stub when no move is named
   if (!fallback && language === 'ur' && accepted) {
     said.reason_ur = terms.transcriptLine({ moveId: p.move, answerId: p.answer, quote: accepted, title: hit.segment.title_ur || hit.segment.title_en });
+    // R7k §1d (urdu_terms v2 other_language_line_en): the portal's English line mirrors the same frame, one script after the quote
+    said.reason_en = terms.transcriptLineEn({ moveId: p.move, answerId: p.answer, quote: accepted, title: hit.segment.title_en }) || said.reason_en;
   }
   if (!fallback && (language === 'en' || !select.englishLineOk(said.reason_en))) {
     const other = language === 'en' ? 'ur' : 'en';
     const sentence = (card && card.action) || step.try || fa.try_this_tomorrow || '';
     const args0 = { startS: hit.segment.start_s, endS: hit.segment.end_s, teacherName: people.teacher, module: hit.module, subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster, rosterRaw: people.rosterRaw, counts: people.counts };
-    const frame = sentence && select.cardMoveOk(sentence, hit.segment) ? select.cardFrame({ ...args0, sentence, plainIfNamed: true }) : null;
+    const frame = sentence && select.cardMoveOk(sentence, hit.segment) && gateOk(hit.module, sentence) ? select.cardFrame({ ...args0, sentence, plainIfNamed: true }) : null;
     const n = Math.round(Number(hit.segment.end_s) - Number(hit.segment.start_s));
     const checked = other === 'ur' && select.urduLineOk(said.reason_ur);
     said[`reason_${other}`] = frame ? frame[`reason_${other}`] : checked ? said.reason_ur

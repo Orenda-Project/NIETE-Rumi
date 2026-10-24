@@ -66,7 +66,7 @@ test('an empty transcript and a scorer "Quote:" of meta-text → none no_moments
 
 test('a transcript with no [mm:ss] lines: a scorer meta quote is refused (validation:quote)', async () => {
   const META = 'entire transcript shows no instruction for independent student tasks';
-  const text = 'آج ہم کہانی پڑھیں گے۔\nسب کتاب کھولیں اور پہلا صفحہ دیکھیں۔';
+  const text = 'آج ہم کہانی پڑھیں گے۔\nسب کتاب کھولیں اور پہلا صفحہ دیکھیں۔\nپہلی سطر میرے ساتھ آہستہ پڑھیں۔'; // R7l §1a: three turns, a lesson
   const d = deps([pick(META), pick(META)]);
   const row = await E.recommendForReport({ ...args({ transcript_text: text }, META), deps: d });
   expect(row.moment_source).not.toBe('scorer');
@@ -75,7 +75,7 @@ test('a transcript with no [mm:ss] lines: a scorer meta quote is refused (valida
 
 test('a transcript with no [mm:ss] lines: a scorer quote that IS a line still passes as scorer (guard)', async () => {
   const LINE = 'بتائیں کہ کہانی میں لومڑی نے کیا کیا'; // R7c: a book call is no moment
-  const text = `آج ہم کہانی پڑھیں گے۔\n${LINE}۔`;
+  const text = `آج ہم کہانی پڑھیں گے۔\n${LINE}۔\nپہلی سطر میرے ساتھ آہستہ پڑھیں۔`; // R7l §1a: three turns, a lesson
   const d = deps([pick(LINE)]);
   const row = await E.recommendForReport({ ...args({ transcript_text: text }, LINE), deps: d });
   expect(row).toMatchObject({ status: 'shown', moment_source: 'scorer' });

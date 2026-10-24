@@ -132,9 +132,28 @@ async function rosterNames(userId) {
   }
 }
 
+const ATTEMPTS = new Set([1, 2]); // V1.7.2 CHECK
+const ROUTES = new Set(['tag', 'step_text', 'card_text']); // V1.7.1 CHECK
+
+/**
+ * bd-8hhqhf R7n (promo 191116, red7 191357/191815, COS 191154 §1): the row as the table's CHECKs allow it. The engine
+ * counts attempts 0 when no completeJson call was made (card mode, the fixed paths) and 3–4 when the second moment
+ * runs, and stores route 'enacted' / 'closure' on the R7f fixed paths; each failed a CHECK and the whole row was lost.
+ * Outside the allowed set → NULL. The real route stays on every entry of `candidates` (JSONB, no CHECK).
+ */
+function tableRow(row) {
+  if (!row) return row;
+  const out = { ...row };
+  if (out.attempts != null && !ATTEMPTS.has(out.attempts)) out.attempts = null;
+  if (out.route != null && !ROUTES.has(out.route)) out.route = null;
+  return out;
+}
+
 async function write(row) {
   try {
-    const { data, error } = await supabase.from(TABLE).upsert(row, { onConflict: 'coaching_session_id' }).select('*').single();
+    // R7n (COS 192920 §2): both are NOT NULL; coaching_sessions.user_id is nullable, so name it rather than send a 23502
+    if (!row || !row.coaching_session_id || !row.user_id) throw new Error('missing coaching_session_id or user_id');
+    const { data, error } = await supabase.from(TABLE).upsert(tableRow(row), { onConflict: 'coaching_session_id' }).select('*').single();
     if (error) throw error;
     return data || null;
   } catch (e) {
@@ -156,4 +175,4 @@ async function markSent(coachingSessionId, { sent_via, wamid, image_strip } = {}
   }
 }
 
-module.exports = { readForSession, recentHistory, ladderProgress, trainingBands, rosterNames, write, markSent };
+module.exports = { readForSession, recentHistory, ladderProgress, trainingBands, rosterNames, write, markSent, tableRow };

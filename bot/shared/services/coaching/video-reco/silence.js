@@ -146,7 +146,7 @@ function degenerate(lines) {
 // an announcement still is one («Today we learn fractions. Who can tell me why half is bigger than a quarter?»).
 const ROUTINE = [
   // greeting
-  /السلام علیکم|وعلیکم السلام|\bassalam|\bgood (?:morning|afternoon)\b|\bhow are you\b|آپ کیسے ہیں|\bhello\b|تم کیسے ہو|کیسے ہیں سب|کیا حال ہے|سب ٹھیک (?:ہیں|ہو)|\bi am fine\b|\bi'?m fine\b|\bfine,? thank you\b|میں ٹھیک ہوں|ہم ٹھیک ہیں/iu, // R7d: «تم کیسے ہو؟» (Q113); R7j: the reply (Z282)
+  /السلام علیکم|وعلیکم السلام|\bassalam|\bgood (?:morning|afternoon)\b|\bhow are you\b|آپ کیسے ہیں|\bhello\b|تم کیسے ہو|کیسے ہیں سب|کیا حال ہے|سب ٹھیک (?:ہیں|ہو)|کیسے ہیں (?:سارے|سب|آپ سب)|الحمد ?للہ|\balhamdulillah\b|\bi am (?:also |too )?fine\b|\bi'?m (?:also |too )?fine\b|\bfine,? thank you\b|میں ٹھیک ہوں|ہم ٹھیک ہیں/iu, // R7d: «تم کیسے ہو؟» (Q113); R7j: the reply (Z282)
   // R7e (COS 202042; Q179 Q136 Q063): an attention check, small talk, attendance, the phone or the recording
   // red7 F5: the roll call's answers («present miss», «یس میڈم») and its question ("who is absent?")
   /ایکٹیو ہیں|تیار ہیں|\bare you ready\b|\beveryone ready\b|اسکول کیسے آئے|سکول کیسے آئے|حاضری|\battendance\b|\broll call\b|پاسورڈ|ریکارڈنگ|(?<!\p{L})ایپ(?!\p{L})|\b(?:password|recording)\b|\bthe app\b|\bpresent (?:miss|sir|madam|teacher)\b|\bsay present\b|\babsent\b|غیر حاضر|^\s*یس (?:میڈم|سر|مس)\s*[۔.!]?\s*$|^\s*(?:\S+\s+){0,2}(?:ہو گیا|ہوگیا|لکھ لیا|لکھ لی|ختم ہو گیا|کر لیا|سمجھ آ گئی)(?:\s+\S+){0,3}\s*[؟?]|\b(?:done|finished)\s*\?|\bis everyone (?:done|finished)\b/iu,
@@ -157,6 +157,11 @@ const ROUTINE = [
   // announcing the lesson or what will happen in it
   /^(?=.*آج)(?=.*(?:ٹاپک|سبق|موضوع|لیسن|پڑھائی))|(?:ٹاپک|سبق|موضوع) (?:ہے|کون سا ہے|کیا ہے)|\b(?:today|now) we (?:will|are going to|shall)\b|\b(?:our|today'?s) (?:topic|lesson) is\b|\btopic is\b|ہم (?:\S+\s+){0,3}(?:پڑھیں|سیکھیں|بنائیں|دیکھیں|لکھیں|سنیں|شروع کریں|کریں) گے|(?:میں|ہم) نے (?:\S+\s+){0,8}(?:کرنا|کرنے|پڑھنا|پڑھنے|کروانا|کروانے|سیکھنا|سیکھنے) (?:ہے|ہیں)/iu,
 ];
+// R7k (COS 044233 §1b; panel v8 Z387 Z255 Z149): a filler sentence, small talk about the day or the weather, "do you
+// remember yesterday's lesson?", a bare number call («Grade 8 number?») — routine whether or not it asks, and the card
+// frame carries the lesson instead (cardRoutine)
+// red7 063214 (Z143): the R7k book call («بکس نکالیں», "take out your") is one of these classes, not the page rule
+const CARD_EXTRA = /(?:بک|بکس)\s+(?:کھول|نکال)|\btake out your\b|^\s*(?:ٹھیک ہے|اچھا|جی|ہاں جی|ہاں|چلیں|okay|ok|right)\s*[؟?۔.!]?\s*$|آج کون سا (?:دن|ڈے)|آج (?:کیا |کون سی )?تاریخ|\bwhat day is (?:it|today)\b|\bwhat(?:'s| is) the date\b|موسم|\bweather\b|(?:کل|پچھلے|پچھلا) (?:کا |کے |والا |والے )?(?:لیسن|سبق) (?:\S+\s+){0,3}یاد|^\s*(?:grade|class|question|exercise|q|سوال|مشق|کلاس|جماعت|گریڈ|ایکسرسائز)\s*(?:no\.?|number|نمبر)?\s*[\d۰-۹]+\s*(?:number|نمبر)?\s*[؟?.۔]?\s*$/iu;
 const ROUTINE_SHARE = 0.6;
 // R7d (COS 20261023T184404 item 5; panel Q076 Q170 Q198): routine whether or not it asks — a reprimand («آپ کیوں اتنے سست
 // ہو کے بیٹھے ہیں؟»), a test announced («آج ٹیسٹ ہے آپ کا»), the lesson's topic asked («آج کا ٹاپک کیا ہے؟»).
@@ -175,7 +180,7 @@ const TAG_QUESTION = /[،,]?\s*(?:ٹھیک ہے|ہے نا|نا|okay|ok|right)\s*
 const WHY_HOW = /کیوں|کیسے|\bwhy\b|\bhow\b(?! are you)/iu;
 // red7 H5: «page 46, question 3: why does the sun rise?» asks; only a greeting ("how are you?") stays routine when it asks
 const asks = (x) => WHY_HOW.test(x) || /[?؟]/.test(x.replace(TAG_QUESTION, ''));
-const isRoutine = (x) => ROUTINE[0].test(x) || ROUTINE[1].test(x) || ASKING_ROUTINE.some((rx) => rx.test(x)) || (ROUTINE.slice(2).some((rx) => rx.test(x)) && !asks(x));
+const isRoutine = (x, extra = true) => ROUTINE[0].test(x) || ROUTINE[1].test(x) || (extra && CARD_EXTRA.test(x)) || ASKING_ROUTINE.some((rx) => rx.test(x)) || (ROUTINE.slice(2).some((rx) => rx.test(x)) && !asks(x));
 const wordList = (x) => String(x || '').toLowerCase().match(/[\p{L}\p{N}]+/gu) || [];
 
 /**
@@ -187,7 +192,7 @@ function cardRoutine(quote) {
   const words = (x) => (x.match(/[\p{L}\p{N}]+/gu) || []).length;
   const all = sentences.reduce((n, x) => n + words(x), 0);
   if (!all) return false;
-  const kind = sentences.filter((x) => ROUTINE[0].test(x) || (ROUTINE[2].test(x) && !asks(x))).reduce((n, x) => n + words(x), 0);
+  const kind = sentences.filter((x) => ROUTINE[0].test(x) || CARD_EXTRA.test(x) || (ROUTINE[2].test(x) && !asks(x))).reduce((n, x) => n + words(x), 0);
   return kind / all >= ROUTINE_SHARE;
 }
 
@@ -199,12 +204,16 @@ function topicOnly(x, topic) {
 }
 
 /** The quoted line only greets, calls a page, orders the room, reprimands, announces a test or the lesson, or names its topic. */
-function routineLine(quote, { topic = null } = {}) {
+/**
+ * …`extra: false` leaves out the R7k card-frame classes (filler, day talk, a number call): red7 061530 R1 — a line those
+ * tipped into routine was a moment before, so it falls back to the card frame like them, never to silence.
+ */
+function routineLine(quote, { topic = null, extra = true } = {}) {
   const sentences = String(quote || '').split(/(?<=[.!?۔؟])\s+|\s*—\s*/u).filter((x) => /[\p{L}\p{N}]/u.test(x));
   const words = (x) => (x.match(/[\p{L}\p{N}]+/gu) || []).length;
   const all = sentences.reduce((n, x) => n + words(x), 0);
   if (!all) return false;
-  const routine = sentences.filter((x) => isRoutine(x) || topicOnly(x, topic)).reduce((n, x) => n + words(x), 0);
+  const routine = sentences.filter((x) => isRoutine(x, extra) || topicOnly(x, topic)).reduce((n, x) => n + words(x), 0);
   return routine / all >= ROUTINE_SHARE;
 }
 
@@ -364,6 +373,32 @@ function reachesEnd(excerpts, lines) {
 // R7f (COS 223858 e; panel Q036 Q083): a lesson with no labelled child turn at all is one teacher talking.
 const monologue = (lines) => Array.isArray(lines) && lines.length > 0 && !lines.some((l) => KID.test(String(l)));
 
+// R7l (COS 164428 §1a; panel v9 Z261 ⛔2, Z350): a transcript that is not a lesson — under 100 spoken words, at most two
+// teacher turns and no child's turn at all («the video I recorded did not save…») — has no moment and no card to attach
+// to. Measured on the 3,000 r7 transcripts: 6 (Z261, Z350's lesson and 4 other one-turn fragments), no judged R/A pick.
+const MIN_LESSON_WORDS = 100;
+const MAX_NOT_LESSON_TURNS = 2;
+// R7o-a (COS 194233 §1; panel v10 Z253: 398 words in 15 min — a car ride, adults labelled "Student"): a long recording
+// with little speech and no classroom talk is not a lesson either, however its speakers were labelled. Measured on the
+// 3,844 r7/r7l/r7o transcripts: 12 (0.3%) under 30 words a minute with ≤ 3 classroom words; the slowest diarized lessons
+// (19–24 wpm) carry 5–24. Unknown duration → not judged; nor is a recording under 10 minutes (red7 202632: a 100-s clip
+// is too short to say; every corpus hit is ≥ 906 s).
+const MIN_WPM = 30;
+const MIN_JUDGED_S = 600;
+const MAX_CLASSROOM_WORDS = 3;
+const CLASSROOM = /بچو|بچوں|بچے|بیٹا|بیٹی|شاباش|سبق|صفحہ|کتاب|کاپی|بورڈ|سوال|جواب|پڑھیں|لکھیں|کلاس|ہوم ?ورک|\bchildren\b|\bclass\b|\bstudents?\b|\bpage\b|\bbook\b|\bcopy\b|\bboard\b|\blesson\b|\bread\b|\bwrite\b|\banswer\b|\bquestion\b|good job|very good|well done|\bhomework\b/giu;
+function notLesson(lines, { durationS = null } = {}) {
+  const all = (lines || []).map((l) => String(l || ''));
+  if (!all.length) return false; // no transcript: no_moments, as before
+  const spoken = all.map((l) => l.replace(/^\s*\[[\d:]+\]\s*[^:\n]{0,30}:\s*/, ''));
+  const words = spoken.join(' ').match(/[\p{L}\p{N}]+/gu) || [];
+  const teacherTurns = all.filter((l) => TEACHER_LABEL.test(l) || !LABELLED.test(l)).length;
+  if (words.length < MIN_LESSON_WORDS && teacherTurns <= MAX_NOT_LESSON_TURNS && !all.some((l) => KID.test(l))) return true;
+  const minutes = Number(durationS) / 60;
+  if (!(Number(durationS) >= MIN_JUDGED_S) || words.length / minutes >= MIN_WPM) return false;
+  return spoken.reduce((n, l) => n + (l.match(CLASSROOM) || []).length, 0) <= MAX_CLASSROOM_WORDS;
+}
+
 // R7j (COS 022905 §3): the excerpt shows children working in groups or pairs / an assessment being made or used
 const GROUP_MOMENT = /گروپ|ٹولی|ٹیم|جوڑی|جوڑے|اپنے ساتھی|پارٹنر|\bgroups?\b|\bpairs?\b|\bpartners?\b|\bteams?\b/iu;
 const ASSESS_MOMENT = /روبرک|چیک لسٹ|نمبر (?:دی|لگا|ملے)|مارکس|گریڈ|جانچ|\brubrics?\b|\bchecklists?\b|\bmarks?\b|\bgrades?\b|\bscores?\b|\bassess/iu;
@@ -376,9 +411,13 @@ const whyCard = (sentence) => WHY_CARD.test(String(sentence || ''));
 // R7g (COS 002603 1c): …or wait time («5-7 سیکنڈ کا wait time», «Pause 8–10 seconds»); seconds of thinking alone are not
 // wait time (red7 G5: a think-pair-share card's «دس سیکنڈ سوچے»)
 const WAIT_CARD = /\bwait(?:s|ing)?\b|\bpause\b|انتظار|رکیں/iu;
-const whyWaitCard = (sentence) => whyCard(sentence) || WAIT_CARD.test(String(sentence || ''));
+// R7l (COS 164428 §1c; panel v9 Z207): a correction card («name the exact error, give 5 seconds of wait time, then have them
+// repeat the corrected sentence») is a feedback card; its wait time is a step of the correction, not a why / wait card
+const CORRECTION_CARD = /\b(?:errors?|mistakes?|mix(?:es|ed)? up|correct(?:ed|ion|ions|s)?|wrong)\b|غلطی|غلطیاں|تصحیح|درست کر/iu;
+const correctionCard = (sentence) => CORRECTION_CARD.test(String(sentence || '')) && !whyCard(sentence);
+const whyWaitCard = (sentence) => whyCard(sentence) || (WAIT_CARD.test(String(sentence || '')) && !correctionCard(sentence));
 // R7f (panel Q102 Q127 Q139): the card names the open question itself, not only a why or a how somewhere in its steps
 const OPEN_CARD = /open[- ]ended|open questions?|کھلے سوال|کھلا سوال|اوپن اینڈ/iu;
 const openQuestionCard = (sentence) => OPEN_CARD.test(String(sentence || ''));
 
-module.exports = { levelsMoment, levelsNear, levelsCard, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, whyWaitCard, groupMoment, assessMoment, cardRoutine, openQuestionCard, notTeaching, testPeriod, isClosure, earlyForClosure, closingCard, closingMove, reachesEnd, monologue, KID, LABEL_SUBJECTS };
+module.exports = { levelsMoment, levelsNear, levelsCard, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, whyWaitCard, correctionCard, notLesson, groupMoment, assessMoment, cardRoutine, openQuestionCard, notTeaching, testPeriod, isClosure, earlyForClosure, closingCard, closingMove, reachesEnd, monologue, KID, LABEL_SUBJECTS };

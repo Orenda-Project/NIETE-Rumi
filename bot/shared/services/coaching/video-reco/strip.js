@@ -3,9 +3,11 @@
  * The clip on the report IMAGE — bd-gzfdu9 (VIDREC), SPEC v1.2.1 §4.9 (the operator: "embedded in the teachers'
  * existing report", most of whom get it as a WhatsApp image).
  *
- * stripFor(): at the hero render, wait for the engine's pick for at most 20 s (the LLM's own timeout); a 'shown' row
- * becomes { thumbPath, title, durationS } for the templates, anything else (off, shadow, none, slower
- * than the cap, an error) is null and the image renders exactly as today. The flag is read at call time; `row` is
+ * stripFor(): at the hero render, wait for the engine's pick for at most stripWaitMs() (R7m, COS 20261024T165956: shadow
+ * 0 — nothing is drawn, so it never holds the image; card mode 1.5 s; LLM modes 5 s; VIDEO_RECO_STRIP_WAIT_MS overrides).
+ * The wait never looks at the A/B arm, so both arms hold the image alike. A 'shown' row becomes { thumbPath, title,
+ * durationS } for the templates; anything else (off, shadow, none, slower than the cap — the clip message still follows,
+ * send.js — an error) is null and the image renders exactly as today. The flag is read at call time; `row` is
  * the engine's promise when the caller has it, else the session's stored row (merge-order safety, as send.js).
  *
  * stripHtml(): ONE block for both templates (hero 794 px, slim 480 px), right under "Try one thing tomorrow": a
@@ -18,7 +20,8 @@ const path = require('path');
 const { logToFile } = require('../../../utils/logger');
 const copy = require('./copy');
 
-const CAP_MS = 20000;
+const CAP_MS = 5000; // LLM modes (v9 engine_ms p50 14.5 s: a slower pick skips the strip)
+const CARD_CAP_MS = 1500; // VIDEO_RECO_REASON=card (v9 p99 ~0.3 s)
 const ASSETS = path.join(__dirname, '..', '..', '..', '..', 'assets');
 
 function enabledByDefault() {
@@ -29,10 +32,21 @@ function enabledByDefault() {
   }
 }
 
-async function stripFor({ coachingSessionId, language, row: given, capMs = CAP_MS, deps = {} } = {}) {
+/** How long the image may wait for the pick, read at call time: 0 in shadow mode, else the env override, else the mode's cap. */
+function stripWaitMs(env = process.env) {
+  const flags = require('./flags');
+  if (flags.videoRecoMode(env) === 'shadow') return 0;
+  const n = Number(String(env.VIDEO_RECO_STRIP_WAIT_MS || '').trim());
+  if (String(env.VIDEO_RECO_STRIP_WAIT_MS || '').trim() && Number.isFinite(n) && n >= 0) return Math.floor(n);
+  return flags.videoRecoReason(env) === 'card' ? CARD_CAP_MS : CAP_MS;
+}
+
+async function stripFor({ coachingSessionId, language, row: given, capMs, deps = {} } = {}) {
   try {
     const on = typeof deps.enabled === 'function' ? deps.enabled() : enabledByDefault();
     if (!on || !coachingSessionId) return null;
+    if (capMs === undefined) capMs = stripWaitMs();
+    if (!(capMs > 0)) return null; // shadow: the engine still runs and stores its row; the image never waits for it
     const pending = given !== undefined ? Promise.resolve(given) : (deps.store || require('./store')).readForSession(coachingSessionId);
     let timer;
     const row = await Promise.race([pending, new Promise((r) => { timer = setTimeout(() => r(null), capMs); })]);
@@ -85,4 +99,4 @@ function stripHtml(vs, { language, T, width = 794 }) {
     + `<div class="vth"></div><div class="vtx"><div class="vt1">${T(title)}</div><div class="vt2">${T(hint)}</div></div></div>`;
 }
 
-module.exports = { stripFor, stripHtml, CAP_MS };
+module.exports = { stripFor, stripHtml, stripWaitMs, CAP_MS, CARD_CAP_MS };

@@ -84,6 +84,7 @@ describe('2 · a scorer-path quote must appear in the full transcript (engine)',
   const LINES = [
     { start_ms: 264000, label: 'Teacher', text: 'Who can tell me the answer? You, at the back.' },
     { start_ms: 270000, label: 'Teacher', text: 'All kids mark it. Now open page four.' },
+    { start_ms: 276000, label: 'Teacher', text: 'Read the first line with me, slowly.' }, // R7l §1a: three teacher turns, a lesson
   ];
   // 5e0b2032: the scorer's "Quote:" is a summary sentence, not a transcript line.
   const SUMMARY = 'entire transcript shows teacher-directed questioning with no pair-share or student discussion prompts';
