@@ -48,6 +48,24 @@ describe('the position rule: a word coordinated with, or listed beside, a masked
   });
 });
 
+// COS 20261024T013648 R7h 2: red7's control shapes keep the redaction they had on a2349f568e (strict excerpt, non-strict stored)
+describe('controls S1 S2 S4 S6–S10 (red7 bin/attack_redactor.js): unchanged', () => {
+  const people = { teacher: 'Saima Khan', vocab: ['پانی', 'ضروری'] };
+  test.each([
+    ['S1', 'شاباش عائشہ، بلال اور نور، آپ تینوں بورڈ پر آئیں۔', 'شاباش [a student]، [a student] اور [a student]، آپ تینوں بورڈ پر آئیں۔'],
+    ['S2', 'بیٹا نور، بتاؤ پانی کیوں ضروری ہے؟', 'بیٹا [a student]، بتاؤ پانی کیوں ضروری ہے؟'],
+    ['S4 (the surname «خان» after a masked name is kept, as before)', 'حاضری: عائشہ خان، بلال احمد، نور فاطمہ۔', 'حاضری: [a student] خان، [a student] [a student]، [a student] [a student]۔'],
+    ['S6', 'بلال اور گل، آپ دونوں پڑھیں۔', '[a student] اور [a student]، آپ دونوں پڑھیں۔'],
+    ['S7', 'صبا نے کہا کہ پانی ضروری ہے، ٹھیک ہے؟', '[a student] نے کہا کہ پانی ضروری ہے، ٹھیک ہے؟'],
+    ['S8', 'Good, Ayesha, Bilal and Hope, come to the board.', 'Good, [a student], [a student] and [a student], come to the board.'],
+    ['S9', 'نور عائشہ، بتاؤ۔', '[a student] [a student]، بتاؤ۔'],
+    ['S10', 'شاباش آفتاب بیٹا، بہت اچھا۔', 'شاباش [a student] بیٹا، بہت اچھا۔'],
+  ])('%s', (_, text, want) => {
+    expect(strict(text, { teacher: people.teacher, vocab: people.vocab })).toBe(want);
+    expect(loose(text, { teacher: people.teacher, vocab: people.vocab })).toBe(want);
+  });
+});
+
 describe('the roster check on the quote and both reasons reads the raw roster (S5 with the child on the class list)', () => {
   const S = () => require('../../../bot/shared/services/coaching/video-reco/select');
   test('rosterRaw keeps a vocabulary word that is on the roster; rosterSet (the card check) still drops it', () => {
