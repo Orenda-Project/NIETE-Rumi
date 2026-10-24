@@ -21,6 +21,7 @@ const select = require('./select');
 const silence = require('./silence');
 const { composeReason, stripBidi } = require('./copy');
 const { leadingVocative, relabelRecall } = require('./copy-rules');
+const { wordCounts } = require('./redact-names');
 
 const ENGINE_TIMEOUT_MS = 60000; // the LLM call is capped at 45 s (select.js); the sender awaits this after the report has gone
 const RETRY_MIN_LEFT_MS = 20000; // v1.3b: the one validation retry runs only with ≥ 20 s of the engine budget left
@@ -246,7 +247,9 @@ async function compute(a, d, state) {
   // bd-8hhqhf r7: the lesson's subject terms + topic words are never a child's name, in the prompt or the stored text.
   const vocab = select.subjectVocab();
   const oovVocab = select.topicVocab(analysis && analysis.topic);
-  const people = { teacher: session.users && session.users.name, vocab, oovVocab, roster: select.rosterSet(rosterWords) };
+  // red7 013349: the lesson's word counts (the redactor's position-rule guard) and the raw roster (the quote/reason check)
+  const people = { teacher: session.users && session.users.name, vocab, oovVocab, roster: select.rosterSet(rosterWords), rosterRaw: select.rosterRaw(rosterWords),
+    counts: wordCounts(prompt.transcriptLines(session)) };
   // F1: the card's action (it opens with the teacher's name in prod) is stored redacted (V1.7.1 "no names"); the BM25
   // query itself ran on the raw words. Only the action: the redactor masks Title-Case indicator names too.
   const st = stepTextOf(t, analysis, card);
@@ -332,7 +335,7 @@ async function compute(a, d, state) {
   const vopts = {
     stepIndicator: t.stepIndicator, indicators: t.indicators, source: t.source, catalog, textRoute: !!list.textReason,
     teacherName: people.teacher, scorerQuote: scorerQuote || uptakeQuote, // §3.5 [v1.3] d: the Quote: part, never evidence_summary
-    rawExcerpts: rawEx, vocab, oovVocab, roster: people.roster, topic: lesson.topic, grade: lesson.grade, // R7d §5
+    rawExcerpts: rawEx, vocab, oovVocab, roster: people.roster, rosterRaw: people.rosterRaw, topic: lesson.topic, grade: lesson.grade, // R7d §5
     cardIndicator: cardInd, // R7f 1a: a B6 card's moment shows the levels
     labelClosed: labelOpen, // R7g 1a (Z199): the label class cites a closed question
     reader: language, // R7g 1b: tense and voice are refused on the reader's Urdu line only
@@ -500,7 +503,7 @@ async function compute(a, d, state) {
   }
   const c = Number(p.confidence);
   // v1.3c (a) ⛔9: the reasons and the quote are stored (and so sent) after the non-strict name redactor.
-  const clean = (x) => select.postRedact(x, people.teacher, vocab);
+  const clean = (x) => select.postRedact(x, people.teacher, vocab, people.counts);
   const cand = pickList.candidates.find((x) => x.seg_id === hit.segment.seg_id) || {};
   const chosen = t.source === 'card_text' || t.source === 'phase' ? (((hit.segment.fico || [])[0] || {}).indicator || null) : null;
   // bd-8hhqhf (scale-run 070730, COS 070808): `indicator` is in the analysis's own scheme. On fico_main_37 that is the
