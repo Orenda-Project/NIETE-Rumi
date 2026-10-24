@@ -46,7 +46,32 @@ function leadingVocative(text) {
   if (!m) return 0;
   const words = m[2].split(/\s+/).map((w) => w.replace(/[⁦-⁩]/g, '')).filter(Boolean);
   if (words.length === 1) return m[0].length;
-  return vocativeWords(words, { partial: true }) ? m[0].length : 0;
+  return vocativeWords(words, { partial: true }) || cardOpenerName(m[0], words) ? m[0].length : 0;
+}
+
+// Z086 (ped-scale 042448, scale-run 042756): a teacher's name made only of words the redactor also knows as dictionary
+// words is masked by nothing, so a card's opener is read the other way round: two or three Urdu-script words before
+// the first «،» are the address unless they are a reviewed non-name opener (scale-run scrub v4) or carry a word a clause
+// is built from (function, role, verb, digit).
+const NOT_NAME_OPENER = new Set(['اگلی کلاس', 'آگلی کلاس', 'ایک سوال پوچھیں', 'ایک سوال دیں', 'ایک سوال لیں', 'ایک لفظ دیں',
+  'سبق کے شروع', 'سبق کے ابتدائی', 'کلاس سے پہلے', 'سرورت بنیں']);
+// red7 045106 (HOLD #3662): a role word or title in front of the name («میڈم ‹name› ‹name›،», H1) is dropped and the rest
+// tested; a diacritic is not a letter of another script (H2: Script=Inherited); a name runs to four words (H3).
+const MARKS = /[\u064B-\u0652\u0670]/gu;
+function cardOpenerName(opener, words) {
+  if (!/،\s*$/.test(opener)) return false;
+  const bare = words.map((w) => w.replace(MARKS, ''));
+  const core = bare.filter((w) => !TITLE.has(w.toLowerCase()) && !HONORIFIC.has(w.toLowerCase()) && !ROLE.has(w.toLowerCase()));
+  if (!core.length || core.length > 4 || NOT_NAME_OPENER.has(bare.join(' ')) || NOT_NAME_OPENER.has(core.join(' '))) return false;
+  return core.every((w) => /^\p{Script=Arabic}+$/u.test(w) && !/[ں\d۰-۹٠-٩]/u.test(w) && !imperative(w) && !FUNCTION.has(w));
+}
+
+/** The name words of a card's leading vocative (titles and honorifics dropped), [] when the card opens with none. */
+function vocativeNames(text) {
+  const s = String(text || '');
+  const n = leadingVocative(s);
+  if (!n) return [];
+  return VOC.exec(s)[2].split(/\s+/).map((w) => w.replace(/[⁦-⁩]/g, '')).map((w) => w.replace(MARKS, '')).filter((w) => w && !TITLE.has(w.toLowerCase()) && !HONORIFIC.has(w.toLowerCase()) && !ROLE.has(w.toLowerCase()));
 }
 
 /** A reason that quotes a card still opening with a name (two or more words), at its start or after a quote mark. */
@@ -384,4 +409,4 @@ function closedQuestion(quote) {
 const URDU_SLIP = /پوچھ (?:رہے|رہی) (?:ہیں|ہو)|پوچھ(?:ا|ے|ی) (?:گیا|گئے|گئی)(?=[\s،۔؛.]|$)/u;
 const urduSlip = (reasonUr) => URDU_SLIP.test(lessonSide(String(reasonUr || '').replace(/[⁦-⁩]/g, ''), /کلپ|ویڈیو/u));
 
-module.exports = { closedQuestion, urduSlip, leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, clipKind, sceneClaim, recallMislabel, relabelRecall, pointerNoLine, recallLeft, namesGap, notGapLine, auditWords };
+module.exports = { closedQuestion, urduSlip, leadingVocative, vocativeNames, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, clipKind, sceneClaim, recallMislabel, relabelRecall, pointerNoLine, recallLeft, namesGap, notGapLine, auditWords };
