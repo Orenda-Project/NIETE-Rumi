@@ -76,7 +76,8 @@ describe('the terms file is the only source', () => {
 describe('the Urdu reader\'s line from the transcript frame: the move term before the quote, nothing free after it', () => {
   test('a recall move: «سبق میں استاد نے ‹term› پوچھا، "…"۔ یہ کلپ اس بارے میں ہے: ‹title›۔»', async () => {
     const row = await run(args(), deps([answer({ move: 'recall_question' })]));
-    expect(bare(row.reason_ur)).toBe(`سبق میں استاد نے ${term('recall_question')} پوچھا، "${Q.replace(/\?/g, '؟')}"۔ یہ کلپ اس بارے میں ہے: کیوں والا سوال۔`);
+    // R7k §1d: a quote that ends in «؟» takes no second mark («؟۔», v8 Z108)
+    expect(bare(row.reason_ur)).toBe(`سبق میں استاد نے ${term('recall_question')} پوچھا، "${Q.replace(/\?/g, '؟')}" یہ کلپ اس بارے میں ہے: کیوں والا سوال۔`);
   });
   test('an answer clause only from the file: chorus → «اور جواب ایک ساتھ آیا»', async () => {
     const row = await run(args(), deps([answer({ move: 'yes_no_question', answer: 'chorus_answer' })]));
@@ -92,9 +93,11 @@ describe('the Urdu reader\'s line from the transcript frame: the move term befor
     const row = await run(args(), deps([answer({ move: term('recall_question') })]));
     expect(bare(row.reason_ur)).toContain(`${term('recall_question')} پوچھا،`);
   });
-  test('an activity move takes «کروایا», never «پوچھا»', async () => {
+  // R7k §1d (urdu_terms v2 move_frame): a move name is the clip's, never what the teacher did («تھنک پیئر شیئر کروایا», 16 v8 rows)
+  test('an activity move: the gap first, then «یہ کلپ ‹term› دکھاتا ہے»; never «کروایا»', async () => {
     const row = await run(args(), deps([answer({ move: 'think_pair_share' })]));
-    expect(bare(row.reason_ur)).toContain('تھنک پیئر شیئر کروایا');
+    expect(bare(row.reason_ur)).toContain('یہ کلپ تھنک پیئر شیئر دکھاتا ہے۔');
+    expect(bare(row.reason_ur)).not.toContain('کروایا');
   });
   test('control: an English reader\'s English line is the model\'s', async () => {
     const row = await run(args({ lang: 'en' }), deps([answer({ move: 'recall_question' })]));
