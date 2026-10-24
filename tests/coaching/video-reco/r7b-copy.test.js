@@ -93,7 +93,7 @@ describe('the validator: gendered Urdu, system notes, claims the clip cannot bac
   test('the retry appendix names both new rules; the prompt is vr-7 and carries both', () => {
     expect(P.retryAppendix('validation:gender')).toMatch(/plural/);
     expect(P.retryAppendix('validation:unshown')).toMatch(/clip/);
-    expect(P.PROMPT_VERSION).toBe('vr-9');
+    expect(P.PROMPT_VERSION).toBe('vr-10');
     const text = P.build({ target: { source: 'card_text' }, candidates: [], catalog: cat, excerpts: ['[00:30] Teacher: x'] });
     expect(text).toContain('کرتے ہیں');
     expect(text).toMatch(/only what the clip's own line says/);

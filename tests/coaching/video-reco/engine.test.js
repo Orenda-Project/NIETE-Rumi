@@ -104,7 +104,7 @@ test('happy path: one LLM call, a shown row with the clip, the reason, the momen
     step_at_top: false, alias_kind: null, repeat_module: false, target_source: 'step', loop_angle: 'show', observation_type: 'self',
     language: 'ur', language_match: 'preferred', teacher_level: 2, teacher_level_source: 'ladder', level_match: 'near', ladder_completed: false,
     reason_en: 'At 00:30 the class could only answer yes or no. This clip is about: Ask why and how.', reason_ur: 'کلاس صرف ہاں یا نہیں میں جواب دے سکی۔ یہ کلپ اس بارے میں ہے: عنوان۔', moment_at: '00:30', moment_quote: GOOD.moment.quote, moment_source: 'transcript',
-    confidence: 0.7, none_reason: null, catalog_version: 'catalog-fixture', prompt_version: 'vr-9', model: 'gpt-5-mini-2025-08-07',
+    confidence: 0.7, none_reason: null, catalog_version: 'catalog-fixture', prompt_version: 'vr-10', model: 'gpt-5-mini-2025-08-07',
     experiment: null, v10_group: 'C', image_strip: false,
   });
   expect(row.candidates[0]).toEqual(expect.objectContaining({ seg_id: expect.any(String), score: expect.any(Number), indicator: 'C1' }));
@@ -394,9 +394,9 @@ describe('v1.3b: ONE bounded validation retry (lead-review 19:49Z ruling 4)', ()
 });
 
 describe('v1.3b: lead-review 19:56Z/19:58Z one-liners + r-ab EVENTS_SCHEMA §3b columns', () => {
-  test('F1: step_text_query is stored with the teacher name redacted', async () => {
+  test('F1: step_text_query (R7g: the card_text route\'s query) is stored with the teacher name redacted', async () => {
     const d = deps();
-    const a = args({ nextStep: { target: { indicator: 'C2' } }, card: { indicator: 'C2', action: 'Saima Khan, ask two why questions' } });
+    const a = args({ nextStep: { target: null }, card: { indicator: null, action: 'Saima Khan, ask two why questions' } });
     a.session.users.preferred_language = 'en';
     a.session.transcript_language = 'en';
     const row = await E.recommendForReport({ ...a, deps: d });
