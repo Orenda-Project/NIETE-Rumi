@@ -394,9 +394,10 @@ function routineQuote(p, topic = null) {
 }
 
 /** ⛔9 (SPEC v1.3c §3.5 a): what is stored and sent passes the non-strict redactor; a text with no name is unchanged. */
-function postRedact(text, teacherName, vocab = [], counts = null) {
+function postRedact(text, teacherName, vocab = [], counts = null, carry = null, trace = null) {
   if (typeof text !== 'string' || !text) return text;
-  return redactNames(text, { teacher: teacherName || null, strict: false, placeholders: { child: '[a student]' }, vocab, counts }); // counts: red7 013349
+  // counts: red7 013349; carry (R7i): the lesson's and the quote's masked names, masked wherever they stand
+  return redactNames(text, { teacher: teacherName || null, strict: false, placeholders: { child: '[a student]' }, vocab, counts, carry, trace });
 }
 
 // bd-8hhqhf (lead-final 21:24Z): maths/science loanwords a teacher says in Urdu script, never a child's name: the output
@@ -515,13 +516,13 @@ function cardFallback(a = {}) {
 }
 
 /** The card frame for a chapter (the fallback's text, no rule or list gate): {reason_en, reason_ur} | null. */
-function cardFrame({ sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab = [], segment, labels = [], roster = null, plainIfNamed = false } = {}) {
+function cardFrame({ sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab = [], segment, labels = [], roster = null, plainIfNamed = false, carry = null } = {}) {
   try {
     if (!fallbackSubjectOk(module, subject)) return null; // [v1.3c-2] ⛔4: no literacy clip on a science lesson
     // [v1.3c-5] + R7b (P165, red7 V1–V10): the card's vocative goes BEFORE redaction, found by its shape (copy-rules.js)
     const raw = stripBidi(String(sentence || ''));
     const bare = raw.slice(leadingVocative(raw));
-    let s = String(postRedact(bare, teacherName, vocab) || '').replace(LEADING_ADDRESS, '').trim();
+    let s = String(postRedact(bare, teacherName, vocab, null, carry) || '').replace(LEADING_ADDRESS, '').trim(); // R7i: carry
     if (!s || s.startsWith('[') || UNSHOWABLE.test(s)) return null; // [v1.3c-5] a placeholder never opens it
     if (!imperative(s)) return null; // R7b (P123, P161): a diagnosis fragment is not a move to try
     if (LABEL_TEXT.test(s) || labels.some((x) => x && s.toLowerCase().includes(String(x).toLowerCase()))) return null;

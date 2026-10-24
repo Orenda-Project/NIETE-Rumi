@@ -17,6 +17,8 @@
  *        in an address slot, the vocabulary rule), never a lexicon name (red7 070504, COS 070543);
  *        oovVocab: [the lesson's topic words] — they shield the vocabulary rule only;
  *        counts: Map(normalised word → its occurrences in the whole lesson), for the position rule's guard;
+ *        carry: Set of name keys (nameKey) masked elsewhere in this lesson or in the stored quote — masked here wherever they
+ *        stand (R7i, COS 022306: a name masked once never comes back in output);
  *        trace: an array that receives {word, rep, why} for every masked word, why = the rule that masked it }. Over-redaction is the safe direction: a word wrongly
  * replaced costs quote fidelity; a name let through puts a child's name in a forwardable WhatsApp message.
  */
@@ -69,6 +71,7 @@ function redactNames(text, ctx = {}) {
   const vocab = lexSet(ctx.vocab);
   const oovVocab = lexSet(ctx.oovVocab); // the lesson's topic words: the vocabulary rule only, never an address slot (red7 070505)
   const trace = Array.isArray(ctx.trace) ? ctx.trace : null;
+  const carry = ctx.carry instanceof Set && ctx.carry.size ? ctx.carry : null;
   const roles = new Map();
   [].concat(ctx.roster || []).forEach((n) => nameTokens(n).forEach((t) => roles.set(t, ph.child)));
   ['school', 'coach', 'teacher'].forEach((r) => nameTokens(ctx[r]).forEach((t) => roles.set(t, ph[r])));
@@ -93,6 +96,7 @@ function redactNames(text, ctx = {}) {
     const placeholder = s[m.index - 1] === '[' && after[0] === ']';
     let rep = placeholder ? null : roles.get(n);
     let why = rep ? 'role' : null;
+    if (!rep && !placeholder && carry && carry.has(n)) { rep = ph.child; why = 'carry'; }
     if (!rep && !honorific && !placeholder) {
       const strong = ur ? SETS.urStrong.has(n) : SETS.latStrong.has(n) && (address || /^[A-Z]/.test(w));
       const amb = ur ? SETS.urAmbig.has(n) : SETS.latAmbig.has(n);
@@ -133,6 +137,8 @@ function coordinated(text, child, { vocab, oovVocab, counts, trace }) {
     new RegExp(`${P}(?:[\\s،,]+${P})*\\s+(?:اور|and)\\s+${W}(?=[\\s،,۔.!؟?]|$)`, 'gu'), // ‹p› اور X
     new RegExp(`${P}\\s*[،,]\\s*${W}(?=\\s*(?:[،,]|اور\\s|and\\s))`, 'gu'), // ‹p›، X، (a list)
     new RegExp(`(?:^|[\\s“"«:])${W}\\s+(?:اور|and)\\s+${P}`, 'gu'), // X اور ‹p›
+    // R7i second guard (red7 S11, Z049): a one-word call just before a masked name, «…چاہے؟ X؟ ‹p› ‹p›؟»
+    new RegExp(`(?:^|[؟?!۔.،,:]\\s*)${W}\\s*[؟?!،,]\\s*${P}`, 'gu'),
   ];
   let out = text;
   for (let pass = 0; pass < 3; pass++) { // a list gives up one name per pass
@@ -159,4 +165,18 @@ function wordCounts(lines) {
   return c;
 }
 
-module.exports = { redactNames, wordCounts, ROLE_STOP };
+/** The key a carry set holds for a word (the redactor's own normalisation). */
+const nameKey = (w) => norm(String(w || ''));
+
+/**
+ * R7i (COS 022306 §1): the name keys the STRICT redactor masks as a child anywhere in these lines, by a name rule. The
+ * vocabulary rule ('oov', an unknown word) is not carried: it masks lesson words too (bd-8hhqhf 2/53), and the model never
+ * sees an unknown word unmasked anyway. ctx as redactNames (teacher, vocab, oovVocab, counts).
+ */
+function maskedKeys(lines, ctx = {}) {
+  const trace = [];
+  for (const l of lines || []) redactNames(String(l || ''), { ...ctx, strict: true, placeholders: { child: '[a student]' }, trace });
+  return new Set(trace.filter((x) => x.rep === '[a student]' && x.why !== 'oov' && x.why !== 'carry').map((x) => nameKey(x.word)));
+}
+
+module.exports = { redactNames, wordCounts, nameKey, maskedKeys, ROLE_STOP };

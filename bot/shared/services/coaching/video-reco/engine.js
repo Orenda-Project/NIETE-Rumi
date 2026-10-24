@@ -21,7 +21,7 @@ const select = require('./select');
 const silence = require('./silence');
 const { composeReason, stripBidi } = require('./copy');
 const { leadingVocative, relabelRecall } = require('./copy-rules');
-const { wordCounts } = require('./redact-names');
+const { wordCounts, maskedKeys, nameKey } = require('./redact-names');
 
 const ENGINE_TIMEOUT_MS = 60000; // the LLM call is capped at 45 s (select.js); the sender awaits this after the report has gone
 const RETRY_MIN_LEFT_MS = 20000; // v1.3b: the one validation retry runs only with ≥ 20 s of the engine budget left
@@ -250,6 +250,8 @@ async function compute(a, d, state) {
   // red7 013349: the lesson's word counts (the redactor's position-rule guard) and the raw roster (the quote/reason check)
   const people = { teacher: session.users && session.users.name, vocab, oovVocab, roster: select.rosterSet(rosterWords), rosterRaw: select.rosterRaw(rosterWords),
     counts: wordCounts(prompt.transcriptLines(session)) };
+  // R7i (COS 022306 §1): a name the strict redactor masks anywhere in the lesson is masked in every model input and output
+  people.carry = maskedKeys(prompt.transcriptLines(session), people);
   // F1: the card's action (it opens with the teacher's name in prod) is stored redacted (V1.7.1 "no names"); the BM25
   // query itself ran on the raw words. Only the action: the redactor masks Title-Case indicator names too.
   const st = stepTextOf(t, analysis, card);
@@ -292,7 +294,7 @@ async function compute(a, d, state) {
       const hit = catalog.segment(c.seg_id);
       const said = hit && select.cardFallback({
         none, segId: c.seg_id, shortlist: fixedList, sentence: cardSentence, startS: hit.segment.start_s, endS: hit.segment.end_s,
-        teacherName: people.teacher, module: hit.module, subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster,
+        teacherName: people.teacher, module: hit.module, subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster, carry: people.carry,
       });
       if (said) return { said, segId: c.seg_id, list: fixedList };
     }
@@ -387,6 +389,7 @@ async function compute(a, d, state) {
       segment: seg.segment, // R7b: the clause the clip serves
       language, // R7c: the reader's line is the one that must fit and the one that quotes (was never passed: always 'en')
       roster: people.roster,
+      carry: people.carry, // R7i
       plainIfNamed: select.cardMoveOk(sentence, seg.segment, { strict: true }), // R7g 1e (Z100; Z078 stays silent)
     });
   };
@@ -487,6 +490,15 @@ async function compute(a, d, state) {
   const said = fallback || {
     reason_en: relabelRecall(stripBidi(String(p.reason_en)).trim(), 'en', asked), reason_ur: relabelRecall(stripBidi(String(p.reason_ur)).trim(), 'ur', asked),
   };
+  // R7i (COS 021017 §1, panel v7 Z049 ⛔9): the quote and each reason were redacted as separate texts, and the `named` rule's
+  // turn-end test (redact-names.js) depends on what follows a word in the text it reads: «…؟ X؟» ends the quote (masked) but
+  // not the reason that re-quotes it (kept). By construction now: every name the quote's redaction masks, and every name
+  // masked in the lesson (people.carry), is masked in both reasons, the card frame and so the body and the portal line.
+  const carry = new Set(people.carry);
+  const quoteTrace = [];
+  const accepted = !fallback && p.moment && p.moment.quote
+    ? select.postRedact(stripBidi(String(p.moment.quote)), people.teacher, vocab, people.counts, carry, quoteTrace) : null;
+  for (const x of quoteTrace) if (x.rep === '[a student]' && x.why !== 'oov') carry.add(nameKey(x.word));
   // R7g (COS 002603 1b; panel v6: card frame 94.3% Urdu-ok, model-written 66.0%): an English reader's Urdu line (the portal's)
   // is never the model's translation when the card frame exists — the card frame on a chapter whose move the card names,
   // else the model's line only when it passes every Urdu check, else the plain frame. red7 G2: an Urdu reader's English line
@@ -494,7 +506,7 @@ async function compute(a, d, state) {
   if (!fallback && (language === 'en' || !select.englishLineOk(said.reason_en))) {
     const other = language === 'en' ? 'ur' : 'en';
     const sentence = (card && card.action) || step.try || fa.try_this_tomorrow || '';
-    const args0 = { startS: hit.segment.start_s, endS: hit.segment.end_s, teacherName: people.teacher, module: hit.module, subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster };
+    const args0 = { startS: hit.segment.start_s, endS: hit.segment.end_s, teacherName: people.teacher, module: hit.module, subject, vocab, oovVocab, segment: hit.segment, language, roster: people.roster, carry };
     const frame = sentence && select.cardMoveOk(sentence, hit.segment) ? select.cardFrame({ ...args0, sentence, plainIfNamed: true }) : null;
     const n = Math.round(Number(hit.segment.end_s) - Number(hit.segment.start_s));
     const checked = other === 'ur' && select.urduLineOk(said.reason_ur);
@@ -503,14 +515,13 @@ async function compute(a, d, state) {
   }
   const c = Number(p.confidence);
   // v1.3c (a) ⛔9: the reasons and the quote are stored (and so sent) after the non-strict name redactor.
-  const clean = (x) => select.postRedact(x, people.teacher, vocab, people.counts);
+  const clean = (x) => select.postRedact(x, people.teacher, vocab, people.counts, carry);
   const cand = pickList.candidates.find((x) => x.seg_id === hit.segment.seg_id) || {};
   const chosen = t.source === 'card_text' || t.source === 'phase' ? (((hit.segment.fico || [])[0] || {}).indicator || null) : null;
   // bd-8hhqhf (scale-run 070730, COS 070808): `indicator` is in the analysis's own scheme. On fico_main_37 that is the
   // chapter's main-37 tag, never a v4 id under a 37 label; `catalog_indicator` keeps the v4 tag.
   const stored = t.scheme === 'fico_main_37' ? ((hit.segment.fico_main37 || [])[0] || null) : chosen;
-  // red7 070727: the isolate goes around the span the validator accepted as the moment (inner quotes stay one run).
-  const accepted = !fallback && p.moment && p.moment.quote ? clean(stripBidi(String(p.moment.quote))) : null;
+  // red7 070727: the isolate goes around the span the validator accepted as the moment (inner quotes stay one run): `accepted`, above.
   const mismatch = tagMismatch(t, hit.segment);
   const route = cand.route || pickList.route || null;
   return finish({
