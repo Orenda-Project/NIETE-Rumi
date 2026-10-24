@@ -156,7 +156,9 @@ describe('1 · ⛔9 (MUST): a child named inside the card sentence never reaches
 
   test('control: a card with no name keeps its fallback unchanged', async () => {
     const row = await run(args(), deps([ROMAN, ROMAN]));
-    expect(row.reason_en).toContain('Next class, ask two why questions about shapes and wait five seconds.');
+    // R7o-c: the frame closes the quote with its own full stop; the sentence's own final «.» goes
+    expect(row.reason_en).toContain('Next class, ask two why questions about shapes and wait five seconds');
+    expect(row.reason_en).not.toMatch(/\.\u2069?"\./);
   });
 });
 
