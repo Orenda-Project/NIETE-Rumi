@@ -11,7 +11,9 @@
  * WHAT IT EMITS. `lesson_plan.health.checked` (Axiom), every tick: { windowStart, windowEnd, windowMin,
  * verdict, reasons, stuck, rowsRead, truncated, sources: [{ source, channel, asks, delivered, inFlight,
  * failed, systemFailures, systemFailureRate, codes, p50DeliverSec, p90DeliverSec }], down: [{ source,
- * channel, attempts, teachers, latestId, latestAt, code }], writeFailures: { count, codes } | null }.
+ * channel, attempts, teachers, latestId, latestAt, code }], writeFailures: { count, codes } | null, tracks: [the
+ * same summary per free-form track key — coalesce(textbook_metadata->>'fflp_track', source) — with `track` for
+ * `source` and a status failing | insufficient | healthy], trackShapeDisagreement: { count } | null }.
  * Not healthy, it is also said at error level and sent to Slack (THE ALERT, below).
  *
  *   degraded — a request crossed STUCK_HOURS still pending/processing during the window (reason 'stuck';
@@ -30,6 +32,13 @@
  *              every one of its own attempts: failures cluster on a few phones (in production, September
  *              2026, 771 failed menu sends came from 51 teachers), and one teacher tapping a send that keeps
  *              failing is her problem, not the path's. A path the window flags keeps that one reason.
+ *            — a free-form TRACK failing by the same rules (reason 'failure_rate:track:<track>/<channel>'),
+ *              unless its source summary already says the same: a free-form request is a gamma_standard
+ *              row, so by source alone a free-form outage reads as Gamma's, and a Gamma regression can hide
+ *              inside free-form volume.
+ *            — any «Free-form payload track ignored» line from the worker in the window (reason
+ *              'track_shape_disagreement'): a job said free-form and its row carried no track. Counted in the
+ *              same Axiom read as the write failures below; no token, or a failed count, leaves it null.
  *            — >= WRITE_FAILED_MIN lifecycle writes failed in the window (reason 'write_failed'), counted
  *              from the `lesson_plan.lifecycle.write_failed` events in Axiom, in this deployment's dataset
  *              and env: the writers run in the web service and in the workers, so no one process sees
@@ -108,6 +117,9 @@ const SYSTEM_FAILURES = new Set(['GENERATION_FAILED', 'RENDER_FAILED', 'DELIVERY
 const IN_FLIGHT = new Set(['pending', 'processing']);
 
 let skipsInARow = 0;
+// The worker's line when a payload says free-form and the row carries no fflp_track (a writer and the reader
+// disagree about the row shape; bot/workers/lesson-plan-generation.worker.js). Any line in a window is a reason.
+const TRACK_IGNORED_MSG = 'Free-form payload track ignored';
 let unwiredSaid = false;
 let noAxiomSaid = false;
 
@@ -175,14 +187,29 @@ function standing(r) {
   return { neverQueued, retrying, inFlight: (IN_FLIGHT.has(r.status) && !neverQueued) || retrying };
 }
 
-/** Per path and channel, from the window's rows. Pure. Failures count only on finished asks. */
-function summarize(rows) {
+/**
+ * A row's free-form track key: coalesce(textbook_metadata->>'fflp_track', source). The window read selects the
+ * JSON path under its alias `fflp_track`; a caller holding whole rows passes `textbook_metadata`. Never derived from
+ * `source` alone: a free-form request is a `gamma_standard` row whose track is in textbook_metadata.
+ */
+function trackKeyOf(r) {
+  const t = r.fflp_track || (r.textbook_metadata && r.textbook_metadata.fflp_track);
+  return t || r.source;
+}
+
+/**
+ * Per path and channel, from the window's rows. Pure. Failures count only on finished asks. `keyOf` picks the
+ * path (the source by default; trackKeyOf for the per-track summary, whose entries carry `track`, not `source`).
+ */
+function summarize(rows, keyOf = null) {
   const by = new Map();
+  const field = keyOf ? 'track' : 'source';
   for (const r of rows) {
-    const key = `${r.source}/${r.channel || 'whatsapp'}`;
+    const path = keyOf ? keyOf(r) : r.source;
+    const key = `${path}/${r.channel || 'whatsapp'}`;
     if (!by.has(key)) {
       by.set(key, {
-        source: r.source, channel: r.channel || 'whatsapp', asks: 0, delivered: 0, inFlight: 0, failed: 0,
+        [field]: path, channel: r.channel || 'whatsapp', asks: 0, delivered: 0, inFlight: 0, failed: 0,
         systemFailures: 0, codes: {}, deliverSec: [],
       });
     }
@@ -247,19 +274,43 @@ function downPaths(rows) {
     .map(({ over, longest, teachers, ...r }) => ({ ...r, teachers: teachers.size }));
 }
 
-function verdictFor(sources, stuck, truncated = false, down = []) {
+/** The window rules, for one source or track summary. Pure. */
+function failing(s) {
+  const finished = s.asks - s.inFlight;
+  return (finished >= MIN_FINISHED && s.systemFailureRate >= FAIL_RATE) || s.systemFailures >= ABS_FAILURES;
+}
+
+/**
+ * Each track summary's own status: failing (the window rules), insufficient (too few finished asks and too few
+ * failures to judge — never "healthy" on no evidence), or healthy. Pure; returns new objects.
+ */
+function withTrackStatus(tracks) {
+  return tracks.map((t) => {
+    const finished = t.asks - t.inFlight;
+    const status = failing(t) ? 'failing' : finished < MIN_FINISHED ? 'insufficient' : 'healthy';
+    return { ...t, status };
+  });
+}
+
+function verdictFor(sources, stuck, truncated = false, down = [], tracks = []) {
   const reasons = [];
   // A read that hit MAX_ROWS has not seen the whole window: whatever it did not read could be failing.
   if (truncated) reasons.push('truncated');
   if (stuck > 0) reasons.push('stuck');
   const flagged = new Set();
   for (const s of sources) {
-    const finished = s.asks - s.inFlight;
-    const byRate = finished >= MIN_FINISHED && s.systemFailureRate >= FAIL_RATE;
-    if (byRate || s.systemFailures >= ABS_FAILURES) {
+    if (failing(s)) {
       reasons.push(`failure_rate:${s.source}/${s.channel}`);
       flagged.add(`${s.source}/${s.channel}`);
     }
+  }
+  // Per track: a failing track is a reason of its own unless a source summary already says exactly the same thing
+  // (a path with no free-form rows has a track summary identical to its source summary).
+  for (const t of tracks) {
+    if (!failing(t)) continue;
+    const same = sources.find((s) => s.source === t.track && s.channel === t.channel && s.asks === t.asks);
+    if (same && flagged.has(`${same.source}/${same.channel}`)) continue;
+    reasons.push(`failure_rate:track:${t.track}/${t.channel}`);
   }
   for (const d of down) if (!flagged.has(`${d.source}/${d.channel}`)) reasons.push(`down:${d.source}/${d.channel}`);
   return { verdict: reasons.length ? 'degraded' : 'healthy', reasons };
@@ -277,7 +328,7 @@ async function snapshot({ start, end, db = supabase }) {
   const dayFrom = new Date(end.getTime() - DOWN_LOOKBACK_H * 60 * 60 * 1000).toISOString();
   const [win, stuckRead, day] = await Promise.all([
     db.from('lesson_plan_requests')
-      .select('source, channel, status, error_code, retry_count, created_at, delivered_at')
+      .select('source, channel, status, error_code, retry_count, created_at, delivered_at, fflp_track:textbook_metadata->>fflp_track')
       .not('source', 'is', null)
       .gte('created_at', start.toISOString())
       .lt('created_at', end.toISOString())
@@ -303,10 +354,11 @@ async function snapshot({ start, end, db = supabase }) {
   const rows = (win && win.data) || [];
   const stuck = Number((stuckRead && stuckRead.count) || 0);
   const sources = summarize(rows);
+  const tracks = withTrackStatus(summarize(rows, trackKeyOf));
   const down = downPaths((day && day.data) || []);
   const truncated = rows.length >= MAX_ROWS;
-  const { verdict, reasons } = verdictFor(sources, stuck, truncated, down);
-  return { ok: true, verdict, reasons, stuck, rowsRead: rows.length, truncated, sources, down };
+  const { verdict, reasons } = verdictFor(sources, stuck, truncated, down, tracks);
+  return { ok: true, verdict, reasons, stuck, rowsRead: rows.length, truncated, sources, down, tracks };
 }
 
 /** `promise`, or a rejection after `ms`: a call that hangs must not hold the tick. */
@@ -332,20 +384,25 @@ async function countWriteFailures({ start, end, env = process.env }) {
     }
     return null;
   }
+  // The same read also counts the worker's TRACK_IGNORED_MSG lines (kind 'track_ignored'): one Axiom call a tick.
   const apl = `['${env.AXIOM_DATASET || 'niete-logs'}'] | where env == '${env.NODE_ENV || 'production'}' `
-    + "| where msg == 'lesson_plan.lifecycle.write_failed' | extend d = parse_json(data_json) "
-    + '| summarize n = count() by code = tostring(d.code), source = tostring(d.source)';
+    + `| where msg == 'lesson_plan.lifecycle.write_failed' or msg contains '${TRACK_IGNORED_MSG}' | extend d = parse_json(data_json) `
+    + "| summarize n = count() by kind = iff(msg == 'lesson_plan.lifecycle.write_failed', 'write_failed', 'track_ignored'), "
+    + 'code = tostring(d.code), source = tostring(d.source)';
   try {
     const rows = await within(AXIOM_TIMEOUT_MS, watch().axiomQuery('lp_write_failed', apl, start.toISOString(), end.toISOString(), env));
     const codes = {};
     let count = 0;
+    let trackIgnored = 0;
     for (const r of rows || []) {
       const n = Number(r.n) || 0;
+      if (r.kind === 'track_ignored') { trackIgnored += n; continue; }
       const code = r.code || 'UNKNOWN';
       count += n;
       codes[code] = (codes[code] || 0) + n;
     }
-    return { count, codes };
+    // Not enumerable: writeFailures keeps its own shape in the event; run() reads the count from here.
+    return Object.defineProperty({ count, codes }, 'trackIgnored', { value: trackIgnored, enumerable: false });
   } catch (error) {
     logToFile('⚠️ Lesson-plan health: could not count lifecycle write failures — the check goes on without them',
       { error: error && error.message }, 'warn');
@@ -382,7 +439,7 @@ function codesLine(codes, only = null) {
  * What each reason says to a person, and the keys it is de-duplicated under: `key` for two hours, a
  * down path's newest failure (`seenKey`) for the lookback. Pure. Names no teacher, ask or request.
  */
-function incidentsFor({ reasons, sources, down, stuck, writeFailures, start, end }) {
+function incidentsFor({ reasons, sources, down, stuck, writeFailures, tracks = [], trackShapeDisagreement = null, start, end }) {
   const { hhmm } = watch();
   const between = `between ${hhmm(start)} and ${hhmm(end)} PKT`;
   const out = [];
@@ -390,7 +447,15 @@ function incidentsFor({ reasons, sources, down, stuck, writeFailures, start, end
     const colon = reason.indexOf(':');
     const kind = colon < 0 ? reason : reason.slice(0, colon);
     const path = colon < 0 ? null : reason.slice(colon + 1);
-    if (kind === 'failure_rate') {
+    if (kind === 'failure_rate' && path.startsWith('track:')) {
+      const t = (tracks || []).find((x) => `track:${x.track}/${x.channel}` === path);
+      if (!t) continue;
+      out.push({
+        reason, key: `path:${path}`,
+        text: `*${t.track} track* · ${channelName(t.channel)} — ${t.systemFailures} of ${t.asks - t.inFlight} finished asks `
+          + `failed (${Math.round(t.systemFailureRate * 100)}%) ${between} · ${codesLine(t.codes, SYSTEM_FAILURES)}`,
+      });
+    } else if (kind === 'failure_rate') {
       const s = sources.find((x) => `${x.source}/${x.channel}` === path);
       if (!s) continue;
       out.push({
@@ -411,6 +476,12 @@ function incidentsFor({ reasons, sources, down, stuck, writeFailures, start, end
     } else if (kind === 'truncated') {
       const cap = MAX_ROWS.toLocaleString('en-US');
       out.push({ reason, key: 'truncated', text: `*Check incomplete* — over ${cap} asks ${between}; only the newest ${cap} were read` });
+    } else if (kind === 'track_shape_disagreement' && trackShapeDisagreement) {
+      out.push({
+        reason, key: 'track_shape_disagreement',
+        text: `*Free-form track mismatch* — ${countOf(trackShapeDisagreement.count, 'job', 'jobs')} said free-form but the request row `
+          + `had no track, and ran the old path ${between}`,
+      });
     } else if (kind === 'write_failed' && writeFailures) {
       out.push({
         reason, key: 'write_failed',
@@ -464,7 +535,7 @@ async function markSent(incidents, cache, env) {
  * Tell a person: ONE Slack message naming every reason not already sent. Resolves { outcome: 'off' |
  * 'unwired' | 'deduped' | 'sent' | 'failed', reasons?, alreadyReported? }. Never throws.
  */
-async function alert({ now, snap, reasons, writeFailures, start, end, cache, env = process.env }) {
+async function alert({ now, snap, reasons, writeFailures, trackShapeDisagreement = null, start, end, cache, env = process.env }) {
   try {
     if (healthAlertOff(env)) return { outcome: 'off' };
     const W = watch();
@@ -477,7 +548,7 @@ async function alert({ now, snap, reasons, writeFailures, start, end, cache, env
       }
       return { outcome: 'unwired' };
     }
-    const incidents = incidentsFor({ reasons, sources: snap.sources, down: snap.down, stuck: snap.stuck, writeFailures, start, end });
+    const incidents = incidentsFor({ reasons, sources: snap.sources, down: snap.down, stuck: snap.stuck, writeFailures, tracks: snap.tracks, trackShapeDisagreement, start, end });
     const { fresh, already } = await partition(incidents, cache);
     const alreadyReported = already.map((i) => i.reason);
     if (!fresh.length) return { outcome: 'deduped', alreadyReported };
@@ -535,18 +606,22 @@ async function run({ now = new Date(), redis, db = supabase } = {}) {
     }
     const { stuck, sources, down } = snap;
     const writeFailures = await countWriteFailures({ start, end });
+    // The worker's «payload track ignored» lines, from the same Axiom read: null (unknown) when that read did not answer.
+    const trackShapeDisagreement = writeFailures ? { count: writeFailures.trackIgnored || 0 } : null;
     const reasons = [...snap.reasons];
     if (writeFailures && writeFailures.count >= WRITE_FAILED_MIN) reasons.push('write_failed');
+    if (trackShapeDisagreement && trackShapeDisagreement.count > 0) reasons.push('track_shape_disagreement');
     const verdict = reasons.length ? 'degraded' : 'healthy';
     const windowMin = Math.round((end.getTime() - start.getTime()) / 60000);
     logEvent('lesson_plan.health.checked', {
       windowStart: start.toISOString(), windowEnd: end.toISOString(), windowMin, verdict, reasons, stuck,
       rowsRead: snap.rowsRead, truncated: snap.truncated, sources, down, writeFailures,
+      tracks: snap.tracks, trackShapeDisagreement,
     });
     let told = null;
     if (verdict !== 'healthy') {
       logToFile(`⚠️ Lesson-plan health: ${reasons.join(', ')}`, { verdict, reasons, stuck, sources, down, writeFailures }, 'error');
-      told = await alert({ now, snap, reasons, writeFailures, start, end, cache });
+      told = await alert({ now, snap, reasons, writeFailures, trackShapeDisagreement, start, end, cache });
       logEvent('lesson_plan.health.alert', { verdict, ...told });
     }
     try {
