@@ -343,6 +343,7 @@
     var coachLW = !!opts.coach_last_word && mode === 'proctored' && !childLW;
     var lw = null; // { task, state: pending | ready | none, suggested, picked }
     var punct = !!opts.passage_punct;
+    var urFit = !!opts.ur_fit; // sa_ur_fit (round 6): an Urdu sentence on a demo card is marked Urdu, so it takes the Urdu rules
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /**
@@ -418,6 +419,8 @@
     }
 
     el.classList.add('sae');
+    // sa_ur_fit (round 6): the Urdu text rules (sa.css "Round 6"): every Urdu word inside its box, clear of pictures.
+    if (opts.ur_fit) el.classList.add('is-ur-fit');
     el.setAttribute('lang', lang);
     el.setAttribute('dir', lang === 'ur' ? 'rtl' : 'ltr');
     el.setAttribute('data-mode', mode);
@@ -719,7 +722,8 @@
     function demoItem(t) {
       var d = t.script && t.script.demo_item;
       if (!d || typeof d !== 'object') return null;
-      var label = labelOf(d) || (typeof d.say === 'string' ? h('p', { class: 'sae-label sa-label', text: d.say }) : null);
+      var sayUr = urFit && typeof d.say === 'string' && /[\u0600-\u06FF]/.test(d.say);
+      var label = labelOf(d) || (typeof d.say === 'string' ? h('p', { class: 'sae-label sa-label', lang: sayUr ? 'ur' : null, dir: sayUr ? 'rtl' : null, text: d.say }) : null);
       var answer = Array.isArray(d.options) && d.options.length
         ? tiles(d.options, function () {}, function (o, b) { b.disabled = true; }, taskLang(t), t, d.glyphs)
         : h('div', { class: 'sae-demo-blank', 'aria-hidden': 'true', text: '__' });
