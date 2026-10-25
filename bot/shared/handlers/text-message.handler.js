@@ -1420,6 +1420,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
         return;
       }
       typingController.stop();
+      turn.planTurn = true; // SPEC_FTUE §12: the registration Flow comes after the plan, not with it (REGISTRATION_AFTER_PLAN)
       const responseLanguage = await getUserLanguage(user.id) || 'en';
       await openLpBrowseFlow({ from, userId: user.id, language: responseLanguage, reason: 'bare_command' });
       return;
@@ -2653,6 +2654,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
       // Clear the state
       await MenuService.clearAwaitingLessonPlanTopic(user.id);
 
+      turn.planTurn = true;
       // Curriculum pre-gen intercept (no-op unless the region enables it)
       if (await tryCurriculumLessonPlanServe(from, messageBody, user, lessonPlanState.language)) {
         return; // curriculum pre-generated LP served instantly
@@ -2762,6 +2764,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   if (await redirectToApp(intentFeature, 'intent')) return;
 
   if (intent.type === 'lesson_plan') {
+    turn.planTurn = true;
     // Curriculum pre-gen intercept (no-op unless the region enables it)
     if (await tryCurriculumLessonPlanServe(from, messageBody, user, responseLanguage)) {
       return; // curriculum pre-generated LP served instantly
@@ -2807,6 +2810,11 @@ async function offerRegistrationAfterReply(turn, from) {
   try {
     const account = turn.user;
     if (!account || !account.id || turn.lookupFailed || turn.invited || turn.oneDoor) return;
+    // SPEC_FTUE §12, NIETE row: «registration Flow after, not with, the plan». A plan turn (the catalogue Flow, the
+    // curriculum serve, the free-form seam) sends no Flow beside it. The offer stays once-only and moves to the teacher's
+    // next non-plan turn; a grounded plan's worker also offers it after delivery (checkAndTriggerRegistration), the v8
+    // catalogue delivery does not. Exactly "true" only.
+    if (turn.planTurn && process.env.REGISTRATION_AFTER_PLAN === 'true') return;
     // Not "is she registered" (a name is enough for that) but "does she still need the form": a
     // name with no school or role counts. Children and admin-set coaches/AEOs never do.
     if (!needsRegistrationForm(account)) return;
