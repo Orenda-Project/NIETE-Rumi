@@ -142,6 +142,16 @@ maybe('ON: every Urdu word on every screen of the visit fits (real browser, Nast
     }
   }, 180000);
 
+  test('ON with sa_guided_instructions (Grades 1-3 RDF auto, the guided ladder\'s screens): every Urdu word fits', async () => {
+    for (const g of [1, 2, 3]) for (const v of ['320x568', '360x640@130']) {
+      const sc = W.scenarios({ grades: [g] }).find((x) => x.block === 'rdf_auto');
+      const r = await W.walk(browser, sc, W.VIEWPORTS.find((x) => x.name === v), { urFit: true, guided: true });
+      expect(r.some((s) => s.state.shown === 'battery_end')).toBe(true);
+      expect(r.some((s) => /sae-guided/.test(s.state.cls))).toBe(true);
+      expect(fmt(r)).toEqual([]);
+    }
+  }, 300000);
+
   // The sync dot sits in the page's top corner; a heading scrolled up inside the body must never pass under it.
   test('ON at 360x640: a scrolled heading never passes under the sync dot', async () => {
     const sc = W.scenarios({ grades: [1] }).find((x) => x.block === 'rdf_auto');

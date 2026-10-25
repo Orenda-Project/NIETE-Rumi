@@ -331,3 +331,27 @@ button{font:inherit;color:inherit}
 .is-ur-fit .sae-opt.is-glyph[lang=ur] .sae-cap,.is-ur-fit[lang=ur] .sae-opt.is-glyph .sae-cap{line-height:2;padding-top:1.3em;padding-bottom:.4em}
 .is-ur-fit .sae-opt.is-glyph[lang=ur],.is-ur-fit[lang=ur] .sae-opt.is-glyph{gap:0}
 .is-ur-fit .sae-label[lang=ur]{font-family:var(--sae-fu);font-weight:400;font-size:24px;letter-spacing:0;direction:rtl;line-height:3;padding-top:.78em}
+/* sa_guided_instructions (round 6, DESIGN_R6 §3.8): the guided ladder. A practice cell is dashed (never green/red); the
+   big button is drawn but inert until the demo ends; Jugnu's hand presses it; a pulse is 12 px (it never overruns the
+   16-px gutter at 320); the meter's border turns the accent once the child's voice is heard (never a tick). */
+.sae-guided .sae-onecell.is-guided-practice{border-style:dashed;border-color:var(--sae-accent)}
+.sae-guided .sa-next[aria-disabled=true]{pointer-events:none}
+.sae-guided .sae-foot{position:relative}
+.sae-hand{position:absolute;inset-inline-end:18%;bottom:-6px;font-size:44px;font-family:var(--sae-f);line-height:1;pointer-events:none;animation:sae-hand-in .4s ease-in both;transition:opacity .3s}
+.sae-hand.is-gone{opacity:0}
+@keyframes sae-hand-in{from{transform:translateY(-36px)}to{transform:translateY(0)}}
+.sae-guided .sa-next.is-pressed{transform:translateY(4px);box-shadow:0 2px 0 var(--sae-accent-d)}
+.sae-guided .sae-onecell.is-leaving{transform:translateX(-110%);opacity:0;transition:transform .32s ease-in,opacity .32s ease-in}
+.sae[dir=rtl] .sae-guided .sae-onecell.is-leaving{transform:translateX(110%)}
+.sae-opt.is-demo{border-color:var(--sae-accent)}
+.sae-gmeter{width:100%;max-width:320px;border:3px solid var(--sae-line)}
+.sae-gmeter.is-heard{border-color:var(--sae-accent)}
+/* the pulse is the nudge's (R6-9): the same look on the big button; the replay tile pulses with a plain ring */
+.sae-primary.sae-pulse{box-shadow:0 6px 0 var(--sae-accent-d),0 0 0 4px rgba(242,165,22,.55);animation:sae-nudge-pulse 1.2s ease-out 4}
+@keyframes sae-nudge-pulse{0%{box-shadow:0 6px 0 var(--sae-accent-d),0 0 0 0 rgba(242,165,22,.55)}100%{box-shadow:0 6px 0 var(--sae-accent-d),0 0 0 12px rgba(242,165,22,0)}}
+.sae-replay.sae-pulse{box-shadow:0 0 0 4px rgba(242,165,22,.55)}
+@media (prefers-reduced-motion:reduce){
+  .sae-hand{animation:none}
+  .sae-guided .sae-onecell.is-leaving{transition:none}
+  .sae-primary.sae-pulse,.sae-replay.sae-pulse{animation:none!important;outline:4px solid var(--sae-ink);outline-offset:4px}
+}
