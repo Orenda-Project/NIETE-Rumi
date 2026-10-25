@@ -37,6 +37,15 @@ function voiceManifest(bank) {
     const sc = t.script || {};
     for (const [k, line] of Object.entries(sc)) {
       if (k === 'demo_item' || k === 'demo_image') continue;
+      if (k === 'guided') { // round 6: every guided line is a clip (a demo's lines sit one level down)
+        for (const [gk, g] of Object.entries(line)) {
+          if (gk === 'kind' || gk === 'mechanic' || gk === 'plan') continue;
+          if (Array.isArray(g)) g.forEach((x) => any(x, 'instruction'));
+          else if (g && !g.en && !g.ur && !g.text) Object.values(g).forEach((x) => any(x, 'instruction'));
+          else any(g, 'instruction');
+        }
+        continue;
+      }
       any(line, 'instruction', /_chain$/.test(k) ? ear : false);
     }
     // A W3 one-at-a-time task holds its items on the task (items[]); a practice item's model is a chain.

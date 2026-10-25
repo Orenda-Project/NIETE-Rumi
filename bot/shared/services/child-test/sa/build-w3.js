@@ -120,6 +120,119 @@ const OP = { '+': { sign: '+', en: 'plus', ur: 'جمع' }, '-': { sign: '−', e
 const ADVANCE = { reading: 3, numbers: 5 };
 const pad = (n) => String(n).padStart(2, '0');
 
+// ------------------------------------------------------------------------------------------- guided tier (round 6)
+// DESIGN_R6 §3 (switch sa_guided_instructions, default OFF; RULING R6-1): RDF auto on the Grade 1-3 forms teaches each
+// task before the clock: show, then tell, then Jugnu does one, then the child (EGRA Toolkit 2016 Annex H: show the
+// stimulus, the subtask's instruction, a worked example, practice with feedback). Only lines are added, each one clip:
+// the items, the practice items (official, never scored), the ready line (test_intro + begin), the clock and every
+// stop rule are the task's own (RULING R6-3). The {Do} line carries exactly the constraints of the task's own
+// instruction (name not sound, sound not name, the whole word, in the head, out loud) and adds none.
+const GUIDED_GRADES = [1, 2, 3];
+const THING = { letter: { en: 'letter', ur: 'حرف' }, word: { en: 'word', ur: 'لفظ' }, number: { en: 'number', ur: 'نمبر' },
+  sum: { en: 'maths sum', ur: 'سوال' } };
+// "like alif, bay, pay" names letters of the task's own alphabet, in either page language.
+const NAMES_LIKE = { ur: { en: 'alif, bay, pay', ur: 'الف، بے، پے' }, en: { en: 'A, B, C', ur: 'اے، بی، سی' } };
+const GDO = {
+  letter_names: { thing: 'letter', do: (tl) => L(`Say the letter's NAME out loud. The name is what we call it, like ${NAMES_LIKE[tl].en}. Not its sound, its name.`,
+    `اس حرف کا نام زور سے بولیں۔ نام مطلب جیسے ہم ${NAMES_LIKE[tl].ur} کہتے ہیں۔ آواز نہیں، نام۔`, 'egra_tk2016:Annex H p.189 ("tell me the NAME … not its sound") + a Grade 2 teacher\'s anchor'),
+    short: { en: 'Say the name', ur: 'نام بتائیں' } },
+  letter_sounds: { thing: 'letter', do: () => L('How does this letter speak in a word? Say that sound out loud. Not its name, just its sound, like Jugnu will show you now.',
+    'یہ حرف لفظ میں کیسے بولتا ہے؟ وہ آواز زور سے بولیں۔ اس کا نام نہیں، بس آواز، جیسے جگنو ابھی بتائے گا۔', 'egra_tk2016:Annex H p.187 ("the sounds … not their names") + a Grade 2 teacher\'s anchor'),
+    short: { en: 'Say the sound', ur: 'آواز بتائیں' } },
+  words: { thing: 'word', do: () => L('Read the whole word together, out loud. Do not say the letters one by one.',
+    'پورا لفظ ایک ساتھ، زور سے پڑھیں۔ ایک ایک حرف الگ نہ بولیں۔', 'egra_tk2016:Annex H p.195 ("Do not spell the word, but read it")'),
+    short: { en: 'Read the word', ur: 'لفظ پڑھیں' } },
+  number_id: { thing: 'number', do: () => L('Say the number out loud.', 'نمبر زور سے بولیں۔', 'core_egma:p.2 Task 1 ("Tell me what each number is")'),
+    short: { en: 'Say the number', ur: 'نمبر بتائیں' } },
+  sums: { thing: 'sum', do: () => L('Think it out in your head, then say the answer out loud.', 'دماغ میں سوچیں، پھر جواب زور سے بولیں۔', 'core_egma:p.7 Task 4B (mental)'),
+    short: { en: 'Say the answer', ur: 'جواب بتائیں' } },
+  // The fluency task's own instruction says "out loud" and "quickly", never "in your head": its {Do} adds nothing.
+  fluency: { thing: 'sum', do: () => L('Say the answer out loud.', 'جواب زور سے بولیں۔', 'core_egma:p.6 Task 4A ("Say the answer for each problem")'),
+    short: { en: 'Say the answer', ur: 'جواب بتائیں' } },
+  discrimination: { thing: 'number', do: () => L('Put your finger on the bigger number.', 'جو نمبر بڑا ہے، اس پر انگلی رکھیں۔', 'core_egma:p.3 Task 2 ("Which number is bigger?")') },
+  missing: { thing: 'number', do: () => L('Put your finger on the number that goes in the empty place.', 'جو نمبر خالی جگہ میں آئے گا، اس پر انگلی رکھیں۔', 'core_egma:p.4 Task 3 ("What number goes here?")') },
+};
+const BIG = { en: 'the big button below', ur: 'نیچے والا بڑا بٹن' }; // RULING R6-8: never called by a colour
+const GL = {
+  see: (th) => L(`Look. A ${th.en} will come here, big, like this.`,
+    th.ur === 'سوال' ? 'دیکھیں۔ یہاں حساب کا ایک سوال آئے گا، بڑا سا، ایسے۔' : `دیکھیں۔ یہاں ایک ${th.ur} آئے گا، بڑا سا، ایسے۔`, 'egra_tk2016:Annex H (each subtask opens by showing the stimulus)'),
+  fluency_more: L('The sums come one after another. Do as many as you can. When the time is over Jugnu will say: Stop.',
+    'ایک کے بعد ایک سوال آتے جائیں گے۔ جتنے ہو سکیں، کریں۔ جب وقت ختم ہو گا تو جگنو کہے گا: رک جائیں۔', 'core_egma:p.6 Task 4A ("I will tell you when to start and when to stop")'),
+  watch: L('Watch. Jugnu does one first.', 'دیکھیں، پہلے جگنو کر کے دکھاتا ہے۔', 'egra_tk2016:Annex H worked example; Tangerine SA demo'),
+  press: L(`Now Jugnu presses ${BIG.en}…`, `اب جگنو ${BIG.ur} دباتا ہے…`, 'DESIGN_R6 §3.1 G5'),
+  next: L('…and the next one comes.', 'اور اگلا آ گیا۔', 'DESIGN_R6 §3.1 G5'),
+  press_short: L('Then press the button.', 'پھر بٹن دبائیں۔', 'DESIGN_R6 §3.1 (the fade)'),
+  replay: L('If you want to hear the sum again, press this one.', 'اگر سوال دوبارہ سننا ہو تو یہ والا بٹن دبائیں۔', 'RULING #17 (the replay tile), in the demo'),
+  dont_know: (th) => L(`If you do not know one, that is fine. Just press ${BIG.en}.`,
+    `اگر کوئی ${th.ur === 'سوال' ? 'سوال' : th.ur} نہ آتا ہو تو کوئی بات نہیں۔ بس ${BIG.ur} دبا دیں۔`, 'egra_tk2016:Annex H ("If you come to a letter you do not know, go on to the next letter")'),
+  turn: (sh) => L(`Now it is your turn. ${sh.en}, then press the big button.`, `اب آپ کی باری۔ ${sh.ur}، پھر ${BIG.ur} دبائیں۔`, 'egra_tk2016:Annex H practice 1'),
+  help_silence: L('That is fine. Say it with Jugnu:', 'کوئی بات نہیں۔ جگنو کے ساتھ بولیں:', 'egra_tk2016:Annex H (an incorrect practice is answered for the child)'),
+  help_another: L('Now try another one.', 'اب ایک اور کرتے ہیں۔', 'egra_tk2016:Annex H ("Now try another one")'),
+  help_same: L('Now you say it.', 'اب آپ بولیں۔', 'DESIGN_R6 §3.1 G6a (a one-item pool)'),
+  help_press_first: L('First say it, then press.', 'پہلے بولیں، پھر بٹن دبائیں۔', 'DESIGN_R6 §3.1 G6b (mechanics)'),
+  help_press: L(`Good. Now press ${BIG.en}.`, `شاباش۔ اب ${BIG.ur} دبائیں۔`, 'DESIGN_R6 §3.1 G6c (mechanics)'),
+  check: L('Now one more. This time you do it yourself.', 'اب ایک اور۔ اس بار آپ خود کریں۔', 'egra_tk2016:Annex H practice 2'),
+  retry: (sh) => L(`That is fine. Let us do it once more. ${sh.en}, then press ${BIG.en}.`, `کوئی بات نہیں۔ ایک بار پھر کرتے ہیں۔ ${sh.ur}، پھر ${BIG.ur} دبائیں۔`,
+    'DESIGN_R6 R6-4 (one re-explain, never a stop)'),
+  retry_tap: L('That is fine. Let us do it once more.', 'کوئی بات نہیں۔ ایک بار پھر کرتے ہیں۔', 'DESIGN_R6 R6-4 (one re-explain, never a stop)'),
+  idle: L(`Press ${BIG.en} to go on.`, `آگے جانے کے لیے ${BIG.ur} دبائیں۔`, 'DESIGN_R6 §3.1 (idle on a guided screen)'),
+  press_warm: L(`Now press ${BIG.en}.`, `اب ${BIG.ur} دبائیں۔`, 'DESIGN_R6 §3.5 (the press warm-up)'),
+  story: [L('A short story will come.', 'ایک چھوٹی سی کہانی آئے گی۔', 'egra_tk2016:Annex H p.197 ("Here is a short story")'),
+    L('Read it out loud. If a word is hard, that is fine, go on to the next word.', 'زور سے پڑھیں۔ کوئی لفظ مشکل ہو تو کوئی بات نہیں، اگلے لفظ پر چلے جائیں۔',
+      'egra_tk2016:Annex H p.197 ("If you come to a word you do not know, go on to the next word"); the finger line is not spoken on glass'),
+    L('When you have read it, press the star button.', 'جب پڑھ لیں تو ستارے والا بٹن دبائیں۔', 'RULING #10 (the star)')],
+  story_comp: [L('Jugnu will ask you some questions about the story.', 'جگنو آپ سے کہانی کے بارے میں کچھ سوال پوچھے گا۔', 'egra_tk2016:Annex H p.197 (questions intro)'),
+    L('Answer out loud, in Urdu or English.', 'زور سے جواب دیں، اردو میں یا انگریزی میں۔', 'egra_tk2016:Annex H p.197 ("in whichever language you prefer"), as the task\'s own intro at every grade'),
+    L(`Then press ${BIG.en} for the next question.`, `پھر اگلے سوال کے لیے ${BIG.ur} دبائیں۔`, 'DESIGN_R6 §3.4')],
+};
+/** The ladder's kind for a W3 task id. */
+function guidedKind(id) {
+  const k = id.split('.')[1];
+  if (/^letter_names/.test(k)) return 'letter_names';
+  if (/^letter_sounds/.test(k)) return 'letter_sounds';
+  if (/^words/.test(k)) return 'words';
+  if (/^number_id/.test(k)) return 'number_id';
+  if (/^(add|sub|mul)2i$/.test(k)) return 'sums';
+  if (k === 'fluency1m') return 'fluency';
+  if (k === 'discrimination2') return 'discrimination';
+  if (k === 'missing4') return 'missing';
+  if (k === 'story_w3') return 'story';
+  if (k === 'story_comp_w3') return 'story_comp';
+  return null;
+}
+/**
+ * script.guided for one W3 task (every line through spoken(), so each is a clip) and its practice plan: indexes into
+ * the task's own practice[] (DESIGN_R6 §3.3: the demo, the helped turn, the unaided check and the one retry; where the
+ * pool is short an item is shared, logged check_item_shared). Nothing is authored; no ready line (R6-3 (b)).
+ */
+function guidedOf(t, spoken) {
+  const kind = guidedKind(t.task);
+  if (!kind) return null;
+  const sp = (l) => spoken(l);
+  const common = { idle: sp(GL.idle), press_warm: sp(GL.press_warm) };
+  if (kind === 'story' || kind === 'story_comp') return { kind, mechanic: kind === 'story' ? 'star' : 'say_press', steps: GL[kind].map(sp), ...common };
+  const n = (t.practice || []).length;
+  const last = Math.max(0, n - 1);
+  if (kind === 'discrimination' || kind === 'missing') {
+    const d = GDO[kind];
+    // §3.2: the demo on the first item; the child's turn and the check are one item (the second where it exists).
+    const plan = { demo: 0, check: Math.min(1, last), retry: Math.min(1, last) };
+    return { kind, mechanic: 'tap', see: sp(GL.see(THING[d.thing])), do: sp(d.do()), demo: { watch: sp(GL.watch), next: sp(GL.next) },
+      dont_know: sp(GL.dont_know(THING[d.thing])), retry: sp(GL.retry_tap), ...common,
+      plan: { ...plan, check_item_shared: plan.check === plan.demo } };
+  }
+  const d = GDO[kind];
+  const th = THING[d.thing];
+  const sums = kind === 'sums' || kind === 'fluency';
+  const plan = { demo: 0, turn: Math.min(1, last), check: Math.min(2, last), retry: 0 };
+  return { kind, mechanic: 'say_press', see: sp(GL.see(th)), ...(kind === 'fluency' ? { see_more: sp(GL.fluency_more) } : {}), do: sp(d.do(t.lang)),
+    demo: { watch: sp(GL.watch), press: sp(GL.press), next: sp(GL.next), press_short: sp(GL.press_short), ...(sums ? { replay: sp(GL.replay) } : {}) },
+    dont_know: sp(GL.dont_know(th)), turn: sp(GL.turn(d.short)), help_silence: sp(GL.help_silence), help_another: sp(GL.help_another),
+    help_same: sp(GL.help_same), help_press_first: sp(GL.help_press_first), help_press: sp(GL.help_press), check: sp(GL.check),
+    retry: sp(GL.retry(d.short)), ...common,
+    plan: { ...plan, check_item_shared: plan.check === plan.demo } };
+}
+
 /** A bank path "v3:sets.A.reading.ur.letters" (or extra:…) → the object it names; a key may hold a dot (ma.add2). */
 function at(banks, ref) {
   const [bank, path] = ref.split(':');
@@ -378,6 +491,10 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
     { subtask: 'mental_math_fluency', from: 'rwp2026:blfluency.blfl1', time_limit_s: fl.timed_s, advance_after_s: ADVANCE.numbers, practice_note: fl.practice_note, chip: SAY_ANSWER,
       deviation: 'one sum at a time, answered aloud and recorded; the items reached in 60 s are the score basis' }));
 
+  // Round 6 (DESIGN_R6 §3): the guided tier's lines on the Grade 1-3 forms only; Grade 4-5 forms are as before.
+  if ((f.grades || []).length && f.grades.every((g) => GUIDED_GRADES.includes(g))) {
+    for (const t of out) { const gd = guidedOf(t, spoken); if (gd) t.script = { ...t.script, guided: gd }; }
+  }
   const order = new Map(W3_TASKS.map((id, i) => [id, i]));
   return out.sort((a, b) => order.get(a.task) - order.get(b.task));
 }
@@ -440,4 +557,4 @@ function runtimeW3Task(t, lang, H) {
   };
 }
 
-module.exports = { W3_TASKS, VARIANTS, LINES_W3, w3Tasks, runtimeW3Task, passageTokens, relineStory };
+module.exports = { W3_TASKS, VARIANTS, LINES_W3, GUIDED_GRADES, w3Tasks, runtimeW3Task, passageTokens, relineStory, guidedKind };
