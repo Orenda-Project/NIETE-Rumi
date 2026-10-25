@@ -74,6 +74,7 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   autoChildLastWord: childLastWordReader = createBrotliFlag({ key: SWITCHES.autoChildLastWord }),
   appAsks: appAsksReader = createBrotliFlag({ key: SWITCHES.appAsks }),
   urFit: urFitReader = createBrotliFlag({ key: SWITCHES.urFit }),
+  tapChangeUntilNext: tapChangeReader = createBrotliFlag({ key: SWITCHES.tapChangeUntilNext }),
   voiceTashdeed: tashdeedReader = createBrotliFlag({ key: VOICE_TASHDEED_KEY }),
   holdMs, now, env } = {}) {
   const router = express.Router();
@@ -98,11 +99,12 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   const autoChildLastWord = steady(safe(childLastWordReader), hold);
   const appAsks = steady(safe(appAsksReader), hold);
   const urFit = steady(safe(urFitReader), hold);
+  const tapChangeUntilNext = steady(safe(tapChangeReader), hold);
   const voiceTashdeed = steady(safe(tashdeedReader), hold);
   const takes = tashdeedTakes();
   router.use('/sa', on.warm(), practiceAllMaths.warm(), passageRotation.warm(), voiceV2.warm(), oneAtATime.warm(), passagePunct.warm(), rdfManual.warm(),
     rdfW3Forms.warm(), voiceGateV2.warm(), compAllQuestions.warm(), cellPace.warm(), sectionRecording.warm(), coachLastWord.warm(), cellNextOnly.warm(),
-    autoChildLastWord.warm(), appAsks.warm(), urFit.warm(), voiceTashdeed.warm());
+    autoChildLastWord.warm(), appAsks.warm(), urFit.warm(), tapChangeUntilNext.warm(), voiceTashdeed.warm());
   const files = express.static(DIR, {
     index: false,
     dotfiles: 'ignore',
@@ -145,6 +147,7 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
         coachLastWord: coachLastWord() === true, cellNextOnly: cellNextOnly() === true, autoChildLastWord: autoChildLastWord() === true,
         appAsks: appAsks() === true,
         urFit: urFit() === true,
+        tapChangeUntilNext: tapChangeUntilNext() === true,
       });
       let v2 = false;
       try { v2 = voiceV2() === true; } catch (_) { v2 = false; }

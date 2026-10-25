@@ -26,6 +26,8 @@
  *   sa_app_asks             round 6: in RDF manual Jugnu asks every question and item prompt; the coach gives the instructions only.
  *   sa_ur_fit               round 6: every Urdu word on the screens whole, inside its box, clear of pictures and the foot
  *                           (sa.css "Round 6", the page's .is-ur-fit).
+ *   sa_tap_change_until_next self-corrections (EGMA): on an untimed tap question the tap selects; the child may change
+ *                           it; Next scores the final choice (the answer records changed: n). Timed grids: first tap.
  *                           ON, each adds battery.ui.<one_at_a_time|passage_punct|rdf_manual> = true for the engine;
  *                           all three OFF, the battery has no ui key, byte for byte as before.
  *
@@ -39,11 +41,12 @@ const SWITCHES = {
   coachLastWord: 'sa_coach_last_word', cellNextOnly: 'sa_cell_next_only', autoChildLastWord: 'sa_auto_child_last_word',
   appAsks: 'sa_app_asks',
   urFit: 'sa_ur_fit',
+  tapChangeUntilNext: 'sa_tap_change_until_next',
 };
 const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManual: 'rdf_manual', voiceGateV2: 'voice_gate_v2',
   compAllQuestions: 'comp_all_questions', cellPace: 'cell_pace',
   sectionRecording: 'section_recording', coachLastWord: 'coach_last_word', cellNextOnly: 'cell_next_only',
-  autoChildLastWord: 'auto_child_last_word', appAsks: 'app_asks', urFit: 'ur_fit' };
+  autoChildLastWord: 'auto_child_last_word', appAsks: 'app_asks', urFit: 'ur_fit', tapChangeUntilNext: 'tap_change_until_next' };
 const W3_KEYS = ['rdf_auto', 'rdf_manual', 'rdf_variants', 'rdf_w3_absent'];
 const W3_LINES = ['coach_will_instruct', 'please_go_on'];
 

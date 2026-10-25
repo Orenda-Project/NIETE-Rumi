@@ -429,11 +429,13 @@
       if (ok && t.stop.first_line_n && st.attempted <= t.stop.first_line_n) st.first_line_correct++;
     }
 
-    function score(it, value) {
+    function score(it, value, meta) {
       var t = task();
       var ok = t.mode === 'oral' ? null : (value === 'timeout' || value === 'skipped' ? false : hit(it, value, t.mode));
       tally(t, ok);
       var a = { item_id: it.id, value: value, ok: ok };
+      // sa_tap_change_until_next: how many times the child changed the choice before Next (only when the page says so)
+      if (meta && typeof meta.changed === 'number' && meta.changed >= 0) a.changed = meta.changed;
       if (oneAtATime && st.item_started != null) a.ms = Math.round(now() - st.item_started);
       if (st.rec_marks) {
         var at = function (x) { return Math.max(0, Math.round(x - st.rec_t0)); };
@@ -571,13 +573,16 @@
         if (cellTask(task())) { st.cells = []; st.cell = { i: 0, at: st.started }; }
         ev('task_start', { task_id: st.task_id, value: { time_limit_s: task().time_limit_s || null, mode: task().mode, items: st.items.length } });
       },
-      /** An answer to the current item: a tile, the typed number (keypad) or 'spoken' (oral). true/false/null. */
-      answer: function (value) {
+      /**
+       * An answer to the current item: a tile, the typed number (keypad) or 'spoken' (oral). true/false/null.
+       * meta.changed (sa_tap_change_until_next): the times the child changed the choice before Next, kept on the answer.
+       */
+      answer: function (value, meta) {
         var t = task();
         if (st.phase !== 'running' || t.mode === 'record') return undefined;
         var it = st.items[st.item_i];
         ev(t.mode === 'keypad' || t.mode === 'keyboard' ? t.mode + '_submit' : 'tap', { task_id: st.task_id, item_id: it.id, value: value });
-        return score(it, value);
+        return score(it, value, meta);
       },
       /** Jugnu finished asking (a spoken question, a word problem): the item's answer time starts now. */
       promptDone: function () {

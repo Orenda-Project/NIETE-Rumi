@@ -249,6 +249,7 @@
           coach_last_word: w3.coach_last_word === true, lastWordHint: lastWordHint, auto_child_last_word: w3.auto_child_last_word === true,
           app_asks: manual && w3.app_asks === true,
           ur_fit: w3.ur_fit === true,
+          tap_change_until_next: w3.tap_change_until_next === true,
           embed: opts.embed === true,
         });
         if (sync && view && view.setSync) hooks.sync = [function (st) { view.setSync(st); }];

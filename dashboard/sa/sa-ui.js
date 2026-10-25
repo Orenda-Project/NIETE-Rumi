@@ -344,6 +344,10 @@
     var lw = null; // { task, state: pending | ready | none, suggested, picked }
     var punct = !!opts.passage_punct;
     var urFit = !!opts.ur_fit; // sa_ur_fit (round 6): an Urdu sentence on a demo card is marked Urdu, so it takes the Urdu rules
+    // sa_tap_change_until_next (EGMA: the last answer the child settles on): on an untimed tap item a tap selects, the
+    // child may change it, and Next scores the final choice. Timed grids keep first-tap-counts.
+    var tapChange = !!opts.tap_change_until_next;
+    var tapPick = null;       // { key, value, changed }: the choice on show, not yet scored
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /**
@@ -846,6 +850,35 @@
 
     function sRunTap(v) {
       var it = v.item, t = v.task;
+      // sa_tap_change_until_next: an untimed item's tap selects; Next scores the final choice
+      var pickMode = tapChange && !t.time_limit_s;
+      var key = t.id + '|' + it.id + '|' + v.item_index;
+      if (!pickMode || (tapPick && tapPick.key !== key)) tapPick = null;
+      function pick(value) {
+        if (!tapPick) tapPick = { key: key, value: value, changed: 0 };
+        else if (tapPick.value !== value) { tapPick.value = value; tapPick.changed++; }
+        draw();
+      }
+      function picked(value) { return !!tapPick && tapPick.value === value; }
+      var words = t.tap_on === 'passage' && typeof it.target_index === 'number'
+        ? passageTap(t, function (i, b) {
+          if (pickMode) return pick(i);
+          busy = true; b.classList.add('is-pressed'); runner.answer(i); later(function () { busy = false; draw(); }, PRESS_MS);
+        })
+        : null;
+      if (words && pickMode && tapPick) {
+        var w = words.querySelector('.sae-word[data-i="' + tapPick.value + '"]');
+        if (w) { w.classList.add('is-picked'); w.setAttribute('aria-pressed', 'true'); }
+      }
+      var foot = pickMode && tapPick
+        ? [btn(C.next, function () {
+          var p = tapPick;
+          tapPick = null;
+          busy = true;
+          runner.answer(p.value, { changed: p.changed });
+          later(function () { busy = false; draw(); }, PRESS_MS);
+        }, 'sae-primary sa-next sa-tap-next')]
+        : [nextBtn(v)];
       return screen(v, 'sae-run sae-run-tap', [
         clock(v),
         h('p', { class: 'sae-task-tag', text: tx(t.title) }),
@@ -853,17 +886,19 @@
         coachSays(it, true),
         labelOf(it, t),
         // A tap on the passage itself (print orientation): the words are the buttons, scored by place.
-        t.tap_on === 'passage' && typeof it.target_index === 'number'
-          ? passageTap(t, function (i, b) { busy = true; b.classList.add('is-pressed'); runner.answer(i); later(function () { busy = false; draw(); }, PRESS_MS); })
-          : null,
+        words,
         t.tap_on === 'passage' && typeof it.target_index !== 'number' ? passageTap(t, null) : null,
         typeof it.target_index === 'number' ? null : tiles(it.options, function (o, b) {
+          if (pickMode) return pick(o);
           busy = true;
           b.classList.add('is-pressed');
           runner.answer(o);
           later(function () { busy = false; draw(); }, PRESS_MS);
-        }, null, taskLang(t), t, it.glyphs),
-      ], [nextBtn(v)]);
+        }, pickMode ? function (o, b) {
+          b.setAttribute('aria-pressed', picked(o) ? 'true' : 'false');
+          if (picked(o)) b.classList.add('is-picked');
+        } : null, taskLang(t), t, it.glyphs),
+      ], foot);
     }
 
     /** The passage's words (task.passage.words) as buttons, or as plain text when onWord is null. */
