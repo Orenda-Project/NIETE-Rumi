@@ -26,8 +26,9 @@ const { isLp612RouteAll } = require('../shared/config/lp612-flags');
 const { openLpBrowseFlow } = require('../shared/services/lp-browse-entry.service');
 const { resolveUx } = require('../shared/config/ux-strings');
 
-// The free-form engine's track on the SQS payload (LessonPlanQueueService.createAndQueueFreeform).
-const FREEFORM_TRACK = Lifecycle.LIFECYCLE.SOURCES.FREEFORM_V1;
+// The free-form engine's track (LessonPlanQueueService.createAndQueueFreeform). The worker routes on the
+// REQUEST ROW's textbook_metadata.fflp_track (F50), never on the SQS payload's `track` alone.
+const FREEFORM_TRACK = 'freeform_v1';
 
 /**
  * Hand a teacher whose Gamma job died at the cutover the menu instead of an instruction — bd-oak77.4.
@@ -105,9 +106,19 @@ class LessonPlanGenerationWorker {
 
     // The free-form engine's jobs (queued by LessonPlanQueueService.createAndQueueFreeform, only when
     // app_settings.freeform_lp sends a teacher there). Checked BEFORE the drop below, which is for
-    // stale pre-strip jobs and carries no track.
-    if (jobData && jobData.track === FREEFORM_TRACK) {
-      return this.processFreeform(jobData);
+    // stale pre-strip jobs and carries no track. F50: the payload's `track` only says "look at the row";
+    // the dispatch is the ROW's textbook_metadata.fflp_track. A payload track whose row lacks the key is
+    // ignored and the job takes today's drop. A row that cannot be read is re-thrown for the queue to
+    // retry (a transient read error must not fail a real free-form request for good).
+    if (jobData && jobData.track && jobData.requestId) {
+      const row = await LessonPlanQueueService.getRequest(jobData.requestId);
+      const rowTrack = LessonPlanQueueService.fflpTrackOf(row);
+      if (rowTrack === FREEFORM_TRACK) {
+        return this.processFreeform({ ...jobData, track: rowTrack }, row);
+      }
+      logToFile('Free-form payload track ignored: the request row carries no fflp_track', {
+        requestId: jobData.requestId, payloadTrack: jobData.track, rowSource: row ? row.source : null,
+      }, 'warn');
     }
 
     // The Gamma strip (Option A, partial): all freeform LP + presentation
@@ -172,19 +183,20 @@ class LessonPlanGenerationWorker {
    *
    * Same idempotency and retry rules as the grounded path. Two failure kinds:
    *   - the engine is not on this deployment yet (FflpModuleMissing): final on the first attempt —
-   *     a retry cannot make it appear — so the row is failed once and she gets the apology;
+   *     a retry cannot make it appear — so the row is failed once and the teacher gets the apology;
    *   - any other engine error: failed, re-thrown for the queue to retry, apology on the last attempt.
    *
    * @param {Object} jobData — the createAndQueueFreeform payload (requestId, userId, phoneNumber, topic,
-   *   fullMessage, language, contentType, track, entry)
+   *   fullMessage, language, contentType, entry), with `track` set from the row
+   * @param {Object} [row] — the request row the dispatch already read (saves a second read)
    */
-  static async processFreeform(jobData) {
+  static async processFreeform(jobData, row) {
     const { requestId, phoneNumber, language = 'en' } = jobData;
     const messages = MESSAGES[language] || MESSAGES.en;
     const fflp = require('../shared/services/fflp');
 
     try {
-      const existing = await LessonPlanQueueService.getRequest(requestId);
+      const existing = row || await LessonPlanQueueService.getRequest(requestId);
       if (existing?.status === 'completed') {
         logToFile('⏭️ Free-form LP request already completed, skipping', { requestId });
         return;

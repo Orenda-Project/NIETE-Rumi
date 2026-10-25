@@ -14,9 +14,11 @@ const readIf = (f) => (fs.existsSync(path.join(DIR, f)) ? fs.readFileSync(path.j
 const FORWARD = 'V1.7.8__lp_requests_textbook_metadata.sql';
 const ROLLBACK = 'ROLLBACK_V1.7.8__lp_requests_textbook_metadata.sql';
 const LOCK = /set_config\('lock_timeout',\s*'5s',\s*true\)/;
+// The statements only: a migration's header prose may say «no default» without being one.
+const code = (sql) => sql.split('\n').filter((l) => !l.trim().startsWith('--')).join('\n');
 
 test('forward adds a nullable textbook_metadata jsonb to lesson_plan_requests, idempotently, and nothing else', () => {
-  const sql = readIf(FORWARD);
+  const sql = code(readIf(FORWARD));
   expect(sql).toMatch(/ALTER TABLE lesson_plan_requests ADD COLUMN IF NOT EXISTS textbook_metadata jsonb;/i);
   expect(sql).not.toMatch(/NOT NULL|DEFAULT|UPDATE lesson_plan_requests|DROP CONSTRAINT/i);
   expect(sql).toMatch(/COMMENT ON COLUMN lesson_plan_requests\.textbook_metadata/i);

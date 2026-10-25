@@ -2985,8 +2985,9 @@ async function routeCatalogueMissToFreeform({ from, messageBody, user, sessionId
       user: { id: user.id, phone: user.phone_number || from },
     });
     if (decided.track !== 'freeform_v1') return false;
-    // The switch alone is not enough: the request table must accept the row (V1.7.7 applied) and the
-    // engine must be deployed, or she would be told "writing" and then get an apology.
+    // The switch alone is not enough: the request table must accept the row (V1.7.8 applied: its
+    // textbook_metadata column) and the engine must be deployed, or the teacher would be told "writing"
+    // and then get an apology.
     if ((await fflp.switch.get('schema_ready', false)) !== true) return false;
     if (!fflp.engineReady()) {
       logToFile('fflp: switch on but the engine is not on this deployment, giving today\'s answer', { userId: user.id }, 'warn');

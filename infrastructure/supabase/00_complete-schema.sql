@@ -6823,6 +6823,8 @@ ALTER TABLE lesson_plan_requests ADD COLUMN IF NOT EXISTS generated_at   timesta
 ALTER TABLE lesson_plan_requests ADD COLUMN IF NOT EXISTS delivered_at   timestamptz;
 ALTER TABLE lesson_plan_requests ADD COLUMN IF NOT EXISTS error_code     text;
 ALTER TABLE lesson_plan_requests ADD COLUMN IF NOT EXISTS correlation_id text;
+-- V1.7.8: the free-form engine's per-request data (textbook_metadata.fflp_track routes the worker).
+ALTER TABLE lesson_plan_requests ADD COLUMN IF NOT EXISTS textbook_metadata JSONB;
 ALTER TABLE lesson_plans           ADD COLUMN IF NOT EXISTS request_id   uuid;
 ALTER TABLE niete_lp_downloads     ADD COLUMN IF NOT EXISTS request_id   uuid;
 ALTER TABLE niete_lp612_deliveries ADD COLUMN IF NOT EXISTS request_id   uuid;
@@ -6838,7 +6840,7 @@ DO $$ BEGIN
       'gamma_standard', 'gamma_enriched', 'ug_lp', 'ps_pregen', 'v7_segment', 'v7_chapter',
       'gamma_chapter', 'pre_gen_chapter', 'homework_bundle', 'pic_to_lp_kieai', 'kenya_browse',
       'multigrade_lp', 'niete_grounded', 'niete_v8_segment', 'niete_lp612', 'niete_oxbridge',
-      'niete_portal_share', 'freeform_v1')) NOT VALID;
+      'niete_portal_share')) NOT VALID;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 DO $$ BEGIN
