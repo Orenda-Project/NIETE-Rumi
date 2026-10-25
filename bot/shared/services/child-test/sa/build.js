@@ -1013,6 +1013,16 @@ function runtimeItem(it, lang, tl) {
   return o;
 }
 
+/** Round 6: a task's guided-tier lines (sa/build-w3.js guidedOf) in the page's language; the plan as it is. */
+function guidedIn(g, lang) {
+  const out = {};
+  for (const [k, v] of Object.entries(g)) {
+    if (k === 'kind' || k === 'plan') out[k] = v;
+    else out[k] = Array.isArray(v) ? v.map((l) => inLang(l, lang)) : inLang(v, lang);
+  }
+  return out;
+}
+
 /** A task's lines in the page's language: a line naming an other-language item is its chain (RULING #31a). */
 function runtimeScript(t, lang) {
   const sc = t.script;
@@ -1021,6 +1031,7 @@ function runtimeScript(t, lang) {
   for (const [k, l] of Object.entries(sc)) {
     if (/_chain$/.test(k)) continue;
     if (k === 'demo_item') out[k] = runtimeItem(l, lang, t.lang);
+    else if (k === 'guided') out[k] = guidedIn(l, lang);
     else if (k === 'practice_models') out[k] = l.map((m, i) => (cross && sc.practice_models_chain ? chainIn(sc.practice_models_chain[i], lang) : inLang(m, lang)));
     else out[k] = cross && sc[`${k}_chain`] ? chainIn(sc[`${k}_chain`], lang) : inLang(l, lang);
   }

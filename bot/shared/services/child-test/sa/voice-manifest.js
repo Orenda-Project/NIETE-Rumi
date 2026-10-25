@@ -37,6 +37,7 @@ function voiceManifest(bank) {
     const sc = t.script || {};
     for (const [k, line] of Object.entries(sc)) {
       if (k === 'demo_item' || k === 'demo_image') continue;
+      if (k === 'guided') { for (const [gk, g] of Object.entries(line)) if (gk !== 'kind' && gk !== 'plan') any(g, 'instruction'); continue; }
       any(line, 'instruction', /_chain$/.test(k) ? ear : false);
     }
     // A W3 one-at-a-time task holds its items on the task (items[]); a practice item's model is a chain.

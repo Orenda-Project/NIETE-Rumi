@@ -23,6 +23,9 @@
  *   sa_cell_pace            round 4: a one-at-a-time item moves on after 3 s with no voice (not 3 s from show), never before 5 s.
  *   sa_cell_next_only       round 5: an Urdu/English letter or word shown one at a time moves on only on Next (wins over sa_cell_pace).
  *   sa_auto_child_last_word round 5: in RDF auto the child taps the last word (kept as the check); the coach's screen is manual's.
+ *   sa_guided_instructions  round 6: RDF auto on the Grade 1-3 forms teaches each task first (script.guided, built only
+ *                           on those forms). ON adds ui.guided; OFF drops script.guided from every task, so the battery
+ *                           is the one built before it, byte for byte.
  *   sa_app_asks             round 6: in RDF manual Jugnu asks every question and item prompt; the coach gives the instructions only.
  *                           ON, each adds battery.ui.<one_at_a_time|passage_punct|rdf_manual> = true for the engine;
  *                           all three OFF, the battery has no ui key, byte for byte as before.
@@ -35,12 +38,12 @@ const SWITCHES = {
   voiceGateV2: 'sa_voice_gate_v2', compAllQuestions: 'sa_comp_all_questions',
   cellPace: 'sa_cell_pace', sectionRecording: 'sa_section_recording',
   coachLastWord: 'sa_coach_last_word', cellNextOnly: 'sa_cell_next_only', autoChildLastWord: 'sa_auto_child_last_word',
-  appAsks: 'sa_app_asks',
+  appAsks: 'sa_app_asks', guidedInstructions: 'sa_guided_instructions',
 };
 const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManual: 'rdf_manual', voiceGateV2: 'voice_gate_v2',
   compAllQuestions: 'comp_all_questions', cellPace: 'cell_pace',
   sectionRecording: 'section_recording', coachLastWord: 'coach_last_word', cellNextOnly: 'cell_next_only',
-  autoChildLastWord: 'auto_child_last_word', appAsks: 'app_asks' };
+  autoChildLastWord: 'auto_child_last_word', appAsks: 'app_asks', guidedInstructions: 'guided' };
 const W3_KEYS = ['rdf_auto', 'rdf_manual', 'rdf_variants', 'rdf_w3_absent'];
 const W3_LINES = ['coach_will_instruct', 'please_go_on'];
 
@@ -53,9 +56,20 @@ function withoutW3(battery) {
   return out;
 }
 
+/** OFF: every task less its guided-tier lines (a task without them is the same object). */
+function withoutGuided(battery) {
+  if (!battery.tasks.some((t) => t.script && t.script.guided)) return battery;
+  return { ...battery, tasks: battery.tasks.map((t) => {
+    if (!t.script || !t.script.guided) return t;
+    const { guided: _g, ...script } = t.script;
+    return { ...t, script };
+  }) };
+}
+
 function applySwitches(input, on = {}) {
   if (!input || !Array.isArray(input.tasks)) return input;
-  const battery = on.rdfW3Forms ? input : withoutW3(input);
+  const w3 = on.rdfW3Forms ? input : withoutW3(input);
+  const battery = on.guidedInstructions ? w3 : withoutGuided(w3);
   const tasks = battery.tasks.map((t) => {
     const demo = !!(t.script && t.script.demo_item);
     if (!t.practice_v2 && !demo && !t.variants) return t;

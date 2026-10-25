@@ -474,7 +474,10 @@ const saBattery = onSession('sa_battery', async ({ sessionId, lang, full }, d, s
   const order = block === FULL ? form.full : block === RDF ? form.rdf : w3 ? form[block] : (form.blocks || {})[block];
   if (!Array.isArray(order) || !order.length) return { status: 'not_ready', reason: 'no_battery' };
   const tasks = {};
-  for (const t of order) if (bank.tasks[`${formId}/${t}`]) tasks[`${formId}/${t}`] = bank.tasks[`${formId}/${t}`];
+  // Round 6: the guided tier's lines are the engine's, served by /sa/batteries/ behind sa_guided_instructions; the
+  // payload here stays as it was.
+  const plain = (t) => (t.script && t.script.guided ? { ...t, script: (({ guided: _g, ...rest }) => rest)(t.script) } : t);
+  for (const t of order) if (bank.tasks[`${formId}/${t}`]) tasks[`${formId}/${t}`] = plain(bank.tasks[`${formId}/${t}`]);
   return {
     status: 'ok',
     battery: {
