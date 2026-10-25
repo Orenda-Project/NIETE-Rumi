@@ -421,6 +421,8 @@
     el.classList.add('sae');
     // sa_ur_fit (round 6): the Urdu text rules (sa.css "Round 6"): every Urdu word inside its box, clear of pictures.
     if (opts.ur_fit) el.classList.add('is-ur-fit');
+    // in the coach page's frame, under its corner hold (sa.css keeps the scrolling body below it)
+    if (opts.ur_fit && opts.embed) el.classList.add('is-embed');
     el.setAttribute('lang', lang);
     el.setAttribute('dir', lang === 'ur' ? 'rtl' : 'ltr');
     el.setAttribute('data-mode', mode);
