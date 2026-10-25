@@ -276,3 +276,17 @@ button{font:inherit;color:inherit}
 .sae-screen.sae-lastword.is-coach{max-height:100vh;max-height:100dvh}
 .sae-lastword.is-coach .sae-body{min-height:0;justify-content:flex-start}
 .sae-lastword.is-coach .sae-passage.is-pick{flex:0 1 auto;min-height:150px;max-height:none}
+
+/* Round 6: the guided tier (sa_guided_instructions; DESIGN_R6 §3). The step being said is lit; the button the child
+   will press pulses; the example sits dim until Jugnu does it. Urdu steps keep the Nastaliq line box (U2). */
+.sae-steps { margin: 0; padding: 0 1.2em; display: flex; flex-direction: column; gap: 8px; font-size: max(18px, 1.05rem); line-height: 1.5; }
+.sae[lang="ur"] .sae-steps, .sae-steps:lang(ur) { line-height: 2.2; }
+.sae-steps li { opacity: .55; overflow-wrap: normal; word-break: normal; }
+.sae-steps li.is-now { opacity: 1; font-weight: 600; }
+.sae-steps li.is-done { opacity: .8; }
+.sae-guided-ex.sae-dim { opacity: .45; }
+.sae-pulse { animation: sae-pulse 1.1s ease-in-out infinite; }
+@keyframes sae-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+.sae-demo-press::before { content: '👆'; display: inline-block; margin-inline-end: .35em; }
+.sae-demo-press.is-pressed { transform: scale(.96); }
+@media (prefers-reduced-motion: reduce) { .sae-pulse { animation: none; outline: 3px solid currentColor; } }

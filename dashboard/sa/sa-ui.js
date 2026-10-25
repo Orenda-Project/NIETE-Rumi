@@ -44,6 +44,13 @@
  *                       question (the task's own tap line, which carries no per-item words), the practice models and the
  *                       practice feedback, the star line and "Stop" at time-up. The coach screen splits "You say" from
  *                       "Jugnu asks" (folded, not for reading out) and says how the child answers.
+ *   guided              (round 6, sa_guided_instructions; RDF auto, a task carrying script.guided: the Grade 1-3 forms)
+ *                       the instruction is said step by step, each step lit on the screen, the example shown dim; the
+ *                       practice walks the runner's plan: demo (Jugnu does one, the button pressed for the child), turn
+ *                       (the child; a help line after 6 s of no voice, another after 8 s of voice with no Next), check
+ *                       (the child, unaided: voice heard and Next, or a tap, within 10 s; a miss → the runner's one
+ *                       retry); the ready line; on a cell with no voice for 8 s a nudge (at most twice a task); 12 s on
+ *                       an instruction with no press says its last step once. Help lines are never on a scored item.
  *   passage_punct       the passage's words are the whitespace tokens of passage.text (its «۔ ، ؟» and ". , ?"),
  *                       one per item, a multi-word item spanning its tokens; scoring and the last word are unchanged.
  *                       A text that does not line up with the items falls back to the items' words.
@@ -74,6 +81,7 @@
       replay: 'Hear again',
       next: 'Next',
       practice: 'Practice',
+      watch: 'Watch',
       right: 'That’s right!',
       try_again: 'Try again.',
       shown: 'This is the right one.',
@@ -155,6 +163,7 @@
       replay: 'دوبارہ سنیں',
       next: 'آگے',
       practice: 'مشق',
+      watch: 'دیکھیں',
       right: 'بالکل ٹھیک!',
       try_again: 'ایک بار پھر کوشش کریں۔',
       shown: 'یہ والا ٹھیک ہے۔',
@@ -336,6 +345,13 @@
     var childName = opts.child && typeof opts.child.first_name === 'string' ? opts.child.first_name.trim().slice(0, 40) : '';
     var manual = !!opts.manual;
     var appAsks = manual && !!opts.app_asks; // sa_app_asks (round 6, R6-2)
+    var guidedOn = !!opts.guided && !manual && mode === 'proctored'; // sa_guided_instructions (round 6)
+    var gms = opts.guide_ms || {}; // the waits (DESIGN_R6 §3.1); a test may shorten them
+    var GUIDE_SILENCE_MS = gms.silence || 6000, GUIDE_PRESS_MS = gms.press || 8000, GUIDE_CHECK_MS = gms.check || 10000,
+      GUIDE_INSTR_MS = gms.instr || 12000, GUIDE_NUDGE_MS = gms.nudge || 8000;
+    var gstep = -1;           // guided: the instruction step being said
+    var gm = null;            // guided: the practice turn's ear { key, heard, stop }
+    var nudged = null;        // guided: the cell key a nudge was said on
     var sectionRec = !!opts.section_recording; // an oral task is one recording from Begin (sa_section_recording)
     // sa_coach_last_word: the coach marks the last word read; the recording suggests it, the coach confirms (coach mode only)
     // sa_auto_child_last_word (round 5): in RDF auto the child taps it, as before; the coach's screen is RDF manual's only.
@@ -701,9 +717,151 @@
     }
     /** How the child answers this task, for the coach (says / taps / types). */
     function answersBy(t) { return t.mode === 'tap' ? C.by_tap : (t.mode === 'keypad' || t.mode === 'keyboard') ? C.by_type : C.by_say; }
+    /** The guided tier's lines for this task (opts.guided, RDF auto, a Grade 1-3 form), else null. */
+    function gOf(t) { return guidedOn && t && t.script && t.script.guided ? t.script.guided : null; }
+    /** Guided: the instruction step by step, the step being said lit; the example shown dim where the task has one. */
+    function sGuidedInstr(v) {
+      var t = v.task, g = gOf(t);
+      var ex = g.plan && t.mode === 'record' ? t.practice[g.plan.demo] : null;
+      var last = g.steps.length - 1;
+      return screen(v, 'sae-instr sae-guided', [
+        h('div', { class: 'sae-row' }, [jugnu('hello', true), replayBtn(function () { gen++; playGuided(t); })]),
+        h('h1', { class: 'sae-h1', text: tx(t.title) }),
+        ex ? h('div', { class: 'sae-guided-ex sae-dim', 'aria-hidden': 'true' }, [oneCell(ex.show != null ? ex.show : ex.target, t, null)]) : null,
+        h('ol', { class: 'sae-steps' }, g.steps.map(function (l, i) {
+          return h('li', { class: i === gstep ? 'is-now' : i < gstep ? 'is-done' : '', 'data-i': String(i), text: tx(l) });
+        })),
+      ], [btn(C.next, function () { gstep = -1; runner.instructionDone(); draw(); }, 'sae-primary sa-next' + (gstep >= Math.min(2, last) ? ' sae-pulse' : ''))]);
+    }
+    /** Light the step being said without redrawing the screen. */
+    function litStep(i) {
+      gstep = i;
+      var lis = el.querySelectorAll('.sae-steps li');
+      for (var k = 0; k < lis.length; k++) lis[k].className = k === i ? 'is-now' : k < i ? 'is-done' : '';
+      var nb = el.querySelector('.sae-guided .sa-next');
+      if (nb && i >= Math.min(2, lis.length - 1)) nb.classList.add('sae-pulse');
+    }
+    function playGuided(t) {
+      var g = gOf(t), g0 = gen, k = keyOf(runner.view());
+      runner.instructionPlayed();
+      return g.steps.reduce(function (p, l, i) {
+        return p.then(function () { if (alive && g0 === gen) { litStep(i); return say(l); } });
+      }, Promise.resolve()).then(function () {
+        if (!alive || g0 !== gen) return;
+        // DESIGN_R6 §3.5: no press for 12 s after the steps → the last step's prompt, once.
+        later(function () { if (g0 === gen && keyOf(runner.view()) === k) say(g.instr_silence); }, GUIDE_INSTR_MS);
+      });
+    }
+    /** Guided: listen for the child's voice on a practice turn (the meter the oral practice uses). */
+    function gListen(k) {
+      gStop();
+      gm = { key: k, heard: typeof opts.micLevel !== 'function', stop: null };
+      if (typeof opts.micLevel !== 'function') return gm;
+      var cur = gm;
+      try {
+        cur.stop = opts.micLevel(function (level) {
+          if (!alive || gm !== cur) return;
+          if ((+level || 0) >= HEARD_LEVEL && !cur.heard) {
+            cur.heard = true;
+            var mic = el.querySelector('.sae-guided .sae-mic');
+            if (mic) mic.classList.add('is-on');
+          }
+        });
+      } catch (e) { cur.stop = null; cur.heard = true; }
+      return cur;
+    }
+    function gStop() { if (gm && typeof gm.stop === 'function') { try { gm.stop(); } catch (e) { /* page */ } } gm = null; }
+    /** Guided practice on a one-at-a-time task: the item big; demo is Jugnu's (its button pressed for the child). */
+    function sGuidedSpoken(v) {
+      var p = v.practice, t = v.task, role = v.guided_role;
+      var demo = role === 'demo';
+      return screen(v, 'sae-practice sae-guided', [
+        h('div', { class: 'sae-row' }, [
+          h('span', { class: 'sae-chip', text: demo ? C.watch : C.practice }),
+          demo ? null : replayBtn(function () { gen++; sayChain(modelOf(p)); }),
+        ]),
+        oneCell(p.show != null ? p.show : p.target, t, null),
+        demo ? null : h('div', { class: 'sae-mic sa-mic' + (gm && gm.heard && typeof opts.micLevel === 'function' ? ' is-on' : ''), 'aria-hidden': 'true' }, [h('span', { text: '🎤' })]),
+      ], [demo
+        ? h('button', { class: 'sae-btn sae-primary sa-next sae-demo-press', type: 'button', disabled: 'disabled', 'aria-hidden': 'true' }, [C.next])
+        : btn(C.next, function () {
+          busy = true;
+          var k = keyOf(runner.view());
+          if (role === 'check') runner.guidedCheck(!!(gm && gm.heard), false);
+          gStop();
+          capped(sayChain(modelOf(p)), 7000).then(function () {
+            busy = false;
+            if (!alive || keyOf(runner.view()) !== k) return;
+            runner.practiceAnswer(p.target);
+            draw();
+          });
+        }, 'sae-primary sa-next')]);
+    }
+    /** Guided demo on a tap task: the right tile shown and pressed by Jugnu; nothing to tap. */
+    function sGuidedTapDemo(v) {
+      var p = v.practice, t = v.task;
+      return screen(v, 'sae-practice sae-guided', [
+        h('div', { class: 'sae-row' }, [h('span', { class: 'sae-chip', text: C.watch })]),
+        labelOf(p, t),
+        tiles(p.options, function () {}, function (o, b) {
+          b.disabled = true;
+          if (String(o) === String(p.target)) b.classList.add('is-right', 'is-shown', 'sae-demo-press');
+        }, taskLang(t), t, p.glyphs),
+      ], [jugnu('hello', true)]);
+    }
+    /** Guided speech on entering a practice screen (the runner's plan role). */
+    function enterGuidedPractice(v) {
+      var t = v.task, g = gOf(t), p = v.practice, role = v.guided_role, k = keyOf(v), g0 = gen;
+      var still = function () { return alive && g0 === gen && keyOf(runner.view()) === k; };
+      if (t.mode !== 'record') {
+        if (role === 'demo') {
+          var fb = p.feedback && p.feedback.correct;
+          sayChain([[g.demo], fb ? [fb] : null]).then(function () { return delay(600); }).then(function () {
+            if (!still()) return;
+            runner.practiceAnswer(p.target);
+            draw();
+          });
+          return;
+        }
+        say(role === 'retry' ? g.retry : g.check).then(function () {
+          if (role !== 'check' || !still()) return;
+          later(function () { if (still() && !hold) { runner.guidedCheck(false, true); draw(); } }, GUIDE_CHECK_MS);
+        });
+        return;
+      }
+      if (role === 'demo') {
+        sayChain([[g.demo]].concat(modelOf(p)).concat([[g.demo_after]])).then(function () {
+          if (!still()) return;
+          var nb = el.querySelector('.sae-demo-press');
+          if (nb) nb.classList.add('is-pressed');
+          return delay(500).then(function () { if (!still()) return; runner.practiceAnswer(p.target); draw(); });
+        });
+        return;
+      }
+      var line0 = role === 'turn' ? g.turn : role === 'check' ? g.check : g.retry;
+      say(line0).then(function () {
+        if (!still()) return;
+        var ear = gListen(k);
+        if (role === 'turn') {
+          later(function () {
+            if (!still() || ear.heard || !runner.guidedHelp('silence')) return;
+            sayChain([[g.help_silence]].concat(modelOf(p)).concat([[g.help_say_now]]));
+          }, GUIDE_SILENCE_MS);
+          var waitPress = function () {
+            if (!still()) return;
+            if (!ear.heard) { later(waitPress, 500); return; }
+            later(function () { if (still() && runner.guidedHelp('press')) say(g.help_press); }, GUIDE_PRESS_MS);
+          };
+          waitPress();
+        } else if (role === 'check') {
+          later(function () { if (still()) { gStop(); runner.guidedCheck(false, true); draw(); } }, GUIDE_CHECK_MS);
+        }
+      });
+    }
     function sInstruction(v) {
       var t = v.task;
       if (manual) return sCoachBrief(v);
+      if (gOf(t)) return sGuidedInstr(v);
       return screen(v, 'sae-instr', [
         h('div', { class: 'sae-row' }, [jugnu('hello', true), replayBtn(function () { gen++; playIntro(t); })]),
         h('h1', { class: 'sae-h1', text: tx(t.title) }),
@@ -738,6 +896,8 @@
       return h('p', { class: 'sae-fb sa-feedback ' + (fb.res.ok ? 'is-ok' : 'is-again'), role: 'status' }, [fb.text]);
     }
     function sPractice(v) {
+      if (v.guided_role && v.task.mode === 'record' && !hold) return sGuidedSpoken(v);
+      if (v.guided_role === 'demo' && !hold) return sGuidedTapDemo(v);
       if (v.task.mode === 'record' && !hold) return sPracticeSpoken(v);
       var p = hold ? hold.item : v.practice;
       var t = v.task;
@@ -769,6 +929,7 @@
       ], t.mode === 'keypad' || t.mode === 'keyboard' ? null : [jugnu(fb ? (fb.res.ok ? 'correct' : 'notyet') : 'idle', true)]);
     }
     function practicePick(p, t, value) {
+      if (runner.view().guided_role === 'check') runner.guidedCheck(true, false); // a tap in time: the mechanics are there
       var res = runner.practiceAnswer(value);
       if (!res) return;
       busy = true;
@@ -1290,7 +1451,14 @@
       if (!heard) { oralP = null; runner.oralPracticeDone(false); draw(); return; }
       oralP.stage = 'heard';
       draw();
-      say(line('oral_heard') || { en: COPY.en.oral_heard, ur: COPY.ur.oral_heard });
+      var wt = gOf(runner.view().task);
+      // DESIGN_R6 §3.5: the guided tier teaches the green button here too.
+      say(line('oral_heard') || { en: COPY.en.oral_heard, ur: COPY.ur.oral_heard }).then(function () {
+        if (!wt || !alive || !oralP || oralP.stage !== 'heard') return;
+        var nb = el.querySelector('.sae-oralp .sae-primary');
+        if (nb) nb.classList.add('sae-pulse');
+        say(wt.next_warm);
+      });
     }
 
     /** The keypad warm-up (RULING #17): 20 s of free typing, the digits echoed big, a Done tile. */
@@ -1448,7 +1616,7 @@
     // ---------- the frame ----------
     function keyOf(v) {
       var k = v.phase + '|' + v.task_index;
-      if (v.phase === 'practice' && v.practice) k += '|' + v.practice.id;
+      if (v.phase === 'practice' && v.practice) k += '|' + v.practice.id + (v.guided_role ? '|' + v.guided_role : '');
       if (v.phase === 'running' && v.item) k += '|' + v.item.id + '|' + v.item_index;
       if (v.phase === 'running' && v.cell != null) k += '|c' + v.cell_index;
       return k;
@@ -1481,7 +1649,9 @@
       else if (v.phase === 'instruction' && manual) {
         runner.log('coach_brief', { task_id: t.id });
         say(copyLine('coach_will_instruct'), null, true);
-      } else if (v.phase === 'instruction') playIntro(t);
+      } else if (v.phase === 'instruction' && gOf(t)) playGuided(t);
+      else if (v.phase === 'instruction') playIntro(t);
+      else if (v.phase === 'practice' && v.practice && v.guided_role && gOf(t)) enterGuidedPractice(v);
       else if (v.phase === 'practice' && v.practice) {
         var first = t.practice.indexOf(v.practice) === 0;
         var k0 = keyOf(v);
@@ -1490,7 +1660,8 @@
           if (t.mode === 'record' && v.practice.role === 'example') sayChain(modelOf(v.practice));
           else if (!(t.mode === 'record' && t.say_on === 'replay')) sayItem(v.practice, t);
         });
-      } else if (v.phase === 'ready') sayChain(manual ? [] : [s.test_intro ? [s.test_intro] : null, s.begin ? [s.begin] : null]);
+      } else if (v.phase === 'ready' && gOf(t)) say(gOf(t).ready);
+      else if (v.phase === 'ready') sayChain(manual ? [] : [s.test_intro ? [s.test_intro] : null, s.begin ? [s.begin] : null]);
       else if (v.phase === 'running' && v.item) {
         if (t.mode === 'oral') {
           var key = keyOf(v), g2 = gen;
@@ -1575,6 +1746,7 @@
       if (!handedOver && v.phase === 'battery_intro') showPhase = 'handover';
       if (refused) showPhase = 'refused';
       if (v.phase !== 'oral_practice' && oralP) { stopMeter(); oralP = null; }
+      if (gm && gm.key !== key) gStop();
       if (v.phase !== 'mic_check') micSt = null;
       if (v.phase !== 'keypad_warmup' && kpw) { clearTimeout(kpw.timer); kpw = null; }
       starEl = null;
@@ -1627,6 +1799,11 @@
       var v = runner.view();
       if (r === 'go_on') say(copyLine('please_go_on'));
       if (keyOf(v) !== lastKey) { draw(); return; }
+      // Guided: a cell with no voice and no Next for 8 s → the nudge, at most twice a task (the clock runs on).
+      if (v.guided && v.cell != null && v.cell_quiet_ms >= GUIDE_NUDGE_MS && nudged !== lastKey && gOf(v.task)) {
+        nudged = lastKey;
+        if (runner.guidedHelp('nudge')) say(gOf(v.task).nudge);
+      }
       if (r === 'replay' && v.item && v.task.say_on !== 'replay') sayItem(v.item, v.task);
       if (!!v.offer_next !== shownOffer) { draw(); return; }
       if (v.time_left_ms != null) paintClock(v.time_left_ms);

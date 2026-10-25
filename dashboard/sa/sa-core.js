@@ -18,6 +18,13 @@
  * Per task:  instruction (Jugnu's words, replayable) → practice (feedback; a wrong answer is tried once more, then
  * shown) → ready → running (the clock when EGRA times it) → [last_word] → stop → next task.
  *
+ * Guided (round 6, opts.guided, coach mode's RDF auto only; a task with script.guided.plan): the practice phase walks
+ * the task's plan, not its practice list: demo (Jugnu does one), turn (the child, helped), check (the child, unaided),
+ * each view.practice carrying view.guided_role. guidedCheck(false) adds ONE retry (the plan's retry item) and never
+ * ends or skips the task (RULING R6-4). guidedHelp() counts the help lines and in-task nudges (at most 2 a task).
+ * The task's end logs one 'guided' event { task_id, grade, check, help_lines, nudges, lead_in_ms }. Items, clocks
+ * and stop rules are the task's own (R6-3).
+ *
  * Stop rules are the task's data (stop: { first_line_n, first_line_min_correct, consecutive_errors, time_up }):
  *   time_up                  the task's 60 s ran out
  *   early_stop_first_line    fewer than first_line_min_correct right in the first first_line_n items
@@ -234,6 +241,12 @@
     var cellPace = !!opts.cell_pace;
     var cellNextOnly = !!opts.cell_next_only;
     var sectionRec = !!opts.section_recording;
+    var guided = !!opts.guided && !manual;
+    var NUDGES_MAX = 2;
+    /** The guided tier runs this task (its lines are on it). */
+    function guidedTask(t) { return guided && !!(t && t.script && t.script.guided); }
+    /** The practice item on show: the plan's entry in a guided task, else the practice list's. */
+    function practiceNow() { var t = task(); return st.plan ? t.practice[st.plan[st.practice_i].i] : t.practice[st.practice_i]; }
 
     /** sa_cell_next_only: an Urdu or English letter/word cell moves on only on Next (maths cells keep their pace). */
     function holdsCell(t) { return cellNextOnly && cellTask(t) && /^(ur|en)\./.test(String(t.id)); }
@@ -326,6 +339,7 @@
         item_i: 0, item_started: null, replayed: false, correct: 0, incorrect: 0, attempted: 0, streak: 0, first_line_correct: 0,
         started: null, last_item_index: null, answers: [],
       };
+      if (guidedTask(t)) st.g = { t0: now(), check: null, help_lines: 0, nudges: 0, retried: false };
       if (from && from.answers) {
         // An untimed task resumes at the item reached, with what was answered before the reload.
         from.answers.forEach(function (a) { tally(t, a.ok, a.value); st.answers.push(a); });
@@ -358,6 +372,12 @@
 
     function limitMs(t) { return t.time_limit_s ? t.time_limit_s * 1000 : null; }
 
+    function guidedEvent(t) {
+      if (!st.g || !st.g.taught) { st.g = null; return; }
+      ev('guided', { task_id: t.id, value: { task_id: t.id, grade: (battery.grades || [])[0] || null, check: st.g.check, help_lines: st.g.help_lines,
+        nudges: st.g.nudges, lead_in_ms: st.started != null ? Math.round(st.started - st.g.t0) : null } });
+      st.g = null;
+    }
     function finish(reason) {
       var t = task();
       if (st.cell) closeCell(reason);
@@ -398,6 +418,7 @@
         r.per_minute = used > 0 ? Math.round((st.correct * 60000 / used) * 10) / 10 : 0;
       }
       results = results.filter(function (x) { return x.task_id !== t.id; }).concat([r]);
+      guidedEvent(t);
       ev('stop', { task_id: t.id, value: reason });
       ev('task_end', { task_id: t.id, value: r });
       st = { phase: 'task_end', task_id: t.id, result: r };
@@ -546,18 +567,49 @@
       /** The child is past the instruction → practice, or straight to ready when the task has none. */
       instructionDone: function () {
         if (st.phase !== 'instruction') return;
-        st.phase = task().practice.length ? 'practice' : 'ready';
+        var t = task();
+        if (st.g) st.g.taught = true;
+        var plan = guidedTask(t) && t.practice.length ? t.script.guided.plan : null;
+        if (plan) {
+          // demo → (turn) → check; a tap task has no helped turn (its check is the existing practice, DESIGN_R6 §3.2)
+          st.plan = ['demo', 'turn', 'check'].filter(function (r) { return plan[r] != null; }).map(function (r) { return { i: plan[r], role: r }; });
+          st.practice_i = 0;
+        }
+        st.phase = t.practice.length ? 'practice' : 'ready';
+      },
+      /** Guided: the check's outcome (voice heard and Next pressed in time, or a tap in time). A miss adds one retry
+       *  on the plan's retry item, once; advance moves past the check without an answer (it timed out). */
+      guidedCheck: function (ok, advance) {
+        if (st.phase !== 'practice' || !st.plan || !st.g || st.plan[st.practice_i].role !== 'check') return;
+        st.g.check = ok ? (st.g.help_lines ? 'helped' : 'passed') : 'failed';
+        ev('guided_check', { task_id: st.task_id, value: { ok: !!ok } });
+        if (!ok && !st.g.retried) {
+          st.g.retried = true;
+          st.plan.splice(st.practice_i + 1, 0, { i: task().script.guided.plan.retry, role: 'retry' });
+        }
+        if (advance) { st.practice_i++; st.practice_tries = 0; if (st.practice_i >= st.plan.length) st.phase = 'ready'; }
+      },
+      /** Guided: a help line (kind 'silence' | 'press') or an in-task nudge was said. A nudge past the cap → false. */
+      guidedHelp: function (kind) {
+        if (!st.g) return false;
+        if (kind === 'nudge') {
+          if (st.g.nudges >= NUDGES_MAX) return false;
+          st.g.nudges++;
+        } else st.g.help_lines++;
+        ev('guided_help', { task_id: st.task_id, value: kind });
+        return true;
       },
       /** A practice answer: { ok, retry, shown, feedback } — retry once on a wrong answer, then the right one is shown. */
       practiceAnswer: function (value) {
         if (st.phase !== 'practice') return null;
-        var p = task().practice[st.practice_i];
+        var p = practiceNow();
+        var role = st.plan ? st.plan[st.practice_i].role : null;
         var ok = hit(p, value, task().mode);
         st.practice_tries++;
-        var retry = !ok && st.practice_tries < 2;
-        ev('practice_answer', { task_id: st.task_id, item_id: p.id, value: { value: value, ok: ok, try: st.practice_tries } });
+        var retry = !ok && st.practice_tries < 2 && role !== 'demo';
+        ev('practice_answer', { task_id: st.task_id, item_id: p.id, value: role ? { value: value, ok: ok, try: st.practice_tries, role: role } : { value: value, ok: ok, try: st.practice_tries } });
         if (!retry) { st.practice_i++; st.practice_tries = 0; }
-        if (st.practice_i >= task().practice.length) st.phase = 'ready';
+        if (st.practice_i >= (st.plan ? st.plan.length : task().practice.length)) st.phase = 'ready';
         return { ok: ok, retry: retry, shown: !ok && !retry ? p.target : null, feedback: p.feedback || null };
       },
       /** "Go!": the clock starts (timed tasks) and the first item shows. */
@@ -674,7 +726,9 @@
         var t = task();
         var v = { phase: st.phase, task_index: taskIndex, tasks: battery.tasks.length, task: st.phase === 'battery_end' ? null : t };
         if (opts.dev_tools) v.dev_tasks = battery.tasks.map(function (x, i) { return { index: i, id: x.id, title: x.title || null }; });
-        if (st.phase === 'practice') v.practice = t.practice[st.practice_i];
+        if (st.phase === 'practice') v.practice = practiceNow();
+        if (st.phase === 'practice' && st.plan) v.guided_role = st.plan[st.practice_i].role;
+        if (st.g) v.guided = true;
         if (st.phase === 'running' || st.phase === 'last_word') {
           var lim = limitMs(t);
           v.time_left_ms = lim == null ? null : Math.max(0, lim - (now() - st.started));
@@ -685,6 +739,7 @@
             var cells = cellsOf(t);
             v.cell = String(cells[st.cell.i]); v.cell_index = st.cell.i; v.cells_n = cells.length;
             v.cell_item = t.items[st.cell.i] || null;
+            if (st.g) v.cell_quiet_ms = now() - Math.max(st.cell.at, st.cell.voice_at != null ? st.cell.voice_at : 0);
           }
           if (t.mode !== 'record' && st.item_started != null) {
             var waited = now() - st.item_started;
