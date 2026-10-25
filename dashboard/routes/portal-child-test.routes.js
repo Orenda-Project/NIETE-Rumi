@@ -135,6 +135,8 @@ const SA_SWITCHES = {
   allGrades: 'sa_all_grades',
   // Add a child on the spot (the bot's own row of the same name writes the child)
   addChild: 'sa_add_child',
+  // Urdu that fits on these pages (portal/src/portal/lib/assess/urFit.ts): the same row as the child's screens
+  urFit: 'sa_ur_fit',
   // the example results dashboard (synthetic students, no DB rows): sandbox only, see SANDBOX_ONLY
   exampleDashboard: 'sa_example_dashboard',
   // the same dashboard on this tier's real sessions (GET /sa/sessions below): any host, its row decides

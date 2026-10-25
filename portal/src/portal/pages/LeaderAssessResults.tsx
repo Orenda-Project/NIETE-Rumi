@@ -4,6 +4,7 @@ import { ChevronDown, ChevronLeft, RefreshCw } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import { childTestSa } from '../services/api';
 import { COPY, urDigits, type Lang } from '../lib/assess/copy';
+import { useUrFit } from '../lib/assess/urFit';
 import type { SaResults, SaTaskResult } from '../types/childTestSa';
 
 /**
@@ -53,6 +54,7 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 export default function LeaderAssessResults() {
+  useUrFit();
   const { sessionId = '' } = useParams();
   const [lang, setLang] = useState<Lang>(readLang);
   const [load, setLoad] = useState<Load>({ kind: 'loading' });

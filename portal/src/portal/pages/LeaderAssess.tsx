@@ -11,6 +11,7 @@ import AssessActions, { useAboveTabBar } from '../components/assess/AssessAction
 import { childTestSa } from '../services/api';
 import { useChildTestSa } from '../lib/useChildTestSa';
 import { COPY, urDigits, type Lang } from '../lib/assess/copy';
+import { useUrFit } from '../lib/assess/urFit';
 import { BLOCKS, isBlock, isRdf, pickBlock, type Block } from '../lib/assess/blocks';
 import { useSaSwitches } from '../lib/assess/switches';
 import { resultsPath } from '../lib/assess/results';
@@ -102,6 +103,7 @@ function todaysFirst(schools: SaSchool[]) {
 }
 
 export default function LeaderAssess() {
+  useUrFit();
   const enabled = useChildTestSa();
   const switches = useSaSwitches(enabled);
   const above = useAboveTabBar();
