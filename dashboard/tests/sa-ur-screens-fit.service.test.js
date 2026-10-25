@@ -122,6 +122,14 @@ maybe('ON: every Urdu word on every screen of the visit fits (real browser, Nast
     }
   }, 180000);
 
+  // The sync dot sits in the page's top corner; a heading scrolled up inside the body must never pass under it.
+  test('ON at 360x640: a scrolled heading never passes under the sync dot', async () => {
+    const sc = W.scenarios({ grades: [1] }).find((x) => x.block === 'rdf_auto');
+    const r = await W.walk(browser, sc, W.VIEWPORTS.find((v) => v.name === '360x640'), { urFit: true });
+    expect(r.some((s) => s.state.shown === 'battery_end')).toBe(true);
+    expect(fmt(r)).toEqual([]);
+  }, 180000);
+
   test('OFF: the same walk still finds the Urdu failures the switch fixes (the measure sees them)', async () => {
     const sc = W.scenarios({ grades: [3] })[0];
     const r = await W.walk(browser, sc, W.VIEWPORTS.find((v) => v.name === '360x640'), {});
