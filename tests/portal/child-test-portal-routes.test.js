@@ -262,12 +262,13 @@ describe('the Learning assessment\'s page switches (sa/switches)', () => {
       { key: 'sa_mic_required', value: [COACH] },
       { key: 'sa_coach_picks_block', value: ['someone-else'] },
       { key: 'sa_voice_gate_v2', value: [COACH] },
+      { key: 'sa_ur_fit', value: [COACH] },
     );
     const out = await invoke(ROUTES, 'get', '/sa/switches');
     expect(out.statusCode).toBe(200);
     expect(out.payload).toEqual({
       success: true,
-      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true, exampleDashboard: false, realDashboard: false, reviewPage: false, resumeRepick: false, allGrades: false, addChild: false },
+      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true, urFit: true, exampleDashboard: false, realDashboard: false, reviewPage: false, resumeRepick: false, allGrades: false, addChild: false },
     });
     expect(axiosPost).not.toHaveBeenCalled();
   });
