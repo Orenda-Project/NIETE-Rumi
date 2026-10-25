@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, cleanup } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { resetNewUiMemory } from "../lib/useNewUi";
+import { WHATSAPP_URL_PICKER } from "@/lib/whatsapp";
 
 /**
  * bd-5rz1v.17 — the new Home ships behind `portal_new_ui`, and with the flag OFF the
@@ -31,11 +32,15 @@ import { useAuth } from "../hooks/useAuth";
 import { portal } from "../services/api";
 import PortalDashboard from "./PortalDashboard";
 
-type ConfigMode = "off" | "absent" | "loading" | "fails";
+type ConfigMode = "off" | "absent" | "loading" | "fails" | "offWithBot";
+
+// A made-up bot number, built from parts so the public repo holds no phone-shaped literal.
+const BOT = ["92", "000", "0000001"].join("");
 
 function setConfig(mode: ConfigMode) {
   const fn = vi.mocked(portal.getConfig);
   fn.mockReset();
+  if (mode === "offWithBot") fn.mockResolvedValue({ success: true, features: { assessmentGenerator: false, assessmentGeneratorMessage: null, newUi: false }, bot: BOT } as never);
   if (mode === "off") fn.mockResolvedValue({ success: true, features: { assessmentGenerator: false, assessmentGeneratorMessage: null, newUi: false } } as never);
   if (mode === "absent") fn.mockResolvedValue({ success: true, features: { assessmentGenerator: false, assessmentGeneratorMessage: null } } as never);
   if (mode === "loading") fn.mockImplementation(() => new Promise(() => {}));
@@ -84,5 +89,25 @@ describe("bd-5rz1v.17 — flag off: the dashboard is exactly what it was", () =>
     for (const mode of ["absent", "loading", "fails"] as const) {
       expect(await renderDashboard(mode), mode).toBe(off);
     }
+  });
+});
+
+/*
+ * "Open WhatsApp" opens THIS tier's bot, which the server names on /config (`bot`). The portal is one build for every
+ * tier, so no number is baked in: without one on /config (unset, still loading, a failed read) there is no button.
+ */
+describe("Open WhatsApp: the tier's bot from /config, or no button", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("/config names the bot → Open WhatsApp opens it", { timeout: 30_000 }, async () => {
+    const html = await renderDashboard("offWithBot");
+    expect(html).toContain(`href="${WHATSAPP_URL_PICKER}${BOT}"`);
+    expect(html).toContain(">Open WhatsApp</a>");
+  });
+
+  it.each(["off", "absent", "loading", "fails"] as const)("/config %s → no wa.me button", { timeout: 30_000 }, async (mode) => {
+    const html = await renderDashboard(mode);
+    expect(html).not.toMatch(/wa\.me/);
+    expect(html).not.toContain("Open WhatsApp");
   });
 });

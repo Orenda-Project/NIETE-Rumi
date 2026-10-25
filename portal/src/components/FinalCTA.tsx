@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { WHATSAPP_URL } from '@/lib/whatsapp';
+import { useBotChatUrl } from '@/lib/whatsapp';
 import WhatsAppIcon from "@/components/icons/WhatsAppIcon";
 import { ArrowRight } from "lucide-react";
 import { getWhatsAppUrl, trackCtaClick } from "@/lib/funnelTracking";
@@ -7,7 +7,9 @@ import { useTranslation } from "react-i18next";
 
 const FinalCTA = () => {
   const { t } = useTranslation();
-  const whatsappUrl = getWhatsAppUrl(WHATSAPP_URL);
+  // This tier's bot, from the server; none configured → no chat button.
+  const botUrl = useBotChatUrl();
+  const whatsappUrl = botUrl ? getWhatsAppUrl(botUrl) : null;
 
   const handleCtaClickTracking = () => {
     trackCtaClick('footer');
@@ -28,6 +30,7 @@ const FinalCTA = () => {
             <span className="block mt-2">{t('finalCta.subtitleContinued')}</span>
           </p>
 
+          {whatsappUrl ? (
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
             <Button
               asChild
@@ -46,6 +49,7 @@ const FinalCTA = () => {
               </a>
             </Button>
           </div>
+          ) : null}
 
           <p className="text-sm text-primary-foreground/70 pt-8">
             {t('finalCta.note')}

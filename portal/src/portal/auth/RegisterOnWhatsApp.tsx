@@ -1,5 +1,5 @@
 import { MessageCircle } from 'lucide-react';
-import { WHATSAPP_URL } from '@/lib/whatsapp';
+import { botChatUrl, useBotNumber } from '@/lib/whatsapp';
 import { BottomButton } from '../newui';
 import { useCopy } from '../teacher/i18n';
 import { AuthMessage } from './AuthFrame';
@@ -7,10 +7,11 @@ import { AUTH } from './copy';
 
 /**
  * bd-x7aprz.3 — the chat with the bot with a command typed. The server sends this deployment's own link with the
- * answer (so the sandbox portal opens the sandbox bot); without one, the portal's own WhatsApp number (lib/whatsapp).
+ * answer (so the sandbox portal opens the sandbox bot); without one, this tier's bot number from /config
+ * (`bot`, useBotNumber). Neither → null: the caller shows no WhatsApp button.
  */
-export function chatLink(text: string, fromServer?: string | null): string {
-  return fromServer || `${WHATSAPP_URL}?text=${encodeURIComponent(text)}`;
+export function chatLink(text: string, fromServer?: string | null, bot?: string | null): string | null {
+  return fromServer || botChatUrl(bot ?? null, text);
 }
 
 /**
@@ -19,10 +20,11 @@ export function chatLink(text: string, fromServer?: string | null): string {
  */
 export function RegisterOnWhatsApp({ href }: { href?: string | null }) {
   const c = useCopy(AUTH);
+  const to = chatLink('/register', href, useBotNumber());
   return (
     <div data-testid="register-on-whatsapp" className="mb-1">
       <AuthMessage>{c.notRegistered}</AuthMessage>
-      <BottomButton to={chatLink('/register', href)} icon={MessageCircle}>{c.registerOnWa}</BottomButton>
+      {to ? <BottomButton to={to} icon={MessageCircle}>{c.registerOnWa}</BottomButton> : null}
     </div>
   );
 }

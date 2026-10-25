@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { WHATSAPP_URL } from '@/lib/whatsapp';
+import { useBotChatUrl } from '@/lib/whatsapp';
 import WhatsAppIcon from "@/components/icons/WhatsAppIcon";
 import heroImage from "@/assets/hero-sketch-2.png";
 import { getWhatsAppUrl, trackCtaClick } from "@/lib/funnelTracking";
@@ -7,7 +7,9 @@ import { useTranslation } from "react-i18next";
 
 const Hero = () => {
   const { t } = useTranslation();
-  const whatsappUrl = getWhatsAppUrl(WHATSAPP_URL);
+  // This tier's bot, from the server; none configured → no chat button.
+  const botUrl = useBotChatUrl();
+  const whatsappUrl = botUrl ? getWhatsAppUrl(botUrl) : null;
 
   const handleCtaClickTracking = () => {
     trackCtaClick('hero');
@@ -30,6 +32,7 @@ const Hero = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              {whatsappUrl ? (
               <Button asChild variant="default" size="xl" className="group">
                 <a
                   href={whatsappUrl}
@@ -41,6 +44,7 @@ const Hero = () => {
                   {t('hero.meetRumi')}
                 </a>
               </Button>
+              ) : null}
               <Button
                 variant="outline"
                 size="xl"

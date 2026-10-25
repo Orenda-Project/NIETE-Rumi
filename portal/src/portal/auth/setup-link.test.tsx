@@ -3,7 +3,7 @@ import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import i18n from "i18next";
-import { WHATSAPP_URL } from "@/lib/whatsapp";
+import { WHATSAPP_URL_PICKER } from "@/lib/whatsapp";
 
 /**
  * bd-x7aprz.3 — no dead ends on the way in: nothing ever says "No account found" or "No password yet".
@@ -34,6 +34,8 @@ vi.mock("../hooks/useAuth", () => ({
   useAuth: () => ({ login: h.login, checkAuth: h.checkAuth, user: null, loading: false }),
 }));
 vi.mock("../services/api", () => ({
+  // This tier's bot number reaches the portal on /config (`bot`); a made-up one, built from parts.
+  portal: { getConfig: vi.fn().mockResolvedValue({ success: true, features: {}, bot: ["92", "000", "0000001"].join("") }) },
   auth: {
     setupSignIn: h.api.setupSignIn,
     requestReset: h.api.requestReset,
@@ -62,8 +64,8 @@ const at = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>)
 // Digits built from parts: the public repo holds no phone-shaped literal (tests/setup/phone-shaped-fixtures).
 const NUM = ["03", "000", "000", "001"].join("");
 const BOT = ["92", "302", "0000255"].join("");
-// The chat link the SERVER sends for its own deployment: the portal's constant, with that deployment's number.
-const serverChat = (text: string) => `${WHATSAPP_URL.replace(/\d+$/, BOT)}?text=${encodeURIComponent(text)}`;
+// The chat link the SERVER sends for its own deployment.
+const serverChat = (text: string) => `${WHATSAPP_URL_PICKER}${BOT}?text=${encodeURIComponent(text)}`;
 const BANNED = /No account found|No password yet/;
 
 describe("Forgot password for a number that is not registered", () => {

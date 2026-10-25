@@ -104,7 +104,7 @@ const { publicUserPayload, makeRequireLeaderRole } = require('../lib/leader-role
 // The bot's ONE definition of "registered" (pure, no requires) — bd-x7aprz.3.
 const { isRegistered } = require('../../bot/shared/utils/registration-status');
 // This deployment's own bot, as a wa.me link with a command typed (WHATSAPP_BOT_NUMBER / REFERRAL_BOT_NUMBER).
-const { waMeLink } = require('./app-login.routes');
+const { waMeLink, botNumber } = require('./app-login.routes');
 // Analytics-only accounts (federal / sector officials): one app_settings list decides who
 // they are, and they see the school-wise analytics page and nothing else.
 const { makeRequireAnalyticsViewer } = require('../lib/analytics-viewer');
@@ -8885,6 +8885,9 @@ router.get('/config', async (req, res) => {
     ]);
     return res.json({
       success: true,
+      // This deployment's WhatsApp bot (digits) for the portal's chat buttons, or null with none configured — then the
+      // portal shows no chat button. One build serves every tier, so the number comes from here, never the bundle.
+      bot: botNumber(),
       features: {
         assessmentGenerator,
         assessmentEditing,
@@ -8908,6 +8911,7 @@ router.get('/config', async (req, res) => {
     // Fail closed here too — a broken config read must not imply "everything on".
     return res.json({
       success: true,
+      bot: botNumber(),
       features: {
         assessmentGenerator: false,
         assessmentEditing: false,

@@ -45,6 +45,8 @@ vi.mock("../hooks/useAuth", () => ({
 }));
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: h.toast }) }));
 vi.mock("../services/api", () => ({
+  // This tier's bot number reaches the portal on /config (`bot`); a made-up one, built from parts.
+  portal: { getConfig: vi.fn().mockResolvedValue({ success: true, features: {}, bot: ["92", "000", "0000001"].join("") }) },
   auth: {
     requestReset: h.api.requestReset,
     verifyResetCode: h.api.verifyResetCode,

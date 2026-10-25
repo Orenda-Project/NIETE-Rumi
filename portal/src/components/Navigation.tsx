@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { WHATSAPP_URL } from '@/lib/whatsapp';
+import { useBotChatUrl } from '@/lib/whatsapp';
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import rumiLogo from "@/assets/rumi-logo.png";
@@ -11,7 +11,9 @@ import WhatsAppIcon from "@/components/icons/WhatsAppIcon";
 const Navigation = () => {
   const { t } = useTranslation();
   const [isScrolled, setIsScrolled] = useState(false);
-  const whatsappUrl = getWhatsAppUrl(WHATSAPP_URL);
+  // This tier's bot, from the server; none configured → no chat button.
+  const botUrl = useBotChatUrl();
+  const whatsappUrl = botUrl ? getWhatsAppUrl(botUrl) : null;
 
   const handleCtaClickTracking = () => {
     trackCtaClick('navigation');
@@ -47,6 +49,7 @@ const Navigation = () => {
             >
               {t('nav.features')}
             </a>
+            {whatsappUrl ? (
             <Button asChild variant="default" size="sm">
               <a
                 href={whatsappUrl}
@@ -59,6 +62,7 @@ const Navigation = () => {
                 <span className="hidden sm:inline">{t('nav.meetRumi')}</span>
               </a>
             </Button>
+            ) : null}
             <LanguageSwitcher />
           </div>
         </div>

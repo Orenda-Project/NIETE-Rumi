@@ -649,6 +649,8 @@ export type LibraryLesson = { id: string; label: string; sub: string | null; rea
 
 export type PortalConfig = {
   success: boolean;
+  /** This tier's WhatsApp bot number (digits), or null when the server has none configured: show no chat button. */
+  bot?: string | null;
   features: {
     assessmentGenerator: boolean;
     assessmentGeneratorMessage: string | null;

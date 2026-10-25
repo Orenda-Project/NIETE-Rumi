@@ -1,12 +1,14 @@
 import Navigation from "@/components/Navigation";
-import { WHATSAPP_URL } from '@/lib/whatsapp';
+import { useBotChatUrl } from '@/lib/whatsapp';
 import { Button } from "@/components/ui/button";
 import WhatsAppIcon from "@/components/icons/WhatsAppIcon";
 import rumiLogo from "@/assets/rumi-logo.png";
 import { getWhatsAppUrl, trackCtaClick } from "@/lib/funnelTracking";
 
 const HowItWorks = () => {
-  const whatsappUrl = getWhatsAppUrl(WHATSAPP_URL);
+  // This tier's bot, from the server; none configured → no chat button.
+  const botUrl = useBotChatUrl();
+  const whatsappUrl = botUrl ? getWhatsAppUrl(botUrl) : null;
 
   const handleCtaClickTracking = () => {
     trackCtaClick('how-it-works');
@@ -200,6 +202,7 @@ const HowItWorks = () => {
               Teaching is lonely. It doesn't have to be.
             </p>
 
+            {whatsappUrl ? (
             <Button
               asChild
               variant="secondary"
@@ -216,6 +219,7 @@ const HowItWorks = () => {
                 Meet Rumi
               </a>
             </Button>
+            ) : null}
           </div>
         </section>
       </main>

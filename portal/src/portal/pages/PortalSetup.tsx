@@ -10,6 +10,7 @@ import { chatLink } from '../auth/RegisterOnWhatsApp';
 import { AUTH } from '../auth/copy';
 import { serverWhatsapp } from '../auth/errors';
 import { useCopy } from '../teacher/i18n';
+import { useBotNumber } from '@/lib/whatsapp';
 
 /**
  * bd-x7aprz.3 — an old /portal/setup/<token> link. The bot sent these (valid 7 days) to set a password; some are still
@@ -25,6 +26,7 @@ const PortalSetup = () => {
   const c = useCopy(AUTH);
   const [expired, setExpired] = useState<{ href: string | null } | null>(null);
   const asked = useRef(false);
+  const bot = useBotNumber();
 
   useEffect(() => {
     // Once per mount: the token is spent on the first answer, so a second ask would always be "expired".
@@ -43,8 +45,16 @@ const PortalSetup = () => {
 
   return (
     <AuthFrame title={c.linkExpired}>
-      <BottomButton to={chatLink('/portal', expired.href)} icon={MessageCircle}>{c.getNewLink}</BottomButton>
-      <div className="h-3" />
+      {(() => {
+        // The server's link first, then this tier's bot from /config; neither → no WhatsApp button.
+        const chat = chatLink('/portal', expired.href, bot);
+        return chat ? (
+          <>
+            <BottomButton to={chat} icon={MessageCircle}>{c.getNewLink}</BottomButton>
+            <div className="h-3" />
+          </>
+        ) : null;
+      })()}
       <BottomButton tone="outline" icon={LogIn} onClick={() => navigate('/portal/login')}>{c.login}</BottomButton>
       <div className="h-3.5" />
     </AuthFrame>
