@@ -24,6 +24,8 @@
  *   sa_cell_next_only       round 5: an Urdu/English letter or word shown one at a time moves on only on Next (wins over sa_cell_pace).
  *   sa_auto_child_last_word round 5: in RDF auto the child taps the last word (kept as the check); the coach's screen is manual's.
  *   sa_app_asks             round 6: in RDF manual Jugnu asks every question and item prompt; the coach gives the instructions only.
+ *                           OFF drops each task's coach_text_c (the coach's words for that mode), so the battery is the
+ *                           one built before it, byte for byte.
  *   sa_ur_fit               round 6: every Urdu word on the screens whole, inside its box, clear of pictures and the foot
  *                           (sa.css "Round 6", the page's .is-ur-fit).
  *                           ON, each adds battery.ui.<one_at_a_time|passage_punct|rdf_manual> = true for the engine;
@@ -56,9 +58,20 @@ function withoutW3(battery) {
   return out;
 }
 
+/** OFF: every task less its manual-C coach text (a task without it is the same object). */
+function withoutCoachC(battery) {
+  if (!battery.tasks.some((t) => t.coach_text_c)) return battery;
+  return { ...battery, tasks: battery.tasks.map((t) => {
+    if (!t.coach_text_c) return t;
+    const { coach_text_c: _c, ...rest } = t;
+    return rest;
+  }) };
+}
+
 function applySwitches(input, on = {}) {
   if (!input || !Array.isArray(input.tasks)) return input;
-  const battery = on.rdfW3Forms ? input : withoutW3(input);
+  const w3 = on.rdfW3Forms ? input : withoutW3(input);
+  const battery = on.appAsks ? w3 : withoutCoachC(w3);
   const tasks = battery.tasks.map((t) => {
     const demo = !!(t.script && t.script.demo_item);
     if (!t.practice_v2 && !demo && !t.variants) return t;

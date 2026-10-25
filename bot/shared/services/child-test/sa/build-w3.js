@@ -382,13 +382,41 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
   return out.sort((a, b) => order.get(a.task) - order.get(b.task));
 }
 
+/**
+ * Round 6, bar C (RULING R6-11 item 3): what the coach reads in RDF manual when Jugnu asks the questions
+ * (sa_app_asks; the engine shows it only then). The coach's script less what the app now does: a first-person line
+ * the app performs names Jugnu, a pointing cue is dropped (the app asks per item), and the panel-signed letter-sounds
+ * script stops before its example (the practice and the ready line are Jugnu's), keeping its skip rule.
+ */
+const COACH_C = {
+  en: [
+    [/^Say: "(.*?)\s*For example,.*(If you come to a letter you do not know, go on to the next letter\.).*?(Then give the phone to the child\.)$/s, '$1 $2 $3'],
+    [/^I will show you /, 'Jugnu will show you '],
+    [/When you finish, I will ask you/, 'When you finish, Jugnu will ask you'],
+    [/When I say "Begin,"/, 'When Jugnu says "Begin,"'],
+    [/^Now I am going to ask you/, 'Now Jugnu will ask you'],
+    [/I will tell you when to/, 'Jugnu will tell you when to'],
+    [/\[Point to the box\] /, ''],
+  ],
+  ur: [
+    [/^کہیں: «(.*?)\s*مثال کے طور پر،.*(اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔).*?(پھر فون بچے کو دے دیں۔)$/s, '$1 $2 $3'],
+    [/کہانی پڑھنے کے بعد آپ سے چند سوال پوچھے جائیں گے۔/, 'کہانی پڑھنے کے بعد جگنو آپ سے چند سوال پوچھے گا۔'],
+    [/جب «شروع کریں» کہا جائے تو/, 'جب جگنو «شروع کریں» کہے تو'],
+    [/^اب آپ سے اس کہانی کے بارے میں چند سوال پوچھے جائیں گے/, 'اب جگنو آپ سے اس کہانی کے بارے میں چند سوال پوچھے گا'],
+    [/کب شروع کرنا ہے اور کب رکنا ہے، یہ آپ کو بتایا جائے گا۔/, 'جگنو بتائے گا کہ کب شروع کرنا ہے اور کب رکنا ہے۔'],
+    [/\[خالی خانے کی طرف اشارہ کریں\] /, ''],
+  ],
+};
+const coachTextC = (text, lang) => (COACH_C[lang] || []).reduce((s, [re, to]) => s.replace(re, to), text);
+
 /** A W3 task in the page's language (the engine's contract, RULING W3-2 §8). */
 function runtimeW3Task(t, lang, H) {
   const { inLang, chainIn, runtimeTask, runtimeScript } = H;
   const coach = { text: t.coach_text[lang], src: t.coach_text[`src_${lang}`] || t.coach_text.src };
+  const coachC = { coach_text_c: { text: coachTextC(coach.text, lang), src: `${coach.src}; manual with the app asking (round 6, R6-2)` } };
   if (t.kind === 'passage' || t.kind === 'questions' || (t.tap && t.kind !== 'oral' && t.kind !== 'grid')) {
     const r = runtimeTask({ ...t, variants: t.variants }, lang);
-    const o = { ...r, w3: true, coach_text: coach };
+    const o = { ...r, w3: true, coach_text: coach, ...coachC };
     if (t.kind === 'passage') {
       o.depends_on = { task: `${t.lang}.words4`, skip_if_stop: 'early_stop_first_line' };
       o.passage = { ...o.passage, print_lines: t.print_lines, print_src: t.print_src };
@@ -403,7 +431,7 @@ function runtimeW3Task(t, lang, H) {
   };
   return {
     id: t.task, w3: true, legacy_block: null, family: t.family, subtask: t.subtask, lang: t.lang, title: t.title, kind: t.kind,
-    script: runtimeScript(t, lang), instruction: inLang(t.script.intro, lang), coach_text: coach,
+    script: runtimeScript(t, lang), instruction: inLang(t.script.intro, lang), coach_text: coach, ...coachC,
     source: t.source, deviation: t.deviation, ...(t.practice_note ? { practice_note: t.practice_note } : {}),
     response: t.response, present: t.present, time_limit_s: t.time_limit_s, advance_after_s: t.advance_after_s,
     ...(t.next_at_s ? { next_at_s: t.next_at_s } : {}), ...(t.say_on ? { say_on: t.say_on } : {}), stop: {}, ...(t.stop_note ? { stop_note: t.stop_note } : {}),

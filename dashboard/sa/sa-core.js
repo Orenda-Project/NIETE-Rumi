@@ -131,6 +131,7 @@
       direction: t.direction || (t.passage && t.passage.direction) || (t.grid && t.grid.direction) || 'ltr',
       instruction: t.instruction || null, script: t.script || {}, source: t.source || null, deviation: t.deviation || null,
       coach_text: t.coach_text || null,
+      coach_text_c: t.coach_text_c || null, // sa_app_asks: what the coach reads when Jugnu asks (served only then)
       tap_on: t.tap_on || null, option_images: t.option_images || null, present: t.present || null,
       // One at a time: the wait before a cell moves on by itself (0: never).
       cell_auto_s: has(t, 'advance_after_s') ? (num(t.advance_after_s, t.next_at_s) || 0) : (num(t.cell_auto_s) || CELL_AUTO_S),
@@ -230,6 +231,9 @@
     var st = { phase: 'battery_intro' };
     var oneAtATime = !!opts.one_at_a_time;
     var manual = !!opts.manual;
+    // sa_app_asks (round 6, R6-3): a sum read only on its replay tile is the child's to read; the task says so
+    // (presentation 'child_read') and each cell counts its replay presses. Absent, the results are as before.
+    var childRead = opts.app_asks === true;
     var compAll = !!opts.comp_all_questions;
     var cellPace = !!opts.cell_pace;
     var cellNextOnly = !!opts.cell_next_only;
@@ -259,6 +263,7 @@
       var e = { i: c.i, at_ms: Math.round(c.at - st.started), ms: Math.round(now() - c.at), how: how };
       var it = task().items[c.i];
       if (it && it.id) e = { i: c.i, item_id: it.id, at_ms: e.at_ms, ms: e.ms, how: how };
+      if (childRead && task().say_on === 'replay') e.replay_presses = c.replays || 0;
       st.cells.push(e);
       st.last_item_index = c.i;
       st.cell = null;
@@ -388,6 +393,7 @@
         if (st.last_word_how) { r.last_word_how = st.last_word_how.how; r.last_word_suggested = st.last_word_how.suggested; }
       }
       if (st.cells) r.cells = st.cells.slice();
+      if (childRead && t.say_on === 'replay') r.presentation = 'child_read';
       if (t.mode === 'oral') r.asked = st.items.map(function (q) { return q.id; });
       if (t.mode === 'oral' && st.rec_marks) { r.rec_section = true; r.rec_marks = st.rec_marks.slice(); }
       // Whether the recorder ever opened for this task (a skip, no mic, or the coach's early end before it: false), so
@@ -667,6 +673,8 @@
         taskIndex++;
         enterTask(false);
       },
+      /** sa_app_asks: the child pressed the replay tile on the cell on show (a sum read on replay). */
+      replayPressed: function () { if (childRead && st.phase === 'running' && st.cell) st.cell.replays = (st.cell.replays || 0) + 1; },
       /** A surface's own event (handover_in, offline, sync_ok …) in the same numbered log. */
       log: function (type, extra) { return ev(type, extra); },
       /** What the page draws. */
