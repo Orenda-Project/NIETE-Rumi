@@ -5,7 +5,7 @@
  *
  *   PWCORE=<playwright-core> node dashboard/scripts/sa-ur-fit-walk.js <out dir> [--grades 1,3] [--vp 360x640] [--english] [--game] [--frames all|fails]
  *
- * --css <file> appends a stylesheet (to try a fix before it is made).
+ * --ur-fit / --app-asks turn those switches on in the battery's ui. --css <file> appends a stylesheet (to try a fix before it is made).
  * Writes <out>/nodes.jsonl (every Urdu text node on every screen: its box, its holder, the nearest picture or layer),
  * <out>/fails.jsonl, <out>/summary.json, and frames <out>/<viewport>/<scenario>/<n>_<task>_<screen>.png (the failures
  * marked: red = the word's ink, blue = what it ran into).
@@ -38,7 +38,7 @@ const frames = opt('--frames') || 'fails';
       for (let variant = 0; variant < variants; variant++) {
         const dir = path.join(out, vp.name, sc.id + (variants > 1 ? '.v' + variant : ''));
         await W.walk(browser, sc, vp, {
-          variant, css, urFit: args.includes('--ur-fit'),
+          variant, css, urFit: args.includes('--ur-fit'), appAsks: args.includes('--app-asks'),
           onScreen: async (rec, page, n) => {
             const st = rec.state;
             const tag = `${String(n).padStart(3, '0')}_${st.task || '-'}_${(st.shown || '').replace(/[^a-z_]/gi, '')}`;

@@ -113,7 +113,7 @@ function walkScript() {
       micLevel: function (cb) { cb(0.6); return function () {}; },
       manual: manual, passage_punct: ui.passage_punct === true, section_recording: ui.section_recording === true,
       coach_last_word: ui.coach_last_word === true, lastWordHint: function () { return Promise.resolve(2); },
-      auto_child_last_word: ui.auto_child_last_word === true, ur_fit: ui.ur_fit === true });
+      auto_child_last_word: ui.auto_child_last_word === true, ur_fit: ui.ur_fit === true, app_asks: ui.app_asks === true });
     W.runner = runner; W.view = view; W.el = el; W.seen = {}; W.items = 0; W.fb = {}; W.briefed = {};
     if (cfg.mode === 'proctored' && view.setSync) view.setSync({ state: 'pending' });
   };
@@ -188,6 +188,9 @@ function measureInPage(cfg) {
       left: r.left + (parseFloat(c.borderLeftWidth) || 0), right: r.right - (parseFloat(c.borderRightWidth) || 0) };
   };
   const visible = (e) => {
+    // The body of a folded <details> is not shown (only its summary is).
+    const fold = e.closest('details:not([open])');
+    if (fold && !e.closest('summary')) return false;
     for (let n = e; n && n.nodeType === 1; n = n.parentElement) {
       const c = getComputedStyle(n);
       if (c.display === 'none' || c.visibility === 'hidden' || parseFloat(c.opacity) === 0) return false;
@@ -428,6 +431,7 @@ async function walk(browser, sc, vp, opts = {}) {
   const lang = /\.en$/.test(sc.form) ? 'en' : 'ur';
   const { battery, manual } = batteryOf(sc, opts.variant || 0);
   if (opts.urFit) battery.ui = Object.assign({}, battery.ui, { ur_fit: true });
+  if (opts.appAsks) battery.ui = Object.assign({}, battery.ui, { app_asks: true });
   const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: vp.deviceScaleFactor || 1, reducedMotion: 'reduce' });
   const page = await ctx.newPage();
   await route(page, lang, vp);

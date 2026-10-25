@@ -301,6 +301,11 @@ button{font:inherit;color:inherit}
 .is-ur-fit[lang=ur] .sae-star{padding-top:0;padding-bottom:0}
 .is-ur-fit[lang=ur] .sae-h1,.is-ur-fit[lang=ur] .sae-sub,.is-ur-fit[lang=ur] .sae-say,.is-ur-fit[lang=ur] .sae-coach-items,.is-ur-fit[lang=ur] .sae-coach-line,.is-ur-fit[lang=ur] .sae-task-tag{line-height:3;padding-top:.85em;padding-inline:.6em}
 .is-ur-fit[lang=ur] .sae-coach-text{padding:calc(12px + .85em) calc(14px + .6em) 12px}
+/* the coach's numbered list keeps its numbers' gutter; each row clear of the row above; the folded "Jugnu asks" box */
+.is-ur-fit[lang=ur] .sae-coach-items{padding-inline:28px .6em}
+.is-ur-fit[lang=ur] .sae-coach-items li{padding-top:.3em}
+.is-ur-fit[lang=ur] .sae-coach-says{padding:8px calc(12px + .6em)}
+.is-ur-fit[lang=ur] .sae-coach-says>summary{line-height:3;padding-top:.85em}
 .is-ur-fit .sae-passage[lang=ur],.is-ur-fit[lang=ur] .sae-passage{line-height:3;padding-top:calc(14px + .85em);padding-inline:calc(16px + .6em)}
 /* the same layout on an English page whose screen holds Urdu (an Urdu passage, an Urdu task) */
 .sae.is-ur-fit[lang=en]:has(.sae-screen [lang=ur]){height:100vh;height:100dvh;min-height:0}

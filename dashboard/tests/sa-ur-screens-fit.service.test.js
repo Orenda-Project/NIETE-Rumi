@@ -113,6 +113,15 @@ maybe('ON: every Urdu word on every screen of the visit fits (real browser, Nast
     expect(fmt(r)).toEqual([]);
   }, 180000);
 
+  test('ON with sa_app_asks (the app asks, the coach instructs): the coach-led visit fits too', async () => {
+    for (const g of [1, 3, 5]) {
+      const sc = W.scenarios({ grades: [g] }).find((x) => x.block === 'rdf_manual');
+      const r = await W.walk(browser, sc, W.VIEWPORTS.find((v) => v.name === '320x568'), { urFit: true, appAsks: true });
+      expect(r.some((s) => s.state.shown === 'battery_end')).toBe(true);
+      expect(fmt(r)).toEqual([]);
+    }
+  }, 180000);
+
   test('OFF: the same walk still finds the Urdu failures the switch fixes (the measure sees them)', async () => {
     const sc = W.scenarios({ grades: [3] })[0];
     const r = await W.walk(browser, sc, W.VIEWPORTS.find((v) => v.name === '360x640'), {});
