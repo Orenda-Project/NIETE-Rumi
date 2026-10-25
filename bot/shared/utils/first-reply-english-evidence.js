@@ -7,8 +7,8 @@
  * A new row is stored 'ur' (the offer's first language), and resolve-response-language.js keeps
  * the stored language for any Latin-script message, because Latin script is NOT evidence of
  * English here: Roman Urdu is Latin-script Urdu ("class 4 ka lesson plan chahiye"). That rule is
- * right and stays. Its one cost is the person whose very first message is plainly English: she is
- * answered in Urdu before she has had any chance to choose.
+ * right and stays. Its one cost is the person whose very first message is plainly English: the teacher is
+ * answered in Urdu before they have had any chance to choose.
  *
  * THE RULE (positive evidence only; everything else is today's answer)
  *

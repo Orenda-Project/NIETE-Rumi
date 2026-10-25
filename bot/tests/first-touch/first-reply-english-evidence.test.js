@@ -78,7 +78,7 @@ describe('isBrandNewRow / isSwitchOn', () => {
     expect(isBrandNewRow(null)).toBe(false);
     expect(isBrandNewRow({ first_message_at: null })).toBe(false); // no id: no row
   });
-  test('a locked row is never "new" for this rule — her choice wins', () => {
+  test('a locked row is never "new" for this rule — their choice wins', () => {
     expect(isBrandNewRow({ ...NEW_ROW, language_locked: true })).toBe(false);
   });
   test('the switch is exactly "true"', () => {
