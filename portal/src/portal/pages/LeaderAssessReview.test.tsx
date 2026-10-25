@@ -152,6 +152,20 @@ describe("LeaderAssessReview", () => {
     expect((within(item).getByTestId("review-note") as HTMLTextAreaElement).value).toBe("x read it");
   });
 
+  it("one line tells the reviewer to mark the last answer the child settles on (EN + UR)", async () => {
+    api.getSwitches.mockResolvedValue({ reviewPage: true });
+    api.getReview.mockResolvedValue(review());
+    const { unmount } = renderAt(`/portal/leader/assess/review/${SID}`);
+    expect(await screen.findByTestId("review-mark-last")).toHaveTextContent("Mark the last answer the child settles on; a correction to the right answer is correct.");
+    expect(screen.getAllByTestId("review-mark-last")).toHaveLength(1);
+    unmount();
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    renderAt(`/portal/leader/assess/review/${SID}`);
+    const ur = await screen.findByTestId("review-mark-last");
+    expect(ur).toHaveTextContent(/آخر میں جس جواب پر/);
+    expect(ur.textContent).not.toMatch(/[A-Za-z]/);
+  });
+
   it("Urdu: headings in Urdu with Urdu digits", async () => {
     window.localStorage.setItem("niete-assess-lang", "ur");
     api.getSwitches.mockResolvedValue({ reviewPage: true });
