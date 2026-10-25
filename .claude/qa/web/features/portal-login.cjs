@@ -10,6 +10,8 @@ const PRINCIPAL = DEMO.principal;
 const COACH = DEMO.coach;
 const NO_PW_TEACHER = DEMO.noPwTeacher;
 const CLASSIC = MODES.classic;
+// A number nobody is registered with, built from parts so the repo holds no phone-shaped literal.
+const UNREGISTERED = ['03', '009', '999999'].join('');
 
 // The field message: the input is aria-invalid and aria-describedby points at its role="alert" text (AuthField.tsx).
 async function fieldError(page, id) {
@@ -156,6 +158,38 @@ const scenarios = [
     await page.getByRole('button', { name: /^back$/i }).click();
     const direct = await landsOn(page, '/portal/login');
     return { fromLogin, direct };
+  } },
+  { id: 'PL17', title: "Register on WhatsApp opens this deployment's own bot, or is not shown when none is configured", run: async (page, ctx) => {
+    // This deployment's bot, as the server tells the portal (null when none is configured).
+    const cfg = await (await page.request.get(ctx.baseUrl + '/api/portal/config')).json();
+    const bot = cfg && typeof cfg.bot === 'string' ? cfg.bot : null;
+    await open(page, ctx); await signIn(page, UNREGISTERED, 'anything');
+    let href = null;
+    if (bot) {
+      const link = page.getByRole('link', { name: /register on whatsapp/i });
+      await link.waitFor({ state: 'visible', timeout: 15000 }).catch(() => { throw new Error('no Register on WhatsApp button'); });
+      href = await link.getAttribute('href');
+      expect((href || '').startsWith('https://wa.me/' + bot + '?'), 'the button opens ' + href + ', not this deployment\'s bot');
+    }
+    // No number configured: /config answers bot null and the login answer carries no chat link.
+    await page.route('**/api/portal/config', async (route) => {
+      const res = await route.fetch(); const body = await res.json();
+      await route.fulfill({ response: res, json: { ...body, bot: null } });
+    });
+    await page.route('**/api/portal/login', async (route) => {
+      const res = await route.fetch(); let body = {};
+      try { body = await res.json(); } catch (_) { /* not JSON: pass it through unchanged */ return route.fulfill({ response: res }); }
+      delete body.whatsapp;
+      await route.fulfill({ response: res, json: body });
+    });
+    await open(page, ctx); await signIn(page, UNREGISTERED, 'anything');
+    await page.getByText(/not registered yet/i).first().waitFor({ state: 'visible', timeout: 15000 })
+      .catch(() => { throw new Error('the page never said "Not registered yet"'); });
+    const shown = await page.locator('a[href*="wa.me"]').count();
+    expect(shown === 0, shown + ' WhatsApp link(s) shown with no bot number configured');
+    const body = await page.locator('body').innerText();
+    expect(!/No account found/.test(body), 'the page says "No account found"');
+    return { bot, href, linksWithoutNumber: shown };
   } },
 ];
 

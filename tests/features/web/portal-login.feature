@@ -167,3 +167,17 @@ Feature: Portal sign-in
     When she opens /portal/analytics/login directly
     And she taps Back
     Then she is on /portal/login
+
+  @PL17
+  Scenario: Register on WhatsApp opens this deployment's own bot, or is not shown when none is configured
+    # The portal is one build served by every tier, so it names no bot number. The number comes from the server at
+    # runtime: GET /api/portal/config answers `bot` (WHATSAPP_BOT_NUMBER, else REFERRAL_BOT_NUMBER, else null).
+    # The server's own chat link wins; without one, `bot`; without either, no WhatsApp button (never another tier's
+    # bot). The same rule drives the landing page's Meet Rumi buttons and the dashboard's Open WhatsApp.
+    When she enters a number that is not registered and any password
+    And she taps Log in
+    Then the "Register on WhatsApp" button opens a wa.me chat with the bot number /api/portal/config answers as bot
+    When /api/portal/config answers no bot number and the server sends no chat link with its answer
+    And she enters that number and any password again and taps Log in
+    Then no WhatsApp button is shown
+    And the page still says "Not registered yet", never "No account found"
