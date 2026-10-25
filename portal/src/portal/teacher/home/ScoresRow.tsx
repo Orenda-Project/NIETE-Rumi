@@ -1,11 +1,9 @@
-import type { ReactNode } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FOCUS } from '../ui/styles';
 import { useCopy, useLang } from '../i18n';
-import { lessonPath } from '../coaching/paths';
-import { OBS_HOME } from '../observations/paths';
 import { HOME_CARD } from './copy';
+import { pickChips, withFraction } from './chips';
 import type { HomeCardKind, HomeScores, TapKind } from './api';
 
 /**
@@ -15,21 +13,6 @@ import type { HomeCardKind, HomeScores, TapKind } from './api';
  * card's own rung is left out (the card already opens that report). These are not tiles, so "no numbers on tiles"
  * holds.
  */
-type Chip = { key: 'chip_coach' | 'chip_obs'; text: string; frac: string; href: string };
-
-/**
- * The chip's words with its "{marks}/{max}" as a <bdi dir="ltr"> (the copy's LRI…PDI pair is dropped for the element,
- * which is the same isolate), so "29/38" never reads "38/29" inside Urdu.
- */
-function withFraction(text: string, frac: string): ReactNode {
-  const bare = text.replace(/[\u2066-\u2069]/g, '');
-  const at = bare.lastIndexOf(frac);
-  if (at < 0) return bare;
-  return <>{bare.slice(0, at)}<bdi dir="ltr">{frac}</bdi>{bare.slice(at + frac.length)}</>;
-}
-
-const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-
 export interface ScoresRowProps {
   scores: HomeScores;
   /** The card's rung, when a card is drawn: its own chip is omitted. */
@@ -41,16 +24,7 @@ export interface ScoresRowProps {
 export function ScoresRow({ scores, cardKind, onGo, className }: ScoresRowProps) {
   const C = useCopy(HOME_CARD);
   const ur = useLang() === 'ur';
-  const chips: Chip[] = [];
-  // The report page's rule for both: marks out of max, and no chip unless both are numbers.
-  const c = scores.coach;
-  if (c && cardKind !== 'coach_report' && isNum(c.marks) && isNum(c.max)) {
-    chips.push({ key: 'chip_coach', text: C.scores.coach(c.marks, c.max), frac: `${c.marks}/${c.max}`, href: lessonPath(c.id) });
-  }
-  const o = scores.observation;
-  if (o && cardKind !== 'observation' && isNum(o.marks) && isNum(o.max)) {
-    chips.push({ key: 'chip_obs', text: C.scores.obs(o.marks, o.max), frac: `${o.marks}/${o.max}`, href: OBS_HOME });
-  }
+  const chips = pickChips(scores, cardKind, C);
   if (!chips.length) return null;
   const dir = ur ? 'rtl' : undefined;
 

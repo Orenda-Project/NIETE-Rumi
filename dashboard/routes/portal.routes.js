@@ -91,6 +91,7 @@ const {
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,
   PORTAL_TEACHER_HOME_ORDER_KEY,
+  PORTAL_TEACHER_HOME_LOOK_KEY,
   isCoachObservationOn,
   PORTAL_ANALYTICS_ONLY_KEY,
   readUserListFlag,
@@ -8785,6 +8786,7 @@ router.get('/config', async (req, res) => {
       childTestSa,
       teacherHomeCard,
       teacherHomeOrderRaw,
+      teacherHomeLookRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -8808,6 +8810,8 @@ router.get('/config', async (req, res) => {
       // Teacher Home: the teacher Home's card, and its per-teacher order — the order only rides with the card on.
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_CARD_KEY, userId),
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_ORDER_KEY, userId),
+      // the Home's new look, which also rides with the card on.
+      isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_LOOK_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -8825,6 +8829,7 @@ router.get('/config', async (req, res) => {
         childTestSa,
         teacherHomeCard,
         teacherHomeOrder: teacherHomeCard && teacherHomeOrderRaw,
+        teacherHomeLook: teacherHomeCard && teacherHomeLookRaw,
       },
     });
   } catch (error) {
@@ -8846,6 +8851,7 @@ router.get('/config', async (req, res) => {
         childTestSa: false,
         teacherHomeCard: false,
         teacherHomeOrder: false,
+        teacherHomeLook: false,
       },
     });
   }

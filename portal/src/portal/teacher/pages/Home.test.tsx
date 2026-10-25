@@ -152,9 +152,14 @@ describe("teacher v2 Home", () => {
 
   // the build contract: portal_teacher_home_card OFF (here: /config cannot be read, which is OFF) is today's tree, taken
   // after the two unswitched greeting fixes (the name and its "!" are one isolate).
-  it("with the switches OFF the tree is today's: the tiles in the fixed order, no card, no chips, no /me/home", async () => {
+  it("with the switches OFF the tree is today's: the tiles in the fixed order, no card, no chips; the one /me/home read (started with /config) draws nothing", async () => {
+    const card = { kind: "coach_report", title: "Fractions", score: 72, max: 100, at: "2026-10-18T09:00:00Z", href: "/x", id: "s-1" };
+    vi.mocked(api.get).mockImplementation(((url: string) => Promise.resolve({ data: url === "/me/home"
+      ? { success: true, now: "", order: [], orderOn: false, card, scores: { coach: null, observation: null }, quizHome: null }
+      : { success: true, items: [] } })) as never);
     renderHome(AYESHA);
     await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalledWith("/me/notices"));
+    await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalledWith("/me/home"));
     const grid = screen.getByTestId("feature-tiles");
     const h1 = screen.getByRole("heading", { level: 1 });
     expect({
@@ -162,14 +167,14 @@ describe("teacher v2 Home", () => {
       grid: Array.from(grid.children).map((c) => `${c.tagName.toLowerCase()} ${c.getAttribute("href")}`),
       greeting: [...Array.from(h1.childNodes)].map((n) => (n.nodeType === 3 ? n.textContent : `<${n.nodeName.toLowerCase()}>${n.textContent}`)),
       card: document.querySelectorAll("[data-testid^='home-next'], [data-testid^='home-slim'], [data-testid='home-scores']").length,
-      homeRead: vi.mocked(api.get).mock.calls.some(([u]) => u === "/me/home"),
+      homeReads: vi.mocked(api.get).mock.calls.filter(([u]) => u === "/me/home").length,
     }).toEqual({
       first: true,
       grid: ["lessons", "coaching", "observations", "training", "assessment", "attendance", "classes", "analytics"]
         .map((k) => `a ${teacherPath(k as Parameters<typeof teacherPath>[0])}`),
       greeting: ["Salaam, ", "<bdi>Ayesha Bibi!"],
       card: 0,
-      homeRead: false,
+      homeReads: 1,
     });
   });
 
