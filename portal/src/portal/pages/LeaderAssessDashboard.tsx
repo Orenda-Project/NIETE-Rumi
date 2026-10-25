@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import { childTestSa } from '../services/api';
 import { urDigits, type Lang } from '../lib/assess/copy';
+import { useUrFit } from '../lib/assess/urFit';
 import { DASH_COPY } from '../lib/assess/dashboardCopy';
 import { exampleCohort, TASKS, type DashStudent, type ReadLang, type TaskSpec } from '../lib/assess/exampleCohort';
 import { masked, NO_SECTOR, secondVoiceCount, toDashStudents } from '../lib/assess/realCohort';
@@ -44,6 +45,7 @@ function ruleOf(spec: TaskSpec): 'items' | 'passage' | 'comprehension' | 'mathsI
 }
 
 export default function LeaderAssessDashboard() {
+  useUrFit();
   const [lang, setLang] = useState<Lang>(readLang);
   const [load, setLoad] = useState<Load>('loading');
   const [filter, setFilter] = useState<Filter>({});
