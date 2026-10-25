@@ -147,7 +147,7 @@ jest.mock('../../shared/services/first-touch/one-door.flags', () => ({ on: jest.
 jest.mock('../../shared/services/conversation-state.service', () => ({
   getState: jest.fn(async () => null), clearState: jest.fn(async () => true), setState: jest.fn(async () => true),
 }));
-jest.mock('../../shared/services/app-redirect.service', () => ({ redirectToApp: jest.fn(async () => false), redirectIfFlagged: jest.fn(async () => false) }));
+jest.mock('../../shared/services/app-redirect.service', () => ({ redirectIfFlagged: jest.fn(async () => false) }));
 
 const { handleTextMessage } = require('../../shared/handlers/text-message.handler');
 const BotHelpers = require('../../shared/database/bot-helpers');
@@ -255,7 +255,7 @@ describe('switch ON + brand-new row', () => {
     expectNoLanguageWrite();
   });
 
-  test('a brand-new row that LOCKED Urdu → Urdu (her choice wins)', async () => {
+  test('a brand-new row that LOCKED Urdu → Urdu (their choice wins)', async () => {
     await turn(ENGLISH, { ...NEW_ROW, language_locked: true });
     expect(storedTurnLanguage()).toBe('ur');
     expectReplyIn('ur');

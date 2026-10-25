@@ -751,7 +751,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   }
   // A brand-new row's first message, plainly English (positive evidence, switch
   // FIRST_REPLY_ENGLISH_EVIDENCE): answer THIS turn in English. Nothing is stored — the row keeps
-  // its language and its lock; only her own choice (setUserLanguage) changes those. Switch off, an
+  // its language and its lock; only the teacher's own choice (setUserLanguage) changes those. Switch off, an
   // existing row, or no evidence → null, and every line below is today's.
   const firstReply = firstReplyLanguage({ user, text: messageBody });
   if (firstReply.language) {
