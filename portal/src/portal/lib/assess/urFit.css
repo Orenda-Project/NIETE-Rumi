@@ -1,0 +1,20 @@
+/* sa_ur_fit on the coach's Learning assessment pages (urFit.ts marks <html> while one is open; OFF = none of this).
+   Every Urdu word whole and inside its box at 320x568 to 390x844 and at 130 %, measured on the real ink:
+   - every line 2em, headings too (index.css keeps h1-h3 at 1.6, and a text-* utility's own line-height can win);
+   - the kit's small sizes at 14px, not 13, for the coach's small print;
+   - a line-initial «ک»/«گ» swash reaches past the line's end: the page root clips sideways (overflow-x-clip), so it
+     keeps .6em inside; headings, legends, a dl's cells and a divided list's rows get the same side room;
+   - a dl's rows get room above and below for the ink (their divider is the box);
+   - a table is never wider than its card (it was 300px in a 294px card, so its first column scrolled out of sight);
+   - the five grade buttons wrap rather than squeeze «جماعت ۱» into 41px at 130 %. */
+html[lang="ur"].sa-ur-fit body :not(svg):not(svg *) { line-height: 2 !important; }
+html[lang="ur"].sa-ur-fit :is(.text-xs, .text-\[10px\], .text-\[11px\], .text-\[11\.5px\], .text-\[12px\], .text-\[12\.5px\]) { font-size: 14px; }
+html[lang="ur"].sa-ur-fit [data-testid="assess-root"] { padding-inline: .6em; }
+html[lang="ur"].sa-ur-fit main :is(h1, h2, h3, legend) { padding-top: .4em; padding-inline: .6em; }
+html[lang="ur"].sa-ur-fit main :is(dt, dd) { padding-inline: .6em; }
+html[lang="ur"].sa-ur-fit main dl > div { padding-block: .6em; }
+html[lang="ur"].sa-ur-fit main ul.divide-y > li { padding-inline: .5em; }
+html[lang="ur"].sa-ur-fit main table { min-width: 0; }
+html[lang="ur"].sa-ur-fit main .grid-cols-5 { grid-template-columns: repeat(auto-fill, minmax(5.5em, 1fr)); }
+html[lang="ur"].sa-ur-fit main :is(.flex-wrap, p.flex) { row-gap: max(.5em, 8px); column-gap: max(.4em, 8px); }
+html[lang="ur"].sa-ur-fit main label span.block + span.block { padding-top: .3em; }
