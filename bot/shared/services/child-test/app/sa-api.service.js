@@ -37,6 +37,9 @@
  *
  * IDENTITY. The school must be one of the coach's (leader_schools) or the school of their own
  * observe visit; anything else is `not_found`, before the draw runs.
+ * PRACTICE. With child_test_practice_only ON, a coach off the pilot list passes only as practice-only
+ * (app-api.service guarded's `practice`): every handler here then sees and serves their practice
+ * (is_probable_test) schools only; a list, a child or a session anywhere else is `not_found`.
  * PRIVACY. What reaches the page is name · class · teacher: never a roll number or a student id,
  * and a father's name only when it is the way to tell two same-named children apart.
  * NEVER THROWS — the same status vocabulary as app-api.service.js.
@@ -53,8 +56,14 @@ const allGradesSwitch = require('./all-grades-switch');
 const stopRulesSwitch = require('./stop-rules-switch');
 const addChildSwitch = require('./add-child-switch');
 const coachLastWord = require('./coach-last-word-switch');
+const practiceOnly = require('./practice-only-switch');
 const { lastWordIndex } = require('../sa/last-word-hint');
-const { MEDIA, envSegment, __internals: { guarded, rows, ownVisit, ownSession, gradeOf } } = require('./app-api.service');
+const { MEDIA, envSegment, __internals: { guarded: gate, rows, ownVisit, ownSession, gradeOf } } = require('./app-api.service');
+
+/** Every handler of the coach app's Learning assessment may run for a practice-only coach (d.practiceSchools). */
+const guarded = (name, fn) => gate(name, fn, { practice: true });
+/** A school this handler may use: any, or for a practice-only coach, one of their practice schools. */
+const allowedSchool = (d, schoolId) => !d.practiceSchools || d.practiceSchools.has(schoolId);
 
 const OUTCOMES = ['present', 'absent', 'refused'];
 // child_test_sessions.item_bank_version of a self-administered session: the battery, not the coach's card
@@ -94,7 +103,7 @@ const listSchools = guarded('sa_list_schools', async ({ userId }, d) => {
       visitOf.set(s.schoolId, { visitId: f.id, observedGrade: gradeOf(f.answers && f.answers.lp_ref && f.answers.lp_ref.grade) });
     }
   }
-  const ids = [...new Set([...visitOf.keys(), ...linked.keys()])];
+  const ids = [...new Set([...visitOf.keys(), ...linked.keys()])].filter((id) => allowedSchool(d, id));
   const named = ids.length ? await rows(d.supabase.from('schools').select('id, name').in('id', ids)) : [];
   const nameOf = new Map(named.map((s) => [s.id, s.name]));
   const schools = ids.map((id) => {
@@ -147,7 +156,12 @@ async function visitListGrade(d, visitId) {
  * named). A named grade (sa_all_grades) keeps the observe visit's list only when that list is already of that grade;
  * any other grade, or a visit with no list yet, takes the graded day key, so the visit keeps its own list.
  */
-async function visitFor(d, userId, { schoolId, visitId, grade = null }) {
+async function visitFor(d, userId, args) {
+  const visit = await anyVisitFor(d, userId, args);
+  return visit && allowedSchool(d, visit.schoolId) ? visit : null;
+}
+
+async function anyVisitFor(d, userId, { schoolId, visitId, grade = null }) {
   if (visitId) {
     const visit = await ownVisit(d, userId, visitId);
     if (!visit) return null;
@@ -398,7 +412,7 @@ function onSession(name, fn) {
       const known = await store.findByClient(a.sessionId);
       if (known && known.ok && known.sessionId) session = await ownSession(d, a.userId, known.sessionId);
     }
-    if (!session || session.item_bank_version !== SA_MARK) return { status: 'not_found' };
+    if (!session || session.item_bank_version !== SA_MARK || !allowedSchool(d, session.school_id)) return { status: 'not_found' };
     const sa = {
       store,
       bank: deps.bank !== undefined ? deps.bank : loadBank(),
@@ -788,7 +802,7 @@ const ownResults = onSession('sa_results', async ({ sessionId }, d, session, sa)
 function saResults(args = {}, deps = {}) {
   const { asAdmin, ...rest } = args;
   if (asAdmin !== true) return ownResults(rest, deps);
-  return guarded('sa_results_admin', async ({ userId, sessionId }, d) => {
+  return gate('sa_results_admin', async ({ userId, sessionId }, d) => {
     if (!UUID_RE.test(String(sessionId || ''))) return { status: 'not_found' };
     const got = await d.store.getSession(sessionId);
     if (!got || !got.ok) throw new Error((got && got.error) || 'getSession failed');
@@ -818,6 +832,10 @@ function saSessions(args = {}, deps = {}) {
     const schools = await d.store.getSchoolsByIds(schoolIds);
     if (!schools || !schools.ok) throw new Error((schools && schools.error) || 'getSchoolsByIds failed');
     const schoolOf = new Map((schools.schools || []).map((s) => [s.id, s]));
+    // child_test_practice_only ON: each row says whether its school is a practice (test) school, so views can leave them out
+    const practiceIds = (await practiceOnly.enabled(deps))
+      ? new Set((await rows(d.supabase.from('schools').select('id').in('id', schoolIds).eq('is_probable_test', true))).map((x) => x.id))
+      : null;
     const rowsOf = new Map();
     for (const r of blocks.blocks || []) {
       if (!rowsOf.has(r.session_id)) rowsOf.set(r.session_id, []);
@@ -830,7 +848,9 @@ function saSessions(args = {}, deps = {}) {
       const results = shapeResults(s, rowsOf.get(s.id), bank, stops);
       if (!results.tasks.length) continue;
       const school = schoolOf.get(s.school_id) || {};
-      out.push({ schoolId: s.school_id || null, schoolName: school.name || null, sector: school.region || null, grade: s.grade, results });
+      const row = { schoolId: s.school_id || null, schoolName: school.name || null, sector: school.region || null, grade: s.grade, results };
+      if (practiceIds) row.practice = practiceIds.has(s.school_id);
+      out.push(row);
     }
     d.log('child_test.sa.sessions_read', { userId, admin, n: out.length });
     return { status: 'ok', sessions: out };
