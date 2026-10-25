@@ -276,3 +276,43 @@ button{font:inherit;color:inherit}
 .sae-screen.sae-lastword.is-coach{max-height:100vh;max-height:100dvh}
 .sae-lastword.is-coach .sae-body{min-height:0;justify-content:flex-start}
 .sae-lastword.is-coach .sae-passage.is-pick{flex:0 1 auto;min-height:150px;max-height:none}
+/* Round 6 (sa_ur_fit, the mount's .is-ur-fit; OFF = none of this): every Urdu word whole, inside its box, clear of
+   pictures and of the foot, at 320x568 to 390x844 and at 130 %. The house Nastaliq says its ink spans 0.92em above the
+   baseline and 0.25em below; its ink really reaches 2.62em above («کھ», «لکھ») and 0.84em below («م», «جہلم»). So:
+   - the screen is the phone's height and its body scrolls inside it: the foot never sits over a word, and the body's
+     children keep their size (an item with a min-height would otherwise shrink under its own words);
+   - a one-line pill (button, choice, the star's word, a picture's word, a passage word to tap) is as tall as the whole ink: line 2em, 1.3em
+     above, .4em below (24 px → 89 px); a pill that may wrap (chip, feedback) has 3em lines;
+   - running text (headings, Jugnu's words, the coach's words, the passage) has 3em lines and 0.85em above its first
+     line, so its first line's tall letters stay clear of whatever is above (.92 + (3 - 1.17) / 2 + .85 > 2.62), and .6em
+     at each side for the swash of a line's first «ک»/«گ» past the line's end (up to .59em). */
+.sae.is-ur-fit[lang=ur]{height:100vh;height:100dvh;min-height:0}
+.is-ur-fit[lang=ur] .sae-screen{min-height:0}
+.is-ur-fit[lang=ur] .sae-body{min-height:0;overflow-y:auto;justify-content:flex-start;padding:8px 12px;margin:0 -12px}
+.is-ur-fit[lang=ur] .sae-body>*{flex-shrink:0}
+.is-ur-fit[lang=ur] .sae-body>:first-child{margin-top:auto}
+.is-ur-fit[lang=ur] .sae-body>:last-child{margin-bottom:auto}
+.is-ur-fit[lang=ur] .sae-foot{position:static}
+.is-ur-fit[lang=ur] .sae-passage.is-pick,.is-ur-fit[lang=ur] .sae-lastword.is-coach .sae-passage.is-pick{max-height:none;overflow:visible}
+.is-ur-fit[lang=ur] .sae-btn,.is-ur-fit[lang=ur] .sae-choice,.is-ur-fit[lang=ur] .sae-star-word,.is-ur-fit[lang=ur] .sae-pic-w{line-height:2;padding-top:1.3em;padding-bottom:.4em}
+.is-ur-fit[lang=ur] .sae-pic-w{padding-bottom:.7em}
+.is-ur-fit[lang=ur] .sae-chip,.is-ur-fit[lang=ur] .sae-fb{line-height:3;padding-top:.8em;padding-bottom:.2em}
+.is-ur-fit[lang=ur] .sae-star,.is-ur-fit[lang=ur] .sae-pic{gap:0}
+.is-ur-fit[lang=ur] .sae-star{padding-top:0;padding-bottom:0}
+.is-ur-fit[lang=ur] .sae-h1,.is-ur-fit[lang=ur] .sae-sub,.is-ur-fit[lang=ur] .sae-say,.is-ur-fit[lang=ur] .sae-coach-items,.is-ur-fit[lang=ur] .sae-coach-line,.is-ur-fit[lang=ur] .sae-task-tag{line-height:3;padding-top:.85em;padding-inline:.6em}
+.is-ur-fit[lang=ur] .sae-coach-text{padding:calc(12px + .85em) calc(14px + .6em) 12px}
+.is-ur-fit .sae-passage[lang=ur],.is-ur-fit[lang=ur] .sae-passage{line-height:3;padding-top:calc(14px + .85em);padding-inline:calc(16px + .6em)}
+/* the same layout on an English page whose screen holds Urdu (an Urdu passage, an Urdu task) */
+.sae.is-ur-fit[lang=en]:has(.sae-screen [lang=ur]){height:100vh;height:100dvh;min-height:0}
+.is-ur-fit[lang=en]:has(.sae-screen [lang=ur]) .sae-screen{min-height:0}
+.is-ur-fit[lang=en]:has(.sae-screen [lang=ur]) .sae-body{min-height:0;overflow-y:auto;justify-content:flex-start;padding:8px 12px;margin:0 -12px}
+.is-ur-fit[lang=en]:has(.sae-screen [lang=ur]) .sae-body>*{flex-shrink:0}
+.is-ur-fit[lang=en]:has(.sae-screen [lang=ur]) .sae-body>:first-child{margin-top:auto}
+.is-ur-fit[lang=en]:has(.sae-screen [lang=ur]) .sae-body>:last-child{margin-bottom:auto}
+.is-ur-fit[lang=en]:has(.sae-screen [lang=ur]) .sae-foot{position:static}
+.is-ur-fit[lang=en]:has(.sae-screen [lang=ur]) .sae-passage.is-pick{max-height:none;overflow:visible}
+/* a passage's words as tiles (tap the word), a picture's caption, an Urdu sentence on a demo card */
+.is-ur-fit .sae-passage.is-pick[lang=ur] .sae-word{line-height:2;padding:1.3em .7em .4em}
+.is-ur-fit .sae-opt.is-glyph[lang=ur] .sae-cap,.is-ur-fit[lang=ur] .sae-opt.is-glyph .sae-cap{line-height:2;padding-top:1.3em;padding-bottom:.4em}
+.is-ur-fit .sae-opt.is-glyph[lang=ur],.is-ur-fit[lang=ur] .sae-opt.is-glyph{gap:0}
+.is-ur-fit .sae-label[lang=ur]{font-family:var(--sae-fu);font-weight:400;font-size:24px;letter-spacing:0;direction:rtl;line-height:3;padding-top:.78em}
