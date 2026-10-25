@@ -17,8 +17,22 @@ const { MAX_ATTEMPTS } = require('../config/lesson-plan-generation');
 // The lifecycle path of every request row this service writes (lesson-plan-lifecycle.service);
 // with LP_LIFECYCLE_PATHS off for it, every insert and update below is exactly the old one.
 const LIFECYCLE_SOURCE = Lifecycle.LIFECYCLE.SOURCES.NIETE_GROUNDED;
-// The free-form engine's track: the request row's source and the SQS payload's `track`.
-const FREEFORM_TRACK = Lifecycle.LIFECYCLE.SOURCES.FREEFORM_V1;
+// The free-form engine's track. It is NOT a source (F50): the request row keeps source='gamma_standard'
+// and carries the track in textbook_metadata.fflp_track; the SQS payload's `track` is a copy the worker
+// never routes on alone.
+const FREEFORM_TRACK = 'freeform_v1';
+const FREEFORM_SOURCE = 'gamma_standard';
+const FFLP_TRACKS = new Set([FREEFORM_TRACK]);
+
+/**
+ * The free-form track of a lesson_plan_requests row: textbook_metadata.fflp_track when it is a known
+ * track, else null. Never derived from `source` (F50) — a row with source='freeform_v1' and no key is
+ * not a free-form row.
+ */
+function fflpTrackOf(row) {
+  const t = row && row.textbook_metadata && row.textbook_metadata.fflp_track;
+  return FFLP_TRACKS.has(t) ? t : null;
+}
 
 /**
  * Whether this request row is one the grounded path recorded — the only rows its stage columns and
@@ -144,10 +158,10 @@ class LessonPlanQueueService {
    *
    * Reached only from the typed-topic seam (text-message.handler handleLessonPlanRequest) when the
    * topic is in neither catalogue AND app_settings.freeform_lp sends this teacher there; with the
-   * switch off nothing calls it. The row carries source='freeform_v1' (the lesson_plan_requests
-   * source CHECK lists it from V1.7.7); the SQS payload carries `track: 'freeform_v1'`, the field the
-   * generation worker routes on, plus the `entry` that brought her here. No sourceLpUuid, so the
-   * grounded branch never sees it.
+   * switch off nothing calls it. The row carries source='gamma_standard' and the track in
+   * textbook_metadata.fflp_track='freeform_v1' (F50; the column is added by V1.7.8). The generation
+   * worker routes on the ROW's key; the SQS payload's `track` and `entry` (the door the teacher came
+   * through) are copies for the engine and the logs. No sourceLpUuid, so the grounded branch never sees it.
    *
    * Throws when the row cannot be written, and when the job cannot be queued after the row exists:
    * nothing reads pending free-form rows back, so the row is marked failed at once and the caller
@@ -156,7 +170,7 @@ class LessonPlanQueueService {
    * @param {Object} params
    * @param {string} params.userId
    * @param {string} params.phoneNumber
-   * @param {string} params.topic          — what she typed (trimmed to the column's 500)
+   * @param {string} params.topic          — what the teacher typed (trimmed to the column's 500)
    * @param {string} [params.fullMessage]  — the whole message; defaults to topic
    * @param {'en'|'ur'} [params.language]
    * @param {string} [params.entry]        — the door, for the engine and the logs
@@ -178,7 +192,8 @@ class LessonPlanQueueService {
         language,
         content_type: 'lesson_plan',
         status: 'pending',
-        source: FREEFORM_TRACK,
+        source: FREEFORM_SOURCE,
+        textbook_metadata: { fflp_track: FREEFORM_TRACK },
       })
       .select('id')
       .single();
@@ -382,8 +397,9 @@ class LessonPlanQueueService {
         language: request.language,
         contentType: request.content_type,
         ...(grounded ? { sourceLpUuid: request.artifact_ref } : {}),
-        // A free-form row keeps its track, or the worker would take it for a stale job and drop it.
-        ...(request.source === FREEFORM_TRACK ? { track: FREEFORM_TRACK } : {}),
+        // A free-form row keeps its track (read from textbook_metadata.fflp_track, never from source), or the
+        // worker would take it for a stale job and drop it.
+        ...(fflpTrackOf(request) ? { track: fflpTrackOf(request) } : {}),
       });
 
       logToFile('Lesson plan request requeued', { requestId: request.id, grounded: Boolean(grounded) });
@@ -395,5 +411,7 @@ class LessonPlanQueueService {
     }
   }
 }
+
+LessonPlanQueueService.fflpTrackOf = fflpTrackOf;
 
 module.exports = LessonPlanQueueService;

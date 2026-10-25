@@ -282,14 +282,14 @@ describe('N1-MISS — a typed topic in neither catalogue', () => {
     await direct(MISS_TOPIC);
     golden('N1-MISS-off-text', recording());
   });
-  test('switch ON: one freeform_v1 request + one lesson_plan_generation job with track, one short "writing" line — no Flow, no not-in-catalog text', async () => {
+  test('switch ON: one gamma_standard request carrying textbook_metadata.fflp_track + one lesson_plan_generation job with track, one short "writing" line — no Flow, no not-in-catalog text', async () => {
     load({ switchOn: true });
     await direct(MISS_TOPIC);
     const rec = recording();
     const inserts = rec.filter((r) => r[0] === 'db' && r[2] === 'insert');
     expect(inserts).toHaveLength(1);
     expect(inserts[0][1]).toBe('lesson_plan_requests');
-    expect(inserts[0][3]).toMatchObject({ user_id: TEACHER.id, phone_number: PHONE, source: 'freeform_v1', content_type: 'lesson_plan', status: 'pending', language: 'en', full_message: MISS_TOPIC });
+    expect(inserts[0][3]).toMatchObject({ user_id: TEACHER.id, phone_number: PHONE, source: 'gamma_standard', textbook_metadata: { fflp_track: 'freeform_v1' }, content_type: 'lesson_plan', status: 'pending', language: 'en', full_message: MISS_TOPIC });
     const jobs = rec.filter((r) => r[0] === 'sqs');
     expect(jobs).toHaveLength(1);
     expect(jobs[0][1]).toBe('lesson_plan_generation');
@@ -315,8 +315,8 @@ describe('N1-MISS — a typed topic in neither catalogue', () => {
       : realFrom(t));
     await direct(MISS_TOPIC);
     const rec = recording();
-    // The one extra entry is the refused insert itself; everything she receives is today's.
-    expect(rec[0]).toEqual(['db', 'lesson_plan_requests', 'insert', expect.objectContaining({ source: 'freeform_v1' })]);
+    // The one extra entry is the refused insert itself; everything the teacher receives is today's.
+    expect(rec[0]).toEqual(['db', 'lesson_plan_requests', 'insert', expect.objectContaining({ source: 'gamma_standard', textbook_metadata: { fflp_track: 'freeform_v1' } })]);
     expect(rec.slice(1)).toEqual(today);
     expect(rec.filter((r) => r[0] === 'sqs')).toEqual([]);
   });
@@ -431,7 +431,7 @@ describe('the engine and the schema must both be there before the switch can rou
 });
 
 describe('the job cannot be queued after the row is written', () => {
-  test('an SQS failure marks the row failed at once and she gets today\'s door, not "writing your plan"', async () => {
+  test('an SQS failure marks the row failed at once and the teacher gets today\'s door, not "writing your plan"', async () => {
     load({ switchOn: false });
     await direct(MISS_TOPIC);
     const before = recording();
@@ -443,7 +443,7 @@ describe('the job cannot be queued after the row is written', () => {
     expect(writes.map((r) => r[2])).toEqual(['insert', 'update']);
     expect(writes[1][3]).toMatchObject({ status: 'failed' });
     expect(rec.filter((r) => r[0] !== 'db' || r[1] !== 'lesson_plan_requests')).toEqual(before);
-    expect(mockDb.tables.lesson_plan_requests[0]).toMatchObject({ status: 'failed', source: 'freeform_v1' });
+    expect(mockDb.tables.lesson_plan_requests[0]).toMatchObject({ status: 'failed', source: 'gamma_standard', textbook_metadata: { fflp_track: 'freeform_v1' } });
   });
 });
 

@@ -6,8 +6,10 @@
  * and the worker DROPS any job without a sourceLpUuid ("Non-grounded LP job received after Gamma
  * strip"). The free-form engine therefore needs:
  *   1. LessonPlanQueueService.createAndQueueFreeform — a lesson_plan_requests row with
- *      source='freeform_v1', and a lesson_plan_generation job whose payload carries track='freeform_v1';
- *   2. a `track === 'freeform_v1'` branch in the worker BEFORE the drop, handing the job to the
+ *      source='gamma_standard' and textbook_metadata.fflp_track='freeform_v1' (the F50 row shape: the
+ *      track never lives in `source`), and a lesson_plan_generation job whose payload carries track='freeform_v1';
+ *   2. a free-form branch in the worker BEFORE the drop, taken only when the REQUEST ROW carries
+ *      textbook_metadata.fflp_track='freeform_v1' (the payload's track alone is ignored), handing the job to the
  *      engine (fflp.engine.generateAndDeliver). The engine is ported by a later change; until then
  *      the lazy index throws FflpModuleMissing and the job is failed, once, with the existing apology.
  * The grounded path and the drop are unchanged (asserted below).
@@ -56,7 +58,7 @@ beforeEach(() => {
 });
 
 describe('createAndQueueFreeform', () => {
-  test('inserts a freeform_v1 request row and queues lesson_plan_generation with track=freeform_v1', async () => {
+  test('inserts a gamma_standard request row carrying textbook_metadata.fflp_track and queues lesson_plan_generation with track=freeform_v1', async () => {
     const id = await LessonPlanQueueService.createAndQueueFreeform({
       userId: USER_ID, phoneNumber: PHONE, topic: 'volcanoes', fullMessage: 'lesson plan on volcanoes', language: 'ur', entry: 'niete_catalogue_miss',
     });
@@ -64,7 +66,8 @@ describe('createAndQueueFreeform', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       id, user_id: USER_ID, phone_number: PHONE, topic: 'volcanoes', full_message: 'lesson plan on volcanoes',
-      language: 'ur', content_type: 'lesson_plan', status: 'pending', source: 'freeform_v1',
+      language: 'ur', content_type: 'lesson_plan', status: 'pending', source: 'gamma_standard',
+      textbook_metadata: { fflp_track: 'freeform_v1' },
     });
     expect(mockSqs).toEqual([{ id, type: 'lesson_plan_generation', payload: expect.objectContaining({
       requestId: id, userId: USER_ID, phoneNumber: PHONE, topic: 'volcanoes', fullMessage: 'lesson plan on volcanoes',
@@ -77,7 +80,7 @@ describe('createAndQueueFreeform', () => {
     SQS.queueCoachingJob.mockRejectedValueOnce(new Error('sqs down'));
     await expect(LessonPlanQueueService.createAndQueueFreeform({ userId: USER_ID, phoneNumber: PHONE, topic: 't', language: 'en' }))
       .rejects.toThrow(/sqs down/);
-    expect(mockDb.rows('lesson_plan_requests')[0]).toMatchObject({ status: 'failed', error_message: 'SQS queue failed: sqs down', source: 'freeform_v1' });
+    expect(mockDb.rows('lesson_plan_requests')[0]).toMatchObject({ status: 'failed', error_message: 'SQS queue failed: sqs down', source: 'gamma_standard' });
   });
   test('an insert the database refuses throws (the caller falls back to today\'s reply)', async () => {
     const real = mockDb.from;
@@ -88,12 +91,22 @@ describe('createAndQueueFreeform', () => {
     } finally { mockDb.from = real; }
     expect(mockSqs).toHaveLength(0);
   });
-  test('requeueRequest keeps the track of a freeform_v1 row (else the worker would drop it)', async () => {
-    await LessonPlanQueueService.requeueRequest({ id: 'r-9', user_id: USER_ID, phone_number: PHONE, topic: 't', full_message: 't', language: 'en', content_type: 'lesson_plan', source: 'freeform_v1' });
+  test('requeueRequest keeps the track of a row whose textbook_metadata carries fflp_track (else the worker would drop it)', async () => {
+    await LessonPlanQueueService.requeueRequest({ id: 'r-9', user_id: USER_ID, phone_number: PHONE, topic: 't', full_message: 't', language: 'en', content_type: 'lesson_plan', source: 'gamma_standard', textbook_metadata: { fflp_track: 'freeform_v1' } });
     expect(mockSqs[0].payload.track).toBe('freeform_v1');
     mockSqs.length = 0;
     await LessonPlanQueueService.requeueRequest({ id: 'r-8', user_id: USER_ID, phone_number: PHONE, topic: 't', content_type: 'lesson_plan', source: null });
     expect(mockSqs[0].payload).not.toHaveProperty('track');
+    mockSqs.length = 0;
+    // A gamma_standard row without the key is not a free-form row: `source` never carries the track.
+    await LessonPlanQueueService.requeueRequest({ id: 'r-7', user_id: USER_ID, phone_number: PHONE, topic: 't', content_type: 'lesson_plan', source: 'gamma_standard', textbook_metadata: null });
+    expect(mockSqs[0].payload).not.toHaveProperty('track');
+  });
+  test('fflpTrackOf reads the track from textbook_metadata only, never from source', () => {
+    expect(LessonPlanQueueService.fflpTrackOf({ source: 'gamma_standard', textbook_metadata: { fflp_track: 'freeform_v1' } })).toBe('freeform_v1');
+    expect(LessonPlanQueueService.fflpTrackOf({ source: 'freeform_v1' })).toBeNull();
+    expect(LessonPlanQueueService.fflpTrackOf({ source: 'gamma_standard', textbook_metadata: { fflp_track: 'something_else' } })).toBeNull();
+    expect(LessonPlanQueueService.fflpTrackOf(null)).toBeNull();
   });
 });
 
@@ -101,7 +114,7 @@ describe('the worker branch', () => {
   const job = (extra = {}) => ({ requestId: 'req-ff', userId: USER_ID, phoneNumber: PHONE, topic: 'volcanoes', contentType: 'lesson_plan', language: 'ur', track: 'freeform_v1', ...extra });
 
   test('WRK-FF: engine not ported yet ⇒ FflpModuleMissing ⇒ one final markFailed + the existing apology; nothing else sent', async () => {
-    mockDb.reset({ lesson_plan_requests: [{ id: 'req-ff', status: 'pending', retry_count: 0, source: 'freeform_v1' }] });
+    mockDb.reset({ lesson_plan_requests: [{ id: 'req-ff', status: 'pending', retry_count: 0, source: 'gamma_standard', textbook_metadata: { fflp_track: 'freeform_v1' } }] });
     expect(() => fflp.engine).toThrow(fflp.FflpModuleMissing);
     await Worker.process(job());
     expect(mockDb.rows('lesson_plan_requests')[0]).toMatchObject({ status: 'failed', retry_count: 1 });
@@ -113,7 +126,7 @@ describe('the worker branch', () => {
   test('WRK-FF: with the engine present, the job goes to engine.generateAndDeliver and the drop never runs', async () => {
     const gen = jest.fn(async () => ({ ok: true }));
     const spy = jest.spyOn(fflp._internals, 'resolveEngine').mockImplementation(() => ({ generateAndDeliver: gen }));
-    mockDb.reset({ lesson_plan_requests: [{ id: 'req-ff', status: 'pending', retry_count: 0, source: 'freeform_v1' }] });
+    mockDb.reset({ lesson_plan_requests: [{ id: 'req-ff', status: 'pending', retry_count: 0, source: 'gamma_standard', textbook_metadata: { fflp_track: 'freeform_v1' } }] });
     try {
       await Worker.process(job());
       expect(gen).toHaveBeenCalledWith(expect.objectContaining({ requestId: 'req-ff', track: 'freeform_v1', topic: 'volcanoes' }));
@@ -124,7 +137,7 @@ describe('the worker branch', () => {
 
   test('WRK-FF: an engine error before the last attempt is re-thrown for the queue to retry, without an apology', async () => {
     const spy = jest.spyOn(fflp._internals, 'resolveEngine').mockImplementation(() => ({ generateAndDeliver: async () => { throw new Error('author timeout'); } }));
-    mockDb.reset({ lesson_plan_requests: [{ id: 'req-ff', status: 'pending', retry_count: 0, source: 'freeform_v1' }] });
+    mockDb.reset({ lesson_plan_requests: [{ id: 'req-ff', status: 'pending', retry_count: 0, source: 'gamma_standard', textbook_metadata: { fflp_track: 'freeform_v1' } }] });
     try {
       await expect(Worker.process(job())).rejects.toThrow('author timeout');
       expect(mockDb.rows('lesson_plan_requests')[0]).toMatchObject({ status: 'failed', retry_count: 1 });
@@ -135,9 +148,42 @@ describe('the worker branch', () => {
   test('WRK-FF: a request already completed is skipped (SQS redelivery is safe)', async () => {
     const gen = jest.fn();
     const spy = jest.spyOn(fflp._internals, 'resolveEngine').mockImplementation(() => ({ generateAndDeliver: gen }));
-    mockDb.reset({ lesson_plan_requests: [{ id: 'req-ff', status: 'completed', retry_count: 0, source: 'freeform_v1' }] });
+    mockDb.reset({ lesson_plan_requests: [{ id: 'req-ff', status: 'completed', retry_count: 0, source: 'gamma_standard', textbook_metadata: { fflp_track: 'freeform_v1' } }] });
     try {
       await Worker.process(job());
+      expect(gen).not.toHaveBeenCalled();
+      expect(mockWa.sendMessage).not.toHaveBeenCalled();
+    } finally { spy.mockRestore(); }
+  });
+
+  test('F50: a payload track:freeform_v1 whose ROW has no fflp_track is ignored — today\'s drop, its log line, no engine', async () => {
+    const gen = jest.fn();
+    const spy = jest.spyOn(fflp._internals, 'resolveEngine').mockImplementation(() => ({ generateAndDeliver: gen }));
+    const { logToFile } = require('../../bot/shared/utils/logger');
+    delete process.env.PAKISTAN_LP_FLOW_ID;
+    for (const row of [
+      { id: 'req-ff', status: 'pending', retry_count: 0, source: 'gamma_standard' },
+      { id: 'req-ff', status: 'pending', retry_count: 0, source: 'freeform_v1' },   // a pre-F50 row: source never routes
+    ]) {
+      mockDb.reset({ lesson_plan_requests: [row] });
+      jest.clearAllMocks();
+      try {
+        await Worker.process(job());
+      } finally { /* keep the spy until the loop ends */ }
+      expect(gen).not.toHaveBeenCalled();
+      expect(mockDb.rows('lesson_plan_requests')[0]).toMatchObject({ status: 'failed', error_message: 'freeform LP generation is retired; only grounded AST jobs are processed' });
+      expect(logToFile.mock.calls.map((c) => c[0])).toContain('⚠️ Non-grounded LP job received after Gamma strip — dropping');
+      expect(mockWa.sendMessage.mock.calls).toEqual([[PHONE, "We don't have that lesson plan in the catalog yet. Send \"menu\" to see what's available."]]);
+    }
+    spy.mockRestore();
+  });
+
+  test('F50: the row read failing for a payload that claims the track re-throws for the queue to retry — no drop, no send', async () => {
+    const gen = jest.fn();
+    const spy = jest.spyOn(fflp._internals, 'resolveEngine').mockImplementation(() => ({ generateAndDeliver: gen }));
+    mockDb.reset({ lesson_plan_requests: [] });   // .single() on no row is an error, like a failed read
+    try {
+      await expect(Worker.process(job())).rejects.toThrow(/Failed to get lesson plan request/);
       expect(gen).not.toHaveBeenCalled();
       expect(mockWa.sendMessage).not.toHaveBeenCalled();
     } finally { spy.mockRestore(); }
