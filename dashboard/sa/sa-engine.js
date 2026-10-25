@@ -247,6 +247,7 @@
           micLevel: micMod ? function (cb) { return micMod.level(cb); } : null,
           manual: manual, passage_punct: w3.passage_punct === true, opening: opts.opening || null, section_recording: w3.section_recording === true,
           coach_last_word: w3.coach_last_word === true, lastWordHint: lastWordHint, auto_child_last_word: w3.auto_child_last_word === true,
+          app_asks: manual && w3.app_asks === true,
         });
         if (sync && view && view.setSync) hooks.sync = [function (st) { view.setSync(st); }];
         // Embedded in the coach page (RULINGs #34a, #48): the last task's end is told at once ({type:'sa:battery_ending',
