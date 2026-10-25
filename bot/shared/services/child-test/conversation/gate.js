@@ -54,6 +54,18 @@ function isIctRegion(user) {
   return allowed.some((r) => region === r || region.startsWith(`${r}-`) || region.startsWith(`${r}_`));
 }
 
+/**
+ * Practice-only coach (app_settings `child_test_practice_only`, read by the caller and passed as `switchOn`): with a
+ * pilot list set, a leader in an allowed region who is NOT on it may use the coach app's Learning assessment in
+ * practice (test) schools only. The caller limits the schools; WhatsApp /egra never asks, so it stays closed.
+ * An empty list already lets everyone through, so there is no practice coach then.
+ */
+function isPracticeCoach(user, switchOn) {
+  if (switchOn !== true || !isEnabled() || !user || !isSchoolLeader(user) || !isIctRegion(user)) return false;
+  if (!String(process.env.CHILD_TEST_COACH_IDS || '').trim()) return false;
+  return !isAllowedCoach(user);
+}
+
 /** Whether this user may see child-test offers and buttons at all (no command text involved). */
 function isChildTestAvailable(user) {
   return isEnabled() && !!user && isSchoolLeader(user) && isIctRegion(user) && isAllowedCoach(user);
@@ -74,4 +86,4 @@ function evaluateChildTestTrigger({ messageBody, user }) {
   return { match: true, action: 'start', arg: (m[1] || '').trim() || null };
 }
 
-module.exports = { isObserveLinkOn, CHILD_TEST_TRIGGER_RX, evaluateChildTestTrigger, isChildTestAvailable, isEnabled, isIctRegion, isAllowedCoach };
+module.exports = { isObserveLinkOn, CHILD_TEST_TRIGGER_RX, evaluateChildTestTrigger, isChildTestAvailable, isEnabled, isIctRegion, isAllowedCoach, isPracticeCoach };
