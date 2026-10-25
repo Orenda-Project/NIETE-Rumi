@@ -113,7 +113,8 @@ function walkScript() {
       micLevel: function (cb) { cb(0.6); return function () {}; },
       manual: manual, passage_punct: ui.passage_punct === true, section_recording: ui.section_recording === true,
       coach_last_word: ui.coach_last_word === true, lastWordHint: function () { return Promise.resolve(2); },
-      auto_child_last_word: ui.auto_child_last_word === true, ur_fit: ui.ur_fit === true, app_asks: ui.app_asks === true });
+      auto_child_last_word: ui.auto_child_last_word === true, ur_fit: ui.ur_fit === true, app_asks: ui.app_asks === true,
+      embed: cfg.embed === true });
     W.runner = runner; W.view = view; W.el = el; W.seen = {}; W.items = 0; W.fb = {}; W.briefed = {};
     if (cfg.mode === 'proctored' && view.setSync) view.setSync({ state: 'pending' });
   };
@@ -438,8 +439,20 @@ async function walk(browser, sc, vp, opts = {}) {
   if (process.env.SA_WALK_DEBUG) page.on('pageerror', (e) => process.stdout.write('PAGEERR ' + e.message + '\n'));
   await page.goto('http://sa.test/');
   if (opts.css) await page.addStyleTag({ content: opts.css });
-  await page.evaluate((cfg) => window.__walk.setup(cfg), { battery, manual, mode: sc.mode, lang, child: opts.child });
+  await page.evaluate((cfg) => window.__walk.setup(cfg), { battery, manual, mode: sc.mode, lang, child: opts.child, embed: opts.embed === true });
+  // embed: the coach page's corner hold ("End test (coach)"), fixed over the engine's frame at top 8 px, 48 px tall, on
+  // the coach's start side (portal AssessEngineSlot). A stand-in control at the same place, so the measure sees it.
+  if (opts.embed) {
+    await page.evaluate((side) => {
+      const b = document.createElement('button');
+      b.className = 'walk-coach-hold';
+      b.setAttribute('aria-hidden', 'true');
+      b.style.cssText = `position:fixed;top:8px;${side}:8px;width:120px;height:48px;z-index:1001;background:#fff;border:1px solid #cbd5e1;border-radius:12px`;
+      document.body.appendChild(b);
+    }, lang === 'ur' ? 'right' : 'left');
+  }
   await page.evaluate(() => document.fonts.ready);
+  const mcfg = opts.embed ? { root: 'body' } : {}; // embedded: the coach's hold over the frame counts too
   const out = [];
   const seen = new Set();
   const look = async (tag) => {
@@ -448,7 +461,7 @@ async function walk(browser, sc, vp, opts = {}) {
     const key = [st.shown, st.cls, st.task, st.practice, st.item, st.cell, tag || ''].join('|');
     if (seen.has(key)) return st;
     seen.add(key);
-    const res = await page.evaluate(measureInPage, {});
+    const res = await page.evaluate(measureInPage, mcfg);
     // A screen that scrolls (the page, or a scroller in it) is measured again at its end, so every word is seen once.
     const scrolled = await page.evaluate(() => {
       let moved = false;
@@ -458,7 +471,7 @@ async function walk(browser, sc, vp, opts = {}) {
       return moved;
     });
     if (scrolled) {
-      const more = await page.evaluate(measureInPage, {});
+      const more = await page.evaluate(measureInPage, mcfg);
       const have = new Set(res.fails.map((f) => [f.kind, f.sel, f.word, f.other || f.by || ''].join('|')));
       more.fails.forEach((f) => { if (!have.has([f.kind, f.sel, f.word, f.other || f.by || ''].join('|'))) res.fails.push(Object.assign({ scrolled: true }, f)); });
       await page.evaluate(() => { [document.scrollingElement].concat(Array.from(document.querySelectorAll('#sae-root *'))).forEach((n) => { if (n) n.scrollTop = 0; }); });

@@ -42,6 +42,21 @@ describe('the switch reaches the battery as ui.ur_fit, and the engine passes it 
     }
     expect(got).toEqual([true, false]);
   });
+
+  test('engine: embed=1 (the coach page\'s frame) reaches the page; not embedded → false', async () => {
+    const core = require('../sa/sa-core');
+    const storeMod = require('../sa/sa-store');
+    const { start } = require('../sa/sa-engine');
+    const got = [];
+    for (const embed of [true, false]) {
+      const store = await storeMod.open({ idb: null });
+      await start({ mount: {}, battery: Object.assign({}, TAP, { ui: { ur_fit: true } }), mode: 'proctored', lang: 'ur', session_id: 's-emb-' + got.length, audio_check: false, warmup: false, embed }, {
+        core, store: { open: async () => store }, ui: { mount: (el, o) => { got.push(o.embed); return {}; } },
+        voice: { create: () => ({ speak: async () => {}, stop() {}, setMuted() {} }) }, rec: { create: () => null }, micState: () => 'ok',
+      });
+    }
+    expect(got).toEqual([true, false]);
+  });
 });
 
 describe('the route reads the switch', () => {
@@ -86,6 +101,11 @@ maybeDom('the page marks its mount (sa-ui)', () => {
   }
   test('ON: .is-ur-fit on the mount', () => { expect(mount({ ur_fit: true }).classList.contains('is-ur-fit')).toBe(true); });
   test('OFF: no .is-ur-fit', () => { expect(mount({}).classList.contains('is-ur-fit')).toBe(false); });
+  test('embedded: .is-embed only with sa_ur_fit ON', () => {
+    expect(mount({ ur_fit: true, embed: true }).classList.contains('is-embed')).toBe(true);
+    expect(mount({ embed: true }).classList.contains('is-embed')).toBe(false);
+    expect(mount({ ur_fit: true }).classList.contains('is-embed')).toBe(false);
+  });
 });
 
 // ---- the screens themselves, in a real browser -------------------------------------------------------------------
@@ -129,6 +149,18 @@ maybe('ON: every Urdu word on every screen of the visit fits (real browser, Nast
     expect(r.some((s) => s.state.shown === 'battery_end')).toBe(true);
     expect(fmt(r)).toEqual([]);
   }, 180000);
+
+  // In the coach page the engine runs in a frame under the coach's corner hold (top 8 px, 48 px tall): a heading or a
+  // line of the coach's script scrolled up must never pass under it (the live audio check, intro, warm-up, coach brief).
+  test.each([1, 3, 5])('ON, embedded in the coach page, G%i auto + manual at 360x640 and 320x568: nothing runs under the coach\'s hold', async (g) => {
+    for (const sc of W.scenarios({ grades: [g] })) {
+      for (const v of ['360x640', '320x568']) {
+        const r = await W.walk(browser, sc, W.VIEWPORTS.find((x) => x.name === v), { urFit: true, embed: true });
+        expect(r.some((s) => s.state.shown === 'battery_end')).toBe(true);
+        expect(fmt(r)).toEqual([]);
+      }
+    }
+  }, 300000);
 
   test('OFF: the same walk still finds the Urdu failures the switch fixes (the measure sees them)', async () => {
     const sc = W.scenarios({ grades: [3] })[0];
