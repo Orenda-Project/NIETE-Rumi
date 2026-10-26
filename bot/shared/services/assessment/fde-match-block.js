@@ -19,6 +19,22 @@ function matchOrder(answers) {
   return out;
 }
 
+const ARROW = /→|←|->|<-|⇒|=>/;
+
+/**
+ * What an item prints in Column B and the key (bd-5jmnfj.4.43): its own Column B, else its answer.
+ * v19 wrote the answer as the joined pair "اونٹ → صحرا", which printed every pair already matched.
+ */
+function matchAnswer(q) {
+  const b = Array.isArray(q.column_b) ? String(q.column_b[0] ?? '').trim() : '';
+  if (b) return b;
+  const parts = String(q.answer ?? '').split(ARROW);
+  return parts[parts.length - 1].trim();
+}
+
+/** A match answer is Column B alone, never the pair with an arrow. */
+const noArrow = (q) => !ARROW.test(String(q.answer ?? ''));
+
 /** One row per pair: stem, gap, Column B. Cells arrive as HTML. */
 function matchTable(stems, column) {
   const rows = stems.map((s, i) => `<tr><td class="m-a">${s}</td><td class="m-gap"></td><td class="m-b">${column[i] || ''}</td></tr>`);
@@ -31,4 +47,4 @@ const MATCH_CSS = `
   table.match-table td.m-gap { width: 40mm; }
 `;
 
-module.exports = { matchOrder, matchTable, MATCH_CSS };
+module.exports = { matchOrder, matchTable, matchAnswer, noArrow, MATCH_CSS };

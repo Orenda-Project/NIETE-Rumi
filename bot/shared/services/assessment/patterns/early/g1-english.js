@@ -83,8 +83,13 @@ module.exports = makeSubject({
           prompt_rule: 'Two greetings or polite words from the book (Good morning, Thank you, Sorry, Please), each a scene as picture: '
             + '{kind:"scene", describe} of two children. The question names who speaks. The describe has no speech bubble (the paper '
             + 'prints it) and shows exactly the thing the question names, in the same words, plain and never wrapped. '
+            + 'The child who speaks stands on the right, next to the printed bubble, and the describe says "on the right". '
             + 'Answer: the words. Scheme: K 2.',
-          answer_ok: (q) => !/bubble|gift|present|wrapped/i.test(String((q.picture && q.picture.describe) || '')) },
+          // v19 put the bubble beside the child who was not speaking (bd-5jmnfj.4.40).
+          answer_ok: (q) => {
+            const d = String((q.picture && q.picture.describe) || '');
+            return !/bubble|gift|present|wrapped/i.test(d) && /\bon the right\b/i.test(d);
+          } },
         S({ slot: 'g1.english.C.Q14', label_en: 'Q14.', type: 'Capital Letters', generate: 4, lines: 1,
           instruction_en: 'Rewrite the sentence with a capital letter.',
           prompt_rule: 'Four short sentences written all in small letters, each needing one capital (start or a name). Answer: the corrected sentence.' }),
