@@ -159,7 +159,11 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
       # record mode: the lane's settings with the REAL AI vendor keys in place of its placeholders — and nothing
       # else from the keys file. dotenv keeps the LAST of a repeated key, so writing the keys file first let the
       # lane's placeholder win and every AI call 401'd (bd-hnhlgn.18).
-      if [ "$cassette_mode" = record ] && [ -n "$keys" ]; then bash "$HERE/record-env.sh" "$keys" "$lane_cfg"; else cat "$lane_cfg"; fi
+      # Whenever the RECORD keys file is the one in use — mode record, or mode replay with the file present, which is
+      # what --record-missing is — the real vendor keys go in through record-env.sh. Keyed on the mode alone, the
+      # first --record-missing run composed the lane's placeholders and every live call answered "401 Missing
+      # Authentication header"; nothing was recorded (bd-xeup1d).
+      if [ "$keys_name" = niete-record.env ] && [ -n "$keys" ]; then bash "$HERE/record-env.sh" "$keys" "$lane_cfg"; else cat "$lane_cfg"; fi
       echo; echo "$db_lines"
     else cat "$keys"; fi
     echo

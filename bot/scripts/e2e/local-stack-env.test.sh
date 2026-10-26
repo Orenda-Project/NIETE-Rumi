@@ -54,4 +54,10 @@ else echo "  skip AC1b: dotenv not installed here"; fi
 echo "AC2 local-stack.sh uses it in record mode"
 grep -qF 'bash "$HERE/record-env.sh" "$keys" "$lane_cfg"' "$HERE/local-stack.sh"; t "record mode composes through record-env.sh" "$?" "0"
 
+echo "AC3 --record-missing (mode replay + the record keys file) composes through record-env.sh too (bd-xeup1d)"
+# The first --record-missing run on the local lane: mode is replay, keys_name is niete-record.env, but the env was
+# composed from the lane config alone — placeholder OPENROUTER_API_KEY, every live call "401 Missing Authentication
+# header", nothing recorded. The condition must follow the keys FILE in use, not the mode.
+grep -qF 'if [ "$keys_name" = niete-record.env ] && [ -n "$keys" ]; then bash "$HERE/record-env.sh" "$keys" "$lane_cfg"' "$HERE/local-stack.sh"; t "record keys file in use → record-env.sh, in replay mode as well" "$?" "0"
+
 [ $fails = 0 ] && echo "PASS" || { echo "$fails failed"; exit 1; }
