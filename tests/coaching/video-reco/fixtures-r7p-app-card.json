@@ -1,0 +1,25 @@
+{
+ "source": "evals/runs/r7o_f5_cardlistA_10de2eb.jsonl (fresh-5 card x list A, $0 replay on sandbox 10de2eb303); longest quoted reason per report language; no names (card sentences)",
+ "rows": [
+  {
+   "case": "en report, Urdu card sentence quoted",
+   "report_language": "en",
+   "seg_id": "51-s1",
+   "module_id": 51,
+   "start_s": 0,
+   "end_s": 51.57,
+   "reason_en": "Your report asks you to try: \"⁨اگلی کلاس میں، جب آپ board task شروع کریں، تو بورڈ پر دو versions لکھیں: basic (add 's' words) اور stretch (words needing 'es' یا spelling change)، ہر open-ended question کے بعد 5–7 سیکنڈ wait time رکھیں۔⁩\". This clip shows one way to do it.",
+   "reason_ur": "آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: \"⁨اگلی کلاس میں، جب آپ board task شروع کریں، تو بورڈ پر دو versions لکھیں: basic (add 's' words) اور stretch (words needing 'es' یا spelling change)، ہر open-ended question کے بعد 5–7 سیکنڈ wait time رکھیں۔⁩\"۔ یہ کلپ اس کا ایک طریقہ دکھاتا ہے۔"
+  },
+  {
+   "case": "ur report, quote opens on a digit",
+   "report_language": "ur",
+   "seg_id": "51-s1",
+   "module_id": 51,
+   "start_s": 0,
+   "end_s": 51.57,
+   "reason_en": "Your report gives you one thing to try next class. This clip shows one way to do it.",
+   "reason_ur": "آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: \"⁨اگلی کلاس میں، جب بورڈ پر '2 کے نیچے 0' والا place value مثال دکھائیں، تو ہر worked example کے بعد ایک مختصر open-ended question 'یہاں 0 کیوں؟' پوچھیں، 5 سیکنڈ wait time دیں اور ایک طالب علم سے ایک sentence میں سمجھائیں۔⁩\"۔ یہ کلپ اس کا ایک طریقہ دکھاتا ہے۔"
+  }
+ ]
+}
