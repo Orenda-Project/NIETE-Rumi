@@ -207,6 +207,12 @@ const UX_STRINGS = {
     en: '{n} min · tap ▶ Watch in the next message',
     ur: '{n} منٹ · اگلے پیغام میں ▶\u200F دیکھیں دبائیں',
   },
+  // R7p (COS 20261026T043131 §1): a teacher on the teacher app — the image may go as the share template (no next
+  // message) or be opened from the app, and the app's report page carries the clip card on every path.
+  videoRecoStripHintApp: {
+    en: '{n} min · watch it in your report in the app',
+    ur: '{n} منٹ · ایپ میں اپنی رپورٹ پر دیکھیں',
+  },
   // The card-sentence fallback reason (SPEC v1.3c §3.5, lead-review 20:33Z), verbatim: when the model's quote fails
   // validation twice, the clip is still sent with the report's own "Try this tomorrow" sentence. R7d (panel Q043 Q078 Q080
   // Q083 Q130): no seconds in the line: the header and button say whole minutes, and the two disagreed.
