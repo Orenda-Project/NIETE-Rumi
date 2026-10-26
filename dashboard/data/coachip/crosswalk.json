@@ -1,0 +1,585 @@
+{
+ "crosswalk_version": "xw-1.0",
+ "rows": [
+  {
+   "w_id": "W-IP",
+   "source": "lp_fidelity",
+   "indicator_id": "phase:independent",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "skipped(independent)",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-IP",
+   "source": "fico_v3",
+   "indicator_id": "D5",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "score <= 2",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-IP",
+   "source": "fico_v3",
+   "indicator_id": "B9",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "score <= 2",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-IP",
+   "source": "fico_v3",
+   "indicator_id": "C8",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "score <= 2",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-IP-TIME",
+   "source": "lp_fidelity",
+   "indicator_id": "phase:independent",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "skipped(independent) AND ran_out_of_time",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-IP-NOPLAN",
+   "source": "lp_fidelity",
+   "indicator_id": "phase:independent",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "skipped(independent) AND time_remained",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-IP-HOME",
+   "source": "code",
+   "indicator_id": "code:sent_home",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "skipped(independent) AND sent_home",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-IP-PARTIAL",
+   "source": "lp_fidelity",
+   "indicator_id": "phase:independent",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "NOT skipped(independent) AND any counted independent verdict = partial",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-IP-PARTIAL",
+   "source": "fico_v3",
+   "indicator_id": "D5",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "score = 2",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-IP-PARTIAL",
+   "source": "fico_v3",
+   "indicator_id": "B9",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "score = 2",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-GP",
+   "source": "lp_fidelity",
+   "indicator_id": "phase:guided",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "skipped(guided)",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-GP",
+   "source": "fico_v3",
+   "indicator_id": "C8",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "score <= 2",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-GP-TIME",
+   "source": "lp_fidelity",
+   "indicator_id": "phase:guided",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "skipped(guided) AND skipped(independent) AND ran_out_of_time",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-GP-NOPLAN",
+   "source": "lp_fidelity",
+   "indicator_id": "phase:guided",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "skipped(guided) AND (done(independent) OR done(exit) OR time_remained)",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-EXIT",
+   "source": "lp_fidelity",
+   "indicator_id": "phase:exit",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "skipped(exit)",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-EXIT",
+   "source": "fico_v3",
+   "indicator_id": "B10",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "score <= 2",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-EXIT",
+   "source": "fico_v4",
+   "indicator_id": "B7",
+   "scale_min": 0,
+   "scale_max": 2,
+   "hit_rule": "score = 0",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-EXIT-TIME",
+   "source": "lp_fidelity",
+   "indicator_id": "phase:exit",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "skipped(exit) AND (short_of_audio OR audio_s - last_stamp_s <= 60)",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-EXIT-NOPLAN",
+   "source": "lp_fidelity",
+   "indicator_id": "phase:exit",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "skipped(exit) AND audio_s - last_done_s >= 120",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-WARM",
+   "source": "lp_fidelity",
+   "indicator_id": "phase:warm_up|hook|recall",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "every counted move in the three phases not_done, at least one exists",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-WARM",
+   "source": "fico_v3",
+   "indicator_id": "B4",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "score <= 2",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-WARM",
+   "source": "fico_v4",
+   "indicator_id": "B4",
+   "scale_min": 0,
+   "scale_max": 2,
+   "hit_rule": "score = 0",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-PEER",
+   "source": "lp_fidelity",
+   "indicator_id": "phase:peer_review",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "skipped(peer_review)",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-PEER",
+   "source": "fico_v3",
+   "indicator_id": "C11",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "score <= 2",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-EXPLAIN",
+   "source": "lp_fidelity",
+   "indicator_id": "phase:explain",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "skipped(explain)",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-EXPLAIN",
+   "source": "fico_v3",
+   "indicator_id": "F4",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "score <= 2",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-Q",
+   "source": "fico_v3",
+   "indicator_id": "C1",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "score <= 2",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-Q",
+   "source": "fico_v4",
+   "indicator_id": "C1",
+   "scale_min": 0,
+   "scale_max": 2,
+   "hit_rule": "score = 0",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-Q",
+   "source": "fico17",
+   "indicator_id": "C1",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "level <= 2",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-FB",
+   "source": "fico_v3",
+   "indicator_id": "C3",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "score <= 2",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-FB",
+   "source": "fico_v4",
+   "indicator_id": "C3",
+   "scale_min": 0,
+   "scale_max": 2,
+   "hit_rule": "score = 0",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-FB",
+   "source": "fico17",
+   "indicator_id": "C2",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "level <= 2",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-FB",
+   "source": "fico17",
+   "indicator_id": "C6",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "level <= 2",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-REASON",
+   "source": "fico_v3",
+   "indicator_id": "D2",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "score <= 2",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-REASON",
+   "source": "fico_v4",
+   "indicator_id": "D2",
+   "scale_min": 0,
+   "scale_max": 2,
+   "hit_rule": "score = 0",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-REASON",
+   "source": "fico17",
+   "indicator_id": "D1",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "level <= 2",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-GROUP",
+   "source": "fico17",
+   "indicator_id": "C7",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "level <= 2",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-GROUP",
+   "source": "fico_v3",
+   "indicator_id": "C9",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "score <= 2",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-TRANS",
+   "source": "fico_v3",
+   "indicator_id": "B2",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "score <= 2",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-TRANS",
+   "source": "fico_v4",
+   "indicator_id": "B2",
+   "scale_min": 0,
+   "scale_max": 2,
+   "hit_rule": "score = 0",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-TRANS",
+   "source": "fico_v3",
+   "indicator_id": "C6",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "score <= 2",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-TRANS",
+   "source": "fico17",
+   "indicator_id": "C5",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "level <= 2",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-OBJ",
+   "source": "fico_v3",
+   "indicator_id": "B1",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "score <= 2",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-OBJ",
+   "source": "fico_v4",
+   "indicator_id": "B1",
+   "scale_min": 0,
+   "scale_max": 2,
+   "hit_rule": "score = 0",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-OBJ",
+   "source": "lp_fidelity",
+   "indicator_id": "phase:announce",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "skipped(announce)",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-PHON",
+   "source": "coachip_detector",
+   "indicator_id": "F8",
+   "scale_min": 0,
+   "scale_max": 2,
+   "hit_rule": "score IN (0,1)",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-PHON",
+   "source": "fico_v4",
+   "indicator_id": "F8",
+   "scale_min": 0,
+   "scale_max": 2,
+   "hit_rule": "score IN (0,1)",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-PHON",
+   "source": "lp_fidelity",
+   "indicator_id": "phase:explain|guided",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "phonics-topic moves not_done or partial (FLN plans only)",
+   "role": "supporting",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-PHON",
+   "source": "fico_v3",
+   "indicator_id": "F7",
+   "scale_min": 1,
+   "scale_max": 4,
+   "hit_rule": "NEVER READ AS PHONICS",
+   "role": "never",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-PHON-NAMES",
+   "source": "coachip_detector",
+   "indicator_id": "flag:letter_name_routine_only",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "letter_name_routine_only = true",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-LN",
+   "source": "egra",
+   "indicator_id": "E3",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "share correct <= 50% (tap 1 of 5)",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-LS",
+   "source": "egra",
+   "indicator_id": "E4",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "share correct <= 50% (EN only; UR not measured)",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-FW",
+   "source": "egra",
+   "indicator_id": "E8",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "share correct <= 50% (tap 1 of 4)",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-DEC",
+   "source": "egra",
+   "indicator_id": "E9",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "E9 share correct <= 50% AND E8 > 50%",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-ORF",
+   "source": "egra",
+   "indicator_id": "E10",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "cwpm < bar(grade, language)",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-RC",
+   "source": "egra",
+   "indicator_id": "E11",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "E11 low AND E10 cwpm >= bar (once graded)",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-SPELL",
+   "source": "egra",
+   "indicator_id": "E14",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "share correct <= 50% (EN only)",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  },
+  {
+   "w_id": "W-NUM",
+   "source": "egra",
+   "indicator_id": "M1",
+   "scale_min": null,
+   "scale_max": null,
+   "hit_rule": "below bar on the M1-M8 composite",
+   "role": "primary",
+   "crosswalk_version": "xw-1.0"
+  }
+ ]
+}
