@@ -24,6 +24,12 @@
  *   sa_cell_next_only       round 5: an Urdu/English letter or word shown one at a time moves on only on Next (wins over sa_cell_pace).
  *   sa_auto_child_last_word round 5: in RDF auto the child taps the last word (kept as the check); the coach's screen is manual's.
  *   sa_app_asks             round 6: in RDF manual Jugnu asks every question and item prompt; the coach gives the instructions only.
+ *                           OFF drops each task's coach_text_c (the coach's words for that mode), so the battery is the
+ *                           one built before it, byte for byte.
+ *   sa_guided_instructions  round 6: RDF auto on the Grade 1-3 forms teaches each task first (script.guided, built only
+ *                           on those forms). Its value names the grades (true = 1-3, or a list, routes/sa-grades-flag.js):
+ *                           ON for a form whose grades are all listed adds ui.guided and ui.guided_grades; otherwise
+ *                           script.guided is dropped from every task, so the battery is the one built before it, byte for byte.
  *   sa_ur_fit               round 6: every Urdu word on the screens whole, inside its box, clear of pictures and the foot
  *                           (sa.css "Round 6", the page's .is-ur-fit).
  *                           ON, each adds battery.ui.<one_at_a_time|passage_punct|rdf_manual> = true for the engine;
@@ -39,6 +45,7 @@ const SWITCHES = {
   coachLastWord: 'sa_coach_last_word', cellNextOnly: 'sa_cell_next_only', autoChildLastWord: 'sa_auto_child_last_word',
   appAsks: 'sa_app_asks',
   urFit: 'sa_ur_fit',
+  guidedInstructions: 'sa_guided_instructions',
 };
 const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManual: 'rdf_manual', voiceGateV2: 'voice_gate_v2',
   compAllQuestions: 'comp_all_questions', cellPace: 'cell_pace',
@@ -56,9 +63,37 @@ function withoutW3(battery) {
   return out;
 }
 
+/** OFF: every task less its manual-C coach text (a task without it is the same object). */
+function withoutCoachC(battery) {
+  if (!battery.tasks.some((t) => t.coach_text_c)) return battery;
+  return { ...battery, tasks: battery.tasks.map((t) => {
+    if (!t.coach_text_c) return t;
+    const { coach_text_c: _c, ...rest } = t;
+    return rest;
+  }) };
+}
+
+/** OFF: every task less its guided-tier lines (a task without them is the same object). */
+function withoutGuided(battery) {
+  if (!battery.tasks.some((t) => t.script && t.script.guided)) return battery;
+  return { ...battery, tasks: battery.tasks.map((t) => {
+    if (!t.script || !t.script.guided) return t;
+    const { guided: _g, ...script } = t.script;
+    return { ...t, script };
+  }) };
+}
+/** sa_guided_instructions: the listed grades cover every grade of the form (a form with none is never guided). */
+function guidedFor(battery, grades) {
+  const own = Array.isArray(battery.grades) ? battery.grades : [];
+  return Array.isArray(grades) && own.length > 0 && own.every((g) => grades.includes(g)) && battery.tasks.some((t) => t.script && t.script.guided);
+}
+
 function applySwitches(input, on = {}) {
   if (!input || !Array.isArray(input.tasks)) return input;
-  const battery = on.rdfW3Forms ? input : withoutW3(input);
+  const w3 = on.rdfW3Forms ? input : withoutW3(input);
+  const c = on.appAsks ? w3 : withoutCoachC(w3);
+  const guided = guidedFor(c, on.guidedGrades);
+  const battery = guided ? c : withoutGuided(c);
   const tasks = battery.tasks.map((t) => {
     const demo = !!(t.script && t.script.demo_item);
     if (!t.practice_v2 && !demo && !t.variants) return t;
@@ -74,8 +109,9 @@ function applySwitches(input, on = {}) {
     return o;
   });
   const ui = Object.keys(UI).filter((k) => on[k] === true);
-  if (!ui.length) return { ...battery, tasks };
-  return { ...battery, tasks, ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => [UI[k], true])) } };
+  const g = guided ? { guided: true, guided_grades: on.guidedGrades.slice() } : {};
+  if (!ui.length && !guided) return { ...battery, tasks };
+  return { ...battery, tasks, ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => [UI[k], true])), ...g } };
 }
 
 module.exports = { SWITCHES, applySwitches };

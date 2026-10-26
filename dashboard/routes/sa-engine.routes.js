@@ -28,6 +28,7 @@ const express = require('express');
 const { createBrotliFlag } = require('./web-quiz-brotli-flag');
 const { steady } = require('./sa-switch');
 const { SWITCHES, applySwitches } = require('./sa-battery-switches');
+const { createGradesFlag } = require('./sa-grades-flag');
 
 const KEY = 'sa_engine';
 const VOICE_V2_KEY = 'sa_voice_v2';
@@ -74,6 +75,7 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   autoChildLastWord: childLastWordReader = createBrotliFlag({ key: SWITCHES.autoChildLastWord }),
   appAsks: appAsksReader = createBrotliFlag({ key: SWITCHES.appAsks }),
   urFit: urFitReader = createBrotliFlag({ key: SWITCHES.urFit }),
+  guidedGrades: guidedReader = createGradesFlag({ key: SWITCHES.guidedInstructions }),
   voiceTashdeed: tashdeedReader = createBrotliFlag({ key: VOICE_TASHDEED_KEY }),
   holdMs, now, env } = {}) {
   const router = express.Router();
@@ -98,11 +100,17 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   const autoChildLastWord = steady(safe(childLastWordReader), hold);
   const appAsks = steady(safe(appAsksReader), hold);
   const urFit = steady(safe(urFitReader), hold);
+  // sa_guided_instructions names grades: the hold keeps it ON across a failed read, with the last list read
+  let lastGrades = null;
+  const gradesNow = () => { try { const g = guidedReader(); if (g) lastGrades = g; return g; } catch (_) { return null; } };
+  const guidedRead = () => gradesNow() != null;
+  if (typeof guidedReader.ready === 'function') guidedRead.ready = () => guidedReader.ready();
+  const guidedOn = steady(guidedRead, hold);
   const voiceTashdeed = steady(safe(tashdeedReader), hold);
   const takes = tashdeedTakes();
   router.use('/sa', on.warm(), practiceAllMaths.warm(), passageRotation.warm(), voiceV2.warm(), oneAtATime.warm(), passagePunct.warm(), rdfManual.warm(),
     rdfW3Forms.warm(), voiceGateV2.warm(), compAllQuestions.warm(), cellPace.warm(), sectionRecording.warm(), coachLastWord.warm(), cellNextOnly.warm(),
-    autoChildLastWord.warm(), appAsks.warm(), urFit.warm(), voiceTashdeed.warm());
+    autoChildLastWord.warm(), appAsks.warm(), urFit.warm(), guidedOn.warm(), voiceTashdeed.warm());
   const files = express.static(DIR, {
     index: false,
     dotfiles: 'ignore',
@@ -145,6 +153,7 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
         coachLastWord: coachLastWord() === true, cellNextOnly: cellNextOnly() === true, autoChildLastWord: autoChildLastWord() === true,
         appAsks: appAsks() === true,
         urFit: urFit() === true,
+        guidedGrades: guidedOn() ? lastGrades : null,
       });
       let v2 = false;
       try { v2 = voiceV2() === true; } catch (_) { v2 = false; }

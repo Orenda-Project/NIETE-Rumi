@@ -18,6 +18,13 @@
  * Per task:  instruction (Jugnu's words, replayable) → practice (feedback; a wrong answer is tried once more, then
  * shown) → ready → running (the clock when EGRA times it) → [last_word] → stop → next task.
  *
+ * Guided (round 6, opts.guided: sa_guided_instructions, RDF auto only; a task carrying script.guided, built on the
+ * Grade 1-3 forms): the practice walks the task's plan, demo → turn (helped) → check (unaided), view.guided saying the
+ * role. guidedCheck('failed') adds ONE retry; the task always reaches ready (RULING R6-4: a validity flag, never a gate).
+ * The fade, per mechanic across the run: the demo's narration is short after the mechanic's first task, and after two
+ * passed checks in a row the helped turn is skipped (ladder 'short'). The task's result carries mechanics_check,
+ * voiced_cells, pressed_cells and self_run_valid; each scored cell how it advanced; one 'guided' event per task.
+ *
  * Stop rules are the task's data (stop: { first_line_n, first_line_min_correct, consecutive_errors, time_up }):
  *   time_up                  the task's 60 s ran out
  *   early_stop_first_line    fewer than first_line_min_correct right in the first first_line_n items
@@ -131,6 +138,7 @@
       direction: t.direction || (t.passage && t.passage.direction) || (t.grid && t.grid.direction) || 'ltr',
       instruction: t.instruction || null, script: t.script || {}, source: t.source || null, deviation: t.deviation || null,
       coach_text: t.coach_text || null,
+      coach_text_c: t.coach_text_c || null, // sa_app_asks: what the coach reads when Jugnu asks (served only then)
       tap_on: t.tap_on || null, option_images: t.option_images || null, present: t.present || null,
       // One at a time: the wait before a cell moves on by itself (0: never).
       cell_auto_s: has(t, 'advance_after_s') ? (num(t.advance_after_s, t.next_at_s) || 0) : (num(t.cell_auto_s) || CELL_AUTO_S),
@@ -230,6 +238,19 @@
     var st = { phase: 'battery_intro' };
     var oneAtATime = !!opts.one_at_a_time;
     var manual = !!opts.manual;
+    // sa_app_asks (round 6, R6-3): a sum read only on its replay tile is the child's to read; the task says so
+    // (presentation 'child_read') and each cell counts its replay presses. Absent, the results are as before.
+    var childRead = opts.app_asks === true;
+    var guidedOn = !!opts.guided && !manual;
+    var fade = {}; // mechanic → { tasks, passes }: the fade across the run (DESIGN_R6 §3.1)
+    function guidedOf(t) { return guidedOn && t && t.script && t.script.guided ? t.script.guided : null; }
+    /** The practice item on show: the plan's entry in a guided task, else the practice list's. */
+    function practiceNow() { var t = task(); return st.plan ? t.practice[st.plan[st.practice_i].i] : t.practice[st.practice_i]; }
+    function planNext() {
+      st.practice_i++;
+      st.practice_tries = 0;
+      if (st.practice_i >= st.plan.length) st.phase = 'ready';
+    }
     var compAll = !!opts.comp_all_questions;
     var cellPace = !!opts.cell_pace;
     var cellNextOnly = !!opts.cell_next_only;
@@ -259,6 +280,12 @@
       var e = { i: c.i, at_ms: Math.round(c.at - st.started), ms: Math.round(now() - c.at), how: how };
       var it = task().items[c.i];
       if (it && it.id) e = { i: c.i, item_id: it.id, at_ms: e.at_ms, ms: e.ms, how: how };
+      if (guidedOn) {
+        e.voiced = c.voice_at != null;
+        e.advanced_by = how === 'tap' ? 'press' : how === 'auto' ? 'auto' : how === 'coach' ? 'coach' : how;
+        if (how === 'tap') e.press_latency_ms = e.ms;
+      }
+      if (childRead && task().say_on === 'replay') e.replay_presses = c.replays || 0;
       st.cells.push(e);
       st.last_item_index = c.i;
       st.cell = null;
@@ -326,6 +353,12 @@
         item_i: 0, item_started: null, replayed: false, correct: 0, incorrect: 0, attempted: 0, streak: 0, first_line_correct: 0,
         started: null, last_item_index: null, answers: [],
       };
+      var gd = guidedOf(t);
+      if (gd) {
+        var f = fade[gd.mechanic] = fade[gd.mechanic] || { tasks: 0, passes: 0 };
+        st.g = { t0: now(), mechanic: gd.mechanic, narration: f.tasks ? 'short' : 'full', ladder: f.passes >= 2 ? 'short' : 'full',
+          check: null, help_silence: 0, help_press: 0, idle: 0, retry_passed: null };
+      }
       if (from && from.answers) {
         // An untimed task resumes at the item reached, with what was answered before the reload.
         from.answers.forEach(function (a) { tally(t, a.ok, a.value); st.answers.push(a); });
@@ -358,6 +391,16 @@
 
     function limitMs(t) { return t.time_limit_s ? t.time_limit_s * 1000 : null; }
 
+    function guidedEvent(t) {
+      var g = st.g, gd = guidedOf(t), plan = (gd && gd.plan) || {};
+      var f = fade[g.mechanic];
+      f.tasks++;
+      if (g.check === 'passed' || g.check === 'no_mic') f.passes++;
+      else if (g.check) f.passes = 0;
+      ev('guided', { task_id: t.id, value: { task_id: t.id, grade: (battery.grades || [])[0] || null, ladder: g.ladder, narration: g.narration,
+        check_item_shared: !!plan.check_item_shared, help_silence: g.help_silence, help_press: g.help_press, retry_passed: g.retry_passed,
+        idle_repeats: g.idle, lead_in_ms: st.started != null ? Math.round(st.started - g.t0) : null, mic: mic() === 'ok' ? 'ok' : 'unavailable' } });
+    }
     function finish(reason) {
       var t = task();
       if (st.cell) closeCell(reason);
@@ -388,6 +431,15 @@
         if (st.last_word_how) { r.last_word_how = st.last_word_how.how; r.last_word_suggested = st.last_word_how.suggested; }
       }
       if (st.cells) r.cells = st.cells.slice();
+      if (childRead && t.say_on === 'replay') r.presentation = 'child_read';
+      if (guidedOn) {
+        // RULING R6-4: a validity flag, never a mark; reports show "not self-run" where self_run_valid is false
+        var cs = st.cells || [];
+        r.mechanics_check = st.g && st.g.check ? st.g.check : 'not_run';
+        r.voiced_cells = cs.filter(function (c) { return c.voiced; }).length;
+        r.pressed_cells = cs.filter(function (c) { return c.how === 'tap'; }).length;
+        r.self_run_valid = r.mechanics_check !== 'failed_twice' || r.voiced_cells > 0;
+      }
       if (t.mode === 'oral') r.asked = st.items.map(function (q) { return q.id; });
       if (t.mode === 'oral' && st.rec_marks) { r.rec_section = true; r.rec_marks = st.rec_marks.slice(); }
       // Whether the recorder ever opened for this task (a skip, no mic, or the coach's early end before it: false), so
@@ -398,6 +450,7 @@
         r.per_minute = used > 0 ? Math.round((st.correct * 60000 / used) * 10) / 10 : 0;
       }
       results = results.filter(function (x) { return x.task_id !== t.id; }).concat([r]);
+      if (st.g) guidedEvent(t);
       ev('stop', { task_id: t.id, value: reason });
       ev('task_end', { task_id: t.id, value: r });
       st = { phase: 'task_end', task_id: t.id, result: r };
@@ -546,18 +599,59 @@
       /** The child is past the instruction → practice, or straight to ready when the task has none. */
       instructionDone: function () {
         if (st.phase !== 'instruction') return;
-        st.phase = task().practice.length ? 'practice' : 'ready';
+        var t = task(), gd = guidedOf(t);
+        if (gd && gd.plan && t.practice.length) {
+          // demo → (turn, unless the fade skips it; a tap task has none) → check (DESIGN_R6 §3.1, §3.2)
+          st.plan = [{ i: gd.plan.demo, role: 'demo' }];
+          if (gd.plan.turn != null && st.g.ladder === 'full') st.plan.push({ i: gd.plan.turn, role: 'turn' });
+          st.plan.push({ i: gd.plan.check, role: 'check' });
+          st.practice_i = 0;
+        }
+        st.phase = t.practice.length ? 'practice' : 'ready';
+      },
+      /** Guided: the demo or the helped turn is over (the page has played it); the next entry of the plan. */
+      guidedStep: function () {
+        if (st.phase !== 'practice' || !st.plan) return;
+        var role = st.plan[st.practice_i].role;
+        ev('guided_step', { task_id: st.task_id, value: role });
+        if (role === 'check' || role === 'retry') return this.guidedCheck('failed');
+        planNext();
+      },
+      /** Guided: the check's outcome ('passed' | 'failed' | 'no_mic'). A first fail adds one retry (the plan's retry
+       *  item, after one re-explain); the second outcome is final. Never ends or skips the task. */
+      guidedCheck: function (outcome) {
+        if (st.phase !== 'practice' || !st.plan || !st.g) return;
+        var role = st.plan[st.practice_i].role;
+        if (role !== 'check' && role !== 'retry') return;
+        var ok = outcome === 'passed' || outcome === 'no_mic';
+        ev('guided_check', { task_id: st.task_id, value: { role: role, outcome: outcome } });
+        if (role === 'check') {
+          st.g.check = ok ? outcome : 'failed_twice';
+          if (!ok) st.plan.push({ i: guidedOf(task()).plan.retry, role: 'retry' });
+        } else {
+          st.g.retry_passed = ok;
+          st.g.check = ok ? 'failed_then_passed' : 'failed_twice';
+        }
+        planNext();
+      },
+      /** Guided: a help line was said ('silence' | 'press' | 'idle'); counted for the guided event. */
+      guidedHelp: function (kind) {
+        if (!st.g) return;
+        if (kind === 'silence') st.g.help_silence++;
+        else if (kind === 'press') st.g.help_press++;
+        else if (kind === 'idle') st.g.idle++;
+        ev('guided_help', { task_id: st.task_id, value: kind });
       },
       /** A practice answer: { ok, retry, shown, feedback } — retry once on a wrong answer, then the right one is shown. */
       practiceAnswer: function (value) {
         if (st.phase !== 'practice') return null;
-        var p = task().practice[st.practice_i];
+        var p = practiceNow();
         var ok = hit(p, value, task().mode);
         st.practice_tries++;
         var retry = !ok && st.practice_tries < 2;
         ev('practice_answer', { task_id: st.task_id, item_id: p.id, value: { value: value, ok: ok, try: st.practice_tries } });
         if (!retry) { st.practice_i++; st.practice_tries = 0; }
-        if (st.practice_i >= task().practice.length) st.phase = 'ready';
+        if (st.practice_i >= (st.plan ? st.plan.length : task().practice.length)) st.phase = 'ready';
         return { ok: ok, retry: retry, shown: !ok && !retry ? p.target : null, feedback: p.feedback || null };
       },
       /** "Go!": the clock starts (timed tasks) and the first item shows. */
@@ -667,6 +761,8 @@
         taskIndex++;
         enterTask(false);
       },
+      /** sa_app_asks: the child pressed the replay tile on the cell on show (a sum read on replay). */
+      replayPressed: function () { if (childRead && st.phase === 'running' && st.cell) st.cell.replays = (st.cell.replays || 0) + 1; },
       /** A surface's own event (handover_in, offline, sync_ok …) in the same numbered log. */
       log: function (type, extra) { return ev(type, extra); },
       /** What the page draws. */
@@ -674,7 +770,10 @@
         var t = task();
         var v = { phase: st.phase, task_index: taskIndex, tasks: battery.tasks.length, task: st.phase === 'battery_end' ? null : t };
         if (opts.dev_tools) v.dev_tasks = battery.tasks.map(function (x, i) { return { index: i, id: x.id, title: x.title || null }; });
-        if (st.phase === 'practice') v.practice = t.practice[st.practice_i];
+        if (st.phase === 'practice') v.practice = practiceNow();
+        if (st.g && (st.phase === 'instruction' || st.phase === 'practice' || st.phase === 'ready')) {
+          v.guided = { role: st.phase === 'practice' && st.plan ? st.plan[st.practice_i].role : st.phase, narration: st.g.narration, ladder: st.g.ladder };
+        }
         if (st.phase === 'running' || st.phase === 'last_word') {
           var lim = limitMs(t);
           v.time_left_ms = lim == null ? null : Math.max(0, lim - (now() - st.started));

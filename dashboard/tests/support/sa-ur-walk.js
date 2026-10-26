@@ -103,10 +103,11 @@ function walkScript() {
       audio_check: true, warmup: true, mic: function () { return 'ok'; }, mic_check: cfg.mode === 'game', oral_practice: true, keypad_warmup: true,
       one_at_a_time: ui.one_at_a_time === true, manual: manual, comp_all_questions: ui.comp_all_questions === true,
       cell_pace: ui.cell_pace === true, section_recording: ui.section_recording === true, cell_next_only: ui.cell_next_only === true,
-      onEvent: function () {} });
+      guided: ui.guided === true && !manual, onEvent: function () {} });
     var el = document.getElementById('sae-root');
     var view = SAE.ui.mount(el, { runner: runner, battery: battery, lang: cfg.lang, mode: cfg.mode,
-      speak: function () { return Promise.resolve(); }, check_words: battery.check_words || null,
+      // guided: Jugnu's lines never end here, so a guided screen waits for the walker instead of moving on by itself
+      speak: ui.guided === true ? function () { return new Promise(function () {}); } : function () { return Promise.resolve(); }, check_words: battery.check_words || null,
       child: cfg.mode === 'proctored' ? { first_name: cfg.child || 'Zara Testwala' } : null,
       onMute: cfg.mode === 'game' ? function () {} : null, onUnlock: function () {}, onHandover: function () {},
       micProbe: function () { return Promise.resolve({ ok: true, rms: 0.2, url: null }); },
@@ -114,7 +115,7 @@ function walkScript() {
       manual: manual, passage_punct: ui.passage_punct === true, section_recording: ui.section_recording === true,
       coach_last_word: ui.coach_last_word === true, lastWordHint: function () { return Promise.resolve(2); },
       auto_child_last_word: ui.auto_child_last_word === true, ur_fit: ui.ur_fit === true, app_asks: ui.app_asks === true,
-      embed: cfg.embed === true });
+      guided: ui.guided === true, embed: cfg.embed === true });
     W.runner = runner; W.view = view; W.el = el; W.seen = {}; W.items = 0; W.fb = {}; W.briefed = {};
     if (cfg.mode === 'proctored' && view.setSync) view.setSync({ state: 'pending' });
   };
@@ -142,6 +143,8 @@ function walkScript() {
       case 'keypad_warmup': r.keypadWarmupDone(3); done = 'kpw'; break;
       case 'instruction': r.instructionDone(); done = 'instr'; break;
       case 'practice': {
+        // sa_guided_instructions: the guided ladder's screens (demo, turn, check), each measured, then on
+        if (v.guided) { if (/check|retry/.test(v.guided.role)) r.guidedCheck('passed'); else r.guidedStep(); done = 'guided-' + v.guided.role; break; }
         var p = v.practice;
         var k = v.task.id + '/' + p.id;
         // A wrong tile first (the "try again" feedback screen), then the right answer.
@@ -433,6 +436,7 @@ async function walk(browser, sc, vp, opts = {}) {
   const { battery, manual } = batteryOf(sc, opts.variant || 0);
   if (opts.urFit) battery.ui = Object.assign({}, battery.ui, { ur_fit: true });
   if (opts.appAsks) battery.ui = Object.assign({}, battery.ui, { app_asks: true });
+  if (opts.guided) battery.ui = Object.assign({}, battery.ui, { guided: true });
   const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: vp.deviceScaleFactor || 1, reducedMotion: 'reduce' });
   const page = await ctx.newPage();
   await route(page, lang, vp);
