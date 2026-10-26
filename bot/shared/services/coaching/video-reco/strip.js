@@ -18,7 +18,8 @@
  * strip — nothing true to promise. Read only for a 'shown' pick; any failed check is no strip.
  *
  * stripHtml(): ONE block for both templates (hero 794 px, slim 480 px), right under "Try one thing tomorrow": a
- * 16:9 thumbnail with a play badge, "▶ Watch next: {title}" and "{n} min · tap ▶ Watch in the next message". It
+ * 16:9 thumbnail with a play badge, "▶ Watch next: {title}" and the hint stripWhere() chose ("{n} min · tap ▶ Watch in
+ * the next message", or "{n} min · watch it in your report in the app"). It
  * carries its own <style>, so a report without a strip keeps its stylesheet byte for byte. The thumbnail is
  * inlined (data: URI): nothing is fetched at render time. The image is not tappable; the cta_url message is.
  */
