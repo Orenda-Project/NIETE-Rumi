@@ -16,6 +16,16 @@ const VF = (op, c, ev) => op.ok ? V(c, ev) : ['BLOCKED', { harness: op.err, clic
 const CARD = /Teacher Training/i;
 const CTA  = 'کھولیں|Open';
 
+/** The question's own line out of a quiz message: never the "Qn/N" header, nor the line the Meta bill cut
+ *  merged it into ("✅ Correct · Q2/20" — the feedback for the previous answer and the next header as ONE
+ *  line), nor an option, "required" or "Select all that apply"; the "(Select all that apply)" suffix is
+ *  stripped. Taking the merged line as the question matched no answer-key entry and ended T05/T16/T21 at
+ *  Q2 with NO_KEY_ENTRY (bd-yuur1a). */
+const questionLineOf = (txt) => (String(txt || '').split('\n').map((l) => l.trim())
+  .find((l) => l && !/(^|·\s*)Q\d+\/\d+(\s*\(Select all that apply\))?$/.test(l) && !/^[A-J]\.\s/.test(l) && !/^(required|Select all that apply|Selected:.*)$/i.test(l)) || '')
+  .replace(/\s*\(Select all that apply\)\s*$/i, '').trim();
+exports.questionLineOf = questionLineOf;
+
 exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
   const seenIds = new Set();
   const rec = (id, ...rest) => { seenIds.add(id); return rec0(id, ...rest); };
@@ -65,6 +75,10 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
   // ── T15 — "/teacher training" (two words) is NOT a trigger ──────────────────
   if (want('T15')) {
   s = t();
+  // The previous scenario may have left the menu wait open; inside it the bot matches free text to a menu row
+  // by words ("Teacher Training" ← "/teacher training", menu_match.row) and opens the Flow. The spec is a chat
+  // with no menu open, so park the conversation state first (bd-yuur1a).
+  if (api.setUser) await api.setUser({ conversation_state: null, conversation_state_expires_at: null });
   const two = await api.sendWait('/teacher training');
   rec('T15', '"/teacher training" (two words) is not a training command',
       ...V(!CARD.test(two.txt) || !(two.btns || []).some(b => new RegExp(CTA).test(b)),
@@ -413,9 +427,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
         if (n === 0) first = head ? head[0] : null;
         // The question line itself ends in "(Select all that apply)", so strip that suffix rather than
         // skip the line — skipping it left qLine empty and matched no key entry.
-        const qLine = (qTxt.split('\n').map(l => l.trim())
-          .find(l => l && !/^Q\d+\/\d+$/.test(l) && !/^Select all that apply$|^required$/i.test(l)) || '')
-          .replace(/\s*\(Select all that apply\)\s*$/i, '').trim();
+        const qLine = questionLineOf(qTxt);
         const entry = (key.questions || []).find(q => norm(q.q) === norm(qLine)
           || norm(q.q).startsWith(norm(qLine).slice(0, 60)) || norm(qLine).startsWith(norm(q.q).slice(0, 60)));
         if (!entry) return { first, trail, seen, last: { err: 'NO_KEY_ENTRY_FLOW', qLine: qLine.slice(0, 120) } };
@@ -453,7 +465,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       }
       const rows = hit.list.rows; answered.add(qKey(hit));
       const head = /Q(\d+)\/(\d+)/.exec(hit.txt || ''); const qNo = head ? Number(head[1]) : n + 1; if (n === 0) first = head ? head[0] : null;
-      const qLine = String(hit.txt || '').split('\n').map(l => l.trim()).find(l => l && !/^Q\d+\/\d+$/.test(l) && !/^[A-J]\.\s/.test(l) && !/required|Select all that apply|Selected:/.test(l)) || '';
+      const qLine = questionLineOf(hit.txt);
       const cands = (key.questions || []).filter(q => norm(q.q) === norm(qLine) || norm(q.q).startsWith(norm(qLine).slice(0, 60)) || norm(qLine).startsWith(norm(q.q).slice(0, 60)));
       // Bank questions can share a stem (the rhyming-words sequence items differ only in their options):
       // of the candidates, take the one whose correct option is actually on this screen (run 1201, Q14).
