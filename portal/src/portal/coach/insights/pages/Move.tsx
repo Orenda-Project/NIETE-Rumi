@@ -8,7 +8,7 @@ import { insightsPaths } from "../paths";
 import { InsightsPage, MetaLine, Eyebrow, Card } from "../components/Frame";
 import { StateBlock, NoteCard } from "../components/StateBlock";
 import { CodeText, DateText, LibraryText, Num } from "../count";
-import { digits, todayKarachi } from "../format";
+import { digits, LRI, PDI, todayKarachi } from "../format";
 import { pick, t, tx } from "../text";
 import type { MoveDetail } from "../types";
 
@@ -25,6 +25,15 @@ import type { MoveDetail } from "../types";
 
 /** The FLN send page: no code, no recipient, no query (a pre-selection would be a decode path). */
 export const FLN_SEND = "/portal/fln/send";
+
+/**
+ * A material title in Urdu: every Latin-script run ("NIETE", «Five step lesson plan», an English title standing in for an
+ * empty name_ur) sits in LRI…PDI (COPY §0.3; red-2 18:08Z, fix-r5 5e). English is untouched; the words stay the library's.
+ */
+export function isolateLatin(title: string, lang: Lang): string {
+  if (lang !== "ur") return title;
+  return title.replace(/[A-Za-z][A-Za-z0-9'’.,:/&-]*(?:\s+[A-Za-z0-9][A-Za-z0-9'’.,:/&-]*)*/g, (run) => `${LRI}${run}${PDI}`);
+}
 
 /** Whole calendar days from `from` to `to` (both ISO days). */
 function daysBetween(from: string, to: string): number {
@@ -123,14 +132,14 @@ function MoveLoaded() {
                         if (data.fln?.can_send) return null;
                         return (
                           <li key={k} className="py-2">
-                            <LibraryText className={body}>{pick(m.title, lang)}</LibraryText>
+                            <LibraryText className={body}>{isolateLatin(pick(m.title, lang), lang)}</LibraryText>
                           </li>
                         );
                       }
                       // vidrec: the minutes are not in the payload, so the title alone (s5.materials.video needs {n})
                       return (
                         <li key={k} data-kind={m.kind} className={`py-2 ${body}`}>
-                          <LibraryText>{pick(m.title, lang)}</LibraryText>
+                          <LibraryText>{isolateLatin(pick(m.title, lang), lang)}</LibraryText>
                         </li>
                       );
                     })}
@@ -141,7 +150,7 @@ function MoveLoaded() {
                       data-testid="s5-fln"
                       className="flex min-h-[44px] items-center justify-center rounded-xl bg-[#33374a] px-4 py-2.5 text-center text-[15px] font-semibold text-white [overflow-wrap:anywhere]"
                     >
-                      <LibraryText>{pick(flnTitle, lang)}</LibraryText>
+                      <LibraryText>{isolateLatin(pick(flnTitle, lang), lang)}</LibraryText>
                     </Link>
                   ) : !data.fln.can_send ? (
                     <p data-testid="s5-fln-off" className="text-[13.5px] text-[#6b7280]">{t("s5.fln.off", lang)}</p>

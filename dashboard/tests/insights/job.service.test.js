@@ -78,6 +78,51 @@ describe('write mode on the sandbox tier', () => {
     for (const c of circle) expect(momentIds.has(c.moment_id)).toBe(true);
   });
 
+  test('SPEC v2.1 §11.1: a sector under the B23 floor gets each coach\'s own rank-1 moment, stored with basis coach', async () => {
+    const { tables, coaches } = fx.build();
+    // Only C-01 stays on the roster: the sector has one coach and 32 lessons (under both floors); the coach has 32 (over 20).
+    tables.app_settings[0].value.coaches = tables.app_settings[0].value.coaches.slice(0, 1);
+    const store = new MemoryStore();
+    expect(await runJob(OPTS, writeDeps(tables, store))).toBe(0);
+    const rollups = store.rows('coachip_rollups');
+    expect(rollups.some((r) => r.scope_kind === 'sector' && r.rank === 1)).toBe(false);
+    const coachTop = rollups.find((r) => r.scope_kind === 'coach' && r.coach_user_id === coaches[0] && r.rank === 1);
+    expect(coachTop).toBeDefined();
+    const circle = store.rows('coachip_circle_items');
+    expect(circle).toHaveLength(1);
+    expect(circle[0]).toMatchObject({ sector: 'Urban-I', coach_user_id: coaches[0], basis: 'coach' });
+    const moment = store.rows('coachip_moments').find((m) => m.id === circle[0].moment_id);
+    expect(moment.w_id).toBe(coachTop.w_id);
+  });
+
+  test('a ranked sector writes its circle rows with basis sector', async () => {
+    const { tables } = fx.build();
+    const store = new MemoryStore();
+    await runJob(OPTS, writeDeps(tables, store));
+    const circle = store.rows('coachip_circle_items');
+    expect(circle.length).toBeGreaterThan(0);
+    expect(circle.every((c) => c.basis === 'sector')).toBe(true);
+  });
+
+  test('SPEC v2.1 §11.3: one scope line before stage 1, counts only, the exact key list', async () => {
+    const { tables, coaches } = fx.build();
+    const OTHER = '00000000-0000-4000-8000-0900000000ff'; // switched on, not on the roster
+    tables.app_settings.push({ key: 'portal_coachip', value: [coaches[0], OTHER] });
+    tables.users.push({ id: coaches[2], role: 'coach', school_id: null, is_test_user: true, deleted_at: null });
+    const lines = [];
+    expect(await runJob(OPTS, writeDeps(tables, new MemoryStore(), { log: (l) => lines.push(l) }))).toBe(0);
+    const scopeLines = lines.filter((l) => /^scope /.test(l));
+    expect(scopeLines).toHaveLength(1);
+    const m = scopeLines[0].match(/^scope schools=(\d+) teachers=(\d+) roster_coaches=(\d+) holding_coaches=(\d+) switched_on_not_on_roster=(\d+) test_user_coaches=(\d+) sessions_seen=(\d+) kept=(\d+)$/);
+    expect(m).not.toBeNull();
+    const [, schools, teachers, roster, holding, notOnRoster, testCoaches, seen, kept] = m.map(Number);
+    expect({ schools, teachers, roster, holding, notOnRoster, testCoaches }).toEqual({ schools: 6, teachers: 24, roster: 3, holding: 3, notOnRoster: 1, testCoaches: 1 });
+    expect(seen).toBeGreaterThanOrEqual(kept);
+    expect(kept).toBeGreaterThan(0);
+    expect(lines.findIndex((l) => /^scope /.test(l))).toBeLessThan(lines.findIndex((l) => /^facts sessions=/.test(l)));
+    for (const id of [...coaches, OTHER]) expect(scopeLines[0]).not.toContain(id);
+  });
+
   test('idempotency: a second run of the same date changes no derived row (NIGHTLY_JOB §8)', async () => {
     const { tables } = fx.build();
     const store = new MemoryStore();

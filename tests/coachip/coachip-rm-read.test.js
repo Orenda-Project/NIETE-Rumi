@@ -58,7 +58,7 @@ const K = {
   window: ['id', 'from', 'to', 'weeks', 'grader', 'grader_label', 'framework', 'scoring_changed_on'],
   rmCoach: ['coach', 'schools', 'steps', 'moves', 'notes', 'calibration', 'windows', 'computed_at'],
   rmCoachSchool: ['school', 'last_visit', 'next_visit', 'graded', 'weeks_since_visit'],
-  rmCircle: ['week_start', 'window', 'sector_interventions', 'moments', 'checks_due', 'windows', 'computed_at'],
+  rmCircle: ['week_start', 'window', 'basis', 'floor', 'sector_interventions', 'moments', 'checks_due', 'windows', 'computed_at'],
   sectorI: ['i_id', 'title', 'level', 'date', 'attendees', 'check'],
   circleMoment: ['coach_user_id', 'coach_label', 'moment_id', 'w_id', 'short_name', 'school', 'duration_s'],
 };
@@ -439,6 +439,9 @@ run('COACHIP RM reads: R17 rm/home, R18 rm/coach/:id, R20 rm/circle (Postgres, H
     expect(b.sector_interventions[1].attendees).toEqual({ en: lib.with_whom, ur: lib.with_whom_ur });
     expect(b.sector_interventions[1].check).toEqual({ en: lib.check_it_worked.look_for, ur: lib.check_it_worked.look_for_ur });
     expect(b.windows.map((w) => w.id)).toEqual(['act-4w-2026-10-26', 'week-2026-10-19']);
+    // SPEC v2.1 §11.1: the sector ranks, so the week is on the sector's W and there is no floor line
+    expect(b.basis).toBe('sector');
+    expect(b.floor).toBeNull();
   });
 
   test('R20 rm/circle: last week\'s items are not this week\'s circle; the Tarnol RM sees only Tarnol', async () => {
@@ -449,6 +452,44 @@ run('COACHIP RM reads: R17 rm/home, R18 rm/coach/:id, R20 rm/circle (Postgres, H
     expect(t.status).toBe(200);
     expect(t.body.moments.map((m) => m.moment_id)).toEqual([MOM(3)]);
     for (const id of [MOM(1), MOM(2), CA, CB]) expect(t.text).not.toContain(id);
+  });
+
+  // SPEC v2.1 §11.1: the basis is stored on the row and the week says which; the floor comes from the sector rollups
+  test('R20 rm/circle: a coach-basis week says basis coach and the floor; the rows are the same B22 rows', async () => {
+    await pg.query("UPDATE coachip_circle_items SET week_start = '2026-10-26', basis = 'coach' WHERE sector = 'Urban-I'");
+    await pg.query("UPDATE coachip_rollups SET rank = NULL, status = 'insufficient', coaches_with_5plus = LEAST(coaches_with_5plus, 2) WHERE scope_kind = 'sector' AND sector = 'Urban-I'");
+    const res = await app.call('GET', `${P}/rm/circle`, { as: RM });
+    expect(res.status).toBe(200);
+    expectKeys(res.body, K.rmCircle);
+    expect(res.body.basis).toBe('coach');
+    // COPY §8 / SPEC §11.1: {c} is a Count on the sector's 4-week graded window, and that window is in `windows` (G10)
+    const fw = res.body.windows.find((w) => w.id === res.body.floor.window_id);
+    expect(fw).toMatchObject({ weeks: 4, framework: 'lp_fidelity' });
+    expect(res.body.floor).toEqual({ coaches_with_5plus: 2, needed: 3, window_id: fw.id });
+    everyCountResolves(res.body);
+    expect(res.body.moments.map((m) => [m.coach_label, m.moment_id])).toEqual([['C-01', MOM(2)], ['C-02', MOM(1)]]);
+    for (const m of res.body.moments) expectKeys(m, K.circleMoment);
+    noIdentity(res.text);
+    // the Tarnol RM's week is untouched: its row is still basis sector
+    const t = await app.call('GET', `${P}/rm/circle`, { as: RM2 });
+    expect(t.body.basis).toBe('sector');
+  });
+
+  test('R20 rm/circle: no row and no sector rank 1 → basis coach with the floor and no moments (S10 empty.floor, never a zero)', async () => {
+    await pg.query("DELETE FROM coachip_circle_items WHERE sector = 'Urban-I'");
+    await pg.query("UPDATE coachip_rollups SET rank = NULL, status = 'insufficient', coaches_with_5plus = LEAST(coaches_with_5plus, 2) WHERE scope_kind = 'sector' AND sector = 'Urban-I'");
+    const res = await app.call('GET', `${P}/rm/circle`, { as: RM });
+    expect(res.status).toBe(200);
+    expect(res.body.moments).toEqual([]);
+    expect(res.body.basis).toBe('coach');
+    expect(res.body.floor).toMatchObject({ coaches_with_5plus: 2, needed: 3 });
+    expect(res.body.windows.map((w) => w.id)).toContain(res.body.floor.window_id);
+  });
+
+  test('R20 rm/circle: no row but the sector ranks → basis sector, floor null (S10 keeps s10.moments.empty)', async () => {
+    await pg.query("DELETE FROM coachip_circle_items WHERE sector = 'Urban-I'");
+    const res = await app.call('GET', `${P}/rm/circle`, { as: RM });
+    expect([res.body.moments, res.body.basis, res.body.floor]).toEqual([[], 'sector', null]);
   });
 
   test('RM reads: no switch → 404 on all three; a teacher → 404', async () => {

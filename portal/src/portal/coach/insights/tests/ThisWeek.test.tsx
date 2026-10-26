@@ -8,6 +8,7 @@ vi.mock("../../../lib/recordingSession", () => ({ useRecordingSession: () => nul
 
 import { boot, renderAt, serve, settle, F, http, httpError, expectContract, expectNoIdentity } from "./harness";
 import { domContract } from "../count";
+import { dateShort, todayKarachi } from "../format";
 
 /**
  * bd-sex15q.15 — S1 "This week", the coach's home (DESIGN §3 S1, COPY §S1, API R2/R13). Every state in both languages:
@@ -64,6 +65,15 @@ function expectCommon(container: HTMLElement, lang: Lang) {
 
 const page = () => screen.getByTestId("insights-this-week");
 
+/** fix-r5 item 5g: band.sub is `{date_short}` only (COPY v1.1 §8): the band's second line is the date and no number. */
+function expectBandDateOnly(lang: Lang) {
+  const band = screen.getByTestId("s1-today");
+  expect(band.textContent).toBe(dateShort(todayKarachi(), lang));
+  expect(band.querySelector("[data-num]")).toBeNull();
+  const date = band.querySelector("[data-date]") as HTMLElement;
+  expect(date.textContent).toBe(band.textContent);
+}
+
 describe("S1 This week", () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ["Date"] });
@@ -86,6 +96,7 @@ describe("S1 This week", () => {
           expect(page()).toBeTruthy();
           expectContract(container, expect);
           expectCommon(container, lang);
+          expectBandDateOnly(lang);
           expect(container.innerHTML).toMatchSnapshot();
         }, 20000);
       }

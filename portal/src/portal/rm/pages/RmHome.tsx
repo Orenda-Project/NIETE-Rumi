@@ -63,7 +63,8 @@ export default function RmHome() {
     );
   }
   return (
-    <RmPage title={title} sub={<DateText iso={today} lang={lang} short />} windows={data?.windows} testId="rm-home" trust={data ? "s8.trust" : null}>
+    // s8.sub is the date only (COPY v1.1 §8: the coach and school counts had no Count behind them)
+    <RmPage title={title} sub={rtx("s8.sub", lang, { date: <DateText iso={today} lang={lang} /> })} windows={data?.windows} testId="rm-home" trust={data ? "s8.trust" : null}>
       {!data ? <StateBlock error={error} testId="rm-state" /> : (
         <div className="flex flex-col gap-4">
           {data.stale && (

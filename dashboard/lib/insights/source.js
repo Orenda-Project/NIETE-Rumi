@@ -77,7 +77,7 @@ async function loadScope(client) {
   const teachers = new Map(); // teacherId → schoolId
   for (const t of teachersRaw) if (t.deleted_at == null && t.is_test_user !== true && schools.has(t.school_id)) teachers.set(t.id, t.school_id);
   const testUsers = new Set((await fetchAll(client, 'users', 'id', (q) => q.eq('is_test_user', true))).map((u) => u.id));
-  return { schools, coaches, holders, teachers, testUsers, flags: settings.filter((r) => r.key !== 'analytics_rdf_coaches') };
+  return { schools, coaches, holders, teachers, testUsers, rosterCoaches, flags: settings.filter((r) => r.key !== 'analytics_rdf_coaches') };
 }
 
 const SESSION_SELECT = [
