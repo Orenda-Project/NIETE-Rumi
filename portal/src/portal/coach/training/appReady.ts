@@ -11,13 +11,25 @@ import { LESSONS_HOME } from "../../teacher/lessons/paths";
  * bd-4joiqz — "lessons": the teacher Lesson Plans pages (/portal/teacher/lessons/*), read as a leader ("why can't a
  * coach see LPs in their IAB?", operator, 22 Oct 2026). Training stays first, so it stays her landing page.
  */
-export type CoachFeature = "training" | "lessons" | "home" | "schedule" | "observe" | "schools" | "analytics";
+export type CoachFeature = "training" | "lessons" | "home" | "schedule" | "observe" | "schools" | "analytics" | "insights";
 
 type Id = number | string;
 
 export const COACH_APP_READY: readonly CoachFeature[] = ["training", "lessons"];
 
 export const COACH_TRAINING_BASE = "/portal/coach/training";
+
+/**
+ * bd-sex15q.15 — COACHIP, the coach insight screens ("This week" and the pages under it). Never in COACH_APP_READY: a
+ * coach gets it only with portal_coachip on (coachReadyFor below), and then it is first, so "This week" is home
+ * (ruling 06:11Z). Training and Lesson Plans stay reachable, from More.
+ */
+export const COACH_INSIGHTS_BASE = "/portal/coach/insights";
+
+/** The ready list for a v2 coach: COACHIP's pages first when her switch is on, else exactly COACH_APP_READY. */
+export function coachReadyFor(coachip: boolean | null | undefined): readonly CoachFeature[] {
+  return coachip === true ? ["insights", ...COACH_APP_READY] : COACH_APP_READY;
+}
 
 export const coachTrainingPaths = {
   home: COACH_TRAINING_BASE,
@@ -38,6 +50,7 @@ const FEATURE_PATHS: Record<CoachFeature, { prefixes: readonly string[]; exact?:
   observe: { prefixes: ["/portal/coach/observe", "/portal/coach/visit", "/portal/coach/observation", "/portal/coach/reports"] },
   schools: { prefixes: ["/portal/coach/people", "/portal/coach/school", "/portal/coach/schools", "/portal/coach/add-teacher", "/portal/coach/teacher"] },
   analytics: { prefixes: ["/portal/coach/analytics"] },
+  insights: { prefixes: [COACH_INSIGHTS_BASE] },
 };
 
 /** Always reachable: her account (More, profile, My account) and the signed-out pages. */
