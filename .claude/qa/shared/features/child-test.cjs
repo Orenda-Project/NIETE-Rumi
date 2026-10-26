@@ -135,6 +135,10 @@ const SCENARIOS = [
   // L39 (bd-s1oo0.50.5, CONTRACT §21.6): battery v3 results and the paged end-of-visit review.
   ['CT57', 'v3 results — one line per block per child, rates per minute, ≈ for provisional tasks', 'L4'],
   ['CT58', 'v3 review — the unsettled items, child by child, in pages of 15, saved once per task', 'L4'],
+  // Any school (sa_any_school): the coach app's Learning assessment, not WhatsApp — never driven here, so always BLOCKED
+  // (blockRest); driven in a browser on sandbox/staging, unit-tested in bot/tests/child-test/sa-any-school.test.js.
+  ['CT98', 'A user on sa_any_school sees every live school with its EMIS and sector, and opens today\'s list at one they are not linked to', 'L4'],
+  ['CT99', 'Without sa_any_school, or at a test or closed school, nothing changes', 'L4'],
 ];
 const NAME = Object.fromEntries(SCENARIOS.map(([id, n]) => [id, n]));
 
@@ -524,15 +528,4 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
     try { await api.setUser({ preferred_language: me.preferred_language, region: me.region }); } catch (_) {}
     blockRest('not reached: an earlier step stopped the run');
   }
-
-  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
-  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('CT98', 'A user on sa_any_school sees every live school with its EMIS and sector, and opens today\'s list at one they are not linked to', 'BLOCKED',
-      { reason: 'coach app (portal) path, not WhatsApp: driven in a real browser on sandbox/staging; unit: bot/tests/child-test/sa-any-school.test.js' }, 0);
-
-  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
-  rec('CT99', 'Without sa_any_school, or at a test or closed school, nothing changes', 'BLOCKED',
-      { reason: 'coach app (portal) path, not WhatsApp: driven in a real browser on sandbox/staging; unit: bot/tests/child-test/sa-any-school.test.js' }, 0);
-
 };
