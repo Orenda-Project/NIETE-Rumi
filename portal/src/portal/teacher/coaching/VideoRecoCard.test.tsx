@@ -86,3 +86,24 @@ describe("VideoRecoCard", () => {
     expect(html).toContain("break-words");
   });
 });
+
+// R7p (COS 20261026T043131 §2): card-mode reasons as production stores them (tests/coaching/video-reco/
+// fixtures-r7p-app-card.json, from the $0 fresh-5 replay on sandbox 10de2eb303): the card sentence sits in an FSI…PDI
+// isolate, an Urdu sentence inside an English line, and an Urdu line whose quote opens on a digit.
+const CARD_MODE = [
+  ["en", "Your report asks you to try: \"⁨اگلی کلاس میں، جب آپ board task شروع کریں، تو بورڈ پر دو versions لکھیں: basic (add 's' words) اور stretch (words needing 'es' یا spelling change)، ہر open-ended question کے بعد 5–7 سیکنڈ wait time رکھیں۔⁩\". This clip shows one way to do it."],
+  ["ur", "آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: \"⁨اگلی کلاس میں، جب بورڈ پر '2 کے نیچے 0' والا place value مثال دکھائیں، تو ہر worked example کے بعد ایک مختصر open-ended question 'یہاں 0 کیوں؟' پوچھیں، 5 سیکنڈ wait time دیں اور ایک طالب علم سے ایک sentence میں سمجھائیں۔⁩\"۔ یہ کلپ اس کا ایک طریقہ دکھاتا ہے۔"],
+] as const;
+
+describe("VideoRecoCard, card mode (R7p)", () => {
+  it.each(CARD_MODE)("%s: the stored reason is drawn whole, isolate intact, dir=auto; one Watch link to the app's /v", async (lng, reason) => {
+    await act(async () => { await i18n.changeLanguage(lng); });
+    render(<VideoRecoCard video={{ ...CARD, durationS: 51.57, reason }} />);
+    const why = screen.getByText((_, el) => el?.tagName === "P" && el.textContent === reason);
+    expect(why.getAttribute("dir")).toBe("auto");
+    expect(why.textContent).toMatch(/\u2068[^\u2069]+\u2069/);
+    const links = screen.getAllByRole("link");
+    expect(links).toHaveLength(1);
+    expect(links[0].getAttribute("href")).toBe("/v/tok-abc?s=portal");
+  });
+});

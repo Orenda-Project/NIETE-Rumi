@@ -10,8 +10,16 @@
  * send.js — an error) is null and the image renders exactly as today. The flag is read at call time; `row` is
  * the engine's promise when the caller has it, else the session's stored row (merge-order safety, as send.js).
  *
+ * stripWhere() (R7p, COS 20261026T043131 §1): the hint names where the clip is, and it must be true wherever the image
+ * goes. The image is rendered BEFORE the send and the 24 h window is known only AT the send (report-window-send); the
+ * stored image is also the share template's header (window closed: no next message), the app's Share, and the app's
+ * report page. So, at the render: on the teacher app → 'app' (the app's report page carries the clip card on every
+ * path); else the window open with STRIP_WINDOW_MARGIN_MS left → 'next' (the clip message follows the image); else no
+ * strip — nothing true to promise. Read only for a 'shown' pick; any failed check is no strip.
+ *
  * stripHtml(): ONE block for both templates (hero 794 px, slim 480 px), right under "Try one thing tomorrow": a
- * 16:9 thumbnail with a play badge, "▶ Watch next: {title}" and "{n} min · tap ▶ Watch in the next message". It
+ * 16:9 thumbnail with a play badge, "▶ Watch next: {title}" and the hint stripWhere() chose ("{n} min · tap ▶ Watch in
+ * the next message", or "{n} min · watch it in your report in the app"). It
  * carries its own <style>, so a report without a strip keeps its stylesheet byte for byte. The thumbnail is
  * inlined (data: URI): nothing is fetched at render time. The image is not tappable; the cta_url message is.
  */
@@ -22,6 +30,7 @@ const copy = require('./copy');
 
 const CAP_MS = 5000; // LLM modes (v9 engine_ms p50 14.5 s: a slower pick skips the strip)
 const CARD_CAP_MS = 1500; // VIDEO_RECO_REASON=card (v9 p99 ~0.3 s)
+const STRIP_WINDOW_MARGIN_MS = 30 * 60 * 1000; // the window must outlive the render → send gap (seconds) by far
 const ASSETS = path.join(__dirname, '..', '..', '..', '..', 'assets');
 
 function enabledByDefault() {
@@ -41,7 +50,16 @@ function stripWaitMs(env = process.env) {
   return flags.videoRecoReason(env) === 'card' ? CARD_CAP_MS : CAP_MS;
 }
 
-async function stripFor({ coachingSessionId, language, row: given, capMs, deps = {} } = {}) {
+/** 'app' | 'next' | null — see the header. Throws are the caller's (stripFor: no strip). */
+async function stripWhere({ phone, userId, deps = {} }) {
+  const onApp = deps.onTeacherApp || ((id) => require('../../app-redirect.service').isOnTeacherApp(id));
+  const windowOpen = deps.windowOpen || ((p, o) => require('../../quiz/quiz-delivery.service')._hasOpenMessageWindow(p, o));
+  if (userId && await onApp(userId)) return 'app';
+  if (phone && await windowOpen(phone, { marginMs: STRIP_WINDOW_MARGIN_MS })) return 'next';
+  return null;
+}
+
+async function stripFor({ coachingSessionId, language, row: given, capMs, phone, userId, deps = {} } = {}) {
   try {
     const on = typeof deps.enabled === 'function' ? deps.enabled() : enabledByDefault();
     if (!on || !coachingSessionId) return null;
@@ -52,6 +70,8 @@ async function stripFor({ coachingSessionId, language, row: given, capMs, deps =
     const row = await Promise.race([pending, new Promise((r) => { timer = setTimeout(() => r(null), capMs); })]);
     clearTimeout(timer);
     if (!row || row.status !== 'shown') return null;
+    const where = await stripWhere({ phone, userId, deps });
+    if (!where) return null;
     const catalog = deps.catalog || require('./catalog');
     let hit = null;
     try { hit = catalog.segment(row.seg_id); } catch (_) { hit = null; }
@@ -64,6 +84,7 @@ async function stripFor({ coachingSessionId, language, row: given, capMs, deps =
       thumbPath: path.join(ASSETS, mod.thumb || `video-thumbs/${row.module_id}.jpg`),
       title: copy.localized(seg, 'title', l) || mod.title || '',
       durationS: end > start ? end - start : Number(mod.duration_s) || 60,
+      where,
     };
   } catch (err) {
     logToFile('[video-reco] image strip skipped (non-fatal)', { coachingSessionId, error: err.message }, 'warn');
@@ -86,7 +107,7 @@ function stripHtml(vs, { language, T, width = 794 }) {
   const ur = copy.dirOf(l) === 'rtl';
   const n = copy.minutesOf(vs.durationS);
   const title = copy.word('videoRecoStripTitle', l, { title: vs.title || '' });
-  const hint = copy.word('videoRecoStripHint', l, { n: copy.num(n, l) });
+  const hint = copy.word(vs.where === 'app' ? 'videoRecoStripHintApp' : 'videoRecoStripHint', l, { n: copy.num(n, l) });
   const b64 = thumbData(vs.thumbPath);
   const side = width >= 700 ? '42px' : '0';
   const cover = b64 ? `background:#1f2433 url(data:image/jpeg;base64,${b64}) center/cover no-repeat` : 'background:linear-gradient(135deg,#333748,#47BA7D)';
@@ -99,4 +120,4 @@ function stripHtml(vs, { language, T, width = 794 }) {
     + `<div class="vth"></div><div class="vtx"><div class="vt1">${T(title)}</div><div class="vt2">${T(hint)}</div></div></div>`;
 }
 
-module.exports = { stripFor, stripHtml, stripWaitMs, CAP_MS, CARD_CAP_MS };
+module.exports = { stripFor, stripHtml, stripWaitMs, stripWhere, CAP_MS, CARD_CAP_MS, STRIP_WINDOW_MARGIN_MS };
