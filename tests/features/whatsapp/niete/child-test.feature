@@ -848,3 +848,26 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then those tasks are saved with my verdicts next to the AI's, and page "2/2" arrives
     When I save page 2
     Then "✓ Saved. The marks for this visit are complete. Thank you." arrives and every task row is checked
+
+  # ── Any school (app_settings sa_any_school, default OFF; JSON true or a list of users.id) ──
+  # For the people who support the visits and have no schools of their own: the coach app's Learning assessment lists
+  # every live programme school (active, not a probable test school) with its EMIS and sector, and opens at any of them.
+  # services/child-test/app/any-school-switch.js, sa-api.service.js listSchools / visitFor.
+  @e2e @wip @draft @config-gated @P1 @CT98
+  Scenario: A user on sa_any_school sees every live school with its EMIS and sector, and opens today's list at one they are not linked to
+    Given sa_any_school names my user id and I have no schools of my own
+    When I open Learning assessment in the coach app
+    Then the school list holds every active school that is not a probable test school, each with its sector and EMIS under the name
+    When I type an EMIS or a sector into the search box
+    Then only the matching schools stay, and the count reads "<n> of <total>"
+    When I pick a school I am not linked to
+    Then today's children at that school are listed and I can mark them and start the test
+
+  @e2e @wip @draft @negative @config-gated @P1 @CT99
+  Scenario: Without sa_any_school, or at a test or closed school, nothing changes
+    Given sa_any_school is off for my user id
+    Then the school list holds only my own schools and today's observe visit
+    And a list asked for at a school I am not linked to is not found
+    Given sa_any_school names my user id
+    Then a list asked for at a probable test school or a closed school is still not found
+    And a practice-only coach still sees their practice schools only
