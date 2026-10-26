@@ -2852,6 +2852,23 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-fln.routes'));
 // bd-s1oo0.7 — the child test in the coach app (relays to the bot; flag portal_child_test).
 app.use('/api/portal/leader/child-test', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, childTestRoutes);
+// bd-sex15q.13 — COACHIP, the coach and RM insight portal: /api/portal/coachip/* only (contracts/API.md). Dark until an
+// app_settings row names a user (portal_coachip / portal_coachip_rm); every route but /coachip/me is a 404 until then.
+// The two media streams are m-player's module, wired here once it is deployed (no index.js change needed then).
+{
+  let coachipMedia;
+  try {
+    coachipMedia = require('./routes/portal-coachip-media.routes').createCoachipMediaRoutes;
+  } catch (err) {
+    if (!(err && err.code === 'MODULE_NOT_FOUND' && String(err.message).includes('portal-coachip-media.routes'))) throw err;
+  }
+  const { router: coachipRouter } = require('./routes/portal-coachip.routes').createCoachipRouterFromEnv({
+    pool: require('./config/database'),
+    supabase,
+    mediaRoutes: coachipMedia ? ({ query, scope, codes }) => coachipMedia({ query, inScope: scope.inScope, circleAllows: scope.circleAllows, audit: codes.audit }) : undefined,
+  });
+  app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, coachipRouter);
+}
 
 // NIETE Teacher Attendance — principal-facing daily mark screen. Inert
 // without a valid portal session; the page
