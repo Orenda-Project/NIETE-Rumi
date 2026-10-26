@@ -3,7 +3,7 @@ import { act, cleanup, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 /**
- * bd-sex15q.15 — B7/B8 goldens for the coach's way in (SPEC v2 §6; ruling 06:11Z on C12).
+ * bd-sex15q.15 — B7/B8 goldens for the coach's way in (SPEC v2 §6; the lead's decision on C12).
  *
  *   portal_coachip OFF (absent, false, /config failing): a v2 coach is still sent to the Training Library, the menu is
  *   still Training Library · Lesson Plans · More, homeFor() is unchanged, and no insight page is reachable.
