@@ -44,6 +44,13 @@ describe('teacher home token', () => {
     expect(HomeToken.verifyTeacherHome(null)).toBeNull();
   });
 
+  test("via 'portal' (the teacher app's home card) round-trips; an unknown via is still refused", () => {
+    const t = HomeToken.signTeacherHome({ uid: UID, lang: 'ur', via: 'portal' });
+    expect(typeof t).toBe('string');
+    expect(HomeToken.verifyTeacherHome(t)).toEqual({ ok: expect.objectContaining({ uid: UID, lang: 'ur', via: 'portal' }) });
+    expect(HomeToken.signTeacherHome({ uid: UID, lang: 'en', via: 'nope' })).toBeNull();
+  });
+
   test('the url is /quiz/teacher/<token> on the web base', () => {
     const t = HomeToken.signTeacherHome({ uid: UID, lang: 'en', via: 'go' });
     expect(HomeToken.teacherHomePath(t)).toBe(`/quiz/teacher/${t}`);

@@ -160,9 +160,9 @@ describe('Class on the door path', () => {
     expect(screen.queryByTestId('where')).toBeNull();
   });
 
-  it('golden: a plain New paper\'s Class step shows no note and counts six steps', async () => {
+  it('golden: a plain New paper\'s Class step shows no note and counts four steps', async () => {
     at(newPaperPath('class'), newPaperPath('class'), <ClassStep />);
-    expect(await screen.findByRole('progressbar', { name: C.step(1, 6) })).toBeTruthy();
+    expect(await screen.findByRole('progressbar', { name: C.step(1, 4) })).toBeTruthy();
     expect(screen.queryByText(C.islamiatHeld)).toBeNull();
   });
 });
@@ -193,7 +193,7 @@ describe('side door on the Chapters step', () => {
     expect((await screen.findByTestId('button-reason')).textContent).toBe(C.why.chapters);
     await waitFor(() => expect(portal.getAssessmentOptions).toHaveBeenCalled());
     expect(screen.queryByTestId('fde-side-door')).toBeNull();
-    expect(screen.getByRole('progressbar', { name: C.step(2, 6) })).toBeTruthy();
+    expect(screen.getByRole('progressbar', { name: C.step(2, 4) })).toBeTruthy();
   });
 });
 
@@ -334,7 +334,7 @@ describe('Check and make on the FDE path', () => {
   it('golden: a plain Check is today\'s, with no FDE row', async () => {
     setPicks({ ...newPicks(15), grade: 5, subject: 'maths', subjectName: 'Maths', chapters: [1] });
     at(newPaperPath('check'), newPaperPath('check'), <CheckStep />);
-    expect(await screen.findByRole('progressbar', { name: C.step(6, 6) })).toBeTruthy();
+    expect(await screen.findByRole('progressbar', { name: C.step(4, 4) })).toBeTruthy();
     expect(screen.queryByTestId('fde-row-style')).toBeNull();
     expect(screen.queryByText(C.readyHint)).toBeNull();
   });

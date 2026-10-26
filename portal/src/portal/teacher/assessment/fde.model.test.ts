@@ -4,12 +4,13 @@ import {
 } from './model';
 
 /**
- * The FDE board pattern on the New paper: two steps (Class, Check) instead of six, a spec that names the pattern
+ * The FDE board pattern on the New paper: two steps (Class, Check) instead of four, a spec that names the pattern
  * and lets the server resolve the FDE syllabus, and a paper without the pattern sent exactly as today.
  */
 
 const today = (over: Partial<Picks> = {}): Picks => ({
-  ...newPicks(15), grade: 4, subject: 'science', subjectName: 'Science', chapters: [2, 1], ...over,
+  ...newPicks(15), grade: 4, subject: 'science', subjectName: 'Science', chapters: [2, 1],
+  typesSeeded: true, seen: 5, typeCounts: { MCQs: 10 }, ...over,
 });
 const fde = (over: Partial<Picks> = {}): Picks => ({
   ...newPicks(15), grade: 5, subject: 'maths', subjectName: 'Maths',
@@ -17,12 +18,12 @@ const fde = (over: Partial<Picks> = {}): Picks => ({
 });
 
 describe('stepsFor', () => {
-  it('golden: not eligible is today\'s six steps, exactly', () => {
+  it('golden: not eligible is today\'s four steps, exactly', () => {
     expect(stepsFor(today(), false)).toEqual(STEPS);
     expect(stepsFor(fde(), false)).toEqual(STEPS);
-    expect(STEPS).toEqual(['class', 'cover', 'questions', 'types', 'extras', 'check']);
+    expect(STEPS).toEqual(['class', 'cover', 'questions', 'check']);
   });
-  it('eligible but an own paper: today\'s six steps', () => {
+  it('eligible but an own paper: today\'s four steps', () => {
     expect(stepsFor(fde({ style: 'own', coverBy: 'chapters' }), true)).toEqual(STEPS);
   });
   it('eligible and the FDE board pattern: Class, then Check', () => {
@@ -56,7 +57,7 @@ describe('toSpec', () => {
     const s = toSpec(today());
     expect(s).toEqual({
       grade: 4, subject: 'science', chapterNumbers: [1, 2], pageRanges: null,
-      questionCount: 15, contentSource: 'unseen', seenCount: null, questionTypes: [],
+      questionCount: 15, contentSource: 'both', seenCount: 5, questionTypes: [{ id: 'MCQs', count: 10 }],
       totalMarks: null, answerLines: true, outputFormat: 'pdf',
     });
     expect(Object.keys(s)).not.toContain('pattern');
@@ -82,7 +83,7 @@ describe('toSpec', () => {
     });
   });
   it('an own paper after picking FDE first: today\'s spec, no pattern', () => {
-    const s = toSpec(fde({ style: 'own', coverBy: 'chapters', chapters: [1, 2] }));
+    const s = toSpec(fde({ style: 'own', coverBy: 'chapters', chapters: [1, 2], typesSeeded: true, typeCounts: { MCQs: 10 } }));
     expect(s).not.toHaveProperty('pattern');
     expect(s).toMatchObject({ chapterNumbers: [1, 2], questionCount: 15 });
   });

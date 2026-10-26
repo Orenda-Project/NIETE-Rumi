@@ -97,9 +97,13 @@ const KEY_FIELD = {
   // bd-s42dye.3 — the coach's Training Library link.
   appLinkBodyCoachTraining: 'body',
   appLinkButtonCoachTraining: 'buttonText',
-  // bd-zcgpkx — a leader's lesson-plan link (Send a lesson plan).
+  // bd-zcgpkx, bd-a73p5m — a leader's lesson-plan link (the Lesson Plans tab).
   appLinkBodyLeaderLessonPlan: 'body',
   appLinkButtonLeaderLessonPlan: 'buttonText',
+  // bd-gzfdu9 — the recommended training clip's cta_url message (video-reco/send.js).
+  videoRecoButton: 'buttonText',
+  videoRecoBodyLead: 'body',
+  videoRecoBodyMeta: 'body',
 };
 
 /**
@@ -113,6 +117,9 @@ const HEADROOM_EXEMPT = new Set([
   // Operator copy for the ✓/✗ list, 30 Sep 2026: "➕ Add a question" (16/20)
   // and "More questions ➡️" (17/20 — ➡️ is two code points).
   'assessmentRowAdd', 'assessmentRowNext',
+  // bd-gzfdu9: the template counts "{n}" as 3; rendered it is 13–14 of 20 for 1–10 minutes (measured below, and
+  // video-reco/copy.test.js renders 1–9 in both languages).
+  'videoRecoButton',
 ]);
 
 /**
@@ -121,6 +128,7 @@ const HEADROOM_EXEMPT = new Set([
  * length says nothing about what reaches the device.
  */
 const ROW_TEMPLATES = {
+  videoRecoButton: { n: '۱۰' }, // bd-gzfdu9: a cta_url button, same 20-code-point cap; the widest minutes value
   assessmentRowMakeDesc: { count: 50, marks: 150 },
   assessmentRowPrevDesc: { from: 33, to: 48 },
   assessmentRowNextDesc: { from: 49, to: 50, total: 50 },

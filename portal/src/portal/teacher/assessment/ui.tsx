@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, ChevronRight, Loader2, Minus, Plus } from 'lucide-react';
+import { Check, ChevronRight, Loader2, Minus, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CARD, CARD_SELECTED, FOCUS, LIST_CARD } from '../ui/styles';
 import TeacherPage from '../TeacherPage';
 import { ButtonWithReason } from '../ui/ButtonWithReason';
+import { NumberField } from '../ui/NumberField';
 import { ASSESSMENT } from './copy';
 import { useCopy } from '../i18n';
 import { STEPS, type Step } from './model';
@@ -148,6 +149,39 @@ export function Stepper({
   );
 }
 
+/**
+ * One count on the Questions screen: its name, then − [number box] +. The number is typed (the kit's NumberField: the
+ * numeric keypad, all selected on focus so the first key replaces it) or stepped. `bin`: the minus is a bin, for a row
+ * that one more tap takes off the page. A row at 0 (`dim`) is plain; a counted one sits on the tint.
+ */
+export function CountRow({
+  name, ariaName, value, onType, onLess, onMore, canLess, canMore, lessLabel, moreLabel,
+  bin = false, maxLength = 2, error, dim, first, testId,
+}: {
+  name: ReactNode; ariaName: string; value: string; onType: (digits: string) => void; onLess: () => void; onMore: () => void;
+  canLess: boolean; canMore: boolean; lessLabel: string; moreLabel: string;
+  bin?: boolean; maxLength?: number; error?: boolean; dim?: boolean; first?: boolean; testId?: string;
+}) {
+  const sq = (on: boolean, danger = false) => cn(
+    'flex h-14 w-12 shrink-0 items-center justify-center rounded-xl bg-[#f3f4f6]',
+    danger ? 'text-[#c8331f]' : 'text-[#33374a]',
+    !on && 'cursor-not-allowed opacity-35',
+    FOCUS,
+  );
+  return (
+    <div className={cn('flex min-h-[72px] items-center gap-2 py-2 ps-3.5 pe-2', !first && 'border-t border-[#f0f1f3]', !dim && 'bg-[#f4f5f8]')}>
+      <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 text-[16px] font-semibold leading-snug">{name}</span>
+      <button type="button" aria-label={lessLabel} disabled={!canLess} onClick={onLess} className={sq(canLess, bin)}>
+        {bin ? <Trash2 className="h-5 w-5" aria-hidden="true" /> : <Minus className="h-5 w-5" aria-hidden="true" />}
+      </button>
+      <NumberField size="row" value={value} onChange={onType} ariaLabel={ariaName} maxLength={maxLength} error={error} dim={dim} testId={testId} />
+      <button type="button" aria-label={moreLabel} disabled={!canMore} onClick={onMore} className={sq(canMore)}>
+        <Plus className="h-5 w-5" aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
 /** A big option with a radio mark: icon tile, name, muted line. Picked = indigo edge on the tint. */
 export function Choice({
   picked, onPick, icon, name, sub,
@@ -176,19 +210,21 @@ export function Choice({
 
 /** A tick box row inside a list card (chapters, types, keep/remove). */
 export function CheckRow({
-  checked, onToggle, label, children, first, describedBy,
-}: { checked: boolean; onToggle: () => void; label: ReactNode; children?: ReactNode; first?: boolean; describedBy?: string }) {
+  checked, onToggle, label, children, first, describedBy, disabled = false,
+}: { checked: boolean; onToggle: () => void; label: ReactNode; children?: ReactNode; first?: boolean; describedBy?: string; disabled?: boolean }) {
   return (
     <button
       type="button"
       role="checkbox"
       aria-checked={checked}
       aria-describedby={describedBy}
+      disabled={disabled}
       onClick={onToggle}
       className={cn(
         'flex min-h-[64px] w-full items-center gap-3 px-3 py-2 text-start',
         !first && 'border-t border-[#f0f1f3]',
         checked && 'bg-[#f4f5f8]',
+        disabled && 'cursor-not-allowed opacity-50',
         FOCUS,
       )}
     >

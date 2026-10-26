@@ -82,7 +82,9 @@ function insideStringLiteral(line) {
 // Allowlist: exact project-relative path:line we won't flag, with a reason.
 // Empty by default — keep it that way; a real exception must be documented.
 const ALLOWLIST = new Map([
-  // (no entries)
+  // Data, not a self-reference: the name redactor's vocabulary (every word in ≥ 5 lesson transcripts) contains the
+  // word teachers say for the bot; it is a lookup list, never shown to a teacher.
+  ['bot/shared/services/coaching/video-reco/name-lexicon.js:18', 'redactor vocabulary list (data), not teacher-facing copy'],
 ]);
 
 function findJsFiles(dir) {

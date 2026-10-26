@@ -89,6 +89,9 @@ const {
   PORTAL_COACH_V2_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
+  PORTAL_TEACHER_HOME_CARD_KEY,
+  PORTAL_TEACHER_HOME_ORDER_KEY,
+  PORTAL_TEACHER_HOME_LOOK_KEY,
   isCoachObservationOn,
   PORTAL_ANALYTICS_ONLY_KEY,
   readUserListFlag,
@@ -116,6 +119,7 @@ const TeacherObservation = require('../lib/teacher-observation');
 const { getOverall } = require('../services/coaching-frameworks.service');
 const { narrativeView } = require('../services/report-narrative-view'); // bd-fmf24g.10
 const { reportExtras } = require('../services/report-extras'); // bd-z3cadk
+const VideoRecoPortal = require('../services/video-reco-portal'); // bd-gzfdu9
 // Leader "patch" resolver (leader_teachers → Rumi users + activity) needs the
 // pg pool — the LATERAL-join SQL can't be expressed through supabase-js.
 const pool = require('../config/database');
@@ -3222,6 +3226,35 @@ router.get('/assessment/paper/:paper_id/download', requirePortalAuth, async (req
   } catch (error) {
     assessmentFailure(res, error, 'Could not open this paper');
   }
+});
+
+/**
+ * GET /api/portal/assessment/paper/:paper_id/file?artifact=paper|answer_key
+ * → the paper (or its answer key) PDF itself, streamed from storage.
+ *
+ * What the teacher app's viewer on Paper ready reads: the same lookup as /download above (the bot mints
+ * the link for the signed-in teacher's own paper), but the bytes come through this origin, as the lesson
+ * plan file routes do, so the viewer never depends on the bucket's CORS. 404 `{ available: false }` is
+ * "not hers, not made yet, or no key"; a failed lookup is a 502 the viewer falls back from.
+ */
+router.get('/assessment/paper/:paper_id/file', requirePortalAuth, async (req, res) => {
+  const paperId = String(req.params.paper_id || '').trim();
+  const artifact = req.query.artifact === 'answer_key' ? 'answer_key' : 'paper';
+  if (!paperId) {
+    return res.status(400).json({ success: false, error: 'paper_id required' });
+  }
+  let hit;
+  try {
+    hit = await Assessment.download(paperId, req.session.portalUserId, artifact);
+  } catch (error) {
+    console.error('❌ Portal assessment/paper/file lookup failed', { error: error?.message });
+    return res.status(502).json({ success: false, error: 'Could not open this paper' });
+  }
+  if (!hit || !hit.url) {
+    return res.status(404).json({ success: true, available: false });
+  }
+  await relayLessonPlanPdf(hit.url, res);
+  return undefined;
 });
 
 /**
@@ -7308,6 +7341,9 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
       return data || null;
     });
 
+    // bd-gzfdu9 — the recommended clip's card; undefined (no key, no read) while VIDEO_RECO_ENABLED is off.
+    const videoRecommendation = await VideoRecoPortal.fieldFor(supabase, sessionId, userId, reportLanguage === 'ur' ? 'ur' : 'en');
+
     // Extract narrative arrays from analysis_data
     const strengthsArray = session.analysis_data?.strengths?.map(s =>
       typeof s === 'string' ? s : s.title || s.analysis || 'Strength identified'
@@ -7413,6 +7449,7 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
         duplicate: extras.duplicate,
         reportDate: extras.reportDate,
         lastAsked: extras.lastAsked,
+        ...(videoRecommendation === undefined ? {} : { video_recommendation: videoRecommendation }),
 
         // ── how she was scored ─────────────────────────────────────────────
         overallScore: overallMarks,
@@ -8747,6 +8784,9 @@ router.get('/config', async (req, res) => {
       coachDisagreements,
       childTest,
       childTestSa,
+      teacherHomeCard,
+      teacherHomeOrderRaw,
+      teacherHomeLookRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -8767,6 +8807,11 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_CHILD_TEST_KEY, userId),
       // the coach's Learning assessment (the child takes the battery alone), per user.
       isFlagEnabledForUser(supabase, PORTAL_CHILD_TEST_SA_KEY, userId),
+      // Teacher Home: the teacher Home's card, and its per-teacher order — the order only rides with the card on.
+      isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_CARD_KEY, userId),
+      isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_ORDER_KEY, userId),
+      // the Home's new look, which also rides with the card on.
+      isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_LOOK_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -8782,6 +8827,9 @@ router.get('/config', async (req, res) => {
         teacherV2,
         coachDisagreements,
         childTestSa,
+        teacherHomeCard,
+        teacherHomeOrder: teacherHomeCard && teacherHomeOrderRaw,
+        teacherHomeLook: teacherHomeCard && teacherHomeLookRaw,
       },
     });
   } catch (error) {
@@ -8801,6 +8849,9 @@ router.get('/config', async (req, res) => {
         teacherV2: false,
         coachDisagreements: false,
         childTestSa: false,
+        teacherHomeCard: false,
+        teacherHomeOrder: false,
+        teacherHomeLook: false,
       },
     });
   }

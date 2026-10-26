@@ -172,6 +172,8 @@ async function generateHeroReport(session, analysis, opts = {}) {
     trend,
     photoB64: '', // hero background stays the solid brand colour; photos render in the framed strip
     classroomPhotos, // bd-pv2tl: up to 2 framed classroom photos under the scorecard
+    // bd-gzfdu9 §4.9: the recommended clip under the try box; no key when there is none (the HTML is as today).
+    ...(opts.videoStrip ? { videoStrip: opts.videoStrip } : {}),
   };
 
   const shot = { selector: '.report', width: 794, deviceScaleFactor: 2 };
@@ -193,6 +195,7 @@ async function generateHeroReport(session, analysis, opts = {}) {
         header: cardHeader(session, analysis, teacherName, lang),
         wells: well.length ? well : (own ? [own] : []),
         thing: { text: opts.slim.tryNext || vm.tryNext, step: opts.slim.step || null, why: practiceWhy(opts.slim.tag, lang) },
+        ...(opts.videoStrip ? { videoStrip: opts.videoStrip } : {}),
       };
       out.slimPng = await htmlToImage(buildSlimCardHtml(card), { selector: '.report', width: 480, deviceScaleFactor: 2 });
     } catch (e) {

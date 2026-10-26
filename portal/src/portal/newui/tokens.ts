@@ -42,6 +42,13 @@ export const BRAND = {
   focus: '#fdb022',
 } as const;
 
+/**
+ * The teacher Home's new look (portal_teacher_home_look): the two card/row tints by kind (green for making — lessons,
+ * training, assessment; slate for being seen — coaching, observations, classes) and the muted text that keeps 4.5:1 on
+ * both tints (the kit's #6b7280 does not).
+ */
+export const HOME_LOOK = { tileGreen: '#e7f5ed', tileSlate: '#e6e9f3', muted: '#636878' } as const;
+
 /** The indigo menu bar (bottom on a phone, top on a desktop). */
 export const NAV = {
   background: BRAND.ink,

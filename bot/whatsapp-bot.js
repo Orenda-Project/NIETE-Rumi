@@ -133,6 +133,9 @@ async function handleBroadcastStatusWebhook(statuses) {
         continue;
       }
 
+      // bd-gzfdu9: the recommended clip's message → video_reco_events (flag off: no read). Never throws.
+      await require('./shared/services/coaching/video-reco/status-events').recordStatus(status);
+
       logToFile('📬 Broadcast status update received', {
         messageWamid,
         status: newStatus,

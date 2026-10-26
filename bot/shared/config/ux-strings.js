@@ -131,6 +131,75 @@ const UX_STRINGS = {
     ur: 'مدد درکار',
   },
 
+  // ─── bd-gzfdu9 (VIDREC): the recommended training clip ───────────────────
+  // One WhatsApp message after the report (video-reco/send.js), a card on /cr and the /v player.
+  // {n} is whole minutes, passed in Urdu-Indic digits for ur (video-reco/copy.js). Buttons ≤ 20 CODE POINTS.
+  videoRecoButton: {
+    en: '▶ Watch {n} min',
+    ur: '▶\u200F {n} منٹ دیکھیں', // the RLM keeps ▶ at the right end of the Urdu label (SPEC v1.2 §4.2)
+  },
+  videoRecoBodyLead: {
+    en: '🎬 A {n}-minute clip for your one thing to try.',
+    ur: '🎬 اگلی کلاس میں آزمانے کے لیے {n} منٹ کا کلپ۔', // R7j: ped/urdu_terms.json header_ur
+  },
+  videoRecoBodyMeta: {
+    en: '⏱ {n} min · {lang}',
+    ur: '⏱ {n} منٹ · {lang}',
+  },
+  videoRecoLangUr: { en: 'Urdu', ur: 'اردو' },
+  videoRecoLangEn: { en: 'English', ur: 'انگریزی' },
+  videoRecoLangMixed: { en: 'Urdu + English', ur: 'اردو + انگریزی' },
+  videoRecoCardTitle: {
+    en: '🎬 Watch this next',
+    ur: '🎬 اگلا یہ دیکھیں',
+  },
+  videoRecoCardButton: {
+    en: 'Watch ({n} min)',
+    ur: 'دیکھیں ({n} منٹ)',
+  },
+  videoRecoPlayerClip: {
+    en: 'This clip: {a} – {b}',
+    ur: 'یہ کلپ: {a} – {b}',
+  },
+  videoRecoPlayerWhy: { en: 'Why this clip', ur: 'یہ کلپ کیوں' },
+  videoRecoPlayerFromStart: { en: 'Watch from the start', ur: 'شروع سے دیکھیں' },
+  videoRecoPlayerLookFor: {
+    en: 'Try it in your next lesson and record it — your next report will show the change.',
+    ur: 'اگلے سبق میں آزمائیں اور ریکارڈ کریں — اگلی رپورٹ میں فرق نظر آئے گا۔',
+  },
+  videoRecoPlayerBack: { en: '← Back to my report', ur: 'میری رپورٹ پر واپس →' },
+  // The strip on the report image (SPEC v1.2 §4.9): the image cannot be tapped, so it points at the message below.
+  videoRecoStripTitle: {
+    en: '▶ Watch next: {title}',
+    ur: '▶\u200F اگلا دیکھیں: {title}',
+  },
+  videoRecoStripHint: {
+    en: '{n} min · tap ▶ Watch in the next message',
+    ur: '{n} منٹ · اگلے پیغام میں ▶\u200F دیکھیں دبائیں',
+  },
+  // The card-sentence fallback reason (SPEC v1.3c §3.5, lead-review 20:33Z), verbatim: when the model's quote fails
+  // validation twice, the clip is still sent with the report's own "Try this tomorrow" sentence. R7d (panel Q043 Q078 Q080
+  // Q083 Q130): no seconds in the line: the header and button say whole minutes, and the two disagreed.
+  // The sentence sits in its own FSI…PDI isolate (bd-8hhqhf): an Urdu card sentence inside the English line, or a
+  // leading digit, otherwise reorders on the React card and in WhatsApp.
+  videoRecoCardFallbackReason: {
+    en: 'Your report asks you to try: "\u2068{sentence}\u2069". This clip shows one way to do it.',
+    ur: 'آپ کی رپورٹ کہتی ہے کہ یہ آزمائیں: "\u2068{sentence}\u2069"۔ یہ کلپ اس کا ایک طریقہ دکھاتا ہے۔',
+  },
+  // R7c (panel §4): the line in the OTHER language, when the report's sentence is in the reader's language — the sentence is
+  // not quoted in a language it was not written in (an English sentence inside an Urdu line, 51.6% copy-ok on the panel).
+  videoRecoCardFallbackReasonPlain: {
+    en: 'Your report gives you one thing to try next class. This clip shows one way to do it.',
+    ur: 'آپ کی رپورٹ میں اگلی کلاس کے لیے ایک بات آزمانے کو کہا گیا ہے۔ یہ کلپ اس کا ایک طریقہ دکھاتا ہے: {title}۔', // R7j: card_frame_other_ur
+  },
+
+  // R7d (panel §4, §6.6: 46 rows attributed the card's script to the clip): the clip half of a reason, written from the
+  // chapter's own title, never from the model. {title} is the chapter title in the reader's language.
+  videoRecoClipLine: {
+    en: 'This clip is about: {title}.',
+    ur: 'یہ کلپ اس بارے میں ہے: {title}۔',
+  },
+
   // ─── the registration Flow invite (services/registration-invite.service.js) ──
   // One message, three cases: a new person, a registered teacher fixing her details, and an
   // unregistered person who reached a feature that needs her school. Header ≤ 60 and button
@@ -801,12 +870,16 @@ const UX_STRINGS = {
   // bd-s42dye.3 — a coach's /training: the coach app's Training Library. The body names it; the button is short enough for the 15-code-point headroom rule (12 en, 14 ur).
   appLinkBodyCoachTraining: { en: 'Open the Training Library.', ur: 'ٹریننگ لائبریری کھولیں۔' },
   appLinkButtonCoachTraining: { en: 'Open library', ur: 'لائبریری کھولیں' },
-  // bd-zcgpkx — a leader's "lesson plan": Send a lesson plan, the Reading Hour and Numeracy plans for their teachers.
+  // bd-zcgpkx, bd-a73p5m — a leader's "lesson plan": the Lesson Plans tab, where a leader reads the plans their
+  // teachers get. It promises reading only: most plans there have no send button for a leader, and a Reading Hour /
+  // Numeracy plan's "Send to teacher" needs FLN share, which this link does not ask for. The button carries the teacher
+  // link's words (appLinkButtonLessonPlan, «لیسن پلان»); imperatives only, and the Urdu verb agrees with the plans, so
+  // nothing assumes a gender. Body 40 en / 47 ur, button 12 en / 9 ur code points.
   appLinkBodyLeaderLessonPlan: {
-    en: 'Send Reading Hour and Numeracy lesson plans to your teachers.',
-    ur: 'ریڈنگ آور اور بنیادی حساب کے لیسن پلان اپنے اساتذہ کو بھیجیں۔',
+    en: 'Read the lesson plans your teachers get.',
+    ur: 'وہ لیسن پلان پڑھیں جو آپ کے اساتذہ کو ملتے ہیں۔',
   },
-  appLinkButtonLeaderLessonPlan: { en: 'Send a plan', ur: 'پلان بھیجیں' },
+  appLinkButtonLeaderLessonPlan: { en: 'Lesson plans', ur: 'لیسن پلان' },
 
   // ─── the registration Flow, v5 (bd-x7aprz.2) ──────────────────────────────
   // The screens after the first one are served by the endpoint in the language she picked on
