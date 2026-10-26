@@ -344,7 +344,7 @@ class ReportGeneratorService {
       // OECD/HOTS/TEACH/MEWAKA once they're wired). Delivery path branches
       // on the shape.
       // bd-gzfdu9 §4.9: the recommended clip on the report image — waits ≤ strip.stripWaitMs() (shadow 0, card 1.5 s, llm 5 s); null when off or slower.
-      const videoStrip = await require('./video-reco/strip').stripFor({ coachingSessionId, language: outputLanguage, row: videoReco }).catch(() => null);
+      const videoStrip = await require('./video-reco/strip').stripFor({ coachingSessionId, language: outputLanguage, row: videoReco, phone: from, userId: session.user_id }).catch(() => null);
       const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, nextStep, videoStrip);
       const isHeroImage = !Buffer.isBuffer(reportResult) && reportResult && reportResult.png;
 
@@ -375,6 +375,13 @@ class ReportGeneratorService {
       // path (PDFKit/HTML renderers).
       let followUps = true;
       let videoClipAfter = false; // bd-gzfdu9: the clip goes last, only after a report that arrived in an open window
+      // bd-gzfdu9 R7p-b (COS 20261026T044621): how the report went, on the session's recommendation row (every status),
+      // after it went. Not awaited: it waits for the engine's row, and the follow-ups never wait for that.
+      const recordReportPath = (via) => {
+        require('./video-reco/report-via').recordReportPath({
+          coachingSessionId, row: videoReco, reportVia: via, imageStrip: via !== 'pdf' && Boolean(videoStrip),
+        }).catch(() => null);
+      };
       if (isHeroImage) {
         let heroSent; // bd-gzfdu9 (staging port): read after the try by the clip hook below
         try {
@@ -394,6 +401,7 @@ class ReportGeneratorService {
           throw error;
         }
         await track.record('image', true);
+        if (heroSent !== false) recordReportPath(heroSent === 'template' ? 'template' : (reportResult.slimPng ? 'slim' : 'image'));
 
         // v10 coaching test (bd-v0toag.19): C and D get the link to their report page. Off or
         // undrawn, or A and B: nothing is sent. Never throws.
@@ -405,6 +413,7 @@ class ReportGeneratorService {
         }
       } else {
         await this.sendPDFReport(from, coachingSessionId, reportResult, session.users.name, session.created_at);
+        recordReportPath('pdf');
       }
 
       // Generate and send voice debrief (optional, won't fail entire process)

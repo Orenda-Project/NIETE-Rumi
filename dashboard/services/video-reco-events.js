@@ -76,6 +76,15 @@ function enabled(env = process.env) {
   }
 }
 
+/** VIDEO_RECO_CR_CARD (R7r), read at call time: false only on an explicit off, the same rule when the engine is absent. */
+function crCardEnabled(env = process.env) {
+  try {
+    return require('../../bot/shared/services/coaching/video-reco/flags').videoRecoCrCard(env) === true;
+  } catch (_) {
+    return !/^(false|0|off)$/i.test(String(env.VIDEO_RECO_CR_CARD || '').trim());
+  }
+}
+
 /**
  * The /cr card for a session (bd-gzfdu9, SPEC §4.5): its 'shown' recommendation for this teacher, shaped for
  * coaching-report-page.js videoSection, with a player link minted for surface 'cr'. null when there is none.
@@ -120,5 +129,5 @@ function catalogOrNull() {
 }
 
 module.exports = {
-  uaClass, deviceOf, cleanEvents, loadClip, insertEvent, enabled, cardFor, catalogOrNull, PLAYER_EVENTS, MAX_EVENTS, COOKIE,
+  uaClass, deviceOf, cleanEvents, loadClip, insertEvent, enabled, crCardEnabled, cardFor, catalogOrNull, PLAYER_EVENTS, MAX_EVENTS, COOKIE,
 };

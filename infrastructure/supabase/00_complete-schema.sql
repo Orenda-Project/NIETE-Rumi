@@ -8098,6 +8098,7 @@ CREATE TABLE IF NOT EXISTS video_recommendations (
   report_language_null BOOLEAN,
   lesson_language     TEXT CHECK (lesson_language IS NULL OR lesson_language IN ('en', 'ur')),
   chapter_language    TEXT CHECK (chapter_language IS NULL OR chapter_language IN ('en', 'ur', 'mixed')),
+  report_via          TEXT CHECK (report_via IS NULL OR report_via IN ('image', 'slim', 'template', 'pdf')), -- V1.7.9
   created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (coaching_session_id)
 );
