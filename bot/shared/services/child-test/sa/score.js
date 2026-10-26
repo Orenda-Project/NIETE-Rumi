@@ -76,6 +76,8 @@
  * no speech falls back to the coach's word, flagged. Without last_word_how the coach's tap counts (RULING #2).
  * RDF auto (round 5): the child taps and the phone sends no last_word_how; when sa_coach_last_word is on for the
  * session's coach (the sweep reads it), the recording gives the last word there too and the child's tap is the check.
+ * RDF auto with no last-word step (round 7, the phone's sa_auto_no_last_word): the result says last_word_skipped and
+ * the recording gives the last word whatever sa_coach_last_word says.
  */
 
 const { logToFile, logError } = require('../../../utils/logger');
@@ -551,8 +553,10 @@ async function scorePassage(task, rec, row, res, deps, calls) {
   const tapped = res && Number.isInteger(res.last_word_index) ? Math.min(tokens.length, res.last_word_index + 1) : null;
   const line1 = (p.lines || [])[0];
   const stopped = (rec.stop || {}).type === 'first_line' && line1 ? firstRowStopped(rows, line1.to - line1.from + 1) : false;
-  // the coach's word (RDF manual: last_word_how) or, with sa_coach_last_word on, the child's tap (RDF auto) is the check
-  const tapper = res && typeof res.last_word_how === 'string' ? 'coach' : deps.lastWordFromRecording === true ? 'child' : null;
+  // the coach's word (RDF manual: last_word_how) or, with sa_coach_last_word on, the child's tap (RDF auto) is the check;
+  // RDF auto with no last-word step (the phone's sa_auto_no_last_word: last_word_skipped) has only the recording
+  const fromRecording = deps.lastWordFromRecording === true || (res && res.last_word_skipped === true);
+  const tapper = res && typeof res.last_word_how === 'string' ? 'coach' : fromRecording ? 'child' : null;
   const lastWord = tapper ? lastWordOf(rows, tapped, p.lines, tapper) : null;
   const attemptedTo = lastWord ? lastWord.attempted : tapped;
   return { numbers: timedNumbers(rows, res, { stopped, attemptedTo }), rows, stopped, durationSec: clip.durationSec, tapped, lastWord };

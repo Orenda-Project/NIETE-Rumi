@@ -108,7 +108,9 @@ maybe('sa-ui: RDF manual is silent but for the coach line', () => {
     const brief = m.el.querySelector('.sae-coach-brief');
     expect(brief).not.toBeNull();
     const listed = [...brief.querySelectorAll('.sae-coach-items li')].map((li) => li.textContent);
-    const spoken = t.items.filter((it) => it.say || it.prompt).map((it) => (typeof it.say === 'string' ? it.say : words(it.say || it.prompt)));
+    // Round 7: a maths item's words are shown in English digits (Jugnu's clip still says them in Urdu).
+    const shownNums = (it, x) => (/^ma\./.test(String(it.id || '')) ? String(x).replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))) : x);
+    const spoken = t.items.filter((it) => it.say || it.prompt).map((it) => shownNums(it, typeof it.say === 'string' ? it.say : words(it.say || it.prompt)));
     expect(spoken.length).toBeGreaterThan(0);
     expect(listed).toEqual(spoken);
   });
