@@ -712,13 +712,19 @@
     }
     /** How the child answers this task, for the coach (says / taps / types). */
     function answersBy(t) { return t.mode === 'tap' ? C.by_tap : (t.mode === 'keypad' || t.mode === 'keyboard') ? C.by_type : C.by_say; }
+    /** Round 7 (the tester: say the child's name more often, in the instructions): "<name>، " / "<name>, " in front of a task's
+     *  words on the screen, when the coach's page handed over a name. */
+    function named(text) {
+      if (!childName) return text;
+      return [h('bdi', { class: 'sae-name', text: childName }), lang === 'ur' ? '، ' : ', ', text];
+    }
     function sInstruction(v) {
       var t = v.task;
       if (manual) return sCoachBrief(v);
       return screen(v, 'sae-instr', [
         h('div', { class: 'sae-row' }, [jugnu('hello', true), replayBtn(function () { gen++; playIntro(t); })]),
         h('h1', { class: 'sae-h1', text: tx(t.title) }),
-        h('p', { class: 'sae-say', text: tx(introOf(t)) }),
+        h('p', { class: 'sae-say' }, [].concat(named(tx(introOf(t))))),
         demoImage(t),
         demoItem(t),
       ], [btn(C.next, function () { runner.instructionDone(); draw(); }, 'sae-primary')]);
@@ -808,7 +814,7 @@
     function sReady(v) {
       return screen(v, 'sae-ready', [
         jugnu('hello'),
-        h('h1', { class: 'sae-h1 sae-xl', text: C.ready }),
+        h('h1', { class: 'sae-h1 sae-xl' }, [].concat(named(C.ready))),
       ], [btn(C.go, function () {
         var t = v.task;
         if (t.mode === 'oral' && t.passage && t.passage.shown === false && !heard[t.id]) { listenThenBegin(t); return; }
