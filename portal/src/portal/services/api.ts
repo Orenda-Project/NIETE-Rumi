@@ -453,6 +453,9 @@ export const portal = {
           coachV2: false,
           coachDisagreements: false,
           teacherV2: false,
+          coachip: false,
+          coachipRm: false,
+          coachipDecode: false,
         },
       };
     }
@@ -680,6 +683,12 @@ export type PortalConfig = {
     teacherHomeOrder?: boolean;
     /** The teacher Home's new look (portal_teacher_home_look; read only with the card's switch; fail-closed). */
     teacherHomeLook?: boolean;
+    /** COACHIP, the coach insight portal (portal_coachip, per user; fail-closed). bd-sex15q.13 */
+    coachip?: boolean;
+    /** COACHIP for an RM: this user has a sector in portal_coachip_rm (an object; fail-closed). bd-sex15q.13 */
+    coachipRm?: boolean;
+    /** COACHIP's "Show name" tap (portal_coachip_decode, and only with coachip on; fail-closed). bd-sex15q.13 */
+    coachipDecode?: boolean;
   };
 };
 
