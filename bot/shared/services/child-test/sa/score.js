@@ -12,11 +12,17 @@
  *   start() / stop()              the sweep, every 20 s, only with the switch on
  *
  * Claims never use `pending`/`scoring`: every state this file writes stays under `final:` (sa_score_later →
- * sa_scoring:<process> → sa_retry:<n> (or sa_wait_bank:<n>, a task this build does not know) → the marks, or
+ * sa_scoring:<process><sweep> → sa_retry:<n> (or sa_wait_bank:<n>, a task this build does not know) → the marks, or
  * sa_score_failed:<reason>), so the older recovery sweep, which
  * skips a final failure (recovery.js verdict), never takes an SA row — not on this host, not on another build sharing
- * the DB. A claim names its process, so the compare-and-set changes the value and only the owner writes the marks. A
- * restart mid-score leaves a claim behind: it is taken again after 2 min, and at once by the new process's first sweep.
+ * the DB. A claim names its SWEEP (this process's id plus the sweep's own number), so the compare-and-set changes the
+ * value and only that sweep writes the marks. Many sweeps run at once in one process (every register kicks one), so a
+ * sweep that passes its deadline gives up only ITS OWN claims: they are taken again once stale (2 min), never at once,
+ * and another sweep's marks are never touched. A row a sweep of this process still holds is never taken by another of
+ * its sweeps. A restart mid-score leaves a claim behind: it is taken again after 2 min, and at once by the new
+ * process's first sweep (the boot rule; never a claim this process made itself).
+ * At most CHILD_TEST_SA_SCORE_MAX_INFLIGHT rows (default 24) are being scored at once in the process: a sweep stops
+ * claiming at the cap and the rest stay parked for the next tick or kick (a claimed row is never queued).
  *
  * What is marked, with the printed text the child saw (the bank's task, its passage variant from the phone's own
  * rotation — sa-page.js rotate, seeded with the result's session_id):
@@ -103,10 +109,27 @@ const SECTION_LEAD_MS = 1000;   // a section stretch starts this long before the
 const SECTION_TAIL_MS = 2500;   // the last stretch ends this long after its screen moved on
 
 const isOn = () => process.env.CHILD_TEST_SA_SCORER === 'on';
-// this process's claim token; `swept` turns true after its first full sweep
+// this process's id; each sweep claims with its own token (PROC + the sweep's number); MINE is the token of a direct
+// claim()/finish() call (no sweep); `swept` turns true after its first full sweep
 const bootId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-let MINE = `${SCORING}:${bootId()}`;
+let PROC = bootId();
+let sweepNo = 0;
+let MINE = `${SCORING}:${PROC}0`;
 let swept = false;
+const nextToken = () => { sweepNo += 1; return `${SCORING}:${PROC}${sweepNo.toString(36)}`; };
+const isOwn = (reason) => String(reason || '').startsWith(`${SCORING}:${PROC}`);
+// the tokens of this process's sweeps still inside their deadline: their rows are never taken by another sweep here
+let LIVE = new Set();
+// the rows this process is scoring right now (claimed, not yet settled), one entry per row
+let INFLIGHT = new Set();
+// Rows scored at once in the process. An rdf_auto child records 15 tasks, and a row takes ~10-20 s (one R2 read,
+// ffmpeg, one STT call, 1-N model calls, the second-voice check). 24 at once is ~70-140 rows a minute (several
+// children a minute) while bounding the ffmpeg processes and vendor calls inside the process that answers the portal.
+const MAX_INFLIGHT_DEFAULT = 24;
+const maxInflight = () => {
+  const n = Number(process.env.CHILD_TEST_SA_SCORE_MAX_INFLIGHT);
+  return Number.isInteger(n) && n > 0 ? n : MAX_INFLIGHT_DEFAULT;
+};
 const gateOn = () => process.env.CHILD_TEST_SA_SPEECH_GATE === 'on';
 const voiceOn = () => process.env.CHILD_TEST_SA_SECOND_VOICE === 'on';
 const minSpeechS = () => { const s = Number(process.env.CHILD_TEST_SA_MIN_SPEECH_S); return s >= 0 && process.env.CHILD_TEST_SA_MIN_SPEECH_S ? s : 0.8; };
@@ -815,8 +838,9 @@ async function candidates({ sessionId = null, now = new Date(), supabase = db(),
     if (envOf(r.audio_r2_key || (keysOf(r)[0] || {}).key) !== ownEnv()) return false;
     if (r.ai_reason === PARKED || r.ai_reason.startsWith(RETRY)) return true;
     if (r.ai_reason.startsWith(WAIT_BANK)) return nowMs - Date.parse(r.updated_at || 0) >= bankBackoffMs(attemptOf(r.ai_reason, WAIT_BANK));
-    if (!r.ai_reason.startsWith(SCORING) || r.ai_reason === MINE) return false;
-    return afterBoot || nowMs - Date.parse(r.updated_at || 0) > STALE_CLAIM_MS;
+    if (!r.ai_reason.startsWith(SCORING) || LIVE.has(r.ai_reason) || r.ai_reason === MINE) return false;
+    // the boot rule takes another process's claim at once; this process's own (a sweep that gave up) only once stale
+    return (afterBoot && !isOwn(r.ai_reason)) || nowMs - Date.parse(r.updated_at || 0) > STALE_CLAIM_MS;
   });
 }
 
@@ -862,9 +886,9 @@ async function sumsOf(sessionId, supabase) {
   };
 }
 
-/** Compare-and-set on ai_reason: one process scores one row. */
-async function claim(row, supabase = db()) {
-  const { data, error } = await supabase.from('child_test_blocks').update({ ai_reason: MINE, updated_at: new Date().toISOString() })
+/** Compare-and-set on ai_reason: one sweep scores one row (`token`: the sweep's own; MINE for a direct call). */
+async function claim(row, supabase = db(), token = MINE) {
+  const { data, error } = await supabase.from('child_test_blocks').update({ ai_reason: token, updated_at: new Date().toISOString() })
     .eq('id', row.id).eq('ai_status', 'failed').eq('ai_reason', row.ai_reason).is('ai_marks', null).select('id');
   if (error) { logError('child_test.sa_score.claim_failed', { block: row.block, error: error.message }); return false; }
   return Array.isArray(data) && data.length === 1;
@@ -881,9 +905,10 @@ function finishPatch(row, got) {
   return { ai_reason: got.retry && n < MAX_ATTEMPTS ? `${RETRY}${n}` : `${FAILED}${got.reason}` };
 }
 
-async function finish(row, got, supabase = db()) {
+/** The marks, written only while the row still carries the token it was claimed with (`token`; MINE for a direct call). */
+async function finish(row, got, supabase = db(), token = MINE) {
   const patch = finishPatch(row, got);
-  const { error } = await supabase.from('child_test_blocks').update(patch).eq('id', row.id).eq('ai_reason', MINE).is('ai_marks', null);
+  const { error } = await supabase.from('child_test_blocks').update(patch).eq('id', row.id).eq('ai_reason', token).is('ai_marks', null);
   if (error) logError('child_test.sa_score.write_failed', { block: row.block, error: error.message });
   return !error;
 }
@@ -902,6 +927,9 @@ async function sweepOnce({ sessionId = null, now = new Date(), deps = {} } = {})
   }
   const me = { at: Date.now() };
   if (!sessionId) running = me;
+  // this sweep's own claim token: a sweep that gives up never touches another sweep's claims or marks
+  const ctx = { token: nextToken(), abandoned: false, live: LIVE };
+  ctx.live.add(ctx.token);
   const out = { found: 0, scored: 0, failed: 0, waiting: 0 };
   const at = { stage: 'start' };
   let deadline = null;
@@ -910,10 +938,12 @@ async function sweepOnce({ sessionId = null, now = new Date(), deps = {} } = {})
     if (deadline.unref) deadline.unref();
   });
   try {
-    const done = await Promise.race([sweepBody({ sessionId, now, deps, out, at }), late]);
+    const done = await Promise.race([sweepBody({ sessionId, now, deps, out, at, ctx }), late]);
     if (done === 'timeout') {
-      // the body still runs: its claims go stale under a new token and are taken again; its late writes do not land
-      MINE = `${SCORING}:${bootId()}`;
+      // the body still runs: it claims nothing more, its late writes do not land, and its claims (this sweep's token
+      // only) are taken again once stale; every other sweep's claims and marks are untouched
+      ctx.abandoned = true;
+      ctx.live.delete(ctx.token);
       logError('child_test.sa_score.sweep_timeout', { stage: at.stage, after_s: round1(limitOf(deps, 'sweep') / 1000), session: Boolean(sessionId), ...out });
       return { ...out, timeout: at.stage };
     }
@@ -923,11 +953,12 @@ async function sweepOnce({ sessionId = null, now = new Date(), deps = {} } = {})
     return out;
   } finally {
     clearTimeout(deadline);
+    ctx.live.delete(ctx.token);
     if (!sessionId && running === me) { running = null; swept = true; }
   }
 }
 
-async function sweepBody({ sessionId, now, deps, out, at }) {
+async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   const supabase = deps.supabase || db();
   at.stage = 'switch';
   const stopRules = await stopRulesSwitch.enabled(deps);
@@ -936,8 +967,10 @@ async function sweepBody({ sessionId, now, deps, out, at }) {
   out.found = rows.length;
   const sessions = new Map();
   const claimed = [];
+  const slots = INFLIGHT;
   for (const row of rows) {
-    if (claimed.length >= PER_TICK) break;
+    if (claimed.length >= PER_TICK || ctx.abandoned) break;
+    if (slots.size >= maxInflight()) { out.capped = true; break; }
     if (!sessions.has(row.session_id)) {
       at.stage = 'session';
       const { data } = await supabase.from('child_test_sessions').select('id, grade, form, item_bank_version, status, finished_at, client_finished_at, coach_user_id').eq('id', row.session_id).limit(1);
@@ -952,15 +985,31 @@ async function sweepBody({ sessionId, now, deps, out, at }) {
     if (!ready(row, session, now.getTime())) { out.waiting += 1; continue; }
     const had = { ...row }; // the reason before the claim: the retry count lives in it
     at.stage = 'claim';
-    if (!(await claim(had, supabase))) continue;
-    claimed.push({ had, session });
+    // the slot is taken before the claim's await, so two sweeps cannot both pass the cap
+    if (ctx.abandoned) break;
+    if (slots.size >= maxInflight()) { out.capped = true; break; }
+    const slot = { block: had.block };
+    slots.add(slot);
+    let won = false;
+    try { won = await claim(had, supabase, ctx.token); } finally { if (!won) slots.delete(slot); }
+    if (!won) continue;
+    claimed.push({ had, session, slot });
   }
   at.stage = 'score';
-  await Promise.all(claimed.map(async ({ had, session }) => {
-    const got = await scoreRow(had, session, { ...deps, stopRules, lastWordFromRecording: session.lastWordFromRecording === true });
-    await finish(had, got, supabase);
-    if (got.ok) out.scored += 1; else out.failed += 1;
-    logToFile('child_test.sa_scored', { block: had.block, ok: got.ok, reason: got.ok ? null : got.reason, cost_usd: got.ok ? got.marks.meta.cost_usd : null });
+  await Promise.all(claimed.map(async ({ had, session, slot }) => {
+    try {
+      const got = await scoreRow(had, session, { ...deps, stopRules, lastWordFromRecording: session.lastWordFromRecording === true });
+      if (ctx.abandoned) {
+        // this sweep gave up at its deadline: the row is taken again once its claim is stale
+        logToFile('child_test.sa_score.late_result_dropped', { block: had.block, ok: got.ok }, 'warn');
+        return;
+      }
+      await finish(had, got, supabase, ctx.token);
+      if (got.ok) out.scored += 1; else out.failed += 1;
+      logToFile('child_test.sa_scored', { block: had.block, ok: got.ok, reason: got.ok ? null : got.reason, cost_usd: got.ok ? got.marks.meta.cost_usd : null });
+    } finally {
+      slots.delete(slot);
+    }
   }));
   at.stage = 'done';
   return out;
@@ -985,5 +1034,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { MINE = `${SCORING}:${bootId()}`; swept = false; running = null; skipLogged = 0; }, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt, voiceOf, keysOf, defaultDeps },
+  __internals: { sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt, voiceOf, keysOf, defaultDeps },
 };
