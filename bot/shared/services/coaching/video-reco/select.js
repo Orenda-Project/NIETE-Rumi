@@ -623,6 +623,9 @@ function cardFrame({ sentence, startS, endS, language, teacherName, module, subj
     // path, plainIfNamed or not (the quote is what is unsafe, not the clip; a null here dropped 5 gold picks)
     if (strictNamed(s, { teacher: teacherName, vocab, oovVocab, counts })) return plain();
     s = singleQuotes(s).replace(/^[a-z]/, (c) => c.toUpperCase()); // P109: no lower-case start after the strip
+    // R7o-c (ped-scale 220500, ~8 v11 bodies «۔"۔»): the frame closes the quote with its own full stop, so the sentence's own
+    // final «۔» / «.» goes (a «؟» or «!» stays: it is the sentence's, not the frame's)
+    s = s.replace(/\s*[۔.]\s*$/u, '');
     // bd-8hhqhf: a long card sentence is trimmed to fit, in each language (session 077b8021: 224 cp → 308 cp composed in
     // ur, and no clip was sent). The teacher's language must fit; the other one is trimmed when it can be and otherwise
     // stored whole, as before.
