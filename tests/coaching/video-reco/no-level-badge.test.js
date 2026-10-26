@@ -21,7 +21,7 @@ test.each(['en', 'ur'])('WhatsApp header card (%s): no level label', async (lang
 });
 
 test.each(['en', 'ur'])('image strip (%s): no level label', async (language) => {
-  const out = await require('../../../bot/shared/services/coaching/video-reco/strip').stripFor({ coachingSessionId: 's', language, row: ROW, deps: { enabled: () => true, catalog: { segment: () => HIT } } });
+  const out = await require('../../../bot/shared/services/coaching/video-reco/strip').stripFor({ coachingSessionId: 's', phone: '920000000000', language, row: ROW, deps: { enabled: () => true, onTeacherApp: async () => false, windowOpen: async () => true, catalog: { segment: () => HIT } } });
   expect(out.levelLabel).toBeFalsy();
 });
 
