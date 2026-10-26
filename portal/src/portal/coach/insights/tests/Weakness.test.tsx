@@ -1,0 +1,153 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { cleanup, fireEvent, screen } from "@testing-library/react";
+
+vi.mock("../../../services/api", () => ({ portal: { getConfig: vi.fn() }, language: { get: vi.fn(), set: vi.fn() }, default: { get: vi.fn(), post: vi.fn() } }));
+vi.mock("../../../hooks/useAuth", () => ({ useAuth: vi.fn() }));
+vi.mock("../../../components/PortalLayout", () => ({ default: ({ children }: { children: React.ReactNode }) => <div data-testid="layout">{children}</div> }));
+vi.mock("../../../lib/recordingSession", () => ({ useRecordingSession: () => null, useLogoutGuard: (f: unknown) => f }));
+
+import { boot, expectContract, expectNoIdentity, F, http, httpError, renderAt, serve, settle } from "./harness";
+import { domContract } from "../count";
+import { COPY } from "../copy";
+
+/**
+ * bd-sex15q.15 — S2 goldens (G1: one move in one fold). The page reads `GET /coachip/w/:wId` and, from the step card,
+ * posts `POST /coachip/steps` with exactly R10's six keys. EN and UR, every state: normal, 201, 409, insufficient,
+ * a load failure, and the switch off.
+ */
+const W = "W-IP-TIME";
+const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
+const LANGS = ["en", "ur"] as const;
+const SECTIONS = ["w-number", "w-split", "w-where", "w-moment", "step-card", "w-good", "w-method"];
+
+function before(a: Element, b: Element) {
+  return Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+}
+
+describe.each(LANGS)("S2 Weakness (%s)", (lang) => {
+  afterEach(() => cleanup());
+  beforeEach(async () => {
+    http.get.mockReset();
+    http.post.mockReset();
+    await boot(lang);
+  });
+
+  it("normal: the one fold in order, the count contract, no identity, never the word weakness", async () => {
+    serve({ [`/coachip/w/${W}`]: F[`w_${W}`] });
+    const { container } = await renderAt(`/w/${W}`);
+    expect(screen.getByTestId("insights-w")).toBeTruthy();
+    const els = SECTIONS.map((id) => screen.getByTestId(id));
+    for (let i = 1; i < els.length; i += 1) expect(before(els[i - 1], els[i])).toBe(true);
+    expect(container.querySelector("#moment")).toBe(screen.getByTestId("w-moment"));
+    expect(screen.getByTestId("moment-slot")).toBeTruthy();
+    // the method sheet is collapsed at rest
+    expect((screen.getByTestId("w-method") as HTMLDetailsElement).open).toBe(false);
+    // three schools on S2, then "All schools"
+    expect(screen.getAllByTestId("w-where-row")).toHaveLength(3);
+    expect(screen.getByTestId("w-where-all").getAttribute("href")).toBe(`/portal/coach/insights/w/${W}/where`);
+    expect(screen.getByTestId("step-full").getAttribute("href")).toContain(`/portal/coach/insights/w/${W}/move?school=`);
+    expect(container.textContent!.toLowerCase()).not.toContain("weakness");
+    expect(container.textContent).toContain(COPY["s2.method.title"][lang]);
+    expectContract(container, expect);
+    expectNoIdentity(container, expect);
+    expect(container.innerHTML).toMatchSnapshot();
+  }, 30000);
+
+  it("Set step: posts exactly the six keys, then shows the step's check date (201)", async () => {
+    const posted: unknown[] = [];
+    serve({
+      [`/coachip/w/${W}`]: F[`w_${W}`],
+      "POST /coachip/steps": (_p?: unknown, body?: unknown) => { posted.push(body); return F.steps_post_201; },
+    });
+    const { container } = await renderAt(`/w/${W}`);
+    fireEvent.click(screen.getByTestId("step-set"));
+    await settle();
+    expect(http.post).toHaveBeenCalledTimes(1);
+    expect(http.post.mock.calls[0][0]).toBe("/coachip/steps");
+    const body = posted[0] as Record<string, unknown>;
+    expect(Object.keys(body).sort()).toEqual(["code_id", "i_id", "rm_note_id", "school_id", "source_session_id", "w_id"]);
+    const sc = F[`w_${W}`].step_card;
+    expect(body).toEqual({
+      code_id: sc.code.code_id,
+      school_id: "00000000-0000-4000-8000-010000000003",
+      w_id: W,
+      i_id: sc.i_id,
+      // the moment is T-07's lesson and the step is for T-12: R10 accepts only that teacher's session, so none is sent
+      source_session_id: null,
+      rm_note_id: null,
+    });
+    expect(JSON.stringify(body)).not.toMatch(/teacher_key|name/);
+    const done = screen.getByTestId("step-done");
+    expect(done.textContent).toContain(COPY["s5.set.done"][lang].split("{date}")[0].trim());
+    expect(done.querySelector('[data-date="2026-11-09"]')).toBeTruthy();
+    expectContract(container, expect);
+    expect(container.innerHTML).toMatchSnapshot();
+  }, 30000);
+
+  it("Set step: a 409 says an open step already exists for the code", async () => {
+    serve({
+      [`/coachip/w/${W}`]: F[`w_${W}`],
+      "POST /coachip/steps": () => { throw httpError(409, F.steps_post_409); },
+    });
+    const { container } = await renderAt(`/w/${W}`);
+    fireEvent.click(screen.getByTestId("step-set"));
+    await settle();
+    const c = screen.getByTestId("step-conflict");
+    expect(c.textContent).toContain("T-12");
+    expect(screen.queryByTestId("step-done")).toBeNull();
+    expectContract(container, expect);
+    expect(container.innerHTML).toMatchSnapshot();
+  }, 30000);
+
+  it("Set step: any other failure shows the load-failed words", async () => {
+    serve({
+      [`/coachip/w/${W}`]: F[`w_${W}`],
+      "POST /coachip/steps": () => { throw httpError(500, { error: "server_error" }); },
+    });
+    await renderAt(`/w/${W}`);
+    fireEvent.click(screen.getByTestId("step-set"));
+    await settle();
+    expect(screen.getByTestId("step-failed").textContent).toContain(COPY["e.failed_load"][lang]);
+  }, 30000);
+
+  it("insufficient: the not-enough line, the schools still show, no moment", async () => {
+    const d = clone(F[`w_${W}`]);
+    d.card.status = "insufficient";
+    d.moment = null;
+    serve({ [`/coachip/w/${W}`]: d });
+    const { container } = await renderAt(`/w/${W}`);
+    expect(screen.getByTestId("w-insufficient")).toBeTruthy();
+    expect(screen.getAllByTestId("w-where-row").length).toBeGreaterThan(0);
+    expect(screen.queryByTestId("w-moment")).toBeNull();
+    expect(screen.queryByTestId("moment-slot")).toBeNull();
+    expect(screen.getByTestId("w-method")).toBeTruthy();
+    expectContract(container, expect);
+    expectNoIdentity(container, expect);
+    expect(container.innerHTML).toMatchSnapshot();
+  }, 30000);
+
+  it("no step card when step_card is null", async () => {
+    const d = clone(F[`w_${W}`]);
+    d.step_card = null;
+    serve({ [`/coachip/w/${W}`]: d });
+    const { container } = await renderAt(`/w/${W}`);
+    expect(screen.queryByTestId("step-card")).toBeNull();
+    expectContract(container, expect);
+  }, 30000);
+
+  it("a load failure shows the error block, no bare digit", async () => {
+    serve({ [`/coachip/w/${W}`]: () => { throw httpError(500, { error: "server_error" }); } });
+    const { container } = await renderAt(`/w/${W}`);
+    expect(screen.getByTestId("insights-state").getAttribute("data-state")).toBe("failed");
+    expect(domContract(container).bareDigits).toEqual([]);
+    expect(container.innerHTML).toMatchSnapshot();
+  }, 30000);
+
+  it("switch off: sent elsewhere, the W is never read", async () => {
+    await boot(lang, { coachV2: true, coachip: false });
+    serve({ [`/coachip/w/${W}`]: F[`w_${W}`] });
+    await renderAt(`/w/${W}`);
+    expect(screen.getByTestId("elsewhere")).toBeTruthy();
+    expect(http.get.mock.calls.some((c) => String(c[0]).startsWith("/coachip/w/"))).toBe(false);
+  }, 30000);
+});
