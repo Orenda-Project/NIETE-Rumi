@@ -307,8 +307,10 @@ exports.run = async (ctx) => {
       const prom = arr.promise ? arr.promise.txt : '';
       const ev74 = { order: made.ev.arrival.order, promise: short(prom, 300), says12h: /about 12 hours after the first student starts/.test(prom), says7am: /7 am if that falls at night/.test(prom),
         saysSooner: /send \/quiz, pick this lesson and ask for its report/.test(prom), neverEveryoneFinishes: !/sooner if everyone finishes|when everyone finishes/i.test(prom),
-        promiseFollowsForward: (() => { const o = made.ev.arrival.order; return o.indexOf('PROMISE') > o.indexOf('FORWARD') && o.indexOf('FORWARD') >= 0; })() };
-      done('T74', ...V(!!prom && ev74.says12h && ev74.says7am && ev74.saysSooner && ev74.neverEveryoneFinishes && ev74.promiseFollowsForward, ev74));
+        // the promise rides in the PDF caption since the Meta bill cut (bd-w2daa.7); the spec's own line is that the
+        // message to forward is the LAST thing sent (bd-1r3k2h)
+        forwardLast: (() => { const o = made.ev.arrival.order || []; return o.length > 0 && o[o.length - 1] === 'FORWARD'; })() };
+      done('T74', ...V(!!prom && ev74.says12h && ev74.says7am && ev74.saysSooner && ev74.neverEveryoneFinishes && ev74.forwardLast, ev74));
     } catch (e) { errors.push('T64:' + e.message); lastStack = short(e && e.stack, 400); for (const id of ['T64', 'T65', 'T74']) if (!seenIds.has(id)) blocked(id, 'the lesson-plan tap did not produce a quiz: ' + short(e.message, 200)); }
 
     // the rows of G1: T29 (keys), T49 (base ten), T51 (lesson objects), T54 (three pictures)

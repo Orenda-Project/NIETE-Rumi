@@ -23,6 +23,9 @@ training_grand_quizzes
 # lesson-plan content
 niete_lp_asset_sources
 niete_lp_assets
+# the move list the fidelity grader scores a recording against (lp-fidelity-store resolveMoveList); without it every
+# linked lesson plan grades lp_absent (COA20/29/30/59 on the mock lane, bd-1r3k2h)
+niete_lp_fidelity_moves
 niete_lp612_segments
 pre_generated_lps
 lesson_plan_catalog

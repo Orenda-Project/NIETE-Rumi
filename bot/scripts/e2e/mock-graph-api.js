@@ -305,7 +305,10 @@ function createMockGraphApi(opts = {}) {
         // Meta fetches a media LINK before it sends; an unreachable host fails the send with a media
         // error. The lane models that for the reserved host example.invalid, so a driver can seed a
         // question whose card cannot be sent (training T42) without a real dead URL (bd-5d294).
-        const link = payload && payload[payload.type] && payload[payload.type].link;
+        // ...and the same for an interactive message's header image: a question card rides the picker as its
+        // header (video-quiz-render CARD_RIDES_THE_PICKER), which is where the T42 seed's card actually goes (bd-1r3k2h).
+        const hdr = payload && payload.interactive && payload.interactive.header;
+        const link = (payload && payload[payload.type] && payload[payload.type].link) || (hdr && hdr.type && hdr[hdr.type] && hdr[hdr.type].link);
         if (link && /(^|\.)example\.invalid$/i.test((() => { try { return new URL(link).hostname; } catch (e) { return ''; } })())) {
           say(`REJECT media link on example.invalid → ${payload.to}`);
           return json(res, 400, { error: { message: '(#131053) Media upload error: the link could not be fetched', type: 'OAuthException', code: 131053 } });

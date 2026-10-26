@@ -413,8 +413,10 @@ module.exports.run = async function runExt(ctx) {
     const urduGlyphs = stepRows.some((x) => /[۰-۹]/.test(x));
     const lri = stepRows.filter((x) => /\u2066\d\/5\u2069/.test(x)).length;
     set('COA25', ...(stepRows.length
-      ? V(stepRows.length >= 5 && englishSteps.length === 0 && urduSteps.length === stepRows.length && !urduGlyphs,
-          { stepsSeen: r3.steps, stepMessages: stepRows.map((x) => short(x, 70)), englishStepMessages: englishSteps.length, urduNumeralGlyphs: urduGlyphs, countersWrappedLriPdi: lri, counters })
+      // Step 1/5 is replaced by the reaction on the recording (coaching-orchestrator step1Announced, NC1), so a run
+      // has four counters by design: steps 2–5, every one in Urdu.
+      ? V(['2', '3', '4', '5'].every((n) => (r3.steps || []).includes(n)) && englishSteps.length === 0 && urduSteps.length === stepRows.length && !urduGlyphs,
+          { stepsSeen: r3.steps, step1ReplacedByReaction: !(r3.steps || []).includes('1'), stepMessages: stepRows.map((x) => short(x, 70)), englishStepMessages: englishSteps.length, urduNumeralGlyphs: urduGlyphs, countersWrappedLriPdi: lri, counters })
       : B(r3.stalled || 'no step messages arrived', { card: r3.card })));
     // gender-neutral copy: photo offer, commitment, LP prompt, duplicate answer
     let dupTxt = '';
@@ -585,10 +587,15 @@ module.exports.run = async function runExt(ctx) {
   const nudgeRows = (kind) => dbJson(api, 'nudge-rows', kind ? ['--kind', kind] : []);
   const uid = (dbJson(api, 'user-get') || {}).id;
   const seedAsk = (o = {}) => { try { api.db('age-sessions'); } catch (_) {} return dbJson(api, 'seed-nudge', [].concat(o.deliveredAt ? ['--delivered-at', o.deliveredAt] : [], o.nudgeDate ? ['--nudge-date', o.nudgeDate] : [], o.firstTime ? ['--first-time'] : [])); };
-  const askOnScreen = async () => { api.db('purge-nudges'); const s = seedAsk(); const sw = await sweepAsk(); const c = await collect((r) => RX.lpAsk.test(r.txt || ''), 25000); return { seed: s, sweep: sw, ask: c.hit, seen: c.seen }; };
+  // lp-coaching-ask offeredToday() skips the ask when a quiz with meta.offered_at today exists — the transcript-quiz
+  // offers the pipeline runs on this shard leave behind did exactly that (skip_reason offered_today on every ask of
+  // run 20261026-2335-par, bd-1r3k2h). The driver's own run quizzes go before every ask.
+  const purgeRunQuizzes = () => { try { api.db('purge-run-quizzes', ['--since', new Date(Date.now() - 48 * 3600 * 1000).toISOString()]); } catch (_) {} };
+  const askOnScreen = async () => { api.db('purge-nudges'); purgeRunQuizzes(); const s = seedAsk(); const sw = await sweepAsk(); const c = await collect((r) => RX.lpAsk.test(r.txt || ''), 25000); return { seed: s, sweep: sw, ask: c.hit, seen: c.seen }; };
   let askReady = false;
   await guard(['COA39', 'COA44'], async () => {
     await cleanSlate();
+    purgeRunQuizzes();
     const rb = await SC.restart('bot', ASK_ENV); if (!rb.ok) throw new Error('bot restart failed: ' + rb.err);
     askReady = true;
     api.db('age-sessions'); api.db('purge-nudges'); api.db('purge-first-use', ['--feature', 'lp_coaching_howto']);
