@@ -64,6 +64,8 @@ const ALWAYS_OPEN: readonly RegExp[] = [
   /^\/portal\/privacy$/,
   /^\/portal\/delete-account$/,
   /^\/portal\/fln(\/|$)/,
+  // bd-sex15q.17 — the RM pages gate themselves (GET /coachip/me → rm); an RM who is also a v2 coach must reach them.
+  /^\/portal\/rm(\/|$)/,
   // bd-tbprit.6 — the disagreement card and its list; the page turns away anyone without coach_disagreement_card.
   /^\/portal\/coach\/disagreements(\/[^/]+)?$/,
 ];
