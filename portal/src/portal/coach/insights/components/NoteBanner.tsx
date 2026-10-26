@@ -26,14 +26,17 @@ export function NoteBanner({ note }: { note: Note }) {
   const dismiss = () => {
     coachip.noteStatus(note.id, "dismissed").then(() => setHidden(true), () => undefined);
   };
-  const btn = "flex min-h-[44px] flex-1 items-center justify-center rounded-xl px-3 text-[15px] font-semibold";
+  const btn = "flex min-h-[44px] flex-1 items-center justify-center rounded-xl px-3 text-[14.5px] font-semibold";
   return (
-    <section data-testid="s1-note" data-note={note.id} className="flex flex-col gap-2 rounded-2xl bg-[#eef2ff] px-4 py-3.5 text-[#312e81]">
-      <p className="text-[11.5px] font-bold uppercase tracking-[0.08em] rtl:tracking-normal">{pick(note.label, lang)}</p>
-      <ul data-text="note" className="flex list-none flex-col gap-1 text-[15px] leading-snug [overflow-wrap:anywhere]">
-        {note.lines[lang].map((line, i) => <li key={i}>{line}</li>)}
-      </ul>
-      <p className="text-[13px] text-[#4338ca]">{tx("s1.note.due", lang, { date: <DateText iso={note.due_on} lang={lang} /> })}</p>
+    <section data-testid="s1-note" data-note={note.id} className="flex flex-col gap-1.5 rounded-2xl bg-[#eef2ff] px-4 py-3 text-[#312e81]">
+      {/* label and due date on one line, the three lines as one paragraph: the note stays short so Move 1 stays above the fold */}
+      <p className="flex flex-wrap items-baseline gap-x-2 text-[11.5px] font-bold uppercase tracking-[0.08em] rtl:tracking-normal">
+        <span>{pick(note.label, lang)}</span>
+        <span className="text-[12.5px] font-semibold normal-case tracking-normal text-[#4338ca]">{tx("s1.note.due", lang, { date: <DateText iso={note.due_on} lang={lang} /> })}</span>
+      </p>
+      <p data-text="note" className="text-[14px] leading-snug [overflow-wrap:anywhere]">
+        {note.lines[lang].map((line, i) => <span key={i} data-line={i + 1}>{i > 0 ? " " : ""}{line}</span>)}
+      </p>
       <div className="flex gap-2">
         <Link data-testid="s1-note-open" to={insightsPaths.w(note.w_id)} className={`${btn} bg-[#4f46e5] text-white`}>{t("s1.note.open", lang)}</Link>
         <button type="button" data-testid="s1-note-dismiss" onClick={dismiss} className={`${btn} border border-[#c7d2fe] bg-white text-[#312e81]`}>

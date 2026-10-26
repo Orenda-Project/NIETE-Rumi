@@ -18,13 +18,34 @@ export function InsightsPage({ title, crumb, chips, backTo, windows, testId, her
 }) {
   return (
     <InsightsGate>
-      <TeacherPage title={title} crumb={crumb} chips={chips} backTo={backTo} testId={testId} hero={hero}>
+      <TeacherPage
+        title={title}
+        crumb={crumb}
+        chips={backTo ? chips : undefined}
+        backTo={backTo}
+        testId={testId}
+        hero={hero ?? (backTo ? undefined : <Band title={title} sub={chips} />)}
+      >
         <WindowsProvider windows={windows}>
           {children}
           {trust && <TrustLine />}
         </WindowsProvider>
       </TeacherPage>
     </InsightsGate>
+  );
+}
+
+/**
+ * A top-level page's slim band (This week, Schools, Listen, Stats): the NIETE slate, the page's name and one line under
+ * it, about 72 px tall instead of the kit's 32 px title block (~120 px), so S1's first move sits above the fold (the
+ * studio's A v2 band, CONVERGENCE §1).
+ */
+export function Band({ title, sub }: { title?: ReactNode; sub?: ReactNode }) {
+  return (
+    <div data-testid="insights-band" className="flex min-h-[72px] flex-col justify-center bg-[#333748] px-5 py-3 text-white min-[576px]:px-6">
+      <h1 className="text-[22px] font-semibold leading-tight">{title}</h1>
+      {sub && <p className="text-[14px] text-[#d1d5db]">{sub}</p>}
+    </div>
   );
 }
 

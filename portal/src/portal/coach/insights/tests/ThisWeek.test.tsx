@@ -157,7 +157,7 @@ describe("S1 This week", () => {
     serve({ "/coachip/home": F.home, [`POST /coachip/notes/${NOTE_ID}/status`]: { note: F.home.note } });
     await renderAt("");
     const banner = screen.getByTestId("s1-note");
-    expect(banner.querySelectorAll("li").length).toBe(3);
+    expect(banner.querySelectorAll("[data-line]").length).toBe(3);
     expect(screen.getByTestId("s1-note-open").getAttribute("href")).toBe("/portal/coach/insights/w/W-IP-TIME");
     const posts = () => http.post.mock.calls.filter(([u]) => u === `/coachip/notes/${NOTE_ID}/status`).map(([, b]) => b);
     expect(posts()).toEqual([{ status: "seen" }]);

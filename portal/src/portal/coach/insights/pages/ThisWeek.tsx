@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { PageChip } from "../../../teacher/TeacherPage";
 import { useLang } from "../../../teacher/i18n";
 import InsightsGate from "../InsightsGate";
 import { coachip } from "../api";
@@ -45,8 +44,8 @@ function ThisWeekLoaded() {
     <InsightsPage
       testId="insights-this-week"
       title={t("band.title", lang)}
-      // A top-level page draws no crumb (TeacherPage), so today's date is the page chip under the title.
-      chips={<PageChip testId="s1-today"><DateText iso={todayKarachi()} lang={lang} short={false} /></PageChip>}
+      // today's date is the band's second line (a top-level page has no crumb)
+      chips={<span data-testid="s1-today"><DateText iso={todayKarachi()} lang={lang} short={false} /></span>}
       windows={data?.windows}
     >
       {!data ? <StateBlock error={error} /> : <Body home={data} />}

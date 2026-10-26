@@ -18,7 +18,8 @@ import { COPY } from "../copy";
 const W = "W-IP-TIME";
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
 const LANGS = ["en", "ur"] as const;
-const SECTIONS = ["w-number", "w-split", "w-where", "w-moment", "step-card", "w-good", "w-method"];
+// G1 one fold: the card, then the moment and the step card above the fold; why, where, good and the method below it.
+const SECTIONS = ["w-number", "w-moment", "step-card", "w-split", "w-where", "w-good", "w-method"];
 
 function before(a: Element, b: Element) {
   return Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useLang } from "../../../teacher/i18n";
-import { CodeText, CountSpan, DateText, Num, StatSpan } from "../count";
+import { CodeText, DateText, Num, StatSpan } from "../count";
 import { durButton } from "../format";
 import { insightsPaths } from "../paths";
 import { pick, t, tx } from "../text";
@@ -56,7 +56,8 @@ export function WCard({ card, total, testId = "wcard" }: { card: WCardData; tota
       school3: <CodeText lang={lang}>{wf.then[1].school_name}</CodeText>,
     })
     : null;
-  const btn = "flex min-h-[48px] w-full items-center justify-center rounded-2xl px-4 text-[16px] font-semibold";
+  // Listen and See the move share one row (each at least half the card, 48 px tall): the card ends higher on a phone.
+  const btn = "flex min-h-[48px] min-w-[calc(50%-5px)] flex-1 items-center justify-center rounded-2xl px-3 text-[16px] font-semibold";
   return (
     <div data-testid={testId} data-w={card.w_id}>
       <Card>
@@ -65,18 +66,13 @@ export function WCard({ card, total, testId = "wcard" }: { card: WCardData; tota
           <span data-nonum="" className="rounded-full bg-[#f3f4f6] px-2.5 py-1 text-[12.5px] font-semibold text-[#374151]">{label}</span>
         </div>
         <p className="flex flex-col gap-1">
-          <Num count={card.count} lang={lang} className="text-[34px] font-bold leading-none tracking-[-0.01em] text-[#1d2025]" />
-          <span className="text-[18px] font-medium leading-snug text-[#1d2025]">{pick(card.sentence, lang)}</span>
+          <Num count={card.count} lang={lang} className="text-[30px] font-bold leading-none tracking-[-0.01em] text-[#1d2025]" />
+          <span className="text-[17px] font-medium leading-snug text-[#1d2025]">{pick(card.sentence, lang)}</span>
         </p>
         {card.cause && (
           <p className="text-[14.5px] leading-snug text-[#374151]">
             <StatSpan stat={card.cause.stat}>{pick(card.cause.text, lang)}</StatSpan>
-            {card.cause.also && (
-              <>
-                {" "}
-                <CountSpan count={card.cause.also.count}>{pick(card.cause.also.text, lang)}</CountSpan>
-              </>
-            )}
+            {/* the W-EXIT-TIME "also" line lives on S2 under Why, so the card ends above the fold */}
           </p>
         )}
         <MetaLine window={card.window} />
@@ -86,14 +82,14 @@ export function WCard({ card, total, testId = "wcard" }: { card: WCardData; tota
             {then && <span className="block text-[13.5px] font-normal text-[#6b7280]">{then}</span>}
           </p>
         )}
-        <div className="mt-1 flex flex-col gap-2.5">
+        <div className="mt-1 flex flex-wrap gap-2.5">
           {card.moment_id && card.moment_duration_s != null && (
             <Link data-testid={`${testId}-listen`} to={LISTEN_IN_PLACE ? "#listen" : `${insightsPaths.w(card.w_id)}#moment`}
               className={`${btn} border border-[#d1d5db] bg-white text-[#1d2025]`}>
               {tx("s1.listen", lang, { dur: <span data-clock="">{durButton(card.moment_duration_s, lang)}</span> })}
             </Link>
           )}
-          {open && card.moment_id && <InPlaceClip momentId={card.moment_id} />}
+          {open && card.moment_id && <div className="basis-full"><InPlaceClip momentId={card.moment_id} /></div>}
           <Link data-testid={`${testId}-see`} to={insightsPaths.w(card.w_id)} className={`${btn} bg-[#33374a] text-white`}>
             {t("s1.see_move", lang)}
           </Link>

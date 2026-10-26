@@ -1,24 +1,26 @@
 import { Link, useParams } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
 import { useLang } from "../../../teacher/i18n";
 import InsightsGate from "../InsightsGate";
 import { coachip } from "../api";
 import { useLoad } from "../useLoad";
-import { InsightsPage, Eyebrow, MetaLine, Card } from "../components/Frame";
+import { InsightsPage, MetaLine, Card } from "../components/Frame";
 import { NoteCard, StateBlock } from "../components/StateBlock";
 import StepCard from "../components/StepCard";
 import { schoolLine } from "../components/SchoolRow";
 import MethodSheet from "../components/MethodSheet";
 import MomentSlot from "../MomentSlot";
-import { CodeText, CountSpan, LibraryText, Num, StatSpan } from "../count";
+import { CodeText, CountSpan, DateText, LibraryText, Num, StatSpan } from "../count";
 import { insightsPaths } from "../paths";
 import { pick, t, tx } from "../text";
 import type { WDetail } from "../types";
 
 /**
  * bd-sex15q.15 — S2, one move in one fold (G1): `/w/:wId`, read from `GET /coachip/w/:wId`. Top to bottom: NOTICE, the
- * number line and sentence, the cause, the meta line (the card's window), why (the split on one denominator), where it
- * shows (three schools, then all), the moment (`#moment`, S1's Listen link lands here) with the inline player, the step
- * card, what good looks like, and the method sheet collapsed. The app bar says the short name, never "weakness".
+ * number line and sentence, the meta line (the card's window) and the school to visit first (→ S3); then the moment
+ * (`#moment`, S1's Listen link lands here) with the inline player and the step card, both above the 704 px fold at
+ * 390×844 (B v2's one-fold order, measured by outputs/lanes/m-ui/measure); below the fold: why (the cause and the split
+ * on one denominator), where it shows (three schools, then all), what good looks like, the method sheet collapsed. The app bar says the short name, never "weakness".
  *
  * The read sits inside the gate, so with the switch off nothing is requested (B7).
  */
@@ -60,18 +62,23 @@ function Fold({ d }: { d: WDetail }) {
   return (
     <div className="flex flex-col gap-3">
       <Card testId="w-number">
-        <Eyebrow k="eyebrow.notice" />
-        <p className="text-[17px] leading-snug text-[#1d2025]">
-          <Num count={card.count} lang={lang} className="text-[24px] font-bold" />{" "}
+        {/* no NOTICE eyebrow here: the app bar already names the move ("Move 1 of 2"); LISTEN and ONE MOVE follow */}
+        <p className="text-[16px] leading-snug text-[#1d2025]">
+          <Num count={card.count} lang={lang} className="text-[22px] font-bold" />{" "}
           <span>{pick(card.sentence, lang)}</span>
         </p>
-        {card.cause && (
-          <p className="text-[14px] leading-snug text-[#374151]">
-            <StatSpan stat={card.cause.stat}>{pick(card.cause.text, lang)}</StatSpan>
-            {card.cause.also && <>{" "}<CountSpan count={card.cause.also.count}>{pick(card.cause.also.text, lang)}</CountSpan></>}
-          </p>
-        )}
         <MetaLine window={card.window} />
+        {card.where_first && (
+          <Link to={insightsPaths.where(card.w_id)} data-testid="w-where-first"
+            className="-mx-1 flex min-h-[44px] items-center gap-2 rounded-xl px-1 text-[15px] font-semibold leading-snug text-[#1d2025] [overflow-wrap:anywhere]">
+            <span className="min-w-0 flex-1">
+              {card.where_first.visit
+                ? tx("s1.where", lang, { school: <CodeText lang={lang}>{card.where_first.school.school_name}</CodeText>, date: <DateText iso={card.where_first.visit.date} lang={lang} /> }, [{ n: "n", d: "d", count: card.where_first.count }])
+                : tx("s1.where.no_visit", lang, { school: <CodeText lang={lang}>{card.where_first.school.school_name}</CodeText> }, [{ n: "n", d: "d", count: card.where_first.count }])}
+            </span>
+            <ChevronRight className="h-5 w-5 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
+          </Link>
+        )}
         {insufficient && (
           <NoteCard testId="w-insufficient">
             {tx("s2.insufficient", lang, {}, [{ n: "graded", d: "needed", count: { n: card.count.d, d: COACH_FLOOR, window_id: card.count.window_id } }])}
@@ -79,9 +86,32 @@ function Fold({ d }: { d: WDetail }) {
         )}
       </Card>
 
-      {d.split.length > 0 && (
+      {moment && (
+        <section id="moment" data-testid="w-moment" className="flex flex-col gap-2 rounded-2xl border border-[#e5e7eb] bg-white px-4 py-3.5">
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <h2 className={title}>{t("s2.moment.title", lang)}</h2>
+            <span className="text-[13.5px] text-[#6b7280]">
+              {tx("s2.moment.sub", lang, {
+                code: <CodeText lang={lang}>{moment.code.code}</CodeText>,
+                school: <CodeText lang={lang}>{moment.school.school_name}</CodeText>,
+              })}
+            </span>
+          </div>
+          <MomentSlot moment={moment} />
+        </section>
+      )}
+
+      <StepCard detail={d} />
+
+      {(d.split.length > 0 || card.cause) && (
         <Card testId="w-split">
           <h2 className={title}>{t("s2.split.title", lang)}</h2>
+          {card.cause && (
+            <p className="text-[14px] leading-snug text-[#374151]">
+              <StatSpan stat={card.cause.stat}>{pick(card.cause.text, lang)}</StatSpan>
+              {card.cause.also && <>{" "}<CountSpan count={card.cause.also.count}>{pick(card.cause.also.text, lang)}</CountSpan></>}
+            </p>
+          )}
           <ul className="flex flex-col gap-1.5">
             {d.split.map((r) => (
               <li key={r.w_id} data-w={r.w_id} className="flex items-baseline gap-2 text-[14.5px] leading-snug">
@@ -110,22 +140,6 @@ function Fold({ d }: { d: WDetail }) {
         </Link>
       </Card>
 
-      {moment && (
-        <section id="moment" data-testid="w-moment" className="flex flex-col gap-2 rounded-2xl border border-[#e5e7eb] bg-white px-4 py-3.5">
-          <div className="flex flex-wrap items-baseline gap-x-2">
-            <h2 className={title}>{t("s2.moment.title", lang)}</h2>
-            <span className="text-[13.5px] text-[#6b7280]">
-              {tx("s2.moment.sub", lang, {
-                code: <CodeText lang={lang}>{moment.code.code}</CodeText>,
-                school: <CodeText lang={lang}>{moment.school.school_name}</CodeText>,
-              })}
-            </span>
-          </div>
-          <MomentSlot moment={moment} />
-        </section>
-      )}
-
-      <StepCard detail={d} />
 
       <Card testId="w-good">
         <h2 className={title}>{t("s2.good.title", lang)}</h2>

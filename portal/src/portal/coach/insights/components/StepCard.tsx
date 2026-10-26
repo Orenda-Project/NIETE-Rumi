@@ -57,8 +57,9 @@ export default function StepCard({ detail }: { detail: WDetail }) {
       <p className="text-[11.5px] font-bold uppercase tracking-[0.08em] text-[#6b7280] rtl:tracking-normal">
         {tx("s2.step.eyebrow", lang, { code: codeNode })}
       </p>
-      <h2 className="text-[17px] font-semibold leading-snug text-[#1d2025]"><LibraryText>{pick(sc.title, lang)}</LibraryText></h2>
-      <LibraryText as="p" className="text-[15px] leading-snug text-[#374151]">{pick(sc.teacher_step, lang)}</LibraryText>
+      {/* the teacher's one step is the card's headline; the intervention's title is on S5, one tap away ("Full step"),
+          so the card ends above the 704 px fold (G1, B v2) */}
+      <LibraryText as="p" className="text-[16.5px] font-semibold leading-snug text-[#1d2025]">{pick(sc.teacher_step, lang)}</LibraryText>
       <LibraryText as="p" className="text-[13px] leading-snug text-[#6b7280]">
         {before}
         {rest.length > 0 && <DateText iso={sc.check_by.date} lang={lang} />}
