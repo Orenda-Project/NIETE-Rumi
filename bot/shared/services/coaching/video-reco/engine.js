@@ -32,12 +32,18 @@ class Timeout extends Error {
   constructor(ms) { super(`video recommendation took longer than ${ms} ms`); this.name = 'Timeout'; }
 }
 
-/** The lesson's grade: subject_resolution.grade, else the teacher's training_bands (H7), else unknown. */
-async function gradeOf(analysis, userId, store) {
+/** The lesson's own grade (subject_resolution.grade), else null. */
+function analysisGrade(analysis) {
   const g = analysis && analysis.subject_resolution && analysis.subject_resolution.grade;
   const n = parseInt(String(g === null || g === undefined ? '' : g).replace(/[^0-9]/g, ''), 10);
-  if (Number.isFinite(n)) return { lo: n, hi: n };
-  const spans = (await store.trainingBands(userId)).map((b) => BAND_GRADES[String(b).toUpperCase()]).filter(Boolean);
+  return Number.isFinite(n) ? { lo: n, hi: n } : null;
+}
+
+/** The lesson's grade: subject_resolution.grade, else the teacher's training_bands (H7), else unknown. */
+function gradeOf(analysis, bands) {
+  const own = analysisGrade(analysis);
+  if (own) return own;
+  const spans = (bands || []).map((b) => BAND_GRADES[String(b).toUpperCase()]).filter(Boolean);
   return spans.length ? { lo: Math.min(...spans.map((x) => x[0])), hi: Math.max(...spans.map((x) => x[1])) } : null;
 }
 
@@ -135,8 +141,23 @@ async function compute(a, d, state) {
   const { store, catalog } = d;
   // The observe path (hook A2) has no next step of its own: the coach-edited analysis decides it, as the hero did.
   const nextStep = a.nextStep === undefined ? require('../next-step').selectNextStep(analysis, null) : a.nextStep; // eslint-disable-line global-require
+  // R7s (COS 20261026T171054 §2, red7 r7s trace): every read before the pick is keyed by the session and the teacher only,
+  // so they all go out in one wave (prod: ~6 serial Supabase round trips → 2, the roster's class read and the v10 arm row
+  // being the second). A stored row still wins as soon as it is back; nothing read here decides more than it did.
+  const uid = session.user_id;
+  const groupFor = d.v10GroupFor || require('../ab-v10-arms').groupForEager; // eslint-disable-line global-require
+  const reads = Promise.all([
+    store.recentHistory(uid),
+    store.ladderProgress(uid),
+    // R7d (⛔9, Q086): the teacher's class roster, in memory for this run only (a store without it → no roster check)
+    typeof store.rosterNames === 'function' ? store.rosterNames(uid) : [],
+    Promise.resolve().then(() => groupFor(uid)).then((g) => (g && g.group) || null, () => null),
+    analysisGrade(analysis) ? [] : store.trainingBands(uid),
+  ]);
+  reads.catch(() => {}); // awaited below; handled here for the stored-row return
   const existing = await store.readForSession(coachingSessionId);
   if (existing) return existing;
+  const [history, ladder, rosterWords, v10Group, bands] = await reads;
 
   const arm = assignArm(session.user_id, d.env);
   const sr = (analysis && analysis.subject_resolution) || {};
@@ -149,18 +170,10 @@ async function compute(a, d, state) {
   const rawTranscript = typeof session.transcript_language === 'string' ? session.transcript_language.trim().toLowerCase() : '';
   const transcriptLanguage = ['en', 'ur'].includes(rawTranscript) ? rawTranscript : null;
   const language = hasPref ? clampLanguage(pref) : (transcriptLanguage || 'ur');
-  // R7d (⛔9, Q086): the teacher's class roster, in memory for this run only (a store without it → no roster check)
-  const [history, ladder, rosterWords] = await Promise.all([store.recentHistory(session.user_id), store.ladderProgress(session.user_id),
-    typeof store.rosterNames === 'function' ? store.rosterNames(session.user_id) : []]);
   const completed = new Set(ladder.completedModules || []);
   // The ladder a teacher can finish = the recommendable modules (review_3313 F6): a retired module never blocks "complete".
   const ladderModules = catalog.modules.filter((m) => m && m.recommendable !== false);
   const ladderComplete = ladderModules.length > 0 && ladderModules.every((m) => completed.has(Number(m.module_id)));
-  let v10Group = null;
-  try {
-    const g = await (d.v10GroupFor || require('../ab-v10-arms').groupFor)(session.user_id); // eslint-disable-line global-require
-    v10Group = (g && g.group) || null;
-  } catch (e) { v10Group = null; }
 
   const base = {
     coaching_session_id: coachingSessionId,
@@ -209,7 +222,7 @@ async function compute(a, d, state) {
   const fa = (analysis && analysis.focus_area) || {};
   const cardSentence = (card && card.action) || step0(nextStep, analysis);
   const lines = prompt.transcriptLines(session);
-  const grade = await gradeOf(analysis, session.user_id, store);
+  const grade = gradeOf(analysis, bands);
   // R7b silence (silence.js, panel §6.1): a subject label off its subject, and B6 with no mixed-level moment, are no move.
   // R7f (panel Q102 Q127 Q139): …unless the label's sentence asks for open questions on a lesson whose children answer in
   // a word: then the questioning chapters the engine enacts are its list (the evidence test is the lesson's own answers).
