@@ -2,7 +2,7 @@
  * bd-sex15q.15 — COACHIP: every coach-screen string, English and Urdu, generated from contracts/COPY.md v1
  * (sections N, WRow, S1-S7, L, D, E) by outputs/lanes/m-ui/gen_copy.py. Never hand-edit a value: change COPY.md and
  * re-run. Tokens `{x}` are filled by format.ts (§F); a string reaches the screen only through `tx()`/`t()`.
- * Two keys are not in COPY v1 yet (s1.empty.insufficient4, meta.*): see the m-ui REPORT, Assumptions.
+ * Keys not in COPY v1 yet (s1.empty.insufficient4, s1.steps.row.sub14, meta.*): see the m-ui REPORT, Assumptions.
  */
 
 export const COPY = {
@@ -228,6 +228,7 @@ export const COPY = {
   "decode.show": { en: "Show name (switched on by your programme)", ur: "نام دکھائیں (آپ کے پروگرام نے کھولا ہے)" },
   "decode.hide": { en: "Hide name", ur: "نام چھپائیں" },
   "s1.empty.insufficient4": { en: "Not enough recordings yet: {graded} graded lessons in the last {weeks}, {needed} needed. Your open steps still show.", ur: "ابھی کافی ریکارڈنگز نہیں: پچھلے {weeks} میں {graded} جانچے گئے اسباق، {needed} درکار۔ آپ کے جاری قدم دکھائی دے رہے ہیں۔" },
+  "s1.steps.row.sub14": { en: "{code} · {school} · set {date_short} · check by {date}", ur: "{code}، {school}، طے {date_short}، جانچ {date} تک" },
   "meta.line": { en: "{range} · {grader_label}", ur: "{range}، {grader_label}" },
   "meta.changed": { en: "scoring changed {date_short}", ur: "نمبر دینے کا طریقہ {date_short} کو بدلا" },
 } as const;

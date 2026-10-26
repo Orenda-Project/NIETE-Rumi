@@ -1,0 +1,82 @@
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
+import { useLang } from "../../../teacher/i18n";
+import { CodeText, CountSpan, DateText, Num, StatSpan } from "../count";
+import { durButton } from "../format";
+import { insightsPaths } from "../paths";
+import { pick, t, tx } from "../text";
+import type { WCard as WCardData } from "../types";
+import { Card, Eyebrow, MetaLine } from "./Frame";
+
+/**
+ * bd-sex15q.15 — S1's headline card (DESIGN §3 S1, COPY §S1): the cycle word and "Move k of m", the number line (a big
+ * <Num>, then the server's sentence; number first in Urdu too), the cause line when the split is known, the meta line
+ * the card's counts resolve to, the school to visit first, then [Listen m:ss] and [See the move].
+ *
+ * `total` is how many moves the page shows (1 or 2): it picks "Move 1 of 2" or "Move k of m". The phonics tile reuses
+ * this card with its own `testId`. Codes and school names only, never a teacher's name.
+ */
+export function WCard({ card, total, testId = "wcard" }: { card: WCardData; total: number; testId?: string }) {
+  const lang = useLang();
+  const label = total === 2
+    ? t(card.rank === 2 ? "s1.move_2" : "s1.move_1", lang)
+    : t("s1.move_of", lang, { k: card.rank, m: Math.max(total, card.rank) });
+  const wf = card.where_first;
+  let where: ReactNode = null;
+  if (wf) {
+    const school = <CodeText lang={lang}>{wf.school.school_name}</CodeText>;
+    where = wf.visit
+      ? tx("s1.where", lang, { school, date: <DateText iso={wf.visit.date} lang={lang} /> }, [{ n: "n", d: "d", count: wf.count }])
+      : tx("s1.where.no_visit", lang, { school }, [{ n: "n", d: "d", count: wf.count }]);
+  }
+  const then = wf && wf.then.length === 2
+    ? tx("s1.where.then", lang, {
+      school2: <CodeText lang={lang}>{wf.then[0].school_name}</CodeText>,
+      school3: <CodeText lang={lang}>{wf.then[1].school_name}</CodeText>,
+    })
+    : null;
+  const btn = "flex min-h-[48px] w-full items-center justify-center rounded-2xl px-4 text-[16px] font-semibold";
+  return (
+    <div data-testid={testId} data-w={card.w_id}>
+      <Card>
+        <div className="flex items-center justify-between gap-2">
+          <Eyebrow k="eyebrow.notice" />
+          <span data-nonum="" className="rounded-full bg-[#f3f4f6] px-2.5 py-1 text-[12.5px] font-semibold text-[#374151]">{label}</span>
+        </div>
+        <p className="flex flex-col gap-1">
+          <Num count={card.count} lang={lang} className="text-[34px] font-bold leading-none tracking-[-0.01em] text-[#1d2025]" />
+          <span className="text-[18px] font-medium leading-snug text-[#1d2025]">{pick(card.sentence, lang)}</span>
+        </p>
+        {card.cause && (
+          <p className="text-[14.5px] leading-snug text-[#374151]">
+            <StatSpan stat={card.cause.stat}>{pick(card.cause.text, lang)}</StatSpan>
+            {card.cause.also && (
+              <>
+                {" "}
+                <CountSpan count={card.cause.also.count}>{pick(card.cause.also.text, lang)}</CountSpan>
+              </>
+            )}
+          </p>
+        )}
+        <MetaLine window={card.window} />
+        {where && (
+          <p data-testid={`${testId}-where`} className="text-[15px] font-semibold leading-snug text-[#1d2025] [overflow-wrap:anywhere]">
+            {where}
+            {then && <span className="block text-[13.5px] font-normal text-[#6b7280]">{then}</span>}
+          </p>
+        )}
+        <div className="mt-1 flex flex-col gap-2.5">
+          {card.moment_id && card.moment_duration_s != null && (
+            <Link data-testid={`${testId}-listen`} to={`${insightsPaths.w(card.w_id)}#moment`}
+              className={`${btn} border border-[#d1d5db] bg-white text-[#1d2025]`}>
+              {tx("s1.listen", lang, { dur: <span data-clock="">{durButton(card.moment_duration_s, lang)}</span> })}
+            </Link>
+          )}
+          <Link data-testid={`${testId}-see`} to={insightsPaths.w(card.w_id)} className={`${btn} bg-[#33374a] text-white`}>
+            {t("s1.see_move", lang)}
+          </Link>
+        </div>
+      </Card>
+    </div>
+  );
+}
