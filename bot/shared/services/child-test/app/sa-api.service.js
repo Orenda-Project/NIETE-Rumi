@@ -36,7 +36,9 @@
  *                 with CHILD_TEST_SA_LINK_ONE_PHONE=true)
  *
  * IDENTITY. The school must be one of the coach's (leader_schools) or the school of their own
- * observe visit; anything else is `not_found`, before the draw runs.
+ * observe visit; anything else is `not_found`, before the draw runs. With sa_any_school ON for the user
+ * (any-school-switch.js), any live programme school (active, not a probable test school) passes too, and the list
+ * holds every one of them; each school carries its EMIS and sector for the page's search.
  * PRACTICE. With child_test_practice_only ON, a coach off the pilot list passes only as practice-only
  * (app-api.service guarded's `practice`): every handler here then sees and serves their practice
  * (is_probable_test) schools only; a list, a child or a session anywhere else is `not_found`.
@@ -57,6 +59,7 @@ const stopRulesSwitch = require('./stop-rules-switch');
 const addChildSwitch = require('./add-child-switch');
 const coachLastWord = require('./coach-last-word-switch');
 const practiceOnly = require('./practice-only-switch');
+const anySchool = require('./any-school-switch');
 const { lastWordIndex } = require('../sa/last-word-hint');
 const { MEDIA, envSegment, __internals: { guarded: gate, rows, ownVisit, ownSession, gradeOf } } = require('./app-api.service');
 
@@ -93,7 +96,19 @@ async function todaysVisits(d, userId) {
     .limit(5));
 }
 
-const listSchools = guarded('sa_list_schools', async ({ userId }, d) => {
+/** Every live programme school: active, not a probable test school (the filter runs here too, whatever the query did). */
+async function liveSchools(d) {
+  const all = await rows(d.supabase.from('schools').select('id, name, emis, region, is_active, is_probable_test').eq('is_active', true));
+  return all.filter((s) => s && s.id && s.is_active !== false && s.is_probable_test !== true);
+}
+
+async function isLiveSchool(d, schoolId) {
+  const found = await rows(d.supabase.from('schools').select('id, is_active, is_probable_test').eq('id', schoolId).limit(1));
+  return found.some((s) => s && s.id === schoolId && s.is_active !== false && s.is_probable_test !== true);
+}
+
+const listSchools = (args = {}, deps = {}) => guarded('sa_list_schools', async ({ userId }, d) => {
+  const any = await anySchool.enabledFor(userId, deps);
   const linked = await linkedSchools(d, userId);
   const visitOf = new Map();
   for (const f of await todaysVisits(d, userId)) {
@@ -103,14 +118,18 @@ const listSchools = guarded('sa_list_schools', async ({ userId }, d) => {
       visitOf.set(s.schoolId, { visitId: f.id, observedGrade: gradeOf(f.answers && f.answers.lp_ref && f.answers.lp_ref.grade) });
     }
   }
-  const ids = [...new Set([...visitOf.keys(), ...linked.keys()])].filter((id) => allowedSchool(d, id));
-  const named = ids.length ? await rows(d.supabase.from('schools').select('id, name').in('id', ids)) : [];
-  const nameOf = new Map(named.map((s) => [s.id, s.name]));
+  const live = any ? await liveSchools(d) : null;
+  const ids = [...new Set([...visitOf.keys(), ...linked.keys(), ...(live || []).map((s) => s.id)])].filter((id) => allowedSchool(d, id));
+  const named = live || (ids.length ? await rows(d.supabase.from('schools').select('id, name, emis, region').in('id', ids)) : []);
+  const schoolOf = new Map(named.map((s) => [s.id, s]));
   const schools = ids.map((id) => {
     const v = visitOf.get(id);
+    const s = schoolOf.get(id);
     return {
       schoolId: id,
-      name: nameOf.get(id) || linked.get(id) || null,
+      name: (s && s.name) || linked.get(id) || null,
+      emis: (s && s.emis) || null,
+      region: (s && s.region) || null,
       visitId: v ? v.visitId : null,
       observedGrade: v ? v.observedGrade : null,
       visitToday: !!v,
@@ -118,7 +137,7 @@ const listSchools = guarded('sa_list_schools', async ({ userId }, d) => {
   });
   schools.sort((a, b) => (b.visitToday - a.visitToday) || String(a.name || '').localeCompare(String(b.name || '')));
   return { status: 'ok', schools };
-});
+})(args, deps);
 
 /**
  * The grade the coach named, with sa_all_grades ON: { grade } 1–5, { grade: null } when none is named or the switch
@@ -156,12 +175,18 @@ async function visitListGrade(d, visitId) {
  * named). A named grade (sa_all_grades) keeps the observe visit's list only when that list is already of that grade;
  * any other grade, or a visit with no list yet, takes the graded day key, so the visit keeps its own list.
  */
-async function visitFor(d, userId, args) {
-  const visit = await anyVisitFor(d, userId, args);
+async function visitFor(d, userId, args, any = false) {
+  const visit = await anyVisitFor(d, userId, args, any);
   return visit && allowedSchool(d, visit.schoolId) ? visit : null;
 }
 
-async function anyVisitFor(d, userId, { schoolId, visitId, grade = null }) {
+/** A school this user may open a day list at: one of theirs, or (sa_any_school ON) any live programme school. */
+async function mayUseSchool(d, userId, schoolId, any) {
+  if ((await linkedSchools(d, userId)).has(schoolId)) return true;
+  return any === true && isLiveSchool(d, schoolId);
+}
+
+async function anyVisitFor(d, userId, { schoolId, visitId, grade = null }, any = false) {
   if (visitId) {
     const visit = await ownVisit(d, userId, visitId);
     if (!visit) return null;
@@ -173,7 +198,7 @@ async function anyVisitFor(d, userId, { schoolId, visitId, grade = null }) {
       observedGrade: gradeOf(visit.answers && visit.answers.lp_ref && visit.answers.lp_ref.grade),
     };
   }
-  if (!schoolId || !(await linkedSchools(d, userId)).has(schoolId)) return null;
+  if (!schoolId || !(await mayUseSchool(d, userId, schoolId, any))) return null;
   if (grade) return gradedDay(d, userId, schoolId, grade);
   const visitKey = visitKeyFor({ coachUserId: userId, schoolId, now: d.now() });
   return visitKey ? { schoolId, visitId: null, visitKey, observedGrade: null } : null;
@@ -230,7 +255,7 @@ async function sessionsOf(d, visit) {
 const dayList = (args = {}, deps = {}) => guarded('sa_day_list', async ({ userId, schoolId, visitId, grade }, d) => {
   const named = await namedGrade(grade, deps);
   if (named.bad) return { status: 'invalid', reason: 'bad_grade' };
-  let visit = await visitFor(d, userId, { schoolId, visitId, grade: named.grade });
+  let visit = await visitFor(d, userId, { schoolId, visitId, grade: named.grade }, await anySchool.enabledFor(userId, deps));
   if (!visit) return { status: 'not_found' };
   const draw = (v) => d.draw.todaysList({
     coachUserId: userId, schoolId: v.schoolId, observedGrade: v.observedGrade, ...visitArgs(v),
@@ -288,7 +313,7 @@ const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ 
     && !(RDF_W3.includes(block) && (await rdfW3Switch.enabled(deps)))) return { status: 'invalid', reason: 'bad_block' };
   const named = await namedGrade(grade, deps);
   if (named.bad) return { status: 'invalid', reason: 'bad_grade' };
-  const visit = await visitFor(d, userId, { schoolId, visitId, grade: named.grade });
+  const visit = await visitFor(d, userId, { schoolId, visitId, grade: named.grade }, await anySchool.enabledFor(userId, deps));
   if (!visit) return { status: 'not_found' };
   const sa = clientSessionId && outcome === 'present' ? saStoreOf(deps) : null;
   if (sa) {
@@ -360,7 +385,7 @@ const addChild = (args = {}, deps = {}) => guarded('sa_add_child', async ({ user
   if (!Number.isInteger(g) || !(all ? [1, 2, 3, 4, 5] : [3, 5]).includes(g)) return { status: 'invalid', reason: 'bad_grade' };
   const named = await namedGrade(listGrade, deps);
   if (named.bad) return { status: 'invalid', reason: 'bad_grade' };
-  const visit = await visitFor(d, userId, { schoolId, visitId, grade: named.grade });
+  const visit = await visitFor(d, userId, { schoolId, visitId, grade: named.grade }, await anySchool.enabledFor(userId, deps));
   if (!visit) return { status: 'not_found' };
   const out = await d.draw.addChild({
     schoolId: visit.schoolId, ...visitArgs(visit), grade: g, firstName: name, section: sec ? sec.toUpperCase() : null, clientChildId, now: d.now(),

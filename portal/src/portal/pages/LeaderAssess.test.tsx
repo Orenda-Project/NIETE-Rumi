@@ -1128,6 +1128,24 @@ describe("LeaderAssess", () => {
         expect(screen.getAllByTestId(/^assess-school-s/).map((b) => b.getAttribute("data-testid"))).toEqual(["assess-school-s2", "assess-school-s6"]);
         expect(screen.getByTestId("assess-school-count")).toHaveTextContent("۵ میں سے ۱");
       });
+
+      it("ON: the box also matches a school's EMIS and its sector, and each school shows sector · EMIS (sa_any_school lists)", async () => {
+        allGrades();
+        api.getSchools.mockResolvedValue({ schools: [
+          { schoolId: "e1", name: "IMSG Alpha", emis: "411", region: "Tarnol", visitId: null, observedGrade: null, visitToday: false },
+          { schoolId: "e2", name: "IMSB Beta", emis: "752", region: "B.K", visitId: null, observedGrade: null, visitToday: false },
+          { schoolId: "e3", name: "IMCG Gamma", emis: null, region: null, visitId: null, observedGrade: null, visitToday: false },
+        ] });
+        renderPage();
+        const box = await screen.findByTestId("assess-school-filter");
+        expect(screen.getByTestId("assess-school-e1")).toHaveTextContent("Tarnol · 411");
+        expect(screen.getByTestId("assess-school-e3")).not.toHaveTextContent("·");
+        fireEvent.change(box, { target: { value: "752" } });
+        expect(screen.getAllByTestId(/^assess-school-e/).map((b) => b.getAttribute("data-testid"))).toEqual(["assess-school-e2"]);
+        fireEvent.change(box, { target: { value: "tarnol" } });
+        expect(screen.getAllByTestId(/^assess-school-e/).map((b) => b.getAttribute("data-testid"))).toEqual(["assess-school-e1"]);
+        expect(screen.getByTestId("assess-school-count")).toHaveTextContent("1 of 3");
+      });
     });
   });
 
