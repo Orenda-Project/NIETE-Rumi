@@ -231,7 +231,7 @@ export const COPY = {
   "s1.steps.row.sub14": { en: "{code} · {school} · set {date_short} · check by {date}", ur: "{code}، {school}، طے {date_short}، جانچ {date} تک" },
   "meta.line": { en: "{range} · {grader_label}", ur: "{range}، {grader_label}" },
   "meta.changed": { en: "scoring changed {date_short}", ur: "نمبر دینے کا طریقہ {date_short} کو بدلا" },
-  "s2.step.other": { en: "A different teacher from the moment above", ur: "اوپر کے لمحے سے الگ استاد" },
+  "s2.step.other": { en: "another teacher", ur: "دوسرے استاد" },
 } as const;
 
 export type CopyKey = keyof typeof COPY;
