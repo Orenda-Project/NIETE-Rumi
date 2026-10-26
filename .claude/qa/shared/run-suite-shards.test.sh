@@ -46,6 +46,14 @@ t "launch order: the longest children first (training#2, coaching#3 before menu)
 echo "AC5 the lesson-plan-quiz helper stops waiting when the bot says the quiz failed (T35: 303 s on the lane)"
 grep -qE "could not be (finished|started)|went wrong on my side" .claude/qa/shared/features/training.cjs && grep -qF 'const failed = ' .claude/qa/shared/features/training.cjs; t "lpState has a failure predicate and stops on it" "$?" "0"
 
+echo "AC6 the coaching walker's stall budget is lane-tunable (E2E_COACHING_STALL_MS); run-suite sets 90 s on the mock lane"
+# COA04's first pipeline run goes silent at steps 2/3/5 on the lane with every answer recorded (20261026-record-coaching:
+# "no cassette miss logged — the pipeline is genuinely stuck"), and every coaching shard pays its 240 s stall before
+# BLOCKED. With cassette replay a working step takes seconds; 90 s is still ten times that.
+grep -qF 'E2E_COACHING_STALL_MS' .claude/qa/shared/coaching-ext.cjs; t "coaching-ext reads E2E_COACHING_STALL_MS" "$?" "0"
+grep -qE 'E2E_COACHING_STALL_MS="\$\{E2E_COACHING_STALL_MS:-90000\}"' .claude/qa/shared/run-suite.sh; t "run-suite sets 90000 for the mock lane" "$?" "0"
+t "no hard-coded 240000 stall is left in coaching-ext" "$(grep -c 'stallMs: 240000' .claude/qa/shared/coaching-ext.cjs)" "0"
+
 echo "AC3 the child's selection reaches the runner"
 grep -qF 'E2E_SKIP_MAP' .claude/qa/shared/run-suite.sh; t "run-suite exports E2E_SKIP_MAP for --skip" "$?" "0"
 grep -qF 'E2E_SKIP_MAP' .claude/qa/shared/feature-runner.cjs; t "feature-runner reads E2E_SKIP_MAP" "$?" "0"

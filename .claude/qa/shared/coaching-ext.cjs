@@ -168,7 +168,12 @@ module.exports.run = async function runExt(ctx) {
     obs.confirmed = true; obs.confirmReply = short(yes.txt, 160);
     const sess = dbJson(api, 'session-get'); obs.sessionId = sess && sess.id;
     if (o.midQuestion) { const mr = await api.sendWait(o.midQuestion, 90000); obs.midReply = short(mr.txt, 240); }
-    const budget = o.budgetMs || 15 * 60 * 1000; const stallMs = o.stallMs || 240000;   // live (uncached) analysis + hero render run ~100 s each
+    // 240 s stall budget: live (uncached) analysis + hero render run ~100 s each. On the mock lane every vendor answer is
+    // a replay and a working step takes seconds, so run-suite sets E2E_COACHING_STALL_MS=90000: a run that has gone
+    // silent is declared BLOCKED after 90 s, not 240 — COA04's first run is genuinely stuck at steps 2/3/5 on the lane
+    // and every coaching shard paid the full 240 s before (bd-r09cmx).
+    const STALL_DEFAULT_MS = Number(process.env.E2E_COACHING_STALL_MS) || 240000;
+    const budget = o.budgetMs || 15 * 60 * 1000; const stallMs = o.stallMs || STALL_DEFAULT_MS;
     const t1 = t(); let lastProgress = t(); let prevSig = ''; let reportAt = 0;
     const sendLp = async () => {
       if (o.lp === 'pdf') { const d = await api.upload(FX.lpPdf, 'Document', 120000); obs.lpReply = { via: 'pdf', txt: short(d.txt, 200), btns: d.btns }; }
@@ -519,7 +524,7 @@ module.exports.run = async function runExt(ctx) {
     await api.setUser({ name: null });
     // photo:'ignore' — the walker leaves the photo prompt unanswered and, 70 s later, runs the stale-session
     // sweep itself (COACHING_PHOTO_GATE_MINUTES=1), which closes the gate with the greeting under test
-    const r6 = await pipeline({ label: 'run6a-nameless', photo: 'ignore', lp: 'no', reflect: 'answer', budgetMs: 12 * 60 * 1000, stallMs: 240000 });
+    const r6 = await pipeline({ label: 'run6a-nameless', photo: 'ignore', lp: 'no', reflect: 'answer', budgetMs: 12 * 60 * 1000 });
     const greetings = r6.rows.map((r) => r.txt || '').filter((x) => /putting together your coaching report/i.test(x));
     set('COA27', ...(r6.greeting
       ? V(greetings.every((g) => !/null|Hi !|Hi\s*!/.test(g)), { greeting: r6.greeting, allGreetings: greetings.map((g) => short(g, 100)), savedName: null, gateSweep: r6.gateSwept && (r6.gateSwept.result || r6.gateSwept), note: greetings.length > 1 ? 'the recovery sweep advanced the same session more than once (each sub-sweep queued the analysis) — reported as evidence, not judged here' : undefined })
