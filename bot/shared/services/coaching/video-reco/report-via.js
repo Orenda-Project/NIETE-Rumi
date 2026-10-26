@@ -10,6 +10,9 @@
  * `row` is the engine's own promise (row | null, never rejects in production): null (flag off, engine refused, write
  * failed) → nothing is read or written. report_via is V1.7.9: the key is sent only when the column exists — probed
  * once per process and cached, or VIDEO_RECO_REPORT_VIA=1 — so a database without V1.7.9 still gets image_strip.
+ * red7 F1 (053724): only a clean probe or a missing-column error is cached; anything else (a timeout, a fetch failure,
+ * a 5xx) sends no key this time and probes again next time. An UPDATE refused for a missing column is retried once
+ * without report_via, and the column is then known absent (a forced VIDEO_RECO_REPORT_VIA=1 included).
  * image_strip is never written false (the engine's row starts false; markSent writes the same value). Never throws.
  */
 const { logToFile } = require('../../../utils/logger');
@@ -18,16 +21,20 @@ const TABLE = 'video_recommendations';
 const PATHS = new Set(['image', 'slim', 'template', 'pdf']);
 const MISSING = new Set(['42703', 'PGRST204']); // Postgres "undefined column"; PostgREST "column not in the schema cache"
 
-let probed = null;
+let probed = null; // true | false once known; null = not known yet
+const missingColumn = (error) => !!error && (MISSING.has(String(error.code)) || /report_via/.test(String(error.message || '')));
 
-function hasColumn(supabase) {
-  if (String(process.env.VIDEO_RECO_REPORT_VIA || '').trim() === '1') return Promise.resolve(true);
-  if (!probed) {
-    probed = Promise.resolve(supabase.from(TABLE).select('report_via').limit(1))
-      .then(({ error }) => !(error && (MISSING.has(String(error.code)) || /report_via/.test(String(error.message || '')))))
-      .catch(() => false);
+async function hasColumn(supabase) {
+  if (probed !== null) return probed;
+  if (String(process.env.VIDEO_RECO_REPORT_VIA || '').trim() === '1') return true;
+  try {
+    const { error } = await supabase.from(TABLE).select('report_via').limit(1);
+    if (!error) probed = true;
+    else if (missingColumn(error)) probed = false;
+    return probed === true; // inconclusive: no key this time, probed again next time
+  } catch (_) {
+    return false;
   }
-  return probed;
 }
 
 async function recordReportPath({ coachingSessionId, row, reportVia, imageStrip = false, deps = {} } = {}) {
@@ -40,7 +47,13 @@ async function recordReportPath({ coachingSessionId, row, reportVia, imageStrip 
     if (PATHS.has(reportVia) && await hasColumn(supabase)) patch.report_via = reportVia;
     if (imageStrip) patch.image_strip = true;
     if (!Object.keys(patch).length) return false;
-    const { error } = await supabase.from(TABLE).update(patch).eq('coaching_session_id', sessionId);
+    let { error } = await supabase.from(TABLE).update(patch).eq('coaching_session_id', sessionId);
+    if (error && 'report_via' in patch && missingColumn(error)) {
+      probed = false; // red7 F1: the column is not there after all
+      delete patch.report_via;
+      if (!Object.keys(patch).length) return false;
+      ({ error } = await supabase.from(TABLE).update(patch).eq('coaching_session_id', sessionId));
+    }
     if (error) throw error;
     return true;
   } catch (err) {
