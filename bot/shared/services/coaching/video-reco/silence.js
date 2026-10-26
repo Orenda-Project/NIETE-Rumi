@@ -44,7 +44,9 @@ function levelsMoment(lines) {
 const LEVELS_NEAR = 2;
 // …and a card whose move is tiered work (the panel's 157-s3 rows: Q166 Q159) is a differentiation card whatever it is tagged
 const LEVELS_CARD = /تین (?:سطح|لیول)|دو سطحی|سطحی (?:کام|ٹاسک|task|worksheet)|\b(?:three|two)[- ]tier|\btiered\b|\beasy (?:and|or|\/) (?:a )?(?:hard|challenge)|\beasier\b.{0,30}\bharder\b|آسان (?:اور|یا) (?:ایک )?(?:مشکل|چیلنج)|آسان version|challenge version|\bscaffold\b.{0,60}\bstretch\b|\bsupport (?:and|\/) stretch|core\s*\/\s*challenge/iu;
-const levelsCard = (sentence) => LEVELS_CARD.test(String(sentence || ''));
+// R7o-b (panel v10 Z168: «open‑ended», «cold‑call» with U+2011): every dash a card is written with reads as a hyphen
+const dashed = (sentence) => String(sentence || '').replace(/[\u2010-\u2015\u2212]/g, '-');
+const levelsCard = (sentence) => LEVELS_CARD.test(dashed(sentence));
 
 /** The line at `i`, or one within two lines of it, shows children at different levels. */
 function levelsNear(lines, i) {
@@ -407,17 +409,17 @@ const assessMoment = (lines) => (lines || []).some((l) => ASSESS_MOMENT.test(Str
 
 // The card asks for a why/how or open question.
 const WHY_CARD = /کیوں|کیسے|\bwhy\b|\bhow\b|open[- ]ended|open questions?|کھلے سوال|کھلا سوال|اوپن اینڈ/iu;
-const whyCard = (sentence) => WHY_CARD.test(String(sentence || ''));
+const whyCard = (sentence) => WHY_CARD.test(dashed(sentence));
 // R7g (COS 002603 1c): …or wait time («5-7 سیکنڈ کا wait time», «Pause 8–10 seconds»); seconds of thinking alone are not
 // wait time (red7 G5: a think-pair-share card's «دس سیکنڈ سوچے»)
 const WAIT_CARD = /\bwait(?:s|ing)?\b|\bpause\b|انتظار|رکیں/iu;
 // R7l (COS 164428 §1c; panel v9 Z207): a correction card («name the exact error, give 5 seconds of wait time, then have them
 // repeat the corrected sentence») is a feedback card; its wait time is a step of the correction, not a why / wait card
 const CORRECTION_CARD = /\b(?:errors?|mistakes?|mix(?:es|ed)? up|correct(?:ed|ion|ions|s)?|wrong)\b|غلطی|غلطیاں|تصحیح|درست کر/iu;
-const correctionCard = (sentence) => CORRECTION_CARD.test(String(sentence || '')) && !whyCard(sentence);
-const whyWaitCard = (sentence) => whyCard(sentence) || (WAIT_CARD.test(String(sentence || '')) && !correctionCard(sentence));
+const correctionCard = (sentence) => CORRECTION_CARD.test(dashed(sentence)) && !whyCard(sentence);
+const whyWaitCard = (sentence) => whyCard(sentence) || (WAIT_CARD.test(dashed(sentence)) && !correctionCard(sentence));
 // R7f (panel Q102 Q127 Q139): the card names the open question itself, not only a why or a how somewhere in its steps
 const OPEN_CARD = /open[- ]ended|open questions?|کھلے سوال|کھلا سوال|اوپن اینڈ/iu;
-const openQuestionCard = (sentence) => OPEN_CARD.test(String(sentence || ''));
+const openQuestionCard = (sentence) => OPEN_CARD.test(dashed(sentence));
 
-module.exports = { levelsMoment, levelsNear, levelsCard, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, whyWaitCard, correctionCard, notLesson, groupMoment, assessMoment, cardRoutine, openQuestionCard, notTeaching, testPeriod, isClosure, earlyForClosure, closingCard, closingMove, reachesEnd, monologue, KID, LABEL_SUBJECTS };
+module.exports = { dashed, levelsMoment, levelsNear, levelsCard, labelOffSubject, imperative, childTurnNear, degenerate, routineLine, echoReading, closedAnswers, whyCard, whyWaitCard, correctionCard, notLesson, groupMoment, assessMoment, cardRoutine, openQuestionCard, notTeaching, testPeriod, isClosure, earlyForClosure, closingCard, closingMove, reachesEnd, monologue, KID, LABEL_SUBJECTS };
