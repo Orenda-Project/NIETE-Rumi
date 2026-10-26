@@ -5,9 +5,13 @@
  * ON, a manual run:
  *   - Jugnu says the coach line, then every question: each comprehension question, each tap item's question (the
  *     task's tap line), every practice model and practice feedback; a sum stays on its replay tile, as in auto;
- *   - the instruction stays the coach's (no intro clip, no "Begin" line);
- *   - the coach screen: "You say" (coach_text) apart from a folded "Jugnu asks" list, plus how the child answers;
- *   - on the child's screen nothing is labelled for the coach to read; the replay tile is back.
+ *   - the instruction stays the coach's (no intro clip); the ready line ("Now it is your turn… Ready? Begin") is the
+ *     app's, said once (C2, RULING R6-11 item 1);
+ *   - the coach screen (DESIGN §4.2): "You say" (coach_text_c, the coach's words with Jugnu named) apart from a folded
+ *     "Do not say these to the child — Jugnu asks them" list (with the ready line), how the child answers, and
+ *     "Jugnu speaks after you give the phone";
+ *   - on the child's screen nothing is shown for the coach (no folded preview); the replay tile is back;
+ *   - a sum is child-read: presentation 'child_read' on the task, replay_presses on each cell.
  * OFF: manual as round 5 (sa-w3-manual-mute.service.test.js).
  * DOM tests: NODE_PATH=../portal/node_modules (jsdom).
  */
@@ -55,12 +59,13 @@ maybe('sa-ui: RDF manual, the app asks the questions (sa_app_asks)', () => {
     const said = [];
     let t = 0;
     const clock = { now: () => t, add: (ms) => { t += ms; } };
-    const runner = core.createRunner({ battery, now: clock.now, mic: () => 'ok', one_at_a_time: true, manual: true });
+    const events = [];
+    const runner = core.createRunner({ battery, now: clock.now, mic: () => 'ok', one_at_a_time: true, manual: true, app_asks: asks !== false, onEvent: (e) => events.push(e) });
     const el = document.getElementById('m');
     const view = ui.mount(el, { runner, battery, lang, mode: 'proctored', manual: true, app_asks: asks !== false,
       speak: (x, a) => { said.push([x, a]); return Promise.resolve(); } });
     views.push(view);
-    return { runner, el, view, said, clock };
+    return { runner, el, view, said, clock, events };
   }
   async function walk(m) {
     const { runner, el, view, clock } = m;
@@ -110,7 +115,9 @@ maybe('sa-ui: RDF manual, the app asks the questions (sa_app_asks)', () => {
       const intro = t.instruction || (t.script && t.script.intro);
       if (intro) expect(said).not.toContain(words(intro, lang));
     }
-    if (t.script && t.script.begin) expect(said).not.toContain(words(t.script.begin, lang));
+    // the ready line is the app's, once (RULING R6-11 item 1)
+    if (t.script && t.script.begin) expect(said.filter((x) => x === words(t.script.begin, lang)).length).toBe(1);
+    if (t.script && t.script.test_intro) expect(said.filter((x) => x === words(t.script.test_intro, lang)).length).toBe(1);
   }, 60000);
 
   test.each(cases)('%s %s: the coach screen splits "You say" from a folded "Jugnu asks", and says how the child answers', async (f, id, lang) => {
@@ -118,26 +125,29 @@ maybe('sa-ui: RDF manual, the app asks the questions (sa_app_asks)', () => {
     const m = mount({ battery_id: 'b', tasks: [t] }, lang);
     m.runner.start(); m.view.render(); await flush();
     const brief = m.el.querySelector('.sae-coach-brief');
-    expect(brief.querySelector('.sae-coach-you .sae-coach-text').textContent).toBe(words(t.coach_text, lang));
+    expect(brief.querySelector('.sae-coach-yousay .sae-coach-text').textContent).toBe(words(t.coach_text_c, lang));
     expect(brief.textContent).not.toMatch(/Read each one out|ہر ایک سامنے آنے پر/);
-    expect(brief.querySelector('.sae-coach-by').textContent).toMatch(lang === 'ur' ? /^بچہ جواب دے گا: (بول کر|دبا کر|لکھ کر)$/ : /^The child answers by: (saying it aloud|tapping|typing)$/);
-    const asked = brief.querySelector('details.sae-coach-app');
-    const want = [...(t.practice || []).filter((p) => Array.isArray(p.model) || itemSaid(p)), ...t.items.filter(speaks)];
-    if (!want.length && !isTap(t)) { expect(asked).toBeNull(); return; }
+    expect(brief.querySelector('.sae-answers-by').textContent).toMatch(lang === 'ur' ? /^جواب ایسے دینا ہے: (بول کر|دبا کر|بٹن سے لکھ کر)$/ : /^The child answers by: (saying it aloud|tapping|typing on the buttons)$/);
+    expect(brief.querySelector('.sae-app-after').textContent).toBe(lang === 'ur' ? 'فون دینے کے بعد جگنو بولے گا۔' : 'Jugnu speaks after you give the phone.');
+    expect(brief.textContent).not.toMatch(/بچہ جواب دے گا|جگنو پوچھے گا — یہ آپ نہ پڑھیں/);
+    const asked = brief.querySelector('details.sae-coach-appasks');
+    expect(asked.querySelector('summary').textContent).toBe(lang === 'ur' ? 'یہ بچے کو نہ سنائیں — جگنو خود پوچھے گا:' : 'Do not say these to the child — Jugnu asks them:');
+    // the ready line is in the list (Jugnu says it; the coach does not)
+    if (t.script && t.script.begin) expect([...asked.querySelectorAll('li')].map((li) => li.textContent).join(' ')).toContain(words(t.script.begin, lang));
     expect(asked.open).toBe(false);
-    const listed = [...asked.querySelectorAll('li')].map((li) => li.textContent);
+    for (const li of asked.querySelectorAll('li')) expect(li.querySelector('.sae-li-say')).not.toBeNull();
+    const listed = [...asked.querySelectorAll('li')].map((li) => li.textContent.replace(/^🔊 /, ''));
     for (const it of t.items.filter(speaks)) expect(listed).toContain(itemSaid(it));
   });
 
-  test('a question screen: the question folded as "Jugnu asks" (never "Read this"), the replay tile is back', async () => {
+  test('a question screen: nothing shown for the coach (no folded preview), the replay tile is back', async () => {
     const t = alone('sa.coach.G3.A.en.json', 'en.story_comp_w3');
     const m = mount({ battery_id: 'b', tasks: [t] }, 'en');
     m.runner.start(); m.runner.instructionDone();
     while (m.runner.view().phase === 'practice') m.runner.practiceAnswer(m.runner.view().practice.target);
     m.runner.begin(); m.view.render(); await flush();
-    const q = m.el.querySelector('.sae-run-oral .sae-coach-says');
-    expect(q.tagName).toBe('DETAILS');
-    expect(q.textContent).not.toMatch(/Read this/);
+    expect(m.el.querySelector('.sae-run-oral .sae-coach-says')).toBeNull();
+    expect(m.el.querySelector('.sae-run-oral').textContent).not.toMatch(/Read this|Jugnu asks/);
     expect(m.el.querySelector('.sae-run-oral .sae-replay')).not.toBeNull();
   });
 
@@ -152,6 +162,40 @@ maybe('sa-ui: RDF manual, the app asks the questions (sa_app_asks)', () => {
     expect(m.said.map((x) => words(x[0]))).not.toContain(itemSaid(first));
     m.el.querySelector('.sae-replay').click(); await flush();
     expect(m.said.map((x) => words(x[0]))).toContain(itemSaid(first));
+    m.el.querySelector('.sae-replay').click(); await flush();
+    m.el.querySelector('.sa-next').click(); m.view.render(); await flush();
+    // R6-3: the sum is the child's to read; each cell counts its replay presses
+    const ev = m.events.filter((e) => e.type === 'cell_next').map((e) => e.value);
+    expect(ev[0].replay_presses).toBe(2);
+    while (m.runner.view().phase === 'running') { m.el.querySelector('.sa-next').click(); m.view.render(); await flush(); }
+    const r = m.runner.results ? m.runner.results().find((x) => x.task_id === t.id) : null;
+    expect(r && r.presentation).toBe('child_read');
+    expect(r.cells.map((c) => c.replay_presses)).toEqual([2, ...r.cells.slice(1).map(() => 0)]);
+  });
+
+  test('RDF auto with the switch ON also writes child_read and replay_presses; switch OFF writes neither', async () => {
+    for (const on of [true, false]) {
+      const t = alone('sa.coach.G3.A.en.json', 'ma.add2i');
+      const core = require('../sa/sa-core');
+      let ck = 0;
+      const runner = core.createRunner({ battery: { battery_id: 'b', tasks: [t] }, now: () => ck, mic: () => 'ok', one_at_a_time: true, app_asks: on });
+      runner.start(); runner.instructionDone();
+      while (runner.view().phase === 'practice') runner.practiceAnswer(runner.view().practice.target);
+      runner.begin(); runner.replayPressed(); ck += 10;
+      while (runner.view().phase === 'running') runner.nextCell('tap');
+      const r = runner.results().find((x) => x.task_id === t.id);
+      expect(r.presentation).toBe(on ? 'child_read' : undefined);
+      expect(r.cells[0].replay_presses).toBe(on ? 1 : undefined);
+    }
+  });
+
+  test('the coach-text for manual-C is served only with the switch ON', () => {
+    const b = form('sa.coach.G3.A.en.json');
+    expect(b.tasks.filter((x) => x.coach_text_c).length).toBeGreaterThan(0);
+    const off = applySwitches(b, { rdfW3Forms: true });
+    expect(off.tasks.filter((x) => x.coach_text_c).length).toBe(0);
+    const on = applySwitches(b, { rdfW3Forms: true, appAsks: true });
+    expect(on.tasks.filter((x) => x.coach_text_c).length).toBe(b.rdf_manual.length);
   });
 
   test('OFF: round 5 manual (the coach line only, the coach reads the items)', async () => {

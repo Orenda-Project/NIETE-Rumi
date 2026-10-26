@@ -267,6 +267,11 @@ button{font:inherit;color:inherit}
 .sae-coach-says{width:100%;max-width:520px;background:var(--sae-card);border:3px dashed var(--sae-line);border-radius:var(--sae-r);padding:8px 12px;text-align:start}
 .sae-coach-says summary{cursor:pointer;font-weight:700}
 .sae-coach-line{margin:4px 0 0;line-height:1.7}
+/* sa_app_asks (round 6, DESIGN_R6 §4.2): the coach brief's "do not say these" list, closed, a full-width 48-px row; its lines 16 px */
+.sae-coach-appasks{width:100%;max-width:520px;text-align:start}
+.sae-coach-appasks>summary{display:flex;align-items:center;min-height:48px;width:100%;cursor:pointer;font-weight:700}
+.sae-coach-appasks .sae-coach-items{font-size:16px;color:var(--sae-ink-2)}
+.sae-answers-by,.sae-app-after{font-weight:700}
 .sae-passage.is-printed{word-spacing:.35em;line-height:1.6}
 /* RULING W3-19: the official Urdu page's pitch (≈ 150 px on a ≈ 60 px glyph), so Nastaliq lines never collide */
 .sae-passage.is-printed[lang=ur]{word-spacing:.35em;line-height:2.45}
