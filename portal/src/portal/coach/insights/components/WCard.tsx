@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useLang } from "../../../teacher/i18n";
 import { CodeText, CountSpan, DateText, Num, StatSpan } from "../count";
 import { durButton } from "../format";
@@ -16,8 +16,29 @@ import { Card, Eyebrow, MetaLine } from "./Frame";
  * `total` is how many moves the page shows (1 or 2): it picks "Move 1 of 2" or "Move k of m". The phonics tile reuses
  * this card with its own `testId`. Codes and school names only, never a teacher's name.
  */
+/**
+ * CONVERGENCE §2's option (not a graft): "Listen m:ss" opens the clip IN PLACE on the card instead of going to S2. It
+ * ships only if the card with the player open stays above the 704 px fold at 390×844 in both languages (m-ui measures
+ * it with outputs/lanes/m-ui/measure/measure.py --expand). Open = the address carries `#listen`, so the phone's back
+ * gesture closes it; one player at a time (the page holds one card). Off: the button goes to S2's moment.
+ */
+export const LISTEN_IN_PLACE = false;
+
+/** The clip of the card's moment, through the authenticated stream route (B4), played on tap only. */
+function InPlaceClip({ momentId }: { momentId: string }) {
+  return (
+    <div data-testid="wcard-clip" dir="ltr" data-clock="">
+      <audio controls preload="none" src={`/api/portal/coachip/m/${encodeURIComponent(momentId)}/clip`} className="w-full">
+        <track kind="captions" />
+      </audio>
+    </div>
+  );
+}
+
 export function WCard({ card, total, testId = "wcard" }: { card: WCardData; total: number; testId?: string }) {
   const lang = useLang();
+  const { hash } = useLocation();
+  const open = LISTEN_IN_PLACE && hash === "#listen";
   const label = total === 2
     ? t(card.rank === 2 ? "s1.move_2" : "s1.move_1", lang)
     : t("s1.move_of", lang, { k: card.rank, m: Math.max(total, card.rank) });
@@ -67,11 +88,12 @@ export function WCard({ card, total, testId = "wcard" }: { card: WCardData; tota
         )}
         <div className="mt-1 flex flex-col gap-2.5">
           {card.moment_id && card.moment_duration_s != null && (
-            <Link data-testid={`${testId}-listen`} to={`${insightsPaths.w(card.w_id)}#moment`}
+            <Link data-testid={`${testId}-listen`} to={LISTEN_IN_PLACE ? "#listen" : `${insightsPaths.w(card.w_id)}#moment`}
               className={`${btn} border border-[#d1d5db] bg-white text-[#1d2025]`}>
               {tx("s1.listen", lang, { dur: <span data-clock="">{durButton(card.moment_duration_s, lang)}</span> })}
             </Link>
           )}
+          {open && card.moment_id && <InPlaceClip momentId={card.moment_id} />}
           <Link data-testid={`${testId}-see`} to={insightsPaths.w(card.w_id)} className={`${btn} bg-[#33374a] text-white`}>
             {t("s1.see_move", lang)}
           </Link>
