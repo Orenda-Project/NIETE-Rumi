@@ -197,6 +197,22 @@ EXTRA = {
     "    And the 8 feature tiles are shown",
     "    And no page error or 5xx happened",
     ""]),
+  # Remove class on Class detail (portal/src/portal/teacher/classes/ClassDetailPage.tsx): the class removed is one the
+  # scenario adds for her first, so the seeded classes the page scenarios need are never touched (see the flow).
+  'teacher-classes': ('../flows/teacher-classes-remove.cjs', [
+    "  @TK03",
+    "  Scenario: Teacher app v2: Remove class asks first; Keep leaves it, Remove takes it off My Classes",
+    "    Given the teacher app v2 is on and the coach app v2 is off",
+    "    And demo teacher 03000000911 is signed in",
+    "    And she has added a class she was not already on",
+    "    When she opens that class and taps \"Remove class\"",
+    "    Then a tray asks first, with \"Keep\" and \"Remove\"",
+    "    When she taps \"Keep\"",
+    "    Then the tray closes and the class is still on her list",
+    "    When she taps \"Remove class\" again and then \"Remove\"",
+    "    Then she is back on My Classes with one class fewer, and that class is not listed",
+    "    And no page error or 5xx happened",
+    ""]),
   'coach-portal': ('../flows/coach-disagreement.cjs', [
     "  @CP05",
     "  Scenario: Coach app v2: a teacher's disagreement opens as the card, and The teacher was right flags the report",

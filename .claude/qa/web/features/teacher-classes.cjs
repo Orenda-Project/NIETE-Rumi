@@ -9,5 +9,6 @@ const scenarios = [
   pagesScenario("TK01", "Teacher app v2: My Classes lists her class, and Attendance opens", "teacher", "teacherV2", [{ path: "/portal/teacher/classes", heading: /^Classes\s+[1-9]/ }, { path: "/portal/teacher/attendance", heading: /^Attendance$/ }]),
   pagesScenario("TK02", "Classic portal: My classes opens, and /portal/attendance lands on her analytics", "teacher", "classic", [{ path: "/portal/classes", heading: /^My classes$/ }, { path: "/portal/attendance", heading: /^Attendance/, settle: "/portal/coaching/analytics" }]),
 ];
+scenarios.push(...require("../flows/teacher-classes-remove.cjs"));
 
 module.exports = { feature: "teacher-classes", spec: 'tests/features/web/teacher-classes.feature', scenarios };
