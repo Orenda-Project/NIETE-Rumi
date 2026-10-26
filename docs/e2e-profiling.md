@@ -214,3 +214,30 @@ is not explained by the quiz offer's 240 s delay: setting `TRANSCRIPT_QUIZ_OFFER
 (tried, measured, reverted) left the stalls in place and blocked sixteen more coaching scenarios. The
 remaining time on the lane is the bot not producing what the walkers wait for — the 115 cassette misses are
 the first place to look (`--record-missing` with real vendor keys, a paid run).
+
+### Applied — the cassette library (recorded 2026-10-26, run `20261026-052226`)
+
+`--record-missing` against staging's vendor accounts recorded 104 LLM answers and 15 TTS clips (the
+first attempt recorded nothing: the lane composed placeholder keys in record-missing mode, fixed in
+bd-xeup1d; the second found the record file's OpenRouter key revoked). 228 cassette files committed.
+A sealed replay-strict run with the library, all seven features:
+
+| | driver sleep `c4acebd` | + cassettes `c73a668` |
+|---|---|---|
+| suite wall | 25 m 23 s | **23 m 9 s** |
+| coaching feature wall | 1494 s | 1203 s |
+| coaching 240 s "no progress" stalls | 4 | **0** |
+| vendor misses | 115 | 15 |
+| verdicts pass / fail / other | 162 / 24 / 89 | 157 / 28 / 90 |
+
+The step-2 stalls were the pipeline waiting for LLM answers that a strict miss had killed; with the
+answers recorded the pipeline completes. The 15 misses left (training T50/51/52/55/64/70/80 — the
+quiz-generation cluster — and coaching COA04/COA58) are prompts whose content changes every run, so
+their keys never repeat; they need the cassette key normaliser to mask that content, not more recording.
+
+Verdicts moved because scenarios now reach behaviour they could not before. Newly PASS: menu M09/M24/M25,
+coaching COA06/12/26/28/32. Newly FAIL or BLOCKED and not explained by the lane: coaching COA39/40/51 ("no
+coaching ask arrived after the sweep"), COA45/48/55 (empty or deferred ask), COA58/29/30 (report content),
+lesson-plan L11 (no store link when Lesson Plans are moved to the app), training T15 ("/teacher training"
+is treated as the training command; the spec says it must not be). These are product or spec questions
+for their owners, surfaced by a lane that now runs the real answers.
