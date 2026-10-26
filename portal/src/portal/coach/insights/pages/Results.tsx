@@ -1,4 +1,5 @@
 import { useLang } from "../../../teacher/i18n";
+import InsightsGate from "../InsightsGate";
 import { useLoad } from "../useLoad";
 import { coachip } from "../api";
 import { insightsPaths } from "../paths";
@@ -14,7 +15,16 @@ import type { Results as ResultsData } from "../types";
  * in the order sent, under the test window's meta line. Empty: before the first visit (`empty.status = "pending"`
  * with `detail.as_of`) the start date; otherwise "no reading check in your schools yet".
  */
+/** The read sits INSIDE the gate, so with portal_coachip off no /coachip/* request fires (B7; red-2 18:08Z). */
 export default function Results() {
+  return (
+    <InsightsGate>
+      <ResultsLoaded />
+    </InsightsGate>
+  );
+}
+
+function ResultsLoaded() {
   const lang = useLang();
   const { data, error } = useLoad<ResultsData>(() => coachip.results(), []);
   const asOf = data?.empty?.status === "pending" ? data.empty.detail.as_of : null;

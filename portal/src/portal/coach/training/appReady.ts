@@ -22,7 +22,7 @@ export const COACH_TRAINING_BASE = "/portal/coach/training";
 /**
  * bd-sex15q.15 — COACHIP, the coach insight screens ("This week" and the pages under it). Never in COACH_APP_READY: a
  * coach gets it only with portal_coachip on (coachReadyFor below), and then it is first, so "This week" is home
- * (ruling 06:11Z). Training and Lesson Plans stay reachable, from More.
+ * (the lead's decision). Training and Lesson Plans stay reachable, from More.
  */
 export const COACH_INSIGHTS_BASE = "/portal/coach/insights";
 

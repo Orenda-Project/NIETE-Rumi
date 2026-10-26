@@ -127,6 +127,29 @@ describe.each(LANGS)("S2 Weakness (%s)", (lang) => {
     expect(container.innerHTML).toMatchSnapshot();
   }, 30000);
 
+  // bd-sex15q.19 (COS 16:44Z): R3 picks the moment (the card's lesson) and the step's code (where-first school, most hits,
+  // no open step) independently, so they can be two teachers. When they are, the step card says so under its eyebrow;
+  // when they are the same code, it says nothing extra.
+  it("step for another code than the moment's: the card says it is a different teacher", async () => {
+    const d = F[`w_${W}`];
+    expect(d.moment.code.code).not.toBe(d.step_card.code.code); // the fixture's own pairing (T-07 moment, T-12 step)
+    serve({ [`/coachip/w/${W}`]: d });
+    const { container } = await renderAt(`/w/${W}`);
+    const other = screen.getByTestId("step-other");
+    expect(screen.getByTestId("step-card").contains(other)).toBe(true);
+    expect(other.textContent).toBe(COPY["s2.step.other"][lang]);
+    expectContract(container, expect);
+  }, 30000);
+
+  it("step for the moment's own code: no different-teacher line", async () => {
+    const d = clone(F[`w_${W}`]);
+    d.step_card.code = d.moment.code;
+    serve({ [`/coachip/w/${W}`]: d });
+    await renderAt(`/w/${W}`);
+    expect(screen.getByTestId("step-card")).toBeTruthy();
+    expect(screen.queryByTestId("step-other")).toBeNull();
+  }, 30000);
+
   it("no step card when step_card is null", async () => {
     const d = clone(F[`w_${W}`]);
     d.step_card = null;

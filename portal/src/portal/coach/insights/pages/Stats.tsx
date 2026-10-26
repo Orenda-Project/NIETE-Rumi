@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useLang } from "../../../teacher/i18n";
+import InsightsGate from "../InsightsGate";
 import { useLoad } from "../useLoad";
 import { coachip } from "../api";
 import { insightsPaths } from "../paths";
@@ -23,7 +24,16 @@ import type { Stats as StatsData } from "../types";
  * Then coverage, the AI coach report's panel on its own (fico) window, recordings per week as a sparkline, and the
  * way to Results. Rows, panel rows and weeks keep the payload's order.
  */
+/** The read sits INSIDE the gate, so with portal_coachip off no /coachip/* request fires (B7; red-2 18:08Z). */
 export default function Stats() {
+  return (
+    <InsightsGate>
+      <StatsLoaded />
+    </InsightsGate>
+  );
+}
+
+function StatsLoaded() {
   const lang = useLang();
   const { data, error } = useLoad<StatsData>(() => coachip.stats(), []);
   const sep = lang === "ur" ? "، " : " · ";

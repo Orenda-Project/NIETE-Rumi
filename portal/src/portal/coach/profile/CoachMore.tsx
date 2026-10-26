@@ -28,7 +28,7 @@ export default function CoachMore() {
   const counts = useCoachCounts();
   const assess = useChildTestSa() === true;
   // bd-sex15q.15 — with COACHIP on, the menu is This week · Schools · Listen · Stats · More, so the Training Library and
-  // Lesson Plans move here (ruling 06:11Z: training stays one tap away). Off: nothing changes on this page.
+  // Lesson Plans move here (the lead's decision: training stays one tap away). Off: nothing changes on this page.
   const coachip = useCoachip(user?.phoneNumber || null) === true;
   const name = fullName(user);
   const phone = formatPhone(user?.phoneNumber);

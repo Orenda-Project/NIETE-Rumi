@@ -56,6 +56,11 @@ export default function StepCard({ detail }: { detail: WDetail }) {
     <section data-testid="step-card" className="flex flex-col gap-2 rounded-2xl border-2 border-[#33374a] bg-white px-4 py-3.5">
       <p className="text-[11.5px] font-bold uppercase tracking-[0.08em] text-[#6b7280] rtl:tracking-normal">
         {tx("s2.step.eyebrow", lang, { code: codeNode })}
+        {/* R3 picks the moment and the step's code independently: when they are two teachers, the eyebrow says so, on
+            its own line's spare width so the card still ends above the fold */}
+        {detail.moment && detail.moment.code.code_id !== code.code_id && (
+          <>{lang === "ur" ? "، " : " · "}<span data-testid="step-other">{t("s2.step.other", lang)}</span></>
+        )}
       </p>
       {/* the teacher's one step is the card's headline; the intervention's title is on S5, one tap away ("Full step"),
           so the card ends above the 704 px fold (G1, B v2) */}

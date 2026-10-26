@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useLang, type Lang } from "../../../teacher/i18n";
+import InsightsGate from "../InsightsGate";
 import { useLoad } from "../useLoad";
 import { coachip } from "../api";
 import { insightsPaths } from "../paths";
@@ -61,7 +62,16 @@ function CheckRule({ data, lang }: { data: MoveDetail; lang: Lang }) {
   );
 }
 
+/** The read sits INSIDE the gate, so with portal_coachip off no /coachip/* request fires (B7; red-2 18:08Z). */
 export default function Move() {
+  return (
+    <InsightsGate>
+      <MoveLoaded />
+    </InsightsGate>
+  );
+}
+
+function MoveLoaded() {
   const { wId = "" } = useParams();
   const [params] = useSearchParams();
   const school = params.get("school");
