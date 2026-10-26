@@ -21,3 +21,16 @@ Feature: Teacher classes and attendance
     Then My classes opens
     When she opens /portal/attendance
     Then /portal/attendance settles on /portal/coaching/analytics, with Attendance
+
+  @TK03
+  Scenario: Teacher app v2: Remove class asks first; Keep leaves it, Remove takes it off My Classes
+    Given the teacher app v2 is on and the coach app v2 is off
+    And demo teacher 03000000911 is signed in
+    And she has added a class she was not already on
+    When she opens that class and taps "Remove class"
+    Then a tray asks first, with "Keep" and "Remove"
+    When she taps "Keep"
+    Then the tray closes and the class is still on her list
+    When she taps "Remove class" again and then "Remove"
+    Then she is back on My Classes with one class fewer, and that class is not listed
+    And no page error or 5xx happened
