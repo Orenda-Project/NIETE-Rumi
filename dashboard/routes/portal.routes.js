@@ -4065,6 +4065,32 @@ router.delete('/classes/:classId/students/:studentId', requirePortalAuth, async 
 });
 
 /**
+ * DELETE /api/portal/classes/:classId — take a class off her list.
+ *
+ * The bot decides what that means (retire a class that is hers alone and empty, otherwise
+ * take her off it), so a colleague's class or a roster is never removed from under them.
+ * `removed:false` (she was not on it — a second tap, a stale page) is still a success.
+ */
+router.delete('/classes/:classId', requirePortalAuth, async (req, res) => {
+  const userId = req.session.portalUserId;
+  try {
+    const botRes = await callBotInternal('/api/internal/classes/remove', {
+      userId, classId: req.params.classId,
+    });
+    const data = botRes.data || {};
+    if (data.success) return res.json({ success: true, removed: Boolean(data.removed), how: data.how || null });
+    console.error('portal/classes/:id remove failed', { status: botRes.status, data });
+    return res.status(502).json({ success: false, error: 'Could not remove the class. Please try again.' });
+  } catch (error) {
+    if (error.code === 'not_configured') {
+      return res.status(503).json({ success: false, error: 'Classes are temporarily unavailable.' });
+    }
+    console.error('portal/classes/:id remove error:', error.message);
+    return res.status(502).json({ success: false, error: 'Could not remove the class. Please try again.' });
+  }
+});
+
+/**
  * GET  /api/portal/training/level/:id/certificate   — is it claimable, and is one held?
  * POST /api/portal/training/level/:id/certificate   — claim it.
  *

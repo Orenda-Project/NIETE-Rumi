@@ -37,6 +37,7 @@ export const CLASSES_V2_COPY = {
   remove: 'Remove',
   removeNamed: (name: string) => `Remove ${name}`,
   removeStudent: 'Remove student',
+  removeClass: 'Remove class',
   keep: 'Keep',
   close: 'Close',
   /* Add a class */
@@ -82,6 +83,7 @@ export const CLASSES_V2_COPY_UR: ClassesCopy = {
   remove: 'ہٹائیں',
   removeNamed: (name: string) => `${name} کو ہٹائیں`,
   removeStudent: 'طالب علم ہٹائیں',
+  removeClass: 'کلاس ہٹائیں',
   keep: 'رہنے دیں',
   close: 'بند کریں',
   classField: 'کلاس',
