@@ -211,7 +211,7 @@ run('coachip coach read routes R2 R3 R4 R9 (Postgres, HTTP)', () => {
    * opts.phonics: 'testing' | 'paused' | null.
    */
   async function world(opts = {}) {
-    const { mode = 'ok', insufficient = false, phonics = 'testing' } = opts;
+    const { mode = 'ok', insufficient = false, phonics = 'testing', codeSeries = false } = opts;
     const q = pg.query;
     await seed.user(q, { id: C3, role: 'coach' });
     await seed.user(q, { id: CB, role: 'coach' });
@@ -334,6 +334,11 @@ run('coachip coach read routes R2 R3 R4 R9 (Postgres, HTTP)', () => {
       await I.rollup(q, { ...base, wId: 'W-IP', n: 8, d: 20, teacherCount: 9 });
       await I.rollup(q, { ...base, wId: 'W-WARM', n: 2, d: 12, status: 'insufficient', teacherCount: 5 });
     }
+    // the nightly's computed series (FICO_CROSSWALK §2, source `code`): W-IP-HOME is stored with framework_version 'code'
+    if (codeSeries) {
+      await I.rollup(q, { ...base, wId: 'W-IP-HOME', n: 2, d: 20, teacherCount: 9, framework: 'code' });
+      await I.rollup(q, { schoolId: SCH(3), wId: 'W-IP-HOME', n: 1, d: 8, jobRunId: run, from, computedAt, framework: 'code' });
+    }
     // school rollups (rank 1 = the school's top W)
     const sch = (s, wId, n, d, rank = null) => I.rollup(q, { schoolId: SCH(s), wId, n, d, rank, jobRunId: run, from, computedAt });
     await sch(3, 'W-IP-TIME', 3, 8, 1);
@@ -447,6 +452,26 @@ run('coachip coach read routes R2 R3 R4 R9 (Postgres, HTTP)', () => {
       expect(b.method).toEqual({ hysteresis_applied: false, query_id: 'q-coachip-home-v1' });
       expect(b.windows.map((w) => w.id)).toEqual(['w4-2026-09-28']);
       expect(new Date(b.computed_at).toISOString()).toBe('2026-10-25T21:40:00.000Z');
+    });
+
+    test("a `code` series row (W-IP-HOME, framework_version 'code') is windowed as lp_fidelity, never a 500", async () => {
+      await world({ codeSeries: true });
+      const b = await ok(C3, '/home');
+      expect(b.window.id).toBe('w4-2026-09-28');
+      expect(b.moves.map((m) => m.w_id)).toEqual(['W-IP-TIME', 'W-EXIT-NOPLAN']);
+      for (const w of b.windows) expect(w).toMatchObject({ framework: 'lp_fidelity', scoring_changed_on: '2026-09-28' });
+      expect(b.windows.map((w) => w.id)).toEqual(['w4-2026-09-28']);
+      const w = await ok(C3, '/w/W-IP-HOME');
+      checkWindow(w.card.window);
+      expect(w.card.window).toMatchObject({ id: 'w4-2026-09-28', framework: 'lp_fidelity', grader: 'google/gemini-3.8-flash' });
+      expect(w.card.count).toEqual({ n: 2, d: 20, window_id: 'w4-2026-09-28' });
+      await ok(C3, '/schools');
+      await ok(C3, '/i/W-IP-HOME');
+      // the reads that pick their series by family (stats, moments, results) never meet a 'code' row as a grader
+      for (const p of ['/stats', '/moments', '/results']) {
+        const r = await ok(C3, p);   // eslint-disable-line no-await-in-loop
+        for (const win of r.windows) expect(win.framework).not.toBe('code');
+      }
     });
 
     test('coach B sees only coach B: its own card and moment, never C-03 numbers', async () => {

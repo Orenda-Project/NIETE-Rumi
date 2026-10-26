@@ -60,7 +60,10 @@ const COPY = {
 };
 
 // ── small pure helpers ──────────────────────────────────────────────────────────────────────────────────────────
-const frameworkOf = (fv) => String(fv).split(':')[0];
+// `code` (FICO_CROSSWALK §2: W-IP-HOME's sent_home, the cause split) is computed from lp_fidelity facts, so it is windowed,
+// labelled and versioned as lp_fidelity (windows.js seriesStartFor does the same); it is not a grader of its own.
+const SERIES_FRAMEWORK = { code: 'lp_fidelity' };
+const frameworkOf = (fv) => { const f = String(fv).split(':')[0]; return SERIES_FRAMEWORK[f] || f; };
 const KARACHI_DAY = "((f.recorded_at AT TIME ZONE 'Asia/Karachi')::date)";
 const oldest = (dates) => dates.filter(Boolean).map((d) => new Date(d)).sort((a, b) => a - b)[0] || null;
 const fmtStat = (v) => { const r = Math.round(Number(v) * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
