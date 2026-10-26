@@ -56,6 +56,9 @@
  * Coach-led (opts.manual, RDF manual): nothing moves on by itself; session_start says admin_mode 'manual'.
  * Next only (opts.cell_next_only, switch sa_cell_next_only, round 5): an Urdu or English letter/word cell never moves on
  * by itself, in any mode (it wins over cell_pace); only Next does. The task's clock still runs; no silence stop for it.
+ * Nudge (opts.cell_nudge, switch sa_cell_nudge, round 6, R6-9): such a cell with no voice and no press for 5 s (from its
+ * showing, or from the last voice heard) is nudged: tick() answers 'nudge' (Jugnu says "Please go on"), then
+ * 'nudge_pulse' every further 5 s (silent). Nothing is marked; the cell's event keeps nudges: [t_ms since task start].
  *
  * UMD: window.SAE.core in the browser, module.exports under Node.
  */
@@ -89,6 +92,7 @@
   var FLUENCY_ITEM_S = 5;
   var CELL_PACE_FLOOR_S = 5; // sa_cell_pace: no item moves on by itself before 5 s on screen
   var CELL_PACE_CAP_S = 10; // sa_cell_pace: and every item moves on by itself at 10 s on screen, whatever the sound
+  var CELL_NUDGE_S = 5; // sa_cell_nudge: "Please go on" after 5 s with no voice and no press (EGRA)
   var COMP_ALL_MIN_WORDS = 10; // RWP May 2026 rdcomp_*: asked when 10+ words were attempted (2,233/2,233 rows)
 
   function str(x) { return typeof x === 'string' && x.length > 0; }
@@ -233,6 +237,7 @@
     var compAll = !!opts.comp_all_questions;
     var cellPace = !!opts.cell_pace;
     var cellNextOnly = !!opts.cell_next_only;
+    var cellNudge = !!opts.cell_nudge;
     var sectionRec = !!opts.section_recording;
 
     /** sa_cell_next_only: an Urdu or English letter/word cell moves on only on Next (maths cells keep their pace). */
@@ -259,6 +264,7 @@
       var e = { i: c.i, at_ms: Math.round(c.at - st.started), ms: Math.round(now() - c.at), how: how };
       var it = task().items[c.i];
       if (it && it.id) e = { i: c.i, item_id: it.id, at_ms: e.at_ms, ms: e.ms, how: how };
+      if (cellNudge && holdsCell(task())) e.nudges = (c.nudges || []).slice();
       st.cells.push(e);
       st.last_item_index = c.i;
       st.cell = null;
@@ -621,6 +627,15 @@
           if (t.mode === 'record') { st.time_up = true; st.used_at_stop = now(); ev('reading_done', { task_id: t.id, value: 'time_up' }); st.phase = t.items.length ? 'last_word' : st.phase; if (!t.items.length) finish(STOP.TIME_UP); return null; }
           finish(STOP.TIME_UP);
           return null;
+        }
+        if (st.cell && cellNudge && holdsCell(t)) {
+          // R6-9: 5 s with no voice and no press since the cell showed, the voice stopped or the last nudge.
+          var c = st.cell;
+          var since = Math.max(c.at, c.voice_at != null ? c.voice_at : c.at, c.nudge_at != null ? c.nudge_at : c.at);
+          if (now() - since < CELL_NUDGE_S * 1000) return null;
+          c.nudge_at = now();
+          (c.nudges = c.nudges || []).push(Math.round(now() - st.started));
+          return c.nudges.length === 1 ? 'nudge' : 'nudge_pulse';
         }
         if (st.cell) {
           var auto = t.cell_auto_s;

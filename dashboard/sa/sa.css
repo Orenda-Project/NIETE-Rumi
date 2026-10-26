@@ -326,3 +326,9 @@ button{font:inherit;color:inherit}
 .is-ur-fit .sae-opt.is-glyph[lang=ur] .sae-cap,.is-ur-fit[lang=ur] .sae-opt.is-glyph .sae-cap{line-height:2;padding-top:1.3em;padding-bottom:.4em}
 .is-ur-fit .sae-opt.is-glyph[lang=ur],.is-ur-fit[lang=ur] .sae-opt.is-glyph{gap:0}
 .is-ur-fit .sae-label[lang=ur]{font-family:var(--sae-fu);font-weight:400;font-size:24px;letter-spacing:0;direction:rtl;line-height:3;padding-top:.78em}
+
+/* Round 6, R6-9 (sa_cell_nudge): Next pulses when a letter/word cell waits; 12-px spread (fits the 16-px gutter at
+   320), 1.2 s, 4 cycles, then a steady 4-px ring. Reduced motion: a 4-px ink outline. */
+.sae-primary.sae-pulse{box-shadow:0 6px 0 var(--sae-accent-d),0 0 0 4px rgba(242,165,22,.55);animation:sae-nudge-pulse 1.2s ease-out 4}
+@keyframes sae-nudge-pulse{0%{box-shadow:0 6px 0 var(--sae-accent-d),0 0 0 0 rgba(242,165,22,.55)}100%{box-shadow:0 6px 0 var(--sae-accent-d),0 0 0 12px rgba(242,165,22,0)}}
+@media (prefers-reduced-motion:reduce){.sae-primary.sae-pulse{animation:none!important;outline:4px solid var(--sae-ink);outline-offset:4px}}

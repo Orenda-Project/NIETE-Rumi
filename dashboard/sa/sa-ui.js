@@ -44,6 +44,10 @@
  *                       question (the task's own tap line, which carries no per-item words), the practice models and the
  *                       practice feedback, the star line and "Stop" at time-up. The coach screen splits "You say" from
  *                       "Jugnu asks" (folded, not for reading out) and says how the child answers.
+ *   cell_nudge          (round 6, R6-9, with the runner's cell_next_only) a letter/word cell with no voice and no press for
+ *                       5 s: Jugnu says lines.please_go_on (in a coach-led run too) and Next pulses; every further 5 s
+ *                       Next pulses again, silently. The voice is heard on micLevel: floor = median of the first second
+ *                       of the task's cells, threshold max(0.05, floor × 2.5 + 0.02), heard = 3 frames above it.
  *   passage_punct       the passage's words are the whitespace tokens of passage.text (its «۔ ، ؟» and ". , ?"),
  *                       one per item, a multi-word item spanning its tokens; scoring and the last word are unchanged.
  *                       A text that does not line up with the items falls back to the items' words.
@@ -343,6 +347,7 @@
     var coachLW = !!opts.coach_last_word && mode === 'proctored' && !childLW;
     var lw = null; // { task, state: pending | ready | none, suggested, picked }
     var punct = !!opts.passage_punct;
+    var cellNudge = !!opts.cell_nudge; // sa_cell_nudge (round 6, R6-9)
     var urFit = !!opts.ur_fit; // sa_ur_fit (round 6): an Urdu sentence on a demo card is marked Urdu, so it takes the Urdu rules
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
@@ -1623,7 +1628,49 @@
       el.setAttribute('data-task-mode', v.task ? v.task.mode : '');
       if (entered) { lastKey = key; enter(v); }
       loop(v.phase === 'running' && !listening && !refused);
+      if (cellNudge || ear) nudgeEar(v);
       try { if (opts.onState) opts.onState(v); } catch (e) { /* the page's hook never stops the test */ }
+    }
+
+    // ---------- sa_cell_nudge: the ear on a letter/word cell, and the pulse on Next ----------
+    var NUDGE_FLOOR_FRAMES = 10; // the first second, at the meter's 100-ms cadence
+    var ear = null; // { task, stop, floor: [levels], thr, run }
+    function median(a) { var s = a.slice().sort(function (x, y) { return x - y; }); var m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+    function earStop() {
+      if (ear && typeof ear.stop === 'function') { try { ear.stop(); } catch (e) { /* page */ } }
+      ear = null;
+    }
+    /** One ear per task while its cells show: armed when the first cell shows; heard = 3 frames above the threshold. */
+    function nudgeEar(v) {
+      var want = cellNudge && alive && !refused && v.phase === 'running' && v.cell != null && typeof opts.micLevel === 'function' &&
+        !!runner.holdsCell && runner.holdsCell();
+      var id = want ? v.task.id : null;
+      if (ear && ear.task === id) return;
+      earStop();
+      if (!want) return;
+      var e = ear = { task: id, stop: null, floor: [], thr: null, run: 0 };
+      try {
+        e.stop = opts.micLevel(function (level) {
+          if (!alive || ear !== e) return;
+          var l = Math.max(0, Math.min(1, +level || 0));
+          if (e.thr == null) {
+            e.floor.push(l);
+            if (e.floor.length >= NUDGE_FLOOR_FRAMES) e.thr = Math.max(0.05, median(e.floor) * 2.5 + 0.02);
+            return;
+          }
+          e.run = l > e.thr ? e.run + 1 : 0;
+          if (e.run >= 3) runner.voice();
+        });
+      } catch (err) { e.stop = null; }
+    }
+    /** Next pulses (again): 4 cycles, then a steady ring (sa.css .sae-pulse). */
+    function pulseNext() {
+      var b = el.querySelector('.sae-run-cell .sa-next');
+      if (!b) return;
+      b.setAttribute('data-nudges', String((parseInt(b.getAttribute('data-nudges'), 10) || 0) + 1));
+      b.classList.remove('sae-pulse');
+      void b.offsetWidth; // restart the animation
+      b.classList.add('sae-pulse');
     }
 
     // ---------- the clock loop (running only) ----------
@@ -1632,6 +1679,8 @@
       var r = runner.tick();
       var v = runner.view();
       if (r === 'go_on') say(copyLine('please_go_on'));
+      if (r === 'nudge') say(copyLine('please_go_on'), undefined, true);
+      if (r === 'nudge' || r === 'nudge_pulse') pulseNext();
       if (keyOf(v) !== lastKey) { draw(); return; }
       if (r === 'replay' && v.item && v.task.say_on !== 'replay') sayItem(v.item, v.task);
       if (!!v.offer_next !== shownOffer) { draw(); return; }
@@ -1702,6 +1751,7 @@
       },
       destroy: function () {
         stopMeter();
+        earStop();
         alive = false;
         loop(false);
         timers.forEach(clearTimeout);

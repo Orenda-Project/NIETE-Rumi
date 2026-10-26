@@ -142,7 +142,8 @@
         runner = core.createRunner({ battery: battery, now: now, session_id: sessionId, resume: resume, onEvent: onEvent, audio_check: !resume && opts.audio_check !== false, warmup: !resume && opts.warmup !== false,
           dev_tools: devTools, mic: deps.micState || micState, mic_check: mode === 'game', oral_practice: opts.oral_practice !== false, keypad_warmup: opts.keypad_warmup !== false,
           one_at_a_time: w3.one_at_a_time === true, manual: manual, comp_all_questions: w3.comp_all_questions === true,
-          cell_pace: w3.cell_pace === true, section_recording: w3.section_recording === true, cell_next_only: w3.cell_next_only === true });
+          cell_pace: w3.cell_pace === true, section_recording: w3.section_recording === true, cell_next_only: w3.cell_next_only === true,
+          cell_nudge: w3.cell_nudge === true });
         var voice = voiceMod.create({ lang: lang, base: opts.audio_base || '/', muted: false, onSpeak: function (s) { fire('audio', s); }, onSilent: function (s) { fire('silent', s); } });
         if (syncMod && opts.sink) {
           sync = syncMod.create({ store: store, sink: opts.sink, session_id: sessionId, onStatus: function (s) { fire('sync', s); } });
@@ -249,6 +250,7 @@
           coach_last_word: w3.coach_last_word === true, lastWordHint: lastWordHint, auto_child_last_word: w3.auto_child_last_word === true,
           app_asks: manual && w3.app_asks === true,
           ur_fit: w3.ur_fit === true,
+          cell_nudge: w3.cell_nudge === true,
           embed: opts.embed === true,
         });
         if (sync && view && view.setSync) hooks.sync = [function (st) { view.setSync(st); }];
