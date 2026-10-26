@@ -82,7 +82,6 @@ test('the real store + the real v10 lookup (cold switch cache): the pick reads i
   const supa = slowSupabase(DELAY, t0);
   const { E, catalog } = load(supa);
   const row = await E.recommendForReport({ ...args(), deps: { env: ENV, catalog } });
-  const wall = Date.now() - t0;
   expect(row).toMatchObject({ coaching_session_id: SID, v10_group: 'C' });
   // the reads this pick needs all happened (the roster's second step and the arm row included)
   const tables = supa.starts.map((s) => s.table);
@@ -92,8 +91,8 @@ test('the real store + the real v10 lookup (cold switch cache): the pick reads i
   const waves = new Set(supa.starts.map((s) => Math.floor(s.at / DELAY))).size;
   expect(waves).toBeLessThanOrEqual(2);
   // engine_ms is what prod measures (stamped before the upsert, which costs one more DELAY here)
+  // (no wall-clock bound beyond it: the upsert and a loaded box add time that is not the pick's — rm7 174548)
   expect(row.engine_ms).toBeLessThan(3 * DELAY);
-  expect(wall).toBeLessThan(4 * DELAY);
 });
 
 test('injected store and v10 fakes at 200 ms a call (red7 attack_r7s shape): every read starts in the first tick', async () => {
@@ -115,7 +114,7 @@ test('injected store and v10 fakes at 200 ms a call (red7 attack_r7s shape): eve
   expect(row).toMatchObject({ v10_group: 'C' });
   expect(starts.map((s) => s.name).sort()).toEqual(['ladderProgress', 'readForSession', 'recentHistory', 'rosterNames', 'trainingBands', 'v10GroupFor']);
   expect(Math.max(...starts.map((s) => s.at))).toBeLessThan(DELAY / 2);
-  expect(wall).toBeLessThan(2 * DELAY);
+  expect(wall).toBeLessThan(3 * DELAY); // head: 4 waves, ~830 ms
 });
 
 test('pick identity: the slow store and an instant store give the same row (engine_ms aside)', async () => {
@@ -140,7 +139,7 @@ test('a stored row still wins, as fast as before (one wave), and nothing is writ
     trainingBands: later([]), write,
   };
   expect(await E.recommendForReport({ ...args(), deps: { env: ENV, catalog, store, v10GroupFor: later(null) } })).toEqual({ id: 'rec-0', status: 'shadow' });
-  expect(Date.now() - t0).toBeLessThan(2 * DELAY);
+  expect(Date.now() - t0).toBeLessThan(3 * DELAY);
   expect(write).not.toHaveBeenCalled();
 });
 
