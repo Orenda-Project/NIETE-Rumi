@@ -37,3 +37,11 @@ Feature: School leader (principal) portal
     And demo principal 03000000902 is signed in
     When she opens /portal/leader/child-test
     Then the child test page opens: "بچوں کا ٹیسٹ"
+
+  @LP05
+  Scenario: Learning assessment: the school search matches a school's EMIS and sector, and each row shows them
+    Given the coach app v2 is on and Learning assessment is on for the signed-in coach, with every grade on
+    When they open /portal/leader/assess
+    Then each school row shows its sector and EMIS under the name, when the school has them
+    When they type an EMIS number into "Find a school"
+    Then only that school stays in the list and the count reads "1 of <total>"

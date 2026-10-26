@@ -524,4 +524,15 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
     try { await api.setUser({ preferred_language: me.preferred_language, region: me.region }); } catch (_) {}
     blockRest('not reached: an earlier step stopped the run');
   }
+
+  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
+  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('CT98', 'A user on sa_any_school sees every live school with its EMIS and sector, and opens today\'s list at one they are not linked to', 'BLOCKED',
+      { reason: 'coach app (portal) path, not WhatsApp: driven in a real browser on sandbox/staging; unit: bot/tests/child-test/sa-any-school.test.js' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('CT99', 'Without sa_any_school, or at a test or closed school, nothing changes', 'BLOCKED',
+      { reason: 'coach app (portal) path, not WhatsApp: driven in a real browser on sandbox/staging; unit: bot/tests/child-test/sa-any-school.test.js' }, 0);
+
 };
