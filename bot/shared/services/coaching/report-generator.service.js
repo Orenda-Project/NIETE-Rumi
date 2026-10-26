@@ -475,6 +475,13 @@ class ReportGeneratorService {
       let voiceStepAnnounced = false;
       let followUps = true;
       let videoClipAfter = false; // bd-gzfdu9: the clip goes last, only after a report that arrived in an open window
+      // bd-gzfdu9 R7p-b (COS 20261026T044621): how the report went, on the session's recommendation row (every status),
+      // after it went. Not awaited: it waits for the engine's row, and the follow-ups never wait for that.
+      const recordReportPath = (via) => {
+        require('./video-reco/report-via').recordReportPath({
+          coachingSessionId, row: videoReco, reportVia: via, imageStrip: via !== 'pdf' && Boolean(videoStrip),
+        }).catch(() => null);
+      };
       if (isHeroImage) {
         const { caption, fitted, overflow } = this._composeHeroCaption(reportResult.caption || '', extraLines);
         for (const line of overflow) {
@@ -496,6 +503,7 @@ class ReportGeneratorService {
           throw error;
         }
         if (heroSent !== false) await track.record('image', true);
+        if (heroSent !== false) recordReportPath(heroSent === 'template' ? 'template' : (reportResult.slimPng ? 'slim' : 'image'));
         // bd-v0toag.106 — window closed: the report went as the share template; the free-form follow-ups would be refused.
         followUps = require('./report-window-send').followUpsAllowed(heroSent);
         // v10 coaching test (bd-v0toag.19): C and D get the link to their report page. Off or
@@ -513,6 +521,7 @@ class ReportGeneratorService {
           if (line.key !== 'step5') await WhatsAppService.sendMessage(from, line.text);
         }
         await this.sendPDFReport(from, coachingSessionId, reportResult, session.users.name, session.created_at);
+        recordReportPath('pdf');
         ReportEvents.reportSent({ userId: session.user_id, sessionId: coachingSessionId, format: reportFormat });
       }
 

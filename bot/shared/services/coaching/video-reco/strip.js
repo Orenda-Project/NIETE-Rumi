@@ -107,7 +107,8 @@ function stripHtml(vs, { language, T, width = 794 }) {
   const ur = copy.dirOf(l) === 'rtl';
   const n = copy.minutesOf(vs.durationS);
   const title = copy.word('videoRecoStripTitle', l, { title: vs.title || '' });
-  const hint = copy.word(vs.where === 'app' ? 'videoRecoStripHintApp' : 'videoRecoStripHint', l, { n: copy.num(n, l) });
+  // red7 N1 (051537): only an explicit 'next' promises the next message; anything else is the app hint, true on every path
+  const hint = copy.word(vs.where === 'next' ? 'videoRecoStripHint' : 'videoRecoStripHintApp', l, { n: copy.num(n, l) });
   const b64 = thumbData(vs.thumbPath);
   const side = width >= 700 ? '42px' : '0';
   const cover = b64 ? `background:#1f2433 url(data:image/jpeg;base64,${b64}) center/cover no-repeat` : 'background:linear-gradient(135deg,#333748,#47BA7D)';
