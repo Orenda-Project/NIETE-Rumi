@@ -279,3 +279,21 @@ the stall budget. `isReportRow` now treats an image/PDF row as the report once a
 filter applies to text rows only. Verification run `20261026-1616-par`: COA04/05/07/15 PASS, coaching's
 first shard 511 → 452 s, suite 169 pass / 28 fail / 86 other, wall 13 m 13 s (the ceiling is now
 training's class-quiz shard at 779 s).
+
+### Applied (bd-0vaqcg) — the 31 s app-setting settles
+
+The largest harness wait left after sharding: 18 settles of 31 s (558 s) in `20261026-1616-par`, one after
+every switch the drivers flip, because each of the bot's switch caches expires in 30 s and only
+app-redirect read `APP_SETTINGS_FLAG_TTL_MS`. `bot/shared/config/app-settings-ttl.js` now resolves that
+one value for app-redirect and the six quiz modules that cache `web_quiz_hub` / `web_quiz_child_quiz_home`
+(hub-flags, book, card, class-round-flags, hub-play, story-teacher); the lane composes 1000 and settles
+1.5 s; production stays at 30 s. Run `20261026-2319-par`: settles 558 → 27 s, every child shorter, suite wall
+**12 m 18 s**, verdicts unchanged at 169 / 28 / 86 (T692/T693/T695 and the app-redirect scenarios included).
+
+| | one slot each | sharded | + report fix | + TTL |
+|---|---|---|---|---|
+| suite wall | 23 m 9 s | 13 m 9 s | 13 m 13 s | **12 m 18 s** |
+| longest child | training 1366 s | training#2 776 s | training#2 779 s | training#2 720 s |
+
+Harness waits left inside scenario windows: the 0.8 s settle after each reply (376 × 0.83 s = 313 s across
+eleven children, of which 16 settles saw a second message) and the quiesce where no settle preceded it (76 s).
