@@ -78,6 +78,19 @@ const PIPELINE_BUDGET_MS = 20 * 60 * 1000;
 
 const V = (c, ev) => [c ? 'PASS' : 'FAIL', ev];
 
+/** The delivered report: an image or PDF row once any pipeline step has been seen — even when its caption
+ *  carries the Step 5/5 line, which it has since the Meta bill cut (NC2, 2026-10-01): the report image and the
+ *  step-5 announcement are ONE message now. The pipeline-noise filter applies to text rows only; applied to the
+ *  image it rejected every report, obs.report never set, the commit card was ignored and every run "went
+ *  silent" into the stall budget — COA04/05/07/15 BLOCKED on every run since (bd-05v2sn). */
+const isReportRow = (r, steps) => {
+  if (!steps || !steps.length) return false;
+  const x = r.txt || '';
+  if (r.img || r.pdf) return true;
+  return /کوچنگ رپورٹ|coaching report/i.test(x) && !EXPECT.pipelineNoise.test(x);
+};
+exports.isReportRow = isReportRow;
+
 exports.run = async ({ api, rec, sleep, want = () => true }) => {
   const t = () => Date.now();
   let s;
@@ -413,7 +426,7 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
       }
 
       // COA07 / COA05 — the delivered report
-      if (!obs.report && (r.img || r.pdf || /کوچنگ رپورٹ|coaching report/i.test(x)) && !EXPECT.pipelineNoise.test(x) && obs.steps.length) {
+      if (!obs.report && isReportRow(r, obs.steps)) {
         obs.report = { kind: r.img ? 'image' : 'document', caption: x.slice(0, 260), btns: r.btns };
         continue;
       }
