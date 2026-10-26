@@ -465,18 +465,6 @@ const DEPENDENT = /^\s*(?:جیسے|مثلاً|مثلا|یعنی|like\b|such as\b
 const openInside = (t) => (t.split('(').length - t.split(')').length) > 0 || (t.split('‘').length - t.split('’').length) > 0
   || (t.split('“').length - t.split('”').length) > 0 || (String(t).replace(/\b['’]\b/g, '').split("'").length - 1) % 2 === 1;
 
-/** The sentence whole if it fits `room` code points, else cut after its last whole word that fits, plus "…"; null if < MIN_WORDS. */
-function fitWords(sentence, room) {
-  const c = [...sentence];
-  if (c.length <= room) return sentence;
-  if (room < 2) return null;
-  let head = c.slice(0, room - 1).join('');
-  if (!/\s/.test(c[room - 1])) head = head.replace(/\S*$/u, '');
-  // never inside an open bracket or quote: back off to before it opened
-  while (openInside(head)) head = head.slice(0, Math.max(head.lastIndexOf('('), head.lastIndexOf('‘'), head.lastIndexOf('“'), head.lastIndexOf("'"))).replace(/\S*$/u, '');
-  head = head.replace(/[\s\p{P}]+$/u, '');
-  return realWords(head) >= MIN_WORDS ? `${head}…` : null;
-}
 // R7b (panel §1, COS 073531 guard): a long card sentence is trimmed at a CLAUSE boundary, never before the clause the
 // clip serves (P033, P037, P040: the "…" cut off the Think-Pair-Share / feedback part the clip shows).
 const CLAUSE = /(?<=[،؛;,:—۔.])\s+/u;
@@ -497,7 +485,9 @@ const namesMove = (clause, segment) => ((segment && segment.moves) || []).some((
  * The sentence whole if it fits `room` code points; else its leading whole clauses + "…" when they hold every clause the
  * clip serves (or no clause serves it); else the leading clauses that fit, "…", and the LAST served clause with the served
  * clauses right after it. One "…" at most (R7l): with a gap before the served clause the quote ends on that clause's own
- * full stop; never a quote that opens on "…" (null: the caller's plain frame). A word boundary only when no clause fits.
+ * full stop; never a quote that opens on "…" (null: the caller's plain frame). R7q (COS 050104 §2b; panel v12 Z049 Z178):
+ * never a cut inside a clause (no clause fits → null, the plain frame); the gap never drops the clause naming the clip's
+ * head move; a closing bracket or quote is never trimmed; the frame, not the quote, closes the sentence.
  * null under MIN_WORDS.
  */
 function fitClauses(sentence, room, segment) {
@@ -510,7 +500,7 @@ function fitClauses(sentence, room, segment) {
     return out;
   }, []);
   const cps = (t) => [...t].length;
-  const tidy = (t) => t.replace(/[\s\p{P}]+$/u, '');
+  const tidy = (t) => t.replace(/[\s،؛;,:—۔.]+$/u, ''); // R7q (Z178): a closing «)» or «'» is the clause's own, never trimmed
   let pre = '';
   let k = 0;
   for (; k < parts.length; k++) {
@@ -519,11 +509,15 @@ function fitClauses(sentence, room, segment) {
     pre = next;
   }
   const named = parts.map((x) => namesMove(x, segment));
+  // R7q (Z049): the clause naming the chapter's HEAD move (moves[0]) is never the one the "…" gap drops (Z246's gap drops
+  // an open-question / wait-time clause to keep 51-s3's group-work clause: those are not its head move)
+  const headNamed = parts.map((x) => namesMove(x, segment && { moves: (segment.moves || []).slice(0, 1) }));
   const score = parts.map((x) => servesClip(x, segment));
   const top = Math.max(0, ...score);
   const best = top > 0 ? score.indexOf(top) : -1;
-  // the end of a served run: its own mark when it has one, else the script's full stop
-  const end = (t) => (/[۔.!?؟]$/u.test(t.trim()) ? t.trim() : `${tidy(t)}${/[\u0600-\u06FF]/.test(t) ? '۔' : '.'}`);
+  // the end of a served run: its own «?» / «!» when it has one; a full stop is the frame's («"۔» / «".»), never the quote's
+  // (R7q, Z049 Z178: «…بتائیں۔⁩"۔», and «('ایک مثال اور دیں۔» for «…دیں')»)
+  const end = (t) => (/[!?؟]$/u.test(t.trim()) ? t.trim() : tidy(t));
   /** The quote built around the served run from `start` (`grow`: may the run take clause j?), or null when none fits. */
   const around = (start, grow) => {
     let mid = parts[start];
@@ -533,6 +527,7 @@ function fitClauses(sentence, room, segment) {
     // R7c (Q172): the sentence's own opening stays in front of the clause the clip serves, as much of it as fits, so the
     // teacher reads when to do it, not only the card's tail
     for (let p = Math.min(k, start); p >= 1; p--) {
+      if (p < start && headNamed.slice(p, start).some(Boolean)) continue; // R7q (Z049): the gap never drops the head move's clause
       const lead = parts.slice(0, p).join(' ').replace(/[\s،؛;,:—۔.]+$/u, ''); // a closing bracket or quote stays
       // no gap: lead and run are one stretch and the one "…" may close it; a gap takes the "…", the run ends on its full stop
       const both = p < start ? `${lead}… ${end(mid)}` : `${parts.slice(0, p).join(' ')} ${more ? `${tidy(mid)}…` : mid}`;
@@ -548,7 +543,7 @@ function fitClauses(sentence, room, segment) {
   // Partner B …», never the unserved «… fast finishers کے لیے challenge…» half said)
   if (named.some(Boolean)) {
     const past = named.map((x, i) => (x && i >= k ? i : -1)).filter((i) => i >= 0);
-    if (!past.length) return pre && realWords(tidy(pre)) >= MIN_WORDS ? `${tidy(pre)}…` : fitWords(sentence, room);
+    if (!past.length) return pre && realWords(tidy(pre)) >= MIN_WORDS ? `${tidy(pre)}…` : null; // R7q: never mid-clause
     for (const start of past) {
       const got = around(start, (j) => named[j]);
       if (got) return got;
@@ -560,7 +555,7 @@ function fitClauses(sentence, room, segment) {
   if (best >= 0) { const got = around(best, () => true); if (got) return got; }
   // R7l (Z062): a clause boundary before a word boundary
   if (pre && realWords(tidy(pre)) >= MIN_WORDS) return `${tidy(pre)}…`;
-  return fitWords(sentence, room);
+  return null; // R7q (COS 050104 §2b): never a cut inside a clause; the caller's plain frame
 }
 // prod card actions open with the teacher's name; a child placeholder is stripped only as an address (with its comma),
 // never as the sentence's subject ("[a student] reads …" keeps the none).
@@ -570,6 +565,7 @@ const UNSHOWABLE_G = /\[(?:TEACHER|COACH|SCHOOL|URL|EMAIL|NUMBER)\]/g;
 // R7b (P036, P042, P046, P135, P178): the labels the panel named are report jargon, never a move to quote to a teacher.
 // Only these: an ordinary indicator name («Student-to-Student Interaction») in a template card was a right pick
 // (P003, P015, P051, P056, P062; scale-run 161526).
+const FOREIGN_SCRIPT = /[^\p{Script=Arabic}\p{Script=Latin}\p{Script=Common}\p{Script=Inherited}]/u;
 const LABEL_TEXT = /Subject-Specific|Real-World Connections|Depth of Explanation|Pedagogy:/i;
 
 /** The card's own double quotes become single ones inside the template's quote marks (P109, P135, P154, P156). */
@@ -622,6 +618,8 @@ function cardFrame({ sentence, startS, endS, language, teacherName, module, subj
     // card («…کرائیں: X 1 منٹ…», 'oov') reached the quote. Any word it masks → the plain frame, never the quote: on every
     // path, plainIfNamed or not (the quote is what is unsafe, not the clip; a null here dropped 5 gold picks)
     if (strictNamed(s, { teacher: teacherName, vocab, oovVocab, counts })) return plain();
+    // R7q (COS 050104 §2b; panel v12 Z014 «сосед»): a word in any script but Urdu's and Latin → the plain frame, never quoted
+    if (FOREIGN_SCRIPT.test(s)) return plain();
     s = singleQuotes(s).replace(/^[a-z]/, (c) => c.toUpperCase()); // P109: no lower-case start after the strip
     // R7o-c (ped-scale 220500, ~8 v11 bodies «۔"۔»): the frame closes the quote with its own full stop, so the sentence's own
     // final «۔» / «.» goes (a «؟» or «!» stays: it is the sentence's, not the frame's)
@@ -728,4 +726,4 @@ const ARTICLE_SLIP = /\ban? questions\b|\ban? \w+ an? question\b/i;
 /** R7g: the model's English line has no article slip (the rest of it was validated whole). */
 const englishLineOk = (text) => !ARTICLE_SLIP.test(String(text || '').replace(QUOTED, ' '));
 
-module.exports = { cardMoveAt, wholeWordQuote, plainFrame, headClause, rosterRaw, cardFrame, cardMoveOk, urduLineOk, englishLineOk, routineQuote, lessonlessQuote, groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
+module.exports = { fitClauses, cardMoveAt, wholeWordQuote, plainFrame, headClause, rosterRaw, cardFrame, cardMoveOk, urduLineOk, englishLineOk, routineQuote, lessonlessQuote, groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
