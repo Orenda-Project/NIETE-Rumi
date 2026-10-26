@@ -87,6 +87,14 @@ describe('the switch', () => {
     anySchool.__reset(); Snap.rows.mockRejectedValue(new Error('down'));
     expect(await anySchool.onFor(COACH)).toBe(false);
   });
+  test('a handler\'s own supabase client is read directly: the global config and the snapshot are never touched', async () => {
+    const client = (value) => ({ from: (t) => chain(t === 'app_settings' ? (value === undefined ? [] : [{ key: 'sa_any_school', value }]) : []) });
+    expect(await anySchool.enabledFor(COACH, { supabase: client([COACH]) })).toBe(true);
+    expect(await anySchool.enabledFor(OTHER_USER, { supabase: client([COACH]) })).toBe(false);
+    expect(await anySchool.enabledFor(COACH, { supabase: client(true) })).toBe(true);
+    expect(await anySchool.enabledFor(COACH, { supabase: client(undefined) })).toBe(false);
+    expect(Snap.rows).not.toHaveBeenCalled();
+  });
   test('a test\'s deps answer first: a boolean, or a function of the user', async () => {
     expect(await anySchool.enabledFor(COACH, { anySchool: true })).toBe(true);
     expect(await anySchool.enabledFor(COACH, { anySchool: false })).toBe(false);
