@@ -104,6 +104,8 @@ const run = (grade, key, opts) => {
   return { P, d, calls, go: () => writeEarlyPaper({ grade, subject: key, pattern: `fde_g${grade}_2026`, P }, d) };
 };
 
+const slotOf1 = (id) => Patterns.get('fde_g1_2026').subjects.english.sections.flatMap((s) => s.slots).find((s) => s.slot === id);
+
 const items = (examJson) => Object.values(examJson.unseen).flatMap((t) => Object.values(t)).flat();
 
 test.each([[1, 'maths'], [1, 'english'], [1, 'urdu'], [1, 'general_knowledge'], [2, 'maths'], [2, 'english'], [2, 'urdu'], [2, 'general_knowledge']])(
@@ -219,8 +221,32 @@ test('a section keyed off its own rule is asked once more, told the item and the
   expect(d.logToFile).not.toHaveBeenCalledWith('[assessment] answers off the rule', expect.anything());
 });
 
-test('a key still off its rule after the re-ask is logged and the paper still comes back', async () => {
-  const { d, go } = run(2, 'english', { replies: { B: [above, above] } });
+// v20 G1 English: Section C was re-asked for Q12's repeated dog and cat; its new Q13 asked about a gift,
+// and nothing checked the second reply (bd-5jmnfj.4.40).
+const gift = { keys: { 'g1.english.C.Q13': [{ question: 'A child gets a gift from a friend. What will she say?' }] } };
+
+test('a key off its rule in a re-asked reply is asked once more, and only that question is swapped in', async () => {
+  const { d, calls, go } = run(1, 'english', { replies: {
+    A: [{ names: { 'g1.english.A.Q1': ['cat'] } }], C: [{ names: { 'g1.english.C.Q11': ['cat'] } }, gift],
+  } });
+  const out = await go();
+  const c = calls.sections.filter((x) => x.id === 'C');
+  expect(c).toHaveLength(3);
+  expect(c[2].user).toMatch(/gift from a friend/);
+  expect(items(out.examJson).filter((q) => /gift/.test(q.question))).toHaveLength(0);
+  expect(items(out.examJson).filter((q) => q.slot === 'g1.english.C.Q13')).toHaveLength(slotOf1('g1.english.C.Q13').generate);
+  expect(items(out.examJson).filter((q) => q.picture && q.picture.name === 'cat').map((q) => q.slot)).toEqual(['g1.english.A.Q1']);
+  expect(d.logToFile).not.toHaveBeenCalledWith('[assessment] answers off the rule', expect.anything());
+});
+
+test('a key off its rule after the re-ask is asked once more', async () => {
+  const { calls, go } = run(2, 'english', { replies: { B: [above, above] } });
+  await go();
+  expect(calls.sections.filter((c) => c.id === 'B')).toHaveLength(3);
+});
+
+test('a key still off its rule after both re-asks is logged and the paper still comes back', async () => {
+  const { d, go } = run(2, 'english', { replies: { B: [above, above, above] } });
   const out = await go();
   expect(out.examJson).toBeDefined();
   expect(d.logToFile).toHaveBeenCalledWith('[assessment] answers off the rule', expect.objectContaining({
