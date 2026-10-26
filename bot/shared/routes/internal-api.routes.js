@@ -1198,6 +1198,41 @@ router.post('/classes/students/remove', requireInternalKey, async (req, res) => 
   }
 });
 
+/**
+ * POST /api/internal/classes/remove
+ *
+ * Take a class off the teacher's list. The service decides what that means — retire a
+ * class that is hers alone and empty, otherwise take her off it — so the class, its
+ * roster and any colleague on it are never removed from under anyone else.
+ *
+ * Body   { userId, classId }
+ * Errors 400 (missing input), 401 (bad key), 502 (write failed)
+ * Ok     200 { success: true, removed, how? }   removed:false = she was not on it
+ */
+router.post('/classes/remove', requireInternalKey, async (req, res) => {
+  const { userId, classId } = req.body || {};
+  if (!userId || !classId) {
+    return res.status(400).json({ success: false, error: 'userId and classId are required' });
+  }
+  const { tk } = require('../services/quiz/web-quiz-kid');
+  try {
+    const ClassService = require('../services/classes/class.service');
+    const result = await ClassService.removeClassForTeacher({ classId, teacherUserId: userId });
+
+    if (result.error) {
+      logToFile('❌ Internal classes/remove failed', { tk: tk(userId), classId, error: result.error }, 'error');
+      return res.status(502).json({ success: false, error: result.error });
+    }
+    if (!result.removed) return res.json({ success: true, removed: false });
+
+    logToFile('🏫 Class removed from a teacher\'s list via internal API', { tk: tk(userId), classId, how: result.how });
+    return res.json({ success: true, removed: true, how: result.how });
+  } catch (error) {
+    logToFile('❌ Internal classes/remove failed', { tk: tk(userId), classId, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Failed to remove the class' });
+  }
+});
+
 // ─── v8 lesson-plan catalogue ───────────────────────────────────────────────
 //
 // The portal used to answer "which lesson plans exist?" from its own Supabase
