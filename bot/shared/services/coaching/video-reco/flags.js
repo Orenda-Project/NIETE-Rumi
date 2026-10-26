@@ -33,4 +33,12 @@ function videoRecoAllowlist(env = process.env) {
   return raw ? new Set(raw.split(',').map((s) => s.trim()).filter(Boolean)) : null;
 }
 
-module.exports = { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist };
+/**
+ * Reason mode (COS ruling 20261024T044233 §1a): 'card' = the reason is never a moment the model cites — the card frame or
+ * silence, and no model call. Unset or anything else = null = today.
+ */
+function videoRecoReason(env = process.env) {
+  return String(env.VIDEO_RECO_REASON || '').trim().toLowerCase() === 'card' ? 'card' : null;
+}
+
+module.exports = { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason };

@@ -117,8 +117,18 @@ test('P011: B6 on a lesson where children are visibly not following still picks'
 });
 
 // ── a moment with no child in it (P183, P076) ──────────────────────────────────────────────────────────────────────────
-test('P183: a one-line monologue about tomorrow\'s test is no moment → retry, then the card\'s own sentence', async () => {
+// R7l (COS 164428 §1a, the no-lesson guard): P183's own transcript — one teacher turn, no child's, under 100 words — is no
+// lesson now: none before any model call (the R7d card fallback for it is superseded; posted to the board)
+test('P183 as recorded (one short turn): no lesson → none, no model call', async () => {
   const lines = [T(53000, 'بچو، آپ نے گھر سے بھی یہی کام کرنا ہے، اور کل جمع کا پیپر ہے، یاد کر کے آنا ہے، ٹھیک ہے؟')];
+  const d = deps([]);
+  const row = await E.recommendForReport({ ...args({ lines, indicator: 'C1', action: 'اگلی کلاس میں ہر جواب کے بعد ایک کیوں والا سوال پوچھیں۔', scheme: 'fico_v4' }), deps: d });
+  expect(d.completeJson).not.toHaveBeenCalled();
+  expect(row).toMatchObject({ status: 'none', none_reason: 'no_moments:not_lesson' });
+});
+
+test('P183 shape in a lesson: a monologue about tomorrow\'s test is no moment → retry, then the card\'s own sentence', async () => {
+  const lines = [T(53000, 'بچو، آپ نے گھر سے بھی یہی کام کرنا ہے، اور کل جمع کا پیپر ہے، یاد کر کے آنا ہے، ٹھیک ہے؟'), T(70000, 'یہ جو آپ نے براؤن لیا ہے، اسے وائٹ کریں گے۔'), T(90000, 'سب اپنی کاپی میں تاریخ لکھیں۔')];
   const q = 'اور کل جمع کا پیپر ہے، یاد کر کے آنا ہے، ٹھیک ہے؟';
   const d = deps([pick('10-s1', q, '00:53'), pick('10-s1', q, '00:53')]);
   const row = await E.recommendForReport({

@@ -159,6 +159,49 @@ function coordinated(text, child, { vocab, oovVocab, counts, trace, call = false
   return out;
 }
 
+// R7k (COS 044233 §1c; panel v8 Z377 ⛔9): a child's name that is also a dictionary word, as the closing vocative of a
+// question («…آواز میں X؟») or right after a greeting, is masked by no rule above, so the one gate never held it. Fail
+// closed: the word in that position is a name when the lesson says it COORD_MAX_REPEAT times or fewer, whatever the
+// lexicon says, unless it is a word a clause is built from, a role word or the lesson's own term.
+const GREETING = /(?:السلام علیکم|اسلام علیکم|وعلیکم السلام|شاباش|\b(?:good (?:morning|afternoon)|hello|hi|well done)\b)[\s،,]+$/iu;
+// The words that stand in that position in 10 or more of the 3,000 r7 corpus lessons, lexicon names left out (a verb, an
+// auxiliary, a classroom word: «ہوگا؟», «کلاس؟»); no given name is in it («ایلس», «دین» taken out so they fail closed).
+const VOC_STOP = new Set(('ہوگا تھے ہوگی ہوا کلاس لوگ اوکے اسٹوڈنٹس سیکھا علاوہ کہا چلا پڑھا دیکھا بولا لگا لکھا سا بچہ بات لی سی بچا بنے '
+  + 'کبھی انڈرسٹینڈ پاس مطلب کلیئر ہمارا ویری پتا آگے ملا کچھ پیارے والا کتنے تک سوچا دوسرا دی رہا ڈن ساتھ تیسرا '
+  + 'لگی صحیح بعد ریڈی چیز کرے نمبر اوپر ورحمۃ اسے یو ہمم آج ڈیئر پہلے نو کتنی طرح نام رائٹ وقت والے بچی ملے ٹوٹل '
+  + 'آتا اندر نیچے بنی پڑھے سوال والی کب سارا گزرا سنی اٹ مجھے کل ویسے کدھر ادھر دن ایسے کرو سمجھ ڈوئنگ دیکھے ہماری '
+  + 'بس بھلا بوائز دیکھی چاہے پڑھی ایسا نکالا ملی ابھی نکلا ٹاپک پورا میری میرا آتی ٹائم سٹوڈنٹس اے می پہ لکھی ون '
+  + 'سیکھے سامنے کام پیچھے بک کرتا ٹو پکا پرابلم سمجھا کلیر لگے پوچھا جواب سکتا پہلا دے بنتا وجہ دیتے مشکل ٹوز '
+  + 'تھریز مسئلہ باہر بولے نیم جناب سکے لکھے مثلا بی آواز ونز لیسن معنی ہیو لیفٹ تمہارا بار دوسری وعلیکم لفظ ریڈنگ '
+  + 'بہت خیریت رکھا ٹوڈے مثال رکھی غلط رہی پڑا چوتھا بکس ڈالا جیسے کرتے رہے دس جگہ فورز کاپی از زیادہ کم کلیپنگ '
+  + 'نکالے سکتے کنفیوژن اسٹوڈنٹ ').trim().split(' '));
+const VOC_END = /^\s*[؟?]/;
+// an English question word or tag set off by itself («…this? Why?», «Okay?») is the question, not a person
+const LAT_ASK = new Set('why what how who whom whose where when which right okay ok yes no really anyone everyone anybody sure please again'.split(' '));
+const SET_OFF = /(?:^|[،,؟?!۔.:"“«⁨])\s*$/u;
+const VERBISH = /(?:ں|یے|ئے|ؤ|ئی|یا|نا)$/u;
+
+/** The name keys a line holds in vocative position (see above). ctx: { counts, vocab }. */
+function vocativeKeys(text, { counts = null, vocab = [] } = {}) {
+  const s = String(text || '');
+  const terms = new Set([].concat(vocab || []).map((v) => norm(String(v))));
+  const out = [];
+  for (const m of s.matchAll(WORD)) {
+    const w = m[0];
+    const n = norm(w);
+    const ur = IS_UR.test(w);
+    // set off as its own clause («…، X؟», «X؟»), never the object of the question («کون سا پرندہ؟»)
+    const end = VOC_END.test(s.slice(m.index + w.length)) && SET_OFF.test(s.slice(0, m.index));
+    if (!end && !GREETING.test(s.slice(Math.max(0, m.index - 30), m.index))) continue;
+    if ((ur ? [...n].length < 2 : !/^[A-Z][a-z]{2,}$/.test(w)) || (s[m.index - 1] === '[' && s[m.index + w.length] === ']')) continue;
+    if (COORD_STOP.has(n) || ROLE_STOP.has(n) || GOD_NAME.has(n) || HONOR_AFTER.has(n) || PRAISE.has(n) || NAMED_BY.has(n) || VOC_STOP.has(n) || LAT_ASK.has(n) || terms.has(n)) continue;
+    if (ur && VERBISH.test(n)) continue;
+    if (!counts || (counts.get(n) || 0) > COORD_MAX_REPEAT) continue;
+    out.push(n);
+  }
+  return out;
+}
+
 /** The lesson's word counts for the position rule's guard (normalised as the redactor reads words). */
 function wordCounts(lines) {
   const c = new Map();
@@ -211,4 +254,4 @@ function scrubNames(text, names) {
     : part.replace(WORD, (w) => (names.has(nameKey(w)) ? '[a student]' : w)))).join('');
 }
 
-module.exports = { redactNames, wordCounts, nameKey, keyLong, maskedKeys, guarded, scrubNames, ROLE_STOP };
+module.exports = { redactNames, wordCounts, nameKey, keyLong, maskedKeys, guarded, scrubNames, vocativeKeys, ROLE_STOP };

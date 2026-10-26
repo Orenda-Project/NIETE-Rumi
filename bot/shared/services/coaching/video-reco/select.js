@@ -11,7 +11,7 @@ const { fallbackSubjectOk } = require('./shortlist');
 const { stripBidi } = require('./copy');
 const CONTENT_TERMS = require('./content-terms');
 const LEX = require('./name-lexicon');
-const { cardRoutine, childTurnNear, imperative, routineLine, echoReading, notTeaching, isClosure, earlyForClosure, levelsNear } = require('./silence');
+const { cardRoutine, childTurnNear, imperative, routineLine, echoReading, notTeaching, isClosure, earlyForClosure, levelsNear, KID, dashed } = require('./silence');
 const { leadingVocative, quotedVocative, genderedUrdu, systemNote, unshownClaim, childFreeCard, sceneClaim, recallMislabel, pointerNoLine, recallLeft, namesGap, notGapLine, auditWords, closedQuestion, urduSlip } = require('./copy-rules');
 
 const JOB = 'coaching.videoReco';
@@ -276,7 +276,10 @@ function validate(p, shortlist, excerpts, opts) {
     // no moment. Not a fallback rule: the retry may find a real one, else the none stands (Q063, Q170 → silence, as ruled). Before every
     // reason rule, so a routine line is never rescued by the fallback a reason fault would allow.
     // R7j (COS 022905 §2/§5; panel v7 Z282 Z043 Z379 Z267): a greeting, page call, filler or echo falls back to the card frame
-    if (routineLine(storedQuote(quote), { topic })) return bad(cardRoutine(storedQuote(quote)) ? 'routine' : 'not_moment');
+    // red7 061530 R1 (Z180 Z143): a line only the R7k card-frame classes made routine (an announcement + «ٹھیک ہے؟») falls back too
+    if (routineLine(storedQuote(quote), { topic })) {
+      return bad(cardRoutine(storedQuote(quote)) || !routineLine(storedQuote(quote), { topic, extra: false }) ? 'routine' : 'not_moment');
+    }
     // R7g (COS 002603 1a; panel Z199 ⛔2, Z025 right): a subject label let through for its open-question sentence answers a
     // closed question; any other cited line (a page announcement, a why already asked) is no moment for it
     if (labelClosed && !closedQuestion(storedQuote(quote))) return bad('not_moment');
@@ -289,6 +292,13 @@ function validate(p, shortlist, excerpts, opts) {
     const whole = Array.isArray(full) && full.length ? full : null;
     const at = whole ? quoteLine(quote, whole) : -1;
     if (whole && notTeaching(whole, at)) return { ...bad('not_moment'), lessonless: true };
+    // R7k (COS 044233 §1b; panel v8 Z199 Z129 ⛔2, Z255): a line a student says (a child counting stand-ups, an aside about
+    // the recording), or one said before any child has spoken, is no teaching moment; the card frame carries the lesson
+    // (the line stamped with moment.at when it holds the quote: a fuzzy match can land on an earlier line that says the same)
+    const stamped = whole ? whole.findIndex((l) => l.startsWith(`[${String(p.moment.at).trim()}]`) && quoteFound(quote, [l])) : -1;
+    const own = stamped >= 0 ? stamped : at;
+    // (the line the first child answers is the lesson's opening question, a moment: only a line before THAT one is refused)
+    if (whole && own >= 0 && (KID.test(whole[own]) || own < whole.findIndex((l) => KID.test(l)) - 1)) return bad('routine');
     // R7e (panel §6.2: Q117 Q136 Q197): a closure chapter on a line from the first two thirds of the lesson. Not routine:
     // the retry may find a late line, else the card fallback carries the closure card
     const picked = catalog && catalog.segment(cand.seg_id);
@@ -395,6 +405,30 @@ function routineQuote(p, topic = null) {
 }
 
 /** ⛔9 (SPEC v1.3c §3.5 a): what is stored and sent passes the non-strict redactor; a text with no name is unchanged. */
+/**
+ * R7o-a: true when the strict redactor, called as the excerpts call it (prompt.redact), masks an Urdu-script word of
+ * `text` that stands in a NAME SLOT: a clause's bare subject — after «:» «،» «؛» or at the start, and followed by no
+ * postposition, light verb or question mark («…کرائیں: X 1 منٹ جوڑوں میں بیان کرے۔», Z044). The strict redactor alone
+ * cannot tell an unknown name from a noun the lexicon lacks («ہر X کے بعد», «دو X سے», «'…' X کی جگہ», «جو بچہ X جائے»): on
+ * the v10 fresh-4 card run, "any masked word" took the quote from 56 of 151 sends; the name slot takes it from 2.
+ */
+const CLAUSE_START = /^[:،؛,]$/;
+const NOUN_NEXT = new Set('کے کی کا کو سے میں پر نے تک والا والی والے جیسے جیسا جیسی کریں کرنا کرنے کرو کرے کر جا جائے جاتا ہو ہے ہیں تھا تھی ؟ ? ۔ .'.split(' '));
+// ped-scale 201500: a word the lexicon, the roster or an address marks as a NAME (not merely unknown) → plain, any slot
+const NAME_WHY = new Set(['strong', 'address', 'named', 'role', 'compound', 'carry']);
+// COS 201132: the fail-closed switch. true = any word the strict redactor masks → the plain frame (56/151 fresh-4 quotes)
+const ANY_MASK = true;
+function strictNamed(text, { teacher = null, vocab = [], oovVocab = [], counts = null } = {}) {
+  const s = String(text || '');
+  const trace = [];
+  redactNames(s, { teacher, placeholders: { child: '[a student]' }, vocab, oovVocab, counts, trace });
+  if (ANY_MASK ? trace.length > 0 : trace.some((t) => NAME_WHY.has(t.why))) return true;
+  const masked = new Set(trace.filter((t) => /[؀-ۿ]/.test(t.word)).map((t) => t.word));
+  if (!masked.size) return false;
+  const toks = s.match(/[\p{L}\p{M}\p{N}'’‑-]+|[:،؛۔.?!؟,]/gu) || [];
+  return toks.some((w, i) => masked.has(w) && (i === 0 || CLAUSE_START.test(toks[i - 1])) && !NOUN_NEXT.has(toks[i + 1] || '۔'));
+}
+
 function postRedact(text, teacherName, vocab = [], counts = null, carry = null, trace = null) {
   if (typeof text !== 'string' || !text) return text;
   // counts: red7 013349; carry (R7i): the lesson's and the quote's masked names, masked wherever they stand
@@ -426,6 +460,11 @@ const FALLBACK_RULES = new Set(['quote', 'moment_at', 'placeholder', 'scorer', '
 const FALLBACK_MAX = 300; // code points of each composed reason (en and ur)
 const MIN_WORDS = 3; // a trimmed card sentence keeps at least this many words, else the none stands
 
+// R7k §1f: an example clause and an open bracket or quote (a cut inside them leaves a list or a quote half said, Z233 Z241 Z307)
+const DEPENDENT = /^\s*(?:جیسے|مثلاً|مثلا|یعنی|like\b|such as\b|e\.g\.|for example\b|for instance\b|['‘"“«])/iu;
+const openInside = (t) => (t.split('(').length - t.split(')').length) > 0 || (t.split('‘').length - t.split('’').length) > 0
+  || (t.split('“').length - t.split('”').length) > 0 || (String(t).replace(/\b['’]\b/g, '').split("'").length - 1) % 2 === 1;
+
 /** The sentence whole if it fits `room` code points, else cut after its last whole word that fits, plus "…"; null if < MIN_WORDS. */
 function fitWords(sentence, room) {
   const c = [...sentence];
@@ -433,6 +472,8 @@ function fitWords(sentence, room) {
   if (room < 2) return null;
   let head = c.slice(0, room - 1).join('');
   if (!/\s/.test(c[room - 1])) head = head.replace(/\S*$/u, '');
+  // never inside an open bracket or quote: back off to before it opened
+  while (openInside(head)) head = head.slice(0, Math.max(head.lastIndexOf('('), head.lastIndexOf('‘'), head.lastIndexOf('“'), head.lastIndexOf("'"))).replace(/\S*$/u, '');
   head = head.replace(/[\s\p{P}]+$/u, '');
   return realWords(head) >= MIN_WORDS ? `${head}…` : null;
 }
@@ -448,15 +489,26 @@ function servesClip(clause, segment) {
   const doc = new Set(wordsOf([segment.title_en, segment.summary_en, ...(segment.keywords || []), ...(segment.moves || []).map((m) => String(m).replace(/_/g, ' '))].join(' ')));
   return wordsOf(clause).filter((w) => doc.has(w)).length;
 }
+// R7l (COS 164428 §1d; panel v9 Z246 Z164 Z062): the clause the clip serves is first the one that NAMES one of its moves
+// (MOVE_WORDS, as the frame's move check reads it); shared words only rank clauses that name none
+const namesMove = (clause, segment) => ((segment && segment.moves) || []).some((m) => MOVE_WORDS[m] && MOVE_WORDS[m].test(stripBidi(String(clause || ''))));
 
 /**
- * The sentence whole if it fits `room` code points; else its leading whole clauses + "…" when they hold the clause the
- * clip serves (or no clause serves it); else that clause (and what follows, while it fits) between "…" marks; a word
- * boundary only when no clause fits. null under MIN_WORDS.
+ * The sentence whole if it fits `room` code points; else its leading whole clauses + "…" when they hold every clause the
+ * clip serves (or no clause serves it); else the leading clauses that fit, "…", and the LAST served clause with the served
+ * clauses right after it. One "…" at most (R7l): with a gap before the served clause the quote ends on that clause's own
+ * full stop; never a quote that opens on "…" (null: the caller's plain frame). A word boundary only when no clause fits.
+ * null under MIN_WORDS.
  */
 function fitClauses(sentence, room, segment) {
   if ([...sentence].length <= room) return sentence;
-  const parts = sentence.split(CLAUSE).filter(Boolean);
+  // R7k §1f (panel v8 Z180 Z015): a clause that only gives the example («جیسے '…'», «: 'Why …?'») stays with the clause whose
+  // verb it serves, and no boundary inside brackets or quotes splits a clause
+  const parts = sentence.split(CLAUSE).filter(Boolean).reduce((out, x) => {
+    const prev = out[out.length - 1];
+    if (prev && (DEPENDENT.test(x) || openInside(prev))) out[out.length - 1] = `${prev} ${x}`; else out.push(x);
+    return out;
+  }, []);
   const cps = (t) => [...t].length;
   const tidy = (t) => t.replace(/[\s\p{P}]+$/u, '');
   let pre = '';
@@ -466,28 +518,48 @@ function fitClauses(sentence, room, segment) {
     if (cps(tidy(next)) > room - 1) break;
     pre = next;
   }
+  const named = parts.map((x) => namesMove(x, segment));
   const score = parts.map((x) => servesClip(x, segment));
   const top = Math.max(0, ...score);
   const best = top > 0 ? score.indexOf(top) : -1;
-  if (pre && (best < 0 || best < k) && realWords(tidy(pre)) >= MIN_WORDS) return `${tidy(pre)}…`;
-  if (best >= 0) {
-    let mid = parts[best];
-    let j = best + 1;
-    while (j < parts.length && cps(tidy(`${mid} ${parts[j]}`)) <= room - 2) { mid = `${mid} ${parts[j]}`; j++; }
-    const tail = j < parts.length ? '…' : '';
+  // the end of a served run: its own mark when it has one, else the script's full stop
+  const end = (t) => (/[۔.!?؟]$/u.test(t.trim()) ? t.trim() : `${tidy(t)}${/[\u0600-\u06FF]/.test(t) ? '۔' : '.'}`);
+  /** The quote built around the served run from `start` (`grow`: may the run take clause j?), or null when none fits. */
+  const around = (start, grow) => {
+    let mid = parts[start];
+    let j = start + 1;
+    while (j < parts.length && grow(j) && cps(tidy(`${mid} ${parts[j]}`)) <= room - 2) { mid = `${mid} ${parts[j]}`; j++; }
+    const more = j < parts.length;
     // R7c (Q172): the sentence's own opening stays in front of the clause the clip serves, as much of it as fits, so the
     // teacher reads when to do it, not only the card's tail
-    for (let p = Math.min(k, best); p >= 1; p--) {
+    for (let p = Math.min(k, start); p >= 1; p--) {
       const lead = parts.slice(0, p).join(' ').replace(/[\s،؛;,:—۔.]+$/u, ''); // a closing bracket or quote stays
-      const both = `${lead}… ${tail ? tidy(mid) : mid}${tail}`;
+      // no gap: lead and run are one stretch and the one "…" may close it; a gap takes the "…", the run ends on its full stop
+      const both = p < start ? `${lead}… ${end(mid)}` : `${parts.slice(0, p).join(' ')} ${more ? `${tidy(mid)}…` : mid}`;
       const open = (t, a, b) => (t.split(a).length - t.split(b).length);
       const balanced = !open(lead, '(', ')') && !open(lead, '‘', '’') && (lead.split("'").length - 1) % 2 === 0;
       if (balanced && cps(both) <= room && realWords(lead) >= MIN_WORDS) return both;
     }
-    if (cps(tidy(mid)) + 1 + tail.length <= room && realWords(mid) >= MIN_WORDS) return `…${tail ? tidy(mid) : mid}${tail}`;
-    const cut = fitWords(mid, room - 1);
-    if (cut) return `…${cut}`;
+    if (start === 0 && cps(tidy(mid)) + (more ? 1 : 0) <= room && realWords(mid) >= MIN_WORDS) return more ? `${tidy(mid)}…` : mid;
+    return null; // R7l (Z062): never a quote that opens on "…"
+  };
+  // R7l: the clauses that name one of the clip's moves are the served ones. All inside the leading fit → that fit; else the
+  // first served clause past it, with the served clauses right after it (Z164: «… Think-Pair-Share کروائیں: Partner A …،
+  // Partner B …», never the unserved «… fast finishers کے لیے challenge…» half said)
+  if (named.some(Boolean)) {
+    const past = named.map((x, i) => (x && i >= k ? i : -1)).filter((i) => i >= 0);
+    if (!past.length) return pre && realWords(tidy(pre)) >= MIN_WORDS ? `${tidy(pre)}…` : fitWords(sentence, room);
+    for (const start of past) {
+      const got = around(start, (j) => named[j]);
+      if (got) return got;
+    }
+    // no later served clause fits: the leading fit when it holds one, else nothing
+    return pre && named.slice(0, k).some(Boolean) && realWords(tidy(pre)) >= MIN_WORDS ? `${tidy(pre)}…` : null;
   }
+  if (pre && (best < 0 || best < k) && realWords(tidy(pre)) >= MIN_WORDS) return `${tidy(pre)}…`;
+  if (best >= 0) { const got = around(best, () => true); if (got) return got; }
+  // R7l (Z062): a clause boundary before a word boundary
+  if (pre && realWords(tidy(pre)) >= MIN_WORDS) return `${tidy(pre)}…`;
   return fitWords(sentence, room);
 }
 // prod card actions open with the teacher's name; a child placeholder is stripped only as an address (with its comma),
@@ -521,27 +593,35 @@ function plainFrame(l, segment) {
   const n = segment ? Math.round(Number(segment.end_s) - Number(segment.start_s)) : 0;
   const title = String((segment && ((l === 'ur' && segment.title_ur) || segment.title_en)) || '').trim().replace(/[۔.]$/u, '');
   const line = resolveUx('videoRecoCardFallbackReasonPlain', { language: l, params: { n, title } });
-  return title ? line : line.replace(/:\s*[۔.]$/u, '۔'); // no title: the terms file's alt line (it ends after «دکھاتا ہے»)
+  // a title that ends in its own mark («…آگے کیا ہوگا؟») takes no second one (v8 Z108 «؟۔», red7 055554 H2)
+  return title ? line.replace(/([؟?!])\s*[۔.]$/u, '$1') : line.replace(/:\s*[۔.]$/u, '۔'); // no title: the terms file's alt line (it ends after «دکھاتا ہے»)
 }
 
 /** The card frame for a chapter (the fallback's text, no rule or list gate): {reason_en, reason_ur} | null. */
-function cardFrame({ sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab = [], segment, labels = [], roster = null, rosterRaw = null, plainIfNamed = false, carry = null, counts = null } = {}) {
+function cardFrame({ sentence, startS, endS, language, teacherName, module, subject, vocab, oovVocab = [], segment, labels = [], roster = null, rosterRaw = null, plainIfNamed = false, plainIfUnquotable = false, carry = null, counts = null } = {}) {
   try {
     if (!fallbackSubjectOk(module, subject)) return null; // [v1.3c-2] ⛔4: no literacy clip on a science lesson
+    const plain = () => ({ reason_en: plainFrame('en', segment), reason_ur: plainFrame('ur', segment) });
     // [v1.3c-5] + R7b (P165, red7 V1–V10): the card's vocative goes BEFORE redaction, found by its shape (copy-rules.js)
     const raw = stripBidi(String(sentence || ''));
     const bare = raw.slice(leadingVocative(raw));
     let s = String(postRedact(bare, teacherName, vocab, null, carry) || '').replace(LEADING_ADDRESS, '').trim(); // R7i: carry
-    if (!s || s.startsWith('[') || UNSHOWABLE.test(s)) return null; // [v1.3c-5] a placeholder never opens it
-    if (!imperative(s)) return null; // R7b (P123, P161): a diagnosis fragment is not a move to try
+    // R7o-b a3 (panel v10 Z146; Z007 Z257): with plainIfUnquotable (card mode, the move named) a card that cannot be quoted —
+    // a placeholder in it, or a label rather than an imperative («Open questions, one child each») — takes the plain frame
+    if (!s || s.startsWith('[') || UNSHOWABLE.test(s)) return plainIfUnquotable ? plain() : null; // [v1.3c-5] a placeholder never opens it
+    if (!imperative(s)) return plainIfUnquotable ? plain() : null; // R7b (P123, P161): a diagnosis fragment is not a move to try
     if (LABEL_TEXT.test(s) || labels.some((x) => x && s.toLowerCase().includes(String(x).toLowerCase()))) return null;
     const n = Math.round(Number(endS) - Number(startS));
     if (!Number.isFinite(n) || n <= 0) return null;
     // R7c ⛔9 (Q168, Q174; Q181, Q193): a child named inside the sentence → the comparison goes. R7g (COS 002603 1e; panel Z036
     // Z100, R/A sends in v5): a name that cannot go → the plain frame, the sentence not quoted (was: no clip at all)
-    const plain = () => ({ reason_en: plainFrame('en', segment), reason_ur: plainFrame('ur', segment) });
     s = childFreeCard(s, { teacher: teacherName, vocab, oovVocab, roster: rosterRaw, counts }); // S12: a roster possessor, read raw; F: the lesson's counts
     if (!s || rosterIn(s, roster)) return plainIfNamed ? plain() : null; // R7d (Q086): a roster name in any position, a quoted title included
+    // R7o-a (COS 194233 §1; panel v10 Z044/Z054 ⛔9): the sentence as it will be quoted passes the excerpts' own STRICT
+    // redactor (prompt.redact's context); postRedact above is non-strict, so an unknown word naming a child inside an Urdu
+    // card («…کرائیں: X 1 منٹ…», 'oov') reached the quote. Any word it masks → the plain frame, never the quote: on every
+    // path, plainIfNamed or not (the quote is what is unsafe, not the clip; a null here dropped 5 gold picks)
+    if (strictNamed(s, { teacher: teacherName, vocab, oovVocab, counts })) return plain();
     s = singleQuotes(s).replace(/^[a-z]/, (c) => c.toUpperCase()); // P109: no lower-case start after the strip
     // bd-8hhqhf: a long card sentence is trimmed to fit, in each language (session 077b8021: 224 cp → 308 cp composed in
     // ur, and no clip was sent). The teacher's language must fit; the other one is trimmed when it can be and otherwise
@@ -594,7 +674,7 @@ const MOVE_WORDS = Object.freeze({
 const BY_PHRASE = /\b(?:by|via)\b[^.;:،؛۔!?؟]*/giu;
 /** The card's sentence as its move reads: the «by …» phrases (the manner of another step) dropped. */
 function headClause(sentence) {
-  return stripBidi(String(sentence || '')).replace(BY_PHRASE, ' ').replace(/\s{2,}/g, ' ').trim();
+  return dashed(stripBidi(String(sentence || ''))).replace(BY_PHRASE, ' ').replace(/\s{2,}/g, ' ').trim();
 }
 
 /**
@@ -605,8 +685,33 @@ function headClause(sentence) {
 function cardMoveOk(sentence, segment, { strict = false } = {}) {
   const known = ((segment && segment.moves) || []).map((m) => MOVE_WORDS[m]).filter(Boolean);
   if (!known.length) return !strict;
-  const s = (!strict && headClause(sentence)) || stripBidi(String(sentence || ''));
+  const s = (!strict && headClause(sentence)) || dashed(stripBidi(String(sentence || '')));
   return known.some((rx) => rx.test(s));
+}
+
+/** R7l (Z176): where in `sentence` the first of the chapter's moves is named (the head-clause reading), -1 when none is. */
+function cardMoveAt(sentence, segment) {
+  const known = ((segment && segment.moves) || []).map((m) => MOVE_WORDS[m]).filter(Boolean);
+  const s = headClause(sentence) || dashed(stripBidi(String(sentence || '')));
+  const at = known.map((rx) => s.search(rx)).filter((i) => i >= 0);
+  return at.length ? Math.min(...at) : -1;
+}
+
+/**
+ * R7l (COS 164428 §1d; panel v9 Z029): a quote that ends on the cut of an excerpt line the prompt capped (prompt.js
+ * EXCERPT_MAX_CHARS, a cut that can fall inside a word: «…یوز ہوا ہ…») ends on its last whole word, then "…". The model
+ * may stitch two lines into one quote, so the test is the cut-off token itself. Any other quote is unchanged.
+ */
+const lastToken = (t) => (/(\S+)$/u.exec(t) || [])[1] || '';
+function wholeWordQuote(quote, excerpts) {
+  const q = String(quote || '');
+  if (!/…$/u.test(q)) return quote;
+  const stem = q.slice(0, -1).trimEnd();
+  const tail = lastToken(stem);
+  const capped = !!tail && (excerpts || []).some((l) => { const t = stripBidi(String(l || '')).trimEnd(); return /…$/u.test(t) && lastToken(t.slice(0, -1)) === tail; });
+  if (!capped) return quote;
+  const whole = stem.replace(/\s*\S+$/u, '').replace(/[\s،,؛;:—-]+$/u, '');
+  return realWords(whole) >= MIN_WORDS ? `${whole}…` : quote;
 }
 
 /** R7g 1b: a model-written Urdu line that passes every Urdu check (script, Roman Urdu, gender, tense and voice). */
@@ -620,4 +725,4 @@ const ARTICLE_SLIP = /\ban? questions\b|\ban? \w+ an? question\b/i;
 /** R7g: the model's English line has no article slip (the rest of it was validated whole). */
 const englishLineOk = (text) => !ARTICLE_SLIP.test(String(text || '').replace(QUOTED, ' '));
 
-module.exports = { plainFrame, headClause, rosterRaw, cardFrame, cardMoveOk, urduLineOk, englishLineOk, routineQuote, lessonlessQuote, groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
+module.exports = { cardMoveAt, wholeWordQuote, plainFrame, headClause, rosterRaw, cardFrame, cardMoveOk, urduLineOk, englishLineOk, routineQuote, lessonlessQuote, groundReasons, rosterSet, rosterIn, pick, validate, quoteFound, storedQuote, reasoningEffort, cardFallback, postRedact, subjectVocab, topicVocab, JOB, LLM_TIMEOUT_MS };
