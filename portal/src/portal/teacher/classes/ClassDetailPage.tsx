@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ChevronDown, Trash2, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { classes as classesApi } from '../../services/api';
@@ -28,9 +28,12 @@ const DANGER = 'flex min-h-[56px] flex-1 items-center justify-center gap-2 round
  * bd-fmf24g.8 — one class (v28 canvas ClassDetail): its title and chips, shortcuts to Attendance and to
  * that grade·subject's lesson plans, and its students (the existing roster routes: add by pasting
  * names, remove one after asking).
+ *
+ * bd-ql2j3p — Remove class, after asking: off her list, then back to My Classes.
  */
 export function ClassDetailPage() {
   const C = useCopy(CLASSES);
+  const navigate = useNavigate();
   const { classId = '' } = useParams();
   const [listState, retryList] = useLoad(() => classesApi.list(), 'teacher-classes');
   const [rosterState, reloadRoster] = useLoad(() => classesApi.students(classId), `roster:${classId}`);
@@ -46,6 +49,7 @@ export function ClassDetailPage() {
   const [failed, setFailed] = useState(false);
   const [result, setResult] = useState<AddStudentsResponse | null>(null);
   const [removing, setRemoving] = useState<RosterRow | null>(null);
+  const [removingClass, setRemovingClass] = useState(false);
 
   const addStudents = async () => {
     if (!names.trim() || busy) return;
@@ -76,6 +80,20 @@ export function ClassDetailPage() {
     } catch {
       setFailed(true);
     } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeClass = async () => {
+    if (busy) return;
+    setBusy(true);
+    setFailed(false);
+    try {
+      const res = await classesApi.removeClass(classId);
+      if (!res || res.success !== true) throw new Error('not removed');
+      navigate(CLASSES_HOME, { replace: true });
+    } catch {
+      setFailed(true);
       setBusy(false);
     }
   };
@@ -173,6 +191,11 @@ export function ClassDetailPage() {
         {C.addStudents}
       </button>
 
+      <button type="button" onClick={() => { setFailed(false); setRemovingClass(true); }} className={cn(OUTLINE_WIDE, FOCUS)}>
+        <Trash2 className="h-5 w-5" aria-hidden="true" />
+        {C.removeClass}
+      </button>
+
       <Tray open={adding} title={C.addStudents} onClose={() => setAdding(false)} closeLabel={C.close}>
         <div className="flex flex-col gap-3">
           <label htmlFor="add-students-names" className="px-1 text-[14px] font-semibold text-[#4b5563]">{C.studentNames}</label>
@@ -197,6 +220,17 @@ export function ClassDetailPage() {
           <div className="flex gap-2.5">
             <button type="button" onClick={() => setRemoving(null)} className={cn(OUTLINE_WIDE, 'flex-1', FOCUS)}>{C.keep}</button>
             <button type="button" onClick={removeStudent} disabled={busy} className={cn(DANGER, FOCUS)}>{C.remove}</button>
+          </div>
+        </div>
+      </Tray>
+
+      <Tray open={removingClass} title={C.removeClass} onClose={() => setRemovingClass(false)} closeLabel={C.close}>
+        <div className="flex flex-col gap-3">
+          <p className="px-1 text-[17px] font-semibold">{classTitle(cls, C)}</p>
+          {failed ? <p role="alert" className="px-1 text-[14px] font-semibold text-[#c8331f]">{C.saveFailed}</p> : null}
+          <div className="flex gap-2.5">
+            <button type="button" onClick={() => setRemovingClass(false)} className={cn(OUTLINE_WIDE, 'flex-1', FOCUS)}>{C.keep}</button>
+            <button type="button" onClick={removeClass} disabled={busy} className={cn(DANGER, FOCUS)}>{C.remove}</button>
           </div>
         </div>
       </Tray>
