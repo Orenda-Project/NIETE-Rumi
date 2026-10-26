@@ -1169,9 +1169,14 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
         // sqs-queue.service) while the local stack runs BullMQ, whose driver would route it (bd-2aetj).
         // The bot therefore answers "I couldn't start that quiz just now" — the mock lane's gap.
         ev.queueUnavailable = ack.ok && /couldn.t start that quiz|could not start/i.test(ack.hit.txt || '');
-        const arrived = ack.ok && !ev.queueUnavailable ? await waitFresh((x) => (x.doc || x.pdf) || /QUIZ-[A-Z0-9]{6}/.test(x.txt || ''), 300000) : { ok: false };
+        // The bot says so when the quiz cannot be made ("Didn't work" / "went wrong on my side" / "could not be
+        // started"): stop waiting then, not after the 5 min budget — T35 idled 303 s on the lane (bd-r09cmx).
+        const failed = (x) => /went wrong on my side|could not be (finished|started)|couldn.t be (finished|started)|Didn.t work/i.test(x.txt || '');
+        const landed = ack.ok && !ev.queueUnavailable ? await waitFresh((x) => (x.doc || x.pdf) || /QUIZ-[A-Z0-9]{6}/.test(x.txt || '') || failed(x), 300000) : { ok: false };
+        const quizFailed = landed.ok && failed(landed.hit);
+        const arrived = quizFailed ? { ok: false, hit: landed.hit, failedCopy: (landed.hit.txt || '').slice(0, 120) } : landed;
         const after = dbJson('quiz-rows', ['--quiz', String(row.id)]) || {};
-        ev.arrival = { arrived: !!arrived.ok, what: arrived.ok ? (arrived.hit.media && arrived.hit.media.filename) || (arrived.hit.txt || '').slice(0, 120) : 'not within 5 min',
+        ev.arrival = { arrived: !!arrived.ok, what: arrived.ok ? (arrived.hit.media && arrived.hit.media.filename) || (arrived.hit.txt || '').slice(0, 120) : (quizFailed ? 'the bot said it failed: ' + arrived.failedCopy : 'not within 5 min'),
                        status: after.quiz && after.quiz.status, error: after.quiz && after.quiz.meta && after.quiz.meta.error, questions: (after.questions || []).length };
         const ok = les.ok && ev.textMatches && !!pick.ok && ack.ok && !ev.queueUnavailable && !!arrived.ok;
         R(tid)(ok ? V(true, ev) : (les.ok && ev.textMatches && pick.ok && ev.queueUnavailable

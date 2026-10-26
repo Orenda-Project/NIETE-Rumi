@@ -79,15 +79,30 @@ if [ "$METHOD" = mock ]; then
     #    whole blocks (any id wanted → the block runs; all ids skipped → it is dropped). The mock lane's default
     #    cuts training's quiz-generation cluster (training.cjs:823, one block T25…T84, + the T30–T34/T696 block)
     #    off the module ladder; E2E_SHARDS= (empty) runs every feature whole.
-    SHARDS="${E2E_SHARDS-training=T25-T84,T696}"
+    #    Several shards per feature: "feature=listA|listB" → child 1 skips every list, child 2 runs listA, child 3 listB.
+    #    Defaults, measured on run 20261026-1355-par: training's class-quiz/lesson-plan-quiz blocks (T35–T45, T56–T58:
+    #    training.cjs:978/1067/1141/1185) and its generation cluster (training.cjs:1193 → training-quiz-gen.cjs) are the
+    #    two long halves of a 19.6 min shard; coaching's pipeline runs 4–7 and the ask cluster (coaching-ext guards
+    #    from line 446) are 11 of its 20 min. Each guard/block is gated on any-id-wanted, so the lists are whole blocks.
+    SHARDS="${E2E_SHARDS-training=T35-T45,T56-T58|T25,T28-T34,T46-T55,T59-T84,T696;coaching=COA10,COA16,COA20,COA27-COA30,COA33,COA35,COA39-COA49,COA51-COA55,COA59}"
     CHILDREN=""
     for f in $PFEATS; do
       spec=$(printf '%s' "$SHARDS" | tr ';' '\n' | sed -n "s/^$f=//p" | head -1)
       if [ -n "$spec" ]; then
-        ids=$(node -e "process.stdout.write(require(process.argv[1]).expandIds(process.argv[2]).join(','))" "$QA/selection.cjs" "$spec")
-        CHILDREN="$CHILDREN $f|skip=$ids $f#2|only=$ids"
+        all=""; k=1; shards=""
+        for list in $(printf '%s' "$spec" | tr '|' ' '); do
+          ids=$(node -e "process.stdout.write(require(process.argv[1]).expandIds(process.argv[2]).join(','))" "$QA/selection.cjs" "$list")
+          k=$((k+1)); all="${all:+$all,}$ids"; shards="$shards $f#$k|only=$ids"
+        done
+        CHILDREN="$CHILDREN $f|skip=$all$shards"
       else CHILDREN="$CHILDREN $f|"; fi
     done
+    # Launch the longest children first: the wall is set by the slowest, and the 3 s stagger plus the module lock
+    # delay whoever starts last. Order measured on 20261026-1355-par; anything unlisted follows in feature order.
+    ORDER="${E2E_SHARD_ORDER:-coaching#2 training#2 training#3 coaching training lesson-plan menu language status registration}"
+    SORTED=""; for o in $ORDER; do for c in $CHILDREN; do [ "${c%%|*}" = "$o" ] && SORTED="$SORTED $c"; done; done
+    for c in $CHILDREN; do case " $SORTED " in *" $c "*) ;; *) SORTED="$SORTED $c";; esac; done
+    CHILDREN="$SORTED"
     if [ -n "${PRINT_SHARDS:-}" ]; then
       for c in $CHILDREN; do name=${c%%|*}; sel=${c#*|}; echo "child $name ${sel:-whole}"; done; exit 0
     fi
