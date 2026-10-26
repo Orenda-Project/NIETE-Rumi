@@ -3,7 +3,7 @@
 -- 2 coachip_* functions. Before running on any tier with real rows: export coachip_audit_log and coachip_steps
 -- (the only rows a person wrote); every other table is recomputed by the nightly job. Pre-cut clips under
 -- coachip/clips/<env>/ in R2 are not touched by SQL: delete them with the job's --purge-clips after this.
-BEGIN;
+-- NO BEGIN/COMMIT: migrate.js sends this file to rpc/exec_sql (a plpgsql EXECUTE), which refuses transaction control (0A000); the one RPC call is already one transaction.
 DROP TABLE IF EXISTS coachip_step_checks;
 DROP TABLE IF EXISTS coachip_steps;
 DROP TABLE IF EXISTS coachip_rm_note_schools;
@@ -50,7 +50,6 @@ DROP TYPE IF EXISTS coachip_moment_kind;
 DROP TYPE IF EXISTS coachip_signal_role;
 DROP TYPE IF EXISTS coachip_signal_source;
 DROP TYPE IF EXISTS coachip_status;
-COMMIT;
 NOTIFY pgrst, 'reload schema';
 
 -- post-flight: SELECT count(*) FROM pg_tables WHERE tablename LIKE 'coachip\_%';  -- 0

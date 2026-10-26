@@ -17,7 +17,7 @@
 -- IDEMPOTENT: IF NOT EXISTS / guarded CREATE TYPE throughout. ORDER: safe before the code (no reader while the
 -- portal_coachip flags are absent). Requires Postgres >= 12 (generated columns); sandbox and prod run 17.
 
-BEGIN;
+-- NO BEGIN/COMMIT: migrate.js sends this file to rpc/exec_sql (a plpgsql EXECUTE), which refuses transaction control (0A000); the one RPC call is already one transaction.
 
 -- ── ENUM types (D15) ─────────────────────────────────────────────────────────────────────────────────
 DO $$ BEGIN CREATE TYPE coachip_status AS ENUM ('ok', 'insufficient', 'failed', 'mismatch'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -935,7 +935,6 @@ DROP POLICY IF EXISTS service_role_coachip_step_checks ON coachip_step_checks;
 CREATE POLICY service_role_coachip_step_checks ON coachip_step_checks FOR ALL USING (auth.role() = 'service_role');
 GRANT ALL ON coachip_step_checks TO service_role;
 
-COMMIT;
 
 NOTIFY pgrst, 'reload schema';
 
