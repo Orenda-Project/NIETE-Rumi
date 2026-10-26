@@ -301,6 +301,35 @@ describe('RDF auto / RDF manual forms (Wave 3)', () => {
     }
   });
 
+  // Round 7 (the pilot's tester): "now your turn" says what the child does next, task by task, in both languages.
+  test('RDF auto: each task\'s "your turn" line names what the child does next (UR and EN)', () => {
+    const TURN = {
+      letter_names5: ['Now it is your turn to say the name of each letter.', 'اب ہر حرف کا نام بتانے کی آپ کی باری ہے۔'],
+      letter_sounds5: ['Now it is your turn to say the sound of each letter.', 'اب ہر حرف کی آواز بتانے کی آپ کی باری ہے۔'],
+      words4: ['Now it is your turn to read each word out loud.', 'اب ہر لفظ اونچی آواز میں پڑھنے کی آپ کی باری ہے۔'],
+      story_w3: ['Now it is your turn to read the story out loud.', 'اب کہانی اونچی آواز میں پڑھنے کی آپ کی باری ہے۔'],
+      story_comp_w3: ['Now it is your turn to answer the questions about the story.', 'اب کہانی کے بارے میں سوالوں کے جواب دینے کی آپ کی باری ہے۔'],
+      'ma.number_id8': ['Now it is your turn to say each number.', 'اب ہر نمبر بتانے کی آپ کی باری ہے۔'],
+      'ma.discrimination2': ['Now it is your turn to tap the bigger number.', 'اب بڑے نمبر کو دبانے کی آپ کی باری ہے۔'],
+      'ma.missing4': ['Now it is your turn to tap the missing number.', 'اب غائب نمبر کو دبانے کی آپ کی باری ہے۔'],
+      'ma.add2i': ['Now it is your turn to solve each addition problem.', 'اب جمع کا ہر سوال حل کرنے کی آپ کی باری ہے۔'],
+      'ma.sub2i': ['Now it is your turn to solve each subtraction problem.', 'اب تفریق کا ہر سوال حل کرنے کی آپ کی باری ہے۔'],
+      'ma.mul2i': ['Now it is your turn to solve each multiplication problem.', 'اب ضرب کا ہر سوال حل کرنے کی آپ کی باری ہے۔'],
+      'ma.fluency1m': ['Now it is your turn to answer the quick sums.', 'اب جلدی والے سوالوں کے جواب دینے کی آپ کی باری ہے۔'],
+    };
+    const AFTER = { en: 'Jugnu will not say if an answer is right until the end.', ur: 'جگنو آخر تک نہیں بتائے گا کہ جواب صحیح ہے یا نہیں۔' };
+    for (const form of COACH_FORMS) for (const [li, lang] of [[0, 'en'], [1, 'ur']]) {
+      const b = runtime(form, lang);
+      for (const t of w3Of(b)) {
+        const want = TURN[kindOf(t.id)] || TURN[t.id.split('.').slice(1).join('.')];
+        expect([t.id, !!want]).toEqual([t.id, true]);
+        const line = t.script.test_intro;
+        expect([t.id, line && line.text]).toEqual([t.id, `${want[li]} ${AFTER[lang]}`]);
+        expect([t.id, /^sa\/v1\/(en|ur)\/[0-9a-f]{12}\.mp3$/.test(line.audio)]).toEqual([t.id, true]);
+      }
+    }
+  });
+
   test('switch OFF: the battery the server serves has no RDF W3 key and no W3 task (today\'s battery)', () => {
     for (const form of COACH_FORMS) for (const lang of ['ur', 'en']) {
       const b = runtime(form, lang);
