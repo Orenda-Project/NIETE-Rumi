@@ -14,6 +14,7 @@
  */
 const S = require('./coachip-shapes');
 const { buildMomentsWithMeta, chapterLabel, questionFor, wShape } = require('./coachip-moment');
+const { sectorCoaches } = require('./coachip-sector-coaches');
 
 const FLOOR_COACH = 20;
 const FLOOR_SECTOR = 40;
@@ -438,7 +439,7 @@ async function moments(ctx) {
   // a recording whose analysis failed is not a moment: it lists here, with no code (B10)
   const failed = sessions.filter((s) => s.failed && !s.analysed)
     .sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at)).slice(0, FAILED_MAX);
-  const names = failed.length ? new Map((await q('SELECT id, name FROM schools WHERE id = ANY($1::uuid[])', [failed.map((s) => s.school_id)])).rows.map((r) => [r.id, r.name])) : new Map();
+  const names = failed.length ? new Map((await q(`SELECT id, name FROM schools WHERE id = ANY($1::uuid[])`, [failed.map((s) => s.school_id)])).rows.map((r) => [r.id, r.name])) : new Map();
 
   return S.reply(200, {
     window,
@@ -498,7 +499,6 @@ async function circleForm(q, ctx, momentId) {
     'SELECT phase, verdict::text AS verdict, from_s, to_s FROM coachip_session_steps WHERE fact_id = $1 ORDER BY ordinal',
     [r.fact_id],
   );
-  const { sectorCoaches } = require('./coachip-rm-read.service');   // lazy: the RM reads import this module
   const coaches = await sectorCoaches(q, ctx.rm);
   const c = coaches.find((x) => String(x.coachUserId).toLowerCase() === String(r.coach_user_id).toLowerCase());
   const none = r.confidence === 'none';
