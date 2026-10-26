@@ -15,6 +15,7 @@ const SAY = Object.freeze({
   'گیت': 'गीत',
   'چیل': 'चील',
   'میلا': 'मेला',
+  'ثے': 'से',
 });
 
 // The diacritics, tatweel and joiners a written word may carry; a listed word matches with or without them.
