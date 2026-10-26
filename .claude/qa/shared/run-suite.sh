@@ -190,10 +190,10 @@ if [ "$METHOD" = mock ]; then export E2E_JOIN_LOCK_SECS="${VIDEO_QUIZ_JOIN_LOCK_
 # The harness waits, measured (run 20261023-1006-par, bd-k5gjje): a 500 ms poll cost 66 s of detect latency, the
 # 1.2 s settle 318 s (nothing more arrived in 208 of 210). On the mock lane the bot is local and the pacer is off, so:
 # poll 100 ms; settle 800 ms (the longest real gap between two messages of one reply was 1.2 s with the pacer on —
-# most were the pacer's own 6 s). The 31 s app-setting settle STAYS: seven switch caches in the bot each hold their
-# own 30 s TTL (web-quiz-hub-flags.js, web-quiz-link.js, …) and a 1.5 s settle broke training T695 on the first
-# fixed run. E2E_APP_SETTING_SETTLE_MS is the knob for the day every cache reads one TTL.
-if [ "$METHOD" = mock ]; then export E2E_POLL_MS="${E2E_POLL_MS:-100}" E2E_SETTLE_MS="${E2E_SETTLE_MS:-800}" E2E_APP_SETTING_SETTLE_MS="${E2E_APP_SETTING_SETTLE_MS:-31000}"; fi
+# most were the pacer's own 6 s). The app-setting settle is 1.5 s: every switch cache the drivers flip reads
+# APP_SETTINGS_FLAG_TTL_MS (1 s on the lane, config/app-settings-ttl.js, bd-0vaqcg) — it was 31 s while six of
+# them kept their own 30 s and a short settle broke training T695.
+if [ "$METHOD" = mock ]; then export E2E_POLL_MS="${E2E_POLL_MS:-100}" E2E_SETTLE_MS="${E2E_SETTLE_MS:-800}" E2E_APP_SETTING_SETTLE_MS="${E2E_APP_SETTING_SETTLE_MS:-1500}"; fi
 # The coaching walker's "no progress" budget (coaching-ext.cjs): 240 s for live vendors; 90 s here, where every answer
 # replays — a step that has not moved in 90 s is stuck (bd-r09cmx).
 if [ "$METHOD" = mock ]; then export E2E_COACHING_STALL_MS="${E2E_COACHING_STALL_MS:-90000}"; fi

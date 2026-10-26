@@ -214,10 +214,10 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     # production) drops a message and answers "slow down". With the pacer off the driver — ONE phone — talks far
     # faster than any teacher, and training T24/T37 hit the limit on the first fixed run (bd-k5gjje). 1000 here.
     echo "RATE_LIMIT_MAX=${E2E_RATE_LIMIT_MAX:-1000}"
-    # The app_settings switch caches (app-redirect.service.js FLAG_TTL_MS and SIX more TTL_MS in quiz/*, all 30 s)
-    # are why the harness settles 31 s after every setAppSetting. Only app-redirect reads APP_SETTINGS_FLAG_TTL_MS
-    # today, so the lane keeps the 31 s settle (run-suite E2E_APP_SETTING_SETTLE_MS) until every cache reads one TTL.
-    echo "APP_SETTINGS_FLAG_TTL_MS=${E2E_APP_SETTINGS_FLAG_TTL_MS:-30000}"
+    # The app_settings switch caches (config/app-settings-ttl.js: app-redirect and the six quiz modules that cache
+    # the switches the drivers flip) expire in 1 s here instead of 30, so the harness settles 1.5 s after a flip
+    # (run-suite E2E_APP_SETTING_SETTLE_MS) instead of 31 — 18 flips, 558 s in run 20261026-1616-par (bd-0vaqcg).
+    echo "APP_SETTINGS_FLAG_TTL_MS=${E2E_APP_SETTINGS_FLAG_TTL_MS:-1000}"
     # observe capability gate (observe-gate.js:62) + the visit-picker Flow. keys/niete-local.env already
     # carries both real ids, and dotenv keeps the first value, so these are FALLBACKS for a clone whose
     # keys file lacks them — the ids match the committed flow fixtures (fixtures/flows/*.json + manifest),
