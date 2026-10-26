@@ -196,7 +196,7 @@ if [ "$METHOD" = mock ]; then export E2E_JOIN_LOCK_SECS="${VIDEO_QUIZ_JOIN_LOCK_
 if [ "$METHOD" = mock ]; then export E2E_POLL_MS="${E2E_POLL_MS:-100}" E2E_SETTLE_MS="${E2E_SETTLE_MS:-800}" E2E_APP_SETTING_SETTLE_MS="${E2E_APP_SETTING_SETTLE_MS:-1500}"; fi
 # The coaching walker's "no progress" budget (coaching-ext.cjs): 240 s for live vendors; 90 s here, where every answer
 # replays — a step that has not moved in 90 s is stuck (bd-r09cmx).
-if [ "$METHOD" = mock ]; then export E2E_COACHING_STALL_MS="${E2E_COACHING_STALL_MS:-90000}" E2E_COACHING_DEFER_AFTER_MS="${E2E_COACHING_DEFER_AFTER_MS:-0}"; fi
+if [ "$METHOD" = mock ]; then export E2E_COACHING_STALL_MS="${E2E_COACHING_STALL_MS:-90000}" E2E_COACHING_DEFER_AFTER_MS="${E2E_COACHING_DEFER_AFTER_MS:-0}" E2E_PORTAL_URL="${E2E_PORTAL_URL:-https://127.0.0.1:5173}"; fi
 mkdir -p "$RUN_DIR"; LOG="$RUN_DIR/runner.log"
 say() { echo "$*" | tee -a "$LOG"; }
 T0=$(date +%s)
