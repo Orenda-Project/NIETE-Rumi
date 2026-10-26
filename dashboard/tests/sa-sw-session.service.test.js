@@ -29,16 +29,16 @@ function bootWorker(existing) {
   return { listeners, kept, deleted };
 }
 
-test('the session cache is sa-session-v4', () => {
-  expect(require('../sa/sw').SESSION).toBe('sa-session-v4');
+test('the session cache is sa-session-v5 (round 7: the letter name ثے re-voiced under its key, new batteries)', () => {
+  expect(require('../sa/sw').SESSION).toBe('sa-session-v5');
 });
 
-test('activate deletes every older sa-session cache (v1, v2, v3) and keeps v4, the current core and other caches', async () => {
+test('activate deletes every older sa-session cache (v1 to v4) and keeps v5, the current core and other caches', async () => {
   const { CORE } = require('../sa/sw');
-  const w = bootWorker(['sa-session-v1', 'sa-session-v2', 'sa-session-v3', 'sa-session-v4', CORE, 'sa-core-sa-3', 'wq-cache']);
+  const w = bootWorker(['sa-session-v1', 'sa-session-v2', 'sa-session-v3', 'sa-session-v4', 'sa-session-v5', CORE, 'sa-core-sa-3', 'sa-core-sa-4', 'wq-cache']);
   let done;
   w.listeners.activate({ waitUntil: (p) => { done = p; } });
   await done;
-  expect(w.deleted.sort()).toEqual(['sa-core-sa-3', 'sa-session-v1', 'sa-session-v2', 'sa-session-v3']);
-  expect([...w.kept].sort()).toEqual([CORE, 'sa-session-v4', 'wq-cache'].sort());
+  expect(w.deleted.sort()).toEqual(['sa-core-sa-3', 'sa-core-sa-4', 'sa-session-v1', 'sa-session-v2', 'sa-session-v3', 'sa-session-v4']);
+  expect([...w.kept].sort()).toEqual([CORE, 'sa-session-v5', 'wq-cache'].sort());
 });

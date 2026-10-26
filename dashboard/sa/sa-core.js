@@ -140,6 +140,8 @@
     };
     // A one-at-a-time sum read only on the replay tile (W3). Kept off the older tasks, whose say_on the page never read.
     if (t.present === 'one_at_a_time' && t.say_on) r.say_on = t.say_on;
+    // The item screen's chip (W3-12 4c: a mental sum says "Say the answer"), else the page's own "Read aloud".
+    if (t.chip) r.chip = t.chip;
     if (mode === 'oral') {
       r.item_timeout_s = t.question_timeout_s || t.item_timeout_s || TIMED_ITEM_S;
     } else if (mode === 'tap' || mode === 'keypad' || mode === 'keyboard') {
@@ -231,6 +233,9 @@
     var oneAtATime = !!opts.one_at_a_time;
     var manual = !!opts.manual;
     var compAll = !!opts.comp_all_questions;
+    // sa_auto_no_last_word (round 7, RDF auto): the passage ends on "I'm done" / time up with no last-word step;
+    // its result says last_word_skipped and its questions are all asked (no tapped line to gate them on).
+    var skipLW = !!opts.skip_last_word && !opts.manual;
     var cellPace = !!opts.cell_pace;
     var cellNextOnly = !!opts.cell_next_only;
     var sectionRec = !!opts.section_recording;
@@ -294,6 +299,10 @@
       if (!d || !d.task) return { items: t.items };
       var dep = resultOf(d.task);
       if (!dep) return { items: t.items }; // the task it hangs on is not in this run (another block): ask everything
+      // RDF auto with no last-word step: every question, unless the passage stopped on its first line.
+      if (dep.last_word_skipped && (d.items_read_upto || d.upto_item)) {
+        return dep.stop_reason === STOP.FIRST_LINE ? { skip: STOP.SKIPPED_NO_LINE } : { items: t.items };
+      }
       if (d.skip_if_zero && dep.correct === 0) return { skip: STOP.SKIPPED_L2 };
       if (d.skip_if_stop && dep.stop_reason === d.skip_if_stop) return { skip: STOP.SKIPPED_NO_LINE };
       if (d.items_read_upto || d.upto_item) {
@@ -386,6 +395,7 @@
         var w = st.last_item_index != null ? t.items[st.last_item_index] : null;
         r.last_word_line = w && w.line != null ? w.line : (st.last_item_index != null ? 1 : null);
         if (st.last_word_how) { r.last_word_how = st.last_word_how.how; r.last_word_suggested = st.last_word_how.suggested; }
+        if (st.last_word_skipped) r.last_word_skipped = true;
       }
       if (st.cells) r.cells = st.cells.slice();
       if (t.mode === 'oral') r.asked = st.items.map(function (q) { return q.id; });
@@ -599,7 +609,7 @@
       done: function () {
         if (st.phase !== 'running' || task().mode !== 'record') return;
         ev('reading_done', { task_id: st.task_id });
-        if (task().items.length) st.phase = 'last_word'; else finish(STOP.COMPLETE);
+        if (task().items.length && skipLW) { st.last_word_skipped = true; finish(STOP.COMPLETE); } else if (task().items.length) st.phase = 'last_word'; else finish(STOP.COMPLETE);
       },
       /** The last word read (index into the passage's words). */
       lastWord: function (index, how) {
@@ -618,7 +628,12 @@
         if (lim != null && now() - st.started >= lim) {
           // One at a time: the cell reached is the last item (no passage to tap a last word on).
           if (st.cell) { finish(STOP.TIME_UP); return null; }
-          if (t.mode === 'record') { st.time_up = true; st.used_at_stop = now(); ev('reading_done', { task_id: t.id, value: 'time_up' }); st.phase = t.items.length ? 'last_word' : st.phase; if (!t.items.length) finish(STOP.TIME_UP); return null; }
+          if (t.mode === 'record') {
+            st.time_up = true; st.used_at_stop = now(); ev('reading_done', { task_id: t.id, value: 'time_up' });
+            if (t.items.length && skipLW) st.last_word_skipped = true;
+            if (t.items.length && !skipLW) st.phase = 'last_word'; else finish(STOP.TIME_UP);
+            return null;
+          }
           finish(STOP.TIME_UP);
           return null;
         }

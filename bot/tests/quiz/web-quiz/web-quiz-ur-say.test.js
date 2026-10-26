@@ -16,6 +16,10 @@ describe('sayOf: listed whole words respelled, everything else as written', () =
     expect(sayOf('بچے ساتھ گئے اور کھیر کھائی۔')).toBe('بچے साथ گئے اور खीर کھائی۔');
   });
 
+  test('the letter name ثے (the RDF letter-names example) is given as से: the voice read it as a "t" word', () => {
+    expect(sayOf('ثے')).toBe('से');
+    expect(sayOf('اس حرف کا نام ہے: ثے')).toBe('اس حرف کا نام ہے: से');
+  });
   test('a word that only contains a listed word is left as it is', () => {
     expect(sayOf('میرا ساتھی آیا')).toBe('میرا ساتھی آیا');
     expect(sayOf('کیلا اور میلاد')).toBe('کیلا اور میلاد');
