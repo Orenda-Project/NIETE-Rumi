@@ -31,3 +31,12 @@ Feature: Teacher training
     When marking is unavailable and they submit the exam again
     Then the screen says "Not sent" with the server's words that nothing has been recorded
     And their answers are still in the form
+
+  # TT04 (bd-yef5iq.6 + bd-gbf8ix, 26 Oct 2026): I-SAPS module pages lost their reading list when the vendor was
+  # renamed (it was matched by name); it is now matched on the vendor key, and Level 2 has its own list.
+  @TT04
+  Scenario: An I-SAPS module page shows the partner's required reading, under the renamed programme
+    Given the teacher app v2 is on and the coach app v2 is off
+    And demo teacher 03000000911 is signed in and can open an I-SAPS Module 1 course
+    When she opens that course's module page
+    Then it lists the partner's required reading, each with a link

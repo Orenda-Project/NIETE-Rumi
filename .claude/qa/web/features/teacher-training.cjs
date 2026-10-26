@@ -9,5 +9,6 @@ const scenarios = [
   pagesScenario("TT01", "Teacher app v2: Training lists her courses", "teacher", "teacherV2", [{ path: "/portal/teacher/training", heading: /^Courses\s+[1-9]/ }]),
   pagesScenario("TT02", "Classic portal: Training opens", "teacher", "classic", [{ path: "/portal/training", heading: /^Training$/ }]),
 ];
+scenarios.push(...require("../flows/teacher-training-readings.cjs"));
 
 module.exports = { feature: "teacher-training", spec: 'tests/features/web/teacher-training.feature', scenarios };
