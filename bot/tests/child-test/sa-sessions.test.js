@@ -79,6 +79,8 @@ function world({ sessions, blocks, schools } = {}) {
     calls,
     deps: {
       enabled: async () => true,
+      // the practice-only switch (child_test_practice_only) is read through deps, never the live settings
+      practiceSwitch: false,
       supabase: { from: () => { throw new Error('no direct reads'); } },
       store,
       saStore: {},
@@ -130,6 +132,29 @@ describe('saSessions', () => {
     const s3 = out.sessions.find((s) => s.results.session.id === S3);
     expect(s3.sector).toBeNull();
     expect(s3.results.tasks[0]).toMatchObject({ taskId: 'ma.missing4', correct: 2, attempted: 4 });
+  });
+
+  test('with the practice-only switch off, a row carries no practice flag', async () => {
+    const out = await sa.saSessions({ userId: COACH }, world().deps);
+    expect(out.sessions.every((s) => !('practice' in s))).toBe(true);
+  });
+
+  test('with the practice-only switch on, each row says whether its school is a practice school', async () => {
+    const w = world();
+    const asked = [];
+    w.deps.practiceSwitch = true;
+    w.deps.supabase = {
+      from: (table) => ({
+        select: () => ({
+          in: (col, ids) => ({
+            eq: async (key, value) => { asked.push({ table, col, ids, key, value }); return { data: [{ id: 'sch-1' }], error: null }; },
+          }),
+        }),
+      }),
+    };
+    const out = await sa.saSessions({ userId: COACH }, w.deps);
+    expect(asked).toEqual([{ table: 'schools', col: 'id', ids: ['sch-1', 'sch-3'], key: 'is_probable_test', value: true }]);
+    expect(Object.fromEntries(out.sessions.map((s) => [s.schoolId, s.practice]))).toEqual({ 'sch-1': true, 'sch-3': false });
   });
 
   test('a session with no task rows yet is left out', async () => {
