@@ -36,6 +36,12 @@ describe('1. the lane env switches the pacer off and shortens the switch cache',
   test('the switch-cache TTL stays 30 s on the lane until every cache reads it (seven keep their own)', () => {
     expect(src).toMatch(/echo "APP_SETTINGS_FLAG_TTL_MS=\$\{E2E_APP_SETTINGS_FLAG_TTL_MS:-1000\}"/);
   });
+  test('the lane config carries a signing key placeholder so /portal links can be signed (M10/M21, bd-0ek3rv)', () => {
+    // app-login-link.js signs the /portal token with INTERNAL_API_KEY; without it the bot answers "the portal link is
+    // not available right now". A placeholder is enough on the lane: nothing verifies the signature here.
+    const lane = fs.readFileSync(path.join(REPO, '.claude', 'qa', 'config', 'local-lane.env'), 'utf8');
+    expect(lane).toMatch(/^INTERNAL_API_KEY=e2e-local-[a-z-]+$/m);
+  });
   test('run-suite.sh sets the three harness knobs for the mock lane only', () => {
     const rs = fs.readFileSync(path.join(REPO, '.claude', 'qa', 'shared', 'run-suite.sh'), 'utf8');
     expect(rs).toMatch(/E2E_POLL_MS="\$\{E2E_POLL_MS:-100\}"/);
