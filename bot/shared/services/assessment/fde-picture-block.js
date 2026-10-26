@@ -28,6 +28,14 @@ function pictureBlock(q) {
   return `<div class="pic pic-${attr(p.kind)}">${img}</div>`;
 }
 
+/**
+ * A speech-bubble item (bd-5jmnfj.4.40): the picture with an empty bubble beside it to write in.
+ * The paper draws the bubble; v18's image model left it out, or put it over the wrong child.
+ */
+function bubbleBlock(pic) {
+  return `<div class="bubble-row">${pic}<div class="bubble"></div></div>`;
+}
+
 const PICTURE_CSS = `
   .pic { margin: 4px 0; break-inside: avoid; }
   .pic img { height: 28mm; width: auto; }
@@ -37,6 +45,10 @@ const PICTURE_CSS = `
   .pic-shapes img { height: 22mm; }
   .pic-scene img { height: 45mm; }
   .pic-plant img { height: 60mm; }
+  .bubble-row { display: flex; align-items: flex-start; gap: 6mm; break-inside: avoid; }
+  .bubble { position: relative; width: 62mm; height: 26mm; margin-top: 4mm; border: 0.5mm solid #000; border-radius: 50%; }
+  .bubble::before { content: ''; position: absolute; left: -5mm; bottom: 3mm; border-style: solid;
+    border-width: 2.5mm 6mm 2.5mm 0; border-color: transparent #000 transparent transparent; }
 `;
 
-module.exports = { pictureBlock, PICTURE_CSS };
+module.exports = { pictureBlock, bubbleBlock, PICTURE_CSS };

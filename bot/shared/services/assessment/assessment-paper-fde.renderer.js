@@ -30,7 +30,7 @@ const path = require('path');
 const { clampLanguage } = require('../../config/ux-strings');
 const { SUBJECT_LABEL } = require('./assessment-vocabulary');
 const Patterns = require('./patterns');
-const { pictureBlock, PICTURE_CSS } = require('./fde-picture-block');
+const { pictureBlock, bubbleBlock, PICTURE_CSS } = require('./fde-picture-block');
 const { matchOrder, matchTable, MATCH_CSS } = require('./fde-match-block');
 const { oralSheet, ORAL_CSS } = require('./fde-oral-sheet');
 
@@ -440,6 +440,8 @@ function workSpace(q, slot) {
     if (/☐/.test(String(q.question || ''))) return '';
     // A plant to label carries its own blank lines (bd-5jmnfj.4.33).
     if (q.picture && q.picture.kind === 'plant') return '';
+    // Fill in the blank: the child writes on the ___ (bd-5jmnfj.4.39).
+    if (/_{3,}/.test(String(q.question || ''))) return '';
     return `<div class="write-box" style="height:${12 + 8 * Math.max(0, (slot.lines || 1) - 1)}mm"></div>`;
   }
   if ((slot.lines || 0) >= 2) {
@@ -563,6 +565,7 @@ function itemBody(q, slot, i, ctx, inlineQ) {
   const shape = slot.shape;
   // A Grade 1-2 picture (bd-5jmnfj.4.3) prints above the body, whatever its shape.
   const pic = pictureBlock(q);
+  if (pic && slotFlag(slot, 'bubble')) return bubbleBlock(pic);
   if (shape === 'mcq') return pic + optionsBlock(q, slot, ctx);
   if (shape === 'frame') return pic + frameBlock(q, slot, ctx);
   if (shape === 'comprehension') return pic + comprehensionBlock(q, slot, ctx);
