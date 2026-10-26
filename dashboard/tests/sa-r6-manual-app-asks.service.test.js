@@ -87,7 +87,9 @@ maybe('sa-ui: RDF manual, the app asks the questions (sa_app_asks)', () => {
     await flush(50);
     return runner.view();
   }
-  const itemSaid = (it) => (typeof it.say === 'string' ? it.say : words(it.say || it.prompt));
+  // Round 7: a maths item's words are shown in English digits (Jugnu's clip still says them in Urdu).
+  const shownNums = (it, x) => (/^ma\./.test(String(it.id || '')) ? String(x).replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))) : x);
+  const itemSaid = (it) => shownNums(it, typeof it.say === 'string' ? it.say : words(it.say || it.prompt));
 
   const isTap = (t) => ['tap', 'keypad'].includes(t.mode || t.response);
 

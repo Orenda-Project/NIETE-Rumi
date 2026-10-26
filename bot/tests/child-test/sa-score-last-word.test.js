@@ -157,3 +157,21 @@ function fakeDb(tables) {
   return { from: query };
 }
 
+
+describe('RDF auto with no last-word step (the phone\'s sa_auto_no_last_word): the recording gives the last word', () => {
+  const before = { ...process.env };
+  beforeEach(() => { process.env.CHILD_TEST_SA_SCORER = 'on'; process.env.CHILD_TEST_R2_ENV = 'sandbox'; process.env.CHILD_TEST_SA_SPEECH_GATE = 'on'; score.__internals.resetBoot(); });
+  afterEach(() => { process.env = { ...before }; });
+
+  test('last_word_skipped, sa_coach_last_word off for the coach: still from the recording, nothing to check against', async () => {
+    const got = await score.scoreRow(row({ last_word_index: null, last_word_skipped: true }), session(), standIns({ read: 30 }));
+    expect(got.marks).toMatchObject({ attempted: 30, correct: 30 });
+    expect(got.marks.detail).toMatchObject({ last_word_source: 'recording', last_word_heard: 30 });
+    expect(got.marks.detail).not.toHaveProperty('last_word_check');
+  });
+  test('last_word_skipped and a recording with no speech: 0 attempted, no tap to fall back on', async () => {
+    const got = await score.scoreRow(row({ last_word_index: null, last_word_skipped: true }), session(), standIns({ read: 30, words: 0 }));
+    expect(got.marks).toMatchObject({ correct: 0 });
+    expect(got.marks.detail).toMatchObject({ last_word_source: 'recording', last_word_heard: 0 });
+  });
+});
