@@ -105,4 +105,10 @@ describe('hysteresis (test 10)', () => {
     expect(log).toEqual(['hysteresis scope=sector w1=W-EXIT w2=W-IP']);
     for (const r of rows) expect(X.assertRollupChecks(r)).toBe(true);
   });
+
+  test('W-Q and W-FB are held out of the ranking (C1/C3 at 2 on 90%/57% of v3 lessons; board 13:17Z); their rows stay, unranked', () => {
+    const { rows } = rankScope([row('W-Q', 19, 20), row('W-FB', 15, 20), row('W-IP', 9, 20)], opts());
+    expect(ranked(rows)).toEqual(['W-IP']);
+    expect(rows.find((r) => r.w_id === 'W-Q')).toMatchObject({ rank: null, status: 'ok' });
+  });
 });

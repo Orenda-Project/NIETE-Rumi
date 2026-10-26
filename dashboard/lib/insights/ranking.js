@@ -20,7 +20,7 @@ function rankScope(rollupsForScope, { weaknesses, sectorShareByW, previousOrder 
   const rowOf = new Map(rows.map((r) => [r.w_id, r]));
   const eligible = (r) => {
     const w = wById.get(r.w_id);
-    return !!w && r.status === 'ok' && w.s1_eligible === true && w.is_cause_line !== true && !w.is_s7;
+    return !!w && r.status === 'ok' && w.s1_eligible === true && w.is_cause_line !== true && !w.is_s7 && !C.RANKING_HELD_OUT.includes(r.w_id);
   };
   const passes = (r) => {
     const s = share(r);
