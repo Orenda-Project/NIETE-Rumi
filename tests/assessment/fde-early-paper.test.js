@@ -34,12 +34,19 @@ function slotHtml(page, slot) {
 
 describe('every written item has somewhere to write', () => {
   test.each([
-    ['g1.english.A.Q1'], ['g1.english.A.Q2'], ['g1.english.A.Q3'], ['g1.english.A.Q4'],
-    ['g1.english.A.Q5'], ['g1.english.B.Q7'], ['g1.english.B.Q9'], ['g1.english.C.Q14'],
+    ['g1.english.A.Q1'], ['g1.english.A.Q2'], ['g1.english.A.Q4'],
+    ['g1.english.A.Q5'], ['g1.english.B.Q7'], ['g1.english.C.Q14'],
   ])('%s prints a write box under every item', (slot) => {
     const items = itemsOf(html, slot);
     expect(items.length).toBeGreaterThan(0);
     items.forEach((it) => expect(it).toContain('class="write-box"'));
+  });
+
+  // v18: a blank and a box under it was two places to write (bd-5jmnfj.4.39); the child writes on the ___.
+  test.each([['g1.english.A.Q3'], ['g1.english.B.Q9']])('%s writes on its blank, with no box', (slot) => {
+    const items = itemsOf(html, slot);
+    expect(items.length).toBeGreaterThan(0);
+    items.forEach((it) => expect(it).not.toContain('write-box'));
   });
 
   test('a multiple-choice item gets no box: the child circles', () => {
