@@ -11,6 +11,9 @@ const { noArrow } = require('../../fde-match-block');
 
 const S = (o) => ({ marks_each: 1, ...o });
 const VEHICLE = /boat|ship|bus|train|car\b|cart|bicycle|bike|plane|van|truck|rickshaw|tractor/i;
+// v20 keyed the crocodile پانی; a child who wrote خشکی was not wrong (bd-5jmnfj.4.45).
+const BOTH_HOMES = /crocodile|alligator|frog|toad|turtle|duck|goose|swan|hippo|seal|penguin|otter|crab/i;
+const BOTH = 'خشکی اور پانی دونوں';
 
 module.exports = makeSubject({
   grade: 1,
@@ -64,12 +67,15 @@ module.exports = makeSubject({
           instruction_ur: 'تصویر دیکھ کر لکھیں: جنگلی یا پالتو۔',
           prompt_rule: 'Six book animals, three wild and three domestic, mixed, each as picture: {kind:"object", name}. Answer: جنگلی or پالتو.' }),
         S({ slot: 'g1.general_knowledge.B.Q10', label_en: 'Q10.', type: 'Land or Water', generate: 5, lines: 1, picture: ['object'], picture_only: true,
-          instruction_ur: 'یہ کہاں رہتا ہے؟ خشکی یا پانی۔',
+          instruction_ur: 'یہ کہاں رہتا ہے؟ خشکی، پانی یا دونوں۔',
           // v18 drew a ship, a bus, a train and a cart for "where does it live?" (bd-5jmnfj.4.34).
           prompt_rule: 'Five book animals only, some that live on land and some that live in water, never a vehicle or any other object, '
-            + 'each as picture: {kind:"object", name}. Answer: خشکی or پانی.',
-          answer_ok: (q) => ['خشکی', 'پانی'].includes(String(q.answer).trim())
-            && !VEHICLE.test(String((q.picture && q.picture.name) || '')) }),
+            + 'each as picture: {kind:"object", name}. Answer: خشکی or پانی; an animal of land and water (a crocodile, frog, turtle or duck) '
+            + `is keyed ${BOTH}.`,
+          answer_ok: (q) => {
+            const name = String((q.picture && q.picture.name) || '');
+            return !VEHICLE.test(name) && (BOTH_HOMES.test(name) ? [BOTH] : ['خشکی', 'پانی']).includes(String(q.answer).trim());
+          } }),
       ],
     },
   ],

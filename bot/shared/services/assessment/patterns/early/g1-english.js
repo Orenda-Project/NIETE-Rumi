@@ -84,11 +84,14 @@ module.exports = makeSubject({
             + '{kind:"scene", describe} of two children. The question names who speaks. The describe has no speech bubble (the paper '
             + 'prints it) and shows exactly the thing the question names, in the same words, plain and never wrapped. '
             + 'The child who speaks stands on the right, next to the printed bubble, and the describe says "on the right". '
+            + 'The question is about meeting, helping or saying sorry, never a gift or a present. '
             + 'Answer: the words. Scheme: K 2.',
-          // v19 put the bubble beside the child who was not speaking (bd-5jmnfj.4.40).
+          // v19 put the bubble beside the child who was not speaking; v20 asked about a gift and drew a
+          // wrapped box (bd-5jmnfj.4.40).
           answer_ok: (q) => {
             const d = String((q.picture && q.picture.describe) || '');
-            return !/bubble|gift|present|wrapped/i.test(d) && /\bon the right\b/i.test(d);
+            return !/bubble|gift|present|wrapped/i.test(d) && /\bon the right\b/i.test(d)
+              && !/gift|present/i.test(String(q.question || ''));
           } },
         S({ slot: 'g1.english.C.Q14', label_en: 'Q14.', type: 'Capital Letters', generate: 4, lines: 1,
           instruction_en: 'Rewrite the sentence with a capital letter.',

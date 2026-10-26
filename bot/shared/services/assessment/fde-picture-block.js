@@ -47,10 +47,12 @@ const PICTURE_CSS = `
   .pic-plant img { height: 60mm; }
   .bubble-row { display: flex; align-items: flex-start; gap: 6mm; break-inside: avoid; }
   .bubble { position: relative; width: 62mm; height: 26mm; margin-top: 4mm; border: 0.5mm solid #000; border-radius: 50%; }
-  /* The tail is an outline, a white triangle over a black one: a solid one read as an arrowhead (bd-5jmnfj.4.40). */
-  .bubble::before { content: ''; position: absolute; left: -6mm; bottom: 3mm; border-style: solid;
+  /* The tail is an outline, a white triangle over a black one: a solid one read as an arrowhead (bd-5jmnfj.4.40).
+     It sits at the middle of the side, where the ellipse's edge is; the white one covers the border so the
+     tail opens into the bubble. Placed low, it stood apart and read as "<". */
+  .bubble::before { content: ''; position: absolute; left: -6mm; top: 50%; margin-top: -3mm; border-style: solid;
     border-width: 3mm 6.5mm 3mm 0; border-color: transparent #000 transparent transparent; }
-  .bubble::after { content: ''; position: absolute; left: -4.6mm; bottom: 3.7mm; border-style: solid;
+  .bubble::after { content: ''; position: absolute; left: -4.4mm; top: 50%; margin-top: -2.3mm; border-style: solid;
     border-width: 2.3mm 5mm 2.3mm 0; border-color: transparent #fff transparent transparent; }
 `;
 
