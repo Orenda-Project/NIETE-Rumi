@@ -25,9 +25,6 @@ const { readingsForCourse } = require('../../bot/shared/services/training/isaps-
 /** Vendors in the order a coach sees them; any other key follows alphabetically (TALEEMABAD_LEGACY lands here). */
 const VENDOR_RANK = ['TALEEMABAD', 'ISAPS', 'BEACONHOUSE', 'OXBRIDGE'];
 
-/** The reading list is keyed on the vendor's ORIGINAL name; the live vendor row now carries a display name. */
-const READINGS_VENDOR_NAME = 'I-SAPS';
-
 const EXAM_QUIZ_TYPES = ['grand_quiz', 'capstone'];
 const MODULE_NO = /Module (\d+)/;
 
@@ -139,9 +136,9 @@ async function loadLibrary(supabase) {
 }
 
 function readingsFor(vendor, level, course) {
-  if (!vendor || vendor.key !== 'ISAPS') return null;
+  if (!vendor) return null;
   return readingsForCourse({
-    vendorName: READINGS_VENDOR_NAME,
+    vendorKey: vendor.key,
     levelOrderIndex: level.order_index,
     courseTitle: course.title,
   });

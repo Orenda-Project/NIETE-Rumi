@@ -2,17 +2,21 @@
  * I-SAPS required reading — the partner's per-module reading list.
  *
  * Source: I-SAPS "Level 1 Reading Material (Mandatory)" (2026-10-08, after FDE
- * feedback), transcribed into isaps-readings.data.json: 13 readings, each with
+ * feedback) and "Level 2 Reading List Final" (2026-10-26, bd-yef5iq.6),
+ * transcribed into isaps-readings.data.json: 13 readings per level, each with
  * the SECTION to read, a rationale and the outcome ("teachers will be able
- * to …"). It replaced the Sept 2026 recommended list of 95; the partner's
+ * to …"). Level 1's replaced the Sept 2026 recommended list of 95; the partner's
  * supplementary readings go to teachers as a Word document, not through here
  * (bd-klecr.9). It is static partner material that changes when the partner
  * sends a new document, so it ships as reviewed data with the code rather than
  * as a new table (schema-first / anti-sprawl: no existing training table has a
  * place for it, and nothing queries it).
  *
- * A course is matched by vendor NAME + level order_index + the "Module N" in
- * its title, never by numeric id: sandbox, staging and production each seeded
+ * A course is matched by vendor KEY + level order_index + the "Module N" in
+ * its title. Never by vendor NAME: the I-SAPS vendor was renamed "Teacher
+ * Development Programme, 9-12" on 2026-10-13 (bd-2gia5l) and every teacher
+ * module page lost its reading list (bd-gbf8ix); the key does not change.
+ * Never by numeric id either: sandbox, staging and production each seeded
  * their own training rows, so the ids differ. The module-exam gate reads the
  * module number off the title the same way (internal-api module-exam-gate).
  *
@@ -26,8 +30,8 @@ const MODULE_IN_TITLE = /Module (\d+)/;
 
 /**
  * @param {object} args
- * @param {string} args.vendorName     training_vendors.name
- * @param {number} args.levelOrderIndex training_levels.order_index
+ * @param {string} args.vendorKey      training_vendors.key ('ISAPS')
+ * @param {number} args.levelOrderIndex training_levels.order_index (0 = Level 1, 1 = Level 2)
  * @param {string} args.courseTitle    training_courses.title
  * @returns {null|{available: object[], unavailable: object[]}}
  *   null when this course has no reading list. `available` items carry an
@@ -36,8 +40,8 @@ const MODULE_IN_TITLE = /Module (\d+)/;
  *   section (what to read), rationale, outcome, url — and description, which
  *   older screens read, equal to the rationale.
  */
-function readingsForCourse({ vendorName, levelOrderIndex, courseTitle } = {}) {
-  if (vendorName !== DATA.vendor) return null;
+function readingsForCourse({ vendorKey, levelOrderIndex, courseTitle } = {}) {
+  if (!vendorKey || vendorKey !== DATA.vendor_key) return null;
   const level = DATA.levels[String(levelOrderIndex)];
   if (!level) return null;
   const m = MODULE_IN_TITLE.exec(courseTitle || '');
