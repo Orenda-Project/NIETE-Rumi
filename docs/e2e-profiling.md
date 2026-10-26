@@ -267,3 +267,15 @@ cassette library state and no scenario dropped (each shard reports its own ids; 
 both sides of a cut would run twice, and the cuts were chosen so none does). Eleven slots run at once; the
 machine has carried them without a port or lock collision. The 15 remaining vendor misses are prompts with
 per-run content (training's quiz-generation cluster, COA04/COA58) and need the key normaliser, not recording.
+
+### Fixed (bd-05v2sn) — the coaching walker never saw the report
+
+COA04/05/07/15 were BLOCKED on every run, baseline included, with "the analysis went silent at steps
+[2,3,5]". The transcripts showed the opposite: report image, commit card and quiz offer all landed
+within 90 s. Since the Meta bill cut (`8d85965b5`, 2026-10-01, NC2) the bot sends the report image with
+the "Step 5/5" line in its caption; the walker's report detector (2026-09-07) rejected any row matching
+the pipeline-noise pattern, so `obs.report` never set, the commit card was ignored, and the run idled into
+the stall budget. `isReportRow` now treats an image/PDF row as the report once any step was seen; the noise
+filter applies to text rows only. Verification run `20261026-1616-par`: COA04/05/07/15 PASS, coaching's
+first shard 511 → 452 s, suite 169 pass / 28 fail / 86 other, wall 13 m 13 s (the ceiling is now
+training's class-quiz shard at 779 s).
