@@ -41,4 +41,12 @@ function videoRecoReason(env = process.env) {
   return String(env.VIDEO_RECO_REASON || '').trim().toLowerCase() === 'card' ? 'card' : null;
 }
 
-module.exports = { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason };
+/**
+ * The clip card on the /cr report page (COS ruling 20261026T155431 R7r): only an explicit off (false/0/off) removes it, so
+ * the clip shows in the same places in every v10 arm during the A/B. Unset or anything else = true = today.
+ */
+function videoRecoCrCard(env = process.env) {
+  return !['false', '0', 'off'].includes(String(env.VIDEO_RECO_CR_CARD || '').trim().toLowerCase());
+}
+
+module.exports = { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason, videoRecoCrCard };
