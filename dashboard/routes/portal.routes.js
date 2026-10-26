@@ -91,6 +91,9 @@ const {
   PORTAL_TEACHER_HOME_CARD_KEY,
   PORTAL_TEACHER_HOME_ORDER_KEY,
   PORTAL_TEACHER_HOME_LOOK_KEY,
+  PORTAL_COACHIP_KEY,
+  PORTAL_COACHIP_DECODE_KEY,
+  rmSectorFor,
   isCoachObservationOn,
   isPortalAssessmentEditingEnabled,
   PORTAL_ANALYTICS_ONLY_KEY,
@@ -8874,6 +8877,9 @@ router.get('/config', async (req, res) => {
       teacherHomeOrderRaw,
       teacherHomeLookRaw,
       loginIntlNumbers,
+      coachip,
+      coachipRmSector,
+      coachipDecodeRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -8901,6 +8907,11 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_LOOK_KEY, userId),
       // the teacher sign-in takes a non-PK number: one switch, read signed out too.
       isLoginIntlNumbersEnabled(supabase),
+      // bd-sex15q.13 — COACHIP: the coach insight portal, the RM's sector view, and the name-decode tap (per user;
+      // the RM row is an object, read by rmSectorFor). Decode only rides with the coach switch on.
+      isFlagEnabledForUser(supabase, PORTAL_COACHIP_KEY, userId),
+      rmSectorFor(supabase, userId),
+      isFlagEnabledForUser(supabase, PORTAL_COACHIP_DECODE_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -8923,6 +8934,9 @@ router.get('/config', async (req, res) => {
         teacherHomeOrder: teacherHomeCard && teacherHomeOrderRaw,
         teacherHomeLook: teacherHomeCard && teacherHomeLookRaw,
         loginIntlNumbers,
+        coachip,
+        coachipRm: coachipRmSector !== null,
+        coachipDecode: coachip && coachipDecodeRaw,
       },
     });
   } catch (error) {
@@ -8947,6 +8961,9 @@ router.get('/config', async (req, res) => {
         teacherHomeOrder: false,
         teacherHomeLook: false,
         loginIntlNumbers: false,
+        coachip: false,
+        coachipRm: false,
+        coachipDecode: false,
       },
     });
   }
