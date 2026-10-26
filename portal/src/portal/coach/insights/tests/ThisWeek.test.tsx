@@ -145,6 +145,19 @@ describe("S1 This week", () => {
     expect(screen.getByTestId("s1-stats-link").getAttribute("href")).toBe("/portal/coach/insights/stats");
   }, 20000);
 
+  // bd-sex15q.19 (COS 16:44Z): the button is a flex box, and a flex box trims the space at the edge of each bare text
+  // run, so "Listen " + <span>0:38</span> drew as "Listen0:38" in the browser while textContent kept the space. The
+  // label is one inline run inside the button: no bare text node may sit beside an element as the button's own child.
+  it.each(["en", "ur"] as const)("%s: the Listen label is one inline run, so the flex button keeps its space", async (lang) => {
+    await boot(lang);
+    serve({ "/coachip/home": F.home, [`POST /coachip/notes/${NOTE_ID}/status`]: { note: F.home.note } });
+    await renderAt("");
+    const listen = screen.getByTestId("wcard-listen");
+    const kids = Array.from(listen.childNodes);
+    expect(kids.some((n) => n.nodeType === Node.TEXT_NODE)).toBe(false);
+    expect(listen.textContent).toBe(lang === "en" ? "Listen 0:38" : "سنیں ۰:۳۸");
+  }, 20000);
+
   it("ur: the Listen button reads سنیں ۰:۳۸", async () => {
     await boot("ur");
     serve({ "/coachip/home": F.home, [`POST /coachip/notes/${NOTE_ID}/status`]: { note: F.home.note } });

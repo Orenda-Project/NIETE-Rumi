@@ -105,7 +105,7 @@ async function schoolNames(q, ids) {
   const out = new Map();
   const unique = [...new Set(ids.filter(Boolean))];
   if (!unique.length) return out;
-  const { rows } = await q('SELECT id, name FROM schools WHERE id = ANY($1::uuid[])', [unique]);
+  const { rows } = await q(`SELECT id, name FROM schools WHERE id = ANY($1::uuid[])`, [unique]);
   for (const r of rows) out.set(r.id, r.name);
   return out;
 }

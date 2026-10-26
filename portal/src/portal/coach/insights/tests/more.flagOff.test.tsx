@@ -5,7 +5,7 @@ import i18n from "i18next";
 
 /**
  * bd-sex15q.15 — More, with and without COACHIP. The insight menu takes the Training Library and Lesson Plans off the
- * bar, so with portal_coachip on they are rows on More (ruling 06:11Z: training one tap away). Off, absent or failing:
+ * bar, so with portal_coachip on they are rows on More (the lead's decision: training one tap away). Off, absent or failing:
  * More is exactly what it was (no new row).
  */
 vi.mock("../../../components/PortalLayout", () => ({ default: ({ children }: { children: unknown }) => <div>{children as never}</div> }));

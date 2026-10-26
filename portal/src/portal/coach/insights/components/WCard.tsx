@@ -86,7 +86,8 @@ export function WCard({ card, total, testId = "wcard" }: { card: WCardData; tota
           {card.moment_id && card.moment_duration_s != null && (
             <Link data-testid={`${testId}-listen`} to={LISTEN_IN_PLACE ? "#listen" : `${insightsPaths.w(card.w_id)}#moment`}
               className={`${btn} border border-[#d1d5db] bg-white text-[#1d2025]`}>
-              {tx("s1.listen", lang, { dur: <span data-clock="">{durButton(card.moment_duration_s, lang)}</span> })}
+              {/* one inline run: a flex button trims the space at the edge of a bare text run ("Listen0:38") */}
+              <span>{tx("s1.listen", lang, { dur: <span data-clock="">{durButton(card.moment_duration_s, lang)}</span> })}</span>
             </Link>
           )}
           {open && card.moment_id && <div className="basis-full"><InPlaceClip momentId={card.moment_id} /></div>}
