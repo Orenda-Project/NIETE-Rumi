@@ -214,6 +214,11 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     # production) drops a message and answers "slow down". With the pacer off the driver — ONE phone — talks far
     # faster than any teacher, and training T24/T37 hit the limit on the first fixed run (bd-k5gjje). 1000 here.
     echo "RATE_LIMIT_MAX=${E2E_RATE_LIMIT_MAX:-1000}"
+    # The /portal button is a cta_url, which whatsapp.service refuses without an https url; the lane's
+    # PORTAL_URL is http://127.0.0.1:5173 (the web lane opens it in a browser). The WhatsApp mock lane never
+    # follows the link, so run-suite.sh sets E2E_PORTAL_URL=https://127.0.0.1:5173 and M10/M21 see the button
+    # (bd-1r3k2h). dotenv keeps the LAST of a repeated key, so this line wins over the lane file's.
+    [ -n "${E2E_PORTAL_URL:-}" ] && echo "PORTAL_URL=${E2E_PORTAL_URL}"
     # The app_settings switch caches (config/app-settings-ttl.js: app-redirect and the six quiz modules that cache
     # the switches the drivers flip) expire in 1 s here instead of 30, so the harness settles 1.5 s after a flip
     # (run-suite E2E_APP_SETTING_SETTLE_MS) instead of 31 — 18 flips, 558 s in run 20261026-1616-par (bd-0vaqcg).

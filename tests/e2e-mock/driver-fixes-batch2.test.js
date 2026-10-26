@@ -81,6 +81,15 @@ describe('T74 — the promise rides in the PDF caption and the forward message i
   });
 });
 
+describe('M10/M21 — the WhatsApp mock lane composes an https portal URL so the cta_url button is sent', () => {
+  test('run-suite sets E2E_PORTAL_URL and local-stack composes it after the lane file', () => {
+    expect(read('.claude/qa/shared/run-suite.sh')).toMatch(/E2E_PORTAL_URL="\$\{E2E_PORTAL_URL:-https:\/\/127\.0\.0\.1:5173\}"/);
+    const stack = read('bot/scripts/e2e/local-stack.sh');
+    expect(stack).toMatch(/echo "PORTAL_URL=\$\{E2E_PORTAL_URL\}"/);
+    expect(stack.indexOf('echo "PORTAL_URL=${E2E_PORTAL_URL}"')).toBeGreaterThan(stack.indexOf('cat "$lane_cfg"'));
+  });
+});
+
 describe('COA29/30 — the fidelity move lists are seeded', () => {
   test('niete_lp_fidelity_moves is a seed table', () => {
     const tables = read('supabase/baseline/seed-tables.txt').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
