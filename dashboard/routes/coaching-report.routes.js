@@ -78,8 +78,8 @@ async function loadReport(supabase, sessionId, userId) {
     return { created_at: r && r.created_at, pct: p == null || p === '' || !Number.isFinite(Number(p)) ? null : Number(p) };
   }).filter((r) => r.pct != null).reverse();
   // bd-gzfdu9: the recommended clip's card — read only while VIDEO_RECO_ENABLED is on (a tier without the table
-  // never sees the query); any failure is "no card", never a failed report.
-  if (videoReco.enabled()) {
+  // never sees the query); any failure is "no card", never a failed report. VIDEO_RECO_CR_CARD=false (R7r, the A/B) skips it.
+  if (videoReco.enabled() && videoReco.crCardEnabled()) {
     try {
       const video = await videoReco.cardFor(supabase, sessionId, userId, language, videoReco.catalogOrNull());
       if (video) return { session, language, quizMessage, firstName, trend, video };
