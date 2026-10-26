@@ -787,6 +787,34 @@ async function deactivateClass({ classId, teacherUserId } = {}) {
   return { deactivated: true };
 }
 
+/**
+ * Take a class off her list — the teacher app's ONE "Remove class" action, which picks
+ * the half above that fits:
+ *
+ *   hers alone, nobody enrolled  → retired (deactivateClass): she added it by mistake
+ *   a colleague on it, or pupils → she leaves (leaveClass): the class, its roster and its
+ *                                  attendance history stand, and adding the same class
+ *                                  again re-joins it, roster and all
+ *
+ * Idempotent: a class she is not on is `{ removed: false }`, not an error — a second tap
+ * or a stale page must not tell her something went wrong.
+ *
+ * @returns {Promise<{removed?: boolean, how?: 'retired'|'left', error?: string}>}
+ */
+async function removeClassForTeacher({ classId, teacherUserId } = {}) {
+  if (!classId) return { error: 'missing_class' };
+  if (!teacherUserId) return { error: 'missing_teacher' };
+
+  const retired = await deactivateClass({ classId, teacherUserId });
+  if (retired.deactivated) return { removed: true, how: 'retired' };
+  if (retired.error === 'not_assigned') return { removed: false };
+  if (retired.error !== 'other_teachers' && retired.error !== 'has_students') return { error: retired.error };
+
+  const left = await leaveClass({ classId, teacherUserId });
+  if (left.error) return { error: left.error };
+  return left.left ? { removed: true, how: 'left' } : { removed: false };
+}
+
 // ---------------------------------------------------------------------------
 // The roster
 //
@@ -1591,6 +1619,7 @@ module.exports = {
   updateAssignment,
   leaveClass,
   deactivateClass,
+  removeClassForTeacher,
   listClassesForTeacher,
   enrollStudent,
   enrollExistingStudent,

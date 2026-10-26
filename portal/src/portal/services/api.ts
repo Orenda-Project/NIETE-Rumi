@@ -1260,6 +1260,13 @@ export const classes = {
     const response = await api.delete(`/classes/${classId}/students/${studentId}`);
     return response.data;
   },
+
+  // bd-ql2j3p — off her list. The bot retires a class that is hers alone and empty, and
+  // otherwise takes her off it, so a colleague's class or a roster is never lost.
+  removeClass: async (classId: string): Promise<{ success: boolean; removed: boolean; how: 'retired' | 'left' | null }> => {
+    const response = await api.delete(`/classes/${classId}`);
+    return response.data;
+  },
 };
 
 // ── bd-s1oo0.7: the child test in the coach app ─────────────────────────────
