@@ -314,6 +314,9 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   const seenTexts = [];
   let deferralTried = false;
   const t0 = Date.now();
+  // COA09: how long after the first step the second recording goes in. 45 s was tuned for live vendors; with cassette
+  // replay the pipeline is complete by then and the "deferral" is a fresh session (bd-1r3k2h). 0 on the mock lane.
+  const DEFER_AFTER_MS = Number(process.env.E2E_COACHING_DEFER_AFTER_MS ?? 45000);
   const budget = DEEP ? PIPELINE_BUDGET_MS : 4 * 60 * 1000;
   // Early-bail plumbing: the deep pipeline stalls forever when the vendor answer it waits on (Soniox
   // transcription, then the LLM analysis) is not in the cassette. Waiting the whole 20-min budget for a
@@ -444,7 +447,7 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
     }
 
     // COA09 — a SECOND recording once the analysis is genuinely under way
-    if (DEEP && !deferralTried && obs.steps.length && Date.now() - t0 > 45000) {
+    if (DEEP && !deferralTried && obs.steps.length && !obs.steps.includes('5') && Date.now() - t0 >= DEFER_AFTER_MS) {
       deferralTried = true;
       const second = await api.upload(FIXTURE.classroom, 'Document', 180000);
       const txt2 = second.txt || '';

@@ -27,7 +27,8 @@ function hasContent(n) {
 /**
  * @param {string} sessionId coaching_sessions.id
  * @param {object|null} narrative what generateReportNarrative returned
- * @param {{supabase?: object, log?: Function, now?: () => Date}} [deps]
+ * @param {{supabase?: object, log?: Function, now?: () => Date, extra?: object}} [deps]  `extra`: more
+ *   analysis_data keys written in the same merge (partial_report_note, bd-1r3k2h)
  * @returns {Promise<boolean>} true when written
  */
 async function persistReportNarrative(sessionId, narrative, deps = {}) {
@@ -42,6 +43,7 @@ async function persistReportNarrative(sessionId, narrative, deps = {}) {
     const merged = {
       ...(row.analysis_data || {}),
       report_narrative: { ...narrative, generated_at: now().toISOString() },
+      ...(deps.extra || {}),
     };
     const { error: upErr } = await supabase
       .from('coaching_sessions').update({ analysis_data: merged }).eq('id', sessionId);

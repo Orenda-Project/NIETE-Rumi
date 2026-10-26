@@ -1162,11 +1162,15 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
     } catch (e) { if (!seenIds.has('T42')) R('T42')('BLOCKED', { reason: 'threw: ' + String((e && e.message) || e).slice(0, 200) }, 0); }
 
     // ── lesson-plan quiz states: T35 (offered) T36 (failed) T41 (queue_failed) — with REAL lesson refs
+    // --lesson-id borrows meta.lessons from the lesson's own asset source (the seed carries it); --lessons-from auto
+    // borrowed from a real SENT lp_v8 quiz, which the local seed has none of — the row then had no lesson refs and
+    // the Flow offered no "Make it again" (lessonsBorrowed: 0 on every mock run, bd-1r3k2h).
+    const LP_SEED_LESSON = process.env.E2E_LP_SEED_LESSON || 'grade_3_math_ch1_seg1';
     const lpState = async (tid, state, actionRe, expectText) => {
       s = t();
       let row = null;
       try {
-        row = dbJson('seed-lp-quiz', ['--state', state, '--lessons-from', 'auto', '--subject', 'maths']);
+        row = dbJson('seed-lp-quiz', ['--state', state, '--lesson-id', LP_SEED_LESSON, '--subject', 'maths']);
         if (!row || !row.id) throw new Error('SEED:' + JSON.stringify(row));
         const les = await openLesson(i => String(i.id || '') === 'lp_' + row.id);
         const ev = { lessonsBorrowed: row.lessons, rowText: les.row && les.row.hay, screen: les.screen, text: (les.text || '').slice(0, 300), actions: (les.actions || []).map(a => a.text) };

@@ -280,3 +280,21 @@ describe('mock-graph-api: inbound injection', () => {
     expect(h.seq).toBe(0);
   });
 });
+
+describe('mock-graph-api: an example.invalid media link in an interactive HEADER is refused too (bd-1r3k2h)', () => {
+  // A question card rides the picker as the interactive message's header image (video-quiz-render
+  // CARD_RIDES_THE_PICKER); the T42 "unsendable question" seed points that card at example.invalid.
+  // Meta fetches a header link before it sends, exactly as it does a top-level one.
+  const withHeader = (link) => buttons('Tap A, B or C', ['A', 'B', 'C'], { header: { type: 'image', image: { link } } });
+  test('a header image on example.invalid fails the send with Meta\'s media error', async () => {
+    const r = await post(`/v21.0/${PH}/messages`, withHeader('https://example.invalid/qa-missing-card.png'));
+    expect(r.status).toBe(400);
+    expect((await r.json()).error.code).toBe(131053);
+    expect((await get('/outbox')).items).toHaveLength(0);
+  });
+  test('a header image on any other host sends as before', async () => {
+    const r = await post(`/v21.0/${PH}/messages`, withHeader('https://cdn.example/card.png'));
+    expect(r.status).toBe(200);
+    expect((await get('/outbox')).items).toHaveLength(1);
+  });
+});

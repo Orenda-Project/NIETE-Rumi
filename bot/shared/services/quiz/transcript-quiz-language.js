@@ -382,17 +382,31 @@ function singular(word) {
  * nothing. Two labels in different scripts are never the same by this test,
  * so a translation always survives.
  */
-function sameTopic(a, b) {
-  const norm = (s) => String(s || '').toLowerCase()
+function topicWords(s) {
+  return String(s || '').toLowerCase()
     .replace(/&/g, ' and ')
     .replace(/(^|\s)اور(?=\s|$)/g, ' and ')
     .replace(/[\p{P}\p{S}]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .split(' ')
-    .map(singular)
-    .join(' ');
-  return norm(a) === norm(b);
+    .filter(Boolean)
+    .map(singular);
+}
+
+function sameTopic(a, b) {
+  return topicWords(a).join(' ') === topicWords(b).join(' ');
+}
+
+/**
+ * A gloss whose every word is already in the taught name says nothing new:
+ * "Connect & Create: Lemonade Stand Profit Calculation (Profit Calculation)"
+ * named the lesson once and a half (mock run 20261026-2335-par, T62).
+ */
+function subPhraseOf(gloss, whole) {
+  const words = topicWords(gloss);
+  const have = new Set(topicWords(whole));
+  return words.length > 0 && words.every((w) => have.has(w));
 }
 
 /**
@@ -414,7 +428,7 @@ function lessonLabel({ digest, quizLanguage, teacherLanguage } = {}) {
   const inTeacherLanguage = topicFor(digest, teacherLang);
   // The gloss is there to add information: a translation, or a genuinely
   // different name. A near-duplicate of the topic is not shown.
-  const gloss = quizLang !== teacherLang && inTeacherLanguage && !sameTopic(inTeacherLanguage, taught)
+  const gloss = quizLang !== teacherLang && inTeacherLanguage && !sameTopic(inTeacherLanguage, taught) && !subPhraseOf(inTeacherLanguage, taught)
     ? inTeacherLanguage : '';
   const subject = subjectLabel(digest && digest.subject, teacherLang);
 
