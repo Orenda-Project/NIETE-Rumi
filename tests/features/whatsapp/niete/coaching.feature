@@ -191,6 +191,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # answered the only question she would ever be asked was told her report
     # covered "1/3 reflective responses" and that "full insights require completing
     # all reflection questions".
+    # UPDATED 2026-10-27 (bd-1r3k2h): the hero (image) report renders the note too (hero-report.template
+    # .pnote) and report-generator stores it at analysis_data.partial_report_note so a re-render shows it;
+    # until then the image a teacher actually gets carried no note at all (mock run 20261026-2335-par).
 
   @e2e @content-driven @P2 @COA07
   Scenario: Coaching feedback is delivered as a branded hero-report image
@@ -417,9 +420,10 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And my account language is Urdu
     And I have uploaded a classroom recording and it was detected
     When I tap the confirm-analysis button
-    Then every one of the five step messages is in Urdu — steps 1 and 2 included
+    Then every step message I receive is in Urdu — step 2 included
     And no step message is in English
-    And each counter reads "مرحلہ 1/5" through "مرحلہ 5/5" — standard digits, only the word translated
+    And steps 2 to 5 each arrive; Step 1/5 is replaced by the reaction on my recording, which already said the wait
+    And each counter reads "مرحلہ 2/5" through "مرحلہ 5/5" — standard digits, only the word translated
     And no counter uses Urdu numeral glyphs such as "۱ از ۵"
     And the digits render left-to-right inside the Urdu sentence, not reordered
     # ADDED 2026-09-20 (DC rows 130 + 131). Row 130: steps 1 and 2 were sent with
@@ -434,6 +438,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # neutral run with a neutral separator, which an RTL paragraph reorders. That
     # is why the reordering assertion is separate from the glyph one: the string
     # can be right in the source and wrong on the screen.
+    # UPDATED 2026-10-27 (bd-1r3k2h): Step 1/5 is not sent when the reaction on the recording already
+    # acknowledged the wait (coaching-orchestrator step1Announced, NC1), so a run has four counters by design;
+    # the driver asserts steps 2–5.
     #
     # A teacher who never picked a language belongs on THIS path, not the English
     # one: LANGUAGE_OFFER is ['ur','en'], so the floor is Urdu.

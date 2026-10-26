@@ -57,10 +57,55 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When the feedback survey arrives and I tap 👍
     Then the bot asks whether I got to use it in class
     And it offers exactly three replies — "Taught it today", "Planning to", "Not yet"
-    And tapping one of them is acknowledged with a short thank-you that ends the survey
+    And tapping one of them is acknowledged by a 👍 reaction on my tap, with no further message
     # bd-b708h. Before this, 👍 ended the survey on a bare thank-you, so lp_feedback.used_in_class
     # was NULL on every 6-12 row — and it is the only signal this lane has that a PDF became a
     # lesson (a render row is a cache miss, not a delivery).
+    # Meta bill cut NL1 (bd-w2daa.9): the "Thank you — that helps." text after the answer is gone —
+    # the webhook's 👍 reaction on every inbound message is the receipt, and a reaction is not billed.
+
+  @e2e @P1
+  Scenario: A survey answer that needs no follow-up is receipted by a reaction, not a message
+    Given the NIETE bot chat is open
+    And a Grades 1–5 lesson plan has just been delivered to the chat without a voice note
+    When the feedback survey arrives and I tap 👍
+    Then the bot reacts 🙏 to my tap
+    And no "Thanks — glad it helped!" (or Urdu «شکریہ — خوشی ہے یہ مفید تھی!») message follows
+    And the chat header does not show "typing…" before the 🙏
+    # Meta bill cut NL1 (bd-w2daa.9). Same rule for: a repeat tap on the same survey, the
+    # "Taught it today / Planning to / Not yet" answer (K-5 and 6-12), and the typed reason after 👎
+    # — each used to get a thank-you text; each now gets only a 🙏 reaction (FX1, bd-w2daa.22: our own,
+    # replacing the automatic 👍 every message gets; the text goes only if the reaction cannot). Anything that ASKS
+    # something still goes: the 👎 "What didn't work?" line and the usage question.
+    # Unit: tests/lp-v8/meta-bill-nl1-survey-acks.test.js.
+    # UPDATED 2026-10-02 (FX7, bd-w2daa.31): no "typing…" before the 🙏 however slow the write. "Taught it today /
+    # Planning to / Not yet" (lp_used_, lp612_used_) settle at the webhook door (reaction-only-taps.js); the 👍
+    # with no voice note settles in lp-feedback.service once it has read the plan. Axiom:
+    # inbound_typing.reaction_only_tap. Unit: tests/meta-bill-cut/fx7-reaction-only-taps.test.js.
+
+  @e2e @flow @P1
+  Scenario: Tapping the same lesson twice in the Pick Class Flow delivers it once
+    Given the NIETE bot chat is open
+    And I have opened the LP Flow and navigated to a Grades 1–5 chapter's lesson list
+    When I tap the same lesson twice within a minute (re-opening the Flow for the second tap)
+    Then both taps close the Flow on its "on its way" screen
+    But the chat receives ONE "Preparing" line, ONE lesson-plan PDF and at most ONE voice note
+    And ONE feedback survey follows about 30 seconds later
+    # Meta bill cut NL2 (bd-w2daa.9): a (teacher, lesson) claim held for 2 minutes in the Flow
+    # endpoint's lesson step. Production had 811 same-PDF double sends in 7 days, median gap 19.6 s.
+    # After 2 minutes the same tap delivers again; a delivery that failed releases the claim.
+    # Unit: tests/lp-v8/meta-bill-nl2-double-tap.test.js.
+
+  @e2e @flow @P2
+  Scenario: The same lesson delivered twice within ten minutes is surveyed once
+    Given the NIETE bot chat is open
+    And a Grades 1–5 lesson plan has been delivered and its feedback survey has arrived
+    When I request the same lesson again three minutes later
+    Then the lesson-plan PDF is delivered again
+    But no second "Was it useful?" survey arrives for it
+    # Meta bill cut NL4 / N2-L04 (bd-w2daa.9): one survey per (teacher, lesson) per 10 minutes,
+    # checked when the survey is about to send. A different lesson is still surveyed; after 10
+    # minutes the same lesson is surveyed again. Unit: tests/lp-v8/meta-bill-nl4-survey-dedupe.test.js.
 
   @e2e @config-gated @no-mock-driver @slow @P1
   Scenario: A plan I read in the teacher app gets the same "Was it useful?" survey on WhatsApp
@@ -253,6 +298,87 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # overlay that INTRODUCES religious content onto a document nobody flagged is refused even with
     # the honorific, because then the Urdu page would be the first anyone saw of it.
 
+  @e2e @content-driven @language @P1
+  Scenario: An Urdu 6-12 plan keeps the board in English and explains each board block in one Urdu line
+    Given the NIETE bot chat is open on a teacher whose language is Urdu
+    And I have opened the LP Flow
+    When I complete it for a Grade 8 segment from an English-medium book
+    Then a lesson-plan PDF is delivered to the chat
+    And every board block on it is still in English, the words the class copies into their notebooks
+    And under each board block sits one Urdu line, right to left, saying what that block is for
+    # bd-oak77.42. A Grade 8 teacher asked for the lesson explained in Urdu, and the Urdu plan still
+    # handed her whole English board blocks with no word of Urdu near them. The board stays English
+    # because the book and the exam are English; the one Urdu line is for the teacher. Books whose
+    # medium is Urdu already write the board in Urdu, so they get no extra line. A reused plan
+    # missing the line is still delivered, and the top-up pass adds the line later.
+
+  @e2e @content-driven @language @P2
+  Scenario: An Urdu 6-12 plan numbers its sections and support pages in Urdu, not Latin letters
+    Given the NIETE bot chat is open on a teacher whose language is Urdu
+    And I have opened the LP Flow
+    When I complete it for a 6-12 segment
+    Then a lesson-plan PDF is delivered to the chat
+    And the five section bands carry the badges ۱ to ۵, in lesson order
+    And the support-page bands carry the badges الف، ب، ج in turn
+    And the board-order list is numbered in Urdu digits
+    And an English plan for the same segment still shows the badges A to E and A, B, C
+    # bd-psa3u. The Urdu initials collide (تعارف and تدریس both start with ت), so the Urdu section
+    # badge is the section's place, not its first letter. Renderer change in vendor/lp-v9
+    # (lib/template.js, lib/overlay.js); English output is unchanged.
+
+  @e2e @content-driven @language @P2
+  Scenario: The common-mistakes box asks what pupils say or write, in both languages
+    Given the NIETE bot chat is open on a teacher whose language is <language>
+    And I have opened the LP Flow
+    When I complete it for a 6-12 segment whose plan lists common mistakes
+    Then a lesson-plan PDF is delivered to the chat
+    And the mistakes box column is headed "<label>"
+
+    Examples:
+      | language | label                     |
+      | English  | What pupils say or write  |
+      | Urdu     | طلبہ کیا کہتے یا لکھتے ہیں |
+    # bd-k3ry8. The column lists what a pupil actually says or writes when they get it wrong, so
+    # the teacher can recognise the mistake in class.
+
+  @e2e @content-driven @P2
+  Scenario: Diagram labels on a 6-12 plan stay readable on a phone
+    Given the NIETE bot chat is open on a teacher whose language is English
+    And I have opened the LP Flow
+    When I complete it for a Grade 9 Chemistry segment whose plan carries a labelled diagram
+    Then a lesson-plan PDF is delivered to the chat
+    And no diagram label on it is smaller than the diagram floor, about 8.7px on the phone page
+    And a molecule figure's formula slot holds a formula, never a sentence
+    And a long warm-up label sits on its own line instead of squeezing the warm-up text
+    # bd-oak77.15 / .24 / .31. The floor is 14px on the A4 page the diagram engine draws, which the
+    # phone page scales to about 8.74px. A figure that cannot fit its labels at that size is widened
+    # or refused, never shrunk. Prose in the formula slot is moved to the name line and the linter
+    # flags it as a blocking FIGURE defect.
+
+  @e2e @content-driven @P2
+  Scenario: A worked scenario never guesses the gender of an unnamed character
+    Given the NIETE bot chat is open on a teacher whose language is English
+    And I have opened the LP Flow
+    When I complete it for a 6-12 segment whose worked example has a helper nobody names, such as "the shopkeeper"
+    Then a lesson-plan PDF is delivered to the chat
+    And that helper is given a name, or called they/them every time
+    And each learning objective the plan invents a code for gets its own code, O1, O2, O3, never a repeat
+    # bd-oak77.32. A Grade 8 plan called an unnamed lab assistant "she", then "he". The author brief's
+    # gender-neutral rule now covers unnamed characters. Separately, subjects with no curriculum SLO
+    # code invent O1-style codes, and a repeated one made homework tagged to the third objective read
+    # as untaught; the author sanitizer now renumbers a repeat and leaves the first occurrence alone.
+
+  @e2e @content-driven @P2
+  Scenario: The last lesson of a chapter names no next lesson
+    Given the NIETE bot chat is open on a teacher whose language is English
+    And I have opened the LP Flow
+    When I complete it for the last 6-12 segment of a chapter
+    Then a lesson-plan PDF is delivered to the chat
+    And the lesson strip on page 1 shows no "next" lesson
+    # bd-oak77.38, the mirror of bd-oak77.33 (a first lesson printed an invented "previous").
+    # The corpus marks a last lesson with an empty next_segment_id; the prompt tells the model
+    # sequence.next must be null and the author sanitizer drops whatever it wrote anyway.
+
   @e2e @negative @content-driven @P1
   Scenario: An Urdu overlay that drops the honorific is refused, and the English lesson is delivered instead
     Given the NIETE bot chat is open on a teacher whose language is Urdu
@@ -275,6 +401,19 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # document intact as its fallback and this refusal lands in that same catch.
     # An overlay that INTRODUCES religious content onto an unflagged document is held by the same
     # rule and looks identical to her, so it is not a separate scenario.
+
+  @e2e @flow @P1
+  Scenario: Under route-all, a typed lesson-plan request opens the Flow with the textbook line inside it
+    Given the NIETE bot chat is open on a deployment with LP_612_ROUTE_ALL on
+    When I send a free-text request like "make me a lesson plan on photosynthesis"
+    Then the bot sends ONE message: the "📘 Lesson Plans" card with its "Pick Class" button
+    And its body opens with "Lesson plans now come straight from your own textbook…" (Urdu: «اب سبق کے منصوبے آپ کی اپنی درسی کتاب سے بنتے ہیں۔…»)
+    And the usual "Pick your class, subject and chapter…" line follows in the same body
+    And no separate text bubble with that textbook line arrives before or after the card
+    # Meta bill cut NL3 (bd-w2daa.9): the redirect line was its own billed text a second before the
+    # Flow (99.3% followed within 15 s). The voice door and the drained-Gamma-job door do the same.
+    # The menu tap, the bare "lp" keyword and the ice-breaker keep the plain body (no line).
+    # Unit: tests/lp-v8/meta-bill-nl3-redirect-in-flow.test.js, bd-oak77-9-route-all.test.js.
 
   @e2e @content-driven @P2 @L04
   Scenario: A natural-language request returns the curriculum fallback, not a generated plan
@@ -524,6 +663,18 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the bot sends the same offer a WhatsApp-delivered plan gets
     # A hand-off only ever starts inside the app, so it is a plan taken (operator, 14 Oct 2026; bd-2wgr3d.22.1).
 
+  @e2e @lesson-plan @wip @draft @P2
+  Scenario: A lesson read in the teacher app shows the received tick on both lesson lists
+    Given the NIETE bot chat is open on a teacher who opened one K-5 lesson plan in the teacher app's viewer
+    And that lesson was never delivered to the teacher as a WhatsApp document
+    When the teacher opens the lesson plan Flow and picks that lesson's grade, subject and chapter
+    Then that lesson's row starts with ✓ and the chapter's other untaken lessons start with ○
+    And the teacher app's lesson list for that chapter marks the same lesson as received
+    # The tick reads niete_lp_downloads 'sent' OR any K-5 niete_lp_opens row, viewer or hand-off (lp-v8-delivery
+    # downloadedLessonIds -> lp-app-opens.store viewerOpenedLessonIds, one capped read per list). Any version counts.
+    # An answer key opened in the viewer logs the assessment's own lesson id, as a WhatsApp delivery of the
+    # assessment does. No switch (bd-2wgr3d.22.1). No new string; title lengths unchanged.
+
   @e2e @quiz @wip @draft @config-gated @P1
   Scenario: A lesson with no quiz source is not offered
     Given the NIETE bot chat is open on a teacher who took one K-5 lesson plan today before 14:00 PKT
@@ -581,13 +732,29 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # 'lp_quiz_offer' — the coaching offer's film count is separate. A film that fails to send leaves plain buttons.
 
   @e2e @quiz @wip @draft @config-gated @P2
-  Scenario: A list offer sends the intro film first, then the list
+  Scenario: A two-class offer with the intro film is ONE message — the film above three buttons
     Given the offer films are configured
     And the NIETE bot chat is open on a teacher who planned lessons for two classes today and has never been shown the film
     When the send hour passes and the teacher-nudge sweep runs
+    Then one message arrives: the film as its video, the list's text with one line per class naming that class's lesson topics, and the film's one-line caption as its footer
+    And it has three buttons: one per class (titled like "Grade 4 · Maths") and "Not today"
+    And tapping a class button makes the quiz for that class exactly as tapping its list row did
+    # UPDATED 2026-10-01 (Meta bill cut, NO3 / N2-U01): a list message cannot carry a video header,
+    # so this used to be the film as its own message and then the list. Three reply buttons hold two
+    # classes and "Not today", and a buttons message CAN carry the film (lp-quiz-offer.service.js
+    # twoClassFilmOffer). The button ids are the list rows' ids (lpquiz_pick_<nudge>_<class>,
+    # lpquiz_none_<nudge>); handleButton routes them to handleListPick. Any class title over 20 code
+    # points even with its short subject name, or a body over 1,024, keeps the film-then-list shape.
+
+  @e2e @quiz @wip @draft @config-gated @P2
+  Scenario: An offer for three or more classes sends the intro film first, then the list
+    Given the offer films are configured
+    And the NIETE bot chat is open on a teacher who planned lessons for three classes today and has never been shown the film
+    When the send hour passes and the teacher-nudge sweep runs
     Then the film arrives first as its own video, with a one-line caption
     And the list of classes arrives after it
-    # A list message cannot carry a video header.
+    # A list message cannot carry a video header, and three classes plus "Not today" do not fit
+    # three reply buttons.
 
   @e2e @quiz @language @wip @draft @config-gated @P2
   Scenario: The Urdu afternoon offer writes its numbers in Western digits
@@ -781,23 +948,59 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then I get one message telling me to use the NIETE app, with the NIETE Play Store link
     And no lesson-plan menu opens
 
+  # ADDED 2026-10-27 (bd-1r3k2h): mock run 20261026-2335-par, L11 — with a Grades 6-12 lesson on the shelf the
+  # edit classifier (lp612-edit-intent) filed "make me a lesson plan on …" under out_of_scope and the router
+  # answered with the out-of-scope sentence, so neither the app notice nor the lesson-plan menu could open. The
+  # classifier now has a new_request label and lp612-edit-router falls through on it to intent detection.
+  @e2e @config-gated @P1 @L12
+  Scenario: Asking for a new lesson plan after a 6-12 lesson is answered by the lesson-plan feature, not as an edit
+    Given the NIETE bot chat is open
+    And Lesson Plans has been switched to the NIETE app
+    And the last thing I received is a Grades 6-12 lesson plan
+    When I send "make me a lesson plan on fractions for grade 4"
+    Then I get the "use the NIETE app" message, exactly as I would without the 6-12 lesson
+    And I am not told that what I asked for is a different thing from editing my lesson
+
+  # ADDED 2026-10-01 (FX3, bd-w2daa.24): inside the quiet hour the bot answers nothing — and must not
+  # look as if it is about to (it used to show "typing…" for ~25 s over silence).
+  @e2e @config-gated @P2
+  Scenario: Asking again inside the hour gets no reply and no "typing…"
+    Given the NIETE bot chat is open
+    And Lesson Plans has been switched to the NIETE app
+    And I got the "use the NIETE app" message less than an hour ago
+    When I send "lp"
+    Then my message gets a 👍 and blue ticks
+    And no message arrives
+    And the chat header does not show "typing…" in the next 10 seconds
+    # inbound-typing expectSilence/nothingComing (app-redirect.service). Residual: the FIRST such
+    # message after a bot restart can still show "typing…" (the quiet hour is remembered per
+    # process); it is logged inbound_typing.done silentAfterTyping=true. Unit:
+    # tests/meta-bill-cut/fx3-silent-turn-typing.test.js.
+
+  # ADDED 2026-10-02 (FX4, bd-w2daa.26): a FREE-TEXT request is classified before the quiet hour can
+  # silence it — 12.6 s on sandbox (1 Oct 18:39Z), longer than FX3's 3 s hold, so "typing…" showed.
+  @e2e @config-gated @P2
+  Scenario: A typed lesson-plan request inside the hour gets no reply and no "typing…", however long the bot takes to read it
+    Given Lesson Plans has been moved to the NIETE app
+    And the bot sent me the Play Store link less than an hour ago
+    When I type "please make me a lesson plan for grade 4 maths fractions"
+    Then no message arrives
+    And the chat header does not show "typing…" in the next 30 seconds
+    # text-message.handler calls InboundTyping.doorDeciding() as it STARTS (FX6, bd-w2daa.28 — before, it was
+    # called just before detectIntent, which sandbox reached > 5 s in on 2 Oct 15:37:55Z, after the 3 s hold had
+    # already shown typing); the held typing waits for the redirect door (backstop: WhatsApp's 25 s typing
+    # lifetime). A message the door lets through shows "typing…" when the door decides. Axiom: one
+    # inbound_typing.door_deciding line per door (where, msSinceInbound, scope, quietHeld).
+    # Unit: tests/meta-bill-cut/fx4-round3.test.js (FX4-4), tests/meta-bill-cut/fx6-round4.test.js (FX6-3).
+
   # ADDED 2026-10-19 (bd-zcgpkx): a LEADER's lesson-plan request opens the app on Send a lesson plan (the Reading Hour
   # and Numeracy builder), like a teacher's opens the teacher app. Switch leader_app_lesson_plan (true = every leader,
   # or a list of users.id), off by default; only for the leader family (coach, principal, aeo, supervisor,
   # school_leader) with FLN share on. Operator, 19 Oct: "Send leaders straight into the app, the same as teachers",
   # accepting that leaders lose the WhatsApp picker. Unit: tests/app-redirect/app-link-leader-lesson-plan.test.js,
   # tests/routes/app-login-fln.test.js (fln:send lands /portal/fln/send).
-  # UPDATED 2026-10-23 (bd-a73p5m): the link now opens the Lesson Plans tab (/portal/teacher/lessons), where a leader
-  # reads the plans their teachers get (bd-4joiqz), and FLN share is no longer needed for it. The builder (Send a lesson
-  # plan, /portal/fln/send) is not linked from the tab; inside it a leader can send only from a Reading Hour / Numeracy
-  # plan's own page ("Send to teacher", shown only with FLN share). Operator, 23 Oct: "A coach who types 'lesson plan' on WhatsApp
-  # still gets 'Send a lesson plan', not the new tab -- they can get new tab". Same switch, same doors, analytics-only
-  # accounts still skipped. Unit: tests/app-redirect/app-link-leader-lesson-plan.test.js,
-  # tests/app-redirect/app-link-leader-lessons-doors.test.js (each door, then /go), portal
-  # src/portal/teacher/lessons/leaders.app.test.tsx (the tab opens for a coach on or off the coach app).
-  @obsolete @config-gated @P1
+  @e2e @config-gated @P1
   Scenario: A coach asking for a lesson plan gets one button that opens Send a lesson plan in the app
-    # OBSOLETE 2026-10-23 (bd-a73p5m): the link opens the Lesson Plans tab now, with new words — replaced by "A coach asking for a lesson plan gets one button that opens the Lesson Plans tab in the app" below. Kept (not deleted) for the audit trail.
     Given the NIETE bot chat is open on a coach account
     And lesson plans for leaders open in the app (leader_app_lesson_plan is on)
     When I send "lesson plan"
@@ -806,88 +1009,13 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When I tap "Send a plan"
     Then the app opens on Send a lesson plan, signed in, without typing a password
 
-  @e2e @config-gated @P1
-  Scenario: A coach asking for a lesson plan gets one button that opens the Lesson Plans tab in the app
-    Given the NIETE bot chat is open on a coach account
-    And lesson plans for leaders open in the app (leader_app_lesson_plan is on)
-    When I send "lesson plan"
-    Then I get one message saying "Read the lesson plans your teachers get." with a "Lesson plans" button
-    And no lesson-plan menu opens
-    When I tap "Lesson plans"
-    Then the app opens on the Lesson Plans tab, signed in, without typing a password
-    And I can open a lesson plan my teachers get
-    # In Urdu the line is «وہ لیسن پلان پڑھیں جو آپ کے اساتذہ کو ملتے ہیں۔» and the button «لیسن پلان». It promises reading
-    # only: Grades 1-5 and 6-12 plans have no send button for a leader.
-    # Axiom: app_funnel.command feature=lesson_plan audience=leader verdict=link; app_link.open feature=leader_lessons.
-
   @e2e @config-gated @P2
-  Scenario: A coach off the coach app, or without FLN share, still lands on the Lesson Plans tab
-    Given the NIETE bot chat is open on a coach account that is not on the coach app and has no FLN share
-    And lesson plans for leaders open in the app (leader_app_lesson_plan is on)
-    When I send "lesson plan"
-    And I tap "Lesson plans"
-    Then the app opens on the Lesson Plans tab, signed in
-    # The classic leader menu has Lesson Plans, and TeacherGate lets the leader family read the tab (bd-4joiqz).
-
-  @obsolete @config-gated @P2
   Scenario: A coach who names a topic keeps the WhatsApp lesson-plan path, switch on or off
-    # OBSOLETE 2026-10-23 (bd-l6424d): a coach who names a topic gets the Lesson Plans tab too — replaced by "A coach who types a lesson-plan topic gets the Lesson Plans tab button, not the catalogue" and its voice twin below. Kept (not deleted) for the audit trail.
     Given the NIETE bot chat is open on a coach account
     And lesson plans for leaders open in the app (leader_app_lesson_plan is on)
     When I send "make me a lesson plan on photosynthesis for grade 7"
-    Then the bot answers on WhatsApp as before, not with the Lesson plans button
-    # Only the plain doors (bare_command, chip, menu, menu_choice). UPDATED 2026-10-23 (bd-a73p5m): the button is
-    # "Lesson plans" now (was "Send a plan"); a named topic still keeps today's path.
-
-  # ADDED 2026-10-23 (bd-l6424d): a coach who NAMES A TOPIC gets the same tab. Asked whether a coach who names a topic in
-  # a lesson-plan request ("lesson plan on fractions", typed or by voice) should also get the Lesson Plans tab, the
-  # operator: "yes to topic requests too". The tab has every plan, a teacher's topic door already opens their app, and
-  # no path carries the topic into the app. Same switch and words as the plain doors; principals under "coaches",
-  # analytics-only accounts and teachers are unchanged. Doors (app-redirect.service LEADER_TOPIC_DOORS): intent,
-  # lesson_plan_intent, voice_intent, voice_lesson_plan_intent. (Sandbox also has an in-flight rescue door in the
-  # lesson-plan worker; this branch has no such rescue.) With the cutover gate on (LP_612_ENABLED, LP_612_ROUTE_ALL),
-  # as on production. Unit: tests/app-redirect/app-link-leader-lessons-doors.test.js (typed),
-  # app-link-leader-lessons-voice-topic.test.js (voice), app-link-leader-lesson-plan.test.js (each door).
-  @e2e @config-gated @P1
-  Scenario: A coach who types a lesson-plan topic gets the Lesson Plans tab button, not the catalogue
-    Given the NIETE bot chat is open on a coach account
-    And lesson plans for leaders open in the app for coaches (leader_app_lesson_plan is "coaches")
-    When I send "make me a lesson plan on fractions"
-    Then I get one message saying "Read the lesson plans your teachers get." with a "Lesson plans" button
-    And no lesson-plan menu opens, and no "lesson plans now come from your textbook" line arrives
-    When I tap "Lesson plans"
-    Then the app opens on the Lesson Plans tab, signed in, without typing a password
-    # Axiom: ONE app_funnel.command feature=lesson_plan audience=leader verdict=link door=intent, then
-    # app_funnel.link_sent; funnel.py reports it as lesson_plan@leader. When the menu asked me for a topic and I typed
-    # it, or when I tap the Oxbridge picker's "Generate" button, the "lesson plans now come from your textbook" line
-    # arrives first and then the same button (door=lesson_plan_intent): handleLessonPlanRequest sends the line before
-    # it asks the switch, as it does for a covered teacher. If Meta refuses the button and its plain-text link, the
-    # intent door's attempt fails and the catalogue door (lesson_plan_intent), where the switch still says yes, tries
-    # the link once more (a second app_funnel.command and link_failed row); when that is refused too, the coach gets
-    # the textbook line and the catalogue Flow. Every refused attempt delivered nothing. The voice path retries the same
-    # way (voice_intent, then voice_lesson_plan_intent).
-
-  @e2e @voice @config-gated @P1
-  Scenario: A coach who asks for a lesson-plan topic in a voice note gets the Lesson Plans tab button, and nothing else
-    Given the NIETE bot chat is open on a coach account
-    And lesson plans for leaders open in the app for coaches (leader_app_lesson_plan is "coaches")
-    When I send a short voice note asking for a lesson plan on fractions
-    Then I get one message with the "Lesson plans" button, in the language I spoke
-    And no spoken answer, no "preparing" sticker and no lesson-plan menu arrive
-    When I tap "Lesson plans"
-    Then the app opens on the Lesson Plans tab, signed in
-    # In Urdu: «وہ لیسن پلان پڑھیں جو آپ کے اساتذہ کو ملتے ہیں۔» with «لیسن پلان». Before this a coach got the spoken
-    # answer, the sticker, the "lesson plans now come from your textbook" line and the catalogue Flow. Axiom:
-    # app_funnel.command door=voice_intent audience=leader verdict=link.
-
-  @e2e @config-gated @P2
-  Scenario: With the leader switch on "coaches", a principal who names a topic keeps the WhatsApp lesson-plan menu
-    Given the NIETE bot chat is open on a principal account
-    And lesson plans for leaders open in the app for coaches only (leader_app_lesson_plan is "coaches")
-    When I send "make me a lesson plan on fractions"
-    Then the "lesson plans now come from your textbook" line and the lesson-plan menu arrive on WhatsApp, as before, with no Lesson plans button
-    # The same by voice (after the spoken answer), and for an analytics-only coach (the portal sends those to analytics,
-    # not the tab).
+    Then the bot answers on WhatsApp as before, not with the Send a plan button
+    # Only the plain doors (bare_command, chip, menu, menu_choice): the builder holds Reading Hour and Numeracy only.
 
   @e2e @config-gated @P2
   Scenario: With the leader switch on "coaches", a principal keeps the WhatsApp lesson-plan menu
@@ -932,6 +1060,33 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the mat is drawn without its column names
     When a question about tashdeed shows a word with a missing letter
     Then the shadda is drawn on the empty box, or the question is written again when the word has no shadda
+
+  # ─────────────── Lesson plans on the web, opened from WhatsApp (app_settings web_lessons_*) ───────────────
+  # A template's link button is what WhatsApp opens in its own browser, so with the switch on, every
+  # lesson-plan door sends the lesson_plans_open_v1 template whose button logs THIS teacher into the
+  # portal's lesson plans only. The catalogue Flow is the kill switch: anything else is today's Flow.
+
+  @web @config-gated @wip @draft @P1 @T251
+  Scenario: With web lesson plans on for me, asking for a lesson plan opens the portal's lesson plans inside WhatsApp
+    Given app_settings "web_lessons_enabled" is true and "web_lessons_teachers" lists me or is "all"
+    When I ask for a lesson plan from the menu, with "lp", or by typing or saying what I want
+    Then I get the "lesson_plans_open_v1" template in my language, with an "Open lesson plans" button, instead of the Flow
+    And when I typed or said a topic, the line about lesson plans coming from my textbook arrives first, on its own
+    When I tap "Open lesson plans"
+    Then the portal's lesson plans open signed in as me, with no navigation to any other part of the portal
+    And I can pick my class, subject and chapter and open the day's plan on the page
+    And any other portal page I reach, training included, sends me back to lesson plans
+    # lp-browse-entry.service -> lesson-plans-web-link -> portal-web-link (app_settings switch, template send)
+    # + portal-link-token (area 'lessons', 24 h). Portal: dashboard/routes/portal-link.routes.js AREAS.lessons;
+    # portal lib/linkSession.ts. Unit: tests/lp-v8/web-lessons-link.test.js, tests/lp-v8/web-lessons-portal-link.test.js,
+    # portal PortalLayout.lessonsLink.test.tsx. Log: web_link.sent / web_link.open (area lessons). @wip.
+
+  @web @config-gated @negative @wip @draft @P1 @T252
+  Scenario: With web lesson plans off, not listed, or the template failing, lesson plans are the Flow as before
+    Given "web_lessons_enabled" is false or absent, or "web_lessons_teachers" does not include me, or the template send fails
+    When I ask for a lesson plan
+    Then I get the lesson-plan catalogue Flow exactly as before, and no template
+    And when the template failed after the textbook line was sent, the line is not repeated in the Flow
 
   # bd-fmf24g.66 — extraction of a plan the COACH attached to an observation. The session's user is the observed teacher.
   # Unit: tests/observe/bd-fmf24g.66-coach-plan-no-teacher-whatsapp.test.js (lesson-plan-extraction.worker notify*).

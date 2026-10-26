@@ -1229,10 +1229,13 @@ Feature: NIETE (ICT) Teacher Training
     When the quiz PDF arrives
     Then its caption names the lesson once, with no bracketed copy of the same name
     And the same holds when the two names differ only by a plural, such as "Proper Fraction" and "Proper Fractions"
+    And a bracket that only repeats part of the lesson's name, such as "Profit Calculation" under "Lemonade Stand Profit Calculation", is dropped too
     But for an Urdu lesson name, the caption still carries its English meaning in brackets
     # transcript-quiz-language lessonLabel(): the gloss shows only when it adds information — a translation or a
     # genuinely different name; sameTopic() treats "&"/"and"/"اور", punctuation, spacing, case and an English
     # word's plural (-s/-es/-ies + common irregulars) as the same.
+    # UPDATED 2026-10-27 (bd-1r3k2h): subPhraseOf() — a gloss whose every word is already in the taught name is
+    # dropped as well (mock run 20261026-2335-par captioned "… Lemonade Stand Profit Calculation (Profit Calculation)").
     # Proven in tests/quiz/transcript-quiz-language.test.js + transcript-quiz-teacher-language.test.js. @wip.
 
   # ══════════════════ ASSESSMENT GENERATOR — the paper she asks for ══════════════════
