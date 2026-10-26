@@ -6,6 +6,7 @@
  */
 
 const { makeSubject } = require('./chrome');
+const { noArrow } = require('../../fde-match-block');
 
 const S = (o) => ({ marks_each: 1, ...o });
 
@@ -35,7 +36,8 @@ module.exports = makeSubject({
           prompt_rule: 'Five statements from the book; options exactly درست and غلط. Mix both answers. Never the parts of a plant (Q9 labels them).' }),
         S({ slot: 'g2.general_knowledge.A.Q4', label_en: 'Q4.', type: 'Match Columns', shape: 'match', generate: 5,
           instruction_ur: 'درست جوڑ ملائیں۔',
-          prompt_rule: 'Five pairs to match, no options: the question is the thing (Column A) and the answer is what goes with it (Column B), five different answers (a season and its weather, a job and its tool, an animal and its home). The paper prints Column B shuffled. Never the parts of a plant (Q9 labels them).' }),
+          prompt_rule: 'Five pairs to match, no options: the question is the thing (Column A) and the answer is what goes with it (Column B), five different answers (a season and its weather, a job and its tool, an animal and its home). The paper prints Column B shuffled. Never the parts of a plant (Q9 labels them). The answer is the Column B words alone, never the pair or an arrow.',
+          answer_ok: noArrow }),
       ],
     },
     {

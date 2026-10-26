@@ -31,7 +31,7 @@ const { clampLanguage } = require('../../config/ux-strings');
 const { SUBJECT_LABEL } = require('./assessment-vocabulary');
 const Patterns = require('./patterns');
 const { pictureBlock, bubbleBlock, PICTURE_CSS } = require('./fde-picture-block');
-const { matchOrder, matchTable, MATCH_CSS } = require('./fde-match-block');
+const { matchOrder, matchTable, matchAnswer, MATCH_CSS } = require('./fde-match-block');
 const { oralSheet, ORAL_CSS } = require('./fde-oral-sheet');
 
 // ── fonts ──────────────────────────────────────────────────────────────────
@@ -613,7 +613,7 @@ function slotBlock(slot, sec, list, ctx) {
   if (slot.shape === 'match') {
     // Two columns for the child to join with a line; Column B never follows the stems (bd-5jmnfj.4.23).
     const stems = live.map((q, i) => `<span class="n">${textOf(itemNumber(slot, i, lang), ctx)}</span> ${textOf(stemOf(q, slot, false), ctx)}`);
-    const column = matchOrder(live.map((q) => String(q.answer ?? ''))).map((a) => textOf(a, ctx));
+    const column = matchOrder(live.map(matchAnswer)).map((a) => textOf(a, ctx));
     return `<div class="slot">${head}<div class="q" data-slot="${esc(slot.slot)}">${matchTable(stems, column)}</div></div>`;
   }
   const body = [];
@@ -1061,7 +1061,7 @@ function mcqStrip(slot, list, ctx) {
   const lang = ctx.medium;
   const live = list.filter((q) => q.removed !== true);
   const sep = lang === 'ur' ? '، ' : ' · ';
-  const key = (q) => (slot.shape === 'match' ? String(q.answer ?? '') : answerLetter(q, slot));
+  const key = (q) => (slot.shape === 'match' ? matchAnswer(q) : answerLetter(q, slot));
   const cells = live.map((q, i) => `${itemNumber(slot, i, lang).replace(/[)۔.]$/, '')} ${key(q)}`);
   const label = lang === 'ur' ? slot.label_ur : shortLabel(slot.label_en);
   // A line may break only between answers, and a separator never starts or ends a line alone.

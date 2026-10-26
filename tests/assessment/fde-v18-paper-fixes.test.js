@@ -68,7 +68,7 @@ describe('bd-5jmnfj.4.40 G1 English Q13 prints its own speech bubble', () => {
   test('the picture never draws a bubble or a gift; it shows what the question names', () => {
     expect(s.bubble).toBe(true);
     expect(s.prompt_rule).toMatch(/no speech bubble/i);
-    expect(s.answer_ok({ picture: { kind: 'scene', describe: 'Two children; one hands the other a pencil case.' } })).toBe(true);
+    expect(s.answer_ok({ picture: { kind: 'scene', describe: 'Two children; the one on the right hands the other a pencil case.' } })).toBe(true);
     expect(s.answer_ok({ picture: { kind: 'scene', describe: 'A child with an empty speech bubble above her.' } })).toBe(false);
     expect(s.answer_ok({ picture: { kind: 'scene', describe: 'One child gives a wrapped gift.' } })).toBe(false);
   });
