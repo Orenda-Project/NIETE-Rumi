@@ -11,6 +11,8 @@ import CoachGate from "../CoachGate";
 import { COACH_PROFILE } from "./copy";
 import { useCoachCounts } from "./useCoachCounts";
 import { useChildTestSa } from "../../lib/useChildTestSa";
+import { useCoachip } from "../insights/useCoachip";
+import { COACH_MENU_PATHS } from "../../teacher/menu";
 
 /**
  * bd-fmf24g.33 — the coach's More: who she is, then Language (English | اردو), My profile and Log out, as the teacher's.
@@ -25,6 +27,9 @@ export default function CoachMore() {
   const guardedLogout = useLogoutGuard(logout);
   const counts = useCoachCounts();
   const assess = useChildTestSa() === true;
+  // bd-sex15q.15 — with COACHIP on, the menu is This week · Schools · Listen · Stats · More, so the Training Library and
+  // Lesson Plans move here (the lead's decision: training stays one tap away). Off: nothing changes on this page.
+  const coachip = useCoachip(user?.phoneNumber || null) === true;
   const name = fullName(user);
   const phone = formatPhone(user?.phoneNumber);
 
@@ -47,6 +52,13 @@ export default function CoachMore() {
             )}
           </span>
         </section>
+
+        {coachip && (
+          <Card label={C.coachNav.training}>
+            <RowLink id="training" to={COACH_MENU_PATHS.training} glyph="training" label={C.coachNav.training} />
+            <RowLink id="lessons" to={COACH_MENU_PATHS.lessons} glyph="lessons" label={C.coachNav.lessons} />
+          </Card>
+        )}
 
         {assess && (
           <Card label={P.assess}>
