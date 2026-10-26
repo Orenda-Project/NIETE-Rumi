@@ -384,9 +384,10 @@ class QuizDeliveryService {
    * config/meta-messaging-window.js for why the margin is minutes, not an hour.
    *
    * @param {string} phone - Parent phone number (E.164, with leading +)
+   * @param {{ marginMs?: number }} [opts] - marginMs: the window must still have this long left (VIDREC strip, R7p)
    * @returns {boolean} true if we can send free messages
    */
-  static async _hasOpenMessageWindow(phone) {
+  static async _hasOpenMessageWindow(phone, { marginMs = 0 } = {}) {
     try {
       // short-circuit when we've recently seen a 131047 from Meta
       // for this phone. The chat_sessions check below is the optimistic
@@ -431,7 +432,7 @@ class QuizDeliveryService {
       // cold: 5 of the 152 observe template sends in the week to 15 Sep went to
       // a teacher whose last inbound was 23.05-23.92 hours earlier. Each cost a
       // paid template and a message asserting something untrue about her.
-      const cutoff = new Date(Date.now() - MESSAGE_WINDOW_MS).toISOString();
+      const cutoff = new Date(Date.now() - (MESSAGE_WINDOW_MS - marginMs)).toISOString();
 
       const { data: session } = await supabase
         .from('chat_sessions')

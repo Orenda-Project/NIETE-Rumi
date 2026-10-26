@@ -19,7 +19,7 @@ beforeEach(() => {
   process.env = { ...ENV };
   for (const k of ['VIDEO_RECO_MODE', 'VIDEO_RECO_REASON', 'VIDEO_RECO_STRIP_WAIT_MS', 'VIDEO_RECO_AB_ENABLED']) delete process.env[k];
   S = require('../../../bot/shared/services/coaching/video-reco/strip');
-  deps = { enabled: () => true, catalog: { segment: () => HIT }, store: { readForSession: jest.fn(() => new Promise(() => {})) } };
+  deps = { enabled: () => true, onTeacherApp: async () => false, windowOpen: async () => true, catalog: { segment: () => HIT }, store: { readForSession: jest.fn(() => new Promise(() => {})) } };
 });
 afterEach(() => { jest.useRealTimers(); process.env = { ...ENV }; });
 
@@ -28,7 +28,7 @@ async function race(at, row = ROW) {
   jest.useFakeTimers();
   let done = false; let out; let waited = null;
   const t0 = Date.now();
-  S.stripFor({ coachingSessionId: 's', language: 'en', row: later(at, row), deps }).then((v) => { out = v; done = true; waited = Date.now() - t0; });
+  S.stripFor({ coachingSessionId: 's', phone: '920000000000', language: 'en', row: later(at, row), deps }).then((v) => { out = v; done = true; waited = Date.now() - t0; });
   for (let i = 0; i < 400 && !done; i++) await jest.advanceTimersByTimeAsync(50);
   return { out, waited };
 }
@@ -37,9 +37,9 @@ describe('shadow never waits', () => {
   test('VIDEO_RECO_MODE=shadow → null at once, the row is not awaited or read', async () => {
     process.env.VIDEO_RECO_MODE = 'shadow';
     const t0 = Date.now();
-    expect(await S.stripFor({ coachingSessionId: 's', language: 'en', row: new Promise(() => {}), deps })).toBeNull();
+    expect(await S.stripFor({ coachingSessionId: 's', phone: '920000000000', language: 'en', row: new Promise(() => {}), deps })).toBeNull();
     expect(Date.now() - t0).toBeLessThan(50);
-    expect(await S.stripFor({ coachingSessionId: 's', language: 'en', deps })).toBeNull();
+    expect(await S.stripFor({ coachingSessionId: 's', phone: '920000000000', language: 'en', deps })).toBeNull();
     expect(deps.store.readForSession).not.toHaveBeenCalled();
   });
 });
@@ -76,7 +76,7 @@ describe('the cap follows the reason mode', () => {
   test('an explicit capMs from the caller still wins (tests, a future caller)', async () => {
     jest.useFakeTimers();
     let out = 'pending';
-    S.stripFor({ coachingSessionId: 's', language: 'en', row: later(100, ROW), capMs: 50, deps }).then((v) => { out = v; });
+    S.stripFor({ coachingSessionId: 's', phone: '920000000000', language: 'en', row: later(100, ROW), capMs: 50, deps }).then((v) => { out = v; });
     await jest.advanceTimersByTimeAsync(60);
     expect(out).toBeNull();
   });
@@ -109,7 +109,7 @@ describe('a pick slower than the strip cap: no strip, the clip message still goe
     const FULL = { ...ROW, id: '0b6f3c7e-2a41-4d8e-9a55-3f1c2d4e5f60', coaching_session_id: '1a2b3c4d-1111-4222-8333-444455556666', user_id: '60530046-7ac3-4ea3-a976-b43c37c23213', reason_en: 'This clip shows one way to do it.', reason_ur: 'اس کلپ میں ایک طریقہ ہے۔' };
     const pick = later(2000, FULL);
     let strip = 'pending'; let sent = 'pending';
-    S.stripFor({ coachingSessionId: 's', language: 'en', row: pick, deps }).then((v) => { strip = v; });
+    S.stripFor({ coachingSessionId: 's', phone: '920000000000', language: 'en', row: pick, deps }).then((v) => { strip = v; });
     await jest.advanceTimersByTimeAsync(1600);
     expect(strip).toBeNull();
     send.sendAfterReport({ coachingSessionId: FULL.coaching_session_id, phone: '923000000001', language: 'en', track, row: pick, imageStrip: false, deps: sdeps }).then((v) => { sent = v; });

@@ -423,7 +423,7 @@ class ReportGeneratorService {
       // OECD/HOTS/TEACH/MEWAKA once they're wired). Delivery path branches
       // on the shape.
       // bd-gzfdu9 §4.9: the recommended clip on the report image — waits ≤ strip.stripWaitMs() (shadow 0, card 1.5 s, llm 5 s); null when off or slower.
-      const videoStrip = await require('./video-reco/strip').stripFor({ coachingSessionId, language: outputLanguage, row: videoReco }).catch(() => null);
+      const videoStrip = await require('./video-reco/strip').stripFor({ coachingSessionId, language: outputLanguage, row: videoReco, phone: from, userId: session.user_id }).catch(() => null);
       const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, loop, nextStep, videoStrip);
       const isHeroImage = !Buffer.isBuffer(reportResult) && reportResult && reportResult.png;
       // bd-v0toag.1.3 — voice-note seconds (from the session row, never decoded here) + report text length.
