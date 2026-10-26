@@ -27,9 +27,23 @@ t "T696 is in the cluster" "$(printf '%s' "$ids" | tr ',' '\n' | grep -c '^T696$
 
 echo "AC2 the mock lane shards training by default; E2E_SHARDS= (empty) runs every feature whole"
 PLAN3=$(bash .claude/qa/shared/run-suite.sh training,menu --method mock --parallel --print-shards 2>&1)
-t "default: training is sharded" "$(printf '%s\n' "$PLAN3" | grep -c '^child training')" "2"
+t "default: training is three children (ladder · class/lesson-plan quizzes · generation)" "$(printf '%s\n' "$PLAN3" | grep -c '^child training')" "3"
 PLAN2=$(E2E_SHARDS= bash .claude/qa/shared/run-suite.sh training,menu --method mock --parallel --print-shards 2>&1)
 t "two children" "$(printf '%s\n' "$PLAN2" | grep -c '^child ')" "2"
+
+echo "AC4 several shards per feature ('a|b'), coaching sharded by default, longest children launched first"
+PLAN4=$(E2E_SHARDS="training=T35-T36|T46-T48" bash .claude/qa/shared/run-suite.sh training,menu --method mock --parallel --print-shards 2>&1)
+t "three training children"   "$(printf '%s\n' "$PLAN4" | grep -c '^child training')" "3"
+t "child 1 skips both lists"  "$(printf '%s\n' "$PLAN4" | grep -E '^child training ' | grep -c 'skip=T35,T36,T46,T47,T48')" "1"
+t "child 3 runs the second list" "$(printf '%s\n' "$PLAN4" | grep -E '^child training#3 ' | grep -c 'only=T46,T47,T48')" "1"
+PLAN5=$(bash .claude/qa/shared/run-suite.sh coaching,training,menu --method mock --parallel --print-shards 2>&1)
+t "default: coaching is sharded too" "$(printf '%s\n' "$PLAN5" | grep -c '^child coaching')" "2"
+t "default: coaching shard 2 carries the run-4+ pipeline ids (COA20 … COA55)" "$(printf '%s\n' "$PLAN5" | grep -E '^child coaching#2 ' | grep -c 'COA20,.*COA55')" "1"
+t "default: training is three children" "$(printf '%s\n' "$PLAN5" | grep -c '^child training')" "3"
+t "launch order: the longest children first (coaching#2, training#2 before menu)" "$(printf '%s\n' "$PLAN5" | grep -E '^child (coaching#2|training#2|menu) ' | sed -E 's/^child ([^ ]+).*/\1/' | tr '\n' ' ')" "coaching#2 training#2 menu "
+
+echo "AC5 the lesson-plan-quiz helper stops waiting when the bot says the quiz failed (T35: 303 s on the lane)"
+grep -qE "could not be (finished|started)|went wrong on my side" .claude/qa/shared/features/training.cjs && grep -qF 'const failed = ' .claude/qa/shared/features/training.cjs; t "lpState has a failure predicate and stops on it" "$?" "0"
 
 echo "AC3 the child's selection reaches the runner"
 grep -qF 'E2E_SKIP_MAP' .claude/qa/shared/run-suite.sh; t "run-suite exports E2E_SKIP_MAP for --skip" "$?" "0"
