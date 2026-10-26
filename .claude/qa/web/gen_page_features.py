@@ -121,6 +121,20 @@ F['portal-smoke'] = ('Portal-wide smoke — every main page, every role', 'the w
 # Hand-written flows a page row cannot express, joined onto a generated feature: the driver requires the module, the
 # spec carries its Gherkin. Modules live in flows/, not features/, because web-runner loads every features/<name>.cjs.
 EXTRA = {
+  # bd-yef5iq.6 + bd-gbf8ix: an I-SAPS module page carries the partner's required reading, matched on the vendor KEY
+  # (the vendor's display name was renamed and every page lost its list). Reads /training/modules as the demo teacher;
+  # BLOCKED when the run's database has no I-SAPS course she can open.
+  'teacher-training': ('../flows/teacher-training-readings.cjs', [
+    "  # TT04 (bd-yef5iq.6 + bd-gbf8ix, 26 Oct 2026): I-SAPS module pages lost their reading list when the vendor was",
+    "  # renamed (it was matched by name); it is now matched on the vendor key, and Level 2 has its own list.",
+    "  @TT04",
+    "  Scenario: An I-SAPS module page shows the partner's required reading, under the renamed programme",
+    "    Given the teacher app v2 is on and the coach app v2 is off",
+    "    And demo teacher 03000000911 is signed in and can open an I-SAPS Module 1 course",
+    "    When she opens that course's module page",
+    "    Then it lists the partner's required reading, each with a link",
+    "",
+  ]),
   # The Home's new look (portal_teacher_home_look, only ever on with portal_teacher_home_card): portal/src/portal/teacher/
   # home/look/** and pages/Home.tsx. Today's Home answer is fixed per scenario; the switches are real (see the flow).
   'teacher-home': ('../flows/teacher-home-look.cjs', [
