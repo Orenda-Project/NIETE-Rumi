@@ -24,6 +24,7 @@ const { rankScope } = require('./ranking');
 const { pickCircle } = require('./circle');
 const { reconcile } = require('./reconcile');
 const { buildSeedRows, applySeed } = require('./seed');
+const ms = require('./model-stage');
 
 const LIBRARY = require('../../data/coachip/INTERVENTIONS.json');
 const CROSSWALK = require('../../data/coachip/crosswalk.json');
@@ -286,8 +287,9 @@ async function runJob(opts, deps) {
     // ── stage 5a: phonics (before the rollups: W-PHON is counted), leaving the glosses' reserve inside the cap
     const capUsd = write ? C.NIGHTLY_CAP_USD + (opts.backfillBudgetUsd || 0) : opts.dryRunModelsUsd;
     const modelsOn = want('models') && !opts.noModels && capUsd > 0 && !!deps.apiKey;
-    const ms = require('./model-stage');
     const ctx = modelsOn ? ms.createModelContext({ capUsd, write, store, jobRunId, deps, log }) : null;
+    // Never a silent skip (rule 24): say why the model stage did not run.
+    if (!modelsOn && want('models') && !opts.noModels) log(`models_skipped reason=${capUsd > 0 ? 'no_api_key' : 'no_budget'}`);
     if (ctx) {
       const coachCount = scope.coaches.size;
       const reserve = Math.min(capUsd / 2, coachCount * (LISTEN_PER_COACH + 3) * 0.00026 + 0.1);
@@ -418,7 +420,9 @@ async function runJob(opts, deps) {
     log(`done status=ok stages=${done.join(',')}`);
     return 0;
   } catch (err) {
-    log(`failed after=${done[done.length - 1] || 'start'} error=${err && err.name}`);
+    // Class and place only: never a value from a row (our read errors start `read <table>`).
+    const where = ((err && err.message) || '').match(/^(read|select|upsert|insert|update|delete) [a-z_]+/);
+    log(`failed after=${done[done.length - 1] || 'start'} error=${err && err.name} code=${(err && err.code) || '-'} where=${where ? where[0].replace(' ', ':') : '-'}`);
     if (write) {
       // A failure before the rollups leaves yesterday's rollups untouched (the home route reads the stale signal).
       await store.update('coachip_job_runs', jobRunId, { finished_at: new Date().toISOString(), status: rollupsDone ? 'partial' : 'failed',

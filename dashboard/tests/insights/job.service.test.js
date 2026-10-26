@@ -125,6 +125,55 @@ describe('write mode on the sandbox tier', () => {
   });
 });
 
+describe('the model stage inside the run (OpenRouter mocked at the network boundary)', () => {
+  const fakeFetch = (calls) => async (url, init) => {
+    const body = JSON.parse(init.body);
+    calls.push(body.model);
+    const isPhonics = /phonics/i.test(body.messages[0].content.slice(0, 400));
+    const content = isPhonics ? JSON.stringify({ applicable: false })
+      : JSON.stringify({ gloss_en: 'the practice should have started here', gloss_ur: 'یہاں مشق شروع ہونی تھی', replaced_by_homework: 'no' });
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content } }], usage: { prompt_tokens: 100, completion_tokens: 20, cost: 0.0002 } }) };
+  };
+
+  test('a dry run with a model budget calls, stays under the cap, logs model/tokens/cost per call, keeps no gloss text', async () => {
+    const { tables } = fx.build();
+    for (const s of tables.coaching_sessions) s.transcript_text = '[00:01] Teacher: placeholder';
+    const calls = [];
+    const out = tmp();
+    const code = await runJob({ ...OPTS, dryRun: true, noModels: false, dryRunModelsUsd: 0.05 }, { mode: 'read_only', envName: 'production',
+      ref: C.PROD_REF, readClient: memoryClient(tables), store: new MemoryStore(), secret: SECRET, out, log: () => {}, apiKey: 'test-key',
+      fetch: fakeFetch(calls), rethrow: true });
+    expect(code).toBe(0);
+    const costs = JSON.parse(fs.readFileSync(path.join(out, 'costs.json'), 'utf8'));
+    expect(costs.calls).toBe(calls.length);
+    expect(costs.calls).toBeGreaterThan(0);
+    expect(costs.cost_usd).toBeLessThanOrEqual(0.05);
+    for (const c of costs.calls_log) expect(Object.keys(c).sort()).toEqual(['analysis', 'cost_usd', 'model', 'purpose', 'status', 'tokens_in', 'tokens_out']);
+    const text = fs.readdirSync(out).map((f) => fs.readFileSync(path.join(out, f), 'utf8')).join('\n');
+    expect(text).not.toMatch(/practice should have started|مشق شروع|placeholder|test-key/);
+  });
+
+  test('no API key: the model stage says why it did not run (never a silent skip)', async () => {
+    const { tables } = fx.build();
+    const lines = [];
+    await runJob({ ...OPTS, dryRun: true, noModels: false, dryRunModelsUsd: 0.05 }, { mode: 'read_only', envName: 'production', ref: C.PROD_REF,
+      readClient: memoryClient(tables), store: new MemoryStore(), secret: SECRET, out: tmp(), log: (m) => lines.push(m) });
+    expect(lines).toContain('models_skipped reason=no_api_key');
+  });
+
+  test('a failure names its class and place, never a value', async () => {
+    const { tables } = fx.build();
+    const lines = [];
+    const broken = memoryClient(tables);
+    const realFrom = broken.from;
+    broken.from = (t) => (t === 'users' ? { select: () => { const e = new Error('read users: permission denied'); e.code = 'EPERM'; throw e; } } : realFrom(t));
+    const code = await runJob({ ...OPTS, dryRun: true }, { mode: 'read_only', envName: 'production', ref: C.PROD_REF, readClient: broken,
+      store: new MemoryStore(), secret: SECRET, out: tmp(), log: (m) => lines.push(m) });
+    expect(code).toBe(2);
+    expect(lines.pop()).toBe('failed after=start error=Error code=EPERM where=read:users');
+  });
+});
+
 describe('the CLI', () => {
   const prod = `https://${C.PROD_REF}.supabase.co`;
   test('a prod URL without --dry-run exits 3 before any client exists', async () => {
