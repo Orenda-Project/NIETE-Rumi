@@ -165,3 +165,62 @@ describe('strip hint default (red7 N1, 051537)', () => {
     expect(html).not.toContain('next message');
   });
 });
+
+// red7 F1 (053724): a probe that fails for any other reason (timeout 57014, a fetch failure, a 5xx) or a forced
+// VIDEO_RECO_REPORT_VIA=1 on a database WITHOUT V1.7.9 must not cost image_strip: the UPDATE that names a missing column
+// is retried once without report_via, and the column is then known absent; an inconclusive probe is never cached.
+describe('F1: a column-less database never loses image_strip', () => {
+  let RV;
+  beforeEach(() => { jest.resetModules(); jest.dontMock('../../../bot/shared/services/coaching/video-reco/report-via'); delete process.env.VIDEO_RECO_REPORT_VIA; RV = require('../../../bot/shared/services/coaching/video-reco/report-via'); });
+  afterEach(() => { delete process.env.VIDEO_RECO_REPORT_VIA; });
+  function columnless(probeError) {
+    const calls = { probe: 0, updates: [], written: [] };
+    const from = jest.fn(() => {
+      const q = {};
+      q.select = jest.fn(() => q);
+      q.limit = jest.fn(async () => { calls.probe += 1; return { data: null, error: probeError }; });
+      q.update = jest.fn((patch) => ({ eq: jest.fn(async () => {
+        calls.updates.push(patch);
+        if ('report_via' in patch) return { error: { code: '42703', message: 'column "report_via" of relation "video_recommendations" does not exist' } };
+        calls.written.push(patch); return { error: null };
+      }) }));
+      return q;
+    });
+    return { supabase: { from }, calls };
+  }
+
+  test('probe timeout (57014) on a column-less DB → image_strip is written', async () => {
+    const { supabase, calls } = columnless({ code: '57014', message: 'canceling statement due to statement timeout' });
+    expect(await RV.recordReportPath({ row: Promise.resolve(ROW), reportVia: 'template', imageStrip: true, deps: { supabase } })).toBe(true);
+    expect(calls.written).toEqual([{ image_strip: true }]);
+  });
+  test('VIDEO_RECO_REPORT_VIA=1 on a column-less DB → image_strip is written; the column is then known absent', async () => {
+    process.env.VIDEO_RECO_REPORT_VIA = '1';
+    const { supabase, calls } = columnless(null);
+    expect(await RV.recordReportPath({ row: Promise.resolve(ROW), reportVia: 'template', imageStrip: true, deps: { supabase } })).toBe(true);
+    expect(calls.written).toEqual([{ image_strip: true }]);
+  });
+  test('after a missing-column UPDATE the next report goes without the key at once (one UPDATE, not two)', async () => {
+    const { supabase, calls } = columnless({ code: '', message: 'TypeError: fetch failed' });
+    await RV.recordReportPath({ row: Promise.resolve(ROW), reportVia: 'image', imageStrip: true, deps: { supabase } });
+    const before = calls.updates.length;
+    await RV.recordReportPath({ row: Promise.resolve(ROW), reportVia: 'image', imageStrip: true, deps: { supabase } });
+    expect(calls.updates.length - before).toBe(1);
+    expect(calls.updates[calls.updates.length - 1]).toEqual({ image_strip: true });
+  });
+  test('an inconclusive probe is not cached: the next report probes again', async () => {
+    const calls = { probe: 0 };
+    let probeError = { code: '57014', message: 'timeout' };
+    const supabase = { from: () => { const q = {}; q.select = () => q; q.limit = async () => { calls.probe += 1; return { data: [], error: probeError }; }; q.update = () => ({ eq: async () => ({ error: null }) }); return q; } };
+    await RV.recordReportPath({ row: Promise.resolve(ROW), reportVia: 'image', imageStrip: false, deps: { supabase } });
+    probeError = null;
+    await RV.recordReportPath({ row: Promise.resolve(ROW), reportVia: 'image', imageStrip: false, deps: { supabase } });
+    expect(calls.probe).toBe(2);
+  });
+  test('a missing-column retry with nothing left to write writes nothing and reports false', async () => {
+    process.env.VIDEO_RECO_REPORT_VIA = '1';
+    const { supabase, calls } = columnless(null);
+    expect(await RV.recordReportPath({ row: Promise.resolve(ROW), reportVia: 'image', imageStrip: false, deps: { supabase } })).toBe(false);
+    expect(calls.written).toEqual([]);
+  });
+});
