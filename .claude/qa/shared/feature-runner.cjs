@@ -611,24 +611,21 @@ function makeApi(c) {
   // before. Present → the run REPORTS only those ids, and a driver that asks want(...ids) skips the blocks
   // whose scenarios were not selected. A driver that never asks still runs everything; its unselected rows
   // are left out of the result, so the output is the commit's scenarios either way.
-  const ONLY = (() => {
-    const raw = String(process.env.E2E_ONLY_MAP || '').trim();
-    if (!raw) return null;
-    for (const part of raw.split(';')) {
-      const i = part.indexOf('='); if (i < 0) continue;
-      if (part.slice(0, i).trim() === FEATURE) return new Set(part.slice(i + 1).split(',').map((x) => x.trim()).filter(Boolean));
-    }
-    return null;
-  })();
+  // E2E_SKIP_MAP (bd-r09cmx) is the mirror: run and report everything EXCEPT these ids — the other half of a
+  // feature sharded across two slots (run-suite E2E_SHARDS). selection.cjs holds the rules both maps share.
+  const SEL = require(path.join(__dirname, 'selection.cjs'));
+  const ONLY = SEL.parseMap(process.env.E2E_ONLY_MAP, FEATURE);
+  const SKIP = SEL.parseMap(process.env.E2E_SKIP_MAP, FEATURE);
   const SCENARIO_ID = /^[A-Z]{1,5}\d{1,3}$/;   // harness rows (COA-preflight, RUNNER) carry a hyphen and always report
-  const want = (...ids) => !ONLY || ids.flat().some((x) => ONLY.has(x));
+  const want = SEL.makeWant(ONLY, SKIP);
   let outOfScope = 0;
   const rec = (id, name, verdict, evidence, ms) => {
-    if (ONLY && SCENARIO_ID.test(String(id)) && !ONLY.has(id)) { outOfScope++; trace(`SKIP ${id} (not selected for this commit)`); return; }
+    if (!SEL.recAllowed(id, ONLY, SKIP, SCENARIO_ID)) { outOfScope++; trace(`SKIP ${id} (not selected for this child)`); return; }
     trace(`REC ${id} ${verdict} ${Math.round((ms||0)/1000)}s`); results.push({ id, name, verdict, evidence, ms });
     tracer.scenario(id, { verdict, ms, title: name });
   };
   if (ONLY) trace(`selection: ${[...ONLY].join(',')} (${ONLY.size} scenario(s) of ${FEATURE})`);
+  if (SKIP) trace(`skipping: ${[...SKIP].join(',')} (${SKIP.size} scenario(s) of ${FEATURE} run by another shard)`);
   // Generic role/persona support: snapshot the driver's mutable identity (role, language) so a feature
   // that switches role via api.setRole/api.setUser cannot leak that onto the next feature's run on this
   // ONE shared driver. Restored in the finally below — a role-based suite never has to clean up itself.
