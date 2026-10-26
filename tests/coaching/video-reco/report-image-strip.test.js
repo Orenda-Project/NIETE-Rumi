@@ -21,7 +21,7 @@ const shown = (s) => String(s).replace(/[‎‏⁦-⁩]/g, '');
 const thumb = path.join(os.tmpdir(), `vr-strip-${process.pid}.jpg`);
 beforeAll(() => fs.writeFileSync(thumb, Buffer.from([0xff, 0xd8, 0xff, 0xd9])));
 afterAll(() => fs.rmSync(thumb, { force: true }));
-const STRIP = { thumbPath: thumb, title: 'Asking why-questions <b>', durationS: 134 };
+const STRIP = { thumbPath: thumb, title: 'Asking why-questions <b>', durationS: 134, where: 'next' }; // R7p: the next-message hint
 
 describe('no strip → byte-identical', () => {
   test.each(['en', 'ur'])('hero %s', (l) => {
