@@ -153,6 +153,24 @@ describe('the model stage inside the run (OpenRouter mocked at the network bound
     expect(text).not.toMatch(/practice should have started|مشق شروع|placeholder|test-key/);
   });
 
+  test('a dry run streams each call to calls.jsonl as it happens, so a run that dies later still leaves its spend on disk', async () => {
+    const { tables } = fx.build();
+    for (const s of tables.coaching_sessions) s.transcript_text = '[00:01] Teacher: placeholder';
+    const calls = [];
+    const out = tmp();
+    // The run dies after the last call and before costs.json is written (the 26 Oct prod dry run died this way).
+    const log = (m) => { if (/^models calls=/.test(m)) throw new Error('killed'); };
+    await runJob({ ...OPTS, dryRun: true, noModels: false, dryRunModelsUsd: 0.05 }, { mode: 'read_only', envName: 'production',
+      ref: C.PROD_REF, readClient: memoryClient(tables), store: new MemoryStore(), secret: SECRET, out, log, apiKey: 'test-key',
+      fetch: fakeFetch(calls) });
+    expect(calls.length).toBeGreaterThan(0);
+    expect(fs.existsSync(path.join(out, 'costs.json'))).toBe(false);
+    const lines = fs.readFileSync(path.join(out, 'calls.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    expect(lines).toHaveLength(calls.length);
+    for (const c of lines) expect(Object.keys(c).sort()).toEqual(['analysis', 'cost_usd', 'model', 'purpose', 'status', 'tokens_in', 'tokens_out']);
+    expect(lines.reduce((a, c) => a + c.cost_usd, 0)).toBeLessThanOrEqual(0.05);
+  });
+
   test('no API key: the model stage says why it did not run (never a silent skip)', async () => {
     const { tables } = fx.build();
     const lines = [];

@@ -8,6 +8,8 @@
  * The name lexicon (the teacher's users.name tokens and the names on their class rosters) and transcripts are read into
  * memory for this stage only: never stored, logged or returned. In a dry run gloss text is gated and counted, never kept.
  */
+const fs = require('fs');
+const path = require('path');
 const M = require('./model');
 const G = require('./gloss');
 const Ph = require('./phonics');
@@ -64,8 +66,14 @@ function createModelContext({ capUsd, write, store, jobRunId, deps, log }) {
       for (const r of rows) {
         summary.calls += 1;
         summary.cost_usd = Math.round((summary.cost_usd + Number(r.cost_usd || 0)) * 1e5) / 1e5;
-        summary.calls_log.push({ analysis: r.analysis, purpose: r.purpose, model: r.model, status: r.status,
-          tokens_in: r.tokens_in, tokens_out: r.tokens_out, cost_usd: Number(r.cost_usd || 0) });
+        const line = { analysis: r.analysis, purpose: r.purpose, model: r.model, status: r.status,
+          tokens_in: r.tokens_in, tokens_out: r.tokens_out, cost_usd: Number(r.cost_usd || 0) };
+        summary.calls_log.push(line);
+        // A dry run streams each call to disk as it happens: a run that dies later still leaves its spend behind.
+        if (!write && deps.out) {
+          fs.mkdirSync(deps.out, { recursive: true });
+          fs.appendFileSync(path.join(deps.out, 'calls.jsonl'), `${JSON.stringify(line)}\n`);
+        }
       }
       if (write && rows.length) return store.insert('coachip_model_runs', rows.map((r) => ({ ...r, job_run_id: jobRunId })));
       return rows.map(() => ({ id: null }));
