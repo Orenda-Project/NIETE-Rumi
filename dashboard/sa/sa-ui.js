@@ -133,11 +133,12 @@
       coach_then: 'Then give the phone to the child.',
       coach_items: 'Read each one out when it shows:',
       coach_you: 'You say — read this to the child:',
-      coach_app: 'Jugnu asks — do not read these:',
+      coach_app: 'Do not say these to the child — Jugnu asks them:',
       answers_by: 'The child answers by:',
       by_say: 'saying it aloud',
       by_tap: 'tapping',
-      by_type: 'typing',
+      by_type: 'typing on the buttons',
+      app_speaks_after: 'Jugnu speaks after you give the phone.',
       headphones: 'Put the headphones on the child, then check the sound.',
     },
     ur: {
@@ -214,11 +215,12 @@
       coach_then: 'پھر فون بچے کو دے دیں۔',
       coach_items: 'ہر ایک سامنے آنے پر پڑھ کر سنائیں:',
       coach_you: 'آپ کہیں — یہ بچے کو پڑھ کر سنائیں:',
-      coach_app: 'جگنو پوچھے گا — یہ آپ نہ پڑھیں:',
-      answers_by: 'بچہ جواب دے گا:',
+      coach_app: 'یہ بچے کو نہ سنائیں — جگنو خود پوچھے گا:',
+      answers_by: 'جواب ایسے دینا ہے:',
       by_say: 'بول کر',
       by_tap: 'دبا کر',
-      by_type: 'لکھ کر',
+      by_type: 'بٹن سے لکھ کر',
+      app_speaks_after: 'فون دینے کے بعد جگنو بولے گا۔',
       headphones: 'بچے کو ہیڈفون لگائیں، پھر آواز چیک کریں۔',
     },
   };
@@ -412,8 +414,8 @@
     /** RDF manual: an item the auto run speaks, shown for the coach to read out (open, or folded where it is the answer). */
     function coachSays(it, folded) {
       if (!manual || !itemWords(it)) return null;
+      if (appAsks) return null; // C2: the coach is not holding the phone; the brief's list is the only place (§4.2)
       var said = h('p', { class: 'sae-say sae-coach-line', text: itemWords(it) });
-      if (appAsks) return h('details', { class: 'sae-coach-says is-coach is-app' }, [h('summary', { text: C.coach_app }), said]);
       if (folded) return h('details', { class: 'sae-coach-says is-coach' }, [h('summary', { text: C.coach }), said]);
       return h('div', { class: 'sae-coach-says is-coach' }, [h('p', { class: 'sae-chip', text: C.coach_read }), said]);
     }
@@ -666,15 +668,16 @@
         h('div', { class: 'sae-body' }, [
           h('p', { class: 'sae-chip', text: C.coach }),
           h('h1', { class: 'sae-h1', text: tx(t.title) }),
-          appAsks ? h('div', { class: 'sae-coach-you' }, [
+          appAsks ? h('div', { class: 'sae-coach-you sae-coach-yousay' }, [
             h('p', { class: 'sae-sub', text: C.coach_you }),
-            h('p', { class: 'sae-say sae-coach-text', text: tx(t.coach_text) || tx(introOf(t)) }),
+            h('p', { class: 'sae-say sae-coach-text', text: tx(t.coach_text_c) || tx(t.coach_text) || tx(introOf(t)) }),
           ]) : h('p', { class: 'sae-sub', text: C.coach_read }),
           appAsks ? null : h('p', { class: 'sae-say sae-coach-text', text: tx(t.coach_text) || tx(introOf(t)) }),
           demoImage(t),
           demoItem(t),
+          appAsks ? h('p', { class: 'sae-sub sae-coach-by sae-answers-by' }, [C.answers_by + ' ' + answersBy(t)]) : null,
+          appAsks ? h('p', { class: 'sae-sub sae-app-after', text: C.app_speaks_after }) : null,
           appAsks ? appAsksList(t) : coachItems(t),
-          appAsks ? h('p', { class: 'sae-sub sae-coach-by' }, [C.answers_by + ' ' + answersBy(t)]) : null,
           h('p', { class: 'sae-sub', text: C.coach_then }),
         ]),
         h('div', { class: 'sae-foot' }, [btn(C.handover_anon, function () { runner.instructionDone(); draw(); }, 'sae-primary')]),
@@ -698,10 +701,15 @@
       });
       (t.items || []).forEach(function (it) { if (itemWords(it)) said.push(itemWords(it)); });
       if ((t.mode === 'tap' || t.mode === 'keypad') && introOf(t)) said.push(tx(introOf(t)));
+      var s = t.script || {};
+      var ready = [tx(s.test_intro), tx(s.begin)].filter(Boolean).join(' ');
+      if (ready) said.push(ready); // the ready line is Jugnu's (RULING R6-11 item 1)
       if (!said.length) return null;
-      return h('details', { class: 'sae-coach-list sae-coach-app' }, [
+      return h('details', { class: 'sae-coach-list sae-coach-app sae-coach-appasks' }, [
         h('summary', { class: 'sae-sub', text: C.coach_app }),
-        h('ol', { class: 'sae-coach-items', dir: dirOf(t), lang: taskLang(t) }, said.map(function (w) { return h('li', { text: w }); })),
+        h('ol', { class: 'sae-coach-items', dir: dirOf(t), lang: taskLang(t) }, said.map(function (w) {
+          return h('li', null, [h('span', { class: 'sae-li-say', 'aria-hidden': 'true', text: '🔊 ' }), w]);
+        })),
       ]);
     }
     /** How the child answers this task, for the coach (says / taps / types). */
@@ -1075,7 +1083,7 @@
       var t = v.task, it = v.cell_item;
       return screen(v, 'sae-run sae-run-rec sae-run-cell', [
         clock(v),
-        h('div', { class: 'sae-row' }, [h('p', { class: 'sae-chip sae-chip-rec', text: recChip(t, C) }), itemSpeaks(it) ? replayBtn(function () { sayItem(it, t); }) : null]),
+        h('div', { class: 'sae-row' }, [h('p', { class: 'sae-chip sae-chip-rec', text: recChip(t, C) }), itemSpeaks(it) ? replayBtn(function () { if (runner.replayPressed) runner.replayPressed(); sayItem(it, t); }) : null]),
         oneCell(v.cell, t, v.cell_index),
         coachSays(it),
       ], [btn(C.next, function () { runner.nextCell('tap'); draw(); }, 'sae-primary sa-next')]);
@@ -1496,7 +1504,7 @@
           if (t.mode === 'record' && v.practice.role === 'example') sayChain(modelOf(v.practice));
           else if (!(t.mode === 'record' && t.say_on === 'replay')) sayItem(v.practice, t);
         });
-      } else if (v.phase === 'ready') sayChain(manual ? [] : [s.test_intro ? [s.test_intro] : null, s.begin ? [s.begin] : null]);
+      } else if (v.phase === 'ready') sayChain(manual && !appAsks ? [] : [s.test_intro ? [s.test_intro, undefined, appAsks] : null, s.begin ? [s.begin, undefined, appAsks] : null]);
       else if (v.phase === 'running' && v.item) {
         if (t.mode === 'oral') {
           var key = keyOf(v), g2 = gen;
