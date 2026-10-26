@@ -138,7 +138,9 @@ const pct = (v) => (100 * (v || 0)).toFixed(0) + '%';
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = (id) => document.getElementById(id);
 const percentile = (xs, p) => { if (!xs.length) return 0; const ys = xs.slice().sort((a, b) => a - b); const k = Math.max(1, Math.ceil(p / 100 * ys.length)); return ys[Math.min(ys.length, k) - 1]; };
-const groupOf = (runId, feature) => String(runId).replace(new RegExp('-' + feature + '$'), '');
+// A sharded feature's children carry run ids "<group>-<feature>" and "<group>-<feature>-2", "-3"… (run-suite E2E_SHARDS):
+// the group is the run, and the shard suffix must not split it.
+const groupOf = (runId, feature) => String(runId).replace(new RegExp('-' + feature + '(-\\d+)?$'), '');
 
 const state = { index: null, profiles: new Map(), view: 'overview', trace: null, cmp: { a: null, b: null }, sort: {} };
 
@@ -174,7 +176,8 @@ function selected() {
   let list = [...state.profiles.values()].filter((p) => (!runs.size || runs.has(groupOf(p.run_id, p.feature))) && (!feat || p.feature === feat)
     && (!from || (p.started || '') >= from) && (!to || (p.started || '').slice(0, 10) <= to));
   list.sort((a, b) => (b.started || '').localeCompare(a.started || ''));
-  if (latest && !runs.size) { const seen = new Set(); list = list.filter((p) => { if (seen.has(p.feature)) return false; seen.add(p.feature); return true; }); }
+  // latest run per feature: every child of that feature's newest run GROUP, so a sharded feature keeps all its shards
+  if (latest && !runs.size) { const newest = new Map(); for (const p of list) if (!newest.has(p.feature)) newest.set(p.feature, groupOf(p.run_id, p.feature)); list = list.filter((p) => newest.get(p.feature) === groupOf(p.run_id, p.feature)); }
   return list;
 }
 const label = (p) => `${p.run_id} · ${p.feature}`;
