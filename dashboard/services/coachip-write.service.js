@@ -227,7 +227,7 @@ async function rmNote(ctx) {
   if (!ok) return S.NOT_FOUND();
   const q = ctx.deps.query;
   await weaknessOr404(q, wId);
-  const { rows: named } = await q('SELECT id, name FROM schools WHERE id = ANY($1::uuid[])', [schoolIds]);
+  const { rows: named } = await q(`SELECT id, name FROM schools WHERE id = ANY($1::uuid[])`, [schoolIds]);
   const nameOf = new Map(named.map((s) => [s.id.toLowerCase(), s.name]));
   if (schoolIds.some((sid) => !nameOf.has(sid.toLowerCase()))) return S.NOT_FOUND();
   const lines = R.composeNoteLines(templateId, {

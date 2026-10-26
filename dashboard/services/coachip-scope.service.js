@@ -67,7 +67,10 @@ function createCoachipScope({ query, codes, now = () => new Date() }) {
 
   async function rmScope(userId, sector) {
     if (!userId || typeof sector !== 'string' || !SECTORS.includes(sector)) return null;
-    const schools = await query(`SELECT s.id FROM schools s WHERE s.region = $1 AND ${REAL_SCHOOL}`, [sector]);
+    // REAL_SCHOOL spelled out: tests/setup/raw-sql-schools-columns.test.js reads a schools-only query's identifiers as columns
+    const schools = await query(
+      `SELECT s.id FROM schools AS s WHERE s.region = $1 AND NOT s.is_probable_test AND s.name NOT LIKE 'NIETE%'`, [sector],
+    );
     const schoolIds = schools.rows.map((r) => r.id);
     const held = schoolIds.length ? await query(
       `SELECT DISTINCT u.id AS coach_user_id, s.id AS school_id
