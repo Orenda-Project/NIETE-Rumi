@@ -130,7 +130,8 @@ function step0(nextStep, analysis) {
 }
 
 function cardOf(card) {
-  if (!card || typeof card !== 'object' || card.indicator) return card;
+  if (card && typeof card === 'object' && card.indicator) return { ...card, indicator: target.idOf(card.indicator) }; // R7t: a "Name (ID)" label → the id
+  if (!card || typeof card !== 'object') return card;
   const t = card.target;
   return t && t.indicator && t.kind !== 'phase' ? { ...card, indicator: t.indicator } : card;
 }
