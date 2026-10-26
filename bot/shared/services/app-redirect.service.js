@@ -200,8 +200,8 @@ const QUIET_MS = 60 * 60 * 1000;
  * to take effect on a running replica.
  */
 // APP_SETTINGS_FLAG_TTL_MS: the E2E mock lane sets 1000 so a flipped switch is seen in a second instead of
-// 31 (bd-k5gjje). Anything that is not a positive integer keeps the production default.
-const FLAG_TTL_MS = (() => { const v = Number(process.env.APP_SETTINGS_FLAG_TTL_MS); return Number.isInteger(v) && v > 0 ? v : 30 * 1000; })();
+// 31 (bd-k5gjje); one value for every switch cache (config/app-settings-ttl.js, bd-0vaqcg).
+const FLAG_TTL_MS = require('../config/app-settings-ttl').APP_SETTINGS_FLAG_TTL_MS;
 let flagCache = null; // { at, values: Map<key, raw value> }
 
 function parseValue(value) {

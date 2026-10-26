@@ -168,7 +168,7 @@ const PACK_KEY = 'web_quiz_pack';
 const BUSY_PAGE_KEY = 'web_quiz_busy_page';
 // The busy page asks again by itself (2 s, 4 s, 8 s) only with this on too: the same read, JSON true only.
 const BUSY_RETRY_KEY = 'web_quiz_busy_retry';
-const TTL_MS = 30 * 1000;
+const TTL_MS = require('../../config/app-settings-ttl').APP_SETTINGS_FLAG_TTL_MS;   // 30 s; APP_SETTINGS_FLAG_TTL_MS shortens it on a test lane (bd-0vaqcg)
 let cache = null; // fromRows' answer: { at, <each SWITCHES field>, shareOpen }
 // The child's language row from the read that filled `cache` ({ at, value }), or null when that read did not carry it.
 let langSeen = null;
