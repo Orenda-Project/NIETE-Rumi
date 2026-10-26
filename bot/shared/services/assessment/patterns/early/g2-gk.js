@@ -54,7 +54,8 @@ module.exports = makeSubject({
           instruction_ur: 'چار جملے لکھیں۔',
           prompt_rule: 'One book topic (my neighbourhood, a good citizen, our helpers). Answer: four model sentences. Scheme: K 1 per sentence on topic.' },
         S({ slot: 'g2.general_knowledge.B.Q8', label_en: 'Q8.', type: 'Put in Order', generate: 5, lines: 1,
-          instruction_ur: 'روئی سے کپڑا بننے کے مراحل کو درست ترتیب سے لکھیں۔',
+          // v18 never said what goes in each box (bd-5jmnfj.4.39).
+          instruction_ur: 'روئی سے کپڑا بننے کے مراحل کی ترتیب: ہر کام کے سامنے خانے میں 1 سے 5 تک اس کا نمبر لکھیں۔',
           prompt_rule: 'Five items that together are the five steps from cotton to cloth as the book gives them (picking, cleaning, spinning, weaving, stitching), listed out of order. Answer: each step\'s number in the right order.' }),
         S({ slot: 'g2.general_knowledge.B.Q9', label_en: 'Q9.', type: 'Parts of a Plant', generate: 1, marks_each: 3, lines: 0, picture: ['plant'],
           instruction_ur: 'پودے کے حصوں کے نام خالی لائنوں پر لکھیں۔',
