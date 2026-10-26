@@ -13,7 +13,7 @@
  */
 
 const { resolveTarget, resolveIndicator } = require('./target-resolver');
-const { findWeakestIndicator } = require('./coaching-card/prioritized-action.service');
+const { findWeakestIndicator, NOT_AN_ASK } = require('./coaching-card/prioritized-action.service');
 
 /**
  * Which indicator this card is about. With the loop on, the sticky loop
@@ -22,6 +22,12 @@ const { findWeakestIndicator } = require('./coaching-card/prioritized-action.ser
  * Without the loop, the scorer's validated focus_area.
  */
 function cardTarget(analysis, loop) {
+  const ask = (t) => (t && NOT_AN_ASK.has(String(t.indicator)) ? null : t);
+  // A loop target that is not an ask (bd-v0toag.100.10) gives way to the scorer's focus, as an invalid one does.
+  return ask(pickTarget(analysis, loop)) || ask(resolveTarget(analysis));
+}
+
+function pickTarget(analysis, loop) {
   const st = loop && loop.state && loop.state.target;
   if (st && !loop.state.bridge) {
     // A PHASE target is coached as the plan step, not as a rubric indicator.
