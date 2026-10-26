@@ -241,3 +241,29 @@ coaching ask arrived after the sweep"), COA45/48/55 (empty or deferred ask), COA
 lesson-plan L11 (no store link when Lesson Plans are moved to the app), training T15 ("/teacher training"
 is treated as the training command; the spec says it must not be). These are product or spec questions
 for their owners, surfaced by a lane that now runs the real answers.
+
+### Applied (bd-r09cmx) — under 20 minutes: sharding the two long features
+
+The wall of a parallel run is its longest single-slot feature: with everything above applied, training was
+22.8 min and coaching 20.0 min on one slot each (`20261026-1111-par`, suite wall 23 m 9 s). `run-suite.sh
+--parallel` now shards a feature across slots along its drivers' `want()` blocks (`E2E_SHARDS`, several
+lists per feature with `a|b`; child 1 runs the feature with `--skip`, child k runs list k with `--only`;
+`--print-shards` shows the plan). Defaults, measured: training in three (the module ladder; the class-quiz
+and lesson-plan-quiz blocks T35–T45/T56–T58; the generation cluster T25…T84), coaching in three (the first
+pipeline run and runs 2–3; runs 4–6; run 7 and the coaching-ask cluster). Children launch longest first.
+Two driver waits were also cut: `lpState` stops waiting when the bot says the quiz failed (T35 idled 303 s
+of a 5 min budget), and the coaching walker's "no progress" budget is 90 s on the lane instead of 240 s
+(`E2E_COACHING_STALL_MS`; every coaching shard pays the first pipeline run, which is genuinely stuck at
+steps 2/3/5 on the lane with every vendor answer present — a product question, not a cassette gap).
+
+| | one slot per feature `c73a668` | training ×2 `ee32b23` | training ×3, coaching ×3 `66f4d93` |
+|---|---|---|---|
+| suite wall | 23 m 9 s | 20 m 29 s | **13 m 9 s** |
+| longest child | training 1366 s | coaching 1196 s | training#2 776 s |
+| verdicts pass / fail / other | 157 / 28 / 90 | 159 / 28 / 90 | 165 / 28 / 90 |
+
+From the baseline this session started from: **37 m 45 s → 13 m 9 s**, 151 → 165 pass, with the same
+cassette library state and no scenario dropped (each shard reports its own ids; a block whose ids fall on
+both sides of a cut would run twice, and the cuts were chosen so none does). Eleven slots run at once; the
+machine has carried them without a port or lock collision. The 15 remaining vendor misses are prompts with
+per-run content (training's quiz-generation cluster, COA04/COA58) and need the key normaliser, not recording.
