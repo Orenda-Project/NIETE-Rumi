@@ -37,10 +37,11 @@ t "three training children"   "$(printf '%s\n' "$PLAN4" | grep -c '^child traini
 t "child 1 skips both lists"  "$(printf '%s\n' "$PLAN4" | grep -E '^child training ' | grep -c 'skip=T35,T36,T46,T47,T48')" "1"
 t "child 3 runs the second list" "$(printf '%s\n' "$PLAN4" | grep -E '^child training#3 ' | grep -c 'only=T46,T47,T48')" "1"
 PLAN5=$(bash .claude/qa/shared/run-suite.sh coaching,training,menu --method mock --parallel --print-shards 2>&1)
-t "default: coaching is sharded too" "$(printf '%s\n' "$PLAN5" | grep -c '^child coaching')" "2"
-t "default: coaching shard 2 carries the run-4+ pipeline ids (COA20 … COA55)" "$(printf '%s\n' "$PLAN5" | grep -E '^child coaching#2 ' | grep -c 'COA20,.*COA55')" "1"
+t "default: coaching is three children (rest · runs 4–6 · run 7 + the ask cluster)" "$(printf '%s\n' "$PLAN5" | grep -c '^child coaching')" "3"
+t "default: coaching shard 2 carries runs 4–6 (COA20 … COA59)" "$(printf '%s\n' "$PLAN5" | grep -E '^child coaching#2 ' | grep -c 'COA20,.*COA59')" "1"
+t "default: coaching shard 3 carries run 7 and the ask cluster (COA39 … COA55)" "$(printf '%s\n' "$PLAN5" | grep -E '^child coaching#3 ' | grep -c 'COA39,.*COA55')" "1"
 t "default: training is three children" "$(printf '%s\n' "$PLAN5" | grep -c '^child training')" "3"
-t "launch order: the longest children first (coaching#2, training#2 before menu)" "$(printf '%s\n' "$PLAN5" | grep -E '^child (coaching#2|training#2|menu) ' | sed -E 's/^child ([^ ]+).*/\1/' | tr '\n' ' ')" "coaching#2 training#2 menu "
+t "launch order: the longest children first (training#2, coaching#3 before menu)" "$(printf '%s\n' "$PLAN5" | grep -E '^child (coaching#3|training#2|menu) ' | sed -E 's/^child ([^ ]+).*/\1/' | tr '\n' ' ')" "training#2 coaching#3 menu "
 
 echo "AC5 the lesson-plan-quiz helper stops waiting when the bot says the quiz failed (T35: 303 s on the lane)"
 grep -qE "could not be (finished|started)|went wrong on my side" .claude/qa/shared/features/training.cjs && grep -qF 'const failed = ' .claude/qa/shared/features/training.cjs; t "lpState has a failure predicate and stops on it" "$?" "0"

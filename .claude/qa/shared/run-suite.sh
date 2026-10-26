@@ -84,7 +84,11 @@ if [ "$METHOD" = mock ]; then
     #    training.cjs:978/1067/1141/1185) and its generation cluster (training.cjs:1193 → training-quiz-gen.cjs) are the
     #    two long halves of a 19.6 min shard; coaching's pipeline runs 4–7 and the ask cluster (coaching-ext guards
     #    from line 446) are 11 of its 20 min. Each guard/block is gated on any-id-wanted, so the lists are whole blocks.
-    SHARDS="${E2E_SHARDS-training=T35-T45,T56-T58|T25,T28-T34,T46-T55,T59-T84,T696;coaching=COA10,COA16,COA20,COA27-COA30,COA33,COA35,COA39-COA49,COA51-COA55,COA59}"
+    #    Coaching in three (20261026-1422-par: runs 4–7 + the ask cluster took 1125 s on one slot against 511 s for the
+    #    rest): runs 4–6 (COA20/28/29/59, COA30, COA27, COA16/33) and runs 7 + the ask cluster (COA10, COA35, COA39–55).
+    #    Every coaching shard still pays the first pipeline run (the ext guards depend on r1): ~60 s, or ~310 s while
+    #    COA04's vendor answer is missing from the cassette library.
+    SHARDS="${E2E_SHARDS-training=T35-T45,T56-T58|T25,T28-T34,T46-T55,T59-T84,T696;coaching=COA16,COA20,COA27-COA30,COA33,COA59|COA10,COA35,COA39-COA49,COA51-COA55}"
     CHILDREN=""
     for f in $PFEATS; do
       spec=$(printf '%s' "$SHARDS" | tr ';' '\n' | sed -n "s/^$f=//p" | head -1)
@@ -99,7 +103,7 @@ if [ "$METHOD" = mock ]; then
     done
     # Launch the longest children first: the wall is set by the slowest, and the 3 s stagger plus the module lock
     # delay whoever starts last. Order measured on 20261026-1355-par; anything unlisted follows in feature order.
-    ORDER="${E2E_SHARD_ORDER:-coaching#2 training#2 training#3 coaching training lesson-plan menu language status registration}"
+    ORDER="${E2E_SHARD_ORDER:-training#2 coaching#3 coaching#2 coaching training#3 training lesson-plan menu language status registration}"
     SORTED=""; for o in $ORDER; do for c in $CHILDREN; do [ "${c%%|*}" = "$o" ] && SORTED="$SORTED $c"; done; done
     for c in $CHILDREN; do case " $SORTED " in *" $c "*) ;; *) SORTED="$SORTED $c";; esac; done
     CHILDREN="$SORTED"
