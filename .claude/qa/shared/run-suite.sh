@@ -48,6 +48,8 @@ while [ $# -gt 0 ]; do case "$1" in
   --port) PORT="$2"; shift 2;; --run-id) RUN_ID="$2"; shift 2;; --no-seed) SEED=0; shift;; --reflect) REFLECT="$2"; shift 2;;
   --slot) SLOT="$2"; shift 2;; --parallel) PARALLEL=1; shift;;
   --only) export E2E_ONLY_MAP="$2"; shift 2;;   # "coaching=COA09,COA20;training=T42" — select_scenarios.py output
+  --skip) export E2E_SKIP_MAP="$2"; shift 2;;   # the mirror: everything EXCEPT these ids (a sharded feature's other half, bd-r09cmx)
+  --print-shards) PRINT_SHARDS=1; shift;;       # --parallel: print the children the plan would launch, start nothing
   --method) METHOD="$2"; shift 2;; --commit) COMMIT="$2"; shift 2;;
   --spec-sync) SPEC_SYNC="$2"; shift 2;; --validator-exit) VALIDATOR_EXIT="$2"; shift 2;;
   --print-driver) PRINT_DRIVER=1; shift;;   # resolve the driver exactly as a run would, print it, exit — touches nothing
@@ -71,6 +73,24 @@ if [ "$METHOD" = mock ]; then
       *) PFEATS=$(echo "$MODE" | tr ',' '\n');;
     esac
     [ "$(echo "$PFEATS" | wc -l | tr -d ' ')" -ge 2 ] || { echo "ERROR: --parallel needs two or more features"; exit 2; }
+    # ── E2E_SHARDS (bd-r09cmx): "training=T25-T84,T696;coaching=…" — a feature named here runs as TWO children on
+    #    two slots: child 1 with --skip <ids>, child 2 (name "feature#2") with --only <ids>. The suite wall is the
+    #    longest single-slot feature, so the cut goes between a driver's want() blocks: the listed ids must be
+    #    whole blocks (any id wanted → the block runs; all ids skipped → it is dropped). The mock lane's default
+    #    cuts training's quiz-generation cluster (training.cjs:823, one block T25…T84, + the T30–T34/T696 block)
+    #    off the module ladder; E2E_SHARDS= (empty) runs every feature whole.
+    SHARDS="${E2E_SHARDS-training=T25-T84,T696}"
+    CHILDREN=""
+    for f in $PFEATS; do
+      spec=$(printf '%s' "$SHARDS" | tr ';' '\n' | sed -n "s/^$f=//p" | head -1)
+      if [ -n "$spec" ]; then
+        ids=$(node -e "process.stdout.write(require(process.argv[1]).expandIds(process.argv[2]).join(','))" "$QA/selection.cjs" "$spec")
+        CHILDREN="$CHILDREN $f|skip=$ids $f#2|only=$ids"
+      else CHILDREN="$CHILDREN $f|"; fi
+    done
+    if [ -n "${PRINT_SHARDS:-}" ]; then
+      for c in $CHILDREN; do name=${c%%|*}; sel=${c#*|}; echo "child $name ${sel:-whole}"; done; exit 0
+    fi
     [ -n "$COMMIT" ] || COMMIT=$(git -C "$ROOT" rev-parse HEAD)
     BASE_ID="${RUN_ID:-$(date +%Y%m%d-%H%M)-par}"; PDIR="$ROOT/.claude/qa/results/whatsapp/niete/$BASE_ID"; mkdir -p "$PDIR"
     echo "=== parallel $(date -u +%FT%TZ) · $(echo $PFEATS | tr '\n' ' ')· commit ${COMMIT:0:12} · one slot each → $PDIR" | tee "$PDIR/parallel.log"
@@ -79,20 +99,23 @@ if [ "$METHOD" = mock ]; then
     # parallel run (another commit, another session) takes the next free slots instead of colliding
     slot_free() { local n=$1 p; for p in $(slot_port_numbers "$n"); do port_listening "$p" && return 1; done
                   [ -e "$PDIR/.slot-$n" ] && return 1; return 0; }
-    for f in $PFEATS; do
+    PNAMES=""
+    for c in $CHILDREN; do
+      name=${c%%|*}; sel=${c#*|}; f=${name%%#*}; tag=${name#"$f"}; tag=${tag#\#}   # "training#2" → f=training tag=2
+      selopt=""; case "$sel" in skip=*) selopt="--skip $f=${sel#skip=}";; only=*) selopt="--only $f=${sel#only=}";; esac
       i=$((i+1)); while ! slot_free "$i"; do i=$((i+1)); [ "$i" -gt 40 ] && { echo "ERROR: no free slot under 40"; exit 3; }; done
       : >"$PDIR/.slot-$i"
-      ( E2E_LEDGER_COMMIT_OFF=1 bash "$0" "$f" --method mock --slot "$i" --commit "$COMMIT" --run-id "$BASE_ID-$f" --env "$ENV" ${REFLECT:+--reflect "$REFLECT"} ${SPEC_SYNC:+--spec-sync "$SPEC_SYNC"} ${VALIDATOR_EXIT:+--validator-exit "$VALIDATOR_EXIT"} \
-          >"$PDIR/parallel-$f.log" 2>&1; echo $? >"$PDIR/parallel-$f.rc" ) &
-      PIDS="$PIDS $!"; echo "  slot $i → $f (pid $!)" | tee -a "$PDIR/parallel.log"
+      ( E2E_LEDGER_COMMIT_OFF=1 bash "$0" "$f" --method mock --slot "$i" --commit "$COMMIT" --run-id "$BASE_ID-$f${tag:+-$tag}" --env "$ENV" $selopt ${REFLECT:+--reflect "$REFLECT"} ${SPEC_SYNC:+--spec-sync "$SPEC_SYNC"} ${VALIDATOR_EXIT:+--validator-exit "$VALIDATOR_EXIT"} \
+          >"$PDIR/parallel-$f${tag:+-$tag}.log" 2>&1; echo $? >"$PDIR/parallel-$f${tag:+-$tag}.rc" ) &
+      PIDS="$PIDS $!"; PNAMES="$PNAMES $f${tag:+-$tag}"; echo "  slot $i → $f${tag:+ shard $tag}${sel:+ ($(printf '%s' "$sel" | cut -c1-40)…)} (pid $!)" | tee -a "$PDIR/parallel.log"
       sleep 3   # stagger the stack bring-ups so the module provisioning lock is taken in turn
     done
     for pid in $PIDS; do wait "$pid"; done
     RC=0
-    for f in $PFEATS; do
-      rc=$(cat "$PDIR/parallel-$f.rc" 2>/dev/null || echo 1); [ "$rc" = 0 ] || RC=$rc
-      echo "--- $f (exit $rc)" | tee -a "$PDIR/parallel.log"
-      grep -E "^    $f:|^      [A-Z]+[0-9A-Za-z-]* +(FAIL|BLOCKED)|^BLOCKED:|known finding|regressions" "$PDIR/parallel-$f.log" | tee -a "$PDIR/parallel.log"
+    for n in $PNAMES; do f=${n%%-[0-9]*}
+      rc=$(cat "$PDIR/parallel-$n.rc" 2>/dev/null || echo 1); [ "$rc" = 0 ] || RC=$rc
+      echo "--- $n (exit $rc)" | tee -a "$PDIR/parallel.log"
+      grep -E "^    $f:|^      [A-Z]+[0-9A-Za-z-]* +(FAIL|BLOCKED)|^BLOCKED:|known finding|regressions" "$PDIR/parallel-$n.log" | tee -a "$PDIR/parallel.log"
     done
     # the children appended their ledger rows with the commit switched off; one commit here carries them all
     if [ "${E2E_LEDGER_COMMIT_OFF:-}" != "1" ] && git -C "$ROOT" symbolic-ref -q HEAD >/dev/null; then
