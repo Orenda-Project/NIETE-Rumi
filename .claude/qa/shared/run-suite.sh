@@ -194,6 +194,9 @@ if [ "$METHOD" = mock ]; then export E2E_JOIN_LOCK_SECS="${VIDEO_QUIZ_JOIN_LOCK_
 # own 30 s TTL (web-quiz-hub-flags.js, web-quiz-link.js, …) and a 1.5 s settle broke training T695 on the first
 # fixed run. E2E_APP_SETTING_SETTLE_MS is the knob for the day every cache reads one TTL.
 if [ "$METHOD" = mock ]; then export E2E_POLL_MS="${E2E_POLL_MS:-100}" E2E_SETTLE_MS="${E2E_SETTLE_MS:-800}" E2E_APP_SETTING_SETTLE_MS="${E2E_APP_SETTING_SETTLE_MS:-31000}"; fi
+# The coaching walker's "no progress" budget (coaching-ext.cjs): 240 s for live vendors; 90 s here, where every answer
+# replays — a step that has not moved in 90 s is stuck (bd-r09cmx).
+if [ "$METHOD" = mock ]; then export E2E_COACHING_STALL_MS="${E2E_COACHING_STALL_MS:-90000}"; fi
 mkdir -p "$RUN_DIR"; LOG="$RUN_DIR/runner.log"
 say() { echo "$*" | tee -a "$LOG"; }
 T0=$(date +%s)
