@@ -112,12 +112,12 @@ describe('the gate', () => {
 });
 
 describe('listSchools', () => {
-  test("today's observe visit first, then the coach's schools by name, each once", async () => {
+  test("today's observe visit first, then the coach's schools by name, each once (EMIS and sector ride along)", async () => {
     const res = await Svc.listSchools({ userId: COACH }, makeDeps());
     expect(res.status).toBe('ok');
     expect(res.schools).toEqual([
-      { schoolId: SCHOOL, name: 'Zeta School', visitId: VISIT, observedGrade: 5, visitToday: true },
-      { schoolId: SCHOOL_B, name: 'Bhara Kahu School', visitId: null, observedGrade: null, visitToday: false },
+      { schoolId: SCHOOL, name: 'Zeta School', emis: null, region: null, visitId: VISIT, observedGrade: 5, visitToday: true },
+      { schoolId: SCHOOL_B, name: 'Bhara Kahu School', emis: null, region: null, visitId: null, observedGrade: null, visitToday: false },
     ]);
   });
 });
