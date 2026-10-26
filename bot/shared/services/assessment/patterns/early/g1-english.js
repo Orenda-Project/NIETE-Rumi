@@ -77,7 +77,14 @@ module.exports = makeSubject({
           prompt_rule: 'Five book objects as picture: {kind:"object", name}. Answer: "This is a <name>." Scheme: K 1 for the word, K 1 for the sentence with capital and full stop.' },
         { slot: 'g1.english.C.Q13', label_en: 'Q13.', type: 'Speech Bubbles', generate: 2, marks_each: 2, lines: 1, picture: ['scene'],
           instruction_en: 'What will they say? Write in the speech bubble.',
-          prompt_rule: 'Two greetings or polite words from the book (Good morning, Thank you, Sorry, Please), each a scene as picture: {kind:"scene", describe} of two children. Answer: the words. Scheme: K 2.' },
+          // v18: the image model left the bubble out, put it over the wrong child, and drew a gift box
+          // for a pencil case. The paper prints the bubble beside the picture (bd-5jmnfj.4.40).
+          bubble: true,
+          prompt_rule: 'Two greetings or polite words from the book (Good morning, Thank you, Sorry, Please), each a scene as picture: '
+            + '{kind:"scene", describe} of two children. The question names who speaks. The describe has no speech bubble (the paper '
+            + 'prints it) and shows exactly the thing the question names, in the same words, plain and never wrapped. '
+            + 'Answer: the words. Scheme: K 2.',
+          answer_ok: (q) => !/bubble|gift|present|wrapped/i.test(String((q.picture && q.picture.describe) || '')) },
         S({ slot: 'g1.english.C.Q14', label_en: 'Q14.', type: 'Capital Letters', generate: 4, lines: 1,
           instruction_en: 'Rewrite the sentence with a capital letter.',
           prompt_rule: 'Four short sentences written all in small letters, each needing one capital (start or a name). Answer: the corrected sentence.' }),

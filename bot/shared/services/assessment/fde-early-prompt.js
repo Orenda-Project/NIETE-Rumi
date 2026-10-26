@@ -212,13 +212,17 @@ function askedNote(trees) {
 
 const slotsOf = (P) => new Map(P.sections.flatMap((s) => s.slots).map((sl) => [sl.slot, sl]));
 
-/** Items whose key breaks their slot's `answer_ok`, as `{slot, reason:'answer', items}` ("question → answer"). */
+// v18 G2 Urdu: a "which spelling is correct" item offered آلودگی three times (bd-5jmnfj.4.35).
+const choice = (o) => String(o).replace(/^\s*\(?[^\s)]{1,3}\)\s*/, '').trim().normalize('NFC');
+const sameOptions = (q) => Array.isArray(q.options) && new Set(q.options.map(choice)).size < q.options.length;
+
+/** Items whose key breaks their slot's `answer_ok`, or whose choices repeat, as `{slot, reason:'answer', items}` ("question → answer"). */
 function answerShortfall(examJson, P) {
   const slots = slotsOf(P);
   const out = new Map();
   eachItem(examJson, (q) => {
     const sl = slots.get(q.slot);
-    if (!sl || !sl.answer_ok || sl.answer_ok(q)) return;
+    if (!sl || (!sameOptions(q) && (!sl.answer_ok || sl.answer_ok(q)))) return;
     const r = out.get(q.slot) || { slot: q.slot, reason: 'answer', items: [] };
     r.items.push(`${String(q.question).trim()} → ${String(q.answer).trim()}`);
     out.set(q.slot, r);
@@ -233,7 +237,8 @@ function answerNote(shortfall, P) {
     const sl = slots.get(f.slot);
     const label = sl.label_en || f.slot;
     return `${label} broke its rule in these items (question → answer):\n${f.items.map((i) => `- ${i}`).join('\n')}\n`
-      + `Write ${label} again so every item follows it: ${sl.prompt_rule}`;
+      + `Write ${label} again so every item follows it: ${sl.prompt_rule}`
+      + (sl.shape === 'mcq' ? '\nEvery choice must be different. A which-spelling item gives one right spelling and wrong ones.' : '');
   });
   return notes.length ? notes.join('\n\n') : null;
 }
