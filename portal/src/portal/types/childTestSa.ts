@@ -7,6 +7,9 @@ export type SaSchool = {
   visitId: string | null;
   observedGrade: number | null;
   visitToday: boolean;
+  /** the school's EMIS and sector, for the search box and the row's second line (null when the school has none) */
+  emis?: string | null;
+  region?: string | null;
   /** sa_all_grades: the grade the coach named for this school's list (1–5); absent = today's grade rotation */
   grade?: number;
 };
