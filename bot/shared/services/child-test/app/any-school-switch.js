@@ -6,7 +6,9 @@
  * own. ON = the row's value is JSON `true` (every user) or a list of users.id naming this user.
  *
  *   onFor(userId)          30 s cache of the row, fails closed (no row, any other value, no user or a read error is off)
- *   enabledFor(userId, deps)  a test's `anySchool` (a boolean, or a function of the user) first, else onFor
+ *   enabledFor(userId, deps)  a test's `anySchool` (a boolean, or a function of the user) first; else the handler's own
+ *                          supabase client when it has one (read directly, no cache: a test's fake never reaches the
+ *                          global config, which exits a process with no database settings); else onFor
  */
 const supabase = () => require('../../../config/supabase'); // eslint-disable-line global-require
 const Snap = require('../../settings/settings-snapshot');
@@ -25,12 +27,26 @@ async function valueOf(at) {
   return cache.value;
 }
 
+const names = (value, userId) => value === true || (Array.isArray(value) && value.some((id) => typeof id === 'string' && id === userId));
+
 async function onFor(userId, at = Date.now()) {
   if (!userId) return false;
   try {
-    const value = await valueOf(at);
-    if (value === true) return true;
-    return Array.isArray(value) && value.some((id) => typeof id === 'string' && id === userId);
+    return names(await valueOf(at), userId);
+  } catch (err) {
+    logToFile('⚠️ sa any school: settings lookup failed — off', { error: err.message });
+    return false;
+  }
+}
+
+/** The row through a client the caller holds (a handler's d.supabase): no cache, fails closed. */
+async function onForWith(client, userId) {
+  if (!userId) return false;
+  try {
+    const { data, error } = await client.from('app_settings').select('key, value').eq('key', KEY);
+    if (error) throw new Error(error.message || 'app_settings read failed');
+    const row = (data || []).find((r) => r && r.key === KEY);
+    return names(row ? row.value : null, userId);
   } catch (err) {
     logToFile('⚠️ sa any school: settings lookup failed — off', { error: err.message });
     return false;
@@ -41,6 +57,7 @@ async function enabledFor(userId, deps = {}) {
   if (deps.anySchool !== undefined) {
     return typeof deps.anySchool === 'function' ? (await deps.anySchool(userId)) === true : deps.anySchool === true;
   }
+  if (deps.supabase) return onForWith(deps.supabase, userId);
   return onFor(userId);
 }
 
