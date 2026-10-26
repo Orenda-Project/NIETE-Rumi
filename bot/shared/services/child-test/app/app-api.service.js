@@ -71,6 +71,31 @@ async function availableFor(userId, d) {
   return gate.isChildTestAvailable(found[0] || null);
 }
 
+/**
+ * A practice-only coach (child_test_practice_only ON, not on the pilot list: gate.isPracticeCoach): the set of their
+ * linked schools marked is_probable_test, or null when they are not one or have no such school (then: off, as today).
+ */
+async function practiceFor(userId, d) {
+  // eslint-disable-next-line global-require
+  const gate = require('../conversation/gate');
+  if (!gate.isEnabled() || !userId || !String(process.env.CHILD_TEST_COACH_IDS || '').trim()) return null;
+  // eslint-disable-next-line global-require
+  if (!(await require('./practice-only-switch').on())) return null;
+  const found = await rows(d.supabase.from('users').select('id, role, region').eq('id', userId).limit(1));
+  if (!gate.isPracticeCoach(found[0] || null, true)) return null;
+  const ids = await practiceSchoolIds(d, userId);
+  return ids.size ? ids : null;
+}
+
+/** The coach's linked schools that are practice (test) schools: schools.is_probable_test = true. */
+async function practiceSchoolIds(d, userId) {
+  const links = await rows(d.supabase.from('leader_schools').select('school_id').eq('leader_user_id', userId));
+  const ids = [...new Set(links.map((l) => l.school_id).filter(Boolean))];
+  if (!ids.length) return new Set();
+  const test = await rows(d.supabase.from('schools').select('id').in('id', ids).eq('is_probable_test', true));
+  return new Set(test.map((s) => s.id));
+}
+
 function loadItemBank() {
   // eslint-disable-next-line global-require
   return require('../../../data/child-test/item-bank.v1.json');
@@ -89,6 +114,7 @@ function withDefaults(deps = {}) {
     now: () => () => new Date(),
     env: () => envSegment(),
     enabled: () => (userId, self) => availableFor(userId, self),
+    practice: () => (userId, self) => practiceFor(userId, self),
     defer: () => (fn) => setImmediate(fn),
     // CONTRACT §17: score under the same DB claim as the WhatsApp path and the restart sweep.
     scoreClaimed: () => (session, block, { force = false } = {}) => require('../conversation/recovery').runScoring(
@@ -104,12 +130,23 @@ function withDefaults(deps = {}) {
   return d;
 }
 
-/** Wrap a handler: the gate, and a catch that turns any throw into a logged error status. */
-function guarded(name, fn) {
+/**
+ * Wrap a handler: the gate, and a catch that turns any throw into a logged error status. With `practice` (the coach
+ * app's Learning assessment only), a coach the gate refuses may still pass as practice-only: d.practiceSchools then
+ * holds the only schools the handler may use. Any failure of that check is the gate's answer, `disabled`.
+ */
+function guarded(name, fn, { practice = false } = {}) {
   return async (args = {}, deps) => {
     const d = withDefaults(deps);
     try {
-      if (!(await d.enabled(args.userId, d))) return { status: 'disabled' };
+      if (!(await d.enabled(args.userId, d))) {
+        let schools = null;
+        if (practice) {
+          try { schools = await d.practice(args.userId, d); } catch (_) { schools = null; }
+        }
+        if (!schools || !schools.size) return { status: 'disabled' };
+        d.practiceSchools = schools;
+      }
     } catch (error) {
       d.logError(`child_test.app.${name} gate failed`, { userId: args.userId, error: error && error.message });
       return { status: 'error', reason: 'internal' };
@@ -671,5 +708,5 @@ module.exports = {
   toCoachMarks,
   envSegment,
   startOfTodayPkt,
-  __internals: { startScoring, withDefaults, coachReason, guarded, rows, ownVisit, ownSession, gradeOf },
+  __internals: { startScoring, withDefaults, coachReason, guarded, rows, ownVisit, ownSession, gradeOf, practiceFor },
 };

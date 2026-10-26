@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import { childTestSa } from '../services/api';
 import { urDigits, type Lang } from '../lib/assess/copy';
+import { useUrFit } from '../lib/assess/urFit';
 import { DASH_COPY } from '../lib/assess/dashboardCopy';
 import { REVIEW_COPY } from '../lib/assess/reviewCopy';
 import type { SaDashboardSession, SaEarMark, SaReview, SaReviewItem, SaReviewTask } from '../types/childTestSa';
@@ -50,6 +51,7 @@ function appRightOf(verdict: string | null, mark: SaEarMark | null): SaReviewIte
 }
 
 export default function LeaderAssessReview() {
+  useUrFit();
   const { sessionId = '' } = useParams();
   const [lang, setLang] = useState<Lang>(readLang);
   const [list, setList] = useState<Load<SaDashboardSession[]>>({ kind: 'loading' });
