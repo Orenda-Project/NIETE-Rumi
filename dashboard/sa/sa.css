@@ -78,6 +78,8 @@ button{font:inherit;color:inherit}
 .sae-opts.is-many .sae-opt{min-height:72px;font-size:32px}
 .sae-opt:active,.sae-opt.is-pressed{transform:translateY(3px);box-shadow:0 2px 0 var(--sae-line);background:var(--sae-accent-l);border-color:var(--sae-accent)}
 .sae-opt:disabled{cursor:default}
+/* sa_tap_change_until_next: the child's choice on an untimed tap item, before Next */
+.sae-opt.is-picked{background:var(--sae-accent-l);border-color:var(--sae-accent);border-width:4px}
 .sae-opt.is-right{background:var(--sae-ok-bg);border-color:var(--sae-ok);color:var(--sae-ok);position:relative}
 .sae-opt.is-right::after{content:"✓";position:absolute;top:6px;inset-inline-end:10px;font-size:22px;font-family:var(--sae-f);line-height:1}
 .sae-opt.is-tried{background:var(--sae-again-bg);border-color:var(--sae-again)}
