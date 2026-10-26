@@ -140,6 +140,8 @@
     };
     // A one-at-a-time sum read only on the replay tile (W3). Kept off the older tasks, whose say_on the page never read.
     if (t.present === 'one_at_a_time' && t.say_on) r.say_on = t.say_on;
+    // The item screen's chip (W3-12 4c: a mental sum says "Say the answer"), else the page's own "Read aloud".
+    if (t.chip) r.chip = t.chip;
     if (mode === 'oral') {
       r.item_timeout_s = t.question_timeout_s || t.item_timeout_s || TIMED_ITEM_S;
     } else if (mode === 'tap' || mode === 'keypad' || mode === 'keyboard') {

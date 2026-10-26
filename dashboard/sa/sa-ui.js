@@ -770,6 +770,8 @@
         }, taskLang(t), t, p.glyphs);
       }
       return screen(v, 'sae-practice', [
+        // Round 7: a tap practice carries the real items' question tag ("Which is bigger"), so it looks like them.
+        t.mode === 'tap' && t.title ? h('p', { class: 'sae-task-tag', text: tx(t.title) }) : null,
         h('div', { class: 'sae-row' }, [
           h('span', { class: 'sae-chip', text: C.practice }),
           itemSpeaks(p) ? replayBtn(function () { gen++; sayItem(p, t); }) : null,
