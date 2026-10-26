@@ -25,6 +25,8 @@ import { homeFor } from "../../../lib/homeRoute";
 import { resetCoachV2Memory } from "../../useCoachV2";
 import { resetCoachipMemory } from "../useCoachip";
 import PortalNavigation from "../../../components/PortalNavigation";
+import InsightsRoutes from "../routes";
+import api from "../../../services/api";
 
 type Mode = "absent" | "false" | "fails" | "on";
 const COACH = { id: "u-coach", role: "coach", phoneNumber: "+920000000001", firstName: "C" };
@@ -109,6 +111,48 @@ describe("flag OFF: nothing about the coach's way in changes", () => {
     await settle();
     expect(screen.queryByTestId("insights-nav")).toBeNull();
   });
+});
+
+/**
+ * bd-sex15q.19 (red-2's finding 18:08Z): with the switch off, opening any insight page fires NO /coachip/* request —
+ * the read must sit under the gate, not beside it. Every path of routes.tsx except `m/:momentId`, whose page is
+ * m-player's (#3744 moves its read under the gate).
+ */
+const INSIGHT_PATHS = [
+  "", "/w/W-IP-TIME", "/w/W-IP-TIME/where", "/w/W-IP-TIME/move", "/w/W-IP-TIME/move?school=s-1",
+  "/schools", "/listen", "/stats", "/stats/results", "/no-such-page",
+].map((p) => `/portal/coach/insights${p}`);
+
+function coachipCalls(): string[] {
+  const get = vi.mocked(api.get).mock.calls.map((c) => String(c[0]));
+  const post = vi.mocked(api.post).mock.calls.map((c) => String(c[0]));
+  return [...get, ...post].filter((u) => u.includes("/coachip/"));
+}
+
+describe("flag OFF: no insight page asks the server for anything", () => {
+  it.each((["absent", "false"] as Mode[]).flatMap((m) => INSIGHT_PATHS.map((p) => [m, p] as const)))(
+    "config %s: %s fires zero /coachip/ requests",
+    async (mode, path) => {
+      setConfig(mode);
+      vi.mocked(api.get).mockReset().mockReturnValue(new Promise(() => {}) as never);
+      vi.mocked(api.post).mockReset().mockReturnValue(new Promise(() => {}) as never);
+      const shared = { user: COACH, loading: false } as never;
+      render(
+        <AuthContext.Provider value={shared}>
+          <MemoryRouter initialEntries={[path]}>
+            <Routes>
+              <Route path="/portal/coach/insights/*" element={<InsightsRoutes />} />
+              <Route path="*" element={<Where />} />
+            </Routes>
+          </MemoryRouter>
+        </AuthContext.Provider>,
+      );
+      // the pages are lazy: wait until the gate has sent the coach on, then let anything left settle
+      expect((await screen.findByTestId("where", {}, { timeout: 5000 })).textContent).toBe("/portal/coach/training");
+      await settle();
+      expect(coachipCalls()).toEqual([]);
+    },
+  );
 });
 
 describe("flag ON for a v2 coach", () => {
