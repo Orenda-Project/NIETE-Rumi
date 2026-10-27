@@ -26,6 +26,9 @@ describe('training.cjs questionLineOf — the question line, never the merged fe
   test('a preamble BEFORE the header is never the question — the question is the line after the header (bd-1r3k2h, T21)', () => {
     expect(questionLineOf('📝 Establishing classroom routines — 3 questions\nQ1/3\nWhat is a routine?\nA. x')).toBe('What is a routine?');
   });
+  test('the bold module title under the header is not the question either (run 20261027-050355, T21)', () => {
+    expect(questionLineOf('Module check · Q1/3\n📝 *Module check — "Establishing classroom routines"*\nWhat do end-of-lesson routines do?\nA. x')).toBe('What do end-of-lesson routines do?');
+  });
   test('a bare header line is skipped as before', () => {
     expect(questionLineOf('Q1/20\nWhat is a routine?\nA. x')).toBe('What is a routine?');
   });

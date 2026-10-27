@@ -25,7 +25,9 @@ const CTA  = 'کھولیں|Open';
 // "✗ Not correct · Q2/20"); anything before the header — the module card's own caption on the first
 // question — is never the question (bd-1r3k2h, T21). Without a header, the first non-option line.
 const isQHeader = (l) => /(^|·\s*)Q\d+\/\d+(\s*\(Select all that apply\))?$/.test(l);
-const isNotQuestion = (l) => !l || isQHeader(l) || /^[A-J]\.\s/.test(l) || /^(required|Select all that apply|Selected:.*)$/i.test(l);
+// A whole-line bold title ("📝 *Module check — …*", run 20261027-050355 T21) is the card's caption, never the question.
+const isTitleLine = (l) => /^[^\w*]{0,4}\*[^*]+\*\s*$/u.test(l);
+const isNotQuestion = (l) => !l || isQHeader(l) || isTitleLine(l) || /^[A-J]\.\s/.test(l) || /^(required|Select all that apply|Selected:.*)$/i.test(l);
 const questionLineOf = (txt) => {
   const lines = String(txt || '').split('\n').map((l) => l.trim());
   const h = lines.findIndex(isQHeader);
