@@ -316,12 +316,15 @@ async function practiceHub(token, { lang: asked, brandKey } = {}) {
     // the Stories bit as the stories module gives a child's hub (web_quiz_stories, the same JSON-true read; a preview
     // has no book to resume), from the home's own switch read
     const storiesBit = play && f.stories ? { stories: { on: 1 } } : {};
+    // the preview's Games = a child's of that teacher (bd-5gyspy.5): a link minted for a teacher (`tu`) lists the
+    // teacher's own open quizzes first, LOOK-ONLY (no code, no token: web-quiz-practice-teacher.js, redteam HIGH-1)
+    const quizRows = play && pr.tu ? (await require('./web-quiz-practice-teacher').rowsFor(pr.tu, { previews: storyPreviews })).map(withArt) : [];
     const out = {
       lang, practice: 1, th: { practice: true }, grade: pr.g,
       kids: [], kid: null, teacher: null, again: [], recs: [], challenge: form ? { on: true } : null, lib: null,
       brand: typeof brandKey === 'function' ? await brandKey() : null,
       home_v3: 1,
-      doors: { stories, games: form ? [{ kind: 'numbers' }] : [], videos: { watch: true, practice: true, grade: pr.g, ...(play && f.shelf === true ? { shelf: true } : {}) } },
+      doors: { stories, games: [...quizRows, ...(form ? [{ kind: 'numbers' }] : [])], videos: { watch: true, practice: true, grade: pr.g, ...(play && f.shelf === true ? { shelf: true } : {}) } },
       head: { dots: 0, today: false, jar: null },
       ...(pr.bk ? { practice_back: pr.bk, grownups: { teacher_href: pr.bk, teacher_label: BACK_LABEL[lang] } } : {}),
       ...(f.list ? { list_states: 1 } : {}),

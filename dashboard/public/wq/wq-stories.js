@@ -6,7 +6,7 @@
   // Copy rules: see wq-stories-q.js.
   var T = {
     en: {
-      shelf: 'Storybooks', gl: function (g, l) { return 'Grade ' + g + ', ' + (l === 'ur' ? 'Urdu' : 'English'); },
+      shelf: 'Storybooks', gl: function (g, l) { return (g ? 'Grade ' + g : 'All grades') + ', ' + (l === 'ur' ? 'Urdu' : 'English'); }, all: 'All grades',
       readWith: function (h) { return 'Read ' + h + ' with Jugnu'; }, teacher: 'From your teacher', by: function (n) { return 'by ' + n; },
       read: 'Read', empty: 'No storybooks here yet. Try another grade.', oops: 'Jugnu could not open this.', retry: 'Try again',
       off: 'Stories are resting today.', home: 'Home', back: 'Back', close: 'Close', sound: 'Sound', prevP: 'Page before', nextP: 'Next page',
@@ -14,7 +14,7 @@
       opening: 'Opening…',
     },
     ur: {
-      shelf: 'کہانیوں کی کتابیں', gl: function (g, l) { return 'جماعت ' + g + '، ' + (l === 'ur' ? 'اردو' : 'انگریزی'); },
+      shelf: 'کہانیوں کی کتابیں', gl: function (g, l) { return (g ? 'جماعت ' + g : 'سب جماعتیں') + '، ' + (l === 'ur' ? 'اردو' : 'انگریزی'); }, all: 'سب جماعتیں',
       readWith: function (h) { return 'جگنو کے ساتھ ' + h + ' پڑھیں'; }, teacher: 'ٹیچر کی طرف سے', by: function (n) { return n + ' کی لکھی ہوئی'; },
       read: 'پڑھ لی', empty: 'یہاں ابھی کوئی کہانی نہیں۔ کوئی اور جماعت چنیں۔', oops: 'یہ کتاب ابھی نہیں کھل سکی۔', retry: 'دوبارہ کوشش کریں',
       off: 'آج کہانیاں آرام کر رہی ہیں۔', home: 'ہوم', back: 'واپس', close: 'بند کریں', sound: 'آواز', prevP: 'پچھلا صفحہ', nextP: 'اگلا صفحہ',
@@ -109,16 +109,18 @@
         (b.from_teacher ? '<i class="wqs-rib">' + esc(t.teacher) + '</i>' : '') + (b.done ? '<i class="wqs-tick" aria-label="' + esc(t.read) + '">' + IC.tick + '</i>' : '') +
         '</span><b lang="' + bl + '" dir="' + dirOf(bl) + '">' + esc(b.title) + '</b>' + (b.by ? '<small>' + esc(t.by(b.by)) + '</small>' : '') + '</button></li>';
     });
+    var sel = d.sel || [d.grade], all = sel === 'all';
     var chips = '';
     if (open) {
-      (d.grades || [1, 2, 3, 4, 5]).forEach(function (g) { chips += '<button class="wqs-chip" data-tap="g" data-arg="' + g + '" aria-pressed="' + (+g === +d.grade) + '">' + dg(g, l) + '</button>'; });
+      chips += '<button class="wqs-chip" data-tap="g" data-arg="all" aria-pressed="' + all + '">' + t.all + '</button>';
+      (d.grades || [1, 2, 3, 4, 5]).forEach(function (g) { chips += '<button class="wqs-chip" data-tap="g" data-arg="' + g + '" aria-pressed="' + (!all && sel.indexOf(+g) >= 0) + '">' + dg(g, l) + '</button>'; });
       ['en', 'ur'].forEach(function (x) { chips += '<button class="wqs-chip" data-tap="l" data-arg="' + x + '" aria-pressed="' + (x === l) + '" lang="' + x + '" dir="' + dirOf(x) + '">' + (x === 'ur' ? 'اردو' : 'EN') + '</button>'; });
     }
     var tb = bk[tk];
     if (host && !bk.length) return scr('stories-shelf', l, '<p class="wqs-say">' + esc(t.empty) + '</p>', 'wqs-shelf');
     return scr('stories-shelf', l,
       '<div class="wqs-top">' + hm(l) + '<h2>' + esc(t.shelf) + '</h2></div>' +
-      '<button class="wqs-gl" data-tap="gl"' + (bk.length ? '' : ' data-primary') + ' aria-expanded="' + !!open + '">' + esc(t.gl(dg(d.grade, l), l)) + ' ▾</button>' + (open ? '<div class="wqs-pick">' + chips + '</div>' : '') +
+      '<button class="wqs-gl" data-tap="gl"' + (bk.length ? '' : ' data-primary') + ' aria-expanded="' + !!open + '">' + esc(t.gl(all ? '' : dg(sel.join(l === 'ur' ? '، ' : ', '), l), l)) + ' ▾</button>' + (open ? '<div class="wqs-pick">' + chips + '</div>' : '') +
       (tb ? '<button class="wqs-tcard" data-tap="book" data-arg="' + tk + '" data-id="' + esc(tb.id) + '"' + (tk === pk ? ' data-primary' : '') + '>' + cov(tb) + '<span><i class="wqs-rib">' + esc(t.teacher) + '</i><b>' + IC.play + ' ' + t.readWith('<bdi lang="' + lg(tb.lang) + '" dir="' + dirOf(lg(tb.lang)) + '">' + esc(tb.title) + '</bdi>') + '</b>' + (tb.by ? '<small>' + esc(t.by(tb.by)) + '</small>' : '') + '</span></button>' : '') +
       (bk.length ? '<ul class="wqs-grid">' + cards + '</ul>' : '<p class="wqs-say">' + esc(t.empty) + '</p>'), 'wqs-shelf');
   }
