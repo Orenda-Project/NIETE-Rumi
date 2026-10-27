@@ -60,6 +60,7 @@ const addChildSwitch = require('./add-child-switch');
 const coachLastWord = require('./coach-last-word-switch');
 const practiceOnly = require('./practice-only-switch');
 const anySchool = require('./any-school-switch');
+const dashFilters = require('./dash-filters-switch');
 const { lastWordIndex } = require('../sa/last-word-hint');
 const { MEDIA, envSegment, __internals: { guarded: gate, rows, ownVisit, ownSession, gradeOf } } = require('./app-api.service');
 
@@ -841,6 +842,30 @@ function saResults(args = {}, deps = {}) {
 }
 
 /**
+ * sa_dash_filters (round 7b): what the dashboard filters and audits by, for one session. Mode: coach-led for RDF manual
+ * (the coach gives the instructions), auto for every other block. Stops: the session's kept skip/stop events (STOP_TYPES),
+ * in the order they happened; `by` is who did it (child, coach, app). Never a child's name, student id or draw.
+ */
+function dashFieldsOf(s, coachNames) {
+  const device = s.device || {};
+  const block = typeof device.block === 'string' ? device.block : null;
+  const stops = (Array.isArray(device.events) ? device.events : [])
+    .filter((e) => e && STOP_TYPES.includes(e.type))
+    .map((e) => {
+      const data = e.data && typeof e.data === 'object' && !Array.isArray(e.data) ? e.data : null;
+      return { type: e.type, taskId: typeof e.task_id === 'string' ? e.task_id : null, at: typeof e.at === 'string' ? e.at : null, by: data && typeof data.by === 'string' ? data.by : null, data };
+    });
+  return {
+    mode: block === 'rdf_manual' ? 'coach_led' : 'auto',
+    block,
+    coachId: s.coach_user_id || null,
+    coachName: (coachNames && coachNames.get(s.coach_user_id)) || null,
+    startedAt: s.started_at || s.created_at || null,
+    stops,
+  };
+}
+
+/**
  * The results dashboard: every self-administered session of this coach (an admin, asAdmin: true as the portal sets it
  * from sa_results_admins: every coach's), each in saResults' shape with its school and sub-region (schools.region).
  * Sessions with no task rows yet are left out. Blocks and schools are read once for all sessions. Never a name.
@@ -870,17 +895,28 @@ function saSessions(args = {}, deps = {}) {
     }
     const bank = deps.bank !== undefined ? deps.bank : loadBank();
     const stops = await stopRulesSwitch.enabled(deps);
+    // sa_dash_filters (round 7b): the coaches' names, read once for every session (staff; never a child's)
+    const dash = await dashFilters.enabled(deps);
+    let coachNames = null;
+    if (dash) {
+      const named = await d.store.getUserNamesByIds([...new Set(sessions.map((s) => s.coach_user_id).filter(Boolean))]);
+      if (!named || !named.ok) throw new Error((named && named.error) || 'getUserNamesByIds failed');
+      coachNames = new Map((named.users || []).map((u) => [u.id, u.name || null]));
+    }
     const out = [];
+    const stopOnly = [];
     for (const s of sessions) {
       const results = shapeResults(s, rowsOf.get(s.id), bank, stops);
-      if (!results.tasks.length) continue;
+      const extra = dash ? dashFieldsOf(s, coachNames) : null;
+      if (!results.tasks.length && !(extra && extra.stops.length)) continue;
       const school = schoolOf.get(s.school_id) || {};
       const row = { schoolId: s.school_id || null, schoolName: school.name || null, sector: school.region || null, grade: s.grade, results };
       if (practiceIds) row.practice = practiceIds.has(s.school_id);
-      out.push(row);
+      if (extra) Object.assign(row, extra);
+      (results.tasks.length ? out : stopOnly).push(row);
     }
-    d.log('child_test.sa.sessions_read', { userId, admin, n: out.length });
-    return { status: 'ok', sessions: out };
+    d.log('child_test.sa.sessions_read', { userId, admin, n: out.length, ...(dash ? { stopOnly: stopOnly.length } : {}) });
+    return dash ? { status: 'ok', sessions: out, stopSessions: stopOnly } : { status: 'ok', sessions: out };
   })(args, deps);
 }
 

@@ -7,7 +7,7 @@ import { urDigits, type Lang } from '../lib/assess/copy';
 import { useUrFit } from '../lib/assess/urFit';
 import { DASH_COPY } from '../lib/assess/dashboardCopy';
 import { exampleCohort, TASKS, type DashStudent, type ReadLang, type TaskSpec } from '../lib/assess/exampleCohort';
-import { masked, NO_SECTOR, secondVoiceCount, toDashStudents } from '../lib/assess/realCohort';
+import { masked, NO_SECTOR, pktWhen, secondVoiceCount, toDashStudents } from '../lib/assess/realCohort';
 import { applyFilter, groupBy, headline, ORF_BANDS, summariseTask, type Filter } from '../lib/assess/cohortStats';
 import { GRADES, rwpOrf } from '../lib/assess/rwpNorms';
 
@@ -23,7 +23,15 @@ import { GRADES, rwpOrf } from '../lib/assess/rwpNorms';
  * results API's own shape (lib/assess/exampleCohort.ts), bannered as example data; nothing is read from or written to
  * any session. A top summary, filters, a sub-region table that drills into schools, then one card per task with its
  * mean, zero scores, benchmark and distribution. 360 px first: tiles two across, the table scrolls inside its box.
+ *
+ * Round 7b, live only, behind sa_dash_filters (switches.dashFilters): a coach-led / auto filter, date from–to (Pakistan
+ * days) and a coach picker (a results admin sees every coach) that apply across the board; and "Skips and stops": every
+ * skip and stop (back, end section, end test, restart, silence repeat, under-20% move-on) by type and by coach, heaviest
+ * first, and each one listed, honouring the same filters. A session with a stop but no task yet (stopSessions) counts in
+ * the stops view only, never in the results. Off: the page is as before.
  */
+const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'under20_move_on'] as const;
+const STOPS_SHOWN = 300;
 
 const LANG_KEY = 'niete-assess-lang';
 const URDU_ROOT = '[font-family:var(--font-urdu)] [word-spacing:0.15em] [&_*]:leading-[2] [&_.text-xs]:text-sm';
@@ -51,6 +59,9 @@ export default function LeaderAssessDashboard() {
   const [filter, setFilter] = useState<Filter>({});
   const [read, setRead] = useState<ReadLang>('ur');
   const [real, setReal] = useState<DashStudent[]>([]);
+  // sa_dash_filters (round 7b): the filters and the stops view; the sessions with a stop and no task yet
+  const [dashOn, setDashOn] = useState(false);
+  const [stopOnly, setStopOnly] = useState<DashStudent[]>([]);
   const c = DASH_COPY[lang];
 
   useEffect(() => {
@@ -63,6 +74,10 @@ export default function LeaderAssessDashboard() {
             const got = await childTestSa.getSessions();
             if (!live) return;
             setReal(toDashStudents((got && got.sessions) || []));
+            if (s.dashFilters === true) {
+              setDashOn(true);
+              setStopOnly(toDashStudents((got && got.stopSessions) || []));
+            }
             setLoad('live');
           } catch {
             if (live) setLoad('failed');
@@ -81,6 +96,37 @@ export default function LeaderAssessDashboard() {
   const h = useMemo(() => headline(rows), [rows]);
   const groups = useMemo(() => groupBy(rows, filter.sector ? 'school' : 'sector'), [rows, filter.sector]);
   const voices = useMemo(() => (isLive ? secondVoiceCount(rows) : 0), [isLive, rows]);
+  const filtersOn = isLive && dashOn;
+  // every coach in the data, by name (a coach's own view has one: no picker)
+  const coaches = useMemo(() => {
+    const seen = new Map<string, string | null>();
+    for (const s of [...cohort, ...stopOnly]) if (s.coachId && !seen.has(s.coachId)) seen.set(s.coachId, s.coachName ?? null);
+    return [...seen.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => (a.name || '~').localeCompare(b.name || '~'));
+  }, [cohort, stopOnly]);
+  // the stops view: the filtered sessions plus the filtered sessions with a stop and no task yet
+  const stopRows = useMemo(() => (filtersOn ? [...rows, ...applyFilter(stopOnly, filter)] : []), [filtersOn, rows, stopOnly, filter]);
+  const stopsView = useMemo(() => {
+    const totals = Object.fromEntries(STOP_TYPES.map((t) => [t, 0])) as Record<string, number>;
+    const byCoach = new Map<string, { id: string; name: string | null; sessions: number; counts: Record<string, number>; total: number }>();
+    const items: { key: string; at: string | null; type: string; taskId: string | null; by: string | null; s: DashStudent }[] = [];
+    for (const s of stopRows) {
+      const id = s.coachId || '';
+      if (!byCoach.has(id)) byCoach.set(id, { id, name: s.coachName ?? null, sessions: 0, counts: Object.fromEntries(STOP_TYPES.map((t) => [t, 0])), total: 0 });
+      const k = byCoach.get(id)!;
+      k.sessions += 1;
+      (s.stops || []).forEach((st, i) => {
+        if (!(STOP_TYPES as readonly string[]).includes(st.type)) return;
+        totals[st.type] += 1;
+        k.counts[st.type] += 1;
+        k.total += 1;
+        items.push({ key: `${s.id}-${i}`, at: st.at, type: st.type, taskId: st.taskId, by: st.by, s });
+      });
+    }
+    const coachRows = [...byCoach.values()].sort((a, b) => (b.total - a.total) || ((b.total / b.sessions) - (a.total / a.sessions)) || (a.name || '~').localeCompare(b.name || '~'));
+    items.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+    return { totals, coachRows, items };
+  }, [stopRows]);
+  const narrowed = Boolean(filter.mode || filter.coachId || filter.from || filter.to);
 
   const num = (n: number | string) => (lang === 'ur' ? `${LRI}${urDigits(n)}${PDI}` : String(n));
   const count = (n: number) => num(n.toLocaleString('en-US'));
@@ -202,6 +248,69 @@ export default function LeaderAssessDashboard() {
     );
   };
 
+  const taskName = (taskId: string | null) => (taskId ? c.tasks[taskId] || taskId : c.noTask);
+  const stopsSection = (
+    <section data-testid="dash-stops" aria-label={c.stopsTitle} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3">
+      <div>
+        <h2 className="text-base font-semibold text-slate-900">{c.stopsTitle}</h2>
+        <p className="text-xs text-slate-500">{c.stopsHint}</p>
+      </div>
+      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        {STOP_TYPES.map((t) => (
+          <li key={t} data-testid={`dash-stop-total-${t}`} className="rounded-xl bg-slate-50 p-2">
+            <p className="text-xs text-slate-600">{c.stopTypes[t]}</p>
+            <p className="text-xl font-bold text-slate-900">{count(stopsView.totals[t])}</p>
+          </li>
+        ))}
+      </ul>
+      {stopsView.items.length === 0 ? <p data-testid="dash-stops-none" className="rounded-xl bg-slate-50 p-2 text-sm text-slate-700">{c.stopsNone}</p> : null}
+      {stopsView.coachRows.length ? (
+        <div className="overflow-x-auto">
+          <table data-testid="dash-stops-by-coach" className="w-full min-w-[560px] text-xs sm:text-sm">
+            <thead>
+              <tr className="text-xs text-slate-600">
+                <th className="py-1 text-start font-medium">{c.colCoach}</th>
+                <th className="py-1 text-end font-medium">{c.colSessions}</th>
+                {STOP_TYPES.map((t) => <th key={t} className="py-1 text-end font-medium">{c.stopTypes[t]}</th>)}
+                <th className="py-1 text-end font-medium">{c.colTotal}</th>
+                <th className="py-1 text-end font-medium">{c.colPerSession}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {stopsView.coachRows.map((k) => (
+                <tr key={k.id || 'none'} data-testid="dash-stops-coach-row" data-coach={k.id} data-total={k.total} data-sessions={k.sessions}>
+                  <td className="py-2 pe-1 text-slate-900">{k.name || c.unknownCoach}</td>
+                  <td className="py-2 text-end tabular-nums">{count(k.sessions)}</td>
+                  {STOP_TYPES.map((t) => <td key={t} className={`py-2 text-end tabular-nums ${k.counts[t] ? 'font-semibold text-slate-900' : 'text-slate-400'}`}>{count(k.counts[t])}</td>)}
+                  <td className="py-2 text-end font-bold tabular-nums">{count(k.total)}</td>
+                  <td className="py-2 text-end tabular-nums">{one(k.sessions ? k.total / k.sessions : null)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+      {stopsView.items.length ? (
+        <div>
+          <h3 className="mb-1 text-sm font-semibold text-slate-900">{c.stopsList}</h3>
+          {stopsView.items.length > STOPS_SHOWN ? <p className="text-xs text-slate-500">{c.stopsCapped(count(STOPS_SHOWN), count(stopsView.items.length))}</p> : null}
+          <ul data-testid="dash-stops-list" className="divide-y divide-slate-100 text-xs sm:text-sm">
+            {stopsView.items.slice(0, STOPS_SHOWN).map((it) => (
+              <li key={it.key} data-testid="dash-stops-item" data-type={it.type} className="py-2">
+                <p className="font-semibold text-slate-900">
+                  {c.stopTypes[it.type] || it.type}{it.by && c.stopBy[it.by] ? ` · ${c.stopBy[it.by]}` : ''} · {taskName(it.taskId)}
+                </p>
+                <p className="text-slate-600">
+                  {pktWhen(it.at) ? num(pktWhen(it.at)) : '–'} · {coaches.length > 1 ? `${it.s.coachName || c.unknownCoach} · ` : ''}{it.s.schoolName} · {c.grade(num(it.s.grade))} · {it.s.mode ? c.modes[it.s.mode] : '–'}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </section>
+  );
+
   let body;
   if (load === 'loading') body = <p className="text-slate-600">{c.loading}</p>;
   else if (load === 'off') body = <p data-testid="dash-off" className="rounded-2xl border border-slate-200 bg-white p-4 text-slate-700">{c.off}</p>;
@@ -238,6 +347,36 @@ export default function LeaderAssessDashboard() {
               {chip('dash-gender-boy', c.boys, filter.gender === 'boy', () => setFilter((f) => ({ ...f, gender: 'boy' })))}
             </>)}
           </div>
+          {filtersOn ? (<>
+            <div className="flex flex-wrap gap-2">
+              {chip('dash-mode-all', c.modeAll, !filter.mode, () => setFilter((f) => ({ ...f, mode: null })))}
+              {chip('dash-mode-coach_led', c.modes.coach_led, filter.mode === 'coach_led', () => setFilter((f) => ({ ...f, mode: 'coach_led' })))}
+              {chip('dash-mode-auto', c.modes.auto, filter.mode === 'auto', () => setFilter((f) => ({ ...f, mode: 'auto' })))}
+            </div>
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="flex flex-col text-xs text-slate-600">{c.from}
+                <input type="date" dir="ltr" data-testid="dash-date-from" value={filter.from ?? ''} max={filter.to ?? undefined}
+                  onChange={(e) => { const v = e.target.value; setFilter((f) => ({ ...f, from: v || null })); }}
+                  className="min-h-[40px] rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-900" />
+              </label>
+              <label className="flex flex-col text-xs text-slate-600">{c.to}
+                <input type="date" dir="ltr" data-testid="dash-date-to" value={filter.to ?? ''} min={filter.from ?? undefined}
+                  onChange={(e) => { const v = e.target.value; setFilter((f) => ({ ...f, to: v || null })); }}
+                  className="min-h-[40px] rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-900" />
+              </label>
+              {filter.from || filter.to ? chip('dash-date-clear', c.clearDates, false, () => setFilter((f) => ({ ...f, from: null, to: null }))) : null}
+              {coaches.length > 1 ? (
+                <label className="flex min-w-0 flex-col text-xs text-slate-600">{c.coach}
+                  <select data-testid="dash-coach" value={filter.coachId ?? ''} onChange={(e) => { const v = e.target.value; setFilter((f) => ({ ...f, coachId: v || null })); }}
+                    className="min-h-[40px] max-w-full rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-900">
+                    <option value="">{c.allCoaches}</option>
+                    {coaches.map((k) => <option key={k.id} value={k.id}>{k.name || c.unknownCoach}</option>)}
+                  </select>
+                </label>
+              ) : null}
+            </div>
+            {narrowed ? <p data-testid="dash-showing" className="text-sm text-slate-700">{c.showing(count(rows.length), count(cohort.length))}</p> : null}
+          </>) : null}
         </section>
 
         <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -247,6 +386,7 @@ export default function LeaderAssessDashboard() {
           {tile('dash-maths', c.maths, hideAll ? '–' : pct(h.mathsAllMet), hideAll ? undefined : c.mathsHint)}
           {tile('dash-minutes', c.minutes, hideAll ? '–' : one(h.minutesMedian))}
         </section>
+        {filtersOn ? stopsSection : null}
 
         <section className="rounded-2xl border border-slate-200 bg-white p-3">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
