@@ -368,6 +368,31 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
 
   let carry = [];   // rows read by a lever mid-loop (the COA09 upload) are processed, never dropped
   while (confirmed && Date.now() - t0 < budget) {
+    // The deferral goes FIRST in each turn, before the reads and their settles: on the lane the first iteration is
+    // seconds after the confirm tap, and the previous position (after the reads) was 73 s in, past the whole
+    // replayed pipeline (run 20261027-0949-coaching-s5).
+    // COA09 — a SECOND recording once the analysis is genuinely under way
+    // On the lane (DEFER_AFTER_MS 0) the second recording goes in straight after the confirm tap — the session is
+    // 'confirmed'/'pending', mid-flight for the guard — because with cassette replay the first step is already
+    // the last (run 20261026-201716: the reply to the "second" recording was the report caption).
+    if (DEEP && !deferralTried && (obs.steps.length || (DEFER_AFTER_MS === 0 && confirmed)) && !obs.steps.includes('5') && Date.now() - t0 >= DEFER_AFTER_MS) {
+      deferralTried = true;
+      const second = await api.upload(FIXTURE.classroom, 'Document', 180000);
+      const txt2 = second.txt || '';
+      // whatever landed while the upload settled (the voice question after Step 3/5 — run 20260930-0621
+      // lost it here and stalled) is carried into the next iteration, and the card is judged from ALL of it
+      // the bot's answer to a second recording (a deferral ack, or a fresh detection card) can land several
+      // seconds after the upload settles — keep reading for up to 15 s before judging (run 20260930-0832)
+      let extra = await fresh(); const tCard = Date.now();
+      while (Date.now() - tCard < 15000 && !extra.some(r => EXPECT.detected.test(r.txt || '') || /still analys|already analys|in progress|ابھی تجزیہ/i.test(r.txt || ''))) { await sleep(2000); extra = extra.concat(await fresh()); }
+      const cardRows = [second].concat(extra);
+      obs.deferral = { replied: !!second.ok, reply: txt2.slice(0, 220),
+        startedNewSession: cardRows.some(r => EXPECT.detected.test(r.txt || '') || (r.btns || []).some(b => EXPECT.yesAnalyze.test(b))) };
+      carry = carry.concat(extra.filter(r => !(EXPECT.detected.test(r.txt || '') && (r.btns || []).some(b => EXPECT.yesAnalyze.test(b)))));
+      // a second session the bot DID open must not stay in flight and swallow the rest of the run
+      if (obs.deferral.startedNewSession) { const c = cardRows.find(r => (r.btns || []).some(b => EXPECT.yesAnalyze.test(b))); if (c) { try { await api.tapAndWait('No', 60000); } catch (_) {} } }
+    }
+
     const batch = carry.concat(await fresh()); carry = [];
     if (batch.length) lastMsgAt = Date.now();
     for (const r of batch) {
@@ -444,28 +469,6 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
         } else obs.commitment = { tapped: null, acknowledged: false, btns: r.btns };
         continue;
       }
-    }
-
-    // COA09 — a SECOND recording once the analysis is genuinely under way
-    // On the lane (DEFER_AFTER_MS 0) the second recording goes in straight after the confirm tap — the session is
-    // 'confirmed'/'pending', mid-flight for the guard — because with cassette replay the first step is already
-    // the last (run 20261026-201716: the reply to the "second" recording was the report caption).
-    if (DEEP && !deferralTried && (obs.steps.length || (DEFER_AFTER_MS === 0 && confirmed)) && !obs.steps.includes('5') && Date.now() - t0 >= DEFER_AFTER_MS) {
-      deferralTried = true;
-      const second = await api.upload(FIXTURE.classroom, 'Document', 180000);
-      const txt2 = second.txt || '';
-      // whatever landed while the upload settled (the voice question after Step 3/5 — run 20260930-0621
-      // lost it here and stalled) is carried into the next iteration, and the card is judged from ALL of it
-      // the bot's answer to a second recording (a deferral ack, or a fresh detection card) can land several
-      // seconds after the upload settles — keep reading for up to 15 s before judging (run 20260930-0832)
-      let extra = await fresh(); const tCard = Date.now();
-      while (Date.now() - tCard < 15000 && !extra.some(r => EXPECT.detected.test(r.txt || '') || /still analys|already analys|in progress|ابھی تجزیہ/i.test(r.txt || ''))) { await sleep(2000); extra = extra.concat(await fresh()); }
-      const cardRows = [second].concat(extra);
-      obs.deferral = { replied: !!second.ok, reply: txt2.slice(0, 220),
-        startedNewSession: cardRows.some(r => EXPECT.detected.test(r.txt || '') || (r.btns || []).some(b => EXPECT.yesAnalyze.test(b))) };
-      carry = carry.concat(extra.filter(r => !(EXPECT.detected.test(r.txt || '') && (r.btns || []).some(b => EXPECT.yesAnalyze.test(b)))));
-      // a second session the bot DID open must not stay in flight and swallow the rest of the run
-      if (obs.deferral.startedNewSession) { const c = cardRows.find(r => (r.btns || []).some(b => EXPECT.yesAnalyze.test(b))); if (c) { try { await api.tapAndWait('No', 60000); } catch (_) {} } }
     }
 
     if (!DEEP && obs.photoPrompt) break;   // COA04 is decided (Step 1/5 is a reaction since the Meta bill cut)
