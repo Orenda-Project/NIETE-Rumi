@@ -141,6 +141,7 @@
       // round 7b (sa_silence_repeat): no voice heard on a read-aloud part
       silence_repeat: 'Jugnu could not hear you. Say each answer out loud. Let us do this part again.',
       silence_again: 'Try again',
+      silence_title: 'Say it out loud',
       coach_read: 'Read this to the child:',
       coach_then: 'Then give the phone to the child.',
       coach_items: 'Read each one out when it shows:',
@@ -228,6 +229,7 @@
       coach_will_instruct: 'اب آپ کے کوچ ہدایات دیں گے۔',
       silence_repeat: 'جگنو آپ کی آواز نہیں سن سکا۔ ہر جواب اونچی آواز میں بولیں۔ آئیے یہ حصہ دوبارہ کرتے ہیں۔',
       silence_again: 'دوبارہ کریں',
+      silence_title: 'اونچی آواز میں بولیں',
       coach_read: 'یہ بچے کو پڑھ کر سنائیں:',
       coach_then: 'پھر فون بچے کو دے دیں۔',
       coach_items: 'ہر ایک سامنے آنے پر پڑھ کر سنائیں:',
@@ -1500,7 +1502,9 @@
     function sSilenceReminder(v) {
       return screen(v, 'sae-silence sa-silence', [
         jugnu('idle'),
-        h('h1', { class: 'sae-h1', text: tx(copyLine('silence_repeat')) }),
+        // a short title, then Jugnu's whole line as a paragraph: the long Urdu line is never cut by the foot (sa_ur_fit)
+        h('h1', { class: 'sae-h1', text: C.silence_title }),
+        h('p', { class: 'sae-p', text: tx(copyLine('silence_repeat')) }),
       ], [btn(C.silence_again, function () { runner.silenceRepeatDone(); draw(); }, 'sae-primary')]);
     }
 
