@@ -148,10 +148,37 @@ class SupabaseStore {
   }
 }
 
-/** One run at a time (NIGHTLY_JOB §0): a session-level advisory lock on its own pg connection. */
-async function acquireLock(pg) {
-  const { rows } = await pg.query("SELECT pg_try_advisory_lock(hashtext('coachip-nightly')) AS ok");
-  return rows[0] && rows[0].ok === true;
+/**
+ * One run at a time (NIGHTLY_JOB §0), safe through a transaction pooler (Supavisor on 6543, pgbouncer): a
+ * transaction-scoped advisory lock inside a transaction held open for the whole run. The open transaction pins one
+ * server backend to this client; `release()` ends it (ROLLBACK: the lock connection writes nothing) and the lock goes
+ * with it; a client that dies mid-run takes its transaction, and so the lock, with it. A session-level lock would stay
+ * on the pooled backend after the client left (board 20261027T003856). A `SELECT 1` every `heartbeatMs` keeps the
+ * transaction from idling out; a failed beat or the connection's 'error' event reports the loss once through `onLost`.
+ * Resolves `{ release }`, or `null` when another run holds the lock.
+ */
+async function acquireLock(pg, { heartbeatMs = 30000, onLost = () => {} } = {}) {
+  await pg.query('BEGIN');
+  let ok = false;
+  try {
+    const { rows } = await pg.query("SELECT pg_try_advisory_xact_lock(hashtext('coachip-nightly')) AS ok");
+    ok = Boolean(rows[0]) && rows[0].ok === true;
+  } finally {
+    if (!ok) await pg.query('ROLLBACK').catch(() => {});
+  }
+  if (!ok) return null;
+  let lost = false;
+  const lose = () => { if (!lost) { lost = true; onLost(); } };
+  // a dropped lock connection is reported, never an unhandled 'error' event that kills the run mid-write
+  if (typeof pg.on === 'function') pg.on('error', lose);
+  const beat = setInterval(() => { pg.query('SELECT 1').catch(lose); }, heartbeatMs);
+  if (typeof beat.unref === 'function') beat.unref();
+  return {
+    release: async () => {
+      clearInterval(beat);
+      if (!lost) await pg.query('ROLLBACK');
+    },
+  };
 }
 
 module.exports = { MemoryStore, SupabaseStore, acquireLock, MemQuery, memoryClient };
