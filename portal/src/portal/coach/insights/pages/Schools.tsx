@@ -48,7 +48,11 @@ function SchoolsBody() {
                 </div>
                 {s.top_w
                   ? <WRow row={s.top_w} to={insightsPaths.w(s.top_w.w_id)} />
-                  : <p data-testid="schools-top-none" className="px-1 text-[14px] text-[#6b7280]">{t("schools.top_w.none", lang)}</p>}
+                  // fix-r5 s2 item 3/4 (qa-coach 073419, B10): "nothing to do" only when the school has no graded lesson;
+                  // graded lessons without a ranked move are "not ranked yet", words only
+                  : s.graded.n > 0
+                    ? <p data-testid="schools-top-none" data-state="not_ranked" className="px-1 text-[14px] text-[#6b7280]">{t("schools.top_w.not_ranked", lang)}</p>
+                    : <p data-testid="schools-top-none" data-state="none" className="px-1 text-[14px] text-[#6b7280]">{t("schools.top_w.none", lang)}</p>}
               </li>
             ))}
           </ul>

@@ -117,6 +117,7 @@ export const COPY = {
   "schools.row.sub": { en: "last visit {date} · {g} of {r} graded", ur: "پچھلا دورہ {date}، {r} میں سے {g} جانچی گئیں" },
   "schools.row.never": { en: "no visit in the window", ur: "اس مدت میں کوئی دورہ نہیں" },
   "schools.top_w.none": { en: "nothing to do here this month", ur: "اس مہینے یہاں کچھ کرنا نہیں" },
+  "schools.top_w.not_ranked": { en: "No move is ranked for this school yet", ur: "اس اسکول کے لیے ابھی کوئی قدم ترتیب میں نہیں آیا" },
   "l.title": { en: "Listen", ur: "سنیں" },
   "l.sub": { en: "This week · {week_range}", ur: "اس ہفتے، {week_range}" },
   "l.base": { en: "{n} of {d} graded recordings this week have a moment ({grader_label}), newest first. Tap a time to play it here; open a row for the full player.", ur: "اس ہفتے {d} میں سے {n} جانچی گئی ریکارڈنگز میں ایک لمحہ ہے ({grader_label})، نئی پہلے۔ وقت پر ٹیپ کریں تو یہیں چلے گا؛ پورے پلیئر کے لیے قطار کھولیں۔" },
