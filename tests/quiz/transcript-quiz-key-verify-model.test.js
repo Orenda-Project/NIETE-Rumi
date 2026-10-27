@@ -25,7 +25,10 @@ const { completeJson } = require('../../bot/shared/services/quiz/transcript-quiz
 const KV = require('../../bot/shared/services/quiz/transcript-quiz-key-verify.service');
 const F = require('./helpers/key-verify-fixture');
 
-const VARS = ['TRANSCRIPT_QUIZ_MODEL', 'TRANSCRIPT_QUIZ_VERIFY_MODEL'];
+// ANTHROPIC_API_KEY and QUIZ_ANTHROPIC_DIRECT too: with a key present, completeJson sends an
+// `anthropic/` id to the direct lane (directModelFor), and bot/tests/setup-loopback.js sets every
+// credential to a dummy, so "nothing set" has to clear the key itself.
+const VARS = ['TRANSCRIPT_QUIZ_MODEL', 'TRANSCRIPT_QUIZ_VERIFY_MODEL', 'ANTHROPIC_API_KEY', 'QUIZ_ANTHROPIC_DIRECT'];
 let saved;
 beforeEach(() => {
   mockCreate.mockReset();
