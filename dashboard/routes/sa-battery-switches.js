@@ -69,6 +69,8 @@ const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManu
   backButton: 'back_button', endTestRestart: 'end_test_restart', endSection: 'end_section', silenceRepeat: 'silence_repeat',
   under20MoveOn: 'under20_move_on', tSoundTa: 't_sound_ta', sayThenNext: 'say_then_next', storyScroll: 'story_scroll',
   audioGatedNext: 'audio_gated_next', tickPrompt: 'tick_prompt' };
+const { applyR7a } = require('./sa-r7a-content');
+
 const W3_KEYS = ['rdf_auto', 'rdf_manual', 'rdf_variants', 'rdf_w3_absent'];
 // Round 7b (sa_silence_repeat): Jugnu's reminder, voiced in both sets (dashboard/sa/v1|v2/<lang>/<key>.mp3, keyed as the bank
 // builder keys a line: sha1(lang|text)[:12]); added to the battery's lines while the switch is ON.
@@ -105,10 +107,12 @@ function applySwitches(input, on = {}) {
     return o;
   });
   const ui = Object.keys(UI).filter((k) => on[k] === true);
-  if (!ui.length) return { ...battery, tasks };
+  // round 7b, the child's screens: the lines and the T clip their switches add (sa-r7a-content.js); none when OFF
+  if (!ui.length) return applyR7a({ ...battery, tasks }, on);
+  // round 7b, sa_silence_repeat: Jugnu's reminder line in the battery's own language
   const line = on.silenceRepeat === true ? SILENCE_LINE[battery.lang] : null;
   const lines = line ? { ...(battery.lines || {}), silence_repeat: { ...line } } : null;
-  return { ...battery, tasks, ...(lines ? { lines } : {}), ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => [UI[k], true])) } };
+  return applyR7a({ ...battery, tasks, ...(lines ? { lines } : {}), ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => [UI[k], true])) } }, on);
 }
 
 module.exports = { SWITCHES, applySwitches };

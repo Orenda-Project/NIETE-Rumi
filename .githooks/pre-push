@@ -59,5 +59,16 @@ while read -r _lref lsha rref rsha; do
   # shellcheck disable=SC2046
   qa_notes_publish "$ROOT" $(git rev-list --max-count=200 "$base..$lsha" 2>/dev/null)
 done
+# The repo is public (bd-5gyspy.3): no phone number and no home-directory path in a tracked file. Unlike the
+# impact report above this BLOCKS, because a pushed number cannot be taken back. PII_CHECK_OFF=1 skips it (logged).
+PII="$ROOT/tests/setup/tracked-files-pii-lib.js"
+if [ -f "$PII" ] && command -v node >/dev/null 2>&1; then
+  if [ "${PII_CHECK_OFF:-}" = "1" ]; then
+    qa_ledger_log "$ROOT" pre-push switch-off PII_CHECK_OFF "${1:-}"
+  elif ! node "$PII" --check; then
+    echo "pre-push: blocked. Mask the phone (92•••••1234) and make the path repo-relative; the QA ledger: python3 scripts/qa/mask-ledger.py" >&2
+    exit 1
+  fi
+fi
 [ "$MODE" = "block" ] && exit $RC
 exit 0

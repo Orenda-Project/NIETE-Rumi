@@ -3,10 +3,12 @@
 
 Hand-rolled validation (jsonschema is NOT installed). Schemas mirror
 docs/superpowers/specs/2026-08-04-e2e-discovery-loop-design.md §5.
-runs.jsonl is append-only and never rewritten; a bad row is never appended.
+runs.jsonl is append-only and never rewritten; a bad row is never appended. Every row is scrubbed
+(phones masked, home paths made relative) on the way in; see scrub().
 """
 import json
 import os
+import re
 import subprocess
 
 RUN_STATUSES = {"HEALTHY", "DEGRADED", "CRITICAL"}
@@ -96,7 +98,46 @@ def validate_drift(row):
     return probs
 
 
+# The repo is public (bd-5gyspy.3): rows carried the live driver's phone and the machine path
+# of the worktree a run came from. Every row is scrubbed on the way in, whoever writes it.
+# Phone: a 92-prefixed (a + is kept) or 03 local mobile -> 92 + five dots + its last 4 digits.
+_PHONE = re.compile(r"(?<!\d)(\+?)(?:92|0)(3\d{5})(\d{4})(?!\d)")
+_MASK = "92\u2022\u2022\u2022\u2022\u2022"
+# Home directory (/Users/ or /home/ + a user name; folder names may hold spaces):
+#   - anything up to a worktree becomes workspace-relative: .claude/worktrees/<wt>/...
+#   - a value that IS a home path keeps only its last two segments: ~/.../<a>/<b>
+#   - a home directory inside free text loses the user name: ~/...
+_TO_WORKTREE = re.compile(r"/(?:Users|home)/[^/\"'\n]+/(?:[^\"'\n]*?/)?(?=\.claude/worktrees/)")
+_HOME_VALUE = re.compile(r"/(?:Users|home)/[^/]+(/.*)?", re.S)
+_HOME_IN_TEXT = re.compile(r"/(?:Users|home)/[^/\s\"']+")
+
+
+def _scrub_str(s):
+    s = _PHONE.sub(lambda m: m.group(1) + _MASK + m.group(3), s)
+    s = _TO_WORKTREE.sub("", s)
+    m = _HOME_VALUE.fullmatch(s)
+    if m:
+        rest = m.group(1) or ""
+        tail = [p for p in rest.split("/") if p][-2:]
+        return "~/\u2026/" + "/".join(tail) + ("/" if rest.endswith("/") and tail else "")
+    return _HOME_IN_TEXT.sub("~", s)
+
+
+def scrub(value):
+    """A copy of a row with every phone masked and every home-directory path made relative. Idempotent."""
+    if isinstance(value, dict):
+        return {k: scrub(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [scrub(v) for v in value]
+    if isinstance(value, str):
+        return _scrub_str(value)
+    if isinstance(value, int) and not isinstance(value, bool) and _PHONE.fullmatch(str(value)):
+        return _scrub_str(str(value))
+    return value
+
+
 def _append(row, path, validator):
+    row = scrub(row)
     probs = validator(row)
     if probs:
         raise ValueError("; ".join(probs))
