@@ -657,23 +657,10 @@ class ReportGeneratorService {
           // Meta bill cut NC5 (N1-13): once per session. A second run of this job
           // skips the send — and counts the completion as announced, because the
           // first run's prompt already said it (no standalone boundary line either).
-          const lead = cardCopy.sessionCompleteLead;
-          const { claimPiece, releasePiece } = require('./report-piece-once');
-          if (await claimPiece(coachingSessionId, 'commit_prompt')) {
-            const promptSent = await WhatsAppService.sendInteractiveButtons(from, {
-              body: lead ? `${lead}\n\n${cardCopy.commitPrompt}` : cardCopy.commitPrompt,
-              buttons: [
-                { id: `card_yes_${coachingSessionId}`, title: cardCopy.commitButtons.yes },
-                { id: `card_later_${coachingSessionId}`, title: cardCopy.commitButtons.later },
-                { id: `card_no_${coachingSessionId}`, title: cardCopy.commitButtons.no },
-              ],
-            }, track.opts('buttons'));
-            await track.record('buttons', promptSent !== false);
-            if (promptSent === false) await releasePiece(coachingSessionId, 'commit_prompt');
-            completionAnnounced = Boolean(lead);
-          } else {
-            completionAnnounced = true;
-          }
+          // bd-v0toag.124: skipped when the report went as the share template (window closed).
+          completionAnnounced = await require('./report-commit-prompt').sendCommitPrompt({
+            followUps, phone: from, coachingSessionId, cardCopy, track,
+          });
 
           // Feedback-uptake loop: the record extends the card in place — the
           // target, the attempt and angle, the baseline for the NEXT verdict,
@@ -729,7 +716,7 @@ class ReportGeneratorService {
       // bd-fmr3s (DC row 137): only when the commit prompt did NOT already open
       // with the completion line — never two completion messages back-to-back.
       try {
-        if (!completionAnnounced) {
+        if (followUps && !completionAnnounced) {
           await WhatsAppService.sendMessage(from, getCoachingMessage('sessionComplete', outputLanguage));
         }
       } catch (error) {
