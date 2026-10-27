@@ -416,7 +416,9 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
         if (!DEEP) continue;                                   // shallow run declines by ignoring
         const yes = r.btns.find(b => EXPECT.affirmative.test(b));
         if (yes) {
-          await api.tapAndWait(yes, 60000);
+          // "Yes" is answered with a reaction, not a message, since the bill cut — a 60 s wait here ran out in full
+          // on every run (run 20261027-1022-par: bot.reply.timeout 60 s). A few seconds catch a text if one comes.
+          await api.tapAndWait(yes, 4000);
           const ph = await api.upload(FIXTURE.photo, 'Photos & videos', 120000);
           // The bot answers "تصویر 1 موصول۔ کیا ایک اور تصویر شامل کرنی ہے؟" with "مزید تصویر" / "مکمل".
           // Until "مکمل" (Done) is tapped the session sits in awaiting_classroom_photo and the
@@ -496,11 +498,16 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
 
   // COA57 needs the report's own voice note, which lands ~40 s after the report (median; p95 55 s) and can
   // arrive after the loop has already stopped on the commitment card.
-  if (DEEP && obs.report && !obs.voiceNotes.some((n) => n.afterReport)) {
-    const until = Date.now() + 180000;
-    while (Date.now() < until && !obs.voiceNotes.some((n) => n.afterReport)) {
+  // …and stops the moment the bot says the voice summary could not be generated (the debrief answer is a
+  // per-run cassette miss on the sealed lane): waiting the whole budget after that note cost 180 s of every
+  // coaching run (run 20261027-1022-par). E2E_COACHING_VOICE_NOTE_MS caps the wait on the lane.
+  const VOICE_NOTE_MS = Number(process.env.E2E_COACHING_VOICE_NOTE_MS) || 180000;
+  const voiceGaveUp = () => obs.rows.some((r) => /Voice summary could not be generated|آواز.{0,30}(نہیں|ناکام)/.test(r.txt || ''));
+  if (DEEP && obs.report && !obs.voiceNotes.some((n) => n.afterReport) && !voiceGaveUp()) {
+    const until = Date.now() + VOICE_NOTE_MS;
+    while (Date.now() < until && !obs.voiceNotes.some((n) => n.afterReport) && !voiceGaveUp()) {
       for (const r of await fresh()) { noteAudio(r); obs.rows.push(r); }
-      if (!obs.voiceNotes.some((n) => n.afterReport)) await sleep(2500);
+      if (!obs.voiceNotes.some((n) => n.afterReport) && !voiceGaveUp()) await sleep(2500);
     }
   }
 
@@ -629,7 +636,7 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   const E = (id, name) => { const r = ext.get(id);
     rec(id, name, DEEP ? (r ? r[0] : 'BLOCKED') : 'SKIP',
         DEEP ? (r ? r[1] : { reason: 'coaching-ext did not record it' + (extErr ? ' — the extension threw: ' + String(extErr.message).slice(0, 200) : '') })
-             : { why: '@wip/@draft — run with DEEP=1' }, 0); };
+             : { why: '@wip/@draft — run with DEEP=1' }, (r && r[2] && r[2].ms) || 0, r && r[2]); };
   E('COA58', "The coaching report and voice note give the lesson's scores as numbers");
   E('COA60', 'The two coaching entry points quote different minimum audio lengths (@known-issue)');
   // bd-5lrgh — needs a mismatched recording + a live grader run + the rendered report; unit-tested in

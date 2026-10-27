@@ -116,14 +116,19 @@ module.exports.run = async function runExt(ctx) {
   const { api, rec, sleep, fresh, r1, mainRec } = ctx;
   const want = ctx.want || (() => true);
   const out = new Map();
-  const set = (id, verdict, ev) => out.set(id, [verdict, ev]);
+  // Each verdict carries the window of the guarded block it was decided in, so the runner's rec() can place
+  // the scenario span in time — without it the shards' profiles showed nothing (bd-1r3k2h).
+  let blockStart = 0;
+  const set = (id, verdict, ev) => out.set(id, [verdict, ev, { t1: Date.now(), ms: blockStart ? Date.now() - blockStart : 0 }]);
   // A block runs when one of ITS scenarios is selected for this commit — or one of `also`, the later blocks
   // that read state this block produces (run 2, the Urdu run, the ask set-up). [] = housekeeping, always runs.
   const guard = async (ids, fn, also = []) => {
     const mine = [].concat(ids);
     if (mine.length && !want(mine.concat(also))) return;
+    blockStart = t();
     try { await fn(); }
     catch (e) { for (const id of [].concat(ids)) if (!out.has(id)) set(id, ...B('threw: ' + short(e && e.message, 240), { stack: short(e && e.stack, 300) })); }
+    finally { blockStart = 0; }
   };
   const env = process.env.E2E_ENV || 'sandbox';
   const driver = process.env.E2E_DRIVER || '';
