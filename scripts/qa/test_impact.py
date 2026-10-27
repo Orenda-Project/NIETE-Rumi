@@ -165,6 +165,32 @@ def test_e2e_proof_is_a_ledger_row_added_in_the_range():
     shutil.rmtree(r)
 
 
+
+def _menu_row(run_id, driver, status="HEALTHY"):
+    return {"run_id": run_id, "ts": "2026-09-07T00:00:00Z", "surface": "whatsapp", "tenant": "niete",
+            "env": "staging", "method": "chrome", "feature": "menu", "driver": driver,
+            "summary": {"total": 12, "passed": 12, "failed": 0, "blocked": 0}, "status": status}
+
+
+def test_a_rewritten_ledger_row_is_not_new_proof():
+    """bd-5gyspy.3: the ledger was rewritten in place to mask phones and paths. Every old row then shows
+    as a '+' line in any range holding that commit, and an old run must not stand in for a new one."""
+    r = make_repo()
+    led = os.path.join(r, ".claude/qa/ledgers/runs.jsonl")
+    digits = "".join(("92", "321", "5554321"))
+    commit(r, "qa: old menu run", **{".claude/qa/ledgers/runs.jsonl": json.dumps(_menu_row("old", digits)) + "\n"})
+    base = git(r, "rev-parse", "HEAD").stdout.strip()
+    commit(r, "feat(menu): x", **{"bot/shared/services/menu.service.js": "// c\n"})
+    text = open(led).read().replace(digits, "92" + "\u2022" * 5 + "4321")
+    open(led, "w").write(text)
+    head = commit(r, "qa: mask the ledger")
+    res = ci.analyse(r, base, head)
+    assert res["per_feature"]["menu"]["e2e_proof"] == "missing", res["per_feature"]["menu"]
+    head2 = commit(r, "qa: new menu run", **{".claude/qa/ledgers/runs.jsonl": json.dumps(_menu_row("new", "x", "DEGRADED")) + "\n"})
+    res = ci.analyse(r, base, head2)
+    assert res["per_feature"]["menu"]["e2e_proof"] == "DEGRADED", res["per_feature"]["menu"]
+    shutil.rmtree(r)
+
 def test_markdown_report_carries_the_commands_and_the_verdicts():
     r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
     head = commit(r, "feat(menu): x", **{"bot/shared/services/menu.service.js": "// c\n"})

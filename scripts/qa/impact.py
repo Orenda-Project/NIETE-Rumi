@@ -100,18 +100,37 @@ def trailers(repo, rng, pr_body=""):
     return out
 
 
-def ledger_rows_added(repo, rng):
-    """{feature: status} for runs.jsonl rows ADDED in the range — the proof an
-    E2E run was driven for this change and recorded the way every run is."""
+def _row_key(row):
+    return (row.get("run_id"), row.get("feature"), row.get("ts"), row.get("surface"))
+
+
+def _rows_added(repo, rng):
+    """The runs.jsonl rows a range ADDED, in order. A '+' row whose run also sits on a '-' line of the same diff is
+    that row rewritten in place (bd-5gyspy.3 masked phones and paths across the whole file), not a new run, so it is
+    never proof."""
     r = _git(repo, "diff", rng, "--", LEDGER)
-    out = {}
+    added, removed = [], set()
     for line in r.stdout.splitlines():
-        if not line.startswith("+") or line.startswith("+++"):
+        if line.startswith(("+++", "---")) or line[:1] not in ("+", "-"):
             continue
         try:
             row = json.loads(line[1:])
         except ValueError:
             continue
+        if not isinstance(row, dict):
+            continue
+        if line[0] == "-":
+            removed.add(_row_key(row))
+        else:
+            added.append(row)
+    return [row for row in added if _row_key(row) not in removed]
+
+
+def ledger_rows_added(repo, rng):
+    """{feature: status} for runs.jsonl rows ADDED in the range — the proof an
+    E2E run was driven for this change and recorded the way every run is."""
+    out = {}
+    for row in _rows_added(repo, rng):
         if isinstance(row, dict) and row.get("feature"):
             out[row["feature"]] = row.get("status") or "recorded"
     return out
@@ -120,15 +139,8 @@ def ledger_rows_added(repo, rng):
 def web_rows_added(repo, rng):
     """{web feature: row} for runs.jsonl rows ADDED in the range with surface "web" — the web lane's proof, kept
     apart from the WhatsApp proof so a portal row can never stand in for a WhatsApp run (or the reverse)."""
-    r = _git(repo, "diff", rng, "--", LEDGER)
     out = {}
-    for line in r.stdout.splitlines():
-        if not line.startswith("+") or line.startswith("+++"):
-            continue
-        try:
-            row = json.loads(line[1:])
-        except ValueError:
-            continue
+    for row in _rows_added(repo, rng):
         if isinstance(row, dict) and row.get("surface") == "web" and row.get("feature"):
             out[row["feature"]] = row
     return out
@@ -146,15 +158,8 @@ def ledger_reasons(repo, rng):
     """{feature: why its latest added row has that status}. Rows written before ledger_row stamped
     `status_reason` get it derived from their own counts, so old rows read the same way."""
     import ledger
-    r = _git(repo, "diff", rng, "--", LEDGER)
     out = {}
-    for line in r.stdout.splitlines():
-        if not line.startswith("+") or line.startswith("+++"):
-            continue
-        try:
-            row = json.loads(line[1:])
-        except ValueError:
-            continue
+    for row in _rows_added(repo, rng):
         if isinstance(row, dict) and row.get("feature"):
             out[row["feature"]] = row.get("status_reason") or ledger.status_reason(row)
     return out
@@ -167,15 +172,8 @@ def ledger_misses(repo, rng):
     top-level `cassette_misses`); the PR comment turns it into an @-mention so the cassette owner
     records/updates the fixture. Last row wins, matching ledger_rows_added: a later clean run (misses 0)
     means the cassettes were recorded since, so the feature drops out and we do not nag."""
-    r = _git(repo, "diff", rng, "--", LEDGER)
     latest = {}
-    for line in r.stdout.splitlines():
-        if not line.startswith("+") or line.startswith("+++"):
-            continue
-        try:
-            row = json.loads(line[1:])
-        except ValueError:
-            continue
+    for row in _rows_added(repo, rng):
         if isinstance(row, dict) and row.get("feature"):
             latest[row["feature"]] = int((row.get("cassette") or {}).get("misses") or 0)
     return {f: m for f, m in latest.items() if m}
@@ -186,15 +184,8 @@ def ledger_regression(repo, rng):
     verdict (ledger_row.py stamps `regression` = {gate, new_failures, known, fixed}). Rows without it
     (chrome runs, rows written before this field) contribute nothing, so the report simply falls back
     to the raw status for those. Last row wins, matching ledger_rows_added."""
-    r = _git(repo, "diff", rng, "--", LEDGER)
     out = {}
-    for line in r.stdout.splitlines():
-        if not line.startswith("+") or line.startswith("+++"):
-            continue
-        try:
-            row = json.loads(line[1:])
-        except ValueError:
-            continue
+    for row in _rows_added(repo, rng):
         if isinstance(row, dict) and row.get("feature") and isinstance(row.get("regression"), dict):
             out[row["feature"]] = row["regression"]
     return out
