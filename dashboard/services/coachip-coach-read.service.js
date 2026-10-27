@@ -553,6 +553,16 @@ async function schools(ctx) {
   );
   const topBy = new Map();
   for (const r of tops) if (!topBy.has(r.school_id)) topBy.set(r.school_id, r);
+  // fix-r5 s2 item 4 (qa-coach 073419, B10): a school with no ranked school rollup is not "nothing to do" when the coach's
+  // ranked W shows there. Fall back to the coach's rank-1 W, then rank-2, read from the same school rows S1's where_first
+  // and /w/:id schools[] use (schoolRowsFor), first one with n > 0. Same WRow shape and state; nothing new on the wire.
+  const ranked = [...set.rows.values()].filter((r) => r.rank === 1 || r.rank === 2).sort((a, b) => a.rank - b.rank);
+  for (const coachRow of ranked) {
+    const open = scope.schoolIds.filter((id) => !topBy.has(id));
+    if (!open.length) break;
+    const rowsBySchool = await schoolRowsFor(q, open, coachRow.w_id, coachRow);   // eslint-disable-line no-await-in-loop
+    for (const [id, r] of rowsBySchool) if (r.numerator > 0 && !topBy.has(id)) topBy.set(id, r);
+  }
 
   const [names, last, next, lessons] = await Promise.all([
     schoolNames(q, scope.schoolIds),

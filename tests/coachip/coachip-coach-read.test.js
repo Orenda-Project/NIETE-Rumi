@@ -391,6 +391,25 @@ run('coachip coach read routes R2 R3 R4 R9 (Postgres, HTTP)', () => {
       expect(new Date(b.computed_at).toISOString()).toBe('2026-10-25T21:40:00.000Z');
     });
 
+    test("fix-r5 s2 item 4 (qa-coach 073419, B10): a school S1 names first but with no ranked school rollup carries the coach's rank-1 W, never null", async () => {
+      await world();
+      // S-03 holds 11 of 22 for the coach's rank-1 W (W-IP-TIME) but its school rollup is not ranked (no school-scope rank 1)
+      await pg.query(`UPDATE coachip_rollups SET rank = NULL, numerator = 11, denominator = 22
+                       WHERE scope_kind = 'school' AND school_id = $1 AND w_id = 'W-IP-TIME'`, [SCH(3)]);
+      const home = await ok(C3, '/home');
+      expect(home.moves[0].where_first.school.school_id).toBe(SCH(3));
+      expect(home.moves[0].where_first.count).toMatchObject({ n: 11, d: 22 });
+      const b = await ok(C3, '/schools');
+      const s3 = b.schools.find((s) => s.school.school_id === SCH(3));
+      expect(s3.top_w).not.toBeNull();
+      checkWRow(s3.top_w);
+      expect(s3.top_w).toMatchObject({ w_id: 'W-IP-TIME', state: 'also_seen', count: { n: 11, d: 22 }, where_first: null });
+      expect(b.windows.map((w) => w.id)).toContain(s3.top_w.count.window_id);
+      // a school with nothing on the coach's ranked Ws (S-04: 0 of 4) still has no top W, and S-01 has no rows at all
+      expect(b.schools.find((s) => s.school.school_id === SCH(4)).top_w).toBeNull();
+      expect(b.schools.find((s) => s.school.school_id === SCH(1)).top_w).toBeNull();
+    });
+
     test('no scope → 404; a teacher session → 404; signed out → 401', async () => {
       await world();
       expect((await get(C9, '/schools')).raw).toBe('{"error":"not_found"}');
