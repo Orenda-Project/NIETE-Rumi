@@ -33,6 +33,8 @@ vi.mock("../hooks/useAuth", () => ({
 vi.mock("../services/api", () => ({
   // Only what the real client still exports (services/api.ts): a mock that kept the code calls would hide their return.
   auth: { requestReset: h.api.requestReset },
+  // This tier's bot number reaches the portal on /config (`bot`); a made-up one, built from parts.
+  portal: { getConfig: vi.fn().mockResolvedValue({ success: true, features: {}, bot: ["92", "000", "0000001"].join("") }) },
   language: { get: vi.fn(), set: vi.fn() },
 }));
 

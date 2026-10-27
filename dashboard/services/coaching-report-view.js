@@ -45,6 +45,8 @@ function thing(s, a, l) {
     const action = text(pa.action);
     return action ? { text: action, why: null, step: null } : null;
   }
+  // bd-v0toag.100.8: an ask carried from an earlier lesson keeps its stored step.
+  if ('step' in t) return { text: move, why: practiceWhy(t.tag, l), step: t.step || null };
   const moves = (a.lp_fidelity && Array.isArray(a.lp_fidelity.moves)) ? a.lp_fidelity.moves : [];
   const m = moves.find((x) => x && t.move_id && x.move_id === t.move_id);
   return { text: move, why: practiceWhy(t.tag, l), step: m ? stepOf(m.phase) : null };

@@ -101,3 +101,82 @@ describe('pictureShortfall', () => {
     expect(Prompt.pictureShortfall({ unseen: { s: { T: [{ slot: 'g1.maths.A.Q1' }] } } }, P)).toEqual([]);
   });
 });
+
+// Amena, 23 Oct 2026: "For grade 1, its the same pictures in the whole paper, we know that is
+// never how a teacher sets up a paper" (bd-5jmnfj.4.27).
+describe('repeatedPictures', () => {
+  const P = g1('english');
+  const obj = (slot, name) => ({ slot, picture: { kind: 'object', name } });
+  const paper = (...items) => ({ unseen: { subjective: { T: items } } });
+
+  test('a picture shown in two questions flags the later question only', () => {
+    const out = Prompt.repeatedPictures(paper(obj('g1.english.C.Q11', 'cat'), obj('g1.english.A.Q1', 'Cat'), obj('g1.english.A.Q1', 'dog')), P);
+    expect(out).toEqual([{ slot: 'g1.english.C.Q11', reason: 'repeat', pictures: ['cat'] }]);
+  });
+
+  test('the same thing named with an article or as a plural is still a repeat; different things are not', () => {
+    expect(Prompt.repeatedPictures(paper(obj('g1.english.A.Q1', 'a hat'), obj('g1.english.A.Q4', 'hats')), P)).toHaveLength(1);
+    expect(Prompt.repeatedPictures(paper(obj('g1.english.A.Q1', 'bus'), obj('g1.english.A.Q4', 'bat')), P)).toEqual([]);
+  });
+
+  test('two items of one question showing the same thing flag that question', () => {
+    expect(Prompt.repeatedPictures(paper(obj('g1.english.B.Q7', 'cup'), obj('g1.english.B.Q7', 'cup')), P))
+      .toEqual([{ slot: 'g1.english.B.Q7', reason: 'repeat', pictures: ['cup'] }]);
+  });
+
+  test('scenes, counts, dots and shapes are never repeats', () => {
+    const scene = { slot: 'g1.english.B.Q8', picture: { kind: 'scene', describe: 'a child runs' } };
+    const count = { slot: 'g1.english.B.Q8', picture: { kind: 'count', name: 'apple', n: 3 } };
+    expect(Prompt.repeatedPictures(paper(scene, { ...scene }, count, { ...count }), P)).toEqual([]);
+  });
+});
+
+// v14 G1 Urdu: مرغا in Q6 iii and Q7 i, drawn as "rooster" and "male chicken"; لڑکا as "boy" and
+// "standing schoolboy". The English names differed, so the check missed it. Amena: "stop it" (bd-5jmnfj.4.27).
+test('PICTURE_RULE says another name for the same thing is still a repeat', () => {
+  expect(Prompt.PICTURE_RULE).toMatch(/another name for the same thing/i);
+});
+
+describe('repeatedPictures: the same word under another English name', () => {
+  const P = g1('urdu');
+  const item = (slot, question, name) => ({ slot, question, picture: { kind: 'object', name } });
+  const paper = (...items) => ({ unseen: { subjective: { T: items } } });
+
+  test('one word pictured in two questions flags the later one, whatever the artist was told', () => {
+    const out = Prompt.repeatedPictures(paper(item('g1.urdu.B.Q6', 'مرغا', 'rooster'), item('g1.urdu.B.Q7', ' مرغا ', 'male chicken'),
+      item('g1.urdu.B.Q6', 'لڑکا', 'boy'), item('g1.urdu.B.Q7', 'لڑکا', 'standing schoolboy'), item('g1.urdu.B.Q7', 'بلا', 'tomcat')), P);
+    expect(out).toEqual([{ slot: 'g1.urdu.B.Q7', reason: 'repeat', pictures: ['male chicken (مرغا)', 'standing schoolboy (لڑکا)'] }]);
+  });
+
+  test('a question that is a sentence or a pattern is not a word, so it never matches', () => {
+    const E = g1('english');
+    expect(Prompt.repeatedPictures(paper(item('g1.english.A.Q3', 'c + at = ____', 'cat'),
+      item('g1.english.A.Q4', 'c + at = ____', 'hat')), E)).toEqual([]);
+  });
+});
+
+describe('takenPicturesNote', () => {
+  const tree = (...names) => ({ unseen: { subjective: { T: names.map((name) => ({ slot: 's', picture: { kind: 'object', name } })) } } });
+
+  test('names every object picture in the other sections, once each', () => {
+    const note = Prompt.takenPicturesNote([tree('cat', 'dog'), tree('Cat', 'sun')]);
+    expect(note).toMatch(/cat, dog, sun/);
+    expect(note).toMatch(/same thing/i);
+  });
+
+  test('names the pictured word with the picture', () => {
+    const t = { unseen: { subjective: { T: [{ slot: 's', question: 'مرغا', picture: { kind: 'object', name: 'rooster' } }] } } };
+    expect(Prompt.takenPicturesNote([t])).toMatch(/rooster \(مرغا\)/);
+  });
+
+  test('names the repeats inside the section being re-asked, and says another name is still the same thing', () => {
+    const note = Prompt.takenPicturesNote([], [{ slot: 'g1.urdu.B.Q7', reason: 'repeat', pictures: ['male chicken (مرغا)'] }]);
+    expect(note).toMatch(/male chicken \(مرغا\)/);
+    expect(note).toMatch(/different word/i);
+    expect(note).toMatch(/another name for the same thing/i);
+  });
+
+  test('is null when the other sections show no object', () => {
+    expect(Prompt.takenPicturesNote([{ unseen: { subjective: {} } }])).toBeNull();
+  });
+});

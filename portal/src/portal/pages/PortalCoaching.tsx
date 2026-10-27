@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import ScoreIndicator from '../components/ScoreIndicator';
-import { WHATSAPP_URL } from '@/lib/whatsapp';
+import { useBotChatUrl } from '@/lib/whatsapp';
 import { MessageSquare, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PortalLayout from '../components/PortalLayout';
@@ -23,6 +23,8 @@ import { useCoachingUi } from '../lib/coachingUi';
  */
 const LegacyCoaching = () => {
   const { toast } = useToast();
+  // This tier's bot, from the server (/config); none configured → the empty state has no WhatsApp button.
+  const botUrl = useBotChatUrl();
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState<CoachingSession[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -169,7 +171,7 @@ const LegacyCoaching = () => {
             title="No coaching sessions yet"
             description="Complete your first coaching session using the WhatsApp bot"
             actionLabel="Open WhatsApp"
-            actionHref={WHATSAPP_URL}
+            actionHref={botUrl ?? undefined}
           />
         )}
       </div>

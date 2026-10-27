@@ -1,0 +1,24 @@
+[
+  [
+    "conv",
+    "22222222-2222-4222-8222-222222222222",
+    "user",
+    "Make a lesson plan on photosynthesis for grade 7",
+    "text",
+    "sess-1",
+    "text",
+    "en",
+    null,
+    null
+  ],
+  [
+    "wa",
+    "sendCtaUrl",
+    "923000000003",
+    {
+      "body": "Open your lesson plans.",
+      "buttonText": "Lesson plans",
+      "url": "https://portal.example.test/go/<signed-token>"
+    }
+  ]
+]

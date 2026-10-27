@@ -33,6 +33,31 @@ test('a scene prompt carries the description', () => {
   expect(Kie.promptFor({ kind: 'scene', describe: 'a long pencil and a short pencil' })).toContain('a long pencil and a short pencil');
 });
 
+// v12: "A simple plant drawing with an arrow pointing to the root" came back labelled ROOT; a school said SCHOOL (bd-5jmnfj.4.11).
+test('a scene prompt forbids any writing in the picture', () => {
+  const p = Kie.promptFor({ kind: 'scene', describe: 'a plant with an arrow pointing to the root' });
+  expect(p).toMatch(/no text/i);
+  expect(p).toMatch(/no label/i);
+  expect(p).toMatch(/sign/i);
+});
+
+// v14: arrows pointed at the answer (G2 English Q10, G2 GK Q9) and G2 English Q15 came back a photographed
+// colouring page. Amena, 23 Oct 2026: "we want black outlines, plain pictures so theyre easy to print" (bd-5jmnfj.4.30).
+test('every prompt asks for plain black outlines with no arrows and no scanned-page look', () => {
+  [{ kind: 'object', name: 'rooster' }, { kind: 'count', name: 'apple', n: 3 }, { kind: 'scene', describe: 'a bird near a tree' }]
+    .forEach((picture) => {
+      const p = Kie.promptFor(picture);
+      expect(p).toMatch(/black outlines/i);
+      expect(p).toMatch(/no arrows/i);
+      expect(p).toMatch(/not a scan/i);
+      expect(p).toMatch(/pure white/i);
+    });
+});
+
+test('the negative prompt rules out arrows and scanned paper', () => {
+  ['arrow', 'pointer', 'scanned page', 'paper texture', 'page edge', 'shadow'].forEach((term) => expect(Kie.NEGATIVE).toContain(term));
+});
+
 test('a picture with nothing to draw is refused', () => {
   expect(() => Kie.promptFor({ kind: 'object', name: '' })).toThrow('nothing to draw');
   expect(() => Kie.promptFor({ kind: 'scene' })).toThrow('nothing to draw');
@@ -65,4 +90,23 @@ test('no key is refused before any call', async () => {
   const f = fakeFetch([]);
   await expect(Kie.generateImage('d', { ...opts(f), apiKey: '' })).rejects.toThrow('KIE_API_KEY');
   expect(f.calls).toHaveLength(0);
+});
+
+// Amena, 23 Oct 2026: pictures came back as worksheets with a banner, a caption
+// that gave the answer, and four objects in one frame (bd-5jmnfj.4.11).
+test('an object prompt asks for one thing alone, never a worksheet or a caption', () => {
+  const p = Kie.promptFor({ kind: 'object', name: 'pot' });
+  expect(p).not.toMatch(/worksheet|setting/i);
+  expect(p).toMatch(/only one/i);
+  expect(p).toMatch(/plain white background/i);
+  expect(p).toMatch(/no (other objects|second object)/i);
+  expect(p).toMatch(/no text/i);
+});
+
+test('the negative prompt names worksheets, headings and extra objects', () => {
+  const f = fakeFetch([{ state: 'success', resultJson: JSON.stringify({ resultUrls: ['https://x/y.png'] }) }]);
+  return Kie.generateImage('p', opts(f)).then(() => {
+    const neg = JSON.parse(f.calls[0].opts.body).input.negative_prompt;
+    ['worksheet', 'heading', 'caption', 'multiple objects'].forEach((w) => expect(neg).toContain(w));
+  });
 });

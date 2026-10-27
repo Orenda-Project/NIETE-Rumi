@@ -16,6 +16,7 @@ import { NextCard, FULL_KINDS } from "../home/NextCard";
 import { SlimCard, SLIM_KINDS } from "../home/SlimCard";
 import { ScoresRow } from "../home/ScoresRow";
 import { useHomeData, useHomeGo, useHomeSwitches } from "../home/useHomeData";
+import { LookHome } from "../home/look/LookHome";
 
 /**
  * bd-fmf24g.1 — teacher v2 Home (canvas v28 Main, after the operator's changes 1–3):
@@ -25,7 +26,7 @@ import { useHomeData, useHomeGo, useHomeSwitches } from "../home/useHomeData";
  * languages (most-used first), never alphabetical.
  * The band ends with More's English | اردو switch, full width (operator, 2026-10-14: design doc option B); More keeps its row.
  */
-const TILES: HomeTile[] = [
+export const TILES: HomeTile[] = [
   { key: "lessons", art: "lessons" }, { key: "coaching", art: "coaching" }, { key: "observations", art: "observations" },
   { key: "training", art: "training" }, { key: "assessment", art: "assessment" }, { key: "attendance", art: "attendance" },
   { key: "classes", art: "classes" },
@@ -48,10 +49,12 @@ export default function Home() {
   const tiles = TILES.map(({ key, art }) => ({ key, art, label: C.home.tiles[key] }));
   const { user } = useAuth();
   const school = cleanSchool(user?.schoolName);
-  const sw = useHomeSwitches();
+  const sw = useHomeSwitches(user?.phoneNumber);
   const { data, order } = useHomeData(sw.card, sw.order, user?.phoneNumber);
   const tray = useSyncExternalStore(noticeTracker.subscribe, noticeTracker.getHome, noticeTracker.getHome);
   const go = useHomeGo();
+  // The new look (portal_teacher_home_look, only ever on with the card's switch): its own tree; the two below are untouched.
+  if (sw.card && sw.look) return <LookHome tiles={TILES} data={data} order={order} onGo={go} />;
   if (sw.card) {
     const greeting = (
       <HomeGreeting

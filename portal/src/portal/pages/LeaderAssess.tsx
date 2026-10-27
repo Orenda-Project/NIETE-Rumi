@@ -11,6 +11,7 @@ import AssessActions, { useAboveTabBar } from '../components/assess/AssessAction
 import { childTestSa } from '../services/api';
 import { useChildTestSa } from '../lib/useChildTestSa';
 import { COPY, urDigits, type Lang } from '../lib/assess/copy';
+import { useUrFit } from '../lib/assess/urFit';
 import { BLOCKS, isBlock, isRdf, pickBlock, type Block } from '../lib/assess/blocks';
 import { useSaSwitches } from '../lib/assess/switches';
 import { resultsPath } from '../lib/assess/results';
@@ -97,11 +98,18 @@ function plain(s: string) {
   return s.normalize('NFD').replace(/[\u0300-\u036f\u064B-\u065F\u0670]/g, '').toLowerCase().trim();
 }
 
+/** The search box matches a school's name, its EMIS or its sector. */
+function schoolMatches(s: SaSchool, q: string) {
+  const want = plain(q);
+  return [s.name, s.emis, s.region].some((v) => plain(v || '').includes(want));
+}
+
 function todaysFirst(schools: SaSchool[]) {
   return [...schools].sort((a, b) => Number(b.visitToday) - Number(a.visitToday));
 }
 
 export default function LeaderAssess() {
+  useUrFit();
   const enabled = useChildTestSa();
   const switches = useSaSwitches(enabled);
   const above = useAboveTabBar();
@@ -584,15 +592,16 @@ export default function LeaderAssess() {
                   value={schoolFilter} onChange={(e) => setSchoolFilter(e.target.value)}
                   className="w-full min-h-[56px] rounded-2xl border border-slate-300 bg-white px-4 text-base" />
                 <p data-testid="assess-school-count" className="text-sm text-slate-600">
-                  {copy.schoolCount(schools.filter((s) => plain(s.name || '').includes(plain(schoolFilter))).length, schools.length)}
+                  {copy.schoolCount(schools.filter((s) => schoolMatches(s, schoolFilter)).length, schools.length)}
                 </p>
               </div>
             )}
-            {schools.filter((s) => !switches.allGrades || s.visitToday || plain(s.name || '').includes(plain(schoolFilter))).map((s) => (
+            {schools.filter((s) => !switches.allGrades || s.visitToday || schoolMatches(s, schoolFilter)).map((s) => (
               <button key={s.schoolId} type="button" data-testid={`assess-school-${s.schoolId}`} onClick={() => pickSchool(s)}
                 className={`w-full min-h-[56px] rounded-2xl border p-4 text-start flex items-center justify-between gap-2 ${s.visitToday ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
                 <span className="min-w-0">
                   <span className="block font-semibold text-slate-900 break-words">{s.name || '—'}</span>
+                  {(s.region || s.emis) && <span dir="ltr" className="mt-0.5 block text-sm text-slate-600">{[s.region, s.emis].filter(Boolean).join(' · ')}</span>}
                   {s.visitToday && <span className="mt-1 inline-block rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-medium text-white">{copy.todaysVisit}</span>}
                 </span>
                 <ChevronRight className="h-5 w-5 shrink-0 text-slate-400 rtl:rotate-180" aria-hidden />

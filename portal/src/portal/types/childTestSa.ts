@@ -7,6 +7,9 @@ export type SaSchool = {
   visitId: string | null;
   observedGrade: number | null;
   visitToday: boolean;
+  /** the school's EMIS and sector, for the search box and the row's second line (null when the school has none) */
+  emis?: string | null;
+  region?: string | null;
   /** sa_all_grades: the grade the coach named for this school's list (1–5); absent = today's grade rotation */
   grade?: number;
 };
@@ -32,6 +35,8 @@ export type SaSwitches = {
   allGrades?: boolean;
   /** sa_add_child: the coach can add a child who is not on the roster to the open list */
   addChild?: boolean;
+  /** sa_ur_fit: every Urdu word whole and inside its box on these pages (lib/assess/urFit.ts) */
+  urFit?: boolean;
   /** sa_example_dashboard: the example results dashboard (synthetic students); the server reports it on sandbox only */
   exampleDashboard?: boolean;
   /** sa_real_dashboard: the same dashboard on this tier's real sessions (the coach's own; a results admin's every coach's) */

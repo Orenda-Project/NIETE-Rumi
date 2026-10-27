@@ -91,6 +91,10 @@ if [ "${1:-}" = "--clear" ] || [ "${1:-}" = "--declare" ]; then
       jq --arg f "$f" --arg r "$REASON" '.spec_declared = ((.spec_declared // {}) + {($f): $r})' "$TMPM" > "$TMPM.2" && mv "$TMPM.2" "$TMPM"
     done
     mv "$TMPM" "$M"
+    # On the ledger, on the commit the marker is about (bd-amxdhg): a declaration made here never
+    # reaches the PR check unless it is also a Spec-Sync: line, so this is where its reason survives.
+    . "$_HOOK_DIR/lib/qa-ledger.sh" 2>/dev/null || qa_ledger_log() { :; }
+    qa_ledger_log "$PROJECT_ROOT" e2e-autorun declared "" "$(printf '%s' "$FEATS" | tr ' ' ',')=none-needed ($REASON)" "$(jq -r '.commit_sha // ""' "$M" 2>/dev/null)"
     echo "e2e-autorun: declared none-needed for [$FEATS] on $SESSION_ID — phase 1 released for them. (The same line as a Spec-Sync: trailer on the commit satisfies the PR check too.)" >&2
     exit 0
   fi
@@ -110,6 +114,15 @@ if [ "${1:-}" = "--clear" ] || [ "${1:-}" = "--declare" ]; then
       fi
     done
   fi
+  # Every marker actually removed is on the ledger (bd-61jjzd) — a forced clear
+  # is how a stale spec leaves the machine without a trace.
+  . "$_HOOK_DIR/lib/qa-ledger.sh" 2>/dev/null || qa_ledger_log() { :; }
+  CLEAR_EVENT=cleared; [ "$FORCE" = 1 ] && CLEAR_EVENT=force-cleared
+  while IFS= read -r M; do
+    [ -f "$M" ] && qa_ledger_log "$PROJECT_ROOT" e2e-autorun "$CLEAR_EVENT" "" "$(basename "${M%.json}")" "$(jq -r '.commit_sha // ""' "$M" 2>/dev/null)"
+  done <<EOF
+$TARGETS
+EOF
   # The sync brief goes with the marker. A brief left behind describes a diff
   # that is no longer HEAD, so an agent that picks it up authors scenarios for a
   # change already superseded — worse than having no brief at all.
@@ -122,7 +135,9 @@ if [ "${1:-}" = "--clear" ] || [ "${1:-}" = "--declare" ]; then
   exit 0
 fi
 
-[ "${E2E_AUTORUN_OFF:-}" = "1" ] && exit 0
+# E2E_AUTORUN_OFF no longer exits here: it is honoured below, once the command is
+# known to be a commit or push, so the switch-off lands on the ledger for exactly
+# the commands it silenced and not for every other Bash call (bd-61jjzd).
 command -v jq >/dev/null 2>&1 || exit 0
 
 INPUT=$(cat)
@@ -186,6 +201,13 @@ fi
 
 REPO=$(e2e_resolve_repo "$SCAN" "$PAYLOAD_CWD")
 
+# shellcheck source=lib/qa-ledger.sh
+. "$_HOOK_DIR/lib/qa-ledger.sh" 2>/dev/null || qa_ledger_log() { :; }
+if [ "${E2E_AUTORUN_OFF:-}" = "1" ]; then
+  qa_ledger_log "${REPO:-$PROJECT_ROOT}" e2e-autorun switch-off E2E_AUTORUN_OFF "$TRIGGER"
+  exit 0
+fi
+
 if [ "${E2E_AUTORUN_ALL:-}" = "1" ]; then
   # FULL SUITE — the selector is not consulted at all, deliberately.
   #
@@ -224,6 +246,8 @@ if [ "${E2E_SPEC_SYNC_OFF:-}" != "1" ]; then
      && [ "$(printf '%s' "$BRIEF" | jq -r '.sync_needed // false' 2>/dev/null)" = "true" ]; then
     printf '%s' "$BRIEF" > "$SYNC_FILE" 2>/dev/null && SPEC_SYNC=true
   fi
+else
+  qa_ledger_log "${REPO:-$PROJECT_ROOT}" e2e-autorun switch-off E2E_SPEC_SYNC_OFF "$TRIGGER"
 fi
 
 CMDS=$(printf '%s' "$SEL" | jq -r '.commands[]' 2>/dev/null)
@@ -263,6 +287,10 @@ printf '%s' "$SEL" | jq \
     commands: .commands, features: .features, web_features: (.web_features // []),
     fallback: .fallback, unmapped: .unmapped}' \
   > "$PENDING_DIR/$SESSION.json" 2>/dev/null || exit 0
+# The arming itself is on the ledger (bd-amxdhg): a missed spec with an arming and no give-up
+# means the session ended before the hook let go; no arming at all means no hook ran.
+qa_ledger_log "${REPO:-$PROJECT_ROOT}" e2e-autorun armed "" \
+  "trigger=$TRIGGER features=$(printf '%s' "$SEL" | jq -r '(.features // []) + (.web_features // []) | join(",")' 2>/dev/null) spec_sync=$SPEC_SYNC" "$COMMIT_SHA"
 
 # ONE commit, ONE order (bd-hnhlgn.12). The same commit also fired .githooks/post-commit, which wrote
 # git-<sha>.json — for a terminal commit that is the only marker, but here the session's marker covers this commit.

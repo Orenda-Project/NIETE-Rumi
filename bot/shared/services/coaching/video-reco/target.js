@@ -76,9 +76,20 @@ function nativeAvailable(catalog, id) {
   return false;
 }
 
-// SPEC v1.3b (lead-review 20:16Z): 37-ids no chapter enacts as a classroom move — Use of Taleemabad Lesson Plan,
-// Integration of Taleemabad Technology. A catalogue hole, resolved before any route on every source.
-const NO_MOVE = new Set(['B7', 'C10']);
+// SPEC v1.3b (lead-review 20:16Z): 37-ids no chapter enacts as a classroom move — Use of the Lesson Plan,
+// Integration of the platform's Technology. A catalogue hole, resolved before any route on every source.
+// bd-8hhqhf (lead-final §6.5, ruled): B8 Use of Prescribed Resources joins them — its one gold pick was ⛔2.
+const NO_MOVE = new Set(['B7', 'B8', 'C10']);
+
+// R7t (ab-ops 184555, COS 184646): prod's rule-template card stores its indicator as the label "Name (ID)"
+// (prioritized-action generatePrioritizedAction). Anything not already an id gives its trailing (ID); else as it is.
+const ID_RE = /^[A-Z]\d{1,2}$/;
+function idOf(raw) {
+  const s = String(raw).trim();
+  if (ID_RE.test(s)) return s;
+  const m = s.match(/\(([A-Z]\d{1,2})\)\s*$/);
+  return m ? m[1] : s;
+}
 
 function none(reason, extra = {}) {
   return {
@@ -112,7 +123,7 @@ function pick(analysis, nextStep, card, catalog, lesson = {}) {
     let raw = null;
     let source = null;
     if (step && step.indicator) { raw = String(step.indicator); source = 'step'; }
-    else if (card && card.indicator) { raw = String(card.indicator); source = 'card'; }
+    else if (card && card.indicator) { raw = idOf(card.indicator); source = 'card'; }
     else if (card && String(card.action || '').trim()) {
       const cardText = [card.action, ...(Array.isArray(card.highlights) ? card.highlights : [])].filter(Boolean).join('\n');
       return { ...none(null), source: 'card_text', cardText, scheme };
@@ -154,4 +165,4 @@ function pick(analysis, nextStep, card, catalog, lesson = {}) {
   }
 }
 
-module.exports = { pick, scorerQuote, scorerQuoteOnly, PHASE_MOVES, V4_IDS, SUBJECT_ROWS, NO_MOVE };
+module.exports = { pick, idOf, scorerQuote, scorerQuoteOnly, PHASE_MOVES, V4_IDS, SUBJECT_ROWS, NO_MOVE };

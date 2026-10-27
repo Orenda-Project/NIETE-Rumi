@@ -6,7 +6,8 @@ import { readShellHint } from "../../lib/shellHint";
 import { resolveRole } from "../../lib/leaderRole";
 import { useChildTestSa } from "../../lib/useChildTestSa";
 import { isCoachV2For, useCoachV2 } from "../useCoachV2";
-import { coachPathReady, coachReadyHome } from "./appReady";
+import { coachPathReady, coachReadyFor, coachReadyHome } from "./appReady";
+import { useCoachip } from "../insights/useCoachip";
 
 /**
  * bd-s42dye.2 — the ONE guard around the route table for a coach on the coach app v2: any page that is not one of the
@@ -15,6 +16,10 @@ import { coachPathReady, coachReadyHome } from "./appReady";
  * page that is not ready sees the frame's outline, not the old page.
  *
  * The Learning assessment (/portal/leader/assess) also opens for a v2 coach while portal_child_test_sa is on.
+ *
+ * bd-sex15q.15 — with portal_coachip on, the insight pages ("This week", COACH_INSIGHTS_BASE) are ready too and come
+ * first, so a v2 coach lands on "This week" instead of the Training Library. With it off (or unreadable) nothing here
+ * changes.
  *
  * Like AnalyticsOnlyGuard it reads the user the app already holds and never asks for it.
  */
@@ -28,12 +33,16 @@ const CoachAppGuard = ({ children }: { children: ReactNode }) => {
   const flag = useCoachV2(user?.phoneNumber || null, isCoach);
   const onAssess = pathname === ASSESS || pathname.startsWith(`${ASSESS}/`);
   const assess = useChildTestSa(isCoach && onAssess);
+  const coachip = useCoachip(user?.phoneNumber || null, isCoach);
   if (!isCoach || coachPathReady(pathname)) return <>{children}</>;
   if (flag === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
   if (!isCoachV2For(user, flag)) return <>{children}</>;
+  if (coachip === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
+  const ready = coachReadyFor(coachip);
+  if (coachPathReady(pathname, ready)) return <>{children}</>;
   if (onAssess && assess === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
   if (onAssess && assess) return <>{children}</>;
-  return <Navigate to={coachReadyHome()} replace />;
+  return <Navigate to={coachReadyHome(ready)} replace />;
 };
 
 export default CoachAppGuard;

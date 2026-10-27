@@ -73,7 +73,10 @@ const ALLOWLIST = {
   // `cols` and `error` are destructured JS locals (`const { data, error } = await q`)
   // that the parser reads as columns; verified 2026-09-04 against the live sandbox DB,
   // which has neither.
-  users: ['grade', 'language', 'cols', 'error'],
+  // `onconflict` is the upsert OPTION (same class as exam_grades above), from video-reco/store.js:101
+  // `.from(TABLE).upsert(row, { onConflict: 'coaching_session_id' })`: TABLE is a constant, not a
+  // literal, so the parser takes the table from the nearest literal `.from('users')` (store.js:90).
+  users: ['grade', 'language', 'cols', 'error', 'onconflict'],
   // `error` is the destructured result of the storybook miss write (`const { error } = await ….insert(rows)`, rows a
   // variable): the scanner walks forward to the next object, the logToFile payload { error: error.message }. Not a
   // column: story_events rows carry child_id, book_id, page_n, event, data, at.

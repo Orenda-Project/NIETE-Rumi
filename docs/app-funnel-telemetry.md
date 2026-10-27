@@ -31,7 +31,7 @@ top-level columns.
 | `app_funnel.command` | bot | `journeyId`, `userId`, `feature` (menu, lesson_plan, assessment_generator, teacher_training, attendance, classes; observe/menu for coaches), `door` (command, bare_command, chip, intent, menu_command, keyword, ...), `verdict` (`link` or `whatsapp`), `why` (when `whatsapp`: not_a_teacher, not_registered, no_account, not_on_teacher_app, account_unreadable), `audience` (teacher, coach or leader; `funnel.py` reports a coach's or leader's journeys as their own funnel, e.g. `lesson_plan@leader`) |
 | `app_funnel.link_sent` | bot | `journeyId`, `userId`, `feature`, `door`, `via` (`cta_url` button or `text` when Meta refused the button) |
 | `app_funnel.link_failed` | bot | same, plus `reason` (send_refused, send_threw, no_portal_or_key); she is on the WhatsApp flow instead |
-| `app_link.open` | portal | `journeyId`, `userId`, `feature`, `outcome` (ok, invalid, unknown_user, error), `v2` |
+| `app_link.open` | portal | `journeyId`, `userId`, `feature` (the link's target: a teacher feature, `coach_*`, `leader_lessons`, or an `fln:` target), `outcome` (ok, invalid, unknown_user, error), `v2` |
 | `app_funnel.page_view` | portal | `journeyId` (null if she did not come from a link), `userId`, `appSessionId`, `entry` (`app_link`, `session`, `link:<area>`), `linkFeature`, `route`, `prevRoute`, `feature`, `browser` |
 | `app_funnel.page_leave` | portal | as above plus `dwellMs` (time she was actually looking; time hidden excluded) and `how` (`nav`, `hidden`, `pagehide`) |
 | `app_funnel.page_resume` | portal | she came back to the page (visible again / restored from the back-forward cache) |
@@ -126,4 +126,9 @@ median time on that page; then the direct (no journey) sessions.
 - A journey counts for 24 h, the life of the link. Later use of the same session logs `journeyId: null`.
 - Coaches and principals who use the app also report page views (ids and routes only); the funnel only counts journeys
   that started from a bot command.
+- A leader's lesson-plan link (bd-a73p5m) lands on `/portal/teacher/lessons`, the same page as a teacher's, so its page
+  rows carry `feature: lesson_plan` like hers. The route cannot tell them apart and nothing here keys on it: a journey's
+  funnel is named by its command row, so the leader's is `lesson_plan@leader` (its `app_link.open` and page rows also
+  carry `leader_lessons` as `feature` / `linkFeature`; its `app_link.open` has `v2: false`, because /go asks no
+  app question for a leader token). Links sent before 23 Oct carry `fln:send` and land on `/portal/fln/send`.
 - Actions are logged at the API; an action the app performs without an API call is not seen.

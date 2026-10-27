@@ -51,6 +51,30 @@ async function groupFor(userId) {
 }
 
 /**
+ * groupFor's answer with the switch and the teacher's school read in one wave (bd-8hhqhf R7s): two round trips on a cold
+ * switch cache instead of three. The school read goes out even when the switch is off, so this is for the video
+ * recommendation's one read per report, not the bot's hot paths (those keep groupFor). Never throws.
+ */
+async function groupForEager(userId) {
+  if (!userId) return null;
+  try {
+    const school = supabase.from('users').select('id, school_id').eq('id', userId).maybeSingle()
+      .then((r) => r, (e) => ({ error: e }));
+    const [on, { data: user, error: uErr }] = await Promise.all([v10Enabled(), school]);
+    if (!on) return null;
+    if (uErr) throw new Error(uErr.message);
+    if (!user || !user.school_id) return null;
+    const { data: row, error } = await supabase
+      .from(TABLE).select('school_id, ab_group').eq('school_id', user.school_id).maybeSingle();
+    if (error) throw new Error(error.message);
+    return row ? resolved(row.ab_group) : null;
+  } catch (err) {
+    logToFile('v10 test: group lookup failed — today\'s coaching', { userId, error: err.message });
+    return null;
+  }
+}
+
+/**
  * groupFor for many teachers at once: userId → { group, plan, report } | null. Switch off:
  * every teacher null and nothing else is read. A failed read leaves everyone null.
  */
@@ -85,4 +109,4 @@ async function groupsForUsers(userIds, { chunk = 200 } = {}) {
   return out;
 }
 
-module.exports = { TABLE, armsOf, groupFor, groupsForUsers };
+module.exports = { TABLE, armsOf, groupFor, groupForEager, groupsForUsers };

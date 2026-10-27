@@ -40,9 +40,9 @@ describe('deviation 1 (D3a): §3.3 candidate rule seg.recommendable===true || (m
 describe('deviation 2 + validator (c): prompt rule 2 verbatim from SPEC §3.4, "(under 300 characters)", vr-3', () => {
   const text = P.build({ target: tgt('C1'), candidates: [], catalog: C.fromData(FIX), excerpts: ['[00:30] Teacher: hello'] });
   test('rule 2 carries the "explains the move" clause and the length hint', () => {
-    expect(text).toContain('then what the clip shows a teacher doing instead — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person\'s name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher.');
+    expect(text).toContain('then what the clip offers instead — say only what the clip\'s own line says, in your own plain words; when its kind is "not a class", say the clip explains the move or the teachers in it talk it through («یہ کلپ سمجھاتا ہے کہ …»), never that it shows a teacher doing it (in reason_ur, in Urdu: never copy the clip\'s English title or summary); never add wait time, cold-calling, pairs, roles or a "why" question it does not name — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person\'s name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher.');
   });
-  test('PROMPT_VERSION is vr-5 (v1.3c-3)', () => expect(P.PROMPT_VERSION).toBe('vr-5'));
+  test('PROMPT_VERSION is vr-11 (v1.3c-3 + r7 no clock time + R7b clip words, Urdu plural + R7c + R7g Urdu words + R7j terms file)', () => expect(P.PROMPT_VERSION).toBe('vr-11'));
 });
 
 describe('deviation 5 (D3b): the tie-break needs moves[0] = target AND evidence_s inside (indicator path: evidence_s only)', () => {
@@ -78,7 +78,7 @@ test('deviation 8: .env.template documents VIDEO_RECO_REASONING', () => {
 
 describe('validator rulings (SPEC §3.5 [v1.3, evals 19:13Z])', () => {
   const list = { candidates: [{ seg_id: '10-s1', indicator: 'C1' }] };
-  const EX = ['[00:30] Teacher: [a student], is this a triangle? Yes or no, quickly!'];
+  const EX = ['[00:30] Teacher: [a student], is this a triangle? Yes or no, quickly!', '[00:31] Student: جی۔'];
   const pickOf = (extra) => ({
     seg_id: '10-s1', moment: { at: '00:30', quote: 'is this a triangle? Yes or no' },
     reason_en: 'At 00:30 the class could only answer yes or no. This clip shows a teacher asking why instead.',
@@ -134,7 +134,7 @@ describe('engine: ladderComplete over recommendable modules (deviation 4) and th
       completeJson: jest.fn().mockResolvedValue({ result: GOOD, usage: {}, finishReason: 'stop' }),
     };
     const session = { id: 's1', user_id: 'u1', transcript_language: 'ur', users: { name: 'Saima Khan', preferred_language: 'ur' },
-      diarization_data: { segments: [{ start_ms: 30000, label: 'Teacher', text: 'Ahmed, is this a triangle? Yes or no, quickly!' }] } };
+      diarization_data: { segments: [{ start_ms: 30000, label: 'Teacher', text: 'Ahmed, is this a triangle? Yes or no, quickly!' }, { start_ms: 31000, label: 'Student', text: 'جی۔' }] } };
     const analysis = { framework: 'fico', subject_resolution: { code: 'urdu', grade: '3', confidence: 'high' },
       domains: { C: { indicators: [rowOverride || { id: 'C1', name: 'Questioning', score: 1, applicable: true, evidence: 'Quote: "Is this a triangle"', timestamp: '[00:30]' }] } } };
     return E.recommendForReport({ session, analysis, nextStep, card, coachingSessionId: 's1', deps }).then((row) => Object.assign(row || {}, { _prompt: (deps.completeJson.mock.calls[0] || [])[0] || '' }));
@@ -177,12 +177,12 @@ describe('⛔4 on the native-37 LABEL path (lead-review 19:37Z ruling 1)', () =>
     expect(r.textReason).toBe('label');
     expect(ids(r)[0]).toBe('22-s1');
   });
-  test('F5 on an Urdu or unknown-subject lesson: no tag route, the step-text route alone, subject_blocked', () => {
+  test('F5 on an Urdu or unknown-subject lesson: no tag route, subject_blocked; R7g: no step-text route either', () => {
     for (const subject of ['urdu', null]) {
       const r = S.build(native, F5n, ctx(), 'x', L({ subject }), step);
       expect(r.textReason).toBe('subject_blocked');
-      expect(ids(r)).not.toContain('22-s1');
-      expect(new Set(r.candidates.map((c) => c.route))).toEqual(new Set(['step_text']));
+      expect(r.candidates).toEqual([]);
+      expect(r.noneReason).toBe('unknown_indicator');
     }
   });
   test('F6 needs science, F7 a literacy subject', () => {
@@ -205,10 +205,10 @@ describe('vr-3 teacher copy (lead-review 19:37Z ruling 2)', () => {
   });
   test('rule 2 ends with the no-scorer and no-N/A sentences', () => {
     const text = P.build({ target: tgt('C1'), candidates: [], catalog: C.fromData(FIX), excerpts: ['[00:30] Teacher: x'] });
-    expect(text).toContain('no judgement of the teacher. Never write a clip id, number or code; never mention the scorer, the report or the analysis; describe the lesson moment itself. Choose a moment with the teacher\'s or a child\'s own words; if the only candidate line is mostly [a student] placeholders, pick another line. If no real moment fits, return seg_id null — never write N/A, unknown or [around unknown].');
+    expect(text).toContain('no judgement of the teacher. Never write a clip id, number or code; never write a clock time (no [mm:ss], no \"at 12:08\") or a speaker label (no \"Teacher:\", \"Student:\") in reason_en or reason_ur: the moment\'s time goes only in moment.at; never mention the scorer, the report or the analysis; describe the lesson moment itself. Name the cited line for what it is: a line that asks why or how is never a recall or yes/no question, and a greeting, a page number, an order to the class or the lesson\'s title is not a moment. Choose a moment with the teacher\'s or a child\'s own words; if the only candidate line is mostly [a student] placeholders, pick another line. If no real moment fits, return seg_id null — never write N/A, unknown or [around unknown].');
   });
   const list = { candidates: [{ seg_id: '10-s1', indicator: 'C1' }] };
-  const EX = ['[00:30] Teacher: [a student], is this a triangle? Yes or no, quickly!'];
+  const EX = ['[00:30] Teacher: [a student], is this a triangle? Yes or no, quickly!', '[00:31] Student: جی۔'];
   const opts = { stepIndicator: 'C1', indicators: ['C1'], source: 'step', catalog: C.fromData(FIX), teacherName: 'Saima Khan' };
   const ok = {
     seg_id: '10-s1', moment: { at: '00:30', quote: 'is this a triangle? Yes or no' },
@@ -230,7 +230,7 @@ describe('vr-3 teacher copy (lead-review 19:37Z ruling 2)', () => {
 
 describe('vr-3 last copy rules (lead-review 19:40Z) and red-team session 2 (lead-review 19:41Z)', () => {
   const list = { candidates: [{ seg_id: '10-s1', indicator: 'C1' }] };
-  const EX = ['[00:30] Teacher: [a student], is this a triangle? Yes or no, quickly!', '[00:50] Teacher: [a student] [a student] لکھنا ہے'];
+  const EX = ['[00:30] Teacher: [a student], is this a triangle? Yes or no, quickly!', '[00:31] Student: جی۔', '[00:50] Teacher: [a student] [a student] لکھنا ہے'];
   const opts = { stepIndicator: 'C1', indicators: ['C1'], source: 'step', catalog: C.fromData(FIX), teacherName: 'Saima Khan' };
   const ok = {
     seg_id: '10-s1', moment: { at: '00:30', quote: 'is this a triangle? Yes or no' },
@@ -265,7 +265,7 @@ describe('vr-3 last copy rules (lead-review 19:40Z) and red-team session 2 (lead
   });
   test('prompt rule 3 forbids Roman Urdu', () => {
     const text = P.build({ target: tgt('C1'), candidates: [], catalog: C.fromData(FIX), excerpts: ['[00:30] Teacher: x'] });
-    expect(text).toContain('No Roman Urdu (Urdu in Latin letters); Urdu is written in Nastaliq script; only pedagogical terms stay in English letters (one or two words).');
+    expect(text).toContain('keep any other pedagogical term in English letters inside Urdu (one or two words). No Roman Urdu (Urdu in Latin letters); Urdu is written in Nastaliq script.'); // R7g: rule 6 names the moves' Urdu words
   });
 
   const a37 = (row, extra = []) => ({ indicator_scheme: 'fico_main_37', domains: { F: { domain_max: 8, indicators: [row, ...extra] } } });
@@ -275,9 +275,8 @@ describe('vr-3 last copy rules (lead-review 19:40Z) and red-team session 2 (lead
     expect(t).toMatchObject({ none: 'unscored_step', aliasKind: 'unscored', storedIndicator: 'F5' });
     const r = S.build(cat, t, ctx(), 'x', L({ subject: 'maths' }), { action: 'wait pause silence' + PAD });
     expect(r.textReason).toBe('unscored');
-    expect(ids(r)).not.toContain('22-s1');
-    expect(new Set(r.candidates.map((c) => c.route))).toEqual(new Set(['step_text']));
-    expect(S.build(cat, t, ctx(), 'x', L({ subject: 'maths' }), { action: 'zzz' + PAD }).noneReason).toBe('unscored_step');
+    expect(r.candidates).toEqual([]); // R7g: the step-text route is retired
+    expect(r.noneReason).toBe('unscored_step');
   });
   test('topRung divides domain_max by the SCORED rows only', () => {
     const rows = [{ id: 'F1', score: 2, applicable: true }, { id: 'F2', score: 4, applicable: true }, { id: 'F5', score: null, applicable: false }, { id: 'F6', score: null, applicable: false }];
@@ -304,14 +303,15 @@ describe('engine: unscored step reaches the text route; card action and rational
       v10GroupFor: async () => null, completeJson,
     };
     const session = { id: 's1', user_id: 'u1', transcript_language: 'ur', users: { name: 'Saima Khan', preferred_language: 'ur' },
-      diarization_data: { segments: [{ start_ms: 30000, label: 'Teacher', text: 'is this a triangle? Yes or no, quickly!' }] } };
+      diarization_data: { segments: [{ start_ms: 30000, label: 'Teacher', text: 'is this a triangle? Yes or no, quickly!' }, { start_ms: 31000, label: 'Student', text: 'جی۔' }] } };
     return E.recommendForReport({ session, analysis: { framework: 'fico', subject_resolution: { code: 'urdu', grade: '3', confidence: 'high' }, ...analysis }, nextStep, card, coachingSessionId: 's1', deps })
       .then((row) => ({ row, prompt: (completeJson.mock.calls[0] || [])[0] || '' }));
   }
-  test('unscored 37-F5 with a card sentence → step_text list, alias_kind unscored', async () => {
-    const { row } = await run({ indicator_scheme: 'fico_main_37', domains: { F: { domain_max: 4, indicators: [{ id: 'F5', score: null, applicable: false }, { id: 'F1', score: 1, applicable: true }] } } },
+  test('unscored 37-F5 with a card sentence → R7g: none unscored_step, no model call (the step-text route is retired)', async () => {
+    // R7b: an F5 MATH label is a move only on a maths lesson (silence:label_subject elsewhere, r7b-silence.test.js)
+    const { row } = await run({ subject_resolution: { code: 'maths', grade: '3', confidence: 'high' }, indicator_scheme: 'fico_main_37', domains: { F: { domain_max: 4, indicators: [{ id: 'F5', score: null, applicable: false }, { id: 'F1', score: 1, applicable: true }] } } },
       { target: { indicator: 'F5' } }, { action: 'wait for silence and pause' + PAD });
-    expect(row).toMatchObject({ route: 'step_text', alias_kind: 'unscored', none_reason: 'llm_none' });
+    expect(row).toMatchObject({ status: 'none', none_reason: 'unscored_step' });
   });
   test('the teacher\'s name in the card action and a child\'s in the rationale never reach the model', async () => {
     const { prompt } = await run({ domains: { C: { indicators: [{ id: 'C1', name: 'Questioning', score: 1, applicable: true, evidence: 'Quote: "is this a triangle"', timestamp: '[00:30]' }] } } },

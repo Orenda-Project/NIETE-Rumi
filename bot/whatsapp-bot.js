@@ -133,6 +133,8 @@ async function handleBroadcastStatusWebhook(statuses) {
         // A teacher's report WhatsApp took and then could not deliver: un-stamped, counted, tried again or held for
         // the next /quiz (quiz_report_send_checked; off: no Redis call). Never throws.
         await require('./shared/services/quiz/report-delivery').onFailedStatus(status);
+        // Meta refused a free-form send past her 24h window (131047): the next report/quiz goes as a template. Never throws.
+        await require('./shared/services/quiz/meta-window-cache.service').onFailedStatus(status);
         // Don't continue - let it fall through to potentially update broadcast_messages if needed
       }
 
@@ -603,6 +605,8 @@ app.post('/webhook', async (req, res) => {
       ack();
       return;
     }
+    // Her message re-opens the 24h window: drop any 131047 flag (bd-v0toag.108). Fire-and-forget, never throws.
+    void require('./shared/services/quiz/meta-window-cache.service').clearWindowClosed(from);
 
     // Per-phone rate limit (Redis sliding window; RATE_LIMIT_MAX / RATE_LIMIT_WINDOW_SECONDS).
     // Fails open when Redis is down. A misbehaving phone is dropped BEFORE we spend LLM/Gamma dollars on it.

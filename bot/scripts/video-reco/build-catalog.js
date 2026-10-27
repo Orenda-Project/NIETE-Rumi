@@ -25,7 +25,7 @@ const MODULE_FIELDS = ['module_id', 'level_id', 'cpd_level', 'level_name', 'cour
   'fico', 'symptoms', 'not_for', 'topic', 'quality', 'recommendable', 'recommendable_reason', 'media_ok'];
 // fico_main37: the prod scheme's ids per chapter (native match before the crosswalk); language: a chapter's own spoken
 // language (module 60 splices Urdu and English). continues_to is dropped (SPEC v1.2.1: one chapter = one playable unit).
-const SEGMENT_FIELDS = ['seg_id', 'start_s', 'end_s', 'title_en', 'title_ur', 'summary_en', 'moves', 'fico', 'fico_main37', 'language', 'recommendable', 'recommendable_reason', 'phase'];
+const SEGMENT_FIELDS = ['seg_id', 'start_s', 'end_s', 'title_en', 'title_ur', 'summary_en', 'moves', 'fico', 'fico_main37', 'language', 'recommendable', 'recommendable_reason', 'keep_with_caveat', 'phase', 'grade_band'];
 
 function pick(obj, fields) {
   const out = {};
@@ -68,11 +68,17 @@ function aliasesFrom(crosswalk) {
 
 /**
  * ped/vetoes.json: {module_id, seg_id, reason} vetoes one chapter; {module_id, recommendable:false, recommendable_reason}
- * vetoes the module. A veto that names nothing in the catalogue throws: a typo must not leave a vetoed clip live.
+ * vetoes the module; {kind:'route_gate', module_id, deny_routes, allow_card_indicators, allow_card_text} gates it (R7l). A veto that names nothing in the catalogue throws: a typo must not leave a vetoed clip live.
  */
 function applyVetoes(out, vetoes) {
   for (const v of vetoes || []) {
     const m = out.find((x) => x.module_id === Number(v && v.module_id));
+    // R7l (COS 164428 §1b): a route gate keeps the module recommendable and records which card routes it may serve
+    if (v && v.kind === 'route_gate') {
+      if (!m) throw new Error(`route gate names module ${v.module_id}, which is not in the catalogue`);
+      m.route_gate = { deny_routes: v.deny_routes || ['card_text'], allow_routes: v.allow_routes || [], allow_card_indicators: v.allow_card_indicators || {}, allow_card_text: v.allow_card_text || '', reason: v.reason || 'ped-panel' };
+      continue;
+    }
     if (v && v.seg_id) {
       const s = m && m.segments.find((x) => x.seg_id === String(v.seg_id));
       if (!s) throw new Error(`veto names chapter ${v.seg_id}, which is not in the catalogue`);

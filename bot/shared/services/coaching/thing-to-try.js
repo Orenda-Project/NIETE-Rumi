@@ -2,8 +2,8 @@
  * v10 coaching test (bd-v0toag.8): the one thing to try, for groups C and D (the new report).
  *
  * After a recording, bd-v0toag.20 stores one thing to try on that session's
- * prioritized_action.thing_to_try = { move_id, lesson_id, text, tag }. Here: the next plan's caption
- * ends with it, and for C and D it replaces the "Quick reminder" of the last commitment. Only while
+ * prioritized_action.thing_to_try = { move_id, lesson_id, text, tag, step }. Here: the next plan of the same
+ * subject and grade ends its caption with it (bd-v0toag.100.8: the ask stays there until it is done), and for C and D it replaces the "Quick reminder" of the last commitment. Only while
  * ab_v10_enabled is on (groupFor is null otherwise). A, B and teachers outside the draw keep today's
  * caption byte for byte. Never throws: any failure falls back to today's caption and reminder.
  */
@@ -13,6 +13,7 @@ const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { getCoachingMessage } = require('../../config/coaching-messages');
 const { groupFor } = require('./ab-v10-arms');
+const { scopeOf, activeThing } = require('./thing-to-try-scope');
 
 const CAPTION_LIMIT = 1024; // WhatsApp document caption, in code points
 const THING_LIMIT = 300; // a plan caption is ~60; this leaves it ample room
@@ -44,16 +45,20 @@ function captionLine(thing, lang, caption = '') {
   return template.replace('{{thing}}', () => text);
 }
 
-async function latestThing(userId) {
+/** The live ask for this plan's subject and grade, or null. */
+async function latestThing(userId, lessonId) {
+  const scope = scopeOf(lessonId);
+  if (!scope) return null;
   const { data, error } = await supabase
     .from('coaching_sessions')
-    .select('prioritized_action')
+    .select('id, prioritized_action')
     .eq('user_id', userId)
     .not('prioritized_action', 'is', null)
     .order('created_at', { ascending: false })
-    .limit(1);
-  if (error || !data || !data.length) return null;
-  return thingToTryOf(data[0].prioritized_action);
+    .limit(20);
+  if (error) return null;
+  const live = activeThing(data, scope);
+  return live ? thingToTryOf({ thing_to_try: live.thing }) : null;
 }
 
 /** The plan caption: today's, or for C and D today's plus the thing to try. */
@@ -61,7 +66,7 @@ async function planCaption({ userId, lessonId, caption, lang }) {
   try {
     const arms = await groupFor(userId);
     if (!replacesReminder(arms)) return caption;
-    const thing = await latestThing(userId);
+    const thing = await latestThing(userId, lessonId);
     if (!thing) return caption;
     const out = `${caption}\n\n${captionLine(thing, lang, caption)}`;
     logEvent('coaching.thing_to_try.caption', {

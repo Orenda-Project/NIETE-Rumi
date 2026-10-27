@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { accountNameOf, isAccountName, isValidPkMobile, normalizePkMobile } from "./phone";
+import { accountNameOf, isAccountName, isValidIntlMobile, isValidPkMobile, normalizePkMobile } from "./phone";
 
 /**
  * bd-s6qbts.5 — the sign-in field takes a phone OR, for an analytics-only account, an account NAME.
@@ -39,4 +39,25 @@ describe("accountNameOf — the name inside a stored analytics:<name>", () => {
   it.each(["923001234567", "", "analytics:", "xanalytics:fde"])("%p is not one", (stored) => {
     expect(accountNameOf(stored)).toBeNull();
   });
+});
+
+/**
+ * A coach with a non-Pakistani mobile signs in on the teacher page too (behind portal_login_intl_numbers). The number
+ * must be written with its country code (+ or 00), 10-15 digits in all, as the server's validator takes. A PK number
+ * keeps its own exact rule, so a PK number with a dropped digit is still caught.
+ */
+describe("isValidIntlMobile — a non-PK number with its country code", () => {
+  it.each(["+254 700 000 001", "00254700000001", "+1 202 555 0123", "+44 7700 900123", "+971-50-000-0001"])(
+    "%p is accepted",
+    (input) => {
+      expect(isValidIntlMobile(input)).toBe(true);
+    },
+  );
+
+  it.each(["254700000001", "0700000001", "+92 300 123456", "+92 300 1234567", "+12345", "+1234567890123456", "", "fde"])(
+    "%p is not",
+    (input) => {
+      expect(isValidIntlMobile(input)).toBe(false);
+    },
+  );
 });

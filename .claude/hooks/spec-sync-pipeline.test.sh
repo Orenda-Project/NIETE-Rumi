@@ -20,6 +20,8 @@
 # ISOLATION. Everything happens under a temp project root holding COPIES of the
 # real specs, agents and config. The live tests/features/ tree is never written to.
 set -uo pipefail
+# Hooks run here must never write the real clone's QA ledger or push its notes (bd-amxdhg).
+export QA_NOTES_OFF=1 QA_LEDGER="${TMPDIR:-/tmp}/qa-events.test.$$.jsonl"
 cd "$(dirname "$0")/../.." || exit 1
 REAL_ROOT="$PWD"
 

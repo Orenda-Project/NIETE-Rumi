@@ -25,4 +25,21 @@ driven. There is no CI counterpart by design: the pipeline is hooks only.
 Switches: `QA_HOOKS_OFF=1` (both hooks silent) · `QA_HOOKS_QUIET=1` (post-commit
 arms but prints nothing) · `QA_HOOKS_STRICT=1` (pre-push blocks on a stale spec).
 
-Tests: `bash .githooks/githooks.test.sh`.
+**Every off switch is on the record** (bd-61jjzd). `QA_HOOKS_OFF`, `E2E_SPEC_SYNC_OFF`
+and `E2E_AUTORUN_OFF`, the Stop hook giving up on a stale spec after its holds, and every
+`--clear` / `--clear --force` each append one JSON line to `<git common dir>/qa-events.jsonl`
+(`.git/qa-events.jsonl` in a plain clone; shared by all its worktrees; `QA_LEDGER=` overrides).
+Fields: `ts hook event switch detail sha branch user cwd`; events are `switch-off`, `gave-up`,
+`cleared`, `force-cleared`, plus `armed` (a commit armed the run), `declared` (a local
+`--declare … none-needed (<why>)`) and `pushed-stale` (pushed with a spec not updated).
+Read it: `jq -c . "$(git rev-parse --git-common-dir)/qa-events.jsonl"`.
+
+**…and it leaves the laptop** (bd-amxdhg). Each commit's lines (without `cwd`) become a git
+note on that commit (`refs/notes/qa-hooks`), pushed to origin as `refs/qa-hooks/<clone-id>`:
+at once for a switch-off, give-up, clear or declare, and for every pushed commit at pre-push.
+The sandbox QA dashboard reads them to say why a PR missed its spec. Pushing is in the
+background with `--no-verify` and never fails a commit or push. Off: `QA_NOTES_OFF=1` (and
+always off under `CI`). Backfill an older clone: `bash .claude/hooks/lib/qa-ledger.sh --publish`.
+
+Tests: `bash .githooks/githooks.test.sh` · `bash .claude/hooks/qa-ledger.test.sh` (the ledger) ·
+`bash .claude/hooks/qa-notes.test.sh` (publishing).

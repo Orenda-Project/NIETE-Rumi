@@ -24,7 +24,7 @@ const rateLimit = require('express-rate-limit');
 const { verifyReportLink, REPORT_PATH } = require('../../bot/shared/services/coaching/report-link-token');
 const { renderReportPage, renderDetailPage, renderMessagePage } = require('../services/coaching-report-page');
 const { renderReasonsPage } = require('../services/coach-ping-page');
-const { cleanReasons } = require('../services/coach-ping-reasons');
+const { cleanReasons, reasonText } = require('../services/coach-ping-reasons');
 const { buildReportView } = require('../services/coaching-report-view');
 const { firstNameOf } = require('../../bot/shared/utils/person-name');
 const useful = require('../services/coaching-useful');
@@ -78,8 +78,8 @@ async function loadReport(supabase, sessionId, userId) {
     return { created_at: r && r.created_at, pct: p == null || p === '' || !Number.isFinite(Number(p)) ? null : Number(p) };
   }).filter((r) => r.pct != null).reverse();
   // bd-gzfdu9: the recommended clip's card — read only while VIDEO_RECO_ENABLED is on (a tier without the table
-  // never sees the query); any failure is "no card", never a failed report.
-  if (videoReco.enabled()) {
+  // never sees the query); any failure is "no card", never a failed report. VIDEO_RECO_CR_CARD=false (R7r, the A/B) skips it.
+  if (videoReco.enabled() && videoReco.crCardEnabled()) {
     try {
       const video = await videoReco.cardFor(supabase, sessionId, userId, language, videoReco.catalogOrNull());
       if (video) return { session, language, quizMessage, firstName, trend, video };
@@ -194,7 +194,7 @@ function createCoachingReportRouter(opts = {}) {
     const coaches = await coachesFor(g.userId);
     log({ coachingSessionId: g.sessionId, userId: g.userId, group: g.group, coaches: coaches.length }, 'coaching.coach_ping.asked');
     const card = `${REPORT_PATH}/${req.params.token}`;
-    return res.status(200).type('html').send(renderReasonsPage(buildReportView(data), coaches, `${card}/coach`, card));
+    return res.status(200).type('html').send(renderReasonsPage(buildReportView(data), coaches, `${card}/coach`));
   };
 
   const coachAnswer = async (req, res) => {
@@ -203,6 +203,14 @@ function createCoachingReportRouter(opts = {}) {
     const token = String(req.params.token);
     const body = req.body || {};
     const reasons = cleanReasons(body.reason);
+    if (body.cancel) {
+      // Cancel asks no coach, but her ticked reasons are her 👎 reason, as A/B's typed one is (bd-v0toag.80).
+      if (reasons.length) {
+        await recordUseful({ sessionId: g.sessionId, userId: g.userId, reason: reasonText(reasons, 'en') });
+        log({ coachingSessionId: g.sessionId, userId: g.userId, group: g.group, reasons }, 'coaching.coach_ping.cancelled');
+      }
+      return res.redirect(303, `${REPORT_PATH}/${token}`);
+    }
     const note = noteFrom(body.note);
     if (!reasons.length && !note) return res.redirect(303, `${REPORT_PATH}/${token}/coach`);
     const coachId = typeof body.coach === 'string' && body.coach.trim() ? body.coach.trim().slice(0, 64) : null;

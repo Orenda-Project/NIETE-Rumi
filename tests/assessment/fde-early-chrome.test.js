@@ -28,7 +28,7 @@ test('a slot gets the Urdu label, its marks line and the early defaults', () => 
 
 test('the header keeps Grade 5 chrome but none of its subject lines', () => {
   const h = C.commonHeader(2);
-  expect(h.disclaimer_en).toContain('Grade II');
+  expect(h.disclaimer_en).toBeUndefined(); // bd-5jmnfj.4.26: no "not an official paper" line
   expect(Object.keys(h).some((k) => /^(title|time_line|total_line|note)_(en|ur)$/.test(k))).toBe(false);
   expect(h.note_replaced_en).toEqual(expect.any(String)); // shared scheme chrome carries over
 });

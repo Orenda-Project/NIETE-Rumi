@@ -346,6 +346,26 @@ def _icon(status):
             "HEALTHY": "✅", "DEGRADED": "⚠️", "CRITICAL": "❌", "recorded": "✅", "missing": "⬜", "not-needed": "➖"}.get(status, "")
 
 
+# What a person reads for each spec status (bd-u8r04u). The keys stay the machine contract —
+# analyse(), exit_code() and the QA dashboard read them; only these words are for people.
+_SPEC_WORDS = {"synced": "Scenarios updated", "none-needed": "No update needed",
+               "only-shared": "Only shared code changed, no update expected"}
+_SPEC_SHORT = {"synced": "updated", "none-needed": "not needed", "only-shared": "shared only",
+               "stale": "NOT UPDATED"}
+
+
+def _spec_cell(name, status, reason=""):
+    """The PR comment's Gherkin-spec cell: what happened and, when stale, what to do."""
+    if status == "stale":
+        return ("❌ **Test scenarios not updated** — the %s code changed, but `%s.feature` didn't. "
+                "Add or update its scenarios, or, if nothing a teacher sees changed, add "
+                "`Spec-Sync: %s=none-needed (<why>)` to the PR description." % (name, name, name))
+    cell = "%s %s" % (_icon(status), _SPEC_WORDS.get(status, status))
+    if reason:
+        cell += " — _%s_" % reason
+    return cell
+
+
 def _cassette_owner():
     owner = (os.environ.get("QA_CASSETTE_OWNER") or "@mah-noor1").strip()
     return owner if owner.startswith("@") else "@" + owner
@@ -460,11 +480,7 @@ def _web_markdown(res, proof="warn"):
         w = wp[name]
         files = w["changed_files"]
         via = ", ".join("`%s`" % os.path.basename(p) for p in files[:3]) + (" +%d" % (len(files) - 3) if len(files) > 3 else "")
-        spec = "%s %s" % (_icon(w["spec_status"]), w["spec_status"])
-        if w.get("spec_reason"):
-            spec += " — _%s_" % w["spec_reason"]
-        elif w["spec_status"] == "stale":
-            spec += " — `%s.feature` unchanged" % name
+        spec = _spec_cell(name, w["spec_status"], w.get("spec_reason") or "")
         cell = "%s %s" % (_icon(w["e2e_proof"]), _shown(w["e2e_proof"]))
         if w.get("total"):
             cell += " — %s/%s" % (w.get("passed"), w["total"])
@@ -510,11 +526,7 @@ def render_markdown(res, freshness="warn", proof="warn"):
         via = "shared file only" if f["only_shared"] else ", ".join("`%s`" % os.path.basename(p) for p in f["changed_files"][:3])
         if len(f["changed_files"]) > 3 and not f["only_shared"]:
             via += " +%d" % (len(f["changed_files"]) - 3)
-        spec = "%s %s" % (_icon(f["spec_status"]), f["spec_status"])
-        if f["spec_reason"]:
-            spec += " — _%s_" % f["spec_reason"]
-        if f["spec_status"] == "stale":
-            spec += " — `%s.feature` unchanged" % name
+        spec = _spec_cell(name, f["spec_status"], f["spec_reason"] or "")
         # E2E-run cell answers only "did the mock run for this commit" (+ any regression note).
         proof_cell = "%s %s" % (_icon(f["e2e_proof"]), _shown(f["e2e_proof"]))
         if f.get("e2e_reason"):
@@ -580,12 +592,13 @@ def render_text(res, freshness="warn", proof="warn"):
         res["features"] + ["portal: %s" % f for f in res.get("web_features") or []]))]
     for name in res["features"]:
         f = res["per_feature"][name]
-        extra = " (%s.feature unchanged)" % name if f["spec_status"] == "stale" else ""
+        extra = ""
         cm = (res.get("cassette_misses") or {}).get(name)
         if cm:
             extra += " 📼%d missing" % cm
         why = " (%s)" % f["e2e_reason"] if f.get("e2e_reason") else ""
-        L.append("│   %-13s spec: %-12s e2e: %s%s%s" % (name, f["spec_status"], f["e2e_proof"], why, extra))
+        L.append("│   %-13s spec: %-12s e2e: %s%s%s" % (
+            name, _SPEC_SHORT.get(f["spec_status"], f["spec_status"]), f["e2e_proof"], why, extra))
     if v["spec_freshness"] == "stale":
         stale = [n for n, f in res["per_feature"].items() if f["spec_status"] == "stale"]
         L.append("│ specs STALE for %s → in Claude Code: /sync-specs %s" % (", ".join(stale), " ".join(stale)))
@@ -616,7 +629,8 @@ def render_text(res, freshness="warn", proof="warn"):
         L.append("│ ✅ no new regressions — recorded FAILs are all documented known findings")
     for name in res.get("web_features") or []:
         w = res["web_per_feature"][name]
-        L.append("│   %-18s web lane  spec: %-12s e2e: %s" % (name, w["spec_status"], w["e2e_proof"]))
+        L.append("│   %-18s web lane  spec: %-12s e2e: %s" % (
+            name, _SPEC_SHORT.get(w["spec_status"], w["spec_status"]), w["e2e_proof"]))
     wstale = [n for n in res.get("web_features") or [] if res["web_per_feature"][n]["spec_status"] == "stale"]
     if wstale:
         L.append("│ portal specs STALE for %s → in Claude Code: /sync-specs %s" % (", ".join(wstale), " ".join(wstale)))

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { WHATSAPP_URL } from '@/lib/whatsapp';
+import { useBotChatUrl } from '@/lib/whatsapp';
 import { FileText, Presentation, BookOpen } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LessonPlanCard from '../components/LessonPlanCard';
@@ -13,6 +13,8 @@ import type { LessonPlan } from '../types/portal';
 
 const PortalLessonPlans = () => {
   const { toast } = useToast();
+  // This tier's bot, from the server (/config); none configured → the empty state has no WhatsApp button.
+  const botUrl = useBotChatUrl();
   const [loading, setLoading] = useState(true);
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([]);
   const [filter, setFilter] = useState<'all' | 'lesson_plan' | 'presentation'>('all');
@@ -164,7 +166,7 @@ const PortalLessonPlans = () => {
               : `No ${filter === 'lesson_plan' ? 'lesson plans' : 'presentations'} found`
             }
             actionLabel="Open WhatsApp"
-            actionHref={WHATSAPP_URL}
+            actionHref={botUrl ?? undefined}
           />
         )}
       </div>

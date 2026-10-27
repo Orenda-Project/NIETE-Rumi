@@ -200,6 +200,13 @@ class ReportGeneratorService {
         return;
       }
 
+      // bd-8hhqhf R7v: the video recommendation's reads (history, ladder, roster, v10 group, stored row) start now and run
+      // alongside the reflections, topic, subject and card work below; the pick later waits only for what is still in
+      // flight. Fire and forget; nothing when the flag is off or the analysis is not FICO.
+      try {
+        require('./video-reco/engine').prefetchReads({ session, coachingSessionId, analysis: session.analysis_data });
+      } catch (e) { /* the pick reads for itself */ }
+
       // Store partial report flags in session for PDF generation
       session._isPartialReport = isPartialReport;
       session._isAutoCompleted = isAutoCompleted;
@@ -422,8 +429,8 @@ class ReportGeneratorService {
       // `{ png, caption }` (hero renderer — currently FICO on NIETE, plus
       // OECD/HOTS/TEACH/MEWAKA once they're wired). Delivery path branches
       // on the shape.
-      // bd-gzfdu9 §4.9: the recommended clip on the report image — waits ≤ 20 s for the pick; null when off or slower.
-      const videoStrip = await require('./video-reco/strip').stripFor({ coachingSessionId, language: outputLanguage, row: videoReco }).catch(() => null);
+      // bd-gzfdu9 §4.9: the recommended clip on the report image — waits ≤ strip.stripWaitMs() (shadow 0, card 1.5 s, llm 5 s); null when off or slower.
+      const videoStrip = await require('./video-reco/strip').stripFor({ coachingSessionId, language: outputLanguage, row: videoReco, phone: from, userId: session.user_id }).catch(() => null);
       const reportResult = await this.generatePDFReport(session, teacherName, enhancedAnalysis, precomputedCommitment, loop, nextStep, videoStrip);
       const isHeroImage = !Buffer.isBuffer(reportResult) && reportResult && reportResult.png;
       // bd-v0toag.1.3 — voice-note seconds (from the session row, never decoded here) + report text length.
@@ -475,6 +482,13 @@ class ReportGeneratorService {
       let voiceStepAnnounced = false;
       let followUps = true;
       let videoClipAfter = false; // bd-gzfdu9: the clip goes last, only after a report that arrived in an open window
+      // bd-gzfdu9 R7p-b (COS 20261026T044621): how the report went, on the session's recommendation row (every status),
+      // after it went. Not awaited: it waits for the engine's row, and the follow-ups never wait for that.
+      const recordReportPath = (via) => {
+        require('./video-reco/report-via').recordReportPath({
+          coachingSessionId, row: videoReco, reportVia: via, imageStrip: via !== 'pdf' && Boolean(videoStrip),
+        }).catch(() => null);
+      };
       if (isHeroImage) {
         const { caption, fitted, overflow } = this._composeHeroCaption(reportResult.caption || '', extraLines);
         for (const line of overflow) {
@@ -496,6 +510,7 @@ class ReportGeneratorService {
           throw error;
         }
         if (heroSent !== false) await track.record('image', true);
+        if (heroSent !== false) recordReportPath(heroSent === 'template' ? 'template' : (reportResult.slimPng ? 'slim' : 'image'));
         // bd-v0toag.106 — window closed: the report went as the share template; the free-form follow-ups would be refused.
         followUps = require('./report-window-send').followUpsAllowed(heroSent);
         // v10 coaching test (bd-v0toag.19): C and D get the link to their report page. Off or
@@ -513,6 +528,7 @@ class ReportGeneratorService {
           if (line.key !== 'step5') await WhatsAppService.sendMessage(from, line.text);
         }
         await this.sendPDFReport(from, coachingSessionId, reportResult, session.users.name, session.created_at);
+        recordReportPath('pdf');
         ReportEvents.reportSent({ userId: session.user_id, sessionId: coachingSessionId, format: reportFormat });
       }
 

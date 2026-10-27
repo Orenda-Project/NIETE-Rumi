@@ -75,6 +75,11 @@ describe('lesson-plan lifecycle vocabulary — code and database are one list', 
     expect(checkValues(sql, 'lesson_plan_requests_error_code_check')).toEqual(sorted(Object.values(LIFECYCLE.ERROR_CODES)));
   });
 
+  test('the free-form track is not a source: it rides in textbook_metadata.fflp_track (F50), so no CHECK lists it', () => {
+    expect(Object.values(LIFECYCLE.SOURCES)).not.toContain('freeform_v1');
+    expect(checkValues(REFERENCE, 'lesson_plan_requests_source_check')).not.toContain('freeform_v1');
+  });
+
   test('the plan table gets no source CHECK — its source column is not the lifecycle writer\'s (a dev seed writes its own value there)', () => {
     expect(MIGRATION).not.toMatch(/lesson_plans_source_check/);
     expect(REFERENCE).not.toMatch(/lesson_plans_source_check/);

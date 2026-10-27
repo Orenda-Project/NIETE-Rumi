@@ -90,11 +90,16 @@ const {
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,
   PORTAL_TEACHER_HOME_ORDER_KEY,
+  PORTAL_TEACHER_HOME_LOOK_KEY,
+  PORTAL_COACHIP_KEY,
+  PORTAL_COACHIP_DECODE_KEY,
+  rmSectorFor,
   isCoachObservationOn,
   isPortalAssessmentEditingEnabled,
   PORTAL_ANALYTICS_ONLY_KEY,
   readUserListFlag,
   isAnalyticsOnlyUser,
+  isLoginIntlNumbersEnabled,
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
@@ -102,7 +107,7 @@ const { publicUserPayload, makeRequireLeaderRole } = require('../lib/leader-role
 // The bot's ONE definition of "registered" (pure, no requires) — bd-x7aprz.3.
 const { isRegistered } = require('../../bot/shared/utils/registration-status');
 // This deployment's own bot, as a wa.me link with a command typed (WHATSAPP_BOT_NUMBER / REFERRAL_BOT_NUMBER).
-const { waMeLink } = require('./app-login.routes');
+const { waMeLink, botNumber } = require('./app-login.routes');
 // Analytics-only accounts (federal / sector officials): one app_settings list decides who
 // they are, and they see the school-wise analytics page and nothing else.
 const { makeRequireAnalyticsViewer } = require('../lib/analytics-viewer');
@@ -263,32 +268,29 @@ function sanitizePhoneNumber(phone) {
 }
 
 /**
- * Middleware to check if user is authenticated for portal
- * ENHANCED: Comprehensive logging for mobile debugging
+ * Middleware to check if user is authenticated for portal.
+ * Logs only a refusal, on one line: a signed-in request writes nothing. Logging every request (a fifteen-line object plus a
+ * success line) made a crowd signing in at once overrun the host's log-rate cap and drop lines, real errors included.
  */
 const requirePortalAuth = (req, res, next) => {
-  // MOBILE DEBUGGING: Log all authentication attempts with detailed context
-  const authDebugInfo = {
-    hasSession: !!req.session,
-    hasPortalUserId: !!(req.session && req.session.portalUserId),
-    sessionId: req.session ? req.session.id : null,
-    userAgent: req.get('User-Agent'),
-    hasCookieHeader: !!req.headers.cookie,
-    cookieHeaderLength: req.headers.cookie ? req.headers.cookie.length : 0,
-    origin: req.get('Origin'),
-    referer: req.get('Referer'),
-    method: req.method,
-    path: req.path,
-    ip: req.ip
-  };
-
-  console.log('🔐 Portal Auth Check:', authDebugInfo);
-
   if (!req.session || !req.session.portalUserId) {
-    console.log('❌ Portal Auth Failed:', {
+    const authDebugInfo = {
+      hasSession: !!req.session,
+      hasPortalUserId: !!(req.session && req.session.portalUserId),
+      sessionId: req.session ? req.session.id : null,
+      userAgent: req.get('User-Agent'),
+      hasCookieHeader: !!req.headers.cookie,
+      cookieHeaderLength: req.headers.cookie ? req.headers.cookie.length : 0,
+      origin: req.get('Origin'),
+      referer: req.get('Referer'),
+      method: req.method,
+      path: req.path,
+      ip: req.ip
+    };
+    console.log(`❌ Portal Auth Failed: ${JSON.stringify({
       reason: !req.session ? 'No session object' : 'No portalUserId in session',
       ...authDebugInfo
-    });
+    })}`);
 
     return res.status(401).json({
       success: false,
@@ -297,11 +299,6 @@ const requirePortalAuth = (req, res, next) => {
       debug: process.env.NODE_ENV !== 'production' ? authDebugInfo : undefined
     });
   }
-
-  console.log('✅ Portal Auth Success:', {
-    userId: req.session.portalUserId,
-    sessionId: req.session.id
-  });
 
   next();
 };
@@ -3202,6 +3199,10 @@ router.post('/assessment/generate', requirePortalAuth, assessmentRateLimit, asyn
       // request reaches the bot byte-identical to before.
       pattern: body.pattern ?? undefined,
       scope: body.scope ?? undefined,
+      // A topic paper's ticked topics (bd-6clakk.10) — without them the bot builds the whole chapter — and the
+      // door it came through (bd-pw1ccr.1). Absent the same way, so a plain request is unchanged.
+      topicIds: body.topicIds ?? undefined,
+      origin: body.origin ?? undefined,
     });
     res.status(202).json({ success: true, requestId });
   } catch (error) {
@@ -4072,6 +4073,32 @@ router.delete('/classes/:classId/students/:studentId', requirePortalAuth, async 
     }
     console.error('portal/classes/:id/students remove error:', error.message);
     return res.status(502).json({ success: false, error: 'Could not remove the student. Please try again.' });
+  }
+});
+
+/**
+ * DELETE /api/portal/classes/:classId — take a class off her list.
+ *
+ * The bot decides what that means (retire a class that is hers alone and empty, otherwise
+ * take her off it), so a colleague's class or a roster is never removed from under them.
+ * `removed:false` (she was not on it — a second tap, a stale page) is still a success.
+ */
+router.delete('/classes/:classId', requirePortalAuth, async (req, res) => {
+  const userId = req.session.portalUserId;
+  try {
+    const botRes = await callBotInternal('/api/internal/classes/remove', {
+      userId, classId: req.params.classId,
+    });
+    const data = botRes.data || {};
+    if (data.success) return res.json({ success: true, removed: Boolean(data.removed), how: data.how || null });
+    console.error('portal/classes/:id remove failed', { status: botRes.status, data });
+    return res.status(502).json({ success: false, error: 'Could not remove the class. Please try again.' });
+  } catch (error) {
+    if (error.code === 'not_configured') {
+      return res.status(503).json({ success: false, error: 'Classes are temporarily unavailable.' });
+    }
+    console.error('portal/classes/:id remove error:', error.message);
+    return res.status(502).json({ success: false, error: 'Could not remove the class. Please try again.' });
   }
 });
 
@@ -5133,10 +5160,11 @@ router.get('/training/modules', requirePortalAuth, async (req, res) => {
       const { data: lvl } = await supabase
         .from('training_levels').select('order_index, vendor_id').eq('id', courseRow.level_id).maybeSingle();
       if (lvl?.vendor_id) {
+        // bd-gbf8ix — the KEY: the vendor's name is a display label and was renamed.
         const { data: vendor } = await supabase
-          .from('training_vendors').select('name').eq('id', lvl.vendor_id).maybeSingle();
+          .from('training_vendors').select('key').eq('id', lvl.vendor_id).maybeSingle();
         readings = readingsForCourse({
-          vendorName: vendor?.name,
+          vendorKey: vendor?.key,
           levelOrderIndex: lvl.order_index,
           courseTitle: courseRow.title,
         });
@@ -8847,6 +8875,11 @@ router.get('/config', async (req, res) => {
       childTestSa,
       teacherHomeCard,
       teacherHomeOrderRaw,
+      teacherHomeLookRaw,
+      loginIntlNumbers,
+      coachip,
+      coachipRmSector,
+      coachipDecodeRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -8870,9 +8903,21 @@ router.get('/config', async (req, res) => {
       // Teacher Home: the teacher Home's card, and its per-teacher order — the order only rides with the card on.
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_CARD_KEY, userId),
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_ORDER_KEY, userId),
+      // the Home's new look, which also rides with the card on.
+      isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_LOOK_KEY, userId),
+      // the teacher sign-in takes a non-PK number: one switch, read signed out too.
+      isLoginIntlNumbersEnabled(supabase),
+      // bd-sex15q.13 — COACHIP: the coach insight portal, the RM's sector view, and the name-decode tap (per user;
+      // the RM row is an object, read by rmSectorFor). Decode only rides with the coach switch on.
+      isFlagEnabledForUser(supabase, PORTAL_COACHIP_KEY, userId),
+      rmSectorFor(supabase, userId),
+      isFlagEnabledForUser(supabase, PORTAL_COACHIP_DECODE_KEY, userId),
     ]);
     return res.json({
       success: true,
+      // This deployment's WhatsApp bot (digits) for the portal's chat buttons, or null with none configured — then the
+      // portal shows no chat button. One build serves every tier, so the number comes from here, never the bundle.
+      bot: botNumber(),
       features: {
         assessmentGenerator,
         assessmentEditing,
@@ -8887,6 +8932,11 @@ router.get('/config', async (req, res) => {
         childTestSa,
         teacherHomeCard,
         teacherHomeOrder: teacherHomeCard && teacherHomeOrderRaw,
+        teacherHomeLook: teacherHomeCard && teacherHomeLookRaw,
+        loginIntlNumbers,
+        coachip,
+        coachipRm: coachipRmSector !== null,
+        coachipDecode: coachip && coachipDecodeRaw,
       },
     });
   } catch (error) {
@@ -8894,6 +8944,7 @@ router.get('/config', async (req, res) => {
     // Fail closed here too — a broken config read must not imply "everything on".
     return res.json({
       success: true,
+      bot: botNumber(),
       features: {
         assessmentGenerator: false,
         assessmentEditing: false,
@@ -8908,6 +8959,11 @@ router.get('/config', async (req, res) => {
         childTestSa: false,
         teacherHomeCard: false,
         teacherHomeOrder: false,
+        teacherHomeLook: false,
+        loginIntlNumbers: false,
+        coachip: false,
+        coachipRm: false,
+        coachipDecode: false,
       },
     });
   }

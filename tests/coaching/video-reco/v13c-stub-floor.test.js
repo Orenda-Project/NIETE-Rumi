@@ -27,28 +27,28 @@ describe('contentWords: what the floor counts', () => {
   });
 });
 
-describe('the stub floor (6) on the step-text route', () => {
-  test('4-word card on an unknown step → none:no_target, no BM25 (alias kept via textReason)', () => {
+// R7g (COS 20261024T002603 1a): the step-text route is retired, so the floor has nothing left to guard: a card of any length on
+// an unknown or hole step lists nothing, and the none says why the indicator names no move.
+describe('the stub floor (6) on the step-text route (retired R7g)', () => {
+  test('4-word card on an unknown step → none:unknown_indicator, no BM25', () => {
     const r = S.build(cat, B7, ctx(), 'x', L(), step('give feedback, correct next'));
     expect(r.candidates).toEqual([]);
-    expect(r.noneReason).toBe('no_target');
+    expect(r.noneReason).toBe('unknown_indicator');
     expect(r.textReason).toBe('unknown');
-    expect(r.route).toBe('step_text');
   });
-  test('4-word card on a hole (v4 D3) step → none:no_target', () => {
+  test('4-word card on a hole (v4 D3) step → none:hole', () => {
     const r = S.build(cat, tgt('D3'), ctx(), 'x', L(), step('give feedback, correct next'));
-    expect(r.noneReason).toBe('no_target');
+    expect(r.noneReason).toBe('hole');
     expect(r.textReason).toBe('hole');
   });
-  test('the indicator display name does not lift a stub over the floor', () => {
+  test('the indicator display name lifts nothing either', () => {
     const r = S.build(cat, B7, ctx(), 'x', L(), step('give feedback, correct next', { name: 'Feedback Exit Summary Lesson Plan Use' }));
-    expect(r.noneReason).toBe('no_target');
+    expect(r.candidates).toEqual([]);
   });
-  test('6-word card → the route runs', () => {
+  test('6-word card on a hole → still nothing (was: the route ran)', () => {
     const r = S.build(cat, tgt('D3'), ctx(), 'x', L(), step('give feedback, correct next answer quickly'));
     expect(r.textReason).toBe('hole');
-    expect(r.candidates.map((c) => c.seg_id)).toEqual(['14-s1']);
-    expect(r.route).toBe('step_text');
+    expect(r.candidates).toEqual([]);
   });
   test('4-word card on a tag-route (move) indicator → unaffected (b1664ce6)', () => {
     const r = S.build(cat, tgt('C1'), ctx(), 'why', L(), step('Sat together, worked alone'));

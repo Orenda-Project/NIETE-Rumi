@@ -453,6 +453,9 @@ export const portal = {
           coachV2: false,
           coachDisagreements: false,
           teacherV2: false,
+          coachip: false,
+          coachipRm: false,
+          coachipDecode: false,
         },
       };
     }
@@ -649,6 +652,8 @@ export type LibraryLesson = { id: string; label: string; sub: string | null; rea
 
 export type PortalConfig = {
   success: boolean;
+  /** This tier's WhatsApp bot number (digits), or null when the server has none configured: show no chat button. */
+  bot?: string | null;
   features: {
     assessmentGenerator: boolean;
     assessmentGeneratorMessage: string | null;
@@ -672,8 +677,18 @@ export type PortalConfig = {
     teacherV2?: boolean;
     /** The teacher Home card, its score chips and tap log (portal_teacher_home_card; fail-closed). */
     teacherHomeCard?: boolean;
+    /** The teacher sign-in takes a non-PK number with its country code (portal_login_intl_numbers; one switch, fail-closed). */
+    loginIntlNumbers?: boolean;
     /** The per-teacher Home tile order (portal_teacher_home_order; read only with the card's switch). */
     teacherHomeOrder?: boolean;
+    /** The teacher Home's new look (portal_teacher_home_look; read only with the card's switch; fail-closed). */
+    teacherHomeLook?: boolean;
+    /** COACHIP, the coach insight portal (portal_coachip, per user; fail-closed). bd-sex15q.13 */
+    coachip?: boolean;
+    /** COACHIP for an RM: this user has a sector in portal_coachip_rm (an object; fail-closed). bd-sex15q.13 */
+    coachipRm?: boolean;
+    /** COACHIP's "Show name" tap (portal_coachip_decode, and only with coachip on; fail-closed). bd-sex15q.13 */
+    coachipDecode?: boolean;
   };
 };
 
@@ -1271,6 +1286,13 @@ export const classes = {
 
   removeStudent: async (classId: string, studentId: string): Promise<{ success: boolean }> => {
     const response = await api.delete(`/classes/${classId}/students/${studentId}`);
+    return response.data;
+  },
+
+  // bd-ql2j3p — off her list. The bot retires a class that is hers alone and empty, and
+  // otherwise takes her off it, so a colleague's class or a roster is never lost.
+  removeClass: async (classId: string): Promise<{ success: boolean; removed: boolean; how: 'retired' | 'left' | null }> => {
+    const response = await api.delete(`/classes/${classId}`);
     return response.data;
   },
 };

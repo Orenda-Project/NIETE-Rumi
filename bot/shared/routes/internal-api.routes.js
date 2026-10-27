@@ -1198,6 +1198,41 @@ router.post('/classes/students/remove', requireInternalKey, async (req, res) => 
   }
 });
 
+/**
+ * POST /api/internal/classes/remove
+ *
+ * Take a class off the teacher's list. The service decides what that means — retire a
+ * class that is hers alone and empty, otherwise take her off it — so the class, its
+ * roster and any colleague on it are never removed from under anyone else.
+ *
+ * Body   { userId, classId }
+ * Errors 400 (missing input), 401 (bad key), 502 (write failed)
+ * Ok     200 { success: true, removed, how? }   removed:false = she was not on it
+ */
+router.post('/classes/remove', requireInternalKey, async (req, res) => {
+  const { userId, classId } = req.body || {};
+  if (!userId || !classId) {
+    return res.status(400).json({ success: false, error: 'userId and classId are required' });
+  }
+  const { tk } = require('../services/quiz/web-quiz-kid');
+  try {
+    const ClassService = require('../services/classes/class.service');
+    const result = await ClassService.removeClassForTeacher({ classId, teacherUserId: userId });
+
+    if (result.error) {
+      logToFile('❌ Internal classes/remove failed', { tk: tk(userId), classId, error: result.error }, 'error');
+      return res.status(502).json({ success: false, error: result.error });
+    }
+    if (!result.removed) return res.json({ success: true, removed: false });
+
+    logToFile('🏫 Class removed from a teacher\'s list via internal API', { tk: tk(userId), classId, how: result.how });
+    return res.json({ success: true, removed: true, how: result.how });
+  } catch (error) {
+    logToFile('❌ Internal classes/remove failed', { tk: tk(userId), classId, error: error?.message }, 'error');
+    return res.status(500).json({ success: false, error: 'Failed to remove the class' });
+  }
+});
+
 // ─── v8 lesson-plan catalogue ───────────────────────────────────────────────
 //
 // The portal used to answer "which lesson plans exist?" from its own Supabase
@@ -1508,6 +1543,10 @@ router.post('/assessment/topics', requireInternalKey, assessmentRoute('topics', 
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
   if (!Number.isInteger(chapterNumber)) return res.status(400).json({ success: false, error: 'chapterNumber is required' });
 
+  // bd-6clakk.9 — off (or unreadable) → no topics, so the portal's Topics step steps aside until the A/B test.
+  const { isAssessmentTopicCtaEnabled } = require('../config/feature-flags');
+  if (!(await isAssessmentTopicCtaEnabled().catch(() => false))) return res.json({ success: true, topics: [] });
+
   const { listChapterTopics } = require('../services/assessment/topics/topics.repo');
   const topics = (await listChapterTopics(grade, subject, chapterNumber)).map((t) => ({
     topicId: t.topicId, name: t.name, heading: t.heading, headingOrder: t.headingOrder, sortOrder: t.sortOrder,
@@ -1550,6 +1589,9 @@ function chapterPages(chapters, picked) {
  * The refusals a board-pattern request can get, in one place. The app reads `errorCode` and holds
  * the Urdu; these are the assessment generator's own codes, not the lesson-plan lifecycle's.
  */
+/** Which door a create came through; mirrors ORIGINS in assessment-request.service and the CHECK on assessment_requests.origin. */
+const ORIGINS = ['report'];
+
 const PATTERN_CODE = Object.freeze({
   OFF: 'PATTERN_OFF', INELIGIBLE: 'PATTERN_INELIGIBLE', SCOPE_CONFLICT: 'SCOPE_CONFLICT',
   NO_BUDGET: 'PATTERN_NO_BUDGET', ALREADY_GENERATING: 'ALREADY_GENERATING',
@@ -1566,7 +1608,7 @@ const PATTERN_CODE = Object.freeze({
  * the count is the slots' sum, the marks are fixed (no budget), every question
  * is new, and the marking scheme always comes with it.
  */
-async function createPatternRequest({ Browse, res, userId, grade, subject, pattern, scope, picked, pageRanges, answerLines, onQueued = null }) {
+async function createPatternRequest({ Browse, res, userId, grade, subject, pattern, scope, picked, pageRanges, answerLines, origin = null, onQueued = null }) {
   const Patterns = require('../services/assessment/patterns');
   const chapterNumber = picked.length === 1 ? picked[0] : null;
 
@@ -1626,6 +1668,7 @@ async function createPatternRequest({ Browse, res, userId, grade, subject, patte
     outputFormat: 'pdf',
     pattern,
     scope: { kind, chapters: chapters && chapters.length ? chapters : null, pages },
+    ...(origin ? { origin } : {}),
   });
 
   if (onQueued) onQueued(requestId);
@@ -1725,6 +1768,11 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
+  // Which door the paper came through (bd-pw1ccr.1): 'report' from the Class Quiz Traffic Light report's button.
+  const origin = body.origin == null || body.origin === '' ? null : String(body.origin);
+  if (origin !== null && !ORIGINS.includes(origin)) {
+    return res.status(400).json({ success: false, error: 'Unknown origin.' });
+  }
 
   // A board-pattern paper takes its own path: the pattern fixes the types, the
   // count and the marks, so none of the checks below apply to it. The refusals
@@ -1784,7 +1832,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
       }
       return createPatternRequest({
         Browse, res, userId, grade, subject, pattern, scope: fdeScope ? 'fde' : null,
-        picked, pageRanges, answerLines: body.answerLines,
+        picked, pageRanges, answerLines: body.answerLines, origin,
         onQueued: (id) => rememberQueued(classKey, id),
       });
     });
@@ -1903,6 +1951,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     answerLines: body.answerLines !== false,
     outputFormat: body.outputFormat || 'pdf',
     ...(byTopics ? { paperKind: 'topic', scope: topicScope.scope } : {}),
+    ...(origin ? { origin } : {}),
   });
 
   return res.status(202).json({ success: true, requestId });

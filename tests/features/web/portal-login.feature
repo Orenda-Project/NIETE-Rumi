@@ -121,6 +121,21 @@ Feature: Portal sign-in
     When the link is altered by one character
     Then the "get a new link" page opens and nobody is signed in
 
+  # Run on sandbox by the QA agent: nothing in the bot mints this link yet (the report button's sender will call
+  # signAppLink(userId, 'assessment_report', journeyId, {grade, subject, chapter})), so the run mints it by hand.
+  @sandbox
+  Scenario: One-tap sign-in from the class report's Make a test button opens the paper maker with the class filled in
+    # app-login-link.js: the assessment_report token may carry {grade, subject, chapter}; app-login.routes.js lands on
+    # /portal/teacher/assessment/new/class?origin=report&grade=&subject=&chapter= (bd-pw1ccr.2). Every other /go
+    # feature lands exactly where it did before (PL11, PL13 unchanged).
+    Given a /go link for the demo teacher with the target assessment_report, Grade 3, English, chapter 4
+    And the teacher app v2 is on for the demo teacher
+    When the demo teacher opens that link in the browser
+    Then she is signed in without typing a password
+    And the paper maker shows Grade 3, English, chapter 4 chosen, on the step after Class
+    When the same link is opened by a teacher who is not on the teacher app v2
+    Then she lands on today's portal home
+
   @PL14
   Scenario: The analytics accounts' own sign-in asks for an account name and a password only, and a refused name stays on it
     # portal/src/portal/auth/AnalyticsLogin.tsx at /portal/analytics/login: no phone, no Send code, no "Use … instead",
@@ -152,3 +167,17 @@ Feature: Portal sign-in
     When she opens /portal/analytics/login directly
     And she taps Back
     Then she is on /portal/login
+
+  @PL17
+  Scenario: Register on WhatsApp opens this deployment's own bot, or is not shown when none is configured
+    # The portal is one build served by every tier, so it names no bot number. The number comes from the server at
+    # runtime: GET /api/portal/config answers `bot` (WHATSAPP_BOT_NUMBER, else REFERRAL_BOT_NUMBER, else null).
+    # The server's own chat link wins; without one, `bot`; without either, no WhatsApp button (never another tier's
+    # bot). The same rule drives the landing page's Meet Rumi buttons and the dashboard's Open WhatsApp.
+    When she enters a number that is not registered and any password
+    And she taps Log in
+    Then the "Register on WhatsApp" button opens a wa.me chat with the bot number /api/portal/config answers as bot
+    When /api/portal/config answers no bot number and the server sends no chat link with its answer
+    And she enters that number and any password again and taps Log in
+    Then no WhatsApp button is shown
+    And the page still says "Not registered yet", never "No account found"

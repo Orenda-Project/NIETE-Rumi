@@ -6,8 +6,10 @@
  * name redactor first (H8): a quote can only carry what survived it.
  */
 const { redactNames } = require('./redact-names');
+const { clipKind } = require('./copy-rules');
+const terms = require('./urdu-terms'); // R7j §2: ped-scale's terms file, the only source of the Urdu move words
 
-const PROMPT_VERSION = 'vr-5';
+const PROMPT_VERSION = 'vr-11'; // vr-11 (R7j §2): the move id and answer type from ped-scale's terms file (the engine writes the Urdu line); vr-10 (R7g 1b): the approved Urdu word for each move it may name, past tense with the teacher as subject; vr-9 (R7c §5): the clip's kind on each candidate; explain-not-show; a why/how line is not recall; vr-8 (red7 155809): no vocative in "Try this tomorrow"; vr-7 (R7b 2b): the clip's own words, the Urdu plural
 const EXCERPT_LINES = 12;
 const EXCERPT_MAX_CHARS = 220;
 
@@ -32,7 +34,21 @@ function clip(line) {
  * each "[mm:ss] Label: text" ≤ 220 code points. From diarization_data.segments; without it, from the
  * transcript_text lines that start with [mm:ss].
  */
-function excerpts(session, { timestamp, uptakeMoment } = {}, people = {}) {
+function excerpts(session, anchors = {}, people = {}) {
+  return rawExcerpts(session, anchors).map((l) => clip(redact(l, people)));
+}
+
+/**
+ * Every transcript line "[mm:ss] Label: text", unredacted, in order (bd-8hhqhf: the scorer-path quote check). A
+ * transcript with no [mm:ss] lines gives its non-empty lines as they are (scale-run 081240), so it is still checked.
+ */
+function transcriptLines(session) {
+  const stamped = allLines(session).map((l) => l.text);
+  if (stamped.length) return stamped;
+  return String((session && session.transcript_text) || '').split('\n').map((l) => l.trim()).filter(Boolean);
+}
+
+function allLines(session) {
   let lines = [];
   const segs = session && session.diarization_data && Array.isArray(session.diarization_data.segments)
     ? session.diarization_data.segments.filter((s) => s && String(s.text || '').trim()) : [];
@@ -42,6 +58,12 @@ function excerpts(session, { timestamp, uptakeMoment } = {}, people = {}) {
     lines = String(session.transcript_text).split('\n').map((l) => l.trim())
       .filter((l) => /^\[\d{1,2}:\d{2}\]/.test(l)).map((l) => ({ ms: stampMs(l), text: l }));
   }
+  return lines;
+}
+
+/** The same lines before redaction, index for index (bd-8hhqhf: what the validator checks a placeholder against). */
+function rawExcerpts(session, { timestamp, uptakeMoment } = {}) {
+  const lines = allLines(session);
   if (!lines.length) return [];
   const anchor = stampMs(timestamp) ?? stampMs(uptakeMoment);
   let start = 0;
@@ -50,13 +72,22 @@ function excerpts(session, { timestamp, uptakeMoment } = {}, people = {}) {
     lines.forEach((l, i) => { if (l.ms <= anchor) idx = i; });
     start = Math.max(0, Math.min(idx - 4, lines.length - EXCERPT_LINES));
   }
-  return lines.slice(start, start + EXCERPT_LINES).map((l) => clip(redact(l.text, people)));
+  return lines.slice(start, start + EXCERPT_LINES).map((l) => l.text);
 }
 
-/** Children's names → [a student]; the teacher's own name masked too (redact-names.js, r-corpus port). */
+/**
+ * Children's names → [a student]; the teacher's own name masked too (redact-names.js, r-corpus port).
+ * people.vocab: subject terms; people.oovVocab: topic words, the vocabulary rule only (bd-8hhqhf r7).
+ */
 function redact(text, people = {}) {
-  return redactNames(String(text || ''), { teacher: people.teacher || null, placeholders: { child: '[a student]' } });
+  return redactNames(String(text || ''), { teacher: people.teacher || null, placeholders: { child: '[a student]' }, vocab: people.vocab || [], oovVocab: people.oovVocab || [], counts: people.counts || null });
 }
+
+// R7c §5: what kind of clip it is, so the reason never says a conversation or a talk "shows a teacher" in class
+const KIND_WORDS = Object.freeze({
+  conversation: 'kind: a conversation between teachers (not a class)', talk: 'kind: a trainer talking (not a class)',
+  slides: 'kind: slides (not a class)', animation: 'kind: an animation (not a class)', footage: 'kind: footage',
+});
 
 function candidateLine(c, catalog) {
   const hit = catalog && catalog.segment(c.seg_id);
@@ -65,7 +96,7 @@ function candidateLine(c, catalog) {
   const len = Math.round(Number(segment.end_s) - Number(segment.start_s));
   const needs = (module.symptoms || []).join('; ');
   const fico = (segment.fico || []).map((f) => f.indicator).join(', ');
-  return `${segment.seg_id} · ${segment.title_en || module.title} · ${len}s · ${module.language} · ${segment.summary_en || ''} · needs: ${needs} · ${fico}`;
+  return `${segment.seg_id} · ${segment.title_en || module.title} · ${len}s · ${module.language} · ${KIND_WORDS[clipKind(module)]} · ${segment.summary_en || ''} · needs: ${needs} · ${fico}`;
 }
 
 /**
@@ -113,18 +144,19 @@ Try this tomorrow: ${tryText || ''}${evidenceLine}
 TRANSCRIPT MOMENTS (each line: [mm:ss] Speaker: text) — the only source for a quote:
 ${moments}
 
-CANDIDATE CLIPS (seg_id · title · length · language · what the teacher sees · when a teacher needs it · indicators)
+CANDIDATE CLIPS (seg_id · title · length · language · kind · what the teacher sees · when a teacher needs it · indicators)
 ${(candidates || []).map((c) => candidateLine(c, catalog)).join('\n')}
 
 RULES
 1. Choose the clip that SHOWS the exact move in "Try this tomorrow". Every candidate is for that step: you choose among them and ground the moment; you never change the step.
-2. The reason must cite ONE real moment: the [mm:ss] and a short quote copied from the report's moment or the TRANSCRIPT MOMENTS (never invented, never paraphrased), then what the clip shows a teacher doing instead — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person's name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher. Never write a clip id, number or code; never mention the scorer, the report or the analysis; describe the lesson moment itself. Choose a moment with the teacher's or a child's own words; if the only candidate line is mostly [a student] placeholders, pick another line. If no real moment fits, return seg_id null — never write N/A, unknown or [around unknown].${crossLanguageRule(reportLanguage, lessonLanguage)}
-3. Gender-neutral: say "the teacher" / "they"; in Urdu use verbal nouns or impersonal forms, never gendered second-person verbs. Keep pedagogical terms in English letters inside Urdu (e.g. open-ended questions, wait time). No Roman Urdu (Urdu in Latin letters); Urdu is written in Nastaliq script; only pedagogical terms stay in English letters (one or two words).
+2. The reason must cite ONE real moment: a short quote copied from the report's moment or the TRANSCRIPT MOMENTS (never invented, never paraphrased), introduced in words (what was happening in the lesson), then what the clip offers instead — say only what the clip's own line says, in your own plain words; when its kind is "not a class", say the clip explains the move or the teachers in it talk it through («یہ کلپ سمجھاتا ہے کہ …»), never that it shows a teacher doing it (in reason_ur, in Urdu: never copy the clip's English title or summary); never add wait time, cold-calling, pairs, roles or a "why" question it does not name — and if the clip explains the move rather than shows it, one phrase the teacher could say tomorrow. The quote must contain no person's name: write [a student] in its place. Two sentences (under 300 characters), plain words a teacher uses, no jargon, no judgement of the teacher. Never write a clip id, number or code; never write a clock time (no [mm:ss], no "at 12:08") or a speaker label (no "Teacher:", "Student:") in reason_en or reason_ur: the moment's time goes only in moment.at; never mention the scorer, the report or the analysis; describe the lesson moment itself. Name the cited line for what it is: a line that asks why or how is never a recall or yes/no question, and a greeting, a page number, an order to the class or the lesson's title is not a moment. Choose a moment with the teacher's or a child's own words; if the only candidate line is mostly [a student] placeholders, pick another line. If no real moment fits, return seg_id null — never write N/A, unknown or [around unknown].${crossLanguageRule(reportLanguage, lessonLanguage)}
+3. Gender-neutral: say "the teacher" / "they"; in Urdu use verbal nouns or impersonal forms, never gendered second-person verbs. Any teacher (the reader or the one in the clip) is plural in Urdu: «استاد … کرتے ہیں / پوچھتے ہیں», «آپ … کریں»; never «کرتا ہے», «کرتی ہے», «کہتی ہیں», «استانی», «معلمہ» or «استاذہ». The moves in rule 6 take rule 6's Urdu words; keep any other pedagogical term in English letters inside Urdu (one or two words). No Roman Urdu (Urdu in Latin letters); Urdu is written in Nastaliq script.
 4. If no candidate would help this teacher with this step, return "seg_id": null and say why in "none_reason". That is a good answer, not a failure.
 5. Never pick a clip whose "needs" clearly do not match this lesson, or one meant for a different subject than this lesson (${subject || 'unknown'}).
+6. Name the move the cited line shows in "move" by its English id, the part before «=», from this list (the Urdu after it is the team's own word for it): ${terms.glossary()}; null when none fits. In "answer", name how the children answered that line when the next lines show it: ${terms.answerIds().join(', ')}, else null. In reason_ur use only these Urdu words for a move, never a word-for-word translation and never the English word in Latin letters. The lesson is over: say what happened in the past tense with the teacher as the subject («استاد نے پوچھا»), never «پوچھ رہے ہیں» or «پوچھا گیا».
 
 Return exactly this JSON:
-{"seg_id": "<one of the candidate ids, or null>", "moment": {"at": "mm:ss", "quote": "<copied from the transcript moments>"}, "reason_en": "<two sentences>", "reason_ur": "<the same, in natural Urdu (Nastaliq script)>", "confidence": <0.0-1.0>, "none_reason": "<only when seg_id is null>"}`;
+{"seg_id": "<one of the candidate ids, or null>", "moment": {"at": "mm:ss", "quote": "<copied from the transcript moments>"}, "move": "<one move id from rule 6, or null>", "answer": "<one answer id from rule 6, or null>", "reason_en": "<two sentences>", "reason_ur": "<the same, in natural Urdu (Nastaliq script)>", "confidence": <0.0-1.0>, "none_reason": "<only when seg_id is null>"}`;
 }
 
 const LANGUAGE_NAMES = Object.freeze({ en: 'English', ur: 'Urdu' });
@@ -155,6 +187,13 @@ const RETRY_RULES = Object.freeze({
   urdu: 'reason_ur was not written in Urdu script.',
   roman: 'reason_ur contained Roman Urdu or English words; write it in Urdu script.',
   step: "The clip does not show the step's teaching move; choose one that does.",
+  no_child_turn: "The moment had no child's turn on its line or the lines beside it; choose a moment where a child speaks.",
+  gender: 'reason_ur spoke of a teacher in a gendered form; use the respectful plural («استاد … کرتے ہیں», «آپ … کریں»).',
+  unshown: "The reason said the clip shows something its own line does not name; say only what that clip shows.",
+  scene: 'The reason said the clip shows a teacher doing the move, but the clip is a conversation, a talk, slides or an animation; say the clip explains it or the teachers in it discuss it.',
+  recall: 'The reason called the cited line a recall or yes/no question, but it asks why or how; say what the line really is.',
+  not_moment: 'The quoted line only greeted the class, called a page, gave an order about the room or announced the lesson; quote a moment of teaching, where the teacher asks or explains or a child answers.',
+  routine: 'The quoted line only greeted the class, called a page, gave an order about the room, was a filler or children reading back; quote a moment of teaching, where the teacher asks or explains or a child answers.',
 });
 
 /** The two lines added to the same prompt for the one retry: which rule the first answer broke, then answer again. */
@@ -164,4 +203,4 @@ function retryAppendix(none) {
   return `\n\nYOUR FIRST ANSWER WAS REJECTED (validation:${why}): ${rule}\nAnswer again in the same JSON shape, keeping every rule above; if no clip fits, return seg_id null.`;
 }
 
-module.exports = { build, excerpts, redact, retryAppendix, PROMPT_VERSION, stampMs };
+module.exports = { build, excerpts, rawExcerpts, transcriptLines, redact, retryAppendix, PROMPT_VERSION, stampMs };

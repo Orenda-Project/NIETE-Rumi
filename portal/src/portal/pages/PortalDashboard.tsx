@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { WHATSAPP_URL } from '@/lib/whatsapp';
+import { useBotChatUrl } from '@/lib/whatsapp';
 import { Library, MessageSquare, TrendingUp, ExternalLink, GraduationCap, FileText } from 'lucide-react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import Chart from 'react-apexcharts';
@@ -29,6 +29,8 @@ const ClassicDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  // This tier's bot, from the server (/config); none configured → no Open WhatsApp button.
+  const botUrl = useBotChatUrl();
 
   // bd-2434: the teacher dashboard is not the leader's home. A school leader
   // (coach / principal / aeo / …) belongs on My Patch — bounce them there.
@@ -305,15 +307,17 @@ const ClassicDashboard = () => {
           <p className="text-muted-foreground mb-4">
             Get personalized coaching and lesson plans through WhatsApp
           </p>
-          <Button asChild className="bg-accent hover:bg-accent/90">
-            <a 
-              href={WHATSAPP_URL} 
-              target="_blank" 
-              rel="noopener noreferrer"
-            >
-              Open WhatsApp
-            </a>
-          </Button>
+          {botUrl ? (
+            <Button asChild className="bg-accent hover:bg-accent/90">
+              <a
+                href={botUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open WhatsApp
+              </a>
+            </Button>
+          ) : null}
         </div>
       </div>
     </PortalLayout>

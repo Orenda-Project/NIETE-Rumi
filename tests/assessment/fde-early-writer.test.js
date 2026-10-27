@@ -11,21 +11,33 @@ const { writeEarlyPaper, ORAL_SYSTEM } = require('../../bot/shared/services/asse
 const { NO_PICTURES } = require('../../bot/shared/services/assessment/fde-early-prompt');
 
 const SAMPLE = { count: { kind: 'count', name: 'apple', n: 3 }, dots: { kind: 'dots', n: 4 }, shapes: { kind: 'shapes', shapes: [{ shape: 'circle' }] },
-  object: { kind: 'object', name: 'cat' }, scene: { kind: 'scene', describe: 'children in a park' }, clock: { kind: 'clock', hour: 3, minute: 0 } };
+  object: { kind: 'object', name: 'cat' }, scene: { kind: 'scene', describe: 'children in a park; the girl on the right waves' }, clock: { kind: 'clock', hour: 3, minute: 0 }, plant: { kind: 'plant' } };
 
-function itemsFor(slot, { noPicture = false } = {}) {
+// A slot with an answer rule gets keys that fit it unless a reply gives its own (`keys`: slot -> {question, answer} by item).
+const GOOD = {
+  'g1.english.B.Q8': (i) => ({ question: `What is child ${i + 1} doing?`, answer: ['running', 'reading', 'eating', 'sleeping'][i] }),
+  'g2.english.B.Q6': (i) => ({ question: ['c_t', 'd_g', 's_n'][i], answer: ['cat', 'dog', 'sun'][i] }),
+  'g2.english.B.Q10': (i) => ({ question: `Thing ${i + 1} is ____ the box.`, answer: ['in', 'on', 'under', 'near', 'behind'][i] }),
+  'g2.english.C.Q14': (i) => ({ question: `Is it hot ${i + 1}`, answer: `Is it hot ${i + 1}?` }),
+  'g1.general_knowledge.B.Q10': (i) => ({ answer: i % 2 ? 'پانی' : 'خشکی' }),
+};
+
+// Every object picture is a different thing unless a reply names it (`names`: slot -> names by item).
+function itemsFor(slot, { noPicture = false, names = [], keys = [] } = {}) {
   return Array.from({ length: slot.generate }, (_, i) => ({
     slot: slot.slot, question: `Question ${i + 1} for ${slot.slot}`, marks: slot.marks_each, blooms: 'Remember',
     ...(slot.shape === 'mcq' ? { options: ['a) one', 'b) two', 'c) three'], answer: 'a) one' } : { answer: String(i + 1) }),
+    ...(keys[i] || (GOOD[slot.slot] ? GOOD[slot.slot](i) : {})),
     scheme: { points: [{ kind: 'A', text: 'correct', marks: slot.marks_each }] },
-    ...(slot.picture && !noPicture ? { picture: { ...SAMPLE[slot.picture[0]] } } : {}),
+    ...(slot.picture && !noPicture ? { picture: { ...SAMPLE[slot.picture[0]],
+      ...(slot.picture[0] === 'object' ? { name: names[i] || `${slot.slot} thing ${i}` } : {}) } } : {}),
   }));
 }
 
 function treeFor(section, opts = {}) {
   const tree = { unseen: { objective: {}, subjective: {} } };
   section.slots.forEach((slot) => {
-    const list = itemsFor(slot, { noPicture: (opts.noPicture || []).includes(slot.slot) });
+    const list = itemsFor(slot, { noPicture: (opts.noPicture || []).includes(slot.slot), names: (opts.names || {})[slot.slot], keys: (opts.keys || {})[slot.slot] });
     (tree.unseen[slot.category][slot.type] = tree.unseen[slot.category][slot.type] || []).push(...list);
   });
   return tree;
@@ -160,4 +172,87 @@ test('a picture that cannot be drawn fails the paper, keeping what was written',
   expect(err.code).toBe('PICTURE_FAILED');
   expect(err.examJson._layout.subject).toBe('maths');
   expect(err.model).toBe('test/model');
+});
+
+// Amena, 23 Oct 2026: "For grade 1, its the same pictures in the whole paper" (bd-5jmnfj.4.27).
+test('a section whose picture repeats an earlier question is asked once more, told the pictures taken', async () => {
+  const { calls, go } = run(1, 'english', { replies: { C: [{ names: { 'g1.english.C.Q11': ['cat'] } }] , A: [{ names: { 'g1.english.A.Q1': ['cat'] } }] } });
+  const out = await go();
+  expect(calls.sections.filter((c) => c.id === 'A')).toHaveLength(1);
+  const c = calls.sections.filter((x) => x.id === 'C');
+  expect(c).toHaveLength(2);
+  expect(c[1].user).toMatch(/already on this paper/);
+  expect(c[1].user).toMatch(/\bcat\b/);
+  const cats = items(out.examJson).filter((q) => q.picture && q.picture.name === 'cat');
+  expect(cats.map((q) => q.slot)).toEqual(['g1.english.A.Q1']);
+});
+
+test('two questions in one section showing one thing: that section is re-asked, told which items repeat', async () => {
+  const { calls, go } = run(1, 'english', { replies: { A: [{ names: { 'g1.english.A.Q1': ['cat'], 'g1.english.A.Q4': ['cat'] } }] } });
+  await go();
+  const a = calls.sections.filter((x) => x.id === 'A');
+  expect(a).toHaveLength(2);
+  expect(a[1].user).toMatch(/\bcat\b/);
+  expect(a[1].user).toMatch(/different word/i);
+});
+
+test('a repeat left after the re-ask is logged and the paper still comes back', async () => {
+  const again = { names: { 'g1.english.C.Q11': ['cat'] } };
+  const { d, go } = run(1, 'english', { replies: { A: [{ names: { 'g1.english.A.Q1': ['cat'] } }], C: [again, again] } });
+  const out = await go();
+  expect(out.examJson).toBeDefined();
+  expect(d.logToFile).toHaveBeenCalledWith('[assessment] repeated pictures', expect.objectContaining({
+    repeated: [{ slot: 'g1.english.C.Q11', reason: 'repeat', pictures: ['cat'] }],
+  }));
+});
+
+// v12 G2 English Q10 iv: the bird is above the tree, but the child may write only in, on, under, near or behind (bd-5jmnfj.4.22).
+const above = { keys: { 'g2.english.B.Q10': [{ question: 'The bird is ____ the tree.', answer: 'above' }] } };
+
+test('a section keyed off its own rule is asked once more, told the item and the rule', async () => {
+  const { d, calls, go } = run(2, 'english', { replies: { B: [above] } });
+  await go();
+  const b = calls.sections.filter((c) => c.id === 'B');
+  expect(b).toHaveLength(2);
+  expect(b[1].user).toMatch(/The bird is ____ the tree\. → above/);
+  expect(b[1].user).toMatch(/never above/i);
+  expect(d.logToFile).not.toHaveBeenCalledWith('[assessment] answers off the rule', expect.anything());
+});
+
+test('a key still off its rule after the re-ask is logged and the paper still comes back', async () => {
+  const { d, go } = run(2, 'english', { replies: { B: [above, above] } });
+  const out = await go();
+  expect(out.examJson).toBeDefined();
+  expect(d.logToFile).toHaveBeenCalledWith('[assessment] answers off the rule', expect.objectContaining({
+    answers: [{ slot: 'g2.english.B.Q10', reason: 'answer', items: ['The bird is ____ the tree. → above'] }],
+  }));
+});
+
+// v17 G2 GK asked the capital, the national animal and the root in two questions each: the sections
+// were written at once, blind to each other (bd-5jmnfj.4.16).
+test('sections are written in turn, each told what the earlier ones asked', async () => {
+  const { P, d, calls, go } = run(2, 'general_knowledge');
+  let running = 0;
+  let most = 0;
+  const write = d.writeSection.getMockImplementation();
+  d.writeSection.mockImplementation(async (args) => {
+    running += 1; most = Math.max(most, running);
+    await new Promise((r) => setTimeout(r, 2));
+    running -= 1;
+    return write(args);
+  });
+  await go();
+  expect(calls.sections.map((c) => c.id)).toEqual(P.sections.map((s) => s.id));
+  expect(calls.sections[0].user).not.toMatch(/already asks/);
+  expect(calls.sections[1].user).toMatch(/already asks/);
+  expect(calls.sections[1].user).toContain('Question 1 for g2.general_knowledge.A.Q1 → 1');
+  expect(most).toBeLessThanOrEqual(1 + (P.oral ? 1 : 0));
+});
+
+test('a re-asked section keeps the note of what the earlier sections asked', async () => {
+  const { calls, go } = run(1, 'maths', { replies: { B: [{ noPicture: ['g1.maths.B.Q7'] }] } });
+  await go();
+  const b = calls.sections.filter((c) => c.id === 'B');
+  expect(b).toHaveLength(2);
+  expect(b[1].user).toMatch(/already asks/);
 });

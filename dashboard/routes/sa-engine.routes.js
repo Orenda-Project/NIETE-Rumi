@@ -72,6 +72,9 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   coachLastWord: lastWordReader = createBrotliFlag({ key: SWITCHES.coachLastWord }),
   cellNextOnly: nextOnlyReader = createBrotliFlag({ key: SWITCHES.cellNextOnly }),
   autoChildLastWord: childLastWordReader = createBrotliFlag({ key: SWITCHES.autoChildLastWord }),
+  appAsks: appAsksReader = createBrotliFlag({ key: SWITCHES.appAsks }),
+  urFit: urFitReader = createBrotliFlag({ key: SWITCHES.urFit }),
+  autoNoLastWord: noLastWordReader = createBrotliFlag({ key: SWITCHES.autoNoLastWord }),
   voiceTashdeed: tashdeedReader = createBrotliFlag({ key: VOICE_TASHDEED_KEY }),
   holdMs, now, env } = {}) {
   const router = express.Router();
@@ -94,11 +97,14 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   const coachLastWord = steady(safe(lastWordReader), hold);
   const cellNextOnly = steady(safe(nextOnlyReader), hold);
   const autoChildLastWord = steady(safe(childLastWordReader), hold);
+  const appAsks = steady(safe(appAsksReader), hold);
+  const urFit = steady(safe(urFitReader), hold);
+  const autoNoLastWord = steady(safe(noLastWordReader), hold);
   const voiceTashdeed = steady(safe(tashdeedReader), hold);
   const takes = tashdeedTakes();
   router.use('/sa', on.warm(), practiceAllMaths.warm(), passageRotation.warm(), voiceV2.warm(), oneAtATime.warm(), passagePunct.warm(), rdfManual.warm(),
     rdfW3Forms.warm(), voiceGateV2.warm(), compAllQuestions.warm(), cellPace.warm(), sectionRecording.warm(), coachLastWord.warm(), cellNextOnly.warm(),
-    autoChildLastWord.warm(), voiceTashdeed.warm());
+    autoChildLastWord.warm(), appAsks.warm(), urFit.warm(), autoNoLastWord.warm(), voiceTashdeed.warm());
   const files = express.static(DIR, {
     index: false,
     dotfiles: 'ignore',
@@ -139,6 +145,9 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
         rdfW3Forms: rdfW3Forms() === true, voiceGateV2: voiceGateV2() === true, compAllQuestions: compAllQuestions() === true,
         cellPace: cellPace() === true, sectionRecording: sectionRecording() === true,
         coachLastWord: coachLastWord() === true, cellNextOnly: cellNextOnly() === true, autoChildLastWord: autoChildLastWord() === true,
+        appAsks: appAsks() === true,
+        urFit: urFit() === true,
+        autoNoLastWord: autoNoLastWord() === true,
       });
       let v2 = false;
       try { v2 = voiceV2() === true; } catch (_) { v2 = false; }

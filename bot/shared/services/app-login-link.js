@@ -47,6 +47,8 @@ const LANDINGS = Object.freeze({
   assessment_topics: '/portal/teacher/assessment/new/class?by=topics',
   // bd-c5reix — not a command: a classroom recording sent on WhatsApp, kept; the one screen opens with it attached.
   ai_coaching_recording: '/portal/teacher/coaching/new?recording=whatsapp',
+  // bd-pw1ccr.2 — not a command: the A/B report button. Opens the generator on one chapter, its paper tagged origin=report.
+  assessment_report: '/portal/teacher/assessment/new/class',
 });
 /** Where a teacher who is no longer on the teacher app lands instead (today's portal home). */
 const LEGACY_LANDING = '/portal/dashboard';
@@ -62,9 +64,26 @@ const COACH_LANDINGS = Object.freeze({
   coach_training: '/portal/coach/training', // bd-s42dye.3 — the coach app's Training Library
 });
 
-/** A feature a token may carry: a teacher page or a coach page. Anything else cannot be signed or verified. */
+/**
+ * bd-a73p5m — the pages a LEADER's link lands on (app-redirect.service.js LEADER_LINKS): a leader's "lesson plan" →
+ * the Lesson Plans tab. It is the teacher's own address, but its own name, so /go lands it for a leader on neither app:
+ * a coach on the coach app has it as a tab, the classic leader menu links it, and TeacherGate lets the leader family
+ * read it (bd-4joiqz). Like an FLN target, it lands whatever the app flags say.
+ */
+const LEADER_LANDINGS = Object.freeze({
+  leader_lessons: '/portal/teacher/lessons',
+});
+
+const own = (map, f) => Object.prototype.hasOwnProperty.call(map, f);
+
+/** A feature a token may carry: a teacher, coach or leader page, or an FLN target. Anything else cannot be signed or verified. */
 const linkable = (f) => typeof f === 'string'
-  && (Object.prototype.hasOwnProperty.call(LANDINGS, f) || Object.prototype.hasOwnProperty.call(COACH_LANDINGS, f) || require('./fln-go-target').isFlnTarget(f));
+  && (own(LANDINGS, f) || own(COACH_LANDINGS, f) || own(LEADER_LANDINGS, f) || require('./fln-go-target').isFlnTarget(f));
+
+/** The page a leader token lands on, or null when `f` is not one. */
+function leaderPathFor(f) {
+  return typeof f === 'string' && own(LEADER_LANDINGS, f) ? LEADER_LANDINGS[f] : null;
+}
 
 /** This environment, as its Supabase host (`<ref>.supabase.co`), or null when SUPABASE_URL is missing or not a URL. */
 function environment() {
@@ -88,24 +107,48 @@ function key() {
 
 const nowS = () => Math.floor(Date.now() / 1000);
 
+/** The only feature whose token may carry a pre-fill. */
+const PREFILL_FEATURE = 'assessment_report';
+
+/** {grade, subject, chapter} when `q` is a well-formed pre-fill, else null. */
+function prefillOf(q) {
+  if (!q || typeof q !== 'object') return null;
+  const { grade, subject, chapter } = q;
+  if (!Number.isInteger(grade) || grade < 1 || grade > 12) return null;
+  if (!Number.isInteger(chapter) || chapter < 1 || chapter > 99) return null;
+  if (typeof subject !== 'string' || !/^[a-z][a-z_]{0,39}$/.test(subject)) return null;
+  return { grade, subject, chapter };
+}
+
+/** The landing's query for a verified payload: origin=report plus its pre-fill for the report button, '' otherwise. */
+function landingQuery(payload) {
+  if (!payload || payload.f !== PREFILL_FEATURE) return '';
+  const p = new URLSearchParams({ origin: 'report' });
+  if (payload.q) Object.entries(payload.q).forEach(([k, v]) => p.set(k, String(v)));
+  return `?${p}`;
+}
+
 /**
  * A link token for this user and feature, or null (no user, a feature with no app page, or no key here).
  * bd-4r3rei: `journeyId` (app-journey.js) rides inside the encrypted payload so the portal can join her page views to
  * the WhatsApp message that sent her. Optional; anything that is not a journey id is not carried.
+ * bd-pw1ccr.2: `prefill` {grade, subject, chapter} rides along for assessment_report only; a malformed one is dropped.
  */
-function signAppLink(userId, feature, journeyId) {
+function signAppLink(userId, feature, journeyId, prefill) {
   const k = key();
   if (!k || !userId || !linkable(feature)) return null;
   const iv = crypto.randomBytes(IV_LEN);
   const cipher = crypto.createCipheriv('aes-256-gcm', k, iv);
   const body = { k: KIND, u: String(userId), f: feature, exp: nowS() + TTL_S };
   if (isJourneyId(journeyId)) body.j = journeyId;
+  const q = feature === PREFILL_FEATURE ? prefillOf(prefill) : null;
+  if (q) body.q = q;
   const plain = Buffer.from(JSON.stringify(body));
   const enc = Buffer.concat([cipher.update(plain), cipher.final()]);
   return Buffer.concat([iv, enc, cipher.getAuthTag()]).toString('base64url');
 }
 
-/** {u, f, exp, j} when the token is genuine, for a linkable feature, and unexpired; else null. `j` is the journey id, or null for a link sent before bd-4r3rei. Never throws. */
+/** {u, f, exp, j, q} when the token is genuine, for a linkable feature, and unexpired; else null. `j` is the journey id, or null for a link sent before bd-4r3rei; `q` the pre-fill or null. Never throws. */
 function verifyAppLink(token) {
   try {
     const k = key();
@@ -123,10 +166,11 @@ function verifyAppLink(token) {
     if (!p || p.k !== KIND || typeof p.u !== 'string' || !p.u) return null;
     if (!linkable(p.f)) return null;
     if (!Number.isFinite(p.exp) || p.exp < nowS()) return null;
-    return { u: p.u, f: p.f, exp: p.exp, j: isJourneyId(p.j) ? p.j : null };
+    const q = p.f === PREFILL_FEATURE ? prefillOf(p.q) : null;
+    return { u: p.u, f: p.f, exp: p.exp, j: isJourneyId(p.j) ? p.j : null, q };
   } catch (_) {
     return null;
   }
 }
 
-module.exports = { signAppLink, verifyAppLink, LANDINGS, COACH_LANDINGS, LEGACY_LANDING, TTL_S };
+module.exports = { signAppLink, verifyAppLink, leaderPathFor, landingQuery, LANDINGS, COACH_LANDINGS, LEADER_LANDINGS, LEGACY_LANDING, TTL_S };

@@ -89,7 +89,7 @@ function voiceBlock(c) {
 }
 
 /** The reasons page. coaches = [{ id, name }]; the list shows only when there is more than one. */
-function renderReasonsPage(view, coaches, action, cardHref) {
+function renderReasonsPage(view, coaches, action) {
   const l = langOf(view);
   const c = PING[l];
   const list = Array.isArray(coaches) ? coaches : [];
@@ -102,7 +102,8 @@ function renderReasonsPage(view, coaches, action, cardHref) {
   const body = `<section class="useful"><h2>${esc(c.q)}</h2><form method="post" action="${esc(action)}">`
     + `${CODES.map(tick).join('')}${voiceBlock(c)}${pick}`
     + `<button class="btn" type="submit">${esc(c.send)}</button>`
-    + `<a class="more" href="${esc(cardHref)}">${esc(c.cancel)}</a></form></section>`
+    // A submit, not a link, so the reasons she ticked are kept (bd-v0toag.80); no validation, so no coach is needed.
+    + `<button class="more" type="submit" name="cancel" value="1" formnovalidate>${esc(c.cancel)}</button></form></section>`
     + `<script>${VOICE_JS}</script>`;
   return shell(l, c.title, body);
 }

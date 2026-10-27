@@ -18,6 +18,8 @@
 // bd-fmf24g.46 — "teachers" (every users.role teacher) is read through the bot's module, so the portal and the
 // WhatsApp app link give one answer to "is she on the teacher app?". The portal service deploys the whole repo.
 const { isTeachersValue, isTeacherRole, isCoachRole } = require('../../bot/shared/services/teacher-audience');
+// bd-sex15q.13 — the six ICT sectors an RM row may name (one list, the analytics gate's).
+const { SECTORS } = require('./analytics-lists');
 
 /** app_settings key for the UG_EG-backed Assessment Generator. */
 const ASSESSMENT_GENERATOR_KEY = 'assessment_generator_enabled';
@@ -167,6 +169,28 @@ const PORTAL_TEACHER_HOME_CARD_KEY = 'portal_teacher_home_card';
 const PORTAL_TEACHER_HOME_ORDER_KEY = 'portal_teacher_home_order';
 
 /**
+ * Teacher Home look — app_settings key for the teacher Home's new LOOK (the band, the tinted card, the progress strip,
+ * the 2-up rows and the phone menu). Read only when portal_teacher_home_card is on too: the look redraws the card's
+ * Home, so it never runs alone. Same shape and rule as the keys above; absent = off, and off is today's Home.
+ */
+const PORTAL_TEACHER_HOME_LOOK_KEY = 'portal_teacher_home_look';
+
+/**
+ * bd-sex15q.13 — COACHIP, the coach and RM insight portal (SPEC v2 §2, API.md §5). Three switches, every one off with
+ * no row; turning one on is one app_settings upsert, and it takes effect on the next request (nothing here caches).
+ *
+ *   portal_coachip         list of users.id (or true)            the coach routes answer; S1 is the coach's home
+ *   portal_coachip_rm      OBJECT {"<users.id>": "<sector>"}       the RM routes answer for that sector (rmSectorFor)
+ *   portal_coachip_decode  list of users.id                      POST /coachip/teacher-name answers for own codes
+ *
+ * portal_coachip_rm is an object on purpose: isFlagEnabledForUser reads an object as OFF, so the RM row can never
+ * switch on a coach route by accident.
+ */
+const PORTAL_COACHIP_KEY = 'portal_coachip';
+const PORTAL_COACHIP_RM_KEY = 'portal_coachip_rm';
+const PORTAL_COACHIP_DECODE_KEY = 'portal_coachip_decode';
+
+/**
  * bd-3bvfj — a flag that can be on for EVERYONE or for a PILOT.
  *
  *   true (or "true")            → on for every user
@@ -241,6 +265,38 @@ async function isCoachAppUser(supabase, userId) {
     return isCoachRole(data.role);
   } catch (_) {
     return false;
+  }
+}
+
+/**
+ * bd-sex15q.13 — the RM's sector, or null. app_settings.portal_coachip_rm must be a JSON OBJECT (stored as jsonb or
+ * as a JSON string) whose key is exactly this users.id and whose value is one of the six ICT sectors. A list, a
+ * number, true, bad JSON, another user's key, a sector that is not one of the six, no user, or a failed read → null.
+ * Fail closed, like isFlagEnabledForUser: the only way on is a deliberate, well-formed row.
+ *
+ * @param {object} supabase
+ * @param {string|null} userId the SESSION user
+ * @returns {Promise<string|null>}
+ */
+async function rmSectorFor(supabase, userId) {
+  if (!userId || typeof userId !== 'string') return null;
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', PORTAL_COACHIP_RM_KEY)
+      .maybeSingle();
+    if (error || !data) return null;
+    let value = data.value;
+    if (typeof value === 'string') {
+      try { value = JSON.parse(value); } catch (_) { return null; }
+    }
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    if (!Object.prototype.hasOwnProperty.call(value, userId)) return null;
+    const sector = value[userId];
+    return typeof sector === 'string' && SECTORS.includes(sector) ? sector : null;
+  } catch (_) {
+    return null;
   }
 }
 
@@ -360,7 +416,20 @@ async function isPortalAssessmentEditingEnabled(supabase) {
   }
 }
 
+/**
+ * The teacher sign-in page takes a non-PK mobile written with its country code (the server already accepts 10-15
+ * digits). One switch for everyone: it is read before anyone is signed in. Off unless set.
+ */
+const PORTAL_LOGIN_INTL_NUMBERS_KEY = 'portal_login_intl_numbers';
+
+/** @returns {Promise<boolean>} whether portal_login_intl_numbers is on */
+function isLoginIntlNumbersEnabled(supabase) {
+  return isFlagEnabled(supabase, PORTAL_LOGIN_INTL_NUMBERS_KEY);
+}
+
 module.exports = {
+  PORTAL_LOGIN_INTL_NUMBERS_KEY,
+  isLoginIntlNumbersEnabled,
   PORTAL_ANALYTICS_ONLY_KEY,
   readUserListFlag,
   isAnalyticsOnlyUser,
@@ -380,6 +449,11 @@ module.exports = {
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,
   PORTAL_TEACHER_HOME_ORDER_KEY,
+  PORTAL_TEACHER_HOME_LOOK_KEY,
+  PORTAL_COACHIP_KEY,
+  PORTAL_COACHIP_RM_KEY,
+  PORTAL_COACHIP_DECODE_KEY,
+  rmSectorFor,
   isFlagEnabledForUser,
   isCoachAppUser,
   isCoachObservationOn,

@@ -5,7 +5,8 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '../hooks/useAuth';
 import { ANALYTICS_LOGIN, homeFor } from '../lib/homeRoute';
 import { FlnLoginBanner, goAfterSignIn, safeNext } from '../fln/login';
-import { isValidPkMobile } from '../lib/phone';
+import { isValidIntlMobile, isValidPkMobile } from '../lib/phone';
+import { portal } from '../services/api';
 import { BottomButton } from '../newui';
 import { FOCUS } from '../newui/styles';
 import { FrameSkeleton, LoginSkeleton } from '../components/Skeleton';
@@ -66,6 +67,17 @@ const PortalLogin = () => {
     notice ? { field: 'form', key: notice, tone: notice === 'alreadySetUp' ? 'done' : 'error' } : null,
   );
 
+  // portal_login_intl_numbers: a non-PK number with its country code may sign in here too (off unless the switch is on).
+  const [intlOn, setIntlOn] = useState(false);
+  useEffect(() => {
+    let live = true;
+    Promise.resolve()
+      .then(() => portal.getConfig())
+      .then((cfg) => { if (live) setIntlOn(cfg?.features?.loginIntlNumbers === true); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
+
   const typePhone = (v: string) => { setPhoneNumber(v); setRegister(null); if (error && error.field !== 'password') setError(null); };
   const typePassword = (v: string) => { setPassword(v); if (error && error.field !== 'phone') setError(null); };
 
@@ -74,7 +86,7 @@ const PortalLogin = () => {
     if (loading) return;
     // bd-2511: a wrong-length number otherwise reaches the server, misses the
     // lookup, and comes back as "not registered" when the teacher just dropped a digit.
-    if (!phoneNumber || !isValidPkMobile(phoneNumber)) {
+    if (!phoneNumber || !(isValidPkMobile(phoneNumber) || (intlOn && isValidIntlMobile(phoneNumber)))) {
       setError({ field: 'phone', key: 'checkNum' });
       return;
     }

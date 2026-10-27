@@ -10,7 +10,7 @@
  *   onCoachMenu(open) (the coach's hold during the run),
  *   micProbe() → Promise<{ok, rms, url}> (game mic check: a 2-s probe, url = a blob to play back),
  *   micLevel(cb(level 0..1)) → stop() (a live input level, for the practice oral question),
- *   manual (RDF manual: the coach gives the instructions), passage_punct (the passage drawn from its own text)
+ *   manual (RDF manual: the coach gives the instructions), app_asks (manual: Jugnu asks the questions), passage_punct (the passage drawn from its own text)
  * }) → { render(), destroy(), setSync(status), mercy(), refuse(kind[, { retry }]), unrefuse(), backWait() }
  *
  * Session gates (RULINGs #13, #17): mic_check (game, once per device), oral_practice (before the first oral task),
@@ -39,6 +39,11 @@
  *                       keeps its prompt, word and replay, and the hand-over screen says to put the headphones on). Every
  *                       item auto speaks is listed on the coach screen and shown again with its item, for the coach to
  *                       read out; a hidden passage is shown to the coach to read; no replay buttons.
+ *   app_asks            (round 6, R6-2, manual only) the coach says the instruction; Jugnu asks every question: each
+ *                       item it has words for (a comprehension question; a sum on its replay tile, as auto), a tap item's
+ *                       question (the task's own tap line, which carries no per-item words), the practice models and the
+ *                       practice feedback, the star line and "Stop" at time-up. The coach screen splits "You say" from
+ *                       "Jugnu asks" (folded, not for reading out) and says how the child answers.
  *   passage_punct       the passage's words are the whitespace tokens of passage.text (its «۔ ، ؟» and ". , ?"),
  *                       one per item, a multi-word item spanning its tokens; scoring and the last word are unchanged.
  *                       A text that does not line up with the items falls back to the items' words.
@@ -127,6 +132,12 @@
       coach_read: 'Read this to the child:',
       coach_then: 'Then give the phone to the child.',
       coach_items: 'Read each one out when it shows:',
+      coach_you: 'You say — read this to the child:',
+      coach_app: 'Jugnu asks — do not read these:',
+      answers_by: 'The child answers by:',
+      by_say: 'saying it aloud',
+      by_tap: 'tapping',
+      by_type: 'typing',
       headphones: 'Put the headphones on the child, then check the sound.',
     },
     ur: {
@@ -202,6 +213,12 @@
       coach_read: 'یہ بچے کو پڑھ کر سنائیں:',
       coach_then: 'پھر فون بچے کو دے دیں۔',
       coach_items: 'ہر ایک سامنے آنے پر پڑھ کر سنائیں:',
+      coach_you: 'آپ کہیں — یہ بچے کو پڑھ کر سنائیں:',
+      coach_app: 'جگنو پوچھے گا — یہ آپ نہ پڑھیں:',
+      answers_by: 'بچہ جواب دے گا:',
+      by_say: 'بول کر',
+      by_tap: 'دبا کر',
+      by_type: 'لکھ کر',
       headphones: 'بچے کو ہیڈفون لگائیں، پھر آواز چیک کریں۔',
     },
   };
@@ -318,6 +335,7 @@
     var starSpeech = null;
     var childName = opts.child && typeof opts.child.first_name === 'string' ? opts.child.first_name.trim().slice(0, 40) : '';
     var manual = !!opts.manual;
+    var appAsks = manual && !!opts.app_asks; // sa_app_asks (round 6, R6-2)
     var sectionRec = !!opts.section_recording; // an oral task is one recording from Begin (sa_section_recording)
     // sa_coach_last_word: the coach marks the last word read; the recording suggests it, the coach confirms (coach mode only)
     // sa_auto_child_last_word (round 5): in RDF auto the child taps it, as before; the coach's screen is RDF manual's only.
@@ -325,6 +343,7 @@
     var coachLW = !!opts.coach_last_word && mode === 'proctored' && !childLW;
     var lw = null; // { task, state: pending | ready | none, suggested, picked }
     var punct = !!opts.passage_punct;
+    var urFit = !!opts.ur_fit; // sa_ur_fit (round 6): an Urdu sentence on a demo card is marked Urdu, so it takes the Urdu rules
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /**
@@ -352,7 +371,7 @@
     function sayChain(list) {
       var g = gen;
       return list.reduce(function (p, x) {
-        return p.then(function () { if (alive && g === gen && x) return say(x[0], x[1]); });
+        return p.then(function () { if (alive && g === gen && x) return say(x[0], x[1], x[2]); });
       }, Promise.resolve());
     }
     function tx(obj) {
@@ -363,6 +382,12 @@
       return obj[lang] || obj.en || obj.ur || '';
     }
     function taskLang(t) { return (t && t.lang) || lang; }
+    /** Round 7: a maths number on the screen is in English digits on the Urdu page too (the tester: "that's how kids know
+     *  them"). Shown text only, maths only (ids "ma.…"): Jugnu's clips still say the number in Urdu. */
+    function shownNums(id, s) {
+      if (!/^ma\./.test(String(id || ''))) return s;
+      return String(s).replace(/[\u06F0-\u06F9\u0660-\u0669]/g, function (d) { var c = d.charCodeAt(0); return String(c >= 0x06F0 ? c - 0x06F0 : c - 0x0660); });
+    }
     function dirOf(t) { return (t && t.direction && t.direction !== 'ltr') ? t.direction : (taskLang(t) === 'ur' ? 'rtl' : 'ltr'); }
     function line(name) { return lines[name] || null; }
     /** One of the engine's own lines: the battery's (it carries the clip) when it has it, else the built-in words. */
@@ -377,24 +402,33 @@
     /** What Jugnu says for an item: its say (in the task's language) or its prompt. */
     function sayItem(it, t) {
       if (!it) return Promise.resolve();
-      if (typeof it.say === 'string') return say({ text: it.say, lang: taskLang(t) }, it.prompt_audio || null);
-      if (it.say) return say(it.say, it.prompt_audio || null);
-      if (it.prompt) return say(it.prompt, it.prompt.audio || it.prompt_audio || null);
-      if (it.prompt_audio) return say(null, it.prompt_audio);
+      if (typeof it.say === 'string') return say({ text: it.say, lang: taskLang(t) }, it.prompt_audio || null, appAsks);
+      if (it.say) return say(it.say, it.prompt_audio || null, appAsks);
+      if (it.prompt) return say(it.prompt, it.prompt.audio || it.prompt_audio || null, appAsks);
+      if (it.prompt_audio) return say(null, it.prompt_audio, appAsks);
+      if (tapAsk(it, t)) return say(tapAsk(it, t), tapAsk(it, t).audio || null, true);
       return Promise.resolve();
     }
+    /** app_asks: a tap or typed maths item carries no words of its own; its question is the task's tap line (Core EGMA
+     *  prints that instruction as the item line, Tasks 2-3), said by Jugnu for each item instead of read by the coach. */
+    function tapAsk(it, t) { return appAsks && it && t && (t.mode === 'tap' || t.mode === 'keypad') ? introOf(t) : null; }
     function itemSpeaks(it) { return !!(it && (it.say || it.prompt || it.prompt_audio)); }
     /** The words Jugnu says for an item, for the coach to read out (RDF manual). */
-    function itemWords(it) { return !it ? '' : typeof it.say === 'string' ? it.say : tx(it.say || it.prompt); }
+    function itemWords(it) { return !it ? '' : shownNums(it.id, typeof it.say === 'string' ? it.say : tx(it.say || it.prompt)); }
     /** RDF manual: an item the auto run speaks, shown for the coach to read out (open, or folded where it is the answer). */
     function coachSays(it, folded) {
       if (!manual || !itemWords(it)) return null;
       var said = h('p', { class: 'sae-say sae-coach-line', text: itemWords(it) });
+      if (appAsks) return h('details', { class: 'sae-coach-says is-coach is-app' }, [h('summary', { text: C.coach_app }), said]);
       if (folded) return h('details', { class: 'sae-coach-says is-coach' }, [h('summary', { text: C.coach }), said]);
       return h('div', { class: 'sae-coach-says is-coach' }, [h('p', { class: 'sae-chip', text: C.coach_read }), said]);
     }
 
     el.classList.add('sae');
+    // sa_ur_fit (round 6): the Urdu text rules (sa.css "Round 6"): every Urdu word inside its box, clear of pictures.
+    if (opts.ur_fit) el.classList.add('is-ur-fit');
+    // in the coach page's frame, under its corner hold (sa.css keeps the scrolling body below it)
+    if (opts.ur_fit && opts.embed) el.classList.add('is-embed');
     el.setAttribute('lang', lang);
     el.setAttribute('dir', lang === 'ur' ? 'rtl' : 'ltr');
     el.setAttribute('data-mode', mode);
@@ -412,7 +446,7 @@
       return h('button', { class: 'sae-btn ' + (cls || ''), type: 'button', onclick: function (e) { if (!busy) onclick(e); } }, [label]);
     }
     function replayBtn(onclick, device) {
-      if (manual && !device) return null; // coach-led: the coach says it again (the sound check keeps its replay)
+      if (manual && !device && !appAsks) return null; // coach-led: the coach says it again (the sound check keeps its replay)
       return h('button', { class: 'sae-replay sa-replay', type: 'button', 'aria-label': C.replay, title: C.replay, onclick: onclick }, [h('span', { 'aria-hidden': 'true', text: '🔁' })]);
     }
     function topBar(v) {
@@ -638,11 +672,15 @@
         h('div', { class: 'sae-body' }, [
           h('p', { class: 'sae-chip', text: C.coach }),
           h('h1', { class: 'sae-h1', text: tx(t.title) }),
-          h('p', { class: 'sae-sub', text: C.coach_read }),
-          h('p', { class: 'sae-say sae-coach-text', text: tx(t.coach_text) || tx(introOf(t)) }),
+          appAsks ? h('div', { class: 'sae-coach-you' }, [
+            h('p', { class: 'sae-sub', text: C.coach_you }),
+            h('p', { class: 'sae-say sae-coach-text', text: tx(t.coach_text) || tx(introOf(t)) }),
+          ]) : h('p', { class: 'sae-sub', text: C.coach_read }),
+          appAsks ? null : h('p', { class: 'sae-say sae-coach-text', text: tx(t.coach_text) || tx(introOf(t)) }),
           demoImage(t),
           demoItem(t),
-          coachItems(t),
+          appAsks ? appAsksList(t) : coachItems(t),
+          appAsks ? h('p', { class: 'sae-sub sae-coach-by' }, [C.answers_by + ' ' + answersBy(t)]) : null,
           h('p', { class: 'sae-sub', text: C.coach_then }),
         ]),
         h('div', { class: 'sae-foot' }, [btn(C.handover_anon, function () { runner.instructionDone(); draw(); }, 'sae-primary')]),
@@ -652,10 +690,33 @@
     function coachItems(t) {
       var said = (t.items || []).filter(function (it) { return itemWords(it); });
       if (!said.length) return null;
-      return h('div', { class: 'sae-coach-list' }, [
-        h('p', { class: 'sae-sub', text: C.coach_items }),
+      return h('div', { class: 'sae-coach-list' + (appAsks ? ' sae-coach-app' : '') }, [
+        h('p', { class: 'sae-sub', text: appAsks ? C.coach_app : C.coach_items }),
         h('ol', { class: 'sae-coach-items', dir: dirOf(t), lang: taskLang(t) }, said.map(function (it) { return h('li', { text: itemWords(it) }); })),
       ]);
+    }
+    /** app_asks: what Jugnu will say to the child in this task (practice models, the questions), folded, never to read out. */
+    function appAsksList(t) {
+      var said = [];
+      (t.practice || []).forEach(function (p) {
+        if (Array.isArray(p.model)) said.push(shownNums(p.id, p.model.map(tx).join(' ')));
+        else if (itemWords(p)) said.push(itemWords(p));
+      });
+      (t.items || []).forEach(function (it) { if (itemWords(it)) said.push(itemWords(it)); });
+      if ((t.mode === 'tap' || t.mode === 'keypad') && introOf(t)) said.push(tx(introOf(t)));
+      if (!said.length) return null;
+      return h('details', { class: 'sae-coach-list sae-coach-app' }, [
+        h('summary', { class: 'sae-sub', text: C.coach_app }),
+        h('ol', { class: 'sae-coach-items', dir: dirOf(t), lang: taskLang(t) }, said.map(function (w) { return h('li', { text: w }); })),
+      ]);
+    }
+    /** How the child answers this task, for the coach (says / taps / types). */
+    function answersBy(t) { return t.mode === 'tap' ? C.by_tap : (t.mode === 'keypad' || t.mode === 'keyboard') ? C.by_type : C.by_say; }
+    /** Round 7 (the tester: say the child's name more often, in the instructions): "<name>، " / "<name>, " in front of a task's
+     *  words on the screen, when the coach's page handed over a name. */
+    function named(text) {
+      if (!childName) return text;
+      return [h('bdi', { class: 'sae-name', text: childName }), lang === 'ur' ? '، ' : ', ', text];
     }
     function sInstruction(v) {
       var t = v.task;
@@ -663,7 +724,7 @@
       return screen(v, 'sae-instr', [
         h('div', { class: 'sae-row' }, [jugnu('hello', true), replayBtn(function () { gen++; playIntro(t); })]),
         h('h1', { class: 'sae-h1', text: tx(t.title) }),
-        h('p', { class: 'sae-say', text: tx(introOf(t)) }),
+        h('p', { class: 'sae-say' }, [].concat(named(tx(introOf(t))))),
         demoImage(t),
         demoItem(t),
       ], [btn(C.next, function () { runner.instructionDone(); draw(); }, 'sae-primary')]);
@@ -675,7 +736,8 @@
     function demoItem(t) {
       var d = t.script && t.script.demo_item;
       if (!d || typeof d !== 'object') return null;
-      var label = labelOf(d) || (typeof d.say === 'string' ? h('p', { class: 'sae-label sa-label', text: d.say }) : null);
+      var sayUr = urFit && typeof d.say === 'string' && /[\u0600-\u06FF]/.test(d.say);
+      var label = labelOf(d) || (typeof d.say === 'string' ? h('p', { class: 'sae-label sa-label', lang: sayUr ? 'ur' : null, dir: sayUr ? 'rtl' : null, text: d.say }) : null);
       var answer = Array.isArray(d.options) && d.options.length
         ? tiles(d.options, function () {}, function (o, b) { b.disabled = true; }, taskLang(t), t, d.glyphs)
         : h('div', { class: 'sae-demo-blank', 'aria-hidden': 'true', text: '__' });
@@ -714,6 +776,8 @@
         }, taskLang(t), t, p.glyphs);
       }
       return screen(v, 'sae-practice', [
+        // Round 7: a tap practice carries the real items' question tag ("Which is bigger"), so it looks like them.
+        t.mode === 'tap' && t.title ? h('p', { class: 'sae-task-tag', text: tx(t.title) }) : null,
         h('div', { class: 'sae-row' }, [
           h('span', { class: 'sae-chip', text: C.practice }),
           itemSpeaks(p) ? replayBtn(function () { gen++; sayItem(p, t); }) : null,
@@ -734,10 +798,10 @@
           : (f.wrong || copyLine('shown'));
       // A line naming an item of the other language is a chain of clips (RULING #31a): said one after another.
       var chain = Array.isArray(said) ? said : [said];
-      hold = { item: p, value: value, res: res, text: chain.map(tx).join(' ') };
+      hold = { item: p, value: value, res: res, text: shownNums(p && p.id, chain.map(tx).join(' ')) };
       try { if (opts.onFeedback) opts.onFeedback({ kind: 'practice', ok: !!res.ok }); } catch (e) { /* skin */ }
       draw();
-      Promise.all([delay(FEEDBACK_MS), capped(sayChain(chain.map(function (x) { return [x]; })), 7000)]).then(function () {
+      Promise.all([delay(FEEDBACK_MS), capped(sayChain(chain.map(function (x) { return [x, undefined, appAsks]; })), 7000)]).then(function () {
         if (!alive) return;
         hold = null;
         busy = false;
@@ -750,7 +814,7 @@
     function sReady(v) {
       return screen(v, 'sae-ready', [
         jugnu('hello'),
-        h('h1', { class: 'sae-h1 sae-xl', text: C.ready }),
+        h('h1', { class: 'sae-h1 sae-xl' }, [].concat(named(C.ready))),
       ], [btn(C.go, function () {
         var t = v.task;
         if (t.mode === 'oral' && t.passage && t.passage.shown === false && !heard[t.id]) { listenThenBegin(t); return; }
@@ -763,7 +827,7 @@
       listening = t;
       gen++;
       draw();
-      if (manual) return; // coach-led: the coach reads it from the screen, then taps Next (sListen)
+      if (manual && !appAsks) return; // coach-led: the coach reads it from the screen, then taps Next (sListen)
       var n = Math.max(1, t.passage.read_times || 1);
       var said = { text: t.passage.text, lang: t.passage.lang || taskLang(t) };
       var p = Promise.resolve();
@@ -781,7 +845,7 @@
     }
     function sListen(v) {
       var t = listening;
-      if (manual && t) {
+      if (manual && !appAsks && t) {
         return screen(v, 'sae-listen is-coach', [
           h('p', { class: 'sae-chip', text: C.coach_read }),
           h('p', { class: 'sae-say sae-coach-line', dir: dirOf(t), lang: taskLang(t), text: t.passage.text }),
@@ -1032,13 +1096,13 @@
     }
     /** A spoken practice item (W3 one-at-a-time tasks): the item big; an example is modelled by Jugnu, a practice item
      *  is modelled after the child's turn (Next); coach-led, the coach models it and Jugnu stays quiet. */
-    function modelOf(p) { return manual || !Array.isArray(p.model) ? [] : p.model.map(function (m) { return [m, m && m.audio]; }); }
+    function modelOf(p) { return (manual && !appAsks) || !Array.isArray(p.model) ? [] : p.model.map(function (m) { return [m, m && m.audio, appAsks]; }); }
     function sPracticeSpoken(v) {
       var p = v.practice, t = v.task;
       return screen(v, 'sae-practice', [
         h('div', { class: 'sae-row' }, [
           h('span', { class: 'sae-chip', text: C.practice }),
-          itemSpeaks(p) || (p.model && !manual) ? replayBtn(function () { gen++; if (itemSpeaks(p)) sayItem(p, t); else sayChain(modelOf(p)); }) : null,
+          itemSpeaks(p) || (p.model && (!manual || appAsks)) ? replayBtn(function () { gen++; if (itemSpeaks(p)) sayItem(p, t); else sayChain(modelOf(p)); }) : null,
         ]),
         oneCell(p.show != null ? p.show : p.target, t, null),
         coachSays(p),
@@ -1474,18 +1538,18 @@
       } else if (v.phase === 'running' && t && t.mode === 'record') {
         // The star line first; the recorder opens after it (recorderHooks), so Jugnu is neither in the child's
         // recording nor in the silence watch's first second.
-        starSpeech = say(line('done') || { en: COPY.en.done, ur: COPY.ur.done });
+        starSpeech = say(line('done') || { en: COPY.en.done, ur: COPY.ur.done }, null, appAsks);
       } else if (v.phase === 'last_word' && coachLW) {
         askHint(v.task);
-        sayChain([v.time_left_ms === 0 && s.time_up ? [s.time_up] : null, manual ? null : [copyLine('give_coach')]]);
+        sayChain([v.time_left_ms === 0 && s.time_up ? [s.time_up, undefined, appAsks] : null, manual ? null : [copyLine('give_coach')]]);
       } else if (v.phase === 'last_word') {
-        sayChain([v.time_left_ms === 0 && s.time_up ? [s.time_up] : null, manual ? null : (s.intro_tap ? [s.intro_tap] : [copyLine('last_word')])]);
+        sayChain([v.time_left_ms === 0 && s.time_up ? [s.time_up, undefined, appAsks] : null, manual ? null : (s.intro_tap ? [s.intro_tap] : [copyLine('last_word')])]);
       } else if (v.phase === 'task_end') {
         var r = v.result || {};
         var skipped = /^skipped|^assets_unavailable/.test(r.stop_reason || '');
         var noMic = r.stop_reason === 'mic_unavailable';
         var said = noMic ? micSkipLine() : skipped ? null : ((r.stop_reason === 'time_up' ? s.time_up : r.stop_reason === 'early_stop_first_line' ? s.early_stop : null) || s.after);
-        var sp = said ? say(said) : Promise.resolve();
+        var sp = said ? say(said, null, appAsks && said === s.time_up) : Promise.resolve();
         var at = v.task_index;
         Promise.all([delay(noMic ? MIC_SKIP_MS : skipped ? 400 : TASK_END_MS), capped(sp, TASK_END_CAP_MS)]).then(function () {
           if (!alive) return;

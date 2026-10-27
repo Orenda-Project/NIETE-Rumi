@@ -526,3 +526,39 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     When I send "/xyzzy"
     Then the bot reply is in Urdu
     And the bot then opens the menu (the "Open app" Home button, or the "See what I do" list)
+
+  # ═══════ ADDED 2026-10-25 · a brand-new person's first message, plainly English (@wip, switch OFF by default) ═══════
+  # Switch: env FIRST_REPLY_ENGLISH_EVIDENCE exactly "true". Off → every scenario below is today's (Urdu).
+  # Rule (bot/shared/utils/first-reply-english-evidence.js): a row that has never sent a message and has not
+  # locked a language; no Urdu script; at least three English words; every word English; no Roman-Urdu word.
+  # It shapes THIS turn's reply only: nothing is stored (preferred_language and language_locked unchanged).
+  # Unit: bot/tests/first-touch/first-reply-english.text-turn.test.js, first-reply-english-evidence.test.js.
+
+  @e2e @language @wip @draft @P2
+  Scenario: A brand-new person whose first message is plainly English is answered in English, with the switch on
+    Given FIRST_REPLY_ENGLISH_EVIDENCE is "true" on the target
+    And a phone number that has never messaged the bot
+    When I send "I need a lesson plan on fractions for class 4"
+    Then the bot reply is in English
+    And the registration offer that follows is in English
+    And users.preferred_language is still "ur" and users.language_locked is still false
+
+  @e2e @language @wip @draft @P2
+  Scenario Outline: A brand-new person's first message without clear English evidence is answered in Urdu, as today
+    Given FIRST_REPLY_ENGLISH_EVIDENCE is "true" on the target
+    And a phone number that has never messaged the bot
+    When I send "<message>"
+    Then the bot reply is in Urdu
+    Examples:
+      | message                    |
+      | lesson plan chahiye        |
+      | I need lesson plan chahiye |
+      | aoa sir                    |
+      | Hello                      |
+
+  @e2e @language @wip @draft @P2
+  Scenario: A person who has messaged before keeps their stored Urdu for an English sentence
+    Given FIRST_REPLY_ENGLISH_EVIDENCE is "true" on the target
+    And my language is Urdu and I have messaged the bot before
+    When I send "I need a lesson plan on fractions for class 4"
+    Then the bot reply is in Urdu

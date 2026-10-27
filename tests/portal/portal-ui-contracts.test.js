@@ -28,12 +28,15 @@ function walk(dir, exts, out = []) {
   return out;
 }
 
-describe('bd-2465 — every WhatsApp CTA points at NIETE, from one place', () => {
-  const NIETE = '923206281951';
+describe('bd-2465 — every WhatsApp CTA opens this tier\'s bot, and the bundle names none', () => {
+  // The portal is one build for every tier. A number baked into it sent sandbox and staging testers to the
+  // production bot, so the number comes from the server at runtime (/config `bot`, rendered in
+  // portal/src/lib/whatsapp.botNumber.test.tsx). These pin the source shape a future edit could undo.
 
-  it('the constant is NIETE\'s number', () => {
+  it('lib/whatsapp.ts holds no bot number', () => {
     const src = read('portal/src/lib/whatsapp.ts');
-    expect(src).toContain(`'${NIETE}'`);
+    expect(src).not.toMatch(/\d{10,}/);
+    expect(src).not.toMatch(/export const WHATSAPP_(NUMBER|URL)\b/);
   });
 
   it('Rumi\'s wa.me short-link appears nowhere outside the explanatory comment', () => {
@@ -43,10 +46,9 @@ describe('bd-2465 — every WhatsApp CTA points at NIETE, from one place', () =>
     expect(offenders).toEqual([]);
   });
 
-  it('no real wa.me URL is hardcoded anywhere but the constant', () => {
+  it('no real wa.me URL is hardcoded anywhere but lib/whatsapp.ts', () => {
     // A short-link hides which number it opens, which is why the wrong bot
-    // went unnoticed across 11 call sites. Everything routes through the
-    // constant now.
+    // went unnoticed across 11 call sites. Everything routes through lib/whatsapp.
     //
     // `wa.me/<number>` is allowed: that placeholder form appears in comments
     // explaining the shape of the URL, and can't itself point anywhere.
@@ -57,13 +59,10 @@ describe('bd-2465 — every WhatsApp CTA points at NIETE, from one place', () =>
     expect(offenders).toEqual([]);
   });
 
-  it('every file importing the constant actually uses it', () => {
-    const unused = walk('portal/src', ['.ts', '.tsx']).filter((f) => {
-      const s = read(f);
-      if (!s.includes("from '@/lib/whatsapp'")) return false;
-      return (s.match(/WHATSAPP_URL/g) || []).length < 2; // import + >=1 use
-    });
-    expect(unused).toEqual([]);
+  it('nothing imports a fixed bot link any more (WHATSAPP_URL / WHATSAPP_NUMBER are gone)', () => {
+    const users = walk('portal/src', ['.ts', '.tsx'])
+      .filter((f) => /\bWHATSAPP_(URL|NUMBER)\b/.test(read(f)));
+    expect(users).toEqual([]);
   });
 });
 

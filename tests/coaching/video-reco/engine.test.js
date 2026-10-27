@@ -103,8 +103,8 @@ test('happy path: one LLM call, a shown row with the clip, the reason, the momen
     indicator: 'C1', catalog_indicator: 'C1', indicator_scheme: 'fico_v4', step_indicator: 'C1', differs_from_step: false,
     step_at_top: false, alias_kind: null, repeat_module: false, target_source: 'step', loop_angle: 'show', observation_type: 'self',
     language: 'ur', language_match: 'preferred', teacher_level: 2, teacher_level_source: 'ladder', level_match: 'near', ladder_completed: false,
-    reason_en: GOOD.reason_en, reason_ur: GOOD.reason_ur, moment_at: '00:30', moment_quote: GOOD.moment.quote, moment_source: 'transcript',
-    confidence: 0.7, none_reason: null, catalog_version: 'catalog-fixture', prompt_version: 'vr-5', model: 'gpt-5-mini-2025-08-07',
+    reason_en: 'At 00:30 the class could only answer yes or no. This clip is about: Ask why and how.', reason_ur: expect.stringMatching(/^سبق میں استاد نے بچوں سے پوچھا، "/), moment_at: '00:30', moment_quote: GOOD.moment.quote, moment_source: 'transcript',
+    confidence: 0.7, none_reason: null, catalog_version: 'catalog-fixture', prompt_version: 'vr-11', model: 'gpt-5-mini-2025-08-07',
     experiment: null, v10_group: 'C', image_strip: false,
   });
   expect(row.candidates[0]).toEqual(expect.objectContaining({ seg_id: expect.any(String), score: expect.any(Number), indicator: 'C1' }));
@@ -173,7 +173,7 @@ test('no ladder rows → teacher_level null, source none, level unknown', async 
   expect(await E.recommendForReport({ ...args(), deps: d })).toMatchObject({ teacher_level: null, teacher_level_source: 'none', level_match: 'unknown' });
 });
 
-test('grade chain: subject_resolution.grade first; else users.training_bands', async () => {
+test('grade chain: subject_resolution.grade first; else the teacher bands (users.teacher_level)', async () => {
   const d = deps();
   await E.recommendForReport({ ...args(), deps: d });
   expect(d.store.trainingBands).not.toHaveBeenCalled();
@@ -241,6 +241,9 @@ test('no transcript lines but a scorer quote → the pick may cite it (moment_so
   const d = deps();
   const a = args();
   a.session.diarization_data = null;
+  // SPEC v1.2.1: a transcript with no [mm:ss] lines (excerpts empty). bd-8hhqhf r7 (scale-run 081240): the scorer quote
+  // must still be a line of it, and a session with NO transcript at all is none no_moments (v13k).
+  a.session.transcript_text = 'Is this a triangle? Yes or no, quickly!\nLook at the board.\nCount the sides with me.'; // R7l §1a: three turns, a lesson
   d.completeJson.mockResolvedValue({ result: { ...GOOD, moment: { at: '00:40', quote: 'Is this a triangle? Yes or no' } }, usage: {}, finishReason: 'stop' });
   expect(await E.recommendForReport({ ...a, deps: d })).toMatchObject({ status: 'shown', moment_source: 'scorer' });
 });
@@ -391,9 +394,9 @@ describe('v1.3b: ONE bounded validation retry (lead-review 19:49Z ruling 4)', ()
 });
 
 describe('v1.3b: lead-review 19:56Z/19:58Z one-liners + r-ab EVENTS_SCHEMA §3b columns', () => {
-  test('F1: step_text_query is stored with the teacher name redacted', async () => {
+  test('F1: step_text_query (R7g: the card_text route\'s query) is stored with the teacher name redacted', async () => {
     const d = deps();
-    const a = args({ nextStep: { target: { indicator: 'C2' } }, card: { indicator: 'C2', action: 'Saima Khan, ask two why questions' } });
+    const a = args({ nextStep: { target: null }, card: { indicator: null, action: 'Saima Khan, ask two why questions' } });
     a.session.users.preferred_language = 'en';
     a.session.transcript_language = 'en';
     const row = await E.recommendForReport({ ...a, deps: d });

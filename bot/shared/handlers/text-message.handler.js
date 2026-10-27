@@ -3,6 +3,7 @@ const { firstNameOf } = require('../utils/person-name');
 const { verifyOutputLanguage } = require('../utils/output-language-check');
 const { decideChildReplyLanguage } = require('../utils/child-reply-language');
 const { resolveResponseLanguage } = require('../utils/resolve-response-language');
+const { firstReplyLanguage } = require('../utils/first-reply-english-evidence');
 const { canonicalizeSlashCommand } = require('../utils/slash-command');
 const OpenAIService = require('../services/openai.service');
 const ContentService = require('../services/content.service');
@@ -748,7 +749,17 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
       requested: rawOverride, userId: user?.id,
     });
   }
-  let responseLanguage = currentLanguage;
+  // A brand-new row's first message, plainly English (positive evidence, switch
+  // FIRST_REPLY_ENGLISH_EVIDENCE): answer THIS turn in English. Nothing is stored — the row keeps
+  // its language and its lock; only the teacher's own choice (setUserLanguage) changes those. Switch off, an
+  // existing row, or no evidence → null, and every line below is today's.
+  const firstReply = firstReplyLanguage({ user, text: messageBody });
+  if (firstReply.language) {
+    logToFile('🈯 first reply in English on positive evidence (this turn only)', {
+      using: firstReply.language, storedPreference: currentLanguage, reason: firstReply.reason, userId: user?.id,
+    });
+  }
+  let responseLanguage = firstReply.language || currentLanguage;
   let languageSwitched = false;
   // Read at the END of the turn, by when the language resolver below has had its say.
   turn.languageOf = () => responseLanguage;
@@ -1498,6 +1509,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
         return;
       }
       typingController.stop();
+      turn.planTurn = true; // SPEC_FTUE §12: the registration Flow comes after the plan, not with it (REGISTRATION_AFTER_PLAN)
       const responseLanguage = await getUserLanguage(user.id) || 'en';
       await openLpBrowseFlow({ from, userId: user.id, language: responseLanguage, reason: 'bare_command' });
       return;
@@ -1838,10 +1850,15 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
     stored: currentLanguage,
     detected: detectedLanguage,
   });
-  responseLanguage = resolved.language;
+  // The first-reply evidence above outranks only a STORED/floor answer: a locked row or an
+  // Urdu-script message never reaches it (the evidence rule refuses both), so the resolver's own
+  // order — locked > Perso-Arabic > stored — is untouched.
+  responseLanguage = (firstReply.language && (resolved.source === 'stored' || resolved.source === 'floor'))
+    ? firstReply.language
+    : resolved.language;
   logToFile('🈯 response language resolved', {
-    using: resolved.language,
-    source: resolved.source,
+    using: responseLanguage,
+    source: responseLanguage === resolved.language ? resolved.source : 'first_reply_evidence',
     autoAdapted: resolved.autoAdapted,
     storedPreference: currentLanguage,
     detectedLanguage,
@@ -2767,6 +2784,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
       // Clear the state
       await MenuService.clearAwaitingLessonPlanTopic(user.id);
 
+      turn.planTurn = true;
       // Curriculum pre-gen intercept (no-op unless the region enables it)
       if (await tryCurriculumLessonPlanServe(from, messageBody, user, lessonPlanState.language)) {
         return; // curriculum pre-generated LP served instantly
@@ -2895,11 +2913,12 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   if (await redirectToApp(intentFeature, 'intent')) return;
 
   if (intent.type === 'lesson_plan') {
+    turn.planTurn = true;
     // Curriculum pre-gen intercept (no-op unless the region enables it)
     if (await tryCurriculumLessonPlanServe(from, messageBody, user, responseLanguage)) {
       return; // curriculum pre-generated LP served instantly
     }
-    await handleLessonPlanRequest(from, messageBody, user, sessionId, responseLanguage, typingController);
+    await handleLessonPlanRequest(from, messageBody, user, sessionId, responseLanguage, typingController, TYPED_TOPIC_ENTRY);
   } else {
     // intent rides along so the LP-context tier gate can reuse the classifier's
     // lp_reference output instead of paying for a second LLM call (bd-njn7u).
@@ -2941,6 +2960,11 @@ async function offerRegistrationAfterReply(turn, from) {
   try {
     const account = turn.user;
     if (!account || !account.id || turn.lookupFailed || turn.invited || turn.oneDoor) return;
+    // SPEC_FTUE §12, NIETE row: «registration Flow after, not with, the plan». A plan turn (the catalogue Flow, the
+    // curriculum serve, the free-form seam) sends no Flow beside it. The offer stays once-only and moves to the teacher's
+    // next non-plan turn; a grounded plan's worker also offers it after delivery (checkAndTriggerRegistration), the v8
+    // catalogue delivery does not. Exactly "true" only.
+    if (turn.planTurn && process.env.REGISTRATION_AFTER_PLAN === 'true') return;
     // Not "is she registered" (a name is enough for that) but "does she still need the form": a
     // name with no school or role counts. Children and admin-set coaches/AEOs never do.
     if (!needsRegistrationForm(account)) return;
@@ -2951,6 +2975,67 @@ async function offerRegistrationAfterReply(turn, from) {
   }
 }
 
+// The one caller of handleLessonPlanRequest that may reach the free-form engine: a topic the teacher
+// typed and the intent classifier sent here. The /menu topic fallback and the picker's "Generate LP"
+// tap pass no entry and always get today's catalogue answer.
+const TYPED_TOPIC_ENTRY = 'typed_topic';
+
+/**
+ * The free-form lesson plan's door from a typed topic. TRUE only when the request was queued for the
+ * free-form engine and she was told; FALSE means "give today's answer", and in that case nothing has
+ * been sent or written (a row whose job could not be queued is marked failed before FALSE).
+ *
+ * Order: the entry (only the typed-topic door), the switch (one cached app_settings read; with it off
+ * nothing else runs), the row's schema_ready (strictly true) and the engine on this deployment, then
+ * the catalogue lookup (a HIT is never changed), then the queue. Any failure is FALSE.
+ */
+async function routeCatalogueMissToFreeform({ from, messageBody, user, sessionId, responseLanguage, entry }) {
+  if (entry !== TYPED_TOPIC_ENTRY) return false;
+  const ENTRY = 'niete_catalogue_miss';
+  // The deployment's own clamp (flat en/ur offer): one rule for every surface, never a local copy.
+  const language = require('../config/ux-strings').clampLanguage(responseLanguage);
+  try {
+    const fflp = require('../services/fflp');
+    const decided = await fflp.switch.decide({
+      source: 'gamma_standard', contentType: 'lesson_plan', entry: ENTRY,
+      user: { id: user.id, phone: user.phone_number || from },
+    });
+    if (decided.track !== 'freeform_v1') return false;
+    // The switch alone is not enough: the request table must accept the row (V1.7.8 applied: its
+    // textbook_metadata column) and the engine must be deployed, or the teacher would be told "writing"
+    // and then get an apology.
+    if ((await fflp.switch.get('schema_ready', false)) !== true) return false;
+    if (!fflp.engineReady()) {
+      logToFile('fflp: switch on but the engine is not on this deployment, giving today\'s answer', { userId: user.id }, 'warn');
+      return false;
+    }
+    const found = await fflp.catalogueMatch.matchTopic(messageBody);
+    if (found.hit) {
+      logToFile('fflp: typed topic is in the catalogue, opening it', { userId: user.id, reason: found.reason, source: found.source });
+      return false;
+    }
+    const requestId = await LessonPlanQueueService.createAndQueueFreeform({
+      userId: user.id, phoneNumber: from, topic: messageBody, fullMessage: messageBody, language, entry: ENTRY,
+    });
+    logToFile('fflp: catalogue miss queued for the free-form engine', { userId: user.id, requestId, reason: decided.reason, score: found.score });
+  } catch (err) {
+    logToFile('⚠️ fflp: free-form door failed, giving today\'s catalogue answer', { userId: user.id, error: err.message }, 'warn');
+    return false;
+  }
+  const line = resolveUx('fflpWriting', { language });
+  try {
+    await WhatsAppService.sendMessage(from, line);
+  } catch (err) {
+    logToFile('⚠️ fflp: the writing line failed to send (the job is queued)', { userId: user.id, error: err.message }, 'warn');
+  }
+  try {
+    await storeConversation(user.id, 'assistant', line, 'text', sessionId);
+  } catch (err) {
+    logToFile('⚠️ fflp: failed to store the writing line', { error: err.message }, 'warn');
+  }
+  return true;
+}
+
 /**
  * Handle lesson plan request
  * @param {string} from - Sender phone number
@@ -2959,9 +3044,10 @@ async function offerRegistrationAfterReply(turn, from) {
  * @param {string|null} sessionId - Session ID
  * @param {string} responseLanguage - User's preferred language ('en', 'ur', 'ar', 'es')
  * @param {Object} typingController - Typing indicator controller
+ * @param {string} [entry] - which door called; only TYPED_TOPIC_ENTRY may reach the free-form engine
  * @returns {Promise<void>}
  */
-async function handleLessonPlanRequest(from, messageBody, user, sessionId, responseLanguage, typingController) {
+async function handleLessonPlanRequest(from, messageBody, user, sessionId, responseLanguage, typingController, entry) {
   // bd-2540 retired freeform generation here and replaced it with a "not in
   // catalog" reply. bd-hgwfo / bd-jnfbd: that reply would have landed on the
   // ~200 teachers a day who reach this handler on production asking for a plan
@@ -2971,6 +3057,13 @@ async function handleLessonPlanRequest(from, messageBody, user, sessionId, respo
   // Reached by: the lesson_plan intent (text), the /menu topic fallback, and
   // the Oxbridge picker's "Generate NIETE LP" tap.
   typingController.stop();
+  // The free-form seam: a typed topic that is in NEITHER catalogue, for a teacher the free-form switch
+  // (app_settings.freeform_lp, off by default) sends there, is queued for the free-form engine instead
+  // of the catalogue. Everything else — the switch off, a catalogue hit, a lookup or queue failure —
+  // falls through to exactly today's answer below.
+  if (user && await routeCatalogueMissToFreeform({ from, messageBody, user, sessionId, responseLanguage, entry })) {
+    return;
+  }
   // bd-oak77.4 — she typed a TOPIC and is about to be shown a grade picker. One short line first,
   // saying where lessons come from now. Only on this door: the bare "lp" command and the /menu tap
   // open the Flow with no preamble because nothing needs explaining there.

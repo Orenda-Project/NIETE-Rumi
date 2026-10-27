@@ -50,9 +50,11 @@ async function recordUseful(supabase, { sessionId, userId, useful, reason }) {
     const { data: own } = await supabase.from('coaching_sessions').select('id')
       .eq('id', sessionId).eq('user_id', userId).maybeSingle();
     if (!own) return false;
-    const { data: existing } = await supabase.from('coaching_quality_metrics').select('id')
-      .eq('coaching_session_id', sessionId).maybeSingle();
-    const { error } = existing
+    // limit(1), not maybeSingle(): two rows made maybeSingle error into a third insert (bd-v0toag.80).
+    const { data: existing, error: readError } = await supabase.from('coaching_quality_metrics').select('id')
+      .eq('coaching_session_id', sessionId).limit(1);
+    if (readError) return false;
+    const { error } = existing && existing.length
       ? await supabase.from('coaching_quality_metrics').update(patch).eq('coaching_session_id', sessionId)
       : await supabase.from('coaching_quality_metrics')
         .insert({ coaching_session_id: sessionId, created_at: new Date().toISOString(), ...patch });

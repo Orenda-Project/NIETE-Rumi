@@ -1,21 +1,28 @@
 'use strict';
 /**
- * bd-zcgpkx — a LEADER's "lesson plan" opens the app on Send a lesson plan, like a teacher's opens the teacher app.
+ * bd-zcgpkx, then bd-a73p5m — a LEADER's "lesson plan" opens the app, like a teacher's opens the teacher app.
  *
- * Until now the lesson-plan link went to registered teachers only (app_redirect_lesson_plan = "teachers"); a coach or
- * principal got `why: not_a_teacher` and the WhatsApp catalogue Flow, which has no Reading Hour or Numeracy plans
- * (32 of 482 lesson-plan commands on 19 Oct). The operator, 19 Oct: "Send leaders straight into the app, the same as
- * teachers ... let's do this", accepting that leaders lose the WhatsApp picker.
+ * bd-zcgpkx (19 Oct): the lesson-plan link went to registered teachers only (app_redirect_lesson_plan = "teachers"); a
+ * coach or principal got `why: not_a_teacher` and the WhatsApp catalogue Flow. The operator, 19 Oct: "Send leaders
+ * straight into the app, the same as teachers". It landed on Send a lesson plan (the FLN builder).
  *
- *   leader_app_lesson_plan:  true (every leader) | a JSON list of users.id (a pilot)
+ * bd-a73p5m (23 Oct): since bd-4joiqz a leader reads every lesson plan in the Lesson Plans tab
+ * (/portal/teacher/lessons). The operator: "A coach who types 'lesson plan' on WhatsApp still gets 'Send a lesson
+ * plan', not the new tab -- they can get new tab". The link now lands on the tab, and FLN share is no longer asked:
+ * the tab does not need it. Inside the tab a leader can send only from a Reading Hour / Numeracy plan's own page
+ * ("Send to teacher", shown only with FLN share); the builder at /portal/fln/send is not linked from the tab.
+ *
+ *   leader_app_lesson_plan:  true (every leader) | "coaches" | a JSON list of users.id (a pilot)
  *                            a missing row, any other value, or a failed read is OFF — today's WhatsApp Flow.
  *   AND users.role is in the leader family (observe-gate LEADER_ROLES: school_leader, supervisor, coach, principal, aeo)
- *   AND FLN share is on for them (portal_fln_share: true or a list holding them) — the builder 404s without it.
+ *   AND they are not an analytics-only account (portal_analytics_only).
  *
- * The token's target is `fln:send`, which /go lands on /portal/fln/send. Driven through the real
- * redirectIfFlagged -> sendAppLink path with only the edges mocked, as app-link-coach-training.test.js is.
+ * The token's target is `leader_lessons`, which /go lands on /portal/teacher/lessons. Driven through the real
+ * redirectIfFlagged -> sendAppLink path, then the real GET /go router, with only the edges mocked.
  */
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
+const http = require('http');
+const express = require('express');
 const mockCta = jest.fn();
 const mockSend = jest.fn();
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({
@@ -79,9 +86,35 @@ const ask = ({ feature = 'lesson_plan', language = 'en', reason = 'bare_command'
 const tokenOf = (opts) => link.verifyAppLink(opts.url.slice(`${PORTAL}/go/`.length));
 const funnel = () => logger.logToFile.mock.calls.filter(([n]) => String(n).startsWith('app_funnel.'));
 
+// GET /go through the real router (dashboard/routes/app-login.routes.js): where a link actually lands.
+let servers = [];
+afterEach(async () => { await Promise.all(servers.map((s) => new Promise((r) => s.close(r)))); servers = []; });
+async function tap(url, { teacherApp = false, coachApp = false } = {}) {
+  jest.doMock('../../dashboard/services/telemetry.service', () => ({ logEvent: jest.fn(), flush() {}, isEnabled: () => true }));
+  const sessions = [];
+  const a = express();
+  a.use((req, _res, next) => {
+    const s = { regenerate(cb) { cb(); }, save(cb) { cb(); } };
+    req.session = s; sessions.push(s); next();
+  });
+  a.use(require('../../dashboard/routes/app-login.routes').createAppLoginRouter({
+    findUser: async (id) => (id === ME ? { id: ME, name: 'Leader' } : null),
+    isTeacherV2: async () => teacherApp,
+    isCoachApp: async () => coachApp,
+  }));
+  const srv = await new Promise((r) => { const s = a.listen(0, () => r(s)); });
+  servers.push(srv);
+  const res = await new Promise((resolve, reject) => {
+    http.get({ host: '127.0.0.1', port: srv.address().port, path: url.slice(PORTAL.length) }, (r) => {
+      r.resume(); r.on('end', () => resolve({ status: r.statusCode, location: r.headers.location }));
+    }).on('error', reject);
+  });
+  return { ...res, session: sessions[0] };
+}
+
 describe('a leader asks for lesson plans with the switch on', () => {
   test.each(['coach', 'principal', 'aeo', 'supervisor', 'school_leader', ' Coach ', 'PRINCIPAL'])(
-    'role %p: ONE cta_url message whose link lands Send a lesson plan', async (role) => {
+    'role %p: ONE cta_url message whose link lands on the Lesson Plans tab', async (role) => {
       set('leader_app_lesson_plan', true);
       mockState.users[ME] = row(role);
       expect(await ask()).toBe(true);
@@ -89,8 +122,7 @@ describe('a leader asks for lesson plans with the switch on', () => {
       expect(mockSend).not.toHaveBeenCalled();
       const [to, opts] = mockCta.mock.calls[0];
       expect(to).toBe(FROM);
-      expect(tokenOf(opts)).toEqual(expect.objectContaining({ u: ME, f: 'fln:send' }));
-      expect(require('../../bot/shared/services/fln-go-target').flnPathFor('fln:send')).toBe('/portal/fln/send');
+      expect(tokenOf(opts)).toEqual(expect.objectContaining({ u: ME, f: 'leader_lessons' }));
       expect(mockState.upserts).toBe(0); // no Play Store notice, no quiet hour
     });
 
@@ -98,28 +130,63 @@ describe('a leader asks for lesson plans with the switch on', () => {
     'leader_app_lesson_plan = %s also covers them', async (_l, value) => {
       set('leader_app_lesson_plan', value);
       expect(await ask()).toBe(true);
-      expect(tokenOf(mockCta.mock.calls[0][1]).f).toBe('fln:send');
+      expect(tokenOf(mockCta.mock.calls[0][1]).f).toBe('leader_lessons');
     });
 
-  // The plain "open lesson plans" doors only. A leader who names a topic keeps today's path: the builder has only
-  // Reading Hour and Numeracy, so "photosynthesis, grade 7" would land on a page without it (red team, PR #3069).
+  // The plain "open lesson plans" doors.
   test.each(['bare_command', 'chip', 'menu', 'menu_choice'])('plain door %p reaches it', async (reason) => {
     set('leader_app_lesson_plan', true);
     expect(await ask({ reason })).toBe(true);
     expect(mockCta).toHaveBeenCalledTimes(1);
   });
 
-  test.each(['lesson_plan_intent', 'voice_lesson_plan_intent', 'voice_intent', 'cutover_inflight_gamma', 'command'])(
-    'door %p (a named topic, or not an open-the-plans door) keeps today\'s path', async (reason) => {
+  // bd-l6424d — and the doors where a leader NAMES A TOPIC. Until 23 Oct these kept the WhatsApp catalogue (PR #3069's
+  // reason, "the builder has only Reading Hour and Numeracy", stopped holding when the link moved to the tab, which has
+  // every plan). Asked whether a coach who names a topic should also get the tab, the operator, 23 Oct 2026: "yes to
+  // topic requests too". Typed: the lesson_plan intent (intent), a topic typed after the menu asked for one and the
+  // Oxbridge picker's "Generate" tap (lesson_plan_intent). Spoken: voice_intent, and voice_lesson_plan_intent inside the
+  // catalogue door. In flight: the worker's cutover rescue (cutover_inflight_gamma).
+  test.each(['intent', 'lesson_plan_intent', 'voice_intent', 'voice_lesson_plan_intent', 'cutover_inflight_gamma'])(
+    'topic door %p reaches it', async (reason) => {
+      set('leader_app_lesson_plan', true);
+      expect(await ask({ reason })).toBe(true);
+      expect(mockCta).toHaveBeenCalledTimes(1);
+      expect(tokenOf(mockCta.mock.calls[0][1]).f).toBe('leader_lessons');
+    });
+
+  // `ft_fallback` (the first-touch "Lesson plan" button, first-touch/maker.fallback.js) is in neither list: a covered coach
+  // who taps it still gets the catalogue Flow. Pinned here so adding it is a deliberate change, not a side effect.
+  test.each(['command', 'ice_breaker', 'unspecified', 'keyword', 'ft_fallback'])(
+    'door %p (not one this switch opens) keeps today\'s path', async (reason) => {
       set('leader_app_lesson_plan', true);
       expect(await ask({ reason })).toBe(false);
       expect(mockCta).not.toHaveBeenCalled();
     });
 
+  test('"coaches" at a topic door: a coach gets the tab, a principal keeps the WhatsApp catalogue', async () => {
+    set('leader_app_lesson_plan', 'coaches');
+    expect(await ask({ reason: 'intent' })).toBe(true);
+    expect(tokenOf(mockCta.mock.calls[0][1]).f).toBe('leader_lessons');
+
+    mockCta.mockClear();
+    svc._resetForTests();
+    mockState.users[ME] = row('principal');
+    expect(await ask({ reason: 'intent' })).toBe(false);
+    expect(mockCta).not.toHaveBeenCalled();
+  });
+
+  test('a topic door asks nothing for a request that is not a lesson plan: general chat at `intent` is never moved', async () => {
+    set('leader_app_lesson_plan', true);
+    set('app_redirect_general_chat', false);
+    expect(await ask({ feature: 'general_chat', reason: 'intent' })).toBe(false);
+    expect(mockCta).not.toHaveBeenCalled();
+    expect(mockState.userReads).toBe(0);
+  });
+
   test('"coaches" covers coaches only: a coach gets the link, a principal keeps the WhatsApp menu', async () => {
     set('leader_app_lesson_plan', 'coaches');
     expect(await ask()).toBe(true);
-    expect(tokenOf(mockCta.mock.calls[0][1]).f).toBe('fln:send');
+    expect(tokenOf(mockCta.mock.calls[0][1]).f).toBe('leader_lessons');
 
     mockCta.mockClear();
     svc._resetForTests();
@@ -138,11 +205,101 @@ describe('a leader asks for lesson plans with the switch on', () => {
     const token = mockCta.mock.calls[0][1].url.split('/go/')[1];
     expect(JSON.stringify(logger.logToFile.mock.calls)).not.toContain(token);
   });
+
+  test('the journey rides the link into the portal session, so the tab\'s page rows join lesson_plan@leader', async () => {
+    set('leader_app_lesson_plan', true);
+    await ask();
+    const { journeyId } = funnel()[0][1];
+    const { session } = await tap(mockCta.mock.calls[0][1].url);
+    expect(session.appJourney).toEqual(expect.objectContaining({ id: journeyId, feature: 'leader_lessons' }));
+    // The tab's address is a lesson-plan page in the funnel (app-journey FEATURE_PREFIXES).
+    expect(require('../../bot/shared/services/app-journey').featureOfRoute('/portal/teacher/lessons')).toBe('lesson_plan');
+  });
+});
+
+describe('GET /go: the link lands on the Lesson Plans tab, wherever the leader is', () => {
+  test.each([
+    ['on neither app (the classic leader portal)', { teacherApp: false, coachApp: false }],
+    ['on the coach app', { teacherApp: false, coachApp: true }],
+    ['a principal on the teacher app', { teacherApp: true, coachApp: false }],
+  ])('%s → 303 /portal/teacher/lessons, signed in, no-store', async (_l, apps) => {
+    set('leader_app_lesson_plan', true);
+    await ask();
+    const res = await tap(mockCta.mock.calls[0][1].url, apps);
+    expect(res.status).toBe(303);
+    expect(res.location).toBe('/portal/teacher/lessons');
+    expect(res.session).toEqual(expect.objectContaining({ portalUserId: ME, isPortalAuth: true }));
+  });
+
+  test('a leader token asks neither app question: the tab decides who reads it', async () => {
+    set('leader_app_lesson_plan', true);
+    await ask();
+    const asked = [];
+    jest.doMock('../../dashboard/services/telemetry.service', () => ({ logEvent: jest.fn(), flush() {}, isEnabled: () => true }));
+    const a = express();
+    a.use((req, _res, next) => { req.session = { regenerate(cb) { cb(); }, save(cb) { cb(); } }; next(); });
+    a.use(require('../../dashboard/routes/app-login.routes').createAppLoginRouter({
+      findUser: async (id) => (id === ME ? { id: ME, name: 'Leader' } : null),
+      isTeacherV2: async () => { asked.push('teacher_app'); return false; },
+      isCoachApp: async () => { asked.push('coach_app'); return false; },
+    }));
+    const srv = await new Promise((r) => { const s = a.listen(0, () => r(s)); });
+    servers.push(srv);
+    const location = await new Promise((resolve, reject) => {
+      http.get({ host: '127.0.0.1', port: srv.address().port, path: mockCta.mock.calls[0][1].url.slice(PORTAL.length) }, (r) => {
+        r.resume(); r.on('end', () => resolve(r.headers.location));
+      }).on('error', reject);
+    });
+    expect(location).toBe('/portal/teacher/lessons');
+    expect(asked).toEqual([]);
+  });
+
+  test('a link sent before this change (fln:send) still lands on Send a lesson plan for its 24 hours', async () => {
+    const res = await tap(`${PORTAL}/go/${link.signAppLink(ME, 'fln:send')}`);
+    expect(res.location).toBe('/portal/fln/send');
+  });
+
+  test.each([['leader_lessonsx'], ['leader_lessons/x'], ['LEADER_LESSONS'], [' leader_lessons']])('%p cannot be signed', (f) => {
+    expect(link.signAppLink(ME, f)).toBeNull();
+  });
+});
+
+describe('FLN share is not asked: the tab does not need it', () => {
+  test.each([['no portal_fln_share row', undefined], ['portal_fln_share false', false], ['a list without them', [OTHER]]])(
+    '%s: the leader still gets the link to the tab', async (_l, value) => {
+      set('leader_app_lesson_plan', true);
+      unset('portal_fln_share');
+      if (value !== undefined) set('portal_fln_share', value);
+      expect(await ask()).toBe(true);
+      expect(mockCta).toHaveBeenCalledTimes(1);
+      expect(tokenOf(mockCta.mock.calls[0][1]).f).toBe('leader_lessons');
+    });
 });
 
 describe('the words', () => {
   const codePoints = (s) => [...String(s)].length;
   const SIGNED_IN = /sign(ed)?[\s-]*in|لاگ\s*اِ?ن|پہلے سے/i; // as tests/app-redirect/app-link-copy.test.js
+  const WORDS = {
+    en: { body: 'Read the lesson plans your teachers get.', button: 'Lesson plans' },
+    ur: { body: 'وہ لیسن پلان پڑھیں جو آپ کے اساتذہ کو ملتے ہیں۔', button: 'لیسن پلان' },
+  };
+  // Red team, PR #3579: most plans in the tab (Grades 1-5, 6-12) have no send button for a leader, and an FLN plan's
+  // "Send to teacher" shows only with FLN share, which this link no longer asks for. The line must not promise it.
+  test.each(['en', 'ur'])('%s: the line promises reading, never sending', async (language) => {
+    set('leader_app_lesson_plan', true);
+    await ask({ language });
+    const { body } = mockCta.mock.calls[0][1];
+    expect(body).not.toMatch(/send/i);
+    expect(body).not.toMatch(/بھیج/);
+  });
+  test.each(['en', 'ur'])('%s: the Lesson Plans tab\'s line and button', async (language) => {
+    set('leader_app_lesson_plan', true);
+    await ask({ language });
+    const { body, buttonText } = mockCta.mock.calls[0][1];
+    expect(body).toBe(WORDS[language].body);
+    expect(buttonText).toBe(WORDS[language].button);
+    expect(codePoints(body)).toBeLessThanOrEqual(1024);
+  });
   test.each(['en', 'ur'])('%s: its own line and button, the button within 15 code points (the repo\'s headroom under 20), nothing about signing in', async (language) => {
     set('leader_app_lesson_plan', true);
     await ask({ language });
@@ -170,15 +327,7 @@ describe('everyone the switch does not cover keeps today\'s path', () => {
       expect(mockCta).not.toHaveBeenCalled();
     });
 
-  test('FLN share off for them: no link (the builder would refuse them) — the WhatsApp Flow runs', async () => {
-    set('leader_app_lesson_plan', true);
-    unset('portal_fln_share');
-    expect(await ask()).toBe(false);
-    expect(mockCta).not.toHaveBeenCalled();
-    expect(logger.logToFile).toHaveBeenCalledWith(expect.stringMatching(/Leader app link: not for this user/), expect.objectContaining({ why: 'fln_share_off' }));
-  });
-
-  test('an analytics-only leader keeps today\'s path (the portal sends them to analytics, not the builder)', async () => {
+  test('an analytics-only leader keeps today\'s path (the portal sends them to analytics, not the tab)', async () => {
     set('leader_app_lesson_plan', true);
     set('portal_analytics_only', [ME]);
     expect(await ask()).toBe(false);

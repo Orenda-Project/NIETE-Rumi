@@ -36,7 +36,7 @@ const { logToFile } = require('../../utils/logger');
 // The TTL and the window check MUST be the same number. When they were two
 // literals in two files, a cache TTL longer than the check's cutoff kept a
 // window closed after the check had already re-opened it.
-const { MESSAGE_WINDOW_MS } = require('../../config/meta-messaging-window');
+const { MESSAGE_WINDOW_MS, RE_ENGAGEMENT_ERROR_CODE } = require('../../config/meta-messaging-window');
 
 const TTL_SECONDS = Math.round(MESSAGE_WINDOW_MS / 1000);
 const KEY_PREFIX = 'meta_window_closed:';
@@ -89,9 +89,31 @@ async function isWindowClosed(phone) {
   }
 }
 
+/**
+ * A failed status receipt from Meta (bd-v0toag.108). Meta accepts a free-form send past the 24h window and refuses
+ * it later with 131047 in this receipt; flag that phone so the next send goes as a template. Never throws.
+ */
+async function onFailedStatus(status) {
+  const code = status && status.errors && status.errors[0] && status.errors[0].code;
+  if (Number(code) !== RE_ENGAGEMENT_ERROR_CODE || !status.recipient_id) return;
+  await markWindowClosed(status.recipient_id);
+}
+
+/** Her message re-opens the window: drop the flag so the free path is tried again. Never throws. */
+async function clearWindowClosed(phone) {
+  if (!phone) return;
+  try {
+    await RailwayRedis.delete(KEY_PREFIX + _normalize(phone));
+  } catch (err) {
+    logToFile('⚠️ Could not clear meta_window_closed flag (non-fatal)', { phone: String(phone).slice(-4), error: err.message });
+  }
+}
+
 module.exports = {
   markWindowClosed,
   isWindowClosed,
+  onFailedStatus,
+  clearWindowClosed,
   // exported for tests
   _normalize,
   _TTL_SECONDS: TTL_SECONDS,

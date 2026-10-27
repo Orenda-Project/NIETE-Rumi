@@ -8,6 +8,8 @@
 #
 # Run:  bash .githooks/githooks.test.sh
 set -u
+# Hooks run here must never write the real clone's QA ledger or push its notes (bd-amxdhg).
+export QA_NOTES_OFF=1 QA_LEDGER="${TMPDIR:-/tmp}/qa-events.test.$$.jsonl"
 cd "$(dirname "$0")/.." || exit 1
 # The installer exits early under CI=… on purpose (CI clones never commit), so
 # the suite must not inherit a CI=true environment. These cases test the

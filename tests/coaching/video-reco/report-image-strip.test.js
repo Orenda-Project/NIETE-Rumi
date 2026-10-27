@@ -3,7 +3,7 @@
  * bd-gzfdu9 (VIDREC) SPEC §4.9: the report IMAGE carries the clip — one block right under "Try one thing tomorrow" on
  * the hero (794) and slim (480) templates: a 16:9 thumbnail with a play badge, "▶ Watch next: {title}" and
  * "{n} min · tap ▶ Watch in the next message". Without a strip the HTML is byte-identical to today (sha256 of the
- * base templates, pinned before the change). stripFor() races the engine for ≤ 20 s and reads the flag at call time.
+ * base templates, pinned before the change). stripFor() races the engine for ≤ stripWaitMs() (R7m: shadow 0, card 1.5 s, llm 5 s) and reads the flag at call time.
  */
 const fs = require('fs');
 const os = require('os');
@@ -21,7 +21,7 @@ const shown = (s) => String(s).replace(/[‎‏⁦-⁩]/g, '');
 const thumb = path.join(os.tmpdir(), `vr-strip-${process.pid}.jpg`);
 beforeAll(() => fs.writeFileSync(thumb, Buffer.from([0xff, 0xd8, 0xff, 0xd9])));
 afterAll(() => fs.rmSync(thumb, { force: true }));
-const STRIP = { thumbPath: thumb, title: 'Asking why-questions <b>', durationS: 134 };
+const STRIP = { thumbPath: thumb, title: 'Asking why-questions <b>', durationS: 134, where: 'next' }; // R7p: the next-message hint
 
 describe('no strip → byte-identical', () => {
   test.each(['en', 'ur'])('hero %s', (l) => {
@@ -70,42 +70,42 @@ describe('with a strip', () => {
   });
 });
 
-describe('stripFor: the engine raced for ≤ 20 s, the flag read at call time', () => {
+describe('stripFor: the engine raced for ≤ the mode\'s cap, the flag read at call time', () => {
   const S = require('../../../bot/shared/services/coaching/video-reco/strip');
   const ROW = { id: 'r', coaching_session_id: 's', status: 'shown', module_id: 63, seg_id: '63-s2', start_s: 95, end_s: 229 };
   const catalog = { segment: () => ({ module: { module_id: 63, title: 'Questioning', cpd_level: 1, thumb: 'video-thumbs/63.jpg' }, segment: { title_en: 'Asking why-questions', title_ur: 'کیوں والے سوال' } }) };
-  const deps = (over = {}) => ({ enabled: () => true, catalog, store: { readForSession: jest.fn(async () => ROW) }, ...over });
+  const deps = (over = {}) => ({ enabled: () => true, onTeacherApp: async () => false, windowOpen: async () => true, catalog, store: { readForSession: jest.fn(async () => ROW) }, ...over });
 
   test('flag off → null, nothing read', async () => {
     const d = deps({ enabled: () => false });
-    expect(await S.stripFor({ coachingSessionId: 's', language: 'en', deps: d })).toBeNull();
+    expect(await S.stripFor({ coachingSessionId: 's', phone: '920000000000', language: 'en', deps: d })).toBeNull();
     expect(d.store.readForSession).not.toHaveBeenCalled();
   });
   test('the engine\'s promise resolves shown → the strip (title in the teacher\'s language, length, thumbnail; no level)', async () => {
-    const out = await S.stripFor({ coachingSessionId: 's', language: 'ur', row: Promise.resolve(ROW), deps: deps() });
-    expect(out).toMatchObject({ title: 'کیوں والے سوال', durationS: 134 });
+    const out = await S.stripFor({ coachingSessionId: 's', phone: '920000000000', language: 'ur', row: Promise.resolve(ROW), deps: deps() });
+    expect(out).toMatchObject({ title: 'کیوں والے سوال', durationS: 134, where: 'next' }); // R7p: off the app, window open
     expect(out.levelLabel).toBeUndefined();
     expect(out.thumbPath).toMatch(/bot\/assets\/video-thumbs\/63\.jpg$/);
   });
   test.each([['shadow'], ['none'], ['error']])('status %s → null', async (status) => {
-    expect(await S.stripFor({ coachingSessionId: 's', language: 'en', row: Promise.resolve({ ...ROW, status }), deps: deps() })).toBeNull();
+    expect(await S.stripFor({ coachingSessionId: 's', phone: '920000000000', language: 'en', row: Promise.resolve({ ...ROW, status }), deps: deps() })).toBeNull();
   });
   test('slower than the cap → null (the image goes as today; the message still follows)', async () => {
     const never = new Promise(() => {});
     const t0 = Date.now();
-    expect(await S.stripFor({ coachingSessionId: 's', language: 'en', row: never, capMs: 50, deps: deps() })).toBeNull();
+    expect(await S.stripFor({ coachingSessionId: 's', phone: '920000000000', language: 'en', row: never, capMs: 50, deps: deps() })).toBeNull();
     expect(Date.now() - t0).toBeLessThan(1000);
   });
-  test('the default cap is 20 s', () => { expect(S.CAP_MS).toBe(20000); });
+  test('the default caps (R7m, COS 165956): llm 5 s, card 1.5 s', () => { expect(S.CAP_MS).toBe(5000); expect(S.CARD_CAP_MS).toBe(1500); });
   test('no row handed over → read by session (merge-order safety); a throw → null', async () => {
     const d = deps();
-    expect(await S.stripFor({ coachingSessionId: 's', language: 'en', deps: d })).not.toBeNull();
+    expect(await S.stripFor({ coachingSessionId: 's', phone: '920000000000', language: 'en', deps: d })).not.toBeNull();
     expect(d.store.readForSession).toHaveBeenCalledWith('s');
     d.store.readForSession.mockRejectedValue(new Error('db'));
-    expect(await S.stripFor({ coachingSessionId: 's', language: 'en', deps: d })).toBeNull();
+    expect(await S.stripFor({ coachingSessionId: 's', phone: '920000000000', language: 'en', deps: d })).toBeNull();
   });
   test('without the engine\'s modules on disk: off, null', async () => {
     delete process.env.VIDEO_RECO_ENABLED;
-    expect(await S.stripFor({ coachingSessionId: 's', language: 'en' })).toBeNull();
+    expect(await S.stripFor({ coachingSessionId: 's', phone: '920000000000', language: 'en' })).toBeNull();
   });
 });

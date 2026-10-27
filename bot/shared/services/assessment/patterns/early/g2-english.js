@@ -7,6 +7,11 @@
 const { makeSubject } = require('./chrome');
 
 const S = (o) => ({ marks_each: 1, ...o });
+// One underscore per missing letter: v12 printed "man__o" for mango, two blanks for one letter.
+const oneBlankEach = (q) => {
+  const stem = String(q.question || '').replace(/\s/g, '');
+  return stem.includes('_') && stem.length === String(q.answer || '').trim().length;
+};
 
 module.exports = makeSubject({
   grade: 2,
@@ -35,24 +40,26 @@ module.exports = makeSubject({
         S({ slot: 'g2.english.B.Q2', label_en: 'Q2.', type: 'Sentences from Words', generate: 3,
           instruction_en: 'Make sentences with these words.',
           prompt_rule: 'Three book words. Answer: a model sentence; accept any correct sentence using the word.' }),
-        S({ slot: 'g2.english.B.Q3', label_en: 'Q3.', type: 'Rhyming Pairs', generate: 3,
-          instruction_en: 'Write a rhyming word.', prompt_rule: 'Three book words. Answer: one rhyme; accept lists other real rhymes.' }),
-        S({ slot: 'g2.english.B.Q4', label_en: 'Q4.', type: 'Spelling', generate: 2, picture: ['object'],
+        S({ slot: 'g2.english.B.Q3', label_en: 'Q3.', type: 'Rhyming Pairs', generate: 3, picture: ['object'],
+          instruction_en: 'Write a rhyming word.', prompt_rule: 'Three book words. Answer: one rhyme; accept lists other real rhymes. Each item also carries picture: {kind:"object", name} of the given word, in English for the artist; choose only words that can be drawn.' }),
+        S({ slot: 'g2.english.B.Q4', label_en: 'Q4.', type: 'Spelling', generate: 2, picture: ['object'], picture_only: true,
           instruction_en: 'Look at the picture and write the word.',
           prompt_rule: 'Two book objects as picture: {kind:"object", name}. Answer: the word.' }),
         S({ slot: 'g2.english.B.Q5', label_en: 'Q5.', type: 'Is Am Are', shape: 'mcq', generate: 3,
           instruction_en: 'Choose is, am or are.', prompt_rule: 'Three sentences with one blank; options exactly is, am, are.' }),
-        S({ slot: 'g2.english.B.Q6', label_en: 'Q6.', type: 'Missing Letters', generate: 3,
-          instruction_en: 'Fill in the missing letters.', prompt_rule: 'Three book words with one or two letters blank and a clue. Answer: the full word.' }),
+        S({ slot: 'g2.english.B.Q6', label_en: 'Q6.', type: 'Missing Letters', generate: 3, picture: ['object'],
+          instruction_en: 'Fill in the missing letters.', answer_ok: oneBlankEach,
+          prompt_rule: 'Three book words with one or two letters blank, one underscore for each missing letter ("b__k" for book, "man_o" for mango); the picture is the clue. Answer: the full word. Each item also carries picture: {kind:"object", name} of the answer word, in English for the artist; choose only words that can be drawn.' }),
         S({ slot: 'g2.english.B.Q7', label_en: 'Q7.', type: 'Opposites', generate: 3,
           instruction_en: 'Write the opposite.', prompt_rule: 'Three book adjectives or verbs. Answer: the opposite.' }),
-        S({ slot: 'g2.english.B.Q8', label_en: 'Q8.', type: 'Singular Plural', generate: 3,
-          instruction_en: 'Write the plural.', prompt_rule: 'Three book nouns (one -es, one irregular). Answer: the plural.' }),
+        S({ slot: 'g2.english.B.Q8', label_en: 'Q8.', type: 'Singular Plural', generate: 3, picture: ['object'],
+          instruction_en: 'Write the plural.', prompt_rule: 'Three book nouns (one -es, one irregular). Answer: the plural. Each item also carries picture: {kind:"object", name} of the given noun, one of it, in English for the artist; choose only words that can be drawn.' }),
         S({ slot: 'g2.english.B.Q9', label_en: 'Q9.', type: 'Has Have', shape: 'mcq', generate: 3,
           instruction_en: 'Choose has or have.', prompt_rule: 'Three sentences with one blank; options exactly has, have.' }),
         S({ slot: 'g2.english.B.Q10', label_en: 'Q10.', type: 'Prepositions', generate: 5, picture: ['scene'],
           instruction_en: 'Look at the picture. Write in, on, under, near or behind.',
-          prompt_rule: 'Five items, each a scene as picture: {kind:"scene", describe} of one object placed by another (a cat under a table). Stem: "The cat is ____ the table." Answer: the preposition.' }),
+          answer_ok: (q) => /^(in|on|under|near|behind)$/i.test(String(q.answer).trim()),
+          prompt_rule: 'Five items, each a scene as picture: {kind:"scene", describe} of one object placed by another (a cat under a table), placed in, on, under, near or behind it, never above, over, beside or next to. Stem: "The cat is ____ the table." Answer: that one word.' }),
       ],
     },
     {
@@ -68,7 +75,8 @@ module.exports = makeSubject({
         S({ slot: 'g2.english.C.Q13', label_en: 'Q13.', type: 'Articles', shape: 'mcq', generate: 3,
           instruction_en: 'Choose a or an.', prompt_rule: 'Three nouns with a blank before them; options exactly a, an.' }),
         S({ slot: 'g2.english.C.Q14', label_en: 'Q14.', type: 'Punctuation', generate: 3,
-          instruction_en: 'Put a full stop (.) or question mark (?).', prompt_rule: 'Three short sentences with no end mark. Answer: the sentence with its mark.' }),
+          instruction_en: 'Put a full stop (.) or question mark (?).', answer_ok: (q) => /[.?]$/.test(String(q.answer).trim()),
+          prompt_rule: 'Three short sentences with no end mark, each a statement or a question, never an exclamation. Answer: the sentence with its . or ?.' }),
         { slot: 'g2.english.C.Q15', label_en: 'Q15.', type: 'Picture Description', generate: 1, marks_each: 6, lines: 4, picture: ['scene'],
           instruction_en: 'Look at the picture and write three sentences.',
           prompt_rule: 'One busy scene from a book theme (a park, a market, a classroom) as picture: {kind:"scene", describe}. Answer: three model sentences. Scheme: three K points of 2 — each a correct sentence about the picture.' },
