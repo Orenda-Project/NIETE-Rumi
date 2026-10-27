@@ -177,6 +177,68 @@ def test_index_lists_profiles_newest_first():
     assert all(set(e) >= {"run_id", "feature", "started", "total_ms", "scenarios", "passed", "failed", "file"} for e in idx["profiles"])
 
 
+
+def test_driver_sleeps_that_overlap_a_worker_job_are_the_workers_time():
+    """A feature script's sleep() while the queue worker is running a job (coaching pipeline, quiz
+    generation) is time spent waiting on the BOT, not a harness choice: it goes to bot.worker, read off
+    worker.log's "Received job" → "Job completed" windows (bd-1r3k2h). The rest of the sleep stays driver.sleep."""
+    d = _run_dir()
+    base = 1_700_000_000_000
+    # one driver sleep of 2500 ms inside M01's window (t0 .. t0+3000): 500 ms before the job starts
+    rows = [json.loads(l) for l in open(os.path.join(d, "trace-menu.jsonl"))]
+    rows.append({"v": 1, "run": "r1", "feature": "menu", "span": "sl1", "parent": None, "name": "driver.sleep",
+                 "layer": "driver", "kind": "intentional", "t0": base + 100, "t1": base + 2600, "ms": 2500,
+                 "status": "ok", "attrs": {"askedMs": 2500, "woke": "timeout"}})
+    _write(os.path.join(d, "trace-menu.jsonl"), rows)
+    # the worker: a job from t0+600 to t0+2100 (1500 ms of the sleep), then another after the sleep ended
+    def line(ms, msg):
+        import datetime
+        dt = datetime.datetime.fromtimestamp((base + ms) / 1000, tz=datetime.timezone.utc)
+        return "[%s.%03d +0000] INFO: %s\n    service: \"rumi-bot\"\n" % (dt.strftime("%Y-%m-%d %H:%M:%S"), (base + ms) % 1000, msg)
+    with open(os.path.join(d, "worker.log"), "w") as f:
+        f.write(line(600, "📥 Received job (bullmq)"))
+        f.write(line(700, "🔄 Executing transcription job"))
+        f.write(line(2100, "✅ Job completed and removed from queue"))
+        f.write(line(4000, "📥 Received job (bullmq)"))
+        f.write(line(4500, "✅ Job completed and removed from queue"))
+    p = pr.build(d, "menu")
+    m01 = next(s for s in p["scenarios"] if s["id"] == "M01")
+    assert "bot.worker" in pr.LAYERS
+    assert m01["layers"]["bot.worker"] == 1500, m01["layers"]
+    assert m01["layers"]["driver.sleep"] == 1000, m01["layers"]
+    ops = {o["name"]: o for o in m01["spans"]}
+    assert ops["worker.busy"]["own_ms"] == 1500 and ops["driver.sleep"]["own_ms"] == 1000
+    assert p["summary"]["layers"]["bot.worker"] == 1500
+    assert any("worker.busy" == b["op"] and b["layer"] == "bot" for b in p["bottlenecks"])
+    assert p["worker_jobs"]["count"] == 2 and p["worker_jobs"]["busy_ms"] == 2000
+
+
+def test_a_sleep_with_bot_and_worker_silent_is_driver_idle():
+    """The driver slept while neither process logged a line: the bot had answered and was waiting for the
+    driver, the driver was waiting out a budget — pure harness cost, its own bucket (driver.idle)."""
+    d = _run_dir()
+    base = 1_700_000_000_000
+    rows = [json.loads(l) for l in open(os.path.join(d, "trace-menu.jsonl"))]
+    rows.append({"v": 1, "run": "r1", "feature": "menu", "span": "sl2", "parent": None, "name": "driver.sleep",
+                 "layer": "driver", "kind": "intentional", "t0": base + 3100, "t1": base + 5100, "ms": 2000,
+                 "status": "ok", "attrs": {"askedMs": 2000, "woke": "timeout"}})
+    _write(os.path.join(d, "trace-menu.jsonl"), rows)
+    import datetime
+    def line(ms, msg):
+        dt = datetime.datetime.fromtimestamp((base + ms) / 1000, tz=datetime.timezone.utc)
+        return "[%s.%03d +0000] INFO: %s\n" % (dt.strftime("%Y-%m-%d %H:%M:%S"), (base + ms) % 1000, msg)
+    with open(os.path.join(d, "bot.log"), "w") as f:
+        f.write(line(3000, "inbound_typing.done"))   # before the sleep
+        f.write(line(5200, "=== INCOMING WEBHOOK ==="))   # after it
+    with open(os.path.join(d, "worker.log"), "w") as f:
+        f.write(line(100, "Periodic stale job recovery enabled (every 5 minutes)"))
+    p = pr.build(d, "menu")
+    m08 = next(s for s in p["scenarios"] if s["id"] == "M08")
+    assert m08["layers"]["driver.idle"] == 2000, m08["layers"]
+    assert m08["layers"]["driver.sleep"] == 0
+    assert any(o["name"] == "driver.idle" and o["own_ms"] == 2000 for o in m08["spans"])
+
+
 if __name__ == "__main__":
     import sys
     fails = 0
