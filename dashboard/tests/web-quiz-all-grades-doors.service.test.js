@@ -1,6 +1,6 @@
 /**
  * NO GRADE FORBIDS A GAME OR A VIDEO (bd-5gyspy.5), on the door screens (wq-doors.js, run in a vm as shipped):
- *   - Games: a folded grade picker ("All grades ▾" / "Grades ▾": no number on the screen until it opens), another grade's
+ *   - Games: a folded grade picker ("All grades" / "Grades", no symbol glyph: no number on the screen until it opens), another grade's
  *     number games under that grade's own heading, each opening the practice play the server named (`href`); the pick
  *     is remembered on this phone per visitor and asked for as ?g=;
  *   - a teacher's «experience as a child» preview: the teacher's own quiz opens as the teacher's own preview (?p=);
@@ -37,29 +37,29 @@ describe('Games: every grade one tap away', () => {
       const W = load();
       const h = W.WQDOORS.html(HUB, ctx(lang), 'games', { games: [...OWN, ...OTHER], sel: 'all', first: [3] });
       expect(count(h, /data-primary/g)).toBe(1);
-      expect(h).toContain(lang === 'en' ? 'All grades ▾' : 'سب جماعتیں ▾');
+      expect(h).toContain(lang === 'en' ? '>All grades</button>' : '>سب جماعتیں</button>');
       expect(h).toContain('href="/c/PRTOK4?kid=#bigger"');
       expect(h).toContain(lang === 'en' ? '>Grade 4</bdi>' : '>جماعت ۴</bdi>');
       expect(h).not.toContain('·');
       expect(h).not.toContain('data-tap="gsel"');
     }
   });
-  test('the visitor\'s own grade, nothing picked: "Grades ▾" and today\'s rows, no number on the screen', () => {
+  test('the visitor\'s own grade, nothing picked: "Grades" and today\'s rows, no number on the screen', () => {
     const W = load();
     const h = W.WQDOORS.html(HUB, ctx(), 'games', { games: OWN });
-    expect(h).toContain('Grades ▾');
+    expect(h).toContain('>Grades</button>');
     expect(visible(h)).not.toMatch(/\d/);
   });
   test('the pick is remembered per visitor and asked for as ?g=', () => {
     const gets = [];
     const W = load({ store: { [`wq_sel_games.${KID}`]: 'all' }, gets });
-    expect(W.WQDOORS.html(HUB, ctx(), 'games', { games: OWN })).toContain('All grades ▾');
+    expect(W.WQDOORS.html(HUB, ctx(), 'games', { games: OWN })).toContain('>All grades</button>');
     const root = { innerHTML: '', setAttribute() {}, getAttribute: () => null, removeAttribute() {}, querySelector: () => null, querySelectorAll: () => [] };
     W.WQDOORS.mount(root, HUB, ctx(), 'games');
     expect(gets.some((u) => /\/api\/wq\/doors\/h\/[^?]+\?kid=0123456789abcdef&d=games&l=en&g=all$/.test(u))).toBe(true);
     // another child on the same phone keeps their own
     const W2 = load({ store: { [`wq_sel_games.${KID}`]: 'all' } });
-    expect(W2.WQDOORS.html({ ...HUB, kid: 'fedcba9876543210', kids: [{ chip: 'fedcba9876543210', grade: '3' }] }, ctx(), 'games', { games: OWN })).toContain('Grades ▾');
+    expect(W2.WQDOORS.html({ ...HUB, kid: 'fedcba9876543210', kids: [{ chip: 'fedcba9876543210', grade: '3' }] }, ctx(), 'games', { games: OWN })).toContain('>Grades</button>');
   });
   test('a teacher\'s preview: the teacher\'s own quiz opens as the teacher\'s own preview (?p=), never as a child', () => {
     const W = load();
