@@ -36,7 +36,7 @@
       subj: function (s) { return s; },
       grade: function (g) { return g === 'all' ? 'All grades' : g === 'NURSERY' ? 'Nursery' : g === 'KG' ? 'KG' : 'Grade ' + g; },
       gradeChip: function (g) { return g === 'NURSERY' ? 'Nursery' : g === 'KG' ? 'KG' : String(g); },
-      grades: 'Grades', allGrades: 'All grades', fromLink: 'Your class plays this from your link',
+      grades: 'Grades', allGrades: 'All grades', gradesN: function (s) { return 'Grades ' + s; }, fromLink: 'Your class plays this from your link',
     },
     ur: {
       weekStory: 'اس ہفتے کی کہانی', toRead: 'پڑھنے کی کہانیاں', toListen: 'سننے کی کہانیاں', books: 'کہانیوں کی کتابیں',
@@ -52,7 +52,7 @@
       subj: function (s) { return SUBJ_UR[s] || s; },
       grade: function (g) { return g === 'all' ? 'سب جماعتیں' : g === 'NURSERY' ? 'نرسری' : g === 'KG' ? 'کے جی' : 'جماعت ' + urDigits(g); },
       gradeChip: function (g) { return g === 'NURSERY' ? 'نرسری' : g === 'KG' ? 'کے جی' : urDigits(g); },
-      grades: 'جماعتیں', allGrades: 'سب جماعتیں', fromLink: 'آپ کی کلاس یہ آپ کے لنک سے کھیلتی ہے',
+      grades: 'جماعتیں', allGrades: 'سب جماعتیں', gradesN: function (s) { return 'جماعت ' + s; }, fromLink: 'آپ کی کلاس یہ آپ کے لنک سے کھیلتی ہے',
     },
   };
   var SUBJ_UR = { English: 'انگریزی', Maths: 'ریاضی', Urdu: 'اردو', Science: 'سائنس', Geography: 'جغرافیہ', 'General Knowledge': 'معلوماتِ عامہ', History: 'تاریخ', 'Islamic Studies': 'اسلامیات', 'Social Studies': 'معاشرتی علوم' };
@@ -98,12 +98,19 @@
   }
   // a selection as the chips show it: 'all' or a list of grades
   function selList(v) { return v === 'all' ? 'all' : (Array.isArray(v) ? v : String(v || '').split(',')).map(String).filter(Boolean); }
-  // the Games door's picker, folded as the library's: "All grades" / "Grades" (no number on the screen until it opens;
-  // no ▾: a symbol glyph is a blank box on Android 9)
+  // Every grade picker (Games, Videos, the Stories shelf) names its selection one way («Grade 3», «Grades 3, 4», «All
+  // grades») and ends in the same caret, drawn in CSS (.wq-caret): never ▾ or another symbol glyph, a blank box on
+  // Android 9 (design-qa P2, bd-5gyspy.5)
+  var CARET = '<i class="wq-caret" aria-hidden="true"></i>';
+  function selLabel(ctx, sel) {
+    var t = C(ctx);
+    if (sel === 'all' || !sel.length) return t.allGrades;
+    return sel.length > 1 ? t.gradesN(sel.map(function (g) { return t.gradeChip(g); }).join(langOf(ctx) === 'ur' ? '، ' : ', ')) : t.grade(sel[0]);
+  }
+  // the Games door's picker, folded as the library's
   var gpOpen = false;
   function gradeMenu(ctx, sel, tap, gs) {
-    var t = C(ctx);
-    return '<div class="wq-vgrade"><button class="wq-btn wq-btn--secondary wq-vgl" type="button" data-tap="gpk" aria-expanded="' + gpOpen + '">' + esc(sel === 'all' ? t.allGrades : t.grades) + '</button>' +
+    return '<div class="wq-vgrade"><button class="wq-btn wq-btn--secondary wq-vgl" type="button" data-tap="gpk" aria-expanded="' + gpOpen + '">' + esc(selLabel(ctx, sel)) + CARET + '</button>' +
       (gpOpen ? gradeChips(ctx, sel, tap, gs) : '') + '</div>';
   }
   function gradeChips(ctx, sel, tap, gs) {
@@ -288,7 +295,7 @@
   var SKEL = '<span class="wq-vcard wq-vskel" aria-hidden="true"><span class="wq-vthumb"></span><b></b></span>';
   // The watch screen while its lesson loads: a placeholder player and title, never words.
   var WATCH_WAIT = '<div class="wq-vbox wq-vskel" data-primary aria-busy="true"></div><span class="wq-vskh"></span>';
-  // The look's grade picker (as the Stories shelf's): "Grade 3 ▾" opens the library's grades as chips; another grade only
+  // The look's grade picker (as the Stories shelf's): "Grade 3" + the caret opens the library's grades as chips; another grade only
   // browses (view.g, this visit), the child's own grade never changes. Its chips are the league's (wq-schips wq-tall, 48 px).
   // «All grades» first (bd-5gyspy.5); several grades (a teacher's) or all: the answer's `sel` says which are on
   function gradePick(ctx, lib) {
@@ -296,9 +303,9 @@
     if (!advOn() || !lib.grade || gs.length < 2) return '';
     var open = view.gopen === true;
     var sel = lib.sel ? selList(lib.sel) : [String(lib.grade)];
-    var label = sel === 'all' ? t.allGrades : sel.length > 1 ? t.grades + ' ' + sel.map(function (g) { return t.gradeChip(g); }).join(langOf(ctx) === 'ur' ? '، ' : ', ') : t.grade(lib.grade);
+    var label = selLabel(ctx, sel);
     var on = function (g) { return sel !== 'all' && sel.indexOf(String(g)) >= 0; };
-    return '<div class="wq-vgrade"><button class="wq-btn wq-btn--secondary wq-vgl" type="button" data-tap="vgl" aria-expanded="' + open + '">' + esc(label) + ' ▾</button>' +
+    return '<div class="wq-vgrade"><button class="wq-btn wq-btn--secondary wq-vgl" type="button" data-tap="vgl" aria-expanded="' + open + '">' + esc(label) + CARET + '</button>' +
       (open ? '<div class="wq-chips wq-schips wq-tall wq-vpick" role="group" aria-label="' + esc(t.grades) + '">' +
         '<button class="wq-chip' + (sel === 'all' ? ' wq-on' : '') + '" type="button" data-tap="vg" data-item="all" aria-pressed="' + (sel === 'all') + '">' + esc(t.allGrades) + '</button>' + gs.map(function (x) {
         return '<button class="wq-chip' + (on(x.g) ? ' wq-on' : '') + '" type="button" data-tap="vg" data-item="' + esc(x.g) + '" aria-pressed="' + on(x.g) + '">' + esc(t.gradeChip(x.g)) + '</button>';
