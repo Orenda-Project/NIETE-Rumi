@@ -1,6 +1,6 @@
 'use strict';
-// bd-gzfdu9 §4.9: the hero (794) and slim (480) report fixtures whose HTML was hashed on origin/sandbox 24312266a8,
-// before the clip strip existed. Shared by report-image-strip.test.js.
+// bd-gzfdu9 §4.9: the hero (794) and slim (480) report fixtures (their HTML was a sha256 golden until COS 20261027T073937 §2;
+// now rendered live both ways). Shared by report-image-strip.test.js.
 const heroVm = (language) => ({
   language, brand: 'niete', teacherName: 'Sana', topic: language === 'ur' ? 'ریاضی' : 'Maths', date: '2026-10-20',
   score: { overall: 63, marks: 66, max: 104 },
