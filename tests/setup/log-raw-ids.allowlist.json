@@ -1530,39 +1530,6 @@
    "279 userId (shorthand)"
   ]
  },
- "bot/shared/services/quiz/lp-lesson-claim.js": {
-  "n": 4,
-  "area": "quiz",
-  "at": [
-   "122 userId: teacherId",
-   "130 userId: teacherId",
-   "142 userId: teacherId",
-   "145 userId: teacherId"
-  ]
- },
- "bot/shared/services/quiz/lp-v8-lesson-provider.js": {
-  "n": 7,
-  "area": "quiz",
-  "at": [
-   "136 userId: teacherId",
-   "175 userId: held[0].user_id",
-   "217 userId: teacherId",
-   "227 userId: teacherId",
-   "230 userId: teacherId",
-   "231 userId: teacherId",
-   "315 userId (shorthand)"
-  ]
- },
- "bot/shared/services/quiz/providers/lp612.provider.js": {
-  "n": 4,
-  "area": "quiz",
-  "at": [
-   "163 userId: teacherId",
-   "166 userId: teacherId",
-   "167 userId: teacherId",
-   "257 userId (shorthand)"
-  ]
- },
  "bot/shared/services/quiz/quiz-delivery.service.js": {
   "n": 1,
   "area": "quiz",
