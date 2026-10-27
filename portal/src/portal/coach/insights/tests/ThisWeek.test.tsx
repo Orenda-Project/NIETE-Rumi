@@ -278,6 +278,20 @@ describe("S1 This week", () => {
     }
   }, 20000);
 
+  // fix-r5 s2 item 20 (panel 094004, design-qa 073634): while the detector is being tested, the phonics tile is ONE line.
+  it.each(["en", "ur"] as const)("%s item 20: the testing phonics tile is one line", async (lang) => {
+    await boot(lang);
+    serve({ "/coachip/home": F.home, [`POST /coachip/notes/${NOTE_ID}/status`]: { note: F.home.note } });
+    await renderAt("");
+    const tile = screen.getByTestId("s1-phonics");
+    expect(tile.getAttribute("data-status")).toBe("testing");
+    expect(tile.querySelector("h2")).toBeNull();
+    const line = tile.querySelector('[data-testid="s1-phonics-line"]') as HTMLElement;
+    const read = F.home.phonics.read as number;
+    expect(line.textContent).toBe(COPY["s1.phonics.line"][lang].replace("{read}", lang === "en" ? String(read) : String(read).replace(/[0-9]/g, (c) => "۰۱۲۳۴۵۶۷۸۹"[Number(c)])));
+    expect(tile.textContent).toBe(line.textContent);
+  }, 20000);
+
   it("phonics: testing, paused and ok each draw their own tile", async () => {
     for (const [payload, state] of [[F.home, "testing"], [F.home_phonics_paused, "paused"], [phonicsOk(), "ok"]] as const) {
       await boot("en");

@@ -63,6 +63,7 @@ export const COPY = {
   "s1.phonics.title": { en: "Phonics check", ur: "حروف کی آوازوں کی جانچ" },
   "s1.phonics.testing": { en: "Being tested against a human read of 30 reading hours. It starts when the two agree. {read} of 30 read.", ur: "۳۰ پڑھائی کے گھنٹوں پر ایک شخص کی سنی ہوئی جانچ سے ملائی جا رہی ہے۔ دونوں کے ملنے پر شروع ہو گی۔ ۳۰ میں سے {read} سنے گئے۔" },
   "s1.phonics.paused": { en: "Paused for a check by a person. Counts return when they sign off.", ur: "ایک شخص کی پڑتال کے لیے روکی گئی ہے۔ منظوری کے بعد گنتی واپس آئے گی۔" },
+  "s1.phonics.line": { en: "Phonics check: starts after 30 reading hours are read ({read} of 30)", ur: "حروف کی آوازوں کی جانچ: ۳۰ پڑھائی کے گھنٹے سنے جانے کے بعد شروع ہو گی (۳۰ میں سے {read})" },
   "s1.phonics.ok.sub": { en: "{n} of {d} reading-hour recordings read", ur: "پڑھائی کے گھنٹے کی {d} میں سے {n} ریکارڈنگز سنی گئیں" },
   "s1.stats_link": { en: "Average stats and results ›", ur: "اوسط اعداد اور نتائج" },
   "s1.stale": { en: "Last night's analysis did not run. Moves as of {date} are shown.", ur: "گزشتہ رات کا تجزیہ نہیں چلا۔ {date} تک کے قدم دکھائے جا رہے ہیں۔" },
