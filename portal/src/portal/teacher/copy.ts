@@ -31,7 +31,7 @@ export const TEACHER_COPY = {
     home: "Home",
     schedule: "Schedule",
     observe: "Observe",
-    schools: "Schools",
+    schools: "My schools",
     training: "Training Library",
     /** bd-4joiqz — the teacher Lesson Plans pages, read as a leader: the teachers' own word for them (nav.lessons). */
     lessons: "Lesson Plans",
@@ -97,7 +97,7 @@ export const TEACHER_COPY_UR = {
     home: "ہوم",
     schedule: "شیڈول",
     observe: "مشاہدہ",
-    schools: "اسکول",
+    schools: "میرے سکول",
     training: "ٹریننگ لائبریری",
     lessons: "لیسن پلان",
     more: "مزید",

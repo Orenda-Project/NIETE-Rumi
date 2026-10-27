@@ -4,6 +4,10 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock("../CoachGate", () => ({ default: ({ children }: any) => <>{children}</> }));
+// These are the pages as the full coach app draws them, with Schedule and Observe in it: Schedule a visit, and a HITL
+// row opening its observation. While those are not in the coach app, the same pages leave both out
+// (people/schoolsReady.test.tsx).
+vi.mock("../training/appReady", async (orig) => ({ ...(await orig<Record<string, unknown>>()), coachFeatureReady: () => true }));
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Hataf", role: "coach", phoneNumber: "923001234567" }, loading: false }) }));
 vi.mock("../../services/api", () => ({
   coach: { getObservation: vi.fn(), getReports: vi.fn(), getTeacher: vi.fn(), getVisit: vi.fn() },

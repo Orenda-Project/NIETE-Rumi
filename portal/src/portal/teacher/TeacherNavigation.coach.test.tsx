@@ -25,7 +25,7 @@ describe("role-aware bottom menu (bd-4404s7.1)", () => {
   it("the coach's: Home, Schedule, Observe, Schools, More — with their routes", () => {
     at("/portal/coach", "coach");
     const links = Array.from(screen.getByTestId("teacher-nav").querySelectorAll("a"));
-    expect(links.map((a) => a.textContent)).toEqual(["Home", "Schedule", "Observe", "Schools", "More"]);
+    expect(links.map((a) => a.textContent)).toEqual(["Home", "Schedule", "Observe", "My schools", "More"]);
     expect(links.map((a) => a.getAttribute("href"))).toEqual(COACH_NAV_KEYS.map((k) => COACH_MENU_PATHS[k]));
   });
   it("icons stay STILL (Schedule and Schools glyphs included)", () => {
