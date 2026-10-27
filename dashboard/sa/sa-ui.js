@@ -138,6 +138,9 @@
       voice_not_ready: 'The voice is not ready yet',
       please_go_on: 'Please go on.',
       coach_will_instruct: 'Your coach will now give the instructions.',
+      // round 7b (sa_silence_repeat): no voice heard on a read-aloud part
+      silence_repeat: 'Jugnu could not hear you. Say each answer out loud. Let us do this part again.',
+      silence_again: 'Try again',
       coach_read: 'Read this to the child:',
       coach_then: 'Then give the phone to the child.',
       coach_items: 'Read each one out when it shows:',
@@ -221,6 +224,8 @@
       voice_not_ready: 'آواز ابھی تیار نہیں',
       please_go_on: 'آگے چلیں۔',
       coach_will_instruct: 'اب آپ کے کوچ ہدایات دیں گے۔',
+      silence_repeat: 'جگنو آپ کی آواز نہیں سن سکا۔ ہر جواب اونچی آواز میں بولیں۔ آئیے یہ حصہ دوبارہ کرتے ہیں۔',
+      silence_again: 'دوبارہ کریں',
       coach_read: 'یہ بچے کو پڑھ کر سنائیں:',
       coach_then: 'پھر فون بچے کو دے دیں۔',
       coach_items: 'ہر ایک سامنے آنے پر پڑھ کر سنائیں:',
@@ -1485,6 +1490,14 @@
 
     /** The line for a record task skipped with no microphone: the battery's recorded one, else the COPY text. */
     function micSkipLine() { return line('mic_skip_task') || { en: COPY.en.mic_skip_task, ur: COPY.ur.mic_skip_task }; }
+    /** Round 7b (sa_silence_repeat): no voice heard on the part; Jugnu asks for the answers out loud, then the part again. */
+    function sSilenceReminder(v) {
+      return screen(v, 'sae-silence sa-silence', [
+        jugnu('idle'),
+        h('h1', { class: 'sae-h1', text: tx(copyLine('silence_repeat')) }),
+      ], [btn(C.silence_again, function () { runner.silenceRepeatDone(); draw(); }, 'sae-primary')]);
+    }
+
     function sTaskEnd(v) {
       var skipped = v.result && /^skipped|^mic_unavailable|^assets_unavailable/.test(v.result.stop_reason || '');
       var noMic = v.result && v.result.stop_reason === 'mic_unavailable';
@@ -1670,6 +1683,8 @@
           var now = runner.view();
           if (now.phase === 'task_end' && now.task_index === at) { runner.next(); draw(); }
         });
+      } else if (v.phase === 'silence_reminder') {
+        say(copyLine('silence_repeat'));
       } else if (v.phase === 'battery_end') {
         if (mode === 'proctored') say(handback === 'teacher' && line('end') ? line('end') : copyLine('give_coach'));
         else say(copyLine('all_done'));
@@ -1737,6 +1752,7 @@
           break;
         case 'last_word': s = sLastWord(v); break;
         case 'task_end': s = sTaskEnd(v); break;
+        case 'silence_reminder': s = sSilenceReminder(v); break;
         case 'battery_end': s = sEnd(v); break;
         default: s = screen(v, '', [h('p', { text: v.phase })]);
       }

@@ -31,6 +31,9 @@ export function useSaSwitches(enabled: boolean | null): SaSwitches {
           resumeRepick: s.resumeRepick === true,
           allGrades: s.allGrades === true,
           addChild: s.addChild === true,
+          // round 7b: the coach's End test as a tap + Restart test; RDF manual's End this section
+          endTestRestart: s.endTestRestart === true,
+          endSection: s.endSection === true,
         });
       })
       .catch(() => { /* off */ });
