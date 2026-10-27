@@ -4,7 +4,8 @@ import { TEACHER_FRAME } from "../../copy";
 import { useCopy } from "../../i18n";
 import { teacherPath } from "../../routes";
 import { FOCUS } from "../../ui/styles";
-import type { HomeTileKey } from "../api";
+import type { HomeTileKey, TapKind } from "../api";
+import { QuizRow } from "../QuizTile";
 import { LOOK_ICONS } from "./lookIcons";
 
 /** The kinds whose well is green; every other feature's is slate. */
@@ -29,12 +30,25 @@ function isPermutation(order: readonly HomeTileKey[], tiles: readonly { key: Hom
  * @param tiles the features, in Home's fixed order
  * @param order the server's order; used only when it is a whole permutation of `tiles`
  */
-export function FeatureRows({ tiles, order, className }: { tiles: readonly { key: HomeTileKey }[]; order?: HomeTileKey[] | null; className?: string }) {
+export function FeatureRows({ tiles, order, className, quiz }: {
+  tiles: readonly { key: HomeTileKey }[];
+  order?: HomeTileKey[] | null;
+  className?: string;
+  /** The Quizzes row (portal_teacher_home_quiz_tile): drawn right after Lesson plans; absent → today's eight rows. */
+  quiz?: { quizHome: string; onGo: (kind: TapKind, href: string) => void } | null;
+}) {
   const C = useCopy(TEACHER_FRAME);
   const keys = order && isPermutation(order, tiles) ? order : tiles.map((t) => t.key);
+  // the rows in drawing order: the features, with the Quizzes row after Lesson plans (2nd when Lesson plans leads)
+  const cells: (HomeTileKey | "quiz")[] = [...keys];
+  if (quiz) cells.splice(Math.max(cells.indexOf("lessons"), 0) + 1, 0, "quiz");
+  // an odd count in two columns: the last row spans both, so the grid never ends on a half row
+  const spanLast = cells.length % 2 === 1;
   return (
     <nav aria-label={C.home.features} data-testid="feature-tiles" className={cn("[display:grid] grid-cols-2 gap-2", className)}>
-      {keys.map((key) => {
+      {cells.map((key, i) => {
+        const wide = spanLast && i === cells.length - 1 ? "col-span-2" : undefined;
+        if (key === "quiz") return quiz ? <QuizRow key="quiz" quizHome={quiz.quizHome} onGo={quiz.onGo} className={wide} /> : null;
         const Icon = LOOK_ICONS[key];
         return (
           <Link
@@ -44,6 +58,7 @@ export function FeatureRows({ tiles, order, className }: { tiles: readonly { key
             className={cn(
               "flex min-h-[52px] items-center gap-2.5 rounded-[14px] border border-[#e5e7eb] bg-white px-2 py-1.5 max-[343px]:gap-2 max-[343px]:px-1.5",
               FOCUS,
+              wide,
             )}
           >
             <span
