@@ -52,6 +52,15 @@ describe('coaching-ext — the photo prompt taps wait seconds, not the 60 s defa
   });
 });
 
+describe('coaching-ext — the wait after the commitment card is lane-tunable (every run idled ~30 s with the bot silent)', () => {
+  test('POST_REPORT_MS replaces the 30 s literal and run-suite sets 12 s', () => {
+    const src = read('.claude/qa/shared/coaching-ext.cjs');
+    expect(src).toMatch(/E2E_COACHING_POST_REPORT_MS/);
+    expect(src).not.toMatch(/obs\.commit && t\(\) - reportAt > 30000/);
+    expect(read('.claude/qa/shared/run-suite.sh')).toMatch(/E2E_COACHING_POST_REPORT_MS="\$\{E2E_COACHING_POST_REPORT_MS:-12000\}"/);
+  });
+});
+
 describe('coaching-ext — every guarded block is timed so the dashboard can attribute the shards', () => {
   const src = read('.claude/qa/shared/coaching-ext.cjs');
   test('set() stores the window and guard() opens it', () => {

@@ -178,6 +178,7 @@ module.exports.run = async function runExt(ctx) {
     // silent is declared BLOCKED after 90 s, not 240 — COA04's first run is genuinely stuck at steps 2/3/5 on the lane
     // and every coaching shard paid the full 240 s before (bd-r09cmx).
     const STALL_DEFAULT_MS = Number(process.env.E2E_COACHING_STALL_MS) || 240000;
+    const POST_REPORT_MS = Number(process.env.E2E_COACHING_POST_REPORT_MS) || 30000;
     const budget = o.budgetMs || 15 * 60 * 1000; const stallMs = o.stallMs || STALL_DEFAULT_MS;
     const t1 = t(); let lastProgress = t(); let prevSig = ''; let reportAt = 0;
     const sendLp = async () => {
@@ -256,7 +257,10 @@ module.exports.run = async function runExt(ctx) {
         lastProgress = t();
       }
       if (obs.commit && obs.quizOffer) break;
-      if (obs.commit && t() - reportAt > 30000) break;
+      // after the commitment card the walk only waits for the quiz offer (TRANSCRIPT_QUIZ_OFFER_DELAY_SECS, 5 s on the
+      // lane); 30 s was tuned for the production delay — every pipeline run idled ~30 s with the bot silent
+      // (run 20261027-1051-par, bd-1r3k2h). E2E_COACHING_POST_REPORT_MS on the lane.
+      if (obs.commit && t() - reportAt > POST_REPORT_MS) break;
       if (obs.report && t() - reportAt > 90000) break;
       const sig = [obs.steps.length, !!obs.photoPrompt, !!obs.lpPrompt, !!obs.reflective, !!obs.report, obs.survey.length, obs.complete.length].join('/');
       if (sig !== prevSig) { prevSig = sig; lastProgress = t(); }

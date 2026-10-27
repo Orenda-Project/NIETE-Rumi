@@ -29,6 +29,7 @@ Layer taxonomy (own-time of each span, so nothing is counted twice):
 
 Tests: python3 test_profile_run.py
 """
+import bisect
 import argparse
 import datetime
 import glob
@@ -82,8 +83,15 @@ def _stats(xs):
 
 # ── layer classification ────────────────────────────────────────────────────────
 
-LAYERS = ["wait.intentional", "bot.processing", "bot.pacing", "bot.timeout", "harness.polling", "mock.http", "flow", "seed",
-          "harness.overhead", "driver.sleep", "driver.unaccounted"]
+LAYERS = ["wait.intentional", "bot.processing", "bot.worker", "bot.pacing", "bot.timeout", "harness.polling", "mock.http", "flow", "seed",
+          "harness.overhead", "driver.sleep", "driver.idle", "driver.unaccounted"]
+# driver.idle: a driver sleep during which NEITHER the bot nor the worker logged a line — the bot had answered
+# (inbound_typing.done) and was waiting for the driver; the driver was waiting out a budget for a message that
+# was not coming (a survey, a voice note, a gate to go stale). The one bucket that is pure harness cost.
+# bot.worker: the part of a driver's sleep that overlaps a job the queue worker was running (worker.log
+# "📥 Received job" → "✅ Job completed and removed from queue"): a coaching pipeline, a quiz generation. The
+# driver polls once a second and nothing arrives until the job is done, so that time is the BOT's, not the
+# harness's — labelled driver.sleep it read as harness waste (bd-1r3k2h, run 20261027-1051-par: 50% of the bar).
 # driver.sleep: a feature script's sleep() on the mock lane (mock-api smartSleep, bd-aqi0ay) — long-polls the outbox and
 # wakes when the bot answers. Accounted, so what remains in driver.unaccounted is the script's own compute and seeds.
 # bot.timeout: a bot.reply that never came — the harness waited its full timeout (60–120 s). Not processing: nothing
@@ -97,6 +105,10 @@ LAYERS = ["wait.intentional", "bot.processing", "bot.pacing", "bot.timeout", "ha
 def layer_of(span):
     """Which layer a span's OWN time belongs to."""
     layer, kind, name = span.get("layer"), span.get("kind"), span.get("name", "")
+    if name == "worker.busy":
+        return "bot.worker"
+    if name == "driver.idle":
+        return "driver.idle"
     if layer == "driver":        # a driver's sleep is intentional too, but it is the SCRIPT's wait, not the harness's
         return "driver.sleep"
     if layer == "wait" or kind == "intentional":
@@ -120,6 +132,8 @@ def layer_of(span):
 
 def category_of(span):
     kind, name = span.get("kind"), span.get("name", "")
+    if name == "worker.busy":
+        return "processing"
     if span.get("layer") == "driver":
         return "driver-sleep"
     if kind == "intentional":
@@ -137,6 +151,78 @@ def category_of(span):
     if span.get("layer") == "flow":
         return "flow"
     return "harness"
+
+
+# ── the worker's job windows (worker.log) ────────────────────────────────────────
+
+_JOB_START = "Received job"
+_JOB_END = "Job completed and removed from queue"
+
+
+def worker_job_windows(path):
+    """[(t0, t1)] ms — every job the queue worker ran, from its 'Received job' line to its 'Job completed'
+    line (a job still open at the end of the log closes at the last line), merged where they overlap."""
+    starts, raw, last = [], [], None
+    try:
+        f = open(path, encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+    with f:
+        for line in f:
+            m = _HEAD.match(_ANSI.sub("", line.rstrip("\n")))
+            if not m:
+                continue
+            d, t, ms, sign, hh, mm = m.group(1), m.group(2), m.group(3), m.group(4), m.group(5), m.group(6)
+            off = (int(hh) * 60 + int(mm)) * (1 if sign == "+" else -1)
+            dt = datetime.datetime.strptime(d + " " + t, "%Y-%m-%d %H:%M:%S").replace(
+                tzinfo=datetime.timezone(datetime.timedelta(minutes=off)))
+            ts = int(dt.timestamp()) * 1000 + int(ms)
+            last = ts
+            msg = m.group(8)
+            if _JOB_START in msg:
+                starts.append(ts)
+            elif _JOB_END in msg and starts:
+                raw.append((starts.pop(0), ts))
+    for s in starts:
+        if last is not None and last > s:
+            raw.append((s, last))
+    merged = []
+    for a, b in sorted(raw):
+        if merged and a <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], b)
+        else:
+            merged.append([a, b])
+    return [(a, b) for a, b in merged]
+
+
+def log_stamps(path):
+    """Every timestamp (ms) at which a pino-pretty log has a header line — the process was doing something."""
+    out = []
+    try:
+        f = open(path, encoding="utf-8", errors="replace")
+    except OSError:
+        return out
+    with f:
+        for line in f:
+            m = _HEAD.match(_ANSI.sub("", line.rstrip("\n")))
+            if not m:
+                continue
+            off = (int(m.group(5)) * 60 + int(m.group(6))) * (1 if m.group(4) == "+" else -1)
+            dt = datetime.datetime.strptime(m.group(1) + " " + m.group(2), "%Y-%m-%d %H:%M:%S").replace(
+                tzinfo=datetime.timezone(datetime.timedelta(minutes=off)))
+            out.append(int(dt.timestamp()) * 1000 + int(m.group(3)))
+    out.sort()
+    return out
+
+
+def overlap_ms(t0, t1, windows):
+    """How much of [t0, t1) falls inside the (merged) windows."""
+    total = 0
+    for a, b in windows:
+        lo, hi = max(t0, a), min(t1, b)
+        if hi > lo:
+            total += hi - lo
+    return total
 
 
 # ── the pino-pretty parser (bot.log / worker.log) ───────────────────────────────
@@ -274,6 +360,13 @@ def build(run_dir, feature=None):
     bot_tl = parse_pino_pretty(os.path.join(run_dir, "bot.log"))
     worker_tl = parse_pino_pretty(os.path.join(run_dir, "worker.log"))
     corr_of = correlation_by_message(bot_tl)
+    job_windows = worker_job_windows(os.path.join(run_dir, "worker.log"))
+    activity = sorted(log_stamps(os.path.join(run_dir, "bot.log")) + log_stamps(os.path.join(run_dir, "worker.log")))
+
+    def bot_silent(t0, t1):
+        if not activity:
+            return False
+        return bisect.bisect_left(activity, t1) - bisect.bisect_left(activity, t0) == 0
 
     def in_window(ts, a, b):
         return ts is not None and a <= ts < b
@@ -288,10 +381,23 @@ def build(run_dir, feature=None):
         for p in prims:
             for s in tree(p):
                 o = own_ms(s)
-                layers[layer_of(s)] += o
-                ops.append({"name": s.get("name"), "own_ms": o, "ms": int(s.get("ms", 0)), "status": s.get("status"),
+                # a driver sleep that overlaps a running worker job: that part is the worker's (bot.worker)
+                busy = 0
+                lay = layer_of(s)
+                if lay == "driver.sleep" and s.get("t0") is not None and s.get("t1") is not None:
+                    if job_windows:
+                        busy = min(o, overlap_ms(int(s["t0"]), int(s["t1"]), job_windows))
+                    if not busy and bot_silent(int(s["t0"]), int(s["t1"])):
+                        lay = "driver.idle"
+                layers[lay] += o - busy
+                ops.append({"name": "driver.idle" if lay == "driver.idle" else s.get("name"), "own_ms": o - busy, "ms": int(s.get("ms", 0)), "status": s.get("status"),
                             "layer": s.get("layer"), "kind": s.get("kind"), "attrs": s.get("attrs") or {},
                             "span": s.get("span"), "parent": s.get("parent"), "t0": s.get("t0"), "t1": s.get("t1")})
+                if busy:
+                    layers["bot.worker"] += busy
+                    ops.append({"name": "worker.busy", "own_ms": busy, "ms": busy, "status": "ok", "layer": "bot", "kind": "worker",
+                                "attrs": {"sleptMs": o, "jobs": len(job_windows)}, "span": str(s.get("span")) + "-job",
+                                "parent": s.get("parent"), "t0": s.get("t0"), "t1": s.get("t1")})
         covered = sum(int(p.get("ms", 0)) for p in prims)
         layers["driver.unaccounted"] = max(0, int(sc.get("ms", 0)) - covered)
         dbw = [r for r in db_rows if in_window(r.get("ts"), a, b)]
@@ -495,8 +601,12 @@ def build(run_dir, feature=None):
     if not bot_tl:
         gaps.append("bot.log not parsed — no correlation timelines available")
 
+    worker_jobs = {"count": len(job_windows), "busy_ms": sum(b - a for a, b in job_windows)}
+    if not job_windows:
+        gaps.append("no worker job windows in worker.log — driver sleeps during queued work stay driver.sleep")
+
     return {
-        "v": 1, "run_id": run_id, "feature": feature, "run_dir": run_dir,
+        "v": 1, "run_id": run_id, "feature": feature, "run_dir": run_dir, "worker_jobs": worker_jobs,
         "started": stack.get("started_at") or rl["suite_start"],
         "commit": (stack.get("commit_sha") or run_json.get("commit_sha") or "")[:12],
         "method": run_json.get("method"), "driver": run_json.get("driver"),
