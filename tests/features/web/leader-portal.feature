@@ -71,7 +71,8 @@ Feature: School leader (principal) portal
     Given the live results dashboard is on and sa_dash_filters is on
     Then "Skips and stops" shows a count for Back, End section, End test, Restart, Silence repeat and Under 20% move-on
     And a table lists each coach with their sessions, each type, the total and the number per session, the most first
-    And each skip or stop is listed newest first with its time, school, grade, mode, type and subtask (when it has one), never a child's name
+    And each skip or stop is listed newest first with its time, school, grade, mode, type and subtask (with its language, when it has one), never a child's name
+    And in Urdu the school and coach names stay whole and in place inside the line
     And a test ended before its first task still counts in the stops view, not in the results
     And every filter above applies to this view too
 

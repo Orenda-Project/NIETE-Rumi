@@ -205,5 +205,26 @@ describe("LeaderAssessDashboard: round 7b filters and stops (sa_dash_filters)", 
     const table = within(stops).getByTestId("dash-stops-by-coach");
     for (const cell of Array.from(table.querySelectorAll("th, td"))) expect(cell.className).toMatch(/\bpx-2\b/);
   });
+  it("polish 2: the subtask names its language; school and coach names are isolated from the Urdu around them; list lines have their own sizes", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    api.getSwitches.mockResolvedValue({ realDashboard: true, dashFilters: true });
+    api.getSessions.mockResolvedValue(fixture());
+    const { unmount } = renderPage();
+    let stops = await screen.findByTestId("dash-stops");
+    const silence = within(within(stops).getByTestId("dash-stops-list")).getAllByTestId("dash-stops-item").find((i) => i.getAttribute("data-type") === "silence_repeat") as HTMLElement;
+    expect(silence).toHaveTextContent(/حروف کی آوازیں \(انگریزی\)/);
+    const isolated = Array.from(silence.querySelectorAll("bdi")).map((b) => b.textContent);
+    expect(isolated).toEqual(expect.arrayContaining(["School Two", "Bina Testwala"]));
+    const [title, detail] = Array.from(silence.querySelectorAll("p"));
+    expect(title.className).toMatch(/\btext-sm\b/);
+    expect(detail.className).toMatch(/\btext-xs\b/);
+    unmount();
+    window.localStorage.setItem("niete-assess-lang", "en");
+    renderPage();
+    stops = await screen.findByTestId("dash-stops");
+    const items = within(within(stops).getByTestId("dash-stops-list")).getAllByTestId("dash-stops-item");
+    expect(items.find((i) => i.getAttribute("data-type") === "silence_repeat")).toHaveTextContent(/Letter sounds \(English\)/);
+    expect(items.find((i) => i.getAttribute("data-type") === "end_section")).toHaveTextContent(/Letter names \(Urdu\)/);
+  });
 });
 
