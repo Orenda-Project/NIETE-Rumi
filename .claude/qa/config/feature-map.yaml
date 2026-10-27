@@ -289,6 +289,8 @@ features:
 shared:
   # The process entrypoint and the send layer — everything goes through these.
   bot/whatsapp-bot.js: "*"
+  # Meta's X-Hub-Signature-256 check in front of /webhook and /api/flows: every inbound message passes it.
+  bot/shared/services/webhook-signature.js: "*"
   bot/shared/services/whatsapp.service.js: "*"
   bot/shared/services/region-features.service.js: "*"
   bot/shared/config/region-config.js: "*"
