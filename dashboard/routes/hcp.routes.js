@@ -5,11 +5,16 @@
  * stack. Endpoint parity for the HCP web app that human coaches use to prep
  * for and log classroom-observation visits.
  *
- * All routes are mounted at /api/portal/hcp/* by dashboard/index.js and gated
- * by requirePortalAuth — an authenticated portal session is required for
- * every read. Data source is Rumi's Supabase (users + coaching_sessions), not
- * HCP's archival PostgreSQL. The HCP prototype's historical database is
- * discarded per the integration brief.
+ * All routes are mounted at /api/portal/hcp/* by dashboard/index.js. Every
+ * route runs `guard`: a portal session (401), the school-leader
+ * family (403, dashboard/lib/leader-role.js), then the caller's own patch
+ * (getPatchTeachers: a coach through leader_schools, a principal through their
+ * own school). A teacher outside the patch is a 404, the list is the patch and
+ * nothing wider, and no phone number leaves this file. Until 27 Oct 2026 the
+ * session check was the only gate, so any signed-in teacher could list every
+ * registered teacher with phone, school and score. Data source is Rumi's
+ * Supabase (users + coaching_sessions), not HCP's archival PostgreSQL. The HCP
+ * prototype's historical database is discarded per the integration brief.
  *
  * Phase 1 endpoint set (this file, complete):
  *   GET   /teachers                    — list teachers with DC rollups
@@ -31,6 +36,8 @@
 const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
+const { makeRequireLeaderRole } = require('../lib/leader-role');
+const { getPatchTeachers } = require('../services/leader-patch.service');
 
 // ---------------------------------------------------------------------------
 // Auth guard
@@ -48,6 +55,55 @@ function requirePortalAuth(req, res, next) {
     });
   }
   return next();
+}
+
+// The leader family only. Teachers and role-less accounts get 403.
+async function getCaller(userId) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, role')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+const requireLeaderRole = makeRequireLeaderRole({ getUser: getCaller });
+
+// The pool is required lazily so loading this router never opens a connection.
+function patchQuery(sql, params) {
+  return require('../config/database').query(sql, params);
+}
+
+// The caller's patch, as a Set of users.id, from the same resolver My Patch
+// uses. Derived server-side from the session; nothing in the request widens it.
+async function requirePatchScope(req, res, next) {
+  try {
+    const teachers = await getPatchTeachers(patchQuery, req.session.portalUserId, {
+      role: req.portalUser && req.portalUser.role,
+    });
+    req.hcpScope = new Set(
+      teachers.filter((t) => t.onRumi && t.rumiUserId).map((t) => String(t.rumiUserId)),
+    );
+    return next();
+  } catch (err) {
+    console.error('hcp patch scope lookup failed:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Could not verify access. Please try again.',
+    });
+  }
+}
+
+// Route-level rather than router.use so a handler invoked off router.stack
+// (tests/hcp/_shared.js) still runs the whole chain.
+const guard = [requirePortalAuth, requireLeaderRole, requirePatchScope];
+
+function inScope(req, teacherId) {
+  return teacherId != null && req.hcpScope instanceof Set && req.hcpScope.has(String(teacherId));
+}
+
+function teacherNotFound(res) {
+  return res.status(404).json({ success: false, error: 'Teacher not found' });
 }
 
 // ---------------------------------------------------------------------------
@@ -152,14 +208,18 @@ function computeTrend(sessions) {
 // ---------------------------------------------------------------------------
 // GET /teachers[?region=<region>]
 // ---------------------------------------------------------------------------
-router.get('/teachers', requirePortalAuth, async (req, res) => {
+router.get('/teachers', ...guard, async (req, res) => {
   try {
     const { region } = req.query;
+    const scopeIds = [...req.hcpScope];
+    if (scopeIds.length === 0) return res.status(200).json({ success: true, teachers: [] });
 
+    // The patch is the ceiling; `region` can only narrow inside it.
     let teachersQuery = supabase
       .from('users')
-      .select('id, phone_number, school_name, region, registration_completed, name')
-      .eq('registration_completed', true);
+      .select('id, school_name, region, registration_completed, name')
+      .eq('registration_completed', true)
+      .in('id', scopeIds);
 
     if (region) teachersQuery = teachersQuery.eq('region', region);
 
@@ -207,7 +267,6 @@ router.get('/teachers', requirePortalAuth, async (req, res) => {
       return {
         id: t.id,
         name: t.name,
-        phone_number: t.phone_number,
         school_name: t.school_name,
         region: t.region,
         avg_dc_score_pct: scoreToPct(avgScore),
@@ -239,13 +298,14 @@ router.get('/teachers', requirePortalAuth, async (req, res) => {
 // ---------------------------------------------------------------------------
 // GET /teachers/:id/dc
 // ---------------------------------------------------------------------------
-router.get('/teachers/:id/dc', requirePortalAuth, async (req, res) => {
+router.get('/teachers/:id/dc', ...guard, async (req, res) => {
   try {
     const { id } = req.params;
+    if (!inScope(req, id)) return teacherNotFound(res);
 
     const { data: teacher, error: tErr } = await supabase
       .from('users')
-      .select('id, phone_number, school_name, region, name')
+      .select('id, school_name, region, name')
       .eq('id', id)
       .maybeSingle();
     if (tErr) throw tErr;
@@ -364,13 +424,14 @@ async function loadWeakIndicators(teacherId) {
 // ---------------------------------------------------------------------------
 // GET /teachers/:id  — teacher detail + DC summary
 // ---------------------------------------------------------------------------
-router.get('/teachers/:id', requirePortalAuth, async (req, res) => {
+router.get('/teachers/:id', ...guard, async (req, res) => {
   try {
     const { id } = req.params;
+    if (!inScope(req, id)) return teacherNotFound(res);
 
     const { data: teacher, error: tErr } = await supabase
       .from('users')
-      .select('id, phone_number, school_name, region, name')
+      .select('id, school_name, region, name')
       .eq('id', id)
       .maybeSingle();
     if (tErr) throw tErr;
@@ -435,9 +496,10 @@ router.get('/teachers/:id', requirePortalAuth, async (req, res) => {
 // ---------------------------------------------------------------------------
 // GET /teachers/:id/training  — module recommendations
 // ---------------------------------------------------------------------------
-router.get('/teachers/:id/training', requirePortalAuth, async (req, res) => {
+router.get('/teachers/:id/training', ...guard, async (req, res) => {
   try {
     const { id } = req.params;
+    if (!inScope(req, id)) return teacherNotFound(res);
 
     const { data: teacher, error: tErr } = await supabase
       .from('users')
@@ -481,9 +543,10 @@ router.get('/teachers/:id/training', requirePortalAuth, async (req, res) => {
 // ---------------------------------------------------------------------------
 // GET /teachers/:id/coaching-plan  — per-indicator action plan
 // ---------------------------------------------------------------------------
-router.get('/teachers/:id/coaching-plan', requirePortalAuth, async (req, res) => {
+router.get('/teachers/:id/coaching-plan', ...guard, async (req, res) => {
   try {
     const { id } = req.params;
+    if (!inScope(req, id)) return teacherNotFound(res);
 
     const { data: teacher, error: tErr } = await supabase
       .from('users')
@@ -530,7 +593,7 @@ router.get('/teachers/:id/coaching-plan', requirePortalAuth, async (req, res) =>
 // ---------------------------------------------------------------------------
 // GET /training-modules  — all active modules
 // ---------------------------------------------------------------------------
-router.get('/training-modules', requirePortalAuth, async (req, res) => {
+router.get('/training-modules', ...guard, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('training_modules')
@@ -548,7 +611,7 @@ router.get('/training-modules', requirePortalAuth, async (req, res) => {
 // ---------------------------------------------------------------------------
 // GET /schedules  — coach's own schedules
 // ---------------------------------------------------------------------------
-router.get('/schedules', requirePortalAuth, async (req, res) => {
+router.get('/schedules', ...guard, async (req, res) => {
   try {
     const coachId = req.session.portalUserId;
     let q = supabase
@@ -573,7 +636,7 @@ router.get('/schedules', requirePortalAuth, async (req, res) => {
 // ---------------------------------------------------------------------------
 const VALID_OBSERVATION_TOOLS = new Set(['FICO', 'HOTs', 'COTs']);
 
-router.post('/schedules', requirePortalAuth, async (req, res) => {
+router.post('/schedules', ...guard, async (req, res) => {
   try {
     const { teacher_id, scheduled_at, observation_tool, notes } = req.body || {};
     if (!teacher_id || !scheduled_at || !observation_tool) {
@@ -588,6 +651,7 @@ router.post('/schedules', requirePortalAuth, async (req, res) => {
         error: `Invalid observation_tool. Must be one of: ${[...VALID_OBSERVATION_TOOLS].join(', ')}.`,
       });
     }
+    if (!inScope(req, teacher_id)) return teacherNotFound(res);
 
     const insertRow = {
       coach_id: req.session.portalUserId,
@@ -630,7 +694,7 @@ const ALLOWED_TRANSITIONS = {
   cancelled: new Set(),  // terminal
 };
 
-router.patch('/schedules/:id', requirePortalAuth, async (req, res) => {
+router.patch('/schedules/:id', ...guard, async (req, res) => {
   try {
     const { id } = req.params;
     const { status: nextStatus, notes } = req.body || {};
@@ -648,7 +712,8 @@ router.patch('/schedules/:id', requirePortalAuth, async (req, res) => {
       .eq('id', id)
       .maybeSingle();
     if (exErr) throw exErr;
-    if (!existing) {
+    // Another coach's schedule answers exactly like a missing one.
+    if (!existing || String(existing.coach_id) !== String(req.session.portalUserId)) {
       return res.status(404).json({ success: false, error: 'Schedule not found' });
     }
 
@@ -762,7 +827,7 @@ function parseFeedbackJson(raw) {
   }
 }
 
-router.post('/generate-feedback', requirePortalAuth, async (req, res) => {
+router.post('/generate-feedback', ...guard, async (req, res) => {
   try {
     const {
       teacher_id, coaching_session_id, observation_data, language, prompt: overridePrompt,
@@ -774,6 +839,7 @@ router.post('/generate-feedback', requirePortalAuth, async (req, res) => {
     if (!observation_data || typeof observation_data !== 'object') {
       return res.status(400).json({ success: false, error: 'Missing observation_data.' });
     }
+    if (!inScope(req, teacher_id)) return teacherNotFound(res);
 
     const lang = VALID_FEEDBACK_LANGUAGES.has(language) ? language : 'english';
     const prompt = overridePrompt || buildFeedbackPrompt({ observationData: observation_data, language: lang });
