@@ -517,17 +517,10 @@ class ReportGeneratorService {
           // prioritized_action DB write below — they drive the follow-up flow.
 
           // Response buttons follow regardless of which renderer ran.
-          const lead = cardCopy.sessionCompleteLead;
-          const buttonsSent = await WhatsAppService.sendInteractiveButtons(from, {
-            body: lead ? `${lead}\n\n${cardCopy.commitPrompt}` : cardCopy.commitPrompt,
-            buttons: [
-              { id: `card_yes_${coachingSessionId}`, title: cardCopy.commitButtons.yes },
-              { id: `card_later_${coachingSessionId}`, title: cardCopy.commitButtons.later },
-              { id: `card_no_${coachingSessionId}`, title: cardCopy.commitButtons.no },
-            ],
-          }, track.opts('buttons'));
-          await track.record('buttons', buttonsSent !== false);
-          completionAnnounced = Boolean(lead);
+          // bd-v0toag.124: skipped when the report went as the share template (window closed).
+          completionAnnounced = await require('./report-commit-prompt').sendCommitPrompt({
+            followUps, phone: from, coachingSessionId, cardCopy, track,
+          });
 
           await supabase
             .from('coaching_sessions')
@@ -572,7 +565,7 @@ class ReportGeneratorService {
       // bd-fmr3s (DC row 137): only when the commit prompt did NOT already open
       // with the completion line — never two completion messages back-to-back.
       try {
-        if (!completionAnnounced) {
+        if (followUps && !completionAnnounced) {
           await WhatsAppService.sendMessage(from, getCoachingMessage('sessionComplete', outputLanguage));
         }
       } catch (error) {
