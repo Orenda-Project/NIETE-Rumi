@@ -3,7 +3,9 @@
  * The v3 child home's door screens (app_settings `web_quiz_home_v3`, the home's own switch): what is behind Stories and
  * Games beyond the hub boot's few ids, fetched when a door opens so the home itself stays light.
  *
- *   door(token, {kid, d, device, lang})   d = 'stories' -> {stories: [], shelf}   d = 'games' -> {games: [...]}
+ *   door(token, {kid, d, device, lang, g})   d = 'stories' -> {stories: [], shelf}   d = 'games' -> {games: [...]}
+ *                                         g (games): one grade, 'a,b' or 'all'; another form's number games then carry
+ *                                         {g, form, href} (a practice play), and the answer {sel, first} (byGrades)
  *                                         a failed read adds err: 1 (web_quiz_list_states on only)
  *                                         404 home_off with the switch off; 401 for a token/phone that is not this child's
  *                                         a grown-up's preview link (web_quiz_practice_play): its grade's rows (practiceDoor)
@@ -77,14 +79,17 @@ async function formFailed(err) {
   return null;
 }
 
-async function gamesDoor(who, lang, now) {
-  if (require('./web-quiz-wait-ux').on()) return gamesDoorTogether(who, lang, now);
+// seen: told the child's grade as read here (the «All grades» rows need it; never a second read)
+async function gamesDoor(who, lang, now, seen = {}) {
+  if (require('./web-quiz-wait-ux').on()) return gamesDoorTogether(who, lang, now, seen);
   const Hub = require('./web-quiz-hub');
   if (!(await Hub.flags()).challenge) return { games: [] };
   const Challenge = require('./web-quiz-challenge');
   const G1 = require('./web-quiz-challenge-grade1');
   // web_quiz_list_states: a form read that failed is a failed door (the page offers a retry), not a child with no games
-  const form = await Challenge.formForChild(await Challenge.gradeOf({ studentId: who.studentId })).catch(formFailed);
+  const grade = await Challenge.gradeOf({ studentId: who.studentId });
+  seen.grade = grade;
+  const form = await Challenge.formForChild(grade).catch(formFailed);
   if (!form) return { games: [] };
   let ids;
   if (form === G1.FORM) ids = [G1.EXERCISE];
@@ -108,7 +113,7 @@ async function gamesDoor(who, lang, now) {
 // spoken labels are waited for at most WaitUx.SAY_WAIT_MS (a label late here is recorded in the background and ready on
 // the next open). Each read is awaited where gamesDoor awaits it, so a read that fails fails the door as it does there
 // (and one gamesDoor would not have asked for is never awaited, so its failure is ignored, as its read was there).
-async function gamesDoorTogether(who, lang, now) {
+async function gamesDoorTogether(who, lang, now, seen = {}) {
   const Hub = require('./web-quiz-hub');
   if (!(await Hub.flags()).challenge) return { games: [] };
   const Challenge = require('./web-quiz-challenge');
@@ -125,7 +130,7 @@ async function gamesDoorTogether(who, lang, now) {
   const rungP = early(() => Play.readingRungOf(who.studentId));
   const aloudP = early(() => require('./web-quiz-challenge-budget').readOpen()).catch(() => false);
   // web_quiz_list_states: as gamesDoor, a grade or form read that failed is a failed door, not a child with no games
-  const form = await gradeP.then((g) => Challenge.formForChild(g)).catch(formFailed);
+  const form = await gradeP.then((g) => { seen.grade = g; return Challenge.formForChild(g); }).catch(formFailed);
   if (!form) return { games: [] };
   const ids = form === G1.FORM ? [G1.EXERCISE] : [...((await recordP) && (await missingP) ? ['missing'] : []), 'bigger'];
   const warm = ids.includes('missing') && (await poolP);
@@ -238,12 +243,65 @@ async function practiceDoor(d, who, lang, now, list) {
   ] };
 }
 
+/**
+ * NO GRADE FORBIDS A GAME (bd-5gyspy.5). The Games door's rows for a selection of grades (`g`: one, several 'a,b', or
+ * 'all'; none asked: the visitor's own grade(s), a preview's its teacher's taught grades, nobody's: every grade). The
+ * visitor's own rows (`rows`, today's answer) stay as they are when their own grade is selected; every OTHER maths form
+ * the selection reaches adds its number games, each opened as a practice play of a grade of that form (read-only,
+ * nothing kept: Practice.gamePath), only while the practice play is on (web_quiz_practice_play; off: no such row).
+ * Groups in the selection's order (the defaults first). Grade 1's form only where its own switches allow it
+ * (Challenge.formForChild, unchanged). The own grade alone (the default for a child with a grade): today's answer, byte
+ * for byte. Every answer logs one web_quiz.shelf line. Never fails the door: a failed extra read adds nothing.
+ */
+async function byGrades(rows, { who, own, asked, lang }) {
+  const GradePick = require('./web-quiz-grade-pick');
+  const ownG = Number(own) >= 1 && Number(own) <= 5 ? Number(own) : null;
+  let p = GradePick.pick(asked, ownG ? [String(ownG)] : []);
+  const done = (out) => { GradePick.note('games', p, lang, (out.games || []).length); return out; };
+  try {
+    if (who.practice) p = GradePick.pick(asked, (await GradePick.defaultsOf(who)).map(String));
+    if (rows.err) return done(rows);
+    if (ownG && GradePick.single(p) === String(ownG)) return done(rows);
+    const Hub = require('./web-quiz-hub');
+    if (!(await Hub.flags()).challenge) return done(rows);
+    const Challenge = require('./web-quiz-challenge');
+    const Practice = require('./web-quiz-practice-play');
+    const G1 = require('./web-quiz-challenge-grade1');
+    const ownForm = ownG ? await Challenge.formForChild(ownG) : null;
+    const play = await Practice.on();
+    const groups = [];
+    const forms = new Set(ownForm ? [ownForm] : []);
+    for (const [rank, gs] of p.grades.entries()) {
+      const gr = Number(gs);
+      if (gr === ownG) { groups.push({ rank, rows: rows.games || [] }); continue; }
+      if (!play) continue;
+      const form = await Challenge.formForChild(gr);
+      if (!form || forms.has(form)) continue;
+      forms.add(form);
+      const ids = form === G1.FORM ? [G1.EXERCISE] : [...((await Challenge.recordOn()) && (await Challenge.missingOn()) ? ['missing'] : []), 'bigger'];
+      const warm = ids.includes('missing') && (await Challenge.poolOn());
+      const list = ids.map((id) => {
+        const href = Practice.gamePath({ grade: gr, lang, stop: id, teacher: who.teacherId || null });
+        const name = id === 'missing' && warm ? null : safeName(Challenge, id, lang);
+        return href ? { kind: 'numbers', stop: id, ...(id === 'missing' && warm ? { warm: true } : {}), ...(name ? { name } : {}), g: gr, form, href } : null;
+      }).filter(Boolean);
+      groups.push({ rank, rows: list });
+    }
+    // the own rows that are not number games (the read-along, the big flight) stay with the own grade's group
+    const games = groups.sort((a, b) => a.rank - b.rank).flatMap((x) => x.rows);
+    return done({ ...rows, games, sel: GradePick.selOf(p, true), first: p.first.map(Number) });
+  } catch (err) {
+    logToFile('⚠️ web quiz doors: other grades unavailable', { error: err.message });
+    return done(rows);
+  }
+}
+
 /** One door's rows for the child a hub chip names on this phone. */
 async function door(token, opts = {}) {
   // web_quiz_kid_together: this answer's child rows are read once and shared (web-quiz-hub-child-rows.js)
   const ChildRows = require('./web-quiz-hub-child-rows');
   if (require('./web-quiz-hub-flags').kidTogetherNow() && !ChildRows.inside()) return ChildRows.run(() => door(token, opts));
-  const { kid, d, device, lang, now = Date.now() } = opts;
+  const { kid, d, device, lang, g = null, now = Date.now() } = opts;
   const T = require('./web-quiz-token');
   if (!T.secret()) fail(503, 'web_quiz_off');
   // web_quiz_practice_play: a grown-up's preview link (no child) opens its grade's doors, read-only
@@ -261,8 +319,14 @@ async function door(token, opts = {}) {
   if (!who || !(who.studentId || who.practice)) { Practice.refused('doors', token); fail(401, 'bad_token'); }
   const l = clampLanguage(lang);
   try {
-    if (preview) return await practiceDoor(d, who, l, now, homeFlags.list);
-    return d === 'stories' ? await storiesDoor(homeFlags.list) : await gamesDoor(who, l, now);
+    if (preview) {
+      const rows = await practiceDoor(d, who, l, now, homeFlags.list);
+      return d === 'games' ? await byGrades(rows, { who, own: who.grade, asked: g, lang: l }) : rows;
+    }
+    if (d === 'stories') return await storiesDoor(homeFlags.list);
+    const seen = {};
+    const rows = await gamesDoor(who, l, now, seen);
+    return await byGrades(rows, { who, own: seen.grade, asked: g, lang: l });
   } catch (err) {
     if (err && err.status) throw err;
     logToFile('⚠️ web quiz doors: unavailable', { door: d, error: err.message });

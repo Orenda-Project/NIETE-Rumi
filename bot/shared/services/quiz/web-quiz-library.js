@@ -7,7 +7,9 @@
  *     no s  → { grade, grades:[{g, n, art}], subjects:[{key, n, art}], mine? }  (mine: the quiz's own subject)
  *     s     → { grade, subject, art, chapters:[{name, videos:[{vid, title, secs?, mb?, poster?, done?, code?}]}] }
  *   libHub(token, {kid, g, s}) the same, seen from the kid's hub (the hub module names the child); a grown-up's preview
- *                              link (web_quiz_practice_play) sees its grade's library, watch only (no Quiz button)
+ *                              link (web_quiz_practice_play) sees its grade's library, watch only (no Quiz button).
+ *                              `g` may be several grades or 'all' (bd-5gyspy.5): then `sel` and `first` say which, and
+ *                              each chapter its `grade`; with no `g` the visitor's own grade(s), else every grade
  *
  * Fast by construction (the "watch more" list used to cost ~40 R2 calls on a cold process):
  *   - the bank (every live row and its ready video-quiz id) is held in memory and refreshed every
@@ -112,10 +114,12 @@ function lessonOrder(ix, grade, subject, v3) {
   return rows;
 }
 
-async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl, hubKid, v3 }) {
+// grades (several grades, «All grades»; bd-5gyspy.5): the subject's lessons grade by grade in that order, each chapter
+// naming its `grade` (a chapter never runs across two grades).
+async function chaptersView(ix, { grade, grades = null, subject, studentId, rootId, fetchImpl, hubKid, v3 }) {
   const Videos = require('./web-quiz-videos');
   const Media = require('./web-quiz-media');
-  const rows = lessonOrder(ix, grade, subject, v3);
+  const rows = grades ? grades.flatMap((g) => lessonOrder(ix, g, subject, v3)) : lessonOrder(ix, grade, subject, v3);
   const quizIds = rows.map((r) => ix.quizOf.get(r.id));
   const [done, codes, posters, ur] = await Promise.all([
     doneQuizzes(studentId, quizIds),
@@ -144,8 +148,8 @@ async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl, 
     }
     const name = r.clean_chapter || '';
     const last = chapters[chapters.length - 1];
-    if (last && last.name.toLowerCase() === name.toLowerCase()) last.videos.push(v);
-    else chapters.push({ name, videos: [v] });
+    if (last && last.name.toLowerCase() === name.toLowerCase() && (!grades || last.grade === String(r.grade))) last.videos.push(v);
+    else chapters.push({ name, ...(grades ? { grade: String(r.grade) } : {}), videos: [v] });
     const ch = chapters[chapters.length - 1];
     if (u && u.c && !ch.name_ur) ch.name_ur = u.c;
   });
@@ -157,6 +161,26 @@ async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl, 
     if (first) c.art = first.poster;
   }
   return { grade, subject, art: subjectArt(subject), tile: 'neutral', chapters };
+}
+
+/**
+ * Several grades at once (bd-5gyspy.5: «All grades», or a teacher's taught grades): the subjects any of them has (a
+ * subject in the first grade's group first, then by the usual subject order; `n` summed), or one subject's lessons
+ * grade by grade. `grade` is the leading grade; `grades` the chips, as one grade's view gives them.
+ */
+async function gradesView(ix, { grades, s, studentId, rootId, fetchImpl, hubKid, v3 }) {
+  if (s) return chaptersView(ix, { grade: grades[0], grades, subject: String(s).slice(0, 60), studentId, rootId, fetchImpl, hubKid, v3 });
+  const n = new Map();
+  const at = new Map();
+  for (const r of ix.rows) {
+    const i = grades.indexOf(String(r.grade));
+    if (i < 0 || !r.subject) continue;
+    n.set(r.subject, (n.get(r.subject) || 0) + 1);
+    if (!at.has(r.subject) || i < at.get(r.subject)) at.set(r.subject, i);
+  }
+  const subjects = [...n.keys()].sort((a, b) => at.get(a) - at.get(b) || Order.compareSubjects(a, b))
+    .map((k) => ({ key: k, n: n.get(k), art: subjectArt(k) }));
+  return { grade: grades[0], grades: subjectsView(ix, '').grades, subjects };
 }
 
 async function view(ix, { grade, g, s, studentId, rootId, fetchImpl, hubKid, v3 }) {
@@ -241,11 +265,27 @@ async function libHub(token, opts = {}) {
   const ix = v3 ? await inLanguage(await bank(), lang) : await bank();
   // web_quiz_grade_change: a class child opens at the grade the family chose (off: the hub's own grade, no read)
   const grade = Videos.gradesFor(preview ? String(who.grade) : await require('./web-quiz-grade-change').browseGrade(who))[0] || null;
-  const out = await view(ix, { grade, g, s, studentId: who.studentId || null, rootId: who.rootId || null, fetchImpl, hubKid: true, v3 });
+  // No grade forbids a video (bd-5gyspy.5): `g` is one grade (today's view), several, or 'all'; with none asked, the
+  // visitor's own grade(s) (a preview: its teacher's taught grades, else its token's), and with none, every grade.
+  const GradePick = require('./web-quiz-grade-pick');
+  const asked = String(g == null ? '' : g).trim().toUpperCase();
+  const within = subjectsView(ix, '').grades.map((x) => x.g);
+  let p;
+  if (Order.GRADE_ORDER.includes(asked)) p = { all: false, grades: [asked], first: [] };
+  else {
+    const taught = preview && who.teacherId ? (await GradePick.teacherGrades(who.teacherId)).map(String) : [];
+    p = GradePick.pick(asked, taught.length ? taught : grade ? [grade] : [], within);
+  }
+  const sg = GradePick.single(p);
+  const at = { s, studentId: who.studentId || null, rootId: who.rootId || null, fetchImpl, hubKid: true, v3 };
+  const out = sg ? await view(ix, { grade: sg, ...at }) : p.grades.length
+    ? { ...(await gradesView(ix, { grades: p.grades, ...at })), sel: GradePick.selOf(p), first: p.first.slice() }
+    : await view(ix, { grade: null, ...at });
   if (out.chapters && await videoShelfOn()) await shelfOf(out, who.rootId || null, { watchOnly: Boolean(preview) });
   // web_quiz_rewatch_done (the library's own settings read): a finished lesson opens as a fresh go (wq-lib.js again=1)
   if (out.chapters && await rewatchDoneOn()) out.rewatch_done = true;
   logEvent('web_quiz.lib_view', { hub: 1, g: out.grade, s: out.subject || undefined, ...(preview ? { practice: 1 } : {}) });
+  GradePick.note('videos', p, lang, out.chapters ? out.chapters.reduce((a, c) => a + c.videos.length, 0) : (out.subjects || []).length);
   if (preview) Practice.note('lib', { grade: out.grade, s: out.subject || undefined });
   return out;
 }
