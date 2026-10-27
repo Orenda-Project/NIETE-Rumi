@@ -196,10 +196,12 @@ module.exports.run = async function runExt(ctx) {
           if (o.photo === 'no') { const rep = await tapRow(r, RX.no); obs.photoReply = short(rep && rep.txt, 200); }
           else if (o.photo === 'ignore') { obs.photoAt = t(); }
           else if (o.photo === 'yes' || o.photo === 'screenshot') {
-            await tapRow(r, RX.yes);
+            // "Yes" and "Add another" are answered with a reaction since the bill cut: the 60 s default wait ran out
+            // in full twice per fidelity run (run 20261027-1040-par coaching#2: 8 × 60 s). A few seconds catch a text.
+            await tapRow(r, RX.yes, 4000);
             const p1 = await api.upload(o.firstPhoto || FX.photo, 'Photos & videos', 120000);
             let last = p1;
-            if (o.photo === 'screenshot') { await tapRow(p1, RX.addAnother); last = await api.upload(FX.screenshot, 'Photos & videos', 120000); }
+            if (o.photo === 'screenshot') { await tapRow(p1, RX.addAnother, 4000); last = await api.upload(FX.screenshot, 'Photos & videos', 120000); }
             const d = await tapRow(last, RX.done, 90000);
             obs.photoReply = { first: short(p1.txt, 160), afterDone: short(d && d.txt, 200), doneBtns: last.btns };
           }

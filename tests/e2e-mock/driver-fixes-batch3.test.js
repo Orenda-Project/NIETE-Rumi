@@ -41,6 +41,17 @@ describe('coaching walker — the voice-note wait and the photo Yes tap', () => 
   });
 });
 
+describe('coaching-ext — the photo prompt taps wait seconds, not the 60 s default (run 20261027-1040-par coaching#2: 8 × 60 s)', () => {
+  const src = read('.claude/qa/shared/coaching-ext.cjs');
+  test('Yes and Add another carry a short wait', () => {
+    const i = src.indexOf("o.photo === 'yes' || o.photo === 'screenshot'");
+    const block = src.slice(i, i + 900);
+    expect(block).toMatch(/tapRow\(r, RX\.yes, \d{4}\)/);
+    expect(block).toMatch(/tapRow\(p1, RX\.addAnother, \d{4}\)/);
+    expect(block).not.toMatch(/tapRow\(r, RX\.yes\);/);
+  });
+});
+
 describe('coaching-ext — every guarded block is timed so the dashboard can attribute the shards', () => {
   const src = read('.claude/qa/shared/coaching-ext.cjs');
   test('set() stores the window and guard() opens it', () => {
