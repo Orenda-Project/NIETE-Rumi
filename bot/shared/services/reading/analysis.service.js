@@ -1219,7 +1219,7 @@ Output the complete enhanced summary (not just the new parts).`;
       // Set comprehension status BEFORE sending first question
       // Race condition: User could respond with voice before status was set, causing
       // findActiveFlowByUser() to return null and routing answer to general conversation
-      // Confirmed case: Waqas (923005233742) had 3 failed assessments on Jan 20, 2026
+      // Confirmed case: a teacher had 3 failed assessments on Jan 20, 2026
       const RedisComprehensionService = require('../redis-comprehension.service');
       await RedisComprehensionService.startFlow(
         assessment.id,
