@@ -20,6 +20,34 @@ function spokenNumbers(words) {
 }
 
 /**
+ * EGMA: the last number the child says for an item is the answer ("seven… no, five" answers five). The alignment
+ * pairs one heard number with each item and leaves any other number unpaired; an unpaired number said after an
+ * item's paired one, and nearer in time to it than to the next item's first number, is that item's later word.
+ * `first[i]` is the heard index paired with item i (-1: none); `starts[i]` the first heard index item i used (its
+ * read-aloud sum included). `keep(k, i)` may refuse an unpaired number as item i's (quick sums: the next sum's own
+ * numbers). Returns, per item, the heard index of its final answer.
+ */
+function settled(heard, first, starts = first, keep = () => true) {
+  const used = new Set();
+  first.forEach((h, i) => { if (h >= 0) for (let k = starts[i] >= 0 ? starts[i] : h; k <= h; k += 1) used.add(k); });
+  return first.map((h, i) => {
+    if (h < 0) return h;
+    let nextAt = Infinity;
+    for (let j = i + 1; j < first.length; j += 1) if (starts[j] >= 0) { nextAt = starts[j]; break; }
+    const nextStart = Number.isFinite(nextAt) && heard[nextAt] ? heard[nextAt].start : Infinity;
+    let last = h;
+    for (let k = h + 1; k < heard.length && k < nextAt; k += 1) {
+      if (used.has(k)) break;
+      const after = heard[k].start - heard[last].end;
+      const before = nextStart - heard[k].end;
+      if (after > before || !keep(k, i)) break;
+      last = k;
+    }
+    return last;
+  });
+}
+
+/**
  * Number identification: the child reads 8 numbers in order. Align heard values
  * to the item values; a substitution is `wrong` with what was heard; nothing
  * heard is `none`. Stop rule: after 4 wrong in a row the rest are `none`.
@@ -28,13 +56,14 @@ function scoreNumbers(childWords, items) {
   const heard = spokenNumbers(childWords);
   const ref = items.map((it) => Number(it.value));
   const { status, hypIdx } = align(ref, heard.map((h) => h.value), (a, b) => a === b);
+  const final = settled(heard, hypIdx);
   let wrongRun = 0; let stopped = false;
   return items.map((it, i) => {
     if (stopped) return { id: it.id, verdict: 'none', heard: '', confidence: 0.5 };
-    const h = hypIdx[i] >= 0 ? heard[hypIdx[i]] : null;
+    const h = hypIdx[i] >= 0 ? heard[final[i]] : null;
     let row;
-    if (status[i] === 'correct') row = { id: it.id, verdict: 'correct', heard: String(h.value), confidence: 0.85 };
-    else if (status[i] === 'sub') row = { id: it.id, verdict: 'wrong', heard: String(h.value), confidence: 0.6 };
+    if (status[i] !== 'omit' && h.value === ref[i]) row = { id: it.id, verdict: 'correct', heard: String(h.value), confidence: 0.85 };
+    else if (status[i] !== 'omit') row = { id: it.id, verdict: 'wrong', heard: String(h.value), confidence: 0.6 };
     else row = { id: it.id, verdict: 'none', heard: '', confidence: 0.5 };
     wrongRun = row.verdict === 'correct' ? 0 : wrongRun + 1;
     if (wrongRun >= NUMBERS_STOP_AFTER_WRONG) stopped = true;
@@ -90,11 +119,20 @@ function scoreQuickSums(childWords, items, window) {
   let bi = 0;
   for (let i = 0; i <= n; i += 1) if (dp[i][m] > dp[bi][m]) bi = i;
   const verdicts = new Array(n).fill(null);
-  for (let i = bi, j = m; back[i][j];) {
-    const st = back[i][j]; const [pi] = st.from;
+  const steps = [];
+  for (let i = bi, j = m; back[i][j];) { steps.push(back[i][j]); [i, j] = back[i][j].from; }
+  // EGMA: the last number said for a sum is its answer; the next sum's own numbers are never taken as a correction
+  const first = new Array(n).fill(-1); const starts = new Array(n).fill(-1);
+  steps.forEach((st) => {
+    if (st.t === 'answer') { first[st.from[0]] = st.h; starts[st.from[0]] = st.from[1]; }
+    else if (st.t === 'joined') starts[st.from[0]] = st.h;
+  });
+  const final = settled(heard, first, starts, (k, i) => !(i + 1 < n && operands(items[i + 1].prompt).includes(heard[k].value)));
+  for (const st of steps) {
+    const [pi] = st.from;
     if (st.t === 'answer') {
-      const h = heard[st.h]; const it = items[pi];
-      verdicts[pi] = { id: it.id, verdict: h.value === Number(it.answer) ? 'correct' : 'wrong', heard: String(h.value), t: h.start };
+      const h = heard[final[pi]]; const it = items[pi];
+      verdicts[pi] = { id: it.id, verdict: h.value === Number(it.answer) ? 'correct' : 'wrong', heard: String(h.value), t: heard[st.h].start };
     } else if (st.t === 'joined') {
       const h = heard[st.h];
       verdicts[pi] = { id: items[pi].id, verdict: 'correct', heard: String(items[pi].answer), t: h.start };
@@ -102,7 +140,6 @@ function scoreQuickSums(childWords, items, window) {
     } else if (st.t === 'skip') {
       verdicts[pi] = { id: items[pi].id, verdict: 'wrong', heard: '', t: null, skipped: true };
     }
-    [i, j] = st.from;
   }
   let last = -1;
   verdicts.forEach((v, i) => { if (v && !v.skipped) last = i; });

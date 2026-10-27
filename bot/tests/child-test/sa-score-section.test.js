@@ -4,8 +4,9 @@
  * One recording per section (the phone's sa_section_recording): an oral task (comprehension, listening, spoken maths)
  * is recorded once, from Begin to the task's end, so an early or late answer is never cut. The row has one
  * audio_r2_key and the result carries rec_section: true and rec_marks [{ item_id, ask_ms, answer_ms, end_ms }] (ms from
- * the recording's start). The scorer cuts each item's stretch, from 1 s before its answer window opens to the next
- * question's start (the last: 2.5 s after its screen moved on), and marks it as it marks a per-item clip today.
+ * the recording's start). The scorer cuts each item's stretch, from 1 s before its answer window opens to 2 s into the
+ * next question (a late self-correction; never past that question's end; the last: 2.5 s after its screen moved on),
+ * and marks it as it marks a per-item clip today.
  * The scorer's own path runs here; only the cut, STT and the model are stand-ins.
  */
 
@@ -70,8 +71,8 @@ describe('one recording per section: each item is cut from the task\'s one clip 
     expect(s.cuts).toHaveLength(1);
     expect(s.cuts[0].key).toBe(KEY);
     expect(s.cuts[0].windows).toEqual([
-      { item_id: ID('q1'), from_s: 3, to_s: 10 },
-      { item_id: ID('q2'), from_s: 12, to_s: 21 },
+      { item_id: ID('q1'), from_s: 3, to_s: 12 },
+      { item_id: ID('q2'), from_s: 12, to_s: 23 },
       { item_id: ID('q3'), from_s: 23.5, to_s: 32.5 },
     ]);
     // one question per call, as with a per-question clip
@@ -99,7 +100,7 @@ describe('one recording per section: each item is cut from the task\'s one clip 
     const s = standIns();
     const marks = [{ ...REC_MARKS[1] }, { item_id: ID('q1'), ask_ms: 0, answer_ms: 500, end_ms: 9000 }, { ...REC_MARKS[2] }];
     await score.scoreRow(row({ rec_marks: marks }), session(), s);
-    expect(s.cuts[0].windows[0]).toEqual({ item_id: ID('q1'), from_s: 0, to_s: 10 });
+    expect(s.cuts[0].windows[0]).toEqual({ item_id: ID('q1'), from_s: 0, to_s: 12 });
   });
 
   test('a section row without usable marks is scored whole, as one clip for all questions (today\'s path)', async () => {
@@ -124,7 +125,7 @@ describe('one recording per section: each item is cut from the task\'s one clip 
     };
     const got = await score.scoreRow(maths, session(), s);
     expect(got.ok).toBe(true);
-    expect(s.cuts[0].windows).toEqual([{ item_id: 'ma.add2i.01', from_s: 1, to_s: 9 }, { item_id: 'ma.add2i.02', from_s: 10, to_s: 17.5 }]);
+    expect(s.cuts[0].windows).toEqual([{ item_id: 'ma.add2i.01', from_s: 1, to_s: 11 }, { item_id: 'ma.add2i.02', from_s: 10, to_s: 17.5 }]);
     expect(asked).toHaveLength(2);
     expect(asked[0]).toMatch(/1: shown "13 \+ 6"/);
     expect(asked[1]).toMatch(/1: shown "18 \+ 7"/);

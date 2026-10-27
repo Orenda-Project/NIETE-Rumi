@@ -65,9 +65,10 @@
  * One recording per section (the phone's sa_section_recording, battery ui; OFF by default): an oral task is recorded
  * once, from Begin to its end, so an answer given early or late is never cut. Its row has one audio_r2_key, and the
  * result says rec_section: true with rec_marks [{ item_id, ask_ms, answer_ms, end_ms }] (ms from the recording's start).
- * Each item's stretch is cut from that one clip, from 1 s before its answer window opens to the next item's ask (the
- * last: 2.5 s after its screen moved on), and marked as a per-item clip is (the gate, the echo check, one item per
- * call). An item with no mark is no answer. Without usable marks the clip is scored whole. Rows without rec_section
+ * Each item's stretch is cut from that one clip, from 1 s before its answer window opens to 2 s into the next item's
+ * ask (never past that item's end; the last: 2.5 s after its screen moved on), so a correction said just after the
+ * screen moved on is in the item's own stretch, and marked as a per-item clip is (the gate, the echo check, one item
+ * per call); the marker is told to ignore talk about another question. An item with no mark is no answer. Without usable marks the clip is scored whole. Rows without rec_section
  * are unchanged.
  *
  * The coach confirms the last word read (the phone's sa_coach_last_word; OFF by default): a passage whose result says
@@ -109,6 +110,7 @@ const SKIP_LOG_MS = 60 * 1000;
 const TASK_RE = /^[a-z]{2}\.[a-z0-9_]{1,40}$/;
 const SECTION_LEAD_MS = 1000;   // a section stretch starts this long before the item's answer window opens
 const SECTION_TAIL_MS = 2500;   // the last stretch ends this long after its screen moved on
+const SECTION_NEXT_MS = 2000;   // a stretch runs this long into the next question's ask (a late self-correction)
 
 const isOn = () => process.env.CHILD_TEST_SA_SCORER === 'on';
 // this process's id; each sweep claims with its own token (PROC + the sweep's number); MINE is the token of a direct
@@ -257,7 +259,12 @@ For EVERY position 1-${items.length} return v = "c" (correct), "w" (wrong) or "s
 Return ONLY JSON: {"found": true, "last_attempted": <int>, "letters_correct": <int>, "items": [{"i": 1, "heard": "...", "v": "c|w|s", "conf": 0.9}, ...]}`;
 }
 
-function questionsPrompt({ lang, task, questions, passage, single }) {
+// EGRA counts a self-correction as correct; the last answer the child settles on is the answer (both ways)
+const FINAL_ANSWER = 'Judge the final answer the child settles on: a self-correction to the right answer is CORRECT; a change from a right answer to a wrong one is WRONG.';
+// a section stretch runs a moment into the next question and starts just after the one before
+const OWN_ITEM_ONLY = 'The clip may run a moment into the next question (the phone asking it, or the child starting on it) and may start just after the question before: ignore anything said about another question.';
+
+function questionsPrompt({ lang, task, questions, passage, single, section = false }) {
   const L = lang === 'ur' ? 'Urdu' : 'English';
   const what = task.subtask === 'phoneme_segmentation'
     ? 'says the separate SOUNDS of a word it heard (each sound on its own; the whole word is WRONG)'
@@ -265,7 +272,7 @@ function questionsPrompt({ lang, task, questions, passage, single }) {
       : 'answers questions about a passage the child has just read on the phone';
   const ctx = passage ? `The ${task.kind === 'listen_questions' ? 'story the child heard' : 'passage'}:\n${passage}\n` : '';
   const list = questions.map((q, i) => `${i + 1}. [${q.id}] ${(q.prompt && q.prompt.text) || q.word || ''}\n   accept: ${(q.accept || []).join(' | ') || '-'}\n   reject: ${(q.reject || []).join(' | ') || '-'}\n   rubric: ${q.rubric || (q.phonemes ? `the sounds ${q.phonemes.join(' ')}` : '-')}`).join('\n');
-  return `A child in a Pakistani government school (grade 1-5), alone with a phone and wearing headphones, ${what}, in an ${L} EGRA task. ${single ? 'The clip holds the child\'s answers to the questions below, in order.' : 'The clip holds the child\'s spoken answer to ONE question, the one listed.'} Judge the meaning, in any language or wording: CORRECT if it gives the right information, WRONG if it is incorrect or the child says they do not know, NO_ANSWER if nothing audible is said. Use each item's accepted and rejected answers and rubric.
+  return `A child in a Pakistani government school (grade 1-5), alone with a phone and wearing headphones, ${what}, in an ${L} EGRA task. ${single ? 'The clip holds the child\'s answers to the questions below, in order.' : 'The clip holds the child\'s spoken answer to ONE question, the one listed.'} Judge the meaning, in any language or wording: CORRECT if it gives the right information, WRONG if it is incorrect or the child says they do not know, NO_ANSWER if nothing audible is said. ${FINAL_ANSWER} Use each item's accepted and rejected answers and rubric.${section ? ` ${OWN_ITEM_ONLY}` : ''}
 ${ctx}ITEMS:
 ${list}
 Return ONLY JSON: {"questions":[{"id":"<id>","answer":"<the child's answer as heard>","verdict":"correct|wrong|no_answer","confidence":<0-1>}]}`;
@@ -355,7 +362,8 @@ function sectionWindows(row, res) {
     const from = Math.max(0, n(m.answer_ms) - SECTION_LEAD_MS);
     const next = marks[k + 1];
     const end = Number.isFinite(n(m.end_ms)) ? n(m.end_ms) : n(m.answer_ms);
-    let to = next && Number.isFinite(n(next.ask_ms)) ? n(next.ask_ms) : end + SECTION_TAIL_MS;
+    let to = next && Number.isFinite(n(next.ask_ms)) ? n(next.ask_ms) + SECTION_NEXT_MS : end + SECTION_TAIL_MS;
+    if (next && Number.isFinite(n(next.end_ms))) to = Math.min(to, n(next.end_ms));
     if (to <= from) to = Math.max(end + SECTION_TAIL_MS, from + 500);
     return { item_id: m.item_id, from_s: sec(from), to_s: sec(to) };
   });
@@ -489,12 +497,12 @@ function reachedOf(task, res, n) {
   return Number.isInteger(res.last_item_index) ? Math.min(n, res.last_item_index + 1) : null;
 }
 
-function oralPrompt({ lang, task, items, one }) {
+function oralPrompt({ lang, task, items, one, section = false }) {
   const what = /fluency/.test(task.subtask || '') ? 'quick sums, as many as it can in one minute'
     : /number_id/.test(task.subtask || '') ? 'the NAME of each number shown (e.g. "forty-five" / «پینتالیس» for 45)'
       : 'the answer to each sum shown, worked out in its head';
   const list = items.map((x, i) => `${i + 1}: shown "${x.show}" → correct answer ${x.answer}`).join('\n');
-  return `A child in a Pakistani government school (grade 3-5), alone with a phone and wearing headphones, is doing an EGMA maths task: it says aloud ${what}. ${one ? 'The phone showed the items ONE AT A TIME, in this order.' : 'The phone showed the items in this order.'} The child may answer in Urdu, English or a mix (e.g. «انیس», "nineteen", "unees"); judge the NUMBER said. The phone's own voice may be faintly heard; ignore it.
+  return `A child in a Pakistani government school (grade 3-5), alone with a phone and wearing headphones, is doing an EGMA maths task: it says aloud ${what}. ${one ? 'The phone showed the items ONE AT A TIME, in this order.' : 'The phone showed the items in this order.'} The child may answer in Urdu, English or a mix (e.g. «انیس», "nineteen", "unees"); judge the NUMBER said. The phone's own voice may be faintly heard; ignore it.${section ? ` ${OWN_ITEM_ONLY}` : ''}
 Marking rules: "c" if the child's final answer for that item is the correct number (a self-correction counts), "w" if it says a different number or "I don't know", "s" if it never reached the item or said nothing for it.
 ITEMS (position: what was shown → the correct answer):
 ${list}
@@ -518,7 +526,7 @@ async function scoreOral(task, rec, row, res, deps, calls) {
     const clip = p.clip || await clipOf(deps, p.key);
     durationSec = (durationSec || 0) + (clip.durationSec || 0);
     if (await silent(deps, calls, clip, task.lang)) { p.at.forEach((k) => got.set(k, { mute: true })); continue; }
-    const json = await call(deps, calls, { prompt: oralPrompt({ lang: task.lang, task, items: p.list, one }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_oral_maths' });
+    const json = await call(deps, calls, { prompt: oralPrompt({ lang: task.lang, task, items: p.list, one, section: Boolean(p.clip) }), schema: LETTERS_SCHEMA(), clip, job: 'child_test.sa_oral_maths' });
     const by = new Map((json.items || []).map((it, j) => [Number(it.i) || j + 1, it]));
     const none = gateOn() && json.found === false;
     p.at.forEach((k, j) => got.set(k, none ? { mute: true } : by.get(j + 1) || {}));
@@ -597,7 +605,7 @@ async function scoreQuestions(task, rec, row, res, deps, calls) {
       const clip = section ? section.get(q.id) : await clipOf(deps, k.key);
       const stt = {};
       if (await silent(deps, calls, clip, task.lang, stt)) { marked.set(q.id, { mute: true }); continue; }
-      const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: [q], passage, single: false }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
+      const json = await call(deps, calls, { prompt: questionsPrompt({ lang: task.lang, task, questions: [q], passage, single: false, section: Boolean(section) }), schema: QUESTIONS_SCHEMA, clip, job: 'child_test.sa_questions' });
       const got = (json.questions || [])[0];
       if (got) marked.set(q.id, echoed(q, got, stt.text) ? { mute: true, echo: true } : got);
     }

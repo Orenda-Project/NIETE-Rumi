@@ -153,6 +153,7 @@ export default function LeaderAssessReview() {
           <p dir="ltr" className="text-start font-mono text-slate-900"><bdi>{one.data.session.id.slice(0, 8)}</bdi></p>
           <p>{c.grade(num(one.data.session.grade))} · {when(one.data.session.startedAt)} · {one.data.session.minutes === null ? '–' : c.minutes(num(one.data.session.minutes))} ({c.target})</p>
           <p className="text-xs text-slate-500">{c.stopRulesNote}</p>
+          <p data-testid="review-mark-last" className="mt-1 text-xs font-medium text-slate-700">{c.markLast}</p>
         </div>
         <ul className="space-y-3">{one.data.tasks.map((t) => <TaskCard key={t.taskId} task={t} sessionId={one.data.session.id} lang={lang} name={taskName(t.taskId)} num={num} />)}</ul>
       </div>
