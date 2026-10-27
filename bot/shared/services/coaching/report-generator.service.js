@@ -200,6 +200,13 @@ class ReportGeneratorService {
         return;
       }
 
+      // bd-8hhqhf R7v: the video recommendation's reads (history, ladder, roster, v10 group, stored row) start now and run
+      // alongside the reflections, topic, subject and card work below; the pick later waits only for what is still in
+      // flight. Fire and forget; nothing when the flag is off or the analysis is not FICO.
+      try {
+        require('./video-reco/engine').prefetchReads({ session, coachingSessionId, analysis: session.analysis_data });
+      } catch (e) { /* the pick reads for itself */ }
+
       // Store partial report flags in session for PDF generation
       session._isPartialReport = isPartialReport;
       session._isAutoCompleted = isAutoCompleted;
