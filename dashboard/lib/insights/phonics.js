@@ -119,7 +119,8 @@ async function detectPhonics({ transcriptText, meta, ledger, deps, model = M.MOD
 
   const out = await M.callModel({ ...key, prompt: M.loadPrompt(PHONICS_PROMPT_VERSION), userMessage: phonicsUserMessage(input),
     costKey: purpose === 'drift_audit' ? 'phonics_drift' : 'phonics', deps: d });
-  if (out.reused) return { row: out.row, result: out.row.output || null };
+  // A reused call's row is the STORED run ({ id, status, output }): the caller must not insert it again.
+  if (out.reused) return { row: out.row, result: out.row.output || null, reused: true };
   if (out.row.status !== 'ok') return { row: out.row, result: null };
   const result = groundAndScore(out.output, input.transcript);
   if (!result) return { row: { ...out.row, status: 'failed', failure_class: 'unparseable', output: null }, result: null };
