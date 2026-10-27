@@ -145,7 +145,7 @@ test('a prefetch is used once, and only for its own teacher and store', () => {
   const supa = slowSupabase(0);
   const { E, catalog } = load(supa);
   const a = args();
-  E.prefetchReads({ session: { ...a.session, user_id: 'someone-else' }, coachingSessionId: SID, deps: { env: ENV } });
+  expect(E.prefetchReads({ session: { ...a.session, user_id: 'someone-else' }, coachingSessionId: SID, analysis: a.analysis, deps: { env: ENV } })).toBe(true);
   return E.recommendForReport({ ...a, deps: { env: ENV, catalog } }).then(async (row) => {
     expect(row).toMatchObject({ user_id: UID });
     // the mismatched prefetch was dropped; this pick read for itself
@@ -154,6 +154,16 @@ test('a prefetch is used once, and only for its own teacher and store', () => {
     await E.recommendForReport({ ...a, coachingSessionId: 'other-session', deps: { env: ENV, catalog } });
     expect(supa.reads.length).toBeGreaterThan(n);
   });
+});
+
+test('red7 N1: no analysis (null/undefined) → no prefetch, as the pick refuses it; nothing is read', () => {
+  const supa = slowSupabase(0);
+  const { E } = load(supa);
+  const a = args();
+  expect(E.prefetchReads({ session: a.session, coachingSessionId: SID, analysis: null, deps: { env: ENV } })).toBe(false);
+  expect(E.prefetchReads({ session: a.session, coachingSessionId: SID, deps: { env: ENV } })).toBe(false);
+  expect(E._prefetchSize()).toBe(0);
+  return new Promise((r) => setTimeout(r, 10)).then(() => expect(supa.reads).toEqual([]));
 });
 
 test('flag off or not FICO: the prefetch reads nothing', () => {
