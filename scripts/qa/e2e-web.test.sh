@@ -5,6 +5,8 @@
 # it runs on made-up data with a per-run database, its row is one the ledger accepts, and every
 # scenario in a web .feature has code (and no code drives a scenario the spec does not have).
 set -uo pipefail
+# Hooks run here must never write the real clone's QA ledger or push its notes (bd-amxdhg).
+export QA_NOTES_OFF=1 QA_LEDGER="${TMPDIR:-/tmp}/qa-events.test.$$.jsonl"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SH="$ROOT/scripts/qa/e2e-web.sh"
 PASS=0; FAIL=0
