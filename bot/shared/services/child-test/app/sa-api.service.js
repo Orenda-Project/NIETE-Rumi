@@ -60,6 +60,7 @@ const addChildSwitch = require('./add-child-switch');
 const coachLastWord = require('./coach-last-word-switch');
 const practiceOnly = require('./practice-only-switch');
 const anySchool = require('./any-school-switch');
+const endTestRestart = require('./end-test-restart-switch');
 const dashFilters = require('./dash-filters-switch');
 const { lastWordIndex } = require('../sa/last-word-hint');
 const { MEDIA, envSegment, __internals: { guarded: gate, rows, ownVisit, ownSession, gradeOf } } = require('./app-api.service');
@@ -302,11 +303,32 @@ async function resumed(d, session, { block, repick, clientSessionId, known }, de
 }
 
 /**
+ * Round 7b (sa_end_test_restart): Restart test for a child the coach ended early. One session per drawn child, so the
+ * restart is a new attempt on it (sa-store restartAttempt): the phone's new id and block, a `restart` event. A finished
+ * child, another coach's, or no phone id is refused; a re-sent restart with the same new id answers the same.
+ */
+async function restartChild(d, { userId, drawId, clientSessionId, block }, deps) {
+  if (!(await endTestRestart.enabled(deps))) return { status: 'invalid', reason: 'restart_off' };
+  if (!clientSessionId) return { status: 'invalid', reason: 'bad_client_id' };
+  const got = await d.store.getSessionByDraw(drawId);
+  const s = got && got.ok ? got.session : null;
+  if (!s || s.coach_user_id !== userId || s.item_bank_version !== SA_MARK || !allowedSchool(d, s.school_id)) return { status: 'not_found' };
+  if (s.status === 'completed') return { status: 'invalid', reason: 'completed' };
+  const same = { status: 'ok', sessionId: s.id, list: null, restarted: true, ...(block ? { block } : {}) };
+  if (s.client_session_id === clientSessionId) return same;
+  const out = await saStoreOf(deps).restartAttempt(s.id, { clientSessionId, block: block || null, at: d.now().toISOString() });
+  if (!out || !out.ok) throw new Error((out && (out.error || out.reason)) || 'restartAttempt failed');
+  await d.store.recordTiming(s.id, 'sa.restarted', d.now());
+  d.log('child_test.sa.restart', { userId, sessionId: s.id, attempt: out.attempt });
+  return same;
+}
+
+/**
  * present / absent / refused. The phone may name the child's session itself (clientSessionId, a uuid it
  * minted while offline) and say which part of the battery the child takes (block); a present re-sent with
  * the same client id answers the session it already made.
  */
-const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ userId, schoolId, visitId, drawId, outcome, note, clientSessionId, block, repick, grade }, d) => {
+const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ userId, schoolId, visitId, drawId, outcome, note, clientSessionId, block, repick, grade, restart }, d) => {
   if (!OUTCOMES.includes(outcome)) return { status: 'invalid', reason: 'bad_outcome' };
   if (!drawId) return { status: 'invalid', reason: 'no_draw' };
   if (clientSessionId != null && !UUID_RE.test(String(clientSessionId))) return { status: 'invalid', reason: 'bad_client_id' };
@@ -316,6 +338,7 @@ const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ 
   if (named.bad) return { status: 'invalid', reason: 'bad_grade' };
   const visit = await visitFor(d, userId, { schoolId, visitId, grade: named.grade }, await anySchool.enabledFor(userId, deps));
   if (!visit) return { status: 'not_found' };
+  if (restart === true && outcome === 'present') return restartChild(d, { userId, drawId, clientSessionId, block }, deps);
   const sa = clientSessionId && outcome === 'present' ? saStoreOf(deps) : null;
   if (sa) {
     const known = await sa.findByClient(clientSessionId);

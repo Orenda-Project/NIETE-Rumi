@@ -46,6 +46,13 @@ Feature: School leader (principal) portal
     When they type an EMIS number into "Find a school"
     Then only that school stays in the list and the count reads "1 of <total>"
 
+  @LP06
+  Scenario: Learning assessment: End test is a tap and a question, and an ended child shows Restart test (sa_end_test_restart)
+    Given the coach app v2 is on and sa_end_test_restart is on for the signed-in coach
+    When a child's test is running and the coach taps "End test (coach)", then "End test"
+    Then the child's row reads "Stopped" with a "Restart test" button and a note says to tap it to begin again
+    And in RDF manual with sa_end_section on, an "End this section" button sits beside it
+
   # ── Round 7b · C · the results dashboard: mode, date and coach filters; every skip and stop by type and coach ──
 
   @LP06 @config-gated
