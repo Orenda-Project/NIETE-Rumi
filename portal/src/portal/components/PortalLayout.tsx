@@ -1,5 +1,5 @@
 import { ReactNode, Suspense, useEffect } from 'react';
-import { lazyOptional } from '@/lib/lazyPage';
+import { lazyOptional, useAfterFirstIdle } from '@/lib/lazyPage';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { AuthContext } from '../hooks/authContext';
@@ -19,7 +19,8 @@ import {
 // bd-sex15q.34 — the notices tray (what is being made, and "ready") is its own chunk: it carries the teacher app's
 // assessment, lesson and notice words, and every coach page stands in this frame. It shows once that chunk is here;
 // nothing it follows is lost meanwhile (its tracker is a module, see the comment where it is mounted), and a chunk that
-// cannot be loaded leaves the page as it is (lib/lazyPage lazyOptional).
+// cannot be loaded leaves the page as it is (lib/lazyPage lazyOptional). It is asked for once the page is idle, so on a
+// slow line its chunks never compete with the page's own data (measured: they delayed a coach's This week by ~2 s).
 const NoticeHost = lazyOptional(() => import('../teacher/notices/NoticeHost').then((m) => ({ default: m.NoticeHost })));
 
 interface PortalLayoutProps {
@@ -43,6 +44,7 @@ interface PortalLayoutProps {
 
 const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = false }: PortalLayoutProps) => {
   const auth = useAuth();
+  const trayIdle = useAfterFirstIdle();
   const { user, loading } = auth;
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -144,7 +146,7 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
             coach on v2 gets it too: her observation being sent is one more thing it follows. It stays
             mounted-or-not with the frame, but the tracker behind it is a module, so a page change does not
             restart anything. */}
-        {(teacherV2 || coachV2) && !menuPending && user.phoneNumber && (
+        {(teacherV2 || coachV2) && !menuPending && user.phoneNumber && trayIdle && (
           <Suspense fallback={null}>
             <NoticeHost userKey={user.phoneNumber} bare={noNav} aboveBar={showBar} local={!teacherV2} />
           </Suspense>

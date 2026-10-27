@@ -40,7 +40,7 @@ describe("route chunks", () => {
     expect(app).not.toMatch(/^import PortalDashboard from/m);
     expect(app).toMatch(/^const loadDashboard = \(\) => import\("\.\/portal\/pages\/PortalDashboard"\);$/m);
     expect(app).toMatch(/^const PortalDashboard = page\(loadDashboard\);$/m);
-    expect(app).toMatch(/warmFirstScreen\(window\.location\.pathname, readShellHint\(\), \{ dashboard: loadDashboard,/);
+    expect(app).toMatch(/warmFirstScreen\(window\.location\.pathname, readShellHint\(\), \{\s*dashboard: loadDashboard,/);
   });
 
   it("moving between pages keeps the current one on screen while the next loads", () => {

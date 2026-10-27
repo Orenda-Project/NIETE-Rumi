@@ -9,10 +9,34 @@
  */
 import type { ShellHint } from "@/portal/lib/shellHint";
 
-export type FirstScreenLoaders = { dashboard: () => Promise<unknown>; teacherHome: () => Promise<unknown> };
+export type FirstScreenLoaders = {
+  dashboard: () => Promise<unknown>;
+  teacherHome: () => Promise<unknown>;
+  /** the coach insight pages' chunks (their routes and This week) */
+  coachInsights: () => Promise<unknown>;
+  /** the RM pages' chunk */
+  rm: () => Promise<unknown>;
+  /** the flags (/config, the shared read every gate waits for) */
+  config: () => Promise<unknown>;
+};
+
+const COACH_INSIGHTS = /^\/portal\/coach\/insights(\/|$)/;
+const RM = /^\/portal\/rm(\/|$)/;
+
+/** The COACHIP pages: a coach's insight pages and the RM pages (their first open is what ORG §8 times). */
+export function isCoachipEntry(pathname: string): boolean {
+  return COACH_INSIGHTS.test(pathname) || RM.test(pathname);
+}
 
 export function warmFirstScreen(pathname: string, hint: ShellHint | null, load: FirstScreenLoaders): void {
   const path = pathname.replace(/\/+$/, "") || "/";
+  // A coach's or an RM's first open: their pages and the flags start with the app, side by side, instead of one
+  // after another (the router asks for the routes chunk, which asks for the page's, whose gate asks for the flags).
+  if (isCoachipEntry(path)) {
+    (COACH_INSIGHTS.test(path) ? load.coachInsights : load.rm)().catch(() => undefined);
+    load.config().catch(() => undefined);
+    return;
+  }
   const dashboard = path === "/portal/dashboard";
   // "/" with no hint is a signed-out device: it is going to the sign-in page, which is in the app's own chunk.
   if (!dashboard && !(path === "/" && hint !== null)) return;

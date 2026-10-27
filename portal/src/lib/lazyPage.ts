@@ -1,4 +1,4 @@
-import { createElement, lazy, type ComponentProps, type ComponentType } from "react";
+import { createElement, lazy, useEffect, useState, type ComponentProps, type ComponentType } from "react";
 
 /**
  * bd-fxk3t8 — a page in its own chunk (App.tsx), and the background fetch of all of them.
@@ -101,4 +101,23 @@ export function lazyOptional<T extends ComponentType<any>>(load: Loader<T>, retr
     return ready ? createElement(ready, props) : createElement(Lazy, props);
   }
   return Piece;
+}
+
+/**
+ * bd-sex15q.34 — true once the page has drawn and the browser is idle (at most `maxMs` later): for a piece that
+ * should not compete with the first screen for a slow line, like the notices tray. Straight away in tests.
+ */
+export function useAfterFirstIdle(maxMs = 4000): boolean {
+  const [idle, setIdle] = useState(import.meta.env.MODE === "test");
+  useEffect(() => {
+    if (idle) return;
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(() => setIdle(true), { timeout: maxMs });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const t = setTimeout(() => setIdle(true), Math.min(maxMs, 1500));
+    return () => clearTimeout(t);
+  }, [idle, maxMs]);
+  return idle;
 }

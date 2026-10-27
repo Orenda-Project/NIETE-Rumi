@@ -31,6 +31,7 @@ import { FrameSkeleton, LoginSkeleton } from "./portal/components/Skeleton";
 import { readShellHint } from "./portal/lib/shellHint";
 import { lazyPage as page, prefetchPages } from "./lib/lazyPage";
 import { warmFirstScreen } from "./lib/firstScreen";
+import { readConfigShared } from "./portal/lib/useNewUi";
 /* Reading assessments + video library are not part of NIETE's launch scope. Routes + imports
  * removed so the URLs 404 rather than expose unfinished screens. Restore by re-adding both
  * imports and the /portal/reading-* + /portal/video* routes below. */
@@ -47,7 +48,13 @@ import { warmFirstScreen } from "./lib/firstScreen";
 const loadDashboard = () => import("./portal/pages/PortalDashboard");
 const PortalDashboard = page(loadDashboard);
 if (typeof window !== "undefined" && isPortalTarget()) {
-  warmFirstScreen(window.location.pathname, readShellHint(), { dashboard: loadDashboard, teacherHome: () => import("./portal/teacher/pages/Home") });
+  warmFirstScreen(window.location.pathname, readShellHint(), {
+    dashboard: loadDashboard,
+    teacherHome: () => import("./portal/teacher/pages/Home"),
+    coachInsights: () => Promise.all([import("./portal/coach/insights/routes"), import("./portal/coach/insights/pages/ThisWeek")]),
+    rm: () => import("./portal/rm/routes"),
+    config: readConfigShared,
+  });
 }
 const Index = page(() => import("./pages/Index"));
 const HowItWorks = page(() => import("./pages/HowItWorks"));
