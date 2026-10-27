@@ -16,16 +16,18 @@
  *                   confirmed moments add up to (rules.addUp), with the reason; the recording's
  *                   own levels are never sent to any screen.
  *   ADDED_TWO → PRIORITY   the picks sealed before any moment was seen: "Work on first" and up to two
- *                   more (R14). A check opened before "Also work on" was published (no `cv` in its
- *                   payload) gets its own screen's data: the first pick only, and only one its list has.
+ *                   more (R14), any of the 17, the plan's steps or a coaching focus area (R20, R21). A check
+ *                   opened on an older Flow (its `cv`, or none) gets its own screen's data, and only picks its
+ *                   lists have; a sealed pick it could not show is kept as an "Also work on" at Submit.
  *   PRIORITY → DONE      the record is checked once; the brief follows in the chat.
  */
 
 const supabase = require('../config/supabase');
 const Store = require('../services/observe/observe2/field-form.store');
 const { addUp } = require('../services/observe/observe2/rules');
-const { CODES, PRIORITY, ALSO_NONE, pickAlso } = require('../services/observe/observe2/fico17');
-const { SLOTS, FIDELITY_SLOTS, HEARD_SCREENS, ADDED_SCREENS, CHECK_VERSION } = require('../services/observe/observe2/evidence-check.flow');
+const { CODES, PLAN_FOCUS, FOCUS, FOCUS_ORDER, ALSO_NONE, pickAlso } = require('../services/observe/observe2/fico17');
+const { SLOTS, FIDELITY_SLOTS, HEARD_SCREENS, ADDED_SCREENS } = require('../services/observe/observe2/evidence-check.flow');
+const { notesSection } = require('../services/observe/observe2/brief');
 const { logToFile } = require('../utils/logger');
 
 const HEARD_IDS = HEARD_SCREENS.map((h) => h.id);
@@ -110,19 +112,45 @@ function renderHeard(screenId, form) {
 
 const levelText = (lv) => (lv == null ? '' : String(lv));
 
-const newCheck = (screenData) => Boolean(screenData && screenData.cv === CHECK_VERSION);
+// The check's version (`cv`), posted from ADDED_TWO and PRIORITY: none on the first published check, 2 on
+// round 6's ("Also work on"), 3 since the coaching focus areas (evidence-check.flow.js CHECK_VERSION). Each
+// entry below is keyed by the version that brought it, never by CHECK_VERSION, so a later bump keeps a
+// version-3 check on its own lists.
+const checkVersion = (screenData) => Number((screenData && screenData.cv) || 0);
+// What each published check's PRIORITY lists hold: the 17; then the plan's steps (cv 2, R14); then the
+// coaching focus areas (cv 3, R20/R21). A Dropdown is never sent a value its own list cannot show.
+const LISTED = [
+  [3, new Set(FOCUS_ORDER)],
+  [2, new Set([...CODES, PLAN_FOCUS])],
+  [0, new Set(CODES)],
+];
+const listedOn = (version) => LISTED.find(([since]) => version >= since)[1];
+// The sealed picks a check's lists could not show the coach.
+const unshown = (a, shown) => [a.priority, a.also_1, a.also_2].map((v) => String(v || '')).filter((v) => FOCUS[v] && !shown.has(v));
 
-// The PRIORITY screen, pre-filled with the sealed picks. Today's published check lists only the 17, so
-// a pick it does not have (the plan's steps) is left for the coach to choose rather than sent as a value
-// its Dropdown cannot show.
+// The coach's notes from the visit, read-only above the picks (pilot sheet R23): the conversation with the
+// teacher usually runs while this check is open (24 of 47 debriefs on prod since 16 Oct), before the brief
+// that also carries them. The brief's own section, without "Why you changed", which is typed on this
+// screen. Sent to every check that posts a `cv` (2 and 3); a check opened on a Flow published before the
+// block was declared ignores the two keys.
+function notesData(form) {
+  const body = notesSection(form, { except: ['why'], plain: true }).join('\n');
+  return { notes_v: Boolean(body), notes_body: body };
+}
+
+// The PRIORITY screen, pre-filled with the sealed picks its own lists have. A pick an older check cannot
+// show is left for the coach to choose there, and kept at Submit (below).
 function renderPriority(form, screenData) {
   const a = (form && form.answers) || {};
+  const version = checkVersion(screenData);
+  const shown = listedOn(version);
   const first = String(a.priority || '');
-  if (!newCheck(screenData)) return { screen: 'PRIORITY', data: { priority_level: PRIORITY[first] ? first : '' } };
-  const also = pickAlso([a.also_1, a.also_2], first);
+  const firstShown = shown.has(first) ? first : '';
+  if (version < 2) return { screen: 'PRIORITY', data: { priority_level: firstShown } };
+  const also = pickAlso([a.also_1, a.also_2], first).filter((id) => shown.has(id));
   return {
     screen: 'PRIORITY',
-    data: { priority_level: first, also_level_1: also[0] || ALSO_NONE, also_level_2: also[1] || ALSO_NONE },
+    data: { priority_level: firstShown, also_level_1: also[0] || ALSO_NONE, also_level_2: also[1] || ALSO_NONE, ...notesData(form) },
   };
 }
 
@@ -419,13 +447,14 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     const finalLevels = {};
     for (const code of CODES) finalLevels[code] = review[`${code}_final`] || added[code] || '';
     const patch = pickFields(screenData, ['priority_final', 'why']);
-    // "Also work on": as submitted on the new check; on a check opened before it existed, the picks
-    // sealed in the form. Never the first pick again, never twice (fico17.pickAlso).
+    // "Also work on": as submitted on a check that has it; on the first check, the picks sealed in the form.
+    // A sealed pick the check's lists could not show (a newer choice on an older check) is kept, first:
+    // the coach never saw it there to drop it. Never the first pick again, never twice (fico17.pickAlso).
     const a = form.answers || {};
     const first = patch.priority_final || a.priority || '';
-    patch.also_final = newCheck(screenData)
-      ? pickAlso([screenData.also_final_1, screenData.also_final_2], first)
-      : pickAlso([a.also_1, a.also_2], first);
+    const version = checkVersion(screenData);
+    const chosen = version >= 2 ? [screenData.also_final_1, screenData.also_final_2] : [a.also_1, a.also_2];
+    patch.also_final = pickAlso([...unshown(a, listedOn(version)), ...chosen], first);
     const checked = await Store.markChecked(form, finalLevels, patch);
     if (!checked.ok) {
       if (checked.alreadyChecked) {
