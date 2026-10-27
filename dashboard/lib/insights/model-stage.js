@@ -106,10 +106,11 @@ async function runPhonics(ctx, { facts, inWindow, reserveUsd = 0 }) {
     for (let j = 0; j < batch.length; j += 1) {
       const f = batch[j];
       if (!affordable()) { ctx.pending('phonics', literacy.length - i - j); i = literacy.length; break; }
-      const { row, result } = await Ph.detectPhonics({ transcriptText: textOf.get(f.session_id) || '', meta: { grade: f.grade, subject: f.subject },
+      const { row, result, reused } = await Ph.detectPhonics({ transcriptText: textOf.get(f.session_id) || '', meta: { grade: f.grade, subject: f.subject },
         ledger: ctx.ledger, deps: ctx.callDeps(f.session_id, '-') });
       textOf.delete(f.session_id);
-      const [stored] = await ctx.record([row]);
+      // A reused call is already stored (an earlier night): keep its id, insert nothing (as the homework glosses do).
+      const [stored] = reused ? [row] : await ctx.record([row]);
       ctx.tally('phonics', row.status);
       if (result) { f.detector = result; f.detector_run_id = stored && stored.id; read += 1; }
     }
