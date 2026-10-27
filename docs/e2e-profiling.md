@@ -330,3 +330,8 @@ fixed after that run), COA29/COA30 (the runner re-installed the published seed o
 fidelity table needs `seed-publish`), LANG09 (known), T54 (content), COA49 (now BLOCKED: no `lesson_plans` row
 for the survey — a different, pre-existing gap). T05/T15/T16/T21, R02/R07/R12/R13-pre, COA09 and COA58 were
 not in that run's selection and were re-run separately (see the ledger rows for the follow-up run).
+Run `20261027-044107-2be216c-mock` (menu + training, every scenario, replay, 7 m 36 s): M10, M21 and T42 PASS
+with the second batch; T05/T16/T35/T36/T41/T62/T74 PASS again. T15 is proposed `@obsolete` (the intent
+classifier opens the Teacher Training row by design since bd-xw56ed); T21's question-line fix landed after
+this run; T54 is content. The follow-up coaching run records the new voice-debrief answer (COA58) and
+exercises the deferral right after the confirm tap (COA09).
