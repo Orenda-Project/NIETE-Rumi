@@ -124,7 +124,7 @@ export default function RmCircle() {
               : (
                 <>
                   {data.basis === "coach" && <BasisLine data={data} />}
-                  <ul className="flex flex-col divide-y divide-[#f3f4f6]">{data.moments.map((m) => <CircleRow key={m.moment_id} m={m} open={open === m.moment_id} onOpen={setOpen} />)}</ul>
+                  <ul className="flex flex-col divide-y divide-[#f3f4f6]">{data.moments.map((m) => <CircleRow key={m.coach_user_id} m={m} open={open === m.coach_user_id} onOpen={setOpen} />)}</ul>
                 </>
               )}
           </RmCard>
