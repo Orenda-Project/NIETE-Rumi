@@ -199,6 +199,12 @@ const AXIOM_CORE_FIELDS = new Set([
   // The key that joins one teacher's journey across the bot's WhatsApp rows and the portal's page rows
   // (bd-4r3rei). A column, not data_json, so `where journeyId == "j_…"` works and `summarize by journeyId` is cheap.
   'journeyId',
+  // The two ids that make an lp612 row joinable. `segmentId` says which lesson, `renderId`
+  // which artifact of it the teacher actually received — the template version, whether it was
+  // capped, degraded or overlaid. Left in data_json they are delivered but neither filterable
+  // nor joinable, which at the point anyone asks the question is the same as absent: it is why
+  // a 👎 could not be walked back to the thing that was rated. bd-7wr3f, bd-jsong.
+  'segmentId', 'renderId',
 ]);
 
 /**
