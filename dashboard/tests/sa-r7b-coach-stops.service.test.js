@@ -3,9 +3,7 @@
  * Round 7b, part B (the tester's 27 Oct list, items 3–5): the runner (sa-core).
  *   sa_end_section   RDF manual: endSection() ends the task on show as end_section and skips the rest of its section
  *                    (Urdu → English → maths) as skipped_end_section; one end_section event { by:'coach', section }.
- *   sa_under20_move_on  RDF auto: a part under 20% (tap: correct ÷ items; read aloud: items moved through) skips the
- *                    rest of its section as skipped_under20; one under20_move_on event { by:'app', section, reached, of,
- *                    pct, basis }. A part whose reach is not known on the phone never fires.
+ *   (item 5, the move-on when a part is not finished: sa-r7b-incomplete-move-on.service.test.js)
  *   sa_silence_repeat RDF auto: a spoken part with no voice heard → silence_reminder (one silence_repeat event), then the
  *                    part again from its start; a second silence goes on as before.
  * Each OFF (no option): the runner as before.
@@ -62,75 +60,6 @@ describe('sa_end_section (RDF manual)', () => {
       expect(x.r.results()).toEqual([]);
       expect(x.r.view().phase).toBe('running');
       expect(x.types()).not.toContain('end_section');
-    }
-  });
-});
-
-describe('sa_under20_move_on (RDF auto)', () => {
-  const B = [TAP('ur.a', 10), TAP('ur.b', 4), TAP('en.c', 4)];
-  test('ON, a tap part at 10%: the rest of the section is skipped, one event with the tap score', () => {
-    const x = run(B, { under20: true });
-    x.r.answer('a');
-    for (let i = 0; i < 9; i++) x.r.answer('b');
-    expect(ids(x)).toEqual([['ur.a', 'complete'], ['ur.b', 'skipped_under20']]);
-    const ev = x.events.filter((e) => e.type === 'under20_move_on');
-    expect(ev).toHaveLength(1);
-    expect(ev[0]).toMatchObject({ task_id: 'ur.a', value: { by: 'app', section: 'ur', reached: 1, of: 10, pct: 10, basis: 'tap_score' } });
-    x.r.next();
-    expect(x.r.view().task.id).toBe('en.c');
-  });
-  test('ON, 20% or more: no move-on', () => {
-    const x = run(B, { under20: true });
-    x.r.answer('a'); x.r.answer('a');
-    for (let i = 0; i < 8; i++) x.r.answer('b');
-    x.r.next();
-    expect(x.r.view().task.id).toBe('ur.b');
-    expect(x.types()).not.toContain('under20_move_on');
-  });
-  test('ON, a one-at-a-time part: items moved through before time up (1 of 10) → move-on, basis reached', () => {
-    const x = run([CELLS('ur.w', 10), TAP('ur.b', 2), TAP('en.c', 2)], { under20: true });
-    x.r.nextCell('tap');
-    x.tick(61000);
-    expect(ids(x)).toEqual([['ur.w', 'time_up'], ['ur.b', 'skipped_under20']]);
-    expect(x.events.find((e) => e.type === 'under20_move_on').value).toEqual({ by: 'app', section: 'ur', reached: 1, of: 10, pct: 10, basis: 'reached' });
-  });
-  test('ON, the passage: the last-word tap gives the reach (3 of 20 = 15%) → move-on', () => {
-    const x = run([PASSAGE('en.s', 20), ORAL('en.q'), TAP('ma.a', 2)], { under20: true });
-    x.r.done(); x.r.lastWord(2);
-    expect(ids(x)).toEqual([['en.s', 'complete'], ['en.q', 'skipped_under20']]);
-    expect(x.events.find((e) => e.type === 'under20_move_on').value).toMatchObject({ reached: 3, of: 20, pct: 15, basis: 'reached' });
-  });
-  test('ON, the passage with no last-word step (reach not known on the phone): never fires', () => {
-    const x = run([PASSAGE('en.s', 20), ORAL('en.q')], { under20: true, skip_last_word: true });
-    x.r.done();
-    x.r.next();
-    expect(x.r.view().task.id).toBe('en.q');
-    expect(x.types()).not.toContain('under20_move_on');
-  });
-  test('ON, a spoken-answer part (oral): never fires', () => {
-    const x = run([ORAL('ma.o'), TAP('ma.b', 2)], { under20: true });
-    x.r.answer('spoken'); x.r.answer('spoken');
-    expect(x.types()).not.toContain('under20_move_on');
-  });
-  test('ON, the last part of a section (nothing to skip): no event', () => {
-    const x = run([TAP('ur.a', 10), TAP('en.c', 2)], { under20: true });
-    for (let i = 0; i < 10; i++) x.r.answer('b');
-    expect(x.types()).not.toContain('under20_move_on');
-  });
-  test('ON, the maths section: the rest of maths is skipped and the battery ends', () => {
-    const x = run([TAP('ma.a', 10), TAP('ma.b', 2)], { under20: true });
-    for (let i = 0; i < 10; i++) x.r.answer('b');
-    x.r.next();
-    expect(x.r.view().phase).toBe('battery_end');
-    expect(ids(x)).toEqual([['ma.a', 'complete'], ['ma.b', 'skipped_under20']]);
-  });
-  test('OFF, or RDF manual: no move-on', () => {
-    for (const o of [{}, { under20: true, manual: true }]) {
-      const x = run(B, o);
-      for (let i = 0; i < 10; i++) x.r.answer('b');
-      x.r.next();
-      expect(x.r.view().task.id).toBe('ur.b');
-      expect(x.types()).not.toContain('under20_move_on');
     }
   });
 });
