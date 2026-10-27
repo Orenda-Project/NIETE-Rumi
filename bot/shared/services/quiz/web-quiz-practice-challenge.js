@@ -26,7 +26,9 @@ const Practice = require('./web-quiz-practice-play');
 
 const fail = (status, error) => { throw new WqError(status, { error }); };
 const kit = () => require('./web-quiz-challenge')._practiceKit;
-const langOf = (v, own) => (v === 'en' || v === 'ur' ? v : clampLanguage(own));
+const { LANGUAGE_OFFER } = require('../../config/languages');
+// the page's language when it is one we offer, else the token's own (the catalog's clamp)
+const langOf = (v, own) => clampLanguage(LANGUAGE_OFFER.includes(v) ? v : own);
 const PREVIEW = Object.freeze({ practice_round: true, mode: 'practice', teacher_preview: true, practice_play: 1, draw: { outcome: 'served' } });
 
 /** The practice hub token's fields while the switch is on, else null (no read for any other token). */

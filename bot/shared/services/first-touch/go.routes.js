@@ -263,9 +263,11 @@ async function teacherPlays(o, d, lang) {
     const pf = await require('./maker.cta').prefillOf(o.userId);
     const m = /^grade_([1-5])\|/.exec(String(pf || ''));
     const grade = m ? Number(m[1]) : 2;
-    const own = lang === 'en' || lang === 'ur' ? lang : await Targets.storedLang(o.userId);
+    // the landing's en|ur, else the teacher's stored one, else the deployment's default (a bilingual landing has none)
+    const { LANGUAGE_OFFER, offerDefaultLanguage } = require('../../config/languages');
+    const own = LANGUAGE_OFFER.includes(lang) ? lang : await Targets.storedLang(o.userId);
     const back = typeof d.next === 'string' && d.next.startsWith(Targets.TEACHER_HOME_PATH) ? d.next : null;
-    const path = Practice.homePath({ grade, lang: own === 'en' ? 'en' : 'ur', back, from: 'door' });
+    const path = Practice.homePath({ grade, lang: LANGUAGE_OFFER.includes(own) ? own : offerDefaultLanguage(), back, from: 'door' });
     if (path) event('one_door.practice', { grade, writer: 'role_page' });
     return path;
   } catch (err) {

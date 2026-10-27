@@ -26,6 +26,7 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
+const { clampLanguage } = require('../../config/ux-strings');
 
 const KEY = 'web_quiz_practice_play';
 const TTL_MS = 30 * 1000;
@@ -87,14 +88,14 @@ function refused(route, token, why = 'bad_token') {
 function homePath({ grade, lang, back = null, from = 'door' } = {}) {
   const g = Number(grade);
   if (!Number.isInteger(g) || g < 1 || g > 5) return null;
-  const l = lang === 'ur' ? 'ur' : 'en';
+  const l = clampLanguage(lang);
   const t = T.sign({ k: 'h', ids: [], pr: 1, g, lang: l, ...(typeof back === 'string' && BACK_RX.test(back) ? { bk: back } : {}), exp: Math.floor(Date.now() / 1000) + T.HUB_TTL_S });
   return t ? `${HOME_PATH}${t}?from=${encodeURIComponent(from)}` : null;
 }
 
 /** A practice game's run token: no student id (the counted code needs one and refuses it). */
 function signRun({ ex, g, lang, form, runId, pid = null, anchor = null }) {
-  return T.sign({ k: 'c', pr: 1, ex, g, l: lang === 'ur' ? 'ur' : 'en', f: String(form), r: runId, ...(pid ? { p: pid } : {}), ...(anchor ? { a: anchor } : {}),
+  return T.sign({ k: 'c', pr: 1, ex, g, l: clampLanguage(lang), f: String(form), r: runId, ...(pid ? { p: pid } : {}), ...(anchor ? { a: anchor } : {}),
     exp: Math.floor(Date.now() / 1000) + T.CHALLENGE_TTL_S });
 }
 
