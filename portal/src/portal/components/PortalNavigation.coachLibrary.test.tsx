@@ -29,10 +29,10 @@ async function renderNav(role: string, features: Record<string, unknown>) {
 beforeEach(() => vi.clearAllMocks());
 
 describe("the coach v2 menu, as shipped", () => {
-  it("is Training Library, Lesson Plans and More, nothing else", async () => {
+  it("is Training Library, Lesson Plans, My schools and More, nothing else", async () => {
     await renderNav("coach", { coachV2: true });
     const links = within(screen.getByTestId("teacher-nav")).getAllByRole("link").map((a) => [a.textContent, a.getAttribute("href")]);
-    expect(links).toEqual([["Training Library", "/portal/coach/training"], ["Lesson Plans", "/portal/teacher/lessons"], ["More", "/portal/coach/more"]]);
+    expect(links).toEqual([["Training Library", "/portal/coach/training"], ["Lesson Plans", "/portal/teacher/lessons"], ["My schools", "/portal/coach/people"], ["More", "/portal/coach/more"]]);
     for (const w of ["Home", "Schedule", "Observe", "Schools", "Reports", "Analytics", "People", "Team"]) expect(screen.queryByText(w)).toBeNull();
   });
 

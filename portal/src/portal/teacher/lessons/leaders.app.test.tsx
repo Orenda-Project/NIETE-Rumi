@@ -135,7 +135,7 @@ describe("a coach on the coach app (portal_coach_v2)", () => {
     await openApp("/portal/coach/training", COACH, { coachV2: true, teacherV2: false });
     await waitFor(() => expect(screen.getByTestId("teacher-nav")).toBeTruthy(), { timeout: 10_000 });
     const links = Array.from(screen.getByTestId("teacher-nav").querySelectorAll("a"));
-    expect(links.map((a) => a.textContent)).toEqual(["Training Library", "Lesson Plans", "More"]);
+    expect(links.map((a) => a.textContent)).toEqual(["Training Library", "Lesson Plans", "My schools", "More"]);
     expect(links[1].getAttribute("href")).toBe("/portal/teacher/lessons");
   }, 30_000);
 
