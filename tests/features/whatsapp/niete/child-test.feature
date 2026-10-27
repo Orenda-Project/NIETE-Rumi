@@ -872,3 +872,19 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Given sa_any_school names my user id
     Then a list asked for at a probable test school or a closed school is still not found
     And a practice-only coach still sees their practice schools only
+
+  # ── Round 7b (27 Oct tester list): every skip and stop is recorded ─────────────────────────────────────────
+  @e2e @wip @draft @config-gated @P1 @CT100
+  Scenario: Every skip and stop is one event record on the session
+    Given a coach's Learning assessment session is running
+    When the child or the coach goes Back, ends a section, ends the test, restarts the child, or the app repeats a silent section or moves a child on under 20%
+    Then the session keeps one event of that type (back, end_section, end_test, restart, silence_repeat, under20_move_on) with its subtask and time
+    And no such event is ever dropped by the kept-events cap
+
+  # ── Round 7b · A · the child's screens (back, audio-gated Next, story arrow, instructions, tick prompt, T) ──
+
+
+
+  # ── Round 7b · B · the coach's controls and the auto stop-checks ─────────────────────────────────────────
+
+

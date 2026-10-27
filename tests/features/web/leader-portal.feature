@@ -45,3 +45,6 @@ Feature: School leader (principal) portal
     Then each school row shows its sector and EMIS under the name, when the school has them
     When they type an EMIS number into "Find a school"
     Then only that school stays in the list and the count reads "1 of <total>"
+
+  # ── Round 7b · C · the results dashboard: mode, date and coach filters; every skip and stop by type and coach ──
+
