@@ -49,6 +49,8 @@ export type SaSwitches = {
   endSection?: boolean;
   /** sa_dash_filters: the dashboard's mode / date / coach filters and every skip and stop by type and coach */
   dashFilters?: boolean;
+  /** sa_cwpm: every words-per-minute number is labelled CWPM (correct words per minute), with its formula */
+  cwpm?: boolean;
 };
 
 /** One drawn child. Never a roll number or student id (operator: "Name · Grade 3 - A · Teacher: …"). */
@@ -137,7 +139,7 @@ export type SaResults = {
 };
 
 /** The six skips and stops the dashboard audits (round 7b; the bot's STOP_TYPES). */
-export type SaStopType = "back" | "end_section" | "end_test" | "restart" | "silence_repeat" | "under20_move_on";
+export type SaStopType = "back" | "end_section" | "end_test" | "restart" | "silence_repeat" | "incomplete_move_on" | "under20_move_on";
 
 /** One skip or stop kept on a session (sa_dash_filters): its subtask, when (the phone's clock) and who did it. */
 export type SaStop = {
@@ -164,6 +166,8 @@ export type SaDashboardSession = {
   coachName?: string | null;
   startedAt?: string | null;
   stops?: SaStop[];
+  /** item 15: the child came from the system's random draw, or was added on the spot ("Add a child"); null when unknown */
+  origin?: "drawn" | "added" | null;
 };
 
 /** A mark of one scoring agent (or their consensus): correct, wrong, no response, silent. */

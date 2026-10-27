@@ -76,12 +76,29 @@ Feature: School leader (principal) portal
   @LP08 @config-gated
   Scenario: Results dashboard: every skip and stop by type and by coach
     Given the live results dashboard is on and sa_dash_filters is on
-    Then "Skips and stops" shows a count for Back, End section, End test, Restart, Silence repeat and Under 20% move-on
+    Then "Skips and stops" shows a count for Back, End section, End test, Restart, Silence repeat and "Moved on: part not finished"
+    And an earlier "Under 20% move-on" event is still listed, marked as the earlier rule, and not counted
     And a table lists each coach with their sessions, each type, the total and the number per session, the most first
     And each skip or stop is listed newest first with its time, school, grade, mode, type and subtask (with its language, when it has one), never a child's name
     And in Urdu the school and coach names stay whole and in place inside the line
     And a test ended before its first task still counts in the stops view, not in the results
     And every filter above applies to this view too
+
+  @LP10 @config-gated
+  Scenario: Every words-per-minute number is correct words per minute, labelled CWPM (sa_cwpm)
+    Given sa_cwpm is on for the signed-in user
+    When they open the results dashboard, a session's Results, or its review
+    Then every words-per-minute number reads "CWPM": the dashboard tile and column, the passage card and its rule, the familiar-words and passage rows on Results, and a words task's app score on the review
+    And the rule and Results' "How scoring works" give the formula: correct words × 60 ÷ the seconds the child read (60 at most)
+    And letters and maths keep "per minute"
+    And with sa_cwpm off every label is as before
+
+  @LP11 @config-gated
+  Scenario: Results dashboard: children from the random draw against children added by the coach
+    Given the live results dashboard is on and sa_dash_filters is on
+    Then "Children: from the random draw or added" shows how many tested children came from the draw and how many were added with "Add a child", with the share added
+    And a table lists each coach with draw, added and % added, the coach who added the most first
+    And the mode, date and coach filters apply to it
 
   @LP09 @config-gated @negative
   Scenario: Results dashboard without sa_dash_filters is unchanged

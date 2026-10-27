@@ -42,6 +42,7 @@ export function toDashStudents(sessions: SaDashboardSession[]): DashStudent[] {
       ...(s.coachId !== undefined ? { coachId: s.coachId ?? null, coachName: s.coachName ?? null } : {}),
       ...(s.startedAt !== undefined ? { startedAt: s.startedAt ?? null } : {}),
       ...(Array.isArray(s.stops) ? { stops: s.stops } : {}),
+      ...(s.origin !== undefined ? { origin: s.origin ?? null } : {}),
     });
   }
   return out;
