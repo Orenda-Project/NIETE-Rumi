@@ -99,7 +99,10 @@ scenario covers. One entry per uncovered element, deduped by a stable slug.
 
 ## Rules (frozen — a change here is a dashboard-breaking change)
 
-- runs.jsonl: append-only, NEVER rewritten. One row per (run × feature).
+- runs.jsonl: append-only, NEVER rewritten. One row per (run × feature). The one exception (bd-5gyspy.3,
+  2026-10-27): the repo is public, so every row was masked in place by `scripts/qa/mask-ledger.py`, with the same
+  rows in the same order and only phone and home-path values changed. `ledger.append_run` scrubs each new row the
+  same way, and `impact.py` never counts a rewritten row as a new run.
 - drift/**.jsonl: append-only; ONLY a human `verdict` edit mutates a row in place.
 - discoveries/**.md: human-legible; status lifecycle proposed→approved/rejected→applied.
 - These files are git-tracked. Heavy evidence (screenshots) stays in the gitignored results/.

@@ -125,6 +125,69 @@ def test_validate_run_rejects_a_non_string_commit():
     assert any("commit" in p for p in ledger.validate_run(r))
 
 
+
+# The repo is public (bd-5gyspy.3). A row carried the live driver's phone and the
+# machine path of the worktree it ran from, so every row is scrubbed on the way in.
+# Digits are built from parts so this file holds no phone-shaped literal.
+_D = lambda *p: "".join(p)
+
+
+def test_append_run_masks_phones_keeping_the_last_four():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "runs.jsonl")
+        r = _valid_run()
+        r["driver"] = _D("92", "321", "5554321")
+        r["summary"]["note"] = "sent from +" + _D("92", "300", "1112222") + " and " + _D("03", "45", "6667777")
+        ledger.append_run(r, path)
+        text = open(path, encoding="utf-8").read()
+        row = json.loads(text)
+        assert row["driver"] == "92\u2022\u2022\u2022\u2022\u20224321", row["driver"]
+        assert row["summary"]["note"] == ("sent from +92\u2022\u2022\u2022\u2022\u20222222"
+                                          " and 92\u2022\u2022\u2022\u2022\u20227777"), row["summary"]["note"]
+        assert _D("5554", "321") not in text and _D("1112", "222") not in text and _D("6667", "777") not in text
+
+
+def test_append_run_masks_a_numeric_driver():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "runs.jsonl")
+        r = _valid_run(); r["driver"] = int(_D("92", "321", "5554321"))
+        ledger.append_run(r, path)
+        assert json.loads(open(path, encoding="utf-8").read())["driver"] == "92\u2022\u2022\u2022\u2022\u20224321"
+
+
+def test_append_run_strips_home_directories_from_paths():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "runs.jsonl")
+        r = _valid_run()
+        r["stack"] = {"worktree": "/Users/someone/Desktop/team folder/.claude/worktrees/NIETE-x1/.claude/qa/results/run/src",
+                      "bot_url": "http://127.0.0.1:3000"}
+        r["evidence_dir"] = "/home/someone/clones/NIETE-Rumi/results/whatsapp/niete/14f2/"
+        ledger.append_run(r, path)
+        row = json.loads(open(path, encoding="utf-8").read())
+        assert row["stack"]["worktree"] == ".claude/worktrees/NIETE-x1/.claude/qa/results/run/src", row["stack"]
+        assert row["stack"]["bot_url"] == "http://127.0.0.1:3000"
+        assert row["evidence_dir"] == "~/\u2026/niete/14f2/", row["evidence_dir"]
+        assert "someone" not in json.dumps(row)
+
+
+def test_scrub_leaves_a_clean_row_and_non_phone_digits_alone():
+    r = _valid_run(); r["commit"] = "52f18e65abcd"; r["note"] = "uuid 44444444-4444-4444-8444-000000000001, ts 1792162000123"
+    assert ledger.scrub(r) == r
+
+
+def test_scrub_is_idempotent():
+    r = _valid_run(); r["driver"] = _D("92", "321", "5554321")
+    once = ledger.scrub(r)
+    assert ledger.scrub(once) == once
+
+
+def test_append_drift_is_scrubbed_too():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "drift.jsonl")
+        d = _valid_drift(); d["actual"] = "reply went to " + _D("92", "321", "5554321")
+        ledger.append_drift(d, path)
+        assert _D("5554", "321") not in open(path, encoding="utf-8").read()
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):
