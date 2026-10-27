@@ -11,8 +11,8 @@ in the migration; this rebuilds them from an explicit, reviewable predicate.
   WITH a private allowlist of staff/tester phones (one E.164 per line):
     python3 scripts/mark-test-users.py --target staging --env-file .env.staging --out ... \
         --allowlist-phones-file /path/private/tester-phones.txt
-  WRITE (after review; prod additionally needs MARK_PROD_GO=yes and --confirm-ref):
-    ... --commit
+  WRITE (after review; prod additionally needs MARK_PROD_GO=yes, --confirm-ref and the signed-off --ids-file):
+    ... --ids-file /path/private/signed-ids.txt --commit
 
 One transaction: UPDATE ... WHERE id = ANY(ids) AND is_test_user = false, rowcount must equal
 the selection, post-flight recount, else ROLLBACK.
@@ -95,14 +95,17 @@ def main():
     ap.add_argument("--out", required=True, help="private directory for the reviewer CSV + summary JSON")
     ap.add_argument("--predicate-file", default=str(REPO / "scripts" / "predicates" / "test-users.sql"))
     ap.add_argument("--allowlist-phones-file", default=None, help="private file, one E.164 phone per line")
+    ap.add_argument("--ids-file", default=None, help="signed-off list of users.id, one per line: the live "
+                    "predicate must select exactly this list, else the run is refused (dry run and commit alike)")
     ap.add_argument("--commit", action="store_true", help="write; default is a read-only dry run")
     ap.add_argument("--confirm-ref", default=None, help="with --commit on prod: the prod project ref, typed out")
     a = ap.parse_args()
 
     if a.commit and a.target == "prod" and (a.confirm_ref != TARGETS["prod"]["ref"]
-                                            or os.environ.get("MARK_PROD_GO") != "yes"):
-        raise SystemExit("ABORT: a prod write needs --confirm-ref <prod ref> AND MARK_PROD_GO=yes, "
-                         "after the reviewed CSV is signed off.")
+                                            or os.environ.get("MARK_PROD_GO") != "yes"
+                                            or not a.ids_file):
+        raise SystemExit("ABORT: a prod write needs --confirm-ref <prod ref>, MARK_PROD_GO=yes AND --ids-file "
+                         "<the signed-off list>, after the reviewed CSV is signed off.")
 
     conn = connect(read_env(a.env_file), a.target, writable=a.commit)
     run_id = f"mark-test-users-{a.target}-{uuid.uuid4().hex[:8]}"
@@ -113,6 +116,16 @@ def main():
     if a.allowlist_phones_file:
         allow_ids = resolve_phones(conn, logic.parse_allowlist(Path(a.allowlist_phones_file).read_text()))
     sel = logic.build_selection(predicate_rows, allow_ids)
+    if a.ids_file:
+        signed = logic.parse_allowlist(Path(a.ids_file).read_text())
+        ok, missing, extra = logic.check_signed_off(list(sel), signed)
+        if not ok:
+            for line in logic.drift_lines(missing, extra):
+                print("  " + line)
+            raise SystemExit(f"ABORT: the live selection differs from the signed-off list: "
+                             f"{len(missing)} signed but no longer selected, {len(extra)} selected but never signed. "
+                             f"Review, re-sign, retry.")
+        print(f"signed-off list matches the live selection ({len(signed)} ids)")
     counts = logic.rule_counts(sel)
     ids = list(sel)
 
