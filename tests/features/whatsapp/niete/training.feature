@@ -2510,7 +2510,7 @@ Feature: NIETE (ICT) Teacher Training
     And the link opens inside WhatsApp when the approved template "teacher_report_template" is set, otherwise in my browser
     # teacher-report-list showReports/handleReportsPick (tqr_<quizId>, tqr_page_<n>; counts by teacher-report.data);
     # teacher-report-link sendTeacherReportLink (template body {{1}} topic, URL button = token; text fallback).
-    # Event teacher_report.link_sent {userId, quizId, scope, how}. Unit: teacher-report-list.test.js. @wip.
+    # Event teacher_report.link_sent {tk, quizId, scope, how}. Unit: teacher-report-list.test.js. @wip.
 
   @quiz @config-gated @wip @draft @P2 @T333
   Scenario: "Class progress" sends the link to the report of all my classes

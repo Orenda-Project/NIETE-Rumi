@@ -5,6 +5,7 @@
  * same share code must be completely unaffected — that is the regression
  * this file guards against explicitly.
  */
+process.env.WEB_QUIZ_KID_KEY = 'unit-kid-key-not-a-secret-0123456789';
 jest.mock('../../shared/config/supabase', () => ({ from: jest.fn() }));
 jest.mock('../../shared/services/cache/railway-redis.service', () => ({
   get: jest.fn(), set: jest.fn().mockResolvedValue(true), delete: jest.fn(),
@@ -32,6 +33,7 @@ const WhatsAppService = require('../../shared/services/whatsapp.service');
 const { logEvent } = require('../../shared/utils/structured-logger');
 const StudentIdentity = require('../../shared/services/quiz/student-identity.service');
 const share = require('../../shared/services/quiz/video-quiz-share.service');
+const { tk: tkOf } = require('../../shared/services/quiz/web-quiz-kid');
 
 const TEACHER_ID = 'u1';
 const TEACHER_PHONE = '+923001234567';
@@ -97,14 +99,15 @@ describe('PLAN_R5 D8 — a teacher self-test on her own share code', () => {
     },
   );
 
-  test('logs video_quiz.teacher_self_test, never the phone or name', async () => {
+  test('logs video_quiz.teacher_self_test with tk, never the phone, the name or the raw id', async () => {
     stubSupabase();
     await share.beginFromCode(TEACHER_PHONE, 'K7RM2');
 
     expect(logEvent).toHaveBeenCalledWith('video_quiz.teacher_self_test', expect.objectContaining({
-      shareCodeId: 'sc-1', quizId: 'q1', userId: TEACHER_ID,
+      shareCodeId: 'sc-1', quizId: 'q1', tk: tkOf(TEACHER_ID),
     }));
     const [, payload] = logEvent.mock.calls.find(([e]) => e === 'video_quiz.teacher_self_test');
+    expect(payload).not.toHaveProperty('userId');
     expect(JSON.stringify(payload)).not.toMatch(/923001234567/);
     expect(JSON.stringify(payload)).not.toMatch(/Ayesha/);
   });
