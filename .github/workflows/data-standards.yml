@@ -66,6 +66,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify the vendored skill matches its receipt
         run: ./scripts/data-standards-verify.sh
+      # The Claude-session entry points in .claude/hooks (commit gate wrapper + live edit
+      # gate) are ours, not vendored; this proves they block from the right repo on Linux,
+      # not only on the Mac they were written on (bd-lw1r7.8.1).
+      - name: Install pyyaml
+        run: python3 -m pip install --quiet pyyaml
+      - name: Gate entry points block from the repo the command targets
+        run: bash .claude/hooks/data-gates.test.sh
 
   # This PR relaxes one rule in tests/setup/source-hygiene.test.js — the org name
   # is permitted inside the vendored skill directory, because their docs use it and
