@@ -882,6 +882,42 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And no such event is ever dropped by the kept-events cap
 
   # ── Round 7b · A · the child's screens (back, audio-gated Next, story arrow, instructions, tick prompt, T) ──
+  @e2e @wip @draft @config-gated @P1 @CT101
+  Scenario: Back on the item screens, in RDF auto and RDF manual, replaces the answer
+    Given sa_back_button is on and a child is on the second letter of a part shown one at a time
+    When the child presses Back
+    Then the letter before shows again, the part's clock keeps running, and its new pass replaces the old one
+    And the session keeps one back event with its subtask, who pressed it, and from and to
+    And there is no Back on the first letter, on the story, or into another part
+
+  @e2e @wip @draft @config-gated @P1 @CT102
+  Scenario: Next waits until Jugnu has finished the instructions
+    Given sa_audio_gated_next is on and a part's instructions are playing in RDF auto
+    Then Next (and Go on the Ready screen) cannot be pressed until Jugnu stops
+    And if the voice never ends, Next works after 30 seconds
+
+  @e2e @wip @draft @config-gated @P1 @CT103
+  Scenario: The instructions say "say it, then press Next" (or Done), in Urdu and English
+    Given sa_say_then_next is on
+    Then a part read one at a time says and shows "Say each one out loud, then press Next" after its own instructions
+    And the story questions say and show "Say your answer out loud, then press Done"
+    And the same words stay under the item while the child answers
+
+  @e2e @wip @draft @config-gated @P1 @CT104
+  Scenario: The story shows a down arrow while more of it is below
+    Given sa_story_scroll is on and the story is longer than the phone's screen
+    Then the story's instructions tell the child to slide the page up to read all of it
+    And an arrow under the story shows while more is below, and goes at the end
+
+  @e2e @wip @draft @config-gated @P1 @CT105
+  Scenario: Missing number (typed): the instructions say to press the tick
+    Given sa_tick_prompt is on and a Grade 4 or 5 child reaches the missing-number part
+    Then the instructions say and show "Type the number, then press the tick ✓"
+
+  @e2e @wip @draft @config-gated @P1 @CT106
+  Scenario: The English letter sound of T is "ta"
+    Given sa_t_sound_ta is on
+    Then Jugnu says "ta" for T in the English letter sounds, on the English and the Urdu page
 
 
 
