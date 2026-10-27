@@ -14,7 +14,9 @@
  *   POST /who   {t, d?}        → 200 {side, next|null, known?}: `known` = {pick, first} for a child who played on the
  *                              device `d` (the quiz page's own device ref), offered as one line above the tiles
  *   POST /role  {t, side}      side ∈ child|teacher → the remembered answer (writeRoleAnswer, writer role_page) ONCE per
- *                              link, the cached verdict forgotten → 200 {next, side}; a stale token → 410 {error}
+ *                              link, the cached verdict forgotten → 200 {next, side}; a stale token → 410 {error};
+ *                              a registered teacher's "child" with web_quiz_practice_play on → the practice home of the
+ *                              class's grade (one_door.practice{grade})
  *   POST /bind  {t, pick, d?}  "Yes, it's me": `pick` must be one of THIS phone's children (or one who played on device
  *                              `d`), checked here; the binding is written by the join page's writer → 200 {next} |
  *                              409 {error} | 501 (writer not on this branch)
@@ -248,6 +250,30 @@ router.post('/who', async (req, res) => {
   }
 });
 
+/**
+ * A registered teacher's "I want to play" (app_settings web_quiz_practice_play on): the practice home — the child home
+ * by grade, no child, nothing written — of the teacher's class's grade (the quiz maker's prefill, the teacher home's own
+ * rule; Grade 2 when nothing is known), in the landing's language (bi: the teacher's stored one, else Urdu), with Back
+ * to the teacher home the server would have sent. Off, or anything missing: null (the teacher home, as before).
+ */
+async function teacherPlays(o, d, lang) {
+  try {
+    const Practice = require('../quiz/web-quiz-practice-play');
+    if (!(await Practice.on())) return null;
+    const pf = await require('./maker.cta').prefillOf(o.userId);
+    const m = /^grade_([1-5])\|/.exec(String(pf || ''));
+    const grade = m ? Number(m[1]) : 2;
+    const own = lang === 'en' || lang === 'ur' ? lang : await Targets.storedLang(o.userId);
+    const back = typeof d.next === 'string' && d.next.startsWith(Targets.TEACHER_HOME_PATH) ? d.next : null;
+    const path = Practice.homePath({ grade, lang: own === 'en' ? 'en' : 'ur', back, from: 'door' });
+    if (path) event('one_door.practice', { grade, writer: 'role_page' });
+    return path;
+  } catch (err) {
+    logToFile('⚠️ one door: practice home unavailable', { error: err && err.message });
+    return null;
+  }
+}
+
 router.post('/role', async (req, res) => {
   try {
     const b = bodyOf(req);
@@ -262,9 +288,12 @@ router.post('/role', async (req, res) => {
       await v3('role_answered', { role: side === 'teacher' ? 'teacher' : 'student', lang: o.p.lang }, deviceOf(req));
       event('one_door.role', { side, writer: 'role_page' });
     }
-    const d = await destination(o, doorLang(await linkLangOf(b.l), o.p.lang));
-    // the server's answer wins (a registered teacher who taps "I want to play" still has a teacher home)
-    const next = d.next || `/quiz/go/${encodeURIComponent(t)}`;
+    const lang = doorLang(await linkLangOf(b.l), o.p.lang);
+    const d = await destination(o, lang);
+    // the server's answer wins (a registered teacher who taps "I want to play" still has a teacher home); with
+    // web_quiz_practice_play on, that teacher plays: the practice home of their class's grade, Back to their home
+    const play = side === 'child' && d.side === 'teacher' ? await teacherPlays(o, d, lang) : null;
+    const next = play || d.next || `/quiz/go/${encodeURIComponent(t)}`;
     return json(res, 200, { next, side: d.side });
   } catch (err) {
     logToFile('❌ one door: role answer failed', { error: err && err.message }, 'error');

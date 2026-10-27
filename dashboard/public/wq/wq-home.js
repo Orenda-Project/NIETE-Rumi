@@ -7,7 +7,8 @@
  *   WQHOME.html(B, ctx)         the home's markup (pure, for tests)     WQHOME.door(B, ctx, name)  a door's markup
  *   WQHOME.nextOf(B, ctx)       the one Next thing {kind, title, sub, href, art, minutes, src, tag} (pure)
  * A practice boot (B.practice, a coach previewing what the class sees) is the same home by grade: "Class N" in the
- * header, a strip with Back to the teacher home, and every tap that would need a child says so instead of opening. */
+ * header, a strip with Back to the teacher home, and every tap that would need a child says so instead of opening —
+ * unless the boot says practice_play (app_settings web_quiz_practice_play): then every tap opens as a child's does. */
 (function () {
   'use strict';
   var COPY = {
@@ -382,8 +383,9 @@
         var tap = el.getAttribute('data-tap');
         juice('tap');
         var href = el.getAttribute('href') || '';
-        // The coach's preview opens nothing that needs a child: one line says where the class opens it.
-        if (B.practice && (tap === 'next' || tap === 'row') && href.charAt(0) !== '#') { e.preventDefault(); note(root, ctx); return; }
+        // The coach's preview opens nothing that needs a child: one line says where the class opens it (a preview that
+        // plays, the boot's practice_play, opens it: the server answers the preview read-only for its grade).
+        if (B.practice && !B.practice_play && (tap === 'next' || tap === 'row') && href.charAt(0) !== '#') { e.preventDefault(); note(root, ctx); return; }
         if (tap === 'next' && B.welcome && !B.welcome.replay) welcomeTap(B, ctx);
         if (tap === 'next') { ev('next_tap', rankOf(B, msToTap({ ctx: 'home', pos: 0, kind: el.getAttribute('data-kind') }, shownAt))); if (href.charAt(0) === '#') return; e.preventDefault(); go(ctx, href, 'next'); }
         else if (tap === 'door') { ev('door_tap', { door: el.getAttribute('data-door'), pos: DOORS.indexOf(el.getAttribute('data-door')) + 1 }); }

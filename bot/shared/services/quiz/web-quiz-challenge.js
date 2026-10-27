@@ -51,6 +51,8 @@ const TrailPage = require('./web-quiz-trail-page');
 const Fast = require('./web-quiz-fast');
 // Live reading v3 (web_quiz_live_read_v3): {} with the switch off, so today's payloads are untouched.
 const LiveReadV3 = () => require('./web-quiz-live-read-v3');
+// a grown-up's preview link (web_quiz_practice_play): its games are served and scored there, kept nowhere
+const PracticeCh = () => require('./web-quiz-practice-challenge');
 
 const FLAG_KEY = 'web_quiz_challenge';
 const LIVE_FLAG_KEY = 'web_quiz_challenge_realtime';
@@ -365,7 +367,7 @@ async function entryOf(token, kid, device) {
   const h = T.verify(token, 'h');
   if (h) {
     const ids = (Array.isArray(h.ids) ? h.ids : []).filter((x) => typeof x === 'string').slice(0, 4);
-    if (!ids.length) fail(401, 'bad_token');
+    if (!ids.length) { require('./web-quiz-practice-play').refused('challenge', token); fail(401, 'bad_token'); }
     let hit = ids[0];
     if (kid) {
       hit = ids.find((id) => kidChip(id) === kid);
@@ -800,6 +802,8 @@ async function provenance(studentId, exercise, lang, run, { except = null } = {}
 }
 
 async function menu(token, { kid, lang, device } = {}) {
+  // a grown-up's preview link (web_quiz_practice_play): the grade's games, served from the bank, kept nowhere
+  { const pr = await PracticeCh().hubOf(token); if (pr) return PracticeCh().menu(pr, { lang }); }
   // keep my place: a deep link with >= 2 children on this phone and no tap asks "Whose turn?" first (identity canon switch).
   { const B = require('./web-quiz-bind-page'); if (await B.canonOn()) { const ask = await B.whoseTurn({ hub: token, kid, device, lang }); if (ask) return ask; } }
   const fast = Fast.on();
@@ -872,6 +876,8 @@ async function menu(token, { kid, lang, device } = {}) {
 // ── E: one exercise ───────────────────────────────────────────────────────────────────────────────────
 
 async function exercise(token, ex, { kid, lang, device } = {}) {
+  // a grown-up's preview link (web_quiz_practice_play): the game is served from the bank, no run row (Story Time's room too)
+  { const pr = await PracticeCh().hubOf(token); if (pr) return PracticeCh().exercise(pr, ex, { lang, room: (arguments[2] || {}).room, passageId: (arguments[2] || {}).passageId }); }
   // keep my place: a deep link with >= 2 children on this phone and no tap asks "Whose turn?" first (identity canon switch).
   { const B = require('./web-quiz-bind-page'); if (await B.canonOn()) { const ask = await B.whoseTurn({ hub: token, kid, device, lang }); if (ask) return ask; } }
   const def = byId(ex);
@@ -1796,6 +1802,7 @@ async function sweepOrphans({ now = Date.now(), olderThanMs = 10 * 60 * 1000, ma
 }
 
 async function presignUpload({ ct, type, size, audio_consent } = {}, { device = null } = {}) {
+  if (await PracticeCh().runOf(ct)) fail(403, 'practice');   // a preview never records a voice
   const c = runOf(ct);
   if (c.ex !== 'read') fail(400, 'no_audio');
   const base = String(type || '').split(';')[0].trim().toLowerCase();
@@ -1886,6 +1893,7 @@ async function runFor(c, mem, lang) {
  * refusing ⇒ 502 live_unavailable (logged with its status), no run row: the page reads with the upload path.
  */
 async function liveKey({ ct, lang } = {}) {
+  if (await PracticeCh().runOf(ct)) fail(403, 'practice');   // a preview never asks for a speech key
   const c = runOf(ct);
   if (c.ex !== 'read') fail(400, 'no_audio');
   if (!(await liveOn())) fail(503, 'live_off');
@@ -1925,6 +1933,8 @@ function liveCount(v, passageLen) {
 }
 
 async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now(), device = null } = {}) {
+  // a preview's run (web_quiz_practice_play): scored here and forgotten
+  { const pc = await PracticeCh().runOf(body.ct); if (pc) return PracticeCh().submit(pc, body); }
   const g1Run = Grade1.challengeOf(body.ct);   // grade-1 form: its run token scores there
   if (g1Run) return Grade1.submit(g1Run, body);
   const c = runOf(body.ct);
@@ -2201,6 +2211,7 @@ async function readLength(ct) {
  * (403). The run is over and recorded; a re-read is the existing "Try again", so hearing it cannot lift a counted score.
  */
 async function listenWords({ ct, lang } = {}) {
+  { const pc = await PracticeCh().runOf(ct); if (pc) return PracticeCh().words(pc, { lang }); }
   const c = runOf(ct);
   // a read run only with its own switch on (web_quiz_zero_read_listen); off, today's answer
   if (c.ex !== 'listen' && !(c.ex === 'read' && (await zeroListenOn()))) fail(400, 'bad_request');
@@ -2246,6 +2257,7 @@ async function listenPreview(hub, pid, { lang, device } = {}) {
  * Words attempted: the checked score, else the live count stored with the result, else the page's own count (bounded).
  */
 async function questions({ ct, attempted, lang } = {}) {
+  { const pc = await PracticeCh().runOf(ct); if (pc) return PracticeCh().questions(pc, { lang }); }
   const c = runOf(ct);
   const { run, row, mem, spec } = await readingOf(c, lang);
   if (c.ex === 'listen') return listenQuestions(c, run, row, spec);
@@ -2328,6 +2340,7 @@ async function listenQuestions(c, run, row, spec) {
 
 /** One tap: { ok, answer } (the right option's text). A question counts once; at most 3 per reading. */
 async function answer({ ct, q, pick, lang, helped } = {}) {
+  { const pc = await PracticeCh().runOf(ct); if (pc) return PracticeCh().answer(pc, { q, pick, lang }); }
   const c = runOf(ct);
   const { run, row, mem, spec } = await readingOf(c, lang);
   const bq = (spec.questions || []).find((x) => x.id === q);
@@ -2371,6 +2384,7 @@ async function answer({ ct, q, pick, lang, helped } = {}) {
 }
 
 async function poll(ct) {
+  if (await PracticeCh().runOf(ct)) fail(404, 'not_found');   // a preview's run is never stored
   const c = runOf(ct);
   const state = await runState(c);
   if (!state) fail(404, 'not_found');
@@ -2469,6 +2483,13 @@ module.exports = {
 module.exports.passageTitle = passageTitle;
 // the class-week arm's switch gate (with its parent web_quiz_class_round), read at the v2 serve
 module.exports.classWeekOpen = classWeekOpen;
+// the preview's games (web-quiz-practice-challenge.js): the same switches, bank, clips, copy and scoring as a child's,
+// none of the run code (nothing there writes)
+module.exports._practiceKit = {
+  challengeOn, formForChild, rulesOf, ruleFlags, copyFor, trailCopy, nameOf, byId, clipsFor, clipUrl, clipKey, storyClip, readAlongClip,
+  tapOptions, optionAudioOn, listenOn, settingOn, passageFor, titleOf, childTest, Grade1, Draw, TrailPage, Tel,
+  EXERCISES, TRAIL_ORDER, PER_ITEM_S, MISSING_FIRST_KEY_S, READ_SECS, QA_MAX, servePairs, scoreBigger, scoreMissing,
+};
 // the runs insert (and its duplicate-record rule), for its test
 module.exports.insertRun = insertRun;
 // the quality floors (speed, noise), pure, for their tests

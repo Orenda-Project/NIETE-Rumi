@@ -492,6 +492,54 @@ describe('a teacher\'s class preview (no child): the boot\'s rows only, nothing 
   });
 });
 
+describe('the preview that PLAYS (the boot\'s practice_play, app_settings web_quiz_practice_play): every door opens what a child\'s does', () => {
+  const PLAY_B = { ...HUB, practice: 1, practice_play: 1, kid: null, home_v3: 1, stories: { on: 1 }, doors: { stories: [{ kind: 'passage', id: 'en.read.1.k02', title: 'The red kite' }, { kind: 'shelf' }], games: [{ kind: 'numbers' }], videos: { watch: true, practice: true, grade: 3 } } };
+  const ok = (body) => () => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body), text: () => Promise.resolve(JSON.stringify(body)) });
+  test('Games: the door asks for its rows (the grade\'s games) and draws them', async () => {
+    const { W, fetch } = live({ fetchImpl: ok(GAMES_MANY) });
+    const root = fakeRoot();
+    W.WQDOORS.mount(root, PLAY_B, { token: TOKEN, lang: 'en', ev() {} }, 'games');
+    await flush();
+    expect(fetch).toHaveBeenCalledWith(`/api/wq/doors/h/${TOKEN}?kid=&d=games&l=en`, expect.anything());
+    expect(root.innerHTML).toContain('data-item="missing"');
+  });
+  test('Stories: the reader fills the shelf (stories.on), never the "children open it" line', () => {
+    const shelf = jest.fn();
+    const { W } = live({ win: { WQSTORIES: { shelf } } });
+    const sh = el();
+    W.WQDOORS.mount(fakeRoot({ '[data-stories-shelf]': sh }), PLAY_B, { token: TOKEN, lang: 'en', ev() {} }, 'stories');
+    expect(shelf).toHaveBeenCalledWith(sh, PLAY_B, expect.objectContaining({ token: TOKEN, lang: 'en' }));
+  });
+  test('Videos: the library is asked for, and the screen is the library\'s, not the preview line', async () => {
+    const { W, fetch } = live({ fetchImpl: ok(LIB_SUBJECTS) });
+    const root = fakeRoot();
+    W.WQDOORS.mount(root, PLAY_B, { token: TOKEN, lang: 'en', ev() {} }, 'videos');
+    await flush();
+    expect(fetch).toHaveBeenCalledWith(`/api/wq/lib/h/${TOKEN}?kid=&l=en`, expect.anything());
+    expect(visible(root.innerHTML)).not.toContain('Children watch the videos from their own link');
+    expect(visible(W.WQDOORS.html(PLAY_B, ctxOf('en'), 'videos', { lib: LIB_SUBJECTS }))).toContain('Science');
+  });
+  test('a video: videos/start with the preview token, and the player draws', async () => {
+    const WATCH = { watch: { vid: VID, url: 'https://r2.example.test/v1.mp4?sig', title: 'Life cycle of a hen', lang: 'en', after: false } };
+    const { W, fetch } = live({ fetchImpl: ok(WATCH) });
+    const root = fakeRoot();
+    W.WQDOORS.mount(root, PLAY_B, { token: TOKEN, lang: 'en', ev() {} }, `watch/${VID}`);
+    await flush();
+    expect(fetch).toHaveBeenCalledWith('/api/wq/videos/start', expect.objectContaining({ method: 'POST', body: JSON.stringify({ hub: TOKEN, kid: '', vid: VID }) }));
+    expect(root.innerHTML).toContain('<video class="wq-vid"');
+  });
+  test('a row tap opens it (the games page, the story room): never the preview note', () => {
+    const { W } = live();
+    const note = jest.fn(); W.WQHOME.practiceNote = note;
+    const go = jest.fn();
+    const row = el(); row.setAttribute('data-tap', 'row'); row.setAttribute('href', `/c/${TOKEN}?kid=&lang=en#bigger`); row.setAttribute('data-kind', 'game');
+    W.WQDOORS.mount(fakeRoot({}, [row]), PLAY_B, { token: TOKEN, lang: 'en', ev() {}, go }, 'games');
+    row.fire('click');
+    expect(note).not.toHaveBeenCalled();
+    expect(go).toHaveBeenCalledWith(`/c/${TOKEN}?kid=&lang=en#bigger`, 'door_game');
+  });
+});
+
 describe('a watched video ends on the finish card when the boot says card_v3 (one Next tile: the card\'s)', () => {
   const WATCH = { watch: { vid: VID, url: 'https://r2.example.test/v1_web.mp4?sig', title: 'Life cycle of a hen', lang: 'en', after: false } };
   // videos/start answers the watch; the library (after the card's Next) answers no subjects

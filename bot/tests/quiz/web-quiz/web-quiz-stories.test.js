@@ -695,16 +695,18 @@ describe('the switch read: one failing key never turns stories off', () => {
     expect(reads.n).toBe(1);
   });
   // [key that fails to read, what the book says, settings reads]: the read is tried again without each rider, the last
-  // first (the reader's polish, the text lens, the warmed reader, keep-audio, Your turn's word rules, then Slower's two), then without the live reader's two, then the main switch alone; the keys left
+  // first (the voice as mp3, the reader's polish, the text lens, the warmed reader, keep-audio, Your turn's word rules, then Slower's two), then without the live reader's two, then the main switch alone; the keys left
   // out are off, the rest read as before.
   test.each([
-    ['web_quiz_challenge_keep_audio', { band: true, steady: true, lr3: true, keep: false }, 5],
-    ['web_quiz_live_read_v3', { band: true, steady: true, lr3: false, keep: 'none' }, 9],
-    ['web_quiz_challenge_realtime', { band: true, steady: true, lr3: false, keep: 'none' }, 9],
-    ['web_quiz_stories_band', { band: false, steady: false, lr3: false, keep: 'none' }, 10],
-    ['web_quiz_stories_steady', { band: false, steady: false, lr3: false, keep: 'none' }, 10],
-    ['web_quiz_stories_text_lens', { band: true, steady: true, lr3: true, keep: true }, 3],
-    ['web_quiz_stories_polish', { band: true, steady: true, lr3: true, keep: true }, 2],
+    // (web_quiz_story_mp3 is the last rider: every count below it is one read more than before it rode along)
+    ['web_quiz_challenge_keep_audio', { band: true, steady: true, lr3: true, keep: false }, 6],
+    ['web_quiz_live_read_v3', { band: true, steady: true, lr3: false, keep: 'none' }, 10],
+    ['web_quiz_challenge_realtime', { band: true, steady: true, lr3: false, keep: 'none' }, 10],
+    ['web_quiz_stories_band', { band: false, steady: false, lr3: false, keep: 'none' }, 11],
+    ['web_quiz_stories_steady', { band: false, steady: false, lr3: false, keep: 'none' }, 11],
+    ['web_quiz_stories_text_lens', { band: true, steady: true, lr3: true, keep: true }, 4],
+    ['web_quiz_stories_polish', { band: true, steady: true, lr3: true, keep: true }, 3],
+    ['web_quiz_story_mp3', { band: true, steady: true, lr3: true, keep: true }, 2],
   ])('a failed read naming %s keeps the shelf and the book on', async (key, want, n) => {
     seedAllOn();
     const reads = counting(throwOn(fake.from, key));
@@ -736,7 +738,7 @@ describe('the switch read: one failing key never turns stories off', () => {
     expect(await body(Stories.shelf(TOKEN, { kid: 'a' }))).toEqual({ error: 'stories_off' });
     expect(await body(Stories.book(F.BOOK(1), TOKEN, { kid: 'a' }))).toEqual({ error: 'stories_off' });
     expect(await Stories.hubBits()).toEqual({});
-    expect(reads.n).toBe(10);
+    expect(reads.n).toBe(11);   // every rider dropped in turn (the voice as mp3 the first), then the main switch alone
     expect(mockKidFromHub).not.toHaveBeenCalled();
   });
   test('the fallback reads stories as strictly as the normal path: every OFF value of web_quiz_stories is off', async () => {
@@ -748,6 +750,24 @@ describe('the switch read: one failing key never turns stories off', () => {
         counting(throwOn(fake.from, key));
         expect([label, key, await body(Stories.shelf(TOKEN, { kid: 'a' }))]).toEqual([label, key, { error: 'stories_off' }]);
       }
+    }
+  });
+});
+
+describe('a phone that cannot play Ogg Opus: the book says mp3 (app_settings web_quiz_story_mp3)', () => {
+  test('on (JSON true): the book carries mp3: 1 (the reader then asks for each voice as .mp3); the voice URLs are unchanged', async () => {
+    seed({ extra: {} });
+    fake.db.app_settings.push({ key: 'web_quiz_story_mp3', value: true });
+    const out = await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' });
+    expect(out.mp3).toBe(1);
+    expect(out.pages[0].audio.url).toMatch(/\.ogg$/);
+  });
+  test('GOLDEN: absent, false or the string "true" → no key', async () => {
+    for (const v of [undefined, false, 'true']) {
+      Stories._reset();
+      seed();
+      if (v !== undefined) fake.db.app_settings.push({ key: 'web_quiz_story_mp3', value: v });
+      expect(await Stories.book(F.BOOK(1), TOKEN, { kid: 'a' })).not.toHaveProperty('mp3');
     }
   });
 });

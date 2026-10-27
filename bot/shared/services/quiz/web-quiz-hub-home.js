@@ -18,6 +18,9 @@
  * week's story and the listening story for the grade's entry band, the number games the grade has, the videos as
  * watch-only, an empty jar, no dots and no name. It reads no child table and writes nothing (no binding, no Redis key);
  * `bk` is the teacher home it came from (a /quiz/teacher/<t> path only), for the strip's Back and the grown-ups corner.
+ * With app_settings `web_quiz_practice_play` on (web-quiz-practice-play.js) the same payload says `practice_play: 1`
+ * and carries the Stories bit: the content routes answer the token read-only for its grade, so the page plays
+ * instead of showing "children open it from their own link". Off: the look-only preview, byte for byte.
  *
  * The page decides nothing about what is next: the Next tile is `out.next` (web_quiz_next_offer) when the server sent it,
  * else the hub's own lantern / teacher card, in that order (wq-home.js). The doors carry ids and hrefs only; the
@@ -313,17 +316,23 @@ async function practiceHub(token, { lang: asked, brandKey } = {}) {
     }
     const stories = await practiceStories(pr.g, lang);
     if (f.stories) stories.push({ kind: 'shelf' });
+    // web_quiz_practice_play: the preview PLAYS (the content routes answer this token read-only for its grade), so the
+    // page loads the storybook shelf (the Stories bit, as a child's hub carries it) and the Videos door as its shelves.
+    // Off: the look-only preview, byte for byte.
+    const play = await require('./web-quiz-practice-play').on();
+    const storiesBit = play ? await require('./web-quiz-stories').hubBits({}) : {};
     const out = {
       lang, practice: 1, th: { practice: true }, grade: pr.g,
       kids: [], kid: null, teacher: null, again: [], recs: [], challenge: form ? { on: true } : null, lib: null,
       brand: typeof brandKey === 'function' ? await brandKey() : null,
       home_v3: 1,
-      doors: { stories, games: form ? [{ kind: 'numbers' }] : [], videos: { watch: true, practice: true, grade: pr.g } },
+      doors: { stories, games: form ? [{ kind: 'numbers' }] : [], videos: { watch: true, practice: true, grade: pr.g, ...(play && f.shelf === true ? { shelf: true } : {}) } },
       head: { dots: 0, today: false, jar: null },
       ...(pr.bk ? { practice_back: pr.bk, grownups: { teacher_href: pr.bk, teacher_label: BACK_LABEL[lang] } } : {}),
       ...(f.list ? { list_states: 1 } : {}),
+      ...(play ? { practice_play: 1, ...storiesBit } : {}),
     };
-    logEvent('web_quiz.hub_open', { practice: 1, kid: null, grade: pr.g, lang });
+    logEvent('web_quiz.hub_open', { practice: 1, kid: null, grade: pr.g, lang, ...(play ? { practice_play: 1, role: 'practice' } : {}) });
     return out;
   } catch (err) {
     logToFile('⚠️ web quiz home: practice unavailable', { error: err.message });

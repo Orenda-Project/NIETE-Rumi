@@ -271,7 +271,13 @@ router.get('/ch/words/:ct', challenge((C, req) => C.listenWords({ ct: req.params
 // x-wq-device: the phone's device_ref, forwarded by the edge from the wq_dv cookie (a hub token opens nothing on another phone).
 router.get('/listen/h/:token/:pid', challenge((C, req) => C.listenPreview(req.params.token, req.params.pid, { lang: req.query.lang, device: req.get('x-wq-device') })));
 // The child home on (web_quiz_home_v3): {card_fold: true}, so the end cards are the card and one next thing.
-router.get('/ch/:token', challenge(async (C, req) => Object.assign(await AdvLook.carry(OneButton.carry(OneFace.carry(C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device') })))), await CardImage.field(), await require('../services/quiz/web-quiz-hub-door').menuFoldField(), await ReadFeedback().menuField(), await require('../services/quiz/web-quiz-fold-retry').menuField())));
+// A grown-up's preview (web_quiz_practice_play: the menu says practice_play) folds its end cards too, with no share card
+// and no reading moment: those are a child's own finish.
+router.get('/ch/:token', challenge(async (C, req) => {
+  const menu = await AdvLook.carry(OneButton.carry(OneFace.carry(C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device') }))));
+  if (menu && menu.practice_play === 1) return Object.assign(menu, await require('../services/quiz/web-quiz-hub-door').menuFoldField());
+  return Object.assign(menu, await CardImage.field(), await require('../services/quiz/web-quiz-hub-door').menuFoldField(), await ReadFeedback().menuField(), await require('../services/quiz/web-quiz-fold-retry').menuField());
+}));
 // Story Time (?room=story&pid=<passage id>, read and listen only): passed on only with web_quiz_challenge_story on; off, ignored.
 const storyAsk = async (C, req) => (req.query.room === 'story' && (req.params.exercise === 'read' || req.params.exercise === 'listen') && typeof C.storyOn === 'function' && (await C.storyOn())
   ? { passageId: typeof req.query.pid === 'string' ? req.query.pid : null, room: 'story' } : {});

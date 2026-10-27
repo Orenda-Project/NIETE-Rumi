@@ -6,6 +6,7 @@
  *   door(token, {kid, d, device, lang})   d = 'stories' -> {stories: [], shelf}   d = 'games' -> {games: [...]}
  *                                         a failed read adds err: 1 (web_quiz_list_states on only)
  *                                         404 home_off with the switch off; 401 for a token/phone that is not this child's
+ *                                         a grown-up's preview link (web_quiz_practice_play): its grade's rows (practiceDoor)
  *   seededOrder(items, seed)              a stable shuffle (pure): the same seed, the same order
  *   daySeed(childId, now)                 the seed for one child on one Pakistan day (pure)
  *
@@ -203,6 +204,41 @@ function safeName(Challenge, id, lang) {
   try { return (id === 'bigger' || id === 'missing') && typeof Challenge.nameOf === 'function' ? Challenge.nameOf(id, lang) || null : null; } catch (_) { return null; }
 }
 
+/**
+ * A grown-up's preview (web_quiz_practice_play): the door a child of the token's grade sees, read-only. Stories: the
+ * shelf. Games: the grade's number games (the Trail's rule) and Jugnu's read-along and listening stories for the
+ * grade's entry band (no reading rung: nobody has read yet), each opened in the practice games page. Never the counted
+ * read aloud (it needs the microphone and is counted against a child's own day) and never the big flight (a child's
+ * test). Nothing about any child is read.
+ */
+async function practiceDoor(d, who, lang, now, list) {
+  require('./web-quiz-practice-play').note('doors', { d, grade: who.grade, lang });
+  if (d === 'stories') return storiesDoor(list);
+  const Hub = require('./web-quiz-hub');
+  if (!(await Hub.flags()).challenge) return { games: [] };
+  const Challenge = require('./web-quiz-challenge');
+  const G1 = require('./web-quiz-challenge-grade1');
+  const form = await Challenge.formForChild(Number(who.grade)).catch(formFailed);
+  if (!form) return { games: [] };
+  let ids;
+  if (form === G1.FORM) ids = [G1.EXERCISE];
+  else ids = [...((await Challenge.recordOn()) && (await Challenge.missingOn()) ? ['missing'] : []), 'bigger'];
+  const warm = ids.includes('missing') && (await Challenge.poolOn());
+  const names = ids.map((id) => (id === 'missing' && warm ? null : safeName(Challenge, id, lang)));
+  const found = { read: null, listen: null };
+  const Play = require('./web-quiz-hub-play');
+  if (form !== G1.FORM && (await Play.switches()).story) {
+    const { live } = await Play.passagesOf(lang, new Date(now).toISOString(), Play.openBands(Number(who.grade), 0));
+    pickPassages(live, lang, found);
+  }
+  const reads = [found.read, found.listen].filter(Boolean);
+  const say = await sayAll([...names.map((n) => n || ''), ...reads.map((r) => r.title)], lang);
+  return { games: [
+    ...ids.map((id, i) => ({ kind: 'numbers', stop: id, ...(id === 'missing' && warm ? { warm: true } : {}), ...(names[i] ? { name: names[i] } : {}), ...(say[i] ? { say: say[i] } : {}) })),
+    ...reads.map((r, j) => ({ ...r, ...(say[ids.length + j] ? { say: say[ids.length + j] } : {}) })),
+  ] };
+}
+
 /** One door's rows for the child a hub chip names on this phone. */
 async function door(token, opts = {}) {
   // web_quiz_kid_together: this answer's child rows are read once and shared (web-quiz-hub-child-rows.js)
@@ -211,18 +247,22 @@ async function door(token, opts = {}) {
   const { kid, d, device, lang, now = Date.now() } = opts;
   const T = require('./web-quiz-token');
   if (!T.secret()) fail(503, 'web_quiz_off');
+  // web_quiz_practice_play: a grown-up's preview link (no child) opens its grade's doors, read-only
+  const Practice = require('./web-quiz-practice-play');
+  const preview = await Practice.who(String(token || ''));
   // web_quiz_games_together (the hub's switch cache): the child's reads start beside the door's switches
   const whoOf = () => require('./web-quiz-hub').kidFromHub(String(token || ''), kid == null ? null : String(kid), device == null ? undefined : String(device), d === 'games' ? { warm: ['class_enrollments'] } : undefined);
-  const whoP = (d === 'stories' || d === 'games') && require('./web-quiz-hub-flags').nowOf('gamesTogether') ? whoOf() : null;
+  const whoP = !preview && (d === 'stories' || d === 'games') && require('./web-quiz-hub-flags').nowOf('gamesTogether') ? whoOf() : null;
   if (whoP) whoP.catch(() => {});
   const homeFlags = await require('./web-quiz-home-flags').flags();
   if (!homeFlags.home) fail(404, 'home_off');
   if (d !== 'stories' && d !== 'games') fail(400, 'bad_request');
   // the games door's grade reads the child's enrolments: started with the child's own reads (web_quiz_kid_together)
-  const who = await (whoP || whoOf());
-  if (!who || !who.studentId) fail(401, 'bad_token');
+  const who = preview || await (whoP || whoOf());
+  if (!who || !(who.studentId || who.practice)) { Practice.refused('doors', token); fail(401, 'bad_token'); }
   const l = clampLanguage(lang);
   try {
+    if (preview) return await practiceDoor(d, who, l, now, homeFlags.list);
     return d === 'stories' ? await storiesDoor(homeFlags.list) : SaGameDoor.addRow(await gamesDoor(who, l, now), who, { token, kid, lang: l });
   } catch (err) {
     if (err && err.status) throw err;

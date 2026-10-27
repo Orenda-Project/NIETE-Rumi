@@ -431,6 +431,28 @@ async function watchStart(who, vid, body, fail, hooks = {}) {
   };
 }
 
+/**
+ * A grown-up's preview (web_quiz_practice_play): {watch: {vid, url, poster?, secs?, title, lang, after: false}} — the
+ * lesson's own signed video, as a child with no class gets it, with nothing minted and no event keyed by a child; the
+ * quiz after it (body.after) makes a code and a child's session, so it is refused (409 no_class) and never offered.
+ */
+async function practiceWatch(who, vid, body, fail) {
+  if (!(await require('./web-quiz-home-flags').flags()).home) fail(409, 'no_class');
+  if (body.after) fail(409, 'no_class');
+  if (!VID_RX.test(vid)) fail(400, 'bad_request');
+  const { video, lang } = await lessonOf(vid, fail);
+  const media = await require('./web-quiz-media').presignVideo({ video_id: vid }, { expiresIn: WATCH_TTL_S });
+  if (!media || !media.url) fail(503, 'unavailable');
+  const meta = peekMeta(vid) || {};
+  require('./web-quiz-practice-play').note('videos_start', { grade: who.grade, lang });
+  return {
+    watch: {
+      vid, url: media.url, ...(media.poster ? { poster: media.poster } : {}), ...(meta.secs ? { secs: meta.secs } : {}),
+      title: video.clean_title || '', ...(await urTitleOf(vid)), lang, after: false,
+    },
+  };
+}
+
 /** web_quiz_videos_ur_titles: {title_ur} when the lesson has an Urdu-script name, else nothing (off = not read). */
 async function urTitleOf(vid) {
   if (!(await require('./web-quiz-library-flag').urTitlesOn())) return {};
@@ -450,11 +472,15 @@ async function start(body = {}, hooks = {}) {
   const fail = (status, error) => { throw new WebQuiz.WqError(status, { error }); };
   const vid = String(body.vid || '');
   if (body.hub) {
+    // web_quiz_practice_play: a grown-up's preview link watches its lesson, nothing minted (no code, no session)
+    const Practice = require('./web-quiz-practice-play');
+    const preview = await Practice.who(String(body.hub));
+    if (preview) return practiceWatch(preview, vid, body, fail);
     const Hub = hubModule();
     if (!Hub || typeof Hub.kidFromHub !== 'function') fail(503, 'hub_off');
     // body.device: this phone's device_ref (the route sets it from x-wq-device) — a forwarded hub link starts nothing as the child.
     const who = await Hub.kidFromHub(String(body.hub), body.kid == null ? null : String(body.kid), body.device == null ? undefined : String(body.device));
-    if (!who || !who.studentId) fail(401, 'bad_token');
+    if (!who || !who.studentId) { Practice.refused('videos_start', String(body.hub)); fail(401, 'bad_token'); }
     if (!who.rootId) return watchStart(who, vid, body, fail, hooks);
     if (!VID_RX.test(vid)) fail(400, 'bad_request');
     const { video, vq, lang } = await lessonOf(vid, fail);

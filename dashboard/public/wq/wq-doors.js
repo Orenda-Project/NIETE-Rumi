@@ -13,7 +13,9 @@
  * (no class: played here, the quiz offered after as the Next tile when the server says `after`). A watched video ends
  * on the finish card (window.WQFC, only when the boot says `card_v3`): the card's block draws the one Next tile.
  * A teacher's class preview (`B.practice`, no child): the boot's own rows only, nothing fetched, and a row tap shows the
- * home's one line (WQHOME.practiceNote) instead of opening anything.
+ * home's one line (WQHOME.practiceNote) instead of opening anything — unless the boot says `practice_play` (app_settings
+ * web_quiz_practice_play): then the preview PLAYS, every door fetching and opening exactly what a child's does (the
+ * server answers the preview token read-only for its grade). lookOnly(B) is the one test for the old preview.
  * Every list's three states (the boot's `list_states`, app_settings web_quiz_list_states): loading is a skeleton of the
  * list, empty is said only from rows that came back empty, a failed read is a retry. WQDOORS.warm(B, ctx) asks for the
  * Games and Stories rows when this file loads (the home calls it), so a door tap paints its whole list at once. */
@@ -71,6 +73,8 @@
   function C(ctx) { return COPY[langOf(ctx)]; }
   function home() { return (typeof window !== 'undefined' && window.WQHOME) || null; }
   function owns(name) { return DOORS.indexOf(name) >= 0 || /^watch\/[0-9a-f-]{36}$/i.test(String(name || '')); }
+  // the look-only preview (a teacher's class view with web_quiz_practice_play off); a preview that plays is a child's door
+  function lookOnly(B) { return Boolean(B && B.practice && !B.practice_play); }
   function tok(B, ctx) { return (ctx && ctx.token) || B.token || ''; }
   function withLang(h, l) { return typeof window !== 'undefined' && window.WQT && window.WQT.withLang ? window.WQT.withLang(h, l) : h; }
   function withHome(B, h) { return B.nav_home ? h + (h.indexOf('?') >= 0 ? '&' : '?') + 'home=1' : h; }
@@ -151,7 +155,7 @@
     var t = C(ctx);
     // `list_states`: before its rows the door is a skeleton (the boot's one numbers stand-in never shows), and rows that
     // failed are a retry above the teacher's quizzes the boot already has (never the empty note)
-    var ls = Boolean(B.list_states && !B.practice);
+    var ls = Boolean(B.list_states && !lookOnly(B));
     // before the rows, what the boot already knows is drawn for real (the teacher's quizzes, the numbers' heading) and
     // only the rows still on their way are grey, so the primary is where it stays when they arrive
     var wait = ls && !data;
@@ -319,7 +323,7 @@
   /* ---------------- markup entry (pure) ---------------- */
   function html(B, ctx, name, data) {
     var H = home(); var ht = (H && H.COPY && H.COPY[langOf(ctx)]) || {};
-    if (B.practice && (name === 'videos' || /^watch\//.test(name))) return frame(B, ctx, 'videos', ht.videos || 'Videos', previewVideosBody(ctx));
+    if (lookOnly(B) && (name === 'videos' || /^watch\//.test(name))) return frame(B, ctx, 'videos', ht.videos || 'Videos', previewVideosBody(ctx));
     if (name === 'stories') return frame(B, ctx, name, ht.stories || 'Stories', storiesBody(B, ctx, data));
     if (name === 'games') return frame(B, ctx, name, ht.games || 'Games', gamesBody(B, ctx, data));
     if (name === 'videos' && data && data.subject && advOn() && shelfOn(B)) return frame(B, ctx, name, C(ctx).subj(data.subject) + (view.g ? ' · ' + C(ctx).grade(view.g) : ''), chaptersBody(ctx, data.lib, data.subject, B), 'subjects');
@@ -361,8 +365,8 @@
   }
   // Asked by the home when this file loads: the Games and Stories rows, so a door tap paints its whole list at once.
   function warm(B, ctx) {
-    if (B && B.wait_pre === true && !B.practice) warmVideos(B, ctx);
-    if (!B || !B.list_states || B.practice) return;
+    if (B && B.wait_pre === true && !lookOnly(B)) warmVideos(B, ctx);
+    if (!B || !B.list_states || lookOnly(B)) return;
     ['games', 'stories'].forEach(function (n) { if (!cache[n]) ask(B, ctx, n, function () {}); });
   }
   function go(ctx, href, what) { if (!href) return; if (ctx.go) ctx.go(href, what); else location.assign(href); }
@@ -464,7 +468,7 @@
     root.innerHTML = h;
     root.setAttribute('data-m', 'H3-' + name.split('/')[0]);
     // (the Videos screens as picture shelves stamp with their own writer, vtrip, after the draw)
-    if (B.list_states && !B.practice && !(shelfOn(B) && (name === 'videos' || /^watch\//.test(name)))) trip(root, name, h, data);
+    if (B.list_states && !lookOnly(B) && !(shelfOn(B) && (name === 'videos' || /^watch\//.test(name)))) trip(root, name, h, data);
     wire(root, B, ctx, name);
     try { window.scrollTo(0, 0); } catch (e) {}
   }
@@ -490,7 +494,7 @@
     view.name = name;
     shelfKept = null;
     unwatch();
-    if ((name === 'stories' || name === 'games') && B.list_states && !B.practice) {
+    if ((name === 'stories' || name === 'games') && B.list_states && !lookOnly(B)) {
       draw(root, B, ctx, name, cache[name] || null);
       if (cache[name]) return;
       return ask(B, ctx, name, function (err, j) {
@@ -502,7 +506,7 @@
     }
     if (name === 'stories' || name === 'games') {
       draw(root, B, ctx, name, cache[name] || null);
-      if (!cache[name] && !B.practice) {
+      if (!cache[name] && !lookOnly(B)) {
         getJson('/api/wq/doors/h/' + encodeURIComponent(tok(B, ctx)) + '?kid=' + encodeURIComponent(B.kid || '') + '&d=' + name + '&l=' + langOf(ctx), function (err, j) {
           if (err || !j) return;
           cache[name] = j;
@@ -511,7 +515,7 @@
       }
       return;
     }
-    if (B.practice && (name === 'videos' || /^watch\//.test(name))) return draw(root, B, ctx, 'videos', null);
+    if (lookOnly(B) && (name === 'videos' || /^watch\//.test(name))) return draw(root, B, ctx, 'videos', null);
     if (name === 'videos') return videos(root, B, ctx, view.subject);
     if (/^watch\//.test(name)) return start(root, B, ctx, { vid: name.slice(6) });
   }
@@ -738,7 +742,7 @@
         if (tap === 'say') { e.preventDefault(); e.stopPropagation(); return speak(el, ctx); }
         if (tap === 'home') { e.preventDefault(); view.subject = null; try { location.hash = ''; } catch (x) {} if (home()) home().mount(root, B, ctx); return; }
         if (tap === 'door') { ev('door_tap', { door: el.getAttribute('data-door'), pos: DOORS.indexOf(el.getAttribute('data-door')) + 1 }); return; }
-        if (tap === 'row' && B.practice) { e.preventDefault(); var H0 = home(); if (H0 && typeof H0.practiceNote === 'function') H0.practiceNote(root, ctx); return; }
+        if (tap === 'row' && lookOnly(B)) { e.preventDefault(); var H0 = home(); if (H0 && typeof H0.practiceNote === 'function') H0.practiceNote(root, ctx); return; }
         if (tap === 'row') {
           e.preventDefault();
           ev('door_row_tap', { door: name, kind: el.getAttribute('data-kind'), item: el.getAttribute('data-item') || undefined, pos: Number(el.getAttribute('data-pos')) });

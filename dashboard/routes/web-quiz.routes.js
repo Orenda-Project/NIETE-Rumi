@@ -1831,6 +1831,8 @@ function createWebQuizRouter(opts = {}) {
   // A class behind one school NAT opens the same book at once: its own generous ceiling, applied only while on.
   router.get('/s/:bookId/:file', createStoryAssetHandler({
     storiesOn: opts.storiesOn, storyObject: opts.storyObject, storyEnv: opts.storyEnv, now,
+    // web_quiz_story_mp3: a page voice as mp3 for a phone that cannot play Ogg Opus (made from the stored .ogg)
+    mp3On: opts.storyMp3On, transcode: opts.storyTranscode,
     limiter: rateLimit({ ...common, max: 1200, keyGenerator: (req) => `sa:${clientIp(req)}` }),
   }));
 
