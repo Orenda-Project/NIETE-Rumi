@@ -103,19 +103,22 @@ Feature: Teacher home, analytics, more and profile
     And no page error or 5xx happened
 
   @TH09
-  Scenario: Teacher app v2: with the Quizzes tile on, one more tile under the eight opens my quiz home
+  Scenario: Teacher app v2: with the Quizzes tile on, Quizzes is the 2nd tile, right after Lesson plans, and opens my quiz home
     Given the teacher app v2 is on and the coach app v2 is off
     And the Home card is on, and the Quizzes tile is on for demo teacher 03000000911 only
     And the bot gives demo teacher 03000000911 a quiz home
-    And demo teacher 03000000911 is signed in
+    And demo teacher 03000000911 is signed in on a 360 px phone
     When the teacher opens /portal/teacher
-    Then the 8 feature tiles are shown, and under them one full-width "Quizzes" tile
+    Then the feature grid has 9 tiles: Lesson plans, then "Quizzes" (Urdu «فوری جانچ», to the left of Lesson plans in Urdu), then the other 7 in today's order
+    And the 9th tile spans both columns
     When the teacher taps "Quizzes"
     Then the page goes to /quiz/teacher/<token>
     Given the Quizzes tile is off
     When the teacher signs in again and opens /portal/teacher
-    Then the 8 feature tiles are shown and there is no Quizzes tile
+    Then the 8 feature tiles are shown in today's order, none spanning both columns
     And no page error or 5xx happened
-    # ADDED 2026-10-27: app_settings portal_teacher_home_quiz_tile (true / "teachers" / a list; default off).
-    # GET /me/home answers quizTile:true only with a quiz home (never a coach); the tap logs home_card.tap quiz_tile.
+    # UPDATED 2026-10-27 (COS ruling, the operator: "figure out the best place for it"): the tile moved from a full-width
+    # bar under the eight into the grid as the 2nd tile (7-day reach: Lesson plans 2,179 > coaching 1,578 > training
+    # 1,353 ...; a quiz follows a lesson). app_settings portal_teacher_home_quiz_tile (true / "teachers" / a list; default
+    # off). GET /me/home answers quizTile:true only with a quiz home (never a coach); the tap logs home_card.tap quiz_tile.
     # Unit: tests/portal/portal-teacher-home.quiz-tile.test.js, portal/src/portal/teacher/home/QuizTile.test.tsx.

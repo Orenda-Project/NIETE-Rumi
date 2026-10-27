@@ -19,7 +19,6 @@ import { HomeBand } from './HomeBand';
 import { LookCard } from './LookCard';
 import { LookScores } from './LookScores';
 import { FeatureRows } from './FeatureRows';
-import { QuizTile } from '../QuizTile';
 
 /**
  * The first thing under the band climbs into it: 20 px of overlap plus TeacherPage's 12 px top padding, and it paints
@@ -181,9 +180,8 @@ export function LookHome({ tiles, data, order, onGo }: LookHomeProps) {
         <>
           {/* The spacer cancels its own block gap, so the rows sit exactly `spacer` px lower. */}
           {spacer ? <div data-testid="home-look-spacer" aria-hidden="true" style={{ height: spacer, marginTop: -BLOCK_GAP }} /> : null}
-          <FeatureRows tiles={tiles} order={order} className={UNDER} />
-          {/* The "Quizzes" tile (portal_teacher_home_quiz_tile): under the eight rows, full width, only with a quiz home. */}
-          {data?.quizTile && data.quizHome ? <QuizTile quizHome={data.quizHome} onGo={onGo} /> : null}
+          {/* The "Quizzes" row (portal_teacher_home_quiz_tile): in the grid after Lesson plans, only with a quiz home. */}
+          <FeatureRows tiles={tiles} order={order} className={UNDER} quiz={data?.quizTile && data.quizHome ? { quizHome: data.quizHome, onGo } : null} />
           {/* The evening reminder (portal_push_remind): last, as in the card build. */}
           <RemindCard />
         </>
