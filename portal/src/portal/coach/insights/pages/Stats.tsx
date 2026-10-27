@@ -74,9 +74,9 @@ function StatsLoaded() {
 
       <section data-testid="s6-rows" className="overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white">
         <div className="flex items-end justify-end gap-3 px-4 pb-1 pt-3 text-end text-[11.5px] font-semibold text-[#6b7280]">
-          <span data-testid="s6-col-now" className="w-[72px]">{t("s6.col.now", lang)}</span>
+          <span data-testid="s6-col-now" className="w-[96px]">{t("s6.col.now", lang)}</span>
           {before && (
-            <span data-testid="s6-col-before" className="flex w-[72px] flex-col">
+            <span data-testid="s6-col-before" className="flex w-[96px] flex-col">
               <span>{t("s6.col.before", lang)}</span>
               <WindowMark window={before} as="span" className="text-[10.5px] font-normal leading-tight">
                 {range(before.from, before.to, lang)}
