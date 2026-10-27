@@ -193,7 +193,8 @@ describe('route — a child', () => {
     expect(await Ingress.route({ message: m, messageType: 'interactive', from: PHONE, user: child })).toBe(false);
   });
 
-  test.each(['/lesson', '/observe', '/training', '/register-me-not', '/attendance', '/portal'])('a teacher command (%s) is refused', async (cmd) => {
+  // Not /portal: for a child it is the app and opens their home, as "quiz" does (student-ingress-portal.test.js).
+  test.each(['/lesson', '/observe', '/training', '/register-me-not', '/attendance'])('a teacher command (%s) is refused', async (cmd) => {
     expect(await Ingress.route({ message: msg('text'), messageType: 'text', messageBody: cmd, from: PHONE, user: child })).toBe(true);
     expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(PHONE, resolveUx('studentTeacherOnly', { language: 'ur' }));
   });

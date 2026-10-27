@@ -24,6 +24,7 @@ const teacherRef = (id) => { try { return id ? require('../services/quiz/web-qui
 // MediaLibraryService removed - Issue #28: AI Video Generation replaces Media Library
 const HelperAgentService = require('../services/helper-agent.service');
 const { handlePortalCommand } = require('./portal-command.handler');
+const PortalRequest = require('../services/portal-request'); // "portal" without the slash is the /portal command
 const ReadingAssessmentService = require('../services/reading-assessment.service');
 const FeatureLinkerService = require('../services/feature-linker.service');
 const FeatureIntroService = require('../services/feature-intro.service');
@@ -587,13 +588,19 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   const shareRefMenu = await require('../services/quiz/web-quiz-share-open').refMenu(messageBody);
   const oneDoorOn = (isQuizMenuRequest(messageBody) || shareRefMenu) ? await require('../services/first-touch/one-door.flags').on() : false;
   const quizMenuRequest = QuizMenuFlags.bareTextToMenu() && (isQuizMenuRequest(messageBody) || shareRefMenu);
+  // "portal" typed without the slash ("Portal", «پورٹل», "open portal", "mera portal") is the /portal command, and like a
+  // bare quiz request it is a COMMAND: the reason windows below let it pass and the /portal door takes it. A sentence
+  // that says more ("portal pe lesson nahi khul raha") is not (portal-request.js). PORTAL_KEYWORD_ROUTING off: false.
+  const portalRequest = PortalRequest.keywordRoutingOn() && !String(messageBody || '').trim().startsWith('/') && PortalRequest.isPortalRequest(messageBody);
+  // a command word the 👎-reason / topic windows must never take as their answer
+  const commandWord = quizMenuRequest || portalRequest;
 
   // ============================================================
   // COACHING FEEDBACK — REASON CAPTURE (bd-v0toag.49)
   // After a 👎 on "Was this coaching report useful?", her next text within 10 minutes
   // answers "what could we do better?" and must not reach intent detection.
   // ============================================================
-  if (user?.id && !quizMenuRequest) {
+  if (user?.id && !commandWord) {
     try {
       const CoachingFeedbackService = require('../services/coaching/coaching-feedback.service');
       const tookIt = await CoachingFeedbackService.handlePendingReason(user.id, from, messageBody, { messageId: message && message.id });
@@ -620,7 +627,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // Coaching survey — same shape, checked first because its window is opened by a button
   // tap that is unambiguous; an open coaching window means she is answering "what could we
   // do better?" and that must not reach intent detection.
-  if (user?.id && !quizMenuRequest) {
+  if (user?.id && !commandWord) {
     try {
       const CoachingFeedbackService = require('../services/coaching/coaching-feedback.service');
       const tookIt = await CoachingFeedbackService.handlePendingReason(user.id, from, messageBody, { messageId: message && message.id });
@@ -637,7 +644,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
     }
   }
 
-  if (user?.id && !quizMenuRequest) {
+  if (user?.id && !commandWord) {
     try {
       const consumed = await LpFeedbackService.consumeReasonIfPending(user.id, from, messageBody, { messageId: message && message.id });
       if (consumed) {
@@ -661,7 +668,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // It also has to beat the 6-12 EDIT router further down this function, which would otherwise
   // read "the activity was too long" as an instruction to rewrite the lesson — spending a model
   // call and changing her document when she was answering a question we asked her.
-  if (user?.id && messageBody && !quizMenuRequest) {
+  if (user?.id && messageBody && !commandWord) {
     try {
       const Lp612FeedbackService = require('../services/lp612-feedback.service');
       const consumed = await Lp612FeedbackService.consumeReasonIfPending(user.id, from, messageBody, { messageId: message && message.id });
@@ -822,7 +829,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // on a recent video survey and is within the 10-min reason window, capture
   // this text as the reason and short-circuit. Slash commands bypass this
   // (handled inside consumeReasonIfPending).
-  if (user?.id && messageBody && !quizMenuRequest) {
+  if (user?.id && messageBody && !commandWord) {
     try {
       const StudentVideoFeedbackService = require('../services/student-video-feedback.service');
       const consumed = await StudentVideoFeedbackService.consumeReasonIfPending(user.id, from, messageBody);
@@ -942,7 +949,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // "start exam CHECKER" (OCR answer-sheet grading), and any future
   // `/exam*` variant would collide too.
   // ============================================================
-  if (user && !trimmedMessage.startsWith('/')) {
+  if (user && !trimmedMessage.startsWith('/') && !portalRequest) {
     try {
       const ExamCheckerHandler = require('./exam-checker.handler');
       if (ExamCheckerHandler.shouldTriggerExamChecker(messageBody)
@@ -979,8 +986,9 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // ============================================================
   // PORTAL COMMAND DETECTION: Check for /portal command
   // ============================================================
-  if (trimmedMessage === '/portal' || trimmedMessage.startsWith('/portal ')) {
-    logToFile('📱 /portal command detected', { userId: user?.id, phoneNumber: from });
+  if (trimmedMessage === '/portal' || trimmedMessage.startsWith('/portal ') || portalRequest) {
+    // `form`: 'word' when the teacher typed the word without the slash (PORTAL_KEYWORD_ROUTING), else 'slash'
+    logToFile('📱 /portal command detected', { userId: user?.id, phoneNumber: from, form: portalRequest ? 'word' : 'slash' });
 
     if (!user) {
       // Edge case: user not found in database

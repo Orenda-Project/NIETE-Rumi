@@ -97,4 +97,5 @@ function isQuizMenuRequest(text, { ref = false } = {}) {
   return quizWords > 0;
 }
 
-module.exports = { isQuizMenuRequest };
+// tokens: the one normaliser, shared with the portal keyword (portal-request.js)
+module.exports = { isQuizMenuRequest, tokens };

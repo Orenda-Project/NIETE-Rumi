@@ -61,6 +61,8 @@ const STRINGS = Object.freeze({
   'th.change': Object.freeze({ en: 'Not a teacher? Change', ur: 'ٹیچر نہیں ہیں؟ بدلیں' }),
   'th.children': Object.freeze({ en: 'Children on this phone', ur: 'اس فون پر بچے' }),
   'th.try.student': Object.freeze({ en: 'Try it as a student', ur: 'بچوں والا حصہ آزمائیں' }),
+  // the way to the portal Home (quiz_teacher_home_portal_link); a page link, kept within a WhatsApp button's 20 code points
+  'th.portal': Object.freeze({ en: 'Open my portal', ur: 'اپنا پورٹل کھولیں' }),
   // the one tap back to the chat on every stale / error page and the error line (the link is wa.me/<bot>?text=quiz)
   'th.open.wa': Object.freeze({ en: 'Open WhatsApp', ur: 'واٹس ایپ کھولیں' }), // a no-break space inside the brand name (the signed form)
   // the home's answer did not come (an error, or nothing after 15 s): ask for it again (the Urdu is mk.error's own words)
