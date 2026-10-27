@@ -10,6 +10,7 @@ import { useRmLoad } from "../useRmLoad";
 import { useRmSession } from "../RmGate";
 import { defaultDue, addDays, wForIntervention } from "../compose";
 import type { RmCircle as Circle } from "../types";
+import type { RmCopyKey } from "../rm.copy";
 import { RmCard, RmNote, RmPage } from "../components/RmFrame";
 import { CircleRow } from "../components/CircleRow";
 import { CountLine } from "../components/CountLine";
