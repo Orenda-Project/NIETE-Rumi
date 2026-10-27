@@ -64,6 +64,8 @@ async function invoke({ userId, query = {} }) {
   let payload = null;
   const res = {
     status(code) { statusCode = code; return this; },
+    headers: {},
+    set(k, v) { this.headers[String(k).toLowerCase()] = v; return this; },
     json(body) { payload = body; return this; },
   };
 
