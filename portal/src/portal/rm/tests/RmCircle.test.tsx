@@ -72,15 +72,15 @@ describe.each(["en", "ur"] as const)("S10 RM circle (%s)", (lang) => {
     expect(screen.getByTestId("circle-clip-failed").textContent).toBe(COPY["e.503_clip.rm"][lang]);
   });
 
-  it("Set this sector step posts {i_id, w_id, date} only, w from the library id", async () => {
+  // fix-r5 s2 item 11 (qa-rm 072544, wA 4aac292734): the server is today-only, so one tap posts today's Karachi date
+  it("Set this sector step posts {i_id, w_id, date} only, w from the library id, date today", async () => {
     await renderRm("/circle");
     const move = screen.getAllByTestId("sector-move")[0];
-    fireEvent.click(within(move).getByTestId("sector-move-set"));
-    await act(async () => { fireEvent.click(within(move).getByTestId("sector-move-save")); });
+    await act(async () => { fireEvent.click(within(move).getByTestId("sector-move-set")); });
     await settle();
     const posts = http.post.mock.calls.filter((c: unknown[]) => c[0] === "/coachip/rm/steps");
     expect(posts).toHaveLength(1);
-    expect(posts[0][1]).toEqual({ i_id: "I-IP-TIME-3", w_id: "W-IP-TIME", date: "2026-10-29" });
+    expect(posts[0][1]).toEqual({ i_id: "I-IP-TIME-3", w_id: "W-IP-TIME", date: "2026-10-26" });
     expect(screen.getByTestId("sector-move-done")).toBeTruthy();
   });
 

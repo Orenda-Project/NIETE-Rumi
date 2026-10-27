@@ -62,13 +62,11 @@ describe.each(["en", "ur"] as const)("RM layout fixes (%s)", (lang) => {
     }
   });
 
-  it("item 17: S10 'Set this sector step', the date and Save are at least 44 px", async () => {
+  // item 11 later removed the date row and its Save (the step is set today in one tap): the one control is >= 44 px
+  it("item 17: S10 'Set this sector step' is at least 44 px", async () => {
     await renderRm("/circle");
     const move = screen.getAllByTestId("sector-move")[0];
     expect(cls(within(move).getByTestId("sector-move-set"))).toContain("min-h-[44px]");
-    fireEvent.click(within(move).getByTestId("sector-move-set"));
-    expect(cls(within(move).getByTestId("sector-move-save"))).toContain("min-h-[44px]");
-    expect(cls(within(move).getByTestId("sector-move-date"))).toContain("min-h-[44px]");
   });
 
   it("item 17: RM Stats with no scoring_changed_on has no card holding only the window; the window folds into the band sub", async () => {
