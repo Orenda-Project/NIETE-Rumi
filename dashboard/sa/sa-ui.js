@@ -1194,9 +1194,10 @@
       return screen(v, 'sae-run sae-run-rec sae-run-cell', [
         clock(v),
         h('div', { class: 'sae-row' }, [h('p', { class: 'sae-chip sae-chip-rec', text: recChip(t, C) }), itemSpeaks(it) ? replayBtn(function () { sayItem(it, t); }) : null]),
+        // say_then_next: above the cell, so the sticky foot (Back / Next) never covers it on a short phone
+        hintEl(t, 'sae-sub'),
         oneCell(v.cell, t, v.cell_index),
         coachSays(it),
-        hintEl(t, 'sae-sub'),
       ], itemFoot(v, [btn(C.next, function () { runner.nextCell('tap'); draw(); }, 'sae-primary sa-next')]));
     }
     /** A spoken practice item (W3 one-at-a-time tasks): the item big; an example is modelled by Jugnu, a practice item
@@ -1234,7 +1235,7 @@
       moreEl = r7.story_scroll === true && v.task.passage ? h('button', { class: 'sae-more', type: 'button', 'aria-label': C.more_below, hidden: '', onclick: function () {
         var sc = scroller();
         try { sc.scrollBy({ top: Math.round(sc.clientHeight * 0.7), behavior: 'smooth' }); } catch (_) { try { sc.scrollTop += Math.round(sc.clientHeight * 0.7); } catch (e) { /* old browser */ } }
-      } }, [h('span', { class: 'sae-more-ico', 'aria-hidden': 'true', text: '⌄' }), h('span', { class: 'sae-more-w', text: C.more_below })]) : null;
+      } }, [h('span', { class: 'sae-more-ico', 'aria-hidden': 'true', text: '↓' }), h('span', { class: 'sae-more-w', text: C.more_below })]) : null;
       if (moreEl) later(checkMore, 0);
       return screen(v, 'sae-run sae-run-rec', [
         clock(v),

@@ -232,7 +232,11 @@ maybe('the screens (sa-ui)', () => {
     expect(x.said.map(textOf)).toEqual(['Read each letter.', R7A.LINES.r7_say_next.en]);
     expect(x.el.querySelector('.sae-r7-hint').textContent).toContain(R7A.LINES.r7_say_next.en);
     x.runner.instructionDone(); x.runner.begin(); x.view.render();
-    expect(x.el.querySelector('.sae-run-cell .sae-r7-hint')).not.toBeNull();
+    const hint = x.el.querySelector('.sae-run-cell .sae-r7-hint');
+    expect(hint).not.toBeNull();
+    // above the letter, so the sticky foot (Back / Next) never covers it on a short phone
+    const cell = x.el.querySelector('.sae-run-cell .sae-onecell');
+    expect(hint.compareDocumentPosition(cell) & window.Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
   test('sa_tick_prompt: a typed-number task\'s instruction says to press the tick', async () => {
     const b = { battery_id: 'b', ui: { tick_prompt: true }, lines: { r7_type_tick: { text: R7A.LINES.r7_type_tick.en, audio: 't.mp3' } }, tasks: [{ id: 'ma.missing4', subtask: 'missing_number', response: 'keypad', lang: 'en',
@@ -257,6 +261,7 @@ maybe('the screens (sa-ui)', () => {
     x.view.render(); await flush();
     const arrow = x.el.querySelector('.sae-more');
     expect(arrow).not.toBeNull();
+    expect(arrow.querySelector('.sae-more-ico').textContent).toBe('↓');
     expect(arrow.hidden).toBe(false);
     // scrolled to the end: the arrow goes
     se.scrollTop = 1360; window.dispatchEvent(new window.Event('scroll')); await flush();
