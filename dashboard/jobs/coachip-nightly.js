@@ -5,14 +5,16 @@
  *   node dashboard/jobs/coachip-nightly.js --date YYYY-MM-DD [--dry-run] [--scope coach:<uuid>|school:<uuid>|sector:<name>]
  *     [--stages a,b] [--no-models] [--dry-run-models <usd>] [--backfill-budget <usd>] [--reconcile] [--purge-clips] [--out <dir>]
  * Env: SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY, COACHIP_ENV (sandbox|staging|production), COACHIP_TEACHER_KEY_SECRET,
- * OPENROUTER_API_KEY, R2_*, DATABASE_URL (the run lock; safe through the 6543 transaction pooler). Exit: 0 ok/partial · 2 failed after facts · 3 env refused · 4 lock held.
+ * OPENROUTER_API_KEY, R2_*, DATABASE_URL (the run lock; safe through the 6543 transaction pooler), COACHIP_PURGE_ACTOR_USER_ID
+ * (write-mode --purge-clips: the staff user the purge's audit row names; lib/insights/purge.js). Exit: 0 ok/partial · 2 failed after facts · 3 env refused · 4 lock held.
  * The environment is asserted before any client is built; a dry run builds a read-only client and writes only to --out.
  */
 const path = require('path');
 const crypto = require('crypto');
 const env = require('../lib/insights/env');
 
-const STAGES = ['facts', 'signals', 'moments', 'legs', 'models', 'rollups', 'ranking', 'circle', 'recheck', 'drift', 'clips'];
+// 'purge' runs only with --purge-clips; `--stages purge` alone skips the insight stages (a purge-only hand run).
+const STAGES = ['facts', 'signals', 'moments', 'legs', 'models', 'rollups', 'ranking', 'circle', 'recheck', 'drift', 'clips', 'purge'];
 
 function parseArgs(argv) {
   const o = { date: null, dryRun: false, scope: null, stages: null, noModels: false, dryRunModelsUsd: 0, backfillBudgetUsd: 0,
@@ -37,7 +39,22 @@ function parseArgs(argv) {
   if (o.stages && o.stages.some((s) => !STAGES.includes(s))) throw new Error(`--stages from ${STAGES.join(',')}`);
   if (!Number.isFinite(o.dryRunModelsUsd) || o.dryRunModelsUsd < 0 || o.dryRunModelsUsd > 1) throw new Error('--dry-run-models is 0..1 USD (the lane budget)');
   if (!Number.isFinite(o.backfillBudgetUsd) || o.backfillBudgetUsd < 0) throw new Error('--backfill-budget must be >= 0');
+  if (o.stages && o.stages.includes('purge') && !o.purgeClips) throw new Error('--stages purge needs --purge-clips');
   return o;
+}
+
+const purgeOnly = (o) => !!(o.stages && o.stages.length && o.stages.every((s) => s === 'purge'));
+
+/** Retention A after the run (or alone, `--stages purge`): counts to the log and to <out>/purge.json, never a key. */
+async function purgeStage(opts, { envName, store, e, out, log }) {
+  const purge = require('../lib/insights/purge');
+  const win = require('../lib/insights/windows');
+  const fs = require('fs');
+  const counts = await purge.runPurge({ envName, bucket: e.COACHIP_CLIP_BUCKET || e.R2_BUCKET_NAME, s3: purge.r2PurgeFromEnv(e), store,
+    today: win.addDays(opts.date, 1), dryRun: opts.dryRun, actorUserId: e.COACHIP_PURGE_ACTOR_USER_ID, log });
+  fs.mkdirSync(out, { recursive: true });
+  fs.writeFileSync(path.join(out, 'purge.json'), JSON.stringify({ ...counts, run_id: undefined }, null, 1));
+  return counts;
 }
 
 /** The Karachi date at start, minus one day (NIGHTLY_JOB §0). */
@@ -71,19 +88,35 @@ async function main(argv = process.argv.slice(2), e = process.env, log = (m) => 
     if (err instanceof env.EnvRefusal) { log('env_mismatch'); return 3; }
     throw err;
   }
+  // Every purge that deletes writes an audit row, and the row needs a person (coachip_audit_log.actor_user_id).
+  if (opts.purgeClips && !opts.dryRun && !e.COACHIP_PURGE_ACTOR_USER_ID) { log('purge_refused reason=no_actor'); return 3; }
   const { createClient } = require('@supabase/supabase-js');
   const raw = createClient(e.SUPABASE_URL, e.SUPABASE_SERVICE_ROLE_KEY || e.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
   const { runJob } = require('../lib/insights/job');
   const store = require('../lib/insights/store');
   const out = opts.out || path.resolve(process.cwd(), `coachip-dryrun-${opts.date}`);
+  const thenPurge = async (code, purgeStore) => {
+    if (!opts.purgeClips || code !== 0) return code;
+    try {
+      await purgeStage(opts, { envName: asserted.env, store: purgeStore, e, out, log });
+      return 0;
+    } catch (err) {
+      const { PurgeRefusal } = require('../lib/insights/purge');
+      if (err instanceof PurgeRefusal) { log(`purge_refused reason=${err.reason.replace(/\W+/g, '_')}`); return 3; }
+      log(`purge_failed error=${err && err.name}`);
+      return 2;
+    }
+  };
   if (opts.dryRun) {
-    return runJob(opts, {
+    const code = purgeOnly(opts) ? 0 : await runJob(opts, {
       mode: 'read_only', envName: asserted.env, ref: asserted.ref, readClient: env.readOnlyClient(raw), store: new store.MemoryStore(),
       // A dry run mints throwaway keys: nothing it writes can be joined to a stored code.
       secret: crypto.randomBytes(32).toString('hex'), out, log, apiKey: e.OPENROUTER_API_KEY,
     });
+    // The purge's dry run reads the coachip_ tables (when each session was last shown) through a store that refuses writes.
+    return thenPurge(code, require('../lib/insights/purge').readOnlyStore(new store.SupabaseStore(raw)));
   }
-  if (!e.COACHIP_TEACHER_KEY_SECRET) { log('missing COACHIP_TEACHER_KEY_SECRET'); return 3; }
+  if (!purgeOnly(opts) && !e.COACHIP_TEACHER_KEY_SECRET) { log('missing COACHIP_TEACHER_KEY_SECRET'); return 3; }
   const { Client } = require('pg');
   const pg = new Client({ connectionString: e.DATABASE_URL });
   await pg.connect();
@@ -95,10 +128,12 @@ async function main(argv = process.argv.slice(2), e = process.env, log = (m) => 
         const { createClipper, r2FromEnv } = require('../lib/insights/clip-stage');
         clipper = createClipper({ envName: asserted.env, bucket: clipBucket, ...r2FromEnv(e) });
       }
-      return await runJob(opts, {
+      const code = purgeOnly(opts) ? 0 : await runJob(opts, {
         mode: 'write', envName: asserted.env, ref: asserted.ref, readClient: raw, store: new store.SupabaseStore(raw),
         secret: e.COACHIP_TEACHER_KEY_SECRET, out, log, apiKey: e.OPENROUTER_API_KEY, clipper,
       });
+      // Inside the run lock: a purge never races the clip stage of another run.
+      return thenPurge(code, new store.SupabaseStore(raw));
     });
   } finally {
     await pg.end().catch(() => {});
@@ -112,4 +147,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main, parseArgs, defaultDate, withRunLock, STAGES };
+module.exports = { main, parseArgs, defaultDate, withRunLock, purgeOnly, STAGES };

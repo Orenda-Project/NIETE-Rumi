@@ -16,8 +16,8 @@ import PairCard from "./PairCard";
  *
  *   source    `/api/portal/coachip/m/<moment_id>/clip`, same-origin cookie auth; never a URL from a payload (B4). A clip
  *             that failed or expired: the coach hears the session's whole recording from `lesson_s` and is told so
- *             (`s4.clip_failed`, never "being prepared"); the RM circle form (no code, no session, no full recording)
- *             gets no player and the RM line (`e.503_clip.rm`, COPY v1.1 §E).
+ *             (`s4.clip_failed`, never "being prepared"; `s4.clip_expired` once retention deleted it); the RM circle form
+ *             (no code, no session, no full recording) gets no player and the RM line (`e.503_clip.rm` / `s4.clip_expired.rm`).
  *   kit       the kit `AudioPlayer`, untouched, `preload="none"` (fix-r5 s2, A10: a metadata preload opens the clip with
  *             `Range: bytes=0-`, which the server logs as a play, so every page view counted as one), LTR in Urdu, on tap
  *             only; one kit player sounds at a time (the kit's own rule). Seek and the clock go through a WRAPPER: this
@@ -46,7 +46,9 @@ export function MomentPlayer({ moment, variant, onSeeMove, preload = "none" }: M
   const m = moment as Wire;
   const full = variant === "full";
   const coach = !!(m.code && m.session && m.full_recording);
-  const gone = m.clip.status === "failed" || m.clip.status === "expired";
+  // expired = retention deleted the clip 8 weeks after its last window closed (bd-sex15q.36); said as such, never "failed"
+  const expired = m.clip.status === "expired";
+  const gone = m.clip.status === "failed" || expired;
   const mode: "clip" | "recording" | "none" = !gone ? "clip" : coach ? "recording" : "none";
   const src = mode === "clip"
     ? `/api/portal/coachip/m/${encodeURIComponent(m.moment_id)}/clip`
@@ -122,10 +124,14 @@ export function MomentPlayer({ moment, variant, onSeeMove, preload = "none" }: M
         <p data-testid="moment-opens" className="text-[13px] leading-snug text-[#6b7280]">{tx("s4.opens_at", lang, { "mm:ss": at_ })}</p>
       )}
       {mode === "recording" && (
-        <p data-testid="clip-failed" role="status" className="text-[13.5px] leading-snug text-[#374151]">{tx("s4.clip_failed", lang, { "mm:ss": at_ })}</p>
+        <p data-testid={expired ? "clip-expired" : "clip-failed"} role="status" className="text-[13.5px] leading-snug text-[#374151]">
+          {tx(expired ? "s4.clip_expired" : "s4.clip_failed", lang, { "mm:ss": at_ })}
+        </p>
       )}
       {mode === "none" && (
-        <p data-testid="clip-failed-rm" role="status" className="text-[14px] leading-snug text-[#374151]">{t("e.503_clip.rm", lang)}</p>
+        <p data-testid={expired ? "clip-expired-rm" : "clip-failed-rm"} role="status" className="text-[14px] leading-snug text-[#374151]">
+          {t(expired ? "s4.clip_expired.rm" : "e.503_clip.rm", lang)}
+        </p>
       )}
       {src && offline && (
         <p data-testid="moment-offline" role="status" className="text-[13.5px] leading-snug text-[#374151]">{t("s4.offline", lang)}</p>
