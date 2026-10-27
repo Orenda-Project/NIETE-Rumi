@@ -140,6 +140,29 @@ describe('flag on (wiring)', () => {
     expect(recommendForReport.mock.calls[0][0].nextStep.target.indicator).toBe('B2');
   });
 
+  test('R7v: the reads are prefetched once, with the session, before the reflections and before the engine starts', async () => {
+    process.env.VIDEO_RECO_ENABLED = 'true';
+    const order = [];
+    const prefetchReads = jest.fn(() => { order.push('prefetch'); return true; });
+    const recommendForReport = jest.fn(() => { order.push('engine'); return Promise.resolve(null); });
+    load({ recommendForReport, prefetchReads });
+    RG.enhanceAnalysisWithReflections.mockImplementation(async () => { order.push('reflections'); return JSON.parse(JSON.stringify(ANALYSIS)); });
+    await RG.generateReport('sess-1', { from: '10000000000' });
+    expect(prefetchReads).toHaveBeenCalledTimes(1);
+    const p = prefetchReads.mock.calls[0][0];
+    expect(p.coachingSessionId).toBe('sess-1');
+    expect(p.session.user_id).toBe('user-1');
+    expect(p.analysis.framework).toBe('fico');
+    expect(order).toEqual(['prefetch', 'reflections', 'engine']);
+  });
+
+  test('R7v: an engine without prefetchReads (or one that throws) never touches the report', async () => {
+    process.env.VIDEO_RECO_ENABLED = 'true';
+    load({ recommendForReport: jest.fn(() => Promise.resolve(null)), prefetchReads: () => { throw new Error('boom'); } });
+    await RG.generateReport('sess-1', { from: '10000000000' });
+    expect(RG.sendHeroImageReport).toHaveBeenCalledTimes(1);
+  });
+
   test('a recommendation that never finishes does not delay or block the report', async () => {
     process.env.VIDEO_RECO_ENABLED = 'true';
     // bd-gzfdu9 (eng-surfaces, on integration): the strip waits ≤ 20 s by design (SPEC §4.9) and the sender ≤ 60 s;

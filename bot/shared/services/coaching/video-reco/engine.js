@@ -136,6 +136,70 @@ function cardOf(card) {
   return t && t.indicator && t.kind !== 'phase' ? { ...card, indicator: t.indicator } : card;
 }
 
+/**
+ * bd-8hhqhf R7v (COS 20261027T050735; eng-fix r7v/MEASURE.md): every read the pick needs, keyed by the session and the
+ * teacher only, in one wave (R7s): { existing: the stored row, rest: [history, ladder, roster, v10 group, bands] }. Neither
+ * promise rejects unhandled. Bands are read only when asked (no grade on the analysis; a prefetch always asks, and
+ * gradeOf prefers the lesson's own grade, so an extra read changes nothing).
+ */
+function issueReads(store, v10GroupFor, uid, coachingSessionId, withBands) {
+  const groupFor = v10GroupFor || require('../ab-v10-arms').groupForEager; // eslint-disable-line global-require
+  // every call deferred one microtask, so a store that throws synchronously rejects inside the wave instead of orphaning
+  // the reads already started (an unhandled rejection on the report's worker)
+  const call = (f) => Promise.resolve().then(f);
+  const existing = call(() => store.readForSession(coachingSessionId));
+  const rest = Promise.all([
+    call(() => store.recentHistory(uid)),
+    call(() => store.ladderProgress(uid)),
+    // R7d (⛔9, Q086): the teacher's class roster, in memory for this run only (a store without it → no roster check)
+    typeof store.rosterNames === 'function' ? call(() => store.rosterNames(uid)) : [],
+    call(() => groupFor(uid)).then((g) => (g && g.group) || null, () => null),
+    withBands ? call(() => store.trainingBands(uid)) : [],
+  ]);
+  existing.catch(() => {});
+  rest.catch(() => {}); // awaited by the pick; handled here for the stored-row return and an unused prefetch
+  return { existing, rest };
+}
+
+const PREFETCH_TTL_MS = 5 * 60000;
+const PREFETCH_MAX = 200;
+const prefetched = new Map(); // coachingSessionId → { uid, at, store, reads }
+
+/**
+ * Start the pick's reads now, so the pick (recommendForReport, seconds later) finds them back. Called at the start of a
+ * report (report-generator) and before an observe delivery (observe-send). Fire and forget: never throws, never awaits,
+ * nothing when the flag is off or the analysis is not FICO. One entry per session, taken by the pick or dropped after 5 min.
+ */
+function prefetchReads(args = {}) {
+  try {
+    const d0 = (args && args.deps) || {};
+    const env = d0.env || process.env;
+    if (!videoRecoEnabled(env)) return false;
+    const { session, coachingSessionId, analysis } = args;
+    if (!session || !session.user_id || !coachingSessionId) return false;
+    if (analysis && analysis.framework !== 'fico') return false;
+    const now = Date.now();
+    for (const [k, v] of prefetched) if (now - v.at > PREFETCH_TTL_MS) prefetched.delete(k);
+    while (prefetched.size >= PREFETCH_MAX) prefetched.delete(prefetched.keys().next().value);
+    const store = d0.store || require('./store'); // eslint-disable-line global-require
+    prefetched.set(coachingSessionId, {
+      uid: session.user_id, at: now, store, reads: issueReads(store, d0.v10GroupFor, session.user_id, coachingSessionId, true),
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/** The prefetch for this session and teacher through this store, once; null when there is none or it is stale. */
+function takePrefetched(coachingSessionId, uid, store) {
+  const p = prefetched.get(coachingSessionId);
+  if (!p) return null;
+  prefetched.delete(coachingSessionId);
+  if (p.uid !== uid || p.store !== store || Date.now() - p.at > PREFETCH_TTL_MS) return null;
+  return p;
+}
+
 async function compute(a, d, state) {
   const { session, analysis, loop, coachingSessionId } = a;
   const card = cardOf(a.card);
@@ -146,20 +210,18 @@ async function compute(a, d, state) {
   // so they all go out in one wave (prod: ~6 serial Supabase round trips → 2, the roster's class read and the v10 arm row
   // being the second). A stored row still wins as soon as it is back; nothing read here decides more than it did.
   const uid = session.user_id;
-  const groupFor = d.v10GroupFor || require('../ab-v10-arms').groupForEager; // eslint-disable-line global-require
-  const reads = Promise.all([
-    store.recentHistory(uid),
-    store.ladderProgress(uid),
-    // R7d (⛔9, Q086): the teacher's class roster, in memory for this run only (a store without it → no roster check)
-    typeof store.rosterNames === 'function' ? store.rosterNames(uid) : [],
-    Promise.resolve().then(() => groupFor(uid)).then((g) => (g && g.group) || null, () => null),
-    analysisGrade(analysis) ? [] : store.trainingBands(uid),
-  ]);
-  reads.catch(() => {}); // awaited below; handled here for the stored-row return
-  const existing = await store.readForSession(coachingSessionId);
-  if (existing) return existing;
-  const [history, ladder, rosterWords, v10Group, bands] = await reads;
-  state.reads = { prefetched: false, age_ms: null, wait_ms: Date.now() - state.t0 };
+  // R7v (COS 20261027T050735): the report starts these reads at its own start (prefetchReads), in parallel with the
+  // topic, subject and card work; the pick then waits only for what is still in flight. Without a prefetch, the same
+  // reads go out here, as in R7s.
+  // A prefetch whose reads failed (the store was down at the report's start) is dropped and the pick reads afresh.
+  const settle = async (r) => { const existing = await r.existing; return existing ? { existing } : { values: await r.rest }; };
+  const pre = takePrefetched(coachingSessionId, uid, store);
+  let got = pre ? await settle(pre.reads).catch(() => null) : null;
+  const usedPrefetch = !!got;
+  if (!got) got = await settle(issueReads(store, d.v10GroupFor, uid, coachingSessionId, !analysisGrade(analysis)));
+  if (got.existing) return got.existing;
+  const [history, ladder, rosterWords, v10Group, bands] = got.values;
+  state.reads = { prefetched: usedPrefetch, age_ms: usedPrefetch ? state.t0 - pre.at : null, wait_ms: Date.now() - state.t0 };
 
   const arm = assignArm(session.user_id, d.env);
   const sr = (analysis && analysis.subject_resolution) || {};
@@ -755,4 +817,4 @@ async function recommendForReport(args = {}) {
   }
 }
 
-module.exports = { recommendForReport, ENGINE_TIMEOUT_MS };
+module.exports = { recommendForReport, prefetchReads, ENGINE_TIMEOUT_MS, _prefetchSize: () => prefetched.size };
