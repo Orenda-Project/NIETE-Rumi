@@ -60,14 +60,11 @@ const railwayRedis = require('./shared/services/cache/railway-redis.service');
 // events; all media work lives in the separate `calls` Railway service.
 const { extractCallEvents, forwardCallEvents } = require('./shared/calls/call-forwarder');
 
-// Import Routes (Flow encryption endpoints)
+// Import Routes (Flow encryption endpoints), and Meta's X-Hub-Signature-256 check (off | log | enforce)
 const flowEndpointRoutes = require('./shared/routes/flow-endpoint.routes');
-// Meta's X-Hub-Signature-256 on inbound webhooks and Flow endpoint requests (off | log | enforce).
 const WebhookSignature = require('./shared/services/webhook-signature');
-
-// Create Express app
+// Create Express app. `verify` keeps the raw bytes Meta signed (req.rawBody); req.body is parsed exactly as before.
 const app = express();
-// `verify` keeps the raw bytes Meta signed (req.rawBody); req.body is parsed exactly as before.
 app.use(express.json({ verify: WebhookSignature.captureRawBody }));
 
 // Mount routes (Flow encryption endpoints). Meta signs these too; enforce answers 432, its code for a bad signature.
