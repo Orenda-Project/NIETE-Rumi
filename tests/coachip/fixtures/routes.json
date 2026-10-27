@@ -1,0 +1,604 @@
+{
+ "version": "v1.2",
+ "source": "contracts/API.md v1 (c-api, 26 Oct 2026), from design/SPEC.md v2 section 3; supersedes outputs/lanes/red-1/tools/routes_spec_v1.json",
+ "prefix": "/api/portal/coachip",
+ "guards": [
+  "requirePortalAuth",
+  "coachipLeaderGate",
+  "requireCoachip(kind)",
+  "coachipScope"
+ ],
+ "bodies": {
+  "400": {
+   "error": "bad_request"
+  },
+  "401": {
+   "success": false,
+   "error": "Not authenticated. Please log in."
+  },
+  "404": {
+   "error": "not_found"
+  },
+  "409_exists": {
+   "error": "step_exists",
+   "step_id": "<uuid>"
+  },
+  "409_closed": {
+   "error": "step_closed"
+  },
+  "500": {
+   "error": "server_error"
+  },
+  "503_clip": {
+   "error": "clip_unavailable"
+  },
+  "503_audio": {
+   "error": "audio_unavailable"
+  },
+  "503_codec": {
+   "error": "unavailable"
+  }
+ },
+ "headers_every_response": {
+  "Cache-Control": "private, no-store"
+ },
+ "id_grammar": {
+  "uuid": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+  "w_id": "^W-[A-Z0-9-]{1,40}$",
+  "weekStart": "YYYY-MM-DD Monday, Asia/Karachi, within 8 weeks"
+ },
+ "notes": [
+  "kind: coach = portal_coachip; rm = portal_coachip_rm (rmSectorFor); either = coach OR rm (R6, R7); none = R1 only, guarded by requirePortalAuth alone.",
+  "ids: path or body ids. scoped_by: the id whose cross-scope replay (coach B's, another sector's, or an invented UUID) must 404 with the byte-identical bodies['404'].",
+  "flag_off / teacher_session: expected status with every switch off / as a teacher session (R1 answers 200 with flag_off_body).",
+  "rm_also: an RM may call it for a moment in the sector's current circle (coachip_circle_items). R8 is coach-only (API.md A4).",
+  "allow_keys / forbid_keys: payload keys the generic identity rule would flag that this route legitimately carries / keys that must never appear.",
+  "write: a positive call creates or changes a row (skip against a real host unless --allow-writes). Every POST body is strict: one extra key -> 400.",
+  "media: audio stream; Range rules in API.md section 10 (stored object 200/206/416; live cut 200 with Accept-Ranges: none)."
+ ],
+ "routes": [
+  {
+   "id": "R1",
+   "method": "GET",
+   "path": "/me",
+   "kind": "none",
+   "screen": "mount gate",
+   "ids": [],
+   "scoped_by": null,
+   "expect": [
+    200
+   ],
+   "flag_off": [
+    200
+   ],
+   "teacher_session": [
+    200
+   ],
+   "flag_off_body": {
+    "coach": null,
+    "rm": null,
+    "decode": false
+   },
+   "guards": [
+    "requirePortalAuth"
+   ]
+  },
+  {
+   "id": "R2",
+   "method": "GET",
+   "path": "/home",
+   "kind": "coach",
+   "screen": "S1",
+   "ids": [],
+   "scoped_by": null,
+   "expect": [
+    200
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ]
+  },
+  {
+   "id": "R3",
+   "method": "GET",
+   "path": "/w/{wId}",
+   "kind": "coach",
+   "screen": "S2+S3",
+   "ids": [
+    "wId"
+   ],
+   "scoped_by": null,
+   "expect": [
+    200
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ]
+  },
+  {
+   "id": "R4",
+   "method": "GET",
+   "path": "/schools",
+   "kind": "coach",
+   "screen": "Schools",
+   "ids": [],
+   "scoped_by": null,
+   "expect": [
+    200
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ]
+  },
+  {
+   "id": "R5",
+   "method": "GET",
+   "path": "/moments?w={wId}&week={weekStart}",
+   "kind": "coach",
+   "screen": "Listen",
+   "ids": [
+    "wId"
+   ],
+   "scoped_by": null,
+   "expect": [
+    200
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ]
+  },
+  {
+   "id": "R6",
+   "method": "GET",
+   "path": "/m/{momentId}",
+   "kind": "either",
+   "screen": "S4",
+   "ids": [
+    "momentId"
+   ],
+   "scoped_by": "momentId",
+   "expect": [
+    200
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ],
+   "rm_also": true,
+   "rm_forbid_keys": [
+    "code",
+    "code_id",
+    "session_id",
+    "recorded_on",
+    "grade",
+    "subject"
+   ]
+  },
+  {
+   "id": "R7",
+   "method": "GET",
+   "path": "/m/{momentId}/clip",
+   "kind": "either",
+   "screen": "S4",
+   "ids": [
+    "momentId"
+   ],
+   "scoped_by": "momentId",
+   "expect": [
+    200,
+    206,
+    503
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ],
+   "rm_also": true,
+   "media": true,
+   "audit": [
+    "clip",
+    "circle_play"
+   ]
+  },
+  {
+   "id": "R8",
+   "method": "GET",
+   "path": "/session/{sessionId}/audio",
+   "kind": "coach",
+   "screen": "S4",
+   "ids": [
+    "sessionId"
+   ],
+   "scoped_by": "sessionId",
+   "expect": [
+    200,
+    206,
+    503
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ],
+   "rm_also": false,
+   "media": true,
+   "audit": [
+    "full_audio"
+   ]
+  },
+  {
+   "id": "R9",
+   "method": "GET",
+   "path": "/i/{wId}?school={schoolId}",
+   "kind": "coach",
+   "screen": "S5",
+   "ids": [
+    "wId",
+    "schoolId"
+   ],
+   "scoped_by": null,
+   "expect": [
+    200
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ]
+  },
+  {
+   "id": "R10",
+   "method": "POST",
+   "path": "/steps",
+   "kind": "coach",
+   "screen": "S2,S5",
+   "ids": [
+    "code_id"
+   ],
+   "scoped_by": "code_id",
+   "expect": [
+    201,
+    409
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ],
+   "write": true,
+   "body": {
+    "code_id": "{codeId}",
+    "school_id": "{schoolId}",
+    "w_id": "{wId}",
+    "i_id": "{iId}",
+    "source_session_id": null,
+    "rm_note_id": null
+   }
+  },
+  {
+   "id": "R11",
+   "method": "POST",
+   "path": "/steps/{stepId}/tick",
+   "kind": "coach",
+   "screen": "S1",
+   "ids": [
+    "stepId"
+   ],
+   "scoped_by": "stepId",
+   "expect": [
+    200,
+    409
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ],
+   "write": true,
+   "body": {
+    "coach_tick": "yes"
+   }
+  },
+  {
+   "id": "R12",
+   "method": "POST",
+   "path": "/steps/{stepId}/status",
+   "kind": "coach",
+   "screen": "S1",
+   "ids": [
+    "stepId"
+   ],
+   "scoped_by": "stepId",
+   "expect": [
+    200,
+    409
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ],
+   "write": true,
+   "body": {
+    "status": "deferred"
+   }
+  },
+  {
+   "id": "R13",
+   "method": "POST",
+   "path": "/notes/{noteId}/status",
+   "kind": "coach",
+   "screen": "S1",
+   "ids": [
+    "noteId"
+   ],
+   "scoped_by": "noteId",
+   "expect": [
+    200
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ],
+   "write": true,
+   "body": {
+    "status": "seen"
+   }
+  },
+  {
+   "id": "R14",
+   "method": "GET",
+   "path": "/stats",
+   "kind": "coach",
+   "screen": "S6",
+   "ids": [],
+   "scoped_by": null,
+   "expect": [
+    200
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ]
+  },
+  {
+   "id": "R15",
+   "method": "GET",
+   "path": "/results",
+   "kind": "coach",
+   "screen": "S7",
+   "ids": [],
+   "scoped_by": null,
+   "expect": [
+    200
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ]
+  },
+  {
+   "id": "R16",
+   "method": "POST",
+   "path": "/teacher-name",
+   "kind": "coach",
+   "screen": "S2/S3 decode tap",
+   "ids": [
+    "code_id"
+   ],
+   "scoped_by": "code_id",
+   "expect": [
+    200
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ],
+   "decode": true,
+   "body": {
+    "code_id": "{codeId}"
+   },
+   "allow_keys": [
+    "name"
+   ],
+   "audit": [
+    "decode"
+   ]
+  },
+  {
+   "id": "R17",
+   "method": "GET",
+   "path": "/rm/home",
+   "kind": "rm",
+   "screen": "S8",
+   "ids": [],
+   "scoped_by": null,
+   "expect": [
+    200
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ],
+   "allow_keys": [
+    "coach_user_id"
+   ],
+   "forbid_keys": [
+    "code",
+    "code_id",
+    "teacher_key",
+    "teacher_code"
+   ]
+  },
+  {
+   "id": "R18",
+   "method": "GET",
+   "path": "/rm/coach/{coachUserId}",
+   "kind": "rm",
+   "screen": "S9",
+   "ids": [
+    "coachUserId"
+   ],
+   "scoped_by": "coachUserId",
+   "expect": [
+    200
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ],
+   "allow_keys": [
+    "coach_user_id"
+   ],
+   "forbid_keys": [
+    "code",
+    "code_id",
+    "teacher_key"
+   ]
+  },
+  {
+   "id": "R19",
+   "method": "POST",
+   "path": "/rm/notes",
+   "kind": "rm",
+   "screen": "S8,S9",
+   "ids": [
+    "coachUserId"
+   ],
+   "scoped_by": "coachUserId",
+   "expect": [
+    201
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ],
+   "write": true,
+   "allow_keys": [
+    "coach_user_id"
+   ],
+   "audit": [
+    "note_sent"
+   ],
+   "body": {
+    "coach_user_id": "{coachUserId}",
+    "template_id": "RM-T1",
+    "w_id": "{wId}",
+    "school_ids": [
+     "{schoolId}"
+    ],
+    "due_on": "{dueOn}"
+   },
+   "reject_bodies": [
+    {
+     "extra_key": "lines"
+    },
+    {
+     "extra_key": "codes"
+    },
+    {
+     "school_ids_len": 4
+    }
+   ]
+  },
+  {
+   "id": "R20",
+   "method": "GET",
+   "path": "/rm/circle",
+   "kind": "rm",
+   "screen": "S10",
+   "ids": [],
+   "scoped_by": null,
+   "expect": [
+    200
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ],
+   "allow_keys": [
+    "coach_user_id"
+   ],
+   "forbid_keys": [
+    "code",
+    "code_id",
+    "teacher_key",
+    "grade",
+    "subject",
+    "recorded_on"
+   ]
+  },
+  {
+   "id": "R21",
+   "method": "POST",
+   "path": "/rm/steps",
+   "kind": "rm",
+   "screen": "S10",
+   "ids": [],
+   "scoped_by": null,
+   "expect": [
+    201
+   ],
+   "flag_off": [
+    404
+   ],
+   "teacher_session": [
+    404
+   ],
+   "write": true,
+   "body": {
+    "i_id": "{iId}",
+    "w_id": "{wId}",
+    "date": "{dueOn}"
+   }
+  }
+ ],
+ "canaries": [
+  {
+   "method": "GET",
+   "full_path": "/api/portal/hcp/teachers",
+   "as": "coach_a",
+   "expect": [
+    404
+   ],
+   "known_external_fail": "bd-6xrimn (P0; COS 07:59Z): answers 200 with names on sandbox today; reported, not waived"
+  }
+ ]
+}
