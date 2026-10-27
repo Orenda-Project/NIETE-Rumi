@@ -162,7 +162,7 @@ router.get('/sa/switches', ...saGates, async (req, res) => {
 
 router.get('/sa/schools', ...saGates, relay('sa/schools', () => ({})));
 router.get('/sa/list', ...saGates, relay('sa/list', (req) => pick(req.query, ['schoolId', 'visitId', 'grade'])));
-router.post('/sa/outcome', ...saGates, relay('sa/outcome', (req) => pick(req.body, ['schoolId', 'visitId', 'drawId', 'outcome', 'note', 'clientSessionId', 'block', 'repick', 'grade'])));
+router.post('/sa/outcome', ...saGates, relay('sa/outcome', (req) => pick(req.body, ['schoolId', 'visitId', 'drawId', 'outcome', 'note', 'clientSessionId', 'block', 'repick', 'grade', 'restart'])));
 router.post('/sa/child', ...saGates, relay('sa/child', (req) => pick(req.body, ['schoolId', 'visitId', 'grade', 'listGrade', 'firstName', 'section', 'clientChildId'])));
 const onSession = (fields) => (req) => ({ sessionId: req.params.id, ...pick(req.method === 'GET' ? req.query : req.body, fields) });
 router.get('/sa/session/:id/battery', ...saGates, relay('sa/battery', onSession(['lang', 'full'])));
