@@ -87,7 +87,8 @@ const en = {
   stopsHint: 'Every skip and stop, by type and by coach, for the filters above. Coaches with the most come first.',
   stopTypes: {
     back: 'Back', end_section: 'End section', end_test: 'End test', restart: 'Restart',
-    silence_repeat: 'Silence repeat', under20_move_on: 'Under 20% move-on',
+    silence_repeat: 'Silence repeat', incomplete_move_on: 'Moved on: part not finished',
+    under20_move_on: 'Under 20% move-on (earlier rule)',
   } as Record<string, string>,
   stopBy: { child: 'child', coach: 'coach', app: 'app' } as Record<string, string>,
   colCoach: 'Coach',
@@ -97,6 +98,15 @@ const en = {
   stopsList: 'Each skip and stop, newest first',
   stopsNone: 'No skips or stops for these filters.',
   stopsCapped: (n: string, of: string) => `Showing the newest ${n} of ${of}.`,
+  // round 7b item 15 (sa_dash_filters): children from the random draw vs added by the coach
+  originTitle: 'Children: from the random draw or added',
+  originHint: 'Each child tested, for the filters above: picked by the system\'s random draw, or added by the coach with "Add a child". Coaches who added the most come first.',
+  drawn: 'From the draw',
+  added: 'Added by the coach',
+  originUnknown: 'Not known',
+  colDrawn: 'Draw',
+  colAdded: 'Added',
+  colAddedShare: '% added',
   notes: [
     'Words per minute: correct words read aloud in 60 seconds. Zero: the child read no word of the passage.',
     'Bands: non-reader 0, beginning 1–19, developing 20–39, fluent 40 or more words per minute.',
@@ -197,7 +207,8 @@ const ur: DashCopy = {
   stopsHint: 'اوپر کے فلٹر کے مطابق ہر بار کچھ چھوڑا یا روکا گیا، قسم اور کوچ کے لحاظ سے۔ جن کوچ کے سب سے زیادہ ہیں وہ اوپر ہیں۔',
   stopTypes: {
     back: 'واپس', end_section: 'حصہ ختم', end_test: 'جائزہ ختم', restart: 'دوبارہ شروع',
-    silence_repeat: 'خاموشی پر دہرایا', under20_move_on: '⁦۲۰⁩٪ سے کم، آگے بڑھایا',
+    silence_repeat: 'خاموشی پر دہرایا', incomplete_move_on: 'آگے بڑھایا: حصہ مکمل نہیں ہوا',
+    under20_move_on: '⁦۲۰⁩٪ سے کم، آگے بڑھایا (پہلا اصول)',
   },
   stopBy: { child: 'بچہ', coach: 'کوچ', app: 'ایپ' },
   colCoach: 'کوچ',
@@ -207,6 +218,15 @@ const ur: DashCopy = {
   stopsList: 'ہر بار کی تفصیل، تازہ ترین پہلے',
   stopsNone: 'ان فلٹرز میں کچھ بھی چھوڑا یا روکا نہیں گیا۔',
   stopsCapped: (n: string, of: string) => `${of} میں سے تازہ ترین ${n} دکھائے گئے ہیں۔`,
+  // round 7b item 15 (sa_dash_filters): children from the random draw vs added by the coach
+  originTitle: 'بچے: قرعہ اندازی سے یا شامل کیے گئے',
+  originHint: 'اوپر کے فلٹر کے مطابق ہر جانچا گیا بچہ: نظام کی قرعہ اندازی سے چنا گیا، یا کوچ نے «بچہ شامل کریں» سے شامل کیا۔ جن کوچ نے سب سے زیادہ شامل کیے وہ اوپر ہیں۔',
+  drawn: 'قرعہ اندازی سے',
+  added: 'کوچ نے شامل کیے',
+  originUnknown: 'معلوم نہیں',
+  colDrawn: 'قرعہ',
+  colAdded: 'شامل',
+  colAddedShare: 'شامل ٪',
   notes: [
     'فی منٹ الفاظ: ⁦۶۰⁩ سیکنڈ میں بلند آواز سے درست پڑھے گئے الفاظ۔ صفر: بچہ عبارت کا ایک لفظ بھی نہ پڑھ سکا۔',
     'درجے: پڑھ نہ سکے ⁦۰⁩، آغاز ⁦۱–۱۹⁩، بہتری ⁦۲۰–۳۹⁩، روانی ⁦۴۰⁩ یا زیادہ الفاظ فی منٹ۔',
@@ -221,3 +241,28 @@ const ur: DashCopy = {
 };
 
 export const DASH_COPY: Record<Lang, DashCopy> = { en, ur };
+
+/**
+ * Round 7b item 14 (sa_cwpm): every words-per-minute number is correct words per minute, labelled CWPM, with its
+ * formula. Laid over DASH_COPY while the switch is on; off, the words are as before.
+ */
+export const DASH_CWPM: Record<Lang, Partial<DashCopy>> = {
+  en: {
+    orf: 'CWPM (median)',
+    meanWpm: 'Mean CWPM',
+    colOrf: 'CWPM',
+    rwpTitle: 'Rawalpindi study, May 2026 (CWPM in the first 60 seconds)',
+    rules: { ...en.rules, passage: 'CWPM, correct words per minute = correct words × 60 ÷ the seconds the child read (60 at most). Non-reader 0 · beginning 1–19 · developing 20–39 · fluent 40 or more CWPM.' },
+    notes: ['CWPM: correct words per minute, read aloud, in at most 60 seconds. Zero: the child read no word of the passage correctly.', 'Bands: non-reader 0, beginning 1–19, developing 20–39, fluent 40 or more CWPM.', en.notes[2]],
+    liveNotes: ['CWPM: correct words per minute, read aloud, in at most 60 seconds. Zero: the child read no word of the passage correctly.', 'Bands: non-reader 0, beginning 1–19, developing 20–39, fluent 40 or more CWPM.', en.liveNotes[2], en.liveNotes[3]],
+  },
+  ur: {
+    orf: '⁨CWPM⁩ (درمیانی)',
+    meanWpm: 'اوسط ⁨CWPM⁩',
+    colOrf: '⁨CWPM⁩',
+    rwpTitle: 'راولپنڈی کا جائزہ، مئی ⁦۲۰۲۶⁩ (پہلے ⁦۶۰⁩ سیکنڈ میں ⁨CWPM⁩)',
+    rules: { ...ur.rules, passage: '⁨CWPM⁩، فی منٹ درست الفاظ = درست الفاظ × ⁦۶۰⁩ ÷ بچے کے پڑھنے کے سیکنڈ (زیادہ سے زیادہ ⁦۶۰⁩)۔ پڑھ نہ سکے ⁦۰⁩ · آغاز ⁦۱–۱۹⁩ · بہتری ⁦۲۰–۳۹⁩ · روانی ⁦۴۰⁩ یا زیادہ ⁨CWPM⁩۔' },
+    notes: ['⁨CWPM⁩: بلند آواز سے پڑھے گئے درست الفاظ فی منٹ، زیادہ سے زیادہ ⁦۶۰⁩ سیکنڈ میں۔ صفر: بچہ عبارت کا ایک لفظ بھی درست نہ پڑھ سکا۔', 'درجے: پڑھ نہ سکے ⁦۰⁩، آغاز ⁦۱–۱۹⁩، بہتری ⁦۲۰–۳۹⁩، روانی ⁦۴۰⁩ یا زیادہ ⁨CWPM⁩۔', ur.notes[2]],
+    liveNotes: ['⁨CWPM⁩: بلند آواز سے پڑھے گئے درست الفاظ فی منٹ، زیادہ سے زیادہ ⁦۶۰⁩ سیکنڈ میں۔ صفر: بچہ عبارت کا ایک لفظ بھی درست نہ پڑھ سکا۔', 'درجے: پڑھ نہ سکے ⁦۰⁩، آغاز ⁦۱–۱۹⁩، بہتری ⁦۲۰–۳۹⁩، روانی ⁦۴۰⁩ یا زیادہ ⁨CWPM⁩۔', ur.liveNotes[2], ur.liveNotes[3]],
+  },
+};

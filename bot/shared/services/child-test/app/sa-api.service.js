@@ -871,11 +871,18 @@ function saResults(args = {}, deps = {}) {
  * (the coach gives the instructions), auto for every other block. Stops: the session's kept skip/stop events (STOP_TYPES),
  * in the order they happened; `by` is who did it (child, coach, app). Never a child's name, student id or draw.
  */
-function dashFieldsOf(s, coachNames) {
+// the stops the dashboard shows: today's STOP_TYPES, the completion rule's (Amendment 1) and the under-20% rule's it
+// replaced, so an event of either name is never dropped from the audit
+const DASH_STOPS = new Set([...STOP_TYPES, 'incomplete_move_on', 'under20_move_on']);
+// a child added on the spot (draw/index.js addChild) — every other draw is the random draw's
+const ADDED_ALGO = 'ctd-added-on-spot-v1';
+const originOf = (draw) => (!draw ? null : draw.algo_version === ADDED_ALGO || draw.seed_digest === 'added' ? 'added' : 'drawn');
+
+function dashFieldsOf(s, coachNames, draws) {
   const device = s.device || {};
   const block = typeof device.block === 'string' ? device.block : null;
   const stops = (Array.isArray(device.events) ? device.events : [])
-    .filter((e) => e && STOP_TYPES.includes(e.type))
+    .filter((e) => e && DASH_STOPS.has(e.type))
     .map((e) => {
       const data = e.data && typeof e.data === 'object' && !Array.isArray(e.data) ? e.data : null;
       return { type: e.type, taskId: typeof e.task_id === 'string' ? e.task_id : null, at: typeof e.at === 'string' ? e.at : null, by: data && typeof data.by === 'string' ? data.by : null, data };
@@ -887,6 +894,7 @@ function dashFieldsOf(s, coachNames) {
     coachName: (coachNames && coachNames.get(s.coach_user_id)) || null,
     startedAt: s.started_at || s.created_at || null,
     stops,
+    origin: draws ? originOf(draws.get(s.id)) : null,
   };
 }
 
@@ -923,16 +931,21 @@ function saSessions(args = {}, deps = {}) {
     // sa_dash_filters (round 7b): the coaches' names, read once for every session (staff; never a child's)
     const dash = await dashFilters.enabled(deps);
     let coachNames = null;
+    let draws = null;
     if (dash) {
       const named = await d.store.getUserNamesByIds([...new Set(sessions.map((s) => s.coach_user_id).filter(Boolean))]);
       if (!named || !named.ok) throw new Error((named && named.error) || 'getUserNamesByIds failed');
       coachNames = new Map((named.users || []).map((u) => [u.id, u.name || null]));
+      // item 15: how each child's draw was made (added on the spot vs the random draw), read once
+      const made = await d.store.getSessionDrawOrigins(sessions.map((s) => s.id));
+      if (!made || !made.ok) throw new Error((made && made.error) || 'getSessionDrawOrigins failed');
+      draws = new Map((made.origins || []).map((x) => [x.sessionId, x]));
     }
     const out = [];
     const stopOnly = [];
     for (const s of sessions) {
       const results = shapeResults(s, rowsOf.get(s.id), bank, stops);
-      const extra = dash ? dashFieldsOf(s, coachNames) : null;
+      const extra = dash ? dashFieldsOf(s, coachNames, draws) : null;
       if (!results.tasks.length && !(extra && extra.stops.length)) continue;
       const school = schoolOf.get(s.school_id) || {};
       const row = { schoolId: s.school_id || null, schoolName: school.name || null, sector: school.region || null, grade: s.grade, results };

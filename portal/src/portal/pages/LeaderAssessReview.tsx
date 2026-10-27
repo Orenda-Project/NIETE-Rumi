@@ -5,6 +5,7 @@ import PortalLayout from '../components/PortalLayout';
 import { childTestSa } from '../services/api';
 import { urDigits, type Lang } from '../lib/assess/copy';
 import { useUrFit } from '../lib/assess/urFit';
+import { isWordsTask } from '../lib/assess/cwpm';
 import { DASH_COPY } from '../lib/assess/dashboardCopy';
 import { REVIEW_COPY } from '../lib/assess/reviewCopy';
 import type { SaDashboardSession, SaEarMark, SaReview, SaReviewItem, SaReviewTask } from '../types/childTestSa';
@@ -56,6 +57,8 @@ export default function LeaderAssessReview() {
   const [lang, setLang] = useState<Lang>(readLang);
   const [list, setList] = useState<Load<SaDashboardSession[]>>({ kind: 'loading' });
   const [one, setOne] = useState<Load<SaReview>>({ kind: 'loading' });
+  // sa_cwpm (round 7b item 14): a words task's rate reads CWPM
+  const [cwpm, setCwpm] = useState(false);
   const c = REVIEW_COPY[lang];
   const taskName = (id: string) => DASH_COPY[lang].tasks[id] || id;
 
@@ -65,6 +68,7 @@ export default function LeaderAssessReview() {
       .then(async (s) => {
         if (!live) return;
         if (!s || s.reviewPage !== true) { setList({ kind: 'off' }); setOne({ kind: 'off' }); return; }
+        setCwpm(s.cwpm === true);
         try {
           if (sessionId) {
             const data = await childTestSa.getReview(sessionId);
@@ -154,7 +158,7 @@ export default function LeaderAssessReview() {
           <p>{c.grade(num(one.data.session.grade))} · {when(one.data.session.startedAt)} · {one.data.session.minutes === null ? '–' : c.minutes(num(one.data.session.minutes))} ({c.target})</p>
           <p className="text-xs text-slate-500">{c.stopRulesNote}</p>
         </div>
-        <ul className="space-y-3">{one.data.tasks.map((t) => <TaskCard key={t.taskId} task={t} sessionId={one.data.session.id} lang={lang} name={taskName(t.taskId)} num={num} />)}</ul>
+        <ul className="space-y-3">{one.data.tasks.map((t) => <TaskCard key={t.taskId} task={t} sessionId={one.data.session.id} lang={lang} name={taskName(t.taskId)} num={num} cwpm={cwpm} />)}</ul>
       </div>
     ) : null);
   }
@@ -169,7 +173,7 @@ export default function LeaderAssessReview() {
   );
 }
 
-function TaskCard({ task, sessionId, lang, name, num }: { task: SaReviewTask; sessionId: string; lang: Lang; name: string; num: (n: number | string) => string }) {
+function TaskCard({ task, sessionId, lang, name, num, cwpm = false }: { task: SaReviewTask; sessionId: string; lang: Lang; name: string; num: (n: number | string) => string; cwpm?: boolean }) {
   const c = REVIEW_COPY[lang];
   const a = task.app;
   let fix = c.notScored;
@@ -181,7 +185,7 @@ function TaskCard({ task, sessionId, lang, name, num }: { task: SaReviewTask; se
       <h2 className="text-base font-semibold text-slate-900">{name}</h2>
       <p dir="ltr" className="text-start text-xs text-slate-500"><bdi>{task.taskId}</bdi></p>
       <dl className="mt-2 grid grid-cols-2 gap-2 text-sm">
-        <div><dt className="text-xs text-slate-600">{c.appScore}</dt><dd className="font-semibold text-slate-900">{score}{a.perMinute !== null ? ` · ${c.perMinute(num(a.perMinute))}` : ''}</dd></div>
+        <div><dt className="text-xs text-slate-600">{c.appScore}</dt><dd className="font-semibold text-slate-900">{score}{a.perMinute !== null ? ` · ${cwpm && isWordsTask(task.taskId) ? c.cwpm(num(a.perMinute)) : c.perMinute(num(a.perMinute))}` : ''}</dd></div>
         <div><dt className="text-xs text-slate-600">⏱</dt><dd className="font-semibold text-slate-900">{task.timeUsedS === null ? '–' : c.timeUsed(num(task.timeUsedS))}</dd></div>
       </dl>
       <p className={`mt-1 text-xs ${task.scoredAfterFix === false ? 'text-amber-700' : 'text-slate-600'}`}>{fix}</p>

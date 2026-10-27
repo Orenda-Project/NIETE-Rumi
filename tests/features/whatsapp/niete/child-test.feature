@@ -889,6 +889,14 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And a session with a stop but no task yet comes back apart, for the stops view only
     And no child's name, student id or draw id is in the answer
 
+  @e2e @wip @draft @config-gated @P1 @CT102
+  Scenario: With sa_dash_filters on, each session says whether its child came from the random draw or was added
+    Given sa_dash_filters is on
+    When the results dashboard reads the sessions
+    Then each session says drawn or added (a child added with "Add a child" has an on-the-spot draw), read once for all sessions
+    And the stops include the completion rule's "incomplete_move_on" and any earlier "under20_move_on"
+    And the draw ids never leave the bot
+
   # ── Round 7b · A · the child's screens (back, audio-gated Next, story arrow, instructions, tick prompt, T) ──
   @e2e @wip @draft @config-gated @P1 @CT101
   Scenario: Back on the item screens, in RDF auto and RDF manual, replaces the answer
