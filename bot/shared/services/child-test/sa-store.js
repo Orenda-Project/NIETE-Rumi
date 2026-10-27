@@ -24,12 +24,16 @@ const MODES = ['tap', 'keypad', 'keyboard', 'record', 'oral'];
 const DEVICE_FIELDS = ['ua', 'bundle_v', 'offline', 'skew_ms', 'mic_ok', 'mic_rms', 'persisted', 'voice'];
 // the ruling events a session keeps (device.events); past the cap the oldest are kept
 const MAX_KEPT_EVENTS = 200;
+// round 7b: a skip or stop (sa-api.service.js STOP_TYPES) is never dropped by the cap — the dashboard audits them
+const AUDIT = new Set(['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'under20_move_on']);
 
 function keepEvents(had, events) {
   const list = Array.isArray(had) ? had.slice() : [];
   const seen = new Set(list.map((e) => e.seq));
   for (const e of events) if (!seen.has(e.seq)) { seen.add(e.seq); list.push(e); }
-  return list.sort((x, y) => x.seq - y.seq).slice(0, MAX_KEPT_EVENTS);
+  const sorted = list.sort((x, y) => x.seq - y.seq);
+  const kept = new Set(sorted.filter((e) => !AUDIT.has(e.type)).slice(0, MAX_KEPT_EVENTS));
+  return sorted.filter((e) => AUDIT.has(e.type) || kept.has(e));
 }
 
 function fail(where, error, extra) {
@@ -232,4 +236,4 @@ async function summary(sessionId) {
   };
 }
 
-module.exports = { PARKED, PHONE_SCORER, phoneMarks, findByClient, setClient, setBlock, markSynced, putResults, setAudio, summary };
+module.exports = { PARKED, PHONE_SCORER, phoneMarks, findByClient, setClient, setBlock, markSynced, putResults, setAudio, summary, __internals: { keepEvents } };
