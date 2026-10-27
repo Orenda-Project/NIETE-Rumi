@@ -97,7 +97,6 @@ const en = {
   stopsList: 'Each skip and stop, newest first',
   stopsNone: 'No skips or stops for these filters.',
   stopsCapped: (n: string, of: string) => `Showing the newest ${n} of ${of}.`,
-  noTask: 'Before the first task',
   notes: [
     'Words per minute: correct words read aloud in 60 seconds. Zero: the child read no word of the passage.',
     'Bands: non-reader 0, beginning 1–19, developing 20–39, fluent 40 or more words per minute.',
@@ -208,7 +207,6 @@ const ur: DashCopy = {
   stopsList: 'ہر بار کی تفصیل، تازہ ترین پہلے',
   stopsNone: 'ان فلٹرز میں کچھ بھی چھوڑا یا روکا نہیں گیا۔',
   stopsCapped: (n: string, of: string) => `${of} میں سے تازہ ترین ${n} دکھائے گئے ہیں۔`,
-  noTask: 'پہلے حصے سے پہلے',
   notes: [
     'فی منٹ الفاظ: ⁦۶۰⁩ سیکنڈ میں بلند آواز سے درست پڑھے گئے الفاظ۔ صفر: بچہ عبارت کا ایک لفظ بھی نہ پڑھ سکا۔',
     'درجے: پڑھ نہ سکے ⁦۰⁩، آغاز ⁦۱–۱۹⁩، بہتری ⁦۲۰–۳۹⁩، روانی ⁦۴۰⁩ یا زیادہ الفاظ فی منٹ۔',
