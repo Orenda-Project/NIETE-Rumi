@@ -82,17 +82,17 @@ function SectorMove({ s, today }: { s: Circle["sector_interventions"][number]; t
             <label className="flex items-center gap-2 text-[13.5px] text-[#374151]">
               {rt("s10.sector_moves.date", lang)}
               <input type="date" dir="ltr" value={date} min={today} max={addDays(today, 28)} data-testid="sector-move-date"
-                onChange={(e) => { if (e.target.value) setDate(e.target.value); }} className="min-h-[40px] rounded-xl border border-[#d1d5db] px-2" />
+                onChange={(e) => { if (e.target.value) setDate(e.target.value); }} className="min-h-[44px] rounded-xl border border-[#d1d5db] px-2" />
             </label>
             <button type="button" data-testid="sector-move-save" onClick={save} disabled={state === "saving"}
-              className="min-h-[40px] rounded-full bg-[#333748] px-4 text-[14px] font-semibold text-white disabled:opacity-40">
+              className="min-h-[44px] rounded-full bg-[#333748] px-4 text-[14px] font-semibold text-white disabled:opacity-40">
               {state === "saving" ? rt("e.saving", lang) : rt("s10.sector_moves.set", lang)}
             </button>
             {state === "failed" && <span role="status" className="text-[13px] text-[#b91c1c]">{rt("picker.failed", lang)}</span>}
           </div>
         ) : (
           <button type="button" data-testid="sector-move-set" onClick={() => setState("picking")} disabled={!w}
-            className="min-h-[40px] self-start rounded-full border border-[#d1d5db] px-4 text-[14px] font-semibold text-[#1d2025]">
+            className="min-h-[44px] self-start rounded-full border border-[#d1d5db] px-4 text-[14px] font-semibold text-[#1d2025]">
             {rt("s10.sector_moves.set", lang)}
           </button>
         )}

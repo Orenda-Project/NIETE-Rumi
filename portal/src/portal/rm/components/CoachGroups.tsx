@@ -20,8 +20,9 @@ export function CoachRow({ coach, today, floorWeeks, onFollowUp }: { coach: Coac
   const lang = useLang();
   const a = coach.activity;
   return (
-    <li data-testid="coach-row" data-coach={coach.coach_user_id} className="flex items-start gap-3 py-2.5">
-      <Link to={rmPaths.coach(coach.coach_user_id)} className="flex min-w-0 flex-1 items-start gap-3 rounded-xl outline-none focus-visible:ring-[3px] focus-visible:ring-[#f59e0b]">
+    // fix-r5 s2 item 18 (design-qa §S8 d1, qa-rm R7): under 640 px the label, the lines and the button stack; from sm a row
+    <li data-testid="coach-row" data-coach={coach.coach_user_id} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-start sm:gap-3">
+      <Link to={rmPaths.coach(coach.coach_user_id)} className="flex min-w-0 flex-1 flex-col gap-1 rounded-xl sm:flex-row sm:items-start sm:gap-3 outline-none focus-visible:ring-[3px] focus-visible:ring-[#f59e0b]">
         <span data-testid="coach-label" data-code="" dir="auto" className="min-w-[56px] shrink-0 pt-0.5 text-[15px] font-bold text-[#1d2025]">{coach.coach_label}</span>
         <span className="flex min-w-0 flex-col text-[13.5px] leading-[1.45] text-[#374151]">
           <CountLine k="s8.activity.unvisited" count={a.schools_unvisited} vars={{ w: floorWeeks }} none="s8.activity.unvisited.none" />
@@ -35,7 +36,7 @@ export function CoachRow({ coach, today, floorWeeks, onFollowUp }: { coach: Coac
         </span>
       </Link>
       <button type="button" data-testid="follow-up" onClick={() => onFollowUp(coach)}
-        className="min-h-[44px] shrink-0 rounded-full border border-[#d1d5db] bg-white px-3.5 text-[13.5px] font-semibold text-[#1d2025] hover:bg-[#f9fafb]">
+        className="min-h-[44px] shrink-0 self-start rounded-full border border-[#d1d5db] bg-white px-3.5 text-[13.5px] font-semibold text-[#1d2025] hover:bg-[#f9fafb]">
         {rt("s8.follow_up", lang)}
       </button>
     </li>

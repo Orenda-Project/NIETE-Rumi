@@ -28,7 +28,8 @@ function Schools({ d }: { d: Detail }) {
   const allOld = d.schools.length > 0 && d.schools.every((s) => s.weeks_since_visit === null || s.weeks_since_visit >= 4);
   return (
     <RmCard testId="s9-schools" title={rt("s9.schools.title", lang)}>
-      {allOld && <RmNote testId="s9-no-visits">{rt("s9.schools.never", lang)}</RmNote>}
+      {/* fix-r5 s2 items 15 + 17 (design-qa 073628 §5, 073629): said once above the rows; its "4" is policy, not a count */}
+      {allOld && <RmNote testId="s9-no-visits"><span data-nonum="">{rt("s9.schools.never", lang)}</span></RmNote>}
       <ul className="flex flex-col divide-y divide-[#f3f4f6]">
         {d.schools.map((s) => {
           const school = <CodeText lang={lang}>{s.school.school_name}</CodeText>;
@@ -37,7 +38,7 @@ function Schools({ d }: { d: Detail }) {
             <li key={s.school.school_id} data-testid="s9-school" data-late={late ? "1" : undefined} className="flex flex-col gap-0.5 py-2 text-[14.5px]">
               <span data-nonum="" className={late ? "font-semibold text-[#92400e]" : "text-[#1d2025]"}>
                 {s.last_visit === null || s.weeks_since_visit === null
-                  ? <>{school}{lang === "ur" ? "، " : " · "}{rt("s9.schools.never", lang)}</>
+                  ? allOld ? school : <>{school}{lang === "ur" ? "، " : " · "}{rt("s9.schools.never", lang)}</>
                   : rtx(s.next_visit ? "s9.schools.row" : "s9.schools.row.no_next", lang, {
                     school,
                     date: <DateText iso={s.last_visit} lang={lang} />,

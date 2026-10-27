@@ -56,8 +56,19 @@ export function CircleRow({ m, open, onOpen }: { m: CircleMoment; open: boolean;
           className="flex min-h-[44px] min-w-0 flex-1 items-center gap-1 text-start text-[15px] text-[#1d2025]">
           <span data-testid="circle-line" className="truncate">
             {/* the C-NN label is an LTR atom: isolated in Urdu like the school name beside it (red-2 18:08Z, fix-r5 5f) */}
-            <span data-code="" dir={lang === "ur" ? "ltr" : undefined} className="font-semibold [unicode-bidi:isolate]">{isolate(m.coach_label, lang)}</span>{sep}
-            <CodeText lang={lang}>{m.school.school_name}</CodeText>{sep}
+            {lang === "ur" ? (
+              // fix-r5 s2 item 17 (design-qa 073629): two LTR atoms around an Urdu comma are ONE isolated LTR run, so the
+              // comma stays after the coach ("C-01، S-01"), not before the school
+              <span data-testid="circle-pair" dir="ltr" className="[unicode-bidi:isolate]">
+                {"\u2066"}<span data-code="" dir="ltr" className="font-semibold [unicode-bidi:isolate]">{isolate(m.coach_label, lang)}</span>{sep}
+                <CodeText lang={lang}>{m.school.school_name}</CodeText>{"\u2069"}
+              </span>
+            ) : (
+              <>
+                <span data-code="" className="font-semibold [unicode-bidi:isolate]">{isolate(m.coach_label, lang)}</span>{sep}
+                <CodeText lang={lang}>{m.school.school_name}</CodeText>
+              </>
+            )}{sep}
             <span>{pick(m.short_name, lang)}</span>
           </span>
         </button>
