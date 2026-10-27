@@ -886,5 +886,37 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
 
 
   # ── Round 7b · B · the coach's controls and the auto stop-checks ─────────────────────────────────────────
+  @e2e @wip @draft @config-gated @P1 @CT101
+  Scenario: The coach's End test is a tap and a question, and the ended child can be restarted
+    Given sa_end_test_restart is on and a child is taking the Learning assessment (RDF auto or RDF manual)
+    When the coach taps "End test (coach)" in the corner
+    Then a question asks to end the child's test, with "End test" and "Keep going"
+    When the coach taps "End test"
+    Then the coach is back on the list, the child reads "Stopped" with a "Restart test" button, and one end_test event is kept
+    When the coach taps "Restart test" and starts again
+    Then a new attempt opens for the same child with a new phone id, the ended attempt is set aside (never scored, never on Results), and one restart event is kept
+
+  @e2e @wip @draft @config-gated @P1 @CT102
+  Scenario: Coach-led End this section skips to the next section
+    Given sa_end_section is on and a child is taking RDF manual
+    When the coach taps "End this section" and confirms
+    Then the part on show ends as end_section, the rest of its section is skipped (skipped_end_section), and the test goes on at the next section (Urdu, then English, then maths)
+    And one end_section event is kept
+
+  @e2e @wip @draft @config-gated @P1 @CT103
+  Scenario: RDF auto, no voice heard on a read-aloud part: a reminder and one repeat
+    Given sa_silence_repeat is on and a child is taking RDF auto with a working microphone
+    When a read-aloud part ends with no voice heard
+    Then Jugnu says (and the screen shows) to say each answer out loud, with "Try again"
+    And the part runs once more from its start; the silent recording is never uploaded; one silence_repeat event is kept
+    And a second silent attempt ends as before
+
+  @e2e @wip @draft @config-gated @P1 @CT104
+  Scenario: RDF auto, under 20% on a part: move on to the next section
+    Given sa_under20_move_on is on and a child is taking RDF auto
+    When a tapped part ends with under 20% right, or a read-aloud part ends with under 20% of its items reached (Next presses, or the last-word tap)
+    Then the rest of that section is skipped (skipped_under20) and the child goes on to the next section; after maths the test ends
+    And one under20_move_on event is kept with the section, the reach and the basis
+    And a part whose reach the phone does not know (no last-word step, spoken answers) never moves the child on
 
 

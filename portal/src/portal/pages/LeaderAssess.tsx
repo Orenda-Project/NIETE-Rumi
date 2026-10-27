@@ -358,6 +358,22 @@ export default function LeaderAssess() {
     setStep({ kind: 'handover', school: step.school, child: c, sessionId: sess.id, block: sess.block });
   };
 
+  /** sa_end_test_restart: Restart test for a child the coach ended (wrong language, wrong child): a new attempt, a new phone id. */
+  const restart = (c: SaChild) => {
+    if (step.kind !== 'list' || !switches.endTestRestart) return;
+    const prev = sessionOf(c);
+    const block = prev?.block ?? (isBlock(c.sessionBlock) ? c.sessionBlock : pickBlock(usedBlocks(c.drawId)));
+    const sess = { id: mintId(), block, sent: false, restart: true };
+    remember((m) => {
+      const stopped = { ...(m.stopped ?? {}) };
+      delete stopped[c.drawId];
+      return { ...m, stopped, sessions: { ...m.sessions, [c.drawId]: sess } };
+    });
+    setStopped(null);
+    setMoved(null);
+    setStep({ kind: 'handover', school: step.school, child: c, sessionId: sess.id, block });
+  };
+
   /** The coach's choice on the hand-over card; null = back to the rotation's block. */
   const chooseBlock = (choice: Block | null) => {
     if (step.kind !== 'handover') return;
@@ -379,7 +395,9 @@ export default function LeaderAssess() {
     // sa_resume_repick: a resumed child's Present goes again, with the part the coach chose on the card
     const repick = switches.resumeRepick && Boolean(had?.sent);
     if (had?.sent && !repick) return { ok: true, serverId: had.serverId || child.sessionId || null, queued: false, block: had.block };
-    const args = { schoolId: school.schoolId, visitId: school.visitId, drawId: child.drawId, outcome: 'present' as const, clientSessionId: sessionId, block, ...(repick ? { repick: true } : {}), ...(school.grade ? { grade: school.grade } : {}) };
+    const args = { schoolId: school.schoolId, visitId: school.visitId, drawId: child.drawId, outcome: 'present' as const, clientSessionId: sessionId, block, ...(repick ? { repick: true } : {}), ...(school.grade ? { grade: school.grade } : {}),
+      // sa_end_test_restart: a new attempt for a child the coach ended (the server sets the ended one aside)
+      ...(had?.restart ? { restart: true } : {}) };
     let serverId: string | null = null;
     let queued = false;
     setBusy(true);
@@ -499,6 +517,8 @@ export default function LeaderAssess() {
     }
     if (reason === 'coach_end') {
       remember((m) => ({ ...m, stopped: { ...(m.stopped ?? {}), [child.drawId]: sessionId } }));
+      // sa_end_test_restart: say how to begin again (Restart test on the child's row)
+      if (switches.endTestRestart) setStopped(firstNameOf(child, lang));
       setStep({ kind: 'list', school: step.school });
       return;
     }
@@ -638,7 +658,7 @@ export default function LeaderAssess() {
           <div className="space-y-4">
             {bar}
             {stopped && (
-              <p data-testid="assess-stopped" role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{copy.stopped(stopped)}</p>
+              <p data-testid="assess-stopped" role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{switches.endTestRestart ? copy.stoppedRestart(stopped) : copy.stopped(stopped)}</p>
             )}
             {voiceNote && (
               <p data-testid="assess-voice-not-ready" role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{copy.voiceNotReady(voiceNote)}</p>
@@ -685,6 +705,10 @@ export default function LeaderAssess() {
                         )}
                       </span>
                     </div>
+                    {halted && switches.endTestRestart && (
+                      <button type="button" data-testid={`assess-restart-${c.drawId}`} disabled={busy} onClick={() => restart(c)}
+                        className="mt-3 w-full min-h-[48px] rounded-xl border border-slate-300 bg-white font-medium disabled:opacity-60">{copy.restartTest}</button>
+                    )}
                     {done && switches.resultsView && serverIdOf(c) && (
                       <Link to={resultsPath(serverIdOf(c) as string)} data-testid={`assess-results-${c.drawId}`}
                         className="mt-2 inline-flex min-h-[48px] items-center gap-1 px-1 text-sm font-medium text-sky-800 underline">
@@ -843,7 +867,8 @@ export default function LeaderAssess() {
   } else if (step.kind === 'engine') {
     content = (
       <AssessEngineSlot sessionId={step.sessionId} firstName={firstNameOf(step.child, lang)} lang={lang}
-        grade={step.child.grade || list?.grade || 3} block={step.block} onFinished={finished} handbackV2={switches.handbackV2} voiceGateV2={switches.voiceGateV2} />
+        grade={step.child.grade || list?.grade || 3} block={step.block} onFinished={finished} handbackV2={switches.handbackV2} voiceGateV2={switches.voiceGateV2}
+        endTestRestart={switches.endTestRestart === true} endSection={switches.endSection === true} />
     );
   } else {
     // this phone's outcomes, plus the server's for children this phone has no record of (a reload mid-visit)
