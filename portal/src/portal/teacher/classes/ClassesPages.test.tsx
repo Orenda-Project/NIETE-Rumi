@@ -6,6 +6,9 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
  * bd-fmf24g.8 — My Classes (Classes only; no timetable), Class detail and Add a class, on the existing
  * routes: GET/POST /classes, GET/POST /classes/:id/students, DELETE /classes/:id/students/:sid,
  * GET /me/grade-subjects?feature=lessons.
+ *
+ * bd-ql2j3p — Remove class: DELETE /classes/:id (the bot decides whether that retires the class or
+ * takes her off it).
  */
 
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
@@ -13,7 +16,7 @@ vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { chil
 vi.mock("../../lib/recordingSession", () => ({ useRecordingSession: () => null }));
 vi.mock("../../services/api", () => ({
   default: { get: vi.fn(() => new Promise(() => {})), post: vi.fn() },
-  classes: { list: vi.fn(), create: vi.fn(), students: vi.fn(), addStudents: vi.fn(), removeStudent: vi.fn() },
+  classes: { list: vi.fn(), create: vi.fn(), students: vi.fn(), addStudents: vi.fn(), removeStudent: vi.fn(), removeClass: vi.fn() },
 }));
 vi.mock("../../lib/gradeSubjects", () => ({ loadGradeSubjects: vi.fn() }));
 
@@ -29,7 +32,7 @@ import { CLASSES_ADD, CLASSES_HOME, CLASS_DETAIL, classPath } from "./paths";
 import { CLASSES_V2_COPY as C } from "./copy";
 import { LESSONS_HOME } from "../lessons/paths";
 
-const api = classesApi as unknown as Record<"list" | "create" | "students" | "addStudents" | "removeStudent", ReturnType<typeof vi.fn>>;
+const api = classesApi as unknown as Record<"list" | "create" | "students" | "addStudents" | "removeStudent" | "removeClass", ReturnType<typeof vi.fn>>;
 const combos = loadGradeSubjects as unknown as ReturnType<typeof vi.fn>;
 
 const LIST = {
@@ -157,6 +160,36 @@ describe("Class detail", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: C.remove }));
     await waitFor(() => expect(api.removeStudent).toHaveBeenCalledWith("c1", "s2"));
     await waitFor(() => expect(api.students).toHaveBeenCalledTimes(2));
+  });
+
+  it("Remove class asks first; Keep leaves it, Remove deletes through the route and returns to My Classes", async () => {
+    api.removeClass.mockResolvedValue({ success: true, removed: true, how: "left" });
+    at(classPath("c1"));
+    await screen.findByRole("list", { name: C.students });
+    fireEvent.click(screen.getByRole("button", { name: C.removeClass }));
+    let dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Grade 4-A")).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: C.keep }));
+    expect(api.removeClass).not.toHaveBeenCalled();
+
+    api.list.mockResolvedValue({ ...LIST, classes: LIST.classes.filter((c) => c.classId !== "c1") });
+    fireEvent.click(screen.getByRole("button", { name: C.removeClass }));
+    dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: C.remove }));
+    await waitFor(() => expect(api.removeClass).toHaveBeenCalledWith("c1"));
+    await waitFor(() => expect(screen.getByTestId("classes-count").textContent).toBe("1"));
+    expect(screen.queryByText("Grade 4-A · General Science")).toBeNull();
+  });
+
+  it("a refused Remove class says so and stays on the class", async () => {
+    api.removeClass.mockRejectedValue(new Error("502"));
+    at(classPath("c1"));
+    await screen.findByRole("list", { name: C.students });
+    fireEvent.click(screen.getByRole("button", { name: C.removeClass }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: C.remove }));
+    expect(await within(dialog).findByText(C.saveFailed)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Grade 4-A" })).toBeTruthy();
   });
 
   it("a class that is not hers → back to My Classes", async () => {
