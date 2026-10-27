@@ -1,4 +1,4 @@
-import os, sys, unittest
+import importlib.util, os, sys, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 import mark_test_users as m  # noqa: E402
 
@@ -32,8 +32,6 @@ class Allowlist(unittest.TestCase):
         self.assertEqual(m.parse_allowlist(text), ["a", "b"])
 
 
-if __name__ == "__main__":
-    unittest.main()
 
 
 class SignedOffList(unittest.TestCase):
@@ -55,3 +53,36 @@ class SignedOffList(unittest.TestCase):
     def test_an_empty_signed_list_refuses(self):
         with self.assertRaises(ValueError):
             m.check_signed_off(predicate_ids=["a"], signed_ids=[])
+
+
+class Drift(unittest.TestCase):
+    """drift_lines names the ids that moved since sign-off (ids only, never names), a bounded number of each."""
+
+    def test_both_directions_are_named_and_bounded(self):
+        lines = m.drift_lines(["a", "b", "c"], ["x"], limit=2)
+        self.assertEqual(lines, ["signed but no longer selected (3): a, b, and 1 more",
+                                 "selected but never signed (1): x"])
+
+    def test_no_drift_no_lines(self):
+        self.assertEqual(m.drift_lines([], []), [])
+
+
+class ProdGate(unittest.TestCase):
+    """A prod commit runs only from a signed-off list. The gate fires before any connection: the env file below does
+    not exist, so even a broken gate could not reach a database."""
+
+    @unittest.skipUnless(importlib.util.find_spec("psycopg2"), "psycopg2 not installed")
+    def test_prod_commit_without_ids_file_is_refused(self):
+        import subprocess, tempfile
+        script = os.path.join(os.path.dirname(__file__), "..", "mark-test-users.py")
+        with tempfile.TemporaryDirectory() as d:
+            r = subprocess.run([sys.executable, script, "--target", "prod", "--commit",
+                                "--confirm-ref", "ihzciabopbttygxxgrkm", "--env-file", os.path.join(d, "missing.env"),
+                                "--out", d], capture_output=True, text=True,
+                               env={**os.environ, "MARK_PROD_GO": "yes"})
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("--ids-file", r.stdout + r.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()

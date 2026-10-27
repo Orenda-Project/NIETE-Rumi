@@ -38,3 +38,13 @@ def check_signed_off(predicate_ids, signed_ids):
     missing = sorted(signed - live)
     extra = sorted(live - signed)
     return (not missing and not extra, missing, extra)
+
+
+def drift_lines(missing, extra, limit=10, labels=("signed but no longer selected", "selected but never signed")):
+    """Readable lines naming the ids that moved since sign-off (ids only, never names), at most `limit` of each."""
+    out = []
+    for label, ids in zip(labels, (missing, extra)):
+        if ids:
+            more = f", and {len(ids) - limit} more" if len(ids) > limit else ""
+            out.append(f"{label} ({len(ids)}): {', '.join(ids[:limit])}{more}")
+    return out

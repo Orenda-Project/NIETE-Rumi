@@ -28,3 +28,21 @@ class TestUsersPredicate(unittest.TestCase):
         self.assertIn("role IS DISTINCT FROM 'coach'", r)
         self.assertNotIn("role <> 'coach'", r)
         self.assertRegex(r, r"niete1\?")
+
+    def test_rules_1_and_3_skip_deleted_rows(self):
+        for name in ("probable_test_school", "niete_h9_hq"):
+            self.assertIn("deleted_at IS NULL", self.rule(name), name)
+
+    def test_rule_3_matches_the_h9_spellings_and_nothing_else(self):
+        pats = re.findall(r"~\* '([^']+)'", self.rule("niete_h9_hq"))
+        self.assertEqual(len(pats), 2)
+        self.assertEqual(pats[0], pats[1])      # the school row and the typed name use one pattern
+        rx = re.compile(pats[0], re.I)          # ~* is a case-insensitive match
+        for name in ("NIETE, H-9", "NIETE1, H-9", "niete,h9", " Niete , H 9 "):
+            self.assertTrue(rx.search(name), name)
+        for name in ("NIETE Support", "NIETE, H-9 Islamabad", "IMS (I-V) H-9/4", "NIETE, H-8"):
+            self.assertFalse(rx.search(name), name)
+
+
+if __name__ == "__main__":
+    unittest.main()

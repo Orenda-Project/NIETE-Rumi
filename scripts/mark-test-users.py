@@ -11,7 +11,7 @@ in the migration; this rebuilds them from an explicit, reviewable predicate.
   WITH a private allowlist of staff/tester phones (one E.164 per line):
     python3 scripts/mark-test-users.py --target staging --env-file .env.staging --out ... \
         --allowlist-phones-file /path/private/tester-phones.txt
-  WRITE (after review; prod additionally needs MARK_PROD_GO=yes and --confirm-ref), FROM THE SIGNED-OFF LIST:
+  WRITE (after review; prod additionally needs MARK_PROD_GO=yes, --confirm-ref and the signed-off --ids-file):
     ... --ids-file /path/private/signed-ids.txt --commit
 
 One transaction: UPDATE ... WHERE id = ANY(ids) AND is_test_user = false, rowcount must equal
@@ -102,9 +102,10 @@ def main():
     a = ap.parse_args()
 
     if a.commit and a.target == "prod" and (a.confirm_ref != TARGETS["prod"]["ref"]
-                                            or os.environ.get("MARK_PROD_GO") != "yes"):
-        raise SystemExit("ABORT: a prod write needs --confirm-ref <prod ref> AND MARK_PROD_GO=yes, "
-                         "after the reviewed CSV is signed off.")
+                                            or os.environ.get("MARK_PROD_GO") != "yes"
+                                            or not a.ids_file):
+        raise SystemExit("ABORT: a prod write needs --confirm-ref <prod ref>, MARK_PROD_GO=yes AND --ids-file "
+                         "<the signed-off list>, after the reviewed CSV is signed off.")
 
     conn = connect(read_env(a.env_file), a.target, writable=a.commit)
     run_id = f"mark-test-users-{a.target}-{uuid.uuid4().hex[:8]}"
@@ -119,6 +120,8 @@ def main():
         signed = logic.parse_allowlist(Path(a.ids_file).read_text())
         ok, missing, extra = logic.check_signed_off(list(sel), signed)
         if not ok:
+            for line in logic.drift_lines(missing, extra):
+                print("  " + line)
             raise SystemExit(f"ABORT: the live selection differs from the signed-off list: "
                              f"{len(missing)} signed but no longer selected, {len(extra)} selected but never signed. "
                              f"Review, re-sign, retry.")
