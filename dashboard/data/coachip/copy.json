@@ -1,0 +1,321 @@
+{
+ "_source": "contracts/COPY.md v1 (lead), sections W and RM-T and the grader_label line; generated, do not hand-edit: regenerate from COPY.md",
+ "w": {
+  "W-IP": {
+   "short_name": {
+    "en": "No independent practice",
+    "ur": "خود مشق نہیں ہوئی"
+   },
+   "sentence": {
+    "en": "lessons whose plan asked for independent practice had none.",
+    "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں خود مشق نہیں ہوئی۔"
+   }
+  },
+  "W-IP-TIME": {
+   "short_name": {
+    "en": "Ran out of time",
+    "ur": "وقت ختم ہو گیا"
+   },
+   "sentence": {
+    "en": "lessons whose plan asked for independent practice ran out of time before the practice.",
+    "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں مشق سے پہلے ہی وقت ختم ہو گیا۔"
+   }
+  },
+  "W-IP-NOPLAN": {
+   "short_name": {
+    "en": "Practice never set",
+    "ur": "مشق دی ہی نہیں گئی"
+   },
+   "sentence": {
+    "en": "lessons whose plan asked for independent practice had time left but never set the practice.",
+    "ur": "جن اسباق کے منصوبے میں خود مشق شامل تھی، ان میں وقت تھا مگر مشق دی ہی نہیں گئی۔"
+   }
+  },
+  "W-IP-HOME": {
+   "short_name": {
+    "en": "Sent home as homework",
+    "ur": "گھر کا کام بنا دی گئی"
+   },
+   "sentence": {
+    "en": "lessons whose plan asked for practice sent it home untried.",
+    "ur": "جن اسباق کے منصوبے میں مشق شامل تھی، ان میں وہ بغیر آزمائے گھر بھیج دی گئی۔"
+   }
+  },
+  "W-GP": {
+   "short_name": {
+    "en": "'We do' skipped",
+    "ur": "مل کر مشق نہیں ہوئی"
+   },
+   "sentence": {
+    "en": "lessons whose plan asked for guided practice went straight past it.",
+    "ur": "جن اسباق کے منصوبے میں مل کر مشق شامل تھی، ان میں وہ چھوڑ دی گئی۔"
+   }
+  },
+  "W-GP-TIME": {
+   "short_name": {
+    "en": "Ran out of time before 'we do'",
+    "ur": "مل کر مشق سے پہلے وقت ختم"
+   },
+   "sentence": {
+    "en": "lessons whose plan asked for guided practice ran out of time before it.",
+    "ur": "جن اسباق کے منصوبے میں مل کر مشق شامل تھی، ان میں اس سے پہلے ہی وقت ختم ہو گیا۔"
+   }
+  },
+  "W-GP-NOPLAN": {
+   "short_name": {
+    "en": "Straight to solo work",
+    "ur": "سیدھا خود مشق"
+   },
+   "sentence": {
+    "en": "lessons whose plan asked for guided practice went straight to solo work.",
+    "ur": "جن اسباق کے منصوبے میں مل کر مشق شامل تھی، ان میں سیدھا خود مشق کرائی گئی۔"
+   }
+  },
+  "W-EXIT": {
+   "short_name": {
+    "en": "No closing check",
+    "ur": "اختتامی جانچ نہیں ہوئی"
+   },
+   "sentence": {
+    "en": "lessons whose plan asked for an exit check ended without one.",
+    "ur": "جن اسباق کے منصوبے میں اختتامی جانچ شامل تھی، وہ بغیر جانچ کے ختم ہوئے۔"
+   }
+  },
+  "W-EXIT-NOPLAN": {
+   "short_name": {
+    "en": "Time left, no closing check",
+    "ur": "وقت تھا، آخر میں جانچ نہیں"
+   },
+   "sentence": {
+    "en": "lessons whose plan asked for an exit check had time left and ended without one.",
+    "ur": "جن اسباق کے منصوبے میں اختتامی جانچ شامل تھی، ان میں وقت تھا مگر جانچ نہیں ہوئی۔"
+   }
+  },
+  "W-WARM": {
+   "short_name": {
+    "en": "Warm-up skipped",
+    "ur": "ابتدائی سرگرمی نہیں ہوئی"
+   },
+   "sentence": {
+    "en": "lessons whose plan asked for a warm-up or recall started without one.",
+    "ur": "جن اسباق کے منصوبے میں ابتدائی سرگرمی یا دہرائی شامل تھی، وہ اس کے بغیر شروع ہوئے۔"
+   }
+  },
+  "W-PEER": {
+   "short_name": {
+    "en": "Peer check skipped",
+    "ur": "ساتھیوں کی جانچ نہیں ہوئی"
+   },
+   "sentence": {
+    "en": "lessons whose plan asked for a peer check ended without one.",
+    "ur": "جن اسباق کے منصوبے میں ساتھیوں کی جانچ شامل تھی، وہ اس کے بغیر ختم ہوئے۔"
+   }
+  },
+  "W-Q": {
+   "short_name": {
+    "en": "Closed or chorus questions",
+    "ur": "بند یا کورس والے سوال"
+   },
+   "sentence": {
+    "en": "recordings scored on the AI coach's framework had questions answered in chorus or in one word.",
+    "ur": "اے آئی کوچ کے پیمانے پر جانچی گئی ریکارڈنگز میں سوالوں کے جواب کورس میں یا ایک لفظ میں آئے۔"
+   }
+  },
+  "W-FB": {
+   "short_name": {
+    "en": "Feedback is bare praise",
+    "ur": "رائے صرف شاباش"
+   },
+   "sentence": {
+    "en": "recordings scored on the AI coach's framework had feedback that went no further than 'shabash' or 'galat'.",
+    "ur": "اے آئی کوچ کے پیمانے پر جانچی گئی ریکارڈنگز میں رائے «شاباش» یا «غلط» سے آگے نہیں بڑھی۔"
+   }
+  },
+  "W-PHON": {
+   "short_name": {
+    "en": "Letter sounds not taught",
+    "ur": "حروف کی آوازیں نہیں سکھائی گئیں"
+   },
+   "sentence": {
+    "en": "reading-hour recordings the check read had no letter sounds, blending or segmenting.",
+    "ur": "پڑھائی کے گھنٹے کی جن ریکارڈنگز کو جانچ نے سنا، ان میں حروف کی آوازیں، جوڑ یا توڑ نہیں ہوئے۔"
+   }
+  },
+  "W-PHON-NAMES": {
+   "short_name": {
+    "en": "Letter names only",
+    "ur": "صرف حروف کے نام"
+   },
+   "sentence": {
+    "en": "reading-hour recordings built words from letter names and no child was heard giving a sound.",
+    "ur": "پڑھائی کے گھنٹے کی ریکارڈنگز میں الفاظ حروف کے ناموں سے بنے اور کسی بچے سے آواز نہیں سنی گئی۔"
+   }
+  },
+  "W-LS": {
+   "short_name": {
+    "en": "Letter sounds low",
+    "ur": "حروف کی آوازیں کم"
+   },
+   "sentence": {
+    "en": "children tested could not give the sound of most letters.",
+    "ur": "جانچے گئے بچے زیادہ تر حروف کی آواز نہ بتا سکے۔"
+   }
+  },
+  "W-LN": {
+   "short_name": {
+    "en": "Letter names low",
+    "ur": "حروف کے نام کم"
+   },
+   "sentence": {
+    "en": "children tested could not give the name of most letters.",
+    "ur": "جانچے گئے بچے زیادہ تر حروف کا نام نہ بتا سکے۔"
+   }
+  },
+  "W-FW": {
+   "short_name": {
+    "en": "Familiar words low",
+    "ur": "عام الفاظ کم"
+   },
+   "sentence": {
+    "en": "children tested could not read most familiar words.",
+    "ur": "جانچے گئے بچے زیادہ تر عام الفاظ نہ پڑھ سکے۔"
+   }
+  },
+  "W-DEC": {
+   "short_name": {
+    "en": "Decoding low",
+    "ur": "نئے الفاظ پڑھنا کم"
+   },
+   "sentence": {
+    "en": "children tested could not read most made-up words.",
+    "ur": "جانچے گئے بچے زیادہ تر بنائے گئے الفاظ نہ پڑھ سکے۔"
+   }
+  },
+  "W-ORF": {
+   "short_name": {
+    "en": "Fluency low",
+    "ur": "روانی کم"
+   },
+   "sentence": {
+    "en": "children tested read the passage below the grade's bar.",
+    "ur": "جانچے گئے بچوں نے عبارت جماعت کی مقررہ حد سے نیچے پڑھی۔"
+   }
+  },
+  "W-RC": {
+   "short_name": {
+    "en": "Comprehension low",
+    "ur": "سمجھ کم"
+   },
+   "sentence": {
+    "en": "children tested read the passage but could not answer most questions.",
+    "ur": "جانچے گئے بچوں نے عبارت پڑھی مگر زیادہ تر سوالوں کا جواب نہ دے سکے۔"
+   }
+  },
+  "W-SPELL": {
+   "short_name": {
+    "en": "Spelling low",
+    "ur": "املا کمزور"
+   },
+   "sentence": {
+    "en": "children tested could not write most dictated words.",
+    "ur": "جانچے گئے بچے زیادہ تر لکھوائے گئے الفاظ نہ لکھ سکے۔"
+   }
+  },
+  "W-NUM": {
+   "short_name": {
+    "en": "Maths below the bar",
+    "ur": "حساب مقررہ حد سے نیچے"
+   },
+   "sentence": {
+    "en": "children tested were below the grade's bar in maths.",
+    "ur": "جانچے گئے بچے حساب میں جماعت کی مقررہ حد سے نیچے رہے۔"
+   }
+  }
+ },
+ "w_ip_time_cause": {
+  "en": "In the lessons that ran out of time, the explanation ran a median of about {stat} minutes over the plan.",
+  "ur": "وقت ختم ہونے والے اسباق میں، وسط کے حساب سے، وضاحت منصوبے سے کوئی {stat} منٹ زیادہ چلی۔"
+ },
+ "w_exit_time_cause": {
+  "short_name": {
+   "en": "Also ran out of time before the closing check",
+   "ur": "اختتامی جانچ سے پہلے بھی وقت ختم"
+  },
+  "sentence": {
+   "en": "{n} of these also ended before the closing check.",
+   "ur": "ان میں سے {n} اختتامی جانچ سے پہلے ہی ختم ہوئے۔"
+  }
+ },
+ "rm_templates": {
+  "RM-T1": {
+   "title": "the move at a school",
+   "en": [
+    "This month \"{w_short}\" shows most at {schools}.",
+    "Please run \"{i_title}\" there before {date}.",
+    "Bring the moment to the Friday circle."
+   ],
+   "ur": [
+    "اس مہینے «{w_short}» سب سے زیادہ {schools} میں نظر آیا۔",
+    "براہِ کرم {date} سے پہلے وہاں «{i_title}» چلائیں۔",
+    "لمحہ جمعے کے حلقے میں لائیں۔"
+   ]
+  },
+  "RM-T2": {
+   "title": "a visit is due",
+   "en": [
+    "{schools} have had no visit for 4 weeks or more.",
+    "Please visit before {date} and set one step from \"{w_short}\".",
+    "Bring the moment to the Friday circle."
+   ],
+   "ur": [
+    "{schools} میں ۴ ہفتوں یا زیادہ سے کوئی دورہ نہیں ہوا۔",
+    "براہِ کرم {date} سے پہلے دورہ کریں اور «{w_short}» سے ایک قدم طے کریں۔",
+    "لمحہ جمعے کے حلقے میں لائیں۔"
+   ]
+  },
+  "RM-T3": {
+   "title": "checks are due",
+   "en": [
+    "Checks set at {schools} are due.",
+    "Please tick them on your next visit before {date}.",
+    "Bring the moment to the Friday circle."
+   ],
+   "ur": [
+    "{schools} میں طے شدہ جانچیں باقی ہیں۔",
+    "براہِ کرم {date} سے پہلے اگلے دورے پر ان پر نشان لگائیں۔",
+    "لمحہ جمعے کے حلقے میں لائیں۔"
+   ]
+  },
+  "RM-T4": {
+   "title": "it worked",
+   "en": [
+    "\"{w_short}\" moved at {schools} this month.",
+    "Please bring that lesson's moment as the good example on {date}.",
+    "Bring the moment to the Friday circle."
+   ],
+   "ur": [
+    "اس مہینے {schools} میں «{w_short}» میں بہتری آئی۔",
+    "براہِ کرم {date} کو اس سبق کا لمحہ اچھی مثال کے طور پر لائیں۔",
+    "لمحہ جمعے کے حلقے میں لائیں۔"
+   ]
+  }
+ },
+ "grader_label": {
+  "lp_fidelity": {
+   "en": "lesson-plan fidelity",
+   "ur": "سبق کے منصوبے پر عمل"
+  },
+  "fico": {
+   "en": "AI coach report",
+   "ur": "اے آئی کوچ کی رپورٹ"
+  },
+  "coachip_detector": {
+   "en": "phonics check",
+   "ur": "حروف کی آوازوں کی جانچ"
+  },
+  "egra": {
+   "en": "reading check",
+   "ur": "پڑھائی کی جانچ"
+  }
+ }
+}

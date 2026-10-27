@@ -63,18 +63,43 @@ const contentWord = (n, w) => (IS_DEV.test(w) ? DEV_COMMON.has(n)
   : IS_UR.test(w) && [...n].length >= 3 && !LOAN_NAMES.has(n) && LOAN_END.test(n));
 const nameTokens = (s) => (String(s || '').match(WORD) || []).map(norm).filter((t) => t.length >= 3 && !ROLE_STOP.has(t));
 
+// bd-8hhqhf R7v (COS 20261027T050735, eng-fix r7v/MEASURE.md): maskedKeys calls redactNames once per transcript line with
+// the same vocab lists and roster, and rebuilt both every time (~75% of the redactor's CPU in the card-mode pick). Both are
+// read-only here, so they are built once per list object and reused; the answer is the same.
+const LEX_SETS = new WeakMap();
+const lexSetOf = (list) => new Set([].concat(list || []).map((v) => norm(String(v))).filter((v) => !LEXICON_NAME(v))); // never a lexicon name
+function lexSet(list) {
+  if (!list || typeof list !== 'object') return lexSetOf(list);
+  let set = LEX_SETS.get(list);
+  if (!set) { set = lexSetOf(list); LEX_SETS.set(list, set); }
+  return set;
+}
+const ROLE_MAPS = new WeakMap();
+function rolesOf(ctx, ph) {
+  const build = () => {
+    const roles = new Map();
+    [].concat(ctx.roster || []).forEach((n) => nameTokens(n).forEach((t) => roles.set(t, ph.child)));
+    ['school', 'coach', 'teacher'].forEach((r) => nameTokens(ctx[r]).forEach((t) => roles.set(t, ph[r])));
+    return roles;
+  };
+  if (!ctx.roster || typeof ctx.roster !== 'object') return build();
+  const key = JSON.stringify([ctx.school, ctx.coach, ctx.teacher, ph.child, ph.school, ph.coach, ph.teacher].map((v) => (v === undefined ? null : String(v))));
+  let byKey = ROLE_MAPS.get(ctx.roster);
+  if (!byKey) { byKey = new Map(); ROLE_MAPS.set(ctx.roster, byKey); }
+  let roles = byKey.get(key);
+  if (!roles) { roles = build(); byKey.set(key, roles); }
+  return roles;
+}
+
 function redactNames(text, ctx = {}) {
   if (typeof text !== 'string' || !text) return text;
   const ph = { ...DEFAULT_PH, ...(ctx.placeholders || {}) };
   const strict = ctx.strict !== false;
-  const lexSet = (list) => new Set([].concat(list || []).map((v) => norm(String(v))).filter((v) => !LEXICON_NAME(v))); // never a lexicon name
   const vocab = lexSet(ctx.vocab);
   const oovVocab = lexSet(ctx.oovVocab); // the lesson's topic words: the vocabulary rule only, never an address slot (red7 070505)
   const trace = Array.isArray(ctx.trace) ? ctx.trace : null;
   const carry = ctx.carry instanceof Set && ctx.carry.size ? ctx.carry : null;
-  const roles = new Map();
-  [].concat(ctx.roster || []).forEach((n) => nameTokens(n).forEach((t) => roles.set(t, ph.child)));
-  ['school', 'coach', 'teacher'].forEach((r) => nameTokens(ctx[r]).forEach((t) => roles.set(t, ph[r])));
+  const roles = rolesOf(ctx, ph);
   const s = text.replace(/https?:\/\/\S+/g, '[URL]').replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[EMAIL]').replace(/\+?\d[\d\s-]{8,}\d/g, '[NUMBER]');
   const words = [...s.matchAll(WORD)];
   let out = '';

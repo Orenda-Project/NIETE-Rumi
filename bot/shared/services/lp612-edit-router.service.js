@@ -90,7 +90,10 @@ async function maybeHandleLp612Reply({ from, messageBody, user, language, correl
   // NOT OURS. A question about the lesson belongs to the conversation path, which is grounded now
   // that the delivery is on the shelf — answering it here with a form letter would be a
   // regression dressed as a feature. "Thanks" likewise deserves no reply from this code.
-  if (kind === 'question' || kind === 'gratitude') return false;
+  // A NEW lesson request is the lesson-plan feature's to answer (the menu, or the app redirect when
+  // Lesson Plans live in the app): answering it here with the out-of-scope sentence swallowed every
+  // "make me a lesson plan on …" sent while a 6-12 lesson sat on the shelf (mock run 20261026-2335-par, L11).
+  if (kind === 'question' || kind === 'gratitude' || kind === 'new_request') return false;
 
   if (kind === 'out_of_scope') {
     logToFile('LP 6-12 edit: out-of-scope request answered honestly', {

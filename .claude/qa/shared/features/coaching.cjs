@@ -78,6 +78,19 @@ const PIPELINE_BUDGET_MS = 20 * 60 * 1000;
 
 const V = (c, ev) => [c ? 'PASS' : 'FAIL', ev];
 
+/** The delivered report: an image or PDF row once any pipeline step has been seen — even when its caption
+ *  carries the Step 5/5 line, which it has since the Meta bill cut (NC2, 2026-10-01): the report image and the
+ *  step-5 announcement are ONE message now. The pipeline-noise filter applies to text rows only; applied to the
+ *  image it rejected every report, obs.report never set, the commit card was ignored and every run "went
+ *  silent" into the stall budget — COA04/05/07/15 BLOCKED on every run since (bd-05v2sn). */
+const isReportRow = (r, steps) => {
+  if (!steps || !steps.length) return false;
+  const x = r.txt || '';
+  if (r.img || r.pdf) return true;
+  return /کوچنگ رپورٹ|coaching report/i.test(x) && !EXPECT.pipelineNoise.test(x);
+};
+exports.isReportRow = isReportRow;
+
 exports.run = async ({ api, rec, sleep, want = () => true }) => {
   const t = () => Date.now();
   let s;
@@ -301,6 +314,9 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   const seenTexts = [];
   let deferralTried = false;
   const t0 = Date.now();
+  // COA09: how long after the first step the second recording goes in. 45 s was tuned for live vendors; with cassette
+  // replay the pipeline is complete by then and the "deferral" is a fresh session (bd-1r3k2h). 0 on the mock lane.
+  const DEFER_AFTER_MS = Number(process.env.E2E_COACHING_DEFER_AFTER_MS ?? 45000);
   const budget = DEEP ? PIPELINE_BUDGET_MS : 4 * 60 * 1000;
   // Early-bail plumbing: the deep pipeline stalls forever when the vendor answer it waits on (Soniox
   // transcription, then the LLM analysis) is not in the cassette. Waiting the whole 20-min budget for a
@@ -352,6 +368,36 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
 
   let carry = [];   // rows read by a lever mid-loop (the COA09 upload) are processed, never dropped
   while (confirmed && Date.now() - t0 < budget) {
+    // The deferral goes FIRST in each turn, before the reads and their settles: on the lane the first iteration is
+    // seconds after the confirm tap, and the previous position (after the reads) was 73 s in, past the whole
+    // replayed pipeline (run 20261027-0949-coaching-s5).
+    // COA09 — a SECOND recording once the analysis is genuinely under way
+    // Only while the session is genuinely mid-flight for the guard. Before a step it sits in a waiting-for-the-
+    // teacher state (the photo gate, then the lesson-plan gate) and during step 3 in conducting_conversation —
+    // both let a new recording through by design (bd-o29gk). Under cassette replay the worker logged
+    // transcribing 0.2 s, analyzing 1 s, then the reflective step (run 20261027-1001-coaching-s5), so on the lane
+    // (DEFER 0) the upload goes in after Step 4/5 — generating_report, which lasts the report render.
+    const deferWindow = DEFER_AFTER_MS === 0
+      ? (obs.steps.includes('4') && !obs.steps.includes('5'))
+      : (obs.steps.length && !obs.steps.includes('5'));
+    if (DEEP && !deferralTried && deferWindow && Date.now() - t0 >= DEFER_AFTER_MS) {
+      deferralTried = true;
+      const second = await api.upload(FIXTURE.classroom, 'Document', 180000);
+      const txt2 = second.txt || '';
+      // whatever landed while the upload settled (the voice question after Step 3/5 — run 20260930-0621
+      // lost it here and stalled) is carried into the next iteration, and the card is judged from ALL of it
+      // the bot's answer to a second recording (a deferral ack, or a fresh detection card) can land several
+      // seconds after the upload settles — keep reading for up to 15 s before judging (run 20260930-0832)
+      let extra = await fresh(); const tCard = Date.now();
+      while (Date.now() - tCard < 15000 && !extra.some(r => EXPECT.detected.test(r.txt || '') || /still analys|already analys|in progress|ابھی تجزیہ/i.test(r.txt || ''))) { await sleep(2000); extra = extra.concat(await fresh()); }
+      const cardRows = [second].concat(extra);
+      obs.deferral = { replied: !!second.ok, reply: txt2.slice(0, 220),
+        startedNewSession: cardRows.some(r => EXPECT.detected.test(r.txt || '') || (r.btns || []).some(b => EXPECT.yesAnalyze.test(b))) };
+      carry = carry.concat(extra.filter(r => !(EXPECT.detected.test(r.txt || '') && (r.btns || []).some(b => EXPECT.yesAnalyze.test(b)))));
+      // a second session the bot DID open must not stay in flight and swallow the rest of the run
+      if (obs.deferral.startedNewSession) { const c = cardRows.find(r => (r.btns || []).some(b => EXPECT.yesAnalyze.test(b))); if (c) { try { await api.tapAndWait('No', 60000); } catch (_) {} } }
+    }
+
     const batch = carry.concat(await fresh()); carry = [];
     if (batch.length) lastMsgAt = Date.now();
     for (const r of batch) {
@@ -370,7 +416,9 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
         if (!DEEP) continue;                                   // shallow run declines by ignoring
         const yes = r.btns.find(b => EXPECT.affirmative.test(b));
         if (yes) {
-          await api.tapAndWait(yes, 60000);
+          // "Yes" is answered with a reaction, not a message, since the bill cut — a 60 s wait here ran out in full
+          // on every run (run 20261027-1022-par: bot.reply.timeout 60 s). A few seconds catch a text if one comes.
+          await api.tapAndWait(yes, 4000);
           const ph = await api.upload(FIXTURE.photo, 'Photos & videos', 120000);
           // The bot answers "تصویر 1 موصول۔ کیا ایک اور تصویر شامل کرنی ہے؟" with "مزید تصویر" / "مکمل".
           // Until "مکمل" (Done) is tapped the session sits in awaiting_classroom_photo and the
@@ -413,7 +461,7 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
       }
 
       // COA07 / COA05 — the delivered report
-      if (!obs.report && (r.img || r.pdf || /کوچنگ رپورٹ|coaching report/i.test(x)) && !EXPECT.pipelineNoise.test(x) && obs.steps.length) {
+      if (!obs.report && isReportRow(r, obs.steps)) {
         obs.report = { kind: r.img ? 'image' : 'document', caption: x.slice(0, 260), btns: r.btns };
         continue;
       }
@@ -428,25 +476,6 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
         } else obs.commitment = { tapped: null, acknowledged: false, btns: r.btns };
         continue;
       }
-    }
-
-    // COA09 — a SECOND recording once the analysis is genuinely under way
-    if (DEEP && !deferralTried && obs.steps.length && Date.now() - t0 > 45000) {
-      deferralTried = true;
-      const second = await api.upload(FIXTURE.classroom, 'Document', 180000);
-      const txt2 = second.txt || '';
-      // whatever landed while the upload settled (the voice question after Step 3/5 — run 20260930-0621
-      // lost it here and stalled) is carried into the next iteration, and the card is judged from ALL of it
-      // the bot's answer to a second recording (a deferral ack, or a fresh detection card) can land several
-      // seconds after the upload settles — keep reading for up to 15 s before judging (run 20260930-0832)
-      let extra = await fresh(); const tCard = Date.now();
-      while (Date.now() - tCard < 15000 && !extra.some(r => EXPECT.detected.test(r.txt || '') || /still analys|already analys|in progress|ابھی تجزیہ/i.test(r.txt || ''))) { await sleep(2000); extra = extra.concat(await fresh()); }
-      const cardRows = [second].concat(extra);
-      obs.deferral = { replied: !!second.ok, reply: txt2.slice(0, 220),
-        startedNewSession: cardRows.some(r => EXPECT.detected.test(r.txt || '') || (r.btns || []).some(b => EXPECT.yesAnalyze.test(b))) };
-      carry = carry.concat(extra.filter(r => !(EXPECT.detected.test(r.txt || '') && (r.btns || []).some(b => EXPECT.yesAnalyze.test(b)))));
-      // a second session the bot DID open must not stay in flight and swallow the rest of the run
-      if (obs.deferral.startedNewSession) { const c = cardRows.find(r => (r.btns || []).some(b => EXPECT.yesAnalyze.test(b))); if (c) { try { await api.tapAndWait('No', 60000); } catch (_) {} } }
     }
 
     if (!DEEP && obs.photoPrompt) break;   // COA04 is decided (Step 1/5 is a reaction since the Meta bill cut)
@@ -469,11 +498,16 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
 
   // COA57 needs the report's own voice note, which lands ~40 s after the report (median; p95 55 s) and can
   // arrive after the loop has already stopped on the commitment card.
-  if (DEEP && obs.report && !obs.voiceNotes.some((n) => n.afterReport)) {
-    const until = Date.now() + 180000;
-    while (Date.now() < until && !obs.voiceNotes.some((n) => n.afterReport)) {
+  // …and stops the moment the bot says the voice summary could not be generated (the debrief answer is a
+  // per-run cassette miss on the sealed lane): waiting the whole budget after that note cost 180 s of every
+  // coaching run (run 20261027-1022-par). E2E_COACHING_VOICE_NOTE_MS caps the wait on the lane.
+  const VOICE_NOTE_MS = Number(process.env.E2E_COACHING_VOICE_NOTE_MS) || 180000;
+  const voiceGaveUp = () => obs.rows.some((r) => /Voice summary could not be generated|آواز.{0,30}(نہیں|ناکام)/.test(r.txt || ''));
+  if (DEEP && obs.report && !obs.voiceNotes.some((n) => n.afterReport) && !voiceGaveUp()) {
+    const until = Date.now() + VOICE_NOTE_MS;
+    while (Date.now() < until && !obs.voiceNotes.some((n) => n.afterReport) && !voiceGaveUp()) {
       for (const r of await fresh()) { noteAudio(r); obs.rows.push(r); }
-      if (!obs.voiceNotes.some((n) => n.afterReport)) await sleep(2500);
+      if (!obs.voiceNotes.some((n) => n.afterReport) && !voiceGaveUp()) await sleep(2500);
     }
   }
 
@@ -504,7 +538,9 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   deepOnly('COA09', 'A second recording sent mid-analysis is deferred, not started fresh',
       ...(obs.deferral
           ? V(obs.deferral.replied && !obs.deferral.startedNewSession, obs.deferral)
-          : ['BLOCKED', { reason: 'the analysis never reached a step, so there was nothing to defer against' }]));
+          : ['BLOCKED', { reason: obs.steps.includes('5')
+              ? 'no mid-flight window on this lane: under cassette replay the session is in a waiting state or the reflective step until Step 4/5, and Steps 4/5 and the report arrived in one read (run 20261027-1014) — the guard is unit-tested on both doors (tests/coaching/feat106-multiaudio-guard, inflight-guard-document-door)'
+              : 'the analysis never reached a step, so there was nothing to defer against', stepsSeen: obs.steps }]));
 
   deepOnly('COA08', 'Accepting the classroom-photo prompt folds photos into the analysis',
       ...(obs.photoPrompt
@@ -600,7 +636,7 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   const E = (id, name) => { const r = ext.get(id);
     rec(id, name, DEEP ? (r ? r[0] : 'BLOCKED') : 'SKIP',
         DEEP ? (r ? r[1] : { reason: 'coaching-ext did not record it' + (extErr ? ' — the extension threw: ' + String(extErr.message).slice(0, 200) : '') })
-             : { why: '@wip/@draft — run with DEEP=1' }, 0); };
+             : { why: '@wip/@draft — run with DEEP=1' }, (r && r[2] && r[2].ms) || 0, r && r[2]); };
   E('COA58', "The coaching report and voice note give the lesson's scores as numbers");
   E('COA60', 'The two coaching entry points quote different minimum audio lengths (@known-issue)');
   // bd-5lrgh — needs a mismatched recording + a live grader run + the rendered report; unit-tested in

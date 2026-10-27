@@ -2,6 +2,8 @@
 # e2e-mock.sh — the one command for the NIETE E2E suite on the mock lane + this run's own local database.
 # Hermetic: run-suite.sh is replaced by a stub (E2E_MOCK_RUN_SUITE) that records its args and E2E_LOCAL_DB.
 set -u
+# Hooks run here must never write the real clone's QA ledger or push its notes (bd-amxdhg).
+export QA_NOTES_OFF=1 QA_LEDGER="${TMPDIR:-/tmp}/qa-events.test.$$.jsonl"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CMD="$HERE/e2e-mock.sh"
 fails=0

@@ -21,6 +21,20 @@ const { resolveReportLanguage } = require('./report-language');
 const { loadTrendData } = require('../coaching-trend.service');
 const { resolveTarget } = require('../target-resolver');
 const { observe2Target, pinObserve2Horizon } = require('./observe2-horizon');
+const { buildPartialNote } = require('../report-transformers/_shared');
+
+/**
+ * The partial-report note ("based on classroom audio analysis only…"). At delivery the session carries the
+ * job's flags (report-generator sets _isPartialReport & co.); on a re-render (hero-text, the app's report
+ * page) only the stored copy exists — report-generator persists it beside the narrative. The hero image
+ * showed none until bd-1r3k2h: the note was built for the PDFKit transformers only.
+ */
+function heroPartialNote(session, analysis) {
+  const s = session || {};
+  if (s._isPartialReport && !s._suppressPartialBanner) return buildPartialNote(s) || null;
+  const stored = analysis && analysis.partial_report_note;
+  return typeof stored === 'string' && stored.trim() ? stored : null;
+}
 const { resolveUx } = require('../../../config/ux-strings');
 const { downloadFromR2, extractKeyFromUrl } = require('../../../storage/r2');
 const { htmlToImage } = require('../../../utils/html-to-pdf');
@@ -179,10 +193,12 @@ async function generateHeroReport(session, analysis, opts = {}) {
     logToFile('hero-report: classroom photo strip failed (non-fatal)', { error: e.message });
   }
 
+  const partialNote = heroPartialNote(session, analysis);
   const vm = {
     language: lang,
     brand,
     teacherName,
+    partialNote,
     topic: heroTopic(narrative, analysis),
     date: String(session.created_at || '').slice(0, 10),
     score: { overall: score.overall, marks: score.marks, max: score.max },
@@ -202,7 +218,7 @@ async function generateHeroReport(session, analysis, opts = {}) {
   const png = await htmlToImage(buildHeroReportHtml(vm), shot);
   // bd-fmf24g.10: the narrative travels back with the image so the caller can keep it
   // (narrative-store) — the app's report page reads the session, not the PNG.
-  const out = { png, caption: buildReportCaption(vm), narrative: narrative || null };
+  const out = { png, caption: buildReportCaption(vm), narrative: narrative || null, partialNote };
 
   // bd-v0toag.57: groups C and D are sent a slim image, the /cr page's card (slim-report.js, slim-card.template.js);
   // the full one above is still the stored report. With no strengths stored, the narrative's strength is what she

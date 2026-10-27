@@ -101,6 +101,8 @@ json.dump({
     "fallback": bool(sel.get("fallback")), "unmapped": sel.get("unmapped") or [],
 }, open(marker, "w"), indent=1)
 PY
+# The arming is on the ledger (bd-amxdhg) — it is what tells "the hooks ran" from "no hooks here".
+qa_ledger_log "$ROOT" post-commit armed "" "features=$(printf '%s' "$SEL" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(",".join((d.get("features") or []) + (d.get("web_features") or [])))' 2>/dev/null) spec_sync=$SPEC_SYNC"
 
 [ "${QA_HOOKS_QUIET:-}" = "1" ] && exit 0
 FEATURES=$(printf '%s' "$SEL" | python3 -c 'import json,sys; print(", ".join(json.load(sys.stdin).get("features") or []))' 2>/dev/null)

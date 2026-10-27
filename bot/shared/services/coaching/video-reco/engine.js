@@ -32,12 +32,18 @@ class Timeout extends Error {
   constructor(ms) { super(`video recommendation took longer than ${ms} ms`); this.name = 'Timeout'; }
 }
 
-/** The lesson's grade: subject_resolution.grade, else the teacher's training_bands (H7), else unknown. */
-async function gradeOf(analysis, userId, store) {
+/** The lesson's own grade (subject_resolution.grade), else null. */
+function analysisGrade(analysis) {
   const g = analysis && analysis.subject_resolution && analysis.subject_resolution.grade;
   const n = parseInt(String(g === null || g === undefined ? '' : g).replace(/[^0-9]/g, ''), 10);
-  if (Number.isFinite(n)) return { lo: n, hi: n };
-  const spans = (await store.trainingBands(userId)).map((b) => BAND_GRADES[String(b).toUpperCase()]).filter(Boolean);
+  return Number.isFinite(n) ? { lo: n, hi: n } : null;
+}
+
+/** The lesson's grade: subject_resolution.grade, else the teacher's training_bands (H7), else unknown. */
+function gradeOf(analysis, bands) {
+  const own = analysisGrade(analysis);
+  if (own) return own;
+  const spans = (bands || []).map((b) => BAND_GRADES[String(b).toUpperCase()]).filter(Boolean);
   return spans.length ? { lo: Math.min(...spans.map((x) => x[0])), hi: Math.max(...spans.map((x) => x[1])) } : null;
 }
 
@@ -124,9 +130,74 @@ function step0(nextStep, analysis) {
 }
 
 function cardOf(card) {
-  if (!card || typeof card !== 'object' || card.indicator) return card;
+  if (card && typeof card === 'object' && card.indicator) return { ...card, indicator: target.idOf(card.indicator) }; // R7t: a "Name (ID)" label → the id
+  if (!card || typeof card !== 'object') return card;
   const t = card.target;
   return t && t.indicator && t.kind !== 'phase' ? { ...card, indicator: t.indicator } : card;
+}
+
+/**
+ * bd-8hhqhf R7v (COS 20261027T050735; eng-fix r7v/MEASURE.md): every read the pick needs, keyed by the session and the
+ * teacher only, in one wave (R7s): { existing: the stored row, rest: [history, ladder, roster, v10 group, bands] }. Neither
+ * promise rejects unhandled. Bands are read only when asked (no grade on the analysis; a prefetch always asks, and
+ * gradeOf prefers the lesson's own grade, so an extra read changes nothing).
+ */
+function issueReads(store, v10GroupFor, uid, coachingSessionId, withBands) {
+  const groupFor = v10GroupFor || require('../ab-v10-arms').groupForEager; // eslint-disable-line global-require
+  // every call deferred one microtask, so a store that throws synchronously rejects inside the wave instead of orphaning
+  // the reads already started (an unhandled rejection on the report's worker)
+  const call = (f) => Promise.resolve().then(f);
+  const existing = call(() => store.readForSession(coachingSessionId));
+  const rest = Promise.all([
+    call(() => store.recentHistory(uid)),
+    call(() => store.ladderProgress(uid)),
+    // R7d (⛔9, Q086): the teacher's class roster, in memory for this run only (a store without it → no roster check)
+    typeof store.rosterNames === 'function' ? call(() => store.rosterNames(uid)) : [],
+    call(() => groupFor(uid)).then((g) => (g && g.group) || null, () => null),
+    withBands ? call(() => store.trainingBands(uid)) : [],
+  ]);
+  existing.catch(() => {});
+  rest.catch(() => {}); // awaited by the pick; handled here for the stored-row return and an unused prefetch
+  return { existing, rest };
+}
+
+const PREFETCH_TTL_MS = 5 * 60000;
+const PREFETCH_MAX = 200;
+const prefetched = new Map(); // coachingSessionId → { uid, at, store, reads }
+
+/**
+ * Start the pick's reads now, so the pick (recommendForReport, seconds later) finds them back. Called at the start of a
+ * report (report-generator) and before an observe delivery (observe-send). Fire and forget: never throws, never awaits,
+ * nothing when the flag is off or the analysis is not FICO. One entry per session, taken by the pick or dropped after 5 min.
+ */
+function prefetchReads(args = {}) {
+  try {
+    const d0 = (args && args.deps) || {};
+    const env = d0.env || process.env;
+    if (!videoRecoEnabled(env)) return false;
+    const { session, coachingSessionId, analysis } = args;
+    if (!session || !session.user_id || !coachingSessionId) return false;
+    if (!analysis || analysis.framework !== 'fico') return false; // as the pick (red7 N1): no analysis, no wave
+    const now = Date.now();
+    for (const [k, v] of prefetched) if (now - v.at > PREFETCH_TTL_MS) prefetched.delete(k);
+    while (prefetched.size >= PREFETCH_MAX) prefetched.delete(prefetched.keys().next().value);
+    const store = d0.store || require('./store'); // eslint-disable-line global-require
+    prefetched.set(coachingSessionId, {
+      uid: session.user_id, at: now, store, reads: issueReads(store, d0.v10GroupFor, session.user_id, coachingSessionId, true),
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/** The prefetch for this session and teacher through this store, once; null when there is none or it is stale. */
+function takePrefetched(coachingSessionId, uid, store) {
+  const p = prefetched.get(coachingSessionId);
+  if (!p) return null;
+  prefetched.delete(coachingSessionId);
+  if (p.uid !== uid || p.store !== store || Date.now() - p.at > PREFETCH_TTL_MS) return null;
+  return p;
 }
 
 async function compute(a, d, state) {
@@ -135,8 +206,22 @@ async function compute(a, d, state) {
   const { store, catalog } = d;
   // The observe path (hook A2) has no next step of its own: the coach-edited analysis decides it, as the hero did.
   const nextStep = a.nextStep === undefined ? require('../next-step').selectNextStep(analysis, null) : a.nextStep; // eslint-disable-line global-require
-  const existing = await store.readForSession(coachingSessionId);
-  if (existing) return existing;
+  // R7s (COS 20261026T171054 §2, red7 r7s trace): every read before the pick is keyed by the session and the teacher only,
+  // so they all go out in one wave (prod: ~6 serial Supabase round trips → 2, the roster's class read and the v10 arm row
+  // being the second). A stored row still wins as soon as it is back; nothing read here decides more than it did.
+  const uid = session.user_id;
+  // R7v (COS 20261027T050735): the report starts these reads at its own start (prefetchReads), in parallel with the
+  // topic, subject and card work; the pick then waits only for what is still in flight. Without a prefetch, the same
+  // reads go out here, as in R7s.
+  // A prefetch whose reads failed (the store was down at the report's start) is dropped and the pick reads afresh.
+  const settle = async (r) => { const existing = await r.existing; return existing ? { existing } : { values: await r.rest }; };
+  const pre = takePrefetched(coachingSessionId, uid, store);
+  let got = pre ? await settle(pre.reads).catch(() => null) : null;
+  const usedPrefetch = !!got;
+  if (!got) got = await settle(issueReads(store, d.v10GroupFor, uid, coachingSessionId, !analysisGrade(analysis)));
+  if (got.existing) return got.existing;
+  const [history, ladder, rosterWords, v10Group, bands] = got.values;
+  state.reads = { prefetched: usedPrefetch, age_ms: usedPrefetch ? state.t0 - pre.at : null, wait_ms: Date.now() - state.t0 };
 
   const arm = assignArm(session.user_id, d.env);
   const sr = (analysis && analysis.subject_resolution) || {};
@@ -149,18 +234,10 @@ async function compute(a, d, state) {
   const rawTranscript = typeof session.transcript_language === 'string' ? session.transcript_language.trim().toLowerCase() : '';
   const transcriptLanguage = ['en', 'ur'].includes(rawTranscript) ? rawTranscript : null;
   const language = hasPref ? clampLanguage(pref) : (transcriptLanguage || 'ur');
-  // R7d (⛔9, Q086): the teacher's class roster, in memory for this run only (a store without it → no roster check)
-  const [history, ladder, rosterWords] = await Promise.all([store.recentHistory(session.user_id), store.ladderProgress(session.user_id),
-    typeof store.rosterNames === 'function' ? store.rosterNames(session.user_id) : []]);
   const completed = new Set(ladder.completedModules || []);
   // The ladder a teacher can finish = the recommendable modules (review_3313 F6): a retired module never blocks "complete".
   const ladderModules = catalog.modules.filter((m) => m && m.recommendable !== false);
   const ladderComplete = ladderModules.length > 0 && ladderModules.every((m) => completed.has(Number(m.module_id)));
-  let v10Group = null;
-  try {
-    const g = await (d.v10GroupFor || require('../ab-v10-arms').groupFor)(session.user_id); // eslint-disable-line global-require
-    v10Group = (g && g.group) || null;
-  } catch (e) { v10Group = null; }
 
   const base = {
     coaching_session_id: coachingSessionId,
@@ -196,7 +273,10 @@ async function compute(a, d, state) {
   };
   const finish = async (row) => {
     if (state.abandoned) return null;
-    return store.write({ ...row, engine_ms: Date.now() - state.t0 });
+    const engineMs = Date.now() - state.t0;
+    // R7v: where the pick's time went, one line per pick (the prod proof reads it; no column, no row change)
+    logToFile('[video-reco] timing', { coachingSessionId, engine_ms: engineMs, reads_wait_ms: state.reads.wait_ms, prefetched: state.reads.prefetched, prefetch_age_ms: state.reads.age_ms, status: row.status, route: row.route || null });
+    return store.write({ ...row, engine_ms: engineMs });
   };
   state.base = base;
 
@@ -209,7 +289,7 @@ async function compute(a, d, state) {
   const fa = (analysis && analysis.focus_area) || {};
   const cardSentence = (card && card.action) || step0(nextStep, analysis);
   const lines = prompt.transcriptLines(session);
-  const grade = await gradeOf(analysis, session.user_id, store);
+  const grade = gradeOf(analysis, bands);
   // R7b silence (silence.js, panel §6.1): a subject label off its subject, and B6 with no mixed-level moment, are no move.
   // R7f (panel Q102 Q127 Q139): …unless the label's sentence asks for open questions on a lesson whose children answer in
   // a word: then the questioning chapters the engine enacts are its list (the evidence test is the lesson's own answers).
@@ -737,4 +817,4 @@ async function recommendForReport(args = {}) {
   }
 }
 
-module.exports = { recommendForReport, ENGINE_TIMEOUT_MS };
+module.exports = { recommendForReport, prefetchReads, ENGINE_TIMEOUT_MS, _prefetchSize: () => prefetched.size };

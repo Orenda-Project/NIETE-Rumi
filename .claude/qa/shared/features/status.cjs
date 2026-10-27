@@ -82,6 +82,11 @@ const surfaceOf = txt => CARD.test(txt) ? 'flow-card'
                        : RUNNING.test(txt) ? 'running-template'
                        : IDLE.test(txt) ? 'idle-template' : 'neither';
 
+/** The Urdu idle answer, as the bot sends it: /menu sits inside U+2066…U+2069 (LRI/PDI) so the slash command
+ *  reads left-to-right in Urdu; a regex written without the isolates never matched (STA06, bd-yuur1a). */
+const isUrduIdleReply = (t) => /اس وقت کچھ نہیں چل رہا/.test(t || '') && /کچھ شروع کرنے کے لیے \u2066?\/menu\u2069? بھیجیں/.test(t || '');
+exports.isUrduIdleReply = isUrduIdleReply;
+
 exports.run = async ({ api, rec, sleep = async (ms) => new Promise((r) => setTimeout(r, ms)), want = () => true }) => {
   const t = () => Date.now();
   let s;
@@ -207,7 +212,7 @@ exports.run = async ({ api, rec, sleep = async (ms) => new Promise((r) => setTim
     s = t();
     rec('STA06', 'The nothing-running answer is in the teacher\'s language',
         ...(UR_IDLE.test(idleTxt)
-            ? V(/کچھ شروع کرنے کے لیے \/menu بھیجیں/.test(idleTxt), { reply: idleTxt.slice(0, 160) })
+            ? V(isUrduIdleReply(idleTxt), { reply: idleTxt.slice(0, 160) })
             : idleSurface === 'idle-template'
               ? await (async () => {
                   // The driver is English: switch it to Urdu through /language (the one writer), read
@@ -217,7 +222,7 @@ exports.run = async ({ api, rec, sleep = async (ms) => new Promise((r) => setTim
                   const ur = await api.sendWait('/status');
                   const urTxt = ur.txt || '';
                   await pickLang(api, 'English');
-                  return V(UR_IDLE.test(urTxt) && /کچھ شروع کرنے کے لیے \/menu بھیجیں/.test(urTxt),
+                  return V(isUrduIdleReply(urTxt),
                            { switchedToUrdu: (toUr.txt || '').slice(0, 60), reply: urTxt.slice(0, 160) });
                 })()
               : ['BLOCKED', { reason: 'no idle reply observed to check the language of', observedSurface: idleSurface }]), t() - s);

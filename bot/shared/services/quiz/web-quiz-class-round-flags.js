@@ -16,7 +16,7 @@ const CHALLENGE_KEY = 'web_quiz_challenge';
 const EVENTS_KEY = 'web_quiz_events_v2';
 const HUB_KEY = 'web_quiz_hub';
 const KEYS = [ROUND_KEY, V2_KEY, CHALLENGE_KEY, EVENTS_KEY, HUB_KEY];
-const TTL_MS = 30 * 1000;
+const TTL_MS = require('../../config/app-settings-ttl').APP_SETTINGS_FLAG_TTL_MS;   // 30 s; APP_SETTINGS_FLAG_TTL_MS shortens it on a test lane (bd-0vaqcg)
 const OFF = Object.freeze({ round: false, events: false });
 let cache = null;
 

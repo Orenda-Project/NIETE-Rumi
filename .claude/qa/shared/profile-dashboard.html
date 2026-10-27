@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mock Lane Profiler</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface: #fcfcfb; --surface-2: #f3f2ef; --surface-3: #e9e8e3; --line: #d9d8d2;
+    --text: #0b0b0b; --text-2: #52514e; --text-3: #8a8984; --accent: #2a78d6;
+    /* layers — categorical, FIXED order (reference palette slots 1–7; the unknown remainder is gray) */
+    --l-bot: #2a78d6; --l-worker: #0b4f9c; --l-idle: #b3261e; --l-wait: #eb6834; --l-pace: #6250d6; --l-poll: #1baf7a; --l-mock: #eda100; --l-flow: #e87ba4; --l-seed: #008300; --l-over: #c3c2b7; --l-driver: #9a9994; --l-dsleep: #6b6a66; --l-tout: #e34948;
+    --s-pass: #0ca30c; --s-fail: #d03b3b; --s-warn: #fab219;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    color-scheme: dark; --surface: #1a1a19; --surface-2: #232322; --surface-3: #2d2d2b; --line: #3a3a38;
+    --text: #f0efec; --text-2: #c3c2b7; --text-3: #8d8c86; --accent: #3987e5;
+    --l-bot: #3987e5; --l-worker: #6fb1ff; --l-idle: #ff7b72; --l-wait: #d95926; --l-pace: #9085e9; --l-poll: #199e70; --l-mock: #c98500; --l-flow: #d55181; --l-seed: #008300; --l-over: #52514e; --l-driver: #76756f; --l-dsleep: #a3a29b; --l-tout: #e66767;
+  } }
+  :root[data-theme="dark"] {
+    color-scheme: dark; --surface: #1a1a19; --surface-2: #232322; --surface-3: #2d2d2b; --line: #3a3a38;
+    --text: #f0efec; --text-2: #c3c2b7; --text-3: #8d8c86; --accent: #3987e5;
+    --l-bot: #3987e5; --l-worker: #6fb1ff; --l-idle: #ff7b72; --l-wait: #d95926; --l-pace: #9085e9; --l-poll: #199e70; --l-mock: #c98500; --l-flow: #d55181; --l-seed: #008300; --l-over: #52514e; --l-driver: #76756f; --l-dsleep: #a3a29b; --l-tout: #e66767;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface); z-index: 5; }
+  header h1 { font-size: 16px; margin: 0 12px 0 0; }
+  nav button { background: none; border: 1px solid transparent; color: var(--text-2); padding: 6px 10px; border-radius: 6px; cursor: pointer; font: inherit; }
+  nav button[aria-current="page"] { color: var(--text); background: var(--surface-2); border-color: var(--line); }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--surface-2); align-items: center; }
+  .filters label { font-size: 12px; color: var(--text-2); display: flex; gap: 6px; align-items: center; }
+  select, input[type=text], input[type=date], input[type=number] { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); max-width: 100%; }
+  select[multiple] { min-width: 180px; height: 70px; }
+  main { padding: 16px; max-width: 1500px; margin: 0 auto; }
+  section.view { display: none; } section.view.on { display: block; }
+  h2 { font-size: 15px; margin: 18px 0 8px; } h3 { font-size: 13px; margin: 14px 0 6px; color: var(--text-2); font-weight: 600; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .tile { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--surface); }
+  .tile .k { font-size: 11px; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+  .tile .v { font-size: 22px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .tile .s { font-size: 12px; color: var(--text-3); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--text-2); font-weight: 600; cursor: pointer; white-space: nowrap; user-select: none; position: sticky; top: 0; background: var(--surface); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.click { cursor: pointer; } tr.click:hover td { background: var(--surface-2); }
+  .chip { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--line); color: var(--text-2); background: var(--surface-2); white-space: nowrap; }
+  .chip.PASS { border-color: var(--s-pass); color: var(--s-pass); } .chip.FAIL, .chip.ERROR, .chip.timeout { border-color: var(--s-fail); color: var(--s-fail); }
+  .chip.BLOCKED, .chip.SKIP, .chip.SKIPPED, .chip.fail { border-color: var(--s-warn); color: var(--text); }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--text-2); margin: 6px 0 10px; }
+  .bars { display: grid; grid-template-columns: minmax(140px, 260px) 1fr 70px; gap: 6px 10px; align-items: center; font-size: 12px; }
+  .bars .lbl { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar { display: flex; height: 16px; border-radius: 4px; overflow: hidden; background: var(--surface-3); }
+  .bar i { display: block; height: 100%; border-right: 2px solid var(--surface); }
+  .bar i:last-child { border-right: 0; }
+  .wf { font-size: 12px; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+  .wf .row { display: grid; grid-template-columns: 320px 1fr; align-items: center; border-bottom: 1px solid var(--line); min-height: 24px; }
+  .wf .row:hover { background: var(--surface-2); }
+  .wf .name { padding: 2px 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--mono); font-size: 11.5px; }
+  .wf .lane { position: relative; height: 24px; }
+  .wf .lane i { position: absolute; top: 5px; height: 14px; border-radius: 4px; min-width: 2px; outline: 2px solid var(--surface); }
+  .wf .lane b { position: absolute; top: 4px; font-weight: 500; font-size: 11px; color: var(--text-2); white-space: nowrap; }
+  .wf .tick { position: absolute; top: 2px; width: 2px; height: 20px; background: var(--text-3); }
+  .wf .hdr { font-weight: 600; color: var(--text-2); background: var(--surface-2); }
+  .muted { color: var(--text-3); } .mono { font-family: var(--mono); font-size: 12px; }
+  .tip { position: fixed; z-index: 50; pointer-events: none; background: var(--text); color: var(--surface); padding: 6px 9px; border-radius: 6px; font-size: 12px; max-width: 420px; white-space: pre-wrap; display: none; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } @media (max-width: 900px) { .two { grid-template-columns: 1fr; } .wf .row { grid-template-columns: 180px 1fr; } }
+  .delta.up { color: var(--s-fail); } .delta.down { color: var(--s-pass); }
+  .note { font-size: 12px; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .scroll { max-height: 520px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+  details summary { cursor: pointer; color: var(--text-2); font-size: 12px; }
+  .cat { font-size: 11px; color: var(--text-3); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mock Lane Profiler</h1>
+  <nav>
+    <button data-view="overview" aria-current="page">Overview</button>
+    <button data-view="discover">Discover</button>
+    <button data-view="traces">Traces</button>
+    <button data-view="bottlenecks">Bottlenecks</button>
+    <button data-view="compare">Compare</button>
+  </nav>
+  <span id="status" class="muted" style="margin-left:auto"></span>
+</header>
+<div class="filters">
+  <label>Runs <select id="f-runs" multiple></select></label>
+  <label>Feature <select id="f-feature"><option value="">all</option></select></label>
+  <label>From <input type="date" id="f-from"></label>
+  <label>To <input type="date" id="f-to"></label>
+  <label><input type="checkbox" id="f-latest" checked> latest run per feature only</label>
+  <button id="f-reload" style="font:inherit">Reload</button>
+</div>
+<main>
+  <section class="view on" id="v-overview"></section>
+  <section class="view" id="v-discover"></section>
+  <section class="view" id="v-traces"></section>
+  <section class="view" id="v-bottlenecks"></section>
+  <section class="view" id="v-compare"></section>
+</main>
+<div class="tip" id="tip"></div>
+<script>
+'use strict';
+const LAYERS = [
+  ['bot.processing', 'Bot processing', 'var(--l-bot)'],
+  ['bot.worker', 'Worker busy (a queued job: pipeline / quiz generation)', 'var(--l-worker)'],
+  ['wait.intentional', 'Harness wait (quiesce / settle)', 'var(--l-wait)'],
+  ['bot.pacing', 'Bot send pacer (WhatsApp pair rate limit)', 'var(--l-pace)'],
+  ['bot.timeout', 'No reply (harness timeout)', 'var(--l-tout)'],
+  ['harness.polling', 'Poll granularity', 'var(--l-poll)'],
+  ['mock.http', 'Mock inject (webhook ack)', 'var(--l-mock)'],
+  ['flow', 'Flow emulator', 'var(--l-flow)'],
+  ['seed', 'Seeds / DB reach-through', 'var(--l-seed)'],
+  ['harness.overhead', 'Harness overhead', 'var(--l-over)'],
+  ['driver.sleep', 'Driver sleep (wakes on bot reply)', 'var(--l-dsleep)'],
+  ['driver.idle', 'Driver waiting, bot idle (a budget wait for a message that is not coming)', 'var(--l-idle)'],
+  ['driver.unaccounted', 'Driver sleeps / polling (unaccounted)', 'var(--l-driver)'],
+];
+const LCOL = Object.fromEntries(LAYERS.map(([k, , c]) => [k, c]));
+const LNAME = Object.fromEntries(LAYERS.map(([k, n]) => [k, n]));
+const layerOf = (s) => {
+  if (s.layer === 'driver') return 'driver.sleep';   // the SCRIPT's wait, before the harness's intentional waits
+  if (s.layer === 'wait' || s.kind === 'intentional') return 'wait.intentional';
+  if (s.name === 'bot.pacing') return 'bot.pacing';
+  if (s.name === 'bot.reply' && s.status === 'timeout') return 'bot.timeout';
+  if (s.name === 'bot.reply' || (s.layer === 'bot' && s.kind === 'processing')) return 'bot.processing';
+  if (s.kind === 'polling') return 'harness.polling';
+  if (s.layer === 'mock') return 'mock.http';
+  if (s.layer === 'flow') return 'flow';
+  if (s.layer === 'harness-db' || s.kind === 'seed') return 'seed';
+  return 'harness.overhead';
+};
+const ms = (v) => v == null ? '–' : v >= 10000 ? (v / 1000).toFixed(1) + ' s' : v >= 1000 ? (v / 1000).toFixed(2) + ' s' : Math.round(v) + ' ms';
+const pct = (v) => (100 * (v || 0)).toFixed(0) + '%';
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const $ = (id) => document.getElementById(id);
+const percentile = (xs, p) => { if (!xs.length) return 0; const ys = xs.slice().sort((a, b) => a - b); const k = Math.max(1, Math.ceil(p / 100 * ys.length)); return ys[Math.min(ys.length, k) - 1]; };
+// A sharded feature's children carry run ids "<group>-<feature>" and "<group>-<feature>-2", "-3"… (run-suite E2E_SHARDS):
+// the group is the run, and the shard suffix must not split it.
+const groupOf = (runId, feature) => String(runId).replace(new RegExp('-' + feature + '(-\\d+)?$'), '');
+
+const state = { index: null, profiles: new Map(), view: 'overview', trace: null, cmp: { a: null, b: null }, sort: {} };
+
+async function load() {
+  $('status').textContent = 'loading…';
+  const idx = await (await fetch('../profiles/index.json?t=' + Date.now())).json().catch(() => null);
+  if (!idx) { $('status').textContent = 'no profiles/index.json — run the suite first'; return; }
+  state.index = idx;
+  let n = 0;
+  await Promise.all(idx.profiles.map(async (e) => {
+    if (state.profiles.has(e.file)) return;
+    try { const p = await (await fetch('../profiles/' + e.file + '?t=' + Date.now())).json(); state.profiles.set(e.file, p); } catch (_) {}
+    $('status').textContent = `loading ${++n}/${idx.profiles.length}`;
+  }));
+  $('status').textContent = `${state.profiles.size} profiles · index ${idx.updated_at || ''}`;
+  buildFilters();
+  render();
+}
+
+function buildFilters() {
+  const runs = $('f-runs'); const prev = new Set([...runs.selectedOptions].map((o) => o.value));
+  runs.innerHTML = '';
+  const groups = [...new Set(state.index.profiles.map((e) => groupOf(e.run_id, e.feature)))];
+  for (const g of groups) { const o = document.createElement('option'); o.value = g; o.textContent = g; if (prev.has(g)) o.selected = true; runs.appendChild(o); }
+  const feats = [...new Set(state.index.profiles.map((e) => e.feature))].sort();
+  const fs = $('f-feature'); const pf = fs.value; fs.innerHTML = '<option value="">all</option>' + feats.map((f) => `<option>${esc(f)}</option>`).join(''); fs.value = pf;
+}
+
+/** The profiles the filter row selects. */
+function selected() {
+  const runs = new Set([...$('f-runs').selectedOptions].map((o) => o.value));
+  const feat = $('f-feature').value, from = $('f-from').value, to = $('f-to').value, latest = $('f-latest').checked;
+  let list = [...state.profiles.values()].filter((p) => (!runs.size || runs.has(groupOf(p.run_id, p.feature))) && (!feat || p.feature === feat)
+    && (!from || (p.started || '') >= from) && (!to || (p.started || '').slice(0, 10) <= to));
+  list.sort((a, b) => (b.started || '').localeCompare(a.started || ''));
+  // latest run per feature: every child of that feature's newest run GROUP, so a sharded feature keeps all its shards
+  if (latest && !runs.size) { const newest = new Map(); for (const p of list) if (!newest.has(p.feature)) newest.set(p.feature, groupOf(p.run_id, p.feature)); list = list.filter((p) => newest.get(p.feature) === groupOf(p.run_id, p.feature)); }
+  return list;
+}
+const label = (p) => `${p.run_id} · ${p.feature}`;
+
+// ── Overview ──────────────────────────────────────────────────────────────────
+function renderOverview(ps) {
+  const el = $('v-overview');
+  if (!ps.length) { el.innerHTML = '<p class="note">No profile matches the filter.</p>'; return; }
+  const scen = ps.flatMap((p) => p.scenarios.map((s) => ({ ...s, p })));
+  const total = scen.reduce((a, s) => a + s.ms, 0);
+  const layers = {}; for (const [k] of LAYERS) layers[k] = ps.reduce((a, p) => a + (p.summary.layers[k] || 0), 0);
+  const passed = scen.filter((s) => s.status === 'PASS').length, failed = scen.filter((s) => s.status === 'FAIL').length;
+  const vendorLive = ps.reduce((a, p) => a + (p.summary.vendor.liveMs || 0), 0), vendorMs = ps.reduce((a, p) => a + (p.summary.vendor.ms || 0), 0);
+  const dbMs = ps.reduce((a, p) => a + (p.summary.db.ms || 0), 0), dbN = ps.reduce((a, p) => a + (p.summary.db.count || 0), 0);
+  const times = scen.map((s) => s.ms);
+  const tiles = [
+    ['Total scenario time', ms(ps.reduce((a, p) => a + (p.summary.union_ms != null ? p.summary.union_ms : p.summary.total_ms), 0)), `${ps.length} profile${ps.length > 1 ? 's' : ''} · feature wall ${ms(ps.reduce((a, p) => a + (p.summary.feature_wall_ms || 0), 0))}${ps.some((p) => p.summary.overlap_ms) ? ` · ${ms(ps.reduce((a, p) => a + (p.summary.overlap_ms || 0), 0))} overlapping windows excluded` : ''}`],
+    ['Scenarios', scen.length, `${passed} pass · ${failed} fail · ${scen.length - passed - failed} other`],
+    ['Pass rate', scen.length ? pct(passed / scen.length) : '–', 'of recorded scenarios'],
+    ['Mean / median', `${ms(total / (scen.length || 1))}`, `median ${ms(percentile(times, 50))}`],
+    ['P90 / P95', `${ms(percentile(times, 90))}`, `p95 ${ms(percentile(times, 95))} · max ${ms(Math.max(0, ...times))}`],
+    ['Intentional waits', pct(layers['wait.intentional'] / (total || 1)), `${ms(layers['wait.intentional'])} the harness chose to wait`],
+    ['Bot processing', pct(layers['bot.processing'] / (total || 1)), `${ms(layers['bot.processing'])} webhook → first send, pacing excluded`],
+    ['Worker busy', pct((layers['bot.worker'] || 0) / (total || 1)), `${ms(layers['bot.worker'] || 0)} the driver polled while a queued job ran`],
+    ['Bot idle, driver waiting', pct((layers['driver.idle'] || 0) / (total || 1)), `${ms(layers['driver.idle'] || 0)} budget waits with nothing in flight — the harness cost to cut`],
+    ['Bot send pacer', pct((layers['bot.pacing'] || 0) / (total || 1)), `${ms(layers['bot.pacing'] || 0)} the bot waited for a send slot`],
+    ['Outside scenario windows', ms(ps.reduce((a, p) => a + ((p.summary.outside || {}).primitives_ms || 0) + ((p.summary.outside || {}).idle_ms || 0), 0)), `${ms(ps.reduce((a, p) => a + ((p.summary.outside || {}).primitives_ms || 0), 0))} primitives · ${ms(ps.reduce((a, p) => a + ((p.summary.outside || {}).idle_ms || 0), 0))} idle — between the windows the drivers measure`],
+    ['DB queries', dbN, `${ms(dbMs)} through the proxy`],
+    ['Vendor (cassette)', ms(vendorMs), `replayed · would be ${ms(vendorLive)} live`],
+  ];
+  let h = `<div class="tiles">${tiles.map(([k, v, s]) => `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div><div class="s">${esc(s)}</div></div>`).join('')}</div>`;
+  h += `<h2>Where the time goes, by layer</h2>${legend()}<div class="bars">`;
+  h += `<div class="lbl"><b>all selected</b></div>${stackBar(layers, total, 'all')}<div class="num">${ms(total)}</div>`;
+  for (const p of ps) h += `<div class="lbl" title="${esc(label(p))} — scenarios ${ms(p.summary.union_ms != null ? p.summary.union_ms : p.summary.total_ms)} of a ${ms(p.summary.feature_wall_ms)} feature wall">${esc(label(p))}</div>${stackBar(p.summary.layers, p.summary.total_ms, label(p))}<div class="num" title="scenario time; feature wall ${ms(p.summary.feature_wall_ms)}">${ms(p.summary.total_ms)}</div>`;
+  h += `</div>`;
+  const slow = scen.slice().sort((a, b) => b.ms - a.ms).slice(0, 15);
+  h += `<div class="two"><div><h2>Slowest scenarios</h2><table><thead><tr><th>Scenario</th><th>Feature</th><th>Status</th><th class="num">Total</th><th class="num">Bot</th><th class="num">Pacer</th><th class="num">Harness waits</th><th class="num">Driver</th></tr></thead><tbody>`;
+  for (const s of slow) h += `<tr class="click" data-trace="${esc(s.p.run_id)}|${esc(s.p.feature)}|${esc(s.id)}"><td class="mono">${esc(s.id)}</td><td>${esc(s.p.feature)}</td><td>${chip(s.status)}</td><td class="num">${ms(s.ms)}</td><td class="num">${ms(s.layers['bot.processing'])}</td><td class="num">${ms(s.layers['bot.pacing'] || 0)}</td><td class="num">${ms(s.layers['wait.intentional'])}</td><td class="num">${ms(s.layers['driver.unaccounted'])}</td></tr>`;
+  h += `</tbody></table></div><div><h2>Top operations (own time)</h2>${opsTable(aggregateOps(ps).slice(0, 12), total)}</div></div>`;
+  const gaps = [...new Set(ps.flatMap((p) => p.gaps || []))];
+  h += `<details style="margin-top:14px"><summary>Timing gaps (${gaps.length})</summary><ul class="note" style="margin:6px 0">${gaps.map((g) => `<li>${esc(g)}</li>`).join('')}</ul></details>`;
+  el.innerHTML = h;
+}
+function legend() { return `<div class="legend">${LAYERS.map(([k, n, c]) => `<span><i class="sw" style="background:${c}"></i>${esc(n)}</span>`).join('')}</div>`; }
+function stackBar(layers, total, who) {
+  if (!total) return '<div class="bar"></div>';
+  return `<div class="bar">${LAYERS.map(([k, n, c]) => { const v = layers[k] || 0; return v ? `<i style="width:${(100 * v / total).toFixed(2)}%;background:${c}" data-tip="${esc(who)}\n${esc(n)}: ${ms(v)} (${pct(v / total)})"></i>` : ''; }).join('')}</div>`;
+}
+function chip(s) { return `<span class="chip ${esc(s)}">${esc(s)}</span>`; }
+
+/** Re-aggregate every span of the selected profiles by op name (own time), so percentiles are exact across runs. */
+function aggregateOps(ps) {
+  const g = new Map();
+  for (const p of ps) for (const s of p.scenarios) for (const o of s.spans) {
+    const oname = o.name === 'bot.reply' && o.status === 'timeout' ? 'bot.reply.timeout' : o.name;
+    const e = g.get(oname) || { op: oname, layer: layerOf(o), category: o.layer === 'driver' ? 'driver-sleep' : oname === 'bot.reply.timeout' ? 'timeout' : o.name === 'bot.pacing' ? 'bot-pacing' : o.kind === 'intentional' ? 'intentional' : o.name === 'bot.reply' ? 'processing' : o.kind === 'polling' ? 'polling' : o.kind === 'http' ? 'http' : o.kind === 'seed' ? 'setup' : o.layer === 'flow' ? 'flow' : 'harness', own: [], ex: [] };
+    e.own.push(o.own_ms); e.ex.push({ ms: o.own_ms, scenario: s.id, run: p.run_id, feature: p.feature, arg: (o.attrs || {}).arg || (o.attrs || {}).label, status: o.status });
+    g.set(oname, e);
+  }
+  return [...g.values()].map((e) => ({ ...e, count: e.own.length, total_ms: e.own.reduce((a, b) => a + b, 0), mean_ms: e.own.reduce((a, b) => a + b, 0) / (e.own.length || 1),
+    p50_ms: percentile(e.own, 50), p90_ms: percentile(e.own, 90), p95_ms: percentile(e.own, 95), max_ms: Math.max(0, ...e.own), examples: e.ex.sort((a, b) => b.ms - a.ms).slice(0, 3) })).sort((a, b) => b.total_ms - a.total_ms);
+}
+function opsTable(ops, total) {
+  let h = `<table><thead><tr><th>Operation</th><th>Layer</th><th class="num">Count</th><th class="num">Total</th><th class="num">Share</th><th class="num">p50</th><th class="num">p95</th><th class="num">Max</th></tr></thead><tbody>`;
+  for (const o of ops) h += `<tr><td><i class="sw" style="background:${LCOL[o.layer]}"></i><span class="mono">${esc(o.op)}</span> <span class="cat">${esc(o.category)}</span></td><td class="cat">${esc(LNAME[o.layer])}</td><td class="num">${o.count}</td><td class="num">${ms(o.total_ms)}</td><td class="num">${pct(o.total_ms / (total || 1))}</td><td class="num">${ms(o.p50_ms)}</td><td class="num">${ms(o.p95_ms)}</td><td class="num">${ms(o.max_ms)}</td></tr>`;
+  return h + '</tbody></table>';
+}
+
+// ── Discover ──────────────────────────────────────────────────────────────────
+function allSpans(ps) {
+  const out = [];
+  for (const p of ps) for (const s of p.scenarios) for (const o of s.spans) out.push({ ...o, scenario: s.id, scenarioStatus: s.status, run: p.run_id, feature: p.feature, L: layerOf(o) });
+  return out;
+}
+function renderDiscover(ps) {
+  const el = $('v-discover');
+  const spans = allSpans(ps);
+  const q = state.q || {};
+  if (!el.dataset.built) {
+    el.innerHTML = `<div class="filters" style="border:1px solid var(--line);border-radius:8px;margin-bottom:10px">
+      <label>Search <input type="text" id="q-text" placeholder="op, arg, scenario, run… (space = AND)" style="width:260px"></label>
+      <label>Layer <select id="q-layer"><option value="">all</option>${LAYERS.map(([k, n]) => `<option value="${k}">${esc(n)}</option>`).join('')}</select></label>
+      <label>Op <select id="q-op"><option value="">all</option></select></label>
+      <label>Status <select id="q-status"><option value="">all</option><option>ok</option><option>fail</option><option>error</option><option>timeout</option></select></label>
+      <label>Min own ms <input type="number" id="q-min" value="0" style="width:90px"></label>
+      <span id="q-count" class="muted"></span></div><div id="q-table" class="scroll"></div>`;
+    el.dataset.built = 1;
+    el.querySelectorAll('input,select').forEach((i) => i.addEventListener('input', () => { state.q = { text: $('q-text').value, layer: $('q-layer').value, op: $('q-op').value, status: $('q-status').value, min: Number($('q-min').value || 0) }; renderDiscover(selected()); }));
+  }
+  const ops = [...new Set(spans.map((s) => s.name))].sort(); const sel = $('q-op'); const prev = sel.value; sel.innerHTML = '<option value="">all</option>' + ops.map((o) => `<option>${esc(o)}</option>`).join(''); sel.value = prev;
+  const terms = String(q.text || '').toLowerCase().split(/\s+/).filter(Boolean);
+  let rows = spans.filter((s) => (!q.layer || s.L === q.layer) && (!q.op || s.name === q.op) && (!q.status || s.status === q.status) && s.own_ms >= (q.min || 0)
+    && terms.every((t) => [s.name, s.scenario, s.run, s.feature, JSON.stringify(s.attrs || {})].join(' ').toLowerCase().includes(t)));
+  const sk = state.sort.discover || { k: 'own_ms', d: -1 };
+  rows.sort((a, b) => (a[sk.k] > b[sk.k] ? 1 : a[sk.k] < b[sk.k] ? -1 : 0) * sk.d);
+  $('q-count').textContent = `${rows.length} of ${spans.length} spans · own time ${ms(rows.reduce((a, s) => a + s.own_ms, 0))}`;
+  const cols = [['t0', 'Time'], ['run', 'Run'], ['feature', 'Feature'], ['scenario', 'Scenario'], ['name', 'Operation'], ['L', 'Layer'], ['own_ms', 'Own'], ['ms', 'Total'], ['status', 'Status'], ['arg', 'Arg / label']];
+  let h = `<table><thead><tr>${cols.map(([k, n]) => `<th data-sort="${k}" class="${/ms|t0/.test(k) ? 'num' : ''}">${n}${sk.k === k ? (sk.d > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead><tbody>`;
+  for (const s of rows.slice(0, 800)) {
+    const a = s.attrs || {};
+    h += `<tr class="click" data-trace="${esc(s.run)}|${esc(s.feature)}|${esc(s.scenario)}"><td class="num mono">${new Date(s.t0).toISOString().slice(11, 23)}</td><td class="mono">${esc(s.run)}</td><td>${esc(s.feature)}</td><td class="mono">${esc(s.scenario)}</td><td><i class="sw" style="background:${LCOL[s.L]}"></i><span class="mono">${esc(s.name)}</span></td><td class="cat">${esc(LNAME[s.L])}</td><td class="num">${ms(s.own_ms)}</td><td class="num">${ms(s.ms)}</td><td>${chip(s.status)}</td><td class="mono muted">${esc(a.arg || a.label || a.messageId || '')}${a.ackMs != null ? ` ack ${a.ackMs}ms` : ''}${a.moved ? ` moved×${a.moved}` : ''}${a.idleMs != null ? ` idle ${a.idleMs}ms` : ''}</td></tr>`;
+  }
+  h += '</tbody></table>' + (rows.length > 800 ? `<p class="note">showing 800 of ${rows.length} — narrow the search</p>` : '');
+  $('q-table').innerHTML = h;
+  $('q-table').querySelectorAll('th[data-sort]').forEach((th) => th.addEventListener('click', () => { const k = th.dataset.sort; state.sort.discover = { k, d: sk.k === k ? -sk.d : -1 }; renderDiscover(selected()); }));
+}
+
+// ── Traces ────────────────────────────────────────────────────────────────────
+function renderTraces(ps) {
+  const el = $('v-traces');
+  const all = [...state.profiles.values()].sort((a, b) => (b.started || '').localeCompare(a.started || ''));
+  let t = state.trace;
+  if (!t && ps.length) t = { run: ps[0].run_id, feature: ps[0].feature, id: null };
+  if (!t) { el.innerHTML = '<p class="note">No profiles loaded.</p>'; return; }
+  const p = all.find((x) => x.run_id === t.run && x.feature === t.feature);
+  if (!p) { el.innerHTML = '<p class="note">Profile not found.</p>'; return; }
+  let h = `<div class="filters" style="border:1px solid var(--line);border-radius:8px;margin-bottom:10px"><label>Profile <select id="t-profile">${all.map((x) => `<option value="${esc(x.run_id)}|${esc(x.feature)}" ${x === p ? 'selected' : ''}>${esc(label(x))}</option>`).join('')}</select></label>
+    <span class="muted">commit ${esc(p.commit || '?')} · ${esc(p.started || '')} · ${p.summary.scenarios} scenarios · ${ms(p.summary.total_ms)}</span></div>`;
+  const maxMs = Math.max(1, ...p.scenarios.map((s) => s.ms));
+  h += `<div class="two"><div><h3>Scenarios (click one)</h3><div class="scroll"><table><thead><tr><th>Id</th><th>Status</th><th class="num">Total</th><th style="width:40%">Layers</th></tr></thead><tbody>`;
+  for (const s of p.scenarios) h += `<tr class="click ${t.id === s.id ? 'sel' : ''}" data-scen="${esc(s.id)}"><td class="mono">${esc(s.id)}</td><td>${chip(s.status)}</td><td class="num">${ms(s.ms)}</td><td><div style="width:${(100 * s.ms / maxMs).toFixed(1)}%">${stackBar(s.layers, s.ms, s.id)}</div></td></tr>`;
+  h += `</tbody></table></div></div><div id="t-detail"></div></div>`;
+  el.innerHTML = h;
+  $('t-profile').addEventListener('change', (e) => { const [run, feature] = e.target.value.split('|'); state.trace = { run, feature, id: null }; renderTraces(selected()); });
+  el.querySelectorAll('tr[data-scen]').forEach((tr) => tr.addEventListener('click', () => { state.trace = { ...t, id: tr.dataset.scen }; renderTraces(selected()); }));
+  const s = p.scenarios.find((x) => x.id === t.id);
+  if (s) $('t-detail').innerHTML = waterfall(s, p); else $('t-detail').innerHTML = '<p class="note">Pick a scenario on the left to see its waterfall.</p>';
+}
+function waterfall(s, p) {
+  const W = s.ms || 1;
+  const byId = new Map(s.spans.map((o) => [o.span, o]));
+  const depth = (o) => { let d = 0, cur = o; while (cur && cur.parent && byId.has(cur.parent)) { d++; cur = byId.get(cur.parent); } return d; };
+  const kids = new Map(); for (const o of s.spans) { if (o.parent && byId.has(o.parent)) kids.set(o.parent, (kids.get(o.parent) || []).concat(o)); }
+  const order = []; const roots = s.spans.filter((o) => !o.parent || !byId.has(o.parent)).sort((a, b) => a.t0 - b.t0);
+  const walk = (o) => { order.push(o); for (const k of (kids.get(o.span) || []).sort((a, b) => a.t0 - b.t0)) walk(k); };
+  roots.forEach(walk);
+  let h = `<h3>${esc(s.id)} ${chip(s.status)} <span class="muted">${esc(s.title || '')} · ${ms(s.ms)} · ${s.primitives} primitives</span></h3>${legend()}`;
+  h += `<div class="tiles" style="margin-bottom:10px">${LAYERS.filter(([k]) => s.layers[k]).map(([k, n, c]) => `<div class="tile"><div class="k"><i class="sw" style="background:${c}"></i>${esc(n)}</div><div class="v">${ms(s.layers[k])}</div><div class="s">${pct(s.layers[k] / W)}</div></div>`).join('')}
+    <div class="tile"><div class="k">DB</div><div class="v">${s.db.count}</div><div class="s">${ms(s.db.ms)} in window</div></div><div class="tile"><div class="k">Vendor</div><div class="v">${s.vendor.count}</div><div class="s">${ms(s.vendor.ms)} replay · ${ms(s.vendor.liveMs)} live · ${s.vendor.misses} miss</div></div></div>`;
+  h += `<div class="wf"><div class="row hdr"><div class="name">span</div><div class="lane"><b style="left:0">0</b><b style="right:4px">${ms(W)}</b></div></div>`;
+  h += `<div class="row"><div class="name"><b>scenario ${esc(s.id)}</b></div><div class="lane"><i style="left:0;width:100%;background:var(--surface-3)"></i></div></div>`;
+  for (const o of order) {
+    const L = layerOf(o); const left = (100 * (o.t0 - s.t0) / W), width = Math.max(0.15, 100 * o.ms / W);
+    const a = o.attrs || {}; const tip = `${o.name} · ${ms(o.ms)} (own ${ms(o.own_ms)}) · ${o.status}\n${LNAME[L]}\n${Object.entries(a).filter(([, v]) => v != null && typeof v !== 'object').map(([k, v]) => `${k}: ${String(v).slice(0, 80)}`).join('\n')}`;
+    h += `<div class="row"><div class="name" style="padding-left:${8 + 14 * depth(o)}px" title="${esc(o.name)}">${esc(o.name)} <span class="muted">${esc(String(a.arg || a.label || '').slice(0, 30))}</span></div><div class="lane"><i style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;background:${LCOL[L]}" data-tip="${esc(tip)}"></i><b style="${left + width > 82 ? `right:calc(${(100 - left).toFixed(3)}% + 6px)` : `left:calc(${(left + width).toFixed(3)}% + 6px)`}">${ms(o.ms)}${o.status !== 'ok' ? ' · ' + esc(o.status) : ''}</b></div></div>`;
+    const bt = (s.bot_traces || []).find((b) => b.messageId && a.messageId === b.messageId);
+    if (bt) {
+      h += `<div class="row"><div class="name muted" style="padding-left:${22 + 14 * depth(o)}px">bot timeline ${esc(bt.correlationId)} · ${bt.events} log lines · ${ms(bt.ms)}</div><div class="lane">`;
+      for (const e of bt.timeline) { const x = 100 * (bt.t0 + e.dt - s.t0) / W; if (x < 0 || x > 100) continue; h += `<span class="tick" style="left:${x.toFixed(3)}%;background:${e.src === 'worker' ? 'var(--l-flow)' : 'var(--text-3)'}" data-tip="${esc(`+${e.dt} ms ${e.src} ${e.level}: ${e.msg}`)}"></span>`; }
+      h += `</div></div>`;
+    }
+  }
+  h += `</div>`;
+  if (s.bot_traces && s.bot_traces.length) {
+    h += `<details style="margin-top:8px"><summary>Bot log timelines (${s.bot_traces.length} messages)</summary>`;
+    for (const bt of s.bot_traces) h += `<h3>${esc(bt.messageId)} → ${esc(bt.correlationId)} · ${ms(bt.ms)}</h3><div class="scroll" style="max-height:260px"><table><thead><tr><th class="num">+ms</th><th>src</th><th>level</th><th>message</th></tr></thead><tbody>${bt.timeline.map((e) => `<tr><td class="num mono">${e.dt}</td><td>${esc(e.src)}</td><td>${esc(e.level)}</td><td>${esc(e.msg)}</td></tr>`).join('')}</tbody></table></div>`;
+    h += `</details>`;
+  }
+  if (s.db.count) h += `<details style="margin-top:8px"><summary>DB queries in this window (${s.db.count}, ${ms(s.db.ms)})</summary><table><thead><tr><th>Request</th><th class="num">Count</th><th class="num">Total</th></tr></thead><tbody>${Object.entries(s.db.by_table).sort((a, b) => b[1].ms - a[1].ms).map(([k, v]) => `<tr><td class="mono">${esc(k)}</td><td class="num">${v.count}</td><td class="num">${ms(v.ms)}</td></tr>`).join('')}</tbody></table></details>`;
+  return h;
+}
+
+// ── Bottlenecks ───────────────────────────────────────────────────────────────
+function renderBottlenecks(ps) {
+  const el = $('v-bottlenecks');
+  if (!ps.length) { el.innerHTML = '<p class="note">No profile matches the filter.</p>'; return; }
+  const total = ps.reduce((a, p) => a + p.summary.total_ms, 0);
+  const ops = aggregateOps(ps);
+  let h = `<p class="note">Ranked by <b>own time</b> (a span minus its children), so a primitive and its waits are never counted twice. Categories: <b>intentional</b> = the harness chose to wait (pure cost, tunable) · <b>processing</b> = the bot was working · <b>bot-pacing</b> = the bot's own send pacer held the reply (WhatsApp pair rate limit: 6 s per phone once 8 sends are in flight) · <b>polling</b> = the bot had answered, the harness had not looked yet · <b>setup</b> = seeds and DB reach-through.</p>`;
+  const outside = new Map(); let idle = 0;
+  for (const p of ps) { const o = p.summary.outside || {}; idle += o.idle_ms || 0; for (const [k, v] of Object.entries(o.by_op || {})) { const e = outside.get(k) || { op: k, count: 0, ms: 0 }; e.count += v.count; e.ms += v.ms; outside.set(k, e); } }
+  if (outside.size || idle) h += `<h2>Between scenario windows</h2><p class="note">Time the feature spent OUTSIDE every scenario's measured window: ${ms(idle)} idle (driver sleeps / polling / BLOCKED rows recorded at 0 ms) and these primitives — not attributed to any scenario, but paid by the run.</p><table><thead><tr><th>Operation</th><th class="num">Count</th><th class="num">Total</th></tr></thead><tbody>${[...outside.values()].sort((a, b) => b.ms - a.ms).slice(0, 12).map((e) => `<tr><td class="mono">${esc(e.op)}</td><td class="num">${e.count}</td><td class="num">${ms(e.ms)}</td></tr>`).join('')}</tbody></table>`;
+  h += `<h2>Operations</h2><table><thead><tr><th>Operation</th><th>Category</th><th class="num">Count</th><th class="num">Total</th><th class="num">Share</th><th class="num">Mean</th><th class="num">p50</th><th class="num">p90</th><th class="num">p95</th><th class="num">Max</th><th>Slowest examples</th></tr></thead><tbody>`;
+  for (const o of ops) h += `<tr><td><i class="sw" style="background:${LCOL[o.layer]}"></i><span class="mono">${esc(o.op)}</span></td><td class="cat">${esc(o.category)}</td><td class="num">${o.count}</td><td class="num"><b>${ms(o.total_ms)}</b></td><td class="num">${pct(o.total_ms / total)}</td><td class="num">${ms(o.mean_ms)}</td><td class="num">${ms(o.p50_ms)}</td><td class="num">${ms(o.p90_ms)}</td><td class="num">${ms(o.p95_ms)}</td><td class="num">${ms(o.max_ms)}</td><td class="mono muted">${o.examples.map((e) => `<a href="#" data-trace="${esc(e.run)}|${esc(e.feature)}|${esc(e.scenario)}">${esc(e.scenario)}</a> ${ms(e.ms)} ${esc(String(e.arg || '').slice(0, 24))}`).join('<br>')}</td></tr>`;
+  h += `</tbody></table>`;
+  // DB
+  const db = new Map();
+  for (const p of ps) for (const r of p.db_by_table || []) { const e = db.get(r.op) || { op: r.op, count: 0, total_ms: 0, p95: 0, max: 0 }; e.count += r.count; e.total_ms += r.total_ms; e.p95 = Math.max(e.p95, r.p95_ms); e.max = Math.max(e.max, r.max_ms); db.set(r.op, e); }
+  const dbs = [...db.values()].sort((a, b) => b.total_ms - a.total_ms).slice(0, 25);
+  const vend = new Map();
+  for (const p of ps) for (const r of p.vendor_by_kind || []) { const e = vend.get(r.kind) || { kind: r.kind, count: 0, ms: 0, liveMs: 0, hits: 0, misses: 0, live: 0 }; for (const k of ['count', 'ms', 'liveMs', 'hits', 'misses', 'live']) e[k] += r[k] || 0; vend.set(r.kind, e); }
+  h += `<div class="two"><div><h2>DB requests through the proxy</h2><table><thead><tr><th>Request</th><th class="num">Count</th><th class="num">Total</th><th class="num">Worst p95</th><th class="num">Max</th></tr></thead><tbody>${dbs.map((d) => `<tr><td class="mono">${esc(d.op)}</td><td class="num">${d.count}</td><td class="num">${ms(d.total_ms)}</td><td class="num">${ms(d.p95)}</td><td class="num">${ms(d.max)}</td></tr>`).join('') || '<tr><td colspan=5 class="muted">no db-timing.jsonl in these runs</td></tr>'}</tbody></table></div>`;
+  h += `<div><h2>Vendor calls (cassette)</h2><table><thead><tr><th>Kind</th><th class="num">Calls</th><th class="num">Hits</th><th class="num">Misses</th><th class="num">Live</th><th class="num">Replay ms</th><th class="num">Recorded live ms</th></tr></thead><tbody>${[...vend.values()].map((v) => `<tr><td class="mono">${esc(v.kind)}</td><td class="num">${v.count}</td><td class="num">${v.hits}</td><td class="num">${v.misses}</td><td class="num">${v.live}</td><td class="num">${ms(v.ms)}</td><td class="num">${ms(v.liveMs)}</td></tr>`).join('') || '<tr><td colspan=7 class="muted">no cassette-trace.jsonl in these runs</td></tr>'}</tbody></table>`;
+  const rep = new Map();
+  for (const p of ps) for (const r of p.repeats || []) { const k = r.op + '|' + r.arg; const e = rep.get(k) || { op: r.op, arg: r.arg, count: 0, total_ms: 0, scenarios: new Set() }; e.count += r.count; e.total_ms += r.total_ms; r.scenarios.forEach((x) => e.scenarios.add(x)); rep.set(k, e); }
+  const reps = [...rep.values()].sort((a, b) => b.total_ms - a.total_ms).slice(0, 20);
+  h += `<h2>Repeated calls (same primitive, same argument)</h2><table><thead><tr><th>Op</th><th>Arg</th><th class="num">Times</th><th class="num">Total</th><th>Scenarios</th></tr></thead><tbody>${reps.map((r) => `<tr><td class="mono">${esc(r.op)}</td><td class="mono">${esc(r.arg)}</td><td class="num">${r.count}</td><td class="num">${ms(r.total_ms)}</td><td class="mono muted">${esc([...r.scenarios].join(', ').slice(0, 80))}</td></tr>`).join('')}</tbody></table></div></div>`;
+  el.innerHTML = h;
+}
+
+// ── Compare ───────────────────────────────────────────────────────────────────
+function renderCompare() {
+  const el = $('v-compare');
+  const all = [...state.profiles.values()].sort((a, b) => (b.started || '').localeCompare(a.started || ''));
+  if (all.length < 2) { el.innerHTML = '<p class="note">Two or more profiles are needed to compare.</p>'; return; }
+  const key = (p) => `${p.run_id}|${p.feature}`;
+  let a = all.find((p) => key(p) === state.cmp.a), b = all.find((p) => key(p) === state.cmp.b);
+  if (!a || !b) { b = all[0]; a = all.find((p) => p !== b && p.feature === b.feature) || all[1]; state.cmp = { a: key(a), b: key(b) }; }
+  const opt = (sel) => all.map((p) => `<option value="${esc(key(p))}" ${p === sel ? 'selected' : ''}>${esc(label(p))}</option>`).join('');
+  let h = `<div class="filters" style="border:1px solid var(--line);border-radius:8px;margin-bottom:10px"><label>A (baseline) <select id="c-a">${opt(a)}</select></label><label>B (candidate) <select id="c-b">${opt(b)}</select></label>${a.feature !== b.feature ? '<span class="chip BLOCKED">different features</span>' : ''}</div>`;
+  const d = b.summary.total_ms - a.summary.total_ms;
+  const tiles = [['Total A', ms(a.summary.total_ms), a.commit], ['Total B', ms(b.summary.total_ms), b.commit], ['Delta', (d >= 0 ? '+' : '') + ms(d), `${(100 * d / (a.summary.total_ms || 1)).toFixed(1)}%`],
+    ['Pass A → B', `${a.summary.passed} → ${b.summary.passed}`, `of ${a.summary.scenarios} / ${b.summary.scenarios}`], ['p95 A → B', `${ms(a.summary.p95_ms)} → ${ms(b.summary.p95_ms)}`, '']];
+  h += `<div class="tiles">${tiles.map(([k, v, s]) => `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div><div class="s">${esc(s || '')}</div></div>`).join('')}</div>`;
+  h += `<h2>Layers</h2>${legend()}<div class="bars"><div class="lbl">A ${esc(a.run_id)}</div>${stackBar(a.summary.layers, a.summary.total_ms, 'A')}<div class="num">${ms(a.summary.total_ms)}</div><div class="lbl">B ${esc(b.run_id)}</div>${stackBar(b.summary.layers, b.summary.total_ms, 'B')}<div class="num">${ms(b.summary.total_ms)}</div></div>`;
+  h += `<table style="margin-top:8px"><thead><tr><th>Layer</th><th class="num">A</th><th class="num">B</th><th class="num">Δ</th></tr></thead><tbody>${LAYERS.map(([k, n, c]) => { const x = a.summary.layers[k] || 0, y = b.summary.layers[k] || 0; return `<tr><td><i class="sw" style="background:${c}"></i>${esc(n)}</td><td class="num">${ms(x)}</td><td class="num">${ms(y)}</td><td class="num delta ${y - x > 0 ? 'up' : y - x < 0 ? 'down' : ''}">${y - x >= 0 ? '+' : ''}${ms(y - x)}</td></tr>`; }).join('')}</tbody></table>`;
+  const sa = new Map(a.scenarios.map((s) => [s.id, s])), sb = new Map(b.scenarios.map((s) => [s.id, s]));
+  const ids = [...new Set([...sa.keys(), ...sb.keys()])];
+  const rows = ids.map((id) => { const x = sa.get(id), y = sb.get(id); const dd = x && y ? y.ms - x.ms : null; const v = !x ? 'only in B' : !y ? 'only in A' : Math.abs(dd) <= Math.max(300, 0.1 * x.ms) ? 'same' : dd > 0 ? 'regression' : 'improvement'; return { id, x, y, dd, v }; });
+  rows.sort((p, q) => Math.abs(q.dd || 0) - Math.abs(p.dd || 0));
+  h += `<h2>Scenarios <span class="muted">(${rows.filter((r) => r.v === 'regression').length} regressions · ${rows.filter((r) => r.v === 'improvement').length} improvements)</span></h2><div class="scroll"><table><thead><tr><th>Id</th><th>Verdict</th><th>Status A → B</th><th class="num">A</th><th class="num">B</th><th class="num">Δ</th><th class="num">Δ bot</th><th class="num">Δ pacer</th><th class="num">Δ waits</th><th class="num">Δ driver</th></tr></thead><tbody>`;
+  for (const r of rows) h += `<tr><td class="mono">${esc(r.id)}</td><td><span class="chip ${r.v === 'regression' ? 'FAIL' : r.v === 'improvement' ? 'PASS' : ''}">${esc(r.v)}</span></td><td>${r.x ? chip(r.x.status) : '–'} → ${r.y ? chip(r.y.status) : '–'}</td><td class="num">${r.x ? ms(r.x.ms) : '–'}</td><td class="num">${r.y ? ms(r.y.ms) : '–'}</td><td class="num delta ${r.dd > 0 ? 'up' : r.dd < 0 ? 'down' : ''}">${r.dd == null ? '–' : (r.dd >= 0 ? '+' : '') + ms(r.dd)}</td>${['bot.processing', 'bot.pacing', 'wait.intentional', 'driver.unaccounted'].map((k) => `<td class="num">${r.x && r.y ? ((r.y.layers[k] || 0) - (r.x.layers[k] || 0) >= 0 ? '+' : '') + ms((r.y.layers[k] || 0) - (r.x.layers[k] || 0)) : '–'}</td>`).join('')}</tr>`;
+  h += `</tbody></table></div>`;
+  const oa = new Map(aggregateOps([a]).map((o) => [o.op, o])), ob = new Map(aggregateOps([b]).map((o) => [o.op, o]));
+  const ops = [...new Set([...oa.keys(), ...ob.keys()])].map((op) => { const x = oa.get(op), y = ob.get(op); return { op, x, y, dd: (y ? y.total_ms : 0) - (x ? x.total_ms : 0) }; }).sort((p, q) => Math.abs(q.dd) - Math.abs(p.dd));
+  h += `<h2>Operations</h2><table><thead><tr><th>Op</th><th class="num">Count A → B</th><th class="num">Total A</th><th class="num">Total B</th><th class="num">Δ</th><th class="num">p50 A → B</th></tr></thead><tbody>${ops.slice(0, 25).map((o) => `<tr><td class="mono">${esc(o.op)}</td><td class="num">${o.x ? o.x.count : 0} → ${o.y ? o.y.count : 0}</td><td class="num">${ms(o.x ? o.x.total_ms : 0)}</td><td class="num">${ms(o.y ? o.y.total_ms : 0)}</td><td class="num delta ${o.dd > 0 ? 'up' : o.dd < 0 ? 'down' : ''}">${(o.dd >= 0 ? '+' : '') + ms(o.dd)}</td><td class="num">${ms(o.x ? o.x.p50_ms : 0)} → ${ms(o.y ? o.y.p50_ms : 0)}</td></tr>`).join('')}</tbody></table>`;
+  el.innerHTML = h;
+  $('c-a').addEventListener('change', (e) => { state.cmp.a = e.target.value; renderCompare(); });
+  $('c-b').addEventListener('change', (e) => { state.cmp.b = e.target.value; renderCompare(); });
+}
+
+// ── plumbing ──────────────────────────────────────────────────────────────────
+function render() {
+  const ps = selected();
+  document.querySelectorAll('section.view').forEach((s) => s.classList.toggle('on', s.id === 'v-' + state.view));
+  document.querySelectorAll('nav button').forEach((b) => b.toggleAttribute('aria-current', b.dataset.view === state.view));
+  ({ overview: renderOverview, discover: renderDiscover, traces: renderTraces, bottlenecks: renderBottlenecks, compare: renderCompare })[state.view](ps);
+}
+document.querySelectorAll('nav button').forEach((b) => b.addEventListener('click', () => { state.view = b.dataset.view; render(); }));
+['f-runs', 'f-feature', 'f-from', 'f-to', 'f-latest'].forEach((id) => $(id).addEventListener('change', render));
+$('f-reload').addEventListener('click', () => { state.profiles.clear(); load(); });
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-trace]'); if (!t) return; e.preventDefault();
+  const [run, feature, id] = t.dataset.trace.split('|'); state.trace = { run, feature, id }; state.view = 'traces'; render();
+});
+const tip = $('tip');
+document.addEventListener('mousemove', (e) => { const t = e.target.closest('[data-tip]'); if (!t) { tip.style.display = 'none'; return; } tip.textContent = t.dataset.tip; tip.style.display = 'block'; tip.style.left = Math.min(window.innerWidth - 440, e.clientX + 12) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; });
+load();
+</script>
+</body>
+</html>

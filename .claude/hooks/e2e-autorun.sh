@@ -91,6 +91,10 @@ if [ "${1:-}" = "--clear" ] || [ "${1:-}" = "--declare" ]; then
       jq --arg f "$f" --arg r "$REASON" '.spec_declared = ((.spec_declared // {}) + {($f): $r})' "$TMPM" > "$TMPM.2" && mv "$TMPM.2" "$TMPM"
     done
     mv "$TMPM" "$M"
+    # On the ledger, on the commit the marker is about (bd-amxdhg): a declaration made here never
+    # reaches the PR check unless it is also a Spec-Sync: line, so this is where its reason survives.
+    . "$_HOOK_DIR/lib/qa-ledger.sh" 2>/dev/null || qa_ledger_log() { :; }
+    qa_ledger_log "$PROJECT_ROOT" e2e-autorun declared "" "$(printf '%s' "$FEATS" | tr ' ' ',')=none-needed ($REASON)" "$(jq -r '.commit_sha // ""' "$M" 2>/dev/null)"
     echo "e2e-autorun: declared none-needed for [$FEATS] on $SESSION_ID — phase 1 released for them. (The same line as a Spec-Sync: trailer on the commit satisfies the PR check too.)" >&2
     exit 0
   fi
@@ -115,7 +119,7 @@ if [ "${1:-}" = "--clear" ] || [ "${1:-}" = "--declare" ]; then
   . "$_HOOK_DIR/lib/qa-ledger.sh" 2>/dev/null || qa_ledger_log() { :; }
   CLEAR_EVENT=cleared; [ "$FORCE" = 1 ] && CLEAR_EVENT=force-cleared
   while IFS= read -r M; do
-    [ -f "$M" ] && qa_ledger_log "$PROJECT_ROOT" e2e-autorun "$CLEAR_EVENT" "" "$(basename "${M%.json}")"
+    [ -f "$M" ] && qa_ledger_log "$PROJECT_ROOT" e2e-autorun "$CLEAR_EVENT" "" "$(basename "${M%.json}")" "$(jq -r '.commit_sha // ""' "$M" 2>/dev/null)"
   done <<EOF
 $TARGETS
 EOF
@@ -283,6 +287,10 @@ printf '%s' "$SEL" | jq \
     commands: .commands, features: .features, web_features: (.web_features // []),
     fallback: .fallback, unmapped: .unmapped}' \
   > "$PENDING_DIR/$SESSION.json" 2>/dev/null || exit 0
+# The arming itself is on the ledger (bd-amxdhg): a missed spec with an arming and no give-up
+# means the session ended before the hook let go; no arming at all means no hook ran.
+qa_ledger_log "${REPO:-$PROJECT_ROOT}" e2e-autorun armed "" \
+  "trigger=$TRIGGER features=$(printf '%s' "$SEL" | jq -r '(.features // []) + (.web_features // []) | join(",")' 2>/dev/null) spec_sync=$SPEC_SYNC" "$COMMIT_SHA"
 
 # ONE commit, ONE order (bd-hnhlgn.12). The same commit also fired .githooks/post-commit, which wrote
 # git-<sha>.json — for a terminal commit that is the only marker, but here the session's marker covers this commit.

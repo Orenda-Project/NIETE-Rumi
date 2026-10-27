@@ -307,8 +307,10 @@ exports.run = async (ctx) => {
       const prom = arr.promise ? arr.promise.txt : '';
       const ev74 = { order: made.ev.arrival.order, promise: short(prom, 300), says12h: /about 12 hours after the first student starts/.test(prom), says7am: /7 am if that falls at night/.test(prom),
         saysSooner: /send \/quiz, pick this lesson and ask for its report/.test(prom), neverEveryoneFinishes: !/sooner if everyone finishes|when everyone finishes/i.test(prom),
-        promiseFollowsForward: (() => { const o = made.ev.arrival.order; return o.indexOf('PROMISE') > o.indexOf('FORWARD') && o.indexOf('FORWARD') >= 0; })() };
-      done('T74', ...V(!!prom && ev74.says12h && ev74.says7am && ev74.saysSooner && ev74.neverEveryoneFinishes && ev74.promiseFollowsForward, ev74));
+        // the promise rides in the PDF caption since the Meta bill cut (bd-w2daa.7); the spec's own line is that the
+        // message to forward is the LAST thing sent (bd-1r3k2h)
+        forwardLast: (() => { const o = made.ev.arrival.order || []; return o.length > 0 && o[o.length - 1] === 'FORWARD'; })() };
+      done('T74', ...V(!!prom && ev74.says12h && ev74.says7am && ev74.saysSooner && ev74.neverEveryoneFinishes && ev74.forwardLast, ev74));
     } catch (e) { errors.push('T64:' + e.message); lastStack = short(e && e.stack, 400); for (const id of ['T64', 'T65', 'T74']) if (!seenIds.has(id)) blocked(id, 'the lesson-plan tap did not produce a quiz: ' + short(e.message, 200)); }
 
     // the rows of G1: T29 (keys), T49 (base ten), T51 (lesson objects), T54 (three pictures)
@@ -354,15 +356,18 @@ exports.run = async (ctx) => {
         await api.freshReset();
         const p1 = await openLesson((i) => String(i.id || '') === 'lp_' + g1.id); const c1 = p1.ok ? await chooseAction(/report|رپورٹ/i) : { ok: false };
         const p2 = await openLesson((i) => String(i.id || '') === 'lp_' + g1.id); const c2 = p2.ok ? await chooseAction(/report|رپورٹ/i) : { ok: false };
+        // How long a report that must NOT arrive is given to arrive: 90 s / 60 s were tuned for live rendering;
+        // under cassette replay a report renders in seconds — 12 s on the lane (E2E_REPORT_ABSENCE_MS, bd-1r3k2h).
+        const ABSENCE_MS = (live) => Number(process.env.E2E_REPORT_ABSENCE_MS) || live;
         const t0 = Date.now(); const got = [];
-        while (Date.now() - t0 < 200000) { for (const x of await api.fresh()) got.push(x); if (got.filter((x) => x.doc || x.pdf).length >= 2) break; if (got.some((x) => x.doc || x.pdf) && Date.now() - t0 > 90000) break; await sleep(3000); }
+        while (Date.now() - t0 < 200000) { for (const x of await api.fresh()) got.push(x); if (got.filter((x) => x.doc || x.pdf).length >= 2) break; if (got.some((x) => x.doc || x.pdf) && Date.now() - t0 > ABSENCE_MS(90000)) break; await sleep(3000); }
         const ev77 = { asks: [c1.ok, c2.ok], secondAsk: c2.ok ? 'placed' : 'refused by the screen: ' + (c2.err || '') + ' offered ' + JSON.stringify(c2.offered || p2.actions || []), reportsArrived: got.filter((x) => x.doc || x.pdf).length, noOneFinishedSaid: got.some((x) => /No one has finished|کسی نے یہ quiz مکمل نہیں/.test(x.txt || '')), texts: got.map((x) => short(x.txt, 60)).slice(0, 6) };
         done('T77', ...V(c1.ok && ev77.reportsArrived === 1 && !ev77.noOneFinishedSaid, ev77));
         // T78 — a scheduled run after the report was sent is suppressed; a late child + the teacher's ask → a fresh report
         s = t();
         await api.freshReset();
         const sched = await SC.job('run', 'quiz_video_report', rr.share.id, { shareCodeId: rr.share.id, reason: 'scheduled' });
-        const auto = await collect(api, (x) => (x.doc || x.pdf), 60000);
+        const auto = await collect(api, (x) => (x.doc || x.pdf), ABSENCE_MS(60000));
         const k22 = child(22);
         const r22 = await childRunKeyed(k22, code, 'Zara', 'Grade 1', g1rows, { correct: 1 });
         await api.freshReset();

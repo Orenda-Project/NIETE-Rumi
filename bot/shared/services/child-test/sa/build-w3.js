@@ -63,6 +63,35 @@ const INTRO = {
     'rwp2026:blfluency.blfl1 + core_egma:p.6 Task 4A (one at a time, 60 s)'),
 };
 
+// Round 7 (the pilot's tester): RDF auto's "now it is your turn" says what the child does next, task by task; the rest of
+// COMMON.test_intro (no right/wrong until the end) follows it.
+const TURN = {
+  letter_names: L('Now it is your turn to say the name of each letter.', 'اب ہر حرف کا نام بتانے کی آپ کی باری ہے۔'),
+  letter_sounds: L('Now it is your turn to say the sound of each letter.', 'اب ہر حرف کی آواز بتانے کی آپ کی باری ہے۔'),
+  words: L('Now it is your turn to read each word out loud.', 'اب ہر لفظ اونچی آواز میں پڑھنے کی آپ کی باری ہے۔'),
+  story: L('Now it is your turn to read the story out loud.', 'اب کہانی اونچی آواز میں پڑھنے کی آپ کی باری ہے۔'),
+  story_comp: L('Now it is your turn to answer the questions about the story.', 'اب کہانی کے بارے میں سوالوں کے جواب دینے کی آپ کی باری ہے۔'),
+  number_id: L('Now it is your turn to say each number.', 'اب ہر نمبر بتانے کی آپ کی باری ہے۔'),
+  discrimination: L('Now it is your turn to tap the bigger number.', 'اب بڑے نمبر کو دبانے کی آپ کی باری ہے۔'),
+  missing: L('Now it is your turn to tap the missing number.', 'اب غائب نمبر کو دبانے کی آپ کی باری ہے۔'),
+  add: L('Now it is your turn to solve each addition problem.', 'اب جمع کا ہر سوال حل کرنے کی آپ کی باری ہے۔'),
+  sub: L('Now it is your turn to solve each subtraction problem.', 'اب تفریق کا ہر سوال حل کرنے کی آپ کی باری ہے۔'),
+  mul: L('Now it is your turn to solve each multiplication problem.', 'اب ضرب کا ہر سوال حل کرنے کی آپ کی باری ہے۔'),
+  fluency: L('Now it is your turn to answer the quick sums.', 'اب جلدی والے سوالوں کے جواب دینے کی آپ کی باری ہے۔'),
+};
+const TURN_HEAD = { en: 'Now it is your turn.', ur: 'اب آپ کی باری ہے۔' };
+/** COMMON.test_intro with its first sentence made the task's own. */
+function turnLine(kind) {
+  const t = TURN[kind];
+  if (!t) throw new Error(`no "your turn" line for ${kind}`);
+  const out = { from: `${COMMON.test_intro.from}; round 7: the task named (the pilot's tester)` };
+  for (const l of ['en', 'ur']) {
+    if (!COMMON.test_intro[l].startsWith(TURN_HEAD[l])) throw new Error(`COMMON.test_intro.${l} no longer starts "${TURN_HEAD[l]}"`);
+    out[l] = `${t[l]}${COMMON.test_intro[l].slice(TURN_HEAD[l].length)}`;
+  }
+  return out;
+}
+
 // What the coach reads out in RDF manual: the official administration wording (v3 carries each instrument's script),
 // adapted only where a phone changes it: a page becomes items that come one at a time, and the Urdu speaks to the child
 // without the speaker's or the child's gendered forms (گا/گی, گے/گی): passive or imperative instead. Then the hand-over.
@@ -208,9 +237,10 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
     }
     return out;
   };
-  const childScript = (intro, lang) => {
+  const childScript = (intro, lang, kind) => {
     const s = { intro: spoken({ ...intro, from: intro.from.replace('{lang}', lang || '') }) };
     for (const k of ['practice_intro', 'test_intro', 'begin', 'time_up', 'early_stop', 'after', 'hand_back']) s[k] = spoken(COMMON[k]);
+    s.test_intro = spoken(turnLine(kind));
     return s;
   };
   const model = (kind, answer, lang) => [spoken(MODEL[kind]), lang ? said(lang, answer) : sayBoth(String(answer), toUrDigits(answer))];
@@ -232,7 +262,7 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
           model: model(kind, sayOf(p.item), lang), src: p.src })),
         time_limit_s: 60, advance_after_s: ADVANCE.reading, stop: null,
         stop_note: 'EGRA\'s first-row stop (no item right in the first row) is applied when scored: with 5 items, all 5 wrong',
-        script: childScript(INTRO[kind], lang),
+        script: childScript(INTRO[kind], lang, kind),
         coach_text: coachText(kind, lang, id),
         source: { items: sel.from, script: COACH[kind](LANG_NAME[lang]).from.replace('{lang}', lang), sa_adaptation: 'one item at a time, spoken and recorded, scored later; the task clock runs across items (W3 operator item 1)' },
         deviation: extra2.deviation || 'one item at a time instead of a page of 100 (the operator\'s ask); the child (RDF auto) or coach (RDF manual) moves on',
@@ -266,8 +296,10 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
     const sid = `${lang}.story_w3`;
     Object.assign(story, { task: sid, w3: true, legacy_block: null, print_lines: spec.story.print_lines, print_src: spec.story.print_src,
       coach_text: coachText('story', lang) });
+    story.script = { ...story.script, test_intro: spoken(turnLine('story')) };
     Object.assign(comp, { task: `${lang}.story_comp_w3`, w3: true, legacy_block: null, depends_on: { ...comp.depends_on, task: sid },
       coach_text: coachText('story_comp', lang) });
+    comp.script = { ...comp.script, test_intro: spoken(turnLine('story_comp')) };
     // The W3 forms rotate only the passages with official punctuation (ITEMS_W3: UR RWP + SELECT; EN RWP alone).
     for (const t of [story, comp]) {
       if (!t.variants) continue;
@@ -306,7 +338,7 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
 
   // ------------------------------------------------------------------------------------------- maths
   const m = w3.maths;
-  const mScript = (kind) => childScript(INTRO[kind], null);
+  const mScript = (kind) => childScript(INTRO[kind], null, kind);
 
   const set = v3.sets.A.maths[grade];
   const sumItem = (it, id, src) => {
@@ -347,6 +379,7 @@ function w3Tasks(f, { v3, extra, w3 }, core, H) {
     t.w3 = true;
     t.legacy_block = null;
     t.title = TITLE[id.split('.')[1]];
+    t.script = { ...t.script, test_intro: spoken(turnLine(kind)) };
     t.tap.items.forEach((it, i) => { it.id = `${id}.${pad(i + 1)}`; it.src = `${from}.items[${sel.pick[i]}]`; });
     t.practice.forEach((it, i) => { it.id = `${id}.p${i + 1}`; it.src = `${sel.practice_from}[${sel.practice_pick ? sel.practice_pick[i] : i}]`; });
     if (sel.practice_note) t.practice_note = sel.practice_note;
