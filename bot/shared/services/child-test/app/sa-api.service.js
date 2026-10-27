@@ -63,6 +63,7 @@ const anySchool = require('./any-school-switch');
 const endTestRestart = require('./end-test-restart-switch');
 const dashFilters = require('./dash-filters-switch');
 const { lastWordIndex } = require('../sa/last-word-hint');
+const { isSetAside } = require('../sa/set-aside');
 const { MEDIA, envSegment, __internals: { guarded: gate, rows, ownVisit, ownSession, gradeOf } } = require('./app-api.service');
 
 /** Every handler of the coach app's Learning assessment may run for a practice-only coach (d.practiceSchools). */
@@ -820,7 +821,8 @@ async function resultsOf(sessionId, d, session, bank, stops = false) {
 
 /** resultsOf on rows already read (the dashboard reads every session's rows at once). */
 function shapeResults(session, rowsIn, bank, stops = false) {
-  const blocks = (rowsIn || []).filter((r) => TASK_RE.test(String(r.block || ''))).sort(byWhen);
+  // round 7b: a restarted child's ended attempt (set aside on the session) is never on Results or the dashboard
+  const blocks = (rowsIn || []).filter((r) => TASK_RE.test(String(r.block || '')) && !isSetAside(r.block)).sort(byWhen);
   const lang = (blocks.find((r) => LANGS.includes(r.lang)) || {}).lang || null;
   // each task's own name from the battery ({ en, ur }), so the page never heads a card with a code
   const f = formOf(bank, session);

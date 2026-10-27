@@ -218,9 +218,10 @@ function audioWaiting(r) {
 }
 
 // Round 7b (sa_end_test_restart): a restarted child's ended attempt, set aside on the same session (one session per drawn
-// child: child_test_sessions.draw_id is unique). Its rows are renamed r<n>~<task>: no task id matches, so Results, the
-// dashboard, the scorer (ai_reason not final:sa_*) and the recovery sweep (final:*) all pass them over.
-const SET_ASIDE = /^r(\d+)~/;
+// child: child_test_sessions.draw_id is unique). Its rows are renamed zz.r<n>_<task> (sa/set-aside.js: still a valid block
+// name for the DB's CHECK); every task reader leaves them out, the scorer (ai_reason not final:sa_*) and the recovery sweep
+// (final:*) pass them over.
+const { isSetAside, setAsideName, attemptOf } = require('./sa/set-aside');
 const TASK_ROW = /^[a-z]{2}\.[a-z0-9_]{1,40}$/;
 
 /**
@@ -238,12 +239,12 @@ async function restartAttempt(sessionId, { clientSessionId, block = null, at = n
   const dev = { ...(s.device || {}) };
   const had = Array.isArray(dev.events) ? dev.events.slice().sort((x, y) => x.seq - y.seq) : [];
   const before = Math.max(had.filter((e) => e.type === 'restart').length,
-    ...(rows.data || []).map((r) => Number((SET_ASIDE.exec(String(r.block)) || [])[1] || 0)));
+    ...(rows.data || []).map((r) => attemptOf(r.block)));
   const attempt = before + 1;
-  for (const r of (rows.data || []).filter((x) => TASK_ROW.test(String(x.block)))) {
+  for (const r of (rows.data || []).filter((x) => TASK_ROW.test(String(x.block)) && !isSetAside(x.block))) {
     // the name first (never refused); then, only while no marks are written, the row is parked so nothing scores it
     // eslint-disable-next-line no-await-in-loop
-    let { error } = await supabase.from(BLOCKS).update({ block: `r${attempt}~${r.block}`, updated_at: new Date().toISOString() }).eq('id', r.id);
+    let { error } = await supabase.from(BLOCKS).update({ block: setAsideName(attempt, r.block), updated_at: new Date().toISOString() }).eq('id', r.id);
     if (error) return fail('restartAttempt', error, { sessionId, blockId: r.id });
     // eslint-disable-next-line no-await-in-loop
     ({ error } = await supabase.from(BLOCKS).update({ ai_status: 'failed', ai_reason: 'final:restarted' }).eq('id', r.id).is('ai_marks', null));
@@ -265,7 +266,7 @@ async function summary(sessionId) {
   ]);
   if (!sess.ok) return sess;
   if (blocks.error) return fail('summary', blocks.error, { sessionId });
-  const rows = (blocks.data || []).filter((r) => !SET_ASIDE.test(String(r.block || '')));
+  const rows = (blocks.data || []).filter((r) => !isSetAside(r.block));
   const dev = (sess.session && sess.session.device) || {};
   return {
     ok: true,
