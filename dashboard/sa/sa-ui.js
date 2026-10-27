@@ -1501,7 +1501,7 @@
     /** Round 7b (sa_silence_repeat): no voice heard on the part; Jugnu asks for the answers out loud, then the part again. */
     function sSilenceReminder(v) {
       return screen(v, 'sae-silence sa-silence', [
-        jugnu('idle'),
+        jugnu('idle', true),
         // a short title, then Jugnu's whole line as a paragraph: the long Urdu line is never cut by the foot (sa_ur_fit)
         h('h1', { class: 'sae-h1', text: C.silence_title }),
         h('p', { class: 'sae-p', text: tx(copyLine('silence_repeat')) }),
