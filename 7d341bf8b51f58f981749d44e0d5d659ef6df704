@@ -1,0 +1,2 @@
+{"ts":"2026-10-27T12:50:08Z","hook":"post-commit","event":"armed","switch":"","detail":"features=lesson-plan spec_sync=true","sha":"7d341bf8b51f","branch":"bd-2dpco-lp612-split-redo","user":""}
+{"ts":"2026-10-27T12:50:10Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-2dpco-lp612-split-redo: lesson-plan spec: NOT UPDATED e2e: missing","sha":"7d341bf8b51f","branch":"bd-2dpco-lp612-split-redo","user":""}
