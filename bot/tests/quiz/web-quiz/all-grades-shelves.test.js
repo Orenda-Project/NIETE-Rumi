@@ -282,19 +282,20 @@ describe('a teacher\'s «experience as a child» preview (teaches Grades 3, 4 an
     expect((await get(`/lib/h/${t}?l=en&g=all`)).body.sel).toBe('all');
   });
 
-  test('games: the preview carries the teacher\'s quizzes, at least a Grade-3 child\'s rows, opened as the teacher\'s own preview', async () => {
+  test('games: the preview carries the teacher\'s quizzes, at least a Grade-3 child\'s rows, LOOK-ONLY (no code, no token)', async () => {
     const kid = await post(`/hub/${hubOf(KID3)}`, { kid: T.chipId('h', KID3), device_ref: DEVICE, lang: 'en' });
     expect(kid.status).toBe(200);
-    const kidCodes = ((kid.body.doors || {}).games || []).filter((g) => g.kind === 'quiz').map((g) => g.code);
-    expect(kidCodes.length).toBeGreaterThan(0);
+    const kidRows = ((kid.body.doors || {}).games || []).filter((g) => g.kind === 'quiz');
+    expect(kidRows.length).toBeGreaterThan(0);
     const pr = await get(`/hub/${practiceTok({ tu: TEACHER })}`);
     expect(pr.status).toBe(200);
     const rows = pr.body.doors.games.filter((g) => g.kind === 'quiz');
-    expect(rows.map((g) => g.code)).toEqual(expect.arrayContaining(kidCodes));
+    // HIGH-1 (redteam, #3843): NIETE has no no-write quiz run, so a teacher quiz in a children-facing preview is a tile
+    // that opens nothing: no code, no p / k / tr, nothing a child could carry to «Who played?» or the who-fix
+    expect(rows.map((g) => g.topic)).toEqual(expect.arrayContaining(kidRows.map((g) => g.topic)));
     rows.forEach((g) => {
-      const p = T.verify(g.p, 'p');
-      expect(p).toMatchObject({ t: TEACHER });
-      expect(g).toMatchObject({ from: 'teacher', done: false });
+      expect(g).toMatchObject({ from: 'teacher', done: false, look: 1 });
+      ['code', 'p', 'k', 'tr', 'href'].forEach((key) => expect(g).not.toHaveProperty(key));
     });
     // and the grade's number games, as the child's door gives them
     const doors = await get(`/doors/h/${practiceTok({ tu: TEACHER })}?d=games&l=en`);
@@ -328,5 +329,51 @@ describe('one web_quiz.shelf line per shelf answer: tab, selection, language, co
     ]);
     const text = JSON.stringify(lines);
     [KID3, TEACHER, LIST].forEach((id) => expect(text).not.toContain(id));
+  });
+});
+
+describe('HIGH-1 (redteam #3843): a children-facing preview carries no teacher credential', () => {
+  beforeEach(() => {
+    world();
+    fake.db.app_settings.push({ key: 'web_quiz_enabled', value: true }, { key: 'web_quiz_teachers', value: 'all' });
+  });
+  // every string anywhere in a JSON answer
+  const strings = (v, out = []) => {
+    if (typeof v === 'string') out.push(v);
+    else if (Array.isArray(v)) v.forEach((x) => strings(x, out));
+    else if (v && typeof v === 'object') Object.values(v).forEach((x) => strings(x, out));
+    return out;
+  };
+  async function previewStrings() {
+    const t = practiceTok({ tu: TEACHER });
+    const hub = await get(`/hub/${t}`);
+    const games = await get(`/doors/h/${t}?d=games&l=en&g=all`);
+    const stories = await get(`/doors/h/${t}?d=stories&l=en`);
+    expect([hub.status, games.status, stories.status]).toEqual([200, 200, 200]);
+    // the preview's own token is in the page's URL, not its JSON; collect what the JSON carries
+    return [...strings(hub.body), ...strings(games.body), ...strings(stories.body)].flatMap((x) => [x, ...String(x).split(/[?&=#/]/)]);
+  }
+
+  test('(a) no string in the preview hub boot or its doors verifies as a teacher token (kind p or tr)', async () => {
+    const all = await previewStrings();
+    expect(all.length).toBeGreaterThan(0);
+    const hits = all.filter((x) => T.verify(x, 'p') || T.verify(x, 'tr'));
+    expect(hits).toEqual([]);
+  });
+
+  test('(b) every string the preview carries is refused by «Who played?» and the who-fix (real routes); the teacher\'s own preview is not', async () => {
+    const all = [...new Set(await previewStrings())].filter((x) => x.length >= 16);
+    for (const code of ['TCH301', 'TCH401']) {
+      for (const x of all) {
+        expect([code, (await post('/who', { code, p: x })).status]).toEqual([code, 401]);
+        expect([code, (await post('/who/fix', { code, p: x, ref: 'x', studentId: KID3 })).status]).toEqual([code, 401]);
+        expect([code, (await post('/who/fix', { code, tr: x, ref: 'x', studentId: KID3 })).status]).toEqual([code, 401]);
+      }
+    }
+    // control: the route answers the teacher's own key, so the 401s above are the gate, not a broken route
+    const own = T.signPreview({ shareCodeId: SC, teacherUserId: TEACHER });
+    expect((await post('/who', { code: 'TCH301', p: own })).status).toBe(200);
+    // nothing was written by any of it
+    expect(fake.calls.filter((c) => c.op !== 'select')).toEqual([]);
   });
 });

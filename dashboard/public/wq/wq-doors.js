@@ -36,7 +36,7 @@
       subj: function (s) { return s; },
       grade: function (g) { return g === 'all' ? 'All grades' : g === 'NURSERY' ? 'Nursery' : g === 'KG' ? 'KG' : 'Grade ' + g; },
       gradeChip: function (g) { return g === 'NURSERY' ? 'Nursery' : g === 'KG' ? 'KG' : String(g); },
-      grades: 'Grades', allGrades: 'All grades',
+      grades: 'Grades', allGrades: 'All grades', fromLink: 'Your class plays this from your link',
     },
     ur: {
       weekStory: 'اس ہفتے کی کہانی', toRead: 'پڑھنے کی کہانیاں', toListen: 'سننے کی کہانیاں', books: 'کہانیوں کی کتابیں',
@@ -52,7 +52,7 @@
       subj: function (s) { return SUBJ_UR[s] || s; },
       grade: function (g) { return g === 'all' ? 'سب جماعتیں' : g === 'NURSERY' ? 'نرسری' : g === 'KG' ? 'کے جی' : 'جماعت ' + urDigits(g); },
       gradeChip: function (g) { return g === 'NURSERY' ? 'نرسری' : g === 'KG' ? 'کے جی' : urDigits(g); },
-      grades: 'جماعتیں', allGrades: 'سب جماعتیں',
+      grades: 'جماعتیں', allGrades: 'سب جماعتیں', fromLink: 'آپ کی کلاس یہ آپ کے لنک سے کھیلتی ہے',
     },
   };
   var SUBJ_UR = { English: 'انگریزی', Maths: 'ریاضی', Urdu: 'اردو', Science: 'سائنس', Geography: 'جغرافیہ', 'General Knowledge': 'معلوماتِ عامہ', History: 'تاریخ', 'Islamic Studies': 'اسلامیات', 'Social Studies': 'معاشرتی علوم' };
@@ -83,8 +83,6 @@
   // words follow the child (the edge's ui_lang); off, the link as it was
   function qLang(B, ctx, h) { return B && B.page_lang === true ? h + (h.indexOf('?') >= 0 ? '&' : '?') + 'lang=' + langOf(ctx) : h; }
   function quizHref(code, k, again) { return '/q/' + encodeURIComponent(code) + '?' + (again ? 'again=1&' : '') + 'k=' + encodeURIComponent(k || ''); }
-  // a teacher's own quiz in their «experience as a child» preview: opened as the teacher's own preview (`p`), never a child
-  function quizRowHref(g) { return g.p ? '/q/' + encodeURIComponent(g.code) + '?p=' + encodeURIComponent(g.p) : quizHref(g.code, g.k, g.done); }
   /* No grade forbids a game or a video (bd-5gyspy.5): a grade is the default selection, with «All grades» and every grade
    * one tap away; the visitor's pick is remembered on this phone per visitor (the chosen child, or the preview). */
   function store(k, v) { try { if (v === undefined) return window.localStorage.getItem(k); window.localStorage.setItem(k, v); } catch (e) {} return null; }
@@ -228,7 +226,9 @@
       if (g.kind === 'read') return row({ href: gameHref(B, ctx, g), title: g.name, kind: 'passage', item: g.stop, pos: i, say: g.say }, ctx);
       return row({ href: storyHref(B, ctx, g), title: g.kind === 'listen' ? t.listenW : t.readAlong, sub: g.title || '', kind: g.kind, item: g.id, pos: i, say: g.say }, ctx);
     };
-    var quizRow = function (g, i) { return row({ href: qLang(B, ctx, quizRowHref(g)), title: topicOf(g, ctx) || t.quiz, done: g.done, kind: g.done ? 'again' : 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); };
+    // a teacher's own quiz in their «experience as a child» preview (`look`): its name only, it opens nothing and is
+    // never the screen's primary
+    var quizRow = function (g, i) { return g.look ? row({ title: topicOf(g, ctx) || t.quiz, sub: t.fromLink, kind: 'quiz', pos: i, art: g.art, tap: 'look' }, ctx).replace('class="wq-row wq-drow"', 'class="wq-row wq-drow wq-look"') : row({ href: qLang(B, ctx, quizHref(g.code, g.k, g.done)), title: topicOf(g, ctx) || t.quiz, done: g.done, kind: g.done ? 'again' : 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); };
     var numsH = !wait ? '' : hasNums ? '<h3 class="wq-dsec"><bdi' + lat(t.numbers) + '>' + esc(t.numbers) + '</bdi></h3>' + skel(2, !open.length, 'in') : skel(3, !open.length);
     var h = section(t.fromTeacher, open.map(quizRow).join('')) + numsH +
       section(t.numbers, nums.map(function (g, i) { return row({ href: g.stop ? gameHref(B, ctx, g) : chHref(B, ctx), title: g.stop ? gameName(g, t) : t.g1, kind: 'game', item: g.stop || 'numbers', pos: i, say: g.say }, ctx); }).join('')) + otherH +

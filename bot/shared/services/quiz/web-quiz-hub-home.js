@@ -317,7 +317,7 @@ async function practiceHub(token, { lang: asked, brandKey } = {}) {
     // has no book to resume), from the home's own switch read
     const storiesBit = play && f.stories ? { stories: { on: 1 } } : {};
     // the preview's Games = a child's of that teacher (bd-5gyspy.5): a link minted for a teacher (`tu`) lists the
-    // teacher's own open quizzes first, each opened as the teacher's own preview (web-quiz-practice-teacher.js)
+    // teacher's own open quizzes first, LOOK-ONLY (no code, no token: web-quiz-practice-teacher.js, redteam HIGH-1)
     const quizRows = play && pr.tu ? (await require('./web-quiz-practice-teacher').rowsFor(pr.tu, { previews: storyPreviews })).map(withArt) : [];
     const out = {
       lang, practice: 1, th: { practice: true }, grade: pr.g,
