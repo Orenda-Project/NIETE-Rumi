@@ -335,3 +335,11 @@ with the second batch; T05/T16/T35/T36/T41/T62/T74 PASS again. T15 is proposed `
 classifier opens the Teacher Training row by design since bd-xw56ed); T21's question-line fix landed after
 this run; T54 is content. The follow-up coaching run records the new voice-debrief answer (COA58) and
 exercises the deferral right after the confirm tap (COA09).
+
+Closing state of the 27 (runs `20261027-050355-cc93ca7-mock` phase 2 + targeted re-runs): COA58 PASS (the voice
+note now says the score), T42 and M10/M21 PASS, L11/L12 PASS, lesson-plan 12/12. COA09 is BLOCKED with its
+reason: under cassette replay the session is in a waiting state (photo gate, lesson-plan gate) or the
+reflective step until Step 4/5, and Steps 4/5 and the report arrive in one read — there is no mid-flight
+second to send into. The guard is unit-tested on both doors (the file door was unguarded until cc93ca791).
+Registration: R02/R07/R13-pre PASS with the v7.0 fixture; R12 needs the `schools` table in the seed (0 rows
+locally), R10/R13 are the known user-cache gap the driver's header names, R15 needs its cassettes recorded.
