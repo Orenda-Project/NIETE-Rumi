@@ -531,7 +531,9 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   deepOnly('COA09', 'A second recording sent mid-analysis is deferred, not started fresh',
       ...(obs.deferral
           ? V(obs.deferral.replied && !obs.deferral.startedNewSession, obs.deferral)
-          : ['BLOCKED', { reason: 'the analysis never reached a step, so there was nothing to defer against' }]));
+          : ['BLOCKED', { reason: obs.steps.includes('5')
+              ? 'no mid-flight window on this lane: under cassette replay the session is in a waiting state or the reflective step until Step 4/5, and Steps 4/5 and the report arrived in one read (run 20261027-1014) — the guard is unit-tested on both doors (tests/coaching/feat106-multiaudio-guard, inflight-guard-document-door)'
+              : 'the analysis never reached a step, so there was nothing to defer against', stepsSeen: obs.steps }]));
 
   deepOnly('COA08', 'Accepting the classroom-photo prompt folds photos into the analysis',
       ...(obs.photoPrompt
