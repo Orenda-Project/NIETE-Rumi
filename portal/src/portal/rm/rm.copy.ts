@@ -63,6 +63,7 @@ export const RM_COPY = {
   "s8.activity.unvisited": { en: "{n} of {d} schools not visited in {w} weeks", ur: "{w} ہفتوں میں {d} میں سے {n} اسکولوں کا دورہ نہیں ہوا" },
   "s8.activity.unvisited.none": { en: "No schools held this month", ur: "اس مہینے کوئی اسکول نہیں" },
   "s8.circle.sub": { en: "{m} of {c} coaches have a moment · {n} of {d} checks due this week", ur: "{c} میں سے {m} کوچوں کے لمحے، اس ہفتے {d} میں سے {n} جانچیں" },
+  "s8.circle.sub.no_checks": { en: "{m} of {c} coaches have a moment · no checks due this week", ur: "{c} میں سے {m} کوچوں کے لمحے، اس ہفتے کوئی جانچ باقی نہیں" },
   "s8.circle.title": { en: "Friday circle", ur: "جمعے کا حلقہ" },
   "s8.cluster": { en: "Cluster session: {title} · {date} · run in a room, with a follow-up", ur: "گروپ نشست: {title}، {date}، ایک کمرے میں، یاد دہانی کے ساتھ" },
   "s8.cluster.no_date": { en: "Cluster session: {title} · run in a room, with a follow-up", ur: "گروپ نشست: {title}، ایک کمرے میں، یاد دہانی کے ساتھ" },
