@@ -20,7 +20,7 @@
 const GRID_ROWS = 12;
 
 const COPY = {
-  en: { script: 'Read aloud', items: 'Ask', answer: 'Answer', each: 'marks each', circle: 'Circle one', score: 'Score', child: 'Child', total: 'Total', grid: 'Class record: oral marks' },
+  en: { script: 'Read aloud', items: 'Ask', answer: 'Answer', each: 'marks each', eachOne: 'mark each', circle: 'Circle one', score: 'Score', child: 'Child', total: 'Total', grid: 'Class record: oral marks' },
   ur: { script: 'پڑھ کر سنائیں', items: 'پوچھیں', answer: 'جواب', each: 'نمبر فی جواب', circle: 'ایک پر دائرہ لگائیں', score: 'نمبر', child: 'بچے کا نام', total: 'کل', grid: 'جماعت کا ریکارڈ: زبانی نمبر' },
 };
 
@@ -34,7 +34,7 @@ function contentFor(oral, task) {
 function rubricBlock(task, lang, t, w) {
   if (task.scoring === 'each') {
     const r = task.rubric[0];
-    return `<div class="oral-rubric" data-scoring="each">${t(`${r[lang]}: ${r.marks} ${w.each}`)}</div>`;
+    return `<div class="oral-rubric" data-scoring="each">${t(`${r[lang]}: ${r.marks} ${Number(r.marks) === 1 && w.eachOne ? w.eachOne : w.each}`)}</div>`;
   }
   const head = task.scoring === 'bands' ? `<div class="oral-circle">${t(w.circle)}</div>` : '';
   const cell = task.scoring === 'criteria' ? '<td class="box"></td>' : '';

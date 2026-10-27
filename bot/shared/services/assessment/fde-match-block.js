@@ -6,17 +6,31 @@
  */
 
 /**
- * Column B: sorted, so it never follows the order the pairs were written in. An answer left
- * beside its own stem swaps with one that can take its place.
+ * Column B (bd-5jmnfj.4.47): the first mix of the sorted answers, so it never follows the order
+ * the pairs were written in, where no answer sits beside its own stem and, from four pairs up,
+ * the column is not the key shifted by some rows (v21 printed each answer one row down).
+ * Three pairs have no such mix: both of theirs are shifts.
  */
 function matchOrder(answers) {
-  const out = [...answers].sort((x, y) => String(x).localeCompare(String(y)));
-  out.forEach((a, i) => {
-    if (a !== answers[i]) return;
-    const j = out.findIndex((b, k) => k !== i && b !== answers[i] && a !== answers[k]);
-    if (j >= 0) [out[i], out[j]] = [out[j], out[i]];
-  });
-  return out;
+  const n = answers.length;
+  const base = [...answers].sort((x, y) => String(x).localeCompare(String(y)));
+  if (n < 2) return base;
+  const shifted = (out) => answers.some((_, k) => k > 0 && out.every((a, i) => a === answers[(i + k) % n]));
+  const fits = (out) => out.every((a, i) => a !== answers[i]) && (n < 4 || !shifted(out));
+  let found = null;
+  const walk = (out, left) => {
+    if (found) return;
+    if (!left.length) {
+      if (fits(out)) found = out;
+      return;
+    }
+    left.forEach((a, j) => {
+      if (a === answers[out.length] || (j > 0 && a === left[j - 1])) return;
+      walk([...out, a], [...left.slice(0, j), ...left.slice(j + 1)]);
+    });
+  };
+  if (n <= 8) walk([], base);
+  return found || base;
 }
 
 const ARROW = /→|←|->|<-|⇒|=>/;
