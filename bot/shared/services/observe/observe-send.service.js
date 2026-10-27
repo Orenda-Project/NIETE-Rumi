@@ -1260,6 +1260,10 @@ async function processTeacherReport(sessionId, payload = {}) {
       return;
     }
 
+    // bd-8hhqhf R7v: the video recommendation's reads start now, alongside the download and the send (see the pick below).
+    try {
+      require('../coaching/video-reco/engine').prefetchReads({ session, coachingSessionId: sessionId, analysis: session.analysis_data });
+    } catch (e) { /* the pick reads for itself */ }
     try {
       const png = await downloadFromR2(delivery.report_key);
       await _sendPackage(delivery.teacher_phone, png, delivery.caption || '', delivery.companion_text);
