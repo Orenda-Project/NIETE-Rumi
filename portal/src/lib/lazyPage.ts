@@ -53,8 +53,9 @@ export function lazyPage<T extends ComponentType<any>>(load: Loader<T>) {
  * bd-sex15q.34 — load every page (and optional piece) registered so far. For tests that draw route elements and
  * step through them synchronously, as they did when those pages were in the first chunk (src/test/setup.ts).
  */
-export function preloadAll(): Promise<unknown> {
-  return Promise.all([...loaders, ...optionalLoaders].map((load) => load().catch(() => undefined)));
+export function preloadAll(which: { pages?: boolean; optional?: boolean } = { pages: true, optional: true }): Promise<unknown> {
+  const all = [...(which.pages ? loaders : []), ...(which.optional ? optionalLoaders : [])];
+  return Promise.all(all.map((load) => load().catch(() => undefined)));
 }
 
 /**

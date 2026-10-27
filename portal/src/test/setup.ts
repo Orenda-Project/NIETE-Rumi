@@ -10,9 +10,17 @@ if (dom && typeof globalThis.localStorage?.clear !== "function") {
   }
 }
 
-// bd-sex15q.34 — pages (lib/lazyPage) are their own chunks now. A test file that imports route lists steps through
-// them synchronously, as it did when they were in the first chunk: load what its imports registered before it runs.
+// bd-sex15q.34 — the teacher v2 pages (lib/lazyPage) and the notices tray (lazyOptional) are their own chunks now.
+// The tests that draw those route lists and step through them synchronously (src/portal/teacher/*), and the frame's
+// own tests (PortalLayout.*), load what their imports registered before they run, as when those were in the first
+// chunk. Nothing else preloads: loading every page for every test file made the suite several times slower.
 // (A test about the outline while a chunk arrives imports the app inside the test, after this has run.)
-import { beforeAll } from "vitest";
+import { beforeAll, expect } from "vitest";
 import { preloadAll } from "@/lib/lazyPage";
-beforeAll(() => preloadAll());
+beforeAll(() => {
+  const file = (expect.getState().testPath ?? "").replace(/\\/g, "/");
+  const pages = file.includes("/src/portal/teacher/");
+  const optional = file.includes("/src/portal/components/PortalLayout");
+  if (!pages && !optional) return undefined;
+  return preloadAll({ pages, optional });
+}, 120_000);
