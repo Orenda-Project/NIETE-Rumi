@@ -363,22 +363,22 @@ export default function LeaderAssessDashboard() {
       </ul>
       {originView.rows.length ? (
         <div className="overflow-x-auto">
-          <table data-testid="dash-origin-by-coach" className="w-full min-w-[320px] text-xs sm:text-sm">
+          <table data-testid="dash-origin-by-coach" className="w-full table-fixed text-xs sm:text-sm">
             <thead>
               <tr className="text-xs text-slate-600">
                 <th className="px-2 py-1 text-start font-medium">{c.colCoach}</th>
-                <th className="whitespace-nowrap px-2 py-1 text-end font-medium">{c.colDrawn}</th>
-                <th className="whitespace-nowrap px-2 py-1 text-end font-medium">{c.colAdded}</th>
-                <th className="whitespace-nowrap px-2 py-1 text-end font-medium">{c.colAddedShare}</th>
+                <th className="w-14 px-1 py-1 text-end font-medium">{c.colDrawn}</th>
+                <th className="w-14 px-1 py-1 text-end font-medium">{c.colAdded}</th>
+                <th className="w-16 px-1 py-1 text-end font-medium">{c.colAddedShare}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {originView.rows.map((k) => (
                 <tr key={k.id || 'none'} data-testid="dash-origin-coach-row" data-coach={k.id} data-drawn={k.drawn} data-added={k.added}>
-                  <td className="px-2 py-2 text-slate-900"><bdi>{k.name || c.unknownCoach}</bdi></td>
-                  <td className="px-2 py-2 text-end tabular-nums">{count(k.drawn)}</td>
-                  <td className={`px-2 py-2 text-end tabular-nums ${k.added ? 'font-semibold text-slate-900' : 'text-slate-400'}`}>{count(k.added)}</td>
-                  <td className="px-2 py-2 text-end tabular-nums">{pct(originView.share(k))}</td>
+                  <td className="px-2 py-2 text-slate-900 [overflow-wrap:anywhere]"><bdi>{k.name || c.unknownCoach}</bdi></td>
+                  <td className="w-14 px-1 py-2 text-end tabular-nums">{count(k.drawn)}</td>
+                  <td className={`w-14 px-1 py-2 text-end tabular-nums ${k.added ? 'font-semibold text-slate-900' : 'text-slate-400'}`}>{count(k.added)}</td>
+                  <td className="w-16 px-1 py-2 text-end tabular-nums">{pct(originView.share(k))}</td>
                 </tr>
               ))}
             </tbody>

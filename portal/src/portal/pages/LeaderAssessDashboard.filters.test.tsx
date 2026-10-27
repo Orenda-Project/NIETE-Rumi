@@ -265,5 +265,16 @@ describe("LeaderAssessDashboard: round 7b filters and stops (sa_dash_filters)", 
     await screen.findByTestId("dash-live");
     expect(screen.queryByTestId("dash-origin")).toBeNull();
   });
+  it("item 15 fits a phone: the drawn-vs-added table has no minimum width, names wrap, number columns stay narrow", async () => {
+    api.getSwitches.mockResolvedValue({ realDashboard: true, dashFilters: true });
+    api.getSessions.mockResolvedValue(fixture());
+    renderPage();
+    const table = within(await screen.findByTestId("dash-origin")).getByTestId("dash-origin-by-coach");
+    expect(table.className).not.toMatch(/min-w-/);
+    expect(table.className).toMatch(/\btable-fixed\b/);
+    const [name, ...nums] = Array.from(table.querySelectorAll("tbody tr:first-child td"));
+    expect(name.className).toMatch(/overflow-wrap:anywhere/);
+    for (const c of nums) expect(c.className).toMatch(/\bw-1[0-9]\b|\bw-\[/);
+  });
 });
 
