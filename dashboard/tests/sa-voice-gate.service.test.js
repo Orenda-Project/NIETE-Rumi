@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-5');
+    expect(sw.CORE).toBe('sa-core-sa-6');
   });
 });
 
