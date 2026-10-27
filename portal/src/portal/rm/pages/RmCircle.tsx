@@ -136,11 +136,16 @@ export default function RmCircle() {
             </RmCard>
             <RmCard testId="s10-checks" title={rt("s10.checks.title", lang)}>
               <WindowLegend windows={data.windows} ids={windowIds(data.checks_due)} />
-              {total && <CountLine k="s10.checks.sub" count={total} className="text-[13.5px] text-[#6b7280]" as="p" />}
+              {/* fix-r5 s2 item 3 (B10): a base of 0 is words, never "0 of 0 open steps" */}
+              {total && (total.d === 0
+                ? <p data-testid="s10-checks-none" className="text-[13.5px] text-[#6b7280]">{rt("s10.checks.sub.none", lang)}</p>
+                : <CountLine k="s10.checks.sub" count={total} className="text-[13.5px] text-[#6b7280]" as="p" />)}
               <ul className="flex flex-wrap gap-2">
                 {data.checks_due.map((c) => (
                   <li key={c.coach_label} data-testid="s10-check" className="rounded-full bg-[#f3f4f6] px-3 py-1.5 text-[13.5px] text-[#1d2025]">
-                    {rtx("s10.checks.row", lang, { coach: <span data-code="" dir="auto">{c.coach_label}</span> }, [{ n: "n", d: "d", count: c.count }])}
+                    {c.count.d === 0
+                      ? rtx("s10.checks.row.none", lang, { coach: <span data-code="" dir="auto">{c.coach_label}</span> })
+                      : rtx("s10.checks.row", lang, { coach: <span data-code="" dir="auto">{c.coach_label}</span> }, [{ n: "n", d: "d", count: c.count }])}
                   </li>
                 ))}
               </ul>

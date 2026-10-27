@@ -106,13 +106,18 @@ export default function RmCoach() {
             <Schools d={data} />
             <RmCard testId="s9-steps" title={rt("s9.steps.title", lang)}>
               <WindowLegend windows={data.windows} ids={windowIds(data.steps)} />
-              <p className="text-[15px] text-[#1d2025]">
-                {rtx("s9.steps.row", lang, {}, [
-                  { n: "o", d: "d", count: data.steps.open },
-                  { n: "c", d: "d", count: data.steps.completed },
-                  { n: "v", d: "d", count: data.steps.overdue },
-                ])}
-              </p>
+              {/* fix-r5 s2 item 3 (B10): no step set this month is words, never "0 of 0 open · 0 of 0 completed · …" */}
+              {data.steps.open.d === 0
+                ? <p data-testid="s9-steps-none" className="text-[15px] text-[#1d2025]">{rt("s9.steps.none", lang)}</p>
+                : (
+                  <p className="text-[15px] text-[#1d2025]">
+                    {rtx("s9.steps.row", lang, {}, [
+                      { n: "o", d: "d", count: data.steps.open },
+                      { n: "c", d: "d", count: data.steps.completed },
+                      { n: "v", d: "d", count: data.steps.overdue },
+                    ])}
+                  </p>
+                )}
             </RmCard>
           </div>
           <div className="flex flex-col gap-4">

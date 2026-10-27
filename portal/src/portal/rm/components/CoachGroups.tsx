@@ -24,9 +24,9 @@ export function CoachRow({ coach, today, floorWeeks, onFollowUp }: { coach: Coac
       <Link to={rmPaths.coach(coach.coach_user_id)} className="flex min-w-0 flex-1 items-start gap-3 rounded-xl outline-none focus-visible:ring-[3px] focus-visible:ring-[#f59e0b]">
         <span data-testid="coach-label" data-code="" dir="auto" className="min-w-[56px] shrink-0 pt-0.5 text-[15px] font-bold text-[#1d2025]">{coach.coach_label}</span>
         <span className="flex min-w-0 flex-col text-[13.5px] leading-[1.45] text-[#374151]">
-          <CountLine k="s8.activity.unvisited" count={a.schools_unvisited} vars={{ w: floorWeeks }} />
-          <CountLine k="s8.activity.steps" count={a.debriefs_with_step} />
-          <CountLine k="s8.activity.overdue" count={a.checks_overdue} vars={{ date_short: dateShort(today, lang) }} />
+          <CountLine k="s8.activity.unvisited" count={a.schools_unvisited} vars={{ w: floorWeeks }} none="s8.activity.unvisited.none" />
+          <CountLine k="s8.activity.steps" count={a.debriefs_with_step} none="s8.activity.steps.none" />
+          <CountLine k="s8.activity.overdue" count={a.checks_overdue} vars={{ date_short: dateShort(today, lang) }} none="s8.activity.overdue.none" />
           {coach.note_open && (
             <span data-testid="note-open" className="text-[12.5px] text-[#6b7280]">
               {rt("s8.follow_up", lang)}{lang === "ur" ? "، " : " · "}{rt(`s9.notes.status.${coach.note_open.status}` as const, lang)}
@@ -47,7 +47,7 @@ function GroupHead({ k, count }: { k: "s8.group.needs_me" | "s8.group.on_track";
   return (
     <div className="mt-2 flex flex-col">
       <h3 className="text-[12.5px] font-bold uppercase tracking-[0.06em] text-[#6b7280] rtl:tracking-normal">{rt(k, lang)}</h3>
-      {count && <CountLine k="s8.on_track.row" count={count} className="text-[13px] text-[#6b7280]" />}
+      {count && count.d > 0 && <CountLine k="s8.on_track.row" count={count} className="text-[13px] text-[#6b7280]" />}
     </div>
   );
 }
