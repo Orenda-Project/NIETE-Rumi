@@ -31,6 +31,30 @@ function realPictures() {
   return require('./fde-pictures').resolvePictures;
 }
 
+const eachList = (tree, fn) => Object.values(tree || {}).forEach((branch) => Object.values(branch || {}).forEach((types) => {
+  if (types && typeof types === 'object') Object.keys(types).forEach((k) => { if (Array.isArray(types[k])) fn(types, k); });
+}));
+
+// The kept tree with the fresh reply's items in place of its own for `slots`; a slot the reply left
+// empty keeps what it had.
+function swapSlots(kept, fresh, slots) {
+  const got = new Map();
+  eachList(fresh, (types, k) => types[k].forEach((q) => {
+    if (q && slots.has(q.slot)) got.set(q.slot, (got.get(q.slot) || []).concat(q));
+  }));
+  const out = JSON.parse(JSON.stringify(kept));
+  eachList(out, (types, k) => {
+    const done = new Set();
+    types[k] = types[k].flatMap((q) => {
+      if (!q || !got.has(q.slot)) return [q];
+      if (done.has(q.slot)) return [];
+      done.add(q.slot);
+      return got.get(q.slot);
+    });
+  });
+  return out;
+}
+
 async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, requestId = null }, d) {
   const startedAt = Date.now();
   const MP = Prompt.maskP(P);
@@ -141,13 +165,31 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
       : b);
     results[i] = topUp ? { ...second, tree: d.topUp(first.tree, second.tree, new Set(shortfall.map((f) => f.slot))) } : second;
   };
+  const reaskAnswers = async (b, late) => {
+    const shortfall = late.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
+    const i = results.findIndex((r) => r.id === b.section.id);
+    d.logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall, after: 're-ask' });
+    extraUsages.push(...results[i].usages);
+    const user = `${b.user}\n\n${Prompt.answerNote(shortfall, P)}`;
+    const next = await writeOne({ ...b, messages: d.sectionMessages({ system, user, pageContent: b.pageContent, model }) });
+    results[i] = { ...next, tree: swapSlots(results[i].tree, next.tree, new Set(shortfall.map((f) => f.slot))) };
+  };
   // A section re-asked for a repeated picture goes one at a time, so each sees the others' new pictures.
   const repeats = new Set(short.filter((f) => f.reason === 'repeat').map((f) => f.slot));
   const isRepeat = (b) => b.section.slots.some((s) => repeats.has(s.slot));
   const inTurn = async () => { for (const b of again.filter(isRepeat)) await reask(b); };
   await Promise.all([...again.filter((b) => !isRepeat(b)).map(reask), inTurn(), oral && oral.missing.length ? reaskOral() : null]);
 
-  const laid = lay(again.length > 0);
+  let laid = lay(again.length > 0);
+  // A re-asked reply is checked again: v20's Section C, re-asked for Q12's repeated dog and cat, came back
+  // with a Q13 about a gift (bd-5jmnfj.4.40). A key still off its rule is asked once more, and only
+  // those questions are swapped in, so the rest of the section stays as it was checked.
+  const late = again.length ? Prompt.answerShortfall(laid.examJson, P) : [];
+  if (late.length) {
+    await Promise.all(built.filter(({ section }) => section.slots.some((s) => late.some((f) => f.slot === s.slot)))
+      .map((b) => reaskAnswers(b, late)));
+    laid = lay(true);
+  }
   let examJson = laid.examJson;
   const layout = { placed: laid.placed, unplaced: firstLaid.unplaced };
   d.logToFile('[assessment] layout applied', {

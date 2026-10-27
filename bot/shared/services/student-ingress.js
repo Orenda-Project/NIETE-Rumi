@@ -35,8 +35,9 @@
  *
  * What a child can do (route()): join a quiz by its code and answer it, take
  * the videos path (/video and its Flow), answer the invite / watch-more /
- * feedback buttons, open the child menu, and ask a school question (the child
- * tutor prompt). Everything else — a voice note, an image, a document, every
+ * feedback buttons, open the child menu, open their home ("quiz", and "portal"
+ * or "/portal", which for a child can only mean the app), and ask a school
+ * question (the child tutor prompt). Everything else — a voice note, an image, a document, every
  * other command and button — gets ONE short line in the quiz language.
  *
  * Behind STUDENT_MODE_ENABLED (unset = off): with the flag off classify()
@@ -50,6 +51,7 @@ const { resolveUx } = require('../config/ux-strings');
 const StudentMode = require('./student-mode.service');
 const { isQuizMenuRequest } = require('./quiz/quiz-menu-request');
 const QuizMenuFlags = require('./quiz/quiz-menu-flags');
+const PortalRequest = require('./portal-request');
 
 /** A verdict is cached per handset (student-ingress-cache: whoever writes a students row drops it there). */
 const VerdictCache = require('./student-ingress-cache');
@@ -402,6 +404,15 @@ async function route({ message, messageType, messageBody = '', from, user } = {}
         logEvent('quiz_menu.requested', { userId: user.id || null, route: 'child_quizzes', trigger: 'ingress' });
         // the card's item is kept for this phone, so the home link this sends opens it
         await require('./quiz/web-quiz-share-open').note(from, body);
+        await openQuizzes(from, language);
+        return true;
+      }
+
+      // "portal" or "/portal" from a child is the app: the same one button as "quiz" (it was refused as a teacher
+      // command, or answered by the tutor as a school question). A sentence that says more is still the tutor's.
+      // PORTAL_KEYWORD_ROUTING off: today's refusal and tutor.
+      if (PortalRequest.keywordRoutingOn() && PortalRequest.isPortalRequest(body)) {
+        logEvent('quiz_menu.requested', { userId: user.id || null, route: 'child_quizzes', trigger: 'portal' });
         await openQuizzes(from, language);
         return true;
       }
