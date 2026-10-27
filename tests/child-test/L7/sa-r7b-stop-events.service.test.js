@@ -1,6 +1,6 @@
 /**
  * Round 7b: every skip and stop is one event record, kept on the session (child_test_sessions.device.events — an
- * existing column; no new table). type ∈ back | end_section | end_test | restart | silence_repeat | under20_move_on;
+ * existing column; no new table). type ∈ back | end_section | end_test | restart | silence_repeat | incomplete_move_on;
  * the session, the child and the coach are the session row's; the subtask is task_id; at is the phone's time.
  * The kept-events cap never drops one of these.
  */
@@ -9,7 +9,7 @@ const SVC = '../../../bot/shared/services/child-test/app/sa-api.service';
 const COACH = '11111111-1111-4111-8111-111111111111';
 const SCHOOL = '44444444-4444-4444-8444-444444444444';
 const SESSION = '55555555-5555-4555-8555-555555555555';
-const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'under20_move_on'];
+const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on'];
 
 function makeDeps() {
   const sessions = { [SESSION]: { id: SESSION, coach_user_id: COACH, school_id: SCHOOL, grade: 3, form: 'A', status: 'in_progress', item_bank_version: 'sa-battery', visit_key: 'day:x' } };

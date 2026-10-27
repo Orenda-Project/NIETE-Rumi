@@ -5,7 +5,7 @@
  *                        task on show before the run ends (OFF: no such event, the end as before).
  *   ui.end_section       the coach page's End this section (sa:end_section), RDF manual: the runner ends the section.
  *   ui.silence_repeat    RDF auto: the voice watch runs on every read-aloud recording, and the silent attempt's
- *                        recording is discarded (rec.discard), never uploaded; ui.under20_move_on reaches the runner.
+ *                        recording is discarded (rec.discard), never uploaded; ui.incomplete_move_on reaches the runner.
  */
 const core = require('../sa/sa-core');
 const storeMod = require('../sa/sa-store');
@@ -91,7 +91,7 @@ describe('end_section (ui.end_section, RDF manual)', () => {
   });
 });
 
-describe('silence_repeat + under20 (RDF auto)', () => {
+describe('silence_repeat + incomplete_move_on (RDF auto)', () => {
   const CELLS = { id: 'ur.w', mode: 'record', present: 'one_at_a_time', advance_after_s: 0, time_limit_s: 60, items: [{ id: 'c1', target: 'x', show: 'x' }] };
   function recFake() {
     const calls = { start: 0, stop: 0, discard: 0, onVoice: 0 };
@@ -132,12 +132,22 @@ describe('silence_repeat + under20 (RDF auto)', () => {
     await f.ui().onRecordStop(CELLS);
     expect(r.calls).toMatchObject({ onVoice: 0, discard: 0, stop: 1 });
   });
-  test('ui.under20_move_on reaches the runner (RDF auto)', async () => {
+  test('ui.incomplete_move_on reaches the runner (RDF auto): a part its stop rule ended skips the rest of its subject', async () => {
     const s = await storeMod.open({ idb: null });
     const f = fakes(s);
-    const e = await start({ mount: {}, battery: { battery_id: 'u20', ui: { under20_move_on: true }, tasks: [tap('ur.a', 10), tap('ur.b', 1), tap('en.c', 1)] }, mode: 'proctored', lang: 'ur', session_id: 's-u20', audio_check: false, warmup: false }, f.deps);
+    const stopped = { ...tap('ur.a', 10), stop: { consecutive_errors: 4 } };
+    const e = await start({ mount: {}, battery: { battery_id: 'inc', ui: { incomplete_move_on: true }, tasks: [stopped, tap('ur.b', 1), tap('en.c', 1)] }, mode: 'proctored', lang: 'ur', session_id: 's-inc', audio_check: false, warmup: false }, f.deps);
     e.runner.start(); e.runner.instructionDone(); e.runner.begin();
-    for (let i = 0; i < 10; i++) e.runner.answer('b');
-    expect(e.runner.results().map((x) => x.stop_reason)).toEqual(['complete', 'skipped_under20']);
+    for (let i = 0; i < 4; i++) e.runner.answer('b');
+    expect(e.runner.results().map((x) => x.stop_reason)).toEqual(['consecutive_errors', 'skipped_incomplete']);
+  });
+  test('without ui.incomplete_move_on the same run goes on to the next part', async () => {
+    const s = await storeMod.open({ idb: null });
+    const f = fakes(s);
+    const stopped = { ...tap('ur.a', 10), stop: { consecutive_errors: 4 } };
+    const e = await start({ mount: {}, battery: { battery_id: 'inc0', tasks: [stopped, tap('ur.b', 1)] }, mode: 'proctored', lang: 'ur', session_id: 's-inc0', audio_check: false, warmup: false }, f.deps);
+    e.runner.start(); e.runner.instructionDone(); e.runner.begin();
+    for (let i = 0; i < 4; i++) e.runner.answer('b');
+    expect(e.runner.results().map((x) => x.stop_reason)).toEqual(['consecutive_errors']);
   });
 });
