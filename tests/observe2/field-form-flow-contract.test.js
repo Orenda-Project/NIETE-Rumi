@@ -13,7 +13,7 @@ const path = require('path');
 
 const { buildFieldFormFlow, FIELDS, FORM_VERSION } = require('../../bot/shared/services/observe/observe2/field-form.flow');
 const { PICKED, GROUPS, LISTEN, MATERIALS, SWITCH, TASK, TEACHER_SAID, STUCK } = require('../../bot/shared/services/observe/observe2/rules');
-const { CODES, FOCUS, PLAN_FOCUS, PLAIN } = require('../../bot/shared/services/observe/observe2/fico17');
+const { CODES, FOCUS, FOCUS_ORDER, FOCUS_DESCRIPTION, PLAN_FOCUS, PLAIN } = require('../../bot/shared/services/observe/observe2/fico17');
 
 const FLOW_PATH = path.join(__dirname, '../../docs/flows/observe2-field-form.json');
 const flow = buildFieldFormFlow();
@@ -130,7 +130,10 @@ describe('WhatsApp caps, measured in code points', () => {
           if (cp(o.title) > 30) problems.push(`${c.name}/${o.id}: title ${cp(o.title)} "${o.title}"`);
           if (o.description && cp(o.description) > 300) problems.push(`${c.name}/${o.id}: description`);
         }
-        if (Array.isArray(c['data-source']) && c['data-source'].length > 20) problems.push(`${c.name}: options`);
+        // Meta's Flow JSON reference: a RadioButtonsGroup or CheckboxGroup lists at most 20 options, a Dropdown
+        // 200 (100 when its options carry images). "Work on first" (a Dropdown) has 23 since R20/R21.
+        const maxOptions = c.type === 'Dropdown' ? 200 : 20;
+        if (Array.isArray(c['data-source']) && c['data-source'].length > maxOptions) problems.push(`${c.name}: options`);
       }
     }
     expect(problems).toEqual([]);
@@ -167,14 +170,23 @@ describe('the form agrees with the rules module', () => {
       const footer = components(screens[id]).find((c) => c.type === 'Footer');
       expect(footer['on-click-action'].payload.fv).toBe(FORM_VERSION);
     }
-    expect(Number(FORM_VERSION)).toBeGreaterThanOrEqual(5);
+    // 6: Part 2's "While they worked, the teacher" gained the two checking moves (pilot sheet R4's comment).
+    expect(Number(FORM_VERSION)).toBeGreaterThanOrEqual(6);
   });
   // R14 (FICO pilot sheet): one required "Work on first", up to two optional more, and the lesson
   // plan's own steps (Section B) as a choice in all three.
-  test('the priority list is the 17 and the plan\'s steps, in plain words', () => {
+  // R20/R21 (two coaches, 16 Oct): five coaching focus areas join them, and the choices coaches could not
+  // recognise say what they are (a description under the title).
+  test('the priority list is the 17, the plan\'s steps and the five coaching focus areas, in plain words', () => {
     const pri = byName(screens.AFTER, 'priority')['data-source'];
-    expect(pri.map((o) => o.id).sort()).toEqual([...CODES, PLAN_FOCUS].sort());
-    for (const o of pri) expect(o.title).toBe(FOCUS[o.id]);
+    expect(pri.map((o) => o.id)).toEqual(FOCUS_ORDER);
+    expect(pri.map((o) => o.id).sort()).toEqual([...CODES, PLAN_FOCUS, 'wait', 'manage', 'rules', 'warmup', 'close'].sort());
+    for (const o of pri) {
+      expect(o.title).toBe(FOCUS[o.id]);
+      if (FOCUS_DESCRIPTION[o.id]) expect(o.description).toBe(FOCUS_DESCRIPTION[o.id]);
+      else expect(o.description).toBeUndefined();
+    }
+    for (const id of [PLAN_FOCUS, 'C7', 'wait', 'manage', 'rules', 'warmup', 'close']) expect(pri.find((o) => o.id === id).description).toBeTruthy();
     expect(byName(screens.AFTER, 'priority').required).toBe(true);
   });
   test('"Also work on" is two optional lists of the same choices, each with "Nothing else"', () => {

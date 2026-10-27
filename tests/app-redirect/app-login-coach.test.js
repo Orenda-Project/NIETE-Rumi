@@ -75,7 +75,9 @@ describe('the token', () => {
       teacher_training: '/portal/teacher/training',
       attendance: '/portal/teacher/attendance',
       classes: '/portal/teacher/classes',
+      ai_coaching_recording: '/portal/teacher/coaching/new?recording=whatsapp', // bd-c5reix, a kept recording's landing
       assessment_topics: '/portal/teacher/assessment/new/class?by=topics', // bd-6clakk Task 9, a landing of its own
+      assessment_report: '/portal/teacher/assessment/new/class', // bd-pw1ccr.2, the A/B report button
     });
   });
 });

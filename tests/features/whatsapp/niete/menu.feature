@@ -54,7 +54,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     # text-message.handler.js:1495 matches messageBody.toLowerCase() === '/menu',
     # so "/MENU" / "/Menu" open the menu too.
 
-  @e2e @menu @edge @P1 @M21
+  @e2e @menu @edge @P1 @M28
   Scenario: /menu typed back the way Urdu text showed it ("Menu/") still opens the menu
     Given the NIETE bot chat is open
     When I send "Menu/"
@@ -70,7 +70,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     When I send "/ menu"
     Then the "See what I do" menu is shown with the core teacher rows
     # ADDED 2026-10-13 (bd-5ls6qy.7): 76 "/ menu" messages in 10–13 Oct went to the
-    # general chat. Same canonicaliser as M21. A bare "menu" stays a non-command (M06).
+    # general chat. Same canonicaliser as M28. A bare "menu" stays a non-command (M06).
 
   @e2e @menu @edge @P2 @M03
   Scenario: /menu re-opens the menu from inside a feature flow (escape hatch)
@@ -160,6 +160,35 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     # Someone NOT registered is offered the registration Flow by the text handler before /portal reaches it.
     # History: until 2026-10-16 this scenario expected "portal.niete.edu.pk/portal/login" (verified on PROD
     # 2026-08-04), and a non-activated teacher got a /portal/setup/<token> link (portal-invite.service.js).
+
+  @e2e @portal @P1 @M29
+  Scenario Outline: "portal" typed without the slash opens the portal the same way as /portal
+    Given the NIETE bot chat is open
+    And I am a registered teacher
+    When I send "<typed>"
+    Then I get one message with an "Open portal" button
+    And the button's link is this portal's /go/<token> sign-in link
+    And the bot reply does not say it is unsure
+    Examples:
+      | typed       |
+      | portal      |
+      | Portal      |
+      | open portal |
+      | mera portal |
+      | پورٹل       |
+    # ADDED 2026-10-27: the whole message being the portal word plus at most a few words that only ask for it
+    # (portal-request.js isPortalRequest) is the /portal command (text-message.handler.js portalRequest). Before,
+    # a bare "portal" got "not sure which feature you meant" and the menu (prod, 7 days to 27 Oct: 3 turns, 0 links).
+    # Not registered: the registration Flow, exactly as for /portal. Kill switch PORTAL_KEYWORD_ROUTING (env, unset = on).
+    # Unit: bot/tests/handlers/portal-bare-word.test.js (the real handler), portal-request.test.js (the word table).
+
+  @e2e @portal @negative @P2 @M30
+  Scenario: A sentence that mentions the portal is not the portal command
+    Given the NIETE bot chat is open
+    And I am a registered teacher
+    When I send "portal pe lesson nahi khul raha"
+    Then no "Open portal" button is sent
+    # A message carrying content (a question, a problem) goes to the classifier and the chat, as before.
 
   @e2e @portal @P1 @M21
   Scenario: /portal gives an activated teacher with no password the same sign-in link — no password asked
@@ -398,3 +427,50 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     When I send "make a presentation about photosynthesis"
     Then no presentation is started
     And the bot reply does not say it is preparing a presentation
+
+  # ══════════════════ INBOUND SIGNATURE (every message passes it) ═══════════════════
+  # Meta signs every webhook and Flow endpoint request: X-Hub-Signature-256 = "sha256=" + HMAC-SHA256 of the
+  # raw body with the App Secret of the app subscribed to the WABA. bot/shared/services/webhook-signature.js
+  # checks it in front of POST /webhook and POST /api/flows/*. Mode: app_settings `webhook_signature_mode`, else
+  # WHATSAPP_WEBHOOK_SIGNATURE_MODE, else log. These are HTTP-level (@chunk) and need the mode and a lane App
+  # Secret (@config-gated): the mock Graph API does not sign what it injects yet, so the mock driver records them
+  # BLOCKED. Executed at the HTTP layer by tests/whatsapp/webhook-signature.test.js (the real Express app); on a
+  # deployed tier the proof is the webhook.signature_valid / _missing / _invalid counts in the logs.
+  # /menu is the probe because it is the one message every teacher state answers the same way.
+
+  @e2e @menu @chunk @config-gated @P1 @M31
+  Scenario: A message Meta signed is answered when the signature is enforced
+    Given the webhook signature mode is "enforce"
+    And the bot holds the App Secret of the Meta app subscribed to its number
+    When Meta delivers "/menu" from a teacher, signed with that App Secret
+    Then the bot acknowledges the webhook with 200
+    And the "See what I do" menu is shown to that teacher
+
+  @e2e @menu @chunk @config-gated @P1 @M32
+  Scenario: In log mode (the default) an unsigned message is still answered and recorded as unsigned
+    Given the webhook signature mode is "log"
+    When "/menu" arrives for a teacher's number with no signature
+    Then the bot acknowledges the webhook with 200
+    And the "See what I do" menu is shown to that teacher
+    And the bot logs "webhook.signature_missing" for route "webhook"
+
+  @e2e @menu @chunk @config-gated @negative @P1 @M33
+  Scenario Outline: A forged message is refused when the signature is enforced, and the teacher gets nothing
+    Given the webhook signature mode is "enforce"
+    When "/menu" arrives for a teacher's number <how>
+    Then the bot answers the webhook with 401
+    And no message is sent to that teacher
+    And the bot logs "<event>" for route "webhook"
+
+    Examples:
+      | how                                           | event                     |
+      | with no signature                             | webhook.signature_missing |
+      | signed, then changed after signing            | webhook.signature_invalid |
+      | signed with a secret that is not the App's    | webhook.signature_invalid |
+
+  @e2e @menu @chunk @config-gated @negative @P2 @M34
+  Scenario: An unsigned Flow endpoint request is refused with Meta's signature code, and signed ones still open the form
+    Given the webhook signature mode is "enforce"
+    When a Flow data request reaches /api/flows/registration with no signature
+    Then the bot answers 432 without decrypting it
+    And the same request signed with the App Secret is decrypted and answered as before

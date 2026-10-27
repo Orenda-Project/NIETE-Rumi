@@ -90,7 +90,7 @@ for drv in "$ROOT"/.claude/qa/web/features/*.cjs; do
     || no "W10 $f: spec and driver name the same scenarios" "spec [$s_ids] code [$c_ids]"
 done
 # W11 — the portal is covered area by area: at least these drivers exist.
-for f in portal-login portal-smoke teacher-home teacher-lessons teacher-coaching teacher-training teacher-classes teacher-assessment coach-portal leader-portal portal-account; do
+for f in portal-login portal-smoke teacher-home teacher-lessons teacher-coaching teacher-training teacher-classes teacher-assessment coach-portal leader-portal portal-account web-quiz-child-page; do
   [ -f "$ROOT/.claude/qa/web/features/$f.cjs" ] && ok "W11 driver $f" || no "W11 driver $f"
 done
 
@@ -151,6 +151,22 @@ R=$(mkrepo clean bd-x3-1)
 bash "$CLR" "$R" "x" >/dev/null 2>&1
 chk "W16h no new row: no empty commit" "$(git -C "$R" rev-list --count HEAD)" "1"
 grep -q 'commit-ledger-row.sh' "$SH" && ok "W16i e2e-web.sh calls it after the row is appended" || no "W16i e2e-web.sh calls commit-ledger-row.sh"
+
+# W17 — a PARALLEL run is ONE run: one ledger commit for every feature's row (not one per child), and one run id
+# shared by its rows — the mock lane's rule (run-suite.sh: children commit-off, the parent commits once).
+pp=$(bash "$SH" portal-login,teacher-lessons,coach-portal --parallel --print-plan 2>&1)
+chk "W17 every parallel child has its own ledger commit OFF" "$(printf '%s\n' "$pp" | grep -c '^LEDGER_COMMIT=off$')" "3"
+chk "W17b the parent commits the rows once" "$(printf '%s\n' "$pp" | grep -c '^PARALLEL_LEDGER_COMMIT=once$')" "1"
+prefixes=$(printf '%s\n' "$pp" | sed -nE 's#^RUN_DIR=.*/(.*)-(portal-login|teacher-lessons|coach-portal)$#\1#p' | sort -u)
+chk "W17c one run id shared by the children" "$(printf '%s\n' "$prefixes" | grep -c .)" "1"
+case "$prefixes" in parallel-*) ok "W17d the shared id names the parallel run";; *) no "W17d shared id" "$prefixes";; esac
+chk "W17e a single run still commits its own row" "$(bash "$SH" portal-login --print-plan 2>&1 | sed -nE 's/^LEDGER_COMMIT=//p')" "on"
+chk "W17f --run-id is honoured" "$(bash "$SH" portal-login --run-id my-run-portal-login --print-plan 2>&1 | sed -nE 's#^RUN_DIR=.*/##p')" "my-run-portal-login"
+# the real (non-plan) path: the same child flags as the plan, and exactly one parent commit after the wait loop
+grep -qE '^ +E2E_NO_COMMIT=1 bash "\$0" "\$f" --slot "\$s" --run-id' "$SH" && ok "W17g real children start commit-off with the shared run id" \
+  || no "W17g real child launch" "$(grep -n 'bash "\$0" "\$f" --slot "\$s"' "$SH")"
+chk "W17h commit-ledger-row.sh is called twice in all: the single-run record + the parallel parent" \
+    "$(grep -c 'bash "\$REPO/scripts/qa/commit-ledger-row.sh"' "$SH")" "2"
 
 # W5 — wired into npm, like e2e:mock.
 chk "W5 npm run e2e:web" "$(node -p "require('$ROOT/package.json').scripts['e2e:web']" 2>/dev/null)" "bash scripts/qa/e2e-web.sh"

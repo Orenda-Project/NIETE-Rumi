@@ -30,13 +30,11 @@
 
 const COMMON_EN = {
   school_line: 'School: ____________',
-  disclaimer: 'Practice paper in the FDE Grade V Centralised Annual Examination pattern (Feb 2027). Not an official FDE paper.',
   student_box: ['Student Name', 'Roll No', 'Date', 'Total Marks', 'Obtained Marks'],
-  footer: 'Not an official FDE paper',
   footer_page: 'Page {n} of {N}',
   scheme_title: 'MARKING SCHEME',
   band: 'TEACHER\'S COPY · Do not give to children',
-  covers: 'Covers: {scope}. Not an official FDE paper.',
+  covers: 'Covers: {scope}.',
   covers_partial: 'Covers {units}; every section set from these units.',
   record_title: 'Class record',
   record_cols: ['Roll', 'Name'],
@@ -54,13 +52,11 @@ const COMMON_EN = {
 // Every value below needs fluent-Urdu review (drafts, none transcribed).
 const COMMON_UR = {
   school_line: 'اسکول: ____________', // needs fluent-Urdu review
-  disclaimer: 'یہ مشق کا پرچہ ہے جو FDE کے جماعت پنجم کے مرکزی سالانہ امتحان (فروری 2027) کے pattern پر بنایا گیا ہے۔ یہ سرکاری پرچہ نہیں ہے۔', // operator rule 15 Oct: «pattern» in Latin, never طرز; rest needs fluent-Urdu review
   student_box: ['نام طالب علم', 'رول نمبر', 'تاریخ', 'کل نمبر', 'حاصل کردہ نمبر'], // needs fluent-Urdu review
-  footer: 'یہ سرکاری FDE پرچہ نہیں ہے', // needs fluent-Urdu review
   footer_page: 'صفحہ {n} از {N}', // needs fluent-Urdu review
   scheme_title: 'مارکنگ اسکیم', // needs fluent-Urdu review
   band: 'استاد کی کاپی · بچوں کو نہ دیں', // needs fluent-Urdu review
-  covers: 'احاطہ: {scope}۔ یہ سرکاری FDE پرچہ نہیں ہے۔', // needs fluent-Urdu review
+  covers: 'احاطہ: {scope}۔', // needs fluent-Urdu review
   covers_partial: 'احاطہ: {units}؛ ہر حصہ انہی ابواب سے۔', // needs fluent-Urdu review
   record_title: 'کلاس ریکارڈ', // needs fluent-Urdu review
   record_cols: ['رول نمبر', 'نام'], // needs fluent-Urdu review

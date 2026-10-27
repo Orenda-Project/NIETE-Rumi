@@ -601,7 +601,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # never called) → prioritized_action.teacher_response never becomes 'yes' and the
     # agency reminder can't fire. Expected to FAIL until wired.
 
-  @e2e @wip @draft @P1 @COA72
+  @e2e @wip @draft @P1 @COA96
   Scenario: The lesson-plan list says a photo, a PDF, or typing the plan all work
     Given the NIETE bot chat is open
     And an observation I started is waiting at the lesson-plan step with the teacher's recent lesson plans listed

@@ -100,7 +100,10 @@ const CASES = Object.entries(COPY).flatMap(([feature, langs]) =>
 test('the table covers exactly the seven linkable features', () => {
   const { LANDINGS } = require(LOGIN_LINK);
   // assessment_topics is not a command: it is the second offer under the assessment door (assessment-entry.service.js).
-  expect(Object.keys(COPY).sort()).toEqual(Object.keys(LANDINGS).filter((f) => f !== 'assessment_topics').sort());
+  // ai_coaching_recording is not one either: ai_coaching's link when her recording was kept (bd-c5reix, its own suite).
+  // assessment_report is the A/B report button's link (bd-pw1ccr.2, its own suite).
+  const NOT_COMMANDS = ['assessment_topics', 'ai_coaching_recording', 'assessment_report'];
+  expect(Object.keys(COPY).sort()).toEqual(Object.keys(LANDINGS).filter((f) => !NOT_COMMANDS.includes(f)).sort());
 });
 
 describe.each(CASES)('%s in %s', (feature, language, body, button) => {

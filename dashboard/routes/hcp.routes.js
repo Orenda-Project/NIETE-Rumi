@@ -94,9 +94,20 @@ async function requirePatchScope(req, res, next) {
   }
 }
 
+// Every hcp answer carries teacher names and ids, so none of it may be cached,
+// the refusals included.
+function noStore(_req, res, next) {
+  res.set('Cache-Control', 'private, no-store');
+  return next();
+}
+
 // Route-level rather than router.use so a handler invoked off router.stack
 // (tests/hcp/_shared.js) still runs the whole chain.
-const guard = [requirePortalAuth, requireLeaderRole, requirePatchScope];
+const guard = [noStore, requirePortalAuth, requireLeaderRole, requirePatchScope];
+
+// A region is one plain label ("ICT", "Urban-I"). Anything else, including a
+// repeated or bracketed param, is refused before it reaches a query.
+const REGION_RX = /^[A-Za-z][A-Za-z0-9 _-]{0,63}$/;
 
 function inScope(req, teacherId) {
   return teacherId != null && req.hcpScope instanceof Set && req.hcpScope.has(String(teacherId));
@@ -211,6 +222,9 @@ function computeTrend(sessions) {
 router.get('/teachers', ...guard, async (req, res) => {
   try {
     const { region } = req.query;
+    if (region !== undefined && (typeof region !== 'string' || !REGION_RX.test(region))) {
+      return res.status(400).json({ success: false, error: 'Invalid region.' });
+    }
     const scopeIds = [...req.hcpScope];
     if (scopeIds.length === 0) return res.status(200).json({ success: true, teachers: [] });
 
@@ -754,6 +768,31 @@ router.patch('/schedules/:id', ...guard, async (req, res) => {
 // ---------------------------------------------------------------------------
 const VALID_FEEDBACK_LANGUAGES = new Set(['english', 'urdu', 'roman_urdu']);
 
+// bd-nmwmr4.2: the header strings are interpolated into the prompt inside JSON string literals, so
+// a leader could steer the model through them. Each is cleaned (newlines, tabs, quotes and
+// backslashes out) and capped; observation_tool must be one POST /schedules accepts.
+const FEEDBACK_HEADER_FIELDS = ['teacher_name', 'subject', 'school_name', 'class', 'coach_name', 'region'];
+const FEEDBACK_HEADER_MAX = 80;
+
+function cleanFeedbackHeader(observationData) {
+  const out = { ...observationData };
+  for (const field of FEEDBACK_HEADER_FIELDS) {
+    const value = observationData[field];
+    if (value === undefined || value === null) continue;
+    if (typeof value !== 'string' && typeof value !== 'number') return { error: `Invalid ${field}.` };
+    const cleaned = String(value).replace(/["\\]/g, '').replace(/\s+/g, ' ').trim();
+    if (cleaned.length > FEEDBACK_HEADER_MAX) {
+      return { error: `${field} must be at most ${FEEDBACK_HEADER_MAX} characters.` };
+    }
+    out[field] = cleaned;
+  }
+  const tool = observationData.observation_tool;
+  if (tool !== undefined && tool !== null && !VALID_OBSERVATION_TOOLS.has(tool)) {
+    return { error: `Invalid observation_tool. Must be one of: ${[...VALID_OBSERVATION_TOOLS].join(', ')}.` };
+  }
+  return { observationData: out };
+}
+
 function buildFeedbackPrompt({ observationData, language }) {
   const tool = observationData.observation_tool || 'FICO';
   const langLabel = language === 'urdu'
@@ -830,7 +869,7 @@ function parseFeedbackJson(raw) {
 router.post('/generate-feedback', ...guard, async (req, res) => {
   try {
     const {
-      teacher_id, coaching_session_id, observation_data, language, prompt: overridePrompt,
+      teacher_id, coaching_session_id, observation_data, language,
     } = req.body || {};
 
     if (!teacher_id) {
@@ -840,9 +879,13 @@ router.post('/generate-feedback', ...guard, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing observation_data.' });
     }
     if (!inScope(req, teacher_id)) return teacherNotFound(res);
+    const header = cleanFeedbackHeader(observation_data);
+    if (header.error) return res.status(400).json({ success: false, error: header.error });
 
     const lang = VALID_FEEDBACK_LANGUAGES.has(language) ? language : 'english';
-    const prompt = overridePrompt || buildFeedbackPrompt({ observationData: observation_data, language: lang });
+    // Always the prompt built here: a caller-supplied prompt would turn this
+    // route into a free model proxy and store arbitrary text in prompt_used.
+    const prompt = buildFeedbackPrompt({ observationData: header.observationData, language: lang });
 
     // Lazy-require so tests can mock the module cleanly.
     let llmResponse;

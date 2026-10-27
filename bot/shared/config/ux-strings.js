@@ -869,6 +869,19 @@ const UX_STRINGS = {
   appLinkButtonAssessment: { en: 'Make a paper', ur: 'پرچہ بنائیں' },
   appLinkBodyCoaching: { en: 'Record your lesson in the app.', ur: 'ایپ میں اپنا سبق ریکارڈ کریں۔' },
   appLinkButtonCoaching: { en: 'Record lesson', ur: 'سبق ریکارڈ کریں' },
+  // bd-c5reix — a classroom recording sent on WhatsApp is kept for the app (the link opens it attached), or it is one
+  // she sent before (the link opens Digital Coaching, where its report is: coaching-messages.js duplicateRecording's voice).
+  // bd-c5reix.1 (operator, 22 Oct): say it is saved and to tap the button below; the button names where it goes.
+  appLinkBodyCoachingSaved: {
+    en: 'Your recording is saved ✅ Tap the button below to complete your Digital Coaching.',
+    ur: 'آپ کی ریکارڈنگ محفوظ ہو گئی ہے ✅ اپنی ڈیجیٹل کوچنگ مکمل کرنے کے لیے نیچے دیا گیا بٹن دبائیں۔',
+  },
+  appLinkButtonCoachingSaved: { en: 'Digital Coaching', ur: 'ڈیجیٹل کوچنگ' },
+  appLinkBodyCoachingRepeat: {
+    en: "📋 I've heard this recording before \u2014 it's the same one you sent me earlier. Its report is in the app.",
+    ur: '📋 میں نے یہ ریکارڈنگ پہلے بھی سنی ہے — یہ وہی ریکارڈنگ ہے جو پہلے بھیجی گئی تھی۔ اس کی رپورٹ ایپ میں ہے۔',
+  },
+  appLinkButtonCoachingRepeat: { en: 'Digital Coaching', ur: 'ڈیجیٹل کوچنگ' },
   appLinkBodyTraining: { en: 'Open your training.', ur: 'اپنی ٹریننگ کھولیں۔' },
   appLinkButtonTraining: { en: 'Training', ur: 'ٹریننگ' },
   appLinkBodyAttendance: { en: 'Take attendance in the app.', ur: 'ایپ میں حاضری لگائیں۔' },

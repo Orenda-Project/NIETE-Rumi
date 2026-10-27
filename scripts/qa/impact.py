@@ -100,18 +100,37 @@ def trailers(repo, rng, pr_body=""):
     return out
 
 
-def ledger_rows_added(repo, rng):
-    """{feature: status} for runs.jsonl rows ADDED in the range — the proof an
-    E2E run was driven for this change and recorded the way every run is."""
+def _row_key(row):
+    return (row.get("run_id"), row.get("feature"), row.get("ts"), row.get("surface"))
+
+
+def _rows_added(repo, rng):
+    """The runs.jsonl rows a range ADDED, in order. A '+' row whose run also sits on a '-' line of the same diff is
+    that row rewritten in place (bd-5gyspy.3 masked phones and paths across the whole file), not a new run, so it is
+    never proof."""
     r = _git(repo, "diff", rng, "--", LEDGER)
-    out = {}
+    added, removed = [], set()
     for line in r.stdout.splitlines():
-        if not line.startswith("+") or line.startswith("+++"):
+        if line.startswith(("+++", "---")) or line[:1] not in ("+", "-"):
             continue
         try:
             row = json.loads(line[1:])
         except ValueError:
             continue
+        if not isinstance(row, dict):
+            continue
+        if line[0] == "-":
+            removed.add(_row_key(row))
+        else:
+            added.append(row)
+    return [row for row in added if _row_key(row) not in removed]
+
+
+def ledger_rows_added(repo, rng):
+    """{feature: status} for runs.jsonl rows ADDED in the range — the proof an
+    E2E run was driven for this change and recorded the way every run is."""
+    out = {}
+    for row in _rows_added(repo, rng):
         if isinstance(row, dict) and row.get("feature"):
             out[row["feature"]] = row.get("status") or "recorded"
     return out
@@ -120,15 +139,8 @@ def ledger_rows_added(repo, rng):
 def web_rows_added(repo, rng):
     """{web feature: row} for runs.jsonl rows ADDED in the range with surface "web" — the web lane's proof, kept
     apart from the WhatsApp proof so a portal row can never stand in for a WhatsApp run (or the reverse)."""
-    r = _git(repo, "diff", rng, "--", LEDGER)
     out = {}
-    for line in r.stdout.splitlines():
-        if not line.startswith("+") or line.startswith("+++"):
-            continue
-        try:
-            row = json.loads(line[1:])
-        except ValueError:
-            continue
+    for row in _rows_added(repo, rng):
         if isinstance(row, dict) and row.get("surface") == "web" and row.get("feature"):
             out[row["feature"]] = row
     return out
@@ -146,15 +158,8 @@ def ledger_reasons(repo, rng):
     """{feature: why its latest added row has that status}. Rows written before ledger_row stamped
     `status_reason` get it derived from their own counts, so old rows read the same way."""
     import ledger
-    r = _git(repo, "diff", rng, "--", LEDGER)
     out = {}
-    for line in r.stdout.splitlines():
-        if not line.startswith("+") or line.startswith("+++"):
-            continue
-        try:
-            row = json.loads(line[1:])
-        except ValueError:
-            continue
+    for row in _rows_added(repo, rng):
         if isinstance(row, dict) and row.get("feature"):
             out[row["feature"]] = row.get("status_reason") or ledger.status_reason(row)
     return out
@@ -167,15 +172,8 @@ def ledger_misses(repo, rng):
     top-level `cassette_misses`); the PR comment turns it into an @-mention so the cassette owner
     records/updates the fixture. Last row wins, matching ledger_rows_added: a later clean run (misses 0)
     means the cassettes were recorded since, so the feature drops out and we do not nag."""
-    r = _git(repo, "diff", rng, "--", LEDGER)
     latest = {}
-    for line in r.stdout.splitlines():
-        if not line.startswith("+") or line.startswith("+++"):
-            continue
-        try:
-            row = json.loads(line[1:])
-        except ValueError:
-            continue
+    for row in _rows_added(repo, rng):
         if isinstance(row, dict) and row.get("feature"):
             latest[row["feature"]] = int((row.get("cassette") or {}).get("misses") or 0)
     return {f: m for f, m in latest.items() if m}
@@ -186,15 +184,8 @@ def ledger_regression(repo, rng):
     verdict (ledger_row.py stamps `regression` = {gate, new_failures, known, fixed}). Rows without it
     (chrome runs, rows written before this field) contribute nothing, so the report simply falls back
     to the raw status for those. Last row wins, matching ledger_rows_added."""
-    r = _git(repo, "diff", rng, "--", LEDGER)
     out = {}
-    for line in r.stdout.splitlines():
-        if not line.startswith("+") or line.startswith("+++"):
-            continue
-        try:
-            row = json.loads(line[1:])
-        except ValueError:
-            continue
+    for row in _rows_added(repo, rng):
         if isinstance(row, dict) and row.get("feature") and isinstance(row.get("regression"), dict):
             out[row["feature"]] = row["regression"]
     return out
@@ -267,7 +258,8 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
             "only_shared": f["only_shared"], "spec_changed": spec_changed, "action": f["action"],
             "scenario_count": f["scenario_count"], "spec_status": status, "spec_reason": reason,
             "changed_files": [c["path"] for c in f["changed_files"]],
-            "e2e_proof": proof.get(name, "missing"),
+            # a Spec-Sync none-needed declaration answers the E2E column too (bd-481a2c): no run is asked for.
+            "e2e_proof": proof.get(name, "not-needed" if status == "none-needed" else "missing"),
             "e2e_reason": why.get(name, "") if name in proof else "",
             "regression": regr.get(name),
         }
@@ -298,12 +290,12 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
             "changed_files": list((seld.get("web_reasons") or {}).get(name) or []),
             "spec": spec_rel, "spec_changed": spec_rel in paths,
             "scenario_count": _web_scenario_count(repo, name),
-            "e2e_proof": (row.get("status") or "recorded") if row else "missing",
+            "e2e_proof": (row.get("status") or "recorded") if row else (
+                "not-needed" if spec_status == "none-needed" else "missing"),
             "passed": summ.get("passed"), "total": summ.get("total"),
         }
     if res["web_features"]:
-        res["verdict"]["web_e2e_proof"] = "recorded" if all(
-            w["e2e_proof"] != "missing" for w in res["web_per_feature"].values()) else "missing"
+        res["verdict"]["web_e2e_proof"] = _proof_verdict(res["web_per_feature"].values())
     pf = res["per_feature"]
     statuses = [v["spec_status"] for v in pf.values()] + [w["spec_status"] for w in res["web_per_feature"].values()]
     if statuses:
@@ -311,8 +303,16 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
     if pf:
         required = [v for v in pf.values() if not v["only_shared"]]
         if required:
-            res["verdict"]["e2e_proof"] = "recorded" if all(v["e2e_proof"] != "missing" for v in required) else "missing"
+            res["verdict"]["e2e_proof"] = _proof_verdict(required)
     return res
+
+
+def _proof_verdict(feats):
+    """missing if any feature still owes a run; not-needed if every one was declared none-needed; else recorded."""
+    proofs = [f["e2e_proof"] for f in feats]
+    if "missing" in proofs:
+        return "missing"
+    return "not-needed" if proofs and all(p == "not-needed" for p in proofs) else "recorded"
 
 
 def exit_code(res, freshness="warn", proof="warn"):
@@ -327,9 +327,34 @@ def exit_code(res, freshness="warn", proof="warn"):
     return 0
 
 
+def _shown(status):
+    """How an E2E status reads on the PR comment: not-needed → "not needed"."""
+    return "not needed" if status == "not-needed" else status
+
+
 def _icon(status):
     return {"synced": "✅", "none-needed": "✅", "only-shared": "➖", "stale": "❌",
-            "HEALTHY": "✅", "DEGRADED": "⚠️", "CRITICAL": "❌", "recorded": "✅", "missing": "⬜"}.get(status, "")
+            "HEALTHY": "✅", "DEGRADED": "⚠️", "CRITICAL": "❌", "recorded": "✅", "missing": "⬜", "not-needed": "➖"}.get(status, "")
+
+
+# What a person reads for each spec status (bd-u8r04u). The keys stay the machine contract —
+# analyse(), exit_code() and the QA dashboard read them; only these words are for people.
+_SPEC_WORDS = {"synced": "Scenarios updated", "none-needed": "No update needed",
+               "only-shared": "Only shared code changed, no update expected"}
+_SPEC_SHORT = {"synced": "updated", "none-needed": "not needed", "only-shared": "shared only",
+               "stale": "NOT UPDATED"}
+
+
+def _spec_cell(name, status, reason=""):
+    """The PR comment's Gherkin-spec cell: what happened and, when stale, what to do."""
+    if status == "stale":
+        return ("❌ **Test scenarios not updated** — the %s code changed, but `%s.feature` didn't. "
+                "Add or update its scenarios, or, if nothing a teacher sees changed, add "
+                "`Spec-Sync: %s=none-needed (<why>)` to the PR description." % (name, name, name))
+    cell = "%s %s" % (_icon(status), _SPEC_WORDS.get(status, status))
+    if reason:
+        cell += " — _%s_" % reason
+    return cell
 
 
 def _cassette_owner():
@@ -446,17 +471,13 @@ def _web_markdown(res, proof="warn"):
         w = wp[name]
         files = w["changed_files"]
         via = ", ".join("`%s`" % os.path.basename(p) for p in files[:3]) + (" +%d" % (len(files) - 3) if len(files) > 3 else "")
-        spec = "%s %s" % (_icon(w["spec_status"]), w["spec_status"])
-        if w.get("spec_reason"):
-            spec += " — _%s_" % w["spec_reason"]
-        elif w["spec_status"] == "stale":
-            spec += " — `%s.feature` unchanged" % name
-        cell = "%s %s" % (_icon(w["e2e_proof"]), w["e2e_proof"])
+        spec = _spec_cell(name, w["spec_status"], w.get("spec_reason") or "")
+        cell = "%s %s" % (_icon(w["e2e_proof"]), _shown(w["e2e_proof"]))
         if w.get("total"):
             cell += " — %s/%s" % (w.get("passed"), w["total"])
         L.append("| **%s** (%d scenarios) | %s | %s | %s |" % (name, w["scenario_count"], via or "—", spec, cell))
     v = res["verdict"].get("web_e2e_proof", "n/a")
-    L += ["", "**Web E2E proof: %s** (mode: %s)" % (v, proof), ""]
+    L += ["", "**Web E2E proof: %s** (mode: %s)" % (_shown(v), proof), ""]
     stale = [n for n in feats if wp[n]["spec_status"] == "stale"]
     if stale:
         L += ["#### Sync the portal specs first",
@@ -496,13 +517,9 @@ def render_markdown(res, freshness="warn", proof="warn"):
         via = "shared file only" if f["only_shared"] else ", ".join("`%s`" % os.path.basename(p) for p in f["changed_files"][:3])
         if len(f["changed_files"]) > 3 and not f["only_shared"]:
             via += " +%d" % (len(f["changed_files"]) - 3)
-        spec = "%s %s" % (_icon(f["spec_status"]), f["spec_status"])
-        if f["spec_reason"]:
-            spec += " — _%s_" % f["spec_reason"]
-        if f["spec_status"] == "stale":
-            spec += " — `%s.feature` unchanged" % name
+        spec = _spec_cell(name, f["spec_status"], f["spec_reason"] or "")
         # E2E-run cell answers only "did the mock run for this commit" (+ any regression note).
-        proof_cell = "%s %s" % (_icon(f["e2e_proof"]), f["e2e_proof"])
+        proof_cell = "%s %s" % (_icon(f["e2e_proof"]), _shown(f["e2e_proof"]))
         if f.get("e2e_reason"):
             proof_cell += " — %s" % f["e2e_reason"]
         note = _regression_note(f.get("regression"))
@@ -514,14 +531,14 @@ def render_markdown(res, freshness="warn", proof="warn"):
         cm = (res.get("cassette_misses") or {}).get(name)
         if cm:
             cassette_cell = "📼 %d missing — %s record" % (cm, _cassette_owner())
-        elif f["e2e_proof"] != "missing":
+        elif f["e2e_proof"] not in ("missing", "not-needed"):
             cassette_cell = "✅ recorded"
         else:
             cassette_cell = "—"
         L.append("| **%s** (%d scenarios) | %s | %s | %s | %s |" % (
             name, f["scenario_count"], via, spec, proof_cell, cassette_cell))
     L += ["", "**Spec freshness: %s** (mode: %s) · **E2E proof: %s** (mode: %s)" % (
-        v["spec_freshness"], freshness, v["e2e_proof"], proof), ""]
+        v["spec_freshness"], freshness, _shown(v["e2e_proof"]), proof), ""]
     regressed = regressed_features(res)
     if regressed:
         L += ["**❌ New regressions in %s** — a scenario broke that is not a documented known finding "
@@ -566,12 +583,13 @@ def render_text(res, freshness="warn", proof="warn"):
         res["features"] + ["portal: %s" % f for f in res.get("web_features") or []]))]
     for name in res["features"]:
         f = res["per_feature"][name]
-        extra = " (%s.feature unchanged)" % name if f["spec_status"] == "stale" else ""
+        extra = ""
         cm = (res.get("cassette_misses") or {}).get(name)
         if cm:
             extra += " 📼%d missing" % cm
         why = " (%s)" % f["e2e_reason"] if f.get("e2e_reason") else ""
-        L.append("│   %-13s spec: %-12s e2e: %s%s%s" % (name, f["spec_status"], f["e2e_proof"], why, extra))
+        L.append("│   %-13s spec: %-12s e2e: %s%s%s" % (
+            name, _SPEC_SHORT.get(f["spec_status"], f["spec_status"]), f["e2e_proof"], why, extra))
     if v["spec_freshness"] == "stale":
         stale = [n for n, f in res["per_feature"].items() if f["spec_status"] == "stale"]
         L.append("│ specs STALE for %s → in Claude Code: /sync-specs %s" % (", ".join(stale), " ".join(stale)))
@@ -602,7 +620,8 @@ def render_text(res, freshness="warn", proof="warn"):
         L.append("│ ✅ no new regressions — recorded FAILs are all documented known findings")
     for name in res.get("web_features") or []:
         w = res["web_per_feature"][name]
-        L.append("│   %-18s web lane  spec: %-12s e2e: %s" % (name, w["spec_status"], w["e2e_proof"]))
+        L.append("│   %-18s web lane  spec: %-12s e2e: %s" % (
+            name, _SPEC_SHORT.get(w["spec_status"], w["spec_status"]), w["e2e_proof"]))
     wstale = [n for n in res.get("web_features") or [] if res["web_per_feature"][n]["spec_status"] == "stale"]
     if wstale:
         L.append("│ portal specs STALE for %s → in Claude Code: /sync-specs %s" % (", ".join(wstale), " ".join(wstale)))

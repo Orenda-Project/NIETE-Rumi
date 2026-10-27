@@ -20,8 +20,12 @@
 # which runs the same analysis on the PR and DOES fail on a stale spec.
 #
 # Off: QA_HOOKS_OFF=1     Strict: QA_HOOKS_STRICT=1
-[ "${QA_HOOKS_OFF:-}" = "1" ] && exit 0
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+# The off switch is on the clone's QA ledger (bd-61jjzd); the ledger never fails a push.
+if [ "${QA_HOOKS_OFF:-}" = "1" ]; then
+  . "$ROOT/.claude/hooks/lib/qa-ledger.sh" 2>/dev/null && qa_ledger_log "$ROOT" pre-push switch-off QA_HOOKS_OFF "${1:-}"
+  exit 0
+fi
 command -v python3 >/dev/null 2>&1 || { echo "qa: python3 not on PATH — pre-push impact report skipped" >&2; exit 0; }
 IMPACT="$ROOT/scripts/qa/impact.py"
 [ -f "$IMPACT" ] || exit 0
@@ -47,5 +51,16 @@ while read -r _lref lsha rref rsha; do
   [ -n "$out" ] && printf '%s\n' "$out" >&2
   [ "$rc" -ne 0 ] && RC=1
 done
+# The repo is public (bd-5gyspy.3): no phone number and no home-directory path in a tracked file. Unlike the
+# impact report above this BLOCKS, because a pushed number cannot be taken back. PII_CHECK_OFF=1 skips it (logged).
+PII="$ROOT/tests/setup/tracked-files-pii-lib.js"
+if [ -f "$PII" ] && command -v node >/dev/null 2>&1; then
+  if [ "${PII_CHECK_OFF:-}" = "1" ]; then
+    qa_ledger_log "$ROOT" pre-push switch-off PII_CHECK_OFF "${1:-}"
+  elif ! node "$PII" --check; then
+    echo "pre-push: blocked. Mask the phone (92•••••1234) and make the path repo-relative; the QA ledger: python3 scripts/qa/mask-ledger.py" >&2
+    exit 1
+  fi
+fi
 [ "$MODE" = "block" ] && exit $RC
 exit 0

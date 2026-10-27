@@ -1592,6 +1592,9 @@ function chapterPages(chapters, picked) {
  * The refusals a board-pattern request can get, in one place. The app reads `errorCode` and holds
  * the Urdu; these are the assessment generator's own codes, not the lesson-plan lifecycle's.
  */
+/** Which door a create came through; mirrors ORIGINS in assessment-request.service and the CHECK on assessment_requests.origin. */
+const ORIGINS = ['report'];
+
 const PATTERN_CODE = Object.freeze({
   OFF: 'PATTERN_OFF', INELIGIBLE: 'PATTERN_INELIGIBLE', SCOPE_CONFLICT: 'SCOPE_CONFLICT',
   NO_BUDGET: 'PATTERN_NO_BUDGET', ALREADY_GENERATING: 'ALREADY_GENERATING',
@@ -1608,7 +1611,7 @@ const PATTERN_CODE = Object.freeze({
  * the count is the slots' sum, the marks are fixed (no budget), every question
  * is new, and the marking scheme always comes with it.
  */
-async function createPatternRequest({ Browse, res, userId, grade, subject, pattern, scope, picked, pageRanges, answerLines, onQueued = null }) {
+async function createPatternRequest({ Browse, res, userId, grade, subject, pattern, scope, picked, pageRanges, answerLines, origin = null, onQueued = null }) {
   const Patterns = require('../services/assessment/patterns');
   const chapterNumber = picked.length === 1 ? picked[0] : null;
 
@@ -1668,6 +1671,7 @@ async function createPatternRequest({ Browse, res, userId, grade, subject, patte
     outputFormat: 'pdf',
     pattern,
     scope: { kind, chapters: chapters && chapters.length ? chapters : null, pages },
+    ...(origin ? { origin } : {}),
   });
 
   if (onQueued) onQueued(requestId);
@@ -1767,6 +1771,11 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
+  // Which door the paper came through (bd-pw1ccr.1): 'report' from the Class Quiz Traffic Light report's button.
+  const origin = body.origin == null || body.origin === '' ? null : String(body.origin);
+  if (origin !== null && !ORIGINS.includes(origin)) {
+    return res.status(400).json({ success: false, error: 'Unknown origin.' });
+  }
 
   // A board-pattern paper takes its own path: the pattern fixes the types, the
   // count and the marks, so none of the checks below apply to it. The refusals
@@ -1826,7 +1835,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
       }
       return createPatternRequest({
         Browse, res, userId, grade, subject, pattern, scope: fdeScope ? 'fde' : null,
-        picked, pageRanges, answerLines: body.answerLines,
+        picked, pageRanges, answerLines: body.answerLines, origin,
         onQueued: (id) => rememberQueued(classKey, id),
       });
     });
@@ -1945,6 +1954,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     answerLines: body.answerLines !== false,
     outputFormat: body.outputFormat || 'pdf',
     ...(byTopics ? { paperKind: 'topic', scope: topicScope.scope } : {}),
+    ...(origin ? { origin } : {}),
   });
 
   return res.status(202).json({ success: true, requestId });
@@ -2851,6 +2861,7 @@ const PORTAL_COACHING_HTTP = {
   not_found: 404,
   not_ready: 409,
   in_progress: 409,
+  already_sent: 409, // bd-c5reix — that recording is already a session of hers
   queue_failed: 502,
 };
 
@@ -2918,6 +2929,17 @@ for (const [name, fields] of Object.entries(LIVE_FIELDS)) {
  */
 router.post('/coaching/recent-plans', requireInternalKey, portalCoachingRoute('recent-plans',
   (Svc, b) => Svc.recentLessonPlans({ userId: b.userId })));
+
+/**
+ * bd-c5reix — her classroom recordings sent on WhatsApp, kept for the app (whatsapp-recording.service).
+ * POST /api/internal/coaching/pending           Body { userId }          → 200 { status:'ok', recordings }
+ * POST /api/internal/coaching/check-duplicate   Body { userId, sha256 }  → 200 { status:'ok', duplicateOf }
+ */
+const loadWhatsAppRecording = () => require('../services/coaching/whatsapp-recording.service');
+router.post('/coaching/pending', requireInternalKey, portalCoachingRoute('pending',
+  (Svc, b) => Svc.pendingRecordings({ userId: b.userId }), loadWhatsAppRecording));
+router.post('/coaching/check-duplicate', requireInternalKey, portalCoachingRoute('check-duplicate',
+  (Svc, b) => Svc.checkDuplicate({ userId: b.userId, sha256: b.sha256 }), loadWhatsAppRecording));
 
 /**
  * POST /api/internal/coaching/reflection

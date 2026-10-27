@@ -27,6 +27,8 @@
  * the home read still on its way); read in the quick answer's own settings read. OFF: today's.
  * Switch quiz_teacher_home_grade_fast (a JSON true, answered by the quick answer's own app_settings read): the page
  * shell carries the script whose grade chips answer from the page (teacher-home.page FAST_SWAPS); off → today's shell.
+ * Switch quiz_teacher_home_portal_link ON (JSON true; the page read): the shell's foot carries "Open my portal" and the
+ * home's JSON `portalHref`, the /portal command's own signed link to the portal Home (portalHref below). OFF: today's.
  * Switch quiz_teacher_home OFF (absent, false, anything but true, or a failed read): EVERY route answers 404
  * {off:true} before anything else is read or verified; the edge then falls through to today's page.
  * Switch quiz_teacher_server_timing ON (JSON true; read with quiz_teacher_home, never on its own): every 200 answer of
@@ -35,7 +37,7 @@
  * Never a 500: a thrown read → the mk.error page (200) on the page route, 503 {error:'mk.error'} on the JSON routes.
  *
  * Events (ids only, never a phone, a name or a code): teacher_home_open { tk, first, has_lp, has_coaching,
- * zero_kids_open, primary_kind }, teacher_send { tk, kind: quiz|video|story, origin, again, prompted, cls_k },
+ * zero_kids_open, primary_kind, role: coach|teacher }, teacher_send { tk, kind: quiz|video|story, origin, again, prompted, cls_k },
  * teacher_home.step. `prompted`: the page was opened from a message the bot sent (the token's door is the report);
  * `cls_k`: the keyed class of the code sent (web-quiz-kid clsOf), null when the code is not this teacher's or has none.
  */
@@ -52,11 +54,17 @@ const Data = require('./teacher-home.data');
 const Model = require('./teacher-home.model');
 const Send = require('./teacher-home.send');
 const StaleWords = require('./teacher-stories-stale.flag');
+const { isRegistered } = require('../../utils/registration-status');
 
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const KEY_RX = /^[A-Za-z0-9_:.-]{1,200}$/;
 const ASKABLE = Object.freeze(['en', 'ur']);
 const COACH_ROLES = new Set(['coach', 'principal', 'school_leader', 'supervisor', 'aeo', 'head']);
+// app_settings web_quiz_practice_play: "Try it as a student" for every teacher. On the home it rides the page switches'
+// one read (req.thPractice); this is the fallback for a path without that read (30 s cache; false on any failure)
+const practiceOn = () => require('../quiz/web-quiz-practice-play').on().catch(() => false);
+// the home open's role tag (web_quiz.* F3): a coach or a leader, else a teacher; never the role row itself
+const roleTag = (user) => (user && COACH_ROLES.has(String(user.role || '').toLowerCase()) ? 'coach' : 'teacher');
 const PLAYED_MS = 60000;
 const PLAYED_MAX = 500;
 const ownSentOf = (lessons) => lessons.filter((r) => (r.state === 'sent' || r.state === 'report_sent') && r.quizId).map((r) => r.quizId);
@@ -101,8 +109,11 @@ function createRouter(deps = null) {
     // (the same read answers quiz_teacher_home_grade_fast, used by the shell alone)
     const sw = req.path === '/api/th/home' || /^\/quiz\/teacher\/[^/]+$/.test(req.path) ? Flags.pageSwitches().then((v) => v || {}, () => ({})) : null;
     req.thPaged = sw ? sw.then((v) => v[Flags.PAGED_KEY] === true) : null;
+    // web_quiz_practice_play rides the same page read: "Try it as a student" for every teacher costs no read of its own
+    req.thPractice = sw ? sw.then((v) => v[Flags.PRACTICE_KEY] === true) : null;
     req.thWait = sw ? sw.then((v) => v[Flags.WAIT_KEY] === true) : null;
     req.thGradeFast = sw ? sw.then((v) => v[Flags.GRADE_FAST_KEY] === true) : null;
+    req.thPortal = sw ? sw.then((v) => v[Flags.PORTAL_LINK_KEY] === true) : null;
     return next();
   });
   router.use(express.json({ limit: '4kb' }));
@@ -269,8 +280,32 @@ function createRouter(deps = null) {
       return typeof html === 'string' && html.startsWith('<section data-screen="walk">') ? { html, t } : null;
     } catch (_) { return null; }
   }
-  function practiceUrl(user, lang) {
-    if (!user || !COACH_ROLES.has(String(user.role || '').toLowerCase())) return null;
+  /**
+   * The teacher's portal Home, signed in: the /portal command's own link (app-login-link 'menu', 24 h, re-tappable),
+   * minted here and never read from a URL. null when the page was opened from the portal itself (via 'portal': the
+   * browser's back is the way there), for someone not registered (/portal asks them to register first), and when this
+   * deployment has no portal address or signing key.
+   */
+  function portalHref(user, via) {
+    if (via === 'portal' || !user || !user.id || !isRegistered(user)) return null;
+    try {
+      const base = String(require('../../config/branding').portalUrl() || '').replace(/\/+$/, '');
+      const t = base ? require('../app-login-link').signAppLink(user.id, 'menu') : null;
+      if (t) return `${base}/go/${t}`;
+      // the switch is on and the link cannot be made: said at error level, never a silent missing link
+      logToFile('❌ teacher home: portal link not minted (no portal address or signing key on this deployment)', { base: Boolean(base) }, 'error');
+      return null;
+    } catch (err) {
+      logToFile('❌ teacher home: portal link failed', { error: err && err.message }, 'error');
+      return null;
+    }
+  }
+  // "Try it as a student": a coach's (or a leader's) always; every teacher's with app_settings web_quiz_practice_play on
+  // (the preview then plays: web-quiz-practice-play.js). Off: coaches only, as before.
+  // playP: the switch's read, started beside the user read (never a serial round trip after the lists)
+  async function practiceUrl(user, lang, playP = null) {
+    if (!user) return null;
+    if (!COACH_ROLES.has(String(user.role || '').toLowerCase()) && !(await (playP || practiceOn()))) return null;
     const Join = byName('studentJoin', '../quiz/web-quiz-student-join');
     if (!Join || typeof Join.practiceJoinUrl !== 'function') return null;
     try { return Join.practiceJoinUrl({ uid: user.id, lang }) || null; } catch (_) { return null; }
@@ -303,7 +338,8 @@ function createRouter(deps = null) {
     // is answered by the quick answer's switch read above, never a read of its own
     const [named, early, counts, gradeFast] = await Promise.all([MoreFlags.namedOn(), MoreFlags.earlyOn(), Data.dep(deps, 'CountsFlag').on(), req.thGradeFast]);
     const wait = await req.thWait;
-    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts, ...(gradeFast === true ? { gradeFast: true } : {}), ...(wait ? { wait: true } : {}) });
+    const portal = (await req.thPortal) === true;
+    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts, ...(gradeFast === true ? { gradeFast: true } : {}), ...(wait ? { wait: true } : {}), ...(portal ? { portal: true } : {}) });
     headers(res, built.csp);
     return res.status(200).type('html').send(built.html);
   }));
@@ -335,7 +371,7 @@ function createRouter(deps = null) {
   }
 
   /** The quick home: the same JSON as today's, its reads started together. */
-  async function quickHome(req, res, p, userP) {
+  async function quickHome(req, res, p, userP, playP = null) {
     const token = String(req.query.t);
     const lang = langFor(p, req);
     const Bank = Data.dep(deps, 'Bank');
@@ -367,7 +403,7 @@ function createRouter(deps = null) {
     const [lists, { grade, lib }, confirm, maker, [children, { change, walk }]] = await Promise.all([quickLists(p, user, soon), libP, confirmP, makerP, sideP]);
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons: lists.lessons, played: lists.played, shares: lists.shares, reports: lists.reports,
-      stories: lib.stories, video: lib.video, maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change,
+      stories: lib.stories, video: lib.video, maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: await practiceUrl(user, lang, playP), change,
       againable: lists.againable, named: await namedP,
     });
     const counts = await countsP;
@@ -381,9 +417,10 @@ function createRouter(deps = null) {
     home.cards = maker ? cardsFor(lang) : [];
     home.lang = lang;
     home.bot = botDigits();
+    if (await req.thPortal) { const ph = portalHref(user, p.via); if (ph) home.portalHref = ph; }
     const { facts } = home;
     delete home.facts;
-    event('teacher_home_open', p.uid, { first: await firstP, ...facts, primary_kind: Model.primaryKind(home.primary), via: p.via, lang });
+    event('teacher_home_open', p.uid, { first: await firstP, ...facts, primary_kind: Model.primaryKind(home.primary), via: p.via, lang, role: roleTag(user) });
     serverTiming(req, res);
     headers(res);
     res.status(200).json(home);
@@ -398,10 +435,11 @@ function createRouter(deps = null) {
     const asked0 = req.thTime ? process.hrtime.bigint() : null;
     const userP = Data.teacherOf(p.uid, deps);
     userP.catch(() => {});
+    const playP = req.thPractice || practiceOn();
     const quick = await req.thPaged;
     waited(req, asked0);
     dataStart(req);
-    if (quick) { await quickHome(req, res, p, userP); return; }
+    if (quick) { await quickHome(req, res, p, userP, playP); return; }
     const token = String(req.query.t);
     const lang = langFor(p, req);
     const user = await userP;
@@ -452,7 +490,7 @@ function createRouter(deps = null) {
     const againable = walked ? await sendable(ownSent, played) : againable0;
     const home = Model.buildHome({
       first: Data.firstNameOf(user), grade, lessons, played, shares, reports, stories: lib.stories, video: lib.video,
-      maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: practiceUrl(user, lang), change, againable,
+      maker, storiesBase: lib.storiesBase, children, confirm, tryStudent: await practiceUrl(user, lang, playP), change, againable,
       named: await namedP,
     });
     // the teacher's story sends and their readers: only once a story went out, else no key (the JSON is as it was)
@@ -463,9 +501,10 @@ function createRouter(deps = null) {
     home.cards = maker ? cardsFor(lang) : [];
     home.lang = lang;
     home.bot = botDigits(); // the edge's own error page taps back to the chat with it
+    if (await req.thPortal) { const ph = portalHref(user, p.via); if (ph) home.portalHref = ph; }
     const { facts } = home;
     delete home.facts;
-    event('teacher_home_open', p.uid, { first: await firstOpen(p.uid), ...facts, primary_kind: Model.primaryKind(home.primary), via: p.via, lang });
+    event('teacher_home_open', p.uid, { first: await firstOpen(p.uid), ...facts, primary_kind: Model.primaryKind(home.primary), via: p.via, lang, role: roleTag(user) });
     serverTiming(req, res);
     headers(res);
     res.status(200).json(home);
@@ -560,7 +599,7 @@ function createRouter(deps = null) {
     res.status(204).end();
   }));
 
-  const STEPS = new Set(['share_tap', 'share_copy', 'copy_failed', 'more', 'grade', 'story_tile', 'videos', 'make', 'children', 'try_student', 'card_lp', 'card_coach', 'card_exam', 'home_slow', 'home_retry']);
+  const STEPS = new Set(['share_tap', 'share_copy', 'copy_failed', 'more', 'grade', 'story_tile', 'videos', 'make', 'children', 'try_student', 'card_lp', 'card_coach', 'card_exam', 'home_slow', 'home_retry', 'portal']);
   const SEND_KIND = { video: 'video', share: 'video', again: 'quiz', story: 'story' };
   const ORIGINS = new Set(['library', 'again', 'lesson_plan', 'coaching']);
   const PROMPTED_VIAS = new Set(['report']);

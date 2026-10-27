@@ -34,6 +34,10 @@ F = {
    # bd-fgj73x.1 — Start DC observation's one screen: Grade and subject, then the recording, plan, photos, Submit.
    ('TC04', 'Teacher app v2: Start DC observation opens its one screen', 'teacher', 'teacherV2',
      [(T + '/coaching/new', r'^Start DC observation$', None, 'the one screen opens on "Start DC observation"')]),
+   # bd-c5reix — the landing of the WhatsApp link for a kept classroom recording: the one screen, which reads her
+   # waiting recordings (GET /coaching-upload/pending) on the way in. Healthy = no 5xx from that read either.
+   ('TC05', 'Teacher app v2: the link for a recording kept from WhatsApp opens the one screen', 'teacher', 'teacherV2',
+     [(T + '/coaching/new?recording=whatsapp', r'^Start DC observation$', None, 'the one screen opens on "Start DC observation"')]),
  ]),
  'teacher-training': ('Teacher training', 'portal/src/portal/teacher/training/**, PortalTraining*.tsx, PortalVideo*.tsx', [
    ('TT01', 'Teacher app v2: Training lists her courses', 'teacher', 'teacherV2',
@@ -56,17 +60,20 @@ F = {
      [('/portal/assessment', r'^Assessment$', None, 'Assessment opens')]),
  ]),
  'coach-portal': ('Coach app', 'portal/src/portal/coach/**', [
-   ('CP01', 'Coach app v2: her home greets her and shows today\'s visits', 'coach', 'coachV2',
-     [('/portal/coach', r"^Today's visits\s+\d", None, 'her home shows "Today\'s visits"')]),
-   ('CP02', 'Coach app v2: Schools & teachers, My schedule and Team schedule open', 'coach', 'coachV2',
-     [('/portal/coach/people', r'^Schools & teachers$', None, 'Schools & teachers opens'),
-      ('/portal/coach/schedule', r'^My schedule$', None, 'My schedule opens'),
-      ('/portal/coach/team', r'^Team schedule$', None, 'Team schedule opens')]),
-   ('CP03', 'Coach app v2: Reports open, and Analytics counts her teachers', 'coach', 'coachV2',
-     [('/portal/coach/reports', r'^Reports$', None, 'Reports opens'),
-      ('/portal/coach/analytics', r'^Teachers\s+[1-9]', None, 'Analytics shows "Teachers" with at least one')]),
-   ('CP04', 'Coach app v2: Observe, More and My profile open', 'coach', 'coachV2',
-     [('/portal/coach/observe', r'^Observe$', None, 'Observe opens'),
+   # bd-s42dye.2 (PR #2780): a coach on the coach app v2 sees only the Training Library and her account; every other
+   # coach page sends her to /portal/coach/training before it mounts (portal/src/portal/coach/training/appReady.ts,
+   # COACH_APP_READY = ["training"]). When a feature is added back to COACH_APP_READY, its row here goes back to "opens".
+   ('CP01', 'Coach app v2: her home sends her to the Training Library', 'coach', 'coachV2',
+     [('/portal/coach', r'^Training Library', '/portal/coach/training', '/portal/coach settles on /portal/coach/training, with "Training Library"')]),
+   ('CP02', 'Coach app v2: Schools & teachers, My schedule and Team schedule send her to the Training Library', 'coach', 'coachV2',
+     [('/portal/coach/people', r'^Training Library', '/portal/coach/training', '/portal/coach/people settles on /portal/coach/training'),
+      ('/portal/coach/schedule', r'^Training Library', '/portal/coach/training', '/portal/coach/schedule settles on /portal/coach/training'),
+      ('/portal/coach/team', r'^Training Library', '/portal/coach/training', '/portal/coach/team settles on /portal/coach/training')]),
+   ('CP03', 'Coach app v2: Reports and Analytics send her to the Training Library', 'coach', 'coachV2',
+     [('/portal/coach/reports', r'^Training Library', '/portal/coach/training', '/portal/coach/reports settles on /portal/coach/training'),
+      ('/portal/coach/analytics', r'^Training Library', '/portal/coach/training', '/portal/coach/analytics settles on /portal/coach/training')]),
+   ('CP04', 'Coach app v2: Observe sends her to the Training Library; More and My profile open', 'coach', 'coachV2',
+     [('/portal/coach/observe', r'^Training Library', '/portal/coach/training', '/portal/coach/observe settles on /portal/coach/training'),
       ('/portal/coach/more', r'^More$', None, 'More opens'),
       ('/portal/coach/profile', r'^My profile$', None, 'My profile opens')]),
  ]),
@@ -99,8 +106,12 @@ F['portal-smoke'] = ('Portal-wide smoke — every main page, every role', 'the w
   ('PS02', 'Classic portal (teacher): every main page opens healthy', 'teacher', 'classic',
     [(p, ANY, st, None) for p, st in [('/portal/dashboard', None), ('/portal/curriculum', None), ('/portal/coaching', None), ('/portal/training', None),
                                        ('/portal/classes', None), ('/portal/assessment', None), ('/portal/account', None)]]),
-  ('PS03', 'Coach app v2: every main page opens healthy', 'coach', 'coachV2',
-    [('/portal/coach' + s, ANY, None, None) for s in ['', '/people', '/schedule', '/team', '/reports', '/analytics', '/observe', '/more', '/profile']]),
+  # bd-s42dye.2 (PR #2780): the coach app v2 shows only the Training Library and her account; the other coach pages
+  # settle on /portal/coach/training (appReady.ts COACH_APP_READY). Each still has to land healthy.
+  ('PS03', 'Coach app v2: the Training Library and her account open healthy, every other coach page lands on the Training Library', 'coach', 'coachV2',
+    [('/portal/coach/training', ANY, None, None)]
+    + [('/portal/coach' + s, ANY, '/portal/coach/training', None) for s in ['', '/people', '/schedule', '/team', '/reports', '/analytics', '/observe']]
+    + [('/portal/coach' + s, ANY, None, None) for s in ['/more', '/profile']]),
   ('PS04', 'Leader portal: every main page opens healthy', 'principal', 'classic',
     [('/portal/leader' + s, ANY, None, None) for s in ['', '/teachers', '/observations', '/school-analytics', '/lessons', '/child-test']]),
   ('PS05', 'Signed out: login, password reset, privacy and delete-account open healthy', None, None,

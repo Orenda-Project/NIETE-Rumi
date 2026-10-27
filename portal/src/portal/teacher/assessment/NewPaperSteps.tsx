@@ -19,6 +19,7 @@ import { makeErrorText } from './failure';
 import { pagesMessage, stepReason } from './reasons';
 import { ASSESSMENT_V2_BASE, newPaperPath, requestPath } from './paths';
 import { usePicks } from './store';
+import { readLink, reportPicks } from './linkPicks';
 import { clearTopics, topicsApply } from './topics';
 import { useJobs } from './useJobs';
 import {
@@ -74,6 +75,21 @@ export function ClassStep() {
   const [combos, retryCombos] = useLoad(() => loadGradeSubjects('assessment'), 'gs:assessment');
   const [cat, retryCat] = useLoad(catalogueOnce, 'assessment:catalogue');
   const catalogue = dataOf(cat);
+  // bd-pw1ccr.2 — the A/B report button: ?origin=report tags the paper; its grade, subject and chapter, once the catalogue
+  // offers them, start a fresh paper on that chapter and go on to Cover. Applied once per visit.
+  const [query] = useSearchParams();
+  const link = useMemo(() => readLink(query), [query]);
+  const linkDone = useRef(false);
+  useEffect(() => {
+    if (!link.origin || linkDone.current) return;
+    if (link.prefill && !catalogue) return;
+    linkDone.current = true;
+    const fresh = link.prefill && catalogue ? reportPicks(link.prefill, catalogue, catalogue.defaultQuestions) : null;
+    if (fresh) {
+      set(fresh);
+      navigate(newPaperPath('cover'), { replace: true });
+    } else set({ origin: link.origin });
+  }, [link, catalogue, set, navigate]);
   const mine = useMemo(() => (dataOf(combos) ?? []).filter((c) => c.grade !== null), [combos]);
 
   const byGradeNames = useMemo(() => (catalogue
@@ -240,7 +256,7 @@ export function CoverStep() {
   if (fdePicked) {
     return (
       <StepFrame step="cover" backTo={backTo('class')} hint={C.skips4} next={{ label: C.next, why: null, to: newPaperPath('check') }}>
-        <SideDoor picked onFlip={flip} C={C} />
+        <SideDoor picked onFlip={flip} C={C} grade={p.grade} />
         <p className="px-1.5 text-[15px] font-semibold text-[#6b7280]">{C.chaptersOff}</p>
         {list.length > 0 && (
           <div aria-hidden="true" className="pointer-events-none opacity-40">
@@ -260,7 +276,7 @@ export function CoverStep() {
 
   return (
     <StepFrame step="cover" steps={topicsApply(p) ? TOPIC_STEPS : STEPS} backTo={backTo('class')} next={{ label: C.next, why: stepReason('cover', p, 50, C, { offerFde: !!pattern }), to: newPaperPath(topicsApply(p) ? 'topics' : 'questions') }}>
-      {pattern && <SideDoor picked={false} onFlip={flip} C={C} />}
+      {pattern && <SideDoor picked={false} onFlip={flip} C={C} grade={p.grade} />}
       <Tabs
         label={C.steps.cover}
         value={p.coverBy}
@@ -355,11 +371,11 @@ export function CoverStep() {
   );
 }
 
-/** The side door: the FDE board pattern as one pickable card above today's Chapters step (Grade 5, eligible, flag on). */
-function SideDoor({ picked, onFlip, C }: { picked: boolean; onFlip: () => void; C: AssessmentV2Copy }) {
+/** The side door: the FDE board pattern as one pickable card above today's Chapters step (a pattern grade, eligible, flag on). */
+function SideDoor({ picked, onFlip, C, grade }: { picked: boolean; onFlip: () => void; C: AssessmentV2Copy; grade: number | null }) {
   return (
     <div data-testid="fde-side-door" role="radiogroup" aria-label={C.styleFde}>
-      <Choice picked={picked} onPick={onFlip} icon={<LayoutList className="h-6 w-6" aria-hidden="true" />} name={C.styleFde} sub={C.fdeDoorChips} />
+      <Choice picked={picked} onPick={onFlip} icon={<LayoutList className="h-6 w-6" aria-hidden="true" />} name={C.styleFde} sub={C.fdeDoorChips(grade === null ? [] : [grade])} />
     </div>
   );
 }

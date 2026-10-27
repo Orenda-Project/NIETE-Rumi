@@ -60,6 +60,8 @@ export const HOME_CARD_COPY = {
   lp: {
     quizThis: 'Quiz this lesson',
   },
+  /** The Home's "Quizzes" tile (portal_teacher_home_quiz_tile): the quiz home, one tap. */
+  quizTile: 'Quizzes',
   /** The Home's new look (portal_teacher_home_look): the rows' label, the no-card heading, the lesson lead-in, the strip. */
   look: {
     all: 'All features',
@@ -108,6 +110,7 @@ export const HOME_CARD_COPY_UR = {
   lp: {
     quizThis: 'فوری جانچ بنائیں',
   },
+  quizTile: 'فوری جانچ',
   look: {
     all: 'تمام سہولیات',
     ask: 'آج کیا کریں؟',

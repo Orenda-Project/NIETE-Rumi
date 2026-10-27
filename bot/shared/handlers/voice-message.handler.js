@@ -814,6 +814,8 @@ async function handleVoiceMessage(message, from, user = null) {
     // reports no duration at all, and ffprobe runs only above the large-file
     // line, so a non-zero value here always means "somebody probed this".
     const classroomAudio = { seconds: 0, fileSize: 0 };
+    // bd-c5reix: the bytes the probe below downloads, so a recording kept for the app is not downloaded twice.
+    let probedBuffer = null;
 
     // CLASSROOM COACHING DETECTION: Check audio duration before processing
     try {
@@ -852,6 +854,7 @@ async function handleVoiceMessage(message, from, user = null) {
               waFileSize
             });
             const audioBuffer = await WhatsAppService.downloadMedia(audioId);
+            probedBuffer = audioBuffer;
             const AudioService = require('../services/audio.service');
             const probedDuration = Math.round(await AudioService.getAudioDuration(audioBuffer));
             if (probedDuration > audioDurationRounded) {
@@ -884,8 +887,11 @@ async function handleVoiceMessage(message, from, user = null) {
         typingController.stop();
 
         // bd-onxyu — a classroom recording IS a coaching request. v10 test schools included (bd-uwpohl).
-        if (user?.id && await redirectIfFlagged('ai_coaching', {
+        // bd-c5reix: when the answer is the app link, her recording is kept for the app before the link goes.
+        if (user?.id && await require('../services/coaching/whatsapp-recording.service').redirectClassroomRecording({
           userId: user.id, from, language: await getUserLanguage(user.id), reason: 'classroom_audio',
+          mediaId: audioId, buffer: probedBuffer, mimeType: audioMetadata?.mime_type || message.audio?.mime_type || null,
+          seconds: audioDurationRounded, door: 'voice',
         })) return;
 
         // Route to classroom coaching flow

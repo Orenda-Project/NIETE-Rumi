@@ -34,10 +34,11 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
         { header: head(r.txt), botWaitMs: r.waitedMs })), t() - s);
   }
 
-  if (want('M21')) {
-    // M21 — "/menu" typed back reversed, as an Urdu line displayed it (bd-5ls6qy.7)
+  if (want('M28')) {
+    // M28 — "/menu" typed back reversed, as an Urdu line displayed it (bd-5ls6qy.7). Was a second
+    // M21 until bd-7g913e: the /portal scenario already held that id, so one of them never reported.
     s = t(); r = await api.sendWait('Menu/');
-    rec('M21', '/menu typed back the way Urdu text showed it ("Menu/") still opens the menu',
+    rec('M28', '/menu typed back the way Urdu text showed it ("Menu/") still opens the menu',
         ...Object.values(V(head(r.txt) === "Here's what I can do" && r.btns.includes('See what I do'),
         { header: head(r.txt), botWaitMs: r.waitedMs })), t() - s);
   }
@@ -166,6 +167,31 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
         cta10 ? (ok10 ? 'PASS' : 'FAIL') : (api.fresh ? 'FAIL' : 'BLOCKED'),
         { button: cta10 ? cta10.text : (r.btns || [])[0] || null, link: cta10 ? cta10.url.replace(/\/go\/.*/, '/go/<token>') : null,
           reply: String(r.txt || '').slice(0, 160), botWaitMs: r.waitedMs }, t() - s);
+  }
+
+  // M29 / M30 — "portal" without the slash is the /portal command (portal-request.js): the same one "Open portal"
+  // button with the signed /go link; a sentence that says more is not. Each spelling is its own turn.
+  const portalCta = (items) => items.map((i) => i.cta).filter((c) => c && c.url);
+  if (want('M29')) {
+    s = t();
+    const per = {};
+    let all = true;
+    for (const typed of ['portal', 'Portal', 'open portal', 'mera portal', 'پورٹل']) {
+      if (api.freshReset) await api.freshReset();
+      const rr = await api.sendWait(typed);
+      const items = api.fresh ? await api.fresh() : [];
+      const ctas = portalCta(items);
+      const ok = rr.ok && ctas.length === 1 && /\/go\/[A-Za-z0-9_-]{40,}$/.test(ctas[0].url) && !saidUnsure(items);
+      per[typed] = { ok, button: ctas[0] ? ctas[0].text : null, items: brief(items) };
+      all = all && ok;
+    }
+    rec('M29', '"portal" typed without the slash opens the portal the same way as /portal',
+        api.fresh ? (all ? 'PASS' : 'FAIL') : 'BLOCKED', { per }, t() - s);
+  }
+  if (want('M30')) {
+    s = t(); const { rr, items } = await sentSince('portal pe lesson nahi khul raha');
+    rec('M30', 'A sentence that mentions the portal is not the portal command',
+        ...Object.values(V(rr.ok && portalCta(items).length === 0, { items: brief(items), botWaitMs: rr.waitedMs })), t() - s);
   }
 
   if (want('M21')) {
@@ -302,4 +328,15 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   });
   if (!r20.ran) rec('M20', M20, 'BLOCKED', { reason: REDIRECT_BLOCKED, setAppSetting: r20.reason }, 0);
   else rec('M20', M20, r20.value.storeLink && !r20.value.flowStarted ? 'PASS' : 'FAIL', r20.value, r20.value.ms);
+
+
+  // Inbound signature (M31-M34): HTTP-level and mode-gated. Blocked on this lane until the mock Graph API signs what
+  // it injects with a lane App Secret the bot also holds, and can inject unsigned or tampered bodies on demand;
+  // flipping webhook_signature_mode in enforce with an unsigned injector would refuse every scenario after it.
+  // Executed today at the HTTP layer against the real Express app by tests/whatsapp/webhook-signature.test.js.
+  const SIG_BLOCKED = 'mock Graph API does not sign injected webhooks yet (needs a lane App Secret shared with the bot); covered at the HTTP layer by tests/whatsapp/webhook-signature.test.js';
+  if (want('M31')) rec('M31', 'A message Meta signed is answered when the signature is enforced', 'BLOCKED', { reason: SIG_BLOCKED }, 0);
+  if (want('M32')) rec('M32', 'In log mode (the default) an unsigned message is still answered and recorded as unsigned', 'BLOCKED', { reason: SIG_BLOCKED }, 0);
+  if (want('M33')) rec('M33', 'A forged message is refused when the signature is enforced, and the teacher gets nothing', 'BLOCKED', { reason: SIG_BLOCKED }, 0);
+  if (want('M34')) rec('M34', "An unsigned Flow endpoint request is refused with Meta's signature code, and signed ones still open the form", 'BLOCKED', { reason: SIG_BLOCKED }, 0);
 };

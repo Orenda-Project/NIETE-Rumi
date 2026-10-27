@@ -30,6 +30,8 @@ const path = require('path');
 const { clampLanguage } = require('../../config/ux-strings');
 const { SUBJECT_LABEL } = require('./assessment-vocabulary');
 const Patterns = require('./patterns');
+const { pictureBlock, PICTURE_CSS } = require('./fde-picture-block');
+const { oralSheet, ORAL_CSS } = require('./fde-oral-sheet');
 
 // ── fonts ──────────────────────────────────────────────────────────────────
 
@@ -430,6 +432,13 @@ function workSpace(q, slot) {
   if (slot.work_mm && /^\s*draw\b/i.test(String(q.question || ''))) {
     return `<div class="work-square" style="width:${slot.work_mm}mm;height:${slot.work_mm}mm"></div>`;
   }
+  // A Grade 1-2 child writes in a box under every written item (bd-5jmnfj.4.8); circling needs none.
+  if (slotFlag(slot, 'answer_box')) {
+    if (Array.isArray(q.options) && q.options.length) return '';
+    // "34 ☐ 43": the child writes the sign in the drawn square (bd-5jmnfj.4.20).
+    if (/☐/.test(String(q.question || ''))) return '';
+    return `<div class="write-box" style="height:${12 + 8 * Math.max(0, (slot.lines || 1) - 1)}mm"></div>`;
+  }
   if ((slot.lines || 0) >= 2) {
     const h = Math.max(16, slot.lines * 8);
     return `<div class="work-box" style="height:${h}mm"></div>`;
@@ -461,10 +470,15 @@ function patternSlot(id) {
   return null;
 }
 
-function printsWords(slot) {
-  if (typeof slot.print_words === 'boolean') return slot.print_words;
+/** A slot's own boolean flag, else its pattern's: a paper laid out before the flag still prints right. */
+function slotFlag(slot, name) {
+  if (typeof slot[name] === 'boolean') return slot[name];
   const p = patternSlot(slot.slot);
-  return Boolean(p && p.print_words === true);
+  return Boolean(p && p[name] === true);
+}
+
+function printsWords(slot) {
+  return slotFlag(slot, 'print_words');
 }
 
 /*
@@ -544,17 +558,19 @@ function situationBlock(q, slot, i, ctx) {
 /** The body of one item (its number and stem are added by the caller where they apply). */
 function itemBody(q, slot, i, ctx, inlineQ) {
   const shape = slot.shape;
-  if (shape === 'mcq') return optionsBlock(q, slot, ctx);
-  if (shape === 'frame') return frameBlock(q, slot, ctx);
-  if (shape === 'comprehension') return comprehensionBlock(q, slot, ctx);
-  const parts = [];
+  // A Grade 1-2 picture (bd-5jmnfj.4.3) prints above the body, whatever its shape.
+  const pic = pictureBlock(q);
+  if (shape === 'mcq') return pic + optionsBlock(q, slot, ctx);
+  if (shape === 'frame') return pic + frameBlock(q, slot, ctx);
+  if (shape === 'comprehension') return pic + comprehensionBlock(q, slot, ctx);
+  const parts = pic ? [pic] : [];
   if (Array.isArray(q.options) && q.options.length) parts.push(optionsBlock(q, slot, ctx));
   if (q.table) parts.push(tableBlock(q.table, ctx));
   if (q.passage && shape !== 'comprehension') parts.push(`<div class="${shape === 'words' || shape === 'fixed' ? 'verse' : 'passage'}">${textOf(q.passage, ctx)}</div>`);
   if (Array.isArray(q.topics) && q.topics.length && printsField(slot, 'topics')) {
     parts.push(`<div class="topics">${q.topics.map((t, k) => `<span class="topic">${textOf(itemNumber({ numbering: 'alpha_paren' }, k, ctx.medium), ctx)} ${textOf(t, ctx)}</span>`).join('')}</div>`);
   }
-  if (printsWords(slot) && Array.isArray(q.words) && q.words.length) parts.push(wordList(q.words, ctx, ctx.medium !== 'ur'));
+  if (printsWords(slot) && !slotFlag(slot, 'answer_box') && Array.isArray(q.words) && q.words.length) parts.push(wordList(q.words, ctx, ctx.medium !== 'ur'));
   if (Array.isArray(q.questions) && q.questions.length) parts.push(subQuestions(q.questions, slot.sub_numbering || 'alpha_paren', ctx));
   if (ctx.answerLines !== false) parts.push(workSpace(q, slot));
   return parts.join('');
@@ -570,6 +586,8 @@ function withoutOwnLabel(text, slot) {
 
 function stemOf(q, slot, inlineQ) {
   if (inlineQ) return '';
+  // A picture-naming item is the picture and a box: the instruction above already asks (bd-5jmnfj.4.19).
+  if (slotFlag(slot, 'picture_only')) return '';
   if (slot.shape === 'frame' || slot.shape === 'comprehension') return '';
   if (slot.shape === 'words' && !q.question) return '';
   return withoutOwnLabel(q.question || '', slot);
@@ -587,6 +605,7 @@ function slotBlock(slot, sec, list, ctx) {
     ? `<div class="slot-head">${label ? `<span class="lab">${textOf(label, ctx)}</span> ` : ''}${instruction ? `<span class="ins">${textOf(instruction, ctx)}</span>` : ''}${line.marksLine ? `<span class="ml">${textOf(line.marksLine, ctx)}</span>` : ''}</div>`
     : '';
   const body = [];
+  const grid = slotFlag(slot, 'picture_only');
   const or = lang === 'ur' ? 'یا' : 'OR';
   live.forEach((q, i) => {
     if (slot.or && i > 0) body.push(`<div class="or">${textOf(or, ctx)}</div>`);
@@ -603,13 +622,19 @@ function slotBlock(slot, sec, list, ctx) {
     const stem = stemOf(q, slot, inlineQ);
     const numHtml = num ? `<span class="n">${textOf(num, ctx)}</span>` : '';
     const leadHtml = lead ? `<div class="or-lead">${textOf(lead, ctx)}</div>` : '';
-    const stemHtml = stem ? ` ${textOf(stem, ctx)}` : '';
-    body.push(`<div class="q${cont ? ' qcont' : ''}${slot.shape === 'comprehension' ? ' comp' : ''}" data-slot="${esc(slot.slot)}">${numHtml}${leadHtml}${stemHtml}${itemBody(q, slot, i, ctx, inlineQ)}</div>`);
+    const stemHtml = stem ? ` ${textOf(stem, ctx).replace(/☐/g, '<span class="sq"></span>')}` : '';
+    body.push(`<div class="q${cont ? ' qcont' : ''}${slot.shape === 'comprehension' ? ' comp' : ''}${grid ? ' pic-cell' : ''}" data-slot="${esc(slot.slot)}">${numHtml}${leadHtml}${stemHtml}${itemBody(q, slot, i, ctx, inlineQ)}</div>`);
   });
   if (slot.alternatives && !live.length) body.push(fixedAlternatives(slot, null, ctx));
   // An either/or question is read as one choice: never split across a page.
   const either = slot.or || slot.alternatives ? ' either' : '';
-  return `<div class="slot${either}">${head}${body.join('')}</div>`;
+  // A Grade 1-2 slot prints its words once, boxed, above its items (bd-5jmnfj.4.20). The bank is
+  // sorted so its order never matches the items' order: a model lists them as it wrote them.
+  const words = [...new Set(live.flatMap((q) => (Array.isArray(q.words) ? q.words : [])))].sort((x, y) => String(x).localeCompare(String(y)));
+  const bank = printsWords(slot) && slotFlag(slot, 'answer_box') && words.length
+    ? `<div class="word-box bank">${words.map((w) => `<span class="w">${textOf(w, ctx)}</span>`).join('')}</div>` : '';
+  if (grid) return `<div class="slot${either}">${head}${bank}<div class="pic-grid">${body.join('')}</div></div>`;
+  return `<div class="slot${either}">${head}${bank}${body.join('')}</div>`;
 }
 
 // Verses given from a lesson the paper does not cover name it under them, as English Q5 names its
@@ -665,7 +690,6 @@ function css(medium, kind) {
   .ascii, .ltr { font-family: 'PaperLatin', Arial, sans-serif; }
   .school { text-align: center; font-weight: 700; }
   .title { text-align: center; font-weight: 700; font-size: ${ur ? '13.5pt' : '12.5pt'}; margin-top: 2px; }
-  .disclaimer { text-align: center; font-size: ${ur ? '10pt' : '8.5pt'}; color: #333; margin: 2px 0 6px; }
   .atoms { display: flex; justify-content: space-between; font-weight: 700; margin: 4px 0; }
   .note { border: 1px solid #000; padding: 4px 8px; font-size: ${ur ? '11pt' : '9.5pt'}; margin: 4px 0 8px; break-inside: avoid; }
   table.student { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: ${ur ? '11pt' : '9.5pt'}; }
@@ -695,6 +719,12 @@ function css(medium, kind) {
   .work-box { border: 1px solid #555; margin: 3px 0 2px;
     background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 7.5mm, #bbb 7.5mm, #bbb 7.8mm); }
   .work-square { border: 1px solid #555; margin: 3px 0 2px; }
+  /* Inset from the end: a border on the content edge is clipped from the PDF (bd-5jmnfj.4.20). */
+  .write-box { border: 1.2px solid #000; margin: 2mm 0 1mm; margin-${end}: 0.5mm; }
+  .sq { display: inline-block; width: 9mm; height: 7mm; border: 1.2px solid #000; vertical-align: middle; margin: 0 2mm; }
+  .word-box.bank { display: flex; flex-wrap: wrap; justify-content: center; gap: 2mm 8mm; padding: 2mm 4mm; font-size: 13pt; }
+  .pic-grid { display: flex; flex-wrap: wrap; gap: 4mm; }
+  .q.pic-cell { width: 30%; break-inside: avoid; }
   table.data { border-collapse: collapse; margin: 4px 0; }
   table.data th, table.data td { border: 1px solid #000; padding: 2px 10px; text-align: center; }
   table.data th { background: #f0f0f0; }
@@ -731,7 +761,8 @@ function css(medium, kind) {
      that starts a page paints the tops of its letters at the foot of the page before. */
   .sec-head, .slot-head, .part-head, .q, .alt, .or-lead, .s-head, table.rows td { padding-top: .45em; }` : ''}
   .topics { display: flex; gap: 10mm; flex-wrap: wrap; }
-  ${kind === 'scheme' ? schemeCss(medium) : ''}`;
+  ${PICTURE_CSS}
+  ${kind === 'scheme' ? schemeCss(medium) + ORAL_CSS : ''}`;
 }
 
 function schemeCss(medium) {
@@ -780,7 +811,6 @@ function headerBlock(L, ctx, total) {
   const atoms = `<div class="atoms"><span>${textOf(H[`time_line_${lang}`] || '', ctx)}</span><span>${textOf(substitute(H[`total_line_${lang}`] || '', { w: total, n: total, t: total, g: total }, lang), ctx)}</span></div>`;
   return `<div class="school">${textOf(H[`school_line_${lang}`], ctx)}</div>
 <div class="title">${textOf(H[`title_${lang}`], ctx)}</div>
-<div class="disclaimer">${textOf(H[`disclaimer_${lang}`], ctx)}</div>
 ${atoms}
 ${H[`note_${lang}`] ? `<div class="note">${textOf(H[`note_${lang}`], ctx)}</div>` : ''}
 <table class="student">
@@ -1205,6 +1235,8 @@ ${suppliesBox(L, ctx)}`;
 
   const notes = notesBlock(L, all, ctx);
   const record = recordPage(L, live, ctx);
+  // The Grade 1-2 oral teacher sheet (bd-5jmnfj.4.4); '' for a paper with no oral part.
+  const oral = oralSheet(L.oral, { medium: lang, text: (s) => textOf(s, ctx) });
   return `<!DOCTYPE html>
 <html lang="${lang}"${ur ? ' dir="rtl"' : ''}>
 <head><meta charset="utf-8"><title>${esc(H[`scheme_title_${lang}`])}</title>
@@ -1213,6 +1245,7 @@ ${suppliesBox(L, ctx)}`;
 ${top}
 ${sections}
 ${notes}
+${oral}
 ${record}
 </body></html>`;
 }
@@ -1272,16 +1305,15 @@ function pdfOptions(examJson, kind = 'paper') {
     const page = esc(H.footer_page_ur)
       .replace('{n}', `<span class="pageNumber" style="${digits}"></span>`)
       .replace('{N}', `<span class="totalPages" style="${digits}"></span>`);
-    const line2 = esc(H.footer_ur).replace('FDE', "<span style=\"font-family:'PaperLatin';direction:ltr;unicode-bidi:isolate;margin:0 .3em\">FDE</span>");
     const prefix = kind === 'scheme' ? `${esc(H.scheme_title_ur)} · ` : '';
     body = `<div dir="rtl" style="width:100%;font-family:'PaperUrdu';font-size:8.5pt;line-height:1.7;text-align:center;color:#333;padding:0 12mm">`
-      + `<div>${prefix}${page}</div><div>${line2}</div></div>`;
+      + `<div>${prefix}${page}</div></div>`;
   } else {
     const prefix = kind === 'scheme' ? `${esc(H.scheme_title_en)} · ` : '';
     const page = esc(H.footer_page_en)
       .replace('{n}', '<span class="pageNumber"></span>')
       .replace('{N}', '<span class="totalPages"></span>');
-    body = `<div style="width:100%;font-family:'PaperLatin';font-size:7.5pt;text-align:center;color:#333;padding:0 12mm">${prefix}${page} · ${esc(H.footer_en)}</div>`;
+    body = `<div style="width:100%;font-family:'PaperLatin';font-size:7.5pt;text-align:center;color:#333;padding:0 12mm">${prefix}${page}</div>`;
   }
   return {
     format: 'A4',

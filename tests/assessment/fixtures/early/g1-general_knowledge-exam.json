@@ -1,0 +1,1627 @@
+{
+ "unseen": {
+  "objective": {
+   "MCQs": [
+    {
+     "slot": "g1.general_knowledge.A.Q2",
+     "lines": 1,
+     "marks": 1,
+     "answer": "ب) مگر مچھ",
+     "blooms": "Remember",
+     "options": [
+      "الف) بکری",
+      "ب) مگر مچھ",
+      "ج) گائے"
+     ],
+     "question": "ان میں سے کون سا جانور جنگلی ہے؟",
+     "main_question": "درست جواب کا انتخاب کریں۔"
+    },
+    {
+     "slot": "g1.general_knowledge.A.Q2",
+     "lines": 1,
+     "marks": 1,
+     "answer": "ج) ذائقہ چکھتے ہیں",
+     "blooms": "Remember",
+     "options": [
+      "الف) دیکھتے ہیں",
+      "ب) سونگھتے ہیں",
+      "ج) ذائقہ چکھتے ہیں"
+     ],
+     "question": "ہم اپنی زبان سے کیا کرتے ہیں؟",
+     "main_question": "درست جواب کا انتخاب کریں۔"
+    },
+    {
+     "slot": "g1.general_knowledge.A.Q2",
+     "lines": 1,
+     "marks": 1,
+     "answer": "الف) پانی",
+     "blooms": "Remember",
+     "options": [
+      "الف) پانی",
+      "ب) خشکی",
+      "ج) برف"
+     ],
+     "question": "زمین کا دو تہائی حصہ کس چیز سے بھرا ہوا ہے؟",
+     "main_question": "درست جواب کا انتخاب کریں۔"
+    },
+    {
+     "slot": "g1.general_knowledge.A.Q2",
+     "lines": 1,
+     "marks": 1,
+     "answer": "ج) ہوائی جہاز",
+     "blooms": "Remember",
+     "options": [
+      "الف) سائیکل",
+      "ب) تانگہ",
+      "ج) ہوائی جہاز"
+     ],
+     "question": "سب سے تیز رفتار سواری کون سی ہے؟",
+     "main_question": "درست جواب کا انتخاب کریں۔"
+    },
+    {
+     "slot": "g1.general_knowledge.A.Q2",
+     "lines": 1,
+     "marks": 1,
+     "answer": "ج) بلی",
+     "blooms": "Remember",
+     "options": [
+      "الف) ریچھ",
+      "ب) سانپ",
+      "ج) بلی"
+     ],
+     "question": "ان میں سے کون سا جانور گھر میں پالا جا سکتا ہے؟",
+     "main_question": "درست جواب کا انتخاب کریں۔"
+    }
+   ],
+   "True False": [
+    {
+     "slot": "g1.general_knowledge.A.Q3",
+     "lines": 1,
+     "marks": 1,
+     "answer": "درست",
+     "blooms": "Remember",
+     "options": [
+      "درست",
+      "غلط"
+     ],
+     "question": "خاکروب اسکول کی صفائی کرتے ہیں۔",
+     "main_question": "درست یا غلط کا انتخاب کریں۔"
+    },
+    {
+     "slot": "g1.general_knowledge.A.Q3",
+     "lines": 1,
+     "marks": 1,
+     "answer": "غلط",
+     "blooms": "Remember",
+     "options": [
+      "درست",
+      "غلط"
+     ],
+     "question": "شیر صرف گھاس کھاتا ہے۔",
+     "main_question": "درست یا غلط کا انتخاب کریں۔"
+    },
+    {
+     "slot": "g1.general_knowledge.A.Q3",
+     "lines": 1,
+     "marks": 1,
+     "answer": "درست",
+     "blooms": "Remember",
+     "options": [
+      "درست",
+      "غلط"
+     ],
+     "question": "پودے ہمیں سایہ اور غذا دیتے ہیں۔",
+     "main_question": "درست یا غلط کا انتخاب کریں۔"
+    },
+    {
+     "slot": "g1.general_knowledge.A.Q3",
+     "lines": 1,
+     "marks": 1,
+     "answer": "غلط",
+     "blooms": "Understand",
+     "options": [
+      "درست",
+      "غلط"
+     ],
+     "question": "جراثیم اتنے بڑے ہوتے ہیں کہ ہم انھیں آسانی سے دیکھ لیتے ہیں۔",
+     "main_question": "درست یا غلط کا انتخاب کریں۔"
+    },
+    {
+     "slot": "g1.general_knowledge.A.Q3",
+     "lines": 1,
+     "marks": 1,
+     "answer": "درست",
+     "blooms": "Understand",
+     "options": [
+      "درست",
+      "غلط"
+     ],
+     "question": "کسی چیز کو دھکیلنے پر وہ ہم سے دور جاتی ہے۔",
+     "main_question": "درست یا غلط کا انتخاب کریں۔"
+    }
+   ],
+   "Match Columns": [
+    {
+     "slot": "g1.general_knowledge.A.Q4",
+     "lines": 1,
+     "marks": 1,
+     "answer": "اونٹ → الف) صحرا میں",
+     "blooms": "Remember",
+     "options": [
+      "الف) صحرا میں",
+      "ب) سمندر میں",
+      "ج) گھونسلے میں"
+     ],
+     "question": "اونٹ کہاں رہتا ہے؟",
+     "main_question": "ملاپ کریں: دی گئی چیز کے ساتھ درست جواب منتخب کریں۔"
+    },
+    {
+     "slot": "g1.general_knowledge.A.Q4",
+     "lines": 1,
+     "marks": 1,
+     "answer": "پرندہ → ب) گھونسلہ",
+     "blooms": "Understand",
+     "options": [
+      "الف) صحرا",
+      "ب) گھونسلہ",
+      "ج) بندرگاہ"
+     ],
+     "question": "پرندے کا گھر کون سا ہے؟",
+     "main_question": "ملاپ کریں: دی گئی چیز کے ساتھ درست جواب منتخب کریں۔"
+    },
+    {
+     "slot": "g1.general_knowledge.A.Q4",
+     "lines": 1,
+     "marks": 1,
+     "answer": "مالی → ج) پودوں کو پانی دیتے ہیں",
+     "blooms": "Understand",
+     "options": [
+      "الف) کلاس پڑھاتے ہیں",
+      "ب) اسکول کی صفائی کرتے ہیں",
+      "ج) پودوں کو پانی دیتے ہیں"
+     ],
+     "question": "مالی کیا کام کرتے ہیں؟",
+     "main_question": "ملاپ کریں: دی گئی چیز کے ساتھ درست جواب منتخب کریں۔"
+    },
+    {
+     "slot": "g1.general_knowledge.A.Q4",
+     "lines": 1,
+     "marks": 1,
+     "answer": "سفید رنگ → الف) دیگر مذاہب کے پاکستانی",
+     "blooms": "Understand",
+     "options": [
+      "الف) دیگر مذاہب کے پاکستانی",
+      "ب) روشنی اور علم",
+      "ج) ترقی"
+     ],
+     "question": "پاکستان کے پرچم کا سفید رنگ کن کو ظاہر کرتا ہے؟",
+     "main_question": "ملاپ کریں: دی گئی چیز کے ساتھ درست جواب منتخب کریں۔"
+    },
+    {
+     "slot": "g1.general_knowledge.A.Q4",
+     "lines": 1,
+     "marks": 1,
+     "answer": "ناک → ج) سونگھنے میں",
+     "blooms": "Understand",
+     "options": [
+      "الف) سننے میں",
+      "ب) چکھنے میں",
+      "ج) سونگھنے میں"
+     ],
+     "question": "ناک ہمیں کس کام میں مدد دیتی ہے؟",
+     "main_question": "ملاپ کریں: دی گئی چیز کے ساتھ درست جواب منتخب کریں۔"
+    }
+   ]
+  },
+  "subjective": {
+   "Put in Order": [
+    {
+     "slot": "g1.general_knowledge.B.Q8",
+     "lines": 1,
+     "marks": 1,
+     "answer": "2، 1، 3",
+     "blooms": "Apply",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "2، 1، 3",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "question": "ہاتھ دھونے کے مراحل کی درست ترتیب لکھیں: 1. ہاتھ پانی سے دھوئیں 2. ہاتھوں پر صابن لگائیں 3. ہاتھ صاف کپڑے سے خشک کریں",
+     "main_question": "درست ترتیب لکھیں"
+    },
+    {
+     "slot": "g1.general_knowledge.B.Q8",
+     "lines": 1,
+     "marks": 1,
+     "answer": "2، 3، 1",
+     "blooms": "Apply",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "2، 3، 1",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "question": "سڑک پار کرنے کے مراحل کی درست ترتیب لکھیں: 1. سڑک پار کریں 2. سڑک کے کنارے رکیں 3. دائیں بائیں دیکھیں",
+     "main_question": "درست ترتیب لکھیں"
+    },
+    {
+     "slot": "g1.general_knowledge.B.Q8",
+     "lines": 1,
+     "marks": 1,
+     "answer": "3، 1، 2",
+     "blooms": "Apply",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "3، 1، 2",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "question": "بیج بونے کے مراحل کی درست ترتیب لکھیں: 1. بیج مٹی میں ڈالیں 2. پانی دیں 3. مٹی میں گڑھا کھودیں",
+     "main_question": "درست ترتیب لکھیں"
+    }
+   ],
+   "Land or Water": [
+    {
+     "slot": "g1.general_knowledge.B.Q10",
+     "lines": 1,
+     "marks": 1,
+     "answer": "پانی",
+     "blooms": "Remember",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "پانی",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "fish"
+     },
+     "question": "یہ خشکی پر ہے یا پانی میں؟",
+     "main_question": "تصویر دیکھ کر لکھیں کہ یہ خشکی پر رہتا یا چلتا ہے یا پانی میں"
+    },
+    {
+     "slot": "g1.general_knowledge.B.Q10",
+     "lines": 1,
+     "marks": 1,
+     "answer": "خشکی",
+     "blooms": "Remember",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "خشکی",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "camel"
+     },
+     "question": "یہ خشکی پر ہے یا پانی میں؟",
+     "main_question": "تصویر دیکھ کر لکھیں کہ یہ خشکی پر رہتا یا چلتا ہے یا پانی میں"
+    },
+    {
+     "slot": "g1.general_knowledge.B.Q10",
+     "lines": 1,
+     "marks": 1,
+     "answer": "پانی",
+     "blooms": "Apply",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "پانی",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "ship"
+     },
+     "question": "یہ خشکی پر چلتی ہے یا پانی میں؟",
+     "main_question": "تصویر دیکھ کر لکھیں کہ یہ خشکی پر رہتا یا چلتا ہے یا پانی میں"
+    },
+    {
+     "slot": "g1.general_knowledge.B.Q10",
+     "lines": 1,
+     "marks": 1,
+     "answer": "خشکی",
+     "blooms": "Apply",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "خشکی",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "bus"
+     },
+     "question": "یہ خشکی پر چلتی ہے یا پانی میں؟",
+     "main_question": "تصویر دیکھ کر لکھیں کہ یہ خشکی پر رہتا یا چلتا ہے یا پانی میں"
+    },
+    {
+     "slot": "g1.general_knowledge.B.Q10",
+     "lines": 1,
+     "marks": 1,
+     "answer": "خشکی",
+     "blooms": "Apply",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "خشکی",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "horse"
+     },
+     "question": "یہ خشکی پر دوڑتا ہے یا پانی میں؟",
+     "main_question": "تصویر دیکھ کر لکھیں کہ یہ خشکی پر رہتا یا چلتا ہے یا پانی میں"
+    }
+   ],
+   "Short Answers": [
+    {
+     "slot": "g1.general_knowledge.B.Q6",
+     "lines": 2,
+     "marks": 2,
+     "answer": "سچ بولنے سے لوگ ہم پر بھروسا کرتے ہیں۔ سچ بولنے والے بچے سب کو اچھے لگتے ہیں۔",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "سچ بولنے سے لوگ عزت کرتے ہیں",
+       "سچ بولنے سے مشکلات سے بچ جاتے ہیں"
+      ],
+      "points": [
+       {
+        "kind": "K",
+        "text": "ایک درست وجہ بیان کرنا",
+        "marks": 1
+       },
+       {
+        "kind": "K",
+        "text": "دوسری درست وجہ یا مثال دینا",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "صرف 'یہ اچھی بات ہے' لکھنا اور وجہ نہ بتانا"
+     },
+     "question": "سچ بولنا اچھی عادت کیوں ہے؟",
+     "main_question": "درج ذیل سوالات کے مختصر جواب دیں"
+    },
+    {
+     "slot": "g1.general_knowledge.B.Q6",
+     "lines": 2,
+     "marks": 2,
+     "answer": "ہاتھوں پر جراثیم ہوتے ہیں۔ صابن سے ہاتھ دھونے سے ہم بیماریوں سے بچتے ہیں۔",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "ہاتھ صاف رہتے ہیں اور ہم بیمار نہیں ہوتے"
+      ],
+      "points": [
+       {
+        "kind": "K",
+        "text": "ہاتھوں پر جراثیم کا ذکر",
+        "marks": 1
+       },
+       {
+        "kind": "K",
+        "text": "صاف ہاتھوں سے بیماریوں سے بچاؤ کا ذکر",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "صرف 'ہاتھ گندے ہوتے ہیں' لکھنا اور بچاؤ کا ذکر نہ کرنا"
+     },
+     "question": "کھانا کھانے سے پہلے صابن سے ہاتھ کیوں دھونے چاہئیں؟",
+     "main_question": "درج ذیل سوالات کے مختصر جواب دیں"
+    },
+    {
+     "slot": "g1.general_knowledge.B.Q6",
+     "lines": 2,
+     "marks": 2,
+     "answer": "پودے جاندار ہیں۔ انھیں زندہ رہنے اور بڑھنے کے لیے پانی چاہیے۔",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "پانی کے بغیر پودے سوکھ جاتے ہیں"
+      ],
+      "points": [
+       {
+        "kind": "K",
+        "text": "پودوں کے جاندار ہونے یا پانی کی ضرورت کا ذکر",
+        "marks": 1
+       },
+       {
+        "kind": "K",
+        "text": "پانی نہ ملنے پر زندہ نہ رہنے یا بڑھنے کا ذکر",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "پودوں کو روشنی کا ذکر کر کے پانی کی ضرورت نہ بتانا"
+     },
+     "question": "پودوں کو پانی دینا کیوں ضروری ہے؟",
+     "main_question": "درج ذیل سوالات کے مختصر جواب دیں"
+    },
+    {
+     "slot": "g1.general_knowledge.B.Q6",
+     "lines": 2,
+     "marks": 2,
+     "answer": "مالی پودوں کو پانی دیتا ہے۔ خاکروب اسکول کی صفائی کرتا ہے۔",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "مالی پودوں کی دیکھ بھال کرتا ہے",
+       "خاکروب اسکول کو صاف رکھتا ہے"
+      ],
+      "points": [
+       {
+        "kind": "K",
+        "text": "مالی کا کام درست بتانا",
+        "marks": 1
+       },
+       {
+        "kind": "K",
+        "text": "خاکروب کا کام درست بتانا",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "مالی اور خاکروب کے کام آپس میں بدل دینا"
+     },
+     "question": "اسکول میں مالی اور خاکروب کیا کام کرتے ہیں؟",
+     "main_question": "درج ذیل سوالات کے مختصر جواب دیں"
+    }
+   ],
+   "Write Sentences": [
+    {
+     "slot": "g1.general_knowledge.B.Q7",
+     "lines": 4,
+     "marks": 4,
+     "answer": "مجھے اپنا اسکول بہت پسند ہے۔ اساتذہ ہمیں پیار سے پڑھاتے ہیں۔ میرے اسکول میں میرے بہت سے دوست ہیں۔ ہم اسکول کے قوانین پر عمل کرتے ہیں۔",
+     "blooms": "Apply",
+     "scheme": {
+      "accept": [
+       "اسکول کا نام، دوستوں، اساتذہ، کھیل یا صفائی کے بارے میں جملے"
+      ],
+      "points": [
+       {
+        "kind": "K",
+        "text": "پہلا درست جملہ موضوع پر",
+        "marks": 1
+       },
+       {
+        "kind": "K",
+        "text": "دوسرا درست جملہ موضوع پر",
+        "marks": 1
+       },
+       {
+        "kind": "K",
+        "text": "تیسرا درست جملہ موضوع پر",
+        "marks": 1
+       },
+       {
+        "kind": "K",
+        "text": "چوتھا درست جملہ موضوع پر",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "ایک ہی جملہ دہرانا یا موضوع سے ہٹ جانا"
+     },
+     "question": "'میرا اسکول' کے بارے میں چار جملے لکھیں۔",
+     "main_question": "دیے گئے موضوع پر چار جملے لکھیں"
+    }
+   ],
+   "Name the Picture": [
+    {
+     "slot": "g1.general_knowledge.B.Q5",
+     "lines": 1,
+     "marks": 1,
+     "answer": "آنکھ",
+     "blooms": "Remember",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "آنکھ",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "eye"
+     },
+     "question": "تصویر کا نام لکھیں۔",
+     "main_question": "تصویر دیکھ کر نام لکھیں"
+    },
+    {
+     "slot": "g1.general_knowledge.B.Q5",
+     "lines": 1,
+     "marks": 1,
+     "answer": "ٹریفک کی بتی",
+     "blooms": "Remember",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "ٹریفک کی بتی",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "traffic light"
+     },
+     "question": "تصویر کا نام لکھیں۔",
+     "main_question": "تصویر دیکھ کر نام لکھیں"
+    },
+    {
+     "slot": "g1.general_knowledge.B.Q5",
+     "lines": 1,
+     "marks": 1,
+     "answer": "آم",
+     "blooms": "Remember",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "آم",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "mango"
+     },
+     "question": "تصویر کا نام لکھیں۔",
+     "main_question": "تصویر دیکھ کر نام لکھیں"
+    },
+    {
+     "slot": "g1.general_knowledge.B.Q5",
+     "lines": 1,
+     "marks": 1,
+     "answer": "ٹوتھ برش",
+     "blooms": "Remember",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "ٹوتھ برش",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "toothbrush"
+     },
+     "question": "تصویر کا نام لکھیں۔",
+     "main_question": "تصویر دیکھ کر نام لکھیں"
+    }
+   ],
+   "Wild or Domestic": [
+    {
+     "slot": "g1.general_knowledge.B.Q9",
+     "lines": 1,
+     "marks": 1,
+     "answer": "جنگلی",
+     "blooms": "Understand",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "جنگلی",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "lion"
+     },
+     "question": "یہ جانور جنگلی ہے یا پالتو؟",
+     "main_question": "تصویر دیکھ کر لکھیں کہ جانور جنگلی ہے یا پالتو"
+    },
+    {
+     "slot": "g1.general_knowledge.B.Q9",
+     "lines": 1,
+     "marks": 1,
+     "answer": "پالتو",
+     "blooms": "Understand",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "پالتو",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "cow"
+     },
+     "question": "یہ جانور جنگلی ہے یا پالتو؟",
+     "main_question": "تصویر دیکھ کر لکھیں کہ جانور جنگلی ہے یا پالتو"
+    },
+    {
+     "slot": "g1.general_knowledge.B.Q9",
+     "lines": 1,
+     "marks": 1,
+     "answer": "جنگلی",
+     "blooms": "Understand",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "جنگلی",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "bear"
+     },
+     "question": "یہ جانور جنگلی ہے یا پالتو؟",
+     "main_question": "تصویر دیکھ کر لکھیں کہ جانور جنگلی ہے یا پالتو"
+    },
+    {
+     "slot": "g1.general_knowledge.B.Q9",
+     "lines": 1,
+     "marks": 1,
+     "answer": "پالتو",
+     "blooms": "Understand",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "پالتو",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "goat"
+     },
+     "question": "یہ جانور جنگلی ہے یا پالتو؟",
+     "main_question": "تصویر دیکھ کر لکھیں کہ جانور جنگلی ہے یا پالتو"
+    },
+    {
+     "slot": "g1.general_knowledge.B.Q9",
+     "lines": 1,
+     "marks": 1,
+     "answer": "جنگلی",
+     "blooms": "Understand",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "جنگلی",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "crocodile"
+     },
+     "question": "یہ جانور جنگلی ہے یا پالتو؟",
+     "main_question": "تصویر دیکھ کر لکھیں کہ جانور جنگلی ہے یا پالتو"
+    },
+    {
+     "slot": "g1.general_knowledge.B.Q9",
+     "lines": 1,
+     "marks": 1,
+     "answer": "پالتو",
+     "blooms": "Understand",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "پالتو",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "picture": {
+      "src": "data:image/jpeg;base64,AAAA",
+      "kind": "object",
+      "name": "hen"
+     },
+     "question": "یہ جانور جنگلی ہے یا پالتو؟",
+     "main_question": "تصویر دیکھ کر لکھیں کہ جانور جنگلی ہے یا پالتو"
+    }
+   ],
+   "Fill in the Blanks": [
+    {
+     "slot": "g1.general_knowledge.A.Q1",
+     "lines": 1,
+     "marks": 1,
+     "words": [
+      "سورج",
+      "دھونے",
+      "سنتے",
+      "بس اڈہ",
+      "سبز"
+     ],
+     "answer": "سنتے",
+     "blooms": "Remember",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "سنتے",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "question": "ہم اپنے کانوں سے ___________ ہیں۔",
+     "main_question": "درست لفظ کا استعمال کر کے خالی جگہ پر کریں۔"
+    },
+    {
+     "slot": "g1.general_knowledge.A.Q1",
+     "lines": 1,
+     "marks": 1,
+     "answer": "سبز",
+     "blooms": "Remember",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "سبز",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "question": "پاکستان کے پرچم کا ___________ رنگ مسلمانوں کو ظاہر کرتا ہے۔",
+     "main_question": "درست لفظ کا استعمال کر کے خالی جگہ پر کریں۔"
+    },
+    {
+     "slot": "g1.general_knowledge.A.Q1",
+     "lines": 1,
+     "marks": 1,
+     "answer": "سورج",
+     "blooms": "Remember",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "سورج",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "question": "___________ ہمیں دن کے وقت روشنی اور حرارت دیتا ہے۔",
+     "main_question": "درست لفظ کا استعمال کر کے خالی جگہ پر کریں۔"
+    },
+    {
+     "slot": "g1.general_knowledge.A.Q1",
+     "lines": 1,
+     "marks": 1,
+     "answer": "بس اڈہ",
+     "blooms": "Remember",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "بس اڈہ",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "question": "جس جگہ سے بسیں ایک شہر سے دوسرے شہر جاتی ہیں اسے ___________ کہتے ہیں۔",
+     "main_question": "درست لفظ کا استعمال کر کے خالی جگہ پر کریں۔"
+    },
+    {
+     "slot": "g1.general_knowledge.A.Q1",
+     "lines": 1,
+     "marks": 1,
+     "answer": "دھونے",
+     "blooms": "Remember",
+     "scheme": {
+      "points": [
+       {
+        "kind": "A",
+        "text": "دھونے",
+        "marks": 1
+       }
+      ],
+      "checked": null
+     },
+     "question": "کھانا کھانے سے پہلے اور بعد میں ہاتھ ___________ چاہییں۔",
+     "main_question": "درست لفظ کا استعمال کر کے خالی جگہ پر کریں۔"
+    }
+   ]
+  }
+ },
+ "_layout": {
+  "v": 2,
+  "notes": [],
+  "pages": {
+   "paper": 7,
+   "scheme": 5
+  },
+  "scope": {
+   "kind": "fde",
+   "pages": null,
+   "line_en": "The whole General Knowledge book (pages 1-54).",
+   "line_ur": "معلومات عامہ کی پوری کتاب (صفحات 1-54)۔",
+   "chapters": null,
+   "label_en": "Whole book",
+   "label_ur": "پوری کتاب",
+   "covers_en": null,
+   "covers_ur": null
+  },
+  "header": {
+   "or_en": "OR",
+   "or_ur": "یا",
+   "band_en": "TEACHER'S COPY · Do not give to children",
+   "band_ur": "استاد کی کاپی · بچوں کو نہ دیں",
+   "note_en": null,
+   "note_ur": null,
+   "title_en": "Grade I · General Knowledge · FDE pattern practice paper",
+   "title_ur": "جماعت اول · معلومات عامہ · FDE pattern کا مشقی پرچہ",
+   "accept_en": "accept:",
+   "accept_ur": "یہ بھی درست:",
+   "covers_en": "Covers: {scope}. Not an official FDE paper.",
+   "covers_ur": "احاطہ: {scope}۔ یہ سرکاری FDE پرچہ نہیں ہے۔",
+   "footer_en": "Not an official FDE paper",
+   "footer_ur": "یہ سرکاری FDE پرچہ نہیں ہے",
+   "checked_en": "✓ checked",
+   "checked_ur": "✓ جانچا گیا",
+   "time_line_en": "",
+   "time_line_ur": "",
+   "disclaimer_en": "Practice paper in the FDE Grade I annual assessment pattern (2026-27). Not an official FDE paper.",
+   "disclaimer_ur": "یہ مشق کا پرچہ ہے جو FDE کے جماعت اول کے سالانہ جائزے (2026-27) کے pattern پر بنایا گیا ہے۔ یہ سرکاری پرچہ نہیں ہے۔",
+   "total_line_en": "Written Marks: {t:50}",
+   "total_line_ur": "تحریری نمبر: {t:50}",
+   "footer_page_en": "Page {n} of {N}",
+   "footer_page_ur": "صفحہ {n} از {N}",
+   "notes_title_en": "Notes",
+   "notes_title_ur": "نوٹ",
+   "record_cols_en": [
+    "Roll",
+    "Name"
+   ],
+   "record_cols_ur": [
+    "رول نمبر",
+    "نام"
+   ],
+   "school_line_en": "School: ____________",
+   "school_line_ur": "اسکول: ____________",
+   "student_box_en": [
+    "Student Name",
+    "Roll No",
+    "Date",
+    "Total Marks",
+    "Obtained Marks"
+   ],
+   "student_box_ur": [
+    "نام طالب علم",
+    "رول نمبر",
+    "تاریخ",
+    "کل نمبر",
+    "حاصل کردہ نمبر"
+   ],
+   "answer_sheet_en": "answer sheet",
+   "answer_sheet_ur": "جوابی کاپی",
+   "common_error_en": "common error:",
+   "common_error_ur": "عام غلطی:",
+   "record_grade_en": "Grade",
+   "record_grade_ur": "گریڈ",
+   "record_title_en": "Class record",
+   "record_title_ur": "کلاس ریکارڈ",
+   "record_total_en": "Total",
+   "record_total_ur": "کل",
+   "scheme_title_en": "MARKING SCHEME",
+   "scheme_title_ur": "مارکنگ اسکیم",
+   "note_replaced_en": "{n}: key corrected by code; the model wrote {value}.",
+   "note_replaced_ur": "{n}: کلید کوڈ نے درست کی؛ ماڈل نے {value} لکھا۔",
+   "covers_partial_en": "Covers {units}.",
+   "covers_partial_ur": "احاطہ: {units}۔"
+  },
+  "legend": {
+   "subject": "general_knowledge",
+   "key_line": 1,
+   "lines_en": [
+    "One mark per correct item unless the paper says otherwise. Spelling is not marked in Maths or GK.",
+    "",
+    "Written marks only. Record the oral marks from the oral sheet, then add both on the class record."
+   ],
+   "lines_ur": [
+    "جب تک پرچے میں کچھ اور نہ لکھا ہو، ہر درست جواب پر 1 نمبر۔ ریاضی اور معلومات عامہ میں املا کے نمبر نہیں کٹتے۔",
+    "",
+    "یہ صرف تحریری نمبر ہیں۔ زبانی نمبر زبانی جائزے کی شیٹ سے لکھیں، پھر کلاس ریکارڈ پر دونوں جمع کریں۔"
+   ],
+   "title_en": "How to mark",
+   "title_ur": "جانچنے کا طریقہ",
+   "bands_line": -1,
+   "maths_lines": [],
+   "key_names_en": {
+    "A": "answer",
+    "K": "key point",
+    "L": "label",
+    "M": "method",
+    "U": "unit"
+   },
+   "key_names_ur": {
+    "A": "جواب",
+    "K": "اہم نکتہ",
+    "L": "نام",
+    "M": "طریقہ",
+    "U": "اکائی"
+   },
+   "bands_lead_ur": "",
+   "key_from_chips": true
+  },
+  "medium": "ur",
+  "subject": "general_knowledge",
+  "sections": [
+   {
+    "id": "A",
+    "marks": 20,
+    "slots": [
+     {
+      "or": false,
+      "slot": "g1.general_knowledge.A.Q1",
+      "type": "Fill in the Blanks",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 5,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q1.",
+      "label_ur": "سوال 1",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Five one-line facts from the book with one blank; the five answers, mixed, in \"words\" on the FIRST item.",
+      "alternatives": null,
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "section_pages": "scope",
+      "instruction_en": null,
+      "instruction_ur": "خالی جگہ پُر کریں۔",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.general_knowledge.A.Q2",
+      "type": "MCQs",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "mcq",
+      "attempt": 5,
+      "picture": null,
+      "work_mm": null,
+      "category": "objective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q2.",
+      "label_ur": "سوال 2",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Five three-option MCQs on book facts (places of worship, traffic signs, wild and domestic animals, body parts, water).",
+      "alternatives": null,
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "option_labels": "ur",
+      "section_pages": "scope",
+      "instruction_en": null,
+      "instruction_ur": "درست جواب پر دائرہ لگائیں۔",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.general_knowledge.A.Q3",
+      "type": "True False",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "mcq",
+      "attempt": 5,
+      "picture": null,
+      "work_mm": null,
+      "category": "objective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q3.",
+      "label_ur": "سوال 3",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Five statements from the book; options exactly درست and غلط. Mix both answers.",
+      "alternatives": null,
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "option_labels": "ur",
+      "section_pages": "scope",
+      "instruction_en": null,
+      "instruction_ur": "درست یا غلط لکھیں۔",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.general_knowledge.A.Q4",
+      "type": "Match Columns",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "mcq",
+      "attempt": 5,
+      "picture": null,
+      "work_mm": null,
+      "category": "objective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q4.",
+      "label_ur": "سوال 4",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Five items: a thing as the stem and three options of what goes with it (an animal and its home, a job and its tool, a sign and its meaning).",
+      "alternatives": null,
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "option_labels": "ur",
+      "section_pages": "scope",
+      "instruction_en": null,
+      "instruction_ur": "درست جوڑ ملائیں۔",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     }
+    ],
+    "levels": {
+     "Apply": 0,
+     "Remember": 14,
+     "Understand": 6
+    },
+    "note_en": null,
+    "time_en": null,
+    "label_en": "Objective",
+    "label_ur": "معروضی",
+    "marks_en": "Total Marks: {t:20}",
+    "marks_ur": "کل نمبر: {t:20}",
+    "answer_on": "question_paper"
+   },
+   {
+    "id": "B",
+    "marks": 30,
+    "slots": [
+     {
+      "or": false,
+      "slot": "g1.general_knowledge.B.Q5",
+      "type": "Name the Picture",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 4,
+      "picture": [
+       "object"
+      ],
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 4,
+      "label_en": "Q5.",
+      "label_ur": "سوال 5",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Four book things (a body part, a traffic sign, a fruit, a tool) as picture: {kind:\"object\", name} in English for the artist. Answer: the Urdu name.",
+      "alternatives": null,
+      "marks_line_en": "({t:4})",
+      "marks_line_ur": "{t:4}",
+      "section_pages": "scope",
+      "instruction_en": null,
+      "instruction_ur": "تصویر دیکھ کر نام لکھیں۔",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.general_knowledge.B.Q6",
+      "type": "Short Answers",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 2,
+      "parts": null,
+      "shape": "short",
+      "attempt": 4,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 4,
+      "label_en": "Q6.",
+      "label_ur": "سوال 6",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 2,
+      "prompt_rule": "Four questions on good habits, cleanliness, water and sources of income. Answer: one or two short sentences. Scheme: K 1 per idea.",
+      "alternatives": null,
+      "marks_line_en": "({t:8})",
+      "marks_line_ur": "{t:8}",
+      "section_pages": "scope",
+      "instruction_en": null,
+      "instruction_ur": "مختصر جواب دیں۔",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.general_knowledge.B.Q7",
+      "type": "Write Sentences",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 4,
+      "parts": null,
+      "shape": "short",
+      "attempt": 1,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 1,
+      "label_en": "Q7.",
+      "label_ur": "سوال 7",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 4,
+      "prompt_rule": "One book topic (my school, my home, keeping clean). Answer: four model sentences. Scheme: K 1 per sentence on topic.",
+      "alternatives": null,
+      "marks_line_en": "({t:4})",
+      "marks_line_ur": "{t:4}",
+      "section_pages": "scope",
+      "instruction_en": null,
+      "instruction_ur": "چار جملے لکھیں۔",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.general_knowledge.B.Q8",
+      "type": "Put in Order",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 3,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 3,
+      "label_en": "Q8.",
+      "label_ur": "سوال 8",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Three items, each three steps of a book routine (washing hands, crossing the road, planting a seed) written out of order and numbered. Answer: the order, e.g. 2، 1، 3.",
+      "alternatives": null,
+      "marks_line_en": "({t:3})",
+      "marks_line_ur": "{t:3}",
+      "section_pages": "scope",
+      "instruction_en": null,
+      "instruction_ur": "درست ترتیب لکھیں۔",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.general_knowledge.B.Q9",
+      "type": "Wild or Domestic",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 6,
+      "picture": [
+       "object"
+      ],
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 6,
+      "label_en": "Q9.",
+      "label_ur": "سوال 9",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Six book animals, three wild and three domestic, mixed, each as picture: {kind:\"object\", name}. Answer: جنگلی or پالتو.",
+      "alternatives": null,
+      "marks_line_en": "({t:6})",
+      "marks_line_ur": "{t:6}",
+      "section_pages": "scope",
+      "instruction_en": null,
+      "instruction_ur": "تصویر دیکھ کر لکھیں: جنگلی یا پالتو۔",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     },
+     {
+      "or": false,
+      "slot": "g1.general_knowledge.B.Q10",
+      "type": "Land or Water",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 1,
+      "parts": null,
+      "shape": "short",
+      "attempt": 5,
+      "picture": [
+       "object"
+      ],
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 5,
+      "label_en": "Q10.",
+      "label_ur": "سوال 10",
+      "numbering": "roman",
+      "compulsory": true,
+      "marks_each": 1,
+      "prompt_rule": "Five book animals or transport, each as picture: {kind:\"object\", name}. Answer: خشکی or پانی.",
+      "alternatives": null,
+      "marks_line_en": "({t:5})",
+      "marks_line_ur": "{t:5}",
+      "section_pages": "scope",
+      "instruction_en": null,
+      "instruction_ur": "یہ کہاں رہتا ہے؟ خشکی یا پانی۔",
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     }
+    ],
+    "levels": {
+     "Apply": 10,
+     "Remember": 6,
+     "Understand": 14
+    },
+    "note_en": null,
+    "time_en": null,
+    "label_en": "Short answers and pictures",
+    "label_ur": "مختصر جواب اور تصاویر",
+    "marks_en": "Total Marks: {t:30}",
+    "marks_ur": "کل نمبر: {t:30}",
+    "answer_on": "question_paper"
+   }
+  ],
+  "supplies": [],
+  "unplaced": 0,
+  "blueprint": {
+   "ok": true,
+   "total": 50,
+   "levels": {
+    "Apply": {
+     "pct": 20,
+     "marks": 10,
+     "target": 20
+    },
+    "Remember": {
+     "pct": 40,
+     "marks": 20,
+     "target": 40
+    },
+    "Understand": {
+     "pct": 40,
+     "marks": 20,
+     "target": 40
+    }
+   },
+   "expected": 50,
+   "problems": [],
+   "sections": [
+    {
+     "id": "A",
+     "marks": 20,
+     "levels": {
+      "Apply": {
+       "marks": 0,
+       "target": 0
+      },
+      "Remember": {
+       "marks": 14,
+       "target": 14
+      },
+      "Understand": {
+       "marks": 6,
+       "target": 6
+      }
+     },
+     "expected": 20
+    },
+    {
+     "id": "B",
+     "marks": 30,
+     "levels": {
+      "Apply": {
+       "marks": 10,
+       "target": 10
+      },
+      "Remember": {
+       "marks": 6,
+       "target": 6
+      },
+      "Understand": {
+       "marks": 14,
+       "target": 14
+      }
+     },
+     "expected": 30
+    }
+   ]
+  },
+  "preset_id": "fde_g1_2026",
+  "before_exam": {
+   "lines_en": [
+    "This is the marking scheme for {file} ({n} pages). Do not give it to children.",
+    "Photocopy the question paper, all {n} pages, one per child.",
+    "You add: {duty} on the question paper, page {p} (book p. {b}).",
+    "Tell the class: {sections}; {attempts}.",
+    "Time: {t}.",
+    "Mark question by question across all copies, not copy by copy."
+   ],
+   "lines_ur": [
+    "یہ {file} ({n} صفحات) کی مارکنگ اسکیم ہے۔ بچوں کو نہ دیں۔",
+    "سوالیہ پرچے کے تمام {n} صفحات کی فوٹو کاپی کریں، ہر بچے کے لیے ایک۔",
+    "شامل کریں: {duty}، سوالیہ پرچہ صفحہ {p} (کتاب ص {b})۔",
+    "کلاس کو بتائیں: {sections}؛ {attempts}۔",
+    "وقت: {t}۔",
+    "ہر سوال کو تمام کاپیوں میں ایک ساتھ جانچیں، ایک کاپی مکمل کر کے دوسری نہیں۔"
+   ],
+   "title_en": "Teacher: before the exam",
+   "title_ur": "استاد کے لیے: امتحان سے پہلے",
+   "either_en": "{label}: answer one of the two",
+   "either_ur": "{label}: دو میں سے ایک",
+   "attempt_en": "{label}: attempt any {n} of {g}",
+   "attempt_ur": "{label}: {g} میں سے کوئی سے {n}",
+   "nothing_en": "You add: nothing.",
+   "nothing_ur": "شامل کرنے کو کچھ نہیں۔",
+   "on_paper_en": "{sections} on the question paper",
+   "on_paper_ur": "{sections} سوالیہ پرچے پر",
+   "on_sheet_en": "{sections} on the answer sheet",
+   "on_sheet_ur": "{sections} جوابی کاپی پر",
+   "unknown_pages_en": "see the question paper",
+   "unknown_pages_ur": "سوالیہ پرچہ دیکھیں"
+  },
+  "frame_pages": null,
+  "total_marks": 50,
+  "generated_at": "2026-10-23T04:43:04.350Z",
+  "total_time_en": "as the school sets",
+  "total_time_ur": "اسکول کے مطابق",
+  "scheme_shortfall": [
+   {
+    "item": 0,
+    "part": null,
+    "slot": "g1.general_knowledge.A.Q1",
+    "filled_by": "code"
+   },
+   {
+    "item": 1,
+    "part": null,
+    "slot": "g1.general_knowledge.A.Q1",
+    "filled_by": "code"
+   },
+   {
+    "item": 2,
+    "part": null,
+    "slot": "g1.general_knowledge.A.Q1",
+    "filled_by": "code"
+   },
+   {
+    "item": 3,
+    "part": null,
+    "slot": "g1.general_knowledge.A.Q1",
+    "filled_by": "code"
+   },
+   {
+    "item": 4,
+    "part": null,
+    "slot": "g1.general_knowledge.A.Q1",
+    "filled_by": "code"
+   },
+   {
+    "item": 0,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q5",
+    "filled_by": "code"
+   },
+   {
+    "item": 1,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q5",
+    "filled_by": "code"
+   },
+   {
+    "item": 2,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q5",
+    "filled_by": "code"
+   },
+   {
+    "item": 3,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q5",
+    "filled_by": "code"
+   },
+   {
+    "item": 0,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q8",
+    "filled_by": "code"
+   },
+   {
+    "item": 1,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q8",
+    "filled_by": "code"
+   },
+   {
+    "item": 2,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q8",
+    "filled_by": "code"
+   },
+   {
+    "item": 0,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q9",
+    "filled_by": "code"
+   },
+   {
+    "item": 1,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q9",
+    "filled_by": "code"
+   },
+   {
+    "item": 2,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q9",
+    "filled_by": "code"
+   },
+   {
+    "item": 3,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q9",
+    "filled_by": "code"
+   },
+   {
+    "item": 4,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q9",
+    "filled_by": "code"
+   },
+   {
+    "item": 5,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q9",
+    "filled_by": "code"
+   },
+   {
+    "item": 0,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q10",
+    "filled_by": "code"
+   },
+   {
+    "item": 1,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q10",
+    "filled_by": "code"
+   },
+   {
+    "item": 2,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q10",
+    "filled_by": "code"
+   },
+   {
+    "item": 3,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q10",
+    "filled_by": "code"
+   },
+   {
+    "item": 4,
+    "part": null,
+    "slot": "g1.general_knowledge.B.Q10",
+    "filled_by": "code"
+   }
+  ]
+ }
+}

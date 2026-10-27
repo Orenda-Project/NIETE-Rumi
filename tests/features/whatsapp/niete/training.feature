@@ -1131,6 +1131,43 @@ Feature: NIETE (ICT) Teacher Training
     Then the message and its "Open" button are today's, word for word
     # flags() fails closed: a read error is OFF. @wip.
 
+  @e2e @quiz @config-gated @wip @draft @P1 @T708
+  Scenario Outline: A child's "portal" opens their home, the same one button as "quiz"
+    Given a child on this phone has played a class quiz, with app_settings "web_quiz_hub" and "web_quiz_child_quiz_home" true
+    When the child sends "<typed>"
+    Then exactly one message arrives, the same as the child's "/quiz" answer: the line and its one button into their home page
+    And the child is not told "That one isn't for students", and no tutor answer is sent
+    Examples:
+      | typed       |
+      | portal      |
+      | /portal     |
+      | پورٹل       |
+    # ADDED 2026-10-27: for a child the word can only mean the app. student-ingress.js route(): isPortalRequest →
+    # openQuizzes, logged quiz_menu.requested route child_quizzes trigger portal. Before, "/portal" was refused
+    # (studentTeacherOnly) and a bare "portal" went to the child tutor. A sentence ("what is a portal") is still the
+    # tutor's. Kill switch PORTAL_KEYWORD_ROUTING. Unit: bot/tests/quiz/student-ingress-portal.test.js (real door).
+
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T709
+  Scenario: The teacher's quiz home has a way to the portal Home
+    Given app_settings "quiz_teacher_home_portal_link" is true
+    And I am a registered teacher who opened my quiz home from WhatsApp ("quiz", then "Open my quiz home")
+    Then the foot of my quiz home has "Open my portal" (Urdu «اپنا پورٹل کھولیں»)
+    When I tap "Open my portal"
+    Then the portal opens already signed in as me, on my Home
+    And a teacher who opened the quiz home from the portal's own card gets no such link (the browser's back is the way)
+    # ADDED 2026-10-27: teacher-home.routes.js portalHref = PORTAL_URL/go/<app-login-link 'menu'>, the /portal
+    # command's own 24 h link, minted on the server; the switch rides the page read (PAGE_KEYS). Off: the page and its
+    # JSON are today's byte for byte. Unit: bot/tests/first-touch/teacher-home.portal-link.test.js.
+
+  @quiz @no-mock-driver @wip @draft @P3 @T710
+  Scenario: A child refused at the join's last step is counted
+    Given app_settings "quiz_student_join" is true and "web_quiz_phone_bind" is not
+    When a child on a family phone picks a grade, types a first name and taps the go button
+    Then the page answers as today (the join is off), and the logs carry web_quiz.join_refused with reason bind_off
+    # ADDED 2026-10-27: web-quiz-student-join.js join() / bindPick(); ids only. Not teacher-visible; the log is
+    # read in Axiom. @no-mock-driver: a log line, not a chat or page answer. Unit:
+    # bot/tests/quiz/web-quiz/web-quiz-student-join-off.test.js.
+
   @e2e @quiz @copy @wip @draft @P2 @T57
   Scenario: After an Urdu quiz, the message a child forwards to a friend is in Urdu
     Given a child has just finished an Urdu class quiz opened from its link
@@ -2723,3 +2760,25 @@ Feature: NIETE (ICT) Teacher Training
     And an ordinary read, or a real read of the wrong story, keeps its sticker line, its story sticker and its day as before
     # web-quiz-challenge.js submit + runState (noiseRun); web-quiz-book.js storyIdsOf, daysOf, lightsOf (noiseRow); wq-trail.js endCard;
     # unit: challenge-read-quality.test.js, web-quiz-book-noise.test.js, dashboard web-quiz-trail-noise-sticker.service.test.js
+
+  # ── the class preview that plays (app_settings web_quiz_practice_play) ──
+  @web @quiz @config-gated @wip @draft @P1 @T1176 @no-mock-driver
+  Scenario: With web_quiz_practice_play on, every teacher's quiz home offers "Try it as a student"
+    Given app_settings "web_quiz_practice_play" is true
+    When a teacher who is not a coach opens their quiz home
+    Then the foot offers "Try it as a student", the grade-only practice join that writes nothing
+    And the home's open event says whose home it is, coach or teacher, and never a name
+    But with the switch off or absent only a coach or a leader is offered it, as before
+    # teacher-home.routes.js practiceUrl (the switch read beside the user read) and roleTag.
+    # Unit: bot/tests/first-touch/teacher-home.routes.test.js ("Try it as a student" for every teacher). @wip.
+
+  @web @quiz @config-gated @wip @draft @P1 @T1177 @no-mock-driver
+  Scenario: With web_quiz_practice_play on, a registered teacher who taps "I want to play" plays the class's grade
+    Given app_settings "web_quiz_practice_play" is true
+    And I am a registered teacher
+    When I send "quiz", open the link and tap "I want to play"
+    Then the child home of my class's grade opens as a class preview, with no child named and nothing written
+    And its "Back" returns to my quiz home
+    But with the switch off the server's answer still wins and my quiz home opens, as before
+    # go.routes.js teacherPlays: the maker prefill's grade (Grade 2 when none), one_door.practice{grade}.
+    # Unit: bot/tests/first-touch/one-door-go-routes.test.js. @wip.

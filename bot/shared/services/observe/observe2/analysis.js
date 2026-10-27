@@ -16,13 +16,19 @@
  *   the plan's steps the coach confirmed were taught, on the marks of its 7 indicators at 4 each. With
  *   no plan, or a plan that could not be checked, B says which and is left out of the total.
  *
+ * The thing to work on first may be one of the 17, the plan's steps (Section B), or a coaching focus area
+ * with no row at all (fico17 COACHING_FOCUS: classroom management, rules, wait time, the warm-up, the
+ * closure); the sections and their sums never depend on which.
+ *
  * The /observe2 brief is kept here (observe2.brief): it is this visit's debrief guide.
  * Nothing in here calls a model; the record and the brief are data.
  */
 
-const { CODES, PLAIN, ROW, PRIORITY, FOCUS, PLAN_FOCUS, THINKING, pickAlso } = require('./fico17');
+const { CODES, PLAIN, ROW, PRIORITY, FOCUS, FOCUS_DOMAIN, PLAN_FOCUS, THINKING, isCoachingFocus, pickAlso } = require('./fico17');
 const { buildBrief, TYPE_CODE } = require('./brief');
 const { seenNotes } = require('./rules');
+const { focusSeen, focusNext } = require('./focus-areas');
+const { observe2Strings } = require('./strings');
 
 const RUBRIC = 'fico17';
 const LEVEL_MAX = 4;
@@ -138,10 +144,24 @@ function planSeen(form) {
 }
 
 function focusOf(form, priority) {
+  // A coaching focus area (R20, R21): no level, so what was seen is what the form holds for it, and the
+  // next step is the area's own. The record is English, as the indicator phrases are.
+  if (isCoachingFocus(priority)) {
+    const en = observe2Strings('en');
+    const seen = focusSeen(form, priority, en);
+    return {
+      domain: FOCUS_DOMAIN[priority],
+      indicator: priority,
+      title: FOCUS[priority],
+      rationale: seen ? `What was seen: ${seen}` : '',
+      try_this_tomorrow: focusNext(priority, en),
+      lever_question: LEVER_QUESTION,
+    };
+  }
   if (priority === PLAN_FOCUS) {
     const p = planSeen(form);
     return {
-      domain: 'lesson_plan_fidelity',
+      domain: FOCUS_DOMAIN[PLAN_FOCUS],
       indicator: PLAN_FOCUS,
       title: FOCUS[PLAN_FOCUS],
       rationale: `What was seen: ${p.seen}`,

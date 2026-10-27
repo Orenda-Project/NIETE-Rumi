@@ -2994,7 +2994,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "ADDED_TWO",
-                    "cv": "2",
+                    "cv": "3",
                     "C4_final": "${form.C4_final}",
                     "C5_final": "${form.C5_final}",
                     "C7_final": "${form.C7_final}",
@@ -3027,6 +3027,14 @@
         "also_level_2": {
           "type": "string",
           "__example__": "none"
+        },
+        "notes_v": {
+          "type": "boolean",
+          "__example__": true
+        },
+        "notes_body": {
+          "type": "string",
+          "__example__": "Part 1\n8 min: board wiped before the children copied it\n\nPart 2\nThree at the back had no task"
         }
       },
       "layout": {
@@ -3041,6 +3049,16 @@
               "also_final_2": "${data.also_level_2}"
             },
             "children": [
+              {
+                "type": "TextSubheading",
+                "text": "Your notes, as you wrote them",
+                "visible": "${data.notes_v}"
+              },
+              {
+                "type": "TextBody",
+                "text": "${data.notes_body}",
+                "visible": "${data.notes_v}"
+              },
               {
                 "type": "TextCaption",
                 "text": "Your picks before you saw the recording's moments. Keep them or change them."
@@ -3072,6 +3090,11 @@
                     "title": "Children asking questions"
                   },
                   {
+                    "id": "wait",
+                    "title": "Wait time after a question",
+                    "description": "Giving children a few seconds to think after a question, before anyone answers."
+                  },
+                  {
                     "id": "C2",
                     "title": "Helping when a child is wrong"
                   },
@@ -3089,11 +3112,23 @@
                   },
                   {
                     "id": "C5",
-                    "title": "Smooth switches of activity"
+                    "title": "Smooth switches of activity",
+                    "description": "Moving from one activity to the next quickly, with a clear signal."
+                  },
+                  {
+                    "id": "manage",
+                    "title": "Classroom management",
+                    "description": "Routines for attention and for switching tasks, discipline, and a calm room ready to learn."
+                  },
+                  {
+                    "id": "rules",
+                    "title": "Classroom rules",
+                    "description": "Setting class rules with the children and making sure every child knows them."
                   },
                   {
                     "id": "C7",
-                    "title": "Real group work"
+                    "title": "Real group work",
+                    "description": "Assigning and managing group work: a task the group must do together, with roles and a report back."
                   },
                   {
                     "id": "C8",
@@ -3121,7 +3156,18 @@
                   },
                   {
                     "id": "plan",
-                    "title": "Following the plan's steps"
+                    "title": "Following the plan's steps",
+                    "description": "The whole 5-step lesson plan: warm-up, explanation, guided practice, independent practice and wrap-up. Lesson plan fidelity and classroom structure."
+                  },
+                  {
+                    "id": "warmup",
+                    "title": "An engaging warm-up",
+                    "description": "A short opening activity that gets every child thinking and links to today's topic."
+                  },
+                  {
+                    "id": "close",
+                    "title": "Effective lesson closure",
+                    "description": "Ending well: the children recap what they learned and the teacher checks it, e.g. with an exit ticket."
                   }
                 ]
               },
@@ -3160,6 +3206,11 @@
                     "title": "Children asking questions"
                   },
                   {
+                    "id": "wait",
+                    "title": "Wait time after a question",
+                    "description": "Giving children a few seconds to think after a question, before anyone answers."
+                  },
+                  {
                     "id": "C2",
                     "title": "Helping when a child is wrong"
                   },
@@ -3177,11 +3228,23 @@
                   },
                   {
                     "id": "C5",
-                    "title": "Smooth switches of activity"
+                    "title": "Smooth switches of activity",
+                    "description": "Moving from one activity to the next quickly, with a clear signal."
+                  },
+                  {
+                    "id": "manage",
+                    "title": "Classroom management",
+                    "description": "Routines for attention and for switching tasks, discipline, and a calm room ready to learn."
+                  },
+                  {
+                    "id": "rules",
+                    "title": "Classroom rules",
+                    "description": "Setting class rules with the children and making sure every child knows them."
                   },
                   {
                     "id": "C7",
-                    "title": "Real group work"
+                    "title": "Real group work",
+                    "description": "Assigning and managing group work: a task the group must do together, with roles and a report back."
                   },
                   {
                     "id": "C8",
@@ -3209,7 +3272,18 @@
                   },
                   {
                     "id": "plan",
-                    "title": "Following the plan's steps"
+                    "title": "Following the plan's steps",
+                    "description": "The whole 5-step lesson plan: warm-up, explanation, guided practice, independent practice and wrap-up. Lesson plan fidelity and classroom structure."
+                  },
+                  {
+                    "id": "warmup",
+                    "title": "An engaging warm-up",
+                    "description": "A short opening activity that gets every child thinking and links to today's topic."
+                  },
+                  {
+                    "id": "close",
+                    "title": "Effective lesson closure",
+                    "description": "Ending well: the children recap what they learned and the teacher checks it, e.g. with an exit ticket."
                   }
                 ]
               },
@@ -3244,6 +3318,11 @@
                     "title": "Children asking questions"
                   },
                   {
+                    "id": "wait",
+                    "title": "Wait time after a question",
+                    "description": "Giving children a few seconds to think after a question, before anyone answers."
+                  },
+                  {
                     "id": "C2",
                     "title": "Helping when a child is wrong"
                   },
@@ -3261,11 +3340,23 @@
                   },
                   {
                     "id": "C5",
-                    "title": "Smooth switches of activity"
+                    "title": "Smooth switches of activity",
+                    "description": "Moving from one activity to the next quickly, with a clear signal."
+                  },
+                  {
+                    "id": "manage",
+                    "title": "Classroom management",
+                    "description": "Routines for attention and for switching tasks, discipline, and a calm room ready to learn."
+                  },
+                  {
+                    "id": "rules",
+                    "title": "Classroom rules",
+                    "description": "Setting class rules with the children and making sure every child knows them."
                   },
                   {
                     "id": "C7",
-                    "title": "Real group work"
+                    "title": "Real group work",
+                    "description": "Assigning and managing group work: a task the group must do together, with roles and a report back."
                   },
                   {
                     "id": "C8",
@@ -3293,7 +3384,18 @@
                   },
                   {
                     "id": "plan",
-                    "title": "Following the plan's steps"
+                    "title": "Following the plan's steps",
+                    "description": "The whole 5-step lesson plan: warm-up, explanation, guided practice, independent practice and wrap-up. Lesson plan fidelity and classroom structure."
+                  },
+                  {
+                    "id": "warmup",
+                    "title": "An engaging warm-up",
+                    "description": "A short opening activity that gets every child thinking and links to today's topic."
+                  },
+                  {
+                    "id": "close",
+                    "title": "Effective lesson closure",
+                    "description": "Ending well: the children recap what they learned and the teacher checks it, e.g. with an exit ticket."
                   }
                 ]
               },
@@ -3312,7 +3414,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "PRIORITY",
-                    "cv": "2",
+                    "cv": "3",
                     "priority_final": "${form.priority_final}",
                     "also_final_1": "${form.also_final_1}",
                     "also_final_2": "${form.also_final_2}",

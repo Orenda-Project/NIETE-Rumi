@@ -18,6 +18,8 @@
  */
 
 const fico = require('./frameworks/fico-framework');
+// /observe2's ids, data only (fico17 requires nothing): the picks that have no indicator row.
+const { PLAN_FOCUS, NOT_SCORED, FOCUS, FOCUS_DOMAIN } = require('../observe/observe2/fico17');
 
 function indicatorSpec(domainKey, id) {
   const domains = fico.getScoringConstants().domains || {};
@@ -40,19 +42,21 @@ function specFor(analysis, domainKey, id) {
 }
 
 /**
- * /observe2's "Following the plan's steps" (FICO pilot sheet R14): the coach may pick the lesson plan's
- * own steps as the thing to work on. That is Section B, the plan fidelity, which has no indicator row
- * to resolve, so the target is the section itself, named as the coach picked it. Only an /observe2
- * record can carry it (observe2/fico17.js PLAN_FOCUS); anywhere else "plan" is not an id.
+ * /observe2's picks with no indicator row (observe2/fico17.js NOT_SCORED). "Following the plan's steps"
+ * (FICO pilot sheet R14) is Section B, the plan fidelity, so its target is the section itself. The coaching
+ * focus areas (R20, R21: classroom management, rules, wait time, the warm-up, the closure) are scored
+ * nowhere. Either way the target is the coach's pick, named as the coach picked it, with no rung, no V4 count
+ * bar and no levels: never null, which would hand the report to the weakest row instead. Only an /observe2
+ * record can carry one; anywhere else these are not ids.
  */
-const PLAN_FOCUS = 'plan';
-function planTarget(analysis, fa) {
-  if (!analysis || !analysis.observe2 || !analysis.domains || !analysis.domains.lesson_plan_fidelity) return null;
+function focusTarget(analysis, fa, id) {
+  if (!analysis || !analysis.observe2 || !analysis.domains) return null;
+  if (id === PLAN_FOCUS && !analysis.domains.lesson_plan_fidelity) return null;
   const f = fa && typeof fa === 'object' ? fa : {};
-  const title = typeof f.title === 'string' && f.title ? f.title : "Following the plan's steps";
+  const title = typeof f.title === 'string' && f.title ? f.title : FOCUS[id];
   return {
-    indicator: PLAN_FOCUS,
-    domain: 'lesson_plan_fidelity',
+    indicator: id,
+    domain: FOCUS_DOMAIN[id],
     name: title,
     rung: null,
     rationale: typeof f.rationale === 'string' ? f.rationale : '',
@@ -68,7 +72,7 @@ function resolveTarget(analysis) {
   const fa = analysis.focus_area;
   const id = fa && typeof fa === 'object' ? String(fa.indicator || '').trim() : '';
   if (!id) return null;
-  if (id === PLAN_FOCUS) return planTarget(analysis, fa);
+  if (NOT_SCORED.includes(id)) return focusTarget(analysis, fa, id);
 
   for (const [domainKey, domain] of Object.entries(analysis.domains)) {
     for (const ind of (domain && Array.isArray(domain.indicators) ? domain.indicators : [])) {
@@ -102,7 +106,7 @@ function resolveIndicator(analysis, indicatorId) {
   if (!id || !analysis || !analysis.domains || typeof analysis.domains !== 'object') return null;
   const fa = analysis.focus_area && typeof analysis.focus_area === 'object' && String(analysis.focus_area.indicator || '') === id
     ? analysis.focus_area : {};
-  if (id === PLAN_FOCUS) return planTarget(analysis, fa);
+  if (NOT_SCORED.includes(id)) return focusTarget(analysis, fa, id);
   for (const [domainKey, domain] of Object.entries(analysis.domains)) {
     for (const ind of (domain && Array.isArray(domain.indicators) ? domain.indicators : [])) {
       if (!ind || String(ind.id) !== id) continue;

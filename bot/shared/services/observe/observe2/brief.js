@@ -6,7 +6,8 @@
  * debrief more reflective"), two things that went well, how much of the lesson plan was taught, the
  * thing to work on first with what was seen and the next step up, and one confirmed moment to bring
  * up with a question about it, then up to two more things to work on (R14); the first pick may be the
- * lesson plan's own steps. A level the rule only fills in "for now" (a gap in the rubric) is
+ * lesson plan's own steps, or a coaching focus area with no level (R20, R21: focus-areas.js says what was
+ * seen, strings.js the next step). A level the rule only fills in "for now" (a gap in the rubric) is
  * described by what was seen, never by the level's label.
  *
  * The indicator phrases come from fico17 (English for the pilot); the frame around them is in the
@@ -17,8 +18,10 @@
  * label, so a note typed in English reads in its own direction inside an Urdu brief.
  */
 
-const { CODES, MOMENTS, PLAIN, ROW, PRIORITY, FOCUS, PLAN_FOCUS, THINKING, pickAlso } = require('./fico17');
+const { CODES, MOMENTS, PLAIN, ROW, PRIORITY, FOCUS, PLAN_FOCUS, THINKING, isCoachingFocus, pickAlso } = require('./fico17');
 const { THINK_SAID, usedPhrase } = require('./rules');
+const { focusSeen, focusNext, FOCUS_MOMENT } = require('./focus-areas');
+const { observe2Strings } = require('./strings');
 const { clampLanguage } = require('../../../config/ux-strings');
 
 // Which indicator a moment type speaks to, so the moment offered is about the thing to work on.
@@ -138,10 +141,31 @@ function clipNote(text) {
 }
 
 function coachNotes(form) {
+  if (!form) return [];
   return NOTE_BOXES
     .map(([key, read]) => [key, String(read(form) || '').trim()])
     .filter(([, text]) => text)
     .map(([key, text]) => ({ key, text: clipNote(text) }));
+}
+
+/**
+ * The coach's notes as the brief shows them: the title, then each note under its label, word for word.
+ * The brief is not the only place they are needed: most debriefs begin before the check is submitted, so
+ * before any brief exists (pilot sheet R23, 16 Oct; 30 of 47 on prod since 16 Oct). The "Record sealed"
+ * message and the check's "Work on first" screen show them too, from here, so all three show the same.
+ *
+ * @param {object} form  observation_field_forms row
+ * @param {{lang?: string, except?: string[], plain?: boolean}} opts
+ *   except  boxes left out ("why" is typed on the check itself, so the check and the seal leave it out)
+ *   plain   no title and no WhatsApp bold, a blank line between notes: for a Flow screen (English)
+ * @returns {string[]} lines; [] when nothing was typed
+ */
+function notesSection(form, { lang = 'en', except = [], plain = false } = {}) {
+  const F = FRAME[clampLanguage(lang)] || FRAME.en;
+  const notes = coachNotes(form).filter((n) => !except.includes(n.key));
+  if (!notes.length) return [];
+  if (plain) return notes.flatMap((n, i) => [...(i ? [''] : []), F.note_label[n.key], n.text]);
+  return [F.notes_title, ...notes.flatMap((n) => [`*${F.note_label[n.key]}*`, n.text])];
 }
 
 // The plan as the coach confirmed it in the check, else as the recording graded it.
@@ -190,8 +214,23 @@ function thinkingLines(form, F) {
   ];
 }
 
+// A coaching focus area as the thing to work on first (R20, R21): what the form holds for it, or else a
+// pointer to the coach's own notes (listed at the end); the area's next step; for wait time, a confirmed
+// asking moment to bring up.
+function focusAreaLines(form, id, F, S, confirmed) {
+  const seen = focusSeen(form, id, S);
+  const lines = [];
+  if (seen) lines.push(F.now(seen));
+  else if (coachNotes(form).length) lines.push(F.now(S.focus_see_notes));
+  lines.push(F.next(focusNext(id, S)));
+  const moment = FOCUS_MOMENT[id] ? confirmed.find((m) => m.moment === FOCUS_MOMENT[id]) : null;
+  if (moment) lines.push(F.moment(moment.minute, moment.quote), F.moment_ask);
+  return lines;
+}
+
 // What was seen for one of the "also work on" picks, in a few words.
-function alsoSeen(form, id, F) {
+function alsoSeen(form, id, F, S) {
+  if (isCoachingFocus(id)) return focusSeen(form, id, S);
   if (id === PLAN_FOCUS) {
     const plan = planResult(form);
     if (plan) return F.plan_done(plan.done, plan.total);
@@ -210,6 +249,7 @@ function alsoSeen(form, id, F) {
  */
 function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
   const F = FRAME[clampLanguage(lang)] || FRAME.en;
+  const S = observe2Strings(lang);
   const finals = form.final_levels || {};
   const review = form.evidence_review || {};
   const priority = review.priority_final || (form.answers || {}).priority || null;
@@ -259,20 +299,19 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
     const moment = confirmed.find((m) => TYPE_CODE[m.type] === priority)
       || confirmed.find((m) => m.moment === group);
     if (moment) lines.push(F.moment(moment.minute, moment.quote), F.moment_ask);
+  } else if (isCoachingFocus(priority)) {
+    lines.push('', F.work_on(FOCUS[priority]), ...focusAreaLines(form, priority, F, S, confirmed));
   }
 
   // "Also work on" (R14): after the first pick, one line each.
   const a = form.answers || {};
   const also = Array.isArray(review.also_final) ? pickAlso(review.also_final, priority) : pickAlso([a.also_1, a.also_2], priority);
-  if (also.length) lines.push('', ...also.map((id) => F.also(FOCUS[id], alsoSeen(form, id, F))));
-  const notes = coachNotes(form);
-  if (notes.length) {
-    lines.push('', F.notes_title);
-    for (const n of notes) lines.push(`*${F.note_label[n.key]}*`, n.text);
-  }
+  if (also.length) lines.push('', ...also.map((id) => F.also(FOCUS[id], alsoSeen(form, id, F, S))));
+  const notes = notesSection(form, { lang });
+  if (notes.length) lines.push('', ...notes);
 
   lines.push('', F.saved);
   return lines.join('\n');
 }
 
-module.exports = { buildBrief, TYPE_CODE };
+module.exports = { buildBrief, notesSection, TYPE_CODE };

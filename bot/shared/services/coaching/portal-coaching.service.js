@@ -302,6 +302,7 @@ function liveForLesson(raw, pick) {
  *   liveMoves (bd-v0toag.31) — what the live screen saw; stored as analysis_data.live_moves (see live-record).
  * @returns {{status:'ok', coachingSessionId}
  *         | {status:'in_progress', coachingSessionId}
+ *         | {status:'already_sent', coachingSessionId}
  *         | {status:'invalid', reason}
  *         | {status:'queue_failed', coachingSessionId}}
  */
@@ -321,6 +322,18 @@ async function startPortalSession({ userId, key, lessonPlanKey = null, lessonPla
   if (pick && lessonPlanKey) return { status: 'invalid', reason: 'two_lesson_plans' };
 
   const d = withDefaults(deps);
+
+  // bd-c5reix — a recording that is already a live or completed session of hers (a saved WhatsApp recording sent
+  // twice, or a retried start) is never a second one: that session is named instead. One that ended without analysis
+  // (failed / cancelled / abandoned) does not hold it: she may send it again. Matched on audio_url exactly as the
+  // insert below writes it (buildR2PublicUrl).
+  const { data: holding } = await d.supabase
+    .from('coaching_sessions')
+    .select('id, status')
+    .eq('user_id', userId)
+    .eq('audio_url', d.r2.buildR2PublicUrl(key));
+  const holder = Array.isArray(holding) ? holding.find((r) => r && !['failed', 'cancelled', 'abandoned'].includes(r.status)) : null;
+  if (holder) return { status: 'already_sent', coachingSessionId: holder.id };
 
   const missing = await checkUploaded(d, [
     { key, kind: 'audio' },

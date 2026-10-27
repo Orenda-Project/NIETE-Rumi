@@ -18,8 +18,9 @@
  *       Every level, pre-selected with what the coach's sealed answers and confirmed moments add up
  *       to (rules.js). Rumi's own level is never shown. The coach changes any they disagree with.
  *   PRIORITY
- *       The picks the coach made before sealing (the first, and up to two more), kept or changed, with
- *       one box for why.
+ *       The coach's own notes from the visit, read-only (R23), then the picks the coach made before
+ *       sealing (the first, and up to two more), kept or changed, with one box for why. The lists are the
+ *       seal screen's: the 17, the plan's steps and the coaching focus areas (fico17 FOCUS_ORDER).
  *   DONE
  *
  * Every footer is a data_exchange that posts every field on its screen, so the server holds each
@@ -29,13 +30,14 @@
  * Regenerate the committed copy after any change:  node bot/scripts/generate-observe2-flow-json.js
  */
 
-const { MOMENTS, PLAIN, EXTRA, ROW, FOCUS, FOCUS_ORDER, ALSO_NONE, THINKING } = require('./fico17');
+const { MOMENTS, PLAIN, EXTRA, ROW, FOCUS, FOCUS_DESCRIPTION, FOCUS_ORDER, ALSO_NONE, THINKING } = require('./fico17');
 
 const FLOW_VERSION = '7.3';
-// This check's own version, sent by the footers whose next screen's data changed (ADDED_TWO, PRIORITY:
-// "Also work on", R14). A check opened before it was published sends none, and the endpoint answers it
-// in its own shape.
-const CHECK_VERSION = '2';
+// This check's own version, sent by the footers whose next screen's data changed (ADDED_TWO, PRIORITY):
+// 2 brought "Also work on" and the plan's steps (R14), 3 the coaching focus areas in the PRIORITY lists
+// (R20, R21). A check opened on an older Flow sends its own version, or none, and the endpoint pre-fills
+// its PRIORITY screen only with what that version's lists have.
+const CHECK_VERSION = '3';
 const SLOTS = 8;
 // One slot per prescribed move, as many as /observe shows (observe-draft MAX_MOVE_SLOTS); moves past
 // the twelfth keep the grader's rating there too.
@@ -157,9 +159,13 @@ function addedScreen({ id, title, codes }) {
 }
 
 function priorityScreen() {
-  const focus = FOCUS_ORDER.map((c) => ({ id: c, title: FOCUS[c] }));
+  const focus = FOCUS_ORDER.map((c) => ({ id: c, title: FOCUS[c], ...(FOCUS_DESCRIPTION[c] ? { description: FOCUS_DESCRIPTION[c] } : {}) }));
   const also = [{ id: ALSO_NONE, title: 'Nothing else' }, ...focus];
   const kids = [
+    // The coach's own notes from the visit, read-only (R23): the talk with the teacher often runs while
+    // this check is open. Hidden when nothing was typed.
+    { type: 'TextSubheading', text: 'Your notes, as you wrote them', visible: '${data.notes_v}' },
+    { type: 'TextBody', text: '${data.notes_body}', visible: '${data.notes_v}' },
     { type: 'TextCaption', text: "Your picks before you saw the recording's moments. Keep them or change them." },
     { type: 'Dropdown', name: 'priority_final', label: 'Work on first', required: true, 'data-source': focus },
     { type: 'TextCaption', text: 'If the teacher needs more, up to two. Optional.' },
@@ -171,6 +177,8 @@ function priorityScreen() {
     priority_level: { type: 'string', __example__: 'C8' },
     also_level_1: { type: 'string', __example__: 'plan' },
     also_level_2: { type: 'string', __example__: 'none' },
+    notes_v: { type: 'boolean', __example__: true },
+    notes_body: { type: 'string', __example__: 'Part 1\n8 min: board wiped before the children copied it\n\nPart 2\nThree at the back had no task' },
   }, {
     priority_final: '${data.priority_level}', also_final_1: '${data.also_level_1}', also_final_2: '${data.also_level_2}',
   }, { cv: CHECK_VERSION });

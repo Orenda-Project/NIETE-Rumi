@@ -776,6 +776,39 @@ describe('the optional modules by their registry names (when the registry is on 
   });
 });
 
+describe('"Try it as a student" for every teacher (app_settings web_quiz_practice_play)', () => {
+  afterEach(() => { mockModules.load = undefined; require('../../shared/services/quiz/web-quiz-practice-play')._reset(); });
+  const named = { studentJoin: { practiceJoinUrl: () => 'https://portal.example/quiz/join/PRACTICE' } };
+  const homeFor = async (role, practice) => {
+    seed({ settings: practice === undefined ? [] : [{ key: 'web_quiz_practice_play', value: practice }] });
+    require('../../shared/services/quiz/web-quiz-practice-play')._reset();
+    Object.assign(fake.db.users[0], { role });
+    mockModules.load = (name) => named[name] || null;
+    await boot(deps);
+    return (await get(`/api/th/home?t=${tokenFor()}&g=4`)).json();
+  };
+
+  test('on: a plain teacher gets the practice join link, as a coach does', async () => {
+    expect((await homeFor('teacher', true)).tryStudent).toBe('https://portal.example/quiz/join/PRACTICE');
+  });
+  test('GOLDEN: absent or false, a plain teacher gets none (coaches only, as before)', async () => {
+    expect((await homeFor('teacher', undefined)).tryStudent).toBeNull();
+    await new Promise((r) => srv.close(r));
+    expect((await homeFor('teacher', false)).tryStudent).toBeNull();
+    await new Promise((r) => srv.close(r));
+    expect((await homeFor('coach', false)).tryStudent).toBe('https://portal.example/quiz/join/PRACTICE');
+  });
+  test('F3: the home open says whose it is (role coach | teacher), never a name', async () => {
+    await homeFor('teacher', true);
+    const open = logEvent.mock.calls.filter(([n]) => n === 'teacher_home_open').map(([, f]) => f);
+    expect(open[0]).toMatchObject({ role: 'teacher' });
+    await new Promise((r) => srv.close(r));
+    logEvent.mockClear();
+    await homeFor('principal', false);
+    expect(logEvent.mock.calls.filter(([n]) => n === 'teacher_home_open')[0][1]).toMatchObject({ role: 'coach' });
+  });
+});
+
 describe('the walk-through row on the foot (sandbox test phones only)', () => {
   const ROW = '<section data-screen="walk"><p class="note">Walk</p><button type="button" class="no" data-tap="walk_fresh" data-persona="fresh">New</button></section>';
   afterEach(() => { mockDoor.mintLanding = undefined; mockModules.load = undefined; });

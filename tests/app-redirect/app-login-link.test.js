@@ -90,7 +90,9 @@ test('only the app features have a landing; anything else cannot be signed', () 
     teacher_training: '/portal/teacher/training',
     attendance: '/portal/teacher/attendance',
     classes: '/portal/teacher/classes',
+    ai_coaching_recording: '/portal/teacher/coaching/new?recording=whatsapp', // bd-c5reix, a kept recording's landing
     assessment_topics: '/portal/teacher/assessment/new/class?by=topics', // bd-6clakk Task 9
+    assessment_report: '/portal/teacher/assessment/new/class', // bd-pw1ccr.2, the A/B report button
   });
   expect(signAppLink(USER, 'quiz')).toBeNull();
   expect(signAppLink(USER, 'observe')).toBeNull();

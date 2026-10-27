@@ -60,6 +60,9 @@ const EARLY_YEARS_TYPES = new Set([
   'pattern', 'match', 'money', 'compare_size',
   // The place-value mat (SYNC.md §3.18) — a grade 1-5 type like the eight above.
   'base_ten',
+  // The grade 1-5 ch11-18 three (bd-yggj4o.2, SYNC.md 2026-10-09). Not yet on the quiz lane's
+  // ALLOWED_TYPES either, so there is no EARLY_YEARS_TYPES entry to keep in step with there.
+  'solid', 'bar_graph', 'thermometer',
 ]);
 
 /** The manifest minus the early-years eight — the roster these four briefs are responsible for. */
