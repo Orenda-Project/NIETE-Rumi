@@ -8390,7 +8390,7 @@ CREATE TABLE IF NOT EXISTS coachip_job_runs (
   id                         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   run_date                   date NOT NULL,
   pipeline_version           text NOT NULL CHECK (pipeline_version ~ '^coachip-[0-9]+\.[0-9]+\.[0-9]+$'),
-  env_ref                    text NOT NULL CHECK (env_ref IN ('olvritwoqujtjvwfulbh','staging','production')),
+  env_ref                    text NOT NULL CHECK (env_ref IN ('olvritwoqujtjvwfulbh','rpqkekcfvumypldbejhp','ihzciabopbttygxxgrkm')), -- V1.8.3
   started_at                 timestamptz NOT NULL,
   finished_at                timestamptz,
   attempt                    smallint NOT NULL DEFAULT 1 CHECK (attempt >= 1),
