@@ -14,8 +14,35 @@
  *   });
  */
 
+// Supabase returns only the selected columns; so does this mock, or a column
+// the route stopped selecting (bd-6xrimn: phone_number) would still show up.
+function project(row, cols) {
+  if (!row || !cols) return row;
+  const out = {};
+  for (const c of cols) if (Object.prototype.hasOwnProperty.call(row, c)) out[c] = row[c];
+  return out;
+}
+
+function parseCols(sel) {
+  if (typeof sel !== 'string' || sel.trim() === '*' || /[(*]/.test(sel)) return null;
+  return sel.split(',').map((c) => c.trim()).filter(Boolean);
+}
+
+// bd-6xrimn: every hcp route now needs a leader-family caller. Unless a test
+// seeds the caller itself, CALLER_ID is a coach whose patch is every other
+// users row in the fixture, which keeps each older test's original intent.
+const CALLER_ID = 'coach-1';
+
+function usersRows(tableStates, filters) {
+  const state = tableStates.users || {};
+  const rows = typeof state.rows === 'function' ? state.rows(filters || {}) : (state.rows || []);
+  return rows.some((r) => r.id === CALLER_ID) ? rows : [...rows, { id: CALLER_ID, role: 'coach', name: 'Coach Fixture' }];
+}
+
 function makeChain(tableName, tableStates) {
-  const state = tableStates[tableName] || {};
+  const state = tableName === 'users'
+    ? { ...(tableStates.users || {}), rows: (f) => usersRows(tableStates, f) }
+    : (tableStates[tableName] || {});
   const record = {
     table: tableName,
     filters: {},
@@ -24,6 +51,7 @@ function makeChain(tableName, tableStates) {
     insertRows: null,
     updateRow: null,
     selectAfterMutation: false,
+    cols: null,
   };
 
   const chain = {};
@@ -72,7 +100,7 @@ function makeChain(tableName, tableStates) {
 
     const rows = typeof state.rows === 'function' ? state.rows(record.filters) : (state.rows || []);
     const filtered = filterRows(rows);
-    return { data: filtered[0] || null, error: null };
+    return { data: project(filtered[0] || null, record.cols), error: null };
   };
 
   const finalizeMany = () => {
@@ -93,10 +121,13 @@ function makeChain(tableName, tableStates) {
       return { data: rows, error: null };
     }
     const rows = typeof state.rows === 'function' ? state.rows(record.filters) : (state.rows || []);
-    return { data: filterRows(rows), error: null };
+    return { data: filterRows(rows).map((r) => project(r, record.cols)), error: null };
   };
 
-  chain.select = jest.fn(() => chain);
+  chain.select = jest.fn((sel) => {
+    if (!record.insertRows && !record.updateRow) record.cols = parseCols(sel);
+    return chain;
+  });
   ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'ilike', 'is'].forEach((m) => {
     chain[m] = jest.fn((col, val) => {
       record.filters[col] = val;
@@ -132,11 +163,23 @@ function resetTableStates() {
   return {};
 }
 
-function installSupabaseMock(tableStates) {
+// The pg pool behind getPatchTeachers: CALLER_ID's patch is every other users row.
+function installPatchMock(tableStates) {
+  jest.doMock('../../dashboard/config/database', () => ({
+    query: jest.fn(async (_sql, params) => ({
+      rows: usersRows(tableStates)
+        .filter((u) => u.id !== params[0])
+        .map((u) => ({ rumi_user_id: u.id, name: u.name, role: u.role || 'teacher', school_name: u.school_name || null })),
+    })),
+  }));
+}
+
+function installSupabaseMock(tableStates, { patch = true } = {}) {
   jest.doMock('../../dashboard/config/supabase', () => ({
     from: jest.fn((tbl) => makeChain(tbl, tableStates)),
     rpc: jest.fn().mockResolvedValue({ error: null }),
   }));
+  if (patch) installPatchMock(tableStates);
 }
 
 function findRoute(router, method, pathToFind) {
@@ -199,4 +242,6 @@ async function invokeRoute({
   return { statusCode, payload };
 }
 
-module.exports = { installSupabaseMock, invokeRoute, resetTableStates };
+module.exports = {
+  installSupabaseMock, installPatchMock, invokeRoute, resetTableStates, makeChain, CALLER_ID,
+};
