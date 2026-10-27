@@ -48,3 +48,36 @@ Feature: School leader (principal) portal
 
   # ── Round 7b · C · the results dashboard: mode, date and coach filters; every skip and stop by type and coach ──
 
+  @LP06 @config-gated
+  Scenario: Results dashboard: a coach-led / auto filter applies across the whole dashboard (sa_dash_filters)
+    Given the live results dashboard is on and sa_dash_filters is on for the signed-in user
+    When they open /portal/leader/assess/dashboard
+    Then filters read "Coach-led and auto", "Coach-led (RDF manual)" and "Auto (RDF auto)"
+    When they pick "Coach-led (RDF manual)"
+    Then the totals, the sub-region table, the task cards and the skips-and-stops view count only RDF manual sessions
+    And a line reads "Showing <n> of <total> sessions"
+
+  @LP07 @config-gated
+  Scenario: Results dashboard: filter by date (Pakistan days) and by coach, combined with the mode
+    Given the live results dashboard is on and sa_dash_filters is on, and the user is a results admin
+    When they set "From" and "To" dates
+    Then only sessions started on those days in Pakistan time are counted
+    When they pick a coach under "Coach"
+    Then only that coach's sessions are counted, and the mode filter still applies on top
+    And a plain coach sees no coach picker, only their own sessions
+
+  @LP08 @config-gated
+  Scenario: Results dashboard: every skip and stop by type and by coach
+    Given the live results dashboard is on and sa_dash_filters is on
+    Then "Skips and stops" shows a count for Back, End section, End test, Restart, Silence repeat and Under 20% move-on
+    And a table lists each coach with their sessions, each type, the total and the number per session, the most first
+    And each skip or stop is listed newest first with its time, school, grade, mode, type and subtask, never a child's name
+    And a test ended before its first task still counts in the stops view, not in the results
+    And every filter above applies to this view too
+
+  @LP09 @config-gated @negative
+  Scenario: Results dashboard without sa_dash_filters is unchanged
+    Given sa_dash_filters is off
+    Then the dashboard shows no mode, date or coach filter and no "Skips and stops"
+    And the sessions read answers exactly as before (no mode, coach or stops fields)
+

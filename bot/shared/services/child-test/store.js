@@ -398,6 +398,17 @@ async function listSaSessions({ mark, coachUserId = null, allCoaches = false } =
   return { ok: true, sessions: data || [] };
 }
 
+/** Coaches' names (users.name) by id, IN_BATCH ids at a time: the dashboard's coach filter (sa_dash_filters). Staff only. */
+async function getUserNamesByIds(ids = []) {
+  const out = [];
+  for (let i = 0; i < ids.length; i += IN_BATCH) {
+    const { data, error } = await supabase.from('users').select('id, name').in('id', ids.slice(i, i + IN_BATCH));
+    if (error) return fail('getUserNamesByIds', error, { n: ids.length });
+    out.push(...(data || []));
+  }
+  return { ok: true, users: out };
+}
+
 /** Every block row of these sessions, read IN_BATCH ids at a time. */
 async function listBlocksForSessions(sessionIds = []) {
   const out = [];
@@ -588,6 +599,7 @@ module.exports = {
   listSaSessions,
   listBlocksForSessions,
   getSchoolsByIds,
+  getUserNamesByIds,
   // the draw's own reads and writes (draw/index.js)
   getDraw,
   listSchoolDraws,
