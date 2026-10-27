@@ -119,12 +119,25 @@ Neither is on the enforcement path, so nothing breaks. `notify.py` fails soft by
 design. `scorecard.py` will simply error if you run it — use it from a machine
 that has the full pack instead.
 
-**Committing from a subdirectory works**, but only because the warn hook anchors
-itself at the repo root first. The validator fails open on a file it cannot read,
-and `git diff --cached` reports repo-root-relative paths from anywhere in the
-tree — so a bare `validate_schema.py --mode staged` run from `bot/` reports a
-clean pass for a migration that has findings. If you invoke the validator by hand,
-`cd` to the repo root first.
+**The commit gate BLOCKS in Claude sessions.** It is
+registered in `.claude/settings.json` through
+`.claude/hooks/data-standards-schema-change-gate.sh`, which runs the vendored
+gate inside the repo the command targets — resolved from the session's cwd plus
+any `cd` or `git -C` in the command, the same way the push gate resolves a push.
+That matters when the session was launched in the workspace above this clone:
+the gate used to ask the *workspace* what was staged and pass every migration
+here silently. The live edit gate (`data-standards-live-edit-gate.sh`) blocks
+the Edit/Write that introduces a violation, before it is ever staged. The
+print-only warn shim is gone; so is `DATA_STANDARDS_BLOCK`.
+
+**No pyyaml, no gate.** On a machine without pyyaml the commit gate prints one
+line to stderr (`DATA STANDARDS: gate skipped — pyyaml is not installed…`) and
+allows the commit rather than rejecting every commit over a Python package.
+Install it (see *One-time setup*) and the gate is live.
+
+**Committing from a subdirectory works** because the gate wrapper anchors at
+the target repo's root before the validator runs. If you invoke the validator by
+hand, `cd` to the repo root first.
 
 **Bypassing the commit gate** needs a real reason, not a flag:
 
