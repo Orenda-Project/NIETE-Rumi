@@ -22,6 +22,7 @@ const { normaliseScheme } = require('./marking-scheme');
 const { mathsCheck } = require('./maths-check');
 const { checkBlueprint } = require('./blueprint-check');
 const Prompt = require('./fde-early-prompt');
+const { dealOrders } = require('./fde-order-block');
 
 const SCOPE = Object.freeze({ kind: 'fde', chapters: null, pages: null });
 const ORAL_SECTION = Object.freeze({ id: 'oral', slots: [] });
@@ -212,6 +213,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
 
   const scheme = normaliseScheme(examJson);
   examJson = scheme.examJson;
+  examJson = dealOrders(examJson);
   if (scheme.shortfall.length) {
     throw d.fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: scheme.shortfall, examJson, model });
   }
