@@ -1,0 +1,2 @@
+{"ts":"2026-10-27T12:47:42Z","hook":"post-commit","event":"armed","switch":"","detail":"features=coaching spec_sync=true","sha":"789a9a5ba78a","branch":"bd-v0toag.124-04291","user":""}
+{"ts":"2026-10-27T12:47:44Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-v0toag.124-04291: coaching spec: NOT UPDATED e2e: missing","sha":"789a9a5ba78a","branch":"bd-v0toag.124-04291","user":""}
