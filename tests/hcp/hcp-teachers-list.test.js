@@ -28,63 +28,9 @@
 let supabaseFrom;
 let tableStates;
 
-function makeChain(tableName) {
-  const state = tableStates[tableName] || {};
-  const record = { table: tableName, filters: {}, orderCol: null, orderDir: null };
-
-  const chain = {};
-  const finalize = () => {
-    if (state.error) return { data: null, error: state.error };
-    const rows = typeof state.rows === 'function' ? state.rows(record.filters) : (state.rows || []);
-    return { data: rows[0] || null, error: null };
-  };
-  const finalizeMany = () => {
-    if (state.error) return { data: null, error: state.error };
-    let rows = typeof state.rows === 'function' ? state.rows(record.filters) : (state.rows || []);
-    for (const [col, val] of Object.entries(record.filters)) {
-      if (val && typeof val === 'object' && Array.isArray(val.in)) {
-        rows = rows.filter((r) => val.in.includes(r[col]));
-      } else {
-        rows = rows.filter((r) => r[col] === val);
-      }
-    }
-    if (record.orderCol) {
-      const dir = record.orderDir === 'asc' ? 1 : -1;
-      rows = [...rows].sort((a, b) => {
-        const av = a[record.orderCol];
-        const bv = b[record.orderCol];
-        if (av === bv) return 0;
-        if (av == null) return 1;
-        if (bv == null) return -1;
-        return av < bv ? -1 * dir : 1 * dir;
-      });
-    }
-    return { data: rows, error: null };
-  };
-
-  chain.select = jest.fn(() => chain);
-  ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'ilike', 'is'].forEach((m) => {
-    chain[m] = jest.fn((col, val) => {
-      record.filters[col] = val;
-      return chain;
-    });
-  });
-  chain.in = jest.fn((col, vals) => {
-    record.filters[col] = { in: vals };
-    return chain;
-  });
-  chain.order = jest.fn((col, opts) => {
-    record.orderCol = col;
-    record.orderDir = opts && opts.ascending ? 'asc' : 'desc';
-    return chain;
-  });
-  chain.limit = jest.fn(() => chain);
-  chain.range = jest.fn(() => chain);
-  chain.maybeSingle = jest.fn(async () => finalize());
-  chain.single = jest.fn(async () => finalize());
-  chain.then = (resolve, reject) => Promise.resolve(finalizeMany()).then(resolve, reject);
-  return chain;
-}
+// bd-6xrimn: the shared mock, so the caller is a coach with a patch and a
+// select() returns only the columns it names (as Supabase does).
+const shared = require('./_shared');
 
 function findRoute(router, method, pathToFind) {
   for (const layer of router.stack) {
@@ -142,7 +88,8 @@ beforeEach(() => {
   jest.resetModules();
   tableStates = {};
 
-  supabaseFrom = jest.fn((tbl) => makeChain(tbl));
+  supabaseFrom = jest.fn((tbl) => shared.makeChain(tbl, tableStates));
+  shared.installPatchMock(tableStates);
   jest.doMock('../../dashboard/config/supabase', () => ({
     from: supabaseFrom,
     rpc: jest.fn().mockResolvedValue({ error: null }),
