@@ -880,6 +880,14 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then the session keeps one event of that type (back, end_section, end_test, restart, silence_repeat, under20_move_on) with its subtask and time
     And no such event is ever dropped by the kept-events cap
 
+  @e2e @wip @draft @config-gated @P1 @CT101
+  Scenario: With sa_dash_filters on, the results dashboard's read carries each session's mode, coach and stops
+    Given sa_dash_filters is on
+    When the results dashboard reads the sessions
+    Then each session says coach-led (RDF manual) or auto, its block, its coach's id and name, when it started, and its skips and stops
+    And a session with a stop but no task yet comes back apart, for the stops view only
+    And no child's name, student id or draw id is in the answer
+
   # ── Round 7b · A · the child's screens (back, audio-gated Next, story arrow, instructions, tick prompt, T) ──
 
 

@@ -136,6 +136,19 @@ export type SaResults = {
   tasks: SaTaskResult[];
 };
 
+/** The six skips and stops the dashboard audits (round 7b; the bot's STOP_TYPES). */
+export type SaStopType = "back" | "end_section" | "end_test" | "restart" | "silence_repeat" | "under20_move_on";
+
+/** One skip or stop kept on a session (sa_dash_filters): its subtask, when (the phone's clock) and who did it. */
+export type SaStop = {
+  type: SaStopType | (string & {});
+  taskId: string | null;
+  at: string | null;
+  /** child, coach or app */
+  by: string | null;
+  data: Record<string, unknown> | null;
+};
+
 /** One session on the results dashboard (GET …/sa/sessions, switch sa_real_dashboard): its school, sub-region and results. No names. */
 export type SaDashboardSession = {
   schoolId: string | null;
@@ -144,6 +157,13 @@ export type SaDashboardSession = {
   sector: string | null;
   grade: number;
   results: SaResults;
+  /** sa_dash_filters (round 7b): coach-led (RDF manual) or auto (every other block), the block, the coach (staff, never a child), the start and every skip/stop */
+  mode?: "coach_led" | "auto";
+  block?: string | null;
+  coachId?: string | null;
+  coachName?: string | null;
+  startedAt?: string | null;
+  stops?: SaStop[];
 };
 
 /** A mark of one scoring agent (or their consensus): correct, wrong, no response, silent. */
