@@ -9,4 +9,3 @@ if (dom && typeof globalThis.localStorage?.clear !== "function") {
     Object.defineProperty(globalThis, k, { value: dom.window[k], configurable: true, writable: true });
   }
 }
-
