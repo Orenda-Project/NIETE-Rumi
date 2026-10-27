@@ -17,6 +17,7 @@
  */
 
 const { __internals: { guarded } } = require('./app-api.service');
+const { isSetAside } = require('../sa/set-aside');
 
 const SA_MARK = 'sa-battery';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -58,7 +59,8 @@ async function visibleSession(d, userId, sessionId, asAdmin) {
 async function taskRows(d, sessionId) {
   const got = await d.store.listBlocks(sessionId);
   if (!got || !got.ok) throw new Error((got && got.error) || 'listBlocks failed');
-  return (got.blocks || []).filter((r) => TASK_RE.test(String(r.block || ''))).sort(byWhen);
+  // round 7b: a restarted child's ended attempt (set aside, sa/set-aside.js) is not reviewed
+  return (got.blocks || []).filter((r) => TASK_RE.test(String(r.block || '')) && !isSetAside(r.block)).sort(byWhen);
 }
 
 const appItems = (r) => ((r.ai_marks && r.ai_marks.detail && Array.isArray(r.ai_marks.detail.items)) ? r.ai_marks.detail.items : []);
