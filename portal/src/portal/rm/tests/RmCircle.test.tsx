@@ -133,6 +133,24 @@ describe.each(["en", "ur"] as const)("S10 RM circle (%s)", (lang) => {
     expectContract(screen.getByTestId("rm-circle"), expect);
   });
 
+  // red-2 20261027T001002: coaches do rank but none had a moment in the window (or the circle stage has not run): the
+  // floor sentence would be false, so the neutral line, still never a zero
+  it("basis coach, no moment, coaches ranked: the neutral empty line, not the floor sentence", async () => {
+    const c = clone(F.rm_circle); c.moments = []; c.basis = "coach"; c.floor = { coaches_with_5plus: 3, needed: 3, coaches_ranked: 2, window_id: c.window.id };
+    serve(rmWorld({ "/coachip/rm/circle": c }));
+    await renderRm("/circle");
+    expect(screen.getByTestId("s10-moments-empty").textContent).toBe(RM_COPY["s10.moments.empty.coach"][lang]);
+    expect(screen.getByTestId("s10-moments").querySelector('[data-num]')).toBeNull();
+    expectContract(screen.getByTestId("rm-circle"), expect);
+  });
+
+  it("basis coach, no moment, coaches_ranked 0: the floor sentence", async () => {
+    const c = clone(F.rm_circle); c.moments = []; c.basis = "coach"; c.floor = { coaches_with_5plus: 1, needed: 3, coaches_ranked: 0, window_id: c.window.id };
+    serve(rmWorld({ "/coachip/rm/circle": c }));
+    await renderRm("/circle");
+    expect(screen.getByTestId("s10-moments-empty").textContent).toBe(RM_COPY["s10.moments.empty.floor"][lang]);
+  });
+
   it("floor present but no coach ranked (basis still sector): empty.floor too", async () => {
     const c = clone(F.rm_circle); c.moments = []; c.basis = "sector"; c.floor = { coaches_with_5plus: 1, needed: 3, window_id: c.window.id };
     serve(rmWorld({ "/coachip/rm/circle": c }));

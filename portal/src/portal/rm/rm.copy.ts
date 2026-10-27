@@ -38,6 +38,7 @@ export const RM_COPY = {
   "s10.checks.title": { en: "Checks due this week", ur: "اس ہفتے کی جانچیں" },
   "s10.moments.basis.coach": { en: "This sector has not reached the floor ({c} of 3 coaches with 5 lessons). Each clip is that coach's own first move.", ur: "سیکٹر ابھی کم از کم تک نہیں پہنچا (۵ اسباق والے ۳ میں سے {c} کوچ)۔ ہر کلپ اسی کوچ کا اپنا پہلا قدم ہے۔" },
   "s10.moments.empty": { en: "No graded recordings in the sector this week", ur: "اس ہفتے سیکٹر میں کوئی جانچی گئی ریکارڈنگ نہیں" },
+  "s10.moments.empty.coach": { en: "No clip for the circle this week. Each coach keeps working on their own first move.", ur: "اس ہفتے حلقے کے لیے کوئی کلپ نہیں۔ ہر کوچ اپنے پہلے قدم پر کام جاری رکھے۔" },
   "s10.moments.empty.floor": { en: "No coach has 20 graded lessons in the window yet, so there is no clip this week.", ur: "ابھی کسی کوچ کے ۲۰ جانچے گئے اسباق نہیں، اس لیے اس ہفتے کوئی کلپ نہیں۔" },
   "s10.moments.explain": { en: "Each coach brings the clip for next week's debrief; the circle listens, then names one move together. A clip is a lesson, never a person.", ur: "ہر کوچ اگلے ہفتے کی بات چیت کا کلپ لائے؛ حلقہ سنے، پھر مل کر ایک قدم طے کرے۔ کلپ ایک سبق ہے، کوئی شخص نہیں۔" },
   "s10.moments.row": { en: "{coach} · {school} · {short_name}", ur: "{coach}، {school}، {short_name}" },
