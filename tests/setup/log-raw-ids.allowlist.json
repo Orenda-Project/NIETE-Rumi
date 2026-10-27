@@ -590,25 +590,6 @@
    "1963 userId (shorthand)"
   ]
  },
- "bot/shared/routes/transcript-quiz-flow-endpoint.js": {
-  "n": 13,
-  "area": "routes",
-  "at": [
-   "698 userId: teacher.id",
-   "723 userId: teacher.id",
-   "750 userId: teacher.id",
-   "760 userId: teacher.id",
-   "771 userId: teacher.id",
-   "777 userId: teacher.id",
-   "780 userId: teacher.id",
-   "818 userId: teacher.id",
-   "831 userId: teacher.id",
-   "880 userId: teacher.id",
-   "898 userId: teacher.id",
-   "916 userId: teacher.id",
-   "928 userId: teacher.id"
-  ]
- },
  "bot/shared/services/app-redirect.service.js": {
   "n": 14,
   "area": "services",
@@ -1689,16 +1670,11 @@
   ]
  },
  "bot/shared/services/quiz/transcript-lesson-provider.js": {
-  "n": 7,
+  "n": 2,
   "area": "quiz",
   "at": [
-   "190 userId: user.id",
-   "201 userId: user.id",
-   "249 userId: user.id",
-   "256 userId: user.id",
-   "256 from: claimed.from",
-   "281 userId: user.id",
-   "281 from: claimed.from"
+   "257 from: claimed.from",
+   "282 from: claimed.from"
   ]
  },
  "bot/shared/services/quiz/transcript-quiz-digest.service.js": {
@@ -1735,21 +1711,6 @@
   "area": "quiz",
   "at": [
    "242 userId: quiz.teacher_id"
-  ]
- },
- "bot/shared/services/quiz/transcript-quiz-list.service.js": {
-  "n": 9,
-  "area": "quiz",
-  "at": [
-   "258 userId (shorthand)",
-   "306 userId: user.id",
-   "312 userId: user.id",
-   "323 userId: user.id",
-   "347 userId: user?.id || null",
-   "417 userId: user.id",
-   "425 userId: user.id",
-   "440 userId: user.id",
-   "456 userId: user.id"
   ]
  },
  "bot/shared/services/quiz/transcript-quiz-offer.service.js": {

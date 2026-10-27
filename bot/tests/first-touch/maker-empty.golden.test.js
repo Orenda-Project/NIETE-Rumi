@@ -93,7 +93,7 @@ describe('switch OFF → today, byte for byte', () => {
     await expect(List.showList(user(lang), PHONE, lang, 1)).resolves.toBe(true);
     expect(sends().text).toEqual([[PHONE, ux(key, lang)]]);
     expect(total()).toBe(1);
-    expect(named('transcript_quiz.list_empty')).toEqual([{ userId: TEACHER.id }]);
+    expect(named('transcript_quiz.list_empty')).toEqual([{ tk: null }]);
     expect(named('onboard.quiz_door')).toEqual([]);
   });
 });
@@ -132,7 +132,7 @@ describe('switch ON, no lesson', () => {
     expect(m).not.toBeNull();
     const v = require('../../shared/services/first-touch/maker.token').verifyMaker(m[1]);
     expect(v && v.ok).toEqual(expect.objectContaining({ k: 'm', uid: TEACHER.id, lang, via: 'empty' }));
-    expect(named('transcript_quiz.list_empty')).toEqual([{ userId: TEACHER.id }]);
+    expect(named('transcript_quiz.list_empty')).toEqual([{ tk: null }]);
     expect(named('onboard.quiz_door')).toEqual([{ door: 'empty', reply: 'maker', ukey: expect.stringMatching(/^[0-9a-f]{16}$/), w: 's' }]);
   });
 
@@ -150,7 +150,7 @@ describe('switch ON, no lesson', () => {
     expect(sends().text).toEqual([[PHONE, ux('tqListEmptyPlans', 'en')]]);
     expect(total()).toBe(1);
     expect(counted()).toBe(before);   // the cap's own capped mark may be written; no counted send is
-    expect(named('transcript_quiz.list_empty')).toEqual([{ userId: TEACHER.id }]);
+    expect(named('transcript_quiz.list_empty')).toEqual([{ tk: null }]);
     expect(named('onboard.quiz_door')).toEqual([expect.objectContaining({ door: 'empty', reply: 'today', w: 's' })]);
   });
 
@@ -162,7 +162,7 @@ describe('switch ON, no lesson', () => {
     expect(sends().text).toHaveLength(0);
     expect(sends().buttons).toHaveLength(1);
     expect(sends().buttons[0][1].body).toBe('No lesson recorded yet. Pick one:');
-    expect(named('transcript_quiz.list_empty')).toEqual([{ userId: TEACHER.id }]);
+    expect(named('transcript_quiz.list_empty')).toEqual([{ tk: null }]);
     expect(named('onboard.quiz_door')).toEqual([expect.objectContaining({ door: 'empty', reply: 'fallback', w: 's' })]);
   });
 
@@ -171,7 +171,7 @@ describe('switch ON, no lesson', () => {
     await List.showList(user('en'), PHONE, 'en', 1);
     expect(sends().text).toEqual([[PHONE, ux('tqListEmptyPlans', 'en')]]);
     expect(total()).toBe(1);
-    expect(named('transcript_quiz.list_empty')).toEqual([{ userId: TEACHER.id }]);
+    expect(named('transcript_quiz.list_empty')).toEqual([{ tk: null }]);
     jest.dontMock(EMPTY);
   });
 });

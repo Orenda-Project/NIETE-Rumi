@@ -16,6 +16,7 @@ const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
+const { tk: tkOf } = require('./web-quiz-kid');
 const { resolveUx } = require('../../config/ux-strings');
 const { normaliseTopic } = require('./transcript-quiz-rows');
 const { teacherLanguageFor, formatLessonDate, quizLanguageFor, needsLanguageAsk } = require('./transcript-quiz-language');
@@ -210,7 +211,7 @@ async function startTranscriptLesson(user, sessionId, { phone, quizLanguage = nu
       }
       // No digest yet on a lesson that never had a quiz: the subject's examples.
       await sendLanguageAsk(created.id, phone, lang, ruleLanguage, { subject });
-      logEvent('transcript_quiz.language_asked', { userId: user.id, quizId: created.id, ruleLanguage, from: 'list' });
+      logEvent('transcript_quiz.language_asked', { tk: tkOf(user.id), quizId: created.id, ruleLanguage, from: 'list' });
       return true;
     }
     const claimed = await claimForGeneration({
@@ -221,7 +222,7 @@ async function startTranscriptLesson(user, sessionId, { phone, quizLanguage = nu
       return true;
     }
     await enqueueGenerate(claimed.quizId, phone, lang);
-    logEvent('transcript_quiz.list_generate', { userId: user.id, quizId: claimed.quizId, from: 'none' });
+    logEvent('transcript_quiz.list_generate', { tk: tkOf(user.id), quizId: claimed.quizId, from: 'none' });
     return true;
   }
 
@@ -269,14 +270,14 @@ async function startTranscriptLesson(user, sessionId, { phone, quizLanguage = nu
           })
           .eq('id', quiz.id);
         await sendLanguageAsk(quiz.id, phone, lang, ruleLanguage, { digest: quiz.meta?.digest, subject });
-        logEvent('transcript_quiz.language_asked', { userId: user.id, quizId: quiz.id, ruleLanguage, from: 'list' });
+        logEvent('transcript_quiz.language_asked', { tk: tkOf(user.id), quizId: quiz.id, ruleLanguage, from: 'list' });
         return true;
       }
       const claimed = await claimForGeneration({
         userId: user.id, sessionId, session, quiz, quizLanguage: ruleLanguage,
       });
       await enqueueGenerate(quiz.id, phone, lang);
-      logEvent('transcript_quiz.list_generate', { userId: user.id, quizId: quiz.id, from: claimed.from });
+      logEvent('transcript_quiz.list_generate', { tk: tkOf(user.id), quizId: quiz.id, from: claimed.from });
       return true;
     }
   }
@@ -302,7 +303,7 @@ async function makeTranscriptQuizIn(user, sessionId, { phone, quizLanguage, via,
   if (claimed.error) return { outcome: 'claim_failed' };
   await enqueueGenerate(claimed.quizId, phone, lang, via);
   logEvent('transcript_quiz.list_generate', {
-    userId: user.id, quizId: claimed.quizId, from: claimed.from, source: via, language: quizLanguage,
+    tk: tkOf(user.id), quizId: claimed.quizId, from: claimed.from, source: via, language: quizLanguage,
   });
   return { outcome: 'queued', quizId: claimed.quizId };
 }

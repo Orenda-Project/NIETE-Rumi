@@ -35,6 +35,7 @@
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
 const { logEvent } = require('../utils/structured-logger');
+const { tk: tkOf } = require('../services/quiz/web-quiz-kid');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const { LANGUAGE_OFFER, getLanguage } = require('../config/languages');
 const List = require('../services/quiz/transcript-quiz-list.service');
@@ -598,7 +599,7 @@ function lessonScreenFrom({ teacher, session, quiz, students, language, extra = 
   // wrong" while this endpoint logs a clean response. A lesson with nothing to
   // choose therefore never gets this screen — the terminal one instead.
   if (!actions.length) {
-    return doneScreen('wait', language, { userId: teacher?.id || null, quizId: quiz?.id || null, state });
+    return doneScreen('wait', language, { tk: tkOf(teacher?.id), quizId: quiz?.id || null, state });
   }
 
   return {
@@ -696,7 +697,7 @@ async function stepLesson(teacher, screenData) {
   const students = (state === 'sent' || state === 'report_sent')
     ? await loadStudents(quiz.id, teacher.id) : [];
   logEvent('transcript_quiz.flow_lesson', {
-    userId: teacher.id,
+    tk: tkOf(teacher.id),
     quizId: quiz?.id || null,
     status: state,
     started: students.length,
@@ -721,7 +722,7 @@ async function stepAction(teacher, screenData) {
   const loaded = await loadLesson(teacher, screenData && screenData.session_id);
   if (!loaded) {
     logEvent('transcript_quiz.flow_action_refused', {
-      userId: teacher.id, reason: 'lesson_not_found', action: submitted,
+      tk: tkOf(teacher.id), reason: 'lesson_not_found', action: submitted,
     });
     return lessonsScreen(teacher, 1, { error_message: resolveUx('tqFlowErrNotYours', { language }) });
   }
@@ -738,7 +739,7 @@ async function stepAction(teacher, screenData) {
   });
 
   if (!submitted && !available.length) {
-    return doneScreen('wait', language, { userId: teacher.id });
+    return doneScreen('wait', language, { tk: tkOf(teacher.id) });
   }
 
   // A submit carrying no choice is not a teacher changing their mind — in
@@ -748,7 +749,7 @@ async function stepAction(teacher, screenData) {
   const action = submitted || (available.length === 1 ? available[0] : '');
   if (!action) {
     logEvent('transcript_quiz.flow_action_refused', {
-      userId: teacher.id, reason: 'no_action_picked', available: available.length,
+      tk: tkOf(teacher.id), reason: 'no_action_picked', available: available.length,
     });
     return refuse('tqFlowErrPickAction');
   }
@@ -758,7 +759,7 @@ async function stepAction(teacher, screenData) {
   if (action === 'report' && (state === 'sent' || state === 'report_sent')
       && quiz?.meta?.share_code_id && !finished) {
     logEvent('transcript_quiz.flow_action_refused', {
-      userId: teacher.id, reason: 'nothing_to_report', quizId: quiz.id, started: students.length,
+      tk: tkOf(teacher.id), reason: 'nothing_to_report', quizId: quiz.id, started: students.length,
     });
     return lessonScreenFrom({
       teacher, session, quiz, students, language, lesson,
@@ -769,15 +770,15 @@ async function stepAction(teacher, screenData) {
   }
   if (!available.includes(action)) {
     logEvent('transcript_quiz.flow_action_refused', {
-      userId: teacher.id, reason: 'action_unavailable', action, available: available.length,
+      tk: tkOf(teacher.id), reason: 'action_unavailable', action, available: available.length,
     });
     return refuse('tqFlowErrPickAction');
   }
   if (!submitted) {
-    logEvent('transcript_quiz.flow_action_defaulted', { userId: teacher.id, action });
+    logEvent('transcript_quiz.flow_action_defaulted', { tk: tkOf(teacher.id), action });
   }
 
-  logEvent('transcript_quiz.flow_action', { userId: teacher.id, action, quizId: quiz?.id || null });
+  logEvent('transcript_quiz.flow_action', { tk: tkOf(teacher.id), action, quizId: quiz?.id || null });
 
   if (action === 'report') {
     const shareCodeId = quiz.meta.share_code_id;
@@ -804,7 +805,7 @@ async function stepAction(teacher, screenData) {
       }
       return sent;
     });
-    return doneScreen('report', language, { userId: teacher.id, quizId: quiz.id });
+    return doneScreen('report', language, { tk: tkOf(teacher.id), quizId: quiz.id });
   }
 
   if (action === 'link') {
@@ -818,13 +819,13 @@ async function stepAction(teacher, screenData) {
       });
       return Boolean(out && out.ok);
     });
-    return doneScreen('link', language, { userId: teacher.id, quizId });
+    return doneScreen('link', language, { tk: tkOf(teacher.id), quizId });
   }
 
   if (action === 'done') {
     // Nothing to do on this lesson (a failed lp_v8 quiz): close from the
     // endpoint. `tq_action` is what the chat side routes the completion on.
-    logEvent('transcript_quiz.flow_closed', { kind: 'done', userId: teacher.id, quizId: quiz?.id || null });
+    logEvent('transcript_quiz.flow_closed', { kind: 'done', tk: tkOf(teacher.id), quizId: quiz?.id || null });
     return { screen: 'SUCCESS', data: { extension_message_response: { params: { tq_action: 'done' } } } };
   }
 
@@ -837,7 +838,7 @@ async function stepAction(teacher, screenData) {
       const Offer = require('../services/quiz/transcript-quiz-offer.service');
       return Offer.remakeLpQuiz({ quiz, phone, teacherLang: language, source: 'flow' });
     });
-    logEvent('transcript_quiz.flow_closed', { kind: 'remake', userId: teacher.id, quizId });
+    logEvent('transcript_quiz.flow_closed', { kind: 'remake', tk: tkOf(teacher.id), quizId });
     return { screen: 'SUCCESS', data: { extension_message_response: { params: { tq_action: 'remake' } } } };
   }
 
@@ -886,7 +887,7 @@ async function stepAction(teacher, screenData) {
   // the endpoint instead: SUCCESS is Meta's reserved endpoint-close, not a
   // declared screen, and its params are the flat discriminator the chat side
   // routes on (see handleTranscriptQuizFlowCompletion).
-  logEvent('transcript_quiz.flow_closed', { kind: 'make', userId: teacher.id, language: chosen });
+  logEvent('transcript_quiz.flow_closed', { kind: 'make', tk: tkOf(teacher.id), language: chosen });
   return {
     screen: 'SUCCESS',
     data: { extension_message_response: { params: { tq_action: 'make', language: chosen } } },
@@ -904,7 +905,7 @@ async function handleTranscriptQuizInit(flowToken) {
     logToFile('⚠️ transcript quiz flow: unknown token', { hasToken: Boolean(flowToken) });
     return lessonsScreen(null, 1, { error_message: resolveUx('tqFlowErrNotYours', { language: clampLanguage(null) }) });
   }
-  logEvent('transcript_quiz.flow_opened', { userId: teacher.id });
+  logEvent('transcript_quiz.flow_opened', { tk: tkOf(teacher.id) });
   return lessonsScreen(teacher, 1);
 }
 
@@ -923,7 +924,7 @@ async function handleTranscriptQuizDataExchange(flowToken, screen, screenData) {
   // logs. Keys and lengths only: every value in this payload is a server-minted
   // id, and none of it is the teacher's own text.
   logEvent('transcript_quiz.flow_payload', {
-    userId: teacher.id,
+    tk: tkOf(teacher.id),
     step,
     screen: String(screen || ''),
     keys: Object.keys(screenData || {}).sort().join(','),
@@ -934,7 +935,7 @@ async function handleTranscriptQuizDataExchange(flowToken, screen, screenData) {
   try {
     if (step === 'page') {
       const page = Number(screenData.page) || 1;
-      logEvent('transcript_quiz.flow_page', { userId: teacher.id, page });
+      logEvent('transcript_quiz.flow_page', { tk: tkOf(teacher.id), page });
       return await lessonsScreen(teacher, page);
     }
     if (step === 'lesson') return await stepLesson(teacher, screenData);
