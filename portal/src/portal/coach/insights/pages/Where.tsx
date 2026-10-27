@@ -41,9 +41,12 @@ function WhereBody() {
           <ul className="flex flex-col gap-3">
             {data.schools.map((s) => <SchoolRow key={s.school.school_id} s={s} />)}
           </ul>
-          <p data-testid="where-not-showing" className="px-1 text-[13.5px] text-[#6b7280]">
-            {tx("s3.not_showing", lang, {}, [{ n: "n", d: "d", count: data.schools_not_showing }])}
-          </p>
+          {/* fix-r5 s2 item 3 (B10, design-qa 073628 §2): at n = 0 there is nothing to say, so no zero sentence */}
+          {data.schools_not_showing.n > 0 && (
+            <p data-testid="where-not-showing" className="px-1 text-[13.5px] text-[#6b7280]">
+              {tx("s3.not_showing", lang, {}, [{ n: "n", d: "d", count: data.schools_not_showing }])}
+            </p>
+          )}
         </div>
       )}
     </InsightsPage>

@@ -401,17 +401,18 @@ async function runJob(opts, deps) {
       // As the coach's S1 reads it: a 4-week rank 1 before an 8-week one (coach-read orders window_weeks ASC).
       const coachRank1W = new Map(rollups.filter((r) => r.scope_kind === 'coach' && r.rank === 1)
         .sort((a, b) => b.window_weeks - a.window_weeks).map((r) => [r.coach_user_id, r.w_id]));
+      // The rows already stored this week: those coaches keep their first choice, and their moments are taken, so no
+      // moment is chosen twice in a sector-week (fix-r5 s2 item 10). A dry run reads none and dedupes within the run.
+      const existing = write
+        ? await store.select('coachip_circle_items', (q) => q.eq('week_start', weekStart), 'sector,coach_user_id,moment_id')
+        : [];
       for (const sector of C.SECTORS) {
         const top = rollups.find((r) => r.scope_kind === 'sector' && r.sector === sector && r.rank === 1);
         const coachIds = [...scope.coaches].filter(([, c]) => c.sector === sector).map(([id]) => id);
-        circle.push(...pickCircle({ sector, weekStart, coachIds, rank1W: top && top.w_id, coachRank1W, momentsByCoach, jobRunId }));
+        circle.push(...pickCircle({ sector, weekStart, coachIds, rank1W: top && top.w_id, coachRank1W, momentsByCoach, jobRunId,
+          existing: existing.filter((e) => e.sector === sector) }));
       }
-      if (write) {
-        const existing = await store.select('coachip_circle_items', (q) => q.eq('week_start', weekStart), 'sector,coach_user_id');
-        const have = new Set(existing.map((e) => `${e.sector}|${e.coach_user_id}`));
-        circle = circle.filter((c) => !have.has(`${c.sector}|${c.coach_user_id}`)); // the first choice in the week stands
-        if (circle.length) await store.insert('coachip_circle_items', circle);
-      }
+      if (write && circle.length) await store.insert('coachip_circle_items', circle);
       log(`circle items=${circle.length}`);
       await mark('circle');
     }

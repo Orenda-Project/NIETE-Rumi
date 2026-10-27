@@ -46,6 +46,27 @@ describe('pickCircle', () => {
     expect(pickCircle({ sector: 'Sihala', weekStart: '2026-11-02', coachIds: [X.uuid('c', 9)], rank1W: 'W-IP', momentsByCoach, jobRunId: JOB })).toEqual([]);
   });
 
+  // fix-r5 s2 item 10 (qa-rm R3a, 072543): two coaches who share a school must never bring the same moment.
+  describe('no moment chosen twice in one sector-week', () => {
+    const shared = [m(11, 'W-IP', 'missing', 'high', '2026-10-28'), m(12, 'W-IP', 'missing', 'medium', '2026-10-27')];
+    test('two coaches whose best moment is the same id → two distinct moment ids (the second coach gets their next one)', () => {
+      const two = pickCircle({ sector: 'Sihala', weekStart: '2026-11-02', coachIds: [A, B], rank1W: 'W-IP',
+        momentsByCoach: new Map([[A, shared], [B, shared]]), jobRunId: JOB });
+      expect(two.map((r) => [r.coach_user_id, r.moment_id])).toEqual([[A, X.uuid('d', 11)], [B, X.uuid('d', 12)]]);
+    });
+    test('a coach whose only eligible moment is taken gets no row', () => {
+      const one = pickCircle({ sector: 'Sihala', weekStart: '2026-11-02', coachIds: [A, B], rank1W: 'W-IP',
+        momentsByCoach: new Map([[A, shared.slice(0, 1)], [B, shared.slice(0, 1)]]), jobRunId: JOB });
+      expect(one.map((r) => [r.coach_user_id, r.moment_id])).toEqual([[A, X.uuid('d', 11)]]);
+    });
+    test('a row already stored this week stands: that coach is skipped and its moment counts as taken', () => {
+      const later = pickCircle({ sector: 'Sihala', weekStart: '2026-11-02', coachIds: [A, B], rank1W: 'W-IP',
+        momentsByCoach: new Map([[A, shared], [B, shared]]), jobRunId: JOB,
+        existing: [{ coach_user_id: A, moment_id: X.uuid('d', 11) }] });
+      expect(later.map((r) => [r.coach_user_id, r.moment_id])).toEqual([[B, X.uuid('d', 12)]]);
+    });
+  });
+
   test('a week that does not start on a Monday, or an unknown sector, throws', () => {
     expect(() => pickCircle({ sector: 'Sihala', weekStart: '2026-11-03', coachIds: [A], rank1W: 'W-IP', momentsByCoach, jobRunId: JOB })).toThrow();
     expect(() => pickCircle({ sector: 'Elsewhere', weekStart: '2026-11-02', coachIds: [A], rank1W: 'W-IP', momentsByCoach, jobRunId: JOB })).toThrow();

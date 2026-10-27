@@ -91,7 +91,9 @@ describe.each(["en", "ur"] as Lang[])("S8 RM home (%s)", (lang) => {
     expect(labels(needs)).toEqual(F.rm_home.groups.needs_me.map((c: { coach_label: string }) => c.coach_label));
     expect(labels(on)).toEqual(F.rm_home.groups.on_track.map((c: { coach_label: string }) => c.coach_label));
     for (const row of within(screen.getByTestId("coach-groups")).getAllByTestId("coach-row")) {
-      expect(row.querySelectorAll("[data-num]")).toHaveLength(3);
+      // fix-r5 s2 item 3 (B10): a count with base 0 is a words line (data-none), never a "0 of 0" number node
+      expect(row.querySelectorAll("[data-num], [data-none]")).toHaveLength(3);
+      expect(row.querySelector('[data-num][data-den="0"]')).toBeNull();
       expect(within(row).getAllByTestId("follow-up")).toHaveLength(1);
       expect(row.querySelector("ol, [aria-sort], select")).toBeNull();
     }

@@ -23,17 +23,24 @@ export default function RmStats() {
   }
   const w = data?.window;
   return (
-    <RmPage title={rt("stats.title", lang, { sector: data?.sector ?? sector })} sub={rt("stats.sub", lang)} windows={data?.windows} testId="rm-stats" trust={data ? "s8.trust" : null}>
+    // fix-r5 s2 item 17 (design-qa 073629): with no scoring_changed_on marker a card would hold only the dates, so the
+    // window folds into the band's sub line; with a marker the card keeps both.
+    <RmPage
+      title={rt("stats.title", lang, { sector: data?.sector ?? sector })}
+      sub={w && !w.scoring_changed_on
+        ? <>{rt("stats.sub", lang)}{lang === "ur" ? "، " : " · "}<WindowMark window={w} as="span">{range(w.from, w.to, lang)}</WindowMark></>
+        : rt("stats.sub", lang)}
+      windows={data?.windows} testId="rm-stats" trust={data ? "s8.trust" : null}>
       {!data || !w ? <StateBlock error={error} testId="rm-state" /> : (
         <div className="mx-auto flex max-w-3xl flex-col gap-3">
-          <RmCard testId="rm-stats-window">
-            <WindowMark window={w} className="text-[14px] text-[#374151]">{range(w.from, w.to, lang)}</WindowMark>
-            {w.scoring_changed_on && (
+          {w.scoring_changed_on && (
+            <RmCard testId="rm-stats-window">
+              <WindowMark window={w} className="text-[14px] text-[#374151]">{range(w.from, w.to, lang)}</WindowMark>
               <p data-testid="rm-stats-marker" className="rounded-xl bg-[#f3f4f6] px-3 py-2 text-[13.5px] text-[#374151]">
                 <span data-date={w.scoring_changed_on}>{rt("s6.marker", lang, { date_short: dateShort(w.scoring_changed_on, lang) })}</span>
               </p>
-            )}
-          </RmCard>
+            </RmCard>
+          )}
           {data.moves.map((m) => <SectorWRow key={m.row.w_id} row={m.row} testId="rm-stats-row" />)}
           {data.stale && <RmNote tone="info" testId="rm-stale"><span data-date={data.stale.as_of}>{rt("s8.empty.stale", lang, { date: dateShort(data.stale.as_of, lang) })}</span></RmNote>}
         </div>

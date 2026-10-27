@@ -34,10 +34,28 @@ describe.each(LANGS)("Schools tab (%s)", (lang) => {
     expect(screen.getAllByTestId("wrow")).toHaveLength(5);
     expect(screen.getAllByTestId("wrow")[0].getAttribute("href")).toBe("/portal/coach/insights/w/W-IP-TIME");
     const none = rows[rows.length - 1];
-    expect(within(none).getByTestId("schools-top-none").textContent).toBe(COPY["schools.top_w.none"][lang]);
+    // fix-r5 s2 item 3/4 (qa-coach 073419): graded lessons but no ranked move is "not ranked yet", never "nothing to do"
+    expect(within(none).getByTestId("schools-top-none").textContent).toBe(COPY["schools.top_w.not_ranked"][lang]);
     expectContract(container, expect);
     expectNoIdentity(container, expect);
     expect(container.innerHTML).toMatchSnapshot();
+  }, 30000);
+
+  it("item 3: top_w null with graded lessons says not ranked yet; with 0 graded, nothing to do", async () => {
+    const d = clone(F.schools);
+    const last = d.schools.length - 1;
+    serve({ "/coachip/schools": d });
+    await renderAt("/schools");
+    let row = screen.getAllByTestId("schools-row")[last];
+    expect(within(row).getByTestId("schools-top-none").getAttribute("data-state")).toBe("not_ranked");
+    expect(row.textContent).not.toContain(COPY["schools.top_w.none"][lang]);
+    cleanup();
+    d.schools[last].graded = { n: 0, d: 3, window_id: d.schools[last].graded.window_id };
+    serve({ "/coachip/schools": d });
+    await renderAt("/schools");
+    row = screen.getAllByTestId("schools-row")[last];
+    expect(within(row).getByTestId("schools-top-none").getAttribute("data-state")).toBe("none");
+    expect(within(row).getByTestId("schools-top-none").textContent).toBe(COPY["schools.top_w.none"][lang]);
   }, 30000);
 
   it("a school never visited says so", async () => {

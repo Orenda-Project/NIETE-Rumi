@@ -140,6 +140,48 @@ for (const lang of ["en", "ur"] as const) {
       expect(domContract(container).bareDigits).toEqual([]);
     }, 20000);
 
+    // fix-r5 s2 item 7a (qa-coach 073254, panel 094000/094003): the library's debrief line, said tomorrow, is S5's first
+    // block under the step, inside COPY d.try_tomorrow; then the panel's order, "Why this works" a closed disclosure.
+    it("item 7a: debrief_script inside d.try_tomorrow, first under the step; the panel's order", async () => {
+      const d = clone(F["i_W-IP-TIME"]);
+      // the library's own shape (INTERVENTIONS.json debrief_script_en/_ur carry no frame; the client frames it)
+      d.i.debrief_script = {
+        en: "at minute 10 say the stop line, then move to 'we do' with the time on the board.",
+        ur: "دسویں منٹ پر رکنے والا جملہ کہیں، پھر بورڈ پر وقت کے ساتھ «ہم کریں» شروع کریں۔",
+      };
+      serve({ [MOVE]: d });
+      const { container } = await renderAt("/w/W-IP-TIME/move");
+      const tt = screen.getByTestId("s5-try-tomorrow");
+      const [pre, post] = COPY["d.try_tomorrow"][lang].split("{step}");
+      expect(tt.textContent).toBe(`${pre}${d.i.debrief_script[lang]}${post}`);
+      expect(tt.querySelector('[data-text="library"]')?.textContent).toBe(d.i.debrief_script[lang]);
+      // the step is the library's words alone (the frame now carries the debrief line, never the step twice)
+      expect(screen.getByTestId("s5-step").textContent).toContain(d.i.teacher_action_step[lang]);
+      expect(screen.getByTestId("s5-step").textContent).not.toContain(pre.trim());
+      // the order: step, try tomorrow, rehearsal (+ play), with whom/how long, materials, listen for, check, why, others
+      const order = ["s5-step", "s5-try-tomorrow", "s5-rehearsal", "s5-play", "s5-facts", "s5-materials", "s5-listen-for", "s5-check", "s5-evidence", "s5-alternatives"];
+      const els = order.map((id) => screen.getByTestId(id));
+      for (let k = 1; k < els.length; k += 1) {
+        expect(Boolean(els[k - 1].compareDocumentPosition(els[k]) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+      }
+      // "Why this works": a closed disclosure holding the citations at body size
+      const why = screen.getByTestId("s5-evidence") as HTMLDetailsElement;
+      expect(why.tagName).toBe("DETAILS");
+      expect(why.open).toBe(false);
+      expect(why.querySelector("summary")?.textContent).toContain(COPY["s5.why.title"][lang]);
+      expect(why.querySelector("li")?.className).toContain("text-[15px]");
+      expectContract(container, expect);
+    }, 20000);
+
+    it("item 7a: a debrief line that already opens with the frame is not framed twice", async () => {
+      serve({ [MOVE]: F["i_W-IP-TIME"] });
+      await renderAt("/w/W-IP-TIME/move");
+      const pre = COPY["d.try_tomorrow"][lang].split("{step}")[0];
+      const text = screen.getByTestId("s5-try-tomorrow").textContent || "";
+      expect(text.split(pre.trim()).length - 1).toBe(1);
+      expect(text).toContain(F["i_W-IP-TIME"].i.debrief_script[lang]);
+    }, 20000);
+
     it("flag off: the coach is sent elsewhere", async () => {
       await boot(lang, { coachV2: true, coachip: false });
       serve({ [MOVE]: F["i_W-IP-TIME"] });

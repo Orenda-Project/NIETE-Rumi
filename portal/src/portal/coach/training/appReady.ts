@@ -1,4 +1,5 @@
 import { LESSONS_HOME } from "../../teacher/lessons/paths";
+import { RM_BASE } from "../../rm/paths";
 
 /**
  * bd-s42dye.2 — what the coach app v2 shows while only some of it is ready.
@@ -85,4 +86,13 @@ export function coachPathReady(pathname: string, ready: readonly CoachFeature[] 
 export function coachReadyHome(ready: readonly CoachFeature[] = COACH_APP_READY): string {
   const first = ready[0];
   return first === "training" || !first ? COACH_TRAINING_BASE : FEATURE_PATHS[first].prefixes[0];
+}
+
+/**
+ * fix-r5 s2 item 9 (qa-rm R1 FAIL 20261027T072541, idea 072624; SPEC v2.1 §11.6): where a v2 coach lands. An RM (a
+ * literal `coachipRm === true` in /config) whose own COACHIP switch is not on lands on the RM home; a dual-role user
+ * (both on) keeps "This week"; with coachipRm off, absent or unreadable this is exactly coachReadyHome (B8).
+ */
+export function coachLandingFor(ready: readonly CoachFeature[], coachip: boolean | null | undefined, coachipRm: boolean | null | undefined): string {
+  return coachipRm === true && coachip !== true ? RM_BASE : coachReadyHome(ready);
 }

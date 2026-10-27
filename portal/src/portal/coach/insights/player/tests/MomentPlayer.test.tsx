@@ -76,7 +76,8 @@ describe.each(LANGS)("MomentPlayer (%s)", (lang) => {
     expect(audio.getAttribute("src")).toBe(`/api/portal/coachip/m/${m.moment_id}/clip`);
     expect(container.innerHTML).not.toContain("bucket.example");
     expect(audio.hasAttribute("autoplay")).toBe(false);
-    expect(audio.getAttribute("preload")).toBe("metadata");
+    // fix-r5 s2 (red-3 073740, A10): S4's full player too: a Range bytes=0- preload is logged as a play, so nothing loads before the tap
+    expect(audio.getAttribute("preload")).toBe("none");
     for (const a of Array.from(container.querySelectorAll("audio"))) expect(a.hasAttribute("autoplay")).toBe(false);
     await act(async () => { await Promise.resolve(); });
     expect(play).not.toHaveBeenCalled();

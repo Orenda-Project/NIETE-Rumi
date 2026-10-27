@@ -88,7 +88,8 @@ export default function FollowUpPicker({ coach, home, onClose, onSent }: {
     return p ? (
       <ol dir={l === "ur" ? "rtl" : "ltr"} lang={l} data-testid={`picker-preview-${l}`} style={{ listStyleType: l === "ur" ? "urdu" : "decimal" }}
         className="flex flex-col gap-0.5 ps-5 text-[14px] leading-snug text-[#1d2025]">
-        {p.map((x, i) => <li key={i} data-nonum="">{x}</li>)}
+        {/* fix-r5 s2 item 17 (design-qa 073629, COPY §0 rule 3): each line takes its own direction and aligns to its start */}
+        {p.map((x, i) => <li key={i} data-nonum="" className="[unicode-bidi:plaintext] text-start">{x}</li>)}
       </ol>
     ) : null;
   };

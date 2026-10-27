@@ -81,6 +81,12 @@ export default function RmNav() {
           <LangSwitch />
         </div>
       </nav>
+      {/* fix-r5 s2 item 12 (qa-rm R7 FAIL 20261027T072545): the phone's own EN | اردو, in a slim bar above the page; the
+          laptop keeps the one in its top nav (md and up). */}
+      <div data-testid="rm-phone-bar" className="flex items-center justify-between gap-2 border-b border-[#e5e7eb] bg-white px-4 py-2 md:hidden">
+        <img src={nieteLogo} alt={C.logoAlt} className="h-7 w-7 rounded object-contain" />
+        <LangSwitch />
+      </div>
       <nav
         aria-label={C.menu}
         data-testid="rm-nav"

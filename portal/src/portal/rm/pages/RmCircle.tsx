@@ -8,7 +8,7 @@ import type { Count } from "../../coach/insights/types";
 import { rm } from "../api";
 import { useRmLoad } from "../useRmLoad";
 import { useRmSession } from "../RmGate";
-import { defaultDue, addDays, wForIntervention } from "../compose";
+import { addDays, wForIntervention } from "../compose";
 import type { RmCircle as Circle } from "../types";
 import type { RmCopyKey } from "../rm.copy";
 import { RmCard, RmNote, RmPage } from "../components/RmFrame";
@@ -49,19 +49,24 @@ function BasisLine({ data }: { data: Circle }) {
     </div>
   );
 }
+/**
+ * fix-r5 s2 item 11 (qa-rm R3b FAIL 20261027T072544; wA 4aac292734): the server stores a sector step for TODAY only
+ * (check_by_rule '14_days': check_by = set_at::date + 14; no planned-date column), so there is no date picker: one tap
+ * posts today's Karachi date and the confirmation names today and the check date (today + 14).
+ */
 function SectorMove({ s, today }: { s: Circle["sector_interventions"][number]; today: string }) {
   const lang = useLang();
-  const [date, setDate] = useState(s.date && s.date >= today ? s.date : defaultDue(today));
-  const [state, setState] = useState<"idle" | "picking" | "saving" | "done" | "failed">("idle");
+  const [state, setState] = useState<"idle" | "saving" | "done" | "failed">("idle");
   const [setFor, setSetFor] = useState<string | null>(null);
   const w = wForIntervention(s.i_id);
   const sep = lang === "ur" ? "، " : " · ";
   const save = async () => {
-    if (!w) return;
+    if (!w || state === "saving") return;
     setState("saving");
     try {
-      const { step } = await rm.setSectorStep({ i_id: s.i_id, w_id: w, date });
-      setSetFor(step.date);
+      const sent = todayKarachi(); // now, not the payload's computed_at: the server checks against its own today
+      const { step } = await rm.setSectorStep({ i_id: s.i_id, w_id: w, date: sent });
+      setSetFor(step.date || sent);
       setState("done");
     } catch {
       setState("failed");
@@ -76,25 +81,18 @@ function SectorMove({ s, today }: { s: Circle["sector_interventions"][number]; t
       </p>
       <p className="text-[13.5px] text-[#6b7280]">{rtx("s10.sector_moves.check", lang, { check: <LibraryText>{pick(s.check, lang)}</LibraryText> })}</p>
       {state === "done" && setFor
-        ? <p role="status" data-testid="sector-move-done" className="text-[13.5px] font-semibold text-[#15803d]">{rtx("s10.sector_moves.done", lang, { date: <DateText iso={setFor} lang={lang} /> })}</p>
-        : state === "picking" || state === "saving" || state === "failed" ? (
+        ? (
+          <p role="status" data-testid="sector-move-done" className="text-[13.5px] font-semibold text-[#15803d]">
+            {rtx("s10.sector_moves.done.today", lang, { date: <DateText iso={setFor} lang={lang} />, date2: <DateText iso={addDays(setFor, 14)} lang={lang} /> })}
+          </p>
+        ) : (
           <div className="flex flex-wrap items-center gap-2">
-            <label className="flex items-center gap-2 text-[13.5px] text-[#374151]">
-              {rt("s10.sector_moves.date", lang)}
-              <input type="date" dir="ltr" value={date} min={today} max={addDays(today, 28)} data-testid="sector-move-date"
-                onChange={(e) => { if (e.target.value) setDate(e.target.value); }} className="min-h-[40px] rounded-xl border border-[#d1d5db] px-2" />
-            </label>
-            <button type="button" data-testid="sector-move-save" onClick={save} disabled={state === "saving"}
-              className="min-h-[40px] rounded-full bg-[#333748] px-4 text-[14px] font-semibold text-white disabled:opacity-40">
-              {state === "saving" ? rt("e.saving", lang) : rt("s10.sector_moves.set", lang)}
+            <button type="button" data-testid="sector-move-set" onClick={save} disabled={!w || state === "saving"}
+              className="min-h-[44px] self-start rounded-full border border-[#d1d5db] px-4 text-[14px] font-semibold text-[#1d2025] disabled:opacity-40">
+              {state === "saving" ? rt("e.saving", lang) : rt("s10.sector_moves.set.today", lang)}
             </button>
             {state === "failed" && <span role="status" className="text-[13px] text-[#b91c1c]">{rt("picker.failed", lang)}</span>}
           </div>
-        ) : (
-          <button type="button" data-testid="sector-move-set" onClick={() => setState("picking")} disabled={!w}
-            className="min-h-[40px] self-start rounded-full border border-[#d1d5db] px-4 text-[14px] font-semibold text-[#1d2025]">
-            {rt("s10.sector_moves.set", lang)}
-          </button>
         )}
     </li>
   );
@@ -124,7 +122,7 @@ export default function RmCircle() {
               : (
                 <>
                   {data.basis === "coach" && <BasisLine data={data} />}
-                  <ul className="flex flex-col divide-y divide-[#f3f4f6]">{data.moments.map((m) => <CircleRow key={m.moment_id} m={m} open={open === m.moment_id} onOpen={setOpen} />)}</ul>
+                  <ul className="flex flex-col divide-y divide-[#f3f4f6]">{data.moments.map((m) => <CircleRow key={m.coach_user_id} m={m} open={open === m.coach_user_id} onOpen={setOpen} />)}</ul>
                 </>
               )}
           </RmCard>
@@ -136,11 +134,16 @@ export default function RmCircle() {
             </RmCard>
             <RmCard testId="s10-checks" title={rt("s10.checks.title", lang)}>
               <WindowLegend windows={data.windows} ids={windowIds(data.checks_due)} />
-              {total && <CountLine k="s10.checks.sub" count={total} className="text-[13.5px] text-[#6b7280]" as="p" />}
+              {/* fix-r5 s2 item 3 (B10): a base of 0 is words, never "0 of 0 open steps" */}
+              {total && (total.d === 0
+                ? <p data-testid="s10-checks-none" className="text-[13.5px] text-[#6b7280]">{rt("s10.checks.sub.none", lang)}</p>
+                : <CountLine k="s10.checks.sub" count={total} className="text-[13.5px] text-[#6b7280]" as="p" />)}
               <ul className="flex flex-wrap gap-2">
                 {data.checks_due.map((c) => (
                   <li key={c.coach_label} data-testid="s10-check" className="rounded-full bg-[#f3f4f6] px-3 py-1.5 text-[13.5px] text-[#1d2025]">
-                    {rtx("s10.checks.row", lang, { coach: <span data-code="" dir="auto">{c.coach_label}</span> }, [{ n: "n", d: "d", count: c.count }])}
+                    {c.count.d === 0
+                      ? rtx("s10.checks.row.none", lang, { coach: <span data-code="" dir="auto">{c.coach_label}</span> })
+                      : rtx("s10.checks.row", lang, { coach: <span data-code="" dir="auto">{c.coach_label}</span> }, [{ n: "n", d: "d", count: c.count }])}
                   </li>
                 ))}
               </ul>

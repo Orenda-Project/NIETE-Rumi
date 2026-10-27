@@ -553,6 +553,16 @@ async function schools(ctx) {
   );
   const topBy = new Map();
   for (const r of tops) if (!topBy.has(r.school_id)) topBy.set(r.school_id, r);
+  // fix-r5 s2 item 4 (qa-coach 073419, B10): a school with no ranked school rollup is not "nothing to do" when the coach's
+  // ranked W shows there. Fall back to the coach's rank-1 W, then rank-2, read from the same school rows S1's where_first
+  // and /w/:id schools[] use (schoolRowsFor), first one with n > 0. Same WRow shape and state; nothing new on the wire.
+  const ranked = [...set.rows.values()].filter((r) => r.rank === 1 || r.rank === 2).sort((a, b) => a.rank - b.rank);
+  for (const coachRow of ranked) {
+    const open = scope.schoolIds.filter((id) => !topBy.has(id));
+    if (!open.length) break;
+    const rowsBySchool = await schoolRowsFor(q, open, coachRow.w_id, coachRow);   // eslint-disable-line no-await-in-loop
+    for (const [id, r] of rowsBySchool) if (r.numerator > 0 && !topBy.has(id)) topBy.set(id, r);
+  }
 
   const [names, last, next, lessons] = await Promise.all([
     schoolNames(q, scope.schoolIds),
@@ -800,13 +810,13 @@ function interventionShape(i, version) {
   };
 }
 
-/** Alternatives (0..2): the parent's first teacher-level I first, then the W's own next ones, then the parent's. */
+/** Alternatives (0..2), LIBRARY_RULES §2.3: the W's own next teacher-level I first, then the parent's (panel 093959 c2). */
 function alternativesFor(wId, chosenId) {
   const lib = S.library();
   const w = lib.weakness(wId);
   const own = lib.forW(wId).filter((x) => x.level === 'teacher');
   const parent = w && w.parent_w_id ? lib.forW(w.parent_w_id).filter((x) => x.level === 'teacher') : [];
-  const seq = [...parent.slice(0, 1), ...own, ...parent.slice(1)];
+  const seq = [...own, ...parent];
   const out = [];
   for (const x of seq) {
     if (x.id === chosenId || out.some((o) => o.i_id === x.id)) continue;

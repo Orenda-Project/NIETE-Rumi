@@ -18,7 +18,8 @@ import PairCard from "./PairCard";
  *             that failed or expired: the coach hears the session's whole recording from `lesson_s` and is told so
  *             (`s4.clip_failed`, never "being prepared"); the RM circle form (no code, no session, no full recording)
  *             gets no player and the RM line (`e.503_clip.rm`, COPY v1.1 §E).
- *   kit       the kit `AudioPlayer`, untouched (`preload="metadata"`: the hand test's Slow 3G budget), LTR in Urdu, on tap
+ *   kit       the kit `AudioPlayer`, untouched, `preload="none"` (fix-r5 s2, A10: a metadata preload opens the clip with
+ *             `Range: bytes=0-`, which the server logs as a play, so every page view counted as one), LTR in Urdu, on tap
  *             only; one kit player sounds at a time (the kit's own rule). Seek and the clock go through a WRAPPER: this
  *             component holds its own box, finds the kit's `<audio>` in it, sets `currentTime` to seek and listens to
  *             `timeupdate`; the kit re-reads `currentTime` on timeupdate, so its track follows.
@@ -33,14 +34,14 @@ export type MomentPlayerProps = {
   moment: Moment;
   variant: "inline" | "full";
   onSeeMove?: () => void;
-  /** "metadata" (default: the first tap plays within the Slow 3G budget) or "none" (a secondary player, e.g. the pair). */
+  /** "none" (default: no byte moves and no play is logged before the tap, A10) or "metadata" (never used by a page today). */
   preload?: "none" | "metadata";
 };
 
 /** The RM circle form (API R6, B22) arrives without `code` and `session`, and with `full_recording: null`. */
 type Wire = Omit<Moment, "code" | "session"> & { code?: Moment["code"]; session?: Moment["session"] };
 
-export function MomentPlayer({ moment, variant, onSeeMove, preload = "metadata" }: MomentPlayerProps) {
+export function MomentPlayer({ moment, variant, onSeeMove, preload = "none" }: MomentPlayerProps) {
   const lang = useLang();
   const m = moment as Wire;
   const full = variant === "full";

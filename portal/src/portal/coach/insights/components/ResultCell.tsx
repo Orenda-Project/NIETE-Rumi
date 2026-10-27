@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import { useLang, type Lang } from "../../../teacher/i18n";
-import { subjectShort } from "../../../teacher/ui/subjects";
 import { CodeText, LibraryText, Num, TestedSpan } from "../count";
 import { digits } from "../format";
 import { pick, t, tx } from "../text";
@@ -16,7 +15,8 @@ import type { ResultCell as Cell } from "../types";
  *
  * The send opens the existing FLN send page with no recipient and no query string (c-api finding 10:09Z): the sound
  * plans for a letter row (W-LS, W-LN, W-DEC), the story plans for a reading row (W-RC, W-ORF); "ask your RM" when the
- * user's send is switched off. The language word is the kit's own subject label (COPY has no "Urdu"/"English" key).
+ * user's send is switched off. The language word is COPY's subject word (`s4.subject.urdu` / `.english`; fix-r5 s2 item 14:
+ * the kit's short label said "Eng").
  */
 const SOUND_W = new Set(["W-LS", "W-LN", "W-DEC"]);
 const STORY_W = new Set(["W-RC", "W-ORF"]);
@@ -25,7 +25,7 @@ const STORY_W = new Set(["W-RC", "W-ORF"]);
 const FLN_SEND = "/portal/fln/send";
 
 function languageWord(code: "ur" | "en", lang: Lang): string {
-  return subjectShort(code === "ur" ? "urdu" : "english", lang);
+  return t(code === "ur" ? "s4.subject.urdu" : "s4.subject.english", lang);
 }
 
 export function ResultCell({ cell }: { cell: Cell }) {
@@ -77,7 +77,8 @@ export function ResultCell({ cell }: { cell: Cell }) {
               data-testid="s7-send"
               className="flex min-h-[44px] items-center justify-center rounded-xl bg-[#33374a] px-4 py-2.5 text-center text-[15px] font-semibold text-white [overflow-wrap:anywhere]"
             >
-              {tx(sendKey, lang, { g, language })}
+              {/* one inline run: the {g} node must not become a flex item of its own (design-qa 092007) */}
+              <span data-testid="s7-send-text">{tx(sendKey, lang, { g, language })}</span>
             </Link>
           ) : (
             <p data-testid="s7-send-off" className="text-[13.5px] text-[#6b7280]">{t("s5.fln.off", lang)}</p>

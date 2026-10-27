@@ -387,6 +387,26 @@ run('COACHIP coach reads: R14 stats, R15 results, R5 moments, R6 m/:id (Postgres
     expect(b.computed_at).toBe('2026-10-25T21:40:00.000Z');
   });
 
+  test('R6 m/:id step labels (fix-r5 s2 item 1, B17): every grader phase reads a COPY word in EN and UR, an unknown phase the COPY fallback, never the enum', async () => {
+    await listenWorld();
+    const phases = ['announce', 'hook', 'warm_up', 'recall', 'explain', 'guided', 'independent', 'peer_review', 'exit', 'homework', 'xyz'];
+    await ins.sessionSteps(pg.query, FACT(2), phases.map((p, i) => [p, 'executed', i * 100, i * 100 + 90]));
+    const res = await app.call('GET', `${P}/m/${MOM(2)}`, { as: C });
+    expect(res.status).toBe(200);
+    const WARM = { en: 'Warm-up', ur: 'آغاز' };
+    expect(res.body.steps.map((s) => [s.phase, s.label])).toEqual([
+      ['announce', WARM], ['hook', WARM], ['warm_up', WARM], ['recall', WARM],
+      ['explain', { en: 'Explain', ur: 'وضاحت' }],
+      ['guided', { en: 'Guided', ur: 'مل کر' }],
+      ['independent', { en: 'Practice', ur: 'خود مشق' }],
+      ['peer_review', { en: 'Peer check', ur: 'ساتھیوں کی جانچ' }],
+      ['exit', { en: 'Exit', ur: 'جانچ' }],
+      ['homework', { en: 'Homework', ur: 'گھر کا کام' }],
+      ['xyz', { en: 'Another step', ur: 'کوئی اور مرحلہ' }],
+    ]);
+    for (const s of res.body.steps) for (const v of Object.values(s.label)) expect(v).not.toMatch(/_|xyz/);
+  });
+
   test('R6 m/:id: another coach\'s moment, an invented id → one 404 body; coach D cannot open C\'s moment', async () => {
     await listenWorld();
     const invented = await app.call('GET', `${P}/m/${INVENTED}`, { as: C });

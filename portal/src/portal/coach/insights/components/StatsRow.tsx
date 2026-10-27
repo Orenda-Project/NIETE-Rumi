@@ -20,6 +20,11 @@ export function StatsRow({ row }: { row: Row }) {
   const lang = useLang();
   const insufficient = row.status === "insufficient";
   const pill = row.change ? t(`s6.pill.${row.change}` as const, lang) : null;
+  // fix-r5 s2 item 15 (design-qa 073628 §3, qa-coach 073257 (2)): an S6-only W carries no sentence, or the server's
+  // fallback repeats the short name; the row is then one line, never the name twice
+  const name = pick(row.short_name, lang);
+  const sentence = pick(row.sentence, lang).trim();
+  const showSentence = sentence !== "" && sentence !== name.trim();
   return (
     <li
       data-testid="s6-row"
@@ -28,8 +33,8 @@ export function StatsRow({ row }: { row: Row }) {
       className="flex items-start gap-3 border-t border-[#f0f1f3] px-4 py-3 first:border-t-0"
     >
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="text-[15px] font-semibold leading-snug text-[#1d2025]">{pick(row.short_name, lang)}</span>
-        <span className="text-[13.5px] leading-snug text-[#374151]">{pick(row.sentence, lang)}</span>
+        <span className="text-[15px] font-semibold leading-snug text-[#1d2025]">{name}</span>
+        {showSentence && <span data-testid="s6-sentence" className="text-[13.5px] leading-snug text-[#374151]">{sentence}</span>}
         {insufficient && (
           <span className="text-[12.5px] leading-snug text-[#6b7280]">
             {/* graded = the window's in-denominator lessons (now.d), against the floor of 20 (API §3 Empty.detail.graded) */}
@@ -44,8 +49,9 @@ export function StatsRow({ row }: { row: Row }) {
       </span>
       {!insufficient && (
         <span className="flex shrink-0 gap-3 text-end">
-          <Num count={row.now} lang={lang} className="w-[72px] text-[15px] font-bold text-[#1d2025]" />
-          {row.before && <Num count={row.before} lang={lang} className="w-[72px] text-[14px] text-[#6b7280]" />}
+          {/* one atom (P10): "۴۶ میں سے ۲۸" never wraps, in a column wide enough for it at 15 px (design-qa 073628 §4) */}
+          <Num count={row.now} lang={lang} className="w-[96px] whitespace-nowrap text-[15px] font-bold text-[#1d2025]" />
+          {row.before && <Num count={row.before} lang={lang} className="w-[96px] whitespace-nowrap text-[14px] text-[#6b7280]" />}
         </span>
       )}
     </li>

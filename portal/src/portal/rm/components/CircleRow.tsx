@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { Pause, Play } from "lucide-react";
 import { useLang } from "../../teacher/i18n";
 import { CodeText } from "../../coach/insights/count";
@@ -17,6 +18,10 @@ import { rt } from "../text";
  *
  * The player is the plain authenticated <audio> until m-player's MomentPlayer ships a compact variant; the swap is the
  * <audio> element below and nothing else.
+ *
+ * fix-r5 s2 item 10 (qa-rm R3a 20261027T072543, idea 072625): a row is the COACH's (`open` and `onOpen` carry
+ * coach_user_id), because two coaches can bring the same moment; and the first tap on Play opens the row AND plays:
+ * the open is flushed inside the tap so the (still preload="none") <audio> exists, then play() runs in the same gesture.
  */
 export function CircleRow({ m, open, onOpen }: { m: CircleMoment; open: boolean; onOpen: (id: string | null) => void }) {
   const lang = useLang();
@@ -38,21 +43,32 @@ export function CircleRow({ m, open, onOpen }: { m: CircleMoment; open: boolean;
 
   const clipBad = failed || detail?.clip.status === "failed" || detail?.clip.status === "expired";
   const toggle = () => {
-    if (!open) { onOpen(m.moment_id); return; }
+    if (!open) flushSync(() => onOpen(m.coach_user_id));
     const a = audio.current;
     if (!a || clipBad) return;
     if (a.paused) void a.play().catch(() => setFailed(true)); else a.pause();
   };
   const sep = lang === "ur" ? "، " : " · ";
   return (
-    <li data-testid="circle-row" data-moment={m.moment_id} data-open={open ? "1" : undefined} className="flex flex-col py-2">
+    <li data-testid="circle-row" data-moment={m.moment_id} data-coach={m.coach_user_id} data-open={open ? "1" : undefined} className="flex flex-col py-2">
       <div className="flex items-center gap-3">
-        <button type="button" onClick={() => onOpen(open ? null : m.moment_id)} aria-expanded={open}
+        <button type="button" onClick={() => onOpen(open ? null : m.coach_user_id)} aria-expanded={open}
           className="flex min-h-[44px] min-w-0 flex-1 items-center gap-1 text-start text-[15px] text-[#1d2025]">
           <span data-testid="circle-line" className="truncate">
             {/* the C-NN label is an LTR atom: isolated in Urdu like the school name beside it (red-2 18:08Z, fix-r5 5f) */}
-            <span data-code="" dir={lang === "ur" ? "ltr" : undefined} className="font-semibold [unicode-bidi:isolate]">{isolate(m.coach_label, lang)}</span>{sep}
-            <CodeText lang={lang}>{m.school.school_name}</CodeText>{sep}
+            {lang === "ur" ? (
+              // fix-r5 s2 item 17 (design-qa 073629): two LTR atoms around an Urdu comma are ONE isolated LTR run, so the
+              // comma stays after the coach ("C-01، S-01"), not before the school
+              <span data-testid="circle-pair" dir="ltr" className="[unicode-bidi:isolate]">
+                {"\u2066"}<span data-code="" dir="ltr" className="font-semibold [unicode-bidi:isolate]">{isolate(m.coach_label, lang)}</span>{sep}
+                <CodeText lang={lang}>{m.school.school_name}</CodeText>{"\u2069"}
+              </span>
+            ) : (
+              <>
+                <span data-code="" className="font-semibold [unicode-bidi:isolate]">{isolate(m.coach_label, lang)}</span>{sep}
+                <CodeText lang={lang}>{m.school.school_name}</CodeText>
+              </>
+            )}{sep}
             <span>{pick(m.short_name, lang)}</span>
           </span>
         </button>

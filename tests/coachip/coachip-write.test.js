@@ -753,6 +753,18 @@ run('COACHIP write routes (Postgres, HTTP)', () => {
       expect((await one('SELECT count(*)::int AS n FROM coachip_steps')).n).toBe(0);
     });
 
+    // fix-r5 s2 item 11 (qa-rm R3b, 072544), decision: no migration. The store cannot carry a planned date: with set_at = now
+    // and the 14_days rule, the table's CHECK pins check_by to set date + 14, so "date + 14" for a later date is refused by
+    // Postgres itself (and the visit rule needs a booked visit). today-only stands; the client sends today (wC).
+    test('the store refuses check_by = a later date + 14 with set_at = now (why R21 stays today-only)', async () => {
+      await expect(pg.query(
+        `INSERT INTO coachip_steps (coach_user_id, scope, sector, w_id, i_id, set_at, check_by, check_by_rule)
+         VALUES ($1, 'sector', 'Urban-I', 'W-IP-TIME', 'I-IP-TIME-3', $2, $3, '14_days')`,
+        [RM, NOW, S.addDays(S.addDays(TODAY, 3), 14)],
+      )).rejects.toThrow(/check constraint/);
+      expect((await one('SELECT count(*)::int AS n FROM coachip_steps')).n).toBe(0);
+    });
+
     test.each([
       ['a teacher-level I', { i_id: 'I-IP-TIME-1' }],
       ['an I of another W', { i_id: 'I-EXIT-TIME-2' }],
