@@ -121,6 +121,7 @@
             return Promise.all(jobs);
           }).then(function () { if (opts.onEvent) opts.onEvent(e); if (sync) sync.poke(); });
           if (HOOK[e.type]) fire(HOOK[e.type], e);
+          if (e.type === 'silence_repeat') discardFor = e.task_id;
           if (e.type === 'battery_end') batteryEnd();
           // The game's mic check is kept for this phone (the coach's pre-flight writes the same keys).
           if (e.type === 'mic_check' && micMod) micMod.remember(!!(e.value && e.value.ok), e.value && e.value.rms);
@@ -132,6 +133,10 @@
           return m === 'unknown' && mode === 'proctored' ? 'no' : m;
         }
 
+        // Round 7b (sa_silence_repeat): RDF auto listens for a voice on every read-aloud part; a silent attempt's recording
+        // is discarded (never uploaded), so the repeat's is the one kept.
+        var silenceRepeat = (battery.ui || {}).silence_repeat === true && mode === 'proctored' && opts.manual !== true;
+        var discardFor = null;
         // The sandbox-only "Jump to…" (RULING #43): only when the server put SA_DEV_TOOLS = true on the page (it does
         // so only on the sandbox service), and only for the coach.
         var devTools = mode === 'proctored' && (deps.win || root).SA_DEV_TOOLS === true;
@@ -144,7 +149,10 @@
           one_at_a_time: w3.one_at_a_time === true, manual: manual, comp_all_questions: w3.comp_all_questions === true,
           cell_pace: w3.cell_pace === true, section_recording: w3.section_recording === true, cell_next_only: w3.cell_next_only === true,
           // sa_auto_no_last_word (round 7): RDF auto ends the passage on "I'm done" / time up, with no last-word step.
-          skip_last_word: w3.auto_no_last_word === true && mode === 'proctored' && !manual });
+          skip_last_word: w3.auto_no_last_word === true && mode === 'proctored' && !manual,
+          // round 7b (the runner keeps each to its mode: end_section RDF manual; under20 and silence_repeat RDF auto)
+          end_section: w3.end_section === true && mode === 'proctored', under20: w3.under20_move_on === true && mode === 'proctored',
+          silence_repeat: silenceRepeat });
         var voice = voiceMod.create({ lang: lang, base: opts.audio_base || '/', muted: false, onSpeak: function (s) { fire('audio', s); }, onSilent: function (s) { fire('silent', s); } });
         if (syncMod && opts.sink) {
           sync = syncMod.create({ store: store, sink: opts.sink, session_id: sessionId, onStatus: function (s) { fire('sync', s); } });
@@ -173,7 +181,7 @@
             // The mercy rule on the passage (RULING #10): no voice for 12 s → Jugnu offers the star once; 20 s → the
             // task ends as early_stop_silence. The recorder's watch starts now, with the recording running.
             // sa_cell_pace: a one-at-a-time item waits 3 s after the child's last voice, so the engine hears the voice.
-            if (w3.cell_pace === true && t.mode === 'record' && !item && !t.passage && rec.onVoice) {
+            if (rec.onVoice && ((w3.cell_pace === true && t.mode === 'record' && !item && !t.passage) || (silenceRepeat && t.mode === 'record' && !item))) {
               endVoice();
               cancelVoice = rec.onVoice(function () { runner.voice(); });
             }
@@ -197,6 +205,11 @@
           if (cancelSilence) { try { cancelSilence(); } catch (_) { /* ended */ } cancelSilence = null; }
           endVoice();
           if (!rec) return Promise.resolve(null);
+          // sa_silence_repeat: the silent attempt's recording never leaves the phone
+          if (!item && discardFor && t && discardFor === t.id && rec.discard) {
+            discardFor = null;
+            return Promise.resolve(rec.discard()).then(function () { if (sync) sync.poke(); return null; }, function () { return null; });
+          }
           return rec.stop().then(function (meta) {
             if (meta) runner.log('record_stop', { task_id: t.id, item_id: item ? item.id : undefined, value: { duration_ms: meta.duration_ms, parts: meta.parts } });
             if (sync) sync.poke();
@@ -275,12 +288,25 @@
         // writes and the sync go, then sa:done {reason:'coach_end'}, once. Only this session, only the page's origin.
         var win = deps.win || root;
         var coachEnded = false;
+        // Round 7b (sa_end_section, RDF manual): the coach page's End this section ({type:'sa:end_section', s}); the
+        // runner ends the task on show and skips the rest of its section, the test goes on. Only this session, this origin.
+        var onSection = function (e, d) {
+          if (coachEnded || !manual || w3.end_section !== true || d.s !== sessionId) return;
+          if (!win.location || e.origin !== win.location.origin) return;
+          if (runner.endSection() && view && view.render) view.render();
+        };
         var onMsg = function (e) {
           var d = e && e.data;
+          if (opts.embed && d && d.type === 'sa:end_section') { onSection(e, d); return; }
           if (coachEnded || !opts.embed || !d || d.type !== 'sa:coach_end' || d.s !== sessionId) return;
           if (!win.location || e.origin !== win.location.origin) return;
           coachEnded = true;
           // The battery has ended: the child is complete, whichever way the coach takes the phone back.
+          if (!ended && w3.end_test_restart === true) {
+            // round 7b (sa_end_test_restart): the coach's End test is one kept event, on the task on show
+            var on = runner.view().task;
+            runner.log('end_test', { task_id: on ? on.id : undefined, value: { by: 'coach', mode: manual ? 'coach_led' : 'auto' } });
+          }
           if (ended) {
             ended.then(function () {
               if (win.parent && win.parent !== win) win.parent.postMessage({ type: 'sa:done', s: sessionId, reason: 'complete' }, win.location.origin);

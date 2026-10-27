@@ -70,6 +70,12 @@ const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManu
   under20MoveOn: 'under20_move_on', tSoundTa: 't_sound_ta', sayThenNext: 'say_then_next', storyScroll: 'story_scroll',
   audioGatedNext: 'audio_gated_next', tickPrompt: 'tick_prompt' };
 const W3_KEYS = ['rdf_auto', 'rdf_manual', 'rdf_variants', 'rdf_w3_absent'];
+// Round 7b (sa_silence_repeat): Jugnu's reminder, voiced in both sets (dashboard/sa/v1|v2/<lang>/<key>.mp3, keyed as the bank
+// builder keys a line: sha1(lang|text)[:12]); added to the battery's lines while the switch is ON.
+const SILENCE_LINE = {
+  en: { text: 'Jugnu could not hear you. Say each answer out loud. Let us do this part again.', audio: 'sa/v1/en/90d23fdca65f.mp3' },
+  ur: { text: 'جگنو آپ کی آواز نہیں سن سکا۔ ہر جواب اونچی آواز میں بولیں۔ آئیے یہ حصہ دوبارہ کرتے ہیں۔', audio: 'sa/v1/ur/dc59290fb3f6.mp3' },
+};
 const W3_LINES = ['coach_will_instruct', 'please_go_on'];
 
 /** OFF: the battery less everything the W3 forms added. */
@@ -100,7 +106,9 @@ function applySwitches(input, on = {}) {
   });
   const ui = Object.keys(UI).filter((k) => on[k] === true);
   if (!ui.length) return { ...battery, tasks };
-  return { ...battery, tasks, ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => [UI[k], true])) } };
+  const line = on.silenceRepeat === true ? SILENCE_LINE[battery.lang] : null;
+  const lines = line ? { ...(battery.lines || {}), silence_repeat: { ...line } } : null;
+  return { ...battery, tasks, ...(lines ? { lines } : {}), ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => [UI[k], true])) } };
 }
 
 module.exports = { SWITCHES, applySwitches };
