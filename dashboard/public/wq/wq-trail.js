@@ -23,6 +23,9 @@
  *              first asks "hear it from me first, or read it yourself" (read along = the story clip with the line lit,
  *              then the normal read); no clock, no score, no words a minute, no "N of M"; the end card says the story
  *              can be read again + the sticker line. A refused id (any 400), 404 or no network is "on its way".
+ *   preview   a grown-up's preview that plays (the serve's `practice_play`, app_settings web_quiz_practice_play): a
+ *              Story Time read is the read-along only (Jugnu reads, the words light) and then the story's end card; the
+ *              microphone is never asked for (no "read it yourself"), and nothing is scored or kept.
  * Copy: copy.v2.json keys (jg.*), camelCase of the key tail; gender-neutral; no number about the child.
  */
 (function () {
@@ -330,8 +333,13 @@
       h.on('wqc-menu', function () { try { var u = new URL(location.href); u.searchParams.delete('room'); u.searchParams.delete('pid'); location.href = u.toString(); } catch (e) { /* stays */ } });
     }
     // The story came back: only a practice run plays here (never a counted run from the room); a read needs its text
+    // a grown-up's preview (the serve's practice_play): the read-along only, never the microphone
+    function micless(d) { return !!(d && d.practice_play); }
+    // what follows the read-along: the normal read (the microphone), or on a preview the story's end card
+    function afterAlong() { return micless(h.S.data) ? function () { storyEnd('read-result', false); } : h.read; }
     function storyOpened(ex, d, intro) {
       if (!d || outcome(d) === 'on_its_way' || d.practice_round !== true || (ex === 'read' && !(d.story && d.story.text))) { storyWait(); return; }
+      if (ex === 'read' && micless(d) && !(clipUrl(d) || d.readalong)) { storyWait(); return; }   // nothing to hear yet
       if (ex === 'listen' && !clipUrl(d)) { gettingReady(ex); return; }
       tries = 0;
       d.story_room = true;
@@ -357,6 +365,13 @@
     }
     // two equal answers, neither pressed until a tap
     function storyAsk() {
+      // a preview: the one answer (Jugnu reads it; the tap starts the voice), never "read it yourself"
+      if (micless(h.S.data)) {
+        h.show('story-ask', h.jug('hello', t.storyReadAlong, true) + '<div class="wq-stack">' + btn('wqc-story-along', h.t.listenGo).replace('type="button"', 'type="button" data-primary') + '</div>');
+        h.on('wqc-story-along', function () { readAlong(); unwarm(); });
+        warm();
+        return;
+      }
       h.show('story-ask', h.jug('hello', t.storyAsk, true) + '<div class="wq-stack">'
         + (window.WQJ ? btn('wqc-story-along', t.storyReadAlong).replace('type="button"', 'type="button" data-primary') + btn('wqc-story-read', h.t.ready, 'wq-soft') : btn('wqc-story-along', t.storyReadAlong) + btn('wqc-story-read', h.t.ready)) + '</div>'); // the kit (web_quiz_juice): one primary
       h.on('wqc-story-along', function () { readAlong(); unwarm(); });
@@ -419,10 +434,10 @@
     // Read along: the story clip plays, the line it is on is lit, then the normal read (the microphone, the story)
     function readAlong() {
       var d = h.S.data;
-      if (d.readalong && window.WQReadAlong) { timedAlong(d.readalong, h.read); return; }
+      if (d.readalong && window.WQReadAlong) { timedAlong(d.readalong, afterAlong()); return; }
       // the player was asked for when the story opened and is still on its way (a quick tap on a slow phone): the
       // along screen waits for it, never the old clip, and Jugnu reads word by word the moment it lands
-      if (d.readalong && raLoad.asked && !raLoad.failed) { alongWait(d, d.readalong, h.read, lineAlong); return; }
+      if (d.readalong && raLoad.asked && !raLoad.failed) { alongWait(d, d.readalong, afterAlong(), lineAlong); return; }
       lineAlong(d);
     }
     // the passage's words wait on the along screen for the player (ra: its timings; next: after "I'm ready"); a player
@@ -446,7 +461,7 @@
     function lineAlong(d) {
       // with word timings on the serve (their player failed or came too late) nothing moves on by itself: only "I'm ready"
       var stay = !!d.readalong;
-      if (!clipUrl(d) && !stay) { h.read(); return; }
+      if (!clipUrl(d) && !stay) { afterAlong()(); return; }
       var st = d.story;
       var ws = alongWords(st);
       var lines = (st.lines && st.lines.length) ? st.lines : [{ from: 0, to: ws.length - 1 }];
@@ -462,7 +477,7 @@
         over = true;
         clearTimeout(cap);
         try { if (a) a.pause(); } catch (e) { /* already stopped */ }
-        h.read();
+        afterAlong()();
       };
       var light = function () {
         var dur = a && a.duration;

@@ -8,6 +8,12 @@
  *
  * Switch app_settings web_quiz_stories (default OFF, read at most every 30 s, fail closed): OFF, the edge does not own
  * the path at all — the request goes on to whatever answers it today, byte for byte, and storage is never asked.
+ *
+ * A phone that cannot play Ogg Opus (Safari and WhatsApp's browser on iOS before 18.4): with app_settings
+ * web_quiz_story_mp3 (JSON true only; default OFF) a voice asked for as `<stem>-<hash8>.mp3` that storage does not hold
+ * is made from its stored `<stem>-<hash8>.ogg` (ffmpeg, mono 48 kb/s, a few hundred ms), kept in the same memory and
+ * served immutable under the same hash: the same voice, the same timings. The reader asks for the .mp3 only on such a
+ * phone (wq-stories.js, the book's `mp3: 1`). Off: an .mp3 storage does not hold is 404, as today.
  */
 const StoryStore = require('../../bot/shared/services/quiz/story-store');
 
@@ -67,6 +73,40 @@ function flagReader({ now = Date.now, key = FLAG_KEY, jsonTrue = false } = {}) {
   };
 }
 
+const MP3_KEY = 'web_quiz_story_mp3';
+const TRANSCODE_MS = 20000;
+const TRANSCODE_MAX = 2;          // ffmpeg runs at once on this box; more wait their turn
+
+/** The ffmpeg binary: FFMPEG_PATH, else the bundled one (a portal dependency), else ffmpeg on PATH. */
+function ffmpegBin() {
+  try { return require('../services/coach-disagreement-clip').ffmpegBinary(); } catch (_) { return 'ffmpeg'; }
+}
+
+/** An Ogg Opus voice as MP3 bytes (mono, 48 kb/s). Rejects on a spawn error, a non-zero exit, no output or a timeout. */
+function oggToMp3(bytes, { bin = ffmpegBin(), spawn = require('child_process').spawn, timeoutMs = TRANSCODE_MS } = {}) {
+  return new Promise((resolve, reject) => {
+    let done = false;
+    const out = [];
+    const proc = spawn(bin, ['-hide_banner', '-loglevel', 'error', '-nostdin', '-i', 'pipe:0', '-vn', '-ac', '1', '-c:a', 'libmp3lame', '-b:a', '48k', '-f', 'mp3', 'pipe:1'], { stdio: ['pipe', 'pipe', 'pipe'] });
+    const end = (err, val) => { if (done) return; done = true; clearTimeout(timer); if (err) { try { proc.kill('SIGKILL'); } catch (_) { /* gone */ } reject(err); } else resolve(val); };
+    const timer = setTimeout(() => end(new Error('transcode timed out')), timeoutMs);
+    proc.on('error', (e) => end(e));
+    proc.stdout.on('data', (c) => out.push(c));
+    if (proc.stderr) proc.stderr.resume();
+    proc.on('close', (code) => { const b = Buffer.concat(out); if (code === 0 && b.length) end(null, b); else end(new Error(`ffmpeg exited ${code}`)); });
+    proc.stdin.on('error', () => { /* the exit code says it */ });
+    proc.stdin.end(bytes);
+  });
+}
+
+/** At most `max` at once; the rest queue (never refused). */
+function limiter(max) {
+  let running = 0;
+  const queue = [];
+  const next = () => { if (running >= max || !queue.length) return; running += 1; const { fn, res, rej } = queue.shift(); fn().then(res, rej).finally(() => { running -= 1; next(); }); };
+  return (fn) => new Promise((res, rej) => { queue.push({ fn, res, rej }); next(); });
+}
+
 /** The object at key in the quiz-audio bucket, or null when storage has no such object. */
 async function r2Object(key) {
   return require('../services/r2.service').getObjectBytes(key, { bucket: StoryStore.storyBucket() || undefined });
@@ -89,6 +129,27 @@ function createStoryAssetHandler(opts = {}) {
   const storyObject = opts.storyObject || r2Object;
   const env = opts.storyEnv || StoryStore.deployEnv();
   const lru = createByteLru(opts.lruBytes || LRU_BYTES);
+  // web_quiz_story_mp3: read only when an .mp3 storage does not hold is asked for (never on another request)
+  const mp3On = opts.mp3On || flagReader({ now: opts.now, key: MP3_KEY, jsonTrue: true });
+  const transcode = opts.transcode || ((bytes) => oggToMp3(bytes));
+  const queue = limiter(opts.transcodeMax || TRANSCODE_MAX);
+  const making = new Map();   // mp3 key → the one transcode in flight (a class asking at once makes it once)
+  // the .mp3 of a stored .ogg: null when the switch is off or there is no .ogg; throws when the transcode fails
+  async function mp3Of(key) {
+    let on = false;
+    try { on = (await mp3On()) === true; } catch (_) { on = false; }
+    if (!on) return null;
+    if (making.has(key)) return making.get(key);
+    const p = (async () => {
+      const oggKey = key.replace(/\.mp3$/, '.ogg');
+      const ogg = lru.get(oggKey) || await storyObject(oggKey);
+      if (!ogg || !ogg.bytes) return null;
+      const bytes = await queue(() => transcode(ogg.bytes));
+      return { bytes, contentType: 'audio/mpeg' };
+    })();
+    making.set(key, p);
+    try { return await p; } finally { making.delete(key); }
+  }
   return async function storyAsset(req, res, next) {
     let on = false;
     try { on = (await storiesOn()) === true; } catch (_) { on = false; }
@@ -109,6 +170,9 @@ function createStoryAssetHandler(opts = {}) {
     let obj = lru.get(key);
     if (!obj) {
       try { obj = await storyObject(key); } catch (_) { return res.status(502).set(NO_STORE).json({ error: 'upstream_error' }); }
+      if ((!obj || !obj.bytes) && /\.mp3$/.test(file)) {
+        try { obj = await mp3Of(key); } catch (_) { return res.status(502).set(NO_STORE).json({ error: 'upstream_error' }); }
+      }
       if (!obj || !obj.bytes) return res.status(404).set(NO_STORE).json({ error: 'not_found' });
       lru.set(key, obj);
     }
@@ -124,4 +188,4 @@ function createStoryAssetHandler(opts = {}) {
   };
 }
 
-module.exports = { createStoryAssetHandler, createByteLru, flagReader, r2Object, FLAG_KEY };
+module.exports = { createStoryAssetHandler, createByteLru, flagReader, r2Object, oggToMp3, FLAG_KEY, MP3_KEY };

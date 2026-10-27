@@ -432,6 +432,33 @@ describe('who / role — the one answer, remembered on the server', () => {
     expect(r.next).toMatch(/^\/quiz\/teacher\//);
   });
 
+  test('web_quiz_practice_play on: a registered teacher who taps "I want to play" lands on the practice home for the class\'s grade', async () => {
+    world();
+    mockDb.tables.app_settings.push({ key: 'web_quiz_practice_play', value: true });
+    require('../../shared/services/quiz/web-quiz-practice-play')._reset();
+    const r = await (await post('role', { t: await mint(TEACHER, PH.teach, 'unknown', 'ur'), side: 'child' })).json();
+    expect(r.side).toBe('teacher');
+    const m = /^\/h\/([^?]+)\?from=door$/.exec(r.next);
+    expect(m).not.toBeNull();
+    // the practice home's own token: no child, a grade, Back to this teacher's home
+    const tok = WebQuizToken.verify(m[1], 'h');
+    expect(tok).toMatchObject({ ids: [], pr: 1, lang: 'ur' });
+    expect([1, 2, 3, 4, 5]).toContain(tok.g);
+    expect(tok.bk).toMatch(/^\/quiz\/teacher\//);
+    expect(studentWrites()).toEqual([]);
+    expect(logEvent).toHaveBeenCalledWith('one_door.practice', expect.objectContaining({ grade: tok.g }));
+    require('../../shared/services/quiz/web-quiz-practice-play')._reset();
+  });
+
+  test('GOLDEN: web_quiz_practice_play false → the teacher home, as before', async () => {
+    world();
+    mockDb.tables.app_settings.push({ key: 'web_quiz_practice_play', value: false });
+    require('../../shared/services/quiz/web-quiz-practice-play')._reset();
+    const r = await (await post('role', { t: await mint(TEACHER, PH.teach, 'unknown'), side: 'child' })).json();
+    expect(r.next).toMatch(/^\/quiz\/teacher\//);
+    require('../../shared/services/quiz/web-quiz-practice-play')._reset();
+  });
+
   test('a stale token → 410 {error:go.stale}; a side outside the two → 400', async () => {
     world();
     const old = GoToken.signGo({ uid: 'u-unknown', side: 'unknown', n: 'm'.repeat(22), lang: 'bi', src: 'typed' }, { now: Date.now() - 25 * 3600 * 1000 });

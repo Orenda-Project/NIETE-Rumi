@@ -723,3 +723,42 @@ describe('the grown-ups sheet: contrast, Nastaliq links, and nothing else reacha
     for (const n of [home, bar]) { expect(n.attrs.inert).toBeUndefined(); expect(n.attrs['aria-hidden']).toBeUndefined(); }
   });
 });
+
+describe('the preview that PLAYS (the boot\'s practice_play): the Next tile and a home row open, the class strip stays', () => {
+  const PR = {
+    lang: 'en', practice: 1, th: { practice: true }, grade: 3, kids: [], kid: null, teacher: null, again: [], recs: [], challenge: { on: true }, lib: null, brand: 'niete',
+    home_v3: 1, doors: { stories: [{ kind: 'passage', id: 'en.read.1.k07', fresh: false, title: 'The red kite' }, { kind: 'shelf' }], games: [{ kind: 'numbers' }], videos: { watch: true, practice: true } },
+    head: { dots: 0, today: false, jar: null }, practice_back: '/quiz/teacher/abc',
+  };
+  // a home whose root hands out the one tile to tap (the vm has no DOM)
+  function tapHome(B) {
+    const l = {};
+    const tile = {
+      attrs: { 'data-tap': 'next', href: `/c/${TOKEN}?kid=&lang=en&room=story&pid=en.read.1.k07`, 'data-kind': 'story' },
+      getAttribute(a) { return this.attrs[a] == null ? null : this.attrs[a]; },
+      addEventListener(n, fn) { (l[n] = l[n] || []).push(fn); },
+    };
+    const sheets = [];
+    const root = { innerHTML: '', setAttribute() {}, querySelector: () => null, querySelectorAll: (sel) => (sel === '[data-tap]' ? [tile] : []), appendChild: (b) => sheets.push(b), removeChild() {} };
+    const win = { addEventListener() {}, scrollTo() {} };
+    const document = { querySelector: () => null, createElement: () => ({ className: '', attrs: {}, setAttribute() {}, addEventListener() {}, querySelector: () => null, appendChild() {}, innerHTML: '' }), head: { appendChild() {} } };
+    vm.runInNewContext(fs.readFileSync(HOME_SRC, 'utf8'), { window: win, document, navigator: {}, location: { hash: '', pathname: '/h/x', search: '' }, localStorage: { getItem: () => null, setItem() {} }, setTimeout, clearTimeout, JSON, Math, String, Number, Array, Object, encodeURIComponent, RegExp });
+    const go = jest.fn();
+    win.WQHOME.mount(root, B, { token: TOKEN, lang: 'en', ev() {}, go });
+    let prevented = false;
+    (l.click || []).forEach((fn) => fn({ preventDefault() { prevented = true; } }));
+    return { go, sheets, prevented, html: root.innerHTML };
+  }
+  test('practice_play: the Next tile (Jugnu\'s read-along) opens the story room; no "children open it" sheet', () => {
+    const r = tapHome({ ...PR, practice_play: 1 });
+    expect(r.go).toHaveBeenCalledWith(`/c/${TOKEN}?kid=&lang=en&room=story&pid=en.read.1.k07`, 'next');
+    expect(r.sheets.filter((b) => /wq-prnote/.test(b.className))).toEqual([]);
+    expect(r.html).toContain('data-practice-strip');
+  });
+  test('GOLDEN: a look-only preview (no practice_play) still says where the class opens it, and goes nowhere', () => {
+    const r = tapHome(PR);
+    expect(r.go).not.toHaveBeenCalled();
+    expect(r.prevented).toBe(true);
+    expect(r.sheets.filter((b) => /wq-prnote/.test(b.className))).toHaveLength(1);
+  });
+});

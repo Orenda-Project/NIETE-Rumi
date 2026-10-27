@@ -2882,3 +2882,25 @@ Feature: NIETE (ICT) Teacher Training
     And an ordinary read, or a real read of the wrong story, keeps its sticker line, its story sticker and its day as before
     # web-quiz-challenge.js submit + runState (noiseRun); web-quiz-book.js storyIdsOf, daysOf, lightsOf (noiseRow); wq-trail.js endCard;
     # unit: challenge-read-quality.test.js, web-quiz-book-noise.test.js, dashboard web-quiz-trail-noise-sticker.service.test.js
+
+  # ── the class preview that plays (app_settings web_quiz_practice_play) ──
+  @web @quiz @config-gated @wip @draft @P1 @T1176 @no-mock-driver
+  Scenario: With web_quiz_practice_play on, every teacher's quiz home offers "Try it as a student"
+    Given app_settings "web_quiz_practice_play" is true
+    When a teacher who is not a coach opens their quiz home
+    Then the foot offers "Try it as a student", the grade-only practice join that writes nothing
+    And the home's open event says whose home it is, coach or teacher, and never a name
+    But with the switch off or absent only a coach or a leader is offered it, as before
+    # teacher-home.routes.js practiceUrl (the switch read beside the user read) and roleTag.
+    # Unit: bot/tests/first-touch/teacher-home.routes.test.js ("Try it as a student" for every teacher). @wip.
+
+  @web @quiz @config-gated @wip @draft @P1 @T1177 @no-mock-driver
+  Scenario: With web_quiz_practice_play on, a registered teacher who taps "I want to play" plays the class's grade
+    Given app_settings "web_quiz_practice_play" is true
+    And I am a registered teacher
+    When I send "quiz", open the link and tap "I want to play"
+    Then the child home of my class's grade opens as a class preview, with no child named and nothing written
+    And its "Back" returns to my quiz home
+    But with the switch off the server's answer still wins and my quiz home opens, as before
+    # go.routes.js teacherPlays: the maker prefill's grade (Grade 2 when none), one_door.practice{grade}.
+    # Unit: bot/tests/first-touch/one-door-go-routes.test.js. @wip.
