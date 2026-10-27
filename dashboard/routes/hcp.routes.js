@@ -94,9 +94,20 @@ async function requirePatchScope(req, res, next) {
   }
 }
 
+// Every hcp answer carries teacher names and ids, so none of it may be cached,
+// the refusals included.
+function noStore(_req, res, next) {
+  res.set('Cache-Control', 'private, no-store');
+  return next();
+}
+
 // Route-level rather than router.use so a handler invoked off router.stack
 // (tests/hcp/_shared.js) still runs the whole chain.
-const guard = [requirePortalAuth, requireLeaderRole, requirePatchScope];
+const guard = [noStore, requirePortalAuth, requireLeaderRole, requirePatchScope];
+
+// A region is one plain label ("ICT", "Urban-I"). Anything else, including a
+// repeated or bracketed param, is refused before it reaches a query.
+const REGION_RX = /^[A-Za-z][A-Za-z0-9 _-]{0,63}$/;
 
 function inScope(req, teacherId) {
   return teacherId != null && req.hcpScope instanceof Set && req.hcpScope.has(String(teacherId));
@@ -211,6 +222,9 @@ function computeTrend(sessions) {
 router.get('/teachers', ...guard, async (req, res) => {
   try {
     const { region } = req.query;
+    if (region !== undefined && (typeof region !== 'string' || !REGION_RX.test(region))) {
+      return res.status(400).json({ success: false, error: 'Invalid region.' });
+    }
     const scopeIds = [...req.hcpScope];
     if (scopeIds.length === 0) return res.status(200).json({ success: true, teachers: [] });
 
@@ -830,7 +844,7 @@ function parseFeedbackJson(raw) {
 router.post('/generate-feedback', ...guard, async (req, res) => {
   try {
     const {
-      teacher_id, coaching_session_id, observation_data, language, prompt: overridePrompt,
+      teacher_id, coaching_session_id, observation_data, language,
     } = req.body || {};
 
     if (!teacher_id) {
@@ -842,7 +856,9 @@ router.post('/generate-feedback', ...guard, async (req, res) => {
     if (!inScope(req, teacher_id)) return teacherNotFound(res);
 
     const lang = VALID_FEEDBACK_LANGUAGES.has(language) ? language : 'english';
-    const prompt = overridePrompt || buildFeedbackPrompt({ observationData: observation_data, language: lang });
+    // Always the prompt built here: a caller-supplied prompt would turn this
+    // route into a free model proxy and store arbitrary text in prompt_used.
+    const prompt = buildFeedbackPrompt({ observationData: observation_data, language: lang });
 
     // Lazy-require so tests can mock the module cleanly.
     let llmResponse;
