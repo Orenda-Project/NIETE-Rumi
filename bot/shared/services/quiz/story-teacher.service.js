@@ -36,7 +36,7 @@ const FLAG_KEY = 'web_quiz_stories_teacher';
 const NEEDS = ['web_quiz_stories', 'web_quiz_hub'];
 // The Stories page's own security policy (hashed <meta> + header; default off). Read in the switch's one read.
 const CSP_KEY = 'quiz_teacher_stories_csp';
-const FLAG_TTL_MS = 30 * 1000;
+const FLAG_TTL_MS = require('../../config/app-settings-ttl').APP_SETTINGS_FLAG_TTL_MS;   // 30 s; APP_SETTINGS_FLAG_TTL_MS shortens it on a test lane (bd-0vaqcg)
 const SHELF_N = 4;
 const SOURCE = 'story';
 const BOOK_COLS = 'id, title, grade, lang, pages, minutes, cover_file, featured_rank, status';

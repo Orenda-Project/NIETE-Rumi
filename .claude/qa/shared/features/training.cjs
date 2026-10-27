@@ -16,6 +16,28 @@ const VF = (op, c, ev) => op.ok ? V(c, ev) : ['BLOCKED', { harness: op.err, clic
 const CARD = /Teacher Training/i;
 const CTA  = 'کھولیں|Open';
 
+/** The question's own line out of a quiz message: never the "Qn/N" header, nor the line the Meta bill cut
+ *  merged it into ("✅ Correct · Q2/20" — the feedback for the previous answer and the next header as ONE
+ *  line), nor an option, "required" or "Select all that apply"; the "(Select all that apply)" suffix is
+ *  stripped. Taking the merged line as the question matched no answer-key entry and ended T05/T16/T21 at
+ *  Q2 with NO_KEY_ENTRY (bd-yuur1a). */
+// The question is the line AFTER the "Qn/N" header (which may carry the previous answer's feedback,
+// "✗ Not correct · Q2/20"); anything before the header — the module card's own caption on the first
+// question — is never the question (bd-1r3k2h, T21). Without a header, the first non-option line.
+const isQHeader = (l) => /(^|·\s*)Q\d+\/\d+(\s*\(Select all that apply\))?$/.test(l);
+// A whole-line bold title ("📝 *Module check — …*", run 20261027-050355 T21) is the card's caption, never the question.
+const isTitleLine = (l) => /^[^\w*]{0,4}\*[^*]+\*\s*$/u.test(l);
+// The module check's intro sentence (quiz-delivery.service: "N questions. You need *X%* to unlock …") opens Q1's body.
+const isIntroLine = (l) => /^\d+ questions?\. You need \*?\d+%/.test(l);
+const isNotQuestion = (l) => !l || isQHeader(l) || isTitleLine(l) || isIntroLine(l) || /^[A-J]\.\s/.test(l) || /^(required|Select all that apply|Selected:.*)$/i.test(l);
+const questionLineOf = (txt) => {
+  const lines = String(txt || '').split('\n').map((l) => l.trim());
+  const h = lines.findIndex(isQHeader);
+  const pool = h >= 0 ? lines.slice(h + 1) : lines;
+  return (pool.find((l) => !isNotQuestion(l)) || '').replace(/\s*\(Select all that apply\)\s*$/i, '').trim();
+};
+exports.questionLineOf = questionLineOf;
+
 exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
   const seenIds = new Set();
   const rec = (id, ...rest) => { seenIds.add(id); return rec0(id, ...rest); };
@@ -30,7 +52,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       for (const r of await api.fresh()) seen.push(r);
       const hit = seen.find(pred);
       if (hit) return { ok: true, waitedMs: Date.now() - t0, hit, seen };
-      await new Promise((r) => setTimeout(r, stepMs));
+      await sleep(stepMs);   // on the mock lane this wakes when the bot sends (bd-aqi0ay)
     }
     return { ok: false, waitedMs: Date.now() - t0, seen, last: (seen[seen.length - 1] || {}).txt || '' };
   };
@@ -65,6 +87,10 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
   // ── T15 — "/teacher training" (two words) is NOT a trigger ──────────────────
   if (want('T15')) {
   s = t();
+  // The previous scenario may have left the menu wait open; inside it the bot matches free text to a menu row
+  // by words ("Teacher Training" ← "/teacher training", menu_match.row) and opens the Flow. The spec is a chat
+  // with no menu open, so park the conversation state first (bd-yuur1a).
+  if (api.setUser) await api.setUser({ conversation_state: null, conversation_state_expires_at: null });
   const two = await api.sendWait('/teacher training');
   rec('T15', '"/teacher training" (two words) is not a training command',
       ...V(!CARD.test(two.txt) || !(two.btns || []).some(b => new RegExp(CTA).test(b)),
@@ -378,7 +404,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
     // 🏆 Congratulations or ❌ Not this time card; a written exam opens with ✍️ Question 1.
     const GQ_TERM = /\ud83c\udfc6 \*Congratulations|\u274c \*Not this time|You have completed every|\u270d\ufe0f \*Question 1 of/;
     const isTerm = (x) => NOT_QUITE.test(x.txt || '') || PASSED.test(x.txt || '') || GQ_TERM.test(x.txt || '');
-    const waitFor = async (pred, ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { await pull(); const h = [...seen].reverse().find(pred); if (h) return h; await new Promise(r => setTimeout(r, 1200)); } return null; };
+    const waitFor = async (pred, ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { await pull(); const h = [...seen].reverse().find(pred); if (h) return h; await sleep(1200); } return null; };
     const trail = []; let first = null; const answered = new Set();
     for (let n = 0; n < 40; n++) {
       // Dedupe a question on its Qn/N header, NOT on its row-id set: the options are shuffled per
@@ -402,7 +428,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
         // message; the wait below only runs for the over-cap fallback, where they follow as a separate card.
         // A PASS now opens the NEXT module's card (or the certificate PDF's caption, or the level-complete
         // line) — the hit IS that card, returned whole so T01/T08 do not wait for a second one.
-        if (notQuite && !btns.some(bb => /Try again|Pause/i.test(bb))) { const t0 = Date.now(); while (Date.now() - t0 < 8000) { await pull(); const b = [...seen].reverse().find(x => (x.btns || []).some(bb => /Try again|Pause/i.test(bb))); if (b) { btns = b.btns; break; } await new Promise(r => setTimeout(r, 800)); } }
+        if (notQuite && !btns.some(bb => /Try again|Pause/i.test(bb))) { const t0 = Date.now(); while (Date.now() - t0 < 8000) { await pull(); const b = [...seen].reverse().find(x => (x.btns || []).some(bb => /Try again|Pause/i.test(bb))); if (b) { btns = b.btns; break; } await sleep(800); } }
         return { first, trail, seen, last: { verdict: notQuite ? 'not-quite' : 'passed', txt: (hit.txt || '').slice(0, 220), btns,
                                              doc: !!(hit.doc || hit.pdf), hit } };
       }
@@ -413,9 +439,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
         if (n === 0) first = head ? head[0] : null;
         // The question line itself ends in "(Select all that apply)", so strip that suffix rather than
         // skip the line — skipping it left qLine empty and matched no key entry.
-        const qLine = (qTxt.split('\n').map(l => l.trim())
-          .find(l => l && !/^Q\d+\/\d+$/.test(l) && !/^Select all that apply$|^required$/i.test(l)) || '')
-          .replace(/\s*\(Select all that apply\)\s*$/i, '').trim();
+        const qLine = questionLineOf(qTxt);
         const entry = (key.questions || []).find(q => norm(q.q) === norm(qLine)
           || norm(q.q).startsWith(norm(qLine).slice(0, 60)) || norm(qLine).startsWith(norm(q.q).slice(0, 60)));
         if (!entry) return { first, trail, seen, last: { err: 'NO_KEY_ENTRY_FLOW', qLine: qLine.slice(0, 120) } };
@@ -453,7 +477,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       }
       const rows = hit.list.rows; answered.add(qKey(hit));
       const head = /Q(\d+)\/(\d+)/.exec(hit.txt || ''); const qNo = head ? Number(head[1]) : n + 1; if (n === 0) first = head ? head[0] : null;
-      const qLine = String(hit.txt || '').split('\n').map(l => l.trim()).find(l => l && !/^Q\d+\/\d+$/.test(l) && !/^[A-J]\.\s/.test(l) && !/required|Select all that apply|Selected:/.test(l)) || '';
+      const qLine = questionLineOf(hit.txt);
       const cands = (key.questions || []).filter(q => norm(q.q) === norm(qLine) || norm(q.q).startsWith(norm(qLine).slice(0, 60)) || norm(qLine).startsWith(norm(q.q).slice(0, 60)));
       // Bank questions can share a stem (the rhyming-words sequence items differ only in their options):
       // of the candidates, take the one whose correct option is actually on this screen (run 1201, Q14).
@@ -1156,11 +1180,15 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
     } catch (e) { if (!seenIds.has('T42')) R('T42')('BLOCKED', { reason: 'threw: ' + String((e && e.message) || e).slice(0, 200) }, 0); }
 
     // ── lesson-plan quiz states: T35 (offered) T36 (failed) T41 (queue_failed) — with REAL lesson refs
+    // --lesson-id borrows meta.lessons from the lesson's own asset source (the seed carries it); --lessons-from auto
+    // borrowed from a real SENT lp_v8 quiz, which the local seed has none of — the row then had no lesson refs and
+    // the Flow offered no "Make it again" (lessonsBorrowed: 0 on every mock run, bd-1r3k2h).
+    const LP_SEED_LESSON = process.env.E2E_LP_SEED_LESSON || 'grade_3_math_ch1_seg1';
     const lpState = async (tid, state, actionRe, expectText) => {
       s = t();
       let row = null;
       try {
-        row = dbJson('seed-lp-quiz', ['--state', state, '--lessons-from', 'auto', '--subject', 'maths']);
+        row = dbJson('seed-lp-quiz', ['--state', state, '--lesson-id', LP_SEED_LESSON, '--subject', 'maths']);
         if (!row || !row.id) throw new Error('SEED:' + JSON.stringify(row));
         const les = await openLesson(i => String(i.id || '') === 'lp_' + row.id);
         const ev = { lessonsBorrowed: row.lessons, rowText: les.row && les.row.hay, screen: les.screen, text: (les.text || '').slice(0, 300), actions: (les.actions || []).map(a => a.text) };
@@ -1175,9 +1203,14 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
         // sqs-queue.service) while the local stack runs BullMQ, whose driver would route it (bd-2aetj).
         // The bot therefore answers "I couldn't start that quiz just now" — the mock lane's gap.
         ev.queueUnavailable = ack.ok && /couldn.t start that quiz|could not start/i.test(ack.hit.txt || '');
-        const arrived = ack.ok && !ev.queueUnavailable ? await waitFresh((x) => (x.doc || x.pdf) || /QUIZ-[A-Z0-9]{6}/.test(x.txt || ''), 300000) : { ok: false };
+        // The bot says so when the quiz cannot be made ("Didn't work" / "went wrong on my side" / "could not be
+        // started"): stop waiting then, not after the 5 min budget — T35 idled 303 s on the lane (bd-r09cmx).
+        const failed = (x) => /went wrong on my side|could not be (finished|started)|couldn.t be (finished|started)|Didn.t work/i.test(x.txt || '');
+        const landed = ack.ok && !ev.queueUnavailable ? await waitFresh((x) => (x.doc || x.pdf) || /QUIZ-[A-Z0-9]{6}/.test(x.txt || '') || failed(x), 300000) : { ok: false };
+        const quizFailed = landed.ok && failed(landed.hit);
+        const arrived = quizFailed ? { ok: false, hit: landed.hit, failedCopy: (landed.hit.txt || '').slice(0, 120) } : landed;
         const after = dbJson('quiz-rows', ['--quiz', String(row.id)]) || {};
-        ev.arrival = { arrived: !!arrived.ok, what: arrived.ok ? (arrived.hit.media && arrived.hit.media.filename) || (arrived.hit.txt || '').slice(0, 120) : 'not within 5 min',
+        ev.arrival = { arrived: !!arrived.ok, what: arrived.ok ? (arrived.hit.media && arrived.hit.media.filename) || (arrived.hit.txt || '').slice(0, 120) : (quizFailed ? 'the bot said it failed: ' + arrived.failedCopy : 'not within 5 min'),
                        status: after.quiz && after.quiz.status, error: after.quiz && after.quiz.meta && after.quiz.meta.error, questions: (after.questions || []).length };
         const ok = les.ok && ev.textMatches && !!pick.ok && ack.ok && !ev.queueUnavailable && !!arrived.ok;
         R(tid)(ok ? V(true, ev) : (les.ok && ev.textMatches && pick.ok && ev.queueUnavailable
@@ -1470,7 +1503,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       if (c1.ok && c1.cta) {
         await api.freshReset(); await api.tapAndWait(c1.cta, 60000);
         const part = await takeQuiz(key21, { stopAfter: 1 });
-        ev.answeredBeforePause = part.trail.length; ev.firstServed = part.first;
+        ev.answeredBeforePause = part.trail.length; ev.firstServed = part.first; ev.pauseLast = part.last;
         const pk2 = await openBandPicker();
         const row2 = pk2.ok ? pk2.rows.find(x => String((x && x.text) || '').startsWith(title21)) : null;
         const c2 = row2 ? await deliverPicked(row2.text) : { ok: false, err: 'ROW_GONE' };

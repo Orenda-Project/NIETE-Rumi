@@ -948,6 +948,19 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then I get one message telling me to use the NIETE app, with the NIETE Play Store link
     And no lesson-plan menu opens
 
+  # ADDED 2026-10-27 (bd-1r3k2h): mock run 20261026-2335-par, L11 — with a Grades 6-12 lesson on the shelf the
+  # edit classifier (lp612-edit-intent) filed "make me a lesson plan on …" under out_of_scope and the router
+  # answered with the out-of-scope sentence, so neither the app notice nor the lesson-plan menu could open. The
+  # classifier now has a new_request label and lp612-edit-router falls through on it to intent detection.
+  @e2e @config-gated @P1 @L12
+  Scenario: Asking for a new lesson plan after a 6-12 lesson is answered by the lesson-plan feature, not as an edit
+    Given the NIETE bot chat is open
+    And Lesson Plans has been switched to the NIETE app
+    And the last thing I received is a Grades 6-12 lesson plan
+    When I send "make me a lesson plan on fractions for grade 4"
+    Then I get the "use the NIETE app" message, exactly as I would without the 6-12 lesson
+    And I am not told that what I asked for is a different thing from editing my lesson
+
   # ADDED 2026-10-01 (FX3, bd-w2daa.24): inside the quiet hour the bot answers nothing — and must not
   # look as if it is about to (it used to show "typing…" for ~25 s over silence).
   @e2e @config-gated @P2

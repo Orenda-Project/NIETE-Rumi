@@ -598,12 +598,15 @@ function makeApi(c) {
   // bot/scripts/e2e/mock-graph-api.js, and mock-api.cjs exposes the SAME primitives this file's
   // makeApi() does, so the feature scripts below run unchanged. Default (chrome) is untouched.
   const MOCK = (process.env.E2E_METHOD || 'chrome') === 'mock';
+  // Profiling (bd-5zzbvq): the span trace for this feature — E2E_TRACE_FILE is set by run-suite.sh to
+  // <run_dir>/trace-<feature>.jsonl; unset, the tracer is a no-op. Scenario rows come from rec() below.
+  const tracer = require(path.join(__dirname, 'trace.cjs')).createTracer({ run: process.env.RUN_DIR ? path.basename(process.env.RUN_DIR) : null, feature: FEATURE });
   const c = MOCK ? { close() {} } : await connect();
   const flows = MOCK && process.env.E2E_FLOWS_DIR && process.env.E2E_FLOW_PUBLIC_KEY_B64
     ? { dir: process.env.E2E_FLOWS_DIR, botUrl: process.env.E2E_BOT_URL, publicKeyPem: Buffer.from(process.env.E2E_FLOW_PUBLIC_KEY_B64, 'base64').toString('utf8') }
     : null;
   const api = MOCK
-    ? require(path.join(__dirname, 'mock-api.cjs')).makeMockApi({ baseUrl: process.env.E2E_MOCK_URL, driver: process.env.E2E_DRIVER, env: ENV, repo: REPO, trace, flows })
+    ? require(path.join(__dirname, 'mock-api.cjs')).makeMockApi({ baseUrl: process.env.E2E_MOCK_URL, driver: process.env.E2E_DRIVER, env: ENV, repo: REPO, trace, flows, tracer })
     : makeApi(c);
   const results = [];
   // ── scenario selection (select_scenarios.py → run-suite --only → E2E_ONLY_MAP) ──────────────────────
@@ -611,23 +614,24 @@ function makeApi(c) {
   // before. Present → the run REPORTS only those ids, and a driver that asks want(...ids) skips the blocks
   // whose scenarios were not selected. A driver that never asks still runs everything; its unselected rows
   // are left out of the result, so the output is the commit's scenarios either way.
-  const ONLY = (() => {
-    const raw = String(process.env.E2E_ONLY_MAP || '').trim();
-    if (!raw) return null;
-    for (const part of raw.split(';')) {
-      const i = part.indexOf('='); if (i < 0) continue;
-      if (part.slice(0, i).trim() === FEATURE) return new Set(part.slice(i + 1).split(',').map((x) => x.trim()).filter(Boolean));
-    }
-    return null;
-  })();
+  // E2E_SKIP_MAP (bd-r09cmx) is the mirror: run and report everything EXCEPT these ids — the other half of a
+  // feature sharded across two slots (run-suite E2E_SHARDS). selection.cjs holds the rules both maps share.
+  const SEL = require(path.join(__dirname, 'selection.cjs'));
+  const ONLY = SEL.parseMap(process.env.E2E_ONLY_MAP, FEATURE);
+  const SKIP = SEL.parseMap(process.env.E2E_SKIP_MAP, FEATURE);
   const SCENARIO_ID = /^[A-Z]{1,5}\d{1,3}$/;   // harness rows (COA-preflight, RUNNER) carry a hyphen and always report
-  const want = (...ids) => !ONLY || ids.flat().some((x) => ONLY.has(x));
+  const want = SEL.makeWant(ONLY, SKIP);
   let outOfScope = 0;
-  const rec = (id, name, verdict, evidence, ms) => {
-    if (ONLY && SCENARIO_ID.test(String(id)) && !ONLY.has(id)) { outOfScope++; trace(`SKIP ${id} (not selected for this commit)`); return; }
+  // `win` ({ t1 }) places the scenario span where it happened: a driver that records a block's verdicts after
+  // the fact (coaching-ext) would otherwise put every window at the end of the run and the profiler would
+  // attribute nothing to its shards (bd-1r3k2h).
+  const rec = (id, name, verdict, evidence, ms, win) => {
+    if (!SEL.recAllowed(id, ONLY, SKIP, SCENARIO_ID)) { outOfScope++; trace(`SKIP ${id} (not selected for this child)`); return; }
     trace(`REC ${id} ${verdict} ${Math.round((ms||0)/1000)}s`); results.push({ id, name, verdict, evidence, ms });
+    tracer.scenario(id, { verdict, ms, title: name, t1: win && win.t1 });
   };
   if (ONLY) trace(`selection: ${[...ONLY].join(',')} (${ONLY.size} scenario(s) of ${FEATURE})`);
+  if (SKIP) trace(`skipping: ${[...SKIP].join(',')} (${SKIP.size} scenario(s) of ${FEATURE} run by another shard)`);
   // Generic role/persona support: snapshot the driver's mutable identity (role, language) so a feature
   // that switches role via api.setRole/api.setUser cannot leak that onto the next feature's run on this
   // ONE shared driver. Restored in the finally below — a role-based suite never has to clean up itself.
@@ -664,7 +668,9 @@ function makeApi(c) {
     const ok = await api.inject();
     if (!ok) throw new Error('wa-drive failed to inject');
     const mod = require(path.join(__dirname, 'features', FEATURE + '.cjs'));
-    await mod.run({ api, rec, sleep, want, only: ONLY });
+    // On the mock lane a driver's sleep() long-polls the outbox and wakes when the bot answers (mock-api smartSleep,
+    // bd-aqi0ay); the chrome lane keeps the plain setTimeout sleep.
+    await mod.run({ api, rec, sleep: MOCK && api.sleep ? api.sleep : sleep, want, only: ONLY });
   } catch (e) {
     results.push({ id: 'RUNNER', verdict: 'ERROR', evidence: String(e && e.message || e) });
   } finally {
@@ -691,6 +697,7 @@ function makeApi(c) {
         + '(a block it depends on was skipped, or the driver has no code for this id yet)' } });
     const wallMs = Date.now() - started;
     const pass = results.filter(r => r.verdict === 'PASS').length;
+    tracer.fixed('feature', started, Date.now(), { layer: 'feature', kind: 'feature', attrs: { feature: FEATURE, scenarios: results.length, pass } });
     const payload = {
       feature: FEATURE, wallMs, wallMin: +(wallMs / 60000).toFixed(2),
       scenarios: results.length, pass,

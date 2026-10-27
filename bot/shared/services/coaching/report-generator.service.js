@@ -1114,8 +1114,11 @@ class ReportGeneratorService {
       });
       // bd-fmf24g.10: keep the narrative this image was written from, for the app's report page.
       // Non-fatal and logged at warn inside; awaited so the row is written before delivery moves on.
-      await persistReportNarrative(session.id, rendered.narrative);
-      return rendered; // { png, caption, narrative } — caller detects this shape
+      // bd-1r3k2h: the partial note the image carries goes with it, so a re-render (the app's report page,
+      // hero-text) shows the same report.
+      await persistReportNarrative(session.id, rendered.narrative,
+        rendered.partialNote ? { extra: { partial_report_note: rendered.partialNote } } : {});
+      return rendered; // { png, caption, narrative, partialNote } — caller detects this shape
     }
 
     const pdfBuffer = rendered;

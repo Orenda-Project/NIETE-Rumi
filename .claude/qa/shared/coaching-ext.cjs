@@ -116,14 +116,19 @@ module.exports.run = async function runExt(ctx) {
   const { api, rec, sleep, fresh, r1, mainRec } = ctx;
   const want = ctx.want || (() => true);
   const out = new Map();
-  const set = (id, verdict, ev) => out.set(id, [verdict, ev]);
+  // Each verdict carries the window of the guarded block it was decided in, so the runner's rec() can place
+  // the scenario span in time — without it the shards' profiles showed nothing (bd-1r3k2h).
+  let blockStart = 0;
+  const set = (id, verdict, ev) => out.set(id, [verdict, ev, { t1: Date.now(), ms: blockStart ? Date.now() - blockStart : 0 }]);
   // A block runs when one of ITS scenarios is selected for this commit — or one of `also`, the later blocks
   // that read state this block produces (run 2, the Urdu run, the ask set-up). [] = housekeeping, always runs.
   const guard = async (ids, fn, also = []) => {
     const mine = [].concat(ids);
     if (mine.length && !want(mine.concat(also))) return;
+    blockStart = t();
     try { await fn(); }
     catch (e) { for (const id of [].concat(ids)) if (!out.has(id)) set(id, ...B('threw: ' + short(e && e.message, 240), { stack: short(e && e.stack, 300) })); }
+    finally { blockStart = 0; }
   };
   const env = process.env.E2E_ENV || 'sandbox';
   const driver = process.env.E2E_DRIVER || '';
@@ -168,7 +173,13 @@ module.exports.run = async function runExt(ctx) {
     obs.confirmed = true; obs.confirmReply = short(yes.txt, 160);
     const sess = dbJson(api, 'session-get'); obs.sessionId = sess && sess.id;
     if (o.midQuestion) { const mr = await api.sendWait(o.midQuestion, 90000); obs.midReply = short(mr.txt, 240); }
-    const budget = o.budgetMs || 15 * 60 * 1000; const stallMs = o.stallMs || 240000;   // live (uncached) analysis + hero render run ~100 s each
+    // 240 s stall budget: live (uncached) analysis + hero render run ~100 s each. On the mock lane every vendor answer is
+    // a replay and a working step takes seconds, so run-suite sets E2E_COACHING_STALL_MS=90000: a run that has gone
+    // silent is declared BLOCKED after 90 s, not 240 — COA04's first run is genuinely stuck at steps 2/3/5 on the lane
+    // and every coaching shard paid the full 240 s before (bd-r09cmx).
+    const STALL_DEFAULT_MS = Number(process.env.E2E_COACHING_STALL_MS) || 240000;
+    const POST_REPORT_MS = Number(process.env.E2E_COACHING_POST_REPORT_MS) || 30000;
+    const budget = o.budgetMs || 15 * 60 * 1000; const stallMs = o.stallMs || STALL_DEFAULT_MS;
     const t1 = t(); let lastProgress = t(); let prevSig = ''; let reportAt = 0;
     const sendLp = async () => {
       if (o.lp === 'pdf') { const d = await api.upload(FX.lpPdf, 'Document', 120000); obs.lpReply = { via: 'pdf', txt: short(d.txt, 200), btns: d.btns }; }
@@ -186,10 +197,12 @@ module.exports.run = async function runExt(ctx) {
           if (o.photo === 'no') { const rep = await tapRow(r, RX.no); obs.photoReply = short(rep && rep.txt, 200); }
           else if (o.photo === 'ignore') { obs.photoAt = t(); }
           else if (o.photo === 'yes' || o.photo === 'screenshot') {
-            await tapRow(r, RX.yes);
+            // "Yes" and "Add another" are answered with a reaction since the bill cut: the 60 s default wait ran out
+            // in full twice per fidelity run (run 20261027-1040-par coaching#2: 8 × 60 s). A few seconds catch a text.
+            await tapRow(r, RX.yes, 4000);
             const p1 = await api.upload(o.firstPhoto || FX.photo, 'Photos & videos', 120000);
             let last = p1;
-            if (o.photo === 'screenshot') { await tapRow(p1, RX.addAnother); last = await api.upload(FX.screenshot, 'Photos & videos', 120000); }
+            if (o.photo === 'screenshot') { await tapRow(p1, RX.addAnother, 4000); last = await api.upload(FX.screenshot, 'Photos & videos', 120000); }
             const d = await tapRow(last, RX.done, 90000);
             obs.photoReply = { first: short(p1.txt, 160), afterDone: short(d && d.txt, 200), doneBtns: last.btns };
           }
@@ -244,7 +257,10 @@ module.exports.run = async function runExt(ctx) {
         lastProgress = t();
       }
       if (obs.commit && obs.quizOffer) break;
-      if (obs.commit && t() - reportAt > 30000) break;
+      // after the commitment card the walk only waits for the quiz offer (TRANSCRIPT_QUIZ_OFFER_DELAY_SECS, 5 s on the
+      // lane); 30 s was tuned for the production delay — every pipeline run idled ~30 s with the bot silent
+      // (run 20261027-1051-par, bd-1r3k2h). E2E_COACHING_POST_REPORT_MS on the lane.
+      if (obs.commit && t() - reportAt > POST_REPORT_MS) break;
       if (obs.report && t() - reportAt > 90000) break;
       const sig = [obs.steps.length, !!obs.photoPrompt, !!obs.lpPrompt, !!obs.reflective, !!obs.report, obs.survey.length, obs.complete.length].join('/');
       if (sig !== prevSig) { prevSig = sig; lastProgress = t(); }
@@ -408,8 +424,10 @@ module.exports.run = async function runExt(ctx) {
     const urduGlyphs = stepRows.some((x) => /[۰-۹]/.test(x));
     const lri = stepRows.filter((x) => /\u2066\d\/5\u2069/.test(x)).length;
     set('COA25', ...(stepRows.length
-      ? V(stepRows.length >= 5 && englishSteps.length === 0 && urduSteps.length === stepRows.length && !urduGlyphs,
-          { stepsSeen: r3.steps, stepMessages: stepRows.map((x) => short(x, 70)), englishStepMessages: englishSteps.length, urduNumeralGlyphs: urduGlyphs, countersWrappedLriPdi: lri, counters })
+      // Step 1/5 is replaced by the reaction on the recording (coaching-orchestrator step1Announced, NC1), so a run
+      // has four counters by design: steps 2–5, every one in Urdu.
+      ? V(['2', '3', '4', '5'].every((n) => (r3.steps || []).includes(n)) && englishSteps.length === 0 && urduSteps.length === stepRows.length && !urduGlyphs,
+          { stepsSeen: r3.steps, step1ReplacedByReaction: !(r3.steps || []).includes('1'), stepMessages: stepRows.map((x) => short(x, 70)), englishStepMessages: englishSteps.length, urduNumeralGlyphs: urduGlyphs, countersWrappedLriPdi: lri, counters })
       : B(r3.stalled || 'no step messages arrived', { card: r3.card })));
     // gender-neutral copy: photo offer, commitment, LP prompt, duplicate answer
     let dupTxt = '';
@@ -519,7 +537,7 @@ module.exports.run = async function runExt(ctx) {
     await api.setUser({ name: null });
     // photo:'ignore' — the walker leaves the photo prompt unanswered and, 70 s later, runs the stale-session
     // sweep itself (COACHING_PHOTO_GATE_MINUTES=1), which closes the gate with the greeting under test
-    const r6 = await pipeline({ label: 'run6a-nameless', photo: 'ignore', lp: 'no', reflect: 'answer', budgetMs: 12 * 60 * 1000, stallMs: 240000 });
+    const r6 = await pipeline({ label: 'run6a-nameless', photo: 'ignore', lp: 'no', reflect: 'answer', budgetMs: 12 * 60 * 1000 });
     const greetings = r6.rows.map((r) => r.txt || '').filter((x) => /putting together your coaching report/i.test(x));
     set('COA27', ...(r6.greeting
       ? V(greetings.every((g) => !/null|Hi !|Hi\s*!/.test(g)), { greeting: r6.greeting, allGreetings: greetings.map((g) => short(g, 100)), savedName: null, gateSweep: r6.gateSwept && (r6.gateSwept.result || r6.gateSwept), note: greetings.length > 1 ? 'the recovery sweep advanced the same session more than once (each sub-sweep queued the analysis) — reported as evidence, not judged here' : undefined })
@@ -580,10 +598,15 @@ module.exports.run = async function runExt(ctx) {
   const nudgeRows = (kind) => dbJson(api, 'nudge-rows', kind ? ['--kind', kind] : []);
   const uid = (dbJson(api, 'user-get') || {}).id;
   const seedAsk = (o = {}) => { try { api.db('age-sessions'); } catch (_) {} return dbJson(api, 'seed-nudge', [].concat(o.deliveredAt ? ['--delivered-at', o.deliveredAt] : [], o.nudgeDate ? ['--nudge-date', o.nudgeDate] : [], o.firstTime ? ['--first-time'] : [])); };
-  const askOnScreen = async () => { api.db('purge-nudges'); const s = seedAsk(); const sw = await sweepAsk(); const c = await collect((r) => RX.lpAsk.test(r.txt || ''), 25000); return { seed: s, sweep: sw, ask: c.hit, seen: c.seen }; };
+  // lp-coaching-ask offeredToday() skips the ask when a quiz with meta.offered_at today exists — the transcript-quiz
+  // offers the pipeline runs on this shard leave behind did exactly that (skip_reason offered_today on every ask of
+  // run 20261026-2335-par, bd-1r3k2h). The driver's own run quizzes go before every ask.
+  const purgeRunQuizzes = () => { try { api.db('purge-run-quizzes', ['--since', new Date(Date.now() - 48 * 3600 * 1000).toISOString()]); } catch (_) {} };
+  const askOnScreen = async () => { api.db('purge-nudges'); purgeRunQuizzes(); const s = seedAsk(); const sw = await sweepAsk(); const c = await collect((r) => RX.lpAsk.test(r.txt || ''), 25000); return { seed: s, sweep: sw, ask: c.hit, seen: c.seen }; };
   let askReady = false;
   await guard(['COA39', 'COA44'], async () => {
     await cleanSlate();
+    purgeRunQuizzes();
     const rb = await SC.restart('bot', ASK_ENV); if (!rb.ok) throw new Error('bot restart failed: ' + rb.err);
     askReady = true;
     api.db('age-sessions'); api.db('purge-nudges'); api.db('purge-first-use', ['--feature', 'lp_coaching_howto']);

@@ -235,6 +235,7 @@ function buildHeroReportHtml(vm) {
   .try{margin:16px 42px 0;background:${P.tryGrad};color:#fff;border-radius:16px;padding:18px 24px}
   .try .label{color:${P.tryLabel};opacity:1;margin-bottom:6px}
   .try-text{font-family:${headFam};font-size:17px;line-height:${RTL ? '1.7' : '1.4'}}
+  .pnote{margin:12px 42px 0;padding:10px 14px;border-radius:8px;background:${P.footBorder};color:${P.note};font-size:12.5px;line-height:${RTL ? '1.7' : '1.5'}}
   .foot{display:flex;align-items:center;justify-content:space-between;padding:16px 42px 24px;margin-top:14px;border-top:1px solid ${P.footBorder};color:${P.faint};font-size:12px}
   .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${P.deep};font-size:15px;font-family:'Lexend'}.brand img{width:30px}
   </style></head><body>
@@ -265,6 +266,7 @@ function buildHeroReportHtml(vm) {
     ${(vm.trend && vm.trend.length >= 2) ? `<div class="journey"><div class="label">${T(C.journey(vm.trend.length))}</div>${ltrTrend(vm.trend, peak, P)}<div class="j-cap">${T(n.journey_note || '')}</div></div>` : ''}
     ${(vm.uptake && vm.uptake.asked) ? `<div class="uptake"><div class="label">${T(C.uptake_asked)}</div><div class="u-asked">${T(vm.uptake.asked)}</div><div class="u-line"><span class="upill ${esc(vm.uptake.status || 'unknown')}">${T(C['uptake_' + (vm.uptake.status || 'unknown')] || C.uptake_unknown)}</span>${T(vm.uptake.line || '')}</div></div>` : ''}
     ${vm.tryNext ? `<div class="try"><div class="label">${T(C.trynext)}</div><div class="try-text">${T(vm.tryNext)}</div></div>` : ''}${vm.videoStrip ? require('../video-reco/strip').stripHtml(vm.videoStrip, { language: vm.language, T, width: 794 }) : ''}
+    ${vm.partialNote ? `<div class="pnote">${T(vm.partialNote)}</div>` : ''}
     <div class="foot"><div class="brand">${logo(A.logoNavy, '')}NIETE</div><div>${T(C.made(vm.teacherName || ''))}</div></div>
   </div>
   </body></html>`;

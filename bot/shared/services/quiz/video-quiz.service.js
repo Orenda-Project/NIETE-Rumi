@@ -671,7 +671,9 @@ async function sendNextQuestion(phone, state, opts = {}) {
   }
 
   const qRes = await sender.sendPhase(phone, msgs, 'question', ctx);
-  const res = await sender.sendPhase(phone, msgs, 'interaction', ctx);
+  // The question card could not be sent: no picker over a missing picture. The interaction phase is
+  // skipped and the question is handled below exactly like an unsent picker (bd-1r3k2h).
+  const res = qRes && qRes.cardFailed ? qRes : await sender.sendPhase(phone, msgs, 'interaction', ctx);
 
   if (folded) {
     // The sender reports `leadSent: false` when the bubble carrying the lead
