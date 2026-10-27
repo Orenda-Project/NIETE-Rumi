@@ -2853,17 +2853,8 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 // bd-s1oo0.7 — the child test in the coach app (relays to the bot; flag portal_child_test).
 app.use('/api/portal/leader/child-test', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, childTestRoutes);
 
-// HCP endpoint tester — an HTML page for internal QA to hit the 10 /api/portal/hcp/*
-// endpoints without curl. Served under /observability/* so it's excluded from the
-// SPA catch-all. Self-contained: handles portal login + endpoint dispatch client-side.
-// No server-side auth gate — the page itself is inert without a valid portal session,
-// and every endpoint it calls is already guarded by requirePortalAuth.
-app.get('/observability/hcp-test-viewer', (req, res) => {
-  res.render('hcp-test-viewer');
-});
-
-// NIETE Teacher Attendance — principal-facing daily mark screen. Same
-// "inert without a valid portal session" pattern as hcp-test-viewer; the page
+// NIETE Teacher Attendance — principal-facing daily mark screen. Inert
+// without a valid portal session; the page
 // calls /api/portal/attendance/* which is gated by requirePortalAuth.
 app.get('/observability/attendance-mark', (req, res) => {
   res.render('attendance-mark');
