@@ -335,7 +335,7 @@ button{font:inherit;color:inherit}
 .sae-r7-tick{font-weight:800}
 .sae-more{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;max-width:360px;min-height:48px;margin:0;padding:4px 14px;border-radius:999px;border:3px solid var(--sae-accent);background:var(--sae-accent-l);color:var(--sae-ink);font-size:18px;font-weight:800;cursor:pointer;animation:sae-more-bob 1.2s ease-in-out infinite}
 .sae-more[hidden]{display:none}
-.sae-more-ico{font-size:30px;line-height:1}
+.sae-more-ico{font-size:24px;line-height:1}
 .sae[lang=ur] .sae-more{font-weight:700;line-height:1.9}
 @keyframes sae-more-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
 @media (prefers-reduced-motion:reduce){.sae-more{animation:none}}
