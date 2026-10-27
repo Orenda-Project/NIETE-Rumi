@@ -61,13 +61,19 @@ describe('Games: every grade one tap away', () => {
     const W2 = load({ store: { [`wq_sel_games.${KID}`]: 'all' } });
     expect(W2.WQDOORS.html({ ...HUB, kid: 'fedcba9876543210', kids: [{ chip: 'fedcba9876543210', grade: '3' }] }, ctx(), 'games', { games: OWN })).toContain('>Grades</button>');
   });
-  test('a teacher\'s preview: the teacher\'s own quiz opens as the teacher\'s own preview (?p=), never as a child', () => {
-    const W = load();
-    const B = { ...HUB, practice: 1, practice_play: 1, kid: null, kids: [], grade: 3,
-      doors: { ...HUB.doors, games: [{ kind: 'quiz', code: 'TCH301', k: '', p: 'PREVIEWTOK', topic: 'Nouns', subject: 'english', done: false, from: 'teacher' }, { kind: 'numbers' }] } };
-    const h = W.WQDOORS.html(B, ctx(), 'games', { games: OWN });
-    expect(h).toContain('href="/q/TCH301?p=PREVIEWTOK"');
-    expect(h).not.toContain('/q/TCH301?k=');
+  test('a teacher\'s preview: the teacher\'s own quiz is a look-only tile (no link of any kind), saying the class plays it from the teacher\'s link', () => {
+    for (const lang of ['en', 'ur']) {
+      const W = load();
+      const B = { ...HUB, practice: 1, practice_play: 1, kid: null, kids: [], grade: 3,
+        doors: { ...HUB.doors, games: [{ kind: 'quiz', look: 1, topic: 'Nouns', subject: 'english', done: false, from: 'teacher' }, { kind: 'numbers' }] } };
+      const h = W.WQDOORS.html(B, ctx(lang), 'games', { games: OWN });
+      const tile = (h.match(/<li class="wq-dli[^"]*">(?:(?!<\/li>)[\s\S])*Nouns[\s\S]*?<\/li>/) || [''])[0];
+      expect(tile).toContain('data-tap="look"');
+      expect(tile).not.toMatch(/href=|\/q\//);
+      expect(tile).toContain(lang === 'en' ? 'Your class plays this from your link' : 'آپ کی کلاس یہ آپ کے لنک سے کھیلتی ہے');
+      expect(count(h, /data-primary/g)).toBe(1);
+      expect(tile).not.toContain('data-primary');
+    }
   });
 });
 

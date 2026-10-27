@@ -4,18 +4,18 @@
  * (`tu`, web-quiz-practice-play.js) shows on the Games door what a child of that teacher's class gets from them: the
  * teacher's quiz links still open from the last 7 days, newest first (the same codes the child hub's teacher card picks
  * its one from: teacher-sent, active, not expired, not a reply or an invite, and never a storybook the teacher only
- * previewed). Each row opens as the TEACHER'S OWN PREVIEW of that quiz (`p`, a signed preview token: the attempt is
- * stored under the teacher, the existing self-test marker, so it never reaches the roster, the average or the league),
- * never as a child: no child row, no binding, nothing under any child.
+ * previewed). Each row is LOOK-ONLY (`look: 1`): its name and subject, and nothing that opens anything. No code, no
+ * token of any kind: the preview's hub link is a bearer URL a child can hold, and on NIETE a teacher's preview token
+ * (`p`) is the teacher's key to «Who played?» (names and scores) and the who-fix writes, while NIETE has no quiz run that
+ * writes nothing (redteam HIGH-1, #3843). The class plays the quiz from the teacher's own link.
  *
- *   rowsFor(teacherId, { previews })  [{kind:'quiz', code, k:'', p, topic, subject, done:false, from:'teacher'}] (≤ MAX)
- *                                  [] with no teacher, no open code, no signing secret, or any failure. Never throws.
+ *   rowsFor(teacherId, { previews })  [{kind:'quiz', look: 1, topic, subject, done:false, from:'teacher'}] (≤ MAX)
+ *                                  [] with no teacher, no open code, or any failure. Never throws.
  *                                  previews(quizzes) -> Set of ids: the home's own "only previewed" rule
  *                                  (web-quiz-hub-home.js storyPreviews), handed in so this leaf requires no hub module.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
-const T = require('./web-quiz-token');
 
 const DAYS = 7;
 const MAX = 5;
@@ -40,9 +40,7 @@ async function rowsFor(teacherId, { previews: previewsOf = () => new Set(), now 
     for (const c of open) {
       const q = byId.get(c.quiz_id);
       if (!q || previews.has(q.id)) continue;
-      const p = T.signPreview({ shareCodeId: c.id, teacherUserId: teacherId });
-      if (!p) return [];
-      rows.push({ kind: 'quiz', code: c.code, k: '', p, topic: q.topic || c.topic || '', subject: q.subject || '', done: false, from: 'teacher' });
+      rows.push({ kind: 'quiz', look: 1, topic: q.topic || c.topic || '', subject: q.subject || '', done: false, from: 'teacher' });
       if (rows.length >= MAX) break;
     }
     return rows;
