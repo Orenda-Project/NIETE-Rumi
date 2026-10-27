@@ -30,6 +30,8 @@ function Schools({ d }: { d: Detail }) {
     <RmCard testId="s9-schools" title={rt("s9.schools.title", lang)}>
       {/* fix-r5 s2 items 15 + 17 (design-qa 073628 §5, 073629): said once above the rows; its "4" is policy, not a count */}
       {allOld && <RmNote testId="s9-no-visits"><span data-nonum="">{rt("s9.schools.never", lang)}</span></RmNote>}
+      {/* fix-r5 s3 (qa-rm 171001, B5): the graded counts' window, on this card, so it resolves with no moves block */}
+      <WindowLegend windows={d.windows} ids={windowIds(d.schools.map((s) => s.graded))} />
       <ul className="flex flex-col divide-y divide-[#f3f4f6]">
         {d.schools.map((s) => {
           const school = <CodeText lang={lang}>{s.school.school_name}</CodeText>;

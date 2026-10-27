@@ -83,7 +83,10 @@ export function CircleCard({ home }: { home: RmHome }) {
         <span className="text-[16px] font-semibold">{rt("s8.circle.title", lang)}</span>
         <WindowLegend windows={home.windows} ids={windowIds(home.circle)} />
         <span className="text-[14px] text-[#374151]">
-          {rtx("s8.circle.sub", lang, {}, [{ n: "m", d: "c", count: m }, { n: "n", d: "d", count: home.circle.checks_due }])}
+          {/* fix-r5 s3 (qa-rm 171001, B10): no check due this week is words, never "0 of 0 checks" */}
+          {home.circle.checks_due.d === 0
+            ? rtx("s8.circle.sub.no_checks", lang, {}, [{ n: "m", d: "c", count: m }])
+            : rtx("s8.circle.sub", lang, {}, [{ n: "m", d: "c", count: m }, { n: "n", d: "d", count: home.circle.checks_due }])}
         </span>
       </span>
       <ChevronRight className="h-5 w-5 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
