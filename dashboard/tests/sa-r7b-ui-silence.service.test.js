@@ -56,6 +56,8 @@ maybe('sa-ui silence reminder on a DOM', () => {
     const { el } = reminder('ur');
     expect(el.textContent).toContain('اونچی آواز');
     expect(el.querySelector('.sae-silence h1').textContent).toBe('اونچی آواز میں بولیں');
+    // a small Jugnu, so the whole Urdu line stays above Try again at 360x740
+    expect(el.querySelector('.sae-silence .sae-jugnu-s')).not.toBeNull();
     expect(el.querySelector('.sae-silence p.sae-p').textContent).toContain('جگنو آپ کی آواز نہیں سن سکا۔');
     expect([...el.querySelectorAll('button')].some((b) => /دوبارہ/.test(b.textContent))).toBe(true);
   });
