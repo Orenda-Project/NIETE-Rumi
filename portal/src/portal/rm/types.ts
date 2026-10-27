@@ -58,7 +58,8 @@ export type RmCircle = {
   /** SPEC v2.1 §11.1: "coach" when the sector is under the B23 floor and each clip is that coach's own first move. */
   basis: "sector" | "coach";
   /** The B23 floor's coach count, a Count on the sector's 4-week window (`window_id`, in `windows`); null on a "sector" week. */
-  floor: { coaches_with_5plus: number; needed: 3; window_id: string } | null;
+  /** `coaches_ranked`: the sector's coaches with an ok coach-level rank-1 W (picks the empty line; never drawn as a number). */
+  floor: { coaches_with_5plus: number; needed: 3; coaches_ranked?: number; window_id: string } | null;
   window: Window;
   sector_interventions: { i_id: string; title: Text; level: "sector" | "school"; date: ISODate | null; attendees: Text; check: Text }[];
   moments: CircleMoment[];

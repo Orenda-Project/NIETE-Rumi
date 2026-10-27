@@ -428,8 +428,13 @@ async function rmCircle(ctx) {
   // per-W count of coaches with 5+ lessons (null on the sector basis).
   const sectorRanked = rows.some((r) => r.rank === 1 && r.status === 'ok');
   const basis = items.length ? (items.some((r) => r.basis === 'coach') ? 'coach' : 'sector') : (sectorRanked ? 'sector' : 'coach');
+  // red-2 20261027T001002: an empty coach week means "no coach over the coach floor" only when no coach ranks; the
+  // count of the sector's coaches with an ok coach-level rank-1 W in the same window lets S10 say which (never shown)
+  const coachRanks = basis === 'coach'
+    ? await H.rollupsAt(q, key, { scopeKind: 'coach', scopeIds: coaches.map((c) => c.coachUserId) }) : [];
   const floor = basis === 'coach'
     ? { coaches_with_5plus: rows.reduce((mx, r) => Math.max(mx, Number(r.coaches_with_5plus) || 0), 0), needed: 3, // B23: 3 coaches with 5+
+      coaches_ranked: new Set(coachRanks.filter((r) => r.rank === 1 && r.status === 'ok').map((r) => lc(r.coach_user_id))).size,
       window_id: graded.id } // {c} is a Count on the sector's 4-week graded window (COPY §8), listed in `windows`
     : null;
   const stepDates = await sectorStepDates(q, ctx);

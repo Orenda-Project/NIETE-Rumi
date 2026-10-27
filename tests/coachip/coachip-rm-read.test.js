@@ -465,7 +465,7 @@ run('COACHIP RM reads: R17 rm/home, R18 rm/coach/:id, R20 rm/circle (Postgres, H
     // COPY §8 / SPEC §11.1: {c} is a Count on the sector's 4-week graded window, and that window is in `windows` (G10)
     const fw = res.body.windows.find((w) => w.id === res.body.floor.window_id);
     expect(fw).toMatchObject({ weeks: 4, framework: 'lp_fidelity' });
-    expect(res.body.floor).toEqual({ coaches_with_5plus: 2, needed: 3, window_id: fw.id });
+    expect(res.body.floor).toEqual({ coaches_with_5plus: 2, needed: 3, coaches_ranked: expect.any(Number), window_id: fw.id });
     everyCountResolves(res.body);
     expect(res.body.moments.map((m) => [m.coach_label, m.moment_id])).toEqual([['C-01', MOM(2)], ['C-02', MOM(1)]]);
     for (const m of res.body.moments) expectKeys(m, K.circleMoment);
@@ -484,6 +484,22 @@ run('COACHIP RM reads: R17 rm/home, R18 rm/coach/:id, R20 rm/circle (Postgres, H
     expect(res.body.basis).toBe('coach');
     expect(res.body.floor).toMatchObject({ coaches_with_5plus: 2, needed: 3 });
     expect(res.body.windows.map((w) => w.id)).toContain(res.body.floor.window_id);
+  });
+
+  // red-2 20261027T001002: an empty coach week is "no coach over the floor" only when no coach has a rank-1 W; R20 says
+  // how many do (`floor.coaches_ranked`, the sector's coaches with an ok coach-level rank 1 in the same window) so S10 can tell
+  test('R20 rm/circle: an empty coach week counts the coaches who do rank (floor.coaches_ranked)', async () => {
+    await pg.query("DELETE FROM coachip_circle_items WHERE sector = 'Urban-I'");
+    await pg.query("UPDATE coachip_rollups SET rank = NULL, status = 'insufficient', coaches_with_5plus = LEAST(coaches_with_5plus, 2) WHERE scope_kind = 'sector' AND sector = 'Urban-I'");
+    const { rows } = await pg.query(`SELECT COUNT(DISTINCT r.coach_user_id)::int AS n FROM coachip_rollups r
+      WHERE r.scope_kind = 'coach' AND r.rank = 1 AND r.status = 'ok' AND r.coach_user_id = ANY($1::uuid[])`, [[CA, CB]]);
+    expect(rows[0].n).toBeGreaterThan(0); // the fixture has ranked coaches in Urban-I: the sentence "no coach has 20" would be false
+    const res = await app.call('GET', `${P}/rm/circle`, { as: RM });
+    expect([res.body.basis, res.body.moments]).toEqual(['coach', []]);
+    expect(res.body.floor.coaches_ranked).toBe(rows[0].n);
+    await pg.query("UPDATE coachip_rollups SET rank = NULL WHERE scope_kind = 'coach'");
+    const none = await app.call('GET', `${P}/rm/circle`, { as: RM });
+    expect(none.body.floor.coaches_ranked).toBe(0);
   });
 
   test('R20 rm/circle: no row but the sector ranks → basis sector, floor null (S10 keeps s10.moments.empty)', async () => {

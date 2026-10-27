@@ -27,6 +27,13 @@ import { rt, rtx } from "../text";
  * numbers (the floor's 5 lessons) are policy, not counts. No moment on a `coach` week (or a floor with no coach ranked)
  * says `s10.moments.empty.floor`, never a zero.
  */
+/** The empty S10 line (red-2 20261027T001002): the floor sentence only when no coach ranks (an absent count reads as 0,
+ * the v1.1 behaviour); coaches who rank but have no moment (or a circle stage not yet run) get the neutral line. */
+function emptyKey(data: Circle): RmCopyKey {
+  if (!(data.basis === "coach" || data.floor)) return "s10.moments.empty";
+  return (data.floor?.coaches_ranked ?? 0) > 0 ? "s10.moments.empty.coach" : "s10.moments.empty.floor";
+}
+
 function BasisLine({ data }: { data: Circle }) {
   const lang = useLang();
   const c = data.floor?.coaches_with_5plus ?? 0;
@@ -112,7 +119,7 @@ export default function RmCircle() {
           <RmCard testId="s10-moments" title={rt("s10.moments.title", lang)} sub={rt("s10.moments.explain", lang)}>
             {data.moments.length === 0
               // the floor's "20 graded lessons" is policy, not a count
-              ? <RmNote testId="s10-moments-empty"><span data-nonum="">{rt(data.basis === "coach" || data.floor ? "s10.moments.empty.floor" : "s10.moments.empty", lang)}</span></RmNote>
+              ? <RmNote testId="s10-moments-empty"><span data-nonum="">{rt(emptyKey(data), lang)}</span></RmNote>
               : (
                 <>
                   {data.basis === "coach" && <BasisLine data={data} />}
