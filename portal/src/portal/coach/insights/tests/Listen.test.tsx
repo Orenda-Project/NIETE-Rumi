@@ -65,6 +65,19 @@ describe.each(LANGS)("Listen (%s)", (lang) => {
     expect(container.innerHTML).toMatchSnapshot();
   }, 30000);
 
+  it("a clip expired under retention says so on its row and plays the full recording from the moment", async () => {
+    const d = feed();
+    const ms = d.moments as { moment_id: string; clip: { status: string } }[];
+    ms[1].clip.status = "expired";
+    serve({ "/coachip/moments": () => d });
+    await renderAt("/listen");
+    const row = screen.getAllByTestId("listen-row")[1];
+    const line = within(row).getByTestId("listen-row-expired");
+    expect(line.textContent).toContain("20:50");
+    expect(line.textContent).toContain(lang === "en" ? "This clip has expired" : "اس کلپ کی مدت ختم ہو چکی ہے");
+    expect(within(row).queryByTestId("listen-row-failed")).toBeNull();
+  }, 30000);
+
   it("a tap on the time plays inline, one at a time", async () => {
     serve({ "/coachip/moments": (p?: Record<string, unknown>) => feed(p?.w) });
     const { container } = await renderAt("/listen");
