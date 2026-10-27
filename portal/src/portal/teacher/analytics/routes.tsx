@@ -1,7 +1,10 @@
 import type { TeacherRoute } from '../routes';
-import { AnalyticsPage } from './AnalyticsPage';
 import { ANALYTICS_HOME, ANALYTICS_TEACHER } from './paths';
-import { OneTeacherPage } from './SchoolView';
+import { lazyPage as page } from '@/lib/lazyPage';
+
+// bd-sex15q.34 — each page is its own chunk (lib/lazyPage), so the teacher app is not in every first open.
+const AnalyticsPage = page(() => import('./AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })));
+const OneTeacherPage = page(() => import('./SchoolView').then((m) => ({ default: m.OneTeacherPage })));
 
 /**
  * bd-fmf24g.8 — the teacher v2 Analytics page (flag-gated by App's TeacherGate). Registered, so More's

@@ -16,7 +16,7 @@ import { render } from "@testing-library/react";
 import { vi } from "vitest";
 
 const app = fs.readFileSync(path.resolve(__dirname, "../App.tsx"), "utf8");
-const ENTRY = ["NotFound", "PortalLogin", "PortalRoot", "PortalDashboard", "LegacyAttendanceRedirect", "AppLinkListener", "BackButtonHandler"];
+const ENTRY = ["NotFound", "PortalLogin", "PortalRoot", "LegacyAttendanceRedirect", "AppLinkListener", "BackButtonHandler"];
 
 describe("route chunks", () => {
   it("entry points are in the first chunk", () => {
@@ -31,6 +31,16 @@ describe("route chunks", () => {
     for (const name of ["PortalCurriculum", "PortalTraining", "PortalCoaching", "LeaderHome", "CoachHome", "PortalPrivacy"]) {
       expect(lazy).toContain(name);
     }
+  });
+
+  // bd-sex15q.34 — the teacher dashboard left the first chunk (its charts were a third of what every coach waited
+  // for); a teacher's first screen is asked for at boot instead (lib/firstScreen), and the size is held by
+  // budget/coachEntry.budget.test.ts.
+  it("the teacher dashboard is its own chunk, asked for at boot on a teacher's first screen", () => {
+    expect(app).not.toMatch(/^import PortalDashboard from/m);
+    expect(app).toMatch(/^const loadDashboard = \(\) => import\("\.\/portal\/pages\/PortalDashboard"\);$/m);
+    expect(app).toMatch(/^const PortalDashboard = page\(loadDashboard\);$/m);
+    expect(app).toMatch(/warmFirstScreen\(window\.location\.pathname, readShellHint\(\), \{ dashboard: loadDashboard,/);
   });
 
   it("moving between pages keeps the current one on screen while the next loads", () => {

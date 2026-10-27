@@ -111,7 +111,18 @@ describe('a plain paper is unchanged', () => {
 
 describe('the app routes Versions to this page', () => {
   it('/paper/:paperId/versions renders VersionsPage from VersionsPage.tsx', () => {
+    // bd-sex15q.34 — the route's element is the page through lib/lazyPage (its own chunk), so compare what it draws.
     const r = routes.find((x) => x.path === `${B}/paper/:paperId/versions`);
-    expect((r?.element as JSX.Element | undefined)?.type).toBe(VersionsPage);
+    expect(r).toBeDefined();
+    const path = `${B}/paper/p1/versions`;
+    const routed = render(
+      <MemoryRouter initialEntries={[path]}>
+        <Routes><Route path={r!.path} element={r!.element} /></Routes>
+      </MemoryRouter>,
+    );
+    const drawn = routed.container.innerHTML;
+    routed.unmount();
+    expect(drawn).not.toBe('');
+    expect(drawn).toBe(at(path).container.innerHTML);
   });
 });

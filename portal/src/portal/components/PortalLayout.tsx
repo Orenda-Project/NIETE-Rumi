@@ -1,4 +1,5 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, Suspense, useEffect } from 'react';
+import { lazyOptional } from '@/lib/lazyPage';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { AuthContext } from '../hooks/authContext';
@@ -7,7 +8,6 @@ import { RecordingBarShownContext } from '../lib/recordingBarShown';
 import { useNewUi } from '../lib/useNewUi';
 import { useCoachV2, isCoachV2For } from '../coach/useCoachV2';
 import { useTeacherV2, isTeacherV2For } from '../teacher/useTeacherV2';
-import { NoticeHost } from '../teacher/notices/NoticeHost';
 import PortalNavigation from './PortalNavigation';
 import RecordingBar from './RecordingBar';
 import { FrameSkeleton, TabBarSkeleton, TopBarSkeleton } from './Skeleton';
@@ -15,6 +15,12 @@ import { readShellHint, writeShellHint } from '../lib/shellHint';
 import {
   areaHome, isAreaPath, isLinkSession, linkArea, rememberLinkSession, LINK_EXPIRED_PAGE,
 } from '../lib/linkSession';
+
+// bd-sex15q.34 — the notices tray (what is being made, and "ready") is its own chunk: it carries the teacher app's
+// assessment, lesson and notice words, and every coach page stands in this frame. It shows once that chunk is here;
+// nothing it follows is lost meanwhile (its tracker is a module, see the comment where it is mounted), and a chunk that
+// cannot be loaded leaves the page as it is (lib/lazyPage lazyOptional).
+const NoticeHost = lazyOptional(() => import('../teacher/notices/NoticeHost').then((m) => ({ default: m.NoticeHost })));
 
 interface PortalLayoutProps {
   children: ReactNode;
@@ -139,7 +145,9 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
             mounted-or-not with the frame, but the tracker behind it is a module, so a page change does not
             restart anything. */}
         {(teacherV2 || coachV2) && !menuPending && user.phoneNumber && (
-          <NoticeHost userKey={user.phoneNumber} bare={noNav} aboveBar={showBar} local={!teacherV2} />
+          <Suspense fallback={null}>
+            <NoticeHost userKey={user.phoneNumber} bare={noNav} aboveBar={showBar} local={!teacherV2} />
+          </Suspense>
         )}
       </main>
       {showBar && session && <RecordingBar session={session} aboveMenu={!noNav} newMenu={newUi} />}
