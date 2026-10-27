@@ -3,8 +3,8 @@
  * Retention A (bd-sex15q.36; NIGHTLY_JOB §10, INSIGHTS_SCHEMA §4; PENDING item 7): `--purge-clips` deletes a session's
  * pre-cut clips (coachip/clips/<env>/<session>/…) and its whole-lesson MP3 (coachip/full/<env>/<session>.mp3) once the
  * last window that showed the session has been closed for more than 8 weeks, then marks the session's moments
- * `clip_status = expired` (the player says so and the coach still hears the recording itself from `lesson_s`), and
- * writes one coachip_audit_log row per run.
+ * `clip_status = expired` (the player says so and the coach still hears the recording itself from `lesson_s`). One
+ * coachip_audit_log row per run is written first: if it cannot be written, nothing is deleted.
  *
  * "The last window that showed it": the newest 8-week window holding the session's Karachi day, on screen for the week
  * it is held (windows.js), or a later circle week that picked one of its moments; an open step set from the session or
@@ -91,6 +91,10 @@ async function runPurge({ envName, bucket, s3, store, today, dryRun, actorUserId
     sessions_listed: 0, sessions_purged: 0, sessions_kept: 0, sessions_unknown: 0, sessions_kept_open_step: 0, sessions_failed: 0,
     objects_to_delete: 0, objects_deleted: 0, moments_to_expire: 0, moments_expired: 0 };
 
+  // 0. one audit row per run, write mode only (a dry run writes nothing anywhere), BEFORE any delete: no audit row, no
+  // deletion (a tier without V1.8.2 refuses the value, and the run stops here with nothing gone)
+  if (!dryRun) await store.insert('coachip_audit_log', [{ actor_user_id: actorUserId, action: 'clip_purge', subject_id: runId }]);
+
   // 1. what is there, by session; anything that is not the tier's own shape is counted and left alone
   const bySession = new Map();
   for (const key of await listTier(s3, bucket, envName)) {
@@ -145,8 +149,6 @@ async function runPurge({ envName, bucket, s3, store, today, dryRun, actorUserId
     }
   }
 
-  // 4. one audit row per run, write mode only (a dry run writes nothing anywhere)
-  if (!dryRun) await store.insert('coachip_audit_log', [{ actor_user_id: actorUserId, action: 'clip_purge', subject_id: runId }]);
   log(`purge dry_run=${dryRun ? 1 : 0} listed=${n.objects_listed} foreign=${n.foreign_keys} sessions=${n.sessions_listed} `
     + `purged=${n.sessions_purged} kept=${n.sessions_kept} open_step=${n.sessions_kept_open_step} unknown=${n.sessions_unknown} `
     + `failed=${n.sessions_failed} objects_to_delete=${n.objects_to_delete} deleted=${n.objects_deleted} `
