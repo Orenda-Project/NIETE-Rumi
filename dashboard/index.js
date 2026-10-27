@@ -3828,15 +3828,9 @@ app.use((req, res) => {
   });
 });
 
-// Error handler
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  res.status(500).render('error', {
-    title: 'Server Error',
-    message: 'An unexpected error occurred',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-  });
-});
+// Error handler: a malformed JSON body is a 400 JSON; anything else renders the error page (bd-nmwmr4.2).
+const { finalErrorHandler } = require('./lib/final-error-handler');
+app.use(finalErrorHandler);
 
 // ============================================================================
 // START SERVER
