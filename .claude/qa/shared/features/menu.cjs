@@ -329,4 +329,15 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   });
   if (!r20.ran) rec('M20', M20, 'BLOCKED', { reason: REDIRECT_BLOCKED, setAppSetting: r20.reason }, 0);
   else rec('M20', M20, r20.value.storeLink && !r20.value.flowStarted ? 'PASS' : 'FAIL', r20.value, r20.value.ms);
+
+
+  // Inbound signature (M31-M34): HTTP-level and mode-gated. Blocked on this lane until the mock Graph API signs what
+  // it injects with a lane App Secret the bot also holds, and can inject unsigned or tampered bodies on demand;
+  // flipping webhook_signature_mode in enforce with an unsigned injector would refuse every scenario after it.
+  // Executed today at the HTTP layer against the real Express app by tests/whatsapp/webhook-signature.test.js.
+  const SIG_BLOCKED = 'mock Graph API does not sign injected webhooks yet (needs a lane App Secret shared with the bot); covered at the HTTP layer by tests/whatsapp/webhook-signature.test.js';
+  if (want('M31')) rec('M31', 'A message Meta signed is answered when the signature is enforced', 'BLOCKED', { reason: SIG_BLOCKED }, 0);
+  if (want('M32')) rec('M32', 'In log mode (the default) an unsigned message is still answered and recorded as unsigned', 'BLOCKED', { reason: SIG_BLOCKED }, 0);
+  if (want('M33')) rec('M33', 'A forged message is refused when the signature is enforced, and the teacher gets nothing', 'BLOCKED', { reason: SIG_BLOCKED }, 0);
+  if (want('M34')) rec('M34', "An unsigned Flow endpoint request is refused with Meta's signature code, and signed ones still open the form", 'BLOCKED', { reason: SIG_BLOCKED }, 0);
 };
