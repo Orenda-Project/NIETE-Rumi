@@ -21,6 +21,8 @@
 # Like `pre-push-qa-check.test.sh`, the trigger words are assembled at runtime
 # (`G="git"; P="push"`) — this file is read by hooks that match on that phrase.
 set -u
+# Hooks run here must never write the real clone's QA ledger or push its notes (bd-amxdhg).
+export QA_NOTES_OFF=1 QA_LEDGER="${TMPDIR:-/tmp}/qa-events.test.$$.jsonl"
 cd "$(dirname "$0")/../.." || exit 1
 
 ARM=".claude/hooks/e2e-autorun.sh"

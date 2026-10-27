@@ -94,7 +94,8 @@ git init -q --bare "$TMP/remote.git"; git -C "$R" remote add origin "$TMP/remote
 QA_HOOKS_OFF=1 git -C "$R" push -q origin sandbox 2>/dev/null
 say "pre-push QA_HOOKS_OFF logged" "$(count '.hook=="pre-push" and .switch=="QA_HOOKS_OFF"')" "1"
 touch_menu; git -C "$R" commit -qm "feat(menu): terminal on" 2>/dev/null
-say "a normal commit adds no ledger line" "$(count '.hook=="post-commit"')" "2"
+say "a normal commit adds no switch-off line" "$(count '.hook=="post-commit" and .event=="switch-off"')" "2"
+say "…only its arming (bd-amxdhg)" "$(count '.hook=="post-commit" and .event=="armed" and .sha=="'"$(git -C "$R" rev-parse --short=12 HEAD)"'"')" "1"
 
 echo "qa-ledger — one ledger for every worktree of the clone"
 git -C "$R" worktree add -q --detach "$TMP/wt" HEAD
