@@ -35,6 +35,11 @@ import "../routes";
 import classRoutes from "./routes";
 import { CLASSES_V2_COPY } from "./copy";
 import { CLASSES_ADD, CLASSES_HOME, classPath } from "./paths";
+import { beforeAll as preloadFirst } from "vitest";
+import { preloadAll } from "@/lib/lazyPage";
+
+// bd-sex15q.34 — these pages are their own chunks (lib/lazyPage); load them before stepping through them synchronously.
+preloadFirst(() => preloadAll({ pages: true }), 120_000);
 
 const files = () => newUiSourceFiles(resolve(__dirname)).filter((f) => !/\.test\.tsx?$/.test(f.rel));
 

@@ -29,6 +29,11 @@ import { forgetPapers } from './paperCache';
 import { VersionsPage } from './VersionsPage';
 import { ASSESSMENT_V2_BASE as B, versionsPath } from './paths';
 import routes from './routes';
+import { beforeAll as preloadFirst } from "vitest";
+import { preloadAll } from "@/lib/lazyPage";
+
+// bd-sex15q.34 — these pages are their own chunks (lib/lazyPage); load them before stepping through them synchronously.
+preloadFirst(() => preloadAll({ pages: true }), 120_000);
 
 const plain = (t: string | null | undefined) => (t || '').replace(/[⁦⁩]/g, '');
 
