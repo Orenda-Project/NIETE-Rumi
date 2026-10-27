@@ -15,7 +15,17 @@ export type CoachFeature = "training" | "lessons" | "home" | "schedule" | "obser
 
 type Id = number | string;
 
-export const COACH_APP_READY: readonly CoachFeature[] = ["training", "lessons"];
+// "schools": the coach's school list and its pages (Schools & teachers, a school, a teacher, add / remove): "My schools"
+// in the menu (operator, 27 Oct 2026). Listed after training, so the Training Library stays the landing page.
+export const COACH_APP_READY: readonly CoachFeature[] = ["training", "lessons", "schools"];
+
+/**
+ * Is this feature showing in the coach app for every v2 coach? A page in a ready feature uses it to leave out a link
+ * into one that is not (the guard would send that tap to the Training Library instead).
+ */
+export function coachFeatureReady(feature: CoachFeature): boolean {
+  return COACH_APP_READY.includes(feature);
+}
 
 export const COACH_TRAINING_BASE = "/portal/coach/training";
 
