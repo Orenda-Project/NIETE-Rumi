@@ -78,7 +78,8 @@ async function shell(opts = {}) {
 }
 
 describe.each([['the full answer', false], ['the quick answer (paged)', true]])('switch ON (JSON true), %s', (_n, paged) => {
-  test.each([['go'], ['role'], ['menu'], ['reminder'], ['report'], ['maker']])('via %s: portalHref is the signed /go link to this teacher\'s portal Home', async (via) => {
+  // every door the token knows but the portal's own card (the list differs by tier: read it, never retype it)
+  test.each(HomeToken.VIAS.filter((v) => v !== 'portal').map((v) => [v]))('via %s: portalHref is the signed /go link to this teacher\'s portal Home', async (via) => {
     const h = await home(via, { value: true, paged });
     expect(h.portalHref).toMatch(/^https:\/\/portal\.example\/go\/[A-Za-z0-9_-]+$/);
     const v = AppLink.verifyAppLink(h.portalHref.split('/go/')[1]);
