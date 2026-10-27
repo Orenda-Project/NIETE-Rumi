@@ -2,20 +2,17 @@
 /**
  * bd-gzfdu9 (VIDREC) SPEC §4.9: the report IMAGE carries the clip — one block right under "Try one thing tomorrow" on
  * the hero (794) and slim (480) templates: a 16:9 thumbnail with a play badge, "▶ Watch next: {title}" and
- * "{n} min · tap ▶ Watch in the next message". Without a strip the HTML is byte-identical to today (sha256 of the
- * base templates, pinned before the change). stripFor() races the engine for ≤ stripWaitMs() (R7m: shadow 0, card 1.5 s, llm 5 s) and reads the flag at call time.
+ * "{n} min · tap ▶ Watch in the next message". Without a strip the HTML is byte-identical to the template's own render
+ * with no VIDREC input (both rendered live in the test, COS 20261027T073937 §2). stripFor() races the engine for ≤ stripWaitMs() (R7m: shadow 0, card 1.5 s, llm 5 s) and reads the flag at call time.
  */
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const crypto = require('crypto');
 
 jest.mock('../../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
 const { heroVm, slimCard } = require('./fixtures-strip');
-const GOLDEN = require('./fixtures-strip.golden.json');
 const { buildHeroReportHtml } = require('../../../bot/shared/services/coaching/report-v2/hero-report.template');
 const { buildSlimCardHtml } = require('../../../bot/shared/services/coaching/report-v2/slim-card.template');
-const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 const shown = (s) => String(s).replace(/[‎‏⁦-⁩]/g, '');
 
 const thumb = path.join(os.tmpdir(), `vr-strip-${process.pid}.jpg`);
@@ -23,14 +20,36 @@ beforeAll(() => fs.writeFileSync(thumb, Buffer.from([0xff, 0xd8, 0xff, 0xd9])));
 afterAll(() => fs.rmSync(thumb, { force: true }));
 const STRIP = { thumbPath: thumb, title: 'Asking why-questions <b>', durationS: 134, where: 'next' }; // R7p: the next-message hint
 
-describe('no strip → byte-identical', () => {
-  test.each(['en', 'ur'])('hero %s', (l) => {
-    expect(sha(buildHeroReportHtml(heroVm(l)))).toBe(GOLDEN[`hero_${l}`]);
-    expect(sha(buildHeroReportHtml({ ...heroVm(l), videoStrip: null }))).toBe(GOLDEN[`hero_${l}`]);
+// COS 20261027T073937 §2: these were sha256 goldens pinned on 24312266a8, so #3731 (another team, bd-1r3k2h: the hero's
+// .pnote + partialNote) failed them through no fault of VIDREC's. Each case now renders the same input both ways in this
+// run, so a template change moves both renders together, and only a VIDREC byte in a no-strip render can fail it.
+const TEMPLATES = {
+  hero: ['../../../bot/shared/services/coaching/report-v2/hero-report.template', 'buildHeroReportHtml', heroVm],
+  slim: ['../../../bot/shared/services/coaching/report-v2/slim-card.template', 'buildSlimCardHtml', slimCard],
+};
+const CASES = [['hero', 'en'], ['hero', 'ur'], ['slim', 'en'], ['slim', 'ur']];
+const SENTINEL = '\u0000VIDREC-STRIP\u0000';
+
+describe('no strip → byte-identical (live renders)', () => {
+  test.each(CASES)('%s %s: the VIDREC path with no strip = the render with no VIDREC input, and carries no VIDREC byte', (k, l) => {
+    const [mod, fn, vm] = TEMPLATES[k];
+    const render = require(mod)[fn];
+    const base = render(vm(l)); // engine absent / flag off: the services pass no videoStrip key
+    expect(render({ ...vm(l), videoStrip: null })).toBe(base); // stripFor() found nothing
+    expect(render({ ...vm(l), videoStrip: undefined })).toBe(base);
+    expect(base).not.toMatch(/vstrip|video-reco|Watch next|اگلا دیکھیں|data:image\/jpeg/);
   });
-  test.each(['en', 'ur'])('slim %s', (l) => {
-    expect(sha(buildSlimCardHtml(slimCard(l)))).toBe(GOLDEN[`slim_${l}`]);
-    expect(sha(buildSlimCardHtml({ ...slimCard(l), videoStrip: null }))).toBe(GOLDEN[`slim_${l}`]);
+
+  test.each(CASES)('%s %s: a strip adds its own block and not one byte elsewhere', (k, l) => {
+    const [mod, fn, vm] = TEMPLATES[k];
+    jest.isolateModules(() => {
+      jest.doMock('../../../bot/shared/services/coaching/video-reco/strip', () => ({ stripHtml: () => SENTINEL }));
+      const render = require(mod)[fn];
+      const withStrip = render({ ...vm(l), videoStrip: STRIP });
+      expect(withStrip.split(SENTINEL)).toHaveLength(2);
+      expect(withStrip.replace(SENTINEL, '')).toBe(render(vm(l)));
+    });
+    jest.dontMock('../../../bot/shared/services/coaching/video-reco/strip');
   });
 });
 
