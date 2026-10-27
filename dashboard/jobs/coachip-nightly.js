@@ -5,7 +5,7 @@
  *   node dashboard/jobs/coachip-nightly.js --date YYYY-MM-DD [--dry-run] [--scope coach:<uuid>|school:<uuid>|sector:<name>]
  *     [--stages a,b] [--no-models] [--dry-run-models <usd>] [--backfill-budget <usd>] [--reconcile] [--purge-clips] [--out <dir>]
  * Env: SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY, COACHIP_ENV (sandbox|staging|production), COACHIP_TEACHER_KEY_SECRET,
- * OPENROUTER_API_KEY, R2_*, DATABASE_URL (the run lock). Exit: 0 ok/partial · 2 failed after facts · 3 env refused · 4 lock held.
+ * OPENROUTER_API_KEY, R2_*, DATABASE_URL (the run lock; safe through the 6543 transaction pooler). Exit: 0 ok/partial · 2 failed after facts · 3 env refused · 4 lock held.
  * The environment is asserted before any client is built; a dry run builds a read-only client and writes only to --out.
  */
 const path = require('path');
@@ -47,6 +47,18 @@ function defaultDate(now = new Date()) {
   return k.toISOString().slice(0, 10);
 }
 
+/** Runs `fn` holding the one-run-at-a-time lock (NIGHTLY_JOB §0) on `pg`, released in `finally`; exit 4 when another run holds it. */
+async function withRunLock(pg, log, fn) {
+  const store = require('../lib/insights/store');
+  const lock = await store.acquireLock(pg, { onLost: () => log('lock_lost') });
+  if (!lock) { log('already running'); return 4; }
+  try {
+    return await fn();
+  } finally {
+    await lock.release().catch(() => log('lock_release_failed'));
+  }
+}
+
 async function main(argv = process.argv.slice(2), e = process.env, log = (m) => console.log(`[coachip-nightly] ${m}`)) {
   let opts;
   try { opts = parseArgs(argv); } catch (err) { log(`usage: ${err.message}`); return 64; }
@@ -76,16 +88,17 @@ async function main(argv = process.argv.slice(2), e = process.env, log = (m) => 
   const pg = new Client({ connectionString: e.DATABASE_URL });
   await pg.connect();
   try {
-    if (!(await store.acquireLock(pg))) { log('already running'); return 4; }
-    const clipBucket = e.COACHIP_CLIP_BUCKET || e.R2_BUCKET_NAME;
-    let clipper = null;
-    if (e.R2_ENDPOINT && clipBucket) {
-      const { createClipper, r2FromEnv } = require('../lib/insights/clip-stage');
-      clipper = createClipper({ envName: asserted.env, bucket: clipBucket, ...r2FromEnv(e) });
-    }
-    return await runJob(opts, {
-      mode: 'write', envName: asserted.env, ref: asserted.ref, readClient: raw, store: new store.SupabaseStore(raw),
-      secret: e.COACHIP_TEACHER_KEY_SECRET, out, log, apiKey: e.OPENROUTER_API_KEY, clipper,
+    return await withRunLock(pg, log, async () => {
+      const clipBucket = e.COACHIP_CLIP_BUCKET || e.R2_BUCKET_NAME;
+      let clipper = null;
+      if (e.R2_ENDPOINT && clipBucket) {
+        const { createClipper, r2FromEnv } = require('../lib/insights/clip-stage');
+        clipper = createClipper({ envName: asserted.env, bucket: clipBucket, ...r2FromEnv(e) });
+      }
+      return await runJob(opts, {
+        mode: 'write', envName: asserted.env, ref: asserted.ref, readClient: raw, store: new store.SupabaseStore(raw),
+        secret: e.COACHIP_TEACHER_KEY_SECRET, out, log, apiKey: e.OPENROUTER_API_KEY, clipper,
+      });
     });
   } finally {
     await pg.end().catch(() => {});
@@ -99,4 +112,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main, parseArgs, defaultDate, STAGES };
+module.exports = { main, parseArgs, defaultDate, withRunLock, STAGES };
