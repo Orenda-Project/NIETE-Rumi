@@ -1,0 +1,50 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker-js/master/packages/core/schema/stryker-schema.json",
+  "testRunner": "jest",
+  "mutate": [
+    "bot/shared/services/assessment/topics/**/*.js"
+  ],
+  "ignorePatterns": [
+    "/*",
+    "!/bot",
+    "/bot/*",
+    "!/bot/scripts",
+    "/bot/scripts/*",
+    "!/bot/scripts/import-assessment-topics.js",
+    "!/bot/package.json",
+    "!/bot/shared",
+    "!/tests",
+    "/tests/*",
+    "!/tests/assessment",
+    "/tests/assessment/*",
+    "!/tests/assessment/topics",
+    "!/package.json",
+    "!/infrastructure",
+    "/infrastructure/*",
+    "!/infrastructure/supabase",
+    "/infrastructure/supabase/*",
+    "!/infrastructure/supabase/migrations"
+  ],
+  "jest": {
+    "projectType": "custom",
+    "config": {
+      "testEnvironment": "node",
+      "testMatch": [
+        "<rootDir>/tests/assessment/topics/**/*.test.js"
+      ]
+    },
+    "enableFindRelatedTests": false
+  },
+  "coverageAnalysis": "perTest",
+  "reporters": [
+    "clear-text",
+    "progress"
+  ],
+  "thresholds": {
+    "high": 90,
+    "low": 80,
+    "break": 80
+  },
+  "tempDirName": ".stryker-tmp-topics",
+  "cleanTempDir": true
+}
