@@ -280,7 +280,7 @@ async function libHub(token, opts = {}) {
   const at = { s, studentId: who.studentId || null, rootId: who.rootId || null, fetchImpl, hubKid: true, v3 };
   const out = sg ? await view(ix, { grade: sg, ...at }) : p.grades.length
     ? { ...(await gradesView(ix, { grades: p.grades, ...at })), sel: GradePick.selOf(p), first: p.first.slice() }
-    : await view(ix, { grade: null, ...at });
+    : await view(ix, { grade, ...at }); // an empty bank: today's answer for the visitor's grade
   if (out.chapters && await videoShelfOn()) await shelfOf(out, who.rootId || null, { watchOnly: Boolean(preview) });
   // web_quiz_rewatch_done (the library's own settings read): a finished lesson opens as a fresh go (wq-lib.js again=1)
   if (out.chapters && await rewatchDoneOn()) out.rewatch_done = true;
