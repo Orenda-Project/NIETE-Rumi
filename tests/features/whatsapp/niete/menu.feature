@@ -427,3 +427,50 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     When I send "make a presentation about photosynthesis"
     Then no presentation is started
     And the bot reply does not say it is preparing a presentation
+
+  # ══════════════════ INBOUND SIGNATURE (every message passes it) ═══════════════════
+  # Meta signs every webhook and Flow endpoint request: X-Hub-Signature-256 = "sha256=" + HMAC-SHA256 of the
+  # raw body with the App Secret of the app subscribed to the WABA. bot/shared/services/webhook-signature.js
+  # checks it in front of POST /webhook and POST /api/flows/*. Mode: app_settings `webhook_signature_mode`, else
+  # WHATSAPP_WEBHOOK_SIGNATURE_MODE, else log. These are HTTP-level (@chunk) and need the mode and a lane App
+  # Secret (@config-gated): the mock Graph API does not sign what it injects yet, so the mock driver records them
+  # BLOCKED. Executed at the HTTP layer by tests/whatsapp/webhook-signature.test.js (the real Express app); on a
+  # deployed tier the proof is the webhook.signature_valid / _missing / _invalid counts in the logs.
+  # /menu is the probe because it is the one message every teacher state answers the same way.
+
+  @e2e @menu @chunk @config-gated @P1 @M31
+  Scenario: A message Meta signed is answered when the signature is enforced
+    Given the webhook signature mode is "enforce"
+    And the bot holds the App Secret of the Meta app subscribed to its number
+    When Meta delivers "/menu" from a teacher, signed with that App Secret
+    Then the bot acknowledges the webhook with 200
+    And the "See what I do" menu is shown to that teacher
+
+  @e2e @menu @chunk @config-gated @P1 @M32
+  Scenario: In log mode (the default) an unsigned message is still answered and recorded as unsigned
+    Given the webhook signature mode is "log"
+    When "/menu" arrives for a teacher's number with no signature
+    Then the bot acknowledges the webhook with 200
+    And the "See what I do" menu is shown to that teacher
+    And the bot logs "webhook.signature_missing" for route "webhook"
+
+  @e2e @menu @chunk @config-gated @negative @P1 @M33
+  Scenario Outline: A forged message is refused when the signature is enforced, and the teacher gets nothing
+    Given the webhook signature mode is "enforce"
+    When "/menu" arrives for a teacher's number <how>
+    Then the bot answers the webhook with 401
+    And no message is sent to that teacher
+    And the bot logs "<event>" for route "webhook"
+
+    Examples:
+      | how                                           | event                     |
+      | with no signature                             | webhook.signature_missing |
+      | signed, then changed after signing            | webhook.signature_invalid |
+      | signed with a secret that is not the App's    | webhook.signature_invalid |
+
+  @e2e @menu @chunk @config-gated @negative @P2 @M34
+  Scenario: An unsigned Flow endpoint request is refused with Meta's signature code, and signed ones still open the form
+    Given the webhook signature mode is "enforce"
+    When a Flow data request reaches /api/flows/registration with no signature
+    Then the bot answers 432 without decrypting it
+    And the same request signed with the App Secret is decrypted and answered as before
