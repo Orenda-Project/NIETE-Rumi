@@ -56,6 +56,8 @@ describe('POST /api/portal/hcp/schedules', () => {
 
   it('creates a schedule with coach_id from session and status=upcoming', async () => {
     tableStates.hcp_visit_schedules = { rows: [] };
+    // bd-6xrimn: the caller is a coach and t-1 is in their patch.
+    tableStates.users = { rows: [{ id: 'coach-42', role: 'coach' }, { id: 't-1', role: 'teacher' }] };
     const { statusCode, payload } = await invokeRoute({
       method: 'post', path: '/schedules', userId: 'coach-42',
       body: {

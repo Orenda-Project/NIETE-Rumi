@@ -92,7 +92,8 @@ describe('POST /api/portal/hcp/generate-feedback', () => {
   });
 
   it('generates feedback and persists a delivery row', async () => {
-    tableStates.users = { rows: [{ id: 't-1', name: 'Aisha' }] };
+    // bd-6xrimn: the caller is a coach and t-1 is in their patch.
+    tableStates.users = { rows: [{ id: 't-1', name: 'Aisha' }, { id: 'coach-42', role: 'coach' }] };
     tableStates.hcp_feedback_deliveries = { rows: [] };
     llmCreate.mockResolvedValue({
       choices: [{ message: { content: JSON.stringify(sixBoxJson()) } }],
