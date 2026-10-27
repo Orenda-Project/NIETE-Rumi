@@ -1,6 +1,7 @@
 import { Children, isValidElement, type ReactNode } from "react";
 import type { Lang } from "../../../teacher/i18n";
 import { CodeText, DateText } from "../count";
+import type { CopyKey } from "../copy";
 import { digits } from "../format";
 import { pick, t, tx } from "../text";
 import type { Moment } from "../types";
@@ -46,10 +47,36 @@ export default function PairCard({ pair, lang, children }: { pair: Moment["pair"
   );
 }
 
-/** `s4.grade_subject` ("Grade 3 Urdu" / "جماعت ۳ Urdu") when the session has both; the grade is not a count (`data-nonum`). */
+/**
+ * fix-r5 s2 item 2 (B17; qa-coach 073250): the session's subject arrives as a raw token from the plan ("maths", "Urdu",
+ * "general_knowledge", "english_reading", any case, ≤ 40 chars). It reaches the screen only as a COPY word: the token is
+ * matched by its first word to `s4.subject.*`; anything else is never shown.
+ */
+const SUBJECTS: [RegExp, CopyKey][] = [
+  [/^urdu/, "s4.subject.urdu"],
+  [/^english/, "s4.subject.english"],
+  [/^math/, "s4.subject.maths"],
+  [/^(general_?science|science)/, "s4.subject.science"],
+  [/^(general_knowledge|gk$)/, "s4.subject.general_knowledge"],
+  [/^islami(at|yat)/, "s4.subject.islamiat"],
+  [/^(social_studies|sst$)/, "s4.subject.social_studies"],
+];
+
+export function subjectKey(subject: string | null | undefined): CopyKey | null {
+  if (!subject) return null;
+  const s = subject.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return SUBJECTS.find(([re]) => re.test(s))?.[1] ?? null;
+}
+
+/**
+ * `s4.grade_subject` ("Grade 3 Urdu" / "جماعت ۳ اردو") when the session has a grade and a known subject; `s4.grade_only`
+ * ("Grade 3") for an unknown subject; null without a grade. The grade is not a count (`data-nonum`).
+ */
 export function gradeSubject(session: Moment["session"] | undefined, lang: Lang): ReactNode | null {
   if (!session || session.grade == null || !session.subject) return null;
-  return tx("s4.grade_subject", lang, { g: <span data-nonum="">{digits(session.grade, lang)}</span>, subject: session.subject });
+  const g = <span data-nonum="">{digits(session.grade, lang)}</span>;
+  const key = subjectKey(session.subject);
+  return key ? tx("s4.grade_subject", lang, { g, subject: t(key, lang) }) : tx("s4.grade_only", lang, { g });
 }
 
 /** A placeholder node for a template part the payload lacks; `dropPart` removes it and its separator. */
