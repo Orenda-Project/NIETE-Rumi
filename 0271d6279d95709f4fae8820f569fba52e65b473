@@ -1,0 +1,2 @@
+{"ts":"2026-10-27T12:45:25Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"0271d6279d95","branch":"bd-5jmnfj.4.46-mix-keys","user":""}
+{"ts":"2026-10-27T12:55:46Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-5jmnfj.4.46-mix-keys: training spec: NOT UPDATED e2e: missing","sha":"0271d6279d95","branch":"bd-5jmnfj.4.46-mix-keys","user":""}
