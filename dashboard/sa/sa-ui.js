@@ -150,6 +150,8 @@
       headphones: 'Put the headphones on the child, then check the sound.',
       back_item: 'Back',
       more_below: 'More of the story below',
+      chip_say_next: 'Say it, then press Next',
+      chip_type_tick: 'Type, then press ✓',
     },
     ur: {
       hello: 'السلام علیکم! میں جگنو ہوں۔',
@@ -233,6 +235,8 @@
       headphones: 'بچے کو ہیڈفون لگائیں، پھر آواز چیک کریں۔',
       back_item: 'پیچھے',
       more_below: 'کہانی نیچے بھی ہے',
+      chip_say_next: 'بولیں، پھر «آگے» دبائیں',
+      chip_type_tick: 'لکھیں، پھر ✓ دبائیں',
     },
   };
 
@@ -400,6 +404,7 @@
       if (r7.story_scroll === true && t.mode === 'record' && t.passage) return line('r7_scroll');
       return null;
     }
+    function sayNext(t) { return r7.say_then_next === true && cellish(t) && !!line('r7_say_next'); }
     function hintEl(t, cls) {
       var hl = hintOf(t);
       if (!hl) return null;
@@ -1089,7 +1094,8 @@
         clock(v),
         itemSpeaks(it) ? h('div', { class: 'sae-row' }, [replayBtn(function () { sayItem(it, t); })]) : null,
         coachSays(it, true),
-        hintEl(t, 'sae-sub'),
+        // tick_prompt: one short chip while typing (the whole line is in the instruction, said and shown)
+        r7.tick_prompt === true && hintOf(t) ? h('p', { class: 'sae-chip sae-r7-hint', text: C.chip_type_tick }) : null,
         keypadArea(it, t, function (val) {
           busy = true;
           runner.answer(val);
@@ -1193,9 +1199,9 @@
       var t = v.task, it = v.cell_item;
       return screen(v, 'sae-run sae-run-rec sae-run-cell', [
         clock(v),
-        h('div', { class: 'sae-row' }, [h('p', { class: 'sae-chip sae-chip-rec', text: recChip(t, C) }), itemSpeaks(it) ? replayBtn(function () { sayItem(it, t); }) : null]),
-        // say_then_next: above the cell, so the sticky foot (Back / Next) never covers it on a short phone
-        hintEl(t, 'sae-sub'),
+        // say_then_next: the chip says "say it, then press Next" in place of "Read aloud" (one short line: the cell never
+        // slides under the sticky Back / Next on a short phone; the whole line is in the instruction, said and shown)
+        h('div', { class: 'sae-row' }, [h('p', { class: 'sae-chip sae-chip-rec' + (sayNext(t) ? ' sae-r7-hint' : ''), text: sayNext(t) ? C.chip_say_next : recChip(t, C) }), itemSpeaks(it) ? replayBtn(function () { sayItem(it, t); }) : null]),
         oneCell(v.cell, t, v.cell_index),
         coachSays(it),
       ], itemFoot(v, [btn(C.next, function () { runner.nextCell('tap'); draw(); }, 'sae-primary sa-next')]));
