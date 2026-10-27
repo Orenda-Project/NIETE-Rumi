@@ -289,7 +289,9 @@ describe('Games', () => {
   });
   test('no counts about the child: no score, no n/10, no digits in the rows', () => {
     const h = screens(load(), 'en').gamesMany;
-    expect(visible(h)).not.toMatch(/\d/);
+    // the grade picker names the selection («Grade 3», design-qa P2, bd-5gyspy.5): a grade, not a count about the child
+    expect(h).toMatch(/data-tap="gpk"[^>]*>Grade 3</);
+    expect(visible(h.replace(/<button[^>]*data-tap="gpk"[\s\S]*?<\/button>/, ''))).not.toMatch(/\d/);
   });
   test('one / none', () => {
     const s = screens(load(), 'en');

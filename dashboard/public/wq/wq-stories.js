@@ -120,7 +120,7 @@
     if (host && !bk.length) return scr('stories-shelf', l, '<p class="wqs-say">' + esc(t.empty) + '</p>', 'wqs-shelf');
     return scr('stories-shelf', l,
       '<div class="wqs-top">' + hm(l) + '<h2>' + esc(t.shelf) + '</h2></div>' +
-      '<button class="wqs-gl" data-tap="gl"' + (bk.length ? '' : ' data-primary') + ' aria-expanded="' + !!open + '">' + esc(t.gl(all ? '' : dg(sel.join(l === 'ur' ? '، ' : ', '), l), l)) + ' ▾</button>' + (open ? '<div class="wqs-pick">' + chips + '</div>' : '') +
+      '<button class="wqs-gl" data-tap="gl"' + (bk.length ? '' : ' data-primary') + ' aria-expanded="' + !!open + '">' + esc(t.gl(all ? '' : dg(sel.join(l === 'ur' ? '، ' : ', '), l), l)) + '<i class="wq-caret" aria-hidden="true"></i></button>' + (open ? '<div class="wqs-pick">' + chips + '</div>' : '') +
       (tb ? '<button class="wqs-tcard" data-tap="book" data-arg="' + tk + '" data-id="' + esc(tb.id) + '"' + (tk === pk ? ' data-primary' : '') + '>' + cov(tb) + '<span><i class="wqs-rib">' + esc(t.teacher) + '</i><b>' + IC.play + ' ' + t.readWith('<bdi lang="' + lg(tb.lang) + '" dir="' + dirOf(lg(tb.lang)) + '">' + esc(tb.title) + '</bdi>') + '</b>' + (tb.by ? '<small>' + esc(t.by(tb.by)) + '</small>' : '') + '</span></button>' : '') +
       (bk.length ? '<ul class="wqs-grid">' + cards + '</ul>' : '<p class="wqs-say">' + esc(t.empty) + '</p>'), 'wqs-shelf');
   }
