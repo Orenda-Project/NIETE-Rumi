@@ -112,6 +112,8 @@ features:
     - bot/shared/routes/quiz-flow-endpoint.js
     - bot/shared/routes/transcript-quiz-flow-endpoint.js      # the /quiz Flow (lp_v8 + transcript quizzes, one list)
     - bot/shared/services/quiz/**
+    - bot/shared/routes/web-quiz-internal.routes.js          # the web child quiz's internal API: the quiz services above as the portal calls them
+    - bot/shared/services/first-touch/**                     # the /quiz one door, the teacher's quiz home ("Try it as a student") and the quiz maker page
     - bot/shared/services/student-ingress.js                # a child's door: their quizzes, "quiz" typed mid-quiz
     - bot/shared/services/exam/**
     - bot/shared/services/exam-checker/**

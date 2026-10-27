@@ -283,6 +283,10 @@ const TABLE = [
   { id: 'WQ255', title: 'The child\'s screens never lead back to the teacher\'s and remember nothing' },
   { id: 'WQ256', title: 'With the class round off nothing changes' },
   { id: 'WQ257', title: 'The class round follows the term\'s draw: ten counted turns, a child\'s \'not today\', pause, and \'Not this term\'' },
+  { id: 'WQ258', title: 'With practice play on, the teacher\'s class preview opens the grade\'s storybooks, games and videos and writes nothing' },
+  { id: 'WQ259', title: 'With practice play off, the class preview stays look-only and its content routes refuse it' },
+  { id: 'WQ260', title: 'The preview\'s games never ask for the microphone' },
+  { id: 'WQ261', title: 'A phone that cannot play Ogg Opus hears the storybook voices as mp3' },
 ];
 
 const scenarios = TABLE.map(({ id, title }, i) => ({ id, title, run: runs[id] || notYet(id), _i: i }))
