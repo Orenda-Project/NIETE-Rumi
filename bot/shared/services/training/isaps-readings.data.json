@@ -1,6 +1,7 @@
 {
- "_source": "I-SAPS 'Level 1 Reading Material (Mandatory) new.docx' (partner-supplied, 2026-10-08, after FDE feedback): the MANDATORY list, with the section to read, rationale and outcome. Supplementary readings are shared by I-SAPS as a separate Word document, not listed here. Replaces the Sept 2026 'Reading Resources Level 1' recommended list (95 items).",
+ "_source": "Level 0 (Level 1: Novice): I-SAPS 'Level 1 Reading Material (Mandatory) new.docx' (partner-supplied, 2026-10-08, after FDE feedback). Level 1 (Level 2: Intermediate): I-SAPS 'Level 2 Reading List Final.docx' (partner-supplied, 2026-10-26), 13 mandatory readings; the one edit is the first Module 2 author, which the document split into two ('Helen, M., Immordino-Yang, M. H.'). Both are the MANDATORY lists, with the section to read, rationale and outcome. Supplementary readings are shared by I-SAPS as a separate Word document, not listed here. Level 0 replaced the Sept 2026 'Reading Resources Level 1' recommended list (95 items).",
  "vendor": "I-SAPS",
+ "vendor_key": "ISAPS",
  "levels": {
   "0": {
    "1": [
@@ -136,6 +137,143 @@
      "url": "https://depedbataan.com/wp-content/uploads/2025/09/THE-POWER-OF-TEACHER-LEADERSHIP-TO-BUILD-COLLABORATION.pdf",
      "rationale": "This resource introduces collaboration as a central expression of teacher leadership through shared expertise, professional dialogue and collective responsibility. It helps participants recognise how everyday contributions to colleagues’ learning can support school improvement.",
      "outcome": "Build collaboration among team members to strengthen their leadership skills."
+    }
+   ]
+  },
+  "1": {
+   "1": [
+    {
+     "title": "Experience and Education (1938/1997)",
+     "author": "Dewey, J.",
+     "type": "Book",
+     "section": "Pages 17–33",
+     "url": "https://drive.google.com/file/d/1QcNrJjHMvai0-PsG2JCVu_omGlydrDKJ/view?usp=drive_link",
+     "rationale": "Dewey’s Experience and Education provides a philosophical foundation for examining how experience becomes meaningful learning through reflection and inquiry. It helps participants distinguish experiences that support growth and future learning from those that limit them.",
+     "outcome": "Equip themselves with criteria to distinguish genuinely educative experiences from merely activity-filled ones, grounding instruction in inquiry that connects to students' lived experience."
+    }
+   ],
+   "2": [
+    {
+     "title": "We Feel, Therefore We Learn: The Relevance of Affective and Social Neuroscience to Education (2007)",
+     "author": "Immordino-Yang, M. H., & Damasio, A.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://drive.google.com/file/d/1tEhCK_9TiVAgWvmdEjW6J5C-eB6byCM1/view?usp=sharing",
+     "rationale": "This article supports the module’s integration of cognitive and affective development by explaining how emotion is intertwined with attention, memory, learning and decision-making. It helps participants understand how learners’ emotional experiences influence their willingness to participate, persist through difficulty and attempt challenging tasks again. It is particularly relevant to discussions of participation and persistence, Sameer’s withdrawal and re-entry, and the relationship between emotional safety and intellectual challenge.",
+     "outcome": "Explain how emotional experiences influence learners’ participation, persistence and engagement with challenging tasks, and identify ways to support both emotional safety and intellectual challenge in the classroom."
+    },
+    {
+     "title": "Funds of Knowledge for Teaching: Using a Qualitative Approach to Connect Homes and Classrooms (1992)",
+     "author": "Moll, L. C., Amanti, C., Neff, D., & Gonzalez, N.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://drive.google.com/file/d/1JO19kyDP12zq3Gs9bKAwo1xwgeTA1qkh/view?usp=sharing",
+     "rationale": "Moll et al.’s Funds of Knowledge for Teaching explores how teachers can identify the knowledge and skills accumulated within households and use these resources to develop classroom learning. It provides a foundation for connecting learners’ home and community experiences with disciplinary knowledge. This is particularly relevant to Scene 6, where Sameer’s father contributes his practical knowledge of construction to a Physics lesson. Recognizing this expertise not only enriches learning but can also affirm a learner’s dignity and sense of belonging.",
+     "outcome": "Identify knowledge and skills within learners’ households and communities and use these as resources for meaningful classroom learning."
+    },
+    {
+     "title": "The Prosocial Classroom: Teacher Social and Emotional Competence in Relation to Student and Classroom Outcomes (2009)",
+     "author": "Jennings, P. A., & Greenberg, M. T.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://drive.google.com/file/d/1wnm3ld4GxkWvFHUQNlOZyKCXTiaFTSpO/view?usp=sharing",
+     "rationale": "This review supports the module’s integration of affective development by examining how teachers’ social and emotional competence and well-being shape supportive teacher–student relationships, classroom management and the implementation of social and emotional learning. It also explores how emotional stress and burnout can undermine classroom relationships and classroom climate. It is particularly relevant to the discussion of teachers’ emotional labour, the effects of workload and leadership on teachers’ well-being, and the challenges of sustaining emotionally responsive teaching.",
+     "outcome": "Explain how teachers’ social and emotional competence and well-being influence classroom relationships and learning, and identify ways school leadership and organisational support can help sustain emotionally responsive teaching."
+    }
+   ],
+   "3": [
+    {
+     "title": "Discipline and Group Management in Classrooms (1970)",
+     "author": "Kounin, J. S.",
+     "type": "Book",
+     "section": "Chapters 1–3",
+     "url": "https://drive.google.com/file/d/1-DjVmc7UMPQg-BoYtIUzKr2EekVDtxyy/view?usp=drive_link",
+     "rationale": "Kounin’s work grounds classroom management in teachers’ awareness, coordination and pacing of classroom activity. It helps participants understand how withitness, overlapping, momentum, smoothness and group focus sustain engagement and prevent disruptions from escalating.",
+     "outcome": "Use Kounin's group management strategies, including withitness, overlapping, and momentum, to create a classroom environment where disruptions are prevented before they escalate."
+    }
+   ],
+   "4": [
+    {
+     "title": "The SAMR Model: A Critical Review and Suggestions for Its Use (2016)",
+     "author": "Hamilton, E. R., Rosenberg, J. M., & Akcaoglu, M.",
+     "type": "Article",
+     "section": "Pages 433–441",
+     "url": "https://drive.google.com/file/d/1XTnJn1QPcXBAnRvOVvbOK9cfg1cH68AQ/view?usp=drive_link",
+     "rationale": "This critical review supports the Digital Literacy module by encouraging thoughtful use of SAMR in relation to learning goals, classroom context and teaching processes. It helps participants evaluate technology’s educational contribution without assuming that movement towards transformation necessarily improves learning.",
+     "outcome": "Analyze a lesson plan using the SAMR model and redesign tasks to move from enhancement to transformation levels."
+    }
+   ],
+   "5": [
+    {
+     "title": "The Handbook for Embedded Formative Assessment",
+     "author": "",
+     "type": "Book",
+     "section": "Pages 3–35",
+     "url": "https://drive.google.com/file/d/1rPrWZ4OLSImz89wq5poc3MikzS0T6Q5C/view?usp=drive_link",
+     "rationale": "The Handbook for Embedded Formative Assessment grounds this module in practical strategies for using evidence of learning to inform teaching and learners’ next steps. It explores how teachers can clarify learning intentions and success criteria, elicit evidence of learning, provide feedback that moves learning forward, activate peer support, and develop learners’ ownership of their learning. Its emphasis on actionable classroom techniques helps teachers translate these strategies into everyday practice.",
+     "outcome": "Select and apply formative assessment techniques to gather evidence of learning, provide useful feedback, and adapt teaching and learning activities to learners’ needs."
+    },
+    {
+     "title": "How to Create and Use Rubrics for Formative Assessment and Grading (2013)",
+     "author": "Brookhart, S. M.",
+     "type": "Book",
+     "section": "Chapters 3, 9 and 10",
+     "url": "https://drive.google.com/file/d/1hL0FxL6wm569XBaGF7QoMKTKjdRC7iDB/view?usp=drive_link",
+     "rationale": "Brookhart’s work supports this module by explaining how learning-focused criteria and descriptions of quality make assessment expectations clear and guide improvement. It helps participants select and use analytic or holistic rubrics appropriately for formative assessment and grading.",
+     "outcome": "Design and use effective rubrics that support both formative assessment and fair grading by clearly describing levels of performance and guiding student improvement."
+    }
+   ],
+   "6": [
+    {
+     "title": "Mind in Society (1978)",
+     "author": "Vygotsky, L. S.",
+     "type": "Book",
+     "section": "Chapters 4 and 6",
+     "url": "https://drive.google.com/file/d/1L2aAho_kHDqolA_V1QHTs1dVd4R9aBxH/view?usp=drive_link",
+     "rationale": "Vygotsky’s Mind in Society explains how mediation and supported participation within the zone of proximal development enable learners to develop capabilities they cannot yet exercise independently. It helps participants understand how responsive guidance can support increasing independence.",
+     "outcome": "Apply Vygotsky’s concepts of the Zone of Proximal Development and socially mediated learning to design instructional support that helps students progress from assisted to independent performance."
+    }
+   ],
+   "7": [
+    {
+     "title": "Project-Based Learning for the 21st Century: Skills for the Future (2010)",
+     "author": "Bell, S.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://drive.google.com/file/d/1kDQL9qc5YxackSMU-5LaGQu76K9khlNV/view?usp=drive_link",
+     "rationale": "Bell’s article supports this module by connecting project-based learning with inquiry, collaboration, communication and the creation of authentic products. It helps participants understand how purposeful projects can integrate subject knowledge with critical thinking, problem-solving and learner independence.",
+     "outcome": "Design and implement project-based learning experiences that develop 21st-century skills such as collaboration, critical thinking, communication, and problem-solving through authentic, student-centered inquiry."
+    }
+   ],
+   "8": [
+    {
+     "title": "Enhancing Teaching Through Constructive Alignment (1996)",
+     "author": "Biggs, J.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://drive.google.com/file/d/1oFqv8vbzFlIS_rhxhdKTzU8jCnszw5Jt/view?usp=drive_link",
+     "rationale": "Biggs’s constructive alignment explains why intended outcomes, teaching activities and assessment must support and require the same kind of learning. It helps participants identify mismatches in lesson planning and establish coherence between what learners are expected to learn, practise and demonstrate.",
+     "outcome": "Apply the principle of constructive alignment by designing teaching activities and assessment tasks that are coherently linked to the intended learning outcomes."
+    },
+    {
+     "title": "Principles of Instruction (2012)",
+     "author": "Rosenshine, B.",
+     "type": "Article",
+     "section": "The whole resource",
+     "url": "https://www.aft.org/sites/default/files/Rosenshine.pdf",
+     "rationale": "Rosenshine’s principles provide a research-informed basis for sequencing instruction through review, small steps, modelling, questioning and practice. They help participants plan appropriate support and checks for understanding as learners move from guided to independent practice.",
+     "outcome": "Apply Rosenshine’s principles of instruction, such as daily review, scaffolding, guided practice, and checking for understanding, to design clear, effective, and research-based classroom teaching."
+    }
+   ],
+   "9": [
+    {
+     "title": "Gestalt psychology: An introduction to new concepts in modern psychology (1947)",
+     "author": "Köhler, W.",
+     "type": "Book",
+     "section": "Chapter VI",
+     "url": "https://drive.google.com/file/d/1Jdl2K5JJse9e2wtt8xsN0gv3SBHYdV29/view?usp=sharing",
+     "rationale": "Köhler’s Gestalt psychology offers a lens for understanding how parts acquire meaning through their relationships within a whole. Applied to leadership, it encourages participants to examine how individual actions, relationships and institutional conditions interact to shape school life.",
+     "outcome": "Explain how the human mind naturally organizes complex information into unified, meaningful structures rather than a collection of isolated parts."
     }
    ]
   }
