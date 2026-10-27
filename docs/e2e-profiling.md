@@ -297,3 +297,36 @@ one value for app-redirect and the six quiz modules that cache `web_quiz_hub` / 
 
 Harness waits left inside scenario windows: the 0.8 s settle after each reply (376 × 0.83 s = 313 s across
 eleven children, of which 16 settles saw a second message) and the quiesce where no settle preceded it (76 s).
+
+### Triaged (bd-1r3k2h) — the 27 FAILs of `20261026-2335-par`, one cause each
+
+Verdicts 170 pass / 27 fail / 86 other at 12 m 13 s. Every FAIL was read from its evidence row and the run's
+logs; nothing below is inferred.
+
+| Cause | Scenarios | Fix |
+|---|---|---|
+| driver took the merged "✗ Not correct · Q2/20" line as the question (NO_KEY_ENTRY) | T05 T16 T21 | `questionLineOf` (bd-yuur1a) |
+| STA06 regex lacked the LRI/PDI around `/menu`; T15 sent into an open menu wait | STA06 T15 | bd-yuur1a |
+| `/portal` could not sign a link (no `INTERNAL_API_KEY`), then sent the signed link as text: `cta_url` needs https and the lane's portal URL is http | M10 M21 | lane placeholder key (bd-0ek3rv); `E2E_PORTAL_URL=https://127.0.0.1:5173` on the WhatsApp mock lane |
+| registration Flow fixture was the old single-screen form | R02 R07 R12 R13-pre | fixture refreshed to v7.0 |
+| `@known-issue` scenario | LANG09 | listed in `known-findings.json` |
+| `seed-lp-quiz --lessons-from auto` found no sent lp_v8 quiz locally → no lesson refs → no "Make it again" | T36 T41 (T35) | `--lesson-id grade_3_math_ch1_seg1` |
+| `offeredToday()` saw the transcript-quiz offers earlier runs left (`skip_reason: offered_today`) | COA39–COA55, COA45 | purge the driver's run quizzes before every ask |
+| second recording sent 45 s after step 1 — pipeline already complete under replay | COA09 | `E2E_COACHING_DEFER_AFTER_MS` (0 on the lane), never after step 5 |
+| Step 1/5 is replaced by the reaction (NC1); the check wanted five counters | COA25 | assert steps 2–5 |
+| the promise rides in the PDF caption (bd-w2daa.7); the check wanted a PROMISE row after FORWARD | T74 | assert "FORWARD is last" |
+| **product**: a question card that could not be sent was logged and the list still went out ("the question is in the picture above") | T42 | the sender stops the phase (`cardFailed`), the engine retries then skips the question; the mock also refuses header links on example.invalid |
+| `niete_lp_fidelity_moves` was not a seed table (0 rows → `lp_absent`) | COA29 COA30 (COA20 COA59) | seed table added; `seed-pull --from-sandbox` |
+| voice-debrief LLM answer not in the cassette (`E2E_CASSETTE_MISS llm …`) | COA58 | `--record-missing` |
+| **product**: gloss that is a sub-phrase of the topic ("… Profit Calculation (Profit Calculation)") | T62 | `subPhraseOf` in lessonLabel |
+| **product**: edit classifier filed a new lesson request under out_of_scope; router answered it | L11 (+ new L12) | `new_request` label, router falls through |
+| **product**: the hero image had no slot for the partial note | COA19 | `.pnote` + `analysis_data.partial_report_note` |
+| content: 2 of 7 questions drew pictures (needs 3) | T54 | LLM content — not a lane or product fix |
+
+Verification, run `20261026-200020-ccede40-mock` (sync-selected parents + full shards, record-missing; wall 14 m 49 s):
+T35/T36/T41, COA39–COA48 and COA51–COA55, COA45, COA25, COA19, L11 (+ the new L12), T74, T62 and STA06 PASS;
+COA59 PASS as a side effect of the ask purge. Still failing there: T42 and M10/M21 (the two causes added above,
+fixed after that run), COA29/COA30 (the runner re-installed the published seed over the sandbox pull — the
+fidelity table needs `seed-publish`), LANG09 (known), T54 (content), COA49 (now BLOCKED: no `lesson_plans` row
+for the survey — a different, pre-existing gap). T05/T15/T16/T21, R02/R07/R12/R13-pre, COA09 and COA58 were
+not in that run's selection and were re-run separately (see the ledger rows for the follow-up run).
