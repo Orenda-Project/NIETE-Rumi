@@ -95,11 +95,6 @@ async function wait(now = Date.now()) {
   return (await pageSwitches(now))[WAIT_KEY] === true;
 }
 
-/** → true only when `quiz_teacher_home_portal_link` is JSON `true`; the page read, no read of its own. */
-async function portalLink(now = Date.now()) {
-  return (await pageSwitches(now))[PORTAL_LINK_KEY] === true;
-}
-
 /** → true only when `quiz_teacher_server_timing` was JSON `true` at the home switch's last read (within 30 s). Never reads, never waits. */
 function timing(now = Date.now()) {
   return Boolean(timingCache && now - timingCache.at < TTL_MS && timingCache.on);
@@ -112,6 +107,6 @@ function resetTiming() { timingCache = null; }
 function reset() { cache = null; pageCache = null; timingCache = null; }
 
 module.exports = {
-  on, paged, gradeFast, wait, portalLink, pageSwitches, timing, reset, resetTiming, KEY, PAGED_KEY, GRADE_FAST_KEY, WAIT_KEY, TIMING_KEY,
+  on, paged, gradeFast, wait, pageSwitches, timing, reset, resetTiming, KEY, PAGED_KEY, GRADE_FAST_KEY, WAIT_KEY, TIMING_KEY,
   PORTAL_LINK_KEY, PAGE_KEYS, TTL_MS,
 };

@@ -284,8 +284,14 @@ function createRouter(deps = null) {
     try {
       const base = String(require('../../config/branding').portalUrl() || '').replace(/\/+$/, '');
       const t = base ? require('../app-login-link').signAppLink(user.id, 'menu') : null;
-      return t ? `${base}/go/${t}` : null;
-    } catch (_) { return null; }
+      if (t) return `${base}/go/${t}`;
+      // the switch is on and the link cannot be made: said at error level, never a silent missing link
+      logToFile('❌ teacher home: portal link not minted (no portal address or signing key on this deployment)', { base: Boolean(base) }, 'error');
+      return null;
+    } catch (err) {
+      logToFile('❌ teacher home: portal link failed', { error: err && err.message }, 'error');
+      return null;
+    }
   }
   function practiceUrl(user, lang) {
     if (!user || !COACH_ROLES.has(String(user.role || '').toLowerCase())) return null;

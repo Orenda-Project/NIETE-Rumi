@@ -71,4 +71,4 @@ function keywordRoutingOn() {
   return !OFF.has(String(process.env.PORTAL_KEYWORD_ROUTING == null ? '' : process.env.PORTAL_KEYWORD_ROUTING).trim().toLowerCase());
 }
 
-module.exports = { isPortalRequest, keywordRoutingOn, PORTAL_WORD_RX, REQUEST_WORDS, MAX_TOKENS };
+module.exports = { isPortalRequest, keywordRoutingOn };
