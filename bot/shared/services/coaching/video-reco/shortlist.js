@@ -136,19 +136,35 @@ function docOf(module, seg) {
   ].join(' '));
 }
 
-function bm25(catalog, query) {
+// bd-8hhqhf R7v (COS 20261027T050735, eng-fix r7v/MEASURE.md): the catalogue side of BM25 (each chapter's tokens, term
+// counts, the document frequencies, the mean length) was rebuilt on every call, ~45% of the card-mode pick's CPU. It
+// depends on the catalogue alone, so it is built once per catalogue's module list; the scores are the same.
+const BM25_INDEX = new WeakMap();
+function bm25Index(catalog) {
+  let ix = BM25_INDEX.get(catalog.modules);
+  if (ix) return ix;
   const docs = [];
   for (const module of catalog.modules) for (const seg of module.segments || []) docs.push({ id: seg.seg_id, toks: docOf(module, seg) });
   const N = docs.length || 1;
   const avg = docs.reduce((n, d) => n + d.toks.length, 0) / N || 1;
   const df = new Map();
   for (const d of docs) for (const t of new Set(d.toks)) df.set(t, (df.get(t) || 0) + 1);
+  for (const d of docs) {
+    d.tf = new Map();
+    for (const t of d.toks) d.tf.set(t, (d.tf.get(t) || 0) + 1);
+  }
+  ix = { docs, N, avg, df };
+  BM25_INDEX.set(catalog.modules, ix);
+  return ix;
+}
+
+function bm25(catalog, query) {
+  const { docs, N, avg, df } = bm25Index(catalog);
   const q = [...new Set(tokens(query))];
   const scores = new Map();
   const words = new Map();
   for (const d of docs) {
-    const tf = new Map();
-    for (const t of d.toks) tf.set(t, (tf.get(t) || 0) + 1);
+    const { tf } = d;
     let s = 0;
     let content = 0;
     let asks = true;
@@ -582,4 +598,4 @@ function enacted(catalog, ctx, lesson, ids = ENACTED) {
   })) };
 }
 
-module.exports = { notFor, routeGateOk, cardFamilyOk, goalFirst, enacted, ENACTED, ENACTED_STEPS, whyFirst, WHY_FIRST, build, textRoute, recommendable, fallbackSubjectOk, stepQuery, contentWords, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, STUB_FLOOR, LABEL_37, cardTagOk };
+module.exports = { bm25, notFor, routeGateOk, cardFamilyOk, goalFirst, enacted, ENACTED, ENACTED_STEPS, whyFirst, WHY_FIRST, build, textRoute, recommendable, fallbackSubjectOk, stepQuery, contentWords, tokens, subjectId, gradeOk, MAX_CANDIDATES, MAX_TEXT, TEXT_FLOOR, STUB_FLOOR, LABEL_37, cardTagOk };
