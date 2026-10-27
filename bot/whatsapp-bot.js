@@ -60,15 +60,15 @@ const railwayRedis = require('./shared/services/cache/railway-redis.service');
 // events; all media work lives in the separate `calls` Railway service.
 const { extractCallEvents, forwardCallEvents } = require('./shared/calls/call-forwarder');
 
-// Import Routes (Flow encryption endpoints)
+// Import Routes (Flow encryption endpoints), and Meta's X-Hub-Signature-256 check (off | log | enforce)
 const flowEndpointRoutes = require('./shared/routes/flow-endpoint.routes');
-
-// Create Express app
+const WebhookSignature = require('./shared/services/webhook-signature');
+// Create Express app. `verify` keeps the raw bytes Meta signed (req.rawBody); req.body is parsed exactly as before.
 const app = express();
-app.use(express.json());
+app.use(express.json({ verify: WebhookSignature.captureRawBody }));
 
-// Mount routes (Flow encryption endpoints)
-app.use('/api/flows', flowEndpointRoutes);
+// Mount routes (Flow encryption endpoints). Meta signs these too; enforce answers 432, its code for a bad signature.
+app.use('/api/flows', WebhookSignature.requireMetaSignature({ route: 'flows', rejectStatus: 432 }), flowEndpointRoutes);
 // service-to-service API (portal → bot). Shared-secret auth lives
 // inside the router. Mounted before the inline /api/internal/send-password-reset
 // route below; Express falls through when no route in the router matches.
@@ -468,7 +468,7 @@ app.get('/webhook', (req, res) => {
 /**
  * Webhook endpoint to receive messages (POST)
  */
-app.post('/webhook', async (req, res) => {
+app.post('/webhook', WebhookSignature.requireMetaSignature({ route: 'webhook', rejectStatus: 401 }), async (req, res) => {
   // ACK. Measured on staging 2026-09-06: a child's join-Flow reply got no HTTP
   // response at all — still open after 180 s — while the session had been
   // created one second in and three messages had already gone to that phone.
@@ -2870,6 +2870,8 @@ function startServer() {
   require('./shared/services/quiz/web-quiz-config-line').logWebQuizConfig();
   // web_quiz_page_boot: the child page's switches warmed now, not on the first children after a deploy (never waited for).
   require('./shared/services/quiz/web-quiz-page-warm').boot().catch(() => {});
+  // webhook.signature_config: the signature mode this process starts in and whether it has a secret (never its value).
+  WebhookSignature.logSignatureConfig();
   return app.listen(constants.PORT, () => {
   // Read version from VERSION file
   const path = require('path');
