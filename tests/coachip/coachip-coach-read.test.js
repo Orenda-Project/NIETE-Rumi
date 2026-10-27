@@ -28,6 +28,7 @@ const I = require('./helpers/insights-seed');
 const { createCoachipCodes } = require('../../dashboard/services/coachip-codes.service');
 const { createCoachipScope } = require('../../dashboard/services/coachip-scope.service');
 const { createCoachipRouter } = require('../../dashboard/routes/portal-coachip.routes');
+const S = require('../../dashboard/services/coachip-shapes');
 
 const run = hasPostgres() ? describe : describe.skip;
 const { fid } = seed;
@@ -390,6 +391,25 @@ run('coachip coach read routes R2 R3 R4 R9 (Postgres, HTTP)', () => {
       expect(new Date(b.computed_at).toISOString()).toBe('2026-10-25T21:40:00.000Z');
     });
 
+    test("fix-r5 s2 item 4 (qa-coach 073419, B10): a school S1 names first but with no ranked school rollup carries the coach's rank-1 W, never null", async () => {
+      await world();
+      // S-03 holds 11 of 22 for the coach's rank-1 W (W-IP-TIME) but its school rollup is not ranked (no school-scope rank 1)
+      await pg.query(`UPDATE coachip_rollups SET rank = NULL, numerator = 11, denominator = 22
+                       WHERE scope_kind = 'school' AND school_id = $1 AND w_id = 'W-IP-TIME'`, [SCH(3)]);
+      const home = await ok(C3, '/home');
+      expect(home.moves[0].where_first.school.school_id).toBe(SCH(3));
+      expect(home.moves[0].where_first.count).toMatchObject({ n: 11, d: 22 });
+      const b = await ok(C3, '/schools');
+      const s3 = b.schools.find((s) => s.school.school_id === SCH(3));
+      expect(s3.top_w).not.toBeNull();
+      checkWRow(s3.top_w);
+      expect(s3.top_w).toMatchObject({ w_id: 'W-IP-TIME', state: 'also_seen', count: { n: 11, d: 22 }, where_first: null });
+      expect(b.windows.map((w) => w.id)).toContain(s3.top_w.count.window_id);
+      // a school with nothing on the coach's ranked Ws (S-04: 0 of 4) still has no top W, and S-01 has no rows at all
+      expect(b.schools.find((s) => s.school.school_id === SCH(4)).top_w).toBeNull();
+      expect(b.schools.find((s) => s.school.school_id === SCH(1)).top_w).toBeNull();
+    });
+
     test('no scope → 404; a teacher session → 404; signed out → 401', async () => {
       await world();
       expect((await get(C9, '/schools')).raw).toBe('{"error":"not_found"}');
@@ -636,7 +656,7 @@ run('coachip coach read routes R2 R3 R4 R9 (Postgres, HTTP)', () => {
 
   // ── R9 ────────────────────────────────────────────────────────────────────────────────────────────────────────
   describe('R9 GET /coachip/i/:wId', () => {
-    test('W-IP-TIME: the card, the library entry as Text pairs (no url), alternatives parent first, check_by for where_first', async () => {
+    test('W-IP-TIME: the card, the library entry as Text pairs (no url), alternatives own W first then the parent, check_by for where_first', async () => {
       await world();
       const home = await ok(C3, '/home');
       const b = await ok(C3, '/i/W-IP-TIME');
@@ -657,12 +677,21 @@ run('coachip coach read routes R2 R3 R4 R9 (Postgres, HTTP)', () => {
       expect(b.i.materials.map((m) => m.kind)).toEqual(['print', 'other', 'vidrec']);
       expect(b.i.evidence.length).toBeGreaterThan(0);
       for (const e of b.i.evidence) { expectKeys(e, K.evidence); expect(typeof e.source).toBe('string'); expect(isText(e.claim)).toBe(true); }
-      expect(b.alternatives.map((a) => a.i_id)).toEqual(['I-IP-1', 'I-IP-TIME-2']);
+      expect(b.alternatives.map((a) => a.i_id)).toEqual(['I-IP-TIME-2', 'I-IP-1']);   // LIBRARY_RULES §2.3 (panel 093959)
       b.alternatives.forEach((a) => { expectKeys(a, K.alt); expect(isText(a.title)).toBe(true); });
       expectKeys(b.check_by_default, K.checkByDefault);
       expect(b.check_by_default).toEqual({ date: '2026-11-09', rule: '14_days', visit: null });   // S-03's visit is 2 days away
       expect(b.fln).toBeNull();
       expect(new Date(b.computed_at).toISOString()).toBe('2026-10-25T21:40:00.000Z');
+    });
+
+    test('W-IP-NOPLAN (panel 093959 c2): alternatives = the next teacher-level I of the same W, then the parent\'s (LIBRARY_RULES §2.3)', async () => {
+      await world();
+      const b = await ok(C3, '/i/W-IP-NOPLAN');
+      expect(b.i.i_id).toBe('I-IP-NOPLAN-1');
+      expect(b.alternatives.map((a) => a.i_id)).toEqual(['I-IP-NOPLAN-2', 'I-IP-1']);
+      const lib = S.library();
+      for (const a of b.alternatives) expect(lib.intervention(a.i_id).level).toBe('teacher');
     });
 
     test('?school= a held school with a visit ≥ 7 days away → the visit rule', async () => {

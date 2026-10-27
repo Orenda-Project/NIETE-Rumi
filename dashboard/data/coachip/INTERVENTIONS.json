@@ -1725,7 +1725,7 @@
     {
      "kind": "linked_plan_step",
      "ref": "independent_practice_steps",
-     "name": "The linked plan's own independent_practice_steps line (read aloud as the task; FLN plans carry independent_practice_time, typically 10 min)",
+     "name": "The linked plan's own practice line, read aloud as the task (FLN plans give about 10 minutes for it)",
      "note": "the step text of the lesson's own linked plan (lesson_plans.independent_practice_steps); rendered as s5.materials.plan",
      "name_ur": "منصوبے کی اپنی سطر: خود مشق",
      "api_kind": "other"
@@ -1834,7 +1834,7 @@
     {
      "kind": "linked_plan_step",
      "ref": "independent_practice_steps",
-     "name": "The linked plan's own independent_practice_steps line (read aloud as the task; FLN plans carry independent_practice_time, typically 10 min)",
+     "name": "The linked plan's own practice line, read aloud as the task (FLN plans give about 10 minutes for it)",
      "note": "the step text of the lesson's own linked plan (lesson_plans.independent_practice_steps); rendered as s5.materials.plan",
      "name_ur": "منصوبے کی اپنی سطر: خود مشق",
      "api_kind": "other"
@@ -1938,7 +1938,7 @@
     {
      "kind": "linked_plan_step",
      "ref": "independent_practice_steps",
-     "name": "The linked plan's own independent_practice_steps line (read aloud as the task; FLN plans carry independent_practice_time, typically 10 min)",
+     "name": "The linked plan's own practice line, read aloud as the task (FLN plans give about 10 minutes for it)",
      "note": "the step text of the lesson's own linked plan (lesson_plans.independent_practice_steps); rendered as s5.materials.plan",
      "name_ur": "منصوبے کی اپنی سطر: خود مشق",
      "api_kind": "other"
@@ -2047,7 +2047,7 @@
     {
      "kind": "linked_plan_step",
      "ref": "independent_practice_steps",
-     "name": "The linked plan's own independent_practice_steps line (read aloud as the task; FLN plans carry independent_practice_time, typically 10 min)",
+     "name": "The linked plan's own practice line, read aloud as the task (FLN plans give about 10 minutes for it)",
      "note": "the step text of the lesson's own linked plan (lesson_plans.independent_practice_steps); rendered as s5.materials.plan",
      "name_ur": "منصوبے کی اپنی سطر: خود مشق",
      "api_kind": "other"
@@ -2472,7 +2472,7 @@
     {
      "kind": "linked_plan_step",
      "ref": "independent_practice_steps",
-     "name": "The linked plan's own independent_practice_steps line (read aloud as the task; FLN plans carry independent_practice_time, typically 10 min)",
+     "name": "The linked plan's own practice line, read aloud as the task (FLN plans give about 10 minutes for it)",
      "note": "the step text of the lesson's own linked plan (lesson_plans.independent_practice_steps); rendered as s5.materials.plan",
      "name_ur": "منصوبے کی اپنی سطر: خود مشق",
      "api_kind": "other"
@@ -2584,7 +2584,7 @@
     {
      "kind": "linked_plan_step",
      "ref": "independent_practice_steps",
-     "name": "The linked plan's own independent_practice_steps line (read aloud as the task; FLN plans carry independent_practice_time, typically 10 min)",
+     "name": "The linked plan's own practice line, read aloud as the task (FLN plans give about 10 minutes for it)",
      "note": "the step text of the lesson's own linked plan (lesson_plans.independent_practice_steps); rendered as s5.materials.plan",
      "name_ur": "منصوبے کی اپنی سطر: خود مشق",
      "api_kind": "other"
@@ -2687,7 +2687,7 @@
     {
      "kind": "linked_plan_step",
      "ref": "independent_practice_steps",
-     "name": "The linked plan's own independent_practice_steps line (read aloud as the task; FLN plans carry independent_practice_time, typically 10 min)",
+     "name": "The linked plan's own practice line, read aloud as the task (FLN plans give about 10 minutes for it)",
      "note": "the step text of the lesson's own linked plan (lesson_plans.independent_practice_steps); rendered as s5.materials.plan",
      "name_ur": "منصوبے کی اپنی سطر: خود مشق",
      "api_kind": "other"
@@ -2787,7 +2787,7 @@
     {
      "kind": "linked_plan_step",
      "ref": "independent_practice_steps",
-     "name": "The linked plan's own independent_practice_steps line (read aloud as the task; FLN plans carry independent_practice_time, typically 10 min)",
+     "name": "The linked plan's own practice line, read aloud as the task (FLN plans give about 10 minutes for it)",
      "note": "the step text of the lesson's own linked plan (lesson_plans.independent_practice_steps); rendered as s5.materials.plan",
      "name_ur": "منصوبے کی اپنی سطر: خود مشق",
      "api_kind": "other"
@@ -2980,7 +2980,7 @@
     {
      "kind": "linked_plan_step",
      "ref": "independent_practice_steps",
-     "name": "The linked plan's own independent_practice_steps line (read aloud as the task; FLN plans carry independent_practice_time, typically 10 min)",
+     "name": "The linked plan's own practice line, read aloud as the task (FLN plans give about 10 minutes for it)",
      "note": "the step text of the lesson's own linked plan (lesson_plans.independent_practice_steps); rendered as s5.materials.plan",
      "name_ur": "منصوبے کی اپنی سطر: خود مشق",
      "api_kind": "other"
@@ -3174,7 +3174,7 @@
     {
      "kind": "linked_plan_step",
      "ref": "independent_practice_steps",
-     "name": "The linked plan's own independent_practice_steps line (read aloud as the task; FLN plans carry independent_practice_time, typically 10 min)",
+     "name": "The linked plan's own practice line, read aloud as the task (FLN plans give about 10 minutes for it)",
      "note": "the step text of the lesson's own linked plan (lesson_plans.independent_practice_steps); rendered as s5.materials.plan",
      "name_ur": "منصوبے کی اپنی سطر: خود مشق",
      "api_kind": "other"
@@ -3261,7 +3261,7 @@
     {
      "kind": "linked_plan_step",
      "ref": "practice_steps",
-     "name": "The linked plan's guided practice_steps (the 'we do' items)",
+     "name": "The linked plan's own guided practice line (the 'we do' items)",
      "note": "the step text of the lesson's own linked plan (lesson_plans.practice_steps); rendered as s5.materials.plan",
      "name_ur": "منصوبے کی اپنی سطر: مل کر مشق",
      "api_kind": "other"
@@ -3374,7 +3374,7 @@
     {
      "kind": "linked_plan_step",
      "ref": "practice_steps",
-     "name": "The linked plan's guided practice_steps",
+     "name": "The linked plan's own guided practice line",
      "note": "the step text of the lesson's own linked plan (lesson_plans.practice_steps); rendered as s5.materials.plan",
      "name_ur": "منصوبے کی اپنی سطر: مل کر مشق",
      "api_kind": "other"
@@ -3862,7 +3862,7 @@
     {
      "kind": "linked_plan_step",
      "ref": "practice_steps",
-     "name": "The linked plan's guided practice_steps",
+     "name": "The linked plan's own guided practice line",
      "note": "the step text of the lesson's own linked plan (lesson_plans.practice_steps); rendered as s5.materials.plan",
      "name_ur": "منصوبے کی اپنی سطر: مل کر مشق",
      "api_kind": "other"
@@ -3964,7 +3964,7 @@
     {
      "kind": "linked_plan_step",
      "ref": "practice_steps",
-     "name": "Tomorrow's plan guided practice_steps, per teacher",
+     "name": "Tomorrow's plan's guided practice line, per teacher",
      "note": "the step text of the lesson's own linked plan (lesson_plans.practice_steps); rendered as s5.materials.plan",
      "name_ur": "منصوبے کی اپنی سطر: مل کر مشق",
      "api_kind": "other"
@@ -4234,7 +4234,7 @@
     {
      "kind": "linked_plan_step",
      "ref": "peer_review",
-     "name": "The linked plan's peer_review move",
+     "name": "The linked plan's own peer check step",
      "note": "the step text of the lesson's own linked plan (lesson_plans.peer_review); rendered as s5.materials.plan",
      "name_ur": "منصوبے کی اپنی سطر: ساتھیوں کی جانچ",
      "api_kind": "other"
@@ -4383,7 +4383,7 @@
     }
    ],
    "check_it_worked": {
-    "look_for": "A one-minute swap with one named thing to check in the next recording that has a peer_review move.",
+    "look_for": "A one-minute swap with one named thing to check in the next recording that has a peer check step.",
     "where": "next_recording",
     "by_when": "Tick: the first booked visit for the school at least 7 days after the step is set, else the step date + 14 days (Asia/Karachi; SPEC v2 §0.12). Strip: the next 3 graded recordings within 14 days of the step; 2 of 3 = it worked; under 2 = n recordings to come; a partial counts as progress to praise.",
     "signal": {
@@ -4396,7 +4396,7 @@
     },
     "coach_tick": "The teacher named the one thing the video's children checked and used a one-thing swap in the watched lesson.",
     "check_by_rule": "visit_7_or_14",
-    "look_for_ur": "جس اگلی ریکارڈنگ میں ⁦peer⁩_⁦review⁩ کا قدم ہو، اس میں ساتھیوں کی جانچ کے لیے ایک منٹ کا تبادلہ ہو اور جانچنے کی ایک ہی چیز نام لے کر بتائی جائے۔",
+    "look_for_ur": "جس اگلی ریکارڈنگ میں ساتھیوں کی جانچ کا قدم ہو، اس میں ساتھیوں کی جانچ کے لیے ایک منٹ کا تبادلہ ہو اور جانچنے کی ایک ہی چیز نام لے کر بتائی جائے۔",
     "coach_tick_ur": "استاد وہ ایک بات بتا سکے جو ویڈیو میں بچوں نے جانچی، اور دیکھے گئے سبق میں ایک بات والا تبادلہ ہوا۔"
    },
    "debrief_script_en": "the one-minute swap from the video, with one thing to check.",
@@ -4473,7 +4473,7 @@
     }
    ],
    "check_it_worked": {
-    "look_for": "In the sector, the next recordings with a peer_review move show a one-minute swap with one thing to check.",
+    "look_for": "In the sector, the next recordings with a peer check step show a one-minute swap with one thing to check.",
     "where": "both",
     "by_when": "Tick: the first booked visit for the school at least 7 days after the step is set, else the step date + 14 days (Asia/Karachi; SPEC v2 §0.12). Strip: the next 3 graded recordings within 14 days of the step; 2 of 3 = it worked; under 2 = n recordings to come; a partial counts as progress to praise.",
     "signal": {
@@ -4486,7 +4486,7 @@
     },
     "coach_tick": "Each coach modelled the swap with one teacher before the next circle (named in the circle).",
     "check_by_rule": "visit_7_or_14",
-    "look_for_ur": "سیکٹر میں، ساتھیوں کی جانچ (⁦peer⁩_⁦review⁩) والے قدم کی اگلی ریکارڈنگز میں ایک منٹ کے لیے سلیٹ یا کاپی بدلی جائے اور جانچنے کی ایک بات ہو۔",
+    "look_for_ur": "سیکٹر میں، ساتھیوں کی جانچ والے قدم کی اگلی ریکارڈنگز میں ایک منٹ کے لیے سلیٹ یا کاپی بدلی جائے اور جانچنے کی ایک بات ہو۔",
     "coach_tick_ur": "اگلے حلقے سے پہلے ہر کوچ نے ایک استاد کے ساتھ تبادلہ کر کے دکھایا (استاد کا نام حلقے میں بتایا گیا)۔"
    },
    "debrief_script_en": "In {n} of {d} sector lessons whose plan asked for it the peer check was skipped. By Friday: model the one-minute swap in one class at each school named on your Monday note.",
@@ -11300,7 +11300,7 @@
     }
    ],
    "check_it_worked": {
-    "look_for": "In the hijje time: a pure sound with aerab from the teacher, the children repeating the sound (not the name), the word blended aloud before any child reads it (what the 'good sounds like' clip from the coach's scope carries). detector.F8.stages_heard >= 1 AND detector.letter_name_routine_only = false on each of the next 3 literacy recordings, 2 of 3; the W id predicate IS letter_name_routine_only, so 'W-PHON-NAMES absent' plus one stage heard is the pass.",
+    "look_for": "In the hijje time: a pure sound with aerab from the teacher, the children repeating the sound (not the name), the word blended aloud before any child reads it (what the 'good sounds like' clip from the coach's scope carries). Passes when 2 of the next 3 literacy recordings have at least one sound stage heard and not only the letter-name routine.",
     "where": "both",
     "by_when": "Tick: the first booked visit for the school at least 7 days after the step is set, else the step date + 14 days (Asia/Karachi; SPEC v2 §0.12). Strip: the next 3 graded recordings within 14 days of the step; 2 of 3 = it worked; under 2 = n recordings to come; a partial counts as progress to praise.",
     "signal": {
@@ -11313,7 +11313,7 @@
     },
     "coach_tick": "In the watched reading hour the hijje gave each sound alone and then with its aerab, and at least three children said a sound alone.",
     "check_by_rule": "visit_7_or_14",
-    "look_for_ur": "ہجے کے وقت: اعراب کے ساتھ خالص آواز استاد سے، بچے آواز دہرائیں (حرف کا نام نہیں)، اور کسی بچے کے پڑھنے سے پہلے لفظ اونچی آواز میں جوڑا جائے (یہی کوچ کے دائرے کے «اچھا کیسا سنائی دیتا ہے» والے کلپ میں ہے)۔ اگلی ۳ پڑھنے لکھنے کی ریکارڈنگز میں سے ۲ میں ⁦detector.F8.stages⁩_⁦heard⁩ >= ⁦1⁩ ⁦AND⁩ ⁦detector.letter⁩_⁦name⁩_⁦routine⁩_⁦only⁩ = ⁦false⁩ ہو؛ ⁦W⁩ کوڈ کی شرط ⁦letter⁩_⁦name⁩_⁦routine⁩_⁦only⁩ ہی ہے، اس لیے ⁦W-PHON-NAMES⁩ کا نہ ہونا اور ایک مرحلہ سنائی دینا پاس ہے۔",
+    "look_for_ur": "ہجے کے وقت: اعراب کے ساتھ خالص آواز استاد سے، بچے آواز دہرائیں (حرف کا نام نہیں)، اور کسی بچے کے پڑھنے سے پہلے لفظ اونچی آواز میں جوڑا جائے (یہی کوچ کے دائرے کے «اچھا کیسا سنائی دیتا ہے» والے کلپ میں ہے)۔ اگلی ۳ پڑھائی کی ریکارڈنگز میں سے ۲ میں کم از کم ایک آواز والا مرحلہ سنائی دے اور صرف حروف کے نام والا طریقہ نہ ہو، تو کامیابی ہے۔",
     "coach_tick_ur": "دیکھے گئے پڑھائی کے گھنٹے میں ہجے کرتے ہوئے ہر آواز پہلے اکیلی اور پھر اعراب کے ساتھ دی گئی، اور کم از کم ۳ بچوں نے آواز الگ الگ بولی۔"
    },
    "debrief_script_en": "In your hijje, say the sound of each letter, not its name: the sound alone, then with its aerab; have the children repeat the sound, and blend the word aloud before they read it; keep the tor-jor, do it on sounds.",
@@ -11417,7 +11417,7 @@
     }
    ],
    "check_it_worked": {
-    "look_for": "A sound with aerab from the teacher and a child's sound in the hijje time. detector.F8.stages_heard >= 1 AND detector.letter_name_routine_only = false on each of the next 3 literacy recordings, 2 of 3; the W id predicate IS letter_name_routine_only, so 'W-PHON-NAMES absent' plus one stage heard is the pass.",
+    "look_for": "A sound with aerab from the teacher and a child's sound in the hijje time. Passes when 2 of the next 3 literacy recordings have at least one sound stage heard and not only the letter-name routine.",
     "where": "both",
     "by_when": "Tick: the first booked visit for the school at least 7 days after the step is set, else the step date + 14 days (Asia/Karachi; SPEC v2 §0.12). Strip: the next 3 graded recordings within 14 days of the step; 2 of 3 = it worked; under 2 = n recordings to come; a partial counts as progress to praise.",
     "signal": {
@@ -11430,7 +11430,7 @@
     },
     "coach_tick": "The teacher named the video's sound moment and used sounds in the hijje of the watched reading hour.",
     "check_by_rule": "visit_7_or_14",
-    "look_for_ur": "ہجے کے وقت استاد کی طرف سے اعراب کے ساتھ ایک آواز اور کسی بچے کی آواز۔ اگلی ۳ پڑھائی کی ریکارڈنگز میں سے ۲ میں ⁦detector.F8.stages⁩_⁦heard⁩ >= ⁦1⁩ ⁦AND⁩ ⁦detector.letter⁩_⁦name⁩_⁦routine⁩_⁦only⁩ = ⁦false⁩ ہو؛ ⁦W⁩ ⁦id⁩ کی شرط یہی ⁦letter⁩_⁦name⁩_⁦routine⁩_⁦only⁩ ہے، اس لیے ⁦W-PHON-NAMES⁩ نہ ہو اور ایک مرحلہ سنائی دے تو کامیابی ہے۔",
+    "look_for_ur": "ہجے کے وقت استاد کی طرف سے اعراب کے ساتھ ایک آواز اور کسی بچے کی آواز۔ اگلی ۳ پڑھائی کی ریکارڈنگز میں سے ۲ میں کم از کم ایک آواز والا مرحلہ سنائی دے اور صرف حروف کے نام والا طریقہ نہ ہو، تو کامیابی ہے۔",
     "coach_tick_ur": "استاد نے ویڈیو میں آوازوں والا لمحہ بتایا، اور دیکھے گئے پڑھائی کے گھنٹے میں ہجے آوازوں سے ہوئے۔"
    },
    "debrief_script_en": "the sound moment from the video, in your own hijje: the sound with its aerab, then blend.",
@@ -11585,7 +11585,7 @@
     }
    ],
    "check_it_worked": {
-    "look_for": "Each teacher's next reading-hour recording has sounds with aerab in the hijje and a child's sound. detector.F8.stages_heard >= 1 AND detector.letter_name_routine_only = false on each of the next 3 literacy recordings, 2 of 3; the W id predicate IS letter_name_routine_only, so 'W-PHON-NAMES absent' plus one stage heard is the pass.",
+    "look_for": "Each teacher's next reading-hour recording has sounds with aerab in the hijje and a child's sound. Passes when 2 of the next 3 literacy recordings have at least one sound stage heard and not only the letter-name routine.",
     "where": "both",
     "by_when": "Tick: the first booked visit for the school at least 7 days after the step is set, else the step date + 14 days (Asia/Karachi; SPEC v2 §0.12). Strip: the next 3 graded recordings within 14 days of the step; 2 of 3 = it worked; under 2 = n recordings to come; a partial counts as progress to praise.",
     "signal": {
@@ -11598,7 +11598,7 @@
     },
     "coach_tick": "On the next visit the coach hears sound-hijje in two reading hours and the FLN plan open on each phone.",
     "check_by_rule": "visit_7_or_14",
-    "look_for_ur": "ہر استاد کی پڑھائی کے گھنٹے کی اگلی ریکارڈنگ میں ہجے اعراب کے ساتھ آوازوں سے ہوں اور بچوں میں سے کسی کی آواز میں حرف کی آواز سنائی دے۔ اگلی ۳ پڑھائی کی ریکارڈنگز میں سے ۲ میں ⁦detector.F8.stages⁩_⁦heard⁩ >= ⁦1⁩ ⁦AND⁩ ⁦detector.letter⁩_⁦name⁩_⁦routine⁩_⁦only⁩ = ⁦false⁩ ہو؛ ⁦W⁩ کی شرط ⁦letter⁩_⁦name⁩_⁦routine⁩_⁦only⁩ ہی ہے، اس لیے ⁦W-PHON-NAMES⁩ کا نہ ہونا اور ایک مرحلہ سنائی دینا کامیابی ہے۔",
+    "look_for_ur": "ہر استاد کی پڑھائی کے گھنٹے کی اگلی ریکارڈنگ میں ہجے اعراب کے ساتھ آوازوں سے ہوں اور بچوں میں سے کسی کی آواز میں حرف کی آواز سنائی دے۔ اگلی ۳ پڑھائی کی ریکارڈنگز میں سے ۲ میں کم از کم ایک آواز والا مرحلہ سنائی دے اور صرف حروف کے نام والا طریقہ نہ ہو، تو کامیابی ہے۔",
     "coach_tick_ur": "اگلے دورے پر کوچ کو ۲ پڑھائی کے گھنٹوں میں آواز والے ہجے سنائی دیں، اور ہر فون پر ⁦FLN⁩ منصوبہ کھلا ہو۔"
    },
    "debrief_script_en": "your hijje word with sounds, as you did in the room, then blend it before the children read.",
@@ -11709,7 +11709,7 @@
     }
    ],
    "check_it_worked": {
-    "look_for": "In the sector, the next reading-hour recordings of the teachers whose cards carry the step show sounds with aerab and children's sounds in the hijje. detector.F8.stages_heard >= 1 AND detector.letter_name_routine_only = false on each of the next 3 literacy recordings, 2 of 3; the W id predicate IS letter_name_routine_only, so 'W-PHON-NAMES absent' plus one stage heard is the pass.",
+    "look_for": "In the sector, the next reading-hour recordings of the teachers whose cards carry the step show sounds with aerab and children's sounds in the hijje. Passes when 2 of the next 3 literacy recordings have at least one sound stage heard and not only the letter-name routine.",
     "where": "both",
     "by_when": "Tick: the first booked visit for the school at least 7 days after the step is set, else the step date + 14 days (Asia/Karachi; SPEC v2 §0.12). Strip: the next 3 graded recordings within 14 days of the step; 2 of 3 = it worked; under 2 = n recordings to come; a partial counts as progress to praise.",
     "signal": {
@@ -11722,7 +11722,7 @@
     },
     "coach_tick": "Each coach modelled the sound-hijje with one teacher before the next circle (named in the circle).",
     "check_by_rule": "visit_7_or_14",
-    "look_for_ur": "سیکٹر میں، جن اساتذہ کے کارڈ پر یہ قدم ہے ان کی پڑھائی کے گھنٹے کی اگلی ریکارڈنگز میں ہجے کے وقت اعراب کے ساتھ آوازیں اور بچوں کی آوازیں ہوں۔ اگلی ۳ پڑھائی کی ریکارڈنگز میں سے ۲ میں ⁦detector.F8.stages⁩_⁦heard⁩ >= ⁦1⁩ ⁦AND⁩ ⁦detector.letter⁩_⁦name⁩_⁦routine⁩_⁦only⁩ = ⁦false⁩ ہو؛ ⁦W⁩ ⁦id⁩ کی شرط یہی ⁦letter⁩_⁦name⁩_⁦routine⁩_⁦only⁩ ہے، اس لیے ⁦W-PHON-NAMES⁩ نہ ہو اور ایک مرحلہ سنائی دے تو کامیابی ہے۔",
+    "look_for_ur": "سیکٹر میں، جن اساتذہ کے کارڈ پر یہ قدم ہے ان کی پڑھائی کے گھنٹے کی اگلی ریکارڈنگز میں ہجے کے وقت اعراب کے ساتھ آوازیں اور بچوں کی آوازیں ہوں۔ اگلی ۳ پڑھائی کی ریکارڈنگز میں سے ۲ میں کم از کم ایک آواز والا مرحلہ سنائی دے اور صرف حروف کے نام والا طریقہ نہ ہو، تو کامیابی ہے۔",
     "coach_tick_ur": "اگلے حلقے سے پہلے ہر کوچ کی طرف سے ایک استاد کے ساتھ آواز والے ہجے کر کے دکھائے گئے (حلقے میں نام لیا گیا)۔"
    },
    "debrief_script_en": "In {n} of {d} reading-hour recordings across the sector words were built from letter names and no child said a sound. By Friday: turn one hijje word into sounds with a teacher at each school named on your Monday note, and bring one hijje moment to the circle.",
@@ -12329,7 +12329,7 @@
      {
       "kind": "linked_plan_step",
       "ref": "independent_practice_steps",
-      "name": "The linked plan's own independent_practice_steps line (read aloud as the task; FLN plans carry independent_practice_time, typically 10 min)",
+      "name": "The linked plan's own practice line, read aloud as the task (FLN plans give about 10 minutes for it)",
       "note": "the step text of the lesson's own linked plan (lesson_plans.independent_practice_steps); rendered as s5.materials.plan",
       "name_ur": "منصوبے کی اپنی سطر: خود مشق",
       "api_kind": "other"

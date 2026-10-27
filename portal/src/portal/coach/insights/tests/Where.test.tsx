@@ -76,6 +76,17 @@ describe.each(LANGS)("S3 Where (%s)", (lang) => {
     expectContract(container, expect);
   }, 30000);
 
+  // fix-r5 s2 item 3 (B10; design-qa 073628 §2): "0 of 2 schools do not show this · nothing to do there" is a zero
+  // sentence; at n = 0 the line goes.
+  it("item 3: no not-showing line when no school is outside", async () => {
+    const d = clone(F[`w_${W}`]);
+    d.schools_not_showing = { n: 0, d: 2, window_id: d.schools_not_showing.window_id };
+    serve({ [`/coachip/w/${W}`]: d });
+    const { container } = await renderAt(`/w/${W}/where`);
+    expect(screen.queryByTestId("where-not-showing")).toBeNull();
+    expect(container.querySelector('[data-num="0"]')).toBeNull();
+  }, 30000);
+
   it("a load failure shows the error block", async () => {
     serve({ [`/coachip/w/${W}`]: () => { throw httpError(404); } });
     const { container } = await renderAt(`/w/${W}/where`);

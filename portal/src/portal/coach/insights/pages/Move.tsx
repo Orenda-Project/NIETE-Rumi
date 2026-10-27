@@ -9,6 +9,7 @@ import { InsightsPage, MetaLine, Eyebrow, Card } from "../components/Frame";
 import { StateBlock, NoteCard } from "../components/StateBlock";
 import { CodeText, DateText, LibraryText, Num } from "../count";
 import { digits, LRI, PDI, todayKarachi } from "../format";
+import { COPY } from "../copy";
 import { pick, t, tx } from "../text";
 import type { MoveDetail } from "../types";
 
@@ -71,6 +72,24 @@ function CheckRule({ data, lang }: { data: MoveDetail; lang: Lang }) {
   );
 }
 
+/**
+ * fix-r5 s2 item 7a (qa-coach 073254): the library's debrief line, what the coach says tomorrow, inside COPY d.try_tomorrow.
+ * The library text goes in verbatim; a line that already opens with the frame's own words is shown as it is, never framed
+ * twice (the contract fixture carries the frame inside the text; INTERVENTIONS.json does not).
+ */
+function TryTomorrow({ script, lang }: { script: string; lang: Lang }) {
+  if (!script) return null;
+  const pre = COPY["d.try_tomorrow"][lang].split("{step}")[0].trim();
+  const framed = Boolean(pre) && script.trimStart().startsWith(pre);
+  return (
+    <Card testId="s5-try-tomorrow">
+      <p className="text-[15.5px] font-semibold leading-snug text-[#1d2025]">
+        {framed ? <LibraryText>{script}</LibraryText> : tx("d.try_tomorrow", lang, { step: <LibraryText>{script}</LibraryText> })}
+      </p>
+    </Card>
+  );
+}
+
 /** The read sits INSIDE the gate, so with portal_coachip off no /coachip/* request fires (B7; red-2 18:08Z). */
 export default function Move() {
   return (
@@ -109,10 +128,25 @@ function MoveLoaded() {
 
           {!i ? <NoteCard testId="s5-no-i">{t("s5.no_i", lang)}</NoteCard> : (
             <>
+              {/* fix-r5 s2 item 7a (panel 094003): the step, then what the coach says tomorrow, then the rehearsal and the
+                  moment; the facts; what to listen for and the check; "Why this works" folded; other moves */}
               <Section title={t("s5.step.title", lang)} testId="s5-step">
-                <p className={`${body} font-medium text-[#1d2025]`}>
-                  {tx("d.try_tomorrow", lang, { step: <LibraryText>{pick(i.teacher_action_step, lang)}</LibraryText> })}
+                <LibraryText as="p" className={`${body} font-medium text-[#1d2025]`}>{pick(i.teacher_action_step, lang)}</LibraryText>
+              </Section>
+
+              <TryTomorrow script={pick(i.debrief_script, lang)} lang={lang} />
+
+              <Section title={<span data-nonum="">{t("s5.rehearsal.title", lang)}</span>} testId="s5-rehearsal">
+                <p className={body} data-nonum="">
+                  {tx("d.rehearse.frame", lang, { script: <LibraryText>{pick(i.rehearsal_script, lang)}</LibraryText> })}
                 </p>
+                <Link
+                  to={`${insightsPaths.w(wId)}#moment`}
+                  data-testid="s5-play"
+                  className="flex min-h-[44px] items-center justify-center rounded-xl border border-[#d1d5db] bg-white px-4 py-2.5 text-center text-[15px] font-semibold text-[#1d2025]"
+                >
+                  {t("s5.play", lang)}
+                </Link>
               </Section>
 
               <Card testId="s5-facts">
@@ -158,19 +192,6 @@ function MoveLoaded() {
                 </Section>
               )}
 
-              <Section title={<span data-nonum="">{t("s5.rehearsal.title", lang)}</span>} testId="s5-rehearsal">
-                <p className={body} data-nonum="">
-                  {tx("d.rehearse.frame", lang, { script: <LibraryText>{pick(i.rehearsal_script, lang)}</LibraryText> })}
-                </p>
-                <Link
-                  to={`${insightsPaths.w(wId)}#moment`}
-                  data-testid="s5-play"
-                  className="flex min-h-[44px] items-center justify-center rounded-xl border border-[#d1d5db] bg-white px-4 py-2.5 text-center text-[15px] font-semibold text-[#1d2025]"
-                >
-                  {t("s5.play", lang)}
-                </Link>
-              </Section>
-
               <Section title={t("s5.listen_for.title", lang)} testId="s5-listen-for">
                 <LibraryText as="p" className={body}>{pick(i.listen_for, lang)}</LibraryText>
               </Section>
@@ -181,16 +202,19 @@ function MoveLoaded() {
               </Section>
 
               {i.evidence.length > 0 && (
-                <Section title={t("s5.evidence.title", lang)} testId="s5-evidence">
-                  <ul className="flex flex-col gap-2">
+                <details data-testid="s5-evidence" className="rounded-2xl border border-[#e5e7eb] bg-white px-4 py-3">
+                  <summary className="flex min-h-[44px] cursor-pointer items-center text-[15px] font-semibold leading-snug text-[#1d2025]">
+                    {t("s5.why.title", lang)}
+                  </summary>
+                  <ul className="flex flex-col gap-2 pt-1">
                     {i.evidence.map((e, k) => (
-                      <li key={k} className="text-[13.5px] leading-snug text-[#4b5563]">
+                      <li key={k} className={`${body}`}>
                         <LibraryText as="p" className="font-medium text-[#374151]">{e.source}</LibraryText>
                         <LibraryText as="p">{pick(e.claim, lang)}</LibraryText>
                       </li>
                     ))}
                   </ul>
-                </Section>
+                </details>
               )}
 
               {data.alternatives.length > 0 && (

@@ -49,6 +49,27 @@ for (const lang of ["en", "ur"] as const) {
       expect(container.innerHTML).toMatchSnapshot();
     }, 20000);
 
+    // fix-r5 s2 item 14 (design-qa 092007): the send's sentence is one inline run (the {g} node is not a flex item that
+    // splits "Send the grade" / "2" / "…"), and the cell title says the language word ("English"), never "Eng".
+    it("item 14: the send is one inline run; the title says English", async () => {
+      const d = clone(F.results);
+      d.cells[0].language = "en";
+      serve({ "/coachip/results": d });
+      const { container } = await renderAt("/stats/results");
+      const full = container.querySelector<HTMLElement>('[data-testid="s7-cell"]')!;
+      const send = full.querySelector('[data-testid="s7-send"]') as HTMLElement;
+      // the flex link holds exactly one child, an element, so its words wrap as one sentence
+      expect(send.childNodes).toHaveLength(1);
+      expect(send.firstChild!.nodeType).toBe(Node.ELEMENT_NODE);
+      expect(send.textContent!.replace(/[\u2066-\u2069]/g, "")).toBe(
+        COPY["s7.send"][lang].replace("{g}", lang === "en" ? "2" : "۲").replace("{language}", COPY["s4.subject.english"][lang]),
+      );
+      const title = full.querySelector("h2")!.textContent || "";
+      expect(title).toContain(COPY["s4.subject.english"][lang]);
+      if (lang === "en") expect(title).not.toMatch(/\bEng\b/);
+      expectContract(container, expect);
+    }, 20000);
+
     it("send off: the RM line, no link", async () => {
       const d = clone(F.results);
       d.cells[0].fln.can_send = false;

@@ -159,6 +159,110 @@ describe.each(LANGS)("S2 Weakness (%s)", (lang) => {
     expectContract(container, expect);
   }, 30000);
 
+  // fix-r5 s2 item 8 (qa-coach 073256): the app bar's "Move k of m" counts the moves S1 shows, never a hardcoded 2.
+  it("item 8: the app bar says Move 1 of 1 when the coach has one move", async () => {
+    const home = clone(F.home);
+    home.moves = [home.moves[0]];
+    serve({ [`/coachip/w/${W}`]: F[`w_${W}`], "/coachip/home": home });
+    await renderAt(`/w/${W}`);
+    const crumb = COPY["s2.appbar.sub"][lang];
+    const one = lang === "en" ? "Move 1 of 1" : crumb.replace("{m}", "۱").replace("{k}", "۱").split("،")[0];
+    const two = lang === "en" ? "Move 1 of 2" : crumb.replace("{m}", "۲").replace("{k}", "۱").split("،")[0];
+    const text = screen.getByTestId("insights-w").textContent || "";
+    expect(text).toContain(one);
+    expect(text).not.toContain(two);
+  }, 30000);
+
+  // fix-r5 s2 item 8 (design-qa 072739/073633, qa-coach 073256, panel 094000): when every code already has an open step,
+  // R3 sends step_card.code null; S2 draws the card in its done form from the coach's open step (home.steps), never nothing.
+  it("item 8: every code stepped: the done card with the step's code, check date, Full step, Play and the tick", async () => {
+    const d = clone(F[`w_${W}`]);
+    d.step_card.code = null;
+    const home = clone(F.home);
+    const first = home.steps.find((s: { w_id: string }) => s.w_id === W);
+    const posted: unknown[] = [];
+    serve({
+      [`/coachip/w/${W}`]: d,
+      "/coachip/home": home,
+      [`POST /coachip/steps/${first.id}/tick`]: (_p?: unknown, body?: unknown) => { posted.push(body); return { step: { ...first, coach_tick: "yes" } }; },
+    });
+    const { container } = await renderAt(`/w/${W}`);
+    const card = screen.getByTestId("step-card");
+    expect(card.getAttribute("data-state")).toBe("done");
+    expect(card.textContent).toContain("T-31"); // the first open step for this W in home.steps
+    const done = screen.getByTestId("step-done");
+    expect(done.textContent).toContain(COPY["s5.set.done"][lang].split("{date}")[0].trim());
+    expect(done.querySelector(`[data-date="${first.check_by}"]`)).toBeTruthy();
+    expect(screen.getByTestId("step-full").getAttribute("href")).toContain(`/portal/coach/insights/w/${W}/move?school=${first.school.school_id}`);
+    expect(screen.getByTestId("step-play").getAttribute("href")).toBe(`/portal/coach/insights/w/${W}#moment`);
+    expect(screen.getByTestId("step-play").textContent).toBe(COPY["s5.play"][lang]);
+    expect(screen.queryByTestId("step-set")).toBeNull();
+    // the fold: the step card sits above Why and What good looks like
+    for (const id of ["w-split", "w-good"]) expect(before(card, screen.getByTestId(id))).toBe(true);
+    fireEvent.click(card.querySelector('[data-testid="step-tick-yes"]') as HTMLElement);
+    await settle();
+    expect(http.post.mock.calls.map((c) => c[0])).toEqual([`/coachip/steps/${first.id}/tick`]);
+    expect(posted).toEqual([{ coach_tick: "yes" }]);
+    expect(card.querySelector('[data-testid="step-ticked"]')?.getAttribute("data-tick")).toBe("yes");
+    expectContract(container, expect);
+  }, 30000);
+
+  it("item 8: after Set (201) the done card keeps Full step and Play, and offers the tick", async () => {
+    serve({
+      [`/coachip/w/${W}`]: F[`w_${W}`],
+      "/coachip/home": F.home,
+      "POST /coachip/steps": () => F.steps_post_201,
+    });
+    await renderAt(`/w/${W}`);
+    fireEvent.click(screen.getByTestId("step-set"));
+    await settle();
+    expect(screen.getByTestId("step-card").getAttribute("data-state")).toBe("done");
+    expect(screen.getByTestId("step-full")).toBeTruthy();
+    expect(screen.getByTestId("step-play")).toBeTruthy();
+    expect(screen.getByTestId("step-tick-yes")).toBeTruthy();
+  }, 30000);
+
+  it("item 8: step_card.code null and no open step for this move: no card", async () => {
+    const d = clone(F[`w_${W}`]);
+    d.step_card.code = null;
+    const home = clone(F.home);
+    home.steps = home.steps.filter((s: { w_id: string }) => s.w_id !== W);
+    serve({ [`/coachip/w/${W}`]: d, "/coachip/home": home });
+    await renderAt(`/w/${W}`);
+    expect(screen.queryByTestId("step-card")).toBeNull();
+  }, 30000);
+
+  // fix-r5 s2 item 6 (red-3 073740, design-qa 072738 (2), qa-coach C3): a `preload="metadata"` clip opens the stream with
+  // `bytes=0-`, which the clip route logs as a play (A10). S2's inline player waits for a tap: preload none, no clip read.
+  it("item 6: S2's players never fetch the clip before a tap (preload none, no clip request, no load/play)", async () => {
+    const load = vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(() => Promise.resolve());
+    try {
+      serve({ [`/coachip/w/${W}`]: F[`w_${W}`], "/coachip/home": F.home });
+      const { container } = await renderAt(`/w/${W}`);
+      const audios = Array.from(container.querySelectorAll("audio"));
+      expect(audios.length).toBeGreaterThan(0);
+      expect(audios.map((a) => a.getAttribute("preload"))).toEqual(audios.map(() => "none"));
+      expect(audios.some((a) => a.hasAttribute("autoplay"))).toBe(false);
+      expect(http.get.mock.calls.some((c) => /\/clip|\/audio/.test(String(c[0])))).toBe(false);
+      expect(load).not.toHaveBeenCalled();
+      expect(play).not.toHaveBeenCalled();
+    } finally {
+      load.mockRestore();
+      play.mockRestore();
+    }
+  }, 30000);
+
+  // fix-r5 s2 item 19 (qa-coach idea 073300): S4 is reachable from S2: "Open the player ›" under the moment.
+  it("item 19: under the moment, a link to the full player of this moment", async () => {
+    serve({ [`/coachip/w/${W}`]: F[`w_${W}`], "/coachip/home": F.home });
+    await renderAt(`/w/${W}`);
+    const a = screen.getByTestId("w-moment-open");
+    expect(screen.getByTestId("w-moment").contains(a)).toBe(true);
+    expect(a.getAttribute("href")).toBe(`/portal/coach/insights/m/${F[`w_${W}`].moment.moment_id}`);
+    expect(a.textContent).toBe(COPY["s2.moment.open"][lang]);
+  }, 30000);
+
   it("a load failure shows the error block, no bare digit", async () => {
     serve({ [`/coachip/w/${W}`]: () => { throw httpError(500, { error: "server_error" }); } });
     const { container } = await renderAt(`/w/${W}`);

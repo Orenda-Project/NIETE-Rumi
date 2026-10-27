@@ -45,7 +45,7 @@ describe.each(LANGS)("S4 player page (%s)", (lang) => {
     expect(within(body).getByTestId("s4-sentence").textContent).toContain(lang === "en" ? "This is one of them." : "یہ ان میں سے ایک ہے۔");
     const sub = screen.getByTestId("s4-sub");
     if (lang === "en") expect(sub.textContent).toContain("Grade 3 Urdu");
-    else expect(sub.textContent!.replace(/[\u2066-\u2069]/g, "")).toContain("جماعت ۳ Urdu");
+    else expect(sub.textContent!.replace(/[\u2066-\u2069]/g, "")).toContain("جماعت ۳ اردو");
     expect(sub.textContent).toContain("27:40");
     expect(sub.querySelector("[data-date]")).toBeTruthy();
     // the full variant is mounted, on the clip route
@@ -63,6 +63,30 @@ describe.each(LANGS)("S4 player page (%s)", (lang) => {
     }
     expectNoIdentity(container, expect);
   }, 30000);
+
+  // fix-r5 s2 item 2 (B17; qa-coach 073250, design-qa §S4): the subject arrives as the session's raw token ("maths",
+  // "general_knowledge", any case); the app bar says COPY's word in the page's language, and an unknown subject leaves
+  // the grade alone, never the raw token.
+  it.each([
+    ["maths", "Grade 4 Maths", "جماعت ۴ ریاضی"],
+    ["Maths", "Grade 4 Maths", "جماعت ۴ ریاضی"],
+    ["general_knowledge", "Grade 4 General knowledge", "جماعت ۴ معلومات عامہ"],
+    ["english", "Grade 4 English", "جماعت ۴ انگریزی"],
+    ["urdu", "Grade 4 Urdu", "جماعت ۴ اردو"],
+    ["science", "Grade 4 Science", "جماعت ۴ سائنس"],
+    ["xyz_unknown", "Grade 4", "جماعت ۴"],
+  ])("item 2: subject %s is a word, never the raw token", async (subject, en, ur) => {
+    const m = clone(F.moment);
+    m.session.grade = 4;
+    m.session.subject = subject;
+    serve({ [`/coachip/m/${ID}`]: m });
+    await renderAt(`/m/${ID}`);
+    const sub = (screen.getByTestId("s4-sub").textContent || "").replace(/[\u2066-\u2069]/g, "");
+    const want = lang === "en" ? en : ur;
+    expect(sub.startsWith(`${want}${lang === "en" ? " · " : "، "}`)).toBe(true);
+    if (!want.includes(subject)) expect(sub).not.toContain(subject);
+    if (lang === "ur") expect(/[A-Za-z]/.test(sub.split("،")[0])).toBe(false);
+  });
 
   it("See the move goes to the move page of this W", async () => {
     serve({ [`/coachip/m/${ID}`]: clone(F.moment), "/coachip/i/W-IP-TIME": () => { throw new Error("not needed"); } });

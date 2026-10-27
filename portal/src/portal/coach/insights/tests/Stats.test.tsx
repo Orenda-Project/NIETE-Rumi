@@ -62,6 +62,31 @@ for (const lang of ["en", "ur"] as const) {
       expect(container.innerHTML).toMatchSnapshot();
     }, 20000);
 
+    // fix-r5 s2 item 15 (design-qa 073628 §3-4, qa-coach 073257 (2)): a W with no sentence (or a sentence that is its
+    // short name) is one line, never "Practice cut short / Practice cut short"; the count is one atom (nowrap) in a column
+    // wide enough for "۴۶ میں سے ۲۸" at 15 px.
+    it("item 15: no repeated short name; the count atom never splits", async () => {
+      const d = clone(F.stats);
+      const ok = d.rows.filter((r: { status: string }) => r.status === "ok");
+      ok[0].sentence = clone(ok[0].short_name);
+      ok[1].sentence = { en: "", ur: "" };
+      serve({ "/coachip/stats": d });
+      const { container } = await renderAt("/stats");
+      const row0 = container.querySelector(`[data-w="${ok[0].w_id}"]`) as HTMLElement;
+      const row1 = container.querySelector(`[data-w="${ok[1].w_id}"]`) as HTMLElement;
+      const row2 = container.querySelector(`[data-w="${ok[2].w_id}"]`) as HTMLElement;
+      expect(row0.querySelector('[data-testid="s6-sentence"]')).toBeNull();
+      expect(row0.textContent!.split(ok[0].short_name[lang]).length - 1).toBe(1);
+      expect(row1.querySelector('[data-testid="s6-sentence"]')).toBeNull();
+      expect(row2.querySelector('[data-testid="s6-sentence"]')?.textContent).toBe(ok[2].sentence[lang]);
+      for (const n of Array.from(container.querySelectorAll('[data-testid="s6-row"] [data-num]'))) {
+        if (n.closest('[data-status="insufficient"]')) continue;
+        expect(n.className).toContain("whitespace-nowrap");
+        expect(n.className).toContain("w-[96px]");
+      }
+      expectContract(container, expect);
+    }, 20000);
+
     it("marker: the full-width marker row, no pill anywhere", async () => {
       serve({ "/coachip/stats": F.stats_marker });
       const { container } = await renderAt("/stats");

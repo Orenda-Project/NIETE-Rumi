@@ -433,11 +433,12 @@ run('COACHIP RM reads: R17 rm/home, R18 rm/coach/:id, R20 rm/circle (Postgres, H
       { coach_label: 'C-02', count: { n: 1, d: 1, window_id: 'act-4w-2026-10-26' } },
       { coach_label: 'C-03', count: { n: 1, d: 1, window_id: 'act-4w-2026-10-26' } },
     ]);
-    expect(b.sector_interventions.map((i) => [i.i_id, i.level, i.date])).toEqual([['I-IP-TIME-3', 'school', '2026-10-26'], ['I-IP-4', 'sector', null]]);
-    for (const i of b.sector_interventions) expectKeys(i, K.sectorI);
+    // LIBRARY_RULES §2.2 (panel 093959 c2): S10 takes level `sector` only; the school-level PLC (I-IP-TIME-3) never shows here
+    expect(b.sector_interventions.map((i) => [i.i_id, i.level, i.date])).toEqual([['I-IP-4', 'sector', null]]);
+    for (const i of b.sector_interventions) { expectKeys(i, K.sectorI); expect(i.level).toBe('sector'); }
     const lib = S.library().intervention('I-IP-4');
-    expect(b.sector_interventions[1].attendees).toEqual({ en: lib.with_whom, ur: lib.with_whom_ur });
-    expect(b.sector_interventions[1].check).toEqual({ en: lib.check_it_worked.look_for, ur: lib.check_it_worked.look_for_ur });
+    expect(b.sector_interventions[0].attendees).toEqual({ en: lib.with_whom, ur: lib.with_whom_ur });
+    expect(b.sector_interventions[0].check).toEqual({ en: lib.check_it_worked.look_for, ur: lib.check_it_worked.look_for_ur });
     expect(b.windows.map((w) => w.id)).toEqual(['act-4w-2026-10-26', 'week-2026-10-19']);
     // SPEC v2.1 §11.1: the sector ranks, so the week is on the sector's W and there is no floor line
     expect(b.basis).toBe('sector');

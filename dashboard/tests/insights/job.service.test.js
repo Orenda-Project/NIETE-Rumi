@@ -104,6 +104,27 @@ describe('write mode on the sandbox tier', () => {
     expect(circle.every((c) => c.basis === 'sector')).toBe(true);
   });
 
+  test('fix-r5 s2 item 10 (qa-rm R3a): two coaches holding the same schools never bring the same circle moment', async () => {
+    const { tables, coaches } = fx.build();
+    // C-02 holds exactly C-01's two schools (the §11.2 overlap): both coaches see the same lessons, so the same best moment.
+    const c1Schools = tables.leader_schools.filter((r) => r.leader_user_id === coaches[0]).map((r) => r.school_id);
+    tables.leader_schools = [...tables.leader_schools.filter((r) => r.leader_user_id !== coaches[1]),
+      ...c1Schools.map((school_id) => ({ leader_user_id: coaches[1], school_id }))];
+    const store = new MemoryStore();
+    expect(await runJob(OPTS, writeDeps(tables, store))).toBe(0);
+    const circle = store.rows('coachip_circle_items');
+    expect(circle.some((c) => c.coach_user_id === coaches[0])).toBe(true);
+    const ids = circle.map((c) => `${c.sector}|${c.week_start}|${c.moment_id}`);
+    expect(new Set(ids).size).toBe(ids.length);
+    // a second run the same week, C-02's row gone (as if C-02 joined mid-week): C-01's stored row stands and C-02 does not take its moment
+    const rows = store.rows('coachip_circle_items');
+    const i2 = rows.findIndex((c) => c.coach_user_id === coaches[1]);
+    if (i2 >= 0) rows.splice(i2, 1);
+    expect(await runJob(OPTS, writeDeps(tables, store))).toBe(0);
+    const again = store.rows('coachip_circle_items').map((c) => `${c.sector}|${c.week_start}|${c.moment_id}`);
+    expect(new Set(again).size).toBe(again.length);
+  });
+
   test('SPEC v2.1 §11.3: one scope line before stage 1, counts only, the exact key list', async () => {
     const { tables, coaches } = fx.build();
     const OTHER = '00000000-0000-4000-8000-0900000000ff'; // switched on, not on the roster

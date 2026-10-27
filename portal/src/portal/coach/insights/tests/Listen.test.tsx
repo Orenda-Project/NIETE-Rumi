@@ -125,6 +125,40 @@ describe.each(LANGS)("Listen (%s)", (lang) => {
     expect(container.innerHTML).toMatchSnapshot();
   }, 30000);
 
+  // fix-r5 s2 items 3 + 13 (B10; design-qa 073628 §1, 085041): an empty week is the card alone, no "0 of 0" base line and
+  // no "All 0 of 0" chip; and a failed analysis still shows its row (and its full recording) under the card.
+  it("item 3: base.d 0: no base line, no chips, the card alone", async () => {
+    const d = clone(F.moments);
+    d.recordings = { n: 0, d: 4, window_id: d.window.id };
+    d.base = { n: 0, d: 0, window_id: d.window.id };
+    d.moments = [];
+    d.failed_sessions = [];
+    d.filters = [];
+    serve({ "/coachip/moments": d });
+    const { container } = await renderAt("/listen");
+    expect(screen.queryByTestId("listen-base")).toBeNull();
+    expect(screen.queryAllByTestId("listen-chip")).toHaveLength(0);
+    expect(screen.getByTestId("listen-empty-all")).toBeTruthy();
+    expect(container.querySelector('[data-num="0"][data-den="0"]')).toBeNull();
+  }, 30000);
+
+  it("item 13: an empty week whose only recording failed analysis shows the failed row and its recording", async () => {
+    const d = clone(F.moments);
+    d.recordings = { n: 0, d: 1, window_id: d.window.id };
+    d.base = { n: 0, d: 0, window_id: d.window.id };
+    d.moments = [];
+    d.filters = [];
+    d.failed_sessions = [d.failed_sessions[0]];
+    serve({ "/coachip/moments": d });
+    const { container } = await renderAt("/listen");
+    const row = screen.getByTestId("listen-failed-session");
+    expect(row.textContent).toContain(d.failed_sessions[0].school.school_name);
+    expect(row.querySelector("audio")?.getAttribute("src")).toBe(`/api/portal/coachip/session/${d.failed_sessions[0].session_id}/audio`);
+    expect(screen.getByTestId("listen-empty-all")).toBeTruthy();
+    expect(screen.queryByTestId("listen-base")).toBeNull();
+    expect(domContract(container).bareDigits).toEqual([]);
+  }, 30000);
+
   it("a load failure shows the error block", async () => {
     serve({ "/coachip/moments": () => { throw httpError(500, { error: "server_error" }); } });
     const { container } = await renderAt("/listen");

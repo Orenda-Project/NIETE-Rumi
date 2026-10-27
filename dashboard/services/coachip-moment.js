@@ -29,24 +29,32 @@
  */
 const S = require('./coachip-shapes');
 
-/** COPY §S4 s4.chapter.* by the plan's phase id (coachip_session_steps.phase). Unknown phases show their id. */
+/**
+ * COPY §S4 s4.chapter.* by the plan's phase id (coachip_session_steps.phase). The grader's phase ids (prod: announce,
+ * hook, warm_up, recall, explain, guided, independent, peer_review, exit, homework) each map to a COPY word; a phase this
+ * map does not know reads COPY s4.step.other, never its id (fix-r5 s2 item 1, B17: `warm_up` shipped as a label).
+ */
 const CHAPTER = {
   warm: S.text('Warm-up', 'آغاز'),
   explain: S.text('Explain', 'وضاحت'),
   guided: S.text('Guided', 'مل کر'),
   ip: S.text('Practice', 'خود مشق'),
+  peer: S.text('Peer check', 'ساتھیوں کی جانچ'),
   exit: S.text('Exit', 'جانچ'),
+  homework: S.text('Homework', 'گھر کا کام'),
 };
+const CHAPTER_OTHER = S.text('Another step', 'کوئی اور مرحلہ');   // COPY s4.step.other
 const PHASE_ALIAS = {
-  warmup: 'warm', recall: 'warm', opening: 'warm',
+  warmup: 'warm', warm_up: 'warm', recall: 'warm', opening: 'warm', hook: 'warm', announce: 'warm',
   explanation: 'explain', i_do: 'explain', modelling: 'explain',
   we_do: 'guided', guided_practice: 'guided',
   independent: 'ip', you_do: 'ip', practice: 'ip', independent_practice: 'ip',
+  peer_review: 'peer', peer_check: 'peer',
   closure: 'exit', exit_check: 'exit',
 };
 function chapterLabel(phase) {
-  const key = CHAPTER[phase] ? phase : PHASE_ALIAS[phase];
-  return key ? CHAPTER[key] : S.text(phase, phase);
+  const key = Object.prototype.hasOwnProperty.call(CHAPTER, phase) ? phase : PHASE_ALIAS[phase];
+  return key && CHAPTER[key] ? CHAPTER[key] : CHAPTER_OTHER;
 }
 
 /**

@@ -28,7 +28,8 @@ function Schools({ d }: { d: Detail }) {
   const allOld = d.schools.length > 0 && d.schools.every((s) => s.weeks_since_visit === null || s.weeks_since_visit >= 4);
   return (
     <RmCard testId="s9-schools" title={rt("s9.schools.title", lang)}>
-      {allOld && <RmNote testId="s9-no-visits">{rt("s9.schools.never", lang)}</RmNote>}
+      {/* fix-r5 s2 items 15 + 17 (design-qa 073628 §5, 073629): said once above the rows; its "4" is policy, not a count */}
+      {allOld && <RmNote testId="s9-no-visits"><span data-nonum="">{rt("s9.schools.never", lang)}</span></RmNote>}
       <ul className="flex flex-col divide-y divide-[#f3f4f6]">
         {d.schools.map((s) => {
           const school = <CodeText lang={lang}>{s.school.school_name}</CodeText>;
@@ -37,7 +38,7 @@ function Schools({ d }: { d: Detail }) {
             <li key={s.school.school_id} data-testid="s9-school" data-late={late ? "1" : undefined} className="flex flex-col gap-0.5 py-2 text-[14.5px]">
               <span data-nonum="" className={late ? "font-semibold text-[#92400e]" : "text-[#1d2025]"}>
                 {s.last_visit === null || s.weeks_since_visit === null
-                  ? <>{school}{lang === "ur" ? "، " : " · "}{rt("s9.schools.never", lang)}</>
+                  ? allOld ? school : <>{school}{lang === "ur" ? "، " : " · "}{rt("s9.schools.never", lang)}</>
                   : rtx(s.next_visit ? "s9.schools.row" : "s9.schools.row.no_next", lang, {
                     school,
                     date: <DateText iso={s.last_visit} lang={lang} />,
@@ -106,13 +107,18 @@ export default function RmCoach() {
             <Schools d={data} />
             <RmCard testId="s9-steps" title={rt("s9.steps.title", lang)}>
               <WindowLegend windows={data.windows} ids={windowIds(data.steps)} />
-              <p className="text-[15px] text-[#1d2025]">
-                {rtx("s9.steps.row", lang, {}, [
-                  { n: "o", d: "d", count: data.steps.open },
-                  { n: "c", d: "d", count: data.steps.completed },
-                  { n: "v", d: "d", count: data.steps.overdue },
-                ])}
-              </p>
+              {/* fix-r5 s2 item 3 (B10): no step set this month is words, never "0 of 0 open · 0 of 0 completed · …" */}
+              {data.steps.open.d === 0
+                ? <p data-testid="s9-steps-none" className="text-[15px] text-[#1d2025]">{rt("s9.steps.none", lang)}</p>
+                : (
+                  <p className="text-[15px] text-[#1d2025]">
+                    {rtx("s9.steps.row", lang, {}, [
+                      { n: "o", d: "d", count: data.steps.open },
+                      { n: "c", d: "d", count: data.steps.completed },
+                      { n: "v", d: "d", count: data.steps.overdue },
+                    ])}
+                  </p>
+                )}
             </RmCard>
           </div>
           <div className="flex flex-col gap-4">
