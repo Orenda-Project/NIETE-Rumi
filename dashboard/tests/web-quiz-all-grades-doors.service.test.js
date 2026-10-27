@@ -37,29 +37,41 @@ describe('Games: every grade one tap away', () => {
       const W = load();
       const h = W.WQDOORS.html(HUB, ctx(lang), 'games', { games: [...OWN, ...OTHER], sel: 'all', first: [3] });
       expect(count(h, /data-primary/g)).toBe(1);
-      expect(h).toContain(lang === 'en' ? '>All grades</button>' : '>سب جماعتیں</button>');
+      expect(h).toContain(lang === 'en' ? '>All grades<i class="wq-caret" aria-hidden="true"></i></button>' : '>سب جماعتیں<i class="wq-caret" aria-hidden="true"></i></button>');
       expect(h).toContain('href="/c/PRTOK4?kid=#bigger"');
       expect(h).toContain(lang === 'en' ? '>Grade 4</bdi>' : '>جماعت ۴</bdi>');
       expect(h).not.toContain('·');
       expect(h).not.toContain('data-tap="gsel"');
     }
   });
-  test('the visitor\'s own grade, nothing picked: "Grades" and today\'s rows, no number on the screen', () => {
+  // P2-1 (design-qa): the Games picker names the selection as the Videos one does, en and ur
+  const CARET = '<i class="wq-caret" aria-hidden="true"></i>';
+  const label = (h) => ((/data-tap="gpk"[^>]*>([\s\S]*?)<\/button>/.exec(h) || [])[1] || '');
+  test('the Games picker names the default selection: «Grade 3», «Grades 3, 4», «All grades» (en + ur); nothing else on the screen is a number', () => {
     const W = load();
+    const PREVIEW = { ...HUB, practice: 1, practice_play: 1, kid: null, kids: [], grade: 3 };
+    const cases = [
+      [HUB, { games: OWN }, 'Grade 3', 'جماعت ۳'],
+      [PREVIEW, { games: OWN, sel: [3, 4], first: [3, 4] }, 'Grades 3, 4', 'جماعت ۳، ۴'],
+      [HUB, { games: OWN, sel: 'all', first: [3] }, 'All grades', 'سب جماعتیں'],
+    ];
+    for (const [B, data, en, ur] of cases) {
+      expect(label(W.WQDOORS.html(B, ctx('en'), 'games', data))).toBe(en + CARET);
+      expect(label(W.WQDOORS.html(B, ctx('ur'), 'games', data))).toBe(ur + CARET);
+    }
     const h = W.WQDOORS.html(HUB, ctx(), 'games', { games: OWN });
-    expect(h).toContain('>Grades</button>');
-    expect(visible(h)).not.toMatch(/\d/);
+    expect(visible(h.replace(/<button[^>]*data-tap="gpk"[\s\S]*?<\/button>/, ''))).not.toMatch(/\d/);
   });
   test('the pick is remembered per visitor and asked for as ?g=', () => {
     const gets = [];
     const W = load({ store: { [`wq_sel_games.${KID}`]: 'all' }, gets });
-    expect(W.WQDOORS.html(HUB, ctx(), 'games', { games: OWN })).toContain('>All grades</button>');
+    expect(W.WQDOORS.html(HUB, ctx(), 'games', { games: OWN })).toContain('>All grades' + CARET + '</button>');
     const root = { innerHTML: '', setAttribute() {}, getAttribute: () => null, removeAttribute() {}, querySelector: () => null, querySelectorAll: () => [] };
     W.WQDOORS.mount(root, HUB, ctx(), 'games');
     expect(gets.some((u) => /\/api\/wq\/doors\/h\/[^?]+\?kid=0123456789abcdef&d=games&l=en&g=all$/.test(u))).toBe(true);
     // another child on the same phone keeps their own
     const W2 = load({ store: { [`wq_sel_games.${KID}`]: 'all' } });
-    expect(W2.WQDOORS.html({ ...HUB, kid: 'fedcba9876543210', kids: [{ chip: 'fedcba9876543210', grade: '3' }] }, ctx(), 'games', { games: OWN })).toContain('>Grades</button>');
+    expect(W2.WQDOORS.html({ ...HUB, kid: 'fedcba9876543210', kids: [{ chip: 'fedcba9876543210', grade: '3' }] }, ctx(), 'games', { games: OWN })).toContain('>Grade 3' + CARET + '</button>');
   });
   test('a teacher\'s preview: the teacher\'s own quiz is a look-only tile (no link of any kind), saying the class plays it from the teacher\'s link', () => {
     for (const lang of ['en', 'ur']) {
@@ -81,8 +93,24 @@ describe('Videos: «All grades» in the look\'s picker', () => {
   const LIB = { grade: '3', grades: [{ g: '1' }, { g: '3' }, { g: '4' }], subjects: [{ key: 'Science', n: 1 }, { key: 'Maths', n: 1 }] };
   test('the label names the selection the answer says is on', () => {
     const W = load({ adv: true });
-    expect(W.WQDOORS.html(HUB, ctx(), 'videos', { lib: { ...LIB, sel: 'all', first: ['3'] } })).toContain('All grades ▾');
-    expect(W.WQDOORS.html(HUB, ctx(), 'videos', { lib: { ...LIB, sel: ['3', '4'], first: ['3', '4'] } })).toContain('Grades 3, 4 ▾');
-    expect(W.WQDOORS.html(HUB, ctx(), 'videos', { lib: LIB })).toContain('Grade 3 ▾');
+    const C = '<i class="wq-caret" aria-hidden="true"></i></button>';
+    expect(W.WQDOORS.html(HUB, ctx(), 'videos', { lib: { ...LIB, sel: 'all', first: ['3'] } })).toContain('All grades' + C);
+    expect(W.WQDOORS.html(HUB, ctx(), 'videos', { lib: { ...LIB, sel: ['3', '4'], first: ['3', '4'] } })).toContain('Grades 3, 4' + C);
+    expect(W.WQDOORS.html(HUB, ctx(), 'videos', { lib: LIB })).toContain('Grade 3' + C);
+    expect(W.WQDOORS.html(HUB, ctx('ur'), 'videos', { lib: { ...LIB, sel: ['3', '4'] } })).toContain('جماعت ۳، ۴' + C);
+  });
+  // P2-2 (design-qa): ONE caret rule for every picker: a CSS-drawn caret element, never a glyph
+  test('no picker carries ▾ or any symbol glyph; Games and Videos carry the same caret element, drawn in CSS', () => {
+    const W = load({ adv: true });
+    const SYM = /[\u2190-\u2BFF\u{1F000}-\u{1FAFF}]/u;
+    for (const lang of ['en', 'ur']) {
+      for (const h of [W.WQDOORS.html(HUB, ctx(lang), 'games', { games: OWN }), W.WQDOORS.html(HUB, ctx(lang), 'videos', { lib: LIB })]) {
+        expect(h).not.toMatch(SYM);
+        expect(h).toContain('<i class="wq-caret" aria-hidden="true"></i>');
+      }
+    }
+    const css = fs.readFileSync(path.join(WQ, 'wq-doors.css'), 'utf8');
+    expect(css).toMatch(/\.wq-caret\s*\{[^}]*border-top:[^}]*\}/);
+    expect(css).not.toMatch(/\.wq-caret[^{]*\{[^}]*content:\s*['"][^'"]/);
   });
 });
