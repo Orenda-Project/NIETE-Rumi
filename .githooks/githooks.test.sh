@@ -193,5 +193,21 @@ out=$(cd "$R" && printf 'refs/heads/feat %s refs/heads/feat %s\n' "$head" "$zero
 say "first push of a feature branch measures against origin/sandbox" "$rc" "0"
 has "…and names the affected feature" "$out" "menu" yes
 
+echo "githooks — pre-push: no phone or home path in a tracked file (bd-5gyspy.3)"
+mkdir -p "$R/tests/setup"
+cp "$ROOT"/tests/setup/tracked-files-pii-lib.js "$ROOT"/tests/setup/tracked-files-pii.allowlist.json "$ROOT"/tests/setup/ratchet-verdict-lib.js "$R/tests/setup/"
+git -C "$R" add -A >/dev/null; git -C "$R" commit -qm "pii check" >/dev/null 2>&1
+head=$(git -C "$R" rev-parse HEAD)
+out=$(cd "$R" && printf 'refs/heads/feat %s refs/heads/feat %s\n' "$head" "$base" | bash .githooks/pre-push origin x 2>&1); rc=$?
+say "a clean tree pushes" "$rc" "0"
+printf 'ran in %s\n' "/Us""ers/someone/x" > "$R/docs-note.md"
+git -C "$R" add -A >/dev/null; git -C "$R" commit -qm "a home path" >/dev/null 2>&1
+head=$(git -C "$R" rev-parse HEAD)
+out=$(cd "$R" && printf 'refs/heads/feat %s refs/heads/feat %s\n' "$head" "$base" | bash .githooks/pre-push origin x 2>&1); rc=$?
+say "a tracked home path BLOCKS the push" "$rc" "1"
+has "…and names the file" "$out" "docs-note.md" yes
+rc=$(cd "$R" && printf 'refs/heads/feat %s refs/heads/feat %s\n' "$head" "$base" | PII_CHECK_OFF=1 bash .githooks/pre-push origin x >/dev/null 2>&1; echo $?)
+say "PII_CHECK_OFF=1 lets it through" "$rc" "0"
+
 echo "  ---"
 if [ "$FAILED" -eq 0 ]; then echo "  all cases pass"; else echo "  $FAILED case(s) failing"; exit 1; fi
