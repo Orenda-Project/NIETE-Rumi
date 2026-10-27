@@ -21,9 +21,17 @@ const CTA  = 'کھولیں|Open';
  *  line), nor an option, "required" or "Select all that apply"; the "(Select all that apply)" suffix is
  *  stripped. Taking the merged line as the question matched no answer-key entry and ended T05/T16/T21 at
  *  Q2 with NO_KEY_ENTRY (bd-yuur1a). */
-const questionLineOf = (txt) => (String(txt || '').split('\n').map((l) => l.trim())
-  .find((l) => l && !/(^|·\s*)Q\d+\/\d+(\s*\(Select all that apply\))?$/.test(l) && !/^[A-J]\.\s/.test(l) && !/^(required|Select all that apply|Selected:.*)$/i.test(l)) || '')
-  .replace(/\s*\(Select all that apply\)\s*$/i, '').trim();
+// The question is the line AFTER the "Qn/N" header (which may carry the previous answer's feedback,
+// "✗ Not correct · Q2/20"); anything before the header — the module card's own caption on the first
+// question — is never the question (bd-1r3k2h, T21). Without a header, the first non-option line.
+const isQHeader = (l) => /(^|·\s*)Q\d+\/\d+(\s*\(Select all that apply\))?$/.test(l);
+const isNotQuestion = (l) => !l || isQHeader(l) || /^[A-J]\.\s/.test(l) || /^(required|Select all that apply|Selected:.*)$/i.test(l);
+const questionLineOf = (txt) => {
+  const lines = String(txt || '').split('\n').map((l) => l.trim());
+  const h = lines.findIndex(isQHeader);
+  const pool = h >= 0 ? lines.slice(h + 1) : lines;
+  return (pool.find((l) => !isNotQuestion(l)) || '').replace(/\s*\(Select all that apply\)\s*$/i, '').trim();
+};
 exports.questionLineOf = questionLineOf;
 
 exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
@@ -1485,7 +1493,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       if (c1.ok && c1.cta) {
         await api.freshReset(); await api.tapAndWait(c1.cta, 60000);
         const part = await takeQuiz(key21, { stopAfter: 1 });
-        ev.answeredBeforePause = part.trail.length; ev.firstServed = part.first;
+        ev.answeredBeforePause = part.trail.length; ev.firstServed = part.first; ev.pauseLast = part.last;
         const pk2 = await openBandPicker();
         const row2 = pk2.ok ? pk2.rows.find(x => String((x && x.text) || '').startsWith(title21)) : null;
         const c2 = row2 ? await deliverPicked(row2.text) : { ok: false, err: 'ROW_GONE' };

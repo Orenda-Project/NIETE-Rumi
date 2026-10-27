@@ -23,6 +23,9 @@ describe('training.cjs questionLineOf — the question line, never the merged fe
     expect(questionLineOf('✗ Not correct · Q2/20\nYou teach a combined Grade 2–3 class with 50 students.\nA. Pair them\nB. Wait')).toBe('You teach a combined Grade 2–3 class with 50 students.');
     expect(questionLineOf('✅ Correct · Q2/3\nWhich routine helps transitions?\nA. Discuss\nB. Yell')).toBe('Which routine helps transitions?');
   });
+  test('a preamble BEFORE the header is never the question — the question is the line after the header (bd-1r3k2h, T21)', () => {
+    expect(questionLineOf('📝 Establishing classroom routines — 3 questions\nQ1/3\nWhat is a routine?\nA. x')).toBe('What is a routine?');
+  });
   test('a bare header line is skipped as before', () => {
     expect(questionLineOf('Q1/20\nWhat is a routine?\nA. x')).toBe('What is a routine?');
   });
