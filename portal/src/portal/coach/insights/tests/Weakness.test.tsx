@@ -232,6 +232,27 @@ describe.each(LANGS)("S2 Weakness (%s)", (lang) => {
     expect(screen.queryByTestId("step-card")).toBeNull();
   }, 30000);
 
+  // fix-r5 s2 item 6 (red-3 073740, design-qa 072738 (2), qa-coach C3): a `preload="metadata"` clip opens the stream with
+  // `bytes=0-`, which the clip route logs as a play (A10). S2's inline player waits for a tap: preload none, no clip read.
+  it("item 6: S2's players never fetch the clip before a tap (preload none, no clip request, no load/play)", async () => {
+    const load = vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(() => Promise.resolve());
+    try {
+      serve({ [`/coachip/w/${W}`]: F[`w_${W}`], "/coachip/home": F.home });
+      const { container } = await renderAt(`/w/${W}`);
+      const audios = Array.from(container.querySelectorAll("audio"));
+      expect(audios.length).toBeGreaterThan(0);
+      expect(audios.map((a) => a.getAttribute("preload"))).toEqual(audios.map(() => "none"));
+      expect(audios.some((a) => a.hasAttribute("autoplay"))).toBe(false);
+      expect(http.get.mock.calls.some((c) => /\/clip|\/audio/.test(String(c[0])))).toBe(false);
+      expect(load).not.toHaveBeenCalled();
+      expect(play).not.toHaveBeenCalled();
+    } finally {
+      load.mockRestore();
+      play.mockRestore();
+    }
+  }, 30000);
+
   it("a load failure shows the error block, no bare digit", async () => {
     serve({ [`/coachip/w/${W}`]: () => { throw httpError(500, { error: "server_error" }); } });
     const { container } = await renderAt(`/w/${W}`);
