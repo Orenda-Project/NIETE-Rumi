@@ -248,7 +248,7 @@ export default function LeaderAssessDashboard() {
     );
   };
 
-  const taskName = (taskId: string | null) => (taskId ? c.tasks[taskId] || taskId : c.noTask);
+  const taskName = (taskId: string) => c.tasks[taskId] || taskId;
   const stopsSection = (
     <section data-testid="dash-stops" aria-label={c.stopsTitle} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3">
       <div>
@@ -269,21 +269,21 @@ export default function LeaderAssessDashboard() {
           <table data-testid="dash-stops-by-coach" className="w-full min-w-[560px] text-xs sm:text-sm">
             <thead>
               <tr className="text-xs text-slate-600">
-                <th className="py-1 text-start font-medium">{c.colCoach}</th>
-                <th className="py-1 text-end font-medium">{c.colSessions}</th>
-                {STOP_TYPES.map((t) => <th key={t} className="py-1 text-end font-medium">{c.stopTypes[t]}</th>)}
-                <th className="py-1 text-end font-medium">{c.colTotal}</th>
-                <th className="py-1 text-end font-medium">{c.colPerSession}</th>
+                <th className="px-2 py-1 text-start font-medium">{c.colCoach}</th>
+                <th className="whitespace-nowrap px-2 py-1 text-end font-medium">{c.colSessions}</th>
+                {STOP_TYPES.map((t) => <th key={t} className="whitespace-nowrap px-2 py-1 text-end font-medium">{c.stopTypes[t]}</th>)}
+                <th className="whitespace-nowrap px-2 py-1 text-end font-medium">{c.colTotal}</th>
+                <th className="whitespace-nowrap px-2 py-1 text-end font-medium">{c.colPerSession}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {stopsView.coachRows.map((k) => (
                 <tr key={k.id || 'none'} data-testid="dash-stops-coach-row" data-coach={k.id} data-total={k.total} data-sessions={k.sessions}>
-                  <td className="py-2 pe-1 text-slate-900">{k.name || c.unknownCoach}</td>
-                  <td className="py-2 text-end tabular-nums">{count(k.sessions)}</td>
-                  {STOP_TYPES.map((t) => <td key={t} className={`py-2 text-end tabular-nums ${k.counts[t] ? 'font-semibold text-slate-900' : 'text-slate-400'}`}>{count(k.counts[t])}</td>)}
-                  <td className="py-2 text-end font-bold tabular-nums">{count(k.total)}</td>
-                  <td className="py-2 text-end tabular-nums">{one(k.sessions ? k.total / k.sessions : null)}</td>
+                  <td className="px-2 py-2 text-slate-900">{k.name || c.unknownCoach}</td>
+                  <td className="px-2 py-2 text-end tabular-nums">{count(k.sessions)}</td>
+                  {STOP_TYPES.map((t) => <td key={t} className={`px-2 py-2 text-end tabular-nums ${k.counts[t] ? 'font-semibold text-slate-900' : 'text-slate-400'}`}>{count(k.counts[t])}</td>)}
+                  <td className="px-2 py-2 text-end font-bold tabular-nums">{count(k.total)}</td>
+                  <td className="px-2 py-2 text-end tabular-nums">{one(k.sessions ? k.total / k.sessions : null)}</td>
                 </tr>
               ))}
             </tbody>
@@ -298,7 +298,7 @@ export default function LeaderAssessDashboard() {
             {stopsView.items.slice(0, STOPS_SHOWN).map((it) => (
               <li key={it.key} data-testid="dash-stops-item" data-type={it.type} className="py-2">
                 <p className="font-semibold text-slate-900">
-                  {c.stopTypes[it.type] || it.type}{it.by && c.stopBy[it.by] ? ` · ${c.stopBy[it.by]}` : ''} · {taskName(it.taskId)}
+                  {c.stopTypes[it.type] || it.type}{it.by && c.stopBy[it.by] ? ` · ${c.stopBy[it.by]}` : ''}{it.taskId ? ` · ${taskName(it.taskId)}` : ''}
                 </p>
                 <p className="text-slate-600">
                   {pktWhen(it.at) ? num(pktWhen(it.at)) : '–'} · {coaches.length > 1 ? `${it.s.coachName || c.unknownCoach} · ` : ''}{it.s.schoolName} · {c.grade(num(it.s.grade))} · {it.s.mode ? c.modes[it.s.mode] : '–'}

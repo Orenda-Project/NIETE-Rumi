@@ -192,4 +192,18 @@ describe("LeaderAssessDashboard: round 7b filters and stops (sa_dash_filters)", 
     expect(within(stops).getByTestId("dash-stop-total-end_section").textContent).toMatch(/۳/);
     expect(screen.getByTestId("dash-mode-coach_led").textContent).toMatch(/[؀-ۿ]/);
   });
+  it("polish: a restart (no subtask) names no subtask, and the coach × type cells are padded apart", async () => {
+    api.getSwitches.mockResolvedValue({ realDashboard: true, dashFilters: true });
+    const f = fixture();
+    f.sessions[6].stops = [stop("restart", "2026-10-26T00:01:00Z", null)];
+    api.getSessions.mockResolvedValue(f);
+    renderPage();
+    const stops = await screen.findByTestId("dash-stops");
+    const restart = within(within(stops).getByTestId("dash-stops-list")).getAllByTestId("dash-stops-item").find((i) => i.getAttribute("data-type") === "restart") as HTMLElement;
+    expect(restart).toHaveTextContent(/^Restart · coach/);
+    expect(restart.textContent).not.toMatch(/Before the first task/);
+    const table = within(stops).getByTestId("dash-stops-by-coach");
+    for (const cell of Array.from(table.querySelectorAll("th, td"))) expect(cell.className).toMatch(/\bpx-2\b/);
+  });
 });
+
