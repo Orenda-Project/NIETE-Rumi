@@ -170,3 +170,69 @@ describe('the memory keeps at most its byte budget, least recently used out firs
     expect(lru.get('big')).toBeUndefined();
   });
 });
+
+describe('a phone that cannot play Ogg Opus (iOS before 18.4): the page voice as mp3 (app_settings web_quiz_story_mp3)', () => {
+  const OGG = 'a01-0a1b2c3d.ogg';
+  const MP3 = 'a01-0a1b2c3d.mp3';
+  const OGG_BYTES = Buffer.from('OggS-fake-opus-page-voice');
+  let mp3; let made;
+  async function startMp3(transcode) {
+    const app = express();
+    app.use(createWebQuizRouter({
+      botUrl: 'http://bot.test', apiKey: 'k', logEvent: () => {}, fetchImpl: async () => { throw new Error('the bot is never asked'); },
+      storiesOn: async () => true, storyMp3On: async () => mp3, storyEnv: 'sandbox',
+      storyObject: async (key) => { asked.push(key); return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null; },
+      ...(transcode ? { storyTranscode: transcode } : {}),
+    }));
+    await new Promise((r) => { srv = app.listen(0, r); });
+  }
+  beforeEach(() => { mp3 = true; made = 0; store[`story/sandbox/${BOOK}/${OGG}`] = { bytes: OGG_BYTES, contentType: 'audio/ogg' }; });
+  const fakeTranscode = async (bytes) => { made += 1; return Buffer.concat([Buffer.from('ID3'), bytes]); };
+
+  test('on: the .mp3 of a stored .ogg is made from it once, served as audio/mpeg, immutable, by range too', async () => {
+    await startMp3(fakeTranscode);
+    const r = await req(srv, `/s/${BOOK}/${MP3}`);
+    expect(r.status).toBe(200);
+    expect(r.headers['content-type']).toBe('audio/mpeg');
+    expect(r.headers['cache-control']).toBe('public, max-age=31536000, immutable');
+    expect(r.headers.etag).toBe('"0a1b2c3d"');
+    expect(r.body.equals(Buffer.concat([Buffer.from('ID3'), OGG_BYTES]))).toBe(true);
+    const part = await req(srv, `/s/${BOOK}/${MP3}`, { headers: { range: 'bytes=0-2' } });
+    expect([part.status, part.body.toString()]).toEqual([206, 'ID3']);
+    expect(made).toBe(1);
+    expect(asked).toEqual([`story/sandbox/${BOOK}/${MP3}`, `story/sandbox/${BOOK}/${OGG}`]);
+  });
+  test('on: a stored .mp3 is served as it is (never made again); no .ogg either → 404', async () => {
+    store[`story/sandbox/${BOOK}/${MP3}`] = { bytes: Buffer.from('ID3-stored'), contentType: 'audio/mpeg' };
+    await startMp3(fakeTranscode);
+    expect((await req(srv, `/s/${BOOK}/${MP3}`)).body.toString()).toBe('ID3-stored');
+    expect(made).toBe(0);
+    const none = await req(srv, `/s/${BOOK}/a02-99999999.mp3`);
+    expect([none.status, none.headers['cache-control']]).toEqual([404, 'no-store']);
+  });
+  test('a transcode that fails: 502 no-store, never a broken file kept', async () => {
+    await startMp3(async () => { throw new Error('ffmpeg missing'); });
+    const r = await req(srv, `/s/${BOOK}/${MP3}`);
+    expect([r.status, r.headers['cache-control']]).toEqual([502, 'no-store']);
+  });
+  test('GOLDEN: off (or absent) → the .mp3 that storage does not have is 404, as today, and nothing is made', async () => {
+    mp3 = false;
+    await startMp3(fakeTranscode);
+    const r = await req(srv, `/s/${BOOK}/${MP3}`);
+    expect([r.status, r.headers['cache-control']]).toEqual([404, 'no-store']);
+    expect(made).toBe(0);
+    expect(asked).toEqual([`story/sandbox/${BOOK}/${MP3}`]);
+  });
+  test('the real transcode (the bundled ffmpeg): an Ogg Opus voice comes back as an MP3 stream', async () => {
+    const { execFileSync } = require('child_process');
+    const { ffmpegBinary } = require('../services/coach-disagreement-clip');
+    let bin = ffmpegBinary();
+    if (bin === 'ffmpeg') { try { bin = require(require.resolve('@ffmpeg-installer/ffmpeg', { paths: [require('path').join(__dirname, '..', '..', 'bot')] })).path; } catch (_) { /* PATH */ } }
+    const ogg = execFileSync(bin, ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1', '-c:a', 'libopus', '-b:a', '24k', '-f', 'ogg', 'pipe:1']);
+    const { oggToMp3 } = require('../routes/web-quiz-story-assets');
+    const out = await oggToMp3(ogg, { bin });
+    // an MP3 stream: an ID3 tag or an MPEG audio frame sync (0xFFE…) at the start
+    expect(out.length).toBeGreaterThan(1000);
+    expect(out.slice(0, 3).toString() === 'ID3' || (out[0] === 0xff && (out[1] & 0xe0) === 0xe0)).toBe(true);
+  });
+});

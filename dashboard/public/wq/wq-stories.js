@@ -323,6 +323,7 @@
       }, function () { if (cur === R) oops(); });
     }
     function start(bk, q) {
+      if (bk && bk.mp3 === 1) (bk.pages || []).forEach(function (p) { if (p.audio) p.audio.url = mp3(p.audio.url); });
       R.b = b = bk; if (!tch) cache[id] = b;
       R.L = L = lg(b.lang); R.t = t = T[L]; R.P = P = b.pages || [];
       if (!W.WQReadAlong) P.forEach(function (p) { p.audio = null; });
@@ -582,6 +583,8 @@
     return true;
   }
   function boot() { try { return JSON.parse(document.getElementById('boot').textContent) || {}; } catch (e) { return {}; } }
+  // iOS < 18.4 plays no Ogg Opus: with the book's mp3 (web_quiz_story_mp3) our voices come as the edge's .mp3 (W.WQMP3)
+  var mp3 = W.WQMP3 = function (u) { var a = document.createElement('audio'); return /^\/s\/[^?#]+\.ogg$/.test(u) && a.canPlayType && !a.canPlayType('audio/ogg; codecs="opus"') ? u.slice(0, -3) + 'mp3' : u; };
   function found() { var B = W.WQSTORIES_CTX ? null : boot(); return W.WQSTORIES_CTX || (B.token ? { token: B.token, kid: B.kid, lang: B.lang } : null); }
 
   W.WQSTORIES = { _af: function () { if (cur && cur.af) cur.af(); }, shelf: shelf, open: open, route: route, _machine: machine, _bad: bad, _cam: cam, _lines: lines, _mark: mark,

@@ -25,6 +25,9 @@
 
   S._d = function (R) {
     var ctx = R.ctx, C = R.C, id = R.id, root = R.root, paint = R.paint, b = R.b, P = R.P, m = R.m, L = R.L, t = R.t;
+    // the book's mp3 (web_quiz_story_mp3) on a phone that plays no Ogg Opus: the questions' voices as .mp3 too (W.WQMP3)
+    var M = W.WQMP3;
+    if (b.mp3 === 1 && M && !b.m3) { b.m3 = 1; if (b.questions_sprite) b.questions_sprite.url = M(b.questions_sprite.url); (b.questions || []).forEach(function (x) { var a = x.audio; if (a) { a.q = M(a.q); a.o = (a.o || []).map(M); } }); }
     var qi = 0, ans = [], dim = -1, rv = -1, chosen = -1, qlock = 0, la = 0, qs = null, fcw = null, spr = null, end = 0;
     function live() { return R.live(); }
 

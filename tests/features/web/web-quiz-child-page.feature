@@ -1961,3 +1961,38 @@ Feature: Web child quiz page on the portal
     And when the round closes my screen says "Your class took part. Thank you!" with no count
     And the draw row then holds the counted positions, the present ones among them and, per position bin only, how many played, scored none or were rapid
     # every control renders only while its string exists in the page's copy (jg.round.t_declined, t_pause, t_resume, t_not_this_term)
+
+  # ── the class preview that plays (app_settings web_quiz_practice_play; the voices as mp3: web_quiz_story_mp3) ──
+  # A teacher's "Try it as a student" link is a hub token that names no child, only a grade. Off, the preview is
+  # look-only and its content routes refuse it; on, they answer it read-only for its grade and nothing is written.
+  @WQ258
+  Scenario: With practice play on, the teacher's class preview opens the grade's storybooks, games and videos and writes nothing
+    Given app_settings "web_quiz_practice_play" is true
+    And a teacher's class preview link for Grade 3, naming no child
+    When the preview's doors and the Stories shelf are asked for
+    Then the hub says it plays, the shelf lists the Grade 3 books and a book comes with its pages
+    And the Games door lists the number games, and a number game opens and is scored
+    And the Videos door shows the Grade 3 library, and a video starts with no quiz offered after it
+    And no child row, quiz session, run, story event or binding is written
+
+  @WQ259
+  Scenario: With practice play off, the class preview stays look-only and its content routes refuse it
+    Given app_settings "web_quiz_practice_play" is absent
+    When the preview's content is asked for: the shelf, a book, the doors, the library, a video and the games page
+    Then each answer is a refusal and the hub does not say it plays
+    And each refusal is logged with practice 1, so a grown-up meeting the preview wall can be counted
+
+  @WQ260
+  Scenario: The preview's games never ask for the microphone
+    Given app_settings "web_quiz_practice_play" is true
+    When the preview asks for the counted read aloud, a recording upload or a live speech key
+    Then the read aloud is not served and the upload and the speech key are refused
+    And a read-along story is served with Jugnu's voice and no live reading
+
+  @WQ261
+  Scenario: A phone that cannot play Ogg Opus hears the storybook voices as mp3
+    Given app_settings "web_quiz_story_mp3" is true
+    And a phone whose browser cannot play Ogg Opus (Safari or WhatsApp on iOS before 18.4)
+    When a storybook page voice is asked for as .mp3
+    Then the portal serves it as audio/mpeg, made from the stored .ogg
+    But with the switch off the .mp3 storage does not hold is not found, as before

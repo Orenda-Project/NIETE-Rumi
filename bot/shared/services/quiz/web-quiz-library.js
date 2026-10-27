@@ -6,7 +6,8 @@
  *   lib(code, {st, g, s})      the library seen from a quiz the child is in
  *     no s  → { grade, grades:[{g, n, art}], subjects:[{key, n, art}], mine? }  (mine: the quiz's own subject)
  *     s     → { grade, subject, art, chapters:[{name, videos:[{vid, title, secs?, mb?, poster?, done?, code?}]}] }
- *   libHub(token, {kid, g, s}) the same, seen from the kid's hub (the hub module names the child)
+ *   libHub(token, {kid, g, s}) the same, seen from the kid's hub (the hub module names the child); a grown-up's preview
+ *                              link (web_quiz_practice_play) sees its grade's library, watch only (no Quiz button)
  *
  * Fast by construction (the "watch more" list used to cost ~40 R2 calls on a cold process):
  *   - the bank (every live row and its ready video-quiz id) is held in memory and refreshed every
@@ -227,28 +228,35 @@ async function libHub(token, opts = {}) {
   try { Hub = require(require('path').join(__dirname, 'web-quiz-hub')); } catch (_) { Hub = null; }
   if (!Hub || typeof Hub.kidFromHub !== 'function') throw new WebQuiz.WqError(503, { error: 'hub_off' });
   // device: this phone's device_ref (x-wq-device) — a forwarded hub link opens no library as the child.
-  const who = await Hub.kidFromHub(token, kid, device);
-  if (!who) throw new WebQuiz.WqError(401, { error: 'bad_token' });
+  // web_quiz_practice_play: a grown-up's preview link (no child) opens its grade's library, watch only
+  const Practice = require('./web-quiz-practice-play');
+  const preview = await Practice.who(token);
+  const who = preview || await Hub.kidFromHub(token, kid, device);
+  if (!who) { Practice.refused('lib', token); throw new WebQuiz.WqError(401, { error: 'bad_token' }); }
   const Videos = require('./web-quiz-videos');
   // web_quiz_return_lang: the hub's own language (its link's `l`) wins, the child's next; off: the child's, then `l`
-  const lang = v3 && (await require('./web-quiz-return-lang').on()) ? langOf(l) || langOf(who.lang) : langOf(who.lang) || langOf(l);
+  // (a preview: the page's language, then its token's)
+  const lang = preview ? langOf(l) || langOf(who.lang)
+    : v3 && (await require('./web-quiz-return-lang').on()) ? langOf(l) || langOf(who.lang) : langOf(who.lang) || langOf(l);
   const ix = v3 ? await inLanguage(await bank(), lang) : await bank();
   // web_quiz_grade_change: a class child opens at the grade the family chose (off: the hub's own grade, no read)
-  const grade = Videos.gradesFor(await require('./web-quiz-grade-change').browseGrade(who))[0] || null;
+  const grade = Videos.gradesFor(preview ? String(who.grade) : await require('./web-quiz-grade-change').browseGrade(who))[0] || null;
   const out = await view(ix, { grade, g, s, studentId: who.studentId || null, rootId: who.rootId || null, fetchImpl, hubKid: true, v3 });
-  if (out.chapters && await videoShelfOn()) await shelfOf(out, who.rootId || null);
+  if (out.chapters && await videoShelfOn()) await shelfOf(out, who.rootId || null, { watchOnly: Boolean(preview) });
   // web_quiz_rewatch_done (the library's own settings read): a finished lesson opens as a fresh go (wq-lib.js again=1)
   if (out.chapters && await rewatchDoneOn()) out.rewatch_done = true;
-  logEvent('web_quiz.lib_view', { hub: 1, g: out.grade, s: out.subject || undefined });
+  logEvent('web_quiz.lib_view', { hub: 1, g: out.grade, s: out.subject || undefined, ...(preview ? { practice: 1 } : {}) });
+  if (preview) Practice.note('lib', { grade: out.grade, s: out.subject || undefined });
   return out;
 }
 
 /** web_quiz_video_shelf: each lesson's thumbnail, and whether this child's quizzes can be made (in place). */
 // `v`: the drawing's version (web-quiz-video-thumb.js VERSION); the picture is cached for good under it.
 const THUMB_PATH = (vid) => `/wq/vt/${vid}.webp?v=${require('./web-quiz-video-thumb').VERSION}`;
-async function shelfOf(out, rootId) {
+// watchOnly (a grown-up's preview): the quiz after a lesson makes a code and a child's session, so it is never offered.
+async function shelfOf(out, rootId, { watchOnly = false } = {}) {
   for (const c of out.chapters) for (const v of c.videos) if (v.poster) v.thumb = THUMB_PATH(v.vid);
-  out.quiz = Boolean(rootId || (await shelfRoot()));
+  out.quiz = watchOnly ? false : Boolean(rootId || (await shelfRoot()));
   return out;
 }
 // The watch root for the shelves' Quiz buttons, held 30 s from its read (shared while it is in flight): one read per
