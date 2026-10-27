@@ -177,7 +177,7 @@ function prefetchReads(args = {}) {
     if (!videoRecoEnabled(env)) return false;
     const { session, coachingSessionId, analysis } = args;
     if (!session || !session.user_id || !coachingSessionId) return false;
-    if (analysis && analysis.framework !== 'fico') return false;
+    if (!analysis || analysis.framework !== 'fico') return false; // as the pick (red7 N1): no analysis, no wave
     const now = Date.now();
     for (const [k, v] of prefetched) if (now - v.at > PREFETCH_TTL_MS) prefetched.delete(k);
     while (prefetched.size >= PREFETCH_MAX) prefetched.delete(prefetched.keys().next().value);
