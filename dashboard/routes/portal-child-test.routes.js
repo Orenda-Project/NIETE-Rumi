@@ -143,6 +143,11 @@ const SA_SWITCHES = {
   realDashboard: SA_REAL_DASHBOARD_KEY,
   // the visit review page (GET /sa/session/:id/review below)
   reviewPage: SA_REVIEW_PAGE_KEY,
+  // round 7b: the corner End test works and the child can be restarted; coach-led End this section; the dashboard's
+  // mode / date / coach filters and its skips-and-stops view
+  endTestRestart: 'sa_end_test_restart',
+  endSection: 'sa_end_section',
+  dashFilters: 'sa_dash_filters',
 };
 // Switches that are off on any host but sandbox, whatever their row says.
 const SANDBOX_ONLY = new Set(['exampleDashboard']);

@@ -43,6 +43,12 @@ export type SaSwitches = {
   realDashboard?: boolean;
   /** sa_review_page: the visit review, one session item by item with a reviewer's mark per item */
   reviewPage?: boolean;
+  /** sa_end_test_restart: the corner End test works; an ended child stays on the list with Restart test */
+  endTestRestart?: boolean;
+  /** sa_end_section: coach-led (RDF manual) End this section skips to the next section */
+  endSection?: boolean;
+  /** sa_dash_filters: the dashboard's mode / date / coach filters and every skip and stop by type and coach */
+  dashFilters?: boolean;
 };
 
 /** One drawn child. Never a roll number or student id (operator: "Name · Grade 3 - A · Teacher: …"). */
