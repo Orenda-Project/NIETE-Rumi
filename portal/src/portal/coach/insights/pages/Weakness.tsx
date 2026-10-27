@@ -103,6 +103,11 @@ function Fold({ d, home }: { d: WDetail; home: Home | null }) {
             </span>
           </div>
           <MomentSlot moment={moment} />
+          {/* fix-r5 s2 item 19 (qa-coach idea 073300): S4 (the debrief question, the pair, the full recording) one tap away */}
+          <Link to={insightsPaths.moment(moment.moment_id)} data-testid="w-moment-open"
+            className="flex min-h-[44px] items-center text-[14.5px] font-semibold text-[#2f6f4f]">
+            {t("s2.moment.open", lang)}
+          </Link>
         </section>
       )}
 

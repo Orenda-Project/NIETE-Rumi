@@ -253,6 +253,16 @@ describe.each(LANGS)("S2 Weakness (%s)", (lang) => {
     }
   }, 30000);
 
+  // fix-r5 s2 item 19 (qa-coach idea 073300): S4 is reachable from S2: "Open the player ›" under the moment.
+  it("item 19: under the moment, a link to the full player of this moment", async () => {
+    serve({ [`/coachip/w/${W}`]: F[`w_${W}`], "/coachip/home": F.home });
+    await renderAt(`/w/${W}`);
+    const a = screen.getByTestId("w-moment-open");
+    expect(screen.getByTestId("w-moment").contains(a)).toBe(true);
+    expect(a.getAttribute("href")).toBe(`/portal/coach/insights/m/${F[`w_${W}`].moment.moment_id}`);
+    expect(a.textContent).toBe(COPY["s2.moment.open"][lang]);
+  }, 30000);
+
   it("a load failure shows the error block, no bare digit", async () => {
     serve({ [`/coachip/w/${W}`]: () => { throw httpError(500, { error: "server_error" }); } });
     const { container } = await renderAt(`/w/${W}`);

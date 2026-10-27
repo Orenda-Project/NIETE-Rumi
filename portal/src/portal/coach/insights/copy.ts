@@ -87,6 +87,7 @@ export const COPY = {
   "s2.where.all": { en: "All schools ›", ur: "سب اسکول" },
   "s2.moment.title": { en: "The moment", ur: "لمحہ" },
   "s2.moment.sub": { en: "{code} at {school}", ur: "{school} میں {code}" },
+  "s2.moment.open": { en: "Open the player ›", ur: "پلیئر کھولیں" },
   "s2.step.eyebrow": { en: "ONE MOVE · FOR {code}", ur: "ایک قدم، {code} کے لیے" },
   "s2.step.other": { en: "another teacher", ur: "دوسرے استاد" },
   "s2.step.check_line": { en: "Visit {date} · your tick, then 2 of 3 recordings", ur: "دورہ {date}، آپ کا نشان، پھر ۳ میں سے ۲ ریکارڈنگز" },
