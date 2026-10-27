@@ -38,10 +38,11 @@
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
-const T = require('./web-quiz-token');
 const { clampLanguage } = require('../../config/ux-strings');
 
 const HomeFlags = require('./web-quiz-home-flags');
+// the preview that plays (web_quiz_practice_play) and the practice token's rule: a leaf module
+const Practice = require('./web-quiz-practice-play');
 const { flags, KEY, STORIES_KEY } = HomeFlags;
 const PKT_MS = 5 * 3600 * 1000;
 const DAY_MS = 86400000;
@@ -270,18 +271,10 @@ function storyPreviews(quizzes) {
 
 // ─── the practice home ─────────────────────────────────────────────────────────────────────────────
 
-const BACK_RX = /^\/quiz\/teacher\/[A-Za-z0-9._~-]{1,600}$/;
 const BACK_LABEL = { en: 'Back to my teacher home', ur: 'ٹیچر ہوم پر واپس' };
 
-/** The practice fields of a genuine hub token, or null (pure): pr:1, no child named, a grade 1-5. */
-function practiceOf(token) {
-  const tok = T.verify(token, 'h');
-  if (!tok || tok.pr !== 1 || !Array.isArray(tok.ids) || tok.ids.length) return null;
-  const g = Number(tok.g);
-  if (!Number.isInteger(g) || g < 1 || g > 5) return null;
-  const lang = clampLanguage(tok.lang || tok.l);
-  return { g, lang, bk: typeof tok.bk === 'string' && BACK_RX.test(tok.bk) ? tok.bk : null };
-}
+/** The practice fields of a genuine hub token, or null (pure): pr:1, no child named, a grade 1-5 (the rule's one home). */
+const practiceOf = (token) => Practice.practiceOf(token);
 
 // This week's story and the listening story the grade's children are shown first (the entry band, no reading rung):
 // the same passages, the same release rule and the same title home as the child's shelf. [] on any failure.
@@ -319,8 +312,10 @@ async function practiceHub(token, { lang: asked, brandKey } = {}) {
     // web_quiz_practice_play: the preview PLAYS (the content routes answer this token read-only for its grade), so the
     // page loads the storybook shelf (the Stories bit, as a child's hub carries it) and the Videos door as its shelves.
     // Off: the look-only preview, byte for byte.
-    const play = await require('./web-quiz-practice-play').on();
-    const storiesBit = play ? await require('./web-quiz-stories').hubBits({}) : {};
+    const play = await Practice.on();
+    // the Stories bit as the stories module gives a child's hub (web_quiz_stories, the same JSON-true read; a preview
+    // has no book to resume), from the home's own switch read
+    const storiesBit = play && f.stories ? { stories: { on: 1 } } : {};
     const out = {
       lang, practice: 1, th: { practice: true }, grade: pr.g,
       kids: [], kid: null, teacher: null, again: [], recs: [], challenge: form ? { on: true } : null, lib: null,

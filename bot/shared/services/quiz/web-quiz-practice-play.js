@@ -11,6 +11,7 @@
  * names a child. A game is scored in this process and forgotten; a story event is answered and dropped.
  *
  *   on()                 the switch (cached)
+ *   practiceOf(token)    {g, lang, bk} for a genuine practice hub token, or null (pure; the switch aside)
  *   of(token)            {g, lang, bk} for a practice hub token while the switch is on; null for every other token (no
  *                        read at all for a token that is not a practice one) or with the switch off
  *   who(token)           the content routes' "who" for it: {studentId: null, practice: true, grade, rootId: null, lang}
@@ -51,17 +52,28 @@ async function on(now = Date.now()) {
   return v;
 }
 
-const Home = () => require('./web-quiz-hub-home');
+/**
+ * The practice fields of a genuine hub token, or null (pure): pr:1, no child named, a grade 1-5; `bk` only a same-site
+ * teacher-home path. The one home of this rule (web-quiz-hub-home.js practiceOf answers through it), kept in this
+ * leaf module so nothing that asks "is this a preview?" pulls the hub's modules in.
+ */
+function practiceOf(token) {
+  const tok = T.verify(token, 'h');
+  if (!tok || tok.pr !== 1 || !Array.isArray(tok.ids) || tok.ids.length) return null;
+  const g = Number(tok.g);
+  if (!Number.isInteger(g) || g < 1 || g > 5) return null;
+  return { g, lang: clampLanguage(tok.lang || tok.l), bk: typeof tok.bk === 'string' && BACK_RX.test(tok.bk) ? tok.bk : null };
+}
 
 /** Is this a practice hub token at all (signature, pr:1, no child, a grade 1-5)? Pure: the switch is not read. */
 function isPractice(token) {
-  try { return Boolean(Home().practiceOf(token)); } catch (_) { return false; }
+  try { return Boolean(practiceOf(token)); } catch (_) { return false; }
 }
 
 /** {g, lang, bk} for a practice hub token while the switch is on, else null (no read for any other token). */
 async function of(token) {
   let pr = null;
-  try { pr = Home().practiceOf(token); } catch (_) { pr = null; }
+  try { pr = practiceOf(token); } catch (_) { pr = null; }
   if (!pr) return null;
   return (await on()) ? pr : null;
 }
@@ -109,4 +121,4 @@ function runOf(ct) {
   return c;
 }
 
-module.exports = { on, of, who, whoOf, isPractice, note, refused, homePath, signRun, runOf, KEY, PID_RX, _reset: () => { cache = null; } };
+module.exports = { on, of, who, whoOf, practiceOf, isPractice, note, refused, homePath, signRun, runOf, KEY, PID_RX, _reset: () => { cache = null; } };

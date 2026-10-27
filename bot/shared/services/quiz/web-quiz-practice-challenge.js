@@ -25,7 +25,11 @@ const { clampLanguage } = require('../../config/ux-strings');
 const Practice = require('./web-quiz-practice-play');
 
 const fail = (status, error) => { throw new WqError(status, { error }); };
-const kit = () => require('./web-quiz-challenge')._practiceKit;
+// The challenge's own helpers, handed in by web-quiz-challenge.js before every call (use(kit)): this module requires
+// nothing of the challenge's, so it adds no edge to the require graph.
+let KIT = null;
+const kit = () => { if (!KIT) throw new Error('practice challenge: no kit'); return KIT; };
+function use(k) { KIT = k; }
 const { LANGUAGE_OFFER } = require('../../config/languages');
 // the page's language when it is one we offer, else the token's own (the catalog's clamp)
 const langOf = (v, own) => clampLanguage(LANGUAGE_OFFER.includes(v) ? v : own);
@@ -49,7 +53,7 @@ async function formOf(pr) {
 }
 
 // Story Time's practice stories a child of this grade could be shown first: the grade's entry band (no reading rung).
-function bandsOf(g) { return require('./web-quiz-hub-play').openBands(g, 0); }
+function bandsOf(g) { return kit().play().openBands(g, 0); }
 
 /** The practice passage for a story room's id: released, reviewed, practice pool, this kind and language, an open band. */
 async function storyPassage(pr, kind, lang, pid) {
@@ -67,7 +71,7 @@ async function storyPassage(pr, kind, lang, pid) {
 /** The newest practice listening story the grade's shelf shows (the Trail's listen stop on the preview), or null. */
 async function newestListen(pr, lang) {
   try {
-    const Play = require('./web-quiz-hub-play');
+    const Play = kit().play();
     if (!(await Play.switches()).story) return null;
     const { live } = await Play.passagesOf(lang, new Date().toISOString(), bandsOf(pr.g));
     const K = kit();
@@ -80,7 +84,7 @@ async function newestListen(pr, lang) {
 
 async function timedOf(lang, p) {
   const K = kit();
-  try { return await require('./web-quiz-readalong').readAlong({ settingOn: K.settingOn }).forPassage({ lang, passageId: p.id, text: p.text }); } catch (_) { return null; }
+  try { return await K.readalong().readAlong({ settingOn: K.settingOn }).forPassage({ lang, passageId: p.id, text: p.text }); } catch (_) { return null; }
 }
 
 async function menu(pr, { lang } = {}) {
@@ -90,7 +94,7 @@ async function menu(pr, { lang } = {}) {
   const rt = await K.Tel.flag();
   Practice.note('challenge_menu', { grade: pr.g, form });
   if (form === K.Grade1.FORM) {
-    return { form: 'G1', lang: l, exercises: [{ id: K.Grade1.EXERCISE, copy_keys: require('./web-quiz-challenge-grade1').COPY_KEYS, mins: 2, done: false, last: null, anchor_block: K.Grade1.BLOCK }],
+    return { form: 'G1', lang: l, exercises: [{ id: K.Grade1.EXERCISE, copy_keys: K.grade1().COPY_KEYS, mins: 2, done: false, last: null, anchor_block: K.Grade1.BLOCK }],
       record: true, rt, practice_play: 1 };
   }
   const rules = await K.rulesOf();
@@ -99,7 +103,7 @@ async function menu(pr, { lang } = {}) {
   const listenOk = Boolean(story && (await K.storyClip(l, story.text)));
   const order = rules.pool ? K.TRAIL_ORDER.slice() : K.EXERCISES.map((e) => e.id);
   const ids = order.filter((id) => id !== 'read' && (id !== 'listen' || listenOk) && (id !== 'missing' || rules.missing));
-  const ui = await require('./web-quiz-ur-polish').ui();
+  const ui = await K.urPolish().ui();
   return {
     form: `G${form}`,
     lang: l,
@@ -108,8 +112,8 @@ async function menu(pr, { lang } = {}) {
     ...(rules.record ? { record: true } : {}),
     ...(rules.trail ? { trail: true, trail_copy: K.trailCopy(l) } : {}),
     rt,
-    ...(ui ? { ui: require('./web-quiz-ur-polish').lite({ ur2: true }) } : {}),
-    ...((await require('./web-quiz-juice').field()) ? { juice: true } : {}),
+    ...(ui ? { ui: K.urPolish().lite({ ur2: true }) } : {}),
+    ...((await K.juice().field()) ? { juice: true } : {}),
     // the Trail page (v2) and Story Time's room; no microphone notice (there is no child and no microphone here)
     ...(await K.TrailPage.bits({ studentId: null, lang: l })),
     practice_play: 1,
@@ -127,8 +131,8 @@ async function exercise(pr, ex, { lang, room, passageId } = {}) {
   if (form === K.Grade1.FORM || ex === K.Grade1.EXERCISE) {
     if (form !== K.Grade1.FORM || ex !== K.Grade1.EXERCISE) fail(404, 'not_found');
     const items = Bank.anchorBlock(K.Grade1.BLOCK).map((i) => ({ item_id: i.item_id, n: i.n, layout: i.layout, tiles: i.tiles.slice() }));
-    return { ex, form: 'G1', lang: l, ct: Practice.signRun({ ex, g: pr.g, lang: l, form, runId }), copy_keys: require('./web-quiz-challenge-grade1').COPY_KEYS,
-      items, anchor_block: K.Grade1.BLOCK, stop_after: 0, per_item_s: require('./web-quiz-challenge-grade1').PER_ITEM_S, show_timer: false, sound_off_safe: true, record: false, ...PREVIEW };
+    return { ex, form: 'G1', lang: l, ct: Practice.signRun({ ex, g: pr.g, lang: l, form, runId }), copy_keys: K.grade1().COPY_KEYS,
+      items, anchor_block: K.Grade1.BLOCK, stop_after: 0, per_item_s: K.grade1().PER_ITEM_S, show_timer: false, sound_off_safe: true, record: false, ...PREVIEW };
   }
   const def = K.byId(ex);
   if (!def) fail(404, 'not_found');
@@ -178,7 +182,7 @@ async function submit(c, body = {}) {
   Practice.note('challenge_result', { ex: c.ex, grade: c.g });
   if (c.ex === K.Grade1.EXERCISE) {
     const items = Bank.anchorBlock(K.Grade1.BLOCK).map((i) => ({ item_id: i.item_id, n: i.n, layout: i.layout, tiles: i.tiles.slice() }));
-    return { score: require('./web-quiz-challenge-grade1').scoreNumberId(items, body.taps).score, practice_play: 1 };
+    return { score: K.grade1().scoreNumberId(items, body.taps).score, practice_play: 1 };
   }
   if (c.ex === 'missing') {
     const a1 = c.a === 'A1';
@@ -243,4 +247,4 @@ async function words(c, { lang } = {}) {
   return { readalong: t };
 }
 
-module.exports = { hubOf, runOf, menu, exercise, submit, questions, answer, words };
+module.exports = { use, hubOf, runOf, menu, exercise, submit, questions, answer, words };

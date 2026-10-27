@@ -52,7 +52,7 @@ const Fast = require('./web-quiz-fast');
 // Live reading v3 (web_quiz_live_read_v3): {} with the switch off, so today's payloads are untouched.
 const LiveReadV3 = () => require('./web-quiz-live-read-v3');
 // a grown-up's preview link (web_quiz_practice_play): its games are served and scored there, kept nowhere
-const PracticeCh = () => require('./web-quiz-practice-challenge');
+const PracticeCh = () => { const P = require('./web-quiz-practice-challenge'); P.use(module.exports._practiceKit); return P; };
 
 const FLAG_KEY = 'web_quiz_challenge';
 const LIVE_FLAG_KEY = 'web_quiz_challenge_realtime';
@@ -2489,6 +2489,8 @@ module.exports._practiceKit = {
   challengeOn, formForChild, rulesOf, ruleFlags, copyFor, trailCopy, nameOf, byId, clipsFor, clipUrl, clipKey, storyClip, readAlongClip,
   tapOptions, optionAudioOn, listenOn, settingOn, passageFor, titleOf, childTest, Grade1, Draw, TrailPage, Tel,
   EXERCISES, TRAIL_ORDER, PER_ITEM_S, MISSING_FIRST_KEY_S, READ_SECS, QA_MAX, servePairs, scoreBigger, scoreMissing,
+  play: () => require('./web-quiz-hub-play'), readalong: () => require('./web-quiz-readalong'), grade1: () => require('./web-quiz-challenge-grade1'),
+  urPolish: () => require('./web-quiz-ur-polish'), juice: () => require('./web-quiz-juice'),
 };
 // the runs insert (and its duplicate-record rule), for its test
 module.exports.insertRun = insertRun;

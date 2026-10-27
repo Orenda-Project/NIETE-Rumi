@@ -11,8 +11,9 @@
  * changes behaviour never rides `quiz_teacher_home`: it gets its own read, or joins PAGE_KEYS
  * (the strict page read below).
  *
- * The page switches are one list, PAGE_KEYS = [paged, grade_fast] (`quiz_teacher_home_grade_fast`: the grade chips
- * answer from the page), read together in one `.in('key', PAGE_KEYS)` read, so no new read. JSON `true` ONLY; the
+ * The page switches are one list, PAGE_KEYS = [paged, grade_fast, wait, practice] (`quiz_teacher_home_grade_fast`: the
+ * grade chips answer from the page; `web_quiz_practice_play`: "Try it as a student" for every teacher), read together in
+ * one `.in('key', PAGE_KEYS)` read, so no new read. JSON `true` ONLY; the
  * string "true", an absent row, any other value and a failed read are OFF.
  */
 const supabase = require('../../config/supabase');
@@ -23,9 +24,11 @@ const KEY = 'quiz_teacher_home';
 const PAGED_KEY = 'quiz_teacher_home_paged';
 const GRADE_FAST_KEY = 'quiz_teacher_home_grade_fast';
 const WAIT_KEY = 'quiz_teacher_home_wait';
+// app_settings web_quiz_practice_play (the class preview that plays): "Try it as a student" for every teacher (JSON true)
+const PRACTICE_KEY = 'web_quiz_practice_play';
 const TIMING_KEY = 'quiz_teacher_server_timing';
 // the page switches: one list, one read, one cache. A key added here is read in the same one `.in`.
-const PAGE_KEYS = [PAGED_KEY, GRADE_FAST_KEY, WAIT_KEY];
+const PAGE_KEYS = [PAGED_KEY, GRADE_FAST_KEY, WAIT_KEY, PRACTICE_KEY];
 const TTL_MS = 30 * 1000;
 let cache = null; // { at, on }
 let pageCache = null; // { at, on: { [key]: boolean } }
@@ -92,6 +95,11 @@ async function wait(now = Date.now()) {
   return (await pageSwitches(now))[WAIT_KEY] === true;
 }
 
+/** → true only when `web_quiz_practice_play` is JSON `true`; the page read, no read of its own. */
+async function practice(now = Date.now()) {
+  return (await pageSwitches(now))[PRACTICE_KEY] === true;
+}
+
 /** → true only when `quiz_teacher_server_timing` was JSON `true` at the home switch's last read (within 30 s). Never reads, never waits. */
 function timing(now = Date.now()) {
   return Boolean(timingCache && now - timingCache.at < TTL_MS && timingCache.on);
@@ -104,5 +112,5 @@ function resetTiming() { timingCache = null; }
 function reset() { cache = null; pageCache = null; timingCache = null; }
 
 module.exports = {
-  on, paged, gradeFast, wait, pageSwitches, timing, reset, resetTiming, KEY, PAGED_KEY, GRADE_FAST_KEY, WAIT_KEY, TIMING_KEY, PAGE_KEYS, TTL_MS,
+  on, paged, gradeFast, wait, practice, pageSwitches, timing, reset, resetTiming, KEY, PAGED_KEY, GRADE_FAST_KEY, WAIT_KEY, PRACTICE_KEY, TIMING_KEY, PAGE_KEYS, TTL_MS,
 };

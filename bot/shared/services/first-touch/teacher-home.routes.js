@@ -57,7 +57,8 @@ const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const KEY_RX = /^[A-Za-z0-9_:.-]{1,200}$/;
 const ASKABLE = Object.freeze(['en', 'ur']);
 const COACH_ROLES = new Set(['coach', 'principal', 'school_leader', 'supervisor', 'aeo', 'head']);
-// app_settings web_quiz_practice_play (30 s cache; false on any failure): "Try it as a student" for every teacher
+// app_settings web_quiz_practice_play: "Try it as a student" for every teacher. On the home it rides the page switches'
+// one read (req.thPractice); this is the fallback for a path without that read (30 s cache; false on any failure)
 const practiceOn = () => require('../quiz/web-quiz-practice-play').on().catch(() => false);
 // the home open's role tag (web_quiz.* F3): a coach or a leader, else a teacher; never the role row itself
 const roleTag = (user) => (user && COACH_ROLES.has(String(user.role || '').toLowerCase()) ? 'coach' : 'teacher');
@@ -105,6 +106,8 @@ function createRouter(deps = null) {
     // (the same read answers quiz_teacher_home_grade_fast, used by the shell alone)
     const sw = req.path === '/api/th/home' || /^\/quiz\/teacher\/[^/]+$/.test(req.path) ? Flags.pageSwitches().then((v) => v || {}, () => ({})) : null;
     req.thPaged = sw ? sw.then((v) => v[Flags.PAGED_KEY] === true) : null;
+    // web_quiz_practice_play rides the same page read: "Try it as a student" for every teacher costs no read of its own
+    req.thPractice = sw ? sw.then((v) => v[Flags.PRACTICE_KEY] === true) : null;
     req.thWait = sw ? sw.then((v) => v[Flags.WAIT_KEY] === true) : null;
     req.thGradeFast = sw ? sw.then((v) => v[Flags.GRADE_FAST_KEY] === true) : null;
     return next();
@@ -406,7 +409,7 @@ function createRouter(deps = null) {
     const asked0 = req.thTime ? process.hrtime.bigint() : null;
     const userP = Data.teacherOf(p.uid, deps);
     userP.catch(() => {});
-    const playP = practiceOn();
+    const playP = req.thPractice || practiceOn();
     const quick = await req.thPaged;
     waited(req, asked0);
     dataStart(req);
