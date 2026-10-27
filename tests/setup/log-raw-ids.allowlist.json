@@ -1201,31 +1201,37 @@
    "119 userId (shorthand)"
   ]
  },
- "bot/shared/services/lp612-feedback.service.js": {
-  "n": 21,
+ "bot/shared/services/lp612-feedback-taps.service.js": {
+  "n": 14,
   "area": "services",
   "at": [
-   "143 userId (shorthand)",
-   "143 phone (shorthand)",
-   "149 userId (shorthand)",
-   "157 userId (shorthand)",
-   "188 userId (shorthand)",
-   "192 userId (shorthand)",
-   "208 userId (shorthand)",
-   "233 phone (shorthand)",
-   "234 phone (shorthand)",
-   "259 userId: user.id",
-   "282 userId: user.id",
-   "286 userId: user.id",
-   "295 userId: user.id",
-   "315 userId: user.id",
-   "363 phone (shorthand)",
-   "364 phone (shorthand)",
-   "376 userId: user.id",
-   "377 userId: user.id",
-   "379 userId: user.id",
-   "420 userId (shorthand)",
-   "444 userId (shorthand)"
+   "40 phone (shorthand)",
+   "41 phone (shorthand)",
+   "66 userId: user.id",
+   "89 userId: user.id",
+   "93 userId: user.id",
+   "102 userId: user.id",
+   "122 userId: user.id",
+   "170 phone (shorthand)",
+   "171 phone (shorthand)",
+   "183 userId: user.id",
+   "184 userId: user.id",
+   "186 userId: user.id",
+   "227 userId (shorthand)",
+   "251 userId (shorthand)"
+  ]
+ },
+ "bot/shared/services/lp612-feedback.service.js": {
+  "n": 7,
+  "area": "services",
+  "at": [
+   "78 userId (shorthand)",
+   "78 phone (shorthand)",
+   "84 userId (shorthand)",
+   "92 userId (shorthand)",
+   "123 userId (shorthand)",
+   "127 userId (shorthand)",
+   "143 userId (shorthand)"
   ]
  },
  "bot/shared/services/lp612-serving.service.js": {

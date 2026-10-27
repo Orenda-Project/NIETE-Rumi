@@ -345,9 +345,9 @@ describe('FX7-4 — every registry pattern matches the id its sender emits (an u
     ['lp_usage', 'lp-feedback.service.js', 'lp_used_taught_', LP],
     ['lp_usage', 'lp-feedback.service.js', 'lp_used_planned_', LP],
     ['lp_usage', 'lp-feedback.service.js', 'lp_used_not_yet_', LP],
-    ['lp612_usage', 'lp612-feedback.service.js', 'lp612_used_taught_', SEGMENT],
-    ['lp612_usage', 'lp612-feedback.service.js', 'lp612_used_planned_', SEGMENT],
-    ['lp612_usage', 'lp612-feedback.service.js', 'lp612_used_not_yet_', SEGMENT],
+    ['lp612_usage', 'lp612-feedback-taps.service.js', 'lp612_used_taught_', SEGMENT],
+    ['lp612_usage', 'lp612-feedback-taps.service.js', 'lp612_used_planned_', SEGMENT],
+    ['lp612_usage', 'lp612-feedback-taps.service.js', 'lp612_used_not_yet_', SEGMENT],
   ];
 
   test.each(SENDERS)('%s ← %s emits `%s${…}`', (name, file, prefix, tail) => {
