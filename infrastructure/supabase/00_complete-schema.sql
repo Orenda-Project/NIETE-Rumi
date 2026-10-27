@@ -8226,6 +8226,8 @@ DO $$ BEGIN CREATE TYPE coachip_cell_status AS ENUM ('ok', 'insufficient', 'not_
 COMMENT ON TYPE coachip_cell_status IS '[Public] a child-result cell: ok at >= 5 tested; insufficient below; not_measured for a gap subtask; not_graded before scoring exists';
 DO $$ BEGIN CREATE TYPE coachip_audit_action AS ENUM ('decode', 'clip', 'full_audio', 'note_sent', 'circle_play'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 COMMENT ON TYPE coachip_audit_action IS '[Public] what an audited read or send was (D20)';
+DO $$ BEGIN CREATE TYPE coachip_circle_basis AS ENUM ('sector', 'coach'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+COMMENT ON TYPE coachip_circle_basis IS '[Public] which ranking chose a circle moment: sector = the sector''s rank-1 W; coach = the coach''s own rank-1 W, the sector being under the B23 floor (SPEC v2.1 §11.1; V1.8.1)';
 
 -- ── coachip_weaknesses ─────────────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS coachip_weaknesses (
@@ -8759,6 +8761,7 @@ CREATE TABLE IF NOT EXISTS coachip_circle_items (
   coach_user_id              uuid NOT NULL REFERENCES users (id),
   moment_id                  uuid NOT NULL REFERENCES coachip_moments (id),
   job_run_id                 uuid NOT NULL REFERENCES coachip_job_runs (id),
+  basis                      coachip_circle_basis NOT NULL DEFAULT 'sector',
   created_at                 timestamptz NOT NULL DEFAULT now(),
   updated_at                 timestamptz NOT NULL DEFAULT now(),
   UNIQUE (sector, week_start, coach_user_id)
@@ -8770,6 +8773,7 @@ COMMENT ON COLUMN coachip_circle_items.week_start IS '[Internal] Monday of the c
 COMMENT ON COLUMN coachip_circle_items.coach_user_id IS '[Internal] the coach (staff) whose teacher''s moment it is';
 COMMENT ON COLUMN coachip_circle_items.moment_id IS '[Internal] the moment';
 COMMENT ON COLUMN coachip_circle_items.job_run_id IS '[Internal] the run that chose it';
+COMMENT ON COLUMN coachip_circle_items.basis IS '[Internal] which ranking chose the moment: sector = the sector''s rank-1 W; coach = the coach''s own rank-1 W because the sector was under the B23 floor (SPEC v2.1 §11.1)';
 COMMENT ON COLUMN coachip_circle_items.created_at IS '[Internal] row written (UTC)';
 COMMENT ON COLUMN coachip_circle_items.updated_at IS '[Internal] row last changed (UTC); set by trigger';
 DROP TRIGGER IF EXISTS coachip_circle_items_updated_at ON coachip_circle_items;

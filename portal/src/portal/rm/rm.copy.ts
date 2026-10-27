@@ -1,14 +1,13 @@
 /**
- * bd-sex15q.17 — COACHIP's RM screens: every string, English and Urdu, generated from contracts/COPY.md v1 (sections S8,
- * S9, S10, RM-T) by outputs/lanes/m-rm/gen_rm_copy.py. Never hand-edit a value: change COPY.md and re-run. Keys under
- * picker.*, coaches.*, stats.*, s9.graded, s9.schools.row.no_next, s8.no_scope_coaches.of, e.503_clip.rm and
- * s10.sector_moves.date/done/play, s9.back are not in COPY v1 yet (the m-rm REPORT, Assumptions). rmt.* are the RM-T
+ * bd-sex15q.17 — COACHIP's RM screens: every string, English and Urdu, generated from contracts/COPY.md v1.1 (sections S8,
+ * S9, S10, RM-T) by outputs/lanes/m-rm/gen_rm_copy.py. Never hand-edit a value: change COPY.md and re-run. Every key is
+ * in COPY.md's tables (v1.1 adopted the former extras; fix-r5, bd-sex15q.19); e.503_clip.rm and the §N/§E keys the RM
+ * pages share come from the coach copy (copy.ts) through rm/text.tsx. rmt.* are the RM-T
  * templates, used only for the picker's preview: the server composes the lines the coach receives.
  */
 
 export const RM_COPY = {
   "coaches.title": { en: "{sector} · Coaches", ur: "{sector}، کوچ" },
-  "e.503_clip.rm": { en: "The clip could not be made. Ask the coach to bring it on Friday.", ur: "کلپ نہیں بن سکا۔ کوچ سے کہیں کہ جمعے کو ساتھ لائیں۔" },
   "picker.cancel": { en: "Cancel", ur: "منسوخ" },
   "picker.date": { en: "By when", ur: "کب تک" },
   "picker.failed": { en: "Not sent. Try again.", ur: "نہیں بھیجی جا سکی۔ دوبارہ کوشش کریں۔" },
@@ -37,7 +36,9 @@ export const RM_COPY = {
   "s10.checks.row": { en: "{coach} · {n} of {d}", ur: "{coach}، {d} میں سے {n}" },
   "s10.checks.sub": { en: "{n} of {d} open steps across the sector's coaches", ur: "سیکٹر کے کوچوں کے {d} میں سے {n} جاری قدم" },
   "s10.checks.title": { en: "Checks due this week", ur: "اس ہفتے کی جانچیں" },
+  "s10.moments.basis.coach": { en: "This sector has not reached the floor ({c} of 3 coaches with 5 lessons). Each clip is that coach's own first move.", ur: "سیکٹر ابھی کم از کم تک نہیں پہنچا (۵ اسباق والے ۳ میں سے {c} کوچ)۔ ہر کلپ اسی کوچ کا اپنا پہلا قدم ہے۔" },
   "s10.moments.empty": { en: "No graded recordings in the sector this week", ur: "اس ہفتے سیکٹر میں کوئی جانچی گئی ریکارڈنگ نہیں" },
+  "s10.moments.empty.floor": { en: "No coach has 20 graded lessons in the window yet, so there is no clip this week.", ur: "ابھی کسی کوچ کے ۲۰ جانچے گئے اسباق نہیں، اس لیے اس ہفتے کوئی کلپ نہیں۔" },
   "s10.moments.explain": { en: "Each coach brings the clip for next week's debrief; the circle listens, then names one move together. A clip is a lesson, never a person.", ur: "ہر کوچ اگلے ہفتے کی بات چیت کا کلپ لائے؛ حلقہ سنے، پھر مل کر ایک قدم طے کرے۔ کلپ ایک سبق ہے، کوئی شخص نہیں۔" },
   "s10.moments.row": { en: "{coach} · {school} · {short_name}", ur: "{coach}، {school}، {short_name}" },
   "s10.moments.title": { en: "One moment per coach", ur: "ہر کوچ کا ایک لمحہ" },
@@ -53,7 +54,7 @@ export const RM_COPY = {
   "s8.activity.overdue": { en: "{n} of {d} checks due by {date_short} are overdue", ur: "{date_short} تک کی {d} میں سے {n} جانچیں باقی ہیں" },
   "s8.activity.steps": { en: "{n} of {d} debriefs this month ended with a step", ur: "اس مہینے {d} میں سے {n} بات چیت ایک قدم پر ختم ہوئیں" },
   "s8.activity.unvisited": { en: "{n} of {d} schools not visited in {w} weeks", ur: "{w} ہفتوں میں {d} میں سے {n} اسکولوں کا دورہ نہیں ہوا" },
-  "s8.circle.sub": { en: "{m} moments · {n} of {d} checks due this week", ur: "{m} لمحے، اس ہفتے {d} میں سے {n} جانچیں" },
+  "s8.circle.sub": { en: "{m} of {c} coaches have a moment · {n} of {d} checks due this week", ur: "{c} میں سے {m} کوچوں کے لمحے، اس ہفتے {d} میں سے {n} جانچیں" },
   "s8.circle.title": { en: "Friday circle", ur: "جمعے کا حلقہ" },
   "s8.cluster": { en: "Cluster session: {title} · {date} · run in a room, with a follow-up", ur: "گروپ نشست: {title}، {date}، ایک کمرے میں، یاد دہانی کے ساتھ" },
   "s8.cluster.none": { en: "Pick the agenda from the coaches' moves this week", ur: "اس ہفتے کوچوں کے قدموں سے ایجنڈا چنیں" },
@@ -62,7 +63,7 @@ export const RM_COPY = {
   "s8.floor": { en: "Floor: every school every 4 weeks", ur: "کم از کم: ہر اسکول ہر ۴ ہفتوں میں" },
   "s8.follow_up": { en: "Follow-up", ur: "یاد دہانی" },
   "s8.group.needs_me": { en: "Needs me this week", ur: "اس ہفتے میری ضرورت" },
-  "s8.group.on_track": { en: "On track", ur: "ٹھیک چل رہا ہے" },
+  "s8.group.on_track": { en: "On track", ur: "معمول کے مطابق" },
   "s8.monday.button": { en: "Send each coach a three-line follow-up", ur: "ہر کوچ کو تین سطروں کی یاد دہانی بھیجیں" },
   "s8.monday.sub": { en: "The portal writes it: the move, its schools, by Friday. You pick; nothing to type.", ur: "پورٹل لکھتا ہے: قدم، اس کے اسکول، جمعے تک۔ آپ چنیں، لکھنا کچھ نہیں۔" },
   "s8.moves.by_school": { en: "shows most at {s1} ({n} of {d}), then {s2}, {s3}", ur: "سب سے زیادہ {s1} میں ({d} میں سے {n})، پھر {s2}، {s3}" },
@@ -76,7 +77,7 @@ export const RM_COPY = {
   "s8.no_scope_coaches.of": { en: "{n} of {d} coaches have no schools assigned", ur: "{d} میں سے {n} کوچ جن کے پاس کوئی اسکول نہیں" },
   "s8.on_track.row": { en: "{n} of {d} coaches: no follow-up due this week", ur: "{d} میں سے {n} کوچ: اس ہفتے کوئی یاد دہانی نہیں" },
   "s8.opening": { en: "{n} of {d} schools were visited in the last 4 weeks. {u} of {d} schools and {c} of {t} teacher codes have not been observed for 4 weeks or more.", ur: "پچھلے ۴ ہفتوں میں {d} میں سے {n} اسکولوں کا دورہ ہوا۔ {d} میں سے {u} اسکول اور {t} میں سے {c} استاد کوڈ ۴ ہفتوں یا زیادہ سے نہیں دیکھے گئے۔" },
-  "s8.sub": { en: "{c} coaches · {s} schools · {date}", ur: "{c} کوچ، {s} اسکول، {date}" },
+  "s8.sub": { en: "{date}", ur: "{date}" },
   "s8.title": { en: "{sector} · Monday", ur: "{sector}، پیر" },
   "s8.trust": { en: "Aggregates per coach and school. No teacher appears on this page. For coaching, never for evaluation.", ur: "کوچ اور اسکول کے مجموعی اعداد۔ اس صفحے پر کوئی استاد نہیں۔ کوچنگ کے لیے، جانچ پڑتال کے لیے نہیں۔" },
   "s8.unassigned": { en: "{n} of {d} schools held by no coach", ur: "{d} میں سے {n} اسکول کسی کوچ کے پاس نہیں" },
@@ -91,7 +92,7 @@ export const RM_COPY = {
   "s9.notes.title": { en: "Follow-ups sent", ur: "بھیجی گئی یاد دہانیاں" },
   "s9.reason.checks_overdue": { en: "Checks overdue", ur: "جانچیں باقی" },
   "s9.reason.no_steps": { en: "No debrief ended with a step this month", ur: "اس مہینے کوئی بات چیت قدم پر ختم نہیں ہوئی" },
-  "s9.reason.none": { en: "On track", ur: "ٹھیک چل رہا ہے" },
+  "s9.reason.none": { en: "On track", ur: "معمول کے مطابق" },
   "s9.reason.unvisited": { en: "Schools waiting for a visit", ur: "دوروں کے منتظر اسکول" },
   "s9.schools.never": { en: "No visit recorded in the last 4 weeks", ur: "پچھلے ۴ ہفتوں میں کوئی دورہ درج نہیں" },
   "s9.schools.row": { en: "{school} · last visit {date} · {w} weeks ago (floor 4) · next {date2}", ur: "{school}، پچھلا دورہ {date}، {w} ہفتے پہلے (کم از کم ۴)، اگلا {date2}" },

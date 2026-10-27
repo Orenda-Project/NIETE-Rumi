@@ -393,8 +393,8 @@ async function rmCircle(ctx) {
 
   // one moment per coach (B22: school and W only), the stored circle for this sector and this Monday
   const items = coaches.length ? (await q(
-    `SELECT ci.coach_user_id, m.id AS moment_id, m.w_id, (m.to_s - m.from_s) AS duration_s, s.id AS school_id, s.name AS school_name,
-            f.computed_at
+    `SELECT ci.coach_user_id, ci.basis::text AS basis, m.id AS moment_id, m.w_id, (m.to_s - m.from_s) AS duration_s, s.id AS school_id,
+            s.name AS school_name, f.computed_at
        FROM coachip_circle_items ci
        JOIN coachip_moments m ON m.id = ci.moment_id
        JOIN coachip_session_facts f ON f.id = m.fact_id
@@ -422,6 +422,16 @@ async function rmCircle(ctx) {
   // the sector interventions for the sector's ranked moves: the first school-level and sector-level I of each W
   // (sub-row first, then its parent), with the date of the RM's open sector step for that I when one is set
   const rows = await H.rollupsAt(q, key, { scopeKind: 'sector', scopeIds: [rm.sector] });
+
+  // SPEC v2.1 §11.1: the week's basis is stored on the rows (one run writes the whole sector, so a week is never mixed);
+  // with no row, the week is on the coach basis exactly when the sector has no rank-1 W. The floor: the sector's best
+  // per-W count of coaches with 5+ lessons (null on the sector basis).
+  const sectorRanked = rows.some((r) => r.rank === 1 && r.status === 'ok');
+  const basis = items.length ? (items.some((r) => r.basis === 'coach') ? 'coach' : 'sector') : (sectorRanked ? 'sector' : 'coach');
+  const floor = basis === 'coach'
+    ? { coaches_with_5plus: rows.reduce((mx, r) => Math.max(mx, Number(r.coaches_with_5plus) || 0), 0), needed: 3, // B23: 3 coaches with 5+
+      window_id: graded.id } // {c} is a Count on the sector's 4-week graded window (COPY §8), listed in `windows`
+    : null;
   const stepDates = await sectorStepDates(q, ctx);
   const dateOf = new Map();
   for (const s of stepDates) if (!dateOf.has(s.i_id)) dateOf.set(s.i_id, s.date);
@@ -447,10 +457,12 @@ async function rmCircle(ctx) {
   return S.reply(200, {
     week_start: weekStart,
     window,
+    basis,
+    floor,
     sector_interventions: sectorInterventions,
     moments,
     checks_due: checksDueRows,
-    windows: H.sortWindows([w.act4w, window]),
+    windows: H.sortWindows(floor ? [w.act4w, window, graded] : [w.act4w, window]),
     computed_at: H.oldestIso(items.map((r) => r.computed_at), ctx.now),
   });
 }

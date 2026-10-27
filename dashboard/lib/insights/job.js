@@ -42,6 +42,26 @@ const factKey = (f) => `${f.session_id}|${f.grader_model}|${f.framework_version}
 const push = (map, k, v) => { if (!map.has(k)) map.set(k, []); map.get(k).push(v); };
 
 /** Stage 1: the in-memory FACTs (briefs/INTERFACES.md) for the window's in-population sessions. */
+/** The ids a switch row turns on (an id list, or its JSON); `true` and role values name no id. */
+function switchIds(row) {
+  let v = row && row.value;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (e) { return []; } }
+  return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [];
+}
+
+/**
+ * SPEC v2.1 §11.3 (2): why a run is empty, in one line of counts. The switch list and the roster are independent, so
+ * a coach switched on but missing from the roster shows here, not on a screen.
+ */
+function scopeLine(scope, stats) {
+  const roster = scope.rosterCoaches || new Map();
+  const switchedOn = new Set(switchIds((scope.flags || []).find((r) => r.key === 'portal_coachip')));
+  const notOnRoster = [...switchedOn].filter((id) => !roster.has(id)).length;
+  const testCoaches = [...scope.coaches.keys()].filter((id) => scope.testUsers.has(id)).length;
+  return `scope schools=${scope.schools.size} teachers=${scope.teachers.size} roster_coaches=${roster.size} holding_coaches=${scope.coaches.size} `
+    + `switched_on_not_on_roster=${notOnRoster} test_user_coaches=${testCoaches} sessions_seen=${(stats && stats.seen) || 0} kept=${(stats && stats.kept) || 0}`;
+}
+
 async function buildFacts({ readClient, scope, fromDate, toDate, secret, keepGloss, scopeFilter, computedAt }) {
   const out = [];
   const audioOf = new Map();
@@ -225,6 +245,7 @@ async function runJob(opts, deps) {
       secret: deps.secret, keepGloss, scopeFilter: scopeFilterOf(opts.scope), computedAt });
     const all = built.facts;
     for (const f of all) f.job_run_id = jobRunId;
+    log(scopeLine(scope, built.stats));
     counts.sessions_seen = built.stats.kept;
     counts.sessions_failed = new Set(all.filter((f) => f.status === 'failed').map((f) => f.session_id)).size;
     counts.sessions_ok = new Set(all.filter((f) => f.status !== 'failed').map((f) => f.session_id)).size;
@@ -376,10 +397,14 @@ async function runJob(opts, deps) {
         const f = factById.get(m.fact_id);
         if (f && win.inWindow(f.karachi_date, w4)) for (const c of f.coach_user_ids) push(momentsByCoach, c, { ...m, recorded_at: f.recorded_at });
       }
+      // SPEC v2.1 §11.1: a sector with no rank-1 W falls back to each coach's own rank-1 W (basis 'coach').
+      // As the coach's S1 reads it: a 4-week rank 1 before an 8-week one (coach-read orders window_weeks ASC).
+      const coachRank1W = new Map(rollups.filter((r) => r.scope_kind === 'coach' && r.rank === 1)
+        .sort((a, b) => b.window_weeks - a.window_weeks).map((r) => [r.coach_user_id, r.w_id]));
       for (const sector of C.SECTORS) {
         const top = rollups.find((r) => r.scope_kind === 'sector' && r.sector === sector && r.rank === 1);
         const coachIds = [...scope.coaches].filter(([, c]) => c.sector === sector).map(([id]) => id);
-        circle.push(...pickCircle({ sector, weekStart, coachIds, rank1W: top && top.w_id, momentsByCoach, jobRunId }));
+        circle.push(...pickCircle({ sector, weekStart, coachIds, rank1W: top && top.w_id, coachRank1W, momentsByCoach, jobRunId }));
       }
       if (write) {
         const existing = await store.select('coachip_circle_items', (q) => q.eq('week_start', weekStart), 'sector,coach_user_id');

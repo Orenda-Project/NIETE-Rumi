@@ -7,7 +7,6 @@ vi.mock("../../../../services/api", () => ({ portal: { getConfig: vi.fn() }, lan
 import { MomentPlayer } from "../index";
 import { COPY } from "../../copy";
 import { domContract } from "../../count";
-import { LOCAL_COPY } from "../player.copy";
 import FIXTURES from "../../tests/fixtures.json";
 import type { Moment } from "../../types";
 
@@ -141,6 +140,16 @@ describe.each(LANGS)("MomentPlayer (%s)", (lang) => {
     expect(segs[2].getAttribute("aria-label")).toContain(lang === "en" ? "partial" : "ادھورا");
   });
 
+  it("fix-r5 5c: not_adjudicable and substituted segments are named by COPY's verdict words", () => {
+    const m = clone(F.moment);
+    m.steps[3].verdict = "not_adjudicable";
+    m.steps[4].verdict = "substituted";
+    const { container } = render(<MomentPlayer moment={m} variant="full" />);
+    const segs = segments(container);
+    expect(segs[3].getAttribute("aria-label")).toBe(`${m.steps[3].label[lang]}: ${COPY["s4.verdict.not_adjudicable"][lang]}`);
+    expect(segs[4].getAttribute("aria-label")).toBe(`${m.steps[4].label[lang]}: ${COPY["s4.verdict.substituted"][lang]}`);
+  });
+
   it("marks ✓ ½ ✗, and not_reached is grey, never red; no red anywhere on a step", () => {
     const m = clone(F.moment);
     m.steps[4].verdict = "not_reached";
@@ -200,7 +209,7 @@ describe.each(LANGS)("MomentPlayer (%s)", (lang) => {
     rm.clip = { ...rm.clip, status: "expired" };
     const { container } = render(<MomentPlayer moment={rm} variant="full" />);
     expect(container.querySelector("audio")).toBeNull();
-    expect(within(container).getByTestId("clip-failed-rm").textContent).toBe(LOCAL_COPY["e.503_clip.rm"][lang]);
+    expect(within(container).getByTestId("clip-failed-rm").textContent).toBe(COPY["e.503_clip.rm"][lang]);
     // never e.503_clip: it promises a full recording the RM cannot get
     expect(container.textContent).not.toContain(lang === "en" ? "the full recording plays" : "پوری ریکارڈنگ");
     expect(within(container).queryByTestId("full-recording")).toBeNull();

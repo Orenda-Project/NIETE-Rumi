@@ -1,17 +1,19 @@
-import { CircleUserRound, ClipboardCheck, LogOut } from "lucide-react";
+import { CircleUserRound, ClipboardCheck, LogOut, Map as MapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../../hooks/useAuth";
 import { useLogoutGuard } from "../../lib/recordingSession";
 import TeacherPage from "../../teacher/TeacherPage";
 import { Card, LanguageRow, ROW, RowLink, Tile } from "../../teacher/pages/More";
 import { TEACHER_FRAME } from "../../teacher/copy";
-import { useCopy } from "../../teacher/i18n";
+import { useCopy, useLang } from "../../teacher/i18n";
 import { formatPhone, fullName, initials } from "../../teacher/format";
 import CoachGate from "../CoachGate";
 import { COACH_PROFILE } from "./copy";
 import { useCoachCounts } from "./useCoachCounts";
 import { useChildTestSa } from "../../lib/useChildTestSa";
-import { useCoachip } from "../insights/useCoachip";
+import { useCoachip, useCoachipRm } from "../insights/useCoachip";
+import { COPY } from "../insights/copy";
+import { rmPaths } from "../../rm/paths";
 import { COACH_MENU_PATHS } from "../../teacher/menu";
 
 /**
@@ -30,6 +32,10 @@ export default function CoachMore() {
   // bd-sex15q.15 — with COACHIP on, the menu is This week · Schools · Listen · Stats · More, so the Training Library and
   // Lesson Plans move here (the lead's decision: training stays one tap away). Off: nothing changes on this page.
   const coachip = useCoachip(user?.phoneNumber || null) === true;
+  // fix-r5 (SPEC v2.1 §11.6 option a): a coach who is also the sector's RM reaches the RM pages from here; the bar stays
+  // five. Shown only for a literal `features.coachipRm === true`; the row is a link, it reads nothing from /coachip/.
+  const rmOn = useCoachipRm() === true;
+  const lang = useLang();
   const name = fullName(user);
   const phone = formatPhone(user?.phoneNumber);
 
@@ -57,6 +63,12 @@ export default function CoachMore() {
           <Card label={C.coachNav.training}>
             <RowLink id="training" to={COACH_MENU_PATHS.training} glyph="training" label={C.coachNav.training} />
             <RowLink id="lessons" to={COACH_MENU_PATHS.lessons} glyph="lessons" label={C.coachNav.lessons} />
+          </Card>
+        )}
+
+        {rmOn && (
+          <Card label={COPY["more.rm"][lang]}>
+            <RowLink id="rm" to={rmPaths.sector} icon={MapIcon} label={COPY["more.rm"][lang]} />
           </Card>
         )}
 

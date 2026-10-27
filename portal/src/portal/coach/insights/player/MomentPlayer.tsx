@@ -9,7 +9,6 @@ import ChapterStrip from "./ChapterStrip";
 import FullRecordingLink from "./FullRecordingLink";
 import LessonClock, { ClockText } from "./LessonClock";
 import PairCard from "./PairCard";
-import { tLocal } from "./player.copy";
 
 /**
  * bd-sex15q.16 — the moment player (SPEC v2 §7, DESIGN §3 S4, API R6/R7). The seam agreed with m-ui (board 16:34Z):
@@ -18,7 +17,7 @@ import { tLocal } from "./player.copy";
  *   source    `/api/portal/coachip/m/<moment_id>/clip`, same-origin cookie auth; never a URL from a payload (B4). A clip
  *             that failed or expired: the coach hears the session's whole recording from `lesson_s` and is told so
  *             (`s4.clip_failed`, never "being prepared"); the RM circle form (no code, no session, no full recording)
- *             gets no player and the RM line (`e.503_clip.rm`, local until COPY adds it).
+ *             gets no player and the RM line (`e.503_clip.rm`, COPY v1.1 §E).
  *   kit       the kit `AudioPlayer`, untouched (`preload="metadata"`: the hand test's Slow 3G budget), LTR in Urdu, on tap
  *             only; one kit player sounds at a time (the kit's own rule). Seek and the clock go through a WRAPPER: this
  *             component holds its own box, finds the kit's `<audio>` in it, sets `currentTime` to seek and listens to
@@ -125,7 +124,7 @@ export function MomentPlayer({ moment, variant, onSeeMove, preload = "metadata" 
         <p data-testid="clip-failed" role="status" className="text-[13.5px] leading-snug text-[#374151]">{tx("s4.clip_failed", lang, { "mm:ss": at_ })}</p>
       )}
       {mode === "none" && (
-        <p data-testid="clip-failed-rm" role="status" className="text-[14px] leading-snug text-[#374151]">{tLocal("e.503_clip.rm", lang)}</p>
+        <p data-testid="clip-failed-rm" role="status" className="text-[14px] leading-snug text-[#374151]">{t("e.503_clip.rm", lang)}</p>
       )}
       {src && offline && (
         <p data-testid="moment-offline" role="status" className="text-[13.5px] leading-snug text-[#374151]">{t("s4.offline", lang)}</p>

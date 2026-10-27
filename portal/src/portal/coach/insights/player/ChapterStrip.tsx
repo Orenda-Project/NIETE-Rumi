@@ -24,10 +24,12 @@ const LOOK: Record<Verdict, Look> = {
 
 /**
  * The verdict words, read out of COPY's own legend ("✓ done · ½ partial · ✗ not done · grey: the clip did not reach it")
- * so no word is invented here. COPY has no word for not_adjudicable / substituted: those segments say their label only.
+ * so no word is invented here; not_adjudicable / substituted take COPY v1.1's `s4.verdict.*` (the strip's accessible name).
  */
 export function verdictWord(v: Verdict, lang: Lang): string {
   const parts = COPY["s4.legend"][lang].split(lang === "ur" ? "، " : " · ").map((p) => p.replace(/^[✓½✗]\s*/, ""));
+  if (v === "not_adjudicable") return t("s4.verdict.not_adjudicable", lang);
+  if (v === "substituted") return t("s4.verdict.substituted", lang);
   const at: Partial<Record<Verdict, number>> = { executed: 0, partial: 1, not_done: 2, not_reached: 3 };
   const i = at[v];
   return i === undefined ? "" : parts[i] ?? "";

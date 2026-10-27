@@ -7,6 +7,7 @@ vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { chil
 vi.mock("../../lib/recordingSession", () => ({ useRecordingSession: () => null, useLogoutGuard: (f: unknown) => f }));
 
 import { boot, expectContract, expectNoTeacher, F, httpError, renderRm, rmWorld, serve } from "./harness";
+import { dateLong, todayKarachi } from "../../coach/insights/format";
 
 /**
  * bd-sex15q.17 — S8, the Monday sector card (DESIGN §3 S8, API R17, COPY §S8, G4, G8, G9, G10, B5, B9, B22, B23), in
@@ -38,6 +39,22 @@ describe.each(["en", "ur"] as Lang[])("S8 RM home (%s)", (lang) => {
       expect(/[۰-۹] ?·|· ?[۰-۹]/.test(page.textContent || "")).toBe(false);
     }
     expect((page.textContent || "").replace(/[\u2066-\u2069]/g, "")).toContain(lang === "en" ? "Urban-I · Monday" : "Urban-I، پیر");
+  });
+
+  it("fix-r5 5g: s8.sub is the date only, no count (COPY v1.1 §8)", async () => {
+    await renderRm("");
+    const sub = screen.getByTestId("rm-page-sub");
+    expect(sub.textContent).toBe(dateLong(todayKarachi(), lang));
+    expect(sub.querySelector("[data-num]")).toBeNull();
+    expect((sub.querySelector("[data-date]") as HTMLElement).textContent).toBe(sub.textContent);
+  });
+
+  it("fix-r5: s8.circle.sub says its base, {m} of {c} coaches have a moment (A6), then the checks", async () => {
+    await renderRm("");
+    const card = screen.getByTestId("rm-circle-card");
+    const nums = Array.from(card.querySelectorAll("[data-num]")).map((e) => `${e.getAttribute("data-num")}/${e.getAttribute("data-den")}`);
+    expect(nums).toEqual([`${F.rm_home.circle.moments.n}/${F.rm_home.circle.moments.d}`, `${F.rm_home.circle.checks_due.n}/${F.rm_home.circle.checks_due.d}`]);
+    expect(card.textContent).toContain(lang === "en" ? "coaches have a moment" : "کوچوں کے لمحے");
   });
 
   it("the opening sentence carries its three counts with the sector's bases, then the floor, unassigned and no-school rows", async () => {

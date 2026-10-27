@@ -7,6 +7,8 @@ vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { chil
 vi.mock("../../lib/recordingSession", () => ({ useRecordingSession: () => null, useLogoutGuard: (f: unknown) => f }));
 
 import { boot, expectContract, expectNoTeacher, F, http, httpError, renderRm, rmWorld, serve, settle } from "./harness";
+import { COPY } from "../../coach/insights/copy";
+import { RM_COPY } from "../rm.copy";
 
 /**
  * bd-sex15q.17 — S10, the Friday circle (G3, B22, API R20/R21, COPY §S10): one single-line row per coach "coach ·
@@ -34,6 +36,9 @@ describe.each(["en", "ur"] as const)("S10 RM circle (%s)", (lang) => {
     expect(rows).toHaveLength(F.rm_circle.moments.length);
     rows.forEach((r, i) => {
       const m = F.rm_circle.moments[i];
+      // fix-r5 item 5f: the C-NN label is an LTR atom, isolated in Urdu like the school name (CodeText)
+      const label = within(r).getByTestId("circle-line").querySelector("[data-code]") as HTMLElement;
+      expect(label.textContent).toBe(lang === "ur" ? `\u2066${m.coach_label}\u2069` : m.coach_label);
       const line = (within(r).getByTestId("circle-line").textContent || "").replace(/[⁦-⁩]/g, "");
       const sep = lang === "ur" ? "، " : " · ";
       expect(line).toBe([m.coach_label, m.school.school_name, m.short_name[lang]].join(sep));
@@ -64,7 +69,7 @@ describe.each(["en", "ur"] as const)("S10 RM circle (%s)", (lang) => {
     await renderRm("/circle");
     await act(async () => { fireEvent.click(within(screen.getAllByTestId("circle-row")[0]).getByTestId("circle-play")); });
     await settle();
-    expect(screen.getByTestId("circle-clip-failed").textContent).toBe(lang === "en" ? "The clip could not be made. Ask the coach to bring it on Friday." : "کلپ نہیں بن سکا۔ کوچ سے کہیں کہ جمعے کو ساتھ لائیں۔");
+    expect(screen.getByTestId("circle-clip-failed").textContent).toBe(COPY["e.503_clip.rm"][lang]);
   });
 
   it("Set this sector step posts {i_id, w_id, date} only, w from the library id", async () => {
@@ -85,6 +90,54 @@ describe.each(["en", "ur"] as const)("S10 RM circle (%s)", (lang) => {
     await renderRm("/circle");
     expect(screen.getByTestId("s10-moments-empty").textContent).toBe(lang === "en" ? "No graded recordings in the sector this week" : "اس ہفتے سیکٹر میں کوئی جانچی گئی ریکارڈنگ نہیں");
     expect(screen.getByTestId("s10-sector-moves").textContent).toContain(lang === "en" ? "Pick the agenda" : "ایجنڈا چنیں");
+  });
+
+  /* fix-r5 item 1-UI (SPEC v2.1 §11.1, API R20 basis/floor, COPY v1.1 §S10) */
+  const strip = (s: string | null) => (s || "").replace(/[\u2066-\u2069]/g, "");
+  const basisText = (c: number) => RM_COPY["s10.moments.basis.coach"][lang].replace("{c}", lang === "ur" ? String(c).replace(/[0-9]/g, (x) => "۰۱۲۳۴۵۶۷۸۹"[Number(x)]) : String(c));
+
+  it("basis coach: the floor line sits above the rows, {c} a Count node (data-num=c, data-den=3, the sector's 4-week window); contract holds", async () => {
+    const c = clone(F.rm_circle); c.basis = "coach";
+    const sectorWin = { ...c.window, id: "lp-4w-2026-09-28", from: "2026-09-28", to: "2026-10-25", weeks: 4 };
+    c.windows = [...c.windows, sectorWin];
+    c.floor = { coaches_with_5plus: 2, needed: 3, window_id: sectorWin.id };
+    serve(rmWorld({ "/coachip/rm/circle": c }));
+    await renderRm("/circle");
+    const line = screen.getByTestId("s10-basis");
+    expect(strip((line.querySelector("p[data-nonum]") as HTMLElement).textContent)).toBe(basisText(2));
+    expect(line.querySelector(`[data-window="${sectorWin.id}"]`)).toBeTruthy();
+    const num = line.querySelector("[data-num]") as HTMLElement;
+    expect({ num: num.getAttribute("data-num"), den: num.getAttribute("data-den"), win: num.getAttribute("data-win") }).toEqual({ num: "2", den: "3", win: sectorWin.id });
+    // above the rows
+    const card = screen.getByTestId("s10-moments");
+    const first = within(card).getAllByTestId("circle-row")[0];
+    expect(line.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expectContract(screen.getByTestId("rm-circle"), expect);
+  });
+
+  it("basis sector (and the fixture's default): no floor line", async () => {
+    expect(F.rm_circle.basis).toBe("sector");
+    expect(F.rm_circle.floor).toBeNull();
+    await renderRm("/circle");
+    expect(screen.queryByTestId("s10-basis")).toBeNull();
+    expect(screen.getAllByTestId("circle-row")).toHaveLength(F.rm_circle.moments.length);
+  });
+
+  it("basis coach with no moment: empty.floor, never a zero, no floor line", async () => {
+    const c = clone(F.rm_circle); c.moments = []; c.basis = "coach"; c.floor = { coaches_with_5plus: 0, needed: 3, window_id: c.window.id };
+    serve(rmWorld({ "/coachip/rm/circle": c }));
+    await renderRm("/circle");
+    expect(screen.getByTestId("s10-moments-empty").textContent).toBe(RM_COPY["s10.moments.empty.floor"][lang]);
+    expect(screen.queryByTestId("s10-basis")).toBeNull();
+    expect(screen.getByTestId("s10-moments").querySelector('[data-num="0"]')).toBeNull();
+    expectContract(screen.getByTestId("rm-circle"), expect);
+  });
+
+  it("floor present but no coach ranked (basis still sector): empty.floor too", async () => {
+    const c = clone(F.rm_circle); c.moments = []; c.basis = "sector"; c.floor = { coaches_with_5plus: 1, needed: 3, window_id: c.window.id };
+    serve(rmWorld({ "/coachip/rm/circle": c }));
+    await renderRm("/circle");
+    expect(screen.getByTestId("s10-moments-empty").textContent).toBe(RM_COPY["s10.moments.empty.floor"][lang]);
   });
 
   it("a failed load is the failed state, never pending", async () => {

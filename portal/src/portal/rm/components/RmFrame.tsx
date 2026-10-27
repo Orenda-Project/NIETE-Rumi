@@ -29,7 +29,7 @@ export function RmPage({ title, sub, backTo, windows, testId, trust, children }:
             )}
             <h1 className="text-[24px] font-semibold leading-tight md:text-[28px]">{title}</h1>
           </div>
-          {sub && <p className="text-[14px] text-[#6b7280]">{sub}</p>}
+          {sub && <p data-testid="rm-page-sub" className="text-[14px] text-[#6b7280]">{sub}</p>}
         </header>
         <WindowsProvider windows={windows}>
           {children}
