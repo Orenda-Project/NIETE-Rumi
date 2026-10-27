@@ -1850,6 +1850,23 @@ Recommendations: ${JSON.stringify(recommendations)}
    * @param {string} language - Output language ('en' or 'ur')
    * @returns {Promise<string>} Script for TTS (90 seconds)
    */
+  /**
+   * The overall score, said as a number right after the greeting — the report shows "68% · 19/28" and the
+   * voice note gave no number at all (coaching.feature COA58, bd-895yd: everything a teacher receives on
+   * WhatsApp shows numbers; mock runs 20261026-2335-par / 20261026-201716, bd-1r3k2h). Empty when the
+   * analysis carries no overall score, so nothing is invented.
+   */
+  static voiceScoreRule(observationData) {
+    const sc = observationData && observationData.analysis && observationData.analysis.scores;
+    const pct = sc && Number.isFinite(Number(sc.overall_percentage)) ? Math.round(Number(sc.overall_percentage)) : null;
+    if (pct === null) return '';
+    const marks = sc && Number.isFinite(Number(sc.overall_marks)) && Number.isFinite(Number(sc.overall_max_marks))
+      ? ` (${Number(sc.overall_marks)} of ${Number(sc.overall_max_marks)} marks)` : '';
+    return `SCORE — right after the greeting, say the lesson's overall score as a NUMBER, exactly as the report shows it: ${pct}%${marks}. Say the number itself; never a band word (Excellent, Good, Average, Below average, Needs support) in its place.
+
+`;
+  }
+
   static async summarizeForVoiceDebrief(observationData, language = 'ur') {
     try {
       logToFile('Generating voice debrief summary', { language });
@@ -1867,7 +1884,7 @@ STRUCTURE (90 seconds total):
 3. One growth opportunity with actionable suggestion (40 seconds)
 4. Encouraging closing (10 seconds)
 
-${voiceFidelityRule(observationData)}
+${GPT5MiniService.voiceScoreRule(observationData)}${voiceFidelityRule(observationData)}
 
 TONE:
 - Warm, respectful, mentor-like
