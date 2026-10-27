@@ -255,7 +255,7 @@ describe('the guards before the row', () => {
     const { t } = await landing(TEACHER_USER);
     const out = await Join.join({ t, grade: 3, name: 'Sara', device: DEVICE });
     expect(out.refused).toBe('teacher_phone');
-    expect(T.verify(out.next.slice(3).split('?')[0], 'h')).toEqual(expect.objectContaining({ ids: [], pr: 1, g: 3, lang: 'ur' }));
+    expect(T.verify(out.next.slice(3).split('?')[0], 'h')).toEqual(expect.objectContaining({ ids: [], pr: 1, g: 3, lang: 'ur', tu: TEACHER_USER.id }));
     ['students', 'child_phone_bindings', 'child_identity', 'user_feature_first_use'].forEach((tb) => expect(writes(tb)).toHaveLength(0));
   });
 
