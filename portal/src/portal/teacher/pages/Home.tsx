@@ -17,6 +17,7 @@ import { SlimCard, SLIM_KINDS } from "../home/SlimCard";
 import { ScoresRow } from "../home/ScoresRow";
 import { useHomeData, useHomeGo, useHomeSwitches } from "../home/useHomeData";
 import { LookHome } from "../home/look/LookHome";
+import { QuizTile } from "../home/QuizTile";
 
 /**
  * bd-fmf24g.1 — teacher v2 Home (canvas v28 Main, after the operator's changes 1–3):
@@ -91,6 +92,8 @@ export default function Home() {
           {drawn}
         </nav>
         </FeatureMotionProvider>
+        {/* The "Quizzes" tile (portal_teacher_home_quiz_tile): under the eight, full width, only with a quiz home to open. */}
+        {data?.quizTile && data.quizHome ? <QuizTile quizHome={data.quizHome} onGo={go} /> : null}
         {/* The evening reminder (portal_push_remind): after the tiles, so row 1 and the card stay on top (DESIGN R3). */}
         <RemindCard />
       </TeacherPage>

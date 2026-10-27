@@ -63,7 +63,8 @@ const firstWord = (s) => String(s || '').trim().split(/\s+/)[0] || null;
 /** The users row the page acts for, or null. */
 async function teacherOf(uid, deps) {
   const supabase = dep(deps, 'supabase');
-  const { data, error } = await supabase.from('users').select('id, name, phone_number, preferred_language, role').eq('id', uid).maybeSingle();
+  // registration_*: isRegistered() for the portal link (teacher-home.routes portalHref), the /portal command's own test
+  const { data, error } = await supabase.from('users').select('id, name, phone_number, preferred_language, role, registration_completed, registration_state').eq('id', uid).maybeSingle();
   if (error) throw new Error(error.message);
   return data || null;
 }

@@ -1900,10 +1900,11 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
   // driver itself is the registered teacher. The Home message is a cta_url, which the mock outbox now
   // records with its button and URL. T694 (the registration Flow inside the cached verdict) is
   // @no-mock-driver: registration is not on this lane; the webhook test executes it.
-  if (want('T692', 'T693', 'T695')) {
+  if (want('T692', 'T693', 'T695', 'T708')) {
     const HOME_TITLE = { T692: 'A child\'s /quiz sends one "Home" button that opens their home page with the last quiz on top',
       T693: 'A teacher\'s /quiz never opens the child\'s home page, even when children played on the teacher\'s phone',
-      T695: 'With the home switch off, a child\'s /quiz is exactly today\'s' };
+      T695: 'With the home switch off, a child\'s /quiz is exactly today\'s',
+      T708: 'A child\'s "portal" opens their home, the same one button as "quiz"' };
     const { dbCreds, canFlipGlobal } = require('../db-target.cjs');
     const HOME_RX = /^(🏠 )?(Home|ہوم)$/;
     const isCta = (x) => x && x.type === 'interactive.cta_url';
@@ -1920,7 +1921,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
     };
     const brief = (seen) => seen.map((x) => ({ type: x.type, txt: String(x.txt || '').slice(0, 90), btns: x.btns, url: x.cta ? String(x.cta.url || '').replace(/\/h\/.*/, '/h/<token>') : undefined }));
     if (!canFlipGlobal()) {
-      for (const id of ['T692', 'T693', 'T695']) if (want(id)) rec(id, HOME_TITLE[id], 'BLOCKED', { reason: 'GLOBAL_SWITCH: web_quiz_child_quiz_home is flipped only on the run\'s own local database (E2E_LOCAL_DB=1)' }, 0);
+      for (const id of ['T692', 'T693', 'T695', 'T708']) if (want(id)) rec(id, HOME_TITLE[id], 'BLOCKED', { reason: 'GLOBAL_SWITCH: web_quiz_child_quiz_home is flipped only on the run\'s own local database (E2E_LOCAL_DB=1)' }, 0);
     } else {
       const { url, key } = dbCreds();
       const H = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
@@ -1957,6 +1958,26 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
           else if (!(restarted && restarted.ok)) rec('T692', HOME_TITLE.T692, 'BLOCKED', { harness: 'could not restart the bot with STUDENT_MODE_ENABLED: ' + JSON.stringify(restarted).slice(0, 120), ...on }, t() - s);
           else if (!ctas.length && !seen.some(isHub)) rec('T692', HOME_TITLE.T692, 'BLOCKED', { harness: 'no hub link on this lane (PORTAL_URL / token secret unset?)', ...on }, t() - s);
           else rec('T692', HOME_TITLE.T692, ...V(home, on), t() - s);
+        }
+
+        // T708 — "portal" / "/portal" / «پورٹل» from the child: the same one button as their "/quiz" (portal-request.js
+        // in student-ingress.js), never "That one isn't for students" and never the tutor. Before T695 flips the home off.
+        if (want('T708')) {
+          s = t();
+          const shape = (seen) => seen.filter(isCta).map((x) => ({ btns: x.btns, hub: isHub(x), txt: String(x.txt || '').slice(0, 90) }));
+          const quiz = shape(await ask(kid, '/quiz'));
+          const per = {};
+          for (const typed of ['portal', '/portal', 'پورٹل']) {
+            const seen = await ask(kid, typed);
+            const got = shape(seen);
+            const refused = seen.some((x) => /isn.t for students|طلبہ کے لیے نہیں/i.test(String(x.txt || '')));
+            per[typed] = { ok: got.length === 1 && got[0].hub && JSON.stringify(got) === JSON.stringify(quiz) && !refused, got };
+          }
+          const ok = quiz.length === 1 && quiz[0].hub && Object.values(per).every((v) => v.ok);
+          if (!kidId) rec('T708', HOME_TITLE.T708, 'BLOCKED', { harness: 'could not seed the child row', per }, t() - s);
+          else if (!(restarted && restarted.ok)) rec('T708', HOME_TITLE.T708, 'BLOCKED', { harness: 'could not restart the bot with STUDENT_MODE_ENABLED', per }, t() - s);
+          else if (!quiz.length) rec('T708', HOME_TITLE.T708, 'BLOCKED', { harness: 'no hub link on this lane for the /quiz control (PORTAL_URL / token secret unset?)', per }, t() - s);
+          else rec('T708', HOME_TITLE.T708, ...V(ok, { quiz, per }), t() - s);
         }
 
         if (want('T693')) {

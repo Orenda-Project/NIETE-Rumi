@@ -18,7 +18,8 @@
  *               says "Sent ✓ <day/month>" by its title) + "All stories",
  *               then one card "Ready video quizzes" → the maker page
  *   foot        "Make a new quiz", the maker's three cards (lesson plans / coaching / test paper), "Try it as a student"
- *               (coaches), "Not a teacher? Change"
+ *               (coaches), "Not a teacher? Change", "Open my portal" (quiz_teacher_home_portal_link: the portal Home,
+ *               signed in, for a teacher who did not come from the portal)
  *   send sheet  the class message in a read-only box, "Copy the message" FIRST ("Copied" only when the copy really
  *               happened, else "Long-press to copy"), then "Send to my class" — a plain https://wa.me/?text= link the
  *               server built (no fetch between the tap and the navigation), the two honest lines, and "After sending,
@@ -325,18 +326,27 @@ const COUNTS_SWAPS = Object.freeze([
   ["q('#th-chosen').textContent=fill('th.chosen.for',{n:dg(L.grade)});\n", "q('#th-chosen').textContent=fill('th.chosen.for',{n:dg(L.grade)});\nvar k=L.counts,kc=q('#th-counts'),kn=k&&k.sent>=1;kc.textContent=kn?fill(k.sent===1?'th.stories.counts.one':'th.stories.counts',{sent:dg(k.sent),read:dg(k.read||0)}):'';kc.hidden=!kn;\n"],
   ["(b.ask?'&lang='+b.ask:'')).then(function(L){", "(b.ask?'&lang='+b.ask:'')).then(function(L){if(d.library&&d.library.counts&&!L.counts)L.counts=d.library.counts;"],
 ]);
-// Every page the switches can ask for: paged × named × early × counts × grade-fast, each under its own hash. The fast
-// grade chips are swapped first (their parts are today's pickGrade and render tail), so with the fast switch on the
-// counts carry and the early pick's guard land in the fast chips' one library ask (libGet), guard still first.
+/**
+ * portal (quiz_teacher_home_portal_link): the foot's "Open my portal" takes its href from the home's `portalHref` (the
+ * server mints it; none → the link stays hidden) and a tap is the step `portal`. Anchored on the foot's own head, so
+ * it composes with every other part; swapped last.
+ */
+const PORTAL_SWAPS = Object.freeze([
+  ['function foot(){', "function foot(){var po=q('#th-portal');if(po){po.hidden=!d.portalHref;if(d.portalHref){po.setAttribute('href',d.portalHref);po.onclick=function(){step('portal')}}}"],
+]);
+// Every page the switches can ask for: paged × named × early × counts × grade-fast × portal, each under its own hash.
+// The fast grade chips are swapped first (their parts are today's pickGrade and render tail), so with the fast switch
+// on the counts carry and the early pick's guard land in the fast chips' one library ask (libGet), guard still first.
 const SCRIPTS = new Map();
-[false, true].forEach((paged) => [false, true].forEach((wait) => [false, true].forEach((named) => [false, true].forEach((early) => [false, true].forEach((counts) => [false, true].forEach((fast) => {
+[false, true].forEach((paged) => [false, true].forEach((wait) => [false, true].forEach((named) => [false, true].forEach((early) => [false, true].forEach((counts) => [false, true].forEach((fast) => [false, true].forEach((portal) => {
   let text = wait ? SCRIPT_WAIT : paged ? SCRIPT_PAGED : SCRIPT;
   if (fast) text = wait ? swapped(SCRIPT_WAIT, FAST_SWAPS) : paged ? SCRIPT_PAGED_FAST : FAST_SCRIPT;
   if (counts) text = swapped(text, COUNTS_SWAPS, 'a story-counts part');
   if (named) text = swapped(text, NAMED_SWAPS, 'a named-item part');
   if (early) text = swapped(text, EARLY_SWAPS, 'an early-pick part');
-  SCRIPTS.set(`${paged}|${wait}|${named}|${early}|${counts}|${fast}`, { text, hash: !fast && !counts && !named && !early ? (wait ? SCRIPT_WAIT_HASH : paged ? SCRIPT_PAGED_HASH : SCRIPT_HASH) : sha(text) });
-}))))));
+  if (portal) text = swapped(text, PORTAL_SWAPS, 'the portal-link part');
+  SCRIPTS.set(`${paged}|${wait}|${named}|${early}|${counts}|${fast}|${portal}`, { text, hash: !fast && !counts && !named && !early && !portal ? (wait ? SCRIPT_WAIT_HASH : paged ? SCRIPT_PAGED_HASH : SCRIPT_HASH) : sha(text) });
+})))))));
 
 /**
  * The page policy. A hash, or a list of them (the stories page has more than one inline style); `media` adds
@@ -375,16 +385,17 @@ function pageLang(tokenLang, asked) {
 // The strings the script fills with (textContent only), by id. The page's own static words are not repeated.
 const NAMED_IDS = Object.freeze(['th.kind.story', 'th.kind.quiz', 'th.again.story', 'th.again.quiz']);
 const COUNTS_IDS = Object.freeze(['th.stories.counts', 'th.stories.counts.one']);
-const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa', 'th.retry', ...NAMED_IDS, ...COUNTS_IDS].includes(id)));
+const SCRIPT_IDS = Object.freeze(ALL_IDS.filter((id) => !['th.stale', 'th.lang.switch', 'th.title', 'cm.return', 'th.open.wa', 'th.retry', 'th.portal', ...NAMED_IDS, ...COUNTS_IDS].includes(id)));
 
 /**
  * The shell. Nothing in it depends on the teacher and nothing is read to build it: the token (already verified by the
  * caller) rides only in the boot block; every teacher-specific word arrives from /api/th/home after paint. `asked` is
  * the ?lang the page was opened with (bi tokens only); `gradeFast` (only a real true) swaps in the fast grade chips'
- * script and its own hash. → { html, csp } (the header value for the response).
+ * script and its own hash; `portal` (only a real true) adds "Open my portal" to the foot and its script part.
+ * → { html, csp } (the header value for the response).
  */
-function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false, gradeFast = false, wait = false }) {
-  const { text: script, hash: scriptHash } = SCRIPTS.get(`${Boolean(paged)}|${wait === true}|${named === true}|${early === true}|${counts === true}|${gradeFast === true}`);
+function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged = false, named = false, early = false, counts = false, gradeFast = false, wait = false, portal = false }) {
+  const { text: script, hash: scriptHash } = SCRIPTS.get(`${Boolean(paged)}|${wait === true}|${named === true}|${early === true}|${counts === true}|${gradeFast === true}|${portal === true}`);
   const l = clampLanguage(lang);
   const style = `${fontFace(l)}${CSS}`;
   const styleHash = sha(style);
@@ -424,7 +435,7 @@ function buildShell({ token, lang = 'en', switchTo = null, asked = null, paged =
 <a class="th-link" id="th-make" data-tap="make" hidden>${esc(str('th.make', l))}</a>
 <div class="th-cards" id="th-cards" hidden></div>
 <a class="th-link" id="th-try" data-tap="try_student" hidden>${esc(str('th.try.student', l))}</a>
-<a class="th-link" id="th-change-go" data-tap="change" hidden>${esc(str('th.change', l))}</a>
+<a class="th-link" id="th-change-go" data-tap="change" hidden>${esc(str('th.change', l))}</a>${portal === true ? `\n<a class="th-link" id="th-portal" data-tap="portal" hidden>${esc(str('th.portal', l))}</a>` : ''}
 <div class="th-walk" id="th-walk" hidden></div>
 </nav>
 </main>

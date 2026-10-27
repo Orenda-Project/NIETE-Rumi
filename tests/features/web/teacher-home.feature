@@ -101,3 +101,21 @@ Feature: Teacher home, analytics, more and profile
     Then there is no new band, because the look only rides with the Home card
     And the 8 feature tiles are shown
     And no page error or 5xx happened
+
+  @TH09
+  Scenario: Teacher app v2: with the Quizzes tile on, one more tile under the eight opens my quiz home
+    Given the teacher app v2 is on and the coach app v2 is off
+    And the Home card is on, and the Quizzes tile is on for demo teacher 03000000911 only
+    And the bot gives demo teacher 03000000911 a quiz home
+    And demo teacher 03000000911 is signed in
+    When the teacher opens /portal/teacher
+    Then the 8 feature tiles are shown, and under them one full-width "Quizzes" tile
+    When the teacher taps "Quizzes"
+    Then the page goes to /quiz/teacher/<token>
+    Given the Quizzes tile is off
+    When the teacher signs in again and opens /portal/teacher
+    Then the 8 feature tiles are shown and there is no Quizzes tile
+    And no page error or 5xx happened
+    # ADDED 2026-10-27: app_settings portal_teacher_home_quiz_tile (true / "teachers" / a list; default off).
+    # GET /me/home answers quizTile:true only with a quiz home (never a coach); the tap logs home_card.tap quiz_tile.
+    # Unit: tests/portal/portal-teacher-home.quiz-tile.test.js, portal/src/portal/teacher/home/QuizTile.test.tsx.

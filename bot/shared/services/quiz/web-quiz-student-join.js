@@ -35,6 +35,8 @@
  * no nonce. A family phone on a teacher's class list (`students.parent_phone`) is offered its own roster
  * children (first names, ≤ 4, one school) on the same sheet; the tap writes ONE binding and nothing on `students`.
  * Events carry ids only (kid from the event-key module): join_grade, join_done, join_refused, join_recognised, bind_confirm.
+ * join_refused reasons: teacher_phone, max_kids, and bind_off (the join switch on, web_quiz_phone_bind off: join() and
+ * bindPick() answer {off:true} at the write; autoBind(), a read on every landing, is not a refusal and logs nothing).
  */
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
@@ -383,7 +385,12 @@ async function join({ t, grade, name, device, same = null, force = false } = {})
     }
     const first = cleanFirstName(name);
     if (!first) return { error: 'bad_request', why: 'name' };
-    if (!f.bind) return { off: true };
+    if (!f.bind) {
+      // the join switch is on and its hard parent web_quiz_phone_bind is not: the child picked a grade and typed a name,
+      // and is refused at the last step. Said in the logs (ids only), never silently.
+      await emit('join_refused', { reason: 'bind_off' }, null, device);
+      return { off: true };
+    }
     let who;
     let set;
     if (f.fast) {
@@ -600,7 +607,11 @@ async function playedHere(studentId, device) {
 async function bindPick({ n, chip = null, kid: kidId = null, src: askedSrc = null, device = null, quizDevice = null, lang = null } = {}) {
   try {
     const f = await flags();
-    if (!f.bind) return { off: true };
+    if (!f.bind) {
+      // the join on and the bind off: the family's "Yes, it's me" is refused; said in the logs, as join()'s is
+      if (f.on) await emit('join_refused', { reason: 'bind_off', step: 'bind_pick' }, null, device || quizDevice);
+      return { off: true };
+    }
     const who = await GoNonce.peek(n);
     if (!who) return { stale: true };
     const offer = await offerFor(who.phoneNorm);

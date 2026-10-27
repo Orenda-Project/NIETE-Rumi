@@ -169,6 +169,14 @@ const PORTAL_TEACHER_HOME_CARD_KEY = 'portal_teacher_home_card';
 const PORTAL_TEACHER_HOME_ORDER_KEY = 'portal_teacher_home_order';
 
 /**
+ * Teacher Home "Quizzes" tile — app_settings key for one more tile under the eight (full width, so they still fill four
+ * rows): the teacher's quiz home, opened signed from GET /me/home's `quizHome`. Read with portal_teacher_home_card on (its
+ * route's own guard); the tile is drawn only when there IS a quiz home (the bot answered; never for a coach). Same shape
+ * and rule as the keys above: true = everyone, a list of users.id = a pilot, "teachers" = every teacher, absent = off.
+ */
+const PORTAL_TEACHER_HOME_QUIZ_TILE_KEY = 'portal_teacher_home_quiz_tile';
+
+/**
  * Teacher Home look — app_settings key for the teacher Home's new LOOK (the band, the tinted card, the progress strip,
  * the 2-up rows and the phone menu). Read only when portal_teacher_home_card is on too: the look redraws the card's
  * Home, so it never runs alone. Same shape and rule as the keys above; absent = off, and off is today's Home.
@@ -449,6 +457,7 @@ module.exports = {
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,
   PORTAL_TEACHER_HOME_ORDER_KEY,
+  PORTAL_TEACHER_HOME_QUIZ_TILE_KEY,
   PORTAL_TEACHER_HOME_LOOK_KEY,
   PORTAL_COACHIP_KEY,
   PORTAL_COACHIP_RM_KEY,
