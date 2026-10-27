@@ -1124,7 +1124,10 @@ function writtenRows(slot, list, ctx, Criteria) {
       return;
     }
     const answer = q.answer !== undefined && q.answer !== null ? `<b>${textOf(q.answer, ctx)}</b>` : '';
-    const stem = q.question ? `<div class="q-line">${textOf(cutAtWord(withoutOwnLabel(q.question, slot), 110), ctx)}</div>` : '';
+    // An English key names a picture the answer is not (bd-5jmnfj.4.48): v21 Q6 keyed "mat" for a bat.
+    const pic = lang === 'en' && q.picture && q.picture.name && String(q.picture.name).trim().toLowerCase() !== String(q.answer ?? '').trim().toLowerCase()
+      ? `Picture: ${String(q.picture.name).trim()}. ` : '';
+    const stem = q.question || pic ? `<div class="q-line">${textOf(pic + cutAtWord(withoutOwnLabel(q.question || '', slot), 110), ctx)}</div>` : '';
     rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(n, ctx)}</td><td class="ans">${answer}${checkedChip(q, ctx)}${stem}</td><td class="pts">${pointsHtml(q, ctx, Criteria, slot, list.indexOf(q), Number(q.marks) || slot.marks_each)}</td></tr>`);
   });
   if (slot.alternatives) {
@@ -1229,8 +1232,11 @@ function renderMarkingScheme({ examJson, grade, subject, paperFileName = null, a
     const rows = [];
     for (const slot of sec.slots) {
       const list = all.get(slot.slot);
-      if (slot.shape === 'mcq' || slot.shape === 'match') parts.push(mcqStrip(slot, list, ctx));
-      else rows.push(...writtenRows(slot, list, ctx, Criteria));
+      // A strip prints in its question's place: the rows above it close first (bd-5jmnfj.4.49).
+      if (slot.shape === 'mcq' || slot.shape === 'match') {
+        if (rows.length) parts.push(`<table class="rows">${rows.splice(0).join('')}</table>`);
+        parts.push(mcqStrip(slot, list, ctx));
+      } else rows.push(...writtenRows(slot, list, ctx, Criteria));
     }
     if (rows.length) parts.push(`<table class="rows">${rows.join('')}</table>`);
     return `<section class="s-sec" data-section="${esc(sec.id)}">${parts.join('')}</section>`;
