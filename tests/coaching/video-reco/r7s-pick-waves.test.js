@@ -6,6 +6,9 @@
  * Every read is keyed by the session and the teacher only, so they go out in one wave; the roster's class read and the
  * v10 arm row are the second. Bar: ≤ 2 serial waits, i.e. the pick takes < 3 × the per-call delay. Nothing that
  * decides the pick changes: the row is the same with a slow store and an instant one.
+ * COS 20261027T073937 §1: the timing proofs run on a virtual clock (jest fake timers: Date.now moves only when the test
+ * moves it, CPU costs 0 ms), so a wave is read off exact start times and hold at any machine load (the wall-clock bounds
+ * failed 9/10 runs at load 21–40).
  */
 const FIXTURE = require('./fixtures/catalog.fixture.json');
 
@@ -77,44 +80,74 @@ function load(supa) {
 
 const strip = (row) => { const { engine_ms: _ms, ...rest } = row || {}; return rest; };
 
-test('the real store + the real v10 lookup (cold switch cache): the pick reads in ≤ 2 serial waves', async () => {
-  const t0 = Date.now();
-  const supa = slowSupabase(DELAY, t0);
-  const { E, catalog } = load(supa);
-  const row = await E.recommendForReport({ ...args(), deps: { env: ENV, catalog } });
-  expect(row).toMatchObject({ coaching_session_id: SID, v10_group: 'C' });
-  // the reads this pick needs all happened (the roster's second step and the arm row included)
-  const tables = supa.starts.map((s) => s.table);
-  for (const t of ['video_recommendations', 'teacher_training_progress', 'class_teachers', 'class_enrollments', 'app_settings', 'users', 'niete_coaching_ab_assignment']) {
-    expect(tables).toContain(t);
-  }
-  const waves = new Set(supa.starts.map((s) => Math.floor(s.at / DELAY))).size;
-  expect(waves).toBeLessThanOrEqual(2);
-  // engine_ms is what prod measures (stamped before the upsert, which costs one more DELAY here)
-  // (no wall-clock bound beyond it: the upsert and a loaded box add time that is not the pick's — rm7 174548)
-  expect(row.engine_ms).toBeLessThan(3 * DELAY);
-});
+const VIRTUAL = { doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] }; // promises and ticks stay real
+/** Run `p` to its end on the virtual clock; returns the result and the virtual time it settled at. */
+async function settle(p, t0) {
+  let at = null;
+  const out = p.then((v) => { at = Date.now() - t0; return v; });
+  await jest.advanceTimersByTimeAsync(10 * DELAY);
+  return { value: await out, at };
+}
 
-test('injected store and v10 fakes at 200 ms a call (red7 attack_r7s shape): every read starts in the first tick', async () => {
-  const t0 = Date.now();
-  const starts = [];
-  const timed = (name, value) => jest.fn(async () => { starts.push({ name, at: Date.now() - t0 }); await sleep(DELAY); return value; });
-  const { E, catalog } = load({ from: () => { throw new Error('no direct supabase here'); } });
-  const store = {
-    readForSession: timed('readForSession', null),
-    recentHistory: timed('recentHistory', { segments: [], modules: [] }),
-    ladderProgress: timed('ladderProgress', { level: 2, completedModules: [] }),
-    rosterNames: timed('rosterNames', []),
-    trainingBands: timed('trainingBands', ['PRIMARY']),
-    write: jest.fn(async (r) => ({ id: 'rec-1', ...r })),
-  };
-  const v10GroupFor = timed('v10GroupFor', { group: 'C' });
-  const row = await E.recommendForReport({ ...args(), deps: { env: ENV, catalog, store, v10GroupFor } });
-  const wall = Date.now() - t0;
-  expect(row).toMatchObject({ v10_group: 'C' });
-  expect(starts.map((s) => s.name).sort()).toEqual(['ladderProgress', 'readForSession', 'recentHistory', 'rosterNames', 'trainingBands', 'v10GroupFor']);
-  expect(Math.max(...starts.map((s) => s.at))).toBeLessThan(DELAY / 2);
-  expect(wall).toBeLessThan(3 * DELAY); // head: 4 waves, ~830 ms
+describe('virtual clock (counts and order, not the machine\'s speed)', () => {
+  beforeEach(() => jest.useFakeTimers(VIRTUAL));
+  afterEach(() => jest.useRealTimers());
+
+  test('the real store + the real v10 lookup (cold switch cache): the pick reads in ≤ 2 serial waves', async () => {
+    const t0 = Date.now();
+    const supa = slowSupabase(DELAY, t0);
+    const { E, catalog } = load(supa);
+    const { value: row } = await settle(E.recommendForReport({ ...args(), deps: { env: ENV, catalog } }), t0);
+    expect(row).toMatchObject({ coaching_session_id: SID, v10_group: 'C' });
+    // the reads this pick needs all happened (the roster's second step and the arm row included)
+    const tables = supa.starts.map((s) => s.table);
+    for (const t of ['video_recommendations', 'teacher_training_progress', 'class_teachers', 'class_enrollments', 'app_settings', 'users', 'niete_coaching_ab_assignment']) {
+      expect(tables).toContain(t);
+    }
+    // every read starts exactly at 0 or DELAY (a wave boundary); 2 distinct start times = 2 serial waves
+    const waves = new Set(supa.starts.map((s) => s.at));
+    expect([...waves].every((at) => at % DELAY === 0)).toBe(true);
+    expect(waves.size).toBeLessThanOrEqual(2);
+    // engine_ms is what prod measures (stamped before the upsert): the waves' waits and nothing else
+    expect(row.engine_ms).toBe(waves.size * DELAY);
+  });
+
+  test('injected store and v10 fakes at 200 ms a call (red7 attack_r7s shape): every read starts in the first tick', async () => {
+    const t0 = Date.now();
+    const starts = [];
+    const timed = (name, value) => jest.fn(async () => { starts.push({ name, at: Date.now() - t0 }); await sleep(DELAY); return value; });
+    const { E, catalog } = load({ from: () => { throw new Error('no direct supabase here'); } });
+    const store = {
+      readForSession: timed('readForSession', null),
+      recentHistory: timed('recentHistory', { segments: [], modules: [] }),
+      ladderProgress: timed('ladderProgress', { level: 2, completedModules: [] }),
+      rosterNames: timed('rosterNames', []),
+      trainingBands: timed('trainingBands', ['PRIMARY']),
+      write: jest.fn(async (r) => ({ id: 'rec-1', ...r })),
+    };
+    const v10GroupFor = timed('v10GroupFor', { group: 'C' });
+    const { value: row, at } = await settle(E.recommendForReport({ ...args(), deps: { env: ENV, catalog, store, v10GroupFor } }), t0);
+    expect(row).toMatchObject({ v10_group: 'C' });
+    expect(starts.map((s) => s.name).sort()).toEqual(['ladderProgress', 'readForSession', 'recentHistory', 'rosterNames', 'trainingBands', 'v10GroupFor']);
+    expect(starts.map((s) => s.at)).toEqual(starts.map(() => 0)); // all at once, before any is back
+    expect(at).toBe(DELAY); // one wave; head: 4 waves, ~830 ms
+  });
+
+  test('a stored row still wins, as fast as before (one wave), and nothing is written', async () => {
+    const t0 = Date.now();
+    const write = jest.fn();
+    const { E, catalog } = load({ from: () => { throw new Error('no direct supabase here'); } });
+    const later = (v) => jest.fn(async () => { await sleep(DELAY); return v; });
+    const store = {
+      readForSession: jest.fn(async () => { await sleep(DELAY); return { id: 'rec-0', status: 'shadow' }; }),
+      recentHistory: later({ segments: [], modules: [] }), ladderProgress: later({ level: null, completedModules: [] }),
+      trainingBands: later([]), write,
+    };
+    const { value, at } = await settle(E.recommendForReport({ ...args(), deps: { env: ENV, catalog, store, v10GroupFor: later(null) } }), t0);
+    expect(value).toEqual({ id: 'rec-0', status: 'shadow' });
+    expect(at).toBe(DELAY);
+    expect(write).not.toHaveBeenCalled();
+  });
 });
 
 test('pick identity: the slow store and an instant store give the same row (engine_ms aside)', async () => {
@@ -126,21 +159,6 @@ test('pick identity: the slow store and an instant store give the same row (engi
   const b = strip(await m.E.recommendForReport({ ...args(), deps: { env: ENV, catalog: m.catalog } }));
   expect(a).toEqual(b);
   expect(a.status).toBeTruthy();
-});
-
-test('a stored row still wins, as fast as before (one wave), and nothing is written', async () => {
-  const t0 = Date.now();
-  const write = jest.fn();
-  const { E, catalog } = load({ from: () => { throw new Error('no direct supabase here'); } });
-  const later = (v) => jest.fn(async () => { await sleep(DELAY); return v; });
-  const store = {
-    readForSession: jest.fn(async () => { await sleep(DELAY); return { id: 'rec-0', status: 'shadow' }; }),
-    recentHistory: later({ segments: [], modules: [] }), ladderProgress: later({ level: null, completedModules: [] }),
-    trainingBands: later([]), write,
-  };
-  expect(await E.recommendForReport({ ...args(), deps: { env: ENV, catalog, store, v10GroupFor: later(null) } })).toEqual({ id: 'rec-0', status: 'shadow' });
-  expect(Date.now() - t0).toBeLessThan(3 * DELAY);
-  expect(write).not.toHaveBeenCalled();
 });
 
 test('a read that rejects after a stored row returned is not an unhandled rejection', async () => {
@@ -190,14 +208,18 @@ describe('ab-v10-arms.groupForEager: groupFor\'s answer, the switch and the scho
     expect(await run('groupForEager')).toEqual(await run('groupFor'));
   });
 
-  test('cold switch cache: two serial waves, not three', async () => {
-    const t0 = Date.now();
-    const supa = slowSupabase(DELAY, t0);
-    jest.resetModules();
-    jest.doMock('../../../bot/shared/config/supabase', () => supa);
-    jest.doMock('../../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
-    const g = await require('../../../bot/shared/services/coaching/ab-v10-arms').groupForEager(UID);
-    expect(g).toMatchObject({ group: 'C' });
-    expect(Date.now() - t0).toBeLessThan(3 * DELAY);
+  test('cold switch cache: two serial waves, not three (virtual clock)', async () => {
+    jest.useFakeTimers(VIRTUAL);
+    try {
+      const t0 = Date.now();
+      const supa = slowSupabase(DELAY, t0);
+      jest.resetModules();
+      jest.doMock('../../../bot/shared/config/supabase', () => supa);
+      jest.doMock('../../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
+      const { value: g, at } = await settle(require('../../../bot/shared/services/coaching/ab-v10-arms').groupForEager(UID), t0);
+      expect(g).toMatchObject({ group: 'C' });
+      expect(new Set(supa.starts.map((s) => s.at)).size).toBe(2);
+      expect(at).toBe(2 * DELAY);
+    } finally { jest.useRealTimers(); }
   });
 });

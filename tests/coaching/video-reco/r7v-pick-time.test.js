@@ -5,6 +5,9 @@
  * every call (the redactor's vocab sets per transcript line, the BM25 catalogue index per call).
  * (1) The report starts the reads at its own start (prefetchReads); at an RTT of 250 ms (the peak figure) the pick then waits
  *     for no read at all. (2) The row is the same with and without the prefetch. (The static work, parts b–d, is r7v-cpu.test.js.)
+ * COS 20261027T073937 §1: the proofs run on a virtual clock (jest fake timers; Date.now moves only when the test moves it)
+ * and an ordered log of read starts and the pick's call, so they hold at any machine load: the 250 ms RTT is virtual time,
+ * a read's cost is exact, and CPU costs 0 ms. One coarse real-clock smoke stays, with a 5× margin over the worst seen.
  */
 const FIXTURE = require('./fixtures/catalog.fixture.json');
 
@@ -35,6 +38,7 @@ function args() {
 /** The real store + the real v10 lookup over a Supabase whose every call costs `delay` ms; counts the reads. */
 function slowSupabase(delay, { stored = null } = {}) {
   const reads = [];
+  const log = []; // ['read', table] when a read starts, ['pick'] when the test calls the pick (markPick)
   const reply = (table, chain) => {
     const has = (m) => chain.some((c) => c[0] === m);
     if (table === 'app_settings') return { data: { key: 'ab_v10_enabled', value: 'true' }, error: null };
@@ -50,6 +54,10 @@ function slowSupabase(delay, { stored = null } = {}) {
   };
   return {
     reads,
+    log,
+    markPick: () => log.push(['pick']),
+    /** the reads that started after the pick was called */
+    readsAfterPick: () => log.slice(log.findIndex((e) => e[0] === 'pick') + 1).filter((e) => e[0] === 'read').map((e) => e[1]),
     from(table) {
       const chain = [];
       const b = {};
@@ -57,7 +65,7 @@ function slowSupabase(delay, { stored = null } = {}) {
         b[m] = (...a) => { chain.push([m, a]); return b; };
       }
       b.then = (res, rej) => {
-        if (!chain.some((c) => c[0] === 'upsert')) reads.push(table);
+        if (!chain.some((c) => c[0] === 'upsert')) { reads.push(table); log.push(['read', table]); }
         return sleep(delay).then(() => reply(table, chain)).then(res, rej);
       };
       return b;
@@ -87,31 +95,98 @@ async function reportThenPick(supa, { prefetch = true, work = 3 * RTT, a = args(
   return { row, wall: Date.now() - t0, E, timing };
 }
 
-test(`RTT ${RTT} ms (peak): with the report's prefetch, the pick waits for no read, and is faster than a pick without one`, async () => {
-  const supa = slowSupabase(RTT);
-  const { row, timing } = await reportThenPick(supa);
-  expect(row).toMatchObject({ coaching_session_id: SID, v10_group: 'C' });
-  // the pick's own timing line: no read waited for (head: 2 waves, ~500 ms, 657 ms measured)
-  expect(timing).toMatchObject({ prefetched: true });
-  expect(timing.reads_wait_ms).toBeLessThan(50);
-  // the 600 ms bar is a prod p90 on a Railway vCPU; a box at load 11 can pass it on CPU alone (red7 065224: 850 ms with
-  // reads_wait < 50). So the pick is held against a no-prefetch pick of the same run instead: that one waits ≥ 2 RTT more.
-  const base = await reportThenPick(slowSupabase(RTT), { prefetch: false, work: 0 });
-  expect(base.timing).toMatchObject({ prefetched: false });
-  expect(base.timing.reads_wait_ms).toBeGreaterThanOrEqual(2 * RTT - 20);
-  expect(row.engine_ms).toBeLessThan(base.row.engine_ms);
+/** The same report → pick on the virtual clock: `work` ms of the report's own work, then the pick, driven to its end. */
+const VIRTUAL = { doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] }; // promises and ticks stay real
+async function virtualReportThenPick(supa, { prefetch = true, work = 3 * RTT, a = args() } = {}) {
+  const { E, catalog, log } = load(supa);
+  if (prefetch && typeof E.prefetchReads === 'function') E.prefetchReads({ session: a.session, coachingSessionId: a.coachingSessionId, analysis: a.analysis, deps: { env: ENV } });
+  await jest.advanceTimersByTimeAsync(work);
+  supa.markPick();
+  const pending = E.recommendForReport({ ...a, deps: { env: ENV, catalog } });
+  await jest.advanceTimersByTimeAsync(10 * RTT); // every read and the write, whatever is left of them
+  const row = await pending;
+  const timing = (log.mock.calls.find((c) => c[0] === '[video-reco] timing') || [])[1] || null;
+  return { row, timing, E };
+}
+
+describe(`virtual clock, RTT ${RTT} ms (peak): counts and order, not the machine's speed`, () => {
+  beforeEach(() => jest.useFakeTimers(VIRTUAL));
+  afterEach(() => jest.useRealTimers());
+
+  test('with the report\'s prefetch, every read started before the pick was called and the pick waited 0 ms for reads', async () => {
+    const supa = slowSupabase(RTT);
+    const { row, timing } = await virtualReportThenPick(supa);
+    expect(row).toMatchObject({ coaching_session_id: SID, v10_group: 'C' });
+    expect(supa.log.findIndex((e) => e[0] === 'pick')).toBeGreaterThan(0); // reads went out first
+    expect(supa.readsAfterPick()).toEqual([]); // the pick issued no read of its own
+    expect(timing).toMatchObject({ prefetched: true, reads_wait_ms: 0 });
+    expect(row.engine_ms).toBe(0); // CPU is free on this clock: what is left is waiting, and there is none
+  });
+
+  test('without it, the same pick issues the reads after its call and waits ≥ 2 RTT (the 2 waves) for them', async () => {
+    const supa = slowSupabase(RTT);
+    const { row, timing } = await virtualReportThenPick(supa, { prefetch: false, work: 0 });
+    expect(row).toMatchObject({ coaching_session_id: SID, v10_group: 'C' });
+    expect(supa.log[0]).toEqual(['pick']);
+    expect(supa.readsAfterPick().length).toBe(supa.reads.length);
+    expect(timing).toMatchObject({ prefetched: false });
+    expect(timing.reads_wait_ms).toBeGreaterThanOrEqual(2 * RTT);
+    expect(row.engine_ms).toBe(timing.reads_wait_ms);
+  });
+
+  test('a prefetch still in flight is awaited, not re-issued: the pick waits only what is left (base wait − the head start)', async () => {
+    const base = (await virtualReportThenPick(slowSupabase(RTT), { prefetch: false, work: 0 })).timing.reads_wait_ms;
+    const supa = slowSupabase(RTT);
+    const { row, timing } = await virtualReportThenPick(supa, { work: RTT / 2 });
+    expect(row).toMatchObject({ coaching_session_id: SID });
+    expect(timing).toMatchObject({ prefetched: true, prefetch_age_ms: RTT / 2 });
+    expect(timing.reads_wait_ms).toBe(base - RTT / 2);
+    // the second wave (the roster's enrolment read, the arm row) may start after the call, as the prefetch's own
+    // continuation; nothing is issued twice: the same reads, one for one, as a pick whose prefetch had finished
+    const counts = supa.reads.reduce((m, t) => ({ ...m, [t]: (m[t] || 0) + 1 }), {});
+    expect(counts.video_recommendations).toBe(2); // the stored-row read and the history read, once each
+    expect(counts.teacher_training_progress).toBe(1);
+    const done = slowSupabase(RTT);
+    await virtualReportThenPick(done);
+    expect([...supa.reads].sort()).toEqual([...done.reads].sort());
+  });
+
+  test('the reads went out once, at the prefetch: the pick issued none of its own', async () => {
+    const supa = slowSupabase(RTT);
+    const { E, catalog } = load(supa);
+    const a = args();
+    expect(E.prefetchReads({ session: a.session, coachingSessionId: SID, analysis: a.analysis, deps: { env: ENV } })).toBe(true);
+    await jest.advanceTimersByTimeAsync(3 * RTT);
+    const atPick = supa.reads.length;
+    expect(atPick).toBeGreaterThan(0);
+    supa.markPick();
+    const pending = E.recommendForReport({ ...a, deps: { env: ENV, catalog } });
+    await jest.advanceTimersByTimeAsync(10 * RTT);
+    await pending;
+    expect(supa.reads.length).toBe(atPick);
+    expect(supa.readsAfterPick()).toEqual([]);
+  });
+
+  test('prefetchReads returns before any read is back (the report never waits on it), even at a 2 s RTT', async () => {
+    const supa = slowSupabase(2000);
+    const { E } = load(supa);
+    const a = args();
+    let back = 0;
+    const from = supa.from.bind(supa);
+    supa.from = (t) => { const b = from(t); const then = b.then; b.then = (res, rej) => then((v) => { back += 1; return res(v); }, rej); return b; };
+    expect(E.prefetchReads({ session: a.session, coachingSessionId: SID, analysis: a.analysis, deps: { env: ENV } })).toBe(true);
+    await jest.advanceTimersByTimeAsync(0); // the wave's microtasks: the reads start, none is back
+    expect(supa.reads.length).toBeGreaterThan(0);
+    expect(back).toBe(0);
+    await jest.advanceTimersByTimeAsync(2 * 2000); // let them settle inside the test
+  });
 });
 
-test('the reads went out once, at the prefetch: the pick issued none of its own', async () => {
-  const supa = slowSupabase(RTT);
-  const { E, catalog } = load(supa);
-  const a = args();
-  expect(E.prefetchReads({ session: a.session, coachingSessionId: SID, analysis: a.analysis, deps: { env: ENV } })).toBe(true);
-  await sleep(3 * RTT);
-  const atPick = supa.reads.length;
-  expect(atPick).toBeGreaterThan(0);
-  await E.recommendForReport({ ...a, deps: { env: ENV, catalog } });
-  expect(supa.reads.length).toBe(atPick);
+test(`real clock smoke, RTT ${RTT} ms: a prefetched pick waits < 1 RTT for reads (worst seen at load ~20: 50 ms; no prefetch: ≥ 2 RTT)`, async () => {
+  const { row, timing } = await reportThenPick(slowSupabase(RTT));
+  expect(row).toMatchObject({ coaching_session_id: SID });
+  expect(timing).toMatchObject({ prefetched: true });
+  expect(timing.reads_wait_ms).toBeLessThan(RTT);
 });
 
 test('pick identity: the prefetched row = the row without a prefetch (engine_ms aside), through the real store', async () => {
@@ -126,17 +201,6 @@ test('pick identity without a grade on the analysis: the bands read by the prefe
   const a = strip((await reportThenPick(slowSupabase(5), { a: noGrade(), work: 50 })).row);
   const b = strip((await reportThenPick(slowSupabase(5), { a: noGrade(), prefetch: false, work: 0 })).row);
   expect(a).toEqual(b);
-});
-
-test('a prefetch that is still in flight is awaited, not re-issued', async () => {
-  const supa = slowSupabase(RTT);
-  const { row } = await reportThenPick(supa, { work: RTT / 2 });
-  expect(row).toMatchObject({ coaching_session_id: SID });
-  // only what is left of the 2 waves (≈ 1.5 RTT) is waited for; head waits the full 2 waves (≥ 2 RTT) from the call
-  expect(row.engine_ms).toBeLessThan(2 * RTT - 50);
-  const counts = supa.reads.reduce((m, t) => ({ ...m, [t]: (m[t] || 0) + 1 }), {});
-  expect(counts.video_recommendations).toBe(2); // the stored-row read and the history read, once each
-  expect(counts.teacher_training_progress).toBe(1);
 });
 
 test('a stored row found by the prefetch still wins, and nothing is written', async () => {
@@ -214,15 +278,6 @@ describe('report-path safety (COS 20261027T055344 §1)', () => {
     expect(E.prefetchReads({ session: { user_id: UID }, deps: { env: ENV } })).toBe(false);
     const evil = { session: { user_id: UID }, coachingSessionId: SID, get deps() { throw new Error('getter'); } };
     expect(E.prefetchReads(evil)).toBe(false);
-  });
-
-  test('prefetchReads returns at once, before any read is back (the report never waits on it), even at a 2 s RTT', () => {
-    const { E } = load(slowSupabase(2000));
-    const a = args();
-    const t0 = Date.now();
-    expect(E.prefetchReads({ session: a.session, coachingSessionId: SID, analysis: a.analysis, deps: { env: ENV } })).toBe(true);
-    expect(Date.now() - t0).toBeLessThan(50);
-    return sleep(2100); // let the slow reads settle inside the test
   });
 
   test('concurrent reports on one worker: each pick gets its own teacher\'s reads', async () => {
