@@ -768,6 +768,31 @@ router.patch('/schedules/:id', ...guard, async (req, res) => {
 // ---------------------------------------------------------------------------
 const VALID_FEEDBACK_LANGUAGES = new Set(['english', 'urdu', 'roman_urdu']);
 
+// bd-nmwmr4.2: the header strings are interpolated into the prompt inside JSON string literals, so
+// a leader could steer the model through them. Each is cleaned (newlines, tabs, quotes and
+// backslashes out) and capped; observation_tool must be one POST /schedules accepts.
+const FEEDBACK_HEADER_FIELDS = ['teacher_name', 'subject', 'school_name', 'class', 'coach_name', 'region'];
+const FEEDBACK_HEADER_MAX = 80;
+
+function cleanFeedbackHeader(observationData) {
+  const out = { ...observationData };
+  for (const field of FEEDBACK_HEADER_FIELDS) {
+    const value = observationData[field];
+    if (value === undefined || value === null) continue;
+    if (typeof value !== 'string' && typeof value !== 'number') return { error: `Invalid ${field}.` };
+    const cleaned = String(value).replace(/["\\]/g, '').replace(/\s+/g, ' ').trim();
+    if (cleaned.length > FEEDBACK_HEADER_MAX) {
+      return { error: `${field} must be at most ${FEEDBACK_HEADER_MAX} characters.` };
+    }
+    out[field] = cleaned;
+  }
+  const tool = observationData.observation_tool;
+  if (tool !== undefined && tool !== null && !VALID_OBSERVATION_TOOLS.has(tool)) {
+    return { error: `Invalid observation_tool. Must be one of: ${[...VALID_OBSERVATION_TOOLS].join(', ')}.` };
+  }
+  return { observationData: out };
+}
+
 function buildFeedbackPrompt({ observationData, language }) {
   const tool = observationData.observation_tool || 'FICO';
   const langLabel = language === 'urdu'
@@ -854,11 +879,13 @@ router.post('/generate-feedback', ...guard, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing observation_data.' });
     }
     if (!inScope(req, teacher_id)) return teacherNotFound(res);
+    const header = cleanFeedbackHeader(observation_data);
+    if (header.error) return res.status(400).json({ success: false, error: header.error });
 
     const lang = VALID_FEEDBACK_LANGUAGES.has(language) ? language : 'english';
     // Always the prompt built here: a caller-supplied prompt would turn this
     // route into a free model proxy and store arbitrary text in prompt_used.
-    const prompt = buildFeedbackPrompt({ observationData: observation_data, language: lang });
+    const prompt = buildFeedbackPrompt({ observationData: header.observationData, language: lang });
 
     // Lazy-require so tests can mock the module cleanly.
     let llmResponse;
