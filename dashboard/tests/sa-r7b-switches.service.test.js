@@ -2,7 +2,7 @@
 /**
  * Round 7b (the tester's 27 Oct list): one app_settings switch per item, each OFF by default.
  *   Engine switches (JSON true only; the battery file carries battery.ui.<flag> while ON, nothing while OFF):
- *     sa_back_button, sa_end_test_restart, sa_end_section, sa_silence_repeat, sa_under20_move_on, sa_t_sound_ta,
+ *     sa_back_button, sa_end_test_restart, sa_end_section, sa_silence_repeat, sa_incomplete_move_on, sa_t_sound_ta,
  *     sa_say_then_next, sa_story_scroll, sa_audio_gated_next, sa_tick_prompt
  *   Portal switches (GET /sa/switches, true or a list of user ids): endTestRestart, endSection, dashFilters.
  */
@@ -14,7 +14,7 @@ const R7B = {
   endTestRestart: ['sa_end_test_restart', 'end_test_restart'],
   endSection: ['sa_end_section', 'end_section'],
   silenceRepeat: ['sa_silence_repeat', 'silence_repeat'],
-  under20MoveOn: ['sa_under20_move_on', 'under20_move_on'],
+  incompleteMoveOn: ['sa_incomplete_move_on', 'incomplete_move_on'],
   tSoundTa: ['sa_t_sound_ta', 't_sound_ta'],
   sayThenNext: ['sa_say_then_next', 'say_then_next'],
   storyScroll: ['sa_story_scroll', 'story_scroll'],
