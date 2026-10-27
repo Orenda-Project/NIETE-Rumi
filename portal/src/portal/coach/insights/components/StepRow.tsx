@@ -4,6 +4,8 @@ import { coachip } from "../api";
 import { CodeText, CountSpan, DateText, LibraryText } from "../count";
 import { COPY } from "../copy";
 import { pick, t, tx } from "../text";
+import { LRI, PDI } from "../format";
+import { dropPart, NO_PART } from "../player/PairCard";
 import type { Step, StripHit } from "../types";
 
 /**
@@ -123,16 +125,23 @@ export function StepTick({ step, onTicked }: { step: Step; onTicked: (s: Step) =
 export function StepRow({ step: initial, windowId }: { step: Step; windowId: string }) {
   const lang = useLang();
   const [step, setStep] = useState<Step>(initial);
-  const code = <CodeText lang={lang}>{step.code.code}</CodeText>;
-  const school = <CodeText lang={lang}>{step.school.school_name}</CodeText>;
+  // fix-r5 s2 item 17 (design-qa 073629): in Urdu the code and the school are two LTR atoms around an Urdu comma; drawn
+  // apart, the comma attached to the wrong one ("S-01 ،T-04"). They go out as ONE isolated LTR run with their comma, and
+  // the template's own "، " before {school} is dropped with the school's slot. English keeps its two atoms.
+  const pair = lang === "ur";
+  const code = pair
+    ? <span data-code="" dir="ltr" className="[unicode-bidi:isolate]">{`${LRI}${step.code.code}، ${step.school.school_name}${PDI}`}</span>
+    : <CodeText lang={lang}>{step.code.code}</CodeText>;
+  const school = pair ? NO_PART : <CodeText lang={lang}>{step.school.school_name}</CodeText>;
   const set = <DateText iso={step.set_on} lang={lang} short />;
-  const sub = step.check_rule === "visit"
+  const filled = step.check_rule === "visit"
     ? tx("s1.steps.row.sub", lang, { code, school, date_short: set, date: <DateText iso={step.visit?.date ?? step.check_by} lang={lang} /> })
     : tx("s1.steps.row.sub14", lang, { code, school, date_short: set, date: <DateText iso={step.check_by} lang={lang} /> });
+  const sub = pair ? dropPart(filled, NO_PART) : filled;
   return (
     <li data-testid="step-row" data-step={step.id} className="flex flex-col gap-1.5 border-b border-[#f3f4f6] py-3 last:border-b-0">
       <LibraryText as="p" className="text-[15.5px] font-semibold leading-snug text-[#1d2025]">{pick(step.step, lang)}</LibraryText>
-      <p className="text-[13px] leading-snug text-[#6b7280] [overflow-wrap:anywhere]">{sub}</p>
+      <p data-testid="step-sub" className="text-[13px] leading-snug text-[#6b7280] [overflow-wrap:anywhere]">{sub}</p>
       <div className="flex flex-wrap items-center gap-2.5">
         <StepStrip step={step} />
         <StepChip step={step} windowId={windowId} />

@@ -256,6 +256,28 @@ describe("S1 This week", () => {
     expect(rows[1].querySelector('[data-testid="step-tick-yes"]')).toBeTruthy();
   }, 20000);
 
+  // fix-r5 s2 item 17, coach half (design-qa 073629): in Urdu "T-04، S-01" drew as "S-01 ،T-04" (the comma attached to
+  // the wrong atom). The two LTR atoms and their comma are ONE isolated run; English is unchanged.
+  it.each(["en", "ur"] as const)("%s item 17: the open-step row's code and school are one LTR run with their comma", async (lang) => {
+    await boot(lang);
+    serve({ "/coachip/home": F.home, [`POST /coachip/notes/${NOTE_ID}/status`]: { note: F.home.note } });
+    await renderAt("");
+    const step = F.home.steps[0];
+    const row = screen.getAllByTestId("step-row")[0];
+    const sub = row.querySelector('[data-testid="step-sub"]') as HTMLElement;
+    const atoms = Array.from(sub.querySelectorAll("[data-code]"));
+    if (lang === "ur") {
+      expect(atoms).toHaveLength(1);
+      expect(atoms[0].textContent).toBe(`\u2066${step.code.code}، ${step.school.school_name}\u2069`);
+      expect(atoms[0].getAttribute("dir")).toBe("ltr");
+      expect(sub.textContent!.replace(/[\u2066-\u2069]/g, "").startsWith(`${step.code.code}، ${step.school.school_name}، `)).toBe(true);
+      expect(sub.textContent).not.toContain("، ، ");
+    } else {
+      expect(atoms.map((a) => a.textContent)).toEqual([step.code.code, step.school.school_name]);
+      expect(sub.textContent!.startsWith(`${step.code.code} · ${step.school.school_name} · set`)).toBe(true);
+    }
+  }, 20000);
+
   it("phonics: testing, paused and ok each draw their own tile", async () => {
     for (const [payload, state] of [[F.home, "testing"], [F.home_phonics_paused, "paused"], [phonicsOk(), "ok"]] as const) {
       await boot("en");
