@@ -25,8 +25,11 @@ export default function ListenRow({ moment, playing, onPlay }: { moment: Moment;
     ? tx("l.row.good", lang, { school })
     : tx("l.row", lang, { school, short_name: pick(moment.w.short_name, lang) });
   const at = moment.lesson_s ?? moment.clip.from_s;
+  const expired = moment.clip.status === "expired";
   const sub = failed
-    ? <span data-testid="listen-row-failed">{tx("l.row.failed", lang, { date, "mm:ss": <span data-clock="">{mmss(at, lang)}</span> })}</span>
+    ? <span data-testid={expired ? "listen-row-expired" : "listen-row-failed"}>
+        {tx(expired ? "l.row.expired" : "l.row.failed", lang, { date, "mm:ss": <span data-clock="">{mmss(at, lang)}</span> })}
+      </span>
     : tx("l.row.sub", lang, { date });
   const dur = durButton(failed ? moment.session.duration_s : moment.clip.duration_s, lang);
   return (

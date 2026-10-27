@@ -205,9 +205,32 @@ describe.each(LANGS)("MomentPlayer (%s)", (lang) => {
     expect(play).not.toHaveBeenCalled();
   });
 
-  it("RM circle form: no player when the clip failed, the RM line, no full link, no code", () => {
+  it("clip expired under retention (coach): the session's audio from lesson_s, and it says the clip has expired", () => {
+    const m = clone(F.moment_clip_failed);
+    m.clip = { ...m.clip, status: "expired" };
+    const { container } = render(<MomentPlayer moment={m} variant="full" />);
+    expect(kitAudio(container).getAttribute("src")).toBe(`/api/portal/coachip/session/${m.session.session_id}/audio`);
+    const line = within(container).getByTestId("clip-expired");
+    expect(line.textContent).toContain("20:50");
+    expect(line.textContent).toContain(lang === "en" ? "This clip has expired" : "اس کلپ کی مدت ختم ہو چکی ہے");
+    expect(within(container).queryByTestId("clip-failed")).toBeNull();
+    expect(container.textContent).not.toContain(lang === "en" ? "could not be made" : "نہیں بن سکا");
+    expect(play).not.toHaveBeenCalled();
+  });
+
+  it("clip expired under retention (RM circle form): no player, the RM expired line, no full recording promised", () => {
     const rm = clone(F.moment_rm) as unknown as Moment;
     rm.clip = { ...rm.clip, status: "expired" };
+    const { container } = render(<MomentPlayer moment={rm} variant="full" />);
+    expect(container.querySelector("audio")).toBeNull();
+    expect(within(container).getByTestId("clip-expired-rm").textContent).toBe(COPY["s4.clip_expired.rm"][lang]);
+    expect(within(container).queryByTestId("clip-failed-rm")).toBeNull();
+    expect(container.textContent).not.toContain(lang === "en" ? "the full recording plays" : "پوری ریکارڈنگ");
+  });
+
+  it("RM circle form: no player when the clip failed, the RM line, no full link, no code", () => {
+    const rm = clone(F.moment_rm) as unknown as Moment;
+    rm.clip = { ...rm.clip, status: "failed" };
     const { container } = render(<MomentPlayer moment={rm} variant="full" />);
     expect(container.querySelector("audio")).toBeNull();
     expect(within(container).getByTestId("clip-failed-rm").textContent).toBe(COPY["e.503_clip.rm"][lang]);
