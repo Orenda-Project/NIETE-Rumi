@@ -239,6 +239,8 @@
     var cellPace = !!opts.cell_pace;
     var cellNextOnly = !!opts.cell_next_only;
     var sectionRec = !!opts.section_recording;
+    // sa_back_button (round 7b): Back on the item screens (battery.ui.back_button, or opts.back_button)
+    var backOn = !!opts.back_button || !!(battery.ui && battery.ui.back_button === true);
 
     /** sa_cell_next_only: an Urdu or English letter/word cell moves on only on Next (maths cells keep their pace). */
     function holdsCell(t) { return cellNextOnly && cellTask(t) && /^(ur|en)\./.test(String(t.id)); }
@@ -667,6 +669,40 @@
         if (st.started == null) st.started = now();
         ev('coach_unlock', { task_id: st.task_id });
         finish(STOP.COACH_END);
+      },
+      /**
+       * sa_back_button (round 7b): the item (or the one-at-a-time cell) before this one shows again, and the child's new
+       * answer replaces the old one. by: 'child' | 'coach' (coach-led). Only while a task runs, never on its first item,
+       * never on the passage (one screen) and never into another task; the task's clock keeps running. A cell: its earlier
+       * pass is dropped (cells keep one pass each, so the cells reached stay right). An item: its answer, its counts and
+       * (one recording for the section) its mark are undone. One `back` event { by, from, to }. → true when it went back.
+       */
+      back: function (by) {
+        var t = task();
+        if (!backOn || st.phase !== 'running' || !t) return false;
+        var who = by === 'coach' ? 'coach' : 'child';
+        if (st.cell) {
+          var i = st.cell.i;
+          if (i <= 0) return false;
+          st.cells = st.cells.filter(function (c) { return c.i !== i - 1; });
+          st.last_item_index = st.cells.length ? st.cells[st.cells.length - 1].i : null;
+          st.cell = { i: i - 1, at: now() };
+          ev('back', { task_id: t.id, value: { by: who, from: i, to: i - 1 } });
+          return true;
+        }
+        if (t.mode === 'record' || st.item_i <= 0 || !st.answers.length) return false;
+        var from = st.item_i;
+        st.answers.pop();
+        if (st.rec_marks && st.rec_marks.length) st.rec_marks.pop();
+        st.attempted = 0; st.correct = 0; st.incorrect = 0; st.streak = 0; st.first_line_correct = 0;
+        st.answers.forEach(function (a) { tally(t, a.ok); });
+        st.item_i = st.answers.length;
+        st.item_started = now();
+        st.ask_at = st.item_started;
+        st.answer_at = null;
+        st.replayed = false;
+        ev('back', { task_id: t.id, item_id: st.items[st.item_i] ? st.items[st.item_i].id : undefined, value: { by: who, from: from, to: st.item_i } });
+        return true;
       },
       /** A picture of this task would not load (the page's <img> error): image_unavailable, the task ends as
        *  assets_unavailable. A late error from another task's picture is ignored. */

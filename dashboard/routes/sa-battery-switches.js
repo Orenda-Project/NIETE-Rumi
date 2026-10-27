@@ -69,6 +69,8 @@ const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManu
   backButton: 'back_button', endTestRestart: 'end_test_restart', endSection: 'end_section', silenceRepeat: 'silence_repeat',
   under20MoveOn: 'under20_move_on', tSoundTa: 't_sound_ta', sayThenNext: 'say_then_next', storyScroll: 'story_scroll',
   audioGatedNext: 'audio_gated_next', tickPrompt: 'tick_prompt' };
+const { applyR7a } = require('./sa-r7a-content');
+
 const W3_KEYS = ['rdf_auto', 'rdf_manual', 'rdf_variants', 'rdf_w3_absent'];
 const W3_LINES = ['coach_will_instruct', 'please_go_on'];
 
@@ -99,8 +101,9 @@ function applySwitches(input, on = {}) {
     return o;
   });
   const ui = Object.keys(UI).filter((k) => on[k] === true);
-  if (!ui.length) return { ...battery, tasks };
-  return { ...battery, tasks, ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => [UI[k], true])) } };
+  // round 7b, the child's screens: the lines and the T clip their switches add (sa-r7a-content.js); none when OFF
+  if (!ui.length) return applyR7a({ ...battery, tasks }, on);
+  return applyR7a({ ...battery, tasks, ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => [UI[k], true])) } }, on);
 }
 
 module.exports = { SWITCHES, applySwitches };
