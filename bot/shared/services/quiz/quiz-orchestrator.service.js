@@ -3,6 +3,7 @@
 // Handles /quiz command (Trigger 1), LP-anchored offers, and class gate logic
 
 const { logToFile } = require('../../utils/logger');
+const { tk: tkOf } = require('./web-quiz-kid');
 const ConversationState = require('../conversation-state.service');
 
 // One flow for the teacher-facing quiz prompts. The student-side keys stay in the
@@ -36,7 +37,7 @@ class QuizOrchestrator {
         logToFile('⚠️ LP shelf flush failed at quiz start (non-blocking)', { error: err.message });
       }
 
-      logToFile('📝 QuizOrchestrator.initiateQuizRequest', { userId: user.id, preTopic });
+      logToFile('📝 QuizOrchestrator.initiateQuizRequest', { tk: tkOf(user.id), preTopic });
 
       // 1. Get teacher's active classes
       const { data: classes, error: classErr } = await supabase
@@ -87,7 +88,7 @@ class QuizOrchestrator {
       });
 
     } catch (err) {
-      logToFile('❌ QuizOrchestrator.initiateQuizRequest error', { error: err.message, userId: user?.id });
+      logToFile('❌ QuizOrchestrator.initiateQuizRequest error', { error: err.message, tk: tkOf(user?.id) });
       await WhatsAppService.sendMessage(from,
         'Sorry, something went wrong starting the quiz. Please try again.\n\nمعذرت، کوئز شروع کرنے میں کچھ غلط ہو گیا۔'
       );
@@ -113,7 +114,7 @@ class QuizOrchestrator {
    */
   static async continueWithClass(user, from, classId, language = 'en', sessionId = null) {
     try {
-      logToFile('📝 QuizOrchestrator.continueWithClass', { userId: user.id, classId });
+      logToFile('📝 QuizOrchestrator.continueWithClass', { tk: tkOf(user.id), classId });
 
       // Fetch class details
       const { data: classData, error: classErr } = await supabase
@@ -217,7 +218,7 @@ class QuizOrchestrator {
    */
   static async initiateFromLessonPlan(user, from, lessonPlanId, language = 'en', classId = null) {
     try {
-      logToFile('📝 QuizOrchestrator.initiateFromLessonPlan', { userId: user.id, lessonPlanId, classId });
+      logToFile('📝 QuizOrchestrator.initiateFromLessonPlan', { tk: tkOf(user.id), lessonPlanId, classId });
 
       // Resolve class: use provided classId or run gate
       let targetClassId = classId;
@@ -504,7 +505,7 @@ class QuizOrchestrator {
    */
   static async offerQuizAfterReport(teacher, phone, lessonPlanId, topic, language = 'en') {
     try {
-      logToFile('📝 QuizOrchestrator.offerQuizAfterReport', { userId: teacher.id, lessonPlanId, topic });
+      logToFile('📝 QuizOrchestrator.offerQuizAfterReport', { tk: tkOf(teacher.id), lessonPlanId, topic });
 
       // Check if teacher has a class with students who have phones
       const { data: classes } = await supabase

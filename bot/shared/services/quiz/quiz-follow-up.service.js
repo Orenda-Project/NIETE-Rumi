@@ -16,6 +16,7 @@ const redisService = require('../cache/railway-redis.service');
 const WhatsAppService = require('../whatsapp.service');
 const QuizInsightService = require('./quiz-insight.service');
 const { logToFile } = require('../../utils/logger');
+const { tk: tkOf } = require('./web-quiz-kid');
 
 const AWAITING_KEY = (userId) => `quiz:awaiting_next_topic:${userId}`;
 const AWAITING_TTL = 3600;     // 1h — comfortably under the 24h ceiling
@@ -37,7 +38,7 @@ const KIND_BY_PREFIX = {
  */
 async function handleFollowUpButton(buttonId, user, from) {
   if (!user?.id) {
-    logToFile('⚠️ quiz follow-up button tapped without registered user', { buttonId, from });
+    logToFile('⚠️ quiz follow-up button tapped without registered user', { buttonId, from: String(from || '').slice(-4) });
     await WhatsAppService.sendMessage(from,
       'Please register first — type /register and we\'ll continue.');
     return;
@@ -51,7 +52,7 @@ async function handleFollowUpButton(buttonId, user, from) {
   const kind = KIND_BY_PREFIX[prefix];
   const quizId = buttonId.slice(prefix.length);
 
-  logToFile('🎯 Follow-up button tapped', { kind, quizId, userId: user.id });
+  logToFile('🎯 Follow-up button tapped', { kind, quizId, tk: tkOf(user.id) });
 
   // Load the cluster to capture the misconception text now (the
   // quiz_questions row already has distractor_misconceptions).
@@ -199,7 +200,7 @@ async function handleNextTopicReply(userId, from, language, replyText) {
     `Thanks for telling me about "${nextTopic}" — the ${verbForBand.replace(/^a(n)? /, '')} on ${target} isn't in the catalog yet. Send "menu" to see what is available.`);
 
   logToFile('quiz.follow_up.retired_freeform_lp (bd-2540)', {
-    userId, from, kind: state.kind, priorTopic: state.priorTopic, nextTopic,
+    tk: tkOf(userId), from: String(from || '').slice(-4), kind: state.kind, priorTopic: state.priorTopic, nextTopic,
     priorGrade: state.priorGrade, priorSubject: state.priorSubject,
   });
 
