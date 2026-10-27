@@ -248,7 +248,12 @@ export default function LeaderAssessDashboard() {
     );
   };
 
-  const taskName = (taskId: string) => c.tasks[taskId] || taskId;
+  // a reading task names its language (Letter names are in both); maths needs none
+  const taskName = (taskId: string) => {
+    const title = c.tasks[taskId] || taskId;
+    const domain = taskId.slice(0, 2);
+    return domain === 'ur' ? `${title} (${c.urdu})` : domain === 'en' ? `${title} (${c.english})` : title;
+  };
   const stopsSection = (
     <section data-testid="dash-stops" aria-label={c.stopsTitle} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3">
       <div>
@@ -279,7 +284,7 @@ export default function LeaderAssessDashboard() {
             <tbody className="divide-y divide-slate-100">
               {stopsView.coachRows.map((k) => (
                 <tr key={k.id || 'none'} data-testid="dash-stops-coach-row" data-coach={k.id} data-total={k.total} data-sessions={k.sessions}>
-                  <td className="px-2 py-2 text-slate-900">{k.name || c.unknownCoach}</td>
+                  <td className="px-2 py-2 text-slate-900"><bdi>{k.name || c.unknownCoach}</bdi></td>
                   <td className="px-2 py-2 text-end tabular-nums">{count(k.sessions)}</td>
                   {STOP_TYPES.map((t) => <td key={t} className={`px-2 py-2 text-end tabular-nums ${k.counts[t] ? 'font-semibold text-slate-900' : 'text-slate-400'}`}>{count(k.counts[t])}</td>)}
                   <td className="px-2 py-2 text-end font-bold tabular-nums">{count(k.total)}</td>
@@ -297,11 +302,11 @@ export default function LeaderAssessDashboard() {
           <ul data-testid="dash-stops-list" className="divide-y divide-slate-100 text-xs sm:text-sm">
             {stopsView.items.slice(0, STOPS_SHOWN).map((it) => (
               <li key={it.key} data-testid="dash-stops-item" data-type={it.type} className="py-2">
-                <p className="font-semibold text-slate-900">
+                <p className="text-sm font-semibold text-slate-900">
                   {c.stopTypes[it.type] || it.type}{it.by && c.stopBy[it.by] ? ` · ${c.stopBy[it.by]}` : ''}{it.taskId ? ` · ${taskName(it.taskId)}` : ''}
                 </p>
-                <p className="text-slate-600">
-                  {pktWhen(it.at) ? num(pktWhen(it.at)) : '–'} · {coaches.length > 1 ? `${it.s.coachName || c.unknownCoach} · ` : ''}{it.s.schoolName} · {c.grade(num(it.s.grade))} · {it.s.mode ? c.modes[it.s.mode] : '–'}
+                <p className="text-xs text-slate-600">
+                  {pktWhen(it.at) ? num(pktWhen(it.at)) : '–'} · {coaches.length > 1 ? <><bdi>{it.s.coachName || c.unknownCoach}</bdi> · </> : null}<bdi>{it.s.schoolName}</bdi> · {c.grade(num(it.s.grade))} · {it.s.mode ? c.modes[it.s.mode] : '–'}
                 </p>
               </li>
             ))}
