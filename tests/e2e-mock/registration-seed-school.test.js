@@ -20,7 +20,7 @@ test('the DB script has seed-school and purge-school, gated on --yes-write, with
   const row = JSON.parse(out.trim().split('\n').pop());
   expect(row.dry_run).toBe(true);
   expect(row.would_insert).toMatchObject({ name: 'IMSG G-7/3-2', is_probable_test: false, source_system: 'qa_seed' });
-  expect(row.would_insert.emis).toMatch(/^215/);
+  expect(row.would_insert.emis).toBe('215');   // an exact EMIS is the only wordless hit (score 1000)
   const purge = JSON.parse(execFileSync('python3', [path.join(REPO, '.claude/qa/shared/niete_registration_db.py'), 'purge-school', '--env', 'local', '--phone', '923000000000'], { encoding: 'utf8', env: ENV }).trim().split('\n').pop());
   expect(purge.dry_run).toBe(true);
 });
