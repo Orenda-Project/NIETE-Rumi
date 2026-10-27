@@ -3,7 +3,7 @@
  * Teacher Home card — the teacher Home's ONE card, its scores row and its per-teacher tile order. Mounted at /api/portal by
  * dashboard/index.js beside the other teacher modules (same CORS / limiter stack).
  *
- *   GET  /api/portal/me/home       → { success, now, order, orderOn, card, scores: { coach, observation }, quizHome }
+ *   GET  /api/portal/me/home       → { success, now, order, orderOn, card, scores: { coach, observation }, quizHome[, quizTile] }
  *   POST /api/portal/me/home/tap   { kind } → 204 (logs app_funnel.action home_card.tap; nothing else)
  *
  * Guards, in order (portal-share.routes.js's pattern): no session 401 → portal_teacher_v2 off 404 (nothing read) →
@@ -23,6 +23,8 @@
  *                they open answers 404 otherwise (requireSelfObservation in portal.routes.js), so the card never sends a
  *                teacher there. Off, unreadable or failed = no coach_report rung and no coach chip.
  *   quizHome     the bot's signed quiz-home path, relative, as it gave it; null for a coach / principal
+ *   quizTile     true only when portal_teacher_home_quiz_tile is on for the teacher AND quizHome is a path: the Home draws
+ *                its "Quizzes" tile (one tap into the quiz home, logged as kind quiz_tile). Off or no quiz home: no key.
  *
  * Logged (R11), PII-free, never awaited, never thrown: app_funnel.action { action:'home_card.shown' | 'home_card.tap',
  * feature:'home', kind, orderOn, lang } with the session's userId, as app-funnel.routes.js logs every action.
@@ -31,7 +33,7 @@ const express = require('express');
 const supabase = require('../config/supabase');
 const {
   isFlagEnabledForUser, PORTAL_TEACHER_V2_KEY, PORTAL_TEACHER_HOME_CARD_KEY, PORTAL_TEACHER_HOME_ORDER_KEY,
-  PORTAL_SELF_OBSERVATION_KEY,
+  PORTAL_SELF_OBSERVATION_KEY, PORTAL_TEACHER_HOME_QUIZ_TILE_KEY,
 } = require('../lib/feature-flags');
 const telemetry = require('../services/telemetry.service');
 const TeacherObservation = require('../lib/teacher-observation');
@@ -42,7 +44,8 @@ const BOT_PORTAL_HOME_PATH = '/api/internal/thportal/portal-home';
 const BOT_TIMEOUT_MS = 8000;
 
 const CARD_KINDS = ['class', 'coach_report', 'lesson', 'observation', 'first_plan'];
-const TAP_KINDS = [...CARD_KINDS, 'chip_coach', 'chip_obs', 'lp_quiz', 'coach_quiz']; // "Quiz this lesson" on the plan page / on a Digital Coach report
+// "Quiz this lesson" on the plan page / on a Digital Coach report; quiz_tile: the Home's "Quizzes" tile
+const TAP_KINDS = [...CARD_KINDS, 'chip_coach', 'chip_obs', 'lp_quiz', 'coach_quiz', 'quiz_tile'];
 /** The scores slice of analysis_data, never the whole column (~30 KB a row), and the card's title words. */
 const SESSION_SLICE = 'id, created_at, scores:analysis_data->scores, topic:analysis_data->>topic, subject:analysis_data->>subject';
 
@@ -147,8 +150,10 @@ router.get('/me/home', requirePortalAuth, requireTeacherV2, requireHomeCard, asy
         .gte('created_at', since7).order('created_at', { ascending: false }).limit(1)),
       // may the teacher open their own reports? (gates rung 2 and the coach chip; a failed read = no)
       isFlagEnabledForUser(supabase, PORTAL_SELF_OBSERVATION_KEY, userId).catch(() => false),
+      // the "Quizzes" tile (portal_teacher_home_quiz_tile; a failed read = no tile)
+      isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_QUIZ_TILE_KEY, userId).catch(() => false),
     ]);
-    const [user, orderOn, counts, bot, coachRow, obsRow, lpCount, lastPlan, selfObservation] = settled.map(valueOf);
+    const [user, orderOn, counts, bot, coachRow, obsRow, lpCount, lastPlan, selfObservation, quizTileOn] = settled.map(valueOf);
 
     const isCoach = Order.isCoachRole(user && user.role);
     const lang = langOf(user && user.preferred_language);
@@ -173,6 +178,8 @@ router.get('/me/home', requirePortalAuth, requireTeacherV2, requireHomeCard, asy
       card,
       scores: { coach: Order.scoreOf(coach), observation: Order.scoreOf(observation) },
       quizHome,
+      // the "Quizzes" tile: only with its switch on for this teacher AND a quiz home to open; off, the key is absent
+      ...(quizTileOn === true && quizHome ? { quizTile: true } : {}),
     });
   } catch (error) {
     // Nothing above should throw; if it does, the Home still opens as today's.

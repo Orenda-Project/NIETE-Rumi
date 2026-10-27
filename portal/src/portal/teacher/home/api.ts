@@ -47,10 +47,12 @@ export type HomeData = {
   scores: HomeScores;
   /** The signed quiz home, "/quiz/teacher/<token>", or null (the bot said off, failed, or she is a coach). */
   quizHome: string | null;
+  /** Draw the "Quizzes" tile (portal_teacher_home_quiz_tile on for her): only ever true with a quiz home to open. */
+  quizTile?: boolean;
 };
 
 /** What a tap names in the log: the card's rung or a chip. Nothing with a name, a phone or free text. */
-export type TapKind = HomeCardKind | 'chip_coach' | 'chip_obs' | 'lp_quiz' | 'coach_quiz';
+export type TapKind = HomeCardKind | 'chip_coach' | 'chip_obs' | 'lp_quiz' | 'coach_quiz' | 'quiz_tile';
 
 const KINDS: readonly HomeCardKind[] = ['class', 'coach_report', 'lesson', 'observation', 'first_plan'];
 const TILE_KEYS: readonly HomeTileKey[] = [
@@ -97,13 +99,15 @@ function readOrder(v: unknown): HomeTileKey[] | null {
 export function readHome(body: unknown): HomeData | null {
   if (!isObj(body) || body.success !== true) return null;
   const order = readOrder(body.order);
+  const quizHome = typeof body.quizHome === 'string' && QUIZ_HOME.test(body.quizHome) ? body.quizHome : null;
   return {
     now: str(body.now) ?? new Date().toISOString(),
     order: order ?? [...TILE_KEYS],
     orderOn: body.orderOn === true && !!order,
     card: readCard(body.card),
     scores: readScores(body.scores),
-    quizHome: typeof body.quizHome === 'string' && QUIZ_HOME.test(body.quizHome) ? body.quizHome : null,
+    quizHome,
+    quizTile: body.quizTile === true && !!quizHome,
   };
 }
 

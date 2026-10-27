@@ -168,6 +168,31 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
           reply: String(r.txt || '').slice(0, 160), botWaitMs: r.waitedMs }, t() - s);
   }
 
+  // M29 / M30 — "portal" without the slash is the /portal command (portal-request.js): the same one "Open portal"
+  // button with the signed /go link; a sentence that says more is not. Each spelling is its own turn.
+  const portalCta = (items) => items.map((i) => i.cta).filter((c) => c && c.url);
+  if (want('M29')) {
+    s = t();
+    const per = {};
+    let all = true;
+    for (const typed of ['portal', 'Portal', 'open portal', 'mera portal', 'پورٹل']) {
+      if (api.freshReset) await api.freshReset();
+      const rr = await api.sendWait(typed);
+      const items = api.fresh ? await api.fresh() : [];
+      const ctas = portalCta(items);
+      const ok = rr.ok && ctas.length === 1 && /\/go\/[A-Za-z0-9_-]{40,}$/.test(ctas[0].url) && !saidUnsure(items);
+      per[typed] = { ok, button: ctas[0] ? ctas[0].text : null, items: brief(items) };
+      all = all && ok;
+    }
+    rec('M29', '"portal" typed without the slash opens the portal the same way as /portal',
+        api.fresh ? (all ? 'PASS' : 'FAIL') : 'BLOCKED', { per }, t() - s);
+  }
+  if (want('M30')) {
+    s = t(); const { rr, items } = await sentSince('portal pe lesson nahi khul raha');
+    rec('M30', 'A sentence that mentions the portal is not the portal command',
+        ...Object.values(V(rr.ok && portalCta(items).length === 0, { items: brief(items), botWaitMs: rr.waitedMs })), t() - s);
+  }
+
   if (want('M21')) {
     // M21 — bd-kkpg4t → bd-x7aprz.3: activated with NO password gets the same signed /go button — no password asked.
     // Seeds the driver's own row, then puts both portal columns back exactly as they were.
