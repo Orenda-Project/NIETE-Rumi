@@ -34,3 +34,24 @@ class Allowlist(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SignedOffList(unittest.TestCase):
+    """--ids-file: the commit path runs from a signed-off id list, and refuses when the live predicate
+    no longer selects exactly that list (bd data-team ask 1, 2026-10-27)."""
+
+    def test_identical_sets_are_ok(self):
+        ok, missing, extra = m.check_signed_off(predicate_ids=["a", "b"], signed_ids=["b", "a"])
+        self.assertTrue(ok); self.assertEqual(missing, []); self.assertEqual(extra, [])
+
+    def test_a_signed_row_the_predicate_no_longer_selects_refuses(self):
+        ok, missing, extra = m.check_signed_off(predicate_ids=["a"], signed_ids=["a", "b"])
+        self.assertFalse(ok); self.assertEqual(missing, ["b"]); self.assertEqual(extra, [])
+
+    def test_a_new_row_the_predicate_now_selects_refuses(self):
+        ok, missing, extra = m.check_signed_off(predicate_ids=["a", "c"], signed_ids=["a"])
+        self.assertFalse(ok); self.assertEqual(missing, []); self.assertEqual(extra, ["c"])
+
+    def test_an_empty_signed_list_refuses(self):
+        with self.assertRaises(ValueError):
+            m.check_signed_off(predicate_ids=["a"], signed_ids=[])

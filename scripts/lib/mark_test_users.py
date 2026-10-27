@@ -26,3 +26,15 @@ def parse_allowlist(text):
         if line and not line.startswith("#"):
             out.append(line)
     return out
+
+
+def check_signed_off(predicate_ids, signed_ids):
+    """(ok, missing, extra): does the live predicate select exactly the signed-off list?
+    missing = signed but no longer selected; extra = selected now but never signed. Both sorted."""
+    signed = {s for s in signed_ids if s}
+    if not signed:
+        raise ValueError("the signed-off list is empty; refusing to run")
+    live = {p for p in predicate_ids if p}
+    missing = sorted(signed - live)
+    extra = sorted(live - signed)
+    return (not missing and not extra, missing, extra)
