@@ -37,7 +37,15 @@
 const crypto = require('crypto');
 const { logToFile } = require('../utils/logger');
 const { cachedSwitch } = require('./settings/switch-cache');
-const { APP_SETTINGS_FLAG_TTL_MS } = require('../config/app-settings-ttl');
+
+// The app_settings TTL every switch reader uses: 30 s, or APP_SETTINGS_FLAG_TTL_MS (a whole number of ms up to an hour)
+// for a test lane. Read here rather than from a shared config module so this check carries no dependency a branch
+// that receives it as a cherry-pick might not have.
+const SETTINGS_TTL_MS = (() => {
+  const raw = String(process.env.APP_SETTINGS_FLAG_TTL_MS || '').trim();
+  const n = /^\d+$/.test(raw) ? parseInt(raw, 10) : NaN;
+  return Number.isInteger(n) && n > 0 && n <= 3600000 ? n : 30 * 1000;
+})();
 
 const MODES = Object.freeze(['off', 'log', 'enforce']);
 const DEFAULT_MODE = 'log';
@@ -61,7 +69,7 @@ const appSecret = () => String(process.env.WHATSAPP_APP_SECRET || '').trim();
 
 let settingsMode = null; // the last app_settings value read (null: no row, junk, or never read)
 const settingsSwitch = cachedSwitch({
-  ttlMs: APP_SETTINGS_FLAG_TTL_MS,
+  ttlMs: SETTINGS_TTL_MS,
   off: null,
   read: async () => {
     const supabase = require('../config/supabase');
