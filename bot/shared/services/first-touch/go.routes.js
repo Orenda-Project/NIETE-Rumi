@@ -267,7 +267,7 @@ async function teacherPlays(o, d, lang) {
     const { LANGUAGE_OFFER, offerDefaultLanguage } = require('../../config/languages');
     const own = LANGUAGE_OFFER.includes(lang) ? lang : await Targets.storedLang(o.userId);
     const back = typeof d.next === 'string' && d.next.startsWith(Targets.TEACHER_HOME_PATH) ? d.next : null;
-    const path = Practice.homePath({ grade, lang: LANGUAGE_OFFER.includes(own) ? own : offerDefaultLanguage(), back, from: 'door' });
+    const path = Practice.homePath({ grade, lang: LANGUAGE_OFFER.includes(own) ? own : offerDefaultLanguage(), back, from: 'door', teacher: o.userId });
     if (path) event('one_door.practice', { grade, writer: 'role_page' });
     return path;
   } catch (err) {

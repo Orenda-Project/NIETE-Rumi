@@ -3,7 +3,9 @@
  * STORIES — storybooks a child reads with Jugnu (app_settings `web_quiz_stories`, only a literal true; fails closed:
  * off, every answer is 404 `stories_off` and nothing about the child is read).
  *
- *   shelf(token, {kid, g, l, t, device, now})   the books of one grade × language for the child a hub chip names
+ *   shelf(token, {kid, g, l, t, device, now})   the books of one grade × language for the child a hub chip names; `g`
+ *                                               may be several grades or 'all' (then `sel` and `first` say which),
+ *                                               and with no `g` the visitor's own grade(s), else every grade
  *   shelfPublic({g, l})                         the same shelf's covers for anyone (no token, no child data)
  *   book(id, token, {kid, device})              one ready book: pages, words with the voice's timings, questions (no answers)
  *   bookData(id)                                the same payload with no child (the teacher's preview, behind its own token)
@@ -299,25 +301,41 @@ async function doneSet(studentId, bookIds) {
 
 const gradeOf = (v) => { const m = /\d+/.exec(String(v == null ? '' : v)); const g = m ? Number(m[0]) : 0; return GRADES.includes(g) ? g : null; };
 
-/** The ready books of one grade × language in this child's shelf order, and which of them the child finished. */
-async function orderedBooks(studentId, { grade, lang, teacher = [], now = Date.now() }) {
-  const { data } = await supabase.from('story_books').select(BOOK_COLS).eq('status', 'ready').eq('grade', grade).eq('lang', lang);
+/**
+ * The ready books of one grade × language in this child's shelf order, and which of them the child finished.
+ * `grades` (several grades, «All grades»; bd-5gyspy.5): the books of those grades, the teacher's first, then grade by
+ * grade in the order given, each grade in the child's own shelf order.
+ */
+async function orderedBooks(studentId, { grade, grades = null, lang, teacher = [], now = Date.now() }) {
+  const q = supabase.from('story_books').select(BOOK_COLS).eq('status', 'ready');
+  const { data } = await (grades ? q.in('grade', grades) : q.eq('grade', grade)).eq('lang', lang);
   const books = data || [];
   // a preview (no child) has finished nothing, and its events are never read
   const done = studentId ? await doneSet(studentId, books.map((b) => b.id)) : new Set();
-  return { ordered: shelfOrder(books, { childId: studentId, day: pktDay(now), done, teacher }), done };
+  const ordered = shelfOrder(books, { childId: studentId, day: pktDay(now), done, teacher });
+  if (!grades) return { ordered, done };
+  const key = (b) => (teacher.includes(b.id) ? -1 : grades.indexOf(Number(b.grade)));
+  return { ordered: ordered.map((b, i) => [b, i]).sort((x, y) => key(x[0]) - key(y[0]) || x[1] - y[1]).map((x) => x[0]), done };
 }
 
 async function shelf(token, { kid, g, l, t, device, now = Date.now() } = {}) {
   const who = await guard(token, kid, device, 'stories_shelf');
-  // web_quiz_grade_change: with no grade asked, a class child opens at the grade the family chose (off: the hub's, no read)
-  // (a preview opens at its token's grade: there is no family choice to read)
-  const grade = gradeOf(g) || gradeOf(g || who.practice ? who.grade : await require('./web-quiz-grade-change').browseGrade(who)) || 1;
+  // No grade forbids a book (bd-5gyspy.5): `g` is one grade, several ('3,4') or 'all'; with none asked the shelf opens on
+  // the visitor's own grade(s) (GradePick.defaultsOf), and a visitor with no grade at all opens on every grade.
+  // web_quiz_grade_change: a class child's own grade is the one the family chose (off: the hub's, no read); a preview's
+  // are its teacher's taught grades, else its token's grade. A single grade asked reads nothing more (today's answer).
+  const GradePick = require('./web-quiz-grade-pick');
+  const asked = String(g == null ? '' : g).trim();
+  const one = /^\d+$/.test(asked) ? gradeOf(asked) : null;
+  const defaults = one ? [] : await GradePick.defaultsOf(who, who.practice ? null : require('./web-quiz-grade-change').browseGrade(who).then(gradeOf));
+  const p = GradePick.pick(one ? String(one) : asked, defaults.map(String), GRADES.map(String));
+  const sg = GradePick.single(p);
+  const grade = Number(sg || p.grades[0]);
   const lang = clampLanguage(l);
   const teacher = String(t || '').split(',').map((s) => s.trim()).filter((s) => UUID_RX.test(s)).slice(0, MAX_TEACHER);
-  const { ordered, done } = await orderedBooks(who.studentId, { grade, lang, teacher, now });
+  const { ordered, done } = await orderedBooks(who.studentId, { grade, ...(sg ? {} : { grades: p.grades.map(Number) }), lang, teacher, now });
   const out = {
-    grade, lang, grades: GRADES.slice(),
+    grade, lang, grades: GRADES.slice(), ...(sg ? {} : { sel: GradePick.selOf(p, true), first: p.first.map(Number) }),
     books: ordered.map((b, i) => ({
       id: b.id, title: b.title, grade: b.grade, lang: b.lang, dir: b.lang === 'ur' ? 'rtl' : 'ltr', pages: b.pages,
       minutes: b.minutes == null ? null : Number(b.minutes), cover: fileUrl(b.id, b.cover_file),
@@ -337,6 +355,7 @@ async function shelf(token, { kid, g, l, t, device, now = Date.now() } = {}) {
     out.books.forEach((b) => { if (p1.has(b.id)) b.p1 = p1.get(b.id); });
   }
   logEvent('web_quiz.stories_shelf', { g: grade, l: lang, n: out.books.length });
+  GradePick.note('stories', p, lang, out.books.length);
   if (who.practice) require('./web-quiz-practice-play').note('stories_shelf', { grade, lang, n: out.books.length });
   return out;
 }
