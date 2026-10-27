@@ -45,7 +45,7 @@ MARKER="$PEND/$SESSION.json"
 # a session that runs switched off for a day from writing a line every turn.
 if [ "${E2E_AUTORUN_OFF:-}" = "1" ]; then
   if [ -f "$MARKER" ] && [ "$(jq -r '.off_logged // false' "$MARKER" 2>/dev/null)" != "true" ]; then
-    qa_ledger_log "$PROJECT_ROOT" e2e-autorun-stop switch-off E2E_AUTORUN_OFF "$SESSION"
+    qa_ledger_log "$PROJECT_ROOT" e2e-autorun-stop switch-off E2E_AUTORUN_OFF "$SESSION" "$(jq -r '.commit_sha // ""' "$MARKER" 2>/dev/null)"
     TMP="$MARKER.tmp.$$"
     if jq '.off_logged = true' "$MARKER" > "$TMP" 2>/dev/null; then mv "$TMP" "$MARKER" 2>/dev/null || rm -f "$TMP"; else rm -f "$TMP"; fi
   fi
@@ -131,7 +131,8 @@ if [ "$NUDGED" = "true" ]; then
     echo "e2e-autorun-stop: phase 1 still $KIND for [$DETAIL] after $BLOCKS holds — letting the turn end. The Gherkin spec is NOT synced; qa-impact will fail the PR until it is synced or declared (Spec-Sync: trailer)." >&2
     # Once per marker on the ledger: every later turn passes through here again.
     if [ "$(jq -r '.gave_up_logged // false' "$MARKER" 2>/dev/null)" != "true" ]; then
-      qa_ledger_log "${PAYLOAD_CWD:-$PROJECT_ROOT}" e2e-autorun-stop gave-up "" "$KIND $DETAIL after $BLOCKS holds ($(basename "${MARKER%.json}"))"
+      qa_ledger_log "${PAYLOAD_CWD:-$PROJECT_ROOT}" e2e-autorun-stop gave-up "" "$KIND $DETAIL after $BLOCKS holds ($(basename "${MARKER%.json}"))" \
+        "$(jq -r '.commit_sha // ""' "$MARKER" 2>/dev/null)"
       TMP="$MARKER.tmp.$$"
       if jq '.gave_up_logged = true' "$MARKER" > "$TMP" 2>/dev/null; then mv "$TMP" "$MARKER" 2>/dev/null || rm -f "$TMP"; else rm -f "$TMP"; fi
     fi
