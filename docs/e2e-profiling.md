@@ -370,3 +370,20 @@ is the 1 s / 2.5 s polls while the worker runs a coaching pipeline — the poll 
 none arrives until the worker is done — so that time belongs to the worker, not the harness; COA27's 63 s is
 the photo-gate sweep the scenario itself waits for. The honest next step is in the profiler: attribute a sleep
 that overlaps an active worker job (worker.log "Received job" → done) to a `bot.worker` layer.
+
+### Applied (bd-1r3k2h) — the profiler says whose time a driver sleep is
+
+"Driver sleep, 50% of the bar" said nothing about who was waiting for whom. Every driver sleep is now split
+by what the bot was doing during it, read from the bot and worker logs:
+
+| layer | meaning | run 20261027-1051 (coaching, three shards) |
+|---|---|---|
+| `bot.worker` | overlaps a queue-worker job ("Received job" → "Job completed") — the bot's time | 35 s |
+| `driver.idle` | neither bot.log nor worker.log wrote a line: the bot had answered, the driver was waiting out a budget for a message that was not coming — **pure harness cost** | 562 s |
+| `driver.sleep` | the rest (the bot was logging, no queued job) | 32 s |
+
+The Overview has a tile for each. The idle bucket pointed straight at the extension pipeline's tail: after
+the commitment card it polled 30 s for the quiz offer (5 s on the lane) — `E2E_COACHING_POST_REPORT_MS`,
+12 s on the lane. Run `20261027-1138-par`: coaching 2.6 → **2.0 min**, coaching#2 5.5 → **3.9 min**,
+coaching#3 3.5 → **3.2 min** (idle 177 → 87 s, 272 → 147 s, 113 → 96 s), verdicts unchanged. What remains
+idle is COA27's 63 s wait for the photo gate to go stale (the scenario's own design) and the 12 s tail per run.
