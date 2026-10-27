@@ -979,7 +979,7 @@ function isLevelChainLocked(vendor) {
  * ships English/Mathematics/General Science/Computer Science, so a Maths
  * teacher had to grind 55 English modules in fixed order before her own
  * subject opened, and the level exam — which needs every module — never
- * unlocked. Reported against 923455495431 as "Take quiz option is locked".
+ * unlocked. A teacher reported it as "Take quiz option is locked".
  *
  * So the sequencing is now a permission the vendor row grants: 'chain' keeps
  * strict one-at-a-time, anything else opens every module at once. No vendor
