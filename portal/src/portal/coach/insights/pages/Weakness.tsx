@@ -6,14 +6,14 @@ import { coachip } from "../api";
 import { useLoad } from "../useLoad";
 import { InsightsPage, MetaLine, Card } from "../components/Frame";
 import { NoteCard, StateBlock } from "../components/StateBlock";
-import StepCard from "../components/StepCard";
+import StepCard, { openStepFor } from "../components/StepCard";
 import { schoolLine } from "../components/SchoolRow";
 import MethodSheet from "../components/MethodSheet";
 import MomentSlot from "../MomentSlot";
 import { CodeText, CountSpan, DateText, LibraryText, Num, StatSpan } from "../count";
 import { insightsPaths } from "../paths";
 import { pick, t, tx } from "../text";
-import type { WDetail } from "../types";
+import type { Home, WDetail } from "../types";
 
 /**
  * bd-sex15q.15 — S2, one move in one fold (G1): `/w/:wId`, read from `GET /coachip/w/:wId`. Top to bottom: NOTICE, the
@@ -39,21 +39,26 @@ function WeaknessBody() {
   const { wId = "" } = useParams();
   const lang = useLang();
   const { data, error } = useLoad<WDetail>(() => coachip.w(wId), [wId]);
+  // fix-r5 s2 item 8 (qa-coach 073256): S1's read, for the moves' real count (the app bar's "of m") and the coach's open
+  // step on this move (the card's done form when R3 has no code left). Until it answers, or if it fails, the app bar
+  // says nothing rather than a count it cannot back, and the step card behaves as before.
+  const home = useLoad<Home>(() => coachip.home(), []).data;
   const card = data?.card;
+  const m = home ? home.moves.length : 0;
   return (
     <InsightsPage
       testId="insights-w"
       backTo={insightsPaths.thisWeek}
       title={card ? pick(card.short_name, lang) : ""}
-      crumb={card ? <span data-nonum="">{t("s2.appbar.sub", lang, { k: card.rank, m: 2 })}</span> : null}
+      crumb={card && m >= card.rank ? <span data-nonum="">{t("s2.appbar.sub", lang, { k: card.rank, m })}</span> : null}
       windows={data?.windows}
     >
-      {!data || !card ? <StateBlock error={error} /> : <Fold d={data} />}
+      {!data || !card ? <StateBlock error={error} /> : <Fold d={data} home={home} />}
     </InsightsPage>
   );
 }
 
-function Fold({ d }: { d: WDetail }) {
+function Fold({ d, home }: { d: WDetail; home: Home | null }) {
   const lang = useLang();
   const card = d.card;
   const insufficient = card.status === "insufficient";
@@ -101,7 +106,7 @@ function Fold({ d }: { d: WDetail }) {
         </section>
       )}
 
-      <StepCard detail={d} />
+      <StepCard detail={d} openStep={openStepFor(card.w_id, home?.steps)} />
 
       {(d.split.length > 0 || card.cause) && (
         <Card testId="w-split">
