@@ -191,6 +191,12 @@
       };
       mr.onstop = function () {
         var dur = Math.round(now() - c.t0);
+        if (c.discard) {
+          // round 7b (discard): no final marker, and the chunks leave the phone, so the sync never uploads this one
+          c.writes = c.writes.then(function () { return o.store.dropChunks ? o.store.dropChunks(o.session_id, taskId) : null; })
+            .then(null, function () { return null; }).then(function () { c.resolve(null); });
+          return;
+        }
         c.writes = c.writes.then(function () {
           // The closing marker: no audio of its own, it tells the sync the file is whole.
           return o.store.putChunk(o.session_id, taskId, c.part, null, { mime: type.mimeType, ext: type.ext, final: true, duration_ms: dur });
@@ -210,6 +216,17 @@
       return c.done;
     }
 
+    /** Round 7b (sa_silence_repeat): end the recording without keeping it (a silent attempt). → Promise<null>. */
+    function discard() {
+      endWatches();
+      if (!cur) return Promise.resolve(null);
+      var c = cur;
+      cur = null;
+      c.discard = true;
+      try { c.mr.stop(); } catch (_) { c.resolve(null); }
+      return c.done;
+    }
+
     function release() {
       endWatches();
       if (root.removeEventListener) root.removeEventListener('pointerdown', wake, true);
@@ -220,7 +237,7 @@
       stream = null;
     }
 
-    var api = { supported: function () { return !!type; }, type: function () { return type; }, ready: ready, start: start, stop: stop, release: release, recording: function () { return !!cur; }, onSilence: onSilence, onVoice: onVoice, wake: wake,
+    var api = { supported: function () { return !!type; }, type: function () { return type; }, ready: ready, start: start, stop: stop, discard: discard, release: release, recording: function () { return !!cur; }, onSilence: onSilence, onVoice: onVoice, wake: wake,
       /** 'running' | 'unavailable' (the last watch's ear), null before any watch. */
       ear: function () { return earState; } };
     last = api;

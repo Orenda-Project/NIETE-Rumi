@@ -398,6 +398,45 @@ async function listSaSessions({ mark, coachUserId = null, allCoaches = false } =
   return { ok: true, sessions: data || [] };
 }
 
+/**
+ * How each session's child came onto the list, by session id, IN_BATCH ids at a time: the dashboard's added-vs-drawn
+ * breakdown (sa_dash_filters). A child added on the spot has a draw with algo_version ctd-added-on-spot-v1 /
+ * seed_digest 'added' (draw/index.js addChild); every other draw is the random draw's. The draw ids stay in here:
+ * the answer is { sessionId, algo_version, seed_digest } only.
+ */
+async function getSessionDrawOrigins(sessionIds = []) {
+  const drawOf = new Map();
+  for (let i = 0; i < sessionIds.length; i += IN_BATCH) {
+    const { data, error } = await supabase.from(SESSIONS).select('id, draw_id').in('id', sessionIds.slice(i, i + IN_BATCH));
+    if (error) return fail('getSessionDrawOrigins', error, { n: sessionIds.length });
+    for (const r of data || []) if (r.draw_id) drawOf.set(r.id, r.draw_id);
+  }
+  const drawIds = [...new Set(drawOf.values())];
+  const made = new Map();
+  for (let i = 0; i < drawIds.length; i += IN_BATCH) {
+    const { data, error } = await supabase.from('child_test_draws').select('id, algo_version, seed_digest').in('id', drawIds.slice(i, i + IN_BATCH));
+    if (error) return fail('getSessionDrawOrigins', error, { n: drawIds.length });
+    for (const r of data || []) made.set(r.id, r);
+  }
+  const origins = [];
+  for (const [sessionId, drawId] of drawOf) {
+    const m = made.get(drawId);
+    if (m) origins.push({ sessionId, algo_version: m.algo_version || null, seed_digest: m.seed_digest || null });
+  }
+  return { ok: true, origins };
+}
+
+/** Coaches' names (users.name) by id, IN_BATCH ids at a time: the dashboard's coach filter (sa_dash_filters). Staff only. */
+async function getUserNamesByIds(ids = []) {
+  const out = [];
+  for (let i = 0; i < ids.length; i += IN_BATCH) {
+    const { data, error } = await supabase.from('users').select('id, name').in('id', ids.slice(i, i + IN_BATCH));
+    if (error) return fail('getUserNamesByIds', error, { n: ids.length });
+    out.push(...(data || []));
+  }
+  return { ok: true, users: out };
+}
+
 /** Every block row of these sessions, read IN_BATCH ids at a time. */
 async function listBlocksForSessions(sessionIds = []) {
   const out = [];
@@ -588,6 +627,8 @@ module.exports = {
   listSaSessions,
   listBlocksForSessions,
   getSchoolsByIds,
+  getUserNamesByIds,
+  getSessionDrawOrigins,
   // the draw's own reads and writes (draw/index.js)
   getDraw,
   listSchoolDraws,

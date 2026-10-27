@@ -24,12 +24,16 @@ const MODES = ['tap', 'keypad', 'keyboard', 'record', 'oral'];
 const DEVICE_FIELDS = ['ua', 'bundle_v', 'offline', 'skew_ms', 'mic_ok', 'mic_rms', 'persisted', 'voice'];
 // the ruling events a session keeps (device.events); past the cap the oldest are kept
 const MAX_KEPT_EVENTS = 200;
+// round 7b: a skip or stop (sa-api.service.js STOP_TYPES) is never dropped by the cap — the dashboard audits them
+const AUDIT = new Set(['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on']);
 
 function keepEvents(had, events) {
   const list = Array.isArray(had) ? had.slice() : [];
   const seen = new Set(list.map((e) => e.seq));
   for (const e of events) if (!seen.has(e.seq)) { seen.add(e.seq); list.push(e); }
-  return list.sort((x, y) => x.seq - y.seq).slice(0, MAX_KEPT_EVENTS);
+  const sorted = list.sort((x, y) => x.seq - y.seq);
+  const kept = new Set(sorted.filter((e) => !AUDIT.has(e.type)).slice(0, MAX_KEPT_EVENTS));
+  return sorted.filter((e) => AUDIT.has(e.type) || kept.has(e));
 }
 
 function fail(where, error, extra) {
@@ -213,6 +217,48 @@ function audioWaiting(r) {
   return !(r.response_mode === 'oral' && result.attempted === 0);
 }
 
+// Round 7b (sa_end_test_restart): a restarted child's ended attempt, set aside on the same session (one session per drawn
+// child: child_test_sessions.draw_id is unique). Its rows are renamed zz.r<n>_<task> (sa/set-aside.js: still a valid block
+// name for the DB's CHECK); every task reader leaves them out, the scorer (ai_reason not final:sa_*) and the recovery sweep
+// (final:*) pass them over.
+const { isSetAside, setAsideName, attemptOf } = require('./sa/set-aside');
+const TASK_ROW = /^[a-z]{2}\.[a-z0-9_]{1,40}$/;
+
+/**
+ * A new attempt for a child the coach ended early (Restart test): the ended attempt's rows set aside (renamed; an unscored
+ * one parked final:restarted, never scored), its kept events moved below one `restart` event (seq -1; the new attempt's
+ * phone events start at 0), and the session takes the phone's new id and block. → { ok, attempt } (attempt = 1, 2 …).
+ */
+async function restartAttempt(sessionId, { clientSessionId, block = null, at = new Date().toISOString() } = {}) {
+  const got = await supabase.from(SESSIONS).select('id, client_session_id, status, device').eq('id', sessionId).limit(1);
+  if (got.error) return fail('restartAttempt', got.error, { sessionId });
+  const s = (got.data || [])[0];
+  if (!s) return { ok: false, reason: 'no_session' };
+  const rows = await supabase.from(BLOCKS).select('id, block, ai_marks').eq('session_id', sessionId);
+  if (rows.error) return fail('restartAttempt', rows.error, { sessionId });
+  const dev = { ...(s.device || {}) };
+  const had = Array.isArray(dev.events) ? dev.events.slice().sort((x, y) => x.seq - y.seq) : [];
+  const before = Math.max(had.filter((e) => e.type === 'restart').length,
+    ...(rows.data || []).map((r) => attemptOf(r.block)));
+  const attempt = before + 1;
+  for (const r of (rows.data || []).filter((x) => TASK_ROW.test(String(x.block)) && !isSetAside(x.block))) {
+    // the name first (never refused); then, only while no marks are written, the row is parked so nothing scores it
+    // eslint-disable-next-line no-await-in-loop
+    let { error } = await supabase.from(BLOCKS).update({ block: setAsideName(attempt, r.block), updated_at: new Date().toISOString() }).eq('id', r.id);
+    if (error) return fail('restartAttempt', error, { sessionId, blockId: r.id });
+    // eslint-disable-next-line no-await-in-loop
+    ({ error } = await supabase.from(BLOCKS).update({ ai_status: 'failed', ai_reason: 'final:restarted' }).eq('id', r.id).is('ai_marks', null));
+    if (error) return fail('restartAttempt', error, { sessionId, blockId: r.id });
+  }
+  const moved = had.map((e, i) => ({ ...e, seq: i - had.length - 1 }));
+  dev.events = moved.concat([{ seq: -1, type: 'restart', task_id: null, at, data: { by: 'coach', prev: s.client_session_id || null, attempt } }]);
+  delete dev.last_seq;
+  if (block) dev.block = block; else delete dev.block;
+  const { error } = await supabase.from(SESSIONS).update({ device: dev, client_session_id: clientSessionId || null }).eq('id', sessionId);
+  if (error) return fail('restartAttempt', error, { sessionId });
+  return { ok: true, attempt };
+}
+
 async function summary(sessionId) {
   const [sess, blocks] = await Promise.all([
     getSession(sessionId),
@@ -220,7 +266,7 @@ async function summary(sessionId) {
   ]);
   if (!sess.ok) return sess;
   if (blocks.error) return fail('summary', blocks.error, { sessionId });
-  const rows = blocks.data || [];
+  const rows = (blocks.data || []).filter((r) => !isSetAside(r.block));
   const dev = (sess.session && sess.session.device) || {};
   return {
     ok: true,
@@ -232,4 +278,4 @@ async function summary(sessionId) {
   };
 }
 
-module.exports = { PARKED, PHONE_SCORER, phoneMarks, findByClient, setClient, setBlock, markSynced, putResults, setAudio, summary };
+module.exports = { PARKED, PHONE_SCORER, phoneMarks, findByClient, setClient, setBlock, markSynced, putResults, setAudio, summary, restartAttempt, __internals: { keepEvents } };

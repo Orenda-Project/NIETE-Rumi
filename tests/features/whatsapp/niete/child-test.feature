@@ -871,3 +871,121 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Given sa_any_school names my user id
     Then a list asked for at a probable test school or a closed school is still not found
     And a practice-only coach still sees their practice schools only
+
+  # ── Round 7b (27 Oct tester list): every skip and stop is recorded ─────────────────────────────────────────
+  @e2e @wip @draft @config-gated @P1 @CT100
+  Scenario: Every skip and stop is one event record on the session
+    Given a coach's Learning assessment session is running
+    When the child or the coach goes Back, ends a section, ends the test, restarts the child, or the app repeats a silent section or moves a child on under 20%
+    Then the session keeps one event of that type (back, end_section, end_test, restart, silence_repeat, under20_move_on) with its subtask and time
+    And no such event is ever dropped by the kept-events cap
+
+  @e2e @wip @draft @config-gated @P1 @CT101
+  Scenario: With sa_dash_filters on, the results dashboard's read carries each session's mode, coach and stops
+    Given sa_dash_filters is on
+    When the results dashboard reads the sessions
+    Then each session says coach-led (RDF manual) or auto, its block, its coach's id and name, when it started, and its skips and stops
+    And a session with a stop but no task yet comes back apart, for the stops view only
+    And no child's name, student id or draw id is in the answer
+
+  @e2e @wip @draft @config-gated @P1 @CT102
+  Scenario: With sa_dash_filters on, each session says whether its child came from the random draw or was added
+    Given sa_dash_filters is on
+    When the results dashboard reads the sessions
+    Then each session says drawn or added (a child added with "Add a child" has an on-the-spot draw), read once for all sessions
+    And the stops include the completion rule's "incomplete_move_on" and any earlier "under20_move_on"
+    And the draw ids never leave the bot
+
+  # ── Round 7b · A · the child's screens (back, audio-gated Next, story arrow, instructions, tick prompt, T) ──
+  @e2e @wip @draft @config-gated @P1 @CT101
+  Scenario: Back on the item screens, in RDF auto and RDF manual, replaces the answer
+    Given sa_back_button is on and a child is on the second letter of a part shown one at a time
+    When the child presses Back
+    Then the letter before shows again, the part's clock keeps running, and its new pass replaces the old one
+    And the session keeps one back event with its subtask, who pressed it, and from and to
+    And there is no Back on the first letter, on the story, or into another part
+
+  @e2e @wip @draft @config-gated @P1 @CT102
+  Scenario: Next waits until Jugnu has finished the instructions
+    Given sa_audio_gated_next is on and a part's instructions are playing in RDF auto
+    Then Next (and Go on the Ready screen) cannot be pressed until Jugnu stops
+    And if the voice never ends, Next works after 30 seconds
+
+  @e2e @wip @draft @config-gated @P1 @CT103
+  Scenario: The instructions say "say it, then press Next" (or Done), in Urdu and English
+    Given sa_say_then_next is on
+    Then a part read one at a time says and shows "Say each one out loud, then press Next" after its own instructions
+    And the story questions say and show "Say your answer out loud, then press Done"
+    And the same words stay under the item while the child answers
+
+  @e2e @wip @draft @config-gated @P1 @CT104
+  Scenario: The story shows a down arrow while more of it is below
+    Given sa_story_scroll is on and the story is longer than the phone's screen
+    Then the story's instructions tell the child to slide the page up to read all of it
+    And an arrow under the story shows while more is below, and goes at the end
+
+  @e2e @wip @draft @config-gated @P1 @CT105
+  Scenario: Missing number (typed): the instructions say to press the tick
+    Given sa_tick_prompt is on and a Grade 4 or 5 child reaches the missing-number part
+    Then the instructions say and show "Type the number, then press the tick ✓"
+
+  @e2e @wip @draft @config-gated @P1 @CT106
+  Scenario: The English letter sound of T is "ta"
+    Given sa_t_sound_ta is on
+    Then Jugnu says "ta" for T in the English letter sounds, on the English and the Urdu page
+
+
+
+  # ── Round 7b · B · the coach's controls and the auto stop-checks ─────────────────────────────────────────
+  @e2e @wip @draft @config-gated @P1 @CT101
+  Scenario: The coach's End test is a tap and a question, and the ended child can be restarted
+    Given sa_end_test_restart is on and a child is taking the Learning assessment (RDF auto or RDF manual)
+    When the coach taps "End test (coach)" in the corner
+    Then a question asks to end the child's test, with "End test" and "Keep going"
+    When the coach taps "End test"
+    Then the coach is back on the list, the child reads "Stopped" with a "Restart test" button, and one end_test event is kept
+    When the coach taps "Restart test" and starts again
+    Then a new attempt opens for the same child with a new phone id, the ended attempt is set aside (never scored, never on Results), and one restart event is kept
+
+  @e2e @wip @draft @config-gated @P1 @CT102
+  Scenario: Coach-led End this section skips to the next section
+    Given sa_end_section is on and a child is taking RDF manual
+    When the coach taps "End this section" and confirms
+    Then the part on show ends as end_section, the rest of its section is skipped (skipped_end_section), and the test goes on at the next section (Urdu, then English, then maths)
+    And one end_section event is kept
+
+  @e2e @wip @draft @config-gated @P1 @CT103
+  Scenario: RDF auto, no voice heard on a read-aloud part: a reminder and one repeat
+    Given sa_silence_repeat is on and a child is taking RDF auto with a working microphone
+    When a read-aloud part ends with no voice heard
+    Then Jugnu says (and the screen shows) to say each answer out loud, with "Try again"
+    And the part runs once more from its start; the silent recording is never uploaded; one silence_repeat event is kept
+    And a second silent attempt ends as before
+
+  @e2e @wip @draft @config-gated @P1 @CT104
+  Scenario Outline: RDF auto, a part the child does not finish: move on to the next subject
+    Given sa_incomplete_move_on is on and a child is taking RDF auto
+    When the child leaves "<part>" unfinished because <why>
+    Then the rest of that subject is skipped (skipped_incomplete, shown as not taken) and the next subject starts (Urdu, then English, then maths); after maths the test ends
+    And one incomplete_move_on event is kept with the subject, the reason "<reason>", how far the child got and the part's length
+    Examples:
+      | part                       | why                                               | reason          |
+      | letter names (one at a time) | the time ran out before Next past the last letter | time_up         |
+      | familiar words             | "I'm done" was pressed before the last word         | stopped_early   |
+      | the story                  | the time ran out                                    | time_up         |
+      | the story                  | the last word tapped is before the end              | last_word_early |
+      | the story                  | no voice was heard for 20 seconds                   | silence         |
+      | addition                   | the time ran out before the last sum                | time_up         |
+      | number identification      | EGMA's stop rule ended it                           | stop_rule       |
+      | maths spoken questions     | a question ran out of time with no answer           | time_up         |
+
+  @e2e @wip @draft @negative @config-gated @P1 @CT104
+  Scenario: RDF auto, a finished part, a coach's stop, or the switch off: no move-on
+    Given a child is taking RDF auto
+    When a part is finished (every item reached, right or wrong; or "I'm done" on the story with no last-word step)
+    Then the next part of the same subject follows and no incomplete_move_on event is kept
+    And the last part of a subject left unfinished moves on as usual, with no event (nothing is skipped)
+    And the coach's End test or End this section is never this rule
+    And with sa_incomplete_move_on off, or in RDF manual, the runner moves on as before
+
+

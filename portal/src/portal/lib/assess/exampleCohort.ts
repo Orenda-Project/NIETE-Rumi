@@ -1,4 +1,4 @@
-import type { SaResults, SaTaskResult } from '../../types/childTestSa';
+import type { SaResults, SaTaskResult, SaStop } from '../../types/childTestSa';
 
 /**
  * The example dashboard's 1,000 synthetic students (sandbox only, switch sa_example_dashboard).
@@ -63,6 +63,14 @@ export type DashStudent = {
   /** null on real data until the roster records it */
   gender: Gender | null;
   results: SaResults;
+  /** live data with sa_dash_filters (round 7b): coach-led or auto, the coach, the start and the session's skips/stops */
+  mode?: 'coach_led' | 'auto';
+  coachId?: string | null;
+  coachName?: string | null;
+  startedAt?: string | null;
+  stops?: SaStop[];
+  /** item 15: from the random draw, or added by the coach */
+  origin?: 'drawn' | 'added' | null;
 };
 
 /** mulberry32: a small seeded generator, enough for example data. */

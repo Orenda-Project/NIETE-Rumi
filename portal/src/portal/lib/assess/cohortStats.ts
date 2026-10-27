@@ -1,5 +1,6 @@
 import type { SaTaskResult } from '../../types/childTestSa';
 import { TASKS, type DashStudent, type ReadLang, type TaskSpec } from './exampleCohort';
+import { pktDay } from './realCohort';
 
 /**
  * The example dashboard's numbers, from the results shape alone (SaTaskResult), so real sessions feed the same code.
@@ -25,13 +26,22 @@ export type Filter = {
   schoolId?: string | null;
   grade?: 1 | 2 | 3 | 4 | 5 | null;
   gender?: 'girl' | 'boy' | null;
+  /** live data with sa_dash_filters (round 7b): coach-led or auto, one coach, and Pakistan days from–to (YYYY-MM-DD) */
+  mode?: 'coach_led' | 'auto' | null;
+  coachId?: string | null;
+  from?: string | null;
+  to?: string | null;
 };
 
 export function applyFilter(students: DashStudent[], f: Filter): DashStudent[] {
   return students.filter((s) => (!f.sector || s.sector === f.sector)
     && (!f.schoolId || s.schoolId === f.schoolId)
     && (!f.grade || s.grade === f.grade)
-    && (!f.gender || s.gender === f.gender));
+    && (!f.gender || s.gender === f.gender)
+    && (!f.mode || s.mode === f.mode)
+    && (!f.coachId || s.coachId === f.coachId)
+    && (!f.from || pktDay(s.startedAt) >= f.from)
+    && (!f.to || (pktDay(s.startedAt) !== '' && pktDay(s.startedAt) <= f.to)));
 }
 
 export function specOf(taskId: string): TaskSpec | undefined {

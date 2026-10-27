@@ -43,6 +43,14 @@ export type SaSwitches = {
   realDashboard?: boolean;
   /** sa_review_page: the visit review, one session item by item with a reviewer's mark per item */
   reviewPage?: boolean;
+  /** sa_end_test_restart: the corner End test works; an ended child stays on the list with Restart test */
+  endTestRestart?: boolean;
+  /** sa_end_section: coach-led (RDF manual) End this section skips to the next section */
+  endSection?: boolean;
+  /** sa_dash_filters: the dashboard's mode / date / coach filters and every skip and stop by type and coach */
+  dashFilters?: boolean;
+  /** sa_cwpm: every words-per-minute number is labelled CWPM (correct words per minute), with its formula */
+  cwpm?: boolean;
 };
 
 /** One drawn child. Never a roll number or student id (operator: "Name · Grade 3 - A · Teacher: …"). */
@@ -130,6 +138,19 @@ export type SaResults = {
   tasks: SaTaskResult[];
 };
 
+/** The six skips and stops the dashboard audits (round 7b; the bot's STOP_TYPES). */
+export type SaStopType = "back" | "end_section" | "end_test" | "restart" | "silence_repeat" | "incomplete_move_on" | "under20_move_on";
+
+/** One skip or stop kept on a session (sa_dash_filters): its subtask, when (the phone's clock) and who did it. */
+export type SaStop = {
+  type: SaStopType | (string & {});
+  taskId: string | null;
+  at: string | null;
+  /** child, coach or app */
+  by: string | null;
+  data: Record<string, unknown> | null;
+};
+
 /** One session on the results dashboard (GET …/sa/sessions, switch sa_real_dashboard): its school, sub-region and results. No names. */
 export type SaDashboardSession = {
   schoolId: string | null;
@@ -138,6 +159,15 @@ export type SaDashboardSession = {
   sector: string | null;
   grade: number;
   results: SaResults;
+  /** sa_dash_filters (round 7b): coach-led (RDF manual) or auto (every other block), the block, the coach (staff, never a child), the start and every skip/stop */
+  mode?: "coach_led" | "auto";
+  block?: string | null;
+  coachId?: string | null;
+  coachName?: string | null;
+  startedAt?: string | null;
+  stops?: SaStop[];
+  /** item 15: the child came from the system's random draw, or was added on the spot ("Add a child"); null when unknown */
+  origin?: "drawn" | "added" | null;
 };
 
 /** A mark of one scoring agent (or their consensus): correct, wrong, no response, silent. */

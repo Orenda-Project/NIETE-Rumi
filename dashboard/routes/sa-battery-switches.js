@@ -31,6 +31,20 @@
  *                           ON, each adds battery.ui.<one_at_a_time|passage_punct|rdf_manual> = true for the engine;
  *                           all three OFF, the battery has no ui key, byte for byte as before.
  *
+ *   Round 7b (the tester's 27 Oct list), one per item, each ON adds battery.ui.<flag> = true for the engine:
+ *   sa_back_button          item 1: a Back button on the child's item screens, both modes; the new answer replaces the old.
+ *   sa_end_test_restart     item 2: the coach's corner End test works; the child stays on the list with Restart test.
+ *   sa_end_section          item 3: coach-led (RDF manual): End this section skips to the next section, the test goes on.
+ *   sa_silence_repeat       item 4: RDF auto, no sound heard: Jugnu reminds the child to answer out loud, one repeat.
+ *   sa_incomplete_move_on   item 5 (the tester's final rule): RDF auto, a part the child did not finish skips the rest of
+ *                           its subject; the child goes on to the next subject (Urdu → English → maths).
+ *   sa_t_sound_ta           item 6: the English letter sound of T says "ta".
+ *   sa_say_then_next        item 7: the instructions say: say the answer (or press the button), then press Next.
+ *   sa_story_scroll         item 8: the story shows a down arrow while there is more text; the instructions say so.
+ *   sa_audio_gated_next     item 9: Next works only once Jugnu's instructions have played in full.
+ *   sa_tick_prompt          item 10: the missing-number instructions say to press the tick after typing the number.
+ *   Every skip and stop is one kept event on the session (bot sa-api.service.js STOP_TYPES).
+ *
  * Pure: applySwitches(battery, on) never changes its input.
  */
 const SWITCHES = {
@@ -42,12 +56,28 @@ const SWITCHES = {
   appAsks: 'sa_app_asks',
   urFit: 'sa_ur_fit',
   autoNoLastWord: 'sa_auto_no_last_word',
+  // round 7b
+  backButton: 'sa_back_button', endTestRestart: 'sa_end_test_restart', endSection: 'sa_end_section',
+  silenceRepeat: 'sa_silence_repeat', incompleteMoveOn: 'sa_incomplete_move_on', tSoundTa: 'sa_t_sound_ta',
+  sayThenNext: 'sa_say_then_next', storyScroll: 'sa_story_scroll', audioGatedNext: 'sa_audio_gated_next',
+  tickPrompt: 'sa_tick_prompt',
 };
 const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManual: 'rdf_manual', voiceGateV2: 'voice_gate_v2',
   compAllQuestions: 'comp_all_questions', cellPace: 'cell_pace',
   sectionRecording: 'section_recording', coachLastWord: 'coach_last_word', cellNextOnly: 'cell_next_only',
-  autoChildLastWord: 'auto_child_last_word', appAsks: 'app_asks', urFit: 'ur_fit', autoNoLastWord: 'auto_no_last_word' };
+  autoChildLastWord: 'auto_child_last_word', appAsks: 'app_asks', urFit: 'ur_fit', autoNoLastWord: 'auto_no_last_word',
+  backButton: 'back_button', endTestRestart: 'end_test_restart', endSection: 'end_section', silenceRepeat: 'silence_repeat',
+  incompleteMoveOn: 'incomplete_move_on', tSoundTa: 't_sound_ta', sayThenNext: 'say_then_next', storyScroll: 'story_scroll',
+  audioGatedNext: 'audio_gated_next', tickPrompt: 'tick_prompt' };
+const { applyR7a } = require('./sa-r7a-content');
+
 const W3_KEYS = ['rdf_auto', 'rdf_manual', 'rdf_variants', 'rdf_w3_absent'];
+// Round 7b (sa_silence_repeat): Jugnu's reminder, voiced in both sets (dashboard/sa/v1|v2/<lang>/<key>.mp3, keyed as the bank
+// builder keys a line: sha1(lang|text)[:12]); added to the battery's lines while the switch is ON.
+const SILENCE_LINE = {
+  en: { text: 'Jugnu could not hear you. Say each answer out loud. Let us do this part again.', audio: 'sa/v1/en/90d23fdca65f.mp3' },
+  ur: { text: 'جگنو آپ کی آواز نہیں سن سکا۔ ہر جواب اونچی آواز میں بولیں۔ آئیے یہ حصہ دوبارہ کرتے ہیں۔', audio: 'sa/v1/ur/dc59290fb3f6.mp3' },
+};
 const W3_LINES = ['coach_will_instruct', 'please_go_on'];
 
 /** OFF: the battery less everything the W3 forms added. */
@@ -77,8 +107,12 @@ function applySwitches(input, on = {}) {
     return o;
   });
   const ui = Object.keys(UI).filter((k) => on[k] === true);
-  if (!ui.length) return { ...battery, tasks };
-  return { ...battery, tasks, ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => [UI[k], true])) } };
+  // round 7b, the child's screens: the lines and the T clip their switches add (sa-r7a-content.js); none when OFF
+  if (!ui.length) return applyR7a({ ...battery, tasks }, on);
+  // round 7b, sa_silence_repeat: Jugnu's reminder line in the battery's own language
+  const line = on.silenceRepeat === true ? SILENCE_LINE[battery.lang] : null;
+  const lines = line ? { ...(battery.lines || {}), silence_repeat: { ...line } } : null;
+  return applyR7a({ ...battery, tasks, ...(lines ? { lines } : {}), ui: { ...(battery.ui || {}), ...Object.fromEntries(ui.map((k) => [UI[k], true])) } }, on);
 }
 
 module.exports = { SWITCHES, applySwitches };

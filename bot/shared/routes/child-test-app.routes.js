@@ -45,7 +45,7 @@ const ROUTES = {
   // the Learning assessment (self-administered battery): services/child-test/app/sa-api.service.js
   '/sa/schools': ['listSchools', ['userId'], 'sa-api.service'],
   '/sa/list': ['dayList', ['userId', 'schoolId', 'visitId', 'grade'], 'sa-api.service'],
-  '/sa/outcome': ['dayOutcome', ['userId', 'schoolId', 'visitId', 'drawId', 'outcome', 'note', 'clientSessionId', 'block', 'repick', 'grade'], 'sa-api.service'],
+  '/sa/outcome': ['dayOutcome', ['userId', 'schoolId', 'visitId', 'drawId', 'outcome', 'note', 'clientSessionId', 'block', 'repick', 'grade', 'restart'], 'sa-api.service'],
   // a child added on the spot (sa_add_child); the name goes to the roster, never to a log
   '/sa/child': ['addChild', ['userId', 'schoolId', 'visitId', 'grade', 'listGrade', 'firstName', 'section', 'clientChildId'], 'sa-api.service'],
   '/sa/battery': ['saBattery', ['userId', 'sessionId', 'lang', 'full'], 'sa-api.service'],

@@ -1345,7 +1345,7 @@ export const childTestSa = {
   getList: async (schoolId: string, visitId?: string | null, grade?: number): Promise<{ list: SaList }> =>
     (await api.get(`${CTS}/list`, { params: { schoolId, ...(visitId ? { visitId } : {}), ...(grade ? { grade } : {}) } })).data,
 
-  markOutcome: async (args: { schoolId: string; visitId?: string | null; drawId: string; outcome: SaOutcome; note?: string; clientSessionId?: string; block?: SaBlock; repick?: boolean; grade?: number }):
+  markOutcome: async (args: { schoolId: string; visitId?: string | null; drawId: string; outcome: SaOutcome; note?: string; clientSessionId?: string; block?: SaBlock; repick?: boolean; grade?: number; restart?: boolean }):
     Promise<{ sessionId?: string; list?: SaList | null; block?: SaBlock }> => {
     const { visitId, ...rest } = args;
     return (await api.post(`${CTS}/outcome`, visitId ? { ...rest, visitId } : rest)).data;
@@ -1360,7 +1360,8 @@ export const childTestSa = {
     (await api.get(`${CTS}/session/${encodeURIComponent(sessionId)}/results`)).data,
 
   /** The results dashboard's sessions: this coach's, or every coach's for a results admin (switch sa_real_dashboard). */
-  getSessions: async (): Promise<{ sessions: SaDashboardSession[] }> =>
+  /** stopSessions (sa_dash_filters only): sessions with a skip/stop but no task yet, for the stops view, never the results. */
+  getSessions: async (): Promise<{ sessions: SaDashboardSession[]; stopSessions?: SaDashboardSession[] }> =>
     (await api.get(`${CTS}/sessions`)).data,
 
   /** The visit review of one session (switch sa_review_page: 404 when off or not this coach's session). */
