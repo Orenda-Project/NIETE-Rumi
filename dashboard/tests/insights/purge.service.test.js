@@ -184,6 +184,19 @@ describe('runPurge', () => {
     expect(out).toMatchObject({ dry_run: true, sessions_listed: 2, sessions_purged: 1, objects_deleted: 0, objects_to_delete: 3, moments_expired: 0, moments_to_expire: 2 });
   });
 
+  test('the audit row is written before anything is deleted: when it cannot be written (V1.8.2 not applied), nothing goes', async () => {
+    const store = seed();
+    const insert = store.insert.bind(store);
+    store.insert = async (table, list) => {
+      if (table === 'coachip_audit_log') throw new Error('insert coachip_audit_log: invalid input value for enum coachip_audit_action');
+      return insert(table, list);
+    };
+    const s3 = r2({ 'rumi-sandbox': clipsOf('sandbox', OLD) });
+    await expect(purge.runPurge(base({ s3, store, today: day(CLOSE_OLD, 57) }))).rejects.toThrow(/coachip_audit_log/);
+    expect(s3.calls.filter((c) => c[0] === 'delete')).toEqual([]);
+    expect(store.rows('coachip_moments').every((m) => m.clip_status === 'ready')).toBe(true);
+  });
+
   test('a failed delete leaves that session\'s moments as they were, to be tried again the next night', async () => {
     const store = seed();
     const s3 = r2({ 'rumi-sandbox': clipsOf('sandbox', OLD) });

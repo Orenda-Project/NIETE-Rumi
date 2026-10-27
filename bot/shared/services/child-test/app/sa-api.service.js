@@ -63,6 +63,7 @@ const anySchool = require('./any-school-switch');
 const endTestRestart = require('./end-test-restart-switch');
 const dashFilters = require('./dash-filters-switch');
 const { lastWordIndex } = require('../sa/last-word-hint');
+const { isSetAside } = require('../sa/set-aside');
 const { MEDIA, envSegment, __internals: { guarded: gate, rows, ownVisit, ownSession, gradeOf } } = require('./app-api.service');
 
 /** Every handler of the coach app's Learning assessment may run for a practice-only coach (d.practiceSchools). */
@@ -440,7 +441,7 @@ const RDF_W3 = ['rdf_auto', 'rdf_manual'];
 const TIMED = ['session_start', 'audio_check', 'task_start', 'task_end', 'handover_in', 'handover_out', 'coach_unlock', 'reload_resume', 'battery_end'];
 // the events the session keeps as they are (device.events): what the timings cannot say
 // Round 7b: every skip and stop, one record each (the session, child and coach are the session row's; task_id the subtask).
-const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'under20_move_on'];
+const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on'];
 const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', ...STOP_TYPES];
 const MAX_EVENT_DATA = 300; // characters of JSON
 
@@ -820,7 +821,8 @@ async function resultsOf(sessionId, d, session, bank, stops = false) {
 
 /** resultsOf on rows already read (the dashboard reads every session's rows at once). */
 function shapeResults(session, rowsIn, bank, stops = false) {
-  const blocks = (rowsIn || []).filter((r) => TASK_RE.test(String(r.block || ''))).sort(byWhen);
+  // round 7b: a restarted child's ended attempt (set aside on the session) is never on Results or the dashboard
+  const blocks = (rowsIn || []).filter((r) => TASK_RE.test(String(r.block || '')) && !isSetAside(r.block)).sort(byWhen);
   const lang = (blocks.find((r) => LANGS.includes(r.lang)) || {}).lang || null;
   // each task's own name from the battery ({ en, ur }), so the page never heads a card with a code
   const f = formOf(bank, session);

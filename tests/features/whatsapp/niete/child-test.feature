@@ -964,11 +964,29 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And a second silent attempt ends as before
 
   @e2e @wip @draft @config-gated @P1 @CT104
-  Scenario: RDF auto, under 20% on a part: move on to the next section
-    Given sa_under20_move_on is on and a child is taking RDF auto
-    When a tapped part ends with under 20% right, or a read-aloud part ends with under 20% of its items reached (Next presses, or the last-word tap)
-    Then the rest of that section is skipped (skipped_under20) and the child goes on to the next section; after maths the test ends
-    And one under20_move_on event is kept with the section, the reach and the basis
-    And a part whose reach the phone does not know (no last-word step, spoken answers) never moves the child on
+  Scenario Outline: RDF auto, a part the child does not finish: move on to the next subject
+    Given sa_incomplete_move_on is on and a child is taking RDF auto
+    When the child leaves "<part>" unfinished because <why>
+    Then the rest of that subject is skipped (skipped_incomplete, shown as not taken) and the next subject starts (Urdu, then English, then maths); after maths the test ends
+    And one incomplete_move_on event is kept with the subject, the reason "<reason>", how far the child got and the part's length
+    Examples:
+      | part                       | why                                               | reason          |
+      | letter names (one at a time) | the time ran out before Next past the last letter | time_up         |
+      | familiar words             | "I'm done" was pressed before the last word         | stopped_early   |
+      | the story                  | the time ran out                                    | time_up         |
+      | the story                  | the last word tapped is before the end              | last_word_early |
+      | the story                  | no voice was heard for 20 seconds                   | silence         |
+      | addition                   | the time ran out before the last sum                | time_up         |
+      | number identification      | EGMA's stop rule ended it                           | stop_rule       |
+      | maths spoken questions     | a question ran out of time with no answer           | time_up         |
+
+  @e2e @wip @draft @negative @config-gated @P1 @CT104
+  Scenario: RDF auto, a finished part, a coach's stop, or the switch off: no move-on
+    Given a child is taking RDF auto
+    When a part is finished (every item reached, right or wrong; or "I'm done" on the story with no last-word step)
+    Then the next part of the same subject follows and no incomplete_move_on event is kept
+    And the last part of a subject left unfinished moves on as usual, with no event (nothing is skipped)
+    And the coach's End test or End this section is never this rule
+    And with sa_incomplete_move_on off, or in RDF manual, the runner moves on as before
 
 
