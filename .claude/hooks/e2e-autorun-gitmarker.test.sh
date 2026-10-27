@@ -10,6 +10,8 @@
 #
 # Run:  bash .claude/hooks/e2e-autorun-gitmarker.test.sh
 set -u
+# Hooks run here must never write the real clone's QA ledger or push its notes (bd-amxdhg).
+export QA_NOTES_OFF=1 QA_LEDGER="${TMPDIR:-/tmp}/qa-events.test.$$.jsonl"
 cd "$(dirname "$0")/../.." || exit 1
 ROOT="$PWD"
 FAILED=0
