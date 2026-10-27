@@ -1019,6 +1019,9 @@ const RULE = {
   // English Q1(b): the underline sentence Q1(a) and Q2 carry, and one rewrite per item.
   q1bQuote: 'Never refer to an underline the paper cannot show; quote the word or phrase instead.',
   q1bOne: 'Each item is one sentence to rewrite, with its instruction once.',
+  // English Q2: the general unnamed-person rule sits far below the passage ask and the passage still
+  // came back with «An old man … he joined»; the passage slot carries it itself.
+  passagePeople: 'In the passage, a person who is not named (an old man, a shopkeeper, a farmer) is \'they\' (An old man smiled. The next day, they joined the children…); only a named character is he or she.',
   // English Q5 on chosen pages with no poem: the nearest poem's own page text is given below the book text.
   q5Given: (p) => `Q5 uses this poem from Unit ${p.unit} (book p.${p.pages}); print only its verse lines, exactly as given, never a heading, instruction or activity line; title «${p.title} (Unit ${p.unit})».`,
   // Urdu Q6 on lessons with no poem: lesson 7's poem page text is given below the book text.
@@ -1304,6 +1307,8 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   });
   const list = shaped.map((s) => (key === 'english' && s.slot === 'english.A.Q1b'
     ? { ...s, prompt_rule: [s.prompt_rule, RULE.q1bQuote, RULE.q1bOne].filter(Boolean).join(' ') }
+    : s)).map((s) => (key === 'english' && s.slot === 'english.B.Q2'
+    ? { ...s, prompt_rule: [s.prompt_rule, RULE.passagePeople].filter(Boolean).join(' ') }
     : s));
   // English Q5 on chosen pages that hold no poem: the nearest poem's page text, when the caller loaded it.
   const givenPoem = !fde && key === 'english' && poem && poem.content && list.some((s) => s.slot === 'english.C.Q5') ? poem : null;
@@ -1913,20 +1918,24 @@ function _religiousHits(results, book) {
 }
 
 /**
- * Urdu: an item of a printed-word-list slot (`shape: 'words'`, `print_words`) whose FDE instruction
- * takes no {q} prints FDE's instruction and the list; a `question` the model wrote for it only says
- * the instruction again. That restatement is stock exercise wording the held lessons also print, so
- * the held-lessons filter would read it as a quote and drop the item: it is emptied first.
- * Every other slot, and every other subject, keeps its question. Mutates the tree.
+ * An item of a printed-word-list slot (`shape: 'words'`, `print_words`) whose FDE instruction takes
+ * no {q} prints FDE's instruction and the list; a `question` the model wrote for it only says the
+ * instruction again, and would print under it as a second instruction (English Q4: «Write the
+ * meaning of each given word…» under FDE's sentence-only line). In Urdu that restatement is also
+ * stock exercise wording the held lessons print, so the held-lessons filter would read it as a
+ * quote and drop the item. It is emptied first. The instruction read is the one the paper prints
+ * (the subject's medium). Every other slot keeps its question. Mutates the tree.
  */
 function _blankWordsStems(examJson, P, key) {
-  if (key !== 'urdu' || !P || !Array.isArray(P.sections)) return;
+  if (!key || !P || !Array.isArray(P.sections)) return;
+  const instruction = P.medium === 'ur' ? 'instruction_ur' : 'instruction_en';
   const blank = new Set();
   for (const sec of P.sections) {
     for (const s of sec.slots || []) {
-      if (s.shape === 'words' && s.print_words && !/\{q\}/.test(s.instruction_ur || '')) blank.add(s.slot);
+      if (s.shape === 'words' && s.print_words && !/\{q\}/.test(s[instruction] || '')) blank.add(s.slot);
     }
   }
+  if (!blank.size) return;
   _walkQuestions(examJson, (q) => {
     if (blank.has(q.slot) && typeof q.question === 'string' && q.question) q.question = '';
   });
