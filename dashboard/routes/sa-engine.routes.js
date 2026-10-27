@@ -39,7 +39,7 @@ const BATTERY_RX = /^sa\.(coach|game)\.[A-Za-z0-9]+(\.[A-Za-z0-9]+)?\.(en|ur)\.j
 const DEV_PAGES = ['play.html', 'run.html'];
 const DEV_TAG = '<script src="./sa-dev.js"></script>';
 // Round 7b's switches (sa-battery-switches.js SWITCHES names), each read like the rest.
-const R7B = ['backButton', 'endTestRestart', 'endSection', 'silenceRepeat', 'under20MoveOn', 'tSoundTa', 'sayThenNext',
+const R7B = ['backButton', 'endTestRestart', 'endSection', 'silenceRepeat', 'incompleteMoveOn', 'tSoundTa', 'sayThenNext',
   'storyScroll', 'audioGatedNext', 'tickPrompt'];
 
 /** The tashdeed takes on disk (sa/v3/ur/<12 hex>.mp3), by file name; none when the folder is missing. */

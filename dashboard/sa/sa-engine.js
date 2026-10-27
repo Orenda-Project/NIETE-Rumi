@@ -150,8 +150,8 @@
           cell_pace: w3.cell_pace === true, section_recording: w3.section_recording === true, cell_next_only: w3.cell_next_only === true,
           // sa_auto_no_last_word (round 7): RDF auto ends the passage on "I'm done" / time up, with no last-word step.
           skip_last_word: w3.auto_no_last_word === true && mode === 'proctored' && !manual,
-          // round 7b (the runner keeps each to its mode: end_section RDF manual; under20 and silence_repeat RDF auto)
-          end_section: w3.end_section === true && mode === 'proctored', under20: w3.under20_move_on === true && mode === 'proctored',
+          // round 7b (the runner keeps each to its mode: end_section RDF manual; incomplete and silence_repeat RDF auto)
+          end_section: w3.end_section === true && mode === 'proctored', incomplete: w3.incomplete_move_on === true && mode === 'proctored',
           silence_repeat: silenceRepeat });
         var voice = voiceMod.create({ lang: lang, base: opts.audio_base || '/', muted: false, onSpeak: function (s) { fire('audio', s); }, onSilent: function (s) { fire('silent', s); } });
         if (syncMod && opts.sink) {

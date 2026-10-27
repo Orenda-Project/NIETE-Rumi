@@ -36,8 +36,8 @@
  *   sa_end_test_restart     item 2: the coach's corner End test works; the child stays on the list with Restart test.
  *   sa_end_section          item 3: coach-led (RDF manual): End this section skips to the next section, the test goes on.
  *   sa_silence_repeat       item 4: RDF auto, no sound heard: Jugnu reminds the child to answer out loud, one repeat.
- *   sa_under20_move_on      item 5: RDF auto, under 20% on a part: the rest of that section is skipped (stays OFF on prod
- *                           until the tester confirms).
+ *   sa_incomplete_move_on   item 5 (the tester's final rule): RDF auto, a part the child did not finish skips the rest of
+ *                           its subject; the child goes on to the next subject (Urdu → English → maths).
  *   sa_t_sound_ta           item 6: the English letter sound of T says "ta".
  *   sa_say_then_next        item 7: the instructions say: say the answer (or press the button), then press Next.
  *   sa_story_scroll         item 8: the story shows a down arrow while there is more text; the instructions say so.
@@ -58,7 +58,7 @@ const SWITCHES = {
   autoNoLastWord: 'sa_auto_no_last_word',
   // round 7b
   backButton: 'sa_back_button', endTestRestart: 'sa_end_test_restart', endSection: 'sa_end_section',
-  silenceRepeat: 'sa_silence_repeat', under20MoveOn: 'sa_under20_move_on', tSoundTa: 'sa_t_sound_ta',
+  silenceRepeat: 'sa_silence_repeat', incompleteMoveOn: 'sa_incomplete_move_on', tSoundTa: 'sa_t_sound_ta',
   sayThenNext: 'sa_say_then_next', storyScroll: 'sa_story_scroll', audioGatedNext: 'sa_audio_gated_next',
   tickPrompt: 'sa_tick_prompt',
 };
@@ -67,7 +67,7 @@ const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManu
   sectionRecording: 'section_recording', coachLastWord: 'coach_last_word', cellNextOnly: 'cell_next_only',
   autoChildLastWord: 'auto_child_last_word', appAsks: 'app_asks', urFit: 'ur_fit', autoNoLastWord: 'auto_no_last_word',
   backButton: 'back_button', endTestRestart: 'end_test_restart', endSection: 'end_section', silenceRepeat: 'silence_repeat',
-  under20MoveOn: 'under20_move_on', tSoundTa: 't_sound_ta', sayThenNext: 'say_then_next', storyScroll: 'story_scroll',
+  incompleteMoveOn: 'incomplete_move_on', tSoundTa: 't_sound_ta', sayThenNext: 'say_then_next', storyScroll: 'story_scroll',
   audioGatedNext: 'audio_gated_next', tickPrompt: 'tick_prompt' };
 const { applyR7a } = require('./sa-r7a-content');
 

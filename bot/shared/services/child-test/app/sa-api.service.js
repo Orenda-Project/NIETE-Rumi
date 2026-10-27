@@ -440,7 +440,7 @@ const RDF_W3 = ['rdf_auto', 'rdf_manual'];
 const TIMED = ['session_start', 'audio_check', 'task_start', 'task_end', 'handover_in', 'handover_out', 'coach_unlock', 'reload_resume', 'battery_end'];
 // the events the session keeps as they are (device.events): what the timings cannot say
 // Round 7b: every skip and stop, one record each (the session, child and coach are the session row's; task_id the subtask).
-const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'under20_move_on'];
+const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on'];
 const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', ...STOP_TYPES];
 const MAX_EVENT_DATA = 300; // characters of JSON
 
