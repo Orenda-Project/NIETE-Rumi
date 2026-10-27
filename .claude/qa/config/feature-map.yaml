@@ -96,6 +96,7 @@ features:
     - bot/shared/services/helper-agent.service.js       # the "Ask Anything" row
     - bot/shared/services/portal-invite.service.js      # /portal
     - bot/shared/handlers/portal-command.handler.js
+    - bot/shared/services/portal-request.js             # "portal" without the slash is /portal (and a child's home)
     - bot/shared/routes/settings-endpoint.js            # /settings
     - bot/shared/config/settings-config.js
     - bot/shared/services/feature-intro.service.js
@@ -113,6 +114,7 @@ features:
     - bot/shared/routes/transcript-quiz-flow-endpoint.js      # the /quiz Flow (lp_v8 + transcript quizzes, one list)
     - bot/shared/services/quiz/**
     - bot/shared/services/student-ingress.js                # a child's door: their quizzes, "quiz" typed mid-quiz
+    - bot/shared/services/first-touch/teacher-home*.js      # the teacher's quiz home (the one door's teacher side)
     - bot/shared/services/exam/**
     - bot/shared/services/exam-checker/**
     - bot/shared/handlers/exam-checker.handler.js

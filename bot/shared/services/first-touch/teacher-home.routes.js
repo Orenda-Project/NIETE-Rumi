@@ -27,6 +27,8 @@
  * the home read still on its way); read in the quick answer's own settings read. OFF: today's.
  * Switch quiz_teacher_home_grade_fast (a JSON true, answered by the quick answer's own app_settings read): the page
  * shell carries the script whose grade chips answer from the page (teacher-home.page FAST_SWAPS); off → today's shell.
+ * Switch quiz_teacher_home_portal_link ON (JSON true; the page read): the shell's foot carries "Open my portal" and the
+ * home's JSON `portalHref`, the /portal command's own signed link to the portal Home (portalHref below). OFF: today's.
  * Switch quiz_teacher_home OFF (absent, false, anything but true, or a failed read): EVERY route answers 404
  * {off:true} before anything else is read or verified; the edge then falls through to today's page.
  * Switch quiz_teacher_server_timing ON (JSON true; read with quiz_teacher_home, never on its own): every 200 answer of
@@ -52,6 +54,7 @@ const Data = require('./teacher-home.data');
 const Model = require('./teacher-home.model');
 const Send = require('./teacher-home.send');
 const StaleWords = require('./teacher-stories-stale.flag');
+const { isRegistered } = require('../../utils/registration-status');
 
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const KEY_RX = /^[A-Za-z0-9_:.-]{1,200}$/;
@@ -103,6 +106,7 @@ function createRouter(deps = null) {
     req.thPaged = sw ? sw.then((v) => v[Flags.PAGED_KEY] === true) : null;
     req.thWait = sw ? sw.then((v) => v[Flags.WAIT_KEY] === true) : null;
     req.thGradeFast = sw ? sw.then((v) => v[Flags.GRADE_FAST_KEY] === true) : null;
+    req.thPortal = sw ? sw.then((v) => v[Flags.PORTAL_LINK_KEY] === true) : null;
     return next();
   });
   router.use(express.json({ limit: '4kb' }));
@@ -269,6 +273,26 @@ function createRouter(deps = null) {
       return typeof html === 'string' && html.startsWith('<section data-screen="walk">') ? { html, t } : null;
     } catch (_) { return null; }
   }
+  /**
+   * The teacher's portal Home, signed in: the /portal command's own link (app-login-link 'menu', 24 h, re-tappable),
+   * minted here and never read from a URL. null when the page was opened from the portal itself (via 'portal': the
+   * browser's back is the way there), for someone not registered (/portal asks them to register first), and when this
+   * deployment has no portal address or signing key.
+   */
+  function portalHref(user, via) {
+    if (via === 'portal' || !user || !user.id || !isRegistered(user)) return null;
+    try {
+      const base = String(require('../../config/branding').portalUrl() || '').replace(/\/+$/, '');
+      const t = base ? require('../app-login-link').signAppLink(user.id, 'menu') : null;
+      if (t) return `${base}/go/${t}`;
+      // the switch is on and the link cannot be made: said at error level, never a silent missing link
+      logToFile('❌ teacher home: portal link not minted (no portal address or signing key on this deployment)', { base: Boolean(base) }, 'error');
+      return null;
+    } catch (err) {
+      logToFile('❌ teacher home: portal link failed', { error: err && err.message }, 'error');
+      return null;
+    }
+  }
   function practiceUrl(user, lang) {
     if (!user || !COACH_ROLES.has(String(user.role || '').toLowerCase())) return null;
     const Join = byName('studentJoin', '../quiz/web-quiz-student-join');
@@ -303,7 +327,8 @@ function createRouter(deps = null) {
     // is answered by the quick answer's switch read above, never a read of its own
     const [named, early, counts, gradeFast] = await Promise.all([MoreFlags.namedOn(), MoreFlags.earlyOn(), Data.dep(deps, 'CountsFlag').on(), req.thGradeFast]);
     const wait = await req.thWait;
-    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts, ...(gradeFast === true ? { gradeFast: true } : {}), ...(wait ? { wait: true } : {}) });
+    const portal = (await req.thPortal) === true;
+    const built = Page.buildShell({ token: req.params.token, lang, switchTo, asked: asked(req.query.lang), ...(await req.thPaged ? { paged: true } : {}), named, early, counts, ...(gradeFast === true ? { gradeFast: true } : {}), ...(wait ? { wait: true } : {}), ...(portal ? { portal: true } : {}) });
     headers(res, built.csp);
     return res.status(200).type('html').send(built.html);
   }));
@@ -381,6 +406,7 @@ function createRouter(deps = null) {
     home.cards = maker ? cardsFor(lang) : [];
     home.lang = lang;
     home.bot = botDigits();
+    if (await req.thPortal) { const ph = portalHref(user, p.via); if (ph) home.portalHref = ph; }
     const { facts } = home;
     delete home.facts;
     event('teacher_home_open', p.uid, { first: await firstP, ...facts, primary_kind: Model.primaryKind(home.primary), via: p.via, lang });
@@ -463,6 +489,7 @@ function createRouter(deps = null) {
     home.cards = maker ? cardsFor(lang) : [];
     home.lang = lang;
     home.bot = botDigits(); // the edge's own error page taps back to the chat with it
+    if (await req.thPortal) { const ph = portalHref(user, p.via); if (ph) home.portalHref = ph; }
     const { facts } = home;
     delete home.facts;
     event('teacher_home_open', p.uid, { first: await firstOpen(p.uid), ...facts, primary_kind: Model.primaryKind(home.primary), via: p.via, lang });
@@ -560,7 +587,7 @@ function createRouter(deps = null) {
     res.status(204).end();
   }));
 
-  const STEPS = new Set(['share_tap', 'share_copy', 'copy_failed', 'more', 'grade', 'story_tile', 'videos', 'make', 'children', 'try_student', 'card_lp', 'card_coach', 'card_exam', 'home_slow', 'home_retry']);
+  const STEPS = new Set(['share_tap', 'share_copy', 'copy_failed', 'more', 'grade', 'story_tile', 'videos', 'make', 'children', 'try_student', 'card_lp', 'card_coach', 'card_exam', 'home_slow', 'home_retry', 'portal']);
   const SEND_KIND = { video: 'video', share: 'video', again: 'quiz', story: 'story' };
   const ORIGINS = new Set(['library', 'again', 'lesson_plan', 'coaching']);
   const PROMPTED_VIAS = new Set(['report']);
