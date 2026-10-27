@@ -234,9 +234,10 @@ maybe('the screens (sa-ui)', () => {
     x.runner.instructionDone(); x.runner.begin(); x.view.render();
     const hint = x.el.querySelector('.sae-run-cell .sae-r7-hint');
     expect(hint).not.toBeNull();
-    // above the letter, so the sticky foot (Back / Next) never covers it on a short phone
-    const cell = x.el.querySelector('.sae-run-cell .sae-onecell');
-    expect(hint.compareDocumentPosition(cell) & window.Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // one short chip in place of "Read aloud" (no extra line: the letter never slides under the sticky Back / Next)
+    expect(hint.classList.contains('sae-chip')).toBe(true);
+    expect(hint.textContent).toBe(require('../sa/sa-ui').COPY.en.chip_say_next);
+    expect(x.el.querySelectorAll('.sae-run-cell .sae-chip')).toHaveLength(1);
   });
   test('sa_tick_prompt: a typed-number task\'s instruction says to press the tick', async () => {
     const b = { battery_id: 'b', ui: { tick_prompt: true }, lines: { r7_type_tick: { text: R7A.LINES.r7_type_tick.en, audio: 't.mp3' } }, tasks: [{ id: 'ma.missing4', subtask: 'missing_number', response: 'keypad', lang: 'en',
@@ -246,6 +247,13 @@ maybe('the screens (sa-ui)', () => {
     if (x.runner.view().phase === 'keypad_warmup') { x.runner.keypadWarmupDone(0); x.view.render(); await flush(); }
     expect(x.said.map(textOf)).toContain(R7A.LINES.r7_type_tick.en);
     expect(x.el.querySelector('.sae-r7-hint').textContent).toContain(R7A.LINES.r7_type_tick.en);
+    // while typing: the short chip only
+    x.runner.instructionDone();
+    while (x.runner.view().phase === 'practice') x.runner.practiceAnswer(8);
+    x.runner.begin(); x.view.render();
+    const chip = x.el.querySelector('.sae-run-keypad .sae-r7-hint');
+    expect(chip.classList.contains('sae-chip')).toBe(true);
+    expect(chip.textContent).toBe(require('../sa/sa-ui').COPY.en.chip_type_tick);
   });
   test('sa_story_scroll: the story\'s instruction says to slide the page; the story shows the down arrow while more is below', async () => {
     const b = { battery_id: 'b', ui: { story_scroll: true }, lines: { r7_scroll: { text: R7A.LINES.r7_scroll.en, audio: 's.mp3' } }, tasks: [{ id: 'en.story_w3', subtask: 'oral_reading_fluency', response: 'record', lang: 'en', time_limit_s: 60,
