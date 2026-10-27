@@ -167,14 +167,16 @@ features:
     # (10 services + the author worker), so every change to it armed the SAFE
     # subset and authored no spec. Reached from pakistan-lp-endpoint.js and
     # text-message.handler.js, both already lesson-plan.
-    - bot/shared/services/lp612-*.service.js
-    # Not every module on that lane carries the `.service.js` suffix, and the glob above
-    # misses the ones that do not. The pre-gate Latin-honorific normaliser is required only
-    # by lp612-author.service.js, so it is lesson-plan-owned like the rest of the lane.
-    - bot/shared/services/lp612-latin-honorific.js
-    # The delivery ledger (one row per 6-12 lesson a teacher received) — written by the
-    # serving path, read by the /quiz lp612 provider (training owns quiz/**).
-    - bot/shared/services/lp612-deliveries.store.js
+    # Matched by PREFIX, not by suffix (bd-2dpco): the survey's shared constants
+    # landed as `lp612-feedback.shared.js` when the feedback file was split, and a
+    # `lp612-*.service.js` glob silently did not own it — an unmapped file arms the
+    # SAFE subset and authors no spec. The same gap had already been patched twice
+    # by hand (the pre-gate Latin-honorific normaliser `lp612-latin-honorific.js`,
+    # and the delivery ledger `lp612-deliveries.store.js`, written by the serving
+    # path and read by the /quiz lp612 provider). The lane is the `lp612-` prefix;
+    # a sibling of it is not a different feature because someone chose a different
+    # suffix.
+    - bot/shared/services/lp612-*.js
     - bot/workers/lp612-*.worker.js
     # The vendored authoring/rendering engine behind that lane: the author briefs,
     # the diagram type manifest, the linter, the renderer.
