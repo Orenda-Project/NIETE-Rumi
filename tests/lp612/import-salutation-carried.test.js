@@ -123,6 +123,41 @@ describe('it does not fire where the reviewer has already ruled', () => {
     })).toBe(false);
   });
 
+  test('a SEVERED salutation is named as severed, not as a dropped one', () => {
+    // grade_8_islamiat.c04.r990. The 30-code-point cut landed INSIDE the salutation
+    // and left the row ending on `صلی` — the one genuine cap casualty in the corpus.
+    //
+    // The dropped-salutation message is actively wrong here. It tells the reviewer the
+    // stamp FITS and to place it, and a reviewer who does exactly that ships
+    // `... نبوی صلی ﷺ` — 26 code points, inside the cap, and a half salutation followed
+    // by a whole one. The row cannot be repaired by adding anything; it has to be
+    // re-cut, which is what the operator ruled on 2026-09-23.
+    //
+    // So the check has to distinguish the two. Warning either way is not enough when
+    // the warning names the wrong repair.
+    const { warnings } = validateSegment({
+      language: 'ur',
+      chapter_title: 'احادیثِ نبوی ﷺ',
+      subtopic_title: 'دہرائی: باب 4 — احادیثِ نبوی صلی اللہ علیہ وآلہ وصحابہ',
+      menu_title: 'دہرائی: احادیثِ نبوی صلی',
+    });
+    const w = warnings.filter((x) => LOST.test(x));
+    expect(w).toHaveLength(1);
+    expect(w[0]).toMatch(/cut|sever|re-cut/i);
+    expect(w[0]).not.toMatch(/the stamp FITS/);
+  });
+
+  test('a complete salutation spelled out in full is not mistaken for a severed one', () => {
+    // `صلی اللہ علیہ` already satisfies the salutation test, and must keep doing so —
+    // the severed check only looks at rows the salutation test rejected.
+    expect(warnsLostSalutation({
+      language: 'ur',
+      chapter_title: 'احادیثِ نبوی ﷺ',
+      subtopic_title: 'احادیثِ نبوی ﷺ کا مطالعہ',
+      menu_title: 'نبوی صلی اللہ علیہ',
+    })).toBe(false);
+  });
+
   test('a row that already carries the stamp is left alone', () => {
     expect(warnsLostSalutation({
       language: 'ur',
