@@ -35,6 +35,17 @@ describe("AuthProvider at boot (bd-sex15q.34)", () => {
     expect(getMe).toHaveBeenCalledTimes(1);
   });
 
+  it("index.html's boot read of /me is taken instead of asking again", async () => {
+    (window as { __nieteBoot?: unknown }).__nieteBoot = { me: Promise.resolve({ success: true, user: { id: "u-1", phoneNumber: "929999991001", role: "coach" } }) };
+    try {
+      boot("/portal/coach/insights");
+      await new Promise((r) => setTimeout(r, 0));
+      expect(getMe).not.toHaveBeenCalled();
+    } finally {
+      delete (window as { __nieteBoot?: unknown }).__nieteBoot;
+    }
+  });
+
   it("any other page waits for a page to ask, as before", () => {
     for (const path of ["/portal/login", "/portal/privacy", "/", "/portal/coach"]) {
       getMe.mockClear();

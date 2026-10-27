@@ -31,6 +31,8 @@ import { FrameSkeleton, LoginSkeleton } from "./portal/components/Skeleton";
 import { readShellHint } from "./portal/lib/shellHint";
 import { lazyPage as page, prefetchPages } from "./lib/lazyPage";
 import { warmFirstScreen } from "./lib/firstScreen";
+import { primeRead, primeWhenCoachipOn } from "./lib/bootReads";
+import houseApi from "./portal/services/api";
 import { readConfigShared } from "./portal/lib/useNewUi";
 /* Reading assessments + video library are not part of NIETE's launch scope. Routes + imports
  * removed so the URLs 404 rather than expose unfinished screens. Restore by re-adding both
@@ -47,11 +49,19 @@ import { readConfigShared } from "./portal/lib/useNewUi";
 // coach waited for); a teacher's first screen is asked for at boot instead (lib/firstScreen).
 const loadDashboard = () => import("./portal/pages/PortalDashboard");
 const PortalDashboard = page(loadDashboard);
-if (typeof window !== "undefined" && isPortalTarget()) {
+// Any /portal/ page is the portal whatever the host (sandbox's portal-sandbox.… host is not a "portal." one); "/" only
+// on a portal host (elsewhere it is the marketing site).
+if (typeof window !== "undefined" && (isPortalTarget() || window.location.pathname.startsWith("/portal/"))) {
   warmFirstScreen(window.location.pathname, readShellHint(), {
     dashboard: loadDashboard,
     teacherHome: () => import("./portal/teacher/pages/Home"),
-    coachInsights: () => Promise.all([import("./portal/coach/insights/routes"), import("./portal/coach/insights/pages/ThisWeek")]),
+    coachInsights: () => Promise.all([
+      import("./portal/coach/insights/routes"),
+      import("./portal/coach/insights/pages/ThisWeek"),
+      // COS 105750: This week's data too, once /config says the switch is on (never a /coachip/ request otherwise).
+      // From this chunk, not COACHIP's api chunk, so it does not wait for that chunk to arrive (same key and store).
+      primeWhenCoachipOn(readConfigShared, () => primeRead("coachip/home", () => houseApi.get("/coachip/home").then((r) => r.data))),
+    ]),
     rm: () => import("./portal/rm/routes"),
     config: readConfigShared,
   });
