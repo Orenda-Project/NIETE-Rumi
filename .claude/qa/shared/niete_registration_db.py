@@ -137,9 +137,11 @@ def cmd_restore(creds, a):
 
 # The school R12 searches for. `schools` is deliberately NOT a seed table (seed-tables.txt: a run starts with no
 # teacher history; a test that needs some creates it in its own setup), so the registration driver seeds this
-# one row on the run's own database and purges it after (bd-v4mdcv). school-search.service: an EMIS that
-# STARTS with the query scores +50, so "215" finds it; is_probable_test must be false or it is filtered out.
-QA_SCHOOL = {"name": "IMSG G-7/3-2", "emis": "2150001", "region": "Islamabad", "is_active": True,
+# one row on the run's own database and purges it after (bd-v4mdcv). school-search.service: a hit needs a
+# matched WORD or an EXACT EMIS (score 1000) — an EMIS that merely starts with the query scores +50 but is
+# filtered out with no word matched (run 20261027-1219: 0 results) — so the EMIS is exactly the driver's query.
+# is_probable_test must be false or the row is filtered out.
+QA_SCHOOL = {"name": "IMSG G-7/3-2", "emis": "215", "region": "Islamabad", "is_active": True,
              "is_probable_test": False, "source_system": "qa_seed"}
 
 
