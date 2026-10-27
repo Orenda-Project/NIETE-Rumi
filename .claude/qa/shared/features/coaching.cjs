@@ -368,6 +368,31 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
 
   let carry = [];   // rows read by a lever mid-loop (the COA09 upload) are processed, never dropped
   while (confirmed && Date.now() - t0 < budget) {
+    // The deferral goes FIRST in each turn, before the reads and their settles: on the lane the first iteration is
+    // seconds after the confirm tap, and the previous position (after the reads) was 73 s in, past the whole
+    // replayed pipeline (run 20261027-0949-coaching-s5).
+    // COA09 — a SECOND recording once the analysis is genuinely under way
+    // On the lane (DEFER_AFTER_MS 0) the second recording goes in straight after the confirm tap — the session is
+    // 'confirmed'/'pending', mid-flight for the guard — because with cassette replay the first step is already
+    // the last (run 20261026-201716: the reply to the "second" recording was the report caption).
+    if (DEEP && !deferralTried && (obs.steps.length || (DEFER_AFTER_MS === 0 && confirmed)) && !obs.steps.includes('5') && Date.now() - t0 >= DEFER_AFTER_MS) {
+      deferralTried = true;
+      const second = await api.upload(FIXTURE.classroom, 'Document', 180000);
+      const txt2 = second.txt || '';
+      // whatever landed while the upload settled (the voice question after Step 3/5 — run 20260930-0621
+      // lost it here and stalled) is carried into the next iteration, and the card is judged from ALL of it
+      // the bot's answer to a second recording (a deferral ack, or a fresh detection card) can land several
+      // seconds after the upload settles — keep reading for up to 15 s before judging (run 20260930-0832)
+      let extra = await fresh(); const tCard = Date.now();
+      while (Date.now() - tCard < 15000 && !extra.some(r => EXPECT.detected.test(r.txt || '') || /still analys|already analys|in progress|ابھی تجزیہ/i.test(r.txt || ''))) { await sleep(2000); extra = extra.concat(await fresh()); }
+      const cardRows = [second].concat(extra);
+      obs.deferral = { replied: !!second.ok, reply: txt2.slice(0, 220),
+        startedNewSession: cardRows.some(r => EXPECT.detected.test(r.txt || '') || (r.btns || []).some(b => EXPECT.yesAnalyze.test(b))) };
+      carry = carry.concat(extra.filter(r => !(EXPECT.detected.test(r.txt || '') && (r.btns || []).some(b => EXPECT.yesAnalyze.test(b)))));
+      // a second session the bot DID open must not stay in flight and swallow the rest of the run
+      if (obs.deferral.startedNewSession) { const c = cardRows.find(r => (r.btns || []).some(b => EXPECT.yesAnalyze.test(b))); if (c) { try { await api.tapAndWait('No', 60000); } catch (_) {} } }
+    }
+
     const batch = carry.concat(await fresh()); carry = [];
     if (batch.length) lastMsgAt = Date.now();
     for (const r of batch) {
@@ -446,29 +471,7 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
       }
     }
 
-    // COA09 — a SECOND recording once the analysis is genuinely under way
-    // On the lane (DEFER_AFTER_MS 0) the second recording goes in straight after the confirm tap — the session is
-    // 'confirmed'/'pending', mid-flight for the guard — because with cassette replay the first step is already
-    // the last (run 20261026-201716: the reply to the "second" recording was the report caption).
-    if (DEEP && !deferralTried && (obs.steps.length || (DEFER_AFTER_MS === 0 && confirmed)) && !obs.steps.includes('5') && Date.now() - t0 >= DEFER_AFTER_MS) {
-      deferralTried = true;
-      const second = await api.upload(FIXTURE.classroom, 'Document', 180000);
-      const txt2 = second.txt || '';
-      // whatever landed while the upload settled (the voice question after Step 3/5 — run 20260930-0621
-      // lost it here and stalled) is carried into the next iteration, and the card is judged from ALL of it
-      // the bot's answer to a second recording (a deferral ack, or a fresh detection card) can land several
-      // seconds after the upload settles — keep reading for up to 15 s before judging (run 20260930-0832)
-      let extra = await fresh(); const tCard = Date.now();
-      while (Date.now() - tCard < 15000 && !extra.some(r => EXPECT.detected.test(r.txt || '') || /still analys|already analys|in progress|ابھی تجزیہ/i.test(r.txt || ''))) { await sleep(2000); extra = extra.concat(await fresh()); }
-      const cardRows = [second].concat(extra);
-      obs.deferral = { replied: !!second.ok, reply: txt2.slice(0, 220),
-        startedNewSession: cardRows.some(r => EXPECT.detected.test(r.txt || '') || (r.btns || []).some(b => EXPECT.yesAnalyze.test(b))) };
-      carry = carry.concat(extra.filter(r => !(EXPECT.detected.test(r.txt || '') && (r.btns || []).some(b => EXPECT.yesAnalyze.test(b)))));
-      // a second session the bot DID open must not stay in flight and swallow the rest of the run
-      if (obs.deferral.startedNewSession) { const c = cardRows.find(r => (r.btns || []).some(b => EXPECT.yesAnalyze.test(b))); if (c) { try { await api.tapAndWait('No', 60000); } catch (_) {} } }
-    }
-
-    if (!DEEP && obs.steps.length && obs.photoPrompt) break;   // COA04 is decided
+    if (!DEEP && obs.photoPrompt) break;   // COA04 is decided (Step 1/5 is a reaction since the Meta bill cut)
     if (obs.commitment) break;
     // Early-bail (fast commit gate): the DEEP pipeline is stuck when it makes NO forward progress —
     // no new step, report, photo/LP prompt, reflective turn or commitment — for STALL_MS. That happens
@@ -510,7 +513,7 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
           : confirmed
           ? (obs.stalled
               ? ['BLOCKED', { reason: stallNote, stepsSeen: obs.steps, asksPhoto: obs.photoPrompt, asksLessonPlan: obs.lpPrompt, elapsedSec: elapsed }]
-              : V(obs.steps.length > 0 && obs.photoPrompt,   // Step 1 often lands while the driver is inside the photo/LP gate replies
+              : V(obs.photoPrompt,   // Meta bill cut NC1: Step 1/5 is a ⏳ reaction on the Yes tap now (reactions are not observed here); the photo prompt proves transcription ran
                   { stepsSeen: obs.steps, longLessonWarning: obs.longLesson, acknowledges: obs.acknowledges,
                     asksPhoto: obs.photoPrompt, asksLessonPlan: obs.lpPrompt, elapsedSec: elapsed }))
           : ['BLOCKED', { reason: 'the second upload produced no Yes/No choice',
@@ -622,6 +625,9 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
              : { why: '@wip/@draft — run with DEEP=1' }, 0); };
   E('COA58', "The coaching report and voice note give the lesson's scores as numbers");
   E('COA60', 'The two coaching entry points quote different minimum audio lengths (@known-issue)');
+  // bd-5lrgh — needs a mismatched recording + a live grader run + the rendered report; unit-tested in
+  // tests/coaching/bd-5lrgh-lp-mismatch-reason.test.js until coaching-ext drives it.
+  E('COA61', 'A recording of a different lesson from the selected plan is explained as a mismatch, not with the plan');
   E('COA19', 'A report built without the reflection never claims a total of three questions');
   E('COA20', 'A lesson-plan move is credited from what a classroom photo shows');
   E('COA21', 'The same recording sent twice returns the report already made, not a second score');
@@ -690,6 +696,65 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   else rec('COA62', COA62, 'BLOCKED', { reason: APP_REDIRECT_WHY, setAppSetting: r62.reason }, 0);
 
 
+  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
+  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA63', 'Photos sent seconds apart get ONE receipt prompt with the running count', 'BLOCKED',
+      { reason: 'not yet driven on the mock lane — needs two photo uploads inside COACHING_PHOTO_PROMPT_DEBOUNCE_MS; unit: tests/coaching/meta-bill-nc4-photo-step.test.js' }, 0);
+
+  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA64', 'The third photo\'s "maximum reached" line opens the lesson-plan question', 'BLOCKED',
+      { reason: 'not yet driven on the mock lane — needs three photo uploads on the photo step; unit: tests/coaching/meta-bill-nc4-photo-step.test.js' }, 0);
+
+  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA65', '"Add another" and a photo sent during the analysis are acknowledged with a 📸 reaction', 'BLOCKED',
+      { reason: 'the mock lane does not observe reactions (feature-runner filters them out) — verify on the sandbox handset; unit: tests/coaching/meta-bill-nc4-photo-step.test.js + meta-bill-wamid-wiring.test.js' }, 0);
+
+  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA66', 'Last time\'s commitment opens the photo question', 'BLOCKED',
+      { reason: 'not yet driven on the mock lane — needs a seeded prior session with prioritized_action.teacher_response=yes; unit: tests/coaching/meta-bill-nc4-prior-reminder-wiring.test.js' }, 0);
+
+  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA67', 'Several stale sessions bring ONE reminder, about the newest', 'BLOCKED',
+      { reason: "not yet driven on the mock lane — needs three seeded stale sessions + SC.sweep('stale'); unit: tests/coaching/meta-bill-nc5-sweeper-repeats.test.js" }, 0);
+
+  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA68', 'An unconfirmed recording that the bot goes ahead with sends ONE notice, in my language', 'BLOCKED',
+      { reason: "not yet driven on the mock lane — needs an aged initiated session + SC.sweep('stale'); unit: tests/coaching/meta-bill-nc5-sweeper-repeats.test.js" }, 0);
+
+  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA69', 'A session auto-completed after 12 hours says so on the report, not in a separate message', 'BLOCKED',
+      { reason: "not yet driven on the mock lane — needs a 12h-idle session + SC.sweep('stale') and the report caption; unit: tests/coaching/meta-bill-nc2-report-caption.test.js" }, 0);
+
+  // Meta bill cut (2026-10-01) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA70', 'Each report piece arrives once even if the report job runs twice', 'BLOCKED',
+      { reason: 'not yet driven on the mock lane — needs a report job redelivered for one session; unit: tests/coaching/meta-bill-nc2-report-caption.test.js + meta-bill-nc5-sweeper-repeats.test.js' }, 0);
+
+  // Meta bill cut (2026-10-01, lane I5) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA71', 'The first AI-coaching request sends the intro film with its introducing line as the caption', 'BLOCKED',
+      { reason: 'first-use only: needs the driver account\'s ai_coaching first-use marker reset before the chip tap '
+          + '(a reversible seed not wired into this driver yet); the one-message shape is pinned by '
+          + 'tests/coaching/first-use-intro-one-message.test.js' }, 0);
+
+
+  // Meta bill cut FX4 (2026-10-02, bd-w2daa.26) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA72', '"👍 Yes" on the coaching-report survey is answered with a 🙏, not a message', 'BLOCKED',
+      { reason: 'needs a completed coaching session whose report survey is on screen (a full audio run on the mock lane); '
+          + 'pinned by tests/meta-bill-cut/fx4-round3.test.js (FX4-2, through the real /webhook, en + ur, refusal fallback)' }, 0);
+  rec('COA73', 'The reason I type after "👎 Not really" is answered with a 🙏', 'BLOCKED',
+      { reason: 'same precondition as COA72 plus the open reason window; pinned by tests/meta-bill-cut/fx4-round3.test.js (FX4-2)' }, 0);
+  rec('COA74', 'After I paste my lesson plan as text, "typing…" shows until Step 2/5 arrives', 'BLOCKED',
+      { reason: 'the mock lane records sends, not the typing indicator\'s timing on screen; '
+          + 'pinned by tests/meta-bill-cut/fx4-round3.test.js (FX4-1 "a PASTED plan")' }, 0);
+
+  // Meta bill cut FX6 (2026-10-02, bd-w2daa.28) — not yet driven; replace BLOCKED with V(...) once it is.
+  rec('COA75', 'After my 👎 reason, my next message is not taken as another reason', 'BLOCKED',
+      { reason: 'needs a completed coaching session with its report survey answered 👎 + a reason, then a new session (a full audio run twice on the mock lane); '
+          + 'pinned by tests/meta-bill-cut/fx6-round4.test.js (FX6-4, through the real /webhook) and tests/coaching/coaching-feedback.test.js' }, 0);
+  rec('COA76', 'Each commitment-card answer gets its own reaction', 'BLOCKED',
+      { reason: 'the mock lane does not observe reactions (feature-runner filters them out) — verify on the sandbox handset; '
+          + 'pinned by tests/meta-bill-cut/fx6-round4.test.js (FX6-1: ✅ / 👌 / 🙏, refusal → each answer\'s own text, en + ur)' }, 0);
+
   // bd-x74wv (2026-10-05) — not drivable on any lane; replace BLOCKED with V(...) only if one can race two senders.
   rec('COA77', 'Two teachers\' voice notes arriving in the same moment are each heard from their own voice', 'BLOCKED',
       { reason: 'needs two teachers\' voice notes processed by one container in the same millisecond — no lane can race '
@@ -703,13 +768,6 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   rec('COA93', 'An Urdu-speaking teacher gets the clip in Urdu, right to left', 'BLOCKED', { reason: 'no driver yet: the video-recommendation scenarios were added in #3317 (bd-gzfdu9) as @wip @draft Gherkin without driver code; this placeholder only makes them visible in every run, it is not coverage' }, 0);
   rec('COA94', 'The clip message goes once, and never after a report that did not arrive', 'BLOCKED', { reason: 'no driver yet: the video-recommendation scenarios were added in #3317 (bd-gzfdu9) as @wip @draft Gherkin without driver code; this placeholder only makes them visible in every run, it is not coverage' }, 0);
   rec('COA95', 'With the clip off, the report is exactly as before', 'BLOCKED', { reason: 'no driver yet: the video-recommendation scenarios were added in #3317 (bd-gzfdu9) as @wip @draft Gherkin without driver code; this placeholder only makes them visible in every run, it is not coverage' }, 0);
-
-  // bd-7g913e: this scenario carried @COA72, which sandbox's survey 🙏 scenario also uses; it is COA96 on both branches.
-  rec('COA96', 'The lesson-plan list says a photo, a PDF, or typing the plan all work', 'BLOCKED', { reason: 'no driver yet: this scenario never had driver code of its own (it shared @COA72 on sandbox until bd-7g913e); this placeholder only makes it visible in every run, it is not coverage' }, 0);
-  // bd-v0toag.100.8: the thing to try per grade+subject, held till done, judged on the ask.
-  rec('COA97', 'The thing to try shows only on plans of its own grade and subject', 'BLOCKED', { reason: 'no driver yet: bd-v0toag.100.8 added these @wip @draft scenarios with the fix; the unit suites (tests/coaching/thing-to-try*.test.js, tests/portal/bd-v0toag.8-thing-to-try.test.js) cover them, this placeholder only makes them visible in every run, it is not coverage' }, 0);
-  rec('COA98', 'The thing to try stays on my plans until a recording shows I did it', 'BLOCKED', { reason: 'no driver yet: bd-v0toag.100.8 added these @wip @draft scenarios with the fix; the unit suites (tests/coaching/thing-to-try*.test.js, tests/portal/bd-v0toag.8-thing-to-try.test.js) cover them, this placeholder only makes them visible in every run, it is not coverage' }, 0);
-  rec('COA99', 'A recording in another subject or grade leaves my thing to try alone', 'BLOCKED', { reason: 'no driver yet: bd-v0toag.100.8 added these @wip @draft scenarios with the fix; the unit suites (tests/coaching/thing-to-try*.test.js, tests/portal/bd-v0toag.8-thing-to-try.test.js) cover them, this placeholder only makes them visible in every run, it is not coverage' }, 0);
-  rec('COA100', 'The ask itself is judged, not a move that shares its practice', 'BLOCKED', { reason: 'no driver yet: bd-v0toag.100.8 added these @wip @draft scenarios with the fix; the unit suites (tests/coaching/thing-to-try*.test.js, tests/portal/bd-v0toag.8-thing-to-try.test.js) cover them, this placeholder only makes them visible in every run, it is not coverage' }, 0);
-  rec('COA101', 'Outside groups C and D nothing about the thing to try changes', 'BLOCKED', { reason: 'no driver yet: bd-v0toag.100.8 added these @wip @draft scenarios with the fix; the unit suites (tests/coaching/thing-to-try*.test.js, tests/portal/bd-v0toag.8-thing-to-try.test.js) cover them, this placeholder only makes them visible in every run, it is not coverage' }, 0);
+  // bd-7g913e: was a second @COA72 (two scenarios shared the id, so this one never appeared in a run).
+  rec('COA96', 'The lesson-plan list says a photo, a PDF, or typing the plan all work', 'BLOCKED', { reason: 'no driver yet: this scenario shared @COA72 with the survey 🙏 scenario until bd-7g913e, so it never had driver code of its own; this placeholder only makes it visible in every run, it is not coverage' }, 0);
 };
