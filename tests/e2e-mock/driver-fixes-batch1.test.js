@@ -29,6 +29,9 @@ describe('training.cjs questionLineOf — the question line, never the merged fe
   test('the bold module title under the header is not the question either (run 20261027-050355, T21)', () => {
     expect(questionLineOf('Module check · Q1/3\n📝 *Module check — "Establishing classroom routines"*\nWhat do end-of-lesson routines do?\nA. x')).toBe('What do end-of-lesson routines do?');
   });
+  test('the module check intro — title, blank, "N questions. You need *100%* …" — is skipped whole (run 20261027-1017, T21)', () => {
+    expect(questionLineOf('Module check · Q1/3\n📝 *Module check — "Establishing classroom routines"*\n\n3 questions. You need *100%* to unlock the next module — if you miss it you can retry straight away.\n\nWhat do end-of-lesson routines do?\nA. x')).toBe('What do end-of-lesson routines do?');
+  });
   test('a bare header line is skipped as before', () => {
     expect(questionLineOf('Q1/20\nWhat is a routine?\nA. x')).toBe('What is a routine?');
   });

@@ -27,7 +27,9 @@ const CTA  = 'کھولیں|Open';
 const isQHeader = (l) => /(^|·\s*)Q\d+\/\d+(\s*\(Select all that apply\))?$/.test(l);
 // A whole-line bold title ("📝 *Module check — …*", run 20261027-050355 T21) is the card's caption, never the question.
 const isTitleLine = (l) => /^[^\w*]{0,4}\*[^*]+\*\s*$/u.test(l);
-const isNotQuestion = (l) => !l || isQHeader(l) || isTitleLine(l) || /^[A-J]\.\s/.test(l) || /^(required|Select all that apply|Selected:.*)$/i.test(l);
+// The module check's intro sentence (quiz-delivery.service: "N questions. You need *X%* to unlock …") opens Q1's body.
+const isIntroLine = (l) => /^\d+ questions?\. You need \*?\d+%/.test(l);
+const isNotQuestion = (l) => !l || isQHeader(l) || isTitleLine(l) || isIntroLine(l) || /^[A-J]\.\s/.test(l) || /^(required|Select all that apply|Selected:.*)$/i.test(l);
 const questionLineOf = (txt) => {
   const lines = String(txt || '').split('\n').map((l) => l.trim());
   const h = lines.findIndex(isQHeader);
