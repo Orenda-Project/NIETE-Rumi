@@ -2,8 +2,9 @@
  * I-SAPS Level 1 reading — which list belongs to which course.
  *
  * The partner's reading list is per MODULE of Level 1. A course is matched by
- * vendor name + level order + the "Module N" in its title, because the numeric
- * ids differ between sandbox, staging and production databases.
+ * vendor KEY + level order + the "Module N" in its title, because the numeric
+ * ids differ between sandbox, staging and production databases, and the vendor's
+ * name is a display label that was renamed (bd-gbf8ix).
  *
  * bd-klecr.9 (2026-10-08): I-SAPS, after FDE's feedback, replaced the 95-item
  * recommended list with a MANDATORY list of 13 readings, each with the section
@@ -14,7 +15,7 @@ const {
   readingsForCourse,
 } = require('../../bot/shared/services/training/isaps-readings.rules');
 
-const L1 = { vendorName: 'I-SAPS', levelOrderIndex: 0 };
+const L1 = { vendorKey: 'ISAPS', levelOrderIndex: 0 };
 const mod = (m) => readingsForCourse({ ...L1, courseTitle: `Module ${m} - X` });
 
 describe('readingsForCourse', () => {
@@ -60,8 +61,9 @@ describe('readingsForCourse', () => {
   });
 
   test('another vendor, another level, or a title with no module number → null', () => {
-    expect(readingsForCourse({ vendorName: 'Beacon House', levelOrderIndex: 0, courseTitle: 'Module 1 - X' })).toBeNull();
-    expect(readingsForCourse({ ...L1, levelOrderIndex: 1, courseTitle: 'Module 1 - X' })).toBeNull();
+    expect(readingsForCourse({ vendorKey: 'BEACONHOUSE', levelOrderIndex: 0, courseTitle: 'Module 1 - X' })).toBeNull();
+    // Level 2 (order 1) has its own list since bd-yef5iq.6; Level 3 (order 2) has none.
+    expect(readingsForCourse({ ...L1, levelOrderIndex: 2, courseTitle: 'Module 1 - X' })).toBeNull();
     expect(readingsForCourse({ ...L1, courseTitle: 'Introduction' })).toBeNull();
     expect(readingsForCourse({ ...L1, courseTitle: 'Module 12 - X' })).toBeNull();
     expect(readingsForCourse({})).toBeNull();

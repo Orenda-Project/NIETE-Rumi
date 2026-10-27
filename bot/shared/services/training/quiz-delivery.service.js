@@ -927,6 +927,48 @@ async function loadQuestionForDelivery(selected) {
 }
 
 /**
+ * The question as the GRADER needs it: its text and its rubric (bd-bos0ki).
+ *
+ * scoreAnswer() marks against `question.rubric` when it has one and falls back
+ * to a generic prompt when it does not. Neither CRQ caller used to hand it a
+ * rubric: the WhatsApp path's question came from loadQuestionBank (no
+ * question_text, no rubric) and the portal path selected question_text only.
+ * 36 of the 37 live I-SAPS CRQs have a rubric, and every grade it never saw was
+ * produced by the generic prompt.
+ *
+ * Fetched for the ONE question being scored, at the point of scoring, and
+ * never merged into anything that is served. The rubric's band text is the
+ * answer key for a written question: it stays on the server, so it is neither
+ * added to loadQuestionBank's shared projection nor to the paper the portal is
+ * sent.
+ *
+ * A failed lookup degrades to the question we already hold (the generic prompt)
+ * rather than refusing to mark a teacher's answer, but it is logged at error
+ * level: a silent downgrade is how this bug ran unseen.
+ *
+ * @param {{id: (string|number)}} question any row carrying the question id
+ * @returns {Promise<object>} `question` plus question_text and rubric
+ */
+async function loadQuestionForGrading(question) {
+  if (!question || question.id === undefined || question.id === null) return question;
+  try {
+    const { data, error } = await supabase
+      .from('training_questions')
+      .select('id, question_text, rubric')
+      .eq('id', question.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error('question not found');
+    return { ...question, question_text: data.question_text, rubric: data.rubric || null };
+  } catch (err) {
+    logToFile('❌ CRQ grading lookup failed — marking WITHOUT the rubric', {
+      questionId: question.id, error: err?.message,
+    }, 'error');
+    return question;
+  }
+}
+
+/**
  * Fetch the current question for an attempt and send it to the teacher.
  * If the attempt has advanced past the last question, grades it.
  */
@@ -1792,7 +1834,9 @@ async function routeOpenEndedAnswer(phoneNumber, text) {
   // rule itself is pure (capstone-points.rules), so only the vendor row is
   // needed.
   const perAnswer = await crqPointsForLevel(attempt.level_id);
-  const { score, feedback } = await CapstoneDelivery.scoreAnswer(q, trimmed, perAnswer);
+  const { score, feedback } = await CapstoneDelivery.scoreAnswer(
+    await loadQuestionForGrading(q), trimmed, perAnswer,
+  );
 
   await supabase.from('training_assessment_answers').upsert({
     attempt_id: attempt.id,
@@ -2712,7 +2756,9 @@ async function submitModuleExamPaper({ userId, attemptId, answers }) {
     if (crq) {
       const perAnswer = await crqPointsForLevel(attempt.level_id);
       const { scoreAnswer } = require('./capstone-delivery.service');
-      const { score, feedback } = await scoreAnswer(crq.question, crq.text, perAnswer);
+      // bd-bos0ki: the rubric is fetched here, server-side, at the point of scoring.
+      const gradingQuestion = await loadQuestionForGrading(crq.question);
+      const { score, feedback } = await scoreAnswer(gradingQuestion, crq.text, perAnswer);
       await supabase.from('training_assessment_answers')
         .update({ answer_score: score, feedback_text: feedback })
         .eq('attempt_id', attemptId).eq('question_index', crq.index);
@@ -2849,6 +2895,7 @@ module.exports = {
   startGrandQuiz,
   startModuleExam,
   routeOpenEndedAnswer,
+  loadQuestionForGrading,
   startTrainingQuiz,
   sendQuestion,
   handleQuizButton,
