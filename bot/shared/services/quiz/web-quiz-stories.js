@@ -22,6 +22,9 @@
  *     the server counts them;
  *   - stars are effort stars (listened, read aloud, answered), never a score;
  *   - `story_done` gives the storybook sticker the first time a child finishes a book, only with Jugnu's Book on.
+ * A grown-up's preview link (app_settings web_quiz_practice_play, web-quiz-practice-play.js) is answered for its grade
+ * with no child: the same shelf (nothing finished), the same book without the microphone, every event answered and
+ * none kept. Off, that link is refused 401 as any token that names no child.
  */
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
@@ -58,9 +61,12 @@ const LENS_KEY = 'web_quiz_stories_text_lens';
 // The reader's polish (JSON true only): the book says `pl: 1`; while it is open <html> carries the book's language and
 // direction, and the voice's word ring is drawn round the word instead of on its letters. Off ⇒ no key.
 const POLISH_KEY = 'web_quiz_stories_polish';
+// A phone that cannot play Ogg Opus (iOS before 18.4) hears each page voice as mp3 (JSON true only): the book says
+// `mp3: 1`, and on such a phone the reader asks for <voice>.mp3, which the edge makes from the stored .ogg. Off ⇒ no key.
+const MP3_KEY = 'web_quiz_story_mp3';
 // Keys that ride the stories read. A read naming them that fails is made again without them, the last first (they are off),
 // so a rider's failure never turns stories off.
-const RIDERS = [GAPS_KEY, MS_KEY, REPEAT_KEY, KEEP_KEY, WARM_KEY, LENS_KEY, POLISH_KEY];
+const RIDERS = [GAPS_KEY, MS_KEY, REPEAT_KEY, KEEP_KEY, WARM_KEY, LENS_KEY, POLISH_KEY, MP3_KEY];
 const HOST_KEYS = [FLAG_KEY, BAND_KEY, STEADY_KEY, ...LR3_KEYS];
 const TTL_MS = 30 * 1000;
 const PKT_MS = 5 * 3600 * 1000;
@@ -131,10 +137,10 @@ async function flags(now = Date.now()) {
     const on = by.has(FLAG_KEY) && isTrue(by.get(FLAG_KEY));
     const lr3 = on && LR3_KEYS.every((k) => isTrue(by.get(k)));
     const gaps = on && isTrue(by.get(GAPS_KEY));
-    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3, lrr: lr3 && isTrue(by.get(REPEAT_KEY)), keep: lr3 && isTrue(by.get(KEEP_KEY)), steady: on && isTrue(by.get(STEADY_KEY)), gaps, ms: gaps ? slowMs(by.get(MS_KEY)) : null, warm: on && by.get(WARM_KEY) === true, polish: on && by.get(POLISH_KEY) === true, lens: on && by.get(LENS_KEY) === true };
+    cache = { at: now, on, band: on && by.has(BAND_KEY) && isTrue(by.get(BAND_KEY)), lr3, lrr: lr3 && isTrue(by.get(REPEAT_KEY)), keep: lr3 && isTrue(by.get(KEEP_KEY)), steady: on && isTrue(by.get(STEADY_KEY)), gaps, ms: gaps ? slowMs(by.get(MS_KEY)) : null, warm: on && by.get(WARM_KEY) === true, polish: on && by.get(POLISH_KEY) === true, lens: on && by.get(LENS_KEY) === true, mp3: on && by.get(MP3_KEY) === true };
   } catch (err) {
     logToFile('⚠️ web quiz stories: settings lookup failed — stories off', { error: err.message });
-    cache = { at: now, on: false, band: false, lr3: false, lrr: false, keep: false, steady: false, gaps: false, ms: null, warm: false, lens: false, polish: false };
+    cache = { at: now, on: false, band: false, lr3: false, lrr: false, keep: false, steady: false, gaps: false, ms: null, warm: false, lens: false, polish: false, mp3: false };
   }
   return cache;
 }
@@ -182,10 +188,15 @@ async function hubBits({ studentId, now = Date.now() } = {}) {
   }
 }
 
-async function guard(token, kid, device) {
+// web_quiz_practice_play: a grown-up's preview link (no child) is answered read-only for its grade; `route` names the
+// refusal's log line (web_quiz.content_refused, with whether the token was a preview link).
+async function guard(token, kid, device, route = 'stories') {
   if (!(await storiesOn())) fail(404, 'stories_off');
+  const Practice = require('./web-quiz-practice-play');
+  const preview = await Practice.who(token);
+  if (preview) return preview;
   const who = await require('./web-quiz-hub').kidFromHub(token, kid, device);
-  if (!who || !who.studentId) fail(401, 'bad_token');
+  if (!who || !who.studentId) { Practice.refused(route, token); fail(401, 'bad_token'); }
   return who;
 }
 
@@ -292,14 +303,16 @@ const gradeOf = (v) => { const m = /\d+/.exec(String(v == null ? '' : v)); const
 async function orderedBooks(studentId, { grade, lang, teacher = [], now = Date.now() }) {
   const { data } = await supabase.from('story_books').select(BOOK_COLS).eq('status', 'ready').eq('grade', grade).eq('lang', lang);
   const books = data || [];
-  const done = await doneSet(studentId, books.map((b) => b.id));
+  // a preview (no child) has finished nothing, and its events are never read
+  const done = studentId ? await doneSet(studentId, books.map((b) => b.id)) : new Set();
   return { ordered: shelfOrder(books, { childId: studentId, day: pktDay(now), done, teacher }), done };
 }
 
 async function shelf(token, { kid, g, l, t, device, now = Date.now() } = {}) {
-  const who = await guard(token, kid, device);
+  const who = await guard(token, kid, device, 'stories_shelf');
   // web_quiz_grade_change: with no grade asked, a class child opens at the grade the family chose (off: the hub's, no read)
-  const grade = gradeOf(g) || gradeOf(g ? who.grade : await require('./web-quiz-grade-change').browseGrade(who)) || 1;
+  // (a preview opens at its token's grade: there is no family choice to read)
+  const grade = gradeOf(g) || gradeOf(g || who.practice ? who.grade : await require('./web-quiz-grade-change').browseGrade(who)) || 1;
   const lang = clampLanguage(l);
   const teacher = String(t || '').split(',').map((s) => s.trim()).filter((s) => UUID_RX.test(s)).slice(0, MAX_TEACHER);
   const { ordered, done } = await orderedBooks(who.studentId, { grade, lang, teacher, now });
@@ -324,6 +337,7 @@ async function shelf(token, { kid, g, l, t, device, now = Date.now() } = {}) {
     out.books.forEach((b) => { if (p1.has(b.id)) b.p1 = p1.get(b.id); });
   }
   logEvent('web_quiz.stories_shelf', { g: grade, l: lang, n: out.books.length });
+  if (who.practice) require('./web-quiz-practice-play').note('stories_shelf', { grade, lang, n: out.books.length });
   return out;
 }
 
@@ -409,10 +423,20 @@ async function cardBits() {
 }
 
 async function book(id, token, { kid, device } = {}) {
-  const who = await guard(token, kid, device);
+  const who = await guard(token, kid, device, 'stories_book');
   const out = await bookData(id);
+  if (who.practice) return practiceBook(out);
   await keepMisses(who.studentId, out);
   return Object.assign(out, await cardBits());
+}
+
+// A preview's book: the pages, the voices and the questions as a child gets them, but no microphone ("Read it
+// together" needs a speech key, which is counted against a child's own day) and no share card (it is a child's finish).
+// No miss row is kept (keepMisses writes one under the child).
+function practiceBook(out) {
+  const { lrr, lr3_keep: keep, read_fb: fb, read_sheet: sheet, ...rest } = out;
+  require('./web-quiz-practice-play').note('stories_book', { pages: (out.pages || []).length, voiced: (out.pages || []).filter((p) => p.audio).length });
+  return { ...rest, lr3: false };
 }
 
 // A text page served without a voice is kept as a miss (story_page_listened {miss:true}) so it gets voiced; never counted.
@@ -451,7 +475,7 @@ async function bookData(id) {
   logEvent('web_quiz.stories_book', { pages: pages.length, voiced: urls.filter(Boolean).length });
   return {
     id: b.id, title: b.title, lang: b.lang, dir: b.lang === 'ur' ? 'rtl' : 'ltr', grade: b.grade, cover: fileUrl(b.id, b.cover_file),
-    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.lrr ? { lrr: true } : {}), ...(f.steady ? { steady: 1 } : {}), ...(f.lens ? { tx: 1 } : {}), ...(f.polish ? { pl: 1 } : {}), ...((await require('./web-quiz-read-feedback').on()) ? { read_fb: 1, ...((await require('./web-quiz-read-feedback').sheetOn()) ? { read_sheet: await require('./web-quiz-read-feedback').sheetLevel() } : {}) } : {}), ...(f.gaps ? { slow_gaps: f.ms || true } : {}),
+    pace_wpm: wpms.length ? Math.round(wpms.reduce((a, n) => a + n, 0) / wpms.length) : null, lr3: f.lr3, ...(f.lrr ? { lrr: true } : {}), ...(f.steady ? { steady: 1 } : {}), ...(f.lens ? { tx: 1 } : {}), ...(f.polish ? { pl: 1 } : {}), ...(f.mp3 ? { mp3: 1 } : {}), ...((await require('./web-quiz-read-feedback').on()) ? { read_fb: 1, ...((await require('./web-quiz-read-feedback').sheetOn()) ? { read_sheet: await require('./web-quiz-read-feedback').sheetLevel() } : {}) } : {}), ...(f.gaps ? { slow_gaps: f.ms || true } : {}),
     // the microphone notice's words (wq-liveread.js): does Jugnu keep its passage recordings? (only with lr3: off = today's)
     ...(f.lr3 ? { lr3_keep: f.keep } : {}),
     pages: pages.map((p, i) => {
@@ -507,7 +531,7 @@ async function noticeShown(studentId, device, v) {
 }
 
 async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, data } = {}, { device } = {}) {
-  const who = await guard(token, kid, device);
+  const who = await guard(token, kid, device, 'stories_event');
   if (!EVENTS.has(name) && name !== 'story_answer') fail(400, 'bad_event');
   const b = await readyBook(bookId);
   if (!b) fail(404, 'not_found');
@@ -527,6 +551,7 @@ async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, 
   }
   const page = pageN == null ? null : int(pageN);
   if (pageN != null && (page === null || page < 1 || page > (Number(b.pages) || 0))) fail(400, 'bad_page');
+  if (who.practice) return practiceEvent(name, b, data);
   if (name === 'story_page_read' && data && data.notice != null) await noticeShown(who.studentId, device, data.notice);
   let kept = keep(name, data);
   // Listened with Slower on (`slow: 1`): kept only with the gaps switch on, else the row is today's
@@ -573,6 +598,26 @@ async function event(token, { kid, book_id: bookId, page_n: pageN, event: name, 
   return out;
 }
 
+/**
+ * A preview's story event (web_quiz_practice_play): answered as a child's would be and never kept. The questions are
+ * counted from the picks sent (as a child's), the stars from that answer alone (no page events exist to count), and
+ * a finish earns no sticker. No row, no notice mark.
+ */
+async function practiceEvent(name, b, data) {
+  const Practice = require('./web-quiz-practice-play');
+  Practice.note('stories_event', { event: name });
+  if (name === 'story_questions_done') {
+    const qs = await reviewedQuestions(b.id);
+    const picks = Array.isArray(data && data.answers) ? data.answers.slice(0, qs.length).map((a) => int(Array.isArray(a) ? a[a.length - 1] : a)) : [];
+    const right = (q, i) => picks[i] !== null && picks[i] === Number(q.answer_i);
+    const byKind = {};
+    qs.forEach((q, i) => { const k = byKind[q.kind] || (byKind[q.kind] = [0, 0]); k[1] += 1; if (right(q, i)) k[0] += 1; });
+    return { ok: true, correct: qs.filter(right).length, total: qs.length, stars: effortStars({ answered: true }), by_kind: byKind };
+  }
+  if (name === 'story_done') return { ok: true, sticker: false };
+  return { ok: true };
+}
+
 /** May a child read this page aloud? Stories on, the book ready, the page there and not a picture page. Never throws. */
 async function pageReadable(bookId, pageN) {
   try {
@@ -605,7 +650,7 @@ async function stickersFor(studentId) {
 
 module.exports = {
   shelf, shelfPublic, book, bookData, event, hubBits, stickersFor, storiesOn, pageReadable,
-  pktDay, seededShuffle, shelfOrder, mergeWords, effortStars, FLAG_KEY, BAND_KEY, STEADY_KEY, RIDERS, flags, resumeOf, orderedBooks, gradeOf, fileUrl,
+  pktDay, seededShuffle, shelfOrder, mergeWords, effortStars, FLAG_KEY, BAND_KEY, STEADY_KEY, MP3_KEY, RIDERS, flags, resumeOf, orderedBooks, gradeOf, fileUrl,
   _reset: () => { cache = null; },
   _cardField: (fn) => { cardField = fn; },
 };

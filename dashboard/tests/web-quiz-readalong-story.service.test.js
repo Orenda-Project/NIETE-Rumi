@@ -345,3 +345,27 @@ describe('story-ask: one primary with the kit on', () => {
   });
 });
 
+
+describe('a grown-up\'s preview that plays (the serve\'s practice_play): the read-along, never the microphone', () => {
+  test('one answer (Jugnu reads it), then the story\'s end card; no "read it yourself", no recording asked for', async () => {
+    const p = room({ routes: { 'ch/HUB.TOKEN/read': ok(SREAD({ readalong: TIMED, practice_play: 1, teacher_preview: true, live: false })) }, scripts: { '/wq/wq-readalong.js': STUB } });
+    await p.flush();
+    expect(p.screen()).toBe('story-ask');
+    expect(p.els['wqc-story-read']).toBeUndefined();
+    await p.click('wqc-story-along');
+    expect(p.screen()).toBe('story-along');
+    expect(p.win.__ra.plays).toBe(1);
+    await p.click('wqc-along-read');
+    expect(p.screen()).toBe('read-result');
+    expect(['mic-ask', 'read-ready', 'read-rec']).not.toContain(p.screen());
+    expect(chUrls(p).filter((u) => /ch\/(upload|live|result)/.test(u))).toEqual([]);
+  });
+  test('the line-lit read-along (no player): it ends on the story\'s end card too', async () => {
+    const p = room({ routes: { 'ch/HUB.TOKEN/read': ok(SREAD({ practice_play: 1, live: false })) } });
+    await p.flush();
+    await p.click('wqc-story-along');
+    aud(p)[0].fire('ended');
+    await p.flush();
+    expect(p.screen()).toBe('read-result');
+  });
+});

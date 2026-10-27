@@ -87,4 +87,4 @@ async function bindPick(args) {
   return M.bindPick(args);
 }
 
-module.exports = { teacher, join, child, canBind, bindPick, pathOf, TEACHER_HOME_PATH, MAKER_PATH };
+module.exports = { teacher, join, child, canBind, bindPick, pathOf, storedLang, TEACHER_HOME_PATH, MAKER_PATH };

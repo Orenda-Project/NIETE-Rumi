@@ -470,7 +470,8 @@
   };
   function fbHref(d) {
     var D = B.doors || {}, g = (D.games || [])[0], v = D.videos;
-    if (!B.practice && d === 'games' && g) return g.kind === 'numbers' ? withHome(withLang('/c/' + encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid || ''))) : quizHref(g.code, { again: g.done ? '1' : '', k: g.k });
+    // a look-only preview opens no door here; one that plays (practice_play) opens the games page as a child's does
+    if (!(B.practice && !B.practice_play) && d === 'games' && g) return g.kind === 'numbers' ? withHome(withLang('/c/' + encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid || ''))) : quizHref(g.code, { again: g.done ? '1' : '', k: g.k });
     if (!B.practice && d === 'videos' && v && v.href) return withHome(v.href);
     return '#' + d;
   }

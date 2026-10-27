@@ -166,7 +166,8 @@ function env(opt = {}) {
   const doc = {
     getElementById: (id) => (id === 'boot' && opt.boot ? { textContent: JSON.stringify(opt.boot) } : id === 'wq' && opt.boot ? wqRoot : null),
     querySelector: (sel) => { (calls.qs = calls.qs || []).push(sel); if (opt.slot && /data-stories-shelf/.test(sel)) return opt.slot; return /wq-stories\.js/.test(sel) ? { getAttribute: () => '/wq/wq-stories.js?v=abc123' } : null; },
-    createElement: (tag) => ({ tag }),
+    // opt.canPlay: the phone's own answer for an <audio> type (an iPhone before iOS 18.4 says '' for Ogg Opus)
+    createElement: (tag) => (tag === 'audio' && opt.canPlay ? { tag, canPlayType: opt.canPlay } : { tag }),
     L: {}, addEventListener(n, f) { (this.L[n] = this.L[n] || []).push(f); },
     head: { appendChild(x) {
       calls.loaded.push(x);
@@ -1307,7 +1308,7 @@ describe('the shipped files', () => {
     expect(src).not.toContain('·');
     expect(code).not.toMatch(/ٹیپ کریں|گم شدہ|استاد|امتحان|ٹیسٹ/);
     const zlib = require('zlib');
-    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(13380);   // the ruled core budget (12,288 less 8; +296 for the reader's text lens, COS YES 18 Oct; +136 for the steady camera that keeps every line whole, lead YES 18 Oct; +348 for the reading moment's picture box that keeps a framed page's picture whole, 19 Oct; +232 for its live-state fix: the opening words hidden under a clipped sheet once its picture is in, framed again when the stage resizes, 19 Oct; +80 for the look's drawn replay sign on Listen again (the Urdu face draws ↻ like «ج»), 19 Oct; served minified)
+    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(13580);   // the ruled core budget (12,288 less 8; +296 for the reader's text lens, COS YES 18 Oct; +136 for the steady camera that keeps every line whole, lead YES 18 Oct; +348 for the reading moment's picture box that keeps a framed page's picture whole, 19 Oct; +232 for its live-state fix: the opening words hidden under a clipped sheet once its picture is in, framed again when the stage resizes, 19 Oct; +80 for the look's drawn replay sign on Listen again (the Urdu face draws ↻ like «ج»), 19 Oct; +200 for the page voice as .mp3 on a phone that plays no Ogg Opus (iOS before 18.4; web_quiz_story_mp3), 27 Oct; served minified)
     // 9 KiB (#S88): heard first slow tap must run inside the tap; headroom recorded in the size test
     const qgz = zlib.gzipSync(fs.readFileSync(QSRC, 'utf8'), { level: 9 }).length;
     console.log('wq-stories-q.js gz ' + qgz + ' / 9216, headroom ' + (9 * 1024 - qgz));
@@ -4229,5 +4230,36 @@ describe('Your turn, the picture card trimmed to its drawing (akhbar 360x640, SF
       return [f, a.style, i.style, m.style, a.attrs, st.style['--wqs-pi']];
     };
     expect(run(3, canvasDoc([]))).toEqual(run(2, {}));
+  });
+});
+
+describe('a phone that cannot play Ogg Opus (the book\'s mp3: 1, app_settings web_quiz_story_mp3): every story voice as .mp3', () => {
+  const OGG_BOOK = () => book({ mp3: 1, pages: book().pages.map((p) => (p.audio ? { ...p, audio: { url: '/s/b-1/a01-0a1b2c3d.ogg', ms: 2600 } } : p)),
+    questions: [{ ...book().questions[0], audio: { q: '/s/b-1/q1-11111111.ogg', o: ['/s/b-1/q1o1-22222222.ogg', '/s/b-1/q1o2-33333333.ogg', '/s/b-1/q1o3-44444444.ogg'] } }],
+    questions_sprite: { url: '/s/b-1/qs-55555555.ogg', clips: { q1: { s_ms: 0, e_ms: 900 } } } });
+  test('an iPhone (canPlayType says no): the page voice, the questions\' voices and their sprite are asked for as .mp3', async () => {
+    const e = env({ canPlay: () => '', replies: { book: { status: 200, body: OGG_BOOK() } } });
+    await openReader(e);
+    expect(e.calls.ra[0].data.audio.url).toBe('/s/b-1/a01-0a1b2c3d.mp3');
+    expect(JSON.stringify(e.calls.ra[0].data)).not.toMatch(/\.ogg/);
+  });
+  test('an iPhone on the questions: the sprite (and each question\'s own voices) as .mp3', async () => {
+    const bk = OGG_BOOK();
+    const e = env({ canPlay: () => '', hash: '#story/b-1/q', replies: { book: { status: 200, body: bk } } });
+    const root = fakeEl('root');
+    e.S.route(e.ctx({ root })); await flush();
+    expect(e.calls.audios.map((a) => a.src)).toEqual(['/s/b-1/qs-55555555.mp3']);
+    expect(bk.questions[0].audio).toEqual({ q: '/s/b-1/q1-11111111.mp3', o: ['/s/b-1/q1o1-22222222.mp3', '/s/b-1/q1o2-33333333.mp3', '/s/b-1/q1o3-44444444.mp3'] });
+  });
+  test('a phone that plays Ogg Opus: the .ogg, as today', async () => {
+    const e = env({ canPlay: () => 'probably', replies: { book: { status: 200, body: OGG_BOOK() } } });
+    await openReader(e);
+    expect(e.calls.ra[0].data.audio.url).toBe('/s/b-1/a01-0a1b2c3d.ogg');
+  });
+  test('GOLDEN: a book without mp3 (the switch off) plays the .ogg even on an iPhone', async () => {
+    const body = OGG_BOOK(); delete body.mp3;
+    const e = env({ canPlay: () => '', replies: { book: { status: 200, body } } });
+    await openReader(e);
+    expect(e.calls.ra[0].data.audio.url).toBe('/s/b-1/a01-0a1b2c3d.ogg');
   });
 });
