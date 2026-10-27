@@ -100,11 +100,12 @@
   }
   // a selection as the chips show it: 'all' or a list of grades
   function selList(v) { return v === 'all' ? 'all' : (Array.isArray(v) ? v : String(v || '').split(',')).map(String).filter(Boolean); }
-  // the Games door's picker, folded as the library's: "All grades ▾" / "Grades ▾" (no number on the screen until it opens)
+  // the Games door's picker, folded as the library's: "All grades" / "Grades" (no number on the screen until it opens;
+  // no ▾: a symbol glyph is a blank box on Android 9)
   var gpOpen = false;
   function gradeMenu(ctx, sel, tap, gs) {
     var t = C(ctx);
-    return '<div class="wq-vgrade"><button class="wq-btn wq-btn--secondary wq-vgl" type="button" data-tap="gpk" aria-expanded="' + gpOpen + '">' + esc(sel === 'all' ? t.allGrades : t.grades) + ' ▾</button>' +
+    return '<div class="wq-vgrade"><button class="wq-btn wq-btn--secondary wq-vgl" type="button" data-tap="gpk" aria-expanded="' + gpOpen + '">' + esc(sel === 'all' ? t.allGrades : t.grades) + '</button>' +
       (gpOpen ? gradeChips(ctx, sel, tap, gs) : '') + '</div>';
   }
   function gradeChips(ctx, sel, tap, gs) {
