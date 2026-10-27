@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { useLang, type Lang } from "../../../teacher/i18n";
+import { coachip } from "../api";
 import { CodeText, CountSpan, DateText, LibraryText } from "../count";
 import { COPY } from "../copy";
 import { pick, t, tx } from "../text";
@@ -77,8 +79,50 @@ export function StepChip({ step, windowId }: { step: Step; windowId: string }) {
   );
 }
 
-export function StepRow({ step, windowId }: { step: Step; windowId: string }) {
+/**
+ * fix-r5 s2 item 7b (qa-coach 073255, panel 094000/094002): the coach's tick, "It happened / Not yet" (s5.tick.yes/no),
+ * posting R11 `/steps/:id/tick`. Shown on every open (or deferred, R11 allows it) step whose tick is still pending: the
+ * coach may tick before the check date, so the chips do not wait for it (the conservative reading of the panel's "from
+ * the check date"). Once ticked, the row says the tick from the server's answer (`coach_tick`); the strip's chip stays.
+ */
+export function StepTick({ step, onTicked }: { step: Step; onTicked: (s: Step) => void }) {
   const lang = useLang();
+  const [state, setState] = useState<"idle" | "saving" | "failed">("idle");
+  if (step.coach_tick !== "pending") {
+    return (
+      <p data-testid="step-ticked" data-tick={step.coach_tick} className="text-[13.5px] font-semibold leading-snug text-[#312e81]">
+        {t("s1.steps.row.ticked", lang, { tick: t(step.coach_tick === "yes" ? "s5.tick.yes" : "s5.tick.no", lang) })}
+      </p>
+    );
+  }
+  if (step.status !== "open" && step.status !== "deferred") return null;
+  const tick = (v: "yes" | "no") => {
+    if (state === "saving") return;
+    setState("saving");
+    coachip.tick(step.id, v).then(
+      (r) => { setState("idle"); onTicked(r.step); },
+      () => setState("failed"),
+    );
+  };
+  const chip = "min-h-[44px] rounded-full border px-4 text-[14.5px] font-semibold disabled:opacity-60";
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-2" aria-busy={state === "saving" ? "true" : undefined}>
+        <button type="button" data-testid="step-tick-yes" disabled={state === "saving"} onClick={() => tick("yes")}
+          className={`${chip} border-[#33374a] bg-[#33374a] text-white`}>{t("s5.tick.yes", lang)}</button>
+        <button type="button" data-testid="step-tick-no" disabled={state === "saving"} onClick={() => tick("no")}
+          className={`${chip} border-[#d1d5db] bg-white text-[#1d2025]`}>{t("s5.tick.no", lang)}</button>
+      </div>
+      {state === "failed" && (
+        <p data-testid="step-tick-failed" role="status" className="text-[13.5px] text-[#374151]">{t("e.failed_load", lang)}</p>
+      )}
+    </div>
+  );
+}
+
+export function StepRow({ step: initial, windowId }: { step: Step; windowId: string }) {
+  const lang = useLang();
+  const [step, setStep] = useState<Step>(initial);
   const code = <CodeText lang={lang}>{step.code.code}</CodeText>;
   const school = <CodeText lang={lang}>{step.school.school_name}</CodeText>;
   const set = <DateText iso={step.set_on} lang={lang} short />;
@@ -93,6 +137,7 @@ export function StepRow({ step, windowId }: { step: Step; windowId: string }) {
         <StepStrip step={step} />
         <StepChip step={step} windowId={windowId} />
       </div>
+      <StepTick step={step} onTicked={setStep} />
     </li>
   );
 }

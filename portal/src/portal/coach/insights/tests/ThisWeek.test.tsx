@@ -9,6 +9,7 @@ vi.mock("../../../lib/recordingSession", () => ({ useRecordingSession: () => nul
 import { boot, renderAt, serve, settle, F, http, httpError, expectContract, expectNoIdentity } from "./harness";
 import { domContract } from "../count";
 import { dateShort, todayKarachi } from "../format";
+import { COPY } from "../copy";
 
 /**
  * bd-sex15q.15 — S1 "This week", the coach's home (DESIGN §3 S1, COPY §S1, API R2/R13). Every state in both languages:
@@ -208,6 +209,51 @@ describe("S1 This week", () => {
     const chips = screen.getAllByTestId("step-chip").map((c) => c.textContent);
     expect(chips).toEqual(["It worked", "1 recording to come", "3 recordings to come"]);
     expect(screen.getAllByTestId("s1-steps-legend").length).toBe(1);
+  }, 20000);
+
+  // fix-r5 s2 item 7b (qa-coach 073255, panel 094000/094002): the coach ticks a step from its S1 row. Two chips on an
+  // open, unticked step post R11 `/steps/:id/tick`; the row then shows the tick from the response, then the chip as today.
+  it.each([["en", "yes"], ["ur", "no"]] as const)("%s item 7b: tick %s posts R11 with the step id and re-renders the row", async (lang, tick) => {
+    await boot(lang);
+    const step = F.home.steps[1];
+    const ticked = { ...clone(step), coach_tick: tick };
+    const posted: unknown[] = [];
+    serve({
+      "/coachip/home": F.home,
+      [`POST /coachip/notes/${NOTE_ID}/status`]: { note: F.home.note },
+      [`POST /coachip/steps/${step.id}/tick`]: (_p?: unknown, body?: unknown) => { posted.push(body); return { step: ticked, computed_at: "2026-10-26T05:12:00Z" }; },
+    });
+    const { container } = await renderAt("");
+    const row = screen.getAllByTestId("step-row").find((r) => r.getAttribute("data-step") === step.id)!;
+    const yes = row.querySelector('[data-testid="step-tick-yes"]') as HTMLButtonElement;
+    const no = row.querySelector('[data-testid="step-tick-no"]') as HTMLButtonElement;
+    expect(yes.textContent).toBe(COPY["s5.tick.yes"][lang]);
+    expect(no.textContent).toBe(COPY["s5.tick.no"][lang]);
+    fireEvent.click(tick === "yes" ? yes : no);
+    await settle();
+    const tickPosts = http.post.mock.calls.filter(([u]) => String(u).includes("/tick"));
+    expect(tickPosts.map(([u]) => u)).toEqual([`/coachip/steps/${step.id}/tick`]);
+    expect(posted).toEqual([{ coach_tick: tick }]);
+    const after = screen.getAllByTestId("step-row").find((r) => r.getAttribute("data-step") === step.id)!;
+    expect(after.querySelector('[data-testid="step-tick-yes"]')).toBeNull();
+    const label = after.querySelector('[data-testid="step-ticked"]')!;
+    expect(label.getAttribute("data-tick")).toBe(tick);
+    expect(label.textContent).toContain(COPY[tick === "yes" ? "s5.tick.yes" : "s5.tick.no"][lang]);
+    // the strip's chip stays as today
+    expect(after.querySelector('[data-testid="step-chip"]')).toBeTruthy();
+    expectContract(container, expect);
+  }, 20000);
+
+  it("item 7b: a step already ticked shows its tick, never the chips", async () => {
+    await boot("en");
+    const h = clone(F.home);
+    h.steps[0].coach_tick = "yes";
+    serve({ "/coachip/home": h, [`POST /coachip/notes/${NOTE_ID}/status`]: { note: F.home.note } });
+    await renderAt("");
+    const rows = screen.getAllByTestId("step-row");
+    expect(rows[0].querySelector('[data-testid="step-tick-yes"]')).toBeNull();
+    expect(rows[0].querySelector('[data-testid="step-ticked"]')?.getAttribute("data-tick")).toBe("yes");
+    expect(rows[1].querySelector('[data-testid="step-tick-yes"]')).toBeTruthy();
   }, 20000);
 
   it("phonics: testing, paused and ok each draw their own tile", async () => {
