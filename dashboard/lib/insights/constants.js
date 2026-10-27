@@ -10,8 +10,8 @@ const PIPELINE_VERSION = 'coachip-1.0.0';
 const SANDBOX_REF = 'olvritwoqujtjvwfulbh';
 const STAGING_REF = 'rpqkekcfvumypldbejhp';
 const PROD_REF = 'ihzciabopbttygxxgrkm';
-// The prod write path stays shut in code until the operator's go (B11; ORG §6 item 1); it opens in its own one-line PR. A test asserts it.
-const PROD_WRITES_ALLOWED = false;
+// The prod write path opened by its own one-line PR on the operator's production go (B11; ORG §6 item 1; GO_PACKAGE §5.6).
+const PROD_WRITES_ALLOWED = true;
 // COACHIP_ENV → the project ref the job may write to (GO_PACKAGE §2.5).
 const EXPECTED_REFS = Object.freeze({ sandbox: SANDBOX_REF, staging: STAGING_REF, production: PROD_REF });
 // Each tier's own R2_BUCKET_NAME; staging shares prod's bucket, its clips kept apart under coachip/clips/staging/ (clips.js).

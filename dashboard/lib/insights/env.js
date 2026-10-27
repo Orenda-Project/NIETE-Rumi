@@ -1,8 +1,8 @@
 'use strict';
 /**
  * COACHIP nightly job: the environment assertion (NIGHTLY_JOB §1) and the dry run's read-only client (§2).
- * Nothing is written anywhere until assertEnvironment() has passed in write mode; prod is read-only in code
- * (PROD_WRITES_ALLOWED = false) whatever COACHIP_ENV says.
+ * Nothing is written anywhere until assertEnvironment() has passed in write mode; prod writes only while
+ * PROD_WRITES_ALLOWED is true (the operator's go), whatever COACHIP_ENV says.
  */
 const fs = require('fs');
 const path = require('path');

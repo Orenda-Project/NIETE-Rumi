@@ -260,9 +260,10 @@ describe('the model stage inside the run (OpenRouter mocked at the network bound
 
 describe('the CLI', () => {
   const prod = `https://${C.PROD_REF}.supabase.co`;
-  test('a prod URL without --dry-run exits 3 before any client exists', async () => {
+  test('a prod URL with the wrong clip bucket exits 3 before any client exists', async () => {
     const lines = [];
-    const code = await cli.main(['--date', '2026-10-26'], { SUPABASE_URL: prod, COACHIP_ENV: 'production' }, (m) => lines.push(m));
+    const code = await cli.main(['--date', '2026-10-26'], { SUPABASE_URL: prod, COACHIP_ENV: 'production', R2_BUCKET_NAME: 'rumi-sandbox' },
+      (m) => lines.push(m));
     expect(code).toBe(3);
     expect(lines).toEqual(['env_mismatch']);
   });

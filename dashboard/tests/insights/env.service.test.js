@@ -10,12 +10,12 @@ const STAGING_REF = 'rpqkekcfvumypldbejhp';
 const STAGING_URL = `https://${STAGING_REF}.supabase.co`;
 
 describe('assertEnvironment', () => {
-  test('a prod-shaped URL without --dry-run is refused with exit 3 and zero DB calls', () => {
+  test('a prod-shaped URL with the wrong bucket is refused with exit 3 and zero DB calls', () => {
     const calls = [];
     const client = { from: (t) => { calls.push(t); return {}; } };
-    expect(() => env.assertEnvironment({ supabaseUrl: PROD_URL, coachipEnv: 'production', dryRun: false, client }))
+    expect(() => env.assertEnvironment({ supabaseUrl: PROD_URL, coachipEnv: 'production', dryRun: false, client, bucket: 'rumi-sandbox' }))
       .toThrow(env.EnvRefusal);
-    try { env.assertEnvironment({ supabaseUrl: PROD_URL, coachipEnv: 'production', dryRun: false, client }); } catch (e) {
+    try { env.assertEnvironment({ supabaseUrl: PROD_URL, coachipEnv: 'production', dryRun: false, client, bucket: 'rumi-sandbox' }); } catch (e) {
       expect(e.exitCode).toBe(3);
       expect(e.failureClass).toBe('env_mismatch');
     }
@@ -55,11 +55,20 @@ describe('assertEnvironment', () => {
     expect(r.ref).toBe(C.PROD_REF);
   });
 
-  test('prod writes shut until the go PR', () => {
-    expect(C.PROD_WRITES_ALLOWED).toBe(false);
-    // The prod bucket is named, so only PROD_WRITES_ALLOWED stands between a prod run and a write.
-    expect(() => env.assertEnvironment({ supabaseUrl: PROD_URL, coachipEnv: 'production', dryRun: false, bucket: 'digital-coach-audio' }))
-      .toThrow(/prod writes are shut/);
+  test('prod writes open after the go PR (the operator\'s production go)', () => {
+    expect(C.PROD_WRITES_ALLOWED).toBe(true);
+    const r = env.assertEnvironment({
+      supabaseUrl: PROD_URL, databaseUrl: `postgresql://postgres.${C.PROD_REF}:pw@aws-0.pooler.supabase.com:6543/postgres`,
+      coachipEnv: 'production', dryRun: false, bucket: 'digital-coach-audio',
+    });
+    expect(r).toEqual({ ref: C.PROD_REF, mode: 'write', env: 'production' });
+    // Every other refusal still holds on prod: the wrong bucket, another project's DB URL.
+    expect(() => env.assertEnvironment({ supabaseUrl: PROD_URL, coachipEnv: 'production', dryRun: false, bucket: 'rumi-sandbox' }))
+      .toThrow(/bucket/);
+    expect(() => env.assertEnvironment({
+      supabaseUrl: PROD_URL, databaseUrl: `postgresql://postgres.${STAGING_REF}:pw@aws-0.pooler.supabase.com:5432/postgres`,
+      coachipEnv: 'production', dryRun: false, bucket: 'digital-coach-audio',
+    })).toThrow(/another project/);
   });
 
   test('staging URL + COACHIP_ENV=staging writes, on the session port or the pooler', () => {
