@@ -69,6 +69,8 @@ export type DashStudent = {
   coachName?: string | null;
   startedAt?: string | null;
   stops?: SaStop[];
+  /** item 15: from the random draw, or added by the coach */
+  origin?: 'drawn' | 'added' | null;
 };
 
 /** mulberry32: a small seeded generator, enough for example data. */

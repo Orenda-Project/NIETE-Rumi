@@ -26,6 +26,8 @@ const en = {
   appScore: 'App score',
   of: (a: string, b: string) => `${a} of ${b}`,
   perMinute: (n: string) => `${n} per minute`,
+  // sa_cwpm (round 7b item 14): a words task's rate is correct words per minute
+  cwpm: (n: string) => `${n} CWPM`,
   afterFix: 'Scored after the scorer fix',
   secondVoice: "Another person's voice was heard in this recording. The score may include help from someone else: listen before you mark.",
   beforeFix: 'Scored before the scorer fix',
@@ -84,6 +86,7 @@ const ur: ReviewCopy = {
   appScore: 'ایپ کے نمبر',
   of: (a: string, b: string) => `${b} میں سے ${a}`,
   perMinute: (n: string) => `${n} فی منٹ`,
+  cwpm: (n: string) => `${n} ⁨CWPM⁩`,
   afterFix: 'نمبر اسکورر کی درستی کے بعد لگے',
   secondVoice: 'اس ریکارڈنگ میں کسی اور کی آواز بھی سنی گئی۔ نمبروں میں کسی اور کی مدد شامل ہو سکتی ہے: نشان لگانے سے پہلے سنیں۔',
   beforeFix: 'نمبر اسکورر کی درستی سے پہلے لگے',

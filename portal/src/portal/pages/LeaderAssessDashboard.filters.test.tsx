@@ -138,7 +138,7 @@ describe("LeaderAssessDashboard: round 7b filters and stops (sa_dash_filters)", 
     expect(within(stops).getByTestId("dash-stop-total-end_test")).toHaveTextContent("1");
     expect(within(stops).getByTestId("dash-stop-total-silence_repeat")).toHaveTextContent("1");
     expect(within(stops).getByTestId("dash-stop-total-restart")).toHaveTextContent("0");
-    expect(within(stops).getByTestId("dash-stop-total-under20_move_on")).toHaveTextContent("0");
+    expect(within(stops).getByTestId("dash-stop-total-incomplete_move_on")).toHaveTextContent("0");
     const coaches = within(within(stops).getByTestId("dash-stops-by-coach")).getAllByTestId("dash-stops-coach-row");
     expect(coaches.map((r) => r.getAttribute("data-coach"))).toEqual(["coach-a", "coach-b"]);
     expect(coaches[0]).toHaveTextContent("Asim Testwala");
@@ -225,6 +225,45 @@ describe("LeaderAssessDashboard: round 7b filters and stops (sa_dash_filters)", 
     const items = within(within(stops).getByTestId("dash-stops-list")).getAllByTestId("dash-stops-item");
     expect(items.find((i) => i.getAttribute("data-type") === "silence_repeat")).toHaveTextContent(/Letter sounds \(English\)/);
     expect(items.find((i) => i.getAttribute("data-type") === "end_section")).toHaveTextContent(/Letter names \(Urdu\)/);
+  });
+  it("Amendment 1: incomplete_move_on is a type of its own; an old under20_move_on is listed but not counted", async () => {
+    api.getSwitches.mockResolvedValue({ realDashboard: true, dashFilters: true });
+    const f = fixture();
+    f.sessions[7].stops = [stop("incomplete_move_on", "2026-10-26T01:05:00Z", "ur.letter_names5", "app"), stop("under20_move_on", "2026-10-26T01:06:00Z", "en.words4", "app")];
+    api.getSessions.mockResolvedValue(f);
+    renderPage();
+    const stops = await screen.findByTestId("dash-stops");
+    expect(within(stops).getByTestId("dash-stop-total-incomplete_move_on")).toHaveTextContent(/Moved on: part not finished\s*1/);
+    expect(within(stops).queryByTestId("dash-stop-total-under20_move_on")).toBeNull();
+    const items = within(within(stops).getByTestId("dash-stops-list")).getAllByTestId("dash-stops-item");
+    expect(items.find((i) => i.getAttribute("data-type") === "under20_move_on")).toHaveTextContent(/earlier rule/);
+    const b = within(within(stops).getByTestId("dash-stops-by-coach")).getAllByTestId("dash-stops-coach-row").find((r) => r.getAttribute("data-coach") === "coach-b") as HTMLElement;
+    expect(b.getAttribute("data-total")).toBe("2");
+  });
+
+  it("item 15: children from the random draw vs added by the coach, in total and per coach (most added first), with the filters", async () => {
+    api.getSwitches.mockResolvedValue({ realDashboard: true, dashFilters: true });
+    const f = fixture();
+    f.sessions.forEach((s: any, i: number) => { s.origin = i < 6 ? (i < 2 ? "added" : "drawn") : "drawn"; });
+    (f.stopSessions[0] as any).origin = "added";
+    api.getSessions.mockResolvedValue(f);
+    renderPage();
+    const origin = await screen.findByTestId("dash-origin");
+    expect(within(origin).getByTestId("dash-origin-drawn")).toHaveTextContent("9");
+    expect(within(origin).getByTestId("dash-origin-added")).toHaveTextContent(/3.*25%/);
+    const rows = within(within(origin).getByTestId("dash-origin-by-coach")).getAllByTestId("dash-origin-coach-row");
+    expect(rows.map((r) => [r.getAttribute("data-coach"), r.getAttribute("data-drawn"), r.getAttribute("data-added")])).toEqual([["coach-a", "4", "3"], ["coach-b", "5", "0"]]);
+    fireEvent.click(screen.getByTestId("dash-mode-auto"));
+    expect(within(screen.getByTestId("dash-origin")).getByTestId("dash-origin-added")).toHaveTextContent(/1/);
+    expect(within(screen.getByTestId("dash-origin")).getByTestId("dash-origin-drawn")).toHaveTextContent("5");
+  });
+
+  it("item 15 off with the switch: no origin section", async () => {
+    api.getSwitches.mockResolvedValue({ realDashboard: true, dashFilters: false });
+    api.getSessions.mockResolvedValue({ sessions: fixture().sessions });
+    renderPage();
+    await screen.findByTestId("dash-live");
+    expect(screen.queryByTestId("dash-origin")).toBeNull();
   });
 });
 

@@ -4,6 +4,7 @@ import { ChevronDown, ChevronLeft, RefreshCw } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import { childTestSa } from '../services/api';
 import { COPY, urDigits, type Lang } from '../lib/assess/copy';
+import { isWordsTask } from '../lib/assess/cwpm';
 import { useUrFit } from '../lib/assess/urFit';
 import type { SaResults, SaTaskResult } from '../types/childTestSa';
 
@@ -59,6 +60,8 @@ export default function LeaderAssessResults() {
   const [lang, setLang] = useState<Lang>(readLang);
   const [load, setLoad] = useState<Load>({ kind: 'loading' });
   const [howOpen, setHowOpen] = useState(false);
+  // sa_cwpm (round 7b item 14): a words task's per-minute number reads CWPM; off until the switches say so
+  const [cwpm, setCwpm] = useState(false);
   const copy = COPY[lang];
   const r = copy.results;
 
@@ -75,6 +78,13 @@ export default function LeaderAssessResults() {
   }, [sessionId]);
 
   useEffect(() => fetchResults(), [fetchResults]);
+  useEffect(() => {
+    let live = true;
+    Promise.resolve().then(() => childTestSa.getSwitches())
+      .then((s) => { if (live) setCwpm(!!s && s.cwpm === true); })
+      .catch(() => { /* fail closed: the labels as before */ });
+    return () => { live = false; };
+  }, []);
 
   const switchLang = () => {
     const next: Lang = lang === 'ur' ? 'en' : 'ur';
@@ -84,7 +94,8 @@ export default function LeaderAssessResults() {
 
   const n = (v: number | null) => (v === null || v === undefined ? copy.none : numIn(lang, v));
   // a scorer's key reads as its catalog word; a key the catalog does not know yet shows "Score" alone, never the key
-  const scoreLabel = (k: string) => {
+  const scoreLabel = (k: string, taskId?: string) => {
+    if (cwpm && k === 'per_minute' && isWordsTask(taskId)) return `${r.score} · ${r.cwpmKey}`;
     const word = (r.scoreKeys as Record<string, string>)[k];
     return word ? `${r.score} · ${word}` : r.score;
   };
@@ -124,7 +135,7 @@ export default function LeaderAssessResults() {
           {!spoken && t.itemsPerMin !== null && <Row label={r.itemsPerMin} value={n(t.itemsPerMin)} />}
           {spoken && scored && <Row label={r.recording} value={r.scored} />}
           {spoken && scored && Object.entries(t.score as Record<string, number>).map(([k, v]) => (
-            <Row key={k} label={scoreLabel(k)} value={n(v)} />
+            <Row key={k} label={scoreLabel(k, t.taskId)} value={n(v)} />
           ))}
           {/* no score yet is "kept, scored later" — never a 0 or an empty score (no scorer, or scoring off) */}
           {spoken && !scored && t.recording !== 'none' && <Row label={r.recording} value={r.scoredLater} />}
@@ -175,7 +186,7 @@ export default function LeaderAssessResults() {
           </button>
           {howOpen && (
             <ul data-testid="results-how" className="list-disc space-y-1 px-4 pb-4 ps-8 text-sm text-slate-800">
-              {[r.how1, r.how2, r.how3, r.how4, r.how5, r.how6, r.how7].map((line) => <li key={line}>{line}</li>)}
+              {[r.how1, r.how2, r.how3, r.how4, r.how5, r.how6, r.how7, ...(cwpm ? [r.cwpmHow] : [])].map((line) => <li key={line}>{line}</li>)}
             </ul>
           )}
         </div>
