@@ -343,3 +343,30 @@ reflective step until Step 4/5, and Steps 4/5 and the report arrive in one read 
 second to send into. The guard is unit-tested on both doors (the file door was unguarded until cc93ca791).
 Registration: R02/R07/R13-pre PASS with the v7.0 fixture; R12 needs the `schools` table in the seed (0 rows
 locally), R10/R13 are the known user-cache gap the driver's header names, R15 needs its cassettes recorded.
+
+### Applied (bd-1r3k2h) — the driver sleeps the dashboard still showed
+
+Run `20261027-1022-par` (212 / 9 / 76, 7 m 38 s): driver.sleep 509 s, bot.timeout 60 s, bot.processing 31 s.
+Read from the traces, three waits were waste and one dashboard gap hid a fourth:
+
+| Where | What | Fix |
+|---|---|---|
+| coaching, 180 s | the walker waited the full 3 min for the report's voice note after the bot had said "Voice summary could not be generated" (per-run cassette miss) | stop on that note; `E2E_COACHING_VOICE_NOTE_MS` 60 s on the lane |
+| coaching, 60 s | `tapAndWait` on the photo prompt's "Yes" — a reaction since the bill cut, never a message | 4 s |
+| training#3, 150 s | T77 (90 s) and T78 (60 s) wait for a report that must NOT arrive | `E2E_REPORT_ABSENCE_MS` 12 s on the lane |
+| coaching#2, 8 × 60 s | the extension's own pipeline tapped "Yes" and "Add another" with the 60 s default — invisible until coaching-ext's verdicts carried a window | 4 s each; guard() times its block, rec() takes an explicit `t1` |
+
+| child | 1022 | 1040 / 1051 |
+|---|---|---|
+| coaching (first run) | 6.5 min | **2.6 min** |
+| coaching#2 | 7.3 min | **5.5 min** |
+| coaching#3 | 7.4 min | **3.5 min** |
+| training#3 | 7.1 min | **5.1 min** |
+| slowest scenario | COA29 179 s | COA56 48 s |
+| p95 scenario | ~60 s | 15 s |
+
+Verdicts unchanged across the three runs. What the Overview still shows as "driver sleep" (about half the bar)
+is the 1 s / 2.5 s polls while the worker runs a coaching pipeline — the poll wakes on any bot message and
+none arrives until the worker is done — so that time belongs to the worker, not the harness; COA27's 63 s is
+the photo-gate sweep the scenario itself waits for. The honest next step is in the profiler: attribute a sleep
+that overlaps an active worker job (worker.log "Received job" → done) to a `bot.worker` layer.
