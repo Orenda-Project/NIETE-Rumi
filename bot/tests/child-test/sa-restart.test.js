@@ -88,7 +88,7 @@ describe('restartAttempt (sa-store)', () => {
     const rows = [
       { id: 'r1', block: 'ur.letters', ai_marks: null },
       { id: 'r2', block: 'ur.words', ai_marks: { x: 1 } },
-      { id: 'r3', block: 'r1~ur.letters', ai_marks: null },
+      { id: 'r3', block: 'zz.r1_ur_letters', ai_marks: null },
     ];
     const session = { id: SID, admin_mode: 'coach_present', client_session_id: OLD, status: 'in_progress',
       device: { block: 'rdf_auto', last_seq: 40, mic_ok: true, events: [{ seq: 3, type: 'warmup_result' }, { seq: 9, type: 'end_test', task_id: 'ur.words', data: { by: 'coach' } }] } };
@@ -108,7 +108,9 @@ describe('restartAttempt (sa-store)', () => {
     const out = await store.restartAttempt(SID, { clientSessionId: NEW, block: 'B2', at: '2026-10-27T09:00:00.000Z' });
     expect(out).toEqual({ ok: true, attempt: 2 });
     const blocks = updates.filter((u) => u[0] === 'child_test_blocks');
-    expect(blocks.filter((u) => u[2].block).map((u) => [u[1], u[2].block])).toEqual([['r1', 'r2~ur.letters'], ['r2', 'r2~ur.words']]);
+    expect(blocks.filter((u) => u[2].block).map((u) => [u[1], u[2].block])).toEqual([['r1', 'zz.r2_ur_letters'], ['r2', 'zz.r2_ur_words']]);
+    // the live CHECK child_test_blocks_block_check: a set-aside name is still a valid block name
+    for (const u of blocks.filter((x) => x[2].block)) expect(u[2].block).toMatch(/^[a-z]{2}\.[a-z0-9_]{1,40}$/);
     expect(blocks.filter((u) => u[2].ai_reason).map((u) => [u[1], u[2], u[3]])).toEqual([
       ['r1', { ai_status: 'failed', ai_reason: 'final:restarted' }, true], ['r2', { ai_status: 'failed', ai_reason: 'final:restarted' }, true]]);
     const sess = updates.find((u) => u[0] === 'child_test_sessions')[2];
@@ -128,11 +130,48 @@ describe('restartAttempt (sa-store)', () => {
       from: (table) => {
         const q = {}; q.select = () => q; q.eq = () => q; q.limit = () => q;
         q.then = (res, rej) => Promise.resolve({ data: table === 'child_test_sessions' ? [{ id: SID, device: {} }]
-          : [{ block: 'r1~ur.letters', responses: [{ kind: 'result' }] }, { block: 'ur.letters', responses: [{ kind: 'result' }] }], error: null }).then(res, rej);
+          : [{ block: 'zz.r1_ur_letters', responses: [{ kind: 'result' }] }, { block: 'ur.letters', responses: [{ kind: 'result' }] }], error: null }).then(res, rej);
         return q;
       },
     }));
     const store = require('../../shared/services/child-test/sa-store');
     expect((await store.summary(SID)).tasksDone).toEqual(['ur.letters']);
+  });
+});
+
+describe('a set-aside attempt is left out wherever tasks are read', () => {
+  const SA = require('../../shared/services/child-test/sa/set-aside');
+  test('names: valid block names (the DB CHECK), never a task the battery has, long ids kept within 40', () => {
+    expect(SA.setAsideName(1, 'ur.story_comp_w3')).toBe('zz.r1_ur_story_comp_w3');
+    const long = SA.setAsideName(12, `en.${'a'.repeat(40)}`);
+    expect(long).toMatch(/^[a-z]{2}\.[a-z0-9_]{1,40}$/);
+    expect(SA.isSetAside('zz.r1_ur_letters')).toBe(true);
+    expect(SA.isSetAside('ur.letters')).toBe(false);
+    expect(SA.attemptOf('zz.r3_ma_add')).toBe(3);
+  });
+  test('Results (saResults) list only the live attempt\'s tasks', async () => {
+    const sess = { id: SID, coach_user_id: COACH, school_id: SCHOOL, grade: 3, form: 'A', status: 'in_progress', item_bank_version: 'sa-battery', device: {} };
+    const deps = {
+      enabled: async () => true,
+      store: {
+        getSession: async () => ({ ok: true, session: sess }),
+        listBlocks: async () => ({ ok: true, blocks: [
+          { block: 'zz.r1_ur_letters', responses: [{ kind: 'result', mode: 'tap', correct: 1, attempted: 2 }], created_at: '2026-10-27T09:00:00Z' },
+          { block: 'ur.letters', responses: [{ kind: 'result', mode: 'tap', correct: 2, attempted: 2 }], created_at: '2026-10-27T09:05:00Z' }] }),
+      },
+      saStore: { findByClient: async () => ({ ok: true, sessionId: null }) },
+      bank: { forms: {}, tasks: {} }, stopRules: false,
+      now: () => new Date('2026-10-27T09:00:00Z'), log: () => {}, logError: () => {},
+    };
+    const out = await sa.saResults({ userId: COACH, sessionId: SID }, deps);
+    expect(out.status).toBe('ok');
+    expect(out.tasks.map((t) => t.taskId)).toEqual(['ur.letters']);
+  });
+  test('the scorer\'s asked questions skip a set-aside row', async () => {
+    const score = require('../../shared/services/child-test/sa/score');
+    const supabase = { from: () => { const q = { select: () => q, eq: () => q, then: (res) => Promise.resolve({ data: [
+      { block: 'zz.r1_en_story_comp_w3', responses: [{ kind: 'result', asked: ['q_old'] }] },
+      { block: 'en.story_comp_w3', responses: [{ kind: 'result', asked: ['q_new'] }] }], error: null }).then(res) }; return q; } };
+    expect(await score.__internals.askedOf(SID, supabase)).toEqual(['q_new']);
   });
 });
