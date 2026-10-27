@@ -3,7 +3,7 @@ import { useLang } from "../../../teacher/i18n";
 import InsightsGate from "../InsightsGate";
 import { coachip } from "../api";
 import { CountSpan, DateText } from "../count";
-import { todayKarachi, weeks } from "../format";
+import { todayKarachi } from "../format";
 import { insightsPaths } from "../paths";
 import { pick, t, tx } from "../text";
 import { useLoad } from "../useLoad";
@@ -23,8 +23,8 @@ import { WRow } from "../components/WRow";
  * steps, the Not-yet tile, the phonics tile, the link to stats. Every word is COPY or the server's Text; every number
  * goes through count.tsx; codes and school names only.
  *
- * The read sits INSIDE the gate, so with portal_coachip off no request to /coachip/home fires (B7). The band's school
- * count (band.sub) is not drawn: /me's counts are never rendered as numbers (API R1).
+ * The read sits INSIDE the gate, so with portal_coachip off no request to /coachip/home fires (B7). The band's second
+ * line is band.sub, the date only (COPY v1.1 §8): /me's counts are never rendered as numbers (API R1).
  *
  * Empty states (API R2): no_scope shows its message alone; pending its message, the phonics tile and the stats link;
  * insufficient and failed keep the open steps. Never a zero, never an average.
@@ -44,8 +44,8 @@ function ThisWeekLoaded() {
     <InsightsPage
       testId="insights-this-week"
       title={t("band.title", lang)}
-      // today's date is the band's second line (a top-level page has no crumb)
-      chips={<span data-testid="s1-today"><DateText iso={todayKarachi()} lang={lang} short={false} /></span>}
+      // today's date is the band's second line (a top-level page has no crumb): band.sub, the date only (COPY v1.1 §8)
+      chips={<span data-testid="s1-today">{tx("band.sub", lang, { date_short: <DateText iso={todayKarachi()} lang={lang} short /> })}</span>}
       windows={data?.windows}
     >
       {!data ? <StateBlock error={error} /> : <Body home={data} />}
@@ -68,7 +68,7 @@ function EmptyMessage({ home }: { home: Home }) {
     else if (empty.detail.widened_to_weeks === 8) {
       line = <CountSpan count={g}>{t("s1.empty.insufficient8", lang, { graded: g.n, needed: g.d })}</CountSpan>;
     } else {
-      line = <CountSpan count={g}>{t("s1.empty.insufficient4", lang, { graded: g.n, needed: g.d, weeks: weeks(home.window.weeks ?? 4, lang) })}</CountSpan>;
+      line = <CountSpan count={g}>{t("s1.empty.insufficient4", lang, { graded: g.n, needed: g.d })}</CountSpan>;
     }
   }
   // with no card on screen, the window the page's counts refer to is said here

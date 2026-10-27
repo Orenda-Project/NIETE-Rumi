@@ -15,6 +15,13 @@ import { dropPart, gradeSubject, NO_PART } from "./PairCard";
  * this is everything under it: the eyebrow LISTEN, the move's sentence in its frame ("… This is one of them."), and the
  * full player, whose "See the move" opens the move page of this W (S5).
  */
+/** The EN sentence opens the frame, so its first code point is capitalised (COPY v1.1 §8; Urdu has no case). */
+export function openSentence(sentence: string, lang: "en" | "ur"): string {
+  if (lang !== "en" || !sentence) return sentence;
+  const [first, ...rest] = [...sentence];
+  return first.toUpperCase() + rest.join("");
+}
+
 export default function MomentPage({ moment }: { moment: Moment }) {
   const lang = useLang();
   const navigate = useNavigate();
@@ -22,7 +29,7 @@ export default function MomentPage({ moment }: { moment: Moment }) {
     <Card testId="s4-body">
       <Eyebrow k="eyebrow.listen" />
       <p data-testid="s4-sentence" className="text-[17px] leading-snug text-[#1d2025]">
-        {t("s4.sentence_frame", lang, { sentence: pick(moment.w.sentence, lang) })}
+        {t("s4.sentence_frame", lang, { sentence: openSentence(pick(moment.w.sentence, lang), lang) })}
       </p>
       <MomentPlayer moment={moment} variant="full" onSeeMove={() => navigate(insightsPaths.move(moment.w.w_id))} />
     </Card>

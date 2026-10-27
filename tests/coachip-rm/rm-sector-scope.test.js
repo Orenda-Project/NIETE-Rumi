@@ -341,6 +341,22 @@ run('COACHIP RM sector scope (adversarial; Postgres, HTTP)', () => {
     });
   });
 
+  // ── 1b · SPEC v2.1 §11.1: a coach-basis circle is the same stored predicate (the basis changes the W, never who may hear) ──
+  test('1b · an RM may open a coach-basis moment of their own sector and gets the invented-UUID 404 for another sector\'s', async () => {
+    await pg.query("UPDATE coachip_circle_items SET basis = 'coach' WHERE sector = 'Urban-I'");
+    await pg.query("UPDATE coachip_rollups SET rank = NULL, status = 'insufficient', coaches_with_5plus = 1 WHERE scope_kind = 'sector' AND sector = 'Urban-I'");
+    const circle = await get('/rm/circle', RM);
+    expect([circle.status, circle.body.basis]).toEqual([200, 'coach']);
+    expect(circle.body.moments.map((m) => m.moment_id).sort()).toEqual([MOM(1), MOM(2)].sort());
+    for (const m of [MOM(1), MOM(2)]) expect([m, (await get(`/m/${m}`, RM)).status]).toEqual([m, 200]);
+    // the Tarnol moment (sector basis) and an Urban-I moment outside the circle: the invented-UUID answer, byte for byte
+    const ref = await get(`/m/${INVENTED}`, RM);
+    for (const m of [MOM(3), MOM(4)]) expect([m, diff404(await get(`/m/${m}`, RM), ref)]).toEqual([m, []]);
+    // and the Tarnol RM replaying the Urban-I coach-basis moments
+    const ref2 = await get(`/m/${INVENTED}`, RM2);
+    for (const m of [MOM(1), MOM(2)]) expect([m, diff404(await get(`/m/${m}`, RM2), ref2)]).toEqual([m, []]);
+  });
+
   // ── 2 ────────────────────────────────────────────────────────────────────────────────────────────────────────
   test('2 · a flagged coach session with no RM entry → the one 404 on every RM route and the RM leg of R6', async () => {
     await seed.setting(pg.query, 'portal_coachip', [CA, CB]);

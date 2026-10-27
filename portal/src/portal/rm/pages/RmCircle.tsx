@@ -21,7 +21,26 @@ import { rt, rtx } from "../text";
  * per coach as a single line "coach · school · W · play" (the gloss only when a row opens; no mark, grade, subject or
  * date); the sector moves from the library with their date, who attends and the check, each with "Set this sector step"
  * (POST /coachip/rm/steps; never a broadcast as the whole intervention, A7); and the checks due this week per coach.
+ *
+ * fix-r5 (SPEC v2.1 §11.1, API R20 `basis`/`floor`): on a `coach` week the floor line sits above the rows, its `{c}` a Count
+ * node (n = coaches with 5+ lessons, d = the 3 the floor needs, the sector's 4-week window) so G10 holds; the line's fixed
+ * numbers (the floor's 5 lessons) are policy, not counts. No moment on a `coach` week (or a floor with no coach ranked)
+ * says `s10.moments.empty.floor`, never a zero.
  */
+function BasisLine({ data }: { data: Circle }) {
+  const lang = useLang();
+  const c = data.floor?.coaches_with_5plus ?? 0;
+  // COPY §8: {c} counts on the sector's 4-week graded window (R20 floor.window_id, listed in windows), not the clip week.
+  const win = data.floor?.window_id ?? data.window.id;
+  return (
+    <div data-testid="s10-basis" className="flex flex-col gap-0.5">
+      <WindowLegend windows={data.windows} ids={[win]} />
+      <p data-nonum="" className="text-[13.5px] leading-snug text-[#374151]">
+        {rtx("s10.moments.basis.coach", lang, {}, [{ n: "c", d: "3", count: { n: c, d: 3, window_id: win } }])}
+      </p>
+    </div>
+  );
+}
 function SectorMove({ s, today }: { s: Circle["sector_interventions"][number]; today: string }) {
   const lang = useLang();
   const [date, setDate] = useState(s.date && s.date >= today ? s.date : defaultDue(today));
@@ -92,8 +111,14 @@ export default function RmCircle() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <RmCard testId="s10-moments" title={rt("s10.moments.title", lang)} sub={rt("s10.moments.explain", lang)}>
             {data.moments.length === 0
-              ? <RmNote testId="s10-moments-empty">{rt("s10.moments.empty", lang)}</RmNote>
-              : <ul className="flex flex-col divide-y divide-[#f3f4f6]">{data.moments.map((m) => <CircleRow key={m.moment_id} m={m} open={open === m.moment_id} onOpen={setOpen} />)}</ul>}
+              // the floor's "20 graded lessons" is policy, not a count
+              ? <RmNote testId="s10-moments-empty"><span data-nonum="">{rt(data.basis === "coach" || data.floor ? "s10.moments.empty.floor" : "s10.moments.empty", lang)}</span></RmNote>
+              : (
+                <>
+                  {data.basis === "coach" && <BasisLine data={data} />}
+                  <ul className="flex flex-col divide-y divide-[#f3f4f6]">{data.moments.map((m) => <CircleRow key={m.moment_id} m={m} open={open === m.moment_id} onOpen={setOpen} />)}</ul>
+                </>
+              )}
           </RmCard>
           <div className="flex flex-col gap-4">
             <RmCard testId="s10-sector-moves" title={rt("s10.sector_moves.title", lang)}>

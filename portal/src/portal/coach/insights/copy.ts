@@ -1,8 +1,8 @@
 /**
- * bd-sex15q.15 — COACHIP: every coach-screen string, English and Urdu, generated from contracts/COPY.md v1
+ * bd-sex15q.15 — COACHIP: every coach-screen string, English and Urdu, generated from contracts/COPY.md v1.1
  * (sections N, WRow, S1-S7, L, D, E) by outputs/lanes/m-ui/gen_copy.py. Never hand-edit a value: change COPY.md and
  * re-run. Tokens `{x}` are filled by format.ts (§F); a string reaches the screen only through `tx()`/`t()`.
- * Keys not in COPY v1 yet (s1.empty.insufficient4, s1.steps.row.sub14, meta.*, s2.step.other): see the m-ui REPORT, Assumptions.
+ * Every key is in COPY.md's tables (v1.1 adopted the former extras; fix-r5, bd-sex15q.19).
  */
 
 export const COPY = {
@@ -20,11 +20,14 @@ export const COPY = {
   "eyebrow.one_move": { en: "ONE MOVE", ur: "ایک قدم" },
   "eyebrow.check": { en: "CHECK", ur: "جانچ" },
   "band.title": { en: "This week", ur: "اس ہفتے" },
-  "band.sub": { en: "{date_short} · {n} schools", ur: "{date_short}، {n} اسکول" },
+  "band.sub": { en: "{date_short}", ur: "{date_short}" },
   "lang.en": { en: "EN", ur: "EN" },
   "lang.ur": { en: "اردو", ur: "اردو" },
   "back": { en: "Back", ur: "واپس" },
   "trust.coach": { en: "Codes, never names. For coaching, never for evaluation.", ur: "کوڈ، نام نہیں۔ کوچنگ کے لیے، جانچ پڑتال کے لیے نہیں۔" },
+  "meta.line": { en: "{range} · {grader_label}", ur: "{range}، {grader_label}" },
+  "meta.changed": { en: "scoring changed {date_short}", ur: "نمبر دینے کا طریقہ {date_short} کو بدلا" },
+  "more.rm": { en: "Sector (RM)", ur: "سیکٹر (آر ایم)" },
   "wrow.ranked.lead": { en: "{n} / of {d} / MOVE 2", ur: "{d} میں سے {n}، دوسرا قدم" },
   "wrow.ranked.sub": { en: "{school} first ({n} of {d}) · {range} · {grader_label}", ur: "پہلے {school} ({d} میں سے {n})، {range}، {grader_label}" },
   "wrow.also_seen.sub": { en: "{school} first ({n} of {d}) · {range}", ur: "پہلے {school} ({d} میں سے {n})، {range}" },
@@ -45,11 +48,12 @@ export const COPY = {
   "s1.steps.title": { en: "Open steps", ur: "جاری قدم" },
   "s1.steps.sub": { en: "What you set, and the next three recordings", ur: "جو آپ نے طے کیے، اور اگلی تین ریکارڈنگز" },
   "s1.steps.row.sub": { en: "{code} · {school} · set {date_short} · check: visit {date}", ur: "{code}، {school}، طے {date_short}، جانچ: دورہ {date}" },
+  "s1.steps.row.sub14": { en: "{code} · {school} · set {date_short} · check by {date}", ur: "{code}، {school}، طے {date_short}، جانچ {date} تک" },
   "s1.steps.row.checked": { en: "checked {date_short}", ur: "جانچ ہوئی {date_short}" },
   "s1.steps.legend": { en: "done · partial · not done", ur: "ہوا، ادھورا، نہیں ہوا" },
   "chip.to_come": { en: "{n} recordings to come", ur: "{n} ریکارڈنگز باقی" },
   "chip.to_come.one": { en: "1 recording to come", ur: "۱ ریکارڈنگ باقی" },
-  "chip.worked": { en: "It worked", ur: "کام کر گیا" },
+  "chip.worked": { en: "It worked", ur: "کامیاب" },
   "chip.not_yet": { en: "Not yet", ur: "ابھی نہیں" },
   "chip.in": { en: "{n} of 3 recordings in", ur: "۳ میں سے {n} آئیں" },
   "s1.steps.empty": { en: "No open step yet. Set one from a move.", ur: "ابھی کوئی جاری قدم نہیں۔ کسی قدم سے ایک طے کریں۔" },
@@ -64,6 +68,7 @@ export const COPY = {
   "s1.empty.pending": { en: "Being prepared: your first week's moves appear after tonight's run.", ur: "تیاری جاری ہے: آپ کے پہلے ہفتے کے قدم آج رات کے تجزیے کے بعد آئیں گے۔" },
   "s1.empty.failed": { en: "The analysis has not run for 7 days. Your open steps still show. Ask your RM.", ur: "تجزیہ سات دن سے نہیں چلا۔ آپ کے جاری قدم دکھائی دے رہے ہیں۔ اپنے آر ایم سے بات کریں۔" },
   "s1.empty.insufficient": { en: "Not enough recordings yet: {graded} graded lessons in the last {weeks}, {needed} needed; widening to 8 weeks.", ur: "ابھی کافی ریکارڈنگز نہیں: پچھلے {weeks} میں {graded} جانچے گئے اسباق، {needed} درکار؛ ۸ ہفتوں تک بڑھایا جا رہا ہے۔" },
+  "s1.empty.insufficient4": { en: "Not enough recordings yet: {graded} graded lessons in the last 4 weeks, {needed} needed. Your open steps still show.", ur: "ابھی کافی ریکارڈنگز نہیں: پچھلے ۴ ہفتوں میں {graded} جانچے گئے اسباق، {needed} درکار۔ آپ کے جاری قدم دکھائی دے رہے ہیں۔" },
   "s1.empty.insufficient8": { en: "Not enough recordings yet: {graded} graded lessons in the last 8 weeks, {needed} needed. Your open steps still show.", ur: "ابھی کافی ریکارڈنگز نہیں: پچھلے ۸ ہفتوں میں {graded} جانچے گئے اسباق، {needed} درکار۔ آپ کے جاری قدم دکھائی دے رہے ہیں۔" },
   "s1.empty.no_scope": { en: "No schools are assigned to you yet. Ask your RM.", ur: "ابھی آپ کو کوئی اسکول تفویض نہیں ہوا۔ اپنے آر ایم سے بات کریں۔" },
   "s1.note.label": { en: "From your RM", ur: "آپ کے آر ایم کی طرف سے" },
@@ -82,6 +87,7 @@ export const COPY = {
   "s2.moment.title": { en: "The moment", ur: "لمحہ" },
   "s2.moment.sub": { en: "{code} at {school}", ur: "{school} میں {code}" },
   "s2.step.eyebrow": { en: "ONE MOVE · FOR {code}", ur: "ایک قدم، {code} کے لیے" },
+  "s2.step.other": { en: "another teacher", ur: "دوسرے استاد" },
   "s2.step.check_line": { en: "Visit {date} · your tick, then 2 of 3 recordings", ur: "دورہ {date}، آپ کا نشان، پھر ۳ میں سے ۲ ریکارڈنگز" },
   "s2.step.check_line.no_visit": { en: "Check by {date} · your tick, then 2 of 3 recordings", ur: "جانچ {date} تک، آپ کا نشان، پھر ۳ میں سے ۲ ریکارڈنگز" },
   "s2.step.set": { en: "Set this step for {code}", ur: "{code} کے لیے یہ قدم طے کریں" },
@@ -133,6 +139,8 @@ export const COPY = {
   "s4.chapter.guided": { en: "Guided", ur: "مل کر" },
   "s4.chapter.practice": { en: "Practice", ur: "خود مشق" },
   "s4.chapter.exit": { en: "Exit", ur: "جانچ" },
+  "s4.verdict.not_adjudicable": { en: "could not be judged", ur: "فیصلہ ممکن نہیں" },
+  "s4.verdict.substituted": { en: "a different step was done", ur: "متبادل قدم ہوا" },
   "s4.legend": { en: "✓ done · ½ partial · ✗ not done · grey: the clip did not reach it", ur: "✓ ہوا، ½ ادھورا، ✗ نہیں ہوا، سرمئی: کلپ یہاں تک نہیں پہنچا" },
   "s4.tap_step": { en: "Tap a step to jump to it", ur: "کسی مرحلے پر ٹیپ کریں تو وہاں جائے گا" },
   "s4.outside_clip": { en: "This step is outside the clip. Open the full recording to hear it.", ur: "یہ مرحلہ کلپ سے باہر ہے۔ سننے کے لیے پوری ریکارڈنگ کھولیں۔" },
@@ -223,15 +231,11 @@ export const COPY = {
   "e.offline": { en: "You are offline. Showing what was already loaded.", ur: "آپ آف لائن ہیں۔ جو پہلے کھل چکا تھا وہی دکھایا جا رہا ہے۔" },
   "e.failed_load": { en: "This could not be loaded. Pull down to try again.", ur: "یہ نہیں کھل سکا۔ دوبارہ کوشش کے لیے نیچے کھینچیں۔" },
   "e.503_clip": { en: "The clip could not be made; the full recording plays from {mm:ss}.", ur: "کلپ نہیں بن سکا؛ پوری ریکارڈنگ {mm:ss} سے چلے گی۔" },
+  "e.503_clip.rm": { en: "The clip could not be made. Ask the coach to bring it on Friday.", ur: "کلپ نہیں بن سکا۔ کوچ سے جمعے کو کلپ لانے کو کہیں۔" },
   "e.saving": { en: "Saving", ur: "محفوظ ہو رہا ہے" },
   "e.saved": { en: "Saved", ur: "محفوظ ہو گیا" },
   "decode.show": { en: "Show name (switched on by your programme)", ur: "نام دکھائیں (آپ کے پروگرام نے کھولا ہے)" },
   "decode.hide": { en: "Hide name", ur: "نام چھپائیں" },
-  "s1.empty.insufficient4": { en: "Not enough recordings yet: {graded} graded lessons in the last {weeks}, {needed} needed. Your open steps still show.", ur: "ابھی کافی ریکارڈنگز نہیں: پچھلے {weeks} میں {graded} جانچے گئے اسباق، {needed} درکار۔ آپ کے جاری قدم دکھائی دے رہے ہیں۔" },
-  "s1.steps.row.sub14": { en: "{code} · {school} · set {date_short} · check by {date}", ur: "{code}، {school}، طے {date_short}، جانچ {date} تک" },
-  "meta.line": { en: "{range} · {grader_label}", ur: "{range}، {grader_label}" },
-  "meta.changed": { en: "scoring changed {date_short}", ur: "نمبر دینے کا طریقہ {date_short} کو بدلا" },
-  "s2.step.other": { en: "another teacher", ur: "دوسرے استاد" },
 } as const;
 
 export type CopyKey = keyof typeof COPY;

@@ -1,8 +1,7 @@
 import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { useLang } from "../../teacher/i18n";
-import { CountSpan } from "../../coach/insights/count";
-import { dateShort, digits, todayKarachi } from "../../coach/insights/format";
+import { dateShort, todayKarachi } from "../../coach/insights/format";
 import type { Count } from "../../coach/insights/types";
 import type { Coach, RmHome } from "../types";
 import { rmPaths } from "../paths";
@@ -73,7 +72,7 @@ export function CoachGroups({ home, onFollowUp, testId = "coach-groups" }: { hom
   );
 }
 
-/** S8's Friday-circle card: "{m} moments · {n} of {d} checks due this week" (m is a Count of coaches; d its base). */
+/** S8's Friday-circle card (COPY v1.1): "{m} of {c} coaches have a moment · {n} of {d} checks due this week" (A6: m is a Count of coaches, c its base). */
 export function CircleCard({ home }: { home: RmHome }) {
   const lang = useLang();
   const m = home.circle.moments;
@@ -83,7 +82,7 @@ export function CircleCard({ home }: { home: RmHome }) {
         <span className="text-[16px] font-semibold">{rt("s8.circle.title", lang)}</span>
         <WindowLegend windows={home.windows} ids={windowIds(home.circle)} />
         <span className="text-[14px] text-[#374151]">
-          {rtx("s8.circle.sub", lang, { m: <CountSpan count={m}>{digits(m.n, lang)}</CountSpan> }, [{ n: "n", d: "d", count: home.circle.checks_due }])}
+          {rtx("s8.circle.sub", lang, {}, [{ n: "m", d: "c", count: m }, { n: "n", d: "d", count: home.circle.checks_due }])}
         </span>
       </span>
       <ChevronRight className="h-5 w-5 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />

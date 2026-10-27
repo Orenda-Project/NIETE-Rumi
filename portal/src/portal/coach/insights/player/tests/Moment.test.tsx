@@ -38,7 +38,10 @@ describe.each(LANGS)("S4 player page (%s)", (lang) => {
     expect(page.textContent).toContain("T-07");
     expect(page.textContent).toContain("Govt. Primary School Fictional-03");
     const body = screen.getByTestId("s4-body");
-    expect(within(body).getByTestId("s4-sentence").textContent).toContain(F.moment.w.sentence[lang]);
+    // fix-r5 item 5b: the EN sentence opens the line, so its first code point is capitalised (COPY v1.1 §8); Urdu as sent
+    const sent = F.moment.w.sentence[lang] as string;
+    const expected = lang === "en" ? sent.charAt(0).toUpperCase() + sent.slice(1) : sent;
+    expect(within(body).getByTestId("s4-sentence").textContent).toBe(`${expected} ${lang === "en" ? "This is one of them." : "یہ ان میں سے ایک ہے۔"}`);
     expect(within(body).getByTestId("s4-sentence").textContent).toContain(lang === "en" ? "This is one of them." : "یہ ان میں سے ایک ہے۔");
     const sub = screen.getByTestId("s4-sub");
     if (lang === "en") expect(sub.textContent).toContain("Grade 3 Urdu");
@@ -76,7 +79,8 @@ describe.each(LANGS)("S4 player page (%s)", (lang) => {
     expect(container.textContent).not.toMatch(/T-\d+/);
     expect(screen.queryByTestId("s4-sub")).toBeNull();
     expect(screen.queryByTestId("full-recording")).toBeNull();
-    expect(screen.getByTestId("s4-sentence").textContent).toContain(F.moment_rm.w.sentence[lang]);
+    const rmSent = F.moment_rm.w.sentence[lang] as string;
+    expect(screen.getByTestId("s4-sentence").textContent).toContain(lang === "en" ? rmSent.charAt(0).toUpperCase() + rmSent.slice(1) : rmSent);
   }, 30000);
 
   it("clip failed: the session's audio plays from the moment, and the page says so", async () => {

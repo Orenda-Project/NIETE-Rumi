@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RM_COPY, type RmCopyKey } from "../rm.copy";
+import { COPY } from "../../coach/insights/copy";
 
 /**
  * COPY.md §6, the lint, over every string of the RM deck (rm.copy.ts) — m-ui's TS port of contracts/lint_copy.py, with
@@ -23,9 +24,12 @@ const cp = (s: string) => [...s].length;
 
 describe("COPY §6 lint over the RM deck", () => {
   it("has S8, S9, S10, RM-T and the picker", () => {
-    for (const k of ["s8.opening", "s8.trust", "s9.steps.row", "s10.moments.row", "rmt.RM-T2.l1", "picker.send", "e.503_clip.rm"] as RmCopyKey[]) {
+    for (const k of ["s8.opening", "s8.trust", "s9.steps.row", "s10.moments.row", "rmt.RM-T2.l1", "picker.send", "s10.moments.basis.coach", "s10.moments.empty.floor"] as RmCopyKey[]) {
       expect(RM_COPY[k]).toBeDefined();
     }
+    // COPY v1.1 puts e.503_clip.rm in §E: the RM pages read it from the coach copy (rm/text.tsx falls back to it)
+    expect(COPY["e.503_clip.rm"]).toBeDefined();
+    expect((RM_COPY as Record<string, unknown>)["e.503_clip.rm"]).toBeUndefined();
   });
   it("rule 7: both languages, same tokens", () => {
     expect(ENTRIES.filter(([, v]) => !v.en.trim() || !v.ur.trim() || TOKENS(v.en).join() !== TOKENS(v.ur).join()).map(([k]) => k)).toEqual([]);

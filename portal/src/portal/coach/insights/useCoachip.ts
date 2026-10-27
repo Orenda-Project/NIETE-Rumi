@@ -41,6 +41,24 @@ export function useCoachip(userKey?: string | null, ready = true): boolean | nul
   return ready ? on : false;
 }
 
+/**
+ * fix-r5 (SPEC v2.1 §11.6, dual-role users): is `features.coachipRm` a literal `true` in /config? Fail-closed like
+ * useCoachip (null while reading, false on any error or missing key). Reads /config only: no /coachip/ request.
+ */
+export function useCoachipRm(ready = true): boolean | null {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!ready) return undefined;
+    let live = true;
+    readConfigShared()
+      .then((cfg) => (cfg?.features as { coachipRm?: unknown } | undefined)?.coachipRm === true)
+      .catch(() => false)
+      .then((value) => { if (live) setOn(value); });
+    return () => { live = false; };
+  }, [ready]);
+  return ready ? on : false;
+}
+
 /** Tests only. */
 export function resetCoachipMemory(): void {
   remembered = null;

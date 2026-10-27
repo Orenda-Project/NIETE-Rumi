@@ -5233,6 +5233,8 @@
  },
  "rm_circle": {
   "week_start": "2026-10-26",
+  "basis": "sector",
+  "floor": null,
   "window": {
    "id": "week-2026-10-19",
    "from": "2026-10-19",

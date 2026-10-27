@@ -65,6 +65,28 @@ function weekOk(v, today) {
   return v <= thisMonday && v >= S.addDays(thisMonday, -49);
 }
 
+// ── assertClean (red-2 181122, SPEC v2.1 §11.6): the runtime twin of the read tests' greps (API.md §1 "never in any
+// payload"). A key below, any other key holding "name" (school_name and short_name* excepted; library names travel as
+// `title`), or a string value with a URL or the bucket's marks → 500 server_error, logged with route and key only.
+const FORBIDDEN_KEYS = new Set(['teacher_key', 'phone', 'phone_number', 'user_id', 'teacher_id', 'whatsapp_id', 'initials',
+  'evidence_translation', 'rationale', 'narrative', 'executive_summary', 'report_narrative', 'voice_debrief_script',
+  'try_this_tomorrow', 'evidence_summary', 'notable_moments']);
+const NAME_OK = (k) => k === 'school_name' || k.startsWith('short_name');
+const URL_RX = /X-Amz-|r2\.cloudflarestorage|http/i;
+/** The first forbidden key in a body (depth-first), or null. `allowName` is the decode answer's one exception (§9.3). */
+function findForbidden(value, allowName = false, depth = 0) {
+  if (depth > 32 || value === null || typeof value !== 'object') return null;
+  for (const [k, v] of Object.entries(value)) {
+    if (FORBIDDEN_KEYS.has(k)) return k;
+    if (/name/i.test(k) && !NAME_OK(k) && !(allowName && depth === 0 && k === 'name')) return k;
+    if (typeof v === 'string' && URL_RX.test(v)) return `${k}(url)`;
+    const inner = findForbidden(v, allowName, depth + 1);
+    if (inner) return inner;
+  }
+  return null;
+}
+const DECODE_PATH = '/coachip/teacher-name';
+
 /**
  * @param {object} deps
  * @param {Function} deps.query      pg-shaped query(sql, params) → {rows} (dashboard/config/database)
@@ -85,6 +107,18 @@ function createCoachipRouter(deps) {
   const router = express.Router();
 
   router.use('/coachip', (req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); });
+  router.use('/coachip', (req, res, next) => {
+    const json = res.json.bind(res);
+    res.json = (body) => {
+      const routePath = req.route && req.route.path ? req.route.path : `${req.baseUrl}${req.path}`.replace(/[0-9a-f-]{36}/gi, ':id');
+      const hit = findForbidden(body, req.method === 'POST' && routePath === DECODE_PATH);
+      if (!hit) return json(body);
+      console.error(`[coachip] assertClean route=${req.method} ${routePath} key=${hit}`);
+      res.status(500);
+      return json(S.BODIES[500]);
+    };
+    next();
+  });
 
   async function loadUser(uid) {
     const { rows } = await query('SELECT id, role, preferred_language FROM users WHERE id = $1 AND deleted_at IS NULL', [uid]);

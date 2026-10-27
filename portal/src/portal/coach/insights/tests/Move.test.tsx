@@ -70,11 +70,28 @@ for (const lang of ["en", "ur"] as const) {
       // the payload carries no code_id, so no Set button on S5
       expect(screen.queryByTestId("s5-set")).toBeNull();
       // vidrec renders its title only (minutes are not in the payload)
-      expect(screen.getByTestId("s5-materials").textContent).toContain(i.materials[2].title[lang]);
+      expect((screen.getByTestId("s5-materials").textContent || "").replace(/[\u2066-\u2069]/g, "")).toContain(i.materials[2].title[lang]);
       expect(screen.queryByTestId("s5-fln")).toBeNull();
       expectContract(container, expect);
       expectNoIdentity(container, expect);
       expect(container.innerHTML).toMatchSnapshot();
+    }, 20000);
+
+    it("fix-r5 5e: in Urdu every Latin-script run of a material title sits in LRI…PDI; English is untouched", async () => {
+      serve({ [MOVE]: F["i_W-IP-TIME"] });
+      await renderAt("/w/W-IP-TIME/move");
+      const items = Array.from(screen.getByTestId("s5-materials").querySelectorAll("li")).map((li) => li.textContent || "");
+      const titles = (F["i_W-IP-TIME"].i.materials as { title: Record<string, string> }[]).map((m) => m.title[lang]);
+      expect(items.map((x) => x.replace(/[\u2066-\u2069]/g, ""))).toEqual(titles);
+      if (lang === "en") {
+        expect(items.some((x) => /[\u2066-\u2069]/.test(x))).toBe(false);
+      } else {
+        expect(items[2]).toContain("\u2066Five step lesson plan\u2069");
+        expect(items[1]).toContain("\u2066NIETE\u2069");
+        expect(items[1]).toContain("\u2066manage\u2069");
+        // no Latin letter outside an isolate
+        for (const x of items) expect(/[A-Za-z]/.test(x.replace(/\u2066[^\u2069]*\u2069/g, ""))).toBe(false);
+      }
     }, 20000);
 
     it("visit rule: the check is the booked visit, days counted from today (Karachi)", async () => {

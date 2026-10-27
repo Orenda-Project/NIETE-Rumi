@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import { useLang } from "../../teacher/i18n";
 import { CodeText } from "../../coach/insights/count";
-import { durButton } from "../../coach/insights/format";
+import { durButton, isolate } from "../../coach/insights/format";
 import { pick } from "../../coach/insights/text";
 import { rm } from "../api";
 import type { CircleMoment, CircleMomentDetail } from "../types";
@@ -50,7 +50,8 @@ export function CircleRow({ m, open, onOpen }: { m: CircleMoment; open: boolean;
         <button type="button" onClick={() => onOpen(open ? null : m.moment_id)} aria-expanded={open}
           className="flex min-h-[44px] min-w-0 flex-1 items-center gap-1 text-start text-[15px] text-[#1d2025]">
           <span data-testid="circle-line" className="truncate">
-            <span data-code="" dir="auto" className="font-semibold">{m.coach_label}</span>{sep}
+            {/* the C-NN label is an LTR atom: isolated in Urdu like the school name beside it (red-2 18:08Z, fix-r5 5f) */}
+            <span data-code="" dir={lang === "ur" ? "ltr" : undefined} className="font-semibold [unicode-bidi:isolate]">{isolate(m.coach_label, lang)}</span>{sep}
             <CodeText lang={lang}>{m.school.school_name}</CodeText>{sep}
             <span>{pick(m.short_name, lang)}</span>
           </span>

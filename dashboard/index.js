@@ -3770,28 +3770,9 @@ app.get('/observability/api/broadcast/:id/stats', requireAdmin, async (req, res)
 // HEALTH CHECK (before static serving)
 // ============================================================================
 
-app.get('/health', (req, res) => {
-  const fs = require('fs');
-  const versionFile = path.join(__dirname, '../VERSION'); // VERSION file is in parent directory
-  let version = '2.1.0'; // Default fallback
-
-  try {
-    if (fs.existsSync(versionFile)) {
-      version = fs.readFileSync(versionFile, 'utf8').trim();
-    }
-  } catch (err) {
-    console.error('Error reading VERSION file:', err);
-  }
-
-  res.json({
-    status: 'healthy',
-    service: 'Rumi Dashboard',
-    version: version,
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
+// db_writable (bd-sex15q.19, SPEC v2.1 §11.5): a read plus a SET LOCAL round trip; never a session SET.
+const { healthHandler } = require('./lib/health');
+app.get('/health', healthHandler({ pool: require('./config/database'), versionFile: path.join(__dirname, '../VERSION') }));
 
 // ============================================================================
 // TEACHER PORTAL FRONTEND SERVING (React SPA)
