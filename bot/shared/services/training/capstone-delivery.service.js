@@ -407,8 +407,10 @@ async function scoreAnswer(question, answerText, maxPoints = POINTS_PER_QUESTION
   const top = Number.isInteger(maxPoints) && maxPoints > 0 ? maxPoints : POINTS_PER_QUESTION;
   const rubricText = renderRubric(question && question.rubric);
   const rubricTotal = Number(question && question.rubric && question.rubric.total_marks);
-  // The rubric's own total wins over the vendor scale: marking out of 10 and
-  // then reporting it out of 5 would silently halve every CRQ.
+  // The model MARKS against the rubric's own total (its bands are written in
+  // those marks), but the STORED score is converted to the vendor scale below:
+  // the pass bar is computed from the vendor's capstone_points_per_question, so
+  // a 9 stored against a 5-mark vendor would read as 180% (bd-bos0ki).
   const cap = rubricText && Number.isFinite(rubricTotal) && rubricTotal > 0 ? rubricTotal : top;
 
   const system = rubricText
@@ -453,7 +455,17 @@ async function scoreAnswer(question, answerText, maxPoints = POINTS_PER_QUESTION
   }
   // The rubric path returns `total`; the generic path returns `score`.
   const raw_score = parsed.total !== undefined && parsed.total !== null ? parsed.total : parsed.score;
-  const score = Math.max(0, Math.min(cap, Math.round(Number(raw_score) || 0)));
+  let score = Math.max(0, Math.min(cap, Math.round(Number(raw_score) || 0)));
+  if (rubricText && cap !== top) {
+    // Today every I-SAPS rubric is out of 10 and the vendor scale is 10, so this
+    // never fires. If they ever diverge, keep the stored mark comparable to the
+    // pass bar and say so loudly.
+    const converted = Math.round((score * top) / cap);
+    logToFile('⚠️ CRQ rubric total differs from the vendor scale — converting the mark', {
+      rubricTotal: cap, vendorScale: top, rawScore: score, storedScore: converted,
+    }, 'warn');
+    score = converted;
+  }
   const feedback = String(parsed.feedback || 'Thank you for your answer.').slice(0, 600);
   return { score, feedback };
 }

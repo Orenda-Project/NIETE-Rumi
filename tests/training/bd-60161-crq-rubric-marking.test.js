@@ -17,8 +17,9 @@
  *  1. the rubric reaches the model, with its band text, when the question has one;
  *  2. an unreachable band (the source prints "-") is declared unreachable —
  *     a marker that invents an Exemplary band awards marks the rubric cannot give;
- *  3. the rubric's own total wins over the vendor scale, or a 10-mark CRQ gets
- *     silently reported out of 5;
+ *  3. the model marks on the rubric's own total, but the STORED mark is on the
+ *     vendor scale (bd-bos0ki: it was stored raw, so a 10-mark rubric under a
+ *     5-mark vendor read as 180% against the pass bar);
  *  4. a question with NO rubric still grades, on the old prompt. Beacon House
  *     has no rubrics; refusing to mark would strand it.
  */
@@ -116,11 +117,12 @@ describe('bd-60161 — rubric-grounded CRQ marking', () => {
     expect(prompt).toMatch(/not listed for a criterion is unavailable/i);
   });
 
-  test("the rubric's total wins over the vendor scale", async () => {
-    // vendor scale 5, rubric total 10, model returns 9 -> must NOT clamp to 5
-    const { mod } = loadWithCapture({ total: 9, feedback: 'ok' });
+  test("the model is told the rubric's total; the stored mark is on the vendor scale", async () => {
+    // vendor scale 5, rubric total 10, model returns 8 of 10 -> stored 4 of 5
+    const { mod, sent } = loadWithCapture({ total: 8, feedback: 'ok' });
     const { score } = await mod.scoreAnswer(CRQ, 'an answer', 5);
-    expect(score).toBe(9);
+    expect(sent[0].messages.map(m => m.content).join('\n')).toContain('total 10 marks');
+    expect(score).toBe(4);
   });
 
   test('reads `total` from the rubric reply, not `score`', async () => {

@@ -5128,10 +5128,11 @@ router.get('/training/modules', requirePortalAuth, async (req, res) => {
       const { data: lvl } = await supabase
         .from('training_levels').select('order_index, vendor_id').eq('id', courseRow.level_id).maybeSingle();
       if (lvl?.vendor_id) {
+        // bd-gbf8ix — the KEY: the vendor's name is a display label and was renamed.
         const { data: vendor } = await supabase
-          .from('training_vendors').select('name').eq('id', lvl.vendor_id).maybeSingle();
+          .from('training_vendors').select('key').eq('id', lvl.vendor_id).maybeSingle();
         readings = readingsForCourse({
-          vendorName: vendor?.name,
+          vendorKey: vendor?.key,
           levelOrderIndex: lvl.order_index,
           courseTitle: courseRow.title,
         });
