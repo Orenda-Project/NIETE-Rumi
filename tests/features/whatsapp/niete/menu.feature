@@ -161,6 +161,35 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     # History: until 2026-10-16 this scenario expected "portal.niete.edu.pk/portal/login" (verified on PROD
     # 2026-08-04), and a non-activated teacher got a /portal/setup/<token> link (portal-invite.service.js).
 
+  @e2e @portal @P1 @M29
+  Scenario Outline: "portal" typed without the slash opens the portal the same way as /portal
+    Given the NIETE bot chat is open
+    And I am a registered teacher
+    When I send "<typed>"
+    Then I get one message with an "Open portal" button
+    And the button's link is this portal's /go/<token> sign-in link
+    And the bot reply does not say it is unsure
+    Examples:
+      | typed       |
+      | portal      |
+      | Portal      |
+      | open portal |
+      | mera portal |
+      | پورٹل       |
+    # ADDED 2026-10-27: the whole message being the portal word plus at most a few words that only ask for it
+    # (portal-request.js isPortalRequest) is the /portal command (text-message.handler.js portalRequest). Before,
+    # a bare "portal" got "not sure which feature you meant" and the menu (prod, 7 days to 27 Oct: 3 turns, 0 links).
+    # Not registered: the registration Flow, exactly as for /portal. Kill switch PORTAL_KEYWORD_ROUTING (env, unset = on).
+    # Unit: bot/tests/handlers/portal-bare-word.test.js (the real handler), portal-request.test.js (the word table).
+
+  @e2e @portal @negative @P2 @M30
+  Scenario: A sentence that mentions the portal is not the portal command
+    Given the NIETE bot chat is open
+    And I am a registered teacher
+    When I send "portal pe lesson nahi khul raha"
+    Then no "Open portal" button is sent
+    # A message carrying content (a question, a problem) goes to the classifier and the chat, as before.
+
   @e2e @portal @P1 @M21
   Scenario: /portal gives an activated teacher with no password the same sign-in link — no password asked
     Given the NIETE bot chat is open
