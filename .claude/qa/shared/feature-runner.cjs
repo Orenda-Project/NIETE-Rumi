@@ -619,10 +619,13 @@ function makeApi(c) {
   const SCENARIO_ID = /^[A-Z]{1,5}\d{1,3}$/;   // harness rows (COA-preflight, RUNNER) carry a hyphen and always report
   const want = SEL.makeWant(ONLY, SKIP);
   let outOfScope = 0;
-  const rec = (id, name, verdict, evidence, ms) => {
+  // `win` ({ t1 }) places the scenario span where it happened: a driver that records a block's verdicts after
+  // the fact (coaching-ext) would otherwise put every window at the end of the run and the profiler would
+  // attribute nothing to its shards (bd-1r3k2h).
+  const rec = (id, name, verdict, evidence, ms, win) => {
     if (!SEL.recAllowed(id, ONLY, SKIP, SCENARIO_ID)) { outOfScope++; trace(`SKIP ${id} (not selected for this child)`); return; }
     trace(`REC ${id} ${verdict} ${Math.round((ms||0)/1000)}s`); results.push({ id, name, verdict, evidence, ms });
-    tracer.scenario(id, { verdict, ms, title: name });
+    tracer.scenario(id, { verdict, ms, title: name, t1: win && win.t1 });
   };
   if (ONLY) trace(`selection: ${[...ONLY].join(',')} (${ONLY.size} scenario(s) of ${FEATURE})`);
   if (SKIP) trace(`skipping: ${[...SKIP].join(',')} (${SKIP.size} scenario(s) of ${FEATURE} run by another shard)`);
