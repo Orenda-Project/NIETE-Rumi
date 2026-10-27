@@ -96,15 +96,22 @@ async function getClassesByIds(ids) {
   return { ok: true, classes: data || [] };
 }
 
+/** The students with these ids, read IN_BATCH ids at a time: a big school's day list passes 400-plus ids, and one
+ *  `.in()` that long overflows the request URL ("fetch failed"). Any failing batch fails the whole read. */
 async function listStudents(ids) {
   const unique = [...new Set(ids)];
   if (!unique.length) return { ok: true, students: [] };
-  const { data, error } = await supabase.from('students')
-    // Only columns 00_complete-schema declares: a fresh database has no students.status/merged_into.
-    .select('id, student_name, student_name_urdu, father_name, father_name_urdu, is_active')
-    .in('id', unique);
-  if (error) return fail('listStudents', error, { students: unique.length });
-  return { ok: true, students: data || [] };
+  const out = [];
+  for (let i = 0; i < unique.length; i += IN_BATCH) {
+    // eslint-disable-next-line no-await-in-loop
+    const { data, error } = await supabase.from('students')
+      // Only columns 00_complete-schema declares: a fresh database has no students.status/merged_into.
+      .select('id, student_name, student_name_urdu, father_name, father_name_urdu, is_active')
+      .in('id', unique.slice(i, i + IN_BATCH));
+    if (error) return fail('listStudents', error, { students: unique.length });
+    out.push(...(data || []));
+  }
+  return { ok: true, students: out };
 }
 
 /**
