@@ -83,6 +83,7 @@
 const { logToFile, logError } = require('../../../utils/logger');
 const stopRulesSwitch = require('../app/stop-rules-switch');
 const coachLastWord = require('../app/coach-last-word-switch');
+const { isSetAside } = require('./set-aside');
 
 const PARKED = 'final:sa_score_later';
 const SCORING = 'final:sa_scoring';
@@ -850,8 +851,9 @@ async function candidates({ sessionId = null, now = new Date(), supabase = db(),
 
 /** Every question id the phone asked in this session: which passage variant the child read. */
 async function askedOf(sessionId, supabase) {
-  const { data } = await supabase.from('child_test_blocks').select('responses').eq('session_id', sessionId);
-  return (data || []).flatMap((r) => { const res = resultOf(r); return res && Array.isArray(res.asked) ? res.asked : []; });
+  const { data } = await supabase.from('child_test_blocks').select('block, responses').eq('session_id', sessionId);
+  // round 7b: a restarted child's ended attempt (set aside) may have read another variant
+  return (data || []).filter((r) => !isSetAside(r.block)).flatMap((r) => { const res = resultOf(r); return res && Array.isArray(res.asked) ? res.asked : []; });
 }
 
 /**
@@ -1038,5 +1040,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt, voiceOf, keysOf, defaultDeps },
+  __internals: { askedOf, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt, voiceOf, keysOf, defaultDeps },
 };
