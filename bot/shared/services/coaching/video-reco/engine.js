@@ -159,6 +159,7 @@ async function compute(a, d, state) {
   const existing = await store.readForSession(coachingSessionId);
   if (existing) return existing;
   const [history, ladder, rosterWords, v10Group, bands] = await reads;
+  state.reads = { prefetched: false, age_ms: null, wait_ms: Date.now() - state.t0 };
 
   const arm = assignArm(session.user_id, d.env);
   const sr = (analysis && analysis.subject_resolution) || {};
@@ -210,7 +211,10 @@ async function compute(a, d, state) {
   };
   const finish = async (row) => {
     if (state.abandoned) return null;
-    return store.write({ ...row, engine_ms: Date.now() - state.t0 });
+    const engineMs = Date.now() - state.t0;
+    // R7v: where the pick's time went, one line per pick (the prod proof reads it; no column, no row change)
+    logToFile('[video-reco] timing', { coachingSessionId, engine_ms: engineMs, reads_wait_ms: state.reads.wait_ms, prefetched: state.reads.prefetched, prefetch_age_ms: state.reads.age_ms, status: row.status, route: row.route || null });
+    return store.write({ ...row, engine_ms: engineMs });
   };
   state.base = base;
 
