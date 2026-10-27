@@ -191,6 +191,9 @@ const en = {
     secondVoiceNote: (n: string, one: boolean) => `Another person's voice was heard in ${n} ${one ? "recording" : "recordings"}. Those scores may include help from someone else: listen to the recording before relying on them.`,
     score: "Score",
     scoreKeys: { correct: "Correct", attempted: "Attempted", per_minute: "Correct per minute", seconds_used: "Seconds used", of: "Questions" },
+    // sa_cwpm (round 7b item 14): a words task's per_minute, by its name
+    cwpmKey: "CWPM (correct words per minute)",
+    cwpmHow: "CWPM, correct words per minute (familiar words and the passage) = correct words × 60 ÷ the seconds the child read (60 at most).",
     howTitle: "How scoring works",
     how1: "Tap and keypad tasks are scored on the phone, on this assessment's own scale.",
     how2: "Correct and Attempted count the child's answers. Options per tile is how many choices each question shows.",
@@ -378,6 +381,9 @@ const ur: Copy = {
     scored: "ریکارڈنگ کے نمبر لگ گئے",
     score: "نمبر",
     scoreKeys: { correct: "درست", attempted: "کوشش", per_minute: "فی منٹ درست", seconds_used: "لگے ہوئے سیکنڈ", of: "کل سوال" },
+    // sa_cwpm (round 7b item 14): a words task's per_minute, by its name
+    cwpmKey: "⁨CWPM⁩ (فی منٹ درست الفاظ)",
+    cwpmHow: "⁨CWPM⁩، فی منٹ درست الفاظ (جانے پہچانے الفاظ اور عبارت) = درست الفاظ × ⁦۶۰⁩ ÷ بچے کے پڑھنے کے سیکنڈ (زیادہ سے زیادہ ⁦۶۰⁩)۔",
     howTitle: "نمبر کیسے لگتے ہیں",
     how1: "ٹیپ اور کی پیڈ والے سوالات کے نمبر فون پر ہی لگتے ہیں، اس جائزے کے اپنے پیمانے پر۔",
     how2: "«درست» اور «کوشش» بچے کے جوابات کی گنتی ہے۔ «ہر سوال میں انتخاب» سے مراد ہے کہ ہر سوال میں کتنے جواب دکھائے جاتے ہیں۔",

@@ -5,7 +5,7 @@ import PortalLayout from '../components/PortalLayout';
 import { childTestSa } from '../services/api';
 import { urDigits, type Lang } from '../lib/assess/copy';
 import { useUrFit } from '../lib/assess/urFit';
-import { DASH_COPY } from '../lib/assess/dashboardCopy';
+import { DASH_COPY, DASH_CWPM } from '../lib/assess/dashboardCopy';
 import { exampleCohort, TASKS, type DashStudent, type ReadLang, type TaskSpec } from '../lib/assess/exampleCohort';
 import { masked, NO_SECTOR, pktWhen, secondVoiceCount, toDashStudents } from '../lib/assess/realCohort';
 import { applyFilter, groupBy, headline, ORF_BANDS, summariseTask, type Filter } from '../lib/assess/cohortStats';
@@ -30,7 +30,9 @@ import { GRADES, rwpOrf } from '../lib/assess/rwpNorms';
  * first, and each one listed, honouring the same filters. A session with a stop but no task yet (stopSessions) counts in
  * the stops view only, never in the results. Off: the page is as before.
  */
-const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'under20_move_on'] as const;
+// Amendment 1: the completion rule's incomplete_move_on replaced under20_move_on; an old under20_move_on still lists
+const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on'] as const;
+const LISTED_STOPS = [...STOP_TYPES, 'under20_move_on'];
 const STOPS_SHOWN = 300;
 
 const LANG_KEY = 'niete-assess-lang';
@@ -62,13 +64,16 @@ export default function LeaderAssessDashboard() {
   // sa_dash_filters (round 7b): the filters and the stops view; the sessions with a stop and no task yet
   const [dashOn, setDashOn] = useState(false);
   const [stopOnly, setStopOnly] = useState<DashStudent[]>([]);
-  const c = DASH_COPY[lang];
+  // sa_cwpm (round 7b item 14): every words-per-minute number is labelled CWPM, with its formula
+  const [cwpm, setCwpm] = useState(false);
+  const c = cwpm ? { ...DASH_COPY[lang], ...DASH_CWPM[lang] } : DASH_COPY[lang];
 
   useEffect(() => {
     let live = true;
     Promise.resolve().then(() => childTestSa.getSwitches())
       .then(async (s) => {
         if (!live) return;
+        if (s && s.cwpm === true) setCwpm(true);
         if (s && s.realDashboard === true) {
           try {
             const got = await childTestSa.getSessions();
@@ -115,10 +120,12 @@ export default function LeaderAssessDashboard() {
       const k = byCoach.get(id)!;
       k.sessions += 1;
       (s.stops || []).forEach((st, i) => {
-        if (!(STOP_TYPES as readonly string[]).includes(st.type)) return;
-        totals[st.type] += 1;
-        k.counts[st.type] += 1;
-        k.total += 1;
+        if (!LISTED_STOPS.includes(st.type)) return;
+        if ((STOP_TYPES as readonly string[]).includes(st.type)) {
+          totals[st.type] += 1;
+          k.counts[st.type] += 1;
+          k.total += 1;
+        }
         items.push({ key: `${s.id}-${i}`, at: st.at, type: st.type, taskId: st.taskId, by: st.by, s });
       });
     }
@@ -127,6 +134,22 @@ export default function LeaderAssessDashboard() {
     return { totals, coachRows, items };
   }, [stopRows]);
   const narrowed = Boolean(filter.mode || filter.coachId || filter.from || filter.to);
+  // item 15: each child tested (the same filtered sessions as the stops view) from the random draw or added by the coach
+  const originView = useMemo(() => {
+    const totals = { drawn: 0, added: 0, unknown: 0 };
+    const byCoach = new Map<string, { id: string; name: string | null; drawn: number; added: number; unknown: number }>();
+    for (const s of stopRows) {
+      const id = s.coachId || '';
+      if (!byCoach.has(id)) byCoach.set(id, { id, name: s.coachName ?? null, drawn: 0, added: 0, unknown: 0 });
+      const k = byCoach.get(id)!;
+      const o = s.origin === 'added' ? 'added' : s.origin === 'drawn' ? 'drawn' : 'unknown';
+      totals[o] += 1;
+      k[o] += 1;
+    }
+    const share = (k: { drawn: number; added: number }) => (k.drawn + k.added ? k.added / (k.drawn + k.added) : 0);
+    const rows = [...byCoach.values()].sort((a, b) => (share(b) - share(a)) || (b.added - a.added) || (a.name || '~').localeCompare(b.name || '~'));
+    return { totals, rows, share };
+  }, [stopRows]);
 
   const num = (n: number | string) => (lang === 'ur' ? `${LRI}${urDigits(n)}${PDI}` : String(n));
   const count = (n: number) => num(n.toLocaleString('en-US'));
@@ -316,6 +339,55 @@ export default function LeaderAssessDashboard() {
     </section>
   );
 
+  const originSection = (
+    <section data-testid="dash-origin" aria-label={c.originTitle} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3">
+      <div>
+        <h2 className="text-base font-semibold text-slate-900">{c.originTitle}</h2>
+        <p className="text-xs text-slate-500">{c.originHint}</p>
+      </div>
+      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <li data-testid="dash-origin-drawn" className="rounded-xl bg-slate-50 p-2">
+          <p className="text-xs text-slate-600">{c.drawn}</p>
+          <p className="text-xl font-bold text-slate-900">{count(originView.totals.drawn)}</p>
+        </li>
+        <li data-testid="dash-origin-added" className="rounded-xl bg-slate-50 p-2">
+          <p className="text-xs text-slate-600">{c.added}</p>
+          <p className="text-xl font-bold text-slate-900">{count(originView.totals.added)} <span className="text-sm font-normal text-slate-600">· {pct(originView.share(originView.totals))}</span></p>
+        </li>
+        {originView.totals.unknown ? (
+          <li data-testid="dash-origin-unknown" className="rounded-xl bg-slate-50 p-2">
+            <p className="text-xs text-slate-600">{c.originUnknown}</p>
+            <p className="text-xl font-bold text-slate-900">{count(originView.totals.unknown)}</p>
+          </li>
+        ) : null}
+      </ul>
+      {originView.rows.length ? (
+        <div className="overflow-x-auto">
+          <table data-testid="dash-origin-by-coach" className="w-full min-w-[320px] text-xs sm:text-sm">
+            <thead>
+              <tr className="text-xs text-slate-600">
+                <th className="px-2 py-1 text-start font-medium">{c.colCoach}</th>
+                <th className="whitespace-nowrap px-2 py-1 text-end font-medium">{c.colDrawn}</th>
+                <th className="whitespace-nowrap px-2 py-1 text-end font-medium">{c.colAdded}</th>
+                <th className="whitespace-nowrap px-2 py-1 text-end font-medium">{c.colAddedShare}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {originView.rows.map((k) => (
+                <tr key={k.id || 'none'} data-testid="dash-origin-coach-row" data-coach={k.id} data-drawn={k.drawn} data-added={k.added}>
+                  <td className="px-2 py-2 text-slate-900"><bdi>{k.name || c.unknownCoach}</bdi></td>
+                  <td className="px-2 py-2 text-end tabular-nums">{count(k.drawn)}</td>
+                  <td className={`px-2 py-2 text-end tabular-nums ${k.added ? 'font-semibold text-slate-900' : 'text-slate-400'}`}>{count(k.added)}</td>
+                  <td className="px-2 py-2 text-end tabular-nums">{pct(originView.share(k))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </section>
+  );
+
   let body;
   if (load === 'loading') body = <p className="text-slate-600">{c.loading}</p>;
   else if (load === 'off') body = <p data-testid="dash-off" className="rounded-2xl border border-slate-200 bg-white p-4 text-slate-700">{c.off}</p>;
@@ -392,6 +464,7 @@ export default function LeaderAssessDashboard() {
           {tile('dash-minutes', c.minutes, hideAll ? '–' : one(h.minutesMedian))}
         </section>
         {filtersOn ? stopsSection : null}
+        {filtersOn ? originSection : null}
 
         <section className="rounded-2xl border border-slate-200 bg-white p-3">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">

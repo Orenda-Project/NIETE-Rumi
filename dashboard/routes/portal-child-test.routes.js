@@ -148,6 +148,8 @@ const SA_SWITCHES = {
   endTestRestart: 'sa_end_test_restart',
   endSection: 'sa_end_section',
   dashFilters: 'sa_dash_filters',
+  // round 7b item 14: every words-per-minute number is correct words per minute, labelled CWPM
+  cwpm: 'sa_cwpm',
 };
 // Switches that are off on any host but sandbox, whatever their row says.
 const SANDBOX_ONLY = new Set(['exampleDashboard']);

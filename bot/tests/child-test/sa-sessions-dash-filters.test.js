@@ -48,6 +48,7 @@ function world({ dash = true } = {}) {
     listBlocksForSessions: async (ids) => ({ ok: true, blocks: rows.filter((r) => ids.includes(r.session_id)) }),
     getSchoolsByIds: async (ids) => ({ ok: true, schools: [{ id: 'sch-1', name: 'School One', region: 'Urban-I' }, { id: 'sch-2', name: 'School Two', region: 'Nilore' }].filter((s) => ids.includes(s.id)) }),
     getUserNamesByIds: async (ids) => { calls.names.push(ids); return { ok: true, users: [{ id: COACH, name: 'Coach Testwala' }, { id: OTHER, name: 'Other Testwala' }].filter((u) => ids.includes(u.id)) }; },
+    getSessionDrawOrigins: async () => ({ ok: true, origins: [] }),
   };
   return {
     calls,
