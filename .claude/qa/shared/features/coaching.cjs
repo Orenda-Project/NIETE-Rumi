@@ -372,10 +372,15 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
     // seconds after the confirm tap, and the previous position (after the reads) was 73 s in, past the whole
     // replayed pipeline (run 20261027-0949-coaching-s5).
     // COA09 — a SECOND recording once the analysis is genuinely under way
-    // On the lane (DEFER_AFTER_MS 0) the second recording goes in straight after the confirm tap — the session is
-    // 'confirmed'/'pending', mid-flight for the guard — because with cassette replay the first step is already
-    // the last (run 20261026-201716: the reply to the "second" recording was the report caption).
-    if (DEEP && !deferralTried && (obs.steps.length || (DEFER_AFTER_MS === 0 && confirmed)) && !obs.steps.includes('5') && Date.now() - t0 >= DEFER_AFTER_MS) {
+    // Only while the session is genuinely mid-flight for the guard. Before a step it sits in a waiting-for-the-
+    // teacher state (the photo gate, then the lesson-plan gate) and during step 3 in conducting_conversation —
+    // both let a new recording through by design (bd-o29gk). Under cassette replay the worker logged
+    // transcribing 0.2 s, analyzing 1 s, then the reflective step (run 20261027-1001-coaching-s5), so on the lane
+    // (DEFER 0) the upload goes in after Step 4/5 — generating_report, which lasts the report render.
+    const deferWindow = DEFER_AFTER_MS === 0
+      ? (obs.steps.includes('4') && !obs.steps.includes('5'))
+      : (obs.steps.length && !obs.steps.includes('5'));
+    if (DEEP && !deferralTried && deferWindow && Date.now() - t0 >= DEFER_AFTER_MS) {
       deferralTried = true;
       const second = await api.upload(FIXTURE.classroom, 'Document', 180000);
       const txt2 = second.txt || '';
