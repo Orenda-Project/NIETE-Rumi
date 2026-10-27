@@ -43,6 +43,9 @@ maybe('sa-ui silence reminder on a DOM', () => {
     const { el, said, runner } = reminder('en', { silence_repeat: line });
     expect(el.getAttribute('data-phase')).toBe('silence_reminder');
     expect(el.textContent).toContain('Jugnu could not hear you.');
+    // the long line is a paragraph under a short title (sa_ur_fit: never cut by the foot at 360x740)
+    expect(el.querySelector('.sae-silence h1').textContent).toBe('Say it out loud');
+    expect(el.querySelector('.sae-silence p.sae-p').textContent).toBe('Jugnu could not hear you.');
     await new Promise((r) => setTimeout(r, 0));
     expect(said).toContainEqual(line);
     const again = [...el.querySelectorAll('button')].find((b) => /Try again/.test(b.textContent));
@@ -52,6 +55,8 @@ maybe('sa-ui silence reminder on a DOM', () => {
   test('UR, no battery line: the page\'s own Urdu copy', () => {
     const { el } = reminder('ur');
     expect(el.textContent).toContain('اونچی آواز');
+    expect(el.querySelector('.sae-silence h1').textContent).toBe('اونچی آواز میں بولیں');
+    expect(el.querySelector('.sae-silence p.sae-p').textContent).toContain('جگنو آپ کی آواز نہیں سن سکا۔');
     expect([...el.querySelectorAll('button')].some((b) => /دوبارہ/.test(b.textContent))).toBe(true);
   });
 });
