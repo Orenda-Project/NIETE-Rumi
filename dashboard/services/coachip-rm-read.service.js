@@ -443,7 +443,8 @@ async function rmCircle(ctx) {
   const seen = new Set();
   const sectorInterventions = [];
   for (const r of rows.filter((x) => x.rank && x.status === 'ok').sort((a, b) => a.rank - b.rank)) {
-    for (const level of ['school', 'sector']) {
+    // LIBRARY_RULES §2.2: S10 takes level `sector` only; a school-level I is S2's / S8's, never a sector step (panel 093959 c2)
+    for (const level of ['sector']) {
       const i = H.firstAtLevel(r.w_id, level);
       if (!i || seen.has(i.id)) continue;
       seen.add(i.id);

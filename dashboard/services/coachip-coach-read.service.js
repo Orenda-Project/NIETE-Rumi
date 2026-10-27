@@ -800,13 +800,13 @@ function interventionShape(i, version) {
   };
 }
 
-/** Alternatives (0..2): the parent's first teacher-level I first, then the W's own next ones, then the parent's. */
+/** Alternatives (0..2), LIBRARY_RULES §2.3: the W's own next teacher-level I first, then the parent's (panel 093959 c2). */
 function alternativesFor(wId, chosenId) {
   const lib = S.library();
   const w = lib.weakness(wId);
   const own = lib.forW(wId).filter((x) => x.level === 'teacher');
   const parent = w && w.parent_w_id ? lib.forW(w.parent_w_id).filter((x) => x.level === 'teacher') : [];
-  const seq = [...parent.slice(0, 1), ...own, ...parent.slice(1)];
+  const seq = [...own, ...parent];
   const out = [];
   for (const x of seq) {
     if (x.id === chosenId || out.some((o) => o.i_id === x.id)) continue;
