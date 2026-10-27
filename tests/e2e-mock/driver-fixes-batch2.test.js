@@ -55,7 +55,7 @@ describe('COA09 — the second recording goes in while the analysis is still in 
   test('the trigger is lane-tunable and never fires after step 5', () => {
     expect(src).toMatch(/E2E_COACHING_DEFER_AFTER_MS/);
     const i = src.indexOf('// COA09 — a SECOND recording');
-    expect(src.slice(i, i + 400)).toMatch(/!obs\.steps\.includes\('5'\)/);
+    expect(src.slice(i, i + 900)).toMatch(/!obs\.steps\.includes\('5'\)/);
     expect(src).not.toMatch(/Date\.now\(\) - t0 > 45000/);
   });
   test('run-suite sets 0 on the mock lane', () => {

@@ -447,7 +447,10 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
     }
 
     // COA09 — a SECOND recording once the analysis is genuinely under way
-    if (DEEP && !deferralTried && obs.steps.length && !obs.steps.includes('5') && Date.now() - t0 >= DEFER_AFTER_MS) {
+    // On the lane (DEFER_AFTER_MS 0) the second recording goes in straight after the confirm tap — the session is
+    // 'confirmed'/'pending', mid-flight for the guard — because with cassette replay the first step is already
+    // the last (run 20261026-201716: the reply to the "second" recording was the report caption).
+    if (DEEP && !deferralTried && (obs.steps.length || (DEFER_AFTER_MS === 0 && confirmed)) && !obs.steps.includes('5') && Date.now() - t0 >= DEFER_AFTER_MS) {
       deferralTried = true;
       const second = await api.upload(FIXTURE.classroom, 'Document', 180000);
       const txt2 = second.txt || '';
