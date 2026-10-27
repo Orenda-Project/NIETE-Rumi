@@ -37,7 +37,28 @@ export function toDashStudents(sessions: SaDashboardSession[]): DashStudent[] {
       grade,
       gender: null,
       results: s.results,
+      // sa_dash_filters (round 7b): present only when the server sends them
+      ...(s.mode ? { mode: s.mode } : {}),
+      ...(s.coachId !== undefined ? { coachId: s.coachId ?? null, coachName: s.coachName ?? null } : {}),
+      ...(s.startedAt !== undefined ? { startedAt: s.startedAt ?? null } : {}),
+      ...(Array.isArray(s.stops) ? { stops: s.stops } : {}),
     });
   }
   return out;
+}
+
+const PKT_MS = 5 * 60 * 60 * 1000;
+
+/** The Pakistan day (YYYY-MM-DD) of an ISO time; '' when there is none. Pakistan is UTC+5 all year. */
+export function pktDay(iso: string | null | undefined): string {
+  const t = iso ? Date.parse(iso) : NaN;
+  return Number.isFinite(t) ? new Date(t + PKT_MS).toISOString().slice(0, 10) : '';
+}
+
+/** "DD/MM HH:MM" in Pakistan time; '' when there is none. */
+export function pktWhen(iso: string | null | undefined): string {
+  const t = iso ? Date.parse(iso) : NaN;
+  if (!Number.isFinite(t)) return '';
+  const d = new Date(t + PKT_MS).toISOString();
+  return `${d.slice(8, 10)}/${d.slice(5, 7)} ${d.slice(11, 16)}`;
 }
