@@ -8,12 +8,14 @@
 const PIPELINE_VERSION = 'coachip-1.0.0';
 
 const SANDBOX_REF = 'olvritwoqujtjvwfulbh';
+const STAGING_REF = 'rpqkekcfvumypldbejhp';
 const PROD_REF = 'ihzciabopbttygxxgrkm';
-// The prod write path stays shut in code until the operator's go (B11; ORG §6 item 1). A test asserts it.
+// The prod write path stays shut in code until the operator's go (B11; ORG §6 item 1); it opens in its own one-line PR. A test asserts it.
 const PROD_WRITES_ALLOWED = false;
-// COACHIP_ENV → the project ref the job may write to. Staging and production come from the go package.
-const EXPECTED_REFS = Object.freeze({ sandbox: SANDBOX_REF, staging: null, production: PROD_REF });
-const CLIP_BUCKETS = Object.freeze({ sandbox: 'rumi-sandbox', staging: null, production: null });
+// COACHIP_ENV → the project ref the job may write to (GO_PACKAGE §2.5).
+const EXPECTED_REFS = Object.freeze({ sandbox: SANDBOX_REF, staging: STAGING_REF, production: PROD_REF });
+// Each tier's own R2_BUCKET_NAME; staging shares prod's bucket, its clips kept apart under coachip/clips/staging/ (clips.js).
+const CLIP_BUCKETS = Object.freeze({ sandbox: 'rumi-sandbox', staging: 'digital-coach-audio', production: 'digital-coach-audio' });
 
 const SECTORS = Object.freeze(['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol']);
 const TZ = 'Asia/Karachi';
@@ -70,7 +72,7 @@ const FICO_MOMENT_LEN_S = 45;
 const NIGHTLY_CAP_USD = 2.0;
 
 module.exports = {
-  PIPELINE_VERSION, SANDBOX_REF, PROD_REF, PROD_WRITES_ALLOWED, EXPECTED_REFS, CLIP_BUCKETS, SECTORS, TZ,
+  PIPELINE_VERSION, SANDBOX_REF, STAGING_REF, PROD_REF, PROD_WRITES_ALLOWED, EXPECTED_REFS, CLIP_BUCKETS, SECTORS, TZ,
   MARGIN_TAIL_S, MARGIN_NOPLAN_EXIT_S, PRACTICE_SECONDS_PER_PRESCRIBED_MINUTE,
   DONE_VERDICTS, DONE_OR_PARTIAL_VERDICTS, NOT_DONE, SERIES_START, HISTORY_ONLY_GRADERS,
   FLOORS, SECTOR_MIN_COACHES_5PLUS, SECTOR_COACH_MIN_LESSONS, WINDOW_WEEKS,

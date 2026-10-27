@@ -5,6 +5,9 @@ const C = require('../../lib/insights/constants');
 
 const SANDBOX_URL = `https://${C.SANDBOX_REF}.supabase.co`;
 const PROD_URL = `https://${C.PROD_REF}.supabase.co`;
+// The staging tier's project (GO_PACKAGE §2.5): a literal, so the test fails if the constant drifts from the tier.
+const STAGING_REF = 'rpqkekcfvumypldbejhp';
+const STAGING_URL = `https://${STAGING_REF}.supabase.co`;
 
 describe('assertEnvironment', () => {
   test('a prod-shaped URL without --dry-run is refused with exit 3 and zero DB calls', () => {
@@ -52,13 +55,63 @@ describe('assertEnvironment', () => {
     expect(r.ref).toBe(C.PROD_REF);
   });
 
-  test('PROD_WRITES_ALLOWED is false until the operator go', () => {
+  test('prod writes shut until the go PR', () => {
     expect(C.PROD_WRITES_ALLOWED).toBe(false);
+    // The prod bucket is named, so only PROD_WRITES_ALLOWED stands between a prod run and a write.
+    expect(() => env.assertEnvironment({ supabaseUrl: PROD_URL, coachipEnv: 'production', dryRun: false, bucket: 'digital-coach-audio' }))
+      .toThrow(/prod writes are shut/);
+  });
+
+  test('staging URL + COACHIP_ENV=staging writes, on the session port or the pooler', () => {
+    for (const databaseUrl of [
+      `postgresql://postgres:pw@db.${STAGING_REF}.supabase.co:5432/postgres`,
+      `postgresql://postgres.${STAGING_REF}:pw@aws-0.pooler.supabase.com:5432/postgres`,
+    ]) {
+      const r = env.assertEnvironment({ supabaseUrl: STAGING_URL, databaseUrl, coachipEnv: 'staging', dryRun: false,
+        bucket: 'digital-coach-audio' });
+      expect(r).toEqual({ ref: STAGING_REF, mode: 'write', env: 'staging' });
+    }
+  });
+
+  test('a staging URL told it is production is refused with exit 3', () => {
+    let err;
+    try {
+      env.assertEnvironment({ supabaseUrl: STAGING_URL, coachipEnv: 'production', dryRun: false, bucket: 'digital-coach-audio' });
+    } catch (e) { err = e; }
+    expect(err).toBeInstanceOf(env.EnvRefusal);
+    expect(err.exitCode).toBe(3);
+  });
+
+  test('staging refuses the sandbox bucket', () => {
+    expect(() => env.assertEnvironment({ supabaseUrl: STAGING_URL, coachipEnv: 'staging', dryRun: false, bucket: 'rumi-sandbox' }))
+      .toThrow(/bucket/);
   });
 
   test('parseRef reads the first host label', () => {
     expect(env.parseRef('https://abc123.supabase.co/rest/v1')).toBe('abc123');
     expect(env.parseRef('not a url')).toBe(null);
+  });
+});
+
+describe('the nightly CLI on the staging tier (GO_PACKAGE §2.5)', () => {
+  const cli = require('../../jobs/coachip-nightly');
+  const stagingEnv = (coachipEnv) => ({
+    SUPABASE_URL: STAGING_URL, DATABASE_URL: `postgresql://postgres:pw@db.${STAGING_REF}.supabase.co:5432/postgres`,
+    SUPABASE_SERVICE_ROLE_KEY: 'fixture-service-key', COACHIP_ENV: coachipEnv, R2_BUCKET_NAME: 'digital-coach-audio',
+  });
+
+  test('COACHIP_ENV=staging passes the environment assertion (stops at the missing key secret, not env_mismatch)', async () => {
+    const lines = [];
+    const code = await cli.main(['--date', '2026-10-26'], stagingEnv('staging'), (m) => lines.push(m));
+    expect(lines).toEqual(['missing COACHIP_TEACHER_KEY_SECRET']);
+    expect(code).toBe(3);
+  });
+
+  test('a staging URL with COACHIP_ENV=production exits 3 on env_mismatch', async () => {
+    const lines = [];
+    const code = await cli.main(['--date', '2026-10-26'], stagingEnv('production'), (m) => lines.push(m));
+    expect(code).toBe(3);
+    expect(lines).toEqual(['env_mismatch']);
   });
 });
 
