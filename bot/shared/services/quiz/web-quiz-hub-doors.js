@@ -254,14 +254,16 @@ async function practiceDoor(d, who, lang, now, list) {
  * (Challenge.formForChild, unchanged). The own grade alone (the default for a child with a grade): today's answer, byte
  * for byte. Every answer logs one web_quiz.shelf line. Never fails the door: a failed extra read adds nothing.
  */
-async function byGrades(rows, { who, own, asked, lang }) {
+async function byGrades(rows, { who, own, asked, lang, known = true }) {
   const GradePick = require('./web-quiz-grade-pick');
   const ownG = Number(own) >= 1 && Number(own) <= 5 ? Number(own) : null;
   let p = GradePick.pick(asked, ownG ? [String(ownG)] : []);
   const done = (out) => { GradePick.note('games', p, lang, (out.games || []).length); return out; };
   try {
     if (who.practice) p = GradePick.pick(asked, (await GradePick.defaultsOf(who)).map(String));
-    if (rows.err) return done(rows);
+    // a failed read (rows.err), or a child whose grade read never answered (it failed, or the challenge is off):
+    // today's answer, byte for byte
+    if (rows.err || !known) return done(rows);
     if (ownG && GradePick.single(p) === String(ownG)) return done(rows);
     const Hub = require('./web-quiz-hub');
     if (!(await Hub.flags()).challenge) return done(rows);
@@ -327,7 +329,7 @@ async function door(token, opts = {}) {
     if (d === 'stories') return await storiesDoor(homeFlags.list);
     const seen = {};
     const rows = SaGameDoor.addRow(await gamesDoor(who, l, now, seen), who, { token, kid, lang: l });
-    return await byGrades(rows, { who, own: seen.grade, asked: g, lang: l });
+    return await byGrades(rows, { who, own: seen.grade, asked: g, lang: l, known: 'grade' in seen });
   } catch (err) {
     if (err && err.status) throw err;
     logToFile('⚠️ web quiz doors: unavailable', { door: d, error: err.message });
