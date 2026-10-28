@@ -205,6 +205,14 @@ describe("sa_r8_offline_prep", () => {
     expect(keepPage).toHaveBeenCalledWith(["/api/portal/leader/child-test/sa/list?schoolId=s2&visitId=v2&grade=2", "/api/portal/leader/child-test/sa/list?schoolId=s2&visitId=v2&grade=4"]);
   });
 
+  it("ON: the page is kept before the lists are read (a list that never answers still leaves the page openable offline)", async () => {
+    api.getSwitches.mockResolvedValue({ ...SW, r8OfflinePrep: true });
+    api.getList.mockReturnValue(new Promise(() => {}));
+    render(<MemoryRouter><LeaderAssess /></MemoryRouter>);
+    fireEvent.click(await screen.findByTestId("assess-offline-go"));
+    await waitFor(() => expect(keepPage).toHaveBeenCalledWith([]));
+  });
+
   it("read as OFF: a page worker an earlier Get ready left on the phone is removed", async () => {
     api.getSwitches.mockResolvedValue(SW);
     render(<MemoryRouter><LeaderAssess /></MemoryRouter>);
