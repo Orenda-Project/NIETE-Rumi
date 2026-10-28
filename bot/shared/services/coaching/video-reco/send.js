@@ -14,6 +14,8 @@
  * sendAfterReport() is what the two call sites use (report-generator hook B, observe-send hook B2): it reads the
  * flag at call time and the session's row from the engine's store, so the report path holds no state of its own.
  * With the flag off (or the engine's modules absent) it reads nothing and sends nothing.
+ * bd-9dbhh0.1 (COS 20261028T151950 §1.1): the same with VIDEO_RECO_WA_MESSAGE unset — the default, so the message is off
+ * unless switched back on without a code change.
  */
 const path = require('path');
 const { logToFile } = require('../../../utils/logger');
@@ -41,6 +43,15 @@ function enabledByDefault() {
     return require('./flags').videoRecoEnabled() === true;
   } catch (_) {
     return false; // the engine's flags.js is not deployed: nothing to send
+  }
+}
+
+function waMessageByDefault() {
+  try {
+    const f = require('./flags').videoRecoWaMessage; // eslint-disable-line global-require
+    return typeof f === 'function' && f() === true;
+  } catch (_) {
+    return false;
   }
 }
 
@@ -140,6 +151,9 @@ async function sendAfterReport({ coachingSessionId, phone, language, track, row:
   try {
     const on = typeof deps.enabled === 'function' ? deps.enabled() : enabledByDefault();
     if (!on || !coachingSessionId) return NOTHING;
+    // bd-9dbhh0.1 (COS 20261028T151950 §1.1): no clip message unless VIDEO_RECO_WA_MESSAGE is on; the clip's link rides in
+    // the report's own caption instead (caption-link.js). Nothing is read and nothing is sent.
+    if (!(typeof deps.waMessage === 'function' ? deps.waMessage() === true : waMessageByDefault())) return NOTHING;
     const store = deps.store || require('./store');
     let timer;
     const pending = given !== undefined ? Promise.resolve(given) : store.readForSession(coachingSessionId);

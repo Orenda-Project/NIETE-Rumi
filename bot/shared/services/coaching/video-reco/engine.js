@@ -14,6 +14,7 @@ const { getCurrentCorrelationId } = require('../../../utils/structured-logger');
 const { clampLanguage, resolveUx } = require('../../../config/ux-strings');
 const { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason } = require('./flags');
 const { assignArm, AB_SALT } = require('./arm');
+const { OPTED_OUT } = require('./clip-pref');
 const target = require('./target');
 const shortlist = require('./shortlist');
 const prompt = require('./prompt');
@@ -155,6 +156,8 @@ function issueReads(store, v10GroupFor, uid, coachingSessionId, withBands) {
     typeof store.rosterNames === 'function' ? call(() => store.rosterNames(uid)) : [],
     call(() => groupFor(uid)).then((g) => (g && g.group) || null, () => null),
     withBands ? call(() => store.trainingBands(uid)) : [],
+    // bd-9dbhh0.1: the teacher's "stop clips" (users.preferences.video_clips); a store without it, or a failed read → false
+    typeof store.clipsStopped === 'function' ? call(() => store.clipsStopped(uid)).then((x) => x === true, () => false) : false,
   ]);
   existing.catch(() => {});
   rest.catch(() => {}); // awaited by the pick; handled here for the stored-row return and an unused prefetch
@@ -220,7 +223,7 @@ async function compute(a, d, state) {
   const usedPrefetch = !!got;
   if (!got) got = await settle(issueReads(store, d.v10GroupFor, uid, coachingSessionId, !analysisGrade(analysis)));
   if (got.existing) return got.existing;
-  const [history, ladder, rosterWords, v10Group, bands] = got.values;
+  const [history, ladder, rosterWords, v10Group, bands, clipsStopped] = got.values;
   state.reads = { prefetched: usedPrefetch, age_ms: usedPrefetch ? state.t0 - pre.at : null, wait_ms: Date.now() - state.t0 };
 
   const arm = assignArm(session.user_id, d.env);
@@ -738,7 +741,8 @@ async function compute(a, d, state) {
     // R4: "a second ask" — on a move indicator it is the raw mismatch; on a label / hole / unknown / card target
     // the step IS the card's sentence and the chapter was retrieved by it, so it is false (tag_mismatch says the rest).
     differs_from_step: MOVE_REASONS.has(list.textReason) ? mismatch === true : false,
-    status: videoRecoMode(d.env) === 'shadow' || arm !== 'video' ? 'shadow' : 'shown',
+    // bd-9dbhh0.1: a teacher who stopped the clips keeps the arm and the pick; 'none'/'opted_out' reaches no surface
+    status: videoRecoMode(d.env) === 'shadow' || arm !== 'video' ? 'shadow' : (clipsStopped ? 'none' : 'shown'),
     module_id: hit.module.module_id,
     seg_id: hit.segment.seg_id,
     start_s: hit.segment.start_s,
@@ -751,7 +755,7 @@ async function compute(a, d, state) {
     moment_quote: accepted ? select.storedQuote(accepted) : null, // red7 091238: no speaker label or stamp on /v
     moment_source: fallback ? 'card' : v.momentSource, // 'card' = the v1.3c fallback: no moment, the card's sentence
     confidence: fallback ? (Number.isFinite(c) ? Math.min(1, Math.max(0, c)) : 0) : v.confidence,
-    none_reason: null,
+    none_reason: videoRecoMode(d.env) !== 'shadow' && arm === 'video' && clipsStopped ? OPTED_OUT : null,
   });
   }
 }

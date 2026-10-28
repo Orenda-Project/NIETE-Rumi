@@ -96,7 +96,8 @@ describe('hook A2', () => {
   });
   afterEach(() => { process.env = { ...SAVED }; });
 
-  it('deliver: started once, after the report image went to the teacher and the delivery was marked sent', async () => {
+  // bd-9dbhh0.1 (COS 20261028T151950 §1.2): the pick now starts BEFORE the image, so its /v link can ride in the caption
+  it('deliver: started once, before the report image goes (its link rides in the caption); the delivery is marked sent', async () => {
     await ObserveSend.processTeacherReport(SESSION_ID, { phase: 'deliver', from: COACH });
     expect(mockReco).toHaveBeenCalledTimes(1);
     const a = mockReco.mock.calls[0][0];
@@ -105,7 +106,7 @@ describe('hook A2', () => {
     expect(a.session.user_id).toBe('teacher-uuid-1');
     expect(a.nextStep).toBeUndefined(); // the engine derives it from the coach-edited analysis
     const imageOrder = mockSend.sendImageFromBuffer.mock.invocationCallOrder[0];
-    expect(imageOrder).toBeLessThan(mockReco.mock.invocationCallOrder[0]);
+    expect(mockReco.mock.invocationCallOrder[0]).toBeLessThan(imageOrder);
     expect(mockUpdates.some((u) => u.analysis_data && u.analysis_data.teacher_delivery && u.analysis_data.teacher_delivery.status === 'sent')).toBe(true);
   });
 

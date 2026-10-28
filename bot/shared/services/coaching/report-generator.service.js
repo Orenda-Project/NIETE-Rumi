@@ -391,12 +391,17 @@ class ReportGeneratorService {
       };
       if (isHeroImage) {
         let heroSent; // bd-gzfdu9 (staging port): read after the try by the clip hook below
+        // bd-9dbhh0.1 (COS 20261028T151950 §1.2): the clip's /v link at the END of the caption, for a 'shown' row, when the
+        // clip message is off (the default); no row, not 'shown', or the message on → null, and the caption is as before.
+        const CaptionLink = require('./video-reco/caption-link');
+        const clipLink = await CaptionLink.linkBlock({ row: videoReco, language: outputLanguage, coachingSessionId }).catch(() => null);
+        const caption = clipLink ? CaptionLink.withLink(reportResult.caption || '', clipLink) : (reportResult.caption || '');
         try {
           heroSent = await this.sendHeroImageReport(
             from,
             coachingSessionId,
             reportResult.slimPng || reportResult.png, // bd-v0toag.57: C/D get the slim image; R2 keeps the full one
-            reportResult.caption || '',
+            caption,
             session.users.name,
             session.created_at,
             { ...track.opts('image'), userId: session.user_id }
@@ -408,6 +413,10 @@ class ReportGeneratorService {
           throw error;
         }
         await track.record('image', true);
+        // bd-9dbhh0.1: the caption that went carried the clip's link (never on the template: its text is Meta's)
+        if (clipLink && heroSent !== false && heroSent !== 'template' && caption.endsWith(clipLink.url)) {
+          require('./video-reco/store').markSent(coachingSessionId, { sent_via: 'caption', wamid: null, image_strip: Boolean(videoStrip) }).catch(() => null);
+        }
         if (heroSent !== false) recordReportPath(heroSent === 'template' ? 'template' : (reportResult.slimPng ? 'slim' : 'image'));
 
         // v10 coaching test (bd-v0toag.19): C and D get the link to their report page. Off or
