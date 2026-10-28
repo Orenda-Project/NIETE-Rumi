@@ -150,3 +150,35 @@ Feature: School leader (principal) portal
     Then "No internet: these are the schools saved on this phone." shows above the saved schools
     When they open a prepared school
     Then the saved list shows with the no-internet note, and a child can be marked present and started
+
+  @LP24 @config-gated
+  Scenario: Learning assessment: the page opens again after a reload at a school with no signal (sa_r8_offline_prep)
+    Given the coach got ready for offline today (the page's own offline copy was kept) and the phone now has no internet
+    When the phone reloads the Learning assessment tab
+    Then the page opens signed in, from what the phone kept, with the saved schools
+    And a prepared school's list opens and a child can be started
+    And with sa_r8_offline_prep off, the page's offline copy is removed from the phone the next time the page reads its switches online
+
+  @LP25 @config-gated
+  Scenario: Learning assessment: Get ready for offline with every grade on (sa_r8_offline_prep, sa_all_grades)
+    Given sa_r8_offline_prep and sa_all_grades are on for the signed-in coach
+    When they tick a school on the "Get ready for offline" card
+    Then grade buttons 1 to 5 show under it, the school's observed grade already ticked
+    When they tap "Get ready" with no grade ticked for a ticked school
+    Then "<school>: tick the grades you will test there." shows and nothing downloads
+    When they tick grades 2 and 4 and tap "Get ready"
+    Then the grade 2 and grade 4 lists for that school are kept, and only those grades' tests (Urdu and English) download
+
+  @LP26 @config-gated
+  Scenario: Learning assessment: Start does not wait when the child's part is already on the phone (sa_r8_offline_first)
+    Given sa_r8_offline_first is on and the child's part is already on the phone (Get ready, or an earlier child)
+    When the coach taps "Start"
+    Then the test opens with nothing downloaded first
+    And when the part is not there yet, the list's background download pauses until the part is on the phone
+
+  @LP27 @config-gated
+  Scenario: Learning assessment: after Get ready, a child starts at a school with no signal (sa_r8_offline_first, sa_r8_offline_prep)
+    Given the coach got ready for offline (school, grade ticked) and the phone now has no internet
+    When they open the school, pick the grade, mark a child present and tap "Start" (with or without reloading the page first)
+    Then the test opens with nothing downloaded, and Jugnu speaks from the phone
+    And "The voice is not ready yet" never shows

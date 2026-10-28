@@ -15,11 +15,14 @@
  *     battery, why? }> — the voice-readiness gate (RULING #14): voice 'clips' when every clip of the session is on the
  *     phone, else 'tts' when the phone has a voice in the session's language, else 'none' (the surface refuses the
  *     start). It asks for persistent storage (RULING #11) and keeps sa:voice / sa:persisted for the sink's batch.
- *   SAE.offline.prepVisit({ forms, part?, onProgress?, chunk? }) → Promise<{ ok, total, cached, missing, bytes, forms, why? }>
+ *   SAE.offline.prepVisit({ forms, part?, fresh?, paused?, onProgress?, chunk? }) → Promise<{ ok, total, cached, missing, bytes,
+ *     forms, why? }>
  *     round 8 (switches sa_r8_offline_prep / sa_r8_offline_first, the coach page, while online): every listed battery
  *     (sa.coach.G3.A.ur …) read fresh, then every clip in its language and every picture, onProgress({ done, total,
  *     bytes }) after each chunk. part { block, seed }: only what that child's page runs (the page's pick + rotate,
- *     partOf), so a Start waits for one part, not the whole battery. A started test then needs no network.
+ *     partOf), so a Start waits for one part, not the whole battery. Jugnu's pictures (ART) come too. A started test
+ *     then needs no network. fresh: false keeps a battery already on the phone (no re-read); paused() holds the next
+ *     chunk while it says true (a background download giving the line to the Start gate).
  *   SAE.offline.checkVisit({ forms }) → Promise<{ ready, total, cached, why? }>: the same files, looked up on the phone
  *     only (nothing fetched).
  *
@@ -100,6 +103,25 @@
     });
   }
 
+  /**
+   * The engine's registration, without waiting on the network: register() fetches the worker's script, so with no signal it
+   * rejects even when the worker is installed and every file is on the phone (round 8, the school with no signal). An
+   * active registration is used as it is (the update is asked for behind it, a failure ignored); a phone with none
+   * registers first.
+   */
+  function registration(sw) {
+    var opts = { scope: '/sa/' };
+    var fresh = function () { return sw.register('/sa/sw.js', opts); };
+    var have = typeof sw.getRegistration === 'function' ? Promise.resolve().then(function () { return sw.getRegistration('/sa/'); }).then(null, function () { return null; }) : Promise.resolve(null);
+    return have.then(function (reg) {
+      if (reg && reg.active) {
+        Promise.resolve().then(fresh).then(null, function () { /* offline: the installed worker serves */ });
+        return reg;
+      }
+      return fresh();
+    });
+  }
+
   function prepare(o) {
     var nav = root.navigator;
     if (!nav || !nav.serviceWorker) return Promise.resolve({ ready: false, why: 'no_service_worker' });
@@ -110,8 +132,8 @@
     var first = lineUrls(o.battery, o.lang, o.base).filter(function (u) { return open.indexOf(u) < 0; });
     var rest = clips.filter(function (u) { return open.indexOf(u) < 0 && first.indexOf(u) < 0; });
     var pics = images(o.battery, o.lang);
-    return nav.serviceWorker.register('/sa/sw.js', { scope: '/sa/' })
-      .then(function () { return nav.serviceWorker.ready; })
+    return registration(nav.serviceWorker)
+      .then(function (reg) { return reg && reg.active ? reg : nav.serviceWorker.ready; })
       .then(function (reg) {
         var sw = reg.active || nav.serviceWorker.controller;
         if (!sw) return { ready: false, why: 'no_active_worker' };
@@ -248,6 +270,9 @@
     return out;
   }
 
+  /** Jugnu's pictures on the child's screens (sa-ui.js art_base '/wq/' + 'jugnu_' + mood): the worker keeps /wq/ too. */
+  var ART = ['celebrate', 'correct', 'hello', 'idle', 'notyet', 'sleep', 'thinking'].map(function (m) { return '/wq/jugnu_' + m + '.webp'; });
+
   var FORM_NAME_RX = /^sa\.(coach|game)\.[A-Za-z0-9]+(\.[A-Za-z0-9]+)?\.(en|ur)$/;
   var CHUNK = 24;
   var ACTIVE_WAIT_MS = 30000;
@@ -259,7 +284,7 @@
   function workerAsk() {
     var nav = root.navigator;
     if (!nav || !nav.serviceWorker || !root.MessageChannel) return Promise.resolve(null);
-    return nav.serviceWorker.register('/sa/sw.js', { scope: '/sa/' }).then(function (reg) {
+    return registration(nav.serviceWorker).then(function (reg) {
       if (reg.active) return reg.active;
       var w = reg.installing || reg.waiting;
       if (!w) return null;
@@ -311,7 +336,8 @@
       if (!q) return { ok: false, total: 0, cached: 0, missing: 0, bytes: 0, forms: [], why: 'no_service_worker' };
       var bytes = 0;
       var missingSet = {};
-      return q({ type: 'prepare', urls: bats, fresh: bats }).then(function (r) {
+      // fresh: false (the Start gate after a warm-up): a battery on the phone is not read again
+      return q(o.fresh === false ? { type: 'prepare', urls: bats } : { type: 'prepare', urls: bats, fresh: bats }).then(function (r) {
         r = r || { missing: bats };
         bytes += r.bytes || 0;
         (r.missing || []).forEach(function (u) { missingSet[u] = true; });
@@ -321,13 +347,22 @@
         var all = [];
         var inAll = {};
         per.forEach(function (p) { p.files.slice(1).forEach(function (u) { if (!inAll[u]) { inAll[u] = true; all.push(u); } }); });
+        // Jugnu's pictures, once for the visit (without them the screens show no Jugnu offline)
+        if (forms.length) ART.forEach(function (u) { if (!inAll[u]) { inAll[u] = true; all.push(u); } });
         var total = bats.length + all.length;
         var done = bats.length;
         progress({ done: done, total: total, bytes: bytes });
         var chunks = [];
         for (var i = 0; i < all.length; i += size) chunks.push(all.slice(i, i + size));
+        // paused() (the coach page's Start gate is downloading a child's part): no new chunk until it says false
+        var held = typeof o.paused === 'function' ? o.paused : null;
+        var waitMs = o.pauseMs > 0 ? o.pauseMs : 400;
+        var whileHeld = function () {
+          if (!held || !held()) return Promise.resolve();
+          return new Promise(function (ok) { setTimeout(ok, waitMs); }).then(whileHeld);
+        };
         return chunks.reduce(function (chain, c) {
-          return chain.then(function () { return q({ type: 'prepare', urls: c }); }).then(function (r) {
+          return chain.then(whileHeld).then(function () { return q({ type: 'prepare', urls: c }); }).then(function (r) {
             r = r || { missing: c };
             bytes += r.bytes || 0;
             (r.missing || []).forEach(function (u) { missingSet[u] = true; });
@@ -360,6 +395,7 @@
           forms.forEach(function (f, i) {
             [batteryUrl(f)].concat(batteries[i] ? filesOf(batteries[i], f, o.part) : []).forEach(function (u) { if (!seen[u]) { seen[u] = true; want.push(u); } });
           });
+          if (forms.length) ART.forEach(function (u) { if (!seen[u]) { seen[u] = true; want.push(u); } });
           var chunks = [];
           for (var i = 0; i < want.length; i += 200) chunks.push(want.slice(i, i + 200));
           return Promise.all(chunks.map(function (c) { return q({ type: 'check', urls: c }); })).then(function (rs) {
@@ -372,5 +408,5 @@
   }
 
   return { urls: urls, lineUrls: lineUrls, openingUrls: openingUrls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice,
-    prepVisit: prepVisit, checkVisit: checkVisit, partOf: partOf };
+    prepVisit: prepVisit, checkVisit: checkVisit, partOf: partOf, ART: ART };
 }));
