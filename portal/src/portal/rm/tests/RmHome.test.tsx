@@ -63,8 +63,11 @@ describe.each(["en", "ur"] as Lang[])("S8 RM home (%s)", (lang) => {
     const nums = Array.from(s.querySelectorAll("[data-num]")).map((e) => `${e.getAttribute("data-num")}/${e.getAttribute("data-den")}`);
     expect(nums).toEqual(["41/62", "21/62", "38/214"]);
     const card = screen.getByTestId("rm-opening");
+    // bd-sex15q.47 (ux-lead-2 183234 #3): the unassigned and no-school lines moved out of the band to rm-coverage
     const all = Array.from(card.querySelectorAll("[data-num]")).map((e) => `${e.getAttribute("data-num")}/${e.getAttribute("data-den")}`);
-    expect(all).toEqual(["41/62", "21/62", "38/214", "2/62", "1/10"]);
+    expect(all).toEqual(["41/62", "21/62", "38/214"]);
+    const cov = Array.from(screen.getByTestId("rm-coverage").querySelectorAll("[data-num]")).map((e) => `${e.getAttribute("data-num")}/${e.getAttribute("data-den")}`);
+    expect(cov).toEqual(["2/62", "1/10"]);
     expect(card.textContent).toContain(lang === "en" ? "Floor: every school every 4 weeks" : "کم از کم: ہر اسکول ہر ۴ ہفتوں میں");
   });
 

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { BarChart3, CircleDot, LayoutGrid, Users } from "lucide-react";
+import { BarChart3, CircleDot, Home, LayoutGrid, Users } from "lucide-react";
 import { TEACHER_FRAME } from "../teacher/copy";
 import { useCopy, useLang } from "../teacher/i18n";
 import { COACH_INSIGHTS_BASE } from "../coach/training/appReady";
@@ -51,7 +51,10 @@ export default function RmNav() {
         )}
         lang={<LangSwitch />}
       />
-      <NavBar testId="rm-nav" ariaLabel={C.menu} items={items} />
+      {/* bd-sex15q.47 (ux-lead-2 164236): a dual's way back to their own S1 on a phone is the bar's first item */}
+      <NavBar testId="rm-nav" ariaLabel={C.menu} items={isCoach
+        ? [{ key: "this_week", to: COACH_INSIGHTS_BASE, dataNav: "this_week", label: rt("nav.this_week", lang), icon: <Home size={20} strokeWidth={1.5} aria-hidden />, current: false }, ...items]
+        : items} />
     </>
   );
 }

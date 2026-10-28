@@ -24,7 +24,8 @@ export function WRowFrame({ testId, w, state, kind, to, agenda, lead, children }
       {to && <ChevronRight size={20} strokeWidth={1.5} className="shrink-0 self-center text-cp-ink-3 rtl:rotate-180" aria-hidden="true" />}
     </>
   );
-  const cls = `flex w-full items-start gap-3 border-t border-cp-hairline py-3.5 text-start first:border-t-0 ${agenda ? "border-s-[3px] border-s-cp-green ps-3" : ""}`;
+  const cls = `flex w-full items-start gap-3 border-t border-cp-hairline py-3.5 text-start first:border-t-0 `; // bd-sex15q.47 (ux-lead-2 183234): no rail (the agenda is the Surface's hint, kept as data-agenda);
+  // the trailing space keeps the coach deck's class string, and so its snapshots, byte-identical
   const attrs = { "data-testid": testId, "data-w": w, "data-state": state, "data-wrow": kind, "data-agenda": agenda ? "1" : undefined };
   return to
     ? <Link to={to} {...attrs} className={`${cls} outline-none focus-visible:ring-[3px] focus-visible:ring-cp-green`}>{body}</Link>

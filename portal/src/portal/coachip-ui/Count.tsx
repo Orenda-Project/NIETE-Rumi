@@ -26,6 +26,12 @@ const N_SIZE: Record<RingSize, string> = {
   card: "text-[24px] leading-none",
   row: "text-[22px] leading-none",
 };
+/** bd-sex15q.47 (ux-rm 181146): from three digits the number steps down so it stays inside the ring's stroke. */
+const N_SIZE_3: Record<RingSize, string> = {
+  hero: "cp-hero-n text-[40px] leading-none tracking-[-0.02em]",
+  card: "text-[20px] leading-none",
+  row: "text-[17px] leading-none",
+};
 const DEN_SIZE: Record<RingSize, string> = {
   hero: "text-[22px] font-bold leading-tight",
   card: "text-[18px] font-bold leading-tight text-cp-navy",
@@ -47,7 +53,7 @@ export function RingCount({ count, lang, size = "card", children, className, tes
   const textCell = ur ? "col-start-1" : "col-start-2";
   const ring = (
     <Ring key="ring" n={count.n} d={count.d} size={size} className={`${ringCell} row-span-2 row-start-1 self-start`}>
-      <span className={`cp-ring__n font-extrabold ${N_SIZE[size]}`}>{num}</span>
+      <span className={`cp-ring__n font-extrabold ${(String(count.n).length >= 3 ? N_SIZE_3 : N_SIZE)[size]}`}>{num}</span>
     </Ring>
   );
   const den = <span key="den" className={`${textCell} row-start-1 self-end ${DEN_SIZE[size]}`}>{rest}</span>;
