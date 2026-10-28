@@ -579,6 +579,22 @@ describe('the next step she was shown (v10 A/B)', () => {
     expect((await Card.getSession(db, 'coach-1', 'd1', opts())).nextStep).toBe('TRY-d1 the exit ticket');
   });
 
+  test('a group read that fails (no table) is an undrawn school: the action, and the failure is logged', async () => {
+    tables.ab.push({ school_id: 's1', ab_group: 'C' });
+    const failing = async (sql, params) => {
+      if (/sc:group/.test(sql)) throw new Error('relation "niete_coaching_ab_assignment" does not exist');
+      return db(sql, params);
+    };
+    const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const out = await Card.getSession(failing, 'coach-1', 'd1', opts());
+      expect(out.nextStep).toBe('ACTION-d1 next class');
+      expect(errors).toHaveBeenCalled();
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
   test('the group is read for HER school', async () => {
     tables.ab.push({ school_id: 's2', ab_group: 'D' });
     await Card.getTeacherReports(db, 'coach-1', PHONE.t1, opts());
