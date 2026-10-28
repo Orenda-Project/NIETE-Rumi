@@ -17,16 +17,18 @@ vi.mock("../services/api", () => ({
 // the engine's worker is the browser's; the page's side of it is mocked here (its own tests: dashboard/tests/sa-r8-offline-prep)
 vi.mock("../components/assess/offlineReady", async (orig) => {
   const real: any = await orig();
-  return { ...real, prepForms: vi.fn(), checkForms: vi.fn() };
+  return { ...real, prepForms: vi.fn(), checkForms: vi.fn(), keepPageOffline: vi.fn(), dropPageOffline: vi.fn() };
 });
 
 import { portal, childTestSa } from "../services/api";
-import { prepForms, checkForms, FAST_START_MS } from "../components/assess/offlineReady";
+import { prepForms, checkForms, keepPageOffline, dropPageOffline, FAST_START_MS } from "../components/assess/offlineReady";
 import LeaderAssess from "./LeaderAssess";
 
 const api = childTestSa as any;
 const prep = prepForms as any;
 const check = checkForms as any;
+const keepPage = keepPageOffline as any;
+const dropPage = dropPageOffline as any;
 const FIRST = ["Ayan", "Bilal", "Dua", "Esha", "Fiza"];
 const child = (n: number) => ({
   drawId: `d${n}`, name: `${FIRST[n - 1]} Testwala`, nameUr: null, firstName: FIRST[n - 1], firstNameUr: null, grade: 3, section: "A",
@@ -48,6 +50,8 @@ beforeEach(() => {
   api.getStatus.mockResolvedValue({ session: { id: "x", status: "started", grade: 3, form: "f" }, block: "B1", lastSeq: 0, tasksDone: [], audio: [] });
   prep.mockResolvedValue(OK);
   check.mockResolvedValue({ ready: true, total: 100, cached: 100 });
+  keepPage.mockResolvedValue(true);
+  dropPage.mockResolvedValue(undefined);
 });
 
 async function toHandover() {
@@ -144,6 +148,23 @@ describe("sa_r8_offline_prep", () => {
     expect(api.getList).toHaveBeenCalledWith("s2", "v2");
     expect(prep.mock.calls[0][0]).toEqual(["sa.coach.G3.A.ur", "sa.coach.G3.A.en"]);
     expect(JSON.parse(window.localStorage.getItem("assess:r8:prep") as string)).toMatchObject({ ok: true, forms: ["sa.coach.G3.A.ur", "sa.coach.G3.A.en"] });
+    // the page itself is kept too, with the list read it made, so a reloaded tab opens at the school
+    expect(keepPage).toHaveBeenCalledWith(["/api/portal/leader/child-test/sa/list?schoolId=s2&visitId=v2"]);
+    expect(dropPage).not.toHaveBeenCalled();
+  });
+
+  it("read as OFF: a page worker an earlier Get ready left on the phone is removed", async () => {
+    api.getSwitches.mockResolvedValue(SW);
+    render(<MemoryRouter><LeaderAssess /></MemoryRouter>);
+    await waitFor(() => expect(dropPage).toHaveBeenCalledTimes(1));
+    expect(keepPage).not.toHaveBeenCalled();
+  });
+
+  it("switches not read (the read failed): nothing is removed", async () => {
+    api.getSwitches.mockRejectedValue(netErr());
+    render(<MemoryRouter><LeaderAssess /></MemoryRouter>);
+    await screen.findByTestId("assess-school-s2");
+    expect(dropPage).not.toHaveBeenCalled();
   });
 
   it("ON, at the school with no signal: the saved schools and the prepared list are shown, and a child can start", async () => {
