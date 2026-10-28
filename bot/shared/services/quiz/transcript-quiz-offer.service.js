@@ -205,6 +205,13 @@ async function processOffer(coachingSessionId, payload = {}) {
   if (!payload.force && offerMode() === 'once' && await alreadyOffered(session.user_id)) {
     return { skipped: 'already_offered_once' };
   }
+  // Her 24 h window closed (the report went as a template): Meta refuses free-form buttons with 131047
+  // (bd-v0toag.126). Skip before the claim, so she stays eligible on a later report and /quiz.
+  const QuizDelivery = require('./quiz-delivery.service');
+  if (!(await QuizDelivery._hasOpenMessageWindow(payload.phone || user.phone_number))) {
+    logEvent('transcript_quiz.skipped', { coachingSessionId, reason: 'window_closed' });
+    return { skipped: 'window_closed' };
+  }
 
   const claim = await claimRow({ session, source: payload.source || 'offer' });
   if (!claim.claimed) {
