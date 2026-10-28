@@ -350,3 +350,14 @@ button{font:inherit;color:inherit}
 /* Round 8, maths (battery.ui.r8_latin_digits, items 29/3/34): a sum reads as a blank to fill, "1 + 3 = ___". */
 .sae-sum-blank{display:inline-block;min-width:2.2ch;letter-spacing:0;color:var(--sae-ink-2)}
 .is-r8-digits .sae-sumrow .sae-typed{border-style:dashed}
+/* Round 8, maths (battery.ui.r8_missing_number, item 30): the number row large (its size set inline from its digits so
+   it fits one line at 360 px, larger on a tablet), the choices beneath it a little smaller, the tapped number floats in. */
+.sae-seq.is-r8-mn{flex-wrap:nowrap;gap:.2em;width:100%;margin:.15em 0 .35em;letter-spacing:0;line-height:1.1;font-variant-numeric:tabular-nums}
+.sae-seq.is-r8-mn .sae-seq-tile{flex:0 1 auto;min-width:1.4em;min-height:1.5em;padding:0 .18em;border-radius:.3em}
+.sae-seq.is-r8-mn .sae-gap{min-width:1.9em}
+.sae-seq.is-r8-mn .sae-gap.is-filled{border-style:solid;border-color:var(--sae-accent);background:var(--sae-accent-l);color:var(--sae-ink)}
+.sae-seq.is-r8-mn .sae-gap.is-right{border-color:var(--sae-ok);background:var(--sae-ok-bg);color:var(--sae-ok)}
+.sae-seq.is-r8-mn .sae-gap.is-tried{border-color:var(--sae-again);background:var(--sae-again-bg);color:var(--sae-ink)}
+.sae-mn-ink{display:inline-block;will-change:transform}
+.sae-r8-mn .sae-opts .sae-opt{min-height:64px;font-size:clamp(26px,7vw,46px)}
+@media (prefers-reduced-motion:reduce){.sae-mn-ink{transition:none!important;transform:none!important}}

@@ -262,6 +262,8 @@
   var TASK_END_CAP_MS = 8000; // the part's closing line is awaited to its end, never longer than this
   var MIC_SKIP_MS = 3000;   // a record task skipped for no microphone: its line stays this long (RULING #38b)
   var PRESS_MS = 180;
+  var MN_FLOAT_MS = 300;    // round 8 item 30: a tapped number floats into the blank this long
+  var MN_HOLD_MS = 450;     // ... and the screen waits this much longer than a plain tap, so the child sees it land
   var WARM_N = 10;
   var WARM_CAP_MS = 25000;
   var HOLD_MS = 3000;
@@ -383,6 +385,8 @@
     var moreEl = null; // story_scroll: the arrow under the story on show
     // Round 8 (the reviewer's 28 Oct list), the maths screens: battery.ui.r8_* (absent = today's screens).
     var r8Digits = r7.r8_latin_digits === true; // items 29/3/34: every number shown in 0-9; a sum reads "1 + 3 = ___"
+    var r8Mn = r7.r8_missing_number === true;   // item 30: the number row large; a tapped number floats into the blank
+    var mnFill = null;                          // item 30: { item, value }, the number tapped into the item's blank
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /** audio_gated_next: the screen `key`'s Next waits for `p` (Jugnu's words), at most GATE_CAP_MS. */
@@ -557,6 +561,7 @@
 
     el.classList.add('sae');
     if (r8Digits) el.classList.add('is-r8-digits');
+    if (r8Mn) el.classList.add('is-r8-mn');
     // sa_ur_fit (round 6): the Urdu text rules (sa.css "Round 6"): every Urdu word inside its box, clear of pictures.
     if (opts.ur_fit) el.classList.add('is-ur-fit');
     // in the coach page's frame, under its corner hold (sa.css keeps the scrolling body below it)
@@ -664,7 +669,7 @@
         var a = lab.split(/\s+/).sort().join(' '), b = it.options.map(String).sort().join(' ');
         if (a === b) return null;
       }
-      if (seq) return seqRow(seq, t);
+      if (seq) return seqRow(seq, t, t && mnSeq(it) ? mnState(it) : null);
       if (isSum(lab)) return h('p', { class: 'sae-label sa-label', dir: 'ltr' }, sumKids(lab));
       return h('p', { class: 'sae-label sa-label', dir: 'ltr' }, [lab]);
     }
@@ -673,12 +678,60 @@
      * Numbers read left to right on both pages; a row of pictures reads in the task's language (Urdu: right to left).
      */
     function isGap(x) { return x == null || /^_+$/.test(String(x).trim()); } // the source's own "___" is the same blank
-    function seqRow(seq, t) {
+    function seqRow(seq, t, mn) {
+      if (mn) return mnRow(seq, mn);
       var numeric = seq.every(function (x) { return isGap(x) || /^[\d\u06F0-\u06F9.,\s-]+$/.test(String(x)); });
       var size = seq.length > 7 ? ' is-xlong' : seq.length > 5 ? ' is-long' : '';
       return h('div', { class: 'sae-label sa-label sae-seq' + size, dir: !numeric && taskLang(t) === 'ur' ? 'rtl' : 'ltr' }, seq.map(function (x) {
         return isGap(x) ? h('span', { class: 'sae-seq-tile sae-gap', text: '__' }) : h('span', { class: 'sae-seq-tile', text: String(x) });
       }));
+    }
+    /** r8_missing_number (item 30): the item's number row when it has a blank (missing number, what comes next), else null. */
+    function mnSeq(it) {
+      var seq = r8Mn && it && Array.isArray(shownOf(it)) ? shownOf(it) : null;
+      if (!seq || !seq.some(isGap)) return null;
+      return seq.every(function (x) { return isGap(x) || /^[\d\u06F0-\u06F9\u0660-\u0669.,\s-]+$/.test(String(x)); }) ? seq : null;
+    }
+    /** What the blank of item `it` holds: the practice answer on show, else the number just tapped. */
+    function mnState(it) {
+      if (hold && hold.item === it) return { fill: hold.value, cls: hold.res.ok || hold.res.shown != null ? ' is-right' : ' is-tried' };
+      return { fill: mnFill && mnFill.item === it ? mnFill.value : null, cls: '' };
+    }
+    /** The number row large, on one line: its size from its digits, so it fits a 360 px phone and grows on a tablet. */
+    function mnRow(seq, mn) {
+      var em = (seq.length - 1) * 0.2;
+      seq.forEach(function (x) { em += Math.max(isGap(x) ? 1.9 : String(x).length * 0.6 + 0.36, 1.4) + 0.1; });
+      return h('div', { class: 'sae-label sa-label sae-seq is-r8-mn', dir: 'ltr', style: 'font-size:min(96px, calc((min(100vw, 520px) - 48px) / ' + em.toFixed(2) + '))' }, seq.map(function (x) {
+        if (!isGap(x)) return h('span', { class: 'sae-seq-tile', text: String(x) });
+        if (mn.out) return mn.out;
+        var on = mn.fill != null;
+        return h('span', { class: 'sae-seq-tile sae-gap' + (on ? ' is-filled' + (mn.cls || '') : '') }, [h('span', { class: 'sae-mn-ink', text: on ? String(mn.fill) : '__' })]);
+      }));
+    }
+    function reducedMotion() {
+      try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
+    }
+    /** FLIP: the number starts where the tapped choice was (r0) and slides into the blank; reduced motion lands it at once. */
+    function flyFrom(r0, ink) {
+      if (!r0 || !ink || reducedMotion()) return;
+      var r1 = ink.getBoundingClientRect();
+      var dx = (r0.left + r0.width / 2) - (r1.left + r1.width / 2), dy = (r0.top + r0.height / 2) - (r1.top + r1.height / 2);
+      ink.style.transition = 'none';
+      ink.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px)';
+      void ink.offsetWidth;
+      ink.style.transition = 'transform ' + MN_FLOAT_MS + 'ms ease-out';
+      ink.style.transform = 'translate(0px,0px)';
+    }
+    /** A choice tapped on a running item: its number floats into the blank and stays; returns how much longer to wait. */
+    function mnFloat(b, value, it) {
+      mnFill = { item: it, value: value };
+      var gap = el.querySelector('.sae-seq.is-r8-mn .sae-gap');
+      var ink = gap && gap.querySelector('.sae-mn-ink');
+      if (!ink) return 0;
+      ink.textContent = r8Digits ? latinDigits(value) : String(value);
+      gap.classList.add('is-filled');
+      flyFrom(b.getBoundingClientRect(), ink);
+      return MN_HOLD_MS;
     }
     function keypadMax(t) {
       var n = KEYPAD_MIN;
@@ -910,14 +963,18 @@
       } else if (typeof p.target_index === 'number') {
         answerArea = passageTap(t, function (i) { practicePick(p, t, i); });
       } else {
-        answerArea = tiles(p.options, function (o) { practicePick(p, t, o); }, function (o, b) {
+        answerArea = tiles(p.options, function (o, b) {
+          var r0 = mnSeq(p) ? b.getBoundingClientRect() : null;
+          practicePick(p, t, o);
+          if (r0) flyFrom(r0, el.querySelector('.sae-seq.is-r8-mn .sae-gap .sae-mn-ink'));
+        }, function (o, b) {
           if (!fb) return;
           b.disabled = true;
           if (String(o) === String(fb.value)) b.classList.add(fb.res.ok ? 'is-right' : 'is-tried');
           if (fb.res.shown != null && String(o) === String(fb.res.shown)) b.classList.add('is-right', 'is-shown');
         }, taskLang(t), t, p.glyphs);
       }
-      return screen(v, 'sae-practice', [
+      return screen(v, 'sae-practice' + (mnSeq(p) ? ' sae-r8-mn' : ''), [
         // Round 7: a tap practice carries the real items' question tag ("Which is bigger"), so it looks like them.
         t.mode === 'tap' && t.title ? h('p', { class: 'sae-task-tag', text: tx(t.title) }) : null,
         h('div', { class: 'sae-row' }, [
@@ -1002,7 +1059,7 @@
 
     function sRunTap(v) {
       var it = v.item, t = v.task;
-      return screen(v, 'sae-run sae-run-tap', [
+      return screen(v, 'sae-run sae-run-tap' + (mnSeq(it) ? ' sae-r8-mn' : ''), [
         clock(v),
         h('p', { class: 'sae-task-tag', text: tx(t.title) }),
         h('div', { class: 'sae-row' }, [jugnu('idle', true), itemSpeaks(it) ? replayBtn(function () { sayItem(it, t); }) : null]),
@@ -1016,8 +1073,9 @@
         typeof it.target_index === 'number' ? null : tiles(it.options, function (o, b) {
           busy = true;
           b.classList.add('is-pressed');
+          var wait = mnSeq(it) ? mnFloat(b, o, it) : 0;
           runner.answer(o);
-          later(function () { busy = false; draw(); }, PRESS_MS);
+          later(function () { busy = false; draw(); }, PRESS_MS + wait);
         }, null, taskLang(t), t, it.glyphs),
       ], itemFoot(v, [nextBtn(v)]));
     }
@@ -1047,6 +1105,7 @@
       var seq = Array.isArray(shownOf(it)) ? shownOf(it) : null;
       var lab = !seq && shownOf(it) != null && String(shownOf(it)).trim() ? String(shownOf(it)) : null;
       if (isSum(lab)) lab = sumBase(lab) + ' ='; // item 34: one = before the box
+      var mn = mnSeq(it);
       var max = keypadMax(t);
       if (!lab && !seq) {
         // a word problem: ten counters the child may tap to count with (not scored)
@@ -1063,10 +1122,18 @@
         kids.push(h('div', { class: 'sae-counters', dir: 'ltr' }, dots));
       }
       var shown = fb ? String(fb.res.shown != null ? fb.res.shown : fb.value) : typed;
-      displayEl = h('output', { class: 'sae-typed sa-typed' + (fb ? (fb.res.ok || fb.res.shown != null ? ' is-right' : ' is-tried') : ''), dir: 'ltr', 'aria-live': 'polite' }, [shown || ' ']);
-      // the typed number big above the keypad (a sum and its box on one line: "1 + 3 = [ ]"); nothing goes until ✓
-      if (seq) kids.push(seqRow(seq, t));
-      kids.push(lab ? h('div', { class: 'sae-sumrow', dir: 'ltr' }, [h('p', { class: 'sae-sum sa-label' }, [lab]), displayEl]) : displayEl);
+      var mnInk = null;
+      if (mn) {
+        // r8_missing_number (item 30): the typed number fills the row's own blank; the keypad stays below
+        mnInk = h('span', { class: 'sae-mn-ink', text: shown || '__' });
+        displayEl = h('output', { class: 'sae-seq-tile sae-gap' + (shown ? ' is-filled' : '') + (fb ? (fb.res.ok || fb.res.shown != null ? ' is-right' : ' is-tried') : ''), dir: 'ltr', 'aria-live': 'polite' }, [mnInk]);
+        kids.push(seqRow(seq, t, { out: displayEl }));
+      } else {
+        displayEl = h('output', { class: 'sae-typed sa-typed' + (fb ? (fb.res.ok || fb.res.shown != null ? ' is-right' : ' is-tried') : ''), dir: 'ltr', 'aria-live': 'polite' }, [shown || ' ']);
+        // the typed number big above the keypad (a sum and its box on one line: "1 + 3 = [ ]"); nothing goes until ✓
+        if (seq) kids.push(seqRow(seq, t));
+        kids.push(lab ? h('div', { class: 'sae-sumrow', dir: 'ltr' }, [h('p', { class: 'sae-sum sa-label' }, [lab]), displayEl]) : displayEl);
+      }
       // 1 2 3 ⌫ / 4 5 6 ✓ / 7 8 9 ✓ / 0 0 0 ✓: the ✓ is the biggest key (three rows tall)
       var keys = ['1', '2', '3', 'del', '4', '5', '6', 'ok', '7', '8', '9', '0'];
       kids.push(h('div', { class: 'sae-keypad sa-keypad is-tall-ok', dir: 'ltr' }, keys.map(function (k) {
@@ -1080,7 +1147,8 @@
           if (k === 'del') typed = typed.slice(0, -1);
           else if (k === 'ok') { if (!typed) return; var val = typed; typed = ''; submit(val); return; }
           else if (typed.length < max) typed = (typed === '0' ? '' : typed) + k;
-          if (displayEl) displayEl.textContent = typed || ' ';
+          if (mnInk) { mnInk.textContent = typed || '__'; displayEl.classList.toggle('is-filled', !!typed); }
+          else if (displayEl) displayEl.textContent = typed || ' ';
         });
         return b;
       })));
@@ -1125,7 +1193,7 @@
     }
     function sRunKeypad(v) {
       var it = v.item, t = v.task;
-      return screen(v, 'sae-run sae-run-keypad', [
+      return screen(v, 'sae-run sae-run-keypad' + (mnSeq(it) ? ' sae-r8-mn' : ''), [
         clock(v),
         itemSpeaks(it) ? h('div', { class: 'sae-row' }, [replayBtn(function () { sayItem(it, t); })]) : null,
         coachSays(it, true),

@@ -136,4 +136,114 @@ maybe('round 8 maths screens (sa-ui)', () => {
     expect(k.el.querySelector('.sae-sumrow .sae-sum').textContent).toBe('19 − 6');
     expect(document.querySelector('.is-r8-digits')).toBeNull();
   });
+
+  // ---------- item 30: the missing number ----------
+  const MISS_TAP = (ui, withPractice) => B(ui, { id: 'ma.missing', subtask: 'missing_number', response: 'tap', lang: null, title: { ur: 'غائب نمبر' }, script: {},
+    items: [{ id: 'm1', target: 8, options: [10, 8, 9, 7], shown: [5, 6, 7, null] }, { id: 'm2', target: 30, options: [40, 30, 50, 20], shown: [20, null, 40, 50] }],
+    practice: !withPractice ? [] : [{ id: 'm.p1', target: 3, options: [5, 4, 3, 2], shown: [1, 2, null, 4], feedback: { correct: { text: 'بالکل ٹھیک، ۳۔' }, wrong: { text: 'یہاں ۳ آئے گا۔' } } }] });
+  const MISS_KP = (ui) => B(ui, { id: 'ma.missing', subtask: 'missing_number', response: 'keypad', lang: null, script: {},
+    items: [{ id: 'm1', target: 8, shown: [5, 6, 7, null] }, { id: 'm2', target: 30, shown: [20, null, 40, 50] }] });
+
+  test('ON, choices: the row is large, the choices sit beneath it; a tap floats the number into the blank and it stays', async () => {
+    const x = mount(MISS_TAP(MN));
+    toRunning(x);
+    const scr = x.el.querySelector('.sae-run-tap');
+    expect(scr.classList.contains('sae-r8-mn')).toBe(true);
+    const row = scr.querySelector('.sae-seq');
+    expect(row.classList.contains('is-r8-mn')).toBe(true);
+    // the row comes before the choices
+    const opts = scr.querySelector('.sae-opts');
+    expect(row.compareDocumentPosition(opts) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const gap = row.querySelector('.sae-gap');
+    expect(gap.textContent).toBe('__');
+    x.el.querySelector('[data-value="8"]').click();
+    // the answer is given at once (as today); the blank shows the tapped number while the screen waits
+    expect(x.events.filter((e) => e.type === 'tap').length).toBe(1);
+    const filled = x.el.querySelector('.sae-seq .sae-gap');
+    expect(filled.classList.contains('is-filled')).toBe(true);
+    expect(filled.textContent).toBe('8');
+    await flush(800);
+    // the next item: an empty blank again
+    expect(x.runner.view().item_index).toBe(1);
+    expect(x.el.querySelector('.sae-seq .sae-gap').textContent).toBe('__');
+  });
+
+  test('ON, choices: the float animates by transform; reduced motion lands it at once', () => {
+    for (const reduce of [false, true]) {
+      dom.window.matchMedia = (q) => ({ matches: reduce && /reduce/.test(q), media: q, addListener() {}, removeListener() {} });
+      const x = mount(MISS_TAP(MN));
+      toRunning(x);
+      x.el.querySelector('[data-value="8"]').click();
+      const ink = x.el.querySelector('.sae-seq .sae-gap .sae-mn-ink');
+      expect(ink).not.toBeNull();
+      if (reduce) expect(ink.style.transition || '').toBe('');
+      else expect(ink.style.transition).toMatch(/transform/);
+      x.view.destroy();
+    }
+  });
+
+  test('ON, practice: the tapped number stays in the blank with the feedback; a retry\'s new tap replaces it', async () => {
+    const x = mount(MISS_TAP(MN, true));
+    toPractice(x);
+    x.el.querySelector('[data-value="5"]').click();
+    let gap = x.el.querySelector('.sae-seq .sae-gap');
+    expect(gap.textContent).toBe('5');
+    expect(gap.classList.contains('is-filled')).toBe(true);
+    await flush(1500);
+    if (x.runner.view().phase === 'practice') {
+      gap = x.el.querySelector('.sae-seq .sae-gap');
+      expect(gap.textContent).toBe('__');
+      x.el.querySelector('[data-value="3"]').click();
+      expect(x.el.querySelector('.sae-seq .sae-gap').textContent).toBe('3');
+    }
+  });
+
+  test('ON, keypad form: the typed number fills the blank itself; the keypad stays below; ✓ answers as before', () => {
+    const x = mount(MISS_KP(MN));
+    toRunning(x);
+    const area = x.el.querySelector('.sae-keyarea');
+    expect(area.querySelector(':scope > .sae-typed')).toBeNull();
+    const gap = area.querySelector('.sae-seq .sae-gap');
+    expect(gap.textContent).toBe('__');
+    expect(gap.compareDocumentPosition(area.querySelector('.sae-keypad')) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    x.el.querySelector('[data-key="8"]').click();
+    expect(area.querySelector('.sae-seq .sae-gap').textContent).toBe('8');
+    expect(area.querySelector('.sae-seq .sae-gap').classList.contains('is-filled')).toBe(true);
+    x.el.querySelector('[data-key="del"]').click();
+    expect(area.querySelector('.sae-seq .sae-gap').textContent).toBe('__');
+    x.el.querySelector('[data-key="8"]').click();
+    x.el.querySelector('[data-key="ok"]').click();
+    const ans = x.events.filter((e) => e.type === 'keypad_submit');
+    expect(ans.length).toBe(1);
+    expect(String(ans[0].value)).toBe('8');
+  });
+
+  test('OFF: the missing number is today\'s (small row, separate box, no float)', () => {
+    const x = mount(MISS_TAP(null));
+    toRunning(x);
+    const row = x.el.querySelector('.sae-seq');
+    expect(row.className).toBe('sae-label sa-label sae-seq');
+    expect(x.el.querySelector('.sae-r8-mn')).toBeNull();
+    x.el.querySelector('[data-value="8"]').click();
+    expect(x.el.querySelector('.sae-seq .sae-gap').textContent).toBe('__');
+    const k = mount(MISS_KP(null));
+    toRunning(k);
+    expect(k.el.querySelector('.sae-keyarea > .sae-typed')).not.toBeNull();
+  });
+
+  test('the events of a missing-number answer are the same ON and OFF', async () => {
+    const strip = (es) => es.map((e) => ({ type: e.type, task_id: e.task_id, item_id: e.item_id, value: e.value, correct: e.correct }));
+    const runs = [];
+    for (const ui of [null, MN]) {
+      const x = mount(MISS_TAP(ui));
+      toRunning(x);
+      x.el.querySelector('[data-value="8"]').click();
+      await flush(800);
+      x.el.querySelector('[data-value="30"]').click();
+      await flush(800);
+      runs.push(strip(x.events));
+      x.view.destroy();
+    }
+    expect(runs[1]).toEqual(runs[0]);
+  });
 });
