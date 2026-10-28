@@ -401,3 +401,28 @@ button{font:inherit;color:inherit}
   .sae.is-r8-layout .sae-task-tag{font-size:24px}
 }
 /* end round 8 layout */
+/* Round 8 (sa_r8_story_snap, item 15; the mount's .is-r8-snap; OFF = none of this): the story is its own scroll box,
+   the screen's height, made of parts one box high (sa-ui snapPack). Mandatory snapping with snap-stop always: a scroll
+   or a fling lands on the next part, never past it to the end, and the arrow moves one part. Larger type, normal
+   weight, the whole width of a tablet, so fewer parts are needed. */
+.sae.is-r8-snap:has(.sae-snap){height:100vh;height:100dvh;min-height:0}
+.sae.is-r8-snap .sae-screen.sae-snap{min-height:0}
+.sae.is-r8-snap .sae-snap .sae-body{min-height:0;overflow:hidden;justify-content:flex-start;padding:0;margin:0}
+.sae.is-r8-snap .sae-snap .sae-body>*{flex-shrink:0}
+.sae.is-r8-snap .sae-snap .sae-foot{position:static}
+.sae.is-r8-snap .sae-passage.is-snap{flex:1 1 0;min-height:0;overflow-y:auto;overscroll-behavior:contain;scroll-snap-type:y mandatory;position:relative;padding:0;font-size:28px;font-weight:400}
+.sae.is-r8-snap .is-snap .sae-part{scroll-snap-align:start;scroll-snap-stop:always;padding:14px 16px}
+.sae.is-r8-snap .is-snap[lang=ur] .sae-part{padding:calc(14px + 1.1em) calc(16px + .6em) 14px}
+.sae.is-r8-snap .sae-snap .sae-more{min-height:56px}
+/* on a phone the box is small: Urdu at the official page's line pitch (RULING W3-19, lines never collide) and a
+   lower star (the icon beside its word), so a part holds two or three lines, not one */
+.sae.is-r8-snap .sae-passage.is-snap[lang=ur]{font-size:28px;line-height:2.45}
+.sae.is-r8-snap .sae-snap .sae-star{flex-direction:row;gap:12px;min-height:72px}
+@media (min-width:600px){
+  .sae.is-r8-snap .sae-screen.sae-snap{max-width:min(94vw,760px)}
+  .sae.is-r8-snap .sae-passage.is-snap{font-size:38px}
+  .sae.is-r8-snap .sae-passage.is-snap[lang=ur]{font-size:40px}
+  .sae.is-r8-snap .sae-snap .sae-star{min-height:96px}
+  .sae.is-r8-snap .sae-snap .sae-more,.sae.is-r8-snap .sae-snap .sae-star{max-width:520px}
+}
+/* end round 8 story snap */
