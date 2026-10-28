@@ -1,7 +1,7 @@
 'use strict';
 /**
  * Retention A (bd-sex15q.36; NIGHTLY_JOB §10, INSIGHTS_SCHEMA §4): `--purge-clips` deletes a session's clips and its
- * whole-lesson MP3 8 weeks after the last window that showed it closed, marks its moments `expired`, writes one audit
+ * whole-lesson MP3 a year (365 days; 8 weeks before 28 Oct) after the last window that showed it closed, marks its moments `expired`, writes one audit
  * row per run, and never touches a key outside the tier's own prefixes. R2 is a mock at the S3 boundary; the store is
  * the MemoryStore; the CLI test runs `main()` with supabase-js and the S3 client mocked at the network boundary.
  */
@@ -96,11 +96,26 @@ describe('the window calendar', () => {
   });
 });
 
+describe('one year (operator 28 Oct: "keep them for a year or so")', () => {
+  test('364 days after the window closed: kept; 366 days after: purged', async () => {
+    expect(purge.RETENTION_DAYS).toBe(365);
+    const keptStore = seed();
+    const s3k = r2({ 'rumi-sandbox': clipsOf('sandbox', OLD) });
+    const kept = await purge.runPurge(base({ s3: s3k, store: keptStore, today: day(CLOSE_OLD, 364) }));
+    expect(kept).toMatchObject({ sessions_purged: 0, sessions_kept: 1, retention_days: 365 });
+    expect(s3k.calls.filter((c) => c[0] === 'delete')).toEqual([]);
+    const goneStore = seed();
+    const s3g = r2({ 'rumi-sandbox': clipsOf('sandbox', OLD) });
+    const gone = await purge.runPurge(base({ s3: s3g, store: goneStore, today: day(CLOSE_OLD, 366) }));
+    expect(gone).toMatchObject({ sessions_purged: 1, objects_deleted: 3 });
+  });
+});
+
 describe('runPurge', () => {
-  test('57 days after the window closed: the clips and the full MP3 are deleted, the moments expire, one audit row', async () => {
+  test('366 days after the window closed: the clips and the full MP3 are deleted, the moments expire, one audit row', async () => {
     const store = seed();
     const s3 = r2({ 'rumi-sandbox': [...clipsOf('sandbox', OLD), ...clipsOf('sandbox', NEW)] });
-    const out = await purge.runPurge(base({ s3, store, today: day(CLOSE_OLD, 57) }));
+    const out = await purge.runPurge(base({ s3, store, today: day(CLOSE_OLD, 366) }));
     for (const k of clipsOf('sandbox', OLD)) expect(s3.has('rumi-sandbox', k)).toBe(false);
     for (const k of clipsOf('sandbox', NEW)) expect(s3.has('rumi-sandbox', k)).toBe(true);
     const ms = store.rows('coachip_moments');
@@ -112,8 +127,8 @@ describe('runPurge', () => {
     expect(out).toMatchObject({ dry_run: false, sessions_listed: 2, sessions_purged: 1, objects_deleted: 3, moments_expired: 2, foreign_keys: 0 });
   });
 
-  test('55 and 56 days after: kept, nothing deleted, nothing marked', async () => {
-    for (const n of [55, 56]) {
+  test('364 and 365 days after: kept, nothing deleted, nothing marked', async () => {
+    for (const n of [364, 365]) {
       const store = seed();
       const s3 = r2({ 'rumi-sandbox': clipsOf('sandbox', OLD) });
       const out = await purge.runPurge(base({ s3, store, today: day(CLOSE_OLD, n) }));
@@ -123,13 +138,13 @@ describe('runPurge', () => {
     }
   });
 
-  test('a session re-shown in a newer window (the circle) is kept until that window has been closed 8 weeks', async () => {
+  test('a session re-shown in a newer window (the circle) is kept until that window has been closed a year', async () => {
     const store = seed({ circleWeek: '2026-08-10' }); // the circle week 10-16 Aug
     const s3 = r2({ 'rumi-sandbox': clipsOf('sandbox', OLD) });
-    const kept = await purge.runPurge(base({ s3, store, today: day(CLOSE_OLD, 57) }));
+    const kept = await purge.runPurge(base({ s3, store, today: day(CLOSE_OLD, 366) }));
     expect(kept.sessions_purged).toBe(0);
     expect(s3.calls.filter((c) => c[0] === 'delete')).toEqual([]);
-    const gone = await purge.runPurge(base({ s3, store, today: day('2026-08-16', 57) }));
+    const gone = await purge.runPurge(base({ s3, store, today: day('2026-08-16', 366) }));
     expect(gone.sessions_purged).toBe(1);
   });
 
@@ -154,7 +169,7 @@ describe('runPurge', () => {
     const shared = { 'digital-coach-audio': [...clipsOf('production', OLD), `classroom_audio/${OLD}/rec.webm`, ...clipsOf('staging', OLD)] };
     const s3 = r2(shared, { rogue: true }); // a listing that ignores the prefix: the per-key guard must hold on its own
     const buckets = { sandbox: 'rumi-sandbox', staging: 'digital-coach-audio', production: 'digital-coach-audio' };
-    const out = await purge.runPurge(base({ envName: 'staging', bucket: 'digital-coach-audio', buckets, s3, store, today: day(CLOSE_OLD, 57) }));
+    const out = await purge.runPurge(base({ envName: 'staging', bucket: 'digital-coach-audio', buckets, s3, store, today: day(CLOSE_OLD, 366) }));
     const deleted = s3.calls.filter((c) => c[0] === 'delete').map((c) => c[2]);
     expect(deleted.sort()).toEqual(clipsOf('staging', OLD).sort());
     for (const k of clipsOf('production', OLD)) expect(s3.has('digital-coach-audio', k)).toBe(true);
@@ -165,7 +180,7 @@ describe('runPurge', () => {
 
   test('refusals: another tier\'s bucket, an unset bucket, production writes, no actor; nothing listed or deleted', async () => {
     const s3 = r2({ 'rumi-sandbox': clipsOf('sandbox', OLD) });
-    const today = day(CLOSE_OLD, 57);
+    const today = day(CLOSE_OLD, 366);
     await expect(purge.runPurge(base({ s3, store: seed(), today, bucket: 'digital-coach-audio' }))).rejects.toThrow(purge.PurgeRefusal);
     await expect(purge.runPurge(base({ s3, store: seed(), today, envName: 'staging', bucket: 'x', buckets: { staging: null } }))).rejects.toThrow(purge.PurgeRefusal);
     await expect(purge.runPurge(base({ s3, store: seed(), today, envName: 'production', bucket: 'digital-coach-audio',
@@ -177,7 +192,7 @@ describe('runPurge', () => {
   test('a dry run lists and counts, deletes nothing and writes no row', async () => {
     const store = seed();
     const s3 = r2({ 'rumi-sandbox': [...clipsOf('sandbox', OLD), ...clipsOf('sandbox', NEW)] });
-    const out = await purge.runPurge(base({ s3, store, today: day(CLOSE_OLD, 57), dryRun: true, actorUserId: null }));
+    const out = await purge.runPurge(base({ s3, store, today: day(CLOSE_OLD, 366), dryRun: true, actorUserId: null }));
     expect(s3.calls.filter((c) => c[0] !== 'list')).toEqual([]);
     expect(store.writes).toBe(0);
     expect(store.rows('coachip_audit_log')).toEqual([]);
@@ -192,7 +207,7 @@ describe('runPurge', () => {
       return insert(table, list);
     };
     const s3 = r2({ 'rumi-sandbox': clipsOf('sandbox', OLD) });
-    await expect(purge.runPurge(base({ s3, store, today: day(CLOSE_OLD, 57) }))).rejects.toThrow(/coachip_audit_log/);
+    await expect(purge.runPurge(base({ s3, store, today: day(CLOSE_OLD, 366) }))).rejects.toThrow(/coachip_audit_log/);
     expect(s3.calls.filter((c) => c[0] === 'delete')).toEqual([]);
     expect(store.rows('coachip_moments').every((m) => m.clip_status === 'ready')).toBe(true);
   });
@@ -201,7 +216,7 @@ describe('runPurge', () => {
     const store = seed();
     const s3 = r2({ 'rumi-sandbox': clipsOf('sandbox', OLD) });
     s3.deleteObject = async () => { throw Object.assign(new Error('boom'), { name: 'InternalError' }); };
-    const out = await purge.runPurge(base({ s3, store, today: day(CLOSE_OLD, 57) }));
+    const out = await purge.runPurge(base({ s3, store, today: day(CLOSE_OLD, 366) }));
     expect(store.rows('coachip_moments').filter((m) => m.session_id === OLD).every((m) => m.clip_status === 'ready')).toBe(true);
     expect(out).toMatchObject({ sessions_purged: 0, sessions_failed: 1 });
     expect(store.rows('coachip_audit_log')).toHaveLength(1);
@@ -219,12 +234,12 @@ describe('the CLI reads --purge-clips', () => {
     global.__purgeR2 = { send: (cmd) => (cmd.constructor.name === 'ListObjectsV2Command' ? mock.listObjectsV2(cmd.input) : mock.deleteObject(cmd.input)) };
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'coachip-purge-'));
     const lines = [];
-    const code = await cli.main(['--date', day(CLOSE_OLD, 56), '--dry-run', '--purge-clips', '--stages', 'purge', '--out', out],
+    const code = await cli.main(['--date', day(CLOSE_OLD, 365), '--dry-run', '--purge-clips', '--stages', 'purge', '--out', out],
       sandboxEnv(out), (m) => lines.push(m));
     expect(code).toBe(0);
     expect(mock.calls.filter((c) => c[0] !== 'list')).toEqual([]);
     const counts = JSON.parse(fs.readFileSync(path.join(out, 'purge.json'), 'utf8'));
-    expect(counts).toMatchObject({ dry_run: true, today: day(CLOSE_OLD, 57), sessions_purged: 1, objects_to_delete: 3 });
+    expect(counts).toMatchObject({ dry_run: true, today: day(CLOSE_OLD, 366), sessions_purged: 1, objects_to_delete: 3 });
     expect(JSON.stringify(counts)).not.toMatch(/coachip\/|[0-9a-f]{8}-[0-9a-f]{4}-4000-8000/);
     expect(lines.some((l) => /^purge dry_run=1 /.test(l))).toBe(true);
     expect(lines.join('\n')).not.toMatch(/coachip\/(clips|full)/);
