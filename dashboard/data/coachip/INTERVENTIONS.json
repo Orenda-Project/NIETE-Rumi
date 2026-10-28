@@ -2041,7 +2041,7 @@
    "title_en": "Sector push: every coach models the practice step in three classes by the second Friday",
    "title_ur": "سیکٹر مہم: ہر کوچ دوسرے جمعے تک تین جماعتوں میں خود مشق کا مرحلہ کر کے دکھائے",
    "what_coach_does": "1. Monday: the RM reads the sector card; for each coach whose scope fires W-IP, send the three-line follow-up (the W, the teacher codes, by Friday); it lands on the coach's home page.\n2. Friday coach circle (extended to 90 minutes once): 15 min on the sector's W-IP sentence and its time / no-plan split; 25 min on one classroom moment where the practice was set well (the 'good sounds like' clip from the sector); 40 min in pairs rehearsing I-IP-1, one coach teaching the step, the other the teacher; 10 min each coach names three teacher codes.\n3. Set the bar in the room: every coach models the practice step (I-IP-1) in three classes by the second Friday and writes the step on three teacher cards.\n4. Fix the follow-up: the RM sits in on one modelled step per coach before the second Friday.\n5. Second Friday circle: read the bar (coaches at 3 of 3) and the sector's W-IP share for the 4-week window against the previous one; relative progress, never a ranking.",
-   "with_whom": "The sector's coaches. Monday: the RM picks the follow-up template for this move and up to three schools (never a teacher code; the coach finds the codes on their own screen). Friday coach circle: the RM and the sector's coaches in one room, one classroom moment per coach and the check dates due.",
+   "with_whom": "The sector's coaches, at the Friday circle",
    "duration": "Monday: 10 min per coach for the follow-up. Friday coach circle: 90 min once, then 15 min on the second Friday. One RM sit-in per coach in between.",
    "materials": [
     {
@@ -2142,7 +2142,7 @@
    "debrief_script_role": "rm_in_circle",
    "rank_in_w": 4,
    "duration_ur": "پیر: یاد دہانی کے لیے ہر کوچ پر ۱۰ منٹ۔ جمعے کا حلقہ: ایک بار ۹۰ منٹ، پھر دوسرے جمعے ۱۵ منٹ۔ درمیان میں ہر کوچ کے ساتھ آر ایم کی ایک نشست۔",
-   "with_whom_ur": "سیکٹر کی کوچ ٹیم۔ پیر: آر ایم اس طریقے کے لیے یاد دہانی کا سانچہ اور زیادہ سے زیادہ ۳ اسکول چنے (استاد کا کوڈ کبھی نہیں؛ کوچ کوڈ اپنی اسکرین پر خود دیکھے)۔ جمعہ کا حلقہ: آر ایم اور سیکٹر کی کوچ ٹیم ایک کمرے میں، ہر کوچ کمرۂ جماعت کا ایک لمحہ لائے، اور جن جانچوں کی تاریخ آ گئی ہو وہ دیکھی جائیں۔"
+   "with_whom_ur": "سیکٹر کی کوچ ٹیم، جمعے کے حلقے میں"
   },
   {
    "id": "I-IP-TIME-1",
@@ -3561,7 +3561,7 @@
    "title_en": "Sector workshop on gradual release in the Friday coach circle, with rehearsal and RM sit-ins",
    "title_ur": "جمعے کے کوچ حلقے میں بتدریج ذمہ داری منتقل کرنے پر سیکٹر ورکشاپ، مشق اور آر ایم کے دوروں کے ساتھ",
    "what_coach_does": "1. Monday: from the sector card, send each coach whose scope fires W-GP the three-line follow-up (the W, the codes, by Friday).\n2. Friday coach circle (extended to 2 hours once): 20 min on the sector's W-GP and W-IP numbers; 30 min on I do, we do, you do with one classroom moment where 'we do' was skipped and one where it was done; 50 min in threes rehearsing I-GP-1 (coach, teacher, child) with the roles rotating; 20 min each coach names the three teacher codes they will model it with.\n3. Fix the schedule in the room: the RM sits in on one modelled 'we do' per coach before the second Friday.\n4. Second Friday circle: read the sector's W-GP share for the 4-week window against the previous one; relative progress, no ranking.",
-   "with_whom": "The sector's coaches. Monday: the RM picks the follow-up template for this move and up to three schools (never a teacher code; the coach finds the codes on their own screen). Friday coach circle: the RM and the sector's coaches in one room, one classroom moment per coach and the check dates due.",
+   "with_whom": "The sector's coaches, at the Friday circle",
    "duration": "Monday: 10 min per coach. Friday coach circle: 2 h once, then 15 min on the second Friday. One RM sit-in per coach in between.",
    "materials": [
     {
@@ -3665,7 +3665,7 @@
    "debrief_script_role": "rm_in_circle",
    "rank_in_w": 4,
    "duration_ur": "پیر: ہر کوچ پر ۱۰ منٹ۔ جمعے کا حلقہ: ایک بار ۲ گھنٹے، پھر دوسرے جمعے ۱۵ منٹ۔ درمیان میں ہر کوچ کے ساتھ آر ایم کی ایک نشست۔",
-   "with_whom_ur": "سیکٹر کی کوچ ٹیم۔ پیر: آر ایم اس طریقے کے لیے یاد دہانی کا سانچہ اور زیادہ سے زیادہ ۳ اسکول چنے (استاد کا کوڈ کبھی نہیں؛ کوچ کوڈ اپنی اسکرین پر خود دیکھے)۔ جمعہ کا حلقہ: آر ایم اور سیکٹر کی کوچ ٹیم ایک کمرے میں، ہر کوچ کمرۂ جماعت کا ایک لمحہ لائے، اور جن جانچوں کی تاریخ آ گئی ہو وہ دیکھی جائیں۔"
+   "with_whom_ur": "سیکٹر کی کوچ ٹیم، جمعے کے حلقے میں"
   },
   {
    "id": "I-GP-TIME-1",
@@ -4425,7 +4425,7 @@
    "title_en": "Friday coach circle: one classroom moment of a one-minute swap, then each coach rehearses it",
    "title_ur": "جمعے کا کوچ حلقہ: ایک منٹ کی ادلا بدلی کا ایک کلاس روم لمحہ، پھر ہر کوچ اس کی مشق کرے",
    "what_coach_does": "1. Monday: the sector card shows W-PEER at sector level (coach tiles rarely clear the floor); the RM sends the three-line follow-up to the coaches whose scope has plans with a peer_review move.\n2. Friday coach circle, 30 min: play one classroom moment from the sector where a swap was done in a minute; each coach rehearses the three sentences as the teacher; the RM listens for one thing to check.\n3. Each coach names one teacher code to model it with before the next circle.",
-   "with_whom": "The sector's coaches. Monday: the RM picks the follow-up template for this move and up to three schools (never a teacher code; the coach finds the codes on their own screen). Friday coach circle: the RM and the sector's coaches in one room, one classroom moment per coach and the check dates due.",
+   "with_whom": "The sector's coaches, at the Friday circle",
    "duration": "Monday: 5 min per coach. Friday coach circle: 30 min.",
    "materials": [
     {
@@ -4507,7 +4507,7 @@
    "debrief_script_role": "rm_in_circle",
    "rank_in_w": 3,
    "duration_ur": "پیر: ہر کوچ پر ۵ منٹ۔ جمعے کا حلقہ: ۳۰ منٹ۔",
-   "with_whom_ur": "سیکٹر کی کوچ ٹیم۔ پیر: آر ایم اس طریقے کے لیے یاد دہانی کا سانچہ اور زیادہ سے زیادہ ۳ اسکول چنے (استاد کا کوڈ کبھی نہیں؛ کوچ کوڈ اپنی اسکرین پر خود دیکھے)۔ جمعہ کا حلقہ: آر ایم اور سیکٹر کی کوچ ٹیم ایک کمرے میں، ہر کوچ کمرۂ جماعت کا ایک لمحہ لائے، اور جن جانچوں کی تاریخ آ گئی ہو وہ دیکھی جائیں۔"
+   "with_whom_ur": "سیکٹر کی کوچ ٹیم، جمعے کے حلقے میں"
   },
   {
    "id": "I-EXIT-1",
@@ -7666,7 +7666,7 @@
    "title_en": "Sector push in the Friday coach circle: every coach models the hijje-to-sounds bridge in three reading hours by the second Friday",
    "title_ur": "جمعے کے کوچ حلقے میں سیکٹر مہم: ہر کوچ دوسرے جمعے تک تین پڑھائی کے گھنٹوں میں ہجے سے آوازوں تک کا پل کر کے دکھائے",
    "what_coach_does": "1. Monday: from the sector card, send each coach the three-line follow-up for W-PHON (the W, the grade 1-2 reading-hour teacher codes, by Friday).\n2. Friday coach circle (extended to 90 minutes once): 15 min on the 21-recording read (0 on 12, 1 on 8, 2 on 1) and the bridge; 25 min on one classroom moment of hijje with sounds and one of hijje with names, side by side; 40 min in pairs rehearsing I-PHON-1's exchange, coach and teacher roles rotating; 10 min each coach names three teacher codes.\n3. Set the bar in the room: every coach models the bridge in three reading hours by the second Friday and sends the grade's FLN plans.\n4. The RM sits in on one modelled bridge per coach before the second Friday; second circle reads the bar and the sector's detector share, relative progress only.",
-   "with_whom": "The sector's coaches. Monday: the RM picks the follow-up template for this move and up to three schools (never a teacher code; the coach finds the codes on their own screen). Friday coach circle: the RM and the sector's coaches in one room, one classroom moment per coach and the check dates due.",
+   "with_whom": "The sector's coaches, at the Friday circle",
    "duration": "Monday: 10 min per coach. Friday coach circle: 90 min once, then 15 min on the second Friday. One RM sit-in per coach in between.",
    "materials": [
     {
@@ -7814,7 +7814,7 @@
    "debrief_script_role": "rm_in_circle",
    "rank_in_w": 4,
    "duration_ur": "پیر: ہر کوچ پر ۱۰ منٹ۔ جمعے کا حلقہ: ایک بار ۹۰ منٹ، پھر دوسرے جمعے ۱۵ منٹ۔ درمیان میں ہر کوچ کے ساتھ آر ایم کی ایک نشست۔",
-   "with_whom_ur": "سیکٹر کی کوچ ٹیم۔ پیر: آر ایم اس طریقے کے لیے یاد دہانی کا سانچہ اور زیادہ سے زیادہ ۳ اسکول چنے (استاد کا کوڈ کبھی نہیں؛ کوچ کوڈ اپنی اسکرین پر خود دیکھے)۔ جمعہ کا حلقہ: آر ایم اور سیکٹر کی کوچ ٹیم ایک کمرے میں، ہر کوچ کمرۂ جماعت کا ایک لمحہ لائے، اور جن جانچوں کی تاریخ آ گئی ہو وہ دیکھی جائیں۔"
+   "with_whom_ur": "سیکٹر کی کوچ ٹیم، جمعے کے حلقے میں"
   },
   {
    "id": "I-LS-1",
@@ -11628,7 +11628,7 @@
    "title_en": "Friday coach circle: one hijje-with-names moment and one hijje-with-sounds moment, side by side",
    "title_ur": "جمعے کا کوچ حلقہ: ناموں والے ہجے کا ایک لمحہ اور آوازوں والے ہجے کا ایک لمحہ، ساتھ ساتھ",
    "what_coach_does": "1. Monday: from the sector card, send each coach whose scope fires W-PHON-NAMES the three-line follow-up (the W, the grade 1-2 reading-hour teacher codes, by Friday).\n2. Friday coach circle, 30 min: play one classroom moment of hijje with names («بے زبر با») and one of hijje with sounds («/بَ/») from the sector, side by side; each coach says in one sentence what the children did differently in the second.\n3. Each coach rehearses the one-word exchange as the teacher; the RM listens for sounds only.\n4. Each coach names one teacher code to model it with before the next circle.",
-   "with_whom": "The sector's coaches. Monday: the RM picks the follow-up template for this move and up to three schools (never a teacher code; the coach finds the codes on their own screen). Friday coach circle: the RM and the sector's coaches in one room, one classroom moment per coach and the check dates due.",
+   "with_whom": "The sector's coaches, at the Friday circle",
    "duration": "Monday: 5 min per coach. Friday coach circle: 30 min.",
    "materials": [
     {
@@ -11743,7 +11743,7 @@
    "debrief_script_role": "rm_in_circle",
    "rank_in_w": 4,
    "duration_ur": "پیر: ہر کوچ پر ۵ منٹ۔ جمعے کا حلقہ: ۳۰ منٹ۔",
-   "with_whom_ur": "سیکٹر کی کوچ ٹیم۔ پیر: آر ایم اس طریقے کے لیے یاد دہانی کا سانچہ اور زیادہ سے زیادہ ۳ اسکول چنے (استاد کا کوڈ کبھی نہیں؛ کوچ کوڈ اپنی اسکرین پر خود دیکھے)۔ جمعہ کا حلقہ: آر ایم اور سیکٹر کی کوچ ٹیم ایک کمرے میں، ہر کوچ کمرۂ جماعت کا ایک لمحہ لائے، اور جن جانچوں کی تاریخ آ گئی ہو وہ دیکھی جائیں۔"
+   "with_whom_ur": "سیکٹر کی کوچ ٹیم، جمعے کے حلقے میں"
   }
  ],
  "api_map": {

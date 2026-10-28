@@ -72,9 +72,13 @@ function buildGlossInput({ wId, phase = null, glossMove, verdict, narrative, lex
 const UR_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
 const urDigits = (n) => String(n).replace(/[0-9]/g, (d) => UR_DIGITS[Number(d)]);
 
-/** COPY s4.gloss.at: "At minute {m}:" / "{m}ویں منٹ پر:", m the clock minute of the moment. */
+/**
+ * COPY s4.gloss.at: "At minute {m}:" / "{m}ویں منٹ پر:", written by the server only (ruling B, lead-final 223945): m is
+ * the clock minute + 1, the minute a person counts (0:24 → 1, 18:42 → 19). Every reader (S4, the pair card, the re-check)
+ * shows the stored text as is.
+ */
 function prefix(minuteS) {
-  const m = Math.max(0, Math.floor((Number(minuteS) || 0) / 60));
+  const m = Math.max(0, Math.floor((Number(minuteS) || 0) / 60)) + 1;
   return { en: `At minute ${m}:`, ur: `${urDigits(m)}ویں منٹ پر:` };
 }
 

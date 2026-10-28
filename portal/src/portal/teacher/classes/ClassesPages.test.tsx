@@ -31,6 +31,11 @@ import classRoutes from "./routes";
 import { CLASSES_ADD, CLASSES_HOME, CLASS_DETAIL, classPath } from "./paths";
 import { CLASSES_V2_COPY as C } from "./copy";
 import { LESSONS_HOME } from "../lessons/paths";
+import { beforeAll as preloadFirst } from "vitest";
+import { preloadAll } from "@/lib/lazyPage";
+
+// bd-sex15q.34 — these pages are their own chunks (lib/lazyPage); load them before stepping through them synchronously.
+preloadFirst(() => preloadAll({ pages: true }), 120_000);
 
 const api = classesApi as unknown as Record<"list" | "create" | "students" | "addStudents" | "removeStudent" | "removeClass", ReturnType<typeof vi.fn>>;
 const combos = loadGradeSubjects as unknown as ReturnType<typeof vi.fn>;

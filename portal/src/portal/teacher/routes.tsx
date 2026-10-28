@@ -15,13 +15,16 @@ export type { TeacherFeature } from "./paths";
  * "../paths" for the main page):
  *
  *   import { featurePath } from "../paths";
- *   import LessonsHome from "./LessonsHome";
+ *   import { lazyPage as page } from "@/lib/lazyPage";
+ *   const LessonsHome = page(() => import("./LessonsHome"));
  *   const routes: TeacherRoute[] = [
  *     { path: featurePath("lessons"), element: <LessonsHome /> },
  *     { path: `${featurePath("lessons")}/:grade/:subject`, element: <Chapters /> },
  *   ];
  *   export default routes;
  *
+ * Each page through lazyPage, never a static import (bd-sex15q.34): this list is in the app's first chunk, so a
+ * static import puts that page in front of every first open — a coach's too.
  * It is found at build time (import.meta.glob below). App.tsx renders every
  * registered route inside TeacherGate, so each page is flag-gated without asking.
  * Once a feature's main path is registered, every link to that feature (the bottom

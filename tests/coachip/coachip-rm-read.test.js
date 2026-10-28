@@ -439,6 +439,15 @@ run('COACHIP RM reads: R17 rm/home, R18 rm/coach/:id, R20 rm/circle (Postgres, H
     const lib = S.library().intervention('I-IP-4');
     expect(b.sector_interventions[0].attendees).toEqual({ en: lib.with_whom, ur: lib.with_whom_ur });
     expect(b.sector_interventions[0].check).toEqual({ en: lib.check_it_worked.look_for, ur: lib.check_it_worked.look_for_ur });
+    // train 7 item 3 (design-qa 172524, lead-final 223944): S10 shows who, in one line; the Monday/Friday routine is
+    // LIBRARY_RULES §G8, never a paragraph on the RM's screen, and no "teacher code" process text
+    for (const i of b.sector_interventions) {
+      expect(i.attendees.en.trim().split(/\s+/).length).toBeLessThanOrEqual(12);
+      expect(i.attendees.ur.trim().split(/\s+/).length).toBeLessThanOrEqual(12);
+      expect(i.attendees.en).not.toMatch(/Monday|teacher code|codes/i);
+      expect(i.attendees.ur).not.toMatch(/پیر|کوڈ/);
+    }
+    expect(b.sector_interventions[0].attendees).toEqual({ en: "The sector's coaches, at the Friday circle", ur: 'سیکٹر کی کوچ ٹیم، جمعے کے حلقے میں' });
     expect(b.windows.map((w) => w.id)).toEqual(['act-4w-2026-10-26', 'week-2026-10-19']);
     // SPEC v2.1 §11.1: the sector ranks, so the week is on the sector's W and there is no floor line
     expect(b.basis).toBe('sector');
