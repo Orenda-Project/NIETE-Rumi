@@ -150,6 +150,11 @@ const SA_SWITCHES = {
   dashFilters: 'sa_dash_filters',
   // round 7b item 14: every words-per-minute number is correct words per minute, labelled CWPM
   cwpm: 'sa_cwpm',
+  // round 8 (portal components/assess/offlineReady.ts): the child's battery on the phone before Start; "Get ready for
+  // offline" on the schools screen; Start waits at most 1.5 s for the Present answer
+  r8OfflineFirst: 'sa_r8_offline_first',
+  r8OfflinePrep: 'sa_r8_offline_prep',
+  r8FastStart: 'sa_r8_fast_start',
 };
 // Switches that are off on any host but sandbox, whatever their row says.
 const SANDBOX_ONLY = new Set(['exampleDashboard']);

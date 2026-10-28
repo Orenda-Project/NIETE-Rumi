@@ -15,6 +15,13 @@
  *     battery, why? }> — the voice-readiness gate (RULING #14): voice 'clips' when every clip of the session is on the
  *     phone, else 'tts' when the phone has a voice in the session's language, else 'none' (the surface refuses the
  *     start). It asks for persistent storage (RULING #11) and keeps sa:voice / sa:persisted for the sink's batch.
+ *   SAE.offline.prepVisit({ forms, part?, onProgress?, chunk? }) → Promise<{ ok, total, cached, missing, bytes, forms, why? }>
+ *     round 8 (switches sa_r8_offline_prep / sa_r8_offline_first, the coach page, while online): every listed battery
+ *     (sa.coach.G3.A.ur …) read fresh, then every clip in its language and every picture, onProgress({ done, total,
+ *     bytes }) after each chunk. part { block, seed }: only what that child's page runs (the page's pick + rotate,
+ *     partOf), so a Start waits for one part, not the whole battery. A started test then needs no network.
+ *   SAE.offline.checkVisit({ forms }) → Promise<{ ready, total, cached, why? }>: the same files, looked up on the phone
+ *     only (nothing fetched).
  *
  * UMD: window.SAE.offline (and SAE.prepare) in the browser, module.exports under Node.
  */
@@ -172,5 +179,198 @@
     });
   }
 
-  return { urls: urls, lineUrls: lineUrls, openingUrls: openingUrls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice };
+  /**
+   * partOf(battery, block, seed) → the battery the child's page runs for this block and session: sa-page.js pick() then
+   * rotate(), mirrored here because that file boots itself in any page that loads it. The tests pin the two equal
+   * (dashboard/tests/sa-r8-offline-prep.service.test.js), so a change there fails here until it is mirrored.
+   */
+  function partOf(battery, block, seed) {
+    return rotatePart(pickPart(battery, block), seed);
+  }
+  function pickPart(battery, block) {
+    var want = null;
+    var caps = null;
+    if (block && block !== 'full') {
+      if (block === 'tower' && Array.isArray(battery.tower)) want = battery.tower;
+      else if (block === 'rdf' && Array.isArray(battery.rdf)) { want = battery.rdf; caps = battery.rdf_items || null; }
+      else if ((block === 'rdf_auto' || block === 'rdf_manual') && Array.isArray(battery[block])) want = battery[block];
+      else if (battery.blocks && Array.isArray(battery.blocks[block])) want = battery.blocks[block];
+      else if (battery.islands && Array.isArray(battery.islands[block])) want = battery.islands[block];
+    }
+    if (!want && Array.isArray(battery.full) && battery.full.length < battery.tasks.length) want = battery.full;
+    if (!want) return battery;
+    var out = {};
+    for (var k in battery) if (Object.prototype.hasOwnProperty.call(battery, k)) out[k] = battery[k];
+    var byId = {};
+    battery.tasks.forEach(function (t) { byId[t.id] = t; });
+    var keepItems = function (items, rule) {
+      if (!Array.isArray(items)) return items;
+      if (rule > 0) return items.slice(0, rule);
+      return items.filter(function (it) { return !it || rule.drop.indexOf(it.id) < 0; });
+    };
+    out.tasks = want.map(function (id) { return byId[id]; }).filter(Boolean).map(function (t) {
+      var rule = caps && caps[t.id];
+      var orphan = caps && t.depends_on && t.depends_on.task && want.indexOf(t.depends_on.task) < 0;
+      if (!(rule > 0 || (rule && Array.isArray(rule.drop))) && !orphan) return t;
+      var c = {};
+      for (var j in t) if (Object.prototype.hasOwnProperty.call(t, j)) c[j] = t[j];
+      if (orphan) delete c.depends_on;
+      if (rule > 0 || (rule && Array.isArray(rule.drop))) {
+        c.items = keepItems(t.items, rule);
+        if (Array.isArray(t.variants)) c.variants = t.variants.map(function (v) { var w = {}; for (var x in v) if (Object.prototype.hasOwnProperty.call(v, x)) w[x] = v[x]; w.items = keepItems(v.items, rule); return w; });
+      }
+      return c;
+    });
+    out.battery_id = battery.battery_id + (block && block !== 'full' ? '#' + block : '');
+    return out.tasks.length ? out : battery;
+  }
+  function hashOf(s) {
+    var x = 0x811c9dc5;
+    for (var i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; }
+    return x;
+  }
+  function rotatePart(battery, seed) {
+    if (!battery || !Array.isArray(battery.tasks) || !battery.tasks.some(function (t) { return Array.isArray(t.variants) && t.variants.length; })) return battery;
+    var h = hashOf(String(seed || ''));
+    var out = {};
+    for (var k in battery) if (Object.prototype.hasOwnProperty.call(battery, k)) out[k] = battery[k];
+    out.tasks = battery.tasks.map(function (t) {
+      if (!Array.isArray(t.variants) || !t.variants.length) return t;
+      var v = t.variants[h % t.variants.length];
+      var c = {};
+      for (var j in t) if (Object.prototype.hasOwnProperty.call(t, j) && j !== 'variants') c[j] = t[j];
+      if (v.passage) c.passage = v.passage;
+      c.items = v.items;
+      if (v.stop) c.stop = v.stop;
+      c.variant = { id: v.id, src: v.src, fielded: v.fielded };
+      return c;
+    });
+    return out;
+  }
+
+  var FORM_NAME_RX = /^sa\.(coach|game)\.[A-Za-z0-9]+(\.[A-Za-z0-9]+)?\.(en|ur)$/;
+  var CHUNK = 24;
+  var ACTIVE_WAIT_MS = 30000;
+
+  /**
+   * The engine's worker, active, as an ask(msg) → Promise<reply>. A page outside /sa/ (the coach page) is never
+   * controlled by it, so serviceWorker.ready would never resolve there: wait on the registration's own worker instead.
+   */
+  function workerAsk() {
+    var nav = root.navigator;
+    if (!nav || !nav.serviceWorker || !root.MessageChannel) return Promise.resolve(null);
+    return nav.serviceWorker.register('/sa/sw.js', { scope: '/sa/' }).then(function (reg) {
+      if (reg.active) return reg.active;
+      var w = reg.installing || reg.waiting;
+      if (!w) return null;
+      return new Promise(function (ok) {
+        var t = setTimeout(function () { ok(reg.active || null); }, ACTIVE_WAIT_MS);
+        w.addEventListener('statechange', function () {
+          if (w.state === 'activated' || reg.active) { clearTimeout(t); ok(reg.active || w); }
+          else if (w.state === 'redundant') { clearTimeout(t); ok(reg.active || null); }
+        });
+      });
+    }).then(function (sw) {
+      return sw ? function (msg) { return ask(sw, msg); } : null;
+    }, function () { return null; });
+  }
+
+  /** A kept battery file (the worker's copy), else null. */
+  function readKept(url) {
+    var c = root.caches;
+    if (!c || typeof c.match !== 'function') return Promise.resolve(null);
+    return c.match(url, { ignoreSearch: true }).then(function (r) { return r ? r.json() : null; }).then(null, function () { return null; });
+  }
+
+  function formsOf(list) {
+    var seen = {};
+    return (list || []).filter(function (f) {
+      if (typeof f !== 'string' || !FORM_NAME_RX.test(f) || seen[f]) return false;
+      seen[f] = true;
+      return true;
+    });
+  }
+  function langOf(form) { return /\.en$/.test(form) ? 'en' : 'ur'; }
+  function batteryUrl(form) { return '/sa/batteries/' + form + '.json'; }
+  /** A battery's own files on the phone: every clip in its language and every picture (of one part when given). */
+  function filesOf(battery, form, part) {
+    var l = langOf(form);
+    var b = part && typeof part === 'object' ? partOf(battery, part.block || null, part.seed || '') : battery;
+    return urls(b, l, '/').concat(images(b, l));
+  }
+
+  /** prepVisit — see the header. o.ask / o.readBattery are injected by tests. */
+  function prepVisit(o) {
+    o = o || {};
+    var forms = formsOf(o.forms);
+    var size = o.chunk > 0 ? o.chunk : CHUNK;
+    var progress = typeof o.onProgress === 'function' ? o.onProgress : function () {};
+    var read = o.readBattery || readKept;
+    var bats = forms.map(batteryUrl);
+    return (o.ask ? Promise.resolve(o.ask) : workerAsk()).then(function (q) {
+      if (!q) return { ok: false, total: 0, cached: 0, missing: 0, bytes: 0, forms: [], why: 'no_service_worker' };
+      var bytes = 0;
+      var missingSet = {};
+      return q({ type: 'prepare', urls: bats, fresh: bats }).then(function (r) {
+        r = r || { missing: bats };
+        bytes += r.bytes || 0;
+        (r.missing || []).forEach(function (u) { missingSet[u] = true; });
+        return Promise.all(bats.map(function (u) { return Promise.resolve().then(function () { return read(u); }).then(null, function () { return null; }); }));
+      }).then(function (batteries) {
+        var per = forms.map(function (f, i) { return { form: f, files: [bats[i]].concat(batteries[i] ? filesOf(batteries[i], f, o.part) : []), read: !!batteries[i] }; });
+        var all = [];
+        var inAll = {};
+        per.forEach(function (p) { p.files.slice(1).forEach(function (u) { if (!inAll[u]) { inAll[u] = true; all.push(u); } }); });
+        var total = bats.length + all.length;
+        var done = bats.length;
+        progress({ done: done, total: total, bytes: bytes });
+        var chunks = [];
+        for (var i = 0; i < all.length; i += size) chunks.push(all.slice(i, i + size));
+        return chunks.reduce(function (chain, c) {
+          return chain.then(function () { return q({ type: 'prepare', urls: c }); }).then(function (r) {
+            r = r || { missing: c };
+            bytes += r.bytes || 0;
+            (r.missing || []).forEach(function (u) { missingSet[u] = true; });
+            done += c.length;
+            progress({ done: done, total: total, bytes: bytes });
+          });
+        }, Promise.resolve()).then(function () {
+          var missing = Object.keys(missingSet).length;
+          var out = per.map(function (p) {
+            var m = p.files.filter(function (u) { return missingSet[u]; }).length;
+            return { form: p.form, ok: p.read && m === 0, files: p.files.length, missing: m };
+          });
+          return { ok: missing === 0 && out.every(function (f) { return f.ok; }), total: total, cached: total - missing, missing: missing, bytes: bytes, forms: out };
+        });
+      });
+    }).then(null, function (e) { return { ok: false, total: 0, cached: 0, missing: 0, bytes: 0, forms: [], why: String(e && e.message || e) }; });
+  }
+
+  /** checkVisit — see the header. Never fetches: a battery not kept counts as its own file missing. */
+  function checkVisit(o) {
+    o = o || {};
+    var forms = formsOf(o.forms);
+    var read = o.readBattery || readKept;
+    return (o.ask ? Promise.resolve(o.ask) : workerAsk()).then(function (q) {
+      if (!q) return { ready: false, total: 0, cached: 0, why: 'no_service_worker' };
+      return Promise.all(forms.map(function (f) { return Promise.resolve().then(function () { return read(batteryUrl(f)); }).then(null, function () { return null; }); }))
+        .then(function (batteries) {
+          var want = [];
+          var seen = {};
+          forms.forEach(function (f, i) {
+            [batteryUrl(f)].concat(batteries[i] ? filesOf(batteries[i], f, o.part) : []).forEach(function (u) { if (!seen[u]) { seen[u] = true; want.push(u); } });
+          });
+          var chunks = [];
+          for (var i = 0; i < want.length; i += 200) chunks.push(want.slice(i, i + 200));
+          return Promise.all(chunks.map(function (c) { return q({ type: 'check', urls: c }); })).then(function (rs) {
+            var missing = 0;
+            rs.forEach(function (r, i) { missing += r ? (r.missing || []).length : chunks[i].length; });
+            return { ready: want.length > 0 && missing === 0 && batteries.every(Boolean), total: want.length, cached: want.length - missing };
+          });
+        });
+    }).then(null, function (e) { return { ready: false, total: 0, cached: 0, why: String(e && e.message || e) }; });
+  }
+
+  return { urls: urls, lineUrls: lineUrls, openingUrls: openingUrls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice,
+    prepVisit: prepVisit, checkVisit: checkVisit, partOf: partOf };
 }));

@@ -7,9 +7,13 @@
  *   the battery file and Jugnu's clips cache first (they never change under one URL: the clip name is a hash)
  *   anything else (the sink's /api calls, other paths)  not touched
  *
- * The page asks for a session's files with postMessage({ type: 'prepare', urls }) on a MessageChannel and gets back
- * { ok, cached, missing[] }; "ready offline" is shown only when missing is empty. The files are fetched six at a time,
- * and one that fails (a 429 from a busy tunnel, a dropped request) is tried once more after a short pause.
+ * The page asks for a session's files with postMessage({ type: 'prepare', urls, fresh? }) on a MessageChannel and gets
+ * back { ok, cached, missing[], bytes }; "ready offline" is shown only when missing is empty. The files are fetched six at
+ * a time, and one that fails (a 429 from a busy tunnel, a dropped request) is tried once more after a short pause.
+ * Round 8 (the coach's "ready for offline"): a URL in `fresh` (a battery file, which changes under one URL when a switch
+ * flips) is read from the network even when a copy is kept, and keeps that copy when the network fails; bytes counts
+ * what came over the network. postMessage({ type: 'check', urls }) answers { ok, cached, missing[] } from the phone
+ * alone, fetching nothing.
  */
 'use strict';
 
@@ -19,7 +23,8 @@
 // sa-6: round 7b (back, End test + Restart, End this section, the auto stop-checks, the instruction lines): the new engine files.
 // sa-7: a line held by a hidden page plays on when it is shown again, never in the phone's voice (sa-voice.js, sa-engine.js).
 // sa-8: round 8, the child's flow (no Done line on a reading, story questions wait for Next, practice says its answer).
-var VERSION = 'sa-8';
+// sa-9: round 8 offline: sa-offline.js prepVisit / checkVisit / partOf (the coach page's "ready for offline").
+var VERSION = 'sa-9';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -36,23 +41,27 @@ var PREFETCH_AT_ONCE = 6;
 var RETRY_MS = 1500;
 
 /**
- * prefetch(urls, { fetch, match, put, ok, limit?, retryMs? }) → Promise<missing urls>: each url not already kept
- * (match) is fetched, at most `limit` at a time, kept (put) when ok(url, res); a failure is tried once more after
- * retryMs. Never rejects.
+ * prefetch(urls, { fetch, match, put, ok, limit?, retryMs?, fresh?, onBytes? }) → Promise<missing urls>: each url not
+ * already kept (match) is fetched, at most `limit` at a time, kept (put) when ok(url, res); a failure is tried once more
+ * after retryMs. A url in fresh is fetched first even when kept (a failure then falls back to the kept copy).
+ * onBytes(n) gets each fetched response's content-length. Never rejects.
  */
 function prefetch(urls, o) {
   var limit = o.limit || PREFETCH_AT_ONCE;
   var wait = o.retryMs != null ? o.retryMs : RETRY_MS;
+  var fresh = o.fresh || [];
   var queue = urls.slice();
   var missing = [];
   function once(u) {
     return Promise.resolve().then(function () { return o.fetch(u); }).then(function (res) {
       if (!o.ok(u, res)) throw new Error(String(res && res.status));
+      if (o.onBytes) o.onBytes(Number((res.headers && res.headers.get && res.headers.get('content-length')) || 0) || 0);
       return Promise.resolve(o.put(u, res)).then(function () { return true; });
     }).then(null, function () { return false; });
   }
   function one(u) {
-    return Promise.resolve().then(function () { return o.match(u); }).then(null, function () { return null; }).then(function (hit) {
+    var first = fresh.indexOf(u) >= 0 ? once(u) : Promise.resolve(false);
+    return first.then(function (got) { return got ? true : o.match(u); }).then(null, function () { return null; }).then(function (hit) {
       if (hit) return true;
       return once(u).then(function (got) {
         return got ? true : new Promise(function (r) { setTimeout(r, wait); }).then(function () { return once(u); });
@@ -149,17 +158,29 @@ if (typeof module === 'object' && module.exports) {
   self.addEventListener('message', function (e) {
     var d = e.data || {};
     var port = e.ports && e.ports[0];
-    if (d.type !== 'prepare' || !port) return;
+    if ((d.type !== 'prepare' && d.type !== 'check') || !port) return;
     var urls = (d.urls || []).filter(function (u) { return typeof u === 'string'; });
+    if (d.type === 'check') {
+      e.waitUntil(Promise.all(urls.map(function (u) {
+        return caches.match(u, { ignoreSearch: true }).then(function (hit) { return hit ? null : u; }, function () { return u; });
+      })).then(function (r) {
+        var missing = r.filter(Boolean);
+        port.postMessage({ ok: missing.length === 0, cached: urls.length - missing.length, missing: missing });
+      }));
+      return;
+    }
+    var bytes = 0;
     e.waitUntil(caches.open(SESSION).then(function (c) {
       return prefetch(urls, {
         fetch: function (u) { return fetch(u); },
         match: function (u) { return caches.match(u, { ignoreSearch: true }); },
         put: function (u, res) { return c.put(u, res); },
         ok: function (u, res) { return cacheable(new URL(u, self.location.href).href, res); },
+        fresh: (d.fresh || []).filter(function (u) { return typeof u === 'string'; }),
+        onBytes: function (n) { bytes += n; },
       });
     }).then(function (missing) {
-      port.postMessage({ ok: missing.length === 0, cached: urls.length - missing.length, missing: missing });
+      port.postMessage({ ok: missing.length === 0, cached: urls.length - missing.length, missing: missing, bytes: bytes });
     }, function (err) {
       port.postMessage({ ok: false, cached: 0, missing: urls, error: String(err) });
     }));
