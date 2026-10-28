@@ -347,5 +347,7 @@ button{font:inherit;color:inherit}
 @media (max-height:700px){.is-ur-fit[lang=ur] .sae-silence .sae-jugnu{display:none}}
 @media (max-height:600px){.is-ur-fit[lang=ur] .sae-silence .sae-body{gap:6px}.is-ur-fit[lang=ur] .sae-silence .sae-h1{font-size:22px;padding-top:.3em}.is-ur-fit[lang=ur] .sae-silence .sae-p{font-size:16px;padding-top:.2em}}
 
-/* Round 8 (r8_comp_wait_next): the stuck line under a story question, quiet and in the flow (never over the content) */
-.sae .sae-r8-stuck{font-size:.88em;opacity:.75;margin:.4rem auto 0;max-width:30em}
+/* Round 8 (r8_comp_wait_next): the stuck line, small, just above Next in the foot (never over the question) */
+.sae .sae-r8-stuck{font-size:.85em;line-height:1.5;opacity:.8;margin:0 auto;max-width:30em;text-align:center}
+/* a short phone: a smaller mic, so "say your answer" and the stuck line both stay in view above Next */
+@media (max-height:700px){.sae .sae-run-oral.is-r8-wait .sae-mic{width:80px;height:80px;font-size:36px}.sae .sae-run-oral.is-r8-wait .sae-jugnu-s{max-height:72px}.sae .sae-r8-stuck{font-size:.75em;line-height:1.4}}

@@ -1333,19 +1333,18 @@
     function sRunOral(v) {
       var it = v.item, t = v.task;
       var on = sectionRec ? recording === t : !!(oralRec && oralRec.key === keyOf(v));
-      return screen(v, 'sae-run sae-run-oral', [
+      return screen(v, 'sae-run sae-run-oral' + (compWait(t) ? ' is-r8-wait' : ''), [
         h('p', { class: 'sae-task-tag', text: tx(t.title) }),
         h('div', { class: 'sae-row' }, [jugnu('idle', true), replayBtn(function () { sayItem(it, t); })]),
         coachSays(it),
         /^mental_/.test(t.subtask || '') && shownOf(it) != null ? labelOf(it, t) : null,
         h('div', { class: 'sae-mic sa-mic' + (on ? ' is-on' : ''), 'aria-hidden': 'true' }, [h('span', { text: '🎤' })]),
         hintOf(t) ? hintEl(t, 'sae-sub') : h('p', { class: 'sae-sub', text: C.say_answer }),
-        compWait(t) ? h('p', { class: 'sae-sub sae-r8-stuck', text: tx(copyLine('stuck_press_next')) }) : null,
-      ], itemFoot(v, [btn(compWait(t) ? C.next : C.answered, function () {
+      ], (compWait(t) ? [stuckEl()] : []).concat(itemFoot(v, [btn(compWait(t) ? C.next : C.answered, function () {
         busy = true;
         runner.answer('spoken');
         later(function () { busy = false; draw(); }, PRESS_MS);
-      }, compWait(t) ? 'sae-primary sa-next' : 'sae-primary')]));
+      }, compWait(t) ? 'sae-primary sa-next' : 'sae-primary')])));
     }
 
     // ---------- session gates ----------
@@ -1740,6 +1739,8 @@
       }
     }
 
+    /** r8_comp_wait_next: the stuck line, small, just above Next in the foot (always in view, never over the question). */
+    function stuckEl() { return h('p', { class: 'sae-sub sae-r8-stuck', text: tx(copyLine('stuck_press_next')) }); }
     /** r8_comp_wait_next: the stuck line once, R8_STUCK_MS after the question was asked, if still unanswered (clip only). */
     function stuckLater(t, key) {
       var sl = line('stuck_press_next');

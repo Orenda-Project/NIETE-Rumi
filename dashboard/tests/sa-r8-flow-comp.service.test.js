@@ -112,7 +112,9 @@ maybe('sa-ui round 8: the child\'s flow', () => {
       const stuck = m.el.querySelector('.sae-r8-stuck');
       expect(stuck).not.toBeNull();
       expect(stuck.textContent).toBe(STUCK.en);
-      expect(stuck.closest('.sae-body')).not.toBeNull(); // in the flow of the screen, not over it
+      // in the foot just above Next: always in view, never over the question
+      expect(stuck.closest('.sae-foot')).not.toBeNull();
+      expect(stuck.nextElementSibling.textContent).toBe('Next');
       const next = btnText(m.el, /^Next$/);
       expect(next).toBeTruthy();
       expect(next.disabled).toBe(false);
