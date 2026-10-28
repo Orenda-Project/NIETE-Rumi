@@ -183,6 +183,63 @@
     return out;
   }
 
+  /** Round 8 item 4: the same form in the other language (sa.coach.G3.A.ur → sa.coach.G3.A.en), or null. */
+  function otherForm(form) {
+    var m = /^(.+)\.(en|ur)$/.exec(String(form || ''));
+    if (!m) return null;
+    var l = m[2] === 'ur' ? 'en' : 'ur';
+    return { form: m[1] + '.' + l, lang: l };
+  }
+
+  /**
+   * Round 8 item 4 (sa_r8_lang_switch): the other language's battery for this run, picked and rotated as the run was,
+   * or null when it is not the same test (another task list, other items or another passage), so the toggle stays off.
+   */
+  function langAltOf(run, altFull, block, seed) {
+    if (!run || !Array.isArray(run.tasks) || !altFull || !Array.isArray(altFull.tasks)) return null;
+    var alt = rotate(pick(altFull, block), seed);
+    if (!alt || alt.tasks.length !== run.tasks.length) return null;
+    var ids = function (l) { return (l || []).map(function (x) { return x && x.id; }).join('|'); };
+    var vid = function (t) { return t.variant ? t.variant.id : null; };
+    for (var i = 0; i < run.tasks.length; i++) {
+      var a = run.tasks[i], b = alt.tasks[i];
+      if (a.id !== b.id || ids(a.items) !== ids(b.items) || vid(a) !== vid(b)) return null;
+    }
+    return alt;
+  }
+
+  /**
+   * Round 8 item 4: after this run's own preparation, fetch the other language's battery, keep it (and its clips) on the
+   * phone through the offline lane's prepare, and hand it to the screens, which then show the toggle. Not reachable
+   * (offline and never kept), or not the same test: no toggle, the run as before.
+   */
+  function langAltLoad(SAE, p, run, after, engine) {
+    var o = otherForm(p.form);
+    if (!o || o.lang === p.lang || !engine.view || typeof engine.view.langBattery !== 'function') return Promise.resolve(null);
+    var url = '/sa/batteries/' + o.form + '.json';
+    var doc = root.document;
+    return Promise.resolve(after).then(null, function () {}).then(function () {
+      return root.fetch(url, { cache: 'no-cache' });
+    }).then(function (r) {
+      if (!r.ok) throw new Error('battery ' + r.status);
+      return r.json();
+    }).then(function (full) {
+      var alt = langAltOf(run, full, p.block, p.session_id);
+      if (!alt) return null;
+      var keep = SAE.offline && SAE.offline.prepare
+        ? SAE.offline.prepare({ battery_url: url, battery: alt, lang: o.lang, base: '/' }).then(null, function () { return { ready: false }; })
+        : Promise.resolve({ ready: true });
+      return keep.then(function (k) {
+        // offline without its pictures: a picture task in that language would have nothing to tap
+        if (!(k && k.ready) && root.navigator && root.navigator.onLine === false) return null;
+        engine.view.langBattery(o.lang, SAE.core && SAE.core.normalize ? SAE.core.normalize(alt) : alt, {
+          onSwitch: function (l) { doc.documentElement.lang = l; doc.documentElement.dir = l === 'ur' ? 'rtl' : 'ltr'; },
+        });
+        return o.lang;
+      });
+    }).then(null, function () { return null; });
+  }
+
   function el(tag, cls, text) {
     var e = root.document.createElement(tag);
     if (cls) e.className = cls;
@@ -357,6 +414,7 @@
           }, 3000);
         }
         voiceGate(engine, offline, { win: root, embed: p.embed, battery: battery, again: function () { return prepareOf(SAE, battery, p.lang, url); } });
+        if (battery.ui && battery.ui.r8_lang_switch === true) langAltLoad(SAE, p, battery, offline, engine);
         root.addEventListener('offline', function () { engine.runner.log('offline'); });
         root.addEventListener('online', function () { engine.runner.log('online'); });
         return engine;
@@ -366,5 +424,5 @@
     });
   }
 
-  return { params: params, pick: pick, manualOf: manualOf, rotate: rotate, prepareOf: prepareOf, voiceGate: voiceGate, lockDown: lockDown, drain: drain, boot: boot };
+  return { otherForm: otherForm, langAltOf: langAltOf, langAltLoad: langAltLoad, params: params, pick: pick, manualOf: manualOf, rotate: rotate, prepareOf: prepareOf, voiceGate: voiceGate, lockDown: lockDown, drain: drain, boot: boot };
 }));
