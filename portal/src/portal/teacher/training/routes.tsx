@@ -1,15 +1,18 @@
 import type { TeacherRoute } from '../routes';
-import { CertificatesPage } from './CertificatesPage';
-import { CoursePage } from './CoursePage';
-import { GradesPage } from './GradesPage';
-import { LevelExamPage } from './LevelExamPage';
 import { TRAINING_V2_BASE as B } from './model';
-import { ModuleExamPage } from './ModuleExamPage';
-import { PartPage } from './PartPage';
-import { QuickCheckPage } from './QuickCheckPage';
-import { TrainingHub } from './TrainingHub';
-import { TrainingLevelPage } from './TrainingLevelPage';
-import { TrainingProviderPage } from './TrainingProviderPage';
+import { lazyPage as page } from '@/lib/lazyPage';
+
+// bd-sex15q.34 — each page is its own chunk (lib/lazyPage), so the teacher app is not in every first open.
+const CertificatesPage = page(() => import('./CertificatesPage').then((m) => ({ default: m.CertificatesPage })));
+const CoursePage = page(() => import('./CoursePage').then((m) => ({ default: m.CoursePage })));
+const GradesPage = page(() => import('./GradesPage').then((m) => ({ default: m.GradesPage })));
+const LevelExamPage = page(() => import('./LevelExamPage').then((m) => ({ default: m.LevelExamPage })));
+const ModuleExamPage = page(() => import('./ModuleExamPage').then((m) => ({ default: m.ModuleExamPage })));
+const PartPage = page(() => import('./PartPage').then((m) => ({ default: m.PartPage })));
+const QuickCheckPage = page(() => import('./QuickCheckPage').then((m) => ({ default: m.QuickCheckPage })));
+const TrainingHub = page(() => import('./TrainingHub').then((m) => ({ default: m.TrainingHub })));
+const TrainingLevelPage = page(() => import('./TrainingLevelPage').then((m) => ({ default: m.TrainingLevelPage })));
+const TrainingProviderPage = page(() => import('./TrainingProviderPage').then((m) => ({ default: m.TrainingProviderPage })));
 
 /**
  * bd-fmf24g.5 / bd-fmf24g.12 — the teacher v2 Training pages (each flag-gated by App's TeacherGate), every

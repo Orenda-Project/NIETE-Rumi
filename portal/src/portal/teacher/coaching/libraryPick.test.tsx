@@ -43,6 +43,11 @@ import { COACHING_V2_COPY as C } from "./copy";
 import lessonRoutes from "../lessons/routes";
 import { LESSONS_HOME, LESSONS_VIEWER } from "../lessons/paths";
 import { LESSONS_V2_COPY as L } from "../lessons/copy";
+import { beforeAll as preloadFirst } from "vitest";
+import { preloadAll } from "@/lib/lazyPage";
+
+// bd-sex15q.34 — these pages are their own chunks (lib/lazyPage); load them before stepping through them synchronously.
+preloadFirst(() => preloadAll({ pages: true }), 120_000);
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn> };
 
