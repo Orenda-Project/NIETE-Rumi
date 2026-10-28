@@ -12,8 +12,10 @@ export const rm = {
   me: (): Promise<Me> => api.get("/coachip/me").then((r) => r.data),
   home: (): Promise<RmHome> => api.get("/coachip/rm/home").then((r) => r.data),
   coach: (coachUserId: string): Promise<RmCoach> => api.get(`/coachip/rm/coach/${encodeURIComponent(coachUserId)}`).then((r) => r.data),
-  /** R6 for an RM: only a moment in this sector's circle (circleAllows); the circle form (no code, no session, API §9.6). */
-  moment: (momentId: string): Promise<CircleMomentDetail> => api.get(`/coachip/m/${encodeURIComponent(momentId)}`).then((r) => r.data),
+  /** R6 for an RM: only a moment in this sector's circle (circleAllows); the circle form (no code, no session, API §9.6).
+   *  `as: "rm"` asks in RM context, so a dual who also coaches that school never gets the coach form (fix-r5 s5, B22). */
+  moment: (momentId: string): Promise<CircleMomentDetail> =>
+    api.get(`/coachip/m/${encodeURIComponent(momentId)}`, { params: { as: "rm" } }).then((r) => r.data),
   circle: (): Promise<RmCircle> => api.get("/coachip/rm/circle").then((r) => r.data),
   sendNote: (b: RmNoteBody): Promise<{ note: Note }> => {
     const body: RmNoteBody = { coach_user_id: b.coach_user_id, template_id: b.template_id, w_id: b.w_id, school_ids: [...b.school_ids], due_on: b.due_on };

@@ -276,7 +276,8 @@ export type Results = { window: Window; windows: Window[]; cells: ResultCell[]; 
 /* ── R1 GET /coachip/me ──────────────────────────────────────────────────── */
 export type Me = {
   coach: { schoolCount: number; teacherCount: number } | null;
-  rm: { sector: string; schoolCount: number; coachCount: number } | null;
+  /** coachesHere (fix-r5 s5): this RM also coaches a school of the sector; absent from an older server. */
+  rm: { sector: string; schoolCount: number; coachCount: number; coachesHere?: boolean } | null;
   decode: boolean;
   lang: "en" | "ur";
   computed_at: ISOTime;
