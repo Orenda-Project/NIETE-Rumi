@@ -16,8 +16,8 @@
  *   COACHIP_R2_CONCURRENCY      clip cuts and uploads at once, 1..4 (default 2)
  *   COACHIP_NIGHT_END_UTC       the end of night, HH:MM UTC (default 00:50 = 05:50 PKT); stage cut-offs before it (safety.STAGE_CUTOFF_MIN)
  *   COACHIP_HEALTH_GUARD        1 = the abort rule on (always on for production); COACHIP_ABORT_SWAP_MB / _MEMAVAIL_MB / _LAG_S override it
- *   COACHIP_MODEL_CONCURRENCY   phonics model calls at once, 1..3 (default 1; 3 for the first-night backfill, bd-sex15q.43). The
- *                               database is unaffected: its requests stay bounded by COACHIP_DB_MAX_INFLIGHT whatever this is
+ *   COACHIP_MODEL_CONCURRENCY   phonics and gloss model calls at once, 1..12 (default 1; 12 spends the US$21 backfill in one night,
+ *                               bd-sex15q.43). The database is unaffected: its requests stay bounded by COACHIP_DB_MAX_INFLIGHT
  * A production run never starts in school hours (03:00-12:00Z): exit 3.
  */
 const path = require('path');
@@ -98,7 +98,7 @@ function safetyConfig(e) {
     readInflight: clampInt(e.COACHIP_READ_MAX_INFLIGHT, 1, 2, 2),
     timeoutMs: clampInt(e.COACHIP_HTTP_TIMEOUT_MS, 5000, 300000, 60000),
     r2Concurrency: clampInt(e.COACHIP_R2_CONCURRENCY, 1, 4, 2),
-    modelConcurrency: clampInt(e.COACHIP_MODEL_CONCURRENCY, 1, 3, 1),
+    modelConcurrency: clampInt(e.COACHIP_MODEL_CONCURRENCY, 1, 12, 1),
     nightEndUtc: e.COACHIP_NIGHT_END_UTC || safety.DEFAULT_NIGHT_END_UTC,
     thresholds: { swapUsedMb: num(e.COACHIP_ABORT_SWAP_MB), memAvailableMb: num(e.COACHIP_ABORT_MEMAVAIL_MB), replicaLagS: num(e.COACHIP_ABORT_LAG_S) },
   };

@@ -61,10 +61,11 @@ function createLedger({ capUsd = C.NIGHTLY_CAP_USD, p90 = P90_USD } = {}) {
   let pending = 0;
   let held = 0;
   return {
-    canStart(analysis) {
+    /** `heldUsd`: what calls already in flight hold (ledger.held) when the caller runs several at once. */
+    canStart(analysis, heldUsd = 0) {
       if (capHit) return false;
       const p = p90[analysis];
-      if (typeof p !== 'number' || spent + p > capUsd) {
+      if (typeof p !== 'number' || spent + heldUsd + p > capUsd) {
         capHit = true;
         return false;
       }
