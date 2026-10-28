@@ -1,0 +1,2 @@
+{"ts":"2026-10-28T17:36:25Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=coach-portal spec_sync=true","sha":"ae1c94969fa2","branch":"bd-17v39c.4.6-94156","user":"Hataf Atif"}
+{"ts":"2026-10-28T17:41:56Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"bde0064f-445a-42f8-be65-9b3c8733bfcc","sha":"ae1c94969fa2","branch":"bd-17v39c.4.6-94156","user":"Hataf Atif"}
