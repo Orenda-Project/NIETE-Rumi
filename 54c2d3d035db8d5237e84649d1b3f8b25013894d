@@ -1,0 +1,2 @@
+{"ts":"2026-10-28T07:23:45Z","hook":"post-commit","event":"armed","switch":"","detail":"features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test,fde-board-pattern spec_sync=true","sha":"54c2d3d035db","branch":"bd-v0toag.127-metaerr","user":""}
+{"ts":"2026-10-28T07:23:48Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-v0toag.127-metaerr: coaching spec: NOT UPDATED e2e: missing","sha":"54c2d3d035db","branch":"bd-v0toag.127-metaerr","user":""}
