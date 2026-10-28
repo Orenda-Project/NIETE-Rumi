@@ -232,7 +232,7 @@ async function sendPhase(phone, msgs, phase, ctx = {}) {
       // treats it as an unsent question (retry, then skip) — bd-1r3k2h, mock run 20261026-2335-par T42.
       if (m.role === 'question_card') {
         emitPhaseSent(true);
-        return { sent, failed, pickerFailed: true, cardFailed: true, ...(leadSent === undefined ? {} : { leadSent }) };
+        return { sent, failed, pickerFailed: true, cardFailed: true };
       }
     }
     const gapStart = Date.now();
