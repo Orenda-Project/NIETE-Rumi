@@ -1,0 +1,2 @@
+{"ts":"2026-10-28T16:02:30Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training,portal-smoke spec_sync=true","sha":"476e06376bca","branch":"bd-bmc9a0.3-98631","user":"Hataf Atif"}
+{"ts":"2026-10-28T16:14:40Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"training=none-needed (476e06376 is a WIP set-aside commit by the bd-bmc9a0.3 agent mid-change; that agent syncs training.feature and drives the mock lane on its final commit)","sha":"476e06376bca","branch":"bd-bmc9a0.3-98631","user":"Hataf Atif"}
