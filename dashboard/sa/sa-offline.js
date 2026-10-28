@@ -15,12 +15,14 @@
  *     battery, why? }> — the voice-readiness gate (RULING #14): voice 'clips' when every clip of the session is on the
  *     phone, else 'tts' when the phone has a voice in the session's language, else 'none' (the surface refuses the
  *     start). It asks for persistent storage (RULING #11) and keeps sa:voice / sa:persisted for the sink's batch.
- *   SAE.offline.prepVisit({ forms, part?, onProgress?, chunk? }) → Promise<{ ok, total, cached, missing, bytes, forms, why? }>
+ *   SAE.offline.prepVisit({ forms, part?, fresh?, paused?, onProgress?, chunk? }) → Promise<{ ok, total, cached, missing, bytes,
+ *     forms, why? }>
  *     round 8 (switches sa_r8_offline_prep / sa_r8_offline_first, the coach page, while online): every listed battery
  *     (sa.coach.G3.A.ur …) read fresh, then every clip in its language and every picture, onProgress({ done, total,
  *     bytes }) after each chunk. part { block, seed }: only what that child's page runs (the page's pick + rotate,
  *     partOf), so a Start waits for one part, not the whole battery. Jugnu's pictures (ART) come too. A started test
- *     then needs no network.
+ *     then needs no network. fresh: false keeps a battery already on the phone (no re-read); paused() holds the next
+ *     chunk while it says true (a background download giving the line to the Start gate).
  *   SAE.offline.checkVisit({ forms }) → Promise<{ ready, total, cached, why? }>: the same files, looked up on the phone
  *     only (nothing fetched).
  *
@@ -315,7 +317,8 @@
       if (!q) return { ok: false, total: 0, cached: 0, missing: 0, bytes: 0, forms: [], why: 'no_service_worker' };
       var bytes = 0;
       var missingSet = {};
-      return q({ type: 'prepare', urls: bats, fresh: bats }).then(function (r) {
+      // fresh: false (the Start gate after a warm-up): a battery on the phone is not read again
+      return q(o.fresh === false ? { type: 'prepare', urls: bats } : { type: 'prepare', urls: bats, fresh: bats }).then(function (r) {
         r = r || { missing: bats };
         bytes += r.bytes || 0;
         (r.missing || []).forEach(function (u) { missingSet[u] = true; });
@@ -332,8 +335,15 @@
         progress({ done: done, total: total, bytes: bytes });
         var chunks = [];
         for (var i = 0; i < all.length; i += size) chunks.push(all.slice(i, i + size));
+        // paused() (the coach page's Start gate is downloading a child's part): no new chunk until it says false
+        var held = typeof o.paused === 'function' ? o.paused : null;
+        var waitMs = o.pauseMs > 0 ? o.pauseMs : 400;
+        var whileHeld = function () {
+          if (!held || !held()) return Promise.resolve();
+          return new Promise(function (ok) { setTimeout(ok, waitMs); }).then(whileHeld);
+        };
         return chunks.reduce(function (chain, c) {
-          return chain.then(function () { return q({ type: 'prepare', urls: c }); }).then(function (r) {
+          return chain.then(whileHeld).then(function () { return q({ type: 'prepare', urls: c }); }).then(function (r) {
             r = r || { missing: c };
             bytes += r.bytes || 0;
             (r.missing || []).forEach(function (u) { missingSet[u] = true; });

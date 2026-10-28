@@ -220,3 +220,39 @@ describe('Jugnu\'s pictures go on the phone too (they were missing offline: /wq/
     for (const u of ART) expect(asked.filter((x) => x === u)).toHaveLength(1);
   });
 });
+
+describe('slice 4: the Start gate is fast and has the line to itself', () => {
+  const { partOf } = require('../sa/sa-offline');
+  test('fresh: false: the battery is not read again when it is on the phone (the gate after a warm-up)', async () => {
+    const f = fakeAsk(() => true);
+    await prepVisit({ forms: ['sa.coach.G3.A.ur'], fresh: false, ask: f.ask, readBattery: async () => MINI });
+    expect(f.msgs[0]).toEqual({ type: 'prepare', urls: ['/sa/batteries/sa.coach.G3.A.ur.json'] });
+  });
+
+  test('paused(): no new chunk is asked for while it says true; the rest follows when it turns false', async () => {
+    const f = fakeAsk(() => true);
+    let hold = false;
+    let calls = 0;
+    const p = prepVisit({ forms: ['sa.coach.G3.A.ur'], chunk: 5, pauseMs: 5, paused: () => { calls += 1; return hold; }, ask: async (m) => { if (f.msgs.length === 2) hold = true; return f.ask(m); }, readBattery: async () => MINI });
+    await new Promise((r) => setTimeout(r, 60));
+    // the hold is set while the third message goes out; nothing after it is asked for while it holds
+    const asked = f.msgs.length;
+    expect(asked).toBe(3);
+    await new Promise((r) => setTimeout(r, 40));
+    expect(f.msgs.length).toBe(asked);
+    expect(calls).toBeGreaterThan(2);
+    hold = false;
+    const r = await p;
+    expect(f.msgs.length).toBeGreaterThan(asked);
+    expect(r.ok).toBe(true);
+  });
+
+  test('checkVisit with a part: only that part (the gate\'s instant check)', async () => {
+    const part = { block: 'B1', seed: 'x' };
+    const g = fakeAsk(() => false, []);
+    await checkVisit({ forms: ['sa.coach.G3.A.ur'], part, ask: g.ask, readBattery: async () => MINI });
+    const asked = g.msgs.flatMap((m) => m.urls);
+    const want = ['/sa/batteries/sa.coach.G3.A.ur.json', ...urls(partOf(MINI, 'B1', 'x'), 'ur', '/'), ...images(partOf(MINI, 'B1', 'x'), 'ur'), ...require('../sa/sa-offline').ART];
+    expect(asked.sort()).toEqual([...new Set(want)].sort());
+  });
+});
