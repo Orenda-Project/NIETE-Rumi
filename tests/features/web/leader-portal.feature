@@ -106,3 +106,47 @@ Feature: School leader (principal) portal
     Then the dashboard shows no mode, date or coach filter and no "Skips and stops"
     And the sessions read answers exactly as before (no mode, coach or stops fields)
 
+
+  # ── Round 8 · the test starts fast and runs without internet (sa_r8_fast_start, sa_r8_offline_first, sa_r8_offline_prep) ──
+
+  @LP20 @config-gated
+  Scenario: Learning assessment: Start opens the test within 1.5 s even when the server is slow (sa_r8_fast_start)
+    Given sa_r8_fast_start is on for the signed-in coach and the server takes longer than 1.5 s to answer Present
+    When the coach taps "Start" for a present child
+    Then the child's test opens within about 1.5 s
+    And when the server answers later its session id is kept on the phone; when the network failed, Present waits in the phone's queue and is sent later
+    And with the switch off, Start waits for the server's answer as before
+
+  @LP21 @config-gated
+  Scenario: Learning assessment: the child's whole test is on the phone before it starts (sa_r8_offline_first)
+    Given sa_r8_offline_first is on for the signed-in coach
+    When the coach opens a school's list
+    Then the list's battery (items, pictures and every clip, in the page's language) starts downloading in the background
+    When the coach taps "Start" before it has finished
+    Then "Getting Jugnu ready on this phone" shows with "Downloading… <done> of <total>" until it is all on the phone, then the test opens
+    And once the test has started it needs no network: "The voice is not ready yet" can no longer appear in the middle of a test
+
+  @LP21 @negative @config-gated
+  Scenario: Learning assessment: no internet and the test is not on the phone yet (sa_r8_offline_first)
+    Given sa_r8_offline_first is on and the phone has no internet and has never downloaded this grade's test
+    When the coach taps "Start"
+    Then "Jugnu's voice is not on this phone yet. Connect to the internet, then tap Try again." shows with "Try again" and "Back"
+    And the test does not open and Present is not sent
+
+  @LP22 @config-gated
+  Scenario: Learning assessment: Get ready for offline before the school (sa_r8_offline_prep)
+    Given sa_r8_offline_prep is on for the signed-in coach and the phone is online
+    When they open /portal/leader/assess
+    Then a "Get ready for offline" card lists their schools with today's visits ticked
+    When they tap "Get ready"
+    Then each ticked school's list is read and kept on the phone, and both languages' tests for those grades download with progress
+    And the card reads "Ready for offline ✓ <n> schools · <MB> MB · <time>"
+    And a card made on an earlier day says to get ready again today
+
+  @LP23 @config-gated
+  Scenario: Learning assessment: at a school with no signal after getting ready (sa_r8_offline_prep)
+    Given the coach got ready for offline today and the phone now has no internet
+    When they open the Learning assessment
+    Then "No internet: these are the schools saved on this phone." shows above the saved schools
+    When they open a prepared school
+    Then the saved list shows with the no-internet note, and a child can be marked present and started
