@@ -28,6 +28,7 @@ const WhatsAppService = require('../shared/services/whatsapp.service');
 const CoachingJobQueueService = require('../shared/services/coaching/coaching-job-queue.service');
 const { runSonioxCleanup } = require('../shared/services/soniox-cleanup.service');
 const { classifyStuckInitiatedSession, classifyStuckMidFlightSession } = require('../shared/services/coaching/coaching-stale-recovery');
+const IabUnreflectedSwitch = require('../shared/services/coaching/iab-unreflected-switch');
 
 // Coaching thresholds (in milliseconds).
 //
@@ -59,6 +60,10 @@ function _minutesFromEnv(name, defaultMs) {
 const COACHING_REMINDER_THRESHOLD_MS = _minutesFromEnv('COACHING_REMINDER_MINUTES', 2 * 60 * MINUTE_MS);  // default 2 hours
 const COACHING_AUTO_COMPLETE_THRESHOLD_MS = _minutesFromEnv('COACHING_AUTO_COMPLETE_MINUTES', 12 * 60 * MINUTE_MS);  // default 12 hours
 const USER_ACTIVE_THRESHOLD_MS = _minutesFromEnv('COACHING_USER_ACTIVE_MINUTES', 5 * MINUTE_MS);  // default 5 minutes
+// bd-bmc9a0.2 — ICT IAB row 32: a lesson recorded in the teacher app (IAB) that she never reflected on goes to her chat
+// after 24 hours, not 12, while app_settings dc_iab_unreflected_report_24h is on (iab-unreflected-switch.js). Off, or
+// for any other lesson, the 12 hours above stand. Overridable in minutes like the others, for a short test run.
+const IAB_AUTO_COMPLETE_THRESHOLD_MS = _minutesFromEnv('COACHING_IAB_AUTO_COMPLETE_MINUTES', 24 * 60 * MINUTE_MS);  // default 24 hours
 // bd-j3j4b: how long a session may sit at the photo / lesson-plan gate before we
 // auto-advance it to a report (default 60 min). The photo/LP is optional.
 const PHOTO_GATE_THRESHOLD_MS = _minutesFromEnv('COACHING_PHOTO_GATE_MINUTES', 60 * MINUTE_MS);
@@ -125,10 +130,15 @@ async function processStaleCoachingSessions() {
   let autoCompleted = 0;
   let skipped = 0;
 
-  // Query sessions in conducting_conversation status
+  // bd-bmc9a0.2: one switch read per tick (30 s cache, fails closed).
+  const iabOn = await IabUnreflectedSwitch.on();
+  const autoCompleteMs = (session) => autoCompleteThresholdFor(session, iabOn);
+
+  // Query sessions in conducting_conversation status. audio_url + observation_type say whether it is her own
+  // portal (IAB) lesson (bd-bmc9a0.2) — two short columns.
   const { data: staleSessions, error } = await supabase
     .from('coaching_sessions')
-    .select(`id, user_id, status, conversation_state, transcript_text, analysis_data, lesson_plan_text, reminder_sent_at, created_at, users!inner(name, phone_number)`)
+    .select(`id, user_id, status, audio_url, observation_type, conversation_state, transcript_text, analysis_data, lesson_plan_text, reminder_sent_at, created_at, users!inner(name, phone_number)`)
     .eq('status', 'conducting_conversation')
     .order('created_at', { ascending: true });
 
@@ -143,7 +153,7 @@ async function processStaleCoachingSessions() {
   // minute (51 such bursts in a week). Only their NEWEST reminder-eligible session
   // is reminded; an older one is never reminded once a newer sibling has been —
   // otherwise the next tick would walk down the list one reminder at a time.
-  const reminderPick = pickReminderSessions(staleSessions || [], now);
+  const reminderPick = pickReminderSessions(staleSessions || [], now, autoCompleteMs);
 
   for (const session of staleSessions || []) {
     // Get last interaction time from conversation_state
@@ -164,10 +174,12 @@ async function processStaleCoachingSessions() {
       continue;
     }
 
-    // Phase 2: Auto-complete (12h threshold)
-    if (idleTime >= COACHING_AUTO_COMPLETE_THRESHOLD_MS) {
-      console.log(`    🔄 Auto-completing (${idleHours}h > 12h threshold)`);
-      if (await autoCompleteSession(session)) autoCompleted++;
+    // Phase 2: Auto-complete (12h threshold; 24h for an unreflected IAB lesson while the switch is on — bd-bmc9a0.2)
+    const threshold = autoCompleteMs(session);
+    if (idleTime >= threshold) {
+      const iab = threshold !== COACHING_AUTO_COMPLETE_THRESHOLD_MS;
+      console.log(`    🔄 Auto-completing (${idleHours}h > ${threshold / (60 * MINUTE_MS)}h threshold${iab ? ', IAB' : ''})`);
+      if (await autoCompleteSession(session, { iab })) autoCompleted++;
       continue;
     }
 
@@ -196,7 +208,7 @@ async function processStaleCoachingSessions() {
  * already holds, no extra query.
  * @returns {Set<string>} session ids
  */
-function pickReminderSessions(sessions, nowMs = Date.now()) {
+function pickReminderSessions(sessions, nowMs = Date.now(), autoCompleteMs = () => COACHING_AUTO_COMPLETE_THRESHOLD_MS) {
   const createdMs = (s) => Date.parse(s.created_at || '') || 0;
   const idleMs = (s) => nowMs - (s.conversation_state?.last_interaction
     ? new Date(s.conversation_state.last_interaction).getTime()
@@ -209,7 +221,7 @@ function pickReminderSessions(sessions, nowMs = Date.now()) {
       continue;
     }
     const idle = idleMs(s);
-    if (idle < COACHING_REMINDER_THRESHOLD_MS || idle >= COACHING_AUTO_COMPLETE_THRESHOLD_MS) continue;
+    if (idle < COACHING_REMINDER_THRESHOLD_MS || idle >= autoCompleteMs(s)) continue;
     const best = newestEligible.get(s.user_id);
     if (!best || createdMs(s) > createdMs(best)) newestEligible.set(s.user_id, s);
   }
@@ -218,6 +230,19 @@ function pickReminderSessions(sessions, nowMs = Date.now()) {
     if (createdMs(s) > (newestReminded.get(userId) || 0)) pick.add(s.id);
   }
   return pick;
+}
+
+/**
+ * bd-bmc9a0.2 — how long this session waits for her reflection before its report goes to her chat.
+ * 24 hours for her own portal (IAB) lesson while dc_iab_unreflected_report_24h is on; 12 hours for everything else
+ * (WhatsApp-recorded lessons, a coach's observations, and every lesson while the switch is off).
+ * @param {object} session  needs audio_url and observation_type
+ * @param {boolean} iabOn
+ */
+function autoCompleteThresholdFor(session, iabOn) {
+  if (!iabOn) return COACHING_AUTO_COMPLETE_THRESHOLD_MS;
+  const { isPortalTeacherSession } = require('../shared/services/coaching/portal-coaching.service');
+  return isPortalTeacherSession(session) ? IAB_AUTO_COMPLETE_THRESHOLD_MS : COACHING_AUTO_COMPLETE_THRESHOLD_MS;
 }
 
 /**
@@ -476,7 +501,7 @@ async function sendSessionReminder(session) {
  * @param {object} session - Coaching session with user data
  * @returns {Promise<boolean>} true when THIS worker copy completed it
  */
-async function autoCompleteSession(session) {
+async function autoCompleteSession(session, { iab = false } = {}) {
   try {
     const progress = reflectionProgress(session.conversation_state?.questions_answered);
     const questionsAnswered = progress.answered;
@@ -494,7 +519,10 @@ async function autoCompleteSession(session) {
       auto_completed: true,
       auto_completed_at: new Date().toISOString(),
       reflective_skipped: progress.isPartial,
-      questions_at_completion: questionsAnswered
+      questions_at_completion: questionsAnswered,
+      // bd-bmc9a0.2: her IAB lesson, sent after 24 hours — the report's caption says she did not reflect on it
+      // (report-generator _heroCaptionLines). Only when the switch made it wait the 24 hours.
+      ...(iab ? { auto_completed_via: 'iab_24h' } : {}),
     };
 
     // The status move IS the claim: it only matches while the session is still
@@ -1483,6 +1511,7 @@ module.exports = {
   __thresholds: {
     reminderMs: COACHING_REMINDER_THRESHOLD_MS,
     autoCompleteMs: COACHING_AUTO_COMPLETE_THRESHOLD_MS,
+    iabAutoCompleteMs: IAB_AUTO_COMPLETE_THRESHOLD_MS,
     userActiveMs: USER_ACTIVE_THRESHOLD_MS,
     photoGateMs: PHOTO_GATE_THRESHOLD_MS,
   },

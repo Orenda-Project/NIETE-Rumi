@@ -1768,11 +1768,14 @@ class ReportGeneratorService {
     const lines = [];
     if (isAutoCompleted) {
       const answered = reflectionProgress(session && session._questionsAtCompletion).answered;
+      // bd-bmc9a0.2 (ICT IAB row 32): her teacher-app lesson, sent after 24 hours with no reflection — ICT's line.
+      const iabNotReflected = answered === 0
+        && !!session && !!session.conversation_state && session.conversation_state.auto_completed_via === 'iab_24h';
       lines.push({
         key: 'autoComplete',
-        text: getCoachingMessage(answered > 0
-          ? 'reportCaption_autoCompletedWithReflections'
-          : 'reportCaption_autoCompletedAudioOnly', language),
+        text: getCoachingMessage(iabNotReflected ? 'reportCaption_notReflected'
+          : answered > 0 ? 'reportCaption_autoCompletedWithReflections'
+            : 'reportCaption_autoCompletedAudioOnly', language),
       });
     }
     // bd-s7c31y: no Step 5/5 line for her own portal recording — the portal shows the progress.
