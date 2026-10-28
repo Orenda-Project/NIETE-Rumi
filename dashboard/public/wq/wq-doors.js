@@ -236,8 +236,10 @@
     var quizRow = function (g, i) { return g.look ? row({ title: topicOf(g, ctx) || t.quiz, sub: t.fromLink, kind: 'quiz', pos: i, art: g.art, tap: 'look' }, ctx).replace('class="wq-row wq-drow"', 'class="wq-row wq-drow wq-look"') : row({ href: qLang(B, ctx, quizHref(g.code, g.k, g.done)), title: topicOf(g, ctx) || t.quiz, done: g.done, kind: g.done ? 'again' : 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); };
     var numsH = !wait ? '' : hasNums ? '<h3 class="wq-dsec"><bdi' + lat(t.numbers) + '>' + esc(t.numbers) + '</bdi></h3>' + skel(2, !open.length, 'in') : skel(3, !open.length);
     var h = section(t.fromTeacher, open.map(quizRow).join('')) + numsH +
-      section(t.numbers, nums.map(function (g, i) { return row({ href: g.stop ? gameHref(B, ctx, g) : chHref(B, ctx), title: g.stop ? gameName(g, t) : t.g1, kind: 'game', item: g.stop || 'numbers', pos: i, say: g.say }, ctx); }).join('')) + otherH +
-      section(t.story, reads.map(readRow).join('')) +
+      // beside other grades' games the own games are headed by their grade, and the own grade's story follows them (never
+      // printed under the last other grade's heading)
+      section(other.length && own ? t.grade(own) : t.numbers, nums.map(function (g, i) { return row({ href: g.stop ? gameHref(B, ctx, g) : chHref(B, ctx), title: g.stop ? gameName(g, t) : t.g1, kind: 'game', item: g.stop || 'numbers', pos: i, say: g.say }, ctx); }).join('')) +
+      section(t.story, reads.map(readRow).join('')) + otherH +
       section(t.recT, recs.map(function (r, i) { return row({ title: (langOf(ctx) === 'ur' && r.title_ur) || r.title || t.vquiz, sub: r.subject ? t.subj(r.subject) : '', kind: 'rec', pos: i, item: r.vid, art: r.art, tap: 'vquiz' }, ctx); }).join('')) +
       section(t.lastQ, last.map(function (g, i) { return row({ href: qLang(B, ctx, quizHref(g.code, g.k, false)), title: topicOf(g, ctx) || t.lastQ, kind: 'quiz', pos: i, item: g.code, say: g.say, art: g.art }, ctx); }).join('')) +
       section(t.again, done.map(quizRow).join(''));
