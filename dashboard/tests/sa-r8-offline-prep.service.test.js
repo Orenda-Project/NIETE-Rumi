@@ -108,7 +108,7 @@ function fakeAsk(onNet, kept) {
 describe('the page (sa-offline.js prepVisit / checkVisit)', () => {
   const FORM = 'sa.coach.G3.A.ur';
   const BURL = `/sa/batteries/${FORM}.json`;
-  const all = [...urls(MINI, 'ur', '/'), ...images(MINI, 'ur')];
+  const all = [...urls(MINI, 'ur', '/'), ...images(MINI, 'ur'), ...require('../sa/sa-offline').ART];
 
   test('prepVisit: the battery fresh first, then every clip and picture in chunks, with progress, all on the phone', async () => {
     const f = fakeAsk(() => true);
@@ -120,7 +120,7 @@ describe('the page (sa-offline.js prepVisit / checkVisit)', () => {
     expect(asked.sort()).toEqual([...new Set(all)].sort());
     expect(r).toMatchObject({ ok: true, total: all.length + 1, cached: all.length + 1, missing: 0 });
     expect(r.bytes).toBe((all.length + 1) * 10);
-    expect(r.forms).toEqual([{ form: FORM, ok: true, files: all.length + 1, missing: 0 }]);
+    expect(r.forms).toEqual([{ form: FORM, ok: true, files: all.length + 1 - require('../sa/sa-offline').ART.length, missing: 0 }]); // Jugnu's pictures are the visit's, not the form's
     expect(seen[seen.length - 1]).toMatchObject({ done: all.length + 1, total: all.length + 1 });
   });
 
@@ -194,11 +194,29 @@ describe('the child\'s own part (sa_r8_offline_first gates Start on it)', () => 
   test('prepVisit with a part: the battery and only that part\'s clips and pictures', async () => {
     const f = fakeAsk(() => true);
     const part = { block: 'B1', seed: 'aaaaaaaa-1' };
-    const want = [...urls(partOf(FULL, 'B1', 'aaaaaaaa-1'), 'ur', '/'), ...images(partOf(FULL, 'B1', 'aaaaaaaa-1'), 'ur')];
+    const want = [...urls(partOf(FULL, 'B1', 'aaaaaaaa-1'), 'ur', '/'), ...images(partOf(FULL, 'B1', 'aaaaaaaa-1'), 'ur'), ...require('../sa/sa-offline').ART];
     const r = await prepVisit({ forms: ['sa.coach.G3.A.ur'], part, ask: f.ask, readBattery: async () => FULL });
     const asked = f.msgs.slice(1).flatMap((m) => m.urls);
     expect(asked.sort()).toEqual([...new Set(want)].sort());
     expect(asked.length).toBeLessThan([...urls(FULL, 'ur', '/'), ...images(FULL, 'ur')].length);
     expect(r).toMatchObject({ ok: true, total: new Set(want).size + 1 });
+  });
+});
+
+describe('Jugnu\'s pictures go on the phone too (they were missing offline: /wq/jugnu_<mood>.webp)', () => {
+  const { ART } = require('../sa/sa-offline');
+  test('ART is every mood the child\'s screens draw, and each file exists', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const ui = fs.readFileSync(path.join(__dirname, '../sa/sa-ui.js'), 'utf8');
+    const moods = new Set([...ui.matchAll(/jugnu\('([a-z]+)'/g)].map((m) => m[1]).concat(['correct', 'notyet']));
+    for (const m of moods) expect(ART).toContain(`/wq/jugnu_${m}.webp`);
+    for (const u of ART) expect(fs.existsSync(path.join(__dirname, '../public', u))).toBe(true);
+  });
+  test('prepVisit asks for them once, after the battery', async () => {
+    const f = fakeAsk(() => true);
+    await prepVisit({ forms: ['sa.coach.G3.A.ur', 'sa.coach.G3.A.en'], ask: f.ask, readBattery: async () => MINI });
+    const asked = f.msgs.slice(1).flatMap((m) => m.urls);
+    for (const u of ART) expect(asked.filter((x) => x === u)).toHaveLength(1);
   });
 });
