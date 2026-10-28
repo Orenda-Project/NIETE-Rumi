@@ -1210,6 +1210,38 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And the reflective question is asked once — "Continue Now" may still ask it again on purpose
     # report-piece-once.js: a Redis SET NX per (session, piece), 24 h; a failed send gives its claim back.
 
+  # ── A teacher-app lesson she never reflected on (bd-bmc9a0.2, ICT IAB rows 31 + 32) ──
+  # "Save recording" in the teacher app sends the lesson as Submit does, so it is analysed and its reflection question
+  # waits in the app. Behind app_settings dc_iab_unreflected_report_24h (fails closed), the recovery sweep waits 24
+  # hours, not 12, before sending such a lesson's report to her chat, with ICT's line. Production waits 24 hours;
+  # COACHING_IAB_AUTO_COMPLETE_MINUTES shortens it only for a test run. If her WhatsApp window has closed the report
+  # goes as the approved share template, whose fixed body cannot carry the line: the report arrives, the line does not.
+  # Unit: tests/coaching/bd-bmc9a0.2-iab-save-and-24h.test.js.
+  @e2e @wip @draft @config-gated @no-mock-driver @P1 @COA102
+  Scenario: A lesson I saved in the teacher app and never reflected on reaches my chat after 24 hours with the "did not reflect" line
+    Given the NIETE bot chat is open on a teacher who can record in the teacher app
+    And app_settings has dc_iab_unreflected_report_24h set to true
+    And I saved a class recording of at least 15 minutes in the teacher app with "Save recording"
+    And its reflection question is waiting for me in the teacher app
+    When 12 hours pass without my answer and the recovery sweep runs
+    Then no report arrives in my WhatsApp chat yet
+    When 24 hours pass without my answer and the recovery sweep runs
+    Then the report image arrives in my WhatsApp chat
+    And its caption carries "You did not reflect on this lesson, but here is your feedback report."
+    And it arrives once, however many worker copies run the sweep
+    # In Urdu the line is «آپ نے اس سبق پر Reflection نہیں کیا، لیکن یہ رہی آپ کی فیڈ بیک رپورٹ۔» (Reflection isolated).
+
+  @e2e @wip @draft @config-gated @no-mock-driver @negative @P1 @COA103
+  Scenario: With the 24-hour switch off, a teacher-app lesson I did not reflect on keeps today's 12-hour report and line
+    Given the NIETE bot chat is open on a teacher who can record in the teacher app
+    And app_settings has no dc_iab_unreflected_report_24h row
+    And I sent a class recording in the teacher app and did not answer its reflection question
+    When 12 hours pass and the recovery sweep runs
+    Then the report image arrives in my WhatsApp chat
+    And its caption says the session was not finished, so the report is based on my classroom audio
+    And it does not carry "You did not reflect on this lesson"
+    # A lesson recorded on WhatsApp keeps 12 hours and today's line whether the switch is on or off.
+
 
   # ── A coach's observation of her lesson, in her portal (bd-5rz1v.6.4) ──────
   # The row is the teacher's (observation_type leader_observation), so it is
