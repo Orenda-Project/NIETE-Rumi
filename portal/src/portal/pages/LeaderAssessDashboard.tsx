@@ -7,7 +7,8 @@ import { urDigits, type Lang } from '../lib/assess/copy';
 import { useUrFit } from '../lib/assess/urFit';
 import { DASH_COPY, DASH_CWPM } from '../lib/assess/dashboardCopy';
 import { exampleCohort, TASKS, type DashStudent, type ReadLang, type TaskSpec } from '../lib/assess/exampleCohort';
-import { masked, NO_SECTOR, pktWhen, secondVoiceCount, toDashStudents } from '../lib/assess/realCohort';
+import { masked, NO_SECTOR, pktWhen, secondVoiceCount, toDashStudents, withPractice } from '../lib/assess/realCohort';
+import type { SaDashboardSession } from '../types/childTestSa';
 import { applyFilter, groupBy, headline, ORF_BANDS, summariseTask, type Filter } from '../lib/assess/cohortStats';
 import { GRADES, rwpOrf } from '../lib/assess/rwpNorms';
 
@@ -29,6 +30,9 @@ import { GRADES, rwpOrf } from '../lib/assess/rwpNorms';
  * skip and stop (back, end section, end test, restart, silence repeat, under-20% move-on) by type and by coach, heaviest
  * first, and each one listed, honouring the same filters. A session with a stop but no task yet (stopSessions) counts in
  * the stops view only, never in the results. Off: the page is as before.
+ *
+ * Round 8, live only, when the server answers practiceFilter (sa_r8_hide_practice): sessions in practice (SIM) schools
+ * are left out of everything by default, and one toggle, "Include practice schools", adds them back.
  */
 // Amendment 1: the completion rule's incomplete_move_on replaced under20_move_on; an old under20_move_on still lists
 const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on'] as const;
@@ -60,10 +64,12 @@ export default function LeaderAssessDashboard() {
   const [load, setLoad] = useState<Load>('loading');
   const [filter, setFilter] = useState<Filter>({});
   const [read, setRead] = useState<ReadLang>('ur');
-  const [real, setReal] = useState<DashStudent[]>([]);
+  const [got, setGot] = useState<{ sessions: SaDashboardSession[]; stopSessions: SaDashboardSession[] }>({ sessions: [], stopSessions: [] });
   // sa_dash_filters (round 7b): the filters and the stops view; the sessions with a stop and no task yet
   const [dashOn, setDashOn] = useState(false);
-  const [stopOnly, setStopOnly] = useState<DashStudent[]>([]);
+  // sa_r8_hide_practice (round 8): the server marks practice-school rows; they count only when asked for
+  const [practiceFilter, setPracticeFilter] = useState(false);
+  const [includePractice, setIncludePractice] = useState(false);
   // sa_cwpm (round 7b item 14): every words-per-minute number is labelled CWPM, with its formula
   const [cwpm, setCwpm] = useState(false);
   const c = cwpm ? { ...DASH_COPY[lang], ...DASH_CWPM[lang] } : DASH_COPY[lang];
@@ -76,13 +82,12 @@ export default function LeaderAssessDashboard() {
         if (s && s.cwpm === true) setCwpm(true);
         if (s && s.realDashboard === true) {
           try {
-            const got = await childTestSa.getSessions();
+            const answer = await childTestSa.getSessions();
             if (!live) return;
-            setReal(toDashStudents((got && got.sessions) || []));
-            if (s.dashFilters === true) {
-              setDashOn(true);
-              setStopOnly(toDashStudents((got && got.stopSessions) || []));
-            }
+            const dash = s.dashFilters === true;
+            setGot({ sessions: (answer && answer.sessions) || [], stopSessions: (dash && answer && answer.stopSessions) || [] });
+            if (dash) setDashOn(true);
+            if (answer && answer.practiceFilter === true) setPracticeFilter(true);
             setLoad('live');
           } catch {
             if (live) setLoad('failed');
@@ -95,6 +100,10 @@ export default function LeaderAssessDashboard() {
     return () => { live = false; };
   }, []);
 
+  const counted = !practiceFilter || includePractice;
+  const real = useMemo(() => toDashStudents(withPractice(got.sessions, counted)), [got, counted]);
+  const stopOnly = useMemo(() => toDashStudents(withPractice(got.stopSessions, counted)), [got, counted]);
+  const practiceHidden = counted ? 0 : [...got.sessions, ...got.stopSessions].filter((x) => x.practice === true).length;
   const isLive = load === 'live';
   const cohort = useMemo(() => (load === 'example' ? exampleCohort() : load === 'live' ? real : []), [load, real]);
   const rows = useMemo(() => applyFilter(cohort, filter), [cohort, filter]);
@@ -185,6 +194,16 @@ export default function LeaderAssessDashboard() {
       className={`min-h-[40px] rounded-full border px-3 text-sm ${active ? 'border-sky-700 bg-sky-700 text-white' : 'border-slate-300 bg-white text-slate-800'}`}
     >{label}</button>
   );
+
+  const practiceToggle = practiceFilter ? (
+    <div className="space-y-1 rounded-2xl border border-slate-200 bg-white p-3">
+      <label className="flex min-h-[40px] items-center gap-2 text-sm text-slate-800">
+        <input type="checkbox" data-testid="dash-include-practice" checked={includePractice} onChange={(e) => setIncludePractice(e.target.checked)} className="h-5 w-5" />
+        {c.includePractice}
+      </label>
+      {practiceHidden ? <p data-testid="dash-practice-hidden" className="text-xs text-slate-500">{c.practiceHidden(count(practiceHidden))}</p> : null}
+    </div>
+  ) : null;
 
   const tile = (testId: string, label: string, value: string, hint?: string) => (
     <div data-testid={testId} className="rounded-2xl border border-slate-200 bg-white p-3">
@@ -396,6 +415,7 @@ export default function LeaderAssessDashboard() {
     body = (
       <div className="space-y-3">
         <p data-testid="dash-live" role="note" className="rounded-2xl border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">{c.live(count(0))}</p>
+        {practiceToggle}
         <p data-testid="dash-empty" className="rounded-2xl border border-slate-200 bg-white p-4 text-slate-700">{c.empty}</p>
       </div>
     );
@@ -408,6 +428,7 @@ export default function LeaderAssessDashboard() {
         {isLive
           ? <p data-testid="dash-live" role="note" className="rounded-2xl border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">{c.live(count(cohort.length))}</p>
           : <p data-testid="dash-banner" role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{c.banner}</p>}
+        {isLive ? practiceToggle : null}
         {voices > 0 && <p data-testid="dash-second-voice" role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{c.secondVoice(count(voices), count(rows.length))}</p>}
 
         <section aria-label={c.filters} className="space-y-2">
