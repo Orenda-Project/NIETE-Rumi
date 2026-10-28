@@ -57,9 +57,10 @@ export function SectorWRow({ row, bySchool, agenda, sector, testId = "sector-wro
       {bySchool && bySchool.length > 0 && (
         <ul data-testid="by-school" className="mt-2 flex flex-col">
           {bySchool.map((b) => (
-            <li key={b.school.school_id} data-testid="by-school-row" className="grid grid-cols-[minmax(0,1fr)_minmax(64px,120px)] items-center gap-3 py-2 text-[14px] text-cp-ink">
+            // bd-sex15q.47 (ux-lead-2 183234 #2): the sentence full width, then the bar on its own line (real names are long)
+            <li key={b.school.school_id} data-testid="by-school-row" className="flex flex-col gap-1.5 py-2 text-[14px] leading-[1.45] text-cp-ink">
               <span>{rtx("s8.moves.by_school.row", lang, { school: <CodeText lang={lang}>{b.school.school_name}</CodeText> }, [{ n: "n", d: "d", count: b.count }])}</span>
-              <FractionBar n={b.count.n} d={b.count.d} />
+              <FractionBar n={b.count.n} d={b.count.d} className="w-full" />
             </li>
           ))}
         </ul>

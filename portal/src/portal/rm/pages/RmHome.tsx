@@ -14,7 +14,7 @@ import { RmNote, RmPage } from "../components/RmFrame";
 import { Surface } from "../../coachip-ui/Surface";
 import { Section } from "../../coachip-ui/Section";
 import { Button } from "../../coachip-ui/Button";
-import { OpeningCard } from "../components/OpeningCard";
+import { Coverage, OpeningCard } from "../components/OpeningCard";
 import { SectorWRow } from "../components/SectorWRow";
 import { CircleCard, CoachGroups } from "../components/CoachGroups";
 import { ClusterCard } from "../components/ClusterCard";
@@ -96,7 +96,10 @@ export default function RmHome() {
           )}
           {data.empty && <div className="mb-2 lg:mb-6"><RmNote testId="rm-empty">{pick(data.empty.message, lang)}</RmNote></div>}
         <div className="flex flex-col lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.25fr)_minmax(0,0.95fr)] lg:items-start lg:gap-x-8 lg:pt-4">
-          {data.moves.length > 0 && <SectorMoves home={data} overlap={!data.stale && !data.empty} />}
+          <div className="flex flex-col">
+            {data.moves.length > 0 && <SectorMoves home={data} overlap={!data.stale && !data.empty} />}
+            <Coverage home={data} />
+          </div>
           <CoachGroups home={data} first={data.moves.length === 0} className="lg:mt-0 lg:border-t-0 lg:pt-0" onFollowUp={(c) => setPicking({ coach: c, queue: [] })} />
           <div className="flex flex-col">
             <Monday onClick={monday} />

@@ -50,16 +50,25 @@ export function OpeningCard({ home }: { home: RmHome }) {
           </p>
         )}
       </div>
-      <div className="flex flex-col items-start gap-2 lg:col-span-2">
+      <div className="flex flex-col items-start lg:col-span-2">
         <Pill tone="green" as="p" testId="rm-floor">
           <span data-nonum="">{rt("s8.floor", lang)}</span>
           {act && <>{sep}<WindowMark window={act} as="span">{range(act.from, act.to, lang)}</WindowMark></>}
         </Pill>
-        <p className="cp-on-band-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px] leading-[1.45]">
-          <CountLine k="s8.unassigned" count={home.unassigned_schools} />
-          {home.no_scope_coaches.n > 0 && <CountLine k="s8.no_scope_coaches.of" count={home.no_scope_coaches} />}
-        </p>
       </div>
     </div>
+  );
+}
+
+/**
+ * bd-sex15q.47 (ux-lead-2 183234 #3): the schools no coach holds and the roster coaches with no school, each with its
+ * base, as 13 px ink-3 coverage lines under the weaknesses card (S1's coverage pattern), not in the band.
+ */
+export function Coverage({ home }: { home: RmHome }) {
+  return (
+    <p data-testid="rm-coverage" className="flex flex-wrap gap-x-4 gap-y-1 pt-4 text-[13px] leading-[1.45] text-cp-ink-3">
+      <CountLine k="s8.unassigned" count={home.unassigned_schools} />
+      {home.no_scope_coaches.n > 0 && <CountLine k="s8.no_scope_coaches.of" count={home.no_scope_coaches} />}
+    </p>
   );
 }

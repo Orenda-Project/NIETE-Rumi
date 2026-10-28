@@ -149,4 +149,32 @@ describe.each(["en", "ur"] as Lang[])("R6 RM deck (%s)", (lang) => {
     expect(`${lead} ${rest}`).toBe(whole);
     expect(rest.length).toBeGreaterThan(0);
   });
+
+  it("ux-lead-2 183234 #1: the agenda row keeps data-agenda but carries no green rail (no rails, DIRECTION delta 2)", async () => {
+    await renderRm("");
+    const agenda = screen.getAllByTestId("sector-wrow").find((r) => r.getAttribute("data-agenda") === "1")!;
+    expect(agenda).toBeTruthy();
+    expect(cls(agenda).filter((c) => /^border-s/.test(c))).toEqual([]);
+  });
+
+  it("ux-lead-2 183234 #2: a per-school row stacks: the sentence full width, then the bar full width", async () => {
+    await renderRm("");
+    for (const row of screen.getAllByTestId("by-school-row")) {
+      expect(cls(row)).toEqual(expect.arrayContaining(["flex", "flex-col"]));
+      expect(cls(row).some((c) => c.startsWith("grid-cols"))).toBe(false);
+      const bar = row.querySelector("[data-bar]");
+      expect(cls(bar)).toContain("w-full");
+    }
+  });
+
+  it("ux-lead-2 183234 #3: the two coverage notes sit under the weaknesses card, not in the band", async () => {
+    await renderRm("");
+    const band = screen.getByTestId("rm-band");
+    const cov = screen.getByTestId("rm-coverage");
+    expect(band.contains(cov)).toBe(false);
+    const nums = Array.from(cov.querySelectorAll("[data-num]")).map((e) => `${e.getAttribute("data-num")}/${e.getAttribute("data-den")}`);
+    expect(nums).toEqual(["2/62", "1/10"]);
+    const moves = screen.getByTestId("rm-moves");
+    expect(moves.compareDocumentPosition(cov) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
