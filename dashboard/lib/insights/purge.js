@@ -2,7 +2,8 @@
 /**
  * Retention A (bd-sex15q.36; NIGHTLY_JOB §10, INSIGHTS_SCHEMA §4; PENDING item 7): `--purge-clips` deletes a session's
  * pre-cut clips (coachip/clips/<env>/<session>/…) and its whole-lesson MP3 (coachip/full/<env>/<session>.mp3) once the
- * last window that showed the session has been closed for more than 8 weeks, then marks the session's moments
+ * last window that showed the session has been closed for more than a year (365 days; the operator's ruling of 28 Oct:
+ * "keep them for a year or so"; it was 8 weeks), then marks the session's moments
  * `clip_status = expired` (the player says so and the coach still hears the recording itself from `lesson_s`). One
  * coachip_audit_log row per run is written first: if it cannot be written, nothing is deleted.
  *
@@ -21,7 +22,7 @@ const win = require('./windows');
 const { karachiDay } = require('./facts');
 
 const ENVS = ['sandbox', 'staging', 'production'];
-const RETENTION_DAYS = 56;
+const RETENTION_DAYS = 365;
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const IN = 200;
 
@@ -125,7 +126,7 @@ async function runPurge({ envName, bucket, s3, store, today, dryRun, actorUserId
   }
   const open = new Set([...openBySession.map((r) => r.source_session_id), ...openByMoment.map((r) => sessionOf.get(r.source_moment_id))]);
 
-  // 3. purge what has been off screen for more than 8 weeks
+  // 3. purge what has been off screen for more than RETENTION_DAYS
   for (const sessionId of sessions) {
     if (!shownUntil.has(sessionId)) { n.sessions_unknown += 1; continue; }
     if (open.has(sessionId)) { n.sessions_kept_open_step += 1; n.sessions_kept += 1; continue; }
