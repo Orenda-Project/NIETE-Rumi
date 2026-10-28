@@ -19,6 +19,8 @@ const R8 = {
   r8Nudges: ['sa_r8_nudges', 'r8_nudges'],
   r8Highlight: ['sa_r8_highlight', 'r8_highlight'],
   r8LangSwitch: ['sa_r8_lang_switch', 'r8_lang_switch'],
+  r8ReadingPosition: ['sa_r8_reading_position', 'r8_reading_position'],
+  r8TimeupContinue: ['sa_r8_timeup_continue', 'r8_timeup_continue'],
 };
 const BATTERY = { battery_id: 'b', tasks: [{ id: 'ur.letters', items: [] }] };
 

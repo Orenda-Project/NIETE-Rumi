@@ -71,7 +71,7 @@
   /**
    * create({ store, session_id, MediaRecorder, getUserMedia, now, AudioContext, interval, localStorage }) → recorder.
    * recorder.supported() · ready() → Promise<bool> (asks for the microphone) · start(taskId) · stop() → Promise<meta>
-   * · onSilence(opts, cb) → cancel().
+   * · onSilence(opts, cb) → cancel() · stream() (the open mic stream, shared with a level meter).
    */
   function create(o) {
     var MR = o.MediaRecorder || root.MediaRecorder;
@@ -238,6 +238,8 @@
     }
 
     var api = { supported: function () { return !!type; }, type: function () { return type; }, ready: ready, start: start, stop: stop, discard: discard, release: release, recording: function () { return !!cur; }, onSilence: onSilence, onVoice: onVoice, wake: wake,
+      /** The open microphone stream (after ready(), until release()), for a level meter to share; null otherwise. */
+      stream: function () { return stream; },
       /** 'running' | 'unavailable' (the last watch's ear), null before any watch. */
       ear: function () { return earState; } };
     last = api;
@@ -247,5 +249,8 @@
   /** SAE.rec.onSilence: the same, on the recorder made last (the engine makes one per battery). */
   function onSilenceLast(opts, cb) { return last ? last.onSilence(opts, cb) : function () {}; }
 
-  return { CANDIDATES: CANDIDATES, pickType: pickType, create: create, onSilence: onSilenceLast, rmsOf: rmsOf, thresholdFor: thresholdFor, FLOOR: FLOOR, CEIL: CEIL };
+  /** SAE.rec.stream: the open stream of the recorder made last, or null. */
+  function streamLast() { return last ? last.stream() : null; }
+
+  return { CANDIDATES: CANDIDATES, pickType: pickType, create: create, onSilence: onSilenceLast, stream: streamLast, rmsOf: rmsOf, thresholdFor: thresholdFor, FLOOR: FLOOR, CEIL: CEIL };
 }));
