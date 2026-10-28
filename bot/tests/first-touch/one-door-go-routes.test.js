@@ -443,6 +443,8 @@ describe('who / role — the one answer, remembered on the server', () => {
     // the practice home's own token: no child, a grade, Back to this teacher's home
     const tok = WebQuizToken.verify(m[1], 'h');
     expect(tok).toMatchObject({ ids: [], pr: 1, lang: 'ur' });
+    // the teacher rides the token (bd-5gyspy.5): their taught grades and their own quizzes in the preview
+    expect(tok.tu).toBe(TEACHER.id);
     expect([1, 2, 3, 4, 5]).toContain(tok.g);
     expect(tok.bk).toMatch(/^\/quiz\/teacher\//);
     expect(studentWrites()).toEqual([]);

@@ -151,10 +151,10 @@ describe('the Videos grade picker with the look (browse only, as the Stories she
   const GRADES = [{ g: 'KG', n: 3 }, { g: '1', n: 4 }, { g: '3', n: 12 }];
   const SUBJ = (g) => ({ ...F.LIB_SUBJECTS, grade: g, grades: GRADES });
   for (const lang of ['en', 'ur']) {
-    test(`${lang}: "Grade 3 ▾" above the shelves, closed; the only primary stays the first See all`, () => {
+    test(`${lang}: "Grade 3" (and its CSS caret) above the shelves, closed; the only primary stays the first See all`, () => {
       const W = F.load({ globals: { document: ADVDOC } });
       const h = W.WQDOORS.html(F.boot(lang, SHELF), { token: F.TOKEN, lang }, 'videos', { lib: SUBJ('3') });
-      expect(h).toContain(`data-tap="vgl" aria-expanded="false">${lang === 'ur' ? 'جماعت ۳' : 'Grade 3'} ▾</button>`);
+      expect(h).toContain(`data-tap="vgl" aria-expanded="false">${lang === 'ur' ? 'جماعت ۳' : 'Grade 3'}<i class="wq-caret" aria-hidden="true"></i></button>`);
       expect(h).not.toContain('wq-vpick');
       expect(count(h, /data-primary/g)).toBe(1);
       expect(h.indexOf('wq-vgl')).toBeLessThan(h.indexOf('data-vshelf'));
@@ -192,7 +192,7 @@ describe('the Videos grade picker with the look (browse only, as the Stories she
     const tap = async (name, item) => { const b = el(); b.setAttribute('data-tap', name); if (item) b.setAttribute('data-item', item); taps.length = 0; taps.push(b); W.WQDOORS.mount(root, F.boot('en', SHELF), ctx, 'videos'); await settle(); b.fire('click'); await settle(); };
     W.WQDOORS.mount(root, F.boot('en', SHELF), ctx, 'videos');
     await settle();
-    expect(root.innerHTML).toContain('Grade 3 ▾');
+    expect(root.innerHTML).toContain('Grade 3<i class="wq-caret" aria-hidden="true"></i>');
     await tap('vgl');
     expect(root.innerHTML).toContain('class="wq-chips wq-schips wq-tall wq-vpick"');
     expect(root.innerHTML).toMatch(/<button class="wq-chip wq-on" type="button" data-tap="vg" data-item="3" aria-pressed="true">3<\/button>/);
@@ -201,12 +201,12 @@ describe('the Videos grade picker with the look (browse only, as the Stories she
     const urls = fetch.mock.calls.map(([u]) => u);
     expect(urls.some((u) => /\/api\/wq\/lib\/h\/[^?]+\?kid=[^&]+&l=en&g=1$/.test(u))).toBe(true);
     expect(urls.some((u) => /&g=1&s=Science$/.test(u))).toBe(true);
-    expect(root.innerHTML).toContain('Grade 1 ▾');
+    expect(root.innerHTML).toContain('Grade 1<i class="wq-caret" aria-hidden="true"></i>');
     expect(root.innerHTML).not.toContain('wq-vpick');
     expect(evs).toContainEqual(['lib_grade', { g: '1', own: 0 }]);
     fetch.mockClear();
     await tap('vg', '3');
     expect(fetch.mock.calls.map(([u]) => u).some((u) => /&l=en$/.test(u))).toBe(true);
-    expect(root.innerHTML).toContain('Grade 3 ▾');
+    expect(root.innerHTML).toContain('Grade 3<i class="wq-caret" aria-hidden="true"></i>');
   });
 });
