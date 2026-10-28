@@ -106,8 +106,11 @@ function createModelContext({ capUsd, write, store, jobRunId, deps, log }) {
   };
 }
 
-/** COACHIP_MODEL_CONCURRENCY: detector calls in flight at once (bd-sex15q.43; default 1, at most 3). */
-const MODEL_CONCURRENCY_MAX = 3;
+/**
+ * COACHIP_MODEL_CONCURRENCY: phonics and gloss calls in flight at once (bd-sex15q.43; default 1, at most 12). The one-night
+ * US$21 backfill needs about 12: ~9,700 lessons at ~6.8 s a call (x-analysis, Haiku, real transcripts) before the 22:50Z cut-off.
+ */
+const MODEL_CONCURRENCY_MAX = 12;
 const modelConcurrency = (deps) => Math.min(MODEL_CONCURRENCY_MAX, Math.max(1, Math.floor(Number(deps && deps.modelConcurrency) || 1)));
 
 /**
@@ -198,25 +201,46 @@ async function runGlosses(ctx, { shown, moments, facts, homeworkFacts = [] }) {
   const okGlosses = [];
   let late = 0; // items left for the next night once the gloss cut-off has passed (said once, at the end)
   const pastCut = async () => { if (late || await ctx.halted('gloss')) { late += 1; return true; } return false; };
-  for (const m of toGloss) {
-    if (await pastCut()) { ctx.pending('gloss'); continue; }
-    if (!ctx.ledger.canStart('gloss')) { ctx.ledger.markPending(); ctx.pending('gloss'); continue; }
-    const f = factById.get(m.fact_id);
-    const gm = f && f.allowed && f.allowed.gloss.moves[m.move_id];
-    if (!gm) { ctx.tally('gloss', 'no_input'); continue; }
-    const move = f.allowed.lp && f.allowed.lp.moves.find((x) => x.moveId === m.move_id);
-    const lexicon = lexicons.get(m.session_id) || [];
-    const input = G.buildGlossInput({ wId: m.w_id, phase: m.phase, glossMove: gm, verdict: move && move.verdict,
-      narrative: f.allowed.gloss.narrative, lexicon });
-    const res = await G.glossMoment({ moment: m, input, lexicon, ledger: ctx.ledger, deps: ctx.callDeps(m.session_id, m.move_id) });
-    const stored = await ctx.record(res.runs);
-    ctx.tally('gloss', res.patch.gloss_status);
-    if (write) {
-      const runId = res.runForPatch ? (stored[stored.length - 1] || {}).id : res.patch.gloss_model_run_id || null;
-      await store.update('coachip_moments', m.id, { ...res.patch, gloss_model_run_id: runId || null });
+  // The shown moments, up to deps.modelConcurrency at once (as runPhonics): each call holds its p90 until recorded, and
+  // canStart counts what is held, so N at once buy what one at a time would, in the same order.
+  const p90 = M.P90_USD.gloss;
+  let next = 0;
+  let failed = false;
+  const worker = async () => {
+    while (!failed && next < toGloss.length) {
+      const m = toGloss[next];
+      next += 1;
+      if (await pastCut()) { ctx.pending('gloss'); continue; }
+      if (!ctx.ledger.canStart('gloss', ctx.ledger.held)) { ctx.ledger.markPending(); ctx.pending('gloss'); continue; }
+      const f = factById.get(m.fact_id);
+      const gm = f && f.allowed && f.allowed.gloss.moves[m.move_id];
+      if (!gm) { ctx.tally('gloss', 'no_input'); continue; }
+      const move = f.allowed.lp && f.allowed.lp.moves.find((x) => x.moveId === m.move_id);
+      const lexicon = lexicons.get(m.session_id) || [];
+      const input = G.buildGlossInput({ wId: m.w_id, phase: m.phase, glossMove: gm, verdict: move && move.verdict,
+        narrative: f.allowed.gloss.narrative, lexicon });
+      const release = ctx.ledger.hold(p90);
+      try {
+        const res = await G.glossMoment({ moment: m, input, lexicon, ledger: ctx.ledger, deps: ctx.callDeps(m.session_id, m.move_id) });
+        const stored = await ctx.record(res.runs);
+        ctx.tally('gloss', res.patch.gloss_status);
+        if (write) {
+          const runId = res.runForPatch ? (stored[stored.length - 1] || {}).id : res.patch.gloss_model_run_id || null;
+          await store.update('coachip_moments', m.id, { ...res.patch, gloss_model_run_id: runId || null });
+        }
+        if (write && res.patch.gloss_status === 'ok') okGlosses.push({ m, input, patch: res.patch });
+      } finally {
+        release();
+      }
     }
-    if (write && res.patch.gloss_status === 'ok') okGlosses.push({ m, input, patch: res.patch });
-  }
+  };
+  const n = modelConcurrency(ctx.deps);
+  const settled = await Promise.allSettled(Array.from({ length: Math.min(n, toGloss.length) }, () => worker().catch((err) => {
+    failed = true;
+    throw err;
+  })));
+  const failure = settled.find((s) => s.status === 'rejected');
+  if (failure) throw failure.reason;
 
   // Stage 9: the 5% re-check (at least 5), on Opus, verdicts only. A dry run keeps no gloss text, so it has none to judge.
   for (const g of G.pickRecheck(okGlosses, Math.random)) {

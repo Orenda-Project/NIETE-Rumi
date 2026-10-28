@@ -16,6 +16,8 @@ const M = require('../../lib/insights/model');
 const ms = require('../../lib/insights/model-stage');
 const safety = require('../../lib/insights/safety');
 const { MemoryStore, SupabaseStore, memoryClient } = require('../../lib/insights/store');
+const { readAllowed } = require('../../lib/insights/allowlist');
+const F = require('./fixtures/analysis');
 const X = require('./fixtures/model');
 
 const P90 = M.P90_USD.phonics;
@@ -95,11 +97,12 @@ describe('runPhonics with COACHIP_MODEL_CONCURRENCY', () => {
     expect(net.calls).toBe(4);
   });
 
-  test('a knob above 3 is held at 3', async () => {
-    const net = modelNet({ together: 4, total: 8, fallbackMs: 200 });
-    const ctx = ctxFor({ n: 9, net, readClient: memoryClient(transcripts(8)) });
-    await ms.runPhonics(ctx, { facts: facts(8), inWindow: () => true });
-    expect(net.peak).toBe(3);
+  test('a knob above 12 is held at 12 (the one-night backfill needs about 12 at once; GO_PACKAGE §13.7)', async () => {
+    const net = modelNet({ together: 13, total: 30, fallbackMs: 200 });
+    const ctx = ctxFor({ n: 40, net, readClient: memoryClient(transcripts(30)) });
+    await ms.runPhonics(ctx, { facts: facts(30), inWindow: () => true });
+    expect(net.peak).toBe(12);
+    expect(net.calls).toBe(30);
   });
 
   test('the cap holds with 3 in flight: exactly the calls one at a time would buy, never past cap − reserve', async () => {
@@ -208,5 +211,52 @@ describe('the health guard under concurrent callers', () => {
     const out = await Promise.all([guard.check(), guard.check(), guard.check()]);
     expect(out.every((h) => h.ok)).toBe(true);
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('runGlosses with COACHIP_MODEL_CONCURRENCY (the shown moments: same shape as phonics)', () => {
+  const GSID = '00000000-0000-4000-8000-0000000c0009';
+  const mid = (i) => `00000000-0000-4000-8000-0000000e${String(i).padStart(4, '0')}`;
+  const glossFact = (k) => ({ id: 'gf1', session_id: GSID,
+    allowed: readAllowed({ lp_fidelity: F.lp(Array.from({ length: k }, (_, i) => F.move(`m${i + 1}`, 'independent', 'not_done', { at: '12:30' }))) }) });
+  const moments = (k) => Array.from({ length: k }, (_, i) => ({ id: mid(i + 1), fact_id: 'gf1', session_id: GSID, w_id: 'W-IP', phase: 'independent',
+    move_id: `m${i + 1}`, kind: 'missing', moment_s: 750, from_s: 740, to_s: 800, confidence: 'high', gloss_status: 'pending',
+    gloss_en: null, gloss_ur: null, gloss_model_run_id: null }));
+  /** Gloss stand-in: the clean fictional gloss, `cost` each; with `together`, waits for that many in flight (as modelNet). */
+  function glossNet({ together = 1, total = Infinity, cost = M.P90_USD.gloss, fallbackMs = 1000 } = {}) {
+    const net = modelNet({ together, total, cost, fallbackMs, ms: 5 });
+    const inner = net;
+    const f = async (...a) => { await inner(...a); return X.ok({ gloss_en: X.GLOSS.clean.en, gloss_ur: X.GLOSS.clean.ur }, { cost }); };
+    Object.defineProperty(f, 'peak', { get: () => inner.peak });
+    Object.defineProperty(f, 'calls', { get: () => inner.calls });
+    return f;
+  }
+  const run = async ({ k, n, net, capUsd = 2 }) => {
+    const ms_ = moments(k);
+    const ctx = ctxFor({ capUsd, n, net, readClient: memoryClient({ coaching_sessions: [{ id: GSID, user_id: 'u-fict' }] }) });
+    await ms.runGlosses(ctx, { shown: ms_.map((m) => m.id), moments: ms_, facts: [glossFact(k)] });
+    return ctx;
+  };
+
+  test('N = 4: never more than 4 gloss calls at once, 4 at once do happen, every shown moment glossed', async () => {
+    const net = glossNet({ together: 4, total: 10 });
+    const ctx = await run({ k: 10, n: 4, net });
+    expect(net.peak).toBe(4);
+    expect(net.calls).toBe(10);
+    expect(ctx.summary.by_analysis.gloss).toEqual({ ok: 10 });
+  });
+
+  test('the cap holds with 4 in flight: the same number of glosses as one at a time, the rest pending', async () => {
+    const capUsd = 6 * M.P90_USD.gloss + 1e-7;
+    const one = glossNet({ cost: M.P90_USD.gloss });
+    const c1 = await run({ k: 10, n: 1, net: one, capUsd });
+    const four = glossNet({ together: 4, total: 6, cost: M.P90_USD.gloss, fallbackMs: 200 });
+    const c4 = await run({ k: 10, n: 4, net: four, capUsd });
+    expect(one.calls).toBe(6);
+    expect(four.peak).toBeGreaterThan(1);
+    expect(four.calls).toBe(one.calls);
+    expect(c4.ledger.spent).toBeLessThanOrEqual(capUsd);
+    expect(c4.ledger.held).toBe(0);
+    expect(c4.summary.by_analysis.gloss.pending).toBe(c1.summary.by_analysis.gloss.pending);
   });
 });
