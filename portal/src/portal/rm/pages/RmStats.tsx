@@ -32,17 +32,18 @@ export default function RmStats() {
         : rt("stats.sub", lang)}
       windows={data?.windows} testId="rm-stats" trust={data ? "s8.trust" : null}>
       {!data || !w ? <StateBlock error={error} testId="rm-state" /> : (
-        <div className="mx-auto flex max-w-3xl flex-col gap-3">
+        <div className="flex flex-col">
+          {data.stale && <div className="mb-3"><RmNote tone="info" testId="rm-stale"><span data-date={data.stale.as_of}>{rt("s8.empty.stale", lang, { date: dateShort(data.stale.as_of, lang) })}</span></RmNote></div>}
           {w.scoring_changed_on && (
             <RmCard testId="rm-stats-window">
-              <WindowMark window={w} className="text-[14px] text-[#374151]">{range(w.from, w.to, lang)}</WindowMark>
-              <p data-testid="rm-stats-marker" className="rounded-xl bg-[#f3f4f6] px-3 py-2 text-[13.5px] text-[#374151]">
+              <WindowMark window={w} className="text-[15px] font-semibold text-cp-ink">{range(w.from, w.to, lang)}</WindowMark>
+              <p data-testid="rm-stats-marker" className="mt-2 self-start rounded-[12px] bg-cp-navy-tint px-3 py-2 text-[13px] text-cp-navy">
                 <span data-date={w.scoring_changed_on}>{rt("s6.marker", lang, { date_short: dateShort(w.scoring_changed_on, lang) })}</span>
               </p>
             </RmCard>
           )}
-          {data.moves.map((m) => <SectorWRow key={m.row.w_id} row={m.row} testId="rm-stats-row" />)}
-          {data.stale && <RmNote tone="info" testId="rm-stale"><span data-date={data.stale.as_of}>{rt("s8.empty.stale", lang, { date: dateShort(data.stale.as_of, lang) })}</span></RmNote>}
+          {/* bd-sex15q.47 (R6): the rows sit flush under hairlines (each a ring row), no card per row */}
+          <div className="flex flex-col">{data.moves.map((m) => <SectorWRow key={m.row.w_id} row={m.row} testId="rm-stats-row" />)}</div>
         </div>
       )}
     </RmPage>

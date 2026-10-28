@@ -46,16 +46,17 @@ export function CircleRow({ m, open, onOpen }: { m: CircleMoment; open: boolean;
     if (!open) flushSync(() => onOpen(m.coach_user_id));
     const a = audio.current;
     if (!a || clipBad) return;
-    if (a.paused) void a.play().catch(() => setFailed(true)); else a.pause();
+    // play() is a promise in today's browsers and undefined in older ones (and jsdom): never chain on undefined
+    if (a.paused) a.play()?.catch(() => setFailed(true)); else a.pause();
   };
   const sep = lang === "ur" ? "، " : " · ";
   return (
-    <li data-testid="circle-row" data-moment={m.moment_id} data-coach={m.coach_user_id} data-open={open ? "1" : undefined} className="flex flex-col py-2">
+    <li data-testid="circle-row" data-moment={m.moment_id} data-coach={m.coach_user_id} data-open={open ? "1" : undefined} className="flex flex-col border-t border-cp-hairline py-3 first:border-t-0">
       {/* fix-r5 s4 train 7 item 4 (design-qa 172524): the line wraps to two lines on a phone, never truncating the W name;
           the play pill stays on line one */}
       <div className="flex items-start gap-3">
         <button type="button" onClick={() => onOpen(open ? null : m.coach_user_id)} aria-expanded={open}
-          className="flex min-h-[44px] min-w-0 flex-1 items-center gap-1 text-start text-[15px] text-[#1d2025]">
+          className="flex min-h-[44px] min-w-0 flex-1 items-center gap-1 text-start text-[16px] leading-[1.4] text-cp-ink outline-none focus-visible:ring-[3px] focus-visible:ring-cp-green">
           <span data-testid="circle-line" className="whitespace-normal [overflow-wrap:anywhere]">
             {/* the C-NN label is an LTR atom: isolated in Urdu like the school name beside it (red-2 18:08Z, fix-r5 5f) */}
             {lang === "ur" ? (
@@ -75,18 +76,19 @@ export function CircleRow({ m, open, onOpen }: { m: CircleMoment; open: boolean;
           </span>
         </button>
         <button type="button" data-testid="circle-play" onClick={toggle} aria-label={rt("s10.play", lang, { coach: m.coach_label })}
-          className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-full border border-[#d1d5db] bg-white px-3 text-[14px] font-semibold">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#333748] text-white">
-            {playing ? <Pause className="h-3.5 w-3.5" aria-hidden="true" /> : <Play className="h-3.5 w-3.5" aria-hidden="true" />}
+          className="cp-press flex min-h-[44px] shrink-0 items-center gap-2 rounded-full text-[13px] text-cp-ink-3 outline-none focus-visible:ring-[3px] focus-visible:ring-cp-navy">
+          {/* bd-sex15q.47 (R6, ux-lead-2 164235): ONE 44 px green circle, navy 20 px glyph (4.8:1), the length as 13 px ink-3 meta */}
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-cp-green text-cp-navy">
+            {playing ? <Pause size={20} strokeWidth={1.5} aria-hidden="true" /> : <Play size={20} strokeWidth={1.5} className="ms-0.5" aria-hidden="true" />}
           </span>
           <span data-clock="" dir="ltr">{durButton(m.duration_s, lang)}</span>
         </button>
       </div>
       {open && (
         <div data-testid="circle-open" className="mt-1 flex flex-col gap-1.5 ps-1">
-          {detail?.gloss && <p data-testid="circle-gloss" data-nonum="" className="text-[14px] leading-snug text-[#374151]">{pick(detail.gloss, lang)}</p>}
+          {detail?.gloss && <p data-testid="circle-gloss" data-nonum="" className="text-[15px] leading-[1.45] text-cp-ink-2">{pick(detail.gloss, lang)}</p>}
           {clipBad
-            ? <p role="status" data-testid="circle-clip-failed" className="text-[13.5px] text-[#374151]">{rt("e.503_clip.rm", lang)}</p>
+            ? <p role="status" data-testid="circle-clip-failed" className="text-[13px] font-semibold text-cp-navy">{rt("e.503_clip.rm", lang)}</p>
             : (
               <audio
                 ref={audio}

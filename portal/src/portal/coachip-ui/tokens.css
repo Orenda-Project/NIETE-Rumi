@@ -72,11 +72,12 @@
 .cp-band .cp-on-band-2 {
   color: rgba(255, 255, 255, 0.8);
 }
-/* the content right under a band rides up over it by 24 px, stacked above it (DIRECTION "two additions") */
+/* the content right under a band rides up over it by 24 px, stacked above it (DIRECTION "two additions"); 40 = 24 + the
+   16 px Shell pads the page body with (bd-sex15q.47, ux-lead-2 171155) */
 .cp-overlap {
   position: relative;
   z-index: 1;
-  margin-top: -24px;
+  margin-top: -40px;
 }
 
 /* ── laptop (≥ 1024): the band becomes the page head on the ground, its body the one elevated hero card ── */
