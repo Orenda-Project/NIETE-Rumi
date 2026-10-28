@@ -1,0 +1,2 @@
+{"ts":"2026-10-28T14:42:28Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=registration,menu,training,lesson-plan,coaching,language,status,observe spec_sync=true","sha":"8cb919f6c411","branch":"bd-aazx2h-97220","user":"Hataf Atif"}
+{"ts":"2026-10-28T14:46:28Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"9ceb37ea-0989-4b08-a1c6-6200adffa7e0","sha":"8cb919f6c411","branch":"bd-aazx2h-97220","user":"Hataf Atif"}
