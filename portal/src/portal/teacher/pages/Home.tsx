@@ -17,7 +17,7 @@ import { SlimCard, SLIM_KINDS } from "../home/SlimCard";
 import { ScoresRow } from "../home/ScoresRow";
 import { useHomeData, useHomeGo, useHomeSwitches } from "../home/useHomeData";
 import { LookHome } from "../home/look/LookHome";
-import { QuizTile } from "../home/QuizTile";
+import { QuizFeatureTile } from "../home/QuizTile";
 
 /**
  * bd-fmf24g.1 — teacher v2 Home (canvas v28 Main, after the operator's changes 1–3):
@@ -73,9 +73,18 @@ export default function Home() {
     const slim = card && SLIM_KINDS.includes(card.kind) ? card : null;
     const byKey = new Map(tiles.map((t) => [t.key, t]));
     const ordered = order ? order.map((k) => byKey.get(k)).filter((t): t is (typeof tiles)[number] => !!t) : tiles;
-    const drawn = (ordered.length === tiles.length ? ordered : tiles).map(({ key, art, label }) => (
-      <FeatureTile key={key} feature={art} label={label} to={teacherPath(key)} />
-    ));
+    // The "Quizzes" tile (portal_teacher_home_quiz_tile): in the grid right after Lesson plans, only with a quiz home;
+    // nine tiles in two columns → the last one spans both. Without it: today's eight, none wide.
+    const quiz = data?.quizTile && data.quizHome ? data.quizHome : null;
+    const cells: ({ key: string } & ((typeof tiles)[number] | { key: "quiz" }))[] = [...(ordered.length === tiles.length ? ordered : tiles)];
+    if (quiz) cells.splice(Math.max(cells.findIndex((t) => t.key === "lessons"), 0) + 1, 0, { key: "quiz" });
+    const spanLast = cells.length % 2 === 1;
+    const drawn = cells.map((t, i) => {
+      const wide = spanLast && i === cells.length - 1;
+      if (t.key === "quiz") return quiz ? <QuizFeatureTile key="quiz" quizHome={quiz} onGo={go} wide={wide} /> : null;
+      const { key, art, label } = t as (typeof tiles)[number];
+      return <FeatureTile key={key} feature={art} label={label} to={teacherPath(key)} wide={wide} />;
+    });
     if (slim) drawn.splice(2, 0, <SlimCard key="home-slim-card" card={slim} userKey={user?.phoneNumber} onGo={go} />);
     // The chips sit under the card region (the design's R6): under the slim card when that is the card, so row 1 stays
     // whole above the fold; else under the full card, or under the band when there is no card.
@@ -92,8 +101,6 @@ export default function Home() {
           {drawn}
         </nav>
         </FeatureMotionProvider>
-        {/* The "Quizzes" tile (portal_teacher_home_quiz_tile): under the eight, full width, only with a quiz home to open. */}
-        {data?.quizTile && data.quizHome ? <QuizTile quizHome={data.quizHome} onGo={go} /> : null}
         {/* The evening reminder (portal_push_remind): after the tiles, so row 1 and the card stay on top (DESIGN R3). */}
         <RemindCard />
       </TeacherPage>

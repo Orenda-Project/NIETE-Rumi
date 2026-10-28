@@ -399,6 +399,34 @@ describe('the shelf', () => {
     e3.S.shelf(fakeEl('s4'), e3.ctx()); await flush();
     expect(e3.calls.gets[2]).toContain('l=ur'); expect(e3.calls.gets[2]).not.toContain('g=');
   });
+  test('no grade forbids a book (bd-5gyspy.5): «All grades» is a chip, the answer\'s `sel` says what is on, the pick is remembered', async () => {
+    const all = { ...SHELF, grade: 1, sel: 'all', first: [] };
+    const e = env({ replies: { shelf: { status: 200, body: all } } }); const el = fakeEl('shelf');
+    e.S.shelf(el, e.ctx()); await flush();
+    checkScreen(el.innerHTML, 'en');
+    expect(el.innerHTML).toContain('All grades, English');
+    // P2-2 (design-qa): the shelf's picker carries the same CSS-drawn caret as Games and Videos, never ▾ or any symbol glyph
+    expect(el.innerHTML).toContain('All grades, English<i class="wq-caret" aria-hidden="true"></i></button>');
+    expect(el.innerHTML).not.toMatch(/[\u2190-\u2BFF\u{1F000}-\u{1FAFF}]/u);
+    expect(fs.readFileSync(CSS, 'utf8')).toMatch(/\.wq-caret\s*\{[^}]*border-top:[^}]*\}/);
+    fire(el, 'gl');
+    expect(el.innerHTML).toMatch(/data-tap="g" data-arg="all" aria-pressed="true">All grades</);
+    expect(el.innerHTML).toMatch(/data-tap="g" data-arg="1" aria-pressed="false"/);
+    fire(el, 'g', 'all'); await flush();
+    expect(e.calls.gets[1]).toMatch(/g=all/);
+    expect(e.store.getItem('wq_st_gl')).toBe('all,');
+    // a teacher's several grades: both pressed, the label names them; Urdu with Urdu digits
+    const two = { ...SHELF, lang: 'ur', grade: 3, sel: [3, 4], first: [3, 4], books: SHELF.books.map((b) => ({ ...b, lang: 'ur', dir: 'rtl' })) };
+    const e2 = env({ replies: { shelf: { status: 200, body: two } } }); const el2 = fakeEl('shelf2');
+    e2.S.shelf(el2, e2.ctx({ lang: 'ur' })); await flush();
+    checkScreen(el2.innerHTML, 'ur');
+    expect(el2.innerHTML).toContain('جماعت ۳، ۴، اردو');
+    fire(el2, 'gl');
+    expect(el2.innerHTML).toMatch(/data-arg="3" aria-pressed="true"/);
+    expect(el2.innerHTML).toMatch(/data-arg="4" aria-pressed="true"/);
+    expect(el2.innerHTML).toMatch(/data-arg="all" aria-pressed="false">سب جماعتیں</);
+    expect(text(el2.innerHTML)).not.toMatch(/[0-9]/);
+  });
   test('an empty shelf: one kind line, no "coming soon"', async () => {
     const e = env({ replies: { shelf: { status: 200, body: { ...SHELF, books: [] } } } }); const el = fakeEl('shelf');
     e.S.shelf(el, e.ctx()); await flush();
@@ -1308,7 +1336,7 @@ describe('the shipped files', () => {
     expect(src).not.toContain('·');
     expect(code).not.toMatch(/ٹیپ کریں|گم شدہ|استاد|امتحان|ٹیسٹ/);
     const zlib = require('zlib');
-    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(13580);   // the ruled core budget (12,288 less 8; +296 for the reader's text lens, COS YES 18 Oct; +136 for the steady camera that keeps every line whole, lead YES 18 Oct; +348 for the reading moment's picture box that keeps a framed page's picture whole, 19 Oct; +232 for its live-state fix: the opening words hidden under a clipped sheet once its picture is in, framed again when the stage resizes, 19 Oct; +80 for the look's drawn replay sign on Listen again (the Urdu face draws ↻ like «ج»), 19 Oct; +200 for the page voice as .mp3 on a phone that plays no Ogg Opus (iOS before 18.4; web_quiz_story_mp3), 27 Oct; served minified)
+    expect(zlib.gzipSync(fs.readFileSync(SRC, 'utf8'), { level: 9 }).length).toBeLessThanOrEqual(13689);   // the ruled core budget (12,288 less 8; +296 for the reader's text lens, COS YES 18 Oct; +136 for the steady camera that keeps every line whole, lead YES 18 Oct; +348 for the reading moment's picture box that keeps a framed page's picture whole, 19 Oct; +232 for its live-state fix: the opening words hidden under a clipped sheet once its picture is in, framed again when the stage resizes, 19 Oct; +80 for the look's drawn replay sign on Listen again (the Urdu face draws ↻ like «ج»), 19 Oct; +200 for the page voice as .mp3 on a phone that plays no Ogg Opus (iOS before 18.4; web_quiz_story_mp3), 27 Oct; +104 for the shelf's «All grades» chip and a several-grade label (bd-5gyspy.5, 27 Oct: NOT yet signed off, flagged to the lane owner); +5 for the CSS-drawn caret that replaces ' ▾' on every picker (design-qa P2, 28 Oct: flagged with it); served minified)
     // 9 KiB (#S88): heard first slow tap must run inside the tap; headroom recorded in the size test
     const qgz = zlib.gzipSync(fs.readFileSync(QSRC, 'utf8'), { level: 9 }).length;
     console.log('wq-stories-q.js gz ' + qgz + ' / 9216, headroom ' + (9 * 1024 - qgz));
