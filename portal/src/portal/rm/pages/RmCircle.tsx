@@ -140,7 +140,7 @@ export default function RmCircle() {
               : <CountLine k="s10.checks.sub" count={total} className="text-[15px] leading-[1.45] text-cp-ink-2" as="p" />)}
             <ul className="mt-3 flex flex-wrap gap-2">
               {data.checks_due.map((c) => (
-                <li key={c.coach_label} data-testid="s10-check" className={`rounded-full px-3 py-[5px] text-[13px] font-semibold ${c.count.d === 0 ? "bg-cp-grey-fill text-cp-ink-2" : "bg-cp-green-tint text-cp-green-ink"}`}>
+                <li key={c.coach_label} data-testid="s10-check" className={`rounded-full px-3 py-[5px] text-[13px] font-semibold ${c.count.d === 0 ? "bg-cp-navy-tint text-cp-ink-2" : "bg-cp-green-tint text-cp-green-ink"}`}>
                   {c.count.d === 0
                     ? rtx("s10.checks.row.none", lang, { coach: <span data-code="" dir="auto">{c.coach_label}</span> })
                     : rtx("s10.checks.row", lang, { coach: <span data-code="" dir="auto">{c.coach_label}</span> }, [{ n: "n", d: "d", count: c.count }])}

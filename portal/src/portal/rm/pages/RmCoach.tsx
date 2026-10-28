@@ -71,7 +71,7 @@ function Notes({ d }: { d: Detail }) {
         {d.notes.map((n) => (
           <li key={n.id} data-testid="s9-note" data-status={n.status} className="border-t border-cp-hairline py-3.5 first:border-t-0">
             <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[13px] text-cp-ink-3">
-              <Pill tone={n.status === "set" || n.status === "dismissed" ? "tint" : "grey"}>{rt(`s9.notes.status.${n.status}` as const, lang)}</Pill>
+              <Pill tone={n.status === "set" || n.status === "dismissed" ? "tint" : "navy-tint"}>{rt(`s9.notes.status.${n.status}` as const, lang)}</Pill>
               <span>{rtx("s1.note.due", lang, { date: <DateText iso={n.due_on} lang={lang} /> })}</span>
             </div>
             <ol className="flex flex-col gap-0.5 text-[15px] leading-[1.45] text-cp-ink">
@@ -101,7 +101,8 @@ export default function RmCoach() {
   const c = data?.coach;
   return (
     <RmPage
-      title={c ? <span data-code="" dir="auto">{c.coach_label}</span> : rt("nav.rm.coaches", lang)}
+      // FIX_R6 B7: a Latin label is one isolated run that wraps only at a space ("Fixture Coach / 01" never splits mid-word)
+      title={c ? <bdi data-code="" dir={lang === "ur" ? "ltr" : "auto"} className="[overflow-wrap:normal]">{c.coach_label}</bdi> : rt("nav.rm.coaches", lang)}
       sub={c ? rt(`s9.reason.${c.needs_me_reason ?? "none"}` as const, lang) : undefined}
       backTo={rmPaths.coaches}
       windows={data?.windows}
