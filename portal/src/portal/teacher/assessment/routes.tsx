@@ -1,14 +1,21 @@
 import { Navigate } from 'react-router-dom';
 import type { TeacherRoute } from '../routes';
-import { AssessmentAll } from './AssessmentAll';
-import { AssessmentHub } from './AssessmentHub';
-import { EditPaperPage, EditQuestionPage } from './EditPages';
-import { CheckStep, ClassStep, CoverStep, QuestionsStep } from './NewPaperSteps';
-import { PaperPage } from './PaperPage';
-import { VersionsPage } from './VersionsPage';
 import { ASSESSMENT_ALL, ASSESSMENT_V2_BASE as B, newPaperPath } from './paths';
-import { RequestPage } from './RequestPage';
-import { TopicsStep } from './TopicsStep';
+import { lazyPage as page } from '@/lib/lazyPage';
+
+// bd-sex15q.34 — each page is its own chunk (lib/lazyPage), so the teacher app is not in every first open.
+const AssessmentAll = page(() => import('./AssessmentAll').then((m) => ({ default: m.AssessmentAll })));
+const AssessmentHub = page(() => import('./AssessmentHub').then((m) => ({ default: m.AssessmentHub })));
+const EditPaperPage = page(() => import('./EditPages').then((m) => ({ default: m.EditPaperPage })));
+const EditQuestionPage = page(() => import('./EditPages').then((m) => ({ default: m.EditQuestionPage })));
+const CheckStep = page(() => import('./NewPaperSteps').then((m) => ({ default: m.CheckStep })));
+const ClassStep = page(() => import('./NewPaperSteps').then((m) => ({ default: m.ClassStep })));
+const CoverStep = page(() => import('./NewPaperSteps').then((m) => ({ default: m.CoverStep })));
+const QuestionsStep = page(() => import('./NewPaperSteps').then((m) => ({ default: m.QuestionsStep })));
+const PaperPage = page(() => import('./PaperPage').then((m) => ({ default: m.PaperPage })));
+const VersionsPage = page(() => import('./VersionsPage').then((m) => ({ default: m.VersionsPage })));
+const RequestPage = page(() => import('./RequestPage').then((m) => ({ default: m.RequestPage })));
+const TopicsStep = page(() => import('./TopicsStep').then((m) => ({ default: m.TopicsStep })));
 
 /**
  * bd-fmf24g.6 — the teacher v2 Assessment pages (each flag-gated by App's TeacherGate). The main page is

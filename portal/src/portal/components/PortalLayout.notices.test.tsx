@@ -27,6 +27,11 @@ vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 
 import PortalLayout from "./PortalLayout";
 import { noticeTracker } from "../teacher/notices/tracker";
+import { beforeAll as preloadFirst } from "vitest";
+import { preloadAll } from "@/lib/lazyPage";
+
+// bd-sex15q.34 — these pages are their own chunks (lib/lazyPage); load them before stepping through them synchronously.
+preloadFirst(() => preloadAll({ optional: true }), 120_000);
 
 const job = {
   kind: "paper" as const, ref: "req1", title: "Plants and food", grade: 4, subject: "Science", questions: 15,
