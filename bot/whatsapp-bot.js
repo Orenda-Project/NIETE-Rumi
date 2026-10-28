@@ -2591,7 +2591,7 @@ async function handleDocumentMessage(message, from, user) {
             if (kept) return;
           }
 
-          // bd-2376 through the FILE door (bd-1r3k2h): an analysis already running for her means this
+          // The in-flight guard through the FILE door: an analysis already running for her means this
           // recording is deferred with an ack, exactly as a voice note is in voice-message.handler —
           // until now only that door was guarded, and a second file opened a fresh session.
           {
