@@ -1361,7 +1361,7 @@ export const childTestSa = {
 
   /** The results dashboard's sessions: this coach's, or every coach's for a results admin (switch sa_real_dashboard). */
   /** stopSessions (sa_dash_filters only): sessions with a skip/stop but no task yet, for the stops view, never the results. */
-  getSessions: async (): Promise<{ sessions: SaDashboardSession[]; stopSessions?: SaDashboardSession[] }> =>
+  getSessions: async (): Promise<{ sessions: SaDashboardSession[]; stopSessions?: SaDashboardSession[]; practiceFilter?: boolean }> =>
     (await api.get(`${CTS}/sessions`)).data,
 
   /** The visit review of one session (switch sa_review_page: 404 when off or not this coach's session). */

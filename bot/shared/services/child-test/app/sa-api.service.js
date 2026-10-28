@@ -62,6 +62,8 @@ const practiceOnly = require('./practice-only-switch');
 const anySchool = require('./any-school-switch');
 const endTestRestart = require('./end-test-restart-switch');
 const dashFilters = require('./dash-filters-switch');
+const hidePractice = require('./hide-practice-switch');
+const coachNameGuard = require('./coach-name-guard-switch');
 const { lastWordIndex } = require('../sa/last-word-hint');
 const { isSetAside } = require('../sa/set-aside');
 const { MEDIA, envSegment, __internals: { guarded: gate, rows, ownVisit, ownSession, gradeOf } } = require('./app-api.service');
@@ -878,6 +880,13 @@ const DASH_STOPS = new Set([...STOP_TYPES, 'incomplete_move_on', 'under20_move_o
 const ADDED_ALGO = 'ctd-added-on-spot-v1';
 const originOf = (draw) => (!draw ? null : draw.algo_version === ADDED_ALGO || draw.seed_digest === 'added' ? 'added' : 'drawn');
 
+// sa_r8_coach_name_guard: a chat command or route ("/assessment" typed at the old name prompt), a link, or a string
+// with no letter in it is not a person's name
+const personName = (name) => {
+  const t = String(name || '').trim();
+  return !t || t.startsWith('/') || /^[a-z]+:\/\//i.test(t) || !/\p{L}/u.test(t) ? null : t;
+};
+
 function dashFieldsOf(s, coachNames, draws) {
   const device = s.device || {};
   const block = typeof device.block === 'string' ? device.block : null;
@@ -917,8 +926,10 @@ function saSessions(args = {}, deps = {}) {
     const schools = await d.store.getSchoolsByIds(schoolIds);
     if (!schools || !schools.ok) throw new Error((schools && schools.error) || 'getSchoolsByIds failed');
     const schoolOf = new Map((schools.schools || []).map((s) => [s.id, s]));
-    // child_test_practice_only ON: each row says whether its school is a practice (test) school, so views can leave them out
-    const practiceIds = (await practiceOnly.enabled(deps))
+    // child_test_practice_only or sa_r8_hide_practice ON: each row says whether its school is a practice (test) school,
+    // so views can leave them out (round 8: the dashboard does by default, practiceFilter tells it to)
+    const practiceFilter = await hidePractice.enabled(deps);
+    const practiceIds = (practiceFilter || (await practiceOnly.enabled(deps)))
       ? new Set((await rows(d.supabase.from('schools').select('id').in('id', schoolIds).eq('is_probable_test', true))).map((x) => x.id))
       : null;
     const rowsOf = new Map();
@@ -935,7 +946,8 @@ function saSessions(args = {}, deps = {}) {
     if (dash) {
       const named = await d.store.getUserNamesByIds([...new Set(sessions.map((s) => s.coach_user_id).filter(Boolean))]);
       if (!named || !named.ok) throw new Error((named && named.error) || 'getUserNamesByIds failed');
-      coachNames = new Map((named.users || []).map((u) => [u.id, u.name || null]));
+      const guard = await coachNameGuard.enabled(deps);
+      coachNames = new Map((named.users || []).map((u) => [u.id, (guard ? personName(u.name) : u.name) || null]));
       // item 15: how each child's draw was made (added on the spot vs the random draw), read once
       const made = await d.store.getSessionDrawOrigins(sessions.map((s) => s.id));
       if (!made || !made.ok) throw new Error((made && made.error) || 'getSessionDrawOrigins failed');
@@ -954,7 +966,7 @@ function saSessions(args = {}, deps = {}) {
       (results.tasks.length ? out : stopOnly).push(row);
     }
     d.log('child_test.sa.sessions_read', { userId, admin, n: out.length, ...(dash ? { stopOnly: stopOnly.length } : {}) });
-    return dash ? { status: 'ok', sessions: out, stopSessions: stopOnly } : { status: 'ok', sessions: out };
+    return { status: 'ok', sessions: out, ...(dash ? { stopSessions: stopOnly } : {}), ...(practiceFilter ? { practiceFilter: true } : {}) };
   })(args, deps);
 }
 
