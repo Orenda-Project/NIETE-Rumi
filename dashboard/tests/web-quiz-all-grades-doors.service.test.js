@@ -44,6 +44,18 @@ describe('Games: every grade one tap away', () => {
       expect(h).not.toContain('data-tap="gsel"');
     }
   });
+  // design-qa-r5 030158 (bd-5gyspy.5.1): under «All grades» the visitor's own games carry their grade's name, and Jugnu's
+  // story (the visitor's own grade's) sits with them, never under the last other grade's heading
+  test('«All grades»: own grade named, then its story, then the other grades; the own-grade view keeps «Number games»', () => {
+    const heads = (h) => (h.match(/<h3 class="wq-dsec"><bdi[^>]*>[^<]*<\/bdi>/g) || []).map((x) => x.replace(/<[^>]*>/g, ''));
+    const READ = { kind: 'passage', id: 'p1', title: 'The kite' };
+    const want = { en: ['Grade 3', 'A story with Jugnu', 'Grade 4'], ur: ['جماعت ۳', 'جگنو کے ساتھ کہانی', 'جماعت ۴'] };
+    for (const lang of ['en', 'ur']) {
+      const W = load();
+      expect(heads(W.WQDOORS.html(HUB, ctx(lang), 'games', { games: [...OWN, ...OTHER, READ], sel: 'all', first: [3] }))).toEqual(want[lang]);
+      expect(heads(W.WQDOORS.html(HUB, ctx(lang), 'games', { games: [...OWN, READ] }))[0]).toBe(lang === 'en' ? 'Number games' : 'گنتی کے کھیل');
+    }
+  });
   // P2-1 (design-qa): the Games picker names the selection as the Videos one does, en and ur
   const CARET = '<i class="wq-caret" aria-hidden="true"></i>';
   const label = (h) => ((/data-tap="gpk"[^>]*>([\s\S]*?)<\/button>/.exec(h) || [])[1] || '');
