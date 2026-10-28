@@ -11,3 +11,4 @@
 {"ts":"2026-10-28T05:22:15Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"child-test=none-needed (4eccf6c62 reverts a /health field this session added; no teacher-facing change)","sha":"4eccf6c62e62","branch":"sandbox","user":"Mah Noor"}
 {"ts":"2026-10-28T05:22:15Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"fde-board-pattern=none-needed (4eccf6c62 reverts a /health field this session added; no teacher-facing change)","sha":"4eccf6c62e62","branch":"sandbox","user":"Mah Noor"}
 {"ts":"2026-10-28T05:22:16Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"a522aa7f-3527-4aa2-be0b-be22d43c2317","sha":"4eccf6c62e62","branch":"sandbox","user":"Mah Noor"}
+{"ts":"2026-10-28T05:27:20Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-dwj80f-23922: coaching spec: NOT UPDATED e2e: missing","sha":"4eccf6c62e62","branch":"bd-dwj80f-23922","user":"Mah Noor"}
