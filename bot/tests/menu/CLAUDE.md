@@ -1,6 +1,6 @@
 # menu — Regression tests for /menu button handling (reading, lesson planning)
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/menu kg=41443330d28b gen=7f78b28281a3 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/menu kg=53f2e438c73a gen=7f78b28281a3 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `issue-56-reading-assessment.test.js` — menu_reading must not import a missing module

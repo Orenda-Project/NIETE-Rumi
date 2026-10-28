@@ -1,7 +1,7 @@
 # fidelity — Lesson-plan fidelity (Section B): grade moves vs transcript, score in code
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/fidelity kg=692aad1bdb29 gen=459f9378cba1 overflow=43 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/fidelity kg=41deb22ee4e3 gen=4d1cc08eda75 overflow=43 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `fidelity-orchestrator.js` — entry point; resolves moves, grades, scores
@@ -13,8 +13,8 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `fidelity*` | 6 files; most used `fidelity-orchestrator.js`: Never-throwing orchestrator: resolves prescribed moves, grades vs transcript, scores, returns the lp_fidelity blob |
+| `CLAUDE.index.md` | (unmapped) |
 | `grader-prompt.js` | The fidelity grader brief text and user-message builder, kept in sync with the offline eval brief |
-| `grader-photo-evidence.js` | Builds the tagged classroom_photo_evidence block and credit rules appended to the fidelity grader prompt (bd-b3pop.15) |
 | … | 7 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
@@ -34,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - … 23 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/fidelity/CLAUDE.index.md`? · `bot/shared/services/coaching/fidelity/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/fidelity/CLAUDE.index.md`? · `bot/shared/services/coaching/fidelity/CLAUDE.md`? · `tests/coaching/CLAUDE.index.md`? · `tests/coaching/fidelity/CLAUDE.index.md`? (+5)

@@ -1,7 +1,7 @@
 # video — Student video pipeline: script, images, animation, assembly, watermark, queue
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/video kg=fe3362e2e4ba gen=c563807a327c overflow=30 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/video kg=ca531697a494 gen=93c1da3dbaa9 overflow=30 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `video-orchestrator.service.js` — public API and rate limiting
@@ -33,4 +33,4 @@ Full index: `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `video-generation`?
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/video/CLAUDE.index.md`? · `bot/shared/services/video/CLAUDE.md`? · `bot/tests/CLAUDE.index.md`? · `bot/tests/CLAUDE.md`? (+2)
+- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/video/CLAUDE.index.md`? · `bot/shared/services/video/CLAUDE.md`? · `bot/tests/CLAUDE.index.md`? · `bot/tests/CLAUDE.md`? (+5)

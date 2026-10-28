@@ -30,4 +30,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `svg.js` ← `tests/lp612/figure-widen-repair.test.js` · `tests/quiz/transcript-quiz-figure-adaptive-scale.test.js` · `tests/quiz/transcript-quiz-figure-part-labels.test.js` · `tests/quiz/transcript-quiz-figure-phone-scale.test.js`
 
 ## Related (all, generated)
-- docs: `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.index.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/lib/CLAUDE.index.md`? · `bot/vendor/lp-v9/diagrams/lib/CLAUDE.md`?
+- docs: `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.index.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/lib/CLAUDE.index.md`? · `bot/vendor/lp-v9/diagrams/lib/CLAUDE.md`? · `tests/lp612/CLAUDE.index.md`? · `tests/quiz/CLAUDE.index.md`?

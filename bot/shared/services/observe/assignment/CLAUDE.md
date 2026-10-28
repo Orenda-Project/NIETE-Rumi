@@ -1,6 +1,6 @@
 # assignment — Which schools and teachers a coach sees in the visit picker, and in what order
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe/assignment kg=ef41f5a14e82 gen=68cccb10f8bf overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe/assignment kg=2f0007cdfc13 gen=822675223544 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `leader-source.js` — reads leader_schools and coaching_sessions for the visit Flow
@@ -30,4 +30,4 @@ _None found in code comments, tests or git log for this directory._
 - `tests/observe/bd-5n1a2-resolve-teacher-empty-school.test.js` (leader-source.js)
 
 ## Related (generated)
-- docs: `bot/shared/services/observe/CLAUDE.index.md`? · `bot/shared/services/observe/CLAUDE.md`? · `bot/shared/services/observe/assignment/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`?
+- docs: `bot/shared/services/observe/CLAUDE.index.md`? · `bot/shared/services/observe/CLAUDE.md`? · `bot/shared/services/observe/assignment/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? · `tests/coaching/CLAUDE.index.md`? · `tests/observe/CLAUDE.index.md`? (+1)

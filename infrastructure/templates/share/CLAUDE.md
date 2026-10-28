@@ -1,6 +1,6 @@
 # share — Four 'Send on WhatsApp' share templates (en and ur) used by the teacher app
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/templates/share kg=d234a6fc8b9f gen=771a098d96d6 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/templates/share kg=4c349f388c4c gen=771a098d96d6 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `README.md` — template list, variables, no-footer/no-button rule

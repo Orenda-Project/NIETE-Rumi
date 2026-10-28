@@ -1,6 +1,6 @@
 # settings — Tests for the app_settings switch cache and outage behaviour
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/settings kg=8d47731f01c5 gen=856a812901d7 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/settings kg=308688fcf44a gen=856a812901d7 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `switch-cache.test.js` — TTL, last-good value, one read and one log per outage

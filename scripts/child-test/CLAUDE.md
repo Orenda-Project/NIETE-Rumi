@@ -1,7 +1,7 @@
 # child-test — Child reading/maths test: scoring evals and sandbox simulation helpers
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/child-test kg=d3bfd7f5c694 gen=41e651899edd overflow=47 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/child-test kg=2a614923d7e6 gen=14b84f74ec33 overflow=47 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `eval-scoring.js` — offline eval of the scoreBlock pipeline against fixture keys
@@ -12,11 +12,11 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
+| `CLAUDE.index.md` | (unmapped) |
 | `eval*` | 3 files; most used `eval-compare.js`: Shared mark-vs-key comparison functions and tolerance bands used by the child-test eval and the simulation scorer |
+| `CLAUDE.md` | (unmapped) |
 | `score-run-compare.js` | Glue that feeds one simulation run's ai_marks and coach_marks to eval-compare and prints per-field summary (bd-s1oo0.18) |
 | `seed-sandbox.js` | Idempotently seeds the NIETE sandbox with a marked test school, two classes, a coach and teachers for simulation |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | … | 1 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - … 4 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `.claude/qa/agents/niete-child-test-agent.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `docs/e2e-mock-lane.md`? · `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/child-test/CLAUDE.index.md`? (+1)
+- docs: `.claude/qa/agents/niete-child-test-agent.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `docs/CLAUDE.index.md`? · `docs/e2e-mock-lane.md`? · `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? (+6)

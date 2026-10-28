@@ -58,4 +58,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `reading-assessment`?
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/reading/CLAUDE.index.md`? · `bot/shared/services/reading/CLAUDE.md`? · `docs/agent-customization.md`? · `docs/customization.md`?
+- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/reading/CLAUDE.index.md`? · `bot/shared/services/reading/CLAUDE.md`? · `docs/CLAUDE.index.md`? · `docs/agent-customization.md`? · `docs/customization.md`? · `tests/reading/CLAUDE.md`? · `tests/reports/CLAUDE.md`?

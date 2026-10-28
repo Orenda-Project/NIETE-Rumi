@@ -1,6 +1,6 @@
 # authz — Capability gate: may this user do X, answered from feature_permissions data
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/authz kg=86808962ae97 gen=6f4e34e897d3 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/authz kg=facd8c6dcfb1 gen=622d7f5cfa8b overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `capability.js` — the one capability question for users-table roles (bd-2531)
@@ -25,4 +25,4 @@
 - `bot/tests/services/remark-wiring.test.js` (capability.js)
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/authz/CLAUDE.md`? · `bot/tests/services/CLAUDE.index.md`? · `bot/tests/services/CLAUDE.md`?
+- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/authz/CLAUDE.md`? · `bot/tests/services/CLAUDE.index.md`? · `bot/tests/services/CLAUDE.md`? · `dashboard/middleware/rbac/CLAUDE.md`?

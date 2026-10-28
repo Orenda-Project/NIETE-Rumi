@@ -1,6 +1,6 @@
 # nudges — Tests for scheduled teacher nudges: store, sweeper, PKT time, worker wiring
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/nudges kg=3ef7fb9b183b gen=36bdce131615 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/nudges kg=114c98e4ddcc gen=36bdce131615 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `teacher-nudges.sweeper.test.js` — register/claim/handler contract of the sweep

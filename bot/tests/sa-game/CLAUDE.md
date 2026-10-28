@@ -1,6 +1,6 @@
 # sa-game — Jest tests for the SA game switch, door, page route and run sink
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/sa-game kg=849ca14cf810 gen=098c58255575 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/sa-game kg=82c605fdc506 gen=098c58255575 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `sa-game-sink.test.js` — end-to-end sink over a real http server

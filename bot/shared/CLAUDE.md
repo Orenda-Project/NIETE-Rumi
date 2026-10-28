@@ -1,6 +1,6 @@
 # shared — Code shared by the web bot and workers: handlers, routes, services glue, config
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared kg=2f4a0bd52ddb gen=e2b40dc7f1a5 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared kg=4847bad968ab gen=e2b40dc7f1a5 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `handlers/text-message.handler.js` — main inbound router

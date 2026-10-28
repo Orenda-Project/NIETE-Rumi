@@ -1,7 +1,7 @@
 # diagrams — Diagram-as-code engine turning specs into deterministic SVG for LPs
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams kg=294a72284233 gen=976e9e5a2938 overflow=8 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams kg=3d9abef32c91 gen=ec9835a96714 overflow=8 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `index.js` — registry and the contract render_lp.js uses
@@ -37,4 +37,4 @@ _None found in code comments, tests or git log for this directory._
 - … 8 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/brief_author_v3.md`? · `bot/vendor/lp-v9/brief_author_v3_flash_maths.md`? · `bot/vendor/lp-v9/brief_author_v3_flash_prose.md`? (+8)
+- docs: `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/brief_author_v3.md`? · `bot/vendor/lp-v9/brief_author_v3_flash_maths.md`? · `bot/vendor/lp-v9/brief_author_v3_flash_prose.md`? (+10)

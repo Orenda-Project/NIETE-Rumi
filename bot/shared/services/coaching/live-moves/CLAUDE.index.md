@@ -41,4 +41,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `switch.js` ← `tests/coaching/live-moves/switch.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/live-moves/CLAUDE.index.md`? · `bot/shared/services/coaching/live-moves/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/live-moves/CLAUDE.index.md`? · `bot/shared/services/coaching/live-moves/CLAUDE.md`? · `tests/coaching/live-moves/CLAUDE.md`?

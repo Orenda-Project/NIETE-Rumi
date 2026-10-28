@@ -1,6 +1,6 @@
 # video — Legacy tests for the AI video generation flow (style, language, PDF, R2)
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/video kg=126af15892eb gen=24a4644c3b50 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/video kg=47e56f05e360 gen=24a4644c3b50 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `style-selection.test.js` — video style carousel keys and prefixes

@@ -1,6 +1,6 @@
 # tests — Python tests for scripts/lib modules, the test-users predicate, ledger audit
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/tests kg=d6047d4f7c1e gen=eaa09152f7f3 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/tests kg=6f22052953fd gen=eaa09152f7f3 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `test_schema_ledger_audit.py` — shows how a runner is tested against a stand-in connection

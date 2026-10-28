@@ -1,7 +1,7 @@
 # remark — Principal's Supervisor Remark (/remark): rubric walk, scores, teacher narrative
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/remark kg=84e3358553c0 gen=e3af2f8d10d2 overflow=22 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/remark kg=64db2d756640 gen=0298549922c4 overflow=22 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `remark-rubric.js` — single source of truth for indicators and scoring
@@ -34,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - … 11 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/remark/CLAUDE.index.md`? · `bot/shared/services/remark/CLAUDE.md`? · `bot/tests/services/CLAUDE.index.md`?
+- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/remark/CLAUDE.index.md`? · `bot/shared/services/remark/CLAUDE.md`? · `bot/tests/services/CLAUDE.index.md`? · `tests/llm/CLAUDE.index.md`? (+2)

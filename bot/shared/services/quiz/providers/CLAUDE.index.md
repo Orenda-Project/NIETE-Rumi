@@ -29,4 +29,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `lp612.provider.js` ← `tests/quiz/lp612-provider.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/quiz/CLAUDE.index.md`? · `bot/shared/services/quiz/CLAUDE.md`? · `bot/shared/services/quiz/providers/CLAUDE.index.md`? · `bot/shared/services/quiz/providers/CLAUDE.md`?
+- docs: `bot/shared/services/quiz/CLAUDE.index.md`? · `bot/shared/services/quiz/CLAUDE.md`? · `bot/shared/services/quiz/providers/CLAUDE.index.md`? · `bot/shared/services/quiz/providers/CLAUDE.md`? · `tests/quiz/CLAUDE.index.md`?

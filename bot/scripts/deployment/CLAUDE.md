@@ -1,7 +1,7 @@
 # deployment — Reference Meta Graph API scripts from the original Taleemabad WABA; ids are WABA-bound
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/deployment kg=dcb3089fc58e gen=78709a9ad4e9 overflow=22 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/deployment kg=788adf5603d1 gen=78709a9ad4e9 overflow=22 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `README.md` — what is reusable and what is hardcoded

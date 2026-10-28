@@ -1,7 +1,7 @@
 # calls — Tests for the live WhatsApp voice-call stack (engine, session, prompt, tools)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/calls kg=f722611a5953 gen=b94a1e668efe overflow=22 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/calls kg=39f49291ebc7 gen=b94a1e668efe overflow=22 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `call-engine.test.js` — call lifecycle state machine with fakes

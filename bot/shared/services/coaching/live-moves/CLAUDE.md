@@ -1,7 +1,7 @@
 # live-moves — Live move ticking while a teacher records in the app (group D only)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/live-moves kg=bb988b8d750e gen=15b73e6f0999 overflow=17 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/live-moves kg=8d3aaf1bab40 gen=4076d1099bbb overflow=17 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `live-moves.service.js` — logic behind /api/internal/coaching/live/*
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - … 6 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/live-moves/CLAUDE.index.md`? · `bot/shared/services/coaching/live-moves/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/live-moves/CLAUDE.index.md`? · `bot/shared/services/coaching/live-moves/CLAUDE.md`? · `tests/coaching/live-moves/CLAUDE.md`?

@@ -1,7 +1,7 @@
 # observe2 — /observe2: FICO ICT live field form, checked moments, brief and indicator levels
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe/observe2 kg=1620bfd6f940 gen=cf14be410709 overflow=88 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe/observe2 kg=a30580fca6d6 gen=3b892b07424c overflow=88 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `start.js` — command to live form
@@ -33,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - … 42 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/observe/CLAUDE.index.md`? · `bot/shared/services/observe/CLAUDE.md`? · `bot/shared/services/observe/observe2/CLAUDE.index.md`? · `bot/shared/services/observe/observe2/CLAUDE.md`? · `bot/tests/i18n/CLAUDE.md`?
+- docs: `bot/shared/services/observe/CLAUDE.index.md`? · `bot/shared/services/observe/CLAUDE.md`? · `bot/shared/services/observe/observe2/CLAUDE.index.md`? · `bot/shared/services/observe/observe2/CLAUDE.md`? · `bot/tests/i18n/CLAUDE.md`? · `tests/child-test/L4/CLAUDE.index.md`? (+4)

@@ -1,7 +1,7 @@
 # e2e — The local mock E2E lane: fake Graph API, local Postgres, local R2, stack scripts
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/e2e kg=8e271354d8f8 gen=33811a407366 overflow=18 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/e2e kg=41640515ec18 gen=3b1f9b74d046 overflow=18 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `local-stack.sh` — start the bot from one pinned commit
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `niete-mock-e2e`?
-- docs: `.claude/skills/niete-mock-e2e/reference/exit-codes.md`? · `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/e2e/CLAUDE.index.md`? · `bot/scripts/e2e/CLAUDE.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? (+13)
+- docs: `.claude/skills/niete-mock-e2e/reference/exit-codes.md`? · `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/e2e/CLAUDE.index.md`? · `bot/scripts/e2e/CLAUDE.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? (+15)

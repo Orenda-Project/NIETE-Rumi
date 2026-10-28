@@ -147,4 +147,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `training-web-link.js` ← `tests/training/web-training-link.test.js`
 
 ## Related (all, generated)
-- docs: `CLAUDE.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/training/CLAUDE.index.md`? · `bot/shared/services/training/CLAUDE.md`? · `docs/migration/02-teacher-training.md`? · `docs/reports/bug131-phase3-grand-quiz.md`?
+- docs: `CLAUDE.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/training/CLAUDE.index.md`? · `bot/shared/services/training/CLAUDE.md`? · `docs/migration/02-teacher-training.md`? · `docs/migration/CLAUDE.index.md`? · `docs/reports/CLAUDE.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `tests/app-redirect/CLAUDE.index.md`? · `tests/app-redirect/CLAUDE.md`? · `tests/portal/CLAUDE.index.md`? · `tests/training/CLAUDE.index.md`? · `tests/training/CLAUDE.md`?

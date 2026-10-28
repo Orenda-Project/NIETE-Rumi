@@ -1,7 +1,7 @@
 # nudges — Scheduled teacher nudges: store, sweeper, caps, coaching ask, quiz offer
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/nudges kg=a996d58ae1d2 gen=c6de4f19cc30 overflow=63 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/nudges kg=73da863eb2d4 gen=b5e1ec325d8e overflow=63 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `teacher-nudges.sweeper.js` — periodic tick that claims and dispatches due rows
@@ -14,8 +14,8 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `pkt-time.js` | PKT calendar arithmetic (UTC+5, no DST) for scheduling teacher nudges by school day |
 | `lp-quiz-offer.service.js` | The 15:00 PKT afternoon quiz offer built from lessons a teacher planned that day, one teacher_nudges row each |
+| `CLAUDE.index.md` | (unmapped) |
 | `lp-coaching-ask.service.js` | The coaching ask: one nudge on the first lesson plan a teacher takes in a day, offering recording and coaching |
-| `teacher-nudges.sweeper.js` | Periodic sweeper for scheduled teacher nudges: expire stuck rows, prepare cohorts, claim due rows, dispatch handlers |
 | … | 8 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
@@ -34,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - … 33 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/nudges/CLAUDE.index.md`? · `bot/shared/services/nudges/CLAUDE.md`? · `bot/tests/coaching/weekly-report/CLAUDE.index.md`? · `bot/tests/coaching/weekly-report/CLAUDE.md`? (+5)
+- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/nudges/CLAUDE.index.md`? · `bot/shared/services/nudges/CLAUDE.md`? · `bot/tests/coaching/weekly-report/CLAUDE.index.md`? · `bot/tests/coaching/weekly-report/CLAUDE.md`? (+16)

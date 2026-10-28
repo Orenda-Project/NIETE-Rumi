@@ -1,6 +1,6 @@
 # supabase — Schema dump and seed list for the local mock-lane DB
 
-<!-- kg:meta repo=NIETE-Rumi dir=supabase kg=d5a738afccaa gen=8ced8540467d overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=supabase kg=e2c9e28dfb0b gen=8ced8540467d overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `baseline/schema.sql` — sandbox schema-only dump; regenerate with local-db.sh baseline

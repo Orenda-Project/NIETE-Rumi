@@ -1,7 +1,7 @@
 # classroom-photo — Classroom photo step: capture, taps, vision reading, evidence cleaning
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/classroom-photo kg=3b1508f956c8 gen=205d8eec8aca overflow=20 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/classroom-photo kg=61d920d2f3d8 gen=d345300bb68e overflow=19 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `capture.service.js` — photos sent as documents or racing analysis, one prompt per burst
@@ -11,11 +11,12 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
+| `CLAUDE.index.md` | (unmapped) |
 | `photo*` | 4 files; most used `photo-analysis.service.js`: Vision-model reading of a classroom photo with framework prompts, plus the v2 fidelity-evidence reader |
+| `CLAUDE.md` | (unmapped) |
 | `add-another.service.js` | Handles the photo_more_ "Add another" tap, reopening the photo step only when the session status allows (bd-pzs9a) |
 | `capture.service.js` | Captures classroom photos sent as documents or racing analysis; debounces one receipt prompt per photo burst (bd-3ipd2) |
-| `scorer-image.js` | Downscales a classroom photo to 768px JPEG for the scoring call using lazily loaded sharp (bd-8s2xb) |
-| … | 2 more → `CLAUDE.index.md` |
+| … | 1 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - table `coaching_sessions` (written by `add-another.service.js` (+1)) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? (+88)
@@ -32,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - … 8 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.index.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.index.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.md`? · `tests/coaching/CLAUDE.index.md`? · `tests/llm/CLAUDE.index.md`? (+4)

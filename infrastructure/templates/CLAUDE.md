@@ -1,7 +1,7 @@
 # templates — WhatsApp message template JSON per WABA, plus submit and re-upload scripts
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/templates kg=a9b84b115de4 gen=e03508eee371 overflow=4 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/templates kg=fdc27be83b83 gen=3ea5ffa9f80a overflow=4 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `README.md` — which templates were harvested, submitted or skipped, and why
@@ -15,8 +15,8 @@ Full index: `CLAUDE.index.md`
 | `share/` | Four 'Send on WhatsApp' share templates (en and ur) used by the teacher app → `share/CLAUDE.md` |
 | `README.md` | Explains NIETE WhatsApp templates harvested from the PK WABA, per-WABA resubmission and submission status (July 2026) |
 | `CLAUDE.md` | (unmapped) |
-| `publish-templates.sh` | Shell script that submits every top-level template JSON in this folder to the NIETE WABA via the Graph API |
 | `CLAUDE.index.md` | (unmapped) |
+| `publish-templates.sh` | Shell script that submits every top-level template JSON in this folder to the NIETE WABA via the Graph API |
 | `feature_menu_carousel_v3.json` | MARKETING carousel template (video cards) advertising the feature menu, submitted to the NIETE WABA |
 | `message_templates_readingtest_v2_marketing_e4c46.json` | Harvested MARKETING copy of the reading-test invitation template under its Meta-generated name |
 | `quiz_invitation_en.json` | English UTILITY template inviting a child/parent to a quiz; approved on the NIETE WABA |
@@ -36,4 +36,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `docs/migration/DEPLOYMENT.md`? · `infrastructure/CLAUDE.index.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/templates/CLAUDE.index.md`? · `infrastructure/templates/CLAUDE.md`? · `infrastructure/templates/README.md`? (+4)
+- docs: `dashboard/services/CLAUDE.index.md`? · `docs/migration/CLAUDE.index.md`? · `docs/migration/DEPLOYMENT.md`? · `infrastructure/CLAUDE.index.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/templates/CLAUDE.index.md`? (+6)

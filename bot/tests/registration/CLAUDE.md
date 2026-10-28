@@ -1,6 +1,6 @@
 # registration — Tests for registration Flow, /register and persistence of name and role
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/registration kg=4097b251e175 gen=8ae83bb16aa4 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/registration kg=0d1f3e36c435 gen=8ae83bb16aa4 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `bd-2480-2773-persist-per-screen.test.js` — each screen writes to the user row

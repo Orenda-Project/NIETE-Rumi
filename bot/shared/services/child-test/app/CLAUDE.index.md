@@ -60,4 +60,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `sa-review.service.js` ← `bot/tests/child-test/sa-review.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/app/CLAUDE.index.md`? · `bot/shared/services/child-test/app/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`? · `bot/tests/child-test/CLAUDE.md`?
+- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/app/CLAUDE.index.md`? · `bot/shared/services/child-test/app/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`? · `bot/tests/child-test/CLAUDE.md`? · `tests/child-test/L0/CLAUDE.md`? · `tests/child-test/L16/CLAUDE.md`? · `tests/child-test/L7/CLAUDE.index.md`? · `tests/child-test/L7/CLAUDE.md`?

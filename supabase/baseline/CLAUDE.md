@@ -1,7 +1,7 @@
 # baseline — Sandbox schema dump plus seed lists that build the local test database
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=supabase/baseline kg=d5c627094bd7 gen=d97f9fd2a9f6 overflow=843 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=supabase/baseline kg=559962f62b3c gen=c026398c1adc overflow=843 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `schema.sql` — schema-only dump; regenerate, never hand-edit (line 2)
@@ -12,9 +12,9 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `schema.sql` | Schema-only pg_dump baseline of the NIETE sandbox DB (2026-10-14) used to build the local mock-lane database |
-| `seed*` | 5 files; most used `seed-overrides.sql`: Overrides applied after the seed to switch off global app_settings flags copied from sandbox so the lane decides them |
 | `CLAUDE.index.md` | (unmapped) |
 | `CLAUDE.md` | (unmapped) |
+| `seed*` | 5 files; most used `seed-overrides.sql`: Overrides applied after the seed to switch off global app_settings flags copied from sandbox so the lane decides them |
 | `schema.objects.txt` | Flat list of every public column and function in the sandbox schema, compared by local-db.sh drift |
 
 ## Who reads this (generated)
@@ -33,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `docs/e2e-mock-lane.md`? · `docs/onboarding/local-portal.md`? · `supabase/CLAUDE.md`? · `supabase/baseline/CLAUDE.index.md`? · `supabase/baseline/CLAUDE.md`?
+- docs: `docs/CLAUDE.index.md`? · `docs/e2e-mock-lane.md`? · `docs/onboarding/local-portal.md`? · `supabase/CLAUDE.md`? · `supabase/baseline/CLAUDE.index.md`? · `supabase/baseline/CLAUDE.md`?

@@ -1,6 +1,6 @@
 # i18n — Tests that Urdu/RTL strings keep slash commands readable
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/i18n kg=7e0795062651 gen=464775efb577 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/i18n kg=d60b1ba327d4 gen=464775efb577 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `slash-command-bidi.test.js` — commands wrapped in bidi isolates in every RTL state string

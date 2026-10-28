@@ -1,7 +1,7 @@
 # types — One file per diagram kind (atom, graph, circuit, clock, panels, ...)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams/types kg=808b84f58e51 gen=398365ebf466 overflow=24 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams/types kg=6ba4c49fdfc5 gen=54167887ad34 overflow=24 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `panels.js` — 2-3 side-by-side bordered comparison panels
@@ -37,4 +37,4 @@ _None found in code comments, tests or git log for this directory._
 - `tests/quiz/transcript-quiz-figure-early-years.test.js` (word_blank.js)
 
 ## Related (generated)
-- docs: `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.index.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/types/CLAUDE.index.md`? (+1)
+- docs: `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.index.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/types/CLAUDE.index.md`? (+2)

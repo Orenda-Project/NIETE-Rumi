@@ -1,7 +1,7 @@
 # web-quiz — Jest suite for the kid-facing web quiz, hub, Challenge, stories and share flows
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz/web-quiz kg=054cf1dc1073 gen=f09e862f6ea8 overflow=448 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz/web-quiz kg=0e7b1dfb6144 gen=1d90de5f3b71 overflow=448 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `web-quiz.service.test.js` — core web child quiz service: endpoints, one-attempt, 503 when off
@@ -33,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/quiz/CLAUDE.index.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/data/child-test/CLAUDE.index.md`? · `bot/shared/data/child-test/CLAUDE.md`? · `bot/shared/routes/CLAUDE.index.md`? (+28)
+- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/quiz/CLAUDE.index.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/data/child-test/CLAUDE.index.md`? · `bot/shared/data/child-test/CLAUDE.md`? · `bot/shared/routes/CLAUDE.index.md`? (+30)

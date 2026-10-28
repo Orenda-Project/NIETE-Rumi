@@ -61,4 +61,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `video-generation`?
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/video/CLAUDE.index.md`? · `bot/shared/services/video/CLAUDE.md`? · `bot/tests/CLAUDE.index.md`? · `bot/tests/CLAUDE.md`? · `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/tests/video/CLAUDE.md`?
+- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/video/CLAUDE.index.md`? · `bot/shared/services/video/CLAUDE.md`? · `bot/tests/CLAUDE.index.md`? · `bot/tests/CLAUDE.md`? · `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/tests/video/CLAUDE.md`? · `tests/conversation-state/CLAUDE.index.md`? · `tests/conversation-state/CLAUDE.md`? · `tests/student-videos/CLAUDE.md`?

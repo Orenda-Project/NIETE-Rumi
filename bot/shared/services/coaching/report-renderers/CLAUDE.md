@@ -1,6 +1,6 @@
 # report-renderers — Registry choosing the report renderer (hero PNG or PDFKit fallback)
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-renderers kg=c6de0044da31 gen=d6324b2a35cb overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-renderers kg=467cf8ad95c3 gen=70a092a167a1 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `renderer-registry.js` — framework key to renderer
@@ -27,4 +27,4 @@ _None found in code comments, tests or git log for this directory._
 - `tests/coaching/report-renderer-registry.test.js` (renderer-registry.js)
 
 ## Related (generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/report-renderers/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/tests/unit/CLAUDE.md`? · `docs/agent-customization.md`? (+1)
+- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/report-renderers/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/tests/unit/CLAUDE.md`? · `docs/CLAUDE.index.md`? (+3)

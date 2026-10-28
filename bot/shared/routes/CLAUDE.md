@@ -1,7 +1,7 @@
 # routes — HTTP endpoints: encrypted WhatsApp Flow data exchange and /api/internal routes
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/routes kg=efedc36a6c7f gen=2638ad7e5e28 overflow=375 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/routes kg=36276dce6bb1 gen=1af8967f654f overflow=374 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `flow-endpoint.routes.js` — Flow dispatcher
@@ -13,9 +13,10 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `web-quiz-internal.routes.js` | /api/internal/wq/* routes for the web child quiz, forwarded by the portal; logic lives in web-quiz.service |
+| `CLAUDE.index.md` | (unmapped) |
 | `internal*` | 6 files; most used `internal-api.routes.js`: Internal service-to-service API (/api/internal, x-api-key) used by the portal: LP enqueue, training, classes etc. |
 | `teacher*` | 4 files; most used `teacher-training-endpoint.js`: Teacher Training Flow endpoint: vendor picker, training home level cards, level detail with modules and grand quiz |
-| … | 30 more → `CLAUDE.index.md` |
+| … | 29 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - table `users` (written by `registration-endpoint.js` (+1)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+171)
@@ -34,4 +35,4 @@ Full index: `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `registration`?
-- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/shared/CLAUDE.md`? · `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/routes/CLAUDE.md`? · `bot/tests/lp-v8/CLAUDE.index.md`? (+14)
+- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/shared/CLAUDE.md`? · `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/routes/CLAUDE.md`? · `bot/tests/lp-v8/CLAUDE.index.md`? (+61)

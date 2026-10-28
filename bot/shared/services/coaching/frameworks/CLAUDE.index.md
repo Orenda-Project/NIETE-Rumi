@@ -36,4 +36,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `coaching`?
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/frameworks/CLAUDE.index.md`? · `bot/shared/services/coaching/frameworks/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? · `docs/customization.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/frameworks/CLAUDE.index.md`? · `bot/shared/services/coaching/frameworks/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? · `docs/CLAUDE.index.md`? · `docs/customization.md`? · `tests/coaching/CLAUDE.index.md`?

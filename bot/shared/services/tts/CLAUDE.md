@@ -1,7 +1,7 @@
 # tts — Voice gateway for all voice notes: routing, providers, Ogg Opus and text prep
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/tts kg=ba3c49b55e98 gen=c2aef5c8fb7c overflow=13 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/tts kg=5c6adb2f4f23 gen=a3d159068e41 overflow=13 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `index.js` — synthesize, the one entry features call
@@ -15,8 +15,8 @@ Full index: `CLAUDE.index.md`
 | `providers/` | Concrete TTS vendors: ElevenLabs, OpenAI and Soniox behind the gateway → `providers/CLAUDE.md` |
 | `text/` | → (no door; 2 files) |
 | `index.js` | Voice gateway: the one entry (synthesize) any feature uses to get a voice note, routed by use case |
-| `ogg-opus.js` | Ogg Opus toolkit: parse, check completeness, measure duration and join clips for the TTS gateway |
 | `CLAUDE.index.md` | (unmapped) |
+| `ogg-opus.js` | Ogg Opus toolkit: parse, check completeness, measure duration and join clips for the TTS gateway |
 | `CLAUDE.md` | (unmapped) |
 | `routing.js` | Routes a TTS use case to an ordered provider chain from configuration (resolveChain) |
 
@@ -40,4 +40,4 @@ Full index: `CLAUDE.index.md`
 - … 13 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/tts/CLAUDE.index.md`? · `bot/shared/services/tts/CLAUDE.md`? · `bot/shared/services/tts/providers/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? (+2)
+- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/tts/CLAUDE.index.md`? · `bot/shared/services/tts/CLAUDE.md`? · `bot/shared/services/tts/providers/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? (+4)

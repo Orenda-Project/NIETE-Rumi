@@ -1,7 +1,7 @@
 # web-quiz — Web quiz content loading, backfills and by-hand health runs
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/web-quiz kg=cd58c066b629 gen=2959d1859b5e overflow=3 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/web-quiz kg=b738884661a2 gen=2959d1859b5e overflow=3 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `load-stories.js` — loads storybooks into one environment, --expect-ref guarded

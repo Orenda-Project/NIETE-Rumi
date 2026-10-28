@@ -1,7 +1,7 @@
 # database — Legacy v3.0 schema, guides and ad-hoc SQL migrations from the main-bot era
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/database kg=af87bbf88c68 gen=7b9c01647e6f overflow=22 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/database kg=06bfff987d2c gen=69848e4971d2 overflow=22 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `migrations/web_quiz_challenge_registry.sql` — requires:/rollback-pair header style; apply sandbox first
@@ -33,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/database/CLAUDE.index.md`? · `bot/database/CLAUDE.md`? · `bot/database/SCHEMA_GUIDE.md`? · `bot/database/SESSION_MIGRATION_GUIDE.md`? (+3)
+- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/database/CLAUDE.index.md`? · `bot/database/CLAUDE.md`? · `bot/database/SCHEMA_GUIDE.md`? · `bot/database/SESSION_MIGRATION_GUIDE.md`? (+4)

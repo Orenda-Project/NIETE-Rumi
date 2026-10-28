@@ -41,4 +41,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `scorer-image.js` ← `tests/coaching/bd-8s2xb-scorer-image-encode.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.index.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.index.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.md`? · `tests/coaching/CLAUDE.index.md`? · `tests/llm/CLAUDE.index.md`? · `tests/llm/CLAUDE.md`? · `tests/meta-bill-cut/CLAUDE.md`? · `tests/observe2/CLAUDE.index.md`? · `tests/observe2/CLAUDE.md`?

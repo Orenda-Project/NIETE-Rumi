@@ -1,7 +1,7 @@
 # workers — SQS job worker, cron sweeps and per-job handlers run outside the web process
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/workers kg=a6d42265fbc9 gen=cae49c83d6b3 overflow=130 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/workers kg=2efc566a6048 gen=cd3fb9ff29a2 overflow=130 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `sqs-worker.js` — queue poller and jobType router
@@ -13,9 +13,9 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `sqs-worker.js` | Main SQS worker entry: long-polls queues and routes each jobType to its handler with visibility heartbeats |
 | `lp612-author.worker.js` | SQS job authoring, rendering, storing and delivering a 6-12 lesson for one segment/lang/template version |
+| `CLAUDE.index.md` | (unmapped) |
 | `stale-session.worker.js` | 15-minute Railway cron sweeping stuck coaching sessions: reminders, auto-complete, recovery |
 | `lesson-plan-generation.worker.js` | SQS lesson-plan generation worker with retries, apology on max failures and free-form track routing |
-| `CLAUDE.index.md` | (unmapped) |
 | … | 11 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
@@ -35,5 +35,5 @@ Full index: `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `coaching`? · `video-generation`?
-- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/tests/nudges/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/tests/push/CLAUDE.md`? (+18)
+- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/tests/nudges/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/tests/push/CLAUDE.md`? (+32)
 - … 1 more → `CLAUDE.index.md`

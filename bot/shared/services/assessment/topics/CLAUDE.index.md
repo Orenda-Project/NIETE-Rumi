@@ -53,4 +53,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `topics.repo.js` ← `tests/assessment/topics/topics.repo.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/assessment/CLAUDE.index.md`? · `bot/shared/services/assessment/CLAUDE.md`? · `bot/shared/services/assessment/topics/CLAUDE.index.md`? · `bot/shared/services/assessment/topics/CLAUDE.md`?
+- docs: `bot/shared/services/assessment/CLAUDE.index.md`? · `bot/shared/services/assessment/CLAUDE.md`? · `bot/shared/services/assessment/topics/CLAUDE.index.md`? · `bot/shared/services/assessment/topics/CLAUDE.md`? · `tests/assessment/topics/CLAUDE.index.md`? · `tests/assessment/topics/CLAUDE.md`?

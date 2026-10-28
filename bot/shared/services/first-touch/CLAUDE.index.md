@@ -170,4 +170,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `walk-persona.js` ← `bot/tests/first-touch/walk-persona-seam.test.js` · `bot/tests/settings/switch-outage.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/first-touch/CLAUDE.index.md`? · `bot/shared/services/first-touch/CLAUDE.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/push/CLAUDE.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `bot/tests/settings/CLAUDE.md`?
+- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/first-touch/CLAUDE.index.md`? · `bot/shared/services/first-touch/CLAUDE.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/push/CLAUDE.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `bot/tests/settings/CLAUDE.md`? · `dashboard/tests/CLAUDE.index.md`? · `dashboard/tests/CLAUDE.md`?

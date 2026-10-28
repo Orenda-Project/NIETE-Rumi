@@ -41,4 +41,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `sa.coach.G3.A.en.json` ← `dashboard/tests/sa-tester-fixes.service.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/data/child-test/CLAUDE.index.md`? · `bot/shared/data/child-test/CLAUDE.md`? · `bot/shared/data/child-test/sa/CLAUDE.index.md`? · `bot/shared/data/child-test/sa/CLAUDE.md`?
+- docs: `bot/shared/data/child-test/CLAUDE.index.md`? · `bot/shared/data/child-test/CLAUDE.md`? · `bot/shared/data/child-test/sa/CLAUDE.index.md`? · `bot/shared/data/child-test/sa/CLAUDE.md`? · `dashboard/tests/CLAUDE.index.md`? · `dashboard/tests/CLAUDE.md`?

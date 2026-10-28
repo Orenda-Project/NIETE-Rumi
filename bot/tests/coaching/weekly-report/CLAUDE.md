@@ -1,7 +1,7 @@
 # weekly-report — Jest suites for the weekly usage report and its fake supabase
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/coaching/weekly-report kg=729ac57e772b gen=0077074a518b overflow=1 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/coaching/weekly-report kg=3177e91802e1 gen=0077074a518b overflow=1 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `job.test.js` — prepare and send behaviour

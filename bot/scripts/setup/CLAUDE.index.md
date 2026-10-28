@@ -55,4 +55,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `whatsapp-flows`?
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/setup/CLAUDE.index.md`? · `bot/scripts/setup/CLAUDE.md`? · `bot/scripts/templates/CLAUDE.md`? · `bot/scripts/templates/README.md`? · `docs/e2e-mock-lane.md`? · `docs/templates/roster-change-notification.md`?
+- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/setup/CLAUDE.index.md`? · `bot/scripts/setup/CLAUDE.md`? · `bot/scripts/templates/CLAUDE.md`? · `bot/scripts/templates/README.md`? · `docs/CLAUDE.index.md`? · `docs/e2e-mock-lane.md`? · `docs/templates/roster-change-notification.md`? · `tests/child-test/L28/CLAUDE.md`? · `tests/child-test/L6/CLAUDE.index.md`? · `tests/child-test/L6/CLAUDE.md`? · `tests/quiz/CLAUDE.index.md`? · `tests/quiz/CLAUDE.md`? · `tests/registration/CLAUDE.index.md`? · `tests/registration/CLAUDE.md`? · `tests/setup/CLAUDE.index.md`? · `tests/setup/CLAUDE.md`? · `tests/training/CLAUDE.index.md`? · `tests/training/CLAUDE.md`?

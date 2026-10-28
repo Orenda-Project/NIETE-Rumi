@@ -1,7 +1,7 @@
 # report-v2 — Hero report: score view model, narrative, templates, PNG image
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-v2 kg=fa529a2ae535 gen=6a4969df4a8c overflow=65 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-v2 kg=74291be9515f gen=c96422b8a1ba overflow=64 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `hero-report.service.js` — the render pipeline
@@ -15,7 +15,8 @@ Full index: `CLAUDE.index.md`
 | `score-adapters/` | One score adapter per framework, turning analysis into scorecard groups → `score-adapters/CLAUDE.md` |
 | `hero*` | 3 files; most used `hero-report.template.js`: Builds the hero report HTML (score header, scorecard, moment, horizon, trend) with embedded fonts for en/sw/ur |
 | `narrative.service.js` | LLM celebration-narrative pass (headline, moments, strength, horizon, section whys) over transcript and scores |
-| … | 10 more → `CLAUDE.index.md` |
+| `CLAUDE.index.md` | (unmapped) |
+| … | 9 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - table `coaching_sessions` (written by `narrative-store.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? (+87)
@@ -33,4 +34,4 @@ Full index: `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `coaching`?
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.md`? (+4)
+- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.md`? (+11)

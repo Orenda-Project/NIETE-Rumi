@@ -1,7 +1,7 @@
 # services — Tests for services: /remark (STEPS S), transcription, LP matching, vision
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/services kg=72c69d3b9f7b gen=10f8be1b40b8 overflow=14 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/services kg=ff6613b31a30 gen=10f8be1b40b8 overflow=14 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `remark-rubric.test.js` — rubric contract behind /remark scoring

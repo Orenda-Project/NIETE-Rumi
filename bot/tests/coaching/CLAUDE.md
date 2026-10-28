@@ -1,7 +1,7 @@
 # coaching — Jest suites for coaching: guards, report sending, language, subject resolution
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/coaching kg=aef42e5d7bed gen=c86c6e52c658 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/coaching kg=be781f07b073 gen=c86c6e52c658 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `bd-n9832-terminal-guard-owners.test.js` — terminal guard contract

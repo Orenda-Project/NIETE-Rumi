@@ -25,4 +25,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `routing.js` ← `tests/tts/routing.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/tts/CLAUDE.index.md`? · `bot/shared/services/tts/CLAUDE.md`? · `bot/shared/services/tts/providers/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `docs/customization.md`?
+- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/tts/CLAUDE.index.md`? · `bot/shared/services/tts/CLAUDE.md`? · `bot/shared/services/tts/providers/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `docs/CLAUDE.index.md`? · `docs/customization.md`? · `tests/tts/CLAUDE.md`?

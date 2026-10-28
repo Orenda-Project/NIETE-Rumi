@@ -58,4 +58,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `voice-manifest.js` ← `bot/tests/child-test/record-sa-voice-v4.test.js` · `bot/tests/child-test/sa-rdf-w3.test.js` · `bot/tests/child-test/sa-voice-sustained-sounds.test.js` · `bot/tests/child-test/sa-voice-tashdeed.test.js` · `bot/tests/child-test/sa-voice.test.js` · `dashboard/tests/sa-voice-v4-timings.service.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/sa/CLAUDE.index.md`? · `bot/shared/services/child-test/sa/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`?
+- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/sa/CLAUDE.index.md`? · `bot/shared/services/child-test/sa/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`? · `dashboard/tests/CLAUDE.index.md`? · `dashboard/tests/CLAUDE.md`? · `portal/src/portal/fln/tests/CLAUDE.index.md`? · `portal/src/portal/fln/tests/CLAUDE.md`?

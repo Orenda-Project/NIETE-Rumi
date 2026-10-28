@@ -1,7 +1,7 @@
 # roster — /roster pipeline: decrypt photo, vision-extract rows, edit lines, store photos
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/roster kg=6929948f0d19 gen=e7bed10c948c overflow=3 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/roster kg=fcfbbb70ca36 gen=0184604c4d0f overflow=5 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `roster-extraction.service.js` — register photo to structured rows
@@ -35,9 +35,7 @@ Full index: `CLAUDE.index.md`
 - `tests/roster/roster-extraction-identity.test.js` (roster-extraction.service.js)
 - `tests/roster/roster-extraction-rows.test.js` (roster-extraction.service.js)
 - `tests/roster/roster-failure-copy.test.js` (roster-extraction.service.js)
-- `tests/roster/roster-identity-not-position.test.js` (roster-lines.js)
-- `tests/roster/roster-lines.test.js` (roster-lines.js)
-- … 3 more → `CLAUDE.index.md`
+- … 5 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/roster/CLAUDE.index.md`? · `bot/shared/services/roster/CLAUDE.md`?
+- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/roster/CLAUDE.index.md`? · `bot/shared/services/roster/CLAUDE.md`? · `tests/database/CLAUDE.index.md`? · `tests/database/CLAUDE.md`? (+3)

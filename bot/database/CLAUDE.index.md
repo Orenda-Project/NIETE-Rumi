@@ -45,4 +45,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/database/CLAUDE.index.md`? · `bot/database/CLAUDE.md`? · `bot/database/SCHEMA_GUIDE.md`? · `bot/database/SESSION_MIGRATION_GUIDE.md`? · `bot/database/migrations/CLAUDE.index.md`? · `bot/database/migrations/CLAUDE.md`? · `docs/data-standards.md`?
+- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/database/CLAUDE.index.md`? · `bot/database/CLAUDE.md`? · `bot/database/SCHEMA_GUIDE.md`? · `bot/database/SESSION_MIGRATION_GUIDE.md`? · `bot/database/migrations/CLAUDE.index.md`? · `bot/database/migrations/CLAUDE.md`? · `docs/CLAUDE.index.md`? · `docs/data-standards.md`?

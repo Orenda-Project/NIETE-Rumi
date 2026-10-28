@@ -49,4 +49,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `remark-write.repository.js` ← `bot/tests/services/remark-write.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/remark/CLAUDE.index.md`? · `bot/shared/services/remark/CLAUDE.md`? · `bot/tests/services/CLAUDE.index.md`?
+- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/remark/CLAUDE.index.md`? · `bot/shared/services/remark/CLAUDE.md`? · `bot/tests/services/CLAUDE.index.md`? · `tests/llm/CLAUDE.index.md`? · `tests/llm/CLAUDE.md`? · `tests/remark/CLAUDE.md`?

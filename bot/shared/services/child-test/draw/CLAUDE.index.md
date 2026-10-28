@@ -33,4 +33,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `visit-key.js` ← `tests/child-test/L3b/machine-visit-key.test.js` · `tests/child-test/L3b/visit-key-grade.test.js` · `tests/child-test/L3b/visit-key.test.js` · `tests/child-test/L4/integration-l3.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/draw/CLAUDE.index.md`? · `bot/shared/services/child-test/draw/CLAUDE.md`? · `bot/tests/sa-game/CLAUDE.md`?
+- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/draw/CLAUDE.index.md`? · `bot/shared/services/child-test/draw/CLAUDE.md`? · `bot/tests/sa-game/CLAUDE.md`? · `tests/child-test/L20/CLAUDE.md`? · `tests/child-test/L25/CLAUDE.md`? · `tests/child-test/L3/CLAUDE.md`? · `tests/child-test/L3b/CLAUDE.md`? · `tests/child-test/L4/CLAUDE.index.md`? · `tests/child-test/L4/CLAUDE.md`?

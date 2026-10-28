@@ -1,6 +1,6 @@
 # routes — Tests for Flow endpoints and training unlock routes
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/routes kg=6d0d11229012 gen=c31596083230 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/routes kg=206e49d48b98 gen=c31596083230 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `student-videos-endpoint.test.js` — Student Videos Flow screens

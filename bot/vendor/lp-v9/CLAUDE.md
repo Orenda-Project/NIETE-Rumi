@@ -1,7 +1,7 @@
 # lp-v9 — Hand-vendored Grades 6-12 LP pipeline: brief, schema, lint, renderer, diagram engine
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9 kg=6e8dee219e2b gen=a4b953aef6e9 overflow=20 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9 kg=48f375e11f9a gen=1a2cc7ed5318 overflow=20 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `SYNC.md` — upstream source and every divergence
@@ -39,4 +39,4 @@ Full index: `CLAUDE.index.md`
 - … 12 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/shared/CLAUDE.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/config/CLAUDE.md`? · `bot/shared/services/CLAUDE.index.md`? (+32)
+- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/shared/CLAUDE.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/config/CLAUDE.md`? · `bot/shared/services/CLAUDE.index.md`? (+38)

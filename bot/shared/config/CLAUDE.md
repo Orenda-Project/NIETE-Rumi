@@ -1,7 +1,7 @@
 # config — Configuration, feature flags, language registry, model registry, copy catalogs
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/config kg=9cde2b752008 gen=050871e0c940 overflow=919 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/config kg=a3e15214793a gen=d7ed336f986b overflow=918 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `languages.js` — Urdu/English registry all lists derive from
@@ -15,8 +15,9 @@ Full index: `CLAUDE.index.md`
 | `__mocks__/` | → (no door; 1 test files) |
 | `supabase.js` | Supabase client singleton and cold-boot env gate that exits 78 when URL or service key is missing |
 | `ux-strings.js` | Teacher-facing fixed-copy catalog plus the language clamp deciding which language a surface may render |
+| `CLAUDE.index.md` | (unmapped) |
 | `languages.js` | Language registry: single list (Urdu, English) every other language list derives from |
-| … | 36 more → `CLAUDE.index.md` |
+| … | 35 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `supabase.js` ← imported by `bot/scripts/apply-lp612-figure-notes.js:28:bdc9e340` · `bot/scripts/assessment/backfill-paper-versions.js:101:eb082fc4` (+439)
@@ -37,4 +38,4 @@ Full index: `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `digital-coach`? · `registration`? · `setup`?
-- docs: `.github/CONTRIBUTING.md`? · `AGENTS.md`? · `CLAUDE.md`? · `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/scripts/e2e/CLAUDE.index.md`? (+35)
+- docs: `.github/CONTRIBUTING.md`? · `AGENTS.md`? · `CLAUDE.md`? · `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/scripts/e2e/CLAUDE.index.md`? (+82)

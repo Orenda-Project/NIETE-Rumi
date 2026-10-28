@@ -1,7 +1,7 @@
 # patterns — Board-pattern definitions (FDE grades 1, 2, 5) as frozen data
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/patterns kg=b0257ef714a7 gen=9b5aa9fc9430 overflow=113 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/patterns kg=100d789c8c42 gen=aa089dc640b6 overflow=113 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `index.js` — registry and derived views used by routes and generator
@@ -37,4 +37,4 @@ Full index: `CLAUDE.index.md`
 - … 113 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/assessment/CLAUDE.index.md`? · `bot/shared/services/assessment/CLAUDE.md`? · `bot/shared/services/assessment/patterns/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/CLAUDE.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.md`?
+- docs: `bot/shared/services/assessment/CLAUDE.index.md`? · `bot/shared/services/assessment/CLAUDE.md`? · `bot/shared/services/assessment/patterns/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/CLAUDE.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.md`? (+1)

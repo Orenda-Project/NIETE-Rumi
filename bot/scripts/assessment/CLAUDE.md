@@ -1,7 +1,7 @@
 # assessment — Backfills for exam-paper versioning (edited_from families)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/assessment kg=2e071417a5dd gen=48d9ec36eba3 overflow=11 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/assessment kg=c36f86a2837e gen=7c181082e0f5 overflow=11 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `backfill-paper-versions.js` — turns old edited papers into two versions
@@ -11,9 +11,9 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `backfill-paper-versions.js` | One-off dry-run-first backfill turning pre-versioning edited papers into two versions; needs --expect-ref guard |
 | `CLAUDE.index.md` | (unmapped) |
 | `CLAUDE.md` | (unmapped) |
+| `backfill-paper-versions.js` | One-off dry-run-first backfill turning pre-versioning edited papers into two versions; needs --expect-ref guard |
 | `repair-backfilled-v1-created-at.js` | Repairs v1 rows the first paper-versions backfill wrote with wrong created_at (bd-5ioto.11); dry run default |
 
 ## Who reads this (generated)
@@ -31,4 +31,4 @@ Full index: `CLAUDE.index.md`
 - `tests/assessment/backfill-paper-versions.test.js` (backfill-paper-versions.js)
 
 ## Related (generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/assessment/CLAUDE.index.md`? · `bot/scripts/assessment/CLAUDE.md`?
+- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/assessment/CLAUDE.index.md`? · `bot/scripts/assessment/CLAUDE.md`? · `tests/assessment/CLAUDE.index.md`? · `tests/assessment/CLAUDE.md`?

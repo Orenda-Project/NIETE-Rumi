@@ -1,7 +1,7 @@
 # early — Grade 1-2 FDE subject patterns plus their shared chrome
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/patterns/early kg=91030c54075a gen=fb5fbd4859e3 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/patterns/early kg=c986a1215375 gen=118fd1c68af8 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `chrome.js` — shared header, legend, slot defaults and the build helpers
@@ -37,4 +37,4 @@ _None found in code comments, tests or git log for this directory._
 - `tests/assessment/fde-early-pictures-pattern.test.js` (chrome.js)
 
 ## Related (generated)
-- docs: `bot/shared/services/assessment/patterns/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/CLAUDE.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.md`?
+- docs: `bot/shared/services/assessment/patterns/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/CLAUDE.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.md`? · `tests/assessment/CLAUDE.index.md`?

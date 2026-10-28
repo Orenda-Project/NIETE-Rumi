@@ -1,6 +1,6 @@
 # whatsapp — Tests for the WhatsApp transport: username senders and audio sending
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/whatsapp kg=9ba7091d4eb3 gen=26e399fe8c77 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/whatsapp kg=97cb421fea6e gen=26e399fe8c77 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `phoneless-inbound.test.js` — webhook senders with no phone number

@@ -1,7 +1,7 @@
 # providers — Lesson providers for /quiz that make a quiz from a Grades 6-12 lesson plan
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/quiz/providers kg=97692e72e92d gen=3bd4d5d695a3 overflow=8 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/quiz/providers kg=bff5ca83818e gen=3ecb9f9b589d overflow=8 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `lp612.provider.js` — lists received 6-12 plans and creates the lp612 quiz only when tapped
@@ -10,9 +10,9 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `lp612.provider.js` | /quiz lesson provider listing Grades 6-12 plans a teacher received; makes an lp612 quiz only on tap |
 | `CLAUDE.index.md` | (unmapped) |
 | `CLAUDE.md` | (unmapped) |
+| `lp612.provider.js` | /quiz lesson provider listing Grades 6-12 plans a teacher received; makes an lp612 quiz only on tap |
 
 ## Who reads this (generated)
 - table `quizzes` (written by `lp612.provider.js`) ← read by `bot/scripts/quiz/backfill-bank-quiz-audio.js:134:6e461853`? · `bot/scripts/quiz/restore-bank-recorded-voices.js:107:5a5a53e8`? (+60)
@@ -31,4 +31,4 @@ Full index: `CLAUDE.index.md`
 - `tests/quiz/lp612-provider.test.js` (lp612.provider.js)
 
 ## Related (generated)
-- docs: `bot/shared/services/quiz/CLAUDE.index.md`? · `bot/shared/services/quiz/CLAUDE.md`? · `bot/shared/services/quiz/providers/CLAUDE.index.md`? · `bot/shared/services/quiz/providers/CLAUDE.md`?
+- docs: `bot/shared/services/quiz/CLAUDE.index.md`? · `bot/shared/services/quiz/CLAUDE.md`? · `bot/shared/services/quiz/providers/CLAUDE.index.md`? · `bot/shared/services/quiz/providers/CLAUDE.md`? · `tests/quiz/CLAUDE.index.md`?

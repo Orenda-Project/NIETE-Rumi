@@ -1,7 +1,7 @@
 # assessment — Assessment (exam paper) generator: textbook pages to marked, rendered papers
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment kg=7b339a9d1154 gen=1bccc375bed1 overflow=276 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment kg=7904576b8c06 gen=3fd2513ec0c6 overflow=276 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `assessment-orchestrator.service.js` — runs a queued request end to end (generate, render, deliver)
@@ -33,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - … 197 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/assessment/CLAUDE.index.md`? · `bot/shared/services/assessment/CLAUDE.md`? · `bot/shared/services/assessment/patterns/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/CLAUDE.md`? (+3)
+- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/assessment/CLAUDE.index.md`? · `bot/shared/services/assessment/CLAUDE.md`? · `bot/shared/services/assessment/patterns/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/CLAUDE.md`? (+8)

@@ -34,4 +34,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `training-band-derivation.js` ← `tests/training/bd-2672-backfill-assignment.test.js` · `tests/training/bd-43478-band-selection.test.js`
 
 ## Related (all, generated)
-- docs: `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/lib/CLAUDE.index.md`? · `scripts/lib/CLAUDE.md`? · `scripts/tests/CLAUDE.md`?
+- docs: `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/lib/CLAUDE.index.md`? · `scripts/lib/CLAUDE.md`? · `scripts/tests/CLAUDE.md`? · `tests/training/CLAUDE.index.md`?

@@ -1,7 +1,7 @@
 # services — Flat service layer: LP delivery, WhatsApp, LLM, audio, doors, portal links
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services kg=be63ae608993 gen=ffe4804e1f5b overflow=1001 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services kg=806369e4362d gen=e8e185c99668 overflow=1001 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `whatsapp.service.js` — every outbound WhatsApp send, with code-point caps
@@ -32,4 +32,4 @@ Full index: `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `ab-testing`? · `coaching`? · `cross-agent-safety`? · `debugging`? · `digital-coach`? · `gherkin-spec-sync`? (+2)
-- docs: `AGENTS.md`? · `CLAUDE.md`? · `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/README.md`? · `bot/scripts/e2e/CLAUDE.index.md`? (+90)
+- docs: `AGENTS.md`? · `CLAUDE.md`? · `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/README.md`? · `bot/scripts/e2e/CLAUDE.index.md`? (+149)

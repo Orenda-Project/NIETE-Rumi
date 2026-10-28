@@ -1,7 +1,7 @@
 # migrations — Hand-applied SQL migrations (no runner); newer ones carry a *_rollback.sql file
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/database/migrations kg=a83604897631 gen=4c3724fd5d2c overflow=458 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/database/migrations kg=540c802e6833 gen=da2a00cee9c4 overflow=457 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `web_quiz_challenge_registry.sql` — shows the requires/NON-DESTRUCTIVE/rollback convention
@@ -11,11 +11,12 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `016_curriculum_lp_ast.sql` | Creates curriculum_lp_ast, structured lesson-plan content imported from the Taleemabad core DB, with lookup/FTS indexes |
+| `CLAUDE.index.md` | (unmapped) |
 | `CLAUDE.md` | (unmapped) |
+| `016_curriculum_lp_ast.sql` | Creates curriculum_lp_ast, structured lesson-plan content imported from the Taleemabad core DB, with lookup/FTS indexes |
 | `create*` | 4 files; most used `create_video_quiz_tables.sql`: Ports the main bot's video-quiz schema to NIETE: quiz_questions changes, share codes, invites, identity (bd-2482) |
 | `web_quiz_challenge_registry.sql` | Creates the five Challenge registry tables: passages, items, periods, equating links and draws |
-| … | 92 more → `CLAUDE.index.md` |
+| … | 91 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - table `users` (written by `002_add_registration_fields.sql` (+4)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+171)
@@ -32,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/database/CLAUDE.index.md`? · `bot/database/CLAUDE.md`? · `bot/database/migrations/CLAUDE.index.md`? · `bot/database/migrations/CLAUDE.md`? · `docs/features/video-quiz.md`? · `docs/migration/01-lesson-plans.md`? (+1)
+- docs: `bot/database/CLAUDE.index.md`? · `bot/database/CLAUDE.md`? · `bot/database/migrations/CLAUDE.index.md`? · `bot/database/migrations/CLAUDE.md`? · `docs/features/CLAUDE.index.md`? · `docs/features/CLAUDE.md`? (+7)

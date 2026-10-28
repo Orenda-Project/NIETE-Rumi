@@ -1,7 +1,7 @@
 # passages — One JSON file per Challenge reading/listening passage
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data/child-test/passages kg=1753717299a4 gen=cee71e58c56f overflow=32 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data/child-test/passages kg=6f12954d49b5 gen=cee71e58c56f overflow=32 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `README.md` — id shape, immutability and schema rules

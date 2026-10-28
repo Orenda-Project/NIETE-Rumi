@@ -1,7 +1,7 @@
 # training — Teacher training: modules, quizzes, certificates, I-SAPS exams and grading
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/training kg=832ead9ba52b gen=c295f2394848 overflow=168 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/training kg=33956c8fc35e gen=4adc78edab7d overflow=168 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `quiz-delivery.service.js` — WhatsApp quiz state machine
@@ -32,4 +32,4 @@ Full index: `CLAUDE.index.md`
 - … 81 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `CLAUDE.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/training/CLAUDE.index.md`? · `bot/shared/services/training/CLAUDE.md`? · `docs/migration/02-teacher-training.md`? (+1)
+- docs: `CLAUDE.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/training/CLAUDE.index.md`? · `bot/shared/services/training/CLAUDE.md`? · `docs/migration/02-teacher-training.md`? (+8)

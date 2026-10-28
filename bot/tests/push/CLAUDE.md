@@ -1,6 +1,6 @@
 # push — Tests for the web-quiz reminder push (switches, routes, service)
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/push kg=af88c20463b3 gen=e14ced3957d0 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/push kg=ab94d7de5f0b gen=e14ced3957d0 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `web-quiz-push.service.test.js` — switches, hashed subscription, send and revoke

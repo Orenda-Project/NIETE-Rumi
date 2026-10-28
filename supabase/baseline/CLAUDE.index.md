@@ -870,4 +870,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `docs/e2e-mock-lane.md`? · `docs/onboarding/local-portal.md`? · `supabase/CLAUDE.md`? · `supabase/baseline/CLAUDE.index.md`? · `supabase/baseline/CLAUDE.md`?
+- docs: `docs/CLAUDE.index.md`? · `docs/e2e-mock-lane.md`? · `docs/onboarding/local-portal.md`? · `supabase/CLAUDE.md`? · `supabase/baseline/CLAUDE.index.md`? · `supabase/baseline/CLAUDE.md`?

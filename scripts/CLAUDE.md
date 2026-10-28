@@ -1,7 +1,7 @@
 # scripts — Operator tools: data migrations, backfills, Flow publishers, QA
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts kg=3d44071201b8 gen=3faf2b9ab274 overflow=63 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts kg=30f403488020 gen=705e163f21f1 overflow=63 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `smoke-test.js` — pre-deploy load check of bot entry, workers and dashboard routes
@@ -13,8 +13,8 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | 12 sub-dirs, each with `CLAUDE.md` | `app-funnel/` · `assessment/` · `child-test/` · `lib/` · `llm/` · `migrations/` · `ops/` · `predicates/` · `qa/` · `samples/` · `tests/` · `web-quiz/` |
-| `CLAUDE.md` | (unmapped) |
 | `CLAUDE.index.md` | (unmapped) |
+| `CLAUDE.md` | (unmapped) |
 | `row-history-audit.js` | Pure JS mirror of the record_history trigger rules (watched columns, no-op writes, actor) so tests can pin them |
 | … | 36 more → `CLAUDE.index.md` |
 
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - … 11 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `.claude/CLAUDE.md`? · `.claude/skills/data-standards/reference/instances/niete-rumi.md`? · `CLAUDE.md`? · `REPORT.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? (+28)
+- docs: `.claude/CLAUDE.md`? · `.claude/skills/data-standards/reference/instances/niete-rumi.md`? · `CLAUDE.md`? · `REPORT.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? (+37)

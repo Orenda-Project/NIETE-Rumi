@@ -1,7 +1,7 @@
 # database — Supabase helpers for users and sessions, dashboard queries, original schema
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/database kg=7fab397a7a20 gen=0e629cd86f00 overflow=45 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/database kg=bd2d9be95505 gen=2765c505abe6 overflow=45 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `bot-helpers.js` — getOrCreateUser, sessions, conversations
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - … 8 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/CLAUDE.md`? · `bot/shared/database/CLAUDE.index.md`? · `bot/shared/database/CLAUDE.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/first-touch/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? (+4)
+- docs: `bot/shared/CLAUDE.md`? · `bot/shared/database/CLAUDE.index.md`? · `bot/shared/database/CLAUDE.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/first-touch/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? (+7)

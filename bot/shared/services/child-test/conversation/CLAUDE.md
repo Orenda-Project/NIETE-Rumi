@@ -1,7 +1,7 @@
 # conversation — Coach's WhatsApp side of the child test: state machine, steps, recovery sweep
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/conversation kg=6a883a01605f gen=a7c5cbf8d8e3 overflow=50 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/conversation kg=5388965bbdc9 gen=55320669b588 overflow=50 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `machine.js` — the state machine from list to presence to blocks
@@ -13,15 +13,15 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `ports.js` | Lazy handles to the other lanes' modules (draw, store, scoring, check-flow, render, item bank) as the conversation... |
+| `CLAUDE.index.md` | (unmapped) |
 | `copy.js` | Coach copy for the child test from the ux-strings catalog (childTest* keys), Urdu default, Urdu digits |
 | `identity.js` | Names a drawn child to coach/teacher: full name, classroom label, class teacher; never a roll number (CONTRACT 18-19) |
-| … | 14 more → `CLAUDE.index.md` |
+| … | 13 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `copy.js` ← imported by `bot/shared/services/child-test/check-flow/review-v3.js:30:796122bb` · `bot/shared/services/child-test/check-flow/review-view.js:10:37ad926e` (+11)
 - `identity.js` ← imported by `bot/shared/services/child-test/check-flow/context.js:12:b9c81850` · `bot/shared/services/child-test/check-flow/review-v3.js:31:ad3926a9` (+5)
-- `gate.js` ← imported by `bot/shared/handlers/text-message.handler.js:978:83e9366e` · `bot/shared/services/child-test/app/app-api.service.js:68:61d0ef1b` (+4)
-- … 12 more → `CLAUDE.index.md`
+- … 13 more → `CLAUDE.index.md`
 
 ## Never (human)
 - No in-process setTimeout for nudges, redeploys must lose nothing (nudge.js:10-11)
@@ -34,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - … 24 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/conversation/CLAUDE.index.md`? · `bot/shared/services/child-test/conversation/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`?
+- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/conversation/CLAUDE.index.md`? · `bot/shared/services/child-test/conversation/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`? · `tests/child-test/L0/CLAUDE.md`? (+17)

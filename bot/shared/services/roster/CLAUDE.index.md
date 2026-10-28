@@ -33,4 +33,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `roster-storage.js` ← `tests/roster/roster-shift-endpoint.test.js` · `tests/roster/roster-storage.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/roster/CLAUDE.index.md`? · `bot/shared/services/roster/CLAUDE.md`?
+- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/roster/CLAUDE.index.md`? · `bot/shared/services/roster/CLAUDE.md`? · `tests/database/CLAUDE.index.md`? · `tests/database/CLAUDE.md`? · `tests/observe2/CLAUDE.index.md`? · `tests/roster/CLAUDE.index.md`? · `tests/roster/CLAUDE.md`?

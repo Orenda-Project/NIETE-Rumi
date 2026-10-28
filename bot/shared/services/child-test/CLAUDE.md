@@ -1,7 +1,7 @@
 # child-test — Child learning-assessment (EGRA/EGMA): draw, coach chat, scoring, check Flow
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test kg=7d681931071a gen=6f5183329f2b overflow=114 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test kg=15c6085191c1 gen=1ff882f94f02 overflow=114 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `store.js` — main reader/writer of child_test_draws/sessions/blocks (check-flow, sa/score touch them)
@@ -33,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - … 82 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.md`? · `bot/shared/data/child-test/passages/CLAUDE.index.md`? · `bot/shared/data/child-test/passages/CLAUDE.md`? · `bot/shared/data/child-test/passages/README.md`? · `bot/shared/services/CLAUDE.index.md`? (+21)
+- docs: `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.md`? · `bot/shared/data/child-test/passages/CLAUDE.index.md`? · `bot/shared/data/child-test/passages/CLAUDE.md`? · `bot/shared/data/child-test/passages/README.md`? · `bot/shared/services/CLAUDE.index.md`? (+30)

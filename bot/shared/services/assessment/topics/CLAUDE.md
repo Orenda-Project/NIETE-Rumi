@@ -1,7 +1,7 @@
 # topics — Curriculum-matrix rows to the tickable topics of a chapter; pure grouping
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/topics kg=0670ceef25c8 gen=5a43c03556fe overflow=31 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/topics kg=691c853fb865 gen=ecaff0ee1959 overflow=32 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `group.js` — groupChapter/groupAll, the entry point
@@ -16,8 +16,7 @@ Full index: `CLAUDE.index.md`
 | `group*` | 4 files; most used `group.js`: Entry point groupChapter/groupAll: turns matrix rows into the topics a teacher ticks per chapter |
 | `short-name.js` | Builds short teacher-facing topic names and id slugs, counting Urdu in code points |
 | `collect.js` | Unions the day rows behind one topic: sorted pages and SLO codes in first-seen order |
-| `reconcile.js` | Diffs stored topics against a fresh import into upsert and retire lists, scoped per grade-subject |
-| … | 7 more → `CLAUDE.index.md` |
+| … | 8 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `short-name.js` ← imported by `bot/shared/services/assessment/topics/distinct-names.js:8:4ea89936` · `bot/shared/services/assessment/topics/group-language.js:13:22aff0f7` (+2)
@@ -35,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - … 14 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/assessment/CLAUDE.index.md`? · `bot/shared/services/assessment/CLAUDE.md`? · `bot/shared/services/assessment/topics/CLAUDE.index.md`? · `bot/shared/services/assessment/topics/CLAUDE.md`?
+- docs: `bot/shared/services/assessment/CLAUDE.index.md`? · `bot/shared/services/assessment/CLAUDE.md`? · `bot/shared/services/assessment/topics/CLAUDE.index.md`? · `bot/shared/services/assessment/topics/CLAUDE.md`? · `tests/assessment/topics/CLAUDE.index.md`? · `tests/assessment/topics/CLAUDE.md`?

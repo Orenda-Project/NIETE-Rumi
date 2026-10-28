@@ -1,7 +1,7 @@
 # scoring — AI scoring of one recorded block: transcript, windows, scorers, ai_marks
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/scoring kg=334fcb1a86d3 gen=a3fb82af85a5 overflow=73 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/scoring kg=1c2352a63a63 gen=fc2eab1e6504 overflow=73 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `index.js` — scoreBlock/scoreTask, writes ai_marks once
@@ -13,9 +13,9 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `tasks/` | Per-task v3 scorers (letters, words, story, listening, maths) on shared engines → `tasks/CLAUDE.md` |
+| `CLAUDE.index.md` | (unmapped) |
 | `text-norm.js` | Word normalisation, one-edit same-word rule and alignment ported from the May 2026 study harness |
 | `llm.js` | One JSON-returning model call through llm-client (OpenRouter) that never throws; reports cost and latency |
-| `windows.js` | Cuts a block's voice note into sections using Soniox words, cue phrases and the items themselves |
 | … | 18 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
@@ -35,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - … 35 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/scoring/CLAUDE.index.md`? · `bot/shared/services/child-test/scoring/CLAUDE.md`? · `bot/shared/services/child-test/scoring/tasks/CLAUDE.index.md`? · `bot/shared/services/child-test/scoring/tasks/CLAUDE.md`? (+1)
+- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/scoring/CLAUDE.index.md`? · `bot/shared/services/child-test/scoring/CLAUDE.md`? · `bot/shared/services/child-test/scoring/tasks/CLAUDE.index.md`? · `bot/shared/services/child-test/scoring/tasks/CLAUDE.md`? (+18)

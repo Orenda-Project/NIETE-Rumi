@@ -36,4 +36,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `engine.js` ← `tests/coaching/video-reco/engine.test.js`?
 
 ## Related (all, generated)
-- docs: `bot/shared/services/child-test/scoring/CLAUDE.index.md`? · `bot/shared/services/child-test/scoring/CLAUDE.md`? · `bot/shared/services/child-test/scoring/tasks/CLAUDE.index.md`? · `bot/shared/services/child-test/scoring/tasks/CLAUDE.md`?
+- docs: `bot/shared/services/child-test/scoring/CLAUDE.index.md`? · `bot/shared/services/child-test/scoring/CLAUDE.md`? · `bot/shared/services/child-test/scoring/tasks/CLAUDE.index.md`? · `bot/shared/services/child-test/scoring/tasks/CLAUDE.md`? · `tests/child-test/L37/CLAUDE.md`? · `tests/child-test/L40/CLAUDE.md`? · `tests/coaching/video-reco/CLAUDE.index.md`? · `tests/coaching/video-reco/CLAUDE.md`?

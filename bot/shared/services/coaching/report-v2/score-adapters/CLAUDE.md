@@ -1,7 +1,7 @@
 # score-adapters — One score adapter per framework, turning analysis into scorecard groups
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-v2/score-adapters kg=65c16229e528 gen=edba059963cb overflow=10 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-v2/score-adapters kg=cdf34f2d6c28 gen=0c39ccdca192 overflow=10 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `dispatch.js` — framework key to adapter
@@ -12,10 +12,10 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `fico-adapter.js` | FICO score adapter: four section groups on a 1-4 scale with not-assessed and lesson-mismatch wording |
-| `dispatch.js` | Maps framework key to its score adapter, empty scorecard for unknown frameworks |
-| `hots-adapter.js` | HOTS score adapter: five area groups on a 1-3 scale, gathering indicator scores (bd-yy4l2) |
 | `CLAUDE.index.md` | (unmapped) |
 | `CLAUDE.md` | (unmapped) |
+| `dispatch.js` | Maps framework key to its score adapter, empty scorecard for unknown frameworks |
+| `hots-adapter.js` | HOTS score adapter: five area groups on a 1-3 scale, gathering indicator scores (bd-yy4l2) |
 | `mewaka-adapter.js` | MEWAKA score adapter: six domain groups, Swahili display names when the report is in Swahili |
 | … | 2 more → `CLAUDE.index.md` |
 
@@ -36,4 +36,4 @@ Full index: `CLAUDE.index.md`
 - … 6 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/coaching/report-v2/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.md`? · `docs/customization.md`? · `docs/features/coaching.md`?
+- docs: `bot/shared/services/coaching/report-v2/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.md`? · `docs/CLAUDE.index.md`? · `docs/customization.md`? (+3)

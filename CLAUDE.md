@@ -75,20 +75,10 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
   changing, and never skip the call chain. (A parameter once dropped one hop short of its use site
   shipped a guaranteed crash under 28 green tests, and silently degraded every downstream consumer
   of that service's output for six days.)
-- **`npm test` is the BASELINE GATE, not raw Jest.** The suite is not green and has not been for a while.
-  `npm test` runs every suite and then judges the *delta* against `tests/baseline.snapshot.json`:
-  **exit 0 means "you added no new failure"**, which is the only question a gate can usefully answer here.
-  A suspected regression is re-run once and only fails if it reproduces, so a flaky suite cannot redden
-  your PR at random.
-  **`npm test` takes NO arguments** — it must run everything to judge a delta, and it refuses a filter
-  rather than dropping it. For a filtered run use `npm run test:raw -- <any jest args>` (add
-  `--forceExit`; a filtered run can hang on an open handle).
-  **The snapshot may only ever SHRINK, and that is now enforced** — `npm run test:baseline:growth`
-  compares it against the base branch and CI fails a PR that grows it. Adding your failure to the
-  snapshot is not a way past the gate.
-  **The ~30 suites in the snapshot are known-red debt. Do not try to fix them to get green — you already
-  are green. Do not add to them either: the snapshot may only ever shrink.** Read
-  [tests/BASELINE.md](tests/BASELINE.md) before concluding you broke something.
+- **`npm test` is the BASELINE GATE, not raw Jest**: exit 0 means you added no new failure vs
+  `tests/baseline.snapshot.json`. It takes NO arguments (filtered: `npm run test:raw -- <args> --forceExit`); the
+  snapshot may only shrink (CI: `npm run test:baseline:growth`). Never fix or add to its ~30 known-red suites to
+  get green. Read [tests/BASELINE.md](tests/BASELINE.md) before concluding you broke something.
 - **Bot-only dependencies must be stubbed.** CI runs root `npm test` **before** `bot/ npm ci`, so source
   that requires a `bot/node_modules` package at module scope kills the whole suite *file*. Every such
   package reachable from a root suite is already stubbed in `tests/__mocks__/` and wired through
@@ -111,22 +101,22 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 - **DB bootstrap**: `npm run bootstrap:db` applies schema → RLS → seed (idempotent).
 
 ## Map (generated)
-<!-- kg:map repo=NIETE-Rumi gen=bbb35b5dfe64 -->
+<!-- kg:map repo=NIETE-Rumi gen=99b7f21c76aa -->
 | dir | what it is |
 |---|---|
 | `.claude/` | Agent & skill config (L1) → `.claude/CLAUDE.md` |
 | `.cursor/` | (no door; 1 files) |
 | `.githooks/` | (no door; 5 files) |
-| `.github/` | (no door; 22 files) |
+| `.github/` | GitHub repo config: contributing guide, issue templates, CI workflows → `.github/CLAUDE.md` |
 | `bot/` | NIETE WhatsApp bot: webhook, workers, services, tests, migrations → `bot/CLAUDE.md` |
-| `dashboard/` | (no door; 6040 files) |
-| `docs/` | (no door; 138 files) |
+| `dashboard/` | Express server: admin pages, teacher/coach portal API, child-quiz edge → `dashboard/CLAUDE.md` |
+| `docs/` | Repo docs: architecture, E2E and QA system, migration history, ops guides → `docs/CLAUDE.md` |
 | `infrastructure/` | DB schema, migrations, deploy configs, WhatsApp templates → `infrastructure/CLAUDE.md` |
-| `kg/` | (no door; 11 files) |
-| `portal/` | (no door; 2749 files) |
+| `kg/` | (no door; 19 files) |
+| `portal/` | React SPA: public marketing site plus the NIETE teacher/coach portal and Android app → `portal/CLAUDE.md` |
 | `scripts/` | Operator tools: data migrations, backfills, Flow publishers, QA → `scripts/CLAUDE.md` |
 | `supabase/` | Schema dump and seed list for the local mock-lane DB → `supabase/CLAUDE.md` |
-| `tests/` | (no door; 2644 files) |
+| `tests/` | Root jest suite over bot/ and dashboard/ code, plus the no-new-failure baseline gate → `tests/CLAUDE.md` |
 | `tools/` | (no door; 1 files) |
 
 Deeper: `python3 kg/kg.py find <words>` · `python3 kg/kg.py file <path>`

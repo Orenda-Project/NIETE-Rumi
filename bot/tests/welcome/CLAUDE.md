@@ -1,6 +1,6 @@
 # welcome — Tests for the first-open welcome and WABA ice-breaker chips
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/welcome kg=99e0a7b95dae gen=8c923670a40d overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/welcome kg=47e166132a8b gen=8c923670a40d overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `bd-oak77.13-ice-breakers.test.js` — manifest and matcher are one config

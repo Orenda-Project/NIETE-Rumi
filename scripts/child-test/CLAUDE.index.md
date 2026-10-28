@@ -69,4 +69,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `seed-sandbox.js` ← `tests/child-test/L3/seed-guard.test.js`
 
 ## Related (all, generated)
-- docs: `.claude/qa/agents/niete-child-test-agent.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `docs/e2e-mock-lane.md`? · `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/child-test/CLAUDE.index.md`? · `scripts/child-test/CLAUDE.md`?
+- docs: `.claude/qa/agents/niete-child-test-agent.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `docs/CLAUDE.index.md`? · `docs/e2e-mock-lane.md`? · `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/child-test/CLAUDE.index.md`? · `scripts/child-test/CLAUDE.md`? · `tests/child-test/L14/CLAUDE.md`? · `tests/child-test/L15/CLAUDE.md`? · `tests/child-test/L23/CLAUDE.md`? · `tests/child-test/L3/CLAUDE.md`?

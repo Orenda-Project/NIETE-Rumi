@@ -1,6 +1,6 @@
 # migration — One-off NIETE migration appliers, lesson-plan imports and surveys
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/migration kg=7450859e9389 gen=9e6fa63e1304 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/migration kg=7af68769af35 gen=9dd1097a41e9 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `apply-018-lp-v8-assets.js` — applies migration 018
@@ -10,8 +10,8 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `import-tbcore-lps.js` | Imports NBF and Taleemabad lesson plans from Taleemabad prod Postgres into curriculum_lp_ast; dry-run supported |
 | `CLAUDE.md` | (unmapped) |
+| `import-tbcore-lps.js` | Imports NBF and Taleemabad lesson plans from Taleemabad prod Postgres into curriculum_lp_ast; dry-run supported |
 | `apply-017-lp-feedback.js` | Applies migration 017 (lp_feedback table) to NIETE Supabase via pooler, falling back to printed SQL |
 | `apply-018-lp-v8-assets.js` | Applies migration 018 (niete_lp_assets, niete_lp_downloads, lp_feedback.useful_component); idempotent |
 | `survey-lp-counts.js` | Counts lesson-plan rows per corpus with count queries to avoid the 1000-row cap |
@@ -31,4 +31,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/migration/CLAUDE.md`? · `docs/migration/01-lesson-plans.md`?
+- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/migration/CLAUDE.md`? · `docs/migration/01-lesson-plans.md`? · `docs/migration/CLAUDE.index.md`?

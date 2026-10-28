@@ -1,7 +1,7 @@
 # coaching-card — Commitment card: content, HTML template and PNG render, button replies
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/coaching-card kg=27785f0b54f4 gen=cc7a1eef69be overflow=26 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/coaching-card kg=6519f2a3fe48 gen=827e33172de7 overflow=26 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `commitment-card.service.js` — builds the card content from the reflective answer
@@ -32,4 +32,4 @@ _None found in code comments, tests or git log for this directory._
 - … 21 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/coaching-card/CLAUDE.index.md`? · `bot/shared/services/coaching/coaching-card/CLAUDE.md`? · `bot/tests/coaching/CLAUDE.index.md`? · `bot/tests/coaching/CLAUDE.md`? (+1)
+- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/coaching-card/CLAUDE.index.md`? · `bot/shared/services/coaching/coaching-card/CLAUDE.md`? · `bot/tests/coaching/CLAUDE.index.md`? · `bot/tests/coaching/CLAUDE.md`? (+4)

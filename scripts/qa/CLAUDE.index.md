@@ -39,4 +39,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `niete-mock-e2e`?
-- docs: `.claude/qa/SCHEDULE.md`? · `.claude/qa/ledgers/README.md`? · `.githooks/README.md`? · `docs/qa-automation.md`? · `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/qa/CLAUDE.index.md`? · `scripts/qa/CLAUDE.md`? · `scripts/qa/look-gate/CLAUDE.md`? · `scripts/qa/render-matrix/CLAUDE.md`?
+- docs: `.claude/qa/SCHEDULE.md`? · `.claude/qa/ledgers/README.md`? · `.githooks/README.md`? · `docs/CLAUDE.index.md`? · `docs/qa-automation.md`? · `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/qa/CLAUDE.index.md`? · `scripts/qa/CLAUDE.md`? · `scripts/qa/look-gate/CLAUDE.md`? · `scripts/qa/render-matrix/CLAUDE.md`?

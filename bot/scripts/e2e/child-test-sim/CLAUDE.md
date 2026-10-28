@@ -1,7 +1,7 @@
 # child-test-sim — Simulated coach visit against a fake, mock or sandbox bot for the child test
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/e2e/child-test-sim kg=21d34871772c gen=e87f31eca44e overflow=13 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/e2e/child-test-sim kg=819a758cf71c gen=e87f31eca44e overflow=13 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `driver.js` — CLI entry and modes

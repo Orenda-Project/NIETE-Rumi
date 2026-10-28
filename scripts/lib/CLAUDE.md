@@ -1,7 +1,7 @@
 # lib — Pure decision logic imported by the write scripts so judgement is testable
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/lib kg=2a0ceece617e gen=0b9b5e275021 overflow=10 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/lib kg=43ca3a3b0882 gen=59e87b7db21e overflow=10 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `roster_school_backfill.py` — example pure classifier: no I/O, no database
@@ -13,9 +13,9 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `training-band-derivation.js` | Derives a teacher's grade band(s) and training programs from users.training_bands, levels and grades (bd-2672) |
-| `legacy-media-rehost.rules.js` | Pure rules: which legacy training media need re-hosting, and target refs; used by rehost-legacy-training-media.js |
 | `CLAUDE.index.md` | (unmapped) |
 | `CLAUDE.md` | (unmapped) |
+| `legacy-media-rehost.rules.js` | Pure rules: which legacy training media need re-hosting, and target refs; used by rehost-legacy-training-media.js |
 | `test_textbook_import.py` | Red-first unittest for textbook_import normalisation, one case per defect found in 27 ICT books (bd-60012) |
 | `textbook_import.py` | General importer: reads a book's OCR pages and chapters from the staging tenant, writes our textbook tables |
 | `legacy_taleemabad_import.py` | Pure decision logic (question filters, ordering, insert vs update plan) behind import-legacy-taleemabad.py (bd-s42dye.4) |
@@ -37,4 +37,4 @@ Full index: `CLAUDE.index.md`
 - … 7 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/lib/CLAUDE.index.md`? · `scripts/lib/CLAUDE.md`? · `scripts/tests/CLAUDE.md`?
+- docs: `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/lib/CLAUDE.index.md`? · `scripts/lib/CLAUDE.md`? · `scripts/tests/CLAUDE.md`? · `tests/training/CLAUDE.index.md`?

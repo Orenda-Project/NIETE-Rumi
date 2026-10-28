@@ -35,4 +35,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `teach-report-transformer.js` ← `tests/coaching/report-transformers/coach-role-label-in-transformers.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/report-transformers/CLAUDE.index.md`? · `bot/shared/services/coaching/report-transformers/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/report-transformers/CLAUDE.index.md`? · `bot/shared/services/coaching/report-transformers/CLAUDE.md`? · `tests/coaching/CLAUDE.index.md`? · `tests/coaching/fidelity/CLAUDE.index.md`? · `tests/coaching/fidelity/CLAUDE.md`? · `tests/coaching/report-transformers/CLAUDE.md`? · `tests/reports/CLAUDE.md`?

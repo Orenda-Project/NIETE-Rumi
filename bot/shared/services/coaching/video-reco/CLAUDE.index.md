@@ -91,4 +91,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `urdu-terms.js` ← `tests/coaching/video-reco/r7k-urdu-v2.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/video-reco/CLAUDE.index.md`? · `bot/shared/services/coaching/video-reco/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/video-reco/CLAUDE.index.md`? · `bot/shared/services/coaching/video-reco/CLAUDE.md`? · `tests/coaching/video-reco/CLAUDE.index.md`? · `tests/coaching/video-reco/CLAUDE.md`? · `tests/observe2/CLAUDE.index.md`? · `tests/portal/CLAUDE.index.md`?

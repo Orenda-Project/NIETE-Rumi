@@ -1,6 +1,6 @@
 # fflp — Free-form lesson-plan engine seam, default OFF behind app_settings.freeform_lp
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/fflp kg=fa562aa0e687 gen=531604b66501 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/fflp kg=088d33a8f3df gen=680222de9fd4 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `index.js` — lazy single entry for every cross-module call
@@ -33,4 +33,4 @@
 - `tests/fflp/seam-goldens.test.js` (index.js)
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/fflp/CLAUDE.md`?
+- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/fflp/CLAUDE.md`? · `tests/fflp/CLAUDE.md`?

@@ -1,7 +1,7 @@
 # lib — Renderer support: template, rich text, fonts, overlay, validation, fact lint
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/lib kg=cccb5f705491 gen=90247cfeda2d overflow=31 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/lib kg=c09a0e78e12d gen=49088efa7b7d overflow=31 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `template.js` — builds the two-page A4 HTML
@@ -17,7 +17,7 @@ Full index: `CLAUDE.index.md`
 | `fonts.js` | Resolves and base64-embeds fonts so rendered LP HTML and PDFs look identical on any machine |
 | `rich.js` | Inline text pipeline for lp_doc strings: bold, KaTeX math and mhchem into HTML |
 | `validate.js` | Schema validation shared by render, lint and tests; picks the 3.0 or 2.0 schema from schema_version |
-| `religious_facts.js` | Three mechanical lint checks on how plans name and classify surahs, e.g. disjoint letters as a surah name (bd-nnd27p) |
+| `CLAUDE.index.md` | (unmapped) |
 | `CLAUDE.md` | (unmapped) |
 | … | 8 more → `CLAUDE.index.md` |
 
@@ -38,4 +38,4 @@ Full index: `CLAUDE.index.md`
 - … 15 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/lib/CLAUDE.index.md`? · `bot/vendor/lp-v9/lib/CLAUDE.md`?
+- docs: `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/lib/CLAUDE.index.md`? · `bot/vendor/lp-v9/lib/CLAUDE.md`? (+2)

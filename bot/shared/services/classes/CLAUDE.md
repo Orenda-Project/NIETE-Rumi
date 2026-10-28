@@ -1,7 +1,7 @@
 # classes — Classes model: write surface, label parsing, vocabulary and class manager door
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/classes kg=0840eac5136c gen=1c85da19d540 overflow=59 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/classes kg=f1cb361795da gen=1f72ab31731c overflow=60 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `class.service.js` — classes, teachers, subjects, enrolment writes
@@ -13,16 +13,15 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `class*` | 5 files; most used `class.service.js`: ClassService: write surface for classes, teachers, subjects and student enrolment (largest classes module) |
-| `roster-label.js` | Single formatter for a roster row label and WhatsApp row title with the 24-char cap |
 | `CLAUDE.index.md` | (unmapped) |
+| `roster-label.js` | Single formatter for a roster row label and WhatsApp row title with the 24-char cap |
 | `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - table `students` (written by `class.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:316:2f35b0c2`? · `bot/shared/routes/edit-class-endpoint.js:44:2f35b0c2`? (+43)
 - column `students.student_name` (written by `class.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:317:d73b0171` · `bot/shared/routes/edit-class-endpoint.js:45:dc16e319` (+29)
 - column `students.is_active` (written by `class.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:332:f8c426e2` · `bot/shared/routes/edit-class-endpoint.js:47:f8c426e2` (+25)
-- table `student_lists` (written by `class.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:298:8479d615`? · `bot/shared/routes/attendance-setup-endpoint.js:174:8479d615`? (+25)
-- … 39 more → `CLAUDE.index.md`
+- … 40 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Name rosters only via `roster-label.js` (duplication shipped bad labels, `roster-label.js:3-6`)
@@ -35,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - … 20 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/classes/CLAUDE.index.md`? · `bot/shared/services/classes/CLAUDE.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`?
+- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/classes/CLAUDE.index.md`? · `bot/shared/services/classes/CLAUDE.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `tests/attendance/CLAUDE.index.md`? (+7)

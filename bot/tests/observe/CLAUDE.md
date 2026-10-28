@@ -1,7 +1,7 @@
 # observe — Jest tests for the /observe stack: one file per incident or feature (bd-id in name)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/observe kg=3f9edfdae7ac gen=f0c9ddbdb181 overflow=119 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/observe kg=cf4b3b076787 gen=fa20ae3d2224 overflow=119 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `observe-endpoint.test.js` — Flow data_exchange contract
@@ -14,8 +14,8 @@ Full index: `CLAUDE.index.md`
 | `CLAUDE.index.md` | (unmapped) |
 | `cancelled-observation-stays-cancelled.test.js` | Pins a cancelled observation not being revived by photo-gate and lesson-plan Yes/No taps sent earlier |
 | `bd-2kxxa2-media-target.test.js` | Pins media-target and session-resolver binding photos/docs to the tapped observation, else asking (bd-2kxxa.2) |
-| `second-person-address.test.js` | Pins observe prompts stating the masculine Urdu plural is not neutral, with logged check on the guide |
 | `bd-jrxo3-no-bare-capture.test.js` | Pins raw audio not becoming an observation; maybeLaunchVisitFlow's three answers (bd-jrxo3) |
+| `second-person-address.test.js` | Pins observe prompts stating the masculine Urdu plural is not neutral, with logged check on the guide |
 | `observe-pipeline-fork.test.js` | Pins the /observe fork points inside the shared coaching pipeline: analysis to FICO draft (bd-2138) |
 | `visit*` | 9 files; most used `visit-scheduling-wiring.test.js`: Pins scheduling wiring: detector discriminator, completion 3-way, flag-gated entry (bd-2444/2445) |
 | `observe-endpoint-hots.test.js` | Pins the observe endpoint working for the HOTS pack and pack-driven score labels (bd-59, bd-60) |
@@ -33,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/CLAUDE.index.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/handlers/CLAUDE.index.md`? · `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/cache/CLAUDE.index.md`? (+28)
+- docs: `bot/CLAUDE.index.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/handlers/CLAUDE.index.md`? · `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/cache/CLAUDE.index.md`? (+31)

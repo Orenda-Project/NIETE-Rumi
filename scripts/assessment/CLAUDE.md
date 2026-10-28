@@ -1,6 +1,6 @@
 # assessment — Assessment generator: ICT textbook import and offline quality evals
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/assessment kg=27b783fa3f9d gen=624a1c2cb6cb overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/assessment kg=17d8c4d49e80 gen=851095c2a0b7 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `import-ict-textbooks.py` — which ICT books load, via lib/textbook_import.py
@@ -30,4 +30,4 @@
 - `tests/assessment/eval-plan.test.js` (eval-plan.js)
 
 ## Related (generated)
-- docs: `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/assessment/CLAUDE.md`?
+- docs: `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/assessment/CLAUDE.md`? · `tests/assessment/CLAUDE.index.md`?

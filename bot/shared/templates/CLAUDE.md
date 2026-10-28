@@ -1,7 +1,7 @@
 # templates — HTML/PDF/image templates and Meta WhatsApp template definitions
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/templates kg=a2b0dabc4997 gen=06f30a53f6bc overflow=99 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/templates kg=75721eaa049f gen=39c5c684b28c overflow=99 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `niete-brand.js` — shared palette and fonts
@@ -33,4 +33,4 @@ Full index: `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `reading-assessment`?
-- docs: `bot/shared/CLAUDE.md`? · `bot/shared/templates/CLAUDE.index.md`? · `bot/shared/templates/CLAUDE.md`? · `bot/tests/coaching/weekly-report/CLAUDE.index.md`? · `bot/tests/coaching/weekly-report/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? (+5)
+- docs: `bot/shared/CLAUDE.md`? · `bot/shared/templates/CLAUDE.index.md`? · `bot/shared/templates/CLAUDE.md`? · `bot/tests/coaching/weekly-report/CLAUDE.index.md`? · `bot/tests/coaching/weekly-report/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? (+10)

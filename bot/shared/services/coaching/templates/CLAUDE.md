@@ -1,6 +1,6 @@
 # templates — HTML template for the MEWAKA PDF report
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/templates kg=c9e60204cd72 gen=efb86d2de14f overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/templates kg=2f0b83e4a4a7 gen=bdd82c343769 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `mewaka-report.template.js` — pure reportData to HTML for Playwright
@@ -23,4 +23,4 @@ _None found in code comments, tests or git log for this directory._
 - `tests/reports/mewaka-report.test.js` (mewaka-report.template.js)
 
 ## Related (generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/templates/CLAUDE.md`? · `docs/agent-customization.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/templates/CLAUDE.md`? · `docs/CLAUDE.index.md`? · `docs/agent-customization.md`? · `tests/reports/CLAUDE.md`?

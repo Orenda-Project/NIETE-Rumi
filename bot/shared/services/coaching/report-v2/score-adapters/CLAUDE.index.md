@@ -29,4 +29,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `hots-adapter.js` ← `tests/coaching/bd-yy4l2-hots-scorecard-derive.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/coaching/report-v2/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.md`? · `docs/customization.md`? · `docs/features/coaching.md`?
+- docs: `bot/shared/services/coaching/report-v2/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.md`? · `docs/CLAUDE.index.md`? · `docs/customization.md`? · `docs/features/CLAUDE.index.md`? · `docs/features/coaching.md`? · `tests/coaching/CLAUDE.index.md`?

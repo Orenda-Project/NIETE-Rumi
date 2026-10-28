@@ -1,6 +1,6 @@
 # unit — Small unit tests: logging, tracing, syntax guard, cassette, report styling
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/unit kg=dc999acd528c gen=5fcefa51a2b7 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/unit kg=8e4447efb568 gen=5fcefa51a2b7 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `check-syntax.test.js` — proves the deploy syntax guard fails on malformed files

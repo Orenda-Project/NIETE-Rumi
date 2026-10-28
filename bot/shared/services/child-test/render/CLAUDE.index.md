@@ -34,4 +34,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `v3.js` ← `tests/child-test/L38/print-pack-v3.test.js` · `tests/child-test/L38/sum-sign.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/render/CLAUDE.index.md`? · `bot/shared/services/child-test/render/CLAUDE.md`?
+- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/render/CLAUDE.index.md`? · `bot/shared/services/child-test/render/CLAUDE.md`? · `tests/child-test/L10/CLAUDE.md`? · `tests/child-test/L11/CLAUDE.md`? · `tests/child-test/L2/CLAUDE.md`? · `tests/child-test/L20/CLAUDE.md`? · `tests/child-test/L29/CLAUDE.md`? · `tests/child-test/L33/CLAUDE.md`? · `tests/child-test/L34/CLAUDE.md`? · `tests/child-test/L38/CLAUDE.md`?

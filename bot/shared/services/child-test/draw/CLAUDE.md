@@ -1,7 +1,7 @@
 # draw — Which children a coach tests: seeded per-class draw, cycles, term sets, visit keys
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/draw kg=0cbed4a5921c gen=8d46cb168bb3 overflow=16 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/draw kg=a4c81d995911 gen=c49a0d539ad7 overflow=15 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `index.js` — todaysList, markOutcome, addChild, frame snapshot
@@ -13,10 +13,11 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `index.js` | The child draw: snapshot frame per class, seeded order, todaysList, markOutcome promoting alternates, addChild |
 | `visit-key.js` | Parses and builds visit keys (cs:/day:) for child-test draws on visits with no observe2 field form |
+| `CLAUDE.index.md` | (unmapped) |
 | `cycle.js` | Maps a date to its Pakistan-time quarter cycle id (ICT-YYYY-Qn) and the Aug-Jul academic session code |
-| `shuffle.js` | Seeded Fisher-Yates shuffle (HMAC of cycle and class) so ranks are unpredictable yet auditable; stores only a digest |
 | `CLAUDE.md` | (unmapped) |
-| … | 3 more → `CLAUDE.index.md` |
+| `shuffle.js` | Seeded Fisher-Yates shuffle (HMAC of cycle and class) so ranks are unpredictable yet auditable; stores only a digest |
+| … | 2 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `visit-key.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:51:02a8f71f` · `bot/shared/services/child-test/conversation/machine.js:51:4db8f781` (+3)
@@ -35,4 +36,4 @@ Full index: `CLAUDE.index.md`
 - … 10 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/draw/CLAUDE.index.md`? · `bot/shared/services/child-test/draw/CLAUDE.md`? · `bot/tests/sa-game/CLAUDE.md`?
+- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/draw/CLAUDE.index.md`? · `bot/shared/services/child-test/draw/CLAUDE.md`? · `bot/tests/sa-game/CLAUDE.md`? · `tests/child-test/L20/CLAUDE.md`? (+5)

@@ -1,6 +1,6 @@
 # schools — School lookup from the schools table and the legacy-migration transforms
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/schools kg=92fbff9199a3 gen=918ec1c481fb overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/schools kg=c0939c547c75 gen=a154283a8d16 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `school-resolver.service.js` — user to school via users.school_id
@@ -10,11 +10,11 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
+| `CLAUDE.md` | (unmapped) |
 | `school-search.service.js` | Searches schools by typed text for the registration Flow school step; only real, non-test rows (bd-x7aprz.2) |
 | `school-card-door.js` | Parses /school card [EMIS or name] and picks the school whose page the link opens |
 | `school-resolver.service.js` | Resolves a user's school through the users.school_id to schools FK, with EMIS lookup |
 | `school-migration.transform.js` | Pure transforms for the legacy Postgres to Supabase schools/principals migration, run by scripts/migrate-schools.py |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - `school-card-door.js` ← imported by `bot/shared/handlers/text-message.handler.js:234:ea91fd53` · `bot/shared/services/app-redirect.service.js:656:7104e6a8`
@@ -34,4 +34,4 @@
 
 ## Related (generated)
 - skills: `registration`?
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/schools/CLAUDE.md`?
+- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/schools/CLAUDE.md`? · `tests/app-redirect/CLAUDE.index.md`? · `tests/app-redirect/CLAUDE.md`? · `tests/database/CLAUDE.index.md`? (+2)

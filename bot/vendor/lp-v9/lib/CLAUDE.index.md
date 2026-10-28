@@ -46,4 +46,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `validate.js` ← `tests/lp612/fbise-slo-chips.test.js` · `tests/lp612/vendor-integrity.test.js`
 
 ## Related (all, generated)
-- docs: `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/lib/CLAUDE.index.md`? · `bot/vendor/lp-v9/lib/CLAUDE.md`?
+- docs: `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/lib/CLAUDE.index.md`? · `bot/vendor/lp-v9/lib/CLAUDE.md`? · `tests/lp612/CLAUDE.index.md`? · `tests/setup/CLAUDE.index.md`?

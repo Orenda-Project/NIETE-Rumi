@@ -1,6 +1,6 @@
 # vendor — Vendored upstream code copied into the bot, edited only per SYNC.md
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor kg=ecd1c8e7e6ec gen=705ffb870510 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor kg=85e70734ea87 gen=705ffb870510 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `lp-v9/SYNC.md` — upstream map and divergence log

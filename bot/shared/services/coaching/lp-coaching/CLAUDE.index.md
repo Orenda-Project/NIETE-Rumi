@@ -50,4 +50,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `send-lp-prompt.js` ← `tests/coaching/send-lp-prompt.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? · `tests/coaching/CLAUDE.index.md`? · `tests/coaching/fidelity/CLAUDE.index.md`? · `tests/coaching/fidelity/CLAUDE.md`? · `tests/language/CLAUDE.md`? · `tests/meta-bill-cut/CLAUDE.md`? · `tests/observe2/CLAUDE.index.md`? · `tests/observe2/CLAUDE.md`?

@@ -519,4 +519,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/database/CLAUDE.index.md`? · `bot/database/CLAUDE.md`? · `bot/database/migrations/CLAUDE.index.md`? · `bot/database/migrations/CLAUDE.md`? · `docs/features/video-quiz.md`? · `docs/migration/01-lesson-plans.md`? · `tests/BASELINE.md`?
+- docs: `bot/database/CLAUDE.index.md`? · `bot/database/CLAUDE.md`? · `bot/database/migrations/CLAUDE.index.md`? · `bot/database/migrations/CLAUDE.md`? · `docs/features/CLAUDE.index.md`? · `docs/features/CLAUDE.md`? · `docs/features/video-quiz.md`? · `docs/migration/01-lesson-plans.md`? · `docs/migration/CLAUDE.index.md`? · `docs/migration/CLAUDE.md`? · `tests/BASELINE.md`? · `tests/CLAUDE.index.md`? · `tests/CLAUDE.md`?

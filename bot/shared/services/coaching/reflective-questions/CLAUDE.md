@@ -1,7 +1,7 @@
 # reflective-questions — Reflective question generation: prompts, language profiles, guardrails, LLM ladder
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/reflective-questions kg=ce7056dba64a gen=1210a3202761 overflow=12 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/reflective-questions kg=511319822c24 gen=e1243637117b overflow=12 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `question-prompt.js` — per-question prompt for the v12 chain
@@ -36,4 +36,4 @@ _None found in code comments, tests or git log for this directory._
 - … 7 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/reflective-questions/CLAUDE.index.md`? · `bot/shared/services/coaching/reflective-questions/CLAUDE.md`? · `bot/tests/calls/CLAUDE.index.md`? · `bot/tests/calls/CLAUDE.md`? (+3)
+- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/reflective-questions/CLAUDE.index.md`? · `bot/shared/services/coaching/reflective-questions/CLAUDE.md`? · `bot/tests/calls/CLAUDE.index.md`? · `bot/tests/calls/CLAUDE.md`? (+7)

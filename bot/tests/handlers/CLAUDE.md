@@ -1,7 +1,7 @@
 # handlers — Tests for message-handler entry points: portal, video, slash and button routes
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/handlers kg=379eb8b1565b gen=8626ce21723a overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/handlers kg=ddd5f33cdcfe gen=8626ce21723a overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `portal-request.test.js` — isPortalRequest table behind the portal keyword doors

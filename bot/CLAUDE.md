@@ -1,7 +1,7 @@
 # bot — NIETE WhatsApp bot: webhook, workers, services, tests, migrations
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot kg=623f51f3d0be gen=1204dfe362a6 overflow=52 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot kg=9ea70b5b692a gen=79faf4f18671 overflow=52 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `whatsapp-bot.js` — the Express webhook (GET/POST /webhook at :467/:488) and button/message routing
@@ -35,5 +35,5 @@ Full index: `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `coaching`? · `debugging`? · `digital-coach`? · `feature-tracer`? · `video-generation`? · `whatsapp-flows`?
-- docs: `CLAUDE.md`? · `README.md`? · `SECURITY.md`? · `bot/06_MMS_Inference_Service/CLAUDE.md`? · `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? (+45)
+- docs: `CLAUDE.md`? · `README.md`? · `SECURITY.md`? · `bot/06_MMS_Inference_Service/CLAUDE.md`? · `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? (+51)
 - … 1 more → `CLAUDE.index.md`

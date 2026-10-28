@@ -1,7 +1,7 @@
 # first-touch — One-door /quiz entry, quiz-maker and teacher-home pages, all switch-gated
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/first-touch kg=4475fdd85bc8 gen=7f27d76efac0 overflow=166 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/first-touch kg=16210eb3b196 gen=58d1348490cc overflow=166 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `one-door.service.js` — the single reply for any quiz request
@@ -32,4 +32,4 @@ Full index: `CLAUDE.index.md`
 - … 84 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/first-touch/CLAUDE.index.md`? · `bot/shared/services/first-touch/CLAUDE.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/push/CLAUDE.md`? (+2)
+- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/first-touch/CLAUDE.index.md`? · `bot/shared/services/first-touch/CLAUDE.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/push/CLAUDE.md`? (+4)

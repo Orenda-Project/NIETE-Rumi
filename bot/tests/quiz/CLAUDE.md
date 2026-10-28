@@ -1,7 +1,7 @@
 # quiz — Jest suites for the quiz stack: video/chat quiz, reports, student door, web quiz
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz kg=871b6b63f157 gen=3c947a202894 overflow=80 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz kg=df241f871a78 gen=98db86ffe72d overflow=80 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `quiz-sources.test.js` — smallest map of quiz_source kinds (transcript, lp_v8, lp612) the rest assume
@@ -34,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/CLAUDE.index.md`? · `bot/scripts/quiz/CLAUDE.index.md`? · `bot/scripts/quiz/CLAUDE.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/database/CLAUDE.index.md`? · `bot/shared/database/CLAUDE.md`? (+23)
+- docs: `bot/CLAUDE.index.md`? · `bot/scripts/quiz/CLAUDE.index.md`? · `bot/scripts/quiz/CLAUDE.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/database/CLAUDE.index.md`? · `bot/shared/database/CLAUDE.md`? (+25)

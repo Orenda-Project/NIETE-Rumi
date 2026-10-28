@@ -1,7 +1,7 @@
 # workers — Tests that drive the real SQS worker: queues, sweeps, visibility, boot lines
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/workers kg=9f9b7d342dc7 gen=edb335f47258 overflow=4 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/workers kg=220b5af4ec40 gen=edb335f47258 overflow=4 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `worker-queues.test.js` — WORKER_QUEUES resolution and queue isolation

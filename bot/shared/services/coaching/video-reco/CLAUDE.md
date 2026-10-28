@@ -1,7 +1,7 @@
 # video-reco — Training-video recommendation engine for coaching reports (VIDREC)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/video-reco kg=f41d82a01a6b gen=b10e487e7824 overflow=124 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/video-reco kg=b4857e3bb536 gen=886ddba62f4a overflow=125 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `engine.js` — recommendForReport pipeline
@@ -15,8 +15,7 @@ Full index: `CLAUDE.index.md`
 | `catalog.js` | Loads and caches the versioned training-video catalogue JSON (modules, chapters) the engine reads (bd-gzfdu9) |
 | `engine.js` | recommendForReport: never-throwing pipeline from flag and target to shortlist, one LLM pick, redaction, stored row |
 | `select.js` | The single completeJson pick (coaching.videoReco job) and the validation every answer passes before storage |
-| `copy.js` | Fills clip message strings: minutes, Urdu digits, language name, and LTR isolates for English runs in Urdu |
-| … | 22 more → `CLAUDE.index.md` |
+| … | 23 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - table `users` (written by `clip-pref.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+170)
@@ -35,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - … 77 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/video-reco/CLAUDE.index.md`? · `bot/shared/services/coaching/video-reco/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/video-reco/CLAUDE.index.md`? · `bot/shared/services/coaching/video-reco/CLAUDE.md`? · `tests/coaching/video-reco/CLAUDE.index.md`? · `tests/coaching/video-reco/CLAUDE.md`? (+2)

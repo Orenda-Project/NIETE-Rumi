@@ -1,7 +1,7 @@
 # utils — Small shared helpers: language, logging, phone, SQS, rendering, text
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/utils kg=882f56b7a55a gen=2c1d69c080a2 overflow=572 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/utils kg=df8725d5c95c gen=22b9f7ca0c79 overflow=572 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `resolve-response-language.js` — which language a reply uses
@@ -37,4 +37,4 @@ Full index: `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `coaching`? · `debugging`? · `logging`? · `whatsapp-flows`?
-- docs: `.claude/skills/niete-mock-e2e/reference/exit-codes.md`? · `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/scripts/e2e/CLAUDE.index.md`? · `bot/shared/CLAUDE.md`? · `bot/shared/utils/CLAUDE.index.md`? (+25)
+- docs: `.claude/skills/niete-mock-e2e/reference/exit-codes.md`? · `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/scripts/e2e/CLAUDE.index.md`? · `bot/shared/CLAUDE.md`? · `bot/shared/utils/CLAUDE.index.md`? (+52)

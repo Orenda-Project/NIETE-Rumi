@@ -51,4 +51,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `word_blank.js` ← `tests/quiz/transcript-quiz-figure-early-years.test.js`
 
 ## Related (all, generated)
-- docs: `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.index.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/types/CLAUDE.index.md`? · `bot/vendor/lp-v9/diagrams/types/CLAUDE.md`?
+- docs: `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.index.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/types/CLAUDE.index.md`? · `bot/vendor/lp-v9/diagrams/types/CLAUDE.md`? · `tests/quiz/CLAUDE.index.md`?

@@ -468,4 +468,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `docs/LP_PATHS.md`? · `docs/pulling-updates.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/supabase/CLAUDE.index.md`? · `infrastructure/supabase/CLAUDE.md`? · `infrastructure/supabase/migrations/CLAUDE.index.md`? · `infrastructure/supabase/migrations/CLAUDE.md`?
+- docs: `docs/CLAUDE.index.md`? · `docs/LP_PATHS.md`? · `docs/pulling-updates.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/supabase/CLAUDE.index.md`? · `infrastructure/supabase/CLAUDE.md`? · `infrastructure/supabase/migrations/CLAUDE.index.md`? · `infrastructure/supabase/migrations/CLAUDE.md`?
