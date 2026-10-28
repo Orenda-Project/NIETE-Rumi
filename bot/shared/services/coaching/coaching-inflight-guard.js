@@ -67,7 +67,7 @@ function shouldDeferNewClassroomAudio(session, nowMs = Date.now()) {
  * false = let the recording through. Never throws: a failed check falls through, as the voice door
  * always did. Added for the DOCUMENT door (bd-1r3k2h): a lesson shared as a file went straight to
  * initiateCoachingSession, so a second file mid-analysis opened a fresh session and repeated the
- * questions — the exact bd-2376 report, through the other door.
+ * questions — the same report as the voice door's, through the other door.
  *
  * @param {{userId:string, supabase:object, sendAck:(ctx:{existingSessionId:string,status:string})=>Promise<any>, nowMs?:number, log?:Function}} args
  */
