@@ -12,13 +12,14 @@
 # It clones into a temp dir, scrubs the environment (HOME, CLAUDE_PROJECT_DIR), then walks:
 #   0. without the shared engine                → the link script, hooks and session shims exit 0, silent
 #   1. link the engine as `npm install` does    → core.hooksPath = .githooks, no link shows in git status
-#   1. a terminal commit to a mapped bot file  → post-commit arms a git-<sha> marker + brief
-#   2. a docs-only commit                      → silent
-#   3. the Claude Code hooks, driven by payload → SessionStart announces the git marker;
-#      a session commit arms its own marker; Stop blocks once per marker; --clear works
-#   4. impact over the range               → menu is STALE; a Spec-Sync trailer makes it
+#   2. a terminal commit to a mapped bot file  → post-commit arms a git-<sha> marker + brief
+#   3. a docs-only commit                      → silent
+#   4. the Claude Code hooks, driven by payload → SessionStart announces the git marker;
+#      a session commit arms its own mock-lane run; Stop orders it once, then holds while its spec is
+#      unsynced; --clear refuses until the spec is synced or declared; then Stop adopts the git marker
+#   5. impact over the range                   → menu is STALE; a Spec-Sync trailer makes it
 #                                                none-needed; a runs.jsonl row records proof
-#   5. pre-push to develop                     → advisory report; strict mode blocks
+#   6. pre-push to develop                     → advisory report; strict mode blocks
 #   7. NIETE's bridge test + the engine's own suite against the clone (failures held to its known list)
 # Nothing here touches WhatsApp or any database.
 set -u
@@ -102,7 +103,7 @@ SHA=$(git -C "$C" rev-parse --short=12 HEAD)
 [ -f "$PEND/git-$SHA.sync.json" ] && ok "…with the Gherkin sync brief" || bad "no brief"
 has "terminal told the developer which feature" "$err" "menu" yes
 has "…and the phase-1 command" "$err" "/sync-specs --brief" yes
-has "…and the phase-2 command" "$err" "/niete-e2e menu" yes
+has "…and the mock-lane run that tests this commit" "$err" "commit-e2e.sh $SHA --features menu" yes
 brief_feat=$(python3 -c "import json;b=json.load(open('$PEND/git-$SHA.sync.json'));print(b['features'][0]['feature'], b['features'][0]['action'], b['features'][0]['scenario_count'])" 2>/dev/null)
 case "$brief_feat" in "menu update "[1-9]*) ok "brief says: update the menu spec ($brief_feat)";; *) bad "brief says '$brief_feat', not 'menu update <n>'";; esac
 
@@ -121,16 +122,23 @@ has "…with its brief" "$out" "git-$SHA.sync.json" yes
 printf '\n// session probe\n' >> "$C/bot/shared/services/training/x.js" 2>/dev/null || { mkdir -p "$C/bot/shared/services/training"; printf '// session probe\n' > "$C/bot/shared/services/training/x.js"; }
 git -C "$C" add -A >/dev/null; QA_HOOKS_QUIET=1 git -C "$C" commit -qm "feat(training): session probe" 2>/dev/null
 out=$(pay PostToolUse "cd \"$C\" && git commit -qm \"feat(training): session probe\"" | CLAUDE_PROJECT_DIR="$C" bash "$C/.claude/hooks/e2e-autorun.sh" 2>/dev/null)
-has "a session commit arms this session's run" "$out" "/niete-e2e training" yes
+has "a session commit arms this session's mock-lane run" "$out" "--features training" yes
+has "…and says the chrome lane waits for the sandbox deploy" "$out" "after the sandbox deploy" yes
 [ -f "$PEND/$S.json" ] && ok "session marker written" || bad "session marker missing"
 out=$(pay Stop "" | CLAUDE_PROJECT_DIR="$C" bash "$C/.claude/hooks/e2e-autorun-stop.sh" 2>/dev/null)
 has "Stop blocks once for the session's own run" "$out" '"decision": "block"' yes
-has "…naming training" "$out" "/niete-e2e training" yes
+has "…naming training's mock-lane run" "$out" "--features training" yes
+has "…and the sandbox deploy for the chrome lane" "$out" "after the sandbox deploy" yes
 out=$(pay Stop "" | CLAUDE_PROJECT_DIR="$C" bash "$C/.claude/hooks/e2e-autorun-stop.sh" 2>/dev/null)
-has "next Stop adopts the newest terminal-commit marker" "$out" "git-" yes
-has "…flagged as made outside any session" "$out" "outside any Claude session" yes
+has "next Stop holds the turn while training.feature is unsynced (phase 1)" "$out" "PHASE 1 IS NOT DONE" yes
 bash "$C/.claude/hooks/e2e-autorun.sh" --clear --session "$S" 2>/dev/null
-[ -f "$PEND/$S.json" ] && bad "--clear removes the session marker" || ok "--clear removes the session marker"
+[ -f "$PEND/$S.json" ] && ok "--clear refuses while that spec is unsynced" || bad "--clear removed a run whose spec is unsynced"
+bash "$C/.claude/hooks/e2e-autorun.sh" --declare --session "$S" 'training=none-needed (probe file only)' 2>/dev/null
+bash "$C/.claude/hooks/e2e-autorun.sh" --clear --session "$S" 2>/dev/null
+[ -f "$PEND/$S.json" ] && bad "a declaration releases it, then --clear removes the marker" || ok "a declaration releases it, then --clear removes the marker"
+out=$(pay Stop "" | CLAUDE_PROJECT_DIR="$C" bash "$C/.claude/hooks/e2e-autorun-stop.sh" 2>/dev/null)
+has "then Stop adopts the terminal commit's marker" "$out" "git-$SHA" yes
+has "…flagged as made outside any session" "$out" "outside any Claude session" yes
 
 echo "5 · impact over the range (what pre-push computes)"
 BASE=$(git -C "$C" rev-list --max-parents=0 HEAD | tail -1); BASE=$(git -C "$C" rev-parse "HEAD~3")
