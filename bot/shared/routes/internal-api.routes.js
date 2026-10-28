@@ -2901,8 +2901,8 @@ router.post('/coaching/start', requireInternalKey, portalCoachingRoute('start',
     userId: b.userId, key: b.key, lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys, lessonPlan: b.lessonPlan,
     teacherClass: b.teacherClass,
     liveMoves: b.liveMoves,
-    // bd-bmc9a0.2 — "Save recording" (ICT IAB row 31).
-    saveForLater: b.saveForLater === true,
+    // bd-bmc9a0.2 — "Save recording" (ICT IAB row 31): only a real true, and no key at all for a plain Submit.
+    ...(b.saveForLater === true ? { saveForLater: true } : {}),
   })));
 
 /**
