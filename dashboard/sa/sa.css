@@ -346,3 +346,129 @@ button{font:inherit;color:inherit}
 .is-ur-fit[lang=ur] .sae-silence .sae-p{font-size:18px;line-height:2.2;margin:0;padding-top:.4em;padding-inline:.6em}
 @media (max-height:700px){.is-ur-fit[lang=ur] .sae-silence .sae-jugnu{display:none}}
 @media (max-height:600px){.is-ur-fit[lang=ur] .sae-silence .sae-body{gap:6px}.is-ur-fit[lang=ur] .sae-silence .sae-h1{font-size:22px;padding-top:.3em}.is-ur-fit[lang=ur] .sae-silence .sae-p{font-size:16px;padding-top:.2em}}
+
+/* Round 8 (r8_comp_wait_next): the stuck line, small, just above Next in the foot (never over the question) */
+.sae .sae-r8-stuck{font-size:.85em;line-height:1.5;opacity:.8;margin:0 auto;max-width:30em;text-align:center}
+/* a short phone: a smaller mic, so "say your answer" and the stuck line both stay in view above Next */
+@media (max-height:700px){.sae .sae-run-oral.is-r8-wait .sae-mic{width:80px;height:80px;font-size:36px}.sae .sae-run-oral.is-r8-wait .sae-jugnu-s{max-height:72px}.sae .sae-r8-stuck{font-size:.75em;line-height:1.4}}
+
+/* Round 8, maths (battery.ui.r8_latin_digits, items 29/3/34): a sum reads as a blank to fill, "1 + 3 = ___". */
+.sae-sum-blank{display:inline-block;min-width:2.2ch;letter-spacing:0;color:var(--sae-ink-2)}
+.is-r8-digits .sae-sumrow .sae-typed{border-style:dashed}
+/* Round 8, maths (battery.ui.r8_missing_number, item 30): the number row large (its size set inline from its digits so
+   it fits one line at 360 px, larger on a tablet), the choices beneath it a little smaller, the tapped number floats in. */
+.sae-seq.is-r8-mn{flex-wrap:nowrap;gap:.2em;width:100%;margin:.15em 0 .35em;letter-spacing:0;line-height:1.1;font-variant-numeric:tabular-nums}
+.sae-seq.is-r8-mn .sae-seq-tile{flex:0 1 auto;min-width:1.4em;min-height:1.5em;padding:0 .18em;border-radius:.3em}
+.sae-seq.is-r8-mn .sae-gap{min-width:1.9em}
+.sae-seq.is-r8-mn .sae-gap.is-filled{border-style:solid;border-color:var(--sae-accent);background:var(--sae-accent-l);color:var(--sae-ink)}
+.sae-seq.is-r8-mn .sae-gap.is-right{border-color:var(--sae-ok);background:var(--sae-ok-bg);color:var(--sae-ok)}
+.sae-seq.is-r8-mn .sae-gap.is-tried{border-color:var(--sae-again);background:var(--sae-again-bg);color:var(--sae-ink)}
+.sae-mn-ink{display:inline-block;will-change:transform}
+.sae-r8-mn .sae-opts .sae-opt{min-height:64px;font-size:clamp(26px,7vw,46px)}
+@media (prefers-reduced-motion:reduce){.sae-mn-ink{transition:none!important;transform:none!important}}
+/* Round 8 (sa_r8_layout, items 6/12/21; the mount's .is-r8-layout; OFF = none of this): the screens use the room they
+   have. Phone (~360x640) and tablet (~800x1280) are sized separately: the pictures to tap fill the space under the
+   question, every tap target is 56 px or more on a phone (80 px on a tablet), and text that is already large is at
+   normal weight (bold stays where it means something: the picked word, the child's name, the hand-back line). A letter
+   card is one fixed box whatever is on it; sa-ui centres its ink (fitCells), Latin as well as Urdu. */
+.sae.is-r8-layout{--sae-tap:64px}
+.sae.is-r8-layout .sae-h1,.sae.is-r8-layout .sae-xl,.sae.is-r8-layout .sae-btn,.sae.is-r8-layout .sae-opt,.sae.is-r8-layout .sae-chip,.sae.is-r8-layout .sae-pic-w,.sae.is-r8-layout .sae-cap,.sae.is-r8-layout .sae-fb,.sae.is-r8-layout .sae-task-tag,.sae.is-r8-layout .sae-cell,.sae.is-r8-layout .sae-onecell,.sae.is-r8-layout .sae-label,.sae.is-r8-layout .sae-sum,.sae.is-r8-layout .sae-typed,.sae.is-r8-layout .sae-key,.sae.is-r8-layout .sae-star-word,.sae.is-r8-layout .sae-choice,.sae.is-r8-layout .sae-more,.sae.is-r8-layout .sae-r7-hint,.sae.is-r8-layout .sae-coach-says summary{font-weight:400}
+/* tap targets: the story's arrow, the sound button, the counters */
+.sae.is-r8-layout .sae-more{min-height:56px}
+.sae.is-r8-layout .sae-mute{width:56px;height:56px}
+.sae.is-r8-layout .sae-counter{width:56px;height:56px}
+.sae.is-r8-layout .sae-counters{max-width:320px;gap:4px}
+/* the sound check's pictures: big, from the screen's height; its question one size down so they are on screen */
+.sae.is-r8-layout .sae-check .sae-pic{min-height:clamp(140px,26vh,420px)}
+.sae.is-r8-layout .sae-check .sae-pic-e{font-size:clamp(64px,13vh,180px)}
+.sae.is-r8-layout .sae-check .sae-h1{font-size:24px}
+.sae.is-r8-layout .sae-check .sae-sub{font-size:18px}
+.sae.is-r8-layout .sae-check .sae-jugnu-s{width:64px;height:64px}
+.sae.is-r8-layout .sae-check .sae-replay{width:56px;height:56px}
+/* picture options: the grid takes the rest of the screen, each picture fills its tile */
+.sae.is-r8-layout .sae-opts:has(.is-pic){flex:1 1 auto;grid-auto-rows:minmax(0,1fr);min-height:min(52vh,720px)}
+.sae.is-r8-layout .sae-opt.is-pic{position:relative;min-height:0;padding:0}
+.sae.is-r8-layout .sae-opt.is-pic .sae-opt-img{position:absolute;inset:6px;width:calc(100% - 12px);height:calc(100% - 12px);max-height:none}
+.sae.is-r8-layout .sae-glyph{font-size:clamp(52px,9vh,120px)}
+/* a letter card: one fixed box, the ink in its middle (sa-ui fitCells) */
+.sae.is-r8-layout .sae-onecell{height:clamp(240px,46vh,640px);min-height:0;overflow:hidden}
+@media (min-width:600px){
+  .sae.is-r8-layout{--sae-tap:80px}
+  .sae.is-r8-layout .sae-screen{max-width:min(94vw,760px)}
+  .sae.is-r8-layout .sae-btn{max-width:520px;font-size:30px}
+  .sae.is-r8-layout .sae-h1{font-size:40px}
+  .sae.is-r8-layout .sae-sub,.sae.is-r8-layout .sae-say{font-size:26px}
+  .sae.is-r8-layout .sae-jugnu-s{width:112px;height:112px}
+  .sae.is-r8-layout .sae-opts{gap:18px}
+  .sae.is-r8-layout .sae-opt{min-height:180px;font-size:64px}
+  .sae.is-r8-layout .sae-opt[lang=ur]{font-size:56px}
+  .sae.is-r8-layout .sae-opt.is-short[lang=ur]{font-size:54px}
+  .sae.is-r8-layout .sae-opt.is-pic{min-height:0}
+  .sae.is-r8-layout .sae-pic-w{font-size:28px}
+  .sae.is-r8-layout .sae-check .sae-h1{font-size:36px}
+  .sae.is-r8-layout .sae-check .sae-sub{font-size:24px}
+  .sae.is-r8-layout .sae-check .sae-jugnu-s{width:112px;height:112px}
+  .sae.is-r8-layout .sae-check .sae-replay{width:80px;height:80px}
+  .sae.is-r8-layout .sae-keypad,.sae.is-r8-layout .sae-letters{max-width:520px}
+  .sae.is-r8-layout .sae-key{min-height:88px;font-size:38px}
+  .sae.is-r8-layout .sae-letters .sae-key{min-height:88px}
+  .sae.is-r8-layout .sae-counter{width:72px;height:72px}
+  .sae.is-r8-layout .sae-counters{max-width:420px}
+  .sae.is-r8-layout .sae-more{min-height:72px;max-width:520px;font-size:24px}
+  .sae.is-r8-layout .sae-star{max-width:520px;min-height:120px}
+  .sae.is-r8-layout .sae-replay{width:80px;height:80px;font-size:34px}
+  .sae.is-r8-layout .sae-chip{font-size:22px}
+  .sae.is-r8-layout .sae-task-tag{font-size:24px}
+}
+/* end round 8 layout */
+/* Round 8 (sa_r8_story_snap, item 15; the mount's .is-r8-snap; OFF = none of this): the story is its own scroll box,
+   the screen's height, made of parts one box high (sa-ui snapPack). Mandatory snapping with snap-stop always: a scroll
+   or a fling lands on the next part, never past it to the end, and the arrow moves one part. Larger type, normal
+   weight, the whole width of a tablet, so fewer parts are needed. */
+.sae.is-r8-snap:has(.sae-snap){height:100vh;height:100dvh;min-height:0}
+.sae.is-r8-snap .sae-screen.sae-snap{min-height:0}
+.sae.is-r8-snap .sae-snap .sae-body{min-height:0;overflow:hidden;justify-content:flex-start;padding:0;margin:0}
+.sae.is-r8-snap .sae-snap .sae-body>*{flex-shrink:0}
+.sae.is-r8-snap .sae-snap .sae-foot{position:static}
+.sae.is-r8-snap .sae-passage.is-snap{flex:1 1 0;min-height:0;overflow-y:auto;overscroll-behavior:contain;scroll-snap-type:y mandatory;position:relative;padding:0;font-size:28px;font-weight:400}
+.sae.is-r8-snap .is-snap .sae-part{scroll-snap-align:start;scroll-snap-stop:always;padding:14px 16px}
+.sae.is-r8-snap .is-snap[lang=ur] .sae-part{padding:calc(14px + 1.1em) calc(16px + .6em) 14px}
+.sae.is-r8-snap .sae-snap .sae-more{min-height:56px}
+/* on a phone the box is small: Urdu at the official page's line pitch (RULING W3-19, lines never collide) and a
+   lower star (the icon beside its word), so a part holds two or three lines, not one */
+.sae.is-r8-snap .sae-passage.is-snap[lang=ur]{font-size:28px;line-height:2.45}
+.sae.is-r8-snap .sae-snap .sae-star{flex-direction:row;gap:12px;min-height:72px}
+@media (min-width:600px){
+  .sae.is-r8-snap .sae-screen.sae-snap{max-width:min(94vw,760px)}
+  .sae.is-r8-snap .sae-passage.is-snap{font-size:38px}
+  .sae.is-r8-snap .sae-passage.is-snap[lang=ur]{font-size:40px}
+  .sae.is-r8-snap .sae-snap .sae-star{min-height:96px}
+  .sae.is-r8-snap .sae-snap .sae-more,.sae.is-r8-snap .sae-snap .sae-star{max-width:520px}
+}
+/* end round 8 story snap */
+/* Round 8 item 4 (sa_r8_lang_switch, .is-r8-lang only): the «اردو | English» toggle in the top bar, in flow beside the
+   dots (never over the content); a 56px tap target; the side the next screen speaks is the filled one. */
+.sae.is-r8-lang .sae-r8-lang{flex:0 0 auto;min-height:56px;min-width:56px;margin-inline-start:8px;padding:0 12px;border-radius:28px;border:3px solid var(--sae-line);background:var(--sae-card);color:var(--sae-ink-2);font-family:var(--sae-f);font-size:16px;line-height:1;display:inline-flex;align-items:center;gap:2px;cursor:pointer;white-space:nowrap}
+.sae.is-r8-lang .sae-r8-lang [lang=ur]{font-family:var(--sae-fu);line-height:1.6;word-spacing:0}
+.sae.is-r8-lang .sae-r8-lang-o{padding:4px 8px;border-radius:16px}
+.sae.is-r8-lang .sae-r8-lang-o.is-on{background:var(--sae-ink);color:#fff;font-weight:700}
+.sae.is-r8-lang .sae-r8-lang-bar{color:var(--sae-line)}
+.sae.is-r8-lang .sae-r8-lang.is-pending{border-color:var(--sae-accent)}
+.sae.is-r8-lang .sae-r8-lang:focus-visible{outline:4px solid var(--sae-ink);outline-offset:3px}
+.sae.is-r8-lang .sae-r8-lang:active{transform:scale(.96)}
+/* Round 8 (items 25/26, r8_nudges, .is-r8-cues): how the screen is answered, small and quiet at the top bar's physical
+   right edge in both directions (in an RTL row the first item is the rightmost). It sits in the bar, so it never covers
+   the screen's content or buttons; the proctored sync dot keeps its corner. The level bar is a thin upright meter. */
+.is-r8-cues .sae-r8-cue{flex:0 0 auto;display:flex;align-items:center;gap:4px;height:36px;margin-right:10px;color:var(--sae-ink-2);opacity:.55;direction:ltr;pointer-events:none}
+.is-r8-cues[dir=rtl] .sae-r8-cue{order:-1}
+.is-r8-cues .sae-r8-ico{display:block;width:30px;height:30px;line-height:0}
+.is-r8-cues .sae-r8-ico svg{display:block}
+.is-r8-cues .sae-r8-lvl{position:relative;display:block;width:6px;height:26px;border-radius:3px;background:var(--sae-line);overflow:hidden}
+.is-r8-cues .sae-r8-lvl[hidden]{display:none}
+.is-r8-cues .sae-r8-lvl-fill{position:absolute;left:0;right:0;bottom:0;height:0;background:var(--sae-ink-2);transition:height .08s linear}
+@media (prefers-reduced-motion:reduce){.is-r8-cues .sae-r8-lvl-fill{transition:none}}
+/* Round 8 (item 32, r8_highlight, .is-r8-hl): the word Jugnu is saying, lit like the storybook's read-along pill (light
+   green, dark green ink). Colour and a box shadow only: no padding, no weight change, so the line never reflows. */
+.is-r8-hl .sae-r8-w{border-radius:6px;transition:background-color .1s ease,box-shadow .1s ease}
+.is-r8-hl .sae-r8-w.is-on{background:#BBF7D0;color:#14532D;box-shadow:0 0 0 2px #BBF7D0}
+@media (prefers-reduced-motion:reduce){.is-r8-hl .sae-r8-w{transition:none}}

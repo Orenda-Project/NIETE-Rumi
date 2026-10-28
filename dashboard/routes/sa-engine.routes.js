@@ -40,7 +40,10 @@ const DEV_PAGES = ['play.html', 'run.html'];
 const DEV_TAG = '<script src="./sa-dev.js"></script>';
 // Round 7b's switches (sa-battery-switches.js SWITCHES names), each read like the rest.
 const R7B = ['backButton', 'endTestRestart', 'endSection', 'silenceRepeat', 'incompleteMoveOn', 'tSoundTa', 'sayThenNext',
-  'storyScroll', 'audioGatedNext', 'tickPrompt'];
+  'storyScroll', 'audioGatedNext', 'tickPrompt',
+  // round 8 (the reviewer's 28 Oct list, the child's screens)
+  'r8ReadingNoDone', 'r8CompWaitNext', 'r8PracticeAutoplay', 'r8LatinDigits', 'r8MissingNumber', 'r8Layout', 'r8StorySnap',
+  'r8Nudges', 'r8Highlight', 'r8LangSwitch', 'r8ReadingPosition', 'r8TimeupContinue'];
 
 /** The tashdeed takes on disk (sa/v3/ur/<12 hex>.mp3), by file name; none when the folder is missing. */
 function tashdeedTakes(dir = path.join(DIR, 'v3', 'ur')) {
