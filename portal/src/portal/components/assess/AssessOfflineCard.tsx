@@ -5,7 +5,7 @@ import { readVisit, visitKey, writeVisit } from '../../lib/assess/visitStore';
 import type { SaSchool } from '../../types/childTestSa';
 import { OFFLINE_COPY } from './offlineCopy';
 import {
-  checkForms, formsFor, mb, prepForms, readPrep, today, writePrep, writePreparedList, type Lang, type PrepRecord, type Progress,
+  checkForms, formsFor, keepPageOffline, listUrl, mb, prepForms, readPrep, today, writePrep, writePreparedList, type Lang, type PrepRecord, type Progress,
 } from './offlineReady';
 
 /**
@@ -13,7 +13,8 @@ import {
  * (today's visits ticked) and taps Get ready: each school's list is read now and kept on the phone (today's visit
  * memory and a prepared copy), then every battery those lists need, in both languages, goes on the phone through the
  * engine's worker. Arriving at a school with no signal, the coach opens the school, picks a child and runs the test.
- * The card says how much came down and when; a record from an earlier day says to get ready again.
+ * The card says how much came down and when; a record from an earlier day says to get ready again. The page itself is
+ * kept too (public/assess-sw.js), so a tab the phone reloads at the school still opens.
  */
 
 const SHOW_ALL_UP_TO = 15;
@@ -59,6 +60,7 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
     setProgress({ done: 0, total: 0, bytes: 0 });
     const grades = new Set<number>();
     const done: PrepRecord['schools'] = [];
+    const lists: string[] = [];
     for (const s of chosen) {
       // sa_all_grades: the grade is named at the school, so every grade's test goes on the phone and the list waits
       if (allGrades && !s.grade) {
@@ -69,6 +71,7 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
       try {
         const out = s.grade ? await childTestSa.getList(s.schoolId, s.visitId, s.grade) : await childTestSa.getList(s.schoolId, s.visitId);
         const l = out.list;
+        lists.push(listUrl(s.schoolId, s.visitId, s.grade));
         writePreparedList(s.schoolId, s.grade, l);
         const key = visitKey(s.schoolId, undefined, s.grade);
         writeVisit(key, { ...readVisit(key), list: l });
@@ -81,7 +84,9 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
       }
     }
     const forms = formsFor([...grades].sort());
+    const page = keepPageOffline(lists);
     const r = await prepForms(forms, (p) => setProgress(p));
+    await page;
     const rec: PrepRecord = { at: Date.now(), day: today(), schools: done, forms, ok: r.ok && done.every((d) => d.listed || allGrades), total: r.total, cached: r.cached, bytes: r.bytes };
     writePrep(rec);
     setRecord(rec);

@@ -150,3 +150,11 @@ Feature: School leader (principal) portal
     Then "No internet: these are the schools saved on this phone." shows above the saved schools
     When they open a prepared school
     Then the saved list shows with the no-internet note, and a child can be marked present and started
+
+  @LP24 @config-gated
+  Scenario: Learning assessment: the page opens again after a reload at a school with no signal (sa_r8_offline_prep)
+    Given the coach got ready for offline today (the page's own offline copy was kept) and the phone now has no internet
+    When the phone reloads the Learning assessment tab
+    Then the page opens signed in, from what the phone kept, with the saved schools
+    And a prepared school's list opens and a child can be started
+    And with sa_r8_offline_prep off, the page's offline copy is removed from the phone the next time the page reads its switches online

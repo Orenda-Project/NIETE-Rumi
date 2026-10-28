@@ -21,7 +21,8 @@ import type { SaList, SaSchool } from '../../types/childTestSa';
  * `assess:r8:list:<school>:<grade>` (a prepared list, shown when the network fails and today's visit has none).
  */
 
-export type R8Switches = { offlineFirst: boolean; offlinePrep: boolean; fastStart: boolean };
+/** known: the switches were read (false until then, and when the read failed). */
+export type R8Switches = { offlineFirst: boolean; offlinePrep: boolean; fastStart: boolean; known?: boolean };
 export const R8_OFF: R8Switches = { offlineFirst: false, offlinePrep: false, fastStart: false };
 
 export const FAST_START_MS = 1500;
@@ -35,7 +36,7 @@ export function useR8Switches(enabled: boolean | null): R8Switches {
     Promise.resolve().then(() => childTestSa.getSwitches())
       .then((s) => {
         const r = (s || {}) as Record<string, unknown>;
-        if (live) setOn({ offlineFirst: r.r8OfflineFirst === true, offlinePrep: r.r8OfflinePrep === true, fastStart: r.r8FastStart === true });
+        if (live) setOn({ offlineFirst: r.r8OfflineFirst === true, offlinePrep: r.r8OfflinePrep === true, fastStart: r.r8FastStart === true, known: true });
       })
       .catch(() => { /* off */ });
     return () => { live = false; };
@@ -108,6 +109,76 @@ export async function checkForms(forms: string[]): Promise<CheckResult> {
   } catch (err) {
     return { ready: false, total: 0, cached: 0, why: String((err as Error)?.message || err) };
   }
+}
+
+// ── The page itself, offline (public/assess-sw.js, scope /portal/leader/assess) ──
+
+const PAGE_SW = '/assess-sw.js';
+const PAGE_SCOPE = '/portal/leader/assess';
+const API = '/api/portal';
+const CTS = `${API}/leader/child-test/sa`;
+
+/** The list read's URL as the API client sends it (services/api.ts childTestSa.getList). */
+export function listUrl(schoolId: string, visitId?: string | null, grade?: number | null): string {
+  const q = new URLSearchParams({ schoolId, ...(visitId ? { visitId } : {}), ...(grade ? { grade: String(grade) } : {}) });
+  return `${CTS}/list?${q.toString()}`;
+}
+
+/** What the page needs to open with no signal: itself, its files, and the reads it makes on the way in. */
+export function pageUrls(lists: string[]): string[] {
+  const assets = new Set<string>();
+  try {
+    performance.getEntriesByType('resource').forEach((e) => {
+      const u = new URL(e.name, location.href);
+      if (u.origin === location.origin && u.pathname.startsWith('/assets/')) assets.add(u.pathname);
+    });
+    document.querySelectorAll('script[src], link[rel="stylesheet"][href]').forEach((el) => {
+      const u = new URL((el as HTMLScriptElement).src || (el as HTMLLinkElement).href, location.href);
+      if (u.origin === location.origin && u.pathname.startsWith('/assets/')) assets.add(u.pathname);
+    });
+  } catch { /* no timing API: the page and the reads still go */ }
+  return [PAGE_SCOPE, ...assets, `${API}/me`, `${API}/config`, `${CTS}/switches`, `${CTS}/schools`, ...lists];
+}
+
+function postAsk(w: ServiceWorker, msg: unknown, waitMs = 60_000): Promise<{ ok: boolean; cached: number; missing: string[] } | null> {
+  return new Promise((ok) => {
+    const ch = new MessageChannel();
+    const t = window.setTimeout(() => ok(null), waitMs);
+    ch.port1.onmessage = (e) => { window.clearTimeout(t); ok(e.data); };
+    w.postMessage(msg, [ch.port2]);
+  });
+}
+
+/** sa_r8_offline_prep: register the page's worker and keep the page, its files and these reads. Never throws. */
+export async function keepPageOffline(lists: string[]): Promise<boolean> {
+  try {
+    const nav = navigator.serviceWorker;
+    if (!nav) return false;
+    const reg = await nav.register(PAGE_SW, { scope: PAGE_SCOPE });
+    let w: ServiceWorker | null = reg.active;
+    if (!w) {
+      const next = reg.installing || reg.waiting;
+      if (!next) return false;
+      w = await new Promise<ServiceWorker | null>((ok) => {
+        const t = window.setTimeout(() => ok(reg.active), 30_000);
+        next.addEventListener('statechange', () => {
+          if (next.state === 'activated') { window.clearTimeout(t); ok(next); }
+          else if (next.state === 'redundant') { window.clearTimeout(t); ok(reg.active); }
+        });
+      });
+    }
+    if (!w) return false;
+    const r = await postAsk(w, { type: 'warm', urls: pageUrls(lists) });
+    return !!r?.ok;
+  } catch { return false; }
+}
+
+/** The switch read as OFF: a page worker left from an earlier "Get ready" goes. Never throws. */
+export async function dropPageOffline(): Promise<void> {
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration(PAGE_SCOPE);
+    if (reg && reg.active && /\/assess-sw\.js$/.test(reg.active.scriptURL)) await reg.unregister();
+  } catch { /* nothing kept, or no worker API */ }
 }
 
 /** p's answer if it comes within ms, else { done: false } (p still runs). A rejection within ms rejects. */

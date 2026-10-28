@@ -11,7 +11,7 @@ import AssessActions, { useAboveTabBar } from '../components/assess/AssessAction
 import AssessOfflineCard from '../components/assess/AssessOfflineCard';
 import { OFFLINE_COPY } from '../components/assess/offlineCopy';
 import {
-  FAST_START_MS, formFor, prepForms, readPreparedList, readSchools, useR8Switches, within, writeSchools, type PrepResult, type Progress,
+  dropPageOffline, FAST_START_MS, formFor, prepForms, readPreparedList, readSchools, useR8Switches, within, writeSchools, type PrepResult, type Progress,
 } from '../components/assess/offlineReady';
 import { childTestSa } from '../services/api';
 import { useChildTestSa } from '../lib/useChildTestSa';
@@ -220,6 +220,11 @@ export default function LeaderAssess() {
   useEffect(() => {
     if (step.kind === 'list') void loadList(step.school, visitKey(step.school.schoolId, undefined, step.school.grade));
   }, [step, loadList]);
+
+  // sa_r8_offline_prep read as OFF: a page worker an earlier "Get ready" left on this phone goes
+  useEffect(() => {
+    if (r8.known && !r8.offlinePrep) void dropPageOffline();
+  }, [r8.known, r8.offlinePrep]);
 
   // sa_r8_offline_first: the list's battery starts coming down as soon as the list is open, so Start rarely waits
   useEffect(() => {
