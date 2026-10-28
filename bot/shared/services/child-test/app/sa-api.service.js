@@ -446,7 +446,8 @@ const TIMED = ['session_start', 'audio_check', 'task_start', 'task_end', 'handov
 const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on'];
 // voice_held: Jugnu's line held by a hidden page (parked, paused, resumed, gave_up), from sa-voice.js
 // Round 8 (sa_r8_lang_switch): a language switch during the test, { from, to, item_id } on the task it starts at.
-const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', 'lang_switch', ...STOP_TYPES];
+// no_reading_skip (round 8, sa_r8_reading_position): the story's questions skipped because the child read nothing aloud
+const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', 'lang_switch', 'no_reading_skip', ...STOP_TYPES];
 const MAX_EVENT_DATA = 300; // characters of JSON
 
 function loadBank() {
