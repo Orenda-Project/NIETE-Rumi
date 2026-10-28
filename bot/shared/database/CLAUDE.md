@@ -26,7 +26,7 @@ Full index: `CLAUDE.index.md`
 - … 37 more → `CLAUDE.index.md`
 
 ## Never (human)
-- schema.sql is the Nov 2025 baseline only; live schema comes from supabase/migrations
+- schema.sql is the Nov 2025 baseline only; live schema: infrastructure/supabase/migrations/ (infrastructure/scripts/migrate.js:324-327) + hand-applied bot/database/migrations/
 <!-- read: map-read-niete-bot 2026-10-29 -->
 
 ## Tests (generated)
