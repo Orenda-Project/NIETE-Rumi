@@ -183,9 +183,12 @@
             // The mercy rule on the passage (RULING #10): no voice for 12 s → Jugnu offers the star once; 20 s → the
             // task ends as early_stop_silence. The recorder's watch starts now, with the recording running.
             // sa_cell_pace: a one-at-a-time item waits 3 s after the child's last voice, so the engine hears the voice.
-            if (rec.onVoice && ((w3.cell_pace === true && t.mode === 'record' && !item && !t.passage) || (silenceRepeat && t.mode === 'record' && !item))) {
+            // round 8 (sa_r8_reading_position): the story's voiced seconds decide its questions, so the ear listens there too
+            var hearStory = w3.r8_reading_position === true && t.mode === 'record' && !item && !!t.passage;
+            if (rec.onVoice && ((w3.cell_pace === true && t.mode === 'record' && !item && !t.passage) || (silenceRepeat && t.mode === 'record' && !item) || hearStory)) {
               endVoice();
               cancelVoice = rec.onVoice(function () { runner.voice(); });
+              if (runner.voiceWatch) runner.voiceWatch(rec.ear);
             }
             if (t.mode === 'record' && !item && rec.onSilence && !runner.holdsCell()) {
               cancelSilence = rec.onSilence({ after_s: t.mercy_after_s || 12, total_s: t.silence_stop_s || 20 }, function (s) {
