@@ -60,6 +60,9 @@
  * Round 8, the child's flow (each OFF unless battery.ui.<flag>):
  *   r8_reading_no_done   a reading (passage) screen says nothing about "done" on the way in; the recorder opens after a
  *                        short gap (R8_REC_GAP_MS) in place of the Done line. The star keeps its Done label.
+ *   r8_comp_wait_next    a story / listening question never moves on by itself (sa-core); its button reads Next, and a
+ *                        quiet line under it says a stuck child can press it (lines.stuck_press_next, else COPY), said
+ *                        once per question R8_STUCK_MS after Jugnu asked it, only when the battery's line has a clip.
  *
  * UMD: window.SAE.ui in the browser, module.exports under Node.
  */
@@ -160,6 +163,8 @@
       more_below: 'More of the story below',
       chip_say_next: 'Say it, then press Next',
       chip_type_tick: 'Type, then press ✓',
+      // round 8 (r8_comp_wait_next): under a story question, when the battery has no lines.stuck_press_next
+      stuck_press_next: 'If you are stuck, press the button to go on.',
     },
     ur: {
       hello: 'السلام علیکم! میں جگنو ہوں۔',
@@ -248,6 +253,7 @@
       more_below: 'کہانی نیچے بھی ہے',
       chip_say_next: 'بولیں، پھر «آگے» دبائیں',
       chip_type_tick: 'لکھیں، پھر ✓ دبائیں',
+      stuck_press_next: 'اگر آپ کو جواب نہ آئے تو آگے جانے کے لیے بٹن دبائیں۔',
     },
   };
 
@@ -270,6 +276,7 @@
   var WARM_CAP_MS = 25000;
   var HOLD_MS = 3000;
   var GATE_CAP_MS = 30000;  // audio_gated_next: Next opens by itself this long after the words began, whatever the voice does
+  var R8_STUCK_MS = 6000;   // r8_comp_wait_next: a question this long unanswered after Jugnu asked it hears the stuck line (its clip only)
   var R8_REC_GAP_MS = 600;  // r8_reading_no_done: the reading's recorder opens this long after the screen, in place of the Done line
   var KEYPAD_MIN = 3;        // digits the keypad takes; more when the task has a longer answer (1,000 + 300 + 80 + 3)
   var WORD_MAX = 16;
@@ -416,6 +423,8 @@
       if (r7.story_scroll === true && t.mode === 'record' && t.passage) return line('r7_scroll');
       return null;
     }
+    /** r8_comp_wait_next: a story or listening question, which waits for Next (sa-core drops its timeout). */
+    function compWait(t) { return r7.r8_comp_wait_next === true && !!t && t.mode === 'oral' && /comprehension$/.test(t.subtask || '') && (!manual || appAsks); }
     function sayNext(t) { return r7.say_then_next === true && cellish(t) && !!line('r7_say_next'); }
     function hintEl(t, cls) {
       var hl = hintOf(t);
@@ -1317,11 +1326,12 @@
         /^mental_/.test(t.subtask || '') && shownOf(it) != null ? labelOf(it, t) : null,
         h('div', { class: 'sae-mic sa-mic' + (on ? ' is-on' : ''), 'aria-hidden': 'true' }, [h('span', { text: '🎤' })]),
         hintOf(t) ? hintEl(t, 'sae-sub') : h('p', { class: 'sae-sub', text: C.say_answer }),
-      ], itemFoot(v, [btn(C.answered, function () {
+        compWait(t) ? h('p', { class: 'sae-sub sae-r8-stuck', text: tx(copyLine('stuck_press_next')) }) : null,
+      ], itemFoot(v, [btn(compWait(t) ? C.next : C.answered, function () {
         busy = true;
         runner.answer('spoken');
         later(function () { busy = false; draw(); }, PRESS_MS);
-      }, 'sae-primary')]));
+      }, compWait(t) ? 'sae-primary sa-next' : 'sae-primary')]));
     }
 
     // ---------- session gates ----------
@@ -1659,6 +1669,7 @@
           sayItem(v.item, t).then(function () {
             if (!alive || g2 !== gen || lastKey !== key) return;
             if (runner.promptDone) runner.promptDone(); // the answer window starts after the question
+            stuckLater(t, key);
             if (sectionRec) return; // the task's one recording is already running (recorderHooks)
             oralRec = { task: t, item: v.item, key: key };
             try { if (opts.onRecordStart) opts.onRecordStart(t, v.item); } catch (e) { /* recorder */ }
@@ -1706,6 +1717,13 @@
         if (mode === 'proctored') say(handback === 'teacher' && line('end') ? line('end') : copyLine('give_coach'));
         else say(copyLine('all_done'));
       }
+    }
+
+    /** r8_comp_wait_next: the stuck line once, R8_STUCK_MS after the question was asked, if still unanswered (clip only). */
+    function stuckLater(t, key) {
+      var sl = line('stuck_press_next');
+      if (!compWait(t) || !sl || !sl.audio) return;
+      later(function () { if (lastKey === key && keyOf(runner.view()) === key) say(sl, null, appAsks); }, R8_STUCK_MS);
     }
 
     // The recorder hooks: a record task's running phase (however it ends), and each oral question.
