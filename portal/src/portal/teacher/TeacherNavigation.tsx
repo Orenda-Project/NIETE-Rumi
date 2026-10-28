@@ -9,7 +9,7 @@ import { FeatureGlyph, type GlyphName } from "./icons";
 import { AuthContext } from "../hooks/authContext";
 import { useHomeLook } from "./home/useHomeData";
 import { LOOK_ICONS } from "./home/look/lookIcons";
-import { COACH_MENU_PATHS, COACH_NAV_KEYS, coachNavKeysFor, currentCoachMenuItem, currentMenuItem, type CoachNavKey, type NavFeature } from "./menu";
+import { COACH_CARD_NAV_KEYS, COACH_MENU_PATHS, COACH_NAV_KEYS, coachNavKeysFor, currentCoachCardItem, currentCoachMenuItem, currentMenuItem, type CoachNavKey, type NavFeature } from "./menu";
 
 /**
  * bd-fmf24g.1 — the teacher v2 menu (canvas v28): a white bottom bar on a phone with
@@ -53,14 +53,17 @@ export type MenuRole = "teacher" | "coach";
 const LOOK_ITEM =
   "flex flex-1 min-w-0 flex-col items-center justify-center gap-0.5 min-h-[56px] rounded-xl text-[11px] leading-[1.15] rtl:!leading-[1.5] font-medium text-center whitespace-normal [overflow-wrap:anywhere] hyphens-auto outline-none focus-visible:ring-[3px] focus-visible:ring-[#f59e0b]";
 
-/** `ready` (coach only): the features that are ready, others are left out (bd-s42dye.2). `role` picks the items (default: the teacher's); the bar, the glyphs and the current-item rule are the same. */
-const TeacherNavigation = ({ role = "teacher", ready }: { role?: MenuRole; ready?: readonly string[] } = {}) => {
+/**
+ * `ready` (coach only): the features that are ready, others are left out (bd-s42dye.2). `role` picks the items (default: the teacher's); the bar, the glyphs and the current-item rule are the same.
+ * `schoolCard` (coach only): the School card's menu, Home · Lesson Plans · More, with Home current on the pages it opens.
+ */
+const TeacherNavigation = ({ role = "teacher", ready, schoolCard = false }: { role?: MenuRole; ready?: readonly string[]; schoolCard?: boolean } = {}) => {
   const C = useCopy(TEACHER_FRAME);
   const { pathname } = useLocation();
   const items: { feature: string; label: string; to: string; glyph: GlyphName }[] = role === "coach"
-    ? (ready ? coachNavKeysFor(ready) : COACH_NAV_KEYS).map((k) => ({ feature: k, label: C.coachNav[k], to: COACH_MENU_PATHS[k], glyph: COACH_ICONS[k] }))
+    ? (schoolCard ? COACH_CARD_NAV_KEYS : ready ? coachNavKeysFor(ready) : COACH_NAV_KEYS).map((k) => ({ feature: k, label: C.coachNav[k], to: COACH_MENU_PATHS[k], glyph: COACH_ICONS[k] }))
     : ITEMS.map((f) => ({ feature: f, label: C.nav[f], to: teacherPath(f), glyph: NAV_ICONS[f] }));
-  const current: string | null = role === "coach" ? currentCoachMenuItem(pathname) : currentMenuItem(pathname);
+  const current: string | null = role === "coach" ? (schoolCard ? currentCoachCardItem(pathname) : currentCoachMenuItem(pathname)) : currentMenuItem(pathname);
   // The Home look reaches the teacher's phone bar only; a coach's menu never reads it (nothing is asked, always off).
   const userKey = useContext(AuthContext)?.user?.phoneNumber;
   const look = useHomeLook(role === "teacher" ? userKey : null, role === "teacher");

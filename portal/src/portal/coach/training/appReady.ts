@@ -29,6 +29,18 @@ export function coachFeatureReady(feature: CoachFeature): boolean {
 
 export const COACH_TRAINING_BASE = "/portal/coach/training";
 
+/**
+ * The ready list for a v2 coach: exactly COACH_APP_READY, unless the School card is on for her.
+ *
+ * The School card (`schoolCard`, /config features.schoolCard, a literal true only): the slim coach Home comes first, so it
+ * is her landing page, with the School card pages (My schools, and the DC report under "home"), Training and Lesson
+ * Plans. Schedule, Observe, Reports and Analytics all stay shut. Off, absent or unread: exactly COACH_APP_READY.
+ */
+export function coachReadyFor(schoolCard?: boolean | null): readonly CoachFeature[] {
+  if (schoolCard === true) return ["home", ...COACH_APP_READY, ...(COACH_APP_READY.includes("schools") ? [] : ["schools" as const])];
+  return COACH_APP_READY;
+}
+
 export const coachTrainingPaths = {
   home: COACH_TRAINING_BASE,
   provider: (vendorKey: string) => `${COACH_TRAINING_BASE}/${encodeURIComponent(vendorKey)}`,
@@ -38,12 +50,15 @@ export const coachTrainingPaths = {
   previewCourseExam: (id: Id) => `${COACH_TRAINING_BASE}/preview?course_id=${encodeURIComponent(String(id))}&kind=module_exam`,
 };
 
-/** Where each feature lives. `exact` = that address only (Home's is a prefix of every coach page). */
-const FEATURE_PATHS: Record<CoachFeature, { prefixes: readonly string[]; exact?: boolean }> = {
+/**
+ * Where each feature lives: `exact` addresses match only themselves (Home's is a prefix of every coach page), `prefixes`
+ * match themselves and every page under them. Home also holds the School card's DC report (/portal/coach/session/:id).
+ */
+const FEATURE_PATHS: Record<CoachFeature, { prefixes: readonly string[]; exact?: readonly string[] }> = {
   training: { prefixes: [COACH_TRAINING_BASE] },
   // The teacher's own Lesson Plans pages; TeacherGate decides which of them a leader reads (routes.tsx `leaders`).
   lessons: { prefixes: [LESSONS_HOME] },
-  home: { prefixes: ["/portal/coach"], exact: true },
+  home: { exact: ["/portal/coach"], prefixes: ["/portal/coach/session"] },
   schedule: { prefixes: ["/portal/coach/scheduling", "/portal/coach/schedule", "/portal/coach/team", "/portal/coach/new-visit"] },
   observe: { prefixes: ["/portal/coach/observe", "/portal/coach/visit", "/portal/coach/observation", "/portal/coach/reports"] },
   schools: { prefixes: ["/portal/coach/people", "/portal/coach/school", "/portal/coach/schools", "/portal/coach/add-teacher", "/portal/coach/teacher"] },
@@ -72,12 +87,12 @@ export function coachPathReady(pathname: string, ready: readonly CoachFeature[] 
   if (ALWAYS_OPEN.some((re) => re.test(p))) return true;
   return ready.some((f) => {
     const spec = FEATURE_PATHS[f];
-    return spec.exact ? spec.prefixes.includes(p) : spec.prefixes.some((x) => p === x || p.startsWith(`${x}/`));
+    return (spec.exact ?? []).includes(p) || spec.prefixes.some((x) => p === x || p.startsWith(`${x}/`));
   });
 }
 
 /** Where a v2 coach is sent from a page that is not ready: the first ready feature's page. */
 export function coachReadyHome(ready: readonly CoachFeature[] = COACH_APP_READY): string {
   const first = ready[0];
-  return first === "training" || !first ? COACH_TRAINING_BASE : FEATURE_PATHS[first].prefixes[0];
+  return first === "training" || !first ? COACH_TRAINING_BASE : (FEATURE_PATHS[first].exact?.[0] ?? FEATURE_PATHS[first].prefixes[0]);
 }

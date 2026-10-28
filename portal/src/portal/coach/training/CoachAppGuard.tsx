@@ -6,7 +6,8 @@ import { readShellHint } from "../../lib/shellHint";
 import { resolveRole } from "../../lib/leaderRole";
 import { useChildTestSa } from "../../lib/useChildTestSa";
 import { isCoachV2For, useCoachV2 } from "../useCoachV2";
-import { coachPathReady, coachReadyHome } from "./appReady";
+import { coachPathReady, coachReadyFor, coachReadyHome } from "./appReady";
+import { useSchoolCard } from "../card/useSchoolCard";
 
 /**
  * bd-s42dye.2 — the ONE guard around the route table for a coach on the coach app v2: any page that is not one of the
@@ -28,12 +29,17 @@ const CoachAppGuard = ({ children }: { children: ReactNode }) => {
   const flag = useCoachV2(user?.phoneNumber || null, isCoach);
   const onAssess = pathname === ASSESS || pathname.startsWith(`${ASSESS}/`);
   const assess = useChildTestSa(isCoach && onAssess);
+  // The School card switch (fail-closed): on, the slim Home is her landing page and the School card pages open.
+  const schoolCard = useSchoolCard(user?.phoneNumber || null, isCoach);
   if (!isCoach || coachPathReady(pathname)) return <>{children}</>;
   if (flag === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
   if (!isCoachV2For(user, flag)) return <>{children}</>;
+  if (schoolCard === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
+  const ready = coachReadyFor(schoolCard);
+  if (coachPathReady(pathname, ready)) return <>{children}</>;
   if (onAssess && assess === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
   if (onAssess && assess) return <>{children}</>;
-  return <Navigate to={coachReadyHome()} replace />;
+  return <Navigate to={coachReadyHome(ready)} replace />;
 };
 
 export default CoachAppGuard;
