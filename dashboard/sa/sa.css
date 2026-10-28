@@ -364,7 +364,11 @@ button{font:inherit;color:inherit}
 .sae-seq.is-r8-mn .sae-gap.is-right{border-color:var(--sae-ok);background:var(--sae-ok-bg);color:var(--sae-ok)}
 .sae-seq.is-r8-mn .sae-gap.is-tried{border-color:var(--sae-again);background:var(--sae-again-bg);color:var(--sae-ink)}
 .sae-mn-ink{display:inline-block;will-change:transform}
-.sae-r8-mn .sae-opts .sae-opt{min-height:64px;font-size:clamp(26px,7vw,46px)}
+/* the choices are numbers: Latin type and a tight line on the Urdu page too (Nastaliq's line made them 103 px tall);
+   mnFit (sa-ui) brings --mn-opt-h down to 56 px and hides Jugnu (.is-mn-tight) when a short phone needs it */
+.sae-r8-mn .sae-opts .sae-opt{min-height:var(--mn-opt-h,64px);font-size:clamp(26px,7vw,46px);line-height:1.15;font-family:var(--sae-f)}
+.sae-r8-mn.is-mn-tight .sae-jugnu{display:none}
+.sae-r8-mn.is-mn-tight .sae-body{gap:8px}
 @media (prefers-reduced-motion:reduce){.sae-mn-ink{transition:none!important;transform:none!important}}
 /* Round 8 (sa_r8_layout, items 6/12/21; the mount's .is-r8-layout; OFF = none of this): the screens use the room they
    have. Phone (~360x640) and tablet (~800x1280) are sized separately: the pictures to tap fill the space under the
@@ -472,3 +476,35 @@ button{font:inherit;color:inherit}
 .is-r8-hl .sae-r8-w{border-radius:6px;transition:background-color .1s ease,box-shadow .1s ease}
 .is-r8-hl .sae-r8-w.is-on{background:#BBF7D0;color:#14532D;box-shadow:0 0 0 2px #BBF7D0}
 @media (prefers-reduced-motion:reduce){.is-r8-hl .sae-r8-w{transition:none}}
+/* Round 8 fit (r8_layout, r8_story_snap; OFF = none of this). On a 360x640 phone, with the coach's frame and the
+   sandbox's QA jump row, the letter card ran under Next and the story box was 102 px, less than one part. So:
+   - a one-at-a-time card's screen (sa-ui .sae-fit) is the phone's height and the card takes what is left above the
+     foot; sa-ui fits the ink to the card, so the whole letter or number shows;
+   - the story's arrow sits beside the star (sa-ui .sae-snapfoot), one row instead of two;
+   - on a short screen the chip and the clock are compact, and in the coach's frame the QA jump row sits in the
+     frame's top padding instead of below it. */
+.sae.is-r8-layout:has(.sae-fit){height:100vh;height:100dvh;min-height:0}
+.sae.is-r8-layout .sae-screen.sae-fit{min-height:0}
+.sae.is-r8-layout .sae-fit .sae-body{min-height:0;overflow:hidden;justify-content:flex-start}
+.sae.is-r8-layout .sae-fit .sae-body>*{flex-shrink:0}
+.sae.is-r8-layout .sae-fit .sae-body>.sae-onecell{flex:1 1 0;min-height:96px;height:auto;margin:0}
+.sae.is-r8-layout .sae-fit .sae-foot{position:static}
+.sae.is-r8-snap .sae-snapfoot{display:flex;flex-direction:row;align-items:stretch;gap:16px;width:100%;max-width:360px}
+.sae.is-r8-snap .sae-snapfoot>.sae-more{flex:0 0 auto;width:72px;min-height:64px;margin:0;padding:0;border-radius:var(--sae-r);animation:none}
+.sae.is-r8-snap .sae-snapfoot>.sae-more .sae-more-w{display:none}
+.sae.is-r8-snap .sae-snapfoot>.sae-more .sae-more-ico{font-size:32px}
+.sae.is-r8-snap .sae-snapfoot>.sae-star{flex:1 1 auto;width:auto;min-height:64px}
+.sae.is-r8-snap .is-snap[lang=ur] .sae-part{padding:calc(4px + 1.1em) calc(16px + .6em) 6px}
+.sae.is-r8-snap .is-snap[lang=en] .sae-part{padding:8px 16px}
+.sae.is-ur-fit.is-embed[lang=ur].is-r8-layout .sae-devjump-row,.sae.is-ur-fit.is-embed[lang=ur].is-r8-snap .sae-devjump-row{margin-top:0}
+@media (max-height:760px){
+  .sae.is-r8-snap .sae-snap .sae-chip,.sae.is-r8-layout .sae-fit .sae-chip{font-size:16px;line-height:2.4;padding-top:.3em;padding-bottom:0}
+  .sae.is-r8-snap .sae-snap .sae-clock,.sae.is-r8-layout .sae-fit .sae-clock{margin:2px 0}
+  .sae.is-r8-snap .sae-snap.sae-screen,.sae.is-r8-layout .sae-fit.sae-screen{gap:6px;padding-bottom:8px}
+}
+@media (min-width:600px){
+  .sae.is-r8-snap .sae-snapfoot{max-width:520px}
+  .sae.is-r8-snap .sae-snapfoot>.sae-more{width:96px;min-height:88px}
+  .sae.is-r8-snap .sae-snapfoot>.sae-star{min-height:88px}
+}
+/* end round 8 fit */
