@@ -60,7 +60,10 @@ const addChildSwitch = require('./add-child-switch');
 const coachLastWord = require('./coach-last-word-switch');
 const practiceOnly = require('./practice-only-switch');
 const anySchool = require('./any-school-switch');
+const endTestRestart = require('./end-test-restart-switch');
+const dashFilters = require('./dash-filters-switch');
 const { lastWordIndex } = require('../sa/last-word-hint');
+const { isSetAside } = require('../sa/set-aside');
 const { MEDIA, envSegment, __internals: { guarded: gate, rows, ownVisit, ownSession, gradeOf } } = require('./app-api.service');
 
 /** Every handler of the coach app's Learning assessment may run for a practice-only coach (d.practiceSchools). */
@@ -301,11 +304,32 @@ async function resumed(d, session, { block, repick, clientSessionId, known }, de
 }
 
 /**
+ * Round 7b (sa_end_test_restart): Restart test for a child the coach ended early. One session per drawn child, so the
+ * restart is a new attempt on it (sa-store restartAttempt): the phone's new id and block, a `restart` event. A finished
+ * child, another coach's, or no phone id is refused; a re-sent restart with the same new id answers the same.
+ */
+async function restartChild(d, { userId, drawId, clientSessionId, block }, deps) {
+  if (!(await endTestRestart.enabled(deps))) return { status: 'invalid', reason: 'restart_off' };
+  if (!clientSessionId) return { status: 'invalid', reason: 'bad_client_id' };
+  const got = await d.store.getSessionByDraw(drawId);
+  const s = got && got.ok ? got.session : null;
+  if (!s || s.coach_user_id !== userId || s.item_bank_version !== SA_MARK || !allowedSchool(d, s.school_id)) return { status: 'not_found' };
+  if (s.status === 'completed') return { status: 'invalid', reason: 'completed' };
+  const same = { status: 'ok', sessionId: s.id, list: null, restarted: true, ...(block ? { block } : {}) };
+  if (s.client_session_id === clientSessionId) return same;
+  const out = await saStoreOf(deps).restartAttempt(s.id, { clientSessionId, block: block || null, at: d.now().toISOString() });
+  if (!out || !out.ok) throw new Error((out && (out.error || out.reason)) || 'restartAttempt failed');
+  await d.store.recordTiming(s.id, 'sa.restarted', d.now());
+  d.log('child_test.sa.restart', { userId, sessionId: s.id, attempt: out.attempt });
+  return same;
+}
+
+/**
  * present / absent / refused. The phone may name the child's session itself (clientSessionId, a uuid it
  * minted while offline) and say which part of the battery the child takes (block); a present re-sent with
  * the same client id answers the session it already made.
  */
-const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ userId, schoolId, visitId, drawId, outcome, note, clientSessionId, block, repick, grade }, d) => {
+const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ userId, schoolId, visitId, drawId, outcome, note, clientSessionId, block, repick, grade, restart }, d) => {
   if (!OUTCOMES.includes(outcome)) return { status: 'invalid', reason: 'bad_outcome' };
   if (!drawId) return { status: 'invalid', reason: 'no_draw' };
   if (clientSessionId != null && !UUID_RE.test(String(clientSessionId))) return { status: 'invalid', reason: 'bad_client_id' };
@@ -315,6 +339,7 @@ const dayOutcome = (args = {}, deps = {}) => guarded('sa_day_outcome', async ({ 
   if (named.bad) return { status: 'invalid', reason: 'bad_grade' };
   const visit = await visitFor(d, userId, { schoolId, visitId, grade: named.grade }, await anySchool.enabledFor(userId, deps));
   if (!visit) return { status: 'not_found' };
+  if (restart === true && outcome === 'present') return restartChild(d, { userId, drawId, clientSessionId, block }, deps);
   const sa = clientSessionId && outcome === 'present' ? saStoreOf(deps) : null;
   if (sa) {
     const known = await sa.findByClient(clientSessionId);
@@ -415,7 +440,9 @@ const RDF_W3 = ['rdf_auto', 'rdf_manual'];
 // the session timings an event leaves: when each subtask and each hand-over happened (device clock)
 const TIMED = ['session_start', 'audio_check', 'task_start', 'task_end', 'handover_in', 'handover_out', 'coach_unlock', 'reload_resume', 'battery_end'];
 // the events the session keeps as they are (device.events): what the timings cannot say
-const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result'];
+// Round 7b: every skip and stop, one record each (the session, child and coach are the session row's; task_id the subtask).
+const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on'];
+const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', ...STOP_TYPES];
 const MAX_EVENT_DATA = 300; // characters of JSON
 
 function loadBank() {
@@ -794,7 +821,8 @@ async function resultsOf(sessionId, d, session, bank, stops = false) {
 
 /** resultsOf on rows already read (the dashboard reads every session's rows at once). */
 function shapeResults(session, rowsIn, bank, stops = false) {
-  const blocks = (rowsIn || []).filter((r) => TASK_RE.test(String(r.block || ''))).sort(byWhen);
+  // round 7b: a restarted child's ended attempt (set aside on the session) is never on Results or the dashboard
+  const blocks = (rowsIn || []).filter((r) => TASK_RE.test(String(r.block || '')) && !isSetAside(r.block)).sort(byWhen);
   const lang = (blocks.find((r) => LANGS.includes(r.lang)) || {}).lang || null;
   // each task's own name from the battery ({ en, ur }), so the page never heads a card with a code
   const f = formOf(bank, session);
@@ -839,6 +867,38 @@ function saResults(args = {}, deps = {}) {
 }
 
 /**
+ * sa_dash_filters (round 7b): what the dashboard filters and audits by, for one session. Mode: coach-led for RDF manual
+ * (the coach gives the instructions), auto for every other block. Stops: the session's kept skip/stop events (STOP_TYPES),
+ * in the order they happened; `by` is who did it (child, coach, app). Never a child's name, student id or draw.
+ */
+// the stops the dashboard shows: today's STOP_TYPES, the completion rule's (Amendment 1) and the under-20% rule's it
+// replaced, so an event of either name is never dropped from the audit
+const DASH_STOPS = new Set([...STOP_TYPES, 'incomplete_move_on', 'under20_move_on']);
+// a child added on the spot (draw/index.js addChild) — every other draw is the random draw's
+const ADDED_ALGO = 'ctd-added-on-spot-v1';
+const originOf = (draw) => (!draw ? null : draw.algo_version === ADDED_ALGO || draw.seed_digest === 'added' ? 'added' : 'drawn');
+
+function dashFieldsOf(s, coachNames, draws) {
+  const device = s.device || {};
+  const block = typeof device.block === 'string' ? device.block : null;
+  const stops = (Array.isArray(device.events) ? device.events : [])
+    .filter((e) => e && DASH_STOPS.has(e.type))
+    .map((e) => {
+      const data = e.data && typeof e.data === 'object' && !Array.isArray(e.data) ? e.data : null;
+      return { type: e.type, taskId: typeof e.task_id === 'string' ? e.task_id : null, at: typeof e.at === 'string' ? e.at : null, by: data && typeof data.by === 'string' ? data.by : null, data };
+    });
+  return {
+    mode: block === 'rdf_manual' ? 'coach_led' : 'auto',
+    block,
+    coachId: s.coach_user_id || null,
+    coachName: (coachNames && coachNames.get(s.coach_user_id)) || null,
+    startedAt: s.started_at || s.created_at || null,
+    stops,
+    origin: draws ? originOf(draws.get(s.id)) : null,
+  };
+}
+
+/**
  * The results dashboard: every self-administered session of this coach (an admin, asAdmin: true as the portal sets it
  * from sa_results_admins: every coach's), each in saResults' shape with its school and sub-region (schools.region).
  * Sessions with no task rows yet are left out. Blocks and schools are read once for all sessions. Never a name.
@@ -868,17 +928,33 @@ function saSessions(args = {}, deps = {}) {
     }
     const bank = deps.bank !== undefined ? deps.bank : loadBank();
     const stops = await stopRulesSwitch.enabled(deps);
+    // sa_dash_filters (round 7b): the coaches' names, read once for every session (staff; never a child's)
+    const dash = await dashFilters.enabled(deps);
+    let coachNames = null;
+    let draws = null;
+    if (dash) {
+      const named = await d.store.getUserNamesByIds([...new Set(sessions.map((s) => s.coach_user_id).filter(Boolean))]);
+      if (!named || !named.ok) throw new Error((named && named.error) || 'getUserNamesByIds failed');
+      coachNames = new Map((named.users || []).map((u) => [u.id, u.name || null]));
+      // item 15: how each child's draw was made (added on the spot vs the random draw), read once
+      const made = await d.store.getSessionDrawOrigins(sessions.map((s) => s.id));
+      if (!made || !made.ok) throw new Error((made && made.error) || 'getSessionDrawOrigins failed');
+      draws = new Map((made.origins || []).map((x) => [x.sessionId, x]));
+    }
     const out = [];
+    const stopOnly = [];
     for (const s of sessions) {
       const results = shapeResults(s, rowsOf.get(s.id), bank, stops);
-      if (!results.tasks.length) continue;
+      const extra = dash ? dashFieldsOf(s, coachNames, draws) : null;
+      if (!results.tasks.length && !(extra && extra.stops.length)) continue;
       const school = schoolOf.get(s.school_id) || {};
       const row = { schoolId: s.school_id || null, schoolName: school.name || null, sector: school.region || null, grade: s.grade, results };
       if (practiceIds) row.practice = practiceIds.has(s.school_id);
-      out.push(row);
+      if (extra) Object.assign(row, extra);
+      (results.tasks.length ? out : stopOnly).push(row);
     }
-    d.log('child_test.sa.sessions_read', { userId, admin, n: out.length });
-    return { status: 'ok', sessions: out };
+    d.log('child_test.sa.sessions_read', { userId, admin, n: out.length, ...(dash ? { stopOnly: stopOnly.length } : {}) });
+    return dash ? { status: 'ok', sessions: out, stopSessions: stopOnly } : { status: 'ok', sessions: out };
   })(args, deps);
 }
 
@@ -931,4 +1007,4 @@ async function saViaLink(args = {}, deps = {}) {
   return fn({ ...rest, userId: p.c, sessionId: p.s }, deps);
 }
 
-module.exports = { SA_MARK, listSchools, dayList, dayOutcome, addChild, saBattery, saBatch, saPresign, saRegister, saStatus, saLastWordHint, saResults, saSessions, saLink, saViaLink };
+module.exports = { SA_MARK, STOP_TYPES, listSchools, dayList, dayOutcome, addChild, saBattery, saBatch, saPresign, saRegister, saStatus, saLastWordHint, saResults, saSessions, saLink, saViaLink };

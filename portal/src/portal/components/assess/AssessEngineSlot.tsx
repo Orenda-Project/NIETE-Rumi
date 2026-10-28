@@ -34,6 +34,10 @@ type Props = {
   handbackV2?: boolean;
   /** sa_voice_gate_v2: after the engine's sa:refused, the hold ends the child as not_started, never coach_end. */
   voiceGateV2?: boolean;
+  /** sa_end_test_restart (round 7b): End test is one tap and a short question, not a 3 s hold. */
+  endTestRestart?: boolean;
+  /** sa_end_section (round 7b): RDF manual shows End this section (sa:end_section to the engine; the test goes on). */
+  endSection?: boolean;
 };
 
 export function playUrl(s: string, grade: number, lang: Lang, block: Block, firstName: string): string {
@@ -94,7 +98,7 @@ export function HoldButton({ label, hint, onDone, compact = false, disabled = fa
   );
 }
 
-export default function AssessEngineSlot({ sessionId, firstName, lang, grade, block, onFinished, handbackV2 = false, voiceGateV2 = false }: Props) {
+export default function AssessEngineSlot({ sessionId, firstName, lang, grade, block, onFinished, handbackV2 = false, voiceGateV2 = false, endTestRestart = false, endSection = false }: Props) {
   const copy = COPY[lang];
   const frame = useRef<HTMLIFrameElement>(null);
   const slot = useRef<HTMLDivElement>(null);
@@ -128,6 +132,16 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
     coachEnding.current = window.setTimeout(() => finish(batteryEndedRef.current ? 'complete' : 'coach_end'), COACH_END_WAIT_MS);
   };
   useEffect(() => () => { if (coachEnding.current !== null) window.clearTimeout(coachEnding.current); }, []);
+
+  // Round 7b: the coach's question before End test (sa_end_test_restart) or End this section (sa_end_section, RDF manual)
+  const [ask, setAsk] = useState<'end' | 'section' | null>(null);
+  const sectionButton = endSection && block === 'rdf_manual';
+  const endSectionNow = () => {
+    setAsk(null);
+    try {
+      frame.current?.contentWindow?.postMessage({ type: 'sa:end_section', s: sessionId }, window.location.origin);
+    } catch { /* no engine to ask */ }
+  };
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -216,8 +230,33 @@ export default function AssessEngineSlot({ sessionId, firstName, lang, grade, bl
         </div>
       ) : (
         // top-start: the engine's full-width bottom buttons and its top-end dev Jump and sync dot stay clear
-        <div data-testid="assess-hold-end" className="fixed top-2 start-2" style={{ zIndex: 1001 }}>
-          <HoldButton compact label={copy.holdEnd} hint={copy.holdHint} onDone={coachEnd} />
+        <div data-testid="assess-hold-end" className="fixed top-2 start-2 flex gap-2" style={{ zIndex: 1001 }}>
+          {endTestRestart ? (
+            <button type="button" data-testid="assess-end-test" onClick={() => setAsk('end')}
+              className="min-h-[48px] min-w-[48px] rounded-xl border border-slate-300 bg-white/90 px-3 py-1 text-xs font-semibold text-slate-900">
+              {copy.holdEnd}
+            </button>
+          ) : (
+            <HoldButton compact label={copy.holdEnd} hint={copy.holdHint} onDone={coachEnd} />
+          )}
+          {sectionButton && (
+            <button type="button" data-testid="assess-end-section" onClick={() => setAsk('section')}
+              className="min-h-[48px] min-w-[48px] rounded-xl border border-slate-300 bg-white/90 px-3 py-1 text-xs font-semibold text-slate-900">
+              {copy.endSection}
+            </button>
+          )}
+        </div>
+      )}
+      {ask && (
+        <div className="fixed inset-0 flex items-center justify-center bg-slate-900/40 p-4" style={{ zIndex: 1002 }}>
+          <div role="dialog" aria-modal="true" data-testid={`assess-ask-${ask}`} className="w-full max-w-sm space-y-3 rounded-2xl bg-white p-4 shadow-lg">
+            <p className="text-base text-slate-900 break-words">{ask === 'end' ? copy.endTestAsk(firstName) : copy.endSectionAsk}</p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setAsk(null)} className="min-h-[48px] flex-1 rounded-xl border border-slate-300 bg-white font-medium">{copy.keepGoing}</button>
+              <button type="button" onClick={ask === 'end' ? () => { setAsk(null); coachEnd(); } : endSectionNow}
+                className="min-h-[48px] flex-1 rounded-xl bg-rose-600 font-semibold text-white">{ask === 'end' ? copy.endTestYes : copy.endSectionYes}</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

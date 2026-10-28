@@ -38,6 +38,25 @@
  *   skipped_dev              passed over with the sandbox-only "Jump to…" (opts.dev_tools; RULING #43): no score, no
  *                            counts, scored_on 'none'
  *
+ * Round 7b (the pilot's tester, 27 Oct), each behind its own switch, OFF = the runner as before. A section is a task id's
+ * language prefix (ur. → en. → ma.).
+ *   end_section              opts.end_section, RDF manual only: endSection() ends the task on show (end_section) and
+ *                            skips the rest of its section (skipped_end_section); the test goes on at the next section.
+ *                            One end_section event { by: 'coach', section }.
+ *   skipped_incomplete       opts.incomplete, RDF auto only (the tester's final rule: completion, not correctness): a part
+ *                            the child did not finish skips the rest of its subject. Not finished = read-aloud cells: time
+ *                            up before moving past the last cell (time_up), or "I'm done" before it (stopped_early); the
+ *                            story: time up (time_up), the last-word tap before the last word (last_word_early), the
+ *                            silence stop (silence) — "I'm done" with no last-word step is finished; tap / keypad parts:
+ *                            time up before the last item (time_up); spoken questions: one left unanswered when its time
+ *                            ran out (time_up); any part EGRA's / EGMA's own early-stop rule ended (stop_rule). The true
+ *                            score still comes from the recording. One incomplete_move_on event
+ *                            { by: 'app', section, reason, reached, of }, only when something is skipped.
+ *   silence_reminder (phase) opts.silence_repeat, RDF auto only: a read-aloud part (record) whose recording ran with the
+ *                            ear listening and no voice heard ends in the reminder instead of a result (one silence_repeat
+ *                            event { by: 'app', attempt: 1 }); silenceRepeatDone() runs the part again from its start. Once
+ *                            per part (gates.silence_repeated, kept across a reload); a second silence ends as before.
+ *
  * Session gates, once each: the mic check (game) before the first task that records, one practice oral question before
  * the first oral task, a keypad warm-up before the first keypad task. The page losing sight of the screen during a
  * timed task re-runs that task from its start (resumed), as a reload does.
@@ -70,6 +89,8 @@
     CONSECUTIVE: 'consecutive_errors', COACH_END: 'coach_end',
     SKIPPED_L2: 'skipped_level2', SKIPPED_NO_LINE: 'skipped_no_first_line',
     MIC: 'mic_unavailable', SILENCE: 'early_stop_silence', ASSETS: 'assets_unavailable', DEV: 'skipped_dev',
+    // round 7b: the coach's End this section (RDF manual) and the auto move-on when a part is not finished (RDF auto)
+    END_SECTION: 'end_section', SKIPPED_END_SECTION: 'skipped_end_section', SKIPPED_INCOMPLETE: 'skipped_incomplete',
   });
   var MODES = ['tap', 'keypad', 'keyboard', 'record', 'oral'];
   // The lead's ruling (design §2): the response mode per EGRA/EGMA subtask. A task's own `response` wins.
@@ -239,6 +260,13 @@
     var cellPace = !!opts.cell_pace;
     var cellNextOnly = !!opts.cell_next_only;
     var sectionRec = !!opts.section_recording;
+    // Round 7b: End this section (RDF manual), the move-on when a part is not finished and the silence repeat (RDF auto).
+    var endSectionOn = !!opts.end_section && manual;
+    var incompleteOn = !!opts.incomplete && !manual;
+    var silenceRepeatOn = !!opts.silence_repeat && !manual;
+    var skipTo = null; // the last task a skip passed over: next() goes on after it
+    // sa_back_button (round 7b): Back on the item screens (battery.ui.back_button, or opts.back_button)
+    var backOn = !!opts.back_button || !!(battery.ui && battery.ui.back_button === true);
 
     /** sa_cell_next_only: an Urdu or English letter/word cell moves on only on Next (maths cells keep their pace). */
     function holdsCell(t) { return cellNextOnly && cellTask(t) && /^(ur|en)\./.test(String(t.id)); }
@@ -326,6 +354,7 @@
     }
 
     function enterTask(resumed, from) {
+      skipTo = null;
       var t = task();
       if (!t) { st = { phase: 'battery_end' }; ev('battery_end', { value: { tasks: results.length } }); return; }
       var g = gate(t);
@@ -369,6 +398,7 @@
 
     function finish(reason) {
       var t = task();
+      if (silenceDue(t, reason)) { silenceReminder(t); return; }
       if (st.cell) closeCell(reason);
       var used = st.started == null ? 0 : Math.round(now() - st.started);
       // The clock as it really ran (a throttled tab, a late time-up): never capped, unlike time_used_ms.
@@ -407,10 +437,86 @@
         // EGRA's per-minute rate: correct × 60 / seconds used (a child who finished early is not penalised).
         r.per_minute = used > 0 ? Math.round((st.correct * 60000 / used) * 10) / 10 : 0;
       }
+      var gap = incompleteOn ? notFinished(t, r, st) : null;
       results = results.filter(function (x) { return x.task_id !== t.id; }).concat([r]);
       ev('stop', { task_id: t.id, value: reason });
       ev('task_end', { task_id: t.id, value: r });
       st = { phase: 'task_end', task_id: t.id, result: r };
+      if (gap && restOfSection(t).length) {
+        ev('incomplete_move_on', { task_id: t.id, value: { by: 'app', section: sectionOf(t), reason: gap.reason, reached: gap.reached, of: gap.of } });
+        skipRest(t, STOP.SKIPPED_INCOMPLETE);
+      }
+    }
+
+    // ---------- round 7b: sections, the move-on when a part is not finished, the silence repeat ----------
+    /** A task's section: its id's language prefix (ur | en | ma), or null. */
+    function sectionOf(t) { var m = /^([a-z]{2})\./.exec(String((t && t.id) || '')); return m ? m[1] : null; }
+    /** The indexes of the tasks after this one in its section. */
+    function restOfSection(t) {
+      var sec = sectionOf(t);
+      var out = [];
+      if (!sec) return out;
+      for (var k = taskIndex + 1; k < battery.tasks.length && sectionOf(battery.tasks[k]) === sec; k++) out.push(k);
+      return out;
+    }
+    /** Every task after this one in its section ends as `reason` with nothing to score; next() goes on after them. */
+    function skipRest(t, reason) {
+      var rest = restOfSection(t);
+      rest.forEach(function (k) {
+        var x = battery.tasks[k];
+        var r = {
+          task_id: x.id, legacy_block: x.legacy_block, mode: x.mode, attempted: 0, correct: null, incorrect: null,
+          last_item_index: null, time_used_ms: 0, time_left_ms: null, stop_reason: reason, scored_on: 'none',
+          resumed: false, per_minute: null, options_n: null, taps_per_s: null, elapsed_ms: 0, answers: [],
+        };
+        results = results.filter(function (y) { return y.task_id !== x.id; }).concat([r]);
+        ev('stop', { task_id: x.id, value: reason });
+        ev('task_end', { task_id: x.id, value: r });
+      });
+      if (rest.length) skipTo = rest[rest.length - 1];
+    }
+    /**
+     * sa_incomplete_move_on: why the part on show was not finished, from what the phone knows — { reason, reached, of },
+     * or null when it was finished or ended by something else (the coach, no microphone, a picture, a skip).
+     */
+    function notFinished(t, r, s) {
+      var why = r.stop_reason;
+      var of = t.mode === 'record' ? (s.cells ? cellsOf(t).length : t.items.length) : (s.items || []).length;
+      if (!of) return null;
+      if (why === STOP.FIRST_LINE || why === STOP.CONSECUTIVE) return { reason: 'stop_rule', reached: r.attempted, of: of };
+      if (t.mode === 'record' && why === STOP.SILENCE) return { reason: 'silence', reached: null, of: of };
+      if (why !== STOP.COMPLETE && why !== STOP.TIME_UP) return null;
+      if (t.mode === 'tap' || t.mode === 'keypad' || t.mode === 'keyboard') {
+        return why === STOP.TIME_UP && r.attempted < of ? { reason: 'time_up', reached: r.attempted, of: of } : null;
+      }
+      if (t.mode === 'oral') {
+        var unanswered = s.oral_timeouts || 0;
+        return why === STOP.TIME_UP || unanswered ? { reason: 'time_up', reached: Math.max(0, r.attempted - unanswered), of: of } : null;
+      }
+      if (t.mode !== 'record') return null;
+      if (s.cells) {
+        var moved = s.cells.filter(function (c) { return c.how === 'tap' || c.how === 'auto'; });
+        if (moved.some(function (c) { return c.i === of - 1; })) return null;
+        return { reason: why === STOP.TIME_UP ? 'time_up' : 'stopped_early', reached: moved.length, of: of };
+      }
+      if (r.last_word_skipped) return why === STOP.TIME_UP ? { reason: 'time_up', reached: null, of: of } : null;
+      var at = r.last_word_index;
+      if (at != null && at >= of - 1) return null;
+      return { reason: why === STOP.TIME_UP ? 'time_up' : 'last_word_early', reached: at == null ? 0 : at + 1, of: of };
+    }
+    /** A spoken part that ran its recording with the ear listening and heard no voice, not yet repeated. */
+    function silenceDue(t, reason) {
+      // read-aloud parts only: there the recorder's watch tells a sleeping ear from a silent child (ear_unavailable)
+      if (!silenceRepeatOn || !t || t.mode !== 'record') return false;
+      if ([STOP.COMPLETE, STOP.TIME_UP, STOP.SILENCE].indexOf(reason) < 0) return false;
+      if (!st.recorded || st.heard || st.ear === 'unavailable') return false;
+      return !(gates.silence_repeated && gates.silence_repeated[t.id]);
+    }
+    function silenceReminder(t) {
+      gates.silence_repeated = gates.silence_repeated || {};
+      gates.silence_repeated[t.id] = true;
+      ev('silence_repeat', { task_id: t.id, value: { by: 'app', attempt: 1 } });
+      st = { phase: 'silence_reminder', task_id: t.id };
     }
 
     /** A task passed over with the sandbox's "Jump to…": a result with nothing to score. */
@@ -527,7 +633,9 @@
       },
       /** sa_cell_pace: the mic heard the child on the cell on show (the 3-s wait starts again). */
       voice: function () {
-        if (st.phase === 'running' && st.cell) st.cell.voice_at = now();
+        if (st.phase !== 'running') return;
+        st.heard = true; // round 7b: sa_silence_repeat reads it
+        if (st.cell) st.cell.voice_at = now();
       },
       /** The mercy rule: Jugnu offered the star (12 s of no voice on the passage). */
       mercyOffered: function () {
@@ -653,7 +761,12 @@
         if (t.mode === 'record') return null;
         var waited = now() - st.item_started;
         var tmo = itemTimeoutS(t);
-        if (tmo && waited >= tmo * 1000) { score(st.items[st.item_i], t.mode === 'oral' ? 'spoken' : 'timeout'); return null; }
+        if (tmo && waited >= tmo * 1000) {
+          // sa_incomplete_move_on: a spoken question that ran out of time was left unanswered (its answer reads 'spoken')
+          if (incompleteOn && t.mode === 'oral') st.oral_timeouts = (st.oral_timeouts || 0) + 1;
+          score(st.items[st.item_i], t.mode === 'oral' ? 'spoken' : 'timeout');
+          return null;
+        }
         if (t.replay_at_s && !st.replayed && waited >= t.replay_at_s * 1000) {
           st.replayed = true;
           ev('replay', { task_id: t.id, item_id: st.items[st.item_i].id, value: 'auto' });
@@ -668,6 +781,40 @@
         ev('coach_unlock', { task_id: st.task_id });
         finish(STOP.COACH_END);
       },
+      /**
+       * sa_back_button (round 7b): the item (or the one-at-a-time cell) before this one shows again, and the child's new
+       * answer replaces the old one. by: 'child' | 'coach' (coach-led). Only while a task runs, never on its first item,
+       * never on the passage (one screen) and never into another task; the task's clock keeps running. A cell: its earlier
+       * pass is dropped (cells keep one pass each, so the cells reached stay right). An item: its answer, its counts and
+       * (one recording for the section) its mark are undone. One `back` event { by, from, to }. → true when it went back.
+       */
+      back: function (by) {
+        var t = task();
+        if (!backOn || st.phase !== 'running' || !t) return false;
+        var who = by === 'coach' ? 'coach' : 'child';
+        if (st.cell) {
+          var i = st.cell.i;
+          if (i <= 0) return false;
+          st.cells = st.cells.filter(function (c) { return c.i !== i - 1; });
+          st.last_item_index = st.cells.length ? st.cells[st.cells.length - 1].i : null;
+          st.cell = { i: i - 1, at: now() };
+          ev('back', { task_id: t.id, value: { by: who, from: i, to: i - 1 } });
+          return true;
+        }
+        if (t.mode === 'record' || st.item_i <= 0 || !st.answers.length) return false;
+        var from = st.item_i;
+        st.answers.pop();
+        if (st.rec_marks && st.rec_marks.length) st.rec_marks.pop();
+        st.attempted = 0; st.correct = 0; st.incorrect = 0; st.streak = 0; st.first_line_correct = 0;
+        st.answers.forEach(function (a) { tally(t, a.ok); });
+        st.item_i = st.answers.length;
+        st.item_started = now();
+        st.ask_at = st.item_started;
+        st.answer_at = null;
+        st.replayed = false;
+        ev('back', { task_id: t.id, item_id: st.items[st.item_i] ? st.items[st.item_i].id : undefined, value: { by: who, from: from, to: st.item_i } });
+        return true;
+      },
       /** A picture of this task would not load (the page's <img> error): image_unavailable, the task ends as
        *  assets_unavailable. A late error from another task's picture is ignored. */
       imageUnavailable: function (taskId, itemId) {
@@ -676,10 +823,31 @@
         ev('image_unavailable', { task_id: st.task_id, item_id: itemId == null ? null : itemId });
         finish(STOP.ASSETS);
       },
-      /** After the task-end screen: the next task. */
+      /** After the task-end screen: the next task (after any a round 7b skip passed over). */
       next: function () {
         if (st.phase !== 'task_end') return;
-        taskIndex++;
+        taskIndex = (skipTo != null ? skipTo : taskIndex) + 1;
+        enterTask(false);
+      },
+      /**
+       * Round 7b (sa_end_section, RDF manual): the coach ends the section. The task on show ends as end_section (on its
+       * end screen: nothing to end), and the rest of its section is skipped. → true when it acted.
+       */
+      endSection: function () {
+        var ph = ['running', 'instruction', 'practice', 'ready', 'last_word', 'oral_practice', 'keypad_warmup', 'mic_check', 'task_end'];
+        if (!endSectionOn || ph.indexOf(st.phase) < 0 || !task()) return false;
+        var t = task();
+        ev('end_section', { task_id: t.id, value: { by: 'coach', section: sectionOf(t) } });
+        if (st.phase !== 'task_end') {
+          if (st.started == null) st.started = now();
+          finish(STOP.END_SECTION);
+        }
+        skipRest(t, STOP.SKIPPED_END_SECTION);
+        return true;
+      },
+      /** Round 7b (sa_silence_repeat): after the reminder, the silent part again from its start. */
+      silenceRepeatDone: function () {
+        if (st.phase !== 'silence_reminder') return;
         enterTask(false);
       },
       /** A surface's own event (handover_in, offline, sync_ok …) in the same numbered log. */
@@ -716,7 +884,7 @@
       snapshot: function () {
         var cur = st.phase === 'running' && task() && !task().time_limit_s ? { task_id: st.task_id, answers: st.answers.slice() } : null;
         return {
-          task_index: st.phase === 'task_end' ? taskIndex + 1 : taskIndex, results: results.slice(), seq: seq,
+          task_index: st.phase === 'task_end' ? (skipTo != null ? skipTo : taskIndex) + 1 : taskIndex, results: results.slice(), seq: seq,
           t_ms: Math.round(now() - t0), ended: st.phase === 'battery_end', warmup: warm, current: cur, gates: gates,
         };
       },

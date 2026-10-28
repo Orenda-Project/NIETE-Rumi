@@ -38,6 +38,9 @@ const BATTERIES = path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'chi
 const BATTERY_RX = /^sa\.(coach|game)\.[A-Za-z0-9]+(\.[A-Za-z0-9]+)?\.(en|ur)\.json$/;
 const DEV_PAGES = ['play.html', 'run.html'];
 const DEV_TAG = '<script src="./sa-dev.js"></script>';
+// Round 7b's switches (sa-battery-switches.js SWITCHES names), each read like the rest.
+const R7B = ['backButton', 'endTestRestart', 'endSection', 'silenceRepeat', 'incompleteMoveOn', 'tSoundTa', 'sayThenNext',
+  'storyScroll', 'audioGatedNext', 'tickPrompt'];
 
 /** The tashdeed takes on disk (sa/v3/ur/<12 hex>.mp3), by file name; none when the folder is missing. */
 function tashdeedTakes(dir = path.join(DIR, 'v3', 'ur')) {
@@ -76,7 +79,7 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   urFit: urFitReader = createBrotliFlag({ key: SWITCHES.urFit }),
   autoNoLastWord: noLastWordReader = createBrotliFlag({ key: SWITCHES.autoNoLastWord }),
   voiceTashdeed: tashdeedReader = createBrotliFlag({ key: VOICE_TASHDEED_KEY }),
-  holdMs, now, env } = {}) {
+  holdMs, now, env, ...r7bReaders } = {}) {
   const router = express.Router();
   // The switch as routes/sa-switch.js reads it: the first request waits for the first read, and a failed read after an
   // ON never flaps a request to the portal's page. The content and voice switches are read the same way, so the first
@@ -102,9 +105,11 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   const autoNoLastWord = steady(safe(noLastWordReader), hold);
   const voiceTashdeed = steady(safe(tashdeedReader), hold);
   const takes = tashdeedTakes();
+  // Round 7b (sa-battery-switches.js): one switch per item, read the same way; a reader passed in wins (tests).
+  const r7b = Object.fromEntries(R7B.map((k) => [k, steady(safe(r7bReaders[k] || createBrotliFlag({ key: SWITCHES[k] })), hold)]));
   router.use('/sa', on.warm(), practiceAllMaths.warm(), passageRotation.warm(), voiceV2.warm(), oneAtATime.warm(), passagePunct.warm(), rdfManual.warm(),
     rdfW3Forms.warm(), voiceGateV2.warm(), compAllQuestions.warm(), cellPace.warm(), sectionRecording.warm(), coachLastWord.warm(), cellNextOnly.warm(),
-    autoChildLastWord.warm(), appAsks.warm(), urFit.warm(), autoNoLastWord.warm(), voiceTashdeed.warm());
+    autoChildLastWord.warm(), appAsks.warm(), urFit.warm(), autoNoLastWord.warm(), voiceTashdeed.warm(), ...R7B.map((k) => r7b[k].warm()));
   const files = express.static(DIR, {
     index: false,
     dotfiles: 'ignore',
@@ -148,6 +153,7 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
         appAsks: appAsks() === true,
         urFit: urFit() === true,
         autoNoLastWord: autoNoLastWord() === true,
+        ...Object.fromEntries(R7B.map((k) => [k, r7b[k]() === true])),
       });
       let v2 = false;
       try { v2 = voiceV2() === true; } catch (_) { v2 = false; }

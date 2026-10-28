@@ -48,6 +48,15 @@
  *                       one per item, a multi-word item spanning its tokens; scoring and the last word are unchanged.
  *                       A text that does not line up with the items falls back to the items' words.
  *
+ * Round 7b, the child's screens (each OFF unless the served battery carries battery.ui.<flag>; sa-battery-switches.js):
+ *   back_button       a Back button next to Next on the item screens (a one-at-a-time cell after the first, a tap /
+ *                     typed / spoken item after the first), both modes: runner.back() (sa-core) shows the one before.
+ *   audio_gated_next  the instruction's Next, the spoken practice's Next and Ready's Go wait until Jugnu has finished
+ *                     (a voice that never ends opens them after GATE_CAP_MS). Coach-led: Jugnu is silent, nothing waits.
+ *   say_then_next     lines.r7_say_next / r7_say_done after the task's instruction (said and shown) and shown under the
+ *                     item while the child answers; tick_prompt: lines.r7_type_tick for a typed number; story_scroll:
+ *                     lines.r7_scroll after the story's instruction, and a down arrow under the story while more is below.
+ *
  * UMD: window.SAE.ui in the browser, module.exports under Node.
  */
 (function (root, factory) {
@@ -129,6 +138,10 @@
       voice_not_ready: 'The voice is not ready yet',
       please_go_on: 'Please go on.',
       coach_will_instruct: 'Your coach will now give the instructions.',
+      // round 7b (sa_silence_repeat): no voice heard on a read-aloud part
+      silence_repeat: 'Jugnu could not hear you. Say each answer out loud. Let us do this part again.',
+      silence_again: 'Try again',
+      silence_title: 'Say it out loud',
       coach_read: 'Read this to the child:',
       coach_then: 'Then give the phone to the child.',
       coach_items: 'Read each one out when it shows:',
@@ -139,6 +152,10 @@
       by_tap: 'tapping',
       by_type: 'typing',
       headphones: 'Put the headphones on the child, then check the sound.',
+      back_item: 'Back',
+      more_below: 'More of the story below',
+      chip_say_next: 'Say it, then press Next',
+      chip_type_tick: 'Type, then press ✓',
     },
     ur: {
       hello: 'السلام علیکم! میں جگنو ہوں۔',
@@ -210,6 +227,9 @@
       voice_not_ready: 'آواز ابھی تیار نہیں',
       please_go_on: 'آگے چلیں۔',
       coach_will_instruct: 'اب آپ کے کوچ ہدایات دیں گے۔',
+      silence_repeat: 'جگنو آپ کی آواز نہیں سن سکا۔ ہر جواب اونچی آواز میں بولیں۔ آئیے یہ حصہ دوبارہ کرتے ہیں۔',
+      silence_again: 'دوبارہ کریں',
+      silence_title: 'اونچی آواز میں بولیں',
       coach_read: 'یہ بچے کو پڑھ کر سنائیں:',
       coach_then: 'پھر فون بچے کو دے دیں۔',
       coach_items: 'ہر ایک سامنے آنے پر پڑھ کر سنائیں:',
@@ -220,6 +240,10 @@
       by_tap: 'دبا کر',
       by_type: 'لکھ کر',
       headphones: 'بچے کو ہیڈفون لگائیں، پھر آواز چیک کریں۔',
+      back_item: 'پیچھے',
+      more_below: 'کہانی نیچے بھی ہے',
+      chip_say_next: 'بولیں، پھر «آگے» دبائیں',
+      chip_type_tick: 'لکھیں، پھر ✓ دبائیں',
     },
   };
 
@@ -241,6 +265,7 @@
   var WARM_N = 10;
   var WARM_CAP_MS = 25000;
   var HOLD_MS = 3000;
+  var GATE_CAP_MS = 30000;  // audio_gated_next: Next opens by itself this long after the words began, whatever the voice does
   var KEYPAD_MIN = 3;        // digits the keypad takes; more when the task has a longer answer (1,000 + 300 + 80 + 3)
   var WORD_MAX = 16;
   var LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('');
@@ -344,8 +369,90 @@
     var lw = null; // { task, state: pending | ready | none, suggested, picked }
     var punct = !!opts.passage_punct;
     var urFit = !!opts.ur_fit; // sa_ur_fit (round 6): an Urdu sentence on a demo card is marked Urdu, so it takes the Urdu rules
+    // Round 7b, the child's screens: the served battery's switches (sa-battery-switches.js)
+    var r7 = (opts.battery && opts.battery.ui) || {};
+    var gate = { key: null, open: true, tok: 0 }; // audio_gated_next: the screen whose Next waits, and whether it is open
+    var moreEl = null; // story_scroll: the arrow under the story on show
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
+    /** audio_gated_next: the screen `key`'s Next waits for `p` (Jugnu's words), at most GATE_CAP_MS. */
+    function gateOn(key, p) {
+      if (r7.audio_gated_next !== true || manual) return;
+      var tok = ++gate.tok;
+      gate.key = key; gate.open = false;
+      Array.prototype.forEach.call(el.querySelectorAll('.sae-gated'), function (b) { b.disabled = true; b.classList.add('is-wait'); });
+      function open() {
+        if (!alive || tok !== gate.tok) return;
+        gate.open = true;
+        Array.prototype.forEach.call(el.querySelectorAll('.sae-gated'), function (b) { b.disabled = false; b.classList.remove('is-wait'); });
+      }
+      Promise.resolve(p).then(open, open);
+      later(open, GATE_CAP_MS);
+    }
+    function waiting(v) { return !gate.open && gate.key === keyOf(v); }
+    /** A primary button that waits for Jugnu (audio_gated_next) on screen v. */
+    function gatedBtn(v, label, onclick, cls) {
+      var b = btn(label, function (e) { if (!waiting(v)) onclick(e); }, (cls || '') + ' sae-gated');
+      if (waiting(v)) { b.disabled = true; b.classList.add('is-wait'); }
+      return b;
+    }
+    /** A task read aloud one cell at a time (its Next moves on). */
+    function cellish(t) {
+      if (!t || t.mode !== 'record' || t.passage) return false;
+      if (t.present === 'one_at_a_time') return true;
+      return r7.one_at_a_time === true && Array.isArray(t.grid) && t.grid.length > 0;
+    }
+    /** say_then_next / tick_prompt / story_scroll: the task's extra instruction line, when its switch and line are there. */
+    function hintOf(t) {
+      if (!t) return null;
+      if (r7.say_then_next === true && cellish(t)) return line('r7_say_next');
+      if (r7.say_then_next === true && t.mode === 'oral') return line('r7_say_done');
+      if (r7.tick_prompt === true && t.mode === 'keypad') return line('r7_type_tick');
+      if (r7.story_scroll === true && t.mode === 'record' && t.passage) return line('r7_scroll');
+      return null;
+    }
+    function sayNext(t) { return r7.say_then_next === true && cellish(t) && !!line('r7_say_next'); }
+    function hintEl(t, cls) {
+      var hl = hintOf(t);
+      if (!hl) return null;
+      return h('p', { class: (cls || 'sae-say') + ' sae-r7-hint' }, [tx(hl), t.mode === 'keypad' ? h('span', { class: 'sae-r7-tick', 'aria-hidden': 'true', text: ' ✓' }) : null]);
+    }
+    /** back_button: Back on an item screen after the first item (or cell); runner.back() shows the one before. */
+    function backBtn(v) {
+      if (r7.back_button !== true || v.phase !== 'running' || !v.task) return null;
+      var first = v.cell != null ? !(v.cell_index > 0) : (v.task.mode === 'record' || !(v.item_index > 0));
+      if (first) return null;
+      return h('button', { class: 'sae-btn sae-secondary sae-back-item', type: 'button', onclick: function () {
+        if (busy) return;
+        if (runner.back && runner.back(manual ? 'coach' : 'child')) draw();
+      } }, [lang === 'ur' ? '→ ' + C.back_item : '← ' + C.back_item]);
+    }
+    /** The foot of an item screen: Back (when on) beside its own button(s). */
+    function itemFoot(v, main) {
+      var b = backBtn(v);
+      var kids = (main || []).filter(Boolean);
+      if (!b) return kids;
+      return [h('div', { class: 'sae-navrow' }, [b].concat(kids))];
+    }
+    /** story_scroll: whether the story on show has more below, in whatever scrolls (the body, else the page). */
+    function scroller() {
+      var body = el.querySelector('.sae-run-rec .sae-body');
+      if (body && body.scrollHeight > body.clientHeight + 4) {
+        var oy = '';
+        try { oy = getComputedStyle(body).overflowY; } catch (_) { oy = ''; }
+        if (oy === 'auto' || oy === 'scroll') return body;
+      }
+      return document.scrollingElement || document.documentElement;
+    }
+    function checkMore() {
+      if (!moreEl || !moreEl.isConnected) return;
+      var sc = scroller();
+      moreEl.hidden = !(sc && sc.scrollTop + sc.clientHeight < sc.scrollHeight - 8);
+    }
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('scroll', function () { if (alive) checkMore(); }, true);
+      window.addEventListener('resize', function () { if (alive) checkMore(); });
+    }
     /**
      * RULING W3-18 (sa_voice_gate_v2, opts.opening): Jugnu's opening words wait for their clips' prefetch, at most
      * OPENING_CAP_MS from the first of them, so a busy tunnel's first refusal is not what the child hears; on the cap
@@ -665,6 +772,12 @@
     }
 
     function playIntro(t) { runner.instructionPlayed(); return say(introOf(t)); }
+    /** The instruction, then the task's round-7b line (say then Next, the tick, the scroll), when there is one. */
+    function playIntroAll(t) {
+      var g = gen;
+      var hl = hintOf(t);
+      return playIntro(t).then(function () { if (hl && alive && g === gen) return say(hl); });
+    }
     /** RDF manual: the coach's screen in front of each task (the words to read out), then the phone goes to the child. */
     function sCoachBrief(v) {
       var t = v.task;
@@ -677,6 +790,7 @@
             h('p', { class: 'sae-say sae-coach-text', text: tx(t.coach_text) || tx(introOf(t)) }),
           ]) : h('p', { class: 'sae-sub', text: C.coach_read }),
           appAsks ? null : h('p', { class: 'sae-say sae-coach-text', text: tx(t.coach_text) || tx(introOf(t)) }),
+          hintEl(t, 'sae-say sae-coach-text'),
           demoImage(t),
           demoItem(t),
           appAsks ? appAsksList(t) : coachItems(t),
@@ -722,12 +836,13 @@
       var t = v.task;
       if (manual) return sCoachBrief(v);
       return screen(v, 'sae-instr', [
-        h('div', { class: 'sae-row' }, [jugnu('hello', true), replayBtn(function () { gen++; playIntro(t); })]),
+        h('div', { class: 'sae-row' }, [jugnu('hello', true), replayBtn(function () { gen++; var p = playIntroAll(t); if (!gate.open) gateOn(keyOf(v), p); })]),
         h('h1', { class: 'sae-h1', text: tx(t.title) }),
         h('p', { class: 'sae-say' }, [].concat(named(tx(introOf(t))))),
+        hintEl(t),
         demoImage(t),
         demoItem(t),
-      ], [btn(C.next, function () { runner.instructionDone(); draw(); }, 'sae-primary')]);
+      ], [gatedBtn(v, C.next, function () { runner.instructionDone(); draw(); }, 'sae-primary')]);
     }
     /**
      * Tangerine's demo pattern (A11, script.demo_item): a disabled copy of the first item shown with the instruction,
@@ -815,7 +930,7 @@
       return screen(v, 'sae-ready', [
         jugnu('hello'),
         h('h1', { class: 'sae-h1 sae-xl' }, [].concat(named(C.ready))),
-      ], [btn(C.go, function () {
+      ], [gatedBtn(v, C.go, function () {
         var t = v.task;
         if (t.mode === 'oral' && t.passage && t.passage.shown === false && !heard[t.id]) { listenThenBegin(t); return; }
         runner.begin();
@@ -877,7 +992,7 @@
           runner.answer(o);
           later(function () { busy = false; draw(); }, PRESS_MS);
         }, null, taskLang(t), t, it.glyphs),
-      ], [nextBtn(v)]);
+      ], itemFoot(v, [nextBtn(v)]));
     }
 
     /** The passage's words (task.passage.words) as buttons, or as plain text when onWord is null. */
@@ -986,12 +1101,14 @@
         clock(v),
         itemSpeaks(it) ? h('div', { class: 'sae-row' }, [replayBtn(function () { sayItem(it, t); })]) : null,
         coachSays(it, true),
+        // tick_prompt: one short chip while typing (the whole line is in the instruction, said and shown)
+        r7.tick_prompt === true && hintOf(t) ? h('p', { class: 'sae-chip sae-r7-hint', text: C.chip_type_tick }) : null,
         keypadArea(it, t, function (val) {
           busy = true;
           runner.answer(val);
           later(function () { busy = false; draw(); }, PRESS_MS);
         }, null),
-      ], [nextBtn(v)]);
+      ], itemFoot(v, [nextBtn(v)]));
     }
 
     // The passage's words: each item's label, or its target (the runtime batteries carry target only).
@@ -1089,10 +1206,12 @@
       var t = v.task, it = v.cell_item;
       return screen(v, 'sae-run sae-run-rec sae-run-cell', [
         clock(v),
-        h('div', { class: 'sae-row' }, [h('p', { class: 'sae-chip sae-chip-rec', text: recChip(t, C) }), itemSpeaks(it) ? replayBtn(function () { sayItem(it, t); }) : null]),
+        // say_then_next: the chip says "say it, then press Next" in place of "Read aloud" (one short line: the cell never
+        // slides under the sticky Back / Next on a short phone; the whole line is in the instruction, said and shown)
+        h('div', { class: 'sae-row' }, [h('p', { class: 'sae-chip sae-chip-rec' + (sayNext(t) ? ' sae-r7-hint' : ''), text: sayNext(t) ? C.chip_say_next : recChip(t, C) }), itemSpeaks(it) ? replayBtn(function () { sayItem(it, t); }) : null]),
         oneCell(v.cell, t, v.cell_index),
         coachSays(it),
-      ], [btn(C.next, function () { runner.nextCell('tap'); draw(); }, 'sae-primary sa-next')]);
+      ], itemFoot(v, [btn(C.next, function () { runner.nextCell('tap'); draw(); }, 'sae-primary sa-next')]));
     }
     /** A spoken practice item (W3 one-at-a-time tasks): the item big; an example is modelled by Jugnu, a practice item
      *  is modelled after the child's turn (Next); coach-led, the coach models it and Jugnu stays quiet. */
@@ -1106,7 +1225,7 @@
         ]),
         oneCell(p.show != null ? p.show : p.target, t, null),
         coachSays(p),
-      ], [btn(C.next, function () {
+      ], [gatedBtn(v, C.next, function () {
         busy = true;
         var k = keyOf(runner.view());
         (p.role === 'example' ? Promise.resolve() : capped(sayChain(modelOf(p)), 7000)).then(function () {
@@ -1125,11 +1244,17 @@
         h('span', { class: 'sae-star-word', text: label }),
       ]);
       starEl.addEventListener('click', function () { if (!busy) { runner.done(); draw(); } });
+      // story_scroll: an arrow under the story while more of it is below (it goes at the end); a tap slides the page on
+      moreEl = r7.story_scroll === true && v.task.passage ? h('button', { class: 'sae-more', type: 'button', 'aria-label': C.more_below, hidden: '', onclick: function () {
+        var sc = scroller();
+        try { sc.scrollBy({ top: Math.round(sc.clientHeight * 0.7), behavior: 'smooth' }); } catch (_) { try { sc.scrollTop += Math.round(sc.clientHeight * 0.7); } catch (e) { /* old browser */ } }
+      } }, [h('span', { class: 'sae-more-ico', 'aria-hidden': 'true', text: '↓' }), h('span', { class: 'sae-more-w', text: C.more_below })]) : null;
+      if (moreEl) later(checkMore, 0);
       return screen(v, 'sae-run sae-run-rec', [
         clock(v),
         h('p', { class: 'sae-chip sae-chip-rec', text: C.read_aloud }),
         passageEl(v.task, null),
-      ], [starEl]);
+      ], [moreEl, starEl]);
     }
     function askHint(t) {
       if (lw && lw.task === t.id) return;
@@ -1186,12 +1311,12 @@
         coachSays(it),
         /^mental_/.test(t.subtask || '') && shownOf(it) != null ? labelOf(it, t) : null,
         h('div', { class: 'sae-mic sa-mic' + (on ? ' is-on' : ''), 'aria-hidden': 'true' }, [h('span', { text: '🎤' })]),
-        h('p', { class: 'sae-sub', text: C.say_answer }),
-      ], [btn(C.answered, function () {
+        hintOf(t) ? hintEl(t, 'sae-sub') : h('p', { class: 'sae-sub', text: C.say_answer }),
+      ], itemFoot(v, [btn(C.answered, function () {
         busy = true;
         runner.answer('spoken');
         later(function () { busy = false; draw(); }, PRESS_MS);
-      }, 'sae-primary')]);
+      }, 'sae-primary')]));
     }
 
     // ---------- session gates ----------
@@ -1373,6 +1498,16 @@
 
     /** The line for a record task skipped with no microphone: the battery's recorded one, else the COPY text. */
     function micSkipLine() { return line('mic_skip_task') || { en: COPY.en.mic_skip_task, ur: COPY.ur.mic_skip_task }; }
+    /** Round 7b (sa_silence_repeat): no voice heard on the part; Jugnu asks for the answers out loud, then the part again. */
+    function sSilenceReminder(v) {
+      return screen(v, 'sae-silence sa-silence', [
+        jugnu('idle', true),
+        // a short title, then Jugnu's whole line as a paragraph: the long Urdu line is never cut by the foot (sa_ur_fit)
+        h('h1', { class: 'sae-h1', text: C.silence_title }),
+        h('p', { class: 'sae-p', text: tx(copyLine('silence_repeat')) }),
+      ], [btn(C.silence_again, function () { runner.silenceRepeatDone(); draw(); }, 'sae-primary')]);
+    }
+
     function sTaskEnd(v) {
       var skipped = v.result && /^skipped|^mic_unavailable|^assets_unavailable/.test(v.result.stop_reason || '');
       var noMic = v.result && v.result.stop_reason === 'mic_unavailable';
@@ -1501,16 +1636,18 @@
       else if (v.phase === 'instruction' && manual) {
         runner.log('coach_brief', { task_id: t.id });
         say(copyLine('coach_will_instruct'), null, true);
-      } else if (v.phase === 'instruction') playIntro(t);
+      } else if (v.phase === 'instruction') gateOn(keyOf(v), playIntroAll(t));
       else if (v.phase === 'practice' && v.practice) {
         var first = t.practice.indexOf(v.practice) === 0;
         var k0 = keyOf(v);
-        sayChain([first && s.practice_intro && !manual ? [s.practice_intro] : null]).then(function () {
-          if (!alive || lastKey !== k0 || hold) return;
-          if (t.mode === 'record' && v.practice.role === 'example') sayChain(modelOf(v.practice));
-          else if (!(t.mode === 'record' && t.say_on === 'replay')) sayItem(v.practice, t);
+        var said = sayChain([first && s.practice_intro && !manual ? [s.practice_intro] : null]).then(function () {
+          if (!alive || lastKey !== k0 || hold) return null;
+          if (t.mode === 'record' && v.practice.role === 'example') return sayChain(modelOf(v.practice));
+          if (!(t.mode === 'record' && t.say_on === 'replay')) return sayItem(v.practice, t);
+          return null;
         });
-      } else if (v.phase === 'ready') sayChain(manual ? [] : [s.test_intro ? [s.test_intro] : null, s.begin ? [s.begin] : null]);
+        if (t.mode === 'record') gateOn(k0, said); // the spoken practice's Next (a tap practice has none)
+      } else if (v.phase === 'ready') gateOn(keyOf(v), sayChain(manual ? [] : [s.test_intro ? [s.test_intro] : null, s.begin ? [s.begin] : null]));
       else if (v.phase === 'running' && v.item) {
         if (t.mode === 'oral') {
           var key = keyOf(v), g2 = gen;
@@ -1556,6 +1693,8 @@
           var now = runner.view();
           if (now.phase === 'task_end' && now.task_index === at) { runner.next(); draw(); }
         });
+      } else if (v.phase === 'silence_reminder') {
+        say(copyLine('silence_repeat'));
       } else if (v.phase === 'battery_end') {
         if (mode === 'proctored') say(handback === 'teacher' && line('end') ? line('end') : copyLine('give_coach'));
         else say(copyLine('all_done'));
@@ -1623,6 +1762,7 @@
           break;
         case 'last_word': s = sLastWord(v); break;
         case 'task_end': s = sTaskEnd(v); break;
+        case 'silence_reminder': s = sSilenceReminder(v); break;
         case 'battery_end': s = sEnd(v); break;
         default: s = screen(v, '', [h('p', { text: v.phase })]);
       }

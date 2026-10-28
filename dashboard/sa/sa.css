@@ -326,3 +326,23 @@ button{font:inherit;color:inherit}
 .is-ur-fit .sae-opt.is-glyph[lang=ur] .sae-cap,.is-ur-fit[lang=ur] .sae-opt.is-glyph .sae-cap{line-height:2;padding-top:1.3em;padding-bottom:.4em}
 .is-ur-fit .sae-opt.is-glyph[lang=ur],.is-ur-fit[lang=ur] .sae-opt.is-glyph{gap:0}
 .is-ur-fit .sae-label[lang=ur]{font-family:var(--sae-fu);font-weight:400;font-size:24px;letter-spacing:0;direction:rtl;line-height:3;padding-top:.78em}
+/* Round 7b, the child's screens (each only where its switch put the element on the page; sa-ui.js) */
+.sae-navrow{display:flex;flex-direction:row;align-items:stretch;gap:10px;width:100%;max-width:360px}
+.sae-navrow>.sae-btn{flex:1 1 auto;width:auto}
+.sae-navrow>.sae-back-item{flex:0 0 auto;width:auto;min-width:var(--sae-tap);padding:8px 16px;font-size:20px;font-weight:700;box-shadow:none}
+.sae-btn.is-wait,.sae-btn:disabled.sae-gated{opacity:.45;box-shadow:none;cursor:default}
+.sae-r7-hint{font-weight:700}
+.sae-r7-tick{font-weight:800}
+.sae-more{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;max-width:360px;min-height:48px;margin:0;padding:4px 14px;border-radius:999px;border:3px solid var(--sae-accent);background:var(--sae-accent-l);color:var(--sae-ink);font-size:18px;font-weight:800;cursor:pointer;animation:sae-more-bob 1.2s ease-in-out infinite}
+.sae-more[hidden]{display:none}
+.sae-more-ico{font-size:24px;line-height:1}
+.sae[lang=ur] .sae-more{font-weight:700;line-height:1.9}
+@keyframes sae-more-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
+@media (prefers-reduced-motion:reduce){.sae-more{animation:none}}
+/* Round 7b (sa_silence_repeat): the silence reminder on an Urdu page. A short title and Jugnu's whole line, both at the
+   portal's Urdu rules (Nastaliq line height 2 or more, never under 16 px), above the foot; on a short phone Jugnu leaves the
+   screen so the line stays above Try again (the body scrolls only if it still must). English keeps the page's own sizes. */
+.is-ur-fit[lang=ur] .sae-silence .sae-h1{font-size:24px;line-height:2.4;padding-top:.5em}
+.is-ur-fit[lang=ur] .sae-silence .sae-p{font-size:18px;line-height:2.2;margin:0;padding-top:.4em;padding-inline:.6em}
+@media (max-height:700px){.is-ur-fit[lang=ur] .sae-silence .sae-jugnu{display:none}}
+@media (max-height:600px){.is-ur-fit[lang=ur] .sae-silence .sae-body{gap:6px}.is-ur-fit[lang=ur] .sae-silence .sae-h1{font-size:22px;padding-top:.3em}.is-ur-fit[lang=ur] .sae-silence .sae-p{font-size:16px;padding-top:.2em}}
