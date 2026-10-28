@@ -212,6 +212,11 @@ function createAppFunnelRouter({ limiter } = {}) {
         sizeBytes: clampInt(body.sizeBytes, 2 * 1024 * 1024 * 1024),
         type,
         elapsedMs: clampInt(body.elapsedMs, 60 * 60 * 1000),
+        // bd-bmc9a0.1 — ICT IAB rows 28-29: how much of the part left the phone, whether the phone said it was online,
+        // and what was sent (an in-memory copy of a picked file, a slice of one, or the page's own Blob).
+        sentBytes: clampInt(body.sentBytes, 2 * 1024 * 1024 * 1024),
+        online: typeof body.online === 'boolean' ? body.online : null,
+        sentAs: pick(body.sentAs, DC_UPLOAD_SENT_AS),
       });
       return res.status(204).end();
     },
@@ -221,9 +226,11 @@ function createAppFunnelRouter({ limiter } = {}) {
   return router;
 }
 
-const DC_UPLOAD_STAGES = ['presign', 'upload', 'start'];
+// bd-bmc9a0.1: 'read' + 'unreadable' — a picked file the phone could not read, before any upload.
+const DC_UPLOAD_STAGES = ['read', 'presign', 'upload', 'start'];
 const DC_UPLOAD_KINDS = ['audio', 'lesson_plan', 'photo'];
-const DC_UPLOAD_REASONS = ['http', 'network', 'abort', 'unknown'];
+const DC_UPLOAD_REASONS = ['http', 'network', 'abort', 'unknown', 'unreadable'];
+const DC_UPLOAD_SENT_AS = ['copy', 'slice', 'blob', 'none'];
 
 // ─── the key actions ────────────────────────────────────────────────────────────────────────────────────────
 //
