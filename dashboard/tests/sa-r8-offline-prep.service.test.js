@@ -163,3 +163,42 @@ describe('the page (sa-offline.js prepVisit / checkVisit)', () => {
     expect(await checkVisit({ forms: [FORM] })).toMatchObject({ ready: false, why: 'no_service_worker' });
   });
 });
+
+describe('the child\'s own part (sa_r8_offline_first gates Start on it)', () => {
+  const page = require('../sa/sa-page');
+  const { partOf } = require('../sa/sa-offline');
+  const FULL = (() => {
+    // the fixture with a variant task and every block the page knows, so pick() and rotate() are both exercised
+    const b = JSON.parse(JSON.stringify(MINI));
+    const ids = b.tasks.map((t) => t.id);
+    b.blocks = { B1: ids.slice(0, 2), B2: ids.slice(1, 3) };
+    b.rdf = ids.slice(0, 2);
+    b.rdf_items = { [ids[0]]: 2 };
+    b.rdf_auto = ids.slice(1);
+    b.rdf_manual = ids.slice(1);
+    const t = b.tasks[1];
+    t.variants = [{ id: 'v1', items: t.items.slice(0, 1) }, { id: 'v2', items: t.items.slice(1, 2) }];
+    return b;
+  })();
+
+  test('partOf is exactly the page\'s own pick + rotate, for every block and session', () => {
+    for (const block of [null, 'full', 'B1', 'B2', 'rdf', 'rdf_auto', 'rdf_manual', 'nope']) {
+      for (const seed of ['aaaaaaaa-1', 'bbbbbbbb-2', 'cccccccc-3', 'dddddddd-4']) {
+        const want = page.rotate(page.pick(FULL, block), seed);
+        expect(partOf(FULL, block, seed)).toEqual(want);
+        expect(urls(partOf(FULL, block, seed), 'ur', '/')).toEqual(urls(want, 'ur', '/'));
+      }
+    }
+  });
+
+  test('prepVisit with a part: the battery and only that part\'s clips and pictures', async () => {
+    const f = fakeAsk(() => true);
+    const part = { block: 'B1', seed: 'aaaaaaaa-1' };
+    const want = [...urls(partOf(FULL, 'B1', 'aaaaaaaa-1'), 'ur', '/'), ...images(partOf(FULL, 'B1', 'aaaaaaaa-1'), 'ur')];
+    const r = await prepVisit({ forms: ['sa.coach.G3.A.ur'], part, ask: f.ask, readBattery: async () => FULL });
+    const asked = f.msgs.slice(1).flatMap((m) => m.urls);
+    expect(asked.sort()).toEqual([...new Set(want)].sort());
+    expect(asked.length).toBeLessThan([...urls(FULL, 'ur', '/'), ...images(FULL, 'ur')].length);
+    expect(r).toMatchObject({ ok: true, total: new Set(want).size + 1 });
+  });
+});

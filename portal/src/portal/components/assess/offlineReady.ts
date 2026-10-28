@@ -61,8 +61,10 @@ export type Progress = { done: number; total: number; bytes: number };
 export type PrepResult = { ok: boolean; total: number; cached: number; missing: number; bytes: number; why?: string };
 export type CheckResult = { ready: boolean; total: number; cached: number; why?: string };
 
+export type Part = { block: string; seed: string };
+
 type SaeOffline = {
-  prepVisit: (o: { forms: string[]; onProgress?: (p: Progress) => void }) => Promise<PrepResult>;
+  prepVisit: (o: { forms: string[]; part?: Part; onProgress?: (p: Progress) => void }) => Promise<PrepResult>;
   checkVisit: (o: { forms: string[] }) => Promise<CheckResult>;
 };
 
@@ -86,12 +88,12 @@ function offlineEngine(): Promise<SaeOffline | null> {
   return engine;
 }
 
-/** Every listed battery and all its files on the phone; never throws. */
-export async function prepForms(forms: string[], onProgress?: (p: Progress) => void): Promise<PrepResult> {
+/** Every listed battery and all its files on the phone (only one child's part when given); never throws. */
+export async function prepForms(forms: string[], onProgress?: (p: Progress) => void, part?: Part): Promise<PrepResult> {
   try {
     const e = await offlineEngine();
     if (!e) return { ok: false, total: 0, cached: 0, missing: 0, bytes: 0, why: 'no_engine' };
-    return await e.prepVisit({ forms, onProgress });
+    return await e.prepVisit({ forms, onProgress, ...(part ? { part } : {}) });
   } catch (err) {
     return { ok: false, total: 0, cached: 0, missing: 0, bytes: 0, why: String((err as Error)?.message || err) };
   }

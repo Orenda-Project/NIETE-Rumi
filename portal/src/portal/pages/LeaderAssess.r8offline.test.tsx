@@ -97,12 +97,18 @@ describe("sa_r8_fast_start", () => {
 });
 
 describe("sa_r8_offline_first", () => {
-  it("ON: the child's battery goes on the phone before Start (warmed when the list opened), then the test opens", async () => {
+  it("ON: the child's own part goes on the phone before Start (the whole battery warms from the list), then the test opens", async () => {
     api.getSwitches.mockResolvedValue({ ...SW, r8OfflineFirst: true });
     const start = await toHandover();
     await waitFor(() => expect(prep).toHaveBeenCalledWith(["sa.coach.G3.A.en"]));
     fireEvent.click(start);
-    await screen.findByTestId("assess-engine-frame");
+    const frame = (await screen.findByTestId("assess-engine-frame")) as HTMLIFrameElement;
+    const q = new URL(frame.getAttribute("src") as string, "http://x").searchParams;
+    // the gate asked for exactly the part this page runs: its block and its session (the passage it draws)
+    const gate = prep.mock.calls.find((c: any[]) => c[2]);
+    expect(gate[0]).toEqual(["sa.coach.G3.A.en"]);
+    expect(gate[2]).toEqual({ block: q.get("block"), seed: q.get("s") });
+    expect(prep.mock.invocationCallOrder[prep.mock.calls.indexOf(gate)]).toBeLessThan(api.markOutcome.mock.invocationCallOrder[0]);
     expect(api.markOutcome).toHaveBeenCalledTimes(1);
     // the other language follows behind the test
     await waitFor(() => expect(prep).toHaveBeenCalledWith(["sa.coach.G3.A.ur"]));

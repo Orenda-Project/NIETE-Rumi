@@ -468,13 +468,14 @@ export default function LeaderAssess() {
     return { ok: true, serverId, queued, block };
   };
 
-  /** sa_r8_offline_first: this child's battery on the phone (the list's warm-up, else now, with progress). */
-  const readyOnPhone = async (form: string): Promise<boolean> => {
+  /**
+   * sa_r8_offline_first: this child's part on the phone before Start (the battery, and the clips and pictures of the
+   * part this child's page runs: its block, and the passage its session draws), with progress. The whole battery keeps
+   * coming down behind it (the list's warm-up), so the next child of the grade starts at once.
+   */
+  const readyOnPhone = async (form: string, block: Block, seed: string): Promise<boolean> => {
     setGate({ progress: null, failed: false });
-    const first = warm.current[form] ? await warm.current[form] : null;
-    if (first?.ok) { setGate(null); return true; }
-    const r = await prepForms([form], (p) => setGate({ progress: p, failed: false }));
-    warm.current[form] = Promise.resolve(r);
+    const r = await prepForms([form], (p) => setGate({ progress: p, failed: false }), { block, seed });
     if (r.ok) { setGate(null); return true; }
     setGate({ progress: null, failed: true });
     return false;
@@ -484,10 +485,12 @@ export default function LeaderAssess() {
     if (step.kind !== 'handover') return;
     if (r8.offlineFirst) {
       const grade = step.child.grade || list?.grade || 3;
-      if (!(await readyOnPhone(formFor(grade, lang)))) return;
-      // the other language too, behind the test (the child may switch language mid-test)
+      const form = formFor(grade, lang);
+      if (!(await readyOnPhone(form, step.block, step.sessionId))) return;
+      // behind the test: the rest of this battery, then the other language (the child may switch language mid-test)
       const other = formFor(grade, lang === 'ur' ? 'en' : 'ur');
-      if (!warm.current[other]) warm.current[other] = prepForms([other]);
+      if (!warm.current[form]) warm.current[form] = prepForms([form]);
+      if (!warm.current[other]) warm.current[other] = warm.current[form].then(() => prepForms([other]));
     }
     const sent = await sendPresent();
     if (!sent.ok) return;
