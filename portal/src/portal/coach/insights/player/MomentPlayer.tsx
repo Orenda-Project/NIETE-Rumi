@@ -120,35 +120,35 @@ export function MomentPlayer({ moment, variant, onSeeMove, preload = "none" }: M
       )}
       {src && <LessonClock seconds={offset + time} />}
       {mode === "clip" && (
-        <p data-testid="moment-opens" className="text-[13px] leading-snug text-[#6b7280]">{tx("s4.opens_at", lang, { "mm:ss": at_ })}</p>
+        <p data-testid="moment-opens" className="text-[13px] leading-snug text-cp-ink-3">{tx("s4.opens_at", lang, { "mm:ss": at_ })}</p>
       )}
       {mode === "recording" && (
-        <p data-testid={expired ? "clip-expired" : "clip-failed"} role="status" className="text-[13.5px] leading-snug text-[#374151]">
+        <p data-testid={expired ? "clip-expired" : "clip-failed"} role="status" className="text-[13px] leading-snug text-cp-ink-2">
           {tx(expired ? "s4.clip_expired" : "s4.clip_failed", lang, { "mm:ss": at_ })}
         </p>
       )}
       {mode === "none" && (
-        <p data-testid={expired ? "clip-expired-rm" : "clip-failed-rm"} role="status" className="text-[14px] leading-snug text-[#374151]">
+        <p data-testid={expired ? "clip-expired-rm" : "clip-failed-rm"} role="status" className="text-[14px] leading-snug text-cp-ink-2">
           {t(expired ? "s4.clip_expired.rm" : "e.503_clip.rm", lang)}
         </p>
       )}
       {src && offline && (
-        <p data-testid="moment-offline" role="status" className="text-[13.5px] leading-snug text-[#374151]">{t("s4.offline", lang)}</p>
+        <p data-testid="moment-offline" role="status" className="text-[13px] leading-snug text-cp-ink-2">{t("s4.offline", lang)}</p>
       )}
 
       <ChapterStrip steps={m.steps} lang={lang} tappable={tappable} momentAt={m.lesson_s} onStep={onStep} legend={full} />
       {full && m.confidence === "none" && (
-        <p data-testid="no-timestamp" className="text-[13px] leading-snug text-[#6b7280]">{t("s4.no_timestamp", lang)}</p>
+        <p data-testid="no-timestamp" className="text-[13px] leading-snug text-cp-ink-3">{t("s4.no_timestamp", lang)}</p>
       )}
       {full && outside && (
-        <p data-testid="outside-clip" role="status" className="text-[13.5px] leading-snug text-[#374151]">{t("s4.outside_clip", lang)}</p>
+        <p data-testid="outside-clip" role="status" className="text-[13px] leading-snug text-cp-ink-2">{t("s4.outside_clip", lang)}</p>
       )}
 
       {full && <GlossBox moment={moment} lang={lang} />}
       {full && (
         <div data-testid="moment-question" className="flex flex-col gap-0.5">
-          <p className="text-[11.5px] font-bold uppercase tracking-[0.08em] text-[#6b7280] rtl:tracking-normal">{t("s4.question.title", lang)}</p>
-          <p data-text="library" className="text-[15px] italic leading-snug text-[#1d2025] rtl:not-italic">{pick(m.question, lang)}</p>
+          <p className="cp-label text-[12px] font-bold uppercase tracking-[0.08em] text-cp-ink-3 rtl:tracking-normal">{t("s4.question.title", lang)}</p>
+          <p data-text="library" className="text-[15px] italic leading-snug text-cp-ink rtl:not-italic">{pick(m.question, lang)}</p>
         </div>
       )}
       {full && coach && m.full_recording && (
@@ -159,7 +159,7 @@ export function MomentPlayer({ moment, variant, onSeeMove, preload = "none" }: M
           type="button"
           data-testid="see-move"
           onClick={onSeeMove}
-          className="flex min-h-[48px] items-center justify-center rounded-xl bg-[#333748] px-4 text-[15.5px] font-semibold text-white"
+          className="flex min-h-[48px] items-center justify-center rounded-[14px] bg-cp-navy px-4 text-[16px] font-bold text-white"
         >
           {t("s4.see_move", lang)}
         </button>
@@ -181,10 +181,10 @@ export function MomentPlayer({ moment, variant, onSeeMove, preload = "none" }: M
 function GlossBox({ moment, lang }: { moment: Moment; lang: "en" | "ur" }) {
   const ok = moment.gloss_status === "ok" && moment.gloss;
   if (!ok) {
-    return <p data-testid="gloss" className="rounded-xl bg-[#f9fafb] px-3 py-2 text-[14px] leading-snug text-[#6b7280]">{t("s4.gloss.none", lang)}</p>;
+    return <p data-testid="gloss" className="rounded-[12px] bg-cp-ground px-3 py-2 text-[14px] leading-snug text-cp-ink-3">{t("s4.gloss.none", lang)}</p>;
   }
   return (
-    <p data-testid="gloss" className="rounded-xl border-s-4 border-[#47BA7D] bg-[#f9fafb] px-3 py-2 text-[15px] leading-snug text-[#1d2025]">
+    <p data-testid="gloss" className="rounded-[12px] border-s-[3px] border-cp-green bg-cp-ground px-3 py-2 text-[15px] leading-snug text-cp-ink">
       <span data-text="library">{pick(moment.gloss, lang)}</span>
     </p>
   );

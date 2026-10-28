@@ -16,19 +16,19 @@ import { ClockText } from "./LessonClock";
 export default function FullRecordingLink({ sessionId, durationS, label, lang }: { sessionId: string; durationS: number; label: string; lang: Lang }) {
   const [open, setOpen] = useState(false);
   return (
-    <div data-testid="full-recording" className="flex flex-col gap-2 border-t border-[#e5e7eb] pt-2">
+    <div data-testid="full-recording" className="flex flex-col gap-2 border-t border-cp-hairline pt-2">
       <button
         type="button"
         aria-expanded={open}
         onClick={() => setOpen(true)}
-        className="flex min-h-[44px] items-center justify-between gap-2 text-start text-[15px] font-semibold text-[#1d2025]"
+        className="flex min-h-[44px] items-center justify-between gap-2 text-start text-[15px] font-semibold text-cp-ink"
       >
         <span>{tx("s4.full", lang, { duration: <ClockText seconds={durationS} lang={lang} /> })}</span>
-        <ChevronRight className={`h-4 w-4 shrink-0 text-[#9ca3af] ${open ? "rotate-90" : "rtl:rotate-180"}`} aria-hidden="true" />
+        <ChevronRight className={`h-4 w-4 shrink-0 text-cp-ink-3 ${open ? "rotate-90" : "rtl:rotate-180"}`} aria-hidden="true" />
       </button>
       {open && (
         <>
-          <p className="text-[13px] leading-snug text-[#6b7280]">{t("s4.full.hint", lang)}</p>
+          <p className="text-[13px] leading-snug text-cp-ink-3">{t("s4.full.hint", lang)}</p>
           <div data-testid="full-player" data-clock="">
             <AudioPlayer
               src={`/api/portal/coachip/session/${encodeURIComponent(sessionId)}/audio`}

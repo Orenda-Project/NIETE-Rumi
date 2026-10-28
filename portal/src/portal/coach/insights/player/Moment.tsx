@@ -28,7 +28,7 @@ export default function MomentPage({ moment }: { moment: Moment }) {
   return (
     <Card testId="s4-body">
       <Eyebrow k="eyebrow.listen" />
-      <p data-testid="s4-sentence" className="text-[17px] leading-snug text-[#1d2025]">
+      <p data-testid="s4-sentence" className="text-[17px] leading-snug text-cp-ink">
         {t("s4.sentence_frame", lang, { sentence: openSentence(pick(moment.w.sentence, lang), lang) })}
       </p>
       <MomentPlayer moment={moment} variant="full" onSeeMove={() => navigate(insightsPaths.move(moment.w.w_id))} />
