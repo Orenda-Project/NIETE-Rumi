@@ -25,7 +25,6 @@
 // sa-8: round 8, the child's flow (no Done line on a reading, story questions wait for Next, practice says its answer).
 // sa-9: round 8 offline: sa-offline.js prepVisit / checkVisit / partOf (the coach page's "ready for offline").
 var VERSION = 'sa-9';
-var VERSION = 'sa-8';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
