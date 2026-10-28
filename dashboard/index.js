@@ -3860,9 +3860,9 @@ app.listen(PORT, '0.0.0.0', () => {
 
   // Start materialized view refresh scheduler
   const mvScheduler = require('./services/mv-refresh-scheduler.service');
+  // Interval: MV_REFRESH_INTERVAL_MS (default 15 min). Only the cluster worker
+  // marked MV_SCHEDULER_OWNER=1 starts it; MV_SCHEDULER_ENABLED=false turns it off.
   mvScheduler.start({
-    connectionString: process.env.DATABASE_URL,
-    intervalMs: 5 * 60 * 1000 // 5 minutes
+    connectionString: process.env.DATABASE_URL
   });
-  console.log('📊 Materialized view refresh scheduler started (5-minute interval)');
 });
