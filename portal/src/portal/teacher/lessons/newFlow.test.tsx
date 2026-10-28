@@ -22,6 +22,11 @@ import lessonRoutes from "./routes";
 import * as paths from "./paths";
 import { LESSONS_ALL, LESSONS_HOME, lessonsUrl } from "./paths";
 import { LESSONS_V2_COPY as C } from "./copy";
+import { beforeAll as preloadFirst } from "vitest";
+import { preloadAll } from "@/lib/lazyPage";
+
+// bd-sex15q.34 — these pages are their own chunks (lib/lazyPage); load them before stepping through them synchronously.
+preloadFirst(() => preloadAll({ pages: true }), 120_000);
 
 const LESSONS_NEW = (paths as Record<string, unknown>).LESSONS_NEW as string;
 const http = api as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };

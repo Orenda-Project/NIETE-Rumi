@@ -33,7 +33,7 @@ export function LangSwitch() {
       data-testid={`rm-lang-${k}`}
       aria-pressed={lang === k}
       onClick={() => { if (lang !== k) void sw.toggle(); }}
-      className={cn("min-h-[40px] min-w-[48px] rounded-full px-3 text-[14px] font-semibold", lang === k ? "bg-[#333748] text-white" : "text-[#374151]")}
+      className={cn("min-h-[44px] min-w-[48px] rounded-full px-3 text-[14px] font-semibold", lang === k ? "bg-[#333748] text-white" : "text-[#374151]")}
     >
       {rt(k === "en" ? "lang.en" : "lang.ur", lang)}
     </button>

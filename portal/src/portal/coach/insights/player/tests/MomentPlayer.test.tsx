@@ -248,18 +248,22 @@ describe.each(LANGS)("MomentPlayer (%s)", (lang) => {
     expect(container.textContent).not.toMatch(/T-\d+/);
   });
 
-  it("gloss: ok shows 'At minute 19:' + the words; blocked shows the none line, never raw text", () => {
-    const ok = render(<MomentPlayer moment={clone(F.moment)} variant="full" />);
+  it("gloss: ok shows the server's stored text as is, one 'At minute' (ruling B); blocked shows the none line, never raw text", () => {
+    // the API's gloss is stored by the nightly with its prefix (gloss.js storedText, 1-based): 18:42 → minute 19
+    const stored = { en: `At minute 19: ${F.moment.gloss!.en}`, ur: `۱۹ویں منٹ پر: ${F.moment.gloss!.ur}` };
+    const m0 = clone(F.moment);
+    m0.gloss = stored;
+    const ok = render(<MomentPlayer moment={m0} variant="full" />);
     const box = within(ok.container).getByTestId("gloss");
-    expect(box.textContent).toContain(F.moment.gloss![lang]);
-    // COPY §0.2: only codes and the player clock stay ASCII in Urdu; the gloss minute takes the page's digits
-    expect(box.querySelector("[data-clock]")!.textContent).toBe(lang === "en" ? "19" : "۱۹");
+    expect(box.textContent).toBe(stored[lang]);
+    expect(box.textContent!.match(lang === "en" ? /At minute/g : /منٹ پر/g)).toHaveLength(1);
     cleanup();
     const m = clone(F.moment);
+    m.gloss = stored;
     m.gloss_status = "blocked";
     const blocked = render(<MomentPlayer moment={m} variant="full" />);
     expect(within(blocked.container).getByTestId("gloss").textContent).toBe(COPY["s4.gloss.none"][lang]);
-    expect(blocked.container.textContent).not.toContain(F.moment.gloss![lang]);
+    expect(blocked.container.textContent).not.toContain(stored[lang]);
   });
 
   it("the question, the pair (a nested moment with its own player) and See the move", () => {

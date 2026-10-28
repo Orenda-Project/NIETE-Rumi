@@ -253,14 +253,25 @@ describe.each(LANGS)("S2 Weakness (%s)", (lang) => {
     }
   }, 30000);
 
-  // fix-r5 s2 item 19 (qa-coach idea 073300): S4 is reachable from S2: "Open the player ›" under the moment.
-  it("item 19: under the moment, a link to the full player of this moment", async () => {
+  // fix-r5 s4 train 7 item 2 (design-qa 172524, lead-final 223944): S4 stays one tap away, but through the moment
+  // card's header ("The moment · T-nn at S-nn ›", the S1 "S-01 first ›" pattern), never a row of its own that pushes
+  // "Set this step" under the fixed nav on the shortest page.
+  it("item 2: the moment card's header is the link to the full player; no separate 'Open the player' row", async () => {
     serve({ [`/coachip/w/${W}`]: F[`w_${W}`], "/coachip/home": F.home });
     await renderAt(`/w/${W}`);
-    const a = screen.getByTestId("w-moment-open");
-    expect(screen.getByTestId("w-moment").contains(a)).toBe(true);
-    expect(a.getAttribute("href")).toBe(`/portal/coach/insights/m/${F[`w_${W}`].moment.moment_id}`);
-    expect(a.textContent).toBe(COPY["s2.moment.open"][lang]);
+    const card = screen.getByTestId("w-moment");
+    expect(screen.queryByTestId("w-moment-open")).toBeNull();
+    expect(card.textContent).not.toContain(COPY["s2.moment.open"][lang]);
+    const head = screen.getByTestId("w-moment-head");
+    expect(head.tagName).toBe("A");
+    expect(card.firstElementChild).toBe(head);
+    expect(head.getAttribute("href")).toBe(`/portal/coach/insights/m/${F[`w_${W}`].moment.moment_id}`);
+    expect(head.textContent).toContain(COPY["s2.moment.title"][lang]);
+    expect(head.textContent).toContain(F[`w_${W}`].moment.code.code);
+    expect(head.querySelector("svg[aria-hidden='true']")).not.toBeNull();
+    expect(head.className).toMatch(/min-h-\[44px\]/);
+    // the card holds the header, the player and nothing after it
+    expect(card.children).toHaveLength(2);
   }, 30000);
 
   it("a load failure shows the error block, no bare digit", async () => {

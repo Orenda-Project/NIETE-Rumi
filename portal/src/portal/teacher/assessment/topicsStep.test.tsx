@@ -32,6 +32,11 @@ import { clearPicksForTest, setPicks } from './store';
 import { newPicks, toSpec, type Picks } from './model';
 import routes from './routes';
 import { newPaperPath } from './paths';
+import { beforeAll as preloadFirst } from "vitest";
+import { preloadAll } from "@/lib/lazyPage";
+
+// bd-sex15q.34 — these pages are their own chunks (lib/lazyPage); load them before stepping through them synchronously.
+preloadFirst(() => preloadAll({ pages: true }), 120_000);
 
 const t = (topicId: string, name: string, heading: string | null, headingOrder: number | null, sortOrder: number) => (
   { topicId, name, heading, headingOrder, sortOrder });
