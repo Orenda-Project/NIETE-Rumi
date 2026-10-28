@@ -46,6 +46,13 @@ let stats = {
 pool.on('connect', (client) => {
   stats.totalCreated++;
   console.log(`[DB Pool] New connection created (total: ${stats.totalCreated})`);
+  // pool.on('error') below only covers IDLE clients. A client a request is holding when the server ends the connection
+  // (57P01 on 28 Oct 13:20:37Z) emitted 'error' with no listener, and Node killed the cluster worker (bd-5gyspy.10).
+  // Handled here, the holder's query rejects, and pg-pool destroys the client on release (it is no longer queryable).
+  client.on('error', (err) => {
+    stats.errors++;
+    console.error('[DB Pool] Client error:', err && err.code, err && err.message);
+  });
 });
 
 // Connection acquired from pool (fires for EVERY acquisition - new or reused)
