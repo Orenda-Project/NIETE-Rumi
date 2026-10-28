@@ -3,7 +3,7 @@
  * Round 8, the child's flow (dashboard/sa/sa-ui.js, sa-core.js), each behind its battery.ui switch, OFF = as before:
  *   r8_reading_no_done    item 14: entering a reading screen, Jugnu says nothing about "done"; the recorder still opens.
  *   r8_comp_wait_next     item 28: a story / listening question never moves on by itself; the child presses Next, and a
- *                         quiet line says a stuck child can press it (spoken once after ~6 s when its clip is there).
+ *                         quiet line says a stuck child can press it (shown only: Jugnu's voice would land in the child's recorded answer).
  *   r8_practice_autoplay  item 11: a spoken practice says its answer on arrival, no button press; Next goes on.
  * Mounts the real UI on a jsdom page with a real runner and records what Jugnu says.
  */
@@ -125,7 +125,7 @@ maybe('sa-ui round 8: the child\'s flow', () => {
       await jest.advanceTimersByTimeAsync(300);
       expect(m.runner.view().item.id).toBe('q2');
     });
-    test('UI, ON (UR, the battery line with its clip): shown, and said once ~6 s into a quiet question', async () => {
+    test('UI, ON (UR, the battery line with its clip): shown, never spoken over the child\'s recorded answer', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
       const line = { text: 'اگر آپ اٹک جائیں تو بٹن دبائیں۔', audio: 'sa/v1/ur/stuck.mp3' };
       const m = mount(comp({ r8_comp_wait_next: true }, { stuck_press_next: line }), { lang: 'ur' });
@@ -133,12 +133,8 @@ maybe('sa-ui round 8: the child\'s flow', () => {
       await jest.advanceTimersByTimeAsync(50);
       expect(m.el.querySelector('.sae-r8-stuck').textContent).toBe(line.text);
       expect(btnText(m.el, /^آگے$/)).toBeTruthy();
-      await jest.advanceTimersByTimeAsync(5000);
+      await jest.advanceTimersByTimeAsync(30000);
       expect(m.said).not.toContainEqual(line);
-      await jest.advanceTimersByTimeAsync(1500);
-      expect(m.said.filter((x) => x === line).length).toBe(1);
-      await jest.advanceTimersByTimeAsync(20000);
-      expect(m.said.filter((x) => x === line).length).toBe(1);
     });
     test('UI, ON (UR, no battery line): the page\'s Urdu fallback, text only', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });

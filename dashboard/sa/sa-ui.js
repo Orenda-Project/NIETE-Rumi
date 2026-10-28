@@ -61,8 +61,8 @@
  *   r8_reading_no_done   a reading (passage) screen says nothing about "done" on the way in; the recorder opens after a
  *                        short gap (R8_REC_GAP_MS) in place of the Done line. The star keeps its Done label.
  *   r8_comp_wait_next    a story / listening question never moves on by itself (sa-core); its button reads Next, and a
- *                        quiet line under it says a stuck child can press it (lines.stuck_press_next, else COPY), said
- *                        once per question R8_STUCK_MS after Jugnu asked it, only when the battery's line has a clip.
+ *                        quiet line under it says a stuck child can press it (lines.stuck_press_next, else COPY). Shown,
+ *                        never spoken on the question: Jugnu's voice would land in the child's recorded answer.
  *   r8_practice_autoplay a spoken practice says its answer (its model) on arrival, after its prompt; Next goes straight
  *                        on (no second telling); the replay chip says the prompt and the answer again. Coach-led: silent.
  *
@@ -278,7 +278,6 @@
   var WARM_CAP_MS = 25000;
   var HOLD_MS = 3000;
   var GATE_CAP_MS = 30000;  // audio_gated_next: Next opens by itself this long after the words began, whatever the voice does
-  var R8_STUCK_MS = 6000;   // r8_comp_wait_next: a question this long unanswered after Jugnu asked it hears the stuck line (its clip only)
   var R8_REC_GAP_MS = 600;  // r8_reading_no_done: the reading's recorder opens this long after the screen, in place of the Done line
   var KEYPAD_MIN = 3;        // digits the keypad takes; more when the task has a longer answer (1,000 + 300 + 80 + 3)
   var WORD_MAX = 16;
@@ -1689,7 +1688,6 @@
           sayItem(v.item, t).then(function () {
             if (!alive || g2 !== gen || lastKey !== key) return;
             if (runner.promptDone) runner.promptDone(); // the answer window starts after the question
-            stuckLater(t, key);
             if (sectionRec) return; // the task's one recording is already running (recorderHooks)
             oralRec = { task: t, item: v.item, key: key };
             try { if (opts.onRecordStart) opts.onRecordStart(t, v.item); } catch (e) { /* recorder */ }
@@ -1742,13 +1740,6 @@
     /** r8_comp_wait_next: the stuck line, small, just above Next in the foot (always in view, never over the question). */
     // Text only from COPY (not copyLine, which is for lines with a clip): the page has no recording of these words.
     function stuckEl() { return h('p', { class: 'sae-sub sae-r8-stuck', text: tx(line('stuck_press_next')) || C.stuck_press_next }); }
-    /** r8_comp_wait_next: the stuck line once, R8_STUCK_MS after the question was asked, if still unanswered (clip only). */
-    function stuckLater(t, key) {
-      var sl = line('stuck_press_next');
-      if (!compWait(t) || !sl || !sl.audio) return;
-      later(function () { if (lastKey === key && keyOf(runner.view()) === key) say(sl, null, appAsks); }, R8_STUCK_MS);
-    }
-
     // The recorder hooks: a record task's running phase (however it ends), and each oral question.
     function recorderHooks(v) {
       var isRec = v.phase === 'running' && v.task && (v.task.mode === 'record' || (sectionRec && v.task.mode === 'oral'));
