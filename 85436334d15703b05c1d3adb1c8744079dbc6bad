@@ -1,0 +1,2 @@
+{"ts":"2026-10-28T04:50:48Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=registration,menu,training,lesson-plan,coaching,language,status,observe,attendance,child-test,fde-board-pattern spec_sync=true","sha":"85436334d157","branch":"bd-dwj80f-23922","user":"Mah Noor"}
+{"ts":"2026-10-28T04:50:53Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"registration=none-needed (85436334d rewords two code comments and changes jest config only; no behaviour change)","sha":"85436334d157","branch":"sandbox","user":"Mah Noor"}
