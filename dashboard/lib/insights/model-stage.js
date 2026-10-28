@@ -14,6 +14,7 @@ const M = require('./model');
 const G = require('./gloss');
 const Ph = require('./phonics');
 const { phaseOutcome } = require('./predicates');
+const { HealthAbort } = require('./safety');
 
 const BATCH = 50;
 
@@ -81,6 +82,21 @@ function createModelContext({ capUsd, write, store, jobRunId, deps, log }) {
     callDeps(sessionId, target) {
       return { fetch: deps.fetch || fetch, apiKey: deps.apiKey, findRun, jobRunId, sessionId, target, dryRun: !write };
     },
+    /**
+     * True once `stage` is past its cut-off (deps.deadlines[stage], epoch ms; the rest stays pending for the next night, said
+     * once per stage); throws HealthAbort when deps.health reports the database unhealthy (bd-sex15q.41).
+     */
+    async halted(stage) {
+      if (deps.health) {
+        const h = await deps.health.check();
+        if (!h.ok) throw new HealthAbort(stage, h.reason);
+      }
+      const cut = deps.deadlines && deps.deadlines[stage];
+      return cut != null && Number(deps.now ? deps.now() : Date.now()) >= cut;
+    },
+    stopLine(stage, pending) {
+      this.log(`deadline_reached stage=${stage} pending=${pending}`);
+    },
     finish() {
       summary.cap_hit = ledger.isCapHit;
       if (ledger.isCapHit) this.log(ledger.capLine());
@@ -99,6 +115,7 @@ async function runPhonics(ctx, { facts, inWindow, reserveUsd = 0 }) {
   const affordable = () => ctx.ledger.spent + M.P90_USD.phonics <= ctx.summary.cap_usd - reserveUsd;
   let read = 0;
   for (let i = 0; i < literacy.length; i += BATCH) {
+    if (await ctx.halted('phonics')) { ctx.pending('phonics', literacy.length - i); ctx.stopLine('phonics', literacy.length - i); break; }
     if (!affordable()) { ctx.pending('phonics', literacy.length - i); break; }
     const batch = literacy.slice(i, i + BATCH);
     const texts = await selectIn(ctx.deps.readClient, 'coaching_sessions', 'id,transcript_text', 'id', batch.map((f) => f.session_id));
@@ -106,6 +123,9 @@ async function runPhonics(ctx, { facts, inWindow, reserveUsd = 0 }) {
     for (let j = 0; j < batch.length; j += 1) {
       const f = batch[j];
       if (!affordable()) { ctx.pending('phonics', literacy.length - i - j); i = literacy.length; break; }
+      if (await ctx.halted('phonics')) {
+        ctx.pending('phonics', literacy.length - i - j); ctx.stopLine('phonics', literacy.length - i - j); i = literacy.length; break;
+      }
       const { row, result, reused } = await Ph.detectPhonics({ transcriptText: textOf.get(f.session_id) || '', meta: { grade: f.grade, subject: f.subject },
         ledger: ctx.ledger, deps: ctx.callDeps(f.session_id, '-') });
       textOf.delete(f.session_id);
@@ -139,7 +159,10 @@ async function runGlosses(ctx, { shown, moments, facts, homeworkFacts = [] }) {
   const toGloss = shown.map((id) => momentById.get(id)).filter((m) => m && m.gloss_status === 'pending' && m.move_id);
   const lexicons = toGloss.length ? await loadLexicons(ctx.deps.readClient, [...new Set(toGloss.map((m) => m.session_id))]) : new Map();
   const okGlosses = [];
+  let late = 0; // items left for the next night once the gloss cut-off has passed (said once, at the end)
+  const pastCut = async () => { if (late || await ctx.halted('gloss')) { late += 1; return true; } return false; };
   for (const m of toGloss) {
+    if (await pastCut()) { ctx.pending('gloss'); continue; }
     if (!ctx.ledger.canStart('gloss')) { ctx.ledger.markPending(); ctx.pending('gloss'); continue; }
     const f = factById.get(m.fact_id);
     const gm = f && f.allowed && f.allowed.gloss.moves[m.move_id];
@@ -160,6 +183,7 @@ async function runGlosses(ctx, { shown, moments, facts, homeworkFacts = [] }) {
 
   // Stage 9: the 5% re-check (at least 5), on Opus, verdicts only. A dry run keeps no gloss text, so it has none to judge.
   for (const g of G.pickRecheck(okGlosses, Math.random)) {
+    if (await pastCut()) { ctx.pending('recheck'); continue; }
     if (!ctx.ledger.canStart('gloss_recheck')) { ctx.ledger.markPending(); ctx.pending('recheck'); continue; }
     const res = await G.recheckGloss({ input: g.input, gloss: { gloss_en: g.patch.gloss_en, gloss_ur: g.patch.gloss_ur },
       ledger: ctx.ledger, deps: ctx.callDeps(g.m.session_id, g.m.move_id) });
@@ -169,6 +193,7 @@ async function runGlosses(ctx, { shown, moments, facts, homeworkFacts = [] }) {
 
   // Homework glosses: W-IP lessons where the code leg did not fire (output {replaced_by_homework}; `why` dropped).
   for (const f of homeworkFacts) {
+    if (await pastCut()) { ctx.pending('homework'); continue; }
     if (!ctx.ledger.canStart('homework')) { ctx.ledger.markPending(); ctx.pending('homework'); continue; }
     const lp = f.allowed.lp;
     const side = (phase) => lp.moves.filter((x) => x.phase === phase && x.counted).map((x) => {
@@ -184,6 +209,7 @@ async function runGlosses(ctx, { shown, moments, facts, homeworkFacts = [] }) {
     await ctx.record(out.reused ? [] : [row]);
     ctx.tally('homework', row.output ? row.output.replaced_by_homework : row.status);
   }
+  if (late) ctx.stopLine('gloss', late);
 }
 
 /** Lessons for the homework gloss: W-IP skipped, a homework step graded, and the code leg (is_sent_home) did not fire. */

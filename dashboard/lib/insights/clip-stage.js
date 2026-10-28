@@ -9,9 +9,29 @@
  */
 const os = require('os');
 const { clipKey, cutAndUpload, planClips, fullKey, cutFullAndUpload } = require('./clips');
+const { createLimiter, withRetry } = require('./safety');
 
 const PRESIGN_S = 300;
 const FULL_PRESIGN_S = 900;
+// R2 and the encoder are shared (bd-sex15q.41): at most 4 cuts at once whatever is asked; 1 when nothing is.
+const MAX_CONCURRENCY = 4;
+const UPLOAD_ATTEMPTS = 4;
+
+function clampConcurrency(n) {
+  const v = Math.floor(Number(n));
+  return Number.isFinite(v) && v >= 1 ? Math.min(MAX_CONCURRENCY, v) : 1;
+}
+
+/** Runs worker(item) over items, `n` at a time, stopping (no new item started) once shouldStop() is true. */
+async function eachLimited(items, n, shouldStop, worker) {
+  const limiter = createLimiter(n);
+  let stopped = 0;
+  await Promise.all(items.map((it) => limiter.run(async () => {
+    if (await shouldStop()) { stopped += 1; return; }
+    await worker(it);
+  })));
+  return stopped;
+}
 
 /** Path-style `/<bucket>/<key…>` or a full URL with that path → { bucket, key }. */
 function sourceOf(audioUrl) {
@@ -23,11 +43,16 @@ function sourceOf(audioUrl) {
   return { bucket: parts[0], key: decodeURIComponent(parts.slice(1).join('/')) };
 }
 
-function createClipper({ envName, bucket, s3, presign, tmpDir = os.tmpdir(), spawn, bin }) {
+function createClipper({ envName, bucket, s3, presign, tmpDir = os.tmpdir(), spawn, bin, concurrency = 1, shouldStop = () => false,
+  sleep }) {
+  const n = clampConcurrency(concurrency);
+  // A put that fails (R2 429/5xx, a reset) is tried again with backoff before the cut is called failed.
+  const putObject = (o) => withRetry(() => s3.putObject(o), { attempts: UPLOAD_ATTEMPTS, baseMs: 1000, sleep });
   return async function clipper({ momentIds, moments, facts, audioOf, store, log }) {
     const factById = new Map(facts.map((f) => [f.id, f]));
     let ready = 0;
-    for (const m of planClips(moments, momentIds)) {
+    const plan = planClips(moments, momentIds);
+    const stopped = await eachLimited(plan, n, shouldStop, async (m) => {
       const f = factById.get(m.fact_id);
       const src = sourceOf(audioOf.get(m.session_id));
       let status = 'failed';
@@ -37,12 +62,13 @@ function createClipper({ envName, bucket, s3, presign, tmpDir = os.tmpdir(), spa
           key = clipKey(envName, m.session_id, m.from_s, m.to_s);
           const srcUrl = await presign(s3, src, PRESIGN_S);
           status = await cutAndUpload({ srcUrl, fromS: m.from_s, toS: m.to_s, key,
-            deps: { tmpDir, bucket, spawn, bin, putObject: (o) => s3.putObject(o), log: (e) => log && log(e) } });
+            deps: { tmpDir, bucket, spawn, bin, putObject, log: (e) => log && log(e) } });
         } catch (_) { status = 'failed'; }
       }
       await store.update('coachip_moments', m.id, { clip_status: status, clip_r2_key: status === 'ready' ? key : null });
       if (status === 'ready') ready += 1;
-    }
+    });
+    if (stopped) { if (log) log(`deadline_reached stage=clips pending=${stopped}`); return ready; }
     await cutFull({ momentIds, moments, audioOf, log });
     return ready;
   };
@@ -55,8 +81,8 @@ function createClipper({ envName, bucket, s3, presign, tmpDir = os.tmpdir(), spa
   async function cutFull({ momentIds, moments, audioOf, log }) {
     const shown = new Set(momentIds || []);
     const sessions = [...new Set((moments || []).filter((m) => m && shown.has(m.id)).map((m) => m.session_id))];
-    const n = { ready: 0, skipped: 0, failed: 0 };
-    for (const sessionId of sessions) {
+    const c = { ready: 0, skipped: 0, failed: 0 };
+    const stopped = await eachLimited(sessions, n, shouldStop, async (sessionId) => {
       let status = 'failed';
       try {
         const key = fullKey(envName, sessionId);
@@ -64,12 +90,12 @@ function createClipper({ envName, bucket, s3, presign, tmpDir = os.tmpdir(), spa
         if (await exists(key)) status = 'skipped';
         else if (src) {
           const srcUrl = await presign(s3, src, FULL_PRESIGN_S);
-          status = await cutFullAndUpload({ srcUrl, key, deps: { tmpDir, bucket, spawn, bin, putObject: (o) => s3.putObject(o) } });
+          status = await cutFullAndUpload({ srcUrl, key, deps: { tmpDir, bucket, spawn, bin, putObject } });
         }
       } catch (_) { status = 'failed'; }
-      n[status] += 1;
-    }
-    if (log) log(`full ready=${n.ready} skipped=${n.skipped} failed=${n.failed}`);
+      c[status] += 1;
+    });
+    if (log) log(`full ready=${c.ready} skipped=${c.skipped} failed=${c.failed}${stopped ? ` deadline_pending=${stopped}` : ''}`);
   }
 }
 
@@ -85,4 +111,4 @@ function r2FromEnv(env) {
   };
 }
 
-module.exports = { createClipper, sourceOf, r2FromEnv, PRESIGN_S, FULL_PRESIGN_S };
+module.exports = { createClipper, sourceOf, r2FromEnv, clampConcurrency, PRESIGN_S, FULL_PRESIGN_S, MAX_CONCURRENCY };
