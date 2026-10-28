@@ -18,22 +18,40 @@
  * - Margin feedback with handwriting font
  */
 
-const { createCanvas, loadImage, registerFont } = require('canvas');
 const axios = require('axios');
 const path = require('path');
 const PDFDocument = require('pdfkit');
 const r2Service = require('../../storage/r2');
 const { logToFile } = require('../../utils/logger');
 
-// Register handwriting fonts
 const FONTS_DIR = path.join(__dirname, '../../../');
-try {
-  registerFont(path.join(FONTS_DIR, 'assets/fonts/Caveat-Regular.ttf'), { family: 'Caveat' });
-  registerFont(path.join(FONTS_DIR, 'fonts/NotoNastaliqUrdu.ttf'), { family: 'NotoNastaliq' });
-  registerFont(path.join(FONTS_DIR, 'shared/fonts/NotoNastaliqUrdu-Regular.ttf'), { family: 'NotoNastaliqUrdu' });
-  logToFile('🎨 Annotation fonts registered successfully');
-} catch (fontError) {
-  logToFile('⚠️ Font registration warning', { error: fontError.message });
+
+// canvas is an optional native dependency (bot/package.json optionalDependencies). It is loaded on first use, not at
+// require time: this module sits on the sqs-worker's boot path (sqs-worker.js → exam-grading.worker.js →
+// exam-checker/index.js), and an install that dropped canvas crashed the whole worker at boot (bd-vq0mfv, 27 Oct 2026).
+// Without canvas only annotation fails, with CANVAS_NOT_AVAILABLE, which annotateBatch treats as one student's failure.
+let canvasLib = null;
+function loadCanvas() {
+  if (canvasLib) return canvasLib;
+  let lib;
+  try {
+    lib = require('canvas');
+  } catch (error) {
+    const err = new Error(`canvas not available, exam annotation disabled: ${error.message}`);
+    err.code = 'CANVAS_NOT_AVAILABLE';
+    throw err;
+  }
+  // Register handwriting fonts
+  try {
+    lib.registerFont(path.join(FONTS_DIR, 'assets/fonts/Caveat-Regular.ttf'), { family: 'Caveat' });
+    lib.registerFont(path.join(FONTS_DIR, 'fonts/NotoNastaliqUrdu.ttf'), { family: 'NotoNastaliq' });
+    lib.registerFont(path.join(FONTS_DIR, 'shared/fonts/NotoNastaliqUrdu-Regular.ttf'), { family: 'NotoNastaliqUrdu' });
+    logToFile('🎨 Annotation fonts registered successfully');
+  } catch (fontError) {
+    logToFile('⚠️ Font registration warning', { error: fontError.message });
+  }
+  canvasLib = lib;
+  return canvasLib;
 }
 
 // Annotation colors (hex for Canvas)
@@ -151,6 +169,8 @@ class AnnotationService {
    * @returns {string} Annotated image URL
    */
   static async annotateImage(imageUrl, annotations, sessionId) {
+    const { createCanvas, loadImage } = loadCanvas();
+
     // Download original image
     const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
     const imageBuffer = Buffer.from(response.data);
@@ -477,5 +497,8 @@ class AnnotationService {
     }
   }
 }
+
+// Test seam: the lazily loaded canvas module (bd-vq0mfv).
+AnnotationService._canvas = loadCanvas;
 
 module.exports = AnnotationService;
