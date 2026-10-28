@@ -249,6 +249,9 @@
       } catch (e) { /* the line's own guards end it */ }
     }
 
+    /** Round 8 (item 32): the <audio> playing now (a clip line), else null; the screens light its words. */
+    speak.audio = function () { return cur && cur.audio ? cur.audio : null; };
+
     return {
       speak: speak,
       resume: resume,

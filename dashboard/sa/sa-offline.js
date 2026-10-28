@@ -63,6 +63,14 @@
     return Object.keys(out).sort();
   }
 
+  /**
+   * timingUrls(clipUrls) → the word-timing file beside each v4 clip (sa/v4/<lang>/<key>.json, round 8 item 32: the screens
+   * light the words as Jugnu says them). Best effort: not every clip has one, and a missing one is never "not ready".
+   */
+  function timingUrls(list) {
+    return (list || []).filter(function (u) { return /\/sa\/v4\/(ur|en)\/[^/]+\.mp3$/.test(u); }).map(function (u) { return u.replace(/\.mp3$/, '.json'); });
+  }
+
   /** The clip URLs of the engine's own lines (battery.lines) for this language. */
   function lineUrls(battery, lang, base) { return urls({ lines: battery && battery.lines }, lang, base); }
 
@@ -144,6 +152,9 @@
         if (typeof o.onLines === 'function') opened.then(function () { o.onLines(); }, function () { o.onLines(); });
         var said = opened.then(function () { return first.length ? ask(sw, { type: 'prepare', urls: first }) : none; });
         var then = said.then(function () { return ask(sw, { type: 'prepare', urls: rest }); });
+        // the v4 clips' word timings, behind everything else and never waited on
+        var timings = timingUrls(clips);
+        if (timings.length) then.then(function () { return ask(sw, { type: 'prepare', urls: timings }); }).then(null, function () {});
         return Promise.all([said, ask(sw, { type: 'prepare', urls: list }), then, ask(sw, { type: 'prepare', urls: pics }), opened]).then(function (r) {
           var core = r[1] || { ok: false, missing: list };
           var audio = { missing: (r[4] || { missing: open }).missing.concat((r[0] || { missing: first }).missing, (r[2] || { missing: rest }).missing) };
@@ -370,6 +381,10 @@
             progress({ done: done, total: total, bytes: bytes });
           });
         }, Promise.resolve()).then(function () {
+          // the v4 clips' word timings, best effort: what the server has not got is not counted
+          var timings = timingUrls(all);
+          return timings.length ? q({ type: 'prepare', urls: timings }).then(null, function () {}) : null;
+        }).then(function () {
           var missing = Object.keys(missingSet).length;
           var out = per.map(function (p) {
             var m = p.files.filter(function (u) { return missingSet[u]; }).length;
@@ -408,5 +423,5 @@
   }
 
   return { urls: urls, lineUrls: lineUrls, openingUrls: openingUrls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice,
-    prepVisit: prepVisit, checkVisit: checkVisit, partOf: partOf, ART: ART };
+    prepVisit: prepVisit, checkVisit: checkVisit, partOf: partOf, ART: ART, timingUrls: timingUrls };
 }));
