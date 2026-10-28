@@ -15,8 +15,6 @@
  *     battery, why? }> — the voice-readiness gate (RULING #14): voice 'clips' when every clip of the session is on the
  *     phone, else 'tts' when the phone has a voice in the session's language, else 'none' (the surface refuses the
  *     start). It asks for persistent storage (RULING #11) and keeps sa:voice / sa:persisted for the sink's batch.
- *     The answer also carries prep_ms, prep_bytes, prep_gaveup_stage and prep_missing. Each clip stage waits while its
- *     clips keep arriving and gives up only after 20 s with nothing new (then the phone's own cache is counted).
  *   SAE.offline.prepVisit({ forms, part?, fresh?, paused?, onProgress?, chunk? }) → Promise<{ ok, total, cached, missing, bytes,
  *     forms, why? }>
  *     round 8 (switches sa_r8_offline_prep / sa_r8_offline_first, the coach page, while online): every listed battery
@@ -65,6 +63,14 @@
     return Object.keys(out).sort();
   }
 
+  /**
+   * timingUrls(clipUrls) → the word-timing file beside each v4 clip (sa/v4/<lang>/<key>.json, round 8 item 32: the screens
+   * light the words as Jugnu says them). Best effort: not every clip has one, and a missing one is never "not ready".
+   */
+  function timingUrls(list) {
+    return (list || []).filter(function (u) { return /\/sa\/v4\/(ur|en)\/[^/]+\.mp3$/.test(u); }).map(function (u) { return u.replace(/\.mp3$/, '.json'); });
+  }
+
   /** The clip URLs of the engine's own lines (battery.lines) for this language. */
   function lineUrls(battery, lang, base) { return urls({ lines: battery && battery.lines }, lang, base); }
 
@@ -103,49 +109,6 @@
       ch.port1.onmessage = function (e) { clearTimeout(t); ok(e.data); };
       sw.postMessage(msg, [ch.port2]);
     });
-  }
-
-  // A stage of the Start gate waits while the worker reports progress, and gives up only after STALL_MS with no file kept
-  // and no byte received (a slow link is waited for, a dead one is not). There is no total limit. A worker that never
-  // reports progress (the previous one, still active while the new one installs) keeps the old fixed window.
-  var STALL_MS = 20000;
-  var LEGACY_WAIT_MS = 60000;
-
-  /**
-   * watch(sw, msg, stat) → Promise<reply | null>: ask with { progress: true }; null when the stage stalled. stat.bytes
-   * keeps the most body bytes the stage reported (its answer's, or its last progress when it gave up).
-   */
-  function watch(sw, msg, stat) {
-    return new Promise(function (ok) {
-      var ch = new root.MessageChannel();
-      var t = null;
-      var heard = false;
-      var last = { done: 0, bytes: 0, link: null };
-      function arm(ms) { clearTimeout(t); t = setTimeout(function () { ok(null); }, ms); }
-      arm(LEGACY_WAIT_MS);
-      ch.port1.onmessage = function (e) {
-        var d = e.data || {};
-        if (d.type !== 'progress') { clearTimeout(t); if (stat && d.bytes > (stat.bytes || 0)) stat.bytes = d.bytes; ok(d); return; }
-        var moved = (d.done || 0) > last.done || (d.bytes || 0) > last.bytes || (last.link != null && (d.link || 0) > last.link);
-        if (!heard || moved) arm(STALL_MS);
-        heard = true;
-        last = { done: Math.max(last.done, d.done || 0), bytes: Math.max(last.bytes, d.bytes || 0), link: Math.max(last.link || 0, d.link || 0) };
-        if (stat && last.bytes > (stat.bytes || 0)) stat.bytes = last.bytes;
-      };
-      var m = {};
-      for (var k in msg) if (Object.prototype.hasOwnProperty.call(msg, k)) m[k] = msg[k];
-      m.progress = true;
-      sw.postMessage(m, [ch.port2]);
-    });
-  }
-
-  /** After a stage gave up: which of its urls are really on the phone (caches.match), never "all missing". */
-  function kept(list) {
-    var c = root.caches;
-    if (!c || typeof c.match !== 'function') return Promise.resolve({ missing: list.slice() });
-    return Promise.all(list.map(function (u) {
-      return Promise.resolve().then(function () { return c.match(u, { ignoreSearch: true }); }).then(function (hit) { return hit ? null : u; }, function () { return u; });
-    })).then(function (r) { return { missing: r.filter(Boolean) }; });
   }
 
   var UPDATE_WAIT_MS = 10000;
@@ -232,31 +195,21 @@
         if (!sw) return { ready: false, why: 'no_active_worker' };
         var list = [o.battery_url].filter(Boolean);
         var none = { ok: true, missing: [] };
-        // each clip stage waits while its clips keep arriving (watch); a stage that stalled is counted on the phone (kept)
-        var stat = { opening: {}, lines: {}, rest: {}, battery: {}, images: {} };
-        var gaveUp = [];
-        function stage(name, list) {
-          return watch(sw, { type: 'prepare', urls: list }, stat[name]).then(function (r) {
-            if (r) return r;
-            gaveUp.push(name);
-            return kept(list);
-          });
-        }
-        var opened = open.length ? stage('opening', open) : Promise.resolve(none);
+        var opened = open.length ? ask(sw, { type: 'prepare', urls: open }) : Promise.resolve(none);
         // The opening is on the phone (or given up on): the page may speak it now (o.onLines, RULING W3-18).
         if (typeof o.onLines === 'function') opened.then(function () { o.onLines(); }, function () { o.onLines(); });
-        var said = opened.then(function () { return first.length ? stage('lines', first) : none; });
-        var then = said.then(function () { return stage('rest', rest); });
-        return Promise.all([said, watch(sw, { type: 'prepare', urls: list }, stat.battery), then, watch(sw, { type: 'prepare', urls: pics }, stat.images), opened]).then(function (r) {
+        var said = opened.then(function () { return first.length ? ask(sw, { type: 'prepare', urls: first }) : none; });
+        var then = said.then(function () { return ask(sw, { type: 'prepare', urls: rest }); });
+        // the v4 clips' word timings, behind everything else and never waited on
+        var timings = timingUrls(clips);
+        if (timings.length) then.then(function () { return ask(sw, { type: 'prepare', urls: timings }); }).then(null, function () {});
+        return Promise.all([said, ask(sw, { type: 'prepare', urls: list }), then, ask(sw, { type: 'prepare', urls: pics }), opened]).then(function (r) {
           var core = r[1] || { ok: false, missing: list };
           var audio = { missing: (r[4] || { missing: open }).missing.concat((r[0] || { missing: first }).missing, (r[2] || { missing: rest }).missing) };
           var img = r[3] || { ok: false, missing: pics };
           var ready = !!core.ok && img.missing.length === 0;
-          var order = ['opening', 'lines', 'rest'];
           return { ready: ready, battery: !!core.ok, clips: clips.length - audio.missing.length, clips_missing: audio.missing.length,
             images: pics.length - img.missing.length, images_missing: img.missing.length,
-            bytes: Object.keys(stat).reduce(function (n, k) { return n + (stat[k].bytes || 0); }, 0),
-            gaveup_stage: order.filter(function (k) { return gaveUp.indexOf(k) >= 0; })[0] || null,
             why: !core.ok ? 'battery_not_cached' : (ready ? undefined : 'images_not_cached') };
         });
       })
@@ -294,8 +247,6 @@
     var storage = pick(o, 'storage', nav && nav.storage || null);
     var ls = pick(o, 'localStorage', (function () { try { return root.localStorage; } catch (_) { return null; } }()));
     var total = urls(battery, lang, o.base).length;
-    var now = function () { return Date.now(); };
-    var t0 = now();
     return Promise.all([
       Promise.resolve().then(function () { return off({ battery_url: o.battery_url, battery: battery, lang: lang, base: o.base, onLines: o.onLines }); }).then(null, function () { return null; }),
       hasVoice(speech, lang).then(null, function () { return false; }),
@@ -305,11 +256,7 @@
       var cached = typeof c.clips === 'number' ? Math.min(c.clips, total) : 0;
       var voice = total > 0 && cached === total ? 'clips' : (r[1] ? 'tts' : 'none');
       if (ls) { try { ls.setItem('sa:voice', voice); ls.setItem('sa:persisted', String(r[2])); } catch (_) { /* a full or blocked store: the batch says null */ } }
-      // the phone's own timing of the preparation (device fields): how long, how many bytes came, the first clip stage that
-      // stalled (null: none did), and how many of the session's clips are not on the phone
-      return { clips_total: total, clips_cached: cached, voice: voice, persisted: r[2], ready: !!c.ready, battery: !!c.battery, why: c.why,
-        prep_ms: now() - t0, prep_bytes: typeof c.bytes === 'number' ? c.bytes : null,
-        prep_gaveup_stage: c.gaveup_stage || null, prep_missing: total - cached };
+      return { clips_total: total, clips_cached: cached, voice: voice, persisted: r[2], ready: !!c.ready, battery: !!c.battery, why: c.why };
     });
   }
 
@@ -558,6 +505,10 @@
           progress({ done: done, total: total, bytes: bytes });
         });
       }, Promise.resolve()).then(function () {
+        // the v4 clips' word timings, best effort: what the server has not got is not counted
+        var timings = timingUrls(all);
+        return timings.length ? q({ type: 'prepare', urls: timings }).then(null, function (e) { if (e && e.turn) throw e; }) : null;
+      }).then(function () {
         var missing = Object.keys(missingSet).length;
         var out = per.map(function (p) {
           var m = p.files.filter(function (u) { return missingSet[u]; }).length;
@@ -607,6 +558,6 @@
       });
   }
 
-  return { STALL_MS: STALL_MS, urls: urls, lineUrls: lineUrls, openingUrls: openingUrls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice,
-    prepVisit: prepVisit, checkVisit: checkVisit, partOf: partOf, ART: ART };
+  return { urls: urls, lineUrls: lineUrls, openingUrls: openingUrls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice,
+    prepVisit: prepVisit, checkVisit: checkVisit, partOf: partOf, ART: ART, timingUrls: timingUrls };
 }));
