@@ -233,6 +233,7 @@ function createCoachipRouter(deps) {
         if (rule === 'w_or_good' && !(v === 'good' || S.isWId(v))) return false;
         if (rule === 'week' && !weekOk(v, ctx.today)) return false;
         if (rule === 'uuid' && !S.isUuid(v)) return false;
+        if (rule === 'rm' && v !== 'rm') return false;
       }
     }
     if (opts.body && !bodyOk(BODY[opts.body], req.body, ctx)) return false;
@@ -250,16 +251,26 @@ function createCoachipRouter(deps) {
     const [coachOn, sector, decodeOn] = await Promise.all([
       safe(() => flags.coachOn(uid)), safe(() => flags.rmSector(uid)), safe(() => flags.decodeOn(uid)),
     ]);
+    let coachSchools = [];
     if (coachOn === true && codes.ready()) {
       try {
         const c = await scope.coachScope(uid);
-        if (c) body.coach = { schoolCount: c.schoolCount, teacherCount: c.teacherCount };
+        if (c) {
+          body.coach = { schoolCount: c.schoolCount, teacherCount: c.teacherCount };
+          coachSchools = c.schoolIds;
+        }
       } catch (err) { console.error('[coachip] me coach scope failed:', err.message); }
     }
     if (typeof sector === 'string') {
       try {
         const r = await scope.rmScope(uid, sector);
-        if (r) body.rm = { sector: r.sector, schoolCount: r.schoolIds.length, coachCount: r.coachUserIds.length };
+        // coachesHere (fix-r5 s5): does this RM also coach a school of the sector? A dual who does not lands on the RM home
+        if (r) {
+          body.rm = {
+            sector: r.sector, schoolCount: r.schoolIds.length, coachCount: r.coachUserIds.length,
+            coachesHere: coachSchools.some((id) => r.schoolIds.includes(id)),
+          };
+        }
       } catch (err) { console.error('[coachip] me rm scope failed:', err.message); }
     }
     body.decode = decodeOn === true && body.coach !== null;
@@ -281,7 +292,7 @@ function createCoachipRouter(deps) {
   route('get', '/coachip/w/:wId', 'coach', 'weakness');
   route('get', '/coachip/schools', 'coach', 'schools');
   route('get', '/coachip/moments', 'coach', 'moments', { query: { w: 'w_or_good', week: 'week' } });
-  route('get', '/coachip/m/:momentId', 'either', 'moment');
+  route('get', '/coachip/m/:momentId', 'either', 'moment', { query: { as: 'rm' } });
   route('get', '/coachip/i/:wId', 'coach', 'intervention', { query: { school: 'uuid' } });
   route('post', '/coachip/steps', 'coach', 'createStep', { body: 'createStep' });
   route('post', '/coachip/steps/:stepId/tick', 'coach', 'tickStep', { body: 'tickStep' });

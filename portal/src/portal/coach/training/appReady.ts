@@ -111,9 +111,17 @@ export function coachReadyHome(ready: readonly CoachFeature[] = COACH_APP_READY)
 
 /**
  * fix-r5 s2 item 9 (qa-rm R1 FAIL 20261027T072541, idea 072624; SPEC v2.1 §11.6): where a v2 coach lands. An RM (a
- * literal `coachipRm === true` in /config) whose own COACHIP switch is not on lands on the RM home; a dual-role user
- * (both on) keeps "This week"; with coachipRm off, absent or unreadable this is exactly coachReadyHome (B8).
+ * literal `coachipRm === true` in /config) whose own COACHIP switch is not on lands on the RM home. A dual-role user
+ * (both on) lands on the RM home too when the RM sector is not one they coach in (fix-r5 s5, red-3 challenge 161108:
+ * `/coachip/me` rm.coachesHere a literal `false`), else keeps "This week"; with coachipRm off, absent or unreadable
+ * this is exactly coachReadyHome (B8).
  */
-export function coachLandingFor(ready: readonly CoachFeature[], coachip: boolean | null | undefined, coachipRm: boolean | null | undefined): string {
-  return coachipRm === true && coachip !== true ? RM_BASE : coachReadyHome(ready);
+export function coachLandingFor(
+  ready: readonly CoachFeature[],
+  coachip: boolean | null | undefined,
+  coachipRm: boolean | null | undefined,
+  rmCoachesHere?: boolean | null,
+): string {
+  if (coachipRm !== true) return coachReadyHome(ready);
+  return coachip !== true || rmCoachesHere === false ? RM_BASE : coachReadyHome(ready);
 }

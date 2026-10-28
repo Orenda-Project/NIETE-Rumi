@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { readConfigShared, forgetConfig } from "../../lib/useNewUi";
+import { coachip as coachipApi } from "./api";
 
 /**
  * bd-sex15q.15 — is COACHIP (portal_coachip, per user) on for this coach? Read like useCoachV2: null while /config is
@@ -57,6 +58,26 @@ export function useCoachipRm(ready = true): boolean | null {
     return () => { live = false; };
   }, [ready]);
   return ready ? on : false;
+}
+
+/**
+ * fix-r5 s5: for a dual (both switches on), does the RM also coach a school of their sector? `/coachip/me`
+ * rm.coachesHere, read only when `ask` is true (both switches literal true), so with either switch off no /coachip/
+ * request is made (B8). null while reading; any error, a null rm or a missing key is `true` (keep This week).
+ */
+export function useRmCoachesHere(ask: boolean): boolean | null {
+  const [here, setHere] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!ask) return undefined;
+    let live = true;
+    Promise.resolve()
+      .then(() => coachipApi.me())
+      .then((m) => m?.rm?.coachesHere !== false)
+      .catch(() => true)
+      .then((value) => { if (live) setHere(value); });
+    return () => { live = false; };
+  }, [ask]);
+  return ask ? here : true;
 }
 
 /** Tests only. */

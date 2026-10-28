@@ -10,7 +10,7 @@ import { useChildTestSa } from "../../lib/useChildTestSa";
 // bd-sex15q.15 — the guard also reads portal_coachip (useCoachip). These goldens are the switch OFF, so the new hook
 // answers false at once, as useCoachV2 is answered here; no assertion below changed. The ON cases live in
 // coach/insights/tests/routing.flagOff.test.tsx.
-vi.mock("../insights/useCoachip", () => ({ useCoachip: vi.fn(() => false), useCoachipRm: vi.fn(() => false) }));
+vi.mock("../insights/useCoachip", () => ({ useCoachip: vi.fn(() => false), useCoachipRm: vi.fn(() => false), useRmCoachesHere: vi.fn(() => true) }));
 // The guard also reads the School card switch (useSchoolCard). These goldens are the switch OFF, answered false at once;
 // no assertion below changed. The ON cases live in coach/card/switchOn.test.tsx and appReady.schoolCard.test.ts.
 vi.mock("../card/useSchoolCard", () => ({ useSchoolCard: vi.fn(() => false) }));
