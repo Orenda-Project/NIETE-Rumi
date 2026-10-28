@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { Check, ChevronDown, Mic, Pause, Square, Upload } from 'lucide-react';
+import { Check, ChevronDown, Mic, Pause, Save, Square, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { clockText } from '../../lib/clockText';
 import { acceptFor, checkAudioFile, checkFile, DC_MAX_PHOTOS, DC_MIN_SECONDS, readAudioDuration } from '../../lib/coachingUpload';
@@ -58,6 +58,13 @@ import { useDcReport } from './useDcReport';
  *                         Its address is ?sent=uploading while uploading, then ?sent=<session>, so a reload finds the
  *                         lesson (a reload mid-upload has lost the upload: the main page). A send that fails comes back
  *                         to her screen with everything she chose. The main page lists it under Analysing until ready.
+ *
+ * Save recording         bd-bmc9a0.2 (ICT IAB row 31): under the recording once it can be sent. It sends exactly what
+ *                        Submit sends, marked saveForLater, so the recording is on the server and the analysis runs —
+ *                        nothing on the phone can lose it — and the screen says it is saved (?saved=<session>) instead
+ *                        of walking her through the progress. The lesson is on the main page; its own page carries
+ *                        the reflection and the report, and if she never comes back the bot sends the report to her
+ *                        chat after 24 hours (row 32, stale-session sweep).
  *
  * What she has chosen is held in memory (draft.ts) so a trip to the library or her lesson plan, and Back, finds it.
  * Opened from a lesson plan (?grade&subject&plan) the class and the plan arrive filled in.
@@ -264,10 +271,12 @@ export function NewObservationPage() {
   // The second screen (after Submit) is ?sent=uploading, then ?sent=<session>.
   const sentParam = new URLSearchParams(location.search).get('sent');
   const [sessionId, setSessionId] = useState<string | null>(() => (sentParam && sentParam !== UPLOADING ? sentParam : null));
+  // bd-bmc9a0.2 — saved for later: ?saved=<session>. Nothing is polled; the lesson's own page carries it on.
+  const [savedId, setSavedId] = useState<string | null>(() => new URLSearchParams(location.search).get('saved'));
   const report = useDcReport(sessionId);
   // bd-bmc9a0.1 — what already arrived from this screen, by file: Try again sends only the part that did not go.
   const uploaded = useRef(new WeakMap<Blob, string>());
-  const submit = async () => {
+  const submit = async ({ saveForLater = false }: { saveForLater?: boolean } = {}) => {
     if (!audio || !cls) return;
     setFailure(null);
     setSending({ pct: 0 });
@@ -280,9 +289,15 @@ export function NewObservationPage() {
         teacherClass: { grade: cls.grade, subject: cls.subject, ...(cls.subjectKey ? { subjectKey: cls.subjectKey } : {}) },
         liveMoves: peekDraft()?.live ?? null,
         uploaded: uploaded.current,
+        ...(saveForLater ? { saveForLater: true } : {}),
       }, portal, (pct) => setSending({ pct }));
       if (!isSavedAudio(audio) && audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* gone */ } }
       clearDraft();
+      if (saveForLater) {
+        setSavedId(coachingSessionId);
+        navigate(`${COACHING_NEW}?saved=${encodeURIComponent(coachingSessionId)}`, { replace: true });
+        return;
+      }
       setSessionId(coachingSessionId);
       navigate(`${COACHING_NEW}?sent=${encodeURIComponent(coachingSessionId)}`, { replace: true });
     } catch (err) {
@@ -319,7 +334,7 @@ export function NewObservationPage() {
   // At least 15 minutes (bd-fgj73x.7): a shorter recording cannot be submitted. An unknown length is not held back.
   const tooShort = !!audio && audio.durationMs != null && audio.durationMs < DC_MIN_SECONDS * 1000;
   const ready = !!cls && !!audio && !tooShort;
-  const after = !!sessionId || !!sending;
+  const after = !!sessionId || !!sending || !!savedId;
   // Reloaded mid-upload: that upload is gone, and there is nothing to show; the main page lists what did arrive.
   const reloadedMidUpload = useRef(sentParam === UPLOADING);
   useEffect(() => {
@@ -475,6 +490,18 @@ export function NewObservationPage() {
           {audio && (cls || isSavedAudio(audio)) ? (
             <RecordingCard audio={audio} onRedo={() => { void redo(); }} onChangeFile={() => audioInput.current?.click()} />
           ) : null}
+          {/* bd-bmc9a0.2 — ICT IAB row 31: Save recording, under the recording, once it could be sent (the same rule as
+              Submit: a class and at least 15 minutes). */}
+          {ready && phase !== 'recording' ? (
+            <button
+              type="button"
+              onClick={() => { void submit({ saveForLater: true }); }}
+              className={cn('flex h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-[#2f7a52] bg-white text-[17px] font-semibold text-[#2f7a52]', FOCUS)}
+            >
+              <Save className="h-5 w-5" aria-hidden="true" />
+              {C.saveRecording}
+            </button>
+          ) : null}
           {audio && cls && tooShort ? (
             <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{C.tooShort}</p>
           ) : null}
@@ -527,7 +554,7 @@ export function NewObservationPage() {
                 grade={cls.grade}
                 title={`${C.grade(cls.grade)} · ${cls.subject}`}
                 extra={[audio?.durationMs != null ? C.minutes(minutesOf(audio.durationMs) as number) : null, photos.length ? C.photosCount(photos.length) : null].filter(Boolean).join(' · ') || undefined}
-                chip={{ text: C.sent, tone: 'done' }}
+                chip={{ text: savedId ? C.saved : C.sent, tone: 'done' }}
                 action="none"
               />
             </section>
@@ -537,6 +564,15 @@ export function NewObservationPage() {
               <span className="text-[18px] font-semibold">{C.sending}</span>
               <span className="text-[44px] font-light tabular-nums">{`${sending.pct}%`}</span>
               <span className="text-[13px] font-medium text-[#6b7280]">{C.keepAppOpen}</span>
+            </section>
+          ) : savedId ? (
+            /* bd-bmc9a0.2 — ICT IAB row 31: saved; she comes back for the reflection and feedback (the lesson is on the
+               main page). No progress here, and nothing polled. */
+            <section role="status" className="flex items-start gap-3 rounded-2xl border border-[#cfe6d8] bg-[#eaf6ef] px-4 py-3.5">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2f7a52] text-white">
+                <Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
+              </span>
+              <span className="text-[16px] font-semibold leading-[1.5] text-[#2f7a52]">{C.recordingSaved}</span>
             </section>
           ) : progress?.stage === 'confirm_class' && sessionId ? (
             /* bd-aqotzx — ICT IAB row 16: the recording did not sound like a class. No: back to this screen with her
@@ -557,7 +593,7 @@ export function NewObservationPage() {
             />
           )}
           {/* While it uploads she keeps the app open (the card says so); the leave note comes once it has arrived. */}
-          {!sending && progress?.stage !== 'stopped' && progress?.stage !== 'confirm_class' ? (
+          {!sending && !savedId && progress?.stage !== 'stopped' && progress?.stage !== 'confirm_class' ? (
             <>
               {/* bd-z3cadk — ICT IAB row 23: the same recording sent again; the bot's own message, as on WhatsApp. */}
               {progress?.duplicate && report.ready ? <DuplicateNote lead={C.duplicateRecordingLead} next={C.duplicateRecordingNext} /> : null}

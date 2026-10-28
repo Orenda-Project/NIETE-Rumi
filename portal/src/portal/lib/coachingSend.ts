@@ -76,6 +76,8 @@ type Args = {
    * WeakMap, so a file she removed takes its entry with it.
    */
   uploaded?: WeakMap<Blob, string>;
+  /** bd-bmc9a0.2 (ICT IAB row 31): "Save recording" — the same send, marked saved to come back to. */
+  saveForLater?: boolean;
 };
 
 type Item = { blob: Blob; filename: string; kind: "audio" | "lesson_plan" | "photo"; photo: number };
@@ -126,7 +128,7 @@ function bareType(type: string): string {
 }
 
 export async function sendLesson(
-  { audio, plan, photos, teacherClass, liveMoves, uploaded }: Args,
+  { audio, plan, photos, teacherClass, liveMoves, uploaded, saveForLater }: Args,
   api: Api = portal,
   onProgress?: (pct: number) => void,
   /** bd-1d6g8o: where a failure is reported (the logs); never changes the outcome. */
@@ -205,6 +207,7 @@ export async function sendLesson(
   if (plan && plan.kind === "library") start.lessonPlan = plan.pick;
   if (teacherClass) start.teacherClass = teacherClass;
   if (liveMoves) start.liveMoves = liveMoves;
+  if (saveForLater === true) start.saveForLater = true;
 
   try {
     return await api.startCoachingUpload(start);

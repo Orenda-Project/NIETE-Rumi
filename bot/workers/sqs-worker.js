@@ -1969,6 +1969,8 @@ function startWorker() {
     logToFile('⏱️  Stale-session thresholds resolved', {
       reminderMinutes: staleThresholds.reminderMs / 60000,
       autoCompleteMinutes: staleThresholds.autoCompleteMs / 60000,
+      // bd-bmc9a0.2: an unreflected IAB lesson, while app_settings dc_iab_unreflected_report_24h is on.
+      iabAutoCompleteMinutes: staleThresholds.iabAutoCompleteMs / 60000,
       userActiveMinutes: staleThresholds.userActiveMs / 60000,
       sweepIntervalMinutes: STALE_RECOVERY_INTERVAL_MS / 60000,
     });

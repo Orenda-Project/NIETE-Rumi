@@ -212,6 +212,13 @@ const COACHING_MESSAGES = {
     ...en("ℹ️ The reflective conversation wasn't finished, so this report is based on your classroom audio."),
     ur: 'ℹ️ غور و فکر والی گفتگو مکمل نہیں ہوئی، اس لیے یہ رپورٹ آپ کی کلاس کی آڈیو کی بنیاد پر تیار کی گئی ہے۔',
   },
+  // bd-bmc9a0.2 — ICT IAB Experience View row 32, ICT's own sentence: her teacher-app (IAB) lesson, never reflected
+  // on, sent to her chat after 24 hours (stale-session sweep, auto_completed_via 'iab_24h'). The Urdu is the line ICT
+  // saw in the before/after mockup; the Latin «Reflection» is isolated (LRI … PDI) as the step lines isolate ⁦4/5⁩.
+  reportCaption_notReflected: {
+    ...en('You did not reflect on this lesson, but here is your feedback report.'),
+    ur: 'آپ نے اس سبق پر \u2066Reflection\u2069 نہیں کیا، لیکن یہ رہی آپ کی فیڈ بیک رپورٹ۔',
+  },
   reportCaption_autoCompletedWithReflections: {
     ...en("ℹ️ The session wasn't finished, so this report is based on your classroom audio and the reflections you shared."),
     ur: 'ℹ️ سیشن مکمل نہیں ہوا تھا، اس لیے یہ رپورٹ آپ کی کلاس کی آڈیو اور اب تک دیے گئے جوابات کی بنیاد پر تیار کی گئی ہے۔',
