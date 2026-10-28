@@ -32,6 +32,7 @@ const { SWITCHES, applySwitches } = require('./sa-battery-switches');
 const KEY = 'sa_engine';
 const VOICE_V2_KEY = 'sa_voice_v2';
 const VOICE_TASHDEED_KEY = 'sa_voice_tashdeed';
+const SWITCH_HOLD_KEY = 'sa_r8_switch_hold';
 const DIR = path.join(__dirname, '..', 'sa');
 // The content lane's battery files (sa.<form>.<lang>.json), served by name at /sa/batteries/<name>.
 const BATTERIES = path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa');
@@ -63,26 +64,27 @@ function safe(read) {
 }
 
 /**
- * createSaEngineRouter({ on, practiceAllMaths, env }) → router. on() is the switch (default: app_settings sa_engine);
+ * buildSaEngineRouter({ flag, on, practiceAllMaths, env }, { holdOn, made }) → router. flag(key) makes a switch reader
+ * (createSaEngineRouter's); on() is the switch (default: app_settings sa_engine);
  * practiceAllMaths() and passageRotation() the content switches (app_settings sa_practice_all_maths, sa_passage_rotation);
  * voiceV2() the voice set's (app_settings sa_voice_v2); voiceTashdeed() the Urdu tashdeed takes' (sa_voice_tashdeed).
  */
-function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), practiceAllMaths: practiceReader = createBrotliFlag({ key: SWITCHES.practiceAllMaths }),
-  passageRotation: rotationReader = createBrotliFlag({ key: SWITCHES.passageRotation }), voiceV2: voiceReader = createBrotliFlag({ key: VOICE_V2_KEY }),
-  oneAtATime: cellReader = createBrotliFlag({ key: SWITCHES.oneAtATime }), passagePunct: punctReader = createBrotliFlag({ key: SWITCHES.passagePunct }),
-  rdfManual: manualReader = createBrotliFlag({ key: SWITCHES.rdfManual }), rdfW3Forms: rdfW3Reader = createBrotliFlag({ key: SWITCHES.rdfW3Forms }),
-  voiceGateV2: gateReader = createBrotliFlag({ key: SWITCHES.voiceGateV2 }),
-  compAllQuestions: compReader = createBrotliFlag({ key: SWITCHES.compAllQuestions }),
-  cellPace: paceReader = createBrotliFlag({ key: SWITCHES.cellPace }),
-  sectionRecording: sectionReader = createBrotliFlag({ key: SWITCHES.sectionRecording }),
-  coachLastWord: lastWordReader = createBrotliFlag({ key: SWITCHES.coachLastWord }),
-  cellNextOnly: nextOnlyReader = createBrotliFlag({ key: SWITCHES.cellNextOnly }),
-  autoChildLastWord: childLastWordReader = createBrotliFlag({ key: SWITCHES.autoChildLastWord }),
-  appAsks: appAsksReader = createBrotliFlag({ key: SWITCHES.appAsks }),
-  urFit: urFitReader = createBrotliFlag({ key: SWITCHES.urFit }),
-  autoNoLastWord: noLastWordReader = createBrotliFlag({ key: SWITCHES.autoNoLastWord }),
-  voiceTashdeed: tashdeedReader = createBrotliFlag({ key: VOICE_TASHDEED_KEY }),
-  holdMs, now, env, ...r7bReaders } = {}) {
+function buildSaEngineRouter({ flag, on: reader = flag(KEY), practiceAllMaths: practiceReader = flag(SWITCHES.practiceAllMaths),
+  passageRotation: rotationReader = flag(SWITCHES.passageRotation), voiceV2: voiceReader = flag(VOICE_V2_KEY),
+  oneAtATime: cellReader = flag(SWITCHES.oneAtATime), passagePunct: punctReader = flag(SWITCHES.passagePunct),
+  rdfManual: manualReader = flag(SWITCHES.rdfManual), rdfW3Forms: rdfW3Reader = flag(SWITCHES.rdfW3Forms),
+  voiceGateV2: gateReader = flag(SWITCHES.voiceGateV2),
+  compAllQuestions: compReader = flag(SWITCHES.compAllQuestions),
+  cellPace: paceReader = flag(SWITCHES.cellPace),
+  sectionRecording: sectionReader = flag(SWITCHES.sectionRecording),
+  coachLastWord: lastWordReader = flag(SWITCHES.coachLastWord),
+  cellNextOnly: nextOnlyReader = flag(SWITCHES.cellNextOnly),
+  autoChildLastWord: childLastWordReader = flag(SWITCHES.autoChildLastWord),
+  appAsks: appAsksReader = flag(SWITCHES.appAsks),
+  urFit: urFitReader = flag(SWITCHES.urFit),
+  autoNoLastWord: noLastWordReader = flag(SWITCHES.autoNoLastWord),
+  voiceTashdeed: tashdeedReader = flag(VOICE_TASHDEED_KEY),
+  holdMs, now, env, ...r7bReaders }, { holdOn, made }) {
   const router = express.Router();
   // The switch as routes/sa-switch.js reads it: the first request waits for the first read, and a failed read after an
   // ON never flaps a request to the portal's page. The content and voice switches are read the same way, so the first
@@ -107,10 +109,11 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   const urFit = steady(safe(urFitReader), hold);
   const autoNoLastWord = steady(safe(noLastWordReader), hold);
   const voiceTashdeed = steady(safe(tashdeedReader), hold);
+  const switchHold = steady(holdOn, hold);
   const takes = tashdeedTakes();
   // Round 7b (sa-battery-switches.js): one switch per item, read the same way; a reader passed in wins (tests).
-  const r7b = Object.fromEntries(R7B.map((k) => [k, steady(safe(r7bReaders[k] || createBrotliFlag({ key: SWITCHES[k] })), hold)]));
-  router.use('/sa', on.warm(), practiceAllMaths.warm(), passageRotation.warm(), voiceV2.warm(), oneAtATime.warm(), passagePunct.warm(), rdfManual.warm(),
+  const r7b = Object.fromEntries(R7B.map((k) => [k, steady(safe(r7bReaders[k] || flag(SWITCHES[k])), hold)]));
+  router.use('/sa', switchHold.warm(), on.warm(), practiceAllMaths.warm(), passageRotation.warm(), voiceV2.warm(), oneAtATime.warm(), passagePunct.warm(), rdfManual.warm(),
     rdfW3Forms.warm(), voiceGateV2.warm(), compAllQuestions.warm(), cellPace.warm(), sectionRecording.warm(), coachLastWord.warm(), cellNextOnly.warm(),
     autoChildLastWord.warm(), appAsks.warm(), urFit.warm(), autoNoLastWord.warm(), voiceTashdeed.warm(), ...R7B.map((k) => r7b[k].warm()));
   const files = express.static(DIR, {
@@ -147,6 +150,9 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
       let battery;
       try { battery = JSON.parse(text); } catch (_) { return next(); }
       res.setHeader('Cache-Control', 'no-cache');
+      // sa_r8_switch_hold: say how the switches behind this battery were read, so the phone keeps only a battery built
+      // from real reads ('unread': a switch has never been read, so its OFF is a guess).
+      if (switchHold() === true) res.setHeader('X-SA-Switches', switchesState(made));
       const out = applySwitches(battery, {
         practiceAllMaths: practiceAllMaths() === true, passageRotation: passageRotation() === true,
         oneAtATime: oneAtATime() === true, passagePunct: passagePunct() === true, rdfManual: rdfManual() === true,
@@ -175,4 +181,28 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   return router;
 }
 
-module.exports = { KEY, VOICE_V2_KEY, VOICE_TASHDEED_KEY, createSaEngineRouter, devToolsOn };
+/** The worst read state of the router's own readers ('unread' > 'held' > 'fresh'); a reader passed in has none. */
+function switchesState(readers) {
+  const states = readers.map((r) => (typeof r.state === 'function' ? r.state() : 'fresh'));
+  if (states.includes('unread')) return 'unread';
+  return states.includes('held') ? 'held' : 'fresh';
+}
+
+/**
+ * createSaEngineRouter(opts) → router (opts as buildSaEngineRouter's). Every switch it reads itself goes through flag():
+ * with sa_r8_switch_hold ON (default OFF), a failed read keeps the last value read instead of answering OFF, so a
+ * database outage no longer serves a battery without its variants or its voice set. The hold switch keeps its own last
+ * value on a failed read. opts.switchHold replaces the hold switch's reader (tests).
+ */
+function createSaEngineRouter(opts = {}) {
+  const holdOn = opts.switchHold || createBrotliFlag({ key: SWITCH_HOLD_KEY, keepOnError: () => true });
+  const made = [];
+  const flag = (key) => {
+    const f = createBrotliFlag({ key, keepOnError: () => holdOn() === true });
+    made.push(f);
+    return f;
+  };
+  return buildSaEngineRouter({ ...opts, flag }, { holdOn, made });
+}
+
+module.exports = { KEY, SWITCH_HOLD_KEY, VOICE_V2_KEY, VOICE_TASHDEED_KEY, createSaEngineRouter, devToolsOn };
