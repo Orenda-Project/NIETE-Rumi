@@ -1,0 +1,2 @@
+{"ts":"2026-10-28T16:45:08Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=training,lesson-plan,language spec_sync=true","sha":"cf537c90c4c9","branch":"bd-bmc9a0.2-98618","user":"Hataf Atif"}
+{"ts":"2026-10-28T16:45:17Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"language=none-needed (only_shared: same one-line /coaching/start change; no string touched)","sha":"cf537c90c4c9","branch":"bd-bmc9a0.2-98618","user":"Hataf Atif"}
