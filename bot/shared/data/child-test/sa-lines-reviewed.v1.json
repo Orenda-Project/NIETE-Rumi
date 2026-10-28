@@ -1,0 +1,219 @@
+{
+ "about": "Jugnu's lines as the content reviewers shortened them (Oct 2026): only the lines and languages they changed, as final text. Applied over the built bank by shared/services/child-test/sa/reviewed-lines.js; the engine's own copies of the same words are kept equal by a test.",
+ "lines": {
+  "welcome": {
+   "en": "Hello! This is not an exam. Jugnu will play games with you. Listen carefully and do your best.",
+   "ur": "السلام علیکم! یہ نمبروں والا امتحان نہیں ہے۔ آئیں، لفظوں اور گنتی کے کھیل کھیلیں! دھیان سے سنیں اور پوری کوشش کریں۔"
+  },
+  "audio_check": {
+   "en": "Can you hear Jugnu? Tap the picture Jugnu names!",
+   "ur": "کیا جگنو کی آواز آ رہی ہے؟ جگنو جس تصویر کا نام لے، اس پر کلک کریں!"
+  },
+  "audio_fail": {
+   "en": "Can you not hear? Ask the coach to fix the headphones, then listen again.",
+   "ur": "آواز نہیں آ رہی؟ کوچ سے ہیڈ فون ٹھیک کروائیں، پھر دوبارہ سنیں۔"
+  },
+  "mic_skip_say": {
+   "en": "If the microphone is not working, tap the Skip button.",
+   "ur": "اگر مائیک کام نہیں کر رہا تو \"چھوڑ دیں\" کا بٹن دبائیں۔"
+  },
+  "keypad_warmup": {
+   "en": "Type any number. When you have typed it, tap Done.",
+   "ur": "کوئی بھی نمبر لکھیں۔ لکھ لیں تو \"ہو گیا\" کو ٹچ کریں۔"
+  },
+  "mercy": {
+   "en": "Is reading hard? Tap the star.",
+   "ur": "پڑھنا مشکل لگے؟ اسٹار کو ٹچ کریں۔"
+  },
+  "mic_skip_task": {
+   "en": "No microphone found. That is fine, let us go on to the next game",
+   "ur": "مائیک نہیں ملا۔ کوئی بات نہیں، اگلے کھیل پر چلتے ہیں"
+  },
+  "end": {
+   "en": "Well done! All the games are finished. Now give the phone back to your teacher.",
+   "ur": "شاباش! سارے کھیل ختم ہو گئے۔ اب فون اپنے ٹیچر کو واپس دے دیں۔"
+  },
+  "welcome_game": {
+   "en": "Hello! Jugnu will play word and number games with you. Listen carefully and do your best!",
+   "ur": "السلام علیکم! جگنو آپ کے ساتھ لفظوں اور گنتی کے کھیل کھیلے گا۔ دھیان سے سنیں اور پوری کوشش کریں!"
+  },
+  "end_game": {
+   "en": "All the games are done! You tried really hard, well done!",
+   "ur": "سارے کھیل ختم! بہت اچھی کوشش کی، شاباش!"
+  }
+ },
+ "script": {},
+ "tasks": {
+  "ur.letter_names5": {
+   "intro": {
+    "en": "Letters will come one at a time. Say the NAME of each letter out loud. Then click next. If you do not know a letter, click next.",
+    "ur": "ایک ایک کر کے حروف آئیں گے۔ ہر حرف کا نام بولیں، جیسے: \"بے\"۔ کوئی حرف نہ آتا ہو تو \"آگے\" کو ٹچ کریں۔"
+   },
+   "test_intro": {
+    "en": "Now it is your turn! Say the name of each letter. Jugnu will not say anything yet. Try on your own.",
+    "ur": "اب آپ کی باری! ہر حرف کانام بولیں۔ جگنو ابھی کچھ نہیں بتائے گا، آپ خود کوشش کریں"
+   }
+  },
+  "ur.letter_sounds5": {
+   "intro": {
+    "en": "Letters will come one at a time. Say the SOUND of each letter out loud, not the name of the letter. Then click next. If you do not know a letter, click next.",
+    "ur": "ایک ایک کر کے حروف آئیں گے۔ ہر حرف کی آواز بولیں، نام نہیں۔ جیسے: ب ... \"بَ\"! کسی حرف کی آواز نہ آتی ہو تو \"آگے\"کے بٹن کو ٹچ کریں۔"
+   },
+   "test_intro": {
+    "en": "Now it is your turn to say the sound of each letter.",
+    "ur": "اب آپ کی باری! ہر حرف کی آواز تیز آواز بولیں۔"
+   }
+  },
+  "ur.words4": {
+   "intro": {
+    "en": "Words will come one at a time. Read the whole word out loud, then click next. If you do not know a word, click next.",
+    "ur": "ایک ایک کر کے الفاظ آئیں گے۔ ہر لفظ تیز آواز سے پڑھیں۔ توڑ توڑ کے مت پڑھیں، ٹکڑوں میں مت پڑھیں۔ اگر کوئی لفظ نہ آتا ہو تو \"آگے\" کے بٹن کو ٹچ کریں"
+   },
+   "test_intro": {
+    "en": "Now it is your turn to read each word out loud.",
+    "ur": "اب آپ کی باری! ہر لفظ کو اونچی آواز بولیں۔"
+   }
+  },
+  "ur.story_w3": {
+   "intro": {
+    "en": "Here is a short story. Read it out loud, starting with the first word. If you come to a word you do not know, skip it and continue with the next word. When you finish, there are some questions about the story.",
+    "ur": "یہ ایک چھوٹی کہانی ہے۔ اسے اونچی آواز سے پڑھیں، بیچ میں نہ رُکیں۔ جو لفظ نہ آئے، اسے چھوڑ دیں۔ کہانی کے آخر میں کچھ سوال ہوں گے۔"
+   },
+   "test_intro": {
+    "en": "Now it is your turn to read the story out loud.",
+    "ur": "اب کہانی کو اونچی آواز مین پڑھنے کی آپ کی باری ہے۔"
+   }
+  },
+  "ur.story_comp_w3": {
+   "intro": {
+    "ur": "اب کہانی کے بارے میں کچھ سوال ہیں۔ ہر سوال غور سے سنیں اور اونچی آواز میں جواب دیں۔ جواب اردو یا انگریزی، کسی بھی زبان میں دیں۔"
+   },
+   "test_intro": {
+    "en": "Now it is your turn to answer the questions about the story.",
+    "ur": "اب کہانی کے بارے میں سوالوں کے جواب دینے کی آپ کی باری ہے۔"
+   }
+  },
+  "en.letter_names5": {
+   "intro": {
+    "en": "Letters will come one at a time. Say the NAME of each letter out loud. Then click next. If you do not know a letter, click next.",
+    "ur": "ایک ایک کر کے حروف آئیں گے۔ ہر حرف کا نام اونچی آواز میں بولیں، کوئی حرف نہ آتا ہو تو \"آگے\" کو ٹچ کریں۔"
+   },
+   "test_intro": {
+    "en": "Now it is your turn! Say the name of each letter out loud.",
+    "ur": "اب آپ کی باری! ہر حرف کا نام تیز آواز بولیں۔"
+   }
+  },
+  "en.letter_sounds5": {
+   "intro": {
+    "en": "Letters will come one at a time. Say the SOUND of each letter out loud, not the name of the letter. Then click next. If you do not know a letter, click next.",
+    "ur": "ایک ایک کر کے حروف آئیں گے۔ ہر حرف کی آواز بولیں، نام نہیں۔ کسی حرف کی آواز نہ آتی ہو تو \"آگے\"کے بٹن کو ٹچ کریں۔"
+   },
+   "test_intro": {
+    "en": "Now it is your turn! Say the sound of each letter.",
+    "ur": "اب آپ کی باری! ہر حرف کی آوازبولیں۔"
+   }
+  },
+  "en.words4": {
+   "intro": {
+    "en": "Words will come one at a time. Read the whole word out loud, then click next. If you do not know a word, click next.",
+    "ur": "ایک ایک کر کے الفاظ آئیں گے۔ ہر لفظ تیز آواز سے پڑھیں۔ توڑ توڑ کے مت پڑھیں، ٹکڑوں میں مت پڑھیں۔ اگر کوئی لفظ نہ آتا ہو تو \"آگے\" کے بٹن کو ٹچ کریں"
+   },
+   "test_intro": {
+    "en": "Now it is your turn to read each word out loud.",
+    "ur": "اب آپ کی باری! ہر لفظ کو اونچی آواز بولیں۔"
+   }
+  },
+  "en.story_w3": {
+   "intro": {
+    "en": "Here is a short story. Read it out loud, starting with the first word. If you come to a word you do not know, skip it and continue with the next word. When you finish, there are some questions about the story.",
+    "ur": "یہ ایک چھوٹی کہانی ہے۔ اسے اونچی آواز سے پڑھیں، بیچ میں نہ رُکیں۔ جو لفظ نہ آئے، اسے چھوڑ دیں۔ کہانی کے آخر میں کچھ سوال ہوں گے۔"
+   },
+   "test_intro": {
+    "en": "Now it is your turn to read the story out loud.",
+    "ur": "اب کہانی کو اونچی آواز مین پڑھنے کی آپ کی باری ہے۔"
+   }
+  },
+  "en.story_comp_w3": {
+   "intro": {
+    "ur": "اب کہانی کے بارے میں کچھ سوال ہیں۔ ہر سوال غور سے سنیں اور اونچی آواز میں جواب دیں۔ جواب اردو یا انگریزی، کسی بھی زبان میں دیں۔"
+   },
+   "test_intro": {
+    "en": "Now it is your turn to answer the questions about the story.",
+    "ur": "اب کہانی کے بارے میں سوالوں کے جواب دینے کی آپ کی باری ہے۔"
+   }
+  },
+  "ma.number_id8": {
+   "intro": {
+    "en": "Numbers will appear one at a time. Say each number out loud. Then click next.",
+    "ur": "ایک ایک کر کے نمبر آئیں گے۔ ہر نمبر اونچی آواز میں بولیں۔ پھر \"آگے\" کو ٹچ کریں۔"
+   },
+   "test_intro": {
+    "en": "Now it is your turn to say each number.",
+    "ur": "اب ہر نمبر بتانے کی آپ کی باری ہے۔"
+   }
+  },
+  "ma.discrimination2": {
+   "intro": {
+    "ur": "ان دو نمبروں کو دیکھیں۔ جو نمبر بڑا ہے، اسے کلک کریں۔"
+   },
+   "practice_wrong": {
+    "en": "Not quite. Try again.",
+    "ur": "جواب درست نہیں۔ دوبارہ سنیں۔"
+   },
+   "test_intro": {
+    "en": "Now it is your turn to tap the bigger number.",
+    "ur": "اب بڑے نمبر کو کلک کرنے کی آپ کی باری ہے۔"
+   }
+  },
+  "ma.missing4": {
+   "intro": {
+    "en": "One number is missing in this row. Which number goes in the empty box? Tap it.",
+    "ur": "اس قطار میں ایک نمبر غائب ہے۔ خالی خانے میں کون سا نمبر آئے گا؟ اسے کلک کریں۔"
+   },
+   "test_intro": {
+    "en": "Now it is your turn to tap the missing number.",
+    "ur": "اب غائب نمبر کو کلک کرنے کی آپ کی باری ہے۔"
+   }
+  },
+  "ma.add2i": {
+   "intro": {
+    "en": "Here are some addition problems. Say the answer out loud. Then click next. If you don't know the answer, click next.",
+    "ur": "اب جمع کے کچھ سوال آئیں گے۔ ہر سوال کا جواب دل میں سوچیں، پھر جواب کو اونچی آواز بولیں۔ پھر اگلے سوال پر جائیں"
+   },
+   "test_intro": {
+    "en": "Now it is your turn to solve each addition problem.",
+    "ur": "اب جمع کا ہر سوال حل کرنے کی آپ کی باری ہے۔"
+   }
+  },
+  "ma.sub2i": {
+   "intro": {
+    "en": "Here are some subtraction problems. Say the answer out loud. Then click next. If you don't know the answer, click next.",
+    "ur": "اب تفریق کے کچھ سوال آئیں گے۔ ہر سوال کا جواب دل میں سوچیں، پھر جواب کو اونچی آواز میں بولیں۔ پھر اگلے سوال پر جائیں"
+   },
+   "test_intro": {
+    "en": "Now it is your turn to solve each subtraction problem.",
+    "ur": "اب تفریق کا ہر سوال حل کرنے کی آپ کی باری ہے۔"
+   }
+  },
+  "ma.mul2i": {
+   "intro": {
+    "en": "Here are some multiplication problems. Say the answer out loud. Then click next. If you don't know the answer, click next.",
+    "ur": "اب ضرب کے کچھ سوال آئیں گے۔ ہر سوال کا جواب دل میں سوچیں، پھر جواب کو اونچی آواز میں بولیں۔ پھر اگلے سوال پر جائیں"
+   },
+   "test_intro": {
+    "en": "Now it is your turn to solve each multiplication problem.",
+    "ur": "اب ضرب کا ہر سوال حل کرنے کی آپ کی باری ہے۔"
+   }
+  },
+  "ma.fluency1m": {
+   "intro": {
+    "en": "Math problems will appear on the screen, one at a time. Say each answer out loud, then click next. If you do not know an answer, click next.",
+    "ur": "اب جلدی سے حل ہونے والے کچھ سوال آئیں گے! ہر جواب کو جلدی مگر دھیان سے سمجھیں اور اس کا جواب اونچی آواز میں بولیں۔ جو جواب نہ آئے، تو\"آگے\" کے بٹن کو کلک کریں۔"
+   },
+   "test_intro": {
+    "en": "Now it is your turn to answer the quick sums.",
+    "ur": "اب جلدی والے سوالوں کے جواب دینے کی آپ کی باری ہے۔"
+   }
+  }
+ }
+}
