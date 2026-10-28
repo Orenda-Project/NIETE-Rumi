@@ -29,7 +29,7 @@ const { getClient } = require('./llm-client');
 const { logToFile } = require('../utils/logger');
 
 /** The closed set. Anything else is coerced to `question`. */
-const EDIT_INTENT_KINDS = ['edit', 'question', 'out_of_scope', 'gratitude'];
+const EDIT_INTENT_KINDS = ['edit', 'question', 'new_request', 'out_of_scope', 'gratitude'];
 
 /**
  * The model is env-overridable and deliberately cheap: this is a four-way label on one short
@@ -68,7 +68,7 @@ const SYSTEM = `You label a teacher's WhatsApp reply about a lesson plan she has
 
 Answer with ONE JSON object and nothing else: {"kind": "<label>"}
 
-The four labels:
+The five labels:
 
 "edit"          She wants the LESSON DOCUMENT changed in a STRUCTURAL way — add, remove, shorten,
                 lengthen, replace or swap a specific part. Examples: "make the homework shorter",
@@ -80,12 +80,15 @@ The four labels:
                 ANSWER, not a new document. Examples: "what does the activity mean?", "how long
                 should the group work take?", "is this the right chapter?".
 
-"out_of_scope"  She wants something this feature cannot do. THIS INCLUDES THREE THINGS:
+"new_request"   She is asking for a NEW lesson plan — a different lesson, topic, grade, subject or
+                chapter ("make me a lesson plan on fractions for grade 4", "next chapter please",
+                "اگلے سبق کا منصوبہ"). Not an edit of this document: a fresh request the lesson-plan
+                feature handles.
+
+"out_of_scope"  She wants something this feature cannot do. THIS INCLUDES TWO THINGS:
                 (a) a different artefact entirely — an exam paper, a test, a worksheet, a
                     presentation, notes, a scheme of work, a question paper;
-                (b) a different lesson, grade, subject or chapter — that is a new request, not an
-                    edit of this document;
-                (c) REWRITING THE WHOLE DOCUMENT'S WORDING, TONE OR REGISTER — "write it in
+                (b) REWRITING THE WHOLE DOCUMENT'S WORDING, TONE OR REGISTER — "write it in
                     simpler language", "make it more formal", "reword this", "اسے آسان زبان میں
                     لکھیں", "translate it". These are NOT edits in this version: they rewrite
                     every section rather than changing one part, so they are out of scope.
@@ -95,6 +98,7 @@ The four labels:
 Rules:
 - Changing ONE named part = "edit". Rewriting the WHOLE document's wording = "out_of_scope".
 - If she asks for something we cannot produce, say "out_of_scope" — never guess at an edit.
+- A different lesson, topic, grade, subject or chapter = "new_request", never "out_of_scope".
 - If you are unsure between "edit" and "question", answer "question".
 - Output the JSON object only. No prose, no code fence.`;
 

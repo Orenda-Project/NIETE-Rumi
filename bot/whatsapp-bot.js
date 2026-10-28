@@ -2593,6 +2593,20 @@ async function handleDocumentMessage(message, from, user) {
             if (kept) return;
           }
 
+          // The in-flight guard through the FILE door: an analysis already running for her means this
+          // recording is deferred with an ack, exactly as a voice note is in voice-message.handler —
+          // until now only that door was guarded, and a second file opened a fresh session.
+          {
+            const { deferNewClassroomAudioIfInFlight } = require('./shared/services/coaching/coaching-inflight-guard');
+            const { getUserLanguage } = require('./shared/utils/language-cache');
+            const { getCoachingMessage } = require('./shared/config/coaching-messages');
+            const deferred = await deferNewClassroomAudioIfInFlight({
+              userId: user.id, supabase,
+              sendAck: async () => WhatsAppService.sendMessage(from, getCoachingMessage('coaching_stillAnalysing', await getUserLanguage(user.id))),
+            });
+            if (deferred) return;
+          }
+
           // Route to classroom coaching flow
           await CoachingService.initiateCoachingSession(
             user.id,

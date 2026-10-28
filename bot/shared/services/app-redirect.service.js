@@ -199,7 +199,9 @@ const QUIET_MS = 60 * 60 * 1000;
  * together, once, and held for a short while. 30 s is the longest a flip waits
  * to take effect on a running replica.
  */
-const FLAG_TTL_MS = 30 * 1000;
+// APP_SETTINGS_FLAG_TTL_MS: the E2E mock lane sets 1000 so a flipped switch is seen in a second instead of
+// 31 (bd-k5gjje); one value for every switch cache (config/app-settings-ttl.js, bd-0vaqcg).
+const FLAG_TTL_MS = require('../config/app-settings-ttl').APP_SETTINGS_FLAG_TTL_MS;
 let flagCache = null; // { at, values: Map<key, raw value> }
 
 function parseValue(value) {

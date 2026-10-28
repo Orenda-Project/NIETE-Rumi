@@ -51,6 +51,15 @@ function mode() {
 function strict() {
   return mode() === 'replay' && String(process.env.E2E_CASSETTE || '').toLowerCase() === 'replay-strict';
 }
+/** Profiling (bd-5zzbvq): one JSON line per mediated vendor call when E2E_CASSETTE_TRACE_LOG is set —
+ *  {ts, kind, outcome: hit|miss|live|fault, ms, liveMs, key}. `ms` is what THIS run paid (a replay is
+ *  milliseconds); `liveMs` is what the vendor took when the answer was recorded — the cost the lane
+ *  saves and production still pays. Best effort, never throws, free when unset. */
+function _trace(kind, key, outcome, t0, liveMs) {
+  const log = process.env.E2E_CASSETTE_TRACE_LOG;
+  if (!log) return;
+  try { fs.appendFileSync(log, JSON.stringify({ ts: t0, ms: Date.now() - t0, kind, outcome, liveMs: liveMs == null ? null : liveMs, key }) + '\n'); } catch (_) { /* best effort */ }
+}
 function _miss(kind, key) {
   const line = { ts: new Date().toISOString(), kind, key };
   const log = process.env.E2E_CASSETTE_MISS_LOG;
@@ -250,8 +259,9 @@ function _takeFault(kind, keyParts) {
 async function wrap(kind, keyParts, fn, opts = {}) {
   const m = mode();
   if (m === 'off') return fn();
+  const tStart = Date.now();
   const scripted = _takeFault(kind, keyParts);
-  if (scripted) return (opts.deserialize || (x => x))(scripted.value);
+  if (scripted) { _trace(kind, 'fault', 'fault', tStart, null); return (opts.deserialize || (x => x))(scripted.value); }
   const key = keyFor(kind, keyParts);
   const deser = opts.deserialize || (x => x);
   const ser = opts.serialize || (x => x);
@@ -261,6 +271,7 @@ async function wrap(kind, keyParts, fn, opts = {}) {
     if (!rec) { rec = await readR2(key); if (rec) { try { writeLocal(key, rec); } catch (_) {} } }
     if (rec && rec.value !== undefined) {
       _log('📼 e2e-cassette: replay hit', { kind, key: key.slice(0, 20), recordedAt: rec.recordedAt });
+      _trace(kind, key, 'hit', tStart, rec.liveMs);
       return deser(rec.value);
     }
     if (strict()) {
@@ -268,16 +279,21 @@ async function wrap(kind, keyParts, fn, opts = {}) {
       // against the recorded cassette to see which token drifted. Off unless E2E_CASSETTE_MISS_DUMP.
       const dd = process.env.E2E_CASSETTE_MISS_DUMP;
       if (dd) { try { fs.mkdirSync(dd, { recursive: true }); fs.writeFileSync(path.join(dd, key + '.json'), JSON.stringify(requestForRecord(keyParts))); } catch (_) {} }
+      _trace(kind, key, 'miss', tStart, null);
       throw _miss(kind, key);
     }
     _log('📼 e2e-cassette: replay MISS — going live and recording', { kind, key: key.slice(0, 20) });
   }
 
   const t0 = Date.now();
-  const value = await fn();                       // a throw propagates; nothing is stored
-  const record = { kind, key, recordedAt: new Date().toISOString(), liveMs: Date.now() - t0, request: requestForRecord(keyParts), value: ser(value) };
+  let value;
+  try { value = await fn(); }                      // a throw propagates; nothing is stored
+  catch (e) { _trace(kind, key, 'error', t0, null); throw e; }
+  const liveMs = Date.now() - t0;
+  const record = { kind, key, recordedAt: new Date().toISOString(), liveMs, request: requestForRecord(keyParts), value: ser(value) };
   try { writeLocal(key, record); } catch (e) { _log('⚠️ e2e-cassette: local write failed', { key, error: e.message }); }
   await writeR2(key, record);
+  _trace(kind, key, 'live', t0, liveMs);
   return value;
 }
 
@@ -307,14 +323,16 @@ async function wrapBuffer(kind, keyParts, fn) {
   const m = mode();
   if (m === 'off') return fn();
   // a scripted answer (E2E_CASSETTE_FAULTS) applies here exactly as in wrap(): the rule file names 'tts' as a kind
+  const tStart = Date.now();
   const fault = _takeFault(kind, keyParts);
-  if (fault) return fault.value;
+  if (fault) { _trace(kind, 'fault', 'fault', tStart, null); return fault.value; }
   const key = keyFor(kind, keyParts);
   if (m === 'replay') {
     let rec = readLocal(key);
     if (!rec) { rec = await readR2(key); if (rec) { try { writeLocal(key, rec); } catch (_) {} } }
     if (rec && typeof rec.b64 === 'string') {
       _log('📼 e2e-cassette: replay hit', { kind, key: key.slice(0, 20), recordedAt: rec.recordedAt });
+      _trace(kind, key, 'hit', tStart, rec.liveMs);
       return Buffer.from(rec.b64, 'base64');
     }
     if (strict()) {
@@ -322,14 +340,19 @@ async function wrapBuffer(kind, keyParts, fn) {
       // against the recorded cassette to see which token drifted. Off unless E2E_CASSETTE_MISS_DUMP.
       const dd = process.env.E2E_CASSETTE_MISS_DUMP;
       if (dd) { try { fs.mkdirSync(dd, { recursive: true }); fs.writeFileSync(path.join(dd, key + '.json'), JSON.stringify(requestForRecord(keyParts))); } catch (_) {} }
+      _trace(kind, key, 'miss', tStart, null);
       throw _miss(kind, key);
     }
     _log('📼 e2e-cassette: replay MISS — going live and recording', { kind, key: key.slice(0, 20) });
   }
   const t0 = Date.now();
-  const buf = await fn();
+  let buf;
+  try { buf = await fn(); }
+  catch (e) { _trace(kind, key, 'error', t0, null); throw e; }
+  const liveMs = Date.now() - t0;
+  _trace(kind, key, 'live', t0, liveMs);
   if (buf == null || !Buffer.isBuffer(buf) || buf.length === 0) return buf;
-  const record = { kind, key, recordedAt: new Date().toISOString(), liveMs: Date.now() - t0, request: requestForRecord(keyParts), b64: buf.toString('base64') };
+  const record = { kind, key, recordedAt: new Date().toISOString(), liveMs, request: requestForRecord(keyParts), b64: buf.toString('base64') };
   try { writeLocal(key, record); } catch (e) { _log('⚠️ e2e-cassette: local write failed', { key, error: e.message }); }
   await writeR2(key, record);
   return buf;

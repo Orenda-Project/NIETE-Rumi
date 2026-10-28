@@ -22,8 +22,9 @@
 # Off: QA_HOOKS_OFF=1     Strict: QA_HOOKS_STRICT=1
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 # The off switch is on the clone's QA ledger (bd-61jjzd); the ledger never fails a push.
+. "$ROOT/.claude/hooks/lib/qa-ledger.sh" 2>/dev/null || { qa_ledger_log() { :; }; qa_notes_publish() { :; }; }
 if [ "${QA_HOOKS_OFF:-}" = "1" ]; then
-  . "$ROOT/.claude/hooks/lib/qa-ledger.sh" 2>/dev/null && qa_ledger_log "$ROOT" pre-push switch-off QA_HOOKS_OFF "${1:-}"
+  qa_ledger_log "$ROOT" pre-push switch-off QA_HOOKS_OFF "${1:-}"
   exit 0
 fi
 command -v python3 >/dev/null 2>&1 || { echo "qa: python3 not on PATH — pre-push impact report skipped" >&2; exit 0; }
@@ -50,6 +51,13 @@ while read -r _lref lsha rref rsha; do
   rc=$?
   [ -n "$out" ] && printf '%s\n' "$out" >&2
   [ "$rc" -ne 0 ] && RC=1
+  # What the hooks did for these commits goes with them (bd-amxdhg): a stale spec pushed
+  # anyway is a line of its own, then every pushed commit's ledger lines become its git note.
+  if printf '%s' "$out" | grep -q 'NOT UPDATED'; then
+    qa_ledger_log "$ROOT" pre-push pushed-stale "" "${rref#refs/heads/}: $(printf '%s\n' "$out" | grep 'NOT UPDATED' | sed -E 's/^[^[:alnum:]]*//; s/[[:space:]]+/ /g' | head -3 | paste -sd ';' -)" "$lsha"
+  fi
+  # shellcheck disable=SC2046
+  qa_notes_publish "$ROOT" $(git rev-list --max-count=200 "$base..$lsha" 2>/dev/null)
 done
 # The repo is public (bd-5gyspy.3): no phone number and no home-directory path in a tracked file. Unlike the
 # impact report above this BLOCKS, because a pushed number cannot be taken back. PII_CHECK_OFF=1 skips it (logged).

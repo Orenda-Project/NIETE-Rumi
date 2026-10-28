@@ -61,9 +61,43 @@ function shouldDeferNewClassroomAudio(session, nowMs = Date.now()) {
   return (nowMs - stamp) <= MIDFLIGHT_WINDOW_MS;
 }
 
+/**
+ * The whole guard for ONE door: her latest own coaching session (observe captures excluded in the
+ * query — bd-0c80s), the decision above, and the ack. true = deferred (the ack went out, start nothing);
+ * false = let the recording through. Never throws: a failed check falls through, as the voice door
+ * always did. Added for the DOCUMENT door (bd-1r3k2h): a lesson shared as a file went straight to
+ * initiateCoachingSession, so a second file mid-analysis opened a fresh session and repeated the
+ * questions — the same report as the voice door's, through the other door.
+ *
+ * @param {{userId:string, supabase:object, sendAck:(ctx:{existingSessionId:string,status:string})=>Promise<any>, nowMs?:number, log?:Function}} args
+ */
+async function deferNewClassroomAudioIfInFlight({ userId, supabase, sendAck, nowMs = Date.now(), log } = {}) {
+  const logToFile = log || require('../../utils/logger').logToFile;
+  try {
+    const { data: latest } = await supabase
+      .from('coaching_sessions')
+      .select('id, status, created_at, observation_type')
+      .eq('user_id', userId)
+      .or('observation_type.is.null,observation_type.neq.leader_observation')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!shouldDeferNewClassroomAudio(latest, nowMs)) return false;
+    await sendAck({ existingSessionId: latest.id, status: latest.status });
+    logToFile('⏳ New classroom audio deferred — analysis already in flight', {
+      userId, existingSessionId: latest.id, status: latest.status,
+    });
+    return true;
+  } catch (guardErr) {
+    logToFile('⚠️ In-flight coaching guard check failed (non-fatal)', { error: guardErr && guardErr.message });
+    return false;
+  }
+}
+
 module.exports = {
   MIDFLIGHT_STATUSES,
   MIDFLIGHT_WINDOW_MS,
   isMidFlightCoachingStatus,
   shouldDeferNewClassroomAudio,
+  deferNewClassroomAudioIfInFlight,
 };

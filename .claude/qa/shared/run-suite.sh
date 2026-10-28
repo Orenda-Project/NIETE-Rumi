@@ -48,6 +48,8 @@ while [ $# -gt 0 ]; do case "$1" in
   --port) PORT="$2"; shift 2;; --run-id) RUN_ID="$2"; shift 2;; --no-seed) SEED=0; shift;; --reflect) REFLECT="$2"; shift 2;;
   --slot) SLOT="$2"; shift 2;; --parallel) PARALLEL=1; shift;;
   --only) export E2E_ONLY_MAP="$2"; shift 2;;   # "coaching=COA09,COA20;training=T42" — select_scenarios.py output
+  --skip) export E2E_SKIP_MAP="$2"; shift 2;;   # the mirror: everything EXCEPT these ids (a sharded feature's other half, bd-r09cmx)
+  --print-shards) PRINT_SHARDS=1; shift;;       # --parallel: print the children the plan would launch, start nothing
   --method) METHOD="$2"; shift 2;; --commit) COMMIT="$2"; shift 2;;
   --spec-sync) SPEC_SYNC="$2"; shift 2;; --validator-exit) VALIDATOR_EXIT="$2"; shift 2;;
   --print-driver) PRINT_DRIVER=1; shift;;   # resolve the driver exactly as a run would, print it, exit — touches nothing
@@ -71,6 +73,43 @@ if [ "$METHOD" = mock ]; then
       *) PFEATS=$(echo "$MODE" | tr ',' '\n');;
     esac
     [ "$(echo "$PFEATS" | wc -l | tr -d ' ')" -ge 2 ] || { echo "ERROR: --parallel needs two or more features"; exit 2; }
+    # ── E2E_SHARDS (bd-r09cmx): "training=T25-T84,T696;coaching=…" — a feature named here runs as TWO children on
+    #    two slots: child 1 with --skip <ids>, child 2 (name "feature#2") with --only <ids>. The suite wall is the
+    #    longest single-slot feature, so the cut goes between a driver's want() blocks: the listed ids must be
+    #    whole blocks (any id wanted → the block runs; all ids skipped → it is dropped). The mock lane's default
+    #    cuts training's quiz-generation cluster (training.cjs:823, one block T25…T84, + the T30–T34/T696 block)
+    #    off the module ladder; E2E_SHARDS= (empty) runs every feature whole.
+    #    Several shards per feature: "feature=listA|listB" → child 1 skips every list, child 2 runs listA, child 3 listB.
+    #    Defaults, measured on run 20261026-1355-par: training's class-quiz/lesson-plan-quiz blocks (T35–T45, T56–T58:
+    #    training.cjs:978/1067/1141/1185) and its generation cluster (training.cjs:1193 → training-quiz-gen.cjs) are the
+    #    two long halves of a 19.6 min shard; coaching's pipeline runs 4–7 and the ask cluster (coaching-ext guards
+    #    from line 446) are 11 of its 20 min. Each guard/block is gated on any-id-wanted, so the lists are whole blocks.
+    #    Coaching in three (20261026-1422-par: runs 4–7 + the ask cluster took 1125 s on one slot against 511 s for the
+    #    rest): runs 4–6 (COA20/28/29/59, COA30, COA27, COA16/33) and runs 7 + the ask cluster (COA10, COA35, COA39–55).
+    #    Every coaching shard still pays the first pipeline run (the ext guards depend on r1): ~60 s, or ~310 s while
+    #    COA04's vendor answer is missing from the cassette library.
+    SHARDS="${E2E_SHARDS-training=T35-T45,T56-T58|T25,T28-T34,T46-T55,T59-T84,T696;coaching=COA16,COA20,COA27-COA30,COA33,COA59|COA10,COA35,COA39-COA49,COA51-COA55}"
+    CHILDREN=""
+    for f in $PFEATS; do
+      spec=$(printf '%s' "$SHARDS" | tr ';' '\n' | sed -n "s/^$f=//p" | head -1)
+      if [ -n "$spec" ]; then
+        all=""; k=1; shards=""
+        for list in $(printf '%s' "$spec" | tr '|' ' '); do
+          ids=$(node -e "process.stdout.write(require(process.argv[1]).expandIds(process.argv[2]).join(','))" "$QA/selection.cjs" "$list")
+          k=$((k+1)); all="${all:+$all,}$ids"; shards="$shards $f#$k|only=$ids"
+        done
+        CHILDREN="$CHILDREN $f|skip=$all$shards"
+      else CHILDREN="$CHILDREN $f|"; fi
+    done
+    # Launch the longest children first: the wall is set by the slowest, and the 3 s stagger plus the module lock
+    # delay whoever starts last. Order measured on 20261026-1355-par; anything unlisted follows in feature order.
+    ORDER="${E2E_SHARD_ORDER:-training#2 coaching#3 coaching#2 coaching training#3 training lesson-plan menu language status registration}"
+    SORTED=""; for o in $ORDER; do for c in $CHILDREN; do [ "${c%%|*}" = "$o" ] && SORTED="$SORTED $c"; done; done
+    for c in $CHILDREN; do case " $SORTED " in *" $c "*) ;; *) SORTED="$SORTED $c";; esac; done
+    CHILDREN="$SORTED"
+    if [ -n "${PRINT_SHARDS:-}" ]; then
+      for c in $CHILDREN; do name=${c%%|*}; sel=${c#*|}; echo "child $name ${sel:-whole}"; done; exit 0
+    fi
     [ -n "$COMMIT" ] || COMMIT=$(git -C "$ROOT" rev-parse HEAD)
     BASE_ID="${RUN_ID:-$(date +%Y%m%d-%H%M)-par}"; PDIR="$ROOT/.claude/qa/results/whatsapp/niete/$BASE_ID"; mkdir -p "$PDIR"
     echo "=== parallel $(date -u +%FT%TZ) · $(echo $PFEATS | tr '\n' ' ')· commit ${COMMIT:0:12} · one slot each → $PDIR" | tee "$PDIR/parallel.log"
@@ -79,20 +118,23 @@ if [ "$METHOD" = mock ]; then
     # parallel run (another commit, another session) takes the next free slots instead of colliding
     slot_free() { local n=$1 p; for p in $(slot_port_numbers "$n"); do port_listening "$p" && return 1; done
                   [ -e "$PDIR/.slot-$n" ] && return 1; return 0; }
-    for f in $PFEATS; do
+    PNAMES=""
+    for c in $CHILDREN; do
+      name=${c%%|*}; sel=${c#*|}; f=${name%%#*}; tag=${name#"$f"}; tag=${tag#\#}   # "training#2" → f=training tag=2
+      selopt=""; case "$sel" in skip=*) selopt="--skip $f=${sel#skip=}";; only=*) selopt="--only $f=${sel#only=}";; esac
       i=$((i+1)); while ! slot_free "$i"; do i=$((i+1)); [ "$i" -gt 40 ] && { echo "ERROR: no free slot under 40"; exit 3; }; done
       : >"$PDIR/.slot-$i"
-      ( E2E_LEDGER_COMMIT_OFF=1 bash "$0" "$f" --method mock --slot "$i" --commit "$COMMIT" --run-id "$BASE_ID-$f" --env "$ENV" ${REFLECT:+--reflect "$REFLECT"} ${SPEC_SYNC:+--spec-sync "$SPEC_SYNC"} ${VALIDATOR_EXIT:+--validator-exit "$VALIDATOR_EXIT"} \
-          >"$PDIR/parallel-$f.log" 2>&1; echo $? >"$PDIR/parallel-$f.rc" ) &
-      PIDS="$PIDS $!"; echo "  slot $i → $f (pid $!)" | tee -a "$PDIR/parallel.log"
+      ( E2E_LEDGER_COMMIT_OFF=1 bash "$0" "$f" --method mock --slot "$i" --commit "$COMMIT" --run-id "$BASE_ID-$f${tag:+-$tag}" --env "$ENV" $selopt ${REFLECT:+--reflect "$REFLECT"} ${SPEC_SYNC:+--spec-sync "$SPEC_SYNC"} ${VALIDATOR_EXIT:+--validator-exit "$VALIDATOR_EXIT"} \
+          >"$PDIR/parallel-$f${tag:+-$tag}.log" 2>&1; echo $? >"$PDIR/parallel-$f${tag:+-$tag}.rc" ) &
+      PIDS="$PIDS $!"; PNAMES="$PNAMES $f${tag:+-$tag}"; echo "  slot $i → $f${tag:+ shard $tag}${sel:+ ($(printf '%s' "$sel" | cut -c1-40)…)} (pid $!)" | tee -a "$PDIR/parallel.log"
       sleep 3   # stagger the stack bring-ups so the module provisioning lock is taken in turn
     done
     for pid in $PIDS; do wait "$pid"; done
     RC=0
-    for f in $PFEATS; do
-      rc=$(cat "$PDIR/parallel-$f.rc" 2>/dev/null || echo 1); [ "$rc" = 0 ] || RC=$rc
-      echo "--- $f (exit $rc)" | tee -a "$PDIR/parallel.log"
-      grep -E "^    $f:|^      [A-Z]+[0-9A-Za-z-]* +(FAIL|BLOCKED)|^BLOCKED:|known finding|regressions" "$PDIR/parallel-$f.log" | tee -a "$PDIR/parallel.log"
+    for n in $PNAMES; do f=${n%%-[0-9]*}
+      rc=$(cat "$PDIR/parallel-$n.rc" 2>/dev/null || echo 1); [ "$rc" = 0 ] || RC=$rc
+      echo "--- $n (exit $rc)" | tee -a "$PDIR/parallel.log"
+      grep -E "^    $f:|^      [A-Z]+[0-9A-Za-z-]* +(FAIL|BLOCKED)|^BLOCKED:|known finding|regressions" "$PDIR/parallel-$n.log" | tee -a "$PDIR/parallel.log"
     done
     # the children appended their ledger rows with the commit switched off; one commit here carries them all
     if [ "${E2E_LEDGER_COMMIT_OFF:-}" != "1" ] && git -C "$ROOT" symbolic-ref -q HEAD >/dev/null; then
@@ -145,6 +187,16 @@ export RUN_DIR="$ROOT/.claude/qa/results/whatsapp/niete/$RUN_ID" E2E_ENV="$ENV" 
 # mock lane pacing: the stack shortens the class-quiz join lock to 5 s (VIDEO_QUIZ_JOIN_LOCK_SECS) and a
 # reply counts as complete after 800 ms of outbox silence instead of 1.5 s.
 if [ "$METHOD" = mock ]; then export E2E_JOIN_LOCK_SECS="${VIDEO_QUIZ_JOIN_LOCK_SECS:-5}" E2E_QUIESCE_MS="${E2E_QUIESCE_MS:-800}"; fi
+# The harness waits, measured (run 20261023-1006-par, bd-k5gjje): a 500 ms poll cost 66 s of detect latency, the
+# 1.2 s settle 318 s (nothing more arrived in 208 of 210). On the mock lane the bot is local and the pacer is off, so:
+# poll 100 ms; settle 800 ms (the longest real gap between two messages of one reply was 1.2 s with the pacer on —
+# most were the pacer's own 6 s). The app-setting settle is 1.5 s: every switch cache the drivers flip reads
+# APP_SETTINGS_FLAG_TTL_MS (1 s on the lane, config/app-settings-ttl.js, bd-0vaqcg) — it was 31 s while six of
+# them kept their own 30 s and a short settle broke training T695.
+if [ "$METHOD" = mock ]; then export E2E_POLL_MS="${E2E_POLL_MS:-100}" E2E_SETTLE_MS="${E2E_SETTLE_MS:-800}" E2E_APP_SETTING_SETTLE_MS="${E2E_APP_SETTING_SETTLE_MS:-1500}"; fi
+# The coaching walker's "no progress" budget (coaching-ext.cjs): 240 s for live vendors; 90 s here, where every answer
+# replays — a step that has not moved in 90 s is stuck (bd-r09cmx).
+if [ "$METHOD" = mock ]; then export E2E_COACHING_STALL_MS="${E2E_COACHING_STALL_MS:-90000}" E2E_COACHING_DEFER_AFTER_MS="${E2E_COACHING_DEFER_AFTER_MS:-0}" E2E_PORTAL_URL="${E2E_PORTAL_URL:-https://127.0.0.1:5173}" E2E_REPORT_ABSENCE_MS="${E2E_REPORT_ABSENCE_MS:-12000}" E2E_COACHING_VOICE_NOTE_MS="${E2E_COACHING_VOICE_NOTE_MS:-60000}" E2E_COACHING_POST_REPORT_MS="${E2E_COACHING_POST_REPORT_MS:-12000}"; fi
 mkdir -p "$RUN_DIR"; LOG="$RUN_DIR/runner.log"
 say() { echo "$*" | tee -a "$LOG"; }
 T0=$(date +%s)
@@ -258,7 +310,9 @@ run_feature() {   # $1 feature, extra env vars already exported by caller
   local f="$1" t1 t2
   t1=$(date +%s); say "--- $f START $(date -u +%T)"
   python3 "$QA/driver_lock.py" heartbeat --driver "$DRIVER" >/dev/null 2>&1
-  E2E_PROGRESS="$RUN_DIR/progress-$f.log" node "$QA/feature-runner.cjs" "$f" >"$RUN_DIR/$f.stdout.json" 2>"$RUN_DIR/$f.stderr.log"
+  # E2E_TRACE_FILE (bd-5zzbvq): the span trace behind the profiler — every primitive, its quiesce / inject /
+  # bot.reply / poll.detect / settle, and one row per scenario. Append-only JSON lines; the run is unchanged.
+  E2E_PROGRESS="$RUN_DIR/progress-$f.log" E2E_TRACE_FILE="$RUN_DIR/trace-$f.jsonl" node "$QA/feature-runner.cjs" "$f" >"$RUN_DIR/$f.stdout.json" 2>"$RUN_DIR/$f.stderr.log"
   local rc=$?   # captured on the very next line — `$?` after a `date` call reported date's status, always 0
   t2=$(date +%s); say "--- $f END $(date -u +%T) ($((t2-t1))s) exit=$rc"
   python3 - "$RUN_DIR/$f.json" <<'PY' | tee -a "$LOG"
@@ -276,6 +330,12 @@ PY
   python3 "$QA/ledger_row.py" --root "$ROOT" --run-dir "$RUN_DIR" --feature "$f" --run-id "$RUN_ID" --env "$ENV" \
     --method "$METHOD" --seconds "$((t2-t1))" --driver "$DRIVER" --trigger "$TRIGGER" \
     ${COMMIT:+--commit "$COMMIT"} ${SPEC_SYNC:+--spec-sync "$SPEC_SYNC"} ${VALIDATOR_EXIT:+--validator-exit "$VALIDATOR_EXIT"} 2>&1 | tee -a "$LOG"
+  # ── the profile: <run_dir>/profile-<feature>.json from the trace + the mock transcript + the DB-proxy and
+  # cassette timing logs, published to .claude/qa/profiles/ for the dashboard (profile-dashboard.sh). Informational:
+  # a profiler failure never fails the run. E2E_PROFILE_OFF=1 skips it. (bd-5zzbvq)
+  if [ "${E2E_PROFILE_OFF:-}" != 1 ] && [ -f "$QA/profile_run.py" ]; then
+    python3 "$QA/profile_run.py" "$RUN_DIR" --feature "$f" --publish "$ROOT/.claude/qa/profiles" 2>&1 | sed 's/^/    profile: /' | tee -a "$LOG" || say "(profile_run.py failed — the run is unaffected)"
+  fi
 }
 
 for f in $FEATURES; do

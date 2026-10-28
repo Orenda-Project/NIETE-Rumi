@@ -135,6 +135,33 @@ def cmd_restore(creds, a):
     print("RESTORED %s from %s (name -> %r)." % (a.phone, path, payload.get("name")))
 
 
+# The school R12 searches for. `schools` is deliberately NOT a seed table (seed-tables.txt: a run starts with no
+# teacher history; a test that needs some creates it in its own setup), so the registration driver seeds this
+# one row on the run's own database and purges it after (bd-v4mdcv). school-search.service: a hit needs a
+# matched WORD or an EXACT EMIS (score 1000) — an EMIS that merely starts with the query scores +50 but is
+# filtered out with no word matched (run 20261027-1219: 0 results) — so the EMIS is exactly the driver's query.
+# is_probable_test must be false or the row is filtered out.
+QA_SCHOOL = {"name": "IMSG G-7/3-2", "emis": "215", "region": "Islamabad", "is_active": True,
+             "is_probable_test": False, "source_system": "qa_seed"}
+
+
+def cmd_seed_school(creds, a):
+    """Insert the QA school (idempotent: purges any earlier qa_seed row first). Prints the row."""
+    if not a.yes_write:
+        print(json.dumps({"dry_run": True, "would_insert": QA_SCHOOL})); return
+    _req("DELETE", "/rest/v1/schools?source_system=eq.qa_seed", creds, prefer="return=minimal")
+    rows, _st = _req("POST", "/rest/v1/schools", creds, body=[QA_SCHOOL], prefer="return=representation")
+    print(json.dumps((rows or [{}])[0] if isinstance(rows, list) else rows))
+
+
+def cmd_purge_school(creds, a):
+    """Delete every qa_seed school."""
+    if not a.yes_write:
+        print(json.dumps({"dry_run": True, "would_delete": "schools where source_system=qa_seed"})); return
+    _req("DELETE", "/rest/v1/schools?source_system=eq.qa_seed", creds, prefer="return=minimal")
+    print(json.dumps({"purged": True}))
+
+
 def main():
     p = argparse.ArgumentParser(description="NIETE registration-state seeding (reads free; writes gated by --yes-write).")
     common = argparse.ArgumentParser(add_help=False)
@@ -149,9 +176,12 @@ def main():
     rs = sub.add_parser("restore", parents=[common])
     rs.add_argument("--from", dest="from_file")
     rs.add_argument("--yes-write", action="store_true")
+    ss = sub.add_parser("seed-school", parents=[common]); ss.add_argument("--yes-write", action="store_true")
+    ps = sub.add_parser("purge-school", parents=[common]); ps.add_argument("--yes-write", action="store_true")
     a = p.parse_args()
     creds = _creds(getattr(a, "env", None))
-    {"snapshot": cmd_snapshot, "unregister": cmd_unregister, "restore": cmd_restore}[a.cmd](creds, a)
+    {"snapshot": cmd_snapshot, "unregister": cmd_unregister, "restore": cmd_restore,
+     "seed-school": cmd_seed_school, "purge-school": cmd_purge_school}[a.cmd](creds, a)
 
 
 if __name__ == "__main__":

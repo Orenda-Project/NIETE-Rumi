@@ -20,6 +20,15 @@ ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 # Every off switch is on the clone's QA ledger (bd-61jjzd); the ledger never fails a commit.
 . "$ROOT/.claude/hooks/lib/qa-ledger.sh" 2>/dev/null || qa_ledger_log() { :; }
 if [ "${QA_HOOKS_OFF:-}" = "1" ]; then qa_ledger_log "$ROOT" post-commit switch-off QA_HOOKS_OFF ""; exit 0; fi
+
+# Your own portal (scripts/dev-portal.sh up, :4000) follows THIS checkout's commits (bd-i56c2u): when this checkout
+# started it, move it to the new HEAD in the background — the commit never waits on it. Any other checkout: silent.
+DP="$ROOT/scripts/dev-portal.sh"
+if [ "${DEV_PORTAL_FOLLOW:-1}" != "0" ] && [ -f "$DP" ] && bash "$DP" follows >/dev/null 2>&1; then
+  DP_RUN="${DEV_PORTAL_RUN:-$HOME/.cache/niete-dev-portal/run}"
+  ( nohup bash "$DP" refresh >>"$DP_RUN/refresh.log" 2>&1 </dev/null & ) >/dev/null 2>&1
+  [ "${QA_HOOKS_QUIET:-}" = "1" ] || echo "dev-portal: refreshing your local portal to $(git rev-parse --short=9 HEAD) in the background — log: $DP_RUN/refresh.log" >&2
+fi
 command -v python3 >/dev/null 2>&1 || { echo "qa: python3 not on PATH — E2E selection skipped for this commit" >&2; exit 0; }
 SEL_BIN="$ROOT/.claude/qa/shared/select_e2e.py"
 SYNC_BIN="$ROOT/.claude/qa/shared/spec_sync.py"
@@ -92,6 +101,8 @@ json.dump({
     "fallback": bool(sel.get("fallback")), "unmapped": sel.get("unmapped") or [],
 }, open(marker, "w"), indent=1)
 PY
+# The arming is on the ledger (bd-amxdhg) — it is what tells "the hooks ran" from "no hooks here".
+qa_ledger_log "$ROOT" post-commit armed "" "features=$(printf '%s' "$SEL" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(",".join((d.get("features") or []) + (d.get("web_features") or [])))' 2>/dev/null) spec_sync=$SPEC_SYNC"
 
 [ "${QA_HOOKS_QUIET:-}" = "1" ] && exit 0
 FEATURES=$(printf '%s' "$SEL" | python3 -c 'import json,sys; print(", ".join(json.load(sys.stdin).get("features") or []))' 2>/dev/null)

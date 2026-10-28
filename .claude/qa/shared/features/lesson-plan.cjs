@@ -45,8 +45,9 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
     const hits = [];
     for (const k of kws) {
       // Five Flow sends inside ~40s tripped Meta #131056 "(Business Account, Consumer Account) pair rate
-      // limit hit" on 2026-09-02 and the 5th card never arrived. Pace the burst.
-      if (hits.length) await sleep(15000);
+      // limit hit" on 2026-09-02 and the 5th card never arrived. Pace the burst — on the chrome lane only:
+      // the mock Graph API has no pair limit and the bot's pacer is off there (bd-aqi0ay).
+      if (hits.length && api.caps.method !== 'mock') await sleep(15000);
       const x = await api.sendWait(k);
       hits.push({ k, card: CARD.test(x.txt) && x.btns.length > 0, wait: x.waitedMs });
     }
@@ -69,7 +70,7 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
     // one teachers actually type, and it earns a line of its own in the ledger. The pace sleep is
     // L02's — this is now a SIXTH Flow send in the same burst, and five inside ~40s already tripped
     // Meta #131056 once (2026-09-02).
-    if (want('L02')) await sleep(15000);
+    if (want('L02') && api.caps.method !== 'mock') await sleep(15000);
     s = t();
     r = await api.sendWait('/lesson plan');
     rec('L08', '"/lesson plan" opens the Lesson Plans Flow',
@@ -267,4 +268,22 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   if (r11.ran) rec('L11', L11, r11.value.storeLink && r11.value.messages === 1 && !r11.value.lpMenu ? 'PASS' : 'FAIL', r11.value, r11.value.ms);
   else rec('L11', L11, 'BLOCKED',
       { reason: REDIRECT_BLOCKED, setAppSetting: r11.reason }, 0);
+
+  // bd-1r3k2h — a NEW lesson request while a 6-12 lesson sits on the shelf belongs to the lesson-plan feature
+  // (intent detection → the app notice here), never to the edit router's out-of-scope sentence. The shelf is the
+  // run's private Redis (lp_shelf:<user id>, lp-shelf.service), seeded with the entry lp612-serving pushes.
+  const L12 = 'Asking for a new lesson plan after a 6-12 lesson is answered by the lesson-plan feature, not as an edit';
+  const r12 = await withRedirect(api, 'app_redirect_lesson_plan', async () => {
+    const SC = require('../stack-control.cjs');
+    const u = (() => { try { const o = api.db('driver-user'); const line = String(o.out || '').trim().split('\n').reverse().find((l) => l.trim().startsWith('{')); return line ? JSON.parse(line) : {}; } catch (_) { return {}; } })();
+    const key = 'lp_shelf:' + u.id;
+    const entry = { lane: 'lp612', segment_id: 'qa-lp612-g6-math-ch1-s1', grade: '6', subject: 'Mathematics', chapter_number: 1, chapter_title: 'QA chapter', topic: 'QA topic', pages_label: '', one_screen: null, lang: 'en', delivery_type: 'segment', delivered_at: new Date().toISOString() };
+    const shelf = u.id ? await SC.redis(['SETEX', key, '3600', JSON.stringify([entry])]) : { ok: false, err: 'no driver user id' };
+    const t0 = Date.now(), r = await api.sendWait('make me a lesson plan on fractions for grade 4', 90000), txt = r.txt || '';
+    if (u.id) await SC.redis(['DEL', key]);
+    return { shelfSeeded: !!(shelf && shelf.ok), shelfErr: shelf && shelf.err, storeLink: isStoreNotice(txt), messages: r.freshIds,
+             editSentence: /I can change parts of a lesson|different thing, so your lesson/i.test(txt), reply: txt.slice(0, 160), ms: Date.now() - t0 };
+  });
+  if (r12.ran) rec('L12', L12, r12.value.shelfSeeded && r12.value.storeLink && !r12.value.editSentence ? 'PASS' : 'FAIL', r12.value, r12.value.ms);
+  else rec('L12', L12, 'BLOCKED', { reason: REDIRECT_BLOCKED, setAppSetting: r12.reason }, 0);
 };

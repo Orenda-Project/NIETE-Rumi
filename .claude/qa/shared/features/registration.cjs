@@ -31,6 +31,10 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
              { head: (r.txt || '').split('\n')[0], botWaitMs: r.waitedMs }), t() - s);
   }
 
+  // R12 searches for a school: `schools` is not a seed table, so on the run's own database the driver seeds the
+  // one row the search must find and purges it at the end (niete_registration_db.py seed-school, bd-v4mdcv).
+  const seedSchool = api.caps && api.caps.method === 'mock';
+  if (seedSchool && want('R12')) { try { api.db('seed-school'); } catch (_) {} }
   if (want('R02', 'R09', 'R07', 'R12', 'R03', 'R11', 'R05', 'R08')) {
     // ---- v5 (bd-x7aprz.2): open the Flow once and harvest R02 / R09 / R07 / R11 / R12 / R03 / R05 ----
     // Screens: name + language → role (Teacher/Principal) + school search → pick a school → grades +
@@ -278,4 +282,5 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
         (stillUnreg && canReopen && o10.ok) ? 'PASS' : 'FAIL',
         { reopened: canReopen, flowOpened: o10.ok, dbName: fnLine.trim(), stillUnregistered: stillUnreg }, t() - s);
   }
+  if (seedSchool) { try { api.db('purge-school'); } catch (_) {} }
 };

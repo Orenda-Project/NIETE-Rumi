@@ -3,6 +3,7 @@
 #
 #   bash bot/scripts/e2e/local-stack.sh up   <sha> <run_dir>     # writes <run_dir>/stack.json
 #   bash bot/scripts/e2e/local-stack.sh down <run_dir>
+#   bash bot/scripts/e2e/local-stack.sh retarget <sha> <run_dir>   # move a running stack to another commit
 #
 # What `up` guarantees, in order:
 #   1. The code under test is a DETACHED GIT WORKTREE at exactly <sha> (<run_dir>/src). The developer's
@@ -30,6 +31,10 @@
 # lands in <run_dir>/r2; a file the run did not write is read through from staging, read-only. The staging
 # R2 keys go to local-r2.js only; the bot gets dummy local ones.
 set -uo pipefail
+# A git hook exports GIT_INDEX_FILE (and, from a worktree, GIT_DIR/GIT_WORK_TREE). Inherited, they point every
+# `git -C <dir>` below at the COMMITTING checkout: the first refresh from .githooks/post-commit detached the
+# committer's branch instead of moving the stack (bd-i56c2u). This script always names its repo with -C.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
 local_db_on() { [ "${E2E_LOCAL_DB:-1}" != 0 ]; }   # default ON; only an explicit 0 means the sandbox
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
@@ -159,7 +164,11 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
       # record mode: the lane's settings with the REAL AI vendor keys in place of its placeholders — and nothing
       # else from the keys file. dotenv keeps the LAST of a repeated key, so writing the keys file first let the
       # lane's placeholder win and every AI call 401'd (bd-hnhlgn.18).
-      if [ "$cassette_mode" = record ] && [ -n "$keys" ]; then bash "$HERE/record-env.sh" "$keys" "$lane_cfg"; else cat "$lane_cfg"; fi
+      # Whenever the RECORD keys file is the one in use — mode record, or mode replay with the file present, which is
+      # what --record-missing is — the real vendor keys go in through record-env.sh. Keyed on the mode alone, the
+      # first --record-missing run composed the lane's placeholders and every live call answered "401 Missing
+      # Authentication header"; nothing was recorded (bd-xeup1d).
+      if [ "$keys_name" = niete-record.env ] && [ -n "$keys" ]; then bash "$HERE/record-env.sh" "$keys" "$lane_cfg"; else cat "$lane_cfg"; fi
       echo; echo "$db_lines"
     else cat "$keys"; fi
     echo
@@ -171,6 +180,8 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     echo "E2E_CASSETTE=$cassette_mode"
     echo "E2E_CASSETTE_DIR=$cassette_dir"
     echo "E2E_CASSETTE_MISS_LOG=$run_dir/cassette-misses.jsonl"
+    # Profiling (bd-5zzbvq): every cassette-mediated vendor call, with replay ms and the recorded live ms.
+    echo "E2E_CASSETTE_TRACE_LOG=$run_dir/cassette-trace.jsonl"
     # Feature flags the mock lane tests as SHIPPED, not inherited from whatever is (or isn't) in the
     # local keys file. LP_612_ENABLED: the grade 6-12 Pakistan LP corpus is live (bd-mww73) and the
     # sandbox DB is seeded; without this the bot falls to the Oxbridge fallback and lesson-plan/L03
@@ -194,6 +205,29 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     echo "E2E_CASSETTE_FAULTS=$run_dir/cassette-faults.json"
     # The class-quiz join lock is a minute in production; a rejoin scenario idled that long. 5 s here.
     echo "VIDEO_QUIZ_JOIN_LOCK_SECS=${VIDEO_QUIZ_JOIN_LOCK_SECS:-5}"
+    # The transcript-quiz offer is a job delayed 240 s in production (transcript-quiz-offer.service.js); the coaching
+    # walker waits for it and gave up at exactly 240 s on every completed run — four 240 s stalls per coaching run
+    # and COA20/28/29/30 BLOCKED (bd-aqi0ay). 5 s here.
+    echo "TRANSCRIPT_QUIZ_OFFER_DELAY_SECS=${E2E_TRANSCRIPT_QUIZ_OFFER_DELAY_SECS:-5}"
+    # The WhatsApp send pacer (whatsapp-send-pacer.js) spaces sends to one phone 6 s apart once 8 are in flight —
+    # Meta's pair rate limit. The mock Graph API has no such limit, and the driver is ONE phone talking every
+    # 3 s, so from the 9th message on every reply waited ~3.3 s for a slot: 527 s of run 20261023-1006-par
+    # (bd-k5gjje). Off here; the pacer's own tests (tests/whatsapp/send-pacing.redis.test.js) are its coverage.
+    # E2E_WA_PAIR_PACING=on puts it back for a run that wants to see the pacing.
+    echo "WA_PAIR_PACING=${E2E_WA_PAIR_PACING:-off}"
+    # The per-phone inbound rate limit (whatsapp-bot.js: RATE_LIMIT_MAX per RATE_LIMIT_WINDOW_SECONDS, 30/60 s in
+    # production) drops a message and answers "slow down". With the pacer off the driver — ONE phone — talks far
+    # faster than any teacher, and training T24/T37 hit the limit on the first fixed run (bd-k5gjje). 1000 here.
+    echo "RATE_LIMIT_MAX=${E2E_RATE_LIMIT_MAX:-1000}"
+    # The /portal button is a cta_url, which whatsapp.service refuses without an https url; the lane's
+    # PORTAL_URL is http://127.0.0.1:5173 (the web lane opens it in a browser). The WhatsApp mock lane never
+    # follows the link, so run-suite.sh sets E2E_PORTAL_URL=https://127.0.0.1:5173 and M10/M21 see the button
+    # (bd-1r3k2h). dotenv keeps the LAST of a repeated key, so this line wins over the lane file's.
+    [ -n "${E2E_PORTAL_URL:-}" ] && echo "PORTAL_URL=${E2E_PORTAL_URL}"
+    # The app_settings switch caches (config/app-settings-ttl.js: app-redirect and the six quiz modules that cache
+    # the switches the drivers flip) expire in 1 s here instead of 30, so the harness settles 1.5 s after a flip
+    # (run-suite E2E_APP_SETTING_SETTLE_MS) instead of 31 — 18 flips, 558 s in run 20261026-1616-par (bd-0vaqcg).
+    echo "APP_SETTINGS_FLAG_TTL_MS=${E2E_APP_SETTINGS_FLAG_TTL_MS:-1000}"
     # observe capability gate (observe-gate.js:62) + the visit-picker Flow. keys/niete-local.env already
     # carries both real ids, and dotenv keeps the first value, so these are FALLBACKS for a clone whose
     # keys file lacks them — the ids match the committed flow fixtures (fixtures/flows/*.json + manifest),
@@ -235,7 +269,7 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     echo "FLOW_PUBLIC_KEY_B64=$flow_pub_b64"
   } > "$src/.env"
   printf '%s' "$flow_pub_b64" > "$run_dir/flow-public-key.b64"
-  rm -f "$run_dir/cassette-misses.jsonl"
+  rm -f "$run_dir/cassette-misses.jsonl" "$run_dir/cassette-trace.jsonl"
 
   # 4. processes
   # `exec` so the recorded pid IS node's, not a wrapper subshell's — killing a wrapper left the
@@ -330,9 +364,58 @@ restart() {
   log "restart: $proc with ${*:-no overrides}"
 }
 
+# retarget <sha> <run_dir> — move a RUNNING stack's code to another commit and keep everything else: the
+# database, redis, the mock and the file store (bd-i56c2u: the developer's own portal follows their commits).
+# Stops the bot and worker (their code is about to move under them) and leaves starting them to the caller,
+# who knows the env overrides they ran with: `restart bot|worker`, then `verify`. The mock keeps the code it
+# loaded at `up`. Exit 11 on an unknown commit, with the worktree untouched.
+retarget() {
+  local sha="$1" run_dir="$2" src="$2/src"
+  [ -d "$src" ] && [ -f "$run_dir/stack.json" ] || { log "retarget: no running stack at $run_dir"; exit 2; }
+  local full; full=$(git -C "$REPO" rev-parse --verify "${sha}^{commit}" 2>/dev/null) || { log "retarget: unknown commit $sha"; exit 11; }
+  local old; old=$(git -C "$src" rev-parse HEAD)
+  # Everything that can refuse is checked BEFORE the bot and worker stop, so a refusal leaves them running.
+  # node_modules and .env are untracked links/files the lane adds after its own clean check in `up`.
+  [ -z "$(git -C "$src" status --porcelain --untracked-files=no)" ] || { log "retarget: $src has local changes — nothing stopped"; exit 11; }
+  local f; for f in worker bot; do
+    [ -f "$run_dir/$f.pid" ] && { kill "$(cat "$run_dir/$f.pid")" >/dev/null 2>&1 || true; }
+  done
+  git -C "$src" checkout -q --detach "$full" 2>/dev/null || { log "retarget: checkout of $full failed in $src"; exit 11; }
+  [ "$(git -C "$src" rev-parse HEAD)" = "$full" ] || { log "retarget: worktree is not at $full"; exit 11; }
+  # A lockfile that changed between the two commits gets its own module tree, exactly as `up` provisions it.
+  local prov="$HERE/provision-local-modules.sh" kind lock link tree
+  for kind in bot root; do
+    if [ "$kind" = bot ]; then lock=bot/package-lock.json; link="$src/bot/node_modules"; else lock=package-lock.json; link="$src/node_modules"; fi
+    [ "$(git -C "$REPO" rev-parse -q --verify "$old:$lock")" = "$(git -C "$REPO" rev-parse -q --verify "$full:$lock")" ] && continue
+    if [ "$kind" = bot ]; then tree=$(bash "$prov" --repo "$REPO" --sha "$full" --kind bot --installed-root "$NM_BOT") || { log "retarget: no bot modules for $full"; exit 10; }; tree="$tree/bot/node_modules"
+    else tree=$(bash "$prov" --repo "$REPO" --sha "$full" --kind root --installed-root "$NM_ROOT") || { log "retarget: no root modules for $full"; exit 10; }; tree="$tree/node_modules"; fi
+    rm -f "$link"; ln -s "$tree" "$link"
+  done
+  python3 - "$src/.env" "$run_dir/stack.json" "$full" <<'PY'
+import json, sys
+env, stack, sha = sys.argv[1:]
+lines = [l for l in open(env).read().splitlines() if not l.startswith("E2E_COMMIT_SHA=")]
+open(env, "w").write("\n".join(lines + ["E2E_COMMIT_SHA=" + sha]) + "\n")
+d = json.load(open(stack)); d["commit_sha"] = sha; json.dump(d, open(stack, "w"), indent=1)
+PY
+  log "retarget: ${old:0:9} → ${full:0:9} in $src (database kept)"
+}
+
+# verify <run_dir> — the bot's /health must report the commit stack.json names (exit 13 otherwise).
+verify() {
+  local run_dir="$1" _m bot_port _rest health want running
+  read -r _m bot_port _rest <"$run_dir/ports"
+  want=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["commit_sha"])' "$run_dir/stack.json")
+  health=$(curl -sf -m 3 "http://127.0.0.1:$bot_port/health" 2>/dev/null)
+  running=$(printf '%s' "$health" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("commit") or "")' 2>/dev/null)
+  [ "$running" = "$want" ] || { log "verify: /health reports '${running:-nothing}', wanted $want"; exit 13; }
+}
+
 case "$CMD" in
   up)   up "${1:-}" "${2:-}";;
   down) down "${1:?run_dir}";;
   restart) restart "${1:?bot|worker}" "${2:?run_dir}" "${@:3}";;
-  *) echo "usage: local-stack.sh up <sha> <run_dir> | down <run_dir> | restart bot|worker <run_dir> [KEY=VAL ...]" >&2; exit 2;;
+  retarget) retarget "${1:?sha}" "${2:?run_dir}";;
+  verify) verify "${1:?run_dir}";;
+  *) echo "usage: local-stack.sh up <sha> <run_dir> | down <run_dir> | restart bot|worker <run_dir> [KEY=VAL ...] | retarget <sha> <run_dir> | verify <run_dir>" >&2; exit 2;;
 esac

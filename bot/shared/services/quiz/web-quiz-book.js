@@ -31,7 +31,7 @@ const BOOK_KEY = 'web_quiz_challenge_book';
 const WALL_KEY = 'web_quiz_class_wall';
 // Story Time (parent _v2): every room a new lamp opens is there, so `opens` is named only while it is on.
 const STORY_KEY = 'web_quiz_challenge_story';
-const TTL_MS = 30 * 1000;
+const TTL_MS = require('../../config/app-settings-ttl').APP_SETTINGS_FLAG_TTL_MS;   // 30 s; APP_SETTINGS_FLAG_TTL_MS shortens it on a test lane (bd-0vaqcg)
 const PKT_MS = 5 * 3600 * 1000;
 const DAY_MS = 86400000;
 // Final rows only (a swept run is written `failed`); `served`, `scoring` and `abandoned` rows never light anything.

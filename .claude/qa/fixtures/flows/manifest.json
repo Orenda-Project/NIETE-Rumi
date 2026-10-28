@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-09-08T06:54:39.150Z",
+  "fetchedAt": "2026-10-26T18:54:53.582Z",
   "graphVersion": "v21.0",
   "source": "published FLOW_JSON assets, by flow id, from the staging WABA",
   "flows": [
@@ -517,7 +517,7 @@
       "flowId": "1492701779552399",
       "name": "Registration",
       "status": "PUBLISHED",
-      "version": "6.3",
+      "version": "7.0",
       "data_api_version": "3.0",
       "kind": "endpoint",
       "screens": 5,
@@ -526,9 +526,9 @@
       ],
       "components": [
         "CheckboxGroup",
-        "Dropdown",
         "Footer",
         "Form",
+        "RadioButtonsGroup",
         "TextBody",
         "TextHeading",
         "TextInput"
@@ -539,8 +539,8 @@
       ],
       "problems": [],
       "validation_errors": 0,
-      "sha256": "c6d9783f94bdf5677259ce257da0f710ee984ee4d5456f21c170698e5ad929ad",
-      "fetchedAt": "2026-09-08T06:54:31.415Z",
+      "sha256": "f743a74be05ee5fb2bd0748c8253b942d85d56588dbfb8db947f28b786dfa59e",
+      "fetchedAt": "2026-10-26T18:54:53.577Z",
       "repoCopy": "differs"
     },
     {

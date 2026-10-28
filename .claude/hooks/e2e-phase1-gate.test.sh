@@ -13,6 +13,8 @@
 # declaration (`--declare`, or a `Spec-Sync:` trailer on HEAD). Phase 2 (the
 # WhatsApp E2E) still nudges exactly once — a linked browser is a human precondition.
 set -uo pipefail
+# Hooks run here must never write the real clone's QA ledger or push its notes (bd-amxdhg).
+export QA_NOTES_OFF=1 QA_LEDGER="${TMPDIR:-/tmp}/qa-events.test.$$.jsonl"
 cd "$(dirname "$0")/../.." || exit 1
 REAL_ROOT="$PWD"
 FAILED=0
