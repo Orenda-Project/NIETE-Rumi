@@ -22,6 +22,7 @@
 // sa-5: round 7 (RDF auto with no last-word step): the new engine files.
 // sa-6: round 7b (back, End test + Restart, End this section, the auto stop-checks, the instruction lines): the new engine files.
 // sa-7: a line held by a hidden page plays on when it is shown again, never in the phone's voice (sa-voice.js, sa-engine.js).
+// sa-8: round 8, the child's flow (no Done line on a reading, story questions wait for Next, practice says its answer).
 // sa-9: round 8 offline: sa-offline.js prepVisit / checkVisit / partOf (the coach page's "ready for offline").
 var VERSION = 'sa-9';
 var CORE = 'sa-core-' + VERSION;
