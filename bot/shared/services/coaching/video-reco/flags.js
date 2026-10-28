@@ -49,4 +49,12 @@ function videoRecoCrCard(env = process.env) {
   return !['false', '0', 'off'].includes(String(env.VIDEO_RECO_CR_CARD || '').trim().toLowerCase());
 }
 
-module.exports = { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason, videoRecoCrCard };
+/**
+ * The separate WhatsApp clip message after the report (send.js), COS ruling 20261028T151950 §1: off unless explicitly on
+ * (true/1). Off = the clip opens from a link in the report's own caption (caption-link.js) and the strip points at it.
+ */
+function videoRecoWaMessage(env = process.env) {
+  return on(env.VIDEO_RECO_WA_MESSAGE);
+}
+
+module.exports = { videoRecoEnabled, videoRecoAbEnabled, videoRecoMode, videoRecoAllowlist, videoRecoReason, videoRecoCrCard, videoRecoWaMessage };

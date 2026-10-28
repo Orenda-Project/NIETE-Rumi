@@ -490,7 +490,14 @@ class ReportGeneratorService {
         }).catch(() => null);
       };
       if (isHeroImage) {
-        const { caption, fitted, overflow } = this._composeHeroCaption(reportResult.caption || '', extraLines);
+        // bd-9dbhh0.1 (COS 20261028T151950 §1.2): the clip's /v link at the END of the caption, for a 'shown' row, when the
+        // clip message is off (the default). The extra lines leave it room (one that does not fit keeps its own text, as
+        // before); no row, not 'shown', or the message on → null, and the caption is exactly as before.
+        const CaptionLink = require('./video-reco/caption-link');
+        const clipLink = await CaptionLink.linkBlock({ row: videoReco, language: outputLanguage, coachingSessionId }).catch(() => null);
+        const composed = this._composeHeroCaption(reportResult.caption || '', extraLines, 1024 - CaptionLink.reserveFor(clipLink));
+        const { fitted, overflow } = composed;
+        const caption = clipLink ? CaptionLink.withLink(composed.caption, clipLink) : composed.caption;
         for (const line of overflow) {
           if (line.key !== 'step5') await WhatsAppService.sendMessage(from, line.text);
         }
@@ -510,6 +517,10 @@ class ReportGeneratorService {
           throw error;
         }
         if (heroSent !== false) await track.record('image', true);
+        // bd-9dbhh0.1: the caption that went carried the clip's link (never on the template: its text is Meta's)
+        if (clipLink && heroSent !== false && heroSent !== 'template' && caption.endsWith(clipLink.url)) {
+          require('./video-reco/store').markSent(coachingSessionId, { sent_via: 'caption', wamid: null, image_strip: Boolean(videoStrip) }).catch(() => null);
+        }
         if (heroSent !== false) recordReportPath(heroSent === 'template' ? 'template' : (reportResult.slimPng ? 'slim' : 'image'));
         // bd-v0toag.106 — window closed: the report went as the share template; the free-form follow-ups would be refused.
         followUps = require('./report-window-send').followUpsAllowed(heroSent);

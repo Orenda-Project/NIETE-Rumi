@@ -213,6 +213,47 @@ const UX_STRINGS = {
     en: '{n} min · watch it in your report in the app',
     ur: '{n} منٹ · ایپ میں اپنی رپورٹ پر دیکھیں',
   },
+  // bd-9dbhh0.1 (COS 20261028T151950 §1): no clip message by default. The clip opens from a link in the report's own
+  // caption (WhatsApp makes a URL in text tappable, never an image); the strip points at it. The URL goes on the line
+  // after this one, alone (video-reco/caption-link.js).
+  videoRecoStripHintLink: {
+    en: '{n} min · tap the link under this picture',
+    ur: '{n} منٹ · اس تصویر کے نیچے لنک دبائیں',
+  },
+  videoRecoCaptionLink: {
+    en: '▶ Watch next ({n} min): {title}',
+    ur: '▶\u200F اگلا دیکھیں ({n} منٹ): {title}',
+  },
+  // The teacher's say on the clip page (/v): "not now" for this clip, "stop clips", and back on. Gender-neutral by
+  // construction: impersonal or passive Urdu, never a second-person verb that would pick the teacher's gender.
+  videoRecoPlayerSkip: { en: 'Not now', ur: 'ابھی نہیں' },
+  videoRecoPlayerStop: { en: 'Stop clips', ur: 'کلپ بند کریں' },
+  videoRecoPlayerResume: { en: 'Turn clips back on', ur: 'کلپ دوبارہ چالو کریں' },
+  videoRecoPlayerChoiceNote: {
+    en: 'Not now skips this clip only. Stop clips means no clip with your next reports.',
+    ur: '"ابھی نہیں" صرف یہ کلپ چھوڑتا ہے۔ "کلپ بند کریں" سے اگلی رپورٹوں کے ساتھ کوئی کلپ نہیں آئے گا۔',
+  },
+  videoRecoPlayerStoppedNote: {
+    en: 'Clips are off for your reports.',
+    ur: 'آپ کی رپورٹوں کے لیے کلپ بند ہیں۔',
+  },
+  videoRecoDoneSkip: {
+    en: 'Okay, not now. This clip stays on this page if you want it later.',
+    ur: 'ٹھیک ہے، ابھی نہیں۔ یہ کلپ بعد میں بھی اسی صفحے پر دیکھا جا سکتا ہے۔',
+  },
+  videoRecoDoneStop: {
+    en: 'Clips are off. Your next reports will come without a clip. You can turn them back on here.',
+    ur: 'کلپ بند ہو گئے ہیں۔ اگلی رپورٹوں کے ساتھ کوئی کلپ نہیں آئے گا۔ انہیں یہاں دوبارہ چالو کیا جا سکتا ہے۔',
+  },
+  videoRecoDoneResume: {
+    en: 'Clips are back on. Your next report can come with a clip again.',
+    ur: 'کلپ دوبارہ چالو ہو گئے ہیں۔ اگلی رپورٹ کے ساتھ پھر سے کلپ آ سکتا ہے۔',
+  },
+  videoRecoDoneFailed: {
+    en: 'Sorry, that did not save. Please try again.',
+    ur: 'معذرت، یہ محفوظ نہیں ہوا۔ براہِ کرم دوبارہ کوشش کریں۔',
+  },
+  videoRecoPlayerBackToClip: { en: '← Back to the clip', ur: 'کلپ پر واپس →' },
   // The card-sentence fallback reason (SPEC v1.3c §3.5, lead-review 20:33Z), verbatim: when the model's quote fails
   // validation twice, the clip is still sent with the report's own "Try this tomorrow" sentence. R7d (panel Q043 Q078 Q080
   // Q083 Q130): no seconds in the line: the header and button say whole minutes, and the two disagreed.
