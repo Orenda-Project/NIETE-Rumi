@@ -64,7 +64,7 @@ export default function TeacherCardPage() {
             <NumTile testId="t-dc" feature="coaching" value={v(tiles.dc?.count)} label={C.tiles.dc} bars={mini("dc", tiles.dc?.series)} to={list("dc")} state={state} />
             <NumTile testId="t-ai" flat value={C.pct(tiles.aiScore?.avg ?? null)} label={C.aiScore}
               extra={<ChangePill delta={delta(tiles.aiScore)} same={C.same} />} />
-            <NumTile testId="t-coach" feature="observations" value={v(tiles.coach?.count)} label={C.tiles.coach} to={list("coach")} state={state} />
+            <NumTile testId="t-coach" feature="observations" value={v(tiles.coach?.count)} label={C.tiles.coach} bars={mini("coach", tiles.coach?.series)} to={list("coach")} state={state} />
             <NumTile testId="t-coach-score" flat value={C.pct(tiles.coachScore?.avg ?? null)} label={C.coachScore}
               extra={<ChangePill delta={delta(tiles.coachScore)} same={C.same} />} />
             <NumTile testId="t-days" flat value={v(tiles.days?.withUse)} label={C.daysWithUse}

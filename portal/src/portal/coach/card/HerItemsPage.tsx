@@ -63,7 +63,7 @@ function HerItems() {
   const from = (useLocation().state || {}) as { teacherName?: string };
   const { data, failed, reload } = useCardLoad<ItemsData>(
     () => (feature ? card.items(ext, feature, period) : Promise.reject(new Error("unknown feature"))), [ext, feature, period]);
-  const today = pkDate(new Date().toISOString()) ?? undefined;
+  const today = data?.period?.today ?? pkDate(new Date().toISOString()) ?? undefined;
 
   const items = data?.items ?? [];
   const rows: HistoryItem[] = !feature ? [] : feature === "dc"
