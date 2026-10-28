@@ -49,7 +49,7 @@ describe("coach v2 menu (the kit's role-aware bar)", () => {
       ["Home", "/portal/coach"],
       ["Schedule", "/portal/coach/scheduling"],
       ["Observe", "/portal/coach/observe"],
-      ["Schools", "/portal/coach/people"],
+      ["My schools", "/portal/coach/people"],
       ["More", "/portal/coach/more"],
     ]);
     expect(screen.queryByTestId("mobile-nav-more")).toBeNull();

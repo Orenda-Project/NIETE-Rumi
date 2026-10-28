@@ -9,6 +9,7 @@ import { PEOPLE } from "../people/copy";
 import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
 import { TeacherCard, Notice, useNotice } from "../people/rows";
 import { bySince } from "./CoachPeople";
+import { coachFeatureReady } from "../training/appReady";
 
 /**
  * bd-o15qnr + bd-4404s7.6 — one school: its four numbers (the kit's KpiTiles), then its teachers, never-visited first.
@@ -42,7 +43,8 @@ const CoachSchool = () => {
   const base = `/portal/coach/school/${encodeURIComponent(emis)}`;
   return (
     <PeopleFrame title={s?.name || C.dash} crumb={C.title} backTo="/portal/coach/people" feature="schools"
-      dock={s ? <BottomLink to={`/portal/coach/new-visit?${new URLSearchParams({ school: s.schoolExtId }).toString()}`}><Plus className="h-5 w-5" aria-hidden="true" />{C.scheduleVisitHere}</BottomLink> : undefined}>
+      // Schedule a visit here opens Schedule: only once Schedule is in the coach app.
+      dock={s && coachFeatureReady("schedule") ? <BottomLink to={`/portal/coach/new-visit?${new URLSearchParams({ school: s.schoolExtId }).toString()}`}><Plus className="h-5 w-5" aria-hidden="true" />{C.scheduleVisitHere}</BottomLink> : undefined}>
       <Notice text={notice} />
       {failed && <LoadFailed onRetry={reload} />}
       {!data && !failed && <Loading />}
