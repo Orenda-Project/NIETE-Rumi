@@ -1556,7 +1556,8 @@
     }
     function sRunCell(v) {
       var t = v.task, it = v.cell_item;
-      return screen(v, 'sae-run sae-run-rec sae-run-cell', [
+      // r8_layout: the card screen fits the phone (sa.css "Round 8 fit": the card takes what is left above the foot)
+      return screen(v, 'sae-run sae-run-rec sae-run-cell' + (r8Layout ? ' sae-fit' : ''), [
         clock(v),
         // say_then_next: the chip says "say it, then press Next" in place of "Read aloud" (one short line: the cell never
         // slides under the sticky Back / Next on a short phone; the whole line is in the instruction, said and shown)
@@ -1578,7 +1579,7 @@
     }
     function sPracticeSpoken(v) {
       var p = v.practice, t = v.task;
-      return screen(v, 'sae-practice', [
+      return screen(v, 'sae-practice' + (r8Layout ? ' sae-fit' : ''), [
         h('div', { class: 'sae-row' }, [
           h('span', { class: 'sae-chip', text: C.practice }),
           itemSpeaks(p) || (p.model && (!manual || appAsks)) ? replayBtn(function () {
@@ -1623,11 +1624,12 @@
         later(snapPack, 0);
         if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (alive) snapPack(); }, function () {});
       }
+      // r8_story_snap: the arrow beside the star, one row (the story box gets the height a second row would take)
       return screen(v, 'sae-run sae-run-rec' + (snap ? ' sae-snap' : ''), [
         clock(v),
         h('p', { class: 'sae-chip sae-chip-rec', text: C.read_aloud }),
         story,
-      ], [moreEl, starEl]);
+      ], snap ? [h('div', { class: 'sae-snapfoot' }, [moreEl, starEl])] : [moreEl, starEl]);
     }
     /**
      * r8_story_snap: the story packed into parts, each as high as the story box. The unit is a row as it shows on this
@@ -1647,8 +1649,9 @@
       lines.forEach(function (l) { all.appendChild(l); });
       while (box.firstChild) box.removeChild(box.firstChild);
       box.appendChild(all);
-      var pad = 0;
-      try { var cs = getComputedStyle(all); pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0); } catch (_) { pad = 0; }
+      var padTop = 0, padBottom = 0;
+      try { var cs = getComputedStyle(all); padTop = parseFloat(cs.paddingTop) || 0; padBottom = parseFloat(cs.paddingBottom) || 0; } catch (_) { padTop = padBottom = 0; }
+      var pad = padTop + padBottom;
       var full = box.clientHeight;
       var room = full - pad;
       var units = []; // { line, cls, nodes, h }
@@ -1680,6 +1683,9 @@
       box.removeChild(all);
       groups.forEach(function (g) {
         var part = h('div', { class: 'sae-part' });
+        // a part is never taller than the box: when one row and its ink room do not fit, the room above gives way
+        var rows = g.reduce(function (n, u) { return n + u.h; }, 0);
+        if (full > 0 && padTop + rows + padBottom > full) part.style.paddingTop = Math.max(0, full - rows - padBottom) + 'px';
         var line = null, at = null;
         g.forEach(function (u) {
           if (u.line !== at) { line = h('span', { class: u.cls }); part.appendChild(line); at = u.line; }
