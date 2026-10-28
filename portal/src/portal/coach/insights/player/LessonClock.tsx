@@ -19,7 +19,7 @@ export function ClockText({ seconds, lang }: { seconds: number; lang: Lang }) {
 export default function LessonClock({ seconds }: { seconds: number }) {
   const lang = useLang();
   return (
-    <p data-testid="lesson-clock" className="text-[13px] leading-snug text-[#6b7280]">
+    <p data-testid="lesson-clock" className="text-[13px] leading-snug text-cp-ink-3">
       {tx("s4.in_lesson", lang, { "mm:ss": <ClockText seconds={seconds} lang={lang} /> })}
     </p>
   );
