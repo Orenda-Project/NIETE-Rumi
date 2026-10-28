@@ -57,6 +57,24 @@ function assertEnvironment({ supabaseUrl, databaseUrl, coachipEnv, dryRun, bucke
   return { ref, mode: 'write', env: coachipEnv };
 }
 
+/**
+ * Where the heavy reads go (bd-sex15q.41; COS 28 Oct 12:17Z): the read replica's REST URL (COACHIP_READ_SUPABASE_URL), whose
+ * first host label is `<ref>-rr-<region>-<id>`. On production it is REQUIRED (no source read touches the primary); on the other
+ * tiers it is optional and the primary is the fallback. A replica of another project, or the primary named as the replica, is
+ * refused. Returns { url, source: 'replica' | 'primary' }. Makes no call.
+ */
+function resolveReadUrl({ coachipEnv, supabaseUrl, readUrl } = {}) {
+  const ref = parseRef(supabaseUrl);
+  if (!ref) throw new EnvRefusal('no project ref in SUPABASE_URL');
+  if (readUrl) {
+    const label = parseRef(readUrl);
+    if (!label || !label.startsWith(`${ref}-rr-`)) throw new EnvRefusal('the read URL is not a replica of this project');
+    return { url: readUrl, source: 'replica' };
+  }
+  if (coachipEnv === 'production') throw new EnvRefusal('production reads need the read replica');
+  return { url: supabaseUrl, source: 'primary' };
+}
+
 const WRITE_OPS = ['insert', 'update', 'upsert', 'delete'];
 
 function refuse(op) {
@@ -92,4 +110,4 @@ async function withPrivateDir(root, fn) {
   }
 }
 
-module.exports = { EnvRefusal, parseRef, parseDbRef, assertEnvironment, readOnlyClient, withPrivateDir };
+module.exports = { EnvRefusal, parseRef, parseDbRef, assertEnvironment, resolveReadUrl, readOnlyClient, withPrivateDir };
