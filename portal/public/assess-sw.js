@@ -8,6 +8,7 @@
  *   GET /api/portal/*            network first (API_WAIT_MS when a copy is kept), else the kept answer: who is signed
  *                                in, the switches, the schools, a prepared list. Only 200 answers are kept; a
  *                                session's own reads (…/session/…) are never kept (a stale status would mislead).
+ *   /sa/sa-offline.js            as a read: the engine's offline helper this page loads (the Start gate needs it offline)
  *   anything else               not touched (POSTs go to the network; the page queues what cannot go)
  *
  * postMessage({ type: 'warm', urls }) on a MessageChannel keeps those URLs now (the page and its files, the reads the
@@ -29,6 +30,8 @@ function strategyFor(url, method, mode, origin) {
   if (mode === 'navigate') return u.pathname.indexOf('/portal/leader/assess') === 0 ? 'page' : null;
   if (/^\/assets\/[^/]+\.(js|css|woff2?|png|svg|webp)$/.test(u.pathname)) return 'asset';
   if (u.pathname.indexOf('/api/portal/') === 0 && u.pathname.indexOf('/session/') < 0) return 'api';
+  // the engine's offline helper this page loads with a script tag (a /sa/ page's own worker never sees this page's requests)
+  if (u.pathname === '/sa/sa-offline.js') return 'api';
   return null;
 }
 
