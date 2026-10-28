@@ -106,36 +106,73 @@ function createModelContext({ capUsd, write, store, jobRunId, deps, log }) {
   };
 }
 
-/** Phonics on literacy recordings in the window, newest first, leaving `reserveUsd` for tonight's glosses. Sets
- * fact.detector and fact.detector_run_id on each read. */
+/** COACHIP_MODEL_CONCURRENCY: detector calls in flight at once (bd-sex15q.43; default 1, at most 3). */
+const MODEL_CONCURRENCY_MAX = 3;
+const modelConcurrency = (deps) => Math.min(MODEL_CONCURRENCY_MAX, Math.max(1, Math.floor(Number(deps && deps.modelConcurrency) || 1)));
+
+/**
+ * Phonics on literacy recordings in the window, newest first, leaving `reserveUsd` for tonight's glosses. Sets
+ * fact.detector and fact.detector_run_id on each read. Up to deps.modelConcurrency calls run at once; each holds its p90
+ * in the ledger from start to record, so N at once never buy past what one at a time would. The database stays bounded by
+ * the clients' guardedFetch whatever N is. On a stop (cut-off, cap) or an error nothing new starts, the calls in flight
+ * settle and are recorded, and the rest is pending once.
+ */
 async function runPhonics(ctx, { facts, inWindow, reserveUsd = 0 }) {
   const literacy = facts.filter((f) => f.instrument === 'lp_fidelity' && f.status === 'ok' && !f.is_duplicate && !f.is_mismatch
     && !f.is_unusable && (f.lesson_type === 'literacy_phonics' || f.lesson_type === 'literacy_text') && inWindow(f))
     .sort((a, b) => String(b.recorded_at).localeCompare(String(a.recorded_at)));
-  const affordable = () => ctx.ledger.spent + M.P90_USD.phonics <= ctx.summary.cap_usd - reserveUsd;
+  const p90 = M.P90_USD.phonics;
+  const affordable = () => ctx.ledger.spent + ctx.ledger.held + p90 <= ctx.summary.cap_usd - reserveUsd;
+  const n = modelConcurrency(ctx.deps);
+  ctx.log(`phonics_start candidates=${literacy.length} concurrency=${n}`);
   let read = 0;
-  for (let i = 0; i < literacy.length; i += BATCH) {
-    if (await ctx.halted('phonics')) { ctx.pending('phonics', literacy.length - i); ctx.stopLine('phonics', literacy.length - i); break; }
-    if (!affordable()) { ctx.pending('phonics', literacy.length - i); break; }
+  let started = 0;
+  let stop = null; // 'deadline' | 'cap' | 'error'
+  const failures = [];
+  for (let i = 0; i < literacy.length && !stop; i += BATCH) {
+    if (!affordable()) { stop = 'cap'; break; }
+    if (await ctx.halted('phonics')) { stop = 'deadline'; break; }
     const batch = literacy.slice(i, i + BATCH);
     const texts = await selectIn(ctx.deps.readClient, 'coaching_sessions', 'id,transcript_text', 'id', batch.map((f) => f.session_id));
     const textOf = new Map(texts.map((t) => [t.id, t.transcript_text]));
-    for (let j = 0; j < batch.length; j += 1) {
-      const f = batch[j];
-      if (!affordable()) { ctx.pending('phonics', literacy.length - i - j); i = literacy.length; break; }
-      if (await ctx.halted('phonics')) {
-        ctx.pending('phonics', literacy.length - i - j); ctx.stopLine('phonics', literacy.length - i - j); i = literacy.length; break;
+    let next = 0;
+    const worker = async () => {
+      while (!stop && next < batch.length) {
+        if (!affordable()) { stop = 'cap'; return; }
+        if (await ctx.halted('phonics')) { stop = stop || 'deadline'; return; }
+        // Re-checked after the await: another worker may have stopped the stage or taken the last of the budget.
+        if (stop || next >= batch.length) return;
+        if (!affordable()) { stop = 'cap'; return; }
+        const f = batch[next];
+        next += 1;
+        started += 1;
+        const release = ctx.ledger.hold(p90);
+        try {
+          const { row, result, reused } = await Ph.detectPhonics({ transcriptText: textOf.get(f.session_id) || '', meta: { grade: f.grade, subject: f.subject },
+            ledger: ctx.ledger, deps: ctx.callDeps(f.session_id, '-') });
+          textOf.delete(f.session_id);
+          // A reused call is already stored (an earlier night): keep its id, insert nothing (as the homework glosses do).
+          const [stored] = reused ? [row] : await ctx.record([row]);
+          ctx.tally('phonics', row.status);
+          if (result) { f.detector = result; f.detector_run_id = stored && stored.id; read += 1; }
+        } finally {
+          release();
+        }
       }
-      const { row, result, reused } = await Ph.detectPhonics({ transcriptText: textOf.get(f.session_id) || '', meta: { grade: f.grade, subject: f.subject },
-        ledger: ctx.ledger, deps: ctx.callDeps(f.session_id, '-') });
-      textOf.delete(f.session_id);
-      // A reused call is already stored (an earlier night): keep its id, insert nothing (as the homework glosses do).
-      const [stored] = reused ? [row] : await ctx.record([row]);
-      ctx.tally('phonics', row.status);
-      if (result) { f.detector = result; f.detector_run_id = stored && stored.id; read += 1; }
-    }
+    };
+    const settled = await Promise.allSettled(Array.from({ length: Math.min(n, batch.length) }, () => worker().catch((err) => {
+      stop = 'error';
+      throw err;
+    })));
+    for (const s of settled) if (s.status === 'rejected') failures.push(s.reason);
   }
   ctx.summary.phonics_read = read;
+  if (failures.length) throw failures[0];
+  const left = literacy.length - started;
+  if (stop && left > 0) {
+    ctx.pending('phonics', left);
+    if (stop === 'deadline') ctx.stopLine('phonics', left);
+  }
   return read;
 }
 

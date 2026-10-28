@@ -135,6 +135,7 @@ function createHealthGuard({ fetch = globalThis.fetch, primaryUrl, replicaUrl = 
   const auth = `Basic ${Buffer.from(`service_role:${key}`).toString('base64')}`;
   let cached = null;
   let at = -Infinity;
+  let measuring = null; // callers that arrive while a read is out share it (N phonics calls at once, bd-sex15q.43)
   const read = (base) => withRetry(async () => {
     const res = await fetch(`${String(base).replace(/\/+$/, '')}/customer/v1/privileged/metrics`,
       { method: 'GET', headers: { Authorization: auth }, signal: AbortSignal.timeout(timeoutMs) });
@@ -163,9 +164,10 @@ function createHealthGuard({ fetch = globalThis.fetch, primaryUrl, replicaUrl = 
     thresholds: th,
     async check() {
       if (cached && now() - at < intervalMs) return cached;
-      cached = await measure();
-      at = now();
-      return cached;
+      if (!measuring) {
+        measuring = measure().then((r) => { cached = r; at = now(); return r; }).finally(() => { measuring = null; });
+      }
+      return measuring;
     },
   };
 }

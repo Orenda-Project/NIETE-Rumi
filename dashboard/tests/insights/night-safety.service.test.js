@@ -318,8 +318,30 @@ describe('the CLI on production: replica reads, school hours, the lock connectio
     expect(replica.reads).toEqual(expect.arrayContaining(['schools', 'leader_schools', 'users', 'coaching_sessions']));
     expect(primary ? primary.reads : []).not.toContain('coaching_sessions');
     for (const c of created) expect(typeof c.opts.global.fetch).toBe('function');
-    expect(lines.find((l) => l.startsWith('safety '))).toMatch(/^safety read=replica db_inflight=2 read_inflight=2 timeout_ms=\d+ r2_concurrency=\d health=on end=2026-10-29T00:50Z$/);
+    expect(lines.find((l) => l.startsWith('safety '))).toMatch(/^safety read=replica db_inflight=2 read_inflight=2 timeout_ms=\d+ r2_concurrency=\d health=on end=2026-10-29T00:50Z model_concurrency=1$/);
     fs.rmSync(out, { recursive: true, force: true });
+  });
+
+  test('COACHIP_MODEL_CONCURRENCY: default 1, held to 1..3 (bd-sex15q.43)', () => {
+    expect(cli.safetyConfig({}).modelConcurrency).toBe(1);
+    expect(cli.safetyConfig({ COACHIP_MODEL_CONCURRENCY: '3' }).modelConcurrency).toBe(3);
+    expect(cli.safetyConfig({ COACHIP_MODEL_CONCURRENCY: '9' }).modelConcurrency).toBe(3);
+    expect(cli.safetyConfig({ COACHIP_MODEL_CONCURRENCY: '0' }).modelConcurrency).toBe(1);
+  });
+
+  test('the knob reaches the phonics stage: the safety line and phonics_start both say concurrency 3', async () => {
+    global.__nightTables = fx.build().tables;
+    const lines = [];
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'coachip-ns-'));
+    // OpenRouter is the network boundary: every model call answers 500 (recorded as failed); nothing leaves the test.
+    const spy = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => ({ ok: false, status: 500, json: async () => ({ error: { code: 500 } }) }));
+    try {
+      const code = await cli.main(['--date', '2026-10-26', '--dry-run', '--dry-run-models', '0.05', '--out', out],
+        prodEnv({ COACHIP_MODEL_CONCURRENCY: '3', OPENROUTER_API_KEY: 'k' }), (l) => lines.push(l), { now: night, fetch: healthyFetch });
+      expect(code).toBe(0);
+    } finally { spy.mockRestore(); fs.rmSync(out, { recursive: true, force: true }); }
+    expect(lines.find((l) => l.startsWith('safety '))).toMatch(/ model_concurrency=3$/);
+    expect(lines.find((l) => l.startsWith('phonics_start'))).toMatch(/ concurrency=3$/);
   });
 
   test('the run-lock connection has a query timeout and a connect timeout (no session SET)', async () => {
