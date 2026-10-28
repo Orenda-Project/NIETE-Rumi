@@ -1,0 +1,2 @@
+{"ts":"2026-10-28T14:05:59Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=portal-login,portal-smoke spec_sync=true","sha":"050b64c59978","branch":"bd-17v39c.4.5-94041","user":"Hataf Atif"}
+{"ts":"2026-10-28T14:07:06Z","hook":"e2e-autorun","event":"cleared","switch":"","detail":"bde0064f-445a-42f8-be65-9b3c8733bfcc","sha":"050b64c59978","branch":"bd-17v39c.4.5-94041","user":"Hataf Atif"}
