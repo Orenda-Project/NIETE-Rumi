@@ -42,7 +42,9 @@ describe("coaching: copy", () => {
         // bd-z3cadk — the bot's repeat-recording message, word for word.
         "duplicateRecordingLead", "duplicateRecordingNext",
         // bd-c5reix — the same repeat line, said before she sends it.
-        "duplicateBeforeLead"].includes(c.path))
+        "duplicateBeforeLead",
+        // bd-bmc9a0.4 — ICT IAB row 36: the line Close ends her DC session with, in ICT's words.
+        "sessionComplete"].includes(c.path))
       .filter((c) => copyProblem(c.text))
       .map((c) => `${c.path}: ${c.text}`);
     expect(bad).toEqual([]);
