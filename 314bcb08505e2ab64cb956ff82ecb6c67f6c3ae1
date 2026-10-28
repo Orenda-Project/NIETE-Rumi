@@ -1,0 +1,2 @@
+{"ts":"2026-10-28T17:02:58Z","hook":"e2e-autorun","event":"armed","switch":"","detail":"trigger=commit features=teacher-coaching spec_sync=true","sha":"314bcb08505e","branch":"bd-bmc9a0.2-98618","user":"Hataf Atif"}
+{"ts":"2026-10-28T17:03:10Z","hook":"e2e-autorun","event":"declared","switch":"","detail":"teacher-coaching=none-needed (no page heading changed; Try-again mode covered by saveRecording.test.tsx)","sha":"314bcb08505e","branch":"bd-bmc9a0.2-98618","user":"Hataf Atif"}
