@@ -9,7 +9,9 @@ Feature: Teacher digital coaching and coach visits
     Given the teacher app v2 is on and the coach app v2 is off
     And demo teacher 03000000911 is signed in
     When she opens /portal/teacher/coaching
-    Then Digital Coaching shows "Recent DC Observations" with at least one
+    Then Digital Coaching opens on Start DC observation and Summary
+    When she opens /portal/teacher/coaching/all
+    Then Summary shows "Recent DC Observations"
 
   @TC02
   Scenario: Teacher app v2: coach visits (Observations) open

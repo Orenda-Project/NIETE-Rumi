@@ -145,6 +145,11 @@ export const COACHING_V2_COPY = {
   answerSent: 'Answer sent',
   couldNotSend: 'Could not send',
   download: 'Download',
+  /* bd-bmc9a0.4 — ICT IAB row 36: the report's Open said "another app"; it opens the report in another tab. And Close, which
+     ends her DC session with one line (a sentence on purpose: ICT's words). */
+  openInTab: 'Open in another tab',
+  close: 'Close',
+  sessionComplete: 'Your DC coaching session is now complete.',
   /* bd-gzfdu9 (VIDREC, SPEC §4.2/§4.7) — the recommended clip's card under "Try next class"; the /cr card's words. */
   videoRecoCardTitle: '🎬 Watch this next',
   videoRecoCardButton: (n: number) => `Watch (${n} min)`,
@@ -185,6 +190,8 @@ export const COACHING_V2_COPY = {
     play: 'Play',
     pause: 'Pause',
     cantPlay: "Can't play",
+    /** bd-bmc9a0.4 (ICT IAB row 33) — VoiceNote's speed chip, for a screen reader. */
+    speed: 'Playback speed',
   },
   /* All DC observations */
   allTitle: 'All DC Observations',
@@ -313,6 +320,9 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   answerSent: 'جواب بھیجا گیا',
   couldNotSend: 'بھیجا نہیں جا سکا',
   download: 'ڈاؤن لوڈ',
+  openInTab: 'دوسرے ٹیب میں کھولیں',
+  close: 'بند کریں',
+  sessionComplete: 'آپ کا ڈیجیٹل کوچنگ سیشن مکمل ہو گیا ہے۔',
   videoRecoCardTitle: '🎬 اگلا یہ دیکھیں',
   videoRecoCardButton: (n: number) => `دیکھیں (${n} منٹ)`,
   videoRecoCardButtonPlain: 'دیکھیں',
@@ -347,6 +357,7 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
     play: 'چلائیں',
     pause: 'روکیں',
     cantPlay: 'چل نہیں سکا',
+    speed: 'آواز کی رفتار',
   },
   allTitle: 'تمام ڈیجیٹل کوچنگ مشاہدات',
   kpiSessions: 'ڈیجیٹل کوچنگ مشاہدات',
@@ -403,5 +414,7 @@ export const COPY_ENTRY: CopyEntry = {
     // bd-z3cadk: the bot's repeat-recording message, word for word.
     'duplicateRecordingLead', 'duplicateRecordingNext',
     // bd-c5reix: the same repeat line, said before she sends it.
-    'duplicateBeforeLead'],
+    'duplicateBeforeLead',
+    // bd-bmc9a0.4: ICT IAB row 36, the line Close ends her session with, in ICT's words.
+    'sessionComplete'],
 };
