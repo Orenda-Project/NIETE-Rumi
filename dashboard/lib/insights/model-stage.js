@@ -163,7 +163,7 @@ async function runGlosses(ctx, { shown, moments, facts, homeworkFacts = [] }) {
     if (!ctx.ledger.canStart('gloss_recheck')) { ctx.ledger.markPending(); ctx.pending('recheck'); continue; }
     const res = await G.recheckGloss({ input: g.input, gloss: { gloss_en: g.patch.gloss_en, gloss_ur: g.patch.gloss_ur },
       ledger: ctx.ledger, deps: ctx.callDeps(g.m.session_id, g.m.move_id) });
-    await ctx.record([res.row]);
+    await ctx.record(res.reused ? [] : [res.row]);  // a reused verdict is already stored (as the homework glosses do)
     ctx.tally('recheck', res.verdict ? (res.verdict.faithful ? 'faithful' : 'unfaithful') : res.row.status);
   }
 
