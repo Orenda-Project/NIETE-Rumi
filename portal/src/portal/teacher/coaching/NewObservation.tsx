@@ -276,8 +276,11 @@ export function NewObservationPage() {
   const report = useDcReport(sessionId);
   // bd-bmc9a0.1 — what already arrived from this screen, by file: Try again sends only the part that did not go.
   const uploaded = useRef(new WeakMap<Blob, string>());
+  // bd-bmc9a0.2 — Try again repeats what she asked for: a failed Save is saved again, never turned into a Submit.
+  const lastSave = useRef(false);
   const submit = async ({ saveForLater = false }: { saveForLater?: boolean } = {}) => {
     if (!audio || !cls) return;
+    lastSave.current = saveForLater;
     setFailure(null);
     setSending({ pct: 0 });
     navigate(`${COACHING_NEW}?sent=${UPLOADING}`, { replace: true });
@@ -536,7 +539,7 @@ export function NewObservationPage() {
                 </>
               ) : failure.kind === 'network' ? (
                 /* bd-bmc9a0.1: what already arrived is not sent again (`uploaded`). */
-                <Action onClick={() => { void submit(); }}>{C.tryAgain}</Action>
+                <Action onClick={() => { void submit({ saveForLater: lastSave.current }); }}>{C.tryAgain}</Action>
               ) : (failure.kind === 'in_progress' || failure.kind === 'already_sent') && failure.coachingSessionId ? (
                 <Action to={lessonPath(failure.coachingSessionId)}>{C.openThat}</Action>
               ) : failure.kind === 'plan_not_ready' || failure.kind === 'plan_not_found' ? (

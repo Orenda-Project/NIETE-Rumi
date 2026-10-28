@@ -188,4 +188,17 @@ describe("row 31 — tapping Save", () => {
     expect(await screen.findByRole("button", { name: W.saveRecording })).toBeTruthy();
     expect(screen.getByTestId("where").textContent).toBe(COACHING_NEW);
   });
+
+  it("Try again after a failed save saves again — it does not turn into a Submit (row 29's retry)", async () => {
+    sendLesson.mockRejectedValueOnce(new SendError("network"));
+    at(COACHING_NEW);
+    await pickClass();
+    await attachRecording();
+    fireEvent.click(await screen.findByRole("button", { name: W.saveRecording }));
+    const alert = await screen.findByRole("alert");
+    fireEvent.click(within(alert).getByRole("button", { name: C.tryAgain }));
+    await waitFor(() => expect(sendLesson).toHaveBeenCalledTimes(2));
+    expect((sendLesson.mock.calls[1][0] as { saveForLater?: boolean }).saveForLater).toBe(true);
+    expect(await screen.findByText(W.recordingSaved)).toBeTruthy();
+  });
 });
