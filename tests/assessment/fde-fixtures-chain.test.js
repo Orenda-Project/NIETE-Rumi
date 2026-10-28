@@ -78,10 +78,10 @@ describe('the Urdu egress rule reaches list numbers', () => {
   });
 });
 
-describe('the paper file name is printed as it is saved', () => {
-  it('an Urdu scheme names Grade5_Urdu_FDE.pdf with an ASCII 5, isolated left-to-right', () => {
+describe('the scheme prints no file name (bd-5jmnfj.4.50.5)', () => {
+  it('an Urdu scheme names no .pdf file and no Grade<5> file stem', () => {
     const { scheme } = chain('urdu');
-    expect(scheme).toContain('<bdi class="file" dir="ltr">Grade5_Urdu_FDE.pdf</bdi>');
+    expect(scheme).not.toContain('Grade5_Urdu_FDE.pdf');
     expect(scheme).not.toMatch(/Grade<span class="num">۵<\/span>/);
   });
 });
@@ -97,12 +97,10 @@ describe('the MCQ key strip wraps between answers, never inside one', () => {
   });
 });
 
-describe('the fallback file name is the name the bot saves', () => {
-  it('with no paperFileName the box names Grade5_Maths_FDE.pdf (the orchestrator\'s SUBJECT_LABEL), never "Mathematics"', () => {
-    const { scheme } = chain('maths');
-    expect(scheme).toContain('<bdi class="file" dir="ltr">Grade5_Maths_FDE.pdf</bdi>');
-    expect(scheme).not.toContain('Grade5_Mathematics_FDE.pdf');
-    expect(chain('science').scheme).toContain('Grade5_Science_FDE.pdf');
+describe('the box names the question paper, not a file (bd-5jmnfj.4.50.5)', () => {
+  it('maths and science schemes print no _FDE.pdf name', () => {
+    expect(chain('maths').scheme).not.toMatch(/_FDE\.pdf/);
+    expect(chain('science').scheme).not.toMatch(/_FDE\.pdf/);
   });
 });
 

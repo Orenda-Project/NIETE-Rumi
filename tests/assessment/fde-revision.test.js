@@ -117,10 +117,10 @@ describe('buildVersion on a board-pattern paper (E8.4)', () => {
     expect(mockDb.tables.assessment_papers[0].exam_json._layout.pages).toEqual({ paper: 4, scheme: 4 });
   });
 
-  test("the scheme's box names the new paper file and its new page count", async () => {
+  test("the scheme's box gives the new page count and no file name (bd-5jmnfj.4.50.5)", async () => {
     await Revision.buildVersion({ parentId: 'v1', userId: U, tree: removeQ2(1) });
     const box = text(mockRenders[1][0]);
-    expect(box).toContain('Grade5_Maths_FDE_v2.pdf');
+    expect(box).not.toContain('Grade5_Maths_FDE_v2.pdf');
     expect(box).toContain('(3 pages)');
   });
 
@@ -170,13 +170,13 @@ describe('buildVersion on a board-pattern paper (E8.4)', () => {
 });
 
 describe('resendVersion on a board-pattern paper whose scheme was never stored', () => {
-  test('builds the marking scheme with its options, its name and the paper file it belongs to', async () => {
+  test('builds the marking scheme with its options and its name', async () => {
     mockDb.tables.assessment_papers = [paper({ answer_key_r2_key: null })];
     const out = await Revision.resendVersion({ paperId: 'v1', userId: U, phone: 'test-phone' });
     expect(out).toMatchObject({ status: 'resent', marks: 100 });
     expect(mockRenders).toHaveLength(1);
     expect(mockRenders[0][1]).toEqual({ pdfOptions: FdeRenderer.pdfOptions(EXAM, 'scheme') });
-    expect(text(mockRenders[0][0])).toContain('Grade5_Maths_FDE.pdf');
+    expect(text(mockRenders[0][0])).toContain('MARKING SCHEME');
     expect(mockUploads).toEqual(['Grade5_Maths_FDE_v1_MarkingScheme.pdf']);
   });
 });
