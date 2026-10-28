@@ -31,6 +31,10 @@ const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
 // query string must never reach the logs) and what the budget is looked up by
 const pathOf = (req) => String(req.path || req.url || '').split('?')[0];
 const budgetFor = (req) => Math.max(REQUEST_TIMEOUT_MS, getTimeoutForRoute(pathOf(req)));
+// what the log lines print (redteam MED-1, 04 #152 r2's shape): a path segment of 20+ token characters is a bearer token
+// (an invitation's 64-hex token, a hub token; a uuid too) and prints as '…'; short ids like /q/RJWABM stay. The budget
+// above keeps the unmasked path.
+const logPath = (req) => pathOf(req).split('/').map((seg) => (/^[A-Za-z0-9._~%-]{20,}$/.test(seg) ? '…' : seg)).join('/');
 
 /**
  * Database Context Middleware
@@ -64,13 +68,13 @@ async function setDatabaseContext(req, res, next) {
 
     // Log slow requests for debugging
     if (duration > 5000) {
-      console.warn(`[DB Context] Slow request: ${req.method} ${pathOf(req)} took ${duration}ms`);
+      console.warn(`[DB Context] Slow request: ${req.method} ${logPath(req)} took ${duration}ms`);
     }
   };
 
   // Request timeout protection - prevents connections being held indefinitely
   const timeoutId = setTimeout(() => {
-    console.error(`[DB Context] Request timeout: ${req.method} ${pathOf(req)}`);
+    console.error(`[DB Context] Request timeout: ${req.method} ${logPath(req)}`);
     cleanup('timeout');
     if (!res.headersSent) {
       res.status(504).json({ error: 'Request timeout' });
@@ -103,7 +107,7 @@ async function setDatabaseContext(req, res, next) {
     // Also handle aborted/closed connections (client disconnected early)
     res.on('close', () => {
       if (!res.writableEnded) {
-        console.warn(`[DB Context] Connection closed early: ${req.method} ${pathOf(req)}`);
+        console.warn(`[DB Context] Connection closed early: ${req.method} ${logPath(req)}`);
         clearTimeout(timeoutId);
         cleanup('close');
       }
