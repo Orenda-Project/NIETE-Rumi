@@ -8,10 +8,20 @@
  * OPENROUTER_API_KEY, R2_*, DATABASE_URL (the run lock; safe through the 6543 transaction pooler), COACHIP_PURGE_ACTOR_USER_ID
  * (write-mode --purge-clips: the staff user the purge's audit row names; lib/insights/purge.js). Exit: 0 ok/partial · 2 failed after facts · 3 env refused · 4 lock held.
  * The environment is asserted before any client is built; a dry run builds a read-only client and writes only to --out.
+ * DB and R2 safety (bd-sex15q.41; lib/insights/safety.js), all optional except the first on production:
+ *   COACHIP_READ_SUPABASE_URL   the read replica's REST URL: every source read goes there (REQUIRED on production; else the primary)
+ *   COACHIP_DB_MAX_INFLIGHT     PostgREST requests in flight to the primary, 1..2 (default 2; with the lock connection, ≤ 3 in all)
+ *   COACHIP_READ_MAX_INFLIGHT   requests in flight to the read URL, 1..2 (default 2)
+ *   COACHIP_HTTP_TIMEOUT_MS     every PostgREST request's budget (default 60000)
+ *   COACHIP_R2_CONCURRENCY      clip cuts and uploads at once, 1..4 (default 2)
+ *   COACHIP_NIGHT_END_UTC       the end of night, HH:MM UTC (default 00:50 = 05:50 PKT); stage cut-offs before it (safety.STAGE_CUTOFF_MIN)
+ *   COACHIP_HEALTH_GUARD        1 = the abort rule on (always on for production); COACHIP_ABORT_SWAP_MB / _MEMAVAIL_MB / _LAG_S override it
+ * A production run never starts in school hours (03:00-12:00Z): exit 3.
  */
 const path = require('path');
 const crypto = require('crypto');
 const env = require('../lib/insights/env');
+const safety = require('../lib/insights/safety');
 
 // 'purge' runs only with --purge-clips; `--stages purge` alone skips the insight stages (a purge-only hand run).
 const STAGES = ['facts', 'signals', 'moments', 'legs', 'models', 'rollups', 'ranking', 'circle', 'recheck', 'drift', 'clips', 'purge'];
@@ -76,10 +86,32 @@ async function withRunLock(pg, log, fn) {
   }
 }
 
-async function main(argv = process.argv.slice(2), e = process.env, log = (m) => console.log(`[coachip-nightly] ${m}`)) {
+const clampInt = (v, lo, hi, dflt) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && v !== '' && v != null ? Math.min(hi, Math.max(lo, n)) : dflt; };
+
+/** The knobs, read once (names in the header). */
+function safetyConfig(e) {
+  const num = (v) => (v === undefined || v === '' ? undefined : Number(v));
+  return {
+    dbInflight: clampInt(e.COACHIP_DB_MAX_INFLIGHT, 1, 2, 2),
+    readInflight: clampInt(e.COACHIP_READ_MAX_INFLIGHT, 1, 2, 2),
+    timeoutMs: clampInt(e.COACHIP_HTTP_TIMEOUT_MS, 5000, 300000, 60000),
+    r2Concurrency: clampInt(e.COACHIP_R2_CONCURRENCY, 1, 4, 2),
+    nightEndUtc: e.COACHIP_NIGHT_END_UTC || safety.DEFAULT_NIGHT_END_UTC,
+    thresholds: { swapUsedMb: num(e.COACHIP_ABORT_SWAP_MB), memAvailableMb: num(e.COACHIP_ABORT_MEMAVAIL_MB), replicaLagS: num(e.COACHIP_ABORT_LAG_S) },
+  };
+}
+
+/** The run-lock connection: a client-side query timeout and a connect timeout, never a session SET (the pooler rule). */
+function pgConfig(e) {
+  return { connectionString: e.DATABASE_URL, query_timeout: 30000, connectionTimeoutMillis: 15000 };
+}
+
+async function main(argv = process.argv.slice(2), e = process.env, log = (m) => console.log(`[coachip-nightly] ${m}`), sys = {}) {
   let opts;
   try { opts = parseArgs(argv); } catch (err) { log(`usage: ${err.message}`); return 64; }
-  opts.date = opts.date || defaultDate();
+  const now = sys.now ? sys.now() : new Date();
+  const netFetch = sys.fetch || globalThis.fetch;
+  opts.date = opts.date || defaultDate(now);
   let asserted;
   try {
     asserted = env.assertEnvironment({ supabaseUrl: e.SUPABASE_URL, databaseUrl: e.DATABASE_URL, coachipEnv: e.COACHIP_ENV,
@@ -88,10 +120,33 @@ async function main(argv = process.argv.slice(2), e = process.env, log = (m) => 
     if (err instanceof env.EnvRefusal) { log('env_mismatch'); return 3; }
     throw err;
   }
+  const prod = asserted.env === 'production';
+  // COS 28 Oct 12:17Z: nothing of ours touches prod (primary or replica) while schools are recording.
+  if (prod && safety.inSchoolHours(now)) { log('refused reason=school_hours'); return 3; }
+  let read;
+  try {
+    read = env.resolveReadUrl({ coachipEnv: asserted.env, supabaseUrl: e.SUPABASE_URL, readUrl: e.COACHIP_READ_SUPABASE_URL });
+  } catch (err) {
+    if (err instanceof env.EnvRefusal) { log(`refused reason=${prod && !e.COACHIP_READ_SUPABASE_URL ? 'no_replica' : 'replica_mismatch'}`); return 3; }
+    throw err;
+  }
   // Every purge that deletes writes an audit row, and the row needs a person (coachip_audit_log.actor_user_id).
   if (opts.purgeClips && !opts.dryRun && !e.COACHIP_PURGE_ACTOR_USER_ID) { log('purge_refused reason=no_actor'); return 3; }
+  const cfg = safetyConfig(e);
+  const deadlines = safety.nightDeadlines(now, cfg.nightEndUtc);
+  const healthOn = prod || e.COACHIP_HEALTH_GUARD === '1';
+  const health = healthOn ? safety.createHealthGuard({ fetch: netFetch, primaryUrl: e.SUPABASE_URL, key: e.SUPABASE_SERVICE_ROLE_KEY || e.SUPABASE_SERVICE_KEY,
+    replicaUrl: read.source === 'replica' ? read.url : null, thresholds: cfg.thresholds }) : null;
+  log(`safety read=${read.source} db_inflight=${cfg.dbInflight} read_inflight=${cfg.readInflight} timeout_ms=${cfg.timeoutMs} `
+    + `r2_concurrency=${cfg.r2Concurrency} health=${healthOn ? 'on' : 'off'} end=${safety.isoMinute(deadlines.end)}`);
   const { createClient } = require('@supabase/supabase-js');
-  const raw = createClient(e.SUPABASE_URL, e.SUPABASE_SERVICE_ROLE_KEY || e.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
+  const key = e.SUPABASE_SERVICE_ROLE_KEY || e.SUPABASE_SERVICE_KEY;
+  const clientFor = (url, inflight) => createClient(url, key, { auth: { persistSession: false },
+    global: { fetch: safety.guardedFetch({ fetch: netFetch, maxInFlight: inflight, timeoutMs: cfg.timeoutMs }) } });
+  const raw = clientFor(e.SUPABASE_URL, cfg.dbInflight);
+  // The source tables (sessions, users, schools, transcripts) are read from here; coachip_ tables stay on the primary.
+  const readRaw = read.source === 'replica' ? clientFor(read.url, cfg.readInflight) : raw;
+  const guard = { health, deadlines, now: () => (sys.now ? sys.now() : new Date()) }; // a Date (runJob stamps computed_at with it)
   const { runJob } = require('../lib/insights/job');
   const store = require('../lib/insights/store');
   const out = opts.out || path.resolve(process.cwd(), `coachip-dryrun-${opts.date}`);
@@ -109,16 +164,16 @@ async function main(argv = process.argv.slice(2), e = process.env, log = (m) => 
   };
   if (opts.dryRun) {
     const code = purgeOnly(opts) ? 0 : await runJob(opts, {
-      mode: 'read_only', envName: asserted.env, ref: asserted.ref, readClient: env.readOnlyClient(raw), store: new store.MemoryStore(),
+      mode: 'read_only', envName: asserted.env, ref: asserted.ref, readClient: env.readOnlyClient(readRaw), store: new store.MemoryStore(), ...guard,
       // A dry run mints throwaway keys: nothing it writes can be joined to a stored code.
       secret: crypto.randomBytes(32).toString('hex'), out, log, apiKey: e.OPENROUTER_API_KEY,
     });
     // The purge's dry run reads the coachip_ tables (when each session was last shown) through a store that refuses writes.
-    return thenPurge(code, require('../lib/insights/purge').readOnlyStore(new store.SupabaseStore(raw)));
+    return thenPurge(code, require('../lib/insights/purge').readOnlyStore(new store.SupabaseStore(readRaw)));
   }
   if (!purgeOnly(opts) && !e.COACHIP_TEACHER_KEY_SECRET) { log('missing COACHIP_TEACHER_KEY_SECRET'); return 3; }
   const { Client } = require('pg');
-  const pg = new Client({ connectionString: e.DATABASE_URL });
+  const pg = new Client(pgConfig(e));
   await pg.connect();
   try {
     return await withRunLock(pg, log, async () => {
@@ -126,10 +181,14 @@ async function main(argv = process.argv.slice(2), e = process.env, log = (m) => 
       let clipper = null;
       if (e.R2_ENDPOINT && clipBucket) {
         const { createClipper, r2FromEnv } = require('../lib/insights/clip-stage');
-        clipper = createClipper({ envName: asserted.env, bucket: clipBucket, ...r2FromEnv(e) });
+        clipper = createClipper({ envName: asserted.env, bucket: clipBucket, ...r2FromEnv(e), concurrency: cfg.r2Concurrency,
+          shouldStop: async () => {
+            if (health) { const h = await health.check(); if (!h.ok) throw new safety.HealthAbort('clips', h.reason); }
+            return guard.now().getTime() >= deadlines.clips;
+          } });
       }
       const code = purgeOnly(opts) ? 0 : await runJob(opts, {
-        mode: 'write', envName: asserted.env, ref: asserted.ref, readClient: raw, store: new store.SupabaseStore(raw),
+        mode: 'write', envName: asserted.env, ref: asserted.ref, readClient: readRaw, store: new store.SupabaseStore(raw), ...guard,
         secret: e.COACHIP_TEACHER_KEY_SECRET, out, log, apiKey: e.OPENROUTER_API_KEY, clipper,
       });
       // Inside the run lock: a purge never races the clip stage of another run.
@@ -147,4 +206,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main, parseArgs, defaultDate, withRunLock, purgeOnly, STAGES };
+module.exports = { main, parseArgs, defaultDate, withRunLock, purgeOnly, safetyConfig, pgConfig, STAGES };

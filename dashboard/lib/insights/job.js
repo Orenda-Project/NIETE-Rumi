@@ -25,6 +25,7 @@ const { pickCircle } = require('./circle');
 const { reconcile } = require('./reconcile');
 const { buildSeedRows, applySeed } = require('./seed');
 const ms = require('./model-stage');
+const { HealthAbort } = require('./safety');
 
 const LIBRARY = require('../../data/coachip/INTERVENTIONS.json');
 const CROSSWALK = require('../../data/coachip/crosswalk.json');
@@ -235,10 +236,17 @@ async function runJob(opts, deps) {
     await applySeed(store, buildSeedRows(LIBRARY, CROSSWALK));
   }
   const mark = async (stage) => { done.push(stage); if (write) await store.update('coachip_job_runs', jobRunId, { stages_done: done }); };
+  // The abort rule (bd-sex15q.41): before each stage the database's health is read (at most once a minute); unhealthy stops the run.
+  const checkpoint = async (stage) => {
+    if (!deps.health) return;
+    const h = await deps.health.check();
+    if (!h.ok) throw new HealthAbort(stage, h.reason);
+  };
 
   let rollupsDone = false;
   try {
     // ── stage 1: facts
+    await checkpoint('facts');
     const scope = await src.loadScope(deps.readClient);
     const keepGloss = !opts.noModels && (write || opts.dryRunModelsUsd > 0);
     const built = await buildFacts({ readClient: deps.readClient, scope, fromDate: w8.window_start, toDate: opts.date,
@@ -266,6 +274,7 @@ async function runJob(opts, deps) {
     const rewrite = new Set([...plan.changed, ...plan.fresh].map((f) => f.id));
 
     // ── stage 2: signals (every fact in memory; written for new or changed facts only)
+    await checkpoint('signals');
     const signals = [];
     for (const f of all) signals.push(...buildSignals(f, { weaknesses, crosswalk: CROSSWALK }));
     if (write) await store.upsert('coachip_session_signals', signals.filter((s) => rewrite.has(s.fact_id)), 'fact_id,w_id');
@@ -276,6 +285,7 @@ async function runJob(opts, deps) {
     let skippedNoDetector = 0;
     const storedMoments = new Map(); // `${fact_id}|${w_id}|${kind}` → the stored row, for unchanged facts
     if (want('moments')) {
+      await checkpoint('moments');
       const sigByFact = new Map();
       for (const s of signals) push(sigByFact, s.fact_id, s);
       const steps = [];
@@ -312,6 +322,7 @@ async function runJob(opts, deps) {
     // Never a silent skip (rule 24): say why the model stage did not run.
     if (!modelsOn && want('models') && !opts.noModels) log(`models_skipped reason=${capUsd > 0 ? 'no_api_key' : 'no_budget'}`);
     if (ctx) {
+      await checkpoint('phonics');
       const coachCount = scope.coaches.size;
       const reserve = Math.min(capUsd / 2, coachCount * (LISTEN_PER_COACH + 3) * 0.00026 + 0.1);
       await ms.runPhonics(ctx, { facts: all, inWindow: (f) => win.inWindow(f.karachi_date, w4), reserveUsd: reserve });
@@ -336,6 +347,7 @@ async function runJob(opts, deps) {
 
     // ── stage 4: code legs. W-IP-HOME is a signal (stage 2); minutes over plan is the rollup stat; check strips here.
     if (want('legs') && write) {
+      await checkpoint('legs');
       const open = await store.select('coachip_steps', (q) => q.eq('status', 'open'), 'id,coach_user_id,code_id,w_id,i_id,set_at,status');
       if (open.length) {
         const codes = await store.select('coachip_teacher_codes', (q) => q.in('id', open.map((s) => s.code_id).filter(Boolean)), 'id,teacher_key');
@@ -365,6 +377,7 @@ async function runJob(opts, deps) {
       held = prev.length > 0 && prev[0].job_run_id !== jobRunId;
     }
     if (want('rollups') && !held) {
+      await checkpoint('rollups');
       const statFor = (wId, hitFacts) => (wId === 'W-IP-TIME' ? legs.statForIpTime(hitFacts) : null);
       const raw = computeRollups({ facts: all, signals, scopes: { coaches: scope.coaches, schools: scope.schools, sectors: C.SECTORS },
         runDate: anchor, jobRunId, statFor, computedAt });
@@ -390,6 +403,7 @@ async function runJob(opts, deps) {
     // ── stage 8: the circle, one moment per coach per sector per week on the sector's rank-1 W
     let circle = [];
     if (want('circle') && rollupsDone) {
+      await checkpoint('circle');
       const weekStart = win.mondayOf(anchor);
       const factById = new Map(all.map((f) => [f.id, f]));
       const momentsByCoach = new Map();
@@ -421,6 +435,7 @@ async function runJob(opts, deps) {
     const shown = shownMoments({ moments, rollups, circle, facts: all, w4 });
     let modelSummary = { calls: 0, cost_usd: 0, cap_usd: 0, cap_hit: false, pending: 0, by_analysis: {} };
     if (ctx) {
+      await checkpoint('gloss');
       await ms.runGlosses(ctx, { shown, moments, facts: all, homeworkFacts: ms.homeworkCandidates(all, (f) => win.inWindow(f.karachi_date, w4)) });
       modelSummary = ctx.finish();
       counts.model_calls = modelSummary.calls;
@@ -430,6 +445,7 @@ async function runJob(opts, deps) {
 
     // ── stage 11: clips (write mode on the asserted tier only)
     if (want('clips') && write && deps.clipper) {
+      await checkpoint('clips');
       const n = await deps.clipper({ momentIds: shown, moments, facts: all, audioOf: built.audioOf, store, log });
       log(`clips ready=${n}`);
       await mark('clips');
@@ -448,7 +464,8 @@ async function runJob(opts, deps) {
   } catch (err) {
     // Class and place only: never a value from a row (our read errors start `read <table>`).
     const where = ((err && err.message) || '').match(/^(read|select|upsert|insert|update|delete) [a-z_]+/);
-    log(`failed after=${done[done.length - 1] || 'start'} error=${err && err.name} code=${(err && err.code) || '-'} where=${where ? where[0].replace(' ', ':') : '-'}`);
+    if (err instanceof HealthAbort) log(err.message); // health_abort stage=<s> reason=<r>: the database, not the job
+    else log(`failed after=${done[done.length - 1] || 'start'} error=${err && err.name} code=${(err && err.code) || '-'} where=${where ? where[0].replace(' ', ':') : '-'}`);
     if (write) {
       // A failure before the rollups leaves yesterday's rollups untouched (the home route reads the stale signal).
       await store.update('coachip_job_runs', jobRunId, { finished_at: new Date().toISOString(), status: rollupsDone ? 'partial' : 'failed',

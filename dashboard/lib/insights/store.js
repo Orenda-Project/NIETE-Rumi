@@ -6,7 +6,8 @@
  */
 const crypto = require('crypto');
 
-const CHUNK = 500;
+// Writes go in small batches (bd-sex15q.41): a 500-row upsert is one long statement and one large WAL burst on a 2 GB primary.
+const CHUNK = 100;
 
 /**
  * The slice of the PostgREST query builder the job uses (select, eq, in, not is null, gt/gte/lt, the keyset `or`,

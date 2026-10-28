@@ -103,7 +103,7 @@ describe('the nightly CLI on the staging tier (GO_PACKAGE §2.5)', () => {
   test('COACHIP_ENV=staging passes the environment assertion (stops at the missing key secret, not env_mismatch)', async () => {
     const lines = [];
     const code = await cli.main(['--date', '2026-10-26'], stagingEnv('staging'), (m) => lines.push(m));
-    expect(lines).toEqual(['missing COACHIP_TEACHER_KEY_SECRET']);
+    expect(lines).toEqual([expect.stringMatching(/^safety read=primary /), 'missing COACHIP_TEACHER_KEY_SECRET']);
     expect(code).toBe(3);
   });
 
