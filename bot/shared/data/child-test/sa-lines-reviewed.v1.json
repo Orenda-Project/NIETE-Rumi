@@ -77,7 +77,8 @@
   },
   "ur.story_comp_w3": {
    "intro": {
-    "ur": "اب کہانی کے بارے میں کچھ سوال ہیں۔ ہر سوال غور سے سنیں اور اونچی آواز میں جواب دیں۔ جواب اردو یا انگریزی، کسی بھی زبان میں دیں۔"
+    "ur": "اب کہانی کے بارے میں کچھ سوال ہیں۔ ہر سوال غور سے سنیں اور اونچی آواز میں جواب دیں۔ جواب اردو یا انگریزی، کسی بھی زبان میں دیں۔ اگر جواب نہ آئے تو «آگے» دبا کر اگلے سوال پر جائیں۔",
+    "en": "Now some questions about the story you just read. Listen to each question and say your answer out loud. You can answer in Urdu or English. If you get stuck, press Next to go on."
    },
    "test_intro": {
     "en": "Now it is your turn to answer the questions about the story.",
@@ -124,7 +125,8 @@
   },
   "en.story_comp_w3": {
    "intro": {
-    "ur": "اب کہانی کے بارے میں کچھ سوال ہیں۔ ہر سوال غور سے سنیں اور اونچی آواز میں جواب دیں۔ جواب اردو یا انگریزی، کسی بھی زبان میں دیں۔"
+    "ur": "اب کہانی کے بارے میں کچھ سوال ہیں۔ ہر سوال غور سے سنیں اور اونچی آواز میں جواب دیں۔ جواب اردو یا انگریزی، کسی بھی زبان میں دیں۔ اگر جواب نہ آئے تو «آگے» دبا کر اگلے سوال پر جائیں۔",
+    "en": "Now some questions about the story you just read. Listen to each question and say your answer out loud. You can answer in Urdu or English. If you get stuck, press Next to go on."
    },
    "test_intro": {
     "en": "Now it is your turn to answer the questions about the story.",
@@ -164,31 +166,31 @@
   "ma.add2i": {
    "intro": {
     "en": "Here are some addition problems. Say the answer out loud. Then click next. If you don't know the answer, click next.",
-    "ur": "اب جمع کے کچھ سوال آئیں گے۔ ہر سوال کا جواب دل میں سوچیں، پھر جواب کو اونچی آواز بولیں۔ پھر اگلے سوال پر جائیں"
+    "ur": "اب جمع یعنی ایڈیشن کے کچھ سوال آئیں گے۔ ہر سوال کا جواب دل میں سوچیں، پھر جواب کو اونچی آواز بولیں۔ پھر اگلے سوال پر جائیں"
    },
    "test_intro": {
     "en": "Now it is your turn to solve each addition problem.",
-    "ur": "اب جمع کا ہر سوال حل کرنے کی آپ کی باری ہے۔"
+    "ur": "اب جمع یعنی ایڈیشن کا ہر سوال حل کرنے کی آپ کی باری ہے۔"
    }
   },
   "ma.sub2i": {
    "intro": {
     "en": "Here are some subtraction problems. Say the answer out loud. Then click next. If you don't know the answer, click next.",
-    "ur": "اب تفریق کے کچھ سوال آئیں گے۔ ہر سوال کا جواب دل میں سوچیں، پھر جواب کو اونچی آواز میں بولیں۔ پھر اگلے سوال پر جائیں"
+    "ur": "اب تفریق یعنی سبٹریکشن کے کچھ سوال آئیں گے۔ ہر سوال کا جواب دل میں سوچیں، پھر جواب کو اونچی آواز میں بولیں۔ پھر اگلے سوال پر جائیں"
    },
    "test_intro": {
     "en": "Now it is your turn to solve each subtraction problem.",
-    "ur": "اب تفریق کا ہر سوال حل کرنے کی آپ کی باری ہے۔"
+    "ur": "اب تفریق یعنی سبٹریکشن کا ہر سوال حل کرنے کی آپ کی باری ہے۔"
    }
   },
   "ma.mul2i": {
    "intro": {
     "en": "Here are some multiplication problems. Say the answer out loud. Then click next. If you don't know the answer, click next.",
-    "ur": "اب ضرب کے کچھ سوال آئیں گے۔ ہر سوال کا جواب دل میں سوچیں، پھر جواب کو اونچی آواز میں بولیں۔ پھر اگلے سوال پر جائیں"
+    "ur": "اب ضرب یعنی ملٹی پلیکیشن کے کچھ سوال آئیں گے۔ ہر سوال کا جواب دل میں سوچیں، پھر جواب کو اونچی آواز میں بولیں۔ پھر اگلے سوال پر جائیں"
    },
    "test_intro": {
     "en": "Now it is your turn to solve each multiplication problem.",
-    "ur": "اب ضرب کا ہر سوال حل کرنے کی آپ کی باری ہے۔"
+    "ur": "اب ضرب یعنی ملٹی پلیکیشن کا ہر سوال حل کرنے کی آپ کی باری ہے۔"
    }
   },
   "ma.fluency1m": {
