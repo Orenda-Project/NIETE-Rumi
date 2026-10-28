@@ -174,6 +174,8 @@
       chip_type_tick: 'Type, then press ✓',
       // round 8 (r8_comp_wait_next): under a story question, when the battery has no lines.stuck_press_next
       stuck_press_next: 'If you are stuck, press the button to go on.',
+      // round 8 (sa_r8_lang_switch): the language toggle's spoken name
+      r8_lang: 'Language: Urdu or English',
     },
     ur: {
       hello: 'السلام علیکم! میں جگنو ہوں۔',
@@ -263,6 +265,8 @@
       chip_say_next: 'بولیں، پھر «آگے» دبائیں',
       chip_type_tick: 'لکھیں، پھر ✓ دبائیں',
       stuck_press_next: 'اگر آپ کو جواب نہ آئے تو آگے جانے کے لیے بٹن دبائیں۔',
+      // round 8 (sa_r8_lang_switch)
+      r8_lang: 'زبان: اردو یا انگریزی',
     },
   };
 
@@ -351,6 +355,9 @@
 
   function mount(el, opts) {
     var runner = opts.runner;
+    // Round 8 item 4 (sa_r8_lang_switch): the screens read the run through langView() (the instruction language's words)
+    var r8Lang = !!(opts.battery && opts.battery.ui && opts.battery.ui.r8_lang_switch === true);
+    if (r8Lang) runner = langRunner(opts.runner);
     var lang = opts.lang === 'ur' ? 'ur' : 'en';
     var mode = opts.mode === 'proctored' ? 'proctored' : 'game';
     var C = COPY[lang];
@@ -401,6 +408,13 @@
     var urFit = !!opts.ur_fit; // sa_ur_fit (round 6): an Urdu sentence on a demo card is marked Urdu, so it takes the Urdu rules
     // Round 7b, the child's screens: the served battery's switches (sa-battery-switches.js)
     var r7 = (opts.battery && opts.battery.ui) || {};
+    // Round 8 item 4 (sa_r8_lang_switch): the instruction language can change mid-test (the toggle in the top bar)
+    var homeLang = lang;
+    var homeLines = lines;
+    var langAlt = {};     // lang → the same test's battery in that language (normalised), from langBattery()
+    var langWant = null;  // the language the toggle asked for; it takes over at the next screen
+    var langOnSwitch = null;
+    var langCache = null; // runner task / item → the same in the instruction language (stable per language)
     var gate = { key: null, open: true, tok: 0 }; // audio_gated_next: the screen whose Next waits, and whether it is open
     var moreEl = null; // story_scroll: the arrow under the story on show
     // Round 8 (the reviewer's 28 Oct list), the maths screens: battery.ui.r8_* (absent = today's screens).
@@ -526,6 +540,7 @@
     function say(textObj, audioObj, inManual) {
       if (!textObj && !audioObj) return Promise.resolve();
       if (manual && !inManual) return Promise.resolve();
+      if (r8Lang && lang !== homeLang) { var tagged = langSaid(textObj, audioObj); textObj = tagged[0]; audioObj = tagged[1]; }
       try { return Promise.resolve(speakFn(textObj || null, audioObj || null)).catch(function () {}); }
       catch (e) { return Promise.resolve(); }
     }
@@ -600,9 +615,136 @@
       return h('div', { class: 'sae-coach-says is-coach' }, [h('p', { class: 'sae-chip', text: C.coach_read }), said]);
     }
 
+    // ---------- round 8 item 4 (sa_r8_lang_switch): the instruction language, switched mid-test ----------
+    // The two batteries of a form are one test (the same tasks and item ids); the switch changes what Jugnu says and the
+    // screen's words (lines, COPY, the task's script and instruction, an item's prompt, the practice feedback). What the
+    // child reads or answers stays the run's own: an item whose answer is a word of the language (a shape's name) keeps
+    // its words, so its tap is scored against its own answer. The runner never changes: answers already given stay.
+    var LANG_TASK = ['script', 'instruction', 'coach_text', 'chip'];
+    var LANG_ITEM = ['say', 'prompt', 'prompt_audio', 'feedback', 'model'];
+    var LANG_SAME = ['target', 'answer', 'options', 'show', 'label', 'target_index'];
+    function own(o, k) { return o != null && Object.prototype.hasOwnProperty.call(o, k); }
+    function copyOf(o) { var c = {}; for (var k in o) if (own(o, k)) c[k] = o[k]; return c; }
+    function langRunner(base) {
+      var r = Object.create(base);
+      r.view = function () { return langView(base.view()); };
+      return r;
+    }
+    function langMemo() {
+      if (!langCache || langCache.lang !== lang) langCache = { lang: lang, m: new Map() };
+      return langCache.m;
+    }
+    function byId(list, id) {
+      for (var i = 0; list && i < list.length; i++) if (list[i] && list[i].id === id) return list[i];
+      return null;
+    }
+    function langItemOf(it, list) {
+      var m = langMemo();
+      if (m.has(it)) return m.get(it);
+      var a = it ? byId(list, it.id) : null;
+      var out = it;
+      var same = !!a && LANG_SAME.every(function (k) { return JSON.stringify(it[k]) === JSON.stringify(a[k]); });
+      if (same) {
+        out = copyOf(it);
+        LANG_ITEM.forEach(function (k) { if (own(a, k)) out[k] = a[k]; else delete out[k]; });
+      }
+      m.set(it, out);
+      return out;
+    }
+    function langTask(t) {
+      var m = langMemo();
+      if (m.has(t)) return m.get(t);
+      var a = byId(langAlt[lang].tasks, t.id);
+      var out = t;
+      // another passage variant (or no such task) in the other file: the run's own words
+      if (a && !(t.variant && a.variant && t.variant.id !== a.variant.id)) {
+        out = copyOf(t);
+        LANG_TASK.forEach(function (k) { if (own(a, k)) out[k] = a[k]; else delete out[k]; });
+        out.items = (t.items || []).map(function (it) { return langItemOf(it, a.items); });
+        out.practice = (t.practice || []).map(function (it) { return langItemOf(it, a.practice); });
+      }
+      m.set(t, out);
+      return out;
+    }
+    function langItem(x, task, key) {
+      var m = langMemo();
+      if (m.has(x)) return m.get(x);
+      return byId(task[key], x.id) || x;
+    }
+    /** The runner's view with the task and item in the instruction language (the same objects for as long as it lasts). */
+    function langView(v) {
+      if (!v || !v.task || lang === homeLang || !langAlt[lang]) return v;
+      var t = langTask(v.task);
+      if (t === v.task) return v;
+      var o = copyOf(v);
+      o.task = t;
+      if (v.item) o.item = langItem(v.item, t, 'items');
+      if (v.practice) o.practice = langItem(v.practice, t, 'practice');
+      if (v.cell_item) o.cell_item = langItem(v.cell_item, t, 'items');
+      return o;
+    }
+    /** A line said after a switch: in the instruction language, with that language's clip and phone voice. */
+    function langSaid(t, a) {
+      var l = lang;
+      if (a && typeof a === 'object' && !Array.isArray(a)) a = typeof a[l] === 'string' ? a[l] : null;
+      if (typeof t === 'string') return [{ text: t, lang: l }, a];
+      if (!t || typeof t !== 'object') return [t, a];
+      var o;
+      if (typeof t.text === 'string') {
+        o = copyOf(t);
+        if (t.lang !== 'ur' && t.lang !== 'en') o.lang = l;
+      } else if (typeof t[l] === 'string') {
+        o = { text: t[l], lang: l };
+        if (own(t, 'audio')) o.audio = t.audio;
+      } else return [t, a];
+      if (o.audio && typeof o.audio === 'object') { if (typeof o.audio[l] === 'string') o.audio = o.audio[l]; else delete o.audio; }
+      return [o, a];
+    }
+    /** The switch takes over when a new screen starts: never mid-clip, never inside a recording that runs on. */
+    function langApply() {
+      if (!langWant) return;
+      if (langWant === lang || !(langWant === homeLang || langAlt[langWant])) { langWant = null; return; }
+      var raw = opts.runner.view();
+      if (keyOf(raw) === lastKey || hold || listening || refused || (!handedOver && raw.phase === 'battery_intro')) return;
+      if (recording && raw.task && recording.id === raw.task.id && raw.phase === 'running') return;
+      var from = lang;
+      lang = langWant;
+      langWant = null;
+      C = COPY[lang];
+      lines = lang === homeLang ? homeLines : (langAlt[lang].lines || homeLines);
+      el.setAttribute('lang', lang);
+      el.setAttribute('dir', lang === 'ur' ? 'rtl' : 'ltr');
+      var it = raw.item || raw.practice || raw.cell_item || null;
+      opts.runner.log('lang_switch', { task_id: raw.task ? raw.task.id : undefined, item_id: it ? it.id : undefined,
+        value: { from: from, to: lang, item_id: it ? it.id : null, phase: raw.phase } });
+      if (langOnSwitch) { try { langOnSwitch(lang); } catch (e) { /* the page's */ } }
+    }
+    function langPaint(b) {
+      var shown = langWant || lang;
+      Array.prototype.forEach.call(b.querySelectorAll('[data-lang]'), function (x) { x.classList.toggle('is-on', x.getAttribute('data-lang') === shown); });
+      b.classList.toggle('is-pending', !!langWant);
+    }
+    /** «اردو | English» in the top bar, once the other language's battery is on the phone. A tap picks the next screen's. */
+    function langToggle() {
+      if (!r8Lang || !langAlt[homeLang === 'ur' ? 'en' : 'ur']) return null;
+      var b = h('button', { class: 'sae-r8-lang', type: 'button', dir: 'ltr', 'aria-label': C.r8_lang, title: C.r8_lang }, [
+        h('span', { class: 'sae-r8-lang-o', lang: 'ur', 'data-lang': 'ur', text: 'اردو' }),
+        h('span', { class: 'sae-r8-lang-bar', 'aria-hidden': 'true', text: ' | ' }),
+        h('span', { class: 'sae-r8-lang-o', lang: 'en', 'data-lang': 'en', text: 'English' }),
+      ]);
+      b.addEventListener('click', function () {
+        langWant = (langWant || lang) === 'ur' ? 'en' : 'ur';
+        if (langWant === lang) langWant = null;
+        langPaint(b);
+      });
+      langPaint(b);
+      return b;
+    }
+
     el.classList.add('sae');
     if (r8Digits) el.classList.add('is-r8-digits');
     if (r8Mn) el.classList.add('is-r8-mn');
+    if (r8Lang) el.classList.add('is-r8-lang');
     // sa_ur_fit (round 6): the Urdu text rules (sa.css "Round 6"): every Urdu word inside its box, clear of pictures.
     if (opts.ur_fit) el.classList.add('is-ur-fit');
     // Round 8 (sa.css "Round 8": every rule under these classes, so OFF the page is as before)
@@ -640,6 +782,8 @@
           onclick: function () { muted = !muted; try { opts.onMute(muted); } catch (e) { /* skin */ } draw(); },
         }, [h('span', { 'aria-hidden': 'true', text: muted ? '🔇' : '🔊' })]));
       }
+      var lt = langToggle();
+      if (lt) kids.push(lt);
       return h('div', { class: 'sae-top' }, kids);
     }
     /** The jump list's own full-width row above the dots: a Whole battery's 33 dots can never push it off-screen. */
@@ -1035,7 +1179,7 @@
       var res = runner.practiceAnswer(value);
       if (!res) return;
       busy = true;
-      var f = res.feedback || {};
+      var f = (r8Lang && p && p.feedback) || res.feedback || {};
       var said = res.ok ? (f.correct || f.right || copyLine('right'))
         : res.retry ? copyLine('try_again')
           : (f.wrong || copyLine('shown'));
@@ -2030,6 +2174,7 @@
 
     function draw() {
       if (!alive) return;
+      if (r8Lang) langApply();
       var v = runner.view();
       var key = keyOf(v);
       if (hold && v.phase !== 'practice' && v.phase !== 'ready') hold = null;
@@ -2117,6 +2262,17 @@
 
     return {
       render: function () { draw(); },
+      /**
+       * Round 8 item 4 (sa_r8_lang_switch): the same test's battery in the other language (normalised; the page
+       * fetched it and checked its tasks and items are this run's). ON, the toggle shows once it is here; OFF, ignored.
+       * o.onSwitch(lang) when a switch takes over (the page sets its own lang/dir).
+       */
+      langBattery: function (l, b, o) {
+        if (!r8Lang || !alive || (l !== 'en' && l !== 'ur') || l === homeLang || !b || !Array.isArray(b.tasks)) return;
+        langAlt[l] = b;
+        langOnSwitch = o && typeof o.onSwitch === 'function' ? o.onSwitch : null;
+        draw();
+      },
       /** The mercy rule (RULING #10; the engine calls it after 12 s of no voice): Jugnu says lines.mercy once, the star pulses. */
       mercy: function () {
         var v = runner.view();
