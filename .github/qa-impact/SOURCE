@@ -1,7 +1,7 @@
 engine 2.0.0
 Copied from rumi-agent-home's E2E engine by .claude/qa/engine/bin/ci-copy.sh for the GitHub PR check.
 Do not edit here: change the engine, then re-run ci-copy.sh. --check says when this copy is behind.
-33eb87ce4593ee7d2d8322337a7fd13f1b061ab0337eae2ba4bc7551bfe5595b  impact.py
+44da77e37ce4f391f90daf3f64fa1fbdb5dbed4ac28fd0013025f09168c4e0d7  impact.py
 521f4500ac5234501a359347c2a2c4f645689e03abacf66fb705c1faaaef8571  select_e2e.py
 d26441e681abdcb0d36cfadffb2e14413b31aeb17d474830b5576582a7e3d4e8  spec_sync.py
 58377ceed8545dce3f5077cf84d36f6294e45177068ff0d9f31cdbb59ac7b52f  validate_specs.py

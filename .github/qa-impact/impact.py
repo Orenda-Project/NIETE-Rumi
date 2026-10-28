@@ -108,13 +108,20 @@ def drift_verdict(downstream, upstream):
 
 
 def engine_versions(repo):
-    """{downstream, upstream, verdict}. Upstream is read via `gh api` only in CI (GITHUB_ACTIONS) or when
-    QA_ENGINE_UPSTREAM is set (tests); anywhere else it is None → warn at worst."""
+    """{downstream, upstream, verdict}. Downstream is the engine this run uses: a bot repo's committed copy that is
+    running now (.github/qa-impact/SOURCE, bd-9157r.7), else the repo's linked or vendored engine, else the engine
+    checkout running now. Upstream is read via `gh api` only in CI (GITHUB_ACTIONS) or when QA_ENGINE_UPSTREAM is set
+    (tests); anywhere else it is None → warn at worst."""
     down = None
-    p = os.path.join(repo, ".claude", "qa", "engine", "ENGINE_VERSION")
-    if os.path.isfile(p):
-        with open(p, encoding="utf-8") as fh:
-            down = fh.read().strip()
+    for p, prefix in ((os.path.join(HERE, "SOURCE"), "engine "),
+                      (os.path.join(repo, ".claude", "qa", "engine", "ENGINE_VERSION"), ""),
+                      (os.path.join(HERE, "..", "ENGINE_VERSION"), "")):
+        if os.path.isfile(p):
+            with open(p, encoding="utf-8") as fh:
+                first = fh.readline().strip()
+            if first.startswith(prefix) and first[len(prefix):].strip():
+                down = first[len(prefix):].strip()
+                break
     up = (os.environ.get("QA_ENGINE_UPSTREAM") or "").strip() or None
     if up is None and os.environ.get("GITHUB_ACTIONS"):
         try:
@@ -600,10 +607,12 @@ def _web_markdown(res, proof="warn"):
 def render_markdown(res, freshness="warn", proof="warn"):
     L = [_M["marker"], "## QA impact — Gherkin sync + targeted E2E", ""]
     eng = res.get("engine") or {}
-    if eng.get("downstream") is not None or eng.get("verdict") == "fail":
+    # Only a line that says something: a comparison with upstream, or no engine version at all. A machine that cannot
+    # read upstream (GitHub's, for a private engine home) would otherwise print the same warning on every PR.
+    if eng.get("upstream") is not None or eng.get("verdict") == "fail":
         icon = {"ok": "✅", "warn": "⚠️", "fail": "❌"}.get(eng.get("verdict"), "⚠️")
-        L += ["%s Engine: this repo v%s · upstream v%s · %s" % (icon, eng.get("downstream") or "?",
-                                                                  eng.get("upstream") or "unknown", eng.get("verdict")), ""]
+        up = ("v" + eng["upstream"]) if eng.get("upstream") else "unknown"
+        L += ["%s Engine: this repo v%s · upstream %s · %s" % (icon, eng.get("downstream") or "?", up, eng.get("verdict")), ""]
     if res.get("error"):
         L += ["⚠️ Could not analyse this range: %s" % res["error"], ""]
         return "\n".join(L)
