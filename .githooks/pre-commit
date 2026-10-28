@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# pre-commit — refresh the code map (kg/) for this commit: rebuild the graph, re-render every existing door the
+# change moved, stage the result. WARN ONLY: it never blocks a commit; CI (kg-check.yml) is the gate that does.
+# Off: KG_PRECOMMIT_OFF=1. Source: rumi-agent-home ops/kg/vendor.py (added with the vendored kg tool).
+[ "${KG_PRECOMMIT_OFF:-0}" != "0" ] && { echo "kg pre-commit: skipped (KG_PRECOMMIT_OFF)" >&2; exit 0; }
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+[ -f "$ROOT/kg/heal.py" ] && command -v python3 >/dev/null 2>&1 || exit 0
+(cd "$ROOT" && PYTHONDONTWRITEBYTECODE=1 python3 kg/heal.py precommit --repo-root .) || true
+exit 0

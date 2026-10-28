@@ -166,3 +166,6 @@ bot/vendor/lp-v9/.figcache/
 .stryker-tmp-topics/
 # mock-lane performance profiles (profile_run.py) — local, per machine; the dashboard reads them
 .claude/qa/profiles/*.json
+
+# code map (rumi-agent-home ops/kg): the generated graph and the CLI's cache
+.kg/
