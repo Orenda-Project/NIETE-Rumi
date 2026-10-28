@@ -38,7 +38,8 @@ import { LessonQuizButton } from '../home/LessonQuizButton';
  *                 where Send is while the box is empty; tap, speak, Stop, listen, Send — the bot transcribes it);
  *                 answered, it folds into "Your answer"
  *   report        ReportBody — the report's own scores, photos, journey, next step, the coach's note
- *   quiz          "Quiz this lesson" once a Digital Coach report is ready (the Home card's switch; home/LessonQuizButton)
+ *   quiz          "Quiz this lesson" once a Digital Coach report is ready (the Home card's switch; home/LessonQuizButton),
+ *                 carrying this session: the quiz home makes the quiz for THIS lesson (bd-bmc9a0.3, ICT IAB row 35)
  *   dock          Send on WhatsApp and Open in another tab (ShareActions); on her own DC report, Close
  *
  * bd-bmc9a0.4 — ICT feedback (IAB Experience View, Quratulain):
@@ -252,7 +253,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
       ) : null}
 
       {ready && !isVisit ? (
-        <LessonQuizButton from="coach" className={cn(CARD, 'flex min-h-[56px] w-full items-center gap-2 px-4 text-[15px] font-semibold text-[#33374a]')} />
+        <LessonQuizButton from="coach" sessionId={id} className={cn(CARD, 'flex min-h-[56px] w-full items-center gap-2 px-4 text-[15px] font-semibold text-[#33374a]')} />
       ) : null}
     </TeacherPage>
   );
