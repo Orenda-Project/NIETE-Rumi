@@ -57,6 +57,18 @@
  *                            event { by: 'app', attempt: 1 }); silenceRepeatDone() runs the part again from its start. Once
  *                            per part (gates.silence_repeated, kept across a reload); a second silence ends as before.
  *
+ * Round 8 (the reviewer's 28 Oct list), each behind its own switch, OFF = the runner as before:
+ *   skipped_no_voice         battery.ui.r8_reading_position (or opts.reading_position), RDF auto with no last-word step:
+ *                            the story's questions follow how much the child read aloud (EGRA's discontinue rule). The
+ *                            recorder's ear calls voice() on every voiced tick; the passage's voiced seconds are counted as
+ *                            the ear does (a run's first report is its three loud reads, 0.3 s; each further one 0.1 s).
+ *                            Under 1.0 s voiced, by Done or time up: the questions end as skipped_no_voice, with one
+ *                            no_reading_skip event { by: 'app', story, voiced_s, min_s }. 1.0 s or more: they are asked,
+ *                            and a time-up no longer counts as not finished. Evidence only: with no recording, an ear
+ *                            that was not listening (voiceWatch(), or the silence repeat's ear) or one that was
+ *                            unavailable, the questions are asked. The passage's result keeps voiced_s and
+ *                            position_source ('voice' | 'none').
+ *
  * Session gates, once each: the mic check (game) before the first task that records, one practice oral question before
  * the first oral task, a keypad warm-up before the first keypad task. The page losing sight of the screen during a
  * timed task re-runs that task from its start (resumed), as a reload does.
@@ -91,6 +103,8 @@
     MIC: 'mic_unavailable', SILENCE: 'early_stop_silence', ASSETS: 'assets_unavailable', DEV: 'skipped_dev',
     // round 7b: the coach's End this section (RDF manual) and the auto move-on when a part is not finished (RDF auto)
     END_SECTION: 'end_section', SKIPPED_END_SECTION: 'skipped_end_section', SKIPPED_INCOMPLETE: 'skipped_incomplete',
+    // round 8: the story's questions when the child read nothing aloud (RDF auto)
+    SKIPPED_NO_VOICE: 'skipped_no_voice',
   });
   var MODES = ['tap', 'keypad', 'keyboard', 'record', 'oral'];
   // The lead's ruling (design §2): the response mode per EGRA/EGMA subtask. A task's own `response` wins.
@@ -111,6 +125,11 @@
   var CELL_PACE_FLOOR_S = 5; // sa_cell_pace: no item moves on by itself before 5 s on screen
   var CELL_PACE_CAP_S = 10; // sa_cell_pace: and every item moves on by itself at 10 s on screen, whatever the sound
   var COMP_ALL_MIN_WORDS = 10; // RWP May 2026 rdcomp_*: asked when 10+ words were attempted (2,233/2,233 rows)
+  // Round 8 (r8_reading_position): under this many voiced seconds on the passage, the child read nothing. 1.0 s, not 2.0:
+  // a reader of 3 words measured 1.6-1.8 s; silent and noisy rooms 0.0-0.4 s.
+  var NO_VOICE_S = 1.0;
+  var VOICE_TICK_MS = 100; // the recorder's ear reads the level ten times a second
+  var VOICE_RUN_TICKS = 3; // and reports a voice after three loud reads in a row
 
   function str(x) { return typeof x === 'string' && x.length > 0; }
   function num() { for (var i = 0; i < arguments.length; i++) if (typeof arguments[i] === 'number' && arguments[i] > 0) return arguments[i]; return null; }
@@ -267,6 +286,8 @@
     var skipTo = null; // the last task a skip passed over: next() goes on after it
     // sa_back_button (round 7b): Back on the item screens (battery.ui.back_button, or opts.back_button)
     var backOn = !!opts.back_button || !!(battery.ui && battery.ui.back_button === true);
+    // Round 8: the story's questions by the voice heard (RDF auto, no last-word step).
+    var positionOn = skipLW && (!!opts.reading_position || !!(battery.ui && battery.ui.r8_reading_position === true));
 
     /** sa_cell_next_only: an Urdu or English letter/word cell moves on only on Next (maths cells keep their pace). */
     function holdsCell(t) { return cellNextOnly && cellTask(t) && /^(ur|en)\./.test(String(t.id)); }
@@ -329,6 +350,7 @@
       if (!dep) return { items: t.items }; // the task it hangs on is not in this run (another block): ask everything
       // RDF auto with no last-word step: every question, unless the passage stopped on its first line.
       if (dep.last_word_skipped && (d.items_read_upto || d.upto_item)) {
+        if (positionOn && dep.stop_reason !== STOP.FIRST_LINE && readNothing(dep)) return { skip: STOP.SKIPPED_NO_VOICE, story: dep };
         return dep.stop_reason === STOP.FIRST_LINE ? { skip: STOP.SKIPPED_NO_LINE } : { items: t.items };
       }
       if (d.skip_if_zero && dep.correct === 0) return { skip: STOP.SKIPPED_L2 };
@@ -372,7 +394,10 @@
       ev('task_intro', { task_id: t.id, value: resumed ? { resumed: true } : undefined });
       // A task that records, on a phone with no working microphone, is mic_unavailable before any other reason.
       var noMic = (t.mode === 'record' || t.mode === 'oral') && !gates.mic_ok && mic() === 'no';
-      if (g.skip && !noMic) { st.started = now(); finish(g.skip); return; }
+      if (g.skip && !noMic) {
+        if (g.skip === STOP.SKIPPED_NO_VOICE) ev('no_reading_skip', { task_id: t.id, value: { by: 'app', story: g.story.task_id, voiced_s: g.story.voiced_s, min_s: NO_VOICE_S } });
+        st.started = now(); finish(g.skip); return;
+      }
       preGates();
     }
 
@@ -426,6 +451,11 @@
         r.last_word_line = w && w.line != null ? w.line : (st.last_item_index != null ? 1 : null);
         if (st.last_word_how) { r.last_word_how = st.last_word_how.how; r.last_word_suggested = st.last_word_how.suggested; }
         if (st.last_word_skipped) r.last_word_skipped = true;
+        if (positionOn && t.passage) {
+          var heard = voiceEvidence();
+          r.voiced_s = heard ? Math.round((st.voice_ticks || 0)) / 10 : null;
+          r.position_source = heard ? 'voice' : 'none';
+        }
       }
       if (st.cells) r.cells = st.cells.slice();
       if (t.mode === 'oral') r.asked = st.items.map(function (q) { return q.id; });
@@ -486,6 +516,8 @@
       if (why === STOP.FIRST_LINE || why === STOP.CONSECUTIVE) return { reason: 'stop_rule', reached: r.attempted, of: of };
       if (t.mode === 'record' && why === STOP.SILENCE) return { reason: 'silence', reached: null, of: of };
       if (why !== STOP.COMPLETE && why !== STOP.TIME_UP) return null;
+      // round 8 (r8_reading_position): the story's time-up never skips its questions; the voice heard decides them
+      if (why === STOP.TIME_UP && positionOn && t.passage && r.last_word_skipped) return null;
       if (t.mode === 'tap' || t.mode === 'keypad' || t.mode === 'keyboard') {
         return why === STOP.TIME_UP && r.attempted < of ? { reason: 'time_up', reached: r.attempted, of: of } : null;
       }
@@ -518,6 +550,16 @@
       ev('silence_repeat', { task_id: t.id, value: { by: 'app', attempt: 1 } });
       st = { phase: 'silence_reminder', task_id: t.id };
     }
+
+    // ---------- round 8: how much the child read aloud on the passage (r8_reading_position) ----------
+    /** Whether the voice count can be trusted: the recording opened, an ear listened, and it was never unavailable. */
+    function voiceEvidence() {
+      if (!st.recorded || st.ear === 'unavailable') return false;
+      if (st.ear_fn) { try { if (st.ear_fn() !== 'running') return false; } catch (_) { return false; } }
+      return !!st.voice_watch || silenceRepeatOn;
+    }
+    /** The passage's result says the child read nothing aloud (evidence only: no count, no skip). */
+    function readNothing(r) { return typeof r.voiced_s === 'number' && r.voiced_s < NO_VOICE_S; }
 
     /** A task passed over with the sandbox's "Jump to…": a result with nothing to score. */
     function skipDev(t) {
@@ -636,6 +678,22 @@
         if (st.phase !== 'running') return;
         st.heard = true; // round 7b: sa_silence_repeat reads it
         if (st.cell) st.cell.voice_at = now();
+        // round 8 (r8_reading_position): the passage's voiced ticks; a report within 2.5 ticks of the last goes on its run
+        if (positionOn && task().passage) {
+          var tn = now();
+          st.voice_ticks = (st.voice_ticks || 0) + (st.voice_at != null && tn - st.voice_at <= VOICE_TICK_MS * 2.5 ? 1 : VOICE_RUN_TICKS);
+          st.voice_at = tn;
+        }
+      },
+      /**
+       * Round 8 (r8_reading_position): the recorder's ear is now listening for a voice on the part on show (onVoice), so
+       * a passage with no voice() is a silent child, not a deaf phone. ear: optional, () → 'running' | 'unavailable' | null
+       * (the recorder's ear state), read when the passage ends; anything but 'running' is no evidence.
+       */
+      voiceWatch: function (ear) {
+        if (st.phase !== 'running') return;
+        st.voice_watch = true;
+        if (typeof ear === 'function') st.ear_fn = ear;
       },
       /** The mercy rule: Jugnu offered the star (12 s of no voice on the passage). */
       mercyOffered: function () {
