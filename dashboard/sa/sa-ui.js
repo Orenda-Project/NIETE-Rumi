@@ -65,6 +65,24 @@
  *                        never spoken on the question: Jugnu's voice would land in the child's recorded answer.
  *   r8_practice_autoplay a spoken practice says its answer (its model) on arrival, after its prompt; Next goes straight
  *                        on (no second telling); the replay chip says the prompt and the answer again. Coach-led: silent.
+ * Round 8, the child's screens (each OFF unless the served battery carries battery.ui.r8_<flag>):
+ *   r8_layout         (items 6/12/21) the mount carries .is-r8-layout (sa.css "Round 8"): pictures and tap targets sized
+ *                     for the phone or the tablet, large text at normal weight, a letter card one fixed box; a Latin
+ *                     card or text tile is centred on its ink like an Urdu one, and every card is placed again on resize.
+ *   r8_story_snap     (item 15) the story is its own scroll box of parts, one box high each (CSS scroll-snap, snap-stop
+ *                     always: a fling cannot skip a part); the down arrow moves exactly one part on. The recording, the
+ *                     clock and the star are as before.
+ * Round 8, the child's screens (each OFF unless the served battery carries battery.ui.r8_<flag>):
+ *   r8_nudges         (items 25/26) every child item screen shows how it is answered, small and quiet at the top bar's
+ *                     physical right edge (both directions): a mic on a speaking screen (read aloud, a spoken answer,
+ *                     a spoken practice) with a level bar from SAE.mic.level (opts.micLevel; hidden until the first
+ *                     level, so no mic = the icon alone), a tapping finger on a tapping or typing screen. One level loop
+ *                     per screen, stopped when the screen changes and on destroy().
+ *   r8_highlight      (item 32) the instruction's words (and its round-7b line) are lit one by one while Jugnu says them,
+ *                     like the storybook: the timing file beside a v4 clip (sa/v4/<lang>/<key>.json, fetched once), the
+ *                     clock the playing clip's currentTime (speak.audio(), the voice's), read every animation frame and
+ *                     the light moved only when the word changes. No file, a 404, a word count unlike the text on the
+ *                     screen, a clip that is not v4 or no audio element: the plain words, silently.
  *
  * UMD: window.SAE.ui in the browser, module.exports under Node.
  */
@@ -167,6 +185,11 @@
       chip_type_tick: 'Type, then press ✓',
       // round 8 (r8_comp_wait_next): under a story question, when the battery has no lines.stuck_press_next
       stuck_press_next: 'If you are stuck, press the button to go on.',
+      // round 8 (sa_r8_lang_switch): the language toggle's spoken name
+      r8_lang: 'Language: Urdu or English',
+      // round 8 (items 25/26): the quiet cue's spoken name (screen readers)
+      cue_speak: 'Answer by speaking',
+      cue_tap: 'Answer by tapping',
     },
     ur: {
       hello: 'السلام علیکم! میں جگنو ہوں۔',
@@ -256,6 +279,11 @@
       chip_say_next: 'بولیں، پھر «آگے» دبائیں',
       chip_type_tick: 'لکھیں، پھر ✓ دبائیں',
       stuck_press_next: 'اگر آپ کو جواب نہ آئے تو آگے جانے کے لیے بٹن دبائیں۔',
+      // round 8 (sa_r8_lang_switch)
+      r8_lang: 'زبان: اردو یا انگریزی',
+      // round 8 (items 25/26)
+      cue_speak: 'بول کر جواب دیں',
+      cue_tap: 'دبا کر جواب دیں',
     },
   };
 
@@ -274,6 +302,8 @@
   var TASK_END_CAP_MS = 8000; // the part's closing line is awaited to its end, never longer than this
   var MIC_SKIP_MS = 3000;   // a record task skipped for no microphone: its line stays this long (RULING #38b)
   var PRESS_MS = 180;
+  var MN_FLOAT_MS = 300;    // round 8 item 30: a tapped number floats into the blank this long
+  var MN_HOLD_MS = 450;     // ... and the screen waits this much longer than a plain tap, so the child sees it land
   var WARM_N = 10;
   var WARM_CAP_MS = 25000;
   var HOLD_MS = 3000;
@@ -285,6 +315,47 @@
   var KP_WARM_MS = 20000;   // RULING #17: 20 s of free typing
   var HEARD_LEVEL = 0.15;   // the practice oral question: the meter crossed this once = heard
   var PROBE_MS = 4000;      // the mic probe's own guard
+  // Round 8 (items 25/26): the cue's pictures, drawn in the text colour (sa.css mutes it): a mic, a tapping finger.
+  var CUE_SVG = {
+    speak: '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg>',
+    tap: '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M10 13V5.5a1.5 1.5 0 0 1 3 0V12"/><path d="M13 11.5a1.5 1.5 0 0 1 3 0V13"/><path d="M16 12.5a1.5 1.5 0 0 1 3 0V16a6 6 0 0 1-6 6h-1.2a5 5 0 0 1-4-2l-3-4a1.5 1.5 0 0 1 2.3-1.9L10 16"/><path d="M6.5 6.5a5 5 0 0 1 9.5-1.5"/></svg>',
+  };
+
+  // Round 8 (item 32): a v4 clip's word timings sit beside it (sa/v4/<lang>/<key>.json, the storybook read-along's
+  // shape: { v: 1, key, lang, text, audio: { url, ms }, words: [{ i, t, s_ms, e_ms }] }). Fetched once per page.
+  var V4_RX = /(^|\/)sa\/v4\//;
+  var TIMINGS = {};
+  /** The timing file's URL for a playing clip's src (a v4 clip only), else null. */
+  function timingUrl(src) {
+    var m = /^([^?#]*)\.(mp3|m4a|aac|ogg|opus|webm|wav)([?#].*)?$/i.exec(String(src || ''));
+    return m && V4_RX.test(m[1]) ? m[1] + '.json' : null;
+  }
+  /** A timing object checked (version 1, words in order with times), as { words }; anything else null. */
+  function timingOk(d) {
+    if (!d || d.v !== 1 || !Array.isArray(d.words) || !d.words.length) return null;
+    var prev = -1, words = [];
+    for (var k = 0; k < d.words.length; k++) {
+      var w = d.words[k], st = Number(w && w.s_ms), en = Number(w && w.e_ms);
+      if (!w || w.i !== k || !isFinite(st) || !isFinite(en) || st < 0 || en < st || st < prev) return null;
+      prev = st;
+      words.push({ s_ms: st, e_ms: en });
+    }
+    return { words: words };
+  }
+  /** Promise<{ words } | null> for a playing clip; never rejects, never logs. A refused fetch (offline) is asked again next time. */
+  function timingFor(src) {
+    var u = timingUrl(src);
+    if (!u) return Promise.resolve(null);
+    if (TIMINGS[u]) return TIMINGS[u];
+    var f = typeof window !== 'undefined' && typeof window.fetch === 'function' ? window.fetch.bind(window) : (typeof fetch === 'function' ? fetch : null);
+    if (!f) return Promise.resolve(null);
+    var p = TIMINGS[u] = Promise.resolve().then(function () { return f(u, { credentials: 'same-origin' }); }).then(function (r) {
+      return r && r.ok ? Promise.resolve(r.json()).then(timingOk, function () { return null; }) : null;
+    }, function () { delete TIMINGS[u]; return null; });
+    return p;
+  }
+  function nextFrame(fn) { return typeof requestAnimationFrame === 'function' ? requestAnimationFrame(fn) : setTimeout(fn, 16); }
+  function cancelFrame(id) { if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(id); else clearTimeout(id); }
 
   function h(tag, attrs, kids) {
     var el = document.createElement(tag);
@@ -330,10 +401,21 @@
   }
 
   function delay(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  /** Urdu (and Arabic-Indic) digits as 0-9. */
+  var URDU_DIGIT_RX = /[\u06F0-\u06F9\u0660-\u0669]/;
+  function latinDigits(s) {
+    return String(s).replace(/[\u06F0-\u06F9\u0660-\u0669]/g, function (d) { var c = d.charCodeAt(0); return String(c >= 0x06F0 ? c - 0x06F0 : c - 0x0660); });
+  }
+  /** A sum on its own ("1 + 3", "19 − 6 =", "3 × 4 = ?"): numbers and one or more operators, an optional = and blank. */
+  var SUM_RX = /^\s*[\d\u06F0-\u06F9\u0660-\u0669][\d\u06F0-\u06F9\u0660-\u0669.,\s]*[+\-\u2212\u00D7\u00F7][\d\u06F0-\u06F9\u0660-\u0669.,\s+\-\u2212\u00D7\u00F7]*(=\s*[?_]*)?\s*$/;
+  function sumBase(s) { return String(s).replace(/\s*=?\s*[?_]*\s*$/, '').trim(); }
   function capped(p, ms) { return Promise.race([Promise.resolve(p).catch(function () {}), delay(ms)]); }
 
   function mount(el, opts) {
     var runner = opts.runner;
+    // Round 8 item 4 (sa_r8_lang_switch): the screens read the run through langView() (the instruction language's words)
+    var r8Lang = !!(opts.battery && opts.battery.ui && opts.battery.ui.r8_lang_switch === true);
+    if (r8Lang) runner = langRunner(opts.runner);
     var lang = opts.lang === 'ur' ? 'ur' : 'en';
     var mode = opts.mode === 'proctored' ? 'proctored' : 'game';
     var C = COPY[lang];
@@ -384,8 +466,23 @@
     var urFit = !!opts.ur_fit; // sa_ur_fit (round 6): an Urdu sentence on a demo card is marked Urdu, so it takes the Urdu rules
     // Round 7b, the child's screens: the served battery's switches (sa-battery-switches.js)
     var r7 = (opts.battery && opts.battery.ui) || {};
+    // Round 8 item 4 (sa_r8_lang_switch): the instruction language can change mid-test (the toggle in the top bar)
+    var homeLang = lang;
+    var homeLines = lines;
+    var langAlt = {};     // lang → the same test's battery in that language (normalised), from langBattery()
+    var langWant = null;  // the language the toggle asked for; it takes over at the next screen
+    var langOnSwitch = null;
+    var langCache = null; // runner task / item → the same in the instruction language (stable per language)
     var gate = { key: null, open: true, tok: 0 }; // audio_gated_next: the screen whose Next waits, and whether it is open
     var moreEl = null; // story_scroll: the arrow under the story on show
+    // Round 8 (the reviewer's 28 Oct list), the maths screens: battery.ui.r8_* (absent = today's screens).
+    var r8Digits = r7.r8_latin_digits === true; // items 29/3/34: every number shown in 0-9; a sum reads "1 + 3 = ___"
+    var r8Mn = r7.r8_missing_number === true;   // item 30: the number row large; a tapped number floats into the blank
+    var mnFill = null;                          // item 30: { item, value }, the number tapped into the item's blank
+    // Round 8: r8_layout (items 6/12/21), r8_story_snap (item 15)
+    var r8Layout = r7.r8_layout === true;
+    var r8Snap = r7.r8_story_snap === true;
+    var snapPos = { id: null, top: 0 }; // r8_story_snap: where the story box was scrolled to, kept over a redraw
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /** audio_gated_next: the screen `key`'s Next waits for `p` (Jugnu's words), at most GATE_CAP_MS. */
@@ -430,7 +527,7 @@
     function hintEl(t, cls) {
       var hl = hintOf(t);
       if (!hl) return null;
-      return h('p', { class: (cls || 'sae-say') + ' sae-r7-hint' }, [tx(hl), t.mode === 'keypad' ? h('span', { class: 'sae-r7-tick', 'aria-hidden': 'true', text: ' ✓' }) : null]);
+      return h('p', { class: (cls || 'sae-say') + ' sae-r7-hint' }, [hlText(tx(hl), hl), t.mode === 'keypad' ? h('span', { class: 'sae-r7-tick', 'aria-hidden': 'true', text: ' ✓' }) : null]);
     }
     /** back_button: Back on an item screen after the first item (or cell); runner.back() shows the one before. */
     function backBtn(v) {
@@ -451,6 +548,8 @@
     }
     /** story_scroll: whether the story on show has more below, in whatever scrolls (the body, else the page). */
     function scroller() {
+      var box = r8Snap ? el.querySelector('.sae-passage.is-snap') : null;
+      if (box) return box;
       var body = el.querySelector('.sae-run-rec .sae-body');
       if (body && body.scrollHeight > body.clientHeight + 4) {
         var oy = '';
@@ -467,6 +566,19 @@
     if (typeof window !== 'undefined' && window.addEventListener) {
       window.addEventListener('scroll', function () { if (alive) checkMore(); }, true);
       window.addEventListener('resize', function () { if (alive) checkMore(); });
+    }
+    // Round 8: a resize (the phone turned, the address bar went) places the cards' ink and packs the story's parts again
+    var refit = null;
+    if ((r8Layout || r8Snap) && typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('resize', function () {
+        if (!alive) return;
+        clearTimeout(refit);
+        refit = later(function () {
+          var s = el.querySelector('.sae-screen');
+          if (s && r8Layout) fitCells(s);
+          if (r8Snap) snapPack();
+        }, 100);
+      });
     }
     /**
      * RULING W3-18 (sa_voice_gate_v2, opts.opening): Jugnu's opening words wait for their clips' prefetch, at most
@@ -486,8 +598,12 @@
     function say(textObj, audioObj, inManual) {
       if (!textObj && !audioObj) return Promise.resolve();
       if (manual && !inManual) return Promise.resolve();
-      try { return Promise.resolve(speakFn(textObj || null, audioObj || null)).catch(function () {}); }
-      catch (e) { return Promise.resolve(); }
+      if (r8Lang && lang !== homeLang) { var tagged = langSaid(textObj, audioObj); textObj = tagged[0]; audioObj = tagged[1]; }
+      try {
+        var p = Promise.resolve(speakFn(textObj || null, audioObj || null)).catch(function () {});
+        if (r7.r8_highlight === true) { try { hlFollow(textObj, audioObj, p); } catch (e) { /* the plain words */ } }
+        return p;
+      } catch (e) { return Promise.resolve(); }
     }
     /** Say lines one after another, unless the screen changes. */
     function sayChain(list) {
@@ -507,9 +623,23 @@
     /** Round 7: a maths number on the screen is in English digits on the Urdu page too (the tester: "that's how kids know
      *  them"). Shown text only, maths only (ids "ma.…"): Jugnu's clips still say the number in Urdu. */
     function shownNums(id, s) {
-      if (!/^ma\./.test(String(id || ''))) return s;
-      return String(s).replace(/[\u06F0-\u06F9\u0660-\u0669]/g, function (d) { var c = d.charCodeAt(0); return String(c >= 0x06F0 ? c - 0x06F0 : c - 0x0660); });
+      if (!r8Digits && !/^ma\./.test(String(id || ''))) return s;
+      return latinDigits(s);
     }
+    /** r8_latin_digits (item 29): every number on the drawn screen in 0-9, Urdu page included. A reading task's own
+     *  material (its passage, grid, tiles, the item) is left as printed: it is what is being read. */
+    function latinScreen(root, t) {
+      var keep = t && !/^ma\./.test(String(t.id || '')) ? '.sae-passage, .sae-grid, .sae-opts, .sae-onecell, .sae-label' : null;
+      var w = document.createTreeWalker(root, 4); // text nodes
+      for (var n = w.nextNode(); n; n = w.nextNode()) {
+        if (!URDU_DIGIT_RX.test(n.nodeValue)) continue;
+        if (keep && n.parentNode && n.parentNode.closest && n.parentNode.closest(keep)) continue;
+        n.nodeValue = latinDigits(n.nodeValue);
+      }
+    }
+    /** r8_latin_digits (item 34): a sum as a blank to fill, "13 + 6 = ___", so it is never read as a sum to repeat. */
+    function isSum(s) { return r8Digits && typeof s === 'string' && SUM_RX.test(s); }
+    function sumKids(s) { return [sumBase(s) + ' = ', h('span', { class: 'sae-sum-blank', text: '___' })]; }
     function dirOf(t) { return (t && t.direction && t.direction !== 'ltr') ? t.direction : (taskLang(t) === 'ur' ? 'rtl' : 'ltr'); }
     function line(name) { return lines[name] || null; }
     /** One of the engine's own lines: the battery's (it carries the clip) when it has it, else the built-in words. */
@@ -546,11 +676,147 @@
       return h('div', { class: 'sae-coach-says is-coach' }, [h('p', { class: 'sae-chip', text: C.coach_read }), said]);
     }
 
+    // ---------- round 8 item 4 (sa_r8_lang_switch): the instruction language, switched mid-test ----------
+    // The two batteries of a form are one test (the same tasks and item ids); the switch changes what Jugnu says and the
+    // screen's words (lines, COPY, the task's script and instruction, an item's prompt, the practice feedback). What the
+    // child reads or answers stays the run's own: an item whose answer is a word of the language (a shape's name) keeps
+    // its words, so its tap is scored against its own answer. The runner never changes: answers already given stay.
+    var LANG_TASK = ['script', 'instruction', 'coach_text', 'chip'];
+    var LANG_ITEM = ['say', 'prompt', 'prompt_audio', 'feedback', 'model'];
+    var LANG_SAME = ['target', 'answer', 'options', 'show', 'label', 'target_index'];
+    function own(o, k) { return o != null && Object.prototype.hasOwnProperty.call(o, k); }
+    function copyOf(o) { var c = {}; for (var k in o) if (own(o, k)) c[k] = o[k]; return c; }
+    function langRunner(base) {
+      var r = Object.create(base);
+      r.view = function () { return langView(base.view()); };
+      return r;
+    }
+    function langMemo() {
+      if (!langCache || langCache.lang !== lang) langCache = { lang: lang, m: new Map() };
+      return langCache.m;
+    }
+    function byId(list, id) {
+      for (var i = 0; list && i < list.length; i++) if (list[i] && list[i].id === id) return list[i];
+      return null;
+    }
+    function langItemOf(it, list) {
+      var m = langMemo();
+      if (m.has(it)) return m.get(it);
+      var a = it ? byId(list, it.id) : null;
+      var out = it;
+      var same = !!a && LANG_SAME.every(function (k) { return JSON.stringify(it[k]) === JSON.stringify(a[k]); });
+      if (same) {
+        out = copyOf(it);
+        LANG_ITEM.forEach(function (k) { if (own(a, k)) out[k] = a[k]; else delete out[k]; });
+      }
+      m.set(it, out);
+      return out;
+    }
+    function langTask(t) {
+      var m = langMemo();
+      if (m.has(t)) return m.get(t);
+      var a = byId(langAlt[lang].tasks, t.id);
+      var out = t;
+      // another passage variant (or no such task) in the other file: the run's own words
+      if (a && !(t.variant && a.variant && t.variant.id !== a.variant.id)) {
+        out = copyOf(t);
+        LANG_TASK.forEach(function (k) { if (own(a, k)) out[k] = a[k]; else delete out[k]; });
+        out.items = (t.items || []).map(function (it) { return langItemOf(it, a.items); });
+        out.practice = (t.practice || []).map(function (it) { return langItemOf(it, a.practice); });
+      }
+      m.set(t, out);
+      return out;
+    }
+    function langItem(x, task, key) {
+      var m = langMemo();
+      if (m.has(x)) return m.get(x);
+      return byId(task[key], x.id) || x;
+    }
+    /** The runner's view with the task and item in the instruction language (the same objects for as long as it lasts). */
+    function langView(v) {
+      if (!v || !v.task || lang === homeLang || !langAlt[lang]) return v;
+      var t = langTask(v.task);
+      if (t === v.task) return v;
+      var o = copyOf(v);
+      o.task = t;
+      if (v.item) o.item = langItem(v.item, t, 'items');
+      if (v.practice) o.practice = langItem(v.practice, t, 'practice');
+      if (v.cell_item) o.cell_item = langItem(v.cell_item, t, 'items');
+      return o;
+    }
+    /** A line said after a switch: in the instruction language, with that language's clip and phone voice. */
+    function langSaid(t, a) {
+      var l = lang;
+      if (a && typeof a === 'object' && !Array.isArray(a)) a = typeof a[l] === 'string' ? a[l] : null;
+      if (typeof t === 'string') return [{ text: t, lang: l }, a];
+      if (!t || typeof t !== 'object') return [t, a];
+      var o;
+      if (typeof t.text === 'string') {
+        o = copyOf(t);
+        if (t.lang !== 'ur' && t.lang !== 'en') o.lang = l;
+      } else if (typeof t[l] === 'string') {
+        o = { text: t[l], lang: l };
+        if (own(t, 'audio')) o.audio = t.audio;
+      } else return [t, a];
+      if (o.audio && typeof o.audio === 'object') { if (typeof o.audio[l] === 'string') o.audio = o.audio[l]; else delete o.audio; }
+      return [o, a];
+    }
+    /** The switch takes over when a new screen starts: never mid-clip, never inside a recording that runs on. */
+    function langApply() {
+      if (!langWant) return;
+      if (langWant === lang || !(langWant === homeLang || langAlt[langWant])) { langWant = null; return; }
+      var raw = opts.runner.view();
+      if (keyOf(raw) === lastKey || hold || listening || refused || (!handedOver && raw.phase === 'battery_intro')) return;
+      if (recording && raw.task && recording.id === raw.task.id && raw.phase === 'running') return;
+      var from = lang;
+      lang = langWant;
+      langWant = null;
+      C = COPY[lang];
+      lines = lang === homeLang ? homeLines : (langAlt[lang].lines || homeLines);
+      el.setAttribute('lang', lang);
+      el.setAttribute('dir', lang === 'ur' ? 'rtl' : 'ltr');
+      var it = raw.item || raw.practice || raw.cell_item || null;
+      opts.runner.log('lang_switch', { task_id: raw.task ? raw.task.id : undefined, item_id: it ? it.id : undefined,
+        value: { from: from, to: lang, item_id: it ? it.id : null, phase: raw.phase } });
+      if (langOnSwitch) { try { langOnSwitch(lang); } catch (e) { /* the page's */ } }
+    }
+    function langPaint(b) {
+      var shown = langWant || lang;
+      Array.prototype.forEach.call(b.querySelectorAll('[data-lang]'), function (x) { x.classList.toggle('is-on', x.getAttribute('data-lang') === shown); });
+      b.classList.toggle('is-pending', !!langWant);
+    }
+    /** «اردو | English» in the top bar, once the other language's battery is on the phone. A tap picks the next screen's. */
+    function langToggle() {
+      if (!r8Lang || !langAlt[homeLang === 'ur' ? 'en' : 'ur']) return null;
+      var b = h('button', { class: 'sae-r8-lang', type: 'button', dir: 'ltr', 'aria-label': C.r8_lang, title: C.r8_lang }, [
+        h('span', { class: 'sae-r8-lang-o', lang: 'ur', 'data-lang': 'ur', text: 'اردو' }),
+        h('span', { class: 'sae-r8-lang-bar', 'aria-hidden': 'true', text: ' | ' }),
+        h('span', { class: 'sae-r8-lang-o', lang: 'en', 'data-lang': 'en', text: 'English' }),
+      ]);
+      b.addEventListener('click', function () {
+        langWant = (langWant || lang) === 'ur' ? 'en' : 'ur';
+        if (langWant === lang) langWant = null;
+        langPaint(b);
+      });
+      langPaint(b);
+      return b;
+    }
+
     el.classList.add('sae');
+    if (r8Digits) el.classList.add('is-r8-digits');
+    if (r8Mn) el.classList.add('is-r8-mn');
+    if (r8Lang) el.classList.add('is-r8-lang');
     // sa_ur_fit (round 6): the Urdu text rules (sa.css "Round 6"): every Urdu word inside its box, clear of pictures.
     if (opts.ur_fit) el.classList.add('is-ur-fit');
+    // Round 8 (sa.css "Round 8": every rule under these classes, so OFF the page is as before)
+    if (r8Layout) el.classList.add('is-r8-layout');
+    if (r8Snap) el.classList.add('is-r8-snap');
     // in the coach page's frame, under its corner hold (sa.css keeps the scrolling body below it)
     if (opts.ur_fit && opts.embed) el.classList.add('is-embed');
+    // round 8 (items 25/26, r8_nudges): the speak / tap cue's styles (sa.css "Round 8")
+    if (r7.r8_nudges === true) el.classList.add('is-r8-cues');
+    // round 8 (item 32, r8_highlight): the word being said, lit
+    if (r7.r8_highlight === true) el.classList.add('is-r8-hl');
     el.setAttribute('lang', lang);
     el.setAttribute('dir', lang === 'ur' ? 'rtl' : 'ltr');
     el.setAttribute('data-mode', mode);
@@ -581,6 +847,8 @@
           onclick: function () { muted = !muted; try { opts.onMute(muted); } catch (e) { /* skin */ } draw(); },
         }, [h('span', { 'aria-hidden': 'true', text: muted ? '🔇' : '🔊' })]));
       }
+      var lt = langToggle();
+      if (lt) kids.push(lt);
       return h('div', { class: 'sae-top' }, kids);
     }
     /** The jump list's own full-width row above the dots: a Whole battery's 33 dots can never push it off-screen. */
@@ -654,19 +922,69 @@
         var a = lab.split(/\s+/).sort().join(' '), b = it.options.map(String).sort().join(' ');
         if (a === b) return null;
       }
-      return seq ? seqRow(seq, t) : h('p', { class: 'sae-label sa-label', dir: 'ltr' }, [lab]);
+      if (seq) return seqRow(seq, t, t && mnSeq(it) ? mnState(it) : null);
+      if (isSum(lab)) return h('p', { class: 'sae-label sa-label', dir: 'ltr' }, sumKids(lab));
+      return h('p', { class: 'sae-label sa-label', dir: 'ltr' }, [lab]);
     }
     /**
      * A sequence as tiles, one per number; the missing one is a bordered blank reading "__", wherever it falls.
      * Numbers read left to right on both pages; a row of pictures reads in the task's language (Urdu: right to left).
      */
     function isGap(x) { return x == null || /^_+$/.test(String(x).trim()); } // the source's own "___" is the same blank
-    function seqRow(seq, t) {
+    function seqRow(seq, t, mn) {
+      if (mn) return mnRow(seq, mn);
       var numeric = seq.every(function (x) { return isGap(x) || /^[\d\u06F0-\u06F9.,\s-]+$/.test(String(x)); });
       var size = seq.length > 7 ? ' is-xlong' : seq.length > 5 ? ' is-long' : '';
       return h('div', { class: 'sae-label sa-label sae-seq' + size, dir: !numeric && taskLang(t) === 'ur' ? 'rtl' : 'ltr' }, seq.map(function (x) {
         return isGap(x) ? h('span', { class: 'sae-seq-tile sae-gap', text: '__' }) : h('span', { class: 'sae-seq-tile', text: String(x) });
       }));
+    }
+    /** r8_missing_number (item 30): the item's number row when it has a blank (missing number, what comes next), else null. */
+    function mnSeq(it) {
+      var seq = r8Mn && it && Array.isArray(shownOf(it)) ? shownOf(it) : null;
+      if (!seq || !seq.some(isGap)) return null;
+      return seq.every(function (x) { return isGap(x) || /^[\d\u06F0-\u06F9\u0660-\u0669.,\s-]+$/.test(String(x)); }) ? seq : null;
+    }
+    /** What the blank of item `it` holds: the practice answer on show, else the number just tapped. */
+    function mnState(it) {
+      if (hold && hold.item === it) return { fill: hold.value, cls: hold.res.ok || hold.res.shown != null ? ' is-right' : ' is-tried' };
+      return { fill: mnFill && mnFill.item === it ? mnFill.value : null, cls: '' };
+    }
+    /** The number row large, on one line: its size from its digits, so it fits a 360 px phone and grows on a tablet. */
+    function mnRow(seq, mn) {
+      var em = (seq.length - 1) * 0.2;
+      seq.forEach(function (x) { em += Math.max(isGap(x) ? 1.9 : String(x).length * 0.6 + 0.36, 1.4) + 0.1; });
+      return h('div', { class: 'sae-label sa-label sae-seq is-r8-mn', dir: 'ltr', style: 'font-size:min(96px, calc((min(100vw, 520px) - 48px) / ' + em.toFixed(2) + '))' }, seq.map(function (x) {
+        if (!isGap(x)) return h('span', { class: 'sae-seq-tile', text: String(x) });
+        if (mn.out) return mn.out;
+        var on = mn.fill != null;
+        return h('span', { class: 'sae-seq-tile sae-gap' + (on ? ' is-filled' + (mn.cls || '') : '') }, [h('span', { class: 'sae-mn-ink', text: on ? String(mn.fill) : '__' })]);
+      }));
+    }
+    function reducedMotion() {
+      try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
+    }
+    /** FLIP: the number starts where the tapped choice was (r0) and slides into the blank; reduced motion lands it at once. */
+    function flyFrom(r0, ink) {
+      if (!r0 || !ink || reducedMotion()) return;
+      var r1 = ink.getBoundingClientRect();
+      var dx = (r0.left + r0.width / 2) - (r1.left + r1.width / 2), dy = (r0.top + r0.height / 2) - (r1.top + r1.height / 2);
+      ink.style.transition = 'none';
+      ink.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px)';
+      void ink.offsetWidth;
+      ink.style.transition = 'transform ' + MN_FLOAT_MS + 'ms ease-out';
+      ink.style.transform = 'translate(0px,0px)';
+    }
+    /** A choice tapped on a running item: its number floats into the blank and stays; returns how much longer to wait. */
+    function mnFloat(b, value, it) {
+      mnFill = { item: it, value: value };
+      var gap = el.querySelector('.sae-seq.is-r8-mn .sae-gap');
+      var ink = gap && gap.querySelector('.sae-mn-ink');
+      if (!ink) return 0;
+      ink.textContent = r8Digits ? latinDigits(value) : String(value);
+      gap.classList.add('is-filled');
+      flyFrom(b.getBoundingClientRect(), ink);
+      return MN_HOLD_MS;
     }
     function keypadMax(t) {
       var n = KEYPAD_MIN;
@@ -853,7 +1171,7 @@
       return screen(v, 'sae-instr', [
         h('div', { class: 'sae-row' }, [jugnu('hello', true), replayBtn(function () { gen++; var p = playIntroAll(t); if (!gate.open) gateOn(keyOf(v), p); })]),
         h('h1', { class: 'sae-h1', text: tx(t.title) }),
-        h('p', { class: 'sae-say' }, [].concat(named(tx(introOf(t))))),
+        h('p', { class: 'sae-say' }, [].concat(named(hlText(tx(introOf(t)), introOf(t))))),
         hintEl(t),
         demoImage(t),
         demoItem(t),
@@ -898,14 +1216,18 @@
       } else if (typeof p.target_index === 'number') {
         answerArea = passageTap(t, function (i) { practicePick(p, t, i); });
       } else {
-        answerArea = tiles(p.options, function (o) { practicePick(p, t, o); }, function (o, b) {
+        answerArea = tiles(p.options, function (o, b) {
+          var r0 = mnSeq(p) ? b.getBoundingClientRect() : null;
+          practicePick(p, t, o);
+          if (r0) flyFrom(r0, el.querySelector('.sae-seq.is-r8-mn .sae-gap .sae-mn-ink'));
+        }, function (o, b) {
           if (!fb) return;
           b.disabled = true;
           if (String(o) === String(fb.value)) b.classList.add(fb.res.ok ? 'is-right' : 'is-tried');
           if (fb.res.shown != null && String(o) === String(fb.res.shown)) b.classList.add('is-right', 'is-shown');
         }, taskLang(t), t, p.glyphs);
       }
-      return screen(v, 'sae-practice', [
+      return screen(v, 'sae-practice' + (mnSeq(p) ? ' sae-r8-mn' : ''), [
         // Round 7: a tap practice carries the real items' question tag ("Which is bigger"), so it looks like them.
         t.mode === 'tap' && t.title ? h('p', { class: 'sae-task-tag', text: tx(t.title) }) : null,
         h('div', { class: 'sae-row' }, [
@@ -922,7 +1244,7 @@
       var res = runner.practiceAnswer(value);
       if (!res) return;
       busy = true;
-      var f = res.feedback || {};
+      var f = (r8Lang && p && p.feedback) || res.feedback || {};
       var said = res.ok ? (f.correct || f.right || copyLine('right'))
         : res.retry ? copyLine('try_again')
           : (f.wrong || copyLine('shown'));
@@ -990,7 +1312,7 @@
 
     function sRunTap(v) {
       var it = v.item, t = v.task;
-      return screen(v, 'sae-run sae-run-tap', [
+      return screen(v, 'sae-run sae-run-tap' + (mnSeq(it) ? ' sae-r8-mn' : ''), [
         clock(v),
         h('p', { class: 'sae-task-tag', text: tx(t.title) }),
         h('div', { class: 'sae-row' }, [jugnu('idle', true), itemSpeaks(it) ? replayBtn(function () { sayItem(it, t); }) : null]),
@@ -1004,8 +1326,9 @@
         typeof it.target_index === 'number' ? null : tiles(it.options, function (o, b) {
           busy = true;
           b.classList.add('is-pressed');
+          var wait = mnSeq(it) ? mnFloat(b, o, it) : 0;
           runner.answer(o);
-          later(function () { busy = false; draw(); }, PRESS_MS);
+          later(function () { busy = false; draw(); }, PRESS_MS + wait);
         }, null, taskLang(t), t, it.glyphs),
       ], itemFoot(v, [nextBtn(v)]));
     }
@@ -1034,6 +1357,8 @@
       var kids = [];
       var seq = Array.isArray(shownOf(it)) ? shownOf(it) : null;
       var lab = !seq && shownOf(it) != null && String(shownOf(it)).trim() ? String(shownOf(it)) : null;
+      if (isSum(lab)) lab = sumBase(lab) + ' ='; // item 34: one = before the box
+      var mn = mnSeq(it);
       var max = keypadMax(t);
       if (!lab && !seq) {
         // a word problem: ten counters the child may tap to count with (not scored)
@@ -1050,10 +1375,18 @@
         kids.push(h('div', { class: 'sae-counters', dir: 'ltr' }, dots));
       }
       var shown = fb ? String(fb.res.shown != null ? fb.res.shown : fb.value) : typed;
-      displayEl = h('output', { class: 'sae-typed sa-typed' + (fb ? (fb.res.ok || fb.res.shown != null ? ' is-right' : ' is-tried') : ''), dir: 'ltr', 'aria-live': 'polite' }, [shown || ' ']);
-      // the typed number big above the keypad (a sum and its box on one line: "1 + 3 = [ ]"); nothing goes until ✓
-      if (seq) kids.push(seqRow(seq, t));
-      kids.push(lab ? h('div', { class: 'sae-sumrow', dir: 'ltr' }, [h('p', { class: 'sae-sum sa-label' }, [lab]), displayEl]) : displayEl);
+      var mnInk = null;
+      if (mn) {
+        // r8_missing_number (item 30): the typed number fills the row's own blank; the keypad stays below
+        mnInk = h('span', { class: 'sae-mn-ink', text: shown || '__' });
+        displayEl = h('output', { class: 'sae-seq-tile sae-gap' + (shown ? ' is-filled' : '') + (fb ? (fb.res.ok || fb.res.shown != null ? ' is-right' : ' is-tried') : ''), dir: 'ltr', 'aria-live': 'polite' }, [mnInk]);
+        kids.push(seqRow(seq, t, { out: displayEl }));
+      } else {
+        displayEl = h('output', { class: 'sae-typed sa-typed' + (fb ? (fb.res.ok || fb.res.shown != null ? ' is-right' : ' is-tried') : ''), dir: 'ltr', 'aria-live': 'polite' }, [shown || ' ']);
+        // the typed number big above the keypad (a sum and its box on one line: "1 + 3 = [ ]"); nothing goes until ✓
+        if (seq) kids.push(seqRow(seq, t));
+        kids.push(lab ? h('div', { class: 'sae-sumrow', dir: 'ltr' }, [h('p', { class: 'sae-sum sa-label' }, [lab]), displayEl]) : displayEl);
+      }
       // 1 2 3 ⌫ / 4 5 6 ✓ / 7 8 9 ✓ / 0 0 0 ✓: the ✓ is the biggest key (three rows tall)
       var keys = ['1', '2', '3', 'del', '4', '5', '6', 'ok', '7', '8', '9', '0'];
       kids.push(h('div', { class: 'sae-keypad sa-keypad is-tall-ok', dir: 'ltr' }, keys.map(function (k) {
@@ -1067,7 +1400,8 @@
           if (k === 'del') typed = typed.slice(0, -1);
           else if (k === 'ok') { if (!typed) return; var val = typed; typed = ''; submit(val); return; }
           else if (typed.length < max) typed = (typed === '0' ? '' : typed) + k;
-          if (displayEl) displayEl.textContent = typed || ' ';
+          if (mnInk) { mnInk.textContent = typed || '__'; displayEl.classList.toggle('is-filled', !!typed); }
+          else if (displayEl) displayEl.textContent = typed || ' ';
         });
         return b;
       })));
@@ -1112,7 +1446,7 @@
     }
     function sRunKeypad(v) {
       var it = v.item, t = v.task;
-      return screen(v, 'sae-run sae-run-keypad', [
+      return screen(v, 'sae-run sae-run-keypad' + (mnSeq(it) ? ' sae-r8-mn' : ''), [
         clock(v),
         itemSpeaks(it) ? h('div', { class: 'sae-row' }, [replayBtn(function () { sayItem(it, t); })]) : null,
         coachSays(it, true),
@@ -1164,7 +1498,7 @@
       var s = String(text);
       var numeric = NUMERIC_RX.test(s);
       return h('div', { class: 'sae-onecell sa-onecell' + (Array.from(s).length <= 2 ? ' is-short' : ''), dir: numeric ? 'ltr' : dirOf(t), lang: numeric ? 'en' : taskLang(t), 'data-i': i == null ? null : String(i) }, [
-        h('span', { class: 'sae-ink' }, [s]),
+        isSum(s) ? h('span', { class: 'sae-ink' }, sumKids(s)) : h('span', { class: 'sae-ink' }, [s]),
       ]);
     }
     /**
@@ -1175,7 +1509,10 @@
      */
     function fitCells(scope) {
       if (typeof document === 'undefined' || !document.fonts || !scope.querySelectorAll) return;
-      Array.prototype.forEach.call(scope.querySelectorAll('.sae-onecell[lang=ur] > .sae-ink, .sae-opt[lang=ur] > .sae-ink, .sae-passage.is-pick[lang=ur] .sae-word > .sae-ink, .sae-grid[lang=ur] .sae-cell > .sae-ink'), function (ink) {
+      var sel = '.sae-onecell[lang=ur] > .sae-ink, .sae-opt[lang=ur] > .sae-ink, .sae-passage.is-pick[lang=ur] .sae-word > .sae-ink, .sae-grid[lang=ur] .sae-cell > .sae-ink';
+      // r8_layout (item 21): a Latin card or text tile is placed by its ink too ("y" no longer sits low in its card)
+      if (r8Layout) sel += ', .sae-onecell > .sae-ink, .sae-opt > .sae-ink';
+      Array.prototype.forEach.call(scope.querySelectorAll(sel), function (ink) {
         fitInk(ink, 0);
         document.fonts.load(getComputedStyle(ink).font, ink.textContent).then(function () {
           if (alive && ink.isConnected) fitInk(ink, 0);
@@ -1272,17 +1609,154 @@
       ]);
       starEl.addEventListener('click', function () { if (!busy) { runner.done(); draw(); } });
       // story_scroll: an arrow under the story while more of it is below (it goes at the end); a tap slides the page on
-      moreEl = r7.story_scroll === true && v.task.passage ? h('button', { class: 'sae-more', type: 'button', 'aria-label': C.more_below, hidden: '', onclick: function () {
+      // r8_story_snap: the story is a box of parts; the arrow (with it, story_scroll or not) moves exactly one part on
+      var snap = r8Snap && !!v.task.passage;
+      moreEl = (r7.story_scroll === true || snap) && v.task.passage ? h('button', { class: 'sae-more', type: 'button', 'aria-label': C.more_below, hidden: '', onclick: function () {
         var sc = scroller();
+        if (snap && sc.classList && sc.classList.contains('is-snap')) { snapNext(sc); return; }
         try { sc.scrollBy({ top: Math.round(sc.clientHeight * 0.7), behavior: 'smooth' }); } catch (_) { try { sc.scrollTop += Math.round(sc.clientHeight * 0.7); } catch (e) { /* old browser */ } }
       } }, [h('span', { class: 'sae-more-ico', 'aria-hidden': 'true', text: '↓' }), h('span', { class: 'sae-more-w', text: C.more_below })]) : null;
       if (moreEl) later(checkMore, 0);
-      return screen(v, 'sae-run sae-run-rec', [
+      var story = passageEl(v.task, null);
+      if (snap) {
+        story.classList.add('is-snap');
+        later(snapPack, 0);
+        if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (alive) snapPack(); }, function () {});
+      }
+      return screen(v, 'sae-run sae-run-rec' + (snap ? ' sae-snap' : ''), [
         clock(v),
         h('p', { class: 'sae-chip sae-chip-rec', text: C.read_aloud }),
-        passageEl(v.task, null),
+        story,
       ], [moreEl, starEl]);
     }
+    /**
+     * r8_story_snap: the story packed into parts, each as high as the story box. The unit is a row as it shows on this
+     * screen (a passage line that wraps is split at its rows; a line whose words are not laid out is one unit): a row that
+     * will not fit with the ones before starts the next part, a row taller than the box is a part of its own. Measured
+     * after layout, again once the font is in and on resize; the box keeps where it was scrolled to over a redraw.
+     */
+    function snapPack() {
+      var box = el.querySelector('.sae-passage.is-snap');
+      if (!box) return;
+      var lines = Array.prototype.slice.call(box.querySelectorAll('.sae-pline'));
+      if (!lines.length) return;
+      var v = runner.view();
+      var id = v.task ? v.task.id : null;
+      // measured inside one part, so a line wraps at the width it will have
+      var all = h('div', { class: 'sae-part' });
+      lines.forEach(function (l) { all.appendChild(l); });
+      while (box.firstChild) box.removeChild(box.firstChild);
+      box.appendChild(all);
+      var pad = 0;
+      try { var cs = getComputedStyle(all); pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0); } catch (_) { pad = 0; }
+      var full = box.clientHeight;
+      var room = full - pad;
+      var units = []; // { line, cls, nodes, h }
+      lines.forEach(function (l, li) {
+        var tops = [];
+        Array.prototype.forEach.call(l.children, function (w) {
+          if (!w.classList.contains('sae-word')) return;
+          var t = w.offsetTop;
+          if (!tops.some(function (x) { return Math.abs(x - t) <= 4; })) tops.push(t);
+        });
+        if (tops.length < 2) { units.push({ line: li, cls: l.className, nodes: Array.prototype.slice.call(l.childNodes), h: l.offsetHeight }); return; }
+        tops.sort(function (a, b) { return a - b; });
+        var lt = l.offsetTop, lb = lt + l.offsetHeight, first = units.length;
+        tops.forEach(function (t, i) { units.push({ line: li, cls: l.className, nodes: [], h: (i + 1 < tops.length ? tops[i + 1] : lb) - (i ? t : lt) }); });
+        var cur = first;
+        Array.prototype.slice.call(l.childNodes).forEach(function (n) {
+          if (n.nodeType === 1 && n.classList.contains('sae-word')) {
+            for (var i = tops.length - 1; i >= 0; i--) if (n.offsetTop >= tops[i] - 4) { cur = first + i; break; }
+          }
+          units[cur].nodes.push(n);
+        });
+      });
+      var groups = [], group = [], used = 0;
+      units.forEach(function (u) {
+        if (group.length && used + u.h > room) { groups.push(group); group = []; used = 0; }
+        group.push(u); used += u.h;
+      });
+      groups.push(group);
+      box.removeChild(all);
+      groups.forEach(function (g) {
+        var part = h('div', { class: 'sae-part' });
+        var line = null, at = null;
+        g.forEach(function (u) {
+          if (u.line !== at) { line = h('span', { class: u.cls }); part.appendChild(line); at = u.line; }
+          u.nodes.forEach(function (n) { line.appendChild(n); });
+        });
+        if (full > 0) part.style.minHeight = full + 'px';
+        box.appendChild(part);
+      });
+      if (!box.getAttribute('data-snap')) {
+        box.setAttribute('data-snap', '1');
+        box.addEventListener('scroll', function () { snapPos = { id: id, top: box.scrollTop }; snapSettle(box); });
+        // a wheel (a mouse, a trackpad) moves one part per flick, whatever its size
+        box.addEventListener('wheel', function (e) {
+          if (!e.deltaY) return;
+          e.preventDefault();
+          if (snapWheel) return;
+          snapWheel = true;
+          later(function () { snapWheel = false; }, 450);
+          snapStep(box, e.deltaY > 0 ? 1 : -1);
+        }, { passive: false });
+        // the box's height settles after the first pack (the font, the arrow showing): pack again to the new height
+        if (typeof ResizeObserver === 'function') {
+          var seenH = box.clientHeight;
+          var ro = new ResizeObserver(function () {
+            if (!alive || !box.isConnected) { ro.disconnect(); return; }
+            if (Math.abs(box.clientHeight - seenH) > 2) { seenH = box.clientHeight; snapPack(); }
+          });
+          ro.observe(box);
+        }
+      }
+      if (snapPos.id === id && snapPos.top > 0) box.scrollTop = snapPos.top;
+      snapFrom = snapIndex(box);
+      checkMore();
+    }
+    var snapFrom = 0; // r8_story_snap: the part the last scroll settled on
+    var snapWheel = false;
+    var snapTimer = null;
+    function snapParts(box) { return box.querySelectorAll('.sae-part'); }
+    /** The part on show: the last one whose top is at or above the box's top. */
+    function snapIndex(box) {
+      var parts = snapParts(box), at = box.scrollTop, k = 0;
+      for (var i = 0; i < parts.length; i++) if (parts[i].offsetTop <= at + 2) k = i;
+      return k;
+    }
+    function snapTo(box, top) {
+      try { box.scrollTo({ top: top, behavior: 'smooth' }); } catch (_) { box.scrollTop = top; }
+    }
+    /**
+     * When a scroll settles more than one part from where it began (a fling the browser let through snap-stop), it is
+     * brought back to the part next to the one it began on: no part is ever passed unseen.
+     */
+    function snapSettle(box) {
+      clearTimeout(snapTimer);
+      snapTimer = later(function () {
+        if (!box.isConnected) return;
+        var parts = snapParts(box), k = snapIndex(box);
+        if (k > snapFrom + 1) { snapFrom += 1; snapTo(box, parts[snapFrom].offsetTop); return; }
+        if (k < snapFrom - 1) { snapFrom -= 1; snapTo(box, parts[snapFrom].offsetTop); return; }
+        snapFrom = k;
+      }, 160);
+    }
+    /** One part on (or back); a part taller than the box: its next screenful first, never past a row not yet shown. */
+    function snapStep(box, dir) {
+      var parts = snapParts(box), at = box.scrollTop, top = null, i;
+      if (dir > 0) {
+        for (i = 0; i < parts.length; i++) if (parts[i].offsetTop > at + 2) { top = parts[i].offsetTop; break; }
+        if (top == null) return;
+        if (box.clientHeight > 0) top = Math.min(top, at + box.clientHeight);
+      } else {
+        for (i = parts.length - 1; i >= 0; i--) if (parts[i].offsetTop < at - 2) { top = parts[i].offsetTop; break; }
+        if (top == null) return;
+      }
+      for (i = 0; i < parts.length; i++) if (parts[i].offsetTop <= top + 2) snapFrom = i;
+      snapTo(box, top);
+    }
+    /** r8_story_snap: the arrow's move, one part on. */
+    function snapNext(box) { snapStep(box, 1); }
     function askHint(t) {
       if (lw && lw.task === t.id) return;
       var mine = lw = { task: t.id, state: 'pending', suggested: null, picked: null };
@@ -1627,6 +2101,129 @@
       ]);
     }
 
+    // ---------- round 8, items 25/26 (r8_nudges): the speak / tap cue ----------
+    var cue = null; // the speaking screen's level loop: { k, stop, bar, lvl }
+    /** How the child answers the screen on show: 'speak', 'tap', or null (not a child item screen). */
+    function cueKind(v, phase) {
+      var t = v.task;
+      if (!t) return null;
+      if (phase === 'running') return t.mode === 'oral' || t.mode === 'record' ? 'speak' : 'tap';
+      if (phase === 'practice') return t.mode === 'record' && !hold ? 'speak' : 'tap';
+      if (phase === 'last_word' && !coachLW) return 'tap';
+      return null;
+    }
+    function cueStop() {
+      var c = cue;
+      cue = null;
+      if (c && typeof c.stop === 'function') { try { c.stop(); } catch (e) { /* the mic's */ } }
+    }
+    function cuePaint(c) {
+      if (!c.bar || c.lvl == null) return;
+      c.bar.hidden = false;
+      var fill = c.bar.firstChild;
+      if (fill) fill.style.height = Math.round(Math.max(0, Math.min(1, +c.lvl || 0)) * 100) + '%';
+    }
+    /** SAE.mic.level, through the engine (opts.micLevel) or the page's own module; null when there is none. */
+    function levelFn() {
+      if (typeof opts.micLevel === 'function') return opts.micLevel;
+      if ('micLevel' in opts) return null;
+      var m = typeof window !== 'undefined' && window.SAE && window.SAE.mic;
+      return m && typeof m.level === 'function' ? m.level : null;
+    }
+    /** Put the cue in the screen's top bar (its physical right edge, both directions); a speaking screen's bar runs. */
+    function cueOn(v, phase, s) {
+      var kind = r7.r8_nudges === true ? cueKind(v, phase) : null;
+      var k = kind ? keyOf(v) + '|' + kind : null;
+      if (cue && cue.k !== k) cueStop();
+      if (!kind) return;
+      var top = s.querySelector('.sae-top');
+      if (!top) return;
+      var lf = kind === 'speak' ? levelFn() : null;
+      var bar = lf ? h('span', { class: 'sae-r8-lvl', 'aria-hidden': 'true', hidden: '' }, [h('span', { class: 'sae-r8-lvl-fill' })]) : null;
+      var ico = h('span', { class: 'sae-r8-ico', 'aria-hidden': 'true' });
+      ico.innerHTML = CUE_SVG[kind];
+      top.appendChild(h('div', { class: 'sae-r8-cue is-' + kind, 'data-cue': kind, role: 'img', 'aria-label': kind === 'speak' ? C.cue_speak : C.cue_tap }, [ico, bar]));
+      if (!lf) return;
+      if (!cue) {
+        var c = cue = { k: k, stop: null, bar: null, lvl: null };
+        try {
+          c.stop = lf(function (level) {
+            if (!alive || cue !== c) return;
+            c.lvl = level;
+            cuePaint(c);
+          });
+        } catch (e) { c.stop = null; }
+      }
+      cue.bar = bar;
+      cuePaint(cue);
+    }
+
+    // ---------- round 8, item 32 (r8_highlight): the instruction lit word by word as Jugnu says it ----------
+    var hlRun = null; // the line being followed: { host, a, words, spans, idx, raf }
+    /** The words of a line Jugnu may say, on the screen: a span keyed by its clip (ON only; OFF the plain text). */
+    function hlText(text, said) {
+      var clip = r7.r8_highlight === true ? clipOf(said, null) : null;
+      if (!clip || !V4_RX.test(clip)) return text;
+      return h('span', { class: 'sae-r8-text', 'data-r8-clip': clip, text: text });
+    }
+    /** The clip key the voice plays for (textObj, audioObj), as sa-voice picks it. */
+    function clipOf(textObj, audioObj) {
+      var a = audioObj != null ? audioObj : (textObj && typeof textObj === 'object' ? textObj.audio : null);
+      if (typeof a === 'string') return a || null;
+      return a && typeof a === 'object' && typeof a[lang] === 'string' && a[lang] ? a[lang] : null;
+    }
+    function hlStop() {
+      var r = hlRun;
+      hlRun = null;
+      if (!r) return;
+      if (r.raf != null) cancelFrame(r.raf);
+      if (r.spans && r.spans[r.idx]) r.spans[r.idx].classList.remove('is-on');
+    }
+    /** Follow a line Jugnu has just started (say()): its words on the screen lit from the playing clip's clock. */
+    function hlFollow(textObj, audioObj, done) {
+      hlStop();
+      var clip = clipOf(textObj, audioObj);
+      if (!clip || !V4_RX.test(clip) || typeof speakFn.audio !== 'function') return;
+      var host = null;
+      Array.prototype.forEach.call(el.querySelectorAll('.sae-r8-text'), function (n) { if (!host && n.getAttribute('data-r8-clip') === clip) host = n; });
+      if (!host) return;
+      var r = hlRun = { host: host, a: null, words: null, spans: null, idx: -1, raf: null };
+      function step() {
+        r.raf = null;
+        if (hlRun !== r || !alive || !host.isConnected) { if (hlRun === r) hlStop(); return; }
+        var a = null;
+        try { a = speakFn.audio(); } catch (e) { a = null; }
+        if (a && a !== r.a) {
+          r.a = a;
+          timingFor(a.src).then(function (d) {
+            if (hlRun !== r || r.a !== a || !d) return;
+            var toks = host.textContent.split(/\s+/).filter(Boolean);
+            if (d.words.length !== toks.length) return;
+            if (!r.spans) {
+              while (host.firstChild) host.removeChild(host.firstChild);
+              r.spans = toks.map(function (w, i) {
+                if (i) host.appendChild(document.createTextNode(' '));
+                return host.appendChild(h('span', { class: 'sae-r8-w', text: w }));
+              });
+            }
+            r.words = d.words;
+          });
+        }
+        if (r.words && r.a) {
+          var ms = (+r.a.currentTime || 0) * 1000, i = -1;
+          for (var j = 0; j < r.words.length && r.words[j].s_ms <= ms; j++) i = j;
+          if (i !== r.idx) {
+            if (r.spans[r.idx]) r.spans[r.idx].classList.remove('is-on');
+            if (r.spans[i]) r.spans[i].classList.add('is-on');
+            r.idx = i;
+          }
+        }
+        r.raf = nextFrame(step);
+      }
+      step();
+      Promise.resolve(done).then(function () { if (hlRun === r) hlStop(); });
+    }
+
     // ---------- the frame ----------
     function keyOf(v) {
       var k = v.phase + '|' + v.task_index;
@@ -1765,6 +2362,7 @@
 
     function draw() {
       if (!alive) return;
+      if (r8Lang) langApply();
       var v = runner.view();
       var key = keyOf(v);
       if (hold && v.phase !== 'practice' && v.phase !== 'ready') hold = null;
@@ -1807,11 +2405,13 @@
       }
       while (el.firstChild) el.removeChild(el.firstChild);
       el.appendChild(s);
+      cueOn(v, showPhase, s);
       fitCells(s);
       if (mode === 'proctored' && showPhase !== 'handover' && showPhase !== 'refused') {
         coachLayer(v).forEach(function (n) { el.appendChild(n); });
         if (coachMenu) el.appendChild(sCoachMenu(v));
       }
+      if (r8Digits) latinScreen(el, v.task);
       el.setAttribute('data-phase', showPhase);
       el.setAttribute('data-task-mode', v.task ? v.task.mode : '');
       if (entered) { lastKey = key; enter(v); }
@@ -1851,6 +2451,17 @@
 
     return {
       render: function () { draw(); },
+      /**
+       * Round 8 item 4 (sa_r8_lang_switch): the same test's battery in the other language (normalised; the page
+       * fetched it and checked its tasks and items are this run's). ON, the toggle shows once it is here; OFF, ignored.
+       * o.onSwitch(lang) when a switch takes over (the page sets its own lang/dir).
+       */
+      langBattery: function (l, b, o) {
+        if (!r8Lang || !alive || (l !== 'en' && l !== 'ur') || l === homeLang || !b || !Array.isArray(b.tasks)) return;
+        langAlt[l] = b;
+        langOnSwitch = o && typeof o.onSwitch === 'function' ? o.onSwitch : null;
+        draw();
+      },
       /** The mercy rule (RULING #10; the engine calls it after 12 s of no voice): Jugnu says lines.mercy once, the star pulses. */
       mercy: function () {
         var v = runner.view();
@@ -1895,6 +2506,8 @@
       },
       destroy: function () {
         stopMeter();
+        cueStop();
+        hlStop();
         alive = false;
         loop(false);
         timers.forEach(clearTimeout);

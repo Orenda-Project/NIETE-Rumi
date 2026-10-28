@@ -6,7 +6,9 @@
  *                                   pre-flight's JSON {ok|mic_ok, mic_rms}; an earlier game mic check on this phone)
  *   SAE.mic.remember(ok, rms)       sa:mic_ok ('1'/'0') and sa:mic_rms
  *   SAE.mic.probe(ms)               Promise<{ ok, rms, url }>: record ms (2 s), the level's RMS, a blob URL to play back
- *   SAE.mic.level(cb)               a live level 0..1 to cb about 10× a second; returns stop()
+ *   SAE.mic.level(cb[, { stream }]) a live level 0..1 to cb about 10× a second; returns stop(). It listens on the
+ *                                   stream given, else the recorder's open one (SAE.rec.stream()), else its own; a
+ *                                   stream it did not open is never stopped (the recorder keeps recording).
  *
  * UMD: window.SAE.mic in the browser, module.exports under Node.
  */
@@ -111,14 +113,30 @@
     }, function () { return { ok: false, rms: 0, peak: 0, url: null }; });
   }
 
-  function level(cb) {
+  /** A stream whose tracks are all still live, or null. */
+  function live(s) {
+    try {
+      var ts = s && s.getTracks ? s.getTracks() : null;
+      return ts && ts.length && ts.every(function (t) { return t.readyState !== 'ended'; }) ? s : null;
+    } catch (_) { return null; }
+  }
+  /** The recorder's open stream (sa-rec.js), so a meter never opens a second microphone while it records. */
+  function shared() {
+    try {
+      var rec = root.SAE && root.SAE.rec;
+      return rec && typeof rec.stream === 'function' ? live(rec.stream()) : null;
+    } catch (_) { return null; }
+  }
+
+  function level(cb, o) {
     var stopped = false;
     var stream = null;
     var an = null;
     var timer = null;
-    open().then(function (s) {
-      stream = s;
-      if (stopped) { stopStream(s); return; }
+    var borrowed = live(o && o.stream) || shared();
+    (borrowed ? Promise.resolve(borrowed) : open()).then(function (s) {
+      stream = borrowed ? null : s; // a borrowed stream is the recorder's to stop
+      if (stopped) { stopStream(stream); return; }
       an = analyser(s);
       if (!an) return;
       timer = setInterval(function () { cb(Math.min(1, an.read() * 4)); }, 100);
