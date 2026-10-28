@@ -153,7 +153,9 @@
           // round 7b (the runner keeps each to its mode: end_section RDF manual; incomplete and silence_repeat RDF auto)
           end_section: w3.end_section === true && mode === 'proctored', incomplete: w3.incomplete_move_on === true && mode === 'proctored',
           silence_repeat: silenceRepeat });
-        var voice = voiceMod.create({ lang: lang, base: opts.audio_base || '/', muted: false, onSpeak: function (s) { fire('audio', s); }, onSilent: function (s) { fire('silent', s); } });
+        var voice = voiceMod.create({ lang: lang, base: opts.audio_base || '/', muted: false, onSpeak: function (s) { fire('audio', s); }, onSilent: function (s) { fire('silent', s); },
+          // a line held by a hidden page (parked, paused, resumed, gave_up): kept on the session (voice_held)
+          onHeld: function (h) { runner.log('voice_held', { task_id: runner.view().task ? runner.view().task.id : undefined, value: { kind: h.kind } }); } });
         if (syncMod && opts.sink) {
           sync = syncMod.create({ store: store, sink: opts.sink, session_id: sessionId, onStatus: function (s) { fire('sync', s); } });
         }
@@ -323,8 +325,12 @@
         };
         if (opts.embed && win.addEventListener) win.addEventListener('message', onMsg);
         // Another app, the screen off, a call: logged, and a timed task in progress runs again (RULING #12).
-        var doc = root.document;
-        var onVis = function () { if (doc.visibilityState === 'hidden') { runner.visibilityLost(); if (view && view.render) view.render(); } };
+        // Shown again: Jugnu's line held while the page was hidden plays on (sa-voice resume()).
+        var doc = deps.doc || root.document;
+        var onVis = function () {
+          if (doc.visibilityState === 'hidden') { runner.visibilityLost(); if (view && view.render) view.render(); }
+          else if (voice.resume) voice.resume();
+        };
         if (doc && doc.addEventListener) doc.addEventListener('visibilitychange', onVis);
         if (prev === null) write(function () { return store.putSession({ session_id: sessionId, battery_id: battery.battery_id || null, mode: mode, lang: lang, snapshot: null, ended: false, created_at: new Date().toISOString() }); });
 

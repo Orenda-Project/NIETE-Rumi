@@ -16,6 +16,13 @@
  * voice); a { …, audio } on it is used when audioObj is not given. audioObj: a key string or { en, ur }.
  * speak() never throws and its promise always resolves (when the words end, on any error, or on a guard timeout).
  * A new speak() or stop() cuts the one before it and resolves its promise.
+ * The page hidden mid-line (another tab, another app, the screen off; the tester, 28 Oct):
+ *   - a clip refused, failing or not started while the page is hidden is held, never handed to the phone's voice;
+ *   - a clip the browser pauses on its own ('pause' with no 'ended') is held;
+ *   resume() (the page is visible again) plays a held line on: the same clip from where it stopped, or Jugnu's clip
+ *   again. A clip still paused stall_ms after it was paused on a visible page (or after resume()) is tried once more,
+ *   then the words are shown (onSilent) and the line ends: Next never waits on a clip that is not playing.
+ *   onHeld({ kind: 'parked'|'paused'|'resumed'|'gave_up' }) reports each, for the session's record.
  *
  * UMD: window.SAE.voice in the browser, module.exports under Node (the test stubs Audio and speechSynthesis).
  */
@@ -73,8 +80,14 @@
     var retryMs = o.retry_ms != null ? o.retry_ms : 1500;
     var onSpeak = typeof o.onSpeak === 'function' ? o.onSpeak : null;
     var onSilent = typeof o.onSilent === 'function' ? o.onSilent : null;
-    var cur = null; // { done(), audio?, tts? }
+    var onHeld = typeof o.onHeld === 'function' ? o.onHeld : null;
+    var stallMs = o.stall_ms != null ? o.stall_ms : 4000;
+    var cur = null; // { done(), audio?, tts?, park? }
     function notify(on, text) { if (onSpeak) { try { onSpeak({ speaking: on, text: text || null }); } catch (e) { /* ignore */ } } }
+    function held(kind) { if (onHeld) { try { onHeld({ kind: kind }); } catch (e) { /* ignore */ } } }
+    function hidden() {
+      try { var d = o.document || g('document'); return !!d && d.visibilityState === 'hidden'; } catch (e) { return false; }
+    }
 
     // Injected for tests; the page uses the browser's own.
     function AudioCtor() { return o.Audio || g('Audio'); }
@@ -85,7 +98,7 @@
       var c = cur;
       cur = null;
       if (!c) return;
-      try { if (c.audio) { c.audio.onended = c.audio.onerror = c.audio.onplaying = null; c.audio.pause(); } } catch (e) { /* ignore */ }
+      try { if (c.audio) { c.audio.onended = c.audio.onerror = c.audio.onplaying = c.audio.onpause = null; c.audio.pause(); } } catch (e) { /* ignore */ }
       try { if (c.tts) { var s = synth(); if (s && s.cancel) s.cancel(); } } catch (e) { /* ignore */ }
       c.done();
     }
@@ -171,10 +184,44 @@
               if (fell || finished || cur !== me) return;
               fell = true;
               if (t0) clearTimeout(t0);
-              try { a.onended = a.onerror = a.onplaying = null; a.pause(); } catch (e) { /* ignore */ }
+              try { a.onended = a.onerror = a.onplaying = a.onpause = null; a.pause(); } catch (e) { /* ignore */ }
               me.audio = null;
+              // The page is hidden: the line waits for it, in Jugnu's own clip (resume()), never the phone's voice.
+              if (hidden()) { tries -= 1; me.park = play; held('parked'); return; }
               if (tries < 2) later(function () { if (finished || cur !== me) return; try { play(); } catch (e) { lost(); } }, retryMs);
               else lost();
+            };
+            // Paused by the browser (the page hidden, the audio taken): held until resume(), or until stallMs on a visible page.
+            var stall = function () {
+              later(function () {
+                if (finished || cur !== me || me.held !== a || hidden()) return;
+                me.held = null;
+                var gaveUp = function () {
+                  if (finished || cur !== me || !a.paused) return;
+                  try { a.onended = a.onerror = a.onplaying = a.onpause = null; a.pause(); } catch (e) { /* ignore */ }
+                  me.audio = null;
+                  held('gave_up');
+                  silent();
+                };
+                var q;
+                try { q = a.play(); } catch (e) { q = null; gaveUp(); return; }
+                if (q && typeof q.then === 'function') q.then(null, gaveUp);
+                later(gaveUp, loadMs);
+              }, stallMs);
+            };
+            a.onpause = function () {
+              if (fell || finished || cur !== me || a.ended || !playing) return;
+              me.held = a;
+              held('paused');
+              if (!hidden()) stall();
+            };
+            me.unhold = function () {
+              if (me.held !== a) return;
+              held('resumed');
+              var q;
+              try { q = a.play(); } catch (e) { q = null; }
+              if (q && typeof q.then === 'function') q.then(function () { if (me.held === a) me.held = null; }, function () { /* the stall below decides */ });
+              stall();
             };
             a.onplaying = function () { playing = true; start(); };
             a.onended = function () { me.done(); };
@@ -192,8 +239,19 @@
       });
     }
 
+    /** The page is visible again: a held line plays on (the paused clip, or Jugnu's clip again). Never throws. */
+    function resume() {
+      var c = cur;
+      if (!c || hidden()) return;
+      try {
+        if (c.park) { var f = c.park; c.park = null; held('resumed'); f(); }
+        else if (c.held && c.unhold) c.unhold();
+      } catch (e) { /* the line's own guards end it */ }
+    }
+
     return {
       speak: speak,
+      resume: resume,
       stop: function () { try { stopCur(); } catch (e) { cur = null; } },
       setMuted: function (b) { muted = !!b; if (muted) { try { stopCur(); } catch (e) { cur = null; } } },
       get muted() { return muted; },

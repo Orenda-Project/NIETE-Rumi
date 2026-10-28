@@ -442,7 +442,8 @@ const TIMED = ['session_start', 'audio_check', 'task_start', 'task_end', 'handov
 // the events the session keeps as they are (device.events): what the timings cannot say
 // Round 7b: every skip and stop, one record each (the session, child and coach are the session row's; task_id the subtask).
 const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on'];
-const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', ...STOP_TYPES];
+// voice_held: Jugnu's line held by a hidden page (parked, paused, resumed, gave_up), from sa-voice.js
+const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', ...STOP_TYPES];
 const MAX_EVENT_DATA = 300; // characters of JSON
 
 function loadBank() {
