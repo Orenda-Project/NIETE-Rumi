@@ -199,4 +199,16 @@ describe.each(["en", "ur"] as Lang[])("R6 RM deck (%s)", (lang) => {
     expect(fu.compareDocumentPosition(schools) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(schools.contains(fu)).toBe(false);
   });
+
+  it("the follow-up sheet is fixed to the screen: portalled out of the page's animated (transform) layer, in its own .cp root", async () => {
+    await renderRm(`/coach/${C03}`);
+    await act(async () => { fireEvent.click(screen.getByTestId("s9-follow-up")); });
+    await settle();
+    const sheet = screen.getByTestId("follow-up-picker");
+    expect(sheet.closest(".cp-enter")).toBeNull();
+    expect(sheet.closest("[data-cp-shell]")).toBeNull();
+    const root = sheet.closest(".cp") as HTMLElement;
+    expect(root).not.toBeNull();
+    expect(root.getAttribute("dir")).toBe(lang === "ur" ? "rtl" : "ltr");
+  });
 });

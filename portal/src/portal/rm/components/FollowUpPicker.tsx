@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useLang } from "../../teacher/i18n";
 import { CodeText } from "../../coach/insights/count";
@@ -95,8 +96,11 @@ export default function FollowUpPicker({ coach, home, onClose, onSent }: {
     ) : null;
   };
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 md:items-center" onClick={onClose}>
+  // bd-sex15q.47: portalled to <body> in its own .cp root. Inside the page, Shell's .cp-enter animates `transform`
+  // (fill-mode both), which makes it the containing block of every `fixed` descendant: the sheet was pinned to the
+  // bottom of the long page, off-screen, with only its dim showing (S9 phone shot v3picker).
+  return createPortal(
+    <div className="cp fixed inset-0 z-[60] flex items-end justify-center bg-black/40 md:items-center" dir={lang === "ur" ? "rtl" : "ltr"} onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-labelledby="picker-title" data-testid="follow-up-picker"
         dir={lang === "ur" ? "rtl" : "ltr"} onClick={(e) => e.stopPropagation()}
         className="cp-sheet flex max-h-[92vh] w-full max-w-2xl flex-col gap-5 overflow-y-auto rounded-t-[20px] bg-cp-surface px-5 pb-[calc(20px+env(safe-area-inset-bottom))] pt-2 text-cp-ink shadow-[0_-2px_8px_rgba(51,55,72,0.08)] md:rounded-[20px] md:px-7 md:pb-7 md:pt-5">
@@ -179,6 +183,7 @@ export default function FollowUpPicker({ coach, home, onClose, onSent }: {
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

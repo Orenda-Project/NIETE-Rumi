@@ -46,7 +46,8 @@ export function CircleRow({ m, open, onOpen }: { m: CircleMoment; open: boolean;
     if (!open) flushSync(() => onOpen(m.coach_user_id));
     const a = audio.current;
     if (!a || clipBad) return;
-    if (a.paused) void a.play().catch(() => setFailed(true)); else a.pause();
+    // play() is a promise in today's browsers and undefined in older ones (and jsdom): never chain on undefined
+    if (a.paused) a.play()?.catch(() => setFailed(true)); else a.pause();
   };
   const sep = lang === "ur" ? "، " : " · ";
   return (
