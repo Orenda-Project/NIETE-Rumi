@@ -567,6 +567,10 @@
       window.addEventListener('scroll', function () { if (alive) checkMore(); }, true);
       window.addEventListener('resize', function () { if (alive) checkMore(); });
     }
+    // Round 8 item 30: a resize fits the missing number above the foot again
+    if (r8Mn && typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('resize', function () { if (alive) mnFit(el.querySelector('.sae-screen')); });
+    }
     // Round 8: a resize (the phone turned, the address bar went) places the cards' ink and packs the story's parts again
     var refit = null;
     if ((r8Layout || r8Snap) && typeof window !== 'undefined' && window.addEventListener) {
@@ -954,12 +958,43 @@
     function mnRow(seq, mn) {
       var em = (seq.length - 1) * 0.2;
       seq.forEach(function (x) { em += Math.max(isGap(x) ? 1.9 : String(x).length * 0.6 + 0.36, 1.4) + 0.1; });
-      return h('div', { class: 'sae-label sa-label sae-seq is-r8-mn', dir: 'ltr', style: 'font-size:min(96px, calc((min(100vw, 520px) - 48px) / ' + em.toFixed(2) + '))' }, seq.map(function (x) {
+      return h('div', { class: 'sae-label sa-label sae-seq is-r8-mn', dir: 'ltr', style: 'font-size:var(--mn-fs, min(96px, calc((min(100vw, 520px) - 48px) / ' + em.toFixed(2) + ')))' }, seq.map(function (x) {
         if (!isGap(x)) return h('span', { class: 'sae-seq-tile', text: String(x) });
         if (mn.out) return mn.out;
         var on = mn.fill != null;
         return h('span', { class: 'sae-seq-tile sae-gap' + (on ? ' is-filled' + (mn.cls || '') : '') }, [h('span', { class: 'sae-mn-ink', text: on ? String(mn.fill) : '__' })]);
       }));
+    }
+    /**
+     * r8_missing_number (item 30): the row and every choice above the foot (Back / Next) on a short phone, whatever rows
+     * sit above them (the coach's, the sandbox's part list). Measured after drawing; while a choice is still under the
+     * foot: Jugnu's picture goes, the choices come down to 56 px, then the row's type shrinks (not below 26 px).
+     */
+    var MN_OPT_H = 64, MN_OPT_MIN = 56, MN_FS_MIN = 26;
+    function mnFit(s) {
+      var row = s && s.classList.contains('sae-r8-mn') ? s.querySelector('.sae-seq.is-r8-mn') : null;
+      if (!row) return;
+      s.classList.remove('is-mn-tight');
+      s.style.removeProperty('--mn-opt-h');
+      row.style.removeProperty('--mn-fs');
+      var foot = s.querySelector('.sae-foot');
+      function over() {
+        var last = s.querySelector('.sae-opts') || s.querySelector('.sae-keypad');
+        if (!last) return 0;
+        var limit = foot ? foot.getBoundingClientRect().top : window.innerHeight;
+        return last.getBoundingClientRect().bottom - (limit - 4);
+      }
+      if (over() <= 0) return;
+      s.classList.add('is-mn-tight');
+      var oh = MN_OPT_H;
+      var fs = 0;
+      try { fs = parseFloat(getComputedStyle(row).fontSize); } catch (e) { fs = 0; }
+      if (!(fs > 0)) fs = 40;
+      for (var i = 0; i < 12 && over() > 0; i++) {
+        if (oh > MN_OPT_MIN) { oh = Math.max(MN_OPT_MIN, oh - 4); s.style.setProperty('--mn-opt-h', oh + 'px'); continue; }
+        if (fs > MN_FS_MIN) { fs = Math.max(MN_FS_MIN, fs * 0.88); row.style.setProperty('--mn-fs', fs.toFixed(1) + 'px'); continue; }
+        break;
+      }
     }
     function reducedMotion() {
       try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
@@ -2412,6 +2447,7 @@
         if (coachMenu) el.appendChild(sCoachMenu(v));
       }
       if (r8Digits) latinScreen(el, v.task);
+      if (r8Mn) mnFit(s);
       el.setAttribute('data-phase', showPhase);
       el.setAttribute('data-task-mode', v.task ? v.task.mode : '');
       if (entered) { lastKey = key; enter(v); }
