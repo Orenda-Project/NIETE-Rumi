@@ -49,7 +49,7 @@ const R7B = ['backButton', 'endTestRestart', 'endSection', 'silenceRepeat', 'inc
   'storyScroll', 'audioGatedNext', 'tickPrompt',
   // round 8 (the reviewer's 28 Oct list, the child's screens)
   'r8ReadingNoDone', 'r8CompWaitNext', 'r8PracticeAutoplay', 'r8LatinDigits', 'r8MissingNumber', 'r8Layout', 'r8StorySnap',
-  'r8Nudges', 'r8Highlight', 'r8LangSwitch', 'r8ReadingPosition', 'r8TimeupContinue'];
+  'r8Nudges', 'r8Highlight', 'r8LangSwitch', 'r8ReadingPosition', 'r8TimeupContinue', 'r8Counts'];
 
 /** The tashdeed takes on disk (sa/v3/ur/<12 hex>.mp3), by file name; none when the folder is missing. */
 function tashdeedTakes(dir = path.join(DIR, 'v3', 'ur')) {
