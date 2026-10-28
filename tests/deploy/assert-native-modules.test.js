@@ -39,9 +39,16 @@ Module._resolveFilename = function (request, ...rest) {
 }
 const PRELOAD = preload('dropped');
 
-function run({ mode, allow }) {
-  const env = { ...process.env, NODE_OPTIONS: '' };
-  delete env.ALLOW_MISSING_CANVAS;
+// The hatch is refused on Railway and in CI, so these runs start from an env with neither.
+const DEPLOY_VARS = ['RAILWAY_ENVIRONMENT_NAME', 'RAILWAY_ENVIRONMENT', 'RAILWAY_PROJECT_ID', 'RAILWAY_SERVICE_NAME', 'CI'];
+function cleanEnv() {
+  const env = { ...process.env };
+  for (const k of [...DEPLOY_VARS, 'ALLOW_MISSING_CANVAS']) delete env[k];
+  return env;
+}
+
+function run({ mode, allow, extra = {} }) {
+  const env = { ...cleanEnv(), NODE_OPTIONS: '', ...extra };
   if (allow) env.ALLOW_MISSING_CANVAS = '1';
   return spawnSync(process.execPath, ['-r', preload(mode), SCRIPT], { cwd: BOT, env, encoding: 'utf8' });
 }
@@ -70,13 +77,24 @@ describe('bot/scripts/assert-native-modules.js', () => {
     expect(r.status).toBe(0);
     expect(r.stderr).toMatch(/ALLOW_MISSING_CANVAS=1/);
   });
+
+  // red7 N1 (board 20261028T024109): set on a Railway service, the hatch would let the next dropped canvas build green
+  // with exam annotation silently off. It is for local machines only, so a deploy or CI env refuses it.
+  test.each([
+    ['RAILWAY_ENVIRONMENT_NAME', 'production'],
+    ['RAILWAY_PROJECT_ID', 'bcc5a6a9'],
+    ['RAILWAY_SERVICE_NAME', 'sqs-worker'],
+    ['CI', 'true'],
+  ])('ALLOW_MISSING_CANVAS=1 with %s set: the hatch is refused, exits 1', (k, v) => {
+    const r = run({ mode: 'dropped', allow: true, extra: { [k]: v } });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/ALLOW_MISSING_CANVAS=1 is ignored/);
+  });
 });
 
 describe('bot/package.json postinstall (run through npm, the way the Railway build runs it)', () => {
   function npmPostinstall(env) {
-    const e = { ...process.env, SKIP_PLAYWRIGHT_INSTALL: '1', NODE_OPTIONS: `--require=${PRELOAD}`, ...env };
-    delete e.ALLOW_MISSING_CANVAS;
-    Object.assign(e, env);
+    const e = { ...cleanEnv(), SKIP_PLAYWRIGHT_INSTALL: '1', NODE_OPTIONS: `--require=${PRELOAD}`, ...env };
     return spawnSync('npm', ['run', 'postinstall'], { cwd: BOT, env: e, encoding: 'utf8' });
   }
 
