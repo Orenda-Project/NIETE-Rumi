@@ -86,6 +86,7 @@ const {
   PORTAL_COACH_OBSERVATION_KEY,
   PORTAL_NEW_UI_KEY,
   PORTAL_COACH_V2_KEY,
+  PORTAL_COACH_SCHOOL_CARD_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,
@@ -2279,6 +2280,17 @@ async function requireCoachV2(req, res, next) {
   return next();
 }
 const coachV2 = [requirePortalAuth, requireLeaderRole, requireCoachV2];
+
+// The coach School Card: its own switch on top of the coach app v2 chain. Off for her → 404, nothing is read.
+async function requireSchoolCard(req, res, next) {
+  const on = await isFlagEnabledForUser(supabase, PORTAL_COACH_SCHOOL_CARD_KEY, req.session && req.session.portalUserId);
+  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+  return next();
+}
+router.use(require('./coach-school-card.routes').createCoachSchoolCardRouter({
+  guards: [...coachV2, requireSchoolCard],
+  query: (sql, params) => pool.query(sql, params),
+}));
 
 // bd-tbprit.1: the coach's disagreements (v10 coaching test) — her To do / Done and the evidence card.
 // Behind the coach app guards AND its own flag, so week 1 of the test sees nothing new.
@@ -8889,6 +8901,7 @@ router.get('/config', async (req, res) => {
       coachip,
       coachipRmSector,
       coachipDecodeRaw,
+      schoolCardRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -8921,6 +8934,8 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_COACHIP_KEY, userId),
       rmSectorFor(supabase, userId),
       isFlagEnabledForUser(supabase, PORTAL_COACHIP_DECODE_KEY, userId),
+      // The coach School Card, per user; its routes also need the coach app v2, so it rides with that on.
+      isFlagEnabledForUser(supabase, PORTAL_COACH_SCHOOL_CARD_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -8946,6 +8961,7 @@ router.get('/config', async (req, res) => {
         coachip,
         coachipRm: coachipRmSector !== null,
         coachipDecode: coachip && coachipDecodeRaw,
+        schoolCard: coachV2 && schoolCardRaw,
       },
     });
   } catch (error) {
@@ -8973,6 +8989,7 @@ router.get('/config', async (req, res) => {
         coachip: false,
         coachipRm: false,
         coachipDecode: false,
+        schoolCard: false,
       },
     });
   }

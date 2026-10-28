@@ -245,6 +245,15 @@ const PORTAL_TEACHER_HOME_QUIZ_TILE_KEY = 'portal_teacher_home_quiz_tile';
 const PORTAL_TEACHER_HOME_LOOK_KEY = 'portal_teacher_home_look';
 
 /**
+ * The coach School Card: the coach Home, a school's card for a period, the by-teacher grids, her Teacher page, her
+ * lists, Her coaching reports and the coach's view of one DC report (dashboard/services/coach-school-card.service.js).
+ * Same shape and rule as the keys above: true = everyone, a list of users.id = a pilot, absent = off. Its routes also
+ * need portal_coach_v2; off for her, every one of them is a 404 and /config says schoolCard: false. The bot reads
+ * the same key for its WhatsApp door.
+ */
+const PORTAL_COACH_SCHOOL_CARD_KEY = 'portal_coach_school_card';
+
+/**
  * bd-sex15q.13 — COACHIP, the coach and RM insight portal (SPEC v2 §2, API.md §5). Three switches, every one off with
  * no row; turning one on is one app_settings upsert, and it takes effect within the flag cache's TTL (readFlagRow, 30 s).
  *
@@ -498,6 +507,7 @@ module.exports = {
   PORTAL_COACH_OBSERVATION_KEY,
   PORTAL_NEW_UI_KEY,
   PORTAL_COACH_V2_KEY,
+  PORTAL_COACH_SCHOOL_CARD_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,
