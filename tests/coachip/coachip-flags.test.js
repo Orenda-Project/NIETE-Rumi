@@ -10,6 +10,9 @@
  * the route's catch fallback, and coachipDecode only with coachip on. The real flag module and the real /config
  * route run; only the supabase client (the network boundary) is faked.
  */
+// These tests change app_settings rows under one shared client, sometimes mid-test, to check each value's rule.
+// The flag cache would hold the first read, so it is off here; tests/portal/feature-flags-cache.test.js covers it.
+process.env.FLAG_CACHE_TTL_MS = '0';
 
 const COACH = '11111111-1111-4111-8111-111111111111';
 const RM = 'ab222222-2222-4222-8222-2222222222cd';

@@ -4,6 +4,9 @@
  * Mocked: supabase (app_settings + users), the pg pool (dashboard/config/database), global fetch. Everything else —
  * fln-access, feature-flags, leader-role, lp-activity, the corpus service, app-funnel's actionLogger — is real.
  */
+// These tests change app_settings rows under one shared client, sometimes mid-test, to check each value's rule.
+// The flag cache would hold the first read, so it is off here; tests/portal/feature-flags-cache.test.js covers it.
+process.env.FLAG_CACHE_TTL_MS = '0';
 const http = require('http');
 const crypto = require('crypto');
 const express = require('express');
