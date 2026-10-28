@@ -21,6 +21,9 @@ import { FractionBar } from "../../coachip-ui/FractionBar";
  * a ring (lessons, never a coach or a teacher: DESIGN_SYSTEM §6) with "of d" and the name beside it; a row under the
  * floor shows the empty ring (the track only, no number); each school has its own fraction bar.
  */
+/** Urdu only: the line breaks before a Latin school name, never inside it, and an "n of d" stays whole (ux-coach 185839). */
+export const URDU_ISOLATE = "[&_[data-code]]:inline-block [&_[data-num]]:whitespace-nowrap";
+
 export function SectorWRow({ row, bySchool, agenda, sector, testId = "sector-wrow" }: {
   row: WRow; bySchool?: readonly { school: School; count: Count }[]; agenda?: boolean;
   /** S9: the row is one coach's and this is the sector's count beside it ("Urban-I: 171 of 505"). */
@@ -59,7 +62,8 @@ export function SectorWRow({ row, bySchool, agenda, sector, testId = "sector-wro
           {bySchool.map((b) => (
             // bd-sex15q.47 (ux-lead-2 183234 #2): the sentence full width, then the bar on its own line (real names are long)
             <li key={b.school.school_id} data-testid="by-school-row" className="flex flex-col gap-1.5 py-2 text-[14px] leading-[1.45] text-cp-ink">
-              <span>{rtx("s8.moves.by_school.row", lang, { school: <CodeText lang={lang}>{b.school.school_name}</CodeText> }, [{ n: "n", d: "d", count: b.count }])}</span>
+              {/* ux-coach 185839: in Urdu the name is one atomic box and "۹ میں سے ۶" never splits */}
+              <span className={lang === "ur" ? URDU_ISOLATE : undefined}>{rtx("s8.moves.by_school.row", lang, { school: <CodeText lang={lang}>{b.school.school_name}</CodeText> }, [{ n: "n", d: "d", count: b.count }])}</span>
               <FractionBar n={b.count.n} d={b.count.d} className="w-full" />
             </li>
           ))}

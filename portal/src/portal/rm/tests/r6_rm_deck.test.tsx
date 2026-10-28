@@ -177,4 +177,18 @@ describe.each(["en", "ur"] as Lang[])("R6 RM deck (%s)", (lang) => {
     const moves = screen.getByTestId("rm-moves");
     expect(moves.compareDocumentPosition(cov) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+
+  it("ux-coach 185839: in Urdu a line with a school name and a count breaks before the name, never inside it", async () => {
+    const ISO = ["[&_[data-code]]:inline-block", "[&_[data-num]]:whitespace-nowrap"];
+    const check = (el: Element) => {
+      if (lang === "ur") expect(cls(el)).toEqual(expect.arrayContaining(ISO));
+      else expect(cls(el).filter((c) => ISO.includes(c))).toEqual([]);
+    };
+    await renderRm("");
+    for (const row of screen.getAllByTestId("by-school-row")) check(row.firstElementChild!);
+    cleanup();
+    serve(rmWorld());
+    await renderRm(`/coach/${C03}`);
+    for (const row of screen.getAllByTestId("s9-school")) check(row.firstElementChild!);
+  });
 });

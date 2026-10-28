@@ -13,7 +13,7 @@ import { RmNote, RmPage } from "../components/RmFrame";
 import { Section } from "../../coachip-ui/Section";
 import { Button } from "../../coachip-ui/Button";
 import { Pill } from "../../coachip-ui/Pill";
-import { SectorWRow } from "../components/SectorWRow";
+import { SectorWRow, URDU_ISOLATE } from "../components/SectorWRow";
 import { CountLine } from "../components/CountLine";
 import { WindowLegend, windowIds } from "../components/WindowLegend";
 import FollowUpPicker from "../components/FollowUpPicker";
@@ -42,7 +42,7 @@ function Schools({ d, children }: { d: Detail; children?: ReactNode }) {
           return (
             <li key={s.school.school_id} data-testid="s9-school" data-late={late ? "1" : undefined} className="flex flex-col gap-0.5 border-t border-cp-hairline py-3.5 text-[15px] leading-[1.45] first:border-t-0">
               {/* notice = navy, never amber (DESIGN_SYSTEM §6) */}
-              <span data-nonum="" className={late ? "font-semibold text-cp-navy" : "text-cp-ink"}>
+              <span data-nonum="" className={`${late ? "font-semibold text-cp-navy" : "text-cp-ink"} ${lang === "ur" ? URDU_ISOLATE : ""}`}>
                 {s.last_visit === null || s.weeks_since_visit === null
                   ? allOld ? school : <>{school}{lang === "ur" ? "، " : " · "}{rt("s9.schools.never", lang)}</>
                   : rtx(s.next_visit ? "s9.schools.row" : "s9.schools.row.no_next", lang, {
