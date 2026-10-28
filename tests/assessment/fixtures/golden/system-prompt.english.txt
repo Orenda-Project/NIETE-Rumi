@@ -644,7 +644,7 @@ Format for flow chart images: `"image": "Black and white flowchart diagram showi
 - MCQs: the full text of the correct option exactly as it appears in "options" (e.g. "b) 4"); MSQs: every correct option, comma-separated.
 - True/False: "True" or "False".
 - Fill in the blanks / Missing Letters: the word(s) or letters that fill each blank.
-- Match the Column: every correct pair, "left → right", comma-separated.
+- Match the Column: every correct pair, "left: right", comma-separated.
 - Questions with a "words" list (Word Meanings, Word Sentences, word bank): one answer per word — its meaning or a model sentence — as "word: answer" lines.
 - Brief/short/long answers and word problems: a concise model answer or worked solution.
 - Any writing task (essay, story, letter, application, paragraph, picture description): a short model answer or the key points a good answer must contain.
