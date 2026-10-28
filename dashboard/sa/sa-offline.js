@@ -103,6 +103,25 @@
     });
   }
 
+  /**
+   * The engine's registration, without waiting on the network: register() fetches the worker's script, so with no signal it
+   * rejects even when the worker is installed and every file is on the phone (round 8, the school with no signal). An
+   * active registration is used as it is (the update is asked for behind it, a failure ignored); a phone with none
+   * registers first.
+   */
+  function registration(sw) {
+    var opts = { scope: '/sa/' };
+    var fresh = function () { return sw.register('/sa/sw.js', opts); };
+    var have = typeof sw.getRegistration === 'function' ? Promise.resolve().then(function () { return sw.getRegistration('/sa/'); }).then(null, function () { return null; }) : Promise.resolve(null);
+    return have.then(function (reg) {
+      if (reg && reg.active) {
+        Promise.resolve().then(fresh).then(null, function () { /* offline: the installed worker serves */ });
+        return reg;
+      }
+      return fresh();
+    });
+  }
+
   function prepare(o) {
     var nav = root.navigator;
     if (!nav || !nav.serviceWorker) return Promise.resolve({ ready: false, why: 'no_service_worker' });
@@ -113,8 +132,8 @@
     var first = lineUrls(o.battery, o.lang, o.base).filter(function (u) { return open.indexOf(u) < 0; });
     var rest = clips.filter(function (u) { return open.indexOf(u) < 0 && first.indexOf(u) < 0; });
     var pics = images(o.battery, o.lang);
-    return nav.serviceWorker.register('/sa/sw.js', { scope: '/sa/' })
-      .then(function () { return nav.serviceWorker.ready; })
+    return registration(nav.serviceWorker)
+      .then(function (reg) { return reg && reg.active ? reg : nav.serviceWorker.ready; })
       .then(function (reg) {
         var sw = reg.active || nav.serviceWorker.controller;
         if (!sw) return { ready: false, why: 'no_active_worker' };
@@ -265,7 +284,7 @@
   function workerAsk() {
     var nav = root.navigator;
     if (!nav || !nav.serviceWorker || !root.MessageChannel) return Promise.resolve(null);
-    return nav.serviceWorker.register('/sa/sw.js', { scope: '/sa/' }).then(function (reg) {
+    return registration(nav.serviceWorker).then(function (reg) {
       if (reg.active) return reg.active;
       var w = reg.installing || reg.waiting;
       if (!w) return null;

@@ -138,7 +138,7 @@ export function pageUrls(lists: string[]): string[] {
       if (u.origin === location.origin && u.pathname.startsWith('/assets/')) assets.add(u.pathname);
     });
   } catch { /* no timing API: the page and the reads still go */ }
-  return [PAGE_SCOPE, ...assets, `${API}/me`, `${API}/config`, `${CTS}/switches`, `${CTS}/schools`, ...lists];
+  return [PAGE_SCOPE, ...assets, `${API}/me`, `${API}/config`, `${CTS}/switches`, `${CTS}/schools`, ...lists, '/sa/sa-offline.js'];
 }
 
 function postAsk(w: ServiceWorker, msg: unknown, waitMs = 60_000): Promise<{ ok: boolean; cached: number; missing: string[] } | null> {
