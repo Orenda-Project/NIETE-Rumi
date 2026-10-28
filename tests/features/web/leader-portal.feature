@@ -158,3 +158,20 @@ Feature: School leader (principal) portal
     Then the page opens signed in, from what the phone kept, with the saved schools
     And a prepared school's list opens and a child can be started
     And with sa_r8_offline_prep off, the page's offline copy is removed from the phone the next time the page reads its switches online
+
+  @LP25 @config-gated
+  Scenario: Learning assessment: Get ready for offline with every grade on (sa_r8_offline_prep, sa_all_grades)
+    Given sa_r8_offline_prep and sa_all_grades are on for the signed-in coach
+    When they tick a school on the "Get ready for offline" card
+    Then grade buttons 1 to 5 show under it, the school's observed grade already ticked
+    When they tap "Get ready" with no grade ticked for a ticked school
+    Then "<school>: tick the grades you will test there." shows and nothing downloads
+    When they tick grades 2 and 4 and tap "Get ready"
+    Then the grade 2 and grade 4 lists for that school are kept, and only those grades' tests (Urdu and English) download
+
+  @LP26 @config-gated
+  Scenario: Learning assessment: Start does not wait when the child's part is already on the phone (sa_r8_offline_first)
+    Given sa_r8_offline_first is on and the child's part is already on the phone (Get ready, or an earlier child)
+    When the coach taps "Start"
+    Then the test opens with nothing downloaded first
+    And when the part is not there yet, the list's background download pauses until the part is on the phone

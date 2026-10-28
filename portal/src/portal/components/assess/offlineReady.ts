@@ -65,8 +65,8 @@ export type CheckResult = { ready: boolean; total: number; cached: number; why?:
 export type Part = { block: string; seed: string };
 
 type SaeOffline = {
-  prepVisit: (o: { forms: string[]; part?: Part; onProgress?: (p: Progress) => void }) => Promise<PrepResult>;
-  checkVisit: (o: { forms: string[] }) => Promise<CheckResult>;
+  prepVisit: (o: { forms: string[]; part?: Part; fresh?: boolean; paused?: () => boolean; onProgress?: (p: Progress) => void }) => Promise<PrepResult>;
+  checkVisit: (o: { forms: string[]; part?: Part }) => Promise<CheckResult>;
 };
 
 let engine: Promise<SaeOffline | null> | null = null;
@@ -90,22 +90,23 @@ function offlineEngine(): Promise<SaeOffline | null> {
 }
 
 /** Every listed battery and all its files on the phone (only one child's part when given); never throws. */
-export async function prepForms(forms: string[], onProgress?: (p: Progress) => void, part?: Part): Promise<PrepResult> {
+export type PrepOpts = { fresh?: boolean; paused?: () => boolean };
+export async function prepForms(forms: string[], onProgress?: (p: Progress) => void, part?: Part, opts?: PrepOpts): Promise<PrepResult> {
   try {
     const e = await offlineEngine();
     if (!e) return { ok: false, total: 0, cached: 0, missing: 0, bytes: 0, why: 'no_engine' };
-    return await e.prepVisit({ forms, onProgress, ...(part ? { part } : {}) });
+    return await e.prepVisit({ forms, onProgress, ...(part ? { part } : {}), ...(opts || {}) });
   } catch (err) {
     return { ok: false, total: 0, cached: 0, missing: 0, bytes: 0, why: String((err as Error)?.message || err) };
   }
 }
 
 /** Are the listed batteries and all their files on the phone (nothing fetched)? Never throws. */
-export async function checkForms(forms: string[]): Promise<CheckResult> {
+export async function checkForms(forms: string[], part?: Part): Promise<CheckResult> {
   try {
     const e = await offlineEngine();
     if (!e) return { ready: false, total: 0, cached: 0, why: 'no_engine' };
-    return await e.checkVisit({ forms });
+    return await e.checkVisit({ forms, ...(part ? { part } : {}) });
   } catch (err) {
     return { ready: false, total: 0, cached: 0, why: String((err as Error)?.message || err) };
   }
