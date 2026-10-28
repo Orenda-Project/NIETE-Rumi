@@ -168,6 +168,8 @@ export type SaDashboardSession = {
   stops?: SaStop[];
   /** item 15: the child came from the system's random draw, or was added on the spot ("Add a child"); null when unknown */
   origin?: "drawn" | "added" | null;
+  /** round 8 (sa_r8_hide_practice): the school is a practice (SIM, is_probable_test) school */
+  practice?: boolean;
 };
 
 /** A mark of one scoring agent (or their consensus): correct, wrong, no response, silent. */
