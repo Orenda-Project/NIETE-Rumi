@@ -297,6 +297,7 @@
     var backOn = !!opts.back_button || !!(battery.ui && battery.ui.back_button === true);
     // Round 8 (battery.ui.r8_comp_wait_next): a story or listening question never moves on by itself; only Next does.
     var compWait = !!(battery.ui && battery.ui.r8_comp_wait_next === true);
+    var countsOn = !!(battery.ui && battery.ui.r8_counts === true);
     // Round 8: the story's questions by the voice heard (RDF auto, no last-word step); a time-up ends only its own part.
     var positionOn = skipLW && (!!opts.reading_position || !!(battery.ui && battery.ui.r8_reading_position === true));
     var timeupGoesOn = incompleteOn && (!!opts.timeup_continue || !!(battery.ui && battery.ui.r8_timeup_continue === true));
@@ -316,7 +317,8 @@
     function itemTimeoutS(t) {
       if (oneAtATime && t.subtask === 'mental_math_fluency' && t.item_timeout_s === TIMED_ITEM_S) return manual ? null : FLUENCY_ITEM_S;
       if (manual && t.mode === 'oral') return null; // coach-led: the coach reads the question; the coach moves on
-      if (compWait && t.mode === 'oral' && /comprehension$/.test(t.subtask || '')) return null;
+      // round 8 item 35 (battery.ui.r8_counts): the story questions keep their 15 s (the content owner's later rule)
+      if (compWait && !countsOn && t.mode === 'oral' && /comprehension$/.test(t.subtask || '')) return null;
       return t.item_timeout_s;
     }
     /** The cell on show ends: its time is kept; how = tap | auto | the stop reason. */
