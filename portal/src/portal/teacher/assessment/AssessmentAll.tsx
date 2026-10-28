@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { AssessmentPaper } from '../../services/api';
 import { loadGradeSubjects } from '../../lib/gradeSubjects';
@@ -33,10 +33,13 @@ export function AssessmentAll() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<'loading' | 'error' | 'ok'>('loading');
   const [reloadTick, setReloadTick] = useState(0);
+  // A page is on its way: a second "Show more" tap before it lands would skip it and ask past the end.
+  const loading = useRef(false);
 
   // Page 1 replaces the list (a new filter); later pages add to it.
   useEffect(() => {
     let live = true;
+    loading.current = true;
     setStatus((s) => (page === 1 ? 'loading' : s));
     loadPapers({ page, grade: filter?.grade, subject: filter?.subject })
       .then((res) => {
@@ -46,9 +49,16 @@ export function AssessmentAll() {
         setTotal(res.total || 0);
         setStatus('ok');
       })
-      .catch(() => { if (live) setStatus('error'); });
+      .catch(() => { if (live) setStatus('error'); })
+      .finally(() => { if (live) loading.current = false; });
     return () => { live = false; };
   }, [page, filter, reloadTick]);
+
+  const showMore = useCallback(() => {
+    if (loading.current) return;
+    loading.current = true;
+    setPage((n) => n + 1);
+  }, []);
 
   const pick = useCallback((f: Filter) => { setFilter(f); setPage(1); }, []);
   const filters = useMemo(() => (dataOf(combos) ?? [])
@@ -96,7 +106,7 @@ export function AssessmentAll() {
             groups={groups}
             emptyLabel={C.noPapersYet}
             showMore={papers.length < total}
-            onShowMore={() => setPage((n) => n + 1)}
+            onShowMore={showMore}
           />
         )}
     </TeacherPage>
