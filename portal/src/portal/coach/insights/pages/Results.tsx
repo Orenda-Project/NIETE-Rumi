@@ -30,18 +30,22 @@ function ResultsLoaded() {
   const asOf = data?.empty?.status === "pending" ? data.empty.detail.as_of : null;
 
   return (
-    <InsightsPage testId="insights-results" backTo={insightsPaths.stats} title={t("s7.title", lang)} windows={data?.windows}>
+    <InsightsPage testId="insights-results" backTo={insightsPaths.stats} title={t("s7.title", lang)} windows={data?.windows}
+      chips={data ? <MetaLine window={data.window} /> : null}>
       {!data ? <StateBlock error={error} /> : (
         <>
-          <MetaLine window={data.window} className="px-1 text-[12.5px] leading-snug text-[#6b7280]" />
           {data.cells.length === 0 || data.empty ? (
-            <NoteCard testId="s7-empty">
+            <NoteCard testId="s7-empty" tone={asOf ? "info" : "neutral"}>
               {asOf
                 ? tx("s7.empty.before_first", lang, { date_short: <DateText iso={asOf} lang={lang} short /> })
                 : t("s7.empty.none", lang)}
             </NoteCard>
           ) : (
-            data.cells.map((c) => <ResultCell key={`${c.school.school_id}:${c.grade}:${c.language}`} cell={c} />)
+            // R6 (bd-sex15q.46, SCREENS S7): flat white tiles in a grid; one column at 390 (a cell's send sentence is too
+            // wide for half a phone), two from md
+            <div data-testid="s7-grid" className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {data.cells.map((c) => <ResultCell key={`${c.school.school_id}:${c.grade}:${c.language}`} cell={c} />)}
+            </div>
           )}
         </>
       )}

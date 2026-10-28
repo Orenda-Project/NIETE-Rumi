@@ -67,6 +67,20 @@ describe.each(LANGS)("Schools tab (%s)", (lang) => {
     expectContract(container, expect);
   }, 30000);
 
+  // bd-sex15q.46 (R6 ux-coach) — Schools on the design system (SCREENS.md Schools): the window is the band's line, and
+  // each school is a hairline row (school 17/600), never a boxed grey card.
+  it("R6 look: window line in the band, hairline school rows", async () => {
+    serve({ "/coachip/schools": F.schools });
+    await renderAt("/schools");
+    const band = screen.getByTestId("insights-band");
+    expect(band.querySelector(`[data-window="${F.schools.window.id}"]`)).not.toBeNull();
+    for (const row of screen.getAllByTestId("schools-row")) {
+      expect(row.className).toContain("border-cp-hairline");
+      expect(row.className).not.toContain("rounded-2xl");
+      expect(row.querySelector(".text-\\[17px\\]")).not.toBeNull();
+    }
+  }, 30000);
+
   it("a load failure shows the error block", async () => {
     serve({ "/coachip/schools": () => { throw httpError(500, { error: "server_error" }); } });
     const { container } = await renderAt("/schools");

@@ -182,6 +182,26 @@ for (const lang of ["en", "ur"] as const) {
       expect(text).toContain(F["i_W-IP-TIME"].i.debrief_script[lang]);
     }, 20000);
 
+    // R6 (bd-sex15q.46, SCREENS S5): the window line is the app bar's; "Try this tomorrow" is the ONE raised surface; the
+    // blocks under it are hairline sections; the FLN send and the play link are secondary (navy outline), never a fill.
+    it("R6: app bar window line, try-tomorrow the ONE surface, hairline sections, secondary buttons", async () => {
+      serve({ [MOVE]: flnCase(true) });
+      const { container } = await renderAt("/w/W-IP-TIME/move");
+      const bar = screen.getByTestId("insights-appbar");
+      expect(bar.querySelector(`[data-window="${F["i_W-IP-TIME"].w.window.id}"]`)).not.toBeNull();
+      expect(screen.getByTestId("s5-try-tomorrow").hasAttribute("data-surface")).toBe(true);
+      expect(container.querySelectorAll("[data-surface]")).toHaveLength(1);
+      for (const id of ["s5-step", "s5-rehearsal", "s5-facts", "s5-materials", "s5-listen-for", "s5-check", "s5-alternatives"]) {
+        expect(screen.getByTestId(id).hasAttribute("data-section")).toBe(true);
+      }
+      for (const id of ["s5-fln", "s5-play"]) {
+        const el = screen.getByTestId(id);
+        expect(el.className).toContain("border-cp-navy");
+        expect(el.className).not.toContain("bg-cp-green");
+      }
+      expectContract(container, expect);
+    }, 20000);
+
     it("flag off: the coach is sent elsewhere", async () => {
       await boot(lang, { coachV2: true, coachip: false });
       serve({ [MOVE]: F["i_W-IP-TIME"] });

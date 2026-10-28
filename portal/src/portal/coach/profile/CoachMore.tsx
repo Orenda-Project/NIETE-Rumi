@@ -14,13 +14,18 @@ import { useChildTestSa } from "../../lib/useChildTestSa";
 import { useCoachip, useCoachipRm } from "../insights/useCoachip";
 import { COPY } from "../insights/copy";
 import { rmPaths } from "../../rm/paths";
-import { COACH_MENU_PATHS } from "../../teacher/menu";
+import MoreCoachip from "../insights/components/MoreCoachip";
 
 /**
- * bd-fmf24g.33 — the coach's More: who she is, then Language (English | اردو), My profile and Log out, as the teacher's.
- * Training is a Home tile, Certificates the Training hub's card, the child test a row on Home when her flag is on.
+ * bd-fmf24g.33 — the coach's More: who they are, then Language (English | اردو), My profile and Log out, as the teacher's.
+ * Training is a Home tile, Certificates the Training hub's card, the child test a row on Home when their flag is on.
  * With portal_child_test_sa on, the Learning assessment is a row here too: a coach on v2 has no Home to reach it from.
- * The school count under her name is the API's (`counts.schools`); nothing is shown when it cannot say.
+ * The school count under their name is the API's (`counts.schools`); nothing is shown when it cannot say.
+ *
+ * R6 (bd-sex15q.46, SCREENS.md More): with COACHIP on, the page wears the design system: its own `.cp` root (More is
+ * outside the Shell, so the tokens paint nothing without it), the who card a navy band with the initials in a green
+ * tint circle, then hairline rows with 20 px lucide icons; the kit's LanguageRow as it is. With COACHIP off, absent or
+ * failing, the markup below is exactly what it was (more.flagOff: no `cp` class anywhere).
  */
 export default function CoachMore() {
   const C = useCopy(TEACHER_FRAME);
@@ -38,6 +43,16 @@ export default function CoachMore() {
   const lang = useLang();
   const name = fullName(user);
   const phone = formatPhone(user?.phoneNumber);
+
+  if (coachip) {
+    return (
+      <CoachGate>
+        <TeacherPage title={C.more.title} testId="coach-more">
+          <MoreCoachip name={name} phone={phone} schools={counts ? counts.schools : null} rmOn={rmOn} assess={assess} onLogout={guardedLogout} />
+        </TeacherPage>
+      </CoachGate>
+    );
+  }
 
   return (
     <CoachGate>
@@ -58,13 +73,6 @@ export default function CoachMore() {
             )}
           </span>
         </section>
-
-        {coachip && (
-          <Card label={C.coachNav.training}>
-            <RowLink id="training" to={COACH_MENU_PATHS.training} glyph="training" label={C.coachNav.training} />
-            <RowLink id="lessons" to={COACH_MENU_PATHS.lessons} glyph="lessons" label={C.coachNav.lessons} />
-          </Card>
-        )}
 
         {rmOn && (
           <Card label={COPY["more.rm"][lang]}>
