@@ -27,7 +27,10 @@ const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
 
 // bd-5gyspy.9: a route the app gives a longer budget (middleware/timeout.js, e.g. the coaching-session routes' 120 s
 // for the bot's LLM) keeps it here too; this layer answered 504 at 30 s while the app still allowed 90 s more.
-const budgetFor = (req) => Math.max(REQUEST_TIMEOUT_MS, getTimeoutForRoute(String(req.path || req.url || '').split('?')[0]));
+// the request's path without its query string: what the log lines name (bd-pk8vtb: a ?k= child chip or a token in the
+// query string must never reach the logs) and what the budget is looked up by
+const pathOf = (req) => String(req.path || req.url || '').split('?')[0];
+const budgetFor = (req) => Math.max(REQUEST_TIMEOUT_MS, getTimeoutForRoute(pathOf(req)));
 
 /**
  * Database Context Middleware
@@ -61,13 +64,13 @@ async function setDatabaseContext(req, res, next) {
 
     // Log slow requests for debugging
     if (duration > 5000) {
-      console.warn(`[DB Context] Slow request: ${req.method} ${req.url} took ${duration}ms`);
+      console.warn(`[DB Context] Slow request: ${req.method} ${pathOf(req)} took ${duration}ms`);
     }
   };
 
   // Request timeout protection - prevents connections being held indefinitely
   const timeoutId = setTimeout(() => {
-    console.error(`[DB Context] Request timeout: ${req.method} ${req.url}`);
+    console.error(`[DB Context] Request timeout: ${req.method} ${pathOf(req)}`);
     cleanup('timeout');
     if (!res.headersSent) {
       res.status(504).json({ error: 'Request timeout' });
@@ -100,7 +103,7 @@ async function setDatabaseContext(req, res, next) {
     // Also handle aborted/closed connections (client disconnected early)
     res.on('close', () => {
       if (!res.writableEnded) {
-        console.warn(`[DB Context] Connection closed early: ${req.method} ${req.url}`);
+        console.warn(`[DB Context] Connection closed early: ${req.method} ${pathOf(req)}`);
         clearTimeout(timeoutId);
         cleanup('close');
       }
