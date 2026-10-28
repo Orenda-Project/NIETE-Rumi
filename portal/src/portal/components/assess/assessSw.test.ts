@@ -23,6 +23,9 @@ describe("assess-sw strategy", () => {
     expect(sw.strategyFor(`${O}/api/portal/leader/child-test/sa/session/abc/status`, "GET", "cors", O)).toBeNull();
     expect(sw.strategyFor(`${O}/api/portal/leader/child-test/sa/outcome`, "POST", "cors", O)).toBeNull();
     expect(sw.strategyFor(`${O}/sa/play.html?s=1`, "GET", "navigate", O)).toBeNull();
+    // the page's own copy of the engine's offline helper (loaded by this page with a script tag): kept for a reload offline
+    expect(sw.strategyFor(`${O}/sa/sa-offline.js`, "GET", "no-cors", O)).toBe("api");
+    expect(sw.strategyFor(`${O}/sa/sa-ui.js`, "GET", "no-cors", O)).toBeNull();
     expect(sw.strategyFor(`${O}/sa/v1/ur/a.mp3`, "GET", "no-cors", O)).toBeNull();
     expect(sw.strategyFor("https://fonts.googleapis.com/css2", "GET", "no-cors", O)).toBeNull();
   });
