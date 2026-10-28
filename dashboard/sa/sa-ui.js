@@ -2083,7 +2083,8 @@
     }
     function sEnd(v) {
       if (mode === 'proctored') {
-        return h('div', { class: 'sae-screen sae-end is-proctored' }, [
+        // Round 8 (r8_layout / r8_lang_switch): .is-r8-endfit keeps the hand-back line above the coach page's bottom bar
+        return h('div', { class: 'sae-screen sae-end is-proctored' + (r8Layout || r8Lang ? ' is-r8-endfit' : '') }, [
           holdZone(goBack),
           h('div', { class: 'sae-body' }, [
             jugnu('sleep'),
