@@ -17,7 +17,8 @@
 // sa-4: the prepare queue (six at a time, one retry): phones take the new worker and the new engine files.
 // sa-5: round 7 (RDF auto with no last-word step): the new engine files.
 // sa-6: round 7b (back, End test + Restart, End this section, the auto stop-checks, the instruction lines): the new engine files.
-var VERSION = 'sa-6';
+// sa-7: a line held by a hidden page plays on when it is shown again, never in the phone's voice (sa-voice.js, sa-engine.js).
+var VERSION = 'sa-7';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.

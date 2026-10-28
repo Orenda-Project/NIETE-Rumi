@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-6');
+    expect(sw.CORE).toBe('sa-core-sa-7'); // sa-7: the hidden-page voice fix
   });
 });
 
