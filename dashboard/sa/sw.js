@@ -82,7 +82,9 @@ function cacheable(url, res) {
   var type = String((res.headers && res.headers.get && res.headers.get('content-type')) || '').toLowerCase();
   var p = new URL(url).pathname;
   if (/\.(mp3|m4a|ogg)$/.test(p)) return type.indexOf('audio/') === 0;
-  if (/\.json$/.test(p)) return type.indexOf('json') >= 0;
+  // a battery read while a switch was never read (X-SA-Switches: unread, sa_r8_switch_hold) guessed its OFFs: the page uses it,
+  // the phone never keeps it for the next child
+  if (/\.json$/.test(p)) return type.indexOf('json') >= 0 && String((res.headers.get && res.headers.get('x-sa-switches')) || '').toLowerCase() !== 'unread';
   if (/\.html$/.test(p)) return type.indexOf('text/html') === 0;
   return type.indexOf('text/html') < 0;
 }

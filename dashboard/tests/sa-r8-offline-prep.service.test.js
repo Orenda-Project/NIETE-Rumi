@@ -256,3 +256,16 @@ describe('slice 4: the Start gate is fast and has the line to itself', () => {
     expect(asked.sort()).toEqual([...new Set(want)].sort());
   });
 });
+
+describe('a battery served while a switch read is a guess (X-SA-Switches: unread, sa_r8_switch_hold) is never kept', () => {
+  const { cacheable } = require('../sa/sw');
+  const r = (type, hdrs) => ({ ok: true, status: 200, headers: { get: (h) => (h.toLowerCase() === 'content-type' ? type : (hdrs || {})[h.toLowerCase()] || null) } });
+  test('unread: not kept; fresh / held / no header: kept as before; a clip is unaffected', () => {
+    const B = 'https://p.test/sa/batteries/sa.coach.G3.A.ur.json';
+    expect(cacheable(B, r('application/json', { 'x-sa-switches': 'unread' }))).toBe(false);
+    expect(cacheable(B, r('application/json', { 'x-sa-switches': 'fresh' }))).toBe(true);
+    expect(cacheable(B, r('application/json', { 'x-sa-switches': 'held' }))).toBe(true);
+    expect(cacheable(B, r('application/json'))).toBe(true);
+    expect(cacheable('https://p.test/sa/v1/ur/a.mp3', r('audio/mpeg', { 'x-sa-switches': 'unread' }))).toBe(true);
+  });
+});
