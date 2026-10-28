@@ -166,7 +166,7 @@
       please_go_on: 'Please go on.',
       coach_will_instruct: 'Your coach will now give the instructions.',
       // round 7b (sa_silence_repeat): no voice heard on a read-aloud part
-      silence_repeat: 'Jugnu could not hear you. Say each answer out loud. Let us do this part again.',
+      silence_repeat: 'Jugnu could not hear you. Say your answer out loud again. Let us do this part again.',
       silence_again: 'Try again',
       silence_title: 'Say it out loud',
       coach_read: 'Read this to the child:',
@@ -261,7 +261,7 @@
       voice_not_ready: 'آواز ابھی تیار نہیں',
       please_go_on: 'آگے چلیں۔',
       coach_will_instruct: 'اب آپ کے کوچ ہدایات دیں گے۔',
-      silence_repeat: 'جگنو آپ کی آواز نہیں سن سکا۔ ہر جواب اونچی آواز میں بولیں۔ آئیے یہ حصہ دوبارہ کرتے ہیں۔',
+      silence_repeat: 'جگنو آپ کی آواز نہیں سن سکا۔ جواب کو دوبار اونچی آواز میں بولیں۔ آئیے یہ حصہ دوبارہ کرتے ہیں۔',
       silence_again: 'دوبارہ کریں',
       silence_title: 'اونچی آواز میں بولیں',
       coach_read: 'یہ بچے کو پڑھ کر سنائیں:',
