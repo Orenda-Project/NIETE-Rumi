@@ -57,6 +57,10 @@
  *                     item while the child answers; tick_prompt: lines.r7_type_tick for a typed number; story_scroll:
  *                     lines.r7_scroll after the story's instruction, and a down arrow under the story while more is below.
  *
+ * Round 8, the child's flow (each OFF unless battery.ui.<flag>):
+ *   r8_reading_no_done   a reading (passage) screen says nothing about "done" on the way in; the recorder opens after a
+ *                        short gap (R8_REC_GAP_MS) in place of the Done line. The star keeps its Done label.
+ *
  * UMD: window.SAE.ui in the browser, module.exports under Node.
  */
 (function (root, factory) {
@@ -266,6 +270,7 @@
   var WARM_CAP_MS = 25000;
   var HOLD_MS = 3000;
   var GATE_CAP_MS = 30000;  // audio_gated_next: Next opens by itself this long after the words began, whatever the voice does
+  var R8_REC_GAP_MS = 600;  // r8_reading_no_done: the reading's recorder opens this long after the screen, in place of the Done line
   var KEYPAD_MIN = 3;        // digits the keypad takes; more when the task has a longer answer (1,000 + 300 + 80 + 3)
   var WORD_MAX = 16;
   var LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('');
@@ -1675,7 +1680,9 @@
       } else if (v.phase === 'running' && t && t.mode === 'record') {
         // The star line first; the recorder opens after it (recorderHooks), so Jugnu is neither in the child's
         // recording nor in the silence watch's first second.
-        starSpeech = say(line('done') || { en: COPY.en.done, ur: COPY.ur.done }, null, appAsks);
+        // Round 8 (r8_reading_no_done): nothing about "done" on the way in (a child took «ہو گیا» for the end of the
+        // test); the recorder still waits a moment, so the tail of the last line stays out of the recording.
+        starSpeech = r7.r8_reading_no_done === true ? delay(R8_REC_GAP_MS) : say(line('done') || { en: COPY.en.done, ur: COPY.ur.done }, null, appAsks);
       } else if (v.phase === 'last_word' && coachLW) {
         askHint(v.task);
         sayChain([v.time_left_ms === 0 && s.time_up ? [s.time_up, undefined, appAsks] : null, manual ? null : [copyLine('give_coach')]]);
