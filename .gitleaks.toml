@@ -129,3 +129,20 @@ regexTarget = "secret"
 regexes = [
   '''^ab_lp_ch310_enabled$''',
 ]
+
+# --- SA word-timing files (round 8, the instruction highlight) -----------------
+# dashboard/sa/v4/<lang>/<key>.json carries `"key":"<12 hex>"`: the clip's own file
+# name (the first 12 hex of a sha1 of the spoken line), which trips generic-api-key
+# on the word "key". Both conditions must hold: that exact path shape AND a 12-hex
+# value, so a real credential in those files is still caught.
+[[allowlists]]
+description = "SA clip keys in the word-timing files beside each clip are not secrets"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = [
+  '''^dashboard/sa/v4/(en|ur)/[0-9a-f]{12}\.json$''',
+]
+regexTarget = "secret"
+regexes = [
+  '''^[0-9a-f]{12}$''',
+]
