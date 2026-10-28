@@ -1004,14 +1004,19 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
 
   # ── Round 8 · offline ──
 
-  @e2e @wip @draft @P1 @CT120
+  # @no-mock-driver: the events come from the child's page (a browser, not the WhatsApp bot the mock lane drives).
+  # Covered at unit level by bot/tests/child-test/sa-device-events.test.js and on the browser lane by the throttle runs.
+  @e2e @wip @draft @no-mock-driver @P1 @CT120
   Scenario: The phone's readiness is kept on the session
     Given a child's test page has prepared its clips
     When it logs device_ready (ready, voice, clips_total, clips_cached, persisted), and any voice_not_ready or voice_retry
     Then those events are kept on the session's events with their values, for reading a slow or refused start afterwards
     And the browser's offline / online events are not kept (device.offline already says it)
 
-  @e2e @wip @draft @config-gated @P1 @CT121
+  # @no-mock-driver: a service worker and a dropped network are a real browser's; the mock lane has neither. Covered at
+  # unit level by dashboard/tests/sa-r8-offline-prep.service.test.js and portal LeaderAssess.r8offline.test.tsx, and on
+  # the browser lane by the throttle runs (offline after the first item).
+  @e2e @wip @draft @config-gated @no-mock-driver @P1 @CT121
   Scenario: A test that starts with everything on the phone never asks for the network (sa_r8_offline_first)
     Given sa_r8_offline_first is on and the coach page put the child's whole battery on the phone before Start
     When the phone loses the network at any point after the first item
