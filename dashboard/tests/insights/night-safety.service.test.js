@@ -322,10 +322,11 @@ describe('the CLI on production: replica reads, school hours, the lock connectio
     fs.rmSync(out, { recursive: true, force: true });
   });
 
-  test('COACHIP_MODEL_CONCURRENCY: default 1, held to 1..3 (bd-sex15q.43)', () => {
+  test('COACHIP_MODEL_CONCURRENCY: default 1, held to 1..12 (bd-sex15q.43)', () => {
     expect(cli.safetyConfig({}).modelConcurrency).toBe(1);
     expect(cli.safetyConfig({ COACHIP_MODEL_CONCURRENCY: '3' }).modelConcurrency).toBe(3);
-    expect(cli.safetyConfig({ COACHIP_MODEL_CONCURRENCY: '9' }).modelConcurrency).toBe(3);
+    expect(cli.safetyConfig({ COACHIP_MODEL_CONCURRENCY: '12' }).modelConcurrency).toBe(12);
+    expect(cli.safetyConfig({ COACHIP_MODEL_CONCURRENCY: '40' }).modelConcurrency).toBe(12);
     expect(cli.safetyConfig({ COACHIP_MODEL_CONCURRENCY: '0' }).modelConcurrency).toBe(1);
   });
 
