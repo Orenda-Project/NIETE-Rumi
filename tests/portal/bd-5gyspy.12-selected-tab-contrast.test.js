@@ -6,6 +6,9 @@
  *
  * Reads the SHIPPED stylesheets (wq.css :root, then wq-adventure.css html.wq-adv and the door rules, in cascade
  * order) and resolves the selected door's fill and label colour through the real var() chain.
+ *
+ * The sheet carries no comment for this rule: wq-adventure.css has an 8 KB gzip cap (web-quiz-adventure-look/-kit tests),
+ * and after the rule it sits at 8148 of 8192 bytes. --ds is the selected fill, --don its label.
  */
 const fs = require('fs');
 const path = require('path');
