@@ -227,6 +227,16 @@ describe("sa_r8_offline_prep", () => {
     await waitFor(() => expect(prep).toHaveBeenCalled());
   });
 
+  it("ON, Urdu: the ready line's time has no English AM/PM (24-hour, digits 0-9)", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    api.getSwitches.mockResolvedValue({ ...SW, r8OfflinePrep: true });
+    render(<MemoryRouter><LeaderAssess /></MemoryRouter>);
+    fireEvent.click(await screen.findByTestId("assess-offline-go"));
+    const line = await screen.findByTestId("assess-offline-ready");
+    expect(line.textContent).not.toMatch(/AM|PM|am|pm/);
+    expect(line.textContent).toMatch(/\b\d{2}:\d{2}\b/);
+  });
+
   it("read as OFF: a page worker an earlier Get ready left on the phone is removed", async () => {
     api.getSwitches.mockResolvedValue(SW);
     render(<MemoryRouter><LeaderAssess /></MemoryRouter>);

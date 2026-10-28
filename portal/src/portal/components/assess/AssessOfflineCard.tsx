@@ -111,7 +111,7 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
     setProgress(null);
   };
 
-  const when = record ? new Date(record.at).toLocaleTimeString(lang === 'ur' ? 'ur-PK-u-nu-latn' : 'en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+  const when = record ? new Date(record.at).toLocaleTimeString(lang === 'ur' ? 'ur-PK-u-nu-latn' : 'en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
   const missing = record ? record.total - record.cached : 0;
 
   return (
