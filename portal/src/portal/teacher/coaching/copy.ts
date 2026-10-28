@@ -114,6 +114,12 @@ export const COACHING_V2_COPY = {
   sent: 'Sent',
   openLesson: 'Open DC observation',
   noInternet: 'No internet',
+  /* bd-bmc9a0.1 — ICT IAB rows 28–29: a send that failed with the phone online names the part that did not go. */
+  notSent: 'Not sent',
+  recordingNotSent: 'Recording not sent',
+  planNotSent: 'Lesson plan not sent',
+  photoNotSent: (n: number) => `Photo ${n} not sent`,
+  fileWontOpen: 'File will not open',
   savedOnPhone: 'Saved on phone',
   planNotUsed: 'Lesson plan not used',
   changePlan: 'Change lesson plan',
@@ -294,6 +300,11 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   sent: 'بھیجا گیا',
   openLesson: 'ڈیجیٹل کوچنگ مشاہدہ کھولیں',
   noInternet: 'انٹرنیٹ نہیں',
+  notSent: 'نہیں بھیجا گیا',
+  recordingNotSent: 'ریکارڈنگ نہیں بھیجی گئی',
+  planNotSent: 'لیسن پلان نہیں بھیجا گیا',
+  photoNotSent: (n: number) => `تصویر ${n} نہیں بھیجی گئی`,
+  fileWontOpen: 'فائل نہیں کھل رہی',
   savedOnPhone: 'فون میں محفوظ',
   planNotUsed: 'لیسن پلان استعمال نہیں',
   changePlan: 'لیسن پلان تبدیل کریں',
@@ -416,5 +427,7 @@ export const COPY_ENTRY: CopyEntry = {
     // bd-c5reix: the same repeat line, said before she sends it.
     'duplicateBeforeLead',
     // bd-bmc9a0.4: ICT IAB row 36, the line Close ends her session with, in ICT's words.
-    'sessionComplete'],
+    'sessionComplete',
+    // bd-bmc9a0.1: "not sent" is three Urdu words (نہیں بھیجا گیا) after the part's own name.
+    'planNotSent', 'photoNotSent'],
 };
