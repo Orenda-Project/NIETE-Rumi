@@ -65,6 +65,13 @@
  *                        never spoken on the question: Jugnu's voice would land in the child's recorded answer.
  *   r8_practice_autoplay a spoken practice says its answer (its model) on arrival, after its prompt; Next goes straight
  *                        on (no second telling); the replay chip says the prompt and the answer again. Coach-led: silent.
+ * Round 8, the child's screens (each OFF unless the served battery carries battery.ui.r8_<flag>):
+ *   r8_layout         (items 6/12/21) the mount carries .is-r8-layout (sa.css "Round 8"): pictures and tap targets sized
+ *                     for the phone or the tablet, large text at normal weight, a letter card one fixed box; a Latin
+ *                     card or text tile is centred on its ink like an Urdu one, and every card is placed again on resize.
+ *   r8_story_snap     (item 15) the story is its own scroll box of parts, one box high each (CSS scroll-snap, snap-stop
+ *                     always: a fling cannot skip a part); the down arrow moves exactly one part on. The recording, the
+ *                     clock and the star are as before.
  *
  * UMD: window.SAE.ui in the browser, module.exports under Node.
  */
@@ -400,6 +407,10 @@
     var r8Digits = r7.r8_latin_digits === true; // items 29/3/34: every number shown in 0-9; a sum reads "1 + 3 = ___"
     var r8Mn = r7.r8_missing_number === true;   // item 30: the number row large; a tapped number floats into the blank
     var mnFill = null;                          // item 30: { item, value }, the number tapped into the item's blank
+    // Round 8: r8_layout (items 6/12/21), r8_story_snap (item 15)
+    var r8Layout = r7.r8_layout === true;
+    var r8Snap = r7.r8_story_snap === true;
+    var snapPos = { id: null, top: 0 }; // r8_story_snap: where the story box was scrolled to, kept over a redraw
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /** audio_gated_next: the screen `key`'s Next waits for `p` (Jugnu's words), at most GATE_CAP_MS. */
@@ -465,6 +476,8 @@
     }
     /** story_scroll: whether the story on show has more below, in whatever scrolls (the body, else the page). */
     function scroller() {
+      var box = r8Snap ? el.querySelector('.sae-passage.is-snap') : null;
+      if (box) return box;
       var body = el.querySelector('.sae-run-rec .sae-body');
       if (body && body.scrollHeight > body.clientHeight + 4) {
         var oy = '';
@@ -481,6 +494,19 @@
     if (typeof window !== 'undefined' && window.addEventListener) {
       window.addEventListener('scroll', function () { if (alive) checkMore(); }, true);
       window.addEventListener('resize', function () { if (alive) checkMore(); });
+    }
+    // Round 8: a resize (the phone turned, the address bar went) places the cards' ink and packs the story's parts again
+    var refit = null;
+    if ((r8Layout || r8Snap) && typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('resize', function () {
+        if (!alive) return;
+        clearTimeout(refit);
+        refit = later(function () {
+          var s = el.querySelector('.sae-screen');
+          if (s && r8Layout) fitCells(s);
+          if (r8Snap) snapPack();
+        }, 100);
+      });
     }
     /**
      * RULING W3-18 (sa_voice_gate_v2, opts.opening): Jugnu's opening words wait for their clips' prefetch, at most
@@ -579,6 +605,9 @@
     if (r8Mn) el.classList.add('is-r8-mn');
     // sa_ur_fit (round 6): the Urdu text rules (sa.css "Round 6"): every Urdu word inside its box, clear of pictures.
     if (opts.ur_fit) el.classList.add('is-ur-fit');
+    // Round 8 (sa.css "Round 8": every rule under these classes, so OFF the page is as before)
+    if (r8Layout) el.classList.add('is-r8-layout');
+    if (r8Snap) el.classList.add('is-r8-snap');
     // in the coach page's frame, under its corner hold (sa.css keeps the scrolling body below it)
     if (opts.ur_fit && opts.embed) el.classList.add('is-embed');
     el.setAttribute('lang', lang);
@@ -1271,7 +1300,10 @@
      */
     function fitCells(scope) {
       if (typeof document === 'undefined' || !document.fonts || !scope.querySelectorAll) return;
-      Array.prototype.forEach.call(scope.querySelectorAll('.sae-onecell[lang=ur] > .sae-ink, .sae-opt[lang=ur] > .sae-ink, .sae-passage.is-pick[lang=ur] .sae-word > .sae-ink, .sae-grid[lang=ur] .sae-cell > .sae-ink'), function (ink) {
+      var sel = '.sae-onecell[lang=ur] > .sae-ink, .sae-opt[lang=ur] > .sae-ink, .sae-passage.is-pick[lang=ur] .sae-word > .sae-ink, .sae-grid[lang=ur] .sae-cell > .sae-ink';
+      // r8_layout (item 21): a Latin card or text tile is placed by its ink too ("y" no longer sits low in its card)
+      if (r8Layout) sel += ', .sae-onecell > .sae-ink, .sae-opt > .sae-ink';
+      Array.prototype.forEach.call(scope.querySelectorAll(sel), function (ink) {
         fitInk(ink, 0);
         document.fonts.load(getComputedStyle(ink).font, ink.textContent).then(function () {
           if (alive && ink.isConnected) fitInk(ink, 0);
@@ -1368,17 +1400,154 @@
       ]);
       starEl.addEventListener('click', function () { if (!busy) { runner.done(); draw(); } });
       // story_scroll: an arrow under the story while more of it is below (it goes at the end); a tap slides the page on
-      moreEl = r7.story_scroll === true && v.task.passage ? h('button', { class: 'sae-more', type: 'button', 'aria-label': C.more_below, hidden: '', onclick: function () {
+      // r8_story_snap: the story is a box of parts; the arrow (with it, story_scroll or not) moves exactly one part on
+      var snap = r8Snap && !!v.task.passage;
+      moreEl = (r7.story_scroll === true || snap) && v.task.passage ? h('button', { class: 'sae-more', type: 'button', 'aria-label': C.more_below, hidden: '', onclick: function () {
         var sc = scroller();
+        if (snap && sc.classList && sc.classList.contains('is-snap')) { snapNext(sc); return; }
         try { sc.scrollBy({ top: Math.round(sc.clientHeight * 0.7), behavior: 'smooth' }); } catch (_) { try { sc.scrollTop += Math.round(sc.clientHeight * 0.7); } catch (e) { /* old browser */ } }
       } }, [h('span', { class: 'sae-more-ico', 'aria-hidden': 'true', text: '↓' }), h('span', { class: 'sae-more-w', text: C.more_below })]) : null;
       if (moreEl) later(checkMore, 0);
-      return screen(v, 'sae-run sae-run-rec', [
+      var story = passageEl(v.task, null);
+      if (snap) {
+        story.classList.add('is-snap');
+        later(snapPack, 0);
+        if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (alive) snapPack(); }, function () {});
+      }
+      return screen(v, 'sae-run sae-run-rec' + (snap ? ' sae-snap' : ''), [
         clock(v),
         h('p', { class: 'sae-chip sae-chip-rec', text: C.read_aloud }),
-        passageEl(v.task, null),
+        story,
       ], [moreEl, starEl]);
     }
+    /**
+     * r8_story_snap: the story packed into parts, each as high as the story box. The unit is a row as it shows on this
+     * screen (a passage line that wraps is split at its rows; a line whose words are not laid out is one unit): a row that
+     * will not fit with the ones before starts the next part, a row taller than the box is a part of its own. Measured
+     * after layout, again once the font is in and on resize; the box keeps where it was scrolled to over a redraw.
+     */
+    function snapPack() {
+      var box = el.querySelector('.sae-passage.is-snap');
+      if (!box) return;
+      var lines = Array.prototype.slice.call(box.querySelectorAll('.sae-pline'));
+      if (!lines.length) return;
+      var v = runner.view();
+      var id = v.task ? v.task.id : null;
+      // measured inside one part, so a line wraps at the width it will have
+      var all = h('div', { class: 'sae-part' });
+      lines.forEach(function (l) { all.appendChild(l); });
+      while (box.firstChild) box.removeChild(box.firstChild);
+      box.appendChild(all);
+      var pad = 0;
+      try { var cs = getComputedStyle(all); pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0); } catch (_) { pad = 0; }
+      var full = box.clientHeight;
+      var room = full - pad;
+      var units = []; // { line, cls, nodes, h }
+      lines.forEach(function (l, li) {
+        var tops = [];
+        Array.prototype.forEach.call(l.children, function (w) {
+          if (!w.classList.contains('sae-word')) return;
+          var t = w.offsetTop;
+          if (!tops.some(function (x) { return Math.abs(x - t) <= 4; })) tops.push(t);
+        });
+        if (tops.length < 2) { units.push({ line: li, cls: l.className, nodes: Array.prototype.slice.call(l.childNodes), h: l.offsetHeight }); return; }
+        tops.sort(function (a, b) { return a - b; });
+        var lt = l.offsetTop, lb = lt + l.offsetHeight, first = units.length;
+        tops.forEach(function (t, i) { units.push({ line: li, cls: l.className, nodes: [], h: (i + 1 < tops.length ? tops[i + 1] : lb) - (i ? t : lt) }); });
+        var cur = first;
+        Array.prototype.slice.call(l.childNodes).forEach(function (n) {
+          if (n.nodeType === 1 && n.classList.contains('sae-word')) {
+            for (var i = tops.length - 1; i >= 0; i--) if (n.offsetTop >= tops[i] - 4) { cur = first + i; break; }
+          }
+          units[cur].nodes.push(n);
+        });
+      });
+      var groups = [], group = [], used = 0;
+      units.forEach(function (u) {
+        if (group.length && used + u.h > room) { groups.push(group); group = []; used = 0; }
+        group.push(u); used += u.h;
+      });
+      groups.push(group);
+      box.removeChild(all);
+      groups.forEach(function (g) {
+        var part = h('div', { class: 'sae-part' });
+        var line = null, at = null;
+        g.forEach(function (u) {
+          if (u.line !== at) { line = h('span', { class: u.cls }); part.appendChild(line); at = u.line; }
+          u.nodes.forEach(function (n) { line.appendChild(n); });
+        });
+        if (full > 0) part.style.minHeight = full + 'px';
+        box.appendChild(part);
+      });
+      if (!box.getAttribute('data-snap')) {
+        box.setAttribute('data-snap', '1');
+        box.addEventListener('scroll', function () { snapPos = { id: id, top: box.scrollTop }; snapSettle(box); });
+        // a wheel (a mouse, a trackpad) moves one part per flick, whatever its size
+        box.addEventListener('wheel', function (e) {
+          if (!e.deltaY) return;
+          e.preventDefault();
+          if (snapWheel) return;
+          snapWheel = true;
+          later(function () { snapWheel = false; }, 450);
+          snapStep(box, e.deltaY > 0 ? 1 : -1);
+        }, { passive: false });
+        // the box's height settles after the first pack (the font, the arrow showing): pack again to the new height
+        if (typeof ResizeObserver === 'function') {
+          var seenH = box.clientHeight;
+          var ro = new ResizeObserver(function () {
+            if (!alive || !box.isConnected) { ro.disconnect(); return; }
+            if (Math.abs(box.clientHeight - seenH) > 2) { seenH = box.clientHeight; snapPack(); }
+          });
+          ro.observe(box);
+        }
+      }
+      if (snapPos.id === id && snapPos.top > 0) box.scrollTop = snapPos.top;
+      snapFrom = snapIndex(box);
+      checkMore();
+    }
+    var snapFrom = 0; // r8_story_snap: the part the last scroll settled on
+    var snapWheel = false;
+    var snapTimer = null;
+    function snapParts(box) { return box.querySelectorAll('.sae-part'); }
+    /** The part on show: the last one whose top is at or above the box's top. */
+    function snapIndex(box) {
+      var parts = snapParts(box), at = box.scrollTop, k = 0;
+      for (var i = 0; i < parts.length; i++) if (parts[i].offsetTop <= at + 2) k = i;
+      return k;
+    }
+    function snapTo(box, top) {
+      try { box.scrollTo({ top: top, behavior: 'smooth' }); } catch (_) { box.scrollTop = top; }
+    }
+    /**
+     * When a scroll settles more than one part from where it began (a fling the browser let through snap-stop), it is
+     * brought back to the part next to the one it began on: no part is ever passed unseen.
+     */
+    function snapSettle(box) {
+      clearTimeout(snapTimer);
+      snapTimer = later(function () {
+        if (!box.isConnected) return;
+        var parts = snapParts(box), k = snapIndex(box);
+        if (k > snapFrom + 1) { snapFrom += 1; snapTo(box, parts[snapFrom].offsetTop); return; }
+        if (k < snapFrom - 1) { snapFrom -= 1; snapTo(box, parts[snapFrom].offsetTop); return; }
+        snapFrom = k;
+      }, 160);
+    }
+    /** One part on (or back); a part taller than the box: its next screenful first, never past a row not yet shown. */
+    function snapStep(box, dir) {
+      var parts = snapParts(box), at = box.scrollTop, top = null, i;
+      if (dir > 0) {
+        for (i = 0; i < parts.length; i++) if (parts[i].offsetTop > at + 2) { top = parts[i].offsetTop; break; }
+        if (top == null) return;
+        if (box.clientHeight > 0) top = Math.min(top, at + box.clientHeight);
+      } else {
+        for (i = parts.length - 1; i >= 0; i--) if (parts[i].offsetTop < at - 2) { top = parts[i].offsetTop; break; }
+        if (top == null) return;
+      }
+      for (i = 0; i < parts.length; i++) if (parts[i].offsetTop <= top + 2) snapFrom = i;
+      snapTo(box, top);
+    }
+    /** r8_story_snap: the arrow's move, one part on. */
+    function snapNext(box) { snapStep(box, 1); }
     function askHint(t) {
       if (lw && lw.task === t.id) return;
       var mine = lw = { task: t.id, state: 'pending', suggested: null, picked: null };
