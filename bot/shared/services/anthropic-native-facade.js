@@ -543,9 +543,15 @@ function fromNativeResponse(msg, opts = {}) {
  * It deliberately does NOT fire on every 400. A malformed payload is also a 400, and silently
  * switching providers on one would hide a real bug behind a working lesson — so a 400 qualifies
  * only when the message says so.
+ *
+ * A spend limit is the same failure (bd-gk7nrj). When usage reaches a limit the organisation set
+ * in the Console, Anthropic answers 400 "You have reached your specified API usage limits" (or
+ * "specified workspace API usage limits" for a workspace limit), and the tier's own monthly cap
+ * reads "You have reached your API usage limits: ..." (Anthropic's rate-limits page, read
+ * 2026-10-27). A limit set to protect a finite balance must cost a few seconds, not the lesson.
  */
 const CREDIT_MESSAGE_RE =
-  /credit balance is too low|insufficient[\s_-]*(quota|credit|credits|funds|balance)|out of credits|payment required|billing/i;
+  /credit balance is too low|insufficient[\s_-]*(quota|credit|credits|funds|balance)|out of credits|payment required|billing|reached your (specified (workspace )?)?API usage limits/i;
 
 function isCreditClassError(e) {
   if (!e) return false;

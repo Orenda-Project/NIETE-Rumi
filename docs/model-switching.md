@@ -71,6 +71,10 @@ Anything that is not a well-formed model id is refused by the tool, and ignored 
   is sent with thinking off when the job's output limit is under 2,048 tokens, so a short answer is not spent on
   thinking. Where a model cannot have it off (Fable, Opus 5.5), or not at the effort asked (Opus 5 and Haiku 5.5
   above `high`), it runs at low effort or at the effort asked instead.
+- **On the direct lane, a key that cannot spend falls back to OpenRouter**: an empty balance, a revoked key, or a
+  spend limit set in the Anthropic Console. The call is re-issued on OpenRouter's id for the same model and logged
+  as `lp612.llm.fallback_provider`, so reaching a limit costs OpenRouter credit, not answers. Keep OpenRouter
+  funded while a limit is set.
 - **Nothing moves until the settings have been read once** in a process, so the kill switch is always known. A
   process whose copy is older than two minutes reads the table (bounded wait) before its next labelled call.
 - **Two call sites can go straight to the Anthropic API** (`lp.author`, `quiz.keyVerify`). When their own model is
