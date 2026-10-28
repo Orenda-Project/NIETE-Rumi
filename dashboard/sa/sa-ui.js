@@ -72,6 +72,17 @@
  *   r8_story_snap     (item 15) the story is its own scroll box of parts, one box high each (CSS scroll-snap, snap-stop
  *                     always: a fling cannot skip a part); the down arrow moves exactly one part on. The recording, the
  *                     clock and the star are as before.
+ * Round 8, the child's screens (each OFF unless the served battery carries battery.ui.r8_<flag>):
+ *   r8_nudges         (items 25/26) every child item screen shows how it is answered, small and quiet at the top bar's
+ *                     physical right edge (both directions): a mic on a speaking screen (read aloud, a spoken answer,
+ *                     a spoken practice) with a level bar from SAE.mic.level (opts.micLevel; hidden until the first
+ *                     level, so no mic = the icon alone), a tapping finger on a tapping or typing screen. One level loop
+ *                     per screen, stopped when the screen changes and on destroy().
+ *   r8_highlight      (item 32) the instruction's words (and its round-7b line) are lit one by one while Jugnu says them,
+ *                     like the storybook: the timing file beside a v4 clip (sa/v4/<lang>/<key>.json, fetched once), the
+ *                     clock the playing clip's currentTime (speak.audio(), the voice's), read every animation frame and
+ *                     the light moved only when the word changes. No file, a 404, a word count unlike the text on the
+ *                     screen, a clip that is not v4 or no audio element: the plain words, silently.
  *
  * UMD: window.SAE.ui in the browser, module.exports under Node.
  */
@@ -176,6 +187,9 @@
       stuck_press_next: 'If you are stuck, press the button to go on.',
       // round 8 (sa_r8_lang_switch): the language toggle's spoken name
       r8_lang: 'Language: Urdu or English',
+      // round 8 (items 25/26): the quiet cue's spoken name (screen readers)
+      cue_speak: 'Answer by speaking',
+      cue_tap: 'Answer by tapping',
     },
     ur: {
       hello: 'السلام علیکم! میں جگنو ہوں۔',
@@ -267,6 +281,9 @@
       stuck_press_next: 'اگر آپ کو جواب نہ آئے تو آگے جانے کے لیے بٹن دبائیں۔',
       // round 8 (sa_r8_lang_switch)
       r8_lang: 'زبان: اردو یا انگریزی',
+      // round 8 (items 25/26)
+      cue_speak: 'بول کر جواب دیں',
+      cue_tap: 'دبا کر جواب دیں',
     },
   };
 
@@ -298,6 +315,47 @@
   var KP_WARM_MS = 20000;   // RULING #17: 20 s of free typing
   var HEARD_LEVEL = 0.15;   // the practice oral question: the meter crossed this once = heard
   var PROBE_MS = 4000;      // the mic probe's own guard
+  // Round 8 (items 25/26): the cue's pictures, drawn in the text colour (sa.css mutes it): a mic, a tapping finger.
+  var CUE_SVG = {
+    speak: '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg>',
+    tap: '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M10 13V5.5a1.5 1.5 0 0 1 3 0V12"/><path d="M13 11.5a1.5 1.5 0 0 1 3 0V13"/><path d="M16 12.5a1.5 1.5 0 0 1 3 0V16a6 6 0 0 1-6 6h-1.2a5 5 0 0 1-4-2l-3-4a1.5 1.5 0 0 1 2.3-1.9L10 16"/><path d="M6.5 6.5a5 5 0 0 1 9.5-1.5"/></svg>',
+  };
+
+  // Round 8 (item 32): a v4 clip's word timings sit beside it (sa/v4/<lang>/<key>.json, the storybook read-along's
+  // shape: { v: 1, key, lang, text, audio: { url, ms }, words: [{ i, t, s_ms, e_ms }] }). Fetched once per page.
+  var V4_RX = /(^|\/)sa\/v4\//;
+  var TIMINGS = {};
+  /** The timing file's URL for a playing clip's src (a v4 clip only), else null. */
+  function timingUrl(src) {
+    var m = /^([^?#]*)\.(mp3|m4a|aac|ogg|opus|webm|wav)([?#].*)?$/i.exec(String(src || ''));
+    return m && V4_RX.test(m[1]) ? m[1] + '.json' : null;
+  }
+  /** A timing object checked (version 1, words in order with times), as { words }; anything else null. */
+  function timingOk(d) {
+    if (!d || d.v !== 1 || !Array.isArray(d.words) || !d.words.length) return null;
+    var prev = -1, words = [];
+    for (var k = 0; k < d.words.length; k++) {
+      var w = d.words[k], st = Number(w && w.s_ms), en = Number(w && w.e_ms);
+      if (!w || w.i !== k || !isFinite(st) || !isFinite(en) || st < 0 || en < st || st < prev) return null;
+      prev = st;
+      words.push({ s_ms: st, e_ms: en });
+    }
+    return { words: words };
+  }
+  /** Promise<{ words } | null> for a playing clip; never rejects, never logs. A refused fetch (offline) is asked again next time. */
+  function timingFor(src) {
+    var u = timingUrl(src);
+    if (!u) return Promise.resolve(null);
+    if (TIMINGS[u]) return TIMINGS[u];
+    var f = typeof window !== 'undefined' && typeof window.fetch === 'function' ? window.fetch.bind(window) : (typeof fetch === 'function' ? fetch : null);
+    if (!f) return Promise.resolve(null);
+    var p = TIMINGS[u] = Promise.resolve().then(function () { return f(u, { credentials: 'same-origin' }); }).then(function (r) {
+      return r && r.ok ? Promise.resolve(r.json()).then(timingOk, function () { return null; }) : null;
+    }, function () { delete TIMINGS[u]; return null; });
+    return p;
+  }
+  function nextFrame(fn) { return typeof requestAnimationFrame === 'function' ? requestAnimationFrame(fn) : setTimeout(fn, 16); }
+  function cancelFrame(id) { if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(id); else clearTimeout(id); }
 
   function h(tag, attrs, kids) {
     var el = document.createElement(tag);
@@ -469,7 +527,7 @@
     function hintEl(t, cls) {
       var hl = hintOf(t);
       if (!hl) return null;
-      return h('p', { class: (cls || 'sae-say') + ' sae-r7-hint' }, [tx(hl), t.mode === 'keypad' ? h('span', { class: 'sae-r7-tick', 'aria-hidden': 'true', text: ' ✓' }) : null]);
+      return h('p', { class: (cls || 'sae-say') + ' sae-r7-hint' }, [hlText(tx(hl), hl), t.mode === 'keypad' ? h('span', { class: 'sae-r7-tick', 'aria-hidden': 'true', text: ' ✓' }) : null]);
     }
     /** back_button: Back on an item screen after the first item (or cell); runner.back() shows the one before. */
     function backBtn(v) {
@@ -541,8 +599,11 @@
       if (!textObj && !audioObj) return Promise.resolve();
       if (manual && !inManual) return Promise.resolve();
       if (r8Lang && lang !== homeLang) { var tagged = langSaid(textObj, audioObj); textObj = tagged[0]; audioObj = tagged[1]; }
-      try { return Promise.resolve(speakFn(textObj || null, audioObj || null)).catch(function () {}); }
-      catch (e) { return Promise.resolve(); }
+      try {
+        var p = Promise.resolve(speakFn(textObj || null, audioObj || null)).catch(function () {});
+        if (r7.r8_highlight === true) { try { hlFollow(textObj, audioObj, p); } catch (e) { /* the plain words */ } }
+        return p;
+      } catch (e) { return Promise.resolve(); }
     }
     /** Say lines one after another, unless the screen changes. */
     function sayChain(list) {
@@ -752,6 +813,10 @@
     if (r8Snap) el.classList.add('is-r8-snap');
     // in the coach page's frame, under its corner hold (sa.css keeps the scrolling body below it)
     if (opts.ur_fit && opts.embed) el.classList.add('is-embed');
+    // round 8 (items 25/26, r8_nudges): the speak / tap cue's styles (sa.css "Round 8")
+    if (r7.r8_nudges === true) el.classList.add('is-r8-cues');
+    // round 8 (item 32, r8_highlight): the word being said, lit
+    if (r7.r8_highlight === true) el.classList.add('is-r8-hl');
     el.setAttribute('lang', lang);
     el.setAttribute('dir', lang === 'ur' ? 'rtl' : 'ltr');
     el.setAttribute('data-mode', mode);
@@ -1106,7 +1171,7 @@
       return screen(v, 'sae-instr', [
         h('div', { class: 'sae-row' }, [jugnu('hello', true), replayBtn(function () { gen++; var p = playIntroAll(t); if (!gate.open) gateOn(keyOf(v), p); })]),
         h('h1', { class: 'sae-h1', text: tx(t.title) }),
-        h('p', { class: 'sae-say' }, [].concat(named(tx(introOf(t))))),
+        h('p', { class: 'sae-say' }, [].concat(named(hlText(tx(introOf(t)), introOf(t))))),
         hintEl(t),
         demoImage(t),
         demoItem(t),
@@ -2036,6 +2101,129 @@
       ]);
     }
 
+    // ---------- round 8, items 25/26 (r8_nudges): the speak / tap cue ----------
+    var cue = null; // the speaking screen's level loop: { k, stop, bar, lvl }
+    /** How the child answers the screen on show: 'speak', 'tap', or null (not a child item screen). */
+    function cueKind(v, phase) {
+      var t = v.task;
+      if (!t) return null;
+      if (phase === 'running') return t.mode === 'oral' || t.mode === 'record' ? 'speak' : 'tap';
+      if (phase === 'practice') return t.mode === 'record' && !hold ? 'speak' : 'tap';
+      if (phase === 'last_word' && !coachLW) return 'tap';
+      return null;
+    }
+    function cueStop() {
+      var c = cue;
+      cue = null;
+      if (c && typeof c.stop === 'function') { try { c.stop(); } catch (e) { /* the mic's */ } }
+    }
+    function cuePaint(c) {
+      if (!c.bar || c.lvl == null) return;
+      c.bar.hidden = false;
+      var fill = c.bar.firstChild;
+      if (fill) fill.style.height = Math.round(Math.max(0, Math.min(1, +c.lvl || 0)) * 100) + '%';
+    }
+    /** SAE.mic.level, through the engine (opts.micLevel) or the page's own module; null when there is none. */
+    function levelFn() {
+      if (typeof opts.micLevel === 'function') return opts.micLevel;
+      if ('micLevel' in opts) return null;
+      var m = typeof window !== 'undefined' && window.SAE && window.SAE.mic;
+      return m && typeof m.level === 'function' ? m.level : null;
+    }
+    /** Put the cue in the screen's top bar (its physical right edge, both directions); a speaking screen's bar runs. */
+    function cueOn(v, phase, s) {
+      var kind = r7.r8_nudges === true ? cueKind(v, phase) : null;
+      var k = kind ? keyOf(v) + '|' + kind : null;
+      if (cue && cue.k !== k) cueStop();
+      if (!kind) return;
+      var top = s.querySelector('.sae-top');
+      if (!top) return;
+      var lf = kind === 'speak' ? levelFn() : null;
+      var bar = lf ? h('span', { class: 'sae-r8-lvl', 'aria-hidden': 'true', hidden: '' }, [h('span', { class: 'sae-r8-lvl-fill' })]) : null;
+      var ico = h('span', { class: 'sae-r8-ico', 'aria-hidden': 'true' });
+      ico.innerHTML = CUE_SVG[kind];
+      top.appendChild(h('div', { class: 'sae-r8-cue is-' + kind, 'data-cue': kind, role: 'img', 'aria-label': kind === 'speak' ? C.cue_speak : C.cue_tap }, [ico, bar]));
+      if (!lf) return;
+      if (!cue) {
+        var c = cue = { k: k, stop: null, bar: null, lvl: null };
+        try {
+          c.stop = lf(function (level) {
+            if (!alive || cue !== c) return;
+            c.lvl = level;
+            cuePaint(c);
+          });
+        } catch (e) { c.stop = null; }
+      }
+      cue.bar = bar;
+      cuePaint(cue);
+    }
+
+    // ---------- round 8, item 32 (r8_highlight): the instruction lit word by word as Jugnu says it ----------
+    var hlRun = null; // the line being followed: { host, a, words, spans, idx, raf }
+    /** The words of a line Jugnu may say, on the screen: a span keyed by its clip (ON only; OFF the plain text). */
+    function hlText(text, said) {
+      var clip = r7.r8_highlight === true ? clipOf(said, null) : null;
+      if (!clip || !V4_RX.test(clip)) return text;
+      return h('span', { class: 'sae-r8-text', 'data-r8-clip': clip, text: text });
+    }
+    /** The clip key the voice plays for (textObj, audioObj), as sa-voice picks it. */
+    function clipOf(textObj, audioObj) {
+      var a = audioObj != null ? audioObj : (textObj && typeof textObj === 'object' ? textObj.audio : null);
+      if (typeof a === 'string') return a || null;
+      return a && typeof a === 'object' && typeof a[lang] === 'string' && a[lang] ? a[lang] : null;
+    }
+    function hlStop() {
+      var r = hlRun;
+      hlRun = null;
+      if (!r) return;
+      if (r.raf != null) cancelFrame(r.raf);
+      if (r.spans && r.spans[r.idx]) r.spans[r.idx].classList.remove('is-on');
+    }
+    /** Follow a line Jugnu has just started (say()): its words on the screen lit from the playing clip's clock. */
+    function hlFollow(textObj, audioObj, done) {
+      hlStop();
+      var clip = clipOf(textObj, audioObj);
+      if (!clip || !V4_RX.test(clip) || typeof speakFn.audio !== 'function') return;
+      var host = null;
+      Array.prototype.forEach.call(el.querySelectorAll('.sae-r8-text'), function (n) { if (!host && n.getAttribute('data-r8-clip') === clip) host = n; });
+      if (!host) return;
+      var r = hlRun = { host: host, a: null, words: null, spans: null, idx: -1, raf: null };
+      function step() {
+        r.raf = null;
+        if (hlRun !== r || !alive || !host.isConnected) { if (hlRun === r) hlStop(); return; }
+        var a = null;
+        try { a = speakFn.audio(); } catch (e) { a = null; }
+        if (a && a !== r.a) {
+          r.a = a;
+          timingFor(a.src).then(function (d) {
+            if (hlRun !== r || r.a !== a || !d) return;
+            var toks = host.textContent.split(/\s+/).filter(Boolean);
+            if (d.words.length !== toks.length) return;
+            if (!r.spans) {
+              while (host.firstChild) host.removeChild(host.firstChild);
+              r.spans = toks.map(function (w, i) {
+                if (i) host.appendChild(document.createTextNode(' '));
+                return host.appendChild(h('span', { class: 'sae-r8-w', text: w }));
+              });
+            }
+            r.words = d.words;
+          });
+        }
+        if (r.words && r.a) {
+          var ms = (+r.a.currentTime || 0) * 1000, i = -1;
+          for (var j = 0; j < r.words.length && r.words[j].s_ms <= ms; j++) i = j;
+          if (i !== r.idx) {
+            if (r.spans[r.idx]) r.spans[r.idx].classList.remove('is-on');
+            if (r.spans[i]) r.spans[i].classList.add('is-on');
+            r.idx = i;
+          }
+        }
+        r.raf = nextFrame(step);
+      }
+      step();
+      Promise.resolve(done).then(function () { if (hlRun === r) hlStop(); });
+    }
+
     // ---------- the frame ----------
     function keyOf(v) {
       var k = v.phase + '|' + v.task_index;
@@ -2217,6 +2405,7 @@
       }
       while (el.firstChild) el.removeChild(el.firstChild);
       el.appendChild(s);
+      cueOn(v, showPhase, s);
       fitCells(s);
       if (mode === 'proctored' && showPhase !== 'handover' && showPhase !== 'refused') {
         coachLayer(v).forEach(function (n) { el.appendChild(n); });
@@ -2317,6 +2506,8 @@
       },
       destroy: function () {
         stopMeter();
+        cueStop();
+        hlStop();
         alive = false;
         loop(false);
         timers.forEach(clearTimeout);

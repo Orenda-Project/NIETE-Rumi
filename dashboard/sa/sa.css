@@ -456,3 +456,19 @@ button{font:inherit;color:inherit}
 .sae.is-r8-lang .sae-r8-lang.is-pending{border-color:var(--sae-accent)}
 .sae.is-r8-lang .sae-r8-lang:focus-visible{outline:4px solid var(--sae-ink);outline-offset:3px}
 .sae.is-r8-lang .sae-r8-lang:active{transform:scale(.96)}
+/* Round 8 (items 25/26, r8_nudges, .is-r8-cues): how the screen is answered, small and quiet at the top bar's physical
+   right edge in both directions (in an RTL row the first item is the rightmost). It sits in the bar, so it never covers
+   the screen's content or buttons; the proctored sync dot keeps its corner. The level bar is a thin upright meter. */
+.is-r8-cues .sae-r8-cue{flex:0 0 auto;display:flex;align-items:center;gap:4px;height:36px;margin-right:10px;color:var(--sae-ink-2);opacity:.55;direction:ltr;pointer-events:none}
+.is-r8-cues[dir=rtl] .sae-r8-cue{order:-1}
+.is-r8-cues .sae-r8-ico{display:block;width:30px;height:30px;line-height:0}
+.is-r8-cues .sae-r8-ico svg{display:block}
+.is-r8-cues .sae-r8-lvl{position:relative;display:block;width:6px;height:26px;border-radius:3px;background:var(--sae-line);overflow:hidden}
+.is-r8-cues .sae-r8-lvl[hidden]{display:none}
+.is-r8-cues .sae-r8-lvl-fill{position:absolute;left:0;right:0;bottom:0;height:0;background:var(--sae-ink-2);transition:height .08s linear}
+@media (prefers-reduced-motion:reduce){.is-r8-cues .sae-r8-lvl-fill{transition:none}}
+/* Round 8 (item 32, r8_highlight, .is-r8-hl): the word Jugnu is saying, lit like the storybook's read-along pill (light
+   green, dark green ink). Colour and a box shadow only: no padding, no weight change, so the line never reflows. */
+.is-r8-hl .sae-r8-w{border-radius:6px;transition:background-color .1s ease,box-shadow .1s ease}
+.is-r8-hl .sae-r8-w.is-on{background:#BBF7D0;color:#14532D;box-shadow:0 0 0 2px #BBF7D0}
+@media (prefers-reduced-motion:reduce){.is-r8-hl .sae-r8-w{transition:none}}
