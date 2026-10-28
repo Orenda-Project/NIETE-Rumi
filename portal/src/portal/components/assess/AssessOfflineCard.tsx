@@ -71,6 +71,8 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
     const missingGrade = chosen.find((s) => needsGrades(s) && !(gradesAt[s.schoolId] || []).length);
     if (missingGrade) { setNoGrade(missingGrade.name); return; }
     setNoGrade(null);
+    // the page itself first: a list read that is slow or fails must not leave the page without its offline copy
+    const pageFirst = keepPageOffline([]);
     setProgress({ done: 0, total: 0, bytes: 0 });
     const grades = new Set<number>();
     const done: PrepRecord['schools'] = [];
@@ -98,7 +100,8 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
       else await prepList(s, s.grade);
     }
     const forms = formsFor([...grades].sort());
-    const page = keepPageOffline(lists);
+    // then once more with the lists just read (registering again is a no-op)
+    const page = pageFirst.then(() => keepPageOffline(lists));
     const r = await prepForms(forms, (p) => setProgress(p));
     await page;
     const rec: PrepRecord = { at: Date.now(), day: today(), schools: done, forms, ok: r.ok && done.every((d) => d.listed), total: r.total, cached: r.cached, bytes: r.bytes };
