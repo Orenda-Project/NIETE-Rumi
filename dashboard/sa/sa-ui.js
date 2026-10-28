@@ -1740,7 +1740,8 @@
     }
 
     /** r8_comp_wait_next: the stuck line, small, just above Next in the foot (always in view, never over the question). */
-    function stuckEl() { return h('p', { class: 'sae-sub sae-r8-stuck', text: tx(copyLine('stuck_press_next')) }); }
+    // Text only from COPY (not copyLine, which is for lines with a clip): the page has no recording of these words.
+    function stuckEl() { return h('p', { class: 'sae-sub sae-r8-stuck', text: tx(line('stuck_press_next')) || C.stuck_press_next }); }
     /** r8_comp_wait_next: the stuck line once, R8_STUCK_MS after the question was asked, if still unanswered (clip only). */
     function stuckLater(t, key) {
       var sl = line('stuck_press_next');
