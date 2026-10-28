@@ -357,3 +357,8 @@ button{font:inherit;color:inherit}
 .is-r8-cues .sae-r8-lvl[hidden]{display:none}
 .is-r8-cues .sae-r8-lvl-fill{position:absolute;left:0;right:0;bottom:0;height:0;background:var(--sae-ink-2);transition:height .08s linear}
 @media (prefers-reduced-motion:reduce){.is-r8-cues .sae-r8-lvl-fill{transition:none}}
+/* Round 8 (item 32, r8_highlight, .is-r8-hl): the word Jugnu is saying, lit like the storybook's read-along pill (light
+   green, dark green ink). Colour and a box shadow only: no padding, no weight change, so the line never reflows. */
+.is-r8-hl .sae-r8-w{border-radius:6px;transition:background-color .1s ease,box-shadow .1s ease}
+.is-r8-hl .sae-r8-w.is-on{background:#BBF7D0;color:#14532D;box-shadow:0 0 0 2px #BBF7D0}
+@media (prefers-reduced-motion:reduce){.is-r8-hl .sae-r8-w{transition:none}}

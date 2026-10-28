@@ -4,7 +4,8 @@
  *   items 25/26 (r8_nudges)  every child item screen shows a small, quiet cue of how it is answered: a mic with a live
  *                             level bar on a speaking screen (SAE.mic.level; the recorder's stream when one is open), a
  *                             tapping hand on a tapping screen. The level loop stops when the screen is left.
- * OFF: the screens as before (no cue, no class, no level loop).
+ *   item 32 (r8_highlight)   the instruction's words lit one by one while its v4 clip plays (see below).
+ * OFF: the screens as before (no cue, no class, no level loop, no timing fetched).
  */
 let JSDOM = null;
 try { ({ JSDOM } = require('jsdom')); } catch (_) { /* not installed here */ }
@@ -228,5 +229,191 @@ describe('SAE.rec.stream(): the recorder\'s open stream (sa-rec.js)', () => {
     expect(rec.stream()).toBe(s);
     r.release();
     expect(rec.stream()).toBeNull();
+  });
+});
+
+/**
+ * Round 8 item 32 (r8_highlight): the instruction's words are lit one by one while its v4 clip plays, from the timing
+ * file beside the clip (sa/v4/<lang>/<key>.json, the storybook's shape). The clock is the playing audio element (the
+ * voice's speak.audio()). No file, a 404, a word-count mismatch or no audio element: the plain text, quietly.
+ */
+maybe('round 8 item 32: the instruction lit word by word (r8_highlight)', () => {
+  const path = require('path');
+  const FIX = { en: require(path.join(__dirname, 'fixtures', 'sa-r8-timing', 'en.json')), ur: require(path.join(__dirname, 'fixtures', 'sa-r8-timing', 'ur.json')) };
+  let dom; let views = []; const keep = {};
+  beforeEach(() => {
+    views = [];
+    dom = new JSDOM('<!doctype html><main id="m"></main>', { url: 'https://portal.test/sa/play.html', pretendToBeVisual: true });
+    for (const k of ['window', 'document', 'location', 'navigator', 'HTMLElement', 'Node', 'requestAnimationFrame', 'cancelAnimationFrame', 'fetch']) {
+      keep[k] = global[k];
+      global[k] = k === 'window' ? dom.window : dom.window[k];
+    }
+    jest.resetModules();
+  });
+  afterEach(() => { views.forEach((v) => v.destroy()); for (const k of Object.keys(keep)) global[k] = keep[k]; dom.window.close(); });
+
+  /** fetch stub: url → body (an object = 200 JSON; a number = that status). */
+  function fetcher(map) {
+    const f = jest.fn((url) => {
+      const b = map[url];
+      if (b == null) return Promise.resolve({ ok: false, status: 404, json: () => Promise.reject(new Error('404')) });
+      if (typeof b === 'number') return Promise.resolve({ ok: false, status: b, json: () => Promise.reject(new Error(String(b))) });
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(JSON.parse(JSON.stringify(b))) });
+    });
+    global.fetch = f; dom.window.fetch = f;
+    return f;
+  }
+  /** The voice: speak() plays a fake <audio> (its src under the CDN), speak.audio() is the playing one. */
+  function voice({ hook = true } = {}) {
+    const v = { cur: null, ends: [], said: [] };
+    v.speak = (t, a) => {
+      v.said.push(t);
+      const clip = (a || (t && t.audio)) || null;
+      const key = typeof clip === 'string' ? clip : clip && (clip.en || clip.ur);
+      v.cur = key ? { src: 'https://cdn.test/' + key, currentTime: 0, paused: false } : null;
+      return new Promise((r) => { v.ends.push(() => { v.cur = null; r(); }); });
+    };
+    if (hook) v.speak.audio = () => v.cur;
+    return v;
+  }
+  function mount({ lang = 'en', on = true, clip, fix = FIX[lang], hook = true, child } = {}) {
+    const core = require('../sa/sa-core');
+    const ui = require('../sa/sa-ui');
+    const intro = { text: fix.text, audio: { [lang]: clip || fix.audio.url } };
+    const battery = { battery_id: 'b', lines: {}, tasks: [{ id: lang + '.t', mode: 'tap', lang, script: { intro_tap: intro }, items: [{ id: lang + '.t.01', target: 'a', options: ['a', 'b'] }] }] };
+    if (on) battery.ui = { r8_highlight: true };
+    const runner = core.createRunner({ battery, onEvent: () => {} });
+    runner.start();
+    const vo = voice({ hook });
+    const el = document.getElementById('m');
+    views.push(ui.mount(el, { runner, battery, lang, mode: 'game', speak: vo.speak, child }));
+    expect(runner.view().phase).toBe('instruction');
+    return { el, vo };
+  }
+  const lit = (el) => [...el.querySelectorAll('.sae-r8-w.is-on')].map((s) => s.textContent);
+  const frames = (n = 4) => flush(17 * n);
+
+  test('EN: the word the clip is on is lit, and moves with the clock', async () => {
+    const f = fetcher({ 'https://cdn.test/sa/v4/en/r8demo02.json': FIX.en });
+    const { el, vo } = mount();
+    await frames();
+    expect(f).toHaveBeenCalledWith('https://cdn.test/sa/v4/en/r8demo02.json', expect.anything());
+    expect(el.querySelectorAll('.sae-say .sae-r8-w').length).toBe(5);
+    expect(lit(el)).toEqual(['Tap']);
+    vo.cur.currentTime = 0.95;
+    await frames();
+    expect(lit(el)).toEqual(['Jugnu']);
+    vo.cur.currentTime = 1.5;
+    await frames();
+    expect(lit(el)).toEqual(['says.']);
+    // the text reads the same, nothing bolder
+    expect(el.querySelector('.sae-say').textContent).toBe(FIX.en.text);
+    // the clip ends: nothing lit
+    vo.ends.shift()();
+    await frames();
+    expect(lit(el)).toEqual([]);
+  });
+
+  test('the highlight changes only when the word changes (no DOM work on a steady clock)', async () => {
+    fetcher({ 'https://cdn.test/sa/v4/en/r8demo02.json': FIX.en });
+    const { el, vo } = mount();
+    await frames();
+    vo.cur.currentTime = 0.6;
+    await frames();
+    let n = 0;
+    const mo = new dom.window.MutationObserver((ms) => { n += ms.length; });
+    mo.observe(el, { attributes: true, childList: true, subtree: true, characterData: true });
+    await frames(6);
+    mo.disconnect();
+    expect(n).toBe(0);
+    expect(lit(el)).toEqual(['letter']);
+  });
+
+  test('UR: the Urdu instruction lit word by word', async () => {
+    fetcher({ 'https://cdn.test/sa/v4/ur/r8demo01.json': FIX.ur });
+    const { el, vo } = mount({ lang: 'ur' });
+    await frames();
+    vo.cur.currentTime = 0.7;
+    await frames();
+    expect(lit(el)).toEqual(['جگنو']);
+    expect(el.querySelector('.sae-say').textContent).toBe(FIX.ur.text);
+  });
+
+  test('the child\'s name in front of the words is not part of the lit text', async () => {
+    fetcher({ 'https://cdn.test/sa/v4/en/r8demo02.json': FIX.en });
+    const { el } = mount({ child: { first_name: 'Sam' } });
+    await frames();
+    expect(el.querySelector('.sae-say .sae-name').textContent).toBe('Sam');
+    expect(el.querySelectorAll('.sae-say .sae-r8-w').length).toBe(5);
+    expect(lit(el)).toEqual(['Tap']);
+  });
+
+  test('the timing is fetched once and kept (a replay reuses it)', async () => {
+    const f = fetcher({ 'https://cdn.test/sa/v4/en/r8demo02.json': FIX.en });
+    const { el, vo } = mount();
+    await frames();
+    vo.ends.shift()();
+    await frames();
+    el.querySelector('.sae-replay').click();
+    await frames();
+    expect(lit(el)).toEqual(['Tap']);
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+
+  describe('every miss is the plain text, quietly', () => {
+    let errs;
+    beforeEach(() => { errs = [jest.spyOn(console, 'error').mockImplementation(() => {}), jest.spyOn(console, 'warn').mockImplementation(() => {}), jest.spyOn(console, 'log').mockImplementation(() => {})]; });
+    afterEach(() => { errs.forEach((s) => { expect(s).not.toHaveBeenCalled(); s.mockRestore(); }); });
+    test('no timing file (404)', async () => {
+      const f = fetcher({});
+      const { el } = mount();
+      await frames();
+      expect(f).toHaveBeenCalledTimes(1);
+      expect(el.querySelector('.sae-r8-w')).toBeNull();
+      expect(el.querySelector('.sae-say').textContent).toBe(FIX.en.text);
+    });
+    test('a word count that does not match the text on screen', async () => {
+      const bad = Object.assign({}, FIX.en, { words: FIX.en.words.slice(0, 4) });
+      fetcher({ 'https://cdn.test/sa/v4/en/r8demo02.json': bad });
+      const { el } = mount();
+      await frames();
+      expect(el.querySelector('.sae-r8-w')).toBeNull();
+    });
+    test('a broken file (not v1, bad times)', async () => {
+      fetcher({ 'https://cdn.test/sa/v4/en/r8demo02.json': Object.assign({}, FIX.en, { v: 2 }) });
+      const { el } = mount();
+      await frames();
+      expect(el.querySelector('.sae-r8-w')).toBeNull();
+    });
+    test('fetch rejects (offline, nothing cached)', async () => {
+      const f = jest.fn(() => Promise.reject(new TypeError('offline')));
+      global.fetch = f; dom.window.fetch = f;
+      const { el } = mount();
+      await frames();
+      expect(el.querySelector('.sae-r8-w')).toBeNull();
+    });
+    test('no audio element reachable (the voice has no speak.audio)', async () => {
+      const f = fetcher({ 'https://cdn.test/sa/v4/en/r8demo02.json': FIX.en });
+      const { el } = mount({ hook: false });
+      await frames();
+      expect(f).not.toHaveBeenCalled();
+      expect(el.querySelector('.sae-r8-w')).toBeNull();
+    });
+    test('a clip that is not a v4 clip: no timing asked for', async () => {
+      const f = fetcher({});
+      const { el } = mount({ clip: 'sa/v1/en/abcdef123456.mp3' });
+      await frames();
+      expect(f).not.toHaveBeenCalled();
+      expect(el.querySelector('.sae-r8-w')).toBeNull();
+    });
+  });
+
+  test('OFF: no fetch, the instruction exactly as today', async () => {
+    const f = fetcher({ 'https://cdn.test/sa/v4/en/r8demo02.json': FIX.en });
+    const { el } = mount({ on: false });
+    await frames();
+    expect(f).not.toHaveBeenCalled();
+    expect(el.querySelector('.sae-say').innerHTML).toBe(FIX.en.text);
+    expect(el.classList.contains('is-r8-hl')).toBe(false);
   });
 });
