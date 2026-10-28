@@ -37,11 +37,12 @@ const flush = async () => { for (let i = 0; i < 10; i += 1) await new Promise((r
  * Opens the page in `lang` with the home answering `home` (or refusing with `status`, or failing with `status: 'offline'`,
  * or never answering with `status: 'hang'` until the test calls `release(json)` on the oldest home fetch still open);
  * `paged` builds the page with the quick answer's switch ON; `wait` with the slow answer's wait (quiz_teacher_home_wait) ON;
+ * `one` builds the one-lesson page for that coaching session (quiz_teacher_home_one_lesson ON);
  * `answer(path, body)` answers every other fetch.
  * → { q, tap(el), fetches, beacons, location, release, refuse } (`refuse()` answers the oldest held home fetch with a 500).
  */
-async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null, backThrows = false, paged = false, counts = false, wait = false } = {}) {
-  const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null, ...(paged ? { paged: true } : {}), ...(counts ? { counts: true } : {}), ...(wait ? { wait: true } : {}) });
+async function open(home, { lang = 'en', answer = () => ({}), status = 200, timers = [], clock = null, backThrows = false, paged = false, counts = false, wait = false, one = null } = {}) {
+  const { html } = Page.buildShell({ token: 'a.b', lang, switchTo: null, ...(paged ? { paged: true } : {}), ...(counts ? { counts: true } : {}), ...(wait ? { wait: true } : {}), ...(one ? { one } : {}) });
   const doc = adopt(parse(html));
   const fetches = [];
   const beacons = [];
@@ -663,5 +664,81 @@ describe('one primary action on the screen', () => {
     expect(primaries(p).map((x) => x.getAttribute('id') || x.getAttribute('data-tap'))).toEqual(['th-sheet-go']);
     await p.tap(p.q('#th-back'));
     expect(primaries(p).map((x) => x.getAttribute('data-tap'))).toEqual(['send']);
+  });
+});
+
+describe('the one-lesson page (quiz_teacher_home_one_lesson ON: a Digital Coach report\'s "Create Quick Quiz")', () => {
+  const SESSION = 'e0000000-0000-4000-8000-0000000000c1';
+  const MSG = 'Assalam o Alaikum class! Play the quiz on Plants.';
+  const WA = `https://wa.me/?text=${encodeURIComponent(MSG)}`;
+  const makes = (p) => p.fetches.filter((f) => f.path === '/api/th/quiz/make');
+  const homes = (p) => p.fetches.filter((f) => f.path.indexOf('/api/th/home?') === 0);
+  const polls = (p) => p.fetches.filter((f) => f.path.indexOf('/api/th/quiz/qz1?') === 0);
+  const fire = async (timers) => { timers.splice(0).forEach((fn) => fn()); await flush(); };
+  const made = (path) => (path === '/api/th/quiz/make' ? { quizId: 'qz1' } : {});
+
+  test('right after paint it starts "Quiz this" for THAT lesson (the row\'s own make) and never reads the whole home', async () => {
+    const p = await open(null, { one: SESSION, answer: made });
+    expect(homes(p)).toEqual([]);
+    expect(makes(p).map((f) => f.body)).toEqual([{ t: 'a.b', kind: 'coaching', id: SESSION, lang: 'en' }]);
+    const top = p.q('#th-top');
+    expect(top.textContent).toContain('Quiz from this lesson');
+    expect(top.textContent).toContain('Making your quiz…');
+    expect(top.querySelector('[data-tap="quiz_this"]').hidden).toBe(true);
+    // the list and the library are not on this page; the way to them is one quiet link
+    expect(p.q('#th-tl').hidden).toBe(true);
+    expect(p.q('#th-lib').hidden).toBe(true);
+    expect(p.q('#th-one-all').getAttribute('href')).toBe('/quiz/teacher/a.b');
+    expect(p.beacons.map((x) => x.body.step)).toEqual(['one_lesson']);
+  });
+
+  test('the first ask after the make is not held 5 s (a quiz already made for this lesson shows at once)', async () => {
+    const timers = [];
+    await open(null, { one: SESSION, timers, answer: made });
+    expect(timers.map((fn) => fn.ms)).toEqual([0]);
+  });
+
+  test('ready: the card is that lesson\'s quiz, and "Send to my class" opens the send sheet with its class message', async () => {
+    const timers = [];
+    const p = await open(null, { one: SESSION, timers, answer: (path) => (path === '/api/th/quiz/make' ? { quizId: 'qz1' }
+      : path.indexOf('/api/th/quiz/qz1?') === 0 ? { state: 'ready', title: 'Plants', message: MSG, wa: WA } : {}) });
+    await fire(timers);
+    expect(polls(p)).toHaveLength(1);
+    const top = p.q('#th-top');
+    expect(top.textContent).toContain('Plants');
+    expect(p.q('#th-main').querySelectorAll('[data-primary]')).toHaveLength(1);
+    await p.tap(top.querySelector('[data-tap="send"]'));
+    expect(p.q('#th-sheet').hidden).toBe(false);
+    expect(p.q('#th-msg').value).toBe(MSG);
+    expect(p.q('#th-sheet-go').getAttribute('href')).toBe(WA);
+    await p.tap(p.q('#th-sheet-go'));
+    expect(p.beacons.map((x) => x.body).filter((b) => b.step === 'share_tap')).toEqual([{ t: 'a.b', step: 'share_tap', kind: 'again', id: 'qz1', origin: 'coaching' }]);
+  });
+
+  test('a quiz that fails says so on the card', async () => {
+    const timers = [];
+    const p = await open(null, { one: SESSION, timers, answer: (path) => (path === '/api/th/quiz/make' ? { quizId: 'qz1' }
+      : path.indexOf('/api/th/quiz/qz1?') === 0 ? { state: 'failed', title: 'Plants' } : {}) });
+    await fire(timers);
+    expect(p.q('#th-top').textContent).toContain("That didn't work. Try again in a moment.");
+  });
+
+  test('a refused make: the error line, and "Quiz this" is there again and asks again when tapped', async () => {
+    let n = 0;
+    const p = await open(null, { one: SESSION, answer: (path) => { if (path !== '/api/th/quiz/make') return {}; n += 1; return n === 1 ? {} : { quizId: 'qz1' }; } });
+    expect(p.q('#th-err').hidden).toBe(false);
+    const v = p.q('#th-top').querySelector('[data-tap="quiz_this"]');
+    expect(v.hidden).toBeFalsy();
+    expect(v.disabled).toBe(false);
+    await p.tap(v);
+    expect(makes(p)).toHaveLength(2);
+    expect(p.q('#th-err').hidden).toBe(true);
+    expect(p.q('#th-top').textContent).toContain('Making your quiz…');
+  });
+
+  test('Urdu: the card\'s words are the Urdu ones', async () => {
+    const p = await open(null, { one: SESSION, lang: 'ur', answer: made });
+    expect(p.q('#th-top').textContent).toContain('اس سبق کا کوئز');
+    expect(makes(p).map((f) => f.body.lang)).toEqual(['ur']);
   });
 });
