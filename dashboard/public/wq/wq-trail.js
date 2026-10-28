@@ -424,10 +424,22 @@
     // Read along, word by word (the serve's `readalong` and the player loaded): Jugnu reads at a child's pace, the
     // green pill on each word as it is spoken; play/pause, replay, tap a word to hear it from there. Nothing moves on
     // by itself: "I'm ready" goes to the normal read whenever the child is.
+    // the lit word stays in view, above the "I'm ready" dock when there is one (bd-5gyspy.13): at 390 px a passage runs
+    // under the sticky dock and the child following the pill lost it there. Only when the word has left the view.
+    function keepLit(box, dock) {
+      return function () {
+        try {
+          var on = box.querySelector('.wqra-on'); if (!on) return;
+          var r = on.getBoundingClientRect(), lim = dock ? dock.getBoundingClientRect().top : window.innerHeight;
+          if (r.bottom > lim - 8) window.scrollBy(0, r.bottom - lim + 24);
+          else if (r.top < 0) window.scrollBy(0, r.top - 16);
+        } catch (e) { /* no layout yet */ }
+      };
+    }
     function timedAlong(ra, next) {
       h.show('story-along', h.jug('hello', t.storyReadAlong, true) + '<div id="wqc-along-ra"></div>'
         + '<div class="wqc-sticky">' + btn('wqc-along-read', h.t.ready) + '</div>');
-      var p = window.WQReadAlong.mount(h.q('wqc-along-ra'), ra, { labels: t.ra });
+      var p = window.WQReadAlong.mount(h.q('wqc-along-ra'), ra, { labels: t.ra, onWord: keepLit(h.q('wqc-along-ra'), h.q('wqc-along-read')) });
       h.on('wqc-along-read', function () { try { p.destroy(); } catch (e) { /* gone */ } next(); });
       p.play();   // inside the child's tap: the in-app browser's audio unlock
     }
@@ -569,7 +581,7 @@
     function showWords(ra) {
       h.show('listen-words', h.jug('hello', t.storyReadAlong, true) + '<div id="wqc-along-ra"></div>'
         + '<div class="wq-stack">' + btn('wqc-menu', toGames()) + '</div>');
-      var p = window.WQReadAlong.mount(h.q('wqc-along-ra'), ra, { labels: t.ra });
+      var p = window.WQReadAlong.mount(h.q('wqc-along-ra'), ra, { labels: t.ra, onWord: keepLit(h.q('wqc-along-ra'), null) });
       h.on('wqc-menu', function () { try { p.destroy(); } catch (e) { /* gone */ } h.refreshMenu(); });
       p.play();   // inside the child's tap
     }
