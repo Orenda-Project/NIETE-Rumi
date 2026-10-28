@@ -20,11 +20,11 @@ const keyOf = (lang, text) => `sa/v1/${lang}/${crypto.createHash('sha1').update(
 
 const LINES = Object.freeze({
   r7_say_next: Object.freeze({
-    en: 'Say each one out loud, then press the Next button.',
+    en: 'Say each one out loud, then press Next.',
     ur: 'ہر ایک کو اونچی آواز میں بولیں، پھر «آگے» کا بٹن دبائیں۔',
   }),
   r7_say_done: Object.freeze({
-    en: 'Say your answer out loud, then press the Done button.',
+    en: 'Say your answer out loud, then press Done.',
     ur: 'اپنا جواب اونچی آواز میں بتائیں، پھر «ہو گیا» کابٹن دبائیں۔',
   }),
   r7_scroll: Object.freeze({

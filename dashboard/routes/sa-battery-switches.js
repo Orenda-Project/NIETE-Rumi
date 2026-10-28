@@ -99,7 +99,7 @@ const W3_KEYS = ['rdf_auto', 'rdf_manual', 'rdf_variants', 'rdf_w3_absent'];
 // Round 7b (sa_silence_repeat): Jugnu's reminder, voiced in both sets (dashboard/sa/v1|v2/<lang>/<key>.mp3, keyed as the bank
 // builder keys a line: sha1(lang|text)[:12]); added to the battery's lines while the switch is ON.
 const SILENCE_LINE = {
-  en: { text: 'Jugnu could not hear you. Say your answer out loud again. Let us do this part again.', audio: 'sa/v1/en/76d8bf00e3bd.mp3' },
+  en: { text: 'Jugnu could not hear you. Say each answer out loud. Let us do this part again.', audio: 'sa/v1/en/90d23fdca65f.mp3' },
   ur: { text: 'جگنو آپ کی آواز نہیں سن سکا۔ جواب کو دوبار اونچی آواز میں بولیں۔ آئیے یہ حصہ دوبارہ کرتے ہیں۔', audio: 'sa/v1/ur/34123776cd8c.mp3' },
 };
 const W3_LINES = ['coach_will_instruct', 'please_go_on'];
