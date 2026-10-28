@@ -19,7 +19,8 @@
  *     round 8 (switches sa_r8_offline_prep / sa_r8_offline_first, the coach page, while online): every listed battery
  *     (sa.coach.G3.A.ur …) read fresh, then every clip in its language and every picture, onProgress({ done, total,
  *     bytes }) after each chunk. part { block, seed }: only what that child's page runs (the page's pick + rotate,
- *     partOf), so a Start waits for one part, not the whole battery. A started test then needs no network.
+ *     partOf), so a Start waits for one part, not the whole battery. Jugnu's pictures (ART) come too. A started test
+ *     then needs no network.
  *   SAE.offline.checkVisit({ forms }) → Promise<{ ready, total, cached, why? }>: the same files, looked up on the phone
  *     only (nothing fetched).
  *
@@ -248,6 +249,9 @@
     return out;
   }
 
+  /** Jugnu's pictures on the child's screens (sa-ui.js art_base '/wq/' + 'jugnu_' + mood): the worker keeps /wq/ too. */
+  var ART = ['celebrate', 'correct', 'hello', 'idle', 'notyet', 'sleep', 'thinking'].map(function (m) { return '/wq/jugnu_' + m + '.webp'; });
+
   var FORM_NAME_RX = /^sa\.(coach|game)\.[A-Za-z0-9]+(\.[A-Za-z0-9]+)?\.(en|ur)$/;
   var CHUNK = 24;
   var ACTIVE_WAIT_MS = 30000;
@@ -321,6 +325,8 @@
         var all = [];
         var inAll = {};
         per.forEach(function (p) { p.files.slice(1).forEach(function (u) { if (!inAll[u]) { inAll[u] = true; all.push(u); } }); });
+        // Jugnu's pictures, once for the visit (without them the screens show no Jugnu offline)
+        if (forms.length) ART.forEach(function (u) { if (!inAll[u]) { inAll[u] = true; all.push(u); } });
         var total = bats.length + all.length;
         var done = bats.length;
         progress({ done: done, total: total, bytes: bytes });
@@ -360,6 +366,7 @@
           forms.forEach(function (f, i) {
             [batteryUrl(f)].concat(batteries[i] ? filesOf(batteries[i], f, o.part) : []).forEach(function (u) { if (!seen[u]) { seen[u] = true; want.push(u); } });
           });
+          if (forms.length) ART.forEach(function (u) { if (!seen[u]) { seen[u] = true; want.push(u); } });
           var chunks = [];
           for (var i = 0; i < want.length; i += 200) chunks.push(want.slice(i, i + 200));
           return Promise.all(chunks.map(function (c) { return q({ type: 'check', urls: c }); })).then(function (rs) {
@@ -372,5 +379,5 @@
   }
 
   return { urls: urls, lineUrls: lineUrls, openingUrls: openingUrls, images: images, prepare: prepare, prepareSession: prepareSession, hasVoice: hasVoice,
-    prepVisit: prepVisit, checkVisit: checkVisit, partOf: partOf };
+    prepVisit: prepVisit, checkVisit: checkVisit, partOf: partOf, ART: ART };
 }));
