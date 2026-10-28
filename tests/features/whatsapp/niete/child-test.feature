@@ -911,6 +911,17 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     Then Next (and Go on the Ready screen) cannot be pressed until Jugnu stops
     And if the voice never ends, Next works after 30 seconds
 
+  # @no-mock-driver: hiding the page and the phone's browser pausing or refusing a clip happen in the child's browser;
+  # the mock lane drives the bot over WhatsApp and never runs the assessment page. Covered at unit level by
+  # dashboard/tests/sa-voice-tabswitch.service.test.js (the real voice engine and page engine, a fake Audio element).
+  @e2e @wip @draft @no-mock-driver @P1 @CT107
+  Scenario: Leaving the page mid-instruction and coming back carries on in Jugnu's voice
+    Given a part's instructions are playing in RDF auto or coach-led
+    When the phone switches to another tab or app and then comes back
+    Then Jugnu's instruction plays on, and Next works when it ends
+    And the phone's own speech voice never says Jugnu's lines
+    And if the clip will not play again, the words stay on screen and Next works within a few seconds
+
   @e2e @wip @draft @config-gated @P1 @CT103
   Scenario: The instructions say "say it, then press Next" (or Done), in Urdu and English
     Given sa_say_then_next is on
