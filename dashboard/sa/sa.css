@@ -346,3 +346,14 @@ button{font:inherit;color:inherit}
 .is-ur-fit[lang=ur] .sae-silence .sae-p{font-size:18px;line-height:2.2;margin:0;padding-top:.4em;padding-inline:.6em}
 @media (max-height:700px){.is-ur-fit[lang=ur] .sae-silence .sae-jugnu{display:none}}
 @media (max-height:600px){.is-ur-fit[lang=ur] .sae-silence .sae-body{gap:6px}.is-ur-fit[lang=ur] .sae-silence .sae-h1{font-size:22px;padding-top:.3em}.is-ur-fit[lang=ur] .sae-silence .sae-p{font-size:16px;padding-top:.2em}}
+
+/* Round 8 item 4 (sa_r8_lang_switch, .is-r8-lang only): the «اردو | English» toggle in the top bar, in flow beside the
+   dots (never over the content); a 56px tap target; the side the next screen speaks is the filled one. */
+.sae.is-r8-lang .sae-r8-lang{flex:0 0 auto;min-height:56px;min-width:56px;margin-inline-start:8px;padding:0 12px;border-radius:28px;border:3px solid var(--sae-line);background:var(--sae-card);color:var(--sae-ink-2);font-family:var(--sae-f);font-size:16px;line-height:1;display:inline-flex;align-items:center;gap:2px;cursor:pointer;white-space:nowrap}
+.sae.is-r8-lang .sae-r8-lang [lang=ur]{font-family:var(--sae-fu);line-height:1.6;word-spacing:0}
+.sae.is-r8-lang .sae-r8-lang-o{padding:4px 8px;border-radius:16px}
+.sae.is-r8-lang .sae-r8-lang-o.is-on{background:var(--sae-ink);color:#fff;font-weight:700}
+.sae.is-r8-lang .sae-r8-lang-bar{color:var(--sae-line)}
+.sae.is-r8-lang .sae-r8-lang.is-pending{border-color:var(--sae-accent)}
+.sae.is-r8-lang .sae-r8-lang:focus-visible{outline:4px solid var(--sae-ink);outline-offset:3px}
+.sae.is-r8-lang .sae-r8-lang:active{transform:scale(.96)}

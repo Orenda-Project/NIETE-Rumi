@@ -54,6 +54,14 @@
     });
     if (mode === 'proctored') ui.setSync({ state: 'local' });
     window.__sae = { runner: runner, events: events, ui: ui, voice: voice };
+    // Round 8 item 4 (sa_r8_lang_switch): the same form in the other language, for the toggle (none: no toggle)
+    var other = /^(.+)\.(ur|en)$/.exec(form);
+    if (battery.ui && battery.ui.r8_lang_switch === true && other && ui.langBattery) {
+      var ol = other[2] === 'ur' ? 'en' : 'ur';
+      fetch('./' + other[1] + '.' + ol + '.json').then(function (r) { return r.ok ? r.json() : null; }).then(function (alt) {
+        if (alt && Array.isArray(alt.tasks)) ui.langBattery(ol, SAE.core.normalize(alt), { onSwitch: function (l) { document.documentElement.lang = l; document.documentElement.dir = l === 'ur' ? 'rtl' : 'ltr'; } });
+      }, function () { /* no toggle */ });
+    }
   }).catch(function (e) {
     el.textContent = 'Could not start: ' + (e && e.message ? e.message : e);
   });
