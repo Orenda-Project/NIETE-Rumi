@@ -5,6 +5,7 @@
 .wqs h2{margin:0;font-size:20px}
 .wqs-top{display:flex;align-items:center;gap:8px;min-height:56px}
 .wqs-top h2{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wqs-top h2[lang=ur],html[lang=ur] .wqs-top h2:not([lang]){padding-block:.2em .5em;margin-block:-.2em -.5em}
 .wqs-ic,.wqs-ic0{width:48px;height:48px;flex:none}
 .wqs-ic{border-radius:24px;background:#fff;box-shadow:0 2px 0 var(--line);display:grid;place-items:center;font-size:24px;text-decoration:none;color:inherit}
 .wqs-say{color:var(--soft);font-size:18px;margin:0}
