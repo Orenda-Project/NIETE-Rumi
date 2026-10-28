@@ -10,6 +10,9 @@
  * /api/portal/config carries it to the browser as `features.teacherV2`, answered
  * for the SESSION user. The portal shows it to teachers only (not the leader family).
  */
+// These tests change app_settings rows under one shared client, sometimes mid-test, to check each value's rule.
+// The flag cache would hold the first read, so it is off here; tests/portal/feature-flags-cache.test.js covers it.
+process.env.FLAG_CACHE_TTL_MS = '0';
 
 const { isFlagEnabledForUser, PORTAL_TEACHER_V2_KEY } = require('../../dashboard/lib/feature-flags');
 
