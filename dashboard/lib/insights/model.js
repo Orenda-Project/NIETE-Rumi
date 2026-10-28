@@ -59,11 +59,13 @@ function createLedger({ capUsd = C.NIGHTLY_CAP_USD, p90 = P90_USD } = {}) {
   let spent = 0;
   let capHit = false;
   let pending = 0;
+  let held = 0;
   return {
-    canStart(analysis) {
+    /** `heldUsd`: what calls already in flight hold (ledger.held) when the caller runs several at once. */
+    canStart(analysis, heldUsd = 0) {
       if (capHit) return false;
       const p = p90[analysis];
-      if (typeof p !== 'number' || spent + p > capUsd) {
+      if (typeof p !== 'number' || spent + heldUsd + p > capUsd) {
         capHit = true;
         return false;
       }
@@ -73,9 +75,20 @@ function createLedger({ capUsd = C.NIGHTLY_CAP_USD, p90 = P90_USD } = {}) {
       const c = usage && Number(usage.cost);
       if (Number.isFinite(c) && c > 0) spent += c;
     },
+    /**
+     * Holds `usd` (a call's p90) while the call is in flight, so callers running N at once can count it before the cost is
+     * known (bd-sex15q.43). Returns the release; a second release does nothing.
+     */
+    hold(usd) {
+      const amount = Number(usd) || 0;
+      held += amount;
+      let done = false;
+      return () => { if (!done) { done = true; held -= amount; if (held < 1e-9) held = 0; } };
+    },
     markPending() { pending += 1; },
     capLine() { return `cap_reached pending=${pending}`; },
     get spent() { return spent; },
+    get held() { return held; },
     get isCapHit() { return capHit; },
     get pending() { return pending; },
   };

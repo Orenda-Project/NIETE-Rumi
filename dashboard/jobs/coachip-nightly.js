@@ -16,6 +16,8 @@
  *   COACHIP_R2_CONCURRENCY      clip cuts and uploads at once, 1..4 (default 2)
  *   COACHIP_NIGHT_END_UTC       the end of night, HH:MM UTC (default 00:50 = 05:50 PKT); stage cut-offs before it (safety.STAGE_CUTOFF_MIN)
  *   COACHIP_HEALTH_GUARD        1 = the abort rule on (always on for production); COACHIP_ABORT_SWAP_MB / _MEMAVAIL_MB / _LAG_S override it
+ *   COACHIP_MODEL_CONCURRENCY   phonics and gloss model calls at once, 1..12 (default 1; 12 spends the US$21 backfill in one night,
+ *                               bd-sex15q.43). The database is unaffected: its requests stay bounded by COACHIP_DB_MAX_INFLIGHT
  * A production run never starts in school hours (03:00-12:00Z): exit 3.
  */
 const path = require('path');
@@ -96,6 +98,7 @@ function safetyConfig(e) {
     readInflight: clampInt(e.COACHIP_READ_MAX_INFLIGHT, 1, 2, 2),
     timeoutMs: clampInt(e.COACHIP_HTTP_TIMEOUT_MS, 5000, 300000, 60000),
     r2Concurrency: clampInt(e.COACHIP_R2_CONCURRENCY, 1, 4, 2),
+    modelConcurrency: clampInt(e.COACHIP_MODEL_CONCURRENCY, 1, 12, 1),
     nightEndUtc: e.COACHIP_NIGHT_END_UTC || safety.DEFAULT_NIGHT_END_UTC,
     thresholds: { swapUsedMb: num(e.COACHIP_ABORT_SWAP_MB), memAvailableMb: num(e.COACHIP_ABORT_MEMAVAIL_MB), replicaLagS: num(e.COACHIP_ABORT_LAG_S) },
   };
@@ -138,7 +141,7 @@ async function main(argv = process.argv.slice(2), e = process.env, log = (m) => 
   const health = healthOn ? safety.createHealthGuard({ fetch: netFetch, primaryUrl: e.SUPABASE_URL, key: e.SUPABASE_SERVICE_ROLE_KEY || e.SUPABASE_SERVICE_KEY,
     replicaUrl: read.source === 'replica' ? read.url : null, thresholds: cfg.thresholds }) : null;
   log(`safety read=${read.source} db_inflight=${cfg.dbInflight} read_inflight=${cfg.readInflight} timeout_ms=${cfg.timeoutMs} `
-    + `r2_concurrency=${cfg.r2Concurrency} health=${healthOn ? 'on' : 'off'} end=${safety.isoMinute(deadlines.end)}`);
+    + `r2_concurrency=${cfg.r2Concurrency} health=${healthOn ? 'on' : 'off'} end=${safety.isoMinute(deadlines.end)} model_concurrency=${cfg.modelConcurrency}`);
   const { createClient } = require('@supabase/supabase-js');
   const key = e.SUPABASE_SERVICE_ROLE_KEY || e.SUPABASE_SERVICE_KEY;
   const clientFor = (url, inflight) => createClient(url, key, { auth: { persistSession: false },
@@ -146,7 +149,8 @@ async function main(argv = process.argv.slice(2), e = process.env, log = (m) => 
   const raw = clientFor(e.SUPABASE_URL, cfg.dbInflight);
   // The source tables (sessions, users, schools, transcripts) are read from here; coachip_ tables stay on the primary.
   const readRaw = read.source === 'replica' ? clientFor(read.url, cfg.readInflight) : raw;
-  const guard = { health, deadlines, now: () => (sys.now ? sys.now() : new Date()) }; // a Date (runJob stamps computed_at with it)
+  // now is a Date (runJob stamps computed_at with it); modelConcurrency reaches runPhonics through the model context's deps.
+  const guard = { health, deadlines, now: () => (sys.now ? sys.now() : new Date()), modelConcurrency: cfg.modelConcurrency };
   const { runJob } = require('../lib/insights/job');
   const store = require('../lib/insights/store');
   const out = opts.out || path.resolve(process.cwd(), `coachip-dryrun-${opts.date}`);
