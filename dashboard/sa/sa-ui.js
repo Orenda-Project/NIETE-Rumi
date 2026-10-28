@@ -63,6 +63,8 @@
  *   r8_comp_wait_next    a story / listening question never moves on by itself (sa-core); its button reads Next, and a
  *                        quiet line under it says a stuck child can press it (lines.stuck_press_next, else COPY), said
  *                        once per question R8_STUCK_MS after Jugnu asked it, only when the battery's line has a clip.
+ *   r8_practice_autoplay a spoken practice says its answer (its model) on arrival, after its prompt; Next goes straight
+ *                        on (no second telling); the replay chip says the prompt and the answer again. Coach-led: silent.
  *
  * UMD: window.SAE.ui in the browser, module.exports under Node.
  */
@@ -1230,19 +1232,31 @@
     /** A spoken practice item (W3 one-at-a-time tasks): the item big; an example is modelled by Jugnu, a practice item
      *  is modelled after the child's turn (Next); coach-led, the coach models it and Jugnu stays quiet. */
     function modelOf(p) { return (manual && !appAsks) || !Array.isArray(p.model) ? [] : p.model.map(function (m) { return [m, m && m.audio, appAsks]; }); }
+    /** r8_practice_autoplay: a spoken practice (not an example, which already models on arrival) says its answer by itself. */
+    function autoAnswer(t, p) { return r7.r8_practice_autoplay === true && !!t && t.mode === 'record' && !!p && p.role !== 'example' && modelOf(p).length > 0; }
+    /** r8_practice_autoplay's replay: the item's own words (when it has any), then the answer. */
+    function sayAgainWithAnswer(p, t) {
+      gen++;
+      var g = gen;
+      return (itemSpeaks(p) ? sayItem(p, t) : Promise.resolve()).then(function () { if (alive && g === gen) return sayChain(modelOf(p)); });
+    }
     function sPracticeSpoken(v) {
       var p = v.practice, t = v.task;
       return screen(v, 'sae-practice', [
         h('div', { class: 'sae-row' }, [
           h('span', { class: 'sae-chip', text: C.practice }),
-          itemSpeaks(p) || (p.model && (!manual || appAsks)) ? replayBtn(function () { gen++; if (itemSpeaks(p)) sayItem(p, t); else sayChain(modelOf(p)); }) : null,
+          itemSpeaks(p) || (p.model && (!manual || appAsks)) ? replayBtn(function () {
+            if (autoAnswer(t, p)) { sayAgainWithAnswer(p, t); return; }
+            gen++; if (itemSpeaks(p)) sayItem(p, t); else sayChain(modelOf(p));
+          }) : null,
         ]),
         oneCell(p.show != null ? p.show : p.target, t, null),
         coachSays(p),
       ], [gatedBtn(v, C.next, function () {
         busy = true;
         var k = keyOf(runner.view());
-        (p.role === 'example' ? Promise.resolve() : capped(sayChain(modelOf(p)), 7000)).then(function () {
+        // r8_practice_autoplay: the answer was said on arrival (the chip says it again), so Next just goes on
+        (p.role === 'example' || autoAnswer(t, p) ? Promise.resolve() : capped(sayChain(modelOf(p)), 7000)).then(function () {
           busy = false;
           if (!alive || keyOf(runner.view()) !== k) return;
           runner.practiceAnswer(p.target);
@@ -1658,6 +1672,13 @@
         var said = sayChain([first && s.practice_intro && !manual ? [s.practice_intro] : null]).then(function () {
           if (!alive || lastKey !== k0 || hold) return null;
           if (t.mode === 'record' && v.practice.role === 'example') return sayChain(modelOf(v.practice));
+          // r8_practice_autoplay: the prompt (unless the task reads it only on replay), then the answer, no tap needed
+          if (autoAnswer(t, v.practice)) {
+            var gp2 = gen;
+            return (t.say_on === 'replay' ? Promise.resolve() : sayItem(v.practice, t)).then(function () {
+              if (alive && gp2 === gen && lastKey === k0) return sayChain(modelOf(v.practice));
+            });
+          }
           if (!(t.mode === 'record' && t.say_on === 'replay')) return sayItem(v.practice, t);
           return null;
         });
