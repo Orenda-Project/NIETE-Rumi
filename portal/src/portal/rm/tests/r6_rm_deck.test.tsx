@@ -191,4 +191,12 @@ describe.each(["en", "ur"] as Lang[])("R6 RM deck (%s)", (lang) => {
     await renderRm(`/coach/${C03}`);
     for (const row of screen.getAllByTestId("s9-school")) check(row.firstElementChild!);
   });
+
+  it("fold (lead-final r11): S9's Follow-up comes before the school list, so it never straddles the phone nav", async () => {
+    await renderRm(`/coach/${C03}`);
+    const fu = screen.getByTestId("s9-follow-up");
+    const schools = screen.getByTestId("s9-schools");
+    expect(fu.compareDocumentPosition(schools) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(schools.contains(fu)).toBe(false);
+  });
 });

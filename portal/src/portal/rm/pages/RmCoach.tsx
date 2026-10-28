@@ -30,7 +30,7 @@ function Schools({ d, children }: { d: Detail; children?: ReactNode }) {
   const lang = useLang();
   const allOld = d.schools.length > 0 && d.schools.every((s) => s.weeks_since_visit === null || s.weeks_since_visit >= 4);
   return (
-    <Section testId="s9-schools" first label={rt("s9.schools.title", lang)}>
+    <Section testId="s9-schools" label={rt("s9.schools.title", lang)}>
       {/* fix-r5 s2 items 15 + 17 (design-qa 073628 §5, 073629): said once above the rows; its "4" is policy, not a count */}
       {allOld && <RmNote testId="s9-no-visits"><span data-nonum="">{rt("s9.schools.never", lang)}</span></RmNote>}
       {/* fix-r5 s3 (qa-rm 171001, B5): the graded counts' window, on this card, so it resolves with no moves block */}
@@ -110,12 +110,12 @@ export default function RmCoach() {
     >
       {!data || !c ? <StateBlock error={error} testId="rm-state" /> : (
         <div className="flex flex-col">
-          <Schools d={data}>
-            {/* SCREENS S9: Follow-up is the screen's one primary, at the end of the first section (inside the phone's fold) */}
-            <Button testId="s9-follow-up" onClick={openPicker} block className="mt-3 sm:w-auto sm:self-start">
-              <span>{rt("s8.follow_up", lang)}</span>
-            </Button>
-          </Schools>
+          {/* the screen's one primary, first under the app bar: a coach with many schools pushed it under the phone nav
+              when it closed the school list (390x844 shot v2: bottom 789 EN, 974 UR; fold rule, lead-final r11) */}
+          <Button testId="s9-follow-up" onClick={openPicker} block className="mt-1 sm:w-auto sm:self-start">
+            <span>{rt("s8.follow_up", lang)}</span>
+          </Button>
+          <Schools d={data} />
           <Section testId="s9-steps" label={rt("s9.steps.title", lang)}
             hint={<WindowLegend windows={data.windows} ids={windowIds(data.steps)} inline className="" />}>
             {/* fix-r5 s2 item 3 (B10): no step set this month is words, never "0 of 0 open · 0 of 0 completed · …" */}
