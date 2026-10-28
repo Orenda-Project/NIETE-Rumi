@@ -421,8 +421,11 @@ async function groupOf(query, schoolId) {
   try {
     const g = text((rowsOf(await query(SQL.group, [schoolId]))[0] || {}).ab_group);
     return ['A', 'B', 'C', 'D'].includes(g) ? g : null;
-  } catch (_) {
-    return null; // an unreadable group is an undrawn school: the report's own action, never the thing to try
+  } catch (err) {
+    // An unreadable group is an undrawn school: the report's own action, never the thing to try. Logged, because
+    // a C/D coach would then see the action instead of what her teacher was shown.
+    console.error('coach/school-card: v10 group read failed, showing the report action:', err && err.message);
+    return null;
   }
 }
 
@@ -459,10 +462,13 @@ async function loadActivity(query, ids, range, { memo, sessionsRange } = {}) {
   if (!ids.length) return empty;
   const b = P.boundsOf(range);
   const sb = P.boundsOf(sessionsRange || range);
-  const [lp, opens, sessions, training, papers] = await Promise.all([
+  // At most three reads at once per request: portal outages have been pool exhaustion (schools-analytics header).
+  const [lp, opens, sessions] = await Promise.all([
     query(SQL.lp, [ids, b.fromTs, b.toTs]),
     query(SQL.opens, [ids, b.fromTs, b.toTs]),
     query(SQL.sessions, [ids, sb.fromTs, sb.toTs]),
+  ]);
+  const [training, papers] = await Promise.all([
     query(SQL.training, [ids, b.fromTs, b.toTs]),
     query(SQL.papers, [ids, b.fromTs, b.toTs]),
   ]);
@@ -545,7 +551,8 @@ async function getSchoolCard(query, coachId, emis, opts = {}) {
   if (!ctx) return null;
   const period = resolvePeriod(opts);
   const ids = ctx.teachers.map((t) => t.id);
-  const [act, last] = await Promise.all([loadActivity(query, ids, period, opts), lastVisits(query, ids)]);
+  const act = await loadActivity(query, ids, period, opts);
+  const last = await lastVisits(query, ids);
   const events = featureEvents(act);
   const tallies = Object.fromEntries(FEATURES.map((f) => [f, tally(period, events[f], ids)]));
 
