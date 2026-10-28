@@ -1,0 +1,2 @@
+{"ts":"2026-10-28T07:16:09Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"61373c6c4b85","branch":"bd-v0toag.126-quizwin","user":""}
+{"ts":"2026-10-28T07:16:22Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-v0toag.126-quizwin: training spec: NOT UPDATED e2e: missing","sha":"61373c6c4b85","branch":"bd-v0toag.126-quizwin","user":""}
