@@ -1,7 +1,7 @@
 # wq — Browser code and assets for Jugnu's child web pages: quiz, hub, home, stories, challenge
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq kg=82f38ad87d2f gen=9777574ef6ab overflow=62 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq kg=deeb66e53556 gen=5c706a81a550 overflow=63 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `wq.js` — quiz page /q/<code>; wq.css is the base stylesheet all child pages share
@@ -20,8 +20,7 @@ Full index: `CLAUDE.index.md`
 | `wq.js` | Web child quiz page /q/<code>: WQI item renderer, offline answer queue, /api/wq/* calls, results and scorecard |
 | `CLAUDE.index.md` | (unmapped) |
 | `CLAUDE.md` | (unmapped) |
-| `wq-digits.js` | urDigits helper: ASCII digits to Urdu digits U+06F0-06F9; shared by the edge (web-quiz.routes.js) and pages as WQDigits |
-| … | 53 more → `CLAUDE.index.md` |
+| … | 54 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `wq-digits.js` ← imported by `dashboard/routes/web-quiz.routes.js:42:35273fa4`
@@ -29,6 +28,7 @@ Full index: `CLAUDE.index.md`
 ## Never (human)
 - Files are served immutable for a year at /wq (routes/web-quiz.routes.js:2143); callers append ?v=, so a changed file needs the edge's versionOf to change
 - The reminder worker sw.js must stay without a fetch handler (sw.js:3; held by tests/push-remind-edge.service.test.js)
+- Copied, with one flag added, into the main bot's dashboard repo public/wq (its PROVENANCE.md, bd-oiqv06.45); re-copy after a change here
 <!-- read: map-read-niete-portal 2026-10-29 -->
 
 ## Tests (generated)
