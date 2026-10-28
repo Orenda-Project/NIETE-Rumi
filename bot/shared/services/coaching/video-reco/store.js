@@ -175,4 +175,9 @@ async function markSent(coachingSessionId, { sent_via, wamid, image_strip } = {}
   }
 }
 
-module.exports = { readForSession, recentHistory, ladderProgress, trainingBands, rosterNames, write, markSent, tableRow };
+/** bd-9dbhh0.1: the teacher stopped the clips on the clip page (clip-pref.js); false on no choice or a failed read. */
+async function clipsStopped(userId) {
+  return require('./clip-pref').readStopped(supabase, userId); // eslint-disable-line global-require
+}
+
+module.exports = { readForSession, recentHistory, ladderProgress, trainingBands, rosterNames, write, markSent, tableRow, clipsStopped };

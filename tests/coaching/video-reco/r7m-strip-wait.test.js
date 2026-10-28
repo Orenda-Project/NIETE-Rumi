@@ -19,7 +19,7 @@ beforeEach(() => {
   process.env = { ...ENV };
   for (const k of ['VIDEO_RECO_MODE', 'VIDEO_RECO_REASON', 'VIDEO_RECO_STRIP_WAIT_MS', 'VIDEO_RECO_AB_ENABLED']) delete process.env[k];
   S = require('../../../bot/shared/services/coaching/video-reco/strip');
-  deps = { enabled: () => true, onTeacherApp: async () => false, windowOpen: async () => true, catalog: { segment: () => HIT }, store: { readForSession: jest.fn(() => new Promise(() => {})) } };
+  deps = { enabled: () => true, waMessage: () => true, onTeacherApp: async () => false, windowOpen: async () => true, catalog: { segment: () => HIT }, store: { readForSession: jest.fn(() => new Promise(() => {})) } };
 });
 afterEach(() => { jest.useRealTimers(); process.env = { ...ENV }; });
 
@@ -103,7 +103,7 @@ describe('a pick slower than the strip cap: no strip, the clip message still goe
     const send = require('../../../bot/shared/services/coaching/video-reco/send');
     Object.assign(process.env, { INTERNAL_API_KEY: 'k1', SUPABASE_URL: 'https://abc.supabase.co', PORTAL_URL: 'https://portal.example.pk' });
     const wa = { sendCtaUrl: jest.fn(async () => true), sendMessage: jest.fn(async () => true) };
-    const sdeps = { enabled: () => true, whatsapp: wa, catalog: { segment: () => HIT }, store: { readForSession: jest.fn(), markSent: jest.fn(async () => undefined) }, claimPiece: jest.fn(async () => true), releasePiece: jest.fn(async () => undefined), renderCard: jest.fn(async () => Buffer.from('PNG')) };
+    const sdeps = { enabled: () => true, waMessage: () => true, whatsapp: wa, catalog: { segment: () => HIT }, store: { readForSession: jest.fn(), markSent: jest.fn(async () => undefined) }, claimPiece: jest.fn(async () => true), releasePiece: jest.fn(async () => undefined), renderCard: jest.fn(async () => Buffer.from('PNG')) };
     const track = { opts: jest.fn(() => ({ onMessageId: jest.fn() })), record: jest.fn(async () => undefined) };
     jest.useFakeTimers();
     const FULL = { ...ROW, id: '0b6f3c7e-2a41-4d8e-9a55-3f1c2d4e5f60', coaching_session_id: '1a2b3c4d-1111-4222-8333-444455556666', user_id: '60530046-7ac3-4ea3-a976-b43c37c23213', reason_en: 'This clip shows one way to do it.', reason_ur: 'اس کلپ میں ایک طریقہ ہے۔' };

@@ -159,6 +159,8 @@ test('a thrown error anywhere is swallowed (the report is never touched)', async
 });
 
 describe('sendAfterReport (hooks B and B2): the row is read by session', () => {
+  // bd-9dbhh0.1: the message is behind VIDEO_RECO_WA_MESSAGE now (default off, skip-iab.test.js); these pin the path it gates
+  beforeEach(() => { deps.waMessage = () => true; });
   test('flag off → no read, no send', async () => {
     deps.enabled = () => false;
     const out = await send.sendAfterReport({ coachingSessionId: SESSION, phone: PHONE, language: 'en', deps });

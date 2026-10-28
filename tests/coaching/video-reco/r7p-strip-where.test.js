@@ -28,7 +28,8 @@ const catalog = { segment: () => ({ module: { module_id: 63, title: 'Questioning
 describe('stripFor: where the clip is, decided at the render', () => {
   const S = require('../../../bot/shared/services/coaching/video-reco/strip');
   const run = (over = {}, args = {}) => {
-    const deps = { enabled: () => true, catalog, onTeacherApp: jest.fn(async () => false), windowOpen: jest.fn(async () => true), ...over };
+    // bd-9dbhh0.1: these pin where the hint points with the clip message on ('next'); off → 'link' (skip-iab.test.js)
+    const deps = { enabled: () => true, waMessage: () => true, catalog, onTeacherApp: jest.fn(async () => false), windowOpen: jest.fn(async () => true), ...over };
     return { deps, out: S.stripFor({ coachingSessionId: 's', language: 'en', row: Promise.resolve(ROW), capMs: 1000, phone: '920000000000', userId: 'u1', deps, ...args }) };
   };
 
@@ -148,9 +149,14 @@ describe('report-generator: the template path', () => {
     expect(windowOpen).toHaveBeenCalledWith('920000000000', { marginMs: 30 * 60 * 1000 });
   });
 
-  test('window open, teacher not on the app → "next message" as today', async () => {
-    const { strip } = await render({ onApp: false, open: true });
-    expect(strip).toMatchObject({ where: 'next' });
+  test('window open, teacher not on the app, the clip message on → "next message" as before', async () => {
+    process.env.VIDEO_RECO_WA_MESSAGE = 'true'; // bd-9dbhh0.1: off by default ("link", skip-iab.test.js)
+    try {
+      const { strip } = await render({ onApp: false, open: true });
+      expect(strip).toMatchObject({ where: 'next' });
+    } finally {
+      delete process.env.VIDEO_RECO_WA_MESSAGE;
+    }
   });
 });
 
