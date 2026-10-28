@@ -6,6 +6,8 @@
  *
  *   sa_say_then_next  lines.r7_say_next  a task read aloud one at a time: say it, then press Next
  *                     lines.r7_say_done  a question answered aloud: say the answer, then press Done
+ *                     lines.r7_say_next_q  with sa_r8_comp_wait_next ON too: a story or listening question's button
+ *                     reads Next (sa-ui.js), so its hint names Next; the other spoken screens keep r7_say_done
  *   sa_story_scroll   lines.r7_scroll    the story goes on below: slide the page up to read all of it
  *   sa_tick_prompt    lines.r7_type_tick a typed number: type it, then press the tick
  *   sa_t_sound_ta     the English letter sound of T: "ta" (its own clip, under a new key), not "tuh"
@@ -25,7 +27,11 @@ const LINES = Object.freeze({
   }),
   r7_say_done: Object.freeze({
     en: 'Say your answer out loud, then press Done.',
-    ur: 'اپنا جواب اونچی آواز میں بتائیں، پھر «ہو گیا» دبائیں۔',
+    ur: 'اپنا جواب اونچی آواز میں بتائیں، پھر «ہو گیا» کا بٹن دبائیں۔',
+  }),
+  r7_say_next_q: Object.freeze({
+    en: 'Say your answer out loud, then press Next.',
+    ur: 'اپنا جواب اونچی آواز میں بتائیں، پھر «آگے» کا بٹن دبائیں۔',
   }),
   r7_scroll: Object.freeze({
     en: 'The story goes on below. Slide the page up with your finger to read all of it.',
@@ -38,7 +44,10 @@ const LINES = Object.freeze({
 });
 
 // The switch (sa-battery-switches.js SWITCHES name) that adds each line.
-const LINE_SWITCH = Object.freeze({ r7_say_next: 'sayThenNext', r7_say_done: 'sayThenNext', r7_scroll: 'storyScroll', r7_type_tick: 'tickPrompt' });
+const LINE_SWITCH = Object.freeze({ r7_say_next: 'sayThenNext', r7_say_done: 'sayThenNext', r7_say_next_q: 'sayThenNext',
+  r7_scroll: 'storyScroll', r7_type_tick: 'tickPrompt' });
+// A line that needs a second switch ON as well.
+const LINE_ALSO = Object.freeze({ r7_say_next_q: 'r8CompWaitNext' });
 
 const T_SOUND = Object.freeze({ from: 'sa/v1/en/a6fe1df9b4aa.mp3', fromText: 'tuh', text: 'ta', to: keyOf('en', 'ta') });
 
@@ -62,7 +71,7 @@ function applyR7a(battery, on = {}) {
   if (!battery || !Array.isArray(battery.tasks)) return battery;
   let out = on.tSoundTa === true ? withTa(battery) : battery;
   const lang = out.lang === 'ur' ? 'ur' : 'en';
-  const add = Object.keys(LINES).filter((k) => on[LINE_SWITCH[k]] === true);
+  const add = Object.keys(LINES).filter((k) => on[LINE_SWITCH[k]] === true && (!LINE_ALSO[k] || on[LINE_ALSO[k]] === true));
   if (add.length) {
     out = { ...out, lines: { ...(out.lines || {}), ...Object.fromEntries(add.map((k) => [k, { text: LINES[k][lang], audio: keyOf(lang, LINES[k][lang]) }])) } };
   }
