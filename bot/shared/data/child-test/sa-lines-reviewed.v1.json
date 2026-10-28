@@ -38,10 +38,10 @@
   "ur.letter_names5": {
    "intro": {
     "en": "Letters will come one at a time. Say the NAME of each letter out loud. Then click next. If you do not know a letter, click next.",
-    "ur": "ایک ایک کر کے حروف آئیں گے۔ ہر حرف کا نام اونچی آواز میں بتائیں۔ آواز نہیں، صرف نام۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔"
+    "ur": "ایک ایک کر کے حروف آئیں گے۔ ہر حرف کا نام بولیں، جیسے: \"بے\"۔ کوئی حرف نہ آتا ہو تو \"آگے\" کو ٹچ کریں۔"
    },
    "test_intro": {
-    "en": "Now it is your turn to say the name of each letter.",
+    "en": "Now it is your turn! Say the name of each letter. Jugnu will not say anything yet. Try on your own.",
     "ur": "اب آپ کی باری! ہر حرف کانام بولیں۔ جگنو ابھی کچھ نہیں بتائے گا، آپ خود کوشش کریں"
    }
   },
@@ -51,7 +51,8 @@
     "ur": "ایک ایک کر کے حروف آئیں گے۔ ہر حرف کی آواز بولیں، نام نہیں۔ جیسے: ب ... \"بَ\"! کسی حرف کی آواز نہ آتی ہو تو \"آگے\"کے بٹن کو ٹچ کریں۔"
    },
    "test_intro": {
-    "en": "Now it is your turn to say the sound of each letter."
+    "en": "Now it is your turn to say the sound of each letter.",
+    "ur": "اب آپ کی باری! ہر حرف کی آواز تیز آواز بولیں۔"
    }
   },
   "ur.words4": {
@@ -60,7 +61,8 @@
     "ur": "ایک ایک کر کے الفاظ آئیں گے۔ ہر لفظ تیز آواز سے پڑھیں۔ توڑ توڑ کے مت پڑھیں، ٹکڑوں میں مت پڑھیں۔ اگر کوئی لفظ نہ آتا ہو تو \"آگے\" کے بٹن کو ٹچ کریں"
    },
    "test_intro": {
-    "en": "Now it is your turn to read each word out loud."
+    "en": "Now it is your turn to read each word out loud.",
+    "ur": "اب آپ کی باری! ہر لفظ کو اونچی آواز بولیں۔"
    }
   },
   "ur.story_w3": {
@@ -74,6 +76,9 @@
    }
   },
   "ur.story_comp_w3": {
+   "intro": {
+    "ur": "اب کہانی کے بارے میں کچھ سوال ہیں۔ ہر سوال غور سے سنیں اور اونچی آواز میں جواب دیں۔ جواب اردو یا انگریزی، کسی بھی زبان میں دیں۔"
+   },
    "test_intro": {
     "en": "Now it is your turn to answer the questions about the story.",
     "ur": "اب کہانی کے بارے میں سوالوں کے جواب دینے کی آپ کی باری ہے۔"
@@ -103,7 +108,8 @@
     "ur": "ایک ایک کر کے الفاظ آئیں گے۔ ہر لفظ تیز آواز سے پڑھیں۔ توڑ توڑ کے مت پڑھیں، ٹکڑوں میں مت پڑھیں۔ اگر کوئی لفظ نہ آتا ہو تو \"آگے\" کے بٹن کو ٹچ کریں"
    },
    "test_intro": {
-    "en": "Now it is your turn to read each word out loud."
+    "en": "Now it is your turn to read each word out loud.",
+    "ur": "اب آپ کی باری! ہر لفظ کو اونچی آواز بولیں۔"
    }
   },
   "en.story_w3": {
@@ -117,6 +123,9 @@
    }
   },
   "en.story_comp_w3": {
+   "intro": {
+    "ur": "اب کہانی کے بارے میں کچھ سوال ہیں۔ ہر سوال غور سے سنیں اور اونچی آواز میں جواب دیں۔ جواب اردو یا انگریزی، کسی بھی زبان میں دیں۔"
+   },
    "test_intro": {
     "en": "Now it is your turn to answer the questions about the story.",
     "ur": "اب کہانی کے بارے میں سوالوں کے جواب دینے کی آپ کی باری ہے۔"
