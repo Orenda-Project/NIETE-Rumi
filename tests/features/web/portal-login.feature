@@ -147,3 +147,16 @@ Feature: Portal sign-in
     And she taps Log in
     Then the page says "Couldn't log in"
     And she is still on /portal/analytics/login
+
+  @PL18
+  Scenario: Ten wrong passwords on one number stop its password sign-in for a while, even with the right password
+    # bd-e0dqwz: dashboard/lib/auth-rate-limits.js — 10 wrong passwords on one account in 15 minutes, from any device,
+    # and the next try is refused (429) until the window ends; a right password never counts toward it. The page shows
+    # its own "Too many tries" for any 429 (portal/src/portal/auth/errors.ts). Demo teacher 03000000917 is one no other
+    # scenario signs in as, so the lock reaches nothing else in the run.
+    When she enters demo teacher 03000000917 and a wrong password, and taps Log in, 10 times
+    Then every one of those is answered "Wrong password" under the password box
+    When she enters 03000000917 and the password Demo2026
+    And she taps Log in
+    Then the page says "Too many tries"
+    And she is still on /portal/login

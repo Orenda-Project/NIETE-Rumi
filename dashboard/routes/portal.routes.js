@@ -26,7 +26,6 @@
 
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const supabase = require('../config/supabase');
 const telemetry = require('../services/telemetry.service');
@@ -195,42 +194,11 @@ function getR2Client() {
 // RATE LIMITING (SECURITY)
 // ============================================================================
 
-/**
- * SECURITY: Extra aggressive rate limiting for public authentication endpoints
- * Prevents brute force attacks and enumeration attempts
- *
- * TEMPORARY: DISABLED FOR TESTING - MUST RE-ENABLE BEFORE PRODUCTION
- * PRODUCTION VALUES: windowMs: 60 * 60 * 1000 (1 hour), max: 10
- * TESTING VALUES: DISABLED (max: 10000)
- */
-const publicAuthLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // TEMP: 1 minute window
-  max: 10000, // TEMP: Effectively disabled
-  message: 'Too many requests. Please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: false, // Count all requests (prevents timing attacks)
-  keyGenerator: (req) => {
-    // Use IP + endpoint to prevent cross-endpoint abuse
-    return `${req.ip}-${req.path}`;
-  }
-});
-
-/**
- * SECURITY: Very strict rate limiting for token validation (prevent enumeration)
- *
- * TEMPORARY: DISABLED FOR TESTING - MUST RE-ENABLE BEFORE PRODUCTION
- * PRODUCTION VALUES: windowMs: 60 * 60 * 1000 (1 hour), max: 5
- * TESTING VALUES: DISABLED (max: 10000)
- */
-const tokenValidationLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // TEMP: 1 minute window
-  max: 10000, // TEMP: Effectively disabled
-  message: 'Too many validation attempts. Please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: false
-});
+// Per IP and route, failures only (sign-in, setup, codes, reset), per IP for WhatsApp code sends, and per account
+// for /login. The numbers, how they were sized and where the count lives: lib/auth-rate-limits.js (bd-e0dqwz).
+const {
+  publicAuthLimiter, tokenValidationLimiter, codeSendLimiter, accountLoginLimiter,
+} = require('../lib/auth-rate-limits').createAuthLimiters();
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -625,7 +593,7 @@ router.post('/setup', publicAuthLimiter, async (req, res) => {
  * Log in to teacher portal
  * SECURITY: Input validation, generic errors, session regeneration, and rate limiting
  */
-router.post('/login', publicAuthLimiter, async (req, res) => {
+router.post('/login', publicAuthLimiter, accountLoginLimiter, async (req, res) => {
   try {
     let { phoneNumber, password } = req.body;
 
@@ -826,10 +794,10 @@ async function sendWhatsAppCode(req, res) {
 }
 
 /** POST /api/portal/request-reset — Forgot password: a code on WhatsApp, then a new password. */
-router.post('/request-reset', publicAuthLimiter, sendWhatsAppCode);
+router.post('/request-reset', codeSendLimiter, sendWhatsAppCode);
 
 /** POST /api/portal/request-code — bd-x7aprz.3: sign in with a code on WhatsApp (no password needed). */
-router.post('/request-code', publicAuthLimiter, sendWhatsAppCode);
+router.post('/request-code', codeSendLimiter, sendWhatsAppCode);
 
 /**
  * Open a NEW portal session for this users row and answer with the same payload as /login. Shared by the code
@@ -993,7 +961,7 @@ router.post('/verify-reset-code', publicAuthLimiter, async (req, res) => {
  * Reset password with verified code
  * SECURITY: Input validation and session cleanup
  */
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', publicAuthLimiter, async (req, res) => {
   try {
     const { password } = req.body;
     const userId = req.session.resetUserId;

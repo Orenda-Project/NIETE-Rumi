@@ -9,6 +9,8 @@ const TEACHER = DEMO.teacher;
 const PRINCIPAL = DEMO.principal;
 const COACH = DEMO.coach;
 const NO_PW_TEACHER = DEMO.noPwTeacher;
+// bd-e0dqwz PL18 locks this one's password sign-in for 15 minutes; no other scenario signs in as her (Usman Tariq).
+const LOCK_TEACHER = ['0300', '0000', '917'].join('');
 const CLASSIC = MODES.classic;
 
 // The field message: the input is aria-invalid and aria-describedby points at its role="alert" text (AuthField.tsx).
@@ -141,6 +143,31 @@ const scenarios = [
     const path = new URL(page.url()).pathname;
     expect(path === '/portal/analytics/login', 'left the analytics sign-in for ' + path);
     return { message: msg, path };
+  } },
+  { id: 'PL18', title: 'Ten wrong passwords on one number stop its password sign-in for a while, even with the right password', run: async (page, ctx) => {
+    // bd-e0dqwz: the per-account limit (dashboard/lib/auth-rate-limits.js). A teacher no other scenario signs in as.
+    const phone = LOCK_TEACHER;
+    const submit = async (password) => {
+      await page.fill('#phoneNumber', phone);
+      await page.fill('#password', password);
+      const [res] = await Promise.all([
+        page.waitForResponse((r) => r.request().method() === 'POST' && /\/api\/portal\/login$/.test(new URL(r.url()).pathname), { timeout: 15000 }),
+        page.click('button[type="submit"]'),
+      ]);
+      return res.status();
+    };
+    await open(page, ctx);
+    const wrong = [];
+    for (let i = 0; i < 10; i += 1) wrong.push(await submit('not-her-password'));
+    expect(wrong.every((s) => s === 401), 'the 10 wrong passwords were answered ' + wrong.join(','));
+    expect(await fieldError(page, 'password') === 'Wrong password', 'a wrong password was not named under the password box');
+    const locked = await submit(PASSWORD);
+    expect(locked === 429, 'the right password after 10 wrong ones was answered ' + locked + ', not 429');
+    const alert = page.getByText('Too many tries', { exact: true });
+    await alert.waitFor({ state: 'visible', timeout: 15000 }).catch(() => { throw new Error('the page never said "Too many tries"'); });
+    const path = new URL(page.url()).pathname;
+    expect(path === '/portal/login', 'left the login page for ' + path);
+    return { wrong, locked, path };
   } },
 ];
 
