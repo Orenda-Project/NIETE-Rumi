@@ -1,30 +1,35 @@
-# infrastructure/ — Database & deploy (L1)
+# infrastructure — DB schema, migrations, deploy configs, WhatsApp templates
 
-**Parent:** [../CLAUDE.md](../CLAUDE.md) · Supabase (Postgres) schema + deployment configs.
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure kg=a7ce79dd558f gen=eb2d1bd55981 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
-## Layout
+## Entry points
+- `scripts/migrate.js` — versioned migration runner using the schema_versions ledger
+- `supabase/migrations/V1.8.3__coachip_job_runs_env_ref.sql` — newest versioned migration
+<!-- read: map-read-niete-bot 2026-10-29 -->
 
-| Path | What's there |
-|------|--------------|
-| `supabase/00_complete-schema.sql` | The single fresh-install artifact — 73 tables, functions, triggers, + an idempotent column-reconcile section at the end |
-| `supabase/01_rls-policies.sql` | Row-level security policies |
-| `supabase/02_seed-data.sql` | Reference data (reading benchmarks) + `region_features` default row (fail-open gating) |
-| `supabase/migrations/V*.sql` | Versioned upgrades, tracked in `schema_versions` |
-| `supabase/verify-schema.sql` | Sanity checks |
-| `scripts/bootstrap-db.js` | **`npm run bootstrap:db`** — applies schema → RLS → seed in order (idempotent, stops on first error) |
-| `scripts/migrate.js` | Applies the pending `V*.sql` migration via the `exec_sql` RPC and records it in `schema_versions`; refuses a backlog of more than one (`--apply-all-pending` overrides). `scripts/schema-ledger-audit.py` (repo root) reports, read-only, what each environment really has vs what is recorded |
-| `scripts/test-connections.js` | `npm run validate:connections` |
-| `railway/` | Deployment configs |
+## Children (generated)
+| path | purpose |
+|---|---|
+| `branding/` | → (no door; 5 files) |
+| `flows/` | WhatsApp Flow JSON deployed to the NIETE WABA; only registration is ported → `flows/CLAUDE.md` |
+| `railway/` | → (no door; 2 files) |
+| `scripts/` | Operator scripts: migrate, fresh-DB bootstrap, connection test, staging env → `scripts/CLAUDE.md` |
+| `supabase/` | Fresh-install SQL (schema, RLS, seed) and versioned migrations for NIETE Supabase → `supabase/CLAUDE.md` |
+| `sync/` | Maintainer-only config for syncing internal code to the public rumi-platform repo → `sync/CLAUDE.md` |
+| `templates/` | WhatsApp message template JSON per WABA, plus submit and re-upload scripts → `templates/CLAUDE.md` |
+| `CLAUDE.md` | (unmapped) |
+| `CLAUDE.index.md` | (unmapped) |
 
-## Rules
+## Who reads this (generated)
+- (none)
 
-- **Fresh install** = `npm run bootstrap:db` (needs `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` and an
-  `exec_sql` function — see the script header). It is idempotent, so re-running is safe.
-- **Schema is the source of truth, and CI enforces it both ways:** every `.from()` table and every `.rpc()`
-  function the bot uses must exist here, every insert/select column must exist, and every table must be
-  referenced somewhere. If you add a `.from('x')` / new column / new `.rpc()`, add it here or the
-  `tests/setup/{schema,column}-completeness` + `table-usage-conformance` guards fail.
-- **Adding a column to an existing table:** put it in the column-reconcile `ALTER … ADD COLUMN IF NOT EXISTS`
-  section at the bottom (keeps fresh-install + re-run both correct), and keep the trailing `NOTIFY pgrst`
-  last so PostgREST reloads the cache.
-- **Region gating** lives in `region_features` (DB, fail-open) — not in code constants.
+## Never (human)
+- Schema changes go in supabase/migrations/V*.sql; migrate.js applies only those (scripts/migrate.js:118)
+<!-- read: map-read-niete-bot 2026-10-29 -->
+
+## Tests (generated)
+- (none)
+
+## Related (generated)
+- skills: `database-analysis`? · `digital-coach`?
+- docs: `CLAUDE.md`? · `README.md`? · `infrastructure/CLAUDE.index.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/flows/CLAUDE.md`? · `infrastructure/scripts/CLAUDE.md`? (+9)

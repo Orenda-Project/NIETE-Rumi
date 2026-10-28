@@ -9,7 +9,6 @@
 > | **WhatsApp (staging)** | `+92 322 2482222` (Meta App `4509630046027431`, added 2026-08-03) |
 > | **WhatsApp (sandbox)** | `+92 302 5502255` — display name "Digital Coach Updates". Railway project **NIETE-Rumi Staging**, env `sandbox` (tracks branch `sandbox`), bot `https://bot-sandbox.up.railway.app`. **Its logs ship to the Axiom dataset `rumi-sandbox` (`env == "sandbox"`), NOT `niete-logs`** — query the wrong one and a sandbox test looks like it never happened (bd-bxa6m). |
 > | **Env** | `NIETE-Rumi/.env` for prod; staging creds in project-root `01_Digital Coach Docs/03_ACCESS_CREDENTIALS.md` |
-> | **Docs** | `NIETE-Rumi/docs/migration/` (00 through 08) |
 > | **Staging URLs** | portal `https://portal-production-24e6.up.railway.app` · bot `https://bot-production-67c2.up.railway.app` — Railway project **NIETE-Rumi Staging** (`0aef0655`), env `staging`. Which branch that env tracks is NOT recorded here on purpose — it was written as `develop`, `develop` is now frozen, and a stale branch in this table is exactly what sends people to the wrong host. The `-production-` in those hostnames is Railway's default naming, NOT an environment: **prod** is `portal.niete.edu.pk` / `portal-production-6a508` / `bot-production-2cb6`. Read them with `railway status --json` (each service carries its deployed branch + commit) and `railway variables --service portal`. Not knowing this cost two rounds of "is it deployed yet?" against the wrong host. |
 > | **Branches** | **`sandbox` → cherry-pick → `staging` → plain merge → `main`.** All work lands on `sandbox` first (merge your branch there, then let the tests run *on `sandbox`*, not just on the branch). Finished work is **cherry-picked** to `staging`, which is cut from `main` and is the promotion gate. `staging → main` is then a plain merge, which is only possible while `staging..main` stays empty. **A PR into `main` from anything other than `staging` is a defect** — CI catches it (`main only accepts staging`). Whether that check actually BLOCKS the merge depends on branch protection, which is a separate setting: between 2026-09-03 and 2026-09-15 the check failed on 48 of 54 PRs into `main` and every one was merged anyway. Treat it as the rule regardless of whether the button is available. Do not back-merge `main` into `staging` to clear divergence: that hides the bypass instead of fixing it. **`develop` is FROZEN since 2026-09-08** and deploys nowhere; it is kept only as a rollback anchor. |
 > | **Deploys** | Git push ONLY. Railway auto-deploys each branch to its own environment (`sandbox`, `staging`, `main`→prod). The `develop`→staging trigger is retired with the branch; confirm the live triggers from Railway rather than from this table, because a stale entry here is what sent people to the wrong host before. Deploying by CLI upload is FORBIDDEN and blocked by `.claude/hooks/block-railway-up.sh` — it uploads the local working tree, so it can put unreviewed code on prod and records no commit, which makes "what is prod running?" unanswerable. |
@@ -20,7 +19,6 @@
 > - `02_Main Rumi Bot/` — production Rumi PK (+92 329 5012345), different codebase
 > - `taleemabad-core/` — Django source app (read-only migration source)
 >
-> **Sanity check**: `head -1 CLAUDE.md` in this dir should show "NIETE-Rumi". Any WhatsApp E2E from this project uses NIETE's `PHONE_NUMBER_ID`.
 
 ---
 
@@ -40,10 +38,7 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 
 | Need | Go to |
 |------|-------|
-| The bot codebase (handlers, services, workers) | [bot/CLAUDE.md](bot/CLAUDE.md) |
-| Database schema, RLS, seed, one-command bootstrap | [infrastructure/CLAUDE.md](infrastructure/CLAUDE.md) |
 | Writing a migration / adding a table or a data column | [docs/data-standards.md](docs/data-standards.md) · [.claude/skills/data-standards](.claude/skills/data-standards/SKILL.md) |
-| Agent/skill config + what skills exist | [.claude/CLAUDE.md](.claude/CLAUDE.md) |
 | Set up a clone from scratch | [SETUP.md](SETUP.md) · `npm run doctor` (preflight) |
 | Customize branding / swap a framework / add a feature | [docs/agent-customization.md](docs/agent-customization.md) |
 | Architecture, cost, monitoring | [docs/architecture.md](docs/architecture.md) · [docs/cost-guide.md](docs/cost-guide.md) · [docs/monitoring.md](docs/monitoring.md) |
@@ -59,7 +54,7 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
    real env key). There is **no `RUMI_TIER`** and no tier system.
 2. **The queue backend is pluggable** via `QUEUE_DRIVER` (default `sqs`; `bullmq` runs the whole async
    pipeline on Redis with no AWS). Producers/consumers require `bot/shared/services/queue/` (the index),
-   never a specific driver. See [bot/CLAUDE.md](bot/CLAUDE.md).
+   never a specific driver.
 3. **All LLM calls go through** `bot/shared/services/llm-client.js` (OpenRouter — one API, many models).
    Each call names a job, and the job's model comes from one table, `bot/shared/config/model-registry.js`;
    a settings row moves any job without a deploy, and a kill switch puts them all back. `npm run models`,
@@ -68,9 +63,8 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
    phone-number-id, or region name.
 5. **No credentials in code.** Everything comes from `.env` (copy `.env.template`). The repo is public —
    no secrets, no internal phone numbers, no internal ticket refs in source (CI enforces all three).
-6. **Pilot vendors' certificates are watermarked "NOT A REAL CERTIFICATE" in production too** — list them in
-   `PILOT_WATERMARK_VENDORS` (`bot/shared/services/training/certificate-env.rules.js`). Empty since I-SAPS went
-   live for all Middle & High teachers on 2026-10-01; `tests/training/isaps-pilot-watermark.test.js` pins it.
+6. **Pilot-certificate watermark** (`PILOT_WATERMARK_VENDORS`, empty since 2026-10-01): rule and test in
+   [bot/shared/services/training/CLAUDE.md](bot/shared/services/training/CLAUDE.md).
 
 ## Working rules
 
@@ -116,8 +110,23 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
   are active and a schema commit can pass unchecked while appearing green.
 - **DB bootstrap**: `npm run bootstrap:db` applies schema → RLS → seed (idempotent).
 
-## Repo map
+## Map (generated)
+<!-- kg:map repo=NIETE-Rumi gen=bbb35b5dfe64 -->
+| dir | what it is |
+|---|---|
+| `.claude/` | Agent & skill config (L1) → `.claude/CLAUDE.md` |
+| `.cursor/` | (no door; 1 files) |
+| `.githooks/` | (no door; 5 files) |
+| `.github/` | (no door; 22 files) |
+| `bot/` | NIETE WhatsApp bot: webhook, workers, services, tests, migrations → `bot/CLAUDE.md` |
+| `dashboard/` | (no door; 6040 files) |
+| `docs/` | (no door; 138 files) |
+| `infrastructure/` | DB schema, migrations, deploy configs, WhatsApp templates → `infrastructure/CLAUDE.md` |
+| `kg/` | (no door; 11 files) |
+| `portal/` | (no door; 2749 files) |
+| `scripts/` | Operator tools: data migrations, backfills, Flow publishers, QA → `scripts/CLAUDE.md` |
+| `supabase/` | Schema dump and seed list for the local mock-lane DB → `supabase/CLAUDE.md` |
+| `tests/` | (no door; 2644 files) |
+| `tools/` | (no door; 1 files) |
 
-`bot/` WhatsApp bot (Node/Express; entry `bot/whatsapp-bot.js`; 10 handlers, 49 services, 10 workers) ·
-`infrastructure/` Supabase schema (73 tables) + deploy configs · `tests/` Jest suites (407 suites / 4,713
-tests) · `docs/` architecture & customization · `dashboard/` + `portal/` observability/teacher UIs.
+Deeper: `python3 kg/kg.py find <words>` · `python3 kg/kg.py file <path>`

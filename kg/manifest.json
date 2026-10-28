@@ -1,0 +1,42 @@
+{
+ "counts": {
+  "assets": 5191,
+  "broken_links": 39,
+  "by_predicate": {
+   "contains": 35699,
+   "deployed_as": 9,
+   "documented_in": 584,
+   "imports": 24710,
+   "mentions": 9541,
+   "reads_column": 4870,
+   "reads_env": 1894,
+   "reads_table": 1287,
+   "tested_by": 11892,
+   "writes_column": 8610,
+   "writes_table": 1030
+  },
+  "dirs_missing_door": 321,
+  "dirs_needing_door": 493,
+  "doors": 172,
+  "edges": 100126,
+  "edges_needing_ev": 80008,
+  "edges_with_ev": 80008,
+  "envs": 636,
+  "extract_errors": 0,
+  "files": 16424,
+  "mappable_files": 11233,
+  "misses": 232,
+  "missing_purposes": 7953,
+  "nodes": 36571,
+  "overflow_rows": 11710,
+  "purposes": 3280,
+  "secret_skipped": 232,
+  "services": 11,
+  "stale": 0,
+  "stale_doors": 0,
+  "tables": 224,
+  "unparsed_sql": 69
+ },
+ "kg_py": "1.0.0",
+ "repo": "NIETE-Rumi"
+}
