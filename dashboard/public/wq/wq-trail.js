@@ -426,11 +426,12 @@
     // by itself: "I'm ready" goes to the normal read whenever the child is.
     // the lit word stays in view, above the "I'm ready" dock when there is one (bd-5gyspy.13): at 390 px a passage runs
     // under the sticky dock and the child following the pill lost it there. Only when the word has left the view.
+    // The limit is the dock (the button's .wqc-sticky parent), not the button: its fade starts 14 px higher (bd-5gyspy.14).
     function keepLit(box, dock) {
       return function () {
         try {
           var on = box.querySelector('.wqra-on'); if (!on) return;
-          var r = on.getBoundingClientRect(), lim = dock ? dock.getBoundingClientRect().top : window.innerHeight;
+          var r = on.getBoundingClientRect(), lim = dock ? (dock.parentNode || dock).getBoundingClientRect().top : window.innerHeight;
           if (r.bottom > lim - 8) window.scrollBy(0, r.bottom - lim + 24);
           else if (r.top < 0) window.scrollBy(0, r.top - 16);
         } catch (e) { /* no layout yet */ }

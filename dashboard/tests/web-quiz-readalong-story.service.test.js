@@ -398,3 +398,22 @@ describe('bd-5gyspy.13: the lit word stays above the "I\'m ready" dock', () => {
     expect(p.win.__sb).toEqual([-40 - 16]);
   });
 });
+
+describe('bd-5gyspy.14: the lit word stays above the dock\'s fade, not only above its button', () => {
+  // redteam 192100 LOW-1: .wqc-sticky fades in 14 px above its button (wq-challenge.js:328), and keepLit measured the
+  // button, so a word lit 9-14 px above the button sat under the fade. The dock (the button's parent) is the limit.
+  test('a lit word inside the fade band (above the button, below the dock top) is scrolled above the dock', async () => {
+    const p = room({ routes: { 'ch/HUB.TOKEN/read': ok(SREAD({ readalong: TIMED })) }, scripts: { '/wq/wq-readalong.js': STUB } });
+    await p.flush();
+    await p.click('wqc-story-along');
+    const onWord = p.win.__ra.o.onWord;
+    p.els['wqc-along-ra'].querySelector = (s) => (s === '.wqra-on' ? { getBoundingClientRect: () => ({ top: 720, bottom: 760 }) } : null);
+    p.els['wqc-along-read'].getBoundingClientRect = () => ({ top: 770, bottom: 830 });
+    p.els['wqc-along-read'].parentNode = { getBoundingClientRect: () => ({ top: 756, bottom: 844 }) };
+    p.win.innerHeight = 844;
+    p.win.__sb = [];
+    p.win.scrollBy = (x, y) => p.win.__sb.push(y);
+    onWord(9);
+    expect(p.win.__sb).toEqual([760 - 756 + 24]);
+  });
+});
