@@ -445,7 +445,11 @@ const TIMED = ['session_start', 'audio_check', 'task_start', 'task_end', 'handov
 // Round 7b: every skip and stop, one record each (the session, child and coach are the session row's; task_id the subtask).
 const STOP_TYPES = ['back', 'end_section', 'end_test', 'restart', 'silence_repeat', 'incomplete_move_on'];
 // voice_held: Jugnu's line held by a hidden page (parked, paused, resumed, gave_up), from sa-voice.js
-const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', ...STOP_TYPES];
+// Round 8: the phone's readiness (device_ready: ready, voice, clips_total, clips_cached, persisted), the voice stop and its
+// Try again, so a slow or refused start can be read afterwards. A few per session (offline / online are not kept: a
+// flapping network would fill the session's cap; device.offline already says it).
+const DEVICE_TYPES = ['device_ready', 'voice_not_ready', 'voice_retry'];
+const KEPT = ['visibility_lost', 'resumed', 'mercy', 'early_stop_silence', 'mic_unavailable', 'voice', 'voice_held', 'back_blocked', 'handover_in', 'handover_out', 'warmup_result', ...STOP_TYPES, ...DEVICE_TYPES];
 const MAX_EVENT_DATA = 300; // characters of JSON
 
 function loadBank() {

@@ -8,6 +8,11 @@ import AssessOtherPhone from '../components/assess/AssessOtherPhone';
 import AssessPreflight from '../components/assess/AssessPreflight';
 import AssessVisitBar, { type SyncItem } from '../components/assess/AssessVisitBar';
 import AssessActions, { useAboveTabBar } from '../components/assess/AssessActions';
+import AssessOfflineCard from '../components/assess/AssessOfflineCard';
+import { OFFLINE_COPY } from '../components/assess/offlineCopy';
+import {
+  FAST_START_MS, formFor, prepForms, readPreparedList, readSchools, useR8Switches, within, writeSchools, type PrepResult, type Progress,
+} from '../components/assess/offlineReady';
 import { childTestSa } from '../services/api';
 import { useChildTestSa } from '../lib/useChildTestSa';
 import { COPY, urDigits, type Lang } from '../lib/assess/copy';
@@ -112,6 +117,15 @@ export default function LeaderAssess() {
   useUrFit();
   const enabled = useChildTestSa();
   const switches = useSaSwitches(enabled);
+  // round 8 (components/assess/offlineReady.ts): sa_r8_offline_first, sa_r8_offline_prep, sa_r8_fast_start
+  const r8 = useR8Switches(enabled);
+  const r8Ref = useRef(r8);
+  r8Ref.current = r8;
+  /** sa_r8_offline_first: the battery on the phone before Start (form → its preparation, started when the list opens). */
+  const warm = useRef<Record<string, Promise<PrepResult>>>({});
+  const [gate, setGate] = useState<null | { progress: Progress | null; failed: boolean }>(null);
+  /** sa_r8_offline_prep: the schools shown are the ones saved on this phone (the network failed). */
+  const [savedSchools, setSavedSchools] = useState(false);
   const above = useAboveTabBar();
   const [lang, setLang] = useState<Lang>(readLang);
   const copy = COPY[lang];
@@ -170,10 +184,20 @@ export default function LeaderAssess() {
     let live = true;
     setLoadFailed(false);
     childTestSa.getSchools()
-      .then(({ schools: s }) => { if (live) setSchools(todaysFirst(s)); })
-      .catch(() => { if (live) setLoadFailed(true); });
+      .then(({ schools: s }) => {
+        if (!live) return;
+        setSchools(todaysFirst(s));
+        setSavedSchools(false);
+        if (r8Ref.current.offlinePrep) writeSchools(s);
+      })
+      .catch((err) => {
+        if (!live) return;
+        // sa_r8_offline_prep: no network → the schools this phone kept
+        const saved = r8Ref.current.offlinePrep && errorOf(err).network ? readSchools() : null;
+        if (saved && saved.length) { setSchools(todaysFirst(saved)); setSavedSchools(true); } else setLoadFailed(true);
+      });
     return () => { live = false; };
-  }, [enabled, step.kind]);
+  }, [enabled, step.kind, r8.offlinePrep]);
 
   // the list
   const loadList = useCallback(async (s: SaSchool, key: string) => {
@@ -187,7 +211,8 @@ export default function LeaderAssess() {
     } catch (err) {
       const { reason, network } = errorOf(err);
       if (reason === 'no_class_list' || reason === 'frame_exhausted' || reason === 'not_found') { setProblem(reason); return; }
-      const saved = readVisit(key).list;
+      // sa_r8_offline_prep: a list kept by "Get ready for offline" when today's visit has none on this phone
+      const saved = readVisit(key).list || (r8Ref.current.offlinePrep ? readPreparedList(s.schoolId, s.grade) : null);
       if (network && saved) { setList(saved); setOffline(true); } else setLoadFailed(true);
     }
   }, [updateVisit]);
@@ -195,6 +220,13 @@ export default function LeaderAssess() {
   useEffect(() => {
     if (step.kind === 'list') void loadList(step.school, visitKey(step.school.schoolId, undefined, step.school.grade));
   }, [step, loadList]);
+
+  // sa_r8_offline_first: the list's battery starts coming down as soon as the list is open, so Start rarely waits
+  useEffect(() => {
+    if (!r8.offlineFirst || step.kind !== 'list' || !list) return;
+    const f = formFor(list.grade, lang);
+    if (!warm.current[f]) warm.current[f] = prepForms([f]);
+  }, [r8.offlineFirst, step.kind, list, lang]);
 
   // sa_all_grades: the school, then the grade; the grade rides on the school for every call of that list
   const pickSchool = (s: SaSchool) => {
@@ -402,7 +434,23 @@ export default function LeaderAssess() {
     let queued = false;
     setBusy(true);
     try {
-      const out = await childTestSa.markOutcome(args);
+      const call = childTestSa.markOutcome(args);
+      // sa_r8_fast_start: the test opens after FAST_START_MS whatever the server is doing; its answer lands behind it
+      // (a network failure queues Present, as an offline Start does). A re-pick waits: its answer names the part.
+      if (r8.fastStart && !repick) {
+        const got = await within(call, FAST_START_MS);
+        if (!got.done) {
+          const key = vkeyRef.current;
+          call.then((late) => {
+            if (late?.list) keepList(late.list);
+            if (late?.sessionId && key) keepServerId(key, sessionId, late.sessionId);
+          }, (err) => { if (errorOf(err).network) queue(args); });
+          remember((m) => ({ ...m, sessions: { ...m.sessions, [child.drawId]: { ...m.sessions[child.drawId], id: sessionId, block, sent: true } } }));
+          setBusy(false);
+          return { ok: true, serverId: null, queued: false, block };
+        }
+      }
+      const out = await call;
       if (out?.list) keepList(out.list);
       serverId = out?.sessionId || null;
       // the server may give the child a block they have not taken yet; the answer names it
@@ -420,8 +468,30 @@ export default function LeaderAssess() {
     return { ok: true, serverId, queued, block };
   };
 
+  /**
+   * sa_r8_offline_first: this child's part on the phone before Start (the battery, and the clips and pictures of the
+   * part this child's page runs: its block, and the passage its session draws), with progress. The whole battery keeps
+   * coming down behind it (the list's warm-up), so the next child of the grade starts at once.
+   */
+  const readyOnPhone = async (form: string, block: Block, seed: string): Promise<boolean> => {
+    setGate({ progress: null, failed: false });
+    const r = await prepForms([form], (p) => setGate({ progress: p, failed: false }), { block, seed });
+    if (r.ok) { setGate(null); return true; }
+    setGate({ progress: null, failed: true });
+    return false;
+  };
+
   const start = async () => {
     if (step.kind !== 'handover') return;
+    if (r8.offlineFirst) {
+      const grade = step.child.grade || list?.grade || 3;
+      const form = formFor(grade, lang);
+      if (!(await readyOnPhone(form, step.block, step.sessionId))) return;
+      // behind the test: the rest of this battery, then the other language (the child may switch language mid-test)
+      const other = formFor(grade, lang === 'ur' ? 'en' : 'ur');
+      if (!warm.current[form]) warm.current[form] = prepForms([form]);
+      if (!warm.current[other]) warm.current[other] = warm.current[form].then(() => prepForms([other]));
+    }
     const sent = await sendPresent();
     if (!sent.ok) return;
     // the coach chose; a block the server swapped is shown on the card before the child starts
@@ -605,6 +675,12 @@ export default function LeaderAssess() {
       : schools.length === 0 ? <p className="text-slate-700">{copy.noSchools}</p>
         : (
           <div className="space-y-3">
+            {r8.offlinePrep && <AssessOfflineCard schools={schools} lang={lang} allGrades={switches.allGrades === true} />}
+            {savedSchools && (
+              <p data-testid="assess-saved-schools" className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <WifiOff className="h-4 w-4 shrink-0" aria-hidden /> {OFFLINE_COPY[lang].savedSchools}
+              </p>
+            )}
             <h2 className="font-semibold text-slate-800">{copy.chooseSchool}</h2>
             {switches.allGrades && (
               <div className="space-y-1">
@@ -857,11 +933,38 @@ export default function LeaderAssess() {
         {moved && moved === step.block && (
           <p data-testid="assess-block-moved" role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{copy.blockMoved(copy.blocks[moved])}</p>
         )}
-        <AssessActions>
-          <button type="button" disabled={busy} onClick={start}
-            className="w-full min-h-[64px] rounded-2xl bg-emerald-600 text-2xl font-semibold text-white disabled:opacity-60">{copy.start}</button>
-          {otherPhoneButton(step.child, otherPhone, busy)}
-        </AssessActions>
+        {gate ? (
+          <div data-testid="assess-ready-gate" role="status" className="space-y-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
+            {gate.failed ? (
+              <>
+                <p data-testid="assess-ready-failed" className="font-medium text-amber-900">{OFFLINE_COPY[lang].gateFailed}</p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={start} className="min-h-[56px] flex-1 rounded-2xl bg-emerald-600 text-lg font-semibold text-white">{OFFLINE_COPY[lang].tryAgain}</button>
+                  <button type="button" onClick={() => setGate(null)} className="min-h-[56px] flex-1 rounded-2xl border border-slate-300 bg-white text-lg">{OFFLINE_COPY[lang].back}</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold text-slate-900">{OFFLINE_COPY[lang].gateTitle}</p>
+                <p className="text-sm text-slate-700">{OFFLINE_COPY[lang].gateBody}</p>
+                {gate.progress && gate.progress.total > 0 && (
+                  <>
+                    <p className="text-sm text-slate-800">{OFFLINE_COPY[lang].working(gate.progress.done, gate.progress.total)}</p>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-sky-100">
+                      <div className="h-2 bg-sky-600" style={{ width: `${Math.round((100 * gate.progress.done) / gate.progress.total)}%` }} />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        ) : (
+          <AssessActions>
+            <button type="button" disabled={busy} onClick={start}
+              className="w-full min-h-[64px] rounded-2xl bg-emerald-600 text-2xl font-semibold text-white disabled:opacity-60">{copy.start}</button>
+            {otherPhoneButton(step.child, otherPhone, busy)}
+          </AssessActions>
+        )}
       </div>
     );
   } else if (step.kind === 'engine') {

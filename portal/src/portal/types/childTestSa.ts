@@ -29,6 +29,10 @@ export type SaSwitches = {
   rdfW3Forms?: boolean;
   /** A child the engine refused (its voice was not ready) is not Stopped: the row stays open (RULING #51). */
   voiceGateV2: boolean;
+  /** round 8 (components/assess/offlineReady.ts): sa_r8_offline_first, sa_r8_offline_prep, sa_r8_fast_start */
+  r8OfflineFirst?: boolean;
+  r8OfflinePrep?: boolean;
+  r8FastStart?: boolean;
   /** sa_resume_repick: a resumed child's part can be chosen again on the card; the visit clock skips earlier sittings */
   resumeRepick?: boolean;
   /** sa_all_grades: the coach names Grade 1–5 after the school */
