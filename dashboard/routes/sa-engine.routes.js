@@ -21,6 +21,10 @@
  * Switch sa_voice_tashdeed (app_settings, OFF by default; round 4): ON with sa_voice_v2, an Urdu key that has a tashdeed
  * take (sa/v3/ur/<key>.mp3: the same voice given the narration with its doubled letters marked) is served from
  * sa/v3/ur/; every other key stays where sa_voice_v2 puts it. OFF, or sa_voice_v2 OFF, nothing changes.
+ *
+ * Switch sa_voice_v4 (app_settings, OFF by default): ON, every clip key is served from sa/v4/<lang>/ (the whole battery
+ * voiced again, one voice per language at a child's pace, in the content reviewers' wording), whatever sa_voice_v2 and
+ * sa_voice_tashdeed say. OFF, or a failed read, the battery is served exactly as those two switches serve it.
  */
 const fs = require('fs');
 const path = require('path');
@@ -32,6 +36,7 @@ const { SWITCHES, applySwitches } = require('./sa-battery-switches');
 const KEY = 'sa_engine';
 const VOICE_V2_KEY = 'sa_voice_v2';
 const VOICE_TASHDEED_KEY = 'sa_voice_tashdeed';
+const VOICE_V4_KEY = 'sa_voice_v4';
 const DIR = path.join(__dirname, '..', 'sa');
 // The content lane's battery files (sa.<form>.<lang>.json), served by name at /sa/batteries/<name>.
 const BATTERIES = path.join(__dirname, '..', '..', 'bot', 'shared', 'data', 'child-test', 'sa');
@@ -65,7 +70,8 @@ function safe(read) {
 /**
  * createSaEngineRouter({ on, practiceAllMaths, env }) → router. on() is the switch (default: app_settings sa_engine);
  * practiceAllMaths() and passageRotation() the content switches (app_settings sa_practice_all_maths, sa_passage_rotation);
- * voiceV2() the voice set's (app_settings sa_voice_v2); voiceTashdeed() the Urdu tashdeed takes' (sa_voice_tashdeed).
+ * voiceV2() the voice set's (app_settings sa_voice_v2); voiceTashdeed() the Urdu tashdeed takes' (sa_voice_tashdeed);
+ * voiceV4() the reviewed set's (sa_voice_v4).
  */
 function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), practiceAllMaths: practiceReader = createBrotliFlag({ key: SWITCHES.practiceAllMaths }),
   passageRotation: rotationReader = createBrotliFlag({ key: SWITCHES.passageRotation }), voiceV2: voiceReader = createBrotliFlag({ key: VOICE_V2_KEY }),
@@ -82,6 +88,7 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   urFit: urFitReader = createBrotliFlag({ key: SWITCHES.urFit }),
   autoNoLastWord: noLastWordReader = createBrotliFlag({ key: SWITCHES.autoNoLastWord }),
   voiceTashdeed: tashdeedReader = createBrotliFlag({ key: VOICE_TASHDEED_KEY }),
+  voiceV4: v4Reader = createBrotliFlag({ key: VOICE_V4_KEY }),
   holdMs, now, env, ...r7bReaders } = {}) {
   const router = express.Router();
   // The switch as routes/sa-switch.js reads it: the first request waits for the first read, and a failed read after an
@@ -107,12 +114,13 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   const urFit = steady(safe(urFitReader), hold);
   const autoNoLastWord = steady(safe(noLastWordReader), hold);
   const voiceTashdeed = steady(safe(tashdeedReader), hold);
+  const voiceV4 = steady(safe(v4Reader), hold);
   const takes = tashdeedTakes();
   // Round 7b (sa-battery-switches.js): one switch per item, read the same way; a reader passed in wins (tests).
   const r7b = Object.fromEntries(R7B.map((k) => [k, steady(safe(r7bReaders[k] || createBrotliFlag({ key: SWITCHES[k] })), hold)]));
   router.use('/sa', on.warm(), practiceAllMaths.warm(), passageRotation.warm(), voiceV2.warm(), oneAtATime.warm(), passagePunct.warm(), rdfManual.warm(),
     rdfW3Forms.warm(), voiceGateV2.warm(), compAllQuestions.warm(), cellPace.warm(), sectionRecording.warm(), coachLastWord.warm(), cellNextOnly.warm(),
-    autoChildLastWord.warm(), appAsks.warm(), urFit.warm(), autoNoLastWord.warm(), voiceTashdeed.warm(), ...R7B.map((k) => r7b[k].warm()));
+    autoChildLastWord.warm(), appAsks.warm(), urFit.warm(), autoNoLastWord.warm(), voiceTashdeed.warm(), voiceV4.warm(), ...R7B.map((k) => r7b[k].warm()));
   const files = express.static(DIR, {
     index: false,
     dotfiles: 'ignore',
@@ -158,6 +166,9 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
         autoNoLastWord: autoNoLastWord() === true,
         ...Object.fromEntries(R7B.map((k) => [k, r7b[k]() === true])),
       });
+      let v4 = false;
+      try { v4 = voiceV4() === true; } catch (_) { v4 = false; }
+      if (v4) return res.type('json').send(JSON.stringify(out).replace(/"sa\/v1\/(en|ur)\//g, '"sa/v4/$1/'));
       let v2 = false;
       try { v2 = voiceV2() === true; } catch (_) { v2 = false; }
       if (!v2) return res.json(out);
@@ -175,4 +186,4 @@ function createSaEngineRouter({ on: reader = createBrotliFlag({ key: KEY }), pra
   return router;
 }
 
-module.exports = { KEY, VOICE_V2_KEY, VOICE_TASHDEED_KEY, createSaEngineRouter, devToolsOn };
+module.exports = { KEY, VOICE_V2_KEY, VOICE_TASHDEED_KEY, VOICE_V4_KEY, createSaEngineRouter, devToolsOn };
