@@ -93,7 +93,7 @@ describe('stripFor: the engine raced for ≤ the mode\'s cap, the flag read at c
   const S = require('../../../bot/shared/services/coaching/video-reco/strip');
   const ROW = { id: 'r', coaching_session_id: 's', status: 'shown', module_id: 63, seg_id: '63-s2', start_s: 95, end_s: 229 };
   const catalog = { segment: () => ({ module: { module_id: 63, title: 'Questioning', cpd_level: 1, thumb: 'video-thumbs/63.jpg' }, segment: { title_en: 'Asking why-questions', title_ur: 'کیوں والے سوال' } }) };
-  const deps = (over = {}) => ({ enabled: () => true, onTeacherApp: async () => false, windowOpen: async () => true, catalog, store: { readForSession: jest.fn(async () => ROW) }, ...over });
+  const deps = (over = {}) => ({ enabled: () => true, waMessage: () => true, onTeacherApp: async () => false, windowOpen: async () => true, catalog, store: { readForSession: jest.fn(async () => ROW) }, ...over });
 
   test('flag off → null, nothing read', async () => {
     const d = deps({ enabled: () => false });
@@ -102,7 +102,7 @@ describe('stripFor: the engine raced for ≤ the mode\'s cap, the flag read at c
   });
   test('the engine\'s promise resolves shown → the strip (title in the teacher\'s language, length, thumbnail; no level)', async () => {
     const out = await S.stripFor({ coachingSessionId: 's', phone: '920000000000', language: 'ur', row: Promise.resolve(ROW), deps: deps() });
-    expect(out).toMatchObject({ title: 'کیوں والے سوال', durationS: 134, where: 'next' }); // R7p: off the app, window open
+    expect(out).toMatchObject({ title: 'کیوں والے سوال', durationS: 134, where: 'next' }); // R7p: off the app, window open (bd-9dbhh0.1: message on)
     expect(out.levelLabel).toBeUndefined();
     expect(out.thumbPath).toMatch(/bot\/assets\/video-thumbs\/63\.jpg$/);
   });

@@ -8,6 +8,8 @@
  *                          A `click` row is written server side with ua_class, the token's surface and a device id.
  *                          Link-preview crawlers get the page without a presigned URL. Expired → sign-in; bad → 404 page.
  *   POST /v/:token/e       the player's beacons (allow-listed, ≤ 50 per post) → video_reco_events; 204.
+ *   POST /v/:token/c       bd-9dbhh0.1: the teacher's choice (action=skip|stop|resume) → users.preferences.video_clips
+ *                          (clip-pref.js); a one-line confirmation page in the teacher's language.
  *
  * The media is the module's own R2 object, presigned for 1 hour (lib/media-url.js) — never the portal's module
  * endpoint, which refuses locked modules. Nothing here writes a training table. Private, no-store, rate limited
@@ -19,7 +21,8 @@ const rateLimit = require('express-rate-limit');
 const { verifyVideoLink, VIDEO_PATH } = require('../../bot/shared/services/coaching/video-reco/link-token');
 const { signReportLink, REPORT_PATH } = require('../../bot/shared/services/coaching/report-link-token');
 const copy = require('../../bot/shared/services/coaching/video-reco/copy');
-const { renderPlayer } = require('../services/video-reco-page');
+const { renderPlayer, renderChoiceDone } = require('../services/video-reco-page');
+const clipPref = require('../../bot/shared/services/coaching/video-reco/clip-pref');
 const { renderMessagePage } = require('../services/coaching-report-page');
 const events = require('../services/video-reco-events');
 const telemetry = require('../services/telemetry.service');
@@ -48,6 +51,7 @@ function createVideoRecoRouter(opts = {}) {
   const loadClip = opts.loadClip || ((r, u) => events.loadClip(db(), r, u, events.catalogOrNull()));
   const presign = opts.presign || ((url) => require('../lib/media-url').resolveMediaUrl(url, 3600));
   const insert = opts.insertEvent || ((row) => events.insertEvent(db(), row));
+  const applyChoice = opts.applyChoice || ((userId, action, o) => clipPref.apply(db(), userId, action, o));
   const thumbs = opts.thumbsDir || THUMBS;
   const router = express.Router();
   const limiter = rateLimit({
@@ -139,6 +143,45 @@ function createVideoRecoRouter(opts = {}) {
       startS: row.start_s ?? seg.start_s,
       endS: row.end_s ?? seg.end_s,
       eventsUrl: `${VIDEO_PATH}/${token}/e`,
+      backHref: reportToken ? `${REPORT_PATH}/${reportToken}` : null,
+      choiceUrl: `${VIDEO_PATH}/${token}/c`,
+      stopped: clip.stopped === true,
+    }));
+  });
+
+  // bd-9dbhh0.1 (COS 20261028T151950 §1.3): "not now" / "stop clips" / "turn clips back on", a plain form post from the
+  // page. Only the token's ids are used (never a body id); the same 404 / sign-in answers as GET; a crawler writes nothing.
+  // Idempotent: a repeat changes nothing (clip-pref.next). The answer is one line in the teacher's language.
+  router.post(`${VIDEO_PATH}/:token/c`, privateHeaders, limiter, express.urlencoded({ extended: false, limit: '1kb' }), async (req, res) => {
+    const token = String(req.params.token || '');
+    const v = verified(token, res);
+    if (!v) return undefined;
+    const { recommendationId, userId, surface } = v;
+    const action = String((req.body && req.body.action) || '');
+    if (!clipPref.ACTIONS.has(action)) return res.status(400).type('html').send(renderMessagePage('error'));
+    let clip;
+    try {
+      clip = await loadClip(recommendationId, userId);
+    } catch (_) {
+      return res.status(503).type('html').send(renderMessagePage('error'));
+    }
+    if (!clip || !clip.row) return res.status(404).type('html').send(renderMessagePage('not_found'));
+    const ua = events.uaClass(req.headers['user-agent']);
+    if (ua === 'crawler') return res.status(204).end();
+    let out;
+    try {
+      out = await applyChoice(userId, action, { recommendationId });
+    } catch (_) {
+      out = { ok: false };
+    }
+    log({ action, ok: !!(out && out.ok), changed: !!(out && out.changed), recommendationId, ua_class: ua, surface }, 'video_reco.choice');
+    const reportToken = signReportLink({ sessionId: clip.row.coaching_session_id, userId });
+    return res.status(out && out.ok ? 200 : 503).type('html').send(renderChoiceDone({
+      language: clip.language,
+      action: out && out.ok ? action : 'failed',
+      stopped: out && out.ok ? out.stopped === true : clip.stopped === true,
+      choiceUrl: `${VIDEO_PATH}/${token}/c`,
+      clipHref: `${VIDEO_PATH}/${token}`,
       backHref: reportToken ? `${REPORT_PATH}/${reportToken}` : null,
     }));
   });

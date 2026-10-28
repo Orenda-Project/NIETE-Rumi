@@ -38,6 +38,10 @@ const CSS = `
   .btn { display:block; width:100%; min-height:48px; border:2px solid var(--accent); color:var(--accent); background:transparent; border-radius:12px; font:inherit; font-weight:600; cursor:pointer; margin:0 0 14px; }
   .muted { color:var(--muted); font-size:15px; }
   a.back { display:inline-block; color:var(--accent); font-weight:600; text-decoration:none; padding:10px 0; }
+  form.choice { display:flex; gap:10px; margin:0 0 6px; }
+  form.choice button { flex:1; min-height:44px; border:1px solid var(--line); background:var(--card); color:var(--muted); border-radius:12px; font:inherit; cursor:pointer; }
+  form.choice button.on { border-color:var(--accent); color:var(--accent); font-weight:600; }
+  .done { background:var(--card); border:2px solid var(--accent); border-radius:16px; padding:16px 18px; margin:0 0 14px; }
   html[lang="ur"] body { font-family:"Noto Nastaliq Urdu","Noto Naskh Arabic",system-ui,sans-serif; line-height:2.1; }
   html[lang="ur"] h1 { line-height:1.9; }
 `;
@@ -86,23 +90,59 @@ function renderPlayer(view = {}) {
   const back = view.backHref ? `<a class="back" href="${esc(view.backHref)}">${esc(w('videoRecoPlayerBack'))}</a>` : '';
   const body = `<p class="kicker">Digital Coach</p><h1>${esc(view.title || '')}</h1><div class="chips">${chips}</div>${video}${why}`
     + `<button class="btn" id="fromStart" type="button">${esc(w('videoRecoPlayerFromStart'))}</button>`
-    + `<p class="muted">${esc(w('videoRecoPlayerLookFor'))}</p>${back}`;
+    + `<p class="muted">${esc(w('videoRecoPlayerLookFor'))}</p>${choices(view, w)}${back}`;
+  return page(l, view.title, body, view.eventsUrl ? script({ start, end, url: view.eventsUrl }) : '');
+}
+
+/**
+ * bd-9dbhh0.1 (COS 20261028T151950 §1.3): the teacher's say, as plain form posts (no script needed) to `view.choiceUrl`:
+ * "not now" and "stop clips", or "turn clips back on" when they are stopped. No choiceUrl → nothing (the page as before).
+ */
+function choices(view, w) {
+  if (!view.choiceUrl) return '';
+  const btn = (action, key, on = false) => `<button type="submit" name="action" value="${action}"${on ? ' class="on"' : ''}>${esc(w(key))}</button>`;
+  const form = (inner) => `<form class="choice" method="post" action="${esc(view.choiceUrl)}">${inner}</form>`;
+  if (view.stopped) {
+    return `<section><p class="muted">${esc(w('videoRecoPlayerStoppedNote'))}</p>${form(btn('resume', 'videoRecoPlayerResume', true))}</section>`;
+  }
+  return `<section>${form(btn('skip', 'videoRecoPlayerSkip') + btn('stop', 'videoRecoPlayerStop'))}<p class="muted">${esc(w('videoRecoPlayerChoiceNote'))}</p></section>`;
+}
+
+/**
+ * The one-line confirmation after a choice, in the teacher's language, with the way back on (after a stop), back to the
+ * clip, and back to the report. view = { language, action: 'skip'|'stop'|'resume'|'failed', stopped, choiceUrl, clipHref, backHref }
+ */
+function renderChoiceDone(view = {}) {
+  const l = copy.lang(view.language);
+  const w = (k, p) => copy.word(k, l, p);
+  const KEY = { skip: 'videoRecoDoneSkip', stop: 'videoRecoDoneStop', resume: 'videoRecoDoneResume' };
+  const msg = w(KEY[view.action] || 'videoRecoDoneFailed');
+  const again = view.stopped && view.choiceUrl
+    ? `<form class="choice" method="post" action="${esc(view.choiceUrl)}"><button type="submit" name="action" value="resume" class="on">${esc(w('videoRecoPlayerResume'))}</button></form>`
+    : '';
+  const clip = view.clipHref ? `<a class="back" href="${esc(view.clipHref)}">${esc(w('videoRecoPlayerBackToClip'))}</a><br>` : '';
+  const back = view.backHref ? `<a class="back" href="${esc(view.backHref)}">${esc(w('videoRecoPlayerBack'))}</a>` : '';
+  const body = `<p class="kicker">Digital Coach</p><div class="done"><p>${esc(msg)}</p>${again}</div>${clip}${back}`;
+  return page(l, 'Digital Coach', body, '');
+}
+
+function page(l, title, body, tail) {
   return `<!doctype html>
 <html lang="${l}" dir="${copy.dirOf(l)}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>${esc(view.title || 'Digital Coach')}</title>
+<title>${esc(title || 'Digital Coach')}</title>
 <style>${CSS}</style>
 </head>
 <body>
 <main>
 ${body}
 </main>
-${view.eventsUrl ? script({ start, end, url: view.eventsUrl }) : ''}
+${tail}
 </body>
 </html>`;
 }
 
-module.exports = { renderPlayer };
+module.exports = { renderPlayer, renderChoiceDone };
