@@ -37,7 +37,8 @@ developer changes bot code
    printed in the terminal — advisory unless QA_HOOKS_STRICT=1
         │  pull request into sandbox / staging / main
         ▼
-   .github/workflows/qa-impact.yml: the SAME impact.py, as a PR check + one comment edited
+   .github/workflows/qa-impact.yml: the SAME impact.py (its copy committed at .github/qa-impact/),
+   as a PR check + one comment edited
    in place — a stale spec FAILS the PR unless `Spec-Sync: <feature>=none-needed (<why>)`
    is declared in a commit or the PR body
 ```
@@ -48,7 +49,7 @@ developer changes bot code
 |---|---|---|---|
 | **Git hooks** (`.githooks/`, installed by `npm install` via `prepare`, or `bash scripts/qa/link-engine.sh`) | every commit and every push on that machine, from any tool | select features, build the sync brief, leave a marker, print the next commands, report at push time (any branch) | author a scenario (judgement), drive WhatsApp (needs a linked browser), or run if the developer skipped the one-time `core.hooksPath` install |
 | **Claude Code hooks** (`.claude/hooks/`, wired in `.claude/settings.json`) | a Claude session rooted in any clone of this repo | **install the git hooks at SessionStart when the clone has none**; arm on the session's own commits; announce terminal-armed markers at SessionStart; **hold the turn until the Gherkin is synced and valid, or declared none-needed** (phase 1 — a gate, bounded to 3 holds, `--clear` refuses while open); order the E2E **once** (phase 2) — the only place phases 3–6 can actually be executed | see a commit made on another machine, or one made before the session existed (that is what the marker bridge is for) |
-| **GitHub check** (`.github/workflows/qa-impact.yml`) | every PR into `sandbox` / `staging` / `main`, whoever opened it, however they commit | run `impact.py` over the PR range, post one comment (edited in place) naming the features, the stale specs and the exact `/sync-specs` + `/niete-e2e` commands, and **fail the PR** on a stale spec that nobody declared `none-needed` | author or drive anything; see a run that was not committed to `runs.jsonl` |
+| **GitHub check** (`.github/workflows/qa-impact.yml`) | every PR into `sandbox` / `staging` / `main`, whoever opened it, however they commit | run `impact.py` over the PR range from its copy at `.github/qa-impact/` (GitHub cannot read rumi-agent-home, so the check's engine files are committed here; `bash .claude/qa/engine/bin/ci-copy.sh` refreshes them), post one comment (edited in place) naming the features, the stale specs and the exact `/sync-specs` + `/niete-e2e` commands, and **fail the PR** on a stale spec that nobody declared `none-needed` | author or drive anything; see a run that was not committed to `runs.jsonl` |
 
 **History.** The pipeline was "hooks only, no CI" by decision on 2026-09-07. On
 2026-09-09 PRs #835 and #836 changed `bot/shared/services/coaching/**` and reached

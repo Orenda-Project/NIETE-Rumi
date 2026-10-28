@@ -1,0 +1,11 @@
+engine 2.0.0
+Copied from rumi-agent-home's E2E engine by .claude/qa/engine/bin/ci-copy.sh for the GitHub PR check.
+Do not edit here: change the engine, then re-run ci-copy.sh. --check says when this copy is behind.
+33eb87ce4593ee7d2d8322337a7fd13f1b061ab0337eae2ba4bc7551bfe5595b  impact.py
+521f4500ac5234501a359347c2a2c4f645689e03abacf66fb705c1faaaef8571  select_e2e.py
+d26441e681abdcb0d36cfadffb2e14413b31aeb17d474830b5576582a7e3d4e8  spec_sync.py
+58377ceed8545dce3f5077cf84d36f6294e45177068ff0d9f31cdbb59ac7b52f  validate_specs.py
+09e643a26f865c8adc1b88e1cc9cef2d8ea48045e88e6b8b8c7bc51669b36af2  tenants_lite.py
+70ca740751b46a08a69ab29122631ad80a7f7e2a68be6181f66d16aabce2b1ad  yaml_lite.py
+ad7de24813611f9991d369826e567f3aecb84c55cd6e0c43b4913c2ee5c50470  ledger.py
+6ef664e89d756e5e0111d845f555eed01345f063a880531cf18e734d889537ff  check-scenario-coverage.py

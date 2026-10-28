@@ -57,6 +57,22 @@ case "$prep" in *'[ -f scripts/qa/link-engine.sh ]'*'command -v bash'*'|| true'*
 node -e 'const s=require("./package.json").scripts; for (const k of ["qa:impact","e2e:mock"]) if (!/\.claude\/qa\/engine\/bin\//.test(s[k]||"")) { console.error(k+" = "+s[k]); process.exit(1) }' \
   && ok "qa:impact and e2e:mock run the engine's scripts" || bad "qa:impact / e2e:mock do not point at .claude/qa/engine/bin"
 
+# GitHub's machine has only this repo and cannot read the private rumi-agent-home, so the PR check runs from a copy of
+# the engine files it needs, committed at .github/qa-impact/: the one engine piece committed here (bd-9157r.7).
+echo "engine bridge — GitHub's PR check runs from this repo's own copy, with no token"
+[ -f .github/qa-impact/impact.py ] && [ -f .github/qa-impact/SOURCE ] && ok ".github/qa-impact/ holds the PR check's files" \
+  || bad "no .github/qa-impact/ copy for the PR check (bash .claude/qa/engine/bin/ci-copy.sh)"
+grep -l QA_ENGINE_TOKEN .github/workflows/*.yml >/dev/null 2>&1 && bad "a workflow still asks for QA_ENGINE_TOKEN: $(grep -l QA_ENGINE_TOKEN .github/workflows/*.yml | tr '\n' ' ')" \
+  || ok "no workflow asks for a token"
+grep -q '\.github/qa-impact' .github/workflows/qa-impact.yml && ok "qa-impact.yml runs the copy" || bad "qa-impact.yml does not run .github/qa-impact/"
+python3 .github/qa-impact/impact.py --repo . --base HEAD --head HEAD --format json 2>"$T/impact.err" \
+  | python3 -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null \
+  && ok "the copy runs on this repo's tenant layer by itself" || bad "the copy does not run here: $(tail -1 "$T/impact.err")"
+if [ -f .claude/qa/engine/bin/ci-copy.sh ]; then
+  bash .claude/qa/engine/bin/ci-copy.sh --check >/dev/null 2>&1 && ok "the copy matches the linked engine" \
+    || bad "the copy is behind the linked engine: bash .claude/qa/engine/bin/ci-copy.sh, then commit .github/qa-impact/"
+else ok "(no engine with ci-copy.sh linked here: the copy is not compared)"; fi
+
 echo "engine bridge — a machine without the engine is never broken by it"
 mkdir -p "$T/bare/.claude/hooks" "$T/bare/.githooks" "$T/bare/scripts/qa"
 cp .claude/hooks/e2e-autorun.sh .claude/hooks/e2e-autorun-stop.sh .claude/hooks/e2e-pending-banner.sh "$T/bare/.claude/hooks/" 2>/dev/null

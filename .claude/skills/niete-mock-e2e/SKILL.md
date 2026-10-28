@@ -36,7 +36,7 @@ There are four links. "Tests generated but E2E shows missing" means one of them 
 | 3 | `commit-e2e.sh` drives the stack and **appends a row** to `.claude/qa/ledgers/runs.jsonl` | machine not ready (§2) → exit 3, no row |
 | 4 | `ledger_row.py` **commits that one file and pushes the branch** by itself | skipped silently-ish — see below |
 
-The PR check (`.claude/qa/engine/bin/impact.py`, run by `.github/workflows/qa-impact.yml`) marks a feature
+The PR check (`impact.py`, run by `.github/workflows/qa-impact.yml` from its copy at `.github/qa-impact/`) marks a feature
 `recorded` **only if a `runs.jsonl` row for it was ADDED inside the PR's commit range, on the
 remote**. A run that happened but was not committed *and pushed* is indistinguishable from no run.
 The workflow runs **only on PRs into `sandbox`** (operator, 2026-09-16) — a PR into

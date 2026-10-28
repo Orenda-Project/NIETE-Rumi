@@ -67,26 +67,11 @@ jobs:
       - name: Install root dependencies
         run: npm ci
 
-      # The E2E harness is the SHARED engine, borrowed from rumi-agent-home (bd-9157r.1): the jest suites that test it
-      # (tests/e2e-mock) read and load it through .claude/qa/engine. Fetch it the way qa-impact.yml does. Without the
-      # QA_ENGINE_TOKEN secret those suites skip with their reason instead of failing — a warning here, never a red build.
-      - name: Borrow the shared E2E engine
-        env:
-          QA_ENGINE_TOKEN: ${{ secrets.QA_ENGINE_TOKEN }}
-          QA_ENGINE_REF: ${{ vars.QA_ENGINE_REF || 'main' }}
-        run: |
-          if [ -z "$QA_ENGINE_TOKEN" ]; then
-            echo "::warning::QA_ENGINE_TOKEN is not set, so the E2E engine's jest suites skip. Add a fine-grained read-only token for hyasin270/rumi-agent-home as the secret QA_ENGINE_TOKEN."
-            exit 0
-          fi
-          git clone --quiet --depth 1 --branch "$QA_ENGINE_REF" --filter=blob:none --sparse \
-            "https://x-access-token:${QA_ENGINE_TOKEN}@github.com/hyasin270/rumi-agent-home.git" "$RUNNER_TEMP/engine-home"
-          git -C "$RUNNER_TEMP/engine-home" sparse-checkout set .claude/qa/engine
-          mkdir -p .claude/qa && ln -sfn "$RUNNER_TEMP/engine-home/.claude/qa/engine" .claude/qa/engine
-          echo "engine $(cat .claude/qa/engine/ENGINE_VERSION) from rumi-agent-home@$QA_ENGINE_REF"
-
-      # No copy of the engine creeps back into this repo, and every entry point (git hooks, session hooks, npm's
-      # prepare) works with the engine and without it. The engine half skips, and says so, when the step above had no token.
+      # The E2E harness is the SHARED engine, borrowed from rumi-agent-home (bd-9157r.1) and linked in on a laptop. CI has
+      # no engine (rumi-agent-home is private and no token is used, bd-9157r.7), so the jest suites that load it
+      # (tests/e2e-mock) skip here with their reason and run where it is linked: `npm run qa:test`. This step holds that
+      # no copy of the engine creeps back in beyond the PR check's own .github/qa-impact/, and that every entry point
+      # (git hooks, session hooks, npm's prepare) works without the engine; the engine half skips and says so.
       - name: E2E engine bridge
         run: bash scripts/qa/engine-bridge.test.sh
 
