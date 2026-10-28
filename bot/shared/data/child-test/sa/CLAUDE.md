@@ -1,7 +1,7 @@
 # sa — Generated Jugnu batteries per surface, grade and language
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data/child-test/sa kg=00ecbb6f0a8b gen=0522eb9348f7 overflow=8 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data/child-test/sa kg=0359d2c0e167 gen=0522eb9348f7 overflow=8 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `sa.coach.G1.A.en.json` — runtime coach battery example

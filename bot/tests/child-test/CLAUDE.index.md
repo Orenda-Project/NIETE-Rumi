@@ -21,6 +21,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-last-word-hint.test.js` | Pins lastWordIndex alignment, saLastWordHint and its internal route for the sa_coach_last_word suggestion |
 | `sa-practice-only.test.js` | Pins child_test_practice_only: practice coaches get only is_probable_test schools, isPracticeCoach, pilot unchanged |
 | `sa-r8-counts-score.test.js` | Pins round 8 sa_r8_counts scoring against the counts form the phone ran, never dropping extra items |
+| `sa-r8-slice2-lines.test.js` | (unmapped) |
 | `sa-rdf-w3-server.test.js` | Pins RDF auto/manual server behaviour under sa_rdf_w3_forms: accepted blocks when on, refused or not_ready when off |
 | `sa-rdf-w3.test.js` | Pins the RDF auto/manual W3 form shape: task list, official items with src, one-at-a-time display, coach_text |
 | `sa-rdf.test.js` | Pins the RDF short form under sa_rdf_form: block 'rdf' accepted when on, unknown when off, not_ready without rdf[] |

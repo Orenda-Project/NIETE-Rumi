@@ -1,7 +1,7 @@
 # utils — Small shared helpers: language, logging, phone, SQS, rendering, text
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/utils kg=882f56b7a55a gen=2c1d69c080a2 overflow=572 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/utils kg=21d0929a4afd gen=2c1d69c080a2 overflow=572 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `resolve-response-language.js` — which language a reply uses

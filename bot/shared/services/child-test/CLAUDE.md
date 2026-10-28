@@ -1,7 +1,7 @@
 # child-test — Child learning-assessment (EGRA/EGMA): draw, coach chat, scoring, check Flow
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test kg=7d681931071a gen=6f5183329f2b overflow=114 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test kg=947c7117fe45 gen=6f5183329f2b overflow=114 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `store.js` — main reader/writer of child_test_draws/sessions/blocks (check-flow, sa/score touch them)

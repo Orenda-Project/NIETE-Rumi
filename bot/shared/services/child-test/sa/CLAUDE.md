@@ -1,7 +1,7 @@
 # sa — Self-administered battery: bank builder, in-bot spoken-task scorer, Jugnu lines
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/sa kg=b4e6e0df0f1e gen=fb6ce7731f84 overflow=48 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/sa kg=5486374e7c7c gen=fb6ce7731f84 overflow=48 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `build.js` — builds the SA bank and runtime batteries from official banks

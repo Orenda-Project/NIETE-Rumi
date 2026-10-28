@@ -111,7 +111,7 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 - **DB bootstrap**: `npm run bootstrap:db` applies schema → RLS → seed (idempotent).
 
 ## Map (generated)
-<!-- kg:map repo=NIETE-Rumi gen=bbb35b5dfe64 -->
+<!-- kg:map repo=NIETE-Rumi gen=f6e67aea7850 -->
 | dir | what it is |
 |---|---|
 | `.claude/` | Agent & skill config (L1) → `.claude/CLAUDE.md` |
@@ -119,7 +119,7 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 | `.githooks/` | (no door; 5 files) |
 | `.github/` | (no door; 22 files) |
 | `bot/` | NIETE WhatsApp bot: webhook, workers, services, tests, migrations → `bot/CLAUDE.md` |
-| `dashboard/` | (no door; 6040 files) |
+| `dashboard/` | (no door; 6085 files) |
 | `docs/` | (no door; 138 files) |
 | `infrastructure/` | DB schema, migrations, deploy configs, WhatsApp templates → `infrastructure/CLAUDE.md` |
 | `kg/` | (no door; 11 files) |
