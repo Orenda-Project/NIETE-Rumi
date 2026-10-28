@@ -75,7 +75,7 @@ afterEach(() => cleanup());
 
 describe("flag OFF: nothing about the coach's way in changes", () => {
   it("the ready list and its home are as before", () => {
-    expect([...COACH_APP_READY]).toEqual(["training", "lessons"]);
+    expect([...COACH_APP_READY]).toEqual(["training", "lessons", "schools"]);
     expect(coachReadyHome()).toBe("/portal/coach/training");
     expect(coachPathReady("/portal/coach/insights")).toBe(false);
     expect(homeFor(COACH)).toBe("/portal/leader");
@@ -93,13 +93,13 @@ describe("flag OFF: nothing about the coach's way in changes", () => {
     expect(await landAt("/portal/coach/insights/listen")).toBe("/portal/coach/training");
   });
 
-  it.each(["absent", "false"] as Mode[])("config %s: the menu is Training Library · Lesson Plans · More", async (mode) => {
+  it.each(["absent", "false"] as Mode[])("config %s: the menu is Training Library · Lesson Plans · My schools · More", async (mode) => {
     setConfig(mode);
     render(<MemoryRouter initialEntries={["/portal/coach/training"]}><PortalNavigation /></MemoryRouter>);
     await settle();
     const bar = screen.getByTestId("teacher-nav");
     expect(within(bar).getAllByRole("link").map((a) => a.getAttribute("href")))
-      .toEqual(["/portal/coach/training", "/portal/teacher/lessons", "/portal/coach/more"]);
+      .toEqual(["/portal/coach/training", "/portal/teacher/lessons", "/portal/coach/people", "/portal/coach/more"]);
     expect(screen.queryByTestId("insights-nav")).toBeNull();
   });
 

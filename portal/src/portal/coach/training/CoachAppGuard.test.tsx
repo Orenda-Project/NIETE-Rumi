@@ -59,14 +59,14 @@ describe("a coach on the coach app v2", () => {
     "/", "/portal/dashboard", "/portal/curriculum", "/portal/leader", "/portal/leader/teachers", "/portal/leader/observations",
     "/portal/leader/observe/new", "/portal/training", "/portal/training/v2", "/portal/training/provider/X", "/portal/coaching",
     "/portal/coach", "/portal/coach/scheduling", "/portal/coach/observe", "/portal/coach/visit/7", "/portal/coach/reports",
-    "/portal/coach/people", "/portal/coach/analytics", "/portal/nowhere",
+    "/portal/coach/analytics", "/portal/nowhere",
   ])("%s goes to the Training Library, and that page never mounts", (p) => {
     renderAt(p, coach, true);
     expect(screen.getByTestId("where")).toHaveTextContent("/portal/coach/training");
     expect(mounted).toEqual(["/portal/coach/training"]);
   });
 
-  it.each(["/portal/coach/training", "/portal/coach/training/ISAPS", "/portal/coach/more", "/portal/coach/profile", "/portal/account"])(
+  it.each(["/portal/coach/training", "/portal/coach/training/ISAPS", "/portal/coach/more", "/portal/coach/profile", "/portal/account", "/portal/coach/people"])(
     "%s stays", (p) => {
       renderAt(p, coach, true);
       expect(screen.getByTestId("where")).toHaveTextContent(p);

@@ -9,6 +9,7 @@ import type { CoachSchool, CoachTeacher } from "../types";
 import { PEOPLE } from "../people/copy";
 import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
 import { SchoolCard, SchoolGroup, EmptyRow, Notice, useNotice } from "../people/rows";
+import { coachFeatureReady } from "../training/appReady";
 
 /**
  * bd-o15qnr + bd-4404s7.6 — Schools & teachers: one page, Schools | Teachers tabs (Schools first), numbers only.
@@ -74,8 +75,10 @@ const CoachPeople = () => {
     return [...(data?.schools || [])].sort(cmp as (a: CoachSchool, b: CoachSchool) => number);
   }, [data, sSort]);
 
+  // A menu page while the coach Home is not in the coach app: no Back to it (that tap would land on the Training Library).
+  const home = coachFeatureReady("home");
   return (
-    <PeopleFrame title={C.title} crumb={C.home} backTo="/portal/coach" feature="schools"
+    <PeopleFrame title={C.title} crumb={home ? C.home : undefined} backTo={home ? "/portal/coach" : undefined} feature="schools"
       dock={tab === "teachers"
         ? <BottomLink to="/portal/coach/add-teacher"><Plus className="h-5 w-5" aria-hidden="true" />{C.addTeacher}</BottomLink>
         : <BottomLink to="/portal/coach/schools/add"><Plus className="h-5 w-5" aria-hidden="true" />{C.addSchool}</BottomLink>}>
