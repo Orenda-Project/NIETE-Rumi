@@ -346,3 +346,14 @@ button{font:inherit;color:inherit}
 .is-ur-fit[lang=ur] .sae-silence .sae-p{font-size:18px;line-height:2.2;margin:0;padding-top:.4em;padding-inline:.6em}
 @media (max-height:700px){.is-ur-fit[lang=ur] .sae-silence .sae-jugnu{display:none}}
 @media (max-height:600px){.is-ur-fit[lang=ur] .sae-silence .sae-body{gap:6px}.is-ur-fit[lang=ur] .sae-silence .sae-h1{font-size:22px;padding-top:.3em}.is-ur-fit[lang=ur] .sae-silence .sae-p{font-size:16px;padding-top:.2em}}
+/* Round 8 (items 25/26, r8_nudges, .is-r8-cues): how the screen is answered, small and quiet at the top bar's physical
+   right edge in both directions (in an RTL row the first item is the rightmost). It sits in the bar, so it never covers
+   the screen's content or buttons; the proctored sync dot keeps its corner. The level bar is a thin upright meter. */
+.is-r8-cues .sae-r8-cue{flex:0 0 auto;display:flex;align-items:center;gap:4px;height:36px;margin-right:10px;color:var(--sae-ink-2);opacity:.55;direction:ltr;pointer-events:none}
+.is-r8-cues[dir=rtl] .sae-r8-cue{order:-1}
+.is-r8-cues .sae-r8-ico{display:block;width:30px;height:30px;line-height:0}
+.is-r8-cues .sae-r8-ico svg{display:block}
+.is-r8-cues .sae-r8-lvl{position:relative;display:block;width:6px;height:26px;border-radius:3px;background:var(--sae-line);overflow:hidden}
+.is-r8-cues .sae-r8-lvl[hidden]{display:none}
+.is-r8-cues .sae-r8-lvl-fill{position:absolute;left:0;right:0;bottom:0;height:0;background:var(--sae-ink-2);transition:height .08s linear}
+@media (prefers-reduced-motion:reduce){.is-r8-cues .sae-r8-lvl-fill{transition:none}}

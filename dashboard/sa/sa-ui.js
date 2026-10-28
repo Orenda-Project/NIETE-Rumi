@@ -57,6 +57,13 @@
  *                     item while the child answers; tick_prompt: lines.r7_type_tick for a typed number; story_scroll:
  *                     lines.r7_scroll after the story's instruction, and a down arrow under the story while more is below.
  *
+ * Round 8, the child's screens (each OFF unless the served battery carries battery.ui.r8_<flag>):
+ *   r8_nudges         (items 25/26) every child item screen shows how it is answered, small and quiet at the top bar's
+ *                     physical right edge (both directions): a mic on a speaking screen (read aloud, a spoken answer,
+ *                     a spoken practice) with a level bar from SAE.mic.level (opts.micLevel; hidden until the first
+ *                     level, so no mic = the icon alone), a tapping finger on a tapping or typing screen. One level loop
+ *                     per screen, stopped when the screen changes and on destroy().
+ *
  * UMD: window.SAE.ui in the browser, module.exports under Node.
  */
 (function (root, factory) {
@@ -156,6 +163,9 @@
       more_below: 'More of the story below',
       chip_say_next: 'Say it, then press Next',
       chip_type_tick: 'Type, then press ✓',
+      // round 8 (items 25/26): the quiet cue's spoken name (screen readers)
+      cue_speak: 'Answer by speaking',
+      cue_tap: 'Answer by tapping',
     },
     ur: {
       hello: 'السلام علیکم! میں جگنو ہوں۔',
@@ -244,6 +254,9 @@
       more_below: 'کہانی نیچے بھی ہے',
       chip_say_next: 'بولیں، پھر «آگے» دبائیں',
       chip_type_tick: 'لکھیں، پھر ✓ دبائیں',
+      // round 8 (items 25/26)
+      cue_speak: 'بول کر جواب دیں',
+      cue_tap: 'دبا کر جواب دیں',
     },
   };
 
@@ -272,6 +285,11 @@
   var KP_WARM_MS = 20000;   // RULING #17: 20 s of free typing
   var HEARD_LEVEL = 0.15;   // the practice oral question: the meter crossed this once = heard
   var PROBE_MS = 4000;      // the mic probe's own guard
+  // Round 8 (items 25/26): the cue's pictures, drawn in the text colour (sa.css mutes it): a mic, a tapping finger.
+  var CUE_SVG = {
+    speak: '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg>',
+    tap: '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M10 13V5.5a1.5 1.5 0 0 1 3 0V12"/><path d="M13 11.5a1.5 1.5 0 0 1 3 0V13"/><path d="M16 12.5a1.5 1.5 0 0 1 3 0V16a6 6 0 0 1-6 6h-1.2a5 5 0 0 1-4-2l-3-4a1.5 1.5 0 0 1 2.3-1.9L10 16"/><path d="M6.5 6.5a5 5 0 0 1 9.5-1.5"/></svg>',
+  };
 
   function h(tag, attrs, kids) {
     var el = document.createElement(tag);
@@ -536,6 +554,8 @@
     if (opts.ur_fit) el.classList.add('is-ur-fit');
     // in the coach page's frame, under its corner hold (sa.css keeps the scrolling body below it)
     if (opts.ur_fit && opts.embed) el.classList.add('is-embed');
+    // round 8 (items 25/26, r8_nudges): the speak / tap cue's styles (sa.css "Round 8")
+    if (r7.r8_nudges === true) el.classList.add('is-r8-cues');
     el.setAttribute('lang', lang);
     el.setAttribute('dir', lang === 'ur' ? 'rtl' : 'ltr');
     el.setAttribute('data-mode', mode);
@@ -1600,6 +1620,63 @@
       ]);
     }
 
+    // ---------- round 8, items 25/26 (r8_nudges): the speak / tap cue ----------
+    var cue = null; // the speaking screen's level loop: { k, stop, bar, lvl }
+    /** How the child answers the screen on show: 'speak', 'tap', or null (not a child item screen). */
+    function cueKind(v, phase) {
+      var t = v.task;
+      if (!t) return null;
+      if (phase === 'running') return t.mode === 'oral' || t.mode === 'record' ? 'speak' : 'tap';
+      if (phase === 'practice') return t.mode === 'record' && !hold ? 'speak' : 'tap';
+      if (phase === 'last_word' && !coachLW) return 'tap';
+      return null;
+    }
+    function cueStop() {
+      var c = cue;
+      cue = null;
+      if (c && typeof c.stop === 'function') { try { c.stop(); } catch (e) { /* the mic's */ } }
+    }
+    function cuePaint(c) {
+      if (!c.bar || c.lvl == null) return;
+      c.bar.hidden = false;
+      var fill = c.bar.firstChild;
+      if (fill) fill.style.height = Math.round(Math.max(0, Math.min(1, +c.lvl || 0)) * 100) + '%';
+    }
+    /** SAE.mic.level, through the engine (opts.micLevel) or the page's own module; null when there is none. */
+    function levelFn() {
+      if (typeof opts.micLevel === 'function') return opts.micLevel;
+      if ('micLevel' in opts) return null;
+      var m = typeof window !== 'undefined' && window.SAE && window.SAE.mic;
+      return m && typeof m.level === 'function' ? m.level : null;
+    }
+    /** Put the cue in the screen's top bar (its physical right edge, both directions); a speaking screen's bar runs. */
+    function cueOn(v, phase, s) {
+      var kind = r7.r8_nudges === true ? cueKind(v, phase) : null;
+      var k = kind ? keyOf(v) + '|' + kind : null;
+      if (cue && cue.k !== k) cueStop();
+      if (!kind) return;
+      var top = s.querySelector('.sae-top');
+      if (!top) return;
+      var lf = kind === 'speak' ? levelFn() : null;
+      var bar = lf ? h('span', { class: 'sae-r8-lvl', 'aria-hidden': 'true', hidden: '' }, [h('span', { class: 'sae-r8-lvl-fill' })]) : null;
+      var ico = h('span', { class: 'sae-r8-ico', 'aria-hidden': 'true' });
+      ico.innerHTML = CUE_SVG[kind];
+      top.appendChild(h('div', { class: 'sae-r8-cue is-' + kind, 'data-cue': kind, role: 'img', 'aria-label': kind === 'speak' ? C.cue_speak : C.cue_tap }, [ico, bar]));
+      if (!lf) return;
+      if (!cue) {
+        var c = cue = { k: k, stop: null, bar: null, lvl: null };
+        try {
+          c.stop = lf(function (level) {
+            if (!alive || cue !== c) return;
+            c.lvl = level;
+            cuePaint(c);
+          });
+        } catch (e) { c.stop = null; }
+      }
+      cue.bar = bar;
+      cuePaint(cue);
+    }
+
     // ---------- the frame ----------
     function keyOf(v) {
       var k = v.phase + '|' + v.task_index;
@@ -1768,6 +1845,7 @@
       }
       while (el.firstChild) el.removeChild(el.firstChild);
       el.appendChild(s);
+      cueOn(v, showPhase, s);
       fitCells(s);
       if (mode === 'proctored' && showPhase !== 'handover' && showPhase !== 'refused') {
         coachLayer(v).forEach(function (n) { el.appendChild(n); });
@@ -1856,6 +1934,7 @@
       },
       destroy: function () {
         stopMeter();
+        cueStop();
         alive = false;
         loop(false);
         timers.forEach(clearTimeout);
