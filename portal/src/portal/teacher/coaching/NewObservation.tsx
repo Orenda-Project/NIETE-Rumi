@@ -4,7 +4,7 @@ import { Check, ChevronDown, Mic, Pause, Square, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { clockText } from '../../lib/clockText';
 import { acceptFor, checkAudioFile, checkFile, DC_MAX_PHOTOS, DC_MIN_SECONDS, readAudioDuration } from '../../lib/coachingUpload';
-import { SendError, sendLesson } from '../../lib/coachingSend';
+import { isOffline, SendError, sendLesson } from '../../lib/coachingSend';
 import { sha256Hex } from '../../lib/audioHash';
 import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
 import { lessonFilename, useMicLevel } from '../../lib/recordFlow';
@@ -26,7 +26,7 @@ import { ClassPicker, ConfirmTray, HistoryRow, LeaveNote, ProgressSteps, RecordU
 import { CARD, FOCUS, LIST_CARD } from '../ui/styles';
 import { useCopy } from '../i18n';
 import { NOTICES } from '../notices/copy';
-import { COACHING } from './copy';
+import { COACHING, type CoachingCopy } from './copy';
 import { clearDraft, holdDraft, isSavedAudio, peekDraft, planKeyOf, readPrefill, type DcAudio, type DraftClass, type DraftPlan, type SavedAudio } from './draft';
 import { loadPending, sentBefore, type PendingRecording } from './api';
 import { DC_PICK } from './libraryPick';
@@ -67,6 +67,20 @@ type AudioProblem = 'too_large' | 'not_audio' | 'video' | null;
 type RecPhase = 'idle' | 'starting' | 'recording' | 'micBlocked';
 type Sending = { pct: number } | null;
 const UPLOADING = 'uploading';
+
+/**
+ * bd-bmc9a0.1 — ICT IAB rows 28–29: a send that did not go. "No internet" only when the phone says it is offline; else
+ * the part that did not go (Recording / Lesson plan / Photo N), or "Not sent" when every file arrived and starting the
+ * analysis failed. It said "No internet" on strong Wi-Fi for 39 teachers whose picked file the app could not send.
+ */
+function notSentTitle(f: SendError, C: Pick<CoachingCopy, 'noInternet' | 'notSent' | 'recordingNotSent' | 'planNotSent' | 'photoNotSent'>): string {
+  const d = f.detail;
+  if (d ? d.offline : isOffline()) return C.noInternet;
+  if (!d || !d.part) return C.notSent;
+  if (d.part.kind === 'audio') return C.recordingNotSent;
+  if (d.part.kind === 'lesson_plan') return C.planNotSent;
+  return C.photoNotSent(d.part.photo);
+}
 
 const NO_SUBJECTS: SubjectsByGrade = {};
 const norm = (s: string | null | undefined) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -251,6 +265,8 @@ export function NewObservationPage() {
   const sentParam = new URLSearchParams(location.search).get('sent');
   const [sessionId, setSessionId] = useState<string | null>(() => (sentParam && sentParam !== UPLOADING ? sentParam : null));
   const report = useDcReport(sessionId);
+  // bd-bmc9a0.1 — what already arrived from this screen, by file: Try again sends only the part that did not go.
+  const uploaded = useRef(new WeakMap<Blob, string>());
   const submit = async () => {
     if (!audio || !cls) return;
     setFailure(null);
@@ -263,13 +279,14 @@ export function NewObservationPage() {
         photos,
         teacherClass: { grade: cls.grade, subject: cls.subject, ...(cls.subjectKey ? { subjectKey: cls.subjectKey } : {}) },
         liveMoves: peekDraft()?.live ?? null,
+        uploaded: uploaded.current,
       }, portal, (pct) => setSending({ pct }));
       if (!isSavedAudio(audio) && audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* gone */ } }
       clearDraft();
       setSessionId(coachingSessionId);
       navigate(`${COACHING_NEW}?sent=${encodeURIComponent(coachingSessionId)}`, { replace: true });
     } catch (err) {
-      setFailure(err instanceof SendError ? err : new SendError('network'));
+      setFailure(err instanceof SendError ? err : new SendError('network', undefined, undefined, { part: null, offline: isOffline(), unreadable: false }));
       navigate(COACHING_NEW, { replace: true });
     } finally {
       setSending(null);
@@ -476,13 +493,24 @@ export function NewObservationPage() {
           {failure ? (
             <section role="alert" className={cn(CARD, 'flex flex-col gap-3 p-4')}>
               <span className="text-[17px] font-semibold text-[#c8331f]">
-                {failure.kind === 'network' ? C.noInternet
+                {failure.kind === 'network' ? notSentTitle(failure, C)
                   : failure.kind === 'in_progress' ? C.busy
                     : failure.kind === 'already_sent' ? C.alreadySent
                     : failure.kind === 'plan_not_ready' || failure.kind === 'plan_not_found' ? C.planNotUsed
                       : C.notAccepted}
               </span>
-              {(failure.kind === 'in_progress' || failure.kind === 'already_sent') && failure.coachingSessionId ? (
+              {failure.kind === 'network' && failure.detail?.unreadable ? (
+                <>
+                  {/* bd-bmc9a0.1: the phone could not read the file she picked; sending it again would not help. */}
+                  <p className="m-0 text-[15px] leading-[1.5] text-[#4b5563]">{C.fileWontOpen}</p>
+                  {failure.detail.part?.kind === 'audio' ? (
+                    <Action tone="outline" icon={Upload} onClick={() => { setFailure(null); audioInput.current?.click(); }}>{C.changeFile}</Action>
+                  ) : null}
+                </>
+              ) : failure.kind === 'network' ? (
+                /* bd-bmc9a0.1: what already arrived is not sent again (`uploaded`). */
+                <Action onClick={() => { void submit(); }}>{C.tryAgain}</Action>
+              ) : (failure.kind === 'in_progress' || failure.kind === 'already_sent') && failure.coachingSessionId ? (
                 <Action to={lessonPath(failure.coachingSessionId)}>{C.openThat}</Action>
               ) : failure.kind === 'plan_not_ready' || failure.kind === 'plan_not_found' ? (
                 <Action onClick={() => { setPlan(null); setFailure(null); setPlanSheet(true); }}>{C.changePlan}</Action>

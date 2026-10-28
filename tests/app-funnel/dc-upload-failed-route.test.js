@@ -61,3 +61,16 @@ test('unknown values are dropped to safe ones; a bad body is 400; no session is 
   expect((await post(await app({ session: null }), good)).status).toBe(401);
   expect(rows()).toHaveLength(1);
 });
+
+// bd-bmc9a0.1 — ICT IAB rows 28-29: what closes the gap between "the connection dropped" and "the phone refused the
+// file". How much of the part left the phone, whether the phone said it was online, what was sent (an in-memory copy
+// of a picked file, a slice of one, or the page's own Blob), and a failed READ of a picked file before any upload.
+test('the read stage, the unreadable reason, sentBytes, online and sentAs are kept; bad values are dropped', async () => {
+  const srv = await app();
+  await post(srv, { ...good, stage: 'read', kind: 'audio', reason: 'unreadable', sentBytes: 0, online: true, sentAs: 'copy' });
+  expect(rows()[0].d).toEqual(expect.objectContaining({ stage: 'read', reason: 'unreadable', sentBytes: 0, online: true, sentAs: 'copy' }));
+  await post(srv, { ...good, sentBytes: 1048576, online: false, sentAs: 'blob' });
+  expect(rows()[1].d).toEqual(expect.objectContaining({ sentBytes: 1048576, online: false, sentAs: 'blob' }));
+  await post(srv, { ...good, sentBytes: 'lots', online: 'yes', sentAs: '<script>' });
+  expect(rows()[2].d).toEqual(expect.objectContaining({ sentBytes: 0, online: null, sentAs: 'unknown' }));
+});
