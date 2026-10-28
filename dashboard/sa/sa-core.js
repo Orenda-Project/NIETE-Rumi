@@ -68,6 +68,10 @@
  *                            that was not listening (voiceWatch(), or the silence repeat's ear) or one that was
  *                            unavailable, the questions are asked. The passage's result keeps voiced_s and
  *                            position_source ('voice' | 'none').
+ *   r8_timeup_continue       battery.ui.r8_timeup_continue (or opts.timeup_continue), with opts.incomplete: a part's own
+ *                            clock running out (time_up) is that part finished; the rest of its subject goes on. The
+ *                            early-stop rule, the silence stop, "I'm done" before the last cell, the last-word tap before
+ *                            the last word and a spoken question left unanswered still skip the rest.
  *
  * Session gates, once each: the mic check (game) before the first task that records, one practice oral question before
  * the first oral task, a keypad warm-up before the first keypad task. The page losing sight of the screen during a
@@ -286,8 +290,9 @@
     var skipTo = null; // the last task a skip passed over: next() goes on after it
     // sa_back_button (round 7b): Back on the item screens (battery.ui.back_button, or opts.back_button)
     var backOn = !!opts.back_button || !!(battery.ui && battery.ui.back_button === true);
-    // Round 8: the story's questions by the voice heard (RDF auto, no last-word step).
+    // Round 8: the story's questions by the voice heard (RDF auto, no last-word step); a time-up ends only its own part.
     var positionOn = skipLW && (!!opts.reading_position || !!(battery.ui && battery.ui.r8_reading_position === true));
+    var timeupGoesOn = incompleteOn && (!!opts.timeup_continue || !!(battery.ui && battery.ui.r8_timeup_continue === true));
 
     /** sa_cell_next_only: an Urdu or English letter/word cell moves on only on Next (maths cells keep their pace). */
     function holdsCell(t) { return cellNextOnly && cellTask(t) && /^(ur|en)\./.test(String(t.id)); }
@@ -516,6 +521,8 @@
       if (why === STOP.FIRST_LINE || why === STOP.CONSECUTIVE) return { reason: 'stop_rule', reached: r.attempted, of: of };
       if (t.mode === 'record' && why === STOP.SILENCE) return { reason: 'silence', reached: null, of: of };
       if (why !== STOP.COMPLETE && why !== STOP.TIME_UP) return null;
+      // round 8 (r8_timeup_continue): the part's own clock ran out: that part is done, the subject goes on
+      if (why === STOP.TIME_UP && timeupGoesOn) return null;
       // round 8 (r8_reading_position): the story's time-up never skips its questions; the voice heard decides them
       if (why === STOP.TIME_UP && positionOn && t.passage && r.last_word_skipped) return null;
       if (t.mode === 'tap' || t.mode === 'keypad' || t.mode === 'keyboard') {
