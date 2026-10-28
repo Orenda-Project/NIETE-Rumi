@@ -21,7 +21,7 @@ vi.mock("../components/assess/offlineReady", async (orig) => {
 });
 
 import { portal, childTestSa } from "../services/api";
-import { prepForms, checkForms, keepPageOffline, dropPageOffline, FAST_START_MS } from "../components/assess/offlineReady";
+import { prepForms, checkForms, keepPageOffline, dropPageOffline, FAST_START_MS, GATE_CAP_MS } from "../components/assess/offlineReady";
 import LeaderAssess from "./LeaderAssess";
 
 const api = childTestSa as any;
@@ -151,8 +151,9 @@ describe("sa_r8_offline_first", () => {
     expect(paused!()).toBe(false);
   });
 
-  it("ON: when the battery cannot come down, no test and no Present: the coach sees why, with Try again", async () => {
+  it("ON, no signal: when the battery cannot come down, no test and no Present: the coach sees why, with Try again", async () => {
     api.getSwitches.mockResolvedValue({ ...SW, r8OfflineFirst: true });
+    const online = vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
     prep.mockResolvedValue({ ok: false, total: 100, cached: 40, missing: 60, bytes: 0 });
     check.mockResolvedValue({ ready: false, total: 100, cached: 40 });
     fireEvent.click(await toHandover());
@@ -162,6 +163,40 @@ describe("sa_r8_offline_first", () => {
     prep.mockResolvedValue(OK);
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await screen.findByTestId("assess-engine-frame");
+    online.mockRestore();
+  });
+
+  it("ON: the getting-ready card sits above the part list (in view on a phone), not below it", async () => {
+    api.getSwitches.mockResolvedValue({ ...SW, coachPicksBlock: true, r8OfflineFirst: true });
+    check.mockResolvedValue({ ready: false, total: 100, cached: 0 });
+    prep.mockImplementation((_f: string[], _p: unknown, part: unknown) => (part ? new Promise(() => {}) : Promise.resolve(OK)));
+    const online = vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+    fireEvent.click(await toHandover());
+    const gate = await screen.findByTestId("assess-ready-gate");
+    const parts = screen.getByTestId("assess-block-choice");
+    expect(gate.compareDocumentPosition(parts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    online.mockRestore();
+  });
+
+  it("ON, online but the part is slow to come down: Start waits at most GATE_CAP_MS, then the test opens as today", async () => {
+    api.getSwitches.mockResolvedValue({ ...SW, r8OfflineFirst: true });
+    check.mockResolvedValue({ ready: false, total: 100, cached: 0 });
+    prep.mockImplementation((_f: string[], _p: unknown, part: unknown) => (part ? new Promise(() => {}) : Promise.resolve(OK)));
+    const start = await toHandover();
+    const t0 = Date.now();
+    fireEvent.click(start);
+    await screen.findByTestId("assess-engine-frame", undefined, { timeout: GATE_CAP_MS + 2000 });
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(GATE_CAP_MS - 100);
+    expect(Date.now() - t0).toBeLessThan(GATE_CAP_MS + 1500);
+  });
+
+  it("ON, online and the part fails to come down (a server error): the test opens as today, no stop", async () => {
+    api.getSwitches.mockResolvedValue({ ...SW, r8OfflineFirst: true });
+    check.mockResolvedValue({ ready: false, total: 100, cached: 0 });
+    prep.mockResolvedValue({ ok: false, total: 100, cached: 90, missing: 10, bytes: 0 });
+    fireEvent.click(await toHandover());
+    await screen.findByTestId("assess-engine-frame");
+    expect(screen.queryByTestId("assess-ready-failed")).toBeNull();
   });
 
   it("OFF: nothing is downloaded by the page; Start opens the test as before", async () => {
@@ -235,6 +270,8 @@ describe("sa_r8_offline_prep", () => {
     const line = await screen.findByTestId("assess-offline-ready");
     expect(line.textContent).not.toMatch(/AM|PM|am|pm/);
     expect(line.textContent).toMatch(/\b\d{2}:\d{2}\b/);
+    // the size never wraps away from its unit
+    expect(line.textContent).toContain("\u00a0MB");
   });
 
   it("read as OFF: a page worker an earlier Get ready left on the phone is removed", async () => {
