@@ -7590,9 +7590,12 @@ async function relayToBot(res, label, call, onAnswer) {
   const reply = (status, body) => (res.headersSent ? undefined : res.status(status).json(body));
   try {
     const { httpStatus, body } = await call();
-    // bd-c5reix: a look at the answer for the funnel; it never changes what she gets.
+    if (res.headersSent) {
+      console.warn(`Portal coaching ${label}: the bot answered after the response was sent; dropped`);
+      return undefined;
+    }
+    // bd-c5reix: a look at the answer for the funnel (only an answer the teacher gets); it never changes the answer.
     if (onAnswer) { try { onAnswer(httpStatus, body || {}); } catch (_) { /* never */ } }
-    if (res.headersSent) console.warn(`Portal coaching ${label}: the bot answered after the response was sent; dropped`);
     return reply(httpStatus, body);
   } catch (error) {
     console.error(`Portal coaching ${label} failed:`, error.message);

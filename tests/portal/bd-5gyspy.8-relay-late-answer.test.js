@@ -13,6 +13,7 @@
  */
 
 let client;
+let events;
 
 function findRoute(router, method, path) {
   for (const layer of router.stack) {
@@ -70,8 +71,12 @@ const chain = () => {
 
 beforeEach(() => {
   jest.resetModules();
-  client = { submitReflection: jest.fn() };
+  client = { submitReflection: jest.fn(), checkDuplicate: jest.fn() };
+  events = [];
   jest.doMock('../../dashboard/services/portal-coaching.client', () => client);
+  jest.doMock('../../dashboard/services/telemetry.service', () => ({
+    logEvent: (event, props) => events.push({ event, ...props }), flush: jest.fn(), isEnabled: () => true,
+  }));
   jest.doMock('../../dashboard/config/supabase', () => ({ from: () => chain(), rpc: jest.fn() }));
   jest.doMock('../../dashboard/services/r2.service', () => ({
     generatePresignedUrl: jest.fn().mockResolvedValue('https://r2.example/signed.ogg'),
@@ -89,6 +94,10 @@ describe('the mocks match the real modules', () => {
   it('every function the client mock provides is exported by the real portal-coaching.client', () => {
     const real = jest.requireActual('../../dashboard/services/portal-coaching.client');
     for (const k of Object.keys(client)) expect(typeof real[k]).toBe('function');
+  });
+  it('every function the telemetry mock provides is exported by the real telemetry.service', () => {
+    const real = jest.requireActual('../../dashboard/services/telemetry.service');
+    for (const k of ['logEvent', 'flush', 'isEnabled']) expect(typeof real[k]).toBe('function');
   });
 });
 
@@ -127,5 +136,29 @@ describe('POST /coaching-session/:id/reflection — the bot answers after the po
     const res = expressLikeRes();
     await invoke('post', PATH, res, { params: { id: 'cs-1' }, body: { answer: 'x' } });
     expect(res.sent).toEqual([{ status: 502, body: { success: false, error: 'Could not reach the coaching service. Please try again.' } }]);
+  });
+});
+
+// redteam 074415 LOW-1: the funnel's look at the answer (bd-c5reix onAnswer) is for what the teacher was shown; a late
+// answer was never shown, so it records nothing
+describe('POST /coaching-upload/check-duplicate — the funnel counts only an answer the teacher got (bd-5gyspy.8 r2)', () => {
+  const PATH = '/coaching-upload/check-duplicate';
+  const DUP = { httpStatus: 200, body: { duplicateOf: { sessionId: 'cs-0', date: '2026-10-27', ready: true } } };
+  const shown = () => events.filter((e) => e.action === 'coaching.duplicate_shown');
+
+  it('in time: the repeat is shown and the funnel row is written', async () => {
+    client.checkDuplicate.mockResolvedValue(DUP);
+    const res = expressLikeRes();
+    await invoke('post', PATH, res, { body: { sha256: 'a'.repeat(64) } });
+    expect(res.sent).toEqual([{ status: 200, body: DUP.body }]);
+    expect(shown()).toHaveLength(1);
+  });
+
+  it('late (the 504 already sent): no funnel row for a repeat the teacher never saw', async () => {
+    const res = expressLikeRes();
+    client.checkDuplicate.mockImplementation(async () => { res.status(504).json({ error: 'Request timeout' }); return DUP; });
+    await invoke('post', PATH, res, { body: { sha256: 'a'.repeat(64) } });
+    expect(res.sent).toEqual([{ status: 504, body: { error: 'Request timeout' } }]);
+    expect(shown()).toHaveLength(0);
   });
 });
