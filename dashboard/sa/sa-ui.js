@@ -57,6 +57,11 @@
  *                     item while the child answers; tick_prompt: lines.r7_type_tick for a typed number; story_scroll:
  *                     lines.r7_scroll after the story's instruction, and a down arrow under the story while more is below.
  *
+ * Round 8, the child's screens (each OFF unless the served battery carries battery.ui.r8_<flag>):
+ *   r8_layout         (items 6/12/21) the mount carries .is-r8-layout (sa.css "Round 8"): pictures and tap targets sized
+ *                     for the phone or the tablet, large text at normal weight, a letter card one fixed box; a Latin
+ *                     card or text tile is centred on its ink like an Urdu one, and every card is placed again on resize.
+ *
  * UMD: window.SAE.ui in the browser, module.exports under Node.
  */
 (function (root, factory) {
@@ -373,6 +378,8 @@
     var r7 = (opts.battery && opts.battery.ui) || {};
     var gate = { key: null, open: true, tok: 0 }; // audio_gated_next: the screen whose Next waits, and whether it is open
     var moreEl = null; // story_scroll: the arrow under the story on show
+    // Round 8: r8_layout (items 6/12/21)
+    var r8Layout = r7.r8_layout === true;
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /** audio_gated_next: the screen `key`'s Next waits for `p` (Jugnu's words), at most GATE_CAP_MS. */
@@ -452,6 +459,18 @@
     if (typeof window !== 'undefined' && window.addEventListener) {
       window.addEventListener('scroll', function () { if (alive) checkMore(); }, true);
       window.addEventListener('resize', function () { if (alive) checkMore(); });
+    }
+    // Round 8: a resize (the phone turned, the address bar went) places the cards' ink again
+    var refit = null;
+    if (r8Layout && typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('resize', function () {
+        if (!alive) return;
+        clearTimeout(refit);
+        refit = later(function () {
+          var s = el.querySelector('.sae-screen');
+          if (s && r8Layout) fitCells(s);
+        }, 100);
+      });
     }
     /**
      * RULING W3-18 (sa_voice_gate_v2, opts.opening): Jugnu's opening words wait for their clips' prefetch, at most
@@ -534,6 +553,8 @@
     el.classList.add('sae');
     // sa_ur_fit (round 6): the Urdu text rules (sa.css "Round 6"): every Urdu word inside its box, clear of pictures.
     if (opts.ur_fit) el.classList.add('is-ur-fit');
+    // Round 8 (sa.css "Round 8": every rule under these classes, so OFF the page is as before)
+    if (r8Layout) el.classList.add('is-r8-layout');
     // in the coach page's frame, under its corner hold (sa.css keeps the scrolling body below it)
     if (opts.ur_fit && opts.embed) el.classList.add('is-embed');
     el.setAttribute('lang', lang);
@@ -1160,7 +1181,10 @@
      */
     function fitCells(scope) {
       if (typeof document === 'undefined' || !document.fonts || !scope.querySelectorAll) return;
-      Array.prototype.forEach.call(scope.querySelectorAll('.sae-onecell[lang=ur] > .sae-ink, .sae-opt[lang=ur] > .sae-ink, .sae-passage.is-pick[lang=ur] .sae-word > .sae-ink, .sae-grid[lang=ur] .sae-cell > .sae-ink'), function (ink) {
+      var sel = '.sae-onecell[lang=ur] > .sae-ink, .sae-opt[lang=ur] > .sae-ink, .sae-passage.is-pick[lang=ur] .sae-word > .sae-ink, .sae-grid[lang=ur] .sae-cell > .sae-ink';
+      // r8_layout (item 21): a Latin card or text tile is placed by its ink too ("y" no longer sits low in its card)
+      if (r8Layout) sel += ', .sae-onecell > .sae-ink, .sae-opt > .sae-ink';
+      Array.prototype.forEach.call(scope.querySelectorAll(sel), function (ink) {
         fitInk(ink, 0);
         document.fonts.load(getComputedStyle(ink).font, ink.textContent).then(function () {
           if (alive && ink.isConnected) fitInk(ink, 0);

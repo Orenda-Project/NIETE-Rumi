@@ -346,3 +346,58 @@ button{font:inherit;color:inherit}
 .is-ur-fit[lang=ur] .sae-silence .sae-p{font-size:18px;line-height:2.2;margin:0;padding-top:.4em;padding-inline:.6em}
 @media (max-height:700px){.is-ur-fit[lang=ur] .sae-silence .sae-jugnu{display:none}}
 @media (max-height:600px){.is-ur-fit[lang=ur] .sae-silence .sae-body{gap:6px}.is-ur-fit[lang=ur] .sae-silence .sae-h1{font-size:22px;padding-top:.3em}.is-ur-fit[lang=ur] .sae-silence .sae-p{font-size:16px;padding-top:.2em}}
+/* Round 8 (sa_r8_layout, items 6/12/21; the mount's .is-r8-layout; OFF = none of this): the screens use the room they
+   have. Phone (~360x640) and tablet (~800x1280) are sized separately: the pictures to tap fill the space under the
+   question, every tap target is 56 px or more on a phone (80 px on a tablet), and text that is already large is at
+   normal weight (bold stays where it means something: the picked word, the child's name, the hand-back line). A letter
+   card is one fixed box whatever is on it; sa-ui centres its ink (fitCells), Latin as well as Urdu. */
+.sae.is-r8-layout{--sae-tap:64px}
+.sae.is-r8-layout .sae-h1,.sae.is-r8-layout .sae-xl,.sae.is-r8-layout .sae-btn,.sae.is-r8-layout .sae-opt,.sae.is-r8-layout .sae-chip,.sae.is-r8-layout .sae-pic-w,.sae.is-r8-layout .sae-cap,.sae.is-r8-layout .sae-fb,.sae.is-r8-layout .sae-task-tag,.sae.is-r8-layout .sae-cell,.sae.is-r8-layout .sae-onecell,.sae.is-r8-layout .sae-label,.sae.is-r8-layout .sae-sum,.sae.is-r8-layout .sae-typed,.sae.is-r8-layout .sae-key,.sae.is-r8-layout .sae-star-word,.sae.is-r8-layout .sae-choice,.sae.is-r8-layout .sae-more,.sae.is-r8-layout .sae-r7-hint,.sae.is-r8-layout .sae-coach-says summary{font-weight:400}
+/* tap targets: the story's arrow, the sound button, the counters */
+.sae.is-r8-layout .sae-more{min-height:56px}
+.sae.is-r8-layout .sae-mute{width:56px;height:56px}
+.sae.is-r8-layout .sae-counter{width:56px;height:56px}
+.sae.is-r8-layout .sae-counters{max-width:320px;gap:4px}
+/* the sound check's pictures: big, from the screen's height; its question one size down so they are on screen */
+.sae.is-r8-layout .sae-check .sae-pic{min-height:clamp(140px,26vh,420px)}
+.sae.is-r8-layout .sae-check .sae-pic-e{font-size:clamp(64px,13vh,180px)}
+.sae.is-r8-layout .sae-check .sae-h1{font-size:24px}
+.sae.is-r8-layout .sae-check .sae-sub{font-size:18px}
+.sae.is-r8-layout .sae-check .sae-jugnu-s{width:64px;height:64px}
+.sae.is-r8-layout .sae-check .sae-replay{width:56px;height:56px}
+/* picture options: the grid takes the rest of the screen, each picture fills its tile */
+.sae.is-r8-layout .sae-opts:has(.is-pic){flex:1 1 auto;grid-auto-rows:minmax(0,1fr);min-height:min(52vh,720px)}
+.sae.is-r8-layout .sae-opt.is-pic{position:relative;min-height:0;padding:0}
+.sae.is-r8-layout .sae-opt.is-pic .sae-opt-img{position:absolute;inset:6px;width:calc(100% - 12px);height:calc(100% - 12px);max-height:none}
+.sae.is-r8-layout .sae-glyph{font-size:clamp(52px,9vh,120px)}
+/* a letter card: one fixed box, the ink in its middle (sa-ui fitCells) */
+.sae.is-r8-layout .sae-onecell{height:clamp(240px,46vh,640px);min-height:0;overflow:hidden}
+@media (min-width:600px){
+  .sae.is-r8-layout{--sae-tap:80px}
+  .sae.is-r8-layout .sae-screen{max-width:min(94vw,760px)}
+  .sae.is-r8-layout .sae-btn{max-width:520px;font-size:30px}
+  .sae.is-r8-layout .sae-h1{font-size:40px}
+  .sae.is-r8-layout .sae-sub,.sae.is-r8-layout .sae-say{font-size:26px}
+  .sae.is-r8-layout .sae-jugnu-s{width:112px;height:112px}
+  .sae.is-r8-layout .sae-opts{gap:18px}
+  .sae.is-r8-layout .sae-opt{min-height:180px;font-size:64px}
+  .sae.is-r8-layout .sae-opt[lang=ur]{font-size:56px}
+  .sae.is-r8-layout .sae-opt.is-short[lang=ur]{font-size:54px}
+  .sae.is-r8-layout .sae-opt.is-pic{min-height:0}
+  .sae.is-r8-layout .sae-pic-w{font-size:28px}
+  .sae.is-r8-layout .sae-check .sae-h1{font-size:36px}
+  .sae.is-r8-layout .sae-check .sae-sub{font-size:24px}
+  .sae.is-r8-layout .sae-check .sae-jugnu-s{width:112px;height:112px}
+  .sae.is-r8-layout .sae-check .sae-replay{width:80px;height:80px}
+  .sae.is-r8-layout .sae-keypad,.sae.is-r8-layout .sae-letters{max-width:520px}
+  .sae.is-r8-layout .sae-key{min-height:88px;font-size:38px}
+  .sae.is-r8-layout .sae-letters .sae-key{min-height:88px}
+  .sae.is-r8-layout .sae-counter{width:72px;height:72px}
+  .sae.is-r8-layout .sae-counters{max-width:420px}
+  .sae.is-r8-layout .sae-more{min-height:72px;max-width:520px;font-size:24px}
+  .sae.is-r8-layout .sae-star{max-width:520px;min-height:120px}
+  .sae.is-r8-layout .sae-replay{width:80px;height:80px;font-size:34px}
+  .sae.is-r8-layout .sae-chip{font-size:22px}
+  .sae.is-r8-layout .sae-task-tag{font-size:24px}
+}
+/* end round 8 layout */
