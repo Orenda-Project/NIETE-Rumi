@@ -41,7 +41,8 @@ maybe('sa-ui round 8: the child\'s flow', () => {
     const ui = require('../sa/sa-ui');
     const said = [];
     const recs = [];
-    const runner = core.createRunner(Object.assign({ battery, onEvent: () => {}, mic: () => 'ok' }, o.runner || {}));
+    // a still clock: a paused or slow test machine never runs a part's 60 s out under the test
+    const runner = core.createRunner(Object.assign({ battery, onEvent: () => {}, mic: () => 'ok', now: () => 1000 }, o.runner || {}));
     const el = document.getElementById('m');
     const opts = Object.assign({
       runner, battery, lang: o.lang || 'en', mode: o.mode || 'game',
