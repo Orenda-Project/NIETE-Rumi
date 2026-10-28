@@ -559,9 +559,10 @@ function planForJob(job, siteModel, declared) {
 /**
  * Claude models that think by default (Sonnet 5, Opus 5 and up). Under a limit sized for a model
  * that does not think, the thinking spends the whole budget and the answer comes back empty: Opus
- * returned nothing on 30 of 44 language-detection calls at 15 tokens. Haiku does not think unless
- * asked, so it is not touched. Where thinking cannot be switched off at all (Fable 5 / 5.1,
- * Opus 5.5: a 400), low effort is the only lever and is used instead (bd-gr4fy.6).
+ * returned nothing on 30 of 44 language-detection calls at 15 tokens. Haiku 4.5 does not think
+ * unless asked, so it is not touched; Haiku 5.5 does, and is (bd-upejat.45). Where thinking cannot
+ * be switched off at all (Fable 5 / 5.1, Opus 5.5: a 400), low effort is the only lever and is used
+ * instead (bd-gr4fy.6).
  */
 const SMALL_OUTPUT_LIMIT = 2048;
 

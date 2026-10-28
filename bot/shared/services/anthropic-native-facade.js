@@ -72,6 +72,10 @@ const LIST_PRICE_PER_MTOK = Object.freeze({
   'claude-opus-4-6': { input: 5.0, output: 25.0 },
   'claude-sonnet-4-6': { input: 3.0, output: 15.0 },
   'claude-haiku-4-5': { input: 1.0, output: 5.0 },
+  // Two rate cards, chosen by the prompt's length (fresh input, cache writes and cache reads
+  // together): this one up to 100,000 tokens, `longContext` above (Anthropic's Haiku 5.5 migration
+  // guide, read 2026-10-28; bd-upejat.45).
+  'claude-haiku-5-5': { input: 0.10, output: 0.50, longContext: { above: 100000, input: 0.50, output: 2.50 } },
 });
 
 /** Cache multipliers on the INPUT rate. 5-minute writes are 1.25x, 1-hour writes 2.0x, reads 0.1x. */
@@ -126,23 +130,29 @@ const DEFAULT_MAX_TOKENS = 16000;
  */
 const acceptsTemperature = (model) => /^claude-(haiku-4-5|3)/.test(String(model || ''));
 
-/** Haiku 4.5 rejects the effort parameter ("this model does not support the effort parameter"). */
-const acceptsEffort = (model) => !/^claude-(haiku|3)/.test(String(model || ''));
+/**
+ * Haiku 4.5 rejects the effort parameter ("this model does not support the effort parameter").
+ * Haiku 5.5 is the first Haiku that takes it: low to max, default medium (bd-upejat.45).
+ */
+const acceptsEffort = (model) => !/^claude-(haiku-4|3)/.test(String(model || ''));
 
 /**
  * Thinking, per model, because the rules differ and a wrong guess is a 400 on every call
  * (bd-gr4fy.6). Matched on the WHOLE id (an optional date suffix aside): `claude-opus-5-5` is not
  * `claude-opus-5`, and treating it as one sent it a request it rejects.
  *
- *   thinks by default   Sonnet 5, Opus 5, Opus 5.5, Fable 5 / 5.1: omitting `thinking` runs it
- *   can be switched off Haiku 4.5 (off unless asked), Sonnet 5, Opus 5 at effort high or below.
+ *   thinks by default   Sonnet 5, Opus 5, Opus 5.5, Fable 5 / 5.1, Haiku 5.5: omitting `thinking`
+ *                       runs it
+ *   can be switched off Haiku 4.5 (off unless asked), Sonnet 5; Opus 5 and Haiku 5.5 at effort high
+ *                       or below.
  *                       NOT Fable 5 / 5.1 or Opus 5.5: `thinking:{type:'disabled'}` is a 400 there,
  *                       and effort is the only lever.
  */
 const bareModel = (model) => String(model || '').replace(/^.*\//, '').replace(/-\d{8}$/, '');
-const thinksByDefault = (model) => /^claude-(sonnet-5|opus-5|opus-5-5|fable-5|fable-5-1)$/.test(bareModel(model));
+const thinksByDefault = (model) => /^claude-(sonnet-5|opus-5|opus-5-5|fable-5|fable-5-1|haiku-5-5)$/.test(bareModel(model));
 const alwaysThinks = (model) => /^claude-(opus-5-5|fable-5|fable-5-1)$/.test(bareModel(model));
-/** Opus 5 accepts thinking off only at effort high or below. */
+/** Opus 5 and Haiku 5.5 accept thinking off only at effort high or below. */
+const DISABLES_ONLY_TO_HIGH = (model) => /^claude-(opus-5|haiku-5-5)$/.test(bareModel(model));
 const EFFORT_ABOVE_HIGH = new Set(['xhigh', 'max']);
 
 /** OpenAI's `minimal` has no native level; `low` is the nearest. */
@@ -373,12 +383,12 @@ function toNativeRequest(params) {
   // reasoning bills as output tokens and truncates the JSON before it closes.
   //
   // Except where the model refuses it (bd-gr4fy.6): Fable 5 / 5.1 and Opus 5.5 reject it at every
-  // effort, and Opus 5 above `high`. There the parameter is LEFT OUT, which is what the API says
-  // to do; the request then runs the model's own default rather than failing outright.
+  // effort, and Opus 5 and Haiku 5.5 above `high`. There the parameter is LEFT OUT, which is what
+  // the API says to do; the request then runs the model's own default rather than failing outright.
   const askedEffort = (p.reasoning && p.reasoning.effort) || p.reasoning_effort
     || (p.output_config && p.output_config.effort);
   const disableRefused = alwaysThinks(p.model)
-    || (bareModel(p.model) === 'claude-opus-5' && EFFORT_ABOVE_HIGH.has(EFFORT_MAP[askedEffort]));
+    || (DISABLES_ONLY_TO_HIGH(p.model) && EFFORT_ABOVE_HIGH.has(EFFORT_MAP[askedEffort]));
   if (p.reasoning && p.reasoning.enabled === false && !disableRefused) out.thinking = { type: 'disabled' };
   if (p.thinking) out.thinking = p.thinking;
 
@@ -409,14 +419,18 @@ function toNativeRequest(params) {
  * The write premium is read from the TTL SPLIT the API returns (`cache_creation.ephemeral_5m…` /
  * `…_1h…`) rather than assumed, so a caller who ever switches to a 1-hour breakpoint is billed
  * at 2.0x in this number too instead of being quietly under-reported at 1.25x.
+ *
+ * A model with a second rate card (`longContext`) is priced on it when the whole prompt, cache
+ * writes and reads included, is longer than its threshold; the cache multipliers then apply to
+ * that card's input rate.
  */
 function priceUsd(model, usage) {
   // Anthropic answers with the dated snapshot id (`claude-haiku-4-5-20251001` for a call to
   // `claude-haiku-4-5`), so the date is dropped before the lookup (bd-gr4fy.10). Without that every
   // direct-lane Haiku call was recorded unpriced. A model with no price still gets none.
   const id = String(model || '').trim();
-  const price = LIST_PRICE_PER_MTOK[id] || LIST_PRICE_PER_MTOK[id.replace(/-\d{8}$/, '')];
-  if (!price) return null;
+  const listed = LIST_PRICE_PER_MTOK[id] || LIST_PRICE_PER_MTOK[id.replace(/-\d{8}$/, '')];
+  if (!listed) return null;
   const u = usage || {};
   const creation = u.cache_creation || {};
   const write5m = Number.isFinite(creation.ephemeral_5m_input_tokens)
@@ -429,6 +443,8 @@ function priceUsd(model, usage) {
   const fresh = u.input_tokens || 0;
   const out = u.output_tokens || 0;
 
+  const prompt = fresh + write5m + write1h + read;
+  const price = listed.longContext && prompt > listed.longContext.above ? listed.longContext : listed;
   const inRate = price.input / 1e6;
   return (
     fresh * inRate

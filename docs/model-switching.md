@@ -67,6 +67,10 @@ Anything that is not a well-formed model id is refused by the tool, and ignored 
   `labelHead` and `labelMarker`: what the answer started with, in fixed words, never the reply.
 - **No SDK retry on the attempt**: the model behind it is the retry.
 - **Twice the output limit** for a moved job (bounded), because Claude counts the same text in more tokens.
+- **No thinking under a small limit.** A model that thinks by default (Sonnet 5, Opus 5 and 5.5, Fable, Haiku 5.5)
+  is sent with thinking off when the job's output limit is under 2,048 tokens, so a short answer is not spent on
+  thinking. Where a model cannot have it off (Fable, Opus 5.5), or not at the effort asked (Opus 5 and Haiku 5.5
+  above `high`), it runs at low effort or at the effort asked instead.
 - **Nothing moves until the settings have been read once** in a process, so the kill switch is always known. A
   process whose copy is older than two minutes reads the table (bounded wait) before its next labelled call.
 - **Two call sites can go straight to the Anthropic API** (`lp.author`, `quiz.keyVerify`). When their own model is
