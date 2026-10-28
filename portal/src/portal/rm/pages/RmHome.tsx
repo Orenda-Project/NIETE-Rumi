@@ -15,7 +15,8 @@ import { Surface } from "../../coachip-ui/Surface";
 import { Section } from "../../coachip-ui/Section";
 import { Button } from "../../coachip-ui/Button";
 import { Coverage, OpeningCard } from "../components/OpeningCard";
-import { SectorWRow } from "../components/SectorWRow";
+import { SectorWRow, windowMeta } from "../components/SectorWRow";
+import { WindowMark } from "../../coach/insights/count";
 import { CircleCard, CoachGroups } from "../components/CoachGroups";
 import { ClusterCard } from "../components/ClusterCard";
 import FollowUpPicker from "../components/FollowUpPicker";
@@ -29,6 +30,8 @@ import { rt, rtx } from "../text";
  */
 export function SectorMoves({ home, overlap = true }: { home: Home; overlap?: boolean }) {
   const lang = useLang();
+  // FIX_R6 B1: the block states its fidelity window once, under its hint; a row in the same window drops its own line
+  const w = home.moves[0]?.row.window;
   // bd-sex15q.47 (R6, SCREENS S8): the one raised surface, riding up over the band on a phone; flat in its column on a
   // laptop, where the band's body is the hero card
   return (
@@ -36,9 +39,10 @@ export function SectorMoves({ home, overlap = true }: { home: Home; overlap?: bo
       <div>
         <h2 className="text-[20px] font-bold leading-[1.3] text-cp-navy lg:text-[12px] lg:font-bold lg:uppercase lg:tracking-[0.08em] lg:text-cp-ink-3 lg:rtl:text-[13px] lg:rtl:tracking-normal">{rt("s8.moves.title", lang)}</h2>
         <p className="mt-1 text-[13px] leading-[1.45] text-cp-ink-3">{rt("s8.moves.sub", lang)}</p>
+        {w && <span data-testid="rm-moves-window"><WindowMark window={w} className="text-[13px] leading-[1.45] text-cp-ink-3">{windowMeta(w, lang)}</WindowMark></span>}
       </div>
       <div className="flex flex-col">
-        {home.moves.map((m) => <SectorWRow key={m.row.w_id} row={m.row} bySchool={m.by_school} agenda={m.agenda} />)}
+        {home.moves.map((m) => <SectorWRow key={m.row.w_id} row={m.row} bySchool={m.by_school} agenda={m.agenda} stated={w?.id} />)}
       </div>
     </Surface>
   );
@@ -100,7 +104,7 @@ export default function RmHome() {
             {data.moves.length > 0 && <SectorMoves home={data} overlap={!data.stale && !data.empty} />}
             <Coverage home={data} />
           </div>
-          <CoachGroups home={data} first={data.moves.length === 0} className="lg:mt-0 lg:border-t-0 lg:pt-0" onFollowUp={(c) => setPicking({ coach: c, queue: [] })} />
+          <CoachGroups home={data} first={data.moves.length === 0} quietWindows className="lg:mt-0 lg:border-t-0 lg:pt-0" onFollowUp={(c) => setPicking({ coach: c, queue: [] })} />
           <div className="flex flex-col">
             <Monday onClick={monday} />
             <ClusterCard home={data} />

@@ -34,13 +34,14 @@ export function RmPage({ title, sub, backTo, windows, testId, trust, band, hero,
   const home = band ?? (!backTo && currentRmItem(pathname) === "sector");
   const line = sub ? <span data-testid="rm-page-sub">{sub}</span> : undefined;
   const header = home
-    ? <Band testId="rm-band" title={title} sub={line} trailing={<span className="lg:hidden"><LangToggle prefix="rm-lang" tone="dark" /></span>}>{hero}</Band>
+    // FIX_R6 B5: on S8 the trust line is the band's last line on a phone (the page foot keeps it on a laptop only)
+    ? <Band testId="rm-band" title={title} sub={line} foot={trust ? rt(trust, lang) : undefined} trailing={<span className="lg:hidden"><LangToggle prefix="rm-lang" tone="dark" /></span>}>{hero}</Band>
     : <AppBar testId="rm-band" backTo={backTo} backLabel={backTo ? rt("s9.back", lang) : undefined} title={title} sub={line}
         trailing={<span className="lg:hidden"><LangToggle prefix="rm-lang" /></span>} />;
   return (
     <WindowsProvider windows={windows}>
       <Shell testId={testId} dir={lang === "ur" ? "rtl" : "ltr"} bleed nav={<RmNav />} header={header} wide={wide ?? home} aside={aside}
-        trust={trust ? <p data-testid="rm-trust" className="px-1 pt-6 text-[13px] leading-[1.45] text-cp-ink-3">{rt(trust, lang)}</p> : null}>
+        trust={trust ? <p data-testid="rm-trust" className={`px-1 pt-6 text-[13px] leading-[1.45] text-cp-ink-3${home ? " hidden lg:block" : ""}`}>{rt(trust, lang)}</p> : null}>
         {children}
       </Shell>
     </WindowsProvider>

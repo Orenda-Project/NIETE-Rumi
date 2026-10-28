@@ -32,7 +32,7 @@ export function CoachRow({ coach, today, floorWeeks, onFollowUp }: { coach: Coac
     <li data-testid="coach-row" data-coach={coach.coach_user_id} className="flex flex-col gap-2 border-t border-cp-hairline py-4 first:border-t-0 sm:flex-row sm:items-start sm:gap-3">
       <Link to={rmPaths.coach(coach.coach_user_id)} className="flex min-w-0 flex-1 flex-col rounded-xl outline-none focus-visible:ring-[3px] focus-visible:ring-cp-green sm:flex-row">
         <span className="flex min-w-0 flex-1 items-start gap-3">
-          <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cp-green-tint text-[14px] font-bold text-cp-green-ink">{initials(coach.coach_label)}</span>
+          <span aria-hidden="true" data-testid="coach-initials" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cp-green-tint text-[13px] font-semibold text-cp-green-ink">{initials(coach.coach_label)}</span>
           <span className="flex min-w-0 flex-col gap-0.5 text-[13px] leading-[1.45] text-cp-ink-2">
             <span data-testid="coach-label" data-code="" dir="auto" className="text-[16px] font-semibold leading-snug text-cp-ink">{coach.coach_label}</span>
             <CountLine k="s8.activity.unvisited" count={a.schools_unvisited} vars={{ w: floorWeeks }} none="s8.activity.unvisited.none" />
@@ -64,8 +64,11 @@ function GroupHead({ k, count }: { k: "s8.group.needs_me" | "s8.group.on_track";
   );
 }
 
-export function CoachGroups({ home, onFollowUp, testId = "coach-groups", first = false, className }: {
+export function CoachGroups({ home, onFollowUp, testId = "coach-groups", first = false, quietWindows = false, className }: {
   home: RmHome; onFollowUp: (c: Coach) => void; testId?: string; first?: boolean; className?: string;
+  /** FIX_R6 B1 (S8): the visit window is the band's pill and "this month" is in the lines' own words, so the hint states
+   *  no range; the marks stay for screen readers and the count contract (`sr-only`). The Coaches tab shows them. */
+  quietWindows?: boolean;
 }) {
   const lang = useLang();
   const today = todayKarachi(new Date(home.computed_at));
@@ -73,7 +76,7 @@ export function CoachGroups({ home, onFollowUp, testId = "coach-groups", first =
   const row = (c: Coach) => <CoachRow key={c.coach_user_id} coach={c} today={today} floorWeeks={fw} onFollowUp={onFollowUp} />;
   return (
     <Section testId={testId} first={first} className={className} label={rt("s8.needs.title", lang)}
-      hint={<>{rt("s8.needs.sub", lang)}<WindowLegend windows={home.windows} ids={windowIds([home.groups, home.on_track_count])} className="inline" sep /></>}>
+      hint={<>{rt("s8.needs.sub", lang)}<WindowLegend windows={home.windows} ids={windowIds([home.groups, home.on_track_count])} className={quietWindows ? "sr-only" : "inline"} sep /></>}>
       <div data-testid="group-needs_me">
         <GroupHead k="s8.group.needs_me" />
         <ul>{home.groups.needs_me.map(row)}</ul>
@@ -99,7 +102,8 @@ export function CircleCard({ home }: { home: RmHome }) {
             {home.circle.checks_due.d === 0
               ? rtx("s8.circle.sub.no_checks", lang, {}, [{ n: "m", d: "c", count: m }])
               : rtx("s8.circle.sub", lang, {}, [{ n: "m", d: "c", count: m }, { n: "n", d: "d", count: home.circle.checks_due }])}
-            <WindowLegend windows={home.windows} ids={windowIds(home.circle)} className="inline" sep />
+            {/* FIX_R6 B1: the row states its own week only; the checks' window is the band's pill (it resolves there) */}
+            <WindowLegend windows={home.windows} ids={windowIds(home.circle).filter((id) => id !== home.opening.visited.window_id)} className="inline" sep />
           </span>
         </span>
         <ChevronRight size={20} strokeWidth={1.5} className="shrink-0 text-cp-ink-3 rtl:rotate-180" aria-hidden="true" />
