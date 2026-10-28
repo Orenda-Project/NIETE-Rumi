@@ -185,6 +185,8 @@
       mercy_after_s: num(t.mercy_after_s, t.record && t.record.mercy_after_s, 12),
       silence_stop_s: num(t.silence_stop_s, t.record && t.record.silence_stop_s, 20),
     };
+    // A passage keeps the rotation variant it was given (sa-page.js rotate; null without rotation), for its result.
+    if (t.kind === 'passage') r.variant_id = t.variant && t.variant.id ? t.variant.id : null;
     // A one-at-a-time sum read only on the replay tile (W3). Kept off the older tasks, whose say_on the page never read.
     if (t.present === 'one_at_a_time' && t.say_on) r.say_on = t.say_on;
     // The item screen's chip (W3-12 4c: a mental sum says "Say the answer"), else the page's own "Read aloud".
@@ -453,6 +455,9 @@
         elapsed_ms: elapsed,
         answers: st.answers.slice(),
       };
+      // the rotation variant this child saw (sa-page.js rotate): its id, null for the passage without rotation, so the
+      // scorer marks the text the child read instead of guessing it from the session id
+      if (has(t, 'variant_id')) r.variant = t.variant_id;
       if (t.mode === 'record') {
         r.mercy_offered = !!st.mercy;
         r.mercy_ear = st.ear || 'running';
