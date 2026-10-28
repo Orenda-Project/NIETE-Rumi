@@ -924,7 +924,7 @@ async function _extractNotes(session, foName, notesLang) {
 // template) became indistinguishable from an invalid parameter (remedy: tell
 // the coach it failed). Each send now reports its error through the senders'
 // `onError` seam and the thrown Error carries the code.
-async function _sendPackage(dest, pngBuffer, caption, companionText) {
+async function _sendPackage(dest, pngBuffer, caption, companionText, clipLinkText = null) {
   let lastError = null;
   const capture = { onError: (err) => { lastError = err; } };
 
@@ -935,12 +935,18 @@ async function _sendPackage(dest, pngBuffer, caption, companionText) {
     return err;
   };
 
-  const sentImg = await WhatsAppService.sendImageFromBuffer(dest, pngBuffer, caption, 'image/png', capture);
+  // bd-9dbhh0.1 (COS 20261028T151950 §1.2): the recommended clip's link (teacher delivery only) is the image caption's
+  // LAST lines and never a message of its own; over the 1,024-code-point cap the caption is as before. No link → as before.
+  const imageCaption = clipLinkText
+    ? require('../coaching/video-reco/caption-link').withLink(caption, { text: clipLinkText })
+    : caption;
+  const sentImg = await WhatsAppService.sendImageFromBuffer(dest, pngBuffer, imageCaption, 'image/png', capture);
   if (sentImg === false) throw fail('observe send: report image send failed');
   if (companionText) {
     const sentTxt = await WhatsAppService.sendMessage(dest, companionText, capture);
     if (sentTxt === false) throw fail('observe send: companion send failed');
   }
+  return { clipLinkSent: Boolean(clipLinkText) && imageCaption.endsWith(clipLinkText) };
 }
 
 /**
@@ -1264,9 +1270,17 @@ async function processTeacherReport(sessionId, payload = {}) {
     try {
       require('../coaching/video-reco/engine').prefetchReads({ session, coachingSessionId: sessionId, analysis: session.analysis_data });
     } catch (e) { /* the pick reads for itself */ }
+    // bd-gzfdu9: the recommended clip for the report the teacher now gets (never the coach preview). Row|null, never
+    // rejects. bd-9dbhh0.1: started BEFORE the send, so the clip's link can ride in the report's caption (COS 151950 §1.2);
+    // the caption waits for it at most strip.stripWaitMs() (card mode 1.5 s).
+    const videoReco = require('../coaching/video-reco/engine').recommendForReport({
+      session, analysis: session.analysis_data, card: session.prioritized_action || (session.analysis_data || {}).prioritized_action, coachingSessionId: sessionId, observationType: 'leader_observation',
+    });
+    const clipLink = await require('../coaching/video-reco/caption-link').linkBlock({ row: videoReco, language: teacherLang, coachingSessionId: sessionId }).catch(() => null);
+    let clipLinkSent = false;
     try {
       const png = await downloadFromR2(delivery.report_key);
-      await _sendPackage(delivery.teacher_phone, png, delivery.caption || '', delivery.companion_text);
+      ({ clipLinkSent } = (await _sendPackage(delivery.teacher_phone, png, delivery.caption || '', delivery.companion_text, clipLink ? clipLink.text : null)) || {});
     } catch (sendErr) {
       // `phase` decides whether the window-closed fallback is even available:
       // on a teacher_tap the window is open by definition.
@@ -1283,10 +1297,9 @@ async function processTeacherReport(sessionId, payload = {}) {
       sent_at: nowIso,
       ...(phase === 'teacher_tap' ? { tapped_at: nowIso } : {}),
     });
-    // bd-gzfdu9: the recommended clip for the report the teacher now has (never the coach preview). Row|null, never rejects.
-    const videoReco = require('../coaching/video-reco/engine').recommendForReport({
-      session, analysis: session.analysis_data, card: session.prioritized_action || (session.analysis_data || {}).prioritized_action, coachingSessionId: sessionId, observationType: 'leader_observation',
-    });
+    if (clipLinkSent) {
+      require('../coaching/video-reco/store').markSent(sessionId, { sent_via: 'caption', wamid: null, image_strip: false }).catch(() => null);
+    }
     // bd-9rrd5: report sent — if the debrief is done too, the observation is
     // COMPLETE. Without this flip HITL sessions never left
     // observer_review_complete and every "completed" count read coaches as 0.
