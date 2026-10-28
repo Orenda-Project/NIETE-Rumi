@@ -5,7 +5,7 @@ import { CodeText, CountSpan, DateText, LibraryText } from "../count";
 import { COPY } from "../copy";
 import { pick, t, tx } from "../text";
 import { LRI, PDI } from "../format";
-import { dropPart, NO_PART } from "../player/PairCard";
+import { dropPart, NO_PART } from "./parts";
 import type { Step, StripHit } from "../types";
 
 /**

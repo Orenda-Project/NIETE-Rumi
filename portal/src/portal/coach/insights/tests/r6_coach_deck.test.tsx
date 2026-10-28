@@ -207,8 +207,10 @@ describe.each(["en", "ur"] as Lang[])("R6 coach deck (%s)", (lang) => {
     const card = within(band).getByTestId("wcard");
     expect(within(card).getByTestId("wcard-see")).toBeTruthy();
     expect(document.querySelectorAll("[data-surface]").length).toBe(0);
+    // the right column is its own lazy chunk (the coach-entry budget): wait for it
+    const slot = await screen.findByTestId("moment-slot", {}, { timeout: 5000 });
     const aside = document.querySelector("[data-cp-aside]") as HTMLElement;
-    const slot = within(aside).getByTestId("moment-slot");
+    expect(aside.contains(slot)).toBe(true);
     const steps = within(aside).getByTestId("s1-steps");
     expect(Boolean(slot.compareDocumentPosition(steps) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
     expect(http.get.mock.calls.some(([u]) => u === `/coachip/m/${mid}`)).toBe(true);

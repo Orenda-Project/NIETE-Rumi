@@ -8,9 +8,9 @@ import { todayKarachi } from "../format";
 import { insightsPaths } from "../paths";
 import { pick, t, tx } from "../text";
 import { useLoad } from "../useLoad";
-import type { Home, Moment, WCard as WCardData, WRow as WRowData } from "../types";
-import api from "../../../services/api";
-import MomentSlot from "../MomentSlot";
+import { lazy, Suspense } from "react";
+import type { Home, WCard as WCardData, WRow as WRowData } from "../types";
+
 import { Band, InsightsPage, MetaLine } from "../components/Frame";
 import { StateBlock } from "../components/StateBlock";
 import { NoteBanner } from "../components/NoteBanner";
@@ -22,6 +22,11 @@ import { WRow } from "../components/WRow";
 import { Ring } from "../../../coachip-ui/Ring";
 import { Section } from "../../../coachip-ui/Section";
 import { useLaptop } from "../../../coachip-ui/useLaptop";
+
+
+// the laptop's right column carries the moment player (the kit AudioPlayer): its own chunk, so the phone's first
+// open (the coach-entry budget, ≤ 250,000 B gz) never downloads it
+const ThisWeekAside = lazy(() => import("./ThisWeekAside"));
 
 /**
  * bd-sex15q.15 — S1 "This week", the coach's home (DESIGN §3 S1, COPY §S1, API R2 `GET /coachip/home`). Top to bottom:
@@ -94,30 +99,6 @@ function Hero({ home, laptop }: { home: Home | null; laptop: boolean }) {
   );
 }
 
-/**
- * The laptop's right column (merged_S1_1440, ux-lead-2 174713 item 3): the headline's moment in the inline player
- * (S4's read, R6; the clip itself only on a tap, preload none), then the open steps. Never mounted on a phone.
- */
-function Aside({ home }: { home: Home }) {
-  const lang = useLang();
-  const card = home.moves[0] as WCardData | undefined;
-  const mid = card?.moment_id ?? null;
-  const { data: moment } = useLoad<Moment | null>(
-    () => (mid ? api.get(`/coachip/m/${encodeURIComponent(mid)}`).then((r) => r.data as Moment) : Promise.resolve(null)),
-    [mid],
-  );
-  return (
-    <div className="flex flex-col">
-      {moment && (
-        <Section first label={t("s2.moment.title", lang)} testId="s1-moment">
-          <MomentSlot moment={moment} />
-        </Section>
-      )}
-      <Steps home={home} first={!moment} />
-    </div>
-  );
-}
-
 function ThisWeekLoaded() {
   const lang = useLang();
   const { data, error } = useLoad<Home>(() => coachip.home(), []);
@@ -132,7 +113,11 @@ function ThisWeekLoaded() {
         </Band>
       )}
       windows={data?.windows}
-      aside={data && laptop && !quietOf(data) ? <Aside home={data} /> : undefined}
+      aside={data && laptop && !quietOf(data) ? (
+        <Suspense fallback={<Steps home={data} first />}>
+          <ThisWeekAside home={data}>{(first) => <Steps home={data} first={first} />}</ThisWeekAside>
+        </Suspense>
+      ) : undefined}
     >
       {!data ? <StateBlock error={error} /> : <Body home={data} laptop={laptop} />}
     </InsightsPage>
