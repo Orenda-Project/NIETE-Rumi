@@ -26,7 +26,8 @@
 // sa-9: round 8 offline: sa-offline.js prepVisit / checkVisit / partOf (the coach page's "ready for offline").
 // sa-10: round 8 offline: Jugnu's pictures go on the phone with "ready for offline" (sa-offline.js ART).
 // sa-11: round 8 offline: the Start gate checks the phone first and the background download gives it the line (sa-offline.js fresh / paused).
-var VERSION = 'sa-11';
+// sa-12: round 8 offline: an installed worker is used without waiting on register() (which rejects with no signal).
+var VERSION = 'sa-12';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
