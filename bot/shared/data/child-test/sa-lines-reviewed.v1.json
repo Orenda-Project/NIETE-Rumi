@@ -2,8 +2,8 @@
  "about": "Jugnu's lines as the content reviewers shortened them (Oct 2026): only the lines and languages they changed, as final text. Applied over the built bank by shared/services/child-test/sa/reviewed-lines.js; the engine's own copies of the same words are kept equal by a test.",
  "lines": {
   "welcome": {
-   "en": "Hello! This is not a test, it is a game. Let us play some word and number games! Listen carefully and do your best.",
-   "ur": "السلام علیکم! یہ امتحان نہیں، کھیل ہے۔ آئیں، لفظوں اور گنتی کے کھیل کھیلیں! دھیان سے سنیں اور پوری کوشش کریں۔"
+   "en": "Hello! This is not an exam. Jugnu will play games with you. Listen carefully and do your best.",
+   "ur": "السلام علیکم! یہ نمبروں والا امتحان نہیں ہے۔ آئیں، لفظوں اور گنتی کے کھیل کھیلیں! دھیان سے سنیں اور پوری کوشش کریں۔"
   },
   "audio_check": {
    "en": "Can you hear Jugnu? Tap the picture Jugnu names!",
@@ -47,7 +47,7 @@
   "ur.letter_names5": {
    "intro": {
     "en": "Letters will come one at a time. Say the NAME of each letter out loud. Then click next. If you do not know a letter, click next.",
-    "ur": "ایک ایک کر کے حروف آئیں گے۔ ہر حرف کا نام اونچی آواز میں بولیں، پھر \"آگے\" کو ٹچ کریں۔ کوئی حرف نہ آتا ہو تو بھی \"آگے\" کو ٹچ کریں۔"
+    "ur": "ایک ایک کر کے حروف آئیں گے۔ ہر حرف کا نام اونچی آواز میں بتائیں۔ آواز نہیں، صرف نام۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔"
    },
    "test_intro": {
     "en": "Now it is your turn to say the name of each letter.",
@@ -67,7 +67,7 @@
   "ur.words4": {
    "intro": {
     "en": "Words will come one at a time. Read the whole word out loud, then click next. If you do not know a word, click next.",
-    "ur": "ایک ایک کر کے الفاظ آئیں گے۔ ہر لفظ تیز آواز سے پڑھیں۔ ہجے نہ کریں۔ اگر کوئی لفظ نہ آتا ہو تو \"آگے\" کے بٹن کو ٹچ کریں"
+    "ur": "ایک ایک کر کے الفاظ آئیں گے۔ ہر لفظ تیز آواز سے پڑھیں۔ توڑ توڑ کے مت پڑھیں، ٹکڑوں میں مت پڑھیں۔ اگر کوئی لفظ نہ آتا ہو تو \"آگے\" کے بٹن کو ٹچ کریں"
    },
    "test_intro": {
     "en": "Now it is your turn to read each word out loud.",
@@ -113,7 +113,7 @@
   "en.words4": {
    "intro": {
     "en": "Words will come one at a time. Read the whole word out loud, then click next. If you do not know a word, click next.",
-    "ur": "ایک ایک کر کے الفاظ آئیں گے۔ ہر لفظ تیز آواز سے پڑھیں۔ ہجے نہ کریں۔ اگر کوئی لفظ نہ آتا ہو تو \"آگے\" کے بٹن کو ٹچ کریں"
+    "ur": "ایک ایک کر کے الفاظ آئیں گے۔ ہر لفظ تیز آواز سے پڑھیں۔ توڑ توڑ کے مت پڑھیں، ٹکڑوں میں مت پڑھیں۔ اگر کوئی لفظ نہ آتا ہو تو \"آگے\" کے بٹن کو ٹچ کریں"
    },
    "test_intro": {
     "en": "Now it is your turn to read each word out loud.",

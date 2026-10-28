@@ -24,38 +24,10 @@ const TAGGED_ROLES = new Set(['battery', 'instruction']);
 // rounded up so the cap stops early rather than late).
 const USD = Object.freeze({ soniox_per_sec: 0.722 / 3600, elevenlabs_per_char: 0.30 / 1000, uplift_per_char: 0.10 / 1000 });
 
-// ElevenLabs reads Urdu's digits («۶», «۳») as Persian numbers ("shash", "se"), so an Urdu line is given its numbers as
-// Urdu words for every provider but Soniox (which says them as Urdu today): whole numbers (a space or comma between
-// thousands, «۴ ۰۱۰»), lakh and hazaar, and decimals («۰.۰۹» = صفر اعشاریہ صفر نو).
-const { URDU_1_TO_100 } = require('../../shared/services/child-test/scoring/number-grammar');
-
-const ASCII = (d) => d.replace(/[۰-۹]/g, (c) => String(c.charCodeAt(0) - 0x06F0));
-
-function urduNumber(n) {
-  if (n === 0) return 'صفر';
-  const out = [];
-  const lakh = Math.floor(n / 100000); const th = Math.floor((n % 100000) / 1000);
-  const h = Math.floor((n % 1000) / 100); const r = n % 100;
-  if (lakh) out.push(`${urduNumber(lakh)} لاکھ`);
-  if (th) out.push(`${URDU_1_TO_100[th - 1]} ہزار`);
-  if (h) out.push(`${URDU_1_TO_100[h - 1]} سو`);
-  if (r) out.push(URDU_1_TO_100[r - 1]);
-  return out.join(' ');
-}
-
-/** An Urdu line with each number (Urdu or ASCII digits) said as Urdu words; one over 99 lakh is left as written. */
-function spellUrduNumbers(text) {
-  const D = '[0-9۰-۹]';
-  return String(text).replace(new RegExp(`${D}{1,3}(?:[ ,،]${D}{3})+(?!${D})|${D}+\\.${D}+|${D}+`, 'g'), (m) => {
-    const a = ASCII(m);
-    if (a.includes('.')) {
-      const [i, f] = a.split('.');
-      return `${urduNumber(Number(i))} اعشاریہ ${f.split('').map((c) => urduNumber(Number(c))).join(' ')}`;
-    }
-    const n = Number(a.replace(/[ ,،]/g, ''));
-    return n < 10000000 ? urduNumber(n) : m;
-  });
-}
+// Numbers are always SPOKEN in English, in the Urdu battery too (the content owner, 28 Oct, round 8 item 29): every digit
+// in a voiced line goes to the voice as English words. (Left as digits, ElevenLabs reads Urdu's «۶», «۳» as Persian
+// "shash", "se", and a bare «4» can come out in any language.) Number WORDS a reviewer wrote stay as written.
+const urduDigitsToAscii = (t) => String(t).replace(/[۰-۹]/g, (c) => String(c.charCodeAt(0) - 0x06F0));
 
 const EN_1_19 = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve',
   'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
@@ -69,11 +41,11 @@ function englishNumber(n) {
 }
 
 /**
- * An English line's numbers as English words. A bare «4» from a voice that speaks several languages can come out in any
+ * A line's numbers (Urdu or ASCII digits) as English words. A bare «4» from a voice that speaks several languages can come out in any
  * of them, and «4 010» (a space between thousands) as nonsense; «four» and «four thousand ten» cannot. Up to 999 999.
  */
 function spellEnglishNumbers(text) {
-  return String(text).replace(/\b\d+\.\d+\b|\b\d{1,3}(?:[ ,]\d{3})+\b|\b\d+\b/g, (m) => {
+  return urduDigitsToAscii(text).replace(/\b\d+\.\d+\b|\b\d{1,3}(?:[ ,]\d{3})+\b|\b\d+\b/g, (m) => {
     if (m.includes('.')) {
       const [i, f] = m.split('.');
       return `${englishNumber(Number(i))} point ${f.split('').map((c) => EN_1_19[Number(c)]).join(' ')}`;
@@ -141,4 +113,4 @@ async function synthesize(job, { env = process.env, fetchImpl = fetch, attempts 
   throw err;
 }
 
-module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, urduNumber, spellUrduNumbers, englishNumber, spellEnglishNumbers, withTag, requestFor, synthesize };
+module.exports = { PROVIDERS, SETTINGS, TAG, CARTOON_TAG, USD, englishNumber, spellEnglishNumbers, withTag, requestFor, synthesize };

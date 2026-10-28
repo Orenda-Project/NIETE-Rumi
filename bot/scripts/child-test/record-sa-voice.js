@@ -137,7 +137,7 @@ async function runV4(args, { synth, level, out, outDir, dataDir, env }) {
     .map((r) => {
       const said = tashdeed.get(r.key) || r.text;
       const spoken = args.provider === 'soniox' ? Voice.sayAs(said, args.lang, { voice })
-        : (args.lang === 'ur' ? P.spellUrduNumbers(said) : P.spellEnglishNumbers(said));
+        : P.spellEnglishNumbers(said);
       const text = P.withTag(args.provider, r.role, spoken, voice);
       return { ...r, key: r.key.replace(/^sa\/v1\//, 'sa/v4/'), job: { provider: args.provider, voice, speed, lang: args.lang, text } };
     });

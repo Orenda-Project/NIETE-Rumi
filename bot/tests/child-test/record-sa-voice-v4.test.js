@@ -116,22 +116,18 @@ test('the synthesizer posts the request and returns the mp3 bytes; a 4xx fails a
   expect(n).toBe(1);
 });
 
-test('ElevenLabs is given an Urdu line\'s numbers as Urdu words (it reads «۶» as Persian); Soniox keeps the digits', async () => {
-  expect(P.spellUrduNumbers('۶ ضرب ۶')).toBe('چھ ضرب چھ');
-  expect(P.spellUrduNumbers('۶۴ منفی ۲۶')).toBe('چونسٹھ منفی چھبیس');
-  expect(P.spellUrduNumbers('۵۱۳۷')).toBe('پانچ ہزار ایک سو سینتیس');
-  expect(P.spellUrduNumbers('۱۰۰ اور ۳۰۰')).toBe('سو اور تین سو'.replace(/^سو/, 'ایک سو'));
-  expect(P.spellUrduNumbers('آگے کیا آئے گا؟ ۲، ۲، ۱')).toBe('آگے کیا آئے گا؟ دو، دو، ایک');
-  expect(P.spellUrduNumbers('۴ ۰۱۰')).toBe('چار ہزار دس');
-  expect(P.spellUrduNumbers('۹۹ ۰۰۶')).toBe('ننانوے ہزار چھ');
-  expect(P.spellUrduNumbers('۰.۰۹')).toBe('صفر اعشاریہ صفر نو');
-  expect(P.spellUrduNumbers('۱۲۵ ۰۰۰')).toBe('ایک لاکھ پچیس ہزار');
+test('numbers are spoken in English in the Urdu battery too: ElevenLabs gets each Urdu digit run as English words; Soniox keeps the digits', async () => {
+  expect(P.spellEnglishNumbers('۶ ضرب ۶')).toBe('six ضرب six');
+  expect(P.spellEnglishNumbers('۶۴ منفی ۲۶')).toBe('sixty-four منفی twenty-six');
+  expect(P.spellEnglishNumbers('۴ ۰۱۰')).toBe('four thousand ten');
+  expect(P.spellEnglishNumbers('۰.۰۹')).toBe('zero point zero nine');
+  expect(P.spellEnglishNumbers('آگے کیا آئے گا؟ ۲، ۲، ۱')).toBe('آگے کیا آئے گا؟ two، two، one');
+  expect(P.spellEnglishNumbers('کہیں: ایک، دو، تین۔')).toBe('کہیں: ایک، دو، تین۔');
   const digit = manifest.find((r) => r.lang === 'ur' && /[۰-۹]/.test(r.text) && r.role === 'item');
   expect(digit).toBeTruthy();
   const el = await record(['--set', 'v4', '--lang', 'ur', '--only', 'item']);
-  const sent = el.sent.find((j) => j.text.includes(P.spellUrduNumbers(digit.text).split(' ')[0]) && !/[۰-۹]/.test(j.text));
-  expect(sent).toBeTruthy();
   expect(el.sent.filter((j) => /[۰-۹0-9]/.test(j.text)).map((j) => j.text)).toEqual([]);
+  expect(el.sent.some((j) => j.text === P.spellEnglishNumbers(digit.text))).toBe(true);
   const sx = await record(['--set', 'v4', '--lang', 'ur', '--only', 'item', '--provider', 'soniox']);
   expect(sx.sent.some((j) => /[۰-۹]/.test(j.text))).toBe(true);
 });
