@@ -51,10 +51,12 @@ export function CircleRow({ m, open, onOpen }: { m: CircleMoment; open: boolean;
   const sep = lang === "ur" ? "، " : " · ";
   return (
     <li data-testid="circle-row" data-moment={m.moment_id} data-coach={m.coach_user_id} data-open={open ? "1" : undefined} className="flex flex-col py-2">
-      <div className="flex items-center gap-3">
+      {/* fix-r5 s4 train 7 item 4 (design-qa 172524): the line wraps to two lines on a phone, never truncating the W name;
+          the play pill stays on line one */}
+      <div className="flex items-start gap-3">
         <button type="button" onClick={() => onOpen(open ? null : m.coach_user_id)} aria-expanded={open}
           className="flex min-h-[44px] min-w-0 flex-1 items-center gap-1 text-start text-[15px] text-[#1d2025]">
-          <span data-testid="circle-line" className="truncate">
+          <span data-testid="circle-line" className="whitespace-normal [overflow-wrap:anywhere]">
             {/* the C-NN label is an LTR atom: isolated in Urdu like the school name beside it (red-2 18:08Z, fix-r5 5f) */}
             {lang === "ur" ? (
               // fix-r5 s2 item 17 (design-qa 073629): two LTR atoms around an Urdu comma are ONE isolated LTR run, so the

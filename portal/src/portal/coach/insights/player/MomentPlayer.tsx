@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { AudioPlayer } from "../../../newui/AudioPlayer";
 import { COACHING } from "../../../teacher/coaching/copy";
 import { copyIn, useLang } from "../../../teacher/i18n";
-import { digits } from "../format";
 import { pick, t, tx } from "../text";
 import type { Moment, MomentStep } from "../types";
 import ChapterStrip from "./ChapterStrip";
@@ -175,19 +174,17 @@ export function MomentPlayer({ moment, variant, onSeeMove, preload = "none" }: M
 }
 
 /**
- * The gloss (full only): "At minute 19:" written by code from `lesson_s` (the minute the second falls in, in the page's
- * digits: COPY §0.2 keeps only codes and the player clock ASCII) + the server's words, only when `gloss_status = ok`;
- * any other status, or no gloss: `s4.gloss.none`, never raw text.
+ * The gloss (full only): the server's stored text as is, only when `gloss_status = ok` (ruling B, lead-final 223945: the
+ * nightly writes "At minute 19:" in front, 1-based, so every reader shows one prefix); any other status, or no gloss:
+ * `s4.gloss.none`, never raw text.
  */
 function GlossBox({ moment, lang }: { moment: Moment; lang: "en" | "ur" }) {
   const ok = moment.gloss_status === "ok" && moment.gloss;
   if (!ok) {
     return <p data-testid="gloss" className="rounded-xl bg-[#f9fafb] px-3 py-2 text-[14px] leading-snug text-[#6b7280]">{t("s4.gloss.none", lang)}</p>;
   }
-  const minute = Math.floor((moment.lesson_s ?? moment.clip.from_s) / 60) + 1;
   return (
     <p data-testid="gloss" className="rounded-xl border-s-4 border-[#47BA7D] bg-[#f9fafb] px-3 py-2 text-[15px] leading-snug text-[#1d2025]">
-      {tx("s4.gloss.at", lang, { m: <span data-clock="" dir="ltr" className="[unicode-bidi:isolate]">{digits(minute, lang)}</span> })}{" "}
       <span data-text="library">{pick(moment.gloss, lang)}</span>
     </p>
   );

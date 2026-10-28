@@ -42,9 +42,15 @@ describe('buildGlossInput (B1)', () => {
 });
 
 describe('prefix', () => {
-  test('EN and UR, the minute from the moment, Urdu digits in Urdu', () => {
-    expect(G.prefix(130)).toEqual({ en: 'At minute 2:', ur: '۲ویں منٹ پر:' });
-    expect(G.prefix(18 * 60 + 42)).toEqual({ en: 'At minute 18:', ur: '۱۸ویں منٹ پر:' });
+  // ruling B (lead-final 223945): the server owns the prefix and N is 1-based, the minute a person counts
+  test('EN and UR, the minute from the moment, 1-based, Urdu digits in Urdu', () => {
+    expect(G.prefix(24)).toEqual({ en: 'At minute 1:', ur: '۱ویں منٹ پر:' });
+    expect(G.prefix(130)).toEqual({ en: 'At minute 3:', ur: '۳ویں منٹ پر:' });
+    expect(G.prefix(18 * 60 + 42)).toEqual({ en: 'At minute 19:', ur: '۱۹ویں منٹ پر:' });
+  });
+  test('the first second is minute 1, never minute 0', () => {
+    expect(G.prefix(0).en).toBe('At minute 1:');
+    expect(G.prefix(null).ur).toBe('۱ویں منٹ پر:');
   });
 });
 
@@ -81,13 +87,21 @@ describe('glossMoment', () => {
     const fetch = X.scriptedFetch([X.ok({ gloss_en: X.GLOSS.clean.en, gloss_ur: X.GLOSS.clean.ur })]);
     const out = await G.glossMoment({ moment, input, lexicon: X.LEXICON, ledger: M.createLedger({}), deps: deps(fetch) });
     expect(out.patch.gloss_status).toBe('ok');
-    expect(out.patch.gloss_en).toBe(`At minute 2: ${X.GLOSS.clean.en}`);
-    expect(out.patch.gloss_ur.startsWith('۲ویں منٹ پر: ')).toBe(true);
+    expect(out.patch.gloss_en).toBe(`At minute 3: ${X.GLOSS.clean.en}`);
+    expect(out.patch.gloss_ur.startsWith('۳ویں منٹ پر: ')).toBe(true);
     expect(cp(out.patch.gloss_en)).toBeLessThanOrEqual(90);
     expect(cp(out.patch.gloss_ur)).toBeLessThanOrEqual(70);
     expect(out.runs).toHaveLength(1);
     expect(out.runs[0]).toMatchObject({ status: 'ok', analysis: 'gloss', prompt_version: 'gloss_v2', target: 'm7' });
     expect(fetch.calls[0].body.messages[1].content).toContain('"W":"W-IP"');
+  });
+
+  test('a moment at 0:24 is stored "At minute 1:", once (ruling B)', async () => {
+    const fetch = X.scriptedFetch([X.ok({ gloss_en: X.GLOSS.clean.en, gloss_ur: X.GLOSS.clean.ur })]);
+    const out = await G.glossMoment({ moment: { moment_s: 24, from_s: 20, to_s: 60 }, input, lexicon: X.LEXICON, ledger: M.createLedger({}), deps: deps(fetch) });
+    expect(out.patch.gloss_en).toBe(`At minute 1: ${X.GLOSS.clean.en}`);
+    expect(out.patch.gloss_ur.startsWith('۱ویں منٹ پر: ')).toBe(true);
+    expect(out.patch.gloss_en.match(/At minute/g)).toHaveLength(1);
   });
 
   test('a gate failure → one retry → ok, still one run row with both attempts\' usage', async () => {

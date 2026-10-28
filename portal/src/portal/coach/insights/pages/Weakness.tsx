@@ -93,21 +93,22 @@ function Fold({ d, home }: { d: WDetail; home: Home | null }) {
 
       {moment && (
         <section id="moment" data-testid="w-moment" className="flex flex-col gap-2 rounded-2xl border border-[#e5e7eb] bg-white px-4 py-3.5">
-          <div className="flex flex-wrap items-baseline gap-x-2">
-            <h2 className={title}>{t("s2.moment.title", lang)}</h2>
-            <span className="text-[13.5px] text-[#6b7280]">
-              {tx("s2.moment.sub", lang, {
-                code: <CodeText lang={lang}>{moment.code.code}</CodeText>,
-                school: <CodeText lang={lang}>{moment.school.school_name}</CodeText>,
-              })}
-            </span>
-          </div>
-          <MomentSlot moment={moment} />
-          {/* fix-r5 s2 item 19 (qa-coach idea 073300): S4 (the debrief question, the pair, the full recording) one tap away */}
-          <Link to={insightsPaths.moment(moment.moment_id)} data-testid="w-moment-open"
-            className="flex min-h-[44px] items-center text-[14.5px] font-semibold text-[#2f6f4f]">
-            {t("s2.moment.open", lang)}
+          {/* fix-r5 s4 train 7 item 2 (design-qa 172524): the header is the way to S4 (the S1 "S-01 first ›" pattern),
+              not a row of its own that pushes "Set this step" under the fixed nav on the shortest page */}
+          <Link to={insightsPaths.moment(moment.moment_id)} data-testid="w-moment-head"
+            className="-mx-1 flex min-h-[44px] items-center gap-2 rounded-xl px-1">
+            <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
+              <h2 className={title}>{t("s2.moment.title", lang)}</h2>
+              <span className="text-[13.5px] text-[#6b7280]">
+                {tx("s2.moment.sub", lang, {
+                  code: <CodeText lang={lang}>{moment.code.code}</CodeText>,
+                  school: <CodeText lang={lang}>{moment.school.school_name}</CodeText>,
+                })}
+              </span>
+            </div>
+            <ChevronRight className="h-5 w-5 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
           </Link>
+          <MomentSlot moment={moment} />
         </section>
       )}
 
