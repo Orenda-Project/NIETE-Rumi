@@ -349,7 +349,12 @@ describe("the coach's view of a DC report", () => {
     expect(practices[0]).toHaveTextContent("2/2");
     expect(practices[1]).toHaveTextContent("1/2");
     expect(screen.getByTestId("not-scored")).toHaveTextContent("Not scored: F6");
-    expect(screen.getAllByTestId("lp-step").map((s) => s.textContent)).toEqual([expect.stringContaining("Done"), expect.stringContaining("Skipped")]);
+    // the fidelity check's own verdicts: executed = Done, not_done = Skipped, not_adjudicable = Not scored (never a miss)
+    const steps = screen.getAllByTestId("lp-step");
+    expect(steps.map((s) => s.textContent)).toEqual([expect.stringContaining("Done"), expect.stringContaining("Skipped"), expect.stringContaining("Not scored")]);
+    expect(steps[0]).toHaveTextContent("Warm-up");
+    expect(steps[0]).toHaveTextContent("Ask the class to count to 20");
+    expect(container.textContent).toContain("1 of 2 steps");
     expect(screen.getByTestId("reflection")).toHaveTextContent("The explanation went well.");
     expect(container.textContent).not.toMatch(/transcript|Focus here/i);
     expectOnlyOpenLinks(container);

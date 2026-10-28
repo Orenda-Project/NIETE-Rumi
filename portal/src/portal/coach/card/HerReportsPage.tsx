@@ -31,14 +31,17 @@ function HerReports() {
   const [period] = usePeriod();
   const from = (useLocation().state || {}) as { teacherName?: string };
   const { data, failed, reload } = useCardLoad<ReportsData>(() => card.reports(ext, period), [ext, period]);
-  const today = pkDate(new Date().toISOString()) ?? undefined;
+  const today = data?.period?.today ?? pkDate(new Date().toISOString()) ?? undefined;
 
   // A strength or a score row carries no class: it is the same report as a next step, which does.
-  const classOf = new Map((data?.nextSteps ?? []).map((n) => [n.sessionId, { grade: n.grade, subject: n.subject }]));
-  const quoteRow = (id: string, date: string, text: string): HistoryItem => {
+  const classOf = new Map<string, { grade: string | number | null | undefined; subject: string | null | undefined }>([
+    ...(data?.strengths ?? []).filter((s) => s.grade != null || s.subject).map((s) => [s.sessionId, { grade: s.grade, subject: s.subject }] as const),
+    ...(data?.nextSteps ?? []).map((n) => [n.sessionId, { grade: n.grade, subject: n.subject }] as const),
+  ]);
+  const quoteRow = (id: string, date: string, text: string, key = id): HistoryItem => {
     const k = classOf.get(id);
     return {
-      id, lead: "grade", grade: k?.grade ?? null, subject: k?.subject ?? "", title: `“${text}”`, wrapTitle: true,
+      id: key, lead: "grade", grade: k?.grade ?? null, subject: k?.subject ?? "", title: `“${text}”`, wrapTitle: true,
       extra: dayLabel(date, today, C), to: sessionLink(id), action: "chevron",
     };
   };
@@ -67,7 +70,7 @@ function HerReports() {
           )}
           {strengths.length > 0 && (
             <div data-testid="block-strengths">
-              <HistoryList heading={C.wentWell} showMore={false} groups={[{ day: "", items: strengths.map((s) => quoteRow(s.sessionId, s.date, s.text)) }]} />
+              <HistoryList heading={C.wentWell} showMore={false} groups={[{ day: "", items: strengths.flatMap((s) => (s.texts?.length ? s.texts : [s.text]).map((t, i) => quoteRow(s.sessionId, s.date, t, `${s.sessionId}-${i}`))) }]} />
             </div>
           )}
 
@@ -86,7 +89,7 @@ function HerReports() {
                       <span className="flex min-w-0 flex-col items-start gap-[3px]">
                         <b className="whitespace-nowrap text-[14px] font-bold">{dayLabel(r.date, today, C)}</b>
                         {r.kind === "coach"
-                          ? <StatusChip text={C.coachTag} tone="info" />
+                          ? <StatusChip text={r.form === "observe2" ? C.fieldForm : C.coachTag} tone="info" />
                           : k?.subject ? <span dir="auto" className="text-[12px] text-[#6b7280]">{k.subject}</span> : null}
                       </span>
                       <span dir="ltr" className="text-center text-[15.5px] font-bold tabular-nums">{C.pct(r.overall)}</span>
@@ -115,7 +118,9 @@ function HerReports() {
                   <div key={v.id} data-testid="visit-row" role="group" className={`flex flex-col gap-2 px-4 py-3 ${i ? "border-t border-[#f0f1f3]" : ""}`}>
                     <span className="flex flex-wrap items-center gap-2">
                       <b className="text-[16px] font-bold">{dayLabel(v.date, today, C)}</b>
-                      {v.score != null && <StatusChip text={C.coachScoreN(Math.round(v.score))} tone="score" />}
+                      {v.form === "observe2"
+                        ? <StatusChip text={C.fieldForm} tone="info" />
+                        : v.score != null && <StatusChip text={C.coachScoreN(Math.round(v.score))} tone="score" />}
                     </span>
                     {v.step && (
                       <span className="flex flex-col gap-0.5 rounded-[10px] bg-[#f4f5f8] px-2.5 py-2">

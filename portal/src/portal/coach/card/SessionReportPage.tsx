@@ -23,14 +23,17 @@ import type { SessionReportData } from "./types";
 const LIST = "overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]";
 const CODE = "inline-flex h-[22px] min-w-[44px] shrink-0 items-center justify-center rounded-md bg-[#e8e9f0] px-[7px] text-[12px] font-extrabold text-[#33374a]";
 
-type Verdict = "done" | "skipped" | "partly" | "other";
-/** The plan-step verdicts the fidelity check writes, read as done / skipped / partly; anything else is shown as it is. */
+type Verdict = "done" | "skipped" | "partly" | "unscored";
+/**
+ * The fidelity check's verdict on one plan move (fidelity-scorer.js credit map): executed or a substitute counts as done,
+ * partial as partly, not_done as skipped; not_adjudicable (and anything unknown) is not scored, never a miss.
+ */
 export function verdictOf(raw: string | null | undefined): Verdict {
   const v = String(raw || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
-  if (["done", "followed", "yes", "did", "completed", "complete", "full", "fully"].includes(v)) return "done";
-  if (["skipped", "skip", "missed", "no", "not_done", "did_not", "absent", "not_followed"].includes(v)) return "skipped";
-  if (["partly", "partial", "partially", "some"].includes(v)) return "partly";
-  return "other";
+  if (["executed", "substituted_equivalent", "substituted_better", "done"].includes(v)) return "done";
+  if (["not_done", "skipped"].includes(v)) return "skipped";
+  if (["partial", "partly"].includes(v)) return "partly";
+  return "unscored";
 }
 
 function Dots({ score, max }: { score: number; max: number }) {
@@ -52,7 +55,8 @@ function SessionReport() {
   const scored = (data?.practices ?? []).filter((p) => typeof p.score === "number");
   const unscored = (data?.practices ?? []).filter((p) => typeof p.score !== "number");
   const steps = data?.lpSteps ?? null;
-  const stepsDone = steps ? steps.filter((s) => verdictOf(s.verdict) === "done").length : 0;
+  const judged = steps ? steps.filter((s) => verdictOf(s.verdict) !== "unscored") : [];
+  const stepsDone = judged.filter((s) => verdictOf(s.verdict) === "done").length;
   const grade = data?.grade != null && String(data.grade).trim() !== "" ? kit.grade(String(data.grade)) : "";
   const klass = [grade, data?.subject || ""].filter(Boolean);
 
@@ -130,18 +134,22 @@ function SessionReport() {
             </>
           )}
 
-          <SectionLabel right={steps && steps.length ? <span className="text-[13px] font-semibold text-[#6b7280]">{C.stepsDone(stepsDone, steps.length)}</span> : undefined}>{C.lpSteps}</SectionLabel>
+          <SectionLabel right={judged.length ? <span className="text-[13px] font-semibold text-[#6b7280]">{C.stepsDone(stepsDone, judged.length)}</span> : undefined}>{C.lpSteps}</SectionLabel>
           {steps && steps.length
             ? (
               <section data-testid="lp-steps" className={LIST}>
                 {steps.map((s, i) => {
                   const v = verdictOf(s.verdict);
                   const mark = v === "done" ? <Check className="h-4 w-4 text-[#2f7a52]" strokeWidth={3} /> : v === "skipped" ? <X className="h-4 w-4 text-[#6b7280]" strokeWidth={3} /> : <Minus className="h-4 w-4 text-[#6b7280]" strokeWidth={3} />;
-                  const chip = v === "done" ? C.stepDone : v === "skipped" ? C.stepSkipped : v === "partly" ? C.stepPartly : s.verdict;
+                  const chip = v === "done" ? C.stepDone : v === "skipped" ? C.stepSkipped : v === "partly" ? C.stepPartly : C.notScored;
+                  const words = s.text || s.step || C.dash;
                   return (
                     <div key={`${s.step}-${i}`} data-testid="lp-step" className={`flex min-h-[52px] items-center gap-3 px-3.5 py-1.5 text-[15px] ${i ? "border-t border-[#f0f1f3]" : ""}`}>
                       <span aria-hidden="true" className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${v === "done" ? "bg-[#eaf6ef]" : "bg-[#f3f4f6]"}`}>{mark}</span>
-                      <span dir="auto" className="min-w-0 flex-1">{s.step}</span>
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        {s.text && s.step ? <small dir="auto" className="text-[12px] font-bold text-[#6b7280]">{s.step}</small> : null}
+                        <span dir="auto">{words}</span>
+                      </span>
                       <span className={`inline-flex h-[26px] shrink-0 items-center rounded-full px-2.5 text-[12px] font-semibold ${v === "done" ? "bg-[#eaf6ef] text-[#2f7a52]" : "bg-[#f3f4f6] text-[#374151]"}`}>{chip}</span>
                     </div>
                   );

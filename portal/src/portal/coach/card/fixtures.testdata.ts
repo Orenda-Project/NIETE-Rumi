@@ -39,9 +39,9 @@ export function schoolCard(period: Period = WEEK): SchoolCardData {
         { feature: "papers", total: null, makers: null, perDay: null, series: [] },
       ]
       : [
-        { feature: "lp", total: 27, makers: 8, perDay: 9, series: [11, 8, 8, null, null] },
-        { feature: "dc", total: 9, makers: 6, perDay: 3, series: [3, 4, 2, null, null] },
-        { feature: "training", total: 1, makers: 1, perDay: 0, series: [0, 1, 0, null, null] },
+        { feature: "lp", total: 27, makers: 8, perDay: 9, series: [11, 8, 8, 0, 0] },
+        { feature: "dc", total: 9, makers: 6, perDay: 3, series: [3, 4, 2, 0, 0] },
+        { feature: "training", total: 1, makers: 1, perDay: 0, series: [0, 1, 0, 0, 0] },
         // Did not load: the tile says "—", never 0.
         { feature: "papers", total: null, makers: null, perDay: null, series: [null, null, null, null, null] },
       ],
@@ -137,6 +137,10 @@ export const SESSION_REPORT: SessionReportData = {
     { id: "C1", name: "Quality Questioning", section: "C", score: 1, scaleMax: 2 },
     { id: "F6", name: "Subject-Specific Pedagogy: SCIENCE", section: "F", score: null, scaleMax: 2 },
   ],
-  lpSteps: [{ step: "Warm-up", verdict: "done" }, { step: "Pair practice", verdict: "skipped" }],
+  lpSteps: [
+    { step: "Warm-up", verdict: "executed", text: "Ask the class to count to 20", mustHappen: true },
+    { step: "Pair practice", verdict: "not_done", text: "Pairs fold a paper in half", mustHappen: false },
+    { step: "Exit ticket", verdict: "not_adjudicable", text: "Three questions on a slip", mustHappen: false },
+  ],
   reflection: [{ question: "What went well?", answer: "The explanation went well." }],
 };

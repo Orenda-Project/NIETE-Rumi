@@ -84,7 +84,7 @@ export type TeacherCardData = {
     lp: { count: number | null; series: (number | null)[] };
     papers: { count: number | null; series: (number | null)[] };
     dc: { count: number | null; series: (number | null)[] };
-    coach: { count: number | null };
+    coach: { count: number | null; series?: (number | null)[] };
     training: { parts: number | null; courses: number | null; series: (number | null)[] };
     aiScore: ScoreAvg;
     coachScore: ScoreAvg;
@@ -100,17 +100,20 @@ export type PaperItem = { id: string; date: string; grade: string | number | nul
 export type TrainingCourse = { name: string; parts: { name: string; doneAt: string | null }[]; done: boolean };
 
 export type ItemsData = {
+  period?: Period;
   items?: (DcItem | CoachItem | LpItem | PaperItem)[];
   courses?: TrainingCourse[];
 };
 
 export type SectionScores = { B: number | null; C: number | null; D: number | null; F: number | null };
 
+/** `form`: "observe2" for a visit on the field form (counted and listed, never averaged with the others). */
 export type ReportsData = {
+  period?: Period;
   nextSteps: { sessionId: string; date: string; grade: string | number | null; subject: string | null; text: string }[];
-  strengths: { sessionId: string; date: string; text: string }[];
-  scores: { kind: "dc" | "coach"; id: string; date: string; overall: number | null; sections: SectionScores }[];
-  coachVisits: { id: string; date: string; score: number | null; step: string | null }[];
+  strengths: { sessionId: string; date: string; text: string; texts?: string[]; grade?: string | number | null; subject?: string | null }[];
+  scores: { kind: "dc" | "coach"; id: string; date: string; overall: number | null; sections: SectionScores; form?: string | null }[];
+  coachVisits: { id: string; date: string; score: number | null; step: string | null; form?: string | null }[];
 };
 
 export type SessionReportData = {
@@ -123,6 +126,7 @@ export type SessionReportData = {
   nextStep: string | null;
   sections: { code: string; name: string; pct: number | null }[];
   practices: { id: string; name: string; section: string; score: number | null; scaleMax: number }[];
-  lpSteps: { step: string; verdict: string }[] | null;
+  /** One entry per plan move: `step` is its phase's name, `verdict` the fidelity check's (executed, partial, not_done …). */
+  lpSteps: { step: string | null; verdict: string; text?: string | null; mustHappen?: boolean }[] | null;
   reflection: { question: string; answer: string }[];
 };
