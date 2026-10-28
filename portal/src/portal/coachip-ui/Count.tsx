@@ -77,3 +77,21 @@ export function RowCount({ count, lang, className }: { count: Count; lang: Lang;
     </span>
   );
 }
+
+/**
+ * bd-sex15q.42 — a 4 px fraction bar under or beside a row's number (DESIGN_SYSTEM §5) on the grey track. It lives
+ * here beside the counts since R6 fix cycle 1: one module, so S5's ring and the pages that draw bars share one chunk on
+ * the coach entry path (FIX_R6 §1 budget). It fills from the inline start, so from the right in Urdu. A zero draws the track only. Decorative: the count node beside it carries
+ * the number. `tone` (FIX_R6 A5): `notice` (navy, the default: lessons where a weakness showed), `grey` the smaller
+ * cause on S2's Why, `green` a strength (something done).
+ */
+const FILL = { notice: "bg-cp-navy", grey: "bg-cp-ink-3", green: "bg-cp-green" } as const;
+
+export function FractionBar({ n, d, tone = "notice", className }: { n: number; d: number; tone?: keyof typeof FILL; className?: string }) {
+  const pct = d > 0 ? Math.min(100, Math.max(0, (n / d) * 100)) : 0;
+  return (
+    <span aria-hidden="true" data-bar={`${n}/${d}`} data-tone={tone} className={`block h-1 overflow-hidden rounded-full bg-cp-track ${className ?? ""}`}>
+      {pct > 0 && <span data-fill="" className={`block h-full rounded-full ${FILL[tone]}`} style={{ width: `${pct}%` }} />}
+    </span>
+  );
+}

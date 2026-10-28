@@ -35,7 +35,8 @@ function SchoolsBody() {
       testId="insights-schools"
       title={t("schools.title", lang)}
       windows={data ? data.windows ?? [data.window] : null}
-      chips={data ? <MetaLine window={data.window} className="text-[14px] leading-snug" /> : undefined}
+      screenWindow={data?.window.id ?? null}
+      chips={data ? <MetaLine window={data.window} className="text-[14px] leading-snug" /> : error ? undefined : null}
     >
       {!data ? <StateBlock error={error} /> : (
         <div className="flex flex-col">
@@ -59,8 +60,8 @@ function SchoolsBody() {
                   // fix-r5 s2 item 3/4 (qa-coach 073419, B10): "nothing to do" only when the school has no graded lesson;
                   // graded lessons without a ranked move are "not ranked yet", words only
                   : s.graded.n > 0
-                    ? <p data-testid="schools-top-none" data-state="not_ranked" className="rounded-[12px] bg-cp-grey-fill px-4 py-3 text-[15px] leading-[1.45] text-cp-ink-2">{t("schools.top_w.not_ranked", lang)}</p>
-                    : <p data-testid="schools-top-none" data-state="none" className="rounded-[12px] bg-cp-grey-fill px-4 py-3 text-[15px] leading-[1.45] text-cp-ink-2">{t("schools.top_w.none", lang)}</p>}
+                    ? <p data-testid="schools-top-none" data-state="not_ranked" className="rounded-[12px] bg-cp-navy-tint px-4 py-3 text-[15px] leading-[1.45] text-cp-ink-2">{t("schools.top_w.not_ranked", lang)}</p>
+                    : <p data-testid="schools-top-none" data-state="none" className="rounded-[12px] bg-cp-navy-tint px-4 py-3 text-[15px] leading-[1.45] text-cp-ink-2">{t("schools.top_w.none", lang)}</p>}
               </li>
             ))}
           </ul>

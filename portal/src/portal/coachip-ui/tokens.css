@@ -21,7 +21,6 @@
   --cp-track-on-navy: rgba(255, 255, 255, 0.18);
   --cp-ground: #f6f8f7;
   --cp-surface: #ffffff;
-  --cp-grey-fill: #eceef1;
   --cp-trend: #4f46e5;
   --cp-shadow: 0 2px 8px rgba(51, 55, 72, 0.08);
   --cp-shadow-nav: 0 -2px 8px rgba(51, 55, 72, 0.05);
@@ -30,6 +29,12 @@
   /* a ring on white by default; the band turns these to the on-navy pair below lg */
   --cp-ring-track: var(--cp-track);
   --cp-ring-num: var(--cp-navy);
+  /* a notice arc on white; the band turns it white-72 % below lg (FIX_R6 A5) */
+  --cp-ring-notice: var(--cp-navy);
+  /* S1's band on a phone and the first card under it, the same before and after the read (FIX_R6 A1): measured at 390
+     on the fixture home, fresh and stale alike since the stale line left the band (ux-coach r6b/early.py) */
+  --cp-band-min-h: 385px;
+  --cp-first-card-h: 189px;
   font-family: var(--cp-font-latin);
   color: var(--cp-ink);
   -webkit-font-smoothing: antialiased;
@@ -51,6 +56,30 @@
   padding: 20px 20px 44px;
   --cp-ring-track: var(--cp-track-on-navy);
   --cp-ring-num: #fff;
+  --cp-ring-notice: rgba(255, 255, 255, 0.72);
+}
+.cp-band[data-cp-fixed] {
+  min-height: var(--cp-band-min-h);
+}
+/* while the page loads, the trust line at its foot waits for the page: drawn under the short skeleton it would then
+   drop ~1,400 px when the data lands, the 0.88 load shift design-qa measured on S2/S5 (FIX_R6 A1). CSS only. */
+.cp-enter:has([aria-busy="true"]) > [data-cp-trust] {
+  display: none;
+}
+
+/* the meta line every card with a number carries (Frame's MetaLine): 13 px ink-3 */
+.cp-meta {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--cp-ink-3);
+}
+
+/* the first card under S1's band, while it loads: the live where-first card's height (FIX_R6 A1) */
+.cp-first-card {
+  min-height: var(--cp-first-card-h);
+}
+.cp-band__foot {
+  color: rgba(255, 255, 255, 0.72);
 }
 .cp-band > *:not(.cp-lattice) {
   position: relative;
@@ -89,6 +118,11 @@
     overflow: visible;
     --cp-ring-track: var(--cp-track);
     --cp-ring-num: var(--cp-navy);
+    --cp-ring-notice: var(--cp-navy);
+  }
+  .cp-band[data-cp-fixed],
+  .cp-first-card {
+    min-height: 0;
   }
   .cp-band .cp-lattice,
   .cp-band .cp-band__lockup {
@@ -123,9 +157,13 @@
   }
 }
 
-/* ── the ring: the arc draws once on mount ── */
+/* ── the ring: the arc draws once on mount, in its tone (notice navy / white-72 % on the band, strength green) ── */
 .cp-ring__arc {
+  stroke: var(--cp-ring-notice);
   animation: cp-ring-draw 600ms var(--cp-ease) both;
+}
+.cp [data-tone="strength"] .cp-ring__arc {
+  stroke: var(--cp-green);
 }
 @keyframes cp-ring-draw {
   from {
@@ -204,6 +242,15 @@ html[lang="ur"] .cp .cp-eyebrow {
 html[lang="ur"] .cp .cp-hero-n {
   font-size: 40px;
   line-height: 1.5;
+}
+/* Nastaliq lines are taller: S1's band and first card in Urdu (FIX_R6 A1, measured as above) */
+html[lang="ur"] .cp {
+  --cp-band-min-h: 449px;
+  --cp-first-card-h: 258px;
+}
+/* a title placeholder keeps the Urdu h1's leading (index.css: h1 1.6, a div 2), so its box is the title's */
+html[lang="ur"] .cp .cp-ph-title {
+  line-height: 1.6;
 }
 html[lang="ur"] .cp .cp-band__title {
   font-size: 22px;

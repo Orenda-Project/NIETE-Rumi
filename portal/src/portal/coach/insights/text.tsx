@@ -32,7 +32,21 @@ const tok = (s: string) => (/^[0-9]+$/.test(s) ? `(?:${s}|${digits(s, "ur")})` :
  * <Num>; any other `{token}` takes its var (a string or number through §F's rules, or a node as it is).
  */
 export function tx(key: CopyKey, lang: Lang, vars: Record<string, Var> = {}, counts: readonly CountSlot[] = []): ReactNode {
-  let template: string = COPY[key][lang];
+  return nodes(COPY[key][lang], key, lang, vars, counts);
+}
+
+/**
+ * FIX_R6 A4: the same string up to `{stop}`, without the separator before it ("{school} first ({n} of {d}) · {range} ·
+ * {grader_label}" → "{school} first ({n} of {d})"), for a row whose window the screen's header already states.
+ */
+export function txUntil(key: CopyKey, lang: Lang, stop: string, vars: Record<string, Var> = {}, counts: readonly CountSlot[] = []): ReactNode {
+  const full = COPY[key][lang];
+  const at = full.indexOf(`{${stop}}`);
+  return nodes(at < 0 ? full : full.slice(0, at).replace(/\s*[·،]\s*$/, ""), key, lang, vars, counts);
+}
+
+function nodes(source: string, key: CopyKey, lang: Lang, vars: Record<string, Var>, counts: readonly CountSlot[]): ReactNode {
+  let template = source;
   const nodes: Record<string, ReactNode> = {};
   counts.forEach((c, i) => {
     const re = lang === "ur" ? new RegExp(`${tok(c.d)} میں سے ${tok(c.n)}`) : new RegExp(`${tok(c.n)} of ${tok(c.d)}`);

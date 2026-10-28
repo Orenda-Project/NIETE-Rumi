@@ -32,9 +32,10 @@ function WhereBody() {
       testId="insights-where"
       backTo={insightsPaths.w(wId)}
       title={t("s3.title", lang)}
-      crumb={data ? pick(data.card.short_name, lang) : null}
+      crumb={data ? pick(data.card.short_name, lang) : error ? undefined : null}
       windows={data?.windows}
-      chips={data ? <MetaLine window={data.card.window} /> : null}
+      screenWindow={data?.card.window.id ?? null}
+      chips={data ? <MetaLine window={data.card.window} /> : error ? undefined : null}
     >
       {!data ? <StateBlock error={error} /> : (
         <div className="flex flex-col lg:max-w-[560px]">
