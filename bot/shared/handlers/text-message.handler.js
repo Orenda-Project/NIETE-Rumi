@@ -1195,7 +1195,7 @@ async function routeTextMessage(message, from, messageBody, user = null, turn = 
   // ============================================================
   const schoolCardAsk = user?.id ? parseSchoolCardCommand(messageBody) : null;
   if (schoolCardAsk) {
-    logToFile('🏫 /school card command detected', { userId: user.id, hasQuery: Boolean(schoolCardAsk.query) });
+    logToFile('🏫 /school card command detected', { tk: teacherRef(user.id), hasQuery: Boolean(schoolCardAsk.query) });
     if (await openSchoolCard({ userId: user.id, from, language: responseLanguage, query: schoolCardAsk.query })) {
       typingController.stop();
       return;

@@ -23,6 +23,9 @@
 const { logToFile } = require('../../utils/logger');
 const { COACH_SCHOOLS, coachSchoolTarget } = require('../coach-school-target');
 
+/** The coach's keyed reference for a log line, never the raw users.id (web-quiz-kid tk); null without a key. */
+const teacherRef = (id) => { try { return id ? require('../quiz/web-quiz-kid').tk(id) : null; } catch (_) { return null; } };
+
 // Bidi controls a copied or isolated command carries (as slash-command.js strips them): LRM/RLM, embeddings, isolates, BOM.
 const BIDI_CONTROLS = /[‎‏‪-‮⁦-⁩﻿]/g;
 // "/school card", "school card", "/schoolcard", any case; then nothing, or a separator and her query. "school cardiff"
@@ -84,7 +87,7 @@ async function pickSchool(userId, query) {
   try {
     mine = await mySchools(userId);
   } catch (err) {
-    logToFile('⚠️ School card: her schools could not be read — My schools', { userId, error: err?.message }, 'warn');
+    logToFile('⚠️ School card: her schools could not be read — My schools', { tk: teacherRef(userId), error: err?.message }, 'warn');
     return SCHOOLS('no_schools');
   }
   if (!q) return SCHOOLS('no_query');
@@ -98,7 +101,7 @@ async function pickSchool(userId, query) {
   try {
     hits = await require('./school-search.service').searchSchools(q, { limit: SEARCH_LIMIT });
   } catch (err) {
-    logToFile('⚠️ School card: school search failed — My schools', { userId, error: err?.message }, 'warn');
+    logToFile('⚠️ School card: school search failed — My schools', { tk: teacherRef(userId), error: err?.message }, 'warn');
     return SCHOOLS('no_match');
   }
   const byEmis = new Map(mine.map((s) => [s.emis.toLowerCase(), s]));
