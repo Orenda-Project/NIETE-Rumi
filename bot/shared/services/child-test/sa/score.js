@@ -196,6 +196,8 @@ function isW3(bank, session, row) {
 /** A row's language: its block's prefix, else its own lang. */
 const rowLang = (row) => (/^(ur|en)\./.test(row.block) ? row.block.slice(0, 2) : (row.lang === 'en' ? 'en' : 'ur'));
 
+const { countsTask } = require('./counts');
+
 const PHONE_FILES = new Map();
 /** The battery the phone was served (data/child-test/sa/sa.coach.G<g>.<form>.<lang>.json), null when absent. */
 function phoneBattery(grade, form, lang) {
@@ -235,6 +237,25 @@ function shownVariant(session, row, load = phoneBattery) {
 }
 
 /**
+ * sa_r8_counts (round 8 item 35): the battery file is today's form and the switch is applied as it is served, so the
+ * task the phone ran is the counts form when the result names an item only that form carries (a one-at-a-time cell, a
+ * per-item clip, a marked answer), or reached more cells than today's form has. Else the task as it is.
+ */
+function ranCounts(battery, t, row) {
+  const c = countsTask(battery, t);
+  if (c === t || c.items.length === t.items.length) return t;
+  const res = resultOf(row) || {};
+  const own = new Set(t.items.map((x) => x.id));
+  const seen = [].concat(
+    (Array.isArray(res.cells) ? res.cells : []).map((x) => x && x.item_id),
+    (Array.isArray(res.rec_marks) ? res.rec_marks : []).map((x) => x && x.item_id),
+    keysOf(row).map((x) => x.i),
+  ).filter((id) => typeof id === 'string');
+  const more = seen.some((id) => !own.has(id)) || (Array.isArray(res.cells) && res.cells.length > t.items.length);
+  return more ? c : t;
+}
+
+/**
  * A task as the phone ran it (the W3 forms: letters / words / numbers / sums one at a time, the passage with its own
  * punctuation), in the bank's shape so the scorers below read one shape. The variant is the phone's rotation: the one
  * whose questions were asked in this session, else hash(the phone's session id) mod n (sa-page.js rotate).
@@ -245,6 +266,7 @@ function phoneSpecFor(session, row, load = phoneBattery, shown = null) {
   const tasks = (b && Array.isArray(b.tasks)) ? b.tasks : [];
   let t = tasks.find((x) => x && x.id === row.block);
   if (!t) return null;
+  t = ranCounts(b, t, row);
   let variant = null;
   const base = shown && shown.from !== 'guess' && shown.id == null; // the phone showed the passage without rotation
   if (!base && Array.isArray(t.variants) && t.variants.length) {
