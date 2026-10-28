@@ -342,23 +342,37 @@ async function listPapers(userId, { page = 1, pageSize = 10, grade = null, subje
   const size = Math.min(50, Math.max(1, Number(pageSize) || 10));
   const from = (p - 1) * size;
 
-  let q = supabase
-    .from('assessment_requests')
-    .select('id, grade_code, subject_code, chapter_number, created_at, '
+  // Her ready families, with this grade/subject filter; the page and the bare total share it.
+  const familiesOf = (columns, opts) => {
+    let q = supabase
+      .from('assessment_requests')
+      .select(columns, opts)
+      .eq('user_id', userId)
+      .eq('assessment_papers.status', 'ready');
+    if (grade !== null) q = q.eq('grade_code', `grade_${grade}`);
+    if (subject) q = q.eq('subject_code', subject);
+    return q;
+  };
+
+  const { data, error, count } = await familiesOf('id, grade_code, subject_code, chapter_number, created_at, '
       + 'assessment_papers!inner(id, status, edited_from, question_count, total_marks, ready_at, '
       + 'created_at, answer_key_r2_key, '
       // Two JSONB slices, never the whole tree: which board pattern, and how many pages each file has.
       + 'pattern:exam_json->_layout->>preset_id, pages:exam_json->_layout->pages)',
     { count: 'exact' })
-    .eq('user_id', userId)
-    .eq('assessment_papers.status', 'ready');
-
-  if (grade !== null) q = q.eq('grade_code', `grade_${grade}`);
-  if (subject) q = q.eq('subject_code', subject);
-
-  const { data, error, count } = await q
     .order('created_at', { ascending: false })
     .range(from, from + size - 1);
+
+  // A page that starts past her last paper (a stale "More", a list a filter
+  // shrank) is PostgREST's 416, PGRST103, and supabase-js reads no count off
+  // an error. It is an empty page, not a failure: read the total on its own so
+  // the page can still say how many she has.
+  if (error && error.code === 'PGRST103') {
+    const head = await familiesOf('id, assessment_papers!inner(id)', { count: 'exact', head: true });
+    if (!head.error) return { page: p, pageSize: size, total: head.count || 0, papers: [] };
+    logToFile('[assessment-browse] paper count failed', { userId, error: head.error.message });
+    throw new Error('Could not list papers');
+  }
 
   if (error) {
     logToFile('[assessment-browse] paper list failed', { userId, error: error.message });
