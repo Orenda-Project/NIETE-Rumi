@@ -94,6 +94,11 @@ export const COACHING_V2_COPY = {
   tryAgain: 'Try again',
   /* the recording on the page, and the page's one Submit */
   submit: 'Submit',
+  /* bd-bmc9a0.2 — ICT IAB row 31: save the recording now, come back later for the reflection and feedback. ICT's
+     mockup words. The confirmation is a sentence on purpose (longOk). */
+  saveRecording: 'Save recording',
+  saved: 'Saved',
+  recordingSaved: 'Recording saved. Come back here later for the reflection and feedback.',
   /** A DC observation with no topic or subject: its own name. */
   dcObservation: 'DC observation',
   minutes: (n: number) => `${n} min`,
@@ -283,6 +288,10 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   tryAgain: 'دوبارہ کوشش کریں',
   // The training portal's own word for Submit (teacher/training/copy.ts submit).
   submit: 'جمع کرائیں',
+  // bd-bmc9a0.2 — the words ICT saw in the before/after mockup (row 31).
+  saveRecording: 'ریکارڈنگ محفوظ کریں',
+  saved: 'محفوظ',
+  recordingSaved: 'ریکارڈنگ محفوظ ہو گئی۔ بعد میں یہیں سے Reflection اور فیڈ بیک پر جائیں۔',
   dcObservation: 'ڈیجیٹل کوچنگ مشاہدہ',
   minutes: (n: number) => `${n} منٹ`,
   listen: 'سنیں',
@@ -429,5 +438,7 @@ export const COPY_ENTRY: CopyEntry = {
     // bd-bmc9a0.4: ICT IAB row 36, the line Close ends her session with, in ICT's words.
     'sessionComplete',
     // bd-bmc9a0.1: "not sent" is three Urdu words (نہیں بھیجا گیا) after the part's own name.
-    'planNotSent', 'photoNotSent'],
+    'planNotSent', 'photoNotSent',
+    // bd-bmc9a0.2: ICT's "recording saved, come back later" confirmation (row 31).
+    'recordingSaved'],
 };

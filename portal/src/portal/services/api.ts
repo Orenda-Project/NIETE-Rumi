@@ -223,6 +223,8 @@ export const portal = {
     teacherClass?: { grade: number; subject: string; subjectKey?: string };
     /** bd-v0toag.31: what the live screen saw while she recorded; the bot validates it. */
     liveMoves?: LiveMovesRecord;
+    /** bd-bmc9a0.2: "Save recording" (ICT IAB row 31) — the same start, marked saved to come back to. */
+    saveForLater?: boolean;
   }): Promise<{ coachingSessionId: string }> => {
     const response = await api.post('/coaching-upload/start', args);
     return response.data;
