@@ -110,6 +110,14 @@ const AssessmentPapersPanel = ({
         grade: gradeFilter === ALL ? undefined : Number(gradeFilter),
         subject: subjectFilter === ALL ? undefined : subjectFilter,
       });
+      const last = Math.max(1, Math.ceil((res.total || 0) / PAGE_SIZE));
+      // A page past her last paper comes back empty with the real total (the
+      // list shrank under her). Go to the last page rather than say "No papers yet."
+      if (!(res.papers || []).length && page > last) {
+        setTotal(res.total || 0);
+        setPage(last);
+        return;
+      }
       setPapers(res.papers || []);
       setTotal(res.total || 0);
       onTotalRef.current?.(res.total || 0);
