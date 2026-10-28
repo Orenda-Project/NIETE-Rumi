@@ -21,8 +21,13 @@
  */
 
 const pool = require('../../config/database');
+const { getTimeoutForRoute } = require('../timeout');
 
 const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
+
+// bd-5gyspy.9: a route the app gives a longer budget (middleware/timeout.js, e.g. the coaching-session routes' 120 s
+// for the bot's LLM) keeps it here too; this layer answered 504 at 30 s while the app still allowed 90 s more.
+const budgetFor = (req) => Math.max(REQUEST_TIMEOUT_MS, getTimeoutForRoute(String(req.path || req.url || '').split('?')[0]));
 
 /**
  * Database Context Middleware
@@ -67,7 +72,7 @@ async function setDatabaseContext(req, res, next) {
     if (!res.headersSent) {
       res.status(504).json({ error: 'Request timeout' });
     }
-  }, REQUEST_TIMEOUT_MS);
+  }, budgetFor(req));
 
   try {
     // Get a database client from the pool
