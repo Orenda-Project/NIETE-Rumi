@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 # Shim. git runs this (core.hooksPath=.githooks); the harness itself is the SHARED engine, authored in
-# rumi-agent-home and linked in at .claude/qa/engine by scripts/qa/link-engine.sh, which `npm install` runs.
-# No engine on this machine means there is nothing to arm — and never a blocked commit or push.
+# rumi-agent-home and linked in at .claude/qa/engine by scripts/qa/link-engine.sh. A clone with no link yet gets it
+# here, at its first commit or push (bd-9157r.8). No engine on this machine means nothing to arm, never a blocked
+# commit or push.
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 H="$ROOT/.claude/qa/engine/githooks/post-commit"
+if [ ! -f "$H" ] && [ -f "$ROOT/scripts/qa/link-engine.sh" ]; then
+  (cd "$ROOT" && bash scripts/qa/link-engine.sh --quiet) </dev/null >/dev/null 2>&1
+  [ -f "$H" ] && echo "qa: linked the shared E2E engine into this clone (scripts/qa/link-engine.sh)" >&2
+fi
 [ -f "$H" ] || exit 0
 exec bash "$H" "$@"

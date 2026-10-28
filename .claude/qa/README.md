@@ -2,7 +2,7 @@
 
 > **The harness is the SHARED E2E engine** (bd-9157r.1), authored once in rumi-agent-home at `.claude/qa/engine` for
 > NIETE-Rumi and whatsapp-ai-bot, and **borrowed** here through a link at `.claude/qa/engine` that
-> `scripts/qa/link-engine.sh` makes (`npm install` runs it). Nothing of the engine is committed in this repo, so it cannot
+> `scripts/qa/link-engine.sh` makes (`npm install` runs it, and so do the E2E hooks the first time they fire in a clone that has none). Nothing of the engine is committed in this repo, so it cannot
 > drift; edit it in rumi-agent-home, never through the link. Everything else under `.claude/qa/` is NIETE's own tenant
 > layer and is edited here: `config/tenants.yaml` (the engine's view of this repo), the feature map, targets, known
 > findings, the agents, the drivers and `niete_*` tools in `shared/`, fixtures and ledgers. On a machine without

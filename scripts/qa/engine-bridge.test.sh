@@ -47,6 +47,16 @@ done
 [ "$F" = "$n" ] && ok "the two git hooks are shims into the engine's"
 [ "$(git ls-files .githooks | sort | tr '\n' ' ')" = ".githooks/post-commit .githooks/pre-push " ] \
   && ok ".githooks is exactly the two shims" || bad ".githooks holds: $(git ls-files .githooks | tr '\n' ' ')"
+# The shims are the engine's templates, byte for byte: they link the engine themselves the first time a hook fires in a
+# clone that has none (bd-9157r.8), so a stale copy here would bring back the manual `npm install` step.
+if [ -d .claude/qa/engine/config-templates ]; then
+  stale=""
+  for h in post-commit pre-push; do cmp -s ".claude/qa/engine/config-templates/githooks/$h" ".githooks/$h" || stale="$stale .githooks/$h"; done
+  for h in e2e-autorun.sh e2e-autorun-stop.sh e2e-pending-banner.sh; do
+    cmp -s .claude/qa/engine/config-templates/claude-hooks/hook-shim.sh ".claude/hooks/$h" || stale="$stale .claude/hooks/$h"; done
+  [ -z "$stale" ] && ok "the git and session hook shims are the linked engine's templates" \
+    || bad "shims differ from the engine's templates (copy them from .claude/qa/engine/config-templates):$stale"
+fi
 [ -f scripts/qa/link-engine.sh ] && ok "scripts/qa/link-engine.sh borrows the engine" || bad "no scripts/qa/link-engine.sh"
 [ -f .claude/qa/config/tenants.yaml ] && grep -q '^repo: NIETE-Rumi' .claude/qa/config/tenants.yaml \
   && ok "the tenant manifest names NIETE-Rumi" || bad "no .claude/qa/config/tenants.yaml for NIETE-Rumi"
@@ -99,11 +109,11 @@ cp scripts/qa/link-engine.sh "$T/bare/scripts/qa/" 2>/dev/null
 git -C "$T/bare" init -q
 n2=$F
 for h in e2e-autorun.sh e2e-autorun-stop.sh e2e-pending-banner.sh; do
-  out=$(printf '{"hook_event_name":"x"}' | CLAUDE_PROJECT_DIR="$T/bare" bash "$T/bare/.claude/hooks/$h" 2>&1); rc=$?
+  out=$(printf '{"hook_event_name":"x"}' | env -u E2E_ENGINE CLAUDE_PROJECT_DIR="$T/bare" bash "$T/bare/.claude/hooks/$h" 2>&1); rc=$?
   [ "$rc" = 0 ] && [ -z "$out" ] || bad "$h without the engine: exit $rc, output '$(printf '%s' "$out" | head -1 | cut -c1-120)'"
 done
 [ "$F" = "$n2" ] && ok "each session-hook shim exits 0, silent, with no engine"
-( cd "$T/bare" && bash .githooks/post-commit </dev/null && printf 'x\n' | bash .githooks/pre-push origin url ) >/dev/null 2>&1 \
+( cd "$T/bare" && env -u E2E_ENGINE bash .githooks/post-commit </dev/null && printf 'x\n' | env -u E2E_ENGINE bash .githooks/pre-push origin url ) >/dev/null 2>&1 \
   && ok "the git-hook shims exit 0 with no engine" || bad "a git-hook shim failed with no engine"
 ( cd "$T/bare" && env -u E2E_ENGINE npm run --silent prepare ) >/dev/null 2>&1 && ok "npm's prepare exits 0 with no engine" \
   || bad "npm run prepare failed with no engine"

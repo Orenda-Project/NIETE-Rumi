@@ -47,7 +47,7 @@ developer changes bot code
 
 | Mechanism | Fires for | Can do | Cannot do |
 |---|---|---|---|
-| **Git hooks** (`.githooks/`, installed by `npm install` via `prepare`, or `bash scripts/qa/link-engine.sh`) | every commit and every push on that machine, from any tool | select features, build the sync brief, leave a marker, print the next commands, report at push time (any branch) | author a scenario (judgement), drive WhatsApp (needs a linked browser), or run if the developer skipped the one-time `core.hooksPath` install |
+| **Git hooks** (`.githooks/`, installed by `npm install` via `prepare`, `bash scripts/qa/link-engine.sh` or the first Claude session in the clone; once on, they link the shared engine themselves when it is missing) | every commit and every push on that machine, from any tool | select features, build the sync brief, leave a marker, print the next commands, report at push time (any branch) | author a scenario (judgement), drive WhatsApp (needs a linked browser), or run if the developer skipped the one-time `core.hooksPath` install |
 | **Claude Code hooks** (`.claude/hooks/`, wired in `.claude/settings.json`) | a Claude session rooted in any clone of this repo | **install the git hooks at SessionStart when the clone has none**; arm on the session's own commits; announce terminal-armed markers at SessionStart; **hold the turn until the Gherkin is synced and valid, or declared none-needed** (phase 1 — a gate, bounded to 3 holds, `--clear` refuses while open); order the E2E **once** (phase 2) — the only place phases 3–6 can actually be executed | see a commit made on another machine, or one made before the session existed (that is what the marker bridge is for) |
 | **GitHub check** (`.github/workflows/qa-impact.yml`) | every PR into `sandbox` / `staging` / `main`, whoever opened it, however they commit | run `impact.py` over the PR range from its copy at `.github/qa-impact/` (GitHub cannot read rumi-agent-home, so the check's engine files are committed here; `bash .claude/qa/engine/bin/ci-copy.sh` refreshes them), post one comment (edited in place) naming the features, the stale specs and the exact `/sync-specs` + `/niete-e2e` commands, and **fail the PR** on a stale spec that nobody declared `none-needed` | author or drive anything; see a run that was not committed to `runs.jsonl` |
 
@@ -68,7 +68,8 @@ unset, tells the session it did, and warns (with the `--force` command) when a f
 is in the way. Sessions launched from the parent workspace reach every NIETE checkout under it
 through the workspace's SessionStart shim, so worktrees are covered too.
 
-By hand, for a terminal-only developer:
+By hand, only for a fresh clone used from a bare terminal (a clone whose git hooks are already on links the engine at
+its next commit, and a Claude session in the clone links it at start):
 
 ```bash
 npm install                          # root — its `prepare` script installs the git hooks

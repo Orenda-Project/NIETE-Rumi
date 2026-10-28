@@ -35,8 +35,11 @@ cd bot && npm install && cd ..
 > **Important:** Do NOT clone directly from `Orenda-Project/rumi-platform`. Each deployment needs its own fork so you can push changes independently.
 
 > **QA hooks.** `npm install` at the repo root also installs the repo's git hooks (`core.hooksPath = .githooks`)
-> so every commit you make arms the Gherkin sync + targeted E2E for the features it touched. If you install
-> dependencies some other way, run `bash scripts/qa/link-engine.sh` once. Details: [docs/qa-automation.md](docs/qa-automation.md).
+> so every commit you make arms the Gherkin sync + targeted E2E for the features it touched. Nothing else to run: the
+> hooks link the shared engine themselves the first time they fire in a clone that has none, so a clone set up before
+> the switch links at its next commit, and a fresh one at `npm install` or its first Claude session. Only a fresh clone
+> used from a bare terminal with no `npm install` needs `bash scripts/qa/link-engine.sh` once (git runs a clone's hooks
+> only after `core.hooksPath` is set). Details: [docs/qa-automation.md](docs/qa-automation.md).
 
 ## Step 2: Create Supabase Database
 
