@@ -3,7 +3,8 @@
  * child quiz's bot client (web-quiz.routes createBotClient: x-api-key, the caller's address, a timeout, redirects
  * never followed). It never verifies a token and never touches the database: the bot renders and decides.
  *
- *   GET  /quiz/teacher/:token            the page shell (HTML)
+ *   GET  /quiz/teacher/:token            the page shell (HTML); ?lang, and ?session (a coaching session id, a UUID: a
+ *                                        Digital Coach report's "Create Quick Quiz" opens the page for that one lesson)
  *   GET  /quiz/teacher/:token/send       a library code's send (?c, ?o, ?lang): the bot marks it sent, 302 → wa.me
  *   GET  /quiz/teacher/:token/stories    the stories page (served by the stories router on the bot); ?book (a story
  *                                        tile's book: its send sheet), ?grade (1-5) and ?lang reach it
@@ -41,11 +42,12 @@ const ONE_OF = (...vals) => (v) => vals.includes(v);
 
 // The query keys each GET may carry to the bot; anything else is dropped.
 const QUERY = { t: (v) => TOKEN_RX.test(v), g: (v) => /^[1-5]$/.test(v), lang: LANG };
-// The query keys a page may carry: the shell reads lang; the stories page also the tile's book and the grade; the send
+// The query keys a page may carry: the shell reads lang and the one lesson it was opened for (session); the stories page
+// also the tile's book and the grade; the send
 // the library code and where the send started.
 const PAGE_QUERY = { book: (v) => UUID_RX.test(v), grade: (v) => /^[1-5]$/.test(v), lang: LANG };
 const SEND_QUERY = { c: (v) => UUID_RX.test(v), o: ONE_OF('library', 'again', 'lesson_plan', 'coaching'), lang: LANG };
-const PAGE_KEYS = { '': { lang: LANG }, '/stories': PAGE_QUERY, '/send': SEND_QUERY };
+const PAGE_KEYS = { '': { lang: LANG, session: (v) => UUID_RX.test(v) }, '/stories': PAGE_QUERY, '/send': SEND_QUERY };
 function forwardQuery(q, keys = QUERY) {
   const out = Object.keys(keys).filter((k) => typeof q[k] === 'string' && keys[k](q[k])).map((k) => `${k}=${encodeURIComponent(q[k])}`);
   return out.length ? `?${out.join('&')}` : '';
