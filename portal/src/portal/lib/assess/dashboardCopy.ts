@@ -82,6 +82,9 @@ const en = {
   coach: 'Coach',
   allCoaches: 'All coaches',
   unknownCoach: 'Coach not named',
+  // round 8 (sa_r8_hide_practice): practice (SIM) schools are left out unless asked for
+  includePractice: 'Include practice schools',
+  practiceHidden: (n: string) => `${n} sessions from practice schools are not counted.`,
   showing: (n: string, of: string) => `Showing ${n} of ${of} sessions`,
   stopsTitle: 'Skips and stops',
   stopsHint: 'Every skip and stop, by type and by coach, for the filters above. Coaches with the most come first.',
@@ -202,6 +205,9 @@ const ur: DashCopy = {
   coach: 'کوچ',
   allCoaches: 'تمام کوچ',
   unknownCoach: 'کوچ کا نام درج نہیں',
+  // round 8 (sa_r8_hide_practice): practice (SIM) schools are left out unless asked for
+  includePractice: 'مشقی اسکول شامل کریں',
+  practiceHidden: (n: string) => `مشقی اسکولوں کے ${n} سیشن شمار نہیں کیے گئے۔`,
   showing: (n: string, of: string) => `${of} میں سے ${n} سیشن`,
   stopsTitle: 'چھوڑے گئے حصے اور روکے گئے ٹیسٹ',
   stopsHint: 'اوپر کے فلٹر کے مطابق ہر بار کچھ چھوڑا یا روکا گیا، قسم اور کوچ کے لحاظ سے۔ جن کوچ کے سب سے زیادہ ہیں وہ اوپر ہیں۔',
