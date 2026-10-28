@@ -13,7 +13,7 @@ import api from "../../../services/api";
  * bd-sex15q.15 — the address of S4 (`/portal/coach/insights/m/:momentId`), opened from a Listen row. The read sits
  * inside the gate (B7: with portal_coachip off no /coachip/m/ request fires); the page body is m-player's
  * (insights/player/Moment.tsx, bd-sex15q.16). App bar: "{code} · {school}", the school alone for the RM circle form
- * (API R6, B22: no code); its sub line is S4's `s4.appbar.sub`.
+ * (API R6, B22: no code); its sub line is S4's `s4.appbar.sub`, under the title (R6, bd-sex15q.46: the app bar's line).
  */
 export default function MomentRoute() {
   return (
@@ -33,7 +33,7 @@ function MomentRouteBody() {
       testId="insights-moment"
       backTo="/portal/coach/insights/listen"
       title={data ? <>{code ? <><CodeText lang={lang}>{code.code}</CodeText>{lang === "ur" ? "، " : " · "}</> : null}<CodeText lang={lang}>{data.school.school_name}</CodeText></> : ""}
-      crumb={data && (data as Partial<Moment>).session ? <MomentSub moment={data} /> : null}
+      chips={data && (data as Partial<Moment>).session ? <MomentSub moment={data} /> : null}
       windows={[]}
     >
       {!data ? <StateBlock error={error} /> : <MomentPage moment={data} />}

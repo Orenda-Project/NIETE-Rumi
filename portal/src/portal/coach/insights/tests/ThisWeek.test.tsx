@@ -147,8 +147,11 @@ describe("S1 This week", () => {
     expect(listen.textContent).toBe("Listen 0:38");
     expect(listen.getAttribute("href")).toBe("/portal/coach/insights/w/W-IP-TIME#moment");
     expect(screen.getByTestId("wcard-see").getAttribute("href")).toBe("/portal/coach/insights/w/W-IP-TIME");
-    expect(card.querySelector("[data-num]")?.textContent).toBe("17 of 49");
-    expect(card.textContent).toContain("Move 1 of 2");
+    // R6 (bd-sex15q.46): the headline count and "Move 1 of 2" live in the band (wcard-hero); the card under it holds
+    // where-first and the two actions
+    const hero = screen.getByTestId("wcard-hero");
+    expect(hero.querySelector("[data-num]")?.textContent).toBe("17 of 49");
+    expect(hero.textContent).toContain("Move 1 of 2");
     expect(card.textContent).toContain("Govt. Primary School Fictional-03 first (6 of 9) · visit Wed 28 Oct");
     expect(card.textContent).toContain("then Govt. Primary School Fictional-05, Govt. Primary School Fictional-06");
     const rows = screen.getAllByTestId("wrow");

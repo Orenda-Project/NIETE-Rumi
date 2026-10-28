@@ -95,6 +95,18 @@ describe.each(LANGS)("S4 player page (%s)", (lang) => {
     await waitFor(() => expect(screen.queryByTestId("insights-moment")).toBeNull());
   }, 30000);
 
+  // R6 (bd-sex15q.46, SCREENS S4): the app bar's title is "{code} · {school}" and the session line sits UNDER it (the
+  // app bar's line), never above it as an eyebrow.
+  it("R6: the session line is under the app bar's title", async () => {
+    serve({ [`/coachip/m/${ID}`]: clone(F.moment) });
+    await renderAt(`/m/${ID}`);
+    const bar = screen.getByTestId("insights-appbar");
+    const h1 = bar.querySelector("h1")!;
+    expect(h1.textContent).toContain("T-07");
+    const sub = within(bar).getByTestId("s4-sub");
+    expect(Boolean(h1.compareDocumentPosition(sub) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+  }, 30000);
+
   it("RM circle form: school only in the app bar, no code, no sub line, no full recording", async () => {
     serve({ [`/coachip/m/${ID}`]: clone(F.moment_rm) });
     const { container } = await renderAt(`/m/${ID}`);

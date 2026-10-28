@@ -72,3 +72,34 @@ describe("More and COACHIP", () => {
     expect(coachipCalls()).toEqual([]);
   });
 });
+
+/**
+ * bd-sex15q.46 (R6 ux-coach) — More on the design system ONLY with the switch on. More stands outside the COACHIP Shell,
+ * so it carries `.cp` itself (or the cp-* classes paint nothing); switched off, absent or failing, the markup has no
+ * `cp` class and no `cp-` class anywhere: the page is exactly what it was.
+ */
+const cpClasses = () => Array.from(document.body.querySelectorAll<HTMLElement>("[class]"))
+  .flatMap((e) => (e.getAttribute("class") || "").split(/\s+/))
+  .filter((c) => c === "cp" || /(^|:)(?:[a-z-]+-)?cp-/.test(c));
+
+describe("More and the COACHIP look (R6)", () => {
+  it.each(["off", "absent", "fails"] as const)("switch %s: no cp class anywhere on More", async (mode) => {
+    await renderMore(mode, true);
+    expect(screen.getByTestId("more-who")).toBeTruthy();
+    expect(cpClasses()).toEqual([]);
+  });
+
+  it("switch on: More is inside .cp, the who card is a navy band, the rows are hairline rows", async () => {
+    await renderMore("on", true);
+    const who = screen.getByTestId("more-who");
+    expect(who.closest(".cp")).not.toBeNull();
+    expect(who.className).toContain("bg-cp-navy");
+    for (const id of ["training", "lessons", "rm", "profile", "logout"]) {
+      const row = screen.getByTestId(`more-row-${id}`);
+      expect(row.closest(".cp")).not.toBeNull();
+      expect(row.className).toContain("border-cp-hairline");
+      expect(row.className).toContain("min-h-[44px]");
+    }
+    expect(screen.getByTestId("more-row-language")).toBeTruthy();
+  });
+});
