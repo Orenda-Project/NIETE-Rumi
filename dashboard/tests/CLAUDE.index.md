@@ -125,7 +125,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-r7b-switches.service.test.js` | Tests round 7b battery switches (sa-battery-switches, engine routes): ON puts battery.ui flags; all OFF changes nothing |
 | `sa-r7b-ui-silence.service.test.js` | Tests sa-ui silence reminder: shown and said in EN and UR; Try again reruns the part |
 | `sa-r8-counts.service.test.js` | Tests sa_r8_counts: five familiar-word practice items when on, four when off (sa-battery-switches) |
-| `sa-r8-cues.service.test.js` | Tests sa-mic level reuse and sa-ui recording cues: off shows none, on adds a speaking cue with a level icon |
+| `sa-r8-cues.service.test.js` | Tests sa-ui round-8 cues: answer cue with mic level (r8_nudges); lit instruction word kept in sight (r8_highlight) |
 | `sa-r8-endcard.service.test.js` | Tests the round 8 end card fit and language line under the layout and language switches |
 | `sa-r8-flow-comp.service.test.js` | Tests r8_comp_wait_next: story and listening questions wait for Next instead of timing out after 10 s |
 | `sa-r8-flow-practice.service.test.js` | Tests r8_practice_autoplay: each practice says its answer on arrival; Next moves on without repeating it |
@@ -141,6 +141,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-r8-offline-switches.service.test.js` | Tests the three offline switches in portal-child-test.routes: true or list naming the coach, else off |
 | `sa-r8-passage-variant.service.test.js` | Tests sa-core/sa-page recording of the rotated passage variant shown (index) versus null |
 | `sa-r8-position.service.test.js` | Tests r8_reading_position: story questions follow voiced seconds (under 0.9 s skipped_no_voice) |
+| `sa-r8-say-next-q.service.test.js` | Tests r7_say_next_q: with say-then-next and r8 comp-wait-next ON, question hints name Next (sa-r7a-content) |
 | `sa-r8-story-snap.service.test.js` | Tests r8_story_snap in sa.css/sa-ui: story as a snap box of screenful parts, off keeps the 70% slide |
 | `sa-r8-switch-hold.service.test.js` | Tests sa_r8_switch_hold: failed switch reads answer OFF without a header; ON keeps variants and v4 voice |
 | `sa-r8-switches.service.test.js` | Tests round 8 battery switches in sa-battery-switches and engine routes: ON sets battery.ui flags |

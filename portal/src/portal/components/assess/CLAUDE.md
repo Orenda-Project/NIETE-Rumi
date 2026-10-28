@@ -1,7 +1,7 @@
 # assess — Learning-assessment (child test) page parts: engine frame, preflight, offline prep
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/assess kg=6af227957329 gen=460fe38d4191 overflow=19 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/components/assess kg=eb570621737b gen=460fe38d4191 overflow=19 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `AssessEngineSlot.tsx` — full-screen iframe running the SA engine's play page for one child

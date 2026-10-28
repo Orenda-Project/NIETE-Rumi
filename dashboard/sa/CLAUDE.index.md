@@ -7,8 +7,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `img/` | → (no door; 14 files) |
-| `v1/` | → (no door; 1300 files) |
-| `v2/` | → (no door; 1300 files) |
+| `v1/` | → (no door; 1311 files) |
+| `v2/` | → (no door; 1311 files) |
 | `v3/` | → (no door; 24 files) |
 | `v4/` | Version-4 recorded clips for the battery's spoken lines, per language → `v4/CLAUDE.md` |
 | `CLAUDE.index.md` | (unmapped) |
@@ -25,7 +25,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-run.js` | Standalone QA bootstrap for run.html: mounts screens from query params (lang, mode, form) and exposes window.__sae |
 | `sa-store.js` | Phone store (IndexedDB 'sa-engine', memory fallback) of sessions, events, results, audio chunks until synced |
 | `sa-sync.js` | Upload queue: sends batches, results and audio to the surface's sink idempotently with backoff 2-60 s and status |
-| `sa-ui.js` | Battery screens: draws runner.view() for one child (tap, keypad, keyboard, read tasks) with v4 word highlight |
+| `sa-ui.js` | Battery screens: draws runner.view() for one child (tap, keypad, keyboard, read tasks), v4 word highlight kept in view |
 | `sa-voice.js` | Jugnu's voice for the runner: recorded clip first, then phone speechSynthesis in allowed voices, else a short pause |
 | `sa.css` | Styles for the battery screens (sa-ui): navy on warm paper, amber accent, 360x640 first, SAE Nastaliq font for Urdu |
 | `sink-coach.js` | Coach sink: battery putBatch/presign/register via portal relay /api/portal/leader/child-test/sa/session/:id/* |

@@ -1,7 +1,7 @@
 # ur — Urdu v4 spoken lines: one mp3 and one word-timing json per line, hash named
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa/v4/ur kg=c03c33394423 gen=3d53870b781b overflow=812 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa/v4/ur kg=833fbeb496d6 gen=06ba44ffaa3c overflow=830 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `00575d61b5fe.json` — shape {key, text, audio.url, audio.ms, words[{i,t,s_ms,e_ms}]}
@@ -22,7 +22,7 @@ Full index: `CLAUDE.index.md`
 | `0594a34275cc.json` | Urdu word timings (7 words, 2.5s) for the v4 clip "واپسی پر بلال نے کیا جمع کیے؟", read by sa-ui |
 | `0664930a0a13.json` | Urdu word timings (1 words, 2.0s) for the v4 clip "پاگ", read by sa-ui |
 | `CLAUDE.index.md` | (unmapped) |
-| … | 812 more → `CLAUDE.index.md` |
+| … | 830 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

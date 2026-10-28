@@ -1,6 +1,6 @@
 # v4 — Version-4 recorded clips for the battery's spoken lines, per language
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa/v4 kg=c8f7de51f4de gen=2a0645d54dc7 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa/v4 kg=bc2a0f00833c gen=2a0645d54dc7 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `en/00189f57ab17.json` — a timing sidecar; the mp3 beside it carries the same hash name

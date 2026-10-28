@@ -1,7 +1,7 @@
 # scoring — AI scoring of one recorded block: transcript, windows, scorers, ai_marks
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/scoring kg=1c2352a63a63 gen=fc2eab1e6504 overflow=73 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/scoring kg=c396689cb31f gen=fc2eab1e6504 overflow=73 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `index.js` — scoreBlock/scoreTask, writes ai_marks once

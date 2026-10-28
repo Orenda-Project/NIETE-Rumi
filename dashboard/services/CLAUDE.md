@@ -1,7 +1,7 @@
 # services — Business logic: analytics, coach/teacher app reads, COACHIP, bot HTTP clients, email
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/services kg=b5ee29c84eca gen=15948a6912a2 overflow=312 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/services kg=d8616628c467 gen=15948a6912a2 overflow=312 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `telemetry.service.js` — portal logging; the bot's logger is not usable here

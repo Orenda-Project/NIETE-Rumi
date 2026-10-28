@@ -1,6 +1,6 @@
 # middleware — Express middleware: session auth, request timeout, latency logging, RBAC
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/middleware kg=9197af826320 gen=0cdf7bf0c977 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/middleware kg=5f1e7b4029dc gen=0cdf7bf0c977 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `auth.js` — requireAuth and role helpers for observability pages

@@ -1,7 +1,7 @@
 # lib — Small shared helpers: feature flags, edge switches, date rules, COACHIP insights job
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/lib kg=c8ba33d58aee gen=d8ccb1c9d121 overflow=92 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/lib kg=cfb582c0d3c4 gen=d8ccb1c9d121 overflow=92 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `feature-flags.js` — fail-closed app_settings flags shared with the bot

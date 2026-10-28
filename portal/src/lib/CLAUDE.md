@@ -1,7 +1,7 @@
 # lib — Runtime helpers: app target, Android links/back key, lazy chunks, Urdu text, WhatsApp
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/lib kg=88afec875e9a gen=eda0e1eedd80 overflow=66 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/lib kg=10c689e28b90 gen=eda0e1eedd80 overflow=66 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `runtime.ts` — reads Capacitor/env and applies the pure rules in app-target.cjs

@@ -1,7 +1,7 @@
 # tests — Jest suite for the dashboard server: web-quiz edge, SA runner, leader services
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/tests kg=e370fba16dea gen=776be00195d7 overflow=456 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/tests kg=d226c310aad5 gen=2cf6a7123fc4 overflow=457 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `web-quiz-edge.service.test.js` — start here: the portal edge pages and bot relay pattern; Run: cd dashboard && ./run-tests.sh tests/<file> --maxWorkers=2 (jest.config.js testRegex)
@@ -17,7 +17,7 @@ Full index: `CLAUDE.index.md`
 | `insights/` | Tests for the nightly CoachIP insights job: signals, rollups, ranking, model stage, locks → `insights/CLAUDE.md` |
 | `queue/` | Tests for the portal SQS queue service and worker (transcript and AMA jobs) → `queue/CLAUDE.md` |
 | `support/` | Shared helper for the SA Urdu fit tests, not a test file itself → `support/CLAUDE.md` |
-| … | 456 more → `CLAUDE.index.md` |
+| … | 457 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - env read here: `BASE_ROUTES` · `BASE_SRC` · `CHILD_LINT_PAGE_SRC` · `CHILD_LINT_SEED` · `FR_GOLDEN_WRITE` · `GITHUB_TOKEN` · `GOLDEN_PRINT` · `GOLDEN_WRITE` · `INTERNAL_API_KEY` · `JC_GOLDEN_WRITE` · `KEEP_JUG_GOLDEN_WRITE` · `MAIN_BOT_URL` (+20)

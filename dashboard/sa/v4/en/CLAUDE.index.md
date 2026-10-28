@@ -301,6 +301,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `547bca418207.json` | English word timings (21 words, 8.5s) for the v4 clip "Here are some multiplication proble…", read by sa-ui |
 | `547bca418207.mp3` | (unmapped) |
 | `5634d08731e5.mp3` | (unmapped) |
+| `565949fce286.json` | English word timings (35 words, 13.1s) for the v4 clip "Now some questions about the story you just rea…", read by sa-ui |
+| `565949fce286.mp3` | (unmapped) |
 | `5727de37e362.json` | English word timings (6 words, 3.1s) for the v4 clip "For example, this word is cat.", read by sa-ui |
 | `5727de37e362.mp3` | (unmapped) |
 | `572b81a9a655.mp3` | (unmapped) |
@@ -835,6 +837,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `f6d829c4a0da.json` | English word timings (7 words, 3.8s) for the v4 clip "The sound of this letter is sss.", read by sa-ui |
 | `f6d829c4a0da.mp3` | (unmapped) |
 | `f738ea9f37aa.mp3` | (unmapped) |
+| `f7479ba83139.json` | English word timings (8 words, 2.9s) for the v4 clip "Say your answer out loud, then press Next.", read by sa-ui |
+| `f7479ba83139.mp3` | (unmapped) |
 | `f7532b2b651b.mp3` | (unmapped) |
 | `f75d21704265.mp3` | (unmapped) |
 | `f79f9aa2fad8.mp3` | (unmapped) |

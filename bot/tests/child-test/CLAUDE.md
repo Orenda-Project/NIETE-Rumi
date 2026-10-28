@@ -1,7 +1,7 @@
 # child-test — Jest tests for the child test: draw, SA scorer, results dashboard, voice, stop rules
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/child-test kg=6525e255b053 gen=c1e0adef1214 overflow=43 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/child-test kg=63d2fdc1dd11 gen=fff8643cb86e overflow=44 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `sa-score.test.js` — the SA scorer's core behaviour
@@ -22,7 +22,7 @@ Full index: `CLAUDE.index.md`
 | `sa-any-school.test.js` | Pins the sa_any_school switch: school list scope, list opening and seating at any live school, fail-closed reads |
 | `sa-restart.test.js` | Pins sa_end_test_restart: restartAttempt sets aside the ended attempt's rows, moves events, refuses when off |
 | `CLAUDE.md` | (unmapped) |
-| … | 43 more → `CLAUDE.index.md` |
+| … | 44 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

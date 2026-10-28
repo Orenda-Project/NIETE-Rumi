@@ -1,7 +1,7 @@
 # pages — Top-level route pages: teacher portal, leader/coach, assessment and school analytics
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/pages kg=906724225fa1 gen=17cfc81297f6 overflow=211 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/pages kg=c802a53ad3c4 gen=17cfc81297f6 overflow=211 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `PortalRoot.tsx` — what / renders; `PortalLogin.tsx` is the sign-in; routes are mounted in src/App.tsx

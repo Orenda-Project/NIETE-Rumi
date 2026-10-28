@@ -1,7 +1,7 @@
 # insights — Tests for the nightly CoachIP insights job: signals, rollups, ranking, model stage, locks
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/tests/insights kg=6c94d4fe4f86 gen=fd1919fc3b93 overflow=18 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/tests/insights kg=dcc4bebda6fc gen=fd1919fc3b93 overflow=18 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `job.service.test.js` — end-to-end run on a fictional tier; the best map of the stage chain

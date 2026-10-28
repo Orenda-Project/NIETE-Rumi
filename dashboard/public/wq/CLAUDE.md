@@ -1,7 +1,7 @@
 # wq — Browser code and assets for Jugnu's child web pages: quiz, hub, home, stories, challenge
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq kg=9ff418abb77f gen=9777574ef6ab overflow=62 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/public/wq kg=82f38ad87d2f gen=9777574ef6ab overflow=62 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `wq.js` — quiz page /q/<code>; wq.css is the base stylesheet all child pages share

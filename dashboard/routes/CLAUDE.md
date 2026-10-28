@@ -1,7 +1,7 @@
 # routes — Express routers: portal API, coach/teacher app APIs, child-quiz edge pages, admin routes
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/routes kg=e3d2926038db gen=12bd4d995d78 overflow=385 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/routes kg=a7589d487e0b gen=977edb7554e9 overflow=386 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `portal.routes.js` — main /api/portal API (9k lines)
@@ -31,7 +31,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `dashboard/tests/edge-relay-harness.js` (first-touch.routes.js, quiz-go.routes.js, quiz-teacher.routes.js, teacher-report.routes.js, teacher-stories.routes.js)
 - `tests/coachip/coachip-golden.test.js` (portal-child-test.routes.js, portal-coachip.routes.js, portal-fln.routes.js, portal.routes.js)
-- … 254 more → `CLAUDE.index.md`
+- … 255 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `bot/tests/child-test/CLAUDE.index.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `dashboard/CLAUDE.index.md`? · `dashboard/CLAUDE.md`? · `dashboard/routes/CLAUDE.index.md`? (+34)

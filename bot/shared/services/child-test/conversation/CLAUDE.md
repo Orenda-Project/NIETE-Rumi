@@ -1,7 +1,7 @@
 # conversation — Coach's WhatsApp side of the child test: state machine, steps, recovery sweep
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/conversation kg=5388965bbdc9 gen=55320669b588 overflow=50 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/conversation kg=2673d41ed571 gen=55320669b588 overflow=50 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `machine.js` — the state machine from list to presence to blocks

@@ -15,7 +15,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `ClassicAssessment.tsx` | bd-4n7p4: old-UI Assessment Generator (formerly a Curriculum tab), served at /portal/assessment via PortalAssessment |
 | `LeaderAssess.cwpm.test.tsx` | Round 7b sa_cwpm: pins CWPM labelling and formula across the dashboard, results row and review page |
 | `LeaderAssess.r7b.test.tsx` | Round 7b sa_end_test_restart: pins Restart test for an ended child (new phone id, restart:true); OFF shows Stopped |
-| `LeaderAssess.r8offline.test.tsx` | Round 8 switches (fast start, offline run, preload) on LeaderAssess: slow Present answers, queued Present, defaults off |
+| `LeaderAssess.r8offline.test.tsx` | Round 8 switches on LeaderAssess (fast start, offline-first, offline prep): slow Present, queued Present, offline resume |
 | `LeaderAssess.test.tsx` | Pins LeaderAssess end to end: flag gate, school picker, server list, absent/present handover, engine frame, queue |
 | `LeaderAssess.tsx` | Coach's Learning assessment at /portal/leader/assess (portal_child_test_sa): pick school, mark five children, run engine |
 | `LeaderAssessDashboard.filters.test.tsx` | Round 7b sa_dash_filters: pins mode, date and coach filters and the Skips and stops view on the live dashboard |

@@ -48,7 +48,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-battery-switches.js` | Applies app_settings content switches (practice, passage rotation, RDF W3 forms) to a battery file as served. |
 | `sa-engine.routes.js` | Serves the self-administered battery engine at /sa/* and /sa/batteries/:name behind the sa_engine switch. |
 | `sa-game.routes.js` | Child battery-as-game edge: /sa-game/:token page, assets, and /api/sa-game/s/* sink forwarded to the bot; flag sa_game. |
-| `sa-r7a-content.js` | Round 7b child-screen words and one clip swap added to a served battery per switch (say-then-next, scroll, tick). |
+| `sa-r7a-content.js` | Round 7b/8 child-screen words added to a served battery per switch (say-then-next, Next on questions, scroll, tick) |
 | `sa-switch.js` | Steady reader for sa_engine/sa_game switches: waits for first read, holds ON 60s so a failed read cannot flap. |
 | `settings.js` | Observability settings routes: super-admin user list, invite, role update, deactivate, and self change-password. |
 | `teacher-report.routes.js` | Public teacher web-quiz report edge at /r/:token (page, pdf, remind, class link, fixes) relayed to the bot's tr API. |
@@ -217,10 +217,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `quiz-go.routes.js` ← `bot/tests/first-touch/walk-persona-seam.test.js` · `dashboard/tests/edge-relay-harness.js` · `dashboard/tests/quiz-go-edge.service.test.js`
 - `quiz-join.routes.js` ← `dashboard/tests/quiz-join-adventure.service.test.js` · `dashboard/tests/quiz-join-early-tap.service.test.js` · `dashboard/tests/quiz-join-edge.service.test.js` · `dashboard/tests/quiz-join-one-face.service.test.js` · `dashboard/tests/quiz-join-wait-word.service.test.js`
 - `quiz-teacher.routes.js` ← `dashboard/tests/edge-relay-harness.js` · `dashboard/tests/quiz-teacher-edge.service.test.js` · `dashboard/tests/quiz-teacher-mount.service.test.js` · `dashboard/tests/quiz-teacher-server-timing.service.test.js`
-- `sa-battery-switches.js` ← `bot/tests/child-test/sa-rdf-w3.test.js` · `dashboard/tests/sa-engine-routes-cold-start.service.test.js` · `dashboard/tests/sa-r4-cell-pace.service.test.js` · `dashboard/tests/sa-r4-coach-last-word.service.test.js` · `dashboard/tests/sa-r4-comp-all-variants.service.test.js` · `dashboard/tests/sa-r4-comp-all.service.test.js` (+16: `python3 kg/kg.py who-reads dashboard/routes/sa-battery-switches.js`)
+- `sa-battery-switches.js` ← `bot/tests/child-test/sa-rdf-w3.test.js` · `dashboard/tests/sa-engine-routes-cold-start.service.test.js` · `dashboard/tests/sa-r4-cell-pace.service.test.js` · `dashboard/tests/sa-r4-coach-last-word.service.test.js` · `dashboard/tests/sa-r4-comp-all-variants.service.test.js` · `dashboard/tests/sa-r4-comp-all.service.test.js` (+17: `python3 kg/kg.py who-reads dashboard/routes/sa-battery-switches.js`)
 - `sa-engine.routes.js` ← `dashboard/tests/sa-dev-tools-gate.service.test.js` · `dashboard/tests/sa-engine-routes-cold-start.service.test.js` · `dashboard/tests/sa-engine-routes.service.test.js` · `dashboard/tests/sa-r5-auto-child-last-word.service.test.js` · `dashboard/tests/sa-r6-manual-app-asks.service.test.js` · `dashboard/tests/sa-r7-auto-no-last-word.service.test.js` (+13: `python3 kg/kg.py who-reads dashboard/routes/sa-engine.routes.js`)
 - `sa-game.routes.js` ← `dashboard/tests/sa-switch.service.test.js`
-- `sa-r7a-content.js` ← `dashboard/tests/sa-r7a-child-screens.service.test.js`
+- `sa-r7a-content.js` ← `dashboard/tests/sa-r7a-child-screens.service.test.js` · `dashboard/tests/sa-r8-say-next-q.service.test.js`
 - `sa-switch.js` ← `dashboard/tests/sa-switch.service.test.js`
 - `teacher-report.routes.js` ← `dashboard/tests/class-round-edge.service.test.js` · `dashboard/tests/edge-relay-harness.js` · `dashboard/tests/teacher-class-week-edge.service.test.js` · `dashboard/tests/teacher-jugnu-edge.service.test.js` · `dashboard/tests/teacher-report-timing-edge.service.test.js` · `dashboard/tests/web-quiz-class-link-edge.service.test.js` (+1: `python3 kg/kg.py who-reads dashboard/routes/teacher-report.routes.js`)
 - `teacher-stories.routes.js` ← `dashboard/tests/edge-relay-harness.js`

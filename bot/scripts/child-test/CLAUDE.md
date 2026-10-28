@@ -1,6 +1,6 @@
 # child-test — Print packs, SA battery bank build and SA voice recording for the child test
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/child-test kg=9cdc64a3dfe2 gen=4a2ee58c2678 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/child-test kg=5167e2570c32 gen=4a2ee58c2678 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `build-sa-bank.js` — rebuilds the SA bank and engine JSONs (--check)

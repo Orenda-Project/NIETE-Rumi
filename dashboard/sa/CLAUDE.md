@@ -1,7 +1,7 @@
 # sa — Self-administered reading/maths battery engine served at /sa/*, offline-first
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa kg=40d01a933cd4 gen=c03fe5b721ec overflow=91 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa kg=870c4acdbfbf gen=645a4faca8ae overflow=91 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `sa-page.js` — boot of /sa/play.html, the page both coach and game open
@@ -13,8 +13,8 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `img/` | → (no door; 14 files) |
-| `v1/` | → (no door; 1300 files) |
-| `v2/` | → (no door; 1300 files) |
+| `v1/` | → (no door; 1311 files) |
+| `v2/` | → (no door; 1311 files) |
 | `v3/` | → (no door; 24 files) |
 | `v4/` | Version-4 recorded clips for the battery's spoken lines, per language → `v4/CLAUDE.md` |
 | `sa*` | 12 files; most used `sa-core.js`: Pure runner: one child through a timed EGRA/EGMA battery; normalize() battery JSON, ordered events, no DOM/timers |

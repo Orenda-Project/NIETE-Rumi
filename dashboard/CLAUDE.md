@@ -1,7 +1,7 @@
 # dashboard — Express server: admin pages, teacher/coach portal API, child-quiz edge
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard kg=1560cc1f7805 gen=cc19e61ce31c overflow=24 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard kg=8abdfe3e3569 gen=cc19e61ce31c overflow=24 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `index.js` — app wiring: sessions, limits, every router mount, admin pages, portal build serving

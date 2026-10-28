@@ -1,7 +1,7 @@
 # child-test — Child test (Jugnu) item banks, passages, generated batteries and word lists
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data/child-test kg=6077f950b4eb gen=e7e4981a3171 overflow=20 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data/child-test kg=45ad299f5065 gen=e7e4981a3171 overflow=20 rendered=2026-10-28 kg.py=1.0.0 -->
 
 ## Entry points
 - `item-bank.v3.json` — official-source bank the self-administered batteries are built from
