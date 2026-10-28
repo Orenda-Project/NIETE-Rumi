@@ -178,6 +178,50 @@ async function issueCertificate(supabase, { userId, programId, levelId, attemptI
 }
 
 /**
+ * bd-jtgjt8.1 — the chain-vendor rule: a PASSED level exam (a grand attempt at
+ * this level) certifies the level. The same rule gradeAttempt applies on
+ * WhatsApp when it calls issueCertificate on a pass, so the portal and
+ * WhatsApp cannot disagree. Units alone never certify a chain level.
+ *
+ * The certificate cites the FIRST passing attempt: a teacher whose pass went
+ * uncertified and who passes again keeps the date she first earned it.
+ */
+async function certifyOnLevelExam(supabase, { userId, level, programId }) {
+  const { data: passes } = await supabase
+    .from('training_assessment_attempts')
+    .select('id, program_id, completed_at')
+    .eq('user_id', userId)
+    .eq('level_id', level.id)
+    .eq('quiz_kind', 'grand')
+    .eq('is_passed', true)
+    .order('completed_at', { ascending: true })
+    .limit(1);
+  const pass = Array.isArray(passes) ? passes[0] : null;
+  if (!pass) return { issued: false };
+
+  // Same capped list read as below: one certificate per (user, level).
+  const { data: existingRows } = await supabase
+    .from('training_certificates')
+    .select('certificate_code')
+    .eq('user_id', userId)
+    .eq('level_id', level.id)
+    .limit(1);
+  if (Array.isArray(existingRows) && existingRows.length > 0) return { issued: false };
+
+  const cert = await issueCertificate(supabase, {
+    userId, programId: programId || pass.program_id, levelId: level.id, attemptId: pass.id,
+  });
+  if (cert.issued === false) return { issued: false };
+  return {
+    issued: true,
+    certificate_code: cert.certificate_code,
+    level_name: cert.level_name,
+    teacher_name: cert.teacher_name,
+    pdf_r2_key: cert.pdf_r2_key || null,
+  };
+}
+
+/**
  * bd-2234 — quiz-score certificate for all_modules vendors WITHOUT a
  * capstone (Oxbridge). NIETE team rule (21 Jul): complete every module of
  * the level with a best module-quiz score of >= 70% each → certificate.
@@ -231,7 +275,17 @@ async function maybeIssueQuizScoreCertificate(
     const level = levelRow;
     const { data: vendor } = await supabase
       .from('training_vendors').select('id, unlock_logic').eq('id', level.vendor_id).maybeSingle();
-    if ((vendor?.unlock_logic || 'chain') === 'chain') return { issued: false };
+    // A chain vendor (NIETE L0-L3) certifies on its LEVEL EXAM.
+    //
+    // bd-jtgjt8.1: this line used to return { issued: false }. That was harmless
+    // while the only caller for a chain level was gradeAttempt on WhatsApp, which
+    // calls issueCertificate itself on a pass. Once the portal's level-exam submit
+    // asked this guard instead (certify-level, on main 6 Oct), a NIETE level passed
+    // in the teacher app was never certified: 158 passes by 125 teachers, and not
+    // one certificate since 12 Oct.
+    if ((vendor?.unlock_logic || 'chain') === 'chain') {
+      return await certifyOnLevelExam(supabase, { userId, level, programId });
+    }
 
     // Capstone levels certify via the capstone pass.
     const { data: capstone } = await supabase
