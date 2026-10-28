@@ -11,7 +11,7 @@ import AssessActions, { useAboveTabBar } from '../components/assess/AssessAction
 import AssessOfflineCard from '../components/assess/AssessOfflineCard';
 import { OFFLINE_COPY } from '../components/assess/offlineCopy';
 import {
-  dropPageOffline, FAST_START_MS, formFor, prepForms, readPreparedList, readSchools, useR8Switches, within, writeSchools, type PrepResult, type Progress,
+  checkForms, dropPageOffline, FAST_START_MS, formFor, prepForms, readPreparedList, readSchools, useR8Switches, within, writeSchools, type PrepResult, type Progress,
 } from '../components/assess/offlineReady';
 import { childTestSa } from '../services/api';
 import { useChildTestSa } from '../lib/useChildTestSa';
@@ -123,6 +123,9 @@ export default function LeaderAssess() {
   r8Ref.current = r8;
   /** sa_r8_offline_first: the battery on the phone before Start (form → its preparation, started when the list opens). */
   const warm = useRef<Record<string, Promise<PrepResult>>>({});
+  /** The Start gate is downloading a child's part: the background download holds its next chunk meanwhile. */
+  const gating = useRef(false);
+  const holdWhileGating = useCallback(() => gating.current, []);
   const [gate, setGate] = useState<null | { progress: Progress | null; failed: boolean }>(null);
   /** sa_r8_offline_prep: the schools shown are the ones saved on this phone (the network failed). */
   const [savedSchools, setSavedSchools] = useState(false);
@@ -230,8 +233,8 @@ export default function LeaderAssess() {
   useEffect(() => {
     if (!r8.offlineFirst || step.kind !== 'list' || !list) return;
     const f = formFor(list.grade, lang);
-    if (!warm.current[f]) warm.current[f] = prepForms([f]);
-  }, [r8.offlineFirst, step.kind, list, lang]);
+    if (!warm.current[f]) warm.current[f] = prepForms([f], undefined, undefined, { paused: holdWhileGating });
+  }, [r8.offlineFirst, step.kind, list, lang, holdWhileGating]);
 
   // sa_all_grades: the school, then the grade; the grade rides on the school for every call of that list
   const pickSchool = (s: SaSchool) => {
@@ -480,10 +483,18 @@ export default function LeaderAssess() {
    */
   const readyOnPhone = async (form: string, block: Block, seed: string): Promise<boolean> => {
     setGate({ progress: null, failed: false });
-    const r = await prepForms([form], (p) => setGate({ progress: p, failed: false }), { block, seed });
-    if (r.ok) { setGate(null); return true; }
-    setGate({ progress: null, failed: true });
-    return false;
+    gating.current = true;
+    try {
+      // already on the phone (Get ready, the list's warm-up, an earlier child): no network at all
+      if ((await checkForms([form], { block, seed })).ready) { setGate(null); return true; }
+      // else this part only, with the line to itself; the battery is not read again when the phone has it
+      const r = await prepForms([form], (p) => setGate({ progress: p, failed: false }), { block, seed }, { fresh: false });
+      if (r.ok) { setGate(null); return true; }
+      setGate({ progress: null, failed: true });
+      return false;
+    } finally {
+      gating.current = false;
+    }
   };
 
   const start = async () => {
