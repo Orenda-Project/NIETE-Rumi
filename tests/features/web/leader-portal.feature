@@ -175,3 +175,10 @@ Feature: School leader (principal) portal
     When the coach taps "Start"
     Then the test opens with nothing downloaded first
     And when the part is not there yet, the list's background download pauses until the part is on the phone
+
+  @LP27 @config-gated
+  Scenario: Learning assessment: after Get ready, a child starts at a school with no signal (sa_r8_offline_first, sa_r8_offline_prep)
+    Given the coach got ready for offline (school, grade ticked) and the phone now has no internet
+    When they open the school, pick the grade, mark a child present and tap "Start" (with or without reloading the page first)
+    Then the test opens with nothing downloaded, and Jugnu speaks from the phone
+    And "The voice is not ready yet" never shows

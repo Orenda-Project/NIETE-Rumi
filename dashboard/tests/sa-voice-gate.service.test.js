@@ -45,7 +45,7 @@ describe('(a) the service worker\'s fetches', () => {
   });
 
   test('the worker\'s version moved on (sa-4)', () => {
-    expect(sw.CORE).toBe('sa-core-sa-11'); // sa-11: round 8 offline, the fast Start gate
+    expect(sw.CORE).toBe('sa-core-sa-12'); // sa-12: round 8 offline, no register() wait offline
   });
 });
 
