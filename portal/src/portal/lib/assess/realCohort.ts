@@ -23,6 +23,11 @@ export function secondVoiceCount(students: DashStudent[]): number {
   return (students || []).filter((s) => s.results.tasks.some((t) => t.secondVoice === true)).length;
 }
 
+/** Round 8 (sa_r8_hide_practice): the sessions the page counts; a practice (SIM) school's only when asked for. */
+export function withPractice(sessions: SaDashboardSession[], include: boolean): SaDashboardSession[] {
+  return include ? sessions || [] : (sessions || []).filter((s) => s.practice !== true);
+}
+
 export function toDashStudents(sessions: SaDashboardSession[]): DashStudent[] {
   const out: DashStudent[] = [];
   for (const s of sessions || []) {
