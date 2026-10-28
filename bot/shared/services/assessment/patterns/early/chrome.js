@@ -24,18 +24,26 @@ function commonHeader() {
   return out;
 }
 
+// The spelling line is for Maths and GK keys only: a language key marks spelling (bd-5jmnfj.4.50.5).
+const NO_SPELLING = ['maths', 'general_knowledge'];
+const SPELLING = {
+  en: ' Spelling is not marked unless the key says so.',
+  ur: ' املا کے نمبر صرف وہاں کٹتے ہیں جہاں کلید میں لکھا ہو۔', // needs fluent-Urdu review
+};
+
 /** The legend: how to mark, with the oral part named. No grade bands: FDE's G1-2 papers print none. */
 function legendFor(key) {
+  const spelling = (lang) => (NO_SPELLING.includes(key) ? SPELLING[lang] : '');
   return {
     title_en: 'How to mark',
     title_ur: 'جانچنے کا طریقہ',
     lines_en: [
-      'One mark per correct item unless the paper says otherwise. Spelling is not marked in Maths or GK.',
+      `One mark per correct item unless the paper says otherwise.${spelling('en')}`,
       '',
       'Written marks only. Record the oral marks from the oral sheet, then add both on the class record.',
     ],
     lines_ur: [
-      'جب تک پرچے میں کچھ اور نہ لکھا ہو، ہر درست جواب پر 1 نمبر۔ ریاضی اور معلومات عامہ میں املا کے نمبر نہیں کٹتے۔',
+      `جب تک پرچے میں کچھ اور نہ لکھا ہو، ہر درست جواب پر 1 نمبر۔${spelling('ur')}`,
       '',
       'یہ صرف تحریری نمبر ہیں۔ زبانی نمبر زبانی جائزے کی شیٹ سے لکھیں، پھر کلاس ریکارڈ پر دونوں جمع کریں۔',
     ],

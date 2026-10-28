@@ -28,11 +28,13 @@
 const fs = require('fs');
 const path = require('path');
 const { clampLanguage } = require('../../config/ux-strings');
-const { SUBJECT_LABEL } = require('./assessment-vocabulary');
 const Patterns = require('./patterns');
 const { pictureBlock, bubbleBlock, PICTURE_CSS } = require('./fde-picture-block');
-const { matchOrder, matchTable, matchAnswer, MATCH_CSS } = require('./fde-match-block');
+const { matchOrder, bankOrder, matchTable, matchAnswer, MATCH_CSS } = require('./fde-match-block');
 const { oralSheet, ORAL_CSS } = require('./fde-oral-sheet');
+const { answeredParts } = require('./fde-sub-answers');
+const { frameBank } = require('./fde-frame-bank');
+const Cover = require('./fde-scheme-cover');
 
 // ── fonts ──────────────────────────────────────────────────────────────────
 
@@ -502,8 +504,11 @@ function frameBlock(q, slot, ctx) {
   const title = String(slot.frame[`title_${lang}`] || '').replace('{q}', String(q.question || '').trim());
   const lines = Array.from({ length: slot.frame.lines || 0 }, (_, i) => `<div class="label-line"><span class="num-l">${textOf(String(i + 1), ctx)}.</span></div>`).join('');
   const id = `fde-frame-${slot.slot}`;
-  const bank = slot.frame.word_bank ? wordList(q.words, ctx, true) : '';
-  return `${bank}<div class="frame" id="${esc(id)}" style="height:${slot.frame.height_mm}mm">`
+  // A frame that prints no `words` still prints the item's own instruction and bank (bd-5jmnfj.4.50.4).
+  const own = slot.frame.word_bank ? { line: '', words: q.words } : frameBank(q, slot[`instruction_${lang}`]);
+  const lead = own.line ? `<div class="frame-ins">${textOf(own.line, ctx)}</div>` : '';
+  const bank = wordList(own.words, ctx, true);
+  return `${lead}${bank}<div class="frame" id="${esc(id)}" style="height:${slot.frame.height_mm}mm">`
     + `<a class="frame-anchor" href="#${esc(id)}"></a>`
     + `<div class="frame-title">${textOf(title, ctx)}</div>`
     + (lines ? `<div class="label-lines">${lines}</div>` : '')
@@ -641,8 +646,8 @@ function slotBlock(slot, sec, list, ctx) {
   // An either/or question is read as one choice: never split across a page.
   const either = slot.or || slot.alternatives ? ' either' : '';
   // A Grade 1-2 slot prints its words once, boxed, above its items (bd-5jmnfj.4.20). The bank is
-  // sorted so its order never matches the items' order: a model lists them as it wrote them.
-  const words = [...new Set(live.flatMap((q) => (Array.isArray(q.words) ? q.words : [])))].sort((x, y) => String(x).localeCompare(String(y)));
+  // dealt so no word sits at its own item: a model lists them as it wrote them (bd-5jmnfj.4.50.9).
+  const words = bankOrder([...new Set(live.flatMap((q) => (Array.isArray(q.words) ? q.words : [])))], live.map(matchAnswer));
   const bank = printsWords(slot) && slotFlag(slot, 'answer_box') && words.length
     ? `<div class="word-box bank">${words.map((w) => `<span class="w">${textOf(w, ctx)}</span>`).join('')}</div>` : '';
   if (grid) return `<div class="slot${either}">${head}${bank}<div class="pic-grid">${body.join('')}</div></div>`;
@@ -734,9 +739,12 @@ function css(medium, kind) {
   /* Inset from the end: a border on the content edge is clipped from the PDF (bd-5jmnfj.4.20). */
   .write-box { border: 1.2px solid #000; margin: 2mm 0 1mm; margin-${end}: 0.5mm; }
   .sq { display: inline-block; width: 9mm; height: 7mm; border: 1.2px solid #000; vertical-align: middle; margin: 0 2mm; }
-  .word-box.bank { display: flex; flex-wrap: wrap; justify-content: center; gap: 2mm 8mm; padding: 2mm 4mm; font-size: 13pt; }
-  .pic-grid { display: flex; flex-wrap: wrap; gap: 4mm; }
-  .q.pic-cell { width: 30%; break-inside: avoid; }
+  .word-box.bank { display: flex; flex-wrap: wrap; justify-content: center; gap: 2mm 8mm; padding: 2mm 4mm; font-size: 13pt; break-after: avoid; }
+  /* Picture cells sit in lines, not a flex grid (bd-5jmnfj.4.50.6): Chromium starts a flex grid on
+     its heading's page and pushes only the cells, so v22 left headings alone at a page foot. As
+     lines, the first row moves with its heading; one row is enough on either side of a break. */
+  .pic-grid { orphans: 1; widows: 1; }
+  .q.pic-cell { display: inline-block; vertical-align: top; width: 30%; margin: 0 0 4mm; margin-inline-end: 4mm; break-inside: avoid; }
   table.data { border-collapse: collapse; margin: 4px 0; }
   table.data th, table.data td { border: 1px solid #000; padding: 2px 10px; text-align: center; }
   table.data th { background: #f0f0f0; }
@@ -875,9 +883,6 @@ function shortLabel(label) {
   return String(label || '').replace(/^Q\.\s?/, 'Q').replace(/^(Q\d+)\.\s*\(/, '$1 (').replace(/[.:]\s*$/, '').trim();
 }
 
-// A private-use character no text carries, standing in for the file name until it is escaped.
-const FILE_MARK = '\uE000';
-
 /*
  * A frame the teacher fills from the book when no book page is confirmed
  * (the Social Studies map, a Science diagram whose page the item does not give): the scheme names the book's own map and prints no
@@ -916,20 +921,17 @@ function filledByCode(L, examJson) {
   }).length;
 }
 
-function beforeExamBox(L, live, ctx, paperFileName, grade, examJson) {
+function beforeExamBox(L, live, ctx, examJson) {
   const lang = ctx.medium;
   const B = L.before_exam;
   const lines = [...B[`lines_${lang}`]];
   const pages = L.pages && Number.isInteger(L.pages.paper) ? L.pages.paper : null;
-  // The same name the orchestrator saves (SUBJECT_LABEL, letters and digits only).
-  const label = String(SUBJECT_LABEL[L.subject] || L.subject || 'Paper').replace(/[^A-Za-z0-9]/g, '');
-  const file = paperFileName || `Grade${grade || 5}_${label}_FDE.pdf`;
   if (pages === null) {
     lines[0] = lines[0].replace(lang === 'ur' ? ' ({n} صفحات)' : ' ({n} pages)', '');
     lines[1] = lang === 'ur' ? lines[1].replace('تمام {n} صفحات', 'تمام صفحات') : lines[1].replace('all {n} pages', 'every page');
   }
-  // The file name is the saved name, ASCII digits and all: it skips the Urdu digit rule.
-  lines[0] = fill(lines[0], { file: FILE_MARK, n: pages });
+  // The box names the paper, never a file (bd-5jmnfj.4.50.5).
+  lines[0] = fill(lines[0], { file: Cover.PAPER_NAME[lang], n: pages });
   lines[1] = fill(lines[1], { n: pages });
   // You add.
   const frameSupply = (L.supplies || []).find((s) => s.kind !== 'naat');
@@ -944,14 +946,14 @@ function beforeExamBox(L, live, ctx, paperFileName, grade, examJson) {
     if (!p) line = line.replace(lang === 'ur' ? 'سوالیہ پرچہ صفحہ ' : 'page ', '');
     lines[2] = line;
   } else {
-    lines[2] = B[`nothing_${lang}`];
+    lines[2] = null; // Nothing to add: no line (bd-5jmnfj.4.50.5).
   }
-  // Tell the class.
-  const onPaper = L.sections.filter((s) => s.answer_on === 'question_paper').map((s) => shortSection(s, lang));
-  const onSheet = L.sections.filter((s) => s.answer_on !== 'question_paper').map((s) => shortSection(s, lang));
+  // Tell the class: the parts by the names the paper prints.
+  const onPaper = L.sections.filter((s) => s.answer_on === 'question_paper');
+  const onSheet = L.sections.filter((s) => s.answer_on !== 'question_paper');
   const where = [
-    onPaper.length ? fill(B[`on_paper_${lang}`], { sections: joinList(onPaper, lang) }) : null,
-    onSheet.length ? fill(B[`on_sheet_${lang}`], { sections: joinList(onSheet, lang) }) : null,
+    onPaper.length ? fill(B[`on_paper_${lang}`], { sections: Cover.joinParts(onPaper, lang) }) : null,
+    onSheet.length ? fill(B[`on_sheet_${lang}`], { sections: Cover.joinParts(onSheet, lang) }) : null,
   ].filter(Boolean).join(lang === 'ur' ? '؛ ' : '; ');
   // Every choice the paper offers, in paper order: between items (attempt < generate),
   // inside one item (seven words, any five), or between two alternatives (Urdu Q6).
@@ -971,20 +973,7 @@ function beforeExamBox(L, live, ctx, paperFileName, grade, examJson) {
   lines[4] = fill(lines[4], { t: L[`total_time_${lang}`] || (lang === 'ur' ? '3 گھنٹے' : '3 hrs') });
   const filled = examJson ? filledByCode(L, examJson) : 0;
   if (filled > 0) lines.push(FILLED_BY_CODE[lang](filled));
-  const fileHtml = `<bdi class="file" dir="ltr">${esc(file)}</bdi>`;
-  return `<div class="box before"><div class="bt">${textOf(B[`title_${lang}`], ctx)}</div><ol>${lines.map((l) => `<li>${textOf(l, ctx).replace(FILE_MARK, fileHtml)}</li>`).join('')}</ol></div>`;
-}
-
-function shortSection(sec, lang) {
-  if (lang === 'ur') return sec.label_ur ? sec.label_ur.replace(/[()]/g, '').replace(/\s*(معروضی|موضوعی)\s*/g, ' ').trim() : sec.id;
-  return sec.id;
-}
-
-// "A" → "Section A"; "B", "C" → "Sections B and C"; Urdu labels joined with «اور».
-function joinList(list, lang) {
-  const and = (xs, comma, word) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(comma)} ${word} ${xs[xs.length - 1]}`);
-  if (lang === 'ur') return and(list, '، ', 'اور');
-  return `${list.length > 1 ? 'Sections' : 'Section'} ${and(list, ', ', 'and')}`;
+  return `<div class="box before"><div class="bt">${textOf(B[`title_${lang}`], ctx)}</div><ol>${lines.filter((l) => l !== null).map((l) => `<li>${textOf(l, ctx)}</li>`).join('')}</ol></div>`;
 }
 
 /*
@@ -1123,6 +1112,17 @@ function writtenRows(slot, list, ctx, Criteria) {
       }
       return;
     }
+    // A passage's answers sit on its parts: a row per part, lettered as the paper letters them (bd-5jmnfj.4.50.2).
+    const parts = answeredParts(q);
+    if (parts) {
+      parts.forEach((sub, k) => {
+        const label = `${n} ${itemNumber({ numbering: slot.sub_numbering || 'alpha_paren' }, k, lang)}`;
+        const stem = sub && sub.question ? `<div class="q-line">${textOf(cutAtWord(bareSub(sub.question), 110), ctx)}</div>` : '';
+        const each = sub && Number(sub.marks) > 0 ? Number(sub.marks) : slot.marks_each / parts.length;
+        rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(label, ctx)}</td><td class="ans"><b>${textOf(sub && sub.answer, ctx)}</b>${stem}</td><td class="pts">${pointsHtml(sub || {}, ctx, { kindFor: () => null, criteriaFor: () => [] }, slot, k, each)}</td></tr>`);
+      });
+      return;
+    }
     const answer = q.answer !== undefined && q.answer !== null ? `<b>${textOf(q.answer, ctx)}</b>` : '';
     // An English key names a picture the answer is not (bd-5jmnfj.4.48): v21 Q6 keyed "mat" for a bat.
     const pic = lang === 'en' && q.picture && q.picture.name && String(q.picture.name).trim().toLowerCase() !== String(q.answer ?? '').trim().toLowerCase()
@@ -1193,8 +1193,9 @@ function comprehensionRows(slot, q, ctx) {
         rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(spec.label, ctx)}</td><td class="ans"><b>${textOf(kind, ctx)}:</b> ${textOf(words.join(lang === 'ur' ? '، ' : ', ') + tail, ctx)}</td><td class="pts"><span class="chip">${esc(`K${fmt(spec.marks_each)}`)}</span> ${textOf(lang === 'ur' ? 'ہر درست لفظ' : 'each correct word', ctx)}</td></tr>`); // ur: needs fluent-Urdu review
       }
     } else if (spec.key === 'antonyms') {
+      // «جلدی: دیر», as the model writes the pair; v22 printed «جلدی ← دیر» (bd-5jmnfj.4.50.1).
       (part.antonyms || []).forEach((pair) => {
-        rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n"></td><td class="ans"><b>${textOf(Array.isArray(pair) ? `${pair[0]} ← ${pair[1]}` : pair, ctx)}</b></td><td class="pts"><span class="chip">${esc(`A${fmt(spec.marks_each)}`)}</span></td></tr>`);
+        rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n"></td><td class="ans"><b>${textOf(Array.isArray(pair) ? `${pair[0]}: ${pair[1]}` : pair, ctx)}</b></td><td class="pts"><span class="chip">${esc(`A${fmt(spec.marks_each)}`)}</span></td></tr>`);
       });
     } else {
       (part.questions || []).forEach((sub, k) => {
@@ -1206,7 +1207,7 @@ function comprehensionRows(slot, q, ctx) {
   return rows;
 }
 
-function renderMarkingScheme({ examJson, grade, subject, paperFileName = null, allowShort = false }) {
+function renderMarkingScheme({ examJson, grade, subject, allowShort = false }) {
   const L = layoutOf(examJson);
   refuseReviewText(examJson, 'marking scheme');
   const { all, live } = itemsBySlot(examJson, L);
@@ -1217,10 +1218,8 @@ function renderMarkingScheme({ examJson, grade, subject, paperFileName = null, a
   const H = L.header;
   const ur = lang === 'ur';
 
-  const scope = L.scope || {};
-  const coversScope = scope.covers_en || scope.covers_ur
-    ? scope[`covers_${lang}`]
-    : fill(H[`covers_${lang}`], { scope: `${scope[`label_${lang}`] || ''} (${scope[`line_${lang}`] || ''})` });
+  // One bracket deep, one full stop (bd-5jmnfj.4.50.5).
+  const coversScope = Cover.coversLine(L.scope || {}, H[`covers_${lang}`], lang);
 
   // Sections flow one after another (rows never split, a head never ends a
   // page): a forced break per section left near-empty pages in the proof render.
@@ -1249,7 +1248,7 @@ function renderMarkingScheme({ examJson, grade, subject, paperFileName = null, a
 <div class="title">${textOf(H[`title_${lang}`], ctx)}</div>
 <div class="scheme-title">${textOf(H[`scheme_title_${lang}`], ctx)}</div>
 <div class="covers">${textOf(coversScope, ctx)}</div>
-${beforeExamBox(L, live, ctx, paperFileName, grade, examJson)}
+${beforeExamBox(L, live, ctx, examJson)}
 ${legendBox(L, ctx, kinds)}
 ${suppliesBox(L, ctx)}`;
 
@@ -1297,8 +1296,10 @@ function recordPage(L, live, ctx) {
   const lang = ctx.medium;
   const H = L.header;
   const cols = [...H[`record_cols_${lang}`]];
-  const secCols = L.sections.map((sec) => `${lang === 'ur' ? (sec.label_ur || sec.id).replace(/[()]/g, '').replace(/\s*(معروضی|موضوعی)\s*/g, ' ').trim() : sec.id} /${fmt(sectionTotal(sec, live))}`);
-  const total = L.sections.reduce((s, sec) => s + sectionTotal(sec, live), 0);
+  // Each part as the paper names it, then the oral part, so the total is the paper's whole (bd-5jmnfj.4.50.5).
+  const marks = Cover.recordColumns(L, lang, (sec) => sectionTotal(sec, live));
+  const secCols = marks.map((c) => `${c.head} /${fmt(c.marks)}`);
+  const total = marks.reduce((s, c) => s + c.marks, 0);
   const head = [...cols, ...secCols, `${H[`record_total_${lang}`]} /${fmt(total)}`, H[`record_grade_${lang}`]];
   const table = (from) => {
     const rows = Array.from({ length: 20 }, (_, i) => `<tr class="rec-row"><td>${textOf(String(from + i), ctx)}</td><td class="name"></td>${secCols.map(() => '<td></td>').join('')}<td></td><td></td></tr>`).join('');

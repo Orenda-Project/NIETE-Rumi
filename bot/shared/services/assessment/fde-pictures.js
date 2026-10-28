@@ -40,10 +40,14 @@ const FRAME_SHARE = 0.2;
 const slug = (text) => String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
 const canon = (text) => String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
-/** Where an image-model picture is cached. A scene's key also hashes its whole description. */
+/**
+ * Where an image-model picture is cached. A scene's key also hashes its whole description, and its
+ * position word when it has one: a scene drawn before bd-5jmnfj.4.50.3 was told no position.
+ */
 function cacheKey(picture) {
   if (picture.kind === 'scene') {
-    const hash = crypto.createHash('sha256').update(canon(picture.describe)).digest('hex').slice(0, 8);
+    const told = canon(picture.describe) + (picture.place ? `|${picture.place}` : '');
+    const hash = crypto.createHash('sha256').update(told).digest('hex').slice(0, 8);
     return `${PREFIX}/scene-no-text/${slug(picture.describe)}-${hash}.jpg`;
   }
   const name = slug(picture.name);
@@ -164,6 +168,8 @@ async function resolvePictures(examJson, deps = null) {
   const drawn = new Map(); // cache key -> Promise<Buffer>, so one paper draws a picture once
   await Promise.all(items.map(async (q) => {
     try {
+      const place = Kie.placeOf(q); // a position item's picture is told its answer (bd-5jmnfj.4.50.3)
+      if (place) q.picture.place = place;
       const svg = Svg.svgFor(q.picture);
       if (svg) { q.picture.src = Svg.dataUri(svg); return; }
       if (!MODEL_KINDS.includes(q.picture.kind)) throw new Error(`unknown picture kind ${q.picture.kind}`);

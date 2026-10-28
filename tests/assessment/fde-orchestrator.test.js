@@ -201,9 +201,9 @@ describe('a board-pattern job', () => {
     const row = papers().find((r) => r.id === out.paperId);
     expect(row.file_r2_key).toBe('exams/teacher-1/Grade5_Maths_FDE.pdf');
     expect(row.answer_key_r2_key).toBe('exams/teacher-1/Grade5_Maths_FDE_MarkingScheme.pdf');
-    // The scheme's box names the paper's file.
+    // The scheme's box names the question paper, never its file (bd-5jmnfj.4.50.5).
     const [, [schemeHtml]] = mockHtmlToPdf.mock.calls;
-    expect(schemeHtml).toContain('Grade5_Maths_FDE.pdf');
+    expect(schemeHtml).not.toContain('Grade5_Maths_FDE.pdf');
   });
 
   test('total_marks from _layout (100) not from the model\'s marks', async () => {

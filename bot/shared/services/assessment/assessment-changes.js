@@ -137,7 +137,7 @@ function _buildColumns(e, d) {
   return {
     question: _questionText(e.question, 'Match column A with column B.'),
     column_a: left, column_b: shuffled,
-    answer: left.map((l, i) => `${l} → ${right[i]}`).join('; '),
+    answer: left.map((l, i) => `${l}: ${right[i]}`).join('; '), // no arrow in a key (bd-5jmnfj.4.50.1)
     marks: _marks(e.marks, d.marks), lines: d.lines,
   };
 }

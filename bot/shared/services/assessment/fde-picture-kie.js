@@ -19,11 +19,33 @@ const ALONE = 'Only one thing in the picture, centred on a plain white backgroun
   + 'no text, no letters, no label, no caption, no heading, no border. '
   // v17: the egg came back with a curve that reads like a smile (bd-5jmnfj.4.37).
   + 'Draw only the outline and the parts the thing really has: no face, no eyes, no smile, no shine or highlight lines.';
+// v22: the clock's hands came back as arrows pointing at 12 and 3 (bd-5jmnfj.4.50.1).
+const HANDS = 'Its hands are plain straight lines with round ends: no arrowheads, no pointed tips.';
+const hands = (text) => (/\b(clock|watch)/i.test(text) ? ` ${HANDS}` : '');
 // v12: a plant with an arrow came back labelled ROOT, a school said SCHOOL; the scene prompt had no text rule.
 const NO_TEXT = 'No text anywhere: no words, no letters, no label, no caption, no sign, no writing on buildings or boards.';
 const NEGATIVE = 'text, words, letters, typography, captions, labels, watermark, signature, writing, numbers, digits, symbols, '
   + 'colour, photo, grey background, border, frame, worksheet, heading, title, caption, multiple objects, '
   + 'arrow, pointer, scanned page, paper texture, page edge, shadow, face, smile, eyes, highlight';
+
+// v22: G2 English Q10 v said "a bird standing at the back of a wall, partly hidden by it" and drew the bird
+// looking over the wall's top, which a child reads as "on"; the key took only "behind" (bd-5jmnfj.4.50.3).
+// A scene whose answer is a position word is told that one position, and the ones it must not look like.
+const PLACES = {
+  in: 'The first thing is inside the second, with the second\'s sides round it; it is not on top of it.',
+  on: 'The first thing rests on the top of the second, touching it; it is not inside it, under it or behind it.',
+  under: 'The first thing is below the second, with the second right above it; it is not on it or behind it.',
+  near: 'The first thing is close beside the second on the same ground, a small gap between them; it is not on, in, under or behind it.',
+  behind: 'The first thing is behind the second, seen from the front: the second stands in front and hides most of it, '
+    + 'and only a small part of it shows at the second\'s side. It is not on top of the second, not standing on it '
+    + 'and not looking over its top edge.',
+};
+
+/** The position word a scene item's one-word answer names, or null. */
+function placeOf(q) {
+  const word = String((q && q.answer) || '').trim().toLowerCase();
+  return q && q.picture && q.picture.kind === 'scene' && Object.hasOwn(PLACES, word) ? word : null;
+}
 
 /** The image-model prompt for a picture. A count draws one of its object; the paper repeats it. */
 function promptFor(picture) {
@@ -31,12 +53,13 @@ function promptFor(picture) {
   if (kind === 'object' || kind === 'count') {
     const name = String(picture.name || '').trim();
     if (!name) throw new Error(`${kind} picture: nothing to draw`);
-    return `${STYLE} The picture: one ${name}. ${ALONE}`;
+    return `${STYLE} The picture: one ${name}. ${ALONE}${hands(name)}`;
   }
   if (kind === 'scene') {
     const describe = String(picture.describe || '').trim();
     if (!describe) throw new Error('scene picture: nothing to draw');
-    return `${STYLE} The picture: ${describe}. ${NO_TEXT}`;
+    const place = Object.hasOwn(PLACES, String(picture.place)) ? ` The position must be plain at a glance. ${PLACES[picture.place]}` : '';
+    return `${STYLE} The picture: ${describe}.${place} ${NO_TEXT}${hands(describe)}`;
   }
   throw new Error(`${kind}: not an image-model picture`);
 }
@@ -76,4 +99,4 @@ async function generateImage(prompt, {
   throw new Error(`image model: task ${taskId} did not finish`);
 }
 
-module.exports = { promptFor, generateImage, KIE_URL, NEGATIVE };
+module.exports = { promptFor, placeOf, generateImage, KIE_URL, NEGATIVE };
