@@ -57,6 +57,15 @@
  *                     item while the child answers; tick_prompt: lines.r7_type_tick for a typed number; story_scroll:
  *                     lines.r7_scroll after the story's instruction, and a down arrow under the story while more is below.
  *
+ * Round 8, the child's flow (each OFF unless battery.ui.<flag>):
+ *   r8_reading_no_done   a reading (passage) screen says nothing about "done" on the way in; the recorder opens after a
+ *                        short gap (R8_REC_GAP_MS) in place of the Done line. The star keeps its Done label.
+ *   r8_comp_wait_next    a story / listening question never moves on by itself (sa-core); its button reads Next, and a
+ *                        quiet line under it says a stuck child can press it (lines.stuck_press_next, else COPY). Shown,
+ *                        never spoken on the question: Jugnu's voice would land in the child's recorded answer.
+ *   r8_practice_autoplay a spoken practice says its answer (its model) on arrival, after its prompt; Next goes straight
+ *                        on (no second telling); the replay chip says the prompt and the answer again. Coach-led: silent.
+ *
  * UMD: window.SAE.ui in the browser, module.exports under Node.
  */
 (function (root, factory) {
@@ -156,6 +165,8 @@
       more_below: 'More of the story below',
       chip_say_next: 'Say it, then press Next',
       chip_type_tick: 'Type, then press ✓',
+      // round 8 (r8_comp_wait_next): under a story question, when the battery has no lines.stuck_press_next
+      stuck_press_next: 'If you are stuck, press the button to go on.',
     },
     ur: {
       hello: 'السلام علیکم! میں جگنو ہوں۔',
@@ -244,6 +255,7 @@
       more_below: 'کہانی نیچے بھی ہے',
       chip_say_next: 'بولیں، پھر «آگے» دبائیں',
       chip_type_tick: 'لکھیں، پھر ✓ دبائیں',
+      stuck_press_next: 'اگر آپ کو جواب نہ آئے تو آگے جانے کے لیے بٹن دبائیں۔',
     },
   };
 
@@ -266,6 +278,7 @@
   var WARM_CAP_MS = 25000;
   var HOLD_MS = 3000;
   var GATE_CAP_MS = 30000;  // audio_gated_next: Next opens by itself this long after the words began, whatever the voice does
+  var R8_REC_GAP_MS = 600;  // r8_reading_no_done: the reading's recorder opens this long after the screen, in place of the Done line
   var KEYPAD_MIN = 3;        // digits the keypad takes; more when the task has a longer answer (1,000 + 300 + 80 + 3)
   var WORD_MAX = 16;
   var LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('');
@@ -411,6 +424,8 @@
       if (r7.story_scroll === true && t.mode === 'record' && t.passage) return line('r7_scroll');
       return null;
     }
+    /** r8_comp_wait_next: a story or listening question, which waits for Next (sa-core drops its timeout). */
+    function compWait(t) { return r7.r8_comp_wait_next === true && !!t && t.mode === 'oral' && /comprehension$/.test(t.subtask || '') && (!manual || appAsks); }
     function sayNext(t) { return r7.say_then_next === true && cellish(t) && !!line('r7_say_next'); }
     function hintEl(t, cls) {
       var hl = hintOf(t);
@@ -1216,19 +1231,31 @@
     /** A spoken practice item (W3 one-at-a-time tasks): the item big; an example is modelled by Jugnu, a practice item
      *  is modelled after the child's turn (Next); coach-led, the coach models it and Jugnu stays quiet. */
     function modelOf(p) { return (manual && !appAsks) || !Array.isArray(p.model) ? [] : p.model.map(function (m) { return [m, m && m.audio, appAsks]; }); }
+    /** r8_practice_autoplay: a spoken practice (not an example, which already models on arrival) says its answer by itself. */
+    function autoAnswer(t, p) { return r7.r8_practice_autoplay === true && !!t && t.mode === 'record' && !!p && p.role !== 'example' && modelOf(p).length > 0; }
+    /** r8_practice_autoplay's replay: the item's own words (when it has any), then the answer. */
+    function sayAgainWithAnswer(p, t) {
+      gen++;
+      var g = gen;
+      return (itemSpeaks(p) ? sayItem(p, t) : Promise.resolve()).then(function () { if (alive && g === gen) return sayChain(modelOf(p)); });
+    }
     function sPracticeSpoken(v) {
       var p = v.practice, t = v.task;
       return screen(v, 'sae-practice', [
         h('div', { class: 'sae-row' }, [
           h('span', { class: 'sae-chip', text: C.practice }),
-          itemSpeaks(p) || (p.model && (!manual || appAsks)) ? replayBtn(function () { gen++; if (itemSpeaks(p)) sayItem(p, t); else sayChain(modelOf(p)); }) : null,
+          itemSpeaks(p) || (p.model && (!manual || appAsks)) ? replayBtn(function () {
+            if (autoAnswer(t, p)) { sayAgainWithAnswer(p, t); return; }
+            gen++; if (itemSpeaks(p)) sayItem(p, t); else sayChain(modelOf(p));
+          }) : null,
         ]),
         oneCell(p.show != null ? p.show : p.target, t, null),
         coachSays(p),
       ], [gatedBtn(v, C.next, function () {
         busy = true;
         var k = keyOf(runner.view());
-        (p.role === 'example' ? Promise.resolve() : capped(sayChain(modelOf(p)), 7000)).then(function () {
+        // r8_practice_autoplay: the answer was said on arrival (the chip says it again), so Next just goes on
+        (p.role === 'example' || autoAnswer(t, p) ? Promise.resolve() : capped(sayChain(modelOf(p)), 7000)).then(function () {
           busy = false;
           if (!alive || keyOf(runner.view()) !== k) return;
           runner.practiceAnswer(p.target);
@@ -1305,18 +1332,18 @@
     function sRunOral(v) {
       var it = v.item, t = v.task;
       var on = sectionRec ? recording === t : !!(oralRec && oralRec.key === keyOf(v));
-      return screen(v, 'sae-run sae-run-oral', [
+      return screen(v, 'sae-run sae-run-oral' + (compWait(t) ? ' is-r8-wait' : ''), [
         h('p', { class: 'sae-task-tag', text: tx(t.title) }),
         h('div', { class: 'sae-row' }, [jugnu('idle', true), replayBtn(function () { sayItem(it, t); })]),
         coachSays(it),
         /^mental_/.test(t.subtask || '') && shownOf(it) != null ? labelOf(it, t) : null,
         h('div', { class: 'sae-mic sa-mic' + (on ? ' is-on' : ''), 'aria-hidden': 'true' }, [h('span', { text: '🎤' })]),
         hintOf(t) ? hintEl(t, 'sae-sub') : h('p', { class: 'sae-sub', text: C.say_answer }),
-      ], itemFoot(v, [btn(C.answered, function () {
+      ], (compWait(t) ? [stuckEl()] : []).concat(itemFoot(v, [btn(compWait(t) ? C.next : C.answered, function () {
         busy = true;
         runner.answer('spoken');
         later(function () { busy = false; draw(); }, PRESS_MS);
-      }, 'sae-primary')]));
+      }, compWait(t) ? 'sae-primary sa-next' : 'sae-primary')])));
     }
 
     // ---------- session gates ----------
@@ -1643,6 +1670,13 @@
         var said = sayChain([first && s.practice_intro && !manual ? [s.practice_intro] : null]).then(function () {
           if (!alive || lastKey !== k0 || hold) return null;
           if (t.mode === 'record' && v.practice.role === 'example') return sayChain(modelOf(v.practice));
+          // r8_practice_autoplay: the prompt (unless the task reads it only on replay), then the answer, no tap needed
+          if (autoAnswer(t, v.practice)) {
+            var gp2 = gen;
+            return (t.say_on === 'replay' ? Promise.resolve() : sayItem(v.practice, t)).then(function () {
+              if (alive && gp2 === gen && lastKey === k0) return sayChain(modelOf(v.practice));
+            });
+          }
           if (!(t.mode === 'record' && t.say_on === 'replay')) return sayItem(v.practice, t);
           return null;
         });
@@ -1675,7 +1709,9 @@
       } else if (v.phase === 'running' && t && t.mode === 'record') {
         // The star line first; the recorder opens after it (recorderHooks), so Jugnu is neither in the child's
         // recording nor in the silence watch's first second.
-        starSpeech = say(line('done') || { en: COPY.en.done, ur: COPY.ur.done }, null, appAsks);
+        // Round 8 (r8_reading_no_done): nothing about "done" on the way in (a child took «ہو گیا» for the end of the
+        // test); the recorder still waits a moment, so the tail of the last line stays out of the recording.
+        starSpeech = r7.r8_reading_no_done === true ? delay(R8_REC_GAP_MS) : say(line('done') || { en: COPY.en.done, ur: COPY.ur.done }, null, appAsks);
       } else if (v.phase === 'last_word' && coachLW) {
         askHint(v.task);
         sayChain([v.time_left_ms === 0 && s.time_up ? [s.time_up, undefined, appAsks] : null, manual ? null : [copyLine('give_coach')]]);
@@ -1701,6 +1737,9 @@
       }
     }
 
+    /** r8_comp_wait_next: the stuck line, small, just above Next in the foot (always in view, never over the question). */
+    // Text only from COPY (not copyLine, which is for lines with a clip): the page has no recording of these words.
+    function stuckEl() { return h('p', { class: 'sae-sub sae-r8-stuck', text: tx(line('stuck_press_next')) || C.stuck_press_next }); }
     // The recorder hooks: a record task's running phase (however it ends), and each oral question.
     function recorderHooks(v) {
       var isRec = v.phase === 'running' && v.task && (v.task.mode === 'record' || (sectionRec && v.task.mode === 'oral'));

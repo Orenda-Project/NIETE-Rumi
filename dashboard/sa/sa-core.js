@@ -76,6 +76,9 @@
  * Next only (opts.cell_next_only, switch sa_cell_next_only, round 5): an Urdu or English letter/word cell never moves on
  * by itself, in any mode (it wins over cell_pace); only Next does. The task's clock still runs; no silence stop for it.
  *
+ * Round 8: battery.ui.r8_comp_wait_next — a reading or listening comprehension question has no per-question timeout:
+ * the child answers, then presses Next (the page says a stuck child can press it). Other spoken parts keep theirs.
+ *
  * UMD: window.SAE.core in the browser, module.exports under Node.
  */
 (function (root, factory) {
@@ -267,6 +270,8 @@
     var skipTo = null; // the last task a skip passed over: next() goes on after it
     // sa_back_button (round 7b): Back on the item screens (battery.ui.back_button, or opts.back_button)
     var backOn = !!opts.back_button || !!(battery.ui && battery.ui.back_button === true);
+    // Round 8 (battery.ui.r8_comp_wait_next): a story or listening question never moves on by itself; only Next does.
+    var compWait = !!(battery.ui && battery.ui.r8_comp_wait_next === true);
 
     /** sa_cell_next_only: an Urdu or English letter/word cell moves on only on Next (maths cells keep their pace). */
     function holdsCell(t) { return cellNextOnly && cellTask(t) && /^(ur|en)\./.test(String(t.id)); }
@@ -283,6 +288,7 @@
     function itemTimeoutS(t) {
       if (oneAtATime && t.subtask === 'mental_math_fluency' && t.item_timeout_s === TIMED_ITEM_S) return manual ? null : FLUENCY_ITEM_S;
       if (manual && t.mode === 'oral') return null; // coach-led: the coach reads the question; the coach moves on
+      if (compWait && t.mode === 'oral' && /comprehension$/.test(t.subtask || '')) return null;
       return t.item_timeout_s;
     }
     /** The cell on show ends: its time is kept; how = tap | auto | the stop reason. */
