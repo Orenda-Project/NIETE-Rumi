@@ -11,10 +11,8 @@
  */
 const flags = require('../../dashboard/lib/feature-flags');
 
-const {
-  isAssessmentGeneratorEnabled, isPortalAssessmentEditingEnabled, isFlagEnabledForUser, isLoginIntlNumbersEnabled,
-  rmSectorFor, readUserListFlag,
-} = flags;
+// Only helpers every tier carries (sandbox, staging, main), with literal keys, so this one file runs unchanged on each.
+const { isFlagEnabled, isAssessmentGeneratorEnabled, isPortalAssessmentEditingEnabled, isFlagEnabledForUser, readUserListFlag } = flags;
 
 /** A fake supabase client: `rows` maps app_settings.key -> value; `reads` counts reads per key. */
 function fakeDb(rows, { fail = () => false, throws = () => false, users = {} } = {}) {
@@ -50,17 +48,17 @@ function portalConfig(db, userId) {
   return Promise.all([
     isAssessmentGeneratorEnabled(db),
     isPortalAssessmentEditingEnabled(db),
-    isFlagEnabledForUser(db, flags.PORTAL_SELF_OBSERVATION_KEY, userId),
-    isFlagEnabledForUser(db, flags.PORTAL_CHILD_TEST_KEY, userId),
-    isFlagEnabledForUser(db, flags.PORTAL_COACH_OBSERVATION_KEY, userId),
-    isFlagEnabledForUser(db, flags.PORTAL_NEW_UI_KEY, userId),
-    isFlagEnabledForUser(db, flags.PORTAL_COACH_V2_KEY, userId),
-    isFlagEnabledForUser(db, flags.PORTAL_TEACHER_V2_KEY, userId),
-    isFlagEnabledForUser(db, flags.COACH_DISAGREEMENT_CARD_KEY, userId),
-    isFlagEnabledForUser(db, flags.PORTAL_CHILD_TEST_SA_KEY, userId),
-    isFlagEnabledForUser(db, flags.PORTAL_TEACHER_HOME_CARD_KEY, userId),
-    isLoginIntlNumbersEnabled(db),
-    rmSectorFor(db, userId),
+    isFlagEnabledForUser(db, 'portal_self_observation', userId),
+    isFlagEnabledForUser(db, 'portal_child_test', userId),
+    isFlagEnabledForUser(db, 'portal_coach_observation', userId),
+    isFlagEnabledForUser(db, 'portal_new_ui', userId),
+    isFlagEnabledForUser(db, 'portal_coach_v2', userId),
+    isFlagEnabledForUser(db, 'portal_teacher_v2', userId),
+    isFlagEnabledForUser(db, 'coach_disagreement_card', userId),
+    isFlagEnabledForUser(db, 'portal_child_test_sa', userId),
+    isFlagEnabledForUser(db, 'portal_teacher_home_card', userId),
+    isFlagEnabled(db, 'portal_login_intl_numbers'),
+    isFlagEnabledForUser(db, 'portal_coachip_rm', userId),
   ]);
 }
 
@@ -98,7 +96,7 @@ describe('feature-flag cache: a burst makes one read per key', () => {
     expect(db.total()).toBeLessThanOrEqual(13);
     for (const key of Object.keys(CONFIG_ROWS)) expect(db.reads[key]).toBe(1);
     // Every request still gets the uncached answer.
-    const expected = [true, true, true, true, false, false, true, true, true, true, true, false, null];
+    const expected = [true, true, true, true, false, false, true, true, true, true, true, false, false];
     for (const a of answers) expect(a).toEqual(expected);
   });
 
@@ -128,8 +126,15 @@ describe('feature-flag cache: a burst makes one read per key', () => {
 
   it('an absent row is cached too (it is the commonest answer: off)', async () => {
     const db = fakeDb({});
-    for (let i = 0; i < 10; i++) expect(await isLoginIntlNumbersEnabled(db)).toBe(false);
+    for (let i = 0; i < 10; i++) expect(await isFlagEnabled(db, 'portal_login_intl_numbers')).toBe(false);
     expect(db.reads.portal_login_intl_numbers).toBe(1);
+  });
+
+  (flags.rmSectorFor ? it : it.skip)('the RM sector object is read once and still answers per user', async () => {
+    const db = fakeDb({ portal_coachip_rm: { [USER]: 'Nilore' } });
+    const sectors = await Promise.all([flags.rmSectorFor(db, USER), flags.rmSectorFor(db, OTHER)]);
+    expect(sectors).toEqual(['Nilore', null]);
+    expect(db.reads.portal_coachip_rm).toBe(1);
   });
 
   it('two clients never share an entry', async () => {
