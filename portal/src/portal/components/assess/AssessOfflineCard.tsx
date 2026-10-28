@@ -36,6 +36,11 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
     const todays = schools.filter((s) => s.visitToday).map((s) => s.schoolId);
     return new Set(todays.length ? todays : kept);
   });
+  // sa_all_grades: the grades the coach will test at each school (the list is drawn per grade); the school's observed
+  // grade is ticked to start with
+  const [gradesAt, setGradesAt] = useState<Record<string, number[]>>(() => Object.fromEntries(
+    schools.map((s) => [s.schoolId, s.observedGrade ? [s.observedGrade] : []])));
+  const [noGrade, setNoGrade] = useState<string | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [nothing, setNothing] = useState(false);
 
@@ -53,41 +58,50 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
     return n;
   });
 
+  const toggleGrade = (id: string, g: number) => setGradesAt((m) => {
+    const had = m[id] || [];
+    return { ...m, [id]: had.includes(g) ? had.filter((x) => x !== g) : [...had, g].sort() };
+  });
+  const needsGrades = (s: SaSchool) => allGrades && !s.grade;
+
   const getReady = async () => {
     const chosen = schools.filter((s) => picked.has(s.schoolId));
     if (!chosen.length) { setNothing(true); return; }
     setNothing(false);
+    const missingGrade = chosen.find((s) => needsGrades(s) && !(gradesAt[s.schoolId] || []).length);
+    if (missingGrade) { setNoGrade(missingGrade.name); return; }
+    setNoGrade(null);
     setProgress({ done: 0, total: 0, bytes: 0 });
     const grades = new Set<number>();
     const done: PrepRecord['schools'] = [];
     const lists: string[] = [];
-    for (const s of chosen) {
-      // sa_all_grades: the grade is named at the school, so every grade's test goes on the phone and the list waits
-      if (allGrades && !s.grade) {
-        ALL_GRADES.forEach((g) => grades.add(g));
-        done.push({ schoolId: s.schoolId, name: s.name, grade: null, listed: false });
-        continue;
-      }
+    // one list: the school's (grade = the school's own, or a grade the coach ticked under sa_all_grades)
+    const prepList = async (s: SaSchool, grade: number | undefined) => {
       try {
-        const out = s.grade ? await childTestSa.getList(s.schoolId, s.visitId, s.grade) : await childTestSa.getList(s.schoolId, s.visitId);
+        const out = grade ? await childTestSa.getList(s.schoolId, s.visitId, grade) : await childTestSa.getList(s.schoolId, s.visitId);
         const l = out.list;
-        lists.push(listUrl(s.schoolId, s.visitId, s.grade));
-        writePreparedList(s.schoolId, s.grade, l);
-        const key = visitKey(s.schoolId, undefined, s.grade);
+        lists.push(listUrl(s.schoolId, s.visitId, grade));
+        writePreparedList(s.schoolId, grade, l);
+        const key = visitKey(s.schoolId, undefined, grade);
         writeVisit(key, { ...readVisit(key), list: l });
         grades.add(l.grade);
         l.children.concat(l.alternates || []).forEach((k) => { if (k.grade) grades.add(k.grade); });
-        done.push({ schoolId: s.schoolId, name: s.name, grade: s.grade ?? l.grade, listed: true });
+        done.push({ schoolId: s.schoolId, name: s.name, grade: grade ?? l.grade, listed: true });
       } catch {
-        if (s.grade) grades.add(s.grade); else if (s.observedGrade) grades.add(s.observedGrade);
-        done.push({ schoolId: s.schoolId, name: s.name, grade: s.grade ?? s.observedGrade ?? null, listed: false });
+        const g = grade ?? s.observedGrade ?? null;
+        if (g) grades.add(g);
+        done.push({ schoolId: s.schoolId, name: s.name, grade: g, listed: false });
       }
+    };
+    for (const s of chosen) {
+      if (needsGrades(s)) { for (const g of gradesAt[s.schoolId] || []) await prepList(s, g); }
+      else await prepList(s, s.grade);
     }
     const forms = formsFor([...grades].sort());
     const page = keepPageOffline(lists);
     const r = await prepForms(forms, (p) => setProgress(p));
     await page;
-    const rec: PrepRecord = { at: Date.now(), day: today(), schools: done, forms, ok: r.ok && done.every((d) => d.listed || allGrades), total: r.total, cached: r.cached, bytes: r.bytes };
+    const rec: PrepRecord = { at: Date.now(), day: today(), schools: done, forms, ok: r.ok && done.every((d) => d.listed), total: r.total, cached: r.cached, bytes: r.bytes };
     writePrep(rec);
     setRecord(rec);
     setStill(r.ok);
@@ -106,8 +120,8 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
           {missing === 0 && still !== false
             ? <p data-testid="assess-offline-ready" role="status" className="font-medium text-emerald-800">{c.ready(record.schools.length, mb(record.bytes), when)}</p>
             : <p data-testid="assess-offline-partly" role="alert" className="text-sm text-amber-900">{c.partly(Math.max(missing, 1))}</p>}
-          {record.schools.filter((s) => !s.listed && !(allGrades && s.grade === null)).map((s) => (
-            <p key={s.schoolId} className="text-sm text-amber-900">{c.noList(s.name)}</p>
+          {record.schools.filter((s) => !s.listed).map((s) => (
+            <p key={`${s.schoolId}:${s.grade}`} className="text-sm text-amber-900">{c.noList(s.name)}</p>
           ))}
           {record.day !== today() && <p data-testid="assess-offline-earlier" className="text-sm text-amber-900">{c.earlierDay}</p>}
         </div>
@@ -115,14 +129,30 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
       <fieldset className="space-y-2">
         <legend className="mb-1 text-sm font-medium text-slate-800">{c.prepSchools}</legend>
         {shown.map((s) => (
-          <label key={s.schoolId} className="flex min-h-[48px] items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
-            <input type="checkbox" className="h-6 w-6 shrink-0" checked={picked.has(s.schoolId)} disabled={!!progress}
-              data-testid={`assess-offline-school-${s.schoolId}`} onChange={() => toggle(s.schoolId)} />
-            <span className="min-w-0 flex-1 break-words text-slate-900">{s.name || '—'}</span>
-          </label>
+          <div key={s.schoolId} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+            <label className="flex min-h-[48px] items-center gap-3">
+              <input type="checkbox" className="h-6 w-6 shrink-0" checked={picked.has(s.schoolId)} disabled={!!progress}
+                data-testid={`assess-offline-school-${s.schoolId}`} onChange={() => toggle(s.schoolId)} />
+              <span className="min-w-0 flex-1 break-words text-slate-900">{s.name || '—'}</span>
+            </label>
+            {needsGrades(s) && picked.has(s.schoolId) && (
+              <div className="mt-1 flex flex-wrap items-center gap-2" role="group" aria-label={c.gradesLabel}>
+                <span className="text-sm text-slate-700">{c.gradesLabel}</span>
+                {ALL_GRADES.map((g) => {
+                  const on = (gradesAt[s.schoolId] || []).includes(g);
+                  return (
+                    <button key={g} type="button" aria-pressed={on} disabled={!!progress} onClick={() => toggleGrade(s.schoolId, g)}
+                      data-testid={`assess-offline-grade-${s.schoolId}-${g}`}
+                      className={`min-h-[44px] min-w-[44px] rounded-xl border text-base ${on ? 'border-sky-700 bg-sky-700 text-white' : 'border-slate-300 bg-white text-slate-900'}`}>{g}</button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         ))}
       </fieldset>
       {nothing && <p role="alert" className="text-sm text-amber-900">{c.noSchools}</p>}
+      {noGrade && <p role="alert" data-testid="assess-offline-no-grade" className="text-sm text-amber-900">{c.pickGrades(noGrade)}</p>}
       {progress ? (
         <div data-testid="assess-offline-progress" role="status" className="space-y-1">
           <p className="text-sm text-slate-800">{c.working(progress.done, progress.total)}</p>
