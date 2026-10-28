@@ -71,6 +71,8 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
     const missingGrade = chosen.find((s) => needsGrades(s) && !(gradesAt[s.schoolId] || []).length);
     if (missingGrade) { setNoGrade(missingGrade.name); return; }
     setNoGrade(null);
+    // the page itself first: a list read that is slow or fails must not leave the page without its offline copy
+    const pageFirst = keepPageOffline([]);
     setProgress({ done: 0, total: 0, bytes: 0 });
     const grades = new Set<number>();
     const done: PrepRecord['schools'] = [];
@@ -98,9 +100,10 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
       else await prepList(s, s.grade);
     }
     const forms = formsFor([...grades].sort());
-    const page = keepPageOffline(lists);
+    // then once more with the lists just read (registering again is a no-op); the page is small, so it is kept in full
+    // before the tests start to download (a coach who loses the signal early can still reopen the page)
+    await pageFirst.then(() => keepPageOffline(lists));
     const r = await prepForms(forms, (p) => setProgress(p));
-    await page;
     const rec: PrepRecord = { at: Date.now(), day: today(), schools: done, forms, ok: r.ok && done.every((d) => d.listed), total: r.total, cached: r.cached, bytes: r.bytes };
     writePrep(rec);
     setRecord(rec);
@@ -108,7 +111,7 @@ export default function AssessOfflineCard({ schools, lang, allGrades }: Props) {
     setProgress(null);
   };
 
-  const when = record ? new Date(record.at).toLocaleTimeString(lang === 'ur' ? 'ur-PK-u-nu-latn' : 'en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+  const when = record ? new Date(record.at).toLocaleTimeString(lang === 'ur' ? 'ur-PK-u-nu-latn' : 'en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
   const missing = record ? record.total - record.cached : 0;
 
   return (
