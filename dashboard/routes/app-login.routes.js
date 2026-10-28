@@ -9,7 +9,8 @@
  *
  * The bot sends this link (as a cta_url button) only to a teacher on the teacher app, or (bd-fmf24g.52) a pilot coach
  * on the coach app, whose token lands on the coach app (COACH_LANDINGS), or (bd-a73p5m) a leader asking for lesson
- * plans, whose token lands on the Lesson Plans tab (LEADER_LANDINGS) whatever the app flags say. If she is no longer
+ * plans, whose token lands on the Lesson Plans tab (LEADER_LANDINGS) whatever the app flags say, or a coach's School card
+ * (coach-school-target.js: one school's page or My schools), which lands like any coach page. If she is no longer
  * on it by the time she taps, she is still signed in and lands on today's dashboard, never on a page she cannot
  * open. The path is outside the Android app's link list, so WhatsApp opens it in its own browser. The token is
  * the credential: it is never logged, and the response is no-store. Rate limited per IP (60 a minute).
@@ -174,7 +175,10 @@ function createAppLoginRouter({
 
     // bd-fmf24g.52 — a coach token (coach_menu, coach_observe) asks the coach-app question and lands on a coach page;
     // a teacher token asks the teacher-app question, exactly as before. Either way, off the app → today's dashboard.
-    const coach = Object.prototype.hasOwnProperty.call(COACH_LANDINGS, payload.f);
+    // The School card's targets (one school's page, or My schools) are coach pages too: the same coach-app question
+    // first, and off the coach app, today's dashboard. The school page's own 404 decides whether the school is hers.
+    const schoolPath = require('../../bot/shared/services/coach-school-target').coachSchoolPathFor(payload.f);
+    const coach = Boolean(schoolPath) || Object.prototype.hasOwnProperty.call(COACH_LANDINGS, payload.f);
     let onApp = false;
     // bd-a73p5m: a leader token lands on the tab whatever the flags say, so it asks neither app question.
     if (!leaderPathFor(payload.f)) {
@@ -182,7 +186,7 @@ function createAppLoginRouter({
     }
     // An FLN target and (bd-a73p5m) a leader's Lesson Plans tab land as they are: their pages decide who reads them.
     const landing = require('../../bot/shared/services/fln-go-target').flnPathFor(payload.f) || leaderPathFor(payload.f)
-      || (onApp ? (coach ? COACH_LANDINGS : LANDINGS)[payload.f] + landingQuery(payload) : LEGACY_LANDING);
+      || (onApp ? (schoolPath || (coach ? COACH_LANDINGS : LANDINGS)[payload.f] + landingQuery(payload)) : LEGACY_LANDING);
 
     // A new session id, never the one the browser arrived with (session fixation). No portalScope: the whole app.
     req.session.regenerate((err) => {
