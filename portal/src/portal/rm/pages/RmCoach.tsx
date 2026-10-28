@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { useLang } from "../../teacher/i18n";
 import { CodeText, DateText } from "../../coach/insights/count";
@@ -9,7 +9,10 @@ import { useRmLoad } from "../useRmLoad";
 import { useRmSession } from "../RmGate";
 import { rmPaths } from "../paths";
 import type { RmCoach as Detail, RmHome } from "../types";
-import { RmCard, RmNote, RmPage } from "../components/RmFrame";
+import { RmNote, RmPage } from "../components/RmFrame";
+import { Section } from "../../coachip-ui/Section";
+import { Button } from "../../coachip-ui/Button";
+import { Pill } from "../../coachip-ui/Pill";
 import { SectorWRow } from "../components/SectorWRow";
 import { CountLine } from "../components/CountLine";
 import { WindowLegend, windowIds } from "../components/WindowLegend";
@@ -23,22 +26,23 @@ import { rt, rtx } from "../text";
  * with their status; "Send follow-up" (S8's picker); the calibration placeholder; the trust line. No per-teacher number,
  * no code, no disagreement rate, no leniency flag (A8, A9). "No visit in 4 weeks" is the signal, not a fault.
  */
-function Schools({ d }: { d: Detail }) {
+function Schools({ d, children }: { d: Detail; children?: ReactNode }) {
   const lang = useLang();
   const allOld = d.schools.length > 0 && d.schools.every((s) => s.weeks_since_visit === null || s.weeks_since_visit >= 4);
   return (
-    <RmCard testId="s9-schools" title={rt("s9.schools.title", lang)}>
+    <Section testId="s9-schools" first label={rt("s9.schools.title", lang)}>
       {/* fix-r5 s2 items 15 + 17 (design-qa 073628 §5, 073629): said once above the rows; its "4" is policy, not a count */}
       {allOld && <RmNote testId="s9-no-visits"><span data-nonum="">{rt("s9.schools.never", lang)}</span></RmNote>}
       {/* fix-r5 s3 (qa-rm 171001, B5): the graded counts' window, on this card, so it resolves with no moves block */}
       <WindowLegend windows={d.windows} ids={windowIds(d.schools.map((s) => s.graded))} />
-      <ul className="flex flex-col divide-y divide-[#f3f4f6]">
+      <ul className="flex flex-col">
         {d.schools.map((s) => {
           const school = <CodeText lang={lang}>{s.school.school_name}</CodeText>;
           const late = (s.weeks_since_visit ?? 99) >= 4;
           return (
-            <li key={s.school.school_id} data-testid="s9-school" data-late={late ? "1" : undefined} className="flex flex-col gap-0.5 py-2 text-[14.5px]">
-              <span data-nonum="" className={late ? "font-semibold text-[#92400e]" : "text-[#1d2025]"}>
+            <li key={s.school.school_id} data-testid="s9-school" data-late={late ? "1" : undefined} className="flex flex-col gap-0.5 border-t border-cp-hairline py-3.5 text-[15px] leading-[1.45] first:border-t-0">
+              {/* notice = navy, never amber (DESIGN_SYSTEM §6) */}
+              <span data-nonum="" className={late ? "font-semibold text-cp-navy" : "text-cp-ink"}>
                 {s.last_visit === null || s.weeks_since_visit === null
                   ? allOld ? school : <>{school}{lang === "ur" ? "، " : " · "}{rt("s9.schools.never", lang)}</>
                   : rtx(s.next_visit ? "s9.schools.row" : "s9.schools.row.no_next", lang, {
@@ -48,12 +52,13 @@ function Schools({ d }: { d: Detail }) {
                     ...(s.next_visit ? { date2: <DateText iso={s.next_visit.date} lang={lang} /> } : {}),
                   })}
               </span>
-              <CountLine k="s9.graded" count={s.graded} className="text-[12.5px] text-[#6b7280]" />
+              <CountLine k="s9.graded" count={s.graded} className="text-[13px] text-cp-ink-3" />
             </li>
           );
         })}
       </ul>
-    </RmCard>
+      {children}
+    </Section>
   );
 }
 
@@ -61,21 +66,21 @@ function Notes({ d }: { d: Detail }) {
   const lang = useLang();
   if (!d.notes.length) return null;
   return (
-    <RmCard testId="s9-notes" title={rt("s9.notes.title", lang)}>
-      <ul className="flex flex-col gap-3">
+    <Section testId="s9-notes" label={rt("s9.notes.title", lang)}>
+      <ul className="flex flex-col">
         {d.notes.map((n) => (
-          <li key={n.id} data-testid="s9-note" data-status={n.status} className="rounded-xl bg-[#f9fafb] px-3 py-2.5">
-            <div className="mb-1 flex flex-wrap items-center gap-2 text-[12.5px] text-[#6b7280]">
-              <span className="rounded-full bg-white px-2 py-0.5 font-semibold text-[#374151]">{rt(`s9.notes.status.${n.status}` as const, lang)}</span>
+          <li key={n.id} data-testid="s9-note" data-status={n.status} className="border-t border-cp-hairline py-3.5 first:border-t-0">
+            <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[13px] text-cp-ink-3">
+              <Pill tone={n.status === "set" || n.status === "dismissed" ? "tint" : "grey"}>{rt(`s9.notes.status.${n.status}` as const, lang)}</Pill>
               <span>{rtx("s1.note.due", lang, { date: <DateText iso={n.due_on} lang={lang} /> })}</span>
             </div>
-            <ol className="flex flex-col gap-0.5 text-[14px] leading-snug text-[#1d2025]">
+            <ol className="flex flex-col gap-0.5 text-[15px] leading-[1.45] text-cp-ink">
               {n.lines[lang].map((l, i) => <li key={i} data-nonum="">{l}</li>)}
             </ol>
           </li>
         ))}
       </ul>
-    </RmCard>
+    </Section>
   );
 }
 
@@ -104,43 +109,40 @@ export default function RmCoach() {
       trust={data ? "s9.trust" : null}
     >
       {!data || !c ? <StateBlock error={error} testId="rm-state" /> : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="flex flex-col gap-4">
-            <Schools d={data} />
-            <RmCard testId="s9-steps" title={rt("s9.steps.title", lang)}>
-              <WindowLegend windows={data.windows} ids={windowIds(data.steps)} />
-              {/* fix-r5 s2 item 3 (B10): no step set this month is words, never "0 of 0 open · 0 of 0 completed · …" */}
-              {data.steps.open.d === 0
-                ? <p data-testid="s9-steps-none" className="text-[15px] text-[#1d2025]">{rt("s9.steps.none", lang)}</p>
-                : (
-                  <p className="text-[15px] text-[#1d2025]">
-                    {rtx("s9.steps.row", lang, {}, [
-                      { n: "o", d: "d", count: data.steps.open },
-                      { n: "c", d: "d", count: data.steps.completed },
-                      { n: "v", d: "d", count: data.steps.overdue },
-                    ])}
-                  </p>
-                )}
-            </RmCard>
-          </div>
-          <div className="flex flex-col gap-4">
-            <button type="button" data-testid="s9-follow-up" onClick={openPicker}
-              className="min-h-[48px] rounded-full bg-[#333748] px-5 text-[15px] font-semibold text-white">
-              {rt("s8.follow_up", lang)}
-            </button>
-            {data.moves.length > 0 && (
-              <RmCard testId="s9-moves" title={rt("s9.moves.title", lang)}>
-                <div className="flex flex-col gap-2">
-                  {data.moves.map((m) => (
-                    <SectorWRow key={m.row.w_id} row={m.row} testId="s9-wrow"
-                      sector={m.sector ?? m.row.sector ? { label: sector, count: (m.sector ?? m.row.sector)! } : null} />
-                  ))}
-                </div>
-              </RmCard>
-            )}
-            <Notes d={data} />
-            <RmCard testId="s9-calibration"><p className="text-[14px] text-[#6b7280]">{rt("s9.calibration", lang)}</p></RmCard>
-          </div>
+        <div className="flex flex-col">
+          <Schools d={data}>
+            {/* SCREENS S9: Follow-up is the screen's one primary, at the end of the first section (inside the phone's fold) */}
+            <Button testId="s9-follow-up" onClick={openPicker} block className="mt-3 sm:w-auto sm:self-start">
+              <span>{rt("s8.follow_up", lang)}</span>
+            </Button>
+          </Schools>
+          <Section testId="s9-steps" label={rt("s9.steps.title", lang)}
+            hint={<WindowLegend windows={data.windows} ids={windowIds(data.steps)} inline className="" />}>
+            {/* fix-r5 s2 item 3 (B10): no step set this month is words, never "0 of 0 open · 0 of 0 completed · …" */}
+            {data.steps.open.d === 0
+              ? <p data-testid="s9-steps-none" className="text-[17px] font-semibold leading-[1.4] text-cp-ink">{rt("s9.steps.none", lang)}</p>
+              : (
+                <p className="text-[17px] font-semibold leading-[1.4] text-cp-ink">
+                  {rtx("s9.steps.row", lang, {}, [
+                    { n: "o", d: "d", count: data.steps.open },
+                    { n: "c", d: "d", count: data.steps.completed },
+                    { n: "v", d: "d", count: data.steps.overdue },
+                  ])}
+                </p>
+              )}
+          </Section>
+          {data.moves.length > 0 && (
+            <Section testId="s9-moves" label={rt("s9.moves.title", lang)}>
+              <div className="flex flex-col">
+                {data.moves.map((m) => (
+                  <SectorWRow key={m.row.w_id} row={m.row} testId="s9-wrow"
+                    sector={m.sector ?? m.row.sector ? { label: sector, count: (m.sector ?? m.row.sector)! } : null} />
+                ))}
+              </div>
+            </Section>
+          )}
+          <Notes d={data} />
+          <Section testId="s9-calibration"><p className="text-[13px] leading-[1.45] text-cp-ink-3">{rt("s9.calibration", lang)}</p></Section>
         </div>
       )}
       {picking && home && c && <FollowUpPicker coach={c} home={home} onClose={() => { setPicking(false); reload(); }} onSent={() => undefined} />}

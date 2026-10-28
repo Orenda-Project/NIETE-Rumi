@@ -9,6 +9,7 @@ import { rm } from "../api";
 import { addDays, composeLines, defaultDue } from "../compose";
 import type { Coach, RmCoach, RmHome, TemplateId } from "../types";
 import { rt, rtx } from "../text";
+import { Button } from "../../coachip-ui/Button";
 
 /**
  * bd-sex15q.17 — the RM's follow-up (G8, B1 add): the RM picks a template (RM-T1..T4, titles from the server's
@@ -87,7 +88,7 @@ export default function FollowUpPicker({ coach, home, onClose, onSent }: {
     const p = preview(l);
     return p ? (
       <ol dir={l === "ur" ? "rtl" : "ltr"} lang={l} data-testid={`picker-preview-${l}`} style={{ listStyleType: l === "ur" ? "urdu" : "decimal" }}
-        className="flex flex-col gap-0.5 ps-5 text-[14px] leading-snug text-[#1d2025]">
+        className="flex flex-col gap-0.5 ps-5 text-[15px] leading-[1.45] text-cp-ink">
         {/* fix-r5 s2 item 17 (design-qa 073629, COPY §0 rule 3): each line takes its own direction and aligns to its start */}
         {p.map((x, i) => <li key={i} data-nonum="" className="[unicode-bidi:plaintext] text-start">{x}</li>)}
       </ol>
@@ -95,22 +96,24 @@ export default function FollowUpPicker({ coach, home, onClose, onSent }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 md:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 md:items-center" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-labelledby="picker-title" data-testid="follow-up-picker"
         dir={lang === "ur" ? "rtl" : "ltr"} onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[92vh] w-full max-w-2xl flex-col gap-3 overflow-y-auto rounded-t-2xl bg-white px-4 py-4 md:rounded-2xl md:px-6">
+        className="cp-sheet flex max-h-[92vh] w-full max-w-2xl flex-col gap-5 overflow-y-auto rounded-t-[20px] bg-cp-surface px-5 pb-[calc(20px+env(safe-area-inset-bottom))] pt-2 text-cp-ink shadow-[0_-2px_8px_rgba(51,55,72,0.08)] md:rounded-[20px] md:px-7 md:pb-7 md:pt-5">
+        {/* bd-sex15q.47 (R6, SCREENS S9): a bottom sheet on a phone (200 ms rise, off under reduced motion), a dialog from md */}
+        <span aria-hidden="true" className="mx-auto mb-1 block h-1 w-10 rounded-full bg-cp-track md:hidden" />
         <div className="flex items-start justify-between gap-2">
-          <h2 id="picker-title" className="text-[18px] font-semibold">{rtx("picker.title", lang, { coach: <span data-code="" dir="auto">{coach.coach_label}</span> })}</h2>
-          <button type="button" onClick={onClose} aria-label={rt("picker.cancel", lang)} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f3f4f6]">
-            <X className="h-5 w-5" aria-hidden="true" />
+          <h2 id="picker-title" className="text-[20px] font-bold leading-[1.3] text-cp-navy">{rtx("picker.title", lang, { coach: <span data-code="" dir="auto">{coach.coach_label}</span> })}</h2>
+          <button type="button" onClick={onClose} aria-label={rt("picker.cancel", lang)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-[1.5px] border-cp-hairline text-cp-navy outline-none focus-visible:ring-[3px] focus-visible:ring-cp-green">
+            <X size={20} strokeWidth={1.5} aria-hidden="true" />
           </button>
         </div>
 
         <fieldset className="flex flex-col gap-1.5">
-          <legend className="mb-1 text-[13px] font-semibold text-[#6b7280]">{rt("picker.template", lang)}</legend>
+          <legend className="mb-2 cp-label text-[12px] font-bold uppercase leading-snug tracking-[0.08em] text-cp-ink-3">{rt("picker.template", lang)}</legend>
           <div className="flex flex-wrap gap-2">
             {templates.map((tp) => (
-              <label key={tp.template_id} className={`flex min-h-[40px] cursor-pointer items-center gap-2 rounded-full border px-3 text-[14px] ${tid === tp.template_id ? "border-[#333748] bg-[#333748] text-white" : "border-[#d1d5db]"}`}>
+              <label key={tp.template_id} className={`flex min-h-[44px] cursor-pointer items-center gap-2 rounded-[14px] border-[1.5px] px-4 text-[14px] has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-cp-navy ${tid === tp.template_id ? "border-cp-green bg-cp-green font-semibold text-cp-navy" : "border-cp-hairline bg-cp-surface text-cp-ink"}`}>
                 <input type="radio" name="template" className="sr-only" checked={tid === tp.template_id} onChange={() => setTid(tp.template_id)} data-testid={`picker-template-${tp.template_id}`} />
                 {pick(tp.title, lang)}
               </label>
@@ -119,10 +122,10 @@ export default function FollowUpPicker({ coach, home, onClose, onSent }: {
         </fieldset>
 
         <fieldset className="flex flex-col gap-1.5">
-          <legend className="mb-1 text-[13px] font-semibold text-[#6b7280]">{rt("picker.w", lang)}</legend>
+          <legend className="mb-2 cp-label text-[12px] font-bold uppercase leading-snug tracking-[0.08em] text-cp-ink-3">{rt("picker.w", lang)}</legend>
           <div className="flex flex-wrap gap-2">
             {wOptions.map((o) => (
-              <label key={o.w_id} className={`flex min-h-[40px] cursor-pointer items-center gap-2 rounded-full border px-3 text-[14px] ${wId === o.w_id ? "border-[#333748] bg-[#333748] text-white" : "border-[#d1d5db]"}`}>
+              <label key={o.w_id} className={`flex min-h-[44px] cursor-pointer items-center gap-2 rounded-[14px] border-[1.5px] px-4 text-[14px] has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-cp-navy ${wId === o.w_id ? "border-cp-green bg-cp-green font-semibold text-cp-navy" : "border-cp-hairline bg-cp-surface text-cp-ink"}`}>
                 <input type="radio" name="w" className="sr-only" checked={wId === o.w_id} onChange={() => setWId(o.w_id)} data-testid={`picker-w-${o.w_id}`} />
                 {pick(o.short_name, lang)}
               </label>
@@ -131,46 +134,49 @@ export default function FollowUpPicker({ coach, home, onClose, onSent }: {
         </fieldset>
 
         <fieldset className="flex flex-col gap-1.5">
-          <legend className="mb-1 text-[13px] font-semibold text-[#6b7280]">{rt("picker.schools", lang)}</legend>
-          {loadFailed && <p role="status" className="text-[14px] text-[#374151]">{rt("e.failed_load", lang)}</p>}
+          <legend className="mb-2 cp-label text-[12px] font-bold uppercase leading-snug tracking-[0.08em] text-cp-ink-3">{rt("picker.schools", lang)}</legend>
+          {loadFailed && <p role="status" className="text-[14px] text-cp-ink-2">{rt("e.failed_load", lang)}</p>}
           <div className="flex flex-col">
             {(detail?.schools ?? []).map((s) => {
               const on = schoolIds.includes(s.school.school_id);
               return (
-                <label key={s.school.school_id} className="flex min-h-[44px] cursor-pointer items-center gap-3 text-[14.5px]">
+                <label key={s.school.school_id} className="flex min-h-[44px] cursor-pointer items-center gap-3 border-t border-cp-hairline text-[15px] first:border-t-0">
                   <input type="checkbox" checked={on} disabled={!on && schoolIds.length >= 3} onChange={() => toggle(s.school.school_id)}
-                    data-testid="picker-school" data-school={s.school.school_id} className="h-5 w-5 accent-[#333748]" />
+                    data-testid="picker-school" data-school={s.school.school_id} className="h-5 w-5 accent-cp-green" />
                   <CodeText lang={lang}>{s.school.school_name}</CodeText>
                 </label>
               );
             })}
           </div>
-          {detail && schoolIds.length === 0 && <p className="text-[13px] text-[#b45309]">{rt("picker.pick_school", lang)}</p>}
+          {detail && schoolIds.length === 0 && <p className="text-[13px] font-semibold text-cp-navy">{rt("picker.pick_school", lang)}</p>}
         </fieldset>
 
         <label className="flex flex-col gap-1.5">
-          <span className="text-[13px] font-semibold text-[#6b7280]">{rt("picker.date", lang)}</span>
+          <span className="cp-label text-[12px] font-bold uppercase leading-snug tracking-[0.08em] text-cp-ink-3">{rt("picker.date", lang)}</span>
           <input type="date" dir="ltr" value={due} min={today} max={addDays(today, 28)} data-testid="picker-date"
             onChange={(e) => { if (e.target.value) setDue(e.target.value); }}
-            className="min-h-[44px] w-48 rounded-xl border border-[#d1d5db] px-3 text-[15px]" />
+            className="min-h-[44px] w-48 rounded-[12px] border-[1.5px] border-cp-hairline bg-cp-surface px-3 text-[15px] text-cp-ink outline-none focus-visible:ring-[3px] focus-visible:ring-cp-green" />
         </label>
 
-        <div className="flex flex-col gap-2 rounded-xl bg-[#f9fafb] px-3 py-3">
-          <p className="text-[13px] font-semibold text-[#6b7280]">{rt("picker.preview", lang)}</p>
-          {lines(lang)}
-          <p className="mt-1 text-[12.5px] font-semibold text-[#6b7280]">{rt("picker.preview.other", lang)}</p>
-          {lines(other)}
+        <div className="flex flex-col gap-2">
+          <div className="rounded-[16px] bg-cp-green-tint px-4 py-3">
+            <p className="mb-1.5 text-[12px] font-bold text-cp-green-ink">{rt("picker.preview", lang)}</p>
+            {lines(lang)}
+          </div>
+          <div className="rounded-[16px] bg-cp-grey-fill px-4 py-3">
+            <p className="mb-1.5 text-[12px] font-bold text-cp-ink-2">{rt("picker.preview.other", lang)}</p>
+            {lines(other)}
+          </div>
         </div>
 
-        {status === "sent" && <p role="status" data-testid="picker-sent" className="text-[14px] font-semibold text-[#15803d]">{rt("picker.sent", lang)}</p>}
-        {status === "failed" && <p role="status" data-testid="picker-failed" className="text-[14px] text-[#b91c1c]">{rt("picker.failed", lang)}</p>}
+        {status === "sent" && <p role="status" data-testid="picker-sent" className="text-[14px] font-semibold text-cp-green-ink">{rt("picker.sent", lang)}</p>}
+        {status === "failed" && <p role="status" data-testid="picker-failed" className="text-[14px] font-semibold text-cp-navy">{rt("picker.failed", lang)}</p>}
 
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="min-h-[44px] rounded-full px-4 text-[15px] font-semibold text-[#374151]">{rt("picker.cancel", lang)}</button>
-          <button type="button" onClick={send} disabled={!canSend} data-testid="picker-send"
-            className="min-h-[44px] rounded-full bg-[#333748] px-5 text-[15px] font-semibold text-white disabled:opacity-40">
-            {status === "sending" ? rt("e.saving", lang) : rt("picker.send", lang)}
-          </button>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button variant="quiet" size="md" onClick={onClose}><span>{rt("picker.cancel", lang)}</span></Button>
+          <Button onClick={send} disabled={!canSend} testId="picker-send" className="sm:min-w-[200px]">
+            <span>{status === "sending" ? rt("e.saving", lang) : rt("picker.send", lang)}</span>
+          </Button>
         </div>
       </div>
     </div>
