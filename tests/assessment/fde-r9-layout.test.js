@@ -302,8 +302,10 @@ describe('r9 · subjects without a cross-section table lay out as before', () =>
   // All five again for bd-5jmnfj.4.26: the header lost disclaimer_*, footer_* and the covers suffix; nothing
   // else in the layout differs (with those six strings restored they hash to c89b21fc…, de227f21…, 8c2c920f…,
   // 2956ee5a…, 2b3b7900…).
+  // science again for bd-5jmnfj.4.50.7: its Q1 keys ran «a c d a c d» and are dealt again; only Q1's
+  // options and keys differ (each item keys the same option text).
   const BEFORE = {
-    science: ['science', 'b29d8b25035f442ff8b932ebd310e6954a648908c15e53d6d1ce779f37a8d2c6'],
+    science: ['science', 'baa245419bc772253479adacdd8dde0160fb7a8703d5ed8cbd383a02c16839f5'],
     maths: ['maths', 'a73eaa01bae0f1c0ac857aba6cfdcc290e7eab1f8a02fe8d0f423385650b2c1a'],
     urdu: ['urdu', '5158f4b46210756da93975500a8948c87f7a10528955e4ff7baa38282fc24d6a'],
     'r7-science-full1.exam': ['science', 'c443e2c5661b6bdd9539c8c06c2914c3a6e6f99a2eeb70b449627bbe552b1ad1'],

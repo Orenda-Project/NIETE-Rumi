@@ -23,6 +23,9 @@ const { mathsCheck } = require('./maths-check');
 const { checkBlueprint } = require('./blueprint-check');
 const Prompt = require('./fde-early-prompt');
 const { dealOrders } = require('./fde-order-block');
+const { noArrows } = require('./fde-no-arrows');
+const { answerRepeats, giveawayNote } = require('./fde-answer-repeats');
+const { dealScrambles } = require('./fde-scramble-block');
 
 const SCOPE = Object.freeze({ kind: 'fde', chapters: null, pages: null });
 const ORAL_SECTION = Object.freeze({ id: 'oral', slots: [] });
@@ -132,7 +135,8 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     .concat(d.emptyQuestionParts(firstLaid.examJson))
     .concat(Prompt.pictureShortfall(firstLaid.examJson, P))
     .concat(Prompt.repeatedPictures(firstLaid.examJson, P))
-    .concat(Prompt.answerShortfall(firstLaid.examJson, P));
+    .concat(Prompt.answerShortfall(firstLaid.examJson, P))
+    .concat(answerRepeats(firstLaid.examJson));
   const shortSlots = new Set(short.map((f) => f.slot));
   const again = built.filter(({ section }) => section.slots.some((s) => shortSlots.has(s.slot)));
 
@@ -159,7 +163,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     const pictures = shortfall.some((f) => f.reason === 'repeat')
       ? Prompt.takenPicturesNote(results.filter((r) => r.id !== b.section.id).map((r) => r.tree), shortfall)
       : null;
-    const note = [takenNote(MP, b.section, firstLaid.examJson, { topUp, shortfall, held: firstLaid.held }), pictures, Prompt.answerNote(shortfall, P)]
+    const note = [takenNote(MP, b.section, firstLaid.examJson, { topUp, shortfall, held: firstLaid.held }), pictures, Prompt.answerNote(shortfall, P), giveawayNote(shortfall)]
       .filter(Boolean).join('\n\n');
     const second = await writeOne(note
       ? { ...b, messages: d.sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }
@@ -213,7 +217,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
 
   const scheme = normaliseScheme(examJson);
   examJson = scheme.examJson;
-  examJson = dealOrders(examJson);
+  examJson = noArrows(dealScrambles(dealOrders(examJson))); // bd-5jmnfj.4.50.1: no arrow in any text a child or teacher reads
   if (scheme.shortfall.length) {
     throw d.fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: scheme.shortfall, examJson, model });
   }
@@ -224,6 +228,9 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   examJson._layout.blueprint = blueprint;
   d.logToFile('[assessment] blueprint checked', { pattern, subject: P.key, ok: blueprint.ok, total: blueprint.total, levels: blueprint.levels, problems: blueprint.problems });
   if (P.oral) examJson._layout.oral = { ...P.oral, content: oral.content };
+  // An answer word still given away after the re-ask, or by the oral sheet, is logged (bd-5jmnfj.4.50.8).
+  const giveaways = answerRepeats(examJson);
+  if (giveaways.length) d.logToFile('[assessment] answers given away', { requestId, pattern, giveaways });
 
   try {
     await (d.resolvePictures || realPictures())(examJson);

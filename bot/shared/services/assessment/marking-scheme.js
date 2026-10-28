@@ -21,6 +21,8 @@
  * the engine acts on.
  */
 
+const { dropContradictedAccepts } = require('./scheme-accept-check');
+
 const BLOOMS = Object.freeze({
   remember: 'Remember', r: 'Remember',
   understand: 'Understand', u: 'Understand',
@@ -303,6 +305,13 @@ function normaliseOne(holder, marks, questionText, slot, label, log) {
       delete s.common_error;
       log.push(`${label}: common_error is not a string, dropped`);
     }
+  }
+
+  // An alternative the common error names is that error (bd-5jmnfj.4.50.10).
+  if (Array.isArray(s.accept) && typeof s.common_error === 'string') {
+    const { accept, dropped } = dropContradictedAccepts(s.accept, holder.answer, s.common_error);
+    s.accept = accept;
+    if (dropped.length) log.push(`${label}: accept ${show(dropped)} is the common error, dropped`);
   }
 
   // Only mathsCheck may say a key was checked; whatever the model wrote is reset.

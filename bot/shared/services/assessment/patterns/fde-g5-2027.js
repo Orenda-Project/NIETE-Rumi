@@ -638,7 +638,7 @@ const ENGLISH = {
           numbering: 'none', compulsory: true, lines: 0, work_mm: null, section_pages: 'scope',
           grain: { kind: 'six unit vocabulary words, any five used in sentences', number_size: 'six words', steps: 1, unit_choice: false },
           families: null, kinds: null,
-          prompt_rule: 'One item: `words` = exactly six words from units 1–10; `answer` = one model sentence per word. 2 marks a word (meaning shown 1 + correct sentence 1).',
+          prompt_rule: 'One item: `words` = exactly six words from units 1–10; `answer` = one model sentence per word, no definitions. 2 marks a word: the sentence shows what the word means 1 + the sentence is correct 1. The paper asks only for sentences, so never ask for, or mark, a written meaning.',
           print_words: true,
           frame: null, teacher_note_en: null, teacher_note_ur: null, alternatives: null, or: false,
         },

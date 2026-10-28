@@ -350,16 +350,16 @@ describe('the marking scheme', () => {
     return R.renderMarkingScheme({ examJson: exam, grade: 5, subject: 'maths', ...extra });
   }
 
-  it('scheme prints the band, the box with the file name and page count, the six legend lines', () => {
+  it('scheme prints the band, the box with the page count (no file name), the six legend lines', () => {
     const exam = mathsPaper();
     exam._layout.pages = { paper: 4, scheme: 5 };
     const text = visible(scheme(exam));
     expect(text).toContain("TEACHER'S COPY · Do not give to children");
     expect(text).toContain('MARKING SCHEME');
     expect(text).toContain('Teacher: before the exam');
-    expect(text).toContain('This is the marking scheme for Grade5_Maths_FDE.pdf (4 pages). Do not give it to children.');
+    expect(text).toContain('This is the marking scheme for the question paper (4 pages). Do not give it to children.');
     expect(text).toContain('Photocopy the question paper, all 4 pages, one per child.');
-    expect(text).toContain('You add: nothing.');
+    expect(text).not.toContain('You add');
     expect(text).toContain('Q2: attempt any 8 of 12');
     expect(text).toContain('Time: 3 hrs.');
     for (const line of P.subjects.maths.legend.lines_en) expect(text).toContain(line);
@@ -367,8 +367,7 @@ describe('the marking scheme', () => {
 
   it('an unknown page count says so instead of guessing', () => {
     const text = visible(scheme(mathsPaper()));
-    // visible() turns the file name's <bdi> boundary into a space; the page prints none.
-    expect(text).toMatch(/This is the marking scheme for Grade5_Maths_FDE\.pdf ?\. Do not give it to children\./);
+    expect(text).toContain('This is the marking scheme for the question paper. Do not give it to children.');
     expect(text).not.toMatch(/\(\s*pages\)|null pages|undefined/);
   });
 

@@ -278,10 +278,10 @@ describe('4. Section A\'s keys never run in a strict period', () => {
     expect(letters(lay(FULL1, { reasked: true }).examJson)).toEqual(letters(FULL1));
   });
 
-  test('another subject\'s periodic keys are not touched here', () => {
+  test('another subject\'s periodic keys are broken too (bd-5jmnfj.4.50.7), each item keeping its key text', () => {
     const CH1 = paper('chapters_1');
-    // The same twenty MCQs laid as an Urdu paper's Q1 keep their order and their own keys. The Urdu
-    // layout's own holds may leave some out; the ones it prints are never re-lettered or re-ordered.
+    // The same twenty MCQs laid as an Urdu paper's Q1 keep their order and the option text they key.
+    // The Urdu layout's own holds may leave some out; the ones it prints are dealt like Social Studies.
     const U = ALL.urdu;
     const q1 = U.sections.flatMap((s) => s.slots).find((s) => s.shape === 'mcq');
     const input = items(CH1, A1).map((q) => ({ ...q, slot: q1.slot }));
@@ -291,6 +291,8 @@ describe('4. Section A\'s keys never run in a strict period', () => {
     expect(got.length).toBeGreaterThan(0);
     const at = got.map((q) => input.findIndex((x) => x.question === q.question));
     expect(at.every((i, n) => i >= 0 && (n === 0 || i > at[n - 1]))).toBe(true);
-    expect(got.map((q) => [q.answer, q.options])).toEqual(at.map((i) => [input[i].answer, input[i].options]));
+    const keyed = (q) => q.options[['الف', 'ب', 'ج', 'د'].indexOf(String(q.answer).trim().split(/[)\s]/)[0])].replace(/^\s*\(?(?:الف|ب|ج|د)\)\s*/, '');
+    expect(got.map(keyed)).toEqual(at.map((i) => keyed(input[i])));
+    expect(periodic(got.map((q) => String(q.answer).trim().split(/[)\s]/)[0]))).toBe(false);
   });
 });
