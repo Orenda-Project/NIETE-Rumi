@@ -155,6 +155,14 @@ describe('saBatch', () => {
     expect(kept[5].data).toBeNull();
   });
 
+  test('voice_held (a line held by a hidden page: parked, paused, resumed, gave_up) is kept on the session', async () => {
+    const deps = makeDeps();
+    const events = [ev(0, 'voice_held', { value: { kind: 'paused' } }), ev(1, 'voice_held', { value: { kind: 'resumed' } })];
+    await Svc.saBatch({ userId: COACH, sessionId: SESSION, seqFrom: 0, seqTo: 1, events, results: [] }, deps);
+    const kept = deps.saStore.markSynced.mock.calls[0][1].events;
+    expect(kept.map((e) => [e.type, e.data])).toEqual([['voice_held', { kind: 'paused' }], ['voice_held', { kind: 'resumed' }]]);
+  });
+
   test('a kept event with oversized data keeps the event, not the data', async () => {
     const deps = makeDeps();
     await Svc.saBatch({ userId: COACH, sessionId: SESSION, seqFrom: 0, seqTo: 0, events: [ev(0, 'mercy', { value: { x: 'y'.repeat(600) } })], results: [] }, deps);

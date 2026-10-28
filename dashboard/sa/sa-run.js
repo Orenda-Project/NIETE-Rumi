@@ -53,6 +53,8 @@
       onState: function (v) { window.__saeView = v; },
     });
     if (mode === 'proctored') ui.setSync({ state: 'local' });
+    // as sa-engine.js: a line held while the page was hidden plays on when it is shown again
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState !== 'hidden') voice.resume(); });
     window.__sae = { runner: runner, events: events, ui: ui, voice: voice };
   }).catch(function (e) {
     el.textContent = 'Could not start: ' + (e && e.message ? e.message : e);
