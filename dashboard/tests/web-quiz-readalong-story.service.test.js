@@ -369,3 +369,32 @@ describe('a grown-up\'s preview that plays (the serve\'s practice_play): the rea
     expect(p.screen()).toBe('read-result');
   });
 });
+
+describe('bd-5gyspy.13: the lit word stays above the "I\'m ready" dock', () => {
+  // design-qa-r5 155050: at 390 px a passage runs under the sticky dock, and nothing scrolled the lit word into view.
+  // The browser's layout is the boundary faked here: the lit span's and the dock's rects, and window.scrollBy.
+  const lay = (p, litTop, litBottom) => {
+    p.els['wqc-along-ra'].querySelector = (s) => (s === '.wqra-on' ? { getBoundingClientRect: () => ({ top: litTop, bottom: litBottom }) } : null);
+    p.els['wqc-along-read'].getBoundingClientRect = () => ({ top: 770, bottom: 830 });
+    p.win.innerHeight = 844;
+    p.win.__sb = [];
+    p.win.scrollBy = (x, y) => p.win.__sb.push(y);
+  };
+  test('a lit word behind the dock is scrolled up above it; a lit word in view is left alone; one above the top comes back down', async () => {
+    const p = room({ routes: { 'ch/HUB.TOKEN/read': ok(SREAD({ readalong: TIMED })) }, scripts: { '/wq/wq-readalong.js': STUB } });
+    await p.flush();
+    await p.click('wqc-story-along');
+    expect(p.screen()).toBe('story-along');
+    const onWord = p.win.__ra.o.onWord;
+    expect(typeof onWord).toBe('function');
+    lay(p, 760, 800);
+    onWord(9);
+    expect(p.win.__sb).toEqual([800 - 770 + 24]);
+    lay(p, 300, 340);
+    onWord(10);
+    expect(p.win.__sb).toEqual([]);
+    lay(p, -40, 0);
+    onWord(0);
+    expect(p.win.__sb).toEqual([-40 - 16]);
+  });
+});
