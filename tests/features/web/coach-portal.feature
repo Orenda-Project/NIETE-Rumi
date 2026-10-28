@@ -71,6 +71,63 @@ Feature: Coach app
     Then the teacher's card opens
     And no page error or 5xx happened
 
+  # The School card, with its switch (portal_coach_school_card) on and off. The driver waits for /config to agree
+  # with the switch (the dashboard caches it 30 s) and puts it back OFF after every scenario.
+  @CP07
+  Scenario: Coach app v2 with the School card on: her home is the slim Coach Home, the menu is Home, Lesson Plans and More, and the hidden pages land on Home
+    Given the teacher app v2 is off and the coach app v2 is on
+    And the School card is on
+    And demo coach 03000000901 is signed in
+    When she opens /portal/coach
+    Then it is the slim Coach Home with exactly two tiles, Training Library and My schools
+    And the menu is Home, Lesson Plans and More
+    When she opens Schedule, My schedule, Team schedule, New visit, Observe, Reports, Analytics or Insights
+    Then each settles on /portal/coach
+    And no page error or 5xx happened
+
+  @CP08
+  Scenario: Coach app v2 with the School card on: a school opens as its School card; This month, a feature's grid and a teacher's page open from it
+    Given the teacher app v2 is off and the coach app v2 is on
+    And the School card is on
+    And demo coach 03000000901 is signed in
+    When she opens /portal/coach/school/DEMO-001
+    Then it shows the period chips Today, This week and This month, the four feature tiles and the Manage group
+    And there is no Share with principal and no Schedule a visit
+    When she taps "This month"
+    Then the Lesson plans tile shows one bar per week, from "Wk 1"
+    When she taps the Lesson plans tile
+    Then "Lesson plans by teacher" opens for This month, with a row per teacher and the School row
+    When she taps a teacher's row
+    Then her Teacher page opens with her tiles
+    When she taps "Her coaching reports"
+    Then Her coaching reports opens
+    And no page error or 5xx happened
+
+  @CP09
+  Scenario: Coach app v2 with the School card on: a teacher's DC report opens in the coach's view, with no transcript
+    Given the teacher app v2 is off and the coach app v2 is on
+    And the School card is on
+    And a teacher at one of demo coach 03000000901's schools has a completed DC report
+    And demo coach 03000000901 is signed in
+    When she opens that report at /portal/coach/session/<its id>
+    Then "Report" opens with the overall AI score and the "Coach view" chip
+    And it shows no transcript and no "Focus here"
+    And no page error or 5xx happened
+
+  @CP10
+  Scenario: Coach app v2 with the School card off: her home is the Training Library, a school opens as before, and the School card's own pages do not open
+    Given the teacher app v2 is off and the coach app v2 is on
+    And the School card is off
+    And demo coach 03000000901 is signed in
+    When she opens /portal/coach
+    Then /portal/coach settles on /portal/coach/training
+    When she opens a School card DC report address, /portal/coach/session/<id>
+    Then it settles on /portal/coach/training
+    When she opens /portal/coach/school/DEMO-001
+    Then it is today's school page, with "Visits · last 3 months" and no School card
+    And the menu has no Home
+    And no page error or 5xx happened
+
   # bd-4joiqz — the coach app's Lesson Plans tab: the teacher Lesson Plans pages, read as a leader. Written by hand; the
   # web driver has no code for it yet (@draft). The full journey is teacher-lessons LDR01.
   @LDR07 @draft
