@@ -102,3 +102,4 @@ html.wq-adv[lang=ur] .wq-vct:has(>bdi.wq-lat){direction:ltr;text-align:right;lin
 html.wq-adv .wq-dempty .wq-soon{text-wrap:balance;color:var(--ink);padding-top:108px;background:var(--tint) url(/wq/jugnu/hello.webp) center 14px/84px auto no-repeat}
 /* the see-all card's chapter line on an Urdu page: the Urdu one-line height, so Nastaliq's deep tails are not cut into stray marks */
 html.wq-adv[lang=ur] .wq-vch{line-height:var(--ulh1,2)}
+.wq-caret{display:inline-block;width:0;height:0;margin-inline-start:.45em;vertical-align:middle;border-inline:.3em solid transparent;border-top:.38em solid currentColor}

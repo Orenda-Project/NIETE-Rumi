@@ -7581,16 +7581,25 @@ async function requireSelfObservation(req, res, next) {
   return next();
 }
 
-/** Relay the bot's answer; a throw (unreachable / 5xx) is a 502, never success. */
+/**
+ * Relay the bot's answer; a throw (unreachable / 5xx) is a 502, never success.
+ * bd-5gyspy.8 — the bot can answer after the portal already has (the DB-context 504 at 30 s): a second write onto that
+ * response threw ERR_HTTP_HEADERS_SENT out of the catch and took the cluster worker down, so a late answer is dropped.
+ */
 async function relayToBot(res, label, call, onAnswer) {
+  const reply = (status, body) => (res.headersSent ? undefined : res.status(status).json(body));
   try {
     const { httpStatus, body } = await call();
-    // bd-c5reix: a look at the answer for the funnel; it never changes what she gets.
+    if (res.headersSent) {
+      console.warn(`Portal coaching ${label}: the bot answered after the response was sent; dropped`);
+      return undefined;
+    }
+    // bd-c5reix: a look at the answer for the funnel (only an answer the teacher gets); it never changes the answer.
     if (onAnswer) { try { onAnswer(httpStatus, body || {}); } catch (_) { /* never */ } }
-    return res.status(httpStatus).json(body);
+    return reply(httpStatus, body);
   } catch (error) {
     console.error(`Portal coaching ${label} failed:`, error.message);
-    return res.status(502).json({ success: false, error: 'Could not reach the coaching service. Please try again.' });
+    return reply(502, { success: false, error: 'Could not reach the coaching service. Please try again.' });
   }
 }
 

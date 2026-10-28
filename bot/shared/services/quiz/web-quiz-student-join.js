@@ -81,6 +81,9 @@ const JOIN_PATH = '/quiz/join/';
 // class's view for that grade and writes nothing. `bk` (optional) is the teacher home the coach came from.
 const PRACTICE_HOME = '/h/';
 const BACK_RX = /^\/quiz\/teacher\/[A-Za-z0-9._~-]{1,600}$/;
+// the teacher a practice join belongs to (a users id): the preview opens on their taught grades, with their quizzes
+const TU_RX = /^[A-Za-z0-9-]{1,64}$/;
+const tuOf = (uid) => (typeof uid === 'string' && TU_RX.test(uid) ? uid : null);
 // What the home's first paint needs, warmed on the grade tap (long-cached assets; a prefetch costs nothing if unused).
 const HOME_ASSETS = Object.freeze(['/wq/hub.js', '/wq/wq.css', '/wq/hub-play.js', '/wq/wq-tel.js']);
 const DEV_PREFIX = 'ft:join:dev:';
@@ -162,11 +165,12 @@ function botField() {
 }
 
 /** The j token: the landing's nonce (none in practice), the page language, practice or not, one hour. */
-function signJoin({ n = null, lang = 'en', mode = null, back = null } = {}) {
+function signJoin({ n = null, lang = 'en', mode = null, back = null, uid = null } = {}) {
   const practice = mode === 'practice';
   if (!practice && (typeof n !== 'string' || !/^[A-Za-z0-9_-]{22}$/.test(n))) return null;
   const bk = practice && typeof back === 'string' && BACK_RX.test(back) ? { bk: back } : {};
-  return T.sign({ k: 'j', ...(practice ? { m: 'practice' } : { n }), l: langOf(lang), ...bk, exp: nowS() + JOIN_TTL_S });
+  const tu = practice && tuOf(uid) ? { tu: tuOf(uid) } : {};
+  return T.sign({ k: 'j', ...(practice ? { m: 'practice' } : { n }), l: langOf(lang), ...bk, ...tu, exp: nowS() + JOIN_TTL_S });
 }
 
 /** The bot's user row for this phone (the sender of its `/quiz`), when the caller holds only the phone. */
@@ -198,16 +202,16 @@ async function siblingJoinToken({ phoneNorm, userId = null, lang = 'en' } = {}) 
  * refreshes that cache in the background; before the first read it builds the link, and the page itself asks the
  * switch again before it draws anything (off → the portal's own page).
  */
-function joinUrl({ n, lang, mode, back } = {}) {
+function joinUrl({ n, lang, mode, back, uid } = {}) {
   if (!cache || Date.now() - cache.at >= TTL_MS) flags().catch(() => {});
   if (cache && !cache.on) return null;
-  const t = signJoin({ n, lang, mode, back });
+  const t = signJoin({ n, lang, mode, back, uid });
   return t ? `${JOIN_PATH}${t}` : null;
 }
 
 /** The coach's "Try it as a student" (the teacher home's foot): a practice join, nothing written. Synchronous, as joinUrl. */
-function practiceJoinUrl({ lang, back = null } = {}) {
-  return joinUrl({ lang, mode: 'practice', back });
+function practiceJoinUrl({ uid = null, lang, back = null } = {}) {
+  return joinUrl({ lang, mode: 'practice', back, uid });
 }
 
 /** The first device to use a j token keeps it (SET NX, read back). Practice needs no device. */
@@ -307,9 +311,12 @@ function homeUrl(kids, id, src, lang = null) {
   return `/h/${token}?${q}`;
 }
 
-function practiceHome(grade, lang, back = null) {
+// teacher: the phone's own users id (a teacher phone is what gets a practice home), so the preview opens on the grades
+// that teacher teaches and lists their quizzes (bd-5gyspy.5)
+function practiceHome(grade, lang, back = null, teacher = null) {
   const bk = typeof back === 'string' && BACK_RX.test(back) ? { bk: back } : {};
-  const t = T.sign({ k: 'h', ids: [], pr: 1, g: grade, lang: langOf(lang), ...bk, exp: nowS() + T.HUB_TTL_S });
+  const tu = tuOf(teacher) ? { tu: tuOf(teacher) } : {};
+  const t = T.sign({ k: 'h', ids: [], pr: 1, g: grade, lang: langOf(lang), ...bk, ...tu, exp: nowS() + T.HUB_TTL_S });
   return t ? `${PRACTICE_HOME}${t}?from=join` : null;
 }
 
@@ -381,7 +388,7 @@ async function join({ t, grade, name, device, same = null, force = false } = {})
     if (!g) return { error: 'bad_request', why: 'grade' };
     if (r.practice) {
       await emit('join_done', { grade: g, mode: 'practice', kids_n: 0 }, null, device);
-      return { next: practiceHome(g, lang, r.tok.bk), practice: true };
+      return { next: practiceHome(g, lang, r.tok.bk, r.tok.tu), practice: true };
     }
     const first = cleanFirstName(name);
     if (!first) return { error: 'bad_request', why: 'name' };
@@ -406,7 +413,7 @@ async function join({ t, grade, name, device, same = null, force = false } = {})
       ]);
       if (teacher) {
         await emit('join_refused', { reason: 'teacher_phone' }, null, device);
-        return { refused: 'teacher_phone', next: practiceHome(g, lang) };
+        return { refused: 'teacher_phone', next: practiceHome(g, lang, null, who.userId) };
       }
       set = kids;
     } else {
@@ -415,7 +422,7 @@ async function join({ t, grade, name, device, same = null, force = false } = {})
       if (!who) return { stale: true };
       if (await teacherPhone(who.userId, who.phoneNorm)) {
         await emit('join_refused', { reason: 'teacher_phone' }, null, device);
-        return { refused: 'teacher_phone', next: practiceHome(g, lang) };
+        return { refused: 'teacher_phone', next: practiceHome(g, lang, null, who.userId) };
       }
       set = await phoneSet(who.phoneNorm);
     }
