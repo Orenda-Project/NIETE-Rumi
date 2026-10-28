@@ -107,5 +107,12 @@ out=$(resolve coaching)
 has  "an explicit feature list is honoured"            "$out" "coaching" yes
 has  "…without consulting the ledger"                  "$out" "$BASE"    no
 
+echo "schedule — a clone with no shared engine reachable (bd-9157r.1)"
+# launchd cannot read ~/Desktop, so the scheduler's clone lives outside any workspace: without a rumi-agent-home
+# beside it there is no engine to borrow. The fire must say so and stand down, not die inside a python traceback.
+rm -f "$R/.claude/qa/engine"
+out=$(cd "$R" && env -u E2E_ENGINE NIETE_E2E_DRIVER=1 bash scripts/qa/niete-e2e-scheduled.sh --resolve-scope 2>&1); rc=$?
+say  "…the fire stands down cleanly"                  "$rc" "0"
+has  "…and says how to give it an engine"             "$out" "rumi-agent-home" yes
 echo "  ---"
 if [ "$FAILED" -eq 0 ]; then echo "  all cases pass"; else echo "  $FAILED case(s) failing"; exit 1; fi

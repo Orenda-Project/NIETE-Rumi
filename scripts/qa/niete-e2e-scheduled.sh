@@ -31,6 +31,16 @@ case "${1:-}" in
 esac
 cd "$REPO" || { echo "repo not found: $REPO" >&2; exit 1; }
 
+# ── the harness is the SHARED E2E engine, borrowed from rumi-agent-home (bd-9157r.1) ──────────────────────────────
+# Everything below calls .claude/qa/engine/bin/…, which scripts/qa/link-engine.sh links in. launchd cannot read
+# ~/Desktop, so this clone cannot borrow a workspace's engine there: keep a clone of hyasin270/rumi-agent-home beside
+# it (e.g. ~/rumi-agent-home), which the link script finds. No engine reachable = say so and stand the fire down.
+bash scripts/qa/link-engine.sh --quiet 2>/dev/null || true
+if [ ! -f .claude/qa/engine/bin/select_e2e.py ]; then
+  echo "niete-e2e-scheduled: no shared E2E engine reachable from $REPO, so nothing is driven. Clone hyasin270/rumi-agent-home beside it (e.g. ~/rumi-agent-home), then: bash scripts/qa/link-engine.sh" >&2
+  exit 0
+fi
+
 # ── WHICH FEATURES THIS FIRE SHOULD DRIVE ────────────────────────────────────
 # `all` drove 101 scenarios (~3h15m) every two hours whatever had changed: most of it
 # re-drove features nothing had touched, and one pass outlasts the cadence, so roughly every
