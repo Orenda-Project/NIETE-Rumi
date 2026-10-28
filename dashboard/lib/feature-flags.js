@@ -36,6 +36,71 @@ const ASSESSMENT_EDITING_KEY = 'assessment_editing_enabled';
 const ASSESSMENT_GENERATOR_OFF_MESSAGE =
   "The assessment generator is being prepared for you. We'll notify you when it's live.";
 
+/** Flag cache: how long a row is held, and the cap on holding a failed read. See readFlagRow. */
+const FLAG_CACHE_TTL_MS_DEFAULT = 30_000;
+const FLAG_FAILURE_TTL_MS = 5_000;
+const flagCaches = new WeakMap();
+
+/** FLAG_CACHE_TTL_MS when it is a number >= 0 (0 turns the cache off), else 30 s. Read per fill, so a test can set it. */
+function flagCacheTtlMs() {
+  const raw = process.env.FLAG_CACHE_TTL_MS;
+  const n = raw === undefined || raw === '' ? NaN : Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : FLAG_CACHE_TTL_MS_DEFAULT;
+}
+
+/** One uncached read of app_settings.key, as { data, error }; a thrown read comes back as an error. */
+async function fetchFlagRow(supabase, key) {
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', key)
+      .maybeSingle();
+    return { data: data || null, error: error || null };
+  } catch (err) {
+    return { data: null, error: { message: (err && err.message) || String(err) } };
+  }
+}
+
+/**
+ * The app_settings row for one key, from an in-process cache. GET /api/portal/config asks 13 keys on every
+ * request, and uncached each one was a PostgREST GET: about half of all prod API traffic.
+ *
+ *   - A row (or no row) is held for FLAG_CACHE_TTL_MS, default 30 s, so a flag change shows within that.
+ *   - A failed read is held for at most 5 s, so a DB blip cannot pin a flag off.
+ *   - One read in flight per key: a burst of requests shares it.
+ *   - It holds the ROW, never an answer, so every caller below keeps its own rule (lists, "teachers", strict).
+ *
+ * Keyed by client as well as key, so two clients never share an entry.
+ *
+ * @param {object} supabase
+ * @param {string} key app_settings.key
+ * @returns {Promise<{ data: object|null, error: object|null }>}
+ */
+function readFlagRow(supabase, key) {
+  if (!supabase || (typeof supabase !== 'object' && typeof supabase !== 'function')) {
+    return fetchFlagRow(supabase, key);
+  }
+  let cache = flagCaches.get(supabase);
+  if (!cache) {
+    cache = new Map();
+    flagCaches.set(supabase, cache);
+  }
+  const hit = cache.get(key);
+  if (hit && (hit.pending || Date.now() - hit.at < hit.ttl)) return hit.promise;
+
+  const entry = { pending: true, at: 0, ttl: 0, promise: null };
+  entry.promise = fetchFlagRow(supabase, key).then((row) => {
+    const ttl = flagCacheTtlMs();
+    entry.pending = false;
+    entry.at = Date.now();
+    entry.ttl = row.error ? Math.min(FLAG_FAILURE_TTL_MS, ttl) : ttl;
+    return row;
+  });
+  cache.set(key, entry);
+  return entry.promise;
+}
+
 /**
  * Read a boolean flag from app_settings.
  *
@@ -50,11 +115,7 @@ const ASSESSMENT_GENERATOR_OFF_MESSAGE =
  */
 async function isFlagEnabled(supabase, key) {
   try {
-    const { data, error } = await supabase
-      .from('app_settings')
-      .select('value')
-      .eq('key', key)
-      .maybeSingle();
+    const { data, error } = await readFlagRow(supabase, key);
     if (error || !data) return false;
 
     let value = data.value;
@@ -185,7 +246,7 @@ const PORTAL_TEACHER_HOME_LOOK_KEY = 'portal_teacher_home_look';
 
 /**
  * bd-sex15q.13 — COACHIP, the coach and RM insight portal (SPEC v2 §2, API.md §5). Three switches, every one off with
- * no row; turning one on is one app_settings upsert, and it takes effect on the next request (nothing here caches).
+ * no row; turning one on is one app_settings upsert, and it takes effect within the flag cache's TTL (readFlagRow, 30 s).
  *
  *   portal_coachip         list of users.id (or true)            the coach routes answer; S1 is the coach's home
  *   portal_coachip_rm      OBJECT {"<users.id>": "<sector>"}       the RM routes answer for that sector (rmSectorFor)
@@ -226,11 +287,7 @@ const PORTAL_COACHIP_DECODE_KEY = 'portal_coachip_decode';
 async function isFlagEnabledForUser(supabase, key, userId, { strict = false } = {}) {
   if (!userId) return false;
   try {
-    const { data, error } = await supabase
-      .from('app_settings')
-      .select('value')
-      .eq('key', key)
-      .maybeSingle();
+    const { data, error } = await readFlagRow(supabase, key);
     if (error && strict) throw new Error(error.message || 'app_settings read failed');
     if (error || !data) return false;
 
@@ -289,11 +346,7 @@ async function isCoachAppUser(supabase, userId) {
 async function rmSectorFor(supabase, userId) {
   if (!userId || typeof userId !== 'string') return null;
   try {
-    const { data, error } = await supabase
-      .from('app_settings')
-      .select('value')
-      .eq('key', PORTAL_COACHIP_RM_KEY)
-      .maybeSingle();
+    const { data, error } = await readFlagRow(supabase, PORTAL_COACHIP_RM_KEY);
     if (error || !data) return null;
     let value = data.value;
     if (typeof value === 'string') {
@@ -347,11 +400,7 @@ const PORTAL_ANALYTICS_ONLY_KEY = 'portal_analytics_only';
  * @returns {Promise<string[]>}
  */
 async function readUserListFlag(supabase, key) {
-  const { data, error } = await supabase
-    .from('app_settings')
-    .select('value')
-    .eq('key', key)
-    .maybeSingle();
+  const { data, error } = await readFlagRow(supabase, key);
   if (error) throw new Error(`app_settings read failed for ${key}: ${error.message || error}`);
   if (!data) return [];
   let value = data.value;
@@ -390,11 +439,7 @@ const PORTAL_ASSESSMENT_EDITING_KEY = 'portal_assessment_editing_enabled';
  */
 async function isPortalAssessmentEditingEnabled(supabase) {
   try {
-    const { data, error } = await supabase
-      .from('app_settings')
-      .select('value')
-      .eq('key', PORTAL_ASSESSMENT_EDITING_KEY)
-      .maybeSingle();
+    const { data, error } = await readFlagRow(supabase, PORTAL_ASSESSMENT_EDITING_KEY);
     if (error) return false;
     if (!data) return isAssessmentEditingEnabled(supabase);
     let value = data.value;
