@@ -85,3 +85,39 @@ describe('bd-5gyspy.9: the DB-context budget follows the route budget', () => {
     expect(res.sent).toEqual([{ status: 504, body: { error: 'Request timeout' } }]);
   });
 });
+
+describe('bd-pk8vtb: the DB-context log lines name the path, never the query string', () => {
+  // A ?k= child chip (a child's first name, signed not encrypted) or any token in a query string must not reach the logs.
+  let setDatabaseContext;
+  let fakeClient;
+  beforeEach(() => {
+    jest.resetModules();
+    jest.useFakeTimers();
+    fakeClient = { query: jest.fn(async () => ({ rows: [] })), release: jest.fn() };
+    jest.doMock('../../dashboard/config/database', () => ({ connect: jest.fn(async () => fakeClient) }));
+    ({ setDatabaseContext } = require('../../dashboard/middleware/rbac/database-context'));
+  });
+  afterEach(() => { jest.useRealTimers(); jest.dontMock('../../dashboard/config/database'); });
+
+  test('timeout and early-close lines carry req.path only', async () => {
+    const url = '/api/portal/me?k=Ayesha.sig&token=SECRET123';
+    const req = { method: 'GET', url, path: '/api/portal/me', originalUrl: url, session: { userId: 'u-1' } };
+    const res = Object.assign(new EventEmitter(), {
+      headersSent: false, writableEnded: false, statusCode: 200, sent: [],
+      status(c) { this.statusCode = c; return this; },
+      json(b) { this.sent.push({ status: this.statusCode, body: b }); this.headersSent = true; return this; },
+    });
+    const lines = [];
+    const err = jest.spyOn(console, 'error').mockImplementation((...a) => lines.push(a.join(' ')));
+    const warn = jest.spyOn(console, 'warn').mockImplementation((...a) => lines.push(a.join(' ')));
+    await setDatabaseContext(req, res, jest.fn());
+    jest.advanceTimersByTime(30001);
+    res.emit('close');
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    err.mockRestore(); warn.mockRestore();
+    const db = lines.filter((l) => l.includes('[DB Context]'));
+    expect(db.length).toBeGreaterThan(0);
+    expect(db.join('\n')).not.toMatch(/SECRET123|Ayesha|\?k=/);
+    expect(db.join('\n')).toContain('/api/portal/me');
+  });
+});
