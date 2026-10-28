@@ -24,20 +24,30 @@ if (CLUSTER_ENABLED && cluster.isPrimary) {
   console.log(`🔧 Spawning ${NUM_WORKERS} worker processes...`);
   console.log(`${'='.repeat(70)}\n`);
 
+  // Exactly one worker owns the materialized-view refresh scheduler
+  // (services/mv-refresh-scheduler.service.js); the others never start it.
+  const mvOwners = new Set();
+  const forkWorker = (ownsMvScheduler) => {
+    const worker = cluster.fork({ MV_SCHEDULER_OWNER: ownsMvScheduler ? '1' : '0' });
+    if (ownsMvScheduler) mvOwners.add(worker);
+    return worker;
+  };
+
   // Fork workers
   for (let i = 0; i < NUM_WORKERS; i++) {
-    const worker = cluster.fork();
+    const worker = forkWorker(i === 0);
     console.log(`✅ Worker ${worker.process.pid} started`);
   }
 
   // Handle worker exit
   cluster.on('exit', (worker, code, signal) => {
     console.log(`⚠️ Worker ${worker.process.pid} died (code: ${code}, signal: ${signal})`);
+    const ownedMvScheduler = mvOwners.delete(worker);
 
     // Restart worker unless it was killed intentionally
     if (code !== 0 && !worker.exitedAfterDisconnect) {
       console.log('🔄 Starting a new worker...');
-      const newWorker = cluster.fork();
+      const newWorker = forkWorker(ownedMvScheduler);
       console.log(`✅ New worker ${newWorker.process.pid} started`);
     }
   });
