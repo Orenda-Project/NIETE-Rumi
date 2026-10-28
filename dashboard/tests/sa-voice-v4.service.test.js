@@ -80,7 +80,8 @@ test('every key a battery carries has its clip on disk: v4 ON, and OFF in every 
 test('ON: a v4 clip is served as audio', async () => {
   const s = await serve({ v2: true, tashdeed: true, v4: true, content: ALL_ON });
   try {
-    const k = keysOf(await battery(s.base, NAMES.find((n) => n.endsWith('.ur.json'))))[0];
+    // an Urdu battery can carry English clips too (round 8's language switch), so take its first Urdu one
+    const k = keysOf(await battery(s.base, NAMES.find((n) => n.endsWith('.ur.json')))).find((x) => x.startsWith('sa/v4/ur/'));
     expect(k).toMatch(/^sa\/v4\/ur\//);
     const res = await fetch(`${s.base}/${k}`);
     expect(res.status).toBe(200);
