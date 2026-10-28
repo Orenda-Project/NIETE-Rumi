@@ -175,11 +175,12 @@ describe("main page", () => {
     expect(screen.queryByRole("button", { name: C.uploadRecording })).toBeNull();
   });
 
-  it("a lesson still analysing is under Analysing, the rest under Recent, open, with no See all", async () => {
+  // bd-bmc9a0.4 — ICT IAB row 30: the finished ones are in Summary now (Recent DC Observations moved there).
+  it("a lesson still analysing is under Analysing; the finished ones are in Summary, not here; no See all", async () => {
     at(COACHING_HOME);
     const analysing = await screen.findByRole("region", { name: C.analysing });
     expect(within(analysing).getByText("Parts of a plant")).toBeTruthy();
-    expect(await screen.findByText("Naming words")).toBeTruthy();
+    expect(screen.queryByText("Naming words")).toBeNull();
     expect(screen.getAllByText("Parts of a plant")).toHaveLength(1);
     expect(screen.queryByRole("link", { name: /See all/ })).toBeNull();
     expect(screen.getByRole("link", { name: new RegExp(C.summary) }).getAttribute("href")).toBe(COACHING_ALL);
@@ -190,7 +191,7 @@ describe("main page", () => {
       { id: "s1", date: "2026-10-02", topic: "Naming words", subject: "English", grade: 3, minutes: 31, percentage: 63, reportReady: true },
     ], kpis: {}, trend: { bucketDays: 1, points: [] }, total: 1 });
     at(COACHING_HOME);
-    await screen.findByText("Naming words");
+    await screen.findByText(C.summaryCount(1));
     expect(screen.queryByRole("region", { name: C.analysing })).toBeNull();
   });
 
