@@ -11,7 +11,7 @@ import AssessActions, { useAboveTabBar } from '../components/assess/AssessAction
 import AssessOfflineCard from '../components/assess/AssessOfflineCard';
 import { OFFLINE_COPY } from '../components/assess/offlineCopy';
 import {
-  checkForms, dropPageOffline, FAST_START_MS, formFor, prepForms, readPreparedList, readSchools, useR8Switches, within, writeSchools, type PrepResult, type Progress,
+  checkForms, dropPageOffline, FAST_START_MS, formFor, GATE_CAP_MS, prepForms, readPreparedList, readSchools, useR8Switches, within, writeSchools, type PrepResult, type Progress,
 } from '../components/assess/offlineReady';
 import { childTestSa } from '../services/api';
 import { useChildTestSa } from '../lib/useChildTestSa';
@@ -497,7 +497,15 @@ export default function LeaderAssess() {
       // already on the phone (Get ready, the list's warm-up, an earlier child): no network at all
       if ((await checkForms([form], { block, seed })).ready) { setGate(null); return true; }
       // else this part only, with the line to itself; the battery is not read again when the phone has it
-      const r = await prepForms([form], (p) => setGate({ progress: p, failed: false }), { block, seed }, { fresh: false });
+      const got = prepForms([form], (p) => setGate({ progress: p, failed: false }), { block, seed }, { fresh: false });
+      // online: at most GATE_CAP_MS, then (or on a server error) the test opens as it does without the switch
+      if (typeof navigator === 'undefined' || navigator.onLine !== false) {
+        await within(got, GATE_CAP_MS);
+        setGate(null);
+        return true;
+      }
+      // no signal: only a part that is all on the phone starts
+      const r = await got;
       if (r.ok) { setGate(null); return true; }
       setGate({ progress: null, failed: true });
       return false;
