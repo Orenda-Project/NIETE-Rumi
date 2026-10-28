@@ -78,8 +78,10 @@ beforeEach(() => {
     generatePresignedUrls: jest.fn().mockResolvedValue([]),
     isValidR2Url: jest.fn().mockReturnValue(true),
   }));
-  jest.doMock('bcryptjs', () => ({ hash: jest.fn(), compare: jest.fn(), genSalt: jest.fn() }));
-  jest.doMock('express-rate-limit', () => jest.fn(() => (_req, _res, next) => next()));
+  // not in the repo root's install (dashboard deps): virtual, as every sibling portal-route test
+  jest.doMock('bcryptjs', () => ({ hash: jest.fn(), compare: jest.fn(), genSalt: jest.fn() }), { virtual: true });
+  jest.doMock('express-rate-limit', () => jest.fn(() => (_req, _res, next) => next()), { virtual: true });
+  jest.doMock('@aws-sdk/client-s3', () => ({ S3Client: jest.fn(), GetObjectCommand: jest.fn() }), { virtual: true });
 });
 afterEach(() => jest.resetModules());
 
