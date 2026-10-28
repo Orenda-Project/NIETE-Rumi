@@ -263,7 +263,7 @@ EXTRA = {
 
 # The School card (portal_coach_school_card): a second hand-written coach-portal flow, then the hand-written @draft
 # Lesson Plans scenario that has no driver code (kept verbatim). EXTRA may hold one (driver, lines) pair or a list of
-# them; a pair whose driver is None adds spec lines only.
+# them; a pair whose driver is None adds spec lines only. <COACH> is ROLE_TXT['coach'] (one place for the demo login).
 EXTRA['coach-portal'] = [EXTRA['coach-portal'], ('../flows/coach-school-card.cjs', [
     "  # The School card, with its switch (portal_coach_school_card) on and off. The driver waits for /config to agree",
     "  # with the switch (the dashboard caches it 30 s) and puts it back OFF after every scenario.",
@@ -271,7 +271,7 @@ EXTRA['coach-portal'] = [EXTRA['coach-portal'], ('../flows/coach-school-card.cjs
     "  Scenario: Coach app v2 with the School card on: her home is the slim Coach Home, the menu is Home, Lesson Plans and More, and the hidden pages land on Home",
     "    Given the teacher app v2 is off and the coach app v2 is on",
     "    And the School card is on",
-    "    And demo coach 03000000901 is signed in",
+    "    And <COACH> is signed in",
     "    When she opens /portal/coach",
     "    Then it is the slim Coach Home with exactly two tiles, Training Library and My schools",
     "    And the menu is Home, Lesson Plans and More",
@@ -283,7 +283,7 @@ EXTRA['coach-portal'] = [EXTRA['coach-portal'], ('../flows/coach-school-card.cjs
     "  Scenario: Coach app v2 with the School card on: a school opens as its School card; This month, a feature's grid and a teacher's page open from it",
     "    Given the teacher app v2 is off and the coach app v2 is on",
     "    And the School card is on",
-    "    And demo coach 03000000901 is signed in",
+    "    And <COACH> is signed in",
     "    When she opens /portal/coach/school/DEMO-001",
     "    Then it shows the period chips Today, This week and This month, the four feature tiles and the Manage group",
     "    And there is no Share with principal and no Schedule a visit",
@@ -301,8 +301,8 @@ EXTRA['coach-portal'] = [EXTRA['coach-portal'], ('../flows/coach-school-card.cjs
     "  Scenario: Coach app v2 with the School card on: a teacher's DC report opens in the coach's view, with no transcript",
     "    Given the teacher app v2 is off and the coach app v2 is on",
     "    And the School card is on",
-    "    And a teacher at one of demo coach 03000000901's schools has a completed DC report",
-    "    And demo coach 03000000901 is signed in",
+    "    And a teacher at one of <COACH>'s schools has a completed DC report",
+    "    And <COACH> is signed in",
     "    When she opens that report at /portal/coach/session/<its id>",
     "    Then \"Report\" opens with the overall AI score and the \"Coach view\" chip",
     "    And it shows no transcript and no \"Focus here\"",
@@ -312,7 +312,7 @@ EXTRA['coach-portal'] = [EXTRA['coach-portal'], ('../flows/coach-school-card.cjs
     "  Scenario: Coach app v2 with the School card off: her home is the Training Library, a school opens as before, and the School card's own pages do not open",
     "    Given the teacher app v2 is off and the coach app v2 is on",
     "    And the School card is off",
-    "    And demo coach 03000000901 is signed in",
+    "    And <COACH> is signed in",
     "    When she opens /portal/coach",
     "    Then /portal/coach settles on /portal/coach/training",
     "    When she opens a School card DC report address, /portal/coach/session/<id>",
@@ -328,7 +328,7 @@ EXTRA['coach-portal'] = [EXTRA['coach-portal'], ('../flows/coach-school-card.cjs
     "  @LDR07 @draft",
     "  Scenario: Coach app v2: Lesson Plans is in their menu and opens the Lesson Plans pages; their other pages still land on the Training Library",
     "    Given the teacher app v2 is off and the coach app v2 is on",
-    "    And demo coach 03000000901 is signed in",
+    "    And <COACH> is signed in",
     "    When they open /portal/coach/training",
     "    Then the menu is Training Library, Lesson Plans and More",
     "    When they open /portal/teacher/lessons/new",
@@ -377,6 +377,6 @@ for name, (title, where, scen) in F.items():
             g.append("    When she opens %s" % p)
             g.append("    Then %s" % (then or ("it opens healthy" + (" (settles on %s)" % st if st else ""))))
         g.append("")
-    for _, extra_lines in extras: g += extra_lines
+    for _, extra_lines in extras: g += [l.replace('<COACH>', ROLE_TXT['coach']) for l in extra_lines]
     open(os.path.join(root, 'tests/features/web', name + '.feature'), 'w').write("\n".join(g))
     print("wrote", name, len(scen) + sum(1 for d, _ in extras if d), "scenario groups")
