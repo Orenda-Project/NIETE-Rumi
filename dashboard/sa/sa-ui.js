@@ -2221,6 +2221,22 @@
       if (r.raf != null) cancelFrame(r.raf);
       if (r.spans && r.spans[r.idx]) r.spans[r.idx].classList.remove('is-on');
     }
+    /** The lit word kept in sight: on a phone the instruction runs on under the button, inside its scroll box; a word
+     *  outside that box is scrolled up to a third of the way down it. A word already in sight never moves the box. */
+    function hlKeep(w) {
+      var box = null, win = w.ownerDocument && w.ownerDocument.defaultView;
+      if (!win || typeof win.getComputedStyle !== 'function') return;
+      for (var n = w.parentNode; n && n !== el && n.nodeType === 1; n = n.parentNode) {
+        if (n.scrollHeight > n.clientHeight + 1) {
+          var oy = win.getComputedStyle(n).overflowY;
+          if (oy === 'auto' || oy === 'scroll') { box = n; break; }
+        }
+      }
+      if (!box) return;
+      var b = box.getBoundingClientRect(), r = w.getBoundingClientRect();
+      if (r.top >= b.top && r.bottom <= b.bottom) return;
+      box.scrollTop = Math.max(0, Math.round(box.scrollTop + (r.top - b.top) - box.clientHeight / 3));
+    }
     /** Follow a line Jugnu has just started (say()): its words on the screen lit from the playing clip's clock. */
     function hlFollow(textObj, audioObj, done) {
       hlStop();
@@ -2256,7 +2272,7 @@
           for (var j = 0; j < r.words.length && r.words[j].s_ms <= ms; j++) i = j;
           if (i !== r.idx) {
             if (r.spans[r.idx]) r.spans[r.idx].classList.remove('is-on');
-            if (r.spans[i]) r.spans[i].classList.add('is-on');
+            if (r.spans[i]) { r.spans[i].classList.add('is-on'); hlKeep(r.spans[i]); }
             r.idx = i;
           }
         }
