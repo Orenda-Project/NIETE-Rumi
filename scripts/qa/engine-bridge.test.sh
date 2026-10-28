@@ -57,6 +57,24 @@ case "$prep" in *'[ -f scripts/qa/link-engine.sh ]'*'command -v bash'*'|| true'*
 node -e 'const s=require("./package.json").scripts; for (const k of ["qa:impact","e2e:mock"]) if (!/\.claude\/qa\/engine\/bin\//.test(s[k]||"")) { console.error(k+" = "+s[k]); process.exit(1) }' \
   && ok "qa:impact and e2e:mock run the engine's scripts" || bad "qa:impact / e2e:mock do not point at .claude/qa/engine/bin"
 
+# A driver written the in-repo way — require('../stack-control.cjs') — reaches an engine module by the path it had
+# before the switch, which is now nothing, and throws only when that scenario runs. Sandbox's observe.cjs did exactly
+# that after the branch point (bd-9157r.1.6). Every relative require under the tenant layer must resolve here; an
+# engine module is reached through the link: require(path.join(__dirname, '..', '..', 'engine', 'bin', '<file>')).
+broken=$(node -e '
+const fs = require("fs"), path = require("path"), out = [];
+const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name);
+  if (e.isDirectory()) { if (e.name !== "node_modules") walk(p); continue; }
+  if (!/\.(c?js)$/.test(e.name)) continue;
+  for (const m of fs.readFileSync(p, "utf8").matchAll(/require\(\s*["\x27](\.\.?\/[^"\x27]+)["\x27]\s*\)/g)) {
+    const t = path.resolve(path.dirname(p), m[1]);
+    if (!["", ".js", ".cjs", ".json"].some((x) => fs.existsSync(t + x)) && !fs.existsSync(path.join(t, "index.js"))) out.push(p + ":" + m[1]);
+  } } };
+for (const r of [".claude/qa/shared", ".claude/qa/web"]) if (fs.existsSync(r)) walk(r);
+process.stdout.write(out.join(" "));' 2>&1)
+[ -z "$broken" ] && ok "every relative require in .claude/qa/shared and .claude/qa/web resolves" \
+  || bad "relative requires to nothing (an engine module by its old path? reach it through .claude/qa/engine/bin): $broken"
+
 # GitHub's machine has only this repo and cannot read the private rumi-agent-home, so the PR check runs from a copy of
 # the engine files it needs, committed at .github/qa-impact/: the one engine piece committed here (bd-9157r.7).
 echo "engine bridge — GitHub's PR check runs from this repo's own copy, with no token"

@@ -74,7 +74,7 @@ const setLang = async (api, row) => {
 const landingOfLink = (url) => {
   try {
     const fs = require('fs'); const path = require('path');
-    const dir = require('../stack-control.cjs').runDir();
+    const dir = require(path.join(__dirname, '..', '..', 'engine', 'bin', 'stack-control.cjs')).runDir();
     if (!dir || !url) return null;
     const src = path.join(dir, 'src');
     const env = {};
