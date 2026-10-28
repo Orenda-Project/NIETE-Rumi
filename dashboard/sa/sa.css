@@ -364,7 +364,11 @@ button{font:inherit;color:inherit}
 .sae-seq.is-r8-mn .sae-gap.is-right{border-color:var(--sae-ok);background:var(--sae-ok-bg);color:var(--sae-ok)}
 .sae-seq.is-r8-mn .sae-gap.is-tried{border-color:var(--sae-again);background:var(--sae-again-bg);color:var(--sae-ink)}
 .sae-mn-ink{display:inline-block;will-change:transform}
-.sae-r8-mn .sae-opts .sae-opt{min-height:64px;font-size:clamp(26px,7vw,46px)}
+/* the choices are numbers: Latin type and a tight line on the Urdu page too (Nastaliq's line made them 103 px tall);
+   mnFit (sa-ui) brings --mn-opt-h down to 56 px and hides Jugnu (.is-mn-tight) when a short phone needs it */
+.sae-r8-mn .sae-opts .sae-opt{min-height:var(--mn-opt-h,64px);font-size:clamp(26px,7vw,46px);line-height:1.15;font-family:var(--sae-f)}
+.sae-r8-mn.is-mn-tight .sae-jugnu{display:none}
+.sae-r8-mn.is-mn-tight .sae-body{gap:8px}
 @media (prefers-reduced-motion:reduce){.sae-mn-ink{transition:none!important;transform:none!important}}
 /* Round 8 (sa_r8_layout, items 6/12/21; the mount's .is-r8-layout; OFF = none of this): the screens use the room they
    have. Phone (~360x640) and tablet (~800x1280) are sized separately: the pictures to tap fill the space under the
