@@ -254,6 +254,10 @@ features:
 
   observe:
     - bot/shared/services/observe/**
+    # The coach's /school card door: the command and the school pick, and its /go landing targets (one of her
+    # schools, or My schools). schools/** above also selects registration (school-search is its Flow's school step).
+    - bot/shared/services/schools/school-card-door.js
+    - bot/shared/services/coach-school-target.js
     - bot/shared/handlers/observe-command.handler.js
     - bot/shared/handlers/observe-visit-flow.handler.js
     - bot/shared/routes/observe-mewaka-endpoint.js

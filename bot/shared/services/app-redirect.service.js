@@ -54,6 +54,15 @@
  *      needs no FLN share. The builder (/portal/fln/send) is not linked from the tab (LeaderHome and the coach
  *      Training Library link it); inside the tab a leader can send only from a Reading Hour / Numeracy plan's own page
  *      ("Send to teacher"), which shows only with FLN share. Old code never reads the key: a rollback is OFF.
+ *   2e. THE SCHOOL CARD (openSchoolCard): a coach's `/school card [EMIS or school name]` opens one of their schools'
+ *      pages (/portal/coach/school/<EMIS>) or My schools (/portal/coach/people), under the portal's OWN switch,
+ *      `portal_coach_school_card` (dashboard/lib/feature-flags.js reads the same key): true, or a JSON list of users.id.
+ *      "coaches", "teachers", an object, no row or a failed read is OFF, and so is anything the portal would not read as
+ *      on, so a coach never gets a link to a School card the portal hides from them. The same two checks as 2b hold:
+ *      role coach, on the coach app (portal_coach_v2). Only from its own door ('command'). Which school: an exact EMIS
+ *      among their leader_schools, else exactly one school-search hit among them, else My schools
+ *      (schools/school-card-door.js). Always ONE message, never a list, a menu or a Flow. Not covered → false, and the
+ *      text handler goes on exactly as before. Old code never reads the key for the bot: a rollback is OFF.
  *   3. QUIET HOUR, per teacher, shared by every switch. A second redirect
  *      inside 60 minutes sends NOTHING — and still reports "handled", so the
  *      caller does not fall through to the feature or to AI chat. After the
@@ -108,6 +117,9 @@ const APP_LINK_COPY = Object.freeze({
   coach_menu: ['appLinkBodyCoachHome', 'appLinkButtonCoachHome'], // bd-fmf24g.52
   coach_observe: ['appLinkBodyCoachObserve', 'appLinkButtonCoachObserve'], // bd-fmf24g.52
   coach_training: ['appLinkBodyCoachTraining', 'appLinkButtonCoachTraining'], // bd-s42dye.3
+  // The School card (coach-school-target.js): one school, by prefix (the line names it: params.school), or My schools.
+  'coach_school:*': ['appLinkBodyCoachSchoolCard', 'appLinkButtonCoachSchoolCard'],
+  coach_schools: ['appLinkBodyCoachSchools', 'appLinkButtonCoachSchools'],
   leader_lessons: ['appLinkBodyLeaderLessonPlan', 'appLinkButtonLeaderLessonPlan'], // bd-zcgpkx, bd-a73p5m — the tab
   lesson_plan: ['appLinkBodyLessonPlan', 'appLinkButtonLessonPlan'],
   assessment_generator: ['appLinkBodyAssessment', 'appLinkButtonAssessment'],
@@ -118,6 +130,19 @@ const APP_LINK_COPY = Object.freeze({
   classes: ['appLinkBodyClasses', 'appLinkButtonClasses'],
 });
 const APP_LINK_GENERIC = APP_LINK_COPY.menu;
+
+/**
+ * The [body, button] keys for a landing: its own pair, else the pair of its prefix (`coach_school:947` →
+ * 'coach_school:*'), else the generic line. A prefix is everything up to and including the first ':'.
+ */
+function linkCopyFor(feature) {
+  const f = String(feature || '');
+  if (Object.prototype.hasOwnProperty.call(APP_LINK_COPY, f)) return APP_LINK_COPY[f];
+  const colon = f.indexOf(':');
+  const prefix = colon > 0 ? `${f.slice(0, colon + 1)}*` : null;
+  if (prefix && Object.prototype.hasOwnProperty.call(APP_LINK_COPY, prefix)) return APP_LINK_COPY[prefix];
+  return APP_LINK_GENERIC;
+}
 
 /**
  * bd-4r3rei — the funnel's bot rows. Each is a semantic event (the `event` column) carrying the journey id (a core
@@ -133,9 +158,11 @@ function funnelEvent(name, props) {
 }
 
 /** Mint the journey and log what she asked for. `verdict` is 'link' (a link goes out) or 'whatsapp' (she keeps the flow). */
-function startJourney({ userId, feature, door, verdict, why, audience = 'teacher' }) {
+function startJourney({ userId, feature, door, verdict, why, audience = 'teacher', match }) {
   const journeyId = newJourneyId();
-  funnelEvent('app_funnel.command', { journeyId, userId, feature, door, verdict, ...(why ? { why } : {}), audience });
+  // `match` (the School card only): how the school was found — emis | name | several | no_match | no_query | no_schools.
+  funnelEvent('app_funnel.command', { journeyId, userId, feature, door, verdict, ...(why ? { why } : {}), audience,
+    ...(match ? { match } : {}) });
   return { journeyId, feature, door, userId, audience };
 }
 
@@ -143,7 +170,11 @@ function startJourney({ userId, feature, door, verdict, why, audience = 'teacher
  * bd-fmf24g.52 — the coach app link. Request → the coach-app page it lands on (app-login-link.js COACH_LANDINGS).
  * Only these two; any other request a coach makes is today's path.
  */
-const COACH_LINKS = Object.freeze({ menu: 'coach_menu', observe: 'coach_observe', teacher_training: 'coach_training' });
+const COACH_LINKS = Object.freeze({
+  menu: 'coach_menu', observe: 'coach_observe', teacher_training: 'coach_training',
+  // The School card: My schools when no single school is picked; openSchoolCard picks the page (2e).
+  school_card: require('./coach-school-target').COACH_SCHOOLS,
+});
 /** Who gets it: a JSON list of users.id, and nothing else. Not an app_redirect_* key — old code never reads it. */
 const COACH_LINK_KEY = 'coach_app_link';
 /**
@@ -151,15 +182,27 @@ const COACH_LINK_KEY = 'coach_app_link';
  * /training has its own, `coach_app_training`, so the three never move each other. Not app_redirect_* keys.
  */
 const COACH_TRAINING_KEY = 'coach_app_training';
-const COACH_LINK_FLAGS = Object.freeze({ menu: COACH_LINK_KEY, observe: COACH_LINK_KEY, teacher_training: COACH_TRAINING_KEY });
+/**
+ * The School card's switch is the PORTAL's (dashboard/lib/feature-flags.js isFlagEnabledForUser reads it for the card's
+ * routes and /config), so the bot and the app agree on who has the card.
+ */
+const COACH_SCHOOL_CARD_KEY = 'portal_coach_school_card';
+const COACH_LINK_FLAGS = Object.freeze({
+  menu: COACH_LINK_KEY, observe: COACH_LINK_KEY, teacher_training: COACH_TRAINING_KEY, school_card: COACH_SCHOOL_CARD_KEY,
+});
 /** The requests whose switch also takes `true` and "coaches" (everyone), not only a list. */
 const COACH_LINK_EVERYONE = Object.freeze(['teacher_training']);
+/**
+ * The requests whose switch takes `true` but NOT "coaches": the portal's rule (true, or a list). "coaches" is not a
+ * value the portal reads, so it would send a coach to a card the app does not show.
+ */
+const COACH_LINK_TRUE_OR_LIST = Object.freeze(['school_card']);
 /**
  * A request listed here goes to the coach app only from these doors (the `reason` the caller gives). /training reaches
  * teacher_training from /certificates and the exam and capstone buttons too; those are not "open training" and keep
  * their WhatsApp behaviour. A request not listed has no door restriction (menu, observe: as before).
  */
-const COACH_LINK_DOORS = Object.freeze({ teacher_training: ['command', 'chip', 'menu', 'training_door'] });
+const COACH_LINK_DOORS = Object.freeze({ teacher_training: ['command', 'chip', 'menu', 'training_door'], school_card: ['command'] });
 /** The coach app's own switch (dashboard/lib/feature-flags.js PORTAL_COACH_V2_KEY): true or a list of users.id. */
 const COACH_APP_KEY = 'portal_coach_v2';
 
@@ -237,7 +280,7 @@ async function settingValues(now) {
       .from('app_settings')
       .select('key,value')
       .in('key', [...Object.values(APP_REDIRECT_FLAGS), TEACHER_APP_KEY, COACH_LINK_KEY, COACH_TRAINING_KEY, COACH_APP_KEY,
-        LEADER_LP_KEY, ANALYTICS_ONLY_KEY]);
+        LEADER_LP_KEY, ANALYTICS_ONLY_KEY, COACH_SCHOOL_CARD_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     for (const row of data || []) values.set(row.key, row.value);
   } catch (err) {
@@ -350,7 +393,8 @@ async function coachLink(feature, userId, now, reason) {
   if (doors && !doors.includes(reason)) return null;
   const values = await settingValues(now);
   const flag = values.get(COACH_LINK_FLAGS[feature]);
-  const everyone = COACH_LINK_EVERYONE.includes(feature) && (isOn(flag) || isCoachesValue(flag));
+  const everyone = (COACH_LINK_EVERYONE.includes(feature) && (isOn(flag) || isCoachesValue(flag)))
+    || (COACH_LINK_TRUE_OR_LIST.includes(feature) && isOn(flag));
   if (!everyone && !listHas(flag, userId)) return null;
   let why = null;
   try {
@@ -469,7 +513,7 @@ async function redirectIfFlagged(feature, args = {}) {
  * No quiet hour: she asked for this, and each ask (menu, then lessons) is a different page. Failing closed means
  * false — the caller runs the WhatsApp flow — never silence.
  */
-async function sendAppLink(feature, { userId, from, language, reason, journey, copy = null }) {
+async function sendAppLink(feature, { userId, from, language, reason, journey, copy = null, params = null }) {
   const base = String(portalUrl() || '').replace(/\/+$/, '');
   const token = base ? signAppLink(userId, feature, journey && journey.journeyId) : null;
   // The funnel names the request she made (menu, observe…), not the page the token lands on (coach_menu…).
@@ -483,10 +527,9 @@ async function sendAppLink(feature, { userId, from, language, reason, journey, c
   }
   const url = `${base}/go/${token}`;
   // bd-c5reix: `copy` (from onLink) names another pair of catalog keys for this one link.
-  const [bodyKey, buttonKey] = copy || (Object.prototype.hasOwnProperty.call(APP_LINK_COPY, feature)
-    ? APP_LINK_COPY[feature]
-    : APP_LINK_GENERIC);
-  const body = resolveUx(bodyKey, { language });
+  const [bodyKey, buttonKey] = copy || linkCopyFor(feature);
+  // `params` fills the line's placeholders (the School card names the school); a line without any ignores them.
+  const body = resolveUx(bodyKey, { language, ...(params ? { params } : {}) });
   const buttonText = resolveUx(buttonKey, { language });
   let sent = false;
   let via = 'cta_url';
@@ -593,6 +636,30 @@ async function decideRedirect(feature, { userId, from, language, reason = 'unspe
   return true;
 }
 
+/**
+ * The School card door (2e): a coach's `/school card [EMIS or name]`. true = handled (ONE message went: a button, or
+ * the same line and link as text when Meta refused the button). false = not this coach's door, or nothing could be
+ * sent: the caller goes on with today's handling, never silence.
+ *
+ * @param {object} args
+ * @param {string} args.userId   users.id
+ * @param {string} args.from     WhatsApp number
+ * @param {string} [args.language] their resolved language
+ * @param {string} [args.query]  the rest of the message as typed (an EMIS or a school name), '' for none
+ * @param {number} [args.now]    clock, for tests
+ * @returns {Promise<boolean>}
+ */
+async function openSchoolCard({ userId, from, language, query = '', now = Date.now() } = {}) {
+  if (!userId || !from) return false;
+  const reason = 'command';
+  if (!(await coachLink('school_card', userId, now, reason))) return false;
+  const pick = await require('./schools/school-card-door').pickSchool(userId, query);
+  const journey = startJourney({ userId, feature: 'school_card', door: reason, verdict: 'link', audience: 'coach', match: pick.match });
+  return sendAppLink(pick.target, {
+    userId, from, language, reason, journey, params: pick.school ? { school: pick.school } : null,
+  });
+}
+
 function _resetForTests() { flagCache = null; }
 
 module.exports = {
@@ -603,5 +670,6 @@ module.exports = {
   isRedirectEnabled,
   isOnTeacherApp,
   redirectIfFlagged,
+  openSchoolCard,
   _resetForTests,
 };

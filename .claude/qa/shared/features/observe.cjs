@@ -26,6 +26,7 @@
  *  · the cancel chain on Ayesha: cancel → old buttons OBS29 → same audio again OBS39 → form → debrief:
  *    the already-coached debrief OBS40 / OBS41, the too-short one re-sent OBS42, the harmful one OBS23
  *  · unbound captures: OBS06 · OBS35 · OBS25 · OBS36 · OBS34 · OBS33
+ *  · /school card (local database only — two global switches): OBS73 one school by EMIS · OBS74 My schools · OBS75 switch off
  * The debrief recordings are SYNTHETIC (fixtures/…/media/debrief, text-to-speech of a written script,
  * make-debrief-fixtures.cjs); the bot transcribes and judges them like any recording.
  *
@@ -65,6 +66,32 @@ const setLang = async (api, row) => {
     } catch (e) { last = e; await new Promise((res) => setTimeout(res, 3000)); }
   }
   throw last;
+};
+
+// Where an app link (a cta_url's /go/<token>) lands, read the way /go reads it: the token decoded with the bot's OWN
+// key (the run's src/.env; dotenv keeps the FIRST value of a key), then the School card target mapped to its page.
+// null when there is no stack to read (no RUN_DIR) or the token does not verify.
+const landingOfLink = (url) => {
+  try {
+    const fs = require('fs'); const path = require('path');
+    const dir = require('../stack-control.cjs').runDir();
+    if (!dir || !url) return null;
+    const src = path.join(dir, 'src');
+    const env = {};
+    for (const line of fs.readFileSync(path.join(src, '.env'), 'utf8').split('\n')) {
+      const m = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
+      if (m && !(m[1] in env)) env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+    }
+    const keep = { INTERNAL_API_KEY: process.env.INTERNAL_API_KEY, SUPABASE_URL: process.env.SUPABASE_URL };
+    process.env.INTERNAL_API_KEY = env.INTERNAL_API_KEY || ''; process.env.SUPABASE_URL = env.SUPABASE_URL || '';
+    try {
+      const p = require(path.join(src, 'bot/shared/services/app-login-link.js')).verifyAppLink(String(url).split('/go/')[1] || '');
+      if (!p) return null;
+      return { feature: p.f, page: require(path.join(src, 'bot/shared/services/coach-school-target.js')).coachSchoolPathFor(p.f) };
+    } finally {
+      for (const [k, v] of Object.entries(keep)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+    }
+  } catch (_) { return null; }
 };
 
 exports.run = async ({ api, rec, want = () => true }) => {
@@ -689,6 +716,70 @@ exports.run = async ({ api, rec, want = () => true }) => {
                 { reply: (r.txt || '').slice(0, 200), btns: r.btns, restored: !!(on && on.ok) })
             : ['BLOCKED', { reason: 'stack-control.restart(bot) failed: ' + JSON.stringify(off).slice(0, 160) }]), Date.now() - s);
     }
+  }
+
+  // ── /school card: the School card's WhatsApp door (OBS73-75). Its switch (portal_coach_school_card) and the coach
+  //    app's (portal_coach_v2) are GLOBAL app_settings rows, so they are flipped only where api.setAppSetting allows it:
+  //    the run's own local database. The coach's school is the driver's seeded roster school (EMIS E2EOBS<driver>). ──
+  if (want('OBS73', 'OBS74', 'OBS75')) {
+    const SC_ONE = /School card for \*(.+?)\* is ready\./;
+    const SC_SCHOOLS = /Pick a school in My schools to see its card\./;
+    const SC_ANY = /School card for|Pick a school in My schools|سکول کارڈ تیار ہے|میرے سکول میں سے/;
+    // One turn: the items it sent, the Open buttons among them, and where each button's link lands (read the way
+    // /go reads it, with the bot's own key from the run's .env).
+    const turn = async (text) => {
+      await api.resetFlow(); await api.freshReset();
+      const r = await api.sendWait(text, 120000);
+      const items = await api.fresh();
+      const ctas = items.map((i) => i.cta).filter((c) => c && c.url);
+      return { r, items, ctas, land: ctas[0] ? landingOfLink(ctas[0].url) : null,
+        txt: items.map((i) => i.txt || '').join('\n'), lists: items.filter((i) => i.list || /flow/i.test(String(i.type || ''))).length };
+    };
+    const shape = (t) => ({ sends: t.items.length, button: t.ctas[0] ? t.ctas[0].text : null, lists: t.lists,
+      link: t.ctas[0] ? t.ctas[0].url.replace(/\/go\/.*/, '/go/<token>') : null, landing: t.land, reply: t.txt.slice(0, 160) });
+    s = Date.now();
+    await api.setRole('coach');
+    const seed = await api.setRoster({});
+    const emis = seed && seed.ok ? String(seed.schoolExtId || '').split(':').pop() : null;
+    let flip = !emis ? { ok: false, err: 'roster seed failed: ' + JSON.stringify(seed).slice(0, 120) }
+      : (typeof api.setAppSetting === 'function' ? await api.setAppSetting('portal_coach_school_card', true) : { ok: false, err: 'GLOBAL_SWITCH: this lane cannot flip app_settings' });
+    if (flip.ok) flip = await api.setAppSetting('portal_coach_v2', true);
+    if (!flip.ok) {
+      const why = { reason: 'needs portal_coach_school_card and portal_coach_v2 turned on, both GLOBAL app_settings rows: flipped only on the run\'s own local database (E2E_LOCAL_DB=1). Covered by tests/app-redirect/app-link-coach-school-card*.test.js (red-first). ' + String(flip.err || '').slice(0, 120) };
+      rec('OBS73', 'A coach on the School card gets one Open button for the school she names by EMIS', 'BLOCKED', why, 0);
+      rec('OBS74', 'A coach who names none of her schools gets one Open button for My schools', 'BLOCKED', why, 0);
+      rec('OBS75', 'With the School card off, "/school card" is answered exactly as any other message', 'BLOCKED', why, 0);
+    } else {
+      try {
+        if (want('OBS73')) {
+          const t = await turn('/school card ' + emis);
+          const m = SC_ONE.exec(t.txt);
+          rec('OBS73', 'A coach on the School card gets one Open button for the school she names by EMIS',
+              ...V(t.r.ok && t.items.length === 1 && t.ctas.length === 1 && t.ctas[0].text === 'Open' && t.lists === 0
+                && !!m && m[1] === seed.schoolName && !!t.land && t.land.page === '/portal/coach/school/' + emis,
+                { emis, school: seed.schoolName, ...shape(t) }), Date.now() - s);
+        }
+        if (want('OBS74')) {
+          s = Date.now();
+          const none = await turn('/school card zzqx wvut');
+          const bare = await turn('/school card');
+          const ok1 = (t) => t.r.ok && t.items.length === 1 && t.ctas.length === 1 && t.ctas[0].text === 'Open' && t.lists === 0
+            && SC_SCHOOLS.test(t.txt) && !!t.land && t.land.page === '/portal/coach/people';
+          rec('OBS74', 'A coach who names none of her schools gets one Open button for My schools',
+              ...V(ok1(none) && ok1(bare), { noMatch: shape(none), noQuery: shape(bare) }), Date.now() - s);
+        }
+        if (want('OBS75')) {
+          s = Date.now();
+          await api.setAppSetting('portal_coach_school_card', false);
+          const t = await turn('/school card ' + emis);
+          rec('OBS75', 'With the School card off, "/school card" is answered exactly as any other message',
+              ...V(t.r.ok && t.ctas.length === 0 && !SC_ANY.test(t.txt) && t.txt.trim().length > 0, { emis, ...shape(t) }), Date.now() - s);
+        }
+      } finally {
+        await api.restoreAppSettings();
+      }
+    }
+    await api.resetFlow();
   }
 
   // ── BLOCKED, each with the evidence that says why ──
