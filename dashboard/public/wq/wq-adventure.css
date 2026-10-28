@@ -147,14 +147,14 @@ html.wq-adv .wq-doors{gap:var(--sp-2);padding:var(--sp-2) var(--gutter) calc(var
 html.wq-adv .wq-door{--edge:var(--line);max-width:160px;min-height:60px;margin-bottom:4px;border:2px solid var(--line);border-radius:var(--r-card);background:var(--card);color:var(--ink);box-shadow:0 4px 0 var(--edge);transition:transform var(--dur-tap),box-shadow var(--dur-tap);-webkit-tap-highlight-color:transparent}
 html.wq-adv .wq-doors{justify-content:center}
 html.wq-adv .wq-door:active{transform:translateY(4px);box-shadow:0 0 0 var(--edge)}
-html.wq-adv .wq-door[data-door=stories]{--dc:var(--land-st);--dd:var(--land-st-edge)}
-html.wq-adv .wq-door[data-door=games]{--dc:var(--land-gm);--dd:var(--land-gm-edge)}
-html.wq-adv .wq-door[data-door=videos]{--dc:var(--land-vd);--dd:var(--land-vd-edge)}
+html.wq-adv .wq-door[data-door=stories]{--dc:var(--land-st);--dd:var(--land-st-edge);--ds:var(--land-st);--don:var(--land-st-on)}
+html.wq-adv .wq-door[data-door=games]{--dc:var(--land-gm);--dd:var(--land-gm-edge);--ds:var(--land-gm-edge);--don:var(--land-gm-on)}
+html.wq-adv .wq-door[data-door=videos]{--dc:var(--land-vd);--dd:var(--land-vd-edge);--ds:var(--land-vd-edge);--don:var(--land-vd-on)}
 html.wq-adv .wq-door svg{color:var(--dc)}
-html.wq-adv .wq-door.at{--edge:var(--dd);background:var(--dc);border-color:var(--dc);color:#fff}
-html.wq-adv .wq-door.at svg{color:#fff}
-html.wq-adv .wq-door.at svg g,html.wq-adv .wq-door.at svg path[fill="#fff"]{fill:var(--dc)}
-html.wq-adv .wq-door.at svg path[stroke="#fff"]{stroke:var(--dc)}
+html.wq-adv .wq-door.at{--edge:var(--dd);background:var(--ds);border-color:var(--dc);color:var(--don)}
+html.wq-adv .wq-door.at svg{color:var(--don)}
+html.wq-adv .wq-door.at svg g,html.wq-adv .wq-door.at svg path[fill="#fff"]{fill:var(--ds)}
+html.wq-adv .wq-door.at svg path[stroke="#fff"]{stroke:var(--ds)}
 
 /* 5 · a land screen: the land banner with its hill, flagged sections, tiles with the speaker inside */
 html.wq-adv .wq-droom{gap:var(--sp-2)}
