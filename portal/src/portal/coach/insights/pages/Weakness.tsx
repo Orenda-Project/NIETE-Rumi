@@ -52,7 +52,10 @@ function WeaknessBody() {
   // fix-r5 s2 item 8 (qa-coach 073256): S1's read, for the moves' real count (the app bar's "of m") and the coach's open
   // step on this move (the card's done form when R3 has no code left). Until it answers, or if it fails, the app bar
   // says nothing rather than a count it cannot back, and the step card behaves as before.
-  const home = useLoad<Home>(() => coachip.home(), []).data;
+  const homeLoad = useLoad<Home>(() => coachip.home(), []);
+  const home = homeLoad.data;
+  // R6 fix cycle 1 (FIX_R6 A1): a line still coming is null (the app bar holds its box); a line that will not come is undefined
+  const coming = error ? undefined : null;
   const card = data?.card;
   const m = home ? home.moves.length : 0;
   const laptop = useLaptop();
@@ -60,10 +63,12 @@ function WeaknessBody() {
     <InsightsPage
       testId="insights-w"
       backTo={insightsPaths.thisWeek}
-      title={card ? pick(card.short_name, lang) : ""}
-      crumb={card && m >= card.rank ? <span data-nonum="">{t("s2.appbar.sub", lang, { k: card.rank, m })}</span> : null}
-      chips={card ? <MetaLine window={card.window} className="text-[13px] leading-[1.45] text-cp-ink-3" /> : null}
+      title={card ? pick(card.short_name, lang) : coming}
+      crumb={card && home ? (m >= card.rank ? <span data-nonum="">{t("s2.appbar.sub", lang, { k: card.rank, m })}</span> : undefined)
+        : homeLoad.error ? undefined : coming}
+      chips={card ? <MetaLine window={card.window} /> : coming}
       windows={data?.windows}
+      screenWindow={card?.window.id ?? null}
       // laptop (SCREENS S2, ux-lead-2 174713 item 4): the step card (the primary, sticky) and the moment on the right
       aside={data && card && laptop ? <Act d={data} home={home} /> : undefined}
     >
@@ -114,7 +119,7 @@ function Fold({ d, home, laptop }: { d: WDetail; home: Home | null; laptop: bool
   const card = d.card;
   const insufficient = card.status === "insufficient";
   const moment = insufficient ? null : d.moment;
-  // Why: the larger cause's bar is green, the smaller one's grey (DESIGN_SYSTEM §5)
+  // Why: the larger cause's bar is a notice (navy), the smaller one's grey (DESIGN_SYSTEM §5, FIX_R6 A5)
   const top = Math.max(0, ...d.split.map((r) => r.count?.n ?? 0));
   return (
     <div className="flex flex-col">
@@ -159,7 +164,7 @@ function Fold({ d, home, laptop }: { d: WDetail; home: Home | null; laptop: bool
                 <li key={r.w_id} data-w={r.w_id} className="flex min-w-0 flex-col gap-1">
                   {r.count && <RowCount count={r.count} lang={lang} />}
                   <span className="text-[15px] leading-[1.4] text-cp-ink-2">{pick(r.short_name, lang)}</span>
-                  {r.count && <FractionBar n={r.count.n} d={r.count.d} tone={r.count.n >= top ? "green" : "grey"} className="mt-1" />}
+                  {r.count && <FractionBar n={r.count.n} d={r.count.d} tone={r.count.n >= top ? "notice" : "grey"} className="mt-1" />}
                 </li>
               ))}
             </ul>

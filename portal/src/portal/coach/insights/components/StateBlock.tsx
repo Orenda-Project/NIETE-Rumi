@@ -10,10 +10,11 @@ import { Skeleton } from "../../../coachip-ui/Skeleton";
  * Used by every RM page too.
  */
 /** COPY e.failed_load says "Pull down to try again": the page reloads on pull, so the block carries no button of its own. */
-export function StateBlock({ error, testId = "insights-state" }: { error: LoadError | null; testId?: string }) {
+export function StateBlock({ error, testId = "insights-state", overlap = false }: { error: LoadError | null; testId?: string; overlap?: boolean }) {
   const lang = useLang();
   if (!error) {
-    return <Skeleton testId={`${testId}-loading`} />;
+    // `overlap`: under S1's band the first card rides up over it, so its stand-in does too (FIX_R6 A1)
+    return <Skeleton testId={`${testId}-loading`} overlap={overlap} />;
   }
   const key = error === "not_found" ? "e.404" : error === "signed_out" ? "e.401" : error === "offline" ? "e.offline" : "e.failed_load";
   return (

@@ -31,7 +31,7 @@ describe.each(["en", "ur"] as Lang[])("R6 coach chrome (%s)", (lang) => {
   beforeEach(async () => { await boot(lang); laptop(false); });
   afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
-  it("S1 stands in the .cp Shell; its band carries the NIETE lockup, the title and the date line; the trust line sits at the foot", async () => {
+  it("S1 stands in the .cp Shell; its band carries the NIETE lockup, the title and the date line; the trust line is the band's foot (FIX_R6 A6)", async () => {
     serve({ "/coachip/home": F.home });
     await renderAt("");
     const page = screen.getByTestId("insights-this-week");
@@ -43,7 +43,8 @@ describe.each(["en", "ur"] as Lang[])("R6 coach chrome (%s)", (lang) => {
     expect(band.querySelector(".cp-band__lockup")?.textContent).toBe("NIETE");
     expect(within(band).getByRole("heading", { level: 1 }).textContent).toBe(COPY["band.title"][lang]);
     expect(within(band).getByTestId("s1-today")).toBeTruthy();
-    expect(within(page).getByTestId("trust-line").textContent).toBe(COPY["trust.coach"][lang]);
+    expect(within(band).getByTestId("band-foot").textContent).toBe(COPY["trust.coach"][lang]);
+    expect(within(page).queryByTestId("trust-line")).toBeNull();
   });
 
   it("S2 is an inner screen: the slim app bar (back circle, title), no band", async () => {

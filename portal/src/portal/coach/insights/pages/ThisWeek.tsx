@@ -46,6 +46,10 @@ const ThisWeekAside = lazy(() => import("./ThisWeekAside"));
  * row, the coverage line, open steps, Not yet and phonics as hairline sections, the stats link. On a laptop the open
  * steps move to the right column under the moment's player, and where-first with the actions sits inside the hero card.
  * While loading, the band already holds an empty ring so nothing jumps.
+ *
+ * R6 fix cycle 1 (FIX_R6 A1, A6): the band is one fixed height per language on a phone (`fixed`), the same loading,
+ * fresh or stale: the stale line leaves it for a 13 px ink-3 line directly under the first card (on a laptop, under the
+ * hero card), and the trust line is the band's foot. While loading, the first card's stand-in rides up over the band.
  */
 export default function ThisWeek() {
   return (
@@ -81,7 +85,7 @@ function Stale({ home }: { home: Home }) {
   const lang = useLang();
   if (!home.stale) return null;
   return (
-    <p data-testid="s1-stale" role="status" className="cp-on-band-2 text-[13px] leading-[1.45]">
+    <p data-testid="s1-stale" role="status" className="px-1 pt-3 text-[13px] leading-[1.45] text-cp-ink-3">
       {tx("s1.stale", lang, { date: <DateText iso={home.stale.as_of} lang={lang} /> })}
     </p>
   );
@@ -93,7 +97,6 @@ function Hero({ home, laptop }: { home: Home | null; laptop: boolean }) {
   return (
     <div className="flex flex-col gap-3">
       {card ? <WCardHero card={card} total={home.moves.length} /> : <EmptyMessage home={home} />}
-      <Stale home={home} />
       {card && laptop && <WCard card={card} total={home.moves.length} inHero />}
     </div>
   );
@@ -108,18 +111,19 @@ function ThisWeekLoaded() {
       testId="insights-this-week"
       // on a laptop the band's body is the hero card, and where-first with the two actions sits inside it
       hero={(
-        <Band title={t("band.title", lang)} date={<Today />}>
+        <Band title={t("band.title", lang)} date={<Today />} fixed>
           {error && !data ? null : <Hero home={data} laptop={laptop} />}
         </Band>
       )}
       windows={data?.windows}
+      screenWindow={data?.moves[0]?.window.id ?? null}
       aside={data && laptop && !quietOf(data) ? (
         <Suspense fallback={<Steps home={data} first />}>
           <ThisWeekAside home={data}>{(first) => <Steps home={data} first={first} />}</ThisWeekAside>
         </Suspense>
       ) : undefined}
     >
-      {!data ? <StateBlock error={error} /> : <Body home={data} laptop={laptop} />}
+      {!data ? <StateBlock error={error} overlap /> : <Body home={data} laptop={laptop} />}
     </InsightsPage>
   );
 }
@@ -189,6 +193,7 @@ function Body({ home, laptop }: { home: Home; laptop: boolean }) {
   return (
     <div className="flex flex-col pb-2">
       {card && !laptop && <WCard card={card} total={home.moves.length} />}
+      <Stale home={home} />
       {home.note && status !== "no_scope" && <div className="mt-4"><NoteBanner note={home.note} /></div>}
 
       {second && <div className="mt-2"><WRow row={second} to={insightsPaths.w(second.w_id)} /></div>}

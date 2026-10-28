@@ -31,7 +31,7 @@ function ResultsLoaded() {
 
   return (
     <InsightsPage testId="insights-results" backTo={insightsPaths.stats} title={t("s7.title", lang)} windows={data?.windows}
-      chips={data ? <MetaLine window={data.window} /> : null}>
+      chips={data ? <MetaLine window={data.window} /> : error ? undefined : null}>
       {!data ? <StateBlock error={error} /> : (
         <>
           {data.cells.length === 0 || data.empty ? (

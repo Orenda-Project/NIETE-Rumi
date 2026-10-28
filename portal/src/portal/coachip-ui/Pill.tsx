@@ -5,7 +5,7 @@ export type PillTone = "green" | "tint" | "grey" | "navy-tint" | "on-navy";
 const TONE: Record<PillTone, string> = {
   green: "bg-cp-green text-cp-navy",
   tint: "bg-cp-green-tint text-cp-green-ink",
-  grey: "bg-cp-grey-fill text-cp-ink-2",
+  grey: "bg-cp-navy-tint text-cp-ink-2",
   "navy-tint": "bg-cp-navy-tint text-cp-navy",
   "on-navy": "bg-white/10 text-white",
 };

@@ -8,9 +8,13 @@ import { RING, type RingSize } from "./tokens";
  * on a card and on the laptop. Never put a ring on a teacher or a coach row (§6).
  *
  * Any `data-*` prop passes through to the root, so a caller can make the ring itself the count node.
+ *
+ * `tone` (FIX_R6 A5, panel 230157): a count of lessons that went wrong is a `notice` (the default: a navy arc on white,
+ * white-72 % on the band), a count of what got done a `strength` (green). It is only `data-tone` on the root; tokens.css
+ * colours the arc, so the coach-entry chunk pays no branch for it.
  */
-export function Ring({ n, d, size = "card", children, className, testId, ...rest }: {
-  n: number; d: number; size?: RingSize; children?: ReactNode; className?: string; testId?: string;
+export function Ring({ n, d, size = "card", tone = "notice", children, className, testId, ...rest }: {
+  n: number; d: number; size?: RingSize; tone?: "notice" | "strength"; children?: ReactNode; className?: string; testId?: string;
 } & { [k: `data-${string}`]: string | number | undefined }) {
   const { size: px, stroke } = RING[size];
   const r = (px - stroke) / 2;
@@ -19,6 +23,7 @@ export function Ring({ n, d, size = "card", children, className, testId, ...rest
   const arc = c * frac;
   return (
     <span
+      data-tone={tone}
       {...rest}
       data-testid={testId}
       data-ring={size}
@@ -39,7 +44,7 @@ export function Ring({ n, d, size = "card", children, className, testId, ...rest
             strokeLinecap="round"
             strokeDasharray={`${arc.toFixed(2)} ${c.toFixed(2)}`}
             transform={`rotate(-90 ${px / 2} ${px / 2})`}
-            style={{ stroke: "var(--cp-green)", "--cp-arc-len": arc.toFixed(2) } as CSSProperties}
+            style={{ "--cp-arc-len": arc.toFixed(2) } as CSSProperties}
           />
         )}
       </svg>

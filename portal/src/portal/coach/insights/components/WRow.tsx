@@ -3,10 +3,11 @@ import { ChevronRight } from "lucide-react";
 import { useLang } from "../../../teacher/i18n";
 import { CodeText, CountSpan, WindowMark } from "../count";
 import { digits, range } from "../format";
-import { pick, t, tx } from "../text";
+import { pick, t, tx, txUntil } from "../text";
 import type { WRow as WRowData } from "../types";
 import { RowCount } from "../../../coachip-ui/Count";
 import { FractionBar } from "../../../coachip-ui/FractionBar";
+import { useScreenWindow } from "../../../coachip-ui/Shell";
 
 /**
  * bd-sex15q.42 (R6) — the frame every weakness row shares, coach and sector alike (CODE_MAP C2: SectorWRow is built on
@@ -42,10 +43,14 @@ export function WRowFrame({ testId, w, state, kind, to, agenda, lead, children }
  *
  * One `data-num/den/win` per count; the window resolves to the row's own meta element. `sectorLabel` (the sector's name)
  * is passed by a screen that knows it; without it the sector line is not drawn (it never shows a bare number).
+ *
+ * FIX_R6 A4: when the row's window is the one the screen's header states, the row draws no range (nor the grader that
+ * rides with it); its count's `data-win` resolves to the header's element.
  */
 export function WRow({ row, to, sectorLabel, testId = "wrow" }: { row: WRowData; to?: string; sectorLabel?: string | null; testId?: string }) {
   const lang = useLang();
-  const win = <WindowMark window={row.window} as="span">{range(row.window.from, row.window.to, lang)}</WindowMark>;
+  const said = useScreenWindow() === row.window.id;
+  const win = said ? null : <WindowMark window={row.window} as="span">{range(row.window.from, row.window.to, lang)}</WindowMark>;
   let sub: React.ReactNode = null;
   if (row.state === "not_yet" && row.not_yet) {
     const g = row.not_yet.graded;
@@ -59,19 +64,20 @@ export function WRow({ row, to, sectorLabel, testId = "wrow" }: { row: WRowData;
         <CountSpan count={{ n: row.not_yet.codes_seen, d: row.not_yet.codes_needed, window_id: row.window.id }} className="block">
           {t("wrow.not_yet.codes", lang, { seen: row.not_yet.codes_seen, needed: row.not_yet.codes_needed })}
         </CountSpan>
-        <span className="block">{win}</span>
+        {win && <span className="block">{win}</span>}
       </>
     );
   } else {
     const wf = row.where_first;
     if (wf) {
       const key = row.state === "ranked" ? "wrow.ranked.sub" : "wrow.also_seen.sub";
+      const counts = [{ n: "n", d: "d", count: wf.count }];
       const vars: Record<string, React.ReactNode> = {
         school: <CodeText lang={lang}>{wf.school.school_name}</CodeText>,
         range: <WindowMark window={row.window} as="span">{range(row.window.from, row.window.to, lang)}</WindowMark>,
       };
       if (key === "wrow.ranked.sub") vars.grader_label = pick(row.window.grader_label, lang);
-      sub = tx(key, lang, vars, [{ n: "n", d: "d", count: wf.count }]);
+      sub = said ? txUntil(key, lang, "range", vars, counts) : tx(key, lang, vars, counts);
     } else {
       sub = win;
     }

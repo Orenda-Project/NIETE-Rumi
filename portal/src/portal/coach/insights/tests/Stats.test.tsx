@@ -132,7 +132,7 @@ for (const lang of ["en", "ur"] as const) {
         expect(bars[1].querySelector("[data-fill]")!.className).toContain("bg-cp-ink-3");
       }
       for (const p of Array.from(container.querySelectorAll('[data-testid="s6-pill"]'))) {
-        expect(p.className).toContain("bg-cp-grey-fill");
+        expect(p.className).toContain("bg-cp-navy-tint");
       }
       const link = screen.getByTestId("s6-results-link");
       expect(link.className).toContain("min-h-[44px]");

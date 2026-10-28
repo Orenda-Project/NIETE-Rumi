@@ -50,7 +50,7 @@ export function ResultCell({ cell }: { cell: Cell }) {
       <span data-testid="s7-tested" className="flex">
         <TestedSpan
           tested={cell.tested}
-          className={full ? "text-[13px] leading-[1.45] text-cp-ink-3" : "w-fit rounded-full bg-cp-grey-fill px-3 py-[5px] text-[12px] font-semibold leading-[1.4] text-cp-ink-2"}
+          className={full ? "text-[13px] leading-[1.45] text-cp-ink-3" : "w-fit rounded-full bg-cp-navy-tint px-3 py-[5px] text-[12px] font-semibold leading-[1.4] text-cp-ink-2"}
         >
           {full ? t("s7.tested", lang, { t: cell.tested.n }) : t("s7.filling", lang, { t: cell.tested.n })}
         </TestedSpan>

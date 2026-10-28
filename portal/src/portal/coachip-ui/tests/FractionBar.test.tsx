@@ -3,14 +3,17 @@ import { render } from "@testing-library/react";
 import { FractionBar } from "../FractionBar";
 
 describe("FractionBar", () => {
-  it("fills n/d of the track in green, decoratively", () => {
+  // FIX_R6 A5: a weakness count is a notice, so the default fill is navy; green is a strength, on request
+  it("fills n/d of the track in navy (a notice), decoratively", () => {
     const { container } = render(<FractionBar n={11} d={22} />);
     const bar = container.firstElementChild as HTMLElement;
     expect(bar.getAttribute("aria-hidden")).toBe("true");
     expect(bar.dataset.bar).toBe("11/22");
     const fill = bar.querySelector("[data-fill]") as HTMLElement;
     expect(fill.style.width).toBe("50%");
-    expect(fill.className).toContain("bg-cp-green");
+    expect(fill.className).toContain("bg-cp-navy");
+    expect(bar.dataset.tone).toBe("notice");
+    expect((render(<FractionBar n={1} d={4} tone="green" />).container.querySelector("[data-fill]") as HTMLElement).className).toContain("bg-cp-green");
   });
   it("grey tone for the smaller cause; a zero is the track only; never over 100%", () => {
     expect((render(<FractionBar n={1} d={4} tone="grey" />).container.querySelector("[data-fill]") as HTMLElement).className).toContain("bg-cp-ink-3");

@@ -32,8 +32,8 @@ function MomentRouteBody() {
     <InsightsPage
       testId="insights-moment"
       backTo="/portal/coach/insights/listen"
-      title={data ? <>{code ? <><CodeText lang={lang}>{code.code}</CodeText>{lang === "ur" ? "، " : " · "}</> : null}<CodeText lang={lang}>{data.school.school_name}</CodeText></> : ""}
-      chips={data && (data as Partial<Moment>).session ? <MomentSub moment={data} /> : null}
+      title={!data ? (error ? undefined : null) : <>{code ? <><CodeText lang={lang}>{code.code}</CodeText>{lang === "ur" ? "، " : " · "}</> : null}<CodeText lang={lang}>{data.school.school_name}</CodeText></>}
+      chips={!data ? (error ? undefined : null) : (data as Partial<Moment>).session ? <MomentSub moment={data} /> : undefined}
       windows={[]}
     >
       {!data ? <StateBlock error={error} /> : <MomentPage moment={data} />}
