@@ -317,6 +317,14 @@
   }
 
   function delay(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  /** Urdu (and Arabic-Indic) digits as 0-9. */
+  var URDU_DIGIT_RX = /[\u06F0-\u06F9\u0660-\u0669]/;
+  function latinDigits(s) {
+    return String(s).replace(/[\u06F0-\u06F9\u0660-\u0669]/g, function (d) { var c = d.charCodeAt(0); return String(c >= 0x06F0 ? c - 0x06F0 : c - 0x0660); });
+  }
+  /** A sum on its own ("1 + 3", "19 − 6 =", "3 × 4 = ?"): numbers and one or more operators, an optional = and blank. */
+  var SUM_RX = /^\s*[\d\u06F0-\u06F9\u0660-\u0669][\d\u06F0-\u06F9\u0660-\u0669.,\s]*[+\-\u2212\u00D7\u00F7][\d\u06F0-\u06F9\u0660-\u0669.,\s+\-\u2212\u00D7\u00F7]*(=\s*[?_]*)?\s*$/;
+  function sumBase(s) { return String(s).replace(/\s*=?\s*[?_]*\s*$/, '').trim(); }
   function capped(p, ms) { return Promise.race([Promise.resolve(p).catch(function () {}), delay(ms)]); }
 
   function mount(el, opts) {
@@ -373,6 +381,8 @@
     var r7 = (opts.battery && opts.battery.ui) || {};
     var gate = { key: null, open: true, tok: 0 }; // audio_gated_next: the screen whose Next waits, and whether it is open
     var moreEl = null; // story_scroll: the arrow under the story on show
+    // Round 8 (the reviewer's 28 Oct list), the maths screens: battery.ui.r8_* (absent = today's screens).
+    var r8Digits = r7.r8_latin_digits === true; // items 29/3/34: every number shown in 0-9; a sum reads "1 + 3 = ___"
 
     function later(fn, ms) { var t = setTimeout(function () { if (alive) fn(); }, ms); timers.push(t); return t; }
     /** audio_gated_next: the screen `key`'s Next waits for `p` (Jugnu's words), at most GATE_CAP_MS. */
@@ -492,9 +502,23 @@
     /** Round 7: a maths number on the screen is in English digits on the Urdu page too (the tester: "that's how kids know
      *  them"). Shown text only, maths only (ids "ma.…"): Jugnu's clips still say the number in Urdu. */
     function shownNums(id, s) {
-      if (!/^ma\./.test(String(id || ''))) return s;
-      return String(s).replace(/[\u06F0-\u06F9\u0660-\u0669]/g, function (d) { var c = d.charCodeAt(0); return String(c >= 0x06F0 ? c - 0x06F0 : c - 0x0660); });
+      if (!r8Digits && !/^ma\./.test(String(id || ''))) return s;
+      return latinDigits(s);
     }
+    /** r8_latin_digits (item 29): every number on the drawn screen in 0-9, Urdu page included. A reading task's own
+     *  material (its passage, grid, tiles, the item) is left as printed: it is what is being read. */
+    function latinScreen(root, t) {
+      var keep = t && !/^ma\./.test(String(t.id || '')) ? '.sae-passage, .sae-grid, .sae-opts, .sae-onecell, .sae-label' : null;
+      var w = document.createTreeWalker(root, 4); // text nodes
+      for (var n = w.nextNode(); n; n = w.nextNode()) {
+        if (!URDU_DIGIT_RX.test(n.nodeValue)) continue;
+        if (keep && n.parentNode && n.parentNode.closest && n.parentNode.closest(keep)) continue;
+        n.nodeValue = latinDigits(n.nodeValue);
+      }
+    }
+    /** r8_latin_digits (item 34): a sum as a blank to fill, "13 + 6 = ___", so it is never read as a sum to repeat. */
+    function isSum(s) { return r8Digits && typeof s === 'string' && SUM_RX.test(s); }
+    function sumKids(s) { return [sumBase(s) + ' = ', h('span', { class: 'sae-sum-blank', text: '___' })]; }
     function dirOf(t) { return (t && t.direction && t.direction !== 'ltr') ? t.direction : (taskLang(t) === 'ur' ? 'rtl' : 'ltr'); }
     function line(name) { return lines[name] || null; }
     /** One of the engine's own lines: the battery's (it carries the clip) when it has it, else the built-in words. */
@@ -532,6 +556,7 @@
     }
 
     el.classList.add('sae');
+    if (r8Digits) el.classList.add('is-r8-digits');
     // sa_ur_fit (round 6): the Urdu text rules (sa.css "Round 6"): every Urdu word inside its box, clear of pictures.
     if (opts.ur_fit) el.classList.add('is-ur-fit');
     // in the coach page's frame, under its corner hold (sa.css keeps the scrolling body below it)
@@ -639,7 +664,9 @@
         var a = lab.split(/\s+/).sort().join(' '), b = it.options.map(String).sort().join(' ');
         if (a === b) return null;
       }
-      return seq ? seqRow(seq, t) : h('p', { class: 'sae-label sa-label', dir: 'ltr' }, [lab]);
+      if (seq) return seqRow(seq, t);
+      if (isSum(lab)) return h('p', { class: 'sae-label sa-label', dir: 'ltr' }, sumKids(lab));
+      return h('p', { class: 'sae-label sa-label', dir: 'ltr' }, [lab]);
     }
     /**
      * A sequence as tiles, one per number; the missing one is a bordered blank reading "__", wherever it falls.
@@ -1019,6 +1046,7 @@
       var kids = [];
       var seq = Array.isArray(shownOf(it)) ? shownOf(it) : null;
       var lab = !seq && shownOf(it) != null && String(shownOf(it)).trim() ? String(shownOf(it)) : null;
+      if (isSum(lab)) lab = sumBase(lab) + ' ='; // item 34: one = before the box
       var max = keypadMax(t);
       if (!lab && !seq) {
         // a word problem: ten counters the child may tap to count with (not scored)
@@ -1149,7 +1177,7 @@
       var s = String(text);
       var numeric = NUMERIC_RX.test(s);
       return h('div', { class: 'sae-onecell sa-onecell' + (Array.from(s).length <= 2 ? ' is-short' : ''), dir: numeric ? 'ltr' : dirOf(t), lang: numeric ? 'en' : taskLang(t), 'data-i': i == null ? null : String(i) }, [
-        h('span', { class: 'sae-ink' }, [s]),
+        isSum(s) ? h('span', { class: 'sae-ink' }, sumKids(s)) : h('span', { class: 'sae-ink' }, [s]),
       ]);
     }
     /**
@@ -1773,6 +1801,7 @@
         coachLayer(v).forEach(function (n) { el.appendChild(n); });
         if (coachMenu) el.appendChild(sCoachMenu(v));
       }
+      if (r8Digits) latinScreen(el, v.task);
       el.setAttribute('data-phase', showPhase);
       el.setAttribute('data-task-mode', v.task ? v.task.mode : '');
       if (entered) { lastKey = key; enter(v); }

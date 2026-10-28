@@ -346,3 +346,7 @@ button{font:inherit;color:inherit}
 .is-ur-fit[lang=ur] .sae-silence .sae-p{font-size:18px;line-height:2.2;margin:0;padding-top:.4em;padding-inline:.6em}
 @media (max-height:700px){.is-ur-fit[lang=ur] .sae-silence .sae-jugnu{display:none}}
 @media (max-height:600px){.is-ur-fit[lang=ur] .sae-silence .sae-body{gap:6px}.is-ur-fit[lang=ur] .sae-silence .sae-h1{font-size:22px;padding-top:.3em}.is-ur-fit[lang=ur] .sae-silence .sae-p{font-size:16px;padding-top:.2em}}
+
+/* Round 8, maths (battery.ui.r8_latin_digits, items 29/3/34): a sum reads as a blank to fill, "1 + 3 = ___". */
+.sae-sum-blank{display:inline-block;min-width:2.2ch;letter-spacing:0;color:var(--sae-ink-2)}
+.is-r8-digits .sae-sumrow .sae-typed{border-style:dashed}
