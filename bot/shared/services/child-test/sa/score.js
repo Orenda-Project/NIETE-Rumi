@@ -83,6 +83,7 @@
 const { logToFile, logError } = require('../../../utils/logger');
 const stopRulesSwitch = require('../app/stop-rules-switch');
 const coachLastWord = require('../app/coach-last-word-switch');
+const variantWaitSwitch = require('../app/variant-wait-switch');
 const { isSetAside } = require('./set-aside');
 
 const PARKED = 'final:sa_score_later';
@@ -97,6 +98,8 @@ const VERSION = 'sa-marks-v1';
 const SA_MARK = 'sa-battery';
 const MAX_ATTEMPTS = 3;
 const STALE_CLAIM_MS = 2 * 60 * 1000;
+// sa_r8_variant_wait: a rotated passage waits this long for its questions row (the variant the phone showed), then guesses
+const VARIANT_WAIT_MS = 10 * 60 * 1000;
 const WAIT_FOR_CLIPS_MS = 2 * 60 * 1000;   // a questions task whose session ended this long ago is scored with what came
 const INTERVAL_MS = 20 * 1000;
 const PER_TICK = 8;   // rows claimed per tick, scored side by side: one child's spoken tasks in about a minute
@@ -160,7 +163,7 @@ function loadBank() {
 }
 
 /** The task spec the child saw: the session's form (else Form A), the variant the phone's rotation chose. */
-function specFor(bank, session, row) {
+function specFor(bank, session, row, shown = null) {
   const forms = (bank && bank.forms) || {};
   const formId = [`coach.G${session.grade}.${session.form}`, `coach.G${session.grade}.A`].find((f) => forms[f]);
   const base = formId && bank.tasks[`${formId}/${row.block}`];
@@ -175,7 +178,9 @@ function specFor(bank, session, row) {
   const comp = base.kind === 'passage' ? bank.tasks[`${formId}/${row.block}_comp`] : base;
   const at = comp && Array.isArray(comp.variants) && comp.variants.length === base.variants.length
     ? comp.variants.findIndex((x) => askedIn(x.task)) : -1;
-  let v = at >= 0 ? base.variants[at] : null;
+  if (shown && shown.from !== 'guess' && shown.id == null) return { spec: base, variant: null };
+  const pinned = shown && shown.from !== 'guess' ? base.variants.findIndex((x) => x.id === shown.id) : -1;
+  let v = pinned >= 0 ? base.variants[pinned] : at >= 0 ? base.variants[at] : null;
   if (!v && typeof res.session_id === 'string') v = base.variants[hash(res.session_id) % base.variants.length];
   if (!v) v = base.variants[0];
   return { spec: v.task || base, variant: { id: v.id, src: v.src || null } };
@@ -187,6 +192,9 @@ function isW3(bank, session, row) {
   const t = formId && bank.tasks[`${formId}/${row.block}`];
   return !!(t && t.w3);
 }
+
+/** A row's language: its block's prefix, else its own lang. */
+const rowLang = (row) => (/^(ur|en)\./.test(row.block) ? row.block.slice(0, 2) : (row.lang === 'en' ? 'en' : 'ur'));
 
 const PHONE_FILES = new Map();
 /** The battery the phone was served (data/child-test/sa/sa.coach.G<g>.<form>.<lang>.json), null when absent. */
@@ -201,22 +209,50 @@ function phoneBattery(grade, form, lang) {
 }
 
 /**
+ * sa_r8_variant_wait: which rotation variant of a passage the phone showed, from what the phone left behind. The phone's
+ * own word on its result wins ({ from: 'phone', id }, id null: the passage without rotation); else the passage's
+ * questions row, whose asked ids name the variant ({ from: 'questions', id }); a questions row that asked nothing, or a
+ * passage with no questions task, gives nothing to go on ({ from: 'guess' }: hash). undefined: its questions row has not
+ * come yet (wait). null: not a passage with variants (nothing to decide).
+ */
+function shownVariant(session, row, load = phoneBattery) {
+  const lang = rowLang(row);
+  const b = load(session.grade, session.form, lang) || load(session.grade, 'A', lang);
+  const tasks = (b && Array.isArray(b.tasks)) ? b.tasks : [];
+  const t = tasks.find((x) => x && x.id === row.block);
+  if (!t || t.kind !== 'passage' || !Array.isArray(t.variants) || !t.variants.length) return null;
+  const res = resultOf(row) || {};
+  if (Object.prototype.hasOwnProperty.call(res, 'variant')) {
+    const id = res.variant && typeof res.variant === 'object' ? res.variant.id : res.variant;
+    return { from: 'phone', id: typeof id === 'string' && id ? id : null };
+  }
+  const comp = tasks.find((x) => x && x.depends_on && x.depends_on.task === t.id && Array.isArray(x.variants));
+  if (!comp || comp.variants.length !== t.variants.length) return { from: 'guess' };
+  if (!(session.askedBy instanceof Map) || !session.askedBy.has(comp.id)) return undefined;
+  const asked = session.askedBy.get(comp.id) || [];
+  const at = comp.variants.findIndex((v) => (v.items || []).some((q) => asked.includes(q.id)));
+  return at >= 0 ? { from: 'questions', id: t.variants[at].id } : { from: 'guess' };
+}
+
+/**
  * A task as the phone ran it (the W3 forms: letters / words / numbers / sums one at a time, the passage with its own
  * punctuation), in the bank's shape so the scorers below read one shape. The variant is the phone's rotation: the one
  * whose questions were asked in this session, else hash(the phone's session id) mod n (sa-page.js rotate).
  */
-function phoneSpecFor(session, row, load = phoneBattery) {
-  const lang = /^(ur|en)\./.test(row.block) ? row.block.slice(0, 2) : (row.lang === 'en' ? 'en' : 'ur');
+function phoneSpecFor(session, row, load = phoneBattery, shown = null) {
+  const lang = rowLang(row);
   const b = load(session.grade, session.form, lang) || load(session.grade, 'A', lang);
   const tasks = (b && Array.isArray(b.tasks)) ? b.tasks : [];
   let t = tasks.find((x) => x && x.id === row.block);
   if (!t) return null;
   let variant = null;
-  if (Array.isArray(t.variants) && t.variants.length) {
+  const base = shown && shown.from !== 'guess' && shown.id == null; // the phone showed the passage without rotation
+  if (!base && Array.isArray(t.variants) && t.variants.length) {
     const res = resultOf(row) || {};
     const asked = Array.isArray(res.asked) && res.asked.length ? res.asked : (Array.isArray(session.asked) ? session.asked : []);
     const comp = t.kind === 'passage' ? tasks.find((x) => x && x.depends_on && x.depends_on.task === t.id && Array.isArray(x.variants)) : t;
-    let at = comp && comp.variants.length === t.variants.length
+    const pinned = shown && shown.from !== 'guess' ? t.variants.findIndex((v) => v.id === shown.id) : -1;
+    let at = pinned >= 0 ? pinned : comp && comp.variants.length === t.variants.length
       ? comp.variants.findIndex((v) => (v.items || []).some((q) => asked.includes(q.id))) : -1;
     if (at < 0 && typeof res.session_id === 'string') at = hash(res.session_id) % t.variants.length;
     const v = t.variants[Math.max(0, at)];
@@ -717,8 +753,10 @@ async function scoreRow(row, session, deps = {}) {
   const d = { ...defaultDeps(), ...deps };
   const res = resultOf(row);
   // A W3 task (w3: true in the bank) is scored from the battery the phone ran: its items carry show + answer.
-  const byBank = specFor(d.bank, session, row);
-  const found = (byBank && !isW3(d.bank, session, row) ? byBank : null) || phoneSpecFor(session, row, d.phoneBattery) || byBank;
+  // sa_r8_variant_wait: the variant the phone showed, when it left word of it (null: the switch is off or no variants)
+  const shown = session.variantWait === true ? shownVariant(session, row, d.phoneBattery) : null;
+  const byBank = specFor(d.bank, session, row, shown);
+  const found = (byBank && !isW3(d.bank, session, row) ? byBank : null) || phoneSpecFor(session, row, d.phoneBattery, shown) || byBank;
   if (!found) return { ok: false, reason: 'task_not_in_bank', retry: true };
   const { spec: task, variant } = found;
   const stops = d.stopRules === true;
@@ -772,6 +810,7 @@ async function scoreRow(row, session, deps = {}) {
           kind: task.kind,
           subtask: task.subtask || null,
           variant,
+          ...(shown !== null ? { variant_from: shown ? shown.from : 'guess' } : {}),
           stopped_by_rule: !!out.stopped,
           ...(stops && out.stopDetail ? { stop_detail: out.stopDetail } : {}),
           ...(stops && out.why ? { stop_why: out.why } : {}),
@@ -803,6 +842,13 @@ function ready(row, session, nowMs) {
   const own = passageOf(row.block) === row.block;
   const passage = !own && session.stopRules === true && session.passages ? session.passages.get(passageOf(row.block)) : null;
   if (passage && passage.pending) return false;
+  // sa_r8_variant_wait: a rotated passage waits for its questions row (the variant the phone showed), not past the
+  // session's end or VARIANT_WAIT_MS
+  if (session.variantWait === true && own && shownVariant(session, row) === undefined) {
+    const ended = Date.parse(session.finished_at || session.client_finished_at || '') || 0;
+    const touched = Date.parse(row.updated_at || '') || 0;
+    if (!ended && !(touched > 0 && nowMs - touched > VARIANT_WAIT_MS)) return false;
+  }
   // sa_stop_rules: × waits for the + / − marks (none right means × is not counted)
   if (session.stopRules === true && row.block === MUL && session.sums && session.sums.pending) return false;
   if (!['oral'].includes(row.response_mode) || row.audio_r2_key) return true;
@@ -851,9 +897,19 @@ async function candidates({ sessionId = null, now = new Date(), supabase = db(),
 
 /** Every question id the phone asked in this session: which passage variant the child read. */
 async function askedOf(sessionId, supabase) {
+  return [...(await askedByOf(sessionId, supabase)).values()].flat();
+}
+
+/** The same, by block: each row's asked ids ([] for a row that asked nothing), so a passage finds its own questions row. */
+async function askedByOf(sessionId, supabase) {
   const { data } = await supabase.from('child_test_blocks').select('block, responses').eq('session_id', sessionId);
+  const out = new Map();
   // round 7b: a restarted child's ended attempt (set aside) may have read another variant
-  return (data || []).filter((r) => !isSetAside(r.block)).flatMap((r) => { const res = resultOf(r); return res && Array.isArray(res.asked) ? res.asked : []; });
+  for (const r of (data || []).filter((x) => !isSetAside(x.block))) {
+    const res = resultOf(r);
+    out.set(r.block, [...(out.get(r.block) || []), ...(res && Array.isArray(res.asked) ? res.asked : [])]);
+  }
+  return out;
 }
 
 /**
@@ -968,6 +1024,7 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
   const supabase = deps.supabase || db();
   at.stage = 'switch';
   const stopRules = await stopRulesSwitch.enabled(deps);
+  const variantWait = await variantWaitSwitch.enabled(deps);
   at.stage = 'candidates';
   const rows = await candidates({ sessionId, now, supabase, afterBoot: !swept });
   out.found = rows.length;
@@ -981,7 +1038,7 @@ async function sweepBody({ sessionId, now, deps, out, at, ctx }) {
       at.stage = 'session';
       const { data } = await supabase.from('child_test_sessions').select('id, grade, form, item_bank_version, status, finished_at, client_finished_at, coach_user_id').eq('id', row.session_id).limit(1);
       const s = (data || [])[0] || null;
-      if (s) s.asked = await askedOf(row.session_id, supabase);
+      if (s) { s.askedBy = await askedByOf(row.session_id, supabase); s.asked = [...s.askedBy.values()].flat(); s.variantWait = variantWait; }
       if (s) s.lastWordFromRecording = await coachLastWord.enabled(deps, s.coach_user_id || null, supabase);
       if (s && stopRules) { s.stopRules = true; s.passages = await passagesOf(row.session_id, supabase); s.sums = await sumsOf(row.session_id, supabase); }
       sessions.set(row.session_id, s);
@@ -1040,5 +1097,5 @@ function stop() { if (timer) clearInterval(timer); timer = null; }
 
 module.exports = {
   isOn, scoreRow, sweepOnce, kick, start, stop, specFor, phoneSpecFor, ready, hash,
-  __internals: { askedOf, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt, voiceOf, keysOf, defaultDeps },
+  __internals: { askedOf, askedByOf, shownVariant, sectionWindows, echoed, within, PARKED, SCORING, RETRY, FAILED, resetBoot: () => { PROC = bootId(); sweepNo = 0; MINE = `${SCORING}:${PROC}0`; LIVE = new Set(); INFLIGHT = new Set(); swept = false; running = null; skipLogged = 0; }, maxInflight, candidates, claim, finish, finishPatch, bankBackoffMs, timedNumbers, firstRowStopped, usedSeconds, lettersPrompt, questionsPrompt, voiceOf, keysOf, defaultDeps },
 };
