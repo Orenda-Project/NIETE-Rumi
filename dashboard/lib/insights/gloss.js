@@ -200,7 +200,8 @@ function finish({ status, text = null, run, runs, reusedId = null, d }) {
     const scrubbed = runs.map((r) => ({ ...r, output: null }));
     return { patch: patchOf(status), runs: scrubbed, runForPatch: null, dryRun: { gated: 1, passed: status === 'ok' ? 1 : 0 } };
   }
-  return { patch: patchOf(status, status === 'ok' ? text : null, reusedId), runs, runForPatch: run };
+  // A reused call is already stored: its id is in the patch, and there is no new row for the store to number (bd-sex15q.40).
+  return { patch: patchOf(status, status === 'ok' ? text : null, reusedId), runs, runForPatch: reusedId ? null : run };
 }
 
 /** A random 5% of tonight's ok glosses, at least 5 (all of them when fewer). */
@@ -249,7 +250,7 @@ async function recheckGloss({ input, gloss, ledger, deps }) {
   const row = out.row.status === 'ok' && !out.reused
     ? { ...out.row, output: verdict === 'unreadable' ? null : { faithful: verdict === 'faithful' } }
     : out.row;
-  return { verdict, row };
+  return { verdict, row, reused: !!out.reused };
 }
 
 module.exports = {
