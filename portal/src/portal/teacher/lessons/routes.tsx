@@ -1,13 +1,16 @@
 import type { TeacherRoute } from '../routes';
-import { ChaptersPage } from './ChaptersPage';
-import { LessonsAllPage } from './LessonsAll';
-import { LessonsHomePage } from './LessonsHome';
-import { LessonsPage } from './LessonsPage';
-import { NewLessonPage } from './NewLessonPage';
-import { OpenPlanPage } from './OpenPlanPage';
-import { PreparingPage } from './PreparingPage';
-import { ViewerPage } from './ViewerPage';
 import { LESSONS_ALL, LESSONS_HOME, LESSONS_NEW, LESSONS_OPEN, LESSONS_VIEWER } from './paths';
+import { lazyPage as page } from '@/lib/lazyPage';
+
+// bd-sex15q.34 — each page is its own chunk (lib/lazyPage), so the teacher app is not in every first open.
+const ChaptersPage = page(() => import('./ChaptersPage').then((m) => ({ default: m.ChaptersPage })));
+const LessonsAllPage = page(() => import('./LessonsAll').then((m) => ({ default: m.LessonsAllPage })));
+const LessonsHomePage = page(() => import('./LessonsHome').then((m) => ({ default: m.LessonsHomePage })));
+const LessonsPage = page(() => import('./LessonsPage').then((m) => ({ default: m.LessonsPage })));
+const NewLessonPage = page(() => import('./NewLessonPage').then((m) => ({ default: m.NewLessonPage })));
+const OpenPlanPage = page(() => import('./OpenPlanPage').then((m) => ({ default: m.OpenPlanPage })));
+const PreparingPage = page(() => import('./PreparingPage').then((m) => ({ default: m.PreparingPage })));
+const ViewerPage = page(() => import('./ViewerPage').then((m) => ({ default: m.ViewerPage })));
 
 /**
  * bd-fmf24g.3 — the teacher v2 Lesson Plans pages (each one flag-gated by App's TeacherGate). The main

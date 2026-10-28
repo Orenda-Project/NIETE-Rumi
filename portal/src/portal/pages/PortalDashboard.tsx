@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { lazyOptional } from '@/lib/lazyPage';
 import { useBotChatUrl } from '@/lib/whatsapp';
 import { Library, MessageSquare, TrendingUp, ExternalLink, GraduationCap, FileText } from 'lucide-react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import Chart from 'react-apexcharts';
-import { ApexOptions } from 'apexcharts';
+import type { ApexOptions } from 'apexcharts';
 import { useAuth } from '../hooks/useAuth';
 import { AuthContext } from '../hooks/authContext';
 import { isLeader } from '../lib/leaderRole';
@@ -23,6 +23,10 @@ import { readShellHint } from '../lib/shellHint';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import type { DashboardStats, CoachingSession } from '../types/portal';
+
+// bd-sex15q.34 — the charts library (~580 KB) is fetched with the chart, not with the app's first chunk, which
+// every page (a coach's too) waits for. Its box keeps its height while it arrives.
+const Chart = lazyOptional(() => import('react-apexcharts'));
 
 /** The dashboard every teacher had before the new UI — and still has with the flag off. */
 const ClassicDashboard = () => {
@@ -261,12 +265,14 @@ const ClassicDashboard = () => {
             </div>
 
             <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
-              <Chart
-                options={chartOptions}
-                series={chartSeries}
-                type="line"
-                height={250}
-              />
+              <Suspense fallback={<div style={{ height: 250 }} />}>
+                <Chart
+                  options={chartOptions}
+                  series={chartSeries}
+                  type="line"
+                  height={250}
+                />
+              </Suspense>
             </div>
 
             {/* Recent Coaching Session */}

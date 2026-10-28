@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AuthContext } from './authContext';
 import { useOwnAuth } from './useAuth';
 import { readConfigShared } from '../lib/useNewUi';
+import { isCoachipEntry } from '@/lib/firstScreen';
 
 /**
  * bd-fxk3t8 — the signed-in user, read once per visit and kept above every route.
@@ -17,7 +18,9 @@ import { readConfigShared } from '../lib/useNewUi';
 const AUTH_STALE_MS = 30_000;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [wanted, setWanted] = useState(false);
+  // bd-sex15q.34 — a coach's or an RM's first open of the insight pages asks for the user with the app's first frame
+  // (their pages always need it); elsewhere, as before, when a page first asks.
+  const [wanted, setWanted] = useState(() => typeof window !== 'undefined' && isCoachipEntry(window.location.pathname));
   // "loading" from the start: until the first read, nobody knows who she is.
   const own = useOwnAuth(wanted, true);
   const { checkAuth, fetchedAt, loading } = own;
