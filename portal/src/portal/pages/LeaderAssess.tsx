@@ -466,6 +466,15 @@ export default function LeaderAssess() {
       // not moved (a finished session, or the server's switch off): the session keeps the part it had
       else if (repick && isBlock(child.sessionBlock)) block = child.sessionBlock;
     } catch (err) {
+      // round 8 (sa_r8_offline_first / sa_r8_offline_prep): with no signal, a resumed child whose part stays the one its
+      // server session holds starts at once (the session is already on the server; nothing needs sending). A changed
+      // part still needs the server (the queue's re-send does not carry repick), as before.
+      const samePart = isBlock(child.sessionBlock) && child.sessionBlock === block && Boolean(child.sessionId || had?.serverId);
+      if (repick && errorOf(err).network && samePart && (r8.offlineFirst || r8.offlinePrep)) {
+        remember((m) => ({ ...m, sessions: { ...m.sessions, [child.drawId]: { ...m.sessions[child.drawId], id: sessionId, block, sent: true } } }));
+        setBusy(false);
+        return { ok: true, serverId: child.sessionId || had?.serverId || null, queued: false, block };
+      }
       if (repick) { setBusy(false); setOffline(true); return { ok: false, serverId: null, queued: false, block }; }
       if (!errorOf(err).network) { setBusy(false); setLoadFailed(true); return { ok: false, serverId: null, queued: false, block }; }
       queue(args);
