@@ -10,6 +10,7 @@ import { PEOPLE } from "../people/copy";
 import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
 import { SchoolCard, SchoolGroup, EmptyRow, Notice, useNotice } from "../people/rows";
 import { coachFeatureReady } from "../training/appReady";
+import { useCardSwitch } from "../card/frame";
 
 /**
  * bd-o15qnr + bd-4404s7.6 — Schools & teachers: one page, Schools | Teachers tabs (Schools first), numbers only.
@@ -76,7 +77,9 @@ const CoachPeople = () => {
   }, [data, sSort]);
 
   // A menu page while the coach Home is not in the coach app: no Back to it (that tap would land on the Training Library).
-  const home = coachFeatureReady("home");
+  // With the School card on, the slim Home is in the coach app and My schools opens from it.
+  const card = useCardSwitch() === true;
+  const home = coachFeatureReady("home") || card;
   return (
     <PeopleFrame title={C.title} crumb={home ? C.home : undefined} backTo={home ? "/portal/coach" : undefined} feature="schools"
       dock={tab === "teachers"

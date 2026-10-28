@@ -69,3 +69,16 @@ export function currentCoachMenuItem(pathname: string): CoachNavKey | null {
   }
   return null;
 }
+
+/**
+ * The coach's menu with the School card on: Home · Lesson Plans · More. Home holds what opens from its tiles (My schools,
+ * the School card pages, the Training Library) and the School card's DC report, so it stays current on all of them.
+ */
+export const COACH_CARD_NAV_KEYS: readonly CoachNavKey[] = ["home", "lessons", "more"];
+
+export function currentCoachCardItem(pathname: string): CoachNavKey | null {
+  const path = pathname.replace(/\/+$/, "") || "/";
+  if (path === "/portal/coach/session" || path.startsWith("/portal/coach/session/")) return "home";
+  const key = currentCoachMenuItem(pathname);
+  return key === "schools" || key === "training" ? "home" : key;
+}
