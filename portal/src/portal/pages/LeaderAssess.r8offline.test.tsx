@@ -166,6 +166,18 @@ describe("sa_r8_offline_first", () => {
     online.mockRestore();
   });
 
+  it("ON: the getting-ready card sits above the part list (in view on a phone), not below it", async () => {
+    api.getSwitches.mockResolvedValue({ ...SW, coachPicksBlock: true, r8OfflineFirst: true });
+    check.mockResolvedValue({ ready: false, total: 100, cached: 0 });
+    prep.mockImplementation((_f: string[], _p: unknown, part: unknown) => (part ? new Promise(() => {}) : Promise.resolve(OK)));
+    const online = vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+    fireEvent.click(await toHandover());
+    const gate = await screen.findByTestId("assess-ready-gate");
+    const parts = screen.getByTestId("assess-block-choice");
+    expect(gate.compareDocumentPosition(parts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    online.mockRestore();
+  });
+
   it("ON, online but the part is slow to come down: Start waits at most GATE_CAP_MS, then the test opens as today", async () => {
     api.getSwitches.mockResolvedValue({ ...SW, r8OfflineFirst: true });
     check.mockResolvedValue({ ready: false, total: 100, cached: 0 });
@@ -258,6 +270,8 @@ describe("sa_r8_offline_prep", () => {
     const line = await screen.findByTestId("assess-offline-ready");
     expect(line.textContent).not.toMatch(/AM|PM|am|pm/);
     expect(line.textContent).toMatch(/\b\d{2}:\d{2}\b/);
+    // the size never wraps away from its unit
+    expect(line.textContent).toContain("\u00a0MB");
   });
 
   it("read as OFF: a page worker an earlier Get ready left on the phone is removed", async () => {

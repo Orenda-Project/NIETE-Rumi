@@ -127,6 +127,11 @@ export default function LeaderAssess() {
   const gating = useRef(false);
   const holdWhileGating = useCallback(() => gating.current, []);
   const [gate, setGate] = useState<null | { progress: Progress | null; failed: boolean }>(null);
+  const gateRef = useRef<HTMLDivElement | null>(null);
+  const gateOpen = gate !== null;
+  useEffect(() => {
+    if (gateOpen) gateRef.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+  }, [gateOpen]);
   /** sa_r8_offline_prep: the schools shown are the ones saved on this phone (the network failed). */
   const [savedSchools, setSavedSchools] = useState(false);
   const above = useAboveTabBar();
@@ -920,6 +925,33 @@ export default function LeaderAssess() {
           <p className="mt-4 text-2xl font-bold leading-relaxed text-slate-900">{copy.handover(firstNameOf(step.child, lang))}</p>
           <p data-testid="assess-handover-block" className="mt-3 inline-block rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-800">{copy.blocks[step.block]}</p>
         </div>
+        {/* sa_r8_offline_first: right under the child's name, where a phone shows it (the part list is long) */}
+        {gate && (
+          <div ref={gateRef} data-testid="assess-ready-gate" role="status" className="space-y-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
+            {gate.failed ? (
+              <>
+                <p data-testid="assess-ready-failed" className="font-medium text-amber-900">{OFFLINE_COPY[lang].gateFailed}</p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={start} className="min-h-[56px] flex-1 rounded-2xl bg-emerald-600 text-lg font-semibold text-white">{OFFLINE_COPY[lang].tryAgain}</button>
+                  <button type="button" onClick={() => setGate(null)} className="min-h-[56px] flex-1 rounded-2xl border border-slate-300 bg-white text-lg">{OFFLINE_COPY[lang].back}</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold text-slate-900">{OFFLINE_COPY[lang].gateTitle}</p>
+                <p className="text-sm text-slate-700">{OFFLINE_COPY[lang].gateBody}</p>
+                {gate.progress && gate.progress.total > 0 && (
+                  <>
+                    <p className="text-sm text-slate-800">{OFFLINE_COPY[lang].working(gate.progress.done, gate.progress.total)}</p>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-sky-100">
+                      <div className="h-2 bg-sky-600" style={{ width: `${Math.round((100 * gate.progress.done) / gate.progress.total)}%` }} />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        )}
         {switches.coachPicksBlock ? (
           <fieldset data-testid="assess-block-choice" className="space-y-2">
             <legend className="mb-2 font-semibold text-slate-900">{copy.whichPart}</legend>
@@ -966,32 +998,7 @@ export default function LeaderAssess() {
         {moved && moved === step.block && (
           <p data-testid="assess-block-moved" role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{copy.blockMoved(copy.blocks[moved])}</p>
         )}
-        {gate ? (
-          <div data-testid="assess-ready-gate" role="status" className="space-y-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
-            {gate.failed ? (
-              <>
-                <p data-testid="assess-ready-failed" className="font-medium text-amber-900">{OFFLINE_COPY[lang].gateFailed}</p>
-                <div className="flex gap-2">
-                  <button type="button" onClick={start} className="min-h-[56px] flex-1 rounded-2xl bg-emerald-600 text-lg font-semibold text-white">{OFFLINE_COPY[lang].tryAgain}</button>
-                  <button type="button" onClick={() => setGate(null)} className="min-h-[56px] flex-1 rounded-2xl border border-slate-300 bg-white text-lg">{OFFLINE_COPY[lang].back}</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="font-semibold text-slate-900">{OFFLINE_COPY[lang].gateTitle}</p>
-                <p className="text-sm text-slate-700">{OFFLINE_COPY[lang].gateBody}</p>
-                {gate.progress && gate.progress.total > 0 && (
-                  <>
-                    <p className="text-sm text-slate-800">{OFFLINE_COPY[lang].working(gate.progress.done, gate.progress.total)}</p>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-sky-100">
-                      <div className="h-2 bg-sky-600" style={{ width: `${Math.round((100 * gate.progress.done) / gate.progress.total)}%` }} />
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-          </div>
-        ) : (
+        {!gate && (
           <AssessActions>
             <button type="button" disabled={busy} onClick={start}
               className="w-full min-h-[64px] rounded-2xl bg-emerald-600 text-2xl font-semibold text-white disabled:opacity-60">{copy.start}</button>
