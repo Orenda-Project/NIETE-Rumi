@@ -73,9 +73,9 @@ describe('2. api.sleep — wakes on arrival + settle, consumes nothing', () => {
   const make = () => {
     jest.resetModules();
     for (const k of ['E2E_POLL_MS', 'E2E_SETTLE_MS', 'E2E_QUIESCE_MS']) delete process.env[k];
-    const { createTracer } = require('../../.claude/qa/shared/trace.cjs');
+    const { createTracer } = require('../../.claude/qa/engine/bin/trace.cjs');
     const file = path.join(tmp(), 'trace.jsonl');
-    const api = require('../../.claude/qa/shared/mock-api.cjs').makeMockApi({ baseUrl: mockBase, driver: DRIVER, tracer: createTracer({ file, run: 'r', feature: 'f' }), pollMs: 50, settleMs: 300, quiesceMs: 200 });
+    const api = require('../../.claude/qa/engine/bin/mock-api.cjs').makeMockApi({ baseUrl: mockBase, driver: DRIVER, tracer: createTracer({ file, run: 'r', feature: 'f' }), pollMs: 50, settleMs: 300, quiesceMs: 200 });
     return { api, rows: () => readLines(file) };
   };
   test('a message at 100 ms ends a 3 s sleep after the settle, and fresh() still returns it', async () => {
@@ -109,7 +109,7 @@ describe('2. api.sleep — wakes on arrival + settle, consumes nothing', () => {
 
 describe('3 + 4. the drivers use it', () => {
   test('feature-runner hands the drivers api.sleep on the mock lane', () => {
-    const src = fs.readFileSync(path.join(QA, 'feature-runner.cjs'), 'utf8');
+    const src = fs.readFileSync(path.join(REPO, '.claude', 'qa', 'engine', 'bin', 'feature-runner.cjs'), 'utf8');
     expect(src).toMatch(/sleep: MOCK && api\.sleep \? api\.sleep : sleep/);
   });
   test('training.cjs has no inline setTimeout wait of 800 ms or more left', () => {

@@ -36,7 +36,7 @@ cd bot && npm install && cd ..
 
 > **QA hooks.** `npm install` at the repo root also installs the repo's git hooks (`core.hooksPath = .githooks`)
 > so every commit you make arms the Gherkin sync + targeted E2E for the features it touched. If you install
-> dependencies some other way, run `bash scripts/qa/install-hooks.sh` once. Details: [docs/qa-automation.md](docs/qa-automation.md).
+> dependencies some other way, run `bash scripts/qa/link-engine.sh` once. Details: [docs/qa-automation.md](docs/qa-automation.md).
 
 ## Step 2: Create Supabase Database
 

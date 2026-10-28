@@ -47,6 +47,6 @@ describe('the lane uses it', () => {
     expect(fs.readFileSync(path.join(REPO, 'bot/scripts/e2e/local-stack.sh'), 'utf8')).toMatch(/echo "APP_SETTINGS_FLAG_TTL_MS=\$\{E2E_APP_SETTINGS_FLAG_TTL_MS:-1000\}"/);
   });
   test('run-suite settles 1.5 s after a flip on the mock lane', () => {
-    expect(fs.readFileSync(path.join(REPO, '.claude/qa/shared/run-suite.sh'), 'utf8')).toMatch(/E2E_APP_SETTING_SETTLE_MS="\$\{E2E_APP_SETTING_SETTLE_MS:-1500\}"/);
+    expect(fs.readFileSync(path.join(REPO, '.claude/qa/engine/bin/run-suite.sh'), 'utf8')).toMatch(/E2E_APP_SETTING_SETTLE_MS="\$\{E2E_APP_SETTING_SETTLE_MS:-1500\}"/);
   });
 });

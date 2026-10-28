@@ -701,7 +701,7 @@ exports.run = async ({ api, rec, want = () => true }) => {
   if (want('OBS21')) {
     // The capability gate OFF: restart the bot without OBSERVE_MEWAKA_FLOW_ID, send /observe, restore.
     s = Date.now();
-    let stack = null; try { stack = require('../stack-control.cjs'); } catch (_) {}
+    let stack = null; try { stack = require(require('path').join(__dirname, '..', '..', 'engine', 'bin', 'stack-control.cjs')); } catch (_) {}
     if (!stack || !stack.runDir || !stack.runDir()) {
       rec('OBS21', '/observe is inert when the observation Flow is not configured', 'BLOCKED', { reason: 'no RUN_DIR: the gate is switched by stack-control.restart, which needs the mock stack' }, 0);
     } else {

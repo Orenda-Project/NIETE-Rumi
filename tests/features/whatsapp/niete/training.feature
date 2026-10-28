@@ -12,7 +12,7 @@ Feature: NIETE (ICT) Teacher Training
   # format guards) live in unit/integration tests, not here.
   #
   # Teacher Training runs inside a native WhatsApp Flow. The click/snapshot mechanics live
-  # in ../../../.claude/qa/shared/whatsapp-interaction-map.md — steps stay in plain language.
+  # in ../../../.claude/qa/engine/bin/whatsapp-interaction-map.md — steps stay in plain language.
   #
   # Tags: @flow (native Flow) · @quiz · @copy (exact wording) · @content-driven (answers
   # resolved LIVE) · @edge · @negative · @destructive (changes real progress) · @config-gated

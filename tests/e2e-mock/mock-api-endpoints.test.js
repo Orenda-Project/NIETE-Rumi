@@ -6,7 +6,7 @@
  * env var's stem when the routes file declares it, and refuses anything the bot does not mount.
  * Red-first: fails on develop — endpointPathFor is not exported.
  */
-const { endpointPathFor } = require('../../.claude/qa/shared/mock-api.cjs');
+const { endpointPathFor } = require('../../.claude/qa/engine/bin/mock-api.cjs');
 const ROUTES = `
 router.post('/settings', async (req, res) => {});
 router.post('/teacher-training', async (req, res) => {});

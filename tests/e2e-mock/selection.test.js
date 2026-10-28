@@ -6,9 +6,9 @@
  * other runs "ONLY these ids" — the drivers gate their blocks with want(...ids), so a block whose ids all
  * fall in the skip set must not run, and a block with any wanted id must.
  *
- * Red-first: fails on the bd-aqi0ay branch — .claude/qa/shared/selection.cjs does not exist.
+ * Red-first: fails on the bd-aqi0ay branch — .claude/qa/engine/bin/selection.cjs does not exist.
  */
-const { parseMap, makeWant, recAllowed, expandIds } = require('../../.claude/qa/shared/selection.cjs');
+const { parseMap, makeWant, recAllowed, expandIds } = require('../../.claude/qa/engine/bin/selection.cjs');
 
 describe('parseMap — "feature=ids;feature=ids" → Set for one feature', () => {
   test('picks the feature\'s own list', () => {

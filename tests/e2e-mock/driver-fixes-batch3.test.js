@@ -57,7 +57,7 @@ describe('coaching-ext — the wait after the commitment card is lane-tunable (e
     const src = read('.claude/qa/shared/coaching-ext.cjs');
     expect(src).toMatch(/E2E_COACHING_POST_REPORT_MS/);
     expect(src).not.toMatch(/obs\.commit && t\(\) - reportAt > 30000/);
-    expect(read('.claude/qa/shared/run-suite.sh')).toMatch(/E2E_COACHING_POST_REPORT_MS="\$\{E2E_COACHING_POST_REPORT_MS:-12000\}"/);
+    expect(read('.claude/qa/engine/bin/run-suite.sh')).toMatch(/E2E_COACHING_POST_REPORT_MS="\$\{E2E_COACHING_POST_REPORT_MS:-12000\}"/);
   });
 });
 
@@ -71,7 +71,7 @@ describe('coaching-ext — every guarded block is timed so the dashboard can att
 
 describe('feature-runner — rec() passes an explicit window end to the scenario span', () => {
   test('tracer.scenario receives t1 when the driver gives one', () => {
-    const src = read('.claude/qa/shared/feature-runner.cjs');
+    const src = read('.claude/qa/engine/bin/feature-runner.cjs');
     expect(src).toMatch(/const rec = \(id, name, verdict, evidence, ms, win\)/);
     expect(src).toMatch(/tracer\.scenario\(id, \{ verdict, ms, title: name, t1: win && win\.t1 \}\)/);
   });
@@ -89,7 +89,7 @@ describe('training-quiz-gen — the "a report must NOT arrive" windows are lane-
     expect(t78).toMatch(/ABSENCE_MS/);
   });
   test('run-suite sets the lane values', () => {
-    const rs = read('.claude/qa/shared/run-suite.sh');
+    const rs = read('.claude/qa/engine/bin/run-suite.sh');
     expect(rs).toMatch(/E2E_REPORT_ABSENCE_MS="\$\{E2E_REPORT_ABSENCE_MS:-12000\}"/);
     expect(rs).toMatch(/E2E_COACHING_VOICE_NOTE_MS="\$\{E2E_COACHING_VOICE_NOTE_MS:-60000\}"/);
   });

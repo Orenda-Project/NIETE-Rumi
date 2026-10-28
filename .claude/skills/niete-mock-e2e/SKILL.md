@@ -20,7 +20,7 @@ is `.claude/skills/chrome-mcp-whatsapp-e2e/`.
 
 **Features on the lane** are not a list anyone maintains: a feature is covered iff its driver
 `.claude/qa/shared/features/<feature>.cjs` carries a `// @mock-lane` marker in its first 5 lines
-(`e2e_mock_features` in `.claude/hooks/lib/mock-lane.sh`). Today: menu · language · status ·
+(`e2e_mock_features` in `.claude/qa/engine/hooks/lib/mock-lane.sh`). Today: menu · language · status ·
 lesson-plan · coaching · training · registration. `E2E_MOCK_FEATURES=a,b` overrides for one run.
 
 ---
@@ -36,7 +36,7 @@ There are four links. "Tests generated but E2E shows missing" means one of them 
 | 3 | `commit-e2e.sh` drives the stack and **appends a row** to `.claude/qa/ledgers/runs.jsonl` | machine not ready (§2) → exit 3, no row |
 | 4 | `ledger_row.py` **commits that one file and pushes the branch** by itself | skipped silently-ish — see below |
 
-The PR check (`scripts/qa/impact.py`, run by `.github/workflows/qa-impact.yml`) marks a feature
+The PR check (`.claude/qa/engine/bin/impact.py`, run by `.github/workflows/qa-impact.yml`) marks a feature
 `recorded` **only if a `runs.jsonl` row for it was ADDED inside the PR's commit range, on the
 remote**. A run that happened but was not committed *and pushed* is indistinguishable from no run.
 The workflow runs **only on PRs into `sandbox`** (operator, 2026-09-16) — a PR into
@@ -60,7 +60,7 @@ with it.
 
 | Need | Made by | Manual? |
 |---|---|---|
-| Git hooks: `core.hooksPath = .githooks` | SessionStart banner runs `scripts/qa/install-hooks.sh` when unset; `npm install` (`prepare`) does the same | Only if hooksPath already points elsewhere → `bash scripts/qa/install-hooks.sh --force` |
+| Git hooks: `core.hooksPath = .githooks` | SessionStart banner sets it when unset; `npm install` (`prepare`) does the same | Only if hooksPath already points elsewhere → `bash scripts/qa/install-hooks.sh --force` |
 | `keys/niete-local.env` | `bot/scripts/e2e/provision-local-keys.sh`, called by the banner, post-commit and `commit-e2e.sh` whenever the file is missing | **`railway login`** with an account that is a **member of the "NIETE-Rumi Staging" project** — the one thing nothing can create |
 | `redis-server` | `commit-e2e.sh` runs `brew install redis` (or passwordless `apt-get`) | only without brew / sudo |
 | `node_modules` matching the commit's lockfiles | `provision-local-modules.sh` builds a private tree keyed by the lockfile blob; never runs npm in the shared clone | no |
@@ -95,10 +95,10 @@ privately, never commit.
 From a git worktree on your branch — never a shared checkout other sessions are using:
 
 ```bash
-bash .claude/qa/shared/commit-e2e.sh HEAD                     # the mock-capable features this commit touched
-bash .claude/qa/shared/commit-e2e.sh <sha> --features menu    # one feature
-bash .claude/qa/shared/commit-e2e.sh HEAD --all-mock          # every mock-lane feature, regardless of the diff
-DEEP=1 bash .claude/qa/shared/commit-e2e.sh HEAD --features coaching   # walk the whole coaching pipeline
+bash .claude/qa/engine/bin/commit-e2e.sh HEAD                     # the mock-capable features this commit touched
+bash .claude/qa/engine/bin/commit-e2e.sh <sha> --features menu    # one feature
+bash .claude/qa/engine/bin/commit-e2e.sh HEAD --all-mock          # every mock-lane feature, regardless of the diff
+DEEP=1 bash .claude/qa/engine/bin/commit-e2e.sh HEAD --features coaching   # walk the whole coaching pipeline
 ```
 
 Exit `0` = it ran — **the verdicts are in the rows it prints, not the exit code**. `1` = the
@@ -118,8 +118,8 @@ makes the row `CRITICAL` naming the affected scenarios. It never goes live.
 To fill the library once, with **live paid calls**:
 
 ```bash
-bash .claude/qa/shared/commit-e2e.sh HEAD --features coaching --record           # record everything (forces DEEP=1)
-bash .claude/qa/shared/commit-e2e.sh HEAD --features coaching --record-missing   # replay hits, record only the misses
+bash .claude/qa/engine/bin/commit-e2e.sh HEAD --features coaching --record           # record everything (forces DEEP=1)
+bash .claude/qa/engine/bin/commit-e2e.sh HEAD --features coaching --record-missing   # replay hits, record only the misses
 ```
 
 Needs `keys/niete-record.env` with real vendor keys (+ `R2_*`); refuses (exit 2) without it.
@@ -148,7 +148,7 @@ Review the new files under `.claude/qa/fixtures/cassettes/`, then commit them.
   `QA_HOOKS_OFF=1` (git hooks silent) · `E2E_AUTORUN_OFF=1` (no Stop nudge) ·
   `E2E_AUTOFIX_OFF=1` (no auto-provisioning) · `E2E_CHROME_ON=1` (un-pause chrome).
 - **A touched feature with no driver runs nowhere.** Its spec is auto-authored, but someone has to
-  scaffold the driver: `python3 .claude/qa/shared/scaffold-driver.py <feature>`; add the
+  scaffold the driver: `python3 .claude/qa/engine/bin/scaffold-driver.py <feature>`; add the
   `@mock-lane` marker once it drives via the mock API.
 - **`local-stack.sh` absent = wrong branch, not a broken machine.** As of 2026-09-25 `main` carries
   the runner (`commit-e2e.sh`, `mock-api.cjs`) but not the stack (`local-stack.sh`,

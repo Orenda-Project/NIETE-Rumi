@@ -21,7 +21,7 @@ tests/features/<surface>/<tenant>/*.feature   # SPECS (source of truth) — web/
 ## Run an e2e suite
 ```bash
 # 1. list the scenarios a run will cover
-python3 .claude/qa/shared/parse-gherkin.py tests/features/whatsapp/niete/menu.feature --tag @e2e
+python3 .claude/qa/engine/bin/parse-gherkin.py tests/features/whatsapp/niete/menu.feature --tag @e2e
 # 2. invoke that feature's agent, e.g. agents/niete-menu-agent.md
 #    (resolves @profile:<tenant> → whatsapp-targets.yaml → target+method)
 #    → drives each scenario, writes results/whatsapp/niete/<run>/run.json
@@ -42,9 +42,9 @@ commit → select_e2e.py    which features the diff touched   (feature-map.yaml)
 ```
 
 ```bash
-python3 .claude/qa/shared/spec_sync.py --repo <repo> --committed        # the brief
-python3 .claude/qa/shared/validate_specs.py --only menu,status          # the gate
-python3 .claude/qa/shared/validate_specs.py --json                      # machine-readable
+python3 .claude/qa/engine/bin/spec_sync.py --repo <repo> --committed        # the brief
+python3 .claude/qa/engine/bin/validate_specs.py --only menu,status          # the gate
+python3 .claude/qa/engine/bin/validate_specs.py --json                      # machine-readable
 ```
 
 Two rules the sync will not bend:
@@ -61,9 +61,9 @@ Off switch for phase 1 alone: `export E2E_SPEC_SYNC_OFF=1`.
 Tests:
 
 ```bash
-python3 .claude/qa/shared/test_spec_sync.py          # the brief builder
-python3 .claude/qa/shared/test_validate_specs.py     # the gate
-bash    .claude/hooks/spec-sync-pipeline.test.sh     # the whole chain, end to end
+python3 .claude/qa/engine/bin/test_spec_sync.py          # the brief builder
+python3 .claude/qa/engine/bin/test_validate_specs.py     # the gate
+bash    .claude/qa/engine/hooks/spec-sync-pipeline.test.sh     # the whole chain, end to end
 ```
 
 The last one is the one to run after touching any part of this: it drives a real

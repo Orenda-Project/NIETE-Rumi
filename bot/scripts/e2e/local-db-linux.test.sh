@@ -136,7 +136,7 @@ case "\$1" in
   seed-status) echo ok;;
 esac
 SH
-out=$(PATH="$LPATH" bash -c ". '$REPO/.claude/hooks/lib/mock-lane.sh'; e2e_mock_lane_autofix '$MAIN' --with-redis" 2>&1); rc=$?
+out=$(PATH="$LPATH" bash -c ". '$REPO/.claude/qa/engine/hooks/lib/mock-lane.sh'; e2e_mock_lane_autofix '$MAIN' --with-redis" 2>&1); rc=$?
 has "install-tools relayed"              "$out" "auto-installed postgrest"
 t   "ready afterwards"                   "$rc" "0"
 

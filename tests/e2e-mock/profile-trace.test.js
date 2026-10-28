@@ -7,7 +7,7 @@
  * artefact. The tracer makes every primitive a span with children (quiesce / inject / bot.reply /
  * poll.detect / settle), so the profiler can split intentional waits from bot processing.
  *
- * Red-first: fails on sandbox — `.claude/qa/shared/trace.cjs` does not exist, and makeMockApi ignores
+ * Red-first: fails on sandbox — `.claude/qa/engine/bin/trace.cjs` does not exist, and makeMockApi ignores
  * `opts.tracer`.
  */
 const fs = require('fs');
@@ -21,7 +21,7 @@ const readLines = (f) => fs.readFileSync(f, 'utf8').trim().split('\n').filter(Bo
 
 describe('trace.cjs — the span emitter', () => {
   test('nested spans land as JSON lines with parent ids, layer, kind and a measured ms', async () => {
-    const { createTracer } = require('../../.claude/qa/shared/trace.cjs');
+    const { createTracer } = require('../../.claude/qa/engine/bin/trace.cjs');
     const file = path.join(tmp(), 'trace.jsonl');
     const tr = createTracer({ file, run: 'r1', feature: 'menu' });
     const outer = tr.span('send', { layer: 'harness', kind: 'primitive', attrs: { text: '/menu' } });
@@ -41,7 +41,7 @@ describe('trace.cjs — the span emitter', () => {
   });
 
   test('a scenario is recorded from its end + duration, so the runner needs no start hook', () => {
-    const { createTracer } = require('../../.claude/qa/shared/trace.cjs');
+    const { createTracer } = require('../../.claude/qa/engine/bin/trace.cjs');
     const file = path.join(tmp(), 'trace.jsonl');
     const tr = createTracer({ file, run: 'r1', feature: 'menu' });
     const before = Date.now();
@@ -53,7 +53,7 @@ describe('trace.cjs — the span emitter', () => {
   });
 
   test('with no file the tracer is a no-op that never throws', () => {
-    const { createTracer } = require('../../.claude/qa/shared/trace.cjs');
+    const { createTracer } = require('../../.claude/qa/engine/bin/trace.cjs');
     const tr = createTracer({ file: '' });
     expect(tr.enabled).toBe(false);
     const s = tr.span('x', { layer: 'harness' });
@@ -83,8 +83,8 @@ describe('mock-api.cjs — a sendWait is traced as quiesce → inject → bot.re
   afterAll(async () => { await mock.close(); bot.close(); });
 
   test('the inject answer carries the bot ack latency, and the trace splits the wait', async () => {
-    const { createTracer } = require('../../.claude/qa/shared/trace.cjs');
-    const { makeMockApi } = require('../../.claude/qa/shared/mock-api.cjs');
+    const { createTracer } = require('../../.claude/qa/engine/bin/trace.cjs');
+    const { makeMockApi } = require('../../.claude/qa/engine/bin/mock-api.cjs');
     file = path.join(tmp(), 'trace.jsonl');
     const tracer = createTracer({ file, run: 'r1', feature: 'menu' });
     const api = makeMockApi({ baseUrl: mockBase, driver: DRIVER, tracer, pollMs: 25, quiesceMs: 60, settleMs: 80 });
