@@ -159,7 +159,7 @@ describe('sendShare', () => {
 
   it('Meta refuses for any other reason → failed, and it is the REAL result (never "sent")', async () => {
     const d = deps({ sendTemplate: async (a, b, c, e, opts) => { opts.report.code = 131026; return false; } });
-    expect(await Share.sendShare({ userId: 'u1', kind: 'paper', id: 'r1' }, d)).toEqual({ status: 'failed', reason: 'refused' });
+    expect(await Share.sendShare({ userId: 'u1', kind: 'paper', id: 'r1' }, d)).toEqual({ status: 'failed', reason: 'refused', code: 131026, message: null });
     const d2 = deps({ sendTemplate: async () => { throw new Error('boom'); } });
     expect(await Share.sendShare({ userId: 'u1', kind: 'paper', id: 'r1' }, d2)).toEqual({ status: 'failed', reason: 'error' });
   });
