@@ -47,10 +47,10 @@
   "ur.letter_names5": {
    "intro": {
     "en": "Letters will come one at a time. Say the NAME of each letter out loud. Then click next. If you do not know a letter, click next.",
-    "ur": "ایک ایک کر کے حروف آئیں گے۔ ہر حرف کا نام اونچی آواز میں بتائیں۔ آواز نہیں، صرف نام۔ اگر کوئی حرف نہ آئے تو اگلے حرف پر چلے جائیں۔"
+    "ur": "ایک ایک کر کے حروف آئیں گے۔ ہر حرف کا نام بولیں، جیسے: \"بے\"۔ کوئی حرف نہ آتا ہو تو \"آگے\" کو ٹچ کریں۔"
    },
    "test_intro": {
-    "en": "Now it is your turn to say the name of each letter.",
+    "en": "Now it is your turn! Say the name of each letter. Jugnu will not say anything yet. Try on your own.",
     "ur": "اب آپ کی باری! ہر حرف کانام بولیں۔ جگنو ابھی کچھ نہیں بتائے گا، آپ خود کوشش کریں"
    }
   },
@@ -61,7 +61,7 @@
    },
    "test_intro": {
     "en": "Now it is your turn to say the sound of each letter.",
-    "ur": "اب ہر حرف کی آواز بتانے کی آپ کی باری ہے۔"
+    "ur": "اب آپ کی باری! ہر حرف کی آواز تیز آواز بولیں۔"
    }
   },
   "ur.words4": {
@@ -71,7 +71,7 @@
    },
    "test_intro": {
     "en": "Now it is your turn to read each word out loud.",
-    "ur": "اب ہر لفظ اونچی آواز میں پڑھنے کی آپ کی باری ہے۔"
+    "ur": "اب آپ کی باری! ہر لفظ کو اونچی آواز بولیں۔"
    }
   },
   "ur.story_w3": {
@@ -85,6 +85,9 @@
    }
   },
   "ur.story_comp_w3": {
+   "intro": {
+    "ur": "اب کہانی کے بارے میں کچھ سوال ہیں۔ ہر سوال غور سے سنیں اور اونچی آواز میں جواب دیں۔ جواب اردو یا انگریزی، کسی بھی زبان میں دیں۔"
+   },
    "test_intro": {
     "en": "Now it is your turn to answer the questions about the story.",
     "ur": "اب کہانی کے بارے میں سوالوں کے جواب دینے کی آپ کی باری ہے۔"
@@ -117,7 +120,7 @@
    },
    "test_intro": {
     "en": "Now it is your turn to read each word out loud.",
-    "ur": "اب ہر لفظ اونچی آواز میں پڑھنے کی آپ کی باری ہے۔"
+    "ur": "اب آپ کی باری! ہر لفظ کو اونچی آواز بولیں۔"
    }
   },
   "en.story_w3": {
@@ -131,6 +134,9 @@
    }
   },
   "en.story_comp_w3": {
+   "intro": {
+    "ur": "اب کہانی کے بارے میں کچھ سوال ہیں۔ ہر سوال غور سے سنیں اور اونچی آواز میں جواب دیں۔ جواب اردو یا انگریزی، کسی بھی زبان میں دیں۔"
+   },
    "test_intro": {
     "en": "Now it is your turn to answer the questions about the story.",
     "ur": "اب کہانی کے بارے میں سوالوں کے جواب دینے کی آپ کی باری ہے۔"
@@ -147,25 +153,32 @@
    }
   },
   "ma.discrimination2": {
+   "intro": {
+    "ur": "ان دو نمبروں کو دیکھیں۔ جو نمبر بڑا ہے، اسے کلک کریں۔"
+   },
    "practice_wrong": {
     "en": "Not quite. Try again.",
-    "ur": "یہ والا نہیں۔ دوبارہ کوشش کریں۔"
+    "ur": "جواب درست نہیں۔ دوبارہ سنیں۔"
    },
    "test_intro": {
     "en": "Now it is your turn to tap the bigger number.",
-    "ur": "اب بڑے نمبر کو دبانے کی آپ کی باری ہے۔"
+    "ur": "اب بڑے نمبر کو کلک کرنے کی آپ کی باری ہے۔"
    }
   },
   "ma.missing4": {
+   "intro": {
+    "en": "One number is missing in this row. Which number goes in the empty box? Tap it.",
+    "ur": "اس قطار میں ایک نمبر غائب ہے۔ خالی خانے میں کون سا نمبر آئے گا؟ اسے کلک کریں۔"
+   },
    "test_intro": {
     "en": "Now it is your turn to tap the missing number.",
-    "ur": "اب غائب نمبر کو دبانے کی آپ کی باری ہے۔"
+    "ur": "اب غائب نمبر کو کلک کرنے کی آپ کی باری ہے۔"
    }
   },
   "ma.add2i": {
    "intro": {
     "en": "Here are some addition problems. Say the answer out loud. Then click next. If you don't know the answer, click next.",
-    "ur": "یہ جمع کے کچھ سوال ہیں۔ جواب اونچی آواز میں بتائیں، پھر \"آگے\" کو ٹچ کریں۔ اگر جواب نہ آتا ہو تو بھی \"آگے\" کو ٹچ کریں۔"
+    "ur": "اب جمع کے کچھ سوال آئیں گے۔ ہر سوال کا جواب دل میں سوچیں، پھر جواب کو اونچی آواز بولیں۔ پھر اگلے سوال پر جائیں"
    },
    "test_intro": {
     "en": "Now it is your turn to solve each addition problem.",
@@ -175,7 +188,7 @@
   "ma.sub2i": {
    "intro": {
     "en": "Here are some subtraction problems. Say the answer out loud. Then click next. If you don't know the answer, click next.",
-    "ur": "یہ تفریق کے کچھ سوال ہیں۔ جواب اونچی آواز میں بتائیں، پھر \"آگے\" کو ٹچ کریں۔ اگر جواب نہ آتا ہو تو بھی \"آگے\" کو ٹچ کریں۔"
+    "ur": "اب تفریق کے کچھ سوال آئیں گے۔ ہر سوال کا جواب دل میں سوچیں، پھر جواب کو اونچی آواز میں بولیں۔ پھر اگلے سوال پر جائیں"
    },
    "test_intro": {
     "en": "Now it is your turn to solve each subtraction problem.",
@@ -185,7 +198,7 @@
   "ma.mul2i": {
    "intro": {
     "en": "Here are some multiplication problems. Say the answer out loud. Then click next. If you don't know the answer, click next.",
-    "ur": "یہ ضرب کے کچھ سوال ہیں۔ جواب اونچی آواز میں بتائیں، پھر \"آگے\" کو ٹچ کریں۔ اگر جواب نہ آتا ہو تو بھی \"آگے\" کو ٹچ کریں۔"
+    "ur": "اب ضرب کے کچھ سوال آئیں گے۔ ہر سوال کا جواب دل میں سوچیں، پھر جواب کو اونچی آواز میں بولیں۔ پھر اگلے سوال پر جائیں"
    },
    "test_intro": {
     "en": "Now it is your turn to solve each multiplication problem.",
@@ -195,7 +208,7 @@
   "ma.fluency1m": {
    "intro": {
     "en": "Math problems will appear on the screen, one at a time. Say each answer out loud, then click next. If you do not know an answer, click next.",
-    "ur": "ریاضی کے سوال ایک ایک کر کے سکرین پر آئیں گے۔ ہر جواب اونچی آواز میں بتائیں، پھر \"آگے\" کو ٹچ کریں۔ اگر کسی سوال کا جواب نہ آتا ہو تو بھی \"آگے\" کو ٹچ کریں۔"
+    "ur": "اب جلدی سے حل ہونے والے کچھ سوال آئیں گے! ہر جواب کو جلدی مگر دھیان سے سمجھیں اور اس کا جواب اونچی آواز میں بولیں۔ جو جواب نہ آئے، تو\"آگے\" کے بٹن کو کلک کریں۔"
    },
    "test_intro": {
     "en": "Now it is your turn to answer the quick sums.",
