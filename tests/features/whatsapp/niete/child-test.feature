@@ -1001,3 +1001,19 @@ Feature: NIETE (ICT) WhatsApp bot — Child test (/egra, the coach's five-minute
     And with sa_incomplete_move_on off, or in RDF manual, the runner moves on as before
 
 
+
+  # ── Round 8 · offline ──
+
+  @e2e @wip @draft @P1 @CT120
+  Scenario: The phone's readiness is kept on the session
+    Given a child's test page has prepared its clips
+    When it logs device_ready (ready, voice, clips_total, clips_cached, persisted), and any voice_not_ready or voice_retry
+    Then those events are kept on the session's events with their values, for reading a slow or refused start afterwards
+    And the browser's offline / online events are not kept (device.offline already says it)
+
+  @e2e @wip @draft @config-gated @P1 @CT121
+  Scenario: A test that starts with everything on the phone never asks for the network (sa_r8_offline_first)
+    Given sa_r8_offline_first is on and the coach page put the child's whole battery on the phone before Start
+    When the phone loses the network at any point after the first item
+    Then every instruction, item, picture and clip still plays from the phone, and answers and recordings wait on the phone and sync later
+    And "The voice is not ready yet" does not appear
