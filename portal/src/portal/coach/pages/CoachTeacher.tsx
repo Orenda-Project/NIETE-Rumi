@@ -7,6 +7,7 @@ import { coach } from "../../services/api";
 import { Card, BottomLink, Loading, useLoad } from "../ui";
 import { PEOPLE } from "../people/copy";
 import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
+import { coachFeatureReady } from "../training/appReady";
 
 /**
  * bd-o15qnr + bd-4404s7.6 — one teacher: average HITL with her scores over time (HITL filled, DC hollow — neutral
@@ -85,7 +86,8 @@ const CoachTeacher = () => {
           )}
         </>
       ) : undefined}
-      dock={t?.teacherExtId ? <BottomLink to={`/portal/coach/new-visit?${new URLSearchParams({ school: t.schoolExtId || "", teacher: t.teacherExtId }).toString()}`}><Plus className="h-5 w-5" aria-hidden="true" />{C.scheduleVisit}</BottomLink> : undefined}>
+      // Schedule a visit opens Schedule, a HITL row opens its observation (Observe): each only once that feature is in the coach app.
+      dock={t?.teacherExtId && coachFeatureReady("schedule") ? <BottomLink to={`/portal/coach/new-visit?${new URLSearchParams({ school: t.schoolExtId || "", teacher: t.teacherExtId }).toString()}`}><Plus className="h-5 w-5" aria-hidden="true" />{C.scheduleVisit}</BottomLink> : undefined}>
       {failed && <LoadFailed onRetry={reload} />}
       {!data && !failed && <Loading />}
       {t && data && (
@@ -121,7 +123,7 @@ const CoachTeacher = () => {
                 items: rows.map((h) => {
                   // bd-o15qnr.19 — every HITL row opens the one v2 observation page (its steps, and its reports once
                   // done); a DC session is the teacher's own, information only.
-                  const to = h.kind === "HITL" ? `/portal/coach/observation/${h.id}` : undefined;
+                  const to = h.kind === "HITL" && coachFeatureReady("observe") ? `/portal/coach/observation/${h.id}` : undefined;
                   const step = h.kind === "HITL" && (h.step === "draft" || h.step === "talk") ? C.stepLabel[h.step] : undefined;
                   return {
                     id: h.id, lead: "person" as const, leadText: h.kind, leadLabel: h.kind, title: dayMonth(h.date), extra: step,

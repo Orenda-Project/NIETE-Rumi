@@ -22,11 +22,11 @@ const at = (path = "/portal/coach/training") =>
   render(<MemoryRouter initialEntries={[path]}><TeacherNavigation role="coach" ready={COACH_APP_READY} /></MemoryRouter>);
 
 describe("the coach menu on the ready features", () => {
-  it("is Training Library, Lesson Plans and More", () => {
+  it("is Training Library, Lesson Plans, My schools and More", () => {
     at();
     const links = Array.from(screen.getByTestId("teacher-nav").querySelectorAll("a"));
-    expect(links.map((a) => a.textContent)).toEqual(["Training Library", "Lesson Plans", "More"]);
-    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/portal/coach/training", "/portal/teacher/lessons", "/portal/coach/more"]);
+    expect(links.map((a) => a.textContent)).toEqual(["Training Library", "Lesson Plans", "My schools", "More"]);
+    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/portal/coach/training", "/portal/teacher/lessons", "/portal/coach/people", "/portal/coach/more"]);
   });
   it.each(["/portal/teacher/lessons", "/portal/teacher/lessons/new", "/portal/teacher/lessons/plan", "/portal/teacher/lessons/chapters"])(
     "Lesson Plans is current on %s", (p) => {
@@ -49,6 +49,6 @@ describe("the coach menu on the ready features", () => {
     expect(TEACHER_COPY_UR.coachNav.training).toBe("ٹریننگ لائبریری");
     // The teachers' own word for Lesson Plans (TEACHER_COPY_UR.nav.lessons), one menu vocabulary.
     const links = Array.from(screen.getByTestId("teacher-nav").querySelectorAll("a")).map((a) => a.textContent);
-    expect(links).toEqual(["ٹریننگ لائبریری", "لیسن پلان", "مزید"]);
+    expect(links).toEqual(["ٹریننگ لائبریری", "لیسن پلان", "میرے سکول", "مزید"]);
   });
 });

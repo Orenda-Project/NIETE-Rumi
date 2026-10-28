@@ -37,9 +37,10 @@ export const COACH_NAV_KEYS: readonly CoachNavKey[] = ["home", "schedule", "obse
  * bd-s42dye.2 — the coach app v2 while only some of it is ready (coach/training/appReady.ts): the menu is the ready
  * features' items, then More. Training Library is the first item, so it takes Home's place.
  * bd-4joiqz — Lesson Plans (the teacher Lesson Plans pages, read as a leader) comes after Training Library.
+ * My schools comes after those two: the tabs a coach already knows keep their places, and the landing page stays first.
  */
 export const coachNavKeysFor = (ready: readonly string[]): readonly CoachNavKey[] =>
-  (["home", "schedule", "observe", "schools", "training", "lessons"] as const).filter((k) => ready.includes(k)).concat("more" as never) as readonly CoachNavKey[];
+  (["home", "training", "lessons", "schedule", "observe", "schools"] as const).filter((k) => ready.includes(k)).concat("more" as never) as readonly CoachNavKey[];
 
 export const COACH_MENU_PATHS: Record<CoachNavKey, string> = {
   home: "/portal/coach",
