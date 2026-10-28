@@ -268,7 +268,7 @@ describe('the Learning assessment\'s page switches (sa/switches)', () => {
     expect(out.statusCode).toBe(200);
     expect(out.payload).toEqual({
       success: true,
-      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true, urFit: true, exampleDashboard: false, realDashboard: false, reviewPage: false, resumeRepick: false, allGrades: false, addChild: false, endTestRestart: false, endSection: false, dashFilters: false, cwpm: false },
+      switches: { handbackV2: true, micRequired: true, coachPicksBlock: false, rdfForm: false, resultsView: false, rdfW3Forms: false, voiceGateV2: true, urFit: true, exampleDashboard: false, realDashboard: false, reviewPage: false, resumeRepick: false, allGrades: false, addChild: false, endTestRestart: false, endSection: false, dashFilters: false, cwpm: false, r8OfflineFirst: false, r8OfflinePrep: false, r8FastStart: false },
     });
     expect(axiosPost).not.toHaveBeenCalled();
   });
@@ -284,6 +284,19 @@ describe('the Learning assessment\'s page switches (sa/switches)', () => {
     const out = await invoke(ROUTES, 'get', '/sa/switches');
     expect(out.statusCode).toBe(200);
     expect(out.payload.switches).toEqual(expect.objectContaining({ endTestRestart: true, endSection: true, dashFilters: true, cwpm: true }));
+    expect(axiosPost).not.toHaveBeenCalled();
+  });
+
+  test('round 8 offline (fast Start, the part on the phone before Start, Get ready for offline) are on when their rows name this coach', async () => {
+    tableRows.app_settings.push(
+      { key: 'portal_child_test_sa', value: [COACH] },
+      { key: 'sa_r8_fast_start', value: true },
+      { key: 'sa_r8_offline_first', value: [COACH] },
+      { key: 'sa_r8_offline_prep', value: ['someone-else'] },
+    );
+    const out = await invoke(ROUTES, 'get', '/sa/switches');
+    expect(out.statusCode).toBe(200);
+    expect(out.payload.switches).toEqual(expect.objectContaining({ r8FastStart: true, r8OfflineFirst: true, r8OfflinePrep: false }));
     expect(axiosPost).not.toHaveBeenCalled();
   });
 
