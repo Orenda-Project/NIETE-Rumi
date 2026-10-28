@@ -10,7 +10,6 @@ const app = readFileSync(resolve(__dirname, "../../App.tsx"), "utf8");
 
 describe("coach v2 routes", () => {
   it.each([
-    ["/portal/coach", "CoachHome"],
     ["/portal/coach/scheduling", "CoachScheduling"],
     ["/portal/coach/schedule", "CoachSchedule"],
     ["/portal/coach/team", "CoachTeam"],
@@ -34,6 +33,21 @@ describe("coach v2 routes", () => {
     expect(app).toMatch(new RegExp(
       `(import ${component} from "|const ${component} = page\\(\\(\\) => import\\(")\\./portal/coach/pages/${component}"`,
     ));
+  });
+
+  it("/portal/coach → CoachLanding: the slim Home with the School card switch on, else CoachHome as before", () => {
+    expect(app).toContain('<Route path="/portal/coach" element={<CoachLanding />} />');
+    expect(app).toContain('const CoachLanding = page(() => import("./portal/coach/card/CoachLanding"));');
+  });
+
+  it.each([
+    ["/portal/coach/school/:emis/feature/:feature", "CoachFeatureGrid", "FeatureGridPage"],
+    ["/portal/coach/teacher/:ext/items/:feature", "CoachHerItems", "HerItemsPage"],
+    ["/portal/coach/teacher/:ext/reports", "CoachHerReports", "HerReportsPage"],
+    ["/portal/coach/session/:id", "CoachSessionReport", "SessionReportPage"],
+  ])("the School card's %s → %s, its own chunk", (path, component, file) => {
+    expect(app).toContain(`<Route path="${path}" element={<${component} />} />`);
+    expect(app).toContain(`const ${component} = page(() => import("./portal/coach/card/${file}"));`);
   });
 
   it("Analytics (bd-fmf24g.27): the page and one teacher, each its own chunk", () => {
