@@ -213,6 +213,20 @@ describe("sa_r8_offline_prep", () => {
     await waitFor(() => expect(keepPage).toHaveBeenCalledWith([]));
   });
 
+  it("ON: the tests start downloading only once the page itself is kept (a coach who goes offline early can still reopen it)", async () => {
+    api.getSwitches.mockResolvedValue({ ...SW, r8OfflinePrep: true });
+    let keep: (v: boolean) => void = () => {};
+    keepPage.mockReturnValue(new Promise<boolean>((ok) => { keep = ok; }));
+    render(<MemoryRouter><LeaderAssess /></MemoryRouter>);
+    fireEvent.click(await screen.findByTestId("assess-offline-go"));
+    await waitFor(() => expect(api.getList).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 50));
+    expect(prep).not.toHaveBeenCalled();
+    keepPage.mockResolvedValue(true);
+    keep(true);
+    await waitFor(() => expect(prep).toHaveBeenCalled());
+  });
+
   it("read as OFF: a page worker an earlier Get ready left on the phone is removed", async () => {
     api.getSwitches.mockResolvedValue(SW);
     render(<MemoryRouter><LeaderAssess /></MemoryRouter>);
