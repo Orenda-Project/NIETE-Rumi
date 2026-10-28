@@ -3,6 +3,7 @@ import { CountSpan } from "../count";
 import { t } from "../text";
 import type { Home } from "../types";
 import { WCard } from "./WCard";
+import { Section } from "../../../coachip-ui/Section";
 
 /**
  * bd-sex15q.15 — S1's phonics tile (COPY §S1 phonics, API R2 `phonics`). Three states:
@@ -11,6 +12,9 @@ import { WCard } from "./WCard";
  *            count about teachers, so the line is marked `data-nonum` (its 30 is the gate's fixed size)
  *   paused   held for a person's check; no number
  *   ok       the phonics move as a full card (WCard) and "n of d reading-hour recordings read" as a count
+ *
+ * R6 (bd-sex15q.46): a hairline section under a small-caps label, never a box; the ok move is WCard `flat` (a card ring,
+ * both buttons secondary: S1's one primary is the headline's See the move).
  */
 export function PhonicsTile({ phonics }: { phonics: Home["phonics"] }) {
   const lang = useLang();
@@ -19,29 +23,29 @@ export function PhonicsTile({ phonics }: { phonics: Home["phonics"] }) {
   // title; "{read} of 30" is the gate's progress, not a count about teachers, so it stays `data-nonum` as before
   if (!ok && phonics.status !== "paused") {
     return (
-      <section data-testid="s1-phonics" data-status="testing" className="rounded-2xl border border-[#e5e7eb] bg-white px-4 py-2.5">
-        <p data-testid="s1-phonics-line" data-nonum="" className="text-[14px] leading-snug text-[#374151]">
+      <section data-testid="s1-phonics" data-status="testing" data-section="" className="mt-5 border-t border-cp-hairline pt-5">
+        <p data-testid="s1-phonics-line" data-nonum="" className="text-[15px] leading-[1.45] text-cp-ink-2">
           {t("s1.phonics.line", lang, { read: phonics.read })}
         </p>
       </section>
     );
   }
   return (
-    <section data-testid="s1-phonics" data-status={ok ? "ok" : phonics.status === "paused" ? "paused" : "testing"}
-      className="flex flex-col gap-2 rounded-2xl border border-[#e5e7eb] bg-white px-4 py-3.5">
-      <h2 className="text-[16px] font-semibold text-[#1d2025]">{t("s1.phonics.title", lang)}</h2>
-      {ok && phonics.card ? (
-        <>
-          <WCard card={phonics.card} total={1} testId="wcard-phonics" />
-          {phonics.reading_hours && (
-            <CountSpan as="p" count={phonics.reading_hours} className="text-[13.5px] leading-snug text-[#6b7280]">
-              {t("s1.phonics.ok.sub", lang, { n: phonics.reading_hours.n, d: phonics.reading_hours.d })}
-            </CountSpan>
-          )}
-        </>
-      ) : (
-        <p className="text-[14.5px] leading-snug text-[#374151]">{t("s1.phonics.paused", lang)}</p>
-      )}
-    </section>
+    <div data-testid="s1-phonics" data-status={ok ? "ok" : phonics.status === "paused" ? "paused" : "testing"}>
+      <Section title={t("s1.phonics.title", lang)}>
+        {ok && phonics.card ? (
+          <div className="flex flex-col gap-3 pt-1">
+            <WCard card={phonics.card} total={1} testId="wcard-phonics" flat />
+            {phonics.reading_hours && (
+              <CountSpan as="p" count={phonics.reading_hours} className="text-[13px] leading-[1.45] text-cp-ink-3">
+                {t("s1.phonics.ok.sub", lang, { n: phonics.reading_hours.n, d: phonics.reading_hours.d })}
+              </CountSpan>
+            )}
+          </div>
+        ) : (
+          <p className="text-[15px] leading-[1.45] text-cp-ink-2">{t("s1.phonics.paused", lang)}</p>
+        )}
+      </Section>
+    </div>
   );
 }

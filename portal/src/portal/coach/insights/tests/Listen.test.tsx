@@ -172,6 +172,33 @@ describe.each(LANGS)("Listen (%s)", (lang) => {
     expect(domContract(container).bareDigits).toEqual([]);
   }, 30000);
 
+  // bd-sex15q.46 (R6 ux-coach) — Listen on the design system (SCREENS.md Listen): the week line is the band's line,
+  // chips are green (on) / tint (off) pills, each row ends in a 44 px green play circle, and the analysis-failed
+  // sessions are their own grey section after the moments, not rows inside the moments list.
+  it("R6 look: week line in the band, green chips, play circle at the row's end, failed sessions a section", async () => {
+    serve({ "/coachip/moments": (p?: Record<string, unknown>) => feed(p?.w) });
+    await renderAt("/listen");
+    expect(within(screen.getByTestId("insights-band")).getByTestId("listen-week")).toBeTruthy();
+    const chips = screen.getAllByTestId("listen-chip");
+    expect(chips[0].className).toContain("bg-cp-green");
+    expect(chips[0].className).toContain("text-cp-navy");
+    expect(chips[1].className).toContain("bg-cp-green-tint");
+    expect(chips[1].className).toContain("text-cp-green-ink");
+    for (const c of chips) expect(c.className).toContain("min-h-[44px]");
+    for (const row of screen.getAllByTestId("listen-row")) {
+      const play = within(row).getByTestId("listen-play");
+      expect(play.parentElement!.lastElementChild).toBe(play);
+      const circle = play.querySelector(".rounded-full.bg-cp-green") as HTMLElement;
+      expect(circle).not.toBeNull();
+      for (const c of ["h-11", "w-11", "text-cp-navy"]) expect(circle.className).toContain(c);
+    }
+    const moments = screen.getAllByTestId("listen-row")[0].parentElement!;
+    for (const f of screen.getAllByTestId("listen-failed-session")) {
+      expect(moments.contains(f)).toBe(false);
+      expect(f.closest("[data-section]")).not.toBeNull();
+    }
+  }, 30000);
+
   it("a load failure shows the error block", async () => {
     serve({ "/coachip/moments": () => { throw httpError(500, { error: "server_error" }); } });
     const { container } = await renderAt("/listen");

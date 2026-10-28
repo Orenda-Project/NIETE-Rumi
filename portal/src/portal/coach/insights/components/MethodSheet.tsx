@@ -3,6 +3,7 @@ import { CodeText, CountSpan, WindowMark } from "../count";
 import { range, weeks } from "../format";
 import { pick, t, tx } from "../text";
 import type { WDetail } from "../types";
+import { ChevronDown } from "lucide-react";
 
 /**
  * bd-sex15q.15 — S2's "How this was counted", collapsed at rest (a native <details>). Grader and model id, the window
@@ -18,13 +19,15 @@ export default function MethodSheet({ detail }: { detail: WDetail }) {
   const m = detail.method;
   const w = m.window;
   const x = detail.excluded;
-  const line = "text-[13.5px] leading-snug text-[#374151]";
+  const line = "text-[13px] leading-[1.45] text-cp-ink-2";
+  // R6 (bd-sex15q.46): a hairline disclosure row, the chevron turning when it opens (never a boxed card)
   return (
-    <details data-testid="w-method" className="group rounded-2xl border border-[#e5e7eb] bg-white px-4 py-3">
-      <summary className="flex min-h-[44px] cursor-pointer items-center text-[15px] font-semibold text-[#1d2025]">
-        {t("s2.method.title", lang)}
+    <details data-testid="w-method" className="group mt-5 border-t border-cp-hairline pt-3">
+      <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-2 text-[17px] font-semibold text-cp-ink outline-none focus-visible:ring-[3px] focus-visible:ring-cp-green [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0 flex-1">{t("s2.method.title", lang)}</span>
+        <ChevronDown size={20} strokeWidth={1.5} className="shrink-0 text-cp-ink-3 transition-transform group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
       </summary>
-      <div className="flex flex-col gap-2 pb-1 pt-1">
+      <div className="flex flex-col gap-2 pb-1 pt-2">
         <p className={line}>
           {tx("s2.method.grader", lang, { grader_label: pick(w.grader_label, lang), grader: <CodeText lang={lang}>{m.grader}</CodeText> })}
         </p>
@@ -40,7 +43,7 @@ export default function MethodSheet({ detail }: { detail: WDetail }) {
         </CountSpan>
         <p className={line}>{pick(m.current_school_rule, lang)}</p>
         {m.caveats.map((c, i) => <p key={i} className={line}>{pick(c, lang)}</p>)}
-        <p className="text-[12.5px] text-[#6b7280]">{tx("s2.method.query", lang, { query_id: <CodeText lang={lang}>{m.query_id}</CodeText> })}</p>
+        <p className="text-[13px] text-cp-ink-3">{tx("s2.method.query", lang, { query_id: <CodeText lang={lang}>{m.query_id}</CodeText> })}</p>
       </div>
     </details>
   );
