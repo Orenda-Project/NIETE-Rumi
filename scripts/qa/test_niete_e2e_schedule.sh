@@ -24,6 +24,14 @@ TMP=$(mktemp -d "${TMPDIR:-/tmp}/e2esched.XXXXXX"); trap 'rm -rf "$TMP"' EXIT
 R="$TMP/niete-e2e"
 mkdir -p "$R/bot/shared/services" "$R/tests/features/whatsapp" "$R/.claude" "$R/scripts"
 cp -R "$ROOT/.claude/qa" "$R/.claude/qa"; cp -R "$ROOT/scripts/qa" "$R/scripts/qa"
+# The harness is the SHARED engine, linked in at .claude/qa/engine (bd-9157r.1). `cp -R` copies that link as a RELATIVE
+# symlink, which points nowhere from here: point the copy at the real engine. No engine linked = nothing to schedule.
+rm -f "$R/.claude/qa/engine"
+ENGINE_DIR=$(cd "$ROOT/.claude/qa/engine" 2>/dev/null && pwd -P) || ENGINE_DIR=""
+if [ -z "$ENGINE_DIR" ]; then
+  echo "  SKIP  no shared engine linked here (bash scripts/qa/link-engine.sh): the scheduled run's selector lives in it"; exit 0
+fi
+ln -s "$ENGINE_DIR" "$R/.claude/qa/engine"
 cp -R "$ROOT/tests/features/whatsapp/niete" "$R/tests/features/whatsapp/niete"
 rm -rf "$R/.claude/qa/results"; mkdir -p "$R/.claude/qa/ledgers" "$R/.claude/qa/results/whatsapp/niete"
 printf 'module.exports={ROWS:["Teacher Training"]};\n' > "$R/bot/shared/services/menu.service.js"

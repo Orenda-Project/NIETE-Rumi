@@ -14,6 +14,7 @@
  *
  * Red-first: fails on the profiler branch — none of the knobs exist and every send pays the quiesce.
  */
+const { describeWithEngine, testWithEngine, HAVE_ENGINE } = require('./engine');   // the shared engine, borrowed (bd-9157r.1)
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -42,7 +43,7 @@ describe('1. the lane env switches the pacer off and shortens the switch cache',
     const lane = fs.readFileSync(path.join(REPO, '.claude', 'qa', 'config', 'local-lane.env'), 'utf8');
     expect(lane).toMatch(/^INTERNAL_API_KEY=e2e-local-[a-z-]+$/m);
   });
-  test('run-suite.sh sets the three harness knobs for the mock lane only', () => {
+  testWithEngine('run-suite.sh sets the three harness knobs for the mock lane only', () => {
     const rs = fs.readFileSync(path.join(REPO, '.claude', 'qa', 'engine', 'bin', 'run-suite.sh'), 'utf8');
     expect(rs).toMatch(/E2E_POLL_MS="\$\{E2E_POLL_MS:-100\}"/);
     expect(rs).toMatch(/E2E_SETTLE_MS="\$\{E2E_SETTLE_MS:-800\}"/);
@@ -65,7 +66,7 @@ describe('2. app-redirect.service.js — the switch cache TTL is env-tunable, de
   test('garbage falls back to the default', () => { expect(fresh({ APP_SETTINGS_FLAG_TTL_MS: 'soon' }).FLAG_TTL_MS).toBe(30000); });
 });
 
-describe('3. mock-api.cjs — knobs from the env, and no quiesce after a quiet settle', () => {
+describeWithEngine('3. mock-api.cjs — knobs from the env, and no quiesce after a quiet settle', () => {
   let mock, mockBase, bot;
   const DRIVER = '923000000778';
   beforeAll(async () => {

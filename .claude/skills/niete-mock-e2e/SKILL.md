@@ -60,7 +60,7 @@ with it.
 
 | Need | Made by | Manual? |
 |---|---|---|
-| Git hooks: `core.hooksPath = .githooks` | SessionStart banner sets it when unset; `npm install` (`prepare`) does the same | Only if hooksPath already points elsewhere → `bash scripts/qa/install-hooks.sh --force` |
+| Git hooks: `core.hooksPath = .githooks` | SessionStart banner sets it when unset; `npm install` (`prepare`) does the same | Only if hooksPath already points elsewhere → `git config core.hooksPath .githooks` (or chain the two shims from it) |
 | `keys/niete-local.env` | `bot/scripts/e2e/provision-local-keys.sh`, called by the banner, post-commit and `commit-e2e.sh` whenever the file is missing | **`railway login`** with an account that is a **member of the "NIETE-Rumi Staging" project** — the one thing nothing can create |
 | `redis-server` | `commit-e2e.sh` runs `brew install redis` (or passwordless `apt-get`) | only without brew / sudo |
 | `node_modules` matching the commit's lockfiles | `provision-local-modules.sh` builds a private tree keyed by the lockfile blob; never runs npm in the shared clone | no |
@@ -97,7 +97,8 @@ From a git worktree on your branch — never a shared checkout other sessions ar
 ```bash
 bash .claude/qa/engine/bin/commit-e2e.sh HEAD                     # the mock-capable features this commit touched
 bash .claude/qa/engine/bin/commit-e2e.sh <sha> --features menu    # one feature
-bash .claude/qa/engine/bin/commit-e2e.sh HEAD --all-mock          # every mock-lane feature, regardless of the diff
+bash .claude/qa/engine/bin/commit-e2e.sh HEAD --all-mock          # every mock-lane feature; scenarios still follow the diff
+E2E_SCENARIO_SELECT=0 bash .claude/qa/engine/bin/commit-e2e.sh HEAD --all-mock   # …every scenario of every feature
 DEEP=1 bash .claude/qa/engine/bin/commit-e2e.sh HEAD --features coaching   # walk the whole coaching pipeline
 ```
 

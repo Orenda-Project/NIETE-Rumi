@@ -8,9 +8,10 @@
  *
  * Red-first: fails on the bd-aqi0ay branch — .claude/qa/engine/bin/selection.cjs does not exist.
  */
-const { parseMap, makeWant, recAllowed, expandIds } = require('../../.claude/qa/engine/bin/selection.cjs');
+const { describeWithEngine, testWithEngine, HAVE_ENGINE } = require('./engine');   // the shared engine, borrowed (bd-9157r.1)
+const { parseMap, makeWant, recAllowed, expandIds } = HAVE_ENGINE ? require('../../.claude/qa/engine/bin/selection.cjs') : {};
 
-describe('parseMap — "feature=ids;feature=ids" → Set for one feature', () => {
+describeWithEngine('parseMap — "feature=ids;feature=ids" → Set for one feature', () => {
   test('picks the feature\'s own list', () => {
     expect([...parseMap('coaching=COA09,COA20;training=T42', 'training')]).toEqual(['T42']);
     expect([...parseMap('coaching=COA09,COA20;training=T42', 'coaching')]).toEqual(['COA09', 'COA20']);
@@ -22,7 +23,7 @@ describe('parseMap — "feature=ids;feature=ids" → Set for one feature', () =>
   });
 });
 
-describe('expandIds — ranges in a shard spec', () => {
+describeWithEngine('expandIds — ranges in a shard spec', () => {
   test('T25-T27,T696 → the enumerated ids', () => {
     expect(expandIds('T25-T27,T696')).toEqual(['T25', 'T26', 'T27', 'T696']);
     expect(expandIds('COA39-COA41')).toEqual(['COA39', 'COA40', 'COA41']);
@@ -32,7 +33,7 @@ describe('expandIds — ranges in a shard spec', () => {
   });
 });
 
-describe('makeWant(only, skip)', () => {
+describeWithEngine('makeWant(only, skip)', () => {
   test('no selection: everything runs', () => {
     const want = makeWant(null, null);
     expect(want('T01')).toBe(true); expect(want('T01', 'T02')).toBe(true);
@@ -53,7 +54,7 @@ describe('makeWant(only, skip)', () => {
   });
 });
 
-describe('recAllowed(id, only, skip) — what a child reports', () => {
+describeWithEngine('recAllowed(id, only, skip) — what a child reports', () => {
   const SCEN = /^[A-Z]{1,5}\d{1,3}$/;
   test('harness rows (COA-preflight, RUNNER) always report', () => {
     expect(recAllowed('RUNNER', new Set(['T42']), null, SCEN)).toBe(true);

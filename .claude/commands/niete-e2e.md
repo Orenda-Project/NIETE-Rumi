@@ -25,10 +25,11 @@ session, driven over the Chrome DevTools Protocol by `feature-runner.cjs` (one n
 
 ## 0. Preconditions — STOP if any fail
 
-> Run from the **root workspace**. The harness (`.claude/qa/shared/`), the feature drivers
-> (`.claude/qa/shared/features/*.cjs`) and the `.feature` specs (`tests/features/whatsapp/niete/`) all
-> live here — the suite is self-contained in this private repo. Node ≥ 21 (built-in `WebSocket`) and
-> desktop Google Chrome are the only prerequisites.
+> Run from the **root workspace**. The feature drivers (`.claude/qa/shared/features/*.cjs`) and the `.feature`
+> specs (`tests/features/whatsapp/niete/`) live in this repo; the harness that runs them is the shared E2E engine,
+> borrowed from rumi-agent-home through the link at `.claude/qa/engine/` (`scripts/qa/link-engine.sh`, which
+> `npm install` runs). Node ≥ 21 (built-in `WebSocket`), desktop Google Chrome and rumi-agent-home checked out around
+> this clone are the prerequisites.
 
 - **Chrome with a DevTools TCP port — start it FIRST.** `chrome-devtools-mcp` launches Chrome with
   `--remote-debugging-pipe` (no port), which the runner cannot reach. So:

@@ -10,6 +10,7 @@
  * Red-first: fails on sandbox — `.claude/qa/engine/bin/trace.cjs` does not exist, and makeMockApi ignores
  * `opts.tracer`.
  */
+const { describeWithEngine, testWithEngine, HAVE_ENGINE } = require('./engine');   // the shared engine, borrowed (bd-9157r.1)
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -19,7 +20,7 @@ const { createMockGraphApi } = require('../../bot/scripts/e2e/mock-graph-api');
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-trace-'));
 const readLines = (f) => fs.readFileSync(f, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
 
-describe('trace.cjs — the span emitter', () => {
+describeWithEngine('trace.cjs — the span emitter', () => {
   test('nested spans land as JSON lines with parent ids, layer, kind and a measured ms', async () => {
     const { createTracer } = require('../../.claude/qa/engine/bin/trace.cjs');
     const file = path.join(tmp(), 'trace.jsonl');
@@ -62,7 +63,7 @@ describe('trace.cjs — the span emitter', () => {
   });
 });
 
-describe('mock-api.cjs — a sendWait is traced as quiesce → inject → bot.reply → poll.detect → settle', () => {
+describeWithEngine('mock-api.cjs — a sendWait is traced as quiesce → inject → bot.reply → poll.detect → settle', () => {
   let mock, mockBase, bot, botPort, file;
   const DRIVER = '923000000777';
   beforeAll(async () => {
