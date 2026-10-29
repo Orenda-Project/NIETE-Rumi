@@ -241,7 +241,7 @@ const MATHS = {
           section_pages: 'scope',
           grain: { kind: 'one concept per item: place value, rounding, factors, fraction and decimal comparison, percent to fraction, unitary cost, area, averages', number_size: 'whole numbers up to 7 digits; decimals to 3 places; fractions with denominators up to 10', steps: 1, unit_choice: false },
           families: null, kinds: null,
-          prompt_rule: 'Twenty four-option MCQs across all included units, one concept each; 3 to 5 of them pure recall (a fact or a name). Options are short (a number or a few words). ' + NO_ITEMS_ON_BOOK_ACTIVITIES,
+          prompt_rule: 'Twenty four-option MCQs across all included units, one concept each; 3 to 5 of them pure recall (a fact or a name). Never define a term in the stem and then ask what that definition states: the stem must not give away its own answer. Options are short (a number or a few words). ' + NO_ITEMS_ON_BOOK_ACTIVITIES,
           frame: null, teacher_note_en: null, teacher_note_ur: null, alternatives: null, or: false,
         },
         {
@@ -403,7 +403,7 @@ const SCIENCE = {
           families: null, kinds: null,
           prompt_rule: 'One item: `question` is the NAME of a diagram printed in the book (e.g. "Layers of the Earth"), `book_page` the book page it is on, `answer` the five labels in order. The paper prints an empty frame with five label lines; the teacher draws or pastes the diagram. Never describe the picture and never send the child to a picture.',
           frame: {
-            kind: 'diagram', height_mm: 70, lines: 5, book_page: 168, word_bank: false,
+            kind: 'diagram', height_mm: 70, lines: 5, word_bank: false,
             title_en: 'Diagram: {q}',
             title_ur: 'خاکہ: {q}', // needs fluent-Urdu review
             supply_en: 'Diagram: {q}', supply_ur: 'خاکہ: {q}', // ur: needs fluent-Urdu review
@@ -920,22 +920,15 @@ const URDU = {
           type: 'Poem Explanation', category: 'subjective', shape: 'fixed',
           generate: 1, attempt: 1, marks_each: 5, parts: null,
           numbering: 'none', compulsory: false, lines: 0, work_mm: null, section_pages: 'scope',
-          grain: { kind: 'central idea of the Naat (from the book) OR explain four quoted lines of lesson 7', number_size: 'four lines', steps: 1, unit_choice: false },
+          grain: { kind: 'explain four quoted lines of lesson 7', number_size: 'four lines', steps: 1, unit_choice: false },
           families: null, kinds: null,
           prompt_rule: 'One item only, from lesson 7 «ندی کی فریاد»: `passage` = four consecutive lines of the poem copied exactly from the book; `question` = «درج ذیل اشعار کا مفہوم واضح کریں۔»; `answer` = the meaning in simple Urdu. Never use lessons 1, 2 or 3.',
           frame: null, teacher_note_en: null, teacher_note_ur: null,
-          or: true,
+          // FDE p.57 offers the Naat's central idea OR these lines. The book prints no central idea
+          // and asks teachers to give non-Muslim students another lesson in its place, so the
+          // paper sets the lesson-7 lines alone (Amena, 29 Oct; bd-5jmnfj.4.51.11).
+          or: false,
           alternatives: [
-            {
-              kind: 'fixed',
-              // FDE p.57 prints this line with no full stop; the stop is ours.
-              instruction_ur: 'نظم "نعت" کا مرکزی خیال لکھیں۔', // transcribed (FDE p.57)
-              key: null,
-              split: [3, 1, 1],
-              book_lesson: 2,
-              book_page: 13, // lesson 2 opens on book p.13 and runs to p.24
-              book_pages: '13-24',
-            },
             {
               kind: 'seen_verses',
               instruction_ur: 'درج ذیل اشعار کا مفہوم واضح کریں۔', // transcribed (FDE p.57)

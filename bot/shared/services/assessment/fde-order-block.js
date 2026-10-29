@@ -68,4 +68,19 @@ function dealOrders(examJson) {
   return { ...examJson, unseen };
 }
 
-module.exports = { dealOrders, parseOrder, permutations };
+/**
+ * The key speaks the paper's labels (bd-5jmnfj.4.31): a Story Order item prints its sentences as
+ * (a)-(f), so "3, 4, 1, 5, 2, 6" reads c, d, a, e, b, f. `value` is the answer or one scheme.accept
+ * entry. Anything that is not a full permutation of the item's sentences comes back unchanged.
+ */
+function letterOrder(q, value) {
+  const n = q && Array.isArray(q.questions) ? q.questions.length : 0;
+  const text = String(value ?? '');
+  if (n < 2 || n > 26 || !/^[\d\s,،.-]+$/.test(text)) return value;
+  const order = (text.match(/\d+/g) || []).map(Number);
+  const sorted = [...order].sort((a, b) => a - b);
+  if (order.length !== n || sorted.some((v, i) => v !== i + 1)) return value;
+  return order.map((v) => String.fromCharCode(96 + v)).join(', ');
+}
+
+module.exports = { dealOrders, parseOrder, permutations, letterOrder };

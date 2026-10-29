@@ -21,7 +21,7 @@
  * the engine acts on.
  */
 
-const { dropContradictedAccepts } = require('./scheme-accept-check');
+const { dropContradictedAccepts, tidyAccepts } = require('./scheme-accept-check');
 
 const BLOOMS = Object.freeze({
   remember: 'Remember', r: 'Remember',
@@ -313,6 +313,8 @@ function normaliseOne(holder, marks, questionText, slot, label, log) {
     s.accept = accept;
     if (dropped.length) log.push(`${label}: accept ${show(dropped)} is the common error, dropped`);
   }
+  // Duplicates, a base verb under an -ing question, a greeting's usual alternatives (bd-5jmnfj.4.51.4).
+  if (Array.isArray(s.accept)) s.accept = tidyAccepts(s.accept, holder, slot);
 
   // Only mathsCheck may say a key was checked; whatever the model wrote is reset.
   s.checked = null;

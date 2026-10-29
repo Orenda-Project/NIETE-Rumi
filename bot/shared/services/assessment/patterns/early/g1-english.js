@@ -55,7 +55,7 @@ module.exports = makeSubject({
         S({ slot: 'g1.english.B.Q8', label_en: 'Q8.', type: 'Action Words', generate: 4, lines: 1, picture: ['scene'],
           instruction_en: 'What is the child doing? Write the action word.',
           answer_ok: (q) => /ing$/i.test(String(q.answer).trim()),
-          prompt_rule: 'Four items, each a child doing one action from the book (run, jump, read, eat, sleep, swim) as picture: {kind:"scene", describe}. Answer: the -ing word the question asks for ("running"); accept lists the plain word ("run").' }),
+          prompt_rule: 'Four items, each a child doing one action from the book (run, jump, read, eat, sleep, swim) as picture: {kind:"scene", describe}. Answer: the -ing word the question asks for ("running"); accept holds only other -ing spellings the question allows, never the plain word ("run").' }),
         { slot: 'g1.english.B.Q9', label_en: 'Q9.', type: 'Complete the Sentences', generate: 5, marks_each: 2, lines: 1, print_words: true,
           instruction_en: 'Fill in the blanks with words from the box.',
           prompt_rule: 'Five short sentences from the book, each with one blank. Each sentence rules out every other word: only one word from the box fits each blank (never "likes to ___ in the park", where play, run or paint all fit). Put the five answer words, mixed, in "words" on the FIRST item. Scheme: K 2 for the right word.' },
