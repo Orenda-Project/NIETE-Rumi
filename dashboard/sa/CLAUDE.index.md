@@ -11,6 +11,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `v2/` | → (no door; 1311 files) |
 | `v3/` | → (no door; 24 files) |
 | `v4/` | Version-4 recorded clips for the battery's spoken lines, per language → `v4/CLAUDE.md` |
+| `clips.lock.json` | sha1 of every file sw.js serves cache-first (clips, word timings, pictures, batteries) and the SESSION they were taken with |
 | `demo-battery.json` | Demo battery (coach G3 set A, ur) with welcome/audio-check lines and tasks; default form of the QA page run.html |
 | `play.html` | The child's battery page /sa/play.html: loads engine scripts; both coach (proctored) and game surfaces open it |
 | `run.html` | QA harness page /sa/run.html: loads sa-core, sa-voice, sa-ui and sa-run to render battery screens without store or sync |

@@ -1,7 +1,7 @@
 # sa — Self-administered reading/maths battery engine served at /sa/*, offline-first
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa kg=f2f6de4537c8 gen=6e1d71520008 overflow=91 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa kg=1baca0b93011 gen=344d3baded98 overflow=92 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `sa-page.js` — boot of /sa/play.html, the page both coach and game open
@@ -21,9 +21,9 @@ Full index: `CLAUDE.index.md`
 | `sw.js` | Battery service worker (scope /sa/): network-first engine files, cache-first battery and clips; offline prepare |
 | `sink-coach.js` | Coach sink: battery putBatch/presign/register via portal relay /api/portal/leader/child-test/sa/session/:id/* |
 | `sink-game.js` | Game sink: battery sync via /api/sa-game/s/* with run token st and x-wq-device header; openSession/forGame helpers |
+| `clips.lock.json` | sha1 of every file sw.js serves cache-first (clips, word timings, pictures, batteries) and the SESSION they were taken with |
 | `demo-battery.json` | Demo battery (coach G3 set A, ur) with welcome/audio-check lines and tasks; default form of the QA page run.html |
-| `skin-game.js` | Game skin script: registers game sink from stored run token, Jugnu glow while timed task runs, chime and fanfare, mute |
-| … | 14 more → `CLAUDE.index.md` |
+| … | 15 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - (none)

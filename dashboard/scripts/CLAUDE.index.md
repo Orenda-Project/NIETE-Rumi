@@ -12,6 +12,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `backfill-processed-transcripts.js` | CLI that pre-processes coaching transcripts with GPT-4o-mini and stores results so transcript pages load instantly. |
 | `check-progress.sh` | Ad-hoc shell monitor of re-transcription tracks by tailing /tmp logs for four sessions; one-off. |
 | `link-railway.sh` | Helper that runs `railway link` for the dashboard project (prompts for workspace, project, environment). |
+| `sa-clips-lock.js` | Rewrites dashboard/sa/clips.lock.json after a SESSION bump; refuses while a locked file changed under the same SESSION |
 | `sa-ur-fit-walk.js` | Playwright walk over every self-administered battery screen reporting Urdu text that overflows or collides. |
 | `verify-funnel-tables.js` | Quick check that website_visits, cta_clicks, chat_starts tables exist and count rows via the Supabase client. |
 
@@ -26,7 +27,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `SUPABASE_URL` read at `dashboard/scripts/backfill-processed-transcripts.js:21:e84bc099`
 
 ## Tests (all, generated)
-- (none)
+- `sa-clips-lock.js` ← `dashboard/tests/sa-clips-lock.service.test.js`
 
 ## Related (all, generated)
 - docs: `dashboard/CLAUDE.md`?
