@@ -22,6 +22,8 @@ const R8 = {
   r8ReadingPosition: ['sa_r8_reading_position', 'r8_reading_position'],
   r8TimeupContinue: ['sa_r8_timeup_continue', 'r8_timeup_continue'],
   r8Counts: ['sa_r8_counts', 'r8_counts'],
+  // the microphone check on an iPhone: the meter's AudioContext made inside the tap (dashboard/sa/sa-mic.js)
+  r8IosMic: ['sa_r8_ios_mic', 'r8_ios_mic'],
 };
 const BATTERY = { battery_id: 'b', tasks: [{ id: 'ur.letters', items: [] }] };
 
