@@ -2007,6 +2007,9 @@ function startWorker() {
       // The v10 group B weekly usage report (Saturday morning PKT) registers its kind at load.
       // It does nothing until app_settings v10_weekly_report_enabled is true (bd-v0toag.32).
       require('../shared/services/coaching/weekly-report/job');
+      // The topic-end nudge (bd-pw1ccr.4) registers its kind at load.
+      // It does nothing until app_settings topic_end_nudge_enabled is true.
+      require('../shared/services/nudges/topic-end-nudge.service');
       // Same shape as STALE_RECOVERY_INTERVAL_MS above: a value below the
       // one-minute floor is refused rather than clamped, and the default stands.
       const TEACHER_NUDGES_SWEEP_MS = (() => {
