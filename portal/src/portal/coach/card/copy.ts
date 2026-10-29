@@ -5,7 +5,7 @@
  * not here.
  *
  * Words follow the ontology (ict-niete-ontology.md): DC observation ڈیجیٹل کوچنگ مشاہدہ, Coach observations مشاہدات,
- * Lesson plan لیسن پلان, Paper پرچہ, Papers made بنائے گئے پرچے, Part حصہ, Course کورس, Report رپورٹ, Principal ہیڈ ٹیچر,
+ * Lesson plan لیسن پلان, Assessment (the feature; the item is a Paper) پرچہ, Assessments پرچے (never "Papers made"), Part حصہ, Course کورس, Report رپورٹ, Principal ہیڈ ٹیچر,
  * Observations مشاہدات (never "Coaching" alone), Digital Coaching ڈیجیٹل کوچنگ, Coach observations کوچ کے مشاہدات,
  * Lesson (the class she taught) سبق,
  * scores say whose they are ("AI score" / "Coach score"), never HITL.
@@ -54,7 +54,7 @@ export const SCHOOL_CARD_EN = {
     lp: (n: number) => plural(n, "lesson plan", "lesson plans"),
     dc: (n: number) => plural(n, "DC observation", "DC observations"),
     training: (n: number) => plural(n, "training part", "training parts"),
-    papers: (n: number) => plural(n, "paper", "papers"),
+    papers: (n: number) => plural(n, "assessment", "assessments"),
   },
   byN: (a: number, b: number) => `by ${a} of ${b} teachers`,
   aboutDay: (n: number) => `about ${n} a day`,
@@ -72,15 +72,15 @@ export const SCHOOL_CARD_EN = {
   same: "Same",
   /** What a screen reader hears for a teacher's four small counts. */
   countsSpoken: (lp: number, dc: number, training: number, papers: number) =>
-    `Lesson plans ${lp}, DC observations ${dc}, training parts ${training}, papers ${papers}`,
+    `Lesson plans ${lp}, DC observations ${dc}, training parts ${training}, assessments ${papers}`,
 
   // A feature by teacher
-  byTeacher: { lp: "Lesson plans by teacher", dc: "DC observations by teacher", training: "Training parts by teacher", papers: "Papers by teacher" },
+  byTeacher: { lp: "Lesson plans by teacher", dc: "DC observations by teacher", training: "Training parts by teacher", papers: "Assessments by teacher" },
   schoolRow: "School",
   total: "Total",
 
   // A teacher
-  tiles: { lp: "Lesson plans", papers: "Papers made", training: "Training parts" },
+  tiles: { lp: "Lesson plans", papers: "Assessments", training: "Training parts" },
   coursesDone: (n: number) => `${n} ${plural(n, "course", "courses")} done`,
   daysWithUse: "Days with any NIETE use",
   ofSchoolDays: (n: number) => `of ${n} school days`,
@@ -106,7 +106,7 @@ export const SCHOOL_CARD_EN = {
   notScoredKey: (dash: string) => `${dash} · Not scored`,
 
   // Her lists
-  allOf: { lp: "All Lesson Plans", papers: "All Papers", training: "Training" },
+  allOf: { lp: "All Lesson Plans", papers: "All Assessments", training: "Training" },
   aiScoreN: (n: number) => `AI score ${n}%`,
   coachScoreN: (n: number) => `Coach score ${n}%`,
   fieldForm: "Field form",
@@ -196,7 +196,7 @@ export const SCHOOL_CARD_UR: SchoolCardCopy = {
   schoolRow: "اسکول",
   total: "کل",
 
-  tiles: { lp: "لیسن پلان", papers: "بنائے گئے پرچے", training: "ٹریننگ کے حصے" },
+  tiles: { lp: "لیسن پلان", papers: "پرچے", training: "ٹریننگ کے حصے" },
   coursesDone: (n) => `${n} کورس مکمل`,
   daysWithUse: "NIETE کے استعمال کے دن",
   ofSchoolDays: (n) => `${n} اسکول کے دنوں میں سے`,

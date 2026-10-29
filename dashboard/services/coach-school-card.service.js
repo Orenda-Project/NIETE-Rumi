@@ -12,7 +12,10 @@
  *   getTeacherItems    her list of lesson plans, papers or training in the period
  *   getTeacherCoaching her Coaching page: her DC reports and coach visits in ONE list, newest first, each with its
  *                      score, the step she took away and its sections; the two averages against the period before
- *   getSession         one DC report of such a teacher, coach view
+ *   getTeacherScores   her DC reports OR her coach observations on their own: count, average against the period
+ *                      before, each report's score, every practice averaged across her reports, the reports
+ *   getSchoolScores    the school's DC reports OR coach observations by teacher: count, average, each report's score
+ *   getSession         one DC report or coach observation of such a teacher, coach view
  *
  * ACCESS. The coach is always the session user. A school must be one of her leader_schools rows (coach-v2's
  * LEADER_SCHOOLS, matched by EMIS the way getCoachSchool matches it); a teacher must be on the roster of one of
@@ -38,6 +41,8 @@ const P = require('../lib/school-card-period');
 const { karachiToday } = require('../lib/visit-time');
 
 const FEATURES = Object.freeze(['lp', 'dc', 'training', 'papers']);
+/** The two kinds of scored observation: a DC report (the AI score) and a coach observation (the Coach score). */
+const SCORE_KINDS = Object.freeze(['dc', 'coach']);
 /** Her own lists. DC observations and coach visits are not among them: they are the one Coaching list. */
 const ITEM_FEATURES = Object.freeze(['lp', 'papers', 'training']);
 const HUMAN_OBSERVATION = 'leader_observation';
@@ -203,11 +208,22 @@ const SQL = Object.freeze({
       FROM coaching_sessions c
      WHERE c.id = ANY($1::uuid[])`,
 
+  // One report, coach view. The observer is read too: a coach observation opens only when it happened, by a coach who
+  // is not the teacher and not a test account (isCoachObservation), the same rule the counts use.
   session: `/* sc:session */
-    SELECT id, user_id, created_at, status, observation_type, duplicate_of_session_id,
-           analysis_data, prioritized_action, conversation_state
-      FROM coaching_sessions
-     WHERE id = $1::uuid`,
+    SELECT c.id, c.user_id, c.created_at, c.status, c.observation_type, c.duplicate_of_session_id,
+           c.analysis_data, c.prioritized_action, c.conversation_state,
+           c.observer_user_id, ou.name AS observer_name, (ou.is_test_user IS TRUE) AS observer_test
+      FROM coaching_sessions c LEFT JOIN users ou ON ou.id = c.observer_user_id
+     WHERE c.id = $1::uuid`,
+
+  // Every practice's score of these reports (analysis_data.domains, detoasted once each) and whether a plan was linked.
+  domains: `/* sc:domains */
+    SELECT s.id, s.a -> 'domains' AS domains, s.a #> '{scores,has_lesson_plan}' AS has_plan
+      FROM (SELECT id, analysis_data #> '{}'::text[] AS a
+              FROM coaching_sessions
+             WHERE id = ANY($1::uuid[])
+            OFFSET 0) s`,
 });
 
 // ── the counting definitions (one function each) ─────────────────────────────
@@ -393,6 +409,65 @@ function reportTitleOf(topic, label, framework) {
   return null;
 }
 
+/** The deployed framework's constants (ids, names, scale), read once; null when it cannot be loaded. */
+let fwCache;
+function frameworkConstants() {
+  if (fwCache !== undefined) return fwCache;
+  try {
+    const c = require('../../bot/shared/services/coaching/frameworks/fico-framework').getScoringConstants();
+    const names = new Map();
+    for (const d of Object.values(c.domains || {})) for (const i of d.indicators || []) if (i && i.id) names.set(i.id, text(i.name));
+    fwCache = { scaleMax: num(c.scaleMax), names };
+  } catch (_) {
+    fwCache = null;
+  }
+  return fwCache;
+}
+
+/**
+ * EVERY PRACTICE, AVERAGED ACROSS HER REPORTS. For each practice (indicator) a report scored, the mean of its score
+ * as a share of that report's own scale (a section's domain_max over its practices, scaleMaxOf), given back on the
+ * deployed framework's scale (FICO v3: 2) and as a %. A practice the report did not score (not applicable, no score) is
+ * not averaged in. Lesson Plan Fidelity (B) is left out of a report whose plan was not assessed. Sections B C D F and
+ * the practices in framework order; names are the framework's (a practice it does not know keeps the report's name).
+ * Only reports whose score counts are passed in (a coach observation: reviewed, FICO form), so a /observe2 field-form
+ * visit is never mixed in.
+ * @param {Array<{domains: object, has_plan: boolean|null}>} rows
+ */
+function practiceAveragesOf(rows) {
+  const fw = frameworkConstants();
+  const acc = new Map();
+  for (const r of rows) {
+    const domains = r && r.domains && typeof r.domains === 'object' ? r.domains : null;
+    if (!domains) continue;
+    for (const sec of indicatorsOf({ domains })) {
+      const meta = SECTIONS.find((x) => x.key === sec.key);
+      const d = domains[sec.key] || {};
+      if (!meta) continue;
+      if (sec.key === 'lesson_plan_fidelity' && (d.assessed === false || d.assessed === 'false' || r.has_plan === false || r.has_plan === 'false')) continue;
+      const max = scaleMaxOf(d);
+      if (!max) continue;
+      for (const i of sec.items) {
+        if (!i.id || typeof i.score !== 'number' || !Number.isFinite(i.score)) continue;
+        if (!acc.has(i.id)) acc.set(i.id, { id: i.id, code: meta.code, name: (fw && fw.names.get(i.id)) || i.name, shares: [], max });
+        const e = acc.get(i.id);
+        e.shares.push(Math.max(0, Math.min(1, i.score / max)));
+        e.max = max;
+      }
+    }
+  }
+  return SECTIONS.map(({ code, name }) => {
+    const indicators = [...acc.values()].filter((e) => e.code === code)
+      .sort((x, y) => practiceOrder(x.id) - practiceOrder(y.id) || x.id.localeCompare(y.id))
+      .map((e) => {
+        const share = e.shares.reduce((t, x) => t + x, 0) / e.shares.length;
+        const scaleMax = (fw && fw.scaleMax) || e.max;
+        return { id: e.id, name: e.name, avg: Math.round(share * scaleMax * 10) / 10, pct: Math.round(share * 100), scaleMax, n: e.shares.length };
+      });
+    return { code, name, indicators };
+  }).filter((x) => x.indicators.length);
+}
+
 // ── reads ────────────────────────────────────────────────────────────────────
 
 const defaultMemo = createScoreMemo();
@@ -569,13 +644,49 @@ function coachVisitsOf(period, act, teachers) {
 
 // ── the endpoints ────────────────────────────────────────────────────────────
 
+/** One kind's sessions, the score that counts for it, and whether one is in the period / the period before. */
+function scoredKind(kind, act, period) {
+  const prev = P.previousOf(period);
+  const pctOf = (s) => (act.scored.get(s.id) || {}).pct;
+  const list = kind === 'dc'
+    ? act.sessions.filter((s) => isDcObservation(s, pctOf(s)))
+    : act.sessions.filter(isCoachObservation);
+  const scoreOf = kind === 'dc' ? (s) => pctOfSession(act, s) : (s) => ficoVisitScore(act, s);
+  const inP = (s) => P.inPeriod(period, s.day);
+  const inPrev = (s) => s.day >= prev.from && s.day <= prev.to;
+  return { list, scoreOf, inP, inPrev };
+}
+
+/**
+ * The school's Digital Coaching or Coach observations scores for the period: how many (a coach observation counts once
+ * it happened, scored or not), the average score against the period before (coach: reviewed FICO-form visits only),
+ * how many teachers had one, each scored report (oldest first) and the average per bucket (null where none).
+ */
+function schoolScoresOf(kind, act, period, teachers) {
+  const { list, scoreOf, inP, inPrev } = scoredKind(kind, act, period);
+  const extOf = new Map(teachers.map((t) => [t.id, t.teacherExtId]));
+  const now = list.filter(inP);
+  const points = now.filter((s) => scoreOf(s) != null).sort(byAt)
+    .map((s) => ({ id: s.id, date: s.day, score: scoreOf(s), teacherExtId: extOf.get(s.user_id) || null }));
+  return {
+    count: now.length,
+    avg: mean(now.map(scoreOf)),
+    prevAvg: mean(list.filter(inPrev).map(scoreOf)),
+    makers: new Set(now.map((s) => s.user_id)).size,
+    points,
+    series: period.buckets.map((_, i) => mean(points.filter((p) => P.bucketIndexOf(period, p.date) === i).map((p) => p.score))),
+  };
+}
+
 /** GET /school/:emis/card */
 async function getSchoolCard(query, coachId, emis, opts = {}) {
   const ctx = await schoolContext(query, coachId, emis);
   if (!ctx) return null;
   const period = resolvePeriod(opts);
   const ids = ctx.teachers.map((t) => t.id);
-  const act = await loadActivity(query, ids, period, opts);
+  // Sessions from the period before too: the score tiles compare against it (the counts take only the period).
+  const prev = P.previousOf(period);
+  const act = await loadActivity(query, ids, period, { ...opts, sessionsRange: { from: prev.from, to: period.to } });
   const last = await lastVisits(query, ids);
   const events = featureEvents(act);
   const tallies = Object.fromEntries(FEATURES.map((f) => [f, tally(period, events[f], ids)]));
@@ -621,7 +732,30 @@ async function getSchoolCard(query, coachId, emis, opts = {}) {
       const teachers = coachVisitsOf(period, act, ctx.teachers);
       return { count: teachers.reduce((s, t) => s + t.count, 0), teachers };
     })(),
+    scores: Object.fromEntries(SCORE_KINDS.map((k) => [k, schoolScoresOf(k, act, period, ctx.teachers)])),
   };
+}
+
+/** GET /school/:emis/scores/:kind — one kind's scores by teacher: count, average, each report's score; the school's. */
+async function getSchoolScores(query, coachId, emis, kind, opts = {}) {
+  if (!SCORE_KINDS.includes(kind)) return null;
+  const ctx = await schoolContext(query, coachId, emis);
+  if (!ctx) return null;
+  const period = resolvePeriod(opts);
+  const act = await loadActivity(query, ctx.teachers.map((t) => t.id), period, opts);
+  const { list, scoreOf, inP } = scoredKind(kind, act, period);
+  const now = list.filter(inP);
+  const rows = ctx.teachers.map((t) => {
+    const hers = now.filter((s) => s.user_id === t.id);
+    return {
+      teacherExtId: t.teacherExtId,
+      name: t.name,
+      count: hers.length,
+      avg: mean(hers.map(scoreOf)),
+      points: hers.filter((s) => scoreOf(s) != null).sort(byAt).map((s) => ({ id: s.id, date: s.day, score: scoreOf(s) })),
+    };
+  }).sort((a, b) => (b.count - a.count) || byName(a, b));
+  return { kind, period: P.publicPeriod(period), rows, school: { count: now.length, avg: mean(now.map(scoreOf)) } };
 }
 
 /** GET /school/:emis/feature/:feature */
@@ -811,6 +945,51 @@ async function getTeacherCoaching(query, coachId, ext, opts = {}) {
   };
 }
 
+/**
+ * GET /teacher/:ext/scores/:kind — her DC reports (kind dc) or her coach observations (kind coach) on their own: how many,
+ * the average score against the period before, each scored report's score (oldest first), every practice averaged
+ * across her scored reports (practiceAveragesOf), and the reports, newest first, each with its class and title (topic,
+ * else a real lesson label, else null). A coach observation counts and lists once it happened; only a reviewed visit on
+ * the FICO form has a score, so a /observe2 field-form visit is listed (form 'observe2') and never averaged.
+ */
+async function getTeacherScores(query, coachId, ext, kind, opts = {}) {
+  if (!SCORE_KINDS.includes(kind)) return null;
+  const teacher = await teacherOf(query, coachId, ext);
+  if (!teacher) return null;
+  const { period, act } = await teacherActivity(query, teacher, opts);
+  const { list, scoreOf, inP, inPrev } = scoredKind(kind, act, period);
+  const now = list.filter(inP).sort(byAt);
+  const scored = now.filter((s) => scoreOf(s) != null);
+  const ids = now.map((s) => s.id);
+  // The title fields only (no step: the thing to try is never read here, $2 null).
+  const actions = new Map(ids.length ? rowsOf(await query(SQL.actions, [ids, null])).map((r) => [r.id, r]) : []);
+  const domains = scored.length ? rowsOf(await query(SQL.domains, [scored.map((s) => s.id)])) : [];
+  const info = (s) => (act.scored.get(s.id) || {}).info || {};
+  return {
+    teacher: teacherOut(teacher),
+    period: P.publicPeriod(period),
+    kind,
+    count: now.length,
+    avg: mean(now.map(scoreOf)),
+    prevAvg: mean(list.filter(inPrev).map(scoreOf)),
+    series: scored.map((s) => ({ id: s.id, date: s.day, score: scoreOf(s) })),
+    sections: practiceAveragesOf(domains),
+    reports: [...now].sort(newestFirst).map((s) => {
+      const a = actions.get(s.id) || {};
+      return {
+        id: s.id,
+        date: s.day,
+        grade: info(s).grade || null,
+        subject: info(s).subject || null,
+        title: reportTitleOf(a.topic, a.lesson_label, a.framework),
+        score: scoreOf(s),
+        form: kind === 'coach' ? formOf(act, s) : null,
+        coachName: kind === 'coach' ? text(s.observer_name) : null,
+      };
+    }),
+  };
+}
+
 /** A section's scale: its stored maximum over the practices it scored, else the framework's own scale. */
 function scaleMaxOf(domain) {
   const max = num(domain && domain.domain_max);
@@ -823,47 +1002,63 @@ function scaleMaxOf(domain) {
   }
 }
 
-const practiceOrder = (id) => {
+function practiceOrder(id) {
   const m = /(\d+)\s*$/.exec(String(id || ''));
   return m ? Number(m[1]) : Number.MAX_SAFE_INTEGER;
-};
+}
 
-/** GET /session/:id — one DC report of a teacher in her patch, coach view. */
+/**
+ * GET /session/:id — one report of a teacher in her patch, coach view: a DC report (the v10 rule for its next step; a
+ * re-send opens the report it repeats) or a coach observation (any coach; one that happened, not by the teacher, not by
+ * a test account, as the counts). A coach observation's scores show only once it is reviewed; its step is the step
+ * agreed; `form` says whether it was on the /observe2 field form.
+ */
 async function getSession(query, coachId, sessionId, opts = {}) {
   let row = rowsOf(await query(SQL.session, [sessionId]))[0];
-  if (!row || row.observation_type != null || !row.user_id) return null;
+  if (!row || !row.user_id) return null;
+  const visit = row.observation_type === HUMAN_OBSERVATION;
+  if (row.observation_type != null && !visit) return null;
+  if (visit && !isCoachObservation(row)) return null;
   const teacher = rowsOf(await query(SQL.teacherById, [coachId, row.user_id]))[0];
   if (!teacher) return null;
   // A re-send reused an earlier report: open that one (hers too, and a DC session).
-  if (row.duplicate_of_session_id) {
+  if (!visit && row.duplicate_of_session_id) {
     const orig = rowsOf(await query(SQL.session, [row.duplicate_of_session_id]))[0];
     if (orig && orig.user_id === row.user_id && orig.observation_type == null) row = orig;
   }
-  const group = await groupOf(query, teacher.school_id);
+  const group = visit ? null : await groupOf(query, teacher.school_id);
   const a = row.analysis_data && typeof row.analysis_data === 'object' ? row.analysis_data : {};
   const domains = a.domains && typeof a.domains === 'object' ? a.domains : {};
   const narrative = a.report_narrative || null;
   const moves = movesOf(a);
   const questions = (row.conversation_state && Array.isArray(row.conversation_state.questions)) ? row.conversation_state.questions : [];
+  const reviewed = visit ? REVIEWED.includes(row.status) : true;
+  const pa = row.prioritized_action && typeof row.prioritized_action === 'object' ? row.prioritized_action : {};
 
   return {
     sessionId: row.id,
+    kind: visit ? 'coach' : 'dc',
+    coachName: visit ? text(row.observer_name) : null,
+    form: visit ? (isFieldForm({ rubric: a.observe2 && a.observe2.rubric }) ? 'observe2' : 'v3') : null,
+    reviewed,
     teacher: { teacherExtId: teacher.phone_number, name: displayNameOf(teacher) },
     date: P.pkDayOf(row.created_at),
     grade: a.grade == null || a.grade === '' ? null : String(a.grade),
     subject: text(a.subject),
-    overall: round(overallOf(a.scores)),
+    overall: reviewed ? round(overallOf(a.scores)) : null,
     whatWentWell: wells(a, languageOf(narrative, teacher), narrative),
-    nextStep: nextStepShown(row.prioritized_action, group),
+    nextStep: visit
+      ? text(pa.action) || text(a.focus_area && a.focus_area.try_this_tomorrow)
+      : nextStepShown(row.prioritized_action, group),
     sections: SECTIONS.filter((s) => domains[s.key]).map((s) => ({
-      code: s.code, name: s.name, pct: sectionPctOf(domains[s.key].domain_score, domains[s.key].domain_max, domains[s.key].assessed),
+      code: s.code, name: s.name, pct: reviewed ? sectionPctOf(domains[s.key].domain_score, domains[s.key].domain_max, domains[s.key].assessed) : null,
     })),
     practices: indicatorsOf(a).flatMap((sec) => {
       const code = (SECTIONS.find((s) => s.key === sec.key) || {}).code || null;
       const scaleMax = scaleMaxOf(domains[sec.key]);
       return sec.items.filter((i) => i.id)
         .sort((x, y) => practiceOrder(x.id) - practiceOrder(y.id))
-        .map((i) => ({ id: i.id, name: i.name, section: code, score: i.score, scaleMax }));
+        .map((i) => ({ id: i.id, name: i.name, section: code, score: reviewed ? i.score : null, scaleMax }));
     }),
     lpSteps: moves ? moves.map((m) => {
       const step = stepOf(m.phase);
@@ -876,6 +1071,7 @@ async function getSession(query, coachId, sessionId, opts = {}) {
 module.exports = {
   FEATURES,
   ITEM_FEATURES,
+  SCORE_KINDS,
   SQL,
   createMemo,
   lessonPlansOf,
@@ -893,5 +1089,8 @@ module.exports = {
   getTeacherCard,
   getTeacherItems,
   getTeacherCoaching,
+  getTeacherScores,
+  getSchoolScores,
+  practiceAveragesOf,
   getSession,
 };

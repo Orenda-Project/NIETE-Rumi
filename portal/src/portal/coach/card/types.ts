@@ -58,12 +58,53 @@ export type CoachObsTeacher = {
   change: number | null;
 };
 
+/** A scored observation kind: a DC report (AI score) or a coach observation (Coach score, reviewed FICO-form visits only). */
+export type ScoreKind = "dc" | "coach";
+
+/** The school's scores of one kind for the period: count, average (and the period before's), by how many teachers,
+ *  each scored report oldest first, and the average per bucket (null where none). */
+export type SchoolScores = {
+  count: number;
+  avg: number | null;
+  prevAvg: number | null;
+  makers: number;
+  points: { id: string; date: string; score: number; teacherExtId: string | null }[];
+  series: (number | null)[];
+};
+
 export type SchoolCardData = {
   school: { emis: string; name: string; teachers: number; lastVisitDaysAgo: number | null };
   period: Period;
   tiles: ActivityTile[];
   teachers: CardTeacher[];
   coachObservations: { count: number; teachers: CoachObsTeacher[] };
+  scores?: Record<ScoreKind, SchoolScores>;
+};
+
+/** GET /coach/school/:emis/scores/:kind — per teacher, sorted by count then name; teachers with none last. */
+export type SchoolScoresData = {
+  kind: ScoreKind;
+  period: Period;
+  rows: { teacherExtId: string; name: string; count: number; avg: number | null; points: { id: string; date: string; score: number }[] }[];
+  school: { count: number; avg: number | null };
+};
+
+/** One practice averaged across her scored reports: on the framework's scale (`scaleMax`) and as a %; `n` reports. */
+export type PracticeAverage = { id: string; name: string; avg: number; pct: number; scaleMax: number; n: number };
+
+/** GET /coach/teacher/:ext/scores/:kind — her DC reports or her coach observations on their own. */
+export type TeacherScoresData = {
+  teacher: { teacherExtId: string; name: string; school: string | null; emis: string | null };
+  period: Period;
+  kind: ScoreKind;
+  count: number;
+  avg: number | null;
+  prevAvg: number | null;
+  series: { id: string; date: string; score: number }[];
+  /** B C D F in order; B is left out of a report whose plan was not assessed. */
+  sections: { code: string; name: string; indicators: PracticeAverage[] }[];
+  /** Newest first. `title`: the report's topic or real lesson label, else null. `score` null: not reviewed or field form. */
+  reports: { id: string; date: string; grade: string | number | null; subject: string | null; title: string | null; score: number | null; form: "v3" | "observe2" | null; coachName: string | null }[];
 };
 
 export type GridRow = { teacherExtId: string; name: string; cells: (number | null)[]; total: number };
@@ -142,6 +183,11 @@ export type CoachingData = {
 };
 
 export type SessionReportData = {
+  /** "coach": a coach observation (its scores show once `reviewed`; `nextStep` is the step agreed). */
+  kind?: ScoreKind;
+  coachName?: string | null;
+  form?: "v3" | "observe2" | null;
+  reviewed?: boolean;
   teacher: { teacherExtId: string; name: string };
   date: string;
   grade: string | number | null;
