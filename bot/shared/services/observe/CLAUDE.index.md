@@ -8,8 +8,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 |---|---|
 | `assignment/` | Which schools and teachers a coach sees in the visit picker, and in what order → `assignment/CLAUDE.md` |
 | `observe2/` | /observe2: FICO ICT live field form, checked moments, brief and indicator levels → `observe2/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `bound-teacher.js` | Leaf resolving the bound teacher's users.id for an observation; shared by observe-capture and observe2/capture-link |
 | `coach-directory.js` | Resolves a coach to a work email once, deterministically, into coach_directory (bd-o98ji); never fuzzy |
 | `debrief-retry-sweep.js` | Periodic sweep retrying debrief recordings whose transcription failed after a provider outage (bd-2kxxa.3) |
@@ -131,7 +129,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - column `users.role` (written by `bound-teacher.js`, `observe-teacher-admin.service.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/handlers/flow-response.handler.js:543:e1438837` · `bot/shared/routes/attendance-marking-endpoint.js:381:10ac4b67` · `bot/shared/routes/registration-endpoint.js:104:713d0c02` (+33: `python3 kg/kg.py who-reads users.role`)
 - column `users.school_id` (written by `observe-teacher-admin.service.js`) ← read by `bot/shared/handlers/flow-response.handler.js:543:e1438837` · `bot/shared/routes/attendance-marking-endpoint.js:381:10ac4b67` · `bot/shared/routes/class-manager-endpoint.js:143:aa90cbd2` · `bot/shared/routes/internal-api.routes.js:893:aa90cbd2` (+24: `python3 kg/kg.py who-reads users.school_id`)
 - column `users.source` (written by `bound-teacher.js`) ← read by `dashboard/database/verify-funnel-migration.js:50:680bf0db`
-- table `coaching_sessions` whole row (`*`) (written by `observe-capture.service.js`, `observe-completion.js`, `observe-debrief.service.js`, `observe-draft.service.js`, `observe-resume.service.js`, `observe-send.service.js`, `portal-observe.service.js`) ← read by `bot/shared/handlers/text-message.handler.js:1921:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:742:d2b02c3e`? · `bot/shared/routes/observe-mewaka-endpoint.js:152:d2b02c3e`? · `bot/shared/services/coaching-orchestrator.service.js:225:d2b02c3e`? (+11: `python3 kg/kg.py who-reads coaching_sessions`)
+- table `coaching_sessions` whole row (`*`) (written by `observe-capture.service.js`, `observe-completion.js`, `observe-debrief.service.js`, `observe-resume.service.js`, `observe-send.service.js`, `portal-observe.service.js`) ← read by `bot/shared/handlers/text-message.handler.js:1921:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:742:d2b02c3e`? · `bot/shared/routes/observe-mewaka-endpoint.js:152:d2b02c3e`? · `bot/shared/services/coaching-orchestrator.service.js:225:d2b02c3e`? (+11: `python3 kg/kg.py who-reads coaching_sessions`)
 - table `users` whole row (`*`) (written by `bound-teacher.js`, `observe-roster.js`, `observe-teacher-admin.service.js`, `teacher-edit-commit.service.js`) ← read by `bot/shared/database/bot-helpers.js:28:2ebcf687` · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:687:7a0c163a`? · `dashboard/routes/portal.routes.js:313:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
 - table `coaching_sessions` (written by `observe-capture.service.js`, `observe-completion.js`, `observe-debrief.service.js`, `observe-draft.service.js`, `observe-resume.service.js`, `observe-send.service.js`, `portal-observe.service.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? · `bot/shared/handlers/text-message.handler.js:1920:5911672a`? · `bot/shared/handlers/voice-message.handler.js:741:5911672a`? (+86: `python3 kg/kg.py who-reads coaching_sessions`)
 - table `leader_roster_audit` (written by `observe-teacher-admin.service.js`, `teacher-edit-commit.service.js`) ← read by `scripts/backfill-school-id-from-roster.py:272:e2a4cd80`?
@@ -199,4 +197,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `teacher-fk-binding.js` ← `bot/tests/observe/bd-60093-teacher-fk-binding.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/observe/CLAUDE.index.md`? · `bot/shared/services/observe/CLAUDE.md`? · `bot/shared/services/observe/assignment/CLAUDE.md`? · `bot/shared/services/observe/observe2/CLAUDE.index.md`? · `bot/shared/services/observe/observe2/CLAUDE.md`? · `bot/tests/i18n/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`?
+- docs: `bot/shared/services/CLAUDE.md`?

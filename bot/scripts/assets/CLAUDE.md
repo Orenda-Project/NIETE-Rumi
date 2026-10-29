@@ -1,6 +1,6 @@
 # assets — Generate and upload Flow JSON and reading-passage background assets
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/assets kg=ec57af650617 gen=1a1e2307571d overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/assets kg=94d04bbc6fc1 gen=218571bee6a3 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `upload-flow.js` — push a Flow JSON to Meta
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `generate-passage-backgrounds.js` | Generates child-friendly reading-passage background images per level with DALL-E 3 and uploads them to R2 |
 | `get-flow-errors.js` | Fetches detailed validation errors for a WhatsApp Flow from Meta (reading-assessment flow by default) |
 | `upload-flow.js` | Uploads a WhatsApp Flow JSON asset to Meta for a given flow id |
@@ -26,4 +25,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/assets/CLAUDE.md`?
+- docs: `bot/scripts/CLAUDE.md`?

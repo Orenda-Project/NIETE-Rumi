@@ -1,6 +1,6 @@
 # css — CSS (theme, print, @font-face) for the SIL docs pages
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/fonts/ScheherazadeNew-4.000/documentation/assets/css kg=e9f751338973 gen=95ec143b900f overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/fonts/ScheherazadeNew-4.000/documentation/assets/css kg=e9f751338973 gen=e4cfd9b08686 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `theme.css` — main theme
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `theme.css` | Stylesheet for the Scheherazade New documentation pages, from SIL |
 | `themepdf.css` | Print stylesheet for the Scheherazade New documentation, from SIL |
 | `webfonts.css` | @font-face rules for the Scheherazade New woff/woff2 files used by its docs pages |

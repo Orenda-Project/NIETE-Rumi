@@ -1,6 +1,7 @@
 # shared — Code shared by the web bot and workers: handlers, routes, services glue, config
+Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared kg=2f4a0bd52ddb gen=e2b40dc7f1a5 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared kg=2f4a0bd52ddb gen=e09e64fa4d15 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `handlers/text-message.handler.js` — main inbound router
@@ -13,7 +14,6 @@
 |---|---|
 | 9 sub-dirs, each with `CLAUDE.md` | `calls/` · `config/` · `data/` · `database/` · `handlers/` · `routes/` · `services/` · `templates/` · `utils/` |
 | 5 sub-dirs without a door | `assets/` (36) · `constants/` (2) · `fonts/` (13) · `middleware/` (2) · `storage/` (1) |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - (none)
@@ -26,4 +26,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/shared/calls/CLAUDE.index.md`? · `bot/shared/calls/CLAUDE.md`? · `bot/shared/config/CLAUDE.index.md`? · `bot/shared/config/CLAUDE.md`? (+16)
+- docs: `bot/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/migration/06-from-main-rumi-bot.md`?

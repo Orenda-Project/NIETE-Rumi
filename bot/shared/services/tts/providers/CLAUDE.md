@@ -1,6 +1,6 @@
 # providers — Concrete TTS vendors: ElevenLabs, OpenAI and Soniox behind the gateway
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/tts/providers kg=ac36b28b3225 gen=dab006e82154 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/tts/providers kg=ac36b28b3225 gen=86eb3a2b0e44 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `soniox.provider.js` — parallel parts joined into one stream
@@ -12,7 +12,6 @@
 |---|---|
 | `soniox.provider.js` | Soniox TTS provider (TTS_PROVIDER=soniox): splits text, speaks parts in parallel, joins one Ogg Opus stream |
 | `elevenlabs.provider.js` | ElevenLabs TTS provider adapter, the pre-gateway voice and first fallback behind other providers |
-| `CLAUDE.md` | (unmapped) |
 | `openai.provider.js` | OpenAI TTS provider, last voice in the default fallback chain, with Urdu digit clean-up |
 
 ## Who reads this (generated)
@@ -29,4 +28,4 @@
 - `tests/tts/soniox.provider.test.js` (soniox.provider.js)
 
 ## Related (generated)
-- docs: `bot/shared/services/tts/CLAUDE.index.md`? · `bot/shared/services/tts/CLAUDE.md`? · `bot/shared/services/tts/providers/CLAUDE.md`? · `docs/agent-customization.md`? · `docs/customization.md`?
+- docs: `bot/shared/services/tts/CLAUDE.md`? · `docs/agent-customization.md`? · `docs/customization.md`?

@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `caps.js` | Pure weekly caps deciding whether a nudge may be sent to a teacher, from teacher_nudges rows and the PKT date |
 | `flags.js` | Shared flag reading for R8 nudge switches (flagOn, onUnlessOff) so sweeper, ask and offer agree (bd-mg9c7.159.10) |
 | `lp-coaching-ask.service.js` | The coaching ask: one nudge on the first lesson plan a teacher takes in a day, offering recording and coaching |
@@ -65,4 +63,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `window-closed-template.js` ← `tests/quiz/lp-quiz-offer-window-template.test.js` · `tests/quiz/reminder-stop.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/nudges/CLAUDE.index.md`? · `bot/shared/services/nudges/CLAUDE.md`? · `bot/tests/coaching/weekly-report/CLAUDE.index.md`? · `bot/tests/coaching/weekly-report/CLAUDE.md`? · `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/tests/nudges/CLAUDE.md`? · `docs/quiz-telemetry.md`? · `infrastructure/templates/drafts/CLAUDE.md`? · `infrastructure/templates/drafts/README.md`?
+- docs: `bot/shared/services/CLAUDE.md`? · `docs/quiz-telemetry.md`? · `infrastructure/templates/drafts/README.md`?

@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `assessment-gen-endpoint.js` | Server-driven Assessment Generator Flow: CLASS, COVERAGE, QUESTIONS/PAGES, CONFIRM with Redis session state |
 | `attendance-marking-endpoint.js` | Encrypted Flow endpoint for marking attendance by teacher tap, principal tap or voice review (CLASS to SAVED) |
 | `attendance-setup-endpoint.js` | Encrypted Flow endpoint for attendance class setup; teacher pastes whole roster, parsed server-side |
@@ -100,7 +98,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - column `users.preferences` (written by `settings-endpoint.js`) ← read by `bot/shared/handlers/flow-response.handler.js:761:6d7fc8d6` · `bot/shared/services/coaching/frameworks/framework-selector.js:65:ff3cc75a` · `bot/shared/services/coaching/video-reco/clip-pref.js:49:03cf518a` · `dashboard/services/video-reco-events.js:64:b29a87bb`
 - table `lesson_plan_requests` whole row (`*`) (written by `homework-request-endpoint.js`) ← read by `bot/shared/services/lesson-plan-queue.service.js:320:d2b02c3e`? · `bot/scripts/requeue-lesson-plan.js:42:d2b02c3e`?
 - table `student_lists` whole row (`*`) (written by `attendance-setup-endpoint.js`, `edit-class-endpoint.js`) ← read by `bot/shared/services/student-list.service.js:263:d2b02c3e`?
-- table `students` whole row (`*`) (written by `attendance-setup-endpoint.js`, `edit-class-endpoint.js`) ← read by `bot/shared/services/student-list.service.js:362:d2b02c3e`?
+- table `students` whole row (`*`) (written by `edit-class-endpoint.js`) ← read by `bot/shared/services/student-list.service.js:362:d2b02c3e`?
 - table `users` whole row (`*`) (written by `settings-endpoint.js`) ← read by `bot/shared/database/bot-helpers.js:28:2ebcf687`? · `bot/shared/database/queries.js:14:77bc023b`? · `dashboard/database/queries.js:687:7a0c163a`? · `dashboard/routes/portal.routes.js:313:d2b02c3e`? (+1: `python3 kg/kg.py who-reads users`)
 - table `coaching_sessions` (written by `observe2-check-endpoint.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? · `bot/shared/handlers/text-message.handler.js:1920:5911672a`? · `bot/shared/handlers/voice-message.handler.js:741:5911672a`? (+85: `python3 kg/kg.py who-reads coaching_sessions`)
 - table `lesson_plan_requests` (written by `homework-request-endpoint.js`) ← read by `bot/shared/services/lesson-plan-queue.service.js:50:f61b5e94`? · `bot/shared/services/lp-v8-lifecycle.service.js:43:f61b5e94`? · `bot/shared/services/monitoring/lesson-plan-health.service.js:330:c661c05e`? · `bot/shared/services/teacher-state.service.js:93:f61b5e94`? (+2: `python3 kg/kg.py who-reads lesson_plan_requests`)
@@ -149,4 +147,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `registration`?
-- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/shared/CLAUDE.md`? · `bot/shared/routes/CLAUDE.index.md`? · `bot/shared/routes/CLAUDE.md`? · `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/tests/lp-v8/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/tests/observe/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.md`? · `bot/tests/registration/CLAUDE.md`? · `bot/tests/routes/CLAUDE.md`? · `bot/tests/services/CLAUDE.index.md`? · `bot/tests/services/CLAUDE.md`? · `docs/features/video-quiz.md`? · `docs/quiz-telemetry.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `tests/BASELINE.md`?
+- docs: `bot/shared/CLAUDE.md`? · `docs/features/video-quiz.md`? · `docs/quiz-telemetry.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `tests/BASELINE.md`?

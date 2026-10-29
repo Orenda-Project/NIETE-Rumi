@@ -1,7 +1,7 @@
 # bot — NIETE WhatsApp bot: webhook, workers, services, tests, migrations
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot kg=623f51f3d0be gen=1204dfe362a6 overflow=52 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot kg=480a1dcc76ca gen=253d43bdc6c9 overflow=50 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `whatsapp-bot.js` — the Express webhook (GET/POST /webhook at :467/:488) and button/message routing
@@ -14,14 +14,14 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | 10 sub-dirs, each with `CLAUDE.md` | `06_MMS_Inference_Service/` · `dashboard/` · `database/` · `docs/` · `fonts/` · `scripts/` · `shared/` · `tests/` · `vendor/` · `workers/` |
 | 5 sub-dirs without a door | `.github/` (1) · `assets/` (133) · `data/` (2) · `marketing/` (1) · `test-assets/` (4) |
-| `CLAUDE.index.md` | (unmapped) |
-| … | 10 more → `CLAUDE.index.md` |
+| `whatsapp-bot.js` | Express entry point of the NIETE bot: Meta webhook (signature-checked), button/message routing to handlers, health |
+| … | 21 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - table `reading_assessments` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:748:4337985e`? · `dashboard/routes/portal.routes.js:8256:4337985e`? (+12)
 - table `reading_assessments` whole row (`*`) (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:749:7a0c163a`? · `dashboard/routes/portal.routes.js:8332:d2b02c3e`? (+4)
 - `package.json` ← imported by `bot/whatsapp-bot.js:2763:056c465a`
-- … 5 more → `CLAUDE.index.md`
+- … 11 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Require `shared/services/queue` (the index), never a driver file — both drivers share one surface (shared/services/queue/index.js:6-9)
@@ -34,6 +34,6 @@ Full index: `CLAUDE.index.md`
 - … 36 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- skills: `coaching`? · `debugging`? · `digital-coach`? · `feature-tracer`? · `video-generation`? · `whatsapp-flows`?
-- docs: `CLAUDE.md`? · `README.md`? · `SECURITY.md`? · `bot/06_MMS_Inference_Service/CLAUDE.md`? · `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? (+45)
+- skills: `coaching`? · `video-generation`? · `whatsapp-flows`?
+- docs: `CLAUDE.md`? · `SECURITY.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/architecture.md`? (+5)
 - … 1 more → `CLAUDE.index.md`

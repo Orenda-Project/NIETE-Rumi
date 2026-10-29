@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `arm.js` | Assigns a recommendation's A/B arm by salted teacher-id hash; control rows are stored as shadow (bd-gzfdu9) |
 | `caption-link.js` | Appends the clip's /v link to the report caption instead of a separate billed WhatsApp message (bd-9dbhh0.1) |
 | `card-image.js` | Renders the 16:9 "watch this clip" header image (thumbnail, play circle, length pill, title) via htmlToImage |
@@ -91,4 +89,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `urdu-terms.js` ← `tests/coaching/video-reco/r7k-urdu-v2.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/video-reco/CLAUDE.index.md`? · `bot/shared/services/coaching/video-reco/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.md`?

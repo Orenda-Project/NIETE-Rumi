@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `record-sa-voice-v4.test.js` | Pins record-sa-voice.js --set v4: whole bank re-voiced per provider into sa/v4 keys with respellings and tashdeed |
 | `sa-add-child.test.js` | Pins the sa_add_child switch: seating an off-roster child via draw.addChild, refusals, and no name in logs |
 | `sa-all-grade-forms.test.js` | Pins coach forms for Grades 1-5 resolving coach.G<grade>.A with items shared from existing forms |
@@ -72,4 +70,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/scripts/child-test/CLAUDE.md`? · `bot/shared/data/child-test/CLAUDE.index.md`? · `bot/shared/data/child-test/CLAUDE.md`? · `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/app/CLAUDE.index.md`? · `bot/shared/services/child-test/app/CLAUDE.md`? · `bot/shared/services/child-test/conversation/CLAUDE.index.md`? · `bot/shared/services/child-test/conversation/CLAUDE.md`? · `bot/shared/services/child-test/sa/CLAUDE.index.md`? · `bot/shared/services/child-test/sa/CLAUDE.md`? · `bot/shared/services/child-test/scoring/CLAUDE.index.md`? · `bot/shared/services/child-test/scoring/CLAUDE.md`? · `bot/shared/services/quiz/CLAUDE.index.md`? · `bot/shared/services/settings/CLAUDE.md`? · `bot/shared/utils/CLAUDE.index.md`? · `bot/tests/CLAUDE.index.md`? · `bot/tests/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`? · `bot/tests/child-test/CLAUDE.md`?
+- docs: `bot/scripts/child-test/CLAUDE.md`? · `bot/shared/data/child-test/CLAUDE.md`? · `bot/shared/services/child-test/app/CLAUDE.md`? · `bot/shared/services/child-test/sa/CLAUDE.md`? · `bot/shared/services/child-test/scoring/CLAUDE.md`? · `bot/shared/services/settings/CLAUDE.md`? · `bot/tests/CLAUDE.md`?

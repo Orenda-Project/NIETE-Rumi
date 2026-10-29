@@ -1,7 +1,7 @@
 # first-touch — One-door /quiz entry, quiz-maker and teacher-home pages, all switch-gated
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/first-touch kg=4475fdd85bc8 gen=7f27d76efac0 overflow=166 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/first-touch kg=015e861dd13f gen=b78ec31e0cb0 overflow=163 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `one-door.service.js` — the single reply for any quiz request
@@ -14,7 +14,8 @@ Full index: `CLAUDE.index.md`
 |---|---|
 | `teacher-home.flags.js` | Reads the teacher home switches quiz_teacher_home, _paged and server_timing; JSON-true semantics, 30s cache |
 | `maker*` | 13 files; most used `maker.bank.js`: Builds the quiz-maker chip tree (grade, subject, topic) from the live video-bank quizzes and makes the quiz |
-| … | 33 more → `CLAUDE.index.md` |
+| `one*` | 4 files; most used `one-door.flags.js`: Reads the quiz_one_door switch and reply ceiling app_settings in one cached, fail-closed read |
+| … | 52 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - table `quiz_share_codes` (written by `teacher-home.send.js`) ← read by `bot/shared/services/quiz/child-identity-reuse.js:31:2111be10`? · `bot/shared/services/quiz/handout-class.service.js:193:5b028a07`? (+28)
@@ -32,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - … 84 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/first-touch/CLAUDE.index.md`? · `bot/shared/services/first-touch/CLAUDE.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/push/CLAUDE.md`? (+2)
+- docs: `bot/shared/services/CLAUDE.md`?

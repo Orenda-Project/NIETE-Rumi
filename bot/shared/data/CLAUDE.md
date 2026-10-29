@@ -1,6 +1,6 @@
 # data — Static data the bot loads: child-test banks, LP SLO tags, Urdu term lists
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data kg=15a96e5d05bf gen=58259aa4f678 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data kg=15a96e5d05bf gen=dfcda0883c19 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `child-test/` — EGRA/EGMA item banks and passages
@@ -14,7 +14,6 @@
 | `video-catalog.v1.json` | (unmapped) |
 | `lp612-fbise-slo-tags.json` | Map of 6-12 LP segment ids to FBISE SLO codes and status (Summative etc.) |
 | `video-reco-urdu-terms.v1.json` | Urdu terms the video-recommendation engine may use in teacher-facing reason lines, owned by the pedagogy panel |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - `lp612-fbise-slo-tags.json` ← imported by `bot/shared/services/lp612-fbise-tags.js:11:3246f1c6`
@@ -37,4 +36,4 @@ _None found in code comments, tests or git log for this directory._
 - `tests/lp612/fbise-slo-chips.test.js` (lp612-fbise-slo-tags.json)
 
 ## Related (generated)
-- docs: `bot/shared/CLAUDE.md`? · `bot/shared/data/CLAUDE.md`? · `bot/shared/data/child-test/CLAUDE.index.md`? · `bot/shared/data/child-test/CLAUDE.md`?
+- docs: `bot/shared/CLAUDE.md`?

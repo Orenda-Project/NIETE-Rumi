@@ -10,8 +10,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `00_complete-schema.sql` | Full fresh-install schema (v2.0.0, dumped from prod 2026-02-17): tables, functions, triggers; bootstrap-db.js step 1 |
 | `01_rls-policies.sql` | Enables row level security and service-role policies on the platform tables; run after 00_complete-schema |
 | `02_seed-data.sql` | Seeds reference data for a fresh install: WCPM/LCPM benchmarks and the region_features default |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `verify-schema.sql` | Post-setup queries that each return a row only if an expected table exists; empty result means a missing table |
 
 ## Who reads this (all, generated)
@@ -996,4 +994,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `ab-testing`? · `database-analysis`? · `feature-tracer`?
-- docs: `.claude/qa/fixtures/whatsapp/niete/training-seed-plan.md`? · `.claude/skills/data-standards/reference/audit-report-format.md`? · `.claude/skills/database-analysis/reference/query-patterns.md`? · `SECURITY.md`? · `SETUP.md`? · `docs/agent-customization.md`? · `docs/architecture.md`? · `docs/data-standards.md`? · `docs/features/homework.md`? · `docs/features/quiz.md`? · `infrastructure/CLAUDE.index.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/supabase/CLAUDE.index.md`? · `infrastructure/supabase/CLAUDE.md`? · `infrastructure/supabase/migrations/CLAUDE.index.md`? · `infrastructure/supabase/migrations/CLAUDE.md`? · `tests/BASELINE.md`?
+- docs: `.claude/qa/fixtures/whatsapp/niete/training-seed-plan.md`? · `.claude/skills/data-standards/reference/audit-report-format.md`? · `.claude/skills/database-analysis/reference/query-patterns.md`? · `SECURITY.md`? · `SETUP.md`? · `docs/agent-customization.md`? · `docs/architecture.md`? · `docs/data-standards.md`? · `docs/features/homework.md`? · `docs/features/quiz.md`? · `infrastructure/CLAUDE.md`? · `tests/BASELINE.md`?

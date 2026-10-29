@@ -23,8 +23,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `templates/` | Menu carousel template creation and video upload; WABA-bound ids → `templates/CLAUDE.md` |
 | `testing/` | Local chat and webhook simulators for manual testing → `testing/CLAUDE.md` |
 | `video-reco/` | Builds the training-video catalogue for the recommender → `video-reco/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `apply-lp-splits.js` | Applies data/lp_splits.json to committed lp_catalog.json on machines without the ingestion tree; --check is CI-friendly |
 | `apply-lp612-figure-notes.js` | Additively writes the diagram-plan figure directive into each Grades 6-12 segment's notes (bd-17mht) |
 | `apply-lp612-salutation-stamps.js` | Restores the salutation to eight Grades 6-12 menu titles that dropped it (bd-d6c8y, operator ruling 2026-09-23) |
@@ -99,12 +97,15 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `AWS_SECRET_ACCESS_KEY` read at `bot/scripts/requeue-lesson-plan.js:24:2d6a8510`
 - env `AXIOM_DATASET` read at `bot/scripts/quiz-funnel-watch.js:70:e919f174`
 - env `AXIOM_TOKEN` read at `bot/scripts/check-balochi-history.js:11:67663e32` · `bot/scripts/debug-balochi.js:12:67663e32`
+- env `ENV_FILE` read at `bot/scripts/run_upload.sh:63:4c591906`
 - env `FLOW_ENDPOINT_BASE` read at `bot/scripts/register-student-quiz-flow.js:25:5b85a09e`
 - env `GRAPH_API_VERSION` read at `bot/scripts/send-outage-broadcast.js:19:ddcada1f` · `bot/scripts/set-conversational-components.js:36:bbb8581f` · `bot/scripts/upload-staging-video.js:19:ddcada1f`
 - env `LP_SEGMENTATION_DIR` read at `bot/scripts/build-lp-catalog.js:512:010859b5`
 - env `LP_TOC_DIR` read at `bot/scripts/build-lp-catalog.js:513:bfd5f9f4`
-- env `LP_V8_LOG_DIR` read at `bot/scripts/upload-lp-v8-to-r2.js:791:ed3e9549`
+- env `LP_V8_CORPUS` read at `bot/scripts/run_upload.sh:35:f093f4fa`
+- env `LP_V8_LOG_DIR` read at `bot/scripts/run_upload.sh:155:be45d167` · `bot/scripts/upload-lp-v8-to-r2.js:791:ed3e9549`
 - env `MISTRAL_API_KEY` read at `bot/scripts/exam-checker-dry-run.js:15:0dd6ee05`
+- env `NIETE_ENV_FILE` read at `bot/scripts/run_upload.sh:36:8549e2c9`
 - env `OPENAI_API_KEY` read at `bot/scripts/exam-checker-dry-run.js:18:d7d391c6`
 - env `PHONE_NUMBER` read at `bot/scripts/simulate.js:38:ce60a1d4`
 - env `PHONE_NUMBER_ID` read at `bot/scripts/send-outage-broadcast.js:18:c79e4792` · `bot/scripts/set-conversational-components.js:45:89b78868` · `bot/scripts/setup-flow-encryption.js:30:c79e4792` · `bot/scripts/simulate.js:17:2c0e23ec` · `bot/scripts/upload-staging-video.js:17:2cab844a`
@@ -148,4 +149,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `verify-lp-v8-r2.js` ← `bot/tests/lp-v8/uploader-r2-only.test.js`
 
 ## Related (all, generated)
-- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/assessment/CLAUDE.index.md`? · `bot/scripts/assessment/CLAUDE.md`? · `bot/scripts/assets/CLAUDE.md`? · `bot/scripts/audit/CLAUDE.md`? · `bot/scripts/child-test/CLAUDE.md`? · `bot/scripts/deployment/CLAUDE.index.md`? · `bot/scripts/deployment/CLAUDE.md`? · `bot/scripts/docs/CLAUDE.md`? · `bot/scripts/e2e/CLAUDE.index.md`? · `bot/scripts/e2e/CLAUDE.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.md`? · `bot/scripts/load/CLAUDE.md`? · `bot/scripts/migration/CLAUDE.md`? · `bot/scripts/onboarding/CLAUDE.md`? · `bot/scripts/ops/CLAUDE.md`? · `bot/scripts/quiz/CLAUDE.index.md`? · `bot/scripts/quiz/CLAUDE.md`? · `bot/scripts/render/CLAUDE.md`? · `bot/scripts/setup/CLAUDE.index.md`? · `bot/scripts/setup/CLAUDE.md`? · `bot/scripts/templates/CLAUDE.md`? · `bot/scripts/testing/CLAUDE.md`? · `bot/scripts/video-reco/CLAUDE.md`? · `bot/tests/coaching/weekly-report/CLAUDE.index.md`? · `bot/tests/coaching/weekly-report/CLAUDE.md`? · `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/tests/lp-v8/CLAUDE.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.md`? · `bot/tests/unit/CLAUDE.md`? · `docs/LP_PATHS.md`? · `docs/e2e-mock-lane.md`? · `docs/lp612/video-enhancement-test.md`?
+- docs: `bot/CLAUDE.md`? · `docs/LP_PATHS.md`? · `docs/e2e-mock-lane.md`? · `docs/lp612/video-enhancement-test.md`?

@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `bank-v3.js` | Conversation's read of the v3 item bank: task ids in visit order, task specs and booklet page numbers (CONTRACT 21.3) |
 | `context.js` | Infers where a child test happens (visit, school, observed teacher's Grade 3/5 class) so the coach is asked nothing... |
 | `copy.js` | Coach copy for the child test from the ux-strings catalog (childTest* keys), Urdu default, Urdu digits |
@@ -66,4 +64,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `switches.js` ← `tests/child-test/L36/journey-v3.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/conversation/CLAUDE.index.md`? · `bot/shared/services/child-test/conversation/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`?
+- docs: `bot/shared/services/child-test/CLAUDE.md`?

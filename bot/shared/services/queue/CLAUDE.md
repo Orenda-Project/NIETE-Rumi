@@ -1,7 +1,7 @@
 # queue — Queue driver selector: SQS default or BullMQ over Redis, same method surface
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/queue kg=0eb7e98cb3b0 gen=539bb062ca4b overflow=51 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/queue kg=614d895fdf54 gen=21157ad8926a overflow=50 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — QUEUE_DRIVER selection used by producers and sqs-worker
@@ -14,8 +14,6 @@ Full index: `CLAUDE.index.md`
 | `sqs-queue.service.js` | AWS SQS FIFO queue service for coaching, lesson plan and video jobs with dedup ids; used by sqs-worker |
 | `index.js` | Selects the queue driver (sqs default or bullmq) from QUEUE_DRIVER for producers and workers |
 | `bullmq-queue.service.js` | BullMQ Redis queue driver with the same surface as the SQS driver, for AWS-free deployments |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - `index.js` ← imported by `bot/shared/routes/homework-request-endpoint.js:21:12f2ae3c` · `bot/shared/services/assessment/assessment-request.service.js:140:75453fe6` (+21)
@@ -33,7 +31,8 @@ Full index: `CLAUDE.index.md`
 - `tests/llm/cost-user-attribution.test.js` (bullmq-queue.service.js, sqs-queue.service.js)
 - `tests/queue/queue-driver-parity.test.js` (bullmq-queue.service.js, sqs-queue.service.js)
 - `tests/quiz/quiz-queue-uses-driver.test.js` (bullmq-queue.service.js, sqs-queue.service.js)
-- … 51 more → `CLAUDE.index.md`
+- `bot/tests/observe/bd-lh9c2-dedup-nonce-wired.test.js` (sqs-queue.service.js)
+- … 50 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `CLAUDE.md`? · `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/README.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? (+8)
+- docs: `CLAUDE.md`? · `bot/CLAUDE.md`? · `bot/README.md`? · `bot/shared/services/CLAUDE.md`? · `docs/agent-customization.md`? · `docs/architecture.md`?

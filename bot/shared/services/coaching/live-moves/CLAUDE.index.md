@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `card-store.js` | Loads the v10 card's moves from the card JSON beside its R2 PDF, 10-minute cache, null on any miss (bd-v0toag.31) |
 | `detector-prompt.js` | Prompt and parser asking which unticked lesson-plan moves the latest live transcript shows done (bd-v0toag.31) |
 | `detector.js` | Calls the fidelity model for live move ticks with a 20s timeout; never throws, ticks nothing on failure |
@@ -41,4 +39,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `switch.js` ← `tests/coaching/live-moves/switch.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/live-moves/CLAUDE.index.md`? · `bot/shared/services/coaching/live-moves/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.md`?

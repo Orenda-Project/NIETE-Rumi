@@ -1,7 +1,7 @@
 # draw — Which children a coach tests: seeded per-class draw, cycles, term sets, visit keys
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/draw kg=0cbed4a5921c gen=8d46cb168bb3 overflow=16 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/draw kg=0dda9c7c8686 gen=a11fb296b338 overflow=12 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — todaysList, markOutcome, addChild, frame snapshot
@@ -15,15 +15,16 @@ Full index: `CLAUDE.index.md`
 | `visit-key.js` | Parses and builds visit keys (cs:/day:) for child-test draws on visits with no observe2 field form |
 | `cycle.js` | Maps a date to its Pakistan-time quarter cycle id (ICT-YYYY-Qn) and the Aug-Jul academic session code |
 | `shuffle.js` | Seeded Fisher-Yates shuffle (HMAC of cycle and class) so ranks are unpredictable yet auditable; stores only a digest |
-| `CLAUDE.md` | (unmapped) |
-| … | 3 more → `CLAUDE.index.md` |
+| `class-label.js` | Names a classroom as teachers read it (Grade 3 - B, evening, short form) in English and Urdu (R1 7.1) |
+| `term-set.js` | Picks the card set (A/B) for a cycle, alternating by quarter, and the CHILD_TEST_FORM_POLICY switch |
 
 ## Who reads this (generated)
 - `visit-key.js` ← imported by `bot/shared/services/child-test/app/sa-api.service.js:51:02a8f71f` · `bot/shared/services/child-test/conversation/machine.js:51:4db8f781` (+3)
 - `cycle.js` ← imported by `bot/shared/services/sa-game/store-adapter.js:30:a6c5b7c9` · `scripts/child-test/seed-sandbox.js:152:9fd5cd5b` (+1)
 - `class-label.js` ← imported by `bot/shared/services/child-test/check-flow/check-store.js:20:a8c1bf9b` · `bot/shared/services/child-test/draw/index.js:44:4677f11c`
 - `index.js` ← imported by `bot/shared/services/child-test/app/app-api.service.js:109:7ce125b7` · `scripts/child-test/smoke-sandbox.js:28:ea229281`
-- … 3 more → `CLAUDE.index.md`
+- `shuffle.js` ← imported by `bot/shared/services/child-test/draw/index.js:42:edd7d628`
+- … 4 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Changing the shuffle changes every future order: bump ALGO_VERSION (shuffle.js:12)
@@ -35,4 +36,4 @@ Full index: `CLAUDE.index.md`
 - … 10 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/draw/CLAUDE.index.md`? · `bot/shared/services/child-test/draw/CLAUDE.md`? · `bot/tests/sa-game/CLAUDE.md`?
+- docs: `bot/shared/services/child-test/CLAUDE.md`?

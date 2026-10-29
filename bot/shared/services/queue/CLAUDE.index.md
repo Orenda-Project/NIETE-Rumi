@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `bullmq-queue.service.js` | BullMQ Redis queue driver with the same surface as the SQS driver, for AWS-free deployments |
 | `index.js` | Selects the queue driver (sqs default or bullmq) from QUEUE_DRIVER for producers and workers |
 | `sqs-queue.service.js` | AWS SQS FIFO queue service for coaching, lesson plan and video jobs with dedup ids; used by sqs-worker |
@@ -36,4 +34,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `sqs-queue.service.js` ← `bot/tests/observe/bd-lh9c2-dedup-nonce-wired.test.js` · `bot/tests/observe/bd-rkofm-lang-toggle-dedup.test.js` · `bot/tests/observe/observe-debrief-requeue.test.js` · `bot/tests/quiz/chat-quiz-report-send-checked.test.js` · `bot/tests/quiz/lp-quiz-list.test.js` · `bot/tests/quiz/lp-quiz-queue-failed.test.js` (+40: `python3 kg/kg.py who-reads bot/shared/services/queue/sqs-queue.service.js`)
 
 ## Related (all, generated)
-- docs: `CLAUDE.md`? · `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/README.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.index.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/tests/quiz/CLAUDE.index.md`? · `bot/tests/workers/CLAUDE.index.md`? · `bot/tests/workers/CLAUDE.md`? · `docs/agent-customization.md`? · `docs/architecture.md`?
+- docs: `CLAUDE.md`? · `bot/CLAUDE.md`? · `bot/README.md`? · `bot/shared/services/CLAUDE.md`? · `docs/agent-customization.md`? · `docs/architecture.md`?

@@ -1,7 +1,7 @@
 # render — Renders child cards, print packs and coach sheets from the item bank
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/render kg=579c6e7d6a7f gen=0e436aa51007 overflow=17 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/render kg=1aa0c18ddbc7 gen=243e7076abcf overflow=13 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — renderInlineCards, renderPrintableCard, renderCoachSheet
@@ -16,7 +16,9 @@ Full index: `CLAUDE.index.md`
 | `.v*.js` | 2 versions — v3 imported; v3: Builds the v3 print pack: child stimulus booklets and coach sheets from the v3 bank (bd-s1oo0.50.4, L38) |
 | `fonts.js` | Base64-embeds the Andika and Urdu fonts as @font-face for the Chromium that renders child-test cards (bd-s1oo0.2) |
 | `index.js` | Renders inline PNG cards, A4 printable card and coach sheet PDFs from the item bank (bd-s1oo0.2, L2) |
-| … | 5 more → `CLAUDE.index.md` |
+| `sizing.js` | Type-size and card-width constants so stimulus text stays legible inside a phone chat bubble (bd-s1oo0.2) |
+| `source.js` | Resolves the item-bank form a render reads, from the accessor or an injected bank (bd-s1oo0.2) |
+| … | 2 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `fonts.js` ← imported by `bot/shared/services/child-test/render/html.js:14:d3e47dca` · `bot/shared/services/child-test/render/v2.js:22:d3e47dca` (+1)
@@ -35,4 +37,4 @@ Full index: `CLAUDE.index.md`
 - … 10 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/render/CLAUDE.index.md`? · `bot/shared/services/child-test/render/CLAUDE.md`?
+- docs: `bot/shared/services/child-test/CLAUDE.md`?

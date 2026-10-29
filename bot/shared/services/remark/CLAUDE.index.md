@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `remark-cycle.repository.js` | Evaluation cycles and a principal's roster/progress; resume position is derived from written rows (bd-2531) |
 | `remark-delivery.deps.js` | Live wiring of the collaborators submitRemark needs, which had no callers before (bd-2712) |
 | `remark-delivery.service.js` | submitRemark: persists scores then delivers teacher narrative (no scores) and principal copy (with scores) (bd-2531) |
@@ -49,4 +47,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `remark-write.repository.js` ← `bot/tests/services/remark-write.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/remark/CLAUDE.index.md`? · `bot/shared/services/remark/CLAUDE.md`? · `bot/tests/services/CLAUDE.index.md`?
+- docs: `bot/shared/services/CLAUDE.md`?

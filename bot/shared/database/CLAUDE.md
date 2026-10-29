@@ -1,7 +1,7 @@
 # database — Supabase helpers for users and sessions, dashboard queries, original schema
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/database kg=7fab397a7a20 gen=0e629cd86f00 overflow=45 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/database kg=8b58160ad511 gen=e19417e9da59 overflow=44 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `bot-helpers.js` — getOrCreateUser, sessions, conversations
@@ -11,10 +11,8 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `__mocks__/` | → (no door; 1 test files) |
+| `__mocks__/` | → (no door; 1 files: 0 test + 1 support) |
 | `bot-helpers.js` | User and session helpers: getOrCreateUser (race-safe on 23505), sessions, conversation rows used by all handlers |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `queries.js` | Analytics queries (users, voice notes, messages, activity) backing the legacy admin dashboard |
 | `schema.sql` | Original v3.0 Rumi bot Postgres schema (Nov 2025: users, conversations, sessions); historical baseline only |
 
@@ -23,7 +21,8 @@ Full index: `CLAUDE.index.md`
 - column `users.id` (written by `schema.sql`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632` · `bot/shared/calls/call-context.repo.js:36:6776a642` (+157)
 - column `users.phone_number` (written by `bot-helpers.js` (+1)) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/routes/homework-request-endpoint.js:51:0b64c13f` (+89)
 - column `users.name` (written by `schema.sql`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/calls/call-tools.repo.js:242:774e00e5` (+62)
-- … 37 more → `CLAUDE.index.md`
+- table `lesson_plans` (written by `bot-helpers.js`) ← read by `bot/shared/routes/quiz-flow-endpoint.js:158:611f2601`? · `bot/shared/services/coaching/lp-coaching/lp-coaching-linker.service.js:158:611f2601`? (+14)
+- … 36 more → `CLAUDE.index.md`
 
 ## Never (human)
 - schema.sql is the Nov 2025 baseline only; live schema: infrastructure/supabase/migrations/ (infrastructure/scripts/migrate.js:324-327) + hand-applied bot/database/migrations/
@@ -35,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - … 8 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/CLAUDE.md`? · `bot/shared/database/CLAUDE.index.md`? · `bot/shared/database/CLAUDE.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/first-touch/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? (+4)
+- docs: `bot/shared/CLAUDE.md`? · `docs/data-standards.md`?

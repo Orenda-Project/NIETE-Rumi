@@ -1,6 +1,6 @@
 # status — Decision for the /status reply before anything is sent
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/status kg=c060236bb2ba gen=8e40abbd559a overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/status kg=c060236bb2ba gen=92d30df2defa overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `status-command.js` — decideStatusReply
@@ -10,7 +10,6 @@
 | path | purpose |
 |---|---|
 | `status-command.js` | Decides the /status reply before sending: Flow CTA only when something is running, else a plain answer |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - `status-command.js` ← imported by `bot/shared/handlers/text-message.handler.js:2378:ffcdf824`
@@ -23,4 +22,4 @@
 - `tests/status/status-command.test.js` (status-command.js)
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/status/CLAUDE.md`?
+- docs: `bot/shared/services/CLAUDE.md`?

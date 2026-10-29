@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `eval-compare.js` | Shared mark-vs-key comparison functions and tolerance bands used by the child-test eval and the simulation scorer |
 | `eval-real-pairs.js` | Scores every May 2026 study composite with the go-live pipeline for AI vs enumerator comparison (bd-s1oo0.40) |
 | `eval-scoring.js` | Offline eval of the child-test scoring pipeline (scoreBlock) over audio fixtures, compared with their keys (bd-s1oo0.5) |
@@ -69,4 +67,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `seed-sandbox.js` ← `tests/child-test/L3/seed-guard.test.js`
 
 ## Related (all, generated)
-- docs: `.claude/qa/agents/niete-child-test-agent.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `docs/e2e-mock-lane.md`? · `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/child-test/CLAUDE.index.md`? · `scripts/child-test/CLAUDE.md`?
+- docs: `.claude/qa/agents/niete-child-test-agent.md`? · `docs/e2e-mock-lane.md`? · `scripts/CLAUDE.md`?

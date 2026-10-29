@@ -8,8 +8,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 |---|---|
 | `pictures/` | Colour picture bank (Fluent Emoji glyphs) the web quiz draws nouns with → `pictures/CLAUDE.md` |
 | `providers/` | Lesson providers for /quiz that make a quiz from a Grades 6-12 lesson plan → `providers/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `child-bind-codes.repo.js` | Mints, reads and spends single-use JUGNU- codes (child_bind_codes) a family sends on WhatsApp to bind a phone to a child |
 | `child-flow-token.js` | Builds/parses phone-keyed Student Videos Flow token so anonymous children get video rounds with no users row (bd-2475) |
 | `child-identity-reuse.js` | Finds the one loose child already on this device across a teacher's codes, so a retyped name is not a second record |
@@ -658,7 +656,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - table `story_books` whole row (`*`) (written by `story-load.js`) ← read by `bot/shared/services/quiz/web-quiz-stories.js:170:fddd2509`
 - table `story_page_voices` whole row (`*`) (written by `story-load.js`) ← read by `bot/shared/services/quiz/web-quiz-stories.js:488:57b81e71`
 - table `story_questions` whole row (`*`) (written by `story-load.js`) ← read by `bot/shared/services/quiz/web-quiz-stories.js:429:3c0122ea`?
-- table `students` whole row (`*`) (written by `student-identity.service.js`, `web-quiz-grade-change.js`, `web-quiz-handset.js`, `web-quiz-join-queue.js`, `web-quiz-student-join.js`, `web-quiz.service.js`) ← read by `bot/shared/services/student-list.service.js:362:d2b02c3e`?
+- table `students` whole row (`*`) (written by `student-identity.service.js`, `web-quiz-grade-change.js`, `web-quiz-join-queue.js`, `web-quiz-student-join.js`, `web-quiz.service.js`) ← read by `bot/shared/services/student-list.service.js:362:d2b02c3e`?
 - table `child_identity` (written by `web-quiz-challenge-draw.js`, `web-quiz-class-round.js`) ← read by `bot/shared/services/quiz/web-quiz-book.js:122:5cc1897f`? · `bot/shared/services/quiz/web-quiz-challenge-draw.js:387:562d7bbf`? · `bot/shared/services/quiz/web-quiz-class-round.js:313:fdd4fd61`? · `bot/shared/services/quiz/web-quiz-join-queue.js:344:2a1a85c7`? (+1: `python3 kg/kg.py who-reads child_identity`)
 - table `class_links` (written by `web-quiz-class-link.js`) ← read by `bot/shared/services/quiz/teacher-class-week.js:81:12f6bc99`? · `bot/shared/services/quiz/teacher-jugnu.data.js:123:12f6bc99`?
 - table `class_round_draws` (written by `teacher-class-week.js`, `web-quiz-class-round-sampler.js`, `web-quiz-class-round.js`) ← read by `bot/shared/services/quiz/teacher-class-week.js:64:3238c2fd`? · `bot/shared/services/quiz/web-quiz-class-round-sampler.js:125:70c5a4a9`? · `bot/shared/services/quiz/web-quiz-class-round.js:54:f9c5503f`? · `bot/shared/services/quiz/web-quiz-sample-ping.js:133:2cef251c`? (+1: `python3 kg/kg.py who-reads class_round_draws`)
@@ -984,4 +982,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `web-quiz.service.js` ← `bot/tests/push/web-quiz-push-finish.test.js` · `bot/tests/quiz/old-link-reoffer.test.js` · `bot/tests/quiz/web-quiz/child-identity-canon-fold.test.js` · `bot/tests/quiz/web-quiz/sent-quiz-class-resolve.test.js` · `bot/tests/quiz/web-quiz/story-teacher.test.js` · `bot/tests/quiz/web-quiz/teacher-report-internal-routes.test.js` (+98: `python3 kg/kg.py who-reads bot/shared/services/quiz/web-quiz.service.js`)
 
 ## Related (all, generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/quiz/CLAUDE.index.md`? · `bot/shared/services/quiz/CLAUDE.md`? · `bot/shared/services/quiz/pictures/CLAUDE.md`? · `bot/shared/services/quiz/providers/CLAUDE.index.md`? · `bot/shared/services/quiz/providers/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/handlers/CLAUDE.index.md`? · `bot/tests/handlers/CLAUDE.md`? · `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/tests/push/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? · `bot/tests/quiz/teacher-quiz-menu/CLAUDE.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `bot/tests/routes/CLAUDE.md`? · `bot/tests/sa-game/CLAUDE.md`? · `bot/tests/settings/CLAUDE.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/features/quiz.md`? · `docs/features/video-quiz.md`? · `docs/migration/05-exam-generator.md`? · `docs/quiz-telemetry.md`?
+- docs: `bot/shared/services/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/features/quiz.md`? · `docs/features/video-quiz.md`? · `docs/migration/05-exam-generator.md`? · `docs/quiz-telemetry.md`?

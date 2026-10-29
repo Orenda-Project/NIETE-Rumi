@@ -1,7 +1,7 @@
 # database — Legacy v3.0 schema, guides and ad-hoc SQL migrations from the main-bot era
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/database kg=af87bbf88c68 gen=7b9c01647e6f overflow=22 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/database kg=af87bbf88c68 gen=4ba1de2029f7 overflow=21 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `migrations/web_quiz_challenge_registry.sql` — requires:/rollback-pair header style; apply sandbox first
@@ -12,8 +12,6 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `migrations/` | Hand-applied SQL migrations (no runner); newer ones carry a *_rollback.sql file → `migrations/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `schema.sql` | Original v3.0 Rumi base schema (users, conversations, audio_sessions and more); stale vs the numbered migrations |
 | `SCHEMA_GUIDE.md` | Plain-language guide to the core Rumi tables for non-technical readers; v3.0 Nov 2025, older than the migrations |
 | `SESSION_MIGRATION_GUIDE.md` | How-to for the v3.1.0 chat_sessions migration (30-minute session timeout); historical Nov 2025 rollout note |
@@ -23,7 +21,8 @@ Full index: `CLAUDE.index.md`
 - column `users.phone_number` (written by `schema.sql`) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/database/queries.js:106:fef21f32` (+89)
 - column `users.name` (written by `schema.sql`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/calls/call-tools.repo.js:242:774e00e5` (+62)
 - column `lesson_plans.user_id` (written by `schema.sql`) ← read by `bot/shared/database/bot-helpers.js:413:219f5683` · `bot/shared/routes/quiz-flow-endpoint.js:160:219f5683` (+11)
-- … 22 more → `CLAUDE.index.md`
+- column `lesson_plans.created_at` (written by `schema.sql`) ← read by `bot/shared/database/bot-helpers.js:412:5950c690` · `bot/shared/routes/quiz-flow-endpoint.js:159:d69ad1fa` (+9)
+- … 21 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Do not treat schema.sql or SCHEMA_GUIDE.md as the live schema (header says v3.0, Nov 2025; baseline dump is 2026-10-14, supabase/baseline/schema.sql:2)
@@ -33,4 +32,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/database/CLAUDE.index.md`? · `bot/database/CLAUDE.md`? · `bot/database/SCHEMA_GUIDE.md`? · `bot/database/SESSION_MIGRATION_GUIDE.md`? (+3)
+- docs: `bot/CLAUDE.md`? · `docs/data-standards.md`?

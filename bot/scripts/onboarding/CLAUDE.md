@@ -1,6 +1,6 @@
 # onboarding — Upload of feature-introduction videos to R2
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/onboarding kg=423bc0ddf2bb gen=739a378c6c61 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/onboarding kg=ae4ff85d86e3 gen=37db6ebd1087 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `upload-feature-videos.js` — needs R2 env vars
@@ -9,7 +9,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `upload-feature-videos.js` | Uploads feature-introduction videos to R2 using R2 credentials from the environment |
 
 ## Who reads this (generated)
@@ -23,4 +22,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/onboarding/CLAUDE.md`?
+- docs: `bot/scripts/CLAUDE.md`?

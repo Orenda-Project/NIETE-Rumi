@@ -1,7 +1,7 @@
 # __golden__ — Recorded-from-base JSON goldens that pin web-quiz switch-off output
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz/web-quiz/__golden__ kg=4a53dc6651e3 gen=e2da914b0938 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz/web-quiz/__golden__ kg=4a53dc6651e3 gen=32e4db7c89ce overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `class-link-run-off.json` — run row and hub_open event snapshot read by web-quiz-class-link-run.test.js
@@ -11,10 +11,8 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `pic-polish-cases.js` | Shared case list for the share-picture polish switch's off/on hashes, used by the test and the one-off recorder |
 | `web*` | 3 files; most used `web-quiz-art-pic-polish-on.json`: Switch-ON golden hashes for share-picture polish, loaded by pic-polish-cases and web-quiz-art-pic-polish.test.js |
-| `CLAUDE.index.md` | (unmapped) |
 | `class*` | 4 files; most used `class-round-pages.json`: Per-page sha256/byte golden of the retired class-round pages, loaded by class-round-retired-still.test.js |
 | `one-voice-off.json` | OFF-switch golden of a web-quiz payload, loaded by web-quiz-one-voice-per-quiz.test.js |
 | `quiz-report-renders.json` | Golden array of quiz-report render sha256 hashes, loaded by quiz-report-renders.test.js |
@@ -32,4 +30,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.md`? · `bot/tests/quiz/web-quiz/__golden__/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/__golden__/CLAUDE.md`?
+- docs: `bot/tests/quiz/web-quiz/CLAUDE.md`?

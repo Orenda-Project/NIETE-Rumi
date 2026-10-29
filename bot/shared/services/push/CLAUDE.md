@@ -1,6 +1,6 @@
 # push — Web quiz reminder push: VAPID subscriptions, routes and finish-response field
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/push kg=5a19964ded14 gen=b5943f11d8ae overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/push kg=fa868a8b7cc0 gen=5bc039c2c130 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `web-quiz-push.service.js` — table, sender and switches
@@ -11,7 +11,6 @@
 | path | purpose |
 |---|---|
 | `web-quiz-push.service.js` | Web quiz reminder push: web_quiz_push_subscriptions table, VAPID sender, child and teacher evening reminders |
-| `CLAUDE.md` | (unmapped) |
 | `web-quiz-push-field.js` | Adds the push_remind field to the web quiz finish response when web_quiz_push_remind is on, else nothing |
 | `web-quiz-push.routes.js` | Internal /api/internal/wqpush router (state, key, subscribe) behind web_quiz_push_remind, called by the portal edge |
 
@@ -30,4 +29,4 @@
 - `bot/tests/push/web-quiz-push.service.test.js` (web-quiz-push.service.js)
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/push/CLAUDE.md`? · `bot/tests/push/CLAUDE.md`?
+- docs: `bot/shared/services/CLAUDE.md`?

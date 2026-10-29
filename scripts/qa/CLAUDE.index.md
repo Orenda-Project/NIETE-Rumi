@@ -8,8 +8,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 |---|---|
 | `look-gate/` | Phone-size layout gate for child-facing web quiz screens → `look-gate/CLAUDE.md` |
 | `render-matrix/` | Render matrix: every web-quiz item shape drawn and checked for defects → `render-matrix/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `commit-ledger-row.sh` | Commits only the new runs.jsonl row an E2E run appended, on the tested branch; never pushes, skips shared branches |
 | `e2e-mock.sh` | One-command NIETE E2E on the mock lane with a per-run local DB; wraps run-suite.sh, results to .claude/qa/results |
 | `e2e-mock.test.sh` | Hermetic test of e2e-mock.sh with run-suite.sh stubbed: argument passing, slot and DB handling (bd-amxdhg) |
@@ -26,11 +24,34 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Who reads this (all, generated)
 - `impact.py` ← imported by `scripts/qa/test_impact.py:21:6ecef21a`
-- env `E2E_CHROME_ON` read at `scripts/qa/impact.py:421:86aed7b1` · `scripts/qa/test_impact.py:230:a41e5521`
+- env `CHECK_ONLY` read at `scripts/qa/niete-e2e-scheduled.sh:122:85c39f7e`
+- env `CI` read at `scripts/qa/e2e-web.sh:225:30bb3321` · `scripts/qa/install-hooks.sh:26:91982967`
+- env `COMMIT` read at `scripts/qa/e2e-web.sh:107:b3de0717`
+- env `DATA` read at `scripts/qa/e2e-web.sh:211:98dfc534`
+- env `DB_POOL_MIN` read at `scripts/qa/e2e-web.sh:214:c8e776f4`
+- env `DB_POOL_SIZE` read at `scripts/qa/e2e-web.sh:214:c8e776f4`
+- env `E2E_BOT_PORT` read at `scripts/qa/e2e-web.sh:267:16ff1446`
+- env `E2E_CHROME_ON` read at `scripts/qa/impact.py:421:86aed7b1`
+- env `E2E_LOCAL_DB` read at `scripts/qa/e2e-mock.sh:37:693d0243`
 - env `E2E_MOCK_FEATURES` read at `scripts/qa/impact.py:397:a6810f1f`
+- env `E2E_MOCK_RUN_SUITE` read at `scripts/qa/e2e-mock.sh:17:7cd334ee`
+- env `E2E_NO_COMMIT` read at `scripts/qa/commit-ledger-row.sh:16:c7379a87` · `scripts/qa/e2e-web.sh:232:36454b43`
+- env `E2E_TRIGGER` read at `scripts/qa/e2e-web.sh:225:30bb3321`
+- env `E2E_WEB_PARALLEL` read at `scripts/qa/e2e-web.sh:126:78d87883`
+- env `LOCAL_DB_PG_BIN` read at `scripts/qa/e2e-web.sh:47:9342117f`
+- env `LOCAL_DB_PG_PORT` read at `scripts/qa/e2e-web.sh:271:d1a51606`
+- env `NIETE_E2E_CDP_PORTS` read at `scripts/qa/niete-e2e-scheduled.sh:176:8bbdc5b5`
+- env `NIETE_E2E_DRIVER` read at `scripts/qa/niete-e2e-schedule.sh:27:f67a1613` · `scripts/qa/niete-e2e-scheduled.sh:19:1789b710`
+- env `NIETE_E2E_PULL` read at `scripts/qa/niete-e2e-scheduled.sh:145:7b5db049`
+- env `NIETE_E2E_REPO` read at `scripts/qa/niete-e2e-schedule.sh:17:74094b66` · `scripts/qa/niete-e2e-scheduled.sh:18:74094b66`
+- env `NIETE_E2E_SCOPE` read at `scripts/qa/niete-e2e-schedule.sh:51:a6b54b36` · `scripts/qa/niete-e2e-scheduled.sh:21:8c65f312`
 - env `QA_CASSETTE_OWNER` read at `scripts/qa/impact.py:361:30ea4e2c`
 - env `QA_E2E_PROOF` read at `scripts/qa/impact.py:644:04121841`
 - env `QA_SPEC_FRESHNESS` read at `scripts/qa/impact.py:643:05d369a0`
+- env `RUN_ID` read at `scripts/qa/e2e-web.sh:107:b3de0717`
+- env `WA_TABS` read at `scripts/qa/niete-e2e-scheduled.sh:184:d26220ee`
+- env `WEB_HEADED` read at `scripts/qa/e2e-web.sh:224:a872ef2f`
+- env `WEB_SLOWMO` read at `scripts/qa/e2e-web.sh:229:e2b0960d`
 
 ## Tests (all, generated)
 - `e2e-mock.sh` ← `scripts/qa/e2e-mock.test.sh`?
@@ -39,4 +60,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `niete-mock-e2e`?
-- docs: `.claude/qa/SCHEDULE.md`? · `.claude/qa/ledgers/README.md`? · `.githooks/README.md`? · `docs/qa-automation.md`? · `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/qa/CLAUDE.index.md`? · `scripts/qa/CLAUDE.md`? · `scripts/qa/look-gate/CLAUDE.md`? · `scripts/qa/render-matrix/CLAUDE.md`?
+- docs: `.claude/qa/SCHEDULE.md`? · `.claude/qa/ledgers/README.md`? · `.githooks/README.md`? · `docs/qa-automation.md`? · `scripts/CLAUDE.md`?

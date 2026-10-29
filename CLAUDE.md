@@ -111,7 +111,7 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 - **DB bootstrap**: `npm run bootstrap:db` applies schema → RLS → seed (idempotent).
 
 ## Map (generated)
-<!-- kg:map repo=NIETE-Rumi gen=f6e67aea7850 -->
+<!-- kg:map repo=NIETE-Rumi gen=a21a61c67ce2 -->
 | dir | what it is |
 |---|---|
 | `.claude/` | Agent & skill config (L1) → `.claude/CLAUDE.md` |
@@ -123,7 +123,7 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 | `docs/` | (no door; 138 files) |
 | `infrastructure/` | DB schema, migrations, deploy configs, WhatsApp templates → `infrastructure/CLAUDE.md` |
 | `kg/` | (no door; 11 files) |
-| `portal/` | (no door; 2749 files) |
+| `portal/` | (no door; 2751 files) |
 | `scripts/` | Operator tools: data migrations, backfills, Flow publishers, QA → `scripts/CLAUDE.md` |
 | `supabase/` | Schema dump and seed list for the local mock-lane DB → `supabase/CLAUDE.md` |
 | `tests/` | (no door; 2644 files) |

@@ -6,9 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `__mocks__/` | → (no door; 2 test files) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
+| `__mocks__/` | → (no door; 2 files: 0 test + 2 support) |
 | `actor-context.js` | AsyncLocalStorage actor carried to Supabase via actorFetch so record_history stops attributing rows to 'authenticator' |
 | `alphabet-grid-generator.js` | Draws the 3x4+2 alphabet grid image with canvas for reading assessment, avoiding vision prompt injection |
 | `build-info.js` | commitSha helper exposed on /health so E2E runners can verify the build under test |
@@ -223,4 +221,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `coaching`? · `debugging`? · `logging`? · `whatsapp-flows`?
-- docs: `.claude/skills/niete-mock-e2e/reference/exit-codes.md`? · `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/scripts/e2e/CLAUDE.index.md`? · `bot/shared/CLAUDE.md`? · `bot/shared/utils/CLAUDE.index.md`? · `bot/shared/utils/CLAUDE.md`? · `bot/tests/CLAUDE.index.md`? · `bot/tests/calls/CLAUDE.index.md`? · `bot/tests/calls/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`? · `bot/tests/coaching/CLAUDE.index.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/handlers/CLAUDE.index.md`? · `bot/tests/handlers/CLAUDE.md`? · `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/tests/quiz/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `bot/tests/registration/CLAUDE.md`? · `bot/tests/services/CLAUDE.index.md`? · `bot/tests/unit/CLAUDE.md`? · `bot/tests/welcome/CLAUDE.md`? · `bot/tests/whatsapp/CLAUDE.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/agent-customization.md`? · `docs/app-funnel-telemetry.md`? · `docs/customization.md`? · `docs/e2e-mock-lane.md`? · `docs/quiz-telemetry.md`?
+- docs: `.claude/skills/niete-mock-e2e/reference/exit-codes.md`? · `bot/shared/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/agent-customization.md`? · `docs/app-funnel-telemetry.md`? · `docs/customization.md`? · `docs/e2e-mock-lane.md`? · `docs/quiz-telemetry.md`?

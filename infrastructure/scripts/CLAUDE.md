@@ -1,6 +1,6 @@
 # scripts — Operator scripts: migrate, fresh-DB bootstrap, connection test, staging env
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/scripts kg=9ef94cf5b402 gen=3d1e9a71182a overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/scripts kg=cfb36a72bc4e gen=85509b7f1b3d overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `migrate.js` — applies pending V*.sql; refuses when the ledger is behind
@@ -13,7 +13,6 @@
 | `staging/` | → (no door; 1 files) |
 | `migrate.js` | MigrationRunner: applies pending V*.sql via exec_sql RPC using the schema_versions ledger; refuses a lagging ledger |
 | `bootstrap-db.js` | DatabaseBootstrapper: applies 00_complete-schema, 01_rls-policies, 02_seed-data in order for a fresh install |
-| `CLAUDE.md` | (unmapped) |
 | `sync-from-internal.sh` | Generates a patch from the internal repo to the public platform repo using infrastructure/sync/manifest.json rules |
 | `test-connections.js` | Connectivity check script for Supabase, Redis and other required services before running the bot |
 
@@ -32,4 +31,4 @@
 - `tests/setup/teacher-nudges-migration.test.js` (migrate.js)
 
 ## Related (generated)
-- docs: `infrastructure/CLAUDE.index.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/scripts/CLAUDE.md`? · `infrastructure/sync/CLAUDE.md`? · `infrastructure/sync/README.md`? · `tests/BASELINE.md`?
+- docs: `infrastructure/CLAUDE.md`? · `infrastructure/sync/README.md`? · `tests/BASELINE.md`?

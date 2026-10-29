@@ -13,8 +13,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `render/` | Renders child cards, print packs and coach sheets from the item bank → `render/CLAUDE.md` |
 | `sa/` | Self-administered battery: bank builder, in-bot spoken-task scorer, Jugnu lines → `sa/CLAUDE.md` |
 | `scoring/` | AI scoring of one recorded block: transcript, windows, scorers, ai_marks → `scoring/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `item-bank.js` | Read-only, deep-frozen accessor over item-bank.v1.json (stories, questions, words, maths) per grade and form |
 | `passage-gate.js` | Pure content check every Challenge passage file must clear (tokenise, sentences, letter counts) before human sign-off |
 | `sa-store.js` | Store for self-administered batteries: session sync state, one child_test_blocks row per task, idempotent phone... |
@@ -55,4 +53,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `tasks.js` ← `bot/scripts/e2e/child-test-sim/coach.js` · `bot/scripts/e2e/child-test-sim/fake-bot-v3.js` · `bot/tests/child-test/sa-rulings.test.js` · `tests/child-test/L35/bank-v3.test.js` · `tests/child-test/L36/journey-v3.test.js` · `tests/child-test/L38/print-pack-v3.test.js` (+5: `python3 kg/kg.py who-reads bot/shared/services/child-test/tasks.js`)
 
 ## Related (all, generated)
-- docs: `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.md`? · `bot/shared/data/child-test/passages/CLAUDE.index.md`? · `bot/shared/data/child-test/passages/CLAUDE.md`? · `bot/shared/data/child-test/passages/README.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/app/CLAUDE.index.md`? · `bot/shared/services/child-test/app/CLAUDE.md`? · `bot/shared/services/child-test/check-flow/CLAUDE.index.md`? · `bot/shared/services/child-test/check-flow/CLAUDE.md`? · `bot/shared/services/child-test/conversation/CLAUDE.index.md`? · `bot/shared/services/child-test/conversation/CLAUDE.md`? · `bot/shared/services/child-test/draw/CLAUDE.index.md`? · `bot/shared/services/child-test/draw/CLAUDE.md`? · `bot/shared/services/child-test/render/CLAUDE.index.md`? · `bot/shared/services/child-test/render/CLAUDE.md`? · `bot/shared/services/child-test/sa/CLAUDE.index.md`? · `bot/shared/services/child-test/sa/CLAUDE.md`? · `bot/shared/services/child-test/scoring/CLAUDE.index.md`? · `bot/shared/services/child-test/scoring/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`? · `bot/tests/child-test/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`?
+- docs: `bot/shared/data/child-test/passages/README.md`? · `bot/shared/services/CLAUDE.md`?

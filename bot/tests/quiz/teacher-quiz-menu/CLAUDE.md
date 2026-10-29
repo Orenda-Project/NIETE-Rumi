@@ -1,6 +1,6 @@
 # teacher-quiz-menu — Tests for the teacher /quiz home, report list and button routing
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz/teacher-quiz-menu kg=25ba975cfce2 gen=79100a681611 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz/teacher-quiz-menu kg=887a8ab27432 gen=8df8a2e6b61e overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `teacher-quiz-routing.test.js` — tqh_/tqr_ button ids through the real POST /webhook
@@ -14,11 +14,10 @@
 | `teacher-quiz-home.test.js` | W37 M3a: teacher /quiz home with three buttons gated by teacher_report_teachers; absent setting is today's /quiz |
 | `teacher-report-list.test.js` | W37 M3a: "My quiz reports" row text, class-size counts and the report link built by the real list and data-core |
 | `teacher-quiz-home-named.test.js` | Pins that a coach named by id in teacher_report_teachers gets the teacher /quiz home; "all" never lifts role gate |
-| `CLAUDE.md` | (unmapped) |
 | `teacher-quiz-routing.test.js` | Pre-merge class A: tqh_make/tqh_reports/tqh_class and tqr_ ids reach handlers through the real POST /webhook |
 
 ## Who reads this (generated)
-- env read here: `OPENAI_API_KEY` · `OPENROUTER_API_KEY` · `SUPABASE_SERVICE_ROLE_KEY` · `SUPABASE_URL`
+- (none)
 
 ## Never (human)
 - Keep fake-db on the shared tableDouble so an unknown filter throws (fake-db.js:6-8)
@@ -28,4 +27,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `bot/shared/services/quiz/CLAUDE.index.md`? · `bot/tests/quiz/CLAUDE.index.md`? · `bot/tests/quiz/CLAUDE.md`? · `bot/tests/quiz/teacher-quiz-menu/CLAUDE.md`?
+- docs: `bot/tests/quiz/CLAUDE.md`?

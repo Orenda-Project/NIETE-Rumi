@@ -1,6 +1,6 @@
 # child-test — Print packs, SA battery bank build and SA voice recording for the child test
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/child-test kg=9c508e084f17 gen=4a2ee58c2678 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/child-test kg=98b71ca41f6f gen=9425270840bc overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `build-sa-bank.js` — rebuilds the SA bank and engine JSONs (--check)
@@ -12,7 +12,6 @@
 | path | purpose |
 |---|---|
 | `record-sa-voice.js` | Records every line the SA battery speaks in the chosen voice, levelled, into dashboard keys served by the SA engine |
-| `CLAUDE.md` | (unmapped) |
 | `sa-voice-providers.js` | Wraps the three TTS providers (Soniox, ElevenLabs, Uplift) a reviewed SA voice set can be recorded in |
 | `purge-sa-game-audio.js` | Deletes kept game-run recordings older than a window from R2; dry run default, --apply deletes |
 | `build-print-pack-v2.js` | Builds the child-test print pack v2 PDFs (coach set, cards per grade, Set A/B) from the item bank (bd-s1oo0.46.5) |
@@ -34,4 +33,4 @@
 - `bot/tests/sa-game/sa-game-audio-purge.test.js` (purge-sa-game-audio.js)
 
 ## Related (generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/child-test/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`? · `bot/tests/child-test/CLAUDE.md`? · `bot/tests/sa-game/CLAUDE.md`?
+- docs: `bot/scripts/CLAUDE.md`?

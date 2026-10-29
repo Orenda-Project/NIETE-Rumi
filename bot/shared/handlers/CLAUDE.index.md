@@ -6,9 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `__mocks__/` | → (no door; 1 test files) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
+| `__mocks__/` | → (no door; 1 files: 0 test + 1 support) |
 | `account-state-reply.js` | Separates "database unreachable" from "not registered" in the reply a user gets when account lookup fails |
 | `audio-document-router.js` | Classifies audio sent as a WhatsApp document (up to 100 MB) so long classroom recordings are routed, not rejected |
 | `child-test.handler.js` | Router entry points for the EGRA/EGMA child test; inert unless CHILD_TEST_ENABLED and coach/leader in ICT (bd-s1oo0.4) |
@@ -109,4 +107,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `reading-assessment`? · `registration`? · `whatsapp-flows`?
-- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/scripts/e2e/CLAUDE.index.md`? · `bot/shared/CLAUDE.md`? · `bot/shared/handlers/CLAUDE.index.md`? · `bot/shared/handlers/CLAUDE.md`? · `bot/tests/CLAUDE.index.md`? · `bot/tests/CLAUDE.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/handlers/CLAUDE.index.md`? · `bot/tests/handlers/CLAUDE.md`? · `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/tests/lp-v8/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/tests/observe/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? · `bot/tests/quiz/CLAUDE.md`? · `bot/tests/services/CLAUDE.index.md`? · `bot/tests/services/CLAUDE.md`? · `bot/tests/welcome/CLAUDE.md`? · `docs/LP_PATHS.md`? · `docs/features/homework.md`? · `docs/features/pic-to-lp.md`? · `docs/features/quiz.md`? · `docs/migration/01-lesson-plans.md`? · `docs/student-mode.md`?
+- docs: `bot/shared/CLAUDE.md`? · `docs/LP_PATHS.md`? · `docs/features/homework.md`? · `docs/features/pic-to-lp.md`? · `docs/features/quiz.md`? · `docs/migration/01-lesson-plans.md`? · `docs/student-mode.md`?

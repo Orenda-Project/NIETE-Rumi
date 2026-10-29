@@ -1,6 +1,6 @@
 # drafts — Unsubmitted utility template drafts for the teacher-app ready fallback
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/templates/drafts kg=fe88965b6b0f gen=a084b80eb701 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/templates/drafts kg=68529a53d22a gen=085268f6a6fa overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `README.md` — why these are drafts and what an operator go is needed for
@@ -9,7 +9,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `README.md` | Explains the unsubmitted ready-fallback template drafts and that publish-templates.sh cannot send them |
 | `lesson_plan_ready_v1_en.json` | Draft English UTILITY template telling a teacher their lesson plan is ready (document header); not submitted to Meta |
 | `lesson_plan_ready_v1_ur.json` | Draft Urdu UTILITY template telling a teacher their lesson plan is ready; not submitted to Meta |
@@ -30,4 +29,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/nudges/CLAUDE.index.md`? · `bot/shared/services/nudges/CLAUDE.md`? · `infrastructure/templates/CLAUDE.index.md`? · `infrastructure/templates/CLAUDE.md`? · `infrastructure/templates/README.md`? (+4)
+- docs: `bot/shared/services/nudges/CLAUDE.md`? · `infrastructure/templates/CLAUDE.md`? · `infrastructure/templates/README.md`? · `infrastructure/templates/share/README.md`?

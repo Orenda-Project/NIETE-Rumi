@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `collect.js` | Unions the day rows behind one topic: sorted pages and SLO codes in first-seen order |
 | `distinct-names.js` | Renames topics that collide within a chapter so teachers never see identical tick boxes |
 | `group-language.js` | Groups English/Urdu matrix rows into topics under skill headings |
@@ -53,4 +51,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `topics.repo.js` ← `tests/assessment/topics/topics.repo.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/assessment/CLAUDE.index.md`? · `bot/shared/services/assessment/CLAUDE.md`? · `bot/shared/services/assessment/topics/CLAUDE.index.md`? · `bot/shared/services/assessment/topics/CLAUDE.md`?
+- docs: `bot/shared/services/assessment/CLAUDE.md`?

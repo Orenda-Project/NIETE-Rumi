@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `fonts.js` | Base64-embeds the Andika and Urdu fonts as @font-face for the Chromium that renders child-test cards (bd-s1oo0.2) |
 | `html.js` | Pure item-bank-to-HTML for child cards, printable card and coach sheet; child side carries no ids or answers |
 | `index.js` | Renders inline PNG cards, A4 printable card and coach sheet PDFs from the item bank (bd-s1oo0.2, L2) |
@@ -34,4 +32,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `v3.js` ← `tests/child-test/L38/print-pack-v3.test.js` · `tests/child-test/L38/sum-sign.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/render/CLAUDE.index.md`? · `bot/shared/services/child-test/render/CLAUDE.md`?
+- docs: `bot/shared/services/child-test/CLAUDE.md`?

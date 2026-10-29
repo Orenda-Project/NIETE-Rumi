@@ -1,6 +1,6 @@
 # templates — Menu carousel template creation and video upload; WABA-bound ids
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/templates kg=3b7ccfeebe6e gen=d52382f18cd2 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/templates kg=76d0f75d7a67 gen=2fed5feed03a overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `README.md` — which files carry WABA-specific handles
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `README.md` | Warns these carousel template scripts and JSON are tied to the original WABA's media handles and template ids |
 | `create-menu-carousel-v3.js` | Creates the 4-card feature_menu_carousel_v3 template (lesson plans, video, coaching, reading) from uploaded video handl… |
 | `create-menu-carousel.js` | Creates the original video-header feature menu carousel template used by /menu |
@@ -32,4 +31,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/setup/CLAUDE.index.md`? · `bot/scripts/setup/CLAUDE.md`? · `bot/scripts/setup/assets/README.md`? · `bot/scripts/templates/CLAUDE.md`? (+1)
+- docs: `bot/scripts/CLAUDE.md`? · `bot/scripts/setup/CLAUDE.md`? · `bot/scripts/setup/assets/README.md`? · `bot/scripts/templates/README.md`?

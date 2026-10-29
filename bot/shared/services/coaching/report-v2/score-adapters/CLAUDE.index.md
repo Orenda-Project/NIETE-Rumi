@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `dispatch.js` | Maps framework key to its score adapter, empty scorecard for unknown frameworks |
 | `fico-adapter.js` | FICO score adapter: four section groups on a 1-4 scale with not-assessed and lesson-mismatch wording |
 | `hots-adapter.js` | HOTS score adapter: five area groups on a 1-3 scale, gathering indicator scores (bd-yy4l2) |
@@ -29,4 +27,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `hots-adapter.js` ← `tests/coaching/bd-yy4l2-hots-scorecard-derive.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/coaching/report-v2/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.md`? · `docs/customization.md`? · `docs/features/coaching.md`?
+- docs: `bot/shared/services/coaching/report-v2/CLAUDE.md`? · `docs/customization.md`? · `docs/features/coaching.md`?

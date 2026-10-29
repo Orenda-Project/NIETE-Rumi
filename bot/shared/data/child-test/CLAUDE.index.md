@@ -9,8 +9,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `passages/` | One JSON file per Challenge reading/listening passage → `passages/CLAUDE.md` |
 | `sa/` | Generated Jugnu batteries per surface, grade and language → `sa/CLAUDE.md` |
 | `vocab/` | → (no door; 7 files) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `item-bank.sa-extra.v1.json` | Official-only EGRA/EGMA extra items for the self-administered Jugnu battery; input to sa/build.js |
 | `item-bank.sa-w3.v1.json` | Item picks for the RDF auto/manual forms (sa_rdf_w3_forms switch), referencing official bank items; input to sa/build.js |
 | `item-bank.sa.v1.json` | (unmapped) |
@@ -35,4 +33,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `item-bank.v3.json` ← `bot/tests/child-test/sa-bank.test.js` · `bot/tests/child-test/sa-rdf-w3.test.js` · `bot/tests/child-test/sa-runtime.test.js` · `bot/tests/quiz/web-quiz/challenge-passage-gate.test.js` · `bot/tests/quiz/web-quiz/challenge-title-leak.test.js` · `tests/child-test/L38/print-pack-v3.test.js` (+1: `python3 kg/kg.py who-reads bot/shared/data/child-test/item-bank.v3.json`)
 
 ## Related (all, generated)
-- docs: `bot/shared/data/CLAUDE.md`? · `bot/shared/data/child-test/CLAUDE.index.md`? · `bot/shared/data/child-test/CLAUDE.md`? · `bot/shared/data/child-test/passages/CLAUDE.index.md`? · `bot/shared/data/child-test/passages/CLAUDE.md`? · `bot/shared/data/child-test/passages/README.md`? · `bot/shared/data/child-test/sa/CLAUDE.index.md`? · `bot/shared/data/child-test/sa/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`? · `bot/tests/child-test/CLAUDE.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.md`?
+- docs: `bot/shared/data/CLAUDE.md`?

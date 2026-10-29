@@ -1,7 +1,7 @@
 # check-flow — WhatsApp Flow where a coach confirms or corrects the AI's marks
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/check-flow kg=1bcccca1c1e9 gen=ed1ce850010c overflow=59 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/check-flow kg=f493de24352e gen=2f98f849fde3 overflow=55 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — public entry: sendCheck, handleCheckCompletion, prefill helpers
@@ -16,13 +16,15 @@ Full index: `CLAUDE.index.md`
 | `prefill.js` | Turns a block's AI marks into check screen fields (prefilled vs empty, chip lists) and reads coach answers back into... |
 | `bars.js` | Per-field confidence bars for the coach check Flow, read from scoring/thresholds with defaults and a test pin |
 | `items.js` | Reads one form's items (questions, made-up words, numbers, sums) from the item bank for the check screens |
+| `strings.js` | Every coach-facing word of the check Flow in Urdu and English, gender-neutral; filled in by the endpoint |
 | … | 12 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - `check-store.js` ← imported by `bot/shared/routes/child-test-check-endpoint.js:27:4f120452` · `bot/shared/services/child-test/conversation/nudge.js:67:864112f0` (+4)
 - `token.js` ← imported by `bot/shared/routes/child-test-check-endpoint.js:30:52e2fbe4` · `bot/shared/services/child-test/check-flow/completion.js:12:eb846b68` (+4)
 - `strings.js` ← imported by `bot/shared/routes/child-test-check-endpoint.js:29:0aca506a` · `bot/shared/services/child-test/check-flow/completion.js:13:52365221` (+3)
-- … 19 more → `CLAUDE.index.md`
+- `items.js` ← imported by `bot/shared/services/child-test/check-flow/context.js:9:7ba3371e` · `bot/shared/services/child-test/check-flow/index.js:22:7ba3371e` (+2)
+- … 20 more → `CLAUDE.index.md`
 
 ## Never (human)
 _None found in code comments, tests or git log for this directory._
@@ -34,4 +36,4 @@ _None found in code comments, tests or git log for this directory._
 - … 28 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.md`? · `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/check-flow/CLAUDE.index.md`? · `bot/shared/services/child-test/check-flow/CLAUDE.md`?
+- docs: `bot/shared/services/child-test/CLAUDE.md`?

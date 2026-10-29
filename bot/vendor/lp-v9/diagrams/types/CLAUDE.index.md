@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `atom.js` | Diagram type atom: Bohr shell models and dot-and-cross bonding pictures from one element table |
 | `bar_graph.js` | Diagram type bar_graph: primary-school bar graph with labelled numbered scale (bd-yggj4o.1) |
 | `base_ten.js` | Diagram type base_ten: place-value picture of thousands, hundreds, tens and ones (SYNC 3.18/3.20) |
@@ -51,4 +49,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `word_blank.js` ← `tests/quiz/transcript-quiz-figure-early-years.test.js`
 
 ## Related (all, generated)
-- docs: `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.index.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/types/CLAUDE.index.md`? · `bot/vendor/lp-v9/diagrams/types/CLAUDE.md`?
+- docs: `bot/vendor/lp-v9/SYNC.md`? · `bot/vendor/lp-v9/diagrams/CLAUDE.md`?

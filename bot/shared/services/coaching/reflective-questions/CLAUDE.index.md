@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `corpus-normalise.js` | Fixes a known Urdu anchor misspelling in the corpus time phrases before they reach a question (bd-gr4fy.5.13) |
 | `corpus-prompt.js` | Builds the system prompt extracting the lesson corpus (moments, through-line) that reflective questions draw on |
 | `guardrails.js` | Pure language-aware validation of generated reflective questions: timestamps, meta-leaks, romanisation, gender |
@@ -31,4 +29,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `question-prompt.js` ← `bot/tests/calls/coaching-voice.test.js` · `bot/tests/coaching/reflective-question-english-contract.test.js` · `tests/coaching/bd-6fdy3-reflection-redesign.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/reflective-questions/CLAUDE.index.md`? · `bot/shared/services/coaching/reflective-questions/CLAUDE.md`? · `bot/tests/calls/CLAUDE.index.md`? · `bot/tests/calls/CLAUDE.md`? · `bot/tests/coaching/CLAUDE.index.md`? · `bot/tests/whatsapp/CLAUDE.md`? · `docs/customization.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.md`? · `docs/customization.md`?

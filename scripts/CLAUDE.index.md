@@ -16,10 +16,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `predicates/` | Reviewed SQL predicates that select accounts for bulk flagging → `predicates/CLAUDE.md` |
 | `qa/` | E2E runners, QA impact check, hooks and the scheduled LaunchAgent → `qa/CLAUDE.md` |
 | `samples/` | Authored sample data for rendering demo coaching reports → `samples/CLAUDE.md` |
-| `tests/` | Python tests for scripts/lib modules, the test-users predicate, ledger audit → `tests/CLAUDE.md` |
+| `tests/` | → (no door; 7 tests) |
 | `web-quiz/` | Web quiz content loading, backfills and by-hand health runs → `web-quiz/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `assessment-parity.sh` | Gate: assessment-feature files must be identical on origin/main and origin/sandbox; run before calling a fix done |
 | `audit-reason-usage.js` | Read-only audit of how often coaches type a removal reason in leader_roster_audit.detail |
 | `backfill-lp-fidelity-moves.js` | Batched upsert of offline LP move-lists into niete_lp_fidelity_moves; checks project ref, --dry-run (bd-wmfsp.3) |
@@ -104,15 +102,27 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - table `users` (written by `backfill-names-from-fde.js`, `backfill-school-id-from-roster.py`, `create-analytics-user.js`, `mark-test-users.py`, `migrate-schools.py`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:242:774e00e5`? · `bot/shared/database/bot-helpers.js:17:61dfd735`? (+169: `python3 kg/kg.py who-reads users`)
 - env `BACKFILL_PROD_GO` read at `scripts/backfill-school-id-from-roster.py:300:15cf6021`
 - env `CHROME_BIN` read at `scripts/render-sample-report.js:75:6d368b54`
+- env `COACHIP_LOCK_BPORT` read at `scripts/coachip_lock_harness.sh:17:a34aa449`
+- env `COACHIP_LOCK_PGPORT` read at `scripts/coachip_lock_harness.sh:16:c7155438`
+- env `DATA` read at `scripts/dev-portal.sh:106:6180c07f`
+- env `DEV_PORTAL_BUILD_CMD` read at `scripts/dev-portal.sh:66:30b8faeb`
+- env `DEV_PORTAL_RUN` read at `scripts/dev-portal.sh:43:6176e9dd`
 - env `FLOW_ENV_FILE` read at `scripts/publish-teacher-training-flow.py:32:e8100f0d`
+- env `LOCAL_DB_PG_PORT` read at `scripts/dev-portal.sh:45:1b81e5f1`
 - env `MARK_PROD_GO` read at `scripts/mark-test-users.py:105:3f8f1283`
 - env `MOVES_DIR` read at `scripts/backfill-lp-fidelity-moves.js:22:178478f2`
 - env `NIETE_SUPABASE_URL` read at `scripts/backfill-lp-fidelity-moves.js:26:4420c28f`
+- env `NODE_OPTIONS` read at `scripts/coachip_lock_harness.sh:49:4995b210`
+- env `PGBIN` read at `scripts/coachip_lock_harness.sh:9:33852aac`
+- env `PG_BIN` read at `scripts/migration_gate.sh:49:10715f27`
+- env `PORTAL_PORT` read at `scripts/dev-portal.sh:44:08c48378`
+- env `PORTAL_REBUILD` read at `scripts/dev-portal.sh:143:bcf5c861`
 - env `R2_ACCESS_KEY_ID` read at `scripts/rehost-legacy-training-media.js:185:d6f2a7a2`
 - env `R2_BUCKET_NAME` read at `scripts/rehost-legacy-training-media.js:93:906fedd0`
 - env `R2_ENDPOINT` read at `scripts/rehost-legacy-training-media.js:183:2684789e`
 - env `R2_SECRET_ACCESS_KEY` read at `scripts/rehost-legacy-training-media.js:186:5687c9ca`
 - env `REDIS_URL` read at `scripts/language-floor-flip.js:349:4f5341dc`
+- env `SANDBOX_REFRESH` read at `scripts/dev-portal.sh:108:8811d7b9`
 - env `SET_ORG_PROD_GO` read at `scripts/set-organization.py:106:f8ebac71`
 - env `SMOKE_MODULES` read at `scripts/smoke-test.js:176:d57b4a1b`
 - env `SUPABASE_DB_HOST` read at `scripts/backfill-training-certificates.py:52:e375d013`
@@ -127,6 +137,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `TALEEMABAD_DB_PORT` read at `scripts/backfill-names-from-fde.js:106:0335854e` · `scripts/migrate-training-attempts.py:68:95b5a56a` · `scripts/migrate-training-history.py:94:95b5a56a` · `scripts/sync-training-from-fde.py:156:95b5a56a`
 - env `TALEEMABAD_DB_SCHEMA` read at `scripts/backfill-names-from-fde.js:113:2f7e751f`
 - env `TALEEMABAD_DB_USER` read at `scripts/backfill-names-from-fde.js:108:023537f1` · `scripts/migrate-training-attempts.py:70:c87907a5` · `scripts/migrate-training-history.py:96:c87907a5` · `scripts/sync-training-from-fde.py:158:c87907a5`
+- env `WEB_QUIZ_BASE_URL` read at `scripts/dev-portal.sh:62:b8191056`
 
 ## Tests (all, generated)
 - `create-analytics-user.js` ← `tests/portal/analytics-account-not-in-broadcast.test.js` · `tests/portal/create-analytics-user.test.js`
@@ -139,4 +150,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `smoke-test.js` ← `tests/scripts/smoke-test.test.js`?
 
 ## Related (all, generated)
-- docs: `.claude/CLAUDE.md`? · `.claude/skills/data-standards/reference/instances/niete-rumi.md`? · `CLAUDE.md`? · `REPORT.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/attendance-bigquery-sync.md`? · `docs/data-standards.md`? · `docs/features/video-quiz.md`? · `docs/migration/02-teacher-training.md`? · `docs/migration/04-data-migration.md`? · `docs/migration/05-exam-generator.md`? · `infrastructure/CLAUDE.index.md`? · `infrastructure/CLAUDE.md`? · `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/app-funnel/CLAUDE.md`? · `scripts/assessment/CLAUDE.md`? · `scripts/child-test/CLAUDE.index.md`? · `scripts/child-test/CLAUDE.md`? · `scripts/lib/CLAUDE.index.md`? · `scripts/lib/CLAUDE.md`? · `scripts/llm/CLAUDE.md`? · `scripts/migrations/CLAUDE.index.md`? · `scripts/migrations/CLAUDE.md`? · `scripts/ops/CLAUDE.md`? · `scripts/predicates/CLAUDE.md`? · `scripts/qa/CLAUDE.index.md`? · `scripts/qa/CLAUDE.md`? · `scripts/samples/CLAUDE.md`? · `scripts/tests/CLAUDE.md`? · `scripts/web-quiz/CLAUDE.index.md`? · `scripts/web-quiz/CLAUDE.md`?
+- docs: `.claude/CLAUDE.md`? · `.claude/skills/data-standards/reference/instances/niete-rumi.md`? · `CLAUDE.md`? · `REPORT.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/attendance-bigquery-sync.md`? · `docs/data-standards.md`? · `docs/features/video-quiz.md`? · `docs/migration/02-teacher-training.md`? · `docs/migration/04-data-migration.md`? · `docs/migration/05-exam-generator.md`?

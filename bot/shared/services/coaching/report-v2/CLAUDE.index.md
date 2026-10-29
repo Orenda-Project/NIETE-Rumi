@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `score-adapters/` | One score adapter per framework, turning analysis into scorecard groups → `score-adapters/CLAUDE.md` |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `classroom-photo-vm.js` | Downloads up to 2 teacher photos as base64 data URIs for the hero report strip; broken photos skipped (bd-pv2tl) |
 | `hero-report.service.js` | Hero report pipeline: score adapter, narrative, commitment action, trend, template, image render to PNG plus caption |
 | `hero-report.style.js` | Hero template data: brand palettes (incl. NIETE green/navy), marks words and per-language chrome copy |
@@ -55,4 +53,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `coaching`?
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/CLAUDE.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.index.md`? · `bot/shared/services/coaching/report-v2/score-adapters/CLAUDE.md`? · `bot/tests/coaching/CLAUDE.index.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/tests/unit/CLAUDE.md`? · `docs/customization.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.md`? · `docs/customization.md`?

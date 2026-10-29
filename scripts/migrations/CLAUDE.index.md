@@ -26,8 +26,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `2026-10-01-isaps-copy-prod-to-staging.py` | Copies I-SAPS Level 1 content from production into staging by content with id remapping (bd-vej4h) |
 | `2026-10-13-rename-training-vendors.sql` | Renames partner training vendors' display names (keys unchanged); idempotent, mirrored in portal trainingApi (bd-2gia5l) |
 | `2026-10-23-isaps-level2-seed.py` | Seeds I-SAPS Level 2 in one pass: level, nine courses, unit modules, formative questions, per-module quizzes (bd-yef5iq) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (all, generated)
 - column `training_assessment_answers.answer_score` (written by `2026-07-21-capstone-import.sql`) ← read by `bot/shared/services/training/capstone-delivery.service.js:640:7c1a4b38` · `bot/shared/services/training/isaps-held-release.service.js:131:20ebd565` · `bot/shared/services/training/isaps-level-grade.service.js:99:ac4ec5f5` · `bot/shared/services/training/quiz-delivery.service.js:2041:331dd634` (+1: `python3 kg/kg.py who-reads training_assessment_answers.answer_score`)
@@ -49,4 +47,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `.claude/qa/fixtures/whatsapp/niete/training-seed-plan.md`? · `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/migrations/CLAUDE.index.md`? · `scripts/migrations/CLAUDE.md`?
+- docs: `.claude/qa/fixtures/whatsapp/niete/training-seed-plan.md`? · `scripts/CLAUDE.md`?

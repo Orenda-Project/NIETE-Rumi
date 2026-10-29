@@ -1,6 +1,6 @@
 # samples — Authored sample data for rendering demo coaching reports
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/samples kg=57450e0b6722 gen=043ab01a4523 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/samples kg=57450e0b6722 gen=f8c6a89df77d overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `_index.js` — maps each framework to its sample
@@ -15,7 +15,6 @@
 | `hero-sample-mewaka.json` | Authored MEWAKA sample (Kiswahili transcript) for the hero report renderer |
 | `hero-sample-oecd.json` | Authored OECD sample session and analysis for the hero report renderer |
 | `hero-sample-teach.json` | Authored TEACH sample session and analysis for the hero report renderer |
-| `CLAUDE.md` | (unmapped) |
 | `pdf-sample-fico-urdu.json` | Authored Urdu FICO sample report data for render-sample-pdf-report.js |
 | `pdf-sample-fico.json` | Authored English FICO sample report data for render-sample-pdf-report.js |
 
@@ -35,4 +34,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `docs/features/coaching.md`? · `scripts/CLAUDE.index.md`? · `scripts/CLAUDE.md`? · `scripts/samples/CLAUDE.md`?
+- docs: `docs/features/coaching.md`? · `scripts/CLAUDE.md`?

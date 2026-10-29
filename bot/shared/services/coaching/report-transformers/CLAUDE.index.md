@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `_shared.js` | Shared helpers for report transformers: date format, fidelity extraction, partial-session note |
 | `fico-report-transformer.js` | Turns FICO analysis_data into the generic reportData (4 sections, focus area) used by PDF and hero renderers |
 | `hots-report-transformer.js` | Turns HOTS analysis into the generic reportData (5 areas, scale 1-3) consumed by the PDF report |
@@ -35,4 +33,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `teach-report-transformer.js` ← `tests/coaching/report-transformers/coach-role-label-in-transformers.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/report-transformers/CLAUDE.index.md`? · `bot/shared/services/coaching/report-transformers/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.md`?

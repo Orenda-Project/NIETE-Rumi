@@ -1,6 +1,6 @@
 # report-renderers — Registry choosing the report renderer (hero PNG or PDFKit fallback)
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-renderers kg=c6de0044da31 gen=d6324b2a35cb overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-renderers kg=696d958b96a7 gen=6b2c88fc28d7 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `renderer-registry.js` — framework key to renderer
@@ -10,7 +10,6 @@
 | path | purpose |
 |---|---|
 | `renderer-registry.js` | Routes a framework key to its report renderer: hero Playwright PNG by default, PDFKit fallback |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - `renderer-registry.js` ← imported by `bot/shared/services/observe/observe-debrief.service.js:817:0ae72910` · `bot/shared/services/observe/observe-send.service.js:1202:0ae72910` (+1)
@@ -27,4 +26,4 @@ _None found in code comments, tests or git log for this directory._
 - `tests/coaching/report-renderer-registry.test.js` (renderer-registry.js)
 
 ## Related (generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/report-renderers/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/tests/unit/CLAUDE.md`? · `docs/agent-customization.md`? (+1)
+- docs: `bot/shared/services/coaching/CLAUDE.md`? · `docs/agent-customization.md`? · `docs/customization.md`?

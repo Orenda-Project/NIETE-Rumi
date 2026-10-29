@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `build-w3.js` | Builds the RDF auto and RDF manual W3 forms by picking items from the official banks (switch sa_rdf_w3_forms) |
 | `build.js` | Builds the self-administered battery bank and per-form runtime files from item-bank.v3 with source paths on every item |
 | `counts.js` | Round 8 switch sa_r8_counts: per-subsection practice trims and extra items for RDF forms |
@@ -58,4 +56,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `voice-manifest.js` ← `bot/tests/child-test/record-sa-voice-v4.test.js` · `bot/tests/child-test/sa-rdf-w3.test.js` · `bot/tests/child-test/sa-voice-sustained-sounds.test.js` · `bot/tests/child-test/sa-voice-tashdeed.test.js` · `bot/tests/child-test/sa-voice.test.js` · `dashboard/tests/sa-voice-v4-timings.service.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/sa/CLAUDE.index.md`? · `bot/shared/services/child-test/sa/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`?
+- (none)

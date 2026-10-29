@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `lp-coaching-linker.service.js` | Links an LP-list selection to the coaching session, resolving corpus asset versions or starting the upload flow |
 | `lp-framework-prompt.service.js` | Per-framework instructions appended to lesson-plan generation prompts so plans suit the coaching framework |
 | `lp-list-selection.handler.js` | Routes lp_select_/lp_upload_/lp_none_ list taps to the linker and continues the coaching flow (bd-wa5io) |
@@ -50,4 +48,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `send-lp-prompt.js` ← `tests/coaching/send-lp-prompt.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/lp-coaching/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.md`?

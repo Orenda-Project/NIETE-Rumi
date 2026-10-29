@@ -1,6 +1,6 @@
 # ScheherazadeNew-4.000 — SIL Scheherazade New 4.000 font package, third-party, kept whole with its licence
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/fonts/ScheherazadeNew-4.000 kg=fdb54c09e4b5 gen=fcfa33cc2dc4 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/fonts/ScheherazadeNew-4.000 kg=fdb54c09e4b5 gen=cfd51dbb7ebd overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `OFL.txt` — licence terms to keep alongside the fonts
@@ -12,7 +12,6 @@
 |---|---|
 | `documentation/` | Upstream SIL docs for Scheherazade New; reference only, not used at runtime → `documentation/CLAUDE.md` |
 | `web/` | → (no door; 10 files) |
-| `CLAUDE.md` | (unmapped) |
 | `fontmanifest.json` | Font manifest mapping Scheherazade New weights to ttf/woff/woff2 package files, from SIL |
 | `FONTLOG.txt` | SIL font changelog and credits for Scheherazade New 4.000, bundled third-party font |
 | `OFL-FAQ.txt` | SIL Open Font License FAQ shipped with the bundled Scheherazade New font |
@@ -34,4 +33,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `bot/fonts/CLAUDE.md`? · `bot/fonts/ScheherazadeNew-4.000/CLAUDE.md`? · `bot/fonts/ScheherazadeNew-4.000/documentation/CLAUDE.index.md`? · `bot/fonts/ScheherazadeNew-4.000/documentation/CLAUDE.md`?
+- docs: `bot/fonts/CLAUDE.md`?

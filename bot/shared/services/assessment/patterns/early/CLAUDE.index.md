@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `chrome.js` | Shared header, legend, slot defaults and builders for Grade 1-2 FDE patterns |
 | `g1-english.js` | Grade 1 English FDE model-paper pattern: 100 marks, oral plus written, rhyming pairs |
 | `g1-gk.js` | Grade 1 General Knowledge (Urdu) FDE pattern: 50 written marks with picture items |
@@ -33,4 +31,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `chrome.js` ← `tests/assessment/fde-early-chrome.test.js` · `tests/assessment/fde-early-pictures-pattern.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/assessment/patterns/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/CLAUDE.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.index.md`? · `bot/shared/services/assessment/patterns/early/CLAUDE.md`?
+- docs: `bot/shared/services/assessment/patterns/CLAUDE.md`?

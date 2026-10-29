@@ -1,6 +1,6 @@
 # settings — Shared app_settings switch cache and the page-switch snapshot
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/settings kg=2b98774af35c gen=d667a4ae7eb4 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/settings kg=9ff87f5c39e0 gen=e0c3d74dda0f overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `switch-cache.js` — cachedSwitch: one read per TTL, last good on failure
@@ -12,7 +12,6 @@
 |---|---|
 | `settings-snapshot.js` | Single-read snapshot of web quiz page switches (page_keep/page_warm) to cut repeated settings reads |
 | `switch-cache.js` | Cached app_settings switch reader so a settings outage costs one read per TTL, serving last good value |
-| `CLAUDE.md` | (unmapped) |
 
 ## Who reads this (generated)
 - `settings-snapshot.js` ← imported by `bot/shared/services/child-test/app/add-child-switch.js:10:0634a325` · `bot/shared/services/child-test/app/all-grades-switch.js:9:0634a325` (+32)
@@ -28,4 +27,4 @@
 - `bot/tests/settings/switch-cache.test.js` (switch-cache.js)
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/settings/CLAUDE.md`? · `bot/tests/child-test/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `bot/tests/settings/CLAUDE.md`?
+- docs: `bot/shared/services/CLAUDE.md`?

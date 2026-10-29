@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `attendance-bigquery-export.worker.js` | Nightly cron exporting the last 24h teacher-presence rollup to the STEPS BigQuery warehouse |
 | `exam-grading.worker.js` | SQS exam_grading job: OCR (Mistral, Chandra fallback), grading and annotation phases for an exam session |
 | `homework-bundle.worker.js` | SQS homework_bundle_generation job: downloads chapter PDFs, pdf-lib merges one grade x subject bundle, delivers it |
@@ -55,7 +53,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - column `video_requests.started_at` (written by `video-generation.worker.js`) ← read by `bot/workers/sqs-worker.js:1450:96ebd749`
 - column `video_requests.status` (written by `sqs-worker.js`, `video-generation.worker.js`) ← read by `bot/shared/services/context.service.js:184:a69ef692` · `bot/shared/services/feature-registration.service.js:155:abb6a119` · `dashboard/database/queries.js:742:a69ef692` · `dashboard/routes/portal.routes.js:8669:0b0b6afb` (+2: `python3 kg/kg.py who-reads video_requests.status`)
 - column `video_requests.video_url` (written by `video-generation.worker.js`) ← read by `dashboard/routes/portal.routes.js:8669:0b0b6afb`
-- table `coaching_sessions` whole row (`*`) (written by `lesson-plan-extraction.worker.js`, `sqs-worker.js`, `stale-session.worker.js`) ← read by `bot/shared/handlers/text-message.handler.js:1921:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:742:d2b02c3e`? · `bot/shared/routes/observe-mewaka-endpoint.js:152:d2b02c3e`? · `bot/shared/services/coaching-orchestrator.service.js:225:d2b02c3e`? (+11: `python3 kg/kg.py who-reads coaching_sessions`)
+- table `coaching_sessions` whole row (`*`) (written by `sqs-worker.js`, `stale-session.worker.js`) ← read by `bot/shared/handlers/text-message.handler.js:1921:d2b02c3e`? · `bot/shared/handlers/voice-message.handler.js:742:d2b02c3e`? · `bot/shared/routes/observe-mewaka-endpoint.js:152:d2b02c3e`? · `bot/shared/services/coaching-orchestrator.service.js:225:d2b02c3e`? (+11: `python3 kg/kg.py who-reads coaching_sessions`)
 - table `exam_check_sessions` whole row (`*`) (written by `exam-grading.worker.js`) ← read by `bot/shared/services/exam-checker/exam-session.service.js:33:d2b02c3e`?
 - table `lesson_plan_requests` whole row (`*`) (written by `homework-bundle.worker.js`) ← read by `bot/scripts/requeue-lesson-plan.js:42:d2b02c3e`?
 - table `lesson_plans` whole row (`*`) (written by `homework-bundle.worker.js`, `quiz-job-handler.js`) ← read by `bot/shared/services/feature-registration.service.js:135:7a0c163a`? · `dashboard/database/queries.js:717:7a0c163a`?
@@ -111,5 +109,5 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `coaching`? · `video-generation`?
-- docs: `bot/CLAUDE.index.md`? · `bot/CLAUDE.md`? · `bot/tests/lp-v8/CLAUDE.index.md`? · `bot/tests/nudges/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/tests/push/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `bot/tests/workers/CLAUDE.index.md`? · `bot/tests/workers/CLAUDE.md`? · `bot/vendor/lp-v9/CLAUDE.index.md`? · `bot/vendor/lp-v9/SYNC.md`? · `bot/workers/CLAUDE.index.md`? · `bot/workers/CLAUDE.md`? · `docs/LP_PATHS.md`? · `docs/agent-customization.md`? · `docs/architecture.md`? · `docs/attendance-bigquery-sync.md`? · `docs/e2e-mock-lane.md`? · `docs/features/homework.md`? · `docs/features/quiz.md`? · `docs/features/video-quiz.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `docs/roadmap/audio-lp.md`?
+- docs: `bot/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/LP_PATHS.md`? · `docs/agent-customization.md`? · `docs/architecture.md`? · `docs/attendance-bigquery-sync.md`? · `docs/e2e-mock-lane.md`? · `docs/features/homework.md`? · `docs/features/quiz.md`? · `docs/features/video-quiz.md`? · `docs/reports/bug131-phase3-grand-quiz.md`? · `docs/roadmap/audio-lp.md`?
 - service: `sqs-worker.railway.toml` · `worker`

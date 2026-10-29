@@ -7,8 +7,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | path | purpose |
 |---|---|
 | `assets/` | → (no door; 1 files) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `create-child-test-review-flow-draft.js` | Creates or refreshes the child-test review Flow as a DRAFT on the NIETE sandbox WABA and prints validation errors; neve… |
 | `doctor.js` | npm run doctor preflight: checks required and optional env vars statically, then live Meta checks |
 | `flow-configs.js` | Single source of truth listing which WhatsApp Flows a deployment registers; used by register and validate scripts |
@@ -55,4 +53,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `whatsapp-flows`?
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/setup/CLAUDE.index.md`? · `bot/scripts/setup/CLAUDE.md`? · `bot/scripts/templates/CLAUDE.md`? · `bot/scripts/templates/README.md`? · `docs/e2e-mock-lane.md`? · `docs/templates/roster-change-notification.md`?
+- docs: `bot/scripts/CLAUDE.md`? · `bot/scripts/templates/README.md`? · `docs/e2e-mock-lane.md`? · `docs/templates/roster-change-notification.md`?

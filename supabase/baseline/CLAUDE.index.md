@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `schema.objects.txt` | Flat list of every public column and function in the sandbox schema, compared by local-db.sh drift |
 | `schema.sql` | Schema-only pg_dump baseline of the NIETE sandbox DB (2026-10-14) used to build the local mock-lane database |
 | `seed-files.txt` | Names the staging R2 files the local lane reads, copied by local-db.sh seed-pull and served read-only by local-r2.js |
@@ -870,4 +868,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `docs/e2e-mock-lane.md`? · `docs/onboarding/local-portal.md`? · `supabase/CLAUDE.md`? · `supabase/baseline/CLAUDE.index.md`? · `supabase/baseline/CLAUDE.md`?
+- docs: `docs/e2e-mock-lane.md`? · `docs/onboarding/local-portal.md`? · `supabase/CLAUDE.md`?

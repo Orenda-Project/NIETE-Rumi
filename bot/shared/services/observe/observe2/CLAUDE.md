@@ -1,7 +1,7 @@
 # observe2 — /observe2: FICO ICT live field form, checked moments, brief and indicator levels
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe/observe2 kg=1620bfd6f940 gen=cf14be410709 overflow=88 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe/observe2 kg=e7a56a68e5da gen=7635b686ff0a overflow=84 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `start.js` — command to live form
@@ -16,12 +16,14 @@ Full index: `CLAUDE.index.md`
 | `fico17.js` | The 17 FICO ICT indicators in plain words, grouped into four lesson moments, for observe2 |
 | `strings.js` | Chat lines the observe2 coach reads, per language (en, ur), as data |
 | `field-form.flow.js` | Defines the live field form WhatsApp Flow the coach fills during the lesson (observe2) |
-| … | 17 more → `CLAUDE.index.md` |
+| `moments.js` | One model call over the timestamped transcript returning moments the coach later checks (observe2) |
+| … | 14 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - table `coaching_sessions` (written by `capture-link.js` (+1)) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? (+88)
 - column `coaching_sessions.user_id` (written by `capture-link.js`) ← read by `bot/shared/calls/call-context.repo.js:65:219f5683` · `bot/shared/calls/call-tools.repo.js:52:23fca46d` (+52)
-- … 29 more → `CLAUDE.index.md`
+- column `coaching_sessions.status` (written by `moments.js`) ← read by `bot/shared/calls/call-context.repo.js:64:24fe63d9` · `bot/shared/calls/call-tools.repo.js:52:23fca46d` (+41)
+- … 31 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Parts are saved only while unsealed: every write filters sealed_at IS NULL (field-form.store.js:7)
@@ -33,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - … 42 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/observe/CLAUDE.index.md`? · `bot/shared/services/observe/CLAUDE.md`? · `bot/shared/services/observe/observe2/CLAUDE.index.md`? · `bot/shared/services/observe/observe2/CLAUDE.md`? · `bot/tests/i18n/CLAUDE.md`?
+- docs: `bot/shared/services/observe/CLAUDE.md`?

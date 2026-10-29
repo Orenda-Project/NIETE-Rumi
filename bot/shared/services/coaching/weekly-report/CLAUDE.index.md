@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `job.js` | Teacher-nudge sweeper kind that prepares and sends the group B weekly usage template on Saturdays (bd-v0toag.32) |
 | `message.js` | Turns a teacher's week summary into the weekly_usage_v1 or quiet template call (bd-v0toag.32) |
 | `reader.js` | Bounded per-teacher reads behind the weekly report: group B cohort and one week's activity; throws on read error |
@@ -32,4 +30,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `week.js` ← `bot/tests/coaching/weekly-report/week.test.js` · `bot/tests/coaching/weekly-report/weekend.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/weekly-report/CLAUDE.index.md`? · `bot/shared/services/coaching/weekly-report/CLAUDE.md`? · `bot/tests/coaching/weekly-report/CLAUDE.index.md`? · `bot/tests/coaching/weekly-report/CLAUDE.md`? · `bot/tests/settings/CLAUDE.md`?
+- docs: `bot/shared/services/coaching/CLAUDE.md`?

@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `railway-redis.service.js` | Railway Redis client: caching, rate limiting, webhook dedup and distributed locks; singleton export |
 
 ## Who reads this (all, generated)
@@ -20,4 +18,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Related (all, generated)
 - skills: `cross-agent-safety`?
-- docs: `bot/scripts/e2e/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/cache/CLAUDE.index.md`? · `bot/shared/services/cache/CLAUDE.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/menu/CLAUDE.md`? · `bot/tests/observe/CLAUDE.index.md`? · `bot/tests/observe/CLAUDE.md`?
+- docs: `bot/shared/services/CLAUDE.md`?

@@ -1,7 +1,6 @@
 # child-test-sim — Simulated coach visit against a fake, mock or sandbox bot for the child test
-Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/e2e/child-test-sim kg=21d34871772c gen=e87f31eca44e overflow=13 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/e2e/child-test-sim kg=98a7e472af19 gen=c607a43bd2ea overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `driver.js` — CLI entry and modes
@@ -12,19 +11,21 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
 | `check-play.js` | Plays the simulated coach doing the child-test check Flow per child (INIT, per-screen data exchange, completion) |
 | `coach.js` | Plays one simulated coach's five-child visit against a bot via a transport, logging each step to a timeline |
 | `timeline.js` | Writes one JSON line per simulated-visit event and summarises per-child timing and rtt samples |
 | `driver.js` | CLI driver for the child-test visit simulation in fake, mock or sandbox mode, timed end to end |
-| `CLAUDE.md` | (unmapped) |
-| … | 8 more → `CLAUDE.index.md` |
+| `replay-check.js` | Replays a finished run's AI marks through the coach check offline under chosen pre-fill modes and coach models (bd-s1oo… |
+| `transports.js` | Mock and sandbox transports through which the simulated coach sends messages and media to a bot |
+| `fake-bot-v3.js` | In-process stand-in for the bot side of a battery-v3 visit, used by driver --battery v3 dry mode and coach tests |
+| `replies-axiom.js` | Rebuilds what the sandbox bot sent a synthetic coach from its outbound_echo logs in Axiom, for sandbox mode |
+| `fake-bot.js` | HTTP peer standing in for the child-test conversation before the real handler existed; speaks CONTRACT v0.2 ids |
+| `seed-visit.js` | Seeds (or removes) today's sealed observe2 visit for the simulated coach in the NIETE sandbox only |
+| `coach-actions.json` | Timing model: seconds each simulated coach action costs inside the check Flow, with sources |
+| `sim-stack.sh` | Brings up or tears down the local mock-lane stack for the child-test simulation, refusing prod refs (bd-s1oo0.13) |
 
 ## Who reads this (generated)
-- table `observation_field_forms` (written by `seed-visit.js`) ← read by `bot/shared/services/child-test/app/app-api.service.js:184:9343047e`? · `bot/shared/services/child-test/app/sa-api.service.js:96:cff3d781`? (+4)
-- column `observation_field_forms.observer_user_id` (written by `seed-visit.js`) ← read by `bot/shared/services/child-test/app/app-api.service.js:185:bbf37085` · `bot/shared/services/child-test/app/sa-api.service.js:97:d5a7d17b` (+3)
-- column `observation_field_forms.visit_context` (written by `seed-visit.js`) ← read by `bot/shared/services/child-test/app/app-api.service.js:185:bbf37085` · `bot/shared/services/child-test/app/sa-api.service.js:97:d5a7d17b` (+3)
-- … 5 more → `CLAUDE.index.md`
+- (none)
 
 ## Never (human)
 - seed-visit.js writes to the NIETE sandbox only; it throws on any other project ref (seed-visit.js:32)
@@ -34,4 +35,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/e2e/CLAUDE.index.md`? · `bot/scripts/e2e/CLAUDE.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.index.md`? · `bot/scripts/e2e/child-test-sim/CLAUDE.md`? · `bot/shared/services/child-test/CLAUDE.index.md`? (+7)
+- docs: `bot/scripts/e2e/CLAUDE.md`? · `bot/vendor/lp-v9/diagrams/types/CLAUDE.md`? · `scripts/child-test/CLAUDE.md`?

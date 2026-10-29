@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `coach.G1.A.json` | Generated Jugnu coach-surface bank, grade 1 set A (all tasks); output of scripts/child-test/build-sa-bank.js |
 | `coach.G2.A.json` | Generated Jugnu coach-surface bank, grade 2 set A (all tasks); output of scripts/child-test/build-sa-bank.js |
 | `coach.G3.A.json` | Generated Jugnu coach-surface bank, grade 3 set A (all tasks); output of scripts/child-test/build-sa-bank.js |
@@ -41,4 +39,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `sa.coach.G3.A.en.json` ← `dashboard/tests/sa-tester-fixes.service.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/data/child-test/CLAUDE.index.md`? · `bot/shared/data/child-test/CLAUDE.md`? · `bot/shared/data/child-test/sa/CLAUDE.index.md`? · `bot/shared/data/child-test/sa/CLAUDE.md`?
+- docs: `bot/shared/data/child-test/CLAUDE.md`?

@@ -1,7 +1,7 @@
 # tts — Voice gateway for all voice notes: routing, providers, Ogg Opus and text prep
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/tts kg=ba3c49b55e98 gen=c2aef5c8fb7c overflow=13 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/tts kg=ba3c49b55e98 gen=ceac2d764f4f overflow=9 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — synthesize, the one entry features call
@@ -16,8 +16,6 @@ Full index: `CLAUDE.index.md`
 | `text/` | → (no door; 2 files) |
 | `index.js` | Voice gateway: the one entry (synthesize) any feature uses to get a voice note, routed by use case |
 | `ogg-opus.js` | Ogg Opus toolkit: parse, check completeness, measure duration and join clips for the TTS gateway |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `routing.js` | Routes a TTS use case to an ordered provider chain from configuration (resolveChain) |
 
 ## Who reads this (generated)
@@ -37,7 +35,11 @@ Full index: `CLAUDE.index.md`
 - `bot/tests/quiz/web-quiz/web-quiz-bank-voice.test.js` (index.js)
 - `bot/tests/quiz/web-quiz/web-quiz-challenge-listen.test.js` (index.js)
 - `bot/tests/quiz/web-quiz/web-quiz-challenge-story-voice.test.js` (index.js)
-- … 13 more → `CLAUDE.index.md`
+- `bot/tests/quiz/web-quiz/web-quiz-challenge.test.js` (index.js)
+- `bot/tests/quiz/web-quiz/web-quiz-hint.test.js` (index.js)
+- `bot/tests/quiz/web-quiz/web-quiz-one-voice-elevenlabs.test.js` (index.js)
+- `bot/tests/quiz/web-quiz/web-quiz-one-voice-long-clips.test.js` (index.js)
+- … 9 more → `CLAUDE.index.md`
 
 ## Related (generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/tts/CLAUDE.index.md`? · `bot/shared/services/tts/CLAUDE.md`? · `bot/shared/services/tts/providers/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? (+2)
+- docs: `bot/shared/services/CLAUDE.md`? · `docs/customization.md`?

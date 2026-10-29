@@ -1,6 +1,6 @@
 # infrastructure — DB schema, migrations, deploy configs, WhatsApp templates
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure kg=a7ce79dd558f gen=eb2d1bd55981 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure kg=a7ce79dd558f gen=95f96316d951 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `scripts/migrate.js` — versioned migration runner using the schema_versions ledger
@@ -17,8 +17,6 @@
 | `supabase/` | Fresh-install SQL (schema, RLS, seed) and versioned migrations for NIETE Supabase → `supabase/CLAUDE.md` |
 | `sync/` | Maintainer-only config for syncing internal code to the public rumi-platform repo → `sync/CLAUDE.md` |
 | `templates/` | WhatsApp message template JSON per WABA, plus submit and re-upload scripts → `templates/CLAUDE.md` |
-| `CLAUDE.md` | (unmapped) |
-| `CLAUDE.index.md` | (unmapped) |
 
 ## Who reads this (generated)
 - (none)
@@ -31,5 +29,4 @@
 - (none)
 
 ## Related (generated)
-- skills: `database-analysis`? · `digital-coach`?
-- docs: `CLAUDE.md`? · `README.md`? · `infrastructure/CLAUDE.index.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/flows/CLAUDE.md`? · `infrastructure/scripts/CLAUDE.md`? (+9)
+- docs: `CLAUDE.md`? · `infrastructure/sync/README.md`?

@@ -6,9 +6,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `__mocks__/` | → (no door; 1 test files) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
+| `__mocks__/` | → (no door; 1 files: 0 test + 1 support) |
 | `bot-helpers.js` | User and session helpers: getOrCreateUser (race-safe on 23505), sessions, conversation rows used by all handlers |
 | `queries.js` | Analytics queries (users, voice notes, messages, activity) backing the legacy admin dashboard |
 | `schema.sql` | Original v3.0 Rumi bot Postgres schema (Nov 2025: users, conversations, sessions); historical baseline only |
@@ -60,4 +58,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `bot-helpers.js` ← `bot/tests/first-touch/first-reply-english.text-turn.test.js` · `bot/tests/first-touch/one-door-share-ref.test.js` · `bot/tests/quiz/student-ingress.test.js` · `bot/tests/registration/bd-2447-register-command-sends-flow.test.js` · `bot/tests/unit/bot-helpers-lesson-plan.test.js` · `tests/conversation-state/intent-never-dropped.test.js` (+4: `python3 kg/kg.py who-reads bot/shared/database/bot-helpers.js`)
 
 ## Related (all, generated)
-- docs: `bot/shared/CLAUDE.md`? · `bot/shared/database/CLAUDE.index.md`? · `bot/shared/database/CLAUDE.md`? · `bot/tests/first-touch/CLAUDE.index.md`? · `bot/tests/first-touch/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? · `bot/tests/quiz/CLAUDE.md`? · `bot/tests/registration/CLAUDE.md`? · `bot/tests/unit/CLAUDE.md`? · `docs/data-standards.md`?
+- docs: `bot/shared/CLAUDE.md`? · `docs/data-standards.md`?

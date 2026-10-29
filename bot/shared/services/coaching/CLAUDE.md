@@ -1,7 +1,7 @@
 # coaching — Coaching pipeline: recording to analysis, reflection, report, video clips, weekly report
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching kg=ea09c9a291b6 gen=64454e1a556a overflow=301 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching kg=f5906cc96aea gen=e110bea62526 overflow=298 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `coaching-session.service.js` — session lifecycle and status writes; the funnel every job uses
@@ -13,12 +13,13 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | 13 sub-dirs, each with `CLAUDE.md` | `classroom-photo/` · `coaching-card/` · `fidelity/` · `frameworks/` · `live-moves/` · `lp-coaching/` · `reflective-questions/` · `report-renderers/` · `report-transformers/` · `report-v2/` · `templates/` · `video-reco/` · `weekly-report/` |
-| `CLAUDE.index.md` | (unmapped) |
-| … | 38 more → `CLAUDE.index.md` |
+| `coaching*` | 9 files; most used `coaching-job-queue.service.js`: Queues coaching transcription, analysis and report jobs to SQS with routing metadata |
+| … | 75 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
 - table `coaching_sessions` (written by `analysis-processor.service.js` (+9)) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? (+88)
-- … 86 more → `CLAUDE.index.md`
+- column `coaching_sessions.user_id` (written by `coaching-session.service.js` (+1)) ← read by `bot/shared/calls/call-context.repo.js:65:219f5683` · `bot/shared/calls/call-tools.repo.js:52:23fca46d` (+53)
+- … 91 more → `CLAUDE.index.md`
 
 ## Never (human)
 - Never write status without the terminal guard; stale taps revived cancelled sessions (session-terminal.js:5, bd-n9832)
@@ -32,4 +33,4 @@ Full index: `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `coaching`?
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/coaching/CLAUDE.index.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.index.md`? · `bot/shared/services/coaching/classroom-photo/CLAUDE.md`? (+30)
+- docs: `bot/shared/services/CLAUDE.md`? · `docs/agent-customization.md`?

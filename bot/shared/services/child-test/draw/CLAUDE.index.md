@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `class-label.js` | Names a classroom as teachers read it (Grade 3 - B, evening, short form) in English and Urdu (R1 7.1) |
 | `cycle.js` | Maps a date to its Pakistan-time quarter cycle id (ICT-YYYY-Qn) and the Aug-Jul academic session code |
 | `index.js` | The child draw: snapshot frame per class, seeded order, todaysList, markOutcome promoting alternates, addChild |
@@ -33,4 +31,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `visit-key.js` ← `tests/child-test/L3b/machine-visit-key.test.js` · `tests/child-test/L3b/visit-key-grade.test.js` · `tests/child-test/L3b/visit-key.test.js` · `tests/child-test/L4/integration-l3.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/child-test/CLAUDE.index.md`? · `bot/shared/services/child-test/CLAUDE.md`? · `bot/shared/services/child-test/draw/CLAUDE.index.md`? · `bot/shared/services/child-test/draw/CLAUDE.md`? · `bot/tests/sa-game/CLAUDE.md`?
+- docs: `bot/shared/services/child-test/CLAUDE.md`?

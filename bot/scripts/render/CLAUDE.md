@@ -1,6 +1,6 @@
 # render — Prototype LP renderers and Gamma-grounded LP smoke tests
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/render kg=bc72d73a12a6 gen=33ef28d67558 overflow=0 rendered=2026-10-28 kg.py=1.0.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/render kg=aadd03bbd49c gen=d87b1604a3b7 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `render-v7-lp.js` — v7-style 6-slide PDF
@@ -10,7 +10,6 @@
 ## Children (generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.md` | (unmapped) |
 | `render-one-lp.js` | Renders one curriculum_lp_ast lesson plan to a simple PDF with Nano Banana Pro illustrations (Path A prototype) |
 | `render-v7-lp.js` | Renders one lesson plan as a v7-style 6-slide PDF using LLM enrichment and parallel Nano Banana Pro slides |
 | `smoke-gamma-grounded-async.js` | E2E smoke of the async Gamma-grounded LP path: handler queues a job, worker renders, uploads to R2, sends the PDF |
@@ -31,4 +30,4 @@ _None found in code comments, tests or git log for this directory._
 - (none)
 
 ## Related (generated)
-- docs: `bot/scripts/CLAUDE.index.md`? · `bot/scripts/CLAUDE.md`? · `bot/scripts/render/CLAUDE.md`?
+- docs: `bot/scripts/CLAUDE.md`?

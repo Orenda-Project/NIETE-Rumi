@@ -8,8 +8,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 |---|---|
 | `providers/` | Concrete TTS vendors: ElevenLabs, OpenAI and Soniox behind the gateway → `providers/CLAUDE.md` |
 | `text/` | → (no door; 2 files) |
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `index.js` | Voice gateway: the one entry (synthesize) any feature uses to get a voice note, routed by use case |
 | `ogg-opus.js` | Ogg Opus toolkit: parse, check completeness, measure duration and join clips for the TTS gateway |
 | `routing.js` | Routes a TTS use case to an ordered provider chain from configuration (resolveChain) |
@@ -25,4 +23,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `routing.js` ← `tests/tts/routing.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/tts/CLAUDE.index.md`? · `bot/shared/services/tts/CLAUDE.md`? · `bot/shared/services/tts/providers/CLAUDE.md`? · `bot/tests/quiz/CLAUDE.index.md`? · `bot/tests/quiz/web-quiz/CLAUDE.index.md`? · `docs/customization.md`?
+- docs: `bot/shared/services/CLAUDE.md`? · `docs/customization.md`?

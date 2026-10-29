@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `roster-extraction.service.js` | Reads a photographed attendance register into structured roster rows via the vision LLM |
 | `roster-lines.js` | Converts a stored roster to and from editable TextArea lines on the roster REVIEW Flow screen |
 | `roster-media.js` | Decrypts WhatsApp PhotoPicker media (CDN url plus encryption metadata) for the roster Flow |
@@ -33,4 +31,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `roster-storage.js` ← `tests/roster/roster-shift-endpoint.test.js` · `tests/roster/roster-storage.test.js`
 
 ## Related (all, generated)
-- docs: `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/roster/CLAUDE.index.md`? · `bot/shared/services/roster/CLAUDE.md`?
+- docs: `bot/shared/services/CLAUDE.md`?

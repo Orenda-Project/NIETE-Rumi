@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `band-selection.service.js` | Lets a teacher restate grade bands taught and derives the training programs that follow |
 | `capstone-delivery.service.js` | Beacon House open-ended capstone delivered as WhatsApp text Q&A with offer, scoring and completion (bd-2233) |
 | `capstone-points.rules.js` | Per-vendor points per capstone answer so I-SAPS CRQs score out of 10 and Beacon House out of 5 (bd-60113) |
@@ -147,4 +145,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `training-web-link.js` ← `tests/training/web-training-link.test.js`
 
 ## Related (all, generated)
-- docs: `CLAUDE.md`? · `bot/shared/services/CLAUDE.index.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/training/CLAUDE.index.md`? · `bot/shared/services/training/CLAUDE.md`? · `docs/migration/02-teacher-training.md`? · `docs/reports/bug131-phase3-grand-quiz.md`?
+- docs: `bot/shared/services/CLAUDE.md`? · `docs/migration/02-teacher-training.md`? · `docs/reports/bug131-phase3-grand-quiz.md`?

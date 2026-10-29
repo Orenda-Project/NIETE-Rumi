@@ -6,8 +6,6 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Children (all, generated)
 | path | purpose |
 |---|---|
-| `CLAUDE.index.md` | (unmapped) |
-| `CLAUDE.md` | (unmapped) |
 | `added-plan.js` | Stores and reads a lesson plan the coach adds in the observe2 form before the seal |
 | `analysis.js` | Writes the checked observe2 record into coaching_sessions.analysis_data in /observe's FICO shape |
 | `brief.js` | Builds the no-model coaching brief from the checked record: reflective questions, wins, focus |
@@ -80,4 +78,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `strings.js` ← `bot/tests/i18n/slash-command-bidi.test.js` · `tests/coaching/bd-erpvf-hitl-duplicate-recording.test.js` · `tests/observe2/moments-cutoff.test.js` · `tests/observe2/moments.test.js` · `tests/observe2/notes-before-debrief.test.js` · `tests/observe2/parts-by-phase.test.js` (+5: `python3 kg/kg.py who-reads bot/shared/services/observe/observe2/strings.js`)
 
 ## Related (all, generated)
-- docs: `bot/shared/services/observe/CLAUDE.index.md`? · `bot/shared/services/observe/CLAUDE.md`? · `bot/shared/services/observe/observe2/CLAUDE.index.md`? · `bot/shared/services/observe/observe2/CLAUDE.md`? · `bot/tests/i18n/CLAUDE.md`?
+- docs: `bot/shared/services/observe/CLAUDE.md`?
