@@ -31,7 +31,9 @@
 // sa-14 (production only): the engine files again. Each VERSION bump drops only the sa-core-* cache; the batteries, clips
 // and word timings stay in SESSION, so neither of these two refreshed a battery or clip copy a phone already held.
 // sa-15: round 8 close: sa-ui.js (the story questions' hint names Next / «آگے»).
-var VERSION = 'sa-15';
+// sa-16: round 8 close: sa-offline.js asks the registration to update() and waits (bounded) for a new worker before
+// 'prepare', so a phone still on the previous SESSION prepares into the new one, not into a cache it is about to delete.
+var VERSION = 'sa-16';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
