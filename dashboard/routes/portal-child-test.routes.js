@@ -155,6 +155,9 @@ const SA_SWITCHES = {
   r8OfflineFirst: 'sa_r8_offline_first',
   r8OfflinePrep: 'sa_r8_offline_prep',
   r8FastStart: 'sa_r8_fast_start',
+  // round 8: the microphone check on an iPhone (portal components/assess/AssessPreflight.tsx): its AudioContext is made
+  // inside the tap, and the recording can be played again by a tap
+  iosMic: 'sa_r8_ios_mic',
 };
 // Switches that are off on any host but sandbox, whatever their row says.
 const SANDBOX_ONLY = new Set(['exampleDashboard']);
