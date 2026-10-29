@@ -326,6 +326,18 @@ def test_8b_not_covered_is_reported_even_when_it_is_the_only_change():
     assert "video-orchestrator" in out
 
 
+def test_8d_the_assessment_generator_is_named_not_covered_not_filed_as_training():
+    # bd-nkx9me: training.feature has no paper scenario, so arming /niete-e2e training for a
+    # generator push tested nothing it touched. Say so out loud instead.
+    for p in ["bot/shared/services/assessment/topics/stem-prompt.js",
+              "bot/shared/services/assessment-orchestrator.service.js",
+              "bot/shared/routes/assessment-gen-endpoint.js"]:
+        s = _sel([p])
+        assert s.features == [], (p, s.features)
+        assert s.fallback is False, p
+        assert [x for x, _ in s.not_covered] == [p], (p, s.not_covered)
+
+
 def test_8c_a_mapped_path_still_wins_over_not_covered():
     # quiz/** is training-mapped; the video-quiz services live under it and must
     # not be swallowed by the video not_covered rule.

@@ -122,11 +122,6 @@ features:
     - bot/shared/handlers/exam-checker.handler.js
     - bot/shared/routes/exam-generator-endpoint.js
     - bot/shared/routes/exam-confirm-endpoint.js
-    - bot/shared/routes/assessment-gen-endpoint.js
-    - bot/shared/routes/assessment-gen-callback.routes.js
-    - bot/shared/routes/internal-assessment-view.routes.js    # a finished paper's questions for the portal paper page (bd-fmf24g.31)
-    - bot/shared/services/assessment-*.service.js
-    - bot/shared/services/assessment/**                     # the generator the assessment routes call (bd-gr4fy.8 map gap)
     - bot/workers/exam-grading.worker.js
     - bot/workers/quiz-job-handler.js
     - bot/shared/templates/quiz-report.template.js
@@ -565,6 +560,12 @@ not_covered:
   bot/shared/services/student-video-feedback.service.js: "Student video feedback — no feature file"
   bot/shared/routes/student-videos-endpoint.js: "Student video feedback — no feature file"
   bot/shared/constants/feature-videos.js: "Feature intro videos — no feature file"
+
+  bot/shared/routes/assessment-gen-endpoint.js: "Assessment generator (topic/board papers) — training.feature has no paper scenario; the portal side is the web lane's teacher-assessment (bd-nkx9me)"
+  bot/shared/routes/assessment-gen-callback.routes.js: "Assessment generator (topic/board papers) — training.feature has no paper scenario; the portal side is the web lane's teacher-assessment (bd-nkx9me)"
+  bot/shared/routes/internal-assessment-view.routes.js: "Assessment generator (topic/board papers) — training.feature has no paper scenario; the portal side is the web lane's teacher-assessment (bd-nkx9me)"
+  bot/shared/services/assessment-*.service.js: "Assessment generator (topic/board papers) — training.feature has no paper scenario; the portal side is the web lane's teacher-assessment (bd-nkx9me)"
+  bot/shared/services/assessment/**: "Assessment generator (topic/board papers) — training.feature has no paper scenario; the portal side is the web lane's teacher-assessment (bd-nkx9me)"
 
   bot/shared/handlers/homework-trigger.js: "Homework bundles — no homework.feature"
   bot/shared/routes/homework-request-endpoint.js: "Homework bundles — no homework.feature"
