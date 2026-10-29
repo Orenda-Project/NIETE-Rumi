@@ -1,7 +1,7 @@
 # sa — Self-administered reading/maths battery engine served at /sa/*, offline-first
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa kg=1baca0b93011 gen=344d3baded98 overflow=92 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=dashboard/sa kg=291fd78fb860 gen=f5ed240295d7 overflow=93 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `sa-page.js` — boot of /sa/play.html, the page both coach and game open
@@ -36,7 +36,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `dashboard/tests/sa-r4-coach-last-word.service.test.js` (sa-core.js, sa-engine.js, sa-store.js, sa-ui.js, sink-coach.js)
 - `dashboard/tests/sa-r8-offline-hunks.service.test.js` (sa-core.js, sa-engine.js, sa-offline.js, sa-store.js, sa-voice.js)
-- … 88 more → `CLAUDE.index.md`
+- … 89 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - docs: `dashboard/CLAUDE.md`?
