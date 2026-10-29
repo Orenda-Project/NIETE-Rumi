@@ -88,6 +88,15 @@ describe.each(["en", "ur"] as Lang[])("R6 fix cycle 1, RM deck (%s)", (lang) => 
     expectContract(page, expect);
   });
 
+  it("B1 S9: the fidelity window and its grader said once (the schools' legend); the coach's rows drop their line", async () => {
+    await renderRm(`/coach/${C03}`);
+    const page = screen.getByTestId("rm-coach");
+    expect(times(visible(page), rangeOf(FID, lang))).toBe(1);
+    expect(times(visible(page), F.rm_home.windows[0].grader_label[lang])).toBe(1);
+    for (const row of within(page).getAllByTestId("s9-wrow")) expect(visible(row)).not.toContain(rangeOf(FID, lang));
+    expectContract(page, expect);
+  });
+
   it.each([["", "rm-home"], ["/coaches", "rm-coaches"], ["/circle", "rm-circle"], ["/stats", "rm-stats"], [`/coach/${C03}`, "rm-coach"]])(
     "B2 %s: one tint, no cp-grey-fill", async (sub, id) => {
       await renderRm(sub);
