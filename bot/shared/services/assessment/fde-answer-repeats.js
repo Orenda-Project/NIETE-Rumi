@@ -34,7 +34,8 @@ const FUNCTION_WORDS = new Set(('are was were has have had she they you his her 
   + 'the and but with from for into over under near behind above below اور ہیں تھا تھی تھے کا کی کے نے کو سے ہے پر یہ وہ تو').split(' '));
 const ARABIC = /[\u0600-\u06FF]/; // an Urdu key of two letters («سچ») is a word; an English one ("is") is not
 const { nearRepeats } = require('./fde-near-repeats');
-const wordsOf = (s) => String(s == null ? '' : s).normalize('NFC').toLowerCase().match(WORD) || [];
+const { stemRepeats } = require('./fde-stem-repeats'); // bd-5jmnfj.33.3: a stem asked twice, a key or its singular in another stem
+const wordsOf =(s) => String(s == null ? '' : s).normalize('NFC').toLowerCase().match(WORD) || [];
 const optionsOf = (q) => (Array.isArray(q.options) ? q.options : []);
 // "الف) گاجر" -> "گاجر", as fde-early-prompt reads a choice.
 const choice = (o) => String(o).replace(/^\s*\(?[^\s)]{1,3}\)\s*/, '').trim();
@@ -230,6 +231,7 @@ function answerRepeats(examJson) {
     });
   }));
   nearRepeats(examJson).forEach((f) => f.with.forEach((s, k) => f.words.forEach((w) => flag(f.slot, w, s, f.text[k]))));
+  stemRepeats(examJson).forEach((f) => f.with.forEach((s, k) => f.words.forEach((w) => flag(f.slot, w, s, f.text[k]))));
   return [...out.values()];
 }
 

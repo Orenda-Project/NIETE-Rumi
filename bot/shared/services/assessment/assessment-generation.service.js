@@ -760,6 +760,7 @@ const { noArrows } = require('./fde-no-arrows');
 const { steerNote } = require('./fde-mid-steer'); // bd-5jmnfj.33.2: Grade 3–4 Sections B/C are told Section A's facts
 const { mcqArithmetic, mcqNote } = require('./fde-mcq-arithmetic'); // bd-5jmnfj.33.2: a Maths MCQ key is its stem's arithmetic
 const { directedTasks } = require('./fde-directed-tasks'); // bd-5jmnfj.33.2: a do-as-directed item prints its task
+const { midKeyFixes } = require('./fde-mid-key-fixes'); // bd-5jmnfj.33.3: match split, own labels, compare sign, unasked checks, division digits
 
 // Required on first use: the loader opens a database client, and the prompt
 // helpers above are loaded by tests and tools that have no database.
@@ -1383,6 +1384,9 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     rules.push(`Use Grade ${P.grade} vocabulary; a term the book does not use is replaced by the book's word.`);
     // v30 G3 Maths Q5: accept carried the wording the common error called wrong; a three-thing ask keyed one point (bd-5jmnfj.33.2).
     rules.push('`accept` never lists a wording the same item\'s common_error names as wrong; an item that asks for N things keys N points.');
+    // v31 (bd-5jmnfj.33.3): a vacuum asked twice, keys printed in later stems, checks paid unasked, a part labelled "Q5.".
+    rules.push('No two items ask the same question or test the same fact; a stem never prints another item\'s answer or target word.');
+    rules.push('A model answer states only what the chapter text states; a check is paid only where the stem asks for one and uses a different method; an item never carries its own question number or label.');
   } else if (key === 'science' || key === 'english') rules.push(RULE.grade5Words);
   if (hasMcq) {
     if (key !== 'maths' && key !== 'social_studies') rules.push(`In this section, ${RULE.recall}.`);
@@ -2952,6 +2956,11 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
     const fixed = mcqArithmetic(examJson, { subject: key, fix: true });
     examJson = fixed.examJson;
     fixed.notes.forEach((note) => logToFile(note.kind === 'key_moved' ? '[assessment] mcq key moved' : '[assessment] mcq option rewritten', { requestId, pattern, ...note }));
+    // bd-5jmnfj.33.3 (v31 review): one pair per match item, no own "Q5." label, the true compare sign,
+    // no A point for an unasked check, division points naming the digits really used first.
+    const mid = midKeyFixes(examJson, { subject: key });
+    examJson = mid.examJson;
+    mid.notes.forEach((note) => logToFile('[assessment] mid key fixed', { requestId, pattern, ...note }));
   }
   const keyed = keyFixes(examJson); // bd-5jmnfj.4.57: paragraph length from the template, no lone-letter syllable split
   examJson = keyed.examJson;
