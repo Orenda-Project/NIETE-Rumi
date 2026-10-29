@@ -11,7 +11,7 @@ import AssessActions, { useAboveTabBar } from '../components/assess/AssessAction
 import AssessOfflineCard from '../components/assess/AssessOfflineCard';
 import { OFFLINE_COPY } from '../components/assess/offlineCopy';
 import {
-  checkForms, dropPageOffline, FAST_START_MS, formFor, GATE_CAP_MS, prepForms, readPreparedList, readSchools, useR8Switches, within, writeSchools, type PrepResult, type Progress,
+  checkForms, dropPageOffline, FAST_START_MS, formFor, prepForms, readPreparedList, readSchools, useR8Switches, within, writeSchools, type PrepResult, type Progress,
 } from '../components/assess/offlineReady';
 import { childTestSa } from '../services/api';
 import { useChildTestSa } from '../lib/useChildTestSa';
@@ -495,22 +495,26 @@ export default function LeaderAssess() {
    * part this child's page runs: its block, and the passage its session draws), with progress. The whole battery keeps
    * coming down behind it (the list's warm-up), so the next child of the grade starts at once.
    */
+  /**
+   * sa_r8_offline_first: this child's part on the phone before Start (the battery, and the clips and pictures of the part
+   * this child's page runs: its block, and the passage its session draws). Online, Start never waits for it: the part
+   * comes down behind the test (no first Start is slower than without the switch), so the next child of the grade starts
+   * from the phone. With no signal only a part that is all on the phone starts, else the coach sees why, before the test.
+   */
   const readyOnPhone = async (form: string, block: Block, seed: string): Promise<boolean> => {
+    const part = { block, seed };
+    if (typeof navigator === 'undefined' || navigator.onLine !== false) {
+      gating.current = true;
+      void checkForms([form], part)
+        .then((c) => (c.ready ? null : prepForms([form], undefined, part, { fresh: false })))
+        .finally(() => { gating.current = false; });
+      return true;
+    }
     setGate({ progress: null, failed: false });
     gating.current = true;
     try {
-      // already on the phone (Get ready, the list's warm-up, an earlier child): no network at all
-      if ((await checkForms([form], { block, seed })).ready) { setGate(null); return true; }
-      // else this part only, with the line to itself; the battery is not read again when the phone has it
-      const got = prepForms([form], (p) => setGate({ progress: p, failed: false }), { block, seed }, { fresh: false });
-      // online: at most GATE_CAP_MS, then (or on a server error) the test opens as it does without the switch
-      if (typeof navigator === 'undefined' || navigator.onLine !== false) {
-        await within(got, GATE_CAP_MS);
-        setGate(null);
-        return true;
-      }
-      // no signal: only a part that is all on the phone starts
-      const r = await got;
+      if ((await checkForms([form], part)).ready) { setGate(null); return true; }
+      const r = await prepForms([form], (p) => setGate({ progress: p, failed: false }), part, { fresh: false });
       if (r.ok) { setGate(null); return true; }
       setGate({ progress: null, failed: true });
       return false;
@@ -927,7 +931,7 @@ export default function LeaderAssess() {
         </div>
         {/* sa_r8_offline_first: right under the child's name, where a phone shows it (the part list is long) */}
         {gate && (
-          <div ref={gateRef} data-testid="assess-ready-gate" role="status" className="space-y-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
+          <div ref={gateRef} data-testid="assess-ready-gate" role="status" className="scroll-mt-40 space-y-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
             {gate.failed ? (
               <>
                 <p data-testid="assess-ready-failed" className="font-medium text-amber-900">{OFFLINE_COPY[lang].gateFailed}</p>
