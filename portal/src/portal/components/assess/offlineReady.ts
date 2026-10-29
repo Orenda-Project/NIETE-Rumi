@@ -26,12 +26,6 @@ export type R8Switches = { offlineFirst: boolean; offlinePrep: boolean; fastStar
 export const R8_OFF: R8Switches = { offlineFirst: false, offlinePrep: false, fastStart: false };
 
 export const FAST_START_MS = 1500;
-/**
- * sa_r8_offline_first: the longest Start waits for a part that is not on the phone yet while the phone is online. After
- * that the test opens as it does without the switch (the part keeps coming down behind it), so no first Start is slower
- * than today by more than this. With no signal the gate waits for its answer (a test that cannot play never starts).
- */
-export const GATE_CAP_MS = 2000;
 
 /** This page's round-8 switches (fail-closed: off until read, off when the read fails). */
 export function useR8Switches(enabled: boolean | null): R8Switches {
