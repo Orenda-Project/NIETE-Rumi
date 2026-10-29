@@ -45,10 +45,10 @@ describe('1. a sentence slot prints wide with a taller box', () => {
     expect(c.length).toBe(5);
     c.forEach((k) => expect(k).toMatch(/pic-cell wide/));
   });
-  test('the wide cell spans the line and its box is two lines tall', () => {
+  test('the wide cell spans the line and its box is three lines tall', () => {
     expect(enHtml).toMatch(/\.q\.pic-cell\.wide \{[^}]*width: 100%/);
     const at = enHtml.indexOf('data-slot="g1.english.C.Q12"');
-    expect(enHtml.slice(at, at + 2000)).toMatch(/class="write-box" style="height:20mm"/);
+    expect(enHtml.slice(at, at + 2000)).toMatch(/class="write-box" style="height:28mm"/);
   });
   test('control: a word slot (English Q7) keeps the narrow cell and 12mm box', () => {
     cells(enHtml, 'g1.english.B.Q7').forEach((k) => expect(k).not.toMatch(/wide/));
@@ -83,7 +83,7 @@ describe('4. Urdu Q6 picture is the thing itself', () => {
 
 describe('5-6. the accept line', () => {
   test('drops the key itself, loosely', () => {
-    expect(acceptText('بلی', ['بلی۔', 'بلّی'], 'ur')).toBe('بلّی');
+    expect(acceptText('بلی', ['بلی۔', 'بلّی'], 'ur')).toBe(''); // v27: a shadda is noise too
     expect(acceptText('(b) a cat', ['a cat', 'cat'], 'en')).toBe('cat');
     expect(acceptText('بلی', ['بلی'], 'ur')).toBe('');
   });
@@ -92,7 +92,7 @@ describe('5-6. the accept line', () => {
   });
   test('control: words keep their separator', () => {
     expect(acceptText('cat', ['kitten', 'kitty'], 'en')).toBe('kitten; kitty');
-    expect(acceptText('بلی', ['بلّی', 'پشی'], 'ur')).toBe('بلّی؛ پشی');
+    expect(acceptText('بلی', ['بلّی', 'پشی', 'میاؤں'], 'ur')).toBe('پشی؛ میاؤں');
   });
   test('the printed key never repeats the answer as an accept', () => {
     // The fixture's بطخ item accepts only بطخ.

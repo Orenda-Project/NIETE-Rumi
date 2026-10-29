@@ -23,6 +23,8 @@
 const crypto = require('crypto');
 const Svg = require('./fde-picture-svg');
 const Kie = require('./fde-picture-kie');
+const Describe = require('./fde-picture-describe');
+const { circuitPicture } = require('./fde-circuit-frame');
 
 // v3: pictures cached under v2 carry arrows and scan edges (bd-5jmnfj.4.30) and are never reused.
 const PREFIX = 'fde-pictures/v3';
@@ -34,6 +36,7 @@ const RATE_WAITS_MS = [5000, 15000, 30000];
 // v17: the egg has a curve that reads like a smile (bd-5jmnfj.4.37).
 const REDRAWN = { egg: 'r1' };
 // v17: the framed sock had 34% of its outer 3px grey; scenes whose ground line touches the edge have under 2%.
+const PROMPT_REV = 'r27';
 const RING_PX = 3;
 const FRAME_SHARE = 0.2;
 
@@ -48,12 +51,16 @@ const canon = (text) => String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, 
 function cacheKey(picture) {
   if (picture.kind === 'scene') {
     const told = canon(picture.describe) + (picture.place ? `|${picture.place}` : '')
-      + (picture.show ? `|${JSON.stringify(picture.show)}` : '');
+      + (picture.show ? `|${JSON.stringify(picture.show)}` : '')
+      // v26: a bubble in the describe, and the position and compare wording, changed what is drawn (bd-5jmnfj.4.58.2).
+      + (Describe.hasBubble(picture.describe) ? '|nb1' : '') + (picture.place || picture.show ? `|${PROMPT_REV}` : '');
     const hash = crypto.createHash('sha256').update(told).digest('hex').slice(0, 8);
     return `${PREFIX}/scene-no-text/${slug(picture.describe)}-${hash}.jpg`;
   }
   const name = slug(picture.name);
-  return `${PREFIX}/object/${REDRAWN[name] ? `${name}-${REDRAWN[name]}` : name}.jpg`;
+  // v26: a masculine person was drawn a woman; one drawn before the markers were added is never reused.
+  const rev = REDRAWN[name] || (Describe.genderNote(picture.name) ? 'm1' : '');
+  return `${PREFIX}/object/${rev ? `${name}-${rev}` : name}.jpg`;
 }
 
 /** True when the outer ring of a greyscale image ({data, width, height}) is mostly not white: a frame. */
@@ -198,12 +205,31 @@ function pictureFrameSlots(examJson) {
   return new Set(slots.filter((s) => s.frame && s.frame.kind === 'picture').map((s) => s.slot));
 }
 
+// G5 Science Q1 (b): a label frame whose key is the five circuit symbols prints them (bd-5jmnfj.4.58.2).
+function drawCircuitFrames(examJson) {
+  const L = examJson && examJson._layout;
+  const labelSlots = new Set(((L && L.sections) || []).flatMap((s) => s.slots || [])
+    .filter((s) => s.frame && s.frame.kind === 'diagram').map((s) => s.slot));
+  for (const types of Object.values((examJson && examJson.unseen) || {})) {
+    for (const list of Object.values(types || {})) {
+      for (const q of Array.isArray(list) ? list : []) {
+        const picture = q && labelSlots.has(q.slot) ? circuitPicture(q) : null;
+        if (!picture) continue;
+        q.picture = picture;
+        delete q.teacher_note_en;
+        delete q.teacher_note_ur;
+      }
+    }
+  }
+}
+
 /**
  * A G5 picture-description frame (v24 review) gets a plain black-outline scene drawn from the
  * item's English `describe_en`. Unlike a Grade 1-2 picture this never fails the paper: an item
  * whose drawing fails keeps no picture, so it prints today's empty frame and the "You add" line.
  */
 async function resolveFramePictures(examJson, deps = null) {
+  drawCircuitFrames(examJson);
   const wanted = pictureFrameSlots(examJson);
   const items = [];
   for (const types of Object.values((examJson && examJson.unseen) || {})) {

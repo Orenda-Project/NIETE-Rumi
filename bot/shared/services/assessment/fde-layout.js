@@ -1450,7 +1450,8 @@ function bookSplit(q, P) {
 // The list is the stem's first line after its last colon, up to its first «۔» or «؟», cut at «،».
 // Urdu Q4: four kinds, one item each, in FDE's order. An item's kind is read from its heading or stem;
 // a second item of a kind never takes another kind's place.
-const Q4_KINDS = [[/گروہی/, 'گروہی الفاظ'], [/شرط|جزا/, 'حروفِ شرط و جزا'], [/مستقبل/, 'فعلِ حال کو فعلِ مستقبل میں تبدیل کریں'], [/ارکان/, 'ارکان سازی']];
+const { Q4_KINDS, q4TaskKnown } = require('./fde-task-line'); // bd-5jmnfj.4.58.2
+const { finallyNotLast } = require('./fde-order-check'); // bd-5jmnfj.4.58.2
 const q4Kind = (q) => Q4_KINDS.findIndex(([re]) => re.test(`${q.main_question || ''} ${q.question || ''}`));
 const sameQ4Kind = (a, b) => q4Kind(a) >= 0 && q4Kind(a) === q4Kind(b);
 const GROUP_ASK = /گروہی/;
@@ -2225,6 +2226,8 @@ function applyLayout(examJson, P, scope, opts = {}) {
       if (P.key === 'social_studies' && tierSlip(q)) return false;
       if (P.key === 'urdu' && DATE_KEY_SLOTS.has(slot.slot) && keyedOnDate(q)) return no(slot, 'date_key');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && bySlot.get(slot.slot).some((p) => sameQ4Kind(p, q))) return no(slot, 'q4_kind_repeat');
+      if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && !q4TaskKnown(q)) return no(slot, 'q4_task_unknown');
+      if (slot.type === 'Story Order' && finallyNotLast(q)) return no(slot, 'order_finally_not_last');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && keyAcceptSplit(q)) return no(slot, 'key_accept_split');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && groupWordListed(q)) return no(slot, 'group_word_listed');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && syllableSplit(q)) { keep(slot.slot, q, 'syllable_split'); return false; }

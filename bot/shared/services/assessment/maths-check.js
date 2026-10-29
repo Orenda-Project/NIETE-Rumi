@@ -18,6 +18,7 @@
 
 const { checkSchemeFigures } = require('./fde-scheme-figures');
 const { checkCommonError } = require('./fde-common-error-check');
+const { fixLcmLadder } = require('./fde-lcm-ladder');
 
 // Grade 5 numbers are short; anything longer is not a school sum.
 const MAX_DIGITS = 30;
@@ -1108,6 +1109,8 @@ function mathsCheck(examJson, options = {}) {
       if (isObject(exam._layout)) checkSchemeFigures(q, { parseForm });
       // ...and a counting, carrying or decimal-point slip figure (bd-5jmnfj.4.57).
       if (isObject(exam._layout)) checkCommonError(q);
+      // ...and the L.C.M. division ladder's "to reach" pair (bd-5jmnfj.4.58.2).
+      if (isObject(exam._layout) && typeof q.answer === 'string') q.answer = fixLcmLadder(q.answer);
       if (verdict === 'ok') counts.checked += 1;
       else if (verdict === 'replaced') counts.replaced += 1;
       else counts.unparsed += 1;

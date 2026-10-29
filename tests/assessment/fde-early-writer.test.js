@@ -50,12 +50,12 @@ function oralTree(oral, drop = []) {
   })) };
 }
 
-function deps(P, { replies = {}, oralReplies = [], pictures = null } = {}) {
+function deps(P, { replies = {}, oralReplies = [], pictures = null, book = 'BOOK' } = {}) {
   const calls = { sections: [], oral: [], prompts: [] };
   const sectionN = {};
   const d = {
     family: 'eng',
-    loadPatternContent: jest.fn(async () => ({ content: 'BOOK', pageReference: '1-50' })),
+    loadPatternContent: jest.fn(async () => ({ content: book, pageReference: '1-50' })),
     ensureCurrent: jest.fn(async () => {}),
     patternModel: () => ({ model: 'test/model', job: 'assessment.generate' }),
     resolveModelForJob: () => ({ model: 'test/model' }),
@@ -199,9 +199,9 @@ test('two questions in one section showing one thing: that section is re-asked, 
   expect(a[1].user).toMatch(/different word/i);
 });
 
-test('a repeat left after the re-ask is logged and the paper still comes back', async () => {
+test('a repeat left after the re-ask and one more ask is logged and the paper still comes back', async () => {
   const again = { names: { 'g1.english.C.Q11': ['cat'] } };
-  const { d, go } = run(1, 'english', { replies: { A: [{ names: { 'g1.english.A.Q1': ['cat'] } }], C: [again, again] } });
+  const { d, go } = run(1, 'english', { replies: { A: [{ names: { 'g1.english.A.Q1': ['cat'] } }], C: [again, again, again] } }); // the last reply is the one extra ask (bd-5jmnfj.4.58.2)
   const out = await go();
   expect(out.examJson).toBeDefined();
   expect(d.logToFile).toHaveBeenCalledWith('[assessment] repeated pictures', expect.objectContaining({
@@ -282,4 +282,17 @@ test('a re-asked section keeps the note of what the earlier sections asked', asy
   const b = calls.sections.filter((c) => c.id === 'B');
   expect(b).toHaveLength(2);
   expect(b[1].user).toMatch(/already asks/);
+});
+
+// v26 G2 Urdu Q1 iv: the who-said MCQ offered names the book dialogue does not hold (bd-5jmnfj.4.58.2).
+const BOOK_URDU = 'غصیلا بھنورا: میں تم سے لڑائی کروں گا۔ تتلیا: میں تتلیا ہوں۔ ٹڈی: آؤ سب دوست بن جائیں۔ '.repeat(6);
+const garbled = { keys: { 'g2.urdu.A.Q1': [{ question: 'لڑائی کے بعد کس نے سب کو دوست بننے کو کہا؟', options: ['الف) غصیلے کیڑے نے', 'ب) ٹڈی نے', 'ج) تگیا نے'], answer: 'الف) غصیلے کیڑے نے' }] } };
+
+test('a who-said item with names the book text lacks is asked once more, told the item', async () => {
+  const { calls, go } = run(2, 'urdu', { replies: { A: [garbled] }, book: BOOK_URDU });
+  await go();
+  const a = calls.sections.filter((c) => c.id === 'A');
+  expect(a).toHaveLength(2);
+  expect(a[1].user).toMatch(/تگیا/);
+  expect(a[1].user).toMatch(/book text does not hold/);
 });

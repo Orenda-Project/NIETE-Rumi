@@ -45,6 +45,8 @@ const PICTURE_CSS = `
   .pic-shapes img { height: 22mm; }
   .pic-scene img { height: 45mm; }
   .pic-plant img { height: 60mm; }
+  .pic-circuit img { height: 62mm; }
+  .frame .pic-circuit { margin: 3mm; }
   .bubble-row { display: flex; align-items: flex-start; gap: 6mm; break-inside: avoid; }
   .bubble { position: relative; width: 62mm; height: 26mm; margin-top: 4mm; border: 0.5mm solid #000; border-radius: 50%; }
   /* The tail is an outline, a white triangle over a black one: a solid one read as an arrowhead (bd-5jmnfj.4.40).

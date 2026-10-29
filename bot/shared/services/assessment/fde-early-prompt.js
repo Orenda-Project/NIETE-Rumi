@@ -93,6 +93,7 @@ function oralPrompt({ oral, grade, P, pageContent, saidCheck = true }) {
 // A bracketed note the writer left for itself ("(Note: use 9 cats)"): a teacher must never read it out
 // (bd-5jmnfj.4.51.6). The task is asked again, not stripped: the numbers around the note are wrong too.
 const WRITER_NOTE = /[([]\s*(?:note\b|nb\b|n\.b\b|writer\b|generator\b|نوٹ)[^)\]]*[)\]]/i;
+const { extraNumbers } = require('./fde-oral-numbers'); // bd-5jmnfj.4.58.2
 const hasNote = (t) => typeof t === 'string' && WRITER_NOTE.test(t);
 
 /**
@@ -110,7 +111,9 @@ function oralContent(tree, oral, { saidCheck = true } = {}) {
     const noted = hasNote(script) || (got && Array.isArray(got.items) && got.items.some((it) => it && (hasNote(it.ask) || hasNote(it.answer))));
     // A listening answer the story never says is asked again (bd-5jmnfj.4.55); an Urdu script is skipped.
     const unsaid = saidCheck && task.kind === 'listening' && unsaidWords(script, task.n ? items.slice(0, task.n) : items).length > 0;
-    const whole = !noted && !unsaid && (!needsScript(task) || script) && items.length >= (task.n || 0);
+    // An oral mental-maths item naming a number it does not ask about is asked again (v26 G1 Maths item 1).
+    const extra = task.kind === 'oral_maths' && extraNumbers(items).length > 0;
+    const whole = !noted && !unsaid && !extra && (!needsScript(task) || script) && items.length >= (task.n || 0);
     if (!got || !whole) { missing.push(task.id); continue; }
     content.push({ id: task.id, ...(script ? { script } : {}), items: task.n ? items.slice(0, task.n) : items });
   }
