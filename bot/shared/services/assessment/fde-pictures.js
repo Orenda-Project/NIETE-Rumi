@@ -35,6 +35,8 @@ const RATE_WAITS_MS = [5000, 15000, 30000];
 // Pictures whose cached drawing was rejected on review get a fresh key, so they are drawn again.
 // v17: the egg has a curve that reads like a smile (bd-5jmnfj.4.37).
 const REDRAWN = { egg: 'r1' };
+// v29: a scene rejected on review, by its describe hash. The v28 G2 Urdu Q7 park scene was cut off at the edge (bd-5jmnfj.4.58.5).
+const REDRAWN_SCENES = { '72b1e44a': 'r1' };
 // v17: the framed sock had 34% of its outer 3px grey; scenes whose ground line touches the edge have under 2%.
 const PROMPT_REV = 'r27';
 const RING_PX = 3;
@@ -55,7 +57,8 @@ function cacheKey(picture) {
       // v26: a bubble in the describe, and the position and compare wording, changed what is drawn (bd-5jmnfj.4.58.2).
       + (Describe.hasBubble(picture.describe) ? '|nb1' : '') + (picture.place || picture.show ? `|${PROMPT_REV}` : '');
     const hash = crypto.createHash('sha256').update(told).digest('hex').slice(0, 8);
-    return `${PREFIX}/scene-no-text/${slug(picture.describe)}-${hash}.jpg`;
+    const rev = REDRAWN_SCENES[hash];
+    return `${PREFIX}/scene-no-text/${slug(picture.describe)}-${hash}${rev ? `-${rev}` : ''}.jpg`;
   }
   const name = slug(picture.name);
   // v26: a masculine person was drawn a woman; one drawn before the markers were added is never reused.
