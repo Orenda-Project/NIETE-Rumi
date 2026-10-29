@@ -47,6 +47,7 @@ const { relayLessonPlanPdf } = require('../lib/lesson-plan-file');
 // bd-5rz1v.15 — every lesson plan she opens here is recorded (niete_lp_opens), fire-and-forget,
 // and read back as her recent plans; bd-5rz1v.17 — the Home's counts for a Pakistan-time range.
 const LpActivity = require('../services/lp-activity.service');
+const ThingToTry = require('../services/thing-to-try.service');
 // bd-qvevax.2 — a plan she read in the portal's own viewer asks the bot for the lesson-plan survey,
 // exactly as one delivered on WhatsApp does (the bot decides; this only says the open happened).
 // bd-4joiqz — both through LpReader: who is opening (a teacher, or a leader reading it) and what that open records.
@@ -87,6 +88,7 @@ const {
   PORTAL_NEW_UI_KEY,
   isPortalAssessmentEditingEnabled,
   PORTAL_COACH_V2_KEY,
+  PORTAL_COACH_SCHOOL_CARD_KEY,
   PORTAL_TEACHER_V2_KEY,
   COACH_DISAGREEMENT_CARD_KEY,
   PORTAL_TEACHER_HOME_CARD_KEY,
@@ -2271,6 +2273,17 @@ async function requireCoachV2(req, res, next) {
   return next();
 }
 const coachV2 = [requirePortalAuth, requireLeaderRole, requireCoachV2];
+
+// The coach School Card: its own switch on top of the coach app v2 chain. Off for her → 404, nothing is read.
+async function requireSchoolCard(req, res, next) {
+  const on = await isFlagEnabledForUser(supabase, PORTAL_COACH_SCHOOL_CARD_KEY, req.session && req.session.portalUserId);
+  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+  return next();
+}
+router.use(require('./coach-school-card.routes').createCoachSchoolCardRouter({
+  guards: [...coachV2, requireSchoolCard],
+  query: (sql, params) => pool.query(sql, params),
+}));
 
 // bd-tbprit.1: the coach's disagreements (v10 coaching test) — her To do / Done and the evidence card.
 // Behind the coach app guards AND its own flag, so week 1 of the test sees nothing new.
@@ -7505,7 +7518,8 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
 
         // ── her own words ──────────────────────────────────────────────────
         reflection,
-        prioritizedAction: session.prioritized_action || null,
+        // bd-v0toag.130: the v10 thing to try only for groups C and D.
+        prioritizedAction: await ThingToTry.actionForTeacher(supabase, userId, session.prioritized_action) || null,
 
         analysisData: {
           overall_score: {
@@ -7646,7 +7660,8 @@ function teacherClassPick(raw) {
 
 /**
  * POST /api/portal/coaching-upload/start
- * Body { key, lessonPlanKey?, lessonPlan?, photoKeys?, teacherClass?, liveMoves? } — keys returned by /presign, uploaded.
+ * Body { key, lessonPlanKey?, lessonPlan?, photoKeys?, teacherClass?, liveMoves?, saveForLater? } — keys returned by /presign, uploaded.
+ *   saveForLater (bd-bmc9a0.2): "Save recording" — the same start, marked saved to come back to (only `true` passes)
  *   liveMoves (bd-v0toag.31): what the live screen saw; the bot validates it and drops a bad one
  *   teacherClass (bd-fmf24g.9): { grade, subject, subjectKey? } — the class she picked; the bot stores it
  *   lessonPlan: a library pick — { assetId } | { lessonId } | { segmentId, lang }
@@ -7654,10 +7669,12 @@ function teacherClassPick(raw) {
  *   400 { reason: 'plan_not_found' | 'plan_not_ready' | … }
  */
 router.post('/coaching-upload/start', requirePortalAuth, requireSelfObservation, (req, res) => {
-  const { key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves } = req.body || {};
+  const { key, lessonPlanKey, photoKeys, lessonPlan, teacherClass, liveMoves, saveForLater } = req.body || {};
   return relayToBot(res, 'start', () => PortalCoachingClient.startSession({
     userId: req.session.portalUserId, key, lessonPlanKey, photoKeys, lessonPlan: libraryPlanPick(lessonPlan),
     teacherClass: teacherClassPick(teacherClass), liveMoves,
+    // bd-bmc9a0.2 — "Save recording" (ICT IAB row 31): a real boolean true, or nothing.
+    ...(saveForLater === true ? { saveForLater: true } : {}),
   }), (status) => {
     // bd-c5reix — a recording kept from WhatsApp, sent from the app (the funnel's "pending submitted").
     if (status === 200 && isWhatsAppKey(key)) logAppAction(req, 'coaching.pending_sent', 'ai_coaching');
@@ -8873,6 +8890,7 @@ router.get('/config', async (req, res) => {
       teacherHomeCard,
       teacherHomeOrderRaw,
       teacherHomeLookRaw,
+      schoolCardRaw,
     ] = await Promise.all([
       isAssessmentGeneratorEnabled(supabase),
       isPortalAssessmentEditingEnabled(supabase),
@@ -8898,6 +8916,8 @@ router.get('/config', async (req, res) => {
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_ORDER_KEY, userId),
       // the Home's new look, which also rides with the card on.
       isFlagEnabledForUser(supabase, PORTAL_TEACHER_HOME_LOOK_KEY, userId),
+      // The coach School Card, per user; its routes also need the coach app v2, so it rides with that on.
+      isFlagEnabledForUser(supabase, PORTAL_COACH_SCHOOL_CARD_KEY, userId),
     ]);
     return res.json({
       success: true,
@@ -8916,6 +8936,7 @@ router.get('/config', async (req, res) => {
         teacherHomeCard,
         teacherHomeOrder: teacherHomeCard && teacherHomeOrderRaw,
         teacherHomeLook: teacherHomeCard && teacherHomeLookRaw,
+        schoolCard: coachV2 && schoolCardRaw,
       },
     });
   } catch (error) {
@@ -8938,6 +8959,7 @@ router.get('/config', async (req, res) => {
         teacherHomeCard: false,
         teacherHomeOrder: false,
         teacherHomeLook: false,
+        schoolCard: false,
       },
     });
   }

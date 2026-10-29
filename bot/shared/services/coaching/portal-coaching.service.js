@@ -300,13 +300,16 @@ function liveForLesson(raw, pick) {
  * @param {{userId, key, lessonPlanKey?, lessonPlan?, photoKeys?: string[], teacherClass?: {grade, subject, subjectKey?}}} args
  *   lessonPlanKey — a plan she uploaded; lessonPlan — one she picked (libraryPick).
  *   liveMoves (bd-v0toag.31) — what the live screen saw; stored as analysis_data.live_moves (see live-record).
+ *   saveForLater (bd-bmc9a0.2, ICT IAB row 31) — she tapped "Save recording" to come back later for the reflection and
+ *   feedback: the session starts exactly as Submit's does, and conversation_state.saved_for_later_at says she saved it.
+ *   Only a real `true` counts.
  * @returns {{status:'ok', coachingSessionId}
  *         | {status:'in_progress', coachingSessionId}
  *         | {status:'already_sent', coachingSessionId}
  *         | {status:'invalid', reason}
  *         | {status:'queue_failed', coachingSessionId}}
  */
-async function startPortalSession({ userId, key, lessonPlanKey = null, lessonPlan: picked = null, photoKeys = [], teacherClass = null, liveMoves = null }, deps) {
+async function startPortalSession({ userId, key, lessonPlanKey = null, lessonPlan: picked = null, photoKeys = [], teacherClass = null, liveMoves = null, saveForLater = false }, deps) {
   const photos = Array.isArray(photoKeys) ? photoKeys.filter(Boolean) : [];
 
   // Every key must be this teacher's own, of the right kind — checked before
@@ -434,6 +437,7 @@ async function startPortalSession({ userId, key, lessonPlanKey = null, lessonPla
         last_interaction: startedAt,
         ...(classroomPhotos.length ? { classroom_photos: classroomPhotos } : {}),
         ...(classChoice ? { teacher_class: classChoice } : {}),
+        ...(saveForLater === true ? { saved_for_later_at: startedAt } : {}),
       },
       created_at: startedAt,
     })

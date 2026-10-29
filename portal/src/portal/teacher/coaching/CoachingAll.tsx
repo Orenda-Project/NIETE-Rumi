@@ -19,7 +19,8 @@ import { COACHING_HOME } from './paths';
  *                  before, so the ▲▼ match the "vs …" under the tiles
  *   KpiTiles       DC observations (with its trend), Latest band, Minutes recorded, Reports received —
  *                  the server's counts (GET /teacher/coaching/history); a band, never a number
- *   the list       every Digital Coach lesson in the range by Pakistan day, each opening its report
+ *   the list       every Digital Coach lesson in the range by Pakistan day, each opening its report — headed Recent DC
+ *                  Observations (bd-bmc9a0.4, ICT IAB row 30: moved here from the main page, which keeps Start and Summary)
  *
  * bd-fmf24g.13.2 — every word in the page's language: the screen's (useCopy), the kit's "vs …" and months
  * (useKitCopy, as All lesson plans), the days (Lesson Plans' day names).
@@ -50,7 +51,7 @@ export function CoachingAllPage() {
       {h ? (
         <>
           <KpiTiles items={dcKpiItems(h, C)} compareLabel={dates.compareLabel} />
-          <HistoryList heading="" groups={groups} showMore={false} emptyLabel={C.noneInRange} />
+          <HistoryList heading={C.recent} groups={groups} showMore={false} emptyLabel={C.noneInRange} />
         </>
       ) : (
         <LoadState status={history.status} empty={false} onRetry={retry} />

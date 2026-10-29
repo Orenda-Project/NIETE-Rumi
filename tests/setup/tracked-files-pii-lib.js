@@ -32,9 +32,12 @@ function isTestPath(p) {
     || /\.test\.(sh|py)$/.test(p);
 }
 
+/** A git sha or content hash: its digits can spell a phone by chance (kg/summaries "sha" fields, bd-v0toag.129.1). */
+const HASH_RX = /[0-9a-f]{32,}/gi;
+
 /** Phone-shaped strings + home directories in one text. */
 function countPii(text) {
-  const s = String(text || '');
+  const s = String(text || '').replace(HASH_RX, '');
   return (s.match(PHONE_RX) || []).length + (s.match(HOME_RX) || []).length;
 }
 

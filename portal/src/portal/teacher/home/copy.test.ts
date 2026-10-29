@@ -52,3 +52,26 @@ describe("the Home look's words (portal_teacher_home_look)", () => {
     for (const v of Object.values(UR.look)) expect(v).not.toMatch(/(گے|گی)(\s|؟|$)/);
   });
 });
+
+/**
+ * bd-bmc9a0.6 — the classroom quiz is «کوئز» (operator, 29 Oct, on the DC report's button: "Urdu of Jaanch does not work
+ * here. Quiz is a proper noun almost."). The bot already says کوئز everywhere (کوئز بنائیں, میرا کوئز ہوم, آپ کے پچھلے سبق کا
+ * کوئز); «فوری جانچ» stays Training's Quick check at the end of a part, a different thing.
+ */
+describe("the classroom quiz is «کوئز», as the bot says it", () => {
+  const quizLines = (): Array<[string, string]> => [
+    ["class.sub", UR.class.sub(TOPIC)], ["coach.secondary", UR.coach.secondary], ["lesson.title", UR.lesson.title(TOPIC)],
+    ["lesson.primary", UR.lesson.primary], ["lp.quizThis", UR.lp.quizThis], ["quizTile", UR.quizTile], ["look.leadIn", UR.look.leadIn],
+  ];
+
+  it("every quiz line says کوئز, never فوری جانچ", () => {
+    expect(quizLines().filter(([, s]) => !s.includes("کوئز") || s.includes("فوری جانچ"))).toEqual([]);
+  });
+
+  it("the words the quiz home repeats are the bot's own (teacher-home.strings.js)", () => {
+    expect(UR.lp.quizThis).toBe("کوئز بنائیں"); // the bot's tqhMake
+    expect(UR.look.leadIn).toBe("آپ کے پچھلے سبق کا کوئز:"); // th.lastlesson
+    expect(UR.lesson.title(TOPIC)).toContain("آپ کے پچھلے سبق کا کوئز:");
+    expect(UR.class.sub(TOPIC).startsWith("کوئز:")).toBe(true); // th.kind.quiz
+  });
+});

@@ -74,7 +74,16 @@ const LeaderObservation = page(() => import("./portal/pages/LeaderObservation"))
 const LeaderObserveDraft = page(() => import("./portal/pages/LeaderObserveDraft"));
 const LeaderObserveTalk = page(() => import("./portal/pages/LeaderObserveTalk"));
 // bd-o15qnr — the coach app v2 (behind portal_coach_v2; each page gates itself).
-const CoachHome = page(() => import("./portal/coach/pages/CoachHome"));
+// /portal/coach: the slim Coach Home with the School card switch on, else the coach Home (card/CoachLanding).
+const CoachLanding = page(() => import("./portal/coach/card/CoachLanding"));
+// The School card's own pages (each shows Not found unless the switch is on for her).
+const CoachFeatureGrid = page(() => import("./portal/coach/card/FeatureGridPage"));
+const CoachHerItems = page(() => import("./portal/coach/card/HerItemsPage"));
+// Her Digital Coaching and her Coach observations (one page, two addresses); the old Her coaching reports, her DC and
+// coach-visit lists and /coaching open them.
+const CoachTeacherScores = page(() => import("./portal/coach/card/TeacherScoresPage"));
+const CoachCoachingRedirect = page(() => import("./portal/coach/card/CoachingRedirect"));
+const CoachSessionReport = page(() => import("./portal/coach/card/SessionReportPage"));
 const CoachScheduling = page(() => import("./portal/coach/pages/CoachScheduling"));
 const CoachSchedule = page(() => import("./portal/coach/pages/CoachSchedule"));
 const CoachTeam = page(() => import("./portal/coach/pages/CoachTeam"));
@@ -282,7 +291,7 @@ const App = () => {
             <Route path="/portal/leader/observe/:id/talk" element={<LeaderObserveTalk />} />
             {/* bd-o15qnr — the coach app v2: role=coach + portal_coach_v2 only; anyone
                 else who lands here is sent to My Patch by the page's own gate. */}
-            <Route path="/portal/coach" element={<CoachHome />} />
+            <Route path="/portal/coach" element={<CoachLanding />} />
             <Route path="/portal/coach/scheduling" element={<CoachScheduling />} />
             <Route path="/portal/coach/schedule" element={<CoachSchedule />} />
             <Route path="/portal/coach/team" element={<CoachTeam />} />
@@ -304,12 +313,21 @@ const App = () => {
             <Route path="/portal/coach/analytics" element={<CoachAnalytics />} />
             <Route path="/portal/coach/analytics/teacher/:ext" element={<CoachTeacherAnalytics />} />
             <Route path="/portal/coach/school/:emis" element={<CoachSchool />} />
+            <Route path="/portal/coach/school/:emis/feature/:feature" element={<CoachFeatureGrid />} />
             {/* Her school list and its teachers: the WhatsApp /observe "Add or remove a school" and "Manage teachers". */}
             <Route path="/portal/coach/schools/add" element={<CoachAddSchool />} />
             <Route path="/portal/coach/add-teacher" element={<CoachAddTeacher />} />
             <Route path="/portal/coach/school/:emis/add-teacher" element={<CoachAddTeacher />} />
             <Route path="/portal/coach/school/:emis/remove-teachers" element={<CoachRemoveTeachers />} />
             <Route path="/portal/coach/teacher/:ext" element={<CoachTeacher />} />
+            <Route path="/portal/coach/teacher/:ext/items/:feature" element={<CoachHerItems />} />
+            <Route path="/portal/coach/teacher/:ext/dc" element={<CoachTeacherScores />} />
+            <Route path="/portal/coach/teacher/:ext/observations" element={<CoachTeacherScores />} />
+            <Route path="/portal/coach/teacher/:ext/coaching" element={<CoachCoachingRedirect />} />
+            <Route path="/portal/coach/teacher/:ext/reports" element={<CoachCoachingRedirect />} />
+            <Route path="/portal/coach/teacher/:ext/items/dc" element={<CoachCoachingRedirect />} />
+            <Route path="/portal/coach/teacher/:ext/items/coach" element={<CoachCoachingRedirect />} />
+            <Route path="/portal/coach/session/:id" element={<CoachSessionReport />} />
             {/* bd-o15qnr.10 — one HITL report, from a teacher's History */}
             <Route path="/portal/coach/observation/:id" element={<CoachObservation />} />
             <Route path="/portal/coach/observation/:id/form" element={<CoachFeedbackForm />} />

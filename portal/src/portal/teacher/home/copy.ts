@@ -2,7 +2,8 @@
  * The words of the Home card ("Next for you"), its score chips and the LP page's "Quiz this lesson" button
  * (the build contract, settled). Both languages from day one (language-protocol: NIETE is flat en/ur). Several lines are
  * the bot's own signed strings (th.played.n, th.again, th.report, th.quiz.this, th.lastlesson), so the card and the
- * quiz home it opens say the same thing; in Urdu the quiz is the teacher app's own word, «فوری جانچ», and a plan is
+ * quiz home it opens say the same thing; in Urdu the quiz is «کوئز», as the bot says it (bd-bmc9a0.6, the operator,
+ * 29 Oct: "Quiz is a proper noun almost"; «فوری جانچ» is Training's Quick check, a different thing), and a plan is
  * always «لیسن پلان» (vocabulary.guard), not the bot's WhatsApp wording.
  *
  * DATA is not copy: {topic}, {day}, {n}, {marks}/{max} come from GET /me/home as they are. In Urdu each one
@@ -75,7 +76,7 @@ export const HOME_CARD_COPY_UR = {
   eyebrow: 'آپ کا اگلا کام',
   class: {
     title: (n: number) => `کلاس میں سے ${num(n)} نے کھیلا`,
-    sub: (topic: string) => `فوری جانچ: ${data(topic)}`,
+    sub: (topic: string) => `کوئز: ${data(topic)}`,
     primary: 'دوبارہ بھیجیں',
     secondary: 'رپورٹ دیکھیں',
   },
@@ -83,12 +84,12 @@ export const HOME_CARD_COPY_UR = {
     title: 'آپ کی کوچنگ رپورٹ تیار ہے',
     sub: (topic: string, day: string) => [topic, day].filter(Boolean).map(data).join('، '),
     primary: 'رپورٹ دیکھیں',
-    secondary: 'فوری جانچ بنائیں',
+    secondary: 'کوئز بنائیں',
   },
   lesson: {
-    title: (topic: string) => `آپ کے پچھلے سبق کی فوری جانچ: ${data(topic)}`,
+    title: (topic: string) => `آپ کے پچھلے سبق کا کوئز: ${data(topic)}`,
     sub: (grade: number | string, subject: string) => `لیسن پلان، جماعت ${num(grade)}، ${data(subject)}`,
-    primary: 'فوری جانچ بنائیں',
+    primary: 'کوئز بنائیں',
     secondary: 'لیسن پلان کھولیں',
   },
   obs: {
@@ -108,13 +109,13 @@ export const HOME_CARD_COPY_UR = {
     obs: (marks: number, max: number) => `مشاہدہ ${num(`${marks}/${max}`)}`,
   },
   lp: {
-    quizThis: 'فوری جانچ بنائیں',
+    quizThis: 'کوئز بنائیں',
   },
-  quizTile: 'فوری جانچ',
+  quizTile: 'کوئز',
   look: {
     all: 'تمام سہولیات',
     ask: 'آج کیا کریں؟',
-    leadIn: 'آپ کے پچھلے سبق کی فوری جانچ:',
+    leadIn: 'آپ کے پچھلے سبق کا کوئز:',
     progress: 'آپ کی پیش رفت',
   },
 };

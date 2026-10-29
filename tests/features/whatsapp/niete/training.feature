@@ -1159,6 +1159,37 @@ Feature: NIETE (ICT) Teacher Training
     # command's own 24 h link, minted on the server; the switch rides the page read (PAGE_KEYS). Off: the page and its
     # JSON are today's byte for byte. Unit: bot/tests/first-touch/teacher-home.portal-link.test.js.
 
+  @quiz @config-gated @no-mock-driver @wip @draft @P1 @T1178
+  Scenario: "Create Quick Quiz" on a Digital Coach report makes the quiz for that lesson, not a list of past sessions
+    Given app_settings "quiz_teacher_home_one_lesson" is true
+    And I am a registered teacher on the portal, on the ready report of a lesson I recorded ("Plants")
+    When I tap "Create Quick Quiz" (Urdu «فوری جانچ بنائیں»)
+    Then my quiz home opens on that lesson alone: "Quiz from this lesson" (Urdu «اس سبق کا کوئز») and "Making your quiz…"
+    And no list of my past lessons and no library is shown, only a quiet "See all my lessons" link
+    When the quiz for "Plants" is ready
+    Then the card shows "Plants" with "Send to my class", which opens the class message to copy and send
+    # ADDED 2026-10-28 (bd-bmc9a0.3, ICT IAB row 35): LessonQuizButton sessionId → /quiz/teacher/<token>?session=<id>
+    # (the portal edge forwards a UUID only); teacher-home.page ONE_SWAPS runs the row's own make() (POST
+    # /api/th/quiz/make kind coaching) right after paint and never reads /api/th/home. A quiz already made for the
+    # lesson shows at once. Unit: bot/tests/first-touch/teacher-home.one-lesson.test.js, teacher-home.page-run.test.js.
+
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1179
+  Scenario: With the one-lesson switch off, the report's "Create Quick Quiz" opens the quiz home as before
+    Given app_settings "quiz_teacher_home_one_lesson" is false
+    And I am a registered teacher on the portal, on the ready report of a lesson I recorded
+    When I tap "Create Quick Quiz"
+    Then my quiz home opens with its list of my lessons, exactly as before, and no quiz is started on its own
+
+  @quiz @config-gated @no-mock-driver @wip @draft @P2 @T1180
+  Scenario: A quiz-home link carrying another teacher's lesson makes nothing
+    Given app_settings "quiz_teacher_home_one_lesson" is true
+    And my quiz-home link carries the id of a lesson another teacher recorded
+    When the page opens
+    Then no quiz is made and nothing is written for that lesson
+    And the page shows its error line with "Quiz this" to try again, and "See all my lessons"
+    # The server decides whose lesson it is: quiz/make → the transcript provider's coaching_sessions read by the
+    # token's teacher (user_id) → not_found → 404. Unit: teacher-home.one-lesson.test.js ("another teacher").
+
   @quiz @no-mock-driver @wip @draft @P3 @T710
   Scenario: A child refused at the join's last step is counted
     Given app_settings "quiz_student_join" is true and "web_quiz_phone_bind" is not
