@@ -184,8 +184,8 @@ Feature: School leader (principal) portal
     And "The voice is not ready yet" never shows
 
   @LP28 @config-gated
-  Scenario: Learning assessment: Start is never more than 2 s slower than without the switch (sa_r8_offline_first)
+  Scenario: Learning assessment: Start is never slower than without the switch (sa_r8_offline_first)
     Given sa_r8_offline_first is on, the phone is online and the child's part is not on the phone yet
     When the coach taps "Start"
-    Then the test opens within about 2 s even if the part is still downloading (it keeps downloading behind the test)
+    Then the test opens as it does without the switch, and the part downloads behind it (the next child starts from the phone)
     And with no signal and the part not on the phone, the coach sees "Jugnu's voice is not on this phone yet…" before the test
