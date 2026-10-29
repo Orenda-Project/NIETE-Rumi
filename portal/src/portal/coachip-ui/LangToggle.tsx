@@ -8,13 +8,9 @@ import { t } from "../coach/insights/text";
  * setUserLanguage; language-protocol), and changes the page only once the server accepted it. Always LTR: the pair
  * reads EN then اردو in both languages. `prefix` names the two buttons' test ids (`rm-lang` keeps the RM's ids).
  */
-export function LangToggle({ prefix = "cp-lang", tone = "light", className, sw: shared }: {
-  prefix?: string; tone?: "light" | "dark"; className?: string; sw?: ReturnType<typeof useLanguageSwitch>;
-}) {
+export function LangToggle({ prefix = "cp-lang", tone = "light", className }: { prefix?: string; tone?: "light" | "dark"; className?: string }) {
   const lang = useLang();
-  // a row that shows the switch's state (More's "Not saved") passes its own switch, so both read one status
-  const own = useLanguageSwitch();
-  const sw = shared ?? own;
+  const sw = useLanguageSwitch();
   const on = tone === "dark" ? "bg-white text-cp-navy" : "bg-cp-navy text-white";
   const off = tone === "dark" ? "text-white/80" : "text-cp-ink-2";
   const btn = (k: "en" | "ur") => (

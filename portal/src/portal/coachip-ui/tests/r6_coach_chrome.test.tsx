@@ -43,7 +43,7 @@ describe.each(["en", "ur"] as Lang[])("R6 coach chrome (%s)", (lang) => {
     expect(band.querySelector(".cp-band__lockup")?.textContent).toBe("NIETE");
     expect(within(band).getByRole("heading", { level: 1 }).textContent).toBe(COPY["band.title"][lang]);
     expect(within(band).getByTestId("s1-today")).toBeTruthy();
-    expect(within(band).getByTestId("band-foot").textContent).toBe(COPY["trust.coach"][lang]);
+    expect(within(band).getByTestId("insights-band-foot").textContent).toBe(COPY["trust.coach"][lang]);
     expect(within(page).queryByTestId("trust-line")).toBeNull();
   });
 

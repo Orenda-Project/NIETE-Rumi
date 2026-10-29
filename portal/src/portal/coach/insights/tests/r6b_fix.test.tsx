@@ -99,12 +99,17 @@ describe.each(["en", "ur"] as Lang[])("R6 fix cycle 1, PR A (%s)", (lang) => {
     expectContract(container, expect);
   }, 20000);
 
-  it("A1: the band's phone height is one variable, shared by the live band and the skeleton's band", async () => {
+  it("A1: the band's body holds one phone height (cp-hero-body) loading and loaded, so the band never changes height", async () => {
     await boot(lang);
     serve({ "/coachip/home": () => new Promise(() => undefined) });
     await renderAt("");
-    const band = screen.getByTestId("insights-band");
-    expect(band.hasAttribute("data-cp-fixed")).toBe(true);
+    expect(screen.getByTestId("insights-band").querySelector('[aria-busy="true"].cp-hero-body')).not.toBeNull();
+    cleanup();
+    serve({ "/coachip/home": F.home_stale, [`POST /coachip/notes/${NOTE_ID}/status`]: { note: F.home.note } });
+    await renderAt("");
+    const body = screen.getByTestId("insights-band").querySelector(".cp-hero-body") as HTMLElement;
+    expect(body).not.toBeNull();
+    expect(body.querySelector('[data-testid="s1-stale"]')).toBeNull();
   }, 20000);
 
   // ── A2 · S5 hierarchy ──────────────────────────────────────────────────────────────────────────────────────────────
@@ -188,7 +193,7 @@ describe.each(["en", "ur"] as Lang[])("R6 fix cycle 1, PR A (%s)", (lang) => {
     await boot(lang);
     serve({ "/coachip/home": F.home, [`POST /coachip/notes/${NOTE_ID}/status`]: { note: F.home.note } });
     await renderAt("");
-    const foot = within(screen.getByTestId("insights-band")).getByTestId("band-foot");
+    const foot = within(screen.getByTestId("insights-band")).getByTestId("insights-band-foot");
     expect(foot.textContent).toBe(COPY["trust.coach"][lang]);
     // the laptop's rail says it (InsightsNav), so the page foot does not repeat it at either width
     expect(screen.queryByTestId("trust-line")).toBeNull();
@@ -198,7 +203,7 @@ describe.each(["en", "ur"] as Lang[])("R6 fix cycle 1, PR A (%s)", (lang) => {
     await boot(lang);
     serve({ [`/coachip/w/${W}`]: F[`w_${W}`], "/coachip/home": F.home });
     await renderAt(`/w/${W}`);
-    expect(screen.queryByTestId("band-foot")).toBeNull();
+    expect(screen.queryByTestId("insights-band-foot")).toBeNull();
     expect(screen.getByTestId("trust-line").closest(".hidden")).toBeNull();
   }, 20000);
 

@@ -29,24 +29,13 @@ const tok = (s: string) => (/^[0-9]+$/.test(s) ? `(?:${s}|${digits(s, "ur")})` :
 
 /**
  * Render a COPY string with nodes. Each CountSlot's "{n} of {d}" (English) or "{d} میں سے {n}" (Urdu) becomes a
- * <Num>; any other `{token}` takes its var (a string or number through §F's rules, or a node as it is).
+ * <Num>; any other `{token}` takes its var (a string or number through §F's rules, or a node as it is). `upTo`
+ * (FIX_R6 A4): the string only up to that token, without the separator before it ("{school} first ({n} of {d}) ·
+ * {range} · {grader_label}" → "{school} first ({n} of {d})"), for a row whose window the screen's header states.
  */
-export function tx(key: CopyKey, lang: Lang, vars: Record<string, Var> = {}, counts: readonly CountSlot[] = []): ReactNode {
-  return nodes(COPY[key][lang], key, lang, vars, counts);
-}
-
-/**
- * FIX_R6 A4: the same string up to `{stop}`, without the separator before it ("{school} first ({n} of {d}) · {range} ·
- * {grader_label}" → "{school} first ({n} of {d})"), for a row whose window the screen's header already states.
- */
-export function txUntil(key: CopyKey, lang: Lang, stop: string, vars: Record<string, Var> = {}, counts: readonly CountSlot[] = []): ReactNode {
-  const full = COPY[key][lang];
-  const at = full.indexOf(`{${stop}}`);
-  return nodes(at < 0 ? full : full.slice(0, at).replace(/\s*[·،]\s*$/, ""), key, lang, vars, counts);
-}
-
-function nodes(source: string, key: CopyKey, lang: Lang, vars: Record<string, Var>, counts: readonly CountSlot[]): ReactNode {
-  let template = source;
+export function tx(key: CopyKey, lang: Lang, vars: Record<string, Var> = {}, counts: readonly CountSlot[] = [], upTo?: string): ReactNode {
+  let template: string = COPY[key][lang];
+  if (upTo) template = template.slice(0, template.indexOf(`{${upTo}}`)).replace(/\s*[·،]\s*$/, "");
   const nodes: Record<string, ReactNode> = {};
   counts.forEach((c, i) => {
     const re = lang === "ur" ? new RegExp(`${tok(c.d)} میں سے ${tok(c.n)}`) : new RegExp(`${tok(c.n)} of ${tok(c.d)}`);

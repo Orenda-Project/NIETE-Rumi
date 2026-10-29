@@ -39,8 +39,8 @@ pieces; nothing here knows about a payload except `Count` (the G10 number patter
 
 | Component | Props | One line |
 |---|---|---|
-| `Shell` | `testId`, `header`, `nav`, `aside`, `wide`, `trust`, `trustInRail`, `padBottom`, `fullHeight`, `bleed`, `dir`, `screenWindow` (the window id the header states; `useScreenWindow()` lets a row skip its own range, FIX_R6 A4) | The frames use it; a page never does. `<Shell testId="x" header={<AppBar …/>}>…</Shell>` |
-| `Band`, `Eyebrow` | `title`, `date`, `sub`, `trailing`, `foot` (12 px white-72 % last line, phone only: the trust line, A6), `fixed` (`--cp-band-min-h` below lg: S1, A1), `children`, `testId` | `<Band title="This week" date={…}><Eyebrow>Notice · Move 1 of 2</Eyebrow><RingCount size="hero" …/><Pill tone="green">…</Pill></Band>` — the body becomes the hero card on a laptop |
+| `Shell` | `testId`, `header`, `nav`, `aside`, `wide`, `trust`, `trustInRail`, `padBottom`, `fullHeight`, `bleed`, `dir` | The frames use it; a page never does. `<Shell testId="x" header={<AppBar …/>}>…</Shell>` |
+| `Band`, `Eyebrow` | `title`, `date`, `sub`, `trailing`, `foot` (12 px white-72 % last line, phone only: the trust line, A6; test id `<testId>-foot`), `children`, `testId` | `<Band title="This week" date={…}><Eyebrow>Notice · Move 1 of 2</Eyebrow><RingCount size="hero" …/><Pill tone="green">…</Pill></Band>` — the body becomes the hero card on a laptop |
 | `AppBar` | `backTo`, `backLabel`, `eyebrow`, `title`, `sub`, `trailing`, `testId`; a line passed as `null` is still coming and draws a placeholder bar in its own line box, `undefined` means no such line (A1) | `<AppBar backTo={paths.thisWeek} eyebrow="Move 1 of 2 · this month" title="Practice never set" sub={<MetaLine …/>} />` |
 | `Surface` | `overlap`, `testId`, `as`, `data-*` | `<Surface overlap testId="s1-first">…</Surface>` — the card right under the band rides up 24 px |
 | `Section` | `label`, `title`, `hint`, `tone` (`green` for "needs me"), `first`, `action`, `testId` | `<Section label="Open steps" hint="What you set, and the next three recordings">…rows</Section>` |
@@ -55,7 +55,7 @@ pieces; nothing here knows about a payload except `Count` (the G10 number patter
 | `Dots` | `states` (`done`/`partial`/`none`) | `<Dots states={["done","none","none"]} />` |
 | `Skeleton` | `band`, `overlap` (the first card rides up over a page's own band and holds `--cp-first-card-h`, A1), `testId` | `<Skeleton band />` for the login landing; `StateBlock` already uses the plain one |
 | `NavBar`, `Rail` | `items` (`{key,to,label,icon,current,dataNav}`), `ariaLabel`, `testId`; Rail: `logoAlt`, `extra`, `lang`, `trust` | the two menus use them; a page never does |
-| `LangToggle` | `prefix` (test ids), `tone` (`light`/`dark`), `sw` (a row's own `useLanguageSwitch()`, so the row can say "Not saved") | EN \| اردو through the one writer |
+| `LangToggle` | `prefix` (test ids), `tone` (`light`/`dark`) | EN \| اردو through the one writer |
 | `useLaptop()` | — | true at ≥ 1024; only for things that must not mount on a phone |
 | `tokens.ts` | `CP_COLOURS`, `RING`, `LAPTOP_QUERY` | the same values as tokens.css, for SVG and tests |
 

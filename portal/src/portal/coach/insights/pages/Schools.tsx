@@ -35,7 +35,6 @@ function SchoolsBody() {
       testId="insights-schools"
       title={t("schools.title", lang)}
       windows={data ? data.windows ?? [data.window] : null}
-      screenWindow={data?.window.id ?? null}
       chips={data ? <MetaLine window={data.window} className="text-[14px] leading-snug" /> : error ? undefined : null}
     >
       {!data ? <StateBlock error={error} /> : (
@@ -56,7 +55,7 @@ function SchoolsBody() {
                   </p>
                 </div>
                 {s.top_w
-                  ? <WRow row={s.top_w} to={insightsPaths.w(s.top_w.w_id)} />
+                  ? <WRow row={s.top_w} to={insightsPaths.w(s.top_w.w_id)} screenWindow={data.window.id} />
                   // fix-r5 s2 item 3/4 (qa-coach 073419, B10): "nothing to do" only when the school has no graded lesson;
                   // graded lessons without a ranked move are "not ranked yet", words only
                   : s.graded.n > 0

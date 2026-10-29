@@ -132,7 +132,6 @@ function MoveLoaded() {
       title={data ? pick(data.w.short_name, lang) : coming}
       crumb={i ? tx("s5.chip", lang, { i_id: <CodeText lang={lang}>{i.i_id}</CodeText> }) : data ? undefined : coming}
       windows={data?.windows}
-      screenWindow={data?.w.window.id ?? null}
       chips={data ? <MetaLine window={data.w.window} /> : coming}
     >
       {!data ? <StateBlock error={error} /> : (
