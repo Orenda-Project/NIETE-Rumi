@@ -24,7 +24,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `teach-framework.js` ← imported by `bot/shared/services/coaching/report-v2/score-adapters/teach-adapter.js:10:8084d2e6` · `bot/shared/services/coaching/frameworks/framework-registry.js:17:283df1bd`
 
 ## Tests (all, generated)
-- `fico-framework.js` ← `bot/tests/observe/bd-2383-b4-b10-evidence-gates.test.js` · `bot/tests/observe/fico-v3-framework.test.js` · `bot/tests/observe/observe-fico-flow.test.js` · `tests/coaching/bd-0c01q-fico-v4.test.js` · `tests/coaching/bd-0c01q-observe-scale.test.js` · `tests/coaching/bd-2457-niete-lever-constraint.test.js` (+24: `python3 kg/kg.py who-reads bot/shared/services/coaching/frameworks/fico-framework.js`)
+- `fico-framework.js` ← `bot/tests/observe/bd-2383-b4-b10-evidence-gates.test.js` · `bot/tests/observe/fico-v3-framework.test.js` · `bot/tests/observe/observe-fico-flow.test.js` · `tests/coaching/bd-0c01q-fico-v4.test.js` · `tests/coaching/bd-0c01q-observe-scale.test.js` · `tests/coaching/bd-2457-niete-lever-constraint.test.js` (+25: `python3 kg/kg.py who-reads bot/shared/services/coaching/frameworks/fico-framework.js`)
 - `framework-registry.js` ← `bot/tests/observe/observe-framework-pack.test.js` · `tests/coaching/fico-framework-ict.test.js` · `tests/coaching/framework-registry.test.js` · `tests/coaching/framework-wiring.test.js`
 - `framework-selector.js` ← `bot/tests/observe/observe-pipeline-fork.test.js` · `tests/coaching/framework-registry.test.js` · `tests/coaching/framework-selection-reason.test.js` · `tests/coaching/framework-wiring.test.js`
 - `hots-framework.js` ← `bot/tests/observe/observe-endpoint-hots.test.js` · `tests/coaching/hots-framework-alignment.test.js` · `tests/coaching/hots-framework.test.js`

@@ -1,7 +1,7 @@
 # people — Coach Schools and Teachers area: rows, frame, copy and visit-status tone
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/people kg=aa9355b18ce0 gen=125ab91917c0 overflow=6 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/people kg=47f41572f5c7 gen=ae86f8a340c5 overflow=6 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `rows.tsx` — school and teacher rows on the kit HistoryRow
@@ -13,16 +13,16 @@ Full index: `CLAUDE.index.md`
 | path | purpose |
 |---|---|
 | `schoolsReady.test.tsx` | Pins that My schools opens school and teacher pages and links only to ready pages |
-| `copy.ts` | English and Urdu words of the coach Schools and Teachers area, following the ontology |
 | `PeopleFrame.tsx` | Frame of Schools and Teachers pages: coach gate, TeacherPage, pending banner (bd-4404s7.6) |
+| `copy.ts` | English and Urdu words of the coach Schools and Teachers area, following the ontology |
 | `checks.test.tsx` | Source-scan and 56px target checks for Schools and Teachers screens (bd-4404s7.6) |
 | `rows.tsx` | School and teacher rows on the kit HistoryRow with round avatars and flat stats |
 | … | 3 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `PeopleFrame.tsx` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:10:5c9f8184` · `portal/src/portal/coach/card/FeatureGridPage.tsx:5:70e8f104` (+12)
+- `PeopleFrame.tsx` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:10:5c9f8184` · `portal/src/portal/coach/card/FeatureGridPage.tsx:5:70e8f104` (+13)
 - `copy.ts` ← imported by `portal/src/portal/coach/card/TeacherCardPage.tsx:7:50f56fe6` · `portal/src/portal/coach/pages/CoachAddSchool.tsx:9:50f56fe6` (+9)
-- `rows.tsx` ← imported by `portal/src/portal/coach/card/HerItemsPage.tsx:7:d9a31d0d` · `portal/src/portal/coach/card/HerReportsPage.tsx:7:d9a31d0d` (+6)
+- `rows.tsx` ← imported by `portal/src/portal/coach/card/HerItemsPage.tsx:7:d9a31d0d` · `portal/src/portal/coach/card/SchoolCardPage.tsx:10:269b69ed` (+6)
 - `ManageSchool.tsx` ← imported by `portal/src/portal/coach/card/SchoolCardPage.tsx:9:bf2e7884` · `portal/src/portal/coach/pages/CoachSchool.tsx:9:bf2e7884`
 - … 1 more → `CLAUDE.index.md`
 

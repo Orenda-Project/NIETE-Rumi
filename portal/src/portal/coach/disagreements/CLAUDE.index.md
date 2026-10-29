@@ -42,8 +42,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Who reads this (all, generated)
 - `CoachingBox.tsx` ← imported by `portal/src/portal/coach/disagreements/DisagreementCard.tsx:15:d78b85e6`
-- `DisagreementCard.tsx` ← imported by `portal/src/App.tsx:117:7555f975`
-- `DisagreementsPage.tsx` ← imported by `portal/src/App.tsx:116:5c5f0ba8`
+- `DisagreementCard.tsx` ← imported by `portal/src/App.tsx:120:7555f975`
+- `DisagreementsPage.tsx` ← imported by `portal/src/App.tsx:119:5c5f0ba8`
 - `api.ts` ← imported by `portal/src/portal/coach/disagreements/CoachingBox.tsx:5:45720fde` · `portal/src/portal/coach/disagreements/DisagreementCard.tsx:7:8a044fee` · `portal/src/portal/coach/disagreements/DisagreementsPage.tsx:8:2010d03d` · `portal/src/portal/coach/disagreements/cardParts.tsx:8:66b0b255` (+9: `python3 kg/kg.py who-reads api.ts`)
 - `appBar.tsx` ← imported by `portal/src/portal/coach/disagreements/frame.tsx:11:e834b2b3`
 - `cardParts.tsx` ← imported by `portal/src/portal/coach/disagreements/CoachingBox.tsx:8:b6332db5` · `portal/src/portal/coach/disagreements/DisagreementCard.tsx:10:f0540196` · `portal/src/portal/coach/disagreements/planMoves.tsx:7:f0128159` · `portal/src/portal/coach/disagreements/whereToLook.tsx:8:2885d373`

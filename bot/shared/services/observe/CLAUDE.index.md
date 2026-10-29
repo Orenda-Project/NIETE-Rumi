@@ -85,7 +85,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `observe-undelivered.service.js` ← imported by `bot/workers/stale-session.worker.js:1033:439f0d6a` · `bot/shared/services/observe/observe-send.service.js:666:9c3face9`
 - `observe-untapped.service.js` ← imported by `bot/workers/stale-session.worker.js:811:6e57e5ea` · `bot/shared/services/observe/observe-send.service.js:552:826f4b44`
 - `observe-who.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:1088:eeb03a2d` · `bot/whatsapp-bot.js:2359:854208b4` · `bot/shared/services/observe/observe-capture.service.js:163:4b835148`
-- `patch-resolver.service.js` ← imported by `bot/shared/calls/call-tools.repo.js:204:76795830` · `bot/shared/handlers/observe-visit-flow.handler.js:1012:439840d8` · `bot/shared/routes/roster-flow-endpoint.js:39:b2c20b07` · `dashboard/services/coach-school-card.service.js:32:89bd2591` (+5: `python3 kg/kg.py who-reads patch-resolver.service.js`)
+- `patch-resolver.service.js` ← imported by `bot/shared/calls/call-tools.repo.js:204:76795830` · `bot/shared/handlers/observe-visit-flow.handler.js:1012:439840d8` · `bot/shared/routes/roster-flow-endpoint.js:39:b2c20b07` · `dashboard/services/coach-school-card.service.js:35:89bd2591` (+5: `python3 kg/kg.py who-reads patch-resolver.service.js`)
 - `portal-observe-step.js` ← imported by `bot/shared/services/observe/observe-debrief.service.js:1090:1107fac5` · `bot/shared/services/observe/portal-observe.service.js:40:6e66fe2d`
 - `portal-observe.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:3004:e9d8a4f8`
 - `report-tap-routing.js` ← imported by `bot/whatsapp-bot.js:31:6a6e12da`

@@ -29,6 +29,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 
 ## Tests (all, generated)
 - `chrome.js` ← `tests/assessment/fde-early-chrome.test.js` · `tests/assessment/fde-early-pictures-pattern.test.js` · `tests/assessment/fde-v23-oral-cover-line.test.js` · `tests/assessment/topics/oral-g35.test.js` · `tests/assessment/topics/topic-oral.test.js`
+- `g1-english.js` ← `tests/assessment/fde-v25-g1-pictures.test.js`
+- `g1-maths.js` ← `tests/assessment/fde-v25-g1-pictures.test.js`
 
 ## Related (all, generated)
 - docs: `bot/shared/services/assessment/patterns/CLAUDE.md`?

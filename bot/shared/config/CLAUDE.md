@@ -1,7 +1,7 @@
 # config — Configuration, feature flags, language registry, model registry, copy catalogs
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/config kg=ecaa44365827 gen=2d522431d159 overflow=918 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/config kg=4a411eaa10d4 gen=e5cd41927c1f overflow=920 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `languages.js` — Urdu/English registry all lists derive from
@@ -33,7 +33,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `tests/menu/menu-role-layouts.test.js` (languages.js, menu-gates.js, role-features.js, ux-strings.js)
 - `tests/language/urdu-gender-neutral-copy.test.js` (coaching-card.config.js, coaching-messages.js, ux-strings.js)
-- … 846 more → `CLAUDE.index.md`
+- … 848 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `digital-coach`? · `registration`? · `setup`?

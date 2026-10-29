@@ -22,7 +22,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `fde-g1-2026.js` ← `tests/assessment/topics/topic-oral.test.js`
 - `fde-g2-2026.js` ← `tests/assessment/topics/topic-oral.test.js`
 - `fde-g5-2027.js` ← `tests/assessment/fde-pattern-module.test.js`
-- `index.js` ← `tests/assessment/assessment-paper-fde.renderer.test.js` · `tests/assessment/composition-criteria.test.js` · `tests/assessment/fde-answer-repeats.test.js` · `tests/assessment/fde-blueprint-check.test.js` · `tests/assessment/fde-blueprint-wiring.test.js` · `tests/assessment/fde-chain.test.js` (+130: `python3 kg/kg.py who-reads bot/shared/services/assessment/patterns/index.js`)
+- `index.js` ← `tests/assessment/assessment-paper-fde.renderer.test.js` · `tests/assessment/composition-criteria.test.js` · `tests/assessment/fde-answer-repeats.test.js` · `tests/assessment/fde-blueprint-check.test.js` · `tests/assessment/fde-blueprint-wiring.test.js` · `tests/assessment/fde-chain.test.js` (+136: `python3 kg/kg.py who-reads bot/shared/services/assessment/patterns/index.js`)
 
 ## Related (all, generated)
 - docs: `bot/shared/services/assessment/CLAUDE.md`?

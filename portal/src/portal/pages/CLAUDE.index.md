@@ -176,8 +176,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `PortalTraining.tsx` ← imported by `portal/src/App.tsx:81:8b507f06`
 - `PortalTrainingPage.tsx` ← imported by `portal/src/App.tsx:82:d7e20fa2`
 - `PortalTrainingV2.tsx` ← imported by `portal/src/portal/pages/PortalTrainingPage.tsx:8:b09c7a87`
-- `SchoolAnalytics.tsx` ← imported by `portal/src/App.tsx:151:380aa3eb`
-- `SchoolLessons.tsx` ← imported by `portal/src/App.tsx:153:3a991917`
+- `SchoolAnalytics.tsx` ← imported by `portal/src/App.tsx:154:380aa3eb`
+- `SchoolLessons.tsx` ← imported by `portal/src/App.tsx:156:3a991917`
 - `legacyLive.ts` ← imported by `portal/src/portal/pages/PortalCoachingRecord.tsx:31:8621d378`
 - env `PROD` read at `portal/src/portal/pages/PortalReadingAssessments.tsx:66:a940a13e`
 

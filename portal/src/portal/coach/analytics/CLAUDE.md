@@ -1,6 +1,6 @@
 # analytics — Coach Analytics: lifetime numbers over the coach's own teachers
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/analytics kg=7ca2770b7a32 gen=60fda05f842d overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/coach/analytics kg=c34c4b6b9167 gen=d9ae7b8cf87a overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `CoachAnalytics.tsx` — list page and one-teacher page, school filter
@@ -16,7 +16,7 @@
 | `model.ts` | Pure lifetime KPI and rating-chip maths for coach Analytics from the coach API rows (bd-fmf24g.27) |
 
 ## Who reads this (generated)
-- `CoachAnalytics.tsx` ← imported by `portal/src/App.tsx:119:e97f5c5c`
+- `CoachAnalytics.tsx` ← imported by `portal/src/App.tsx:122:e97f5c5c`
 - `model.ts` ← imported by `portal/src/portal/coach/analytics/CoachAnalytics.tsx:12:5a1e9705`
 
 ## Never (human)
