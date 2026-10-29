@@ -7,6 +7,9 @@ vi.mock("../useCoachV2", async (orig) => ({ ...(await orig<any>()), useCoachV2: 
 import { useCoachV2 } from "../useCoachV2";
 vi.mock("../../lib/useChildTestSa", () => ({ useChildTestSa: vi.fn(() => false) }));
 import { useChildTestSa } from "../../lib/useChildTestSa";
+// The guard also reads the School card switch (useSchoolCard). These goldens are the switch OFF, answered false at once;
+// no assertion below changed. The ON cases live in coach/card/switchOn.test.tsx and appReady.schoolCard.test.ts.
+vi.mock("../card/useSchoolCard", () => ({ useSchoolCard: vi.fn(() => false) }));
 import CoachAppGuard from "./CoachAppGuard";
 
 /**

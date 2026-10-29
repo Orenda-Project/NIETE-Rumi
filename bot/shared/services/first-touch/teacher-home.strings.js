@@ -46,6 +46,10 @@ const STRINGS = Object.freeze({
   'th.quiz.making': Object.freeze({ en: 'Making your quiz…', ur: 'آپ کا کوئز بن رہا ہے…' }),
   'th.quiz.late': Object.freeze({ en: 'Taking longer than usual — it will arrive in this chat', ur: 'معمول سے زیادہ وقت لگ رہا ہے — کوئز اسی چیٹ میں آ جائے گا' }),
   'th.more': Object.freeze({ en: 'More', ur: 'مزید' }),
+  // the page opened for ONE recorded lesson (quiz_teacher_home_one_lesson: a Digital Coach report's "Create Quick Quiz"):
+  // the card's heading (as th.lastlesson, for this lesson), and the quiet link to the whole home
+  'th.one.say': Object.freeze({ en: 'Quiz from this lesson', ur: 'اس سبق کا کوئز' }),
+  'th.one.all': Object.freeze({ en: 'See all my lessons', ur: 'میرے سب اسباق دیکھیں' }),
   // the library
   'th.sec.library': Object.freeze({ en: 'Library: stories & videos', ur: 'لائبریری: کہانیاں اور ویڈیوز' }),
   'th.chosen.for': Object.freeze({ en: 'Chosen for Grade {n}', ur: 'جماعت {n} کے لیے منتخب' }),

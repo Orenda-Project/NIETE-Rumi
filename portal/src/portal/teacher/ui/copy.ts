@@ -59,6 +59,8 @@ export interface TeacherUiCopy {
   stepsCount: (done?: number, total?: number) => string;
   play: string;
   pause: string;
+  /** bd-bmc9a0.4 (ICT IAB row 33) — VoiceNote's speed chip, for a screen reader (the chip shows 1×, 1.25×, 1.5×, 2×). */
+  speed: string;
   /** bd-4404s7.1 — TimeStamp's AM/PM, and ChosenSoFar's group name. */
   am: string;
   pm: string;
@@ -234,6 +236,7 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
   /** VoiceNote's button. */
   play: 'Play',
   pause: 'Pause',
+  speed: 'Playback speed',
   am: 'AM',
   pm: 'PM',
   chosenSoFar: 'Chosen so far',
@@ -373,6 +376,7 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
   stepsCount: (done = 0, total = 0) => `${total} میں سے ${done}`,
   play: 'چلائیں',
   pause: 'روکیں',
+  speed: 'آواز کی رفتار',
   /** صبح (AM) as in the coach board's 8:30 صبح. PM is بعد دوپہر: شام is wrong for a 2:00 PM class (Urdu review, bd-fmf24g.13). */
   am: 'صبح',
   pm: 'بعد دوپہر',

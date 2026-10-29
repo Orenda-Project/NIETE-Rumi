@@ -1518,3 +1518,42 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given VIDEO_RECO_ENABLED is on for the NIETE sandbox bot
     When the teacher's window was closed and only the invite template went out, or review mode sent it to the operator
     Then no clip message is sent to anyone
+
+  # ── /school card: the School card's WhatsApp door ────────────────────────────
+  # A coach types "/school card" (or "school card"), optionally followed by an EMIS or a school name, and gets ONE
+  # message with an Open button that signs her into the coach app: one of HER schools' page when the rest names exactly
+  # one of them (an exact EMIS, or a single school-search match among her schools), else My schools. Never a list, a
+  # menu or a Flow. Behind app_settings.portal_coach_school_card (true or a list of users.id) AND the coach app
+  # (portal_coach_v2, users.role coach); anyone else gets today's handling. Unit: tests/app-redirect/
+  # app-link-coach-school-card.test.js (switch, school pick, words, funnel), app-link-coach-school-card-door.test.js
+  # (the real text handler), app-login-coach-school.test.js (the link's landing).
+  @e2e @config-gated @P1 @OBS73
+  Scenario: A coach on the School card gets one Open button for the school she names by EMIS
+    Given the NIETE bot chat is open on a coach account on the coach app
+    And the School card is on for her
+    When I send "/school card" followed by the EMIS of one of my schools
+    Then I get one message saying "School card for *<my school>* is ready." with an "Open" button
+    And no list, menu or Flow opens
+    And the button's link opens that school's page in the coach app, signed in
+    # Urdu: «سکول کارڈ تیار ہے: *<my school>*» and «کھولیں». Axiom: app_funnel.command feature=school_card
+    # audience=coach match=emis; app_link.open feature=coach_school:<EMIS>.
+
+  @e2e @config-gated @P1 @OBS74
+  Scenario: A coach who names none of her schools gets one Open button for My schools
+    Given the NIETE bot chat is open on a coach account on the coach app
+    And the School card is on for her
+    When I send "/school card" with a name that matches none of my schools
+    Then I get one message saying "Pick a school in My schools to see its card." with an "Open" button
+    And no list of schools is offered on WhatsApp
+    And the button's link opens My schools in the coach app, signed in
+    # The same answer for "/school card" alone, and for a name that matches several of her schools (match=no_query /
+    # several on the funnel row).
+
+  @e2e @config-gated @negative @P1 @OBS75
+  Scenario: With the School card off, "/school card" is answered exactly as any other message
+    Given the NIETE bot chat is open on a coach account on the coach app
+    And the School card is off for her
+    When I send "/school card" followed by the EMIS of one of my schools
+    Then I get no "Open" button and no School card line
+    And the bot answers the message the way it answers any other text
+    # A teacher, or a coach off the coach app, gets the same: the door answers only a coach the switch covers.

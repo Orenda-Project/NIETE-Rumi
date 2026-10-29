@@ -940,6 +940,21 @@ const UX_STRINGS = {
   // bd-s42dye.3 — a coach's /training: the coach app's Training Library. The body names it; the button is short enough for the 15-code-point headroom rule (12 en, 14 ur).
   appLinkBodyCoachTraining: { en: 'Open the Training Library.', ur: 'ٹریننگ لائبریری کھولیں۔' },
   appLinkButtonCoachTraining: { en: 'Open library', ur: 'لائبریری کھولیں' },
+  // The School card (app-redirect.service openSchoolCard): a coach's /school card. One school → the line names it,
+  // {school} being her own name for it (leader_schools.school_name, what My schools shows), bold, and isolated in the
+  // Urdu (a Latin name with brackets would otherwise reorder inside the RTL line). No single school → My schools, the
+  // coach app's menu words («میرے سکول», portal teacher copy.ts). Imperatives only, so nothing assumes a gender.
+  // Buttons 4 en / 6 ur code points. The Urdu is machine-drafted: for review by a native reader.
+  appLinkBodyCoachSchoolCard: {
+    en: 'School card for *{school}* is ready.',
+    ur: 'سکول کارڈ تیار ہے: *⁨{school}⁩*',
+  },
+  appLinkButtonCoachSchoolCard: { en: 'Open', ur: 'کھولیں' },
+  appLinkBodyCoachSchools: {
+    en: 'Pick a school in My schools to see its card.',
+    ur: 'کارڈ دیکھنے کے لیے میرے سکول میں سے سکول چنیں۔',
+  },
+  appLinkButtonCoachSchools: { en: 'Open', ur: 'کھولیں' },
   // bd-zcgpkx, bd-a73p5m — a leader's "lesson plan": the Lesson Plans tab, where a leader reads the plans their
   // teachers get. It promises reading only: most plans there have no send button for a leader, and a Reading Hour /
   // Numeracy plan's "Send to teacher" needs FLN share, which this link does not ask for. The button carries the teacher

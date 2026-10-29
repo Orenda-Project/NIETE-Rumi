@@ -11,6 +11,7 @@ import { useNewUi } from '../lib/useNewUi';
 import NewUiNavigation from '../newui/NewUiNavigation';
 import { useCoachV2, isCoachV2For } from '../coach/useCoachV2';
 import { COACH_APP_READY } from '../coach/training/appReady';
+import { useSchoolCard } from '../coach/card/useSchoolCard';
 import { useTeacherV2, isTeacherV2For } from '../teacher/useTeacherV2';
 import TeacherNavigation from '../teacher/TeacherNavigation';
 import { LESSONS_HOME } from '../teacher/lessons/paths';
@@ -40,6 +41,9 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
   // items, and it wins over the new UI for a coach. Off, loading, unreadable,
   // or not a coach: the markup below, unchanged.
   const coachV2 = isCoachV2For(user, useCoachV2(user?.phoneNumber || null));
+  // The School card (portal_coach_school_card, features.schoolCard, fail-closed): a v2 coach with it on gets
+  // Home · Lesson Plans · More. Off, loading or unreadable: the coach v2 bar below, unchanged.
+  const schoolCard = useSchoolCard(user?.phoneNumber || null, coachV2) === true;
   // bd-fmf24g.1 — the teacher app v2, for a teacher with portal_teacher_v2 only (never the
   // leader family). It wins over the new UI. Off, loading, unreadable, or not a teacher:
   // the markup below, unchanged.
@@ -135,6 +139,7 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
   const isActive = (path: string) => currentPath === path;
 
   // bd-4404s7.2 — a coach on v2 gets the kit's role-aware bar (Home · Schedule · Observe · Schools · More).
+  if (coachV2 && schoolCard) return <TeacherNavigation role="coach" schoolCard />;
   if (coachV2) return <TeacherNavigation role="coach" ready={COACH_APP_READY} />;
   if (teacherV2) return <TeacherNavigation />;
 

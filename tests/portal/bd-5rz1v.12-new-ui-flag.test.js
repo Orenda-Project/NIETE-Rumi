@@ -177,7 +177,9 @@ describe('GET /config — features.newUi', () => {
   test('the existing fields are unchanged in shape', async () => {
     const { payload } = await getConfig();
     expect(Object.keys(payload.features).sort()).toEqual([
-      'assessmentEditing', 'assessmentGenerator', 'assessmentGeneratorMessage', 'coachDisagreements', 'coachObservation', 'coachV2', 'newUi', 'selfObservation', 'teacherV2',
+      'assessmentEditing', 'assessmentGenerator', 'assessmentGeneratorMessage', 'childTest', 'childTestSa', 'coachDisagreements',
+      'coachObservation', 'coachV2', 'newUi', 'schoolCard', 'selfObservation', 'teacherHomeCard', 'teacherHomeLook',
+      'teacherHomeOrder', 'teacherV2',
     ]);
   });
 });

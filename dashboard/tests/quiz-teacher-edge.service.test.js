@@ -141,6 +141,19 @@ describe('path-for-path forwarding', () => {
     ]);
     expect(calls[0].opts).toEqual({ raw: true });
   });
+  test('page: a Digital Coach report\'s session (uuid) reaches the bot with the page language; any other shape is dropped', async () => {
+    await boot({ status: 200, bytes: Buffer.from('<html>x</html>'), contentType: 'text/html' });
+    await request('GET', `/quiz/teacher/${TOK}?session=${UUID}`);
+    await request('GET', `/quiz/teacher/${TOK}?lang=en&session=${UUID}`);
+    await request('GET', `/quiz/teacher/${TOK}?session=lsn_lp_v8_abc`);
+    await request('GET', `/quiz/teacher/${TOK}/stories?session=${UUID}`);
+    expect(calls.map((c) => c.path)).toEqual([
+      `/api/internal/th/quiz/teacher/${TOK}?session=${UUID}`,
+      `/api/internal/th/quiz/teacher/${TOK}?lang=en&session=${UUID}`,
+      `/api/internal/th/quiz/teacher/${TOK}`,
+      `/api/internal/th/quiz/teacher/${TOK}/stories`,
+    ]);
+  });
   test('stories page: a story tile\'s book (uuid) and the grade (1-5) reach the stories page; bad shapes dropped', async () => {
     await boot({ status: 200, bytes: Buffer.from('<html>x</html>'), contentType: 'text/html' });
     await request('GET', `/quiz/teacher/${TOK}/stories?book=${UUID}`);

@@ -22,6 +22,7 @@ const { resolveModelForJob } = require('../../config/model-registry');
 const { configForRequest, ensureCurrent } = require('../../config/model-settings');
 const { logToFile } = require('../../utils/logger');
 const { extractJsonFromResponse } = require('./assessment-json.util');
+const { stemsBlock, applyStems } = require('./topics/stem-prompt');
 
 const PROMPTS = require('./ict-prompts.json');
 
@@ -314,7 +315,7 @@ ${pageContent}
 
 **GENERATE THE FOLLOWING:**
 ${items.map((i) => `• ${i}`).join('\n')}
-• In total the paper must have exactly ${plan.total} questions — no more${sloBlock(slos)}${budget ? `
+• In total the paper must have exactly ${plan.total} questions — no more${sloBlock(slos)}${stemsBlock(plan.questionTypes)}${budget ? `
 • The whole paper must be worth ${budget} marks in total — allocate the marks across the questions so they add up to ${budget} and NEVER exceed it` : ''}
 
 **IMPORTANT NOTES:**
@@ -695,6 +696,9 @@ async function generateExam(args) {
 
   stripImageKeys(examJson);
   normaliseAnswers(examJson);
+  // bd-6clakk.12 — her ticked stems: a near miss is set to the stem; a question using none is logged.
+  const { misses: stemMisses } = applyStems(examJson, plan.questionTypes);
+  if (stemMisses.length) logToFile('[assessment] questions without a ticked stem', { misses: stemMisses });
   const removedSeen = trimSeen(examJson, plan.seenTarget);
   if (removedSeen > 0) {
     logToFile('[assessment] trimmed seen questions to the cap', { seenTarget: plan.seenTarget, removed: removedSeen });
@@ -755,6 +759,7 @@ const { writeEarlyPaper } = require('./fde-early-writer');
 // helpers above are loaded by tests and tools that have no database.
 // eslint-disable-next-line global-require
 const BookContent = () => require('./book-content.service');
+const TopicOral = () => require('./topics/topic-oral');
 
 /**
  * One section's ceiling and wait. A whole 48-item paper with a marking scheme
@@ -2790,8 +2795,14 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   };
 }
 
+/** bd-6clakk.11: the FDE oral part of an English or Urdu topic paper, or null. */
+function generateTopicOral(args) {
+  return TopicOral().writeTopicOral(args, _earlyDeps(args.subject));
+}
+
 module.exports = {
   generateExam,
+  generateTopicOral,
   generatePatternExam,
   sectionMaxTokens,
   buildPatternUserPrompt,

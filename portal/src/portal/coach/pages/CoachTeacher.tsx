@@ -8,6 +8,8 @@ import { Card, BottomLink, Loading, useLoad } from "../ui";
 import { PEOPLE } from "../people/copy";
 import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
 import { coachFeatureReady } from "../training/appReady";
+import { useCardSwitch } from "../card/frame";
+import TeacherCardPage from "../card/TeacherCardPage";
 
 /**
  * bd-o15qnr + bd-4404s7.6 — one teacher: average HITL with her scores over time (HITL filled, DC hollow — neutral
@@ -55,7 +57,7 @@ function byMonth<T extends { date: string | null }>(rows: T[]): [string, T[]][] 
   return out;
 }
 
-const CoachTeacher = () => {
+function CoachTeacherToday() {
   const C = useCopy(PEOPLE);
   const { ext = "" } = useParams();
   const { data, failed, reload } = useLoad(() => coach.getTeacher(ext), [ext]);
@@ -137,6 +139,18 @@ const CoachTeacher = () => {
       )}
     </PeopleFrame>
   );
+}
+
+/**
+ * With the School card switch on (features.schoolCard, read fail-closed), this address is her Teacher page on the School
+ * card (card/TeacherCardPage). Off, it is the page above, unchanged. While the switch is read: the page's own first frame.
+ */
+const CoachTeacher = () => {
+  const C = useCopy(PEOPLE);
+  const on = useCardSwitch();
+  if (on === true) return <TeacherCardPage />;
+  if (on === null) return <PeopleFrame title={C.dash} crumb={C.title} feature="schools" backTo="/portal/coach/people"><Loading /></PeopleFrame>;
+  return <CoachTeacherToday />;
 };
 
 export default CoachTeacher;

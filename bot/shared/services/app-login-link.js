@@ -76,9 +76,13 @@ const LEADER_LANDINGS = Object.freeze({
 
 const own = (map, f) => Object.prototype.hasOwnProperty.call(map, f);
 
-/** A feature a token may carry: a teacher, coach or leader page, or an FLN target. Anything else cannot be signed or verified. */
+/**
+ * A feature a token may carry: a teacher, coach or leader page, an FLN target, or a School card target (one of the
+ * coach's schools, or My schools: coach-school-target.js). Anything else cannot be signed or verified.
+ */
 const linkable = (f) => typeof f === 'string'
-  && (own(LANDINGS, f) || own(COACH_LANDINGS, f) || own(LEADER_LANDINGS, f) || require('./fln-go-target').isFlnTarget(f));
+  && (own(LANDINGS, f) || own(COACH_LANDINGS, f) || own(LEADER_LANDINGS, f) || require('./fln-go-target').isFlnTarget(f)
+    || require('./coach-school-target').isCoachSchoolTarget(f));
 
 /** The page a leader token lands on, or null when `f` is not one. */
 function leaderPathFor(f) {

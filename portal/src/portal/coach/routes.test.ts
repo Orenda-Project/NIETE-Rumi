@@ -10,7 +10,6 @@ const app = readFileSync(resolve(__dirname, "../../App.tsx"), "utf8");
 
 describe("coach v2 routes", () => {
   it.each([
-    ["/portal/coach", "CoachHome"],
     ["/portal/coach/scheduling", "CoachScheduling"],
     ["/portal/coach/schedule", "CoachSchedule"],
     ["/portal/coach/team", "CoachTeam"],
@@ -34,6 +33,30 @@ describe("coach v2 routes", () => {
     expect(app).toMatch(new RegExp(
       `(import ${component} from "|const ${component} = page\\(\\(\\) => import\\(")\\./portal/coach/pages/${component}"`,
     ));
+  });
+
+  it("/portal/coach → CoachLanding: the slim Home with the School card switch on, else CoachHome as before", () => {
+    expect(app).toContain('<Route path="/portal/coach" element={<CoachLanding />} />');
+    expect(app).toContain('const CoachLanding = page(() => import("./portal/coach/card/CoachLanding"));');
+  });
+
+  it.each([
+    ["/portal/coach/school/:emis/feature/:feature", "CoachFeatureGrid", "FeatureGridPage"],
+    ["/portal/coach/teacher/:ext/items/:feature", "CoachHerItems", "HerItemsPage"],
+    // her Digital Coaching and her Coach observations: one page, two addresses
+    ["/portal/coach/teacher/:ext/dc", "CoachTeacherScores", "TeacherScoresPage"],
+    ["/portal/coach/teacher/:ext/observations", "CoachTeacherScores", "TeacherScoresPage"],
+    // the old Her coaching reports, her DC / coach-visit lists and option A's page open those (nothing 404s)
+    ["/portal/coach/teacher/:ext/coaching", "CoachCoachingRedirect", "CoachingRedirect"],
+    ["/portal/coach/teacher/:ext/reports", "CoachCoachingRedirect", "CoachingRedirect"],
+    ["/portal/coach/teacher/:ext/items/dc", "CoachCoachingRedirect", "CoachingRedirect"],
+    ["/portal/coach/teacher/:ext/items/coach", "CoachCoachingRedirect", "CoachingRedirect"],
+    ["/portal/coach/session/:id", "CoachSessionReport", "SessionReportPage"],
+  ])("the School card's %s → %s, its own chunk", (path, component, file) => {
+    expect(app).not.toContain("HerReportsPage");
+    expect(app).not.toContain("CoachingPage\"");
+    expect(app).toContain(`<Route path="${path}" element={<${component} />} />`);
+    expect(app).toContain(`const ${component} = page(() => import("./portal/coach/card/${file}"));`);
   });
 
   it("Analytics (bd-fmf24g.27): the page and one teacher, each its own chunk", () => {

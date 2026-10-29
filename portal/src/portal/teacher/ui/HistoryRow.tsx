@@ -123,51 +123,69 @@ export interface HistoryRowProps {
 /** An Urdu word (13px Nastaliq), not a Latin short form (15px). */
 const ARABIC_SCRIPT = /[؀-ۿ]/;
 
-export function HistoryRow({
-  lead = 'grade', leadText, leadTone = 'grey', leadLabel, time, timeTone, state = 'default',
-  subject = '', grade, title, wrapTitle = false, extra, chip, action = 'chevron', to, isNew = false, first = true, onAction, copy,
-}: HistoryRowProps) {
+/**
+ * The D6.5 grade·subject column on its own (the lead of a `lead="grade"` row), for a row the kit's HistoryRow cannot
+ * draw (the coach's Coaching list: a title, a meta line, a score, a quote). Same tile, same rules, same colours.
+ */
+export function GradeSubjectLead({ grade, subject = '', gradeShort }: {
+  grade?: string | number | null; subject?: string | null; gradeShort?: TeacherUiCopy['gradeShort'];
+}) {
   const bidi = useBidi();
   const lang = useLang();
-  const words = { ...useKitCopy(), ...copy };
-  const isLink = action === 'chevron' && !!to;
+  const kit = useKitCopy();
+  const words = { gradeShort: gradeShort ?? kit.gradeShort };
   const g = grade === null || grade === undefined ? '' : String(grade).trim();
   const hasGrade = g !== '' && !/^[-–—]+$/.test(g);
   const name = String(subject ?? '').trim();
   const hasSubject = name !== '';
   const short = hasSubject ? subjectShort(name, lang) : '';
   const tint = leadColours({ subject: name, grade: hasGrade ? g : null });
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="history-lead"
+      className="ms-2 my-1 flex w-16 shrink-0 flex-col self-stretch overflow-hidden rounded-[6px] whitespace-nowrap text-center leading-none"
+    >
+      {hasGrade ? (
+        <span
+          className="flex flex-1 items-center justify-center text-[17px] font-extrabold tabular-nums text-white"
+          style={{ backgroundColor: tint.dark }}
+        >
+          {bidi(words.gradeShort(g))}
+        </span>
+      ) : null}
+      {hasSubject ? (
+        <span
+          className={cn('flex flex-1 items-center justify-center font-bold', ARABIC_SCRIPT.test(short) ? 'text-[13px]' : 'text-[15px]')}
+          style={{ backgroundColor: tint.light, color: tint.dark }}
+        >
+          {bidi(short)}
+        </span>
+      ) : null}
+      {!hasGrade && !hasSubject ? (
+        <span className="flex flex-1 items-center justify-center bg-[#f3f4f6]">
+          <SubjectTile subject="" />
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+export function HistoryRow({
+  lead = 'grade', leadText, leadTone = 'grey', leadLabel, time, timeTone, state = 'default',
+  subject = '', grade, title, wrapTitle = false, extra, chip, action = 'chevron', to, isNew = false, first = true, onAction, copy,
+}: HistoryRowProps) {
+  const bidi = useBidi();
+  const words = { ...useKitCopy(), ...copy };
+  const isLink = action === 'chevron' && !!to;
+  const g = grade === null || grade === undefined ? '' : String(grade).trim();
+  const hasGrade = g !== '' && !/^[-–—]+$/.test(g);
+  const name = String(subject ?? '').trim();
   const spoken = [hasGrade ? words.grade(g) : '', name].filter(Boolean).join(' ');
   const body = (
     <>
       {lead === 'grade' ? (
-        <span
-          aria-hidden="true"
-          data-testid="history-lead"
-          className="ms-2 my-1 flex w-16 shrink-0 flex-col self-stretch overflow-hidden rounded-[6px] whitespace-nowrap text-center leading-none"
-        >
-          {hasGrade ? (
-            <span
-              className="flex flex-1 items-center justify-center text-[17px] font-extrabold tabular-nums text-white"
-              style={{ backgroundColor: tint.dark }}
-            >
-              {bidi(words.gradeShort(g))}
-            </span>
-          ) : null}
-          {hasSubject ? (
-            <span
-              className={cn('flex flex-1 items-center justify-center font-bold', ARABIC_SCRIPT.test(short) ? 'text-[13px]' : 'text-[15px]')}
-              style={{ backgroundColor: tint.light, color: tint.dark }}
-            >
-              {bidi(short)}
-            </span>
-          ) : null}
-          {!hasGrade && !hasSubject ? (
-            <span className="flex flex-1 items-center justify-center bg-[#f3f4f6]">
-              <SubjectTile subject="" />
-            </span>
-          ) : null}
-        </span>
+        <GradeSubjectLead grade={grade} subject={subject} gradeShort={words.gradeShort} />
       ) : (
         <span
           aria-hidden="true"

@@ -212,7 +212,62 @@ function createAppFunnelRouter({ limiter } = {}) {
         sizeBytes: clampInt(body.sizeBytes, 2 * 1024 * 1024 * 1024),
         type,
         elapsedMs: clampInt(body.elapsedMs, 60 * 60 * 1000),
+        // bd-bmc9a0.1 — ICT IAB rows 28-29: how much of the part left the phone, whether the phone said it was online,
+        // and what was sent (an in-memory copy of a picked file, a slice of one, or the page's own Blob).
+        sentBytes: clampInt(body.sentBytes, 2 * 1024 * 1024 * 1024),
+        online: typeof body.online === 'boolean' ? body.online : null,
+        sentAs: pick(body.sentAs, DC_UPLOAD_SENT_AS),
       });
+      return res.status(204).end();
+    },
+    (err, _req, res, _next) => res.status(err && err.status === 413 ? 413 : 400).end(),
+  );
+
+  /**
+   * The coach's microphone check (portal lib/assess/micReport.ts), logged as sa_mic.check. A check that failed on a
+   * coach's iPhone left no trace: it runs only on the phone. The page says what the phone did (the browser's reason for
+   * a refused microphone, the recorder's type and bytes, the meter's loudest level, the AudioContext's state, a refused
+   * play-back, the track's settings) and then what the coach answered. The user comes from the SESSION; the phone, its
+   * major version and its browser are classed here from the user agent, which is never stored. Only known values pass.
+   */
+  router.post(
+    '/funnel/mic-check',
+    requireSession,
+    express.text({ type: 'text/*', limit: '2kb' }),
+    (req, res) => {
+      let body = req.body;
+      if (typeof body === 'string') { try { body = JSON.parse(body); } catch (_) { body = null; } }
+      if (!body || typeof body !== 'object' || Array.isArray(body)) return res.status(400).end();
+      const now = Date.now();
+      if (!limits.take(appSessionId(req.session, req), 1, now)) return res.status(429).end();
+      const pick = (v, allowed) => (allowed.includes(v) ? v : 'unknown');
+      const word = (v) => (typeof v === 'string' && /^[A-Za-z_]{1,40}$/.test(v) ? v : 'unknown');
+      const bool = (v) => (typeof v === 'boolean' ? v : null);
+      const num = (v, max) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(Math.max(v, 0), max) : null);
+      const phase = pick(body.phase, MIC_PHASES);
+      const { journeyId, ...base } = who(req, now);
+      const props = { ...base, journeyId, feature: 'learning_assessment', browser: browserClass(req, body.b), ...micPhone(req), phase, iosMic: body.iosMic === true };
+      if (phase === 'answer') props.answer = pick(body.answer, MIC_ANSWERS);
+      else {
+        Object.assign(props, {
+          gum: word(body.gum),
+          recorder: body.recorder === true,
+          mimeType: typeof body.mimeType === 'string' && /^[a-z]+\/[a-z0-9.+-]{1,40}(;codecs=[a-z0-9.,"-]{1,30})?$/i.test(body.mimeType) ? body.mimeType.toLowerCase() : (body.mimeType === '' ? '' : 'unknown'),
+          bytes: clampInt(body.bytes, 50 * 1024 * 1024),
+          chunks: clampInt(body.chunks, 1000),
+          peak: num(body.peak, 1) ?? 0,
+          ctxStart: pick(body.ctxStart, MIC_CTX_STATES),
+          ctxEnd: pick(body.ctxEnd, MIC_CTX_STATES),
+          play: pick(body.play, MIC_PLAY),
+          playError: body.playError === '' ? '' : word(body.playError),
+          sampleRate: num(body.sampleRate, 384000),
+          channelCount: num(body.channelCount, 32),
+          echoCancellation: bool(body.echoCancellation),
+          autoGainControl: bool(body.autoGainControl),
+          noiseSuppression: bool(body.noiseSuppression),
+        });
+      }
+      emit('sa_mic.check', props);
       return res.status(204).end();
     },
     (err, _req, res, _next) => res.status(err && err.status === 413 ? 413 : 400).end(),
@@ -221,9 +276,33 @@ function createAppFunnelRouter({ limiter } = {}) {
   return router;
 }
 
-const DC_UPLOAD_STAGES = ['presign', 'upload', 'start'];
+const MIC_PHASES = ['probe', 'answer'];
+const MIC_ANSWERS = ['heard', 'again', 'skip', 'replay'];
+const MIC_CTX_STATES = ['none', 'suspended', 'running', 'closed', 'interrupted'];
+const MIC_PLAY = ['ok', 'blocked', 'error', 'none'];
+
+/** The phone (ios / android / other), its major OS version and its browser, classed from the user agent (never stored). */
+function micPhone(req) {
+  const ua = String(req.get('user-agent') || '').slice(0, 300);
+  const ios = ua.match(/(?:iPhone|iPad|iPod).*? OS (\d+)_/);
+  const android = ua.match(/Android (\d+)/);
+  const os = ios ? 'ios' : (android ? 'android' : 'other');
+  const osMajor = Number((ios || android || [])[1]) || null;
+  let engine = 'other';
+  if (/WAiOS\/|WhatsApp|WA4A\//.test(ua)) engine = 'whatsapp';
+  else if (/CriOS\//.test(ua)) engine = 'crios';
+  else if (/FxiOS\//.test(ua)) engine = 'fxios';
+  else if (/EdgiOS\/|EdgA\//.test(ua)) engine = 'edge';
+  else if (ios && /Version\/[\d.]+.*Safari\//.test(ua)) engine = 'safari';
+  else if (/Chrome\//.test(ua)) engine = /; wv\)/.test(ua) ? 'android_webview' : 'chrome';
+  return { os, osMajor, engine };
+}
+
+// bd-bmc9a0.1: 'read' + 'unreadable' — a picked file the phone could not read, before any upload.
+const DC_UPLOAD_STAGES = ['read', 'presign', 'upload', 'start'];
 const DC_UPLOAD_KINDS = ['audio', 'lesson_plan', 'photo'];
-const DC_UPLOAD_REASONS = ['http', 'network', 'abort', 'unknown'];
+const DC_UPLOAD_REASONS = ['http', 'network', 'abort', 'unknown', 'unreadable'];
+const DC_UPLOAD_SENT_AS = ['copy', 'slice', 'blob', 'none'];
 
 // ─── the key actions ────────────────────────────────────────────────────────────────────────────────────────
 //

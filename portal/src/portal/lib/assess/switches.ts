@@ -34,6 +34,8 @@ export function useSaSwitches(enabled: boolean | null): SaSwitches {
           // round 7b: the coach's End test as a tap + Restart test; RDF manual's End this section
           endTestRestart: s.endTestRestart === true,
           endSection: s.endSection === true,
+          // round 8: the microphone check on an iPhone
+          iosMic: s.iosMic === true,
         });
       })
       .catch(() => { /* off */ });

@@ -33,7 +33,8 @@ async function sendReportByTemplateIfWindowClosed({ phone, userId, sessionId }, 
     const sent = !!out && out.status === 'sent';
     try {
       logEvent(sent ? 'coaching.report.template_sent' : 'coaching.report.template_not_sent',
-        { userId, sessionId, status: (out && out.status) || null, reason: (out && out.reason) || null });
+        { userId, sessionId, status: (out && out.status) || null, reason: (out && out.reason) || null,
+          code: (out && out.code) || null, message: (out && out.message) || null }); // Meta's refusal, bd-v0toag.127
     } catch (_) { /* logging never decides */ }
     return sent ? 'template' : null;
   } catch (err) {

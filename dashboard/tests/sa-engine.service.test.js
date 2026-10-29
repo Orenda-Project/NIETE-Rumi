@@ -163,6 +163,24 @@ test('the microphone: proctored without the pre-flight skips recording tasks; a 
   expect(kept).toEqual([[true, 0.02]]);
 });
 
+test('sa_r8_ios_mic (battery.ui.r8_ios_mic): the game mic check and the level meter ask sa-mic for the iPhone way; OFF, today\'s call', async () => {
+  const s = await shared();
+  const calls = [];
+  const mic = { state: () => 'unknown', remember() {}, probe: async (ms, o) => { calls.push(['probe', ms, o]); return { ok: true, rms: 0.02 }; }, level: (cb, o) => { calls.push(['level', o]); return () => {}; } };
+  const b = (ui) => ({ battery_id: 'm', ...(ui ? { ui } : {}), tasks: [{ id: 'story', mode: 'record', time_limit_s: 60, passage: { text: 'a' }, items: [{ id: 'w', target: 'a', line: 1 }] }] });
+  const on = fakes(s); on.deps.mic = mic;
+  await start({ mount: {}, battery: b({ r8_ios_mic: true }), mode: 'game', lang: 'ur', audio_check: false, warmup: false }, on.deps);
+  await on.ui().micProbe();
+  on.ui().micLevel(() => {});
+  expect(calls).toEqual([['probe', 2000, { ios: true }], ['level', { ios: true }]]);
+  calls.length = 0;
+  const off = fakes(s); off.deps.mic = mic;
+  await start({ mount: {}, battery: b(null), mode: 'game', lang: 'ur', audio_check: false, warmup: false }, off.deps);
+  await off.ui().micProbe();
+  off.ui().micLevel(() => {});
+  expect(calls).toEqual([['probe', 2000, undefined], ['level', undefined]]);
+});
+
 test('the mercy rule: the recorder\'s silence watch offers the star at 12 s and ends the passage at 20 s', async () => {
   const s = await shared();
   const f = fakes(s);
