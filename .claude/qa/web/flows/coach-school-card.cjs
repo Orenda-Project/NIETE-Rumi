@@ -1,8 +1,9 @@
 // coach-school-card — the hand-written coach-portal scenarios for the School card (portal/src/portal/coach/card/**): with
 // portal_coach_school_card on, a v2 coach lands on the slim Coach Home (Training Library and My schools), the menu is
 // Home · Lesson Plans · More, a school opens as its School card (period chips, four feature tiles, the teachers), a tile
-// opens that feature by teacher, a row opens her Teacher page and Her coaching reports, and her DC report opens in the
-// coach's view with no transcript. With the switch off, nothing of it is there. Joined to the generated coach-portal
+// opens that feature by teacher, a row opens her Teacher page and its Observations card her Observations page (her DC
+// reports and coach observations in one list), and her DC report opens in the coach's view with no transcript. With the
+// switch off, nothing of it is there. Joined to the generated coach-portal
 // driver by .claude/qa/web/gen_page_features.py (EXTRA), so spec and driver still come from one place.
 //
 // The dashboard caches a switch for 30 s (feature-flags.js readFlagRow), so each scenario waits for /config to say what
@@ -91,12 +92,15 @@ const scenarios = [
       await page.getByTestId('grid-row').first().click();
       await page.waitForURL(/\/portal\/coach\/teacher\/[^/?]+(\?|$)/, { timeout: 15000 });
       await shown(page, 'teacher-tiles', 'Teacher page tiles');
-      await (await shown(page, 'her-reports', 'Her coaching reports button')).click();
-      await page.waitForURL(/\/reports/, { timeout: 15000 });
+      await (await shown(page, 'coaching-card', 'Observations card')).click();
+      await page.waitForURL(/\/coaching\?period=month/, { timeout: 15000 });
+      await shown(page, 'coaching-summary', 'Observations summary');
       const h1 = (await page.locator('h1').first().innerText()).trim();
-      expect(/Her coaching reports/.test(h1), 'Her coaching reports did not open (h1: ' + h1 + ')');
+      expect(/^Observations$/.test(h1), 'the Observations page did not open (h1: ' + h1 + ')');
+      const lines = await page.getByTestId('coaching-summary').innerText();
+      expect(/Digital Coaching/.test(lines) && /Coach observations/.test(lines), 'the summary lines are ' + lines.replace(/\s+/g, ' ').slice(0, 120));
       healthy(w, 'the School card journey');
-      return { school: SCHOOL, radios, gridRows: rows, schoolRow: school.replace(/\s+/g, ' '), reports: h1 };
+      return { school: SCHOOL, radios, gridRows: rows, schoolRow: school.replace(/\s+/g, ' '), observations: h1 };
     } finally { await off(ctx); }
   } },
 
@@ -127,6 +131,42 @@ const scenarios = [
     const menu = await page.getByTestId('teacher-nav').locator('a').evaluateAll((as) => as.map((a) => a.textContent.trim()));
     expect(!menu.includes('Home'), 'the menu has Home with the switch off: ' + JSON.stringify(menu));
     return { menu };
+  } },
+
+  { id: 'CP11', title: "Coach app v2 with the School card on: a teacher's Observations page lists her DC reports and coach observations together; Digital Coaching filters it, a row opens its DC report, and her old reports address opens the page", run: async (page, ctx) => {
+    // A teacher on one of the demo coach's schools with a scored DC report this month (Pakistan time).
+    const [ext, sessionId] = (await ctx.sql('select t.phone_number, s.id from coaching_sessions s join users t on t.id = s.user_id '
+      + 'join leader_schools ls on ls.school_id = t.school_id join users c on c.id = ls.leader_user_id where c.phone_number = ' + q(e164(DEMO.coach))
+      + " and t.role in ('teacher', 'principal') and t.is_test_user is not true and t.deleted_at is null and s.observation_type is null"
+      + " and s.status = 'completed' and s.duplicate_of_session_id is null and s.analysis_data -> 'scores' is not null"
+      + " and s.created_at >= (date_trunc('month', now() at time zone 'Asia/Karachi') at time zone 'Asia/Karachi')"
+      + ' order by s.created_at desc limit 1')).split('\n')[0].split('|');
+    expect(ext && sessionId, "no teacher at the demo coach's schools has a scored DC report this month");
+    try {
+      await signedIn(page, ctx, true);
+      const w = watch(page);
+      const me = '/portal/coach/teacher/' + ext;
+      await visit(page, ctx, me + '/coaching?period=month', { heading: /^Observations$/ });
+      const lines = await (await shown(page, 'coaching-summary', 'Observations summary')).innerText();
+      expect(/Digital Coaching/.test(lines) && /Coach observations/.test(lines), 'the summary lines are ' + lines.replace(/\s+/g, ' ').slice(0, 120));
+      const chips = await page.getByTestId('coaching-filter').getByRole('radio').evaluateAll((rs) => rs.map((r) => r.getAttribute('aria-label').replace(/\s+\d+$/, '')));
+      expect(JSON.stringify(chips) === JSON.stringify(['All', 'Digital Coaching', 'Coach observations']), 'the filter chips are ' + JSON.stringify(chips));
+      const dcRow = page.locator('[data-testid="coaching-row"][data-kind="dc"]').first();
+      await dcRow.waitFor({ state: 'visible', timeout: 20000 });
+      expect(await dcRow.getByTestId('history-lead').count(), 'a DC row has no grade-subject tile');
+      expect((await dcRow.getByTestId('row-title').innerText()).trim(), 'a DC row has no title');
+      expect(/AI score/.test(await dcRow.innerText()), 'a DC row has no AI score');
+      await page.getByRole('radio', { name: /^Digital Coaching/ }).click();
+      await page.waitForURL(/show=dc/, { timeout: 15000 });
+      const kinds = await page.getByTestId('coaching-row').evaluateAll((rs) => rs.map((r) => r.getAttribute('data-kind')));
+      expect(kinds.length && kinds.every((k) => k === 'dc'), 'Digital Coaching lists ' + JSON.stringify(kinds));
+      await page.getByTestId('coaching-row').first().click();
+      await page.waitForURL(/\/portal\/coach\/session\//, { timeout: 15000 });
+      await shown(page, 'coach-view', '"Coach view" chip');
+      const moved = await visit(page, ctx, me + '/reports', { settle: me + '/coaching' });
+      healthy(w, 'the Observations journey');
+      return { teacher: ext, session: sessionId, chips, dcRows: kinds.length, reports: moved.settled };
+    } finally { await off(ctx); }
   } },
 ];
 
