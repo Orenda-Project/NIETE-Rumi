@@ -757,6 +757,9 @@ const Reader = require('./fde-reader');
 const StemCheck = require('./fde-stem-check');
 const { writeEarlyPaper } = require('./fde-early-writer');
 const { noArrows } = require('./fde-no-arrows');
+const { steerNote } = require('./fde-mid-steer'); // bd-5jmnfj.33.2: Grade 3–4 Sections B/C are told Section A's facts
+const { mcqArithmetic, mcqNote } = require('./fde-mcq-arithmetic'); // bd-5jmnfj.33.2: a Maths MCQ key is its stem's arithmetic
+const { directedTasks } = require('./fde-directed-tasks'); // bd-5jmnfj.33.2: a do-as-directed item prints its task
 
 // Required on first use: the loader opens a database client, and the prompt
 // helpers above are loaded by tests and tools that have no database.
@@ -1332,8 +1335,11 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     }
     if (!fde && list.some((s) => MATHS_PAGES_SLOTS[s.slot])) rules.push(RULE.mathsPagesAB);
   }
-  if (!g5Rules) rules.push(`Use Grade ${P.grade} vocabulary; a term the book does not use is replaced by the book's word.`);
-  else if (key === 'science' || key === 'english') rules.push(RULE.grade5Words);
+  if (!g5Rules) {
+    rules.push(`Use Grade ${P.grade} vocabulary; a term the book does not use is replaced by the book's word.`);
+    // v30 G3 Maths Q5: accept carried the wording the common error called wrong; a three-thing ask keyed one point (bd-5jmnfj.33.2).
+    rules.push('`accept` never lists a wording the same item\'s common_error names as wrong; an item that asks for N things keys N points.');
+  } else if (key === 'science' || key === 'english') rules.push(RULE.grade5Words);
   if (hasMcq) {
     if (key !== 'maths') rules.push(`In this section, ${RULE.recall}.`);
     rules.push(RULE.spreadKeys, RULE.oneCorrect, RULE.optionsOnly);
@@ -2567,7 +2573,21 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   const iC = key === 'social_studies' ? built.findIndex((b) => b.section.slots.some((s) => s.slot === 'social_studies.C.Q5')) : -1;
   const iD = iC >= 0 ? built.findIndex((b) => b.section.slots.some((s) => s.slot === 'social_studies.D.Q6')) : -1;
   let results;
-  if (iD < 0) {
+  if (P.g5_rules === false && built.length > 1 && iD < 0) {
+    // Grade 3–4 end-of-chapter papers (bd-5jmnfj.33.2): Section A is written first and the other
+    // sections are handed its items and answers, so Q4/Q5 do not re-ask Q1's facts. The note is
+    // written into `built`, so a re-ask of B or C carries it too.
+    const first = await writeOne(built[0]);
+    const note = steerNote(first.tree);
+    if (note) {
+      built.slice(1).forEach((b) => {
+        b.user = `${b.user}\n\n${note}`;
+        b.messages = _sectionMessages({ system, user: b.user, pageContent: b.pageContent, model });
+      });
+    }
+    logToFile('[assessment] section A first', { requestId, pattern, section: built[0].section.id, steered: Boolean(note), lines: note ? note.split('\n').length : 0 });
+    results = [first, ...await Promise.all(built.slice(1).map(writeOne))];
+  } else if (iD < 0) {
     results = await Promise.all(built.map(writeOne));
   } else {
     const writes = built.map((b, i) => (i === iD ? null : writeOne(b)));
@@ -2599,10 +2619,14 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   // Social Studies always returns `held` (Section D reads it) and logs its own rows per rule after the last layout.
   if (firstLaid.held && key !== 'social_studies') logToFile('[assessment] held items', { requestId, pattern, held: firstLaid.held });
   const layoutShort = new Set(firstLaid.shortfall.map((f) => f.slot));
+  // Grade 3–4 Maths (bd-5jmnfj.33.2): an MCQ whose stem's arithmetic matches no option sends its section back once.
+  const mcqShort = P.g5_rules === false ? mcqArithmetic(firstLaid.examJson, { subject: key }).shortfall : [];
+  if (mcqShort.length) logToFile('[assessment] mcq no correct option', { requestId, pattern, items: mcqShort });
   const short = firstLaid.shortfall
     .concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall)
     .concat(_emptyQuestionParts(firstLaid.examJson))
-    .concat(answerRepeats(firstLaid.examJson)); // an answer printed in another question (bd-5jmnfj.4.51.3)
+    .concat(answerRepeats(firstLaid.examJson)) // an answer printed in another question (bd-5jmnfj.4.51.3)
+    .concat(mcqShort);
   const shortSlots = new Set(short.map((f) => f.slot));
   // An item carrying text the paper refuses to print (a review mark the model copied) fails the
   // paper at render; its section is asked once more instead, and a second hit fails it here.
@@ -2637,7 +2661,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
       // re-ask (a part with no marking points, a review mark, a religious maxim) takes the second reply whole.
       const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShortSet.has(f.slot));
       // On a top-up the note also names what the slot keeps, and asks for spares.
-      const note = [takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held }), giveawayNote(shortfall)]
+      const note = [takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held }), giveawayNote(shortfall), mcqNote(shortfall, P)]
         .filter(Boolean).join('\n\n');
       const second = await writeOne(note
         ? { ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }
@@ -2815,9 +2839,20 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   (examJson._layout.notes || []).slice(notesBefore).forEach((note) => {
     logToFile('[assessment] maths key replaced', { slot: note.slot, n: note.n ?? note.index ?? null, computed: note.computed, model: note.model });
   });
+  if (P.g5_rules === false) {
+    // Grade 3–4 (bd-5jmnfj.33.2): after the re-ask, a Maths MCQ key still wrong moves to the right option,
+    // and an item with no right option has its keyed option rewritten to the computed answer.
+    const fixed = mcqArithmetic(examJson, { subject: key, fix: true });
+    examJson = fixed.examJson;
+    fixed.notes.forEach((note) => logToFile(note.kind === 'key_moved' ? '[assessment] mcq key moved' : '[assessment] mcq option rewritten', { requestId, pattern, ...note }));
+  }
   const keyed = keyFixes(examJson); // bd-5jmnfj.4.57: paragraph length from the template, no lone-letter syllable split
   examJson = keyed.examJson;
   keyed.notes.forEach((note) => logToFile('[assessment] key fixed', note));
+  // Grade 3–4 (bd-5jmnfj.33.2): a do-as-directed item's task (main_question) is printed, as the slot instruction or after the stem.
+  const directed = directedTasks(examJson, P);
+  examJson = directed.examJson;
+  directed.notes.forEach((note) => logToFile('[assessment] directed task printed', { requestId, pattern, ...note }));
 
   // Urdu Q6's verses given from a lesson outside the chosen ones: the paper says where they come from.
   const versesPrinted = Object.values(examJson.unseen || {}).flatMap((t) => Object.values(t || {})).flat()

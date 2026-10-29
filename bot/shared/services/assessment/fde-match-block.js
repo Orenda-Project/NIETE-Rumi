@@ -62,6 +62,17 @@ function matchAnswer(q) {
 /** A match answer is Column B alone, never the pair with an arrow. */
 const noArrow = (q) => !ARROW.test(String(q.answer ?? ''));
 
+/**
+ * What an item prints in Column A (bd-5jmnfj.33.2): its own Column A, else its question. v30 G3
+ * General Knowledge Q2 wrote the instruction as every item's question and the term in column_a,
+ * so the paper printed "کالم الف کو کالم ب سے ملائیں۔" five times with nothing to match.
+ */
+function matchStem(q) {
+  if (!q) return '';
+  const a = Array.isArray(q.column_a) ? String(q.column_a[0] ?? '').trim() : '';
+  return a || String(q.question ?? '');
+}
+
 /** One row per pair: stem, gap, Column B. Cells arrive as HTML. */
 function matchTable(stems, column) {
   const rows = stems.map((s, i) => `<tr><td class="m-a">${s}</td><td class="m-gap"></td><td class="m-b">${column[i] || ''}</td></tr>`);
@@ -74,4 +85,4 @@ const MATCH_CSS = `
   table.match-table td.m-gap { width: 40mm; }
 `;
 
-module.exports = { matchOrder, bankOrder, matchTable, matchAnswer, noArrow, MATCH_CSS };
+module.exports = { matchOrder, bankOrder, matchTable, matchAnswer, matchStem, noArrow, MATCH_CSS };

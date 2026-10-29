@@ -53,7 +53,7 @@ module.exports = makeSubject({
       slots: [
         S({ slot: 'g3.maths.C.extended', label_en: 'Q5.', type: 'Extended Response', generate: 3, attempt: 2, marks_each: 5, lines: 5, work_mm: 50,
           instruction_en: 'Answer any two. Show your working.',
-          prompt_rule: `Three multi-part tasks from the chosen chapter, each with parts (a), (b) and (c) on one set of numbers (e.g. write the number in words, expand it, round it; or find the sum, the difference and compare). No two tasks test the same skill. Answer: each part\'s working and result. ${FIVE}` }),
+          prompt_rule: `Three multi-part tasks from the chosen chapter, each with parts (a), (b) and (c) on one set of numbers (e.g. write the number in words, expand it, round it; or find the sum, the difference and compare). No two tasks test the same skill. Every part works on the task\'s own numbers; no part re-asks a Section A or B item. Answer: each part\'s working and result. ${FIVE}` }),
       ],
     },
   ],
