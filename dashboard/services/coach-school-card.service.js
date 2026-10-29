@@ -10,8 +10,6 @@
  *   getTeacherCard     one teacher in HER patch: her tiles, and the Coaching summary and chart (the card that opens
  *                      her Coaching page)
  *   getTeacherItems    her list of lesson plans, papers or training in the period
- *   getTeacherCoaching her Coaching page: her DC reports and coach visits in ONE list, newest first, each with its
- *                      score, the step she took away and its sections; the two averages against the period before
  *   getTeacherScores   her DC reports OR her coach observations on their own: count, average against the period
  *                      before, each report's score, every practice averaged across her reports, the reports
  *   getSchoolScores    the school's DC reports OR coach observations by teacher: count, average, each report's score
@@ -344,11 +342,12 @@ function papersOf(rows = []) {
 }
 
 /** DAYS WITH ANY NIETE USE. Distinct Pakistan school days (Mon-Fri) in the period with any of the four features. */
-function daysWithUse(period, events) {
+function daysUsedOf(period, events) {
   const days = new Set();
   for (const e of events) if (P.inPeriod(period, e.day) && P.isSchoolDay(e.day)) days.add(e.day);
-  return days.size;
+  return [...days].sort();
 }
+const daysWithUse = (period, events) => daysUsedOf(period, events).length;
 
 /**
  * CONTRIBUTION %. Her total of the four feature counts over the school's total, × 100, rounded; equal weights.
@@ -428,8 +427,9 @@ function frameworkConstants() {
  * EVERY PRACTICE, AVERAGED ACROSS HER REPORTS. For each practice (indicator) a report scored, the mean of its score
  * as a share of that report's own scale (a section's domain_max over its practices, scaleMaxOf), given back on the
  * deployed framework's scale (FICO v3: 2) and as a %. A practice the report did not score (not applicable, no score) is
- * not averaged in. Lesson Plan Fidelity (B) is left out of a report whose plan was not assessed. Sections B C D F and
- * the practices in framework order; names are the framework's (a practice it does not know keeps the report's name).
+ * not averaged in. Lesson Plan Fidelity (B) is left out of a report whose plan was not assessed. All four sections, B C
+ * D F, each with its average (the mean of its practices' averages; null = Not scored) and `scoredIn` (how many reports
+ * scored it); the practices in framework order, the framework's names (one it does not know keeps the report's name).
  * Only reports whose score counts are passed in (a coach observation: reviewed, FICO form), so a /observe2 field-form
  * visit is never mixed in.
  * @param {Array<{domains: object, has_plan: boolean|null}>} rows
@@ -437,9 +437,12 @@ function frameworkConstants() {
 function practiceAveragesOf(rows) {
   const fw = frameworkConstants();
   const acc = new Map();
+  const scoredIn = Object.fromEntries(SECTIONS.map((x) => [x.code, 0]));
+  let reports = 0;
   for (const r of rows) {
     const domains = r && r.domains && typeof r.domains === 'object' ? r.domains : null;
     if (!domains) continue;
+    reports += 1;
     for (const sec of indicatorsOf({ domains })) {
       const meta = SECTIONS.find((x) => x.key === sec.key);
       const d = domains[sec.key] || {};
@@ -447,15 +450,20 @@ function practiceAveragesOf(rows) {
       if (sec.key === 'lesson_plan_fidelity' && (d.assessed === false || d.assessed === 'false' || r.has_plan === false || r.has_plan === 'false')) continue;
       const max = scaleMaxOf(d);
       if (!max) continue;
+      let counted = false;
       for (const i of sec.items) {
         if (!i.id || typeof i.score !== 'number' || !Number.isFinite(i.score)) continue;
+        counted = true;
         if (!acc.has(i.id)) acc.set(i.id, { id: i.id, code: meta.code, name: (fw && fw.names.get(i.id)) || i.name, shares: [], max });
         const e = acc.get(i.id);
         e.shares.push(Math.max(0, Math.min(1, i.score / max)));
         e.max = max;
       }
+      if (counted) scoredIn[meta.code] += 1;
     }
   }
+  if (!reports) return [];
+  const tenths = (x) => Math.round(x * 10) / 10;
   return SECTIONS.map(({ code, name }) => {
     const indicators = [...acc.values()].filter((e) => e.code === code)
       .sort((x, y) => practiceOrder(x.id) - practiceOrder(y.id) || x.id.localeCompare(y.id))
@@ -464,8 +472,10 @@ function practiceAveragesOf(rows) {
         const scaleMax = (fw && fw.scaleMax) || e.max;
         return { id: e.id, name: e.name, avg: Math.round(share * scaleMax * 10) / 10, pct: Math.round(share * 100), scaleMax, n: e.shares.length };
       });
-    return { code, name, indicators };
-  }).filter((x) => x.indicators.length);
+    // The section's own figure: the mean of its practices' averages; null (Not scored) when no report scored it.
+    const avg = indicators.length ? tenths(indicators.reduce((t, i) => t + i.avg, 0) / indicators.length) : null;
+    return { code, name, avg, scoredIn: scoredIn[code], indicators };
+  });
 }
 
 // ── reads ────────────────────────────────────────────────────────────────────
@@ -736,7 +746,10 @@ async function getSchoolCard(query, coachId, emis, opts = {}) {
   };
 }
 
-/** GET /school/:emis/scores/:kind — one kind's scores by teacher: count, average, each report's score; the school's. */
+/**
+ * GET /school/:emis/scores/:kind — one kind's scores by teacher: count, average, each report's score, sorted by count,
+ * then average, then name (teachers with none last); and the school's (its name, roster size, count, average, makers).
+ */
 async function getSchoolScores(query, coachId, emis, kind, opts = {}) {
   if (!SCORE_KINDS.includes(kind)) return null;
   const ctx = await schoolContext(query, coachId, emis);
@@ -754,8 +767,16 @@ async function getSchoolScores(query, coachId, emis, kind, opts = {}) {
       avg: mean(hers.map(scoreOf)),
       points: hers.filter((s) => scoreOf(s) != null).sort(byAt).map((s) => ({ id: s.id, date: s.day, score: scoreOf(s) })),
     };
-  }).sort((a, b) => (b.count - a.count) || byName(a, b));
-  return { kind, period: P.publicPeriod(period), rows, school: { count: now.length, avg: mean(now.map(scoreOf)) } };
+  }).sort((a, b) => (b.count - a.count) || ((b.avg ?? -1) - (a.avg ?? -1)) || byName(a, b));
+  return {
+    kind,
+    period: P.publicPeriod(period),
+    rows,
+    school: {
+      emis: ctx.school.emis, name: ctx.school.name, teachers: ctx.teachers.length,
+      count: now.length, avg: mean(now.map(scoreOf)), makers: new Set(now.map((s) => s.user_id)).size,
+    },
+  };
 }
 
 /** GET /school/:emis/feature/:feature */
@@ -857,7 +878,11 @@ async function getTeacherCard(query, coachId, ext, opts = {}) {
       lp: tile(events.lp),
       papers: tile(events.papers),
       training: { parts: trn.total, courses: courses.filter((c) => c.done && P.inPeriod(period, c.lastDone)).length, series: trn.cells },
-      days: { withUse: daysWithUse(period, [...events.lp, ...dc, ...events.training, ...events.papers]), schoolDays: period.schoolDaysSoFar },
+      days: (() => {
+        // the dates too: the page draws one dot per school day, filled on a day she used NIETE
+        const used = daysUsedOf(period, [...events.lp, ...dc, ...events.training, ...events.papers]);
+        return { withUse: used.length, schoolDays: period.schoolDaysSoFar, used };
+      })(),
     },
     // Her DC observations and coach visits are ONE Coaching card: this summary and this chart.
     summary: coachingSummaryOf(act, dc, visits, inP, inPrev),
@@ -893,56 +918,6 @@ async function getTeacherItems(query, coachId, ext, feature, opts = {}) {
 function languageOf(narrative, teacher) {
   const l = (narrative && narrative._language) || (teacher && teacher.preferred_language);
   return l === 'ur' ? 'ur' : 'en';
-}
-
-/**
- * GET /teacher/:ext/coaching — her DC reports and coach visits in the period as ONE list, newest first. Each row: the
- * class (grade, subject), a title (its topic, else its real lesson label, else null: the page writes "<Subject> lesson"), the
- * score (AI score; Coach score only for a reviewed FICO-form visit), the step she took away (a DC report: what she was
- * shown, the v10 rule; a coach visit: the step agreed) and the four section percentages (none for a visit with no
- * score). The summary and the chart are the Teacher page's Coaching card.
- */
-async function getTeacherCoaching(query, coachId, ext, opts = {}) {
-  const teacher = await teacherOf(query, coachId, ext);
-  if (!teacher) return null;
-  const { period, act, dc, visits, inP, inPrev } = await teacherActivity(query, teacher, opts);
-  const reports = dc.filter(inP);
-  const coachVisits = visits.filter(inP);
-  const ids = [...reports, ...coachVisits].map((s) => s.id);
-  // The group is read only when there is a report to show (the v10 rule needs it).
-  const group = reports.length ? await groupOf(query, teacher.school_id) : null;
-  const actions = new Map(ids.length ? rowsOf(await query(SQL.actions, [ids, group])).map((r) => [r.id, r]) : []);
-  const info = (s) => (act.scored.get(s.id) || {}).info || {};
-  const noSections = { B: null, C: null, D: null, F: null };
-  const row = (s, kind) => {
-    const a = actions.get(s.id) || {};
-    const score = kind === 'dc' ? pctOfSession(act, s) : ficoVisitScore(act, s);
-    return {
-      kind,
-      id: s.id,
-      at: s.at,
-      date: s.day,
-      grade: info(s).grade || null,
-      subject: info(s).subject || null,
-      title: reportTitleOf(a.topic, a.lesson_label, a.framework),
-      score,
-      quote: kind === 'dc'
-        ? nextStepShown({ action: a.action, thing_to_try: { text: a.thing_text } }, group)
-        : text(a.action) || text(a.focus_try),
-      sections: score == null ? { ...noSections } : { ...noSections, ...info(s).sections },
-      coachName: kind === 'coach' ? text(s.observer_name) : null,
-      form: kind === 'coach' ? formOf(act, s) : null,
-    };
-  };
-
-  return {
-    teacher: teacherOut(teacher),
-    period: P.publicPeriod(period),
-    summary: coachingSummaryOf(act, dc, visits, inP, inPrev),
-    chart: coachingChartOf(act, dc, visits, inP),
-    items: [...reports.map((s) => row(s, 'dc')), ...coachVisits.map((s) => row(s, 'coach'))]
-      .sort(newestFirst).map(({ at, ...r }) => r),
-  };
 }
 
 /**
@@ -1088,7 +1063,6 @@ module.exports = {
   getSchoolFeature,
   getTeacherCard,
   getTeacherItems,
-  getTeacherCoaching,
   getTeacherScores,
   getSchoolScores,
   practiceAveragesOf,
