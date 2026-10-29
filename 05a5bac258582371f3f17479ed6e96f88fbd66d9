@@ -1,3 +1,4 @@
 {"ts":"2026-10-29T05:53:17Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"05a5bac25858","branch":"bd-5jmnfj.4.51-v23-fixes","user":""}
 {"ts":"2026-10-29T05:53:41Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-5jmnfj.4.51-v23-fixes: training spec: NOT UPDATED e2e: missing","sha":"05a5bac25858","branch":"bd-5jmnfj.4.51-v23-fixes","user":""}
 {"ts":"2026-10-29T05:59:57Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-5jmnfj.4.51-v23-fixes: training spec: NOT UPDATED e2e: missing","sha":"05a5bac25858","branch":"bd-5jmnfj.4.51-v23-fixes","user":""}
+{"ts":"2026-10-29T05:59:57Z","hook":"pre-push","event":"switch-off","switch":"PII_CHECK_OFF","detail":"origin","sha":"05a5bac25858","branch":"bd-5jmnfj.4.51-v23-fixes","user":""}
