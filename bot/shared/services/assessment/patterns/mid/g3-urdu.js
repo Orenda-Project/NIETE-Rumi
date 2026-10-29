@@ -27,7 +27,7 @@ module.exports = makeSubject({
       slots: [
         S({ slot: 'g3.urdu.A.mcq', label_en: 'Q1.', type: 'MCQs', shape: 'mcq', generate: 10, option_labels: 'ur',
           instruction_ur: 'درست جواب پر دائرہ لگائیں۔',
-          prompt_rule: `Ten three-option MCQs on the chapter's text, in short plain Urdu a Grade III child reads alone: the meaning of a word, who said or did what, the right word for the gap, the right spelling. ${SAFE} One option right; no item gives away another item's answer. A sound item names the sound it tests.` }),
+          prompt_rule: `Ten three-option MCQs on the chapter's text, in short plain Urdu a Grade III child reads alone: the meaning of a word, who said or did what, the right word for the gap, the right spelling. ${SAFE} One option right; no item gives away another item's answer. A sound item names the sound it tests. Where two options fit the stem, or a sound can be heard as another option's word (بول, بھول, پہاڑ), rewrite the stem.` }),
       ],
     },
     {
@@ -38,13 +38,13 @@ module.exports = makeSubject({
       slots: [
         { slot: 'g3.urdu.B.short', label_en: 'Q2.', type: 'Short Answers', generate: 7, attempt: 5, marks_each: 2, lines: 2,
           instruction_ur: 'کوئی سے پانچ سوالوں کے جواب لکھیں۔',
-          prompt_rule: `Seven comprehension questions on the chapter's text (who, what, where, why), each one short Urdu line. ${SAFE} Answer: one short Urdu sentence. Scheme: K 1 per correct idea, two ideas for 2. A K point never pays for repeating the stem's words.` },
+          prompt_rule: `Seven comprehension questions on the chapter's text (who, what, where, why), each one short Urdu line. ${SAFE} Answer: one short Urdu sentence. Scheme: K 1 per correct idea, two ideas for 2. A K point never pays for repeating the stem's words. No point pays for answering in a full sentence. A key adds no condition the text does not state, and a word defined here is not defined differently in another item.` },
         S({ slot: 'g3.urdu.B.meanings', label_en: 'Q3.', type: 'Word Meanings', generate: 5, lines: 1,
           instruction_ur: 'ان الفاظ کے معنی لکھیں۔',
-          prompt_rule: `Five different words from the chapter, each with one clear everyday Urdu meaning a Grade III child knows. ${SAFE} Answer: the meaning in one or two Urdu words. The key is a true synonym in the chapter's sense.` }),
+          prompt_rule: `Five different words from the chapter, each with one clear everyday Urdu meaning a Grade III child knows. ${SAFE} Answer: the meaning in one or two Urdu words. The key is a true synonym in the chapter's sense. It is never a description of the chapter's example; two words with overlapping meanings are not both set.` }),
         S({ slot: 'g3.urdu.B.grammar', label_en: 'Q4.', type: 'Grammar', generate: 5, marks_each: 2, lines: 2,
           instruction_ur: 'ہدایت کے مطابق لکھیں۔',
-          prompt_rule: `Five do-as-directed items on Grade III Urdu grammar: singular and plural, masculine and feminine, opposite word, pick the noun or the verb in a short sentence. ${SAFE} Each stem names the task in one Urdu line using a word from the chapter. Answer: the changed word or the word picked. Scheme: K 1 for the right form, A 1 for the full answer. The target word appears in no other item on the paper.` }),
+          prompt_rule: `Five do-as-directed items on Grade III Urdu grammar: singular and plural, masculine and feminine, opposite word, pick the noun or the verb in a short sentence. ${SAFE} Each stem names the task in one Urdu line using a word from the chapter. Answer: the changed word or the word picked. Scheme: one K point of 2 for the right form; no mark pays for writing the word in full. The target word appears in no other item on the paper.` }),
       ],
     },
     {

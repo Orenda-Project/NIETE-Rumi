@@ -27,7 +27,7 @@ module.exports = makeSubject({
           prompt_rule: `Ten three-option MCQs. ${CH} Mix meaning of a word, who or what, the right word for the gap and a fact from the text. One option correct; no option "all of the above". A fact is asked once on the paper; a meaning item prints the word it asks about.` }),
         S({ slot: 'g4.english.A.grammar', label_en: 'Q2.', type: 'Grammar', generate: 5, marks_each: 2, lines: 2,
           instruction_en: 'Do as directed.',
-          prompt_rule: `Five do-as-directed items, one each on: articles (a, an, the), collective nouns, a verb tense (change to past or future), question words (who, what, where, when, why), and one more of the same four kinds. ${CH} Each stem names the task in one line. Answer: the corrected or completed sentence. Scheme: K 1 for the right word, A 1 for the whole sentence correct. A collective-noun answer accepts the plain form.` }),
+          prompt_rule: `Five do-as-directed items, one each on: articles (a, an, the), collective nouns, a verb tense (change to past or future), question words (who, what, where, when, why), and one more of the same four kinds. ${CH} Each stem names the task in one line. Answer: the corrected or completed sentence. Scheme: one K point of 2 for the right word; no mark pays for copying the whole sentence. A gap that tests a/an is built so only one article fits (a first mention, or a word that starts with a vowel sound). A collective-noun answer accepts the plain form.` }),
       ],
     },
     {

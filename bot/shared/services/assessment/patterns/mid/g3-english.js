@@ -24,7 +24,7 @@ module.exports = makeSubject({
       slots: [
         S({ slot: 'g3.english.A.mcq', label_en: 'Q1.', type: 'MCQs', shape: 'mcq', generate: 10,
           instruction_en: 'Choose the correct answer.',
-          prompt_rule: 'Ten three-option MCQs from the chosen chapter only: word meaning, who or what, the right word for the gap, spelling and one fact from the text. One option is right; the other two are plausible but wrong. No item gives away another item\'s answer.' }),
+          prompt_rule: 'Ten three-option MCQs from the chosen chapter only: word meaning, who or what, the right word for the gap, spelling and one fact from the text. One option is right; the other two are plausible but wrong. No item gives away another item\'s answer. Read every option against the sentence: where two options fit (up, down or back), rewrite the stem.' }),
         S({ slot: 'g3.english.A.grammar', label_en: 'Q2.', type: 'Grammar Do As Directed', generate: 5, marks_each: 2, lines: 2,
           instruction_en: 'Do as directed.',
           prompt_rule: 'Five "do as directed" items on grammar the chapter teaches (plural, opposite, correct form of the verb, a/an, pronoun), each a short sentence from the chapter with one clear direction (e.g. "Change into the plural: The child plays."). Answer: the whole corrected sentence. Scheme: A 2 for the correct sentence; A 1 if only the changed word is right.' }),

@@ -38,13 +38,13 @@ module.exports = makeSubject({
       slots: [
         { slot: 'g4.urdu.B.short', label_en: 'Q2.', type: 'Short Answers', generate: 7, attempt: 5, marks_each: 2, lines: 2,
           instruction_ur: 'کوئی سے پانچ سوالات کے جوابات لکھیں۔',
-          prompt_rule: `Seven comprehension questions on the chapter's text, in natural Urdu. ${SAFE} Answer: one or two short Urdu sentences. Scheme: K 1 per correct idea, two ideas for 2. A key states only what the chapter text states.` },
+          prompt_rule: `Seven comprehension questions on the chapter's text, in natural Urdu. ${SAFE} Answer: one or two short Urdu sentences. Scheme: K 1 per correct idea, two ideas for 2. A key states only what the chapter text states. No point only repeats the question's words. A key never names a place or term the question and the chapter's facts do not give.` },
         S({ slot: 'g4.urdu.B.meanings', label_en: 'Q3.', type: 'Word Meanings', generate: 5, lines: 1,
           instruction_ur: 'الفاظ کے معنی لکھیں۔',
-          prompt_rule: `Five different words from the chapter with a clear Urdu meaning. ${SAFE} Answer: the meaning in one or two Urdu words.` }),
+          prompt_rule: `Five different words from the chapter with a clear Urdu meaning. ${SAFE} Answer: the meaning in one or two Urdu words, the word's own sense and never a description of the chapter's example (a satellite, ثقلی گرفت).` }),
         S({ slot: 'g4.urdu.B.grammar', label_en: 'Q4.', type: 'Grammar', generate: 5, marks_each: 2, lines: 2,
           instruction_ur: 'ہدایت کے مطابق لکھیں۔',
-          prompt_rule: `Five do-as-directed items on Grade IV Urdu grammar: singular and plural, masculine and feminine, opposites, noun or verb, tense. ${SAFE} Each stem names the task in one Urdu line. Answer: the changed word or sentence. Scheme: K 1 for the right form, A 1 for the full answer. No stem prints another item's antonym pair or target word.` }),
+          prompt_rule: `Five do-as-directed items on Grade IV Urdu grammar: singular and plural, masculine and feminine, opposites, noun or verb, tense. ${SAFE} Each stem names the task in one Urdu line. Answer: the changed word or sentence. Scheme: one K point of 2 for the right form; no mark pays for writing the word or sentence in full. No stem prints another item's antonym pair or target word.` }),
       ],
     },
     {

@@ -34,7 +34,10 @@ const FUNCTION_WORDS = new Set(('are was were has have had she they you his her 
   + 'the and but with from for into over under near behind above below اور ہیں تھا تھی تھے کا کی کے نے کو سے ہے پر یہ وہ تو').split(' '));
 const ARABIC = /[\u0600-\u06FF]/; // an Urdu key of two letters («سچ») is a word; an English one ("is") is not
 const { nearRepeats } = require('./fde-near-repeats');
+const { mathsRepeats } = require('./fde-maths-repeats');
+const { mcqKeyFlags } = require('./fde-maths-slips'); // a multiplication-sentence MCQ keyed to a bare number // bd-5jmnfj.33.4: a product or division asked twice, 305 x 7 then 306 x 7
 const { stemRepeats } = require('./fde-stem-repeats'); // bd-5jmnfj.33.3: a stem asked twice, a key or its singular in another stem
+const { conceptRepeats } = require('./fde-concept-repeats'); // bd-5jmnfj.33.4: same key, key in another item, concept tally, same-content stems
 const wordsOf =(s) => String(s == null ? '' : s).normalize('NFC').toLowerCase().match(WORD) || [];
 const optionsOf = (q) => (Array.isArray(q.options) ? q.options : []);
 // "الف) گاجر" -> "گاجر", as fde-early-prompt reads a choice.
@@ -232,7 +235,9 @@ function answerRepeats(examJson) {
   }));
   nearRepeats(examJson).forEach((f) => f.with.forEach((s, k) => f.words.forEach((w) => flag(f.slot, w, s, f.text[k]))));
   stemRepeats(examJson).forEach((f) => f.with.forEach((s, k) => f.words.forEach((w) => flag(f.slot, w, s, f.text[k]))));
-  return [...out.values()];
+  conceptRepeats(examJson).forEach((f) => f.with.forEach((s, k) => f.words.forEach((w) => flag(f.slot, w, s, f.text[k]))));
+  mathsRepeats(examJson).forEach((f) => f.with.forEach((s, k) => f.words.forEach((w) => flag(f.slot, w, s, f.text[k]))));
+  return [...out.values()].concat(mcqKeyFlags(examJson));
 }
 
 /** The flagged slots still giving an answer away once a section has been asked again. */
