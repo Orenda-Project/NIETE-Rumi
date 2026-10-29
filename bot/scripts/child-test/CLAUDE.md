@@ -1,6 +1,6 @@
 # child-test — Print packs, SA battery bank build and SA voice recording for the child test
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/child-test kg=d00bebe03672 gen=8faecbb9a4a2 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/child-test kg=a6e89732d97e gen=a576ed1e20b0 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `build-sa-bank.js` — rebuilds the SA bank and engine JSONs (--check)
@@ -19,7 +19,7 @@
 | `build-sa-bank.js` | Rewrites the SA battery bank and per-form engine JSONs from the v3 bank plus extra and W3 picks; --check mode |
 
 ## Who reads this (generated)
-- `sa-voice-providers.js` ← imported by `bot/scripts/child-test/record-sa-voice.js:124:8d394319`
+- `sa-voice-providers.js` ← imported by `bot/scripts/child-test/record-sa-voice.js:125:8d394319`
 
 ## Never (human)
 - purge-sa-game-audio.js is dry run by default; --apply deletes (purge-sa-game-audio.js:9)
@@ -27,6 +27,7 @@
 
 ## Tests (generated)
 - `bot/tests/child-test/record-sa-voice-v4-equals.test.js` (record-sa-voice.js, sa-voice-providers.js)
+- `bot/tests/child-test/record-sa-voice-v4-praise.test.js` (record-sa-voice.js, sa-voice-providers.js)
 - `bot/tests/child-test/record-sa-voice-v4-sounds.test.js` (record-sa-voice.js, sa-voice-providers.js)
 - `bot/tests/child-test/record-sa-voice-v4.test.js` (record-sa-voice.js, sa-voice-providers.js)
 - `bot/tests/child-test/sa-voice-sustained-sounds.test.js` (record-sa-voice.js)
