@@ -1,38 +1,39 @@
-# bot/ — WhatsApp Bot codebase (L1)
+# bot — NIETE WhatsApp bot: webhook, workers, services, tests, migrations
+Full index: `CLAUDE.index.md`
 
-**Parent:** [../CLAUDE.md](../CLAUDE.md) · Node/Express WhatsApp bot. Entry point: `whatsapp-bot.js`
-(webhook + button/message routing).
+<!-- kg:meta repo=NIETE-Rumi dir=bot kg=480a1dcc76ca gen=253d43bdc6c9 overflow=50 rendered=2026-10-29 kg.py=1.1.0 -->
 
-## Layout
+## Entry points
+- `whatsapp-bot.js` — the Express webhook (GET/POST /webhook at :467/:488) and button/message routing
+- `workers/sqs-worker.js` — the job poll loop; executeJob (:527) switches on jobType (:535)
+- `shared/services/queue/index.js` — picks the queue driver from QUEUE_DRIVER (sqs default, bullmq)
+<!-- read: map-read-niete-bot 2026-10-29 -->
 
-| Path | What's there |
-|------|--------------|
-| `whatsapp-bot.js` | Express webhook, interactive-button router, message dispatch |
-| `shared/handlers/` | Message handlers (text, voice, image, flow-response, …) — 10 files |
-| `shared/services/` | Domain services (49) — AI, coaching, reading, quiz, pic-to-LP, whatsapp, R2, … |
-| `shared/services/queue/` | **Pluggable queue** — `index.js` selects driver by `QUEUE_DRIVER` (sqs\|bullmq) |
-| `shared/routes/` | WhatsApp Flow endpoints (registration, attendance, settings, status, …) |
-| `shared/config/` | `feature-availability.js` (presence gating), `branding.js`, `region-config.js` |
-| `shared/utils/` | logger, structured-logger (correlation IDs), constants, phone-validation |
-| `workers/` | Background job workers (10) — `sqs-worker.js` is the poll loop; one handler per job type |
-| `scripts/` | CLI simulator, validators, setup `doctor.js` |
+## Children (generated)
+| path | purpose |
+|---|---|
+| 10 sub-dirs, each with `CLAUDE.md` | `06_MMS_Inference_Service/` · `dashboard/` · `database/` · `docs/` · `fonts/` · `scripts/` · `shared/` · `tests/` · `vendor/` · `workers/` |
+| 5 sub-dirs without a door | `.github/` (1) · `assets/` (133) · `data/` (2) · `marketing/` (1) · `test-assets/` (4) |
+| `whatsapp-bot.js` | Express entry point of the NIETE bot: Meta webhook (signature-checked), button/message routing to handlers, health |
+| … | 21 more → `CLAUDE.index.md` |
 
-## Things to know before editing
+## Who reads this (generated)
+- table `reading_assessments` (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:748:4337985e`? · `dashboard/routes/portal.routes.js:8256:4337985e`? (+12)
+- table `reading_assessments` whole row (`*`) (written by `whatsapp-bot.js`) ← read by `dashboard/database/queries.js:749:7a0c163a`? · `dashboard/routes/portal.routes.js:8332:d2b02c3e`? (+4)
+- `package.json` ← imported by `bot/whatsapp-bot.js:2763:056c465a`
+- … 11 more → `CLAUDE.index.md`
 
-- **Queue:** never import a specific driver. Require `shared/services/queue` (the index); both drivers
-  expose the same surface (`queueJob`/`receiveJobs`/`completeJob`/`extendJobTimeout`/`cancelByGroupId`/…).
-  Adding a job type = add a `case` in `workers/sqs-worker.js`'s `executeJob` switch + a handler.
-- **Feature gating:** check `feature-availability.js`, not env vars directly; a feature is on iff its keys exist.
-- **Shared-service edits are high-blast-radius** — grep consumers, verify imports, run the suite. See the
-  `cross-agent-safety` skill.
-- **LLM:** all model calls go through `shared/services/llm-client.js`; which model each job runs is one table,
-  `shared/config/model-registry.js` (switch or revert without a deploy: [../docs/model-switching.md](../docs/model-switching.md)).
-- **Flows:** a new Flow = `shared/routes/<x>-endpoint.js` + mount in `flow-endpoint.routes.js` + `<X>_FLOW_ID`
-  in `shared/utils/constants.js` + `.env.template` + a `/command` trigger in `shared/handlers/text-message.handler.js`
-  + sanitized JSON in `docs/flows/`. See the `whatsapp-flows` skill.
+## Never (human)
+- Require `shared/services/queue` (the index), never a driver file — both drivers share one surface (shared/services/queue/index.js:6-9)
+- POST /webhook stays behind `WebhookSignature.requireMetaSignature` (rejects 401) — `whatsapp-bot.js:488`
+<!-- read: map-read-niete-bot 2026-10-29 -->
 
-## Deep-dive skills
+## Tests (generated)
+- `bot/tests/coaching/bd-uwpohl-lesson-file-goes-to-app.test.js` (whatsapp-bot.js)
+- `bot/tests/first-touch/maker-fallback.webhook.test.js` (whatsapp-bot.js)
+- … 36 more → `CLAUDE.index.md`
 
-`.claude/skills/` — `coaching`, `reading-assessment`, `registration`, `whatsapp-flows`, `feature-tracer`
-(trace a feature end-to-end), `debugging`, `cross-agent-safety`, `qa-testing`, `video-generation`,
-`pre-merge-checklist`, `database-analysis`, `digital-coach` (full technical KB).
+## Related (generated)
+- skills: `coaching`? · `video-generation`? · `whatsapp-flows`?
+- docs: `CLAUDE.md`? · `SECURITY.md`? · `bot/shared/services/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/vendor/lp-v9/SYNC.md`? · `docs/architecture.md`? (+5)
+- … 1 more → `CLAUDE.index.md`

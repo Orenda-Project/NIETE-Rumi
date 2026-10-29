@@ -1,0 +1,56 @@
+# child-test — full index (generated)
+
+<!-- kg:index repo=NIETE-Rumi dir=bot/shared/services/child-test -->
+Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAUDE.md`.
+
+## Children (all, generated)
+| path | purpose |
+|---|---|
+| `app/` | Coach-app API and app_settings switches for the self-administered assessment → `app/CLAUDE.md` |
+| `check-flow/` | WhatsApp Flow where a coach confirms or corrects the AI's marks → `check-flow/CLAUDE.md` |
+| `conversation/` | Coach's WhatsApp side of the child test: state machine, steps, recovery sweep → `conversation/CLAUDE.md` |
+| `draw/` | Which children a coach tests: seeded per-class draw, cycles, term sets, visit keys → `draw/CLAUDE.md` |
+| `render/` | Renders child cards, print packs and coach sheets from the item bank → `render/CLAUDE.md` |
+| `sa/` | Self-administered battery: bank builder, in-bot spoken-task scorer, Jugnu lines → `sa/CLAUDE.md` |
+| `scoring/` | AI scoring of one recorded block: transcript, windows, scorers, ai_marks → `scoring/CLAUDE.md` |
+| `item-bank.js` | Read-only, deep-frozen accessor over item-bank.v1.json (stories, questions, words, maths) per grade and form |
+| `passage-gate.js` | Pure content check every Challenge passage file must clear (tokenise, sentences, letter counts) before human sign-off |
+| `sa-store.js` | Store for self-administered batteries: session sync state, one child_test_blocks row per task, idempotent phone... |
+| `store.js` | Main store for child_test_draws/sessions/blocks, ai_marks write-once; check-store.js and sa/score.js also query them |
+| `tasks.js` | Defines the 18 battery-v3 tasks in visit order, block names and kindOf/blockOf helpers every lane imports |
+
+## Who reads this (all, generated)
+- `item-bank.js` ← imported by `bot/scripts/challenge-registry-seed.js:15:14d81b70` · `bot/scripts/quiz/one-voice-missing-keys.js:160:d0c6e5a8` · `bot/shared/services/quiz/web-quiz-challenge-clip-warm.js:118:7b02edd4` · `bot/shared/services/quiz/web-quiz-challenge.js:111:2d87cd99` (+13: `python3 kg/kg.py who-reads item-bank.js`)
+- `passage-gate.js` ← imported by `bot/scripts/challenge-stock-seed.js:20:a946de03`
+- `sa-store.js` ← imported by `bot/shared/services/sa-game/store-adapter.js:102:2dc95609` · `bot/shared/services/child-test/app/sa-api.service.js:285:430ecb98`
+- `store.js` ← imported by `scripts/child-test/smoke-sandbox.js:29:d759a190` · `bot/shared/services/child-test/app/app-api.service.js:108:39a3be79` · `bot/shared/services/child-test/check-flow/check-store.js:25:e3c81066` · `bot/shared/services/child-test/check-flow/review.js:36:8757ee45` (+2: `python3 kg/kg.py who-reads store.js`)
+- `tasks.js` ← imported by `bot/scripts/child-test/build-print-pack-v3.js:22:763ff40f` · `bot/shared/services/child-test/app/sa-api.service.js:52:635b2090` · `bot/shared/services/child-test/check-flow/review-v3.js:29:c0d73ea8` · `bot/shared/services/child-test/conversation/bank-v3.js:17:88596ca0` (+9: `python3 kg/kg.py who-reads tasks.js`)
+- column `class_enrollments.class_id` (written by `store.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:310:c9552d72` · `bot/shared/routes/roster-flow-endpoint.js:581:4038d924` · `bot/shared/services/attendance-register-delivery.service.js:108:d4bb21af` · `bot/shared/services/attendance-router.service.js:118:122b41c5` (+13: `python3 kg/kg.py who-reads class_enrollments.class_id`)
+- column `class_enrollments.is_active` (written by `store.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:311:e465dd9a` · `bot/shared/routes/roster-flow-endpoint.js:581:4038d924` · `bot/shared/services/attendance-register-delivery.service.js:108:d4bb21af` · `bot/shared/services/attendance-router.service.js:119:f8c426e2` (+14: `python3 kg/kg.py who-reads class_enrollments.is_active`)
+- column `class_enrollments.student_id` (written by `store.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:309:dc14754d` · `bot/shared/routes/roster-flow-endpoint.js:764:9e4aba86` · `bot/shared/services/attendance-register-delivery.service.js:107:9e4aba86` · `bot/shared/services/classes/class.service.js:509:6e6ca323` (+13: `python3 kg/kg.py who-reads class_enrollments.student_id`)
+- column `classes.grade_code` (written by `store.js`) ← read by `bot/shared/routes/roster-flow-endpoint.js:631:32dac63d` · `bot/shared/services/attendance-portal.service.js:268:c25a536a` · `bot/shared/services/classes/class.service.js:141:c37d1c48` · `bot/shared/services/first-touch/maker.prefill.js:125:39501e99` (+7: `python3 kg/kg.py who-reads classes.grade_code`)
+- column `classes.is_active` (written by `store.js`) ← read by `bot/shared/routes/roster-flow-endpoint.js:631:32dac63d` · `bot/shared/services/classes/class.service.js:141:c37d1c48` · `bot/shared/services/first-touch/maker.prefill.js:125:39501e99` · `bot/shared/services/quiz/web-quiz-class-link.js:306:8a83f662` (+3: `python3 kg/kg.py who-reads classes.is_active`)
+- column `classes.school_id` (written by `store.js`) ← read by `bot/shared/routes/roster-flow-endpoint.js:632:6bf9e438` · `bot/shared/services/classes/class.service.js:141:c37d1c48` · `bot/shared/services/quiz/web-quiz-class-link.js:306:8a83f662` · `scripts/child-test/seed-sandbox.js:118:5993cba5` (+1: `python3 kg/kg.py who-reads classes.school_id`)
+- column `classes.section` (written by `store.js`) ← read by `bot/shared/routes/roster-flow-endpoint.js:631:32dac63d` · `bot/shared/services/attendance-portal.service.js:268:c25a536a` · `bot/shared/services/classes/class.service.js:141:c37d1c48` · `bot/shared/services/quiz/web-quiz-identity.js:302:db4c5824` (+2: `python3 kg/kg.py who-reads classes.section`)
+- column `classes.session_code` (written by `store.js`) ← read by `bot/shared/routes/roster-flow-endpoint.js:631:32dac63d` · `bot/shared/services/classes/class.service.js:141:c37d1c48` · `scripts/child-test/seed-sandbox.js:119:3fed37fe`
+- column `classes.shift_code` (written by `store.js`) ← read by `bot/shared/routes/roster-flow-endpoint.js:631:32dac63d` · `bot/shared/services/classes/class.service.js:141:c37d1c48` · `bot/shared/services/quiz/web-quiz-identity.js:302:db4c5824` · `scripts/child-test/seed-sandbox.js:119:3fed37fe` (+1: `python3 kg/kg.py who-reads classes.shift_code`)
+- column `students.id` (written by `store.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:317:d73b0171` · `bot/shared/routes/edit-class-endpoint.js:45:dc16e319` · `bot/shared/routes/roster-flow-endpoint.js:775:3776d591` · `bot/shared/routes/student-videos-endpoint.js:267:83b95a2c` (+40: `python3 kg/kg.py who-reads students.id`)
+- column `students.is_active` (written by `store.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:332:f8c426e2` · `bot/shared/routes/edit-class-endpoint.js:47:f8c426e2` · `bot/shared/services/attendance-register-delivery.service.js:121:3d987916` · `bot/shared/services/attendance-router.service.js:128:f8c426e2` (+23: `python3 kg/kg.py who-reads students.is_active`)
+- column `students.school_id` (written by `store.js`) ← read by `bot/shared/services/first-touch/role.service.js:125:c0414101` · `bot/shared/services/quiz/web-quiz-student-join.js:515:1a7a19fb` · `bot/shared/services/sa-game/store-adapter.js:278:c17a5ce3`
+- column `students.status` (written by `store.js`) ← read by `bot/shared/services/first-touch/go.routes.js:123:aff73d84` · `bot/shared/services/first-touch/role.service.js:128:be0e1b12` · `bot/shared/services/quiz/child-identity-reuse.js:37:0979194e` · `bot/shared/services/quiz/web-quiz-bind.service.js:93:58066c0f` (+5: `python3 kg/kg.py who-reads students.status`)
+- column `students.student_name` (written by `store.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:317:d73b0171` · `bot/shared/routes/edit-class-endpoint.js:45:dc16e319` · `bot/shared/routes/roster-flow-endpoint.js:775:3776d591` · `bot/shared/routes/student-videos-endpoint.js:266:d71c8cd6` (+27: `python3 kg/kg.py who-reads students.student_name`)
+- table `students` whole row (`*`) (written by `store.js`) ← read by `bot/shared/services/student-list.service.js:362:d2b02c3e`?
+- table `class_enrollments` (written by `store.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:308:9e433c3d`? · `bot/shared/routes/roster-flow-endpoint.js:579:9e433c3d`? · `bot/shared/services/attendance-register-delivery.service.js:107:9e4aba86`? · `bot/shared/services/attendance-router.service.js:116:9e433c3d`? (+15: `python3 kg/kg.py who-reads class_enrollments`)
+- table `classes` (written by `store.js`) ← read by `bot/shared/routes/roster-flow-endpoint.js:631:32dac63d`? · `bot/shared/services/attendance-portal.service.js:268:c25a536a`? · `bot/shared/services/classes/class.service.js:140:b6b0d81a`? · `bot/shared/services/first-touch/maker.prefill.js:125:39501e99`? (+8: `python3 kg/kg.py who-reads classes`)
+- table `students` (written by `store.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:316:2f35b0c2`? · `bot/shared/routes/edit-class-endpoint.js:44:2f35b0c2`? · `bot/shared/routes/roster-flow-endpoint.js:775:3776d591`? · `bot/shared/routes/student-videos-endpoint.js:266:d71c8cd6`? (+41: `python3 kg/kg.py who-reads students`)
+- env `CHILD_TEST_SA_CLIP_WAIT_S` read at `bot/shared/services/child-test/sa-store.js:186:562c90bb`
+
+## Tests (all, generated)
+- `item-bank.js` ← `bot/scripts/e2e/child-test-sim/driver.js` · `bot/tests/quiz/one-voice-missing-keys.test.js` · `bot/tests/quiz/web-quiz/challenge-bank-v4.test.js` · `bot/tests/quiz/web-quiz/challenge-clip-warm.test.js` · `bot/tests/quiz/web-quiz/challenge-counted-meta.test.js` · `bot/tests/quiz/web-quiz/challenge-grade1.test.js` (+56: `python3 kg/kg.py who-reads bot/shared/services/child-test/item-bank.js`)
+- `passage-gate.js` ← `bot/tests/quiz/web-quiz/challenge-passage-changes.test.js` · `bot/tests/quiz/web-quiz/challenge-passage-gate.test.js` · `bot/tests/quiz/web-quiz/challenge-passage-licence.test.js`
+- `sa-store.js` ← `bot/tests/child-test/sa-restart.test.js` · `bot/tests/child-test/sa-score-defects.test.js` · `tests/child-test/L7/sa-r7b-stop-events.service.test.js` · `tests/child-test/L7/sa-store.test.js`
+- `store.js` ← `bot/tests/child-test/store-draw-origins.test.js` · `bot/tests/child-test/store-list-students-batched.test.js` · `bot/tests/child-test/store-sa-sessions.test.js` · `bot/tests/child-test/store-user-names.test.js` · `tests/child-test/L17/score-recovery.test.js` · `tests/child-test/L25/no-roll.test.js` (+6: `python3 kg/kg.py who-reads bot/shared/services/child-test/store.js`)
+- `tasks.js` ← `bot/scripts/e2e/child-test-sim/coach.js` · `bot/scripts/e2e/child-test-sim/fake-bot-v3.js` · `bot/tests/child-test/sa-rulings.test.js` · `tests/child-test/L35/bank-v3.test.js` · `tests/child-test/L36/journey-v3.test.js` · `tests/child-test/L38/print-pack-v3.test.js` (+5: `python3 kg/kg.py who-reads bot/shared/services/child-test/tasks.js`)
+
+## Related (all, generated)
+- docs: `bot/shared/data/child-test/passages/README.md`? · `bot/shared/services/CLAUDE.md`?
