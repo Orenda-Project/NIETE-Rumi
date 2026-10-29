@@ -1854,6 +1854,8 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   const topicScope = await resolveTopicScope(body, { grade, subject, picked });
   if (topicScope.error) return res.status(400).json({ success: false, error: topicScope.error });
   const byTopics = topicScope.partial;
+  // She came by the topics door (some or every topic ticked): her stems ride along either way.
+  const viaTopics = byTopics || (Array.isArray(body.topicIds) && body.topicIds.some(Boolean));
 
   // The cap is enforced HERE as well as offered by /options. A form that reads
   // the cap is a convenience; a server that enforces it is the actual rule, and
@@ -1907,8 +1909,8 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
         return res.status(400).json({ success: false, error: `How many ${id}? Type a number of 1 or more.` });
       }
       const type = { id, count: n, category: QuestionTypes.categoryOf(id, subject, grade) };
-      // bd-6clakk.12 — her ticked stems, kept as text on a topic paper only; none ticked = Rumi chooses.
-      if (byTopics) {
+      // bd-6clakk.12 — her ticked stems, kept as text on a paper from the topics door; none ticked = Rumi chooses.
+      if (viaTopics) {
         const picked = require('../services/assessment/topics/stems').resolveStems(subject, grade, id, t.stems);
         if (picked.error) return res.status(400).json({ success: false, error: picked.error });
         if (picked.stems.length) type.stems = picked.stems;
