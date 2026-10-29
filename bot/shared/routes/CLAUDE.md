@@ -1,7 +1,7 @@
 # routes — HTTP endpoints: encrypted WhatsApp Flow data exchange and /api/internal routes
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/routes kg=58779d43b64b gen=0256371ef2f4 overflow=374 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/routes kg=5428aa671349 gen=1618ca267422 overflow=375 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `flow-endpoint.routes.js` — Flow dispatcher
@@ -18,7 +18,7 @@ Full index: `CLAUDE.index.md`
 | … | 36 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `registration-endpoint.js` (+1)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+171)
+- table `users` (written by `registration-endpoint.js` (+1)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+173)
 - table `coaching_sessions` (written by `observe2-check-endpoint.js`) ← read by `bot/shared/calls/call-context.repo.js:63:5911672a`? · `bot/shared/calls/call-tools.repo.js:51:4a173bcd`? (+87)
 - … 60 more → `CLAUDE.index.md`
 
@@ -30,7 +30,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `tests/whatsapp/send-sync-budget.test.js` (observe-mewaka-endpoint.js, pakistan-lp-endpoint.js, student-videos-endpoint.js)
 - `bot/tests/lp-v8/flow-response-telemetry.test.js` (pakistan-lp-endpoint.js, pakistan-lp-telemetry.js)
-- … 288 more → `CLAUDE.index.md`
+- … 289 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `registration`?

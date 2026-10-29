@@ -49,6 +49,8 @@ const LANDINGS = Object.freeze({
   ai_coaching_recording: '/portal/teacher/coaching/new?recording=whatsapp',
   // bd-pw1ccr.2 — not a command: the A/B report button. Opens the generator on one chapter, its paper tagged origin=report.
   assessment_report: '/portal/teacher/assessment/new/class',
+  // bd-pw1ccr.4.2 — not a command: the topic-end nudge button. Opens Topics on the chapter she just finished; untagged.
+  assessment_topic_nudge: '/portal/teacher/assessment/new/class',
 });
 /** Where a teacher who is no longer on the teacher app lands instead (today's portal home). */
 const LEGACY_LANDING = '/portal/dashboard';
@@ -111,8 +113,12 @@ function key() {
 
 const nowS = () => Math.floor(Date.now() / 1000);
 
-/** The only feature whose token may carry a pre-fill. */
-const PREFILL_FEATURE = 'assessment_report';
+/** The features whose token may carry a pre-fill → the query each landing starts with. */
+const PREFILL_FEATURES = Object.freeze({
+  assessment_report: { origin: 'report' },
+  assessment_topic_nudge: { by: 'topics' },
+});
+const carriesPrefill = (f) => typeof f === 'string' && own(PREFILL_FEATURES, f);
 
 /** {grade, subject, chapter} when `q` is a well-formed pre-fill, else null. */
 function prefillOf(q) {
@@ -124,10 +130,10 @@ function prefillOf(q) {
   return { grade, subject, chapter };
 }
 
-/** The landing's query for a verified payload: origin=report plus its pre-fill for the report button, '' otherwise. */
+/** The landing's query for a verified payload: the feature's own query plus its pre-fill for a pre-fill feature, '' otherwise. */
 function landingQuery(payload) {
-  if (!payload || payload.f !== PREFILL_FEATURE) return '';
-  const p = new URLSearchParams({ origin: 'report' });
+  if (!payload || !carriesPrefill(payload.f)) return '';
+  const p = new URLSearchParams(PREFILL_FEATURES[payload.f]);
   if (payload.q) Object.entries(payload.q).forEach(([k, v]) => p.set(k, String(v)));
   return `?${p}`;
 }
@@ -136,7 +142,7 @@ function landingQuery(payload) {
  * A link token for this user and feature, or null (no user, a feature with no app page, or no key here).
  * bd-4r3rei: `journeyId` (app-journey.js) rides inside the encrypted payload so the portal can join her page views to
  * the WhatsApp message that sent her. Optional; anything that is not a journey id is not carried.
- * bd-pw1ccr.2: `prefill` {grade, subject, chapter} rides along for assessment_report only; a malformed one is dropped.
+ * bd-pw1ccr.2: `prefill` {grade, subject, chapter} rides along for the PREFILL_FEATURES only; a malformed one is dropped.
  */
 function signAppLink(userId, feature, journeyId, prefill) {
   const k = key();
@@ -145,7 +151,7 @@ function signAppLink(userId, feature, journeyId, prefill) {
   const cipher = crypto.createCipheriv('aes-256-gcm', k, iv);
   const body = { k: KIND, u: String(userId), f: feature, exp: nowS() + TTL_S };
   if (isJourneyId(journeyId)) body.j = journeyId;
-  const q = feature === PREFILL_FEATURE ? prefillOf(prefill) : null;
+  const q = carriesPrefill(feature) ? prefillOf(prefill) : null;
   if (q) body.q = q;
   const plain = Buffer.from(JSON.stringify(body));
   const enc = Buffer.concat([cipher.update(plain), cipher.final()]);
@@ -170,7 +176,7 @@ function verifyAppLink(token) {
     if (!p || p.k !== KIND || typeof p.u !== 'string' || !p.u) return null;
     if (!linkable(p.f)) return null;
     if (!Number.isFinite(p.exp) || p.exp < nowS()) return null;
-    const q = p.f === PREFILL_FEATURE ? prefillOf(p.q) : null;
+    const q = carriesPrefill(p.f) ? prefillOf(p.q) : null;
     return { u: p.u, f: p.f, exp: p.exp, j: isJourneyId(p.j) ? p.j : null, q };
   } catch (_) {
     return null;

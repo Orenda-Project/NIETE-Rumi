@@ -972,6 +972,15 @@ const UX_STRINGS = {
     en: 'Topic paper',
     ur: 'موضوعاتی پرچہ',
   },
+  // bd-pw1ccr.4 — the topic-end nudge, 14:30 PKT after she teaches a topic's last day (nudges/topic-end-nudge).
+  topicNudgeBody: {
+    en: 'You finished “{topic}” with Grade {grade} {subject}. Make a short paper on it?',
+    ur: 'آپ نے جماعت {grade} {subject} میں “{topic}” مکمل کر لیا۔ کیا اس پر ایک مختصر پرچہ بنائیں؟',
+  },
+  topicNudgeButton: {
+    en: 'Make my paper',
+    ur: 'پرچہ بنائیں',
+  },
 
   /**
    * bd-q3rfn (AG 1.2 item 6) — the offer sent after a paper is delivered.

@@ -38,6 +38,7 @@ const KINDS = Object.freeze({
   COACHING_AFTER_LP: 'coaching_after_lp',
   LP_QUIZ_OFFER: 'lp_quiz_offer',
   WEEKLY_USAGE_REPORT: 'weekly_usage_report', // bd-v0toag.32, one row per teacher per week
+  TOPIC_END_NUDGE: 'topic_end_nudge', // bd-pw1ccr.4, V1.8.4: a topic's last day taught → make a paper on it
 });
 
 /** The six states the V1.5.3 CHECK constraint allows. */
@@ -84,6 +85,10 @@ const SKIP_REASONS = Object.freeze([
   // The LP quiz offer's window was closed, so the window template went instead (or was
   // dry-run); context.sent says whether Meta took it (nudges/window-closed-template.js).
   'window_closed_template',
+  // The topic-end nudge (bd-pw1ccr.4): she already had the nudge for this topic, or she
+  // no longer uses the teacher app the button opens.
+  'already_nudged_topic',
+  'not_on_app',
 ]);
 
 /** What a teacher can have answered. `class:<key>` is the list-row pick. */
