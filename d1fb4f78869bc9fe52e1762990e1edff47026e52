@@ -1,0 +1,2 @@
+{"ts":"2026-10-29T09:42:45Z","hook":"post-commit","event":"armed","switch":"","detail":"features=coaching,observe,portal-login,teacher-lessons,coach-portal,portal-smoke spec_sync=true","sha":"d1fb4f78869b","branch":"bd-nkx9me-66623","user":""}
+{"ts":"2026-10-29T09:42:59Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-nkx9me-66623: coaching spec: NOT UPDATED e2e: missing;observe spec: NOT UPDATED e2e: missing;portal-login web lane spec: NOT UPDATED e2e: missing","sha":"d1fb4f78869b","branch":"bd-nkx9me-66623","user":""}
