@@ -36,6 +36,7 @@ const { answeredParts } = require('./fde-sub-answers');
 const { letterOrder } = require('./fde-order-block');
 const { urduNote } = require('./fde-urdu-notes');
 const { frameBank } = require('./fde-frame-bank');
+const { acceptText } = require('./fde-accept-line');
 const Cover = require('./fde-scheme-cover');
 
 // ── fonts ──────────────────────────────────────────────────────────────────
@@ -446,7 +447,9 @@ function workSpace(q, slot) {
     if (q.picture && q.picture.kind === 'plant') return '';
     // Fill in the blank: the child writes on the ___ (bd-5jmnfj.4.39).
     if (/_{3,}/.test(String(q.question || ''))) return '';
-    return `<div class="write-box" style="height:${12 + 8 * Math.max(0, (slot.lines || 1) - 1)}mm"></div>`;
+    // A sentence under a picture gets two lines (bd-5jmnfj.4.57).
+    const lines = slotFlag(slot, 'sentence_box') ? 2 : (slot.lines || 1);
+    return `<div class="write-box" style="height:${12 + 8 * Math.max(0, lines - 1)}mm"></div>`;
   }
   if ((slot.lines || 0) >= 2) {
     const h = Math.max(16, slot.lines * 8);
@@ -654,7 +657,7 @@ function slotBlock(slot, sec, list, ctx) {
     const numHtml = num ? `<span class="n">${labelHtml(num, ctx)}</span>` : '';
     const leadHtml = lead ? `<div class="or-lead">${textOf(lead, ctx)}</div>` : '';
     const stemHtml = stem ? ` ${textOf(stem, ctx).replace(/☐/g, '<span class="sq"></span>')}` : '';
-    body.push(`<div class="q${cont ? ' qcont' : ''}${slot.shape === 'comprehension' ? ' comp' : ''}${grid ? ' pic-cell' : ''}" data-slot="${esc(slot.slot)}">${numHtml}${leadHtml}${stemHtml}${itemBody(q, slot, i, ctx, inlineQ)}</div>`);
+    body.push(`<div class="q${cont ? ' qcont' : ''}${slot.shape === 'comprehension' ? ' comp' : ''}${grid ? ` pic-cell${slotFlag(slot, 'sentence_box') ? ' wide' : ''}` : ''}" data-slot="${esc(slot.slot)}">${numHtml}${leadHtml}${stemHtml}${itemBody(q, slot, i, ctx, inlineQ)}</div>`);
   });
   if (slot.alternatives && !live.length) body.push(fixedAlternatives(slot, null, ctx));
   // An either/or question is read as one choice: never split across a page.
@@ -759,6 +762,7 @@ function css(medium, kind) {
      lines, the first row moves with its heading; one row is enough on either side of a break. */
   .pic-grid { orphans: 1; widows: 1; }
   .q.pic-cell { display: inline-block; vertical-align: top; width: 30%; margin: 0 0 4mm; margin-inline-end: 4mm; break-inside: avoid; }
+  .q.pic-cell.wide { display: block; width: 100%; margin-inline-end: 0; }
   table.data { border-collapse: collapse; margin: 4px 0; }
   table.data th, table.data td { border: 1px solid #000; padding: 2px 10px; text-align: center; }
   table.data th { background: #f0f0f0; }
@@ -1098,7 +1102,8 @@ function pointsHtml(q, ctx, Criteria, slot, idx, marks = null) {
   }
   // No points from the model: the row still says what it is worth (DESIGN §5 rule 3).
   if (!out.length && Number.isFinite(marks) && marks > 0) out.push(`<span class="chip">${textOf(fmt(marks), ctx)}</span>`);
-  if (s && Array.isArray(s.accept) && s.accept.length) out.push(`<span class="acc">${textOf(`${lang === 'ur' ? 'یہ بھی درست:' : 'accept:'} ${s.accept.map((a) => (lang === 'en' ? letterOrder(q, a) : a)).join(lang === 'ur' ? '؛ ' : '; ')}`, ctx)}</span>`); // ur: needs fluent-Urdu review
+  const accepts = s && Array.isArray(s.accept) ? acceptText(q.answer, s.accept.map((a) => (lang === 'en' ? letterOrder(q, a) : a)), lang) : '';
+  if (accepts) out.push(`<span class="acc">${textOf(`${lang === 'ur' ? 'یہ بھی درست:' : 'accept:'} ${accepts}`, ctx)}</span>`); // ur: needs fluent-Urdu review
   if (s && typeof s.common_error === 'string' && s.common_error) out.push(`<span class="err">${textOf(`${lang === 'ur' ? 'عام غلطی:' : 'common error:'} ${lang === 'ur' ? urduNote(s.common_error, 'error', slot.type, 0) : s.common_error}`, ctx)}</span>`); // ur: needs fluent-Urdu review
   return out.join('');
 }

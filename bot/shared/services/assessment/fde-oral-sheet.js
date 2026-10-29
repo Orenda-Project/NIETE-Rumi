@@ -48,7 +48,9 @@ function taskBlock(oral, task, lang, t, w) {
   const parts = [`<div class="oral-head"><span class="lab">${t(task[`label_${lang}`])}</span> <span class="m">${t(`(${task.marks})`)}</span></div>`];
   if (task[`instruction_${lang}`]) parts.push(`<div class="oral-ins">${t(task[`instruction_${lang}`])}</div>`);
   if (c.script) parts.push(`<div class="oral-script"><div class="k">${t(w.script)}</div>${t(c.script)}</div>`);
-  if (Array.isArray(c.items) && c.items.length) {
+  // A read-aloud script with bare, answerless words under it (v25 G2 Urdu dialogue) is no list to ask.
+  const bare = task.kind === 'read_aloud' && c.script && Array.isArray(c.items) && c.items.every((it) => !String(it.answer || '').trim());
+  if (Array.isArray(c.items) && c.items.length && !bare) {
     const items = c.items.map((it) => `<li>${t(it.ask)}${it.answer ? ` <span class="ans">${t(`${w.answer}: ${it.answer}`)}</span>` : ''}</li>`).join('');
     parts.push(`<div class="oral-items"><div class="k">${t(w.items)}</div><ol>${items}</ol></div>`);
   }

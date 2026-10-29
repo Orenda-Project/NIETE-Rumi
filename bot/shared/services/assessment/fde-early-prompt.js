@@ -83,6 +83,8 @@ function oralPrompt({ oral, grade, P, pageContent, saidCheck = true }) {
     ...(saidCheck && oral.tasks.some((t) => t.kind === 'listening')
       ? ['For a listening task, every answer except the last (apply) one is said in the story in words; a question never asks a feeling, reason or detail the story does not say.']
       : []),
+    // v25 G2 Urdu stopped the poem mid-line and keyed «گا رہی ہیں», which it never read (bd-5jmnfj.4.57).
+    'Quote whole lines from the book: never stop mid-line. Every answer uses only words the script says, except an apply question about the child\'s own life.',
     'No bracketed notes: what you write is read aloud as it stands, so never add a note to yourself, such as "(Note: use 9)". Make the numbers in each question agree with its answer.',
     'Return JSON only: {"oral":[{"id":"<task id>","script":"<text or empty>","items":[{"ask":"…","answer":"…"}]}]}, one entry per task.',
   ].join('\n');
