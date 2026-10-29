@@ -202,7 +202,12 @@ export type PrepRecord = {
   total: number;
   cached: number;
   bytes: number;
+  /** why it is not ready, when the engine said (worker_update_pending: the phone's worker is being replaced) */
+  why?: string;
 };
+
+/** The engine's "a newer worker is taking over" answers (dashboard/sa/sa-offline.js pendingWhy / replaced). */
+export const isUpdating = (why?: string) => why === 'worker_update_pending' || why === 'worker_update_failed';
 
 const PREP_KEY = 'assess:r8:prep';
 const SCHOOLS_KEY = 'assess:r8:schools';
