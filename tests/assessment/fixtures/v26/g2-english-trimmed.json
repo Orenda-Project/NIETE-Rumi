@@ -1,0 +1,861 @@
+{
+ "unseen": {
+  "subjective": {
+   "Story Order": [
+    {
+     "slot": "g2.english.C.Q16",
+     "lines": 3,
+     "marks": 6,
+     "answer": "c, e, a, d, b, f",
+     "blooms": "Understand",
+     "scheme": {
+      "accept": [
+       "c, e, a, d, b, f"
+      ],
+      "points": [
+       {
+        "kind": "K",
+        "text": "Sentence (c) is first",
+        "marks": 1
+       },
+       {
+        "kind": "K",
+        "text": "Sentence (e) is second",
+        "marks": 1
+       },
+       {
+        "kind": "K",
+        "text": "Sentence (a) is third",
+        "marks": 1
+       },
+       {
+        "kind": "K",
+        "text": "Sentence (d) is fourth",
+        "marks": 1
+       },
+       {
+        "kind": "K",
+        "text": "Sentence (b) is fifth",
+        "marks": 1
+       },
+       {
+        "kind": "K",
+        "text": "Sentence (f) is sixth",
+        "marks": 1
+       }
+      ],
+      "checked": null,
+      "common_error": "Putting the ending sentence before the growing of the seeds."
+     },
+     "question": "Arrange the sentences to make a story.",
+     "questions": [
+      "Then they planted the seeds in the soil.",
+      "Finally, the seeds grew into tall sunflowers.",
+      "Rani and her father went to the garden.",
+      "Next, Rani watered the soil every day.",
+      "First, her father gave her a packet of seeds.",
+      "They smiled and said, \"Our garden is beautiful!\""
+     ],
+     "main_question": "Put the sentences in the correct order to make a story. Write the letters in order."
+    }
+   ],
+   "Read and Answer": [
+    {
+     "slot": "g2.english.A.Q1",
+     "lines": 0,
+     "marks": 20,
+     "blooms": "Understand",
+     "passage": "Zara lives in a small town. Every morning, she waters the plants in her garden. One day, she saw a little bird sitting on the wall. The bird looked hungry. Zara put some seeds in a bowl and kept it near the wall. The bird ate the seeds and sang a happy song. Zara smiled. After that, the bird came every morning. Zara and the bird became good friends. Zara learned that small acts of kindness make others happy.",
+     "questions": [
+      {
+       "lines": 2,
+       "marks": 2,
+       "answer": "Zara lives in a small town.",
+       "blooms": "Remember",
+       "scheme": {
+        "accept": [
+         "In a small town",
+         "A small town"
+        ],
+        "points": [
+         {
+          "kind": "A",
+          "text": "States that Zara lives in a small town",
+          "marks": 2
+         }
+        ],
+        "common_error": "Writing that Zara lives in a garden"
+       },
+       "question": "Where does Zara live?"
+      },
+      {
+       "lines": 2,
+       "marks": 2,
+       "answer": "She waters the plants in her garden.",
+       "blooms": "Remember",
+       "scheme": {
+        "accept": [
+         "Waters the plants",
+         "She gives water to the plants in her garden"
+        ],
+        "points": [
+         {
+          "kind": "A",
+          "text": "States that she waters the plants in her garden",
+          "marks": 2
+         }
+        ],
+        "common_error": "Writing that she feeds the bird every morning"
+       },
+       "question": "What does Zara do every morning?"
+      },
+      {
+       "lines": 2,
+       "marks": 2,
+       "answer": "The bird was sitting on the wall.",
+       "blooms": "Remember",
+       "scheme": {
+        "accept": [
+         "On the wall",
+         "On a wall"
+        ],
+        "points": [
+         {
+          "kind": "A",
+          "text": "States that the bird sat on the wall",
+          "marks": 2
+         }
+        ],
+        "common_error": "Writing that the bird sat on a tree"
+       },
+       "question": "Where was the little bird sitting?"
+      },
+      {
+       "lines": 2,
+       "marks": 2,
+       "answer": "Zara put some seeds in the bowl.",
+       "blooms": "Remember",
+       "scheme": {
+        "accept": [
+         "Seeds",
+         "Some seeds"
+        ],
+        "points": [
+         {
+          "kind": "A",
+          "text": "States that she put seeds in the bowl",
+          "marks": 2
+         }
+        ],
+        "common_error": "Writing water or bread"
+       },
+       "question": "What did Zara put in the bowl?"
+      },
+      {
+       "lines": 2,
+       "marks": 2,
+       "answer": "The bird looked hungry, so Zara wanted to feed it.",
+       "blooms": "Understand",
+       "scheme": {
+        "accept": [
+         "Because the bird was hungry",
+         "To feed the bird"
+        ],
+        "points": [
+         {
+          "kind": "U",
+          "text": "Gives the reason: the bird was hungry or she wanted to feed it",
+          "marks": 2
+         }
+        ],
+        "common_error": "Writing that Zara was hungry"
+       },
+       "question": "Why did Zara put seeds near the wall?"
+      },
+      {
+       "lines": 2,
+       "marks": 2,
+       "answer": "The bird sang a happy song.",
+       "blooms": "Understand",
+       "scheme": {
+        "accept": [
+         "It sang",
+         "It sang a song"
+        ],
+        "points": [
+         {
+          "kind": "U",
+          "text": "Says the bird sang a happy song",
+          "marks": 2
+         }
+        ],
+        "common_error": "Writing that the bird flew away"
+       },
+       "question": "How do you know the bird was happy after eating?"
+      },
+      {
+       "lines": 2,
+       "marks": 2,
+       "answer": "Hungry means wanting food.",
+       "blooms": "Understand",
+       "scheme": {
+        "accept": [
+         "Needing to eat",
+         "Feeling that you want to eat"
+        ],
+        "points": [
+         {
+          "kind": "U",
+          "text": "Gives a correct meaning: wanting or needing food",
+          "marks": 2
+         }
+        ],
+        "common_error": "Giving the meaning of tired or sad"
+       },
+       "question": "What does the word 'hungry' mean?"
+      },
+      {
+       "lines": 2,
+       "marks": 2,
+       "answer": "Zara fed the bird every day and was kind to it, so the bird kept coming back.",
+       "blooms": "Understand",
+       "scheme": {
+        "accept": [
+         "Because Zara was kind to the bird",
+         "Because she gave it seeds and it came every morning"
+        ],
+        "points": [
+         {
+          "kind": "U",
+          "text": "Links Zara's kindness or feeding to the friendship",
+          "marks": 2
+         }
+        ],
+        "common_error": "Writing that they went to school together"
+       },
+       "question": "Why did Zara and the bird become good friends?"
+      },
+      {
+       "lines": 2,
+       "marks": 2,
+       "answer": "I can share my lunch with my friend.",
+       "blooms": "Apply",
+       "scheme": {
+        "accept": [
+         "I will give some of my food to my friend",
+         "I can share my tiffin with them"
+        ],
+        "points": [
+         {
+          "kind": "A",
+          "text": "Gives a suitable kind act, such as sharing food, in a full sentence",
+          "marks": 2
+         }
+        ],
+        "common_error": "Writing an unkind act or leaving it blank"
+       },
+       "question": "Your friend is sad because they forgot their lunch. What kind act can you do, like Zara did?"
+      },
+      {
+       "lines": 2,
+       "marks": 2,
+       "answer": "She should water the flower every day.",
+       "blooms": "Apply",
+       "scheme": {
+        "accept": [
+         "Zara should give it water and sunlight",
+         "She should water it daily"
+        ],
+        "points": [
+         {
+          "kind": "A",
+          "text": "Writes a correct sentence about watering or caring for the flower",
+          "marks": 2
+         }
+        ],
+        "common_error": "Writing a sentence that does not mention caring for the plant"
+       },
+       "question": "Zara plants a flower. Write one sentence about what she should do every day to help it grow."
+      }
+     ],
+     "main_question": "Read the passage and answer the questions"
+    }
+   ]
+  }
+ },
+ "_layout": {
+  "v": 2,
+  "oral": {
+   "marks": 20,
+   "tasks": [
+    {
+     "n": 5,
+     "id": "listening",
+     "ask": "A story of 5 to 7 sentences on a book theme, then five questions (2 recall, 2 understand, 1 apply, in that order, apply last) with answers.",
+     "kind": "listening",
+     "marks": 5,
+     "rubric": [
+      {
+       "en": "Each right answer",
+       "ur": "ہر درست جواب",
+       "marks": 1
+      }
+     ],
+     "scoring": "each",
+     "label_en": "Listening",
+     "label_ur": "سننا",
+     "instruction_en": "Read the story aloud twice. Then ask the questions; the child answers aloud.",
+     "instruction_ur": "کہانی دو بار بلند آواز سے پڑھیں، پھر سوال پوچھیں۔"
+    },
+    {
+     "n": 3,
+     "id": "speaking",
+     "ask": "One topic (my best friend, my favourite game) and three prompt questions.",
+     "kind": "speaking",
+     "marks": 5,
+     "rubric": [
+      {
+       "en": "Confidence",
+       "ur": "اعتماد",
+       "marks": 1
+      },
+      {
+       "en": "Gives details",
+       "ur": "تفصیل",
+       "marks": 1
+      },
+      {
+       "en": "Standard English",
+       "ur": "درست انگریزی",
+       "marks": 1
+      },
+      {
+       "en": "Expression",
+       "ur": "اظہار",
+       "marks": 2
+      }
+     ],
+     "scoring": "criteria",
+     "label_en": "Speaking",
+     "label_ur": "بولنا",
+     "instruction_en": "Ask the child to talk about the topic for about a minute.",
+     "instruction_ur": "بچے سے موضوع پر تقریباً ایک منٹ بات کرنے کو کہیں۔"
+    },
+    {
+     "n": 0,
+     "id": "read_aloud",
+     "ask": "A passage of 40 to 50 words from a book lesson (quote the book exactly).",
+     "kind": "read_aloud",
+     "marks": 10,
+     "rubric": [
+      {
+       "en": "Breaks words into syllables",
+       "ur": "الفاظ کو ہجوں میں توڑنا",
+       "marks": 2
+      },
+      {
+       "en": "Accuracy",
+       "ur": "درستگی",
+       "marks": 3
+      },
+      {
+       "en": "Fluency",
+       "ur": "روانی",
+       "marks": 3
+      },
+      {
+       "en": "Expression",
+       "ur": "اظہار",
+       "marks": 2
+      }
+     ],
+     "scoring": "criteria",
+     "label_en": "Read aloud",
+     "label_ur": "بلند خوانی",
+     "instruction_en": "The child reads the passage aloud. Mark against the rubric.",
+     "instruction_ur": "بچہ عبارت بلند آواز سے پڑھے۔ روبرک کے مطابق نمبر دیں۔"
+    }
+   ],
+   "content": [
+    {
+     "id": "listening",
+     "items": [
+      {
+       "ask": "Where did the crow take things from?",
+       "answer": "The farmhouse and the square."
+      },
+      {
+       "ask": "What did Jojo say when he saw the crow take things?",
+       "answer": "This isn't right!"
+      },
+      {
+       "ask": "What did the crow do after it listened to the story?",
+       "answer": "It returned what it took."
+      },
+      {
+       "ask": "How did Pinky and Jojo teach the crow?",
+       "answer": "They read the crow a story with a storybook."
+      },
+      {
+       "ask": "Tell me one thing you can share with a friend.",
+       "answer": "Any sensible answer, for example: my pencils, my lunch or my toys."
+      }
+     ],
+     "script": "Pinky and Jojo had a cheeky crow in Taleemabad. The crow took things from the farmhouse and the square. Jojo said, \"This isn't right!\" Pinky said, \"Let's teach it tonight.\" They read the crow a story with a storybook in hand. The crow listened and sighed. It returned what it took and tried to be kinder every day."
+    },
+    {
+     "id": "speaking",
+     "items": [
+      {
+       "ask": "Who is your best friend, and what is their name?",
+       "answer": ""
+      },
+      {
+       "ask": "What do you like to do together with your best friend?",
+       "answer": ""
+      },
+      {
+       "ask": "Why do you like your best friend?",
+       "answer": ""
+      }
+     ]
+    },
+    {
+     "id": "read_aloud",
+     "items": [
+      {
+       "ask": "Pinky and Jojo, best pals true,",
+       "answer": ""
+      },
+      {
+       "ask": "Had a tale they wanted to share with you.",
+       "answer": ""
+      },
+      {
+       "ask": "In Taleemabad not far from a tree,",
+       "answer": ""
+      },
+      {
+       "ask": "Lived a crow, as cheeky as could be.",
+       "answer": ""
+      },
+      {
+       "ask": "It took things, here and there,",
+       "answer": ""
+      },
+      {
+       "ask": "From the farmhouse, from the square.",
+       "answer": ""
+      },
+      {
+       "ask": "Jojo said, \"This isn't right!\"",
+       "answer": ""
+      },
+      {
+       "ask": "Pinky nodded, \"Let's teach it tonight.\"",
+       "answer": ""
+      }
+     ],
+     "script": "Pinky and Jojo, best pals true,\nHad a tale they wanted to share with you.\nIn Taleemabad not far from a tree,\nLived a crow, as cheeky as could be.\nIt took things, here and there,\nFrom the farmhouse, from the square.\nJojo said, \"This isn't right!\"\nPinky nodded, \"Let's teach it tonight.\""
+    }
+   ],
+   "note_en": "Take the oral part after the written paper, one child at a time. Read the script aloud as written.",
+   "note_ur": "زبانی حصہ تحریری پرچے کے بعد، ہر بچے سے الگ الگ لیں۔ اسکرپٹ لکھے ہوئے الفاظ میں پڑھ کر سنائیں۔",
+   "title_en": "Oral assessment · teacher sheet",
+   "title_ur": "زبانی جائزہ · استاد کی شیٹ"
+  },
+  "notes": [],
+  "pages": {
+   "paper": 9,
+   "scheme": 7
+  },
+  "scope": {
+   "kind": "fde",
+   "pages": null,
+   "line_en": "The whole English book (pages 1-159).",
+   "line_ur": "انگریزی کی پوری کتاب (صفحات 1-159)۔",
+   "chapters": null,
+   "label_en": "Whole book",
+   "label_ur": "پوری کتاب",
+   "covers_en": null,
+   "covers_ur": null
+  },
+  "header": {
+   "or_en": "OR",
+   "or_ur": "یا",
+   "band_en": "TEACHER'S COPY · Do not give to children",
+   "band_ur": "استاد کی کاپی · بچوں کو نہ دیں",
+   "note_en": "Written 80 + oral 20 = 100 marks. The oral part is taken by the teacher from the marking scheme.",
+   "note_ur": "تحریری 80 + زبانی 20 = 100 نمبر۔ زبانی حصہ استاد مارکنگ اسکیم سے لیں گے۔",
+   "title_en": "Grade II · English · FDE pattern practice paper",
+   "title_ur": "جماعت دوم · انگریزی · FDE pattern کا مشقی پرچہ",
+   "accept_en": "accept:",
+   "accept_ur": "یہ بھی درست:",
+   "covers_en": "Covers: {scope}.",
+   "covers_ur": "احاطہ: {scope}۔",
+   "checked_en": "✓ checked",
+   "checked_ur": "✓ جانچا گیا",
+   "time_line_en": "",
+   "time_line_ur": "",
+   "total_line_en": "Written Marks: {t:80}",
+   "total_line_ur": "تحریری نمبر: {t:80}",
+   "footer_page_en": "Page {n} of {N}",
+   "footer_page_ur": "صفحہ {n} از {N}",
+   "notes_title_en": "Notes",
+   "notes_title_ur": "نوٹ",
+   "record_cols_en": [
+    "Roll",
+    "Name"
+   ],
+   "record_cols_ur": [
+    "رول نمبر",
+    "نام"
+   ],
+   "school_line_en": "School: ____________",
+   "school_line_ur": "اسکول: ____________",
+   "student_box_en": [
+    "Student Name",
+    "Roll No",
+    "Date",
+    "Total Marks",
+    "Obtained Marks"
+   ],
+   "student_box_ur": [
+    "نام طالب علم",
+    "رول نمبر",
+    "تاریخ",
+    "کل نمبر",
+    "حاصل کردہ نمبر"
+   ],
+   "answer_sheet_en": "answer sheet",
+   "answer_sheet_ur": "جوابی کاپی",
+   "common_error_en": "common error:",
+   "common_error_ur": "عام غلطی:",
+   "record_grade_en": "Grade",
+   "record_grade_ur": "گریڈ",
+   "record_title_en": "Class record",
+   "record_title_ur": "کلاس ریکارڈ",
+   "record_total_en": "Total",
+   "record_total_ur": "کل",
+   "scheme_title_en": "MARKING SCHEME",
+   "scheme_title_ur": "مارکنگ اسکیم",
+   "note_replaced_en": "{n}: key corrected by code; the model wrote {value}.",
+   "note_replaced_ur": "{n}: کلید کوڈ نے درست کی؛ ماڈل نے {value} لکھا۔",
+   "covers_partial_en": "Covers {units}.",
+   "covers_partial_ur": "احاطہ: {units}۔"
+  },
+  "legend": {
+   "subject": "english",
+   "key_line": 1,
+   "lines_en": [
+    "One mark per correct item unless the paper says otherwise.",
+    "",
+    "Written marks only. Record the oral marks from the oral sheet, then add both on the class record."
+   ],
+   "lines_ur": [
+    "جب تک پرچے میں کچھ اور نہ لکھا ہو، ہر درست جواب پر 1 نمبر۔",
+    "",
+    "یہ صرف تحریری نمبر ہیں۔ زبانی نمبر زبانی جائزے کی شیٹ سے لکھیں، پھر کلاس ریکارڈ پر دونوں جمع کریں۔"
+   ],
+   "title_en": "How to mark",
+   "title_ur": "جانچنے کا طریقہ",
+   "bands_line": -1,
+   "maths_lines": [],
+   "key_names_en": {
+    "A": "answer",
+    "K": "key point",
+    "L": "label",
+    "M": "method",
+    "U": "unit"
+   },
+   "key_names_ur": {
+    "A": "جواب",
+    "K": "اہم نکتہ",
+    "L": "نام",
+    "M": "طریقہ",
+    "U": "اکائی"
+   },
+   "bands_lead_ur": "",
+   "key_from_chips": true
+  },
+  "medium": "en",
+  "subject": "english",
+  "sections": [
+   {
+    "id": "A",
+    "marks": 20,
+    "slots": [
+     {
+      "or": false,
+      "slot": "g2.english.A.Q1",
+      "type": "Read and Answer",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 0,
+      "parts": null,
+      "shape": "short",
+      "bubble": false,
+      "attempt": 1,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 1,
+      "label_en": "Q1.",
+      "label_ur": "سوال 1",
+      "answer_ok": null,
+      "numbering": "roman",
+      "answer_box": true,
+      "compulsory": true,
+      "marks_each": 20,
+      "print_words": false,
+      "prompt_rule": "One new passage of 80 to 110 words in \"passage\", on a book theme, in Grade 2 words. \"questions\": ten objects { question, answer, marks: 2, scheme } — four recall, four understand, two apply — where scheme.points sum to 2. Do not prefix a question with a letter.",
+      "alternatives": null,
+      "picture_only": false,
+      "sentence_box": false,
+      "marks_line_en": "({t:20})",
+      "marks_line_ur": "{t:20}",
+      "section_pages": "scope",
+      "instruction_en": "Read the passage and answer the questions.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     }
+    ],
+    "levels": {
+     "Apply": 4,
+     "Remember": 8,
+     "Understand": 8
+    },
+    "note_en": null,
+    "time_en": null,
+    "label_en": "Reading",
+    "label_ur": null,
+    "marks_en": "Total Marks: {t:20}",
+    "marks_ur": "کل نمبر: {t:20}",
+    "answer_on": "question_paper"
+   },
+   {
+    "id": "C",
+    "marks": 32,
+    "slots": [
+     {
+      "or": false,
+      "slot": "g2.english.C.Q16",
+      "type": "Story Order",
+      "frame": null,
+      "grain": null,
+      "kinds": null,
+      "lines": 3,
+      "parts": null,
+      "shape": "short",
+      "bubble": false,
+      "attempt": 1,
+      "picture": null,
+      "work_mm": null,
+      "category": "subjective",
+      "families": null,
+      "generate": 1,
+      "label_en": "Q16.",
+      "label_ur": "سوال 16",
+      "answer_ok": null,
+      "numbering": "roman",
+      "answer_box": true,
+      "compulsory": true,
+      "marks_each": 6,
+      "print_words": false,
+      "prompt_rule": "One short story of six sentences from a book theme, given out of order and listed in \"questions\" as plain sentences with no number or letter in front (the paper letters them (a)-(f)). Answer: the order. Scheme: one K point of 1 per sentence in the right place. Write the story so exactly one order is valid; if two orders are really valid, list every valid order in scheme.accept.",
+      "alternatives": null,
+      "picture_only": false,
+      "sentence_box": false,
+      "marks_line_en": "({t:6})",
+      "marks_line_ur": "{t:6}",
+      "section_pages": "scope",
+      "instruction_en": "Put the sentences in order to make a story.",
+      "instruction_ur": null,
+      "teacher_note_en": null,
+      "teacher_note_ur": null
+     }
+    ],
+    "levels": {
+     "Apply": 14,
+     "Remember": 8,
+     "Understand": 10
+    },
+    "note_en": null,
+    "time_en": null,
+    "label_en": "Writing",
+    "label_ur": null,
+    "marks_en": "Total Marks: {t:32}",
+    "marks_ur": "کل نمبر: {t:32}",
+    "answer_on": "question_paper"
+   }
+  ],
+  "supplies": [],
+  "unplaced": 0,
+  "blueprint": {
+   "ok": false,
+   "total": 80,
+   "levels": {
+    "Apply": {
+     "pct": 30,
+     "marks": 24,
+     "target": 28
+    },
+    "Remember": {
+     "pct": 20,
+     "marks": 16,
+     "target": 36
+    },
+    "Understand": {
+     "pct": 50,
+     "marks": 40,
+     "target": 36
+    }
+   },
+   "expected": 80,
+   "problems": [
+    {
+     "code": "SECTION_LEVEL",
+     "level": "Remember",
+     "marks": 0,
+     "target": 8,
+     "section": "A"
+    },
+    {
+     "code": "SECTION_LEVEL",
+     "level": "Understand",
+     "marks": 20,
+     "target": 8,
+     "section": "A"
+    },
+    {
+     "code": "SECTION_LEVEL",
+     "level": "Remember",
+     "marks": 2,
+     "target": 8,
+     "section": "C"
+    },
+    {
+     "code": "SECTION_LEVEL",
+     "level": "Apply",
+     "marks": 20,
+     "target": 14,
+     "section": "C"
+    },
+    {
+     "off": -16,
+     "pct": 20,
+     "code": "LEVEL",
+     "level": "Remember",
+     "target": 36
+    },
+    {
+     "off": 14,
+     "pct": 50,
+     "code": "LEVEL",
+     "level": "Understand",
+     "target": 36
+    }
+   ],
+   "sections": [
+    {
+     "id": "A",
+     "marks": 20,
+     "levels": {
+      "Apply": {
+       "marks": 0,
+       "target": 4
+      },
+      "Remember": {
+       "marks": 0,
+       "target": 8
+      },
+      "Understand": {
+       "marks": 20,
+       "target": 8
+      }
+     },
+     "expected": 20
+    },
+    {
+     "id": "B",
+     "marks": 28,
+     "levels": {
+      "Apply": {
+       "marks": 4,
+       "target": 4
+      },
+      "Remember": {
+       "marks": 14,
+       "target": 14
+      },
+      "Understand": {
+       "marks": 10,
+       "target": 10
+      }
+     },
+     "expected": 28
+    },
+    {
+     "id": "C",
+     "marks": 32,
+     "levels": {
+      "Apply": {
+       "marks": 20,
+       "target": 14
+      },
+      "Remember": {
+       "marks": 2,
+       "target": 8
+      },
+      "Understand": {
+       "marks": 10,
+       "target": 10
+      }
+     },
+     "expected": 32
+    }
+   ]
+  },
+  "preset_id": "fde_g2_2026",
+  "before_exam": {
+   "lines_en": [
+    "This is the marking scheme for {file} ({n} pages). Do not give it to children.",
+    "Photocopy the question paper, all {n} pages, one per child.",
+    "You add: {duty} on the question paper, page {p} (book p. {b}).",
+    "Tell the class: {sections}; {attempts}.",
+    "Time: {t}.",
+    "Mark question by question across all copies, not copy by copy."
+   ],
+   "lines_ur": [
+    "یہ {file} ({n} صفحات) کی مارکنگ اسکیم ہے۔ بچوں کو نہ دیں۔",
+    "سوالیہ پرچے کے تمام {n} صفحات کی فوٹو کاپی کریں، ہر بچے کے لیے ایک۔",
+    "شامل کریں: {duty}، سوالیہ پرچہ صفحہ {p} (کتاب ص {b})۔",
+    "کلاس کو بتائیں: {sections}؛ {attempts}۔",
+    "وقت: {t}۔",
+    "ہر سوال کو تمام کاپیوں میں ایک ساتھ جانچیں، ایک کاپی مکمل کر کے دوسری نہیں۔"
+   ],
+   "title_en": "Teacher: before the exam",
+   "title_ur": "استاد کے لیے: امتحان سے پہلے",
+   "either_en": "{label}: answer one of the two",
+   "either_ur": "{label}: دو میں سے ایک",
+   "attempt_en": "{label}: attempt any {n} of {g}",
+   "attempt_ur": "{label}: {g} میں سے کوئی سے {n}",
+   "nothing_en": "You add: nothing.",
+   "nothing_ur": "شامل کرنے کو کچھ نہیں۔",
+   "on_paper_en": "{sections} on the question paper",
+   "on_paper_ur": "{sections} سوالیہ پرچے پر",
+   "on_sheet_en": "{sections} on the answer sheet",
+   "on_sheet_ur": "{sections} جوابی کاپی پر",
+   "unknown_pages_en": "see the question paper",
+   "unknown_pages_ur": "سوالیہ پرچہ دیکھیں"
+  },
+  "frame_pages": null,
+  "total_marks": 80,
+  "generated_at": "2026-10-29T10:41:45.638Z",
+  "total_time_en": "as the school sets",
+  "total_time_ur": "اسکول کے مطابق"
+ }
+}

@@ -27,6 +27,7 @@ const { noArrows } = require('./fde-no-arrows');
 const { answerRepeats, giveawayNote, stillGivenAway, writtenGiveaways } = require('./fde-answer-repeats');
 const { dealScrambles } = require('./fde-scramble-block');
 const { keyShortfall } = require('./fde-key-checks');
+const { whoSaidShortfall } = require('./fde-who-said-check');
 
 const SCOPE = Object.freeze({ kind: 'fde', chapters: null, pages: null });
 const ORAL_SECTION = Object.freeze({ id: 'oral', slots: [] });
@@ -134,7 +135,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   // item asking an oral item's question is the written section's to fix (bd-5jmnfj.4.55).
   const withOral = (ex) => (oral ? { ...ex, _layout: { ...ex._layout, oral: { ...P.oral, content: oral.content } } } : ex);
   // A key off its word box, or a who question keyed with a sentence, is asked again like a key off its rule (bd-5jmnfj.4.57).
-  const keysOff = (ex) => Prompt.answerShortfall(ex, P).concat(keyShortfall(ex, P));
+  const keysOff = (ex) => Prompt.answerShortfall(ex, P).concat(keyShortfall(ex, P), whoSaidShortfall(ex, loaded.content, P)); // names the book text lacks (bd-5jmnfj.4.58.2)
   const firstLaid = lay(false);
   const layoutShort = new Set(firstLaid.shortfall.map((f) => f.slot));
   const short = firstLaid.shortfall
@@ -221,6 +222,19 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   // teacher a paper: one still there after this ships and is logged below (bd-5jmnfj.4.55).
   const lastly = late.length ? writtenGiveaways(stillGivenAway(withOral(laid.examJson))).filter((f) => f.printed) : [];
   if (lastly.length) await reaskLate(lastly);
+  // A picture still repeated after those is asked once more, a section at a time so each sees the others' new
+  // pictures; one still there ships and is logged below (bd-5jmnfj.4.58.2: v26 G1 English spoon in Q7 v and Q12 i).
+  const stuck = Prompt.repeatedPictures(laid.examJson, P);
+  for (const b of built.filter(({ section }) => section.slots.some((s) => stuck.some((f) => f.slot === s.slot)))) {
+    const i = results.findIndex((r) => r.id === b.section.id);
+    const mine = stuck.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
+    const note = Prompt.takenPicturesNote(results.filter((r) => r.id !== b.section.id).map((r) => r.tree), mine);
+    d.logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall: mine, after: 'picture repeat' });
+    extraUsages.push(...results[i].usages);
+    const next = await writeOne({ ...b, messages: d.sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) });
+    results[i] = { ...next, tree: swapSlots(results[i].tree, next.tree, new Set(mine.map((f) => f.slot))) };
+  }
+  if (stuck.length) laid = lay(true);
   let examJson = laid.examJson;
   const layout = { placed: laid.placed, unplaced: firstLaid.unplaced };
   d.logToFile('[assessment] layout applied', {

@@ -75,7 +75,7 @@ module.exports = makeSubject({
       { id: 'dialogue', kind: 'read_aloud', marks: 10, label_en: 'Read a dialogue', label_ur: 'مکالمہ پڑھنا',
         instruction_en: 'The child reads the dialogue aloud. Mark against the rubric.',
         instruction_ur: 'بچہ مکالمہ بلند آواز سے پڑھے۔ روبرک کے مطابق نمبر دیں۔',
-        ask: 'A dialogue of six short turns from a book lesson (quote the book exactly).', n: 0,
+        ask: 'A dialogue of five short turns from a book lesson (quote the book exactly), none repeated.', n: 0,
         rubric: [
           { marks: 4, en: 'Accuracy', ur: 'درستگی' },
           { marks: 3, en: 'Fluency', ur: 'روانی' },

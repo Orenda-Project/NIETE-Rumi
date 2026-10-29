@@ -897,7 +897,7 @@ const URDU = {
           numbering: 'urdu', option_labels: 'ur_paren', compulsory: true, lines: 0, work_mm: null, section_pages: 'scope',
           grain: { kind: 'grammar as directed, one each: گروہی الفاظ (choose), حروفِ شرط و جزا (choose), present to future tense, ارکان سازی of two words', number_size: 'none', steps: 1, unit_choice: false },
           families: null, kinds: ['group_words', 'conditional', 'tense', 'syllables'],
-          prompt_rule: 'Four items in this order: (1) گروہی الفاظ — a stem with four options; (2) حروفِ شرط و جزا — a sentence and four options; (3) فعلِ حال کو فعلِ مستقبل میں تبدیل کریں — one sentence; (4) ارکان سازی — two words. A points only.',
+          prompt_rule: 'Four items in this order: (1) گروہی الفاظ — a stem with four options; (2) حروفِ شرط و جزا — a sentence and four options; (3) فعلِ حال کو فعلِ مستقبل میں تبدیل کریں — one sentence; (4) ارکان سازی — two words. Each item\'s `question` begins with its task phrase in Urdu (e.g. «گروہی الفاظ کی پہچان کریں: …», «درست حرفِ شرط و جزا کا انتخاب کریں: …», «فعلِ حال کو فعلِ مستقبل میں تبدیل کریں: …», «ارکان الگ کریں: …»), because the paper prints only `question` under the instruction «ہدایات کے مطابق حل کریں»; never leave the task in `main_question` alone. A points only.',
           frame: null, teacher_note_en: null, teacher_note_ur: null, alternatives: null, or: false,
         },
         {
@@ -939,7 +939,7 @@ const URDU = {
         },
         {
           slot: 'urdu.C.Q7', label_en: 'Q7', label_ur: 'سوال نمبر 7',
-          instruction_ur: 'مددگار الفاظ کی مدد سے تصویر کی وضاحت مکمل کریں۔', // transcribed (FDE p.58)
+          instruction_ur: 'کوئی سے چھ مددگار الفاظ کی مدد سے تصویر کی وضاحت مکمل کریں۔', // FDE p.58 plus «کوئی سے چھ» to match the marking row (v26)
           marks_line_ur: '{t:10}',
           type: 'Picture Description', category: 'subjective', shape: 'frame',
           generate: 1, attempt: 1, marks_each: 10, parts: null,
@@ -968,7 +968,7 @@ const URDU = {
           numbering: 'none', compulsory: false, lines: 0, work_mm: null, section_pages: 'scope',
           grain: { kind: 'a paragraph of 10–12 sentences on a closed-list title OR a dialogue between two friends on an everyday topic', number_size: 'none', steps: 1, unit_choice: false },
           families: null, kinds: ['paragraph', 'dialogue'],
-          prompt_rule: 'Two items: (a) `question` = one title from closed_lists.paragraphs exactly as listed; (b) `question` = «دو دوستوں کے درمیان … پر مکالمہ تحریر کریں۔» with an everyday topic (punctuality, cleanliness, a school trip).',
+          prompt_rule: 'Two items: (a) `question` = one title from closed_lists.paragraphs exactly as listed; (b) `question` = «دو دوستوں کے درمیان … پر مکالمہ تحریر کریں۔» with an everyday topic (punctuality, cleanliness, a school trip). The model answer to (a) is a paragraph of 10 to 12 sentences, each ending ۔, never fewer. It states only true facts: Urdu is Pakistan\'s قومی زبان (national language), never مادری زبان (mother tongue) as a national fact.',
           frame: null, teacher_note_en: null, teacher_note_ur: null, alternatives: null, or: true,
         },
         {
