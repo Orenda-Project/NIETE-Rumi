@@ -82,7 +82,7 @@ module.exports = makeSubject({
           prompt_rule: 'One busy scene from a book theme (a park, a market, a classroom) as picture: {kind:"scene", describe}. Answer: three model sentences. Scheme: three K points of 2 — each a correct sentence about the picture.' },
         { slot: 'g2.english.C.Q16', label_en: 'Q16.', type: 'Story Order', generate: 1, marks_each: 6, lines: 3,
           instruction_en: 'Put the sentences in order to make a story.',
-          prompt_rule: 'One short story of six sentences from a book theme, given out of order and numbered in "questions" as plain strings. Answer: the order. Scheme: one K point of 1 per sentence in the right place.' },
+          prompt_rule: 'One short story of six sentences from a book theme, given out of order and numbered in "questions" as plain strings. Answer: the order. Scheme: one K point of 1 per sentence in the right place. Write the story so exactly one order is valid; if two orders are really valid, list every valid order in scheme.accept.' },
       ],
     },
   ],

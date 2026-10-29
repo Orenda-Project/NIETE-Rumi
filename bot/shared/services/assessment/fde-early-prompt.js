@@ -14,6 +14,8 @@
  * Pure: the builder is passed in, so this never requires the service.
  */
 
+const { bannedShortfall } = require('./fde-banned-words');
+
 const NO_PICTURES = 'The paper carries no pictures. A slot marked frame prints an empty frame: write the instruction and the labels/word bank only; never \'look at the picture\'.';
 
 const PICTURE_RULE = 'Pictures: a slot whose rule names a picture gives EVERY item one "picture" object, in one of the shapes that slot lists. '
@@ -77,9 +79,15 @@ function oralPrompt({ oral, grade, P, pageContent }) {
     '',
     'A "script" is what is read aloud: a story or poem the teacher reads, or a passage the child reads. '
       + 'Each item is {"ask", "answer"}: a question with its answer, or, for a reading task, one word or line the child reads as "ask" with no answer.',
+    'No bracketed notes: what you write is read aloud as it stands, so never add a note to yourself, such as "(Note: use 9)". Make the numbers in each question agree with its answer.',
     'Return JSON only: {"oral":[{"id":"<task id>","script":"<text or empty>","items":[{"ask":"…","answer":"…"}]}]}, one entry per task.',
   ].join('\n');
 }
+
+// A bracketed note the writer left for itself ("(Note: use 9 cats)"): a teacher must never read it out
+// (bd-5jmnfj.4.51.6). The task is asked again, not stripped: the numbers around the note are wrong too.
+const WRITER_NOTE = /[([]\s*(?:note\b|nb\b|n\.b\b|writer\b|generator\b|نوٹ)[^)\]]*[)\]]/i;
+const hasNote = (t) => typeof t === 'string' && WRITER_NOTE.test(t);
 
 /** The reply read against the tasks: `content` for the sheet, `missing` the task ids it did not fill. */
 function oralContent(tree, oral) {
@@ -90,7 +98,8 @@ function oralContent(tree, oral) {
     const got = list.find((x) => x && x.id === task.id);
     const items = got && Array.isArray(got.items) ? got.items.filter((it) => it && String(it.ask || '').trim()) : [];
     const script = got && typeof got.script === 'string' ? got.script.trim() : '';
-    const whole = (!needsScript(task) || script) && items.length >= (task.n || 0);
+    const noted = hasNote(script) || (got && Array.isArray(got.items) && got.items.some((it) => it && (hasNote(it.ask) || hasNote(it.answer))));
+    const whole = !noted && (!needsScript(task) || script) && items.length >= (task.n || 0);
     if (!got || !whole) { missing.push(task.id); continue; }
     content.push({ id: task.id, ...(script ? { script } : {}), items: task.n ? items.slice(0, task.n) : items });
   }
@@ -227,19 +236,26 @@ function answerShortfall(examJson, P) {
     r.items.push(`${String(q.question).trim()} → ${String(q.answer).trim()}`);
     out.set(q.slot, r);
   });
-  return [...out.values()];
+  // A crude word in an Urdu item is asked again like a key off its rule (bd-5jmnfj.4.51.1); the
+  // writer runs this at the first check, the late re-check and the final log.
+  return [...out.values()].concat(bannedShortfall(examJson));
 }
 
 /** A re-ask's note naming each item keyed off its slot's rule, and the rule; null if none. */
 function answerNote(shortfall, P) {
   const slots = slotsOf(P);
-  const notes = shortfall.filter((f) => f.reason === 'answer' && slots.has(f.slot)).map((f) => {
+  const banned = shortfall.filter((f) => f.reason === 'banned' && slots.has(f.slot)).map((f) => {
+    const sl = slots.get(f.slot);
+    return `${sl.label_en || f.slot} printed a rude word in these items (question → word):\n${f.items.map((i) => `- ${i}`).join('\n')}\n`
+      + `Write ${sl.label_en || f.slot} again with no rude or crude word anywhere, and never split a word into parts that form a rude word. ${sl.prompt_rule}`;
+  });
+  const notes = banned.concat(shortfall.filter((f) => f.reason === 'answer' && slots.has(f.slot)).map((f) => {
     const sl = slots.get(f.slot);
     const label = sl.label_en || f.slot;
     return `${label} broke its rule in these items (question → answer):\n${f.items.map((i) => `- ${i}`).join('\n')}\n`
       + `Write ${label} again so every item follows it: ${sl.prompt_rule}`
       + (sl.shape === 'mcq' ? '\nEvery choice must be different. A which-spelling item gives one right spelling and wrong ones.' : '');
-  });
+  }));
   return notes.length ? notes.join('\n\n') : null;
 }
 

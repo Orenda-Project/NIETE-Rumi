@@ -64,7 +64,7 @@ describe('answerRepeats', () => {
   test('a word the oral sheet asks gives a written answer away', () => {
     const exam = { unseen: { subjective: { W: [{ slot: 'g1.english.A.Q3', question: 'c _ t', answer: 'cat' }] } },
       _layout: { oral: { content: [{ id: 'read_aloud', script: 'A long story.', items: [{ ask: 'cat' }] }] } } };
-    expect(answerRepeats(exam)).toEqual([{ slot: 'g1.english.A.Q3', reason: 'giveaway', words: ['cat'], with: ['oral'] }]);
+    expect(answerRepeats(exam)).toEqual([{ slot: 'g1.english.A.Q3', reason: 'giveaway', words: ['cat'], with: ['oral'], text: ['the oral sheet'] }]);
   });
 
   test('a shared choice set, a word the slot keys twice, and a function word are not give-aways', () => {
@@ -165,8 +165,10 @@ test('the early writer re-asks the later section, naming the word, and logs one 
   const out = await writeEarlyPaper({ grade: 1, subject: 'urdu', pattern: 'fde_g1_2026', P }, d);
   expect(calls.filter((c) => c.id === 'A')).toHaveLength(1);
   const b = calls.filter((c) => c.id === 'B');
-  expect(b).toHaveLength(2);
+  // First write, the re-ask, and the one more re-ask for what the re-check still finds (bd-5jmnfj.4.51.3).
+  expect(b).toHaveLength(3);
   expect(b[1].user).toMatch(/already appear elsewhere on this paper: بلی/);
+  expect(b[2].user).toMatch(/already appear elsewhere on this paper: بلی/);
   expect(out.examJson).toBeDefined();
   expect(d.logToFile).toHaveBeenCalledWith('[assessment] answers given away', expect.objectContaining({
     giveaways: [expect.objectContaining({ slot: 'g1.urdu.B.Q7', reason: 'giveaway', words: ['بلی'] })],

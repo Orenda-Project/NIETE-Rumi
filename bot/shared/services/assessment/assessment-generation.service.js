@@ -749,6 +749,7 @@ async function generateExam(args) {
 const Patterns = require('./patterns');
 const { applyLayout, takenNote, firstAskNote, verseLines, scopeLessons, oneStory, STORY_ITEMS } = require('./fde-layout');
 const { normaliseScheme } = require('./marking-scheme');
+const { answerRepeats, giveawayNote, stillGivenAway } = require('./fde-answer-repeats');
 const { mathsCheck } = require('./maths-check');
 const { checkBlueprint, missesSplit, levelDistance, levelNote } = require('./blueprint-check');
 const Reader = require('./fde-reader');
@@ -942,6 +943,7 @@ const RULE = {
   urduQ4Group: 'In the Q4 group-word item the group word is one of its four options and is its key; its scheme `accept` names that option only, never another one.',
   urduQ4GroupNotListed: 'In the Q4 group-word item the group word is NOT one of the words the item lists: it names what all of them belong to (تھرمامیٹر، نبض، دوا اور ڈاکٹر all belong to اسپتال), never the odd one out. The item asks in words: it never prints an arrow (← →).',
   urduQ6Points: 'Q6 (ب) scheme: one idea per point, no point above 2 marks.',
+  urduSchemeText: 'On an Urdu paper every scheme `points[].text` and `common_error` is written in Urdu, never English: the marking key is read by an Urdu-speaking teacher.',
   urduQ4Syllables: 'In the Q4 ارکان سازی item, split every word into its spoken syllables, as the book does (غ – لا – ظت); every answer `accept` lists splits each word exactly as the key does.',
   urduRelationNouns: 'In Q2 (ب), relation words (امی، ابو، بھائی) are اسم نکرہ, never اسم معرفہ: اسم معرفہ is the own name of one person or place.',
   // On chosen lessons, Q1 asks each of their grammar concepts once; a place left after that is never
@@ -1352,6 +1354,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if ((key === 'science' || key === 'social_studies') && list.some((s) => s.shape === 'frame')) rules.push(RULE.frameLabels);
   if (key === 'science' && list.some((s) => s.shape === 'situation')) rules.push(RULE.situationParts);
   if (key === 'science' && list.some((s) => /\.Q3[a-z]?$/.test(s.slot))) rules.push(RULE.scienceQ3);
+  if (key === 'urdu') rules.push(RULE.urduSchemeText);
   if (key === 'urdu' && list.some((s) => /\.Q4$/.test(s.slot))) rules.push(RULE.urduQ4, RULE.urduQ4Group, RULE.urduQ4GroupNotListed, RULE.urduQ4Syllables);
   // The book's own worked splits, quoted as the book prints them.
   if (key === 'urdu' && Array.isArray(P.syllables) && P.syllables.length && list.some((s) => /\.Q4$/.test(s.slot))) {
@@ -2587,7 +2590,8 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   const layoutShort = new Set(firstLaid.shortfall.map((f) => f.slot));
   const short = firstLaid.shortfall
     .concat(normaliseScheme(JSON.parse(JSON.stringify(firstLaid.examJson))).shortfall)
-    .concat(_emptyQuestionParts(firstLaid.examJson));
+    .concat(_emptyQuestionParts(firstLaid.examJson))
+    .concat(answerRepeats(firstLaid.examJson)); // an answer printed in another question (bd-5jmnfj.4.51.3)
   const shortSlots = new Set(short.map((f) => f.slot));
   // An item carrying text the paper refuses to print (a review mark the model copied) fails the
   // paper at render; its section is asked once more instead, and a second hit fails it here.
@@ -2622,7 +2626,8 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
       // re-ask (a part with no marking points, a review mark, a religious maxim) takes the second reply whole.
       const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShortSet.has(f.slot));
       // On a top-up the note also names what the slot keeps, and asks for spares.
-      const note = takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held });
+      const note = [takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held }), giveawayNote(shortfall)]
+        .filter(Boolean).join('\n\n');
       const second = await writeOne(note
         ? { ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }
         : b);
@@ -2677,6 +2682,13 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
         : a);
       results[i] = { ...second, tree: _topUp(first.tree, second.tree, new Set(shortA.map((f) => f.slot))) };
       _dropProseVerses(results[i].tree, versesRef, requestId);
+    }
+    // A re-asked reply is checked again: a give-away still there is asked once more, naming the words.
+    // Only when the first check found one: a paper with none is not laid out again for this.
+    const lateLaid = short.some((f) => f.reason === 'giveaway') ? applyLayout(merged(), P, layoutScope, layOpts(true)) : null;
+    const late = lateLaid ? stillGivenAway(lateLaid.examJson) : [];
+    for (const b of built.filter(({ section }) => section.slots.some((s) => late.some((f) => f.slot === s.slot)))) {
+      await reask(b, lateLaid, late, new Set());
     }
     const still = _reviewTextHits(results);
     if (still.size) {

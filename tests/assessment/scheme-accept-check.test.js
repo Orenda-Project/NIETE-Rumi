@@ -86,7 +86,7 @@ describe('normaliseScheme on the v22 G1 English Q8 rows', () => {
       actionWord('swimming', ['swimming', 'swim'], 'Writing swiming with one m'),
     ]));
     const rows = examJson.unseen.subjective['Action Words'];
-    expect(rows.map((q) => q.scheme.accept)).toEqual([['running'], ['jumping'], ['swimming', 'swim']]);
+    expect(rows.map((q) => q.scheme.accept)).toEqual([['running'], ['jumping'], ['swimming']]);
     expect(rows[0].scheme.common_error).toBe('Writing run without ing or misspelling runing');
     expect(log.filter((l) => /is the common error/.test(l))).toHaveLength(2);
   });

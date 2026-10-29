@@ -10,6 +10,7 @@
  * Harness as fde-section-reask.test.js: the real orchestrator and generator, mocked at the edges.
  */
 const fs = require('fs');
+require('./helpers/skip-giveaway-check'); // recorded replies hold real give-aways (bd-5jmnfj.4.51.3)
 const path = require('path');
 
 let state;

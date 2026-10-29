@@ -26,9 +26,8 @@ function frameBank(q, slotInstruction) {
   const m = BANK.exec(text);
   const own = q && Array.isArray(q.words) ? q.words.map(String).map((w) => w.trim()).filter(Boolean) : [];
   const words = own.length ? own : (m ? m[1].split(/\s*[,،]\s*/).filter(Boolean) : []);
-  if (!words.length) return { line: '', words: [] };
   const head = wordsOf(slotInstruction);
-  const line = (m ? text.slice(0, m.index) : '').split(/(?<=[.!?۔])\s+/).map((s) => s.trim())
+  const line = (m ? text.slice(0, m.index) : text).split(/(?<=[.!?۔])\s+/).map((s) => s.trim())
     .filter((s) => s && [...wordsOf(s)].some((w) => !head.has(w))).join(' ');
   return { line, words };
 }

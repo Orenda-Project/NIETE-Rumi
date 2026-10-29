@@ -213,6 +213,17 @@ function suppliesFor(P, bySlot) {
   return out;
 }
 
+// A frame carries the page its own item names, or none (bd-5jmnfj.4.51.10).
+function withFramePages(sections, bySlot) {
+  for (const sec of sections) {
+    for (const slot of sec.slots) {
+      const q = slot.frame && (bySlot.get(slot.slot) || [])[0];
+      if (q) slot.frame.book_page = pageOf(q.book_page);
+    }
+  }
+  return sections;
+}
+
 // ── Urdu Q6: the four lesson-7 lines ──────────────────────────────────────
 
 const VERSES_NEEDED = 4;
@@ -2412,7 +2423,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
     medium: P.medium,
     scope: scopeBlock(P, scope),
     header: clone(P.header),
-    sections: clone(P.sections),
+    sections: withFramePages(clone(P.sections), bySlot),
     legend: clone(P.legend),
     before_exam: clone(P.before_exam),
     supplies: suppliesFor(P, bySlot),
