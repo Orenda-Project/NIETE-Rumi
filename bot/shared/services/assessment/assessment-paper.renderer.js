@@ -461,6 +461,9 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
   const dash = '—';
   // A topic paper's key says which skill each answer tests, and sums the paper by topic.
   const byTopic = Array.isArray(topics) && topics.length > 0;
+  // bd-6clakk.11: an English or Urdu topic paper ends with FDE's oral teacher sheet.
+  const oral = examJson && examJson._oral;
+  const Oral = oral ? require('./fde-oral-sheet') : null;
 
   const rows = [];
   let number = 1;
@@ -534,7 +537,7 @@ function renderAnswerKey({ examJson, grade, subject, schoolName, pageReference, 
 ${byTopic ? `  .topic-summary { border: 1px solid #999; padding: 6px 10px; margin-bottom: 12px; font-size: 10.5pt; }
   .ts-line { direction: ltr; unicode-bidi: isolate; text-align: left; }
   table.key td.ans .slo { font-weight: 400; font-size: 9.5pt; color: #444; direction: ltr; unicode-bidi: isolate; }
-` : ''}</style></head>
+` : ''}${oral ? Oral.ORAL_CSS : ''}</style></head>
 <body>
 ${schoolName ? `<div class="school">${esc(schoolName)}</div>` : ''}
 <div class="class-line">${heading}</div>
@@ -544,7 +547,8 @@ ${sub ? `<div class="chapter">${sub}</div>` : ''}
 ${require('./topic-key.renderer').renderTopicSummary({ questions, topics })}` : ''}
 <table class="key">
 ${rows.join('\n')}
-</table>
+</table>${oral ? `
+${Oral.oralSheet(oral, { medium: rtl ? 'ur' : 'en', text: esc })}` : ''}
 </body></html>`;
 }
 

@@ -128,6 +128,7 @@ const ORAL_DEFAULT = {
  */
 function scoringOf(t) {
   const marks = t.rubric.map((r) => r.marks);
+  if (marks.length === 1 && marks[0] === t.marks && t.n !== t.marks) return 'criteria';
   if (marks.length === 1 && t.marks % marks[0] === 0) return 'each';
   if (marks.reduce((a, b) => a + b, 0) === t.marks) return 'criteria';
   if (Math.max(...marks) === t.marks && marks.includes(0)) return 'bands';
@@ -217,4 +218,4 @@ function build({ id, grade, subjects }) {
   });
 }
 
-module.exports = { build, makeSubject, makeSection, makeSlot, legendFor, commonHeader, GRADE_WORD };
+module.exports = { build, makeSubject, makeSection, makeSlot, makeOral, legendFor, commonHeader, GRADE_WORD };
