@@ -14,12 +14,43 @@ export const PAGE_STYLE = 'mx-auto shrink-0 bg-white shadow-sm';
 /** ~16 MB of pixels per page canvas at most, however far she zooms. */
 const MAX_CANVAS_PIXELS = 4_000_000;
 
+type ViewportLike = { width: number; height: number; convertToViewportRectangle?: (r: number[]) => number[] };
+type AnnotationLike = { subtype?: string; url?: string; rect?: number[] };
+
 export type PdfPageLike = {
-  getViewport: (o: { scale: number }) => { width: number; height: number };
+  getViewport: (o: { scale: number }) => ViewportLike;
   render: (o: { canvas: HTMLCanvasElement; viewport: { width: number; height: number } }) => { promise: Promise<unknown>; cancel: () => void };
   getTextContent: () => Promise<{ items: unknown[] }>;
+  getAnnotations?: () => Promise<AnnotationLike[]>;
   cleanup?: () => void;
 };
+
+/** A web link on the page, as a box in % of the page (top-left origin). */
+type PageLink = { url: string; left: number; top: number; width: number; height: number };
+
+const pct = (n: number) => Math.round(n * 100000) / 1000;
+
+/**
+ * bd-v0toag.129: the canvas is a picture, so the PDF's own links (the v10 card's "Full details ›")
+ * did nothing when tapped. Each http(s) link becomes a box over the page; other link kinds are left out.
+ */
+export function pageLinks(annotations: AnnotationLike[], base: ViewportLike): PageLink[] {
+  const out: PageLink[] = [];
+  for (const a of annotations) {
+    if (a.subtype !== 'Link' || !a.url || !/^https?:\/\//i.test(a.url) || !a.rect || a.rect.length < 4) continue;
+    const [x1, y1, x2, y2] = base.convertToViewportRectangle
+      ? base.convertToViewportRectangle(a.rect)
+      : [a.rect[0], base.height - a.rect[1], a.rect[2], base.height - a.rect[3]];
+    out.push({
+      url: a.url,
+      left: pct(Math.min(x1, x2) / base.width),
+      top: pct(Math.min(y1, y2) / base.height),
+      width: pct(Math.abs(x2 - x1) / base.width),
+      height: pct(Math.abs(y2 - y1) / base.height),
+    });
+  }
+  return out;
+}
 export type PdfDocLike = { numPages: number; getPage: (n: number) => Promise<PdfPageLike>; destroy: () => Promise<void> | void };
 
 function isCancel(err: unknown): boolean {
@@ -39,6 +70,7 @@ export const PdfPage = ({ doc, pageNumber, width, ratio, onRatio, onFailed, mark
 }) => {
   const box = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
+  const [links, setLinks] = useState<PageLink[]>([]);
   const [near, setNear] = useState(() => pageNumber <= 2 || typeof IntersectionObserver === 'undefined');
 
   // Near the screen (within one and a half screens): draw. Far: let it go.
@@ -64,6 +96,7 @@ export const PdfPage = ({ doc, pageNumber, width, ratio, onRatio, onFailed, mark
       if (cancelled) return;
       const base = page.getViewport({ scale: 1 });
       onRatio(pageNumber, base.height / base.width);
+      page.getAnnotations?.().then((list) => { if (!cancelled) setLinks(pageLinks(list, base)); }).catch(() => { /* no links, page still shows */ });
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       let scale = (width / base.width) * dpr;
       const pixels = base.width * scale * base.height * scale;
@@ -92,6 +125,10 @@ export const PdfPage = ({ doc, pageNumber, width, ratio, onRatio, onFailed, mark
         <StepBand key={`${b.page}-${b.top}`} band={b} star={b.page !== mark.page} />
       ))}
       {mark && mark.page === pageNumber ? <StepOutline mark={mark} /> : null}
+      {links.map((l) => (
+        <a key={`${l.url}-${l.left}-${l.top}`} data-testid="lp-link" href={l.url} target="_blank" rel="noopener noreferrer"
+          aria-label={l.url} className="absolute z-10" style={{ left: `${l.left}%`, top: `${l.top}%`, width: `${l.width}%`, height: `${l.height}%` }} />
+      ))}
     </div>
   );
 };

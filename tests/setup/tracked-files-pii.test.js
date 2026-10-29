@@ -22,6 +22,11 @@ describe('the rule (executed on in-memory strings)', () => {
     expect(countPii(`local ${D('03', '21', '5554321')}, +${D('92', '321', '5554321')}`)).toBe(2);
   });
 
+  test('digits inside a hash are not a phone (bd-v0toag.129.1)', () => {
+    expect(countPii(`"sha": "9ed37289b2eb7928179ee161d483a15a138ab${D('03', '21', '5554321')}f66eb544d2864ba8"`)).toBe(0);
+    expect(countPii(`"sha": "9ed3", "phone": "${D('03', '21', '5554321')}"`)).toBe(1);
+  });
+
   test('test and fixture paths are out of scope; code, docs and the ledger are in', () => {
     for (const p of ['tests/setup/x.test.js', 'bot/tests/a.js', 'bot/x/fixtures/y.json', 'a/b.spec.ts', '.claude/qa/shared/test_ledger.py', '.claude/qa/shared/test_mock_api.js', 'portal/src/x/tests/h.tsx', 'bot/shared/database/__mocks__/m.js', 'scripts/qa/e2e-web.test.sh']) {
       expect(isTestPath(p)).toBe(true);
