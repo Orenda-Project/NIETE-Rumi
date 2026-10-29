@@ -1,0 +1,2 @@
+{"ts":"2026-10-29T09:45:18Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training,coaching,observe,portal-login,teacher-lessons,coach-portal,portal-smoke spec_sync=true","sha":"09ea237c811e","branch":"bd-jvbxb1-stryker-topics","user":""}
+{"ts":"2026-10-29T09:45:22Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-jvbxb1-stryker-topics: training spec: NOT UPDATED e2e: missing;coaching spec: NOT UPDATED e2e: missing;observe spec: NOT UPDATED e2e: missing","sha":"09ea237c811e","branch":"bd-jvbxb1-stryker-topics","user":""}
