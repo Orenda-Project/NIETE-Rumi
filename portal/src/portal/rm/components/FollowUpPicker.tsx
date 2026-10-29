@@ -167,7 +167,7 @@ export default function FollowUpPicker({ coach, home, onClose, onSent }: {
             <p className="mb-1.5 text-[12px] font-bold text-cp-green-ink">{rt("picker.preview", lang)}</p>
             {lines(lang)}
           </div>
-          <div className="rounded-[16px] bg-cp-grey-fill px-4 py-3">
+          <div className="rounded-[16px] bg-cp-navy-tint px-4 py-3">
             <p className="mb-1.5 text-[12px] font-bold text-cp-ink-2">{rt("picker.preview.other", lang)}</p>
             {lines(other)}
           </div>
