@@ -139,6 +139,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-r8-offline-prep.service.test.js` | Tests sw.js and sa-offline prepare: fresh network read with byte counts; keeps phone copy when network fails |
 | `sa-r8-offline-register.service.test.js` | Tests sa-offline checkVisit offline with the worker installed: register rejection does not break the page |
 | `sa-r8-offline-switches.service.test.js` | Tests the three offline switches in portal-child-test.routes: true or list naming the coach, else off |
+| `sa-r8-offline-update.service.test.js` | Tests sa-offline registration(): with a new worker waiting, prepare/prepVisit/checkVisit go to it; offline or none, the active one (10 s bound) |
 | `sa-r8-passage-variant.service.test.js` | Tests sa-core/sa-page recording of the rotated passage variant shown (index) versus null |
 | `sa-r8-position.service.test.js` | Tests r8_reading_position: story questions follow voiced seconds (under 0.9 s skipped_no_voice) |
 | `sa-r8-say-next-q.service.test.js` | Tests r7_say_next_q: with say-then-next and r8 comp-wait-next ON, question hints name Next (sa-r7a-content) |
