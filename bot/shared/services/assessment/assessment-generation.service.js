@@ -762,6 +762,7 @@ const { steerNote } = require('./fde-mid-steer'); // bd-5jmnfj.33.2: Grade 3–4
 const { mcqArithmetic, mcqNote } = require('./fde-mcq-arithmetic'); // bd-5jmnfj.33.2: a Maths MCQ key is its stem's arithmetic
 const { directedTasks } = require('./fde-directed-tasks'); // bd-5jmnfj.33.2: a do-as-directed item prints its task
 const { placeholderShortfall, placeholderNote } = require('./fde-placeholder-check'); // bd-5jmnfj.4.58.3
+const { punctuateShortfall, punctuateNote } = require('./fde-punctuate-check'); // bd-5jmnfj.4.58.4
 const { urduPunctFixes } = require('./fde-urdu-punct'); // bd-5jmnfj.4.58.3
 
 // Required on first use: the loader opens a database client, and the prompt
@@ -2631,6 +2632,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
     .concat(answerRepeats(firstLaid.examJson)) // an answer printed in another question (bd-5jmnfj.4.51.3)
     .concat(mcqShort)
     .concat(paragraphLength(firstLaid.examJson)) // a paragraph model answer off its asked length (bd-5jmnfj.4.58.2)
+    .concat(punctuateShortfall(firstLaid.examJson)) // a Punctuation model answer that is not the printed words (v28 G5 English Q3, bd-5jmnfj.4.58.4)
     .concat(placeholderShortfall(firstLaid.examJson)); // a stem or key left with a template hole (v27 G5 English Q2, bd-5jmnfj.4.58.3)
   const shortSlots = new Set(short.map((f) => f.slot));
   // An item carrying text the paper refuses to print (a review mark the model copied) fails the
@@ -2666,7 +2668,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
       // re-ask (a part with no marking points, a review mark, a religious maxim) takes the second reply whole.
       const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShortSet.has(f.slot));
       // On a top-up the note also names what the slot keeps, and asks for spares.
-      const note = [takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held }), giveawayNote(shortfall), mcqNote(shortfall, P), lengthNote(shortfall), placeholderNote(shortfall)]
+      const note = [takenNote(P, b.section, laid.examJson, { topUp: Boolean(topUp), shortfall, held: laid.held }), giveawayNote(shortfall), mcqNote(shortfall, P), lengthNote(shortfall), placeholderNote(shortfall), punctuateNote(shortfall)]
         .filter(Boolean).join('\n\n');
       const second = await writeOne(note
         ? { ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) }
@@ -2825,7 +2827,7 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
     throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: emptyParts, examJson, model });
   }
   // A template hole still printed after the re-ask fails the paper: no child reads "[Insert word]" (bd-5jmnfj.4.58.3).
-  const placeholders = placeholderShortfall(examJson);
+  const placeholders = placeholderShortfall(examJson).concat(punctuateShortfall(examJson));
   if (placeholders.length) {
     throw fail('PATTERN_SHORT_SLOT', 'A question slot came back short.', { shortfall: placeholders, examJson, model });
   }
@@ -2867,7 +2869,8 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   directed.notes.forEach((note) => logToFile('[assessment] directed task printed', { requestId, pattern, ...note }));
   if (key === 'urdu') { // an Urdu option or key carrying a Latin full stop or question mark (v27, bd-5jmnfj.4.58.3)
     const punct = urduPunctFixes(examJson);
-    examJson = punct.examJson;
+    const spelt = require('./fde-urdu-spelling').urduSpelling(punct.examJson); punct.notes.push(...spelt.notes); // bd-5jmnfj.4.58.4
+    examJson = spelt.examJson;
     punct.notes.forEach((note) => logToFile('[assessment] urdu punctuation fixed', note));
   }
 
