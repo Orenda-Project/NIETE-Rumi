@@ -56,7 +56,7 @@ module.exports = makeSubject({
           prompt_rule: 'One book topic (my school, my favourite fruit, our country). Answer: five model sentences. Scheme: five K points of 2 — each a correct sentence on topic.' },
         { slot: 'g2.urdu.B.Q9', label_en: 'Q9.', type: 'Dialogue', generate: 1, marks_each: 10, lines: 6,
           instruction_ur: 'دو دوستوں کے درمیان مکالمہ لکھیں۔',
-          prompt_rule: 'One everyday situation (two friends planning a game, a child and a shopkeeper). Answer: a model dialogue of five turns. Scheme: five K points of 2 — each a turn that fits the one before.' },
+          prompt_rule: 'Two friends planning something together (a game, a picnic); the stem names the plan. Answer: a model dialogue of five turns. Scheme: five K points of 2 — each a turn that fits the one before. No accept: the points mark any dialogue on this plan.' },
       ],
     },
   ],

@@ -327,7 +327,7 @@ const MATHS = {
           grain: { kind: 'one each: draw and identify angles, area, perimeter, average, missing angle', number_size: 'single or 2-digit lengths and values', steps: 2, unit_choice: true },
           families: null,
           kinds: ['draw', 'area', 'perimeter', 'average', 'missing_angle'],
-          prompt_rule: 'Five items in this order, one of each kind: draw and identify any two of three named angles (obtuse, supplementary, straight): `question` = "Draw and identify any two of the following angles.", `questions` = exactly three strings, "Obtuse angle", "Supplementary angle", "Straight angle", with no letter or number in front (the paper numbers them i, ii, iii); the area of a parallelogram or a triangle; the perimeter of a rectangle or a square; the average of five values; a missing angle stated in WORDS ("Two angles are supplementary. One of them is 115°. Find the other angle and name the pair."). Never send the child to a figure that is not printed.',
+          prompt_rule: 'Five items in this order, one of each kind: draw and identify any two of three named angles (obtuse, supplementary, straight): `question` = "Draw and identify any two of the following angles.", `questions` = exactly three strings, "Obtuse angle", "Supplementary angle", "Straight angle", with no letter or number in front (the paper numbers them i, ii, iii); the area of a parallelogram or a triangle; the perimeter of a rectangle or a square; the average of five values; a missing angle stated in WORDS ("Two angles are supplementary. One of them is 115°. Find the other angle and name the pair."). The area and perimeter items give every length with its unit (a base of 12 cm), and the answer carries the matching unit (cm², cm). Never send the child to a figure that is not printed.',
           frame: null, teacher_note_en: null, teacher_note_ur: null, alternatives: null, or: false,
         },
       ],
@@ -711,7 +711,7 @@ const ENGLISH = {
           numbering: 'none', compulsory: true, lines: 0, work_mm: null, section_pages: 'scope',
           grain: { kind: 'a nine-word bank for an everyday scene (classroom, park, market)', number_size: 'eight to ten words', steps: 1, unit_choice: false },
           families: null, kinds: ['picture_description'],
-          prompt_rule: 'One item: `question` = a one-line scene for the teacher (e.g. "children painting in an art lesson"), `words` = 8–10 words a child would use to describe that scene. The paper prints a frame and the word bank; the teacher adds any picture that fits. Never describe the picture to the child.',
+          prompt_rule: 'One item: `question` = a one-line scene for the teacher (e.g. "children painting in an art lesson"), `words` = 8–10 words a child would use to describe that scene. The paper prints a frame and the word bank; a picture of the scene prints in the frame (the teacher adds one if it cannot be drawn). Never describe the picture to the child. `describe_en` = a short English description of the scene that names the things behind the words, drawn as a plain black outline picture in the frame; it is never shown to the child.',
           frame: {
             kind: 'picture', height_mm: 70, lines: 0, book_page: null, word_bank: true,
             title_en: 'Picture (pasted or drawn by the teacher)',
@@ -946,7 +946,7 @@ const URDU = {
           numbering: 'none', compulsory: true, lines: 0, work_mm: null, section_pages: 'scope',
           grain: { kind: 'seven helper words for an everyday scene (park, zoo, market)', number_size: 'seven words', steps: 1, unit_choice: false },
           families: null, kinds: ['picture_description'],
-          prompt_rule: 'One item: `question` = a one-line scene for the teacher (e.g. «چڑیا گھر کی سیر»), `words` = seven helper words a child would use for it. The paper prints a frame and the helper words; the teacher adds any picture that fits. Never describe the picture to the child.',
+          prompt_rule: 'One item: `question` = a one-line scene for the teacher (e.g. «چڑیا گھر کی سیر»), `words` = seven helper words a child would use for it. The paper prints a frame and the helper words; a picture of the scene prints in the frame (the teacher adds one if it cannot be drawn). Never describe the picture to the child. `describe_en` = a short English description of the scene that names the things behind the words, drawn as a plain black outline picture in the frame; it is never shown to the child.',
           frame: {
             kind: 'picture', height_mm: 70, lines: 0, book_page: null, word_bank: true,
             title_en: 'Picture (pasted or drawn by the teacher)',

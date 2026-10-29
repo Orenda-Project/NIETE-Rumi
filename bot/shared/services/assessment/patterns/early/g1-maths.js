@@ -50,7 +50,13 @@ module.exports = makeSubject({
           prompt_rule: 'Five items, each one shape the book teaches (circle, square, triangle, rectangle, oval, star, heart) drawn as picture: {kind:"shapes", shapes:[{shape}]}. The item needs no stem. Answer: the name. Never the same shape twice.' },
         { slot: 'g1.maths.B.Q8', label_en: 'Q8.', type: 'Measurement', generate: 5, marks_each: 1, lines: 1,
           instruction_en: 'Look and answer.', picture: ['scene'],
-          prompt_rule: 'Five compare items from the book\'s measurement pages (longer/shorter, taller/shorter, heavier/lighter, more/less). Each carries picture: {kind:"scene", describe} naming two objects side by side, e.g. "a long pencil and a short pencil". Stem asks which is longer/heavier etc. Answer: the object.' },
+          prompt_rule: 'Five compare items from the book\'s measurement pages (longer/shorter, taller/shorter, heavier/lighter, more/less). Each carries picture: {kind:"scene", describe} naming two objects of different kinds side by side that lie straight, e.g. "a pencil and a crayon"; never two of the same thing; never ribbon, rope, string or anything that curls. Stem asks which is longer/heavier etc. Answer: the object, named as in the describe and without a size word ("the pencil", never "the long pencil").',
+          // v24: "a long ribbon and a short ribbon" keyed "the long ribbon", which only repeats the stem (bd-5jmnfj.4.55).
+          answer_ok: (q) => {
+            const a = String(q.answer || '').toLowerCase().replace(/^the\s+/, '').trim();
+            const d = String((q.picture && q.picture.describe) || '').toLowerCase();
+            return a.length > 0 && !/\b(long|short|tall|small|big|heavy|light|more|less)\b/.test(a) && d.includes(a);
+          } },
       ],
     },
   ],

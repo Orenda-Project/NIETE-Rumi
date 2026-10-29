@@ -24,7 +24,7 @@ const { checkBlueprint } = require('./blueprint-check');
 const Prompt = require('./fde-early-prompt');
 const { dealOrders } = require('./fde-order-block');
 const { noArrows } = require('./fde-no-arrows');
-const { answerRepeats, giveawayNote, stillGivenAway } = require('./fde-answer-repeats');
+const { answerRepeats, giveawayNote, stillGivenAway, writtenGiveaways } = require('./fde-answer-repeats');
 const { dealScrambles } = require('./fde-scramble-block');
 
 const SCOPE = Object.freeze({ kind: 'fde', chapters: null, pages: null });
@@ -128,6 +128,10 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     return laid;
   };
 
+  let oral = P.oral ? Prompt.oralContent(oralFirst.tree, P.oral, { saidCheck: P.medium !== 'ur' }) : null;
+  // The oral sheet is not on the layout until the end, so it is attached to a copy for the check: a written
+  // item asking an oral item's question is the written section's to fix (bd-5jmnfj.4.55).
+  const withOral = (ex) => (oral ? { ...ex, _layout: { ...ex._layout, oral: { ...P.oral, content: oral.content } } } : ex);
   const firstLaid = lay(false);
   const layoutShort = new Set(firstLaid.shortfall.map((f) => f.slot));
   const short = firstLaid.shortfall
@@ -136,13 +140,10 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     .concat(Prompt.pictureShortfall(firstLaid.examJson, P))
     .concat(Prompt.repeatedPictures(firstLaid.examJson, P))
     .concat(Prompt.answerShortfall(firstLaid.examJson, P))
-    .concat(answerRepeats(firstLaid.examJson));
+    .concat(writtenGiveaways(answerRepeats(withOral(firstLaid.examJson))));
   const shortSlots = new Set(short.map((f) => f.slot));
   const again = built.filter(({ section }) => section.slots.some((s) => shortSlots.has(s.slot)));
 
-  let oral = P.oral ? Prompt.oralContent(oralFirst.tree, P.oral) : null;
-  // The oral sheet is not on the layout until the end, so it is attached to a copy for the check.
-  const withOral = (ex) => (oral ? { ...ex, _layout: { ...ex._layout, oral: { ...P.oral, content: oral.content } } } : ex);
   const oralHits = (ex) => answerRepeats(withOral(ex)).filter((f) => f.with.includes('oral'));
   const readAloud = P.oral ? P.oral.tasks.filter((t) => t.kind === 'read_aloud').map((t) => t.id) : [];
   const reaskOral = async (hits) => {
@@ -153,7 +154,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
       words.length ? `Do not use these words in the read-aloud task: ${words.join(', ')}. They are answers on the written paper.` : null,
     ].filter(Boolean).join(' ');
     const second = await writeOral(note);
-    const next = Prompt.oralContent(second.tree, P.oral);
+    const next = Prompt.oralContent(second.tree, P.oral, { saidCheck: P.medium !== 'ur' });
     // Only the read-aloud task is swapped for a give-away; a task the first reply filled keeps it,
     // and the second reply fills the rest.
     const redo = new Set(words.length ? readAloud : []);
@@ -197,18 +198,26 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   await Promise.all([...again.filter((b) => !isRepeat(b)).map(reask), inTurn(), oral && (oral.missing.length || oralFound.length) ? reaskOral(oralFound) : null]);
 
   let laid = lay(again.length > 0);
+  // The oral re-ask is checked again: a read-aloud word still given away is asked once more (v24 G1 English «cat»).
+  const oralLeft = oralFound.length ? oralHits(laid.examJson) : [];
+  if (oralLeft.length) await reaskOral(oralLeft);
   // A re-asked reply is checked again: v20's Section C, re-asked for Q12's repeated dog and cat, came back
   // with a Q13 about a gift (bd-5jmnfj.4.40). A key still off its rule is asked once more, and only
   // those questions are swapped in, so the rest of the section stays as it was checked.
   // The same check finds a give-away still there, and that is asked again too.
   const late = again.length
-    ? Prompt.answerShortfall(laid.examJson, P).concat(stillGivenAway(laid.examJson))
+    ? Prompt.answerShortfall(laid.examJson, P).concat(writtenGiveaways(stillGivenAway(withOral(laid.examJson))))
     : [];
-  if (late.length) {
-    await Promise.all(built.filter(({ section }) => section.slots.some((s) => late.some((f) => f.slot === s.slot)))
-      .map((b) => reaskAnswers(b, late)));
+  const reaskLate = async (flags) => {
+    await Promise.all(built.filter(({ section }) => section.slots.some((s) => flags.some((f) => f.slot === s.slot)))
+      .map((b) => reaskAnswers(b, flags)));
     laid = lay(true);
-  }
+  };
+  if (late.length) await reaskLate(late);
+  // A give-away a child can see, still there after that, is asked exactly once more. A repeat never costs the
+  // teacher a paper: one still there after this ships and is logged below (bd-5jmnfj.4.55).
+  const lastly = late.length ? writtenGiveaways(stillGivenAway(withOral(laid.examJson))).filter((f) => f.printed) : [];
+  if (lastly.length) await reaskLate(lastly);
   let examJson = laid.examJson;
   const layout = { placed: laid.placed, unplaced: firstLaid.unplaced };
   d.logToFile('[assessment] layout applied', {
