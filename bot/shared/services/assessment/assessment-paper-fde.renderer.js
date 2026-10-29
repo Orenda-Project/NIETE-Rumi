@@ -501,7 +501,8 @@ function printsField(slot, key) {
   return rule.includes(`\`${key}\``) && !rule.includes(`no \`${key}\``);
 }
 
-function frameBlock(q, slot, ctx) {
+// `pic`: a drawn picture (G5 Urdu Q7, English Q10) prints inside the frame, in place of its "teacher adds" title.
+function frameBlock(q, slot, ctx, pic) {
   const lang = ctx.medium;
   const title = String(slot.frame[`title_${lang}`] || '').replace('{q}', String(q.question || '').trim());
   const lines = Array.from({ length: slot.frame.lines || 0 }, (_, i) => `<div class="label-line"><span class="num-l">${textOf(String(i + 1), ctx)}.</span></div>`).join('');
@@ -512,15 +513,22 @@ function frameBlock(q, slot, ctx) {
   const bank = wordList(own.words, ctx, true);
   return `${lead}${bank}<div class="frame" id="${esc(id)}" style="height:${slot.frame.height_mm}mm">`
     + `<a class="frame-anchor" href="#${esc(id)}"></a>`
-    + `<div class="frame-title">${textOf(title, ctx)}</div>`
+    + (pic || `<div class="frame-title">${textOf(title, ctx)}</div>`)
     + (lines ? `<div class="label-lines">${lines}</div>` : '')
     + '</div>';
 }
 
-// A model sometimes letters a sub-question itself («a) Why…», «(ب) …»); the renderer letters it.
+// A model sometimes letters or numbers a sub-question itself («a) Why…», «(ب) …», «1. Finally…»);
+// the renderer letters it. A numeral counts only when a space follows, so «3.5 kg» stays.
 function bareSub(text) {
   if (typeof text !== 'string') return text;
-  return text.replace(/^\s*\(?[a-cA-C]\)\s*/, '').replace(/^\s*\(?(الف|ب|ج)\)\s*/, '');
+  return text.replace(/^\s*\(?[a-cA-C]\)\s*/, '').replace(/^\s*\(?(الف|ب|ج)\)\s*/, '')
+    .replace(/^\s*\(?[0-9۰-۹]{1,2}[.)۔]\s+/, '');
+}
+
+// A Latin roman label (iv) in an Urdu paper is isolated LTR, or its ')' mirrors to '(iv' (v25 item 2).
+function labelHtml(num, ctx) {
+  return ctx.medium === 'ur' && typeof num === 'string' && /[A-Za-z]/.test(num) ? `<bdi class="ltr" dir="ltr">${esc(num)}</bdi>` : textOf(num, ctx);
 }
 
 function subQuestions(list, numbering, ctx, slotLike, space) {
@@ -531,7 +539,7 @@ function subQuestions(list, numbering, ctx, slotLike, space) {
     const opts = sub && Array.isArray(sub.options) && sub.options.length ? optionsBlock(sub, slotLike || {}, ctx) : '';
     // Its own writing space, sized by its own lines (bd-5jmnfj.4.51.8).
     const box = space && !opts ? `<div class="write-box" style="height:${12 + 8 * Math.max(0, ((sub && sub.lines) || 1) - 1)}mm"></div>` : '';
-    return `<div class="sub"><span class="n">${textOf(num, ctx)}</span> ${textOf(text, ctx)}${opts}</div>${box}`;
+    return `<div class="sub"><span class="n">${labelHtml(num, ctx)}</span> ${textOf(text, ctx)}${opts}</div>${box}`;
   }).join('');
 }
 
@@ -576,7 +584,7 @@ function itemBody(q, slot, i, ctx, inlineQ) {
   const pic = pictureBlock(q);
   if (pic && slotFlag(slot, 'bubble')) return bubbleBlock(pic);
   if (shape === 'mcq') return pic + optionsBlock(q, slot, ctx);
-  if (shape === 'frame') return pic + frameBlock(q, slot, ctx);
+  if (shape === 'frame') return frameBlock(q, slot, ctx, pic);
   if (shape === 'comprehension') return pic + comprehensionBlock(q, slot, ctx);
   const parts = pic ? [pic] : [];
   if (Array.isArray(q.options) && q.options.length) parts.push(optionsBlock(q, slot, ctx));
@@ -623,7 +631,7 @@ function slotBlock(slot, sec, list, ctx) {
     : '';
   if (slot.shape === 'match') {
     // Two columns for the child to join with a line; Column B never follows the stems (bd-5jmnfj.4.23).
-    const stems = live.map((q, i) => `<span class="n">${textOf(itemNumber(slot, i, lang), ctx)}</span> ${textOf(stemOf(q, slot, false), ctx)}`);
+    const stems = live.map((q, i) => `<span class="n">${labelHtml(itemNumber(slot, i, lang), ctx)}</span> ${textOf(stemOf(q, slot, false), ctx)}`);
     const column = matchOrder(live.map(matchAnswer)).map((a) => textOf(a, ctx));
     return `<div class="slot">${head}<div class="q" data-slot="${esc(slot.slot)}">${matchTable(stems, column)}</div></div>`;
   }
@@ -643,7 +651,7 @@ function slotBlock(slot, sec, list, ctx) {
     }
     const num = itemNumber(slot, i, lang);
     const stem = stemOf(q, slot, inlineQ);
-    const numHtml = num ? `<span class="n">${textOf(num, ctx)}</span>` : '';
+    const numHtml = num ? `<span class="n">${labelHtml(num, ctx)}</span>` : '';
     const leadHtml = lead ? `<div class="or-lead">${textOf(lead, ctx)}</div>` : '';
     const stemHtml = stem ? ` ${textOf(stem, ctx).replace(/☐/g, '<span class="sq"></span>')}` : '';
     body.push(`<div class="q${cont ? ' qcont' : ''}${slot.shape === 'comprehension' ? ' comp' : ''}${grid ? ' pic-cell' : ''}" data-slot="${esc(slot.slot)}">${numHtml}${leadHtml}${stemHtml}${itemBody(q, slot, i, ctx, inlineQ)}</div>`);
@@ -732,7 +740,7 @@ function css(medium, kind) {
   .q { margin: 3px 0 5px; padding-${start}: 6mm; break-inside: avoid; }
   /* A slot's last item never sits alone at the top of a page. */
   .slot > .q:last-child { break-before: avoid; }
-  .q .n { display: inline-block; min-width: 6mm; margin-${start}: -6mm; }
+  .q .n { display: inline-block; min-width: 6mm; margin-${start}: -6mm;${ur ? ' box-sizing: border-box; padding-left: 1.2mm;' : ''} }
   .q.qcont { padding-${start}: 0; }
   .q.qcont .n { margin-${start}: 0; font-weight: 700; min-width: 0; margin-${end}: 4px; }
   .opts { display: grid; gap: 1px 10px; margin: 2px 0 0; }
@@ -774,7 +782,7 @@ function css(medium, kind) {
   .part-head { display: flex; gap: 6px; align-items: baseline; font-weight: 700; }
   .part-head .ml { margin-${start}: auto; }
   .sub { margin: 2px 0 2px 0; padding-${start}: 6mm; }
-  .sub .n { display: inline-block; min-width: 6mm; margin-${start}: -6mm; }
+  .sub .n { display: inline-block; min-width: 6mm; margin-${start}: -6mm;${ur ? ' box-sizing: border-box; padding-left: 1.2mm;' : ''} }
   .pick-row { display: flex; gap: 8px; align-items: baseline; margin: 2px 0; }
   .pick-k { min-width: 22mm; font-weight: 700; }
   .blank { display: inline-block; min-width: 28mm; border-bottom: 1px dashed #000; margin: 0 4px; font-size: 7pt; color: #777; }
@@ -928,6 +936,12 @@ function filledByCode(L, examJson) {
   }).length;
 }
 
+// A supply whose item already prints a drawn picture: nothing for the teacher to add.
+function pictured(live, supply) {
+  const list = (live && live.get && live.get(supply.slot)) || [];
+  return list.some((q) => q && q.picture && q.picture.src);
+}
+
 function beforeExamBox(L, live, ctx, examJson) {
   const lang = ctx.medium;
   const B = L.before_exam;
@@ -941,7 +955,7 @@ function beforeExamBox(L, live, ctx, examJson) {
   lines[0] = fill(lines[0], { file: Cover.PAPER_NAME[lang], n: pages });
   lines[1] = fill(lines[1], { n: pages });
   // You add.
-  const frameSupply = (L.supplies || []).find((s) => s.kind !== 'naat');
+  const frameSupply = (L.supplies || []).find((s) => s.kind !== 'naat' && !pictured(live, s));
   if (frameSupply) {
     const slot = L.sections.flatMap((s) => s.slots).find((s) => s.slot === frameSupply.slot);
     const p = L.frame_pages && L.frame_pages[frameSupply.slot];
@@ -955,6 +969,8 @@ function beforeExamBox(L, live, ctx, examJson) {
   } else {
     lines[2] = null; // Nothing to add: no line (bd-5jmnfj.4.50.5).
   }
+  // The teacher adds the picture BEFORE photocopying, so that step comes first (v24 review).
+  if (lines[2] !== null) [lines[1], lines[2]] = [lines[2], lines[1]];
   // Tell the class: the parts by the names the paper prints.
   const onPaper = L.sections.filter((s) => s.answer_on === 'question_paper');
   const onSheet = L.sections.filter((s) => s.answer_on !== 'question_paper');
@@ -1016,15 +1032,16 @@ function legendBox(L, ctx, kinds) {
   return `<div class="box legend"><div class="bt">${textOf(G[`title_${lang}`], ctx)}</div><ul>${lines.join('')}</ul></div>`;
 }
 
-function suppliesBox(L, ctx) {
+function suppliesBox(L, ctx, live) {
   const lang = ctx.medium;
-  if (!Array.isArray(L.supplies) || !L.supplies.length) return '';
+  const supplies = (Array.isArray(L.supplies) ? L.supplies : []).filter((s) => !pictured(live, s));
+  if (!supplies.length) return '';
   const title = lang === 'ur' ? 'استاد مہیا کریں' : 'Teacher supplies'; // ur: needs fluent-Urdu review
   const lineOf = (s) => {
     const source = !s.book_page && BOOK_SOURCE[s.kind];
     return source ? `${s[`line_${lang}`]} (${source[lang]})` : s[`line_${lang}`];
   };
-  return `<div class="box supplies"><div class="bt">${textOf(title, ctx)}</div><ul>${L.supplies.map((s) => `<li>${textOf(lineOf(s), ctx)}</li>`).join('')}</ul></div>`;
+  return `<div class="box supplies"><div class="bt">${textOf(title, ctx)}</div><ul>${supplies.map((s) => `<li>${textOf(lineOf(s), ctx)}</li>`).join('')}</ul></div>`;
 }
 
 /*
@@ -1261,7 +1278,7 @@ function renderMarkingScheme({ examJson, grade, subject, allowShort = false }) {
 <div class="covers">${textOf(coversScope, ctx)}</div>
 ${beforeExamBox(L, live, ctx, examJson)}
 ${legendBox(L, ctx, kinds)}
-${suppliesBox(L, ctx)}`;
+${suppliesBox(L, ctx, live)}`;
 
   const notes = notesBlock(L, all, ctx);
   const record = recordPage(L, live, ctx);

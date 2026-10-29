@@ -58,17 +58,26 @@ const MEETING = new Set(['good morning', 'hello', 'hi', 'salam', 'assalam-o-alai
 const GREETING_ALTERNATIVES = ['Hello', 'Hi', 'Assalam-o-Alaikum', 'Salam'];
 const ACCEPT_CAP = 6;
 const bare = (a) => String(a).trim().toLowerCase().replace(/[.!\s]+$/u, '');
+// v24 G5 Maths Q2 ii: "... is not accepted unless ..." is a refusal, not a full-mark answer (bd-5jmnfj.4.55).
+const REFUSAL = /\bnot accept(?:ed)?\b|\bunless\b/i;
+// v24 G2 Urdu Q9: an open composition is marked by its K points; an accept entry only sets another task
+// (a shopping dialogue beside a park-game stem), so it goes (bd-5jmnfj.4.55).
+const COMPOSITION = /\bmodel (?:dialogue|paragraph)\b|\bfive model sentences\b/i;
 
 /**
  * `accept` made consistent with its question: case-insensitive duplicates (a trailing stop ignored) go,
  * first spelling kept; an -ing question (the slot's rule asks for "the -ing word") keeps only -ing
- * entries; a meeting greeting key also accepts the usual greetings. A key never loses itself.
+ * entries; a meeting greeting key also accepts the usual greetings; on a board-pattern slot an entry
+ * that refuses ("not accepted unless ...") goes; an open composition slot (a model dialogue, paragraph or
+ * five model sentences) accepts nothing. A key never loses itself.
  */
 function tidyAccepts(accept, holder, slot) {
   if (!Array.isArray(accept)) return accept;
   const answer = bare(holder && holder.answer !== undefined && holder.answer !== null ? holder.answer : '');
   const rule = slot && typeof slot.prompt_rule === 'string' ? slot.prompt_rule : '';
+  if (COMPOSITION.test(rule)) return [];
   let list = accept;
+  if (slot) list = list.filter((a) => bare(a) === answer || !REFUSAL.test(String(a)));
   if (/-ing word/i.test(rule) && /ing$/.test(answer) && !answer.includes(' ')) {
     list = list.filter((a) => bare(a) === answer || /ing$/.test(bare(a)));
   }

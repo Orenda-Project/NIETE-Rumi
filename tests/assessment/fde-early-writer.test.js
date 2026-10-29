@@ -20,6 +20,7 @@ const GOOD = {
   'g2.english.B.Q10': (i) => ({ question: `Thing ${i + 1} is ____ the box.`, answer: ['in', 'on', 'under', 'near', 'behind'][i] }),
   'g2.english.C.Q14': (i) => ({ question: `Is it hot ${i + 1}`, answer: `Is it hot ${i + 1}?` }),
   'g1.general_knowledge.B.Q10': (i) => ({ answer: i % 2 ? 'پانی' : 'خشکی' }),
+  'g1.maths.B.Q8': (i) => ({ question: `Which one is longer ${i + 1}?`, answer: ['the girl', 'the children', 'the park', 'girl', 'children'][i] }),
 };
 
 // Every object picture is a different thing unless a reply names it (`names`: slot -> names by item).

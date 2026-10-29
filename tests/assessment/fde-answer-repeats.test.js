@@ -165,10 +165,12 @@ test('the early writer re-asks the later section, naming the word, and logs one 
   const out = await writeEarlyPaper({ grade: 1, subject: 'urdu', pattern: 'fde_g1_2026', P }, d);
   expect(calls.filter((c) => c.id === 'A')).toHaveLength(1);
   const b = calls.filter((c) => c.id === 'B');
-  // First write, the re-ask, and the one more re-ask for what the re-check still finds (bd-5jmnfj.4.51.3).
-  expect(b).toHaveLength(3);
+  // First write, the re-ask, the one more re-ask for what the re-check still finds (bd-5jmnfj.4.51.3), and
+  // one last re-ask because «بلی» is still printed in Q1's stem (bd-5jmnfj.4.55); then the paper is logged.
+  expect(b).toHaveLength(4);
   expect(b[1].user).toMatch(/already appear elsewhere on this paper: بلی/);
   expect(b[2].user).toMatch(/already appear elsewhere on this paper: بلی/);
+  expect(b[3].user).toMatch(/already appear elsewhere on this paper: بلی/);
   expect(out.examJson).toBeDefined();
   expect(d.logToFile).toHaveBeenCalledWith('[assessment] answers given away', expect.objectContaining({
     giveaways: [expect.objectContaining({ slot: 'g1.urdu.B.Q7', reason: 'giveaway', words: ['بلی'] })],
