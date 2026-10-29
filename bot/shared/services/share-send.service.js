@@ -298,7 +298,7 @@ async function attemptShare({ userId, kind, id }, d, seen) {
     try { logEvent(ok ? 'share_send.sent' : 'share_send.refused', { kind, userId, itemRef: item.itemRef || null, template: name, lang, code: report.code || null }); } catch (_) { /* logging never decides */ }
     if (ok) return { status: 'sent', at: d.now().toISOString() };
     if (TEMPLATE_GONE.includes(Number(report.code))) return { status: 'unavailable', reason: 'template_missing' };
-    return { status: 'failed', reason: 'refused' };
+    return { status: 'failed', reason: 'refused', code: report.code ?? null, message: report.message ?? null }; // bd-v0toag.127
   } catch (err) {
     logToFile('❌ share send failed', { kind, userId, error: err && err.message }, 'error');
     return { status: 'failed', reason: 'error' };
