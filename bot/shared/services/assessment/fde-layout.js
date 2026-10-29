@@ -1247,6 +1247,10 @@ function keyInPoints(others) {
     }));
   };
 }
+// Science Q1(b) prints its `question` as the frame title «Diagram: …»: it must be the diagram's
+// name («Layers of the Earth»), never an instruction («Label any five parts…») (v24 review).
+const DIAGRAM_SLOT = 'science.A.Q1b';
+const notDiagramName = (q) => /^\s*(label|draw|name)\b/i.test(String((q && q.question) || ''));
 // The point-set rows, laid in this order: a Q6 against the Q5s, a Q6 against the Q6s placed before
 // it (one online disagreement told twice with the same four points), then a Q7 against the Q5s and
 // the Q6s now placed. The held slot's item is held, never the other one.
@@ -2217,6 +2221,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
       && (w.inSlot ? (samePoints(bySlot.get(slot.slot)) || (() => false))(q) : w.rule(q)));
     const fits = (slot, q) => {
       if (!settleVerses(slot, q) || !printable(slot, q)) return no(slot, 'unprintable');
+      if (slot.slot === DIAGRAM_SLOT && notDiagramName(q)) return no(slot, 'diagram_not_named');
       if (P.key === 'social_studies' && tierSlip(q)) return false;
       if (P.key === 'urdu' && DATE_KEY_SLOTS.has(slot.slot) && keyedOnDate(q)) return no(slot, 'date_key');
       if (P.key === 'urdu' && slot.slot === 'urdu.C.Q4' && bySlot.get(slot.slot).some((p) => sameQ4Kind(p, q))) return no(slot, 'q4_kind_repeat');

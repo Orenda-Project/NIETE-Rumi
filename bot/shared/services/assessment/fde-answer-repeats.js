@@ -15,12 +15,19 @@
  * (answer text only for words of four letters or more); the words that tell a multiple-choice key from its
  * wrong options («salt» in "a jar with salt water"); the target words of a word-list question ("X: parts"
  * answer lines, or the list after a colon in the stem); and a crude stem (viruses/virus, salty/salt).
+ *
+ * v25 (bd-5jmnfj.4.55): an Urdu key of two letters («سچ»); a one-word topic choice (`topics`); with the oral
+ * tasks known, only a read-aloud word (a listening or speaking ask is heard, not read); a written item asking
+ * an oral item's question, keyed with its answer ('oral-question'); the same labelled diagram twice; and a
+ * "name the three" key whose parts another stem prints. Each flag says whether its word is `printed` (a child
+ * sees it on the paper) or found only in answer text.
  */
 
 const WORD = /[\p{L}\p{M}]+/gu;
 // A grammar item keys these (are, she, under, اور); every other stem prints them, so they give nothing away.
 const FUNCTION_WORDS = new Set(('are was were has have had she they you his her him them our their this that these those '
-  + 'the and but with from for into over under near behind above below اور ہیں تھا تھی تھے').split(' '));
+  + 'the and but with from for into over under near behind above below اور ہیں تھا تھی تھے کا کی کے نے کو سے ہے پر یہ وہ تو').split(' '));
+const ARABIC = /[\u0600-\u06FF]/; // an Urdu key of two letters («سچ») is a word; an English one ("is") is not
 const wordsOf = (s) => String(s == null ? '' : s).normalize('NFC').toLowerCase().match(WORD) || [];
 const optionsOf = (q) => (Array.isArray(q.options) ? q.options : []);
 // "الف) گاجر" -> "گاجر", as fde-early-prompt reads a choice.
@@ -44,7 +51,7 @@ const subs = (q) => (Array.isArray(q.questions) ? q.questions.filter(Boolean) : 
 function answerWord(q) {
   if (/\d/.test(String(q.answer == null ? '' : q.answer))) return null; // "6 + 5 = 11 pencils": the unit is not the key
   const w = wordsOf(choice(q.answer == null ? '' : q.answer));
-  return w.length === 1 && [...w[0]].length >= 3 && !FUNCTION_WORDS.has(w[0]) ? w[0] : null;
+  return w.length === 1 && [...w[0]].length >= (ARABIC.test(w[0]) ? 2 : 3) && !FUNCTION_WORDS.has(w[0]) ? w[0] : null;
 }
 
 const choiceSet = (q) => optionsOf(q).map((o) => wordsOf(choice(o)).join(' ')).sort().join('|');
@@ -61,13 +68,27 @@ function distinctive(q) {
 }
 
 // The words a word-list question asks about: the list after the colon in the stem
-// ("write in parts: A, B"). Answer-line leads are not read: they are speaker names and field labels.
+// ("write in parts: A, B"), and a one-word topic choice («Recycling»). Answer-line leads are not read:
+// they are speaker names and field labels.
+const topicsOf = (q) => (Array.isArray(q.topics) ? q.topics : []);
 function targets(q) {
   const out = new Set();
   const m = /[:：]([^:：]*)$/.exec(String(q.question == null ? '' : q.question));
   if (m) m[1].split(/[،,]/).forEach((p) => { const w = wordsOf(p); if (w.length === 1) out.add(w[0]); });
+  topicsOf(q).forEach((t) => { const w = wordsOf(t); if (w.length === 1) out.add(w[0]); });
   return [...out].filter(longWord);
 }
+
+// What a "label" stem asks to draw: its long words after the last "the" (Label the parts of the human
+// respiratory system -> human, respiratory, system). Empty for any other stem.
+function diagramOf(q) {
+  const t = String(q.question == null ? '' : q.question);
+  if (!/\blabel\b/i.test(t)) return [];
+  const at = t.toLowerCase().lastIndexOf('the ');
+  return [...new Set(wordsOf(at < 0 ? t : t.slice(at + 4)).filter(longWord))];
+}
+const NAME_N = /\bname (?:the |any )?(two|three|four|five)\b/i;
+const NUM = { two: 2, three: 3, four: 4, five: 5 };
 
 function itemsInOrder(examJson) {
   const order = new Map();
@@ -84,7 +105,15 @@ function itemsInOrder(examJson) {
 
 const excerpt = (q) => String(q.question || '').replace(/\s+/g, ' ').trim().slice(0, 70);
 
-/** `{slot, reason:'giveaway', words, with, text}` for each question whose answer word another question gives away. */
+// The oral sheet's asks that put words in front of a child: with the task kinds known, only the read-aloud
+// ones (a listening or speaking ask is heard, not read); with none on the sheet, every ask, as before v25.
+function oralAsks(oralLayout) {
+  const tasks = Array.isArray(oralLayout.tasks) && oralLayout.tasks.length ? oralLayout.tasks : null;
+  const kind = (id) => { const t = tasks && tasks.find((x) => x.id === id); return t ? t.kind : null; };
+  return (oralLayout.content || []).map((c) => ({ c, readAloud: !tasks || kind(c.id) === 'read_aloud', heard: Boolean(tasks) && kind(c.id) !== 'read_aloud' }));
+}
+
+/** `{slot, reason:'giveaway', words, with, text, printed}` for each question whose answer word another question gives away. */
 function answerRepeats(examJson) {
   if (!examJson) return [];
   const list = itemsInOrder(examJson);
@@ -94,7 +123,7 @@ function answerRepeats(examJson) {
     const st = new Set([...raw].map((w) => stem(w)));
     return { has: (w, loose) => (loose ? st.has(stem(w)) : raw.has(w)) };
   };
-  const printed = list.map((q) => bag([q.question, ...optionsOf(q), q.picture && q.picture.name, ...subs(q).map((s) => s.question)]));
+  const printed = list.map((q) => bag([q.question, ...optionsOf(q), q.picture && q.picture.name, ...topicsOf(q), ...subs(q).map((s) => s.question)]));
   // Answer text is checked by word of four letters or more: a key of three letters is no give-away there.
   const answered = list.map((q) => bag([q.answer, ...subs(q).map((s) => s.answer)].flatMap(wordsOf).filter(longWord)));
   const banks = list.map((q) => bag(Array.isArray(q.words) ? q.words : []));
@@ -102,35 +131,67 @@ function answerRepeats(examJson) {
   const kws = list.map((q, i) => (keys[i] ? [{ w: keys[i], strict: false }]
     : distinctive(q).map((w) => ({ w, strict: true, printedOnly: true })).concat(targets(q).map((w) => ({ w, strict: true })))));
   // The oral sheet's words and questions, not its story: a story read aloud uses everyday words.
-  const oral = ((examJson._layout && examJson._layout.oral && examJson._layout.oral.content) || [])
-    .flatMap((t) => (t.items || []).map((it) => it && it.ask));
-  const oralWords = bag(oral);
+  const sheet = oralAsks((examJson._layout && examJson._layout.oral) || {});
+  const oralWords = bag(sheet.filter((x) => x.readAloud).flatMap((x) => (x.c.items || []).map((it) => it && it.ask)));
   const out = new Map();
-  const flag = (slot, word, other, text) => {
+  const flag = (slot, word, other, text, seen = true) => {
     const r = out.get(slot) || { slot, reason: 'giveaway', words: [], with: [], text: [] };
     if (!r.words.includes(word)) r.words.push(word);
     if (!r.with.includes(other)) { r.with.push(other); r.text.push(text); }
+    if (seen) r.printed = true; // absent, not false, when no child sees it: flags read as before v25
     out.set(slot, r);
   };
   list.forEach((q, i) => kws[i].forEach(({ w, strict, printedOnly }) => {
     const loose = !q.picture;
     if (!strict && keys.filter((k, j) => k === w && list[j].slot === q.slot).length > 1) return;
-    if (!strict && oralWords.has(w, loose)) flag(q.slot, w, 'oral', 'the oral sheet');
+    if (!strict && oralWords.has(w, loose)) flag(q.slot, w, 'oral', 'the oral sheet', false); // the oral re-ask's, not printed on the paper
     list.forEach((o, j) => {
       if (j === i || (optionsOf(q).length && choiceSet(q) === choiceSet(o))) return;
       const other = o.slot !== q.slot;
-      const hit = (printedOnly ? printed[j].has(w, loose) && answered[j].has(w, true) : printed[j].has(w, loose)) || (!printedOnly && ((other && banks[j].has(w, loose))
-        || (loose && w.length > 3 && answered[j].has(w, true))
+      const seen = (printedOnly ? printed[j].has(w, loose) && answered[j].has(w, true) : printed[j].has(w, loose)) || (!printedOnly && ((other && banks[j].has(w, loose))
         || (keys[j] && (loose ? stem(keys[j]) === stem(w) : keys[j] === w)) || (other && kws[j].some((k) => (loose ? stem(k.w) === stem(w) : k.w === w)))));
+      const hit = seen || (!printedOnly && loose && w.length > 3 && answered[j].has(w, true));
       if (!hit || (strict && !other)) return;
-      if (j > i) flag(o.slot, w, q.slot, excerpt(q)); else flag(q.slot, w, o.slot, excerpt(o));
+      if (j > i) flag(o.slot, w, q.slot, excerpt(q), seen); else flag(q.slot, w, o.slot, excerpt(o), seen);
     });
   }));
+  // A written item asking a heard oral item's question, keyed with that item's answer, is the same question twice.
+  sheet.filter((x) => x.heard).forEach(({ c }) => (c.items || []).forEach((it) => {
+    const ask = wordsOf(it && it.ask).filter((w) => [...w].length >= 3 && !FUNCTION_WORDS.has(w));
+    const said = new Set(wordsOf(it && it.answer));
+    if (ask.length < 2) return;
+    list.forEach((q, i) => {
+      const stemWords = new Set(wordsOf(q.question));
+      if (keys[i] && said.has(keys[i]) && ask.every((w) => stemWords.has(w))) flag(q.slot, keys[i], 'oral-question', excerpt({ question: it.ask }), false);
+    });
+  }));
+  // The same labelled diagram twice, and a "name the three" key whose parts another stem prints: the later item.
+  const later = (i, j, words) => (j > i ? flag(list[j].slot, words, list[i].slot, excerpt(list[i])) : flag(list[i].slot, words, list[j].slot, excerpt(list[j])));
+  const diagrams = list.map(diagramOf);
+  // Stems only: a wrong choice naming a part ("bones, nerves, muscles, lungs") does not answer the list.
+  const stems = list.map((q) => bag([q.question, ...subs(q).map((s) => s.question)]));
+  list.forEach((q, i) => {
+    const n = NAME_N.exec(String(q.question == null ? '' : q.question));
+    const own = new Set(wordsOf(q.question));
+    const parts = n ? [...new Set(wordsOf(q.answer).filter((w) => longWord(w) && !own.has(w)))] : [];
+    list.forEach((o, j) => {
+      if (j === i || o.slot === q.slot) return;
+      const d = diagrams[i];
+      if (j > i && d.length && diagrams[j].length && (d.every((w) => diagrams[j].includes(w)) || diagrams[j].every((w) => d.includes(w)))) {
+        (d.length <= diagrams[j].length ? d : diagrams[j]).forEach((w) => later(i, j, w));
+      }
+      const shown = parts.filter((w) => stems[j].has(w, true));
+      if (n && shown.length >= NUM[n[1].toLowerCase()]) shown.forEach((w) => later(i, j, w));
+    });
+  });
   return [...out.values()];
 }
 
 /** The flagged slots still giving an answer away once a section has been asked again. */
 const stillGivenAway = (examJson) => answerRepeats(examJson);
+
+/** The flags a written section's re-ask can fix: an oral-sheet give-away alone is the oral re-ask's. */
+const writtenGiveaways = (flags) => flags.filter((f) => f.with.some((w) => w !== 'oral'));
 
 /** A re-ask's note naming the answer words this section's flagged questions give away; null if none. */
 function giveawayNote(shortfall) {
@@ -143,4 +204,4 @@ function giveawayNote(shortfall) {
     + 'Rewrite the items so that no answer word is printed in any other question, choice or word box, or is the answer to another item.';
 }
 
-module.exports = { answerRepeats, answerWord, giveawayNote, stillGivenAway };
+module.exports = { answerRepeats, answerWord, giveawayNote, stillGivenAway, writtenGiveaways };

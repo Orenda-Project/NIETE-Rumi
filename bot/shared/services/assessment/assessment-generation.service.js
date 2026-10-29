@@ -909,6 +909,7 @@ const RULE = {
   r1English: '"identify the part of speech by rule" is Understand; "transform a sentence" is Apply',
   recall: 'include 3–5 straight recall MCQs',
   noPictures: 'The paper carries no pictures. A slot marked frame prints an empty frame: write the instruction and the labels/word bank only; never \'look at the picture\'.',
+  framePictures: 'A picture-description frame gets a drawn picture: give `describe_en`, one short English line naming the scene and the things behind the helper words, drawn as a plain black outline; it is never shown to the child. Every other frame prints empty: write the instruction and the labels/word bank only; never \'look at the picture\'.',
   marks: 'Marks: use EXACTLY the marks given per slot.',
   blooms: 'blooms is one of Remember, Understand, Apply.',
   scheme: 'For every WRITTEN item add scheme: { points: [{text, marks, kind: M|A|U|K|L}] summing EXACTLY to the item\'s marks, accept: [EVERY method the textbook teaches for this item], common_error }. Name a method point generically (e.g. \'a correct method for the common denominator\'), never one route. Give a U point only where the child chooses the unit (cm², m); otherwise fold the unit into the A point. Words / expanded-form items carry A points only. Points mark only what the question asks, never a part it does not ask. accept lists only answers that earn full marks; the form common_error describes is never in accept. MCQs carry no scheme.',
@@ -954,11 +955,15 @@ const RULE = {
   urduGrammarUsedUpFull: 'Grammar is used up: the grammar concepts this paper\'s Q1 asks, an antonym and a synonym included, are each asked once already. Write every new Q1 item as vocabulary, word-meaning or comprehension from lessons 4–10; never another antonym, synonym or other grammar item.',
   religious: 'Never set an item that quotes, explains or evaluates a religious text (Qur\'an, hadith, the Farewell Sermon, du\'a, Naat, Hamd); set it from another part of the scope.',
   noUnderline: 'Never refer to an underlined, bold or italic word; name the word in the stem instead.',
-  scienceQ3: 'Q3(a): of the ten short questions, three Remember (state, name, define with the book\'s wording), four Understand (explain, compare, give an example) and three Apply, written as reasoning items (\'Why…\', \'What would happen if…\', \'Is … natural or artificial? Give a reason\'). Q3(b): of the five long questions, three Remember and two Apply (use the idea in a new situation from the book); none Understand.',
+  scienceQ3: 'Q3(a): of the ten short questions, three Remember (state, name, define with the book\'s wording), four Understand (explain, compare, give an example) and three Apply, written as reasoning items (\'Why…\', \'What would happen if…\', \'Is … natural or artificial? Give a reason\'). Q3(b): of the five long questions, three Remember and two Apply (use the idea in a new situation from the book); none Understand. '
+    // bd-5jmnfj.4.55: v24 Q3(b) 1 named the three parts Q3(a) 1 asked the child to name.
+    + 'A Q3(b) long question never names the parts, examples or facts that a Q3(a) short question asks the child to name or list; ask the long question about how or why instead.',
   unequalOptions: 'MCQ options are pairwise unequal in value (no two options that simplify to the same number, no 2/5 and 6/15) and written in simplest form.',
   // bd-5jmnfj.4.50.8: v22 G1 Urdu keyed «بلی» in Q3 and Q7 and printed it in Q1's stem.
   noRepeats: 'No item repeats another item\'s content, numbers or answer on this paper, in any section. '
-    + 'An answer word appears nowhere else on the paper: never in another item\'s stem, choices or word box, and never as another item\'s answer.',
+    + 'An answer word appears nowhere else on the paper: never in another item\'s stem, choices or word box, and never as another item\'s answer. '
+    // bd-5jmnfj.4.55: v24 G5 English's Q6 mind map was «Recycling» and so was a Q8 topic choice.
+    + 'A writing question\'s topic (mind map, paragraph, story, letter) is never the topic or a topic choice of another writing question.',
   // Social Studies: a paraphrase of a fact is not a repeated stem, so noRepeats lets Q5 and Q7 re-ask it.
   // The sections are written in parallel, so the rule names the slots, not their items.
   sstNoReask: 'Q5 and Q7 never ask a fact that a Section A item (stem or key) or a Q6 item on this paper already tests.',
@@ -1343,7 +1348,9 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     if (key === 'maths' || key === 'science') rules.push(RULE.unequalOptions);
     if (key === 'maths') rules.push(RULE.propertyOneKey);
   }
-  rules.push(RULE.noPictures, RULE.marks, RULE.blooms, RULE.scheme, RULE.accept);
+  // A section with a picture-description frame (G5 Urdu Q7, English Q10) gets a drawn scene (v24 review).
+  const framePicture = list.some((s) => s.frame && s.frame.kind === 'picture');
+  rules.push(framePicture ? RULE.framePictures : RULE.noPictures, RULE.marks, RULE.blooms, RULE.scheme, RULE.accept);
   if (fde && key === 'maths' && list.some((s) => (Array.isArray(s.families) && s.families.length) || (Array.isArray(s.kinds) && s.kinds.length))) {
     rules.push(RULE.families);
   }
@@ -2687,19 +2694,26 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
     // Only when the first check found one: a paper with none is not laid out again for this.
     const lateLaid = short.some((f) => f.reason === 'giveaway') ? applyLayout(merged(), P, layoutScope, layOpts(true)) : null;
     const late = lateLaid ? stillGivenAway(lateLaid.examJson) : [];
-    const lateBuilt = built.filter(({ section }) => section.slots.some((s) => late.some((f) => f.slot === s.slot)));
-    for (const b of lateBuilt) {
-      await reask(b, lateLaid, late, new Set());
-    }
-    // That reply is taken whole, after the Section A top-up above, so a section it left short is
-    // topped up once for exactly what it misses (v24 G5 Urdu, bd-5jmnfj.4.54).
-    const afterLate = lateBuilt.length ? applyLayout(merged(), P, layoutScope, layOpts(true)) : null;
-    for (const b of lateBuilt) {
-      const mine = afterLate.shortfall.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
-      if (!mine.length) continue;
-      logToFile('[assessment] section topped up after give-away', { requestId, pattern, section: b.section.id, shortfall: mine });
-      await reask(b, afterLate, mine, new Set(mine.map((f) => f.slot)));
-    }
+    const reaskGiveaways = async (flags, flagsLaid) => {
+      const lateBuilt = built.filter(({ section }) => section.slots.some((s) => flags.some((f) => f.slot === s.slot)));
+      for (const b of lateBuilt) {
+        await reask(b, flagsLaid, flags, new Set());
+      }
+      // That reply is taken whole, after the Section A top-up above, so a section it left short is
+      // topped up once for exactly what it misses (v24 G5 Urdu, bd-5jmnfj.4.54).
+      const afterLate = lateBuilt.length ? applyLayout(merged(), P, layoutScope, layOpts(true)) : null;
+      for (const b of lateBuilt) {
+        const mine = afterLate.shortfall.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
+        if (!mine.length) continue;
+        logToFile('[assessment] section topped up after give-away', { requestId, pattern, section: b.section.id, shortfall: mine });
+        await reask(b, afterLate, mine, new Set(mine.map((f) => f.slot)));
+      }
+      return afterLate;
+    };
+    // A give-away a child can see, still there after that, is asked exactly once more. A repeat never costs the
+    // teacher a paper: one still there after this ships and is logged below (bd-5jmnfj.4.55).
+    const lastLaid = late.length ? await reaskGiveaways(late, lateLaid) : null;
+    if (lastLaid) await reaskGiveaways(stillGivenAway(lastLaid.examJson).filter((f) => f.printed), lastLaid);
     const still = _reviewTextHits(results);
     if (still.size) {
       throw fail('REVIEW_TEXT', 'A question carries text that must never print.', { sections: [...still.keys()], examJson: merged(), model });
@@ -2781,6 +2795,9 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   if (stemCheck && StemCheck.STEM_CHECK_SUBJECTS.includes(key)) {
     examJson = await _stemCheck({ examJson, P, model, ownModel, job, usages: extraUsages, requestId, pattern });
   }
+  // An answer word still given away after the re-asks is logged, not failed: the teacher still gets a paper (bd-5jmnfj.4.55).
+  const giveaways = answerRepeats(examJson);
+  if (giveaways.length) logToFile('[assessment] answers given away', { requestId, pattern, giveaways });
 
   const scheme = normaliseScheme(examJson);
   examJson = noArrows(scheme.examJson); // bd-5jmnfj.4.50.1: no arrow in any text a child or teacher reads
@@ -2805,6 +2822,14 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
   const blueprint = checkBlueprint(examJson, { tos: P.tos || TOS[key] || null, sectionLevels });
   examJson._layout.blueprint = blueprint;
   logToFile('[assessment] blueprint checked', { pattern, subject: key, ok: blueprint.ok, total: blueprint.total, levels: blueprint.levels, problems: blueprint.problems });
+
+  // G5 Urdu Q7 / English Q10: a drawn scene in the frame from the item's `describe_en` (v24 review).
+  // A failed drawing never fails the paper: the item keeps today's empty frame.
+  try {
+    await require('./fde-pictures').resolveFramePictures(examJson);
+  } catch (err) {
+    logToFile('[assessment] frame pictures skipped', { requestId, pattern, error: err.message });
+  }
 
   // The warm call is billed like any other, so it is in the paper's totals.
   const all = _sumUsage(warmUsages.concat(extraUsages, results.flatMap((r) => r.usages)));

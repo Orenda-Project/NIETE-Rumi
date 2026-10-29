@@ -42,11 +42,13 @@ const canon = (text) => String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, 
 
 /**
  * Where an image-model picture is cached. A scene's key also hashes its whole description, and its
- * position word when it has one: a scene drawn before bd-5jmnfj.4.50.3 was told no position.
+ * position word when it has one: a scene drawn before bd-5jmnfj.4.50.3 was told no position, and one
+ * drawn before bd-5jmnfj.4.55 was told no action or compare hint.
  */
 function cacheKey(picture) {
   if (picture.kind === 'scene') {
-    const told = canon(picture.describe) + (picture.place ? `|${picture.place}` : '');
+    const told = canon(picture.describe) + (picture.place ? `|${picture.place}` : '')
+      + (picture.show ? `|${JSON.stringify(picture.show)}` : '');
     const hash = crypto.createHash('sha256').update(told).digest('hex').slice(0, 8);
     return `${PREFIX}/scene-no-text/${slug(picture.describe)}-${hash}.jpg`;
   }
@@ -170,6 +172,8 @@ async function resolvePictures(examJson, deps = null) {
     try {
       const place = Kie.placeOf(q); // a position item's picture is told its answer (bd-5jmnfj.4.50.3)
       if (place) q.picture.place = place;
+      const show = Kie.showOf(q); // an action or compare picture is told what the key needs (bd-5jmnfj.4.55)
+      if (show) q.picture.show = show;
       const svg = Svg.svgFor(q.picture);
       if (svg) { q.picture.src = Svg.dataUri(svg); return; }
       if (!MODEL_KINDS.includes(q.picture.kind)) throw new Error(`unknown picture kind ${q.picture.kind}`);
@@ -187,4 +191,45 @@ async function resolvePictures(examJson, deps = null) {
   return examJson;
 }
 
-module.exports = { resolvePictures, cacheKey, framed, PREFIX };
+// The slots of a laid-out paper whose frame is a picture to describe (G5 Urdu Q7, English Q10).
+function pictureFrameSlots(examJson) {
+  const L = examJson && examJson._layout;
+  const slots = ((L && L.sections) || []).flatMap((s) => s.slots || []);
+  return new Set(slots.filter((s) => s.frame && s.frame.kind === 'picture').map((s) => s.slot));
+}
+
+/**
+ * A G5 picture-description frame (v24 review) gets a plain black-outline scene drawn from the
+ * item's English `describe_en`. Unlike a Grade 1-2 picture this never fails the paper: an item
+ * whose drawing fails keeps no picture, so it prints today's empty frame and the "You add" line.
+ */
+async function resolveFramePictures(examJson, deps = null) {
+  const wanted = pictureFrameSlots(examJson);
+  const items = [];
+  for (const types of Object.values((examJson && examJson.unseen) || {})) {
+    for (const list of Object.values(types || {})) {
+      if (!Array.isArray(list)) continue;
+      list.forEach((q) => {
+        if (q && wanted.has(q.slot) && typeof q.describe_en === 'string' && q.describe_en.trim()) items.push(q);
+      });
+    }
+  }
+  if (!items.length) return examJson;
+  const d = deps || realDeps();
+  await Promise.all(items.map(async (q) => {
+    const picture = { kind: 'scene', describe: q.describe_en.trim() };
+    try {
+      const buf = await modelPicture(picture, d);
+      q.picture = { ...picture, src: `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}` };
+      // The pattern's "paste or draw a picture" note no longer holds once a picture is drawn.
+      delete q.teacher_note_en;
+      delete q.teacher_note_ur;
+    } catch (err) {
+      delete q.picture;
+      if (d.log) d.log('[assessment] frame picture failed', { slot: q.slot || null, describe: picture.describe, cause: err.message });
+    }
+  }));
+  return examJson;
+}
+
+module.exports = { resolvePictures, resolveFramePictures, cacheKey, framed, PREFIX };

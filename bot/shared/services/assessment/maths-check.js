@@ -16,6 +16,8 @@
  * Pure: no I/O, no logging, never throws, and the paper passed in is not touched.
  */
 
+const { checkSchemeFigures } = require('./fde-scheme-figures');
+
 // Grade 5 numbers are short; anything longer is not a school sum.
 const MAX_DIGITS = 30;
 // Longer text is not a single computation, and the scan is not free.
@@ -1101,6 +1103,8 @@ function mathsCheck(examJson, options = {}) {
         verdict = null;
       }
       q.scheme.checked = verdict;
+      // Board-pattern papers only: the accept sums and the slip figure (bd-5jmnfj.4.55).
+      if (isObject(exam._layout)) checkSchemeFigures(q, { parseForm });
       if (verdict === 'ok') counts.checked += 1;
       else if (verdict === 'replaced') counts.replaced += 1;
       else counts.unparsed += 1;

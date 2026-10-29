@@ -32,12 +32,12 @@ async function writeTopicOral({ grade, subject, pageContent, requestId = null },
   const P = { medium: key === 'urdu' ? 'ur' : 'en', name_en: NAME[key] };
   const { model, job } = d.patternModel(d.family);
   const ownModel = d.resolveModelForJob('assessment.generate', { family: d.family }).model;
-  const base = Prompt.oralPrompt({ oral, grade, P, pageContent });
+  const base = Prompt.oralPrompt({ oral, grade, P, pageContent, saidCheck: false });
   const ask = async (note) => {
     const user = note ? `${base}\n\n${note}` : base;
     const messages = d.sectionMessages({ system: ORAL_SYSTEM, user, pageContent, model });
     const reply = await d.writeSection({ messages, model, ownModel, job, pattern: 'topic_oral', section: ORAL_SECTION });
-    return Prompt.oralContent(reply.tree, oral);
+    return Prompt.oralContent(reply.tree, oral, { saidCheck: false });
   };
   try {
     let got = await ask(null);
