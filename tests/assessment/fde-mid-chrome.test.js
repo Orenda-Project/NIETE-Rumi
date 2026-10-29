@@ -54,7 +54,9 @@ test('a subject is in Grade 5 shape with grade, g5_rules false and no oral', () 
 
 test('the header names the grade and subject, prints no time and a total line', () => {
   const h = subject({ grade: 4 }).header;
-  expect(h.title_en).toBe('Grade IV · Mathematics · End-of-chapter paper (FDE pattern)');
+  // No "(FDE pattern)" machine label on a paper a child reads (v30 review, bd-5jmnfj.33.2).
+  expect(h.title_en).toBe('Grade IV · Mathematics · End-of-chapter paper');
+  expect(h.title_ur).not.toMatch(/FDE/);
   expect(h.title_ur).toContain('جماعت چہارم');
   expect(h.time_line_en).toBe('');
   expect(h.time_line_ur).toBe('');

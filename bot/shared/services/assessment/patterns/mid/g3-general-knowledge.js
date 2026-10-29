@@ -34,7 +34,7 @@ module.exports = makeSubject({
           prompt_rule: `Five pairs from the chapter: a thing, place or person in column A and what it is, does or belongs to in column B, each side one or two Urdu words. ${SAFE} Every column-B entry matches exactly one column-A entry.` }),
         S({ slot: 'g3.general_knowledge.A.fill', label_en: 'Q3.', type: 'Fill in the Blanks', objective: true, generate: 10, print_words: true,
           instruction_ur: 'خالی جگہ دیے گئے الفاظ سے پُر کریں۔',
-          prompt_rule: `Ten one-line facts from the chapter with one blank each; the ten answers, mixed, in "words" on the FIRST item. ${SAFE} Each answer is a single Urdu word the chapter uses.` }),
+          prompt_rule: `Ten one-line facts from the chapter with one blank each; the ten answers, mixed, in "words" on the FIRST item. ${SAFE} Each answer is a single Urdu word the chapter uses. Each blank takes exactly one of the box words and no other box word fits it.` }),
       ],
     },
     {

@@ -4,7 +4,7 @@
  * own stem.
  */
 
-const { matchOrder, matchTable } = require('../../bot/shared/services/assessment/fde-match-block');
+const { matchOrder, matchTable, matchStem } = require('../../bot/shared/services/assessment/fde-match-block');
 
 const beside = (answers, order) => order.filter((a, i) => a === answers[i]).length;
 
@@ -22,6 +22,15 @@ test.each([
 test('two pairs swap; one pair is printed as it is', () => {
   expect(matchOrder(['x', 'y'])).toEqual(['y', 'x']);
   expect(matchOrder(['x'])).toEqual(['x']);
+});
+
+// v30 G3 General Knowledge Q2 printed the slot instruction five times as the stems (bd-5jmnfj.33.2):
+// the model wrote the term in column_a and the instruction in question.
+test('a match stem is its own Column A, else its question', () => {
+  expect(matchStem({ question: 'کالم الف کو کالم ب سے ملائیں۔', column_a: ['گھر'], column_b: ['کھلونا'] })).toBe('گھر');
+  expect(matchStem({ question: 'camel', column_a: [' '], column_b: ['desert'] })).toBe('camel');
+  expect(matchStem({ question: 'camel' })).toBe('camel');
+  expect(matchStem({})).toBe('');
 });
 
 test('the table puts each stem beside a Column B cell, one row per pair', () => {
