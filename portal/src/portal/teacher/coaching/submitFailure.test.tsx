@@ -45,10 +45,6 @@ import { COACHING_NEW } from "./paths";
 import { clearDraft } from "./draft";
 import { SendError, type SendDetail } from "../../lib/coachingSend";
 import { COACHING_V2_COPY as C } from "./copy";
-import { beforeAll as preloadFirst } from "vitest";
-import { preloadAll } from "@/lib/lazyPage";
-
-preloadFirst(() => preloadAll({ pages: true }), 120_000);
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn> };
 let online = true;
