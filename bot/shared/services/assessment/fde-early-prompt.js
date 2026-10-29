@@ -15,6 +15,7 @@
  */
 
 const { bannedShortfall } = require('./fde-banned-words');
+const { unsaidWords } = require('./fde-listening-check');
 
 const NO_PICTURES = 'The paper carries no pictures. A slot marked frame prints an empty frame: write the instruction and the labels/word bank only; never \'look at the picture\'.';
 
@@ -61,8 +62,8 @@ function taskLine(task, lang) {
     + (task[`instruction_${lang}`] ? ` The teacher will: ${task[`instruction_${lang}`]}` : '');
 }
 
-/** The oral part's prompt: one entry per task, in the paper's medium. */
-function oralPrompt({ oral, grade, P, pageContent }) {
+/** The oral part's prompt: one entry per task, in the paper's medium. `saidCheck: false` (a topic paper) leaves out the listening rule. */
+function oralPrompt({ oral, grade, P, pageContent, saidCheck = true }) {
   const lang = P.medium === 'ur' ? 'ur' : 'en';
   const language = lang === 'ur' ? 'Urdu' : 'English';
   return [
@@ -79,6 +80,9 @@ function oralPrompt({ oral, grade, P, pageContent }) {
     '',
     'A "script" is what is read aloud: a story or poem the teacher reads, or a passage the child reads. '
       + 'Each item is {"ask", "answer"}: a question with its answer, or, for a reading task, one word or line the child reads as "ask" with no answer.',
+    ...(saidCheck && oral.tasks.some((t) => t.kind === 'listening')
+      ? ['For a listening task, every answer except the last (apply) one is said in the story in words; a question never asks a feeling, reason or detail the story does not say.']
+      : []),
     'No bracketed notes: what you write is read aloud as it stands, so never add a note to yourself, such as "(Note: use 9)". Make the numbers in each question agree with its answer.',
     'Return JSON only: {"oral":[{"id":"<task id>","script":"<text or empty>","items":[{"ask":"…","answer":"…"}]}]}, one entry per task.',
   ].join('\n');
@@ -89,8 +93,11 @@ function oralPrompt({ oral, grade, P, pageContent }) {
 const WRITER_NOTE = /[([]\s*(?:note\b|nb\b|n\.b\b|writer\b|generator\b|نوٹ)[^)\]]*[)\]]/i;
 const hasNote = (t) => typeof t === 'string' && WRITER_NOTE.test(t);
 
-/** The reply read against the tasks: `content` for the sheet, `missing` the task ids it did not fill. */
-function oralContent(tree, oral) {
+/**
+ * The reply read against the tasks: `content` for the sheet, `missing` the task ids it did not fill.
+ * `saidCheck: false` (a topic paper) skips the listening word check.
+ */
+function oralContent(tree, oral, { saidCheck = true } = {}) {
   const list = Array.isArray(tree && tree.oral) ? tree.oral : [];
   const content = [];
   const missing = [];
@@ -99,7 +106,9 @@ function oralContent(tree, oral) {
     const items = got && Array.isArray(got.items) ? got.items.filter((it) => it && String(it.ask || '').trim()) : [];
     const script = got && typeof got.script === 'string' ? got.script.trim() : '';
     const noted = hasNote(script) || (got && Array.isArray(got.items) && got.items.some((it) => it && (hasNote(it.ask) || hasNote(it.answer))));
-    const whole = !noted && (!needsScript(task) || script) && items.length >= (task.n || 0);
+    // A listening answer the story never says is asked again (bd-5jmnfj.4.55); an Urdu script is skipped.
+    const unsaid = saidCheck && task.kind === 'listening' && unsaidWords(script, task.n ? items.slice(0, task.n) : items).length > 0;
+    const whole = !noted && !unsaid && (!needsScript(task) || script) && items.length >= (task.n || 0);
     if (!got || !whole) { missing.push(task.id); continue; }
     content.push({ id: task.id, ...(script ? { script } : {}), items: task.n ? items.slice(0, task.n) : items });
   }

@@ -199,6 +199,19 @@ describe('2. Urdu Q7 and English Q10 print a generated scene inside the frame', 
     expect(Pictures.cacheKey(q.picture)).toContain('children-running-a-race');
   });
 
+  it('a drawn picture drops the stored "paste or draw a picture" teacher note; a failed one keeps it', async () => {
+    const note = { teacher_note_en: 'Paste or draw a picture in the frame before photocopying.', teacher_note_ur: 'تصویر' };
+    const drawn = laid(fixture('urdu'), 'urdu');
+    Object.assign(itemAt(drawn, 'urdu.C.Q7'), note, { describe_en: 'children running a race' });
+    await Pictures.resolveFramePictures(drawn, deps().d);
+    expect(itemAt(drawn, 'urdu.C.Q7').teacher_note_en).toBeUndefined();
+    expect(itemAt(drawn, 'urdu.C.Q7').teacher_note_ur).toBeUndefined();
+    const failed = laid(fixture('urdu'), 'urdu');
+    Object.assign(itemAt(failed, 'urdu.C.Q7'), note, { describe_en: 'children running a race' });
+    await Pictures.resolveFramePictures(failed, deps({ fail: true }).d);
+    expect(itemAt(failed, 'urdu.C.Q7').teacher_note_en).toBe(note.teacher_note_en);
+  });
+
   it('a failed drawing does not fail the paper: no picture, and today\'s empty frame and "You add" line print', async () => {
     const exam = laid(fixture('urdu'), 'urdu');
     itemAt(exam, 'urdu.C.Q7').describe_en = 'children running a race on a school field';

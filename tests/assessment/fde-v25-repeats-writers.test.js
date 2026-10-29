@@ -1,9 +1,10 @@
 /**
  * Give-aways that survived v24 (bd-5jmnfj.4.55, Phase 1: red tests), writer cases. Pure cases: fde-v25-repeats.test.js.
  *   1 G1 Urdu: «چاند» keys Q3 iv and Q5 v on every reply; the paper was marked ready with only a log.
+ *     A repeat never fails a paper: the later item is asked once more, then the paper ships with a log.
  *   3 G2 Urdu: Q1 ix asks the oral poem's question (oral answer «باغ میں»); Section A is never re-asked.
  *   4 G1 English: a read-aloud word still given away after the oral re-ask is never checked again.
- *   8 G5 Science: _writePatternPaper has no end check; a printed give-away on every reply still ships.
+ *   8 G5 Science: _writePatternPaper has no end check; a printed give-away on every reply is asked once more, then logged.
  * Harness as fde-v23-repeats.test.js (early writer with fake deps; G5 through the openai mock).
  */
 
@@ -109,16 +110,26 @@ describe('item 1: G1 Urdu «چاند» keyed in Q3 iv and Q5 v on every reply', 
     return null;
   };
 
-  test('a printed give-away left after the late re-ask fails the paper with ANSWER_GIVEAWAY', async () => {
-    const { err } = await write('fde_g1_2026', 1, 'urdu', reply(true));
-    expect(err).toBeDefined();
-    expect(err).toMatchObject({ code: 'ANSWER_GIVEAWAY' });
+  // A repeat never costs the teacher a paper (lead's v25 redesign: no ANSWER_GIVEAWAY failure). A printed
+  // give-away left after the late re-ask is asked exactly once more; still there, the paper ships and is logged.
+  test('a printed give-away left after the late re-ask is asked once more, then the paper is returned and logged', async () => {
+    const { err, out, calls, d } = await write('fde_g1_2026', 1, 'urdu', reply(true));
+    expect(err).toBeUndefined();
+    expect(out.examJson).toBeTruthy();
+    const b = calls.filter((c) => c.id === 'B');
+    expect(b).toHaveLength(4); // first reply, re-ask, late re-ask, and exactly one more
+    expect(b[3].user).toMatch(/چاند/);
+    const logged = d.logToFile.mock.calls.filter(([m]) => m === '[assessment] answers given away');
+    expect(logged).toHaveLength(1);
+    expect(logged[0][1].giveaways).toEqual(expect.arrayContaining([
+      expect.objectContaining({ slot: 'g1.urdu.B.Q5', words: expect.arrayContaining(['چاند']) })]));
   });
 
   test('control: a give-away fixed by the first re-ask still yields a paper', async () => {
-    const { err, out } = await write('fde_g1_2026', 1, 'urdu', reply(false));
+    const { err, out, calls } = await write('fde_g1_2026', 1, 'urdu', reply(false));
     expect(err).toBeUndefined();
     expect(out.examJson).toBeTruthy();
+    expect(calls.filter((c) => c.id === 'B')).toHaveLength(2); // no late re-ask, so no last one either
   });
 });
 
@@ -189,12 +200,22 @@ describe('item 8: the G5 generation path checks give-aways at the end', () => {
       scope: { kind: 'fde', chapters: null, pages: null }, pageRanges: null, chapterNumber: null, requestId: `req-v25-${where}` });
   };
 
-  test('a key printed in another stem after every re-ask fails the paper with ANSWER_GIVEAWAY', async () => {
-    await expect(generate('stem')).rejects.toMatchObject({ code: 'ANSWER_GIVEAWAY' });
+  // As item 1: asked exactly once more after the late re-ask, then returned with the give-away logged.
+  test('a key printed in another stem after every re-ask is asked once more, then the paper is returned and logged', async () => {
+    const out = await generate('stem');
+    expect(out.examJson).toBeTruthy();
+    expect(mockState.n.C).toBe(4); // first reply, re-ask, late re-ask, and exactly one more
+    const lastC = mockState.openrouter.filter((p) => /\*\*SECTION C\*\*/.test(p.messages[1].content)).pop();
+    expect(lastC.messages[1].content).toMatch(/decibels/i);
+    const logged = mockState.logs.filter(([m]) => m === '[assessment] answers given away');
+    expect(logged).toHaveLength(1);
+    expect(logged[0][1].giveaways).toEqual(expect.arrayContaining([
+      expect.objectContaining({ slot: 'science.C.Q3a', printed: true })]));
   });
 
   test('control: a key found only in another item\'s answer text does not fail the paper', async () => {
     const out = await generate('answer');
     expect(out.examJson).toBeTruthy();
+    expect(mockState.n.C).toBe(3); // answer text only: not asked the last time
   });
 });

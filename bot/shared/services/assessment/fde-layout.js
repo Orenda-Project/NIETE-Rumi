@@ -1340,6 +1340,10 @@ function keyInPoints(others) {
 // رسائی حاصل کر سکتے ہیں جو تحقیق میں کام آتا ہے؟ → تحقیقی مواد») is printed for the child to copy. A bracket
 // in the answer (an English gloss) is set aside; an answer that adds a word of its own stays.
 const Q7_SLOT = 'social_studies.D.Q7';
+// Science Q1(b) prints its `question` as the frame title «Diagram: …»: it must be the diagram's
+// name («Layers of the Earth»), never an instruction («Label any five parts…») (v24 review).
+const DIAGRAM_SLOT = 'science.A.Q1b';
+const notDiagramName = (q) => /^\s*(label|draw|name)\b/i.test(String((q && q.question) || ''));
 function keyInOwnStem(q) {
   const key = tokensOf(keyText(q).replace(/\([^()]*\)/g, ' '));
   const stem = tokensOf(q.question);
@@ -2565,6 +2569,7 @@ function applyLayout(examJson, P, scope, opts = {}) {
       && (w.inSlot ? (samePoints(bySlot.get(slot.slot)) || (() => false))(q) : w.rule(q)));
     const fits = (slot, q) => {
       if (!settleVerses(slot, q) || !printable(slot, q)) return no(slot, 'unprintable');
+      if (slot.slot === DIAGRAM_SLOT && notDiagramName(q)) return no(slot, 'diagram_not_named');
       if (P.key === 'social_studies' && tierSlip(q)) return false;
       if (P.key === 'social_studies' && slot.slot === Q7_SLOT && keyInOwnStem(q)) return hold(slot, q, 'key_in_own_stem');
       if (P.key === 'social_studies' && slot.slot === SST_A_Q1 && namesOwnKey(q)) return hold(slot, q, 'key_in_own_stem');
