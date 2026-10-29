@@ -324,6 +324,7 @@
     var nav = root.navigator;
     if (!nav || !nav.serviceWorker || !root.MessageChannel) return Promise.resolve(null);
     return registration(nav.serviceWorker, out).then(function (reg) {
+      if (out) out.reg = reg;
       if (reg.active) return reg.active;
       var w = reg.installing || reg.waiting;
       if (!w) return null;
@@ -335,8 +336,20 @@
         });
       });
     }).then(function (sw) {
+      if (out) out.sw = sw;
       return sw ? function (msg) { return ask(sw, msg); } : null;
     }, function () { return null; });
+  }
+
+  /**
+   * After the work: a worker newer than the one it went to (installing, waiting, or already active) deletes that worker's
+   * SESSION cache when it takes over, so what was just kept will not stay. An update() that answered "none" while another
+   * page's update was about to find one ends here.
+   */
+  function replaced(out) {
+    var r = out && out.reg;
+    if (!r || !out.sw) return false;
+    return !!(r.installing || r.waiting || (r.active && r.active !== out.sw));
   }
 
   /** A kept battery file (the worker's copy), else null. */
@@ -417,7 +430,9 @@
             var m = p.files.filter(function (u) { return missingSet[u]; }).length;
             return { form: p.form, ok: p.read && m === 0, files: p.files.length, missing: m };
           });
-          return { ok: missing === 0 && out.every(function (f) { return f.ok; }), total: total, cached: total - missing, missing: missing, bytes: bytes, forms: out };
+          var res = { ok: missing === 0 && out.every(function (f) { return f.ok; }), total: total, cached: total - missing, missing: missing, bytes: bytes, forms: out };
+          if (res.ok && replaced(upd)) { res.ok = false; res.why = 'worker_update_pending'; }
+          return res;
         });
       });
     }).then(null, function (e) { return { ok: false, total: 0, cached: 0, missing: 0, bytes: 0, forms: [], why: String(e && e.message || e) }; });
@@ -445,7 +460,9 @@
           return Promise.all(chunks.map(function (c) { return q({ type: 'check', urls: c }); })).then(function (rs) {
             var missing = 0;
             rs.forEach(function (r, i) { missing += r ? (r.missing || []).length : chunks[i].length; });
-            return { ready: want.length > 0 && missing === 0 && batteries.every(Boolean), total: want.length, cached: want.length - missing };
+            var ready = want.length > 0 && missing === 0 && batteries.every(Boolean);
+            if (ready && replaced(upd)) return { ready: false, total: want.length, cached: want.length - missing, why: 'worker_update_pending' };
+            return { ready: ready, total: want.length, cached: want.length - missing };
           });
         });
     }).then(null, function (e) { return { ready: false, total: 0, cached: 0, why: String(e && e.message || e) }; });

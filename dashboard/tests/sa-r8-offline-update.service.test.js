@@ -157,3 +157,23 @@ test('the child page never waits on it: prepare() with a stuck new worker uses t
   expect(posted.length).toBeGreaterThan(0);
   expect(posted.every((x) => x.to === 'v6')).toBe(true);
 }));
+
+test('a newer worker that turns up while "Get ready" runs (update() said none): the answer is not ready, never ready', async () => {
+  const { nav, posted, reg } = phone('none');
+  const v6 = reg.active;
+  const send = v6.postMessage;
+  // another page's update finds the new worker after the first file went to the old one
+  v6.postMessage = (msg, ports) => { send(msg, ports); if (!reg.waiting) reg.waiting = { state: 'installed', addEventListener: () => {} }; };
+  const off = load(nav);
+  const r = await off.prepVisit(VISIT);
+  expect(posted.length).toBeGreaterThan(0);
+  expect(r.ok).toBe(false);
+  expect(r.why).toBe('worker_update_pending');
+});
+
+test('the same worker start to end, nothing newer: "Get ready" answers as before', async () => {
+  const { nav } = phone('none');
+  const r = await load(nav).prepVisit(VISIT);
+  expect(r.ok).toBe(true);
+  expect(r.why).toBeUndefined();
+});
