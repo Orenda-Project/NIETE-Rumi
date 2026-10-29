@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AudioPlayer } from "../../../newui/AudioPlayer";
+import { Button } from "../../../coachip-ui/Button";
 import { COACHING } from "../../../teacher/coaching/copy";
 import { copyIn, useLang } from "../../../teacher/i18n";
 import { pick, t, tx } from "../text";
@@ -154,15 +155,9 @@ export function MomentPlayer({ moment, variant, onSeeMove, preload = "none" }: M
       {full && coach && m.full_recording && (
         <FullRecordingLink sessionId={m.session!.session_id} durationS={m.full_recording.duration_s} label={label} lang={lang} />
       )}
+      {/* FIX_R6 A3 (design-qa 224143): the system secondary (navy outline on white); the play is S4's primary (C6) */}
       {full && onSeeMove && (
-        <button
-          type="button"
-          data-testid="see-move"
-          onClick={onSeeMove}
-          className="flex min-h-[48px] items-center justify-center rounded-[14px] bg-cp-navy px-4 text-[16px] font-bold text-white"
-        >
-          {t("s4.see_move", lang)}
-        </button>
+        <Button variant="secondary" block onClick={onSeeMove} testId="see-move"><span>{t("s4.see_move", lang)}</span></Button>
       )}
       {full && m.pair && (
         <PairCard pair={m.pair} lang={lang}>

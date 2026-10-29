@@ -6,12 +6,13 @@ import InsightsGate from "../InsightsGate";
 import { useLoad } from "../useLoad";
 import { coachip } from "../api";
 import { insightsPaths } from "../paths";
-import { InsightsPage, MetaLine, Eyebrow } from "../components/Frame";
+import { InsightsPage, MetaLine } from "../components/Frame";
 import { Section as CpSection } from "../../../coachip-ui/Section";
 import { Surface } from "../../../coachip-ui/Surface";
 import { Button } from "../../../coachip-ui/Button";
 import { StateBlock, NoteCard } from "../components/StateBlock";
-import { CodeText, DateText, LibraryText, Num } from "../count";
+import { CodeText, DateText, LibraryText } from "../count";
+import { RingCount } from "../../../coachip-ui/Count";
 import { digits, LRI, PDI, todayKarachi } from "../format";
 import { COPY } from "../copy";
 import { pick, t, tx } from "../text";
@@ -26,6 +27,10 @@ import type { MoveDetail } from "../types";
  *   evidence     the citation as text, never a link (API R9: a library url is never passed through).
  *   FLN          the existing send page with NO recipient and no query string (c-api finding 10:09Z).
  *   Set button   needs a teacher `code_id` the S5 payload does not carry, so setting a step lives on S2 (G1).
+ *
+ * R6 fix cycle 1 (FIX_R6 A2, design-qa 224143): the app bar names the weakness (the coach keeps the thread from S2), the
+ * number row comes first (S2's card ring), then ONE MOVE whose lead is the intervention's title in full, the teacher's
+ * step under it, and "Try this tomorrow" carries the screen's one action: play the moment on S2, where the step is set.
  */
 
 /** The FLN send page: no code, no recipient, no query (a pre-selection would be a decode path). */
@@ -85,15 +90,17 @@ function CheckRule({ data, lang }: { data: MoveDetail; lang: Lang }) {
  * The library text goes in verbatim; a line that already opens with the frame's own words is shown as it is, never framed
  * twice (the contract fixture carries the frame inside the text; INTERVENTIONS.json does not).
  */
-function TryTomorrow({ script, lang }: { script: string; lang: Lang }) {
-  if (!script) return null;
+function TryTomorrow({ script, lang, wId }: { script: string; lang: Lang; wId: string }) {
   const pre = COPY["d.try_tomorrow"][lang].split("{step}")[0].trim();
   const framed = Boolean(pre) && script.trimStart().startsWith(pre);
   return (
     <Surface testId="s5-try-tomorrow" className="mt-5">
-      <p className="text-[17px] font-semibold leading-[1.45] text-cp-navy">
-        {framed ? <LibraryText>{script}</LibraryText> : tx("d.try_tomorrow", lang, { step: <LibraryText>{script}</LibraryText> })}
-      </p>
+      {script && (
+        <p className="text-[17px] font-semibold leading-[1.45] text-cp-navy">
+          {framed ? <LibraryText>{script}</LibraryText> : tx("d.try_tomorrow", lang, { step: <LibraryText>{script}</LibraryText> })}
+        </p>
+      )}
+      <Button block to={`${insightsPaths.w(wId)}#moment`} testId="s5-play"><span>{t("s5.play", lang)}</span></Button>
     </Surface>
   );
 }
@@ -115,42 +122,43 @@ function MoveLoaded() {
   const { data, error } = useLoad<MoveDetail>(() => coachip.move(wId, school), [wId, school]);
   const i = data?.i ?? null;
   const flnTitle = i?.materials.find((m) => m.kind === "fln")?.title ?? null;
+  // a line still coming is null (the app bar holds its box, FIX_R6 A1); a line that will not come is undefined
+  const coming = error ? undefined : null;
 
   return (
     <InsightsPage
       testId="insights-move"
       backTo={insightsPaths.w(wId)}
-      title={i ? <LibraryText>{pick(i.title, lang)}</LibraryText> : data ? pick(data.w.short_name, lang) : ""}
-      crumb={i ? tx("s5.chip", lang, { i_id: <CodeText lang={lang}>{i.i_id}</CodeText> }) : null}
+      title={data ? pick(data.w.short_name, lang) : coming}
+      crumb={i ? tx("s5.chip", lang, { i_id: <CodeText lang={lang}>{i.i_id}</CodeText> }) : data ? undefined : coming}
       windows={data?.windows}
-      chips={data ? <MetaLine window={data.w.window} /> : null}
+      chips={data ? <MetaLine window={data.w.window} /> : coming}
     >
       {!data ? <StateBlock error={error} /> : (
         <>
-          <section data-testid="s5-w" className="flex flex-col gap-2 pt-1">
-            <Eyebrow k="eyebrow.one_move" />
-            <p className="text-[17px] leading-[1.45] text-cp-ink">
-              <Num count={data.w.count} lang={lang} className="text-[22px] font-extrabold tracking-[-0.01em] text-cp-navy" /> {pick(data.w.sentence, lang)}
-            </p>
+          <section data-testid="s5-w" data-tone="notice" className="flex flex-col gap-2 pt-2">
+            <RingCount count={data.w.count} lang={lang} size="card">
+              <p className="text-[15px] leading-[1.45] text-cp-ink">{pick(data.w.sentence, lang)}</p>
+            </RingCount>
           </section>
 
           {!i ? <NoteCard testId="s5-no-i">{t("s5.no_i", lang)}</NoteCard> : (
             <>
               {/* fix-r5 s2 item 7a (panel 094003): the step, then what the coach says tomorrow, then the rehearsal and the
                   moment; the facts; what to listen for and the check; "Why this works" folded; other moves */}
-              <Section title={t("s5.step.title", lang)} testId="s5-step">
-                <LibraryText as="p" className="text-[17px] font-semibold leading-[1.45] text-cp-ink">{pick(i.teacher_action_step, lang)}</LibraryText>
-              </Section>
+              <CpSection label={t("eyebrow.one_move", lang)} tone="green" testId="s5-step">
+                <div className="flex flex-col gap-2">
+                  <p data-testid="s5-lead" className="text-[17px] font-semibold leading-[1.45] text-cp-navy"><LibraryText>{pick(i.title, lang)}</LibraryText></p>
+                  <LibraryText as="p" className={body}>{pick(i.teacher_action_step, lang)}</LibraryText>
+                </div>
+              </CpSection>
 
-              <TryTomorrow script={pick(i.debrief_script, lang)} lang={lang} />
+              <TryTomorrow script={pick(i.debrief_script, lang)} lang={lang} wId={wId} />
 
               <Section title={<span data-nonum="">{t("s5.rehearsal.title", lang)}</span>} testId="s5-rehearsal">
                 <p className={body} data-nonum="">
                   {tx("d.rehearse.frame", lang, { script: <LibraryText>{pick(i.rehearsal_script, lang)}</LibraryText> })}
                 </p>
-                <Button variant="secondary" size="md" to={`${insightsPaths.w(wId)}#moment`} testId="s5-play" className="self-start">
-                  <span>{t("s5.play", lang)}</span>
-                </Button>
               </Section>
 
               <Section title={t("s5.with.title", lang)} testId="s5-facts">

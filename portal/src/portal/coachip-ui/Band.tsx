@@ -9,8 +9,8 @@ import mark from "@/assets/niete-logo.png";
  * one elevated hero card (tokens.css), so a page writes ONE header for both widths. `trailing` sits at the top's end
  * (the RM's EN | اردو on a phone).
  */
-export function Band({ title, date, sub, trailing, children, testId = "cp-band" }: {
-  title?: ReactNode; date?: ReactNode; sub?: ReactNode; trailing?: ReactNode; children?: ReactNode; testId?: string;
+export function Band({ title, date, sub, trailing, foot, children, testId = "cp-band" }: {
+  title?: ReactNode; date?: ReactNode; sub?: ReactNode; trailing?: ReactNode; foot?: ReactNode; children?: ReactNode; testId?: string;
 }) {
   return (
     <header data-testid={testId} className="cp-band">
@@ -28,6 +28,7 @@ export function Band({ title, date, sub, trailing, children, testId = "cp-band" 
       {title && <h1 className="cp-band__title text-[24px] font-extrabold leading-[1.2] tracking-[-0.01em] lg:text-[30px]">{title}</h1>}
       {sub && <div className="cp-on-band-2 mt-1 text-[14px] leading-snug">{sub}</div>}
       {children && <div className="cp-band__body mt-3">{children}</div>}
+      {foot && <div data-testid={`${testId}-foot`} className="cp-band__date mt-3 text-[12px] leading-[1.45] lg:hidden">{foot}</div>}
     </header>
   );
 }

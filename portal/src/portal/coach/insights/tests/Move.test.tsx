@@ -153,13 +153,14 @@ for (const lang of ["en", "ur"] as const) {
       const { container } = await renderAt("/w/W-IP-TIME/move");
       const tt = screen.getByTestId("s5-try-tomorrow");
       const [pre, post] = COPY["d.try_tomorrow"][lang].split("{step}");
-      expect(tt.textContent).toBe(`${pre}${d.i.debrief_script[lang]}${post}`);
+      // the Surface's line (its button, FIX_R6 A2, is the play, not part of the sentence)
+      expect(tt.querySelector("p")?.textContent).toBe(`${pre}${d.i.debrief_script[lang]}${post}`);
       expect(tt.querySelector('[data-text="library"]')?.textContent).toBe(d.i.debrief_script[lang]);
       // the step is the library's words alone (the frame now carries the debrief line, never the step twice)
       expect(screen.getByTestId("s5-step").textContent).toContain(d.i.teacher_action_step[lang]);
       expect(screen.getByTestId("s5-step").textContent).not.toContain(pre.trim());
-      // the order: step, try tomorrow, rehearsal (+ play), with whom/how long, materials, listen for, check, why, others
-      const order = ["s5-step", "s5-try-tomorrow", "s5-rehearsal", "s5-play", "s5-facts", "s5-materials", "s5-listen-for", "s5-check", "s5-evidence", "s5-alternatives"];
+      // the order: step, try tomorrow (+ play, FIX_R6 A2), rehearsal, with whom/how long, materials, listen for, check, why, others
+      const order = ["s5-step", "s5-try-tomorrow", "s5-play", "s5-rehearsal", "s5-facts", "s5-materials", "s5-listen-for", "s5-check", "s5-evidence", "s5-alternatives"];
       const els = order.map((id) => screen.getByTestId(id));
       for (let k = 1; k < els.length; k += 1) {
         expect(Boolean(els[k - 1].compareDocumentPosition(els[k]) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
@@ -194,11 +195,12 @@ for (const lang of ["en", "ur"] as const) {
       for (const id of ["s5-step", "s5-rehearsal", "s5-facts", "s5-materials", "s5-listen-for", "s5-check", "s5-alternatives"]) {
         expect(screen.getByTestId(id).hasAttribute("data-section")).toBe(true);
       }
-      for (const id of ["s5-fln", "s5-play"]) {
-        const el = screen.getByTestId(id);
-        expect(el.className).toContain("border-cp-navy");
-        expect(el.className).not.toContain("bg-cp-green");
-      }
+      // FIX_R6 A2: the play is the Surface's primary now; the FLN send stays the secondary
+      const fln = screen.getByTestId("s5-fln");
+      expect(fln.className).toContain("border-cp-navy");
+      expect(fln.className).not.toContain("bg-cp-green");
+      expect(screen.getByTestId("s5-play").className).toContain("bg-cp-green");
+      expect(screen.getByTestId("s5-try-tomorrow").contains(screen.getByTestId("s5-play"))).toBe(true);
       expectContract(container, expect);
     }, 20000);
 

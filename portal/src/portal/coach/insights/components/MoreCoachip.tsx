@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { CircleUserRound, ClipboardCheck, LogOut, Map as MapIcon, type LucideIcon } from "lucide-react";
-import { LanguageRow } from "../../../teacher/pages/More";
+import { CircleUserRound, ClipboardCheck, Languages, LogOut, Map as MapIcon, type LucideIcon } from "lucide-react";
+import { LangToggle } from "../../../coachip-ui/LangToggle";
 import { TEACHER_FRAME } from "../../../teacher/copy";
 import { useCopy, useLang } from "../../../teacher/i18n";
 import { initials } from "../../../teacher/format";
@@ -17,7 +17,11 @@ import "../../../coachip-ui/tokens.css";
 /**
  * bd-sex15q.46 (R6, SCREENS.md More) — the body of the coach's More with COACHIP on (profile/CoachMore picks it): its
  * own `.cp` root, the who card as a navy band with the initials in a green tint circle, then hairline rows with 20 px
- * icons; the kit's LanguageRow as it is. With COACHIP off CoachMore draws its old markup and never mounts this.
+ * icons. With COACHIP off CoachMore draws its old markup and never mounts this.
+ *
+ * R6 fix cycle 1 (FIX_R6 A7, panel 230158: the one mixed screen): the heading is drawn by `MoreHead` inside its own `.cp`
+ * root (24/800 navy, not the kit's 32 px light title) and the language row is a `.cp` row (lucide Languages, the kit's
+ * label, coachip-ui's EN | اردو) through the same one writer as the kit's row; the kit's teacher More is untouched.
  */
 export default function MoreCoachip({ name, phone, schools, rmOn, assess, onLogout }: {
   name: string; phone: string | null | undefined; schools: number | null; rmOn: boolean; assess: boolean; onLogout: () => void;
@@ -55,7 +59,10 @@ export default function MoreCoachip({ name, phone, schools, rmOn, assess, onLogo
       </CpGroup>
 
       <CpGroup label={C.more.account}>
-        <LanguageRow />
+        {/* FIX_R6 A7: a .cp row; coachip-ui's EN | اردو is the kit's one writer (useLanguageSwitch → PUT /me/language) and
+            changes the page only once the server accepted it */}
+        <Row testId="more-row-language" className="items-center" lead={<CpIcon icon={Languages} />} title={C.more.language}
+          trail={<LangToggle prefix="more-lang" />} />
         <Row testId="more-row-profile" to="/portal/coach/profile" lead={<CpIcon icon={CircleUserRound} />} title={C.more.profile} />
         <button type="button" data-testid="more-row-logout" onClick={guardedLogout}
           className="flex min-h-[44px] w-full items-start gap-3 border-t border-cp-hairline py-3.5 text-start outline-none focus-visible:ring-[3px] focus-visible:ring-cp-green">
@@ -83,4 +90,13 @@ function CpIcon({ icon: Icon }: { icon: LucideIcon }) {
  */
 function CpGlyph({ name }: { name: "training" | "lessons" }) {
   return <span aria-hidden="true" className="mt-0.5 flex shrink-0 text-cp-navy"><FeatureGlyph name={name} size={20} /></span>;
+}
+
+/** The page heading with COACHIP on: TeacherPage's `hero` slot, so the kit's light title is not drawn (FIX_R6 A7). */
+export function MoreHead({ title }: { title: string }) {
+  return (
+    <div className="cp px-5 pb-1.5 pt-10 min-[576px]:px-1 min-[576px]:pt-6">
+      <h1 data-testid="more-title" className="text-[24px] font-extrabold leading-[1.2] tracking-[-0.01em] text-cp-navy lg:text-[30px]">{title}</h1>
+    </div>
+  );
 }

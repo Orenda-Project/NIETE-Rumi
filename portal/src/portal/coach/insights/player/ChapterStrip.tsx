@@ -71,8 +71,10 @@ export default function ChapterStrip({ steps, lang, tappable, momentAt, onStep, 
                 data-testid="chapter-bar"
                 className={`block h-2 w-full rounded-full ${look.bar} ${here ? "ring-2 ring-cp-navy ring-offset-1" : ""}`}
               />
-              <span className={`text-[12px] font-medium leading-tight [overflow-wrap:anywhere] ${look.text}`}>
-                <span aria-hidden="true">{look.mark}</span> {label}
+              {/* FIX_R6 A9: wraps at the space only: a hyphen is a no-break hyphen, so "Warm-up" never splits; the mark may sit on
+                  its own line */}
+              <span className={`text-[12px] font-medium leading-tight [hyphens:none] ${look.text}`}>
+                <span aria-hidden="true">{look.mark}</span> {label.replace(/-/g, "\u2011")}
               </span>
             </button>
           );

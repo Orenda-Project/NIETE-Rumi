@@ -71,7 +71,7 @@ export function StepChip({ step, windowId }: { step: Step; windowId: string }) {
     return <span data-testid="step-chip" data-chip="worked" className={`${base} bg-cp-green text-cp-navy`}>{t("chip.worked", lang)}</span>;
   }
   if (step.chip === "not_yet") {
-    return <span data-testid="step-chip" data-chip="not_yet" className={`${base} bg-cp-grey-fill text-cp-ink-2`}>{t("chip.not_yet", lang)}</span>;
+    return <span data-testid="step-chip" data-chip="not_yet" className={`${base} bg-cp-navy-tint text-cp-ink-2`}>{t("chip.not_yet", lang)}</span>;
   }
   return (
     <CountSpan count={{ n: step.to_come, d: 3, window_id: windowId }} className={`${base} bg-cp-green-tint text-cp-green-ink`}>

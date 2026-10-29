@@ -47,7 +47,7 @@ function ListenBody() {
         <p data-testid="listen-week" className="text-[14px] leading-snug">
           {tx("l.sub", lang, { week_range: <WindowMark window={data.window} as="span">{range(data.window.from, data.window.to, lang)}</WindowMark> })}
         </p>
-      ) : undefined}
+      ) : error ? undefined : null}
     >
       {!data ? <StateBlock error={error} /> : (
         <div className="flex flex-col gap-4">
@@ -144,7 +144,7 @@ function FailedRow({ s }: { s: Failed }) {
 function FailedList({ failed }: { failed: Failed[] }) {
   return (
     <Section testId="listen-failed" first>
-      <ul className="flex flex-col overflow-hidden rounded-[16px] bg-cp-grey-fill">
+      <ul className="flex flex-col overflow-hidden rounded-[16px] bg-cp-navy-tint">
         {failed.map((s) => <FailedRow key={s.session_id} s={s} />)}
       </ul>
     </Section>

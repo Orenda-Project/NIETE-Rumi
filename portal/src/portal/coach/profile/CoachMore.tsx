@@ -14,7 +14,7 @@ import { useChildTestSa } from "../../lib/useChildTestSa";
 import { useCoachip, useCoachipRm } from "../insights/useCoachip";
 import { COPY } from "../insights/copy";
 import { rmPaths } from "../../rm/paths";
-import MoreCoachip from "../insights/components/MoreCoachip";
+import MoreCoachip, { MoreHead } from "../insights/components/MoreCoachip";
 
 /**
  * bd-fmf24g.33 — the coach's More: who they are, then Language (English | اردو), My profile and Log out, as the teacher's.
@@ -47,7 +47,8 @@ export default function CoachMore() {
   if (coachip) {
     return (
       <CoachGate>
-        <TeacherPage title={C.more.title} testId="coach-more">
+        {/* FIX_R6 A7: the heading is the design system's (MoreHead in the hero slot), not the kit's light title */}
+        <TeacherPage hero={<MoreHead title={C.more.title} />} testId="coach-more">
           <MoreCoachip name={name} phone={phone} schools={counts ? counts.schools : null} rmOn={rmOn} assess={assess} onLogout={guardedLogout} />
         </TeacherPage>
       </CoachGate>
