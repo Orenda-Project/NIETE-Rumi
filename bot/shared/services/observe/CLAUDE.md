@@ -1,7 +1,7 @@
 # observe — /observe: coach observations, debrief, report to teacher, scheduling, calendar
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe kg=9f9af37117f7 gen=8c5f14c7715c overflow=283 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe kg=269f13cce093 gen=3233559baa62 overflow=283 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `observe-debrief.service.js` — guided debrief entry, recording intake, coach feedback
@@ -19,8 +19,8 @@ Full index: `CLAUDE.index.md`
 | … | 39 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `bound-teacher.js` (+3)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+171)
-- column `users.phone_number` (written by `bound-teacher.js` (+2)) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/database/queries.js:106:fef21f32` (+89)
+- table `users` (written by `bound-teacher.js` (+3)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+173)
+- column `users.phone_number` (written by `bound-teacher.js` (+2)) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/database/queries.js:106:fef21f32` (+90)
 - … 101 more → `CLAUDE.index.md`
 
 ## Never (human)

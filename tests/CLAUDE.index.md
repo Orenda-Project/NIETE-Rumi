@@ -8,7 +8,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 |---|---|
 | `__mocks__/` | → (no door; 24 files: 0 test + 24 support) |
 | `app-funnel/` | → (no door; 8 tests) |
-| `app-redirect/` | → (no door; 21 tests) |
+| `app-redirect/` | → (no door; 22 tests) |
 | `assessment/` | Tests for the assessment/exam generator: WhatsApp Flow, portal editor, FDE board papers → `assessment/CLAUDE.md` |
 | `attendance/` | WhatsApp attendance: router, marking Flow, voice roll call, registers and portal service → `attendance/CLAUDE.md` |
 | `broadcast/` | → (no door; 6 tests) |
@@ -36,7 +36,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `language/` | → (no door; 5 tests) |
 | `lesson-plan-lifecycle/` | lesson_plan_requests lifecycle rows per LP path, plus the hourly health check → `lesson-plan-lifecycle/CLAUDE.md` |
 | `llm/` | → (no door; 26 tests) |
-| `lp-v8/` | → (no door; 29 tests) |
+| `lp-v8/` | → (no door; 32 tests) |
 | `lp612/` | Grade 6-12 LP lane: author ladder, render, catalogue, Urdu overlay, religious gate → `lp612/CLAUDE.md` |
 | `menu-match/` | → (no door; 4 tests) |
 | `menu/` | → (no door; 6 tests) |

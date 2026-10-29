@@ -165,3 +165,21 @@ describe('coaching_after_lp is registered where the sweep runs', () => {
     expect(mockRegister.mock.calls.filter((c) => c[0] === 'coaching_after_lp')).toHaveLength(0);
   });
 });
+
+describe('topic_end_nudge is registered where the sweep runs (bd-pw1ccr.4)', () => {
+  // startWorker() requires the nudge services after isolateModules has returned, so they land in the
+  // shared registry and a second boot would find them cached (no register call). Start each test clean.
+  beforeEach(() => jest.resetModules());
+
+  test('flag on, main queue: registered once, with its send handler', async () => {
+    await boot({ TEACHER_NUDGES_ENABLED: 'true' });
+    const calls = mockRegister.mock.calls.filter((c) => c[0] === 'topic_end_nudge');
+    expect(calls).toHaveLength(1);
+    expect(typeof calls[0][1]).toBe('function');
+  });
+
+  test('a video-only worker never loads it', async () => {
+    await boot({ TEACHER_NUDGES_ENABLED: 'true', WORKER_QUEUES: 'video' });
+    expect(mockRegister.mock.calls.filter((c) => c[0] === 'topic_end_nudge')).toHaveLength(0);
+  });
+});

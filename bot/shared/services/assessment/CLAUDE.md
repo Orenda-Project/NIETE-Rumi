@@ -1,7 +1,7 @@
 # assessment — Assessment (exam paper) generator: textbook pages to marked, rendered papers
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment kg=a3311ed17e6c gen=0e6f24f8772f overflow=346 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment kg=d6e4e2ce94d4 gen=a68866b3f0c4 overflow=346 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `assessment-orchestrator.service.js` — runs a queued request end to end (generate, render, deliver)
@@ -20,7 +20,7 @@ Full index: `CLAUDE.index.md`
 ## Who reads this (generated)
 - `assessment-paper.renderer.js` ← imported by `bot/scripts/assessment/backfill-paper-versions.js:103:10ace4e3` · `bot/shared/routes/assessment-gen-endpoint.js:754:7568e5aa` (+9)
 - `assessment-vocabulary.js` ← imported by `bot/shared/routes/assessment-gen-endpoint.js:35:0bbbf370` · `bot/shared/services/portal-ready-whatsapp.service.js:45:ac2a62e8` (+8)
-- `question-types.js` ← imported by `bot/shared/routes/assessment-gen-endpoint.js:26:6c8431b2` · `bot/shared/routes/internal-api.routes.js:1490:6c8431b2` (+6)
+- `question-types.js` ← imported by `bot/shared/routes/assessment-gen-endpoint.js:26:6c8431b2` · `bot/shared/routes/internal-api.routes.js:1498:6c8431b2` (+6)
 - … 63 more → `CLAUDE.index.md`
 
 ## Never (human)

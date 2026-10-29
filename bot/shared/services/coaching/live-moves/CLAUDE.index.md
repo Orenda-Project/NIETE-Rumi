@@ -22,7 +22,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `detector.js` ← imported by `bot/shared/services/coaching/live-moves/live-moves.service.js:19:8d400068`
 - `disagreements.js` ← imported by `dashboard/services/coaching-report-view.js:12:d63ab42f`
 - `live-key.js` ← imported by `bot/shared/services/coaching/live-moves/live-moves.service.js:18:2319e99b`
-- `live-moves.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:2930:dbdf1d67`
+- `live-moves.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:2938:dbdf1d67`
 - `live-record.js` ← imported by `bot/shared/services/coaching/portal-coaching.service.js:291:2229b7f6` · `bot/shared/services/coaching/live-moves/live-moves.service.js:7:2e8dfb9a`
 - `stream-cap.js` ← imported by `bot/shared/services/coaching/live-moves/live-key.js:7:876367f7`
 - `switch.js` ← imported by `bot/shared/services/coaching/live-moves/live-moves.service.js:16:47ee8455`

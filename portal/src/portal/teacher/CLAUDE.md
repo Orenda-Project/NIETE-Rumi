@@ -1,7 +1,7 @@
 # teacher — Teacher app v2 (portal_teacher_v2): frame, menu, route registry, Urdu/English layer
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher kg=f3409f1d8ce1 gen=d1643fed11a3 overflow=105 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=portal/src/portal/teacher kg=1fabb4ded4f5 gen=d1643fed11a3 overflow=105 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `routes.tsx` — registry: globs ./*/routes.tsx into TEACHER_ROUTES; App.tsx wraps each in TeacherGate
