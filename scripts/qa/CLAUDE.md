@@ -1,7 +1,7 @@
 # qa — E2E runners, QA impact check, hooks and the scheduled LaunchAgent
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/qa kg=b02cc543b251 gen=e58e2d4a4859 overflow=6 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/qa kg=af69fe628860 gen=e58e2d4a4859 overflow=6 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `e2e-mock.sh` — one-command mock-lane E2E run

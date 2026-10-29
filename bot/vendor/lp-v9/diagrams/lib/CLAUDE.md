@@ -1,7 +1,7 @@
 # lib — Shared helpers for diagram types: SVG builder, text measure, tokens, degeneracy check
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams/lib kg=e91ceaa752bb gen=71c1817a8d40 overflow=11 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams/lib kg=76fb73484ce3 gen=71c1817a8d40 overflow=11 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `svg.js` — builder every type draws with

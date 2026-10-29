@@ -1,7 +1,7 @@
 # render — Renders child cards, print packs and coach sheets from the item bank
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/render kg=1aa0c18ddbc7 gen=243e7076abcf overflow=13 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/render kg=61ef8843c76c gen=243e7076abcf overflow=13 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — renderInlineCards, renderPrintableCard, renderCoachSheet

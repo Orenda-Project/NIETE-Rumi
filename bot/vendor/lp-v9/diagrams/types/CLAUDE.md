@@ -1,7 +1,7 @@
 # types — One file per diagram kind (atom, graph, circuit, clock, panels, ...)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams/types kg=71d9c279bc6c gen=e8c0fa22feaa overflow=22 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams/types kg=d2810bbae0e9 gen=e8c0fa22feaa overflow=22 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `panels.js` — 2-3 side-by-side bordered comparison panels

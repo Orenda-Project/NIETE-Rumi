@@ -1,7 +1,7 @@
 # score-adapters — One score adapter per framework, turning analysis into scorecard groups
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-v2/score-adapters kg=65c16229e528 gen=84c868caf1cf overflow=7 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-v2/score-adapters kg=cdf34f2d6c28 gen=84c868caf1cf overflow=7 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `dispatch.js` — framework key to adapter

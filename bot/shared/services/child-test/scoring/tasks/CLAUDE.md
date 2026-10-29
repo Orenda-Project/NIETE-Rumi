@@ -1,7 +1,7 @@
 # tasks — Per-task v3 scorers (letters, words, story, listening, maths) on shared engines
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/scoring/tasks kg=0c056455ea44 gen=a656d3baab35 overflow=13 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/scoring/tasks kg=31023648e382 gen=a656d3baab35 overflow=13 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — dispatches a v3 task to its scorer

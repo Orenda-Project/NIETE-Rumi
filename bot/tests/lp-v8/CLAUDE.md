@@ -1,7 +1,7 @@
 # lp-v8 — Tests for lesson-plan delivery: v8/v9 corpus, Flow, uploader, LP chat context
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/lp-v8 kg=944dc7352393 gen=b958e18dcf8c overflow=22 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/lp-v8 kg=daf98cd4aca0 gen=118ed608ea1f overflow=22 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `delivery.test.js` — deliverV8Lesson, presigned URL and sent rows
@@ -12,10 +12,10 @@ Full index: `CLAUDE.index.md`
 ## Children (generated)
 | path | purpose |
 |---|---|
+| `flow-response-telemetry.test.js` | Pins lp612.flow.response telemetry: each data_exchange, INIT, BACK logs outcome, items, bytes, duration (bd-oak77.26) |
 | `bd*` | 12 files; most used `bd-oak77-route-all.test.js`: Pins LP_612_ROUTE_ALL/ROUTE_K5 flags: default off, only narrow, old 6-12 picker unreachable from free text (bd-oak77.4) |
 | `lp*` | 7 files; most used `lp-shelf-plumbing.test.js`: Pins lp-shelf wiring: deliverV8Lesson pushes an exact-version entry; failures never break delivery (bd-njn7u 1) |
 | `ab-ch310.test.js` | Pins the ICT G1-5 ch3-10 lesson-plan A/B: group A gets the v8 PDF, B the v9 render, by school (bd-5o0ay.10.1) |
-| `flow-response-telemetry.test.js` | Pins lp612.flow.response telemetry: each data_exchange, INIT, BACK logs outcome, items, bytes, duration (bd-oak77.26) |
 | `tick-app-opens.test.js` | Pins that the lesson tick counts lessons opened in the teacher app for both the Flow list and the app list |
 | `upload-writes-slide-script.test.js` | Pins that the uploader writes the slide script with the same asset row and hash in one run (PLAN R8 2.2 lane S) |
 | `delivery.test.js` | Tests deliverV8Lesson: presigned R2 URL, sent/failed rows, filename; Supabase, R2, WhatsApp mocked (bd-2054, bd-2407) |
@@ -34,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/scripts/CLAUDE.md`? · `bot/shared/routes/CLAUDE.md`? · `bot/shared/services/CLAUDE.md`? · `bot/tests/CLAUDE.md`?
+- docs: `bot/scripts/CLAUDE.md`? · `bot/shared/routes/CLAUDE.md`? · `bot/shared/services/CLAUDE.md`? · `bot/tests/CLAUDE.md`? · `docs/flows/CLAUDE.md`?

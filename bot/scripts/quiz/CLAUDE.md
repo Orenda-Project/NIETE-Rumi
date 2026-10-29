@@ -1,7 +1,7 @@
 # quiz — Quiz and Challenge audio, language and kept-reading maintenance scripts
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/quiz kg=502d4421d968 gen=20c3016c78e6 overflow=14 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/quiz kg=1c6e2ef7666c gen=20c3016c78e6 overflow=14 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `backfill-bank-quiz-audio.js` — pre-record library quiz clips

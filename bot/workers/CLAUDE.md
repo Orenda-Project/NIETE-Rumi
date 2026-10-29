@@ -1,7 +1,7 @@
 # workers — SQS job worker, cron sweeps and per-job handlers run outside the web process
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/workers kg=0ceee8ffd1ef gen=ca58ff5c91c6 overflow=129 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/workers kg=9bf551cf1068 gen=ca58ff5c91c6 overflow=129 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `sqs-worker.js` — queue poller and jobType router

@@ -1,7 +1,7 @@
 # scripts — Operator scripts: LP corpus builds, backfills, template and Flow registration
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts kg=9aa1a6544a05 gen=b3fcaf0af390 overflow=81 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts kg=a0f6df4224de gen=b3fcaf0af390 overflow=81 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `check-syntax.js` — parse every tracked JS file before deploy

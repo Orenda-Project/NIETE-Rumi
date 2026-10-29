@@ -1,7 +1,7 @@
 # baseline — Sandbox schema dump plus seed lists that build the local test database
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=supabase/baseline kg=d5c627094bd7 gen=6ba91a144d4a overflow=842 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=supabase/baseline kg=559962f62b3c gen=6ba91a144d4a overflow=842 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `schema.sql` — schema-only dump; regenerate, never hand-edit (line 2)

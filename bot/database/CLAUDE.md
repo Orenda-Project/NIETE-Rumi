@@ -1,7 +1,7 @@
 # database — Legacy v3.0 schema, guides and ad-hoc SQL migrations from the main-bot era
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/database kg=af87bbf88c68 gen=4ba1de2029f7 overflow=21 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/database kg=06bfff987d2c gen=4ba1de2029f7 overflow=21 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `migrations/web_quiz_challenge_registry.sql` — requires:/rollback-pair header style; apply sandbox first

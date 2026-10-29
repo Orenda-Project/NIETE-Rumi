@@ -1,7 +1,7 @@
 # observe — /observe: coach observations, debrief, report to teacher, scheduling, calendar
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe kg=e79095b7a72b gen=8c5f14c7715c overflow=283 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe kg=9f9af37117f7 gen=8c5f14c7715c overflow=283 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `observe-debrief.service.js` — guided debrief entry, recording intake, coach feedback

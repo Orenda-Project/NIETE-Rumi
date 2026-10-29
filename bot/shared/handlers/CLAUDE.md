@@ -1,7 +1,7 @@
 # handlers — Inbound WhatsApp message handlers and slash-command doors
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/handlers kg=0f61e0710131 gen=dc8597f47885 overflow=181 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/handlers kg=57ddacdc4093 gen=dc8597f47885 overflow=181 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `text-message.handler.js` — main text router

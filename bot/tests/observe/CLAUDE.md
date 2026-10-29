@@ -1,7 +1,7 @@
 # observe — Jest tests for the /observe stack: one file per incident or feature (bd-id in name)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/observe kg=fc4e652ea365 gen=7e5a036a64dc overflow=117 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/observe kg=b8a116633d72 gen=b5338118fa4a overflow=117 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `observe-endpoint.test.js` — Flow data_exchange contract
@@ -33,4 +33,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `bot/shared/services/cache/CLAUDE.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/frameworks/CLAUDE.md`? · `bot/shared/services/coaching/report-renderers/CLAUDE.md`? · `bot/shared/services/observe/CLAUDE.md`? · `bot/shared/services/observe/assignment/CLAUDE.md`? (+5)
+- docs: `bot/shared/services/cache/CLAUDE.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/frameworks/CLAUDE.md`? · `bot/shared/services/coaching/report-renderers/CLAUDE.md`? · `bot/shared/services/observe/CLAUDE.md`? · `bot/shared/services/observe/assignment/CLAUDE.md`? (+6)

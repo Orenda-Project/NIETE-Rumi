@@ -1,7 +1,7 @@
 # nudges — Scheduled teacher nudges: store, sweeper, caps, coaching ask, quiz offer
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/nudges kg=f9d9503e8016 gen=e98a50299ca1 overflow=61 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/nudges kg=da9c024b2f31 gen=e98a50299ca1 overflow=61 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `teacher-nudges.sweeper.js` — periodic tick that claims and dispatches due rows

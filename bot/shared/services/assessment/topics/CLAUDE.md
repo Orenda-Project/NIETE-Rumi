@@ -1,7 +1,7 @@
 # topics — Curriculum-matrix rows to the tickable topics of a chapter; pure grouping
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/topics kg=0670ceef25c8 gen=30097a44ae3d overflow=28 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/topics kg=691c853fb865 gen=30097a44ae3d overflow=28 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `group.js` — groupChapter/groupAll, the entry point

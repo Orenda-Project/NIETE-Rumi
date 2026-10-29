@@ -1,6 +1,6 @@
 # data — Static data the bot loads: child-test banks, LP SLO tags, Urdu term lists
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data kg=15a96e5d05bf gen=dfcda0883c19 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/data kg=5d38b4d719a2 gen=dfcda0883c19 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `child-test/` — EGRA/EGMA item banks and passages

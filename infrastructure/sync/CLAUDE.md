@@ -1,6 +1,6 @@
 # sync — Maintainer-only config for syncing internal code to the public rumi-platform repo
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/sync kg=2d313043a21a gen=7feebc308443 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/sync kg=684b5109469b gen=7feebc308443 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `manifest.json` — internal-to-public path mappings read by sync-from-internal.sh

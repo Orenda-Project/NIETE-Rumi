@@ -1,7 +1,7 @@
 # lib — Renderer support: template, rich text, fonts, overlay, validation, fact lint
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/lib kg=cccb5f705491 gen=7a68a212776b overflow=29 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/lib kg=c09a0e78e12d gen=7a68a212776b overflow=29 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `template.js` — builds the two-page A4 HTML

@@ -1,7 +1,7 @@
 # migrations — Hand-applied SQL migrations (no runner); newer ones carry a *_rollback.sql file
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/database/migrations kg=a83604897631 gen=a6dc4621783b overflow=455 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/database/migrations kg=540c802e6833 gen=a6dc4621783b overflow=455 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `web_quiz_challenge_registry.sql` — shows the requires/NON-DESTRUCTIVE/rollback convention

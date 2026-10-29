@@ -1,7 +1,7 @@
 # early — Grade 1-2 FDE subject patterns plus their shared chrome
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/patterns/early kg=91030c54075a gen=7fb7ed92631a overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment/patterns/early kg=c986a1215375 gen=7fb7ed92631a overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `chrome.js` — shared header, legend, slot defaults and the build helpers

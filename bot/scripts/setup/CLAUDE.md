@@ -1,7 +1,7 @@
 # setup — Register WhatsApp Flows, templates and encryption with Meta; doctor preflight
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/setup kg=d6744d5a8269 gen=9699519c8046 overflow=27 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/setup kg=0831d15bc4de gen=db76d2b713c7 overflow=27 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `flow-configs.js` — the single list of Flows to register
@@ -16,7 +16,7 @@ Full index: `CLAUDE.index.md`
 | `flow-configs.js` | Single source of truth listing which WhatsApp Flows a deployment registers; used by register and validate scripts |
 | `meta-api.js` | Graph API client wrapping flow and template registration calls with a normalized success/error envelope |
 | `setup-state.js` | SetupState class managing .setup-state.json for flow, template and encryption registration status |
-| `register*` | 4 files; most used `register-all-flows.js`: Registers every Flow in flow-configs.js with Meta on a blank account; skips ones that already exist |
+| `register*` | 4 files; most used `register-one-flow.js`: Creates and publishes ONE Flow on an account that already has others, which register-all-flows cannot do |
 | … | 9 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)

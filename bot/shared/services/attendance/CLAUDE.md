@@ -1,6 +1,6 @@
 # attendance — BigQuery sync of the daily teacher-presence rollup to the STEPS warehouse
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/attendance kg=7af21b082d56 gen=40790f1712ca overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/attendance kg=e6030a4a2a7b gen=40790f1712ca overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `bigquery-sync.service.js` — thin wrapper writing the rollup (Round 2)

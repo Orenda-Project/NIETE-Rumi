@@ -1,6 +1,6 @@
 # sa-game — The SA battery as a home game: switch, page facts, run sink behind the portal edge
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/sa-game kg=a754b58b0cf1 gen=b338267ef7a8 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/sa-game kg=946bbe85382e gen=b338267ef7a8 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `routes.js` — internal router the portal calls with x-api-key

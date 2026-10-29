@@ -1,7 +1,7 @@
 # config — Configuration, feature flags, language registry, model registry, copy catalogs
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/config kg=1250c0cd6c21 gen=57d3fb968107 overflow=917 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/config kg=70f9b41b5ae3 gen=57d3fb968107 overflow=917 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `languages.js` — Urdu/English registry all lists derive from

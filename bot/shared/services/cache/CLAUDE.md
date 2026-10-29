@@ -1,7 +1,7 @@
 # cache — Railway Redis client: caching, rate limits, webhook dedup, distributed locks
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/cache kg=b218c1e37f3c gen=5d3ce5bbdefc overflow=180 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/cache kg=91841578f749 gen=5d3ce5bbdefc overflow=180 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `railway-redis.service.js` — singleton used across handlers; mocked in `shared/services/__mocks__/cache/`

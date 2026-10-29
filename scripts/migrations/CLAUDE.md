@@ -1,7 +1,7 @@
 # migrations — Hand-applied data and schema migrations, dated; mostly training-content seeds
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/migrations kg=a00dad0ffecd gen=535709249f0d overflow=27 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/migrations kg=b3bb50ca2144 gen=535709249f0d overflow=27 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `2026-10-01-attempt-status-pending-review.sql` — an additive enum-value migration (ADD VALUE IF NOT EXISTS)

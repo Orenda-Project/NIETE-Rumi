@@ -1,7 +1,7 @@
 # first-touch — Tests for one door, quiz maker and teacher home, with recorded goldens
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/first-touch kg=1baf97e587bf gen=d6d87f036765 overflow=54 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/first-touch kg=cb7e88f9677c gen=745afb4b482f overflow=54 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `one-door-entry.test.js` — /quiz one reply, OFF compared to golden
@@ -16,9 +16,9 @@ Full index: `CLAUDE.index.md`
 | `_ingress-mocks.js` | Shared boundary mocks (Redis as a Map, WhatsApp send, loggers) for the student-ingress door tests |
 | `maker-fixture.js` | Fixture for quiz-maker tests: synthetic video bank, one registered teacher, seeded into the in-memory Supabase |
 | `teacher-home.routes.test.js` | End-to-end tests of the /api/internal/th router over in-memory Supabase: shell, home, class card, sends, events |
+| `walk-persona-seam.test.js` | Seam test of the sandbox walk-through row against the real landing router and bindings repo; OFF byte-identical |
 | `maker.cards.test.js` | Tests the maker cards: words match the real door matchers, wa.me links, forward line, inline script in a sandbox |
 | `one*` | 12 files; most used `one-door-go-routes.test.js`: Tests the landing /api/internal/go routes on a real HTTP port: OFF 404, no-read question, who/role, bind |
-| `walk-persona-seam.test.js` | Seam test of the sandbox walk-through row against the real landing router and bindings repo; OFF byte-identical |
 | `maker.routes.test.js` | Tests the maker router: OFF answers 404 off:true, ON pages, other token kinds, step route, mount wrapper |
 | `maker-fallback.test.js` | Tests the maker cta refused-send fallback: one counted reply, 20-point buttons, each button opens today's entry |
 | `maker.cards.assessment-door.test.js` | Pins that the maker Test-paper card word reaches openAssessmentFlow exactly once through the real text handler |

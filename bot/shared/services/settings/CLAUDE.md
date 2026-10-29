@@ -1,6 +1,6 @@
 # settings — Shared app_settings switch cache and the page-switch snapshot
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/settings kg=9ff87f5c39e0 gen=e0c3d74dda0f overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/settings kg=b10466eace2c gen=e0c3d74dda0f overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `switch-cache.js` — cachedSwitch: one read per TTL, last good on failure

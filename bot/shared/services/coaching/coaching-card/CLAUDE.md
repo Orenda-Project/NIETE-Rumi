@@ -1,7 +1,7 @@
 # coaching-card — Commitment card: content, HTML template and PNG render, button replies
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/coaching-card kg=27785f0b54f4 gen=123c39b0fa69 overflow=24 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/coaching-card kg=a2666acdb797 gen=123c39b0fa69 overflow=24 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `commitment-card.service.js` — builds the card content from the reflective answer

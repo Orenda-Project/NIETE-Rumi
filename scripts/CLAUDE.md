@@ -1,7 +1,7 @@
 # scripts — Operator tools: data migrations, backfills, Flow publishers, QA
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts kg=f6b4e0e183a4 gen=b15350c4f13a overflow=63 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts kg=9ef1b2a88ef2 gen=b15350c4f13a overflow=63 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `smoke-test.js` — pre-deploy load check of bot entry, workers and dashboard routes

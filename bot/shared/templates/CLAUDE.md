@@ -1,7 +1,7 @@
 # templates — HTML/PDF/image templates and Meta WhatsApp template definitions
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/templates kg=e33725b4275f gen=3c34b7b92321 overflow=96 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/templates kg=d26721856f7c gen=3c34b7b92321 overflow=96 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `niete-brand.js` — shared palette and fonts

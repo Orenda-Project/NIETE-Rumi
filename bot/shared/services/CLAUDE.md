@@ -1,7 +1,7 @@
 # services — Flat service layer: LP delivery, WhatsApp, LLM, audio, doors, portal links
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services kg=d3971a5eb912 gen=940369ac05d6 overflow=1000 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services kg=0ee9fe0b3179 gen=940369ac05d6 overflow=1000 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `whatsapp.service.js` — every outbound WhatsApp send, with code-point caps

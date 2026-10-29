@@ -1,6 +1,6 @@
 # drafts — Unsubmitted utility template drafts for the teacher-app ready fallback
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/templates/drafts kg=68529a53d22a gen=085268f6a6fa overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/templates/drafts kg=4b956337c07c gen=1cc041fd72a5 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `README.md` — why these are drafts and what an operator go is needed for
@@ -29,4 +29,4 @@
 - (none)
 
 ## Related (generated)
-- docs: `bot/shared/services/nudges/CLAUDE.md`? · `infrastructure/templates/CLAUDE.md`? · `infrastructure/templates/README.md`? · `infrastructure/templates/share/README.md`?
+- docs: `bot/shared/services/nudges/CLAUDE.md`? · `infrastructure/templates/CLAUDE.md`? · `infrastructure/templates/README.md`? · `infrastructure/templates/share/README.md`? · `tests/portal/CLAUDE.md`?

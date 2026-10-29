@@ -1,7 +1,7 @@
 # exam-checker — Exam-paper checker: OCR, grading, annotation and delivery behind one orchestrator
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/exam-checker kg=f3d595c264dd gen=afee97bf140d overflow=16 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/exam-checker kg=afd7dfbde28f gen=afee97bf140d overflow=16 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `exam-checker.orchestrator.js` — thin coordinator of the whole workflow

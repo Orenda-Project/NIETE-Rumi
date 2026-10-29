@@ -1,7 +1,7 @@
 # reflective-questions — Reflective question generation: prompts, language profiles, guardrails, LLM ladder
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/reflective-questions kg=51da8c9200cc gen=f9973bf7a69a overflow=10 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/reflective-questions kg=fa47bc282807 gen=f9973bf7a69a overflow=10 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `question-prompt.js` — per-question prompt for the v12 chain

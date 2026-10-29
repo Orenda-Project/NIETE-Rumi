@@ -1,7 +1,7 @@
 # queue — Queue driver selector: SQS default or BullMQ over Redis, same method surface
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/queue kg=614d895fdf54 gen=21157ad8926a overflow=50 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/queue kg=ed9aa9cb1109 gen=21157ad8926a overflow=50 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — QUEUE_DRIVER selection used by producers and sqs-worker

@@ -1,6 +1,6 @@
 # assets — Static assets for the diagram engine
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams/assets kg=b30745bd9197 gen=c56d1887dc90 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams/assets kg=bc336b9ab3cc gen=c56d1887dc90 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `pictograms/ATTRIBUTION.md` — source and licence of the glyph set

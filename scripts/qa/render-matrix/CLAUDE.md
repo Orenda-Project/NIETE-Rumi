@@ -1,6 +1,6 @@
 # render-matrix — Render matrix: every web-quiz item shape drawn and checked for defects
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/qa/render-matrix kg=765a0aa6e061 gen=93ab36484352 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/qa/render-matrix kg=8151db5393b8 gen=93ab36484352 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `build_matrix.js` — builds cases from real code and manifests

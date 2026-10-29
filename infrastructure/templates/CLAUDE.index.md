@@ -31,4 +31,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `docs/migration/DEPLOYMENT.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/templates/README.md`? · `infrastructure/templates/drafts/CLAUDE.md`? · `infrastructure/templates/drafts/README.md`? · `infrastructure/templates/share/CLAUDE.md`? · `infrastructure/templates/share/README.md`?
+- docs: `dashboard/services/CLAUDE.md`? · `docs/migration/DEPLOYMENT.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/templates/README.md`? · `infrastructure/templates/drafts/CLAUDE.md`? · `infrastructure/templates/drafts/README.md`? · `infrastructure/templates/share/CLAUDE.md`? · `infrastructure/templates/share/README.md`?

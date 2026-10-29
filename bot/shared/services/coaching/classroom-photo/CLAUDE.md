@@ -1,7 +1,7 @@
 # classroom-photo — Classroom photo step: capture, taps, vision reading, evidence cleaning
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/classroom-photo kg=d3280c693b54 gen=b28a2581c3e0 overflow=17 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/classroom-photo kg=84d5026ac3e2 gen=b28a2581c3e0 overflow=17 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `capture.service.js` — photos sent as documents or racing analysis, one prompt per burst

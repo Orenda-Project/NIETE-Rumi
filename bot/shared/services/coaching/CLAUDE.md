@@ -1,7 +1,7 @@
 # coaching — Coaching pipeline: recording to analysis, reflection, report, video clips, weekly report
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching kg=f5906cc96aea gen=e110bea62526 overflow=298 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching kg=b0fe8144a914 gen=e110bea62526 overflow=298 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `coaching-session.service.js` — session lifecycle and status writes; the funnel every job uses

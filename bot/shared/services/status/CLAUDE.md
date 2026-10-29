@@ -1,6 +1,6 @@
 # status — Decision for the /status reply before anything is sent
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/status kg=c060236bb2ba gen=92d30df2defa overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/status kg=d72d73e22535 gen=92d30df2defa overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `status-command.js` — decideStatusReply

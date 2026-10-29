@@ -1,7 +1,7 @@
 # migrations — Versioned NIETE migrations V1.0.0 to V1.8.3; some carry a ROLLBACK_ file
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/supabase/migrations kg=2dea2d11fdef gen=ebf8b388e0f6 overflow=447 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/supabase/migrations kg=660873f4d389 gen=ebf8b388e0f6 overflow=447 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `V1.8.0__coachip_insights.sql` — largest: 19 coachip_* tables and 25 enum types
@@ -24,7 +24,7 @@ Full index: `CLAUDE.index.md`
 
 ## Never (human)
 - V1.4.4 drops users.first_name/last_name only after the reading code is live (V1.4.4__drop_first_last_name_columns.sql:3)
-- New migrations (V1.6.13 onward) carry no BEGIN/COMMIT: exec_sql refuses transaction control (V1.8.0__coachip_insights.sql:20); 18 older files V1.0.8 to V1.6.12 still contain them (e.g. V1.4.4__drop_first_last_name_columns.sql:27)
+- No BEGIN/COMMIT in a migration (V1.8.0__coachip_insights.sql:20, exec_sql refuses it)
 - Roll code back before ROLLBACK_V1.4.0 drops render_degraded (ROLLBACK_V1.4.0__lp612_render_degraded.sql:2-3)
 <!-- read: map-read-niete-bot 2026-10-29 -->
 

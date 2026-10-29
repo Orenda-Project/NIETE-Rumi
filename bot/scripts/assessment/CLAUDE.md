@@ -1,7 +1,7 @@
 # assessment — Backfills for exam-paper versioning (edited_from families)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/assessment kg=2e071417a5dd gen=7cc3e61069b7 overflow=10 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/assessment kg=c36f86a2837e gen=7cc3e61069b7 overflow=10 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `backfill-paper-versions.js` — turns old edited papers into two versions

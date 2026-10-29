@@ -1,7 +1,7 @@
 # video-reco — Training-video recommendation engine for coaching reports (VIDREC)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/video-reco kg=0a182eac687f gen=6684d8ce8284 overflow=121 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/video-reco kg=a3841b858920 gen=6684d8ce8284 overflow=121 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `engine.js` — recommendForReport pipeline

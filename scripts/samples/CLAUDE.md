@@ -1,6 +1,6 @@
 # samples — Authored sample data for rendering demo coaching reports
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/samples kg=57450e0b6722 gen=f8c6a89df77d overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/samples kg=672d593dfff3 gen=f8c6a89df77d overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `_index.js` — maps each framework to its sample

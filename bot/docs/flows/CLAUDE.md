@@ -1,6 +1,6 @@
 # flows — WhatsApp Flow JSON definitions the bot publishes to Meta
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/docs/flows kg=cbb0e5476f5d gen=f8eedd611941 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/docs/flows kg=df64ac6e2129 gen=f8eedd611941 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `registration-flow.json` — registration form screens and routing

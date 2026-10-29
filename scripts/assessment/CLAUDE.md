@@ -1,6 +1,6 @@
 # assessment — Assessment generator: ICT textbook import and offline quality evals
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/assessment kg=1752b6f05e92 gen=8807adc560ba overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/assessment kg=ae2bc3a48ee8 gen=8807adc560ba overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `import-ict-textbooks.py` — which ICT books load, via lib/textbook_import.py

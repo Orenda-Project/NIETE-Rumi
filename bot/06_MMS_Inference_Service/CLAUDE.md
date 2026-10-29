@@ -1,6 +1,6 @@
 # 06_MMS_Inference_Service — Standalone Python ASR service for Balochi, Sindhi, Pashto speech (bot calls it over HTTP)
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/06_MMS_Inference_Service kg=8b3ff86c79dc gen=80caedd33f0b overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/06_MMS_Inference_Service kg=be8ad3656742 gen=80caedd33f0b overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `app/main.py` — FastAPI /asr, /health, /languages around MMS-1b-all

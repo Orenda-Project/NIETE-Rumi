@@ -1,7 +1,7 @@
 # roster — /roster pipeline: decrypt photo, vision-extract rows, edit lines, store photos
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/roster kg=21a4d1bec519 gen=22a05839ca62 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/roster kg=aeb395291592 gen=22a05839ca62 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `roster-extraction.service.js` — register photo to structured rows

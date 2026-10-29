@@ -1,7 +1,7 @@
 # weekly-report — Group B weekly usage report sent Saturday as a Meta template
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/weekly-report kg=fcb4e0fc0281 gen=7fc2f643c966 overflow=5 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/weekly-report kg=c600267c0c4d gen=7fc2f643c966 overflow=5 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `job.js` — prepare and send, registers in the nudge sweeper

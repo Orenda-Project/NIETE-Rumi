@@ -1,7 +1,7 @@
 # providers — Lesson providers for /quiz that make a quiz from a Grades 6-12 lesson plan
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/quiz/providers kg=1fd775c734a2 gen=4a6da3428c7c overflow=7 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/quiz/providers kg=90689bdeba79 gen=4a6da3428c7c overflow=7 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `lp612.provider.js` — lists received 6-12 plans and creates the lp612 quiz only when tapped

@@ -1,7 +1,7 @@
 # database — Supabase helpers for users and sessions, dashboard queries, original schema
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/database kg=8b58160ad511 gen=e19417e9da59 overflow=44 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/database kg=2423e89b3d8f gen=e19417e9da59 overflow=44 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `bot-helpers.js` — getOrCreateUser, sessions, conversations
@@ -25,7 +25,7 @@ Full index: `CLAUDE.index.md`
 - … 36 more → `CLAUDE.index.md`
 
 ## Never (human)
-- schema.sql is the Nov 2025 baseline only; live schema: infrastructure/supabase/migrations/ (infrastructure/scripts/migrate.js:324-327) + hand-applied bot/database/migrations/
+- schema.sql is the Nov 2025 baseline only; live schema comes from supabase/migrations
 <!-- read: map-read-niete-bot 2026-10-29 -->
 
 ## Tests (generated)

@@ -1,6 +1,6 @@
 # web-quiz — Web quiz content loading, backfills and by-hand health runs
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/web-quiz kg=73f113668b39 gen=10540b000014 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/web-quiz kg=ba0692947b14 gen=10540b000014 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `load-stories.js` — loads storybooks into one environment, --expect-ref guarded

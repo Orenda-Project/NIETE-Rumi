@@ -1,6 +1,6 @@
 # monitoring — Lesson-plan health (hourly) and quiz-funnel (2-hourly) watcher alerts to operators
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/monitoring kg=93d7690ff926 gen=192c25ab0866 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/monitoring kg=9065e672b996 gen=192c25ab0866 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `lesson-plan-health.service.js` — reads lesson_plan_requests, alerts when unhealthy

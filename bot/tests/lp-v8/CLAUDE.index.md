@@ -66,4 +66,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/scripts/CLAUDE.md`? · `bot/shared/routes/CLAUDE.md`? · `bot/shared/services/CLAUDE.md`? · `bot/tests/CLAUDE.md`?
+- docs: `bot/scripts/CLAUDE.md`? · `bot/shared/routes/CLAUDE.md`? · `bot/shared/services/CLAUDE.md`? · `bot/tests/CLAUDE.md`? · `docs/flows/CLAUDE.md`?

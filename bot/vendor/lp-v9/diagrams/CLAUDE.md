@@ -1,7 +1,7 @@
 # diagrams — Diagram-as-code engine turning specs into deterministic SVG for LPs
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams kg=294a72284233 gen=3f19f04843de overflow=7 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams kg=3d9abef32c91 gen=3f19f04843de overflow=7 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — registry and the contract render_lp.js uses

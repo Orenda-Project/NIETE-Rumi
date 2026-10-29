@@ -1,7 +1,7 @@
 # tests — Jest suite for the NIETE bot: unit, handler, worker, LP and call tests
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests kg=13f00882d2dc gen=b61d1e930772 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests kg=ef2f80c78e26 gen=b61d1e930772 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `setup-loopback.js` — jest setupFile blocking live DB/Redis/LLM/WhatsApp in every test

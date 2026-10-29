@@ -1,7 +1,7 @@
 # observe2 — /observe2: FICO ICT live field form, checked moments, brief and indicator levels
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe/observe2 kg=e7a56a68e5da gen=7635b686ff0a overflow=84 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe/observe2 kg=573ae8a658d6 gen=7635b686ff0a overflow=84 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `start.js` — command to live form

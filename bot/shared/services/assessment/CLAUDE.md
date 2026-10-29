@@ -1,7 +1,7 @@
 # assessment — Assessment (exam paper) generator: textbook pages to marked, rendered papers
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment kg=4eabfc5ecc29 gen=683270bf5af2 overflow=273 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/assessment kg=88694429672a gen=683270bf5af2 overflow=273 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `assessment-orchestrator.service.js` — runs a queued request end to end (generate, render, deliver)

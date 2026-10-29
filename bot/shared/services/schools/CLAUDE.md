@@ -1,6 +1,6 @@
 # schools — School lookup from the schools table and the legacy-migration transforms
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/schools kg=92fbff9199a3 gen=33a59a1d7b4c overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/schools kg=b6fb6143f7e9 gen=33a59a1d7b4c overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `school-resolver.service.js` — user to school via users.school_id

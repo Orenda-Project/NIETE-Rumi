@@ -1,7 +1,7 @@
 # quiz — Class quizzes, video quizzes, storybooks and the child web quiz (Jugnu) services
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/quiz kg=9ed827a6c19d gen=a31259c316de overflow=1399 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/quiz kg=832b771a703b gen=a31259c316de overflow=1399 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `quiz-orchestrator.service.js` — /quiz command, class selection, LP-anchored offers

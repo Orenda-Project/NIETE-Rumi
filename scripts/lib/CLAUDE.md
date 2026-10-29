@@ -1,7 +1,7 @@
 # lib — Pure decision logic imported by the write scripts so judgement is testable
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/lib kg=6bcff30d5419 gen=972e41d34453 overflow=9 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/lib kg=5030fabd14f3 gen=972e41d34453 overflow=9 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `roster_school_backfill.py` — example pure classifier: no I/O, no database

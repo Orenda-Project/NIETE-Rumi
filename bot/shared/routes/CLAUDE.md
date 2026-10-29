@@ -1,7 +1,7 @@
 # routes — HTTP endpoints: encrypted WhatsApp Flow data exchange and /api/internal routes
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/routes kg=4ad6a0bd6bb8 gen=5d528038dae6 overflow=373 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/routes kg=479089fc805d gen=5d528038dae6 overflow=373 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `flow-endpoint.routes.js` — Flow dispatcher

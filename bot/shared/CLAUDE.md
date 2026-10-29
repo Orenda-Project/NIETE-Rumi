@@ -1,7 +1,7 @@
 # shared — Code shared by the web bot and workers: handlers, routes, services glue, config
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared kg=2f4a0bd52ddb gen=e09e64fa4d15 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared kg=ec6ef62aa2c9 gen=e09e64fa4d15 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `handlers/text-message.handler.js` — main inbound router

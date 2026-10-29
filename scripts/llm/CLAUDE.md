@@ -1,6 +1,6 @@
 # llm — CLI to see and change which LLM model runs each job
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/llm kg=402fc9aa9d3c gen=fe15e9b05de6 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/llm kg=aca53b6daac4 gen=fe15e9b05de6 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `models.js` — list, status, apply, kill and unkill the per-job model routing

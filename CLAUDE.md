@@ -111,22 +111,22 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 - **DB bootstrap**: `npm run bootstrap:db` applies schema → RLS → seed (idempotent).
 
 ## Map (generated)
-<!-- kg:map repo=NIETE-Rumi gen=996bb719ca4f -->
+<!-- kg:map repo=NIETE-Rumi gen=99b7f21c76aa -->
 | dir | what it is |
 |---|---|
 | `.claude/` | Agent & skill config (L1) → `.claude/CLAUDE.md` |
 | `.cursor/` | (no door; 1 files) |
 | `.githooks/` | (no door; 5 files) |
-| `.github/` | (no door; 22 files) |
+| `.github/` | GitHub repo config: contributing guide, issue templates, CI workflows → `.github/CLAUDE.md` |
 | `bot/` | NIETE WhatsApp bot: webhook, workers, services, tests, migrations → `bot/CLAUDE.md` |
-| `dashboard/` | (no door; 6085 files) |
-| `docs/` | (no door; 138 files) |
+| `dashboard/` | Express server: admin pages, teacher/coach portal API, child-quiz edge → `dashboard/CLAUDE.md` |
+| `docs/` | Repo docs: architecture, E2E and QA system, migration history, ops guides → `docs/CLAUDE.md` |
 | `infrastructure/` | DB schema, migrations, deploy configs, WhatsApp templates → `infrastructure/CLAUDE.md` |
-| `kg/` | (no door; 11 files) |
-| `portal/` | (no door; 2752 files) |
+| `kg/` | (no door; 19 files) |
+| `portal/` | React SPA: public marketing site plus the NIETE teacher/coach portal and Android app → `portal/CLAUDE.md` |
 | `scripts/` | Operator tools: data migrations, backfills, Flow publishers, QA → `scripts/CLAUDE.md` |
 | `supabase/` | Schema dump and seed list for the local mock-lane DB → `supabase/CLAUDE.md` |
-| `tests/` | (no door; 2644 files) |
+| `tests/` | Root jest suite over bot/ and dashboard/ code, plus the no-new-failure baseline gate → `tests/CLAUDE.md` |
 | `tools/` | (no door; 1 files) |
 
 Deeper: `python3 kg/kg.py find <words>` · `python3 kg/kg.py file <path>`

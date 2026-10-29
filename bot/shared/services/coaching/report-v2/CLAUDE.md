@@ -1,7 +1,7 @@
 # report-v2 — Hero report: score view model, narrative, templates, PNG image
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-v2 kg=dd26cf9c7317 gen=73f8bb6b44cd overflow=61 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-v2 kg=a7f1fcb9db12 gen=73f8bb6b44cd overflow=61 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `hero-report.service.js` — the render pipeline

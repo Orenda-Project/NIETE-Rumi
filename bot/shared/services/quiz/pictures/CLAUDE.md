@@ -1,6 +1,6 @@
 # pictures — Colour picture bank (Fluent Emoji glyphs) the web quiz draws nouns with
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/quiz/pictures kg=f5333abd59e0 gen=b75d8e85bd95 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/quiz/pictures kg=9c019bc58388 gen=b75d8e85bd95 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — colorInner(noun) and emojiNoun(emoji) lookups used by web-quiz figures

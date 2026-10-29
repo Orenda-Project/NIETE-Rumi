@@ -1,7 +1,7 @@
 # __golden__ — Recorded-from-base JSON goldens that pin web-quiz switch-off output
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz/web-quiz/__golden__ kg=4a53dc6651e3 gen=32e4db7c89ce overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz/web-quiz/__golden__ kg=604e01b133f2 gen=32e4db7c89ce overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `class-link-run-off.json` — run row and hub_open event snapshot read by web-quiz-class-link-run.test.js

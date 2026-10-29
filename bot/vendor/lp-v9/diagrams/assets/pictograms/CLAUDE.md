@@ -1,6 +1,6 @@
 # pictograms — OpenMoji line-art pictograms (CC BY-SA 4.0) for early-years diagrams
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams/assets/pictograms kg=f1d6819af1cf gen=7f298e4ba3d0 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/vendor/lp-v9/diagrams/assets/pictograms kg=347d336dd058 gen=7f298e4ba3d0 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `sources.json` — noun key to glyph map

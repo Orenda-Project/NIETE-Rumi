@@ -1,6 +1,6 @@
 # teacher-quiz-menu — Tests for the teacher /quiz home, report list and button routing
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz/teacher-quiz-menu kg=887a8ab27432 gen=8df8a2e6b61e overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz/teacher-quiz-menu kg=e48114ee5e3b gen=8df8a2e6b61e overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `teacher-quiz-routing.test.js` — tqh_/tqr_ button ids through the real POST /webhook

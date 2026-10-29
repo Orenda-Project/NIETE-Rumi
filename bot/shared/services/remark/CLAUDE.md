@@ -1,7 +1,7 @@
 # remark — Principal's Supervisor Remark (/remark): rubric walk, scores, teacher narrative
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/remark kg=b05759d1f216 gen=156de451b0b3 overflow=21 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/remark kg=c8ca99cff1fc gen=156de451b0b3 overflow=21 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `remark-rubric.js` — single source of truth for indicators and scoring

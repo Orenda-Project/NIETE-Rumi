@@ -1,6 +1,6 @@
 # migration — One-off NIETE migration appliers, lesson-plan imports and surveys
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/migration kg=bc4a4ddc6893 gen=bc59c2e502d7 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/migration kg=f41075e1d636 gen=bc59c2e502d7 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `apply-018-lp-v8-assets.js` — applies migration 018

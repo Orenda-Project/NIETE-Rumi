@@ -1,6 +1,6 @@
 # video-reco — Builds the training-video catalogue for the recommender
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/video-reco kg=3465871594d6 gen=22e3d7d1b769 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/video-reco kg=618ea19af953 gen=22e3d7d1b769 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `build-catalog.js` — writes video-catalog.v1.json and thumbnails

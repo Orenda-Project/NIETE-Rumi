@@ -1,7 +1,7 @@
 # child-test — Child reading/maths test: scoring evals and sandbox simulation helpers
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/child-test kg=d3bfd7f5c694 gen=ba56396ec443 overflow=46 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/child-test kg=a273fd4d6646 gen=ba56396ec443 overflow=46 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `eval-scoring.js` — offline eval of the scoreBlock pipeline against fixture keys

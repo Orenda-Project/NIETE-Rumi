@@ -1,6 +1,6 @@
 # flows — WhatsApp Flow JSON deployed to the NIETE WABA; only registration is ported
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/flows kg=78aca8ba276a gen=3a655f936216 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/flows kg=36d59dd82a0c gen=fc9e07e00843 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `README.md` — which Flows are live, env var per Flow, which are not yet ported
@@ -24,5 +24,5 @@
 - (none)
 
 ## Related (generated)
-- docs: `docs/e2e-mock-lane.md`? · `docs/migration/08-launch-checklist.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/flows/README.md`?
+- docs: `docs/e2e-mock-lane.md`? · `docs/flows/CLAUDE.md`? · `docs/migration/08-launch-checklist.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/flows/README.md`?
 - flows: `registration.json`? · `training-msq-flow.json`?

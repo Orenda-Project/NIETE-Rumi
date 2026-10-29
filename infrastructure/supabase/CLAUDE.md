@@ -1,7 +1,7 @@
 # supabase — Fresh-install SQL (schema, RLS, seed) and versioned migrations for NIETE Supabase
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/supabase kg=0c8bfe8d1160 gen=4c15fe52c351 overflow=972 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/supabase kg=dc5291b3c17c gen=4c15fe52c351 overflow=972 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `migrations/` — V*.sql plus ROLLBACK_V*.sql pairs, applied in order

@@ -1,6 +1,6 @@
 # report-renderers — Registry choosing the report renderer (hero PNG or PDFKit fallback)
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-renderers kg=696d958b96a7 gen=6b2c88fc28d7 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-renderers kg=9673923056d2 gen=6b2c88fc28d7 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `renderer-registry.js` — framework key to renderer

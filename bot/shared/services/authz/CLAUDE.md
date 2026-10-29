@@ -1,6 +1,6 @@
 # authz — Capability gate: may this user do X, answered from feature_permissions data
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/authz kg=b165e50a40d8 gen=85102a652162 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/authz kg=615066908201 gen=85102a652162 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `capability.js` — the one capability question for users-table roles (bd-2531)

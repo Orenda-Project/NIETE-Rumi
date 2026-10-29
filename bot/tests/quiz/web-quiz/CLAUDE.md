@@ -1,7 +1,7 @@
 # web-quiz — Jest suite for the kid-facing web quiz, hub, Challenge, stories and share flows
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz/web-quiz kg=25edbeebadfc gen=0e6fe7382533 overflow=419 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz/web-quiz kg=0d3c83a2f6cd gen=0e6fe7382533 overflow=419 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `web-quiz.service.test.js` — core web child quiz service: endpoints, one-attempt, 503 when off

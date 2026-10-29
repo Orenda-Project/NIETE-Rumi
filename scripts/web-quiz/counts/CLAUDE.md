@@ -1,6 +1,6 @@
 # counts — Read-only sandbox counts of what web-quiz surfaces serve
 
-<!-- kg:meta repo=NIETE-Rumi dir=scripts/web-quiz/counts kg=f5029f6ea095 gen=8fc40bd19298 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=scripts/web-quiz/counts kg=ba2bee17b658 gen=8fc40bd19298 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `web_quiz_videos_v3.js` — video library off vs on, per grade and subject

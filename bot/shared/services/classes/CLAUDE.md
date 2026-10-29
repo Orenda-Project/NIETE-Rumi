@@ -1,7 +1,7 @@
 # classes — Classes model: write surface, label parsing, vocabulary and class manager door
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/classes kg=0b5109e8c028 gen=51f4dacaa240 overflow=58 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/classes kg=4ae7f6fe225d gen=51f4dacaa240 overflow=58 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `class.service.js` — classes, teachers, subjects, enrolment writes

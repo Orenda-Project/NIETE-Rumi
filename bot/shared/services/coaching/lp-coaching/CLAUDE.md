@@ -1,7 +1,7 @@
 # lp-coaching — Lesson-plan step of a coaching session: list, link, upload, paste
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/lp-coaching kg=82caf78d3401 gen=21792d37db30 overflow=33 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/lp-coaching kg=88718d62de96 gen=21792d37db30 overflow=33 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `lp-step.service.js` — shared landing on the lesson-plan step

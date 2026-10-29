@@ -1,7 +1,7 @@
 # report-transformers — Per-framework transformers from analysis_data to the generic reportData
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-transformers kg=63ce6a9a7a70 gen=ef649029df31 overflow=15 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/report-transformers kg=f3150593b979 gen=ef649029df31 overflow=15 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `report-transformer-dispatch.js` — picks the transformer, OECD fallback

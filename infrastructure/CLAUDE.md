@@ -1,6 +1,6 @@
 # infrastructure — DB schema, migrations, deploy configs, WhatsApp templates
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure kg=a7ce79dd558f gen=95f96316d951 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure kg=4c30ee767e30 gen=95f96316d951 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `scripts/migrate.js` — versioned migration runner using the schema_versions ledger

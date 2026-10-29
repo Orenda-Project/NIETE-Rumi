@@ -1,6 +1,6 @@
 # assignment — Which schools and teachers a coach sees in the visit picker, and in what order
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe/assignment kg=ef41f5a14e82 gen=b354224301bd overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/observe/assignment kg=56cfd94f237b gen=b354224301bd overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `leader-source.js` — reads leader_schools and coaching_sessions for the visit Flow

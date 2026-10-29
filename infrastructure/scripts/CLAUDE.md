@@ -1,6 +1,6 @@
 # scripts — Operator scripts: migrate, fresh-DB bootstrap, connection test, staging env
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/scripts kg=cfb36a72bc4e gen=85509b7f1b3d overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/scripts kg=5a125529b48a gen=85509b7f1b3d overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `migrate.js` — applies pending V*.sql; refuses when the ledger is behind

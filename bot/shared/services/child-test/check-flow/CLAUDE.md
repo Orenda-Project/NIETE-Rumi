@@ -1,7 +1,7 @@
 # check-flow — WhatsApp Flow where a coach confirms or corrects the AI's marks
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/check-flow kg=f493de24352e gen=2f98f849fde3 overflow=55 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/check-flow kg=6800d44f144b gen=2f98f849fde3 overflow=55 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — public entry: sendCheck, handleCheckCompletion, prefill helpers

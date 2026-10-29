@@ -1,7 +1,7 @@
 # fidelity — Lesson-plan fidelity (Section B): grade moves vs transcript, score in code
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/fidelity kg=657671bd15f1 gen=e25a1dafd0c1 overflow=41 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/fidelity kg=723d19f14fef gen=e25a1dafd0c1 overflow=41 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `fidelity-orchestrator.js` — entry point; resolves moves, grades, scores

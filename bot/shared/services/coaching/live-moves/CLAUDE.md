@@ -1,7 +1,7 @@
 # live-moves — Live move ticking while a teacher records in the app (group D only)
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/live-moves kg=bb988b8d750e gen=0914e78bd17e overflow=14 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/live-moves kg=84a9647bc51e gen=0914e78bd17e overflow=14 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `live-moves.service.js` — logic behind /api/internal/coaching/live/*

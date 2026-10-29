@@ -1,7 +1,7 @@
 # video — Student video pipeline: script, images, animation, assembly, watermark, queue
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/video kg=cd4c902716ba gen=c76d7d0d6488 overflow=28 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/video kg=389ac8cf2a0c gen=c76d7d0d6488 overflow=28 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `video-orchestrator.service.js` — public API and rate limiting

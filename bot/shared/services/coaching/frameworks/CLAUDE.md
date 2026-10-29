@@ -1,7 +1,7 @@
 # frameworks — Observation frameworks (FICO, OECD, HOTS, MEWAKA, Teach): prompts and scoring
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/frameworks kg=952f57a35b0f gen=940b5e33c75f overflow=49 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/frameworks kg=7f3c6a22d8a2 gen=940b5e33c75f overflow=49 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `framework-registry.js` — key to module lookup

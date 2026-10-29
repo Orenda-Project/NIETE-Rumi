@@ -1,7 +1,7 @@
 # quiz — Jest suites for the quiz stack: video/chat quiz, reports, student door, web quiz
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz kg=3a0cbeb9ca8a gen=715a7fbce1cb overflow=77 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/tests/quiz kg=5438465c3b6c gen=715a7fbce1cb overflow=77 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `quiz-sources.test.js` — smallest map of quiz_source kinds (transcript, lp_v8, lp612) the rest assume

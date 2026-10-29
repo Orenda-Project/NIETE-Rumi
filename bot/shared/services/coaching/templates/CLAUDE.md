@@ -1,6 +1,6 @@
 # templates — HTML template for the MEWAKA PDF report
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/templates kg=c9e60204cd72 gen=5952d116c290 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/templates kg=1d4977ac486a gen=5952d116c290 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `mewaka-report.template.js` — pure reportData to HTML for Playwright

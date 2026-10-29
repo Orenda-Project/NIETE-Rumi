@@ -1,7 +1,7 @@
 # reading — Reading assessment: transcript, pronunciation, fluency, comprehension, PDF report
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/reading kg=0a8ce923f889 gen=6157adfa862a overflow=26 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/reading kg=2b7d68f5dfc2 gen=6157adfa862a overflow=26 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `analysis.service.js` — orchestrates the whole analysis pipeline

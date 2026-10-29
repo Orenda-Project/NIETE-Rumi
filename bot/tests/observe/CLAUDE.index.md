@@ -150,4 +150,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/services/cache/CLAUDE.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/frameworks/CLAUDE.md`? · `bot/shared/services/coaching/report-renderers/CLAUDE.md`? · `bot/shared/services/observe/CLAUDE.md`? · `bot/shared/services/observe/assignment/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/tests/CLAUDE.md`? · `bot/workers/CLAUDE.md`? · `docs/features/role-based-menu.md`? · `scripts/CLAUDE.md`?
+- docs: `bot/shared/services/cache/CLAUDE.md`? · `bot/shared/services/coaching/CLAUDE.md`? · `bot/shared/services/coaching/frameworks/CLAUDE.md`? · `bot/shared/services/coaching/report-renderers/CLAUDE.md`? · `bot/shared/services/observe/CLAUDE.md`? · `bot/shared/services/observe/assignment/CLAUDE.md`? · `bot/shared/services/queue/CLAUDE.md`? · `bot/tests/CLAUDE.md`? · `bot/workers/CLAUDE.md`? · `docs/features/role-based-menu.md`? · `docs/flows/CLAUDE.md`? · `scripts/CLAUDE.md`?

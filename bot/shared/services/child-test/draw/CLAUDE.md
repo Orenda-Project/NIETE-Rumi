@@ -1,7 +1,7 @@
 # draw — Which children a coach tests: seeded per-class draw, cycles, term sets, visit keys
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/draw kg=0dda9c7c8686 gen=a11fb296b338 overflow=12 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/child-test/draw kg=0d09c536374a gen=a11fb296b338 overflow=12 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — todaysList, markOutcome, addChild, frame snapshot

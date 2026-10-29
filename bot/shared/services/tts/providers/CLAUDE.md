@@ -1,6 +1,6 @@
 # providers — Concrete TTS vendors: ElevenLabs, OpenAI and Soniox behind the gateway
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/tts/providers kg=ac36b28b3225 gen=86eb3a2b0e44 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/tts/providers kg=938a134324f2 gen=86eb3a2b0e44 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `soniox.provider.js` — parallel parts joined into one stream

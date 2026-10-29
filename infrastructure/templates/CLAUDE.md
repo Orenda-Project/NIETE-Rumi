@@ -1,7 +1,7 @@
 # templates — WhatsApp message template JSON per WABA, plus submit and re-upload scripts
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/templates kg=3885ea2b9351 gen=a135a5d5fce7 overflow=4 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/templates kg=546a9cb8bd55 gen=0b30f44d5e1d overflow=4 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `README.md` — which templates were harvested, submitted or skipped, and why
@@ -34,4 +34,4 @@ Full index: `CLAUDE.index.md`
 - (none)
 
 ## Related (generated)
-- docs: `docs/migration/DEPLOYMENT.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/templates/README.md`? · `infrastructure/templates/drafts/CLAUDE.md`? · `infrastructure/templates/drafts/README.md`? · `infrastructure/templates/share/CLAUDE.md`? (+1)
+- docs: `dashboard/services/CLAUDE.md`? · `docs/migration/DEPLOYMENT.md`? · `infrastructure/CLAUDE.md`? · `infrastructure/templates/README.md`? · `infrastructure/templates/drafts/CLAUDE.md`? · `infrastructure/templates/drafts/README.md`? (+2)

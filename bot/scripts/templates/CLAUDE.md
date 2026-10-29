@@ -1,6 +1,6 @@
 # templates — Menu carousel template creation and video upload; WABA-bound ids
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/templates kg=76d0f75d7a67 gen=2fed5feed03a overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/templates kg=bb1e047a2b9b gen=2fed5feed03a overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `README.md` — which files carry WABA-specific handles

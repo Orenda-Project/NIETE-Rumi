@@ -1,6 +1,6 @@
 # ops — One-shot operational fixes run by hand against live caches
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/ops kg=2dc5e97c6f40 gen=b42064d5eb01 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/ops kg=c7061f65f6e8 gen=b42064d5eb01 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `flush-language-cache.js` — clears cached language preferences

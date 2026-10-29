@@ -1,6 +1,6 @@
 # fflp — Free-form lesson-plan engine seam, default OFF behind app_settings.freeform_lp
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/fflp kg=fa562aa0e687 gen=a8b7e07544ab overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/fflp kg=31fa25d28d3c gen=a8b7e07544ab overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `index.js` — lazy single entry for every cross-module call
