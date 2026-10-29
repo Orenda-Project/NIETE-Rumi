@@ -5,11 +5,12 @@
 const mockLoadChapterContent = jest.fn();
 const mockLoadPageRangeContent = jest.fn();
 const mockGenerateExam = jest.fn();
+const mockGenerateTopicOral = jest.fn();
 
 jest.mock('../../../bot/shared/services/assessment/book-content.service', () => ({
   loadChapterContent: mockLoadChapterContent, loadPageRangeContent: mockLoadPageRangeContent,
 }));
-jest.mock('../../../bot/shared/services/assessment/assessment-generation.service', () => ({ generateExam: mockGenerateExam }));
+jest.mock('../../../bot/shared/services/assessment/assessment-generation.service', () => ({ generateExam: mockGenerateExam, generateTopicOral: mockGenerateTopicOral }));
 const mockRenderPaper = jest.fn(() => '<html/>');
 const mockRenderKey = jest.fn(() => '<html/>');
 jest.mock('../../../bot/shared/services/assessment/assessment-paper.renderer', () => ({
@@ -49,6 +50,7 @@ const JOB = {
 beforeEach(() => {
   jest.clearAllMocks();
   global.__user = null;
+  mockGenerateTopicOral.mockResolvedValue(null);
   mockLoadPageRangeContent.mockResolvedValue({ content: 'text', pageReference: '58-59' });
   mockLoadChapterContent.mockResolvedValue({ content: 'text', pageReference: '4-14', chapterTitle: 'T', pageCount: 11 });
   mockGenerateExam.mockResolvedValue({
@@ -118,5 +120,29 @@ describe('the ticked topics are stored in the paper so an edit can find them', (
   test('an empty topic scope gains no _topics key', async () => {
     const built = await Orchestrator.buildPaper({ ...JOB, scope: { kind: 'topics', topicIds: [], slos: [] } });
     expect(built.examJson).not.toHaveProperty('_topics');
+  });
+});
+
+describe('bd-6clakk.11: a topic paper carries its oral part', () => {
+  const ORAL = { tasks: [{ id: 'listening', marks: 5 }], marks: 5, content: [{ id: 'listening', script: 's', items: [{ ask: 'q' }] }] };
+  const SCOPE = { kind: 'topics', topicIds: ['t1', 't2'], slos: SLOS };
+
+  test('the oral is written from the ticked pages and stored as examJson._oral', async () => {
+    mockGenerateTopicOral.mockResolvedValue(ORAL);
+    const built = await Orchestrator.buildPaper({ ...JOB, requestId: 'req-9', scope: SCOPE });
+    expect(mockGenerateTopicOral).toHaveBeenCalledWith({ grade: 3, subject: 'english', pageContent: 'text', requestId: 'req-9' });
+    expect(built.examJson._oral).toEqual(ORAL);
+  });
+
+  test('no oral written (another subject, or it came back short): no _oral key', async () => {
+    const built = await Orchestrator.buildPaper({ ...JOB, scope: SCOPE });
+    expect(mockGenerateTopicOral).toHaveBeenCalledTimes(1);
+    expect(built.examJson).not.toHaveProperty('_oral');
+  });
+
+  test('a chapter job and an empty topic scope never ask for an oral', async () => {
+    await Orchestrator.buildPaper({ ...JOB, chapterNumber: 4 });
+    await Orchestrator.buildPaper({ ...JOB, scope: { kind: 'topics', topicIds: [], slos: [] } });
+    expect(mockGenerateTopicOral).not.toHaveBeenCalled();
   });
 });

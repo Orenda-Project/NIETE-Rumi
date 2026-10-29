@@ -127,6 +127,8 @@ function applySelection(examJson, selectedIds) {
   if (examJson && examJson._layout) out._layout = examJson._layout;
   // A topic paper's ticked topics ride in the tree so every edit can re-render its key.
   if (examJson && examJson._topics) out._topics = examJson._topics;
+  // So does its oral part (bd-6clakk.11): it holds no questions, only the key's teacher sheet.
+  if (examJson && examJson._oral) out._oral = examJson._oral;
   return out;
 }
 
