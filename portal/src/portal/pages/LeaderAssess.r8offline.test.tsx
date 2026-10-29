@@ -229,6 +229,27 @@ describe("sa_r8_offline_prep", () => {
     expect(dropPage).not.toHaveBeenCalled();
   });
 
+  it("ON: the phone's Jugnu is updating (a newer worker): the card gives that reason and asks for another tap, never a file count", async () => {
+    api.getSwitches.mockResolvedValue({ ...SW, r8OfflinePrep: true });
+    prep.mockResolvedValue({ ok: false, total: 100, cached: 99, missing: 1, bytes: 1024, why: "worker_update_pending" });
+    // the card checks the phone again once the record is written; that check meets the same newer worker
+    check.mockResolvedValue({ ready: false, total: 0, cached: 0, why: "worker_update_pending" });
+    render(<MemoryRouter><LeaderAssess /></MemoryRouter>);
+    fireEvent.click(await screen.findByTestId("assess-offline-go"));
+    const line = await screen.findByTestId("assess-offline-updating");
+    expect(line).toHaveTextContent("Jugnu is updating on this phone. Tap Get ready again in a minute.");
+    expect(screen.queryByTestId("assess-offline-partly")).toBeNull();
+  });
+
+  it("ON, Urdu: the same reason in Urdu; a check that finds the update pending says it too", async () => {
+    window.localStorage.setItem("niete-assess-lang", "ur");
+    window.localStorage.setItem("assess:r8:prep", JSON.stringify({ at: Date.now(), day: "2026-10-29", schools: [{ schoolId: "s2", name: "School Beta", grade: 3, listed: true }], forms: ["sa.coach.G3.A.ur"], ok: true, total: 100, cached: 100, bytes: 1024 }));
+    check.mockResolvedValue({ ready: false, total: 0, cached: 0, why: "worker_update_pending" });
+    api.getSwitches.mockResolvedValue({ ...SW, r8OfflinePrep: true });
+    render(<MemoryRouter><LeaderAssess /></MemoryRouter>);
+    expect(await screen.findByTestId("assess-offline-updating")).toHaveTextContent("جگنو اس فون پر اپ ڈیٹ ہو رہا ہے۔ ایک منٹ بعد دوبارہ تیاری کریں دبائیں۔");
+  });
+
   it("ON, every grade (sa_all_grades): the coach ticks the grades per school; only those lists and tests are kept", async () => {
     api.getSwitches.mockResolvedValue({ ...SW, allGrades: true, r8OfflinePrep: true });
     api.getSchools.mockResolvedValue({ schools: [{ schoolId: "s2", name: "School Beta", visitId: "v2", observedGrade: null, visitToday: true }] });
