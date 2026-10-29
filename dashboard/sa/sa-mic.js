@@ -5,10 +5,15 @@
  *   SAE.mic.state(store)            'ok' | 'no' | 'unknown' from localStorage sa:mic_ok ('1'/'0', or the coach
  *                                   pre-flight's JSON {ok|mic_ok, mic_rms}; an earlier game mic check on this phone)
  *   SAE.mic.remember(ok, rms)       sa:mic_ok ('1'/'0') and sa:mic_rms
- *   SAE.mic.probe(ms)               Promise<{ ok, rms, url }>: record ms (2 s), the level's RMS, a blob URL to play back
- *   SAE.mic.level(cb[, { stream }]) a live level 0..1 to cb about 10× a second; returns stop(). It listens on the
- *                                   stream given, else the recorder's open one (SAE.rec.stream()), else its own; a
- *                                   stream it did not open is never stopped (the recorder keeps recording).
+ *   SAE.mic.probe(ms[, o])          Promise<{ ok, rms, url }>: record ms (2 s), the level's RMS, a blob URL to play back
+ *   SAE.mic.level(cb[, o])          a live level 0..1 to cb about 10× a second; returns stop(). It listens on the
+ *                                   stream given (o.stream), else the recorder's open one (SAE.rec.stream()), else its
+ *                                   own; a stream it did not open is never stopped (the recorder keeps recording).
+ *
+ * o.ios (battery.ui.r8_ios_mic, switch sa_r8_ios_mic): the meter's AudioContext is made at the call, inside the child's
+ * tap, before the microphone is asked for, and resumed. On an iPhone a context made after the microphone answers can
+ * start suspended; its meter then reads silence and a working microphone fails the check. o.getUserMedia,
+ * o.AudioContext and o.MediaRecorder stand in for the browser's (tests), as in sa-rec.js.
  *
  * UMD: window.SAE.mic in the browser, module.exports under Node.
  */
@@ -64,16 +69,34 @@
     return Math.sqrt(sum / buf.length);
   }
 
-  function open() {
+  var CONSTRAINTS = { audio: { echoCancellation: true, noiseSuppression: true } };
+
+  function open(o) {
+    if (o && o.getUserMedia) return Promise.resolve().then(function () { return o.getUserMedia(CONSTRAINTS); });
     var nav = root.navigator;
     if (!nav || !nav.mediaDevices || !nav.mediaDevices.getUserMedia) return Promise.reject(new Error('no_mic'));
-    return nav.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    return nav.mediaDevices.getUserMedia(CONSTRAINTS);
   }
 
-  function analyser(stream) {
-    var AC = root.AudioContext || root.webkitAudioContext;
+  function context(o) {
+    var AC = (o && o.AudioContext) || root.AudioContext || root.webkitAudioContext;
     if (!AC) return null;
-    var ctx = new AC();
+    try { return new AC(); } catch (_) { return null; }
+  }
+
+  /** o.ios: a context made now, inside the tap, and asked to run; null otherwise (the analyser makes its own). */
+  function early(o) {
+    if (!o || o.ios !== true) return null;
+    var ctx = context(o);
+    if (ctx && ctx.state === 'suspended' && ctx.resume) {
+      try { Promise.resolve(ctx.resume()).catch(function () { /* stays suspended */ }); } catch (_) { /* no resume */ }
+    }
+    return ctx;
+  }
+
+  function analyser(stream, made, o) {
+    var ctx = made || context(o);
+    if (!ctx) return null;
     var src = ctx.createMediaStreamSource(stream);
     var an = ctx.createAnalyser();
     an.fftSize = 1024;
@@ -84,17 +107,18 @@
 
   function stopStream(stream) { if (stream && stream.getTracks) stream.getTracks().forEach(function (t) { t.stop(); }); }
 
-  function probe(ms) {
+  function probe(ms, o) {
     ms = ms || 2000;
-    return open().then(function (stream) {
+    var ctx = early(o);
+    return open(o).then(function (stream) {
       return new Promise(function (resolve) {
-        var an = analyser(stream);
+        var an = analyser(stream, ctx, o);
         var peak = 0;
         var samples = [];
         var timer = an ? setInterval(function () { var v = an.read(); samples.push(v); if (v > peak) peak = v; }, 100) : null;
         var chunks = [];
         var mr = null;
-        try { mr = new root.MediaRecorder(stream); } catch (_) { mr = null; }
+        try { mr = new ((o && o.MediaRecorder) || root.MediaRecorder)(stream); } catch (_) { mr = null; }
         function finish() {
           if (timer) clearInterval(timer);
           if (an) an.close();
@@ -110,7 +134,10 @@
           setTimeout(function () { try { mr.stop(); } catch (_) { finish(); } }, ms);
         } else setTimeout(finish, ms);
       });
-    }, function () { return { ok: false, rms: 0, peak: 0, url: null }; });
+    }, function () {
+      if (ctx) { try { ctx.close(); } catch (_) { /* closed */ } }
+      return { ok: false, rms: 0, peak: 0, url: null };
+    });
   }
 
   /** A stream whose tracks are all still live, or null. */
@@ -134,13 +161,14 @@
     var an = null;
     var timer = null;
     var borrowed = live(o && o.stream) || shared();
-    (borrowed ? Promise.resolve(borrowed) : open()).then(function (s) {
+    var ctx = early(o);
+    (borrowed ? Promise.resolve(borrowed) : open(o)).then(function (s) {
       stream = borrowed ? null : s; // a borrowed stream is the recorder's to stop
-      if (stopped) { stopStream(stream); return; }
-      an = analyser(s);
+      if (stopped) { stopStream(stream); if (ctx) { try { ctx.close(); } catch (_) { /* closed */ } } return; }
+      an = analyser(s, ctx, o);
       if (!an) return;
       timer = setInterval(function () { cb(Math.min(1, an.read() * 4)); }, 100);
-    }, function () { /* no mic: no meter */ });
+    }, function () { if (ctx) { try { ctx.close(); } catch (_) { /* closed */ } } /* no mic: no meter */ });
     return function stop() {
       stopped = true;
       if (timer) clearInterval(timer);

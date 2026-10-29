@@ -912,6 +912,25 @@ describe("LeaderAssess", () => {
       }
     });
 
+    it("sa_r8_ios_mic: the pre-flight makes its AudioContext inside the tap (the switch reaches the card)", async () => {
+      api.getSwitches.mockResolvedValue({ ...SWITCHES_OFF, iosMic: true });
+      const order: string[] = [];
+      (window as any).AudioContext = class { state = "suspended"; constructor() { order.push("ctx"); } resume() { return Promise.resolve(); } close() { return Promise.resolve(); } };
+      Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: () => { order.push("gum"); return new Promise(() => {}); } } });
+      try {
+        renderPage();
+        fireEvent.click(await screen.findByTestId("assess-school-s2"));
+        await screen.findByTestId("assess-preflight-ready");
+        await waitFor(() => expect(api.getSwitches).toHaveBeenCalled());
+        await act(async () => { await Promise.resolve(); });
+        fireEvent.click(screen.getByRole("button", { name: /Check the microphone/ }));
+        expect(order).toEqual(["ctx", "gum"]);
+      } finally {
+        delete (navigator as any).mediaDevices;
+        delete (window as any).AudioContext;
+      }
+    });
+
     it("switches unreadable: today's page", async () => {
       api.getSwitches.mockRejectedValue(NET());
       await openList();

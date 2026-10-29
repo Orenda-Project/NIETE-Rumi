@@ -36,3 +36,51 @@ test('a failed game check is not kept (asked again next run); a pass stays', () 
   mic.remember(false, 0, s);
   expect(mic.state(s)).toBe('ok');
 });
+
+// sa_r8_ios_mic: on an iPhone an AudioContext made after the microphone answers (outside the tap) can start suspended and
+// its meter reads silence, so a working microphone fails the game's check (ok needs a peak over FLOOR). With { ios: true }
+// the context is made inside the tap, before the microphone is asked for, and resumed. Without it, today's order.
+describe('probe on an iPhone (opts.ios)', () => {
+  let order;
+  let made;
+  let gumAt;
+  function deps() {
+    order = 0; made = []; gumAt = 0;
+    class AC {
+      constructor() { this.state = 'suspended'; this.at = (order += 1); made.push(this); }
+      resume() { this.state = 'running'; return Promise.resolve(); }
+      close() { this.state = 'closed'; return Promise.resolve(); }
+      createAnalyser() { const self = this; return { fftSize: 1024, getByteTimeDomainData: (b) => b.fill(self.state === 'running' ? 160 : 128) }; }
+      createMediaStreamSource() { return { connect() {} }; }
+    }
+    class MR {
+      constructor() { this.state = 'inactive'; }
+      start() { this.state = 'recording'; }
+      stop() { this.state = 'inactive'; if (this.onstop) this.onstop(); }
+    }
+    const stream = { getTracks: () => [{ stop() {} }] };
+    return { AudioContext: AC, MediaRecorder: MR, getUserMedia: () => { gumAt = (order += 1); return Promise.resolve(stream); } };
+  }
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+  async function run(o) {
+    const p = mic.probe(2000, o);
+    for (let i = 0; i < 10; i++) await Promise.resolve(); // the microphone's answer, then the recorder starts
+    jest.advanceTimersByTime(2100);
+    return p;
+  }
+
+  test('ios: the context is made before the microphone is asked for, resumed, and a voice passes', async () => {
+    const r = await run({ ios: true, ...deps() });
+    expect(made).toHaveLength(1);
+    expect(made[0].at).toBeLessThan(gumAt);
+    expect(r.ok).toBe(true);
+    expect(r.peak).toBeGreaterThan(mic.FLOOR);
+  });
+
+  test('without ios: today, the context after the microphone, never resumed (a suspended meter reads silence)', async () => {
+    const r = await run(deps());
+    expect(made[0].at).toBeGreaterThan(gumAt);
+    expect(r.ok).toBe(false);
+  });
+});

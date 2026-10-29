@@ -61,6 +61,8 @@
  *   sa_r8_timeup_continue   a part's clock running out ends that part only; the rest of its subject goes on.
  *   sa_r8_counts            item 35: the RDF forms' practice / scored counts per subsection and 15 s per story question
  *                           (bot/shared/services/child-test/sa/counts.js, which the scorer reads too).
+ *   sa_r8_ios_mic           the game's mic check on an iPhone: the meter's AudioContext is made inside the tap and resumed
+ *                           (dashboard/sa/sa-mic.js); the coach's pre-flight reads the same row (portal /sa/switches).
  *
  * Pure: applySwitches(battery, on) never changes its input.
  */
@@ -83,6 +85,7 @@ const SWITCHES = {
   r8LatinDigits: 'sa_r8_latin_digits', r8MissingNumber: 'sa_r8_missing_number', r8Layout: 'sa_r8_layout',
   r8StorySnap: 'sa_r8_story_snap', r8Nudges: 'sa_r8_nudges', r8Highlight: 'sa_r8_highlight', r8LangSwitch: 'sa_r8_lang_switch',
   r8ReadingPosition: 'sa_r8_reading_position', r8TimeupContinue: 'sa_r8_timeup_continue', r8Counts: 'sa_r8_counts',
+  r8IosMic: 'sa_r8_ios_mic',
 };
 const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManual: 'rdf_manual', voiceGateV2: 'voice_gate_v2',
   compAllQuestions: 'comp_all_questions', cellPace: 'cell_pace',
@@ -94,7 +97,8 @@ const UI = { oneAtATime: 'one_at_a_time', passagePunct: 'passage_punct', rdfManu
   r8ReadingNoDone: 'r8_reading_no_done', r8CompWaitNext: 'r8_comp_wait_next', r8PracticeAutoplay: 'r8_practice_autoplay',
   r8LatinDigits: 'r8_latin_digits', r8MissingNumber: 'r8_missing_number', r8Layout: 'r8_layout', r8StorySnap: 'r8_story_snap',
   r8Nudges: 'r8_nudges', r8Highlight: 'r8_highlight', r8LangSwitch: 'r8_lang_switch',
-  r8ReadingPosition: 'r8_reading_position', r8TimeupContinue: 'r8_timeup_continue', r8Counts: 'r8_counts' };
+  r8ReadingPosition: 'r8_reading_position', r8TimeupContinue: 'r8_timeup_continue', r8Counts: 'r8_counts',
+  r8IosMic: 'r8_ios_mic' };
 const { applyR7a } = require('./sa-r7a-content');
 const { withCounts } = require('../../bot/shared/services/child-test/sa/counts');
 
