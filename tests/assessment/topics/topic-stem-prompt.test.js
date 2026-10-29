@@ -40,6 +40,16 @@ describe('applyStems', () => {
     expect(exam.unseen.objective['Fill in the Blanks'][0].main_question).toBe(FILL.stems[0]);
   });
 
+  test('the writer keys the type "Fill in the blanks" (sandbox, G1 English): still checked and snapped', () => {
+    const exam = { unseen: { objective: { 'Fill in the blanks': [
+      { main_question: 'fill in the blanks with is, am or are', question: 'q', marks: 1 },
+      { main_question: 'Fill in the blanks.', question: 'q', marks: 1 },
+    ] } } };
+    const { misses } = applyStems(exam, [FILL]);
+    expect(exam.unseen.objective['Fill in the blanks'][0].main_question).toBe(FILL.stems[0]);
+    expect(misses).toEqual([{ type: 'Fill in the Blanks', main_question: 'Fill in the blanks.' }]);
+  });
+
   test('a question that uses no ticked stem is reported, and left as written', () => {
     const exam = paper(['Fill in the blanks.', FILL.stems[1]]);
     const { misses } = applyStems(exam, [FILL, MCQ]);

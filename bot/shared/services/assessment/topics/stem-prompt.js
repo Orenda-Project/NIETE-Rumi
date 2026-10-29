@@ -33,7 +33,10 @@ function applyStems(examJson, types) {
   for (const t of withStems(types)) {
     const byNorm = new Map(t.stems.map((s) => [norm(s), s]));
     for (const section of Object.values(unseen)) {
-      const items = section && section[t.id];
+      if (!section || typeof section !== 'object') continue;
+      // The writer may key a type in another case ("Fill in the blanks" for "Fill in the Blanks").
+      const key = Object.keys(section).find((k) => norm(k) === norm(t.id));
+      const items = key && section[key];
       if (!Array.isArray(items)) continue;
       for (const item of items) {
         if (!item || typeof item !== 'object') continue;
