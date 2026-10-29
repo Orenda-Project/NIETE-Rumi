@@ -71,6 +71,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-check-tap-early.service.test.js` | SA child test: a picture tapped early in the audio check passes or fails cleanly (sa-core, sa-ui) |
 | `sa-check-words-clips.service.test.js` | Tests the audio check's words carry clips in the battery, engine and store (sa-core, sa-engine, sa-store) |
 | `sa-clip-429.service.test.js` | SA offline: opening/transition lines prepared first; a 429 clip is retried once after a pause (sa-offline, sa-page) |
+| `sa-clips-lock.service.test.js` | Tests that a clip or battery file re-made under its name ships with a new sw.js SESSION (clips.lock.json) |
 | `sa-coach-lastword-corner.service.test.js` | SA coach screen: the last-word view is scrolled to the words and heading in both languages |
 | `sa-core.service.test.js` | Tests the SA runner sa-core: session gates, validate, intro-to-running path against the mini G3 Urdu battery |
 | `sa-dev-jump.service.test.js` | Tests sandbox-only dev jump in sa-core: no jumpTo without dev_tools; skipped tasks are marked skipped_dev |
@@ -150,7 +151,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `sa-rec.service.test.js` | Tests sa-rec: recorder type choice, chunk collection, stop closes the file with duration |
 | `sa-sink-coach.service.test.js` | Tests sink-coach.js: batch, presign, register go to the relay with cookie; signed-out coach throws so sync retries |
 | `sa-store.service.test.js` | Tests sa-store: events/results/chunks pending until synced, IndexedDB failure falls back to memory |
-| `sa-sw-session.service.test.js` | Tests the sw.js session cache version (sa-session-v6) and that activate deletes older caches |
+| `sa-sw-session.service.test.js` | Tests the sw.js session cache version (sa-session-v7) and that activate deletes older caches |
 | `sa-switch.service.test.js` | Tests sa-switch flapping-reader hold: both SA routers (sa-engine, sa-game) do not flap on a failed read |
 | `sa-sync-events-first.service.test.js` | Tests sa-sync ordering: battery_end events acked before a second recording is presigned |
 | `sa-sync-skip.service.test.js` | Tests sa-sync skip: blob deleted with not_kept; a sink error keeps audio for retry |
@@ -512,4 +513,4 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - (none)
 
 ## Related (all, generated)
-- docs: `bot/shared/data/child-test/sa/CLAUDE.md`? · `dashboard/CLAUDE.md`? · `dashboard/lib/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/public/wq/CLAUDE.md`? · `dashboard/routes/CLAUDE.md`? · `dashboard/sa/CLAUDE.md`? · `portal/src/lib/CLAUDE.md`?
+- docs: `bot/shared/data/child-test/sa/CLAUDE.md`? · `dashboard/CLAUDE.md`? · `dashboard/lib/CLAUDE.md`? · `dashboard/middleware/CLAUDE.md`? · `dashboard/public/wq/CLAUDE.md`? · `dashboard/routes/CLAUDE.md`? · `dashboard/sa/CLAUDE.md`? · `dashboard/scripts/CLAUDE.md`? · `portal/src/lib/CLAUDE.md`?

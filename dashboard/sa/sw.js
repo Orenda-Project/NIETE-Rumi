@@ -27,8 +27,11 @@
 // sa-10: round 8 offline: Jugnu's pictures go on the phone with "ready for offline" (sa-offline.js ART).
 // sa-11: round 8 offline: the Start gate checks the phone first and the background download gives it the line (sa-offline.js fresh / paused).
 // sa-12: round 8 offline: an installed worker is used without waiting on register() (which rejects with no signal).
-// sa-13: round 8: speak.audio() for the word highlight, the story's ear with r8_reading_position, the v4 word timings kept.
-var VERSION = 'sa-13';
+// sa-13: round 8: the engine files (speak.audio() for the word highlight, the story's ear with r8_reading_position).
+// sa-14 (production only): the engine files again. Each VERSION bump drops only the sa-core-* cache; the batteries, clips
+// and word timings stay in SESSION, so neither of these two refreshed a battery or clip copy a phone already held.
+// sa-15: round 8 close: sa-ui.js (the story questions' hint names Next / «آگے»).
+var VERSION = 'sa-15';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
@@ -37,7 +40,11 @@ var CORE = 'sa-core-' + VERSION;
 // v5: round 7: the letter name ثے re-voiced under its key ("se", not a "t" word) and the batteries' new lines.
 // v6: round 7b: a battery served while its switches are ON carries their ui flags and new lines (sa-battery-switches.js); a copy
 // kept under v5 would keep the old behaviour on a phone that already took it. Turn the switches on BEFORE this reaches a tier.
-var SESSION = 'sa-session-v6';
+// v7: round 8 close: v4 clips re-made under their keys (sums end on "equals", letter sounds held, praise excited) and the
+// battery files' new lines; a kept copy would play the old one. Phones re-download their clips on the next prepare.
+// clips.lock.json records the bytes each SESSION was taken with (dashboard/scripts/sa-clips-lock.js); the dashboard test
+// sa-clips-lock fails when a locked file changes under the same SESSION.
+var SESSION = 'sa-session-v7';
 var CORE_FILES = ['play.html', 'sa-core.js', 'sa-store.js', 'sa-voice.js', 'sa-ui.js', 'sa-sync.js', 'sa-rec.js',
   'sa-engine.js', 'sa-mic.js', 'sa-offline.js', 'sa-page.js', 'sa.css', 'sink-coach.js', 'sink-game.js', 'skin-game.css', 'skin-game.js'];
 var NETWORK_WAIT_MS = 3000;
