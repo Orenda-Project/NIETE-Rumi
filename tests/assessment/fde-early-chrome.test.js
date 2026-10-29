@@ -16,7 +16,10 @@ const subject = (oral) => C.makeSubject({
 test('a slot gets the Urdu label, its marks line and the early defaults', () => {
   const s = C.makeSlot({ slot: 'x', label_en: 'Q12.', type: 'T', generate: 4, marks_each: 2, prompt_rule: 'r' });
   expect(s.label_ur).toBe('سوال 12');
-  expect(s.marks_line_en).toBe('({t:8})');
+  // Items worth 2 or more print their sum (bd-5jmnfj.4.57); a 1-mark slot keeps the plain total.
+  expect(s.marks_line_en).toBe('({n:4}×2={t:8})');
+  expect(s.marks_line_ur).toBe('{n:4}×2={t:8}');
+  expect(C.makeSlot({ slot: 'z', label_en: 'Q2.', type: 'T', generate: 4, marks_each: 1, prompt_rule: 'r' }).marks_line_en).toBe('({t:4})');
   expect(s.category).toBe('subjective');
   expect(s.shape).toBe('short');
   expect(s.picture).toBeNull();

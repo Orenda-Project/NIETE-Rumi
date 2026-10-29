@@ -325,12 +325,14 @@ describe('r9 · subjects without a cross-section table lay out as before', () =>
   // rule restored they hash to the previous values.
   // maths again for bd-5jmnfj.4.55: Q4-8's prompt_rule asks for every length with its unit; with the old rule
   // restored it hashes to faf7fc6c….
+  // urdu and urdu-gen-full again for v26: urdu Q1's prompt_rule asks for plain stems and named punctuation
+  // marks; with the old rule restored they hash to the previous values.
   const BEFORE = {
     science: ['science', 'c09d5ceadd74d6dcb519af1330b9b7261318ce0ac6cfcc0c106c1e3c80c0f626'],
     maths: ['maths', 'a6718724d4bcc26940c78ee6ffac4a0b5370da08421eedf462b6e4e3ffb588cf'],
-    urdu: ['urdu', '42f0f277e15402128c69a6f792a6e9f119a4e66a7c4271bc7d387509721d85a1'],
+    urdu: ['urdu', '20764112466aafbec0a596c2adfdb76a93ee8de3819a30740103cf095d394962'],
     'r7-science-full1.exam': ['science', 'ce648f1e8c5b69e1f16b822ff101f812c539f94c5450bf4afb98e59101f2a48a'],
-    'urdu-gen-full': ['urdu', '4457288ac76d86f9c902ffa8ded3dcc860b776a2f4c297a648c05f1cb83aa93d'],
+    'urdu-gen-full': ['urdu', 'f740dee72bb1317ebb755aead2af150b57a813396ac8f5a4781891a3750864b3'],
   };
   test.each(Object.keys(BEFORE))('%s lays out byte-identical to before', (name) => {
     const [subject, sha] = BEFORE[name];

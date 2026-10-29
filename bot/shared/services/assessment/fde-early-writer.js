@@ -26,6 +26,7 @@ const { dealOrders } = require('./fde-order-block');
 const { noArrows } = require('./fde-no-arrows');
 const { answerRepeats, giveawayNote, stillGivenAway, writtenGiveaways } = require('./fde-answer-repeats');
 const { dealScrambles } = require('./fde-scramble-block');
+const { keyShortfall } = require('./fde-key-checks');
 
 const SCOPE = Object.freeze({ kind: 'fde', chapters: null, pages: null });
 const ORAL_SECTION = Object.freeze({ id: 'oral', slots: [] });
@@ -132,6 +133,8 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   // The oral sheet is not on the layout until the end, so it is attached to a copy for the check: a written
   // item asking an oral item's question is the written section's to fix (bd-5jmnfj.4.55).
   const withOral = (ex) => (oral ? { ...ex, _layout: { ...ex._layout, oral: { ...P.oral, content: oral.content } } } : ex);
+  // A key off its word box, or a who question keyed with a sentence, is asked again like a key off its rule (bd-5jmnfj.4.57).
+  const keysOff = (ex) => Prompt.answerShortfall(ex, P).concat(keyShortfall(ex, P));
   const firstLaid = lay(false);
   const layoutShort = new Set(firstLaid.shortfall.map((f) => f.slot));
   const short = firstLaid.shortfall
@@ -139,7 +142,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
     .concat(d.emptyQuestionParts(firstLaid.examJson))
     .concat(Prompt.pictureShortfall(firstLaid.examJson, P))
     .concat(Prompt.repeatedPictures(firstLaid.examJson, P))
-    .concat(Prompt.answerShortfall(firstLaid.examJson, P))
+    .concat(keysOff(firstLaid.examJson))
     .concat(writtenGiveaways(answerRepeats(withOral(firstLaid.examJson))));
   const shortSlots = new Set(short.map((f) => f.slot));
   const again = built.filter(({ section }) => section.slots.some((s) => shortSlots.has(s.slot)));
@@ -206,7 +209,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   // those questions are swapped in, so the rest of the section stays as it was checked.
   // The same check finds a give-away still there, and that is asked again too.
   const late = again.length
-    ? Prompt.answerShortfall(laid.examJson, P).concat(writtenGiveaways(stillGivenAway(withOral(laid.examJson))))
+    ? keysOff(laid.examJson).concat(writtenGiveaways(stillGivenAway(withOral(laid.examJson))))
     : [];
   const reaskLate = async (flags) => {
     await Promise.all(built.filter(({ section }) => section.slots.some((s) => flags.some((f) => f.slot === s.slot)))
@@ -228,7 +231,7 @@ async function writeEarlyPaper({ grade, subject, pattern, P, onSection = null, r
   const repeated = Prompt.repeatedPictures(examJson, P);
   if (repeated.length) d.logToFile('[assessment] repeated pictures', { requestId, pattern, repeated });
   // So is a key still off its slot's rule: one wrong item is better than no paper for the teacher.
-  const answers = Prompt.answerShortfall(examJson, P);
+  const answers = keysOff(examJson);
   if (answers.length) d.logToFile('[assessment] answers off the rule', { requestId, pattern, answers });
   const finalShort = laid.shortfall.concat(d.emptyQuestionParts(examJson), Prompt.pictureShortfall(examJson, P));
   if (finalShort.length) {

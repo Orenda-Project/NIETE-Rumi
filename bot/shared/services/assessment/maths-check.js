@@ -17,6 +17,7 @@
  */
 
 const { checkSchemeFigures } = require('./fde-scheme-figures');
+const { checkCommonError } = require('./fde-common-error-check');
 
 // Grade 5 numbers are short; anything longer is not a school sum.
 const MAX_DIGITS = 30;
@@ -1105,6 +1106,8 @@ function mathsCheck(examJson, options = {}) {
       q.scheme.checked = verdict;
       // Board-pattern papers only: the accept sums and the slip figure (bd-5jmnfj.4.55).
       if (isObject(exam._layout)) checkSchemeFigures(q, { parseForm });
+      // ...and a counting, carrying or decimal-point slip figure (bd-5jmnfj.4.57).
+      if (isObject(exam._layout)) checkCommonError(q);
       if (verdict === 'ok') counts.checked += 1;
       else if (verdict === 'replaced') counts.replaced += 1;
       else counts.unparsed += 1;

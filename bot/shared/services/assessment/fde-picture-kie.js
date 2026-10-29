@@ -61,7 +61,7 @@ function showOf(q) {
   const question = String(q.question || '');
   const answer = String(q.answer || '').trim().toLowerCase();
   if (/what is the child doing/i.test(question) && /^[a-z]+ing$/.test(answer)) return { action: answer };
-  if (/^which one (is|holds) (longer|shorter|taller|heavier|lighter|more|less)/i.test(question.trim())) return { compare: true };
+  if (/^which (one )?(is|holds) (longer|shorter|taller|heavier|lighter|more|less)/i.test(question.trim())) return { compare: true };
   return null;
 }
 
