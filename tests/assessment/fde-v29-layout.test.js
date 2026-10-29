@@ -164,4 +164,15 @@ describe('G2 Urdu Q7: the scene that is the only prompt prints large and whole',
     const key = Pics.cacheKey({ kind: 'scene', describe: 'A park with a tree' });
     expect(key).toBe('fde-pictures/v3/scene-no-text/a-park-with-a-tree-' + require('crypto').createHash('sha256').update('a park with a tree').digest('hex').slice(0, 8) + '.jpg');
   });
+
+  // v29: the v28 G2 Urdu Q7 park scene was cached cut off at the edge (review: the kite and the path leave the
+  // frame). A scene rejected on review gets a fresh key, as a rejected object does, so it is drawn again under
+  // the margin prompt; every other cached scene keeps its key (bd-5jmnfj.4.58.5).
+  test('the v28 G2 Urdu park scene, cached cut off at the edge, gets a fresh key and is drawn again', () => {
+    const describe = 'A busy park scene in plain black outline: a big tree in the middle, two children flying a large kite, '
+      + 'a girl on a swing, a boy riding a bicycle on a path, a large bird sitting on the grass in front. No words, letters or numbers.';
+    const key = Pics.cacheKey({ kind: 'scene', describe });
+    expect(key).toMatch(/-72b1e44a-r1\.jpg$/);
+    expect(key).not.toBe('fde-pictures/v3/scene-no-text/a-busy-park-scene-in-plain-black-outline-a-big-tree-in-the-m-72b1e44a.jpg');
+  });
 });
