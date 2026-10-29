@@ -39,7 +39,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `FlnBandBody.tsx` ← imported by `portal/src/portal/fln/FlnBand.tsx:15:805387e8`
 - `FlnContext.tsx` ← imported by `portal/src/portal/fln/FlnGate.tsx:16:6028f41a` · `portal/src/portal/fln/FlnRoutes.tsx:17:27bf7e20` · `portal/src/portal/fln/LessonList.tsx:16:27bf7e20` · `portal/src/portal/fln/PlanPage.tsx:23:27bf7e20`
 - `FlnGate.tsx` ← imported by `portal/src/portal/fln/FlnRoutes.tsx:16:3fd51080` · `portal/src/portal/fln/LessonList.tsx:17:701a9700`
-- `FlnRoutes.tsx` ← imported by `portal/src/App.tsx:158:56ef1400`
+- `FlnRoutes.tsx` ← imported by `portal/src/App.tsx:161:56ef1400`
 - `FlnSendCard.tsx` ← imported by `portal/src/portal/pages/LeaderHome.tsx:13:d3b0edb8`
 - `FlnSendTile.tsx` ← imported by `portal/src/portal/coach/training/LibraryPages.tsx:23:6907e93d`
 - `LessonList.tsx` ← imported by `portal/src/portal/fln/FlnRoutes.tsx:18:175e80eb`

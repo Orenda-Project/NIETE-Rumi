@@ -59,10 +59,10 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `pk-range.js` ← imported by `dashboard/routes/portal-teacher-coaching.routes.js:26:a69bbe61` · `dashboard/routes/portal-teacher-lessons.routes.js:21:150648cb` · `dashboard/routes/portal.routes.js:61:150648cb` · `dashboard/services/lp-activity.service.js:119:0070d575` (+3: `python3 kg/kg.py who-reads pk-range.js`)
 - `portal-host.js` ← imported by `dashboard/index.js:3785:02854100`
 - `portal-static-cache.js` ← imported by `dashboard/index.js:3795:595624d3`
-- `school-card-period.js` ← imported by `dashboard/routes/coach-school-card.routes.js:19:99711cf0` · `dashboard/services/coach-school-card.service.js:35:fe0880b0`
+- `school-card-period.js` ← imported by `dashboard/routes/coach-school-card.routes.js:20:99711cf0` · `dashboard/services/coach-school-card.service.js:38:fe0880b0`
 - `teacher-observation.js` ← imported by `dashboard/routes/portal-teacher-home.routes.js:39:18c3fdef` · `dashboard/routes/portal.routes.js:124:18c3fdef` · `dashboard/services/progress.service.js:41:18c3fdef` · `dashboard/services/teacher-home-order.service.js:53:18c3fdef`
 - `user-school-name.js` ← imported by `dashboard/routes/portal.routes.js:122:fd6341ed`
-- `visit-time.js` ← imported by `dashboard/routes/coach-school-card.routes.js:20:b13361c4` · `dashboard/services/coach-school-card.service.js:36:b13361c4` · `dashboard/services/coach-v2.service.js:28:b13361c4` · `dashboard/services/leader-assignment.service.js:67:78fa166f` (+2: `python3 kg/kg.py who-reads visit-time.js`)
+- `visit-time.js` ← imported by `dashboard/routes/coach-school-card.routes.js:21:b13361c4` · `dashboard/services/coach-school-card.service.js:39:b13361c4` · `dashboard/services/coach-v2.service.js:28:b13361c4` · `dashboard/services/leader-assignment.service.js:67:78fa166f` (+2: `python3 kg/kg.py who-reads visit-time.js`)
 - `weekday-hours.js` ← imported by `dashboard/services/teacher-notices.service.js:36:2b07e944`
 - env `FLAG_CACHE_TTL_MS` read at `dashboard/lib/feature-flags.js:46:15f765ee`
 - env `NODE_ENV` read at `dashboard/lib/final-error-handler.js:23:e3ded45c` · `dashboard/lib/health.js:64:f48a92b6`

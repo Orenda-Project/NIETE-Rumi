@@ -112,6 +112,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fde-held-terms.test.js` | Pins held content on board papers: Social Studies religious-text items held, paper fails; Urdu stock wording passes |
 | `fde-key-pattern.test.js` | (unmapped) |
 | `fde-layout.test.js` | Pins applyLayout: puts model output into FDE's shape, deciding slot placement and marks (fde-layout, patterns) |
+| `fde-listening-check.test.js` | (unmapped) |
 | `fde-match-block.test.js` | bd-5jmnfj.4.23: pins match Column B ordering: sorted, turned so no answer sits beside its stem (fde-match-block) |
 | `fde-match.test.js` | bd-5jmnfj.4.23: pins the Urdu match slot printing two columns of stems and shuffled answers (patterns, fde renderer) |
 | `fde-maths-angle-options.test.js` | bd-5jmnfj.11: pins Maths Q4 printing its three angle options i) ii) iii) through layout, scheme and renderer |
@@ -211,6 +212,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fde-render-dispatch.test.js` | Pins renderPaper/renderAnswerKey routing a _layout paper to the FDE renderer and others to the old one |
 | `fde-revision.test.js` | Pins a board-pattern new version re-rendering both paper and marking scheme with their own PDF options (E8.4) |
 | `fde-scheme-cover.test.js` | (unmapped) |
+| `fde-scheme-figures.test.js` | (unmapped) |
 | `fde-science-q3-levels.test.js` | bd-5jmnfj.14: pins Science Section C's level rule per FDE's table of specification (generation.service, patterns) |
 | `fde-scramble-block.test.js` | (unmapped) |
 | `fde-section-levels.test.js` | bd-5jmnfj.19: pins each section being asked for its own thinking-level split, not the whole paper's |
@@ -242,7 +244,15 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `fde-v23-order-key.test.js` | (unmapped) |
 | `fde-v23-repeats.test.js` | (unmapped) |
 | `fde-v23-urdu-key-notes.test.js` | (unmapped) |
+| `fde-v24-giveaway-topup.test.js` | (unmapped) |
 | `fde-v24-urdu-q6-no-naat.test.js` | (unmapped) |
+| `fde-v25-cover-pictures.test.js` | (unmapped) |
+| `fde-v25-g1-pictures.test.js` | (unmapped) |
+| `fde-v25-key-content.test.js` | (unmapped) |
+| `fde-v25-maths-keys.test.js` | (unmapped) |
+| `fde-v25-render-labels.test.js` | (unmapped) |
+| `fde-v25-repeats-writers.test.js` | (unmapped) |
+| `fde-v25-repeats.test.js` | (unmapped) |
 | `generation-hardening.test.js` | Pins the paper model call's max_tokens ceiling and one retry on an empty reply (generation.service) |
 | `golden.test.js` | Golden test: pins today's generator prompts, printed papers/keys and options payloads for non-board-pattern papers |
 | `llm-passthrough.test.js` | Pins that max_tokens and a per-call timeout reach the SDK through the shared model client (model-settings) |

@@ -1,7 +1,7 @@
 # services — Flat service layer: LP delivery, WhatsApp, LLM, audio, doors, portal links
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services kg=0ee9fe0b3179 gen=940369ac05d6 overflow=1000 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services kg=7726228de172 gen=5f569cda36b9 overflow=1003 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `whatsapp.service.js` — every outbound WhatsApp send, with code-point caps
@@ -16,8 +16,8 @@ Full index: `CLAUDE.index.md`
 | … | 154 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `conversation-state.service.js` (+3)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+171)
-- `whatsapp.service.js` ← imported by `bot/shared/handlers/exam-checker.handler.js:11:1bba4f75` · `bot/shared/handlers/flow-response.handler.js:53:1bba4f75` (+161)
+- table `users` (written by `conversation-state.service.js` (+3)) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+173)
+- `whatsapp.service.js` ← imported by `bot/shared/handlers/exam-checker.handler.js:11:1bba4f75` · `bot/shared/handlers/flow-response.handler.js:53:1bba4f75` (+162)
 - … 265 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -27,7 +27,7 @@ Full index: `CLAUDE.index.md`
 
 ## Tests (generated)
 - `bot/tests/lp-v8/lp-shelf-plumbing.test.js` (lp-feedback.service.js, lp-shelf.service.js, lp-v8-catalog.service.js, lp-v8-delivery.service.js, lp-voicenote-script.service.js, whatsapp.service.js)
-- … 713 more → `CLAUDE.index.md`
+- … 716 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `ab-testing`? · `coaching`? · `cross-agent-safety`? · `debugging`? · `digital-coach`? · `gherkin-spec-sync`? (+2)

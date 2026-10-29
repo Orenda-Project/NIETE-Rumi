@@ -16,7 +16,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `i18n/` | → (no door; 1 tests) |
 | `lp-v8/` | Tests for lesson-plan delivery: v8/v9 corpus, Flow, uploader, LP chat context → `lp-v8/CLAUDE.md` |
 | `menu/` | → (no door; 2 tests) |
-| `nudges/` | → (no door; 5 tests) |
+| `nudges/` | → (no door; 6 tests) |
 | `observe/` | Jest tests for the /observe stack: one file per incident or feature (bd-id in name) → `observe/CLAUDE.md` |
 | `push/` | → (no door; 3 tests) |
 | `quiz/` | Jest suites for the quiz stack: video/chat quiz, reports, student door, web quiz → `quiz/CLAUDE.md` |

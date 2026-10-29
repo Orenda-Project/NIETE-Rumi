@@ -165,8 +165,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Who reads this (all, generated)
 - `anthropic-native-facade.js` ← imported by `bot/shared/services/llm-client.js:36:e526dad9`
 - `app-journey.js` ← imported by `dashboard/routes/app-funnel.routes.js:28:37e01298` · `bot/shared/services/app-login-link.js:28:fd343b89` · `bot/shared/services/app-redirect.service.js:88:67227909`
-- `app-login-link.js` ← imported by `bot/shared/handlers/flow-response.handler.js:632:3bc2979c` · `bot/shared/handlers/portal-command.handler.js:18:3bc2979c` · `dashboard/routes/app-login.routes.js:19:e76d249c` · `bot/shared/services/app-redirect.service.js:84:7886d7d9` (+3: `python3 kg/kg.py who-reads app-login-link.js`)
-- `app-redirect.service.js` ← imported by `bot/shared/handlers/image-message.handler.js:28:3ba5ce5f` · `bot/shared/handlers/text-message.handler.js:233:1cbd4c53` · `bot/shared/handlers/voice-message.handler.js:44:3ba5ce5f` · `bot/whatsapp-bot.js:372:a39e1540` (+8: `python3 kg/kg.py who-reads app-redirect.service.js`)
+- `app-login-link.js` ← imported by `bot/shared/handlers/flow-response.handler.js:632:3bc2979c` · `bot/shared/handlers/portal-command.handler.js:18:3bc2979c` · `dashboard/routes/app-login.routes.js:19:e76d249c` · `bot/shared/services/app-redirect.service.js:84:7886d7d9` (+4: `python3 kg/kg.py who-reads app-login-link.js`)
+- `app-redirect.service.js` ← imported by `bot/shared/handlers/image-message.handler.js:28:3ba5ce5f` · `bot/shared/handlers/text-message.handler.js:233:1cbd4c53` · `bot/shared/handlers/voice-message.handler.js:44:3ba5ce5f` · `bot/whatsapp-bot.js:372:a39e1540` (+9: `python3 kg/kg.py who-reads app-redirect.service.js`)
 - `assessment-entry.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:1440:1e0f47b4` · `bot/shared/services/menu.service.js:341:bad9701d`
 - `attendance-entry.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:2540:76808684` · `bot/shared/services/menu.service.js:305:468756cd`
 - `attendance-portal.service.js` ← imported by `bot/shared/routes/internal-attendance.routes.js:31:3d954556`
@@ -176,12 +176,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `attendance-write.service.js` ← imported by `bot/shared/routes/attendance-marking-endpoint.js:39:d809cab7` · `bot/shared/services/attendance-portal.service.js:232:a3404b7b` · `bot/shared/services/attendance-register-delivery.service.js:22:c8fb07f4`
 - `audio.service.js` ← imported by `bot/shared/handlers/voice-message.handler.js:10:5930b957` · `bot/whatsapp-bot.js:2544:37ebc6ce` · `bot/shared/services/child-test/scoring/stt.js:15:15df7ce8` · `bot/shared/services/coaching/fidelity/section-b-backfill.service.js:108:15df7ce8` (+9: `python3 kg/kg.py who-reads audio.service.js`)
 - `aws-textract.service.js` ← imported by `bot/workers/lesson-plan-extraction.worker.js:12:56d91229`
-- `coach-school-target.js` ← imported by `dashboard/routes/app-login.routes.js:180:6122db69` · `bot/shared/services/app-login-link.js:85:8073ef41` · `bot/shared/services/app-redirect.service.js:176:bd821bbb` · `bot/shared/services/schools/school-card-door.js:24:b36819a3`
+- `coach-school-target.js` ← imported by `dashboard/routes/app-login.routes.js:180:6122db69` · `bot/shared/services/app-login-link.js:87:8073ef41` · `bot/shared/services/app-redirect.service.js:176:bd821bbb` · `bot/shared/services/schools/school-card-door.js:24:b36819a3`
 - `coach-voice-note-retention.service.js` ← imported by `bot/workers/sqs-worker.js:1852:f8d51159`
 - `coaching-orchestrator.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:16:73c527bb` · `bot/shared/handlers/voice-message.handler.js:14:73c527bb` · `bot/whatsapp-bot.js:23:eeb29561` · `bot/workers/sqs-worker.js:38:96db3cf9` (+2: `python3 kg/kg.py who-reads coaching-orchestrator.service.js`)
 - `content.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:9:056d2128` · `bot/shared/handlers/voice-message.handler.js:12:056d2128` · `bot/workers/lesson-plan-generation.worker.js:15:5c4b2dec` · `bot/shared/services/grounded-lp-render.service.js:26:8099762c`
 - `context.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:12:4abb92f2`
-- `conversation-resume.service.js` ← imported by `bot/whatsapp-bot.js:770:adbc7a8c` · `bot/workers/sqs-worker.js:2099:45970460` · `bot/shared/services/teacher-state.service.js:24:7f79f69f`
+- `conversation-resume.service.js` ← imported by `bot/whatsapp-bot.js:770:adbc7a8c` · `bot/workers/sqs-worker.js:2102:45970460` · `bot/shared/services/teacher-state.service.js:24:7f79f69f`
 - `conversation-state.service.js` ← imported by `bot/shared/handlers/flow-response.handler.js:50:10ab1f64` · `bot/shared/handlers/text-message.handler.js:19:10ab1f64` · `bot/shared/handlers/voice-message.handler.js:15:10ab1f64` · `bot/shared/routes/attendance-marking-endpoint.js:41:10ab1f64` (+10: `python3 kg/kg.py who-reads conversation-state.service.js`)
 - `curriculum-lp-ast.service.js` ← imported by `bot/shared/handlers/lesson-plan-v2.handler.js:28:d8d77c9b` · `bot/workers/lesson-plan-generation.worker.js:20:19e3c52a` · `bot/shared/services/grounded-lp-render.service.js:27:e50f22ed`
 - `e2e-cassette.js` ← imported by `bot/shared/services/audio.service.js:705:33e33272` · `bot/shared/services/coaching/reflective-questions/llm-router.service.js:82:9787844f` · `bot/shared/services/elevenlabs.service.js:102:33e33272` · `bot/shared/services/llm-client.js:884:33e33272` (+1: `python3 kg/kg.py who-reads e2e-cassette.js`)
@@ -190,7 +190,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `feature-keyword-detector.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:2722:18efb081` · `bot/whatsapp-bot.js:1255:0e4847c5`
 - `feature-linker.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:29:e1a3c9dc` · `bot/whatsapp-bot.js:1240:a7e67306` · `bot/workers/lesson-plan-generation.worker.js:18:9cffe26b` · `bot/shared/services/coaching/report-generator.service.js:29:a1aeaf86` (+1: `python3 kg/kg.py who-reads feature-linker.service.js`)
 - `feature-registration.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:11:4ac5f445` · `bot/shared/handlers/voice-message.handler.js:13:4ac5f445` · `bot/workers/lesson-plan-generation.worker.js:19:bca137f5` · `bot/workers/video-generation.worker.js:23:bca137f5` (+2: `python3 kg/kg.py who-reads feature-registration.service.js`)
-- `fln-go-target.js` ← imported by `dashboard/routes/app-login.routes.js:188:98eb7896` · `bot/shared/services/app-login-link.js:84:a5c5865b`
+- `fln-go-target.js` ← imported by `dashboard/routes/app-login.routes.js:188:98eb7896` · `bot/shared/services/app-login-link.js:86:a5c5865b`
 - `fln-index.service.js` ← imported by `bot/shared/services/lp-describe-fln.js:86:db3ad3d8`
 - `fln-keys.js` ← imported by `bot/shared/routes/internal-fln-send.routes.js:27:e18774a9` · `dashboard/routes/portal-fln-send.routes.js:28:059e0c71` · `bot/shared/services/fln-send.service.js:22:1ef9db28`
 - `fln-send.service.js` ← imported by `bot/shared/routes/internal-fln-send.routes.js:53:aba2f7b8`
@@ -209,7 +209,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `lesson-plans-web-link.js` ← imported by `bot/shared/services/lp-browse-entry.service.js:59:7166726d`
 - `llm-client.js` ← imported by `bot/shared/handlers/text-message.handler.js:63:7dd19154` · `bot/shared/utils/word-grid-generator.js:22:7dd19154` · `bot/workers/lesson-plan-extraction.worker.js:6:3b73f0a2` · `dashboard/routes/hcp.routes.js:893:4243a38a` (+35: `python3 kg/kg.py who-reads llm-client.js`)
 - `lp-ab-ch310.service.js` ← imported by `bot/shared/services/lp-v8-browse.service.js:129:03030987` · `bot/shared/services/lp-v8-delivery.service.js:26:03030987` · `bot/shared/services/quiz/lp-app-opens.store.js:53:a7d6d323`
-- `lp-app-open-survey.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:1421:1cf81e98`
+- `lp-app-open-survey.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:1422:1cf81e98`
 - `lp-browse-entry.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:49:1f8c74df` · `bot/shared/handlers/voice-message.handler.js:40:fcd207bc` · `bot/workers/lesson-plan-generation.worker.js:26:882d6fc7` · `bot/shared/services/first-touch/maker.fallback.js:61:25dfa8e0` (+1: `python3 kg/kg.py who-reads lp-browse-entry.service.js`)
 - `lp-context.service.js` ← imported by `bot/shared/calls/call-context.repo.js:82:ac2a5137` · `bot/shared/handlers/text-message.handler.js:13:11a033c2` · `bot/shared/handlers/voice-message.handler.js:6:11a033c2`
 - `lp-delivery-marker.service.js` ← imported by `bot/shared/services/lp-v8-delivery.service.js:25:f19cde34`
@@ -219,13 +219,13 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `lp-shelf.service.js` ← imported by `bot/shared/services/attendance-router.service.js:336:27fa99fb` · `bot/shared/services/coaching/coaching-session.service.js:37:782730e3` · `bot/shared/services/lp-context.service.js:45:27fa99fb` · `bot/shared/services/lp-v8-delivery.service.js:21:27fa99fb` (+5: `python3 kg/kg.py who-reads lp-shelf.service.js`)
 - `lp-v10-card.service.js` ← imported by `bot/shared/services/lp-v8-browse.service.js:173:f38c1148` · `bot/shared/services/lp-v8-delivery.service.js:29:f38c1148`
 - `lp-v8-browse.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:1254:e37617b4` · `bot/shared/services/share-send.service.js:88:ddbe5c42`
-- `lp-v8-catalog.service.js` ← imported by `bot/shared/calls/call-tools.repo.js:133:3feaf5e3` · `bot/shared/routes/pakistan-lp-endpoint.js:51:3feaf5e3` · `bot/shared/services/coaching/lp-coaching/recent-fidelity-lps.service.js:41:1f46c9ff` · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:59:11173c56` (+13: `python3 kg/kg.py who-reads lp-v8-catalog.service.js`)
+- `lp-v8-catalog.service.js` ← imported by `bot/shared/calls/call-tools.repo.js:133:3feaf5e3` · `bot/shared/routes/pakistan-lp-endpoint.js:51:3feaf5e3` · `bot/shared/services/coaching/lp-coaching/recent-fidelity-lps.service.js:41:1f46c9ff` · `bot/shared/services/coaching/portal-lesson-plan-library.service.js:59:11173c56` (+14: `python3 kg/kg.py who-reads lp-v8-catalog.service.js`)
 - `lp-v8-delivery.service.js` ← imported by `bot/shared/routes/pakistan-lp-endpoint.js:52:7d11cb01` · `bot/shared/services/lp-app-open-survey.service.js:150:4ef7ad19` · `bot/shared/services/lp-v8-browse.service.js:49:8f3e780a`
 - `lp-v8-lifecycle.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:1342:ba6311e7` · `bot/shared/services/lp-app-open-survey.service.js:164:850b9634`
 - `lp-vision-ocr.service.js` ← imported by `bot/workers/lesson-plan-extraction.worker.js:316:64ef8abe`
 - `lp-voicenote-script.service.js` ← imported by `bot/shared/calls/call-tools.repo.js:166:48bb8c99` · `bot/shared/services/lp-context.service.js:47:d25986e6`
 - `lp612-author.service.js` ← imported by `bot/workers/lp612-author.worker.js:37:6e456921` · `bot/shared/services/lp612-overlay-topup.service.js:48:e73cab30`
-- `lp612-browse.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:2124:0eea3dc6`
+- `lp612-browse.service.js` ← imported by `bot/shared/routes/internal-api.routes.js:2132:0eea3dc6`
 - `lp612-catalog.service.js` ← imported by `bot/shared/routes/pakistan-lp-endpoint.js:53:22b61272` · `bot/shared/services/lp612-serving.service.js:42:6a71a39f`
 - `lp612-deliveries.store.js` ← imported by `bot/workers/lp612-author.worker.js:55:3082da04` · `bot/shared/services/lp612-browse.service.js:47:e2c4a7ac` · `bot/shared/services/lp612-serving.service.js:869:e2c4a7ac` · `bot/shared/services/portal-ready-whatsapp.service.js:44:e2c4a7ac` (+1: `python3 kg/kg.py who-reads lp612-deliveries.store.js`)
 - `lp612-edit-intent.service.js` ← imported by `bot/shared/services/lp612-edit-router.service.js:32:e914c6c9`
@@ -242,7 +242,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `lp612-pagetruth.service.js` ← imported by `bot/workers/lp612-author.worker.js:51:7d55c82f` · `bot/shared/services/lp612-author.service.js:50:81b1bba6` · `bot/shared/services/lp612-overlay-repair.service.js:44:a64bf527`
 - `lp612-render-policy.service.js` ← imported by `bot/workers/lp612-author.worker.js:42:e131a457` · `bot/shared/services/lp612-author.service.js:40:b9e75058` · `bot/shared/services/lp612-overlay-repair.service.js:42:7aa43d77`
 - `lp612-render.service.js` ← imported by `bot/workers/lp612-author.worker.js:43:0dc19ead` · `bot/shared/services/lp612-overlay-repair.service.js:41:5c340dcb`
-- `lp612-serving.service.js` ← imported by `bot/scripts/lp612-sidecar-audit.js:30:38e05100` · `bot/shared/routes/internal-api.routes.js:2216:80eb21d7` · `bot/shared/routes/pakistan-lp-endpoint.js:54:9efae5ef` · `bot/workers/lp612-author.worker.js:52:38e05100` (+4: `python3 kg/kg.py who-reads lp612-serving.service.js`)
+- `lp612-serving.service.js` ← imported by `bot/scripts/lp612-sidecar-audit.js:30:38e05100` · `bot/shared/routes/internal-api.routes.js:2224:80eb21d7` · `bot/shared/routes/pakistan-lp-endpoint.js:54:9efae5ef` · `bot/workers/lp612-author.worker.js:52:38e05100` (+4: `python3 kg/kg.py who-reads lp612-serving.service.js`)
 - `menu-match.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:21:69e67cb7` · `bot/shared/handlers/voice-message.handler.js:1309:69e67cb7`
 - `menu.service.js` ← imported by `bot/shared/handlers/text-message.handler.js:20:fea99352` · `bot/shared/handlers/voice-message.handler.js:16:fea99352` · `bot/whatsapp-bot.js:1554:6d596f17` · `bot/shared/services/child-test/conversation/machine.js:1659:3178da40` (+3: `python3 kg/kg.py who-reads menu.service.js`)
 - `mms-inference.service.js` ← imported by `bot/shared/services/audio.service.js:1256:0934c6da`
@@ -254,7 +254,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `portal-invite.service.js` ← imported by `bot/whatsapp-bot.js:24:0517431a` · `scripts/create-analytics-user.js:369:0439c6ca`
 - `portal-link-token.js` ← imported by `dashboard/routes/iab-probe.routes.js:24:d70d7b6f` · `dashboard/routes/portal-link.routes.js:28:d70d7b6f` · `bot/shared/services/portal-ready-whatsapp.service.js:43:8ce3f3b2` · `bot/shared/services/portal-web-link.js:30:8ce3f3b2`
 - `portal-ready-templates.js` ← imported by `bot/shared/services/portal-ready-whatsapp.service.js:46:25333a99`
-- `portal-ready-whatsapp.service.js` ← imported by `bot/workers/sqs-worker.js:2079:00dfe717`
+- `portal-ready-whatsapp.service.js` ← imported by `bot/workers/sqs-worker.js:2082:00dfe717`
 - `portal-request.js` ← imported by `bot/shared/handlers/text-message.handler.js:27:31641614` · `bot/shared/services/student-ingress.js:54:f15788b2`
 - `portal-web-link.js` ← imported by `bot/shared/services/lesson-plans-web-link.js:12:1591a293` · `bot/shared/services/portal-ready-templates.js:17:285fd07e` · `bot/shared/services/portal-ready-whatsapp.service.js:47:ced84025` · `bot/shared/services/training/training-web-link.js:12:829b3dd4`
 - `pregen-lookup.service.js` ← imported by `bot/shared/handlers/lesson-plan-v2.handler.js:27:84436122`
@@ -286,7 +286,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `whatsapp-send-pacer.js` ← imported by `bot/shared/routes/assessment-gen-endpoint.js:231:559aed18` · `bot/shared/routes/observe-mewaka-endpoint.js:112:559aed18` · `bot/shared/routes/pakistan-lp-endpoint.js:48:559aed18` · `bot/shared/routes/student-videos-endpoint.js:26:559aed18` (+2: `python3 kg/kg.py who-reads whatsapp-send-pacer.js`)
 - `whatsapp-sent-ids.js` ← imported by `bot/workers/quiz-job-handler.js:171:00b42930` · `bot/shared/services/quiz/video-quiz-report.service.js:49:6e4da814` · `bot/shared/services/whatsapp.service.js:254:7726bc50`
 - `whatsapp-status-pricing.js` ← imported by `bot/whatsapp-bot.js:59:b880f62b`
-- `whatsapp.service.js` ← imported by `bot/shared/handlers/exam-checker.handler.js:11:1bba4f75` · `bot/shared/handlers/flow-response.handler.js:53:1bba4f75` · `bot/shared/handlers/image-message.handler.js:20:1bba4f75` · `bot/shared/handlers/lesson-plan-v2.handler.js:34:1bba4f75` (+159: `python3 kg/kg.py who-reads whatsapp.service.js`)
+- `whatsapp.service.js` ← imported by `bot/shared/handlers/exam-checker.handler.js:11:1bba4f75` · `bot/shared/handlers/flow-response.handler.js:53:1bba4f75` · `bot/shared/handlers/image-message.handler.js:20:1bba4f75` · `bot/shared/handlers/lesson-plan-v2.handler.js:34:1bba4f75` (+160: `python3 kg/kg.py who-reads whatsapp.service.js`)
 - `whisper-chunk-planner.js` ← imported by `bot/shared/services/audio.service.js:21:a993baaf`
 - column `attendance_sessions.absent_count` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:910:1d8f45d1` · `bot/shared/services/attendance-portal.service.js:294:1005c9e6`
 - column `attendance_sessions.leave_count` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:910:1d8f45d1` · `bot/shared/services/attendance-portal.service.js:294:1005c9e6`
@@ -353,7 +353,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - table `teacher_attendance_records` (written by `attendance-write.service.js`) ← read by `bot/shared/routes/attendance-marking-endpoint.js:898:cac7d040`? · `bot/workers/attendance-bigquery-export.worker.js:141:cac7d040`? · `dashboard/routes/portal.routes.js:1448:271b593d`? · `dashboard/services/attendance-repository.service.js:118:cac7d040`? (+1: `python3 kg/kg.py who-reads teacher_attendance_records`)
 - table `textbook_toc` (written by `toc-loading.service.js`) ← read by `bot/scripts/import-assessment-topics.js:121:2986a134`? · `bot/scripts/migration/survey-lp-inventory.js:83:10cc8589`? · `scripts/assessment/eval-run.js:80:5ce6536d`? · `bot/shared/services/assessment/assessment-browse.service.js:97:10cc8589`? (+1: `python3 kg/kg.py who-reads textbook_toc`)
 - table `user_feature_first_use` (written by `app-redirect.service.js`, `feature-intro.service.js`) ← read by `bot/shared/services/app-redirect.service.js:454:f6f893d9`? · `bot/shared/services/feature-intro.service.js:53:f6f893d9`?
-- table `users` (written by `conversation-state.service.js`, `feature-registration.service.js`, `portal-invite.service.js`, `registration-invite.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:242:774e00e5`? · `bot/shared/database/bot-helpers.js:17:61dfd735`? (+169: `python3 kg/kg.py who-reads users`)
+- table `users` (written by `conversation-state.service.js`, `feature-registration.service.js`, `portal-invite.service.js`, `registration-invite.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? · `bot/shared/calls/call-tools.repo.js:242:774e00e5`? · `bot/shared/database/bot-helpers.js:17:61dfd735`? (+171: `python3 kg/kg.py who-reads users`)
 - env `ANTHROPIC_API_KEY` read at `bot/shared/services/llm-client.js:903:5bd0a625`
 - env `APP_SETTINGS_FLAG_TTL_MS` read at `bot/shared/services/webhook-signature.js:45:7b1a7c4a`
 - env `APP_URL` read at `bot/shared/services/llm-client.js:278:a6f65934`
@@ -388,7 +388,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `GRAPH_API_VERSION` read at `bot/shared/services/whatsapp.service.js:64:ddcada1f`
 - env `INBOUND_TYPING_DEFER_MS` read at `bot/shared/services/inbound-typing.js:103:f3a2211b`
 - env `INBOUND_TYPING_QUIET_HOLD_MS` read at `bot/shared/services/inbound-typing.js:91:a13362bb`
-- env `INTERNAL_API_KEY` read at `bot/shared/services/app-login-link.js:106:237d5f3b` · `bot/shared/services/fln-keys.js:36:237d5f3b` · `bot/shared/services/portal-link-token.js:58:3d849406`
+- env `INTERNAL_API_KEY` read at `bot/shared/services/app-login-link.js:108:237d5f3b` · `bot/shared/services/fln-keys.js:36:237d5f3b` · `bot/shared/services/portal-link-token.js:58:3d849406`
 - env `LLM_DIRECT_FALLBACK_MODEL` read at `bot/shared/services/llm-client.js:138:eb940686`
 - env `LLM_FALLBACK_OFF` read at `bot/shared/services/llm-client.js:239:b0507923`
 - env `LLM_JOB_MODELS` read at `bot/shared/services/llm-client.js:394:8f569dc1`
@@ -418,7 +418,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `ROSTER_FLOW_ID` read at `bot/shared/services/roster-entry.service.js:44:0d3c39c9`
 - env `STUDENT_VIDEOS_FLOW_ID` read at `bot/shared/services/student-videos-entry.service.js:26:0389e3b2`
 - env `SUPABASE_SERVICE_ROLE_KEY` read at `bot/shared/services/redis-comprehension.service.js:21:90118d4a`
-- env `SUPABASE_URL` read at `bot/shared/services/app-login-link.js:94:a60b88ec` · `bot/shared/services/e2e-cassette.js:42:2e19eb18` · `bot/shared/services/fln-keys.js:24:a60b88ec` · `bot/shared/services/redis-comprehension.service.js:20:e84bc099`
+- env `SUPABASE_URL` read at `bot/shared/services/app-login-link.js:96:a60b88ec` · `bot/shared/services/e2e-cassette.js:42:2e19eb18` · `bot/shared/services/fln-keys.js:24:a60b88ec` · `bot/shared/services/redis-comprehension.service.js:20:e84bc099`
 - env `WA_OUTBOUND_ECHO_TO` read at `bot/shared/services/outbound-echo.js:32:987ad6d1`
 - env `WA_PAIR_BURST` read at `bot/shared/services/whatsapp-send-pacer.js:119:8f7e42c1`
 - env `WA_PAIR_INTERVAL_MS` read at `bot/shared/services/whatsapp-send-pacer.js:118:32fbd416`
@@ -434,8 +434,8 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 ## Tests (all, generated)
 - `anthropic-native-facade.js` ← `tests/llm/anthropic-facade-translation.test.js` · `tests/llm/direct-lane-system-note-position.test.js` · `tests/llm/facade-dated-model-price.test.js` · `tests/llm/haiku-5-5-direct-lane.test.js` · `tests/llm/job-override-hardening.test.js` · `tests/llm/sonnet-5-5-price.test.js` (+1: `python3 kg/kg.py who-reads bot/shared/services/anthropic-native-facade.js`)
 - `app-journey.js` ← `tests/app-funnel/app-login-journey.test.js` · `tests/app-funnel/journey-token.test.js` · `tests/app-funnel/route-parity.test.js` · `tests/app-redirect/app-link-leader-lesson-plan.test.js`
-- `app-login-link.js` ← `bot/tests/first-touch/teacher-home.portal-link.test.js` · `tests/app-funnel/app-login-journey.test.js` · `tests/app-funnel/bot-journey-events.test.js` · `tests/app-funnel/journey-token.test.js` · `tests/app-redirect/app-link-coach-school-card-door.test.js` · `tests/app-redirect/app-link-coach-school-card.test.js` (+24: `python3 kg/kg.py who-reads bot/shared/services/app-login-link.js`)
-- `app-redirect.service.js` ← `bot/tests/first-touch/maker.cards.assessment-door.test.js` · `bot/tests/handlers/reversed-slash-command.test.js` · `tests/app-funnel/bot-journey-events.test.js` · `tests/app-redirect/app-link-coach-school-card.test.js` · `tests/app-redirect/app-link-coach-training.test.js` · `tests/app-redirect/app-link-coach.test.js` (+8: `python3 kg/kg.py who-reads bot/shared/services/app-redirect.service.js`)
+- `app-login-link.js` ← `bot/tests/first-touch/teacher-home.portal-link.test.js` · `tests/app-funnel/app-login-journey.test.js` · `tests/app-funnel/bot-journey-events.test.js` · `tests/app-funnel/journey-token.test.js` · `tests/app-redirect/app-link-coach-school-card-door.test.js` · `tests/app-redirect/app-link-coach-school-card.test.js` (+26: `python3 kg/kg.py who-reads bot/shared/services/app-login-link.js`)
+- `app-redirect.service.js` ← `bot/tests/first-touch/maker.cards.assessment-door.test.js` · `bot/tests/handlers/reversed-slash-command.test.js` · `tests/app-funnel/bot-journey-events.test.js` · `tests/app-redirect/app-link-coach-school-card.test.js` · `tests/app-redirect/app-link-coach-training.test.js` · `tests/app-redirect/app-link-coach.test.js` (+9: `python3 kg/kg.py who-reads bot/shared/services/app-redirect.service.js`)
 - `assessment-entry.service.js` ← `bot/tests/first-touch/maker.cards.assessment-door.test.js` · `tests/app-redirect/app-redirect-routing.test.js` · `tests/handlers/feature-doors.test.js`
 - `attendance-entry.service.js` ← `tests/handlers/feature-doors.test.js`
 - `attendance-portal.service.js` ← `tests/attendance/bd-fmf24g.7-attendance-portal.test.js`
@@ -483,7 +483,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `lp-shelf.service.js` ← `bot/tests/lp-v8/lp-shelf-flush-points.test.js` · `bot/tests/lp-v8/lp-shelf-plumbing.test.js` · `tests/quiz/lp-shelf.test.js`
 - `lp-v10-card.service.js` ← `tests/lp-v8/lp-v10-card.test.js`
 - `lp-v8-browse.service.js` ← `bot/tests/lp-v8/ab-ch310.test.js` · `bot/tests/lp-v8/portal-subject-order.test.js` · `bot/tests/lp-v8/tick-app-opens.test.js` · `tests/lp-v8/lp-v10-card-wiring.test.js` · `tests/lp-v8/split-lesson-consumers.test.js`
-- `lp-v8-catalog.service.js` ← `bot/tests/lp-v8/ab-ch310.test.js` · `bot/tests/lp-v8/bd-oak77-endpoint-route-all.test.js` · `bot/tests/lp-v8/delivery.test.js` · `bot/tests/lp-v8/elective-menu-names.test.js` · `bot/tests/lp-v8/endpoint-dispatch.test.js` · `bot/tests/lp-v8/endpoint-items.test.js` (+27: `python3 kg/kg.py who-reads bot/shared/services/lp-v8-catalog.service.js`)
+- `lp-v8-catalog.service.js` ← `bot/tests/lp-v8/ab-ch310.test.js` · `bot/tests/lp-v8/bd-oak77-endpoint-route-all.test.js` · `bot/tests/lp-v8/delivery.test.js` · `bot/tests/lp-v8/elective-menu-names.test.js` · `bot/tests/lp-v8/endpoint-dispatch.test.js` · `bot/tests/lp-v8/endpoint-items.test.js` (+29: `python3 kg/kg.py who-reads bot/shared/services/lp-v8-catalog.service.js`)
 - `lp-v8-delivery.service.js` ← `bot/tests/lp-v8/ab-ch310.test.js` · `bot/tests/lp-v8/delivery.test.js` · `bot/tests/lp-v8/live-schema-limits.test.js` · `bot/tests/lp-v8/lp-shelf-plumbing.test.js` · `bot/tests/lp-v8/portal-subject-order.test.js` · `bot/tests/lp-v8/voicenote-delivery.test.js` (+5: `python3 kg/kg.py who-reads bot/shared/services/lp-v8-delivery.service.js`)
 - `lp-v8-lifecycle.service.js` ← `tests/lesson-plan-lifecycle/v8-portal-path.test.js`
 - `lp-vision-ocr.service.js` ← `tests/coaching/lp-vision-ocr.test.js`
@@ -543,7 +543,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - `whatsapp-send-pacer.js` ← `tests/assessment/assessment-rebuild-sync-budget.test.js` · `tests/whatsapp/password-reset-sync-budget.test.js` · `tests/whatsapp/send-pacing.redis.test.js` · `tests/whatsapp/send-pacing.test.js` · `tests/whatsapp/send-sync-budget.test.js`
 - `whatsapp-sent-ids.js` ← `bot/tests/quiz/report-delivery-send.test.js`
 - `whatsapp-status-pricing.js` ← `bot/tests/whatsapp-status-pricing.test.js`
-- `whatsapp.service.js` ← `bot/scripts/e2e/lp-feedback-e2e.js` · `bot/tests/coaching/bd-v0toag-106-report-window-template.test.js` · `bot/tests/coaching/bd-v0toag-124-commit-prompt-template.test.js` · `bot/tests/coaching/bd-v0toag-127-template-error-detail.test.js` · `bot/tests/first-touch/first-reply-english.text-turn.test.js` · `bot/tests/first-touch/maker-empty.golden.test.js` (+315: `python3 kg/kg.py who-reads bot/shared/services/whatsapp.service.js`)
+- `whatsapp.service.js` ← `bot/scripts/e2e/lp-feedback-e2e.js` · `bot/tests/coaching/bd-v0toag-106-report-window-template.test.js` · `bot/tests/coaching/bd-v0toag-124-commit-prompt-template.test.js` · `bot/tests/coaching/bd-v0toag-127-template-error-detail.test.js` · `bot/tests/first-touch/first-reply-english.text-turn.test.js` · `bot/tests/first-touch/maker-empty.golden.test.js` (+317: `python3 kg/kg.py who-reads bot/shared/services/whatsapp.service.js`)
 - `whisper-chunk-planner.js` ← `tests/coaching/feat106-whisper-chunking.test.js`
 
 ## Related (all, generated)

@@ -30,14 +30,14 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `useObservationView.ts` | Reads one observation from GET /leader/observe/:id, re-reading every 8 s while the worker owns the step |
 
 ## Who reads this (all, generated)
-- `CoachReportsAll.tsx` ← imported by `portal/src/App.tsx:132:a2685529`
-- `Debrief.tsx` ← imported by `portal/src/App.tsx:134:d0a5d3f5`
-- `FeedbackForm.tsx` ← imported by `portal/src/App.tsx:133:c35841a3`
+- `CoachReportsAll.tsx` ← imported by `portal/src/App.tsx:135:a2685529`
+- `Debrief.tsx` ← imported by `portal/src/App.tsx:137:d0a5d3f5`
+- `FeedbackForm.tsx` ← imported by `portal/src/App.tsx:136:c35841a3`
 - `InsightRow.tsx` ← imported by `portal/src/portal/coach/reports/Debrief.tsx:21:a78567ff` · `portal/src/portal/coach/reports/YourFeedback.tsx:8:a78567ff`
 - `ReportRows.tsx` ← imported by `portal/src/portal/coach/pages/CoachReports.tsx:14:9602a3b5` · `portal/src/portal/coach/reports/CoachReportsAll.tsx:12:e49240d7`
 - `ReportsFrame.tsx` ← imported by `portal/src/portal/coach/pages/CoachObservation.tsx:17:f774c913` · `portal/src/portal/coach/pages/CoachReports.tsx:13:f774c913` · `portal/src/portal/coach/reports/CoachReportsAll.tsx:11:b1892bfc` · `portal/src/portal/coach/reports/Debrief.tsx:20:b1892bfc` (+3: `python3 kg/kg.py who-reads ReportsFrame.tsx`)
-- `SendReport.tsx` ← imported by `portal/src/App.tsx:136:1bb5f58e`
-- `YourFeedback.tsx` ← imported by `portal/src/App.tsx:135:459c7642`
+- `SendReport.tsx` ← imported by `portal/src/App.tsx:139:1bb5f58e`
+- `YourFeedback.tsx` ← imported by `portal/src/App.tsx:138:459c7642`
 - `copy.ts` ← imported by `portal/src/portal/coach/pages/CoachObservation.tsx:18:8498d38a` · `portal/src/portal/coach/pages/CoachReports.tsx:15:8498d38a` · `portal/src/portal/coach/reports/CoachReportsAll.tsx:13:43167662` · `portal/src/portal/coach/reports/Debrief.tsx:22:43167662` (+5: `python3 kg/kg.py who-reads copy.ts`)
 - `data.ts` ← imported by `portal/src/portal/coach/pages/CoachObservation.tsx:19:338b8369` · `portal/src/portal/coach/pages/CoachReports.tsx:16:e5be9041` · `portal/src/portal/coach/reports/CoachReportsAll.tsx:14:4c69f773` · `portal/src/portal/coach/reports/ReportRows.tsx:6:e6591fbe` (+1: `python3 kg/kg.py who-reads data.ts`)
 - `formModel.ts` ← imported by `portal/src/portal/coach/reports/FeedbackForm.tsx:13:c14b8079`

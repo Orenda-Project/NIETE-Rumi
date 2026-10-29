@@ -78,7 +78,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `PHOTO_GATE_SWEEP_MAX_AGE_DAYS` read at `bot/workers/stale-session.worker.js:1345:51941237`
 - env `PHOTO_GATE_SWEEP_MAX_PER_TICK` read at `bot/workers/stale-session.worker.js:1344:e795cb90`
 - env `QUEUE_DRIVER` read at `bot/workers/sqs-worker.js:269:df57a20a`
-- env `QUIZ_FUNNEL_WATCH_ENABLED` read at `bot/workers/sqs-worker.js:2157:55a0344f`
+- env `QUIZ_FUNNEL_WATCH_ENABLED` read at `bot/workers/sqs-worker.js:2160:55a0344f`
 - env `QUIZ_QUEUE_CONCURRENCY` read at `bot/workers/sqs-worker.js:286:9cebf5e6`
 - env `QUIZ_QUEUE_OWN_LOOP` read at `bot/workers/sqs-worker.js:254:39bc885d`
 - env `RAILWAY_REPLICA_ID` read at `bot/workers/sqs-worker.js:50:6815b5c0`
@@ -91,7 +91,7 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 - env `SQS_WORKER_CONCURRENCY` read at `bot/workers/sqs-worker.js:52:daba8ce9`
 - env `SQS_WORKER_HEALTH_PORT` read at `bot/workers/sqs-worker.js:1279:31b0e107`
 - env `STALE_RECOVERY_INTERVAL_MINUTES` read at `bot/workers/sqs-worker.js:1961:7ee63401`
-- env `TEACHER_NUDGES_SWEEP_MINUTES` read at `bot/workers/sqs-worker.js:2037:0ba28ff5`
+- env `TEACHER_NUDGES_SWEEP_MINUTES` read at `bot/workers/sqs-worker.js:2040:0ba28ff5`
 - env `TEMP_DIR` read at `bot/workers/lesson-plan-generation.worker.js:58:89250f94`
 - env `WORKER_QUEUES` read at `bot/workers/sqs-worker.js:234:e41588e6`
 
