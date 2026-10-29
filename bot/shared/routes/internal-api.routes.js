@@ -1479,8 +1479,15 @@ router.post('/assessment/options', requireInternalKey, assessmentRoute('options'
   const out = { success: true, grades };
 
   if (grade !== null) out.subjects = await Browse.listSubjects(grade);
-  if (grade !== null && subject) Object.assign(out, Browse.questionOptions(subject, grade));
-  else {
+  if (grade !== null && subject) {
+    Object.assign(out, Browse.questionOptions(subject, grade));
+    // bd-6clakk.12 — the stems a teacher may tick on a topic paper, ADDED only while topic papers
+    // are on, so with them off this JSON is exactly what the form read before.
+    const { isAssessmentTopicCtaEnabled } = require('../config/feature-flags');
+    if (Array.isArray(out.types) && await isAssessmentTopicCtaEnabled().catch(() => false)) {
+      out.types = require('../services/assessment/topics/stems').withStems(out.types, subject, grade);
+    }
+  } else {
     // The cap is not conditional on having picked a subject — the form needs it
     // to validate the count field before anything else is chosen.
     const QuestionTypes = require('../services/assessment/question-types');
@@ -1902,7 +1909,14 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
       if (!Number.isInteger(n) || n < 1) {
         return res.status(400).json({ success: false, error: `How many ${id}? Type a number of 1 or more.` });
       }
-      types.push({ id, count: n, category: QuestionTypes.categoryOf(id, subject, grade) });
+      const type = { id, count: n, category: QuestionTypes.categoryOf(id, subject, grade) };
+      // bd-6clakk.12 — her ticked stems, kept as text on a topic paper only; none ticked = Rumi chooses.
+      if (byTopics) {
+        const picked = require('../services/assessment/topics/stems').resolveStems(subject, grade, id, t.stems);
+        if (picked.error) return res.status(400).json({ success: false, error: picked.error });
+        if (picked.stems.length) type.stems = picked.stems;
+      }
+      types.push(type);
     }
     const total = types.reduce((s, t) => s + t.count, 0);
     if (total !== unseenTarget) {
