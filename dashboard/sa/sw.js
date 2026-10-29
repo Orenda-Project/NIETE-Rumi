@@ -17,6 +17,8 @@
  */
 'use strict';
 
+// sa-13: a new version so every phone drops the battery copies kept before the reviewed lines and the v4 voice
+// went live (a battery is cache-first under one URL; only a version change clears it).
 // sa-3: the install of sa-2 may have kept the portal's page for an engine file the folder did not have yet.
 // sa-4: the prepare queue (six at a time, one retry): phones take the new worker and the new engine files.
 // sa-5: round 7 (RDF auto with no last-word step): the new engine files.
@@ -27,7 +29,7 @@
 // sa-10: round 8 offline: Jugnu's pictures go on the phone with "ready for offline" (sa-offline.js ART).
 // sa-11: round 8 offline: the Start gate checks the phone first and the background download gives it the line (sa-offline.js fresh / paused).
 // sa-12: round 8 offline: an installed worker is used without waiting on register() (which rejects with no signal).
-var VERSION = 'sa-12';
+var VERSION = 'sa-13';
 var CORE = 'sa-core-' + VERSION;
 // v2: v1 may hold the portal's page cached as a clip (a missing clip used to answer 200 HTML); it is dropped.
 // v3: letter-sound clips re-made under the same keys (one held "ssss", not "s s s"); a kept copy would play the old one.
