@@ -1,0 +1,2 @@
+{"ts":"2026-10-29T04:24:32Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"29e878e17a68","branch":"feat/bd-6clakk.11-topic-oral","user":""}
+{"ts":"2026-10-29T04:33:10Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"feat/bd-6clakk.11-topic-oral: training spec: NOT UPDATED e2e: missing","sha":"29e878e17a68","branch":"feat/bd-6clakk.11-topic-oral","user":""}
