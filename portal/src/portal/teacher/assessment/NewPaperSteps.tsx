@@ -20,7 +20,7 @@ import { makeErrorText } from './failure';
 import { pagesMessage, stepReason } from './reasons';
 import { ASSESSMENT_V2_BASE, newPaperPath, requestPath } from './paths';
 import { usePicks } from './store';
-import { readLink, reportPicks } from './linkPicks';
+import { readLink, readTopicLink, reportPicks, topicPicks } from './linkPicks';
 import { clearTopics, topicsApply } from './topics';
 import { useJobs } from './useJobs';
 import {
@@ -91,6 +91,19 @@ export function ClassStep() {
       navigate(newPaperPath('cover'), { replace: true });
     } else set({ origin: link.origin });
   }, [link, catalogue, set, navigate]);
+  // bd-pw1ccr.4.3 — the topic-end nudge: ?by=topics with a grade, subject and chapter starts a fresh paper on that chapter
+  // and goes on to Topics, which opens on Select topics with nothing ticked. Untagged. Applied once per visit.
+  const topicLink = useMemo(() => readTopicLink(query), [query]);
+  const topicDone = useRef(false);
+  useEffect(() => {
+    if (!topicLink || !catalogue || topicDone.current) return;
+    topicDone.current = true;
+    const fresh = topicPicks(topicLink, catalogue, catalogue.defaultQuestions);
+    if (fresh) {
+      set(fresh);
+      navigate(newPaperPath('topics'), { replace: true });
+    }
+  }, [topicLink, catalogue, set, navigate]);
   const mine = useMemo(() => (dataOf(combos) ?? []).filter((c) => c.grade !== null), [combos]);
 
   const byGradeNames = useMemo(() => (catalogue

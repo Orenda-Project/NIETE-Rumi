@@ -153,17 +153,19 @@ describe('SKIP_REASONS — the closed vocabulary of "we deliberately did not ask
       'weekly_cap', 'declined_streak', 'consecutive_day', 'quiet_hours', 'assessment_day',
       'no_lesson', 'no_quiz_source', 'religious_review_pending', 'disabled', 'sector_not_piloted',
       'not_school_day', 'in_progress_coaching', 'template_not_approved', 'window_closed_template',
+      'already_nudged_topic', 'not_on_app',
     ]);
     expect(Object.isFrozen(store.SKIP_REASONS)).toBe(true);
   });
 });
 
-describe('KINDS — bd-v0toag.32 adds the weekly usage report (migration V1.6.10 widens the CHECK)', () => {
-  test('three kinds, frozen', () => {
+describe('KINDS — V1.6.10 adds the weekly usage report, V1.8.4 the topic-end nudge (bd-pw1ccr.4)', () => {
+  test('four kinds, frozen', () => {
     expect(store.KINDS).toEqual({
       COACHING_AFTER_LP: 'coaching_after_lp',
       LP_QUIZ_OFFER: 'lp_quiz_offer',
       WEEKLY_USAGE_REPORT: 'weekly_usage_report',
+      TOPIC_END_NUDGE: 'topic_end_nudge',
     });
     expect(Object.isFrozen(store.KINDS)).toBe(true);
   });

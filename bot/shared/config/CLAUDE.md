@@ -1,7 +1,7 @@
 # config — Configuration, feature flags, language registry, model registry, copy catalogs
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/config kg=ecaa44365827 gen=2d522431d159 overflow=918 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/config kg=cc407cfe5ad5 gen=3dc330af6711 overflow=920 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `languages.js` — Urdu/English registry all lists derive from
@@ -19,9 +19,9 @@ Full index: `CLAUDE.index.md`
 | … | 39 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- `supabase.js` ← imported by `bot/scripts/apply-lp612-figure-notes.js:28:bdc9e340` · `bot/scripts/assessment/backfill-paper-versions.js:101:eb082fc4` (+439)
-- `ux-strings.js` ← imported by `bot/scripts/import-lp612-segments.js:31:244271c0` · `bot/shared/handlers/account-state-reply.js:34:90174631` (+214)
-- `languages.js` ← imported by `bot/shared/handlers/flow-response.handler.js:56:28620c16` · `bot/shared/routes/internal-api.routes.js:2458:15fe99b4` (+40)
+- `supabase.js` ← imported by `bot/scripts/apply-lp612-figure-notes.js:28:bdc9e340` · `bot/scripts/assessment/backfill-paper-versions.js:101:eb082fc4` (+441)
+- `ux-strings.js` ← imported by `bot/scripts/import-lp612-segments.js:31:244271c0` · `bot/shared/handlers/account-state-reply.js:34:90174631` (+215)
+- `languages.js` ← imported by `bot/shared/handlers/flow-response.handler.js:56:28620c16` · `bot/shared/routes/internal-api.routes.js:2466:15fe99b4` (+40)
 - … 72 more → `CLAUDE.index.md`
 
 ## Never (human)
@@ -33,7 +33,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `tests/menu/menu-role-layouts.test.js` (languages.js, menu-gates.js, role-features.js, ux-strings.js)
 - `tests/language/urdu-gender-neutral-copy.test.js` (coaching-card.config.js, coaching-messages.js, ux-strings.js)
-- … 846 more → `CLAUDE.index.md`
+- … 848 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `digital-coach`? · `registration`? · `setup`?

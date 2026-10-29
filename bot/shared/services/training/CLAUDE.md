@@ -1,7 +1,7 @@
 # training — Teacher training: modules, quizzes, certificates, I-SAPS exams and grading
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/training kg=8ce4bc69a48d gen=685b8ac4500c overflow=165 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/training kg=1e2bf82481a3 gen=54403dd9df91 overflow=165 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `quiz-delivery.service.js` — WhatsApp quiz state machine
@@ -17,7 +17,7 @@ Full index: `CLAUDE.index.md`
 | … | 27 more → `CLAUDE.index.md` |
 
 ## Who reads this (generated)
-- table `users` (written by `band-selection.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+170)
+- table `users` (written by `band-selection.service.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+172)
 - column `training_assessment_attempts.user_id` (written by `capstone-delivery.service.js` (+1)) ← read by `bot/shared/routes/teacher-training-endpoint.js:1222:7cb7cc00` · `bot/shared/services/teacher-state.service.js:413:219f5683` (+7)
 - … 75 more → `CLAUDE.index.md`
 

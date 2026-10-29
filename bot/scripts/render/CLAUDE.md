@@ -1,6 +1,6 @@
 # render — Prototype LP renderers and Gamma-grounded LP smoke tests
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/render kg=aadd03bbd49c gen=d87b1604a3b7 overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/scripts/render kg=f477bf3e335a gen=2e9167590f6a overflow=0 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `render-v7-lp.js` — v7-style 6-slide PDF
@@ -16,8 +16,8 @@
 | `smoke-gamma-grounded.js` | E2E smoke of the Gamma-grounded LP handler path with sendDocument stubbed, against real Supabase, Gamma and R2 |
 
 ## Who reads this (generated)
-- table `users` (written by `smoke-gamma-grounded-async.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+170)
-- column `users.phone_number` (written by `smoke-gamma-grounded-async.js`) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/database/queries.js:106:fef21f32` (+88)
+- table `users` (written by `smoke-gamma-grounded-async.js`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632`? · `bot/shared/calls/call-context.repo.js:30:61dfd735`? (+172)
+- column `users.phone_number` (written by `smoke-gamma-grounded-async.js`) ← read by `bot/shared/calls/call-context.repo.js:37:2b4c151c` · `bot/shared/database/queries.js:106:fef21f32` (+89)
 - column `users.name` (written by `smoke-gamma-grounded-async.js`) ← read by `bot/shared/calls/call-context.repo.js:36:6776a642` · `bot/shared/calls/call-tools.repo.js:242:774e00e5` (+62)
 - table `users` whole row (`*`) (written by `smoke-gamma-grounded-async.js`) ← read by `bot/shared/database/bot-helpers.js:28:2ebcf687` · `dashboard/test-rls-with-supabase-client.js:51:77bc023b`?
 - env read here: `KIE_API_KEY` · `NIETE_ENV_PATH` · `OPENROUTER_API_KEY` · `SUPABASE_SERVICE_ROLE_KEY` · `SUPABASE_URL`

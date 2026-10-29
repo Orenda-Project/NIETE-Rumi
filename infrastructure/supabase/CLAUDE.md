@@ -1,7 +1,7 @@
 # supabase — Fresh-install SQL (schema, RLS, seed) and versioned migrations for NIETE Supabase
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/supabase kg=dc5291b3c17c gen=4c15fe52c351 overflow=972 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=infrastructure/supabase kg=ed8ea48e3cbd gen=6a1abe088343 overflow=972 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `migrations/` — V*.sql plus ROLLBACK_V*.sql pairs, applied in order
@@ -18,9 +18,9 @@ Full index: `CLAUDE.index.md`
 | `verify-schema.sql` | Post-setup queries that each return a row only if an expected table exists; empty result means a missing table |
 
 ## Who reads this (generated)
-- column `users.id` (written by `00_complete-schema.sql`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632` · `bot/shared/calls/call-context.repo.js:36:6776a642` (+157)
-- column `app_settings.key` (written by `00_complete-schema.sql`) ← read by `bot/shared/config/feature-flags.js:94:b7610a0c` · `bot/shared/config/model-settings.js:162:19a9a79a` (+123)
-- column `app_settings.value` (written by `00_complete-schema.sql`) ← read by `bot/shared/config/feature-flags.js:93:2cf61275` · `bot/shared/config/model-settings.js:162:19a9a79a` (+123)
+- column `users.id` (written by `00_complete-schema.sql`) ← read by `bot/scripts/assessment/backfill-paper-versions.js:158:cbfae632` · `bot/shared/calls/call-context.repo.js:36:6776a642` (+159)
+- column `app_settings.key` (written by `00_complete-schema.sql`) ← read by `bot/shared/config/feature-flags.js:94:b7610a0c` · `bot/shared/config/model-settings.js:162:19a9a79a` (+124)
+- column `app_settings.value` (written by `00_complete-schema.sql`) ← read by `bot/shared/config/feature-flags.js:93:2cf61275` · `bot/shared/config/model-settings.js:162:19a9a79a` (+124)
 - … 972 more → `CLAUDE.index.md`
 
 ## Never (human)

@@ -19,12 +19,12 @@ Every row the door could not hold, ungrouped. Not auto-loaded; same hop as `CLAU
 | `motion.test.tsx` | Pins icon motion: all icons play together on mount, one shared 30-60s timer, none under reduced motion or hidden |
 
 ## Who reads this (all, generated)
-- `FeatureArt.tsx` ← imported by `portal/src/portal/coach/card/parts.tsx:5:f39dad9e` · `portal/src/portal/teacher/home/NextCard.tsx:2:f9b3f4a5` · `portal/src/portal/teacher/home/SlimCard.tsx:3:f9b3f4a5` · `portal/src/portal/teacher/ui/FeatureCard.tsx:3:f9b3f4a5` (+3: `python3 kg/kg.py who-reads FeatureArt.tsx`)
+- `FeatureArt.tsx` ← imported by `portal/src/portal/coach/card/parts.tsx:5:f39dad9e` · `portal/src/portal/coach/card/scores.tsx:6:f39dad9e` · `portal/src/portal/teacher/home/NextCard.tsx:2:f9b3f4a5` · `portal/src/portal/teacher/home/SlimCard.tsx:3:f9b3f4a5` (+4: `python3 kg/kg.py who-reads FeatureArt.tsx`)
 - `FeatureGlyph.tsx` ← imported by `portal/src/portal/teacher/icons/index.ts:4:99c8f172`
 - `FeatureMotion.tsx` ← imported by `portal/src/portal/teacher/icons/FeatureArt.tsx:3:c809c6b1` · `portal/src/portal/teacher/icons/index.ts:5:11571eb9`
 - `NieteLattice.tsx` ← imported by `portal/src/portal/auth/AuthFrame.tsx:8:94edcb97` · `portal/src/portal/teacher/home/look/HomeBand.tsx:4:6ff5aaa7` · `portal/src/portal/teacher/ui/HomeGreeting.tsx:6:7dc51989` · `portal/src/portal/teacher/icons/index.ts:6:013f2db6`
 - `featureMotion.css` ← imported by `portal/src/portal/teacher/icons/FeatureArt.tsx:4:ce13a128`
-- `features.ts` ← imported by `portal/src/portal/coach/card/SchoolCardPage.tsx:16:0a302a7a` · `portal/src/portal/coach/card/TeacherCardPage.tsx:5:0a302a7a` · `portal/src/portal/coach/card/parts.tsx:6:0456a423` · `portal/src/portal/teacher/analytics/sections.tsx:4:6a337f08` (+7: `python3 kg/kg.py who-reads features.ts`)
+- `features.ts` ← imported by `portal/src/portal/coach/card/SchoolCardPage.tsx:17:0a302a7a` · `portal/src/portal/coach/card/TeacherCardPage.tsx:5:0a302a7a` · `portal/src/portal/coach/card/parts.tsx:6:0456a423` · `portal/src/portal/coach/card/scores.tsx:7:0a302a7a` (+8: `python3 kg/kg.py who-reads features.ts`)
 - `index.ts` ← imported by `portal/src/portal/coach/card/SlimHome.tsx:5:cea5fb4f` · `portal/src/portal/coach/insights/components/MoreCoachip.tsx:12:2cbe5904` · `portal/src/portal/coach/observe/ObservePage.tsx:7:2b885504` · `portal/src/portal/coach/pages/CoachHome.tsx:6:cea5fb4f` (+18: `python3 kg/kg.py who-reads index.ts`)
 
 ## Tests (all, generated)

@@ -1,7 +1,7 @@
 # frameworks — Observation frameworks (FICO, OECD, HOTS, MEWAKA, Teach): prompts and scoring
 Full index: `CLAUDE.index.md`
 
-<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/frameworks kg=7f3c6a22d8a2 gen=940b5e33c75f overflow=49 rendered=2026-10-29 kg.py=1.1.0 -->
+<!-- kg:meta repo=NIETE-Rumi dir=bot/shared/services/coaching/frameworks kg=354df763558f gen=47e882248aa5 overflow=50 rendered=2026-10-29 kg.py=1.1.0 -->
 
 ## Entry points
 - `framework-registry.js` — key to module lookup
@@ -32,7 +32,7 @@ Full index: `CLAUDE.index.md`
 ## Tests (generated)
 - `bot/tests/observe/observe-endpoint-hots.test.js` (hots-framework.js, mewaka-framework.js)
 - `bot/tests/observe/observe-framework-pack.test.js` (framework-registry.js, mewaka-framework.js)
-- … 43 more → `CLAUDE.index.md`
+- … 44 more → `CLAUDE.index.md`
 
 ## Related (generated)
 - skills: `coaching`?
