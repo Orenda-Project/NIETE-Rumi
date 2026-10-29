@@ -145,3 +145,17 @@ test('checkVisit: no check is posted while update() is unanswered; it goes to th
   expect(p0.posted.length).toBeGreaterThan(0);
   expect(p0.posted.every((x) => x.to === 'v7')).toBe(true);
 }));
+
+test('a second press while the newer worker still sits installed (waiting): no update() needed, nothing posted, the reason is the update', () => withTimers(async () => {
+  const p0 = phone({ updateMs: 0 });
+  p0.reg.waiting = p0.v7;
+  p0.v7.state = 'installed';
+  const off = load(p0.nav);
+  const run = off.prepVisit(VISIT);
+  await jest.advanceTimersByTimeAsync(31000);
+  const r = await run;
+  expect(r.ok).toBe(false);
+  expect(r.why).toBe('worker_update_pending');
+  expect(r.total).toBe(0);
+  expect(p0.posted).toEqual([]);
+}));
