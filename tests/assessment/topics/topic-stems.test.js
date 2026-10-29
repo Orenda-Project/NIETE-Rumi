@@ -37,6 +37,7 @@ describe('stemsFor', () => {
 
   test('aliases resolve: math is maths, gensci is science', () => {
     expect(stemsFor('math', 3, 'Word Problems')).toEqual(stemsFor('maths', 3, 'Word Problems'));
+    expect(stemsFor('mathematics', 3, 'Word Problems')).toEqual(stemsFor('maths', 3, 'Word Problems'));
     expect(stemsFor('gensci', 4, 'MCQs')).toEqual(stemsFor('science', 4, 'MCQs'));
   });
 
@@ -98,5 +99,49 @@ describe('resolveStems', () => {
   test('a list that is not an array of strings is refused', () => {
     expect(resolveStems('english', 1, 'MCQs', 'choose').error).toBeTruthy();
     expect(resolveStems('english', 1, 'MCQs', [{ id: 'choose' }]).error).toBeTruthy();
+  });
+});
+
+describe('the edges (bd-6clakk.13)', () => {
+  test('eng is english, and a subject is read past its spaces and case', () => {
+    const english = stemsFor('english', 1, 'Fill in the Blanks');
+    expect(english.length).toBeGreaterThan(0);
+    expect(stemsFor('eng', 1, 'Fill in the Blanks')).toEqual(english);
+    expect(stemsFor(' English ', 1, 'Fill in the Blanks')).toEqual(english);
+  });
+
+  test('no types is no types', () => {
+    expect(withStems(undefined, 'english', 3)).toEqual([]);
+  });
+
+  test('a list holding something other than an id is refused with the list message', () => {
+    expect(resolveStems('english', 1, 'Fill in the Blanks', ['is-am-are', 3]))
+      .toEqual({ error: 'stems for Fill in the Blanks must be a list of stem ids' });
+    expect(resolveStems('english', 1, 'MCQs', 'choose'))
+      .toEqual({ error: 'stems for MCQs must be a list of stem ids' });
+  });
+});
+
+describe('the bank (bd-6clakk.13)', () => {
+  const { BANK } = require('../../../bot/shared/services/assessment/topics/stem-bank');
+  const lists = Object.entries(BANK).flatMap(([subject, bands]) => Object.entries(bands)
+    .flatMap(([band, types]) => Object.entries(types).map(([type, list]) => ({ where: `${subject} ${band} ${type}`, band, list }))));
+
+  test('every subject has its bands: English and Urdu 1-2 and 3-5, Maths and Science 1-5', () => {
+    expect(Object.keys(BANK).sort()).toEqual(['english', 'maths', 'science', 'urdu']);
+    expect(Object.keys(BANK.english).sort()).toEqual(['1-2', '3-5']);
+    expect(Object.keys(BANK.urdu).sort()).toEqual(['1-2', '3-5']);
+    expect(Object.keys(BANK.maths)).toEqual(['1-5']);
+    expect(Object.keys(BANK.science)).toEqual(['1-5']);
+  });
+
+  test('every stem is an [id, text] pair, ids unique within their type, text a full instruction', () => {
+    for (const { where, list } of lists) {
+      expect([where, list.length > 0]).toEqual([where, true]);
+      for (const pair of list) {
+        expect([where, pair.length, /^[a-z0-9-]+$/.test(pair[0]), pair[1].trim().length > 3]).toEqual([where, 2, true, true]);
+      }
+      expect([where, new Set(list.map(([id]) => id)).size]).toEqual([where, list.length]);
+    }
   });
 });
