@@ -12,8 +12,12 @@ import path from "node:path";
 import { build } from "vite";
 import { COACH_S1, ENTRY, initialJs, readManifest } from "./initialJs";
 
-/** gzipped bytes; the ceiling the operator's ten seconds allows on Slow 3G (400 kbps) with time left for data. */
-const COACH_S1_BUDGET = 250_000;
+/**
+ * gzipped bytes; the ceiling the operator's ten seconds allows on Slow 3G (400 kbps) with time left for data. 250,000
+ * → 251,000 for R6 (ux-lead-2 20261028T234440, FIX_R6 §1): the base had drifted over by 36 B, the R6 polish is ≈ +600 B
+ * (≈ 12 ms at 400 kbps), and design-qa re-measures cold S1 (PASS ≤ 8.5 s).
+ */
+const COACH_S1_BUDGET = 251_000;
 
 const portalDir = path.resolve(__dirname, "..");
 let distDir = "";
