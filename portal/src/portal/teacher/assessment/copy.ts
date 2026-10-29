@@ -113,6 +113,10 @@ export const ASSESSMENT_V2_COPY = {
   fewerOf: (name: string) => `Fewer ${name}`,
   moreOf: (name: string) => `More ${name}`,
   removeType: (name: string) => `Remove ${name}`,
+  // bd-6clakk.12 — the stem chips under a type on a topic paper.
+  stemsLabel: 'Question wording',
+  stemsFor: (name: string) => `Question wording for ${name}`,
+  rumiChooses: 'Rumi chooses',
   seenShort: (n: number) => `${n} seen`,
   unseenShort: (n: number) => `${n} unseen`,
   /**
@@ -436,6 +440,9 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   fewerOf: (name: string) => `${name} کم کریں`,
   moreOf: (name: string) => `${name} زیادہ کریں`,
   removeType: (name: string) => `${name} ہٹائیں`,
+  stemsLabel: 'سوال کی ہدایت',
+  stemsFor: (name: string) => `${name} کی ہدایت`,
+  rumiChooses: 'رومی چنے گا',
   seenShort: (n: number) => `کتاب کے ${n}`,
   unseenShort: (n: number) => `نئے ${n}`,
   why: {
