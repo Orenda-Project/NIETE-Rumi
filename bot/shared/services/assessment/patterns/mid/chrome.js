@@ -56,8 +56,9 @@ function makeSubject({ grade, key, medium, name_en, name_ur, tos, sections, word
     total_time_ur: 'اسکول کے مطابق',
     header: {
       ...E.commonHeader(grade),
-      title_en: `${g.en} · ${name_en} · End-of-chapter paper (FDE pattern)`,
-      title_ur: `${g.ur} · ${name_ur} · باب کے اختتام کا پرچہ (FDE pattern)`,
+      // No "(FDE pattern)" machine label on a paper a child reads (v30 review, bd-5jmnfj.33.2).
+      title_en: `${g.en} · ${name_en} · End-of-chapter paper`,
+      title_ur: `${g.ur} · ${name_ur} · باب کے اختتام کا پرچہ`,
       time_line_en: '',
       time_line_ur: '',
       total_line_en: `Total Marks: {t:${total}}`,

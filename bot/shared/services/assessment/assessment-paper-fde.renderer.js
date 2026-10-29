@@ -30,7 +30,7 @@ const path = require('path');
 const { clampLanguage } = require('../../config/ux-strings');
 const Patterns = require('./patterns');
 const { pictureBlock, bubbleBlock, PICTURE_CSS } = require('./fde-picture-block');
-const { matchOrder, bankOrder, matchTable, matchAnswer, MATCH_CSS } = require('./fde-match-block');
+const { matchOrder, bankOrder, matchTable, matchAnswer, matchStem, MATCH_CSS } = require('./fde-match-block');
 const { oralSheet, ORAL_CSS } = require('./fde-oral-sheet');
 const { answeredParts } = require('./fde-sub-answers');
 const { letterOrder } = require('./fde-order-block');
@@ -445,8 +445,9 @@ function workSpace(q, slot) {
     if (/☐/.test(String(q.question || ''))) return '';
     // A plant to label carries its own blank lines (bd-5jmnfj.4.33).
     if (q.picture && q.picture.kind === 'plant') return '';
-    // Fill in the blank: the child writes on the ___ (bd-5jmnfj.4.39).
-    if (/_{3,}/.test(String(q.question || ''))) return '';
+    // Fill in the blank: the child writes on the ___ (bd-5jmnfj.4.39). Only a one-line slot with no
+    // working space: a Grade 3-4 "___ x 25 = 4,000" still gets its box (bd-5jmnfj.33.2).
+    if ((slot.lines || 1) < 2 && !slot.work_mm && /_{3,}/.test(String(q.question || ''))) return '';
     // A sentence under a picture gets two lines (bd-5jmnfj.4.57).
     const lines = slotFlag(slot, 'sentence_box') ? 2 : (slot.lines || 1);
     return `<div class="write-box" style="height:${12 + 8 * Math.max(0, lines - 1)}mm"></div>`;
@@ -634,7 +635,8 @@ function slotBlock(slot, sec, list, ctx) {
     : '';
   if (slot.shape === 'match') {
     // Two columns for the child to join with a line; Column B never follows the stems (bd-5jmnfj.4.23).
-    const stems = live.map((q, i) => `<span class="n">${labelHtml(itemNumber(slot, i, lang), ctx)}</span> ${textOf(stemOf(q, slot, false), ctx)}`);
+    // Column A is the item's own column_a when it has one (bd-5jmnfj.33.2), else its stem as before.
+    const stems = live.map((q, i) => `<span class="n">${labelHtml(itemNumber(slot, i, lang), ctx)}</span> ${textOf(Array.isArray(q.column_a) ? matchStem(q) : stemOf(q, slot, false), ctx)}`);
     const column = matchOrder(live.map(matchAnswer)).map((a) => textOf(a, ctx));
     return `<div class="slot">${head}<div class="q" data-slot="${esc(slot.slot)}">${matchTable(stems, column)}</div></div>`;
   }
@@ -1146,7 +1148,7 @@ function writtenRows(slot, list, ctx, Criteria) {
     if (parts) {
       parts.forEach((sub, k) => {
         const label = `${n} ${itemNumber({ numbering: slot.sub_numbering || 'alpha_paren' }, k, lang)}`;
-        const stem = sub && sub.question ? `<div class="q-line">${textOf(cutAtWord(bareSub(sub.question), 110), ctx)}</div>` : '';
+        const stem = sub && sub.question ? `<div class="q-line">${textOf(cutAtWord(bareSub(sub.question), KEY_ECHO), ctx)}</div>` : '';
         const each = sub && Number(sub.marks) > 0 ? Number(sub.marks) : slot.marks_each / parts.length;
         rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(label, ctx)}</td><td class="ans"><b>${textOf(sub && sub.answer, ctx)}</b>${stem}</td><td class="pts">${pointsHtml(sub || {}, ctx, { kindFor: () => null, criteriaFor: () => [] }, slot, k, each)}</td></tr>`);
       });
@@ -1156,7 +1158,7 @@ function writtenRows(slot, list, ctx, Criteria) {
     // An English key names a picture the answer is not (bd-5jmnfj.4.48): v21 Q6 keyed "mat" for a bat.
     const pic = lang === 'en' && q.picture && q.picture.name && String(q.picture.name).trim().toLowerCase() !== String(q.answer ?? '').trim().toLowerCase()
       ? `Picture: ${String(q.picture.name).trim()}. ` : '';
-    const qText = cutAtWord(withoutOwnLabel(q.question || '', slot), 110);
+    const qText = cutAtWord(withoutOwnLabel(q.question || '', slot), KEY_ECHO);
     // The question is often just the picture's name: say it once (bd-5jmnfj.4.51.2).
     const sameAsPic = pic && qText.trim().toLowerCase() === String(q.picture.name).trim().toLowerCase();
     const stemHtml = textOf(sameAsPic ? pic.replace(/\.\s*$/, '') : pic + qText, ctx).replace(/☐/g, '<span class="sq"></span>');
@@ -1205,6 +1207,10 @@ function partOfAnswer(answer, k) {
 }
 
 // A question shown beside its answer: whole, or cut at the last word that fits.
+// How much of a question the key echoes beside its answer: 200 characters, so a two-line
+// do-as-directed item or a three-part task reads whole (bd-5jmnfj.33.2; v30 cut at 110).
+const KEY_ECHO = 200;
+
 function cutAtWord(text, max) {
   const chars = [...String(text || '')];
   if (chars.length <= max) return chars.join('');
