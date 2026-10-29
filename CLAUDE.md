@@ -75,10 +75,20 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
   changing, and never skip the call chain. (A parameter once dropped one hop short of its use site
   shipped a guaranteed crash under 28 green tests, and silently degraded every downstream consumer
   of that service's output for six days.)
-- **`npm test` is the BASELINE GATE, not raw Jest**: exit 0 means you added no new failure vs
-  `tests/baseline.snapshot.json`. It takes NO arguments (filtered: `npm run test:raw -- <args> --forceExit`); the
-  snapshot may only shrink (CI: `npm run test:baseline:growth`). Never fix or add to its ~30 known-red suites to
-  get green. Read [tests/BASELINE.md](tests/BASELINE.md) before concluding you broke something.
+- **`npm test` is the BASELINE GATE, not raw Jest.** The suite is not green and has not been for a while.
+  `npm test` runs every suite and then judges the *delta* against `tests/baseline.snapshot.json`:
+  **exit 0 means "you added no new failure"**, which is the only question a gate can usefully answer here.
+  A suspected regression is re-run once and only fails if it reproduces, so a flaky suite cannot redden
+  your PR at random.
+  **`npm test` takes NO arguments** — it must run everything to judge a delta, and it refuses a filter
+  rather than dropping it. For a filtered run use `npm run test:raw -- <any jest args>` (add
+  `--forceExit`; a filtered run can hang on an open handle).
+  **The snapshot may only ever SHRINK, and that is now enforced** — `npm run test:baseline:growth`
+  compares it against the base branch and CI fails a PR that grows it. Adding your failure to the
+  snapshot is not a way past the gate.
+  **The ~30 suites in the snapshot are known-red debt. Do not try to fix them to get green — you already
+  are green. Do not add to them either: the snapshot may only ever shrink.** Read
+  [tests/BASELINE.md](tests/BASELINE.md) before concluding you broke something.
 - **Bot-only dependencies must be stubbed.** CI runs root `npm test` **before** `bot/ npm ci`, so source
   that requires a `bot/node_modules` package at module scope kills the whole suite *file*. Every such
   package reachable from a root suite is already stubbed in `tests/__mocks__/` and wired through
