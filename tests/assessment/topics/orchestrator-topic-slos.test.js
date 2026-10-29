@@ -9,7 +9,7 @@ const mockGenerateExam = jest.fn();
 jest.mock('../../../bot/shared/services/assessment/book-content.service', () => ({
   loadChapterContent: mockLoadChapterContent, loadPageRangeContent: mockLoadPageRangeContent,
 }));
-jest.mock('../../../bot/shared/services/assessment/assessment-generation.service', () => ({ generateExam: mockGenerateExam }));
+jest.mock('../../../bot/shared/services/assessment/assessment-generation.service', () => ({ generateExam: mockGenerateExam, generateTopicOral: jest.fn(async () => null) }));
 jest.mock('../../../bot/shared/services/assessment/assessment-paper.renderer', () => ({
   renderPaper: () => '<html/>', renderAnswerKey: () => '<html/>', totalMarks: () => 1, collectQuestions: () => [],
 }));

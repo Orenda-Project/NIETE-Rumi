@@ -603,7 +603,13 @@ async function buildPaper(job, user = {}) {
       ? await BookContent.loadChapterContent({ grade, subject, chapterNumber })
       : await BookContent.loadPageRangeContent({ grade, subject, pageRanges });
 
-    const generated = await Generation.generateExam({
+    // A topic paper carries its ticked topics in its own tree, so an edit can
+    // rebuild the key's summary (scope is not stored on the request).
+    const topics = TopicKey.topicsFromScope(scope);
+    const isTopic = Boolean(topics && topics.length);
+    // bd-6clakk.11: an English or Urdu topic paper also gets FDE's oral part, written
+    // alongside from the same pages; null when the subject has none or it came back short.
+    const [generated, oral] = await Promise.all([Generation.generateExam({
       grade, subject,
       pageContent: source.content,
       pageReference: source.pageReference,
@@ -612,16 +618,14 @@ async function buildPaper(job, user = {}) {
       contentSource, questionCount, totalMarks, questionTypes, includeAnswerKey: true, seenCount,
       // A topic paper tests the ticked topics' skills; any other job passes no key at all.
       ...(scope && scope.kind === 'topics' ? { slos: scope.slos } : {}),
-    });
+    }), isTopic ? Generation.generateTopicOral({ grade, subject, pageContent: source.content, requestId }) : null]);
 
     // With versioned editing the generated row IS version 1 and is never
     // rewritten, so the frozen copy is redundant. Until the flag is on, the old
     // in-place edit path still needs it to keep the model's paper recoverable.
     const versioned = await isAssessmentVersionsEnabled();
-    // A topic paper carries its ticked topics in its own tree, so an edit can
-    // rebuild the key's summary (scope is not stored on the request).
-    const topics = TopicKey.topicsFromScope(scope);
-    if (topics && topics.length) generated.examJson._topics = topics;
+    if (isTopic) generated.examJson._topics = topics;
+    if (oral) generated.examJson._oral = oral;
     await _patchPaper(paperId, {
       exam_json: generated.examJson,
       ...(versioned ? {} : { original_exam_json: generated.examJson }),
