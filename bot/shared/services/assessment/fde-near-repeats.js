@@ -136,4 +136,4 @@ function nearRepeats(examJson) {
   return [...out.values()];
 }
 
-module.exports = { itemsInOrder, nearPairs, nearRepeats };
+module.exports = { itemsInOrder, nearPairs, nearRepeats, content, choice };

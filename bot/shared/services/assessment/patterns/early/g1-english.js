@@ -60,8 +60,8 @@ module.exports = makeSubject({
           instruction_en: 'Fill in the blanks with words from the box.',
           prompt_rule: 'Five short sentences from the book, each with one blank. Each sentence rules out every other word: only one word from the box fits each blank (never "likes to ___ in the park", where play, run or paint all fit). Put the five answer words, mixed, in "words" on the FIRST item. Scheme: K 2 for the right word.' },
         S({ slot: 'g1.english.B.Q10', label_en: 'Q10.', type: 'Match Capital and Small Letters', generate: 5, shape: 'mcq',
-          instruction_en: 'Match the capital letter with its small letter.',
-          prompt_rule: 'Five items: a capital letter as the stem and four small letters as options (a, b, c, d). Answer: the matching small letter.' }),
+          instruction_en: 'Circle the small letter that matches the capital letter.',
+          prompt_rule: 'Five items: a capital letter as the stem and four small letters as options (a, b, c, d). Never use I, l or L as a capital or as an option, since I and l look alike in print. Answer: the matching small letter.' }),
       ],
     },
     {
