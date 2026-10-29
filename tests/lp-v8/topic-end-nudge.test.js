@@ -24,7 +24,10 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({ sendCtaUrl: jes
 jest.mock('../../bot/shared/services/app-login-link', () => ({ signAppLink: jest.fn(() => 'TOK') }));
 jest.mock('../../bot/shared/config/branding', () => ({ portalUrl: () => 'https://portal.test/' }));
 jest.mock('../../bot/shared/services/app-redirect.service', () => ({ isOnTeacherApp: jest.fn(async () => true) }));
-jest.mock('../../bot/shared/services/assessment/topics/topics.repo', () => ({ listChapterTopics: jest.fn() }));
+jest.mock('../../bot/shared/services/assessment/topics/topics.repo', () => ({
+  ...jest.requireActual('../../bot/shared/services/assessment/topics/topics.repo'),
+  listChapterTopics: jest.fn(),
+}));
 jest.mock('../../bot/shared/services/lp-v8-catalog.service', () => ({ lessonById: jest.fn() }));
 
 const WhatsAppService = require('../../bot/shared/services/whatsapp.service');
