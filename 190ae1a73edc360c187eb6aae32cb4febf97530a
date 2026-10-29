@@ -1,0 +1,2 @@
+{"ts":"2026-10-29T10:01:56Z","hook":"post-commit","event":"armed","switch":"","detail":"features=training spec_sync=true","sha":"190ae1a73edc","branch":"bd-5jmnfj.4.57-65973","user":""}
+{"ts":"2026-10-29T10:02:04Z","hook":"pre-push","event":"pushed-stale","switch":"","detail":"bd-5jmnfj.4.57-65973: training spec: NOT UPDATED e2e: missing","sha":"190ae1a73edc","branch":"bd-5jmnfj.4.57-65973","user":""}
