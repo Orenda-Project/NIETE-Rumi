@@ -52,6 +52,57 @@ def test_no_preempt_at_all_leaves_both_columns_dark():
     assert _mistakes({}) == [{"pupil_says": DP, "you_ask": DP}]
 
 
+# --- WRITE ON THE BOARD is a DRAWING (bd-18e9x) ---------------------------------
+#
+# OPERATOR, five times, the fourth in capitals: *"pls make sure write on the board
+# section is an actual image ALWAYS rather than text instructions"*. The whole
+# `d0_board_draw` pipeline existed and was tested, but nothing ever called it, so
+# `page2.board_final` reached the renderer with `draw_order` alone and `boardPlanAtoms`
+# (template.js:3325) had no figure to draw. These tests are the seam.
+
+
+def _board_final(**over):
+    g = {**ENR["generated"], **over}
+    return d0_page2.build(g)["board_final"]
+
+
+def test_a_board_reaches_the_renderer_as_a_drawing():
+    """THE POINT. `boardPlanAtoms` only draws when `B.diagram` is present."""
+    assert isinstance(_board_final().get("diagram"), dict)
+
+
+def test_the_drawing_carries_a_type_because_renderdiagram_dispatches_on_it():
+    """A spec without a `type` fails the schema (`diagram_spec.required`) and would
+    render as the dashed "DIAGRAM - ? / not rendered" box (template.js:1710)."""
+    assert (_board_final()["diagram"].get("type") or "").strip()
+
+
+def test_the_draw_script_keeps_its_own_home_beside_the_drawing():
+    """One home per fact. `instruction` stays in `draw_order`; the picture draws the
+    board's CONTENT. Adding the figure must not disturb the required field."""
+    bf = _board_final()
+    assert bf["draw_order"] == ["Draw four labelled boxes", "Add arrows."]
+
+
+def test_a_lesson_with_no_board_carries_no_empty_figure():
+    """`diagram` is optional in the schema. An absent key is a board that was never
+    written; an empty dict would be a spec the engine cannot dispatch."""
+    assert "diagram" not in _board_final(boardWork={})
+    assert "diagram" not in _board_final(boardWork={"instruction": "Draw it."})
+
+
+def test_a_board_that_cannot_be_drawn_never_takes_the_document_down(monkeypatch):
+    """Totality. `board_diagram` is already total, but the CALL must be too: page2 is
+    required, so an exception here loses the whole lesson, not just the picture."""
+    import d0_board_draw
+
+    def boom(_):
+        raise ValueError("no")
+
+    monkeypatch.setattr(d0_board_draw, "board_diagram", boom)
+    assert "diagram" not in _board_final()
+
+
 if __name__ == "__main__":
     fails = 0
     for name, fn in sorted(globals().items()):

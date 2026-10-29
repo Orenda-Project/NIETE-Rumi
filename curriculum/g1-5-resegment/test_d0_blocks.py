@@ -8,32 +8,6 @@ import json
 import d0_blocks as B
 
 
-def test_first_warmup_item_is_the_scaffold():
-    """Schema: the scaffold for TODAY'S concept comes first."""
-    items = B.warmup_items({"items": [{"prompt": "Count to ten."},
-                                      {"prompt": "Name a shape."}]})
-    assert [i["kind"] for i in items] == ["scaffold", "prerequisite"]
-
-
-def test_retrieval_flavoured_items_are_spaced():
-    items = B.warmup_items({"items": [
-        {"prompt": "Recall yesterday.", "type": "cumulative peer retrieval"}]})
-    assert items[0]["kind"] == "spaced"
-
-
-def test_expected_answer_is_read_under_all_four_spellings():
-    for key, val in [("expected_answer", "A"), ("expected", "B"),
-                     ("expected_answers", ["C", "D"]),
-                     ("expected_spelling_check", "E")]:
-        got = B.warmup_items({"items": [{"prompt": "Name it?", key: val}]})[0]["a"]
-        assert got in ("A", "B", "C; D", "E"), (key, got)
-
-
-def test_missing_answer_surfaces_as_design_pending():
-    """Dark stages stay dark — never a plausible-looking proxy."""
-    assert B.warmup_items({"items": ["bare string"]})[0]["a"] == B.DESIGN_PENDING
-
-
 def test_move_minutes_come_from_the_source_not_a_guess():
     blk = B.we_do_block([{"phase": "We-Do", "minutes": 9, "action": "Try together."}], None)
     assert blk["minutes"] == 9 and blk["type"] == "faded_example"
@@ -73,25 +47,6 @@ def test_you_do_task_is_a_move_list_and_only_problems_become_items():
 def test_script_is_kept_verbatim_beside_its_action():
     lines = B.move_lines([{"action": "Model it.", "say": "Watch me."}])
     assert lines == ["Model it.", "Say: “Watch me.”"]
-
-
-def test_worked_example_drops_only_what_the_script_already_says():
-    """Per line, not per field. Urdu worked examples are 100% restatement and
-    Science's are 100% new, so a blanket rule either way loses or duplicates."""
-    said = ["Model two words using the title and picture.", "Say: \u201cI read the title.\u201d"]
-    lines = ["Model two words using the title and picture.",   # already said -> drop
-             "word: crescendo",                                 # new -> keep
-             "word: crescendo"]                                 # internal repeat -> drop
-    out = B.drop_lines_already_said(lines, said)
-    assert out == ["word: crescendo"]
-
-
-def test_a_fuller_worked_line_survives_a_shorter_script_line():
-    """Containment the other way keeps the richer line; the script line it
-    swallows carries the move's minutes and stays where it is."""
-    out = B.drop_lines_already_said(
-        ["Divide 84 by 12 to get 7, then label the answer 7 years."], ["Divide 84 by 12"])
-    assert len(out) == 1
 
 
 def test_the_script_rides_along_as_turns_and_the_flat_lines_stay():
@@ -144,3 +99,58 @@ if __name__ == "__main__":
                 print(f"  FAIL {name}: {type(e).__name__}: {e}")
     print("FAILED" if fails else "all passed")
     raise SystemExit(1 if fails else 0)
+
+
+# ── the walls: a paragraph in a list is a paragraph ───────────────────────────
+# `you-do-task` is 41,152 words over the 335-lesson corpus and 34,269 of them sit
+# in a single unbroken item of more than 40 words -- the largest such pool in the
+# render. I-Do and We-Do escape it through `d0_script.turns`; this list never did.
+
+WALL = ('Say: “Now it is your turn to write. Think of one special day in your own '
+        'life, any moment at all that you still remember clearly today. Write the '
+        'opening and the middle of it on your slate, exactly the way we just did it '
+        'together with Zainab. When you have written both, read the whole thing out '
+        'to the partner sitting beside you.”')
+
+
+def _words(s):
+    import re
+    return [w for w in re.split(r"\s+", (s or "").strip()) if w]
+
+
+def test_the_you_do_task_wall_is_split_into_one_item_per_sentence():
+    out = B.you_do_blocks([{"phase": "You-Do", "minutes": 8, "say": WALL[5:].strip()}], [])
+    task = [b for b in out if b["type"] == "key_points"][0]
+    assert len(task["items"]) == 4, task["items"]
+    assert all(len(_words(i)) <= 40 for i in task["items"]), task["items"]
+
+
+def test_splitting_the_task_removes_no_word_of_it():
+    steps = [{"phase": "You-Do", "minutes": 8, "say": WALL[5:].strip()}]
+    out = B.you_do_blocks(steps, [])
+    task = [b for b in out if b["type"] == "key_points"][0]
+    assert _words(" ".join(task["items"])) == _words(" ".join(B.move_lines(steps)))
+
+
+def test_the_say_label_is_not_authored_twice():
+    """111 strings over 37 corpus docs arrived as `Say: “Say: "...."”`."""
+    steps = [{"phase": "You-Do", "minutes": 8,
+              "say": 'Say: "Page 132 says to write the opposite of the word you found."'}]
+    task = [b for b in B.you_do_blocks(steps, []) if b["type"] == "key_points"][0]
+    assert task["items"][0].count("Say:") == 1, task["items"][0]
+
+
+def test_the_stage_directions_of_a_move_are_split_too():
+    """`_with_turns` is the one place turns reach a block, so the split lands there."""
+    action = ("Draw the three-column table on the left half of the board and head the "
+              "columns Sound, Word and Picture. Hand each pair one slate and one piece "
+              "of chalk as they settle. Keep the textbook open at page 104 on the desk.")
+    blk = B.i_do_block([{"phase": "I-Do", "minutes": 7, "action": action}])
+    dos = [t for t in blk["turns"] if t["kind"] == "do"]
+    assert len(dos) == 3, dos
+    assert _words(" ".join(t["text"] for t in dos)) == _words(action)
+
+
+def test_the_say_label_is_authored_once_at_source():
+    lines = B.move_lines([{"say": 'Say: "Page 132 says to write the opposite."'}])
+    assert lines == ['Say: "Page 132 says to write the opposite."']

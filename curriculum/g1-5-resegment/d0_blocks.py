@@ -27,6 +27,8 @@ from __future__ import annotations
 
 import re
 
+import d0_arrayfit as A
+import d0_lines
 import d0_script
 
 DESIGN_PENDING = "design pending — not carried by primary Stage-C enrichment"
@@ -52,7 +54,7 @@ def _with_turns(blk, turns):
     render is untouched by construction, not by promise.
     """
     if turns:
-        blk["turns"] = turns
+        blk["turns"] = d0_lines.split_do_turns(turns)
     return blk
 
 
@@ -65,10 +67,9 @@ def move_lines(steps):
         if action:
             out.append(action)
         if say:
-            # Stage-C quotes the script itself about a third of the time, so an
-            # unconditional wrap printed ““Look at the picture.”” on the page.
-            quoted = say[0] in "“‘\"'" and say[-1] in "”’\"'"
-            out.append(f"Say: {say}" if quoted else f"Say: “{say}”")
+            # Quoting, and the label, both belong to d0_lines.say_line: Stage C writes
+            # each of them itself often enough that guessing here printed doubles.
+            out.append(d0_lines.say_line(say))
     return [l for l in out if len(l) >= 2]
 
 
@@ -114,7 +115,7 @@ def we_do_block(steps, partner):
     setup = [t for t in ((pa.get("structure") or "").strip(),
                          (pa.get("teacher_role") or "").strip()) if len(t) >= 3]
     if setup:
-        blk["prompt"] = " · ".join(setup)
+        blk["prompt"] = A.fit(" · ".join(setup), A.FE_PROMPT)
     return blk
 
 
@@ -133,8 +134,14 @@ def you_do_blocks(steps, problems):
     out = []
     lines = move_lines(steps)
     if lines:
+        # One item per sentence. Measured over the 335-lesson corpus, `you-do-task`
+        # holds 34,269 words inside single items of more than 40 words -- the biggest
+        # such pool in the render, and the only move script the renderer never got a
+        # per-sentence pass for (I-Do and We-Do have `turns`). Splitting a list item
+        # into several is the same list, so nothing in the renderer changes and no
+        # word moves: d0_lines.test_no_word_is_lost_over_the_corpus holds that.
         out.append({"type": "key_points", "id": "you-do-task",
-                    "title": "Set the task going", "items": lines})
+                    "title": "Set the task going", "items": d0_lines.split_items(lines)})
     items = [_practice_item(p) for p in problems or [] if (p.get("prompt") or "").strip()]
     if items:
         out.append({"type": "practice", "id": "you-do", "mode": "independent",

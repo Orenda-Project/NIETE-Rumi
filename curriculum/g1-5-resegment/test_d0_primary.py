@@ -131,6 +131,14 @@ def test_urdu_medium_detected_from_book_stem():
     assert build()["provenance"]["medium"] == "en"
 
 
+def test_the_urdu_medium_electives_are_urdu_medium():
+    """bd-6640j.1. GK, Social Studies and Islamiat are printed in Urdu (bd-6s6m3)."""
+    for stem in ("grade_1_general_knowledge", "grade_5_social_studies", "grade_3_islamiat"):
+        assert d0.to_lp_doc(ENR, dict(PT, book_stem=stem))["provenance"]["medium"] == "ur", stem
+    for stem in ("grade_4_science", "grade_2_english", "grade_3_mathematics"):
+        assert d0.to_lp_doc(ENR, dict(PT, book_stem=stem))["provenance"]["medium"] == "en", stem
+
+
 def test_progress_rail_carries_day_of_total():
     assert build()["sequence"]["this"] == "Day 1 of 10"
 
@@ -389,9 +397,25 @@ _REAL_HOOK = (
 
 
 def _opening_blocks_text(doc):
+    """The Opening's printable text, with any array-form field re-joined first.
+
+    bd-qeady made `ask.question` `str|string[]`. Dumping the blocks raw would put JSON
+    punctuation (`", "`) between two halves of one authored sentence and break a
+    substring assertion about text that is still, on the page, one sentence -- the
+    renderer re-joins it with a bare " ". So the join happens here too.
+    """
+    def rejoin(node):
+        if isinstance(node, list) and node and all(isinstance(x, str) for x in node):
+            return " ".join(node)
+        if isinstance(node, list):
+            return [rejoin(x) for x in node]
+        if isinstance(node, dict):
+            return {k: rejoin(v) for k, v in node.items()}
+        return node
+
     for sec in doc["sections"]:
         if "opening" in str(sec.get("title") or "").lower():
-            return json.dumps(sec.get("blocks") or [], ensure_ascii=False)
+            return json.dumps(rejoin(sec.get("blocks") or []), ensure_ascii=False)
     raise AssertionError("no Opening section in the built doc")
 
 
@@ -471,3 +495,36 @@ def test_authored_step_numbers_are_dropped_so_the_renderer_numbers_once():
                                "Predict: the LED can work.",
                                "Observe the LED: it has two legs.",
                                "3 kg of wire is not a step number."]
+
+
+def test_worked_example_step_labels_survive_the_line_splitter_bd_nuvtm():
+    """g4_ch9/English_seg7 (bd-nuvtm): 7 authored STEP N labels printed as 9 rows,
+    because `d0_lines.split_items` cut two of them again at their own clause
+    marks -- STEP 2 at its em-dash, the HIGHLIGHTING check at its arrow -- and the
+    renderer numbers the list by POSITION, not by the label still sitting inside
+    the text. So the page read 'STEP 2' next to printed number 2, then 'STEP 3'
+    next to printed number 4."""
+    import copy
+    enr = copy.deepcopy(ENR)
+    enr["generated"]["workedExample"] = (
+        "STEP 1 (Title): Choose one word — 'Lewa'.\n"
+        "STEP 2 (Two describing words): From the passage, 'graceful' is given — "
+        "add one more, e.g. 'flowing' → 'Graceful, flowing' (count: 1 Graceful, "
+        "2 flowing check).\n"
+        "STEP 3 (Three action words): 'Swaying, turning, gliding' (count: "
+        "1 Swaying, 2 turning, 3 gliding check).\n"
+        "STEP 4 (Four-word feeling/sentence): 'Balochistan sings through movement' "
+        "(count: 1 Balochistan, 2 sings, 3 through, 4 movement check).\n"
+        "STEP 5 (One summary word): 'Heritage' (1 word check).\n"
+        "Finished cinquain:\n"
+        "HIGHLIGHTING worked check on the passage: 'They carry the stories and "
+        "rhythms passed down through generations.' → underline 'stories and "
+        "rhythms passed down through generations' because it tells us WHY the "
+        "dances matter (they preserve history), which is more important than "
+        "just 'They carry'."
+    )
+    doc = d0.to_lp_doc(enr, PT, day=1, total_days=10, topic=TOPIC)
+    worked = [b for b in _blocks(doc, 1) if b.get("id") == "worked"][0]
+    assert len(worked["steps"]) == 7, worked["steps"]
+    for n, step in enumerate(worked["steps"][:5], 1):
+        assert step.startswith(f"STEP {n} "), worked["steps"]

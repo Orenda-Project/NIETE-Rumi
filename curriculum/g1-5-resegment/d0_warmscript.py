@@ -42,11 +42,37 @@ retrieval ... silent write, walk, reveal"), and seating that prints the strategy
 second time. So is a method longer than `MAX_WORDS`: the house rule is that a spec which
 cannot be seated is DROPPED WHOLE and says why in `notes.gaps` (d0_diagram, d0_crux),
 because half a method read as a whole one is worse than a named gap.
+
+bd-y7hst -- ONE STRATEGY, NOT SEVERAL STACKED, AND NEVER ONE THAT PAIRS CHILDREN UP.
+The warm-up must seat exactly one method, never several stacked (a shipping example,
+g1_ch8 Maths seg4, numbered FOUR items in the warm-up box) and never one that pairs
+children up to talk ("Partner-check before reveal", "Partner A says a number..."). The
+two selectors that enforce this -- `_candidates()` (splits a numbered/bulleted script
+into its stacked items, first-to-yield-a-method wins) and `is_banned_move()` (her named
+peer-talk families, phrase-level so it never trips on Urdu_seg6's gender-pair vocabulary
+or Maths_seg2's solo fact-fluency game) -- live in `d0_warmpeer.py`, split out to keep
+this file under the 300-line limit; see that module's docstring for the operator's
+quotes and the full rationale. Every candidate `_method_and_gaps` below drops through
+either selector says why in `notes.gaps`, same house rule as an over-cap method:
+dropped whole, never silently.
+
+bd-y7hst, REOPENED -- `warmUp.script` IS EMPTY IN ALL 335 SHIPPING LESSONS. Corpus
+evidence, checked after this module shipped: the field this module and `d0_warmpeer.py`
+act on is never populated on real data, so the fix above is correct in mechanism but
+inert in practice -- it never fires. Left in place, unchanged, and still tested: the
+mechanism is not wrong, and the day `warmUp.script` starts carrying content this is
+still the right selector pair for it. The real, currently-live defect (295 of 335
+lessons stack more than one warm-up item; 215 banned-talk instances across 118 lessons)
+is in `warmUp.items[]` instead, and is handled by `one_strategy()` in the sibling module
+`d0_warmitems.py`, which reuses `is_banned_move()` from `d0_warmpeer.py` but does not
+touch this file.
 """
 
 from __future__ import annotations
 
 import re
+
+from d0_warmpeer import _bare, _candidates, _gap_banned, _gap_extra, is_banned_move
 
 BLOCK_ID = "warmup-method"
 
@@ -57,11 +83,6 @@ BLOCK_ID = "warmup-method"
 # (d0_diagram, d0_crux), because half a method read as a whole one is worse than a named
 # gap, and the author can see the number and tighten two sentences.
 MAX_WORDS = 80
-
-# Arabic-script marks the live Urdu corpus writes and a plain regex therefore misses:
-# `لِکھیں` is spelled with a kasra inside it. `ﷺ` and the honorifics are NOT in here --
-# they are letters of the text, not vowel marks.
-_DIACRITICS = re.compile(r"[ً-ْٓ-ٰٟـۖ-ۭ]")
 
 # Sentence ends, in both scripts, with any closing quote that trails the stop.
 _SENTENCE = re.compile(r'(?<=[.!?۔؟])["\'’”]?\s+')
@@ -132,11 +153,6 @@ _PROHIBITION = [
 ]
 
 
-def _bare(s):
-    """The string without Arabic vowel marks, for matching only."""
-    return _DIACRITICS.sub("", str(s or ""))
-
-
 def is_prohibition(text):
     """True when this clause says the rule instead of the move."""
     t = _bare(text).strip().strip("\"'‘’“”")
@@ -172,13 +188,17 @@ def _unquote(s):
     return s
 
 
-def method_of(script):
-    """The method the teacher runs, or '' when the script does not carry one."""
-    text = str(script or "").strip()
-    if not text:
-        return ""
+def _method_from_one(text):
+    """(the method in this ONE candidate, or ''; whether a banned move was cut from it).
+
+    The sentence-by-sentence scan a single un-numbered script always was. A banned move
+    ends the run exactly like `_ITEM_RUN` does -- if it opens the candidate (`started`
+    still False) there is nothing clean to start from, so the whole candidate is skipped;
+    if it arrives once the method is already under way, the run stops there and what was
+    kept before it survives.
+    """
     sentences = [s for s in _SENTENCE.split(text) if s.strip()]
-    kept, started, quoting_seen = [], False, 0
+    kept, started, quoting_seen, banned_hit = [], False, 0, False
     for s in sentences:
         if _UTTERANCE.search(_bare(s)):
             quoting_seen += 1
@@ -186,6 +206,23 @@ def method_of(script):
                 break
         if _ITEM_RUN.search(s) or (started and _BOARD_WRITE.match(s.strip())):
             break
+        # Checked on the PROHIBITION-STRIPPED text, not the raw sentence (bd-y7hst,
+        # target refresh): "Do not call out and do not tell a neighbour -- WRITE it in
+        # your copy." names "tell a neighbour" only to forbid it, and the widened
+        # `is_banned_move` -- correctly -- fires on that phrase as a POSITIVE
+        # instruction. Checking the raw sentence therefore banned the whole clean
+        # method behind every negated mention of a banned family; checking the
+        # cleaned text still catches a genuine positive instruction (`_drop_prohibition`
+        # only ever removes a `_PROHIBITION`-shaped negation, never a positive banned
+        # move, so nothing a real ban depends on is stripped ahead of this check). An
+        # all-prohibition sentence with nothing left after stripping is not a banned
+        # MOVE -- just let it fall through the rest of the loop, which already drops it.
+        cleaned = _drop_prohibition(s)
+        if cleaned and is_banned_move(cleaned):
+            banned_hit = True
+            if started:
+                break
+            continue
         if _A_QUESTION.search(s.strip()):
             # A question AHEAD of the method is the teacher's own framing (*"Name as
             # many Wh-question words as you can"*); only the run that FOLLOWS the
@@ -202,9 +239,36 @@ def method_of(script):
         if line:
             kept.append(line)
     if not kept:
-        return ""
+        return "", banned_hit
     out = _unquote(" ".join(kept))
-    return "" if len(out.split()) > MAX_WORDS else out
+    return ("", banned_hit) if len(out.split()) > MAX_WORDS else (out, banned_hit)
+
+
+def _method_and_gaps(script):
+    """(the ONE method chosen, [why every other candidate this script offered was cut])."""
+    text = str(script or "").strip()
+    if not text:
+        return "", []
+    cands = _candidates(text)
+    results = [_method_from_one(c) for c in cands]
+    chosen_idx = next((i for i, (t, _) in enumerate(results) if t), None)
+    gaps = []
+    for i, (t, banned_hit) in enumerate(results):
+        if i == chosen_idx:
+            if banned_hit:
+                gaps.append(_gap_banned(cands[i]))
+            continue
+        if banned_hit:
+            gaps.append(_gap_banned(cands[i]))
+        elif len(cands) > 1:
+            gaps.append(_gap_extra(i + 1, len(cands), cands[i]))
+    chosen = results[chosen_idx][0] if chosen_idx is not None else ""
+    return chosen, gaps
+
+
+def method_of(script):
+    """The method the teacher runs, or '' when the script does not carry one."""
+    return _method_and_gaps(script)[0]
 
 
 def block(warm):
@@ -230,11 +294,13 @@ def apply_method(sections, warm):
     blocks = sec.setdefault("blocks", [])
     if any(b.get("id") == BLOCK_ID for b in blocks):
         return []
-    blk = block(warm)
-    if blk is None:
-        return ["warmUp.script carries no runnable method (a strategy restatement, or "
-                "longer than %d words), so the Opening prints the questions without "
-                "telling the teacher how to run them -- bd-t4iur." % MAX_WORDS]
+    text, drop_gaps = _method_and_gaps(script)
+    if not text:
+        return drop_gaps + [
+            "warmUp.script carries no runnable method (a strategy restatement, or "
+            "longer than %d words), so the Opening prints the questions without "
+            "telling the teacher how to run them -- bd-t4iur." % MAX_WORDS]
+    blk = {"type": "paragraph", "id": BLOCK_ID, "text": text}
     at = next((i + 1 for i, b in enumerate(blocks) if b.get("id") == "routine"), 0)
     blocks.insert(at, blk)
-    return []
+    return drop_gaps

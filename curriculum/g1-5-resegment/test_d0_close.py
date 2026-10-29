@@ -102,3 +102,19 @@ if __name__ == "__main__":
                 print(f"  FAIL {name}: {type(e).__name__}: {e}")
     print("FAILED" if fails else "all passed")
     raise SystemExit(1 if fails else 0)
+
+
+# ── homework is 14,220 corpus words, 8,625 of them in one unbroken item ───────
+
+HW_WALL = ('Tonight, using the feedback your partner gave you in class today, write '
+           'the revised and final draft of your own diary entry at home. It must have '
+           'all three parts complete: the opening, the middle and the ending. Bring '
+           'the notebook with you tomorrow morning so we can read them together.')
+
+
+def test_the_homework_wall_is_split_into_one_item_per_sentence():
+    import re
+    hw = d0.d0_close.homework({"homework": HW_WALL})["blocks"][0]
+    assert len(hw["items"]) == 3, hw["items"]
+    joined = " ".join(hw["items"])
+    assert re.split(r"\s+", joined.strip()) == re.split(r"\s+", HW_WALL.strip())

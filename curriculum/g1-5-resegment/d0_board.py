@@ -43,8 +43,10 @@ from __future__ import annotations
 
 import re
 
-from d0_board_boxes import _boards, _unbox
+import d0_board_strip
+from d0_board_boxes import _boards, _unbox, _unbox_ascii
 from d0_board_prose import split_prose
+from d0_board_table import join_cells, split_table, table_rows
 
 _BLANK = re.compile(r"\n\s*\n")
 # ` = ` binds looser than ` -> `, so it is taken LAST: "sway -> may -> display = rhyme"
@@ -101,14 +103,18 @@ def _split_pair(line: str):
     return None
 
 
-def _panel(group: str) -> dict | None:
-    lines = [l.strip() for l in group.strip().split("\n") if l.strip()]
-    if not lines:
-        return None
+def _rows(lines, want_label: bool):
+    """The plain, non-table read of a run of board lines -> (label, rows)."""
     label = None
     kept = []
     for l in lines:
         content, framed = _unbox(l)
+        if not framed:
+            # bd-1fr0w: `_unbox` is Unicode-only on purpose (see d0_board_boxes) -- an
+            # ASCII frame (`+---+`, `|  |`) survived here verbatim. `_unbox_ascii` only
+            # ever takes the leading padding off; a pure drawing with no words in it
+            # comes back unchanged, same as before.
+            content, framed = _unbox_ascii(l)
         if not framed:
             kept.append(l)
             continue
@@ -116,18 +122,15 @@ def _panel(group: str) -> dict | None:
             continue
         # A framed line that OPENS the panel is titling it; one further down is a divider
         # the author labelled, and that is a row.
-        if label is None and not kept:
+        if want_label and label is None and not kept:
             label = content.rstrip(_HEADING_TAIL).strip()
         else:
             kept.append(content)
-    lines = kept
-    if not lines:
-        return None
-    if label is None and len(lines) > 1 and _is_heading(lines[0]):
-        label = lines[0].rstrip(_HEADING_TAIL).strip()
-        lines = lines[1:]
+    if want_label and label is None and len(kept) > 1 and _is_heading(kept[0]):
+        label = kept[0].rstrip(_HEADING_TAIL).strip()
+        kept = kept[1:]
     rows = []
-    for l in lines:
+    for l in kept:
         # A board authored as ONE paragraph has no line breaks to make rows from, so it
         # would arrive as a single 500-character row and the renderer would lay it out
         # as a wall -- *"it should show clearly how it should be ordered"* (operator).
@@ -141,6 +144,44 @@ def _panel(group: str) -> dict | None:
         for part in split_prose(l):
             pair = _split_pair(part)
             rows.append({"term": pair[0], "gloss": pair[1]} if pair else {"text": part})
+    return label, rows
+
+
+def _panel(group: str) -> dict | None:
+    lines = [l.strip() for l in group.strip().split("\n") if l.strip()]
+    if not lines:
+        return None
+    # A DRAWN TABLE is read as a table BEFORE `_unbox` gets the lines. `_unbox` replaces
+    # every box-drawing run on a framed line with a single space, and a table's column
+    # separators `|` are box-drawing characters, so the cells of a row arrived glued into
+    # one sentence -- g3_ch9 English_seg2 printed "Aeroplane, p.101  "Fasten your  Fasten
+    # your seatbelts." A cell the author wrapped onto a second drawn line became its own
+    # row on top of that, which is what split the words. Detection is deliberately strict
+    # (see d0_board_table): a board it does not recognise as a table falls through to
+    # exactly the read it had before.
+    before, table, after = split_table(lines)
+    if table is None:
+        label, rows = _rows(lines, True)
+    else:
+        label, rows = _rows(before, True)
+        trows = table_rows(table)
+        # A lone line above the table heads it -- the table IS the something-to-head that
+        # `_rows` looks for below a heading, and g5_ch8 Urdu_seg9 labels its chart that
+        # way ("the small chart at the left edge (two boxes):").
+        if label is None and len(rows) == 1 and _is_heading(rows[0].get("text") or ""):
+            label = rows[0]["text"].rstrip(_HEADING_TAIL).strip()
+            rows = []
+        if label is None and not rows:
+            # Same promotion the framed path does: the first thing in the panel titles it.
+            if table["header"] is not None:
+                label = join_cells(table["header"])
+            elif len(trows) > 1:
+                head = trows[0]
+                label = head.get("text") or join_cells([head["term"], head["gloss"]])
+                trows = trows[1:]
+        rows = rows + trows + _rows(after, False)[1]
+    if not rows:
+        return None
     panel = {"rows": rows}
     if label:
         panel["label"] = label
@@ -239,7 +280,15 @@ def board_block(board):
     blk = {"type": "board", "id": "board-plan", "text": text}
     laid_out = board_panels(text)
     if laid_out["panels"]:
-        blk["panels"] = laid_out["panels"]
+        # bd-1fr0w fix #1: once d0_board_draw has drawn a picture for this
+        # board ("solid"/"clock"/"geometry"), the panels that used to print
+        # its ASCII layout as text are cleaned of that layout here -- see
+        # d0_board_strip's module docstring. A no-op for every other board.
+        # `panels` is itself minItems:1 in the schema -- on the (unreached by
+        # any known board) chance stripping empties it completely, keep the
+        # unstripped panels rather than emit a schema-illegal empty array.
+        stripped = d0_board_strip.apply_panels(laid_out["panels"], board)
+        blk["panels"] = stripped if stripped else laid_out["panels"]
         if laid_out.get("title"):
             blk["title"] = laid_out["title"]
     return blk

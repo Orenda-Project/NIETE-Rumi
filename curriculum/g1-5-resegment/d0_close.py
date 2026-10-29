@@ -10,6 +10,8 @@ remember and coaching corner"*.
 
 from __future__ import annotations
 
+import d0_arrayfit as A
+import d0_lines
 import d0_blocks as B
 
 
@@ -52,7 +54,7 @@ def conclusion(g):
         mins = 0
     sec = {"id": "conclusion", "title": "Check", "minutes": mins, "blocks": blocks}
     if len(task) >= 5 and criteria:
-        sec["exit_ticket"] = [{"q": task, "a": criteria}]
+        sec["exit_ticket"] = [{"q": A.fit(task, A.EXIT_Q), "a": criteria}]
     return sec
 
 
@@ -78,15 +80,19 @@ def seat_the_check(sections, g):
     if boxes:
         # The LAST one. The check belongs between the modelling and the guided turn, not
         # between two modelled examples.
-        boxes[-1]["cfu"] = cfu
+        boxes[-1]["cfu"] = A.fit(cfu, A.WE_CFU)
         return
     # No box to close: the check keeps its old seat rather than falling on the floor.
     concl = [s for s in sections if s["id"] == "conclusion"][0]
-    concl["blocks"].insert(0, {"type": "ask", "id": "cfu", "question": cfu})
+    # Same text, same slot key: the seat changed, the field did not.
+    concl["blocks"].insert(0, {"type": "ask", "id": "cfu",
+                               "question": A.fit(cfu, A.WE_CFU)})
 
 
 def homework(g):
     hw = (g.get("homework") or "").strip()
-    blocks = [{"type": "key_points", "id": "hw", "title": "Homework", "items": [hw]}] \
-        if len(hw) >= 3 else []
+    # 14,220 corpus words, 8,625 of them in one unbroken item. Same split as the
+    # You-Do task: one sentence per line, nothing dropped.
+    blocks = [{"type": "key_points", "id": "hw", "title": "Homework",
+               "items": d0_lines.split_items([hw])}] if len(hw) >= 3 else []
     return {"id": "homework", "title": "Homework", "minutes": 0, "blocks": blocks}

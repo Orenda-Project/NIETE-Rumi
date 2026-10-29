@@ -43,6 +43,8 @@ spent 34% of every page that way.
 
 from __future__ import annotations
 
+import d0_arrayfit as A
+import d0_board_draw
 from d0_blocks import DESIGN_PENDING
 
 # The five surfaces v9 requires and primary cannot fill. Kept as data so the
@@ -85,20 +87,60 @@ def _draw_order(board):
     return order or [DESIGN_PENDING]
 
 
+def _board_final(g):
+    """The board at the end of the lesson: the script, and -- bd-18e9x -- the PICTURE.
+
+    OPERATOR, five times, the fourth in capitals: *"pls make sure write on the board
+    section is an actual image ALWAYS rather than text instructions"*. `d0_board_draw`
+    has answered that since it was written; nothing ever called it, so the optional
+    `diagram` slot reached `boardPlanAtoms` (template.js:3325) empty on all 335 boards
+    and the teacher kept getting the text. This is the call.
+
+    THREE THINGS THIS DOES NOT DO, each of them a way the picture gets worse than the
+    text it replaces:
+
+    1. It does not replace the `board` BLOCK. `bdHoisted` (template.js:2801) and
+       `laidOutBoard` (:3314) key on `b.type === "board"`; removing it takes the WRITE
+       ON THE BOARD label with it AND un-suppresses `draw_order`, the script the
+       operator ruled off the page. The block stays; it gains a picture underneath.
+    2. It does not emit a spec without a `type`. `renderDiagram` dispatches on `type`,
+       and a spec it cannot dispatch prints a dashed "DIAGRAM - ? / not rendered"
+       placeholder (template.js:1710) -- visibly worse than today's text.
+    3. It does not let a bad board cost the lesson. `page2` is REQUIRED, so an
+       exception on the way to the figure loses the whole document. `board_diagram` is
+       already total; the call is belt-and-braces, because the cost of being wrong here
+       is not a missing picture but a missing lesson.
+
+    A board with no drawable content leaves the key ABSENT rather than empty: `diagram`
+    is optional in the schema, and `{}` would fail `diagram_spec.required: ["type"]`.
+    """
+    out = {"draw_order": _draw_order(g.get("boardWork") or {})}
+    try:
+        spec = d0_board_draw.board_diagram(g.get("boardWork"))
+    except Exception:
+        spec = None
+    if isinstance(spec, dict) and (spec.get("type") or "").strip():
+        out["diagram"] = spec
+    return out
+
+
 def build(g):
     support = (g.get("weakLearnerSupport") or "").strip()
     extend = (g.get("challengeExtension") or "").strip()
+    reflection = (g.get("coachingReflection") or "").strip()
     return {
-        "board_final": {"draw_order": _draw_order(g.get("boardWork") or {})},
+        "board_final": _board_final(g),
+        # Array form is offered to the AUTHORED string only. DESIGN_PENDING is a marker,
+        # not prose: a dark slot stays dark and stays a string.
         "differentiation": {
-            "stuck": support or DESIGN_PENDING,
+            "stuck": A.fit(support, A.STUCK) if support else DESIGN_PENDING,
             # v9 asks for a separate language/access barrier move. Primary carries
             # one support strategy, not two, so this stays dark rather than echo it.
             "barrier": DESIGN_PENDING,
-            "early": extend or DESIGN_PENDING,
+            "early": A.fit(extend, A.EARLY) if extend else DESIGN_PENDING,
         },
         "next_period": (g.get("nextTopicPreview") or "").strip() or DESIGN_PENDING,
-        "coaching_reflection": (g.get("coachingReflection") or "").strip() or DESIGN_PENDING,
+        "coaching_reflection": A.fit(reflection, A.REFLECTION) or DESIGN_PENDING,
         # bd-18os1. OPERATOR: *"coaching corner should hve a look for"*. This field carried
         # DESIGN_PENDING in every document ever built, and the docstring above explains why:
         # the only candidate was `cfuExplain`, a teach-time check that already prints in front

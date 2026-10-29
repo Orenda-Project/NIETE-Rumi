@@ -28,6 +28,17 @@ _ARROWTAIL = "<\u276e\u00ab"
 _OPENS = "\u250c\u256d\u250f"   # top-left:    box-drawings light / arc / heavy
 _CLOSES = "\u2514\u2570\u2517"  # bottom-left: the same three
 
+# ASCII frame characters (bd-1fr0w). `_unbox` above is Unicode-only on purpose: nothing in
+# that block is ever legitimate prose, so a run touching either edge proves the WHOLE line
+# is frame and every run on it is safe to strip. None of that holds for `+`, `-`, `|` --
+# `-` is also a hyphen ("non-parallel"), `|` also marks an empty beat in a sound-map row
+# ("VC |     |"), and `+` sits inside board arithmetic. A line that opens with one of these
+# is still, in every corpus case measured, frame padding placed there by the author before
+# the real content -- so `_unbox_ascii` strips ONLY that leading run, once per line, and
+# never looks at what comes after it. See its own docstring for the two false positives
+# (a mid-word hyphen, a sound-map beat) a whole-line Unicode-style rule produced.
+_ASCII_FRAME = re.compile(r"^[+\-|]+")
+
 
 def _unbox(line: str):
     """`(content, was_framed)` — a terminal frame stripped off a line.
@@ -62,6 +73,42 @@ def _unbox(line: str):
         at = m.end()
     out.append(line[at:])
     return "".join(out).strip(), True
+
+
+def _unbox_ascii(line: str):
+    """`(content, was_stripped)` -- the LEADING run of ASCII frame padding taken off a
+    line, and nothing else (bd-1fr0w).
+
+    Only the leading edge, iterated: each pass removes one leading run of `+`/`-`/`|`
+    (and the whitespace after it), and stops the moment doing so again would leave no
+    letter or digit at all -- refusing rather than emptying a pure drawing (`+---+`,
+    `|   |/`) onto the page, which would be the forbidden "cutting a drawn shape the
+    teacher must put on the board". A leading run immediately followed by `>`/`<` is a
+    board arrow, not a frame, and is left alone the same way `_unbox` leaves `-->`.
+
+    NEVER the trailing edge, and never an interior run -- both were tried and both
+    corrupt real content this corpus actually has: stripping a trailing run deletes the
+    empty-beat marker off a sound-map row ("VC |     |" -> "VC"), and stripping every
+    run once any one touches an edge (the Unicode rule, ported unchanged) deletes the
+    hyphen out of "non-parallel" because the SAME line also opens with a lone "|".
+    A `|` that never opens a line -- the sound-map's own beat separators, or a stroke
+    drawn from `/` or `\\` -- is never in this function's path at all.
+    """
+    cur = line.strip()
+    changed = False
+    while True:
+        m = _ASCII_FRAME.match(cur)
+        if not m:
+            break
+        nxt = cur[m.end():m.end() + 1]
+        if nxt and nxt in _ARROWHEAD:
+            break  # a leading arrow, not a frame -- e.g. "-> next step"
+        after = cur[m.end():].lstrip()
+        if not any(c.isalnum() for c in after):
+            break  # stripping further would leave a bare drawing with no words in it
+        cur = after
+        changed = True
+    return (cur, True) if changed else (line, False)
 
 
 def _boards(group: str):

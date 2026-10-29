@@ -348,6 +348,19 @@ class TestDoubleEscapedNewlinesAreRecovered(unittest.TestCase):
         self.assertEqual(blk["text"], "Vocabulary:\n\nsway\nmove slowly")
 
 
+def test_board_block_runs_its_panels_through_the_ascii_stripper(monkeypatch):
+    """bd-1fr0w fix #1. `board_panels()`'s raw output must pass through
+    `d0_board_strip.apply_panels` (gated on the board's own diagram spec, so
+    it is a no-op for every board except "solid"/"clock") before it reaches
+    `blk["panels"]` -- that is the only place the printed board text can
+    still be cleaned of drawn-ASCII/bare clock-numerals once a picture exists
+    for it. This does not care WHAT the stripper does, only that its output,
+    not board_panels()'s raw output, is what board_block emits."""
+    monkeypatch.setattr(BD.d0_board_strip, "apply_panels", lambda panels, board: [{"stub": True}])
+    blk = BD.board_block({"content": REAL})
+    assert blk["panels"] == [{"stub": True}]
+
+
 if __name__ == "__main__":
     unittest.main()
 
@@ -438,3 +451,76 @@ def test_a_structured_board_still_gets_one_panel_per_authored_group():
     panels = BD.board_panels(board)["panels"]
     assert len(panels) == 2, panels
     assert panels[0]["label"] == "LENGTH UNITS"
+
+
+# Verbatim from grade_3_english_ch9_seg2 boardWork.content (bd-pmv8n). The author drew a
+# three-column chart; `_unbox` replaced every box-drawing run with a space, including the
+# `│` between the columns, so the three cells of a row printed as one sentence and a
+# wrapped cell printed as an orphan row below it -- on paper, "Fasten your Fasten your
+# seatbelts. seatbelts.".
+G3_EN2_TABLE = """TIME TRAVELLING TV — pp.100-102
+
+READ → STOP → POINT TO THE WORDS
+
+┌──────────────────────────┬─────────────────────┬──────────────────────────────┐
+│ Scene                    │ Exact words in text   │ What must happen?            │
+├──────────────────────────┼─────────────────────┼──────────────────────────────┤
+│ TV screen, p.100         │ “Hold tight!”         │ Hold tight.                  │
+│ Aeroplane, p.101         │ “Fasten your          │ Fasten your seatbelts.       │
+│                          │ seatbelts.”           │                              │
+│ Clinic, p.102            │ “Stay safe, wear      │ Stay safe; wear masks.       │
+│                          │ masks!”               │                              │
+└──────────────────────────┴─────────────────────┴──────────────────────────────┘
+
+Text words: fact | fiction | nonfiction
+Underline in p.101: instructed"""
+
+
+def test_a_three_column_chart_does_not_print_its_row_as_one_sentence():
+    """bd-pmv8n. The three cells of a row are three things the teacher writes in three
+    columns; run together they read as the run-on *"Fasten your Fasten your seatbelts.
+    seatbelts."* -- the quotation and the instruction, interleaved with the wrap."""
+    panels = BD.board_panels(G3_EN2_TABLE)["panels"]
+    table = [p for p in panels if p.get("label", "").startswith("Scene")][0]
+    assert table["rows"] == [
+        {"text": "TV screen, p.100 | “Hold tight!” | Hold tight."},
+        {"text": "Aeroplane, p.101 | “Fasten your seatbelts.” | Fasten your seatbelts."},
+        {"text": "Clinic, p.102 | “Stay safe, wear masks!” | Stay safe; wear masks."},
+    ]
+    assert table["label"] == "Scene | Exact words in text | What must happen?"
+
+
+def test_a_two_column_table_prints_as_the_two_columns_the_renderer_already_has():
+    """`.bb` is a two-track grid (`bk` + `bg`), which is exactly a two-column table --
+    g4_ch9 Science_seg2 lists an instrument against what it does."""
+    board = ("┌──────────────┬──────────────────┐\n"
+             "│ INSTRUMENT   │ WHAT IT DOES     │\n"
+             "├──────────────┼──────────────────┤\n"
+             "│ Thermometer  │ measures heat    │\n"
+             "│ Stopwatch    │ measures time    │\n"
+             "└──────────────┴──────────────────┘")
+    panel = BD.board_panels(board)["panels"][0]
+    assert panel["label"] == "INSTRUMENT | WHAT IT DOES"
+    assert panel["rows"] == [
+        {"term": "Thermometer", "gloss": "measures heat"},
+        {"term": "Stopwatch", "gloss": "measures time"},
+    ]
+
+
+HEADED_TABLE = """WORD BANK:
+┌────────────┬──────────┐
+│ protector  │ guards   │
+│ shelter    │ cover    │
+└────────────┴──────────┘"""
+
+
+def test_a_heading_line_directly_above_a_table_is_still_the_panel_label():
+    """g5_ch8 Urdu_seg9 labels its table on the line above it, and that line IS the
+    panel's heading -- the table under it is the "something to head", so the one-line
+    group is a label, not a row."""
+    panel = BD.board_panels(HEADED_TABLE)["panels"][0]
+    assert panel["label"] == "WORD BANK"
+    assert panel["rows"] == [
+        {"term": "protector", "gloss": "guards"},
+        {"term": "shelter", "gloss": "cover"},
+    ]

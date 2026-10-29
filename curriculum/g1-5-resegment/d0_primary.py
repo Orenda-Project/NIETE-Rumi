@@ -26,21 +26,26 @@ that is the answer (spec/00-program.md, binding working rules).
 """
 
 from __future__ import annotations
+import d0_lines
 import re
 
 import cbriefbasics
+import d0_arrayfit
 import d0_blocks as B
 import d0_crux
 import d0_bigidea
 import d0_board
 import d0_close
 import d0_diagram
+import d0_i18n_ur
 import d0_media
+import d0_objectives
 import d0_hook
 import d0_openingpeer
 import d0_page2
 import d0_route
 import d0_routine
+import d0_vtr
 import d0_warmitems
 import d0_warmscript
 
@@ -74,8 +79,11 @@ BLOOM_TO_LEVEL = {
 SECTION_ORDER = ["introduction", "development", "activity", "conclusion", "homework"]
 
 
+URDU_MEDIUM = ("_urdu", "_general_knowledge", "_social_studies", "_islamiat")  # bd-6640j.1
+
+
 def _medium(book_stem: str) -> str:
-    return "ur" if book_stem.endswith("_urdu") else "en"
+    return "ur" if book_stem.endswith(URDU_MEDIUM) else "en"
 
 
 def _intro(g, page):
@@ -174,8 +182,19 @@ def _development(g):
                  for l in we.split("\n") if len(l.strip()) >= 2]
         steps = B.drop_lines_already_said(lines, said)
         if steps:
+            # bd-nuvtm: NOT split further. The renderer numbers this list by POSITION,
+            # and an authored step already carries its own "STEP N" label (g4_ch9/
+            # English_seg7's g4_ch9_English_seg7 is the corpus proof) -- `_WE_NUM` above
+            # strips a plain "1. " lead-in but has no way to know a "STEP 2 (...)" line
+            # is itself already one authored unit, so a further cut at that step's own
+            # clause mark (its em-dash, its colon) prints a 9th row for a 7-step example
+            # and the printed number stops matching the label still sitting in the text.
+            # d0_lines.split_items was doing exactly that here; it is right for every
+            # OTHER list in this module, just not one whose rows are already a fixed,
+            # author-numbered sequence.
             blocks.append({"type": "worked_example", "id": "worked",
-                           "title": "Worked example", "steps": steps})
+                           "title": "Worked example",
+                           "steps": steps})
     # EXPLANATION + an I DO tag -- operator: *"Explanation header with an I Do tag on the
     # extreme right to understand the moves"*. `title` is the phase, `move` is what she DOES
     # inside it, and they are two fields because she asked for a POSITION (the extreme right)
@@ -196,35 +215,6 @@ def _activity(g):
     # v9's differentiation pair and print once, on page2.differentiation.
     return {"id": "activity", "title": "We Do · You Do",
             "minutes": B.minutes_of(wedo) + B.minutes_of(youdo), "blocks": blocks}
-
-
-def _objectives(g):
-    """Section O is ONE box: the outcome, its SLO citation, then the objectives.
-
-    v9 gives Section O three text slots -- `outcome`, `slo.text_verbatim` and
-    `objectives.items[].text`. A G6-12 author fills all three with DIFFERENT
-    strings: a pupil-facing outcome, the board-verbatim SLO, and two or three
-    authored objectives ("Two or three objectives... Each is modelled, practised
-    in class AND assessed today", schema).
-
-    Primary Stage-C authors two of the three. `keyFact` is the outcome and
-    `slo_statement` is the citation. There is no third: nothing in the 26
-    enrichment fields is a lesson objective. An earlier pass filled the slot by
-    reprinting slo_statement, so the same sentence appeared twice inside one box,
-    which is what it looked like on paper.
-
-    The nearest candidates were checked and rejected as proxies: `scope_declaration`
-    is a generation guard ("ONE lesson, ONE class period..."), not something a
-    pupil does, and `keyFact` is already the outcome. So the slot goes dark and
-    names what is missing -- which is also the note Stage-C needs in order to
-    author it.
-    """
-    statement = (g.get("slo_statement") or "").strip()
-    codes = [c for c in (g.get("slo_refs") or []) if c][:5]
-    outcome = (g.get("keyFact") or "").strip() or statement
-    return {"outcome": outcome,
-            "items": [{"text": B.DESIGN_PENDING,
-                       "slo_code": codes[0] if codes else None}]}
 
 
 def _one_screen(g):
@@ -317,6 +307,22 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
     # docs are touched.
     opening_gaps = d0_openingpeer.apply_opening_peer_talk(sections)
 
+    # THE OPENING'S ONE VISUAL THINKING ROUTINE (bd-52j3b). Adds NO block: the routine
+    # IS the provocation, so it rewrites the hook `ask` in place -- the box already runs
+    # settle, one warm-up strategy, set-up, hook, read-aloud, keywords and board. Runs
+    # after the peer-talk filter, whose sentence-level excision would otherwise leave a
+    # See-Think with no Wonder; the routine's own text is silent-and-written by
+    # construction and verified against peer_talk_gate.js. See d0_vtr.
+    vtr_gaps = d0_vtr.apply_visual_routine(sections, g, _medium(stem))
+
+    # ARRAY FORM FOR THE HOOK (bd-qeady). LAST, after every pass that rewrites the
+    # question -- the peer-talk excision and the visual routine both hand it a string
+    # and the routine ADDS the framing sentences that make it splittable. `d0_arrayform`
+    # checks the round-trip itself, so a refusal returns the authored string untouched
+    # and the renderer's re-join of an accepted array is character-for-character the
+    # same text. Nothing authored is cut here or anywhere else in this pass.
+    d0_arrayfit.fit_hook_ask(sections)
+
     doc = {
         "lesson_id": enr["lesson_id"].upper(),
         "schema_version": "3.0",
@@ -347,7 +353,7 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
         # briefed against one period and printed with another.
         "period_minutes": cbriefbasics.minutes(g)[0],
         "materials": g.get("materials") or [],
-        "objectives": _objectives(g),
+        "objectives": d0_objectives.build(g),
         "sections": sections,
         "page2": d0_page2.build(g),
         "one_screen": _one_screen(g),
@@ -355,7 +361,7 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
             "supplied": [f"primary lp_type: {enr.get('lp_type') or 'content'}"],
             "gaps": [n for n in (g.get("notes") or []) if isinstance(n, str)]
                     + dia_gaps + vid_gaps + crux_gaps + warm_gaps
-                    + item_gaps + opening_gaps,
+                    + item_gaps + opening_gaps + vtr_gaps,
         },
         "needs_human_review": bool(enr.get("needs_human_review")),
     }
@@ -373,4 +379,7 @@ def to_lp_doc(enr, page_truth, day=None, total_days=None, seq=None, topic=None,
             "next": (seq or {}).get("next"),
             "checkpoint": (seq or {}).get("checkpoint"),
         }
+    # bd-p8g50 (W1): localise every BUILD-baked English string for Urdu print.
+    # No-op for English-medium docs -- see d0_i18n_ur's own module docstring.
+    doc = d0_i18n_ur.translate_doc(doc, _medium(stem))
     return doc

@@ -21,6 +21,7 @@ import os
 import pathlib
 import sys
 
+import build_o1_routed
 import d0_primary as d0
 import d0_route
 import mediamap
@@ -36,13 +37,23 @@ def _load(path):
     return json.loads(pathlib.Path(path).read_text())
 
 
-def _artefact(work, stage, subject, ordinal):
+def _artefact(work, stage, subject, ordinal, optional=False):
     """Files are named <Subject>_seg<row ordinal>_<source stem>.json.
 
     The ordinal is the row's position on the subject tab, not the enrichment
     stem's own segment number -- spiral/review segments carry ids like _seg990.
+
+    `optional` bends the "exactly one match or raise" contract for the ZERO-
+    match case only, and only for the one caller that asks for it (the gate
+    lookup in `main`). Nine real rows in the corpus carry `url.gate: null` in
+    the worklist -- the gate artefact was never downloaded -- and raising here
+    took the whole load loop down with the first one, before `triage` ever
+    ran. Two or more matches is still ambiguous and still raises regardless
+    of `optional`: tolerating absence is not the same as tolerating doubt.
     """
     hits = sorted((work / stage).glob(f"{subject}_seg{ordinal}_*.json"))
+    if not hits and optional:
+        return None
     if len(hits) != 1:
         raise FileNotFoundError(f"{stage}/{subject}_seg{ordinal}_*: {len(hits)} matches")
     return _load(hits[0])
@@ -64,7 +75,7 @@ def triage(rows):
             continue
         routed.append({"subject": subject, "day": day, "kind": what,
                        "lesson_id": (enr or {}).get("lesson_id"),
-                       "note": d0_route.ROUTES[what]})
+                       "note": d0_route.ROUTES[what], "enr": enr})
     return build, routed
 
 
@@ -86,7 +97,20 @@ def main(work):
         for day, row in enumerate(rows, 1):
             enr = _artefact(work, "enr", subject, day)
             # The Stage-C verdict lives in the gate artefact, not the enrichment.
-            gate = _artefact(work, "gate", subject, day)["gate"]
+            # A missing gate is a PIPELINE GAP (never downloaded -- url.gate was
+            # null on the worklist), not a quality verdict, and it must not read
+            # as a pass: building an ungated lesson plan is not authorised. It
+            # also must not raise here, or the first missing gate in a chapter
+            # takes every good row after it down too (four of fifteen work dirs
+            # hit exactly this). So it is skipped, worded differently from a
+            # failing gate so the operator can tell "gate says no" apart from
+            # "no gate exists" and knows which one needs a re-download.
+            gate_doc = _artefact(work, "gate", subject, day, optional=True)
+            if gate_doc is None:
+                skipped.append(f"{subject} day{day}: gate artefact missing "
+                                "(never downloaded, not a fail)")
+                continue
+            gate = gate_doc["gate"]
             if not gate.get("pass"):
                 skipped.append(f"{subject} day{day}: {'; '.join(gate.get('reasons') or ['gate fail'])}")
                 continue
@@ -111,10 +135,32 @@ def main(work):
             dest.write_text(json.dumps(doc, ensure_ascii=False, indent=1))
             written.append(dest)
 
+    # A 995/990 is real work, just not a lesson plan -- build it with the
+    # matching builder instead of only naming where it belongs (bd-dituw).
+    # This deliberately does NOT feed into this function's own return value:
+    # that value already gates build_render.sh's per-chapter render ("BUILD
+    # FAILED $d" -> skip the chapter, build_render.sh:114), and on the real
+    # corpus today 0 of 98 995/990 enrichments build clean (a separate,
+    # upstream authoring-shape gap -- see the FIXWAVE report). Coupling the
+    # two would stop every chapter's good content lessons from rendering
+    # too. Completeness for this half is its own manifest instead.
+    pt_loader = lambda subject, day: _artefact(work, "pt", subject, day)
+    routed_written, routed_failed = build_o1_routed.build_routed(routed, pt_loader, out)
+    failed_rows = {(f["subject"], f["day"]) for f in routed_failed}
+    man = build_o1_routed.manifest(work.name, routed, routed_failed)
+    man_dir = work.parent / "o1" / "routed"
+    man_dir.mkdir(parents=True, exist_ok=True)
+    (man_dir / f"{work.name}.manifest.json").write_text(json.dumps(man, indent=1))
+
     print(f"lp_docs written: {len(written)}  (with a video: {videoed})")
     for r in routed:
-        print(f"  ROUTED  {r['subject']} day{r['day']} {r['lesson_id']} is a {r['kind']} "
+        if (r["subject"], r["day"]) in failed_rows:
+            continue
+        print(f"  BUILT   {r['subject']} day{r['day']} {r['lesson_id']} is a {r['kind']} "
               f"segment, not a lesson plan -- {r['note']}")
+    for f in routed_failed:
+        print(f"  FAILED  {f['subject']} day{f['day']} {f['lesson_id']} ({f['kind']}): "
+              f"{f['error_type']} -- {f['error']}")
     for s in skipped:
         print(f"  SKIPPED {s}")
     return 0 if written else 1

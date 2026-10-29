@@ -54,6 +54,23 @@ class TestWriteOnTheBoardIsOnPageOne:
         enr["generated"]["boardWork"]["content"] = ""
         assert blocks_of(d0.to_lp_doc(enr, PT), "introduction", "board") == []
 
+    def test_the_board_also_reaches_the_teacher_as_a_DRAWING(self):
+        """bd-18e9x. OPERATOR, five times: *"pls make sure write on the board section
+        is an actual image ALWAYS rather than text instructions"*. `boardPlanAtoms`
+        (template.js:3325) draws `page2.board_final.diagram` under the Introduction's own
+        ON THE BOARD note. D0 had never filled it, so the slot arrived empty every time.
+        """
+        spec = build()["page2"]["board_final"].get("diagram")
+        assert isinstance(spec, dict) and (spec.get("type") or "").strip()
+
+    def test_the_board_BLOCK_stays_when_the_drawing_arrives(self):
+        """Not a substitution. `bdHoisted` (:2801) and `laidOutBoard` (:3314) both key on
+        `b.type === "board"`; dropping the block would take the WRITE ON THE BOARD label
+        with it and un-suppress `board_final.draw_order`, the script ruled off the page."""
+        doc = build()
+        assert len(blocks_of(doc, "introduction", "board")) == 1
+        assert doc["page2"]["board_final"]["draw_order"]
+
 
 class TestTheYouDoWall:
     """153 unbroken words in one paragraph was the tallest block in the render."""

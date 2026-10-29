@@ -55,3 +55,62 @@ def test_no_line_of_a_trailing_gap_is_lost():
     out = BX._boards(group)
     assert len(out) == 1
     assert any("trailing note" in l for l in out[0][0])
+
+
+# bd-1fr0w: ASCII box art (`+`, `-`, `|`) survives verbatim on the teacher's page because
+# `_unbox` only strips the Unicode block. Unlike that block, `-` is also a hyphen and `|`
+# also separates a sound-map beat ("VC |     |"), so the ASCII path cannot reuse `_unbox`'s
+# "any run touches an edge -> strip every run" rule without corrupting real prose. See
+# `_unbox_ascii`'s own docstring for the narrower rule it uses instead.
+
+def test_unbox_itself_never_fires_on_ascii_frame_characters():
+    """`_unbox` stays Unicode-only -- the caller falls back to `_unbox_ascii`."""
+    line = "|                      |  width"
+    assert BX._unbox(line) == (line, False)
+
+
+def test_ascii_leading_frame_strips_iteratively_to_the_label():
+    line = "|                      |  width"
+    content, framed = BX._unbox_ascii(line)
+    assert framed is True
+    assert content == "width"
+
+
+def test_ascii_frame_strip_never_touches_a_mid_word_hyphen():
+    """A naive port of `_unbox`'s rule (strip every matched run once ANY run touches
+    an edge) deletes the hyphen out of "non-parallel" because a leading lone '|' on
+    the same line makes it "framed". `_unbox_ascii` strips ONLY the leading run, so
+    interior prose -- including a real hyphen -- is never touched."""
+    line = "|   branch road meets main road: non-parallel/intersecting"
+    content, framed = BX._unbox_ascii(line)
+    assert framed is True
+    assert content == "branch road meets main road: non-parallel/intersecting"
+
+
+def test_ascii_frame_strip_leaves_a_pure_drawing_completely_alone():
+    """Stripping every ASCII frame character off a line that is ONLY frame characters
+    would empty it -- silently deleting a drawn shape the teacher must put on the
+    board, which is the forbidden 'cutting'. `_unbox_ascii` must refuse instead."""
+    for line in ("+----------------------+", "+---+", "|   |/", "+--------+------+"):
+        assert BX._unbox_ascii(line) == (line, False), line
+
+
+def test_ascii_frame_strip_ignores_a_stroke_drawn_from_a_slash():
+    """A freehand stroke drawn from '/' (the cube's edge, a triangle's side) is not
+    in the class this helper strips -- not even partially."""
+    line = "/   /|"
+    assert BX._unbox_ascii(line) == (line, False)
+
+
+def test_ascii_frame_strip_never_mistakes_a_leading_ascii_arrow_for_a_frame():
+    line = "-> next step"
+    assert BX._unbox_ascii(line) == (line, False)
+
+
+def test_ascii_frame_strip_never_touches_a_sound_map_beat_row():
+    """English_seg1's phonics rows mark an empty beat with a bare trailing '|'
+    ('VC |     |', 'CV |') -- not part of this ticket's 27-string sweep, and
+    stripping it would delete real notation. Each line's own first character is a
+    letter, so `_unbox_ascii` must never match at all."""
+    for line in ("VC |     |", "CV |"):
+        assert BX._unbox_ascii(line) == (line, False), line
