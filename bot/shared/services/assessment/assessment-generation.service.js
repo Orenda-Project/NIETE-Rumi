@@ -2790,8 +2790,18 @@ async function _writePatternPaper({ grade, subject, pattern, scope = null, pageR
     // Only when the first check found one: a paper with none is not laid out again for this.
     const lateLaid = short.some((f) => f.reason === 'giveaway') ? applyLayout(merged(), P, layoutScope, layOpts(true)) : null;
     const late = lateLaid ? stillGivenAway(lateLaid.examJson) : [];
-    for (const b of built.filter(({ section }) => section.slots.some((s) => late.some((f) => f.slot === s.slot)))) {
+    const lateBuilt = built.filter(({ section }) => section.slots.some((s) => late.some((f) => f.slot === s.slot)));
+    for (const b of lateBuilt) {
       await reask(b, lateLaid, late, new Set());
+    }
+    // That reply is taken whole, after the Section A top-up above, so a section it left short is
+    // topped up once for exactly what it misses (v24 G5 Urdu, bd-5jmnfj.4.54).
+    const afterLate = lateBuilt.length ? applyLayout(merged(), P, layoutScope, layOpts(true)) : null;
+    for (const b of lateBuilt) {
+      const mine = afterLate.shortfall.filter((f) => b.section.slots.some((s) => s.slot === f.slot));
+      if (!mine.length) continue;
+      logToFile('[assessment] section topped up after give-away', { requestId, pattern, section: b.section.id, shortfall: mine });
+      await reask(b, afterLate, mine, new Set(mine.map((f) => f.slot)));
     }
     const still = _reviewTextHits(results);
     if (still.size) {
