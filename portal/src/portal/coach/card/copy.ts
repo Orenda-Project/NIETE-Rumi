@@ -1,11 +1,13 @@
 /**
  * Every word of the coach's School card screens (the slim Coach Home, a school's card, a feature by teacher, a teacher,
- * her lists, her coaching reports and a DC report), in English and Urdu. Read with `useCopy(SCHOOL_CARD)`; `ur` is typed
+ * her lists, her Coaching page and a DC report), in English and Urdu. Read with `useCopy(SCHOOL_CARD)`; `ur` is typed
  * to `en`'s exact shape, so a missing key fails the build. Names, titles, numbers and the report texts are DATA and are
  * not here.
  *
  * Words follow the ontology (ict-niete-ontology.md): DC observation ڈیجیٹل کوچنگ مشاہدہ, Coach observations مشاہدات,
  * Lesson plan لیسن پلان, Paper پرچہ, Papers made بنائے گئے پرچے, Part حصہ, Course کورس, Report رپورٹ, Principal ہیڈ ٹیچر,
+ * Observations مشاہدات (never "Coaching" alone), Digital Coaching ڈیجیٹل کوچنگ, Coach observations کوچ کے مشاہدات,
+ * Lesson (the class she taught) سبق,
  * scores say whose they are ("AI score" / "Coach score"), never HITL.
  *
  * URDU: MACHINE-DRAFTED. Every Urdu value here waits for a native check (verdict NATIVE-CHECK), like the coach area's other
@@ -24,7 +26,6 @@ export const SCHOOL_CARD_EN = {
   nothing: { today: "Nothing today", week: "Nothing this week", month: "Nothing this month" },
   /** "3 this week" beside Coach observations. */
   inPeriod: { today: (n: number) => `${n} today`, week: (n: number) => `${n} this week`, month: (n: number) => `${n} this month` },
-  noReports: { today: "No reports today", week: "No reports this week", month: "No reports this month" },
   noCoachObs: { today: "No coach observations today", week: "No coach observations this week", month: "No coach observations this month" },
 
   // Days and weeks under the bars and above the grid columns
@@ -79,22 +80,35 @@ export const SCHOOL_CARD_EN = {
   total: "Total",
 
   // A teacher
-  tiles: { lp: "Lesson plans", papers: "Papers made", dc: "DC observations", coach: "Coach observations", training: "Training parts" },
+  tiles: { lp: "Lesson plans", papers: "Papers made", training: "Training parts" },
   coursesDone: (n: number) => `${n} ${plural(n, "course", "courses")} done`,
   daysWithUse: "Days with any NIETE use",
   ofSchoolDays: (n: number) => `of ${n} school days`,
-  scores: "Scores",
-  tapDot: "Tap a dot for its report",
   noScores: "No scores yet",
-  herReports: "Her coaching reports",
   onlyYou: "Only you see this",
   pct: (n: number | null) => (n == null ? "—" : `${Math.round(n)}%`),
 
+  // Her Observations card and page: her DC observations and her coach observations, together. "Coaching" alone is on
+  // the ontology's never list (the feature is "Digital Coaching"), so the two together are "Observations".
+  observations: "Observations",
+  digitalCoaching: "Digital Coaching",
+  coachObsLine: "Coach observations",
+  /** A row's kind on its meta line: "Tue 27 Oct · Coach observation · <her coach>". */
+  coachObservation: "Coach observation",
+  show: "Show",
+  all: "All",
+  /** A report's title when it has no topic and no real lesson label: the kit's short subject ("Math lesson"). */
+  lessonOf: (subject: string) => (subject ? `${subject} lesson` : "Lesson"),
+  noObs: { today: "No observations today", week: "No observations this week", month: "No observations this month" },
+  noDc: { today: "No DC observations today", week: "No DC observations this week", month: "No DC observations this month" },
+  noCoachObsFilter: { today: "No coach observations today", week: "No coach observations this week", month: "No coach observations this month" },
+  /** The strip's key: "—" is a section the report did not score. */
+  notScoredKey: (dash: string) => `${dash} · Not scored`,
+
   // Her lists
-  allOf: { lp: "All Lesson Plans", dc: "All DC Observations", coach: "All Coach Observations", papers: "All Papers", training: "Training" },
+  allOf: { lp: "All Lesson Plans", papers: "All Papers", training: "Training" },
   aiScoreN: (n: number) => `AI score ${n}%`,
   coachScoreN: (n: number) => `Coach score ${n}%`,
-  coachBy: (name: string) => `Coach ${name}`,
   fieldForm: "Field form",
   questionsMarks: (q: number, m: number) => `${q} questions · ${m} marks`,
   questionsN: (q: number) => `${q} questions`,
@@ -102,14 +116,8 @@ export const SCHOOL_CARD_EN = {
   done: "Done",
   notDone: "Not done",
 
-  // Her coaching reports
-  dcToldHer: "What the Digital Coach told her",
+  // An Observations row's step, and the strip
   wentWell: "What went well",
-  scoresByReport: "Scores by report",
-  coachVisits: "Coach visits",
-  reportCol: "Report",
-  overall: "Overall",
-  coachTag: "Coach",
   notScored: "Not scored",
   stepAgreed: "Step agreed",
   /** The four framework sections, as the framework names them (its displayName). */
@@ -142,7 +150,6 @@ export const SCHOOL_CARD_UR: SchoolCardCopy = {
   periods: { today: "آج", week: "یہ ہفتہ", month: "یہ مہینہ" },
   nothing: { today: "آج کچھ نہیں", week: "اس ہفتے کچھ نہیں", month: "اس مہینے کچھ نہیں" },
   inPeriod: { today: (n) => `آج ${n}`, week: (n) => `اس ہفتے ${n}`, month: (n) => `اس مہینے ${n}` },
-  noReports: { today: "آج کوئی رپورٹ نہیں", week: "اس ہفتے کوئی رپورٹ نہیں", month: "اس مہینے کوئی رپورٹ نہیں" },
   noCoachObs: { today: "آج کوئی مشاہدہ نہیں", week: "اس ہفتے کوئی مشاہدہ نہیں", month: "اس مہینے کوئی مشاہدہ نہیں" },
 
   weekdays: ["اتوار", "پیر", "منگل", "بدھ", "جمعرات", "جمعہ", "ہفتہ"],
@@ -189,21 +196,29 @@ export const SCHOOL_CARD_UR: SchoolCardCopy = {
   schoolRow: "اسکول",
   total: "کل",
 
-  tiles: { lp: "لیسن پلان", papers: "بنائے گئے پرچے", dc: "ڈیجیٹل کوچنگ مشاہدات", coach: "مشاہدات", training: "ٹریننگ کے حصے" },
+  tiles: { lp: "لیسن پلان", papers: "بنائے گئے پرچے", training: "ٹریننگ کے حصے" },
   coursesDone: (n) => `${n} کورس مکمل`,
   daysWithUse: "NIETE کے استعمال کے دن",
   ofSchoolDays: (n) => `${n} اسکول کے دنوں میں سے`,
-  scores: "اسکور",
-  tapDot: "رپورٹ کے لیے نقطے پر ٹیپ کریں",
   noScores: "ابھی کوئی اسکور نہیں",
-  herReports: "ان کی کوچنگ رپورٹس",
   onlyYou: "صرف آپ کے لیے",
   pct: (n) => (n == null ? "—" : `${Math.round(n)}%`),
 
-  allOf: { lp: "تمام لیسن پلان", dc: "تمام ڈیجیٹل کوچنگ مشاہدات", coach: "تمام مشاہدات", papers: "تمام پرچے", training: "ٹریننگ" },
+  observations: "مشاہدات",
+  digitalCoaching: "ڈیجیٹل کوچنگ",
+  coachObsLine: "کوچ کے مشاہدات",
+  coachObservation: "کوچ کا مشاہدہ",
+  show: "دکھائیں",
+  all: "سب",
+  lessonOf: (subject) => (subject ? `${subject} کا سبق` : "سبق"),
+  noObs: { today: "آج کوئی مشاہدہ نہیں", week: "اس ہفتے کوئی مشاہدہ نہیں", month: "اس مہینے کوئی مشاہدہ نہیں" },
+  noDc: { today: "آج کوئی ڈیجیٹل کوچنگ مشاہدہ نہیں", week: "اس ہفتے کوئی ڈیجیٹل کوچنگ مشاہدہ نہیں", month: "اس مہینے کوئی ڈیجیٹل کوچنگ مشاہدہ نہیں" },
+  noCoachObsFilter: { today: "آج کوچ کا کوئی مشاہدہ نہیں", week: "اس ہفتے کوچ کا کوئی مشاہدہ نہیں", month: "اس مہینے کوچ کا کوئی مشاہدہ نہیں" },
+  notScoredKey: (dash) => `${dash} · اسکور نہیں ہوا`,
+
+  allOf: { lp: "تمام لیسن پلان", papers: "تمام پرچے", training: "ٹریننگ" },
   aiScoreN: (n) => `اے آئی اسکور ${n}%`,
   coachScoreN: (n) => `کوچ اسکور ${n}%`,
-  coachBy: (name) => `کوچ ${name}`,
   fieldForm: "فیلڈ فارم",
   questionsMarks: (q, m) => `${q} سوالات · ${m} نمبر`,
   questionsN: (q) => `${q} سوالات`,
@@ -211,13 +226,7 @@ export const SCHOOL_CARD_UR: SchoolCardCopy = {
   done: "مکمل",
   notDone: "مکمل نہیں",
 
-  dcToldHer: "ڈیجیٹل کوچ نے انہیں کیا بتایا",
   wentWell: "کیا اچھا رہا",
-  scoresByReport: "ہر رپورٹ کے اسکور",
-  coachVisits: "کوچ کے دورے",
-  reportCol: "رپورٹ",
-  overall: "مجموعی",
-  coachTag: "کوچ",
   notScored: "اسکور نہیں ہوا",
   stepAgreed: "طے شدہ قدم",
   sectionNames: { B: "سبق کے منصوبے پر عمل درآمد", C: "مؤثر تدریسی طریقے", D: "طلبہ کی شمولیت", F: "استاد کا مضمون سے متعلق علم" },
@@ -249,5 +258,5 @@ export const COPY_ENTRY: CopyEntry = {
   same: ["dash", "dayMonth", "sectionKey", "gradeSubject", "emis", "pct", "scoreOf"],
   // Lines that are a whole phrase by design: "by 8 of 14 teachers", "Thu and Fri are still ahead", the screen-reader
   // reading of the four counts, the report headings as drawn, and the empty lines that name the period.
-  longOk: ["noReports", "sectionNames", "reflection", "byN", "oneAhead", "manyAhead", "countsSpoken", "dcToldHer", "tapDot", "noCoachObs", "noMatch", "byTeacher", "allOf", "schoolsTeachers", "partsDone", "questionsMarks", "lastVisit", "ofSchoolDays", "daysWithUse", "noPlan", "lessThanOneDay", "notScoredList", "stepsDone", "weekdayDayMonth"],
+  longOk: ["noObs", "noDc", "noCoachObsFilter", "notScoredKey", "sectionNames", "reflection", "byN", "oneAhead", "manyAhead", "countsSpoken", "noCoachObs", "noMatch", "byTeacher", "allOf", "schoolsTeachers", "partsDone", "questionsMarks", "lastVisit", "ofSchoolDays", "daysWithUse", "noPlan", "lessThanOneDay", "notScoredList", "stepsDone", "weekdayDayMonth"],
 };

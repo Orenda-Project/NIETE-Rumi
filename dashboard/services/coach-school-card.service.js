@@ -7,9 +7,11 @@
  *   getSchoolCard      one of HER schools for a period: four feature tiles, every teacher with her counts, the
  *                      coach observations per teacher
  *   getSchoolFeature   one feature's grid: a row per teacher, a cell per bucket, the school's row
- *   getTeacherCard     one teacher in HER patch: her tiles, score averages against the period before, her chart
- *   getTeacherItems    her list of one feature's items in the period
- *   getTeacherReports  what her DC reports told her, what went well, scores by report, coach visits
+ *   getTeacherCard     one teacher in HER patch: her tiles, and the Coaching summary and chart (the card that opens
+ *                      her Coaching page)
+ *   getTeacherItems    her list of lesson plans, papers or training in the period
+ *   getTeacherCoaching her Coaching page: her DC reports and coach visits in ONE list, newest first, each with its
+ *                      score, the step she took away and its sections; the two averages against the period before
  *   getSession         one DC report of such a teacher, coach view
  *
  * ACCESS. The coach is always the session user. A school must be one of her leader_schools rows (coach-v2's
@@ -36,7 +38,8 @@ const P = require('../lib/school-card-period');
 const { karachiToday } = require('../lib/visit-time');
 
 const FEATURES = Object.freeze(['lp', 'dc', 'training', 'papers']);
-const ITEM_FEATURES = Object.freeze(['dc', 'coach', 'lp', 'papers', 'training']);
+/** Her own lists. DC observations and coach visits are not among them: they are the one Coaching list. */
+const ITEM_FEATURES = Object.freeze(['lp', 'papers', 'training']);
 const HUMAN_OBSERVATION = 'leader_observation';
 /** A coach observation that did not happen (coaching-query-rules hitl_conducted). */
 const DEAD_VISIT = Object.freeze(['cancelled', 'abandoned', 'failed', 'test_cleanup']);
@@ -189,21 +192,16 @@ const SQL = Object.freeze({
   group: `/* sc:group */
     SELECT ab_group FROM niete_coaching_ab_assignment WHERE school_id = $1::uuid`,
 
-  // The step text of each report. The thing to try leaves the database only for a C or D school ($2).
+  // The step text of each report, and what titles it (its topic, its lesson label). The thing to try leaves the
+  // database only for a C or D school ($2).
   actions: `/* sc:actions */
     SELECT c.id, c.prioritized_action ->> 'action' AS action,
            CASE WHEN $2::text IN ('C', 'D') THEN c.prioritized_action #>> '{thing_to_try,text}' END AS thing_text,
+           c.analysis_data ->> 'topic' AS topic,
+           c.prioritized_action ->> 'lesson_label' AS lesson_label, c.analysis_data ->> 'framework' AS framework,
            c.analysis_data #>> '{focus_area,try_this_tomorrow}' AS focus_try
       FROM coaching_sessions c
      WHERE c.id = ANY($1::uuid[])`,
-
-  strengths: `/* sc:strengths */
-    SELECT s.id, s.a -> 'strengths' AS strengths, s.a #> '{lp_fidelity,strengths}' AS lp_strengths,
-           s.a -> 'report_narrative' AS narrative
-      FROM (SELECT id, analysis_data #> '{}'::text[] AS a
-              FROM coaching_sessions
-             WHERE id = ANY($1::uuid[])
-            OFFSET 0) s`,
 
   session: `/* sc:session */
     SELECT id, user_id, created_at, status, observation_type, duplicate_of_session_id,
@@ -367,6 +365,32 @@ function nextStepShown(pa, group) {
     if (t) return t;
   }
   return text(p.action);
+}
+
+/**
+ * A REPORT'S TITLE (a row of the Coaching list), first that has words:
+ *   1. analysis_data.topic, the lesson's topic as the analysis read it ("Types of Fractions"): on 8,919 of 9,041 DC
+ *      reports in production over a month (checked 29 Oct);
+ *   2. prioritized_action.lesson_label, the commitment card's 2–4 word subject · topic in her language, when the model
+ *      wrote one. Its fallback paths write the framework's own name instead, upper-cased (commitment-card.service.js:
+ *      `(analysis.framework || '').toUpperCase()`, so "FICO"), which is no title (5,784 of 9,041 are real);
+ *   3. null: the page titles the row "<Subject> lesson".
+ * A coach visit is titled the same way.
+ * @param {string|null} topic analysis_data.topic
+ * @param {string|null} label prioritized_action.lesson_label
+ * @param {string|null} framework analysis_data.framework of the same report
+ */
+const PLACEHOLDER_LABELS = Object.freeze(['FICO']);
+function reportTitleOf(topic, label, framework) {
+  const fw = text(framework) ? text(framework).toUpperCase() : null;
+  for (const candidate of [topic, label]) {
+    const t = text(candidate);
+    if (!t) continue;
+    const up = t.toUpperCase();
+    if (PLACEHOLDER_LABELS.includes(up) || up === fw) continue;
+    return t;
+  }
+  return null;
 }
 
 // ── reads ────────────────────────────────────────────────────────────────────
@@ -655,6 +679,32 @@ const ficoVisitScore = (act, s) => {
   return isFieldForm(scored && scored.info) ? null : visitScore(s, scored);
 };
 
+/**
+ * The Coaching summary (the Teacher page's Coaching card and the Coaching page's top): her DC observations and her
+ * coach visits in the period, each with its average score against the period before (AI score: every DC report; Coach
+ * score: the reviewed FICO-form visits only).
+ */
+function coachingSummaryOf(act, dc, visits, inP, inPrev) {
+  const ai = (list) => mean(list.map((s) => pctOfSession(act, s)));
+  const coach = (list) => mean(list.map((s) => ficoVisitScore(act, s)));
+  return {
+    dc: { count: dc.filter(inP).length, avg: ai(dc.filter(inP)), prevAvg: ai(dc.filter(inPrev)) },
+    coach: { count: visits.filter(inP).length, avg: coach(visits.filter(inP)), prevAvg: coach(visits.filter(inPrev)) },
+  };
+}
+
+/** The two-series chart: the AI score of each DC report and the Coach score of each reviewed FICO-form visit, by time. */
+function coachingChartOf(act, dc, visits, inP) {
+  return [
+    ...dc.filter(inP).map((s) => ({ kind: 'dc', id: s.id, at: s.at, date: s.day, score: pctOfSession(act, s) })),
+    ...visits.filter(inP).map((s) => ({ kind: 'coach', id: s.id, at: s.at, date: s.day, score: ficoVisitScore(act, s) })),
+  ].filter((p) => p.score != null).sort(byAt).map(({ at, ...p }) => p);
+}
+
+const teacherOut = (teacher) => ({
+  teacherExtId: teacher.phone_number, name: teacher.displayName, school: text(teacher.school_name), emis: teacher.emis == null ? null : String(teacher.emis),
+});
+
 /** GET /teacher/:ext/card */
 async function getTeacherCard(query, coachId, ext, opts = {}) {
   const teacher = await teacherOf(query, coachId, ext);
@@ -663,49 +713,36 @@ async function getTeacherCard(query, coachId, ext, opts = {}) {
   const ids = [teacher.id];
   const series = (list) => tally(period, list, ids).get(teacher.id);
   const tile = (list) => { const t = series(list); return { count: t.total, series: t.cells }; };
-  const periodVisits = visits.filter(inP).map((s) => ({ ...s, userId: s.user_id }));
   const courses = await coursesOf(query, teacher.id, [...new Set(events.training.filter((p) => P.inPeriod(period, p.day)).map((p) => p.moduleId))]);
   const trn = series(events.training);
 
-  const chart = [
-    ...dc.filter(inP).map((s) => ({ kind: 'dc', id: s.id, at: s.at, date: s.day, score: pctOfSession(act, s) })),
-    ...visits.filter(inP).map((s) => ({ kind: 'coach', id: s.id, at: s.at, date: s.day, score: ficoVisitScore(act, s) })),
-  ].filter((p) => p.score != null).sort(byAt).map(({ at, ...p }) => p);
-
   return {
-    teacher: { teacherExtId: teacher.phone_number, name: teacher.displayName, school: text(teacher.school_name), emis: teacher.emis == null ? null : String(teacher.emis) },
+    teacher: teacherOut(teacher),
     period: P.publicPeriod(period),
     tiles: {
       lp: tile(events.lp),
       papers: tile(events.papers),
-      dc: tile(dc),
-      coach: tile(periodVisits),
       training: { parts: trn.total, courses: courses.filter((c) => c.done && P.inPeriod(period, c.lastDone)).length, series: trn.cells },
-      aiScore: { avg: mean(dc.filter(inP).map((s) => pctOfSession(act, s))), prevAvg: mean(dc.filter(inPrev).map((s) => pctOfSession(act, s))) },
-      coachScore: { avg: mean(visits.filter(inP).map((s) => ficoVisitScore(act, s))), prevAvg: mean(visits.filter(inPrev).map((s) => ficoVisitScore(act, s))) },
       days: { withUse: daysWithUse(period, [...events.lp, ...dc, ...events.training, ...events.papers]), schoolDays: period.schoolDaysSoFar },
     },
-    chart,
+    // Her DC observations and coach visits are ONE Coaching card: this summary and this chart.
+    summary: coachingSummaryOf(act, dc, visits, inP, inPrev),
+    chart: coachingChartOf(act, dc, visits, inP),
   };
 }
 
 const newestFirst = (a, b) => atMs(b.at) - atMs(a.at);
 const formOf = (act, s) => (isFieldForm((act.scored.get(s.id) || {}).info) ? 'observe2' : 'v3');
 
-/** GET /teacher/:ext/items/:feature */
+/** GET /teacher/:ext/items/:feature (lp | papers | training) */
 async function getTeacherItems(query, coachId, ext, feature, opts = {}) {
   if (!ITEM_FEATURES.includes(feature)) return null;
   const teacher = await teacherOf(query, coachId, ext);
   if (!teacher) return null;
-  const { period, act, events, dc, visits, inP } = await teacherActivity(query, teacher, opts);
+  const { period, events } = await teacherActivity(query, teacher, opts);
   const base = { feature, period: P.publicPeriod(period) };
-  const info = (s) => (act.scored.get(s.id) || {}).info || {};
   const inPeriodOnly = (list) => list.filter((e) => P.inPeriod(period, e.day)).sort(newestFirst);
   switch (feature) {
-    case 'dc':
-      return { ...base, items: dc.filter(inP).sort(newestFirst).map((s) => ({ sessionId: s.id, date: s.day, grade: info(s).grade || null, subject: info(s).subject || null, aiScore: pctOfSession(act, s) })) };
-    case 'coach':
-      return { ...base, items: visits.filter(inP).sort(newestFirst).map((s) => ({ id: s.id, date: s.day, coachName: text(s.observer_name), score: visitScore(s, act.scored.get(s.id)), form: formOf(act, s) })) };
     case 'lp':
       return { ...base, items: inPeriodOnly(events.lp).map((p) => ({ id: p.id, date: p.day, grade: p.grade, subject: p.subject, title: p.title })) };
     case 'papers':
@@ -718,58 +755,59 @@ async function getTeacherItems(query, coachId, ext, feature, opts = {}) {
   }
 }
 
-const STRENGTH_REPORTS = 3;
-
 /** The language her report was written in: the narrative's own, else her preference. */
 function languageOf(narrative, teacher) {
   const l = (narrative && narrative._language) || (teacher && teacher.preferred_language);
   return l === 'ur' ? 'ur' : 'en';
 }
 
-/** GET /teacher/:ext/reports */
-async function getTeacherReports(query, coachId, ext, opts = {}) {
+/**
+ * GET /teacher/:ext/coaching — her DC reports and coach visits in the period as ONE list, newest first. Each row: the
+ * class (grade, subject), a title (its topic, else its real lesson label, else null: the page writes "<Subject> lesson"), the
+ * score (AI score; Coach score only for a reviewed FICO-form visit), the step she took away (a DC report: what she was
+ * shown, the v10 rule; a coach visit: the step agreed) and the four section percentages (none for a visit with no
+ * score). The summary and the chart are the Teacher page's Coaching card.
+ */
+async function getTeacherCoaching(query, coachId, ext, opts = {}) {
   const teacher = await teacherOf(query, coachId, ext);
   if (!teacher) return null;
-  const { period, act, dc, visits, inP } = await teacherActivity(query, teacher, opts);
-  const reports = dc.filter(inP).sort(newestFirst);
-  const coachVisits = visits.filter(inP).sort(newestFirst);
-  const group = await groupOf(query, teacher.school_id);
-  const actionIds = [...reports, ...coachVisits].map((s) => s.id);
-  const strengthIds = reports.slice(0, STRENGTH_REPORTS).map((s) => s.id);
-  const [actionRes, strengthRes] = await Promise.all([
-    actionIds.length ? query(SQL.actions, [actionIds, group]) : { rows: [] },
-    strengthIds.length ? query(SQL.strengths, [strengthIds]) : { rows: [] },
-  ]);
-  const actions = new Map(rowsOf(actionRes).map((r) => [r.id, r]));
-  const strengths = new Map(rowsOf(strengthRes).map((r) => [r.id, r]));
+  const { period, act, dc, visits, inP, inPrev } = await teacherActivity(query, teacher, opts);
+  const reports = dc.filter(inP);
+  const coachVisits = visits.filter(inP);
+  const ids = [...reports, ...coachVisits].map((s) => s.id);
+  // The group is read only when there is a report to show (the v10 rule needs it).
+  const group = reports.length ? await groupOf(query, teacher.school_id) : null;
+  const actions = new Map(ids.length ? rowsOf(await query(SQL.actions, [ids, group])).map((r) => [r.id, r]) : []);
   const info = (s) => (act.scored.get(s.id) || {}).info || {};
-  const tag = (s) => ({ grade: info(s).grade || null, subject: info(s).subject || null });
   const noSections = { B: null, C: null, D: null, F: null };
+  const row = (s, kind) => {
+    const a = actions.get(s.id) || {};
+    const score = kind === 'dc' ? pctOfSession(act, s) : ficoVisitScore(act, s);
+    return {
+      kind,
+      id: s.id,
+      at: s.at,
+      date: s.day,
+      grade: info(s).grade || null,
+      subject: info(s).subject || null,
+      title: reportTitleOf(a.topic, a.lesson_label, a.framework),
+      score,
+      quote: kind === 'dc'
+        ? nextStepShown({ action: a.action, thing_to_try: { text: a.thing_text } }, group)
+        : text(a.action) || text(a.focus_try),
+      sections: score == null ? { ...noSections } : { ...noSections, ...info(s).sections },
+      coachName: kind === 'coach' ? text(s.observer_name) : null,
+      form: kind === 'coach' ? formOf(act, s) : null,
+    };
+  };
 
   return {
+    teacher: teacherOut(teacher),
     period: P.publicPeriod(period),
-    nextSteps: reports.map((s) => {
-      const a = actions.get(s.id) || {};
-      const t = nextStepShown({ action: a.action, thing_to_try: { text: a.thing_text } }, group);
-      return t ? { sessionId: s.id, date: s.day, ...tag(s), text: t } : null;
-    }).filter(Boolean),
-    strengths: reports.slice(0, STRENGTH_REPORTS).map((s) => {
-      const r = strengths.get(s.id) || {};
-      const a = { strengths: r.strengths, lp_fidelity: { strengths: r.lp_strengths }, report_narrative: r.narrative };
-      const texts = wells(a, languageOf(r.narrative, teacher), r.narrative);
-      return texts.length ? { sessionId: s.id, date: s.day, ...tag(s), text: texts[0], texts } : null;
-    }).filter(Boolean),
-    scores: [
-      ...reports.map((s) => ({ kind: 'dc', id: s.id, at: s.at, date: s.day, overall: pctOfSession(act, s), sections: { ...noSections, ...info(s).sections }, form: null })),
-      ...coachVisits.map((s) => {
-        const score = visitScore(s, act.scored.get(s.id));
-        return { kind: 'coach', id: s.id, at: s.at, date: s.day, overall: score, sections: score == null ? { ...noSections } : { ...noSections, ...info(s).sections }, form: formOf(act, s) };
-      }),
-    ].sort(newestFirst).map(({ at, ...r }) => r),
-    coachVisits: coachVisits.map((s) => {
-      const a = actions.get(s.id) || {};
-      return { id: s.id, date: s.day, score: visitScore(s, act.scored.get(s.id)), step: text(a.action) || text(a.focus_try), form: formOf(act, s) };
-    }),
+    summary: coachingSummaryOf(act, dc, visits, inP, inPrev),
+    chart: coachingChartOf(act, dc, visits, inP),
+    items: [...reports.map((s) => row(s, 'dc')), ...coachVisits.map((s) => row(s, 'coach'))]
+      .sort(newestFirst).map(({ at, ...r }) => r),
   };
 }
 
@@ -849,10 +887,11 @@ module.exports = {
   contributionPct,
   starsOf,
   nextStepShown,
+  reportTitleOf,
   getSchoolCard,
   getSchoolFeature,
   getTeacherCard,
   getTeacherItems,
-  getTeacherReports,
+  getTeacherCoaching,
   getSession,
 };

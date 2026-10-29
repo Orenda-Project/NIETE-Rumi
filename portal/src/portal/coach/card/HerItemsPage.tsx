@@ -10,22 +10,18 @@ import { card } from "./api";
 import { CardOnly, useCardLoad } from "./frame";
 import { dayLabel, pkDate, usePeriod, withPeriod } from "./period";
 import { FEATURE_OF, PeriodChips } from "./parts";
-import type { CoachItem, DcItem, ItemsData, ItemsFeature, LpItem, PaperItem, TrainingCourse } from "./types";
+import type { ItemsData, ItemsFeature, LpItem, PaperItem, TrainingCourse } from "./types";
 
 /**
- * Her list of one feature in the period, newest first: DC observations (a row opens the coach's view of that DC report),
- * Coach observations (information only: a coach visit's report lives in Observe, which the coach app does not show),
- * Lesson plans, Papers, and Training (each course and its parts, with the day each part was done).
+ * Her list of one feature in the period, newest first: Lesson plans, Papers, and Training (each course and its parts, with
+ * the day each part was done). Her DC observations and coach visits are not lists here: they are her Coaching page (their
+ * old addresses open it, CoachingRedirect).
  */
 
-const FEATURES: readonly ItemsFeature[] = ["dc", "coach", "lp", "papers", "training"];
+const FEATURES: readonly ItemsFeature[] = ["lp", "papers", "training"];
 const LIST = "overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]";
 
 const newestFirst = <T extends { date: string }>(xs: readonly T[]) => [...xs].sort((a, b) => String(b.date).localeCompare(String(a.date)));
-const initials = (name: string | null | undefined) => {
-  const w = String(name || "").trim().split(/\s+/).filter(Boolean);
-  return w.length ? (Array.from(w[0])[0] + (w.length > 1 ? Array.from(w[w.length - 1])[0] : "")).toUpperCase() : "·";
-};
 
 function Training({ courses, today }: { courses: readonly TrainingCourse[]; today: string | undefined }) {
   const C = useCopy(SCHOOL_CARD);
@@ -66,36 +62,19 @@ function HerItems() {
   const today = data?.period?.today ?? pkDate(new Date().toISOString()) ?? undefined;
 
   const items = data?.items ?? [];
-  const rows: HistoryItem[] = !feature ? [] : feature === "dc"
-    ? newestFirst(items as DcItem[]).map((d) => ({
-      id: d.sessionId, lead: "grade" as const, grade: d.grade, subject: d.subject ?? "", title: dayLabel(d.date, today, C),
-      chip: d.aiScore == null ? null : { text: C.aiScoreN(Math.round(d.aiScore)), tone: "score" as const },
-      to: `/portal/coach/session/${encodeURIComponent(d.sessionId)}`, action: "chevron" as const,
+  const rows: HistoryItem[] = !feature ? [] : feature === "lp"
+    ? newestFirst(items as LpItem[]).map((l) => ({
+      id: l.id, lead: "grade" as const, grade: l.grade, subject: l.subject ?? "", title: l.title || dayLabel(l.date, today, C),
+      extra: l.title ? dayLabel(l.date, today, C) : undefined, action: "none" as const,
     }))
-    : feature === "coach"
-      ? newestFirst(items as CoachItem[]).map((o) => ({
-        id: o.id, lead: "person" as const, leadText: initials(o.coachName), title: dayLabel(o.date, today, C),
-        extra: o.coachName ? C.coachBy(o.coachName) : undefined,
-        // A visit on the field form is counted, never mixed with the observation scores.
-        chip: o.form === "observe2" ? { text: C.fieldForm, tone: "info" as const } : o.score == null ? null : { text: C.coachScoreN(Math.round(o.score)), tone: "score" as const },
+    : feature === "papers"
+      ? newestFirst(items as PaperItem[]).map((p) => ({
+        id: p.id, lead: "grade" as const, grade: p.grade, subject: p.subject ?? "", title: dayLabel(p.date, today, C),
+        extra: p.questions != null && p.marks != null ? C.questionsMarks(p.questions, p.marks) : p.questions != null ? C.questionsN(p.questions) : undefined,
         action: "none" as const,
       }))
-      : feature === "lp"
-        ? newestFirst(items as LpItem[]).map((l) => ({
-          id: l.id, lead: "grade" as const, grade: l.grade, subject: l.subject ?? "", title: l.title || dayLabel(l.date, today, C),
-          extra: l.title ? dayLabel(l.date, today, C) : undefined, action: "none" as const,
-        }))
-        : feature === "papers"
-          ? newestFirst(items as PaperItem[]).map((p) => ({
-            id: p.id, lead: "grade" as const, grade: p.grade, subject: p.subject ?? "", title: dayLabel(p.date, today, C),
-            extra: p.questions != null && p.marks != null ? C.questionsMarks(p.questions, p.marks) : p.questions != null ? C.questionsN(p.questions) : undefined,
-            action: "none" as const,
-          }))
-          : [];
+      : [];
 
-  const scored = feature === "dc" ? (items as DcItem[]).map((d) => d.aiScore).filter((s): s is number => typeof s === "number") : [];
-  const coachScored = feature === "coach" ? (items as CoachItem[]).filter((o) => o.form !== "observe2").map((o) => o.score).filter((s): s is number => typeof s === "number") : [];
-  const mean = (xs: number[]) => (xs.length ? `${Math.round(xs.reduce((a, b) => a + b, 0) / xs.length)}%` : null);
   const courses = data?.courses ?? [];
   const count = feature === "training" ? courses.reduce((n, c) => n + c.parts.filter((p) => !!p.doneAt).length, 0) : items.length;
 
@@ -107,11 +86,7 @@ function HerItems() {
       {!data && !failed && <Loading />}
       {data && feature && (
         <>
-          <KpiTiles columns={2} items={[
-            { value: count, label: feature === "training" ? C.tiles.training : C.tiles[feature] },
-            ...(feature === "dc" ? [{ value: mean(scored), label: C.aiScore }] : []),
-            ...(feature === "coach" ? [{ value: mean(coachScored), label: C.coachScore }] : []),
-          ]} />
+          <KpiTiles columns={2} items={[{ value: count, label: C.tiles[feature] }]} />
           {feature === "training"
             ? (courses.length ? <Training courses={courses} today={today} /> : <EmptyRow icon={<span>·</span>} testId="empty">{C.nothing[period]}</EmptyRow>)
             : rows.length

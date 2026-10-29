@@ -9,7 +9,7 @@ import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
 import { SCHOOL_CARD } from "./copy";
 import { card } from "./api";
 import { CardOnly, useCardLoad } from "./frame";
-import { dayLabel, pkDate } from "./period";
+import { dayLabel, pkDate, usePeriod, withPeriod } from "./period";
 import { Quote } from "./parts";
 import type { SessionReportData } from "./types";
 
@@ -50,6 +50,8 @@ function SessionReport() {
   const C = useCopy(SCHOOL_CARD);
   const kit = useKitCopy();
   const { id = "" } = useParams();
+  // Opened from her Coaching page, which passes its period on: Back returns to that page and period.
+  const [period] = usePeriod();
   const { data, failed, reload } = useCardLoad<SessionReportData>(() => card.session(id), [id]);
   const today = pkDate(new Date().toISOString()) ?? undefined;
   const scored = (data?.practices ?? []).filter((p) => typeof p.score === "number");
@@ -62,7 +64,7 @@ function SessionReport() {
 
   return (
     <PeopleFrame title={C.report} crumb={data?.teacher?.name || undefined} feature="coaching"
-      backTo={data?.teacher?.teacherExtId ? `/portal/coach/teacher/${encodeURIComponent(data.teacher.teacherExtId)}` : "/portal/coach/people"}
+      backTo={data?.teacher?.teacherExtId ? withPeriod(`/portal/coach/teacher/${encodeURIComponent(data.teacher.teacherExtId)}/coaching`, period) : "/portal/coach/people"}
       chips={data ? (
         <>
           <PageChip><CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />{dayLabel(data.date, today, C)}</PageChip>

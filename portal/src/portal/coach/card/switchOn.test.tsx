@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { linkPaths, loadApp, moves, net, renderApp, resetAll } from "./harness.testdata";
-import { COACH_ITEMS, DC_ITEMS, EMIS, EXT, MONTH, NO_REPORTS, REPORTS, SESSION, SESSION_REPORT, TODAY, TRAINING_ITEMS, grid, schoolCard, teacherCard } from "./fixtures.testdata";
+import { EMIS, EXT, MONTH, NO_COACHING, SESSION, SESSION_REPORT, TODAY, TRAINING_ITEMS, coaching, grid, schoolCard, teacherCard } from "./fixtures.testdata";
 import { coachPathReady, coachReadyFor } from "../training/appReady";
 
 vi.mock("axios", async () => (await import("./harness.testdata")).axiosMock());
@@ -25,11 +25,11 @@ function on(extra: Record<string, unknown> = {}) {
   net.answers.set(`/coach/school/${EMIS}/card?period=month`, { ...schoolCard(MONTH), tiles: schoolCard(MONTH).tiles.map((t) => ({ ...t, series: [1, 2, 3, 4, 5] })) });
   net.answers.set(`/coach/school/${EMIS}/feature/lp`, grid());
   net.answers.set(`/coach/teacher/${EXT}/card`, teacherCard());
-  net.answers.set(`/coach/teacher/${EXT}/items/dc`, DC_ITEMS);
-  net.answers.set(`/coach/teacher/${EXT}/items/coach`, COACH_ITEMS);
+  net.answers.set(`/coach/teacher/${EXT}/card?period=month`, teacherCard(MONTH));
   net.answers.set(`/coach/teacher/${EXT}/items/training`, TRAINING_ITEMS);
-  net.answers.set(`/coach/teacher/${EXT}/reports`, REPORTS);
-  net.answers.set(`/coach/teacher/${EXT}/reports?period=today`, NO_REPORTS);
+  net.answers.set(`/coach/teacher/${EXT}/coaching`, coaching());
+  net.answers.set(`/coach/teacher/${EXT}/coaching?period=month`, coaching(MONTH));
+  net.answers.set(`/coach/teacher/${EXT}/coaching?period=today`, NO_COACHING);
   net.answers.set(`/coach/session/${SESSION}`, SESSION_REPORT);
 }
 
@@ -241,62 +241,60 @@ describe("a feature by teacher", () => {
 });
 
 describe("a teacher", () => {
-  it("her tiles open her lists; AI score, Coach score and days are flat; the chart and Her coaching reports", async () => {
+  it("her tiles open her lists; the days are flat; ONE Observations card replaces the DC, score and coach tiles, the chart and Her coaching reports", async () => {
     on();
     const { container } = await renderApp(`/portal/coach/teacher/${EXT}`);
     const tiles = await screen.findByTestId("teacher-tiles");
     expect(screen.getByTestId("t-lp")).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/items/lp`);
     expect(screen.getByTestId("t-papers")).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/items/papers`);
-    expect(screen.getByTestId("t-dc")).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/items/dc`);
-    expect(screen.getByTestId("t-coach")).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/items/coach`);
     expect(screen.getByTestId("t-training")).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/items/training`);
-    for (const id of ["t-ai", "t-coach-score", "t-days"]) expect(screen.getByTestId(id).tagName).not.toBe("A");
-    expect(screen.getByTestId("t-ai")).toHaveTextContent("61%");
-    expect(screen.getByTestId("t-ai").querySelector("[data-delta]")).toHaveAttribute("data-delta", "4");
-    // no coach score this period: a dash, never 0
-    expect(screen.getByTestId("t-coach-score")).toHaveTextContent("—");
+    expect(screen.getByTestId("t-days").tagName).not.toBe("A");
     expect(screen.getByTestId("t-days")).toHaveTextContent("of 3 school days");
     expect(screen.getByTestId("t-training")).toHaveTextContent("1 course done");
     expect(within(tiles).getByTestId("mini-lp")).toHaveAttribute("dir", "ltr");
-    expect(screen.getByTestId("score-chart").querySelectorAll('[data-point="dc"]')).toHaveLength(2);
-    expect(screen.getByTestId("score-chart").querySelectorAll('[data-point="coach"]')).toHaveLength(1);
-    expect(screen.getByTestId("her-reports")).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/reports`);
-    expect(container.textContent).toContain("Only you see this");
+    // the four scattered tiles, the separate chart and the reports button are gone
+    for (const id of ["t-dc", "t-ai", "t-coach", "t-coach-score", "her-reports"]) expect(screen.queryByTestId(id)).toBeNull();
+    expect(container.textContent).not.toContain("Her coaching reports");
+    expect(container.textContent).not.toContain("Only you see this");
+    // the order: Lesson plans · Papers, the card full width, then Days · Training
+    expect(Array.from(tiles.children).map((c) => c.getAttribute("data-testid"))).toEqual(["t-lp", "t-papers", "coaching-card", "t-days", "t-training"]);
+
+    const cardEl = screen.getByTestId("coaching-card");
+    expect(cardEl.tagName).toBe("A");
+    expect(cardEl).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/coaching`);
+    expect(within(cardEl).getByTestId("coaching-title")).toHaveTextContent(/^Observations$/);
+    const dc = within(cardEl).getByTestId("coaching-line-dc");
+    expect(dc).toHaveTextContent("Digital Coaching");
+    expect(dc).toHaveTextContent("2 observations");
+    expect(dc).toHaveTextContent("AI score 61%");
+    expect(dc.querySelector("[data-delta]")).toHaveAttribute("data-delta", "4");
+    const co = within(cardEl).getByTestId("coaching-line-coach");
+    expect(co).toHaveTextContent("Coach observations");
+    expect(co).toHaveTextContent("2 observations");
+    expect(co).toHaveTextContent("Coach score 60%");
+    // no previous average: no change pill
+    expect(co.querySelector("[data-delta]")).toBeNull();
+    // the chart is drawn inside the card; the card is the one link (no link inside a link)
+    const chart = within(cardEl).getByTestId("score-chart");
+    expect(chart.querySelectorAll('[data-point="dc"]')).toHaveLength(2);
+    expect(chart.querySelectorAll('[data-point="coach"]')).toHaveLength(1);
+    expect(cardEl.querySelectorAll("a, [role=link]")).toHaveLength(0);
     expect(container.textContent).not.toMatch(/Schedule/);
     expectOnlyOpenLinks(container);
   });
 
-  it("a dot on the chart opens its DC report", async () => {
+  it("the Coaching card opens the Coaching page with the period she picked", async () => {
     on();
-    await renderApp(`/portal/coach/teacher/${EXT}`);
-    const chart = await screen.findByTestId("score-chart");
-    await act(async () => { fireEvent.click(chart.querySelector('[data-point="dc"]') as Element); });
-    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(`/portal/coach/session/${SESSION}`));
+    await renderApp(`/portal/coach/teacher/${EXT}?period=month`);
+    const cardEl = await screen.findByTestId("coaching-card");
+    expect(cardEl).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/coaching?period=month`);
+    await act(async () => { fireEvent.click(cardEl); });
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(`/portal/coach/teacher/${EXT}/coaching`));
+    expect(screen.getByTestId("where")).toHaveAttribute("data-search", "?period=month");
   });
 });
 
 describe("her lists", () => {
-  it("DC observations: each row opens the coach's DC report", async () => {
-    on();
-    const { container } = await renderApp(`/portal/coach/teacher/${EXT}/items/dc`);
-    await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("All DC Observations"));
-    const list = await screen.findByTestId("her-items");
-    const links = Array.from(list.querySelectorAll("a")).map((a) => a.getAttribute("href"));
-    expect(links).toEqual(["/portal/coach/session/s-101", `/portal/coach/session/${SESSION}`]);
-    expect(list).toHaveTextContent("AI score 67%");
-    expectOnlyOpenLinks(container);
-  });
-
-  it("Coach observations are information only; a field-form visit is counted, never scored with them", async () => {
-    on();
-    await renderApp(`/portal/coach/teacher/${EXT}/items/coach`);
-    const list = await screen.findByTestId("her-items");
-    expect(list.querySelectorAll("a")).toHaveLength(0);
-    expect(list).toHaveTextContent("Coach score 60%");
-    expect(list).toHaveTextContent("Field form");
-    expect(list).not.toHaveTextContent("40%");
-  });
-
   it("Training: courses, their parts and the day each was done", async () => {
     on();
     await renderApp(`/portal/coach/teacher/${EXT}/items/training`);
@@ -305,34 +303,140 @@ describe("her lists", () => {
     expect(course).toHaveTextContent("1 of 2 parts done");
     expect(course).toHaveTextContent("Not done");
   });
+
+  it.each([
+    [`/portal/coach/teacher/${EXT}/reports`, ""],
+    [`/portal/coach/teacher/${EXT}/reports?period=month`, "?period=month"],
+    [`/portal/coach/teacher/${EXT}/items/dc`, "?show=dc"],
+    [`/portal/coach/teacher/${EXT}/items/coach?period=today`, "?period=today&show=coach"],
+  ])("the old address %s opens the Coaching page (nothing 404s)", async (entry, search) => {
+    on();
+    await renderApp(entry);
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(`/portal/coach/teacher/${EXT}/coaching`));
+    expect(screen.getByTestId("where")).toHaveAttribute("data-search", search);
+  });
 });
 
-describe("her coaching reports", () => {
-  it("the four blocks: what the Digital Coach told her, what went well, scores by report, coach visits", async () => {
+describe("the Observations page (one list of her DC observations and coach observations)", () => {
+  const rowIds = () => screen.getAllByTestId("coaching-row").map((r) => r.getAttribute("data-id"));
+
+  it("the period chips, the two-line summary, the chart, the filter chips and ONE list, newest first, both kinds mixed", async () => {
     on();
-    const { container } = await renderApp(`/portal/coach/teacher/${EXT}/reports`);
-    const next = await screen.findByTestId("block-next-steps");
-    expect(next).toHaveTextContent("What the Digital Coach told her");
-    expect(next).toHaveTextContent("“Give students two minutes to talk in pairs.”");
-    expect(Array.from(next.querySelectorAll("a")).map((a) => a.getAttribute("href"))).toEqual(["/portal/coach/session/s-101", `/portal/coach/session/${SESSION}`]);
-    expect(screen.getByTestId("block-strengths")).toHaveTextContent("You showed halves by folding paper.");
-    const scores = screen.getByTestId("block-scores");
-    expect(within(scores).getAllByTestId("score-row")).toHaveLength(2);
-    const coachRow = within(scores).getByTestId("score-row-coach");
-    expect(coachRow).toHaveTextContent("Coach");
-    expect(coachRow.tagName).not.toBe("A");
-    expect(within(scores).getAllByTestId("score-row")[1]).toHaveTextContent("Not scored");
+    const { container } = await renderApp(`/portal/coach/teacher/${EXT}/coaching`);
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/^Observations$/));
+    expect(screen.getByTestId("page-crumb")).toHaveTextContent("Teacher Alpha");
+    await screen.findByTestId("coaching-list");
+    expect(screen.getByRole("radio", { name: "This week" })).toHaveAttribute("aria-checked", "true");
+    const summary = screen.getByTestId("coaching-summary");
+    expect(within(summary).getByTestId("coaching-line-dc")).toHaveTextContent("Digital Coaching");
+    expect(within(summary).getByTestId("coaching-line-dc")).toHaveTextContent("AI score 61%");
+    expect(within(summary).getByTestId("coaching-line-coach")).toHaveTextContent("Coach score 60%");
+    expect(screen.getByTestId("score-chart").querySelectorAll('[data-point="dc"]')).toHaveLength(2);
+    // each filter chip carries its count
+    for (const name of ["All 4", "Digital Coaching 2", "Coach observations 2"]) expect(screen.getByRole("radio", { name })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "All 4" })).toHaveAttribute("aria-checked", "true");
+    expect(rowIds()).toEqual(["s-101", "v-1", SESSION, "v-2"]);
+    // the key to the strip, under the list
     expect(screen.getByTestId("section-key")).toHaveTextContent("B · Lesson Plan Fidelity");
-    const visits = screen.getByTestId("block-visits");
-    expect(visits).toHaveTextContent("Step agreed");
-    expect(visits.querySelectorAll("a")).toHaveLength(0);
+    expect(screen.getByTestId("section-key")).toHaveTextContent("— · Not scored");
+    expect(container.textContent).toContain("Only you see this");
     expectOnlyOpenLinks(container);
+  });
+
+  it("a DC row: the grade-subject tile, a title (the subject's lesson when there is no real one), date · Digital Coaching, the AI score, the step she received, B C D F; it opens the DC report", async () => {
+    on();
+    await renderApp(`/portal/coach/teacher/${EXT}/coaching`);
+    await screen.findByTestId("coaching-list");
+    const [first, , third] = screen.getAllByTestId("coaching-row");
+    expect(within(first).getByTestId("history-lead")).toBeInTheDocument();
+    expect(within(first).getByTestId("row-title")).toHaveTextContent("Math lesson");
+    expect(within(first).getByTestId("row-meta")).toHaveTextContent("Today · Digital Coaching");
+    expect(first).toHaveTextContent("AI score 67%");
+    expect(within(first).getByTestId("row-quote")).toHaveTextContent("“Give students two minutes to talk in pairs.”");
+    expect(within(first).getByTestId("row-sections")).toHaveTextContent(/B\s*73.*C\s*65.*D\s*54.*F\s*79/);
+    expect(first.tagName).toBe("A");
+    expect(first).toHaveAttribute("href", "/portal/coach/session/s-101");
+    expect(first.querySelector("[data-chevron]")).not.toBeNull();
+    expect(within(first).getByTestId("row-quote").previousElementSibling).toHaveTextContent("Next step");
+    // a real lesson label is the title; B unassessed is a dash (the key reads "— · Not scored"; a screen reader hears it)
+    expect(within(third).getByTestId("row-title")).toHaveTextContent("Fractions · Halves");
+    expect(within(third).getByTestId("row-sections").querySelector('[data-section="B"]')).toHaveTextContent(/^B—\s*Not scored$/);
+  });
+
+  it("a coach-observation row is information only: date · Coach observation · her coach, the Coach score, the step agreed; no link, no chevron", async () => {
+    on();
+    await renderApp(`/portal/coach/teacher/${EXT}/coaching`);
+    await screen.findByTestId("coaching-list");
+    const rows = screen.getAllByTestId("coaching-row");
+    const visit = rows[1];
+    expect(visit.tagName).not.toBe("A");
+    expect(visit.querySelector("a")).toBeNull();
+    expect(visit.querySelector("[data-chevron]")).toBeNull();
+    expect(within(visit).getByTestId("history-lead")).toBeInTheDocument();
+    expect(within(visit).getByTestId("row-title")).toHaveTextContent("Unitary Method");
+    expect(within(visit).getByTestId("row-meta")).toHaveTextContent("Yesterday · Coach observation · Coach Zulu");
+    expect(visit).toHaveTextContent("Coach score 60%");
+    expect(within(visit).getByTestId("row-quote")).toHaveTextContent("Use pair talk once in every lesson this week.");
+    expect(within(visit).getByTestId("row-quote").previousElementSibling).toHaveTextContent("Step agreed");
+    // the field form: counted, never scored with the others; nothing to draw in the strip; no topic: "Eng lesson"
+    const field = rows[3];
+    expect(field).toHaveTextContent("Field form");
+    expect(within(field).getByTestId("row-title")).toHaveTextContent("Eng lesson");
+    expect(within(field).queryByTestId("row-sections")).toBeNull();
+    expect(within(field).queryByTestId("row-quote")).toBeNull();
+  });
+
+  it("a coach observation not reviewed yet: counted and listed, no score chip and no strip", async () => {
+    on();
+    const items = coaching().items.map((i) => (i.id === "v-1" ? { ...i, score: null, sections: { B: null, C: null, D: null, F: null }, quote: null } : i));
+    net.answers.set(`/coach/teacher/${EXT}/coaching`, { ...coaching(), items });
+    await renderApp(`/portal/coach/teacher/${EXT}/coaching`);
+    await screen.findByTestId("coaching-list");
+    const visit = screen.getAllByTestId("coaching-row")[1];
+    expect(visit).not.toHaveTextContent("Coach score");
+    expect(within(visit).queryByTestId("row-chip")).toBeNull();
+    expect(within(visit).queryByTestId("row-sections")).toBeNull();
+  });
+
+  it("the filter chips: Digital Coaching, then Coach visits, then All; the choice is in the address", async () => {
+    on();
+    await renderApp(`/portal/coach/teacher/${EXT}/coaching`);
+    await screen.findByTestId("coaching-list");
+    await act(async () => { fireEvent.click(screen.getByRole("radio", { name: "Digital Coaching 2" })); });
+    await waitFor(() => expect(rowIds()).toEqual(["s-101", SESSION]));
+    expect(screen.getByTestId("where")).toHaveAttribute("data-search", "?show=dc");
+    await act(async () => { fireEvent.click(screen.getByRole("radio", { name: "Coach observations 2" })); });
+    await waitFor(() => expect(rowIds()).toEqual(["v-1", "v-2"]));
+    await act(async () => { fireEvent.click(screen.getByRole("radio", { name: "All 4" })); });
+    await waitFor(() => expect(rowIds()).toHaveLength(4));
+    expect(screen.getByTestId("where")).toHaveAttribute("data-search", "");
+  });
+
+  it("the chart is information only (each report opens from its row); a filter with nothing says so", async () => {
+    on();
+    net.answers.set(`/coach/teacher/${EXT}/coaching`, { ...coaching(), items: coaching().items.filter((i) => i.kind === "dc") });
+    await renderApp(`/portal/coach/teacher/${EXT}/coaching?show=coach`);
+    const chart = await screen.findByTestId("score-chart");
+    expect(chart.querySelectorAll("[role=link], a")).toHaveLength(0);
+    expect(await screen.findByTestId("no-observations")).toHaveTextContent("No coach observations this week");
   });
 
   it("an empty period says so", async () => {
     on();
-    await renderApp(`/portal/coach/teacher/${EXT}/reports?period=today`);
-    expect(await screen.findByTestId("no-reports")).toHaveTextContent("No reports today");
+    await renderApp(`/portal/coach/teacher/${EXT}/coaching?period=today`);
+    expect(await screen.findByTestId("no-observations")).toHaveTextContent("No observations today");
+    expect(screen.queryAllByTestId("coaching-row")).toHaveLength(0);
+    // nothing to filter and nothing to key: no chips, no legend; no scores, no chart
+    expect(screen.queryByTestId("coaching-filter")).toBeNull();
+    expect(screen.queryByTestId("section-key")).toBeNull();
+    expect(screen.getByTestId("no-scores")).toHaveTextContent("No scores yet");
+  });
+
+  it("the DC report's Back returns to the Coaching page", async () => {
+    on();
+    await renderApp(`/portal/coach/session/${SESSION}`);
+    await waitFor(() => expect(screen.getByTestId("overall")).toHaveTextContent("67%"));
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", `/portal/coach/teacher/${EXT}/coaching`);
   });
 });
 
@@ -380,6 +484,18 @@ describe("Urdu", () => {
     expect(within(lp).getByTestId("bars-lp")).toHaveTextContent("پیر");
     expect(screen.getByRole("radio", { name: "یہ ہفتہ" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByTestId("nothing-fold")).toHaveTextContent("اس ہفتے کچھ نہیں");
+  });
+
+  it("the Coaching page in Urdu: the filter chips, the subject's lesson as a title, a coach visit", async () => {
+    on();
+    await renderApp(`/portal/coach/teacher/${EXT}/coaching`, "ur");
+    await screen.findByTestId("coaching-list");
+    for (const name of ["سب 4", "ڈیجیٹل کوچنگ 2", "کوچ کے مشاہدات 2"]) expect(screen.getByRole("radio", { name })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("مشاہدات");
+    const rows = screen.getAllByTestId("coaching-row");
+    expect(within(rows[0]).getByTestId("row-title")).toHaveTextContent("ریاضی کا سبق");
+    expect(within(rows[1]).getByTestId("row-meta")).toHaveTextContent("کوچ کا مشاہدہ");
+    expect(within(rows[0]).getByTestId("row-sections")).toHaveAttribute("dir", "ltr");
   });
 
   it("the grid keeps its columns left to right with Urdu labels", async () => {

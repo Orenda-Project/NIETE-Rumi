@@ -1,5 +1,5 @@
 import api from "../../services/api";
-import type { CardFeature, FeatureGridData, ItemsData, ItemsFeature, PeriodKey, ReportsData, SchoolCardData, SessionReportData, TeacherCardData } from "./types";
+import type { CardFeature, CoachingData, FeatureGridData, ItemsData, ItemsFeature, PeriodKey, SchoolCardData, SessionReportData, TeacherCardData } from "./types";
 
 /**
  * The School card's reads: GET /api/portal/coach/... (the dashboard answers 404 when the switch is off for her, when the
@@ -22,6 +22,6 @@ export const card = {
   grid: (emis: string, feature: CardFeature, period: PeriodKey) => get<FeatureGridData>(`/coach/school/${seg(emis)}/feature/${seg(feature)}`, period),
   teacher: (ext: string, period: PeriodKey) => get<TeacherCardData>(`/coach/teacher/${seg(ext)}/card`, period),
   items: (ext: string, feature: ItemsFeature, period: PeriodKey) => get<ItemsData>(`/coach/teacher/${seg(ext)}/items/${seg(feature)}`, period),
-  reports: (ext: string, period: PeriodKey) => get<ReportsData>(`/coach/teacher/${seg(ext)}/reports`, period),
+  coaching: (ext: string, period: PeriodKey) => get<CoachingData>(`/coach/teacher/${seg(ext)}/coaching`, period),
   session: (id: string) => get<SessionReportData>(`/coach/session/${seg(id)}`),
 };

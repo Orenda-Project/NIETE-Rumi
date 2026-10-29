@@ -89,8 +89,8 @@ const ROUTES = [
   ['/coach/school/:emis/card', { emis: '901' }],
   ['/coach/school/:emis/feature/:feature', { emis: '901', feature: 'lp' }],
   ['/coach/teacher/:ext/card', { ext: EXT }],
-  ['/coach/teacher/:ext/items/:feature', { ext: EXT, feature: 'dc' }],
-  ['/coach/teacher/:ext/reports', { ext: EXT }],
+  ['/coach/teacher/:ext/items/:feature', { ext: EXT, feature: 'lp' }],
+  ['/coach/teacher/:ext/coaching', { ext: EXT }],
   ['/coach/session/:id', { id: '00000000-0000-4000-8000-000000000001' }],
 ];
 
@@ -189,9 +189,23 @@ describe('inputs are checked before any read', () => {
     ['/coach/school/:emis/feature/:feature', { emis: '901', feature: 'transcript' }],
     ['/coach/teacher/:ext/card', { ext: 'abc' }],
     ['/coach/teacher/:ext/items/:feature', { ext: EXT, feature: 'transcript' }],
+    // DC observations and coach visits are the Coaching page now: their old lists are gone
+    ['/coach/teacher/:ext/items/:feature', { ext: EXT, feature: 'dc' }],
+    ['/coach/teacher/:ext/items/:feature', { ext: EXT, feature: 'coach' }],
+    ['/coach/teacher/:ext/coaching', { ext: 'abc' }],
     ['/coach/session/:id', { id: 'not-a-uuid' }],
   ])('%s %o is 404', async (path, params) => {
     expect((await call(path, { params })).statusCode).toBe(404);
+    expect(poolQuery).not.toHaveBeenCalled();
+  });
+
+  test('her coaching reports route is gone (the Coaching page replaced it)', () => {
+    expect(() => findRoute(loadRoutes(), 'get', '/coach/teacher/:ext/reports')).toThrow(/no get/);
+  });
+
+  test('an unknown period on the Coaching page is 400', async () => {
+    const out = await call('/coach/teacher/:ext/coaching', { params: { ext: EXT }, query: { period: 'year' } });
+    expect(out.statusCode).toBe(400);
     expect(poolQuery).not.toHaveBeenCalled();
   });
 
@@ -214,6 +228,27 @@ describe('a real answer through the route', () => {
     expect(out.statusCode).toBe(200);
     expect(out.payload).toMatchObject({ success: true, school: { emis: '901', teachers: 0 }, period: { key: 'month' } });
     expect(out.payload.tiles).toHaveLength(4);
+  });
+
+  test('the Coaching page for a teacher in her patch answers 200: summary, chart and one list', async () => {
+    settings.portal_coach_v2 = ['coach-1'];
+    settings.portal_coach_school_card = ['coach-1'];
+    poolQuery = jest.fn(async (sql) => {
+      if (/sc:teacher \*/.test(sql)) return { rows: [{ id: 'u1', phone_number: EXT, name: 'Teacher One', role: 'teacher', school_id: 's1', school_name: 'School One', emis: '901' }] };
+      return { rows: [] };
+    });
+    const out = await call('/coach/teacher/:ext/coaching', { params: { ext: EXT }, query: { period: 'month' } });
+    expect(out.statusCode).toBe(200);
+    expect(out.payload).toMatchObject({
+      success: true,
+      teacher: { teacherExtId: EXT, name: 'Teacher One' },
+      period: { key: 'month' },
+      summary: { dc: { count: 0, avg: null, prevAvg: null }, coach: { count: 0, avg: null, prevAvg: null } },
+      chart: [],
+      items: [],
+    });
+    // the coach the read asks about is the session user
+    expect(poolQuery.mock.calls[0][1][0]).toBe('coach-1');
   });
 });
 
