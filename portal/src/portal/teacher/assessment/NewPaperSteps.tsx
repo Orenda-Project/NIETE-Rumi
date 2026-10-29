@@ -15,6 +15,7 @@ import {
   unseenTotal, type Picks,
 } from './model';
 import { FdeCheck } from './FdeCheck';
+import { StemChips } from './StemChips';
 import { makeErrorText } from './failure';
 import { pagesMessage, stepReason } from './reasons';
 import { ASSESSMENT_V2_BASE, newPaperPath, requestPath } from './paths';
@@ -53,7 +54,7 @@ const changeClass = (p: Picks, grade: number, subject: string | null, name: stri
   const same = p.grade === grade && p.subject === subject;
   // A new class has other chapters and other types: what she picked for the old one goes.
   if (same) return { subjectName: name };
-  const out: Partial<Picks> = { ...clearTopics(p), grade, subject, subjectName: name, chapters: [], ranges: [], typeCounts: {}, typesSeeded: false };
+  const out: Partial<Picks> = { ...clearTopics(p), grade, subject, subjectName: name, chapters: [], ranges: [], typeCounts: {}, typeStems: {}, typesSeeded: false };
   // …and a board pattern picked for the old class (the side door) goes too; the FDE door's intent is decided by the pick.
   return p.style || p.coverBy === 'fde' ? { ...out, coverBy: 'chapters', style: null, pattern: null } : out;
 };
@@ -423,8 +424,13 @@ export function QuestionsStep() {
   const remove = (id: string) => set((cur) => {
     const next = { ...cur.typeCounts };
     delete next[id];
-    return { typeCounts: next };
+    const stems = { ...cur.typeStems };
+    delete stems[id];
+    return { typeCounts: next, typeStems: stems };
   });
+  // bd-6clakk.12 — a topic paper lets her pick the wording of a type's questions; a chapter paper does not.
+  const stemsOf = (id: string) => (p.topicScope === 'topics' ? offered.find((t) => t.id === id)?.stems ?? [] : []);
+  const setStems = (id: string, ids: string[]) => set((cur) => ({ typeStems: { ...cur.typeStems, [id]: ids } }));
   const add = (id: string) => set((cur) => ({ typeCounts: { ...cur.typeCounts, [id]: 1 } }));
 
   const group = (category: 'objective' | 'subjective', name: string) => {
@@ -485,8 +491,8 @@ export function QuestionsStep() {
       <p className={GROUP}>{C.unseenQuestions}</p>
       <ListCard label={C.unseenQuestions}>
         {rows.map(([id, n], i) => (
+          <div key={id}>
           <CountRow
-            key={id}
             first={i === 0}
             name={id}
             ariaName={C.typeCount(id)}
@@ -503,6 +509,17 @@ export function QuestionsStep() {
             moreLabel={C.moreOf(id)}
             testId={`type-count-${id}`}
           />
+          {stemsOf(id).length > 0 && (
+            <StemChips
+              label={C.stemsLabel}
+              groupLabel={C.stemsFor(id)}
+              rumiChooses={C.rumiChooses}
+              stems={stemsOf(id)}
+              picked={p.typeStems?.[id] ?? []}
+              onChange={(ids) => setStems(id, ids)}
+            />
+          )}
+          </div>
         ))}
         <button
           type="button"

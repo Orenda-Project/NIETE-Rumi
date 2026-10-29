@@ -780,6 +780,8 @@ export function generateFailureOf(e: unknown): GenerateFailure | null {
 export type AssessmentQuestionType = {
   id: string;
   category: 'objective' | 'subjective';
+  /** bd-6clakk.12 — the wording she may tick for this type on a topic paper; absent = none offered. */
+  stems?: Array<{ id: string; text: string }>;
 };
 
 export type AssessmentSubject = {
