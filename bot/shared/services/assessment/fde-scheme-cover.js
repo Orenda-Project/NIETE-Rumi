@@ -16,7 +16,7 @@
 const PAPER_NAME = { en: 'the question paper', ur: 'سوالیہ پرچے' }; // ur: needs fluent-Urdu review
 const ORAL = { en: 'Oral', ur: 'زبانی' }; // ur: needs fluent-Urdu review
 
-const LETTERED = /\bsection\b/i;
+const { partName } = require('./fde-part-name');
 
 /** "Covers: …" — the scope's own line, else its label with the line in brackets; one bracket deep, one stop. */
 function coversLine(scope, template, lang) {
@@ -25,13 +25,6 @@ function coversLine(scope, template, lang) {
   const line = String(scope[`line_${lang}`] || '').replace(/[\s.۔]+$/, '');
   const text = !line ? label : (!label || /[()]/.test(line) ? line : `${label} (${line})`);
   return String(template || '').replace('{scope}', text);
-}
-
-/** A part's name: its letter where the paper heads it "Section …", its heading otherwise. */
-function partName(sec, lang) {
-  if (lang === 'ur') return sec.label_ur ? sec.label_ur.replace(/[()]/g, '').replace(/\s*(معروضی|موضوعی)\s*/g, ' ').trim() : sec.id;
-  const label = String(sec.label_en || '').replace(/[\s:.]+$/, '').trim();
-  return !label || LETTERED.test(label) ? sec.id : label;
 }
 
 // "A" → "Section A"; "B", "C" → "Sections B and C"; headings and Urdu labels joined as they are.

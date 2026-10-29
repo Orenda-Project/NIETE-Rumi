@@ -10,6 +10,7 @@
 
 const E = require('../early/chrome');
 const G5 = require('../fde-g5-2027');
+const { midKeyNames } = require('../../fde-mid-legend');
 
 const GRADE_WORD = { 3: { en: 'Grade III', ur: 'جماعت سوم' }, 4: { en: 'Grade IV', ur: 'جماعت چہارم' } };
 
@@ -83,7 +84,7 @@ function makeSubject({ grade, key, medium, name_en, name_ur, tos, sections, word
     },
     sections: built,
     oral: null,
-    legend: E.legendFor(key, false),
+    legend: { ...E.legendFor(key, false), ...midKeyNames(key) },
     before_exam: G5.subjects.english.before_exam,
     supplies: G5.subjects.english.supplies,
     summary_lines: {

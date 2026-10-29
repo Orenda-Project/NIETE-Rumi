@@ -41,6 +41,9 @@ const { situationGiveaways } = require('./fde-situation-check');
 const { oralSentenceRepeats } = require('./fde-oral-sentence-repeats'); // bd-5jmnfj.4.58.4
 const { paperGiveaways } = require('./fde-g5-paper-giveaways'); // MCQ/concept/fraction give-aways (bd-5jmnfj.4.58.4)
 const { stemRepeats } = require('./fde-stem-repeats'); // bd-5jmnfj.33.3: a stem asked twice, a key or its singular in another stem
+const { midMathsRepeats } = require('./fde-mid-maths-repeats'); // bd-5jmnfj.33.4: a G3-4 product or division asked twice, 305 x 7 then 306 x 7
+const { mcqKeyFlags } = require('./fde-maths-slips'); // a multiplication-sentence MCQ keyed to a bare number
+const { conceptRepeats } = require('./fde-concept-repeats'); // bd-5jmnfj.33.4: same key, key in another item, concept tally, same-content stems
 const wordsOf = (s) => String(s == null ? '' : s).normalize('NFC').toLowerCase().match(WORD) || [];
 const optionsOf = (q) => (Array.isArray(q.options) ? q.options : []);
 // "الف) گاجر" -> "گاجر", as fde-early-prompt reads a choice.
@@ -244,8 +247,10 @@ function answerRepeats(examJson) {
       answer.filter((w) => st.has(w)).forEach((w) => flag(q.slot, w, 'oral-answer', excerpt({ question: ask }), false));
     });
   }));
-  situationGiveaways(examJson).concat(nearRepeats(examJson), oralSentenceRepeats(examJson), paperGiveaways(examJson), stemRepeats(examJson)).forEach((f) => f.with.forEach((s, k) => f.words.forEach((w) => flag(f.slot, w, s, f.text[k]))));
-  return [...out.values()];
+  situationGiveaways(examJson).concat(nearRepeats(examJson), oralSentenceRepeats(examJson), paperGiveaways(examJson),
+    stemRepeats(examJson), conceptRepeats(examJson), midMathsRepeats(examJson))
+    .forEach((f) => f.with.forEach((s, k) => f.words.forEach((w) => flag(f.slot, w, s, f.text[k]))));
+  return [...out.values()].concat(mcqKeyFlags(examJson));
 }
 
 /** The flagged slots still giving an answer away once a section has been asked again. */
