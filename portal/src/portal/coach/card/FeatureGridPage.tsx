@@ -8,12 +8,14 @@ import { card } from "./api";
 import { CardOnly, useCardLoad } from "./frame";
 import { aheadLine, bucketLabels, perDayLine, perDayOf, usePeriod, withPeriod } from "./period";
 import { CARD_FEATURES, FEATURE_OF, PeriodChips, TeacherGrid } from "./parts";
+import ScoresByTeacher from "./ScoresByTeacher";
 import type { CardFeature, FeatureGridData } from "./types";
 
 /**
  * One feature of a school by teacher ("Lesson plans by teacher"): a column per school day (This week) or per week (This
  * month), only the totals for Today. The School row adds each column up; teachers with nothing stay in, grey, at the
- * bottom; days still ahead are dashed. A row opens her Teacher page.
+ * bottom; days still ahead are dashed. A row opens her Teacher page. Digital Coaching and Coach observations are scores,
+ * not counts: their address (feature dc | coach) opens ScoresByTeacher.
  */
 function FeatureGrid() {
   const C = useCopy(SCHOOL_CARD);
@@ -55,6 +57,12 @@ function FeatureGrid() {
   );
 }
 
+function FeatureOrScores() {
+  const { emis = "", feature = "" } = useParams();
+  if (feature === "dc" || feature === "coach") return <ScoresByTeacher emis={emis} kind={feature} />;
+  return <FeatureGrid />;
+}
+
 export default function FeatureGridPage() {
-  return <CardOnly><FeatureGrid /></CardOnly>;
+  return <CardOnly><FeatureOrScores /></CardOnly>;
 }

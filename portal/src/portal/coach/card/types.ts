@@ -58,12 +58,54 @@ export type CoachObsTeacher = {
   change: number | null;
 };
 
+/** A scored observation kind: a DC report (AI score) or a coach observation (Coach score, reviewed FICO-form visits only). */
+export type ScoreKind = "dc" | "coach";
+
+/** The school's scores of one kind for the period: count, average (and the period before's), by how many teachers,
+ *  each scored report oldest first, and the average per bucket (null where none). */
+export type SchoolScores = {
+  count: number;
+  avg: number | null;
+  prevAvg: number | null;
+  makers: number;
+  points: { id: string; date: string; score: number; teacherExtId: string | null }[];
+  series: (number | null)[];
+};
+
 export type SchoolCardData = {
   school: { emis: string; name: string; teachers: number; lastVisitDaysAgo: number | null };
   period: Period;
   tiles: ActivityTile[];
   teachers: CardTeacher[];
   coachObservations: { count: number; teachers: CoachObsTeacher[] };
+  scores?: Record<ScoreKind, SchoolScores>;
+};
+
+/** GET /coach/school/:emis/scores/:kind — per teacher, sorted by count then name; teachers with none last. */
+export type SchoolScoresData = {
+  kind: ScoreKind;
+  period: Period;
+  rows: { teacherExtId: string; name: string; count: number; avg: number | null; points: { id: string; date: string; score: number }[] }[];
+  school: { emis: string; name: string; teachers: number; count: number; avg: number | null; makers: number };
+};
+
+/** One practice averaged across her scored reports: on the framework's scale (`scaleMax`) and as a %; `n` reports. */
+export type PracticeAverage = { id: string; name: string; avg: number; pct: number; scaleMax: number; n: number };
+
+/** GET /coach/teacher/:ext/scores/:kind — her DC reports or her coach observations on their own. */
+export type TeacherScoresData = {
+  teacher: { teacherExtId: string; name: string; school: string | null; emis: string | null };
+  period: Period;
+  kind: ScoreKind;
+  count: number;
+  avg: number | null;
+  prevAvg: number | null;
+  series: { id: string; date: string; score: number }[];
+  /** B C D F in order. `avg`: the mean of its practices' averages, null = Not scored (B: no plan assessed). `scoredIn`:
+   *  how many of her scored reports scored the section. */
+  sections: { code: string; name: string; avg: number | null; scoredIn: number; indicators: PracticeAverage[] }[];
+  /** Newest first. `title`: the report's topic or real lesson label, else null. `score` null: not reviewed or field form. */
+  reports: { id: string; date: string; grade: string | number | null; subject: string | null; title: string | null; score: number | null; form: "v3" | "observe2" | null; coachName: string | null }[];
 };
 
 export type GridRow = { teacherExtId: string; name: string; cells: (number | null)[]; total: number };
@@ -94,9 +136,10 @@ export type TeacherCardData = {
     lp: { count: number | null; series: (number | null)[] };
     papers: { count: number | null; series: (number | null)[] };
     training: { parts: number | null; courses: number | null; series: (number | null)[] };
-    days: { withUse: number | null; schoolDays: number | null };
+    /** `used`: the school days (YYYY-MM-DD) she used NIETE, one dot each. */
+    days: { withUse: number | null; schoolDays: number | null; used?: string[] };
   };
-  /** The Coaching card: the same summary and chart as the Coaching page. */
+  /** Her Digital Coaching and Coach observations tiles: count, average and the period before's. */
   summary: CoachingSummary;
   chart: ChartPoint[];
 };
@@ -113,35 +156,12 @@ export type ItemsData = {
 
 export type SectionScores = { B: number | null; C: number | null; D: number | null; F: number | null };
 
-/**
- * One row of the Coaching list: a DC report (opens its report) or a coach visit (information only).
- * `title`: the report's own lesson label, or null (the page writes "<Subject> lesson"). `quote`: the step she took away
- * (a DC report: the next step as she received it; a visit: the step agreed). `form`: "observe2" for a visit on the field
- * form (counted, never scored with the others).
- */
-export type CoachingItem = {
-  kind: "dc" | "coach";
-  id: string;
-  date: string;
-  grade: string | number | null;
-  subject: string | null;
-  title: string | null;
-  score: number | null;
-  quote: string | null;
-  sections: SectionScores;
-  coachName: string | null;
-  form?: "v3" | "observe2" | null;
-};
-
-export type CoachingData = {
-  teacher: TeacherCardData["teacher"];
-  period: Period;
-  summary: CoachingSummary;
-  chart: ChartPoint[];
-  items: CoachingItem[];
-};
-
 export type SessionReportData = {
+  /** "coach": a coach observation (its scores show once `reviewed`; `nextStep` is the step agreed). */
+  kind?: ScoreKind;
+  coachName?: string | null;
+  form?: "v3" | "observe2" | null;
+  reviewed?: boolean;
   teacher: { teacherExtId: string; name: string };
   date: string;
   grade: string | number | null;

@@ -41,7 +41,7 @@ let loaded: Promise<unknown[]> | null = null;
 export function loadApp() {
   loaded ??= Promise.all([
     import("../training/CoachAppGuard"), import("./CoachLanding"), import("../pages/CoachPeople"), import("../pages/CoachSchool"),
-    import("../pages/CoachTeacher"), import("./FeatureGridPage"), import("./HerItemsPage"), import("./CoachingPage"), import("./CoachingRedirect"),
+    import("../pages/CoachTeacher"), import("./FeatureGridPage"), import("./HerItemsPage"), import("./TeacherScoresPage"), import("./CoachingRedirect"),
     import("./SessionReportPage"),
   ]);
   return loaded;
@@ -52,7 +52,7 @@ type Page = { default: () => JSX.Element };
 /** The coach app's routes that matter here, as App.tsx has them. */
 export async function renderApp(entry: string, lang: "en" | "ur" = "en") {
   const [{ default: CoachAppGuard }, { default: CoachLanding }, { default: CoachPeople }, { default: CoachSchool }, { default: CoachTeacher },
-    { default: FeatureGridPage }, { default: HerItemsPage }, { default: CoachingPage }, { default: CoachingRedirect }, { default: SessionReportPage }] =
+    { default: FeatureGridPage }, { default: HerItemsPage }, { default: TeacherScoresPage }, { default: CoachingRedirect }, { default: SessionReportPage }] =
     (await loadApp()) as [{ default: (p: { children: React.ReactNode }) => JSX.Element }, Page, Page, Page, Page, Page, Page, Page, Page, Page];
   if (!i18n.isInitialized) await i18n.init({ lng: lang, resources: {} });
   await act(async () => { await i18n.changeLanguage(lang); });
@@ -71,7 +71,9 @@ export async function renderApp(entry: string, lang: "en" | "ur" = "en") {
             <Route path="/portal/coach/teacher/:ext/items/:feature" element={<HerItemsPage />} />
             <Route path="/portal/coach/teacher/:ext/items/dc" element={<CoachingRedirect />} />
             <Route path="/portal/coach/teacher/:ext/items/coach" element={<CoachingRedirect />} />
-            <Route path="/portal/coach/teacher/:ext/coaching" element={<CoachingPage />} />
+            <Route path="/portal/coach/teacher/:ext/dc" element={<TeacherScoresPage />} />
+            <Route path="/portal/coach/teacher/:ext/observations" element={<TeacherScoresPage />} />
+            <Route path="/portal/coach/teacher/:ext/coaching" element={<CoachingRedirect />} />
             <Route path="/portal/coach/teacher/:ext/reports" element={<CoachingRedirect />} />
             <Route path="/portal/coach/session/:id" element={<SessionReportPage />} />
             <Route path="/portal/coach/training" element={<p data-testid="training">Training Library page</p>} />

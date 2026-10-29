@@ -2,7 +2,7 @@
  * Made-up answers in the School card API's shapes, for the tests only (never imported by the app). Every name, code and
  * number is invented. "Today" is Wednesday 28 October 2026: This week has three school days so far, Thu and Fri ahead.
  */
-import type { Bucket, CoachingData, CoachingSummary, FeatureGridData, ItemsData, Period, SchoolCardData, SessionReportData, TeacherCardData } from "./types";
+import type { Bucket, CoachingSummary, FeatureGridData, ItemsData, Period, SchoolCardData, SchoolScoresData, ScoreKind, SessionReportData, TeacherCardData, TeacherScoresData } from "./types";
 
 export const EMIS = "E-900";
 export const EXT = "900000000001";
@@ -53,6 +53,15 @@ export function schoolCard(period: Period = WEEK): SchoolCardData {
         contributionPct: total > 0 ? Math.round((total / totalAll) * 100) : null, star: i < 2, lastVisitDaysAgo: i === 9 ? null : i + 1,
       };
     }),
+    scores: period.key === "today"
+      ? {
+        dc: { count: 0, avg: null, prevAvg: null, makers: 0, points: [], series: [] },
+        coach: { count: 0, avg: null, prevAvg: null, makers: 0, points: [], series: [] },
+      }
+      : {
+        dc: { count: 4, avg: 66, prevAvg: 61, makers: 3, points: [], series: period.key === "month" ? [null, 58, 63, 60, 66] : [60, 70, 74, null, null] },
+        coach: { count: 2, avg: 68, prevAvg: null, makers: 2, points: [], series: period.key === "month" ? [null, null, 62, null, 68] : [71, 64, null, null, null] },
+      },
     coachObservations: {
       count: 3,
       teachers: [
@@ -89,35 +98,77 @@ export function teacherCard(period: Period = WEEK): TeacherCardData {
       lp: { count: 6, series: [2, 2, 2, null, null] },
       papers: { count: 2, series: [1, 0, 1, null, null] },
       training: { parts: 2, courses: 1, series: [0, 2, 0, null, null] },
-      days: { withUse: 3, schoolDays: 3 },
+      days: { withUse: 2, schoolDays: period.schoolDaysSoFar, used: ["2026-10-26", "2026-10-28"] },
     },
     summary: COACHING_SUMMARY,
     chart: CHART,
   };
 }
 
-/** The Coaching page, as the server sends it: newest first, both kinds mixed. */
-export function coaching(period: Period = WEEK): CoachingData {
+/** Her Digital Coaching or Coach observations page: count, average, each scored report, practice averages, her reports. */
+export function teacherScores(kind: ScoreKind, period: Period = WEEK): TeacherScoresData {
+  const dc = kind === "dc";
+  const reports: TeacherScoresData["reports"] = dc
+    ? [
+      // No topic and no real lesson label: the page titles it "Math lesson".
+      { id: "s-101", date: "2026-10-28", grade: "3", subject: "Mathematics", title: null, score: 67, form: null, coachName: null },
+      { id: SESSION, date: "2026-10-26", grade: "3", subject: "Mathematics", title: "Types of Fractions", score: 58, form: null, coachName: null },
+    ]
+    : [
+      { id: "v-1", date: "2026-10-27", grade: "4", subject: "English", title: "Unitary Method", score: 60, form: "v3", coachName: "Coach Zulu" },
+      // the field form: counted and listed, never averaged
+      { id: "v-2", date: "2026-10-26", grade: "4", subject: "English", title: null, score: null, form: "observe2", coachName: "Coach Zulu" },
+    ];
   return {
     teacher: { teacherExtId: EXT, name: NAMES[0], school: "Model School Nine", emis: EMIS },
     period,
-    summary: COACHING_SUMMARY,
-    chart: CHART,
-    items: [
-      // No topic and no real lesson label: the page titles it "Math lesson".
-      { kind: "dc", id: "s-101", date: "2026-10-28", grade: "3", subject: "Mathematics", title: null, score: 67, quote: "Give students two minutes to talk in pairs.", sections: { B: 73, C: 65, D: 54, F: 79 }, coachName: null, form: null },
-      { kind: "coach", id: "v-1", date: "2026-10-27", grade: "4", subject: "English", title: "Unitary Method", score: 60, quote: "Use pair talk once in every lesson this week.", sections: { B: 56, C: 54, D: 48, F: 74 }, coachName: "Coach Zulu", form: "v3" },
-      { kind: "dc", id: SESSION, date: "2026-10-26", grade: "3", subject: "Mathematics", title: "Fractions · Halves", score: 58, quote: "Call on children in the back rows by name.", sections: { B: null, C: 63, D: 57, F: 75 }, coachName: null, form: null },
-      // The field form: counted and listed, no score, no sections.
-      { kind: "coach", id: "v-2", date: "2026-10-26", grade: "4", subject: "English", title: null, score: null, quote: null, sections: { B: null, C: null, D: null, F: null }, coachName: "Coach Zulu", form: "observe2" },
+    kind,
+    count: reports.length,
+    avg: dc ? 63 : 60,
+    prevAvg: dc ? 57 : null,
+    series: reports.filter((r) => r.score != null).map((r) => ({ id: r.id, date: r.date, score: r.score as number })).reverse(),
+    sections: [
+      // B: the plan was assessed in one of the two reports (DC); never for the coach
+      dc
+        ? { code: "B", name: "Lesson Plan Fidelity", avg: 1.5, scoredIn: 1, indicators: [{ id: "B1", name: "Instructional Clarity & Learning Objectives", avg: 1.5, pct: 75, scaleMax: 2, n: 1 }] }
+        : { code: "B", name: "Lesson Plan Fidelity", avg: null, scoredIn: 0, indicators: [] },
+      { code: "C", name: "High-Leverage Practices", avg: 1.2, scoredIn: dc ? 2 : 1, indicators: [
+        { id: "C1", name: "Quality Questioning (Bloom's Aligned)", avg: 1.4, pct: 70, scaleMax: 2, n: dc ? 2 : 1 },
+        { id: "C2", name: "Responsive Re-explanation & Adaptive Teaching", avg: 1, pct: 50, scaleMax: 2, n: dc ? 2 : 1 },
+      ] },
+      { code: "D", name: "Student Engagement", avg: 0.8, scoredIn: dc ? 2 : 1, indicators: [{ id: "D1", name: "Diversity of Conceptual Expression", avg: 0.8, pct: 40, scaleMax: 2, n: dc ? 2 : 1 }] },
+      { code: "F", name: "Teacher Subject Knowledge", avg: 1.6, scoredIn: dc ? 2 : 1, indicators: [{ id: "F1", name: "Content Accuracy", avg: 1.6, pct: 80, scaleMax: 2, n: dc ? 2 : 1 }] },
     ],
+    reports,
   };
 }
-export const NO_COACHING: CoachingData = {
-  ...coaching(TODAY),
-  summary: { dc: { count: 0, avg: null, prevAvg: null }, coach: { count: 0, avg: null, prevAvg: null } },
-  chart: [],
-  items: [],
+export const NO_SCORES = (kind: ScoreKind): TeacherScoresData => ({ ...teacherScores(kind, TODAY), count: 0, avg: null, prevAvg: null, series: [], sections: [], reports: [] });
+
+/** The school's Digital Coaching (or Coach observations) by teacher, sorted by count, then average. */
+export function schoolScores(kind: ScoreKind, period: Period = WEEK): SchoolScoresData {
+  return {
+    kind,
+    period,
+    rows: [
+      { teacherExtId: ext(0), name: NAMES[0], count: 2, avg: 68, points: [{ id: "s-1", date: "2026-10-26", score: 61 }, { id: "s-2", date: "2026-10-28", score: 74 }] },
+      { teacherExtId: ext(1), name: NAMES[1], count: 1, avg: 70, points: [{ id: "s-3", date: "2026-10-27", score: 70 }] },
+      { teacherExtId: ext(2), name: NAMES[2], count: 0, avg: null, points: [] },
+    ],
+    school: { emis: EMIS, name: "Model School Nine", teachers: 3, count: 3, avg: 69, makers: 2 },
+  };
+}
+
+/** A coach observation in the report view (any coach; reviewed). */
+export const VISIT_REPORT: SessionReportData = {
+  kind: "coach", coachName: "Coach Zulu", form: "v3", reviewed: true,
+  teacher: { teacherExtId: EXT, name: NAMES[0] },
+  date: "2026-10-27", grade: 4, subject: "English", overall: 60,
+  whatWentWell: ["Clear instructions for the pair task."],
+  nextStep: "Use pair talk once in every lesson this week.",
+  sections: [{ code: "B", name: "Lesson Plan Fidelity", pct: 56 }, { code: "C", name: "High-Leverage Practices", pct: 54 }],
+  practices: [{ id: "C1", name: "Quality Questioning", section: "C", score: 1, scaleMax: 2 }],
+  lpSteps: null,
+  reflection: [],
 };
 
 export const TRAINING_ITEMS: ItemsData = {
@@ -125,6 +176,7 @@ export const TRAINING_ITEMS: ItemsData = {
 };
 
 export const SESSION_REPORT: SessionReportData = {
+  kind: "dc", coachName: null, form: null, reviewed: true,
   teacher: { teacherExtId: EXT, name: NAMES[0] },
   date: "2026-10-26", grade: 3, subject: "Mathematics", overall: 67,
   whatWentWell: ["You explained halves and quarters correctly."],

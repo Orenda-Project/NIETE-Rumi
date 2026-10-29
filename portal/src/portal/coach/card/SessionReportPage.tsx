@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { CalendarDays, Check, Minus, X } from "lucide-react";
+import { CalendarDays, Check, Minus, Users, X } from "lucide-react";
 import { PageChip } from "../../teacher/TeacherPage";
 import { ScoreRing } from "../../teacher/ui";
 import { useCopy } from "../../teacher/i18n";
@@ -50,7 +50,7 @@ function SessionReport() {
   const C = useCopy(SCHOOL_CARD);
   const kit = useKitCopy();
   const { id = "" } = useParams();
-  // Opened from her Coaching page, which passes its period on: Back returns to that page and period.
+  // Opened from her Digital Coaching or Coach observations page, which passes its period on: Back returns there.
   const [period] = usePeriod();
   const { data, failed, reload } = useCardLoad<SessionReportData>(() => card.session(id), [id]);
   const today = pkDate(new Date().toISOString()) ?? undefined;
@@ -61,14 +61,21 @@ function SessionReport() {
   const stepsDone = judged.filter((s) => verdictOf(s.verdict) === "done").length;
   const grade = data?.grade != null && String(data.grade).trim() !== "" ? kit.grade(String(data.grade)) : "";
   const klass = [grade, data?.subject || ""].filter(Boolean);
+  // A coach observation (design v9): the Coach score, her coach, the step agreed; Back to her Coach observations.
+  const visit = data?.kind === "coach";
+  const scoreWord = visit ? C.coachScore : C.aiScore;
 
   return (
-    <PeopleFrame title={C.report} crumb={data?.teacher?.name || undefined} feature="coaching"
-      backTo={data?.teacher?.teacherExtId ? withPeriod(`/portal/coach/teacher/${encodeURIComponent(data.teacher.teacherExtId)}/coaching`, period) : "/portal/coach/people"}
+    <PeopleFrame title={C.report} crumb={data?.teacher?.name || undefined} feature={visit ? "observations" : "coaching"}
+      backTo={data?.teacher?.teacherExtId
+        ? withPeriod(`/portal/coach/teacher/${encodeURIComponent(data.teacher.teacherExtId)}/${visit ? "observations" : "dc"}`, period)
+        : "/portal/coach/people"}
       chips={data ? (
         <>
           <PageChip><CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />{dayLabel(data.date, today, C)}</PageChip>
           {klass.length > 0 && <PageChip>{klass.length === 2 ? C.gradeSubject(klass[0], klass[1]) : klass[0]}</PageChip>}
+          {visit && data.coachName && <PageChip testId="report-coach"><Users className="h-3.5 w-3.5" aria-hidden="true" /><bdi>{data.coachName}</bdi></PageChip>}
+          {visit && data.form === "observe2" && <PageChip>{C.fieldForm}</PageChip>}
           <span data-testid="coach-view" className="inline-flex h-[30px] items-center rounded-full bg-[#33374a] px-3 text-[13px] font-semibold text-white">{C.coachView}</span>
         </>
       ) : undefined}>
@@ -77,10 +84,10 @@ function SessionReport() {
       {data && (
         <>
           <Card className="flex items-center gap-4 p-4">
-            <ScoreRing value={data.overall} label={C.aiScore} size={84} />
+            <ScoreRing value={data.overall} label={scoreWord} size={84} />
             <span className="flex flex-col gap-1">
               <b data-testid="overall" dir="ltr" className="self-start text-[22px] font-bold tabular-nums">{C.pct(data.overall)}</b>
-              <span className="text-[15px] font-semibold text-[#4b5563]">{C.aiScore}</span>
+              <span className="text-[15px] font-semibold text-[#4b5563]">{scoreWord}</span>
             </span>
           </Card>
 
@@ -95,7 +102,7 @@ function SessionReport() {
 
           {data.nextStep && (
             <>
-              <SectionLabel>{C.nextStep}</SectionLabel>
+              <SectionLabel>{visit ? C.stepAgreed : C.nextStep}</SectionLabel>
               <section data-testid="next-step" className={`${LIST} p-4`}>
                 <span className="block border-s-[3px] border-[#c2410c] ps-3 text-[16px] leading-[1.5] rtl:leading-[1.95]"><Quote>{data.nextStep}</Quote></span>
               </section>
