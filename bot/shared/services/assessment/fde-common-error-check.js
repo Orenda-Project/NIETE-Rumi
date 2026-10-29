@@ -28,6 +28,7 @@ const DECIMAL = /\b(?:lin(?:e|es|ing)\s+up|align\w*)\s+the\s+decimal/i;
 const MUL_AT = /(?<![\d.,])(\d+(?:,\d{3})*)\s*(?:x|×|\*)\s*(\d+(?:,\d{3})*)(?![\d.,]\d)/i;
 const COLUMN_NAMES = ['ones', 'tens', 'hundreds', 'thousands', 'ten thousands'];
 const IN_COLUMNS = /\bin\s+the\s+((?:ones|tens|hundreds|thousands)(?:\s*(?:,|\bor\b|\band\b)\s*(?:the\s+)?(?:ones|tens|hundreds|thousands))*)/i;
+const SUM = /(?<![\d.,])(\d+)\s*\+\s*(\d+)(?![\d.,]\d)/;
 
 const figuresOf = (list) => (list.match(new RegExp(NUM, 'g')) || []).map((n) => n.replace(/,/g, ''));
 const sameList = (a, b) => a.length === b.length && a.every((x, i) => Number(x) === Number(b[i]));
@@ -114,15 +115,20 @@ function putFigure(s, fig, to) {
   s.common_error = s.common_error.slice(0, start) + to + s.common_error.slice(start + fig[2].length);
 }
 const likeCommas = (n, like) => (/\d,\d{3}/.test(like) ? Number(n).toLocaleString('en-US') : String(n));
-const mulAt = (q) => MUL_AT.exec(String(q.answer ?? '')) || MUL_AT.exec(String(q.question ?? ''));
+// The stem's multiplication first: an answer's working ("2 x 4 = 8, plus 2") is a step, not the sum (bd-5jmnfj.33.3).
+const mulAt = (q) => MUL_AT.exec(String(q.question ?? '')) || MUL_AT.exec(String(q.answer ?? ''));
 
-/** "58 x 7 … giving 351": a one-digit multiplier's dropped carry. Only a figure no carry slip gives is replaced. */
+/**
+ * "58 x 7 … giving 351": a one-digit multiplier's dropped carry. Only a figure no carry slip gives is replaced;
+ * a carry error on a sum with nothing to carry ("92 x 4 … giving 3608") is dropped (bd-5jmnfj.33.3).
+ */
 function fixMulCarry(q, s) {
   const at = mulAt(q);
   if (!at || at[2].replace(/,/g, '').length !== 1) return;
   const { slips, all, carrying } = mulCarrySlips(at[1], at[2]);
   const fig = slipFigures(s.common_error);
-  if (!carrying.length || !fig) return;
+  if (!fig) return;
+  if (!carrying.length) { s.common_error = ''; return; }
   if (!figuresOf(fig[2]).every((f) => slips.has(Number(f)))) putFigure(s, fig, likeCommas(all, at[1]));
 }
 
@@ -141,8 +147,7 @@ function fixZeroTens(q, s) {
 
 /** Returns true when the item is a written sum a + b (handled here), false when it is not one. */
 function fixCarry(q, s) {
-  const sum = /(?<![\d.,])(\d+)\s*\+\s*(\d+)(?![\d.,]\d)/;
-  const at = sum.exec(String(q.answer ?? '')) || sum.exec(String(q.question ?? ''));
+  const at = SUM.exec(String(q.answer ?? '')) || SUM.exec(String(q.question ?? ''));
   if (!at) return false;
   const { slips, all, carrying } = carrySlips(at[1], at[2]);
   if (!carrying.length) return true;
@@ -196,7 +201,12 @@ function checkCommonError(q) {
         s.common_error = error.slice(0, start) + slip.join(', ') + error.slice(start + fig[2].length);
       }
     } else if (ZERO_TENS.test(error)) fixZeroTens(q, s);
-    else if (CARRY.test(error)) { if (!fixCarry(q, s)) fixMulCarry(q, s); }
+    else if (CARRY.test(error)) {
+      // A stem that multiplies and adds nothing is a product: its answer's "27 + 27 + 27 + 27" is working (bd-5jmnfj.33.3).
+      const stem = String(q.question ?? '');
+      if (MUL_AT.test(stem) && !SUM.test(stem)) fixMulCarry(q, s);
+      else if (!fixCarry(q, s)) fixMulCarry(q, s);
+    }
     else if (DECIMAL.test(error) && !/misplac/i.test(error)) fixDecimal(q, s);
   } catch (_) {
     // A shape nothing above expected: leave the error as it was.

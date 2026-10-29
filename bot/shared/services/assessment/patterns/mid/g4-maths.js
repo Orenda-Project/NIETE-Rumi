@@ -9,7 +9,7 @@ const { makeSubject } = require('./chrome');
 
 const NS = 'No story or word problem: bare numbers and figures-free wording only.';
 const S = (o) => ({ marks_each: 1, ...o, prompt_rule: `${o.prompt_rule} ${NS}` });
-const SCHEME5 = 'Scheme (5): M 3 for the method steps, A 1 for the correct answer, U 1 for the unit or a check.';
+const SCHEME5 = 'Scheme (5): M 3 for the method steps, A 1 for the correct answer, U 1 for the unit or the statement; a check is paid only where the stem asks for one.';
 
 module.exports = makeSubject({
   grade: 4,
@@ -40,7 +40,7 @@ module.exports = makeSubject({
       slots: [
         S({ slot: 'g4.maths.B.short', label_en: 'Q3.', type: 'Short Response', generate: 4, attempt: 3, marks_each: 5, lines: 6,
           instruction_en: 'Answer any three questions.',
-          prompt_rule: `Four calculation questions from the chosen chapter only, each needing 2 to 4 steps with working shown. Answer: the working and the result. ${SCHEME5}` }),
+          prompt_rule: `Four calculation questions from the chosen chapter only, each needing 2 to 4 steps with working shown. Answer: the working and the result. ${SCHEME5} A division method point names the digits actually used first. No two items share a multiplier or the same shape.` }),
         { slot: 'g4.maths.B.word_problem', label_en: 'Q4.', type: 'Word Problem', generate: 2, attempt: 1, marks_each: 5, lines: 6, word_problems: 2,
           instruction_en: 'Solve any one problem.',
           prompt_rule: `Two word problems, each a short everyday story (shop, school, travel, garden) from the chosen chapter's skill, numbers matching the chapter. The only slots on the paper that may carry a story. Answer: the number sentence, the working and the answer with its unit. ${SCHEME5}` },
@@ -53,7 +53,7 @@ module.exports = makeSubject({
       slots: [
         S({ slot: 'g4.maths.C.extended', label_en: 'Q5.', type: 'Extended Response', generate: 3, attempt: 2, marks_each: 5, lines: 8,
           instruction_en: 'Answer any two questions.',
-          prompt_rule: `Three multi-step questions from the chosen chapter only, harder than Q3: a chain of two skills, or find and explain; three different skills, none the shape of a Q3 item. Answer: full working and the result. ${SCHEME5}` }),
+          prompt_rule: `Three multi-step questions from the chosen chapter only, harder than Q3: a chain of two skills, or find and explain; three different skills, none the shape of a Q3 item. Answer: full working and the result. ${SCHEME5} No two items share a multiplier or the same shape.` }),
       ],
     },
   ],
