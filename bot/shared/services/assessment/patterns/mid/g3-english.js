@@ -40,7 +40,7 @@ module.exports = makeSubject({
           prompt_rule: 'Five who, what, where or why questions on the chapter\'s text. Answer: one or two short sentences. Scheme: K 1 per idea, 2 in all.' },
         S({ slot: 'g3.english.B.sentences', label_en: 'Q4.', type: 'Use Words in Sentences', generate: 5, lines: 2,
           instruction_en: 'Use each word in a sentence of your own.',
-          prompt_rule: 'Five single words from the chapter\'s vocabulary, one per item, in "question"; the stem is the word alone. Answer: one model sentence that uses the word correctly. Scheme: A 1 for a correct sentence that shows the word\'s meaning.' }),
+          prompt_rule: 'Five single words from the chapter\'s vocabulary, one per item, in "question"; the stem is the word alone. Answer: one model sentence that uses the word correctly. Scheme: A 1 for a correct sentence that shows the word\'s meaning. The words are never words a Section A item tests or defines.' }),
       ],
     },
     {
