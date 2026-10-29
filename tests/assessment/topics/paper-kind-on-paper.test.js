@@ -10,6 +10,7 @@ jest.mock('../../../bot/shared/services/assessment/book-content.service', () => 
   loadPageRangeContent: jest.fn(async () => ({ content: 'text', pageReference: '58-59' })),
 }));
 jest.mock('../../../bot/shared/services/assessment/assessment-generation.service', () => ({
+  generateTopicOral: jest.fn(async () => null),
   generateExam: jest.fn(async () => ({
     examJson: { unseen: { objective: { MCQs: [{ question: 'q', marks: 1 }] } } }, questionCount: 4,
     tokenData: { inputTokens: 1, outputTokens: 1, model: 'm' },
