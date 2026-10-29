@@ -87,8 +87,33 @@ function oralSheet(oral, ctx) {
     + `<div class="oral-note">${t(oral[`note_${lang}`])}</div>${tasks}${gridBlock(oral, lang, t, w)}</section>`;
 }
 
+/**
+ * The child's reading card (bd-5jmnfj.4.58.3): the read-aloud tasks' words or script alone, large, on a page of
+ * their own, so the child reads from a card and never from the teacher's sheet with its answers (v27 G1/G2 Urdu).
+ * '' when the paper has no oral part or no read-aloud task.
+ */
+function childCard(oral, ctx) {
+  if (!oral) return '';
+  const tasks = (oral.tasks || []).filter((task) => task && task.kind === 'read_aloud');
+  if (!tasks.length) return '';
+  const lang = ctx.medium === 'ur' ? 'ur' : 'en';
+  const t = ctx.text;
+  const blocks = tasks.map((task) => {
+    const c = (oral.content || []).find((x) => x && x.id === task.id) || {};
+    const body = c.script ? `<div class="card-script">${t(onceEach(c.script))}</div>`
+      : `<div class="card-words">${(c.items || []).filter((it) => it && it.ask).map((it) => `<span>${t(it.ask)}</span>`).join('')}</div>`;
+    return `<div class="card-task" data-task="${task.id}"><div class="card-head">${t(task[`label_${lang}`])}</div>${body}</div>`;
+  });
+  return `<section class="oral-card">${blocks.join('')}</section>`;
+}
+
 const ORAL_CSS = `
   section.oral { break-before: page; }
+  section.oral-card { break-before: page; font-size: 22pt; line-height: 1.9; text-align: center; }
+  .card-task { margin-bottom: 10mm; }
+  .card-head { font-weight: 700; font-size: 0.75em; margin: 6px 0 10px; }
+  .card-words span { display: inline-block; margin: 4px 14px; }
+  .card-script { white-space: pre-line; text-align: start; }
   .oral-title { text-align: center; font-weight: 700; font-size: 1.15em; margin-bottom: 4px; }
   .oral-note { border: 1px solid #000; padding: 4px 8px; margin-bottom: 8px; }
   .oral-task { border-top: 1px solid #000; padding: 4px 0 6px; break-inside: avoid; }
@@ -106,4 +131,4 @@ const ORAL_CSS = `
   .oral-grid tr.child td { height: 7mm; }
 `;
 
-module.exports = { oralSheet, ORAL_CSS };
+module.exports = { oralSheet, childCard, ORAL_CSS };

@@ -186,6 +186,14 @@ function answerRepeats(examJson) {
       if (j > i) flag(o.slot, w, q.slot, excerpt(q), seen); else flag(q.slot, w, o.slot, excerpt(o), seen);
     });
   }));
+  // v27 G1/G2 Urdu (bd-5jmnfj.4.58.3): a word the child reads aloud from the card and then meets printed in a stem, an
+  // option or a key is read twice. Every read-aloud word is checked against each item's print and key, not only the keys.
+  const readAloud = [...new Set(sheet.filter((x) => x.readAloud).flatMap(({ c }) => (c.items || []).flatMap((it) => wordsOf(it && it.ask)))
+    .filter((w) => [...w].length >= 3 && !FUNCTION_WORDS.has(w) && !GENERIC.has(w)))];
+  readAloud.forEach((w) => list.forEach((q, j) => {
+    const inPrint = printed[j].has(w, true) || (ARABIC.test(w) && urduPrinted[j].has(urduStem(w)));
+    if (inPrint || (keys[j] && stem(keys[j]) === stem(w))) flag(q.slot, w, 'oral', 'the oral sheet', false);
+  }));
   // A written item asking a heard oral item's question, keyed with that item's answer, is the same question twice.
   sheet.filter((x) => x.heard).forEach(({ c }) => (c.items || []).forEach((it) => {
     const ask = wordsOf(it && it.ask).filter((w) => [...w].length >= 3 && !FUNCTION_WORDS.has(w));

@@ -20,6 +20,7 @@ describe('supplementary angles (Maths)', () => {
   });
 
   test('the missing-angle item keeps its wording in words (not removed with Q4 change)', () => {
-    expect(slot('maths.C.Q4-8').prompt_rule).toMatch(/Two angles are supplementary/);
+    // The example pair moved off supplementary so Q8 no longer repeats Q4 ii (v28, bd-5jmnfj.4.58.3); the item is still asked in words.
+    expect(slot('maths.C.Q4-8').prompt_rule).toMatch(/a missing angle stated in WORDS[^.]*\("Two angles together make a right angle/);
   });
 });
